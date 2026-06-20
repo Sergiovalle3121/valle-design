@@ -114,6 +114,32 @@ interface Ncr {
   createdAt: string;
   updatedAt: string;
 }
+// Surtido a línea (e-kanban). A staging line is one part the materialist must
+// stage at a station for a WO; a replenish call is raised when a line is short.
+type StagingStatus = 'PENDING' | 'STAGED' | 'SHORTAGE';
+interface StagingLine {
+  id: string;
+  woId: string;
+  station: string;
+  sequence: number;
+  part: string;
+  requiredQty: number;
+  stagedQty: number;
+  minQty: number;
+  status: StagingStatus;
+  feederPosition: string | null;
+}
+interface ReplenishCall {
+  id: string;
+  woFolio: string | null;
+  station: string;
+  part: string;
+  qty: number;
+  priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
+  status: 'OPEN' | 'IN_TRANSIT' | 'DELIVERED' | 'CANCELLED';
+  reason: string | null;
+  raisedAt: string | null;
+}
 
 export interface MockState {
   models: ProductModel[];
@@ -123,7 +149,10 @@ export interface MockState {
   plans: Plan[];
   workOrders: WorkOrder[];
   ncrs: Ncr[];
-  seq: { model: number; bom: number; comp: number; plan: number; wo: number; folio: number; ncr: number };
+  // Surtido a línea: lines per WO + the replenishment calls a shortage raises.
+  staging: Map<string, StagingLine[]>;
+  replenish: ReplenishCall[];
+  seq: { model: number; bom: number; comp: number; plan: number; wo: number; folio: number; ncr: number; stg: number; call: number };
 }
 
 export interface MockOptions {
@@ -132,6 +161,7 @@ export interface MockOptions {
 }
 
 const NOW = () => new Date().toISOString();
+const round2 = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
 
 // 1x1 transparent PNG — lets visualAidUrl render as a real <img>.
 const PNG_1x1 = Buffer.from(
@@ -185,7 +215,9 @@ function seedState(opts: MockOptions): MockState {
     plans: [],
     workOrders: [],
     ncrs: [],
-    seq: { model: 1, bom: 9001, comp: 8001, plan: 1, wo: 1, folio: 1, ncr: 1 },
+    staging: new Map(),
+    replenish: [],
+    seq: { model: 1, bom: 9001, comp: 8001, plan: 1, wo: 1, folio: 1, ncr: 1, stg: 0, call: 0 },
   };
 
   if (opts.seedWorkOrder) {
@@ -234,11 +266,42 @@ function planKpis(state: MockState) {
  * Build the operator-terminal context for a given WO + station. Always returns
  * a non-null station with a .png visual aid so the "Paso N · EST" badge and the
  * visual-aid <img> both render.
+ *
+ * The station's expected part and "Material en línea" are derived from the WO's
+ * model BOM and the live surtido (staging) state, so the terminal reflects what
+ * the warehouse actually staged: if a line was flagged short, the operator sees
+ * SHORTAGE (red) and is blocked — this is how the warehouse → operator leg of
+ * the end-to-end flow stays connected (no hard-coded material).
  */
 function operatorContext(state: MockState, woId: string, station: string) {
   const wo = state.workOrders.find((w) => w.id === woId) || state.workOrders[0];
   const model = wo?.model || 'AX-1000';
   const revision = wo?.revision || 'A';
+  const bom = state.boms.find((b) => b.model === model) || null;
+  const comps = bom?.components ?? [];
+  const lines = (wo ? state.staging.get(wo.id) : undefined) ?? [];
+
+  // The station consumes one part: prefer whatever the warehouse flagged short
+  // (so the operator sees the actual blocker), else the last BOM component, else
+  // a safe default that keeps the seeded golden-path specs green.
+  const shortLine = lines.find((l) => l.status === 'SHORTAGE') || null;
+  const expectedPart =
+    shortLine?.part || comps[comps.length - 1]?.componentNumber || 'CMP-1';
+
+  const line = lines.find((l) => l.part === expectedPart) || null;
+  const comp = comps.find((c) => c.componentNumber === expectedPart) || null;
+  const requiredQty =
+    line?.requiredQty ?? (comp ? round2(comp.quantity * (wo?.quantityPlanned ?? 1)) : 2);
+  const material = {
+    part: expectedPart,
+    requiredQty,
+    stagedQty: line?.stagedQty ?? 0,
+    // Before the materialist stages anything there is no line yet → PENDING (not
+    // a shortage). A shortage only appears once the warehouse flags it.
+    status: line?.status ?? 'PENDING',
+  };
+  const isShort = material.status === 'SHORTAGE';
+
   return {
     workOrder: {
       id: wo?.id || woId,
@@ -256,17 +319,36 @@ function operatorContext(state: MockState, woId: string, station: string) {
     station: {
       station: station || 'EST-10',
       sequence: 1,
-      npExpected: 'CMP-1',
+      npExpected: expectedPart,
       useFactor: 1,
       stdTimeSec: 45,
       visualAidUrl: `${API_ORIGIN}/visual-aids/file/step-1.png`,
       ctq: false,
     },
-    material: { part: 'CMP-1', requiredQty: 2, stagedQty: 200, status: 'OK' },
-    runnable: true,
-    blockers: [],
+    material,
+    runnable: !isShort,
+    blockers: isShort ? [`Falta material en línea: ${material.part}`] : [],
     skill: { required: false, certified: true, reason: null },
     authorized: true,
+  };
+}
+
+/** KPIs for the surtido (material-staging) page, derived from live staging state. */
+function stagingKpis(state: MockState) {
+  const all = [...state.staging.values()].flat();
+  const total = all.length;
+  const staged = all.filter((l) => l.status === 'STAGED').length;
+  const shortage = all.filter((l) => l.status === 'SHORTAGE').length;
+  const openCalls = state.replenish.filter((c) => c.status === 'OPEN' || c.status === 'IN_TRANSIT').length;
+  const stationsShort = new Set(all.filter((l) => l.status === 'SHORTAGE').map((l) => l.station)).size;
+  return {
+    totalLines: total,
+    stagedLines: staged,
+    shortageLines: shortage,
+    fillRatePct: total ? staged / total : 0,
+    openCalls,
+    avgReplenishMinutes: 0,
+    stationsShort,
   };
 }
 
@@ -516,6 +598,82 @@ export class MockBackend {
       path === '/operator-terminal/defect'
     ) {
       return json({ ok: true, message: 'ok', event: {} }, 201);
+    }
+
+    // ── Surtido a línea (material-staging / e-kanban) ───────────────────────
+    // The staging lines for a WO are exploded from that WO's model BOM, so the
+    // part the materialist stages is exactly the BOM part captured in NPI —
+    // keeping the model → BOM → WO → surtido → faltante flow connected.
+    if (path === '/material-staging/kpis') return json(stagingKpis(state));
+    if (path === '/material-staging/replenish' && method === 'GET') return json(state.replenish);
+    const mRepTrans = path.match(/^\/material-staging\/replenish\/([^/]+)\/transition$/);
+    if (mRepTrans && method === 'POST') {
+      const call = state.replenish.find((c) => c.id === mRepTrans[1]);
+      if (call && body.status) call.status = body.status as ReplenishCall['status'];
+      return json(call ?? { ok: true });
+    }
+    if (path === '/material-staging/generate' && method === 'POST') {
+      const woId = String(body.woId || '');
+      const wo = state.workOrders.find((w) => w.id === woId);
+      if (!wo) return json({ message: 'WO no encontrada' }, 404);
+      if (!state.staging.has(woId)) {
+        const bom = state.boms.find((b) => b.model === wo.model);
+        const planned = wo.quantityPlanned || 1;
+        const lines: StagingLine[] = (bom?.components ?? []).map((c, i) => {
+          const required = round2(c.quantity * (c.usageFactor || 1) * planned);
+          return {
+            id: `stg-${++state.seq.stg}`,
+            woId,
+            station: 'EST-10',
+            sequence: (i + 1) * 10,
+            part: c.componentNumber,
+            requiredQty: required,
+            stagedQty: 0,
+            minQty: Math.max(1, Math.round(required * 0.2)),
+            status: 'PENDING',
+            feederPosition: `F-${String(i + 1).padStart(2, '0')}`,
+          };
+        });
+        state.staging.set(woId, lines);
+      }
+      return json(state.staging.get(woId) ?? [], 201);
+    }
+    const mStgWo = path.match(/^\/material-staging\/wo\/(.+)$/);
+    if (mStgWo && method === 'GET') return json(state.staging.get(mStgWo[1]) ?? []);
+    const mStgAction = path.match(/^\/material-staging\/([^/]+)\/(confirm|shortage)$/);
+    if (mStgAction && method === 'POST') {
+      const [, lineId, action] = mStgAction;
+      let target: StagingLine | undefined;
+      let owner: WorkOrder | undefined;
+      for (const [wid, lines] of state.staging) {
+        const found = lines.find((l) => l.id === lineId);
+        if (found) {
+          target = found;
+          owner = state.workOrders.find((w) => w.id === wid);
+          break;
+        }
+      }
+      if (!target) return json({ message: 'línea no encontrada' }, 404);
+      if (action === 'confirm') {
+        const qty = body.stagedQty != null ? Number(body.stagedQty) : target.requiredQty;
+        target.stagedQty = qty;
+        target.status = qty > 0 ? 'STAGED' : 'PENDING';
+      } else {
+        target.status = 'SHORTAGE';
+        // A shortage raises an e-kanban replenishment call for the same part.
+        state.replenish.unshift({
+          id: `call-${++state.seq.call}`,
+          woFolio: owner?.folio ?? null,
+          station: target.station,
+          part: target.part,
+          qty: Math.max(0, round2(target.requiredQty - target.stagedQty)),
+          priority: 'HIGH',
+          status: 'OPEN',
+          reason: 'Sin stock en almacén',
+          raisedAt: NOW(),
+        });
+      }
+      return json(target, 201);
     }
 
     // ── Quality / NCR ──────────────────────────────────────────────────────
