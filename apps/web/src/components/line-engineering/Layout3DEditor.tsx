@@ -384,6 +384,7 @@ export default function Layout3DEditor({
   const [measureLive, setMeasureLive] = useState<string | null>(null);
   const [dimCount, setDimCount] = useState(0);
   const [theme, setTheme] = useState<Theme3D>('dark');
+  const [sun, setSun] = useState({ az: 35, el: 55 }); // sun azimuth/elevation (deg)
   const [showView, setShowView] = useState(false);
   const [fpDraft, setFpDraft] = useState<{ w: number; h: number; g: number }>({ w: 0, h: 0, g: 0 });
   const [layers, setLayers] = useState({ stations: true, equipment: true, connectors: true, dims: true, labels: true, grid: true });
@@ -402,6 +403,7 @@ export default function Layout3DEditor({
   const gridGroupRef = useRef<THREE.Group | null>(null);
   const groundRef = useRef<THREE.Mesh | null>(null);
   const gridHelperRef = useRef<THREE.GridHelper | null>(null);
+  const dirLightRef = useRef<THREE.DirectionalLight | null>(null);
   const previewLineRef = useRef<THREE.Line | null>(null);
   const meshByIdRef = useRef<Map<string, THREE.Mesh>>(new Map());
   const groupByAssetRef = useRef<Map<string, THREE.Group>>(new Map());
@@ -423,9 +425,21 @@ export default function Layout3DEditor({
   const snapRef = useRef(snap);
   const toolRef = useRef(tool);
   const themeRef = useRef(theme);
+  const sunRef = useRef(sun);
   useEffect(() => { snapRef.current = snap; }, [snap]);
   useEffect(() => { toolRef.current = tool; }, [tool]);
   useEffect(() => { themeRef.current = theme; }, [theme]);
+
+  // ---- sun position (azimuth/elevation) → directional light + shadows ----
+  const applySun = useCallback(() => {
+    const L = dirLightRef.current; const ctx = ctxRef.current;
+    if (!L || !ctx) return;
+    const { az, el } = sunRef.current;
+    const D = Math.max(ctx.W, ctx.H) * ctx.s * 1.4;
+    const a = (az * Math.PI) / 180, e = (el * Math.PI) / 180;
+    L.position.set(D * Math.cos(e) * Math.sin(a), Math.max(0.5, D * Math.sin(e)), D * Math.cos(e) * Math.cos(a));
+  }, []);
+  useEffect(() => { sunRef.current = sun; applySun(); }, [sun, applySun]);
 
   // ---- layer visibility (cheap: toggles group/label visibility, no rebuild) ----
   const applyLayers = useCallback(() => {
@@ -702,8 +716,10 @@ export default function Layout3DEditor({
     const sh = Math.max(W, H) * s;
     dir.shadow.camera.left = -sh; dir.shadow.camera.right = sh;
     dir.shadow.camera.top = sh; dir.shadow.camera.bottom = -sh;
+    dir.shadow.camera.near = 0.1; dir.shadow.camera.far = sh * 4;
     dir.shadow.mapSize.set(2048, 2048);
     scene.add(dir);
+    dirLightRef.current = dir;
 
     // floor + grid + footprint outline (grid built by applyTheme so it follows the theme)
     const deco = new THREE.Group(); scene.add(deco);
@@ -744,6 +760,7 @@ export default function Layout3DEditor({
     rebuildBlocks();
     applyTheme();
     applyLayers();
+    applySun();
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true; controls.dampingFactor = 0.1;
@@ -942,6 +959,7 @@ export default function Layout3DEditor({
       blocksRef.current = null; assetsGroupRef.current = null; controlsRef.current = null;
       dimsGroupRef.current = null; previewLineRef.current = null;
       connsGroupRef.current = null; gridGroupRef.current = null; groundRef.current = null; gridHelperRef.current = null;
+      dirLightRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, data]);
@@ -1255,6 +1273,15 @@ export default function Layout3DEditor({
                 <DimInput label="Rejilla" value={fpDraft.g} onChange={(v) => setFpDraft((s) => ({ ...s, g: v }))} />
               </div>
               <button onClick={applyFootprint} className="w-full px-2 py-1.5 rounded-md bg-cyan-600 hover:bg-cyan-500 text-white text-[12px] font-medium">Aplicar tamaño</button>
+              <div className="text-[10px] uppercase tracking-wide text-gray-500 mt-2.5 mb-1">Sol / sombras</div>
+              <label className="block mb-1.5">
+                <span className="flex justify-between text-[10px] text-gray-400"><span>Azimut</span><span>{sun.az}°</span></span>
+                <input type="range" min={0} max={360} value={sun.az} onChange={(e) => setSun((s) => ({ ...s, az: Number(e.target.value) }))} className="w-full accent-amber-400" />
+              </label>
+              <label className="block">
+                <span className="flex justify-between text-[10px] text-gray-400"><span>Altura</span><span>{sun.el}°</span></span>
+                <input type="range" min={12} max={88} value={sun.el} onChange={(e) => setSun((s) => ({ ...s, el: Number(e.target.value) }))} className="w-full accent-amber-400" />
+              </label>
             </div>
           )}
         </div>
