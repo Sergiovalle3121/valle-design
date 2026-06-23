@@ -8,7 +8,7 @@ import {
   Loader2, X, Save, Move3d, Grid3x3, RotateCw, RotateCcw, Trash2, Download,
   Box as BoxIcon, Eye, MapPin, Maximize2, Layers, Copy, Crosshair, Settings2,
   Boxes, ChevronRight, Ruler, MousePointer2, SlidersHorizontal, Undo2, Redo2, Spline,
-  ClipboardList, Package, StickyNote, PersonStanding,
+  ClipboardList, Package, StickyNote, PersonStanding, HelpCircle,
   AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd,
   AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
 } from 'lucide-react';
@@ -117,6 +117,36 @@ const THEMES: Record<Theme3D, { bg: number; ground: number; gridA: number; gridB
   night: { bg: 0x05070d, ground: 0x0b1322, gridA: 0x1e2c47, gridB: 0x121a2e, fog: 0x05070d, label: 'Noche' },
   studio: { bg: 0x202329, ground: 0x2b2f37, gridA: 0x3c424d, gridB: 0x2f343d, fog: 0x202329, label: 'Estudio' },
 };
+
+/** Keyboard + tool reference shown in the help overlay. */
+const HELP_SECTIONS: { title: string; rows: [string, string][] }[] = [
+  { title: 'Herramientas', rows: [
+    ['V', 'Seleccionar / mover'],
+    ['M', 'Medir / acotar'],
+    ['W', 'Dibujar muros (Shift = 45°)'],
+    ['Recorrido', 'Caminar en primera persona'],
+  ] },
+  { title: 'Selección', rows: [
+    ['Clic', 'Seleccionar un objeto'],
+    ['Shift+clic', 'Agregar / quitar de la selección'],
+    ['Ctrl/⌘+A', 'Seleccionar todo'],
+    ['Esc', 'Deseleccionar / salir / cerrar'],
+  ] },
+  { title: 'Edición', rows: [
+    ['Arrastrar', 'Mover (en grupo si hay varios)'],
+    ['← → ↑ ↓', 'Ajustar (Shift = ×5)'],
+    ['R / Shift+R', 'Rotar ±15°'],
+    ['Ctrl/⌘+D', 'Duplicar'],
+    ['Supr', 'Borrar selección'],
+    ['Ctrl/⌘+Z / ⇧+Z', 'Deshacer / Rehacer'],
+  ] },
+  { title: 'Vista', rows: [
+    ['Arrastrar fondo', 'Orbitar'],
+    ['Rueda', 'Acercar / alejar'],
+    ['Recorrido', 'Arrastrar = mirar · WASD = caminar'],
+    ['?', 'Mostrar esta ayuda'],
+  ] },
+];
 
 function disposeObject(o: THREE.Object3D) {
   o.traverse((c) => {
@@ -449,6 +479,7 @@ export default function Layout3DEditor({
   const [tab, setTab] = useState<'stations' | 'equipment'>('stations');
   const [tool, setTool] = useState<'select' | 'measure' | 'wall'>('select');
   const [walk, setWalk] = useState(false); // first-person walkthrough mode
+  const [showHelp, setShowHelp] = useState(false); // keyboard shortcuts overlay
   const [measureLive, setMeasureLive] = useState<string | null>(null);
   const [dimCount, setDimCount] = useState(0);
   const [theme, setTheme] = useState<Theme3D>('dark');
@@ -1491,6 +1522,7 @@ export default function Layout3DEditor({
         else if (hasSel) { select([]); rebuildAll(); }
         else onClose();
       }
+      else if (e.key === '?' || (e.key === '/' && e.shiftKey)) { e.preventDefault(); setShowHelp((v) => !v); }
       else if ((e.key === 'a' || e.key === 'A') && (e.ctrlKey || e.metaKey)) { e.preventDefault(); selectAll(); }
       else if ((e.key === 'z' || e.key === 'Z') && (e.ctrlKey || e.metaKey) && !e.shiftKey) { e.preventDefault(); undo(); }
       else if (((e.key === 'z' || e.key === 'Z') && (e.ctrlKey || e.metaKey) && e.shiftKey) || ((e.key === 'y' || e.key === 'Y') && (e.ctrlKey || e.metaKey))) { e.preventDefault(); redo(); }
@@ -1586,6 +1618,7 @@ export default function Layout3DEditor({
         <T3Btn onClick={openTakeoff} title="Cantidades / lista de materiales"><ClipboardList className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={exportPng} title="Exportar imagen (PNG)"><Download className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={exportGltf} title="Exportar modelo 3D (.glb) — Blender, otros CAD"><Package className="w-4 h-4" /></T3Btn>
+        <T3Btn active={showHelp} onClick={() => setShowHelp((v) => !v)} title="Atajos y ayuda (?)"><HelpCircle className="w-4 h-4" /></T3Btn>
         <div className="flex-1" />
         <button onClick={save} disabled={saving || !dirty} className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-sm font-medium text-white disabled:opacity-50" style={{ background: '#f43f5e' }}>
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Guardar
@@ -1784,6 +1817,36 @@ export default function Layout3DEditor({
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Keyboard shortcuts / help overlay */}
+      {showHelp && (
+        <div className="absolute inset-0 z-[80] grid place-items-center bg-black/55 p-4" onClick={() => setShowHelp(false)}>
+          <div className="w-[640px] max-w-full max-h-[82vh] overflow-y-auto rounded-2xl border border-white/10 bg-gray-900 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
+              <HelpCircle className="w-4 h-4" style={{ color: '#22d3ee' }} />
+              <span className="text-sm font-semibold">Atajos y herramientas · CAD 3D</span>
+              <div className="flex-1" />
+              <button onClick={() => setShowHelp(false)} className="p-1 rounded-lg hover:bg-white/10"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="p-4 grid grid-cols-2 gap-x-6 gap-y-4 text-[12.5px]">
+              {HELP_SECTIONS.map((sec) => (
+                <div key={sec.title}>
+                  <div className="text-[10px] uppercase tracking-wide text-gray-500 mb-1.5">{sec.title}</div>
+                  <div className="space-y-1">
+                    {sec.rows.map(([k, d]) => (
+                      <div key={d} className="flex items-baseline justify-between gap-3">
+                        <span className="text-gray-300">{d}</span>
+                        <kbd className="shrink-0 px-1.5 py-0.5 rounded-md bg-white/[0.08] border border-white/10 text-[11px] text-gray-200 font-mono">{k}</kbd>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="px-4 pb-4 text-[11px] text-gray-500">Abre esta ayuda con <kbd className="px-1 py-0.5 rounded bg-white/[0.08] border border-white/10 font-mono">?</kbd> en cualquier momento.</div>
           </div>
         </div>
       )}
