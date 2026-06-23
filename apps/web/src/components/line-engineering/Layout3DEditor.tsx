@@ -8,7 +8,7 @@ import {
   Loader2, X, Save, Move3d, Grid3x3, RotateCw, RotateCcw, Trash2, Download,
   Box as BoxIcon, Eye, MapPin, Maximize2, Layers, Copy, Crosshair, Settings2,
   Boxes, ChevronRight, Ruler, MousePointer2, SlidersHorizontal, Undo2, Redo2, Spline,
-  ClipboardList, Package,
+  ClipboardList, Package, StickyNote,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/apiFetch';
 import { useToast } from '@/contexts/ToastContext';
@@ -121,6 +121,34 @@ function disposeObject(o: THREE.Object3D) {
       mm.dispose();
     });
   });
+}
+
+/** An amber "sticky note" sprite for a free-text annotation on the plan. */
+function makeNoteLabel(text: string): THREE.Sprite {
+  const canvas = document.createElement('canvas');
+  const fontSize = 40;
+  const m = canvas.getContext('2d')!;
+  m.font = `600 ${fontSize}px sans-serif`;
+  const tw = Math.min(520, m.measureText(text).width);
+  canvas.width = Math.ceil(tw + 34);
+  canvas.height = fontSize + 22;
+  const ctx = canvas.getContext('2d')!;
+  ctx.font = `600 ${fontSize}px sans-serif`;
+  ctx.fillStyle = 'rgba(251,191,36,0.94)';
+  const r = 9;
+  ctx.beginPath();
+  ctx.moveTo(r, 0); ctx.arcTo(canvas.width, 0, canvas.width, canvas.height, r);
+  ctx.arcTo(canvas.width, canvas.height, 0, canvas.height, r);
+  ctx.arcTo(0, canvas.height, 0, 0, r); ctx.arcTo(0, 0, canvas.width, 0, r); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#422006'; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2 + 1);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.minFilter = THREE.LinearFilter;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
+  const scale = 1.3;
+  sprite.scale.set(scale * (canvas.width / canvas.height), scale, 1);
+  sprite.renderOrder = 11;
+  return sprite;
 }
 
 // ── 3D asset geometry factory ────────────────────────────────────────────────
@@ -387,7 +415,7 @@ export default function Layout3DEditor({
   const [sun, setSun] = useState({ az: 35, el: 55 }); // sun azimuth/elevation (deg)
   const [showView, setShowView] = useState(false);
   const [fpDraft, setFpDraft] = useState<{ w: number; h: number; g: number }>({ w: 0, h: 0, g: 0 });
-  const [layers, setLayers] = useState({ stations: true, equipment: true, connectors: true, dims: true, labels: true, grid: true });
+  const [layers, setLayers] = useState({ stations: true, equipment: true, connectors: true, dims: true, notes: true, labels: true, grid: true });
   const [hist, setHist] = useState({ undo: 0, redo: 0 }); // depths, for button enablement
   const [takeoff, setTakeoff] = useState<LocalTakeoff | null>(null); // quantities panel (null = closed)
 
@@ -399,6 +427,7 @@ export default function Layout3DEditor({
   const blocksRef = useRef<THREE.Group | null>(null);
   const assetsGroupRef = useRef<THREE.Group | null>(null);
   const dimsGroupRef = useRef<THREE.Group | null>(null);
+  const notesGroupRef = useRef<THREE.Group | null>(null);
   const connsGroupRef = useRef<THREE.Group | null>(null);
   const gridGroupRef = useRef<THREE.Group | null>(null);
   const groundRef = useRef<THREE.Mesh | null>(null);
@@ -448,6 +477,7 @@ export default function Layout3DEditor({
     if (assetsGroupRef.current) assetsGroupRef.current.visible = L.equipment;
     if (connsGroupRef.current) connsGroupRef.current.visible = L.connectors;
     if (dimsGroupRef.current) dimsGroupRef.current.visible = L.dims;
+    if (notesGroupRef.current) notesGroupRef.current.visible = L.notes;
     if (gridGroupRef.current) gridGroupRef.current.visible = L.grid;
     sceneRef.current?.traverse((o) => { if (o.userData?.isLabel) o.visible = L.labels; });
   }, []);
@@ -637,7 +667,22 @@ export default function Layout3DEditor({
     if (preview && !group.children.includes(preview)) group.add(preview);
   }, [data]);
 
-  const rebuildAll = useCallback(() => { rebuildBlocks(); rebuildAssets(); rebuildDims(); }, [rebuildBlocks, rebuildAssets, rebuildDims]);
+  // ---- (re)build the free-text notes overlay ----
+  const rebuildNotes = useCallback(() => {
+    const group = notesGroupRef.current; const ctx = ctxRef.current;
+    if (!group || !ctx) return;
+    while (group.children.length) { const o = group.children[group.children.length - 1]; group.remove(o); disposeObject(o); }
+    const { s, W, H } = ctx;
+    annotationsRef.current.forEach((a) => {
+      if (a.type !== 'text' || !a.text) return;
+      const lab = makeNoteLabel(a.text);
+      lab.position.set((a.x - W / 2) * s, 1.2, (a.y - H / 2) * s);
+      lab.userData.noteId = a.id;
+      group.add(lab);
+    });
+  }, []);
+
+  const rebuildAll = useCallback(() => { rebuildBlocks(); rebuildAssets(); rebuildDims(); rebuildNotes(); }, [rebuildBlocks, rebuildAssets, rebuildDims, rebuildNotes]);
 
   // ---- undo / redo (memento of the editable collections) ----
   const snapshot = useCallback((): Snapshot => ({
@@ -754,9 +799,11 @@ export default function Layout3DEditor({
       new THREE.LineBasicMaterial({ color: 0xfcd34d }),
     );
     previewLine.visible = false; previewLineRef.current = previewLine; dimsGroup.add(previewLine);
+    const notesGroup = new THREE.Group(); scene.add(notesGroup); notesGroupRef.current = notesGroup;
     const blocks = new THREE.Group(); scene.add(blocks); blocksRef.current = blocks;
     rebuildAssets();
     rebuildDims();
+    rebuildNotes();
     rebuildBlocks();
     applyTheme();
     applyLayers();
@@ -809,6 +856,15 @@ export default function Layout3DEditor({
         annotationsRef.current.delete(id);
         setDimCount([...annotationsRef.current.values()].filter((x) => x.type === 'dim').length);
         setDirty(true); rebuildDims(); toast.success('Cota eliminada.', '3D');
+        return;
+      }
+      // clicking a text note removes it
+      const noteHit = raycaster.intersectObjects(notesGroup.children, false).find((h) => (h.object as THREE.Sprite).userData?.noteId);
+      if (noteHit) {
+        const id = (noteHit.object as THREE.Sprite).userData.noteId as string;
+        pushHistory();
+        annotationsRef.current.delete(id);
+        setDirty(true); rebuildNotes(); toast.success('Nota eliminada.', '3D');
         return;
       }
       const stationHits = raycaster.intersectObjects(blocks.children, false)
@@ -959,7 +1015,7 @@ export default function Layout3DEditor({
       blocksRef.current = null; assetsGroupRef.current = null; controlsRef.current = null;
       dimsGroupRef.current = null; previewLineRef.current = null;
       connsGroupRef.current = null; gridGroupRef.current = null; groundRef.current = null; gridHelperRef.current = null;
-      dirLightRef.current = null;
+      dirLightRef.current = null; notesGroupRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, data]);
@@ -1023,6 +1079,23 @@ export default function Layout3DEditor({
     });
     setDirty(true); setShowView(false);
   }, [fpDraft]);
+
+  // Add a free-text note at the point the camera is looking at (round-trips 2D).
+  const addNote = () => {
+    const ctx = ctxRef.current; const ctrl = controlsRef.current; if (!ctx) return;
+    const text = (typeof window !== 'undefined' ? window.prompt('Texto de la nota:') : '')?.trim();
+    if (!text) return;
+    const tx = ctrl ? ctrl.target.x / ctx.s + ctx.W / 2 : ctx.W / 2;
+    const ty = ctrl ? ctrl.target.z / ctx.s + ctx.H / 2 : ctx.H / 2;
+    pushHistory();
+    const id = newId('nt');
+    annotationsRef.current.set(id, {
+      id, type: 'text', text: text.slice(0, 240),
+      x: Math.max(0, Math.min(ctx.W, snapWorld(tx))),
+      y: Math.max(0, Math.min(ctx.H, snapWorld(ty))),
+    });
+    setDirty(true); rebuildNotes();
+  };
 
   const clearDims = useCallback(() => {
     const hasDim = [...annotationsRef.current.values()].some((a) => a.type === 'dim');
@@ -1235,6 +1308,7 @@ export default function Layout3DEditor({
         <T3Btn active={tool === 'select'} onClick={() => setToolMode('select')} title="Seleccionar / mover (V)"><MousePointer2 className="w-4 h-4" /></T3Btn>
         <T3Btn active={tool === 'measure'} onClick={toggleMeasure} title="Medir / acotar (M)"><Ruler className="w-4 h-4" /></T3Btn>
         <T3Btn active={tool === 'wall'} onClick={toggleWall} title="Dibujar muros (W) — clic en puntos, Esc termina"><Spline className="w-4 h-4" /></T3Btn>
+        <T3Btn onClick={addNote} title="Agregar nota de texto (clic en una nota para quitarla)"><StickyNote className="w-4 h-4" /></T3Btn>
         {dimCount > 0 && (
           <button onClick={clearDims} title="Quitar todas las cotas" className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] text-gray-300 hover:bg-white/10">
             {dimCount} {dimCount === 1 ? 'cota' : 'cotas'} <Trash2 className="w-3.5 h-3.5" />
@@ -1254,7 +1328,7 @@ export default function Layout3DEditor({
           {showView && (
             <div className="absolute left-0 top-full mt-1.5 w-56 rounded-xl border border-white/10 bg-gray-900 shadow-2xl p-3 z-10 text-[12px]">
               <div className="text-[10px] uppercase tracking-wide text-gray-500 mb-1.5">Capas</div>
-              {([['stations', 'Estaciones'], ['equipment', 'Equipo'], ['connectors', 'Conexiones'], ['dims', 'Cotas'], ['labels', 'Etiquetas'], ['grid', 'Grilla']] as const).map(([k, lbl]) => (
+              {([['stations', 'Estaciones'], ['equipment', 'Equipo'], ['connectors', 'Conexiones'], ['dims', 'Cotas'], ['notes', 'Notas'], ['labels', 'Etiquetas'], ['grid', 'Grilla']] as const).map(([k, lbl]) => (
                 <label key={k} className="flex items-center gap-2 py-1 cursor-pointer text-gray-300 hover:text-white">
                   <input type="checkbox" checked={layers[k]} onChange={(e) => setLayers((st) => ({ ...st, [k]: e.target.checked }))} className="accent-cyan-500" />
                   {lbl}
