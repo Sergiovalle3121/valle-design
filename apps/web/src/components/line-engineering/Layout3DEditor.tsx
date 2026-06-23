@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import {
-  Loader2, X, Save, Move3d, Grid3x3, RotateCw, RotateCcw, Trash2, Download,
+  Loader2, X, Save, Move3d, Grid3x3, Grid2x2, RotateCw, RotateCcw, Trash2, Download,
   Box as BoxIcon, Eye, MapPin, Maximize2, Layers, Copy, Crosshair, Settings2,
   Boxes, ChevronRight, Ruler, MousePointer2, SlidersHorizontal, Undo2, Redo2, Spline,
   ClipboardList, Package, StickyNote, PersonStanding, HelpCircle,
@@ -489,6 +489,7 @@ export default function Layout3DEditor({
   const [layers, setLayers] = useState({ stations: true, equipment: true, connectors: true, dims: true, notes: true, labels: true, grid: true, dxf: true });
   const [hist, setHist] = useState({ undo: 0, redo: 0 }); // depths, for button enablement
   const [takeoff, setTakeoff] = useState<LocalTakeoff | null>(null); // quantities panel (null = closed)
+  const [showHeat, setShowHeat] = useState(false); // occupancy heat-map overlay on the floor (Fase 51)
 
   // three.js refs
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -502,6 +503,10 @@ export default function Layout3DEditor({
   const connsGroupRef = useRef<THREE.Group | null>(null);
   const gridGroupRef = useRef<THREE.Group | null>(null);
   const dxfGroupRef = useRef<THREE.Group | null>(null);
+  const heatGroupRef = useRef<THREE.Group | null>(null); // occupancy heat-map tiles
+  const heatLoadedRef = useRef(false); // lazy-load the density grid only once per scene
+  const showHeatRef = useRef(false); // current toggle, read inside the scene-init effect
+  const loadHeatRef = useRef<() => void>(() => {}); // latest loadHeat, callable from init
   const dxfModelRef = useRef<DxfModel | null>(null);
   const dxfMetaRef = useRef<DxfMeta | null>(null);
   const rebuildDxfRef = useRef<() => void>(() => {});
@@ -829,6 +834,63 @@ export default function Layout3DEditor({
   }, []);
   useEffect(() => { rebuildDxfRef.current = rebuildDxf; }, [rebuildDxf]);
 
+  // ---- occupancy heat-map: paint the floor by zone density (Fase 51) ----
+  // Reuses the density grid (Fase 48) and the same rose intensity ramp as the 2D
+  // panel, so a packed corner glows solid and dead floor stays bare.
+  const buildHeatTiles = useCallback((grid: number[][]) => {
+    const group = heatGroupRef.current; const ctx = ctxRef.current;
+    if (!group || !ctx) return;
+    group.children.slice().forEach((c) => {
+      group.remove(c);
+      const m = c as THREE.Mesh;
+      m.geometry?.dispose?.();
+      (m.material as THREE.Material)?.dispose?.();
+    });
+    const { s, W, H } = ctx;
+    const rows = grid.length; const cols = grid[0]?.length ?? 0;
+    if (!rows || !cols) return;
+    const cw = W / cols, ch = H / rows; // footprint units per cell
+    const rose = new THREE.Color(0xf43f5e);
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const pct = grid[r][c];
+        if (pct < 1) continue; // bare floor stays bare
+        const t = Math.min(1, pct / 100);
+        const plane = new THREE.Mesh(
+          new THREE.PlaneGeometry(cw * s * 0.92, ch * s * 0.92),
+          new THREE.MeshBasicMaterial({ color: rose, transparent: true, opacity: 0.12 + 0.6 * t, depthWrite: false }),
+        );
+        plane.rotation.x = -Math.PI / 2;
+        plane.position.set(((c + 0.5) * cw - W / 2) * s, 0.05, ((r + 0.5) * ch - H / 2) * s);
+        group.add(plane);
+      }
+    }
+  }, []);
+
+  const loadHeat = useCallback(async () => {
+    try {
+      const r = await apiFetch(`${API_BASE}/line-engineering/layout/density?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`);
+      if (!r.ok) return;
+      const d = (await r.json()) as { grid?: number[][] };
+      buildHeatTiles(d.grid ?? []);
+    } catch {
+      /* heat-map is a non-critical overlay — ignore fetch errors */
+    }
+  }, [model, revision, buildHeatTiles]);
+
+  useEffect(() => { loadHeatRef.current = loadHeat; }, [loadHeat]);
+  // Toggle visibility; lazy-load the grid the first time it's switched on.
+  useEffect(() => {
+    showHeatRef.current = showHeat;
+    const group = heatGroupRef.current;
+    if (!group) return;
+    group.visible = showHeat;
+    if (showHeat && !heatLoadedRef.current) {
+      heatLoadedRef.current = true;
+      loadHeat();
+    }
+  }, [showHeat, loadHeat]);
+
   const rebuildAll = useCallback(() => { rebuildBlocks(); rebuildAssets(); rebuildDims(); rebuildNotes(); }, [rebuildBlocks, rebuildAssets, rebuildDims, rebuildNotes]);
 
   // ---- undo / redo (memento of the editable collections) ----
@@ -946,6 +1008,8 @@ export default function Layout3DEditor({
     previewLine.visible = false; previewLineRef.current = previewLine; dimsGroup.add(previewLine);
     const notesGroup = new THREE.Group(); scene.add(notesGroup); notesGroupRef.current = notesGroup;
     const dxfGroup = new THREE.Group(); scene.add(dxfGroup); dxfGroupRef.current = dxfGroup;
+    const heatGroup = new THREE.Group(); heatGroup.visible = showHeatRef.current; scene.add(heatGroup); heatGroupRef.current = heatGroup; heatLoadedRef.current = false;
+    if (showHeatRef.current) { heatLoadedRef.current = true; loadHeatRef.current(); }
     const blocks = new THREE.Group(); scene.add(blocks); blocksRef.current = blocks;
     rebuildAssets();
     rebuildDims();
@@ -1238,6 +1302,7 @@ export default function Layout3DEditor({
       dimsGroupRef.current = null; previewLineRef.current = null;
       connsGroupRef.current = null; gridGroupRef.current = null; groundRef.current = null; gridHelperRef.current = null;
       dirLightRef.current = null; notesGroupRef.current = null; dxfGroupRef.current = null;
+      heatGroupRef.current = null; heatLoadedRef.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, data]);
@@ -1578,6 +1643,7 @@ export default function Layout3DEditor({
         <T3Btn onClick={() => viewPreset('top')} title="Vista superior (planta)"><Eye className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={() => viewPreset('front')} title="Vista frontal"><Layers className="w-4 h-4" /></T3Btn>
         <T3Btn active={walk} onClick={toggleWalk} title="Recorrido en primera persona — arrastra para mirar, WASD para caminar, Esc para salir"><PersonStanding className="w-4 h-4" /></T3Btn>
+        <T3Btn active={showHeat} onClick={() => setShowHeat((v) => !v)} title="Mapa de calor de ocupación en el piso"><Grid2x2 className="w-4 h-4" /></T3Btn>
         <div className="relative" ref={viewMenuRef}>
           <T3Btn active={showView} onClick={() => setShowView((v) => { const nv = !v; if (nv && data) setFpDraft({ w: data.footprint.footprintW, h: data.footprint.footprintH, g: data.footprint.gridSize }); return nv; })} title="Vista, capas y plano"><SlidersHorizontal className="w-4 h-4" /></T3Btn>
           {showView && (
@@ -1675,6 +1741,16 @@ export default function Layout3DEditor({
           {/* 3D viewport */}
           <div className="relative flex-1 min-w-0">
             <div ref={mountRef} className="absolute inset-0" />
+            {showHeat && (
+              <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-xl bg-gray-900/80 backdrop-blur border border-white/10 text-[11px] text-gray-300 inline-flex items-center gap-2 pointer-events-none">
+                <Grid2x2 className="w-3.5 h-3.5" /> Ocupación del piso
+                <span className="inline-flex items-center gap-1">
+                  menos
+                  <span className="inline-block w-12 h-2 rounded-sm" style={{ background: 'linear-gradient(90deg, rgba(244,63,94,0.15), rgba(244,63,94,1))' }} />
+                  más
+                </span>
+              </div>
+            )}
             {walk && (
               <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-emerald-500/95 text-white text-[12px] font-semibold inline-flex items-center gap-1.5 pointer-events-none">
                 <PersonStanding className="w-3.5 h-3.5" /> Recorrido · arrastra para mirar · WASD para caminar · Esc para salir
