@@ -24,6 +24,7 @@ import { autoDimensions, type DimBox } from './auto-dimensions';
 import { arrangeLine, type ArrangeStation } from './arrange-line';
 import { connectLine, type ConnStation } from './connect-line';
 import { designChecks, type CheckBox, type DesignReport } from './design-checks';
+import { flowMetrics, type FlowCenter } from './flow-metrics';
 
 /**
  * Full-screen interactive 3D layout editor — the "CAD" view of the plant floor.
@@ -76,6 +77,7 @@ interface LocalTakeoff {
   unit: string; footprintArea: number; totalStations: number; placedStations: number;
   stationArea: number; equipmentCount: number; equipArea: number; usedArea: number;
   util: number; wallLen: number; dimCount: number;
+  flowLen: number; flowMaxHop: number; flowCount: number;
   byKind: { kind: string; label: string; count: number; area: number }[];
 }
 /** A render-safe snapshot of the current selection for the properties panel. */
@@ -1536,11 +1538,16 @@ export default function Layout3DEditor({
       .sort((p, q) => q.count - p.count || p.label.localeCompare(q.label));
     const footprintArea = fp.footprintW * fp.footprintH;
     const usedArea = stationArea + equipArea;
+    // material-flow travel metrics from the line connectors (Fase 64)
+    const centers: Record<string, FlowCenter> = {};
+    placementsRef.current.forEach((p, id) => { centers[id] = { x: p.x + p.w / 2, y: p.y + p.h / 2 }; });
+    const flow = flowMetrics(connectorsRef.current, centers);
     setTakeoff({
       unit: fp.unit || 'mm', footprintArea, totalStations: data!.stations.length,
       placedStations: placements.length, stationArea, equipmentCount: assets.length,
       equipArea, usedArea, util: footprintArea > 0 ? Math.min(100, (usedArea / footprintArea) * 100) : 0,
-      wallLen, dimCount: [...annotationsRef.current.values()].filter((a) => a.type === 'dim').length, byKind,
+      wallLen, dimCount: [...annotationsRef.current.values()].filter((a) => a.type === 'dim').length,
+      flowLen: flow.totalLen, flowMaxHop: flow.maxHop, flowCount: flow.count, byKind,
     });
   }, [data]);
 
@@ -2296,6 +2303,8 @@ export default function Layout3DEditor({
                 <Stat label="Aprovechamiento" value={`${takeoff.util.toFixed(1)} %`} highlight />
                 <Stat label="Área usada" value={fmtArea(takeoff.usedArea, takeoff.unit)} />
                 <Stat label="Muro total" value={fmtLen(takeoff.wallLen, takeoff.unit)} />
+                {takeoff.flowCount > 0 && <Stat label="Flujo total" value={fmtLen(takeoff.flowLen, takeoff.unit)} />}
+                {takeoff.flowCount > 0 && <Stat label="Tramo más largo" value={fmtLen(takeoff.flowMaxHop, takeoff.unit)} />}
               </div>
               {takeoff.byKind.length > 0 ? (
                 <div className="rounded-xl border border-white/10 overflow-hidden">
@@ -2324,6 +2333,10 @@ export default function Layout3DEditor({
                     rows.push(['Estaciones colocadas', `${takeoff.placedStations}/${takeoff.totalStations}`, fmtArea(takeoff.stationArea, takeoff.unit).replace(' m²', '')]);
                     rows.push(['Aprovechamiento', `${takeoff.util.toFixed(1)}%`, '']);
                     rows.push(['Muro total', fmtLen(takeoff.wallLen, takeoff.unit), '']);
+                    if (takeoff.flowCount > 0) {
+                      rows.push(['Flujo total', fmtLen(takeoff.flowLen, takeoff.unit), '']);
+                      rows.push(['Tramo más largo', fmtLen(takeoff.flowMaxHop, takeoff.unit), '']);
+                    }
                     const csv = rows.map((r) => r.join(',')).join('\n');
                     navigator.clipboard?.writeText(csv).then(() => toast.success('Cantidades copiadas (CSV).', '3D'), () => toast.error('No se pudo copiar.', '3D'));
                   }}
