@@ -12,7 +12,7 @@ import {
   AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd,
   AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
   AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, RulerDimensionLine, Rows3, Waypoints,
-  ShieldCheck, CircleCheck, CircleAlert, Printer,
+  ShieldCheck, CircleCheck, CircleAlert, Printer, ChartLine, FileText, WandSparkles, Stamp, Upload, ImageOff, Activity, History, Group,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/apiFetch';
 import { useToast } from '@/contexts/ToastContext';
@@ -26,6 +26,47 @@ import { connectLine, type ConnStation } from './connect-line';
 import { designChecks, type CheckBox, type DesignReport } from './design-checks';
 import { flowMetrics, type FlowCenter } from './flow-metrics';
 import { plotSheetModel } from './plot-sheet';
+import dynamic from 'next/dynamic';
+
+// Analysis panels — the same modal components the 2D host shipped, lazy-loaded so
+// they don't bloat the CAD chunk. Unified here so the 3D CAD has every 2D tool.
+const WhatIfSimulator = dynamic(() => import('./WhatIfSimulator'), { ssr: false });
+const YamazumiChart = dynamic(() => import('./YamazumiChart'), { ssr: false });
+const LayoutHistory = dynamic(() => import('./LayoutHistory'), { ssr: false });
+const BufferPlanner = dynamic(() => import('./BufferPlanner'), { ssr: false });
+const OperatorLoops = dynamic(() => import('./OperatorLoops'), { ssr: false });
+const ClearanceAnalysis = dynamic(() => import('./ClearanceAnalysis'), { ssr: false });
+const LayoutScorecard = dynamic(() => import('./LayoutScorecard'), { ssr: false });
+const LineContinuity = dynamic(() => import('./LineContinuity'), { ssr: false });
+const LineCohesion = dynamic(() => import('./LineCohesion'), { ssr: false });
+const LineDensity = dynamic(() => import('./LineDensity'), { ssr: false });
+const CostEstimator = dynamic(() => import('./CostEstimator'), { ssr: false });
+const SensitivityChart = dynamic(() => import('./SensitivityChart'), { ssr: false });
+const ScenarioCompare = dynamic(() => import('./ScenarioCompare'), { ssr: false });
+const StandardWork = dynamic(() => import('./StandardWork'), { ssr: false });
+const DossierExport = dynamic(() => import('./DossierExport'), { ssr: false });
+const FlexLine = dynamic(() => import('./FlexLine'), { ssr: false });
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+const ANALYSIS_PANELS: { key: string; label: string; Comp: React.ComponentType<any> }[] = [
+  { key: 'scorecard', label: 'Tarjeta de salud del layout', Comp: LayoutScorecard },
+  { key: 'yamazumi', label: 'Yamazumi (balanceo)', Comp: YamazumiChart },
+  { key: 'sim', label: 'Simulador de capacidad', Comp: WhatIfSimulator },
+  { key: 'buffers', label: 'Inventario de desacople (WIP)', Comp: BufferPlanner },
+  { key: 'loops', label: 'Bucles de operador', Comp: OperatorLoops },
+  { key: 'clearance', label: 'Holguras y pasillos', Comp: ClearanceAnalysis },
+  { key: 'continuity', label: 'Continuidad de línea', Comp: LineContinuity },
+  { key: 'cohesion', label: 'Cohesión de líneas', Comp: LineCohesion },
+  { key: 'density', label: 'Mapa de ocupación / densidad', Comp: LineDensity },
+  { key: 'cost', label: 'Costo por unidad', Comp: CostEstimator },
+  { key: 'sensitivity', label: 'Sensibilidad a la demanda', Comp: SensitivityChart },
+  { key: 'compare', label: 'Comparar escenarios A/B', Comp: ScenarioCompare },
+  { key: 'stdwork', label: 'Trabajo estándar', Comp: StandardWork },
+  { key: 'flex', label: 'Línea flexible', Comp: FlexLine },
+  { key: 'dossier', label: 'Expediente analítico (JSON/CSV)', Comp: DossierExport },
+  { key: 'history', label: 'Bitácora de auditoría', Comp: LayoutHistory },
+];
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 /**
  * Full-screen interactive 3D layout editor — the "CAD" view of the plant floor.
@@ -43,6 +84,49 @@ import { plotSheetModel } from './plot-sheet';
  */
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000').replace(/\/$/, '');
+
+// Approval / sign-off (ported from the 2D host, unify)
+type ApprovalStatus = 'draft' | 'in_review' | 'approved';
+interface LayoutApproval { status: ApprovalStatus; by: string | null; at: string | null; note: string | null }
+const APPROVAL_META: Record<ApprovalStatus, { label: string; color: string }> = {
+  draft: { label: 'Borrador', color: '#94a3b8' },
+  in_review: { label: 'En revisión', color: '#f59e0b' },
+  approved: { label: 'Aprobado', color: '#10b981' },
+};
+
+// Live station-status overlays (ported from the 2D host, unify). Each colours the
+// station blocks by a per-station value from its API; we use the solid stroke hex.
+type OverlayKind = 'mes' | 'heat' | 'completeness' | 'bays' | 'quality';
+const hexToInt = (h: string): number => parseInt(h.replace('#', ''), 16);
+const OVERLAY_DEFS: { key: OverlayKind; label: string; endpoint: string; legend: { label: string; hex: string }[] }[] = [
+  { key: 'mes', label: 'MES en vivo', endpoint: 'status', legend: [{ label: 'Paro', hex: '#ef4444' }, { label: 'Alerta', hex: '#f59e0b' }, { label: 'OK', hex: '#10b981' }, { label: 'Inactivo', hex: '#94a3b8' }] },
+  { key: 'heat', label: 'Calor de ciclo / utilización', endpoint: 'heatmap', legend: [{ label: 'Holgado', hex: '#3b82f6' }, { label: 'Ligero', hex: '#06b6d4' }, { label: 'Medio', hex: '#f59e0b' }, { label: 'Alto', hex: '#f97316' }, { label: 'Sobre takt', hex: '#ef4444' }] },
+  { key: 'completeness', label: 'Completitud documental', endpoint: 'completeness', legend: [{ label: 'Completa', hex: '#10b981' }, { label: 'Incompleta', hex: '#f59e0b' }] },
+  { key: 'bays', label: 'Bahía que surte', endpoint: 'bays', legend: [{ label: 'B1', hex: '#3b82f6' }, { label: 'B2', hex: '#8b5cf6' }, { label: 'B3', hex: '#ec4899' }, { label: 'B4', hex: '#f59e0b' }, { label: 'B5', hex: '#10b981' }, { label: 'B6', hex: '#06b6d4' }] },
+  { key: 'quality', label: 'Calidad acumulada', endpoint: 'quality', legend: [{ label: 'OK', hex: '#10b981' }, { label: 'Menor', hex: '#f59e0b' }, { label: 'Mayor', hex: '#ef4444' }] },
+];
+const MES_HEX: Record<string, string> = { down: '#ef4444', warn: '#f59e0b', ok: '#10b981', idle: '#94a3b8', unknown: '#cbd5e1' };
+const HEAT_HEX: Record<string, string> = { cold: '#3b82f6', cool: '#06b6d4', warm: '#f59e0b', hot: '#f97316', over: '#ef4444' };
+const BAY_HEX: Record<number, string> = { 1: '#3b82f6', 2: '#8b5cf6', 3: '#ec4899', 4: '#f59e0b', 5: '#10b981', 6: '#06b6d4' };
+const QUAL_HEX: Record<string, string> = { ok: '#10b981', minor: '#f59e0b', major: '#ef4444' };
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// Build a stationName→hex map from an overlay response (shapes mirror the 2D host).
+function overlayColorMap(kind: OverlayKind, d: any): Map<string, string> {
+  const m = new Map<string, string>();
+  const rows: any[] = Array.isArray(d?.stations) ? d.stations : [];
+  for (const s of rows) {
+    if (!s || typeof s.station !== 'string') continue;
+    let hex: string | undefined;
+    if (kind === 'mes') hex = MES_HEX[s.status];
+    else if (kind === 'heat') hex = HEAT_HEX[s.level];
+    else if (kind === 'completeness') hex = s.complete ? '#10b981' : '#f59e0b';
+    else if (kind === 'bays') hex = s.bahia != null ? BAY_HEX[s.bahia as number] : '#94a3b8';
+    else if (kind === 'quality') hex = QUAL_HEX[s.level];
+    if (hex) m.set(s.station, hex);
+  }
+  return m;
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 interface St {
   id: string; station: string; line: string; ctq: boolean;
@@ -469,13 +553,14 @@ function buildDim(a: Ann, s: number, W: number, H: number, unit: string): THREE.
 }
 
 export default function Layout3DEditor({
-  model, revision, open, onClose, onSaved,
+  model, revision, open, onClose, onSaved, models = [],
 }: {
   model: string;
   revision: string;
   open: boolean;
   onClose: () => void;
   onSaved?: () => void;
+  models?: { model: string; revision: string }[];
 }) {
   const toast = useToast();
   const mountRef = useRef<HTMLDivElement | null>(null);
@@ -486,12 +571,28 @@ export default function Layout3DEditor({
   const [osnap, setOsnap] = useState(true); // object snap: align to other objects' edges/centers (Fase 54)
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [serverBusy, setServerBusy] = useState(false); // server auto-arrange/optimize in flight (unify)
+  const [approval, setApproval] = useState<LayoutApproval | null>(null); // sign-off status (unify)
+  const [approvalBusy, setApprovalBusy] = useState(false);
+  const [dxfBusy, setDxfBusy] = useState(false); // DXF backdrop upload/remove in flight (unify)
+  const dxfInputRef = useRef<HTMLInputElement | null>(null);
+  const [showVersions, setShowVersions] = useState(false); // versions/scenarios modal (unify)
+  const [versions, setVersions] = useState<{ id: string; name: string; createdAt: string; stationCount: number; assetCount: number }[]>([]);
+  const [versName, setVersName] = useState('');
+  const [versBusy, setVersBusy] = useState(false);
+  const [reloadTick, setReloadTick] = useState(0); // bump to re-run the load effect (after restore)
+  const [cellsTick, setCellsTick] = useState(0); // bump to re-render the cells list (cellsRef is a ref)
+  const [showCells, setShowCells] = useState(false); // cells/zones panel
+  const [showClone, setShowClone] = useState(false); // clone-from-template modal
+  const [cloneSrc, setCloneSrc] = useState('');
+  const [cloneBusy, setCloneBusy] = useState(false);
   const [selList, setSelList] = useState<SelItem[]>([]);
   const [selSnap, setSelSnap] = useState<SelSnap | null>(null);
   const [placedIds, setPlacedIds] = useState<Set<string>>(new Set());
   const [assetIds, setAssetIds] = useState<Set<string>>(new Set());
   const [tab, setTab] = useState<'stations' | 'equipment'>('stations');
   const [tool, setTool] = useState<'select' | 'measure' | 'wall'>('select');
+  const [viewMode, setViewMode] = useState<'3d' | '2d'>('3d'); // 2D = locked top-down plan view (CAD unificado)
   const [walk, setWalk] = useState(false); // first-person walkthrough mode
   const [showHelp, setShowHelp] = useState(false); // keyboard shortcuts overlay
   const [measureLive, setMeasureLive] = useState<string | null>(null);
@@ -504,6 +605,13 @@ export default function Layout3DEditor({
   const [hist, setHist] = useState({ undo: 0, redo: 0 }); // depths, for button enablement
   const [takeoff, setTakeoff] = useState<LocalTakeoff | null>(null); // quantities panel (null = closed)
   const [report, setReport] = useState<DesignReport | null>(null); // design-check report (null = closed) (Fase 63)
+  const [analysisPanel, setAnalysisPanel] = useState<string | null>(null); // active analysis panel key (unify)
+  const [showAnalysis, setShowAnalysis] = useState(false); // analysis dropdown open
+  const analysisMenuRef = useRef<HTMLDivElement | null>(null);
+  const [overlay, setOverlay] = useState<OverlayKind | null>(null); // active station-status overlay (unify)
+  const [showOverlayMenu, setShowOverlayMenu] = useState(false);
+  const overlayMenuRef = useRef<HTMLDivElement | null>(null);
+  const overlayColorRef = useRef<Map<string, number>>(new Map()); // stationName → hex int (empty = no overlay)
   const [showHeat, setShowHeat] = useState(false); // occupancy heat-map overlay on the floor (Fase 51)
   const [arr, setArr] = useState({ cols: 3, rows: 1, gap: 500, dx: 1000, dy: 0 }); // array/offset params (Fase 55)
   const [showGaps, setShowGaps] = useState(false); // clearance/safety gap markers overlay (Fase 52)
@@ -518,7 +626,10 @@ export default function Layout3DEditor({
   const dimsGroupRef = useRef<THREE.Group | null>(null);
   const notesGroupRef = useRef<THREE.Group | null>(null);
   const connsGroupRef = useRef<THREE.Group | null>(null);
+  const cellsGroupRef = useRef<THREE.Group | null>(null); // rebuildable cell tints (unify)
+  const rebuildCellsRef = useRef<() => void>(() => {});
   const connectorsRef = useRef<Conn[]>([]); // mutable line connectors (auto-connect, Fase 62)
+  const cellsRef = useRef<Cell[]>([]); // mutable cells/zones (unify — editable + round-trip)
   const gridGroupRef = useRef<THREE.Group | null>(null);
   const dxfGroupRef = useRef<THREE.Group | null>(null);
   const heatGroupRef = useRef<THREE.Group | null>(null); // occupancy heat-map tiles
@@ -605,6 +716,12 @@ export default function Layout3DEditor({
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
   }, [showView]);
+  useEffect(() => {
+    if (!showAnalysis) return;
+    const onDoc = (e: MouseEvent) => { if (analysisMenuRef.current && !analysisMenuRef.current.contains(e.target as Node)) setShowAnalysis(false); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [showAnalysis]);
 
   // ---- visual theme (background / fog / floor / grid colours) ----
   const applyTheme = useCallback(() => {
@@ -679,6 +796,7 @@ export default function Layout3DEditor({
     if (!open || !model) return;
     let alive = true;
     setData(null); setError(null); setSelList([]); setSelSnap(null); selRef.current = []; setDirty(false); setTab('stations');
+    overlayColorRef.current = new Map(); setOverlay(null);
     setTool('select'); toolRef.current = 'select'; measureARef.current = null; wallChainRef.current = null; setMeasureLive(null);
     setWalk(false); walkRef.current = false; savedCamRef.current = null;
     undoStackRef.current = []; redoStackRef.current = []; setHist({ undo: 0, redo: 0 });
@@ -708,6 +826,8 @@ export default function Layout3DEditor({
         annotationsRef.current = an;
         stationsByIdRef.current = new Map(d.stations.map((s) => [s.id, s]));
         connectorsRef.current = (d.connectors ?? []).map((c) => ({ ...c }));
+        cellsRef.current = (d.cells ?? []).map((c) => ({ ...c }));
+        setApproval((d as { approval?: LayoutApproval }).approval ?? { status: 'draft', by: null, at: null, note: null });
         loadedPlacedRef.current = new Set(pl.keys());
         setPlacedIds(new Set(pl.keys()));
         setAssetIds(new Set(am.keys()));
@@ -734,7 +854,7 @@ export default function Layout3DEditor({
       }
     })();
     return () => { alive = false; };
-  }, [open, model, revision]);
+  }, [open, model, revision, reloadTick]);
 
   const snapWorld = useCallback((v: number) => {
     const g = data?.footprint.gridSize || 1;
@@ -754,7 +874,8 @@ export default function Layout3DEditor({
       const st = byId.get(id); if (!st) return;
       const hgt = Math.max(0.6, Math.min(p.w * s, p.h * s) * 0.7);
       const isSel = selRef.current.some((s) => s.type === 'station' && s.id === id);
-      const color = isSel ? SELECT : st.ctq ? AMBER : ROSE;
+      const ov = overlayColorRef.current.get(st.station); // station-status overlay tint (unify)
+      const color = isSel ? SELECT : ov !== undefined ? ov : st.ctq ? AMBER : ROSE;
       const mesh = new THREE.Mesh(
         new THREE.BoxGeometry(p.w * s, hgt, p.h * s),
         new THREE.MeshStandardMaterial({ color, roughness: 0.45, metalness: 0.12, emissive: isSel ? 0x0e7490 : 0x000000 }),
@@ -991,7 +1112,63 @@ export default function Layout3DEditor({
     }
   }, [showGaps, loadGaps]);
 
-  const rebuildAll = useCallback(() => { rebuildBlocks(); rebuildAssets(); rebuildDims(); rebuildNotes(); }, [rebuildBlocks, rebuildAssets, rebuildDims, rebuildNotes]);
+  const rebuildAll = useCallback(() => { rebuildBlocks(); rebuildAssets(); rebuildDims(); rebuildNotes(); rebuildCellsRef.current(); }, [rebuildBlocks, rebuildAssets, rebuildDims, rebuildNotes]);
+
+  // ---- live station-status overlay: colour blocks by MES / heat / etc. (unify) ----
+  const loadOverlay = useCallback(async (kind: OverlayKind | null) => {
+    setOverlay(kind); setShowOverlayMenu(false);
+    if (!kind || !model) { overlayColorRef.current = new Map(); rebuildBlocks(); return; }
+    const def = OVERLAY_DEFS.find((o) => o.key === kind);
+    if (!def) return;
+    try {
+      const r = await apiFetch(`${API_BASE}/line-engineering/layout/${def.endpoint}?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`);
+      if (!r.ok) { toast.error('No se pudo cargar la capa de estado.', '3D'); return; }
+      const cm = overlayColorMap(kind, await r.json());
+      overlayColorRef.current = new Map([...cm.entries()].map(([name, hex]) => [name, hexToInt(hex)]));
+      rebuildBlocks();
+    } catch { toast.error('No se pudo cargar la capa de estado.', '3D'); }
+  }, [model, revision, rebuildBlocks, toast]);
+  useEffect(() => {
+    if (!showOverlayMenu) return;
+    const onDoc = (e: MouseEvent) => { if (overlayMenuRef.current && !overlayMenuRef.current.contains(e.target as Node)) setShowOverlayMenu(false); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [showOverlayMenu]);
+
+  // ---- cells / zones: rebuildable tints + create/remove (ported from 2D, unify) ----
+  const rebuildCells = useCallback(() => {
+    const group = cellsGroupRef.current; const ctx = ctxRef.current;
+    if (!group || !ctx) return;
+    while (group.children.length) { const o = group.children[group.children.length - 1]; group.remove(o); disposeObject(o); }
+    const { s, W, H } = ctx; const pad = data?.footprint.gridSize || 0;
+    cellsRef.current.forEach((c) => {
+      const members = c.stationIds.map((id) => placementsRef.current.get(id)).filter(Boolean) as Placement[];
+      if (!members.length) return;
+      const x0 = Math.min(...members.map((m) => m.x)) - pad, y0 = Math.min(...members.map((m) => m.y)) - pad;
+      const x1 = Math.max(...members.map((m) => m.x + m.w)) + pad, y1 = Math.max(...members.map((m) => m.y + m.h)) + pad;
+      const plane = new THREE.Mesh(
+        new THREE.PlaneGeometry((x1 - x0) * s, (y1 - y0) * s),
+        new THREE.MeshBasicMaterial({ color: new THREE.Color(c.color), transparent: true, opacity: 0.18 }),
+      );
+      plane.rotation.x = -Math.PI / 2;
+      plane.position.set(((x0 + x1) / 2 - W / 2) * s, 0.03, ((y0 + y1) / 2 - H / 2) * s);
+      group.add(plane);
+    });
+  }, [data]);
+  useEffect(() => { rebuildCellsRef.current = rebuildCells; }, [rebuildCells]);
+  const createCellFromSelection = () => {
+    const ids = selRef.current.filter((it) => it.type === 'station').map((it) => it.id);
+    if (ids.length === 0) { toast.error('Selecciona estaciones para agrupar en una celda.', '3D'); return; }
+    const palette = ['#22d3ee', '#a78bfa', '#f472b6', '#fbbf24', '#34d399', '#60a5fa', '#fb7185', '#4ade80'];
+    const color = palette[cellsRef.current.length % palette.length];
+    cellsRef.current = [...cellsRef.current, { id: newId('cell'), name: `Celda ${cellsRef.current.length + 1}`, color, stationIds: [...new Set(ids)] }];
+    setCellsTick((t) => t + 1); setDirty(true); rebuildCells();
+    toast.success('Celda creada.', '3D');
+  };
+  const deleteCell = (id: string) => {
+    cellsRef.current = cellsRef.current.filter((c) => c.id !== id);
+    setCellsTick((t) => t + 1); setDirty(true); rebuildCells();
+  };
 
   // ---- undo / redo (memento of the editable collections) ----
   const snapshot = useCallback((): Snapshot => ({
@@ -1084,21 +1261,9 @@ export default function Layout3DEditor({
     ground.rotation.x = -Math.PI / 2; ground.position.y = 0; ground.receiveShadow = true;
     groundRef.current = ground; deco.add(ground);
     const gridGroup = new THREE.Group(); deco.add(gridGroup); gridGroupRef.current = gridGroup;
-    // cell floor tints
-    (data.cells ?? []).forEach((c) => {
-      const members = [...placementsRef.current.entries()].filter(([id]) => c.stationIds.includes(id)).map(([, p]) => p);
-      if (!members.length) return;
-      const pad = fp.gridSize || 0;
-      const x0 = Math.min(...members.map((m) => m.x)) - pad, y0 = Math.min(...members.map((m) => m.y)) - pad;
-      const x1 = Math.max(...members.map((m) => m.x + m.w)) + pad, y1 = Math.max(...members.map((m) => m.y + m.h)) + pad;
-      const plane = new THREE.Mesh(
-        new THREE.PlaneGeometry((x1 - x0) * s, (y1 - y0) * s),
-        new THREE.MeshBasicMaterial({ color: new THREE.Color(c.color), transparent: true, opacity: 0.18 }),
-      );
-      plane.rotation.x = -Math.PI / 2;
-      plane.position.set(((x0 + x1) / 2 - W / 2) * s, 0.03, ((y0 + y1) / 2 - H / 2) * s);
-      deco.add(plane);
-    });
+    // cell floor tints — rebuildable so cells can be created/removed live (unify)
+    const cellsGroup = new THREE.Group(); deco.add(cellsGroup); cellsGroupRef.current = cellsGroup;
+    rebuildCellsRef.current();
 
     const assetsGroup = new THREE.Group(); scene.add(assetsGroup); assetsGroupRef.current = assetsGroup;
     const connsGroup = new THREE.Group(); scene.add(connsGroup); connsGroupRef.current = connsGroup;
@@ -1758,6 +1923,148 @@ export default function Layout3DEditor({
     setDirty(true); rebuildBlocks();
     toast.success(`Línea conectada — ${added} ${added === 1 ? 'enlace nuevo' : 'enlaces nuevos'}`, '3D');
   };
+  // ---- server-side optimisation: minimise material travel (ported from 2D, unify) ----
+  const runOptimize = async () => {
+    if (!model) return;
+    setServerBusy(true);
+    try {
+      const r = await apiFetch(`${API_BASE}/line-engineering/layout/optimize?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`);
+      if (!r.ok) { toast.error('No se pudo optimizar.', '3D'); return; }
+      const d = (await r.json()) as { positions: { id: string; x: number; y: number; w: number; h: number; rotation: number }[]; improvedPct: number };
+      if (!d.positions?.length) { toast.error('No hay estaciones para optimizar.', '3D'); return; }
+      pushHistory();
+      d.positions.forEach((p) => placementsRef.current.set(p.id, { x: p.x, y: p.y, w: p.w, h: p.h, rotation: p.rotation }));
+      setPlacedIds(new Set(placementsRef.current.keys()));
+      setDirty(true); rebuildBlocks(); refreshSnap();
+      toast.success(d.improvedPct > 0 ? `Flujo optimizado: −${d.improvedPct}% de recorrido — revisa y guarda.` : 'El layout ya estaba óptimo para el flujo.', '3D');
+    } catch { toast.error('No se pudo optimizar.', '3D'); }
+    finally { setServerBusy(false); }
+  };
+  // ---- DXF backdrop upload / remove (ported from 2D, unify) ----
+  const onDxfFile = async (file: File) => {
+    if (!data) return;
+    setDxfBusy(true);
+    try {
+      const text = await file.text();
+      if (text.length > 12_000_000) { toast.error('El DXF supera 12 MB.', '3D'); return; }
+      const dxfModel = parseDxf(text);
+      if (!dxfModel) { toast.error('No se reconocieron líneas en el DXF.', '3D'); return; }
+      const res = await apiFetch(`${API_BASE}/line-engineering/layout/dxf`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model, revision, name: file.name, data: text }),
+      });
+      if (!res.ok) { toast.error('No se pudo guardar el DXF.', '3D'); return; }
+      const fp = data.footprint;
+      const scale = Math.min(fp.footprintW / dxfModel.width, fp.footprintH / dxfModel.height) * 0.9 || 1;
+      const meta: DxfMeta = {
+        offsetX: Math.max(0, (fp.footprintW - dxfModel.width * scale) / 2),
+        offsetY: Math.max(0, (fp.footprintH - dxfModel.height * scale) / 2),
+        scale, rotation: 0, visible: true, opacity: 0.5,
+      };
+      dxfModelRef.current = dxfModel; dxfMetaRef.current = meta; setHasDxf(true);
+      dxfSnapRef.current = dxfSnapPoints(dxfModel, meta);
+      rebuildDxfRef.current(); setDirty(true);
+      toast.success('Plano DXF cargado de fondo.', '3D');
+    } catch { toast.error('No se pudo leer el archivo DXF.', '3D'); }
+    finally { setDxfBusy(false); }
+  };
+  const removeDxf = async () => {
+    setDxfBusy(true);
+    try {
+      const res = await apiFetch(`${API_BASE}/line-engineering/layout/dxf?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`, { method: 'DELETE' });
+      if (!res.ok) { toast.error('No se pudo quitar el DXF.', '3D'); return; }
+      dxfModelRef.current = null; dxfMetaRef.current = null; dxfSnapRef.current = []; setHasDxf(false);
+      rebuildDxfRef.current(); setDirty(true);
+      toast.success('Plano DXF quitado.', '3D');
+    } catch { toast.error('Error de red.', '3D'); }
+    finally { setDxfBusy(false); }
+  };
+  // ---- versions / scenarios (ported from 2D, unify) ----
+  const scopeQs = `model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`;
+  const loadVersions = async () => {
+    if (!model) return;
+    try {
+      const r = await apiFetch(`${API_BASE}/line-engineering/layout/snapshots?${scopeQs}`);
+      if (r.ok) setVersions((await r.json()) as typeof versions);
+    } catch { /* transient */ }
+  };
+  const openVersions = () => { setShowVersions(true); loadVersions(); };
+  const saveVersion = async () => {
+    if (!model) return;
+    setVersBusy(true);
+    try {
+      const r = await apiFetch(`${API_BASE}/line-engineering/layout/snapshots`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model, revision, name: versName.trim() || undefined }),
+      });
+      if (!r.ok) { toast.error('No se pudo guardar la versión.', '3D'); return; }
+      setVersName(''); toast.success('Versión guardada.', '3D'); loadVersions();
+    } catch { toast.error('Error de red.', '3D'); } finally { setVersBusy(false); }
+  };
+  const restoreVersion = async (id: string) => {
+    if (!model) return;
+    setVersBusy(true);
+    try {
+      const r = await apiFetch(`${API_BASE}/line-engineering/layout/snapshots/${id}/restore?${scopeQs}`, { method: 'POST' });
+      if (!r.ok) { toast.error('No se pudo restaurar la versión.', '3D'); return; }
+      toast.success('Versión restaurada.', '3D'); setShowVersions(false);
+      setReloadTick((t) => t + 1); // re-run the load effect
+    } catch { toast.error('Error de red.', '3D'); } finally { setVersBusy(false); }
+  };
+  const deleteVersion = async (id: string) => {
+    if (!model) return;
+    try {
+      const r = await apiFetch(`${API_BASE}/line-engineering/layout/snapshots/${id}?${scopeQs}`, { method: 'DELETE' });
+      if (r.ok) setVersions((await r.json()) as typeof versions);
+    } catch { /* transient */ }
+  };
+  // ---- clone from another model's layout as a template (ported from 2D, unify) ----
+  const cloneFrom = async () => {
+    if (!cloneSrc || !model) return;
+    const [fromModel, fromRevision] = cloneSrc.split('|');
+    setCloneBusy(true);
+    try {
+      const r = await apiFetch(`${API_BASE}/line-engineering/layout/clone`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fromModel, fromRevision, toModel: model, toRevision: revision }),
+      });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); toast.error(d?.message || 'No se pudo clonar.', '3D'); return; }
+      toast.success('Layout clonado desde la plantilla.', '3D'); setShowClone(false);
+      setReloadTick((t) => t + 1);
+    } catch { toast.error('Error de red.', '3D'); } finally { setCloneBusy(false); }
+  };
+  // ---- approval / sign-off (ported from 2D, unify) ----
+  const setApprovalStatus = async (status: ApprovalStatus) => {
+    if (!model) return;
+    setApprovalBusy(true);
+    try {
+      const r = await apiFetch(`${API_BASE}/line-engineering/layout/approval`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model, revision, status }),
+      });
+      if (!r.ok) { toast.error('No se pudo cambiar el estado.', '3D'); return; }
+      const d = (await r.json()) as { approval?: LayoutApproval };
+      setApproval(d.approval ?? { status, by: null, at: null, note: null });
+      toast.success(`Layout: ${APPROVAL_META[status].label}.`, '3D');
+    } catch { toast.error('Error de red.', '3D'); } finally { setApprovalBusy(false); }
+  };
+  // ---- export the station schedule as CSV (ported from 2D, unify) ----
+  const exportCsvSchedule = () => {
+    if (!data) return;
+    const esc = (v: string | number) => { const s = String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+    const unit = data.footprint.unit || 'mm';
+    const header = ['estacion', 'linea', 'colocada', `x_${unit}`, `y_${unit}`, `w_${unit}`, `h_${unit}`, 'rotacion_deg', 'ctq'];
+    const rows = data.stations.map((s) => {
+      const p = placementsRef.current.get(s.id);
+      return [s.station, s.line, p ? 'si' : 'no', p?.x ?? '', p?.y ?? '', p?.w ?? '', p?.h ?? '', p?.rotation ?? '', s.ctq ? 'si' : 'no'].map(esc).join(',');
+    });
+    const csv = [header.join(','), ...rows].join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = `estaciones-${model}-${revision}.csv`.replace(/[^\w.\-]+/g, '_');
+    a.click(); URL.revokeObjectURL(a.href);
+    toast.success('Estaciones exportadas (CSV).', '3D');
+  };
   const arrayAssets = (cols: number, rows: number, gap: number) => {
     const sel = selRef.current.filter((s) => s.type === 'asset');
     const c = Math.max(1, Math.min(50, Math.round(cols))), r = Math.max(1, Math.min(50, Math.round(rows)));
@@ -1884,11 +2191,37 @@ export default function Layout3DEditor({
     const cam = cameraRef.current; const ctrl = controlsRef.current; const ctx = ctxRef.current;
     if (!cam || !ctrl || !ctx) return;
     const d = Math.max(ctx.W, ctx.H) * ctx.s;
-    if (preset === 'top') cam.position.set(0.01, d * 1.5, 0.01);
+    if (preset === 'top') cam.position.set(0, d * 1.5, 0.01);
     else if (preset === 'front') cam.position.set(0, d * 0.5, d * 1.3);
     else cam.position.set(d * 0.6, d * 0.85, d * 1.0);
     ctrl.target.set(0, 0, 0); ctrl.update();
   };
+  // ---- 2D⇄3D view toggle: the CAD unifica plano (2D) y modelo (3D) (unify) ----
+  // 2D = vista superior bloqueada (solo pan+zoom), como un plano CAD; 3D = órbita libre.
+  const applyViewMode = useCallback((mode: '3d' | '2d') => {
+    const cam = cameraRef.current; const ctrl = controlsRef.current; const ctx = ctxRef.current;
+    if (!cam || !ctrl || !ctx) return;
+    const d = Math.max(ctx.W, ctx.H) * ctx.s;
+    if (mode === '2d') {
+      // exit walkthrough if active, lock to a straight-down plan view
+      if (walkRef.current) { setWalk(false); walkRef.current = false; }
+      cam.position.set(0, d * 1.6, 0.01); // straight above, due-south → footprint axis-aligned (no 45° diamond)
+      ctrl.minPolarAngle = 0; ctrl.maxPolarAngle = 0.05; // pinned looking down
+      ctrl.enableRotate = false;
+      ctrl.mouseButtons.LEFT = THREE.MOUSE.PAN; // arrastrar el fondo = paneo (estilo 2D)
+      ctrl.touches.ONE = THREE.TOUCH.PAN;
+    } else {
+      ctrl.minPolarAngle = 0; ctrl.maxPolarAngle = Math.PI / 2.05;
+      ctrl.enableRotate = true;
+      ctrl.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+      ctrl.touches.ONE = THREE.TOUCH.ROTATE;
+      cam.position.set(d * 0.6, d * 0.85, d * 1.0);
+    }
+    ctrl.target.set(0, 0, 0); ctrl.update();
+  }, []);
+  const toggleViewMode = useCallback(() => {
+    setViewMode((m) => { const next = m === '3d' ? '2d' : '3d'; applyViewMode(next); return next; });
+  }, [applyViewMode]);
   const exportPng = () => {
     const r = rendererRef.current, sc = sceneRef.current, cam = cameraRef.current;
     if (!r || !sc || !cam) return;
@@ -2008,7 +2341,9 @@ export default function Layout3DEditor({
         body: JSON.stringify({
           model, revision, footprint: data.footprint, positions, cleared,
           connectors: connectorsRef.current, assets,
-          annotations, cells: data.cells ?? [],
+          annotations, cells: cellsRef.current,
+          // persist the DXF backdrop placement so saving from the CAD never drops it (unify fix)
+          ...(dxfMetaRef.current ? { dxf: dxfMetaRef.current } : {}),
         }),
       });
       if (!r.ok) { const d = await r.json().catch(() => ({})); toast.error(d?.message || 'No se pudo guardar.', '3D'); return; }
@@ -2069,8 +2404,12 @@ export default function Layout3DEditor({
           which would otherwise stack over the backdrop-blur'd bar) */}
       <div className="relative z-30 flex items-center gap-2 px-4 py-2.5 border-b border-white/10 shrink-0 bg-gray-900/80 backdrop-blur">
         <BoxIcon className="w-4 h-4" style={{ color: '#f43f5e' }} />
-        <span className="font-semibold text-sm">CAD 3D · {model} · {revision}</span>
+        <span className="font-semibold text-sm">CAD · {model} · {revision}</span>
         <span className="text-[11px] text-gray-400 ml-1">{placedCount} estaciones · {assetCount} equipos</span>
+        <div className="inline-flex items-center rounded-lg bg-white/[0.06] p-0.5 text-[12px] font-semibold ml-1">
+          <button onClick={() => { if (viewMode !== '2d') toggleViewMode(); }} className={`px-2.5 py-1 rounded-md transition-colors ${viewMode === '2d' ? 'bg-white/15 text-white' : 'text-gray-400 hover:text-gray-200'}`} title="Vista de plano 2D (superior, solo paneo y zoom)">2D</button>
+          <button onClick={() => { if (viewMode !== '3d') toggleViewMode(); }} className={`px-2.5 py-1 rounded-md transition-colors ${viewMode === '3d' ? 'bg-white/15 text-white' : 'text-gray-400 hover:text-gray-200'}`} title="Vista 3D (órbita libre)">3D</button>
+        </div>
         <div className="w-px h-5 bg-white/10 mx-1" />
         <T3Btn active={tool === 'select'} onClick={() => setToolMode('select')} title="Seleccionar / mover (V)"><MousePointer2 className="w-4 h-4" /></T3Btn>
         <T3Btn active={tool === 'measure'} onClick={toggleMeasure} title="Medir / acotar (M)"><Ruler className="w-4 h-4" /></T3Btn>
@@ -2089,12 +2428,26 @@ export default function Layout3DEditor({
         <T3Btn active={snap} onClick={() => setSnap((v) => !v)} title="Snap a grilla"><Grid3x3 className="w-4 h-4" /></T3Btn>
         <T3Btn active={osnap} onClick={() => setOsnap((v) => !v)} title="Snap a objetos y al plano DXF — alinea con bordes/centros y engancha a vértices y puntos medios del plano al medir o trazar muros"><Magnet className="w-4 h-4" /></T3Btn>
         <div className="w-px h-5 bg-white/10 mx-1" />
-        <T3Btn onClick={() => viewPreset('iso')} title="Vista isométrica"><Maximize2 className="w-4 h-4" /></T3Btn>
-        <T3Btn onClick={() => viewPreset('top')} title="Vista superior (planta)"><Eye className="w-4 h-4" /></T3Btn>
-        <T3Btn onClick={() => viewPreset('front')} title="Vista frontal"><Layers className="w-4 h-4" /></T3Btn>
-        <T3Btn active={walk} onClick={toggleWalk} title="Recorrido en primera persona — arrastra para mirar, WASD para caminar, Esc para salir"><PersonStanding className="w-4 h-4" /></T3Btn>
+        {viewMode === '3d' && (<>
+          <T3Btn onClick={() => viewPreset('iso')} title="Vista isométrica"><Maximize2 className="w-4 h-4" /></T3Btn>
+          <T3Btn onClick={() => viewPreset('top')} title="Vista superior (planta)"><Eye className="w-4 h-4" /></T3Btn>
+          <T3Btn onClick={() => viewPreset('front')} title="Vista frontal"><Layers className="w-4 h-4" /></T3Btn>
+          <T3Btn active={walk} onClick={toggleWalk} title="Recorrido en primera persona — arrastra para mirar, WASD para caminar, Esc para salir"><PersonStanding className="w-4 h-4" /></T3Btn>
+        </>)}
         <T3Btn active={showHeat} onClick={() => setShowHeat((v) => !v)} title="Mapa de calor de ocupación en el piso"><Grid2x2 className="w-4 h-4" /></T3Btn>
         <T3Btn active={showGaps} onClick={() => setShowGaps((v) => !v)} title="Holguras de seguridad — marca los objetos demasiado juntos (ámbar) o traslapados (rojo)"><ShieldAlert className="w-4 h-4" /></T3Btn>
+        <div className="relative" ref={overlayMenuRef}>
+          <T3Btn active={showOverlayMenu || !!overlay} onClick={() => setShowOverlayMenu((v) => !v)} title="Estado de estación — MES en vivo, calor de ciclo, completitud, bahías, calidad"><Activity className="w-4 h-4" /></T3Btn>
+          {showOverlayMenu && (
+            <div className="absolute top-full mt-1 left-0 z-50 w-60 rounded-xl border border-white/10 bg-gray-900 shadow-2xl py-1">
+              <div className="px-3 py-1.5 text-[10px] uppercase tracking-wide text-gray-500">Estado de estación</div>
+              <button onClick={() => loadOverlay(null)} className={`w-full text-left px-3 py-1.5 text-[12.5px] hover:bg-white/[0.08] ${overlay === null ? 'text-white' : 'text-gray-400'}`}>Ninguno</button>
+              {OVERLAY_DEFS.map((o) => (
+                <button key={o.key} onClick={() => loadOverlay(o.key)} className={`w-full text-left px-3 py-1.5 text-[12.5px] hover:bg-white/[0.08] ${overlay === o.key ? 'text-white' : 'text-gray-200'}`}>{o.label}</button>
+              ))}
+            </div>
+          )}
+        </div>
         <div className="relative" ref={viewMenuRef}>
           <T3Btn active={showView} onClick={() => setShowView((v) => { const nv = !v; if (nv && data) setFpDraft({ w: data.footprint.footprintW, h: data.footprint.footprintH, g: data.footprint.gridSize }); return nv; })} title="Vista, capas y plano"><SlidersHorizontal className="w-4 h-4" /></T3Btn>
           {showView && (
@@ -2134,15 +2487,44 @@ export default function Layout3DEditor({
         <div className="w-px h-5 bg-white/10 mx-1" />
         <T3Btn onClick={arrangeLineLayout} title="Acomodar la línea — ordena las estaciones por secuencia en filas equiespaciadas"><Rows3 className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={connectLineLayout} title="Conectar la línea — enlaza cada estación con la siguiente en secuencia (flujo)"><Waypoints className="w-4 h-4" /></T3Btn>
+        <T3Btn onClick={runOptimize} disabled={serverBusy} title="Optimizar flujo — reordena para minimizar el recorrido (servidor)"><WandSparkles className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={openChecks} title="Revisión de diseño — valida colocación, límites, traslapes y flujo"><ShieldCheck className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={openTakeoff} title="Cantidades / lista de materiales"><ClipboardList className="w-4 h-4" /></T3Btn>
+        <div className="relative" ref={analysisMenuRef}>
+          <T3Btn active={showAnalysis || !!analysisPanel} onClick={() => setShowAnalysis((v) => !v)} title="Análisis del layout — balanceo, costos, flujo, escenarios, salud…"><ChartLine className="w-4 h-4" /></T3Btn>
+          {showAnalysis && (
+            <div className="absolute top-full mt-1 left-0 z-50 w-64 max-h-[62vh] overflow-y-auto rounded-xl border border-white/10 bg-gray-900 shadow-2xl py-1">
+              <div className="px-3 py-1.5 text-[10px] uppercase tracking-wide text-gray-500">Análisis del layout</div>
+              {ANALYSIS_PANELS.map((p) => (
+                <button key={p.key} onClick={() => { setAnalysisPanel(p.key); setShowAnalysis(false); }} className="w-full text-left px-3 py-1.5 text-[12.5px] text-gray-200 hover:bg-white/[0.08] transition-colors">{p.label}</button>
+              ))}
+            </div>
+          )}
+        </div>
         <T3Btn onClick={exportPdf} title="Imprimir plano a PDF — vista + cajetín (modelo, revisión, huella, fecha)"><Printer className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={exportPng} title="Exportar imagen (PNG)"><Download className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={exportGltf} title="Exportar modelo 3D (.glb) — Blender, otros CAD"><Package className="w-4 h-4" /></T3Btn>
+        <input ref={dxfInputRef} type="file" accept=".dxf" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onDxfFile(f); e.target.value = ''; }} />
+        <T3Btn onClick={() => dxfInputRef.current?.click()} disabled={dxfBusy} title="Cargar plano DXF de fondo (calcar el plano del cliente)"><Upload className="w-4 h-4" /></T3Btn>
         {hasDxf && <T3Btn onClick={importDxfWalls} title="Convertir el plano DXF de fondo en muros editables"><BrickWall className="w-4 h-4" /></T3Btn>}
+        {hasDxf && <T3Btn onClick={removeDxf} disabled={dxfBusy} title="Quitar el plano DXF de fondo"><ImageOff className="w-4 h-4" /></T3Btn>}
         <T3Btn onClick={exportDxf} title="Exportar a DXF (AutoCAD) — cada tipo en su capa"><FileDown className="w-4 h-4" /></T3Btn>
+        <T3Btn onClick={exportCsvSchedule} title="Exportar estaciones a CSV (Excel)"><FileText className="w-4 h-4" /></T3Btn>
+        <T3Btn active={showVersions} onClick={openVersions} title="Versiones / escenarios — guardar, restaurar"><History className="w-4 h-4" /></T3Btn>
+        <T3Btn active={showCells} onClick={() => setShowCells((v) => !v)} title="Celdas / zonas — agrupar estaciones en celdas"><Group className="w-4 h-4" /></T3Btn>
+        {models.length > 1 && <T3Btn active={showClone} onClick={() => setShowClone((v) => !v)} title="Clonar layout desde otro modelo (plantilla)"><Copy className="w-4 h-4" /></T3Btn>}
         <T3Btn active={showHelp} onClick={() => setShowHelp((v) => !v)} title="Atajos y ayuda (?)"><HelpCircle className="w-4 h-4" /></T3Btn>
         <div className="flex-1" />
+        {approval && (
+          <div className="inline-flex items-center gap-1.5 mr-1.5" title="Estado de aprobación del layout">
+            <Stamp className="w-3.5 h-3.5" style={{ color: APPROVAL_META[approval.status].color }} />
+            <select value={approval.status} disabled={approvalBusy} onChange={(e) => setApprovalStatus(e.target.value as ApprovalStatus)} className="text-[12px] rounded-md px-1.5 py-1 bg-white/[0.06] border border-white/10 outline-none" style={{ color: APPROVAL_META[approval.status].color }}>
+              <option value="draft" className="text-gray-900">Borrador</option>
+              <option value="in_review" className="text-gray-900">En revisión</option>
+              <option value="approved" className="text-gray-900">Aprobado</option>
+            </select>
+          </div>
+        )}
         <button onClick={save} disabled={saving || !dirty} className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-sm font-medium text-white disabled:opacity-50" style={{ background: '#f43f5e' }}>
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Guardar
         </button>
@@ -2236,6 +2618,14 @@ export default function Layout3DEditor({
                     ? 'Clic en cada esquina para trazar muros · Shift = ángulos de 45° · arrastra el fondo para orbitar · Esc termina'
                     : 'Arrastra para mover · Shift+clic multiselecciona · fondo = orbitar · rueda = zoom · R rota · Supr borra'}
             </div>
+            {overlay && (
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-gray-900/85 backdrop-blur border border-white/10 text-[11px] text-gray-200 flex items-center gap-3 pointer-events-none">
+                <span className="font-medium">{OVERLAY_DEFS.find((o) => o.key === overlay)?.label}</span>
+                {OVERLAY_DEFS.find((o) => o.key === overlay)?.legend.map((l) => (
+                  <span key={l.label} className="inline-flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: l.hex }} />{l.label}</span>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* right: properties */}
@@ -2438,6 +2828,108 @@ export default function Layout3DEditor({
           </div>
         </div>
       )}
+
+      {/* Versions / scenarios modal (unify) */}
+      {showVersions && (
+        <div className="absolute inset-0 z-[80] grid place-items-center bg-black/50 p-4" onClick={() => setShowVersions(false)}>
+          <div className="w-[460px] max-w-full max-h-[80vh] overflow-y-auto rounded-2xl border border-white/10 bg-gray-900 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
+              <History className="w-4 h-4" style={{ color: '#22d3ee' }} />
+              <span className="text-sm font-semibold">Versiones · {model} · {revision}</span>
+              <div className="flex-1" />
+              <button onClick={() => setShowVersions(false)} className="p-1 rounded-lg hover:bg-white/10"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <input value={versName} onChange={(e) => setVersName(e.target.value)} placeholder="Nombre de la versión (opcional)" className="flex-1 bg-white/[0.06] rounded-lg px-2.5 py-1.5 text-[13px] outline-none focus:ring-1 ring-cyan-500/40" />
+                <button onClick={saveVersion} disabled={versBusy} className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-[12px] font-medium disabled:opacity-50">Guardar versión</button>
+              </div>
+              {versions.length === 0 ? (
+                <p className="text-[12px] text-gray-500 text-center py-4">Aún no hay versiones guardadas.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {versions.map((v) => (
+                    <div key={v.id} className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[13px] font-medium truncate">{v.name || 'Sin nombre'}</div>
+                        <div className="text-[11px] text-gray-400">{new Date(v.createdAt).toLocaleString('es-MX')} · {v.stationCount} est · {v.assetCount} eq</div>
+                      </div>
+                      <button onClick={() => restoreVersion(v.id)} disabled={versBusy} className="px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px] disabled:opacity-50">Restaurar</button>
+                      <button onClick={() => deleteVersion(v.id)} className="p-1 rounded-md text-rose-300 hover:bg-rose-500/20"><Trash2 className="w-3.5 h-3.5" /></button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Clone-from-template modal (unify) */}
+      {showClone && (
+        <div className="absolute inset-0 z-[80] grid place-items-center bg-black/50 p-4" onClick={() => setShowClone(false)}>
+          <div className="w-[420px] max-w-full rounded-2xl border border-white/10 bg-gray-900 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
+              <Copy className="w-4 h-4" style={{ color: '#22d3ee' }} />
+              <span className="text-sm font-semibold">Clonar desde plantilla</span>
+              <div className="flex-1" />
+              <button onClick={() => setShowClone(false)} className="p-1 rounded-lg hover:bg-white/10"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="p-4">
+              <p className="text-[12px] text-gray-400 mb-3">Copia el layout (estaciones, equipo, conexiones, celdas y plano) de otro modelo a <b className="text-gray-200">{model} · {revision}</b>. Reemplaza el actual.</p>
+              <select value={cloneSrc} onChange={(e) => setCloneSrc(e.target.value)} className="w-full bg-white/[0.06] rounded-lg px-2.5 py-2 text-[13px] outline-none mb-3 focus:ring-1 ring-cyan-500/40">
+                <option value="" className="text-gray-900">Elige un modelo origen…</option>
+                {models.filter((m) => !(m.model === model && m.revision === revision)).map((m) => (
+                  <option key={`${m.model}|${m.revision}`} value={`${m.model}|${m.revision}`} className="text-gray-900">{m.model} · {m.revision}</option>
+                ))}
+              </select>
+              <button onClick={cloneFrom} disabled={!cloneSrc || cloneBusy} className="w-full px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-[12px] font-medium disabled:opacity-50">{cloneBusy ? 'Clonando…' : 'Clonar layout'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cells / zones modal (unify) */}
+      {showCells && (
+        <div className="absolute inset-0 z-[80] grid place-items-center bg-black/50 p-4" onClick={() => setShowCells(false)}>
+          <div className="w-[440px] max-w-full max-h-[80vh] overflow-y-auto rounded-2xl border border-white/10 bg-gray-900 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
+              <Group className="w-4 h-4" style={{ color: '#22d3ee' }} />
+              <span className="text-sm font-semibold">Celdas / zonas · {model} · {revision}</span>
+              <div className="flex-1" />
+              <button onClick={() => setShowCells(false)} className="p-1 rounded-lg hover:bg-white/10"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="p-4">
+              <button onClick={createCellFromSelection} className="w-full mb-3 px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-[12px] font-medium">Crear celda con la selección</button>
+              {cellsRef.current.length === 0 ? (
+                <p className="text-[12px] text-gray-500 text-center py-3">Selecciona estaciones (Shift+clic) y crea una celda para agruparlas.</p>
+              ) : (
+                <div key={cellsTick} className="space-y-1.5">
+                  {cellsRef.current.map((c) => (
+                    <div key={c.id} className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2">
+                      <span className="inline-block w-3 h-3 rounded-sm shrink-0" style={{ background: c.color }} />
+                      <div className="min-w-0 flex-1">
+                        <input defaultValue={c.name} onBlur={(e) => { const v = e.target.value.trim(); if (v) { c.name = v; setDirty(true); setCellsTick((t) => t + 1); } }} className="w-full bg-transparent text-[13px] font-medium outline-none focus:bg-white/[0.06] rounded px-1" />
+                        <div className="text-[11px] text-gray-400 px-1">{c.stationIds.length} estaciones</div>
+                      </div>
+                      <button onClick={() => deleteCell(c.id)} className="p-1 rounded-md text-rose-300 hover:bg-rose-500/20"><Trash2 className="w-3.5 h-3.5" /></button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="text-[10.5px] text-gray-500 mt-3">Las celdas tiñen el piso bajo sus estaciones agrupadas.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Analysis panels — mounted on demand from the Análisis menu (unify) */}
+      {analysisPanel && (() => {
+        const it = ANALYSIS_PANELS.find((a) => a.key === analysisPanel);
+        if (!it) return null;
+        const C = it.Comp;
+        return <C model={model} revision={revision} open onClose={() => setAnalysisPanel(null)} />;
+      })()}
 
       {/* Keyboard shortcuts / help overlay */}
       {showHelp && (
