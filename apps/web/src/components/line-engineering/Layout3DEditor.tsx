@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import {
-  Loader2, X, Save, Move3d, Grid3x3, Grid2x2, ShieldAlert, RotateCw, RotateCcw, Trash2, Download, FileDown, Magnet,
+  Loader2, X, Save, Move3d, Grid3x3, Grid2x2, ShieldAlert, RotateCw, RotateCcw, Trash2, Download, FileDown, Magnet, FlipHorizontal, FlipVertical,
   Box as BoxIcon, Eye, MapPin, Maximize2, Layers, Copy, Crosshair, Settings2,
   Boxes, ChevronRight, Ruler, MousePointer2, SlidersHorizontal, Undo2, Redo2, Spline,
   ClipboardList, Package, StickyNote, PersonStanding, HelpCircle,
@@ -493,6 +493,7 @@ export default function Layout3DEditor({
   const [hist, setHist] = useState({ undo: 0, redo: 0 }); // depths, for button enablement
   const [takeoff, setTakeoff] = useState<LocalTakeoff | null>(null); // quantities panel (null = closed)
   const [showHeat, setShowHeat] = useState(false); // occupancy heat-map overlay on the floor (Fase 51)
+  const [arr, setArr] = useState({ cols: 3, rows: 1, gap: 500, dx: 1000, dy: 0 }); // array/offset params (Fase 55)
   const [showGaps, setShowGaps] = useState(false); // clearance/safety gap markers overlay (Fase 52)
 
   // three.js refs
@@ -1588,6 +1589,64 @@ export default function Layout3DEditor({
     if (created.length) select(created);
     setDirty(true); rebuildAll();
   };
+  // ---- array / mirror / offset of the selected equipment (Fase 55) ----
+  // Stations can't be cloned (they're tied to routing), so these act on assets.
+  const commitCreated = (created: SelItem[], msg: string) => {
+    setAssetIds(new Set(assetsRef.current.keys()));
+    if (created.length) { select(created); setDirty(true); rebuildAll(); toast.success(`${created.length} ${msg}`, '3D'); }
+  };
+  const arrayAssets = (cols: number, rows: number, gap: number) => {
+    const sel = selRef.current.filter((s) => s.type === 'asset');
+    const c = Math.max(1, Math.min(50, Math.round(cols))), r = Math.max(1, Math.min(50, Math.round(rows)));
+    if (!sel.length || c * r <= 1) return;
+    const ctx = ctxRef.current!; const g = Math.max(0, Math.round(gap) || 0);
+    pushHistory();
+    const created: SelItem[] = [];
+    sel.forEach((it) => {
+      const src = assetsRef.current.get(it.id); if (!src) return;
+      for (let i = 0; i < c; i++) for (let j = 0; j < r; j++) {
+        if (i === 0 && j === 0) continue; // keep the original in place
+        const nx = src.x + i * (src.w + g), ny = src.y + j * (src.h + g);
+        if (nx + src.w > ctx.W || ny + src.h > ctx.H) continue; // skip copies off the plan
+        const id = newId('as');
+        assetsRef.current.set(id, { ...src, id, x: nx, y: ny });
+        created.push({ type: 'asset', id });
+      }
+    });
+    commitCreated(created, 'copia(s) en arreglo.');
+  };
+  const mirrorAssets = (axis: 'h' | 'v') => {
+    const sel = selRef.current.filter((s) => s.type === 'asset');
+    if (!sel.length) return;
+    const ctx = ctxRef.current!;
+    pushHistory();
+    const created: SelItem[] = [];
+    sel.forEach((it) => {
+      const src = assetsRef.current.get(it.id); if (!src) return;
+      const id = newId('as');
+      const nx = axis === 'h' ? ctx.W - src.x - src.w : src.x;
+      const ny = axis === 'v' ? ctx.H - src.y - src.h : src.y;
+      const rot = axis === 'h' ? (180 - src.rotation + 360) % 360 : (360 - src.rotation) % 360;
+      assetsRef.current.set(id, { ...src, id, x: Math.max(0, Math.min(ctx.W - src.w, nx)), y: Math.max(0, Math.min(ctx.H - src.h, ny)), rotation: rot });
+      created.push({ type: 'asset', id });
+    });
+    commitCreated(created, 'copia(s) en espejo.');
+  };
+  const offsetAssets = (dx: number, dy: number) => {
+    const sel = selRef.current.filter((s) => s.type === 'asset');
+    const ox = Math.round(dx) || 0, oy = Math.round(dy) || 0;
+    if (!sel.length || (ox === 0 && oy === 0)) return;
+    const ctx = ctxRef.current!;
+    pushHistory();
+    const created: SelItem[] = [];
+    sel.forEach((it) => {
+      const src = assetsRef.current.get(it.id); if (!src) return;
+      const id = newId('as');
+      assetsRef.current.set(id, { ...src, id, x: Math.max(0, Math.min(ctx.W - src.w, src.x + ox)), y: Math.max(0, Math.min(ctx.H - src.h, src.y + oy)) });
+      created.push({ type: 'asset', id });
+    });
+    commitCreated(created, 'copia(s) desfasada(s).');
+  };
   const nudgeSelected = (dx: number, dy: number) => {
     const items = selRef.current; const ctx = ctxRef.current; if (!items.length || !ctx) return;
     pushHistory();
@@ -1989,6 +2048,34 @@ export default function Layout3DEditor({
                   {selSnap.canDuplicate && <button onClick={duplicateSelected} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><Copy className="w-3.5 h-3.5" /> Duplicar</button>}
                   <button onClick={removeSelected} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 text-[12px]"><Trash2 className="w-3.5 h-3.5" /> Quitar</button>
                 </div>
+
+                {selSnap.canDuplicate && (
+                  <div className="mt-3 pt-3 border-t border-white/10 space-y-2">
+                    <div className="text-[10.5px] uppercase tracking-wide text-gray-500">Copiar equipo</div>
+                    <div className="flex items-center gap-1.5 text-[12px]">
+                      <span className="text-gray-400 w-12 shrink-0">Arreglo</span>
+                      <input type="number" min={1} max={50} value={arr.cols} onChange={(e) => setArr((a) => ({ ...a, cols: Number(e.target.value) }))} className="w-11 bg-white/[0.06] rounded px-1 py-0.5 text-center tabular-nums outline-none focus:ring-1 ring-cyan-500/40" title="columnas" />
+                      <span className="text-gray-500">×</span>
+                      <input type="number" min={1} max={50} value={arr.rows} onChange={(e) => setArr((a) => ({ ...a, rows: Number(e.target.value) }))} className="w-11 bg-white/[0.06] rounded px-1 py-0.5 text-center tabular-nums outline-none focus:ring-1 ring-cyan-500/40" title="filas" />
+                      <span className="text-gray-500">sep</span>
+                      <input type="number" min={0} value={arr.gap} onChange={(e) => setArr((a) => ({ ...a, gap: Number(e.target.value) }))} className="w-14 bg-white/[0.06] rounded px-1 py-0.5 text-center tabular-nums outline-none focus:ring-1 ring-cyan-500/40" title="separación" />
+                      <button onClick={() => arrayAssets(arr.cols, arr.rows, arr.gap)} className="ml-auto px-2 py-0.5 rounded-md bg-cyan-600 hover:bg-cyan-500 text-white text-[11px] font-medium">Crear</button>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[12px]">
+                      <span className="text-gray-400 w-12 shrink-0">Espejo</span>
+                      <button onClick={() => mirrorAssets('h')} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12]"><FlipHorizontal className="w-3.5 h-3.5" /> Horizontal</button>
+                      <button onClick={() => mirrorAssets('v')} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12]"><FlipVertical className="w-3.5 h-3.5" /> Vertical</button>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[12px]">
+                      <span className="text-gray-400 w-12 shrink-0">Desfasar</span>
+                      <span className="text-gray-500">dx</span>
+                      <input type="number" value={arr.dx} onChange={(e) => setArr((a) => ({ ...a, dx: Number(e.target.value) }))} className="w-14 bg-white/[0.06] rounded px-1 py-0.5 text-center tabular-nums outline-none focus:ring-1 ring-cyan-500/40" />
+                      <span className="text-gray-500">dy</span>
+                      <input type="number" value={arr.dy} onChange={(e) => setArr((a) => ({ ...a, dy: Number(e.target.value) }))} className="w-14 bg-white/[0.06] rounded px-1 py-0.5 text-center tabular-nums outline-none focus:ring-1 ring-cyan-500/40" />
+                      <button onClick={() => offsetAssets(arr.dx, arr.dy)} className="ml-auto px-2 py-0.5 rounded-md bg-cyan-600 hover:bg-cyan-500 text-white text-[11px] font-medium">Crear</button>
+                    </div>
+                  </div>
+                )}
 
                 <p className="text-[10.5px] text-gray-500 mt-3 leading-relaxed">
                   Unidades en {data.footprint.unit}. Usa las flechas para ajustar y <b>R</b> para rotar.
