@@ -8,7 +8,7 @@ import {
   Loader2, X, Save, Move3d, Grid3x3, RotateCw, RotateCcw, Trash2, Download,
   Box as BoxIcon, Eye, MapPin, Maximize2, Layers, Copy, Crosshair, Settings2,
   Boxes, ChevronRight, Ruler, MousePointer2, SlidersHorizontal, Undo2, Redo2, Spline,
-  ClipboardList, Package, StickyNote,
+  ClipboardList, Package, StickyNote, PersonStanding,
   AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd,
   AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
 } from 'lucide-react';
@@ -444,6 +444,7 @@ export default function Layout3DEditor({
   const [assetIds, setAssetIds] = useState<Set<string>>(new Set());
   const [tab, setTab] = useState<'stations' | 'equipment'>('stations');
   const [tool, setTool] = useState<'select' | 'measure' | 'wall'>('select');
+  const [walk, setWalk] = useState(false); // first-person walkthrough mode
   const [measureLive, setMeasureLive] = useState<string | null>(null);
   const [dimCount, setDimCount] = useState(0);
   const [theme, setTheme] = useState<Theme3D>('dark');
@@ -468,6 +469,11 @@ export default function Layout3DEditor({
   const groundRef = useRef<THREE.Mesh | null>(null);
   const gridHelperRef = useRef<THREE.GridHelper | null>(null);
   const dirLightRef = useRef<THREE.DirectionalLight | null>(null);
+  const walkRef = useRef(false);
+  const walkYawRef = useRef(0);
+  const walkPitchRef = useRef(0);
+  const walkKeysRef = useRef({ f: false, b: false, l: false, r: false });
+  const savedCamRef = useRef<{ px: number; py: number; pz: number; tx: number; ty: number; tz: number } | null>(null);
   const previewLineRef = useRef<THREE.Line | null>(null);
   const meshByIdRef = useRef<Map<string, THREE.Mesh>>(new Map());
   const groupByAssetRef = useRef<Map<string, THREE.Group>>(new Map());
@@ -572,12 +578,36 @@ export default function Layout3DEditor({
   const refreshSnap = useCallback(() => setSelSnap(selRef.current.length === 1 ? computeSnap(selRef.current[0]) : null), [computeSnap]);
   const getPlaceRef = useCallback((it: SelItem) => (it.type === 'station' ? placementsRef.current.get(it.id) : assetsRef.current.get(it.id)), []);
 
+  // ---- first-person walkthrough: drop to eye level, look by dragging, WASD ----
+  const toggleWalk = useCallback(() => {
+    const cam = cameraRef.current; const ctrl = controlsRef.current; const ctx = ctxRef.current;
+    if (!cam || !ctrl || !ctx) return;
+    setWalk((prev) => {
+      const next = !prev; walkRef.current = next;
+      if (next) {
+        savedCamRef.current = { px: cam.position.x, py: cam.position.y, pz: cam.position.z, tx: ctrl.target.x, ty: ctrl.target.y, tz: ctrl.target.z };
+        ctrl.enabled = false;
+        const eyeY = Math.max(ctx.W, ctx.H) * ctx.s * 0.06;
+        cam.position.set(0, eyeY, Math.max(ctx.W, ctx.H) * ctx.s * 0.4);
+        walkYawRef.current = 0; walkPitchRef.current = -0.05; // looking toward -Z (the plant), slightly down
+        walkKeysRef.current = { f: false, b: false, l: false, r: false };
+        selRef.current = []; setSelList([]); setSelSnap(null);
+      } else {
+        const s = savedCamRef.current;
+        if (s) { cam.position.set(s.px, s.py, s.pz); ctrl.target.set(s.tx, s.ty, s.tz); }
+        ctrl.enabled = true; ctrl.update();
+      }
+      return next;
+    });
+  }, []);
+
   // ---- data ----
   useEffect(() => {
     if (!open || !model) return;
     let alive = true;
     setData(null); setError(null); setSelList([]); setSelSnap(null); selRef.current = []; setDirty(false); setTab('stations');
     setTool('select'); toolRef.current = 'select'; measureARef.current = null; wallChainRef.current = null; setMeasureLive(null);
+    setWalk(false); walkRef.current = false; savedCamRef.current = null;
     undoStackRef.current = []; redoStackRef.current = []; setHist({ undo: 0, redo: 0 });
     (async () => {
       try {
@@ -879,6 +909,8 @@ export default function Layout3DEditor({
         const g = groupByAssetRef.current.get(it.id); if (g) { g.position.x = ncx; g.position.z = ncz; }
       }
     };
+    const eyeY = Math.max(W, H) * s * 0.06;
+    let walkLook = false, lookX = 0, lookY = 0;
     const setPtr = (e: PointerEvent) => {
       const rect = renderer.domElement.getBoundingClientRect();
       ptr.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -893,6 +925,7 @@ export default function Layout3DEditor({
     };
     const onDown = (e: PointerEvent) => {
       downX = e.clientX; downY = e.clientY;
+      if (walkRef.current) { walkLook = true; lookX = e.clientX; lookY = e.clientY; renderer.domElement.setPointerCapture(e.pointerId); return; }
       if (toolRef.current !== 'select') return; // measure/wall resolve on click (pointerup); drag still orbits
       setPtr(e); raycaster.setFromCamera(ptr, camera);
       // clicking a dimension label removes that cota
@@ -948,6 +981,13 @@ export default function Layout3DEditor({
       }
     };
     const onMove = (e: PointerEvent) => {
+      if (walkRef.current) {
+        if (!walkLook) return;
+        walkYawRef.current -= (e.clientX - lookX) * 0.005;
+        walkPitchRef.current = Math.max(-1.3, Math.min(1.3, walkPitchRef.current - (e.clientY - lookY) * 0.005));
+        lookX = e.clientX; lookY = e.clientY;
+        return;
+      }
       if (toolRef.current === 'measure' || toolRef.current === 'wall') {
         const a = toolRef.current === 'measure' ? measureARef.current : wallChainRef.current;
         if (!a) return;
@@ -988,6 +1028,7 @@ export default function Layout3DEditor({
       });
     };
     const onUp = (e: PointerEvent) => {
+      if (walkRef.current) { walkLook = false; try { renderer.domElement.releasePointerCapture(e.pointerId); } catch { /* ignore */ } return; }
       const isClick = Math.hypot(e.clientX - downX, e.clientY - downY) < 5;
       if (toolRef.current === 'measure') {
         if (isClick) {
@@ -1057,6 +1098,17 @@ export default function Layout3DEditor({
     renderer.domElement.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
 
+    // WASD movement while walking
+    const onWalkKey = (down: boolean) => (e: KeyboardEvent) => {
+      if (!walkRef.current) return;
+      const k = walkKeysRef.current; const key = e.key.toLowerCase();
+      if (key === 'w') k.f = down; else if (key === 's') k.b = down; else if (key === 'a') k.l = down; else if (key === 'd') k.r = down; else return;
+      e.preventDefault();
+    };
+    const walkKd = onWalkKey(true), walkKu = onWalkKey(false);
+    window.addEventListener('keydown', walkKd);
+    window.addEventListener('keyup', walkKu);
+
     const onResize = () => {
       const w = mount.clientWidth || width; const hh = mount.clientHeight || height;
       renderer.setSize(w, hh); camera.aspect = w / hh; camera.updateProjectionMatrix();
@@ -1065,7 +1117,24 @@ export default function Layout3DEditor({
 
     const animate = () => {
       if (disposed) return;
-      controls.update(); renderer.render(scene, camera);
+      if (walkRef.current) {
+        const yaw = walkYawRef.current, pitch = walkPitchRef.current, k = walkKeysRef.current;
+        const sp = Math.max(W, H) * s * 0.006;
+        const fx = Math.sin(yaw), fz = -Math.cos(yaw); // forward (flat); rx,rz = right
+        const rx = -fz, rz = fx;
+        if (k.f) { camera.position.x += fx * sp; camera.position.z += fz * sp; }
+        if (k.b) { camera.position.x -= fx * sp; camera.position.z -= fz * sp; }
+        if (k.l) { camera.position.x -= rx * sp; camera.position.z -= rz * sp; }
+        if (k.r) { camera.position.x += rx * sp; camera.position.z += rz * sp; }
+        const lim = Math.max(W, H) * s * 0.62;
+        camera.position.x = Math.max(-lim, Math.min(lim, camera.position.x));
+        camera.position.z = Math.max(-lim, Math.min(lim, camera.position.z));
+        camera.position.y = eyeY;
+        camera.lookAt(camera.position.x + Math.sin(yaw) * Math.cos(pitch), camera.position.y + Math.sin(pitch), camera.position.z - Math.cos(yaw) * Math.cos(pitch));
+      } else {
+        controls.update();
+      }
+      renderer.render(scene, camera);
       raf = requestAnimationFrame(animate);
     };
     animate();
@@ -1076,6 +1145,8 @@ export default function Layout3DEditor({
       renderer.domElement.removeEventListener('pointerdown', onDown);
       renderer.domElement.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('keydown', walkKd);
+      window.removeEventListener('keyup', walkKu);
       controls.dispose();
       disposeObject(scene);
       renderer.dispose();
@@ -1359,6 +1430,8 @@ export default function Layout3DEditor({
     const onKey = (e: KeyboardEvent) => {
       const tgt = e.target as HTMLElement | null;
       if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return;
+      // in walkthrough mode WASD/look take over; only Esc (exit) reaches here
+      if (walkRef.current) { if (e.key === 'Escape') { e.preventDefault(); toggleWalk(); } return; }
       const g = data?.footprint.gridSize || 100;
       const step = e.shiftKey ? g * 5 : g;
       const hasSel = selRef.current.length > 0;
@@ -1421,6 +1494,7 @@ export default function Layout3DEditor({
         <T3Btn onClick={() => viewPreset('iso')} title="Vista isométrica"><Maximize2 className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={() => viewPreset('top')} title="Vista superior (planta)"><Eye className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={() => viewPreset('front')} title="Vista frontal"><Layers className="w-4 h-4" /></T3Btn>
+        <T3Btn active={walk} onClick={toggleWalk} title="Recorrido en primera persona — arrastra para mirar, WASD para caminar, Esc para salir"><PersonStanding className="w-4 h-4" /></T3Btn>
         <div className="relative" ref={viewMenuRef}>
           <T3Btn active={showView} onClick={() => setShowView((v) => { const nv = !v; if (nv && data) setFpDraft({ w: data.footprint.footprintW, h: data.footprint.footprintH, g: data.footprint.gridSize }); return nv; })} title="Vista, capas y plano"><SlidersHorizontal className="w-4 h-4" /></T3Btn>
           {showView && (
@@ -1517,7 +1591,12 @@ export default function Layout3DEditor({
           {/* 3D viewport */}
           <div className="relative flex-1 min-w-0">
             <div ref={mountRef} className="absolute inset-0" />
-            {(tool === 'measure' || tool === 'wall') && (
+            {walk && (
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-emerald-500/95 text-white text-[12px] font-semibold inline-flex items-center gap-1.5 pointer-events-none">
+                <PersonStanding className="w-3.5 h-3.5" /> Recorrido · arrastra para mirar · WASD para caminar · Esc para salir
+              </div>
+            )}
+            {!walk && (tool === 'measure' || tool === 'wall') && (
               <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-amber-400/95 text-gray-900 text-[12px] font-semibold inline-flex items-center gap-1.5 pointer-events-none">
                 {tool === 'measure' ? <Ruler className="w-3.5 h-3.5" /> : <Spline className="w-3.5 h-3.5" />}
                 {measureLive ? measureLive : (tool === 'measure' ? 'Clic en dos puntos para medir' : 'Clic para trazar muros · Esc termina')}
@@ -1525,11 +1604,13 @@ export default function Layout3DEditor({
             )}
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-gray-900/80 backdrop-blur border border-white/10 text-[11px] text-gray-300 inline-flex items-center gap-2 pointer-events-none">
               <Move3d className="w-3.5 h-3.5" />
-              {tool === 'measure'
-                ? 'Clic en dos puntos para medir · arrastra el fondo para orbitar · Esc cancela'
-                : tool === 'wall'
-                  ? 'Clic en cada esquina para trazar muros · Shift = ángulos de 45° · arrastra el fondo para orbitar · Esc termina'
-                  : 'Arrastra para mover · Shift+clic multiselecciona · fondo = orbitar · rueda = zoom · R rota · Supr borra'}
+              {walk
+                ? 'Arrastra para mirar · W A S D para caminar · Esc para salir del recorrido'
+                : tool === 'measure'
+                  ? 'Clic en dos puntos para medir · arrastra el fondo para orbitar · Esc cancela'
+                  : tool === 'wall'
+                    ? 'Clic en cada esquina para trazar muros · Shift = ángulos de 45° · arrastra el fondo para orbitar · Esc termina'
+                    : 'Arrastra para mover · Shift+clic multiselecciona · fondo = orbitar · rueda = zoom · R rota · Supr borra'}
             </div>
           </div>
 
