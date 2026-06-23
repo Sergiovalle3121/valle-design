@@ -5,20 +5,27 @@ import { createPortal } from 'react-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import {
-  Loader2, X, Save, Move3d, Grid3x3, RotateCw, Trash2, Download,
-  Box as BoxIcon, Eye, MapPin, Maximize2, Layers,
+  Loader2, X, Save, Move3d, Grid3x3, RotateCw, RotateCcw, Trash2, Download,
+  Box as BoxIcon, Eye, MapPin, Maximize2, Layers, Copy, Crosshair, Settings2,
+  Boxes, ChevronRight,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/apiFetch';
 import { useToast } from '@/contexts/ToastContext';
+import { ASSET_CATEGORIES, assetMeta, type AssetArchetype } from './asset-catalog';
 
 /**
- * Full-screen interactive 3D layout editor. Each placed station is an extruded,
- * labelled block on the plant floor; drag a block on the floor to reposition it
- * (a raycast against the ground gives the new world x/y — exactly the same
- * placement data the 2D editor uses, so the two views stay in sync), place
- * unplaced stations from the tray, rotate/remove the selection, snap to grid,
- * and save back through the shared layout endpoint. three.js + OrbitControls,
- * lazy-loaded so it only ships when opened.
+ * Full-screen interactive 3D layout editor — the "CAD" view of the plant floor.
+ *
+ * Stations are extruded, labelled blocks; non-station equipment (benches,
+ * conveyors, racks, robots, walls, columns, AGVs, operators…) are placed from a
+ * categorised palette and rendered with distinctive geometry per archetype.
+ * Anything on the floor can be dragged (a raycast against the ground gives the
+ * new world x/y — exactly the placement data the 2D editor uses, so both views
+ * stay in sync), selected, nudged, rotated, duplicated, resized from the
+ * properties panel, or removed. Saves back through the shared layout endpoint:
+ * stations via positions/cleared, equipment via the additive `assets` array.
+ *
+ * three.js + OrbitControls, lazy-loaded so the engine only ships when opened.
  */
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000').replace(/\/$/, '');
@@ -40,6 +47,15 @@ interface Layout {
   annotations?: unknown[];
 }
 interface Placement { x: number; y: number; w: number; h: number; rotation: number }
+type Sel = { type: 'station' | 'asset'; id: string } | null;
+/** A render-safe snapshot of the current selection for the properties panel. */
+interface SelSnap {
+  type: 'station' | 'asset';
+  id: string;
+  x: number; y: number; w: number; h: number; rotation: number;
+  title: string; subtitle: string;
+  kind?: string; height?: number; canDuplicate: boolean;
+}
 
 const ROSE = 0xf43f5e;
 const AMBER = 0xf59e0b;
@@ -85,6 +101,210 @@ function disposeObject(o: THREE.Object3D) {
   });
 }
 
+// ── 3D asset geometry factory ────────────────────────────────────────────────
+// Builds a distinctive mesh group per archetype. Geometry is centred in X/Z with
+// its base at y=0; the caller positions the group on the floor and rotates it.
+function mat(color: THREE.ColorRepresentation, rough = 0.6, metal = 0.15, emissive: THREE.ColorRepresentation = 0x000000) {
+  return new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: metal, emissive });
+}
+function part(geo: THREE.BufferGeometry, material: THREE.Material, x = 0, y = 0, z = 0): THREE.Mesh {
+  const m = new THREE.Mesh(geo, material);
+  m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true;
+  return m;
+}
+
+function buildArchetype(archetype: AssetArchetype, wS: number, dS: number, H: number, colorHex: string): THREE.Object3D[] {
+  const c = new THREE.Color(colorHex);
+  const dark = c.clone().multiplyScalar(0.6);
+  const light = c.clone().lerp(new THREE.Color(0xffffff), 0.25);
+  const out: THREE.Object3D[] = [];
+  const leg = Math.max(0.04, Math.min(wS, dS) * 0.08);
+
+  switch (archetype) {
+    case 'table': {
+      const top = Math.max(0.05, H * 0.07);
+      out.push(part(new THREE.BoxGeometry(wS, top, dS), mat(c, 0.55, 0.1), 0, H - top / 2, 0));
+      const lx = wS / 2 - leg, lz = dS / 2 - leg;
+      [[lx, lz], [-lx, lz], [lx, -lz], [-lx, -lz]].forEach(([x, z]) =>
+        out.push(part(new THREE.BoxGeometry(leg, H - top, leg), mat(dark, 0.7, 0.3), x, (H - top) / 2, z)));
+      break;
+    }
+    case 'belt': {
+      const deckY = H * 0.78, deckT = Math.max(0.05, H * 0.12);
+      out.push(part(new THREE.BoxGeometry(wS, deckT, dS * 0.78), mat(c, 0.5, 0.2), 0, deckY, 0));
+      // side rails
+      out.push(part(new THREE.BoxGeometry(wS, deckT * 0.9, leg), mat(dark, 0.5, 0.3), 0, deckY + deckT * 0.6, dS / 2 - leg / 2));
+      out.push(part(new THREE.BoxGeometry(wS, deckT * 0.9, leg), mat(dark, 0.5, 0.3), 0, deckY + deckT * 0.6, -dS / 2 + leg / 2));
+      // rollers (visual hint of belt direction)
+      const rollers = Math.max(3, Math.min(9, Math.round(wS / Math.max(0.4, dS * 0.6))));
+      const rr = Math.max(0.03, dS * 0.14);
+      const rg = new THREE.CylinderGeometry(rr, rr, dS * 0.7, 10);
+      for (let i = 0; i < rollers; i++) {
+        const rx = -wS / 2 + (wS / (rollers - 1 || 1)) * i;
+        const rm = part(rg, mat(light, 0.4, 0.6), rx, deckY + deckT * 0.5, 0);
+        rm.rotation.x = Math.PI / 2; out.push(rm);
+      }
+      // legs
+      const lx = wS / 2 - leg, lz = dS * 0.78 / 2 - leg;
+      [[lx, lz], [-lx, lz], [lx, -lz], [-lx, -lz]].forEach(([x, z]) =>
+        out.push(part(new THREE.BoxGeometry(leg, deckY, leg), mat(dark, 0.7, 0.3), x, deckY / 2, z)));
+      break;
+    }
+    case 'shelf': {
+      const post = Math.max(0.05, Math.min(wS, dS) * 0.09);
+      const lx = wS / 2 - post / 2, lz = dS / 2 - post / 2;
+      [[lx, lz], [-lx, lz], [lx, -lz], [-lx, -lz]].forEach(([x, z]) =>
+        out.push(part(new THREE.BoxGeometry(post, H, post), mat(dark, 0.6, 0.35), x, H / 2, z)));
+      const shelves = 4; const st = Math.max(0.04, H * 0.04);
+      for (let i = 0; i < shelves; i++) {
+        const y = (H / (shelves - 1)) * i;
+        out.push(part(new THREE.BoxGeometry(wS, st, dS), mat(c, 0.65, 0.1), 0, Math.min(H - st / 2, Math.max(st / 2, y)), 0));
+      }
+      break;
+    }
+    case 'arm': {
+      const baseH = H * 0.18, baseR = Math.min(wS, dS) * 0.42;
+      out.push(part(new THREE.CylinderGeometry(baseR, baseR * 1.1, baseH, 18), mat(dark, 0.5, 0.5), 0, baseH / 2, 0));
+      const col = part(new THREE.CylinderGeometry(baseR * 0.55, baseR * 0.6, H * 0.42, 14), mat(c, 0.45, 0.5), 0, baseH + H * 0.21, 0);
+      out.push(col);
+      // upper arm tilted out
+      const upper = part(new THREE.BoxGeometry(wS * 0.7, H * 0.12, H * 0.1), mat(c, 0.4, 0.6), wS * 0.18, baseH + H * 0.46, 0);
+      upper.rotation.z = -0.5; out.push(upper);
+      const fore = part(new THREE.BoxGeometry(wS * 0.5, H * 0.09, H * 0.08), mat(light, 0.4, 0.6), wS * 0.42, baseH + H * 0.6, 0);
+      fore.rotation.z = 0.35; out.push(fore);
+      out.push(part(new THREE.SphereGeometry(baseR * 0.4, 12, 10), mat(dark, 0.4, 0.7), wS * 0.55, baseH + H * 0.52, 0));
+      break;
+    }
+    case 'machine': {
+      const bodyH = H * 0.82;
+      out.push(part(new THREE.BoxGeometry(wS, bodyH, dS), mat(c, 0.5, 0.25), 0, bodyH / 2, 0));
+      out.push(part(new THREE.BoxGeometry(wS * 0.96, H * 0.16, dS * 0.96), mat(dark, 0.55, 0.3), 0, bodyH + H * 0.08, 0));
+      // viewing window / control panel on the +Z face
+      out.push(part(new THREE.BoxGeometry(wS * 0.5, bodyH * 0.4, leg * 0.6), mat(0x0f172a, 0.2, 0.7, 0x0b1220), 0, bodyH * 0.6, dS / 2));
+      out.push(part(new THREE.BoxGeometry(wS * 0.22, bodyH * 0.3, leg * 0.6), mat(light, 0.3, 0.5), wS * 0.32, bodyH * 0.45, dS / 2));
+      // feet
+      const lx = wS / 2 - leg, lz = dS / 2 - leg;
+      [[lx, lz], [-lx, lz], [lx, -lz], [-lx, -lz]].forEach(([x, z]) =>
+        out.push(part(new THREE.BoxGeometry(leg * 1.2, H * 0.05, leg * 1.2), mat(dark, 0.7, 0.3), x, H * 0.025, z)));
+      break;
+    }
+    case 'wall': {
+      out.push(part(new THREE.BoxGeometry(wS, H, dS), mat(c, 0.9, 0.02), 0, H / 2, 0));
+      out.push(part(new THREE.BoxGeometry(wS, H * 0.03, dS * 1.15), mat(dark, 0.8, 0.05), 0, H, 0));
+      break;
+    }
+    case 'cabinet': {
+      out.push(part(new THREE.BoxGeometry(wS, H, dS), mat(c, 0.5, 0.3), 0, H / 2, 0));
+      // door seam + handle
+      out.push(part(new THREE.BoxGeometry(leg * 0.4, H * 0.9, leg * 0.3), mat(dark, 0.4, 0.5), 0, H / 2, dS / 2));
+      out.push(part(new THREE.BoxGeometry(leg, H * 0.16, leg * 0.5), mat(light, 0.3, 0.6), wS * 0.22, H * 0.5, dS / 2));
+      break;
+    }
+    case 'column': {
+      const r = Math.min(wS, dS) * 0.5;
+      out.push(part(new THREE.CylinderGeometry(r, r * 1.1, H, 20), mat(c, 0.85, 0.1), 0, H / 2, 0));
+      out.push(part(new THREE.BoxGeometry(r * 2.4, H * 0.04, r * 2.4), mat(dark, 0.8, 0.1), 0, H * 0.02, 0));
+      break;
+    }
+    case 'pallet': {
+      const deck = Math.max(0.05, H * 0.45);
+      out.push(part(new THREE.BoxGeometry(wS, deck, dS), mat(c, 0.85, 0.02), 0, H - deck / 2, 0));
+      // 3 runners
+      [-dS / 2 + leg, 0, dS / 2 - leg].forEach((z) =>
+        out.push(part(new THREE.BoxGeometry(wS, H - deck, leg * 2), mat(c.clone().multiplyScalar(0.85), 0.9, 0.02), 0, (H - deck) / 2, z)));
+      break;
+    }
+    case 'fence': {
+      const posts = Math.max(2, Math.round(wS / Math.max(0.6, dS * 4)) + 1);
+      const pw = Math.max(0.05, dS * 0.5);
+      for (let i = 0; i < posts; i++) {
+        const x = -wS / 2 + (wS / (posts - 1 || 1)) * i;
+        out.push(part(new THREE.BoxGeometry(pw, H, pw), mat(c, 0.6, 0.3), x, H / 2, 0));
+      }
+      out.push(part(new THREE.BoxGeometry(wS, H * 0.08, pw * 0.6), mat(c, 0.6, 0.3), 0, H * 0.9, 0));
+      out.push(part(new THREE.BoxGeometry(wS, H * 0.08, pw * 0.6), mat(c, 0.6, 0.3), 0, H * 0.45, 0));
+      break;
+    }
+    case 'cart': {
+      out.push(part(new THREE.BoxGeometry(wS, H * 0.7, dS), mat(c, 0.45, 0.4), 0, H * 0.45, 0));
+      out.push(part(new THREE.BoxGeometry(wS * 0.6, H * 0.3, dS * 0.6), mat(light, 0.4, 0.5), 0, H * 0.85, 0));
+      // wheels
+      const wr = H * 0.18; const wg = new THREE.CylinderGeometry(wr, wr, leg, 12);
+      const lx = wS / 2 - leg, lz = dS / 2 - leg;
+      [[lx, lz], [-lx, lz], [lx, -lz], [-lx, -lz]].forEach(([x, z]) => {
+        const w = part(wg, mat(0x111827, 0.6, 0.2), x, wr, z); w.rotation.x = Math.PI / 2; out.push(w);
+      });
+      break;
+    }
+    case 'person': {
+      const r = Math.min(wS, dS) * 0.3;
+      out.push(part(new THREE.CylinderGeometry(r * 0.9, r, H * 0.58, 14), mat(c, 0.7, 0.05), 0, H * 0.32, 0));
+      out.push(part(new THREE.SphereGeometry(r * 0.7, 14, 12), mat(light, 0.6, 0.05), 0, H * 0.74, 0));
+      break;
+    }
+    case 'zone':
+    case 'path':
+    default: {
+      // flat translucent footprint with a coloured border
+      const fill = new THREE.Mesh(
+        new THREE.PlaneGeometry(wS, dS),
+        new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: archetype === 'path' ? 0.22 : 0.14, side: THREE.DoubleSide }),
+      );
+      fill.rotation.x = -Math.PI / 2; fill.position.y = 0.04; out.push(fill);
+      const edge = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.PlaneGeometry(wS, dS)),
+        new THREE.LineBasicMaterial({ color: c }),
+      );
+      edge.rotation.x = -Math.PI / 2; edge.position.y = 0.05; out.push(edge);
+      break;
+    }
+  }
+  return out;
+}
+
+/** Build a positioned, rotated, pickable asset group (base at floor). */
+function buildAssetGroup(a: Asset, s: number, W: number, H: number, selected: boolean): THREE.Group {
+  const def = assetMeta(a.kind);
+  const wS = Math.max(0.2, a.w * s);
+  const dS = Math.max(0.2, a.h * s);
+  const h3d = Math.max(0.05, def.height * s);
+  const group = new THREE.Group();
+  buildArchetype(def.archetype, wS, dS, h3d, def.color).forEach((o) => group.add(o));
+
+  // invisible, forgiving hit box covering the whole bounding volume
+  const flat = def.archetype === 'zone' || def.archetype === 'path';
+  const hb = new THREE.Mesh(
+    new THREE.BoxGeometry(wS, flat ? Math.max(0.4, h3d) : h3d, dS),
+    new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }),
+  );
+  hb.position.y = (flat ? Math.max(0.4, h3d) : h3d) / 2;
+  hb.userData.assetId = a.id;
+  group.add(hb);
+
+  if (selected) {
+    const oh = Math.max(0.3, h3d);
+    const outline = new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.BoxGeometry(wS * 1.04, oh * 1.04, dS * 1.04)),
+      new THREE.LineBasicMaterial({ color: SELECT }),
+    );
+    outline.position.y = oh / 2; group.add(outline);
+  }
+  if (a.label) {
+    const lab = makeLabel(a.label, 1.2);
+    lab.position.set(0, (flat ? 0.6 : h3d) + 0.9, 0);
+    group.add(lab);
+  }
+
+  group.userData.assetId = a.id;
+  const cx = (a.x + a.w / 2 - W / 2) * s;
+  const cz = (a.y + a.h / 2 - H / 2) * s;
+  group.position.set(cx, 0, cz);
+  group.rotation.y = -((a.rotation || 0) * Math.PI) / 180;
+  return group;
+}
+
+const newId = (p: string) => `${p}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+
 export default function Layout3DEditor({
   model, revision, open, onClose, onSaved,
 }: {
@@ -101,33 +321,57 @@ export default function Layout3DEditor({
   const [snap, setSnap] = useState(true);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [selId, setSelId] = useState<string | null>(null);
+  const [sel, setSel] = useState<Sel>(null);
+  const [selSnap, setSelSnap] = useState<SelSnap | null>(null);
   const [placedIds, setPlacedIds] = useState<Set<string>>(new Set());
+  const [assetIds, setAssetIds] = useState<Set<string>>(new Set());
+  const [tab, setTab] = useState<'stations' | 'equipment'>('stations');
 
   // three.js refs
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
-  const groundRef = useRef<THREE.Mesh | null>(null);
   const blocksRef = useRef<THREE.Group | null>(null);
-  const decoRef = useRef<THREE.Group | null>(null);
+  const assetsGroupRef = useRef<THREE.Group | null>(null);
   const meshByIdRef = useRef<Map<string, THREE.Mesh>>(new Map());
+  const groupByAssetRef = useRef<Map<string, THREE.Group>>(new Map());
 
-  // layout state refs (placements drive both the scene and the save)
+  // layout state refs (drive both the scene and the save)
   const placementsRef = useRef<Map<string, Placement>>(new Map());
+  const assetsRef = useRef<Map<string, Asset>>(new Map());
+  const stationsByIdRef = useRef<Map<string, St>>(new Map());
   const loadedPlacedRef = useRef<Set<string>>(new Set());
   const ctxRef = useRef<{ s: number; W: number; H: number } | null>(null);
-  const selIdRef = useRef<string | null>(null);
+  const selRef = useRef<Sel>(null);
   const snapRef = useRef(snap);
   useEffect(() => { snapRef.current = snap; }, [snap]);
-  useEffect(() => { selIdRef.current = selId; }, [selId]);
+
+  // Snapshot the selection's geometry into render-safe state (reads refs only
+  // from event handlers, never during render — the Minimap/2D editor pattern).
+  const computeSnap = useCallback((next: Sel): SelSnap | null => {
+    if (!next) return null;
+    if (next.type === 'station') {
+      const p = placementsRef.current.get(next.id);
+      const st = stationsByIdRef.current.get(next.id);
+      if (!p || !st) return null;
+      return { type: 'station', id: next.id, x: p.x, y: p.y, w: p.w, h: p.h, rotation: p.rotation, title: st.station, subtitle: `Estación · ${st.line}${st.ctq ? ' · CTQ' : ''}`, canDuplicate: false };
+    }
+    const a = assetsRef.current.get(next.id);
+    if (!a) return null;
+    const def = assetMeta(a.kind);
+    return { type: 'asset', id: next.id, x: a.x, y: a.y, w: a.w, h: a.h, rotation: a.rotation, title: def.label, subtitle: `Equipo · ${a.kind}`, kind: a.kind, height: def.height, canDuplicate: true };
+  }, []);
+  const select = useCallback((next: Sel) => {
+    selRef.current = next; setSel(next); setSelSnap(computeSnap(next));
+  }, [computeSnap]);
+  const refreshSnap = useCallback(() => setSelSnap(computeSnap(selRef.current)), [computeSnap]);
 
   // ---- data ----
   useEffect(() => {
     if (!open || !model) return;
     let alive = true;
-    setData(null); setError(null); setSelId(null); setDirty(false);
+    setData(null); setError(null); setSel(null); setSelSnap(null); selRef.current = null; setDirty(false); setTab('stations');
     (async () => {
       try {
         const r = await apiFetch(`${API_BASE}/line-engineering/layout?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`);
@@ -145,9 +389,14 @@ export default function Layout3DEditor({
             });
           }
         });
+        const am = new Map<string, Asset>();
+        (d.assets ?? []).forEach((a) => am.set(a.id, { ...a, rotation: a.rotation ?? 0 }));
         placementsRef.current = pl;
+        assetsRef.current = am;
+        stationsByIdRef.current = new Map(d.stations.map((s) => [s.id, s]));
         loadedPlacedRef.current = new Set(pl.keys());
         setPlacedIds(new Set(pl.keys()));
+        setAssetIds(new Set(am.keys()));
         setData(d);
       } catch {
         if (alive) setError('No se pudo cargar el layout.');
@@ -161,7 +410,7 @@ export default function Layout3DEditor({
     return snapRef.current ? Math.round(v / g) * g : Math.round(v);
   }, [data]);
 
-  // ---- (re)build the blocks group from placements ----
+  // ---- (re)build the station blocks + connectors ----
   const rebuildBlocks = useCallback(() => {
     const blocks = blocksRef.current; const ctx = ctxRef.current;
     if (!blocks || !ctx || !data) return;
@@ -172,11 +421,11 @@ export default function Layout3DEditor({
     placementsRef.current.forEach((p, id) => {
       const st = byId.get(id); if (!st) return;
       const hgt = Math.max(0.6, Math.min(p.w * s, p.h * s) * 0.7);
-      const sel = id === selIdRef.current;
-      const color = sel ? SELECT : st.ctq ? AMBER : ROSE;
+      const isSel = selRef.current?.type === 'station' && selRef.current.id === id;
+      const color = isSel ? SELECT : st.ctq ? AMBER : ROSE;
       const mesh = new THREE.Mesh(
         new THREE.BoxGeometry(p.w * s, hgt, p.h * s),
-        new THREE.MeshStandardMaterial({ color, roughness: 0.45, metalness: 0.12, emissive: sel ? 0x0e7490 : 0x000000 }),
+        new THREE.MeshStandardMaterial({ color, roughness: 0.45, metalness: 0.12, emissive: isSel ? 0x0e7490 : 0x000000 }),
       );
       mesh.castShadow = true;
       mesh.userData.stationId = id;
@@ -208,6 +457,23 @@ export default function Layout3DEditor({
     });
   }, [data]);
 
+  // ---- (re)build the equipment/asset group ----
+  const rebuildAssets = useCallback(() => {
+    const group = assetsGroupRef.current; const ctx = ctxRef.current;
+    if (!group || !ctx) return;
+    while (group.children.length) { const o = group.children[group.children.length - 1]; group.remove(o); disposeObject(o); }
+    groupByAssetRef.current = new Map();
+    const { s, W, H } = ctx;
+    assetsRef.current.forEach((a) => {
+      const isSel = selRef.current?.type === 'asset' && selRef.current.id === a.id;
+      const g = buildAssetGroup(a, s, W, H, isSel);
+      group.add(g);
+      groupByAssetRef.current.set(a.id, g);
+    });
+  }, []);
+
+  const rebuildAll = useCallback(() => { rebuildBlocks(); rebuildAssets(); }, [rebuildBlocks, rebuildAssets]);
+
   // ---- scene lifecycle ----
   useEffect(() => {
     const mount = mountRef.current;
@@ -222,7 +488,7 @@ export default function Layout3DEditor({
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0a0f1e);
-    scene.fog = new THREE.Fog(0x0a0f1e, Math.max(W, H) * s * 1.4, Math.max(W, H) * s * 3.2);
+    scene.fog = new THREE.Fog(0x0a0f1e, Math.max(W, H) * s * 1.4, Math.max(W, H) * s * 3.4);
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 4000);
@@ -249,13 +515,13 @@ export default function Layout3DEditor({
     scene.add(dir);
 
     // floor + grid + footprint outline
-    const deco = new THREE.Group(); scene.add(deco); decoRef.current = deco;
+    const deco = new THREE.Group(); scene.add(deco);
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(W * s, H * s),
       new THREE.MeshStandardMaterial({ color: 0x14203a, roughness: 0.95, metalness: 0.05 }),
     );
     ground.rotation.x = -Math.PI / 2; ground.position.y = 0; ground.receiveShadow = true;
-    groundRef.current = ground; deco.add(ground);
+    deco.add(ground);
     const grid = new THREE.GridHelper(Math.max(W * s, H * s), Math.min(60, Math.max(8, Math.round(Math.max(W, H) / (fp.gridSize || 1) / 2))), 0x2a3a5c, 0x1b2640);
     (grid.material as THREE.Material).transparent = true;
     (grid.material as THREE.Material).opacity = 0.6;
@@ -281,7 +547,9 @@ export default function Layout3DEditor({
       deco.add(plane);
     });
 
+    const assetsGroup = new THREE.Group(); scene.add(assetsGroup); assetsGroupRef.current = assetsGroup;
     const blocks = new THREE.Group(); scene.add(blocks); blocksRef.current = blocks;
+    rebuildAssets();
     rebuildBlocks();
 
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -290,14 +558,19 @@ export default function Layout3DEditor({
     controls.target.set(0, 0, 0); controls.update();
     controlsRef.current = controls;
 
-    // ---- drag a block on the floor ----
+    // ---- drag a station block or an asset on the floor ----
     const raycaster = new THREE.Raycaster();
     const ptr = new THREE.Vector2();
     const floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     const hit = new THREE.Vector3();
-    let dragId: string | null = null;
+    let drag: { type: 'station' | 'asset'; id: string; obj: THREE.Object3D } | null = null;
     let grabDX = 0, grabDZ = 0;
 
+    const resolveAssetId = (o: THREE.Object3D | null): string | null => {
+      let cur: THREE.Object3D | null = o;
+      while (cur) { if (cur.userData?.assetId) return cur.userData.assetId as string; cur = cur.parent; }
+      return null;
+    };
     const setPtr = (e: PointerEvent) => {
       const rect = renderer.domElement.getBoundingClientRect();
       ptr.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -305,27 +578,34 @@ export default function Layout3DEditor({
     };
     const onDown = (e: PointerEvent) => {
       setPtr(e); raycaster.setFromCamera(ptr, camera);
-      const hits = raycaster.intersectObjects(blocks.children, false).filter((h) => (h.object as THREE.Mesh).userData?.stationId);
-      if (hits.length) {
-        const id = (hits[0].object as THREE.Mesh).userData.stationId as string;
-        setSelId(id); selIdRef.current = id;
+      const stationHits = raycaster.intersectObjects(blocks.children, false)
+        .filter((h) => (h.object as THREE.Mesh).userData?.stationId)
+        .map((h) => ({ d: h.distance, type: 'station' as const, id: (h.object as THREE.Mesh).userData.stationId as string, obj: h.object }));
+      const assetHits = raycaster.intersectObjects(assetsGroup.children, true)
+        .map((h) => ({ d: h.distance, id: resolveAssetId(h.object) }))
+        .filter((h) => h.id)
+        .map((h) => ({ d: h.d, type: 'asset' as const, id: h.id as string, obj: groupByAssetRef.current.get(h.id as string)! }));
+      const all = [...stationHits, ...assetHits].sort((a, b) => a.d - b.d);
+      if (all.length) {
+        const top = all[0];
+        select({ type: top.type, id: top.id });
         raycaster.ray.intersectPlane(floorPlane, hit);
-        const mesh = meshByIdRef.current.get(id)!;
-        grabDX = mesh.position.x - hit.x; grabDZ = mesh.position.z - hit.z;
-        dragId = id; controls.enabled = false;
-        rebuildBlocks();
+        grabDX = top.obj.position.x - hit.x; grabDZ = top.obj.position.z - hit.z;
+        drag = { type: top.type, id: top.id, obj: top.obj };
+        controls.enabled = false;
+        rebuildAll();
         renderer.domElement.setPointerCapture(e.pointerId);
       } else if (e.button === 0) {
-        // clicked empty floor → deselect
-        setSelId(null); selIdRef.current = null; rebuildBlocks();
+        select(null); rebuildAll();
       }
     };
     const onMove = (e: PointerEvent) => {
-      if (!dragId) return;
+      if (!drag) return;
       setPtr(e); raycaster.setFromCamera(ptr, camera);
       if (!raycaster.ray.intersectPlane(floorPlane, hit)) return;
-      const ctx = ctxRef.current!; const p = placementsRef.current.get(dragId); if (!p) return;
-      // scene centre → world centre → top-left, snapped
+      const ctx = ctxRef.current!;
+      const p = drag.type === 'station' ? placementsRef.current.get(drag.id) : assetsRef.current.get(drag.id);
+      if (!p) return;
       const cxScene = hit.x + grabDX, czScene = hit.z + grabDZ;
       const worldCX = cxScene / ctx.s + ctx.W / 2;
       const worldCY = czScene / ctx.s + ctx.H / 2;
@@ -334,15 +614,16 @@ export default function Layout3DEditor({
       nx = Math.max(0, Math.min(ctx.W - p.w, nx));
       ny = Math.max(0, Math.min(ctx.H - p.h, ny));
       p.x = nx; p.y = ny;
-      const mesh = meshByIdRef.current.get(dragId)!;
       const ncx = (nx + p.w / 2 - ctx.W / 2) * ctx.s;
       const ncz = (ny + p.h / 2 - ctx.H / 2) * ctx.s;
-      mesh.position.x = ncx; mesh.position.z = ncz;
-      const lab = blocks.children.find((o) => (o as THREE.Sprite).userData?.labelFor === dragId);
-      if (lab) { lab.position.x = ncx; lab.position.z = ncz; }
+      drag.obj.position.x = ncx; drag.obj.position.z = ncz;
+      if (drag.type === 'station') {
+        const lab = blocks.children.find((o) => (o as THREE.Sprite).userData?.labelFor === drag!.id);
+        if (lab) { lab.position.x = ncx; lab.position.z = ncz; }
+      }
     };
     const onUp = (e: PointerEvent) => {
-      if (dragId) { dragId = null; controls.enabled = true; setDirty(true); rebuildBlocks(); }
+      if (drag) { drag = null; controls.enabled = true; setDirty(true); refreshSnap(); rebuildAll(); }
       try { renderer.domElement.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
     };
     renderer.domElement.addEventListener('pointerdown', onDown);
@@ -373,13 +654,13 @@ export default function Layout3DEditor({
       renderer.dispose();
       if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
       sceneRef.current = null; rendererRef.current = null; cameraRef.current = null;
-      blocksRef.current = null; controlsRef.current = null;
+      blocksRef.current = null; assetsGroupRef.current = null; controlsRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, data]);
 
-  // selection colour refresh
-  useEffect(() => { if (open && data) rebuildBlocks(); }, [selId, open, data, rebuildBlocks]);
+  // selection highlight refresh
+  useEffect(() => { if (open && data) rebuildAll(); }, [sel, open, data, rebuildAll]);
 
   // ---- actions ----
   const placeStation = (st: St) => {
@@ -390,21 +671,70 @@ export default function Layout3DEditor({
     const y = snapWorld(ctx.H / 2 - h / 2);
     placementsRef.current.set(st.id, { x, y, w, h, rotation: 0 });
     setPlacedIds((prev) => new Set(prev).add(st.id));
-    setSelId(st.id); selIdRef.current = st.id;
-    setDirty(true); rebuildBlocks();
+    select({ type: 'station', id: st.id });
+    setDirty(true); rebuildAll();
+  };
+  const addAsset = (kind: string) => {
+    const ctx = ctxRef.current; if (!ctx) return;
+    const def = assetMeta(kind);
+    const x = snapWorld(ctx.W / 2 - def.w / 2);
+    const y = snapWorld(ctx.H / 2 - def.h / 2);
+    const id = newId('as');
+    assetsRef.current.set(id, { id, kind, x, y, w: def.w, h: def.h, rotation: 0 });
+    setAssetIds((prev) => new Set(prev).add(id));
+    select({ type: 'asset', id });
+    setDirty(true); rebuildAll();
   };
   const removeSelected = () => {
-    if (!selId) return;
-    placementsRef.current.delete(selId);
-    setPlacedIds((prev) => { const n = new Set(prev); n.delete(selId); return n; });
-    setSelId(null); selIdRef.current = null;
-    setDirty(true); rebuildBlocks();
+    const cur = selRef.current; if (!cur) return;
+    if (cur.type === 'station') {
+      placementsRef.current.delete(cur.id);
+      setPlacedIds((prev) => { const n = new Set(prev); n.delete(cur.id); return n; });
+    } else {
+      assetsRef.current.delete(cur.id);
+      setAssetIds((prev) => { const n = new Set(prev); n.delete(cur.id); return n; });
+    }
+    select(null); setDirty(true); rebuildAll();
   };
   const rotateSelected = (deg: number) => {
-    if (!selId) return;
-    const p = placementsRef.current.get(selId); if (!p) return;
-    p.rotation = ((p.rotation + deg) % 360 + 360) % 360;
-    setDirty(true); rebuildBlocks();
+    const cur = selRef.current; if (!cur) return;
+    const p = cur.type === 'station' ? placementsRef.current.get(cur.id) : assetsRef.current.get(cur.id);
+    if (!p) return;
+    p.rotation = (((p.rotation + deg) % 360) + 360) % 360;
+    setDirty(true); refreshSnap(); rebuildAll();
+  };
+  const duplicateSelected = () => {
+    const cur = selRef.current; if (!cur || cur.type !== 'asset') return;
+    const src = assetsRef.current.get(cur.id); if (!src) return;
+    const ctx = ctxRef.current!;
+    const off = data?.footprint.gridSize || 200;
+    const id = newId('as');
+    const x = Math.max(0, Math.min(ctx.W - src.w, src.x + off));
+    const y = Math.max(0, Math.min(ctx.H - src.h, src.y + off));
+    assetsRef.current.set(id, { ...src, id, x, y });
+    setAssetIds((prev) => new Set(prev).add(id));
+    select({ type: 'asset', id });
+    setDirty(true); rebuildAll();
+  };
+  const nudgeSelected = (dx: number, dy: number) => {
+    const cur = selRef.current; if (!cur) return;
+    const p = cur.type === 'station' ? placementsRef.current.get(cur.id) : assetsRef.current.get(cur.id);
+    const ctx = ctxRef.current; if (!p || !ctx) return;
+    p.x = Math.max(0, Math.min(ctx.W - p.w, p.x + dx));
+    p.y = Math.max(0, Math.min(ctx.H - p.h, p.y + dy));
+    setDirty(true); refreshSnap(); rebuildAll();
+  };
+  const setField = (field: 'x' | 'y' | 'w' | 'h' | 'rotation', value: number) => {
+    const cur = selRef.current; if (!cur) return;
+    const p = cur.type === 'station' ? placementsRef.current.get(cur.id) : assetsRef.current.get(cur.id);
+    const ctx = ctxRef.current; if (!p || !ctx) return;
+    const v = Number.isFinite(value) ? value : 0;
+    if (field === 'rotation') p.rotation = ((v % 360) + 360) % 360;
+    else if (field === 'w') p.w = Math.max(50, Math.min(ctx.W, Math.round(v)));
+    else if (field === 'h') p.h = Math.max(50, Math.min(ctx.H, Math.round(v)));
+    else if (field === 'x') p.x = Math.max(0, Math.min(ctx.W - p.w, Math.round(v)));
+    else if (field === 'y') p.y = Math.max(0, Math.min(ctx.H - p.h, Math.round(v)));
+    setDirty(true); refreshSnap(); rebuildAll();
   };
   const viewPreset = (preset: 'top' | 'iso' | 'front') => {
     const cam = cameraRef.current; const ctrl = controlsRef.current; const ctx = ctxRef.current;
@@ -430,11 +760,12 @@ export default function Layout3DEditor({
     try {
       const positions = [...placementsRef.current.entries()].map(([id, p]) => ({ id, ...p }));
       const cleared = [...loadedPlacedRef.current].filter((id) => !placementsRef.current.has(id));
+      const assets = [...assetsRef.current.values()];
       const r = await apiFetch(`${API_BASE}/line-engineering/layout`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model, revision, footprint: data.footprint, positions, cleared,
-          connectors: data.connectors ?? [], assets: data.assets ?? [],
+          connectors: data.connectors ?? [], assets,
           annotations: data.annotations ?? [], cells: data.cells ?? [],
         }),
       });
@@ -446,11 +777,33 @@ export default function Layout3DEditor({
     } catch { toast.error('Error de red.', '3D'); } finally { setSaving(false); }
   };
 
+  // ---- keyboard shortcuts ----
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      const tgt = e.target as HTMLElement | null;
+      if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return;
+      const g = data?.footprint.gridSize || 100;
+      const step = e.shiftKey ? g * 5 : g;
+      if (e.key === 'Escape') { if (selRef.current) { select(null); rebuildAll(); } else onClose(); }
+      else if ((e.key === 'Delete' || e.key === 'Backspace') && selRef.current) { e.preventDefault(); removeSelected(); }
+      else if ((e.key === 'r' || e.key === 'R') && selRef.current) { e.preventDefault(); rotateSelected(e.shiftKey ? -15 : 15); }
+      else if ((e.key === 'd' || e.key === 'D') && (e.ctrlKey || e.metaKey) && selRef.current) { e.preventDefault(); duplicateSelected(); }
+      else if (e.key === 'ArrowLeft' && selRef.current) { e.preventDefault(); nudgeSelected(-step, 0); }
+      else if (e.key === 'ArrowRight' && selRef.current) { e.preventDefault(); nudgeSelected(step, 0); }
+      else if (e.key === 'ArrowUp' && selRef.current) { e.preventDefault(); nudgeSelected(0, -step); }
+      else if (e.key === 'ArrowDown' && selRef.current) { e.preventDefault(); nudgeSelected(0, step); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, data]);
+
   if (!open || typeof document === 'undefined') return null;
 
   const tray = (data?.stations ?? []).filter((s) => !placedIds.has(s.id));
-  const sel = selId ? (data?.stations ?? []).find((s) => s.id === selId) : null;
   const placedCount = placedIds.size;
+  const assetCount = assetIds.size;
 
   // Portal to <body> so the full-screen overlay escapes the editor's glass
   // container (backdrop-filter would otherwise be the containing block for our
@@ -461,7 +814,7 @@ export default function Layout3DEditor({
       <div className="flex items-center gap-2 px-4 py-2.5 border-b border-white/10 shrink-0 bg-gray-900/80 backdrop-blur">
         <BoxIcon className="w-4 h-4" style={{ color: '#f43f5e' }} />
         <span className="font-semibold text-sm">CAD 3D · {model} · {revision}</span>
-        <span className="text-[11px] text-gray-400 ml-1">{placedCount} colocadas</span>
+        <span className="text-[11px] text-gray-400 ml-1">{placedCount} estaciones · {assetCount} equipos</span>
         <div className="w-px h-5 bg-white/10 mx-1" />
         <T3Btn active={snap} onClick={() => setSnap((v) => !v)} title="Snap a grilla"><Grid3x3 className="w-4 h-4" /></T3Btn>
         <div className="w-px h-5 bg-white/10 mx-1" />
@@ -474,7 +827,7 @@ export default function Layout3DEditor({
         <button onClick={save} disabled={saving || !dirty} className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-sm font-medium text-white disabled:opacity-50" style={{ background: '#f43f5e' }}>
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Guardar
         </button>
-        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 ml-1"><X className="w-5 h-5" /></button>
+        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 ml-1" title="Cerrar (Esc)"><X className="w-5 h-5" /></button>
       </div>
 
       {error ? (
@@ -483,35 +836,90 @@ export default function Layout3DEditor({
         <div className="flex-1 grid place-items-center text-gray-400"><Loader2 className="w-7 h-7 animate-spin" /></div>
       ) : (
         <div className="flex flex-1 min-h-0">
-          {/* tray */}
-          <div className="w-56 shrink-0 border-r border-white/10 bg-gray-900/60 p-3 overflow-y-auto">
-            <div className="text-[11px] uppercase tracking-wide text-gray-400 mb-2 flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> Por colocar ({tray.length})</div>
-            {tray.length === 0 ? (
-              <p className="text-[12px] text-gray-500">Todas las estaciones están en el plano.</p>
-            ) : tray.map((st) => (
-              <button key={st.id} onClick={() => placeStation(st)} className="w-full text-left mb-1.5 px-2.5 py-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.09] transition-colors">
-                <div className="text-sm font-medium">{st.station}</div>
-                <div className="text-[11px] text-gray-400">{st.line} · clic para colocar</div>
-              </button>
-            ))}
-            {sel && (
-              <div className="mt-4 pt-3 border-t border-white/10">
-                <div className="text-[11px] uppercase tracking-wide text-gray-400 mb-2">Selección</div>
-                <div className="text-sm font-medium mb-2" style={{ color: '#22d3ee' }}>{sel.station}</div>
-                <div className="flex flex-wrap gap-1.5">
-                  <button onClick={() => rotateSelected(15)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><RotateCw className="w-3.5 h-3.5" /> +15°</button>
-                  <button onClick={() => rotateSelected(-15)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><RotateCw className="w-3.5 h-3.5 -scale-x-100" /> −15°</button>
-                  <button onClick={removeSelected} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 text-[12px]"><Trash2 className="w-3.5 h-3.5" /> Quitar</button>
-                </div>
-              </div>
-            )}
+          {/* left: stations tray + equipment palette */}
+          <div className="w-60 shrink-0 border-r border-white/10 bg-gray-900/60 flex flex-col">
+            <div className="flex shrink-0 text-[12px] font-medium border-b border-white/10">
+              <button onClick={() => setTab('stations')} className={`flex-1 px-3 py-2 inline-flex items-center justify-center gap-1.5 ${tab === 'stations' ? 'text-white bg-white/[0.06]' : 'text-gray-400 hover:text-gray-200'}`}><MapPin className="w-3.5 h-3.5" /> Estaciones</button>
+              <button onClick={() => setTab('equipment')} className={`flex-1 px-3 py-2 inline-flex items-center justify-center gap-1.5 ${tab === 'equipment' ? 'text-white bg-white/[0.06]' : 'text-gray-400 hover:text-gray-200'}`}><Boxes className="w-3.5 h-3.5" /> Equipo</button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-3">
+              {tab === 'stations' ? (
+                <>
+                  <div className="text-[11px] uppercase tracking-wide text-gray-400 mb-2">Por colocar ({tray.length})</div>
+                  {tray.length === 0 ? (
+                    <p className="text-[12px] text-gray-500">Todas las estaciones están en el plano.</p>
+                  ) : tray.map((st) => (
+                    <button key={st.id} onClick={() => placeStation(st)} className="w-full text-left mb-1.5 px-2.5 py-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.09] transition-colors">
+                      <div className="text-sm font-medium">{st.station}</div>
+                      <div className="text-[11px] text-gray-400">{st.line} · clic para colocar</div>
+                    </button>
+                  ))}
+                </>
+              ) : (
+                <>
+                  <div className="text-[11px] uppercase tracking-wide text-gray-400 mb-2">Agregar equipo</div>
+                  {ASSET_CATEGORIES.map((cat) => (
+                    <div key={cat.category} className="mb-3">
+                      <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-1.5 flex items-center gap-1"><ChevronRight className="w-3 h-3" /> {cat.label}</div>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {cat.items.map((it) => (
+                          <button key={it.kind} onClick={() => addAsset(it.kind)} title={`Agregar ${it.label}`} className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.10] text-[12px] transition-colors">
+                            <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: it.color }} />
+                            <span className="truncate">{it.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
           </div>
+
           {/* 3D viewport */}
           <div className="relative flex-1 min-w-0">
             <div ref={mountRef} className="absolute inset-0" />
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-gray-900/80 backdrop-blur border border-white/10 text-[11px] text-gray-300 inline-flex items-center gap-2 pointer-events-none">
-              <Move3d className="w-3.5 h-3.5" /> Arrastra un bloque para moverlo · arrastra el fondo para orbitar · rueda = zoom
+              <Move3d className="w-3.5 h-3.5" /> Arrastra para mover · fondo = orbitar · rueda = zoom · R rota · Supr borra · ←→↑↓ ajusta
             </div>
+          </div>
+
+          {/* right: properties */}
+          <div className="w-64 shrink-0 border-l border-white/10 bg-gray-900/60 overflow-y-auto">
+            {!selSnap ? (
+              <div className="p-4 text-[12px] text-gray-500 flex flex-col items-center gap-2 mt-8">
+                <Crosshair className="w-6 h-6 text-gray-600" />
+                <p className="text-center">Selecciona una estación o un equipo para ver y editar sus propiedades.</p>
+              </div>
+            ) : (
+              <div className="p-3.5">
+                <div className="flex items-center gap-2 mb-1">
+                  <Settings2 className="w-4 h-4" style={{ color: '#22d3ee' }} />
+                  <span className="text-sm font-semibold">{selSnap.title}</span>
+                </div>
+                <div className="text-[11px] text-gray-400 mb-3">{selSnap.subtitle}</div>
+
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <NumField label="X" value={Math.round(selSnap.x)} onChange={(v) => setField('x', v)} />
+                  <NumField label="Y" value={Math.round(selSnap.y)} onChange={(v) => setField('y', v)} />
+                  <NumField label="Ancho" value={Math.round(selSnap.w)} onChange={(v) => setField('w', v)} />
+                  <NumField label="Largo" value={Math.round(selSnap.h)} onChange={(v) => setField('h', v)} />
+                  <NumField label="Rotación°" value={Math.round(selSnap.rotation)} onChange={(v) => setField('rotation', v)} />
+                  {selSnap.height !== undefined && <ReadField label="Alto" value={`${selSnap.height}`} />}
+                </div>
+
+                <div className="flex flex-wrap gap-1.5">
+                  <button onClick={() => rotateSelected(15)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><RotateCw className="w-3.5 h-3.5" /> +15°</button>
+                  <button onClick={() => rotateSelected(-15)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><RotateCcw className="w-3.5 h-3.5" /> −15°</button>
+                  {selSnap.canDuplicate && <button onClick={duplicateSelected} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><Copy className="w-3.5 h-3.5" /> Duplicar</button>}
+                  <button onClick={removeSelected} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 text-[12px]"><Trash2 className="w-3.5 h-3.5" /> Quitar</button>
+                </div>
+
+                <p className="text-[10.5px] text-gray-500 mt-3 leading-relaxed">
+                  Unidades en {data.footprint.unit}. Usa las flechas para ajustar y <b>R</b> para rotar.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -525,5 +933,28 @@ function T3Btn({ active, onClick, title, children }: { active?: boolean; onClick
     <button onClick={onClick} title={title} className={`p-1.5 rounded-lg transition-colors ${active ? 'text-white' : 'text-gray-400 hover:bg-white/10'}`} style={active ? { background: '#0e7490' } : undefined}>
       {children}
     </button>
+  );
+}
+
+function NumField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+  return (
+    <label className="block">
+      <span className="block text-[10px] uppercase tracking-wide text-gray-500 mb-0.5">{label}</span>
+      <input
+        type="number"
+        value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        className="w-full px-2 py-1 rounded-md bg-white/[0.06] border border-white/10 text-[13px] text-white focus:outline-none focus:border-cyan-400/60"
+      />
+    </label>
+  );
+}
+
+function ReadField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <span className="block text-[10px] uppercase tracking-wide text-gray-500 mb-0.5">{label}</span>
+      <div className="w-full px-2 py-1 rounded-md bg-white/[0.03] border border-white/5 text-[13px] text-gray-400">{value}</div>
+    </div>
   );
 }
