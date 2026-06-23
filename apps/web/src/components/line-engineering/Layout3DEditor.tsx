@@ -7,7 +7,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import {
   Loader2, X, Save, Move3d, Grid3x3, RotateCw, RotateCcw, Trash2, Download,
   Box as BoxIcon, Eye, MapPin, Maximize2, Layers, Copy, Crosshair, Settings2,
-  Boxes, ChevronRight, Ruler, MousePointer2,
+  Boxes, ChevronRight, Ruler, MousePointer2, SlidersHorizontal,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/apiFetch';
 import { useToast } from '@/contexts/ToastContext';
@@ -87,8 +87,18 @@ function makeLabel(text: string, scale = 1.5): THREE.Sprite {
   const aspect = canvas.width / canvas.height;
   sprite.scale.set(scale * aspect, scale, 1);
   sprite.renderOrder = 10;
+  sprite.userData.isLabel = true; // so the "Etiquetas" layer can hide every label
   return sprite;
 }
+
+/** Visual theme presets for the scene (background / fog / floor / grid). */
+type Theme3D = 'dark' | 'light' | 'night' | 'studio';
+const THEMES: Record<Theme3D, { bg: number; ground: number; gridA: number; gridB: number; fog: number; label: string }> = {
+  dark: { bg: 0x0a0f1e, ground: 0x14203a, gridA: 0x2a3a5c, gridB: 0x1b2640, fog: 0x0a0f1e, label: 'Oscuro' },
+  light: { bg: 0xeaf0f8, ground: 0xd7e2f1, gridA: 0x9db4d6, gridB: 0xbccce4, fog: 0xeaf0f8, label: 'Claro' },
+  night: { bg: 0x05070d, ground: 0x0b1322, gridA: 0x1e2c47, gridB: 0x121a2e, fog: 0x05070d, label: 'Noche' },
+  studio: { bg: 0x202329, ground: 0x2b2f37, gridA: 0x3c424d, gridB: 0x2f343d, fog: 0x202329, label: 'Estudio' },
+};
 
 function disposeObject(o: THREE.Object3D) {
   o.traverse((c) => {
@@ -341,6 +351,7 @@ export default function Layout3DEditor({
 }) {
   const toast = useToast();
   const mountRef = useRef<HTMLDivElement | null>(null);
+  const viewMenuRef = useRef<HTMLDivElement | null>(null);
   const [data, setData] = useState<Layout | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [snap, setSnap] = useState(true);
@@ -354,6 +365,9 @@ export default function Layout3DEditor({
   const [tool, setTool] = useState<'select' | 'measure'>('select');
   const [measureLive, setMeasureLive] = useState<string | null>(null);
   const [dimCount, setDimCount] = useState(0);
+  const [theme, setTheme] = useState<Theme3D>('dark');
+  const [showView, setShowView] = useState(false);
+  const [layers, setLayers] = useState({ stations: true, equipment: true, connectors: true, dims: true, labels: true, grid: true });
 
   // three.js refs
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -363,9 +377,15 @@ export default function Layout3DEditor({
   const blocksRef = useRef<THREE.Group | null>(null);
   const assetsGroupRef = useRef<THREE.Group | null>(null);
   const dimsGroupRef = useRef<THREE.Group | null>(null);
+  const connsGroupRef = useRef<THREE.Group | null>(null);
+  const gridGroupRef = useRef<THREE.Group | null>(null);
+  const groundRef = useRef<THREE.Mesh | null>(null);
+  const gridHelperRef = useRef<THREE.GridHelper | null>(null);
   const previewLineRef = useRef<THREE.Line | null>(null);
   const meshByIdRef = useRef<Map<string, THREE.Mesh>>(new Map());
   const groupByAssetRef = useRef<Map<string, THREE.Group>>(new Map());
+  const layersRef = useRef(layers);
+  const applyLayersRef = useRef<() => void>(() => {});
 
   // layout state refs (drive both the scene and the save)
   const placementsRef = useRef<Map<string, Placement>>(new Map());
@@ -378,8 +398,54 @@ export default function Layout3DEditor({
   const selRef = useRef<Sel>(null);
   const snapRef = useRef(snap);
   const toolRef = useRef(tool);
+  const themeRef = useRef(theme);
   useEffect(() => { snapRef.current = snap; }, [snap]);
   useEffect(() => { toolRef.current = tool; }, [tool]);
+  useEffect(() => { themeRef.current = theme; }, [theme]);
+
+  // ---- layer visibility (cheap: toggles group/label visibility, no rebuild) ----
+  const applyLayers = useCallback(() => {
+    const L = layersRef.current;
+    if (blocksRef.current) blocksRef.current.visible = L.stations;
+    if (assetsGroupRef.current) assetsGroupRef.current.visible = L.equipment;
+    if (connsGroupRef.current) connsGroupRef.current.visible = L.connectors;
+    if (dimsGroupRef.current) dimsGroupRef.current.visible = L.dims;
+    if (gridGroupRef.current) gridGroupRef.current.visible = L.grid;
+    sceneRef.current?.traverse((o) => { if (o.userData?.isLabel) o.visible = L.labels; });
+  }, []);
+  useEffect(() => { applyLayersRef.current = applyLayers; }, [applyLayers]);
+  useEffect(() => { layersRef.current = layers; applyLayers(); }, [layers, applyLayers]);
+
+  // close the view/layers popover when clicking outside it
+  useEffect(() => {
+    if (!showView) return;
+    const onDoc = (e: MouseEvent) => { if (viewMenuRef.current && !viewMenuRef.current.contains(e.target as Node)) setShowView(false); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [showView]);
+
+  // ---- visual theme (background / fog / floor / grid colours) ----
+  const applyTheme = useCallback(() => {
+    const sc = sceneRef.current; const ctx = ctxRef.current; const gg = gridGroupRef.current;
+    if (!sc || !ctx) return;
+    const th = THEMES[themeRef.current];
+    sc.background = new THREE.Color(th.bg);
+    if (sc.fog instanceof THREE.Fog) sc.fog.color.setHex(th.fog);
+    const ground = groundRef.current;
+    if (ground) (ground.material as THREE.MeshStandardMaterial).color.setHex(th.ground);
+    if (gg) {
+      while (gg.children.length) { const o = gg.children[gg.children.length - 1]; gg.remove(o); disposeObject(o); }
+      const { s, W, H } = ctx;
+      const fpGrid = data?.footprint.gridSize || 1;
+      const grid = new THREE.GridHelper(Math.max(W * s, H * s), Math.min(60, Math.max(8, Math.round(Math.max(W, H) / fpGrid / 2))), th.gridA, th.gridB);
+      (grid.material as THREE.Material).transparent = true; (grid.material as THREE.Material).opacity = 0.6;
+      grid.position.y = 0.01; gridHelperRef.current = grid; gg.add(grid);
+      const edge = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(W * s, H * s)), new THREE.LineBasicMaterial({ color: 0x64748b }));
+      edge.rotation.x = -Math.PI / 2; edge.position.y = 0.02; gg.add(edge);
+      gg.visible = layersRef.current.grid;
+    }
+  }, [data]);
+  useEffect(() => { applyTheme(); }, [theme, applyTheme]);
 
   // Snapshot the selection's geometry into render-safe state (reads refs only
   // from event handlers, never during render — the Minimap/2D editor pattern).
@@ -451,9 +517,10 @@ export default function Layout3DEditor({
 
   // ---- (re)build the station blocks + connectors ----
   const rebuildBlocks = useCallback(() => {
-    const blocks = blocksRef.current; const ctx = ctxRef.current;
+    const blocks = blocksRef.current; const conns = connsGroupRef.current; const ctx = ctxRef.current;
     if (!blocks || !ctx || !data) return;
     while (blocks.children.length) { const o = blocks.children[blocks.children.length - 1]; blocks.remove(o); disposeObject(o); }
+    if (conns) while (conns.children.length) { const o = conns.children[conns.children.length - 1]; conns.remove(o); disposeObject(o); }
     meshByIdRef.current = new Map();
     const { s, W, H } = ctx;
     const byId = new Map(data.stations.map((st) => [st.id, st]));
@@ -492,8 +559,9 @@ export default function Layout3DEditor({
         new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(start, mid, end), 24, 0.09, 7, false),
         new THREE.MeshStandardMaterial({ color: cn.kind === 'conveyor' ? 0x7c3aed : cn.kind === 'return' ? 0x94a3b8 : 0x3b82f6, roughness: 0.4 }),
       );
-      blocks.add(tube);
+      (conns ?? blocks).add(tube);
     });
+    applyLayersRef.current();
   }, [data]);
 
   // ---- (re)build the equipment/asset group ----
@@ -572,23 +640,15 @@ export default function Layout3DEditor({
     dir.shadow.mapSize.set(2048, 2048);
     scene.add(dir);
 
-    // floor + grid + footprint outline
+    // floor + grid + footprint outline (grid built by applyTheme so it follows the theme)
     const deco = new THREE.Group(); scene.add(deco);
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(W * s, H * s),
       new THREE.MeshStandardMaterial({ color: 0x14203a, roughness: 0.95, metalness: 0.05 }),
     );
     ground.rotation.x = -Math.PI / 2; ground.position.y = 0; ground.receiveShadow = true;
-    deco.add(ground);
-    const grid = new THREE.GridHelper(Math.max(W * s, H * s), Math.min(60, Math.max(8, Math.round(Math.max(W, H) / (fp.gridSize || 1) / 2))), 0x2a3a5c, 0x1b2640);
-    (grid.material as THREE.Material).transparent = true;
-    (grid.material as THREE.Material).opacity = 0.6;
-    grid.position.y = 0.01; deco.add(grid);
-    const edge = new THREE.LineSegments(
-      new THREE.EdgesGeometry(new THREE.PlaneGeometry(W * s, H * s)),
-      new THREE.LineBasicMaterial({ color: 0x64748b }),
-    );
-    edge.rotation.x = -Math.PI / 2; edge.position.y = 0.02; deco.add(edge);
+    groundRef.current = ground; deco.add(ground);
+    const gridGroup = new THREE.Group(); deco.add(gridGroup); gridGroupRef.current = gridGroup;
     // cell floor tints
     (data.cells ?? []).forEach((c) => {
       const members = [...placementsRef.current.entries()].filter(([id]) => c.stationIds.includes(id)).map(([, p]) => p);
@@ -606,6 +666,7 @@ export default function Layout3DEditor({
     });
 
     const assetsGroup = new THREE.Group(); scene.add(assetsGroup); assetsGroupRef.current = assetsGroup;
+    const connsGroup = new THREE.Group(); scene.add(connsGroup); connsGroupRef.current = connsGroup;
     const dimsGroup = new THREE.Group(); scene.add(dimsGroup); dimsGroupRef.current = dimsGroup;
     const previewLine = new THREE.Line(
       new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
@@ -616,6 +677,8 @@ export default function Layout3DEditor({
     rebuildAssets();
     rebuildDims();
     rebuildBlocks();
+    applyTheme();
+    applyLayers();
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true; controls.dampingFactor = 0.1;
@@ -774,6 +837,7 @@ export default function Layout3DEditor({
       sceneRef.current = null; rendererRef.current = null; cameraRef.current = null;
       blocksRef.current = null; assetsGroupRef.current = null; controlsRef.current = null;
       dimsGroupRef.current = null; previewLineRef.current = null;
+      connsGroupRef.current = null; gridGroupRef.current = null; groundRef.current = null; gridHelperRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, data]);
@@ -956,8 +1020,9 @@ export default function Layout3DEditor({
   // position:fixed and trap it inside the box instead of the viewport).
   return createPortal(
     <div className="fixed inset-0 z-[70] flex flex-col bg-gray-950 text-white">
-      {/* top bar */}
-      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-white/10 shrink-0 bg-gray-900/80 backdrop-blur">
+      {/* top bar (relative z-30 so dropdown popovers paint above the 3D content,
+          which would otherwise stack over the backdrop-blur'd bar) */}
+      <div className="relative z-30 flex items-center gap-2 px-4 py-2.5 border-b border-white/10 shrink-0 bg-gray-900/80 backdrop-blur">
         <BoxIcon className="w-4 h-4" style={{ color: '#f43f5e' }} />
         <span className="font-semibold text-sm">CAD 3D · {model} · {revision}</span>
         <span className="text-[11px] text-gray-400 ml-1">{placedCount} estaciones · {assetCount} equipos</span>
@@ -975,6 +1040,26 @@ export default function Layout3DEditor({
         <T3Btn onClick={() => viewPreset('iso')} title="Vista isométrica"><Maximize2 className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={() => viewPreset('top')} title="Vista superior (planta)"><Eye className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={() => viewPreset('front')} title="Vista frontal"><Layers className="w-4 h-4" /></T3Btn>
+        <div className="relative" ref={viewMenuRef}>
+          <T3Btn active={showView} onClick={() => setShowView((v) => !v)} title="Vista y capas"><SlidersHorizontal className="w-4 h-4" /></T3Btn>
+          {showView && (
+            <div className="absolute left-0 top-full mt-1.5 w-52 rounded-xl border border-white/10 bg-gray-900 shadow-2xl p-3 z-10 text-[12px]">
+              <div className="text-[10px] uppercase tracking-wide text-gray-500 mb-1.5">Capas</div>
+              {([['stations', 'Estaciones'], ['equipment', 'Equipo'], ['connectors', 'Conexiones'], ['dims', 'Cotas'], ['labels', 'Etiquetas'], ['grid', 'Grilla']] as const).map(([k, lbl]) => (
+                <label key={k} className="flex items-center gap-2 py-1 cursor-pointer text-gray-300 hover:text-white">
+                  <input type="checkbox" checked={layers[k]} onChange={(e) => setLayers((st) => ({ ...st, [k]: e.target.checked }))} className="accent-cyan-500" />
+                  {lbl}
+                </label>
+              ))}
+              <div className="text-[10px] uppercase tracking-wide text-gray-500 mt-2.5 mb-1.5">Tema</div>
+              <div className="grid grid-cols-2 gap-1.5">
+                {(Object.keys(THEMES) as Theme3D[]).map((t) => (
+                  <button key={t} onClick={() => setTheme(t)} className={`px-2 py-1 rounded-md text-[12px] ${theme === t ? 'bg-cyan-600 text-white' : 'bg-white/[0.06] text-gray-300 hover:bg-white/[0.12]'}`}>{THEMES[t].label}</button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
         <div className="w-px h-5 bg-white/10 mx-1" />
         <T3Btn onClick={exportPng} title="Exportar PNG"><Download className="w-4 h-4" /></T3Btn>
         <div className="flex-1" />
