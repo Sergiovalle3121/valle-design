@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import {
-  Loader2, X, Save, Move3d, Grid3x3, Grid2x2, ShieldAlert, RotateCw, RotateCcw, Trash2, Download,
+  Loader2, X, Save, Move3d, Grid3x3, Grid2x2, ShieldAlert, RotateCw, RotateCcw, Trash2, Download, FileDown,
   Box as BoxIcon, Eye, MapPin, Maximize2, Layers, Copy, Crosshair, Settings2,
   Boxes, ChevronRight, Ruler, MousePointer2, SlidersHorizontal, Undo2, Redo2, Spline,
   ClipboardList, Package, StickyNote, PersonStanding, HelpCircle,
@@ -1626,6 +1626,21 @@ export default function Layout3DEditor({
       );
     } catch { toast.error('No se pudo exportar el modelo 3D.', '3D'); }
   };
+  const exportDxf = async () => {
+    try {
+      const r = await apiFetch(`${API_BASE}/line-engineering/layout/dxf-export?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`);
+      if (!r.ok) { toast.error('No se pudo exportar el DXF.', 'DXF'); return; }
+      const d = (await r.json()) as { filename: string; dxf: string };
+      const blob = new Blob([d.dxf], { type: 'application/dxf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = d.filename || `layout-${model}-${revision}.dxf`.replace(/[^\w.\-]+/g, '_');
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Layout exportado a DXF (AutoCAD).', 'DXF');
+    } catch { toast.error('No se pudo exportar el DXF.', 'DXF'); }
+  };
   const save = async () => {
     if (!model || !data) return;
     setSaving(true);
@@ -1764,6 +1779,7 @@ export default function Layout3DEditor({
         <T3Btn onClick={openTakeoff} title="Cantidades / lista de materiales"><ClipboardList className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={exportPng} title="Exportar imagen (PNG)"><Download className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={exportGltf} title="Exportar modelo 3D (.glb) — Blender, otros CAD"><Package className="w-4 h-4" /></T3Btn>
+        <T3Btn onClick={exportDxf} title="Exportar a DXF (AutoCAD) — cada tipo en su capa"><FileDown className="w-4 h-4" /></T3Btn>
         <T3Btn active={showHelp} onClick={() => setShowHelp((v) => !v)} title="Atajos y ayuda (?)"><HelpCircle className="w-4 h-4" /></T3Btn>
         <div className="flex-1" />
         <button onClick={save} disabled={saving || !dirty} className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-sm font-medium text-white disabled:opacity-50" style={{ background: '#f43f5e' }}>
