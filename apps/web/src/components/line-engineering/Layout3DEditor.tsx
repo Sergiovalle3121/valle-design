@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import {
-  Loader2, X, Save, Move3d, Grid3x3, Grid2x2, RotateCw, RotateCcw, Trash2, Download,
+  Loader2, X, Save, Move3d, Grid3x3, Grid2x2, ShieldAlert, RotateCw, RotateCcw, Trash2, Download,
   Box as BoxIcon, Eye, MapPin, Maximize2, Layers, Copy, Crosshair, Settings2,
   Boxes, ChevronRight, Ruler, MousePointer2, SlidersHorizontal, Undo2, Redo2, Spline,
   ClipboardList, Package, StickyNote, PersonStanding, HelpCircle,
@@ -41,6 +41,8 @@ interface St {
 interface Cell { id: string; name: string; color: string; stationIds: string[] }
 interface Conn { from: string; to: string; kind?: string }
 interface Asset { id: string; kind: string; x: number; y: number; w: number; h: number; rotation: number; label?: string }
+/** A pair of objects flagged by the clearance analysis (Fase 43). */
+interface ClearancePair { a: string; b: string; aLabel: string; bLabel: string; gap: number }
 /** A free-text note or a dimension line (cota) on the plan — world coords. */
 interface Ann { id: string; type: 'text' | 'dim'; x: number; y: number; x2?: number; y2?: number; text?: string; color?: string }
 interface Footprint { footprintW: number; footprintH: number; unit: string; gridSize: number }
@@ -490,6 +492,7 @@ export default function Layout3DEditor({
   const [hist, setHist] = useState({ undo: 0, redo: 0 }); // depths, for button enablement
   const [takeoff, setTakeoff] = useState<LocalTakeoff | null>(null); // quantities panel (null = closed)
   const [showHeat, setShowHeat] = useState(false); // occupancy heat-map overlay on the floor (Fase 51)
+  const [showGaps, setShowGaps] = useState(false); // clearance/safety gap markers overlay (Fase 52)
 
   // three.js refs
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -507,6 +510,10 @@ export default function Layout3DEditor({
   const heatLoadedRef = useRef(false); // lazy-load the density grid only once per scene
   const showHeatRef = useRef(false); // current toggle, read inside the scene-init effect
   const loadHeatRef = useRef<() => void>(() => {}); // latest loadHeat, callable from init
+  const gapsGroupRef = useRef<THREE.Group | null>(null); // clearance gap markers
+  const gapsLoadedRef = useRef(false);
+  const showGapsRef = useRef(false);
+  const loadGapsRef = useRef<() => void>(() => {});
   const dxfModelRef = useRef<DxfModel | null>(null);
   const dxfMetaRef = useRef<DxfMeta | null>(null);
   const rebuildDxfRef = useRef<() => void>(() => {});
@@ -891,6 +898,75 @@ export default function Layout3DEditor({
     }
   }, [showHeat, loadHeat]);
 
+  // ---- clearance / safety gap markers on the floor (Fase 52) ----
+  // Reuses the clearance analysis (Fase 43): draws a link between each pair of
+  // objects flagged as too close (amber, with the gap) or overlapping (red), so
+  // the safety problems the 2D panel lists become visible in the 3D scene.
+  const buildGapMarkers = useCallback((tightPairs: ClearancePair[], overlaps: ClearancePair[]) => {
+    const group = gapsGroupRef.current; const ctx = ctxRef.current;
+    if (!group || !ctx) return;
+    group.children.slice().forEach((c) => {
+      group.remove(c);
+      const m = c as THREE.Mesh;
+      m.geometry?.dispose?.();
+      const mat = m.material as THREE.Material | THREE.Material[] | undefined;
+      if (Array.isArray(mat)) mat.forEach((x) => x?.dispose?.()); else mat?.dispose?.();
+    });
+    const { s, W, H } = ctx;
+    const centerOf = (id: string): { cx: number; cy: number } | null => {
+      const p = placementsRef.current.get(id);
+      if (p) return { cx: p.x + p.w / 2, cy: p.y + p.h / 2 };
+      const a = assetsRef.current.get(id);
+      if (a) return { cx: a.x + a.w / 2, cy: a.y + a.h / 2 };
+      return null;
+    };
+    const y = 0.08;
+    const draw = (pair: ClearancePair, color: number, withLabel: boolean) => {
+      const ca = centerOf(pair.a); const cb = centerOf(pair.b);
+      if (!ca || !cb) return;
+      const ax = (ca.cx - W / 2) * s, az = (ca.cy - H / 2) * s;
+      const bx = (cb.cx - W / 2) * s, bz = (cb.cy - H / 2) * s;
+      group.add(new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(ax, y, az), new THREE.Vector3(bx, y, bz)]),
+        new THREE.LineBasicMaterial({ color }),
+      ));
+      [[ax, az], [bx, bz]].forEach(([px, pz]) => {
+        const dot = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 10), new THREE.MeshBasicMaterial({ color }));
+        dot.position.set(px, y, pz); group.add(dot);
+      });
+      if (withLabel) {
+        const label = makeLabel(`${Math.round(pair.gap)}`, 0.85);
+        label.position.set((ax + bx) / 2, y + 0.7, (az + bz) / 2);
+        group.add(label);
+      }
+    };
+    overlaps.forEach((p) => draw(p, 0xef4444, false)); // red = overlap (most severe)
+    tightPairs.forEach((p) => draw(p, 0xf59e0b, true)); // amber = too close, with the gap
+  }, []);
+
+  const loadGaps = useCallback(async () => {
+    try {
+      const r = await apiFetch(`${API_BASE}/line-engineering/layout/clearance?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`);
+      if (!r.ok) return;
+      const d = (await r.json()) as { tightPairs?: ClearancePair[]; overlaps?: ClearancePair[] };
+      buildGapMarkers(d.tightPairs ?? [], d.overlaps ?? []);
+    } catch {
+      /* clearance overlay is non-critical — ignore fetch errors */
+    }
+  }, [model, revision, buildGapMarkers]);
+
+  useEffect(() => { loadGapsRef.current = loadGaps; }, [loadGaps]);
+  useEffect(() => {
+    showGapsRef.current = showGaps;
+    const group = gapsGroupRef.current;
+    if (!group) return;
+    group.visible = showGaps;
+    if (showGaps && !gapsLoadedRef.current) {
+      gapsLoadedRef.current = true;
+      loadGaps();
+    }
+  }, [showGaps, loadGaps]);
+
   const rebuildAll = useCallback(() => { rebuildBlocks(); rebuildAssets(); rebuildDims(); rebuildNotes(); }, [rebuildBlocks, rebuildAssets, rebuildDims, rebuildNotes]);
 
   // ---- undo / redo (memento of the editable collections) ----
@@ -1010,6 +1086,8 @@ export default function Layout3DEditor({
     const dxfGroup = new THREE.Group(); scene.add(dxfGroup); dxfGroupRef.current = dxfGroup;
     const heatGroup = new THREE.Group(); heatGroup.visible = showHeatRef.current; scene.add(heatGroup); heatGroupRef.current = heatGroup; heatLoadedRef.current = false;
     if (showHeatRef.current) { heatLoadedRef.current = true; loadHeatRef.current(); }
+    const gapsGroup = new THREE.Group(); gapsGroup.visible = showGapsRef.current; scene.add(gapsGroup); gapsGroupRef.current = gapsGroup; gapsLoadedRef.current = false;
+    if (showGapsRef.current) { gapsLoadedRef.current = true; loadGapsRef.current(); }
     const blocks = new THREE.Group(); scene.add(blocks); blocksRef.current = blocks;
     rebuildAssets();
     rebuildDims();
@@ -1303,6 +1381,7 @@ export default function Layout3DEditor({
       connsGroupRef.current = null; gridGroupRef.current = null; groundRef.current = null; gridHelperRef.current = null;
       dirLightRef.current = null; notesGroupRef.current = null; dxfGroupRef.current = null;
       heatGroupRef.current = null; heatLoadedRef.current = false;
+      gapsGroupRef.current = null; gapsLoadedRef.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, data]);
@@ -1644,6 +1723,7 @@ export default function Layout3DEditor({
         <T3Btn onClick={() => viewPreset('front')} title="Vista frontal"><Layers className="w-4 h-4" /></T3Btn>
         <T3Btn active={walk} onClick={toggleWalk} title="Recorrido en primera persona — arrastra para mirar, WASD para caminar, Esc para salir"><PersonStanding className="w-4 h-4" /></T3Btn>
         <T3Btn active={showHeat} onClick={() => setShowHeat((v) => !v)} title="Mapa de calor de ocupación en el piso"><Grid2x2 className="w-4 h-4" /></T3Btn>
+        <T3Btn active={showGaps} onClick={() => setShowGaps((v) => !v)} title="Holguras de seguridad — marca los objetos demasiado juntos (ámbar) o traslapados (rojo)"><ShieldAlert className="w-4 h-4" /></T3Btn>
         <div className="relative" ref={viewMenuRef}>
           <T3Btn active={showView} onClick={() => setShowView((v) => { const nv = !v; if (nv && data) setFpDraft({ w: data.footprint.footprintW, h: data.footprint.footprintH, g: data.footprint.gridSize }); return nv; })} title="Vista, capas y plano"><SlidersHorizontal className="w-4 h-4" /></T3Btn>
           {showView && (
@@ -1749,6 +1829,13 @@ export default function Layout3DEditor({
                   <span className="inline-block w-12 h-2 rounded-sm" style={{ background: 'linear-gradient(90deg, rgba(244,63,94,0.15), rgba(244,63,94,1))' }} />
                   más
                 </span>
+              </div>
+            )}
+            {showGaps && (
+              <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-xl bg-gray-900/80 backdrop-blur border border-white/10 text-[11px] text-gray-300 inline-flex items-center gap-3 pointer-events-none" style={{ bottom: showHeat ? '3.25rem' : undefined }}>
+                <ShieldAlert className="w-3.5 h-3.5" /> Holguras
+                <span className="inline-flex items-center gap-1"><span className="inline-block w-3 h-2 rounded-sm" style={{ background: '#f59e0b' }} /> juntos</span>
+                <span className="inline-flex items-center gap-1"><span className="inline-block w-3 h-2 rounded-sm" style={{ background: '#ef4444' }} /> traslape</span>
               </div>
             )}
             {walk && (
