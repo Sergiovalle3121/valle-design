@@ -11,7 +11,7 @@ import {
   ClipboardList, Package, StickyNote, PersonStanding, HelpCircle,
   AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd,
   AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
-  AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, RulerDimensionLine, Rows3,
+  AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, RulerDimensionLine, Rows3, Waypoints,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/apiFetch';
 import { useToast } from '@/contexts/ToastContext';
@@ -21,6 +21,7 @@ import { dxfToWalls } from './dxf-walls';
 import { dxfSnapPoints, nearestSnapPoint } from './dxf-snap';
 import { autoDimensions, type DimBox } from './auto-dimensions';
 import { arrangeLine, type ArrangeStation } from './arrange-line';
+import { connectLine, type ConnStation } from './connect-line';
 
 /**
  * Full-screen interactive 3D layout editor — the "CAD" view of the plant floor.
@@ -67,7 +68,7 @@ interface Placement { x: number; y: number; w: number; h: number; rotation: numb
 interface SelItem { type: 'station' | 'asset'; id: string }
 const sameSel = (a: SelItem, b: SelItem) => a.type === b.type && a.id === b.id;
 /** A point-in-time copy of every editable collection, for undo/redo. */
-interface Snapshot { placements: [string, Placement][]; assets: Asset[]; annotations: Ann[] }
+interface Snapshot { placements: [string, Placement][]; assets: Asset[]; annotations: Ann[]; connectors: Conn[] }
 /** Live quantity take-off computed from the editor's current state. */
 interface LocalTakeoff {
   unit: string; footprintArea: number; totalStations: number; placedStations: number;
@@ -511,6 +512,7 @@ export default function Layout3DEditor({
   const dimsGroupRef = useRef<THREE.Group | null>(null);
   const notesGroupRef = useRef<THREE.Group | null>(null);
   const connsGroupRef = useRef<THREE.Group | null>(null);
+  const connectorsRef = useRef<Conn[]>([]); // mutable line connectors (auto-connect, Fase 62)
   const gridGroupRef = useRef<THREE.Group | null>(null);
   const dxfGroupRef = useRef<THREE.Group | null>(null);
   const heatGroupRef = useRef<THREE.Group | null>(null); // occupancy heat-map tiles
@@ -699,6 +701,7 @@ export default function Layout3DEditor({
         assetsRef.current = am;
         annotationsRef.current = an;
         stationsByIdRef.current = new Map(d.stations.map((s) => [s.id, s]));
+        connectorsRef.current = (d.connectors ?? []).map((c) => ({ ...c }));
         loadedPlacedRef.current = new Set(pl.keys());
         setPlacedIds(new Set(pl.keys()));
         setAssetIds(new Set(am.keys()));
@@ -764,7 +767,7 @@ export default function Layout3DEditor({
       blocks.add(label);
     });
     // connectors as arched tubes between placed block tops
-    (data.connectors ?? []).forEach((cn) => {
+    connectorsRef.current.forEach((cn) => {
       const a = placementsRef.current.get(cn.from); const b = placementsRef.current.get(cn.to);
       if (!a || !b) return;
       const ha = Math.max(0.6, Math.min(a.w * s, a.h * s) * 0.7);
@@ -989,6 +992,7 @@ export default function Layout3DEditor({
     placements: [...placementsRef.current.entries()].map(([id, p]) => [id, { ...p }]),
     assets: [...assetsRef.current.values()].map((a) => ({ ...a })),
     annotations: [...annotationsRef.current.values()].map((a) => ({ ...a })),
+    connectors: connectorsRef.current.map((c) => ({ ...c })),
   }), []);
   const pushHistory = useCallback(() => {
     undoStackRef.current.push(snapshot());
@@ -1000,6 +1004,7 @@ export default function Layout3DEditor({
     placementsRef.current = new Map(s.placements.map(([id, p]) => [id, { ...p }]));
     assetsRef.current = new Map(s.assets.map((a) => [a.id, { ...a }]));
     annotationsRef.current = new Map(s.annotations.map((a) => [a.id, { ...a }]));
+    connectorsRef.current = (s.connectors ?? []).map((c) => ({ ...c }));
     setPlacedIds(new Set(placementsRef.current.keys()));
     setAssetIds(new Set(assetsRef.current.keys()));
     setDimCount([...annotationsRef.current.values()].filter((a) => a.type === 'dim').length);
@@ -1710,6 +1715,21 @@ export default function Layout3DEditor({
     setDirty(true); rebuildBlocks(); refreshSnap();
     toast.success(`Línea acomodada — ${moved} ${moved === 1 ? 'estación' : 'estaciones'}`, '3D');
   };
+  // ---- auto-connect the placed stations in sequence (material flow) (Fase 62) ----
+  // Crea un conector de cada estación a la siguiente en secuencia, fusionando con
+  // los conectores existentes (sin duplicar) — el flujo de la línea de un clic.
+  const connectLineLayout = () => {
+    const list: ConnStation[] = [];
+    data?.stations.forEach((st, idx) => { if (placementsRef.current.has(st.id)) list.push({ id: st.id, sequence: idx }); });
+    if (list.length < 2) { toast.error('Coloca al menos 2 estaciones para conectar la línea.', '3D'); return; }
+    const next = connectLine(list, connectorsRef.current, 'flow');
+    if (next.length === connectorsRef.current.length) { toast.success('La línea ya estaba conectada.', '3D'); return; }
+    const added = next.length - connectorsRef.current.length;
+    pushHistory();
+    connectorsRef.current = next;
+    setDirty(true); rebuildBlocks();
+    toast.success(`Línea conectada — ${added} ${added === 1 ? 'enlace nuevo' : 'enlaces nuevos'}`, '3D');
+  };
   const arrayAssets = (cols: number, rows: number, gap: number) => {
     const sel = selRef.current.filter((s) => s.type === 'asset');
     const c = Math.max(1, Math.min(50, Math.round(cols))), r = Math.max(1, Math.min(50, Math.round(rows)));
@@ -1907,7 +1927,7 @@ export default function Layout3DEditor({
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model, revision, footprint: data.footprint, positions, cleared,
-          connectors: data.connectors ?? [], assets,
+          connectors: connectorsRef.current, assets,
           annotations, cells: data.cells ?? [],
         }),
       });
@@ -2033,6 +2053,7 @@ export default function Layout3DEditor({
         </div>
         <div className="w-px h-5 bg-white/10 mx-1" />
         <T3Btn onClick={arrangeLineLayout} title="Acomodar la línea — ordena las estaciones por secuencia en filas equiespaciadas"><Rows3 className="w-4 h-4" /></T3Btn>
+        <T3Btn onClick={connectLineLayout} title="Conectar la línea — enlaza cada estación con la siguiente en secuencia (flujo)"><Waypoints className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={openTakeoff} title="Cantidades / lista de materiales"><ClipboardList className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={exportPng} title="Exportar imagen (PNG)"><Download className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={exportGltf} title="Exportar modelo 3D (.glb) — Blender, otros CAD"><Package className="w-4 h-4" /></T3Btn>
