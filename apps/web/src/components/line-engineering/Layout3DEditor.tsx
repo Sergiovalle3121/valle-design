@@ -385,6 +385,7 @@ export default function Layout3DEditor({
   const [dimCount, setDimCount] = useState(0);
   const [theme, setTheme] = useState<Theme3D>('dark');
   const [showView, setShowView] = useState(false);
+  const [fpDraft, setFpDraft] = useState<{ w: number; h: number; g: number }>({ w: 0, h: 0, g: 0 });
   const [layers, setLayers] = useState({ stations: true, equipment: true, connectors: true, dims: true, labels: true, grid: true });
   const [hist, setHist] = useState({ undo: 0, redo: 0 }); // depths, for button enablement
   const [takeoff, setTakeoff] = useState<LocalTakeoff | null>(null); // quantities panel (null = closed)
@@ -992,6 +993,19 @@ export default function Layout3DEditor({
     });
   }, [data]);
 
+  // Resize the plant footprint / grid from the CAD; the scene rebuilds at the
+  // new scale and the change persists on save (objects keep their world coords).
+  const applyFootprint = useCallback(() => {
+    setData((d) => {
+      if (!d) return d;
+      const w = Math.max(1000, Math.round(fpDraft.w) || d.footprint.footprintW);
+      const h = Math.max(1000, Math.round(fpDraft.h) || d.footprint.footprintH);
+      const g = Math.max(50, Math.round(fpDraft.g) || d.footprint.gridSize);
+      return { ...d, footprint: { ...d.footprint, footprintW: w, footprintH: h, gridSize: g } };
+    });
+    setDirty(true); setShowView(false);
+  }, [fpDraft]);
+
   const clearDims = useCallback(() => {
     const hasDim = [...annotationsRef.current.values()].some((a) => a.type === 'dim');
     if (!hasDim) return;
@@ -1218,9 +1232,9 @@ export default function Layout3DEditor({
         <T3Btn onClick={() => viewPreset('top')} title="Vista superior (planta)"><Eye className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={() => viewPreset('front')} title="Vista frontal"><Layers className="w-4 h-4" /></T3Btn>
         <div className="relative" ref={viewMenuRef}>
-          <T3Btn active={showView} onClick={() => setShowView((v) => !v)} title="Vista y capas"><SlidersHorizontal className="w-4 h-4" /></T3Btn>
+          <T3Btn active={showView} onClick={() => setShowView((v) => { const nv = !v; if (nv && data) setFpDraft({ w: data.footprint.footprintW, h: data.footprint.footprintH, g: data.footprint.gridSize }); return nv; })} title="Vista, capas y plano"><SlidersHorizontal className="w-4 h-4" /></T3Btn>
           {showView && (
-            <div className="absolute left-0 top-full mt-1.5 w-52 rounded-xl border border-white/10 bg-gray-900 shadow-2xl p-3 z-10 text-[12px]">
+            <div className="absolute left-0 top-full mt-1.5 w-56 rounded-xl border border-white/10 bg-gray-900 shadow-2xl p-3 z-10 text-[12px]">
               <div className="text-[10px] uppercase tracking-wide text-gray-500 mb-1.5">Capas</div>
               {([['stations', 'Estaciones'], ['equipment', 'Equipo'], ['connectors', 'Conexiones'], ['dims', 'Cotas'], ['labels', 'Etiquetas'], ['grid', 'Grilla']] as const).map(([k, lbl]) => (
                 <label key={k} className="flex items-center gap-2 py-1 cursor-pointer text-gray-300 hover:text-white">
@@ -1234,6 +1248,13 @@ export default function Layout3DEditor({
                   <button key={t} onClick={() => setTheme(t)} className={`px-2 py-1 rounded-md text-[12px] ${theme === t ? 'bg-cyan-600 text-white' : 'bg-white/[0.06] text-gray-300 hover:bg-white/[0.12]'}`}>{THEMES[t].label}</button>
                 ))}
               </div>
+              <div className="text-[10px] uppercase tracking-wide text-gray-500 mt-2.5 mb-1.5">Plano ({data?.footprint.unit ?? 'mm'})</div>
+              <div className="grid grid-cols-3 gap-1.5 mb-2">
+                <DimInput label="Ancho" value={fpDraft.w} onChange={(v) => setFpDraft((s) => ({ ...s, w: v }))} />
+                <DimInput label="Largo" value={fpDraft.h} onChange={(v) => setFpDraft((s) => ({ ...s, h: v }))} />
+                <DimInput label="Rejilla" value={fpDraft.g} onChange={(v) => setFpDraft((s) => ({ ...s, g: v }))} />
+              </div>
+              <button onClick={applyFootprint} className="w-full px-2 py-1.5 rounded-md bg-cyan-600 hover:bg-cyan-500 text-white text-[12px] font-medium">Aplicar tamaño</button>
             </div>
           )}
         </div>
@@ -1434,6 +1455,20 @@ function NumField({ label, value, onChange, onBegin }: { label: string; value: n
         onFocus={onBegin}
         onChange={(e) => onChange(parseFloat(e.target.value))}
         className="w-full px-2 py-1 rounded-md bg-white/[0.06] border border-white/10 text-[13px] text-white focus:outline-none focus:border-cyan-400/60"
+      />
+    </label>
+  );
+}
+
+function DimInput({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+  return (
+    <label className="block">
+      <span className="block text-[9px] uppercase tracking-wide text-gray-500 mb-0.5">{label}</span>
+      <input
+        type="number"
+        value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+        className="w-full px-1.5 py-1 rounded-md bg-white/[0.06] border border-white/10 text-[12px] text-white focus:outline-none focus:border-cyan-400/60"
       />
     </label>
   );
