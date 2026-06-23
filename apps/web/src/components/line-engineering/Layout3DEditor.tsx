@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import {
-  Loader2, X, Save, Move3d, Grid3x3, Grid2x2, ShieldAlert, RotateCw, RotateCcw, Trash2, Download, FileDown, Magnet, FlipHorizontal, FlipVertical,
+  Loader2, X, Save, Move3d, Grid3x3, Grid2x2, ShieldAlert, RotateCw, RotateCcw, Trash2, Download, FileDown, Magnet, FlipHorizontal, FlipVertical, BrickWall,
   Box as BoxIcon, Eye, MapPin, Maximize2, Layers, Copy, Crosshair, Settings2,
   Boxes, ChevronRight, Ruler, MousePointer2, SlidersHorizontal, Undo2, Redo2, Spline,
   ClipboardList, Package, StickyNote, PersonStanding, HelpCircle,
@@ -17,6 +17,7 @@ import { apiFetch } from '@/lib/apiFetch';
 import { useToast } from '@/contexts/ToastContext';
 import { ASSET_CATEGORIES, assetMeta, type AssetArchetype } from './asset-catalog';
 import { parseDxf, type DxfModel } from './dxf';
+import { dxfToWalls } from './dxf-walls';
 
 /**
  * Full-screen interactive 3D layout editor — the "CAD" view of the plant floor.
@@ -521,6 +522,7 @@ export default function Layout3DEditor({
   const dxfModelRef = useRef<DxfModel | null>(null);
   const dxfMetaRef = useRef<DxfMeta | null>(null);
   const rebuildDxfRef = useRef<() => void>(() => {});
+  const [hasDxf, setHasDxf] = useState(false); // a DXF backdrop is loaded → can trace it into walls (Fase 58)
   const groundRef = useRef<THREE.Mesh | null>(null);
   const gridHelperRef = useRef<THREE.GridHelper | null>(null);
   const dirLightRef = useRef<THREE.DirectionalLight | null>(null);
@@ -699,7 +701,7 @@ export default function Layout3DEditor({
         setData(d);
         // fetch + parse the read-only DXF backdrop (the endpoint already serves
         // the raw drawing); render it on the floor once ready.
-        dxfModelRef.current = null; dxfMetaRef.current = null;
+        dxfModelRef.current = null; dxfMetaRef.current = null; setHasDxf(false);
         if (d.dxf) {
           try {
             const rd = await apiFetch(`${API_BASE}/line-engineering/layout/dxf?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`);
@@ -707,6 +709,7 @@ export default function Layout3DEditor({
               const raw = (await rd.json()) as { data?: string } | null;
               dxfModelRef.current = raw?.data ? parseDxf(raw.data) : null;
               dxfMetaRef.current = d.dxf;
+              setHasDxf(!!dxfModelRef.current && !!dxfMetaRef.current);
               rebuildDxfRef.current();
             }
           } catch { /* ignore — backdrop is optional */ }
@@ -1596,6 +1599,26 @@ export default function Layout3DEditor({
     setAssetIds(new Set(assetsRef.current.keys()));
     if (created.length) { select(created); setDirty(true); rebuildAll(); toast.success(`${created.length} ${msg}`, '3D'); }
   };
+  // ---- trace the DXF backdrop into editable walls (Fase 58) ----
+  // Turns the read-only plan behind the layout into real `wall` assets placed
+  // exactly over it — the leap from "drawing on top of a plan" to editing it.
+  const importDxfWalls = () => {
+    const dm = dxfModelRef.current; const meta = dxfMetaRef.current;
+    if (!dm || !meta) { toast.error('Primero carga un plano DXF de fondo.', 'DXF'); return; }
+    const { walls, truncated, segmentsConsidered } = dxfToWalls(dm, meta, { thickness: assetMeta('wall').h });
+    if (!walls.length) {
+      toast.error(segmentsConsidered ? 'El plano sólo tiene tramos muy cortos para muros.' : 'El plano no tiene líneas para convertir.', 'DXF');
+      return;
+    }
+    pushHistory();
+    const created: SelItem[] = [];
+    for (const wl of walls) {
+      const id = newId('as');
+      assetsRef.current.set(id, { id, kind: 'wall', x: wl.x, y: wl.y, w: wl.w, h: wl.h, rotation: wl.rotation, label: 'Muro (plano)' });
+      created.push({ type: 'asset', id });
+    }
+    commitCreated(created, truncated ? `muros del plano (recortado a ${walls.length})` : 'muros importados del plano');
+  };
   const arrayAssets = (cols: number, rows: number, gap: number) => {
     const sel = selRef.current.filter((s) => s.type === 'asset');
     const c = Math.max(1, Math.min(50, Math.round(cols))), r = Math.max(1, Math.min(50, Math.round(rows)));
@@ -1920,6 +1943,7 @@ export default function Layout3DEditor({
         <T3Btn onClick={openTakeoff} title="Cantidades / lista de materiales"><ClipboardList className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={exportPng} title="Exportar imagen (PNG)"><Download className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={exportGltf} title="Exportar modelo 3D (.glb) — Blender, otros CAD"><Package className="w-4 h-4" /></T3Btn>
+        {hasDxf && <T3Btn onClick={importDxfWalls} title="Convertir el plano DXF de fondo en muros editables"><BrickWall className="w-4 h-4" /></T3Btn>}
         <T3Btn onClick={exportDxf} title="Exportar a DXF (AutoCAD) — cada tipo en su capa"><FileDown className="w-4 h-4" /></T3Btn>
         <T3Btn active={showHelp} onClick={() => setShowHelp((v) => !v)} title="Atajos y ayuda (?)"><HelpCircle className="w-4 h-4" /></T3Btn>
         <div className="flex-1" />
