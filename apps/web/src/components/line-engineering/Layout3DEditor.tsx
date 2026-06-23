@@ -7,7 +7,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import {
   Loader2, X, Save, Move3d, Grid3x3, RotateCw, RotateCcw, Trash2, Download,
   Box as BoxIcon, Eye, MapPin, Maximize2, Layers, Copy, Crosshair, Settings2,
-  Boxes, ChevronRight,
+  Boxes, ChevronRight, Ruler, MousePointer2,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/apiFetch';
 import { useToast } from '@/contexts/ToastContext';
@@ -37,6 +37,8 @@ interface St {
 interface Cell { id: string; name: string; color: string; stationIds: string[] }
 interface Conn { from: string; to: string; kind?: string }
 interface Asset { id: string; kind: string; x: number; y: number; w: number; h: number; rotation: number; label?: string }
+/** A free-text note or a dimension line (cota) on the plan — world coords. */
+interface Ann { id: string; type: 'text' | 'dim'; x: number; y: number; x2?: number; y2?: number; text?: string; color?: string }
 interface Footprint { footprintW: number; footprintH: number; unit: string; gridSize: number }
 interface Layout {
   footprint: Footprint;
@@ -44,7 +46,7 @@ interface Layout {
   cells?: Cell[];
   connectors?: Conn[];
   assets?: Asset[];
-  annotations?: unknown[];
+  annotations?: Ann[];
 }
 interface Placement { x: number; y: number; w: number; h: number; rotation: number }
 type Sel = { type: 'station' | 'asset'; id: string } | null;
@@ -304,6 +306,29 @@ function buildAssetGroup(a: Asset, s: number, W: number, H: number, selected: bo
 }
 
 const newId = (p: string) => `${p}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+const fmtDist = (d: number, unit: string) => `${Math.round(d).toLocaleString('es-MX')} ${unit}`;
+
+/** Floor-plane line + end ticks + distance label for a dimension annotation. */
+function buildDim(a: Ann, s: number, W: number, H: number, unit: string): THREE.Object3D[] {
+  if (a.x2 === undefined || a.y2 === undefined) return [];
+  const y = 0.06;
+  const ax = (a.x - W / 2) * s, az = (a.y - H / 2) * s;
+  const bx = (a.x2 - W / 2) * s, bz = (a.y2 - H / 2) * s;
+  const color = a.color || '#22d3ee';
+  const out: THREE.Object3D[] = [];
+  const lineMat = () => new THREE.LineBasicMaterial({ color });
+  out.push(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(ax, y, az), new THREE.Vector3(bx, y, bz)]), lineMat()));
+  const dx = bx - ax, dz = bz - az; const len = Math.hypot(dx, dz) || 1;
+  const px = -dz / len, pz = dx / len; const t = 0.4;
+  [[ax, az], [bx, bz]].forEach(([cx, cz]) =>
+    out.push(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(cx + px * t, y, cz + pz * t), new THREE.Vector3(cx - px * t, y, cz - pz * t)]), lineMat())));
+  const dist = Math.hypot(a.x2 - a.x, a.y2 - a.y);
+  const label = makeLabel(fmtDist(dist, unit), 1.1);
+  label.position.set((ax + bx) / 2, y + 0.85, (az + bz) / 2);
+  label.userData.dimId = a.id;
+  out.push(label);
+  return out;
+}
 
 export default function Layout3DEditor({
   model, revision, open, onClose, onSaved,
@@ -326,6 +351,9 @@ export default function Layout3DEditor({
   const [placedIds, setPlacedIds] = useState<Set<string>>(new Set());
   const [assetIds, setAssetIds] = useState<Set<string>>(new Set());
   const [tab, setTab] = useState<'stations' | 'equipment'>('stations');
+  const [tool, setTool] = useState<'select' | 'measure'>('select');
+  const [measureLive, setMeasureLive] = useState<string | null>(null);
+  const [dimCount, setDimCount] = useState(0);
 
   // three.js refs
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -334,18 +362,24 @@ export default function Layout3DEditor({
   const controlsRef = useRef<OrbitControls | null>(null);
   const blocksRef = useRef<THREE.Group | null>(null);
   const assetsGroupRef = useRef<THREE.Group | null>(null);
+  const dimsGroupRef = useRef<THREE.Group | null>(null);
+  const previewLineRef = useRef<THREE.Line | null>(null);
   const meshByIdRef = useRef<Map<string, THREE.Mesh>>(new Map());
   const groupByAssetRef = useRef<Map<string, THREE.Group>>(new Map());
 
   // layout state refs (drive both the scene and the save)
   const placementsRef = useRef<Map<string, Placement>>(new Map());
   const assetsRef = useRef<Map<string, Asset>>(new Map());
+  const annotationsRef = useRef<Map<string, Ann>>(new Map());
   const stationsByIdRef = useRef<Map<string, St>>(new Map());
   const loadedPlacedRef = useRef<Set<string>>(new Set());
   const ctxRef = useRef<{ s: number; W: number; H: number } | null>(null);
+  const measureARef = useRef<{ wx: number; wy: number } | null>(null);
   const selRef = useRef<Sel>(null);
   const snapRef = useRef(snap);
+  const toolRef = useRef(tool);
   useEffect(() => { snapRef.current = snap; }, [snap]);
+  useEffect(() => { toolRef.current = tool; }, [tool]);
 
   // Snapshot the selection's geometry into render-safe state (reads refs only
   // from event handlers, never during render — the Minimap/2D editor pattern).
@@ -372,6 +406,7 @@ export default function Layout3DEditor({
     if (!open || !model) return;
     let alive = true;
     setData(null); setError(null); setSel(null); setSelSnap(null); selRef.current = null; setDirty(false); setTab('stations');
+    setTool('select'); toolRef.current = 'select'; measureARef.current = null; setMeasureLive(null);
     (async () => {
       try {
         const r = await apiFetch(`${API_BASE}/line-engineering/layout?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`);
@@ -391,12 +426,16 @@ export default function Layout3DEditor({
         });
         const am = new Map<string, Asset>();
         (d.assets ?? []).forEach((a) => am.set(a.id, { ...a, rotation: a.rotation ?? 0 }));
+        const an = new Map<string, Ann>();
+        (d.annotations ?? []).forEach((a) => { if (a && a.id) an.set(a.id, a); });
         placementsRef.current = pl;
         assetsRef.current = am;
+        annotationsRef.current = an;
         stationsByIdRef.current = new Map(d.stations.map((s) => [s.id, s]));
         loadedPlacedRef.current = new Set(pl.keys());
         setPlacedIds(new Set(pl.keys()));
         setAssetIds(new Set(am.keys()));
+        setDimCount([...an.values()].filter((a) => a.type === 'dim').length);
         setData(d);
       } catch {
         if (alive) setError('No se pudo cargar el layout.');
@@ -472,7 +511,26 @@ export default function Layout3DEditor({
     });
   }, []);
 
-  const rebuildAll = useCallback(() => { rebuildBlocks(); rebuildAssets(); }, [rebuildBlocks, rebuildAssets]);
+  // ---- (re)build the dimension/cota overlay (preserves the live preview line) ----
+  const rebuildDims = useCallback(() => {
+    const group = dimsGroupRef.current; const ctx = ctxRef.current;
+    if (!group || !ctx) return;
+    const preview = previewLineRef.current;
+    for (let i = group.children.length - 1; i >= 0; i--) {
+      const o = group.children[i];
+      if (o === preview) continue;
+      group.remove(o); disposeObject(o);
+    }
+    const { s, W, H } = ctx;
+    const unit = data?.footprint.unit || 'mm';
+    annotationsRef.current.forEach((a) => {
+      if (a.type !== 'dim') return;
+      buildDim(a, s, W, H, unit).forEach((o) => group.add(o));
+    });
+    if (preview && !group.children.includes(preview)) group.add(preview);
+  }, [data]);
+
+  const rebuildAll = useCallback(() => { rebuildBlocks(); rebuildAssets(); rebuildDims(); }, [rebuildBlocks, rebuildAssets, rebuildDims]);
 
   // ---- scene lifecycle ----
   useEffect(() => {
@@ -548,8 +606,15 @@ export default function Layout3DEditor({
     });
 
     const assetsGroup = new THREE.Group(); scene.add(assetsGroup); assetsGroupRef.current = assetsGroup;
+    const dimsGroup = new THREE.Group(); scene.add(dimsGroup); dimsGroupRef.current = dimsGroup;
+    const previewLine = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
+      new THREE.LineBasicMaterial({ color: 0xfcd34d }),
+    );
+    previewLine.visible = false; previewLineRef.current = previewLine; dimsGroup.add(previewLine);
     const blocks = new THREE.Group(); scene.add(blocks); blocksRef.current = blocks;
     rebuildAssets();
+    rebuildDims();
     rebuildBlocks();
 
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -565,6 +630,8 @@ export default function Layout3DEditor({
     const hit = new THREE.Vector3();
     let drag: { type: 'station' | 'asset'; id: string; obj: THREE.Object3D } | null = null;
     let grabDX = 0, grabDZ = 0;
+    let downX = 0, downY = 0;
+    const unit = data.footprint.unit || 'mm';
 
     const resolveAssetId = (o: THREE.Object3D | null): string | null => {
       let cur: THREE.Object3D | null = o;
@@ -576,8 +643,26 @@ export default function Layout3DEditor({
       ptr.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       ptr.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
     };
-    const onDown = (e: PointerEvent) => {
+    /** World (x,y) of the floor point under the pointer, or null. */
+    const floorWorld = (e: PointerEvent): { wx: number; wy: number } | null => {
       setPtr(e); raycaster.setFromCamera(ptr, camera);
+      if (!raycaster.ray.intersectPlane(floorPlane, hit)) return null;
+      const ctx = ctxRef.current!;
+      return { wx: hit.x / ctx.s + ctx.W / 2, wy: hit.z / ctx.s + ctx.H / 2 };
+    };
+    const onDown = (e: PointerEvent) => {
+      downX = e.clientX; downY = e.clientY;
+      if (toolRef.current === 'measure') return; // measuring resolves on click (pointerup); drag still orbits
+      setPtr(e); raycaster.setFromCamera(ptr, camera);
+      // clicking a dimension label removes that cota
+      const dimHit = raycaster.intersectObjects(dimsGroup.children, false).find((h) => (h.object as THREE.Sprite).userData?.dimId);
+      if (dimHit) {
+        const id = (dimHit.object as THREE.Sprite).userData.dimId as string;
+        annotationsRef.current.delete(id);
+        setDimCount([...annotationsRef.current.values()].filter((x) => x.type === 'dim').length);
+        setDirty(true); rebuildDims(); toast.success('Cota eliminada.', '3D');
+        return;
+      }
       const stationHits = raycaster.intersectObjects(blocks.children, false)
         .filter((h) => (h.object as THREE.Mesh).userData?.stationId)
         .map((h) => ({ d: h.distance, type: 'station' as const, id: (h.object as THREE.Mesh).userData.stationId as string, obj: h.object }));
@@ -600,6 +685,16 @@ export default function Layout3DEditor({
       }
     };
     const onMove = (e: PointerEvent) => {
+      if (toolRef.current === 'measure') {
+        const a = measureARef.current; if (!a) return;
+        const w = floorWorld(e); if (!w) return;
+        const ctx = ctxRef.current!;
+        const ax = (a.wx - ctx.W / 2) * ctx.s, az = (a.wy - ctx.H / 2) * ctx.s;
+        const pl = previewLineRef.current;
+        if (pl) { (pl.geometry as THREE.BufferGeometry).setFromPoints([new THREE.Vector3(ax, 0.06, az), new THREE.Vector3(hit.x, 0.06, hit.z)]); pl.visible = true; }
+        setMeasureLive(fmtDist(Math.hypot(w.wx - a.wx, w.wy - a.wy), unit));
+        return;
+      }
       if (!drag) return;
       setPtr(e); raycaster.setFromCamera(ptr, camera);
       if (!raycaster.ray.intersectPlane(floorPlane, hit)) return;
@@ -623,6 +718,29 @@ export default function Layout3DEditor({
       }
     };
     const onUp = (e: PointerEvent) => {
+      const isClick = Math.hypot(e.clientX - downX, e.clientY - downY) < 5;
+      if (toolRef.current === 'measure') {
+        if (isClick) {
+          const w = floorWorld(e);
+          if (w) {
+            const pt = { wx: snapWorld(w.wx), wy: snapWorld(w.wy) };
+            if (!measureARef.current) { measureARef.current = pt; setMeasureLive(fmtDist(0, unit)); }
+            else {
+              const a = measureARef.current;
+              if (Math.hypot(pt.wx - a.wx, pt.wy - a.wy) > 1) {
+                const id = newId('dim');
+                annotationsRef.current.set(id, { id, type: 'dim', x: a.wx, y: a.wy, x2: pt.wx, y2: pt.wy });
+                setDimCount([...annotationsRef.current.values()].filter((x) => x.type === 'dim').length);
+                setDirty(true); rebuildDims();
+              }
+              measureARef.current = null; setMeasureLive(null);
+              if (previewLineRef.current) previewLineRef.current.visible = false;
+            }
+          }
+        }
+        try { renderer.domElement.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+        return;
+      }
       if (drag) { drag = null; controls.enabled = true; setDirty(true); refreshSnap(); rebuildAll(); }
       try { renderer.domElement.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
     };
@@ -655,12 +773,34 @@ export default function Layout3DEditor({
       if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
       sceneRef.current = null; rendererRef.current = null; cameraRef.current = null;
       blocksRef.current = null; assetsGroupRef.current = null; controlsRef.current = null;
+      dimsGroupRef.current = null; previewLineRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, data]);
 
   // selection highlight refresh
   useEffect(() => { if (open && data) rebuildAll(); }, [sel, open, data, rebuildAll]);
+
+  // leaving measure mode cancels any half-drawn cota
+  const cancelMeasure = useCallback(() => {
+    measureARef.current = null; setMeasureLive(null);
+    if (previewLineRef.current) previewLineRef.current.visible = false;
+  }, []);
+  const toggleMeasure = useCallback(() => {
+    setTool((prev) => {
+      const next = prev === 'measure' ? 'select' : 'measure';
+      toolRef.current = next;
+      if (next === 'measure') { selRef.current = null; setSel(null); setSelSnap(null); }
+      else cancelMeasure();
+      return next;
+    });
+  }, [cancelMeasure]);
+  const clearDims = useCallback(() => {
+    let n = 0;
+    annotationsRef.current.forEach((a, id) => { if (a.type === 'dim') { annotationsRef.current.delete(id); n++; } });
+    if (!n) return;
+    setDimCount(0); setDirty(true); rebuildDims();
+  }, [rebuildDims]);
 
   // ---- actions ----
   const placeStation = (st: St) => {
@@ -761,12 +901,13 @@ export default function Layout3DEditor({
       const positions = [...placementsRef.current.entries()].map(([id, p]) => ({ id, ...p }));
       const cleared = [...loadedPlacedRef.current].filter((id) => !placementsRef.current.has(id));
       const assets = [...assetsRef.current.values()];
+      const annotations = [...annotationsRef.current.values()];
       const r = await apiFetch(`${API_BASE}/line-engineering/layout`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model, revision, footprint: data.footprint, positions, cleared,
           connectors: data.connectors ?? [], assets,
-          annotations: data.annotations ?? [], cells: data.cells ?? [],
+          annotations, cells: data.cells ?? [],
         }),
       });
       if (!r.ok) { const d = await r.json().catch(() => ({})); toast.error(d?.message || 'No se pudo guardar.', '3D'); return; }
@@ -785,7 +926,12 @@ export default function Layout3DEditor({
       if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return;
       const g = data?.footprint.gridSize || 100;
       const step = e.shiftKey ? g * 5 : g;
-      if (e.key === 'Escape') { if (selRef.current) { select(null); rebuildAll(); } else onClose(); }
+      if (e.key === 'Escape') {
+        if (toolRef.current === 'measure') { cancelMeasure(); setTool('select'); toolRef.current = 'select'; }
+        else if (selRef.current) { select(null); rebuildAll(); }
+        else onClose();
+      }
+      else if ((e.key === 'm' || e.key === 'M')) { e.preventDefault(); toggleMeasure(); }
       else if ((e.key === 'Delete' || e.key === 'Backspace') && selRef.current) { e.preventDefault(); removeSelected(); }
       else if ((e.key === 'r' || e.key === 'R') && selRef.current) { e.preventDefault(); rotateSelected(e.shiftKey ? -15 : 15); }
       else if ((e.key === 'd' || e.key === 'D') && (e.ctrlKey || e.metaKey) && selRef.current) { e.preventDefault(); duplicateSelected(); }
@@ -815,6 +961,14 @@ export default function Layout3DEditor({
         <BoxIcon className="w-4 h-4" style={{ color: '#f43f5e' }} />
         <span className="font-semibold text-sm">CAD 3D · {model} · {revision}</span>
         <span className="text-[11px] text-gray-400 ml-1">{placedCount} estaciones · {assetCount} equipos</span>
+        <div className="w-px h-5 bg-white/10 mx-1" />
+        <T3Btn active={tool === 'select'} onClick={() => { setTool('select'); toolRef.current = 'select'; cancelMeasure(); }} title="Seleccionar / mover (V)"><MousePointer2 className="w-4 h-4" /></T3Btn>
+        <T3Btn active={tool === 'measure'} onClick={toggleMeasure} title="Medir / acotar (M)"><Ruler className="w-4 h-4" /></T3Btn>
+        {dimCount > 0 && (
+          <button onClick={clearDims} title="Quitar todas las cotas" className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] text-gray-300 hover:bg-white/10">
+            {dimCount} {dimCount === 1 ? 'cota' : 'cotas'} <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
         <div className="w-px h-5 bg-white/10 mx-1" />
         <T3Btn active={snap} onClick={() => setSnap((v) => !v)} title="Snap a grilla"><Grid3x3 className="w-4 h-4" /></T3Btn>
         <div className="w-px h-5 bg-white/10 mx-1" />
@@ -879,8 +1033,16 @@ export default function Layout3DEditor({
           {/* 3D viewport */}
           <div className="relative flex-1 min-w-0">
             <div ref={mountRef} className="absolute inset-0" />
+            {tool === 'measure' && (
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-amber-400/95 text-gray-900 text-[12px] font-semibold inline-flex items-center gap-1.5 pointer-events-none">
+                <Ruler className="w-3.5 h-3.5" /> {measureLive ? measureLive : 'Clic en dos puntos para medir'}
+              </div>
+            )}
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-gray-900/80 backdrop-blur border border-white/10 text-[11px] text-gray-300 inline-flex items-center gap-2 pointer-events-none">
-              <Move3d className="w-3.5 h-3.5" /> Arrastra para mover · fondo = orbitar · rueda = zoom · R rota · Supr borra · ←→↑↓ ajusta
+              <Move3d className="w-3.5 h-3.5" />
+              {tool === 'measure'
+                ? 'Clic en dos puntos para medir · arrastra el fondo para orbitar · Esc cancela'
+                : 'Arrastra para mover · fondo = orbitar · rueda = zoom · R rota · Supr borra · clic en una cota la quita'}
             </div>
           </div>
 
