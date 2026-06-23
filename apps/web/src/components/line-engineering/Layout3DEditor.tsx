@@ -11,13 +11,14 @@ import {
   ClipboardList, Package, StickyNote, PersonStanding, HelpCircle,
   AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd,
   AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
-  AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter,
+  AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, RulerDimensionLine,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/apiFetch';
 import { useToast } from '@/contexts/ToastContext';
 import { ASSET_CATEGORIES, assetMeta, type AssetArchetype } from './asset-catalog';
 import { parseDxf, type DxfModel } from './dxf';
 import { dxfToWalls } from './dxf-walls';
+import { autoDimensions, type DimBox } from './auto-dimensions';
 
 /**
  * Full-screen interactive 3D layout editor — the "CAD" view of the plant floor.
@@ -1619,6 +1620,35 @@ export default function Layout3DEditor({
     }
     commitCreated(created, truncated ? `muros del plano (recortado a ${walls.length})` : 'muros importados del plano');
   };
+  // ---- auto-dimension the layout into a measured drawing (Fase 59) ----
+  // Acota lo seleccionado (o todo el layout): medidas generales + cotas
+  // encadenadas centro a centro, fuera del recuadro — un plano acotado de un clic.
+  const autoDimension = () => {
+    const ctx = ctxRef.current; if (!ctx) return;
+    const sel = selRef.current;
+    const boxes: DimBox[] = [];
+    const add = (b: { x: number; y: number; w: number; h: number } | undefined) => { if (b) boxes.push({ x: b.x, y: b.y, w: b.w, h: b.h }); };
+    if (sel.length > 0) {
+      sel.forEach((it) => add(it.type === 'station' ? placementsRef.current.get(it.id) : assetsRef.current.get(it.id)));
+    } else {
+      placementsRef.current.forEach((p) => add(p));
+      assetsRef.current.forEach((a) => add(a));
+    }
+    const fp = data?.footprint;
+    const dims = autoDimensions(
+      { boxes, footprintW: fp?.footprintW ?? ctx.W, footprintH: fp?.footprintH ?? ctx.H, gridSize: fp?.gridSize },
+      {},
+    );
+    if (!dims.length) { toast.error('No hay nada que acotar todavía.', '3D'); return; }
+    pushHistory();
+    for (const d of dims) {
+      const id = newId('dim');
+      annotationsRef.current.set(id, { id, type: 'dim', x: d.x, y: d.y, x2: d.x2, y2: d.y2 });
+    }
+    setDimCount([...annotationsRef.current.values()].filter((a) => a.type === 'dim').length);
+    setDirty(true); rebuildDims();
+    toast.success(`${dims.length} ${dims.length === 1 ? 'cota generada' : 'cotas generadas'}${sel.length ? ' (selección)' : ''}`, '3D');
+  };
   const arrayAssets = (cols: number, rows: number, gap: number) => {
     const sel = selRef.current.filter((s) => s.type === 'asset');
     const c = Math.max(1, Math.min(50, Math.round(cols))), r = Math.max(1, Math.min(50, Math.round(rows)));
@@ -1885,6 +1915,7 @@ export default function Layout3DEditor({
         <T3Btn active={tool === 'measure'} onClick={toggleMeasure} title="Medir / acotar (M)"><Ruler className="w-4 h-4" /></T3Btn>
         <T3Btn active={tool === 'wall'} onClick={toggleWall} title="Dibujar muros (W) — clic en puntos, Esc termina"><Spline className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={addNote} title="Agregar nota de texto (clic en una nota para quitarla)"><StickyNote className="w-4 h-4" /></T3Btn>
+        <T3Btn onClick={autoDimension} title="Acotar automáticamente — medidas generales y pasos del layout (o de la selección)"><RulerDimensionLine className="w-4 h-4" /></T3Btn>
         {dimCount > 0 && (
           <button onClick={clearDims} title="Quitar todas las cotas" className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] text-gray-300 hover:bg-white/10">
             {dimCount} {dimCount === 1 ? 'cota' : 'cotas'} <Trash2 className="w-3.5 h-3.5" />
