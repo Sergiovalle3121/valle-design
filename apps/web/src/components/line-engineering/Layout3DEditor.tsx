@@ -15,6 +15,7 @@ import {
 import { apiFetch } from '@/lib/apiFetch';
 import { useToast } from '@/contexts/ToastContext';
 import { ASSET_CATEGORIES, assetMeta, type AssetArchetype } from './asset-catalog';
+import { parseDxf, type DxfModel } from './dxf';
 
 /**
  * Full-screen interactive 3D layout editor — the "CAD" view of the plant floor.
@@ -43,6 +44,8 @@ interface Asset { id: string; kind: string; x: number; y: number; w: number; h: 
 /** A free-text note or a dimension line (cota) on the plan — world coords. */
 interface Ann { id: string; type: 'text' | 'dim'; x: number; y: number; x2?: number; y2?: number; text?: string; color?: string }
 interface Footprint { footprintW: number; footprintH: number; unit: string; gridSize: number }
+/** Placement of the read-only DXF floor plan behind the layout (Fase 2). */
+interface DxfMeta { offsetX: number; offsetY: number; scale: number; rotation: number; visible: boolean; opacity: number }
 interface Layout {
   footprint: Footprint;
   stations: St[];
@@ -50,6 +53,7 @@ interface Layout {
   connectors?: Conn[];
   assets?: Asset[];
   annotations?: Ann[];
+  dxf?: DxfMeta | null;
 }
 interface Placement { x: number; y: number; w: number; h: number; rotation: number }
 /** One selectable object (a station block or an equipment asset). */
@@ -451,7 +455,7 @@ export default function Layout3DEditor({
   const [sun, setSun] = useState({ az: 35, el: 55 }); // sun azimuth/elevation (deg)
   const [showView, setShowView] = useState(false);
   const [fpDraft, setFpDraft] = useState<{ w: number; h: number; g: number }>({ w: 0, h: 0, g: 0 });
-  const [layers, setLayers] = useState({ stations: true, equipment: true, connectors: true, dims: true, notes: true, labels: true, grid: true });
+  const [layers, setLayers] = useState({ stations: true, equipment: true, connectors: true, dims: true, notes: true, labels: true, grid: true, dxf: true });
   const [hist, setHist] = useState({ undo: 0, redo: 0 }); // depths, for button enablement
   const [takeoff, setTakeoff] = useState<LocalTakeoff | null>(null); // quantities panel (null = closed)
 
@@ -466,6 +470,10 @@ export default function Layout3DEditor({
   const notesGroupRef = useRef<THREE.Group | null>(null);
   const connsGroupRef = useRef<THREE.Group | null>(null);
   const gridGroupRef = useRef<THREE.Group | null>(null);
+  const dxfGroupRef = useRef<THREE.Group | null>(null);
+  const dxfModelRef = useRef<DxfModel | null>(null);
+  const dxfMetaRef = useRef<DxfMeta | null>(null);
+  const rebuildDxfRef = useRef<() => void>(() => {});
   const groundRef = useRef<THREE.Mesh | null>(null);
   const gridHelperRef = useRef<THREE.GridHelper | null>(null);
   const dirLightRef = useRef<THREE.DirectionalLight | null>(null);
@@ -519,6 +527,7 @@ export default function Layout3DEditor({
     if (connsGroupRef.current) connsGroupRef.current.visible = L.connectors;
     if (dimsGroupRef.current) dimsGroupRef.current.visible = L.dims;
     if (notesGroupRef.current) notesGroupRef.current.visible = L.notes;
+    if (dxfGroupRef.current) dxfGroupRef.current.visible = L.dxf;
     if (gridGroupRef.current) gridGroupRef.current.visible = L.grid;
     sceneRef.current?.traverse((o) => { if (o.userData?.isLabel) o.visible = L.labels; });
   }, []);
@@ -639,6 +648,20 @@ export default function Layout3DEditor({
         setAssetIds(new Set(am.keys()));
         setDimCount([...an.values()].filter((a) => a.type === 'dim').length);
         setData(d);
+        // fetch + parse the read-only DXF backdrop (the endpoint already serves
+        // the raw drawing); render it on the floor once ready.
+        dxfModelRef.current = null; dxfMetaRef.current = null;
+        if (d.dxf) {
+          try {
+            const rd = await apiFetch(`${API_BASE}/line-engineering/layout/dxf?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`);
+            if (alive && rd.ok) {
+              const raw = (await rd.json()) as { data?: string } | null;
+              dxfModelRef.current = raw?.data ? parseDxf(raw.data) : null;
+              dxfMetaRef.current = d.dxf;
+              rebuildDxfRef.current();
+            }
+          } catch { /* ignore — backdrop is optional */ }
+        }
       } catch {
         if (alive) setError('No se pudo cargar el layout.');
       }
@@ -748,6 +771,32 @@ export default function Layout3DEditor({
       group.add(lab);
     });
   }, []);
+
+  // ---- (re)build the read-only DXF floor-plan overlay (lines on the floor) ----
+  const rebuildDxf = useCallback(() => {
+    const group = dxfGroupRef.current; const ctx = ctxRef.current;
+    if (!group || !ctx) return;
+    while (group.children.length) { const o = group.children[group.children.length - 1]; group.remove(o); disposeObject(o); }
+    const model = dxfModelRef.current; const meta = dxfMetaRef.current;
+    if (!model || !meta) return;
+    group.visible = layersRef.current.dxf && meta.visible !== false;
+    const { s, W, H } = ctx;
+    const { scale, offsetX: ox, offsetY: oy } = meta;
+    const cx = (model.width * scale) / 2 + ox, cy = (model.height * scale) / 2 + oy; // rotation pivot (world)
+    const rad = ((meta.rotation || 0) * Math.PI) / 180, cos = Math.cos(rad), sin = Math.sin(rad);
+    const mat3 = new THREE.LineBasicMaterial({ color: 0x64748b, transparent: true, opacity: Math.min(1, Math.max(0.15, meta.opacity ?? 0.6)) });
+    model.polylines.forEach((flat) => {
+      const pts: THREE.Vector3[] = [];
+      for (let i = 0; i + 1 < flat.length; i += 2) {
+        const wx0 = flat[i] * scale + ox, wy0 = flat[i + 1] * scale + oy;
+        const dx = wx0 - cx, dy = wy0 - cy;
+        const wx = cx + dx * cos - dy * sin, wy = cy + dx * sin + dy * cos; // footprint world coords
+        pts.push(new THREE.Vector3((wx - W / 2) * s, 0.045, (wy - H / 2) * s));
+      }
+      if (pts.length >= 2) group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat3));
+    });
+  }, []);
+  useEffect(() => { rebuildDxfRef.current = rebuildDxf; }, [rebuildDxf]);
 
   const rebuildAll = useCallback(() => { rebuildBlocks(); rebuildAssets(); rebuildDims(); rebuildNotes(); }, [rebuildBlocks, rebuildAssets, rebuildDims, rebuildNotes]);
 
@@ -865,10 +914,12 @@ export default function Layout3DEditor({
     );
     previewLine.visible = false; previewLineRef.current = previewLine; dimsGroup.add(previewLine);
     const notesGroup = new THREE.Group(); scene.add(notesGroup); notesGroupRef.current = notesGroup;
+    const dxfGroup = new THREE.Group(); scene.add(dxfGroup); dxfGroupRef.current = dxfGroup;
     const blocks = new THREE.Group(); scene.add(blocks); blocksRef.current = blocks;
     rebuildAssets();
     rebuildDims();
     rebuildNotes();
+    rebuildDxf();
     rebuildBlocks();
     applyTheme();
     applyLayers();
@@ -1155,7 +1206,7 @@ export default function Layout3DEditor({
       blocksRef.current = null; assetsGroupRef.current = null; controlsRef.current = null;
       dimsGroupRef.current = null; previewLineRef.current = null;
       connsGroupRef.current = null; gridGroupRef.current = null; groundRef.current = null; gridHelperRef.current = null;
-      dirLightRef.current = null; notesGroupRef.current = null;
+      dirLightRef.current = null; notesGroupRef.current = null; dxfGroupRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, data]);
@@ -1500,7 +1551,7 @@ export default function Layout3DEditor({
           {showView && (
             <div className="absolute left-0 top-full mt-1.5 w-56 rounded-xl border border-white/10 bg-gray-900 shadow-2xl p-3 z-10 text-[12px]">
               <div className="text-[10px] uppercase tracking-wide text-gray-500 mb-1.5">Capas</div>
-              {([['stations', 'Estaciones'], ['equipment', 'Equipo'], ['connectors', 'Conexiones'], ['dims', 'Cotas'], ['notes', 'Notas'], ['labels', 'Etiquetas'], ['grid', 'Grilla']] as const).map(([k, lbl]) => (
+              {([['stations', 'Estaciones'], ['equipment', 'Equipo'], ['connectors', 'Conexiones'], ['dims', 'Cotas'], ['notes', 'Notas'], ['labels', 'Etiquetas'], ['dxf', 'Plano DXF'], ['grid', 'Grilla']] as const).map(([k, lbl]) => (
                 <label key={k} className="flex items-center gap-2 py-1 cursor-pointer text-gray-300 hover:text-white">
                   <input type="checkbox" checked={layers[k]} onChange={(e) => setLayers((st) => ({ ...st, [k]: e.target.checked }))} className="accent-cyan-500" />
                   {lbl}
