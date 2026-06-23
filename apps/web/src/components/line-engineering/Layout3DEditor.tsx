@@ -11,7 +11,7 @@ import {
   ClipboardList, Package, StickyNote, PersonStanding, HelpCircle,
   AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd,
   AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
-  AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, RulerDimensionLine,
+  AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, RulerDimensionLine, Rows3,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/apiFetch';
 import { useToast } from '@/contexts/ToastContext';
@@ -20,6 +20,7 @@ import { parseDxf, type DxfModel } from './dxf';
 import { dxfToWalls } from './dxf-walls';
 import { dxfSnapPoints, nearestSnapPoint } from './dxf-snap';
 import { autoDimensions, type DimBox } from './auto-dimensions';
+import { arrangeLine, type ArrangeStation } from './arrange-line';
 
 /**
  * Full-screen interactive 3D layout editor — the "CAD" view of the plant floor.
@@ -1688,6 +1689,27 @@ export default function Layout3DEditor({
     setDirty(true); rebuildDims();
     toast.success(`${dims.length} ${dims.length === 1 ? 'cota generada' : 'cotas generadas'}${sel.length ? ' (selección)' : ''}`, '3D');
   };
+  // ---- auto-arrange the placed stations into a tidy line (Fase 61) ----
+  // Reacomoda las estaciones colocadas, en el orden en que las entrega el modelo
+  // (secuencia de línea), en filas equiespaciadas dentro de la huella.
+  const arrangeLineLayout = () => {
+    const fp = data?.footprint; if (!fp) return;
+    const list: ArrangeStation[] = [];
+    data!.stations.forEach((st, idx) => {
+      const p = placementsRef.current.get(st.id);
+      if (p) list.push({ id: st.id, sequence: idx, w: p.w, h: p.h }); // idx = orden de secuencia del API
+    });
+    if (list.length < 2) { toast.error('Coloca al menos 2 estaciones para acomodar la línea.', '3D'); return; }
+    const pos = arrangeLine({ stations: list, footprintW: fp.footprintW, footprintH: fp.footprintH, gridSize: fp.gridSize }, {});
+    pushHistory();
+    let moved = 0;
+    for (const [id, p] of Object.entries(pos)) {
+      const pl = placementsRef.current.get(id);
+      if (pl) { pl.x = p.x; pl.y = p.y; moved++; }
+    }
+    setDirty(true); rebuildBlocks(); refreshSnap();
+    toast.success(`Línea acomodada — ${moved} ${moved === 1 ? 'estación' : 'estaciones'}`, '3D');
+  };
   const arrayAssets = (cols: number, rows: number, gap: number) => {
     const sel = selRef.current.filter((s) => s.type === 'asset');
     const c = Math.max(1, Math.min(50, Math.round(cols))), r = Math.max(1, Math.min(50, Math.round(rows)));
@@ -2010,6 +2032,7 @@ export default function Layout3DEditor({
           )}
         </div>
         <div className="w-px h-5 bg-white/10 mx-1" />
+        <T3Btn onClick={arrangeLineLayout} title="Acomodar la línea — ordena las estaciones por secuencia en filas equiespaciadas"><Rows3 className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={openTakeoff} title="Cantidades / lista de materiales"><ClipboardList className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={exportPng} title="Exportar imagen (PNG)"><Download className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={exportGltf} title="Exportar modelo 3D (.glb) — Blender, otros CAD"><Package className="w-4 h-4" /></T3Btn>
