@@ -11,6 +11,7 @@ import {
   ClipboardList, Package, StickyNote, PersonStanding, HelpCircle,
   AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd,
   AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
+  AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/apiFetch';
 import { useToast } from '@/contexts/ToastContext';
@@ -1687,6 +1688,29 @@ export default function Layout3DEditor({
     });
     setDirty(true); refreshSnap(); rebuildAll();
   };
+  // Distribute the selection with EQUAL GAPS along an axis (Fase 56): keeps the
+  // first and last fixed and evens the edge-to-edge spacing between the rest —
+  // the standard "distribute" that align (above) doesn't do. Needs >= 3 objects.
+  const distributeSelected = (axis: 'h' | 'v') => {
+    const places = selRef.current.map(getPlaceRef).filter(Boolean) as Placement[];
+    if (places.length < 3) return;
+    const ctx = ctxRef.current!;
+    pushHistory();
+    const sorted = [...places].sort((a, b) => (axis === 'h' ? a.x - b.x : a.y - b.y));
+    const n = sorted.length;
+    const size = (p: Placement) => (axis === 'h' ? p.w : p.h);
+    const start = axis === 'h' ? sorted[0].x : sorted[0].y;
+    const end = axis === 'h' ? sorted[n - 1].x + sorted[n - 1].w : sorted[n - 1].y + sorted[n - 1].h;
+    const gap = (end - start - sorted.reduce((s, p) => s + size(p), 0)) / (n - 1);
+    let cursor = start;
+    sorted.forEach((p) => {
+      const pos = Math.round(cursor);
+      if (axis === 'h') p.x = Math.max(0, Math.min(ctx.W - p.w, pos));
+      else p.y = Math.max(0, Math.min(ctx.H - p.h, pos));
+      cursor += size(p) + gap;
+    });
+    setDirty(true); refreshSnap(); rebuildAll();
+  };
   const selectAll = () => {
     const items: SelItem[] = [
       ...[...placementsRef.current.keys()].map((id) => ({ type: 'station' as const, id })),
@@ -2017,6 +2041,15 @@ export default function Layout3DEditor({
                   <AlignBtn title="Centrar vertical" onClick={() => alignSelected('cy')}><AlignVerticalJustifyCenter className="w-4 h-4" /></AlignBtn>
                   <AlignBtn title="Alinear abajo" onClick={() => alignSelected('bottom')}><AlignVerticalJustifyEnd className="w-4 h-4" /></AlignBtn>
                 </div>
+                {selList.length >= 3 && (
+                  <>
+                    <div className="text-[10px] uppercase tracking-wide text-gray-500 mb-1.5">Distribuir (espaciado parejo)</div>
+                    <div className="flex gap-1.5 mb-3">
+                      <AlignBtn title="Distribuir horizontal" onClick={() => distributeSelected('h')}><AlignHorizontalDistributeCenter className="w-4 h-4" /></AlignBtn>
+                      <AlignBtn title="Distribuir vertical" onClick={() => distributeSelected('v')}><AlignVerticalDistributeCenter className="w-4 h-4" /></AlignBtn>
+                    </div>
+                  </>
+                )}
                 <div className="flex flex-wrap gap-1.5">
                   <button onClick={() => rotateSelected(15)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><RotateCw className="w-3.5 h-3.5" /> +15°</button>
                   <button onClick={() => rotateSelected(-15)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><RotateCcw className="w-3.5 h-3.5" /> −15°</button>
