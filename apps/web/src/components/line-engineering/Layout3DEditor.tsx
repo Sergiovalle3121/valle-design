@@ -9,6 +9,8 @@ import {
   Box as BoxIcon, Eye, MapPin, Maximize2, Layers, Copy, Crosshair, Settings2,
   Boxes, ChevronRight, Ruler, MousePointer2, SlidersHorizontal, Undo2, Redo2, Spline,
   ClipboardList, Package, StickyNote,
+  AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd,
+  AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/apiFetch';
 import { useToast } from '@/contexts/ToastContext';
@@ -50,7 +52,9 @@ interface Layout {
   annotations?: Ann[];
 }
 interface Placement { x: number; y: number; w: number; h: number; rotation: number }
-type Sel = { type: 'station' | 'asset'; id: string } | null;
+/** One selectable object (a station block or an equipment asset). */
+interface SelItem { type: 'station' | 'asset'; id: string }
+const sameSel = (a: SelItem, b: SelItem) => a.type === b.type && a.id === b.id;
 /** A point-in-time copy of every editable collection, for undo/redo. */
 interface Snapshot { placements: [string, Placement][]; assets: Asset[]; annotations: Ann[] }
 /** Live quantity take-off computed from the editor's current state. */
@@ -434,7 +438,7 @@ export default function Layout3DEditor({
   const [snap, setSnap] = useState(true);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [sel, setSel] = useState<Sel>(null);
+  const [selList, setSelList] = useState<SelItem[]>([]);
   const [selSnap, setSelSnap] = useState<SelSnap | null>(null);
   const [placedIds, setPlacedIds] = useState<Set<string>>(new Set());
   const [assetIds, setAssetIds] = useState<Set<string>>(new Set());
@@ -481,7 +485,7 @@ export default function Layout3DEditor({
   const ctxRef = useRef<{ s: number; W: number; H: number } | null>(null);
   const measureARef = useRef<{ wx: number; wy: number } | null>(null);
   const wallChainRef = useRef<{ wx: number; wy: number } | null>(null);
-  const selRef = useRef<Sel>(null);
+  const selRef = useRef<SelItem[]>([]);
   const snapRef = useRef(snap);
   const toolRef = useRef(tool);
   const themeRef = useRef(theme);
@@ -548,8 +552,7 @@ export default function Layout3DEditor({
 
   // Snapshot the selection's geometry into render-safe state (reads refs only
   // from event handlers, never during render — the Minimap/2D editor pattern).
-  const computeSnap = useCallback((next: Sel): SelSnap | null => {
-    if (!next) return null;
+  const computeSnap = useCallback((next: SelItem): SelSnap | null => {
     if (next.type === 'station') {
       const p = placementsRef.current.get(next.id);
       const st = stationsByIdRef.current.get(next.id);
@@ -561,16 +564,19 @@ export default function Layout3DEditor({
     const def = assetMeta(a.kind);
     return { type: 'asset', id: next.id, x: a.x, y: a.y, w: a.w, h: a.h, rotation: a.rotation, title: def.label, subtitle: `Equipo · ${a.kind}`, kind: a.kind, height: def.height, canDuplicate: true };
   }, []);
-  const select = useCallback((next: Sel) => {
-    selRef.current = next; setSel(next); setSelSnap(computeSnap(next));
+  // Replace the whole selection (selSnap mirrors the single-object case).
+  const select = useCallback((next: SelItem[]) => {
+    selRef.current = next; setSelList(next);
+    setSelSnap(next.length === 1 ? computeSnap(next[0]) : null);
   }, [computeSnap]);
-  const refreshSnap = useCallback(() => setSelSnap(computeSnap(selRef.current)), [computeSnap]);
+  const refreshSnap = useCallback(() => setSelSnap(selRef.current.length === 1 ? computeSnap(selRef.current[0]) : null), [computeSnap]);
+  const getPlaceRef = useCallback((it: SelItem) => (it.type === 'station' ? placementsRef.current.get(it.id) : assetsRef.current.get(it.id)), []);
 
   // ---- data ----
   useEffect(() => {
     if (!open || !model) return;
     let alive = true;
-    setData(null); setError(null); setSel(null); setSelSnap(null); selRef.current = null; setDirty(false); setTab('stations');
+    setData(null); setError(null); setSelList([]); setSelSnap(null); selRef.current = []; setDirty(false); setTab('stations');
     setTool('select'); toolRef.current = 'select'; measureARef.current = null; wallChainRef.current = null; setMeasureLive(null);
     undoStackRef.current = []; redoStackRef.current = []; setHist({ undo: 0, redo: 0 });
     (async () => {
@@ -627,7 +633,7 @@ export default function Layout3DEditor({
     placementsRef.current.forEach((p, id) => {
       const st = byId.get(id); if (!st) return;
       const hgt = Math.max(0.6, Math.min(p.w * s, p.h * s) * 0.7);
-      const isSel = selRef.current?.type === 'station' && selRef.current.id === id;
+      const isSel = selRef.current.some((s) => s.type === 'station' && s.id === id);
       const color = isSel ? SELECT : st.ctq ? AMBER : ROSE;
       const mesh = new THREE.Mesh(
         new THREE.BoxGeometry(p.w * s, hgt, p.h * s),
@@ -672,7 +678,7 @@ export default function Layout3DEditor({
     groupByAssetRef.current = new Map();
     const { s, W, H } = ctx;
     assetsRef.current.forEach((a) => {
-      const isSel = selRef.current?.type === 'asset' && selRef.current.id === a.id;
+      const isSel = selRef.current.some((s) => s.type === 'asset' && s.id === a.id);
       const g = buildAssetGroup(a, s, W, H, isSel);
       group.add(g);
       groupByAssetRef.current.set(a.id, g);
@@ -734,12 +740,10 @@ export default function Layout3DEditor({
     setPlacedIds(new Set(placementsRef.current.keys()));
     setAssetIds(new Set(assetsRef.current.keys()));
     setDimCount([...annotationsRef.current.values()].filter((a) => a.type === 'dim').length);
-    const cur = selRef.current;
-    if (cur) {
-      const exists = cur.type === 'station' ? placementsRef.current.has(cur.id) : assetsRef.current.has(cur.id);
-      if (!exists) { selRef.current = null; setSel(null); setSelSnap(null); }
-      else setSelSnap(computeSnap(cur));
-    }
+    // drop any selected items that no longer exist after the restore
+    const kept = selRef.current.filter((c) => c.type === 'station' ? placementsRef.current.has(c.id) : assetsRef.current.has(c.id));
+    selRef.current = kept; setSelList(kept);
+    setSelSnap(kept.length === 1 ? computeSnap(kept[0]) : null);
     setDirty(true); rebuildAll();
   }, [computeSnap, rebuildAll]);
   const undo = useCallback(() => {
@@ -851,8 +855,7 @@ export default function Layout3DEditor({
     const ptr = new THREE.Vector2();
     const floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     const hit = new THREE.Vector3();
-    let drag: { type: 'station' | 'asset'; id: string; obj: THREE.Object3D } | null = null;
-    let grabDX = 0, grabDZ = 0;
+    let drag: { lead: SelItem; items: SelItem[]; grabDX: number; grabDZ: number; start: Map<string, { x: number; y: number }> } | null = null;
     let downX = 0, downY = 0;
     let dragMoved = false;
     let dragSnap: Snapshot | null = null;
@@ -862,6 +865,19 @@ export default function Layout3DEditor({
       let cur: THREE.Object3D | null = o;
       while (cur) { if (cur.userData?.assetId) return cur.userData.assetId as string; cur = cur.parent; }
       return null;
+    };
+    const getPlace = (it: SelItem) => (it.type === 'station' ? placementsRef.current.get(it.id) : assetsRef.current.get(it.id));
+    // Move an item's three.js object to match its current placement (no rebuild).
+    const repositionItem = (it: SelItem) => {
+      const ctx = ctxRef.current!; const p = getPlace(it); if (!p) return;
+      const ncx = (p.x + p.w / 2 - ctx.W / 2) * ctx.s, ncz = (p.y + p.h / 2 - ctx.H / 2) * ctx.s;
+      if (it.type === 'station') {
+        const mesh = meshByIdRef.current.get(it.id); if (mesh) { mesh.position.x = ncx; mesh.position.z = ncz; }
+        const lab = blocks.children.find((o) => (o as THREE.Sprite).userData?.labelFor === it.id);
+        if (lab) { lab.position.x = ncx; lab.position.z = ncz; }
+      } else {
+        const g = groupByAssetRef.current.get(it.id); if (g) { g.position.x = ncx; g.position.z = ncz; }
+      }
     };
     const setPtr = (e: PointerEvent) => {
       const rect = renderer.domElement.getBoundingClientRect();
@@ -908,16 +924,27 @@ export default function Layout3DEditor({
       const all = [...stationHits, ...assetHits].sort((a, b) => a.d - b.d);
       if (all.length) {
         const top = all[0];
-        select({ type: top.type, id: top.id });
+        const item: SelItem = { type: top.type, id: top.id };
+        // Shift+click toggles membership without starting a drag
+        if (e.shiftKey) {
+          const exists = selRef.current.some((s) => sameSel(s, item));
+          select(exists ? selRef.current.filter((s) => !sameSel(s, item)) : [...selRef.current, item]);
+          rebuildAll();
+          return;
+        }
+        const inSel = selRef.current.some((s) => sameSel(s, item));
+        const items = inSel && selRef.current.length > 1 ? [...selRef.current] : [item];
+        if (!inSel) select([item]);
         raycaster.ray.intersectPlane(floorPlane, hit);
-        grabDX = top.obj.position.x - hit.x; grabDZ = top.obj.position.z - hit.z;
-        drag = { type: top.type, id: top.id, obj: top.obj };
+        const start = new Map<string, { x: number; y: number }>();
+        items.forEach((it) => { const p = getPlace(it); if (p) start.set(`${it.type}:${it.id}`, { x: p.x, y: p.y }); });
+        drag = { lead: item, items, grabDX: top.obj.position.x - hit.x, grabDZ: top.obj.position.z - hit.z, start };
         dragMoved = false; dragSnap = snapshot();
         controls.enabled = false;
         rebuildAll();
         renderer.domElement.setPointerCapture(e.pointerId);
-      } else if (e.button === 0) {
-        select(null); rebuildAll();
+      } else if (e.button === 0 && !e.shiftKey) {
+        select([]); rebuildAll();
       }
     };
     const onMove = (e: PointerEvent) => {
@@ -940,24 +967,25 @@ export default function Layout3DEditor({
       setPtr(e); raycaster.setFromCamera(ptr, camera);
       if (!raycaster.ray.intersectPlane(floorPlane, hit)) return;
       const ctx = ctxRef.current!;
-      const p = drag.type === 'station' ? placementsRef.current.get(drag.id) : assetsRef.current.get(drag.id);
-      if (!p) return;
-      const cxScene = hit.x + grabDX, czScene = hit.z + grabDZ;
-      const worldCX = cxScene / ctx.s + ctx.W / 2;
-      const worldCY = czScene / ctx.s + ctx.H / 2;
-      let nx = snapWorld(worldCX - p.w / 2);
-      let ny = snapWorld(worldCY - p.h / 2);
-      nx = Math.max(0, Math.min(ctx.W - p.w, nx));
-      ny = Math.max(0, Math.min(ctx.H - p.h, ny));
-      if (nx !== p.x || ny !== p.y) dragMoved = true;
-      p.x = nx; p.y = ny;
-      const ncx = (nx + p.w / 2 - ctx.W / 2) * ctx.s;
-      const ncz = (ny + p.h / 2 - ctx.H / 2) * ctx.s;
-      drag.obj.position.x = ncx; drag.obj.position.z = ncz;
-      if (drag.type === 'station') {
-        const lab = blocks.children.find((o) => (o as THREE.Sprite).userData?.labelFor === drag!.id);
-        if (lab) { lab.position.x = ncx; lab.position.z = ncz; }
-      }
+      const leadP = getPlace(drag.lead); const startLead = drag.start.get(`${drag.lead.type}:${drag.lead.id}`);
+      if (!leadP || !startLead) return;
+      const worldCX = (hit.x + drag.grabDX) / ctx.s + ctx.W / 2;
+      const worldCY = (hit.z + drag.grabDZ) / ctx.s + ctx.H / 2;
+      // group delta from the lead's snapped position, clamped so all stay in bounds
+      let dx = snapWorld(worldCX - leadP.w / 2) - startLead.x;
+      let dy = snapWorld(worldCY - leadP.h / 2) - startLead.y;
+      let dxLo = -Infinity, dxHi = Infinity, dyLo = -Infinity, dyHi = Infinity;
+      drag.items.forEach((it) => {
+        const sp = drag!.start.get(`${it.type}:${it.id}`); const pp = getPlace(it); if (!sp || !pp) return;
+        dxLo = Math.max(dxLo, -sp.x); dxHi = Math.min(dxHi, ctx.W - pp.w - sp.x);
+        dyLo = Math.max(dyLo, -sp.y); dyHi = Math.min(dyHi, ctx.H - pp.h - sp.y);
+      });
+      dx = Math.min(Math.max(dx, dxLo), dxHi); dy = Math.min(Math.max(dy, dyLo), dyHi);
+      if (dx !== 0 || dy !== 0) dragMoved = true;
+      drag.items.forEach((it) => {
+        const sp = drag!.start.get(`${it.type}:${it.id}`); const pp = getPlace(it); if (!sp || !pp) return;
+        pp.x = sp.x + dx; pp.y = sp.y + dy; repositionItem(it);
+      });
     };
     const onUp = (e: PointerEvent) => {
       const isClick = Math.hypot(e.clientX - downX, e.clientY - downY) < 5;
@@ -1062,7 +1090,7 @@ export default function Layout3DEditor({
   }, [open, data]);
 
   // selection highlight refresh
-  useEffect(() => { if (open && data) rebuildAll(); }, [sel, open, data, rebuildAll]);
+  useEffect(() => { if (open && data) rebuildAll(); }, [selList, open, data, rebuildAll]);
 
   // cancels any half-drawn cota or wall chain (called when leaving a draw tool)
   const endDraw = useCallback(() => {
@@ -1074,10 +1102,10 @@ export default function Layout3DEditor({
       const t = prev === next && next !== 'select' ? 'select' : next;
       toolRef.current = t;
       if (t === 'select') endDraw();
-      else { endDraw(); selRef.current = null; setSel(null); setSelSnap(null); }
+      else { endDraw(); select([]); }
       return t;
     });
-  }, [endDraw]);
+  }, [endDraw, select]);
   const toggleMeasure = useCallback(() => setToolMode('measure'), [setToolMode]);
   const toggleWall = useCallback(() => setToolMode('wall'), [setToolMode]);
   // Live quantity take-off from the current (possibly unsaved) editor state.
@@ -1156,7 +1184,7 @@ export default function Layout3DEditor({
     const y = snapWorld(ctx.H / 2 - h / 2);
     placementsRef.current.set(st.id, { x, y, w, h, rotation: 0 });
     setPlacedIds((prev) => new Set(prev).add(st.id));
-    select({ type: 'station', id: st.id });
+    select([{ type: 'station', id: st.id }]);
     setDirty(true); rebuildAll();
   };
   const addAsset = (kind: string) => {
@@ -1168,54 +1196,56 @@ export default function Layout3DEditor({
     const id = newId('as');
     assetsRef.current.set(id, { id, kind, x, y, w: def.w, h: def.h, rotation: 0 });
     setAssetIds((prev) => new Set(prev).add(id));
-    select({ type: 'asset', id });
+    select([{ type: 'asset', id }]);
     setDirty(true); rebuildAll();
   };
   const removeSelected = () => {
-    const cur = selRef.current; if (!cur) return;
+    const items = selRef.current; if (!items.length) return;
     pushHistory();
-    if (cur.type === 'station') {
-      placementsRef.current.delete(cur.id);
-      setPlacedIds((prev) => { const n = new Set(prev); n.delete(cur.id); return n; });
-    } else {
-      assetsRef.current.delete(cur.id);
-      setAssetIds((prev) => { const n = new Set(prev); n.delete(cur.id); return n; });
-    }
-    select(null); setDirty(true); rebuildAll();
+    let delSt = false, delAs = false;
+    items.forEach((it) => {
+      if (it.type === 'station') { placementsRef.current.delete(it.id); delSt = true; }
+      else { assetsRef.current.delete(it.id); delAs = true; }
+    });
+    if (delSt) setPlacedIds(new Set(placementsRef.current.keys()));
+    if (delAs) setAssetIds(new Set(assetsRef.current.keys()));
+    select([]); setDirty(true); rebuildAll();
   };
   const rotateSelected = (deg: number) => {
-    const cur = selRef.current; if (!cur) return;
-    const p = cur.type === 'station' ? placementsRef.current.get(cur.id) : assetsRef.current.get(cur.id);
-    if (!p) return;
+    const items = selRef.current; if (!items.length) return;
     pushHistory();
-    p.rotation = (((p.rotation + deg) % 360) + 360) % 360;
+    items.forEach((it) => { const p = getPlaceRef(it); if (p) p.rotation = (((p.rotation + deg) % 360) + 360) % 360; });
     setDirty(true); refreshSnap(); rebuildAll();
   };
   const duplicateSelected = () => {
-    const cur = selRef.current; if (!cur || cur.type !== 'asset') return;
-    const src = assetsRef.current.get(cur.id); if (!src) return;
-    pushHistory();
+    const assets = selRef.current.filter((s) => s.type === 'asset');
+    if (!assets.length) return;
     const ctx = ctxRef.current!;
     const off = data?.footprint.gridSize || 200;
-    const id = newId('as');
-    const x = Math.max(0, Math.min(ctx.W - src.w, src.x + off));
-    const y = Math.max(0, Math.min(ctx.H - src.h, src.y + off));
-    assetsRef.current.set(id, { ...src, id, x, y });
-    setAssetIds((prev) => new Set(prev).add(id));
-    select({ type: 'asset', id });
+    pushHistory();
+    const created: SelItem[] = [];
+    assets.forEach((it) => {
+      const src = assetsRef.current.get(it.id); if (!src) return;
+      const id = newId('as');
+      assetsRef.current.set(id, { ...src, id, x: Math.max(0, Math.min(ctx.W - src.w, src.x + off)), y: Math.max(0, Math.min(ctx.H - src.h, src.y + off)) });
+      created.push({ type: 'asset', id });
+    });
+    setAssetIds(new Set(assetsRef.current.keys()));
+    if (created.length) select(created);
     setDirty(true); rebuildAll();
   };
   const nudgeSelected = (dx: number, dy: number) => {
-    const cur = selRef.current; if (!cur) return;
-    const p = cur.type === 'station' ? placementsRef.current.get(cur.id) : assetsRef.current.get(cur.id);
-    const ctx = ctxRef.current; if (!p || !ctx) return;
+    const items = selRef.current; const ctx = ctxRef.current; if (!items.length || !ctx) return;
     pushHistory();
-    p.x = Math.max(0, Math.min(ctx.W - p.w, p.x + dx));
-    p.y = Math.max(0, Math.min(ctx.H - p.h, p.y + dy));
+    // clamp the group delta so everything stays in bounds
+    let dxLo = -Infinity, dxHi = Infinity, dyLo = -Infinity, dyHi = Infinity;
+    items.forEach((it) => { const p = getPlaceRef(it); if (!p) return; dxLo = Math.max(dxLo, -p.x); dxHi = Math.min(dxHi, ctx.W - p.w - p.x); dyLo = Math.max(dyLo, -p.y); dyHi = Math.min(dyHi, ctx.H - p.h - p.y); });
+    const ndx = Math.min(Math.max(dx, dxLo), dxHi), ndy = Math.min(Math.max(dy, dyLo), dyHi);
+    items.forEach((it) => { const p = getPlaceRef(it); if (p) { p.x += ndx; p.y += ndy; } });
     setDirty(true); refreshSnap(); rebuildAll();
   };
   const setField = (field: 'x' | 'y' | 'w' | 'h' | 'rotation', value: number) => {
-    const cur = selRef.current; if (!cur) return;
+    const cur = selRef.current[0]; if (!cur) return;
     const p = cur.type === 'station' ? placementsRef.current.get(cur.id) : assetsRef.current.get(cur.id);
     const ctx = ctxRef.current; if (!p || !ctx) return;
     const v = Number.isFinite(value) ? value : 0;
@@ -1225,6 +1255,31 @@ export default function Layout3DEditor({
     else if (field === 'x') p.x = Math.max(0, Math.min(ctx.W - p.w, Math.round(v)));
     else if (field === 'y') p.y = Math.max(0, Math.min(ctx.H - p.h, Math.round(v)));
     setDirty(true); refreshSnap(); rebuildAll();
+  };
+  // Align the selected objects to the selection's bounding box (≥2 objects).
+  const alignSelected = (mode: 'left' | 'right' | 'top' | 'bottom' | 'cx' | 'cy') => {
+    const places = selRef.current.map(getPlaceRef).filter(Boolean) as Placement[];
+    if (places.length < 2) return;
+    pushHistory();
+    const minX = Math.min(...places.map((p) => p.x)), maxX = Math.max(...places.map((p) => p.x + p.w));
+    const minY = Math.min(...places.map((p) => p.y)), maxY = Math.max(...places.map((p) => p.y + p.h));
+    const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+    places.forEach((p) => {
+      if (mode === 'left') p.x = minX;
+      else if (mode === 'right') p.x = maxX - p.w;
+      else if (mode === 'cx') p.x = Math.round(cx - p.w / 2);
+      else if (mode === 'top') p.y = minY;
+      else if (mode === 'bottom') p.y = maxY - p.h;
+      else if (mode === 'cy') p.y = Math.round(cy - p.h / 2);
+    });
+    setDirty(true); refreshSnap(); rebuildAll();
+  };
+  const selectAll = () => {
+    const items: SelItem[] = [
+      ...[...placementsRef.current.keys()].map((id) => ({ type: 'station' as const, id })),
+      ...[...assetsRef.current.keys()].map((id) => ({ type: 'asset' as const, id })),
+    ];
+    select(items); rebuildAll();
   };
   const viewPreset = (preset: 'top' | 'iso' | 'front') => {
     const cam = cameraRef.current; const ctrl = controlsRef.current; const ctx = ctxRef.current;
@@ -1306,22 +1361,24 @@ export default function Layout3DEditor({
       if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return;
       const g = data?.footprint.gridSize || 100;
       const step = e.shiftKey ? g * 5 : g;
+      const hasSel = selRef.current.length > 0;
       if (e.key === 'Escape') {
         if (toolRef.current !== 'select') { endDraw(); setTool('select'); toolRef.current = 'select'; }
-        else if (selRef.current) { select(null); rebuildAll(); }
+        else if (hasSel) { select([]); rebuildAll(); }
         else onClose();
       }
+      else if ((e.key === 'a' || e.key === 'A') && (e.ctrlKey || e.metaKey)) { e.preventDefault(); selectAll(); }
       else if ((e.key === 'z' || e.key === 'Z') && (e.ctrlKey || e.metaKey) && !e.shiftKey) { e.preventDefault(); undo(); }
       else if (((e.key === 'z' || e.key === 'Z') && (e.ctrlKey || e.metaKey) && e.shiftKey) || ((e.key === 'y' || e.key === 'Y') && (e.ctrlKey || e.metaKey))) { e.preventDefault(); redo(); }
       else if ((e.key === 'm' || e.key === 'M')) { e.preventDefault(); toggleMeasure(); }
       else if ((e.key === 'w' || e.key === 'W')) { e.preventDefault(); toggleWall(); }
-      else if ((e.key === 'Delete' || e.key === 'Backspace') && selRef.current) { e.preventDefault(); removeSelected(); }
-      else if ((e.key === 'r' || e.key === 'R') && selRef.current) { e.preventDefault(); rotateSelected(e.shiftKey ? -15 : 15); }
-      else if ((e.key === 'd' || e.key === 'D') && (e.ctrlKey || e.metaKey) && selRef.current) { e.preventDefault(); duplicateSelected(); }
-      else if (e.key === 'ArrowLeft' && selRef.current) { e.preventDefault(); nudgeSelected(-step, 0); }
-      else if (e.key === 'ArrowRight' && selRef.current) { e.preventDefault(); nudgeSelected(step, 0); }
-      else if (e.key === 'ArrowUp' && selRef.current) { e.preventDefault(); nudgeSelected(0, -step); }
-      else if (e.key === 'ArrowDown' && selRef.current) { e.preventDefault(); nudgeSelected(0, step); }
+      else if ((e.key === 'Delete' || e.key === 'Backspace') && hasSel) { e.preventDefault(); removeSelected(); }
+      else if ((e.key === 'r' || e.key === 'R') && hasSel) { e.preventDefault(); rotateSelected(e.shiftKey ? -15 : 15); }
+      else if ((e.key === 'd' || e.key === 'D') && (e.ctrlKey || e.metaKey) && hasSel) { e.preventDefault(); duplicateSelected(); }
+      else if (e.key === 'ArrowLeft' && hasSel) { e.preventDefault(); nudgeSelected(-step, 0); }
+      else if (e.key === 'ArrowRight' && hasSel) { e.preventDefault(); nudgeSelected(step, 0); }
+      else if (e.key === 'ArrowUp' && hasSel) { e.preventDefault(); nudgeSelected(0, -step); }
+      else if (e.key === 'ArrowDown' && hasSel) { e.preventDefault(); nudgeSelected(0, step); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -1472,16 +1529,40 @@ export default function Layout3DEditor({
                 ? 'Clic en dos puntos para medir · arrastra el fondo para orbitar · Esc cancela'
                 : tool === 'wall'
                   ? 'Clic en cada esquina para trazar muros · Shift = ángulos de 45° · arrastra el fondo para orbitar · Esc termina'
-                  : 'Arrastra para mover · fondo = orbitar · rueda = zoom · R rota · Supr borra · clic en una cota la quita'}
+                  : 'Arrastra para mover · Shift+clic multiselecciona · fondo = orbitar · rueda = zoom · R rota · Supr borra'}
             </div>
           </div>
 
           {/* right: properties */}
           <div className="w-64 shrink-0 border-l border-white/10 bg-gray-900/60 overflow-y-auto">
-            {!selSnap ? (
+            {selList.length === 0 ? (
               <div className="p-4 text-[12px] text-gray-500 flex flex-col items-center gap-2 mt-8">
                 <Crosshair className="w-6 h-6 text-gray-600" />
-                <p className="text-center">Selecciona una estación o un equipo para ver y editar sus propiedades.</p>
+                <p className="text-center">Selecciona objetos para ver y editar sus propiedades. <b>Shift</b>+clic agrega o quita.</p>
+              </div>
+            ) : selList.length > 1 || !selSnap ? (
+              <div className="p-3.5">
+                <div className="flex items-center gap-2 mb-1">
+                  <Boxes className="w-4 h-4" style={{ color: '#22d3ee' }} />
+                  <span className="text-sm font-semibold">{selList.length} seleccionados</span>
+                </div>
+                <div className="text-[11px] text-gray-400 mb-3">Alinea o mueve el grupo en bloque.</div>
+                <div className="text-[10px] uppercase tracking-wide text-gray-500 mb-1.5">Alinear</div>
+                <div className="grid grid-cols-3 gap-1.5 mb-3">
+                  <AlignBtn title="Alinear a la izquierda" onClick={() => alignSelected('left')}><AlignHorizontalJustifyStart className="w-4 h-4" /></AlignBtn>
+                  <AlignBtn title="Centrar horizontal" onClick={() => alignSelected('cx')}><AlignHorizontalJustifyCenter className="w-4 h-4" /></AlignBtn>
+                  <AlignBtn title="Alinear a la derecha" onClick={() => alignSelected('right')}><AlignHorizontalJustifyEnd className="w-4 h-4" /></AlignBtn>
+                  <AlignBtn title="Alinear arriba" onClick={() => alignSelected('top')}><AlignVerticalJustifyStart className="w-4 h-4" /></AlignBtn>
+                  <AlignBtn title="Centrar vertical" onClick={() => alignSelected('cy')}><AlignVerticalJustifyCenter className="w-4 h-4" /></AlignBtn>
+                  <AlignBtn title="Alinear abajo" onClick={() => alignSelected('bottom')}><AlignVerticalJustifyEnd className="w-4 h-4" /></AlignBtn>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <button onClick={() => rotateSelected(15)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><RotateCw className="w-3.5 h-3.5" /> +15°</button>
+                  <button onClick={() => rotateSelected(-15)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><RotateCcw className="w-3.5 h-3.5" /> −15°</button>
+                  <button onClick={duplicateSelected} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><Copy className="w-3.5 h-3.5" /> Duplicar</button>
+                  <button onClick={removeSelected} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 text-[12px]"><Trash2 className="w-3.5 h-3.5" /> Quitar</button>
+                </div>
+                <p className="text-[10.5px] text-gray-500 mt-3 leading-relaxed"><b>Shift</b>+clic agrega/quita · <b>Ctrl+A</b> todo · flechas mueven el grupo.</p>
               </div>
             ) : (
               <div className="p-3.5">
@@ -1613,6 +1694,14 @@ function DimInput({ label, value, onChange }: { label: string; value: number; on
         className="w-full px-1.5 py-1 rounded-md bg-white/[0.06] border border-white/10 text-[12px] text-white focus:outline-none focus:border-cyan-400/60"
       />
     </label>
+  );
+}
+
+function AlignBtn({ title, onClick, children }: { title: string; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button onClick={onClick} title={title} className="inline-flex items-center justify-center py-1.5 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-gray-200">
+      {children}
+    </button>
   );
 }
 
