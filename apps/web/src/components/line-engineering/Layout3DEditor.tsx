@@ -8,7 +8,7 @@ import {
   Loader2, X, Save, Move3d, Grid3x3, RotateCw, RotateCcw, Trash2, Download,
   Box as BoxIcon, Eye, MapPin, Maximize2, Layers, Copy, Crosshair, Settings2,
   Boxes, ChevronRight, Ruler, MousePointer2, SlidersHorizontal, Undo2, Redo2, Spline,
-  ClipboardList,
+  ClipboardList, Package,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/apiFetch';
 import { useToast } from '@/contexts/ToastContext';
@@ -1098,6 +1098,36 @@ export default function Layout3DEditor({
     a.download = `layout3d-${model}-${revision}.png`.replace(/[^\w.\-]+/g, '_');
     a.click();
   };
+  // Export the 3D model as binary glTF (.glb) — opens in Blender, other CAD, etc.
+  const exportGltf = async () => {
+    const groups = [blocksRef.current, assetsGroupRef.current, connsGroupRef.current, groundRef.current].filter(Boolean) as THREE.Object3D[];
+    if (!groups.length) return;
+    try {
+      const { GLTFExporter } = await import('three/examples/jsm/exporters/GLTFExporter.js');
+      // hide labels + the live preview line so the model is clean geometry
+      const hidden: THREE.Object3D[] = [];
+      sceneRef.current?.traverse((o) => {
+        if ((o.userData?.isLabel || o === previewLineRef.current) && o.visible) { o.visible = false; hidden.push(o); }
+      });
+      const restore = () => hidden.forEach((o) => { o.visible = true; });
+      new GLTFExporter().parse(
+        groups,
+        (result) => {
+          restore();
+          const blob = new Blob([result as ArrayBuffer], { type: 'model/gltf-binary' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `layout3d-${model}-${revision}.glb`.replace(/[^\w.\-]+/g, '_');
+          a.click();
+          URL.revokeObjectURL(url);
+          toast.success('Modelo 3D exportado (.glb).', '3D');
+        },
+        (err) => { restore(); console.error(err); toast.error('No se pudo exportar el modelo 3D.', '3D'); },
+        { binary: true, onlyVisible: true },
+      );
+    } catch { toast.error('No se pudo exportar el modelo 3D.', '3D'); }
+  };
   const save = async () => {
     if (!model || !data) return;
     setSaving(true);
@@ -1209,7 +1239,8 @@ export default function Layout3DEditor({
         </div>
         <div className="w-px h-5 bg-white/10 mx-1" />
         <T3Btn onClick={openTakeoff} title="Cantidades / lista de materiales"><ClipboardList className="w-4 h-4" /></T3Btn>
-        <T3Btn onClick={exportPng} title="Exportar PNG"><Download className="w-4 h-4" /></T3Btn>
+        <T3Btn onClick={exportPng} title="Exportar imagen (PNG)"><Download className="w-4 h-4" /></T3Btn>
+        <T3Btn onClick={exportGltf} title="Exportar modelo 3D (.glb) — Blender, otros CAD"><Package className="w-4 h-4" /></T3Btn>
         <div className="flex-1" />
         <button onClick={save} disabled={saving || !dirty} className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-sm font-medium text-white disabled:opacity-50" style={{ background: '#f43f5e' }}>
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Guardar
