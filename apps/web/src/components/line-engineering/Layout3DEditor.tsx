@@ -1,0 +1,2470 @@
+'use client';
+
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import {
+  Loader2, X, Save, Move3d, Grid3x3, Grid2x2, ShieldAlert, RotateCw, RotateCcw, Trash2, Download, FileDown, Magnet, FlipHorizontal, FlipVertical, BrickWall,
+  Box as BoxIcon, Eye, MapPin, Maximize2, Layers, Copy, Crosshair, Settings2,
+  Boxes, ChevronRight, Ruler, MousePointer2, SlidersHorizontal, Undo2, Redo2, Spline,
+  ClipboardList, Package, StickyNote, PersonStanding, HelpCircle,
+  AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd,
+  AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
+  AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, RulerDimensionLine, Rows3, Waypoints,
+  ShieldCheck, CircleCheck, CircleAlert,
+} from 'lucide-react';
+import { apiFetch } from '@/lib/apiFetch';
+import { useToast } from '@/contexts/ToastContext';
+import { ASSET_CATEGORIES, assetMeta, type AssetArchetype } from './asset-catalog';
+import { parseDxf, type DxfModel } from './dxf';
+import { dxfToWalls } from './dxf-walls';
+import { dxfSnapPoints, nearestSnapPoint } from './dxf-snap';
+import { autoDimensions, type DimBox } from './auto-dimensions';
+import { arrangeLine, type ArrangeStation } from './arrange-line';
+import { connectLine, type ConnStation } from './connect-line';
+import { designChecks, type CheckBox, type DesignReport } from './design-checks';
+
+/**
+ * Full-screen interactive 3D layout editor — the "CAD" view of the plant floor.
+ *
+ * Stations are extruded, labelled blocks; non-station equipment (benches,
+ * conveyors, racks, robots, walls, columns, AGVs, operators…) are placed from a
+ * categorised palette and rendered with distinctive geometry per archetype.
+ * Anything on the floor can be dragged (a raycast against the ground gives the
+ * new world x/y — exactly the placement data the 2D editor uses, so both views
+ * stay in sync), selected, nudged, rotated, duplicated, resized from the
+ * properties panel, or removed. Saves back through the shared layout endpoint:
+ * stations via positions/cleared, equipment via the additive `assets` array.
+ *
+ * three.js + OrbitControls, lazy-loaded so the engine only ships when opened.
+ */
+
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000').replace(/\/$/, '');
+
+interface St {
+  id: string; station: string; line: string; ctq: boolean;
+  x: number | null; y: number | null; w: number | null; h: number | null; rotation: number | null;
+}
+interface Cell { id: string; name: string; color: string; stationIds: string[] }
+interface Conn { from: string; to: string; kind?: string }
+interface Asset { id: string; kind: string; x: number; y: number; w: number; h: number; rotation: number; label?: string }
+/** A pair of objects flagged by the clearance analysis (Fase 43). */
+interface ClearancePair { a: string; b: string; aLabel: string; bLabel: string; gap: number }
+/** A free-text note or a dimension line (cota) on the plan — world coords. */
+interface Ann { id: string; type: 'text' | 'dim'; x: number; y: number; x2?: number; y2?: number; text?: string; color?: string }
+interface Footprint { footprintW: number; footprintH: number; unit: string; gridSize: number }
+/** Placement of the read-only DXF floor plan behind the layout (Fase 2). */
+interface DxfMeta { offsetX: number; offsetY: number; scale: number; rotation: number; visible: boolean; opacity: number }
+interface Layout {
+  footprint: Footprint;
+  stations: St[];
+  cells?: Cell[];
+  connectors?: Conn[];
+  assets?: Asset[];
+  annotations?: Ann[];
+  dxf?: DxfMeta | null;
+}
+interface Placement { x: number; y: number; w: number; h: number; rotation: number }
+/** One selectable object (a station block or an equipment asset). */
+interface SelItem { type: 'station' | 'asset'; id: string }
+const sameSel = (a: SelItem, b: SelItem) => a.type === b.type && a.id === b.id;
+/** A point-in-time copy of every editable collection, for undo/redo. */
+interface Snapshot { placements: [string, Placement][]; assets: Asset[]; annotations: Ann[]; connectors: Conn[] }
+/** Live quantity take-off computed from the editor's current state. */
+interface LocalTakeoff {
+  unit: string; footprintArea: number; totalStations: number; placedStations: number;
+  stationArea: number; equipmentCount: number; equipArea: number; usedArea: number;
+  util: number; wallLen: number; dimCount: number;
+  byKind: { kind: string; label: string; count: number; area: number }[];
+}
+/** A render-safe snapshot of the current selection for the properties panel. */
+interface SelSnap {
+  type: 'station' | 'asset';
+  id: string;
+  x: number; y: number; w: number; h: number; rotation: number;
+  title: string; subtitle: string;
+  kind?: string; height?: number; canDuplicate: boolean;
+}
+
+const ROSE = 0xf43f5e;
+const AMBER = 0xf59e0b;
+const SELECT = 0x22d3ee;
+
+function makeLabel(text: string, scale = 1.5): THREE.Sprite {
+  const canvas = document.createElement('canvas');
+  const fontSize = 46;
+  const m = canvas.getContext('2d')!;
+  m.font = `bold ${fontSize}px sans-serif`;
+  const tw = m.measureText(text).width;
+  canvas.width = Math.ceil(tw + 30);
+  canvas.height = fontSize + 24;
+  const ctx = canvas.getContext('2d')!;
+  ctx.font = `bold ${fontSize}px sans-serif`;
+  ctx.fillStyle = 'rgba(15,23,42,0.85)';
+  const r = 10;
+  ctx.beginPath();
+  ctx.moveTo(r, 0); ctx.arcTo(canvas.width, 0, canvas.width, canvas.height, r);
+  ctx.arcTo(canvas.width, canvas.height, 0, canvas.height, r);
+  ctx.arcTo(0, canvas.height, 0, 0, r); ctx.arcTo(0, 0, canvas.width, 0, r); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.minFilter = THREE.LinearFilter;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
+  const aspect = canvas.width / canvas.height;
+  sprite.scale.set(scale * aspect, scale, 1);
+  sprite.renderOrder = 10;
+  sprite.userData.isLabel = true; // so the "Etiquetas" layer can hide every label
+  return sprite;
+}
+
+/** Visual theme presets for the scene (background / fog / floor / grid). */
+type Theme3D = 'dark' | 'light' | 'night' | 'studio';
+const THEMES: Record<Theme3D, { bg: number; ground: number; gridA: number; gridB: number; fog: number; label: string }> = {
+  dark: { bg: 0x0a0f1e, ground: 0x14203a, gridA: 0x2a3a5c, gridB: 0x1b2640, fog: 0x0a0f1e, label: 'Oscuro' },
+  light: { bg: 0xeaf0f8, ground: 0xd7e2f1, gridA: 0x9db4d6, gridB: 0xbccce4, fog: 0xeaf0f8, label: 'Claro' },
+  night: { bg: 0x05070d, ground: 0x0b1322, gridA: 0x1e2c47, gridB: 0x121a2e, fog: 0x05070d, label: 'Noche' },
+  studio: { bg: 0x202329, ground: 0x2b2f37, gridA: 0x3c424d, gridB: 0x2f343d, fog: 0x202329, label: 'Estudio' },
+};
+
+/** Keyboard + tool reference shown in the help overlay. */
+const HELP_SECTIONS: { title: string; rows: [string, string][] }[] = [
+  { title: 'Herramientas', rows: [
+    ['V', 'Seleccionar / mover'],
+    ['M', 'Medir / acotar'],
+    ['W', 'Dibujar muros (Shift = 45°)'],
+    ['Recorrido', 'Caminar en primera persona'],
+  ] },
+  { title: 'Selección', rows: [
+    ['Clic', 'Seleccionar un objeto'],
+    ['Shift+clic', 'Agregar / quitar de la selección'],
+    ['Ctrl/⌘+A', 'Seleccionar todo'],
+    ['Esc', 'Deseleccionar / salir / cerrar'],
+  ] },
+  { title: 'Edición', rows: [
+    ['Arrastrar', 'Mover (en grupo si hay varios)'],
+    ['← → ↑ ↓', 'Ajustar (Shift = ×5)'],
+    ['R / Shift+R', 'Rotar ±15°'],
+    ['Ctrl/⌘+D', 'Duplicar'],
+    ['Supr', 'Borrar selección'],
+    ['Ctrl/⌘+Z / ⇧+Z', 'Deshacer / Rehacer'],
+  ] },
+  { title: 'Vista', rows: [
+    ['Arrastrar fondo', 'Orbitar'],
+    ['Rueda', 'Acercar / alejar'],
+    ['Recorrido', 'Arrastrar = mirar · WASD = caminar'],
+    ['?', 'Mostrar esta ayuda'],
+  ] },
+];
+
+function disposeObject(o: THREE.Object3D) {
+  o.traverse((c) => {
+    const mesh = c as THREE.Mesh & { material?: THREE.Material | THREE.Material[] };
+    if (mesh.geometry) mesh.geometry.dispose();
+    const mat = mesh.material;
+    if (mat) (Array.isArray(mat) ? mat : [mat]).forEach((mm) => {
+      const t = (mm as THREE.Material & { map?: THREE.Texture | null }).map;
+      if (t) t.dispose();
+      mm.dispose();
+    });
+  });
+}
+
+/** An amber "sticky note" sprite for a free-text annotation on the plan. */
+function makeNoteLabel(text: string): THREE.Sprite {
+  const canvas = document.createElement('canvas');
+  const fontSize = 40;
+  const m = canvas.getContext('2d')!;
+  m.font = `600 ${fontSize}px sans-serif`;
+  const tw = Math.min(520, m.measureText(text).width);
+  canvas.width = Math.ceil(tw + 34);
+  canvas.height = fontSize + 22;
+  const ctx = canvas.getContext('2d')!;
+  ctx.font = `600 ${fontSize}px sans-serif`;
+  ctx.fillStyle = 'rgba(251,191,36,0.94)';
+  const r = 9;
+  ctx.beginPath();
+  ctx.moveTo(r, 0); ctx.arcTo(canvas.width, 0, canvas.width, canvas.height, r);
+  ctx.arcTo(canvas.width, canvas.height, 0, canvas.height, r);
+  ctx.arcTo(0, canvas.height, 0, 0, r); ctx.arcTo(0, 0, canvas.width, 0, r); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#422006'; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2 + 1);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.minFilter = THREE.LinearFilter;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
+  const scale = 1.3;
+  sprite.scale.set(scale * (canvas.width / canvas.height), scale, 1);
+  sprite.renderOrder = 11;
+  return sprite;
+}
+
+// ── 3D asset geometry factory ────────────────────────────────────────────────
+// Builds a distinctive mesh group per archetype. Geometry is centred in X/Z with
+// its base at y=0; the caller positions the group on the floor and rotates it.
+function mat(color: THREE.ColorRepresentation, rough = 0.6, metal = 0.15, emissive: THREE.ColorRepresentation = 0x000000) {
+  return new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: metal, emissive });
+}
+function part(geo: THREE.BufferGeometry, material: THREE.Material, x = 0, y = 0, z = 0): THREE.Mesh {
+  const m = new THREE.Mesh(geo, material);
+  m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true;
+  return m;
+}
+
+function buildArchetype(archetype: AssetArchetype, wS: number, dS: number, H: number, colorHex: string): THREE.Object3D[] {
+  const c = new THREE.Color(colorHex);
+  const dark = c.clone().multiplyScalar(0.6);
+  const light = c.clone().lerp(new THREE.Color(0xffffff), 0.25);
+  const out: THREE.Object3D[] = [];
+  const leg = Math.max(0.04, Math.min(wS, dS) * 0.08);
+
+  switch (archetype) {
+    case 'table': {
+      const top = Math.max(0.05, H * 0.07);
+      out.push(part(new THREE.BoxGeometry(wS, top, dS), mat(c, 0.55, 0.1), 0, H - top / 2, 0));
+      const lx = wS / 2 - leg, lz = dS / 2 - leg;
+      [[lx, lz], [-lx, lz], [lx, -lz], [-lx, -lz]].forEach(([x, z]) =>
+        out.push(part(new THREE.BoxGeometry(leg, H - top, leg), mat(dark, 0.7, 0.3), x, (H - top) / 2, z)));
+      break;
+    }
+    case 'belt': {
+      const deckY = H * 0.78, deckT = Math.max(0.05, H * 0.12);
+      out.push(part(new THREE.BoxGeometry(wS, deckT, dS * 0.78), mat(c, 0.5, 0.2), 0, deckY, 0));
+      // side rails
+      out.push(part(new THREE.BoxGeometry(wS, deckT * 0.9, leg), mat(dark, 0.5, 0.3), 0, deckY + deckT * 0.6, dS / 2 - leg / 2));
+      out.push(part(new THREE.BoxGeometry(wS, deckT * 0.9, leg), mat(dark, 0.5, 0.3), 0, deckY + deckT * 0.6, -dS / 2 + leg / 2));
+      // rollers (visual hint of belt direction)
+      const rollers = Math.max(3, Math.min(9, Math.round(wS / Math.max(0.4, dS * 0.6))));
+      const rr = Math.max(0.03, dS * 0.14);
+      const rg = new THREE.CylinderGeometry(rr, rr, dS * 0.7, 10);
+      for (let i = 0; i < rollers; i++) {
+        const rx = -wS / 2 + (wS / (rollers - 1 || 1)) * i;
+        const rm = part(rg, mat(light, 0.4, 0.6), rx, deckY + deckT * 0.5, 0);
+        rm.rotation.x = Math.PI / 2; out.push(rm);
+      }
+      // legs
+      const lx = wS / 2 - leg, lz = dS * 0.78 / 2 - leg;
+      [[lx, lz], [-lx, lz], [lx, -lz], [-lx, -lz]].forEach(([x, z]) =>
+        out.push(part(new THREE.BoxGeometry(leg, deckY, leg), mat(dark, 0.7, 0.3), x, deckY / 2, z)));
+      break;
+    }
+    case 'shelf': {
+      const post = Math.max(0.05, Math.min(wS, dS) * 0.09);
+      const lx = wS / 2 - post / 2, lz = dS / 2 - post / 2;
+      [[lx, lz], [-lx, lz], [lx, -lz], [-lx, -lz]].forEach(([x, z]) =>
+        out.push(part(new THREE.BoxGeometry(post, H, post), mat(dark, 0.6, 0.35), x, H / 2, z)));
+      const shelves = 4; const st = Math.max(0.04, H * 0.04);
+      for (let i = 0; i < shelves; i++) {
+        const y = (H / (shelves - 1)) * i;
+        out.push(part(new THREE.BoxGeometry(wS, st, dS), mat(c, 0.65, 0.1), 0, Math.min(H - st / 2, Math.max(st / 2, y)), 0));
+      }
+      break;
+    }
+    case 'arm': {
+      const baseH = H * 0.18, baseR = Math.min(wS, dS) * 0.42;
+      out.push(part(new THREE.CylinderGeometry(baseR, baseR * 1.1, baseH, 18), mat(dark, 0.5, 0.5), 0, baseH / 2, 0));
+      const col = part(new THREE.CylinderGeometry(baseR * 0.55, baseR * 0.6, H * 0.42, 14), mat(c, 0.45, 0.5), 0, baseH + H * 0.21, 0);
+      out.push(col);
+      // upper arm tilted out
+      const upper = part(new THREE.BoxGeometry(wS * 0.7, H * 0.12, H * 0.1), mat(c, 0.4, 0.6), wS * 0.18, baseH + H * 0.46, 0);
+      upper.rotation.z = -0.5; out.push(upper);
+      const fore = part(new THREE.BoxGeometry(wS * 0.5, H * 0.09, H * 0.08), mat(light, 0.4, 0.6), wS * 0.42, baseH + H * 0.6, 0);
+      fore.rotation.z = 0.35; out.push(fore);
+      out.push(part(new THREE.SphereGeometry(baseR * 0.4, 12, 10), mat(dark, 0.4, 0.7), wS * 0.55, baseH + H * 0.52, 0));
+      break;
+    }
+    case 'machine': {
+      const bodyH = H * 0.82;
+      out.push(part(new THREE.BoxGeometry(wS, bodyH, dS), mat(c, 0.5, 0.25), 0, bodyH / 2, 0));
+      out.push(part(new THREE.BoxGeometry(wS * 0.96, H * 0.16, dS * 0.96), mat(dark, 0.55, 0.3), 0, bodyH + H * 0.08, 0));
+      // viewing window / control panel on the +Z face
+      out.push(part(new THREE.BoxGeometry(wS * 0.5, bodyH * 0.4, leg * 0.6), mat(0x0f172a, 0.2, 0.7, 0x0b1220), 0, bodyH * 0.6, dS / 2));
+      out.push(part(new THREE.BoxGeometry(wS * 0.22, bodyH * 0.3, leg * 0.6), mat(light, 0.3, 0.5), wS * 0.32, bodyH * 0.45, dS / 2));
+      // feet
+      const lx = wS / 2 - leg, lz = dS / 2 - leg;
+      [[lx, lz], [-lx, lz], [lx, -lz], [-lx, -lz]].forEach(([x, z]) =>
+        out.push(part(new THREE.BoxGeometry(leg * 1.2, H * 0.05, leg * 1.2), mat(dark, 0.7, 0.3), x, H * 0.025, z)));
+      break;
+    }
+    case 'wall': {
+      out.push(part(new THREE.BoxGeometry(wS, H, dS), mat(c, 0.9, 0.02), 0, H / 2, 0));
+      out.push(part(new THREE.BoxGeometry(wS, H * 0.03, dS * 1.15), mat(dark, 0.8, 0.05), 0, H, 0));
+      break;
+    }
+    case 'cabinet': {
+      out.push(part(new THREE.BoxGeometry(wS, H, dS), mat(c, 0.5, 0.3), 0, H / 2, 0));
+      // door seam + handle
+      out.push(part(new THREE.BoxGeometry(leg * 0.4, H * 0.9, leg * 0.3), mat(dark, 0.4, 0.5), 0, H / 2, dS / 2));
+      out.push(part(new THREE.BoxGeometry(leg, H * 0.16, leg * 0.5), mat(light, 0.3, 0.6), wS * 0.22, H * 0.5, dS / 2));
+      break;
+    }
+    case 'column': {
+      const r = Math.min(wS, dS) * 0.5;
+      out.push(part(new THREE.CylinderGeometry(r, r * 1.1, H, 20), mat(c, 0.85, 0.1), 0, H / 2, 0));
+      out.push(part(new THREE.BoxGeometry(r * 2.4, H * 0.04, r * 2.4), mat(dark, 0.8, 0.1), 0, H * 0.02, 0));
+      break;
+    }
+    case 'pallet': {
+      const deck = Math.max(0.05, H * 0.45);
+      out.push(part(new THREE.BoxGeometry(wS, deck, dS), mat(c, 0.85, 0.02), 0, H - deck / 2, 0));
+      // 3 runners
+      [-dS / 2 + leg, 0, dS / 2 - leg].forEach((z) =>
+        out.push(part(new THREE.BoxGeometry(wS, H - deck, leg * 2), mat(c.clone().multiplyScalar(0.85), 0.9, 0.02), 0, (H - deck) / 2, z)));
+      break;
+    }
+    case 'fence': {
+      const posts = Math.max(2, Math.round(wS / Math.max(0.6, dS * 4)) + 1);
+      const pw = Math.max(0.05, dS * 0.5);
+      for (let i = 0; i < posts; i++) {
+        const x = -wS / 2 + (wS / (posts - 1 || 1)) * i;
+        out.push(part(new THREE.BoxGeometry(pw, H, pw), mat(c, 0.6, 0.3), x, H / 2, 0));
+      }
+      out.push(part(new THREE.BoxGeometry(wS, H * 0.08, pw * 0.6), mat(c, 0.6, 0.3), 0, H * 0.9, 0));
+      out.push(part(new THREE.BoxGeometry(wS, H * 0.08, pw * 0.6), mat(c, 0.6, 0.3), 0, H * 0.45, 0));
+      break;
+    }
+    case 'cart': {
+      out.push(part(new THREE.BoxGeometry(wS, H * 0.7, dS), mat(c, 0.45, 0.4), 0, H * 0.45, 0));
+      out.push(part(new THREE.BoxGeometry(wS * 0.6, H * 0.3, dS * 0.6), mat(light, 0.4, 0.5), 0, H * 0.85, 0));
+      // wheels
+      const wr = H * 0.18; const wg = new THREE.CylinderGeometry(wr, wr, leg, 12);
+      const lx = wS / 2 - leg, lz = dS / 2 - leg;
+      [[lx, lz], [-lx, lz], [lx, -lz], [-lx, -lz]].forEach(([x, z]) => {
+        const w = part(wg, mat(0x111827, 0.6, 0.2), x, wr, z); w.rotation.x = Math.PI / 2; out.push(w);
+      });
+      break;
+    }
+    case 'person': {
+      const r = Math.min(wS, dS) * 0.3;
+      out.push(part(new THREE.CylinderGeometry(r * 0.9, r, H * 0.58, 14), mat(c, 0.7, 0.05), 0, H * 0.32, 0));
+      out.push(part(new THREE.SphereGeometry(r * 0.7, 14, 12), mat(light, 0.6, 0.05), 0, H * 0.74, 0));
+      break;
+    }
+    case 'desk': {
+      const top = Math.max(0.05, H * 0.08), deskY = H * 0.62;
+      out.push(part(new THREE.BoxGeometry(wS, top, dS), mat(c, 0.55, 0.1), 0, deskY, 0));
+      const lx = wS / 2 - leg, lz = dS / 2 - leg;
+      [[lx, lz], [-lx, lz], [lx, -lz], [-lx, -lz]].forEach(([x, z]) =>
+        out.push(part(new THREE.BoxGeometry(leg, deskY, leg), mat(dark, 0.7, 0.3), x, deskY / 2, z)));
+      // monitor: panel on a small stand
+      out.push(part(new THREE.BoxGeometry(leg, H * 0.12, leg), mat(dark, 0.5, 0.4), 0, deskY + top + H * 0.06, -dS * 0.2));
+      out.push(part(new THREE.BoxGeometry(wS * 0.42, H * 0.26, leg * 0.5), mat(0x0f172a, 0.2, 0.6, 0x0b1220), 0, deskY + top + H * 0.22, -dS * 0.2));
+      break;
+    }
+    case 'bin': {
+      const wall = Math.max(0.04, Math.min(wS, dS) * 0.08);
+      out.push(part(new THREE.BoxGeometry(wS, Math.max(0.04, H * 0.08), dS), mat(dark, 0.8, 0.05), 0, H * 0.04, 0)); // floor
+      out.push(part(new THREE.BoxGeometry(wS, H, wall), mat(c, 0.7, 0.05), 0, H / 2, dS / 2 - wall / 2));
+      out.push(part(new THREE.BoxGeometry(wS, H, wall), mat(c, 0.7, 0.05), 0, H / 2, -dS / 2 + wall / 2));
+      out.push(part(new THREE.BoxGeometry(wall, H, dS - wall * 2), mat(c, 0.7, 0.05), wS / 2 - wall / 2, H / 2, 0));
+      out.push(part(new THREE.BoxGeometry(wall, H, dS - wall * 2), mat(c, 0.7, 0.05), -wS / 2 + wall / 2, H / 2, 0));
+      break;
+    }
+    case 'gantry': {
+      const legW = Math.max(0.1, dS * 0.5), beamH = Math.max(0.15, H * 0.12);
+      // two end legs (span along X)
+      [wS / 2 - legW / 2, -wS / 2 + legW / 2].forEach((x) =>
+        out.push(part(new THREE.BoxGeometry(legW, H - beamH, legW), mat(dark, 0.6, 0.35), x, (H - beamH) / 2, 0)));
+      // top beam spanning the legs
+      out.push(part(new THREE.BoxGeometry(wS, beamH, legW * 0.9), mat(c, 0.5, 0.4), 0, H - beamH / 2, 0));
+      // trolley/hoist hanging from the beam
+      out.push(part(new THREE.BoxGeometry(wS * 0.12, beamH * 1.4, legW * 1.1), mat(light, 0.4, 0.5), wS * 0.1, H - beamH * 1.1, 0));
+      break;
+    }
+    case 'zone':
+    case 'path':
+    default: {
+      // flat translucent footprint with a coloured border
+      const fill = new THREE.Mesh(
+        new THREE.PlaneGeometry(wS, dS),
+        new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: archetype === 'path' ? 0.22 : 0.14, side: THREE.DoubleSide }),
+      );
+      fill.rotation.x = -Math.PI / 2; fill.position.y = 0.04; out.push(fill);
+      const edge = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.PlaneGeometry(wS, dS)),
+        new THREE.LineBasicMaterial({ color: c }),
+      );
+      edge.rotation.x = -Math.PI / 2; edge.position.y = 0.05; out.push(edge);
+      break;
+    }
+  }
+  return out;
+}
+
+/** Build a positioned, rotated, pickable asset group (base at floor). */
+function buildAssetGroup(a: Asset, s: number, W: number, H: number, selected: boolean): THREE.Group {
+  const def = assetMeta(a.kind);
+  const wS = Math.max(0.2, a.w * s);
+  const dS = Math.max(0.2, a.h * s);
+  const h3d = Math.max(0.05, def.height * s);
+  const group = new THREE.Group();
+  buildArchetype(def.archetype, wS, dS, h3d, def.color).forEach((o) => group.add(o));
+
+  // invisible, forgiving hit box covering the whole bounding volume
+  const flat = def.archetype === 'zone' || def.archetype === 'path';
+  const hb = new THREE.Mesh(
+    new THREE.BoxGeometry(wS, flat ? Math.max(0.4, h3d) : h3d, dS),
+    new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }),
+  );
+  hb.position.y = (flat ? Math.max(0.4, h3d) : h3d) / 2;
+  hb.userData.assetId = a.id;
+  group.add(hb);
+
+  if (selected) {
+    const oh = Math.max(0.3, h3d);
+    const outline = new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.BoxGeometry(wS * 1.04, oh * 1.04, dS * 1.04)),
+      new THREE.LineBasicMaterial({ color: SELECT }),
+    );
+    outline.position.y = oh / 2; group.add(outline);
+  }
+  if (a.label) {
+    const lab = makeLabel(a.label, 1.2);
+    lab.position.set(0, (flat ? 0.6 : h3d) + 0.9, 0);
+    group.add(lab);
+  }
+
+  group.userData.assetId = a.id;
+  const cx = (a.x + a.w / 2 - W / 2) * s;
+  const cz = (a.y + a.h / 2 - H / 2) * s;
+  group.position.set(cx, 0, cz);
+  group.rotation.y = -((a.rotation || 0) * Math.PI) / 180;
+  return group;
+}
+
+const newId = (p: string) => `${p}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+const fmtDist = (d: number, unit: string) => `${Math.round(d).toLocaleString('es-MX')} ${unit}`;
+const fmtArea = (v: number, unit: string) => {
+  const m2 = unit === 'mm' ? v / 1e6 : unit === 'cm' ? v / 1e4 : v; // → m²
+  return `${m2.toLocaleString('es-MX', { maximumFractionDigits: m2 < 100 ? 2 : 0 })} m²`;
+};
+const fmtLen = (v: number, unit: string) => {
+  const m = unit === 'mm' ? v / 1000 : unit === 'cm' ? v / 100 : v; // → m
+  return `${m.toLocaleString('es-MX', { maximumFractionDigits: 2 })} m`;
+};
+
+/** Floor-plane line + end ticks + distance label for a dimension annotation. */
+function buildDim(a: Ann, s: number, W: number, H: number, unit: string): THREE.Object3D[] {
+  if (a.x2 === undefined || a.y2 === undefined) return [];
+  const y = 0.06;
+  const ax = (a.x - W / 2) * s, az = (a.y - H / 2) * s;
+  const bx = (a.x2 - W / 2) * s, bz = (a.y2 - H / 2) * s;
+  const color = a.color || '#22d3ee';
+  const out: THREE.Object3D[] = [];
+  const lineMat = () => new THREE.LineBasicMaterial({ color });
+  out.push(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(ax, y, az), new THREE.Vector3(bx, y, bz)]), lineMat()));
+  const dx = bx - ax, dz = bz - az; const len = Math.hypot(dx, dz) || 1;
+  const px = -dz / len, pz = dx / len; const t = 0.4;
+  [[ax, az], [bx, bz]].forEach(([cx, cz]) =>
+    out.push(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(cx + px * t, y, cz + pz * t), new THREE.Vector3(cx - px * t, y, cz - pz * t)]), lineMat())));
+  const dist = Math.hypot(a.x2 - a.x, a.y2 - a.y);
+  const label = makeLabel(fmtDist(dist, unit), 1.1);
+  label.position.set((ax + bx) / 2, y + 0.85, (az + bz) / 2);
+  label.userData.dimId = a.id;
+  out.push(label);
+  return out;
+}
+
+export default function Layout3DEditor({
+  model, revision, open, onClose, onSaved,
+}: {
+  model: string;
+  revision: string;
+  open: boolean;
+  onClose: () => void;
+  onSaved?: () => void;
+}) {
+  const toast = useToast();
+  const mountRef = useRef<HTMLDivElement | null>(null);
+  const viewMenuRef = useRef<HTMLDivElement | null>(null);
+  const [data, setData] = useState<Layout | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [snap, setSnap] = useState(true);
+  const [osnap, setOsnap] = useState(true); // object snap: align to other objects' edges/centers (Fase 54)
+  const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [selList, setSelList] = useState<SelItem[]>([]);
+  const [selSnap, setSelSnap] = useState<SelSnap | null>(null);
+  const [placedIds, setPlacedIds] = useState<Set<string>>(new Set());
+  const [assetIds, setAssetIds] = useState<Set<string>>(new Set());
+  const [tab, setTab] = useState<'stations' | 'equipment'>('stations');
+  const [tool, setTool] = useState<'select' | 'measure' | 'wall'>('select');
+  const [walk, setWalk] = useState(false); // first-person walkthrough mode
+  const [showHelp, setShowHelp] = useState(false); // keyboard shortcuts overlay
+  const [measureLive, setMeasureLive] = useState<string | null>(null);
+  const [dimCount, setDimCount] = useState(0);
+  const [theme, setTheme] = useState<Theme3D>('dark');
+  const [sun, setSun] = useState({ az: 35, el: 55 }); // sun azimuth/elevation (deg)
+  const [showView, setShowView] = useState(false);
+  const [fpDraft, setFpDraft] = useState<{ w: number; h: number; g: number }>({ w: 0, h: 0, g: 0 });
+  const [layers, setLayers] = useState({ stations: true, equipment: true, connectors: true, dims: true, notes: true, labels: true, grid: true, dxf: true });
+  const [hist, setHist] = useState({ undo: 0, redo: 0 }); // depths, for button enablement
+  const [takeoff, setTakeoff] = useState<LocalTakeoff | null>(null); // quantities panel (null = closed)
+  const [report, setReport] = useState<DesignReport | null>(null); // design-check report (null = closed) (Fase 63)
+  const [showHeat, setShowHeat] = useState(false); // occupancy heat-map overlay on the floor (Fase 51)
+  const [arr, setArr] = useState({ cols: 3, rows: 1, gap: 500, dx: 1000, dy: 0 }); // array/offset params (Fase 55)
+  const [showGaps, setShowGaps] = useState(false); // clearance/safety gap markers overlay (Fase 52)
+
+  // three.js refs
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const controlsRef = useRef<OrbitControls | null>(null);
+  const blocksRef = useRef<THREE.Group | null>(null);
+  const assetsGroupRef = useRef<THREE.Group | null>(null);
+  const dimsGroupRef = useRef<THREE.Group | null>(null);
+  const notesGroupRef = useRef<THREE.Group | null>(null);
+  const connsGroupRef = useRef<THREE.Group | null>(null);
+  const connectorsRef = useRef<Conn[]>([]); // mutable line connectors (auto-connect, Fase 62)
+  const gridGroupRef = useRef<THREE.Group | null>(null);
+  const dxfGroupRef = useRef<THREE.Group | null>(null);
+  const heatGroupRef = useRef<THREE.Group | null>(null); // occupancy heat-map tiles
+  const heatLoadedRef = useRef(false); // lazy-load the density grid only once per scene
+  const showHeatRef = useRef(false); // current toggle, read inside the scene-init effect
+  const loadHeatRef = useRef<() => void>(() => {}); // latest loadHeat, callable from init
+  const gapsGroupRef = useRef<THREE.Group | null>(null); // clearance gap markers
+  const gapsLoadedRef = useRef(false);
+  const showGapsRef = useRef(false);
+  const loadGapsRef = useRef<() => void>(() => {});
+  const guidesGroupRef = useRef<THREE.Group | null>(null); // object-snap alignment guides (Fase 54)
+  const dxfModelRef = useRef<DxfModel | null>(null);
+  const dxfMetaRef = useRef<DxfMeta | null>(null);
+  const rebuildDxfRef = useRef<() => void>(() => {});
+  const [hasDxf, setHasDxf] = useState(false); // a DXF backdrop is loaded → can trace it into walls (Fase 58)
+  const groundRef = useRef<THREE.Mesh | null>(null);
+  const gridHelperRef = useRef<THREE.GridHelper | null>(null);
+  const dirLightRef = useRef<THREE.DirectionalLight | null>(null);
+  const walkRef = useRef(false);
+  const walkYawRef = useRef(0);
+  const walkPitchRef = useRef(0);
+  const walkKeysRef = useRef({ f: false, b: false, l: false, r: false });
+  const savedCamRef = useRef<{ px: number; py: number; pz: number; tx: number; ty: number; tz: number } | null>(null);
+  const previewLineRef = useRef<THREE.Line | null>(null);
+  const snapMarkerRef = useRef<THREE.Mesh | null>(null); // ring shown when the cursor snaps to the DXF underlay (Fase 60)
+  const dxfSnapRef = useRef<{ x: number; y: number }[]>([]); // precomputed DXF snap targets (footprint coords)
+  const meshByIdRef = useRef<Map<string, THREE.Mesh>>(new Map());
+  const groupByAssetRef = useRef<Map<string, THREE.Group>>(new Map());
+  const layersRef = useRef(layers);
+  const applyLayersRef = useRef<() => void>(() => {});
+  const undoStackRef = useRef<Snapshot[]>([]);
+  const redoStackRef = useRef<Snapshot[]>([]);
+
+  // layout state refs (drive both the scene and the save)
+  const placementsRef = useRef<Map<string, Placement>>(new Map());
+  const assetsRef = useRef<Map<string, Asset>>(new Map());
+  const annotationsRef = useRef<Map<string, Ann>>(new Map());
+  const stationsByIdRef = useRef<Map<string, St>>(new Map());
+  const loadedPlacedRef = useRef<Set<string>>(new Set());
+  const ctxRef = useRef<{ s: number; W: number; H: number } | null>(null);
+  const measureARef = useRef<{ wx: number; wy: number } | null>(null);
+  const wallChainRef = useRef<{ wx: number; wy: number } | null>(null);
+  const selRef = useRef<SelItem[]>([]);
+  const snapRef = useRef(snap);
+  const osnapRef = useRef(osnap);
+  const toolRef = useRef(tool);
+  const themeRef = useRef(theme);
+  const sunRef = useRef(sun);
+  useEffect(() => { snapRef.current = snap; }, [snap]);
+  useEffect(() => { osnapRef.current = osnap; }, [osnap]);
+  useEffect(() => { toolRef.current = tool; }, [tool]);
+  useEffect(() => { themeRef.current = theme; }, [theme]);
+
+  // ---- sun position (azimuth/elevation) → directional light + shadows ----
+  const applySun = useCallback(() => {
+    const L = dirLightRef.current; const ctx = ctxRef.current;
+    if (!L || !ctx) return;
+    const { az, el } = sunRef.current;
+    const D = Math.max(ctx.W, ctx.H) * ctx.s * 1.4;
+    const a = (az * Math.PI) / 180, e = (el * Math.PI) / 180;
+    L.position.set(D * Math.cos(e) * Math.sin(a), Math.max(0.5, D * Math.sin(e)), D * Math.cos(e) * Math.cos(a));
+  }, []);
+  useEffect(() => { sunRef.current = sun; applySun(); }, [sun, applySun]);
+
+  // ---- layer visibility (cheap: toggles group/label visibility, no rebuild) ----
+  const applyLayers = useCallback(() => {
+    const L = layersRef.current;
+    if (blocksRef.current) blocksRef.current.visible = L.stations;
+    if (assetsGroupRef.current) assetsGroupRef.current.visible = L.equipment;
+    if (connsGroupRef.current) connsGroupRef.current.visible = L.connectors;
+    if (dimsGroupRef.current) dimsGroupRef.current.visible = L.dims;
+    if (notesGroupRef.current) notesGroupRef.current.visible = L.notes;
+    if (dxfGroupRef.current) dxfGroupRef.current.visible = L.dxf;
+    if (gridGroupRef.current) gridGroupRef.current.visible = L.grid;
+    sceneRef.current?.traverse((o) => { if (o.userData?.isLabel) o.visible = L.labels; });
+  }, []);
+  useEffect(() => { applyLayersRef.current = applyLayers; }, [applyLayers]);
+  useEffect(() => { layersRef.current = layers; applyLayers(); }, [layers, applyLayers]);
+
+  // close the view/layers popover when clicking outside it
+  useEffect(() => {
+    if (!showView) return;
+    const onDoc = (e: MouseEvent) => { if (viewMenuRef.current && !viewMenuRef.current.contains(e.target as Node)) setShowView(false); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [showView]);
+
+  // ---- visual theme (background / fog / floor / grid colours) ----
+  const applyTheme = useCallback(() => {
+    const sc = sceneRef.current; const ctx = ctxRef.current; const gg = gridGroupRef.current;
+    if (!sc || !ctx) return;
+    const th = THEMES[themeRef.current];
+    sc.background = new THREE.Color(th.bg);
+    if (sc.fog instanceof THREE.Fog) sc.fog.color.setHex(th.fog);
+    const ground = groundRef.current;
+    if (ground) (ground.material as THREE.MeshStandardMaterial).color.setHex(th.ground);
+    if (gg) {
+      while (gg.children.length) { const o = gg.children[gg.children.length - 1]; gg.remove(o); disposeObject(o); }
+      const { s, W, H } = ctx;
+      const fpGrid = data?.footprint.gridSize || 1;
+      const grid = new THREE.GridHelper(Math.max(W * s, H * s), Math.min(60, Math.max(8, Math.round(Math.max(W, H) / fpGrid / 2))), th.gridA, th.gridB);
+      (grid.material as THREE.Material).transparent = true; (grid.material as THREE.Material).opacity = 0.6;
+      grid.position.y = 0.01; gridHelperRef.current = grid; gg.add(grid);
+      const edge = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(W * s, H * s)), new THREE.LineBasicMaterial({ color: 0x64748b }));
+      edge.rotation.x = -Math.PI / 2; edge.position.y = 0.02; gg.add(edge);
+      gg.visible = layersRef.current.grid;
+    }
+  }, [data]);
+  useEffect(() => { applyTheme(); }, [theme, applyTheme]);
+
+  // Snapshot the selection's geometry into render-safe state (reads refs only
+  // from event handlers, never during render — the Minimap/2D editor pattern).
+  const computeSnap = useCallback((next: SelItem): SelSnap | null => {
+    if (next.type === 'station') {
+      const p = placementsRef.current.get(next.id);
+      const st = stationsByIdRef.current.get(next.id);
+      if (!p || !st) return null;
+      return { type: 'station', id: next.id, x: p.x, y: p.y, w: p.w, h: p.h, rotation: p.rotation, title: st.station, subtitle: `Estación · ${st.line}${st.ctq ? ' · CTQ' : ''}`, canDuplicate: false };
+    }
+    const a = assetsRef.current.get(next.id);
+    if (!a) return null;
+    const def = assetMeta(a.kind);
+    return { type: 'asset', id: next.id, x: a.x, y: a.y, w: a.w, h: a.h, rotation: a.rotation, title: def.label, subtitle: `Equipo · ${a.kind}`, kind: a.kind, height: def.height, canDuplicate: true };
+  }, []);
+  // Replace the whole selection (selSnap mirrors the single-object case).
+  const select = useCallback((next: SelItem[]) => {
+    selRef.current = next; setSelList(next);
+    setSelSnap(next.length === 1 ? computeSnap(next[0]) : null);
+  }, [computeSnap]);
+  const refreshSnap = useCallback(() => setSelSnap(selRef.current.length === 1 ? computeSnap(selRef.current[0]) : null), [computeSnap]);
+  const getPlaceRef = useCallback((it: SelItem) => (it.type === 'station' ? placementsRef.current.get(it.id) : assetsRef.current.get(it.id)), []);
+
+  // ---- first-person walkthrough: drop to eye level, look by dragging, WASD ----
+  const toggleWalk = useCallback(() => {
+    const cam = cameraRef.current; const ctrl = controlsRef.current; const ctx = ctxRef.current;
+    if (!cam || !ctrl || !ctx) return;
+    setWalk((prev) => {
+      const next = !prev; walkRef.current = next;
+      if (next) {
+        savedCamRef.current = { px: cam.position.x, py: cam.position.y, pz: cam.position.z, tx: ctrl.target.x, ty: ctrl.target.y, tz: ctrl.target.z };
+        ctrl.enabled = false;
+        const eyeY = Math.max(ctx.W, ctx.H) * ctx.s * 0.06;
+        cam.position.set(0, eyeY, Math.max(ctx.W, ctx.H) * ctx.s * 0.4);
+        walkYawRef.current = 0; walkPitchRef.current = -0.05; // looking toward -Z (the plant), slightly down
+        walkKeysRef.current = { f: false, b: false, l: false, r: false };
+        selRef.current = []; setSelList([]); setSelSnap(null);
+      } else {
+        const s = savedCamRef.current;
+        if (s) { cam.position.set(s.px, s.py, s.pz); ctrl.target.set(s.tx, s.ty, s.tz); }
+        ctrl.enabled = true; ctrl.update();
+      }
+      return next;
+    });
+  }, []);
+
+  // ---- data ----
+  useEffect(() => {
+    if (!open || !model) return;
+    let alive = true;
+    setData(null); setError(null); setSelList([]); setSelSnap(null); selRef.current = []; setDirty(false); setTab('stations');
+    setTool('select'); toolRef.current = 'select'; measureARef.current = null; wallChainRef.current = null; setMeasureLive(null);
+    setWalk(false); walkRef.current = false; savedCamRef.current = null;
+    undoStackRef.current = []; redoStackRef.current = []; setHist({ undo: 0, redo: 0 });
+    (async () => {
+      try {
+        const r = await apiFetch(`${API_BASE}/line-engineering/layout?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`);
+        if (!alive) return;
+        if (!r.ok) { setError('No se pudo cargar el layout.'); return; }
+        const d = (await r.json()) as Layout;
+        const pl = new Map<string, Placement>();
+        d.stations.forEach((s) => {
+          if (s.x !== null && s.y !== null) {
+            pl.set(s.id, {
+              x: s.x, y: s.y,
+              w: s.w ?? Math.round(d.footprint.footprintW * 0.06),
+              h: s.h ?? Math.round(d.footprint.footprintH * 0.08),
+              rotation: s.rotation ?? 0,
+            });
+          }
+        });
+        const am = new Map<string, Asset>();
+        (d.assets ?? []).forEach((a) => am.set(a.id, { ...a, rotation: a.rotation ?? 0 }));
+        const an = new Map<string, Ann>();
+        (d.annotations ?? []).forEach((a) => { if (a && a.id) an.set(a.id, a); });
+        placementsRef.current = pl;
+        assetsRef.current = am;
+        annotationsRef.current = an;
+        stationsByIdRef.current = new Map(d.stations.map((s) => [s.id, s]));
+        connectorsRef.current = (d.connectors ?? []).map((c) => ({ ...c }));
+        loadedPlacedRef.current = new Set(pl.keys());
+        setPlacedIds(new Set(pl.keys()));
+        setAssetIds(new Set(am.keys()));
+        setDimCount([...an.values()].filter((a) => a.type === 'dim').length);
+        setData(d);
+        // fetch + parse the read-only DXF backdrop (the endpoint already serves
+        // the raw drawing); render it on the floor once ready.
+        dxfModelRef.current = null; dxfMetaRef.current = null; dxfSnapRef.current = []; setHasDxf(false);
+        if (d.dxf) {
+          try {
+            const rd = await apiFetch(`${API_BASE}/line-engineering/layout/dxf?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`);
+            if (alive && rd.ok) {
+              const raw = (await rd.json()) as { data?: string } | null;
+              dxfModelRef.current = raw?.data ? parseDxf(raw.data) : null;
+              dxfMetaRef.current = d.dxf;
+              setHasDxf(!!dxfModelRef.current && !!dxfMetaRef.current);
+              dxfSnapRef.current = dxfModelRef.current && dxfMetaRef.current ? dxfSnapPoints(dxfModelRef.current, dxfMetaRef.current) : [];
+              rebuildDxfRef.current();
+            }
+          } catch { /* ignore — backdrop is optional */ }
+        }
+      } catch {
+        if (alive) setError('No se pudo cargar el layout.');
+      }
+    })();
+    return () => { alive = false; };
+  }, [open, model, revision]);
+
+  const snapWorld = useCallback((v: number) => {
+    const g = data?.footprint.gridSize || 1;
+    return snapRef.current ? Math.round(v / g) * g : Math.round(v);
+  }, [data]);
+
+  // ---- (re)build the station blocks + connectors ----
+  const rebuildBlocks = useCallback(() => {
+    const blocks = blocksRef.current; const conns = connsGroupRef.current; const ctx = ctxRef.current;
+    if (!blocks || !ctx || !data) return;
+    while (blocks.children.length) { const o = blocks.children[blocks.children.length - 1]; blocks.remove(o); disposeObject(o); }
+    if (conns) while (conns.children.length) { const o = conns.children[conns.children.length - 1]; conns.remove(o); disposeObject(o); }
+    meshByIdRef.current = new Map();
+    const { s, W, H } = ctx;
+    const byId = new Map(data.stations.map((st) => [st.id, st]));
+    placementsRef.current.forEach((p, id) => {
+      const st = byId.get(id); if (!st) return;
+      const hgt = Math.max(0.6, Math.min(p.w * s, p.h * s) * 0.7);
+      const isSel = selRef.current.some((s) => s.type === 'station' && s.id === id);
+      const color = isSel ? SELECT : st.ctq ? AMBER : ROSE;
+      const mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(p.w * s, hgt, p.h * s),
+        new THREE.MeshStandardMaterial({ color, roughness: 0.45, metalness: 0.12, emissive: isSel ? 0x0e7490 : 0x000000 }),
+      );
+      mesh.castShadow = true;
+      mesh.userData.stationId = id;
+      const cx = (p.x + p.w / 2 - W / 2) * s;
+      const cz = (p.y + p.h / 2 - H / 2) * s;
+      mesh.position.set(cx, hgt / 2, cz);
+      mesh.rotation.y = -(p.rotation * Math.PI) / 180;
+      blocks.add(mesh);
+      meshByIdRef.current.set(id, mesh);
+      const label = makeLabel(st.station);
+      label.position.set(cx, hgt + 1.1, cz);
+      label.userData.labelFor = id;
+      blocks.add(label);
+    });
+    // connectors as arched tubes between placed block tops
+    connectorsRef.current.forEach((cn) => {
+      const a = placementsRef.current.get(cn.from); const b = placementsRef.current.get(cn.to);
+      if (!a || !b) return;
+      const ha = Math.max(0.6, Math.min(a.w * s, a.h * s) * 0.7);
+      const hb = Math.max(0.6, Math.min(b.w * s, b.h * s) * 0.7);
+      const start = new THREE.Vector3((a.x + a.w / 2 - W / 2) * s, ha + 0.2, (a.y + a.h / 2 - H / 2) * s);
+      const end = new THREE.Vector3((b.x + b.w / 2 - W / 2) * s, hb + 0.2, (b.y + b.h / 2 - H / 2) * s);
+      const mid = start.clone().add(end).multiplyScalar(0.5); mid.y += start.distanceTo(end) * 0.22 + 0.8;
+      const tube = new THREE.Mesh(
+        new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(start, mid, end), 24, 0.09, 7, false),
+        new THREE.MeshStandardMaterial({ color: cn.kind === 'conveyor' ? 0x7c3aed : cn.kind === 'return' ? 0x94a3b8 : 0x3b82f6, roughness: 0.4 }),
+      );
+      (conns ?? blocks).add(tube);
+    });
+    applyLayersRef.current();
+  }, [data]);
+
+  // ---- (re)build the equipment/asset group ----
+  const rebuildAssets = useCallback(() => {
+    const group = assetsGroupRef.current; const ctx = ctxRef.current;
+    if (!group || !ctx) return;
+    while (group.children.length) { const o = group.children[group.children.length - 1]; group.remove(o); disposeObject(o); }
+    groupByAssetRef.current = new Map();
+    const { s, W, H } = ctx;
+    assetsRef.current.forEach((a) => {
+      const isSel = selRef.current.some((s) => s.type === 'asset' && s.id === a.id);
+      const g = buildAssetGroup(a, s, W, H, isSel);
+      group.add(g);
+      groupByAssetRef.current.set(a.id, g);
+    });
+  }, []);
+
+  // ---- (re)build the dimension/cota overlay (preserves the live preview line) ----
+  const rebuildDims = useCallback(() => {
+    const group = dimsGroupRef.current; const ctx = ctxRef.current;
+    if (!group || !ctx) return;
+    const preview = previewLineRef.current;
+    for (let i = group.children.length - 1; i >= 0; i--) {
+      const o = group.children[i];
+      if (o === preview) continue;
+      group.remove(o); disposeObject(o);
+    }
+    const { s, W, H } = ctx;
+    const unit = data?.footprint.unit || 'mm';
+    annotationsRef.current.forEach((a) => {
+      if (a.type !== 'dim') return;
+      buildDim(a, s, W, H, unit).forEach((o) => group.add(o));
+    });
+    if (preview && !group.children.includes(preview)) group.add(preview);
+  }, [data]);
+
+  // ---- (re)build the free-text notes overlay ----
+  const rebuildNotes = useCallback(() => {
+    const group = notesGroupRef.current; const ctx = ctxRef.current;
+    if (!group || !ctx) return;
+    while (group.children.length) { const o = group.children[group.children.length - 1]; group.remove(o); disposeObject(o); }
+    const { s, W, H } = ctx;
+    annotationsRef.current.forEach((a) => {
+      if (a.type !== 'text' || !a.text) return;
+      const lab = makeNoteLabel(a.text);
+      lab.position.set((a.x - W / 2) * s, 1.2, (a.y - H / 2) * s);
+      lab.userData.noteId = a.id;
+      group.add(lab);
+    });
+  }, []);
+
+  // ---- (re)build the read-only DXF floor-plan overlay (lines on the floor) ----
+  const rebuildDxf = useCallback(() => {
+    const group = dxfGroupRef.current; const ctx = ctxRef.current;
+    if (!group || !ctx) return;
+    while (group.children.length) { const o = group.children[group.children.length - 1]; group.remove(o); disposeObject(o); }
+    const model = dxfModelRef.current; const meta = dxfMetaRef.current;
+    if (!model || !meta) return;
+    group.visible = layersRef.current.dxf && meta.visible !== false;
+    const { s, W, H } = ctx;
+    const { scale, offsetX: ox, offsetY: oy } = meta;
+    const cx = (model.width * scale) / 2 + ox, cy = (model.height * scale) / 2 + oy; // rotation pivot (world)
+    const rad = ((meta.rotation || 0) * Math.PI) / 180, cos = Math.cos(rad), sin = Math.sin(rad);
+    const mat3 = new THREE.LineBasicMaterial({ color: 0x64748b, transparent: true, opacity: Math.min(1, Math.max(0.15, meta.opacity ?? 0.6)) });
+    model.polylines.forEach((flat) => {
+      const pts: THREE.Vector3[] = [];
+      for (let i = 0; i + 1 < flat.length; i += 2) {
+        const wx0 = flat[i] * scale + ox, wy0 = flat[i + 1] * scale + oy;
+        const dx = wx0 - cx, dy = wy0 - cy;
+        const wx = cx + dx * cos - dy * sin, wy = cy + dx * sin + dy * cos; // footprint world coords
+        pts.push(new THREE.Vector3((wx - W / 2) * s, 0.045, (wy - H / 2) * s));
+      }
+      if (pts.length >= 2) group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat3));
+    });
+  }, []);
+  useEffect(() => { rebuildDxfRef.current = rebuildDxf; }, [rebuildDxf]);
+
+  // ---- occupancy heat-map: paint the floor by zone density (Fase 51) ----
+  // Reuses the density grid (Fase 48) and the same rose intensity ramp as the 2D
+  // panel, so a packed corner glows solid and dead floor stays bare.
+  const buildHeatTiles = useCallback((grid: number[][]) => {
+    const group = heatGroupRef.current; const ctx = ctxRef.current;
+    if (!group || !ctx) return;
+    group.children.slice().forEach((c) => {
+      group.remove(c);
+      const m = c as THREE.Mesh;
+      m.geometry?.dispose?.();
+      (m.material as THREE.Material)?.dispose?.();
+    });
+    const { s, W, H } = ctx;
+    const rows = grid.length; const cols = grid[0]?.length ?? 0;
+    if (!rows || !cols) return;
+    const cw = W / cols, ch = H / rows; // footprint units per cell
+    const rose = new THREE.Color(0xf43f5e);
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const pct = grid[r][c];
+        if (pct < 1) continue; // bare floor stays bare
+        const t = Math.min(1, pct / 100);
+        const plane = new THREE.Mesh(
+          new THREE.PlaneGeometry(cw * s * 0.92, ch * s * 0.92),
+          new THREE.MeshBasicMaterial({ color: rose, transparent: true, opacity: 0.12 + 0.6 * t, depthWrite: false }),
+        );
+        plane.rotation.x = -Math.PI / 2;
+        plane.position.set(((c + 0.5) * cw - W / 2) * s, 0.05, ((r + 0.5) * ch - H / 2) * s);
+        group.add(plane);
+      }
+    }
+  }, []);
+
+  const loadHeat = useCallback(async () => {
+    try {
+      const r = await apiFetch(`${API_BASE}/line-engineering/layout/density?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`);
+      if (!r.ok) return;
+      const d = (await r.json()) as { grid?: number[][] };
+      buildHeatTiles(d.grid ?? []);
+    } catch {
+      /* heat-map is a non-critical overlay — ignore fetch errors */
+    }
+  }, [model, revision, buildHeatTiles]);
+
+  useEffect(() => { loadHeatRef.current = loadHeat; }, [loadHeat]);
+  // Toggle visibility; lazy-load the grid the first time it's switched on.
+  useEffect(() => {
+    showHeatRef.current = showHeat;
+    const group = heatGroupRef.current;
+    if (!group) return;
+    group.visible = showHeat;
+    if (showHeat && !heatLoadedRef.current) {
+      heatLoadedRef.current = true;
+      loadHeat();
+    }
+  }, [showHeat, loadHeat]);
+
+  // ---- clearance / safety gap markers on the floor (Fase 52) ----
+  // Reuses the clearance analysis (Fase 43): draws a link between each pair of
+  // objects flagged as too close (amber, with the gap) or overlapping (red), so
+  // the safety problems the 2D panel lists become visible in the 3D scene.
+  const buildGapMarkers = useCallback((tightPairs: ClearancePair[], overlaps: ClearancePair[]) => {
+    const group = gapsGroupRef.current; const ctx = ctxRef.current;
+    if (!group || !ctx) return;
+    group.children.slice().forEach((c) => {
+      group.remove(c);
+      const m = c as THREE.Mesh;
+      m.geometry?.dispose?.();
+      const mat = m.material as THREE.Material | THREE.Material[] | undefined;
+      if (Array.isArray(mat)) mat.forEach((x) => x?.dispose?.()); else mat?.dispose?.();
+    });
+    const { s, W, H } = ctx;
+    const centerOf = (id: string): { cx: number; cy: number } | null => {
+      const p = placementsRef.current.get(id);
+      if (p) return { cx: p.x + p.w / 2, cy: p.y + p.h / 2 };
+      const a = assetsRef.current.get(id);
+      if (a) return { cx: a.x + a.w / 2, cy: a.y + a.h / 2 };
+      return null;
+    };
+    const y = 0.08;
+    const draw = (pair: ClearancePair, color: number, withLabel: boolean) => {
+      const ca = centerOf(pair.a); const cb = centerOf(pair.b);
+      if (!ca || !cb) return;
+      const ax = (ca.cx - W / 2) * s, az = (ca.cy - H / 2) * s;
+      const bx = (cb.cx - W / 2) * s, bz = (cb.cy - H / 2) * s;
+      group.add(new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(ax, y, az), new THREE.Vector3(bx, y, bz)]),
+        new THREE.LineBasicMaterial({ color }),
+      ));
+      [[ax, az], [bx, bz]].forEach(([px, pz]) => {
+        const dot = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 10), new THREE.MeshBasicMaterial({ color }));
+        dot.position.set(px, y, pz); group.add(dot);
+      });
+      if (withLabel) {
+        const label = makeLabel(`${Math.round(pair.gap)}`, 0.85);
+        label.position.set((ax + bx) / 2, y + 0.7, (az + bz) / 2);
+        group.add(label);
+      }
+    };
+    overlaps.forEach((p) => draw(p, 0xef4444, false)); // red = overlap (most severe)
+    tightPairs.forEach((p) => draw(p, 0xf59e0b, true)); // amber = too close, with the gap
+  }, []);
+
+  const loadGaps = useCallback(async () => {
+    try {
+      const r = await apiFetch(`${API_BASE}/line-engineering/layout/clearance?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`);
+      if (!r.ok) return;
+      const d = (await r.json()) as { tightPairs?: ClearancePair[]; overlaps?: ClearancePair[] };
+      buildGapMarkers(d.tightPairs ?? [], d.overlaps ?? []);
+    } catch {
+      /* clearance overlay is non-critical — ignore fetch errors */
+    }
+  }, [model, revision, buildGapMarkers]);
+
+  useEffect(() => { loadGapsRef.current = loadGaps; }, [loadGaps]);
+  useEffect(() => {
+    showGapsRef.current = showGaps;
+    const group = gapsGroupRef.current;
+    if (!group) return;
+    group.visible = showGaps;
+    if (showGaps && !gapsLoadedRef.current) {
+      gapsLoadedRef.current = true;
+      loadGaps();
+    }
+  }, [showGaps, loadGaps]);
+
+  const rebuildAll = useCallback(() => { rebuildBlocks(); rebuildAssets(); rebuildDims(); rebuildNotes(); }, [rebuildBlocks, rebuildAssets, rebuildDims, rebuildNotes]);
+
+  // ---- undo / redo (memento of the editable collections) ----
+  const snapshot = useCallback((): Snapshot => ({
+    placements: [...placementsRef.current.entries()].map(([id, p]) => [id, { ...p }]),
+    assets: [...assetsRef.current.values()].map((a) => ({ ...a })),
+    annotations: [...annotationsRef.current.values()].map((a) => ({ ...a })),
+    connectors: connectorsRef.current.map((c) => ({ ...c })),
+  }), []);
+  const pushHistory = useCallback(() => {
+    undoStackRef.current.push(snapshot());
+    if (undoStackRef.current.length > 80) undoStackRef.current.shift();
+    redoStackRef.current = [];
+    setHist({ undo: undoStackRef.current.length, redo: 0 });
+  }, [snapshot]);
+  const restore = useCallback((s: Snapshot) => {
+    placementsRef.current = new Map(s.placements.map(([id, p]) => [id, { ...p }]));
+    assetsRef.current = new Map(s.assets.map((a) => [a.id, { ...a }]));
+    annotationsRef.current = new Map(s.annotations.map((a) => [a.id, { ...a }]));
+    connectorsRef.current = (s.connectors ?? []).map((c) => ({ ...c }));
+    setPlacedIds(new Set(placementsRef.current.keys()));
+    setAssetIds(new Set(assetsRef.current.keys()));
+    setDimCount([...annotationsRef.current.values()].filter((a) => a.type === 'dim').length);
+    // drop any selected items that no longer exist after the restore
+    const kept = selRef.current.filter((c) => c.type === 'station' ? placementsRef.current.has(c.id) : assetsRef.current.has(c.id));
+    selRef.current = kept; setSelList(kept);
+    setSelSnap(kept.length === 1 ? computeSnap(kept[0]) : null);
+    setDirty(true); rebuildAll();
+  }, [computeSnap, rebuildAll]);
+  const undo = useCallback(() => {
+    if (!undoStackRef.current.length) return;
+    redoStackRef.current.push(snapshot());
+    restore(undoStackRef.current.pop()!);
+    setHist({ undo: undoStackRef.current.length, redo: redoStackRef.current.length });
+  }, [snapshot, restore]);
+  const redo = useCallback(() => {
+    if (!redoStackRef.current.length) return;
+    undoStackRef.current.push(snapshot());
+    restore(redoStackRef.current.pop()!);
+    setHist({ undo: undoStackRef.current.length, redo: redoStackRef.current.length });
+  }, [snapshot, restore]);
+
+  // ---- scene lifecycle ----
+  useEffect(() => {
+    const mount = mountRef.current;
+    if (!open || !data || !mount) return;
+    let raf = 0; let disposed = false;
+    const width = mount.clientWidth || 1200;
+    const height = mount.clientHeight || 700;
+    const fp = data.footprint;
+    const W = fp.footprintW || 1; const H = fp.footprintH || 1;
+    const s = 30 / Math.max(W, H);
+    ctxRef.current = { s, W, H };
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0f1e);
+    scene.fog = new THREE.Fog(0x0a0f1e, Math.max(W, H) * s * 1.4, Math.max(W, H) * s * 3.4);
+    sceneRef.current = scene;
+
+    const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 4000);
+    camera.position.set(W * s * 0.45, Math.max(W, H) * s * 0.8, H * s * 1.0 + 10);
+    cameraRef.current = camera;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(width, height);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    rendererRef.current = renderer;
+    mount.appendChild(renderer.domElement);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+    const hemi = new THREE.HemisphereLight(0x9bbcff, 0x1e293b, 0.5); scene.add(hemi);
+    const dir = new THREE.DirectionalLight(0xffffff, 1.15);
+    dir.position.set(W * s * 0.6, Math.max(W, H) * s * 1.2, H * s * 0.4);
+    dir.castShadow = true;
+    const sh = Math.max(W, H) * s;
+    dir.shadow.camera.left = -sh; dir.shadow.camera.right = sh;
+    dir.shadow.camera.top = sh; dir.shadow.camera.bottom = -sh;
+    dir.shadow.camera.near = 0.1; dir.shadow.camera.far = sh * 4;
+    dir.shadow.mapSize.set(2048, 2048);
+    scene.add(dir);
+    dirLightRef.current = dir;
+
+    // floor + grid + footprint outline (grid built by applyTheme so it follows the theme)
+    const deco = new THREE.Group(); scene.add(deco);
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(W * s, H * s),
+      new THREE.MeshStandardMaterial({ color: 0x14203a, roughness: 0.95, metalness: 0.05 }),
+    );
+    ground.rotation.x = -Math.PI / 2; ground.position.y = 0; ground.receiveShadow = true;
+    groundRef.current = ground; deco.add(ground);
+    const gridGroup = new THREE.Group(); deco.add(gridGroup); gridGroupRef.current = gridGroup;
+    // cell floor tints
+    (data.cells ?? []).forEach((c) => {
+      const members = [...placementsRef.current.entries()].filter(([id]) => c.stationIds.includes(id)).map(([, p]) => p);
+      if (!members.length) return;
+      const pad = fp.gridSize || 0;
+      const x0 = Math.min(...members.map((m) => m.x)) - pad, y0 = Math.min(...members.map((m) => m.y)) - pad;
+      const x1 = Math.max(...members.map((m) => m.x + m.w)) + pad, y1 = Math.max(...members.map((m) => m.y + m.h)) + pad;
+      const plane = new THREE.Mesh(
+        new THREE.PlaneGeometry((x1 - x0) * s, (y1 - y0) * s),
+        new THREE.MeshBasicMaterial({ color: new THREE.Color(c.color), transparent: true, opacity: 0.18 }),
+      );
+      plane.rotation.x = -Math.PI / 2;
+      plane.position.set(((x0 + x1) / 2 - W / 2) * s, 0.03, ((y0 + y1) / 2 - H / 2) * s);
+      deco.add(plane);
+    });
+
+    const assetsGroup = new THREE.Group(); scene.add(assetsGroup); assetsGroupRef.current = assetsGroup;
+    const connsGroup = new THREE.Group(); scene.add(connsGroup); connsGroupRef.current = connsGroup;
+    const dimsGroup = new THREE.Group(); scene.add(dimsGroup); dimsGroupRef.current = dimsGroup;
+    const previewLine = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
+      new THREE.LineBasicMaterial({ color: 0xfcd34d }),
+    );
+    previewLine.visible = false; previewLineRef.current = previewLine; dimsGroup.add(previewLine);
+    // Snap-to-underlay marker — a flat ring that lights up on a DXF snap target.
+    // Added to the scene (not dimsGroup) so dim rebuilds never dispose it.
+    const snapMarker = new THREE.Mesh(
+      new THREE.RingGeometry(0.16, 0.28, 24),
+      new THREE.MeshBasicMaterial({ color: 0x34d399, transparent: true, opacity: 0.95, side: THREE.DoubleSide, depthTest: false }),
+    );
+    snapMarker.rotation.x = -Math.PI / 2; snapMarker.renderOrder = 999; snapMarker.visible = false;
+    snapMarkerRef.current = snapMarker; scene.add(snapMarker);
+    const notesGroup = new THREE.Group(); scene.add(notesGroup); notesGroupRef.current = notesGroup;
+    const dxfGroup = new THREE.Group(); scene.add(dxfGroup); dxfGroupRef.current = dxfGroup;
+    const heatGroup = new THREE.Group(); heatGroup.visible = showHeatRef.current; scene.add(heatGroup); heatGroupRef.current = heatGroup; heatLoadedRef.current = false;
+    if (showHeatRef.current) { heatLoadedRef.current = true; loadHeatRef.current(); }
+    const gapsGroup = new THREE.Group(); gapsGroup.visible = showGapsRef.current; scene.add(gapsGroup); gapsGroupRef.current = gapsGroup; gapsLoadedRef.current = false;
+    if (showGapsRef.current) { gapsLoadedRef.current = true; loadGapsRef.current(); }
+    const guidesGroup = new THREE.Group(); scene.add(guidesGroup); guidesGroupRef.current = guidesGroup;
+    const blocks = new THREE.Group(); scene.add(blocks); blocksRef.current = blocks;
+    rebuildAssets();
+    rebuildDims();
+    rebuildNotes();
+    rebuildDxf();
+    rebuildBlocks();
+    applyTheme();
+    applyLayers();
+    applySun();
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true; controls.dampingFactor = 0.1;
+    controls.maxPolarAngle = Math.PI / 2.05;
+    controls.target.set(0, 0, 0); controls.update();
+    controlsRef.current = controls;
+
+    // ---- drag a station block or an asset on the floor ----
+    const raycaster = new THREE.Raycaster();
+    const ptr = new THREE.Vector2();
+    const floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    const hit = new THREE.Vector3();
+    let drag: { lead: SelItem; items: SelItem[]; grabDX: number; grabDZ: number; start: Map<string, { x: number; y: number }>; xEdges: number[]; yEdges: number[] } | null = null;
+    // Snap a moving box's edges/centre to other objects' edges/centres + the
+    // footprint, returning the offset to apply and the world axis to draw a guide.
+    const snap1D = (lo: number, len: number, edges: number[], tol: number): { off: number; axis: number } | null => {
+      const pts = [lo, lo + len / 2, lo + len];
+      let best: { off: number; axis: number; d: number } | null = null;
+      for (const p of pts) for (const ed of edges) {
+        const d = Math.abs(p - ed);
+        if (d <= tol && (!best || d < best.d)) best = { off: ed - p, axis: ed, d };
+      }
+      return best ? { off: best.off, axis: best.axis } : null;
+    };
+    const setGuides = (vx: number | null, hy: number | null) => {
+      const grp = guidesGroupRef.current; const ctx = ctxRef.current;
+      if (!grp || !ctx) return;
+      grp.children.slice().forEach((c) => { grp.remove(c); (c as THREE.Line).geometry?.dispose?.(); });
+      const { s, W, H } = ctx; const yy = 0.06;
+      const mat = () => new THREE.LineBasicMaterial({ color: 0x22d3ee });
+      if (vx !== null) {
+        const x = (vx - W / 2) * s;
+        grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x, yy, (-H / 2) * s), new THREE.Vector3(x, yy, (H / 2) * s)]), mat()));
+      }
+      if (hy !== null) {
+        const z = (hy - H / 2) * s;
+        grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3((-W / 2) * s, yy, z), new THREE.Vector3((W / 2) * s, yy, z)]), mat()));
+      }
+    };
+    let downX = 0, downY = 0;
+    let dragMoved = false;
+    let dragSnap: Snapshot | null = null;
+    const unit = data.footprint.unit || 'mm';
+
+    const resolveAssetId = (o: THREE.Object3D | null): string | null => {
+      let cur: THREE.Object3D | null = o;
+      while (cur) { if (cur.userData?.assetId) return cur.userData.assetId as string; cur = cur.parent; }
+      return null;
+    };
+    const getPlace = (it: SelItem) => (it.type === 'station' ? placementsRef.current.get(it.id) : assetsRef.current.get(it.id));
+    // Move an item's three.js object to match its current placement (no rebuild).
+    const repositionItem = (it: SelItem) => {
+      const ctx = ctxRef.current!; const p = getPlace(it); if (!p) return;
+      const ncx = (p.x + p.w / 2 - ctx.W / 2) * ctx.s, ncz = (p.y + p.h / 2 - ctx.H / 2) * ctx.s;
+      if (it.type === 'station') {
+        const mesh = meshByIdRef.current.get(it.id); if (mesh) { mesh.position.x = ncx; mesh.position.z = ncz; }
+        const lab = blocks.children.find((o) => (o as THREE.Sprite).userData?.labelFor === it.id);
+        if (lab) { lab.position.x = ncx; lab.position.z = ncz; }
+      } else {
+        const g = groupByAssetRef.current.get(it.id); if (g) { g.position.x = ncx; g.position.z = ncz; }
+      }
+    };
+    const eyeY = Math.max(W, H) * s * 0.06;
+    let walkLook = false, lookX = 0, lookY = 0;
+    const setPtr = (e: PointerEvent) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      ptr.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      ptr.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    };
+    /** World (x,y) of the floor point under the pointer, or null. */
+    const floorWorld = (e: PointerEvent): { wx: number; wy: number } | null => {
+      setPtr(e); raycaster.setFromCamera(ptr, camera);
+      if (!raycaster.ray.intersectPlane(floorPlane, hit)) return null;
+      const ctx = ctxRef.current!;
+      return { wx: hit.x / ctx.s + ctx.W / 2, wy: hit.z / ctx.s + ctx.H / 2 };
+    };
+    /**
+     * Snap a raw floor point to the nearest DXF underlay target (object-snap to
+     * underlay) when osnap is on and a plan is loaded; otherwise grid-snap. (Fase 60)
+     */
+    const snapFloor = (wx: number, wy: number): { wx: number; wy: number; onDxf: boolean } => {
+      const ctx = ctxRef.current!;
+      if (osnapRef.current && dxfSnapRef.current.length) {
+        const tol = Math.max(ctx.W, ctx.H) * 0.012;
+        const hit = nearestSnapPoint(dxfSnapRef.current, wx, wy, tol);
+        if (hit) return { wx: hit.x, wy: hit.y, onDxf: true };
+      }
+      return { wx: snapWorld(wx), wy: snapWorld(wy), onDxf: false };
+    };
+    const showSnapMarker = (wx: number | null, wy?: number) => {
+      const m = snapMarkerRef.current; const ctx = ctxRef.current; if (!m || !ctx) return;
+      if (wx === null || wy === undefined) { m.visible = false; return; }
+      m.position.set((wx - ctx.W / 2) * ctx.s, 0.07, (wy - ctx.H / 2) * ctx.s);
+      m.visible = true;
+    };
+    const onDown = (e: PointerEvent) => {
+      downX = e.clientX; downY = e.clientY;
+      if (walkRef.current) { walkLook = true; lookX = e.clientX; lookY = e.clientY; renderer.domElement.setPointerCapture(e.pointerId); return; }
+      if (toolRef.current !== 'select') return; // measure/wall resolve on click (pointerup); drag still orbits
+      setPtr(e); raycaster.setFromCamera(ptr, camera);
+      // clicking a dimension label removes that cota
+      const dimHit = raycaster.intersectObjects(dimsGroup.children, false).find((h) => (h.object as THREE.Sprite).userData?.dimId);
+      if (dimHit) {
+        const id = (dimHit.object as THREE.Sprite).userData.dimId as string;
+        pushHistory();
+        annotationsRef.current.delete(id);
+        setDimCount([...annotationsRef.current.values()].filter((x) => x.type === 'dim').length);
+        setDirty(true); rebuildDims(); toast.success('Cota eliminada.', '3D');
+        return;
+      }
+      // clicking a text note removes it
+      const noteHit = raycaster.intersectObjects(notesGroup.children, false).find((h) => (h.object as THREE.Sprite).userData?.noteId);
+      if (noteHit) {
+        const id = (noteHit.object as THREE.Sprite).userData.noteId as string;
+        pushHistory();
+        annotationsRef.current.delete(id);
+        setDirty(true); rebuildNotes(); toast.success('Nota eliminada.', '3D');
+        return;
+      }
+      const stationHits = raycaster.intersectObjects(blocks.children, false)
+        .filter((h) => (h.object as THREE.Mesh).userData?.stationId)
+        .map((h) => ({ d: h.distance, type: 'station' as const, id: (h.object as THREE.Mesh).userData.stationId as string, obj: h.object }));
+      const assetHits = raycaster.intersectObjects(assetsGroup.children, true)
+        .map((h) => ({ d: h.distance, id: resolveAssetId(h.object) }))
+        .filter((h) => h.id)
+        .map((h) => ({ d: h.d, type: 'asset' as const, id: h.id as string, obj: groupByAssetRef.current.get(h.id as string)! }));
+      const all = [...stationHits, ...assetHits].sort((a, b) => a.d - b.d);
+      if (all.length) {
+        const top = all[0];
+        const item: SelItem = { type: top.type, id: top.id };
+        // Shift+click toggles membership without starting a drag
+        if (e.shiftKey) {
+          const exists = selRef.current.some((s) => sameSel(s, item));
+          select(exists ? selRef.current.filter((s) => !sameSel(s, item)) : [...selRef.current, item]);
+          rebuildAll();
+          return;
+        }
+        const inSel = selRef.current.some((s) => sameSel(s, item));
+        const items = inSel && selRef.current.length > 1 ? [...selRef.current] : [item];
+        if (!inSel) select([item]);
+        raycaster.ray.intersectPlane(floorPlane, hit);
+        const start = new Map<string, { x: number; y: number }>();
+        items.forEach((it) => { const p = getPlace(it); if (p) start.set(`${it.type}:${it.id}`, { x: p.x, y: p.y }); });
+        // Collect alignment candidates from every OTHER object + the footprint.
+        const ctxD = ctxRef.current!;
+        const excl = new Set(items.map((it) => `${it.type}:${it.id}`));
+        const xEdges: number[] = [0, ctxD.W / 2, ctxD.W];
+        const yEdges: number[] = [0, ctxD.H / 2, ctxD.H];
+        placementsRef.current.forEach((p, id) => {
+          if (excl.has(`station:${id}`)) return;
+          xEdges.push(p.x, p.x + p.w / 2, p.x + p.w); yEdges.push(p.y, p.y + p.h / 2, p.y + p.h);
+        });
+        assetsRef.current.forEach((a) => {
+          if (excl.has(`asset:${a.id}`)) return;
+          xEdges.push(a.x, a.x + a.w / 2, a.x + a.w); yEdges.push(a.y, a.y + a.h / 2, a.y + a.h);
+        });
+        drag = { lead: item, items, grabDX: top.obj.position.x - hit.x, grabDZ: top.obj.position.z - hit.z, start, xEdges, yEdges };
+        dragMoved = false; dragSnap = snapshot();
+        controls.enabled = false;
+        rebuildAll();
+        renderer.domElement.setPointerCapture(e.pointerId);
+      } else if (e.button === 0 && !e.shiftKey) {
+        select([]); rebuildAll();
+      }
+    };
+    const onMove = (e: PointerEvent) => {
+      if (walkRef.current) {
+        if (!walkLook) return;
+        walkYawRef.current -= (e.clientX - lookX) * 0.005;
+        walkPitchRef.current = Math.max(-1.3, Math.min(1.3, walkPitchRef.current - (e.clientY - lookY) * 0.005));
+        lookX = e.clientX; lookY = e.clientY;
+        return;
+      }
+      if (toolRef.current === 'measure' || toolRef.current === 'wall') {
+        const w = floorWorld(e); if (!w) { showSnapMarker(null); return; }
+        const s = snapFloor(w.wx, w.wy); // snap the live endpoint to the underlay
+        showSnapMarker(s.onDxf ? s.wx : null, s.wy);
+        const a = toolRef.current === 'measure' ? measureARef.current : wallChainRef.current;
+        if (!a) return; // marker shown for the first point; wait for the anchor to draw a segment
+        const ctx = ctxRef.current!;
+        const ax = (a.wx - ctx.W / 2) * ctx.s, az = (a.wy - ctx.H / 2) * ctx.s;
+        const ex = (s.wx - ctx.W / 2) * ctx.s, ez = (s.wy - ctx.H / 2) * ctx.s;
+        const pl = previewLineRef.current;
+        if (pl) { (pl.geometry as THREE.BufferGeometry).setFromPoints([new THREE.Vector3(ax, 0.06, az), new THREE.Vector3(ex, 0.06, ez)]); pl.visible = true; }
+        const dist = Math.hypot(s.wx - a.wx, s.wy - a.wy);
+        const tag = s.onDxf ? ' · plano' : '';
+        if (toolRef.current === 'wall') {
+          const deg = (((Math.atan2(s.wy - a.wy, s.wx - a.wx) * 180) / Math.PI) % 360 + 360) % 360;
+          setMeasureLive(`${fmtDist(dist, unit)} · ${Math.round(deg)}°${tag}`);
+        } else setMeasureLive(`${fmtDist(dist, unit)}${tag}`);
+        return;
+      }
+      if (!drag) return;
+      setPtr(e); raycaster.setFromCamera(ptr, camera);
+      if (!raycaster.ray.intersectPlane(floorPlane, hit)) return;
+      const ctx = ctxRef.current!;
+      const leadP = getPlace(drag.lead); const startLead = drag.start.get(`${drag.lead.type}:${drag.lead.id}`);
+      if (!leadP || !startLead) return;
+      const worldCX = (hit.x + drag.grabDX) / ctx.s + ctx.W / 2;
+      const worldCY = (hit.z + drag.grabDZ) / ctx.s + ctx.H / 2;
+      // group delta from the lead's snapped position, clamped so all stay in bounds
+      let targetX = snapWorld(worldCX - leadP.w / 2);
+      let targetY = snapWorld(worldCY - leadP.h / 2);
+      // Object snap: align the lead's edges/centre to other objects + the footprint.
+      let gvx: number | null = null, ghy: number | null = null;
+      if (osnapRef.current && drag.xEdges) {
+        const tol = Math.max(ctx.W, ctx.H) * 0.012;
+        const sx = snap1D(targetX, leadP.w, drag.xEdges, tol);
+        if (sx) { targetX += sx.off; gvx = sx.axis; }
+        const sy = snap1D(targetY, leadP.h, drag.yEdges, tol);
+        if (sy) { targetY += sy.off; ghy = sy.axis; }
+      }
+      setGuides(gvx, ghy);
+      let dx = targetX - startLead.x;
+      let dy = targetY - startLead.y;
+      let dxLo = -Infinity, dxHi = Infinity, dyLo = -Infinity, dyHi = Infinity;
+      drag.items.forEach((it) => {
+        const sp = drag!.start.get(`${it.type}:${it.id}`); const pp = getPlace(it); if (!sp || !pp) return;
+        dxLo = Math.max(dxLo, -sp.x); dxHi = Math.min(dxHi, ctx.W - pp.w - sp.x);
+        dyLo = Math.max(dyLo, -sp.y); dyHi = Math.min(dyHi, ctx.H - pp.h - sp.y);
+      });
+      dx = Math.min(Math.max(dx, dxLo), dxHi); dy = Math.min(Math.max(dy, dyLo), dyHi);
+      if (dx !== 0 || dy !== 0) dragMoved = true;
+      drag.items.forEach((it) => {
+        const sp = drag!.start.get(`${it.type}:${it.id}`); const pp = getPlace(it); if (!sp || !pp) return;
+        pp.x = sp.x + dx; pp.y = sp.y + dy; repositionItem(it);
+      });
+    };
+    const onUp = (e: PointerEvent) => {
+      if (walkRef.current) { walkLook = false; try { renderer.domElement.releasePointerCapture(e.pointerId); } catch { /* ignore */ } return; }
+      const isClick = Math.hypot(e.clientX - downX, e.clientY - downY) < 5;
+      if (toolRef.current === 'measure') {
+        if (isClick) {
+          const w = floorWorld(e);
+          if (w) {
+            const sp = snapFloor(w.wx, w.wy);
+            const pt = { wx: sp.wx, wy: sp.wy };
+            if (!measureARef.current) { measureARef.current = pt; setMeasureLive(fmtDist(0, unit)); }
+            else {
+              const a = measureARef.current;
+              if (Math.hypot(pt.wx - a.wx, pt.wy - a.wy) > 1) {
+                pushHistory();
+                const id = newId('dim');
+                annotationsRef.current.set(id, { id, type: 'dim', x: a.wx, y: a.wy, x2: pt.wx, y2: pt.wy });
+                setDimCount([...annotationsRef.current.values()].filter((x) => x.type === 'dim').length);
+                setDirty(true); rebuildDims();
+              }
+              measureARef.current = null; setMeasureLive(null);
+              if (previewLineRef.current) previewLineRef.current.visible = false;
+            }
+          }
+        }
+        try { renderer.domElement.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+        return;
+      }
+      if (toolRef.current === 'wall') {
+        if (isClick) {
+          const w = floorWorld(e);
+          if (w) {
+            const sp = snapFloor(w.wx, w.wy);
+            let pt = { wx: sp.wx, wy: sp.wy };
+            const prev = wallChainRef.current;
+            // hold Shift to constrain to 45° — but an explicit DXF snap wins (you
+            // clicked that point on the plan, so honour it over the angle lock).
+            if (prev && e.shiftKey && !sp.onDxf) {
+              const len0 = Math.hypot(pt.wx - prev.wx, pt.wy - prev.wy);
+              const ang = Math.round(Math.atan2(pt.wy - prev.wy, pt.wx - prev.wx) / (Math.PI / 4)) * (Math.PI / 4);
+              pt = { wx: Math.round(prev.wx + Math.cos(ang) * len0), wy: Math.round(prev.wy + Math.sin(ang) * len0) };
+            }
+            if (prev && Math.hypot(pt.wx - prev.wx, pt.wy - prev.wy) > 1) {
+              const thick = assetMeta('wall').h;
+              const len = Math.hypot(pt.wx - prev.wx, pt.wy - prev.wy);
+              const cx = (prev.wx + pt.wx) / 2, cy = (prev.wy + pt.wy) / 2;
+              const angle = (Math.atan2(pt.wy - prev.wy, pt.wx - prev.wx) * 180) / Math.PI;
+              pushHistory();
+              const id = newId('as');
+              assetsRef.current.set(id, { id, kind: 'wall', x: cx - len / 2, y: cy - thick / 2, w: len, h: thick, rotation: angle });
+              setAssetIds((s) => new Set(s).add(id));
+              setDirty(true); rebuildAssets();
+            }
+            wallChainRef.current = pt; setMeasureLive(fmtDist(0, unit));
+          }
+        }
+        try { renderer.domElement.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+        return;
+      }
+      if (drag) {
+        if (dragMoved && dragSnap) {
+          undoStackRef.current.push(dragSnap);
+          if (undoStackRef.current.length > 80) undoStackRef.current.shift();
+          redoStackRef.current = [];
+          setHist({ undo: undoStackRef.current.length, redo: 0 });
+          setDirty(true);
+        }
+        drag = null; dragSnap = null; controls.enabled = true; setGuides(null, null); refreshSnap(); rebuildAll();
+      }
+      try { renderer.domElement.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+    };
+    renderer.domElement.addEventListener('pointerdown', onDown);
+    renderer.domElement.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+
+    // WASD movement while walking
+    const onWalkKey = (down: boolean) => (e: KeyboardEvent) => {
+      if (!walkRef.current) return;
+      const k = walkKeysRef.current; const key = e.key.toLowerCase();
+      if (key === 'w') k.f = down; else if (key === 's') k.b = down; else if (key === 'a') k.l = down; else if (key === 'd') k.r = down; else return;
+      e.preventDefault();
+    };
+    const walkKd = onWalkKey(true), walkKu = onWalkKey(false);
+    window.addEventListener('keydown', walkKd);
+    window.addEventListener('keyup', walkKu);
+
+    const onResize = () => {
+      const w = mount.clientWidth || width; const hh = mount.clientHeight || height;
+      renderer.setSize(w, hh); camera.aspect = w / hh; camera.updateProjectionMatrix();
+    };
+    const ro = new ResizeObserver(onResize); ro.observe(mount);
+
+    const animate = () => {
+      if (disposed) return;
+      if (walkRef.current) {
+        const yaw = walkYawRef.current, pitch = walkPitchRef.current, k = walkKeysRef.current;
+        const sp = Math.max(W, H) * s * 0.006;
+        const fx = Math.sin(yaw), fz = -Math.cos(yaw); // forward (flat); rx,rz = right
+        const rx = -fz, rz = fx;
+        if (k.f) { camera.position.x += fx * sp; camera.position.z += fz * sp; }
+        if (k.b) { camera.position.x -= fx * sp; camera.position.z -= fz * sp; }
+        if (k.l) { camera.position.x -= rx * sp; camera.position.z -= rz * sp; }
+        if (k.r) { camera.position.x += rx * sp; camera.position.z += rz * sp; }
+        const lim = Math.max(W, H) * s * 0.62;
+        camera.position.x = Math.max(-lim, Math.min(lim, camera.position.x));
+        camera.position.z = Math.max(-lim, Math.min(lim, camera.position.z));
+        camera.position.y = eyeY;
+        camera.lookAt(camera.position.x + Math.sin(yaw) * Math.cos(pitch), camera.position.y + Math.sin(pitch), camera.position.z - Math.cos(yaw) * Math.cos(pitch));
+      } else {
+        controls.update();
+      }
+      renderer.render(scene, camera);
+      raf = requestAnimationFrame(animate);
+    };
+    animate();
+
+    return () => {
+      disposed = true; cancelAnimationFrame(raf);
+      ro.disconnect();
+      renderer.domElement.removeEventListener('pointerdown', onDown);
+      renderer.domElement.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('keydown', walkKd);
+      window.removeEventListener('keyup', walkKu);
+      controls.dispose();
+      disposeObject(scene);
+      renderer.dispose();
+      if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
+      sceneRef.current = null; rendererRef.current = null; cameraRef.current = null;
+      blocksRef.current = null; assetsGroupRef.current = null; controlsRef.current = null;
+      dimsGroupRef.current = null; previewLineRef.current = null; snapMarkerRef.current = null;
+      connsGroupRef.current = null; gridGroupRef.current = null; groundRef.current = null; gridHelperRef.current = null;
+      dirLightRef.current = null; notesGroupRef.current = null; dxfGroupRef.current = null;
+      heatGroupRef.current = null; heatLoadedRef.current = false;
+      gapsGroupRef.current = null; gapsLoadedRef.current = false;
+      guidesGroupRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, data]);
+
+  // selection highlight refresh
+  useEffect(() => { if (open && data) rebuildAll(); }, [selList, open, data, rebuildAll]);
+
+  // cancels any half-drawn cota or wall chain (called when leaving a draw tool)
+  const endDraw = useCallback(() => {
+    measureARef.current = null; wallChainRef.current = null; setMeasureLive(null);
+    if (previewLineRef.current) previewLineRef.current.visible = false;
+    if (snapMarkerRef.current) snapMarkerRef.current.visible = false;
+  }, []);
+  const setToolMode = useCallback((next: 'select' | 'measure' | 'wall') => {
+    setTool((prev) => {
+      const t = prev === next && next !== 'select' ? 'select' : next;
+      toolRef.current = t;
+      if (t === 'select') endDraw();
+      else { endDraw(); select([]); }
+      return t;
+    });
+  }, [endDraw, select]);
+  const toggleMeasure = useCallback(() => setToolMode('measure'), [setToolMode]);
+  const toggleWall = useCallback(() => setToolMode('wall'), [setToolMode]);
+  // Live quantity take-off from the current (possibly unsaved) editor state.
+  const openTakeoff = useCallback(() => {
+    const fp = data?.footprint; if (!fp) return;
+    const placements = [...placementsRef.current.values()];
+    const stationArea = placements.reduce((a, p) => a + p.w * p.h, 0);
+    const assets = [...assetsRef.current.values()];
+    const map = new Map<string, { count: number; area: number }>();
+    let equipArea = 0, wallLen = 0;
+    for (const a of assets) {
+      const area = a.w * a.h;
+      const c = map.get(a.kind) ?? { count: 0, area: 0 };
+      c.count += 1; c.area += area; map.set(a.kind, c);
+      if (a.kind !== 'zone' && a.kind !== 'agvpath') equipArea += area;
+      if (a.kind === 'wall') wallLen += Math.max(a.w, a.h);
+    }
+    const byKind = [...map.entries()]
+      .map(([kind, v]) => ({ kind, label: assetMeta(kind).label, count: v.count, area: v.area }))
+      .sort((p, q) => q.count - p.count || p.label.localeCompare(q.label));
+    const footprintArea = fp.footprintW * fp.footprintH;
+    const usedArea = stationArea + equipArea;
+    setTakeoff({
+      unit: fp.unit || 'mm', footprintArea, totalStations: data!.stations.length,
+      placedStations: placements.length, stationArea, equipmentCount: assets.length,
+      equipArea, usedArea, util: footprintArea > 0 ? Math.min(100, (usedArea / footprintArea) * 100) : 0,
+      wallLen, dimCount: [...annotationsRef.current.values()].filter((a) => a.type === 'dim').length, byKind,
+    });
+  }, [data]);
+
+  // Design-check / validation review of the current (possibly unsaved) state (Fase 63).
+  const openChecks = useCallback(() => {
+    const fp = data?.footprint; if (!fp) return;
+    const stations: CheckBox[] = [];
+    placementsRef.current.forEach((p, id) => {
+      stations.push({ id, label: stationsByIdRef.current.get(id)?.station ?? id, x: p.x, y: p.y, w: p.w, h: p.h });
+    });
+    const assets: CheckBox[] = [];
+    assetsRef.current.forEach((a) => {
+      const arch = assetMeta(a.kind).archetype;
+      if (arch === 'zone' || arch === 'path') return; // floor tints / lanes are meant to be large
+      assets.push({ id: a.id, label: a.label || assetMeta(a.kind).label, x: a.x, y: a.y, w: a.w, h: a.h });
+    });
+    const unplaced = Math.max(0, (data?.stations.length ?? 0) - placementsRef.current.size);
+    setReport(designChecks({ stations, assets, unplacedStations: unplaced, footprintW: fp.footprintW, footprintH: fp.footprintH, connectors: connectorsRef.current }));
+  }, [data]);
+
+  // Resize the plant footprint / grid from the CAD; the scene rebuilds at the
+  // new scale and the change persists on save (objects keep their world coords).
+  const applyFootprint = useCallback(() => {
+    setData((d) => {
+      if (!d) return d;
+      const w = Math.max(1000, Math.round(fpDraft.w) || d.footprint.footprintW);
+      const h = Math.max(1000, Math.round(fpDraft.h) || d.footprint.footprintH);
+      const g = Math.max(50, Math.round(fpDraft.g) || d.footprint.gridSize);
+      return { ...d, footprint: { ...d.footprint, footprintW: w, footprintH: h, gridSize: g } };
+    });
+    setDirty(true); setShowView(false);
+  }, [fpDraft]);
+
+  // Add a free-text note at the point the camera is looking at (round-trips 2D).
+  const addNote = () => {
+    const ctx = ctxRef.current; const ctrl = controlsRef.current; if (!ctx) return;
+    const text = (typeof window !== 'undefined' ? window.prompt('Texto de la nota:') : '')?.trim();
+    if (!text) return;
+    const tx = ctrl ? ctrl.target.x / ctx.s + ctx.W / 2 : ctx.W / 2;
+    const ty = ctrl ? ctrl.target.z / ctx.s + ctx.H / 2 : ctx.H / 2;
+    pushHistory();
+    const id = newId('nt');
+    annotationsRef.current.set(id, {
+      id, type: 'text', text: text.slice(0, 240),
+      x: Math.max(0, Math.min(ctx.W, snapWorld(tx))),
+      y: Math.max(0, Math.min(ctx.H, snapWorld(ty))),
+    });
+    setDirty(true); rebuildNotes();
+  };
+
+  const clearDims = useCallback(() => {
+    const hasDim = [...annotationsRef.current.values()].some((a) => a.type === 'dim');
+    if (!hasDim) return;
+    pushHistory();
+    annotationsRef.current.forEach((a, id) => { if (a.type === 'dim') annotationsRef.current.delete(id); });
+    setDimCount(0); setDirty(true); rebuildDims();
+  }, [rebuildDims, pushHistory]);
+
+  // ---- actions ----
+  const placeStation = (st: St) => {
+    const ctx = ctxRef.current; if (!ctx || !data) return;
+    pushHistory();
+    const w = Math.round(data.footprint.footprintW * 0.06);
+    const h = Math.round(data.footprint.footprintH * 0.08);
+    const x = snapWorld(ctx.W / 2 - w / 2);
+    const y = snapWorld(ctx.H / 2 - h / 2);
+    placementsRef.current.set(st.id, { x, y, w, h, rotation: 0 });
+    setPlacedIds((prev) => new Set(prev).add(st.id));
+    select([{ type: 'station', id: st.id }]);
+    setDirty(true); rebuildAll();
+  };
+  const addAsset = (kind: string) => {
+    const ctx = ctxRef.current; if (!ctx) return;
+    pushHistory();
+    const def = assetMeta(kind);
+    const x = snapWorld(ctx.W / 2 - def.w / 2);
+    const y = snapWorld(ctx.H / 2 - def.h / 2);
+    const id = newId('as');
+    assetsRef.current.set(id, { id, kind, x, y, w: def.w, h: def.h, rotation: 0 });
+    setAssetIds((prev) => new Set(prev).add(id));
+    select([{ type: 'asset', id }]);
+    setDirty(true); rebuildAll();
+  };
+  const removeSelected = () => {
+    const items = selRef.current; if (!items.length) return;
+    pushHistory();
+    let delSt = false, delAs = false;
+    items.forEach((it) => {
+      if (it.type === 'station') { placementsRef.current.delete(it.id); delSt = true; }
+      else { assetsRef.current.delete(it.id); delAs = true; }
+    });
+    if (delSt) setPlacedIds(new Set(placementsRef.current.keys()));
+    if (delAs) setAssetIds(new Set(assetsRef.current.keys()));
+    select([]); setDirty(true); rebuildAll();
+  };
+  const rotateSelected = (deg: number) => {
+    const items = selRef.current; if (!items.length) return;
+    pushHistory();
+    items.forEach((it) => { const p = getPlaceRef(it); if (p) p.rotation = (((p.rotation + deg) % 360) + 360) % 360; });
+    setDirty(true); refreshSnap(); rebuildAll();
+  };
+  const duplicateSelected = () => {
+    const assets = selRef.current.filter((s) => s.type === 'asset');
+    if (!assets.length) return;
+    const ctx = ctxRef.current!;
+    const off = data?.footprint.gridSize || 200;
+    pushHistory();
+    const created: SelItem[] = [];
+    assets.forEach((it) => {
+      const src = assetsRef.current.get(it.id); if (!src) return;
+      const id = newId('as');
+      assetsRef.current.set(id, { ...src, id, x: Math.max(0, Math.min(ctx.W - src.w, src.x + off)), y: Math.max(0, Math.min(ctx.H - src.h, src.y + off)) });
+      created.push({ type: 'asset', id });
+    });
+    setAssetIds(new Set(assetsRef.current.keys()));
+    if (created.length) select(created);
+    setDirty(true); rebuildAll();
+  };
+  // ---- array / mirror / offset of the selected equipment (Fase 55) ----
+  // Stations can't be cloned (they're tied to routing), so these act on assets.
+  const commitCreated = (created: SelItem[], msg: string) => {
+    setAssetIds(new Set(assetsRef.current.keys()));
+    if (created.length) { select(created); setDirty(true); rebuildAll(); toast.success(`${created.length} ${msg}`, '3D'); }
+  };
+  // ---- trace the DXF backdrop into editable walls (Fase 58) ----
+  // Turns the read-only plan behind the layout into real `wall` assets placed
+  // exactly over it — the leap from "drawing on top of a plan" to editing it.
+  const importDxfWalls = () => {
+    const dm = dxfModelRef.current; const meta = dxfMetaRef.current;
+    if (!dm || !meta) { toast.error('Primero carga un plano DXF de fondo.', 'DXF'); return; }
+    const { walls, truncated, segmentsConsidered } = dxfToWalls(dm, meta, { thickness: assetMeta('wall').h });
+    if (!walls.length) {
+      toast.error(segmentsConsidered ? 'El plano sólo tiene tramos muy cortos para muros.' : 'El plano no tiene líneas para convertir.', 'DXF');
+      return;
+    }
+    pushHistory();
+    const created: SelItem[] = [];
+    for (const wl of walls) {
+      const id = newId('as');
+      assetsRef.current.set(id, { id, kind: 'wall', x: wl.x, y: wl.y, w: wl.w, h: wl.h, rotation: wl.rotation, label: 'Muro (plano)' });
+      created.push({ type: 'asset', id });
+    }
+    commitCreated(created, truncated ? `muros del plano (recortado a ${walls.length})` : 'muros importados del plano');
+  };
+  // ---- auto-dimension the layout into a measured drawing (Fase 59) ----
+  // Acota lo seleccionado (o todo el layout): medidas generales + cotas
+  // encadenadas centro a centro, fuera del recuadro — un plano acotado de un clic.
+  const autoDimension = () => {
+    const ctx = ctxRef.current; if (!ctx) return;
+    const sel = selRef.current;
+    const boxes: DimBox[] = [];
+    const add = (b: { x: number; y: number; w: number; h: number } | undefined) => { if (b) boxes.push({ x: b.x, y: b.y, w: b.w, h: b.h }); };
+    if (sel.length > 0) {
+      sel.forEach((it) => add(it.type === 'station' ? placementsRef.current.get(it.id) : assetsRef.current.get(it.id)));
+    } else {
+      placementsRef.current.forEach((p) => add(p));
+      assetsRef.current.forEach((a) => add(a));
+    }
+    const fp = data?.footprint;
+    const dims = autoDimensions(
+      { boxes, footprintW: fp?.footprintW ?? ctx.W, footprintH: fp?.footprintH ?? ctx.H, gridSize: fp?.gridSize },
+      {},
+    );
+    if (!dims.length) { toast.error('No hay nada que acotar todavía.', '3D'); return; }
+    pushHistory();
+    for (const d of dims) {
+      const id = newId('dim');
+      annotationsRef.current.set(id, { id, type: 'dim', x: d.x, y: d.y, x2: d.x2, y2: d.y2 });
+    }
+    setDimCount([...annotationsRef.current.values()].filter((a) => a.type === 'dim').length);
+    setDirty(true); rebuildDims();
+    toast.success(`${dims.length} ${dims.length === 1 ? 'cota generada' : 'cotas generadas'}${sel.length ? ' (selección)' : ''}`, '3D');
+  };
+  // ---- auto-arrange the placed stations into a tidy line (Fase 61) ----
+  // Reacomoda las estaciones colocadas, en el orden en que las entrega el modelo
+  // (secuencia de línea), en filas equiespaciadas dentro de la huella.
+  const arrangeLineLayout = () => {
+    const fp = data?.footprint; if (!fp) return;
+    const list: ArrangeStation[] = [];
+    data!.stations.forEach((st, idx) => {
+      const p = placementsRef.current.get(st.id);
+      if (p) list.push({ id: st.id, sequence: idx, w: p.w, h: p.h }); // idx = orden de secuencia del API
+    });
+    if (list.length < 2) { toast.error('Coloca al menos 2 estaciones para acomodar la línea.', '3D'); return; }
+    const pos = arrangeLine({ stations: list, footprintW: fp.footprintW, footprintH: fp.footprintH, gridSize: fp.gridSize }, {});
+    pushHistory();
+    let moved = 0;
+    for (const [id, p] of Object.entries(pos)) {
+      const pl = placementsRef.current.get(id);
+      if (pl) { pl.x = p.x; pl.y = p.y; moved++; }
+    }
+    setDirty(true); rebuildBlocks(); refreshSnap();
+    toast.success(`Línea acomodada — ${moved} ${moved === 1 ? 'estación' : 'estaciones'}`, '3D');
+  };
+  // ---- auto-connect the placed stations in sequence (material flow) (Fase 62) ----
+  // Crea un conector de cada estación a la siguiente en secuencia, fusionando con
+  // los conectores existentes (sin duplicar) — el flujo de la línea de un clic.
+  const connectLineLayout = () => {
+    const list: ConnStation[] = [];
+    data?.stations.forEach((st, idx) => { if (placementsRef.current.has(st.id)) list.push({ id: st.id, sequence: idx }); });
+    if (list.length < 2) { toast.error('Coloca al menos 2 estaciones para conectar la línea.', '3D'); return; }
+    const next = connectLine(list, connectorsRef.current, 'flow');
+    if (next.length === connectorsRef.current.length) { toast.success('La línea ya estaba conectada.', '3D'); return; }
+    const added = next.length - connectorsRef.current.length;
+    pushHistory();
+    connectorsRef.current = next;
+    setDirty(true); rebuildBlocks();
+    toast.success(`Línea conectada — ${added} ${added === 1 ? 'enlace nuevo' : 'enlaces nuevos'}`, '3D');
+  };
+  const arrayAssets = (cols: number, rows: number, gap: number) => {
+    const sel = selRef.current.filter((s) => s.type === 'asset');
+    const c = Math.max(1, Math.min(50, Math.round(cols))), r = Math.max(1, Math.min(50, Math.round(rows)));
+    if (!sel.length || c * r <= 1) return;
+    const ctx = ctxRef.current!; const g = Math.max(0, Math.round(gap) || 0);
+    pushHistory();
+    const created: SelItem[] = [];
+    sel.forEach((it) => {
+      const src = assetsRef.current.get(it.id); if (!src) return;
+      for (let i = 0; i < c; i++) for (let j = 0; j < r; j++) {
+        if (i === 0 && j === 0) continue; // keep the original in place
+        const nx = src.x + i * (src.w + g), ny = src.y + j * (src.h + g);
+        if (nx + src.w > ctx.W || ny + src.h > ctx.H) continue; // skip copies off the plan
+        const id = newId('as');
+        assetsRef.current.set(id, { ...src, id, x: nx, y: ny });
+        created.push({ type: 'asset', id });
+      }
+    });
+    commitCreated(created, 'copia(s) en arreglo.');
+  };
+  const mirrorAssets = (axis: 'h' | 'v') => {
+    const sel = selRef.current.filter((s) => s.type === 'asset');
+    if (!sel.length) return;
+    const ctx = ctxRef.current!;
+    pushHistory();
+    const created: SelItem[] = [];
+    sel.forEach((it) => {
+      const src = assetsRef.current.get(it.id); if (!src) return;
+      const id = newId('as');
+      const nx = axis === 'h' ? ctx.W - src.x - src.w : src.x;
+      const ny = axis === 'v' ? ctx.H - src.y - src.h : src.y;
+      const rot = axis === 'h' ? (180 - src.rotation + 360) % 360 : (360 - src.rotation) % 360;
+      assetsRef.current.set(id, { ...src, id, x: Math.max(0, Math.min(ctx.W - src.w, nx)), y: Math.max(0, Math.min(ctx.H - src.h, ny)), rotation: rot });
+      created.push({ type: 'asset', id });
+    });
+    commitCreated(created, 'copia(s) en espejo.');
+  };
+  const offsetAssets = (dx: number, dy: number) => {
+    const sel = selRef.current.filter((s) => s.type === 'asset');
+    const ox = Math.round(dx) || 0, oy = Math.round(dy) || 0;
+    if (!sel.length || (ox === 0 && oy === 0)) return;
+    const ctx = ctxRef.current!;
+    pushHistory();
+    const created: SelItem[] = [];
+    sel.forEach((it) => {
+      const src = assetsRef.current.get(it.id); if (!src) return;
+      const id = newId('as');
+      assetsRef.current.set(id, { ...src, id, x: Math.max(0, Math.min(ctx.W - src.w, src.x + ox)), y: Math.max(0, Math.min(ctx.H - src.h, src.y + oy)) });
+      created.push({ type: 'asset', id });
+    });
+    commitCreated(created, 'copia(s) desfasada(s).');
+  };
+  const nudgeSelected = (dx: number, dy: number) => {
+    const items = selRef.current; const ctx = ctxRef.current; if (!items.length || !ctx) return;
+    pushHistory();
+    // clamp the group delta so everything stays in bounds
+    let dxLo = -Infinity, dxHi = Infinity, dyLo = -Infinity, dyHi = Infinity;
+    items.forEach((it) => { const p = getPlaceRef(it); if (!p) return; dxLo = Math.max(dxLo, -p.x); dxHi = Math.min(dxHi, ctx.W - p.w - p.x); dyLo = Math.max(dyLo, -p.y); dyHi = Math.min(dyHi, ctx.H - p.h - p.y); });
+    const ndx = Math.min(Math.max(dx, dxLo), dxHi), ndy = Math.min(Math.max(dy, dyLo), dyHi);
+    items.forEach((it) => { const p = getPlaceRef(it); if (p) { p.x += ndx; p.y += ndy; } });
+    setDirty(true); refreshSnap(); rebuildAll();
+  };
+  const setField = (field: 'x' | 'y' | 'w' | 'h' | 'rotation', value: number) => {
+    const cur = selRef.current[0]; if (!cur) return;
+    const p = cur.type === 'station' ? placementsRef.current.get(cur.id) : assetsRef.current.get(cur.id);
+    const ctx = ctxRef.current; if (!p || !ctx) return;
+    const v = Number.isFinite(value) ? value : 0;
+    if (field === 'rotation') p.rotation = ((v % 360) + 360) % 360;
+    else if (field === 'w') p.w = Math.max(50, Math.min(ctx.W, Math.round(v)));
+    else if (field === 'h') p.h = Math.max(50, Math.min(ctx.H, Math.round(v)));
+    else if (field === 'x') p.x = Math.max(0, Math.min(ctx.W - p.w, Math.round(v)));
+    else if (field === 'y') p.y = Math.max(0, Math.min(ctx.H - p.h, Math.round(v)));
+    setDirty(true); refreshSnap(); rebuildAll();
+  };
+  // Align the selected objects to the selection's bounding box (≥2 objects).
+  const alignSelected = (mode: 'left' | 'right' | 'top' | 'bottom' | 'cx' | 'cy') => {
+    const places = selRef.current.map(getPlaceRef).filter(Boolean) as Placement[];
+    if (places.length < 2) return;
+    pushHistory();
+    const minX = Math.min(...places.map((p) => p.x)), maxX = Math.max(...places.map((p) => p.x + p.w));
+    const minY = Math.min(...places.map((p) => p.y)), maxY = Math.max(...places.map((p) => p.y + p.h));
+    const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+    places.forEach((p) => {
+      if (mode === 'left') p.x = minX;
+      else if (mode === 'right') p.x = maxX - p.w;
+      else if (mode === 'cx') p.x = Math.round(cx - p.w / 2);
+      else if (mode === 'top') p.y = minY;
+      else if (mode === 'bottom') p.y = maxY - p.h;
+      else if (mode === 'cy') p.y = Math.round(cy - p.h / 2);
+    });
+    setDirty(true); refreshSnap(); rebuildAll();
+  };
+  // Distribute the selection with EQUAL GAPS along an axis (Fase 56): keeps the
+  // first and last fixed and evens the edge-to-edge spacing between the rest —
+  // the standard "distribute" that align (above) doesn't do. Needs >= 3 objects.
+  const distributeSelected = (axis: 'h' | 'v') => {
+    const places = selRef.current.map(getPlaceRef).filter(Boolean) as Placement[];
+    if (places.length < 3) return;
+    const ctx = ctxRef.current!;
+    pushHistory();
+    const sorted = [...places].sort((a, b) => (axis === 'h' ? a.x - b.x : a.y - b.y));
+    const n = sorted.length;
+    const size = (p: Placement) => (axis === 'h' ? p.w : p.h);
+    const start = axis === 'h' ? sorted[0].x : sorted[0].y;
+    const end = axis === 'h' ? sorted[n - 1].x + sorted[n - 1].w : sorted[n - 1].y + sorted[n - 1].h;
+    const gap = (end - start - sorted.reduce((s, p) => s + size(p), 0)) / (n - 1);
+    let cursor = start;
+    sorted.forEach((p) => {
+      const pos = Math.round(cursor);
+      if (axis === 'h') p.x = Math.max(0, Math.min(ctx.W - p.w, pos));
+      else p.y = Math.max(0, Math.min(ctx.H - p.h, pos));
+      cursor += size(p) + gap;
+    });
+    setDirty(true); refreshSnap(); rebuildAll();
+  };
+  const selectAll = () => {
+    const items: SelItem[] = [
+      ...[...placementsRef.current.keys()].map((id) => ({ type: 'station' as const, id })),
+      ...[...assetsRef.current.keys()].map((id) => ({ type: 'asset' as const, id })),
+    ];
+    select(items); rebuildAll();
+  };
+  const viewPreset = (preset: 'top' | 'iso' | 'front') => {
+    const cam = cameraRef.current; const ctrl = controlsRef.current; const ctx = ctxRef.current;
+    if (!cam || !ctrl || !ctx) return;
+    const d = Math.max(ctx.W, ctx.H) * ctx.s;
+    if (preset === 'top') cam.position.set(0.01, d * 1.5, 0.01);
+    else if (preset === 'front') cam.position.set(0, d * 0.5, d * 1.3);
+    else cam.position.set(d * 0.6, d * 0.85, d * 1.0);
+    ctrl.target.set(0, 0, 0); ctrl.update();
+  };
+  const exportPng = () => {
+    const r = rendererRef.current, sc = sceneRef.current, cam = cameraRef.current;
+    if (!r || !sc || !cam) return;
+    r.render(sc, cam);
+    const a = document.createElement('a');
+    a.href = r.domElement.toDataURL('image/png');
+    a.download = `layout3d-${model}-${revision}.png`.replace(/[^\w.\-]+/g, '_');
+    a.click();
+  };
+  // Export the 3D model as binary glTF (.glb) — opens in Blender, other CAD, etc.
+  const exportGltf = async () => {
+    const groups = [blocksRef.current, assetsGroupRef.current, connsGroupRef.current, groundRef.current].filter(Boolean) as THREE.Object3D[];
+    if (!groups.length) return;
+    try {
+      const { GLTFExporter } = await import('three/examples/jsm/exporters/GLTFExporter.js');
+      // hide labels + the live preview line so the model is clean geometry
+      const hidden: THREE.Object3D[] = [];
+      sceneRef.current?.traverse((o) => {
+        if ((o.userData?.isLabel || o === previewLineRef.current) && o.visible) { o.visible = false; hidden.push(o); }
+      });
+      const restore = () => hidden.forEach((o) => { o.visible = true; });
+      new GLTFExporter().parse(
+        groups,
+        (result) => {
+          restore();
+          const blob = new Blob([result as ArrayBuffer], { type: 'model/gltf-binary' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `layout3d-${model}-${revision}.glb`.replace(/[^\w.\-]+/g, '_');
+          a.click();
+          URL.revokeObjectURL(url);
+          toast.success('Modelo 3D exportado (.glb).', '3D');
+        },
+        (err) => { restore(); console.error(err); toast.error('No se pudo exportar el modelo 3D.', '3D'); },
+        { binary: true, onlyVisible: true },
+      );
+    } catch { toast.error('No se pudo exportar el modelo 3D.', '3D'); }
+  };
+  const exportDxf = async () => {
+    try {
+      const r = await apiFetch(`${API_BASE}/line-engineering/layout/dxf-export?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`);
+      if (!r.ok) { toast.error('No se pudo exportar el DXF.', 'DXF'); return; }
+      const d = (await r.json()) as { filename: string; dxf: string };
+      const blob = new Blob([d.dxf], { type: 'application/dxf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = d.filename || `layout-${model}-${revision}.dxf`.replace(/[^\w.\-]+/g, '_');
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Layout exportado a DXF (AutoCAD).', 'DXF');
+    } catch { toast.error('No se pudo exportar el DXF.', 'DXF'); }
+  };
+  const save = async () => {
+    if (!model || !data) return;
+    setSaving(true);
+    try {
+      const positions = [...placementsRef.current.entries()].map(([id, p]) => ({ id, ...p }));
+      const cleared = [...loadedPlacedRef.current].filter((id) => !placementsRef.current.has(id));
+      const assets = [...assetsRef.current.values()];
+      const annotations = [...annotationsRef.current.values()];
+      const r = await apiFetch(`${API_BASE}/line-engineering/layout`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model, revision, footprint: data.footprint, positions, cleared,
+          connectors: connectorsRef.current, assets,
+          annotations, cells: data.cells ?? [],
+        }),
+      });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); toast.error(d?.message || 'No se pudo guardar.', '3D'); return; }
+      toast.success('Layout 3D guardado.', '3D');
+      loadedPlacedRef.current = new Set(placementsRef.current.keys());
+      setDirty(false);
+      onSaved?.();
+    } catch { toast.error('Error de red.', '3D'); } finally { setSaving(false); }
+  };
+
+  // ---- keyboard shortcuts ----
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      const tgt = e.target as HTMLElement | null;
+      if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return;
+      // in walkthrough mode WASD/look take over; only Esc (exit) reaches here
+      if (walkRef.current) { if (e.key === 'Escape') { e.preventDefault(); toggleWalk(); } return; }
+      const g = data?.footprint.gridSize || 100;
+      const step = e.shiftKey ? g * 5 : g;
+      const hasSel = selRef.current.length > 0;
+      if (e.key === 'Escape') {
+        if (toolRef.current !== 'select') { endDraw(); setTool('select'); toolRef.current = 'select'; }
+        else if (hasSel) { select([]); rebuildAll(); }
+        else onClose();
+      }
+      else if (e.key === '?' || (e.key === '/' && e.shiftKey)) { e.preventDefault(); setShowHelp((v) => !v); }
+      else if ((e.key === 'a' || e.key === 'A') && (e.ctrlKey || e.metaKey)) { e.preventDefault(); selectAll(); }
+      else if ((e.key === 'z' || e.key === 'Z') && (e.ctrlKey || e.metaKey) && !e.shiftKey) { e.preventDefault(); undo(); }
+      else if (((e.key === 'z' || e.key === 'Z') && (e.ctrlKey || e.metaKey) && e.shiftKey) || ((e.key === 'y' || e.key === 'Y') && (e.ctrlKey || e.metaKey))) { e.preventDefault(); redo(); }
+      else if ((e.key === 'm' || e.key === 'M')) { e.preventDefault(); toggleMeasure(); }
+      else if ((e.key === 'w' || e.key === 'W')) { e.preventDefault(); toggleWall(); }
+      else if ((e.key === 'Delete' || e.key === 'Backspace') && hasSel) { e.preventDefault(); removeSelected(); }
+      else if ((e.key === 'r' || e.key === 'R') && hasSel) { e.preventDefault(); rotateSelected(e.shiftKey ? -15 : 15); }
+      else if ((e.key === 'd' || e.key === 'D') && (e.ctrlKey || e.metaKey) && hasSel) { e.preventDefault(); duplicateSelected(); }
+      else if (e.key === 'ArrowLeft' && hasSel) { e.preventDefault(); nudgeSelected(-step, 0); }
+      else if (e.key === 'ArrowRight' && hasSel) { e.preventDefault(); nudgeSelected(step, 0); }
+      else if (e.key === 'ArrowUp' && hasSel) { e.preventDefault(); nudgeSelected(0, -step); }
+      else if (e.key === 'ArrowDown' && hasSel) { e.preventDefault(); nudgeSelected(0, step); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, data]);
+
+  if (!open || typeof document === 'undefined') return null;
+
+  const tray = (data?.stations ?? []).filter((s) => !placedIds.has(s.id));
+  const placedCount = placedIds.size;
+  const assetCount = assetIds.size;
+
+  // Portal to <body> so the full-screen overlay escapes the editor's glass
+  // container (backdrop-filter would otherwise be the containing block for our
+  // position:fixed and trap it inside the box instead of the viewport).
+  return createPortal(
+    <div className="fixed inset-0 z-[70] flex flex-col bg-gray-950 text-white">
+      {/* top bar (relative z-30 so dropdown popovers paint above the 3D content,
+          which would otherwise stack over the backdrop-blur'd bar) */}
+      <div className="relative z-30 flex items-center gap-2 px-4 py-2.5 border-b border-white/10 shrink-0 bg-gray-900/80 backdrop-blur">
+        <BoxIcon className="w-4 h-4" style={{ color: '#f43f5e' }} />
+        <span className="font-semibold text-sm">CAD 3D · {model} · {revision}</span>
+        <span className="text-[11px] text-gray-400 ml-1">{placedCount} estaciones · {assetCount} equipos</span>
+        <div className="w-px h-5 bg-white/10 mx-1" />
+        <T3Btn active={tool === 'select'} onClick={() => setToolMode('select')} title="Seleccionar / mover (V)"><MousePointer2 className="w-4 h-4" /></T3Btn>
+        <T3Btn active={tool === 'measure'} onClick={toggleMeasure} title="Medir / acotar (M)"><Ruler className="w-4 h-4" /></T3Btn>
+        <T3Btn active={tool === 'wall'} onClick={toggleWall} title="Dibujar muros (W) — clic en puntos, Esc termina"><Spline className="w-4 h-4" /></T3Btn>
+        <T3Btn onClick={addNote} title="Agregar nota de texto (clic en una nota para quitarla)"><StickyNote className="w-4 h-4" /></T3Btn>
+        <T3Btn onClick={autoDimension} title="Acotar automáticamente — medidas generales y pasos del layout (o de la selección)"><RulerDimensionLine className="w-4 h-4" /></T3Btn>
+        {dimCount > 0 && (
+          <button onClick={clearDims} title="Quitar todas las cotas" className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] text-gray-300 hover:bg-white/10">
+            {dimCount} {dimCount === 1 ? 'cota' : 'cotas'} <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
+        <div className="w-px h-5 bg-white/10 mx-1" />
+        <T3Btn onClick={undo} disabled={hist.undo === 0} title="Deshacer (Ctrl+Z)"><Undo2 className="w-4 h-4" /></T3Btn>
+        <T3Btn onClick={redo} disabled={hist.redo === 0} title="Rehacer (Ctrl+Shift+Z)"><Redo2 className="w-4 h-4" /></T3Btn>
+        <div className="w-px h-5 bg-white/10 mx-1" />
+        <T3Btn active={snap} onClick={() => setSnap((v) => !v)} title="Snap a grilla"><Grid3x3 className="w-4 h-4" /></T3Btn>
+        <T3Btn active={osnap} onClick={() => setOsnap((v) => !v)} title="Snap a objetos y al plano DXF — alinea con bordes/centros y engancha a vértices y puntos medios del plano al medir o trazar muros"><Magnet className="w-4 h-4" /></T3Btn>
+        <div className="w-px h-5 bg-white/10 mx-1" />
+        <T3Btn onClick={() => viewPreset('iso')} title="Vista isométrica"><Maximize2 className="w-4 h-4" /></T3Btn>
+        <T3Btn onClick={() => viewPreset('top')} title="Vista superior (planta)"><Eye className="w-4 h-4" /></T3Btn>
+        <T3Btn onClick={() => viewPreset('front')} title="Vista frontal"><Layers className="w-4 h-4" /></T3Btn>
+        <T3Btn active={walk} onClick={toggleWalk} title="Recorrido en primera persona — arrastra para mirar, WASD para caminar, Esc para salir"><PersonStanding className="w-4 h-4" /></T3Btn>
+        <T3Btn active={showHeat} onClick={() => setShowHeat((v) => !v)} title="Mapa de calor de ocupación en el piso"><Grid2x2 className="w-4 h-4" /></T3Btn>
+        <T3Btn active={showGaps} onClick={() => setShowGaps((v) => !v)} title="Holguras de seguridad — marca los objetos demasiado juntos (ámbar) o traslapados (rojo)"><ShieldAlert className="w-4 h-4" /></T3Btn>
+        <div className="relative" ref={viewMenuRef}>
+          <T3Btn active={showView} onClick={() => setShowView((v) => { const nv = !v; if (nv && data) setFpDraft({ w: data.footprint.footprintW, h: data.footprint.footprintH, g: data.footprint.gridSize }); return nv; })} title="Vista, capas y plano"><SlidersHorizontal className="w-4 h-4" /></T3Btn>
+          {showView && (
+            <div className="absolute left-0 top-full mt-1.5 w-56 rounded-xl border border-white/10 bg-gray-900 shadow-2xl p-3 z-10 text-[12px]">
+              <div className="text-[10px] uppercase tracking-wide text-gray-500 mb-1.5">Capas</div>
+              {([['stations', 'Estaciones'], ['equipment', 'Equipo'], ['connectors', 'Conexiones'], ['dims', 'Cotas'], ['notes', 'Notas'], ['labels', 'Etiquetas'], ['dxf', 'Plano DXF'], ['grid', 'Grilla']] as const).map(([k, lbl]) => (
+                <label key={k} className="flex items-center gap-2 py-1 cursor-pointer text-gray-300 hover:text-white">
+                  <input type="checkbox" checked={layers[k]} onChange={(e) => setLayers((st) => ({ ...st, [k]: e.target.checked }))} className="accent-cyan-500" />
+                  {lbl}
+                </label>
+              ))}
+              <div className="text-[10px] uppercase tracking-wide text-gray-500 mt-2.5 mb-1.5">Tema</div>
+              <div className="grid grid-cols-2 gap-1.5">
+                {(Object.keys(THEMES) as Theme3D[]).map((t) => (
+                  <button key={t} onClick={() => setTheme(t)} className={`px-2 py-1 rounded-md text-[12px] ${theme === t ? 'bg-cyan-600 text-white' : 'bg-white/[0.06] text-gray-300 hover:bg-white/[0.12]'}`}>{THEMES[t].label}</button>
+                ))}
+              </div>
+              <div className="text-[10px] uppercase tracking-wide text-gray-500 mt-2.5 mb-1.5">Plano ({data?.footprint.unit ?? 'mm'})</div>
+              <div className="grid grid-cols-3 gap-1.5 mb-2">
+                <DimInput label="Ancho" value={fpDraft.w} onChange={(v) => setFpDraft((s) => ({ ...s, w: v }))} />
+                <DimInput label="Largo" value={fpDraft.h} onChange={(v) => setFpDraft((s) => ({ ...s, h: v }))} />
+                <DimInput label="Rejilla" value={fpDraft.g} onChange={(v) => setFpDraft((s) => ({ ...s, g: v }))} />
+              </div>
+              <button onClick={applyFootprint} className="w-full px-2 py-1.5 rounded-md bg-cyan-600 hover:bg-cyan-500 text-white text-[12px] font-medium">Aplicar tamaño</button>
+              <div className="text-[10px] uppercase tracking-wide text-gray-500 mt-2.5 mb-1">Sol / sombras</div>
+              <label className="block mb-1.5">
+                <span className="flex justify-between text-[10px] text-gray-400"><span>Azimut</span><span>{sun.az}°</span></span>
+                <input type="range" min={0} max={360} value={sun.az} onChange={(e) => setSun((s) => ({ ...s, az: Number(e.target.value) }))} className="w-full accent-amber-400" />
+              </label>
+              <label className="block">
+                <span className="flex justify-between text-[10px] text-gray-400"><span>Altura</span><span>{sun.el}°</span></span>
+                <input type="range" min={12} max={88} value={sun.el} onChange={(e) => setSun((s) => ({ ...s, el: Number(e.target.value) }))} className="w-full accent-amber-400" />
+              </label>
+            </div>
+          )}
+        </div>
+        <div className="w-px h-5 bg-white/10 mx-1" />
+        <T3Btn onClick={arrangeLineLayout} title="Acomodar la línea — ordena las estaciones por secuencia en filas equiespaciadas"><Rows3 className="w-4 h-4" /></T3Btn>
+        <T3Btn onClick={connectLineLayout} title="Conectar la línea — enlaza cada estación con la siguiente en secuencia (flujo)"><Waypoints className="w-4 h-4" /></T3Btn>
+        <T3Btn onClick={openChecks} title="Revisión de diseño — valida colocación, límites, traslapes y flujo"><ShieldCheck className="w-4 h-4" /></T3Btn>
+        <T3Btn onClick={openTakeoff} title="Cantidades / lista de materiales"><ClipboardList className="w-4 h-4" /></T3Btn>
+        <T3Btn onClick={exportPng} title="Exportar imagen (PNG)"><Download className="w-4 h-4" /></T3Btn>
+        <T3Btn onClick={exportGltf} title="Exportar modelo 3D (.glb) — Blender, otros CAD"><Package className="w-4 h-4" /></T3Btn>
+        {hasDxf && <T3Btn onClick={importDxfWalls} title="Convertir el plano DXF de fondo en muros editables"><BrickWall className="w-4 h-4" /></T3Btn>}
+        <T3Btn onClick={exportDxf} title="Exportar a DXF (AutoCAD) — cada tipo en su capa"><FileDown className="w-4 h-4" /></T3Btn>
+        <T3Btn active={showHelp} onClick={() => setShowHelp((v) => !v)} title="Atajos y ayuda (?)"><HelpCircle className="w-4 h-4" /></T3Btn>
+        <div className="flex-1" />
+        <button onClick={save} disabled={saving || !dirty} className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-sm font-medium text-white disabled:opacity-50" style={{ background: '#f43f5e' }}>
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Guardar
+        </button>
+        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 ml-1" title="Cerrar (Esc)"><X className="w-5 h-5" /></button>
+      </div>
+
+      {error ? (
+        <div className="flex-1 grid place-items-center text-amber-400 text-sm">{error}</div>
+      ) : !data ? (
+        <div className="flex-1 grid place-items-center text-gray-400"><Loader2 className="w-7 h-7 animate-spin" /></div>
+      ) : (
+        <div className="flex flex-1 min-h-0">
+          {/* left: stations tray + equipment palette */}
+          <div className="w-60 shrink-0 border-r border-white/10 bg-gray-900/60 flex flex-col">
+            <div className="flex shrink-0 text-[12px] font-medium border-b border-white/10">
+              <button onClick={() => setTab('stations')} className={`flex-1 px-3 py-2 inline-flex items-center justify-center gap-1.5 ${tab === 'stations' ? 'text-white bg-white/[0.06]' : 'text-gray-400 hover:text-gray-200'}`}><MapPin className="w-3.5 h-3.5" /> Estaciones</button>
+              <button onClick={() => setTab('equipment')} className={`flex-1 px-3 py-2 inline-flex items-center justify-center gap-1.5 ${tab === 'equipment' ? 'text-white bg-white/[0.06]' : 'text-gray-400 hover:text-gray-200'}`}><Boxes className="w-3.5 h-3.5" /> Equipo</button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-3">
+              {tab === 'stations' ? (
+                <>
+                  <div className="text-[11px] uppercase tracking-wide text-gray-400 mb-2">Por colocar ({tray.length})</div>
+                  {tray.length === 0 ? (
+                    <p className="text-[12px] text-gray-500">Todas las estaciones están en el plano.</p>
+                  ) : tray.map((st) => (
+                    <button key={st.id} onClick={() => placeStation(st)} className="w-full text-left mb-1.5 px-2.5 py-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.09] transition-colors">
+                      <div className="text-sm font-medium">{st.station}</div>
+                      <div className="text-[11px] text-gray-400">{st.line} · clic para colocar</div>
+                    </button>
+                  ))}
+                </>
+              ) : (
+                <>
+                  <div className="text-[11px] uppercase tracking-wide text-gray-400 mb-2">Agregar equipo</div>
+                  {ASSET_CATEGORIES.map((cat) => (
+                    <div key={cat.category} className="mb-3">
+                      <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-1.5 flex items-center gap-1"><ChevronRight className="w-3 h-3" /> {cat.label}</div>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {cat.items.map((it) => (
+                          <button key={it.kind} onClick={() => addAsset(it.kind)} title={`Agregar ${it.label}`} className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.10] text-[12px] transition-colors">
+                            <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: it.color }} />
+                            <span className="truncate">{it.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* 3D viewport */}
+          <div className="relative flex-1 min-w-0">
+            <div ref={mountRef} className="absolute inset-0" />
+            {showHeat && (
+              <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-xl bg-gray-900/80 backdrop-blur border border-white/10 text-[11px] text-gray-300 inline-flex items-center gap-2 pointer-events-none">
+                <Grid2x2 className="w-3.5 h-3.5" /> Ocupación del piso
+                <span className="inline-flex items-center gap-1">
+                  menos
+                  <span className="inline-block w-12 h-2 rounded-sm" style={{ background: 'linear-gradient(90deg, rgba(244,63,94,0.15), rgba(244,63,94,1))' }} />
+                  más
+                </span>
+              </div>
+            )}
+            {showGaps && (
+              <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-xl bg-gray-900/80 backdrop-blur border border-white/10 text-[11px] text-gray-300 inline-flex items-center gap-3 pointer-events-none" style={{ bottom: showHeat ? '3.25rem' : undefined }}>
+                <ShieldAlert className="w-3.5 h-3.5" /> Holguras
+                <span className="inline-flex items-center gap-1"><span className="inline-block w-3 h-2 rounded-sm" style={{ background: '#f59e0b' }} /> juntos</span>
+                <span className="inline-flex items-center gap-1"><span className="inline-block w-3 h-2 rounded-sm" style={{ background: '#ef4444' }} /> traslape</span>
+              </div>
+            )}
+            {walk && (
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-emerald-500/95 text-white text-[12px] font-semibold inline-flex items-center gap-1.5 pointer-events-none">
+                <PersonStanding className="w-3.5 h-3.5" /> Recorrido · arrastra para mirar · WASD para caminar · Esc para salir
+              </div>
+            )}
+            {!walk && (tool === 'measure' || tool === 'wall') && (
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-amber-400/95 text-gray-900 text-[12px] font-semibold inline-flex items-center gap-1.5 pointer-events-none">
+                {tool === 'measure' ? <Ruler className="w-3.5 h-3.5" /> : <Spline className="w-3.5 h-3.5" />}
+                {measureLive ? measureLive : (tool === 'measure' ? 'Clic en dos puntos para medir' : 'Clic para trazar muros · Esc termina')}
+              </div>
+            )}
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-gray-900/80 backdrop-blur border border-white/10 text-[11px] text-gray-300 inline-flex items-center gap-2 pointer-events-none">
+              <Move3d className="w-3.5 h-3.5" />
+              {walk
+                ? 'Arrastra para mirar · W A S D para caminar · Esc para salir del recorrido'
+                : tool === 'measure'
+                  ? 'Clic en dos puntos para medir · arrastra el fondo para orbitar · Esc cancela'
+                  : tool === 'wall'
+                    ? 'Clic en cada esquina para trazar muros · Shift = ángulos de 45° · arrastra el fondo para orbitar · Esc termina'
+                    : 'Arrastra para mover · Shift+clic multiselecciona · fondo = orbitar · rueda = zoom · R rota · Supr borra'}
+            </div>
+          </div>
+
+          {/* right: properties */}
+          <div className="w-64 shrink-0 border-l border-white/10 bg-gray-900/60 overflow-y-auto">
+            {selList.length === 0 ? (
+              <div className="p-4 text-[12px] text-gray-500 flex flex-col items-center gap-2 mt-8">
+                <Crosshair className="w-6 h-6 text-gray-600" />
+                <p className="text-center">Selecciona objetos para ver y editar sus propiedades. <b>Shift</b>+clic agrega o quita.</p>
+              </div>
+            ) : selList.length > 1 || !selSnap ? (
+              <div className="p-3.5">
+                <div className="flex items-center gap-2 mb-1">
+                  <Boxes className="w-4 h-4" style={{ color: '#22d3ee' }} />
+                  <span className="text-sm font-semibold">{selList.length} seleccionados</span>
+                </div>
+                <div className="text-[11px] text-gray-400 mb-3">Alinea o mueve el grupo en bloque.</div>
+                <div className="text-[10px] uppercase tracking-wide text-gray-500 mb-1.5">Alinear</div>
+                <div className="grid grid-cols-3 gap-1.5 mb-3">
+                  <AlignBtn title="Alinear a la izquierda" onClick={() => alignSelected('left')}><AlignHorizontalJustifyStart className="w-4 h-4" /></AlignBtn>
+                  <AlignBtn title="Centrar horizontal" onClick={() => alignSelected('cx')}><AlignHorizontalJustifyCenter className="w-4 h-4" /></AlignBtn>
+                  <AlignBtn title="Alinear a la derecha" onClick={() => alignSelected('right')}><AlignHorizontalJustifyEnd className="w-4 h-4" /></AlignBtn>
+                  <AlignBtn title="Alinear arriba" onClick={() => alignSelected('top')}><AlignVerticalJustifyStart className="w-4 h-4" /></AlignBtn>
+                  <AlignBtn title="Centrar vertical" onClick={() => alignSelected('cy')}><AlignVerticalJustifyCenter className="w-4 h-4" /></AlignBtn>
+                  <AlignBtn title="Alinear abajo" onClick={() => alignSelected('bottom')}><AlignVerticalJustifyEnd className="w-4 h-4" /></AlignBtn>
+                </div>
+                {selList.length >= 3 && (
+                  <>
+                    <div className="text-[10px] uppercase tracking-wide text-gray-500 mb-1.5">Distribuir (espaciado parejo)</div>
+                    <div className="flex gap-1.5 mb-3">
+                      <AlignBtn title="Distribuir horizontal" onClick={() => distributeSelected('h')}><AlignHorizontalDistributeCenter className="w-4 h-4" /></AlignBtn>
+                      <AlignBtn title="Distribuir vertical" onClick={() => distributeSelected('v')}><AlignVerticalDistributeCenter className="w-4 h-4" /></AlignBtn>
+                    </div>
+                  </>
+                )}
+                <div className="flex flex-wrap gap-1.5">
+                  <button onClick={() => rotateSelected(15)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><RotateCw className="w-3.5 h-3.5" /> +15°</button>
+                  <button onClick={() => rotateSelected(-15)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><RotateCcw className="w-3.5 h-3.5" /> −15°</button>
+                  <button onClick={duplicateSelected} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><Copy className="w-3.5 h-3.5" /> Duplicar</button>
+                  <button onClick={removeSelected} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 text-[12px]"><Trash2 className="w-3.5 h-3.5" /> Quitar</button>
+                </div>
+                <p className="text-[10.5px] text-gray-500 mt-3 leading-relaxed"><b>Shift</b>+clic agrega/quita · <b>Ctrl+A</b> todo · flechas mueven el grupo.</p>
+              </div>
+            ) : (
+              <div className="p-3.5">
+                <div className="flex items-center gap-2 mb-1">
+                  <Settings2 className="w-4 h-4" style={{ color: '#22d3ee' }} />
+                  <span className="text-sm font-semibold">{selSnap.title}</span>
+                </div>
+                <div className="text-[11px] text-gray-400 mb-3">{selSnap.subtitle}</div>
+
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <NumField label="X" value={Math.round(selSnap.x)} onBegin={pushHistory} onChange={(v) => setField('x', v)} />
+                  <NumField label="Y" value={Math.round(selSnap.y)} onBegin={pushHistory} onChange={(v) => setField('y', v)} />
+                  <NumField label="Ancho" value={Math.round(selSnap.w)} onBegin={pushHistory} onChange={(v) => setField('w', v)} />
+                  <NumField label="Largo" value={Math.round(selSnap.h)} onBegin={pushHistory} onChange={(v) => setField('h', v)} />
+                  <NumField label="Rotación°" value={Math.round(selSnap.rotation)} onBegin={pushHistory} onChange={(v) => setField('rotation', v)} />
+                  {selSnap.height !== undefined && <ReadField label="Alto" value={`${selSnap.height}`} />}
+                </div>
+
+                <div className="flex flex-wrap gap-1.5">
+                  <button onClick={() => rotateSelected(15)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><RotateCw className="w-3.5 h-3.5" /> +15°</button>
+                  <button onClick={() => rotateSelected(-15)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><RotateCcw className="w-3.5 h-3.5" /> −15°</button>
+                  {selSnap.canDuplicate && <button onClick={duplicateSelected} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><Copy className="w-3.5 h-3.5" /> Duplicar</button>}
+                  <button onClick={removeSelected} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 text-[12px]"><Trash2 className="w-3.5 h-3.5" /> Quitar</button>
+                </div>
+
+                {selSnap.canDuplicate && (
+                  <div className="mt-3 pt-3 border-t border-white/10 space-y-2">
+                    <div className="text-[10.5px] uppercase tracking-wide text-gray-500">Copiar equipo</div>
+                    <div className="flex items-center gap-1.5 text-[12px]">
+                      <span className="text-gray-400 w-12 shrink-0">Arreglo</span>
+                      <input type="number" min={1} max={50} value={arr.cols} onChange={(e) => setArr((a) => ({ ...a, cols: Number(e.target.value) }))} className="w-11 bg-white/[0.06] rounded px-1 py-0.5 text-center tabular-nums outline-none focus:ring-1 ring-cyan-500/40" title="columnas" />
+                      <span className="text-gray-500">×</span>
+                      <input type="number" min={1} max={50} value={arr.rows} onChange={(e) => setArr((a) => ({ ...a, rows: Number(e.target.value) }))} className="w-11 bg-white/[0.06] rounded px-1 py-0.5 text-center tabular-nums outline-none focus:ring-1 ring-cyan-500/40" title="filas" />
+                      <span className="text-gray-500">sep</span>
+                      <input type="number" min={0} value={arr.gap} onChange={(e) => setArr((a) => ({ ...a, gap: Number(e.target.value) }))} className="w-14 bg-white/[0.06] rounded px-1 py-0.5 text-center tabular-nums outline-none focus:ring-1 ring-cyan-500/40" title="separación" />
+                      <button onClick={() => arrayAssets(arr.cols, arr.rows, arr.gap)} className="ml-auto px-2 py-0.5 rounded-md bg-cyan-600 hover:bg-cyan-500 text-white text-[11px] font-medium">Crear</button>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[12px]">
+                      <span className="text-gray-400 w-12 shrink-0">Espejo</span>
+                      <button onClick={() => mirrorAssets('h')} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12]"><FlipHorizontal className="w-3.5 h-3.5" /> Horizontal</button>
+                      <button onClick={() => mirrorAssets('v')} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12]"><FlipVertical className="w-3.5 h-3.5" /> Vertical</button>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[12px]">
+                      <span className="text-gray-400 w-12 shrink-0">Desfasar</span>
+                      <span className="text-gray-500">dx</span>
+                      <input type="number" value={arr.dx} onChange={(e) => setArr((a) => ({ ...a, dx: Number(e.target.value) }))} className="w-14 bg-white/[0.06] rounded px-1 py-0.5 text-center tabular-nums outline-none focus:ring-1 ring-cyan-500/40" />
+                      <span className="text-gray-500">dy</span>
+                      <input type="number" value={arr.dy} onChange={(e) => setArr((a) => ({ ...a, dy: Number(e.target.value) }))} className="w-14 bg-white/[0.06] rounded px-1 py-0.5 text-center tabular-nums outline-none focus:ring-1 ring-cyan-500/40" />
+                      <button onClick={() => offsetAssets(arr.dx, arr.dy)} className="ml-auto px-2 py-0.5 rounded-md bg-cyan-600 hover:bg-cyan-500 text-white text-[11px] font-medium">Crear</button>
+                    </div>
+                  </div>
+                )}
+
+                <p className="text-[10.5px] text-gray-500 mt-3 leading-relaxed">
+                  Unidades en {data.footprint.unit}. Usa las flechas para ajustar y <b>R</b> para rotar.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Quantities / take-off panel */}
+      {takeoff && (
+        <div className="absolute inset-0 z-[80] grid place-items-center bg-black/50 p-4" onClick={() => setTakeoff(null)}>
+          <div className="w-[420px] max-w-full max-h-[80vh] overflow-y-auto rounded-2xl border border-white/10 bg-gray-900 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
+              <ClipboardList className="w-4 h-4" style={{ color: '#22d3ee' }} />
+              <span className="text-sm font-semibold">Cantidades · {model} · {revision}</span>
+              <div className="flex-1" />
+              <button onClick={() => setTakeoff(null)} className="p-1 rounded-lg hover:bg-white/10"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="p-4">
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <Stat label="Estaciones" value={`${takeoff.placedStations}/${takeoff.totalStations}`} />
+                <Stat label="Equipos" value={`${takeoff.equipmentCount}`} />
+                <Stat label="Área huella" value={fmtArea(takeoff.footprintArea, takeoff.unit)} />
+                <Stat label="Aprovechamiento" value={`${takeoff.util.toFixed(1)} %`} highlight />
+                <Stat label="Área usada" value={fmtArea(takeoff.usedArea, takeoff.unit)} />
+                <Stat label="Muro total" value={fmtLen(takeoff.wallLen, takeoff.unit)} />
+              </div>
+              {takeoff.byKind.length > 0 ? (
+                <div className="rounded-xl border border-white/10 overflow-hidden">
+                  <table className="w-full text-[12.5px]">
+                    <thead><tr className="text-gray-400 bg-white/[0.04]"><th className="text-left font-medium px-3 py-1.5">Equipo</th><th className="text-right font-medium px-3 py-1.5">Cant.</th><th className="text-right font-medium px-3 py-1.5">Área</th></tr></thead>
+                    <tbody>
+                      {takeoff.byKind.map((r) => (
+                        <tr key={r.kind} className="border-t border-white/[0.06]">
+                          <td className="px-3 py-1.5">{r.label}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums">{r.count}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums text-gray-400">{fmtArea(r.area, takeoff.unit)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-[12px] text-gray-500 text-center py-3">Aún no hay equipo en el layout.</p>
+              )}
+              <div className="flex items-center justify-between mt-3">
+                <span className="text-[11px] text-gray-500">{takeoff.dimCount} {takeoff.dimCount === 1 ? 'cota' : 'cotas'}</span>
+                <button
+                  onClick={() => {
+                    const rows = [['Concepto', 'Cantidad', 'Área (m²)']];
+                    takeoff.byKind.forEach((r) => rows.push([r.label, String(r.count), fmtArea(r.area, takeoff.unit).replace(' m²', '')]));
+                    rows.push(['Estaciones colocadas', `${takeoff.placedStations}/${takeoff.totalStations}`, fmtArea(takeoff.stationArea, takeoff.unit).replace(' m²', '')]);
+                    rows.push(['Aprovechamiento', `${takeoff.util.toFixed(1)}%`, '']);
+                    rows.push(['Muro total', fmtLen(takeoff.wallLen, takeoff.unit), '']);
+                    const csv = rows.map((r) => r.join(',')).join('\n');
+                    navigator.clipboard?.writeText(csv).then(() => toast.success('Cantidades copiadas (CSV).', '3D'), () => toast.error('No se pudo copiar.', '3D'));
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"
+                >
+                  <Copy className="w-3.5 h-3.5" /> Copiar CSV
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Design-check / validation report */}
+      {report && (
+        <div className="absolute inset-0 z-[80] grid place-items-center bg-black/50 p-4" onClick={() => setReport(null)}>
+          <div className="w-[440px] max-w-full max-h-[80vh] overflow-y-auto rounded-2xl border border-white/10 bg-gray-900 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
+              <ShieldCheck className="w-4 h-4" style={{ color: report.score === 'ok' ? '#34d399' : report.score === 'warn' ? '#fbbf24' : '#f87171' }} />
+              <span className="text-sm font-semibold">Revisión de diseño · {model} · {revision}</span>
+              <div className="flex-1" />
+              <button onClick={() => setReport(null)} className="p-1 rounded-lg hover:bg-white/10"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="p-4 space-y-2">
+              <div className="text-[12.5px] mb-1">
+                {report.score === 'ok'
+                  ? <span className="text-emerald-400">Sin problemas detectados.</span>
+                  : <span className={report.score === 'error' ? 'text-rose-400' : 'text-amber-400'}>{report.errors} {report.errors === 1 ? 'error' : 'errores'} · {report.warnings} {report.warnings === 1 ? 'aviso' : 'avisos'}</span>}
+              </div>
+              {report.items.map((it) => {
+                const Icon = it.level === 'ok' ? CircleCheck : it.level === 'warn' ? CircleAlert : ShieldAlert;
+                const color = it.level === 'ok' ? '#34d399' : it.level === 'warn' ? '#fbbf24' : '#f87171';
+                return (
+                  <div key={it.key} className="flex items-start gap-2.5 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2">
+                    <Icon className="w-4 h-4 mt-0.5 shrink-0" style={{ color }} />
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-medium">{it.label}{it.count > 0 ? ` · ${it.count}` : ''}</div>
+                      <div className="text-[11.5px] text-gray-400 leading-snug">{it.detail}</div>
+                    </div>
+                  </div>
+                );
+              })}
+              <p className="text-[10.5px] text-gray-500 pt-1 leading-relaxed">Traslapes y límites se evalúan sobre la caja sin rotación (aproximado).</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Keyboard shortcuts / help overlay */}
+      {showHelp && (
+        <div className="absolute inset-0 z-[80] grid place-items-center bg-black/55 p-4" onClick={() => setShowHelp(false)}>
+          <div className="w-[640px] max-w-full max-h-[82vh] overflow-y-auto rounded-2xl border border-white/10 bg-gray-900 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
+              <HelpCircle className="w-4 h-4" style={{ color: '#22d3ee' }} />
+              <span className="text-sm font-semibold">Atajos y herramientas · CAD 3D</span>
+              <div className="flex-1" />
+              <button onClick={() => setShowHelp(false)} className="p-1 rounded-lg hover:bg-white/10"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="p-4 grid grid-cols-2 gap-x-6 gap-y-4 text-[12.5px]">
+              {HELP_SECTIONS.map((sec) => (
+                <div key={sec.title}>
+                  <div className="text-[10px] uppercase tracking-wide text-gray-500 mb-1.5">{sec.title}</div>
+                  <div className="space-y-1">
+                    {sec.rows.map(([k, d]) => (
+                      <div key={d} className="flex items-baseline justify-between gap-3">
+                        <span className="text-gray-300">{d}</span>
+                        <kbd className="shrink-0 px-1.5 py-0.5 rounded-md bg-white/[0.08] border border-white/10 text-[11px] text-gray-200 font-mono">{k}</kbd>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="px-4 pb-4 text-[11px] text-gray-500">Abre esta ayuda con <kbd className="px-1 py-0.5 rounded bg-white/[0.08] border border-white/10 font-mono">?</kbd> en cualquier momento.</div>
+          </div>
+        </div>
+      )}
+    </div>,
+    document.body,
+  );
+}
+
+function T3Btn({ active, onClick, title, children, disabled }: { active?: boolean; onClick: () => void; title: string; children: React.ReactNode; disabled?: boolean }) {
+  return (
+    <button onClick={onClick} title={title} disabled={disabled} className={`p-1.5 rounded-lg transition-colors disabled:opacity-30 disabled:hover:bg-transparent ${active ? 'text-white' : 'text-gray-400 hover:bg-white/10'}`} style={active ? { background: '#0e7490' } : undefined}>
+      {children}
+    </button>
+  );
+}
+
+function NumField({ label, value, onChange, onBegin }: { label: string; value: number; onChange: (v: number) => void; onBegin?: () => void }) {
+  return (
+    <label className="block">
+      <span className="block text-[10px] uppercase tracking-wide text-gray-500 mb-0.5">{label}</span>
+      <input
+        type="number"
+        value={value}
+        onFocus={onBegin}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        className="w-full px-2 py-1 rounded-md bg-white/[0.06] border border-white/10 text-[13px] text-white focus:outline-none focus:border-cyan-400/60"
+      />
+    </label>
+  );
+}
+
+function DimInput({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+  return (
+    <label className="block">
+      <span className="block text-[9px] uppercase tracking-wide text-gray-500 mb-0.5">{label}</span>
+      <input
+        type="number"
+        value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+        className="w-full px-1.5 py-1 rounded-md bg-white/[0.06] border border-white/10 text-[12px] text-white focus:outline-none focus:border-cyan-400/60"
+      />
+    </label>
+  );
+}
+
+function AlignBtn({ title, onClick, children }: { title: string; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button onClick={onClick} title={title} className="inline-flex items-center justify-center py-1.5 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-gray-200">
+      {children}
+    </button>
+  );
+}
+
+function Stat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div className={`rounded-lg px-3 py-2 ${highlight ? 'bg-cyan-500/15' : 'bg-white/[0.04]'}`}>
+      <div className="text-[10px] uppercase tracking-wide text-gray-500">{label}</div>
+      <div className={`text-[15px] font-semibold ${highlight ? 'text-cyan-300' : 'text-white'}`}>{value}</div>
+    </div>
+  );
+}
+
+function ReadField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <span className="block text-[10px] uppercase tracking-wide text-gray-500 mb-0.5">{label}</span>
+      <div className="w-full px-2 py-1 rounded-md bg-white/[0.03] border border-white/5 text-[13px] text-gray-400">{value}</div>
+    </div>
+  );
+}
