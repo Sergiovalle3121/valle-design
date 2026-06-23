@@ -7,7 +7,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import {
   Loader2, X, Save, Move3d, Grid3x3, RotateCw, RotateCcw, Trash2, Download,
   Box as BoxIcon, Eye, MapPin, Maximize2, Layers, Copy, Crosshair, Settings2,
-  Boxes, ChevronRight, Ruler, MousePointer2, SlidersHorizontal,
+  Boxes, ChevronRight, Ruler, MousePointer2, SlidersHorizontal, Undo2, Redo2,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/apiFetch';
 import { useToast } from '@/contexts/ToastContext';
@@ -50,6 +50,8 @@ interface Layout {
 }
 interface Placement { x: number; y: number; w: number; h: number; rotation: number }
 type Sel = { type: 'station' | 'asset'; id: string } | null;
+/** A point-in-time copy of every editable collection, for undo/redo. */
+interface Snapshot { placements: [string, Placement][]; assets: Asset[]; annotations: Ann[] }
 /** A render-safe snapshot of the current selection for the properties panel. */
 interface SelSnap {
   type: 'station' | 'asset';
@@ -368,6 +370,7 @@ export default function Layout3DEditor({
   const [theme, setTheme] = useState<Theme3D>('dark');
   const [showView, setShowView] = useState(false);
   const [layers, setLayers] = useState({ stations: true, equipment: true, connectors: true, dims: true, labels: true, grid: true });
+  const [hist, setHist] = useState({ undo: 0, redo: 0 }); // depths, for button enablement
 
   // three.js refs
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -386,6 +389,8 @@ export default function Layout3DEditor({
   const groupByAssetRef = useRef<Map<string, THREE.Group>>(new Map());
   const layersRef = useRef(layers);
   const applyLayersRef = useRef<() => void>(() => {});
+  const undoStackRef = useRef<Snapshot[]>([]);
+  const redoStackRef = useRef<Snapshot[]>([]);
 
   // layout state refs (drive both the scene and the save)
   const placementsRef = useRef<Map<string, Placement>>(new Map());
@@ -473,6 +478,7 @@ export default function Layout3DEditor({
     let alive = true;
     setData(null); setError(null); setSel(null); setSelSnap(null); selRef.current = null; setDirty(false); setTab('stations');
     setTool('select'); toolRef.current = 'select'; measureARef.current = null; setMeasureLive(null);
+    undoStackRef.current = []; redoStackRef.current = []; setHist({ undo: 0, redo: 0 });
     (async () => {
       try {
         const r = await apiFetch(`${API_BASE}/line-engineering/layout?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`);
@@ -600,6 +606,46 @@ export default function Layout3DEditor({
 
   const rebuildAll = useCallback(() => { rebuildBlocks(); rebuildAssets(); rebuildDims(); }, [rebuildBlocks, rebuildAssets, rebuildDims]);
 
+  // ---- undo / redo (memento of the editable collections) ----
+  const snapshot = useCallback((): Snapshot => ({
+    placements: [...placementsRef.current.entries()].map(([id, p]) => [id, { ...p }]),
+    assets: [...assetsRef.current.values()].map((a) => ({ ...a })),
+    annotations: [...annotationsRef.current.values()].map((a) => ({ ...a })),
+  }), []);
+  const pushHistory = useCallback(() => {
+    undoStackRef.current.push(snapshot());
+    if (undoStackRef.current.length > 80) undoStackRef.current.shift();
+    redoStackRef.current = [];
+    setHist({ undo: undoStackRef.current.length, redo: 0 });
+  }, [snapshot]);
+  const restore = useCallback((s: Snapshot) => {
+    placementsRef.current = new Map(s.placements.map(([id, p]) => [id, { ...p }]));
+    assetsRef.current = new Map(s.assets.map((a) => [a.id, { ...a }]));
+    annotationsRef.current = new Map(s.annotations.map((a) => [a.id, { ...a }]));
+    setPlacedIds(new Set(placementsRef.current.keys()));
+    setAssetIds(new Set(assetsRef.current.keys()));
+    setDimCount([...annotationsRef.current.values()].filter((a) => a.type === 'dim').length);
+    const cur = selRef.current;
+    if (cur) {
+      const exists = cur.type === 'station' ? placementsRef.current.has(cur.id) : assetsRef.current.has(cur.id);
+      if (!exists) { selRef.current = null; setSel(null); setSelSnap(null); }
+      else setSelSnap(computeSnap(cur));
+    }
+    setDirty(true); rebuildAll();
+  }, [computeSnap, rebuildAll]);
+  const undo = useCallback(() => {
+    if (!undoStackRef.current.length) return;
+    redoStackRef.current.push(snapshot());
+    restore(undoStackRef.current.pop()!);
+    setHist({ undo: undoStackRef.current.length, redo: redoStackRef.current.length });
+  }, [snapshot, restore]);
+  const redo = useCallback(() => {
+    if (!redoStackRef.current.length) return;
+    undoStackRef.current.push(snapshot());
+    restore(redoStackRef.current.pop()!);
+    setHist({ undo: undoStackRef.current.length, redo: redoStackRef.current.length });
+  }, [snapshot, restore]);
+
   // ---- scene lifecycle ----
   useEffect(() => {
     const mount = mountRef.current;
@@ -694,6 +740,8 @@ export default function Layout3DEditor({
     let drag: { type: 'station' | 'asset'; id: string; obj: THREE.Object3D } | null = null;
     let grabDX = 0, grabDZ = 0;
     let downX = 0, downY = 0;
+    let dragMoved = false;
+    let dragSnap: Snapshot | null = null;
     const unit = data.footprint.unit || 'mm';
 
     const resolveAssetId = (o: THREE.Object3D | null): string | null => {
@@ -721,6 +769,7 @@ export default function Layout3DEditor({
       const dimHit = raycaster.intersectObjects(dimsGroup.children, false).find((h) => (h.object as THREE.Sprite).userData?.dimId);
       if (dimHit) {
         const id = (dimHit.object as THREE.Sprite).userData.dimId as string;
+        pushHistory();
         annotationsRef.current.delete(id);
         setDimCount([...annotationsRef.current.values()].filter((x) => x.type === 'dim').length);
         setDirty(true); rebuildDims(); toast.success('Cota eliminada.', '3D');
@@ -740,6 +789,7 @@ export default function Layout3DEditor({
         raycaster.ray.intersectPlane(floorPlane, hit);
         grabDX = top.obj.position.x - hit.x; grabDZ = top.obj.position.z - hit.z;
         drag = { type: top.type, id: top.id, obj: top.obj };
+        dragMoved = false; dragSnap = snapshot();
         controls.enabled = false;
         rebuildAll();
         renderer.domElement.setPointerCapture(e.pointerId);
@@ -771,6 +821,7 @@ export default function Layout3DEditor({
       let ny = snapWorld(worldCY - p.h / 2);
       nx = Math.max(0, Math.min(ctx.W - p.w, nx));
       ny = Math.max(0, Math.min(ctx.H - p.h, ny));
+      if (nx !== p.x || ny !== p.y) dragMoved = true;
       p.x = nx; p.y = ny;
       const ncx = (nx + p.w / 2 - ctx.W / 2) * ctx.s;
       const ncz = (ny + p.h / 2 - ctx.H / 2) * ctx.s;
@@ -791,6 +842,7 @@ export default function Layout3DEditor({
             else {
               const a = measureARef.current;
               if (Math.hypot(pt.wx - a.wx, pt.wy - a.wy) > 1) {
+                pushHistory();
                 const id = newId('dim');
                 annotationsRef.current.set(id, { id, type: 'dim', x: a.wx, y: a.wy, x2: pt.wx, y2: pt.wy });
                 setDimCount([...annotationsRef.current.values()].filter((x) => x.type === 'dim').length);
@@ -804,7 +856,16 @@ export default function Layout3DEditor({
         try { renderer.domElement.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
         return;
       }
-      if (drag) { drag = null; controls.enabled = true; setDirty(true); refreshSnap(); rebuildAll(); }
+      if (drag) {
+        if (dragMoved && dragSnap) {
+          undoStackRef.current.push(dragSnap);
+          if (undoStackRef.current.length > 80) undoStackRef.current.shift();
+          redoStackRef.current = [];
+          setHist({ undo: undoStackRef.current.length, redo: 0 });
+          setDirty(true);
+        }
+        drag = null; dragSnap = null; controls.enabled = true; refreshSnap(); rebuildAll();
+      }
       try { renderer.domElement.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
     };
     renderer.domElement.addEventListener('pointerdown', onDown);
@@ -860,15 +921,17 @@ export default function Layout3DEditor({
     });
   }, [cancelMeasure]);
   const clearDims = useCallback(() => {
-    let n = 0;
-    annotationsRef.current.forEach((a, id) => { if (a.type === 'dim') { annotationsRef.current.delete(id); n++; } });
-    if (!n) return;
+    const hasDim = [...annotationsRef.current.values()].some((a) => a.type === 'dim');
+    if (!hasDim) return;
+    pushHistory();
+    annotationsRef.current.forEach((a, id) => { if (a.type === 'dim') annotationsRef.current.delete(id); });
     setDimCount(0); setDirty(true); rebuildDims();
-  }, [rebuildDims]);
+  }, [rebuildDims, pushHistory]);
 
   // ---- actions ----
   const placeStation = (st: St) => {
     const ctx = ctxRef.current; if (!ctx || !data) return;
+    pushHistory();
     const w = Math.round(data.footprint.footprintW * 0.06);
     const h = Math.round(data.footprint.footprintH * 0.08);
     const x = snapWorld(ctx.W / 2 - w / 2);
@@ -880,6 +943,7 @@ export default function Layout3DEditor({
   };
   const addAsset = (kind: string) => {
     const ctx = ctxRef.current; if (!ctx) return;
+    pushHistory();
     const def = assetMeta(kind);
     const x = snapWorld(ctx.W / 2 - def.w / 2);
     const y = snapWorld(ctx.H / 2 - def.h / 2);
@@ -891,6 +955,7 @@ export default function Layout3DEditor({
   };
   const removeSelected = () => {
     const cur = selRef.current; if (!cur) return;
+    pushHistory();
     if (cur.type === 'station') {
       placementsRef.current.delete(cur.id);
       setPlacedIds((prev) => { const n = new Set(prev); n.delete(cur.id); return n; });
@@ -904,12 +969,14 @@ export default function Layout3DEditor({
     const cur = selRef.current; if (!cur) return;
     const p = cur.type === 'station' ? placementsRef.current.get(cur.id) : assetsRef.current.get(cur.id);
     if (!p) return;
+    pushHistory();
     p.rotation = (((p.rotation + deg) % 360) + 360) % 360;
     setDirty(true); refreshSnap(); rebuildAll();
   };
   const duplicateSelected = () => {
     const cur = selRef.current; if (!cur || cur.type !== 'asset') return;
     const src = assetsRef.current.get(cur.id); if (!src) return;
+    pushHistory();
     const ctx = ctxRef.current!;
     const off = data?.footprint.gridSize || 200;
     const id = newId('as');
@@ -924,6 +991,7 @@ export default function Layout3DEditor({
     const cur = selRef.current; if (!cur) return;
     const p = cur.type === 'station' ? placementsRef.current.get(cur.id) : assetsRef.current.get(cur.id);
     const ctx = ctxRef.current; if (!p || !ctx) return;
+    pushHistory();
     p.x = Math.max(0, Math.min(ctx.W - p.w, p.x + dx));
     p.y = Math.max(0, Math.min(ctx.H - p.h, p.y + dy));
     setDirty(true); refreshSnap(); rebuildAll();
@@ -995,6 +1063,8 @@ export default function Layout3DEditor({
         else if (selRef.current) { select(null); rebuildAll(); }
         else onClose();
       }
+      else if ((e.key === 'z' || e.key === 'Z') && (e.ctrlKey || e.metaKey) && !e.shiftKey) { e.preventDefault(); undo(); }
+      else if (((e.key === 'z' || e.key === 'Z') && (e.ctrlKey || e.metaKey) && e.shiftKey) || ((e.key === 'y' || e.key === 'Y') && (e.ctrlKey || e.metaKey))) { e.preventDefault(); redo(); }
       else if ((e.key === 'm' || e.key === 'M')) { e.preventDefault(); toggleMeasure(); }
       else if ((e.key === 'Delete' || e.key === 'Backspace') && selRef.current) { e.preventDefault(); removeSelected(); }
       else if ((e.key === 'r' || e.key === 'R') && selRef.current) { e.preventDefault(); rotateSelected(e.shiftKey ? -15 : 15); }
@@ -1034,6 +1104,9 @@ export default function Layout3DEditor({
             {dimCount} {dimCount === 1 ? 'cota' : 'cotas'} <Trash2 className="w-3.5 h-3.5" />
           </button>
         )}
+        <div className="w-px h-5 bg-white/10 mx-1" />
+        <T3Btn onClick={undo} disabled={hist.undo === 0} title="Deshacer (Ctrl+Z)"><Undo2 className="w-4 h-4" /></T3Btn>
+        <T3Btn onClick={redo} disabled={hist.redo === 0} title="Rehacer (Ctrl+Shift+Z)"><Redo2 className="w-4 h-4" /></T3Btn>
         <div className="w-px h-5 bg-white/10 mx-1" />
         <T3Btn active={snap} onClick={() => setSnap((v) => !v)} title="Snap a grilla"><Grid3x3 className="w-4 h-4" /></T3Btn>
         <div className="w-px h-5 bg-white/10 mx-1" />
@@ -1147,11 +1220,11 @@ export default function Layout3DEditor({
                 <div className="text-[11px] text-gray-400 mb-3">{selSnap.subtitle}</div>
 
                 <div className="grid grid-cols-2 gap-2 mb-3">
-                  <NumField label="X" value={Math.round(selSnap.x)} onChange={(v) => setField('x', v)} />
-                  <NumField label="Y" value={Math.round(selSnap.y)} onChange={(v) => setField('y', v)} />
-                  <NumField label="Ancho" value={Math.round(selSnap.w)} onChange={(v) => setField('w', v)} />
-                  <NumField label="Largo" value={Math.round(selSnap.h)} onChange={(v) => setField('h', v)} />
-                  <NumField label="Rotación°" value={Math.round(selSnap.rotation)} onChange={(v) => setField('rotation', v)} />
+                  <NumField label="X" value={Math.round(selSnap.x)} onBegin={pushHistory} onChange={(v) => setField('x', v)} />
+                  <NumField label="Y" value={Math.round(selSnap.y)} onBegin={pushHistory} onChange={(v) => setField('y', v)} />
+                  <NumField label="Ancho" value={Math.round(selSnap.w)} onBegin={pushHistory} onChange={(v) => setField('w', v)} />
+                  <NumField label="Largo" value={Math.round(selSnap.h)} onBegin={pushHistory} onChange={(v) => setField('h', v)} />
+                  <NumField label="Rotación°" value={Math.round(selSnap.rotation)} onBegin={pushHistory} onChange={(v) => setField('rotation', v)} />
                   {selSnap.height !== undefined && <ReadField label="Alto" value={`${selSnap.height}`} />}
                 </div>
 
@@ -1175,21 +1248,22 @@ export default function Layout3DEditor({
   );
 }
 
-function T3Btn({ active, onClick, title, children }: { active?: boolean; onClick: () => void; title: string; children: React.ReactNode }) {
+function T3Btn({ active, onClick, title, children, disabled }: { active?: boolean; onClick: () => void; title: string; children: React.ReactNode; disabled?: boolean }) {
   return (
-    <button onClick={onClick} title={title} className={`p-1.5 rounded-lg transition-colors ${active ? 'text-white' : 'text-gray-400 hover:bg-white/10'}`} style={active ? { background: '#0e7490' } : undefined}>
+    <button onClick={onClick} title={title} disabled={disabled} className={`p-1.5 rounded-lg transition-colors disabled:opacity-30 disabled:hover:bg-transparent ${active ? 'text-white' : 'text-gray-400 hover:bg-white/10'}`} style={active ? { background: '#0e7490' } : undefined}>
       {children}
     </button>
   );
 }
 
-function NumField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+function NumField({ label, value, onChange, onBegin }: { label: string; value: number; onChange: (v: number) => void; onBegin?: () => void }) {
   return (
     <label className="block">
       <span className="block text-[10px] uppercase tracking-wide text-gray-500 mb-0.5">{label}</span>
       <input
         type="number"
         value={value}
+        onFocus={onBegin}
         onChange={(e) => onChange(parseFloat(e.target.value))}
         className="w-full px-2 py-1 rounded-md bg-white/[0.06] border border-white/10 text-[13px] text-white focus:outline-none focus:border-cyan-400/60"
       />
