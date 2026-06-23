@@ -28,6 +28,9 @@ export type AssetArchetype =
   | 'cart' // AGV / mobile cart: low rounded body
   | 'person' // operator: stylised capsule figure
   | 'cabinet' // tall electrical cabinet / locker
+  | 'desk' // workstation desk with a monitor
+  | 'bin' // open-top tote / scrap bin
+  | 'gantry' // overhead crane / gantry: legs + top beam
   | 'path'; // floor lane stripe (AGV route)
 
 /** Broad grouping used to organise the palette into sections. */
@@ -71,9 +74,13 @@ export const ASSET_CATALOG: AssetDef[] = [
   { kind: 'oven', label: 'Horno', color: '#f97316', fill: 'rgba(249,115,22,0.10)', w: 1800, h: 900, height: 1500, archetype: 'machine', category: 'proceso' },
   { kind: 'printer', label: 'Impresora', color: '#64748b', fill: 'rgba(100,116,139,0.10)', w: 600, h: 500, height: 1200, archetype: 'machine', category: 'proceso' },
   { kind: 'machine', label: 'Máquina CNC', color: '#475569', fill: 'rgba(71,85,105,0.12)', w: 1500, h: 1200, height: 1800, archetype: 'machine', category: 'proceso' },
+  { kind: 'gantry', label: 'Grúa puente', color: '#0ea5e9', fill: 'rgba(14,165,233,0.10)', w: 4000, h: 600, height: 3200, archetype: 'gantry', category: 'proceso' },
   // ── Soporte ────────────────────────────────────────────────────────────────
   { kind: 'cabinet', label: 'Gabinete', color: '#0f766e', fill: 'rgba(15,118,110,0.12)', w: 800, h: 600, height: 2000, archetype: 'cabinet', category: 'soporte' },
   { kind: 'pallet', label: 'Tarima', color: '#b45309', fill: 'rgba(180,83,9,0.14)', w: 1200, h: 1000, height: 150, archetype: 'pallet', category: 'soporte' },
+  { kind: 'desk', label: 'Escritorio', color: '#2563eb', fill: 'rgba(37,99,235,0.10)', w: 1400, h: 700, height: 1150, archetype: 'desk', category: 'soporte' },
+  { kind: 'bin', label: 'Contenedor', color: '#65a30d', fill: 'rgba(101,163,13,0.12)', w: 800, h: 600, height: 700, archetype: 'bin', category: 'soporte' },
+  { kind: 'safety', label: 'Estación seg.', color: '#dc2626', fill: 'rgba(220,38,38,0.12)', w: 600, h: 400, height: 1500, archetype: 'cabinet', category: 'soporte' },
   // ── Estructura ─────────────────────────────────────────────────────────────
   { kind: 'wall', label: 'Muro', color: '#94a3b8', fill: 'rgba(148,163,184,0.20)', w: 3000, h: 150, height: 3000, archetype: 'wall', category: 'estructura' },
   { kind: 'column', label: 'Columna', color: '#6b7280', fill: 'rgba(107,114,128,0.18)', w: 400, h: 400, height: 3200, archetype: 'column', category: 'estructura' },

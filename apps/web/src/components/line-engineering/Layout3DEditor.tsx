@@ -292,6 +292,37 @@ function buildArchetype(archetype: AssetArchetype, wS: number, dS: number, H: nu
       out.push(part(new THREE.SphereGeometry(r * 0.7, 14, 12), mat(light, 0.6, 0.05), 0, H * 0.74, 0));
       break;
     }
+    case 'desk': {
+      const top = Math.max(0.05, H * 0.08), deskY = H * 0.62;
+      out.push(part(new THREE.BoxGeometry(wS, top, dS), mat(c, 0.55, 0.1), 0, deskY, 0));
+      const lx = wS / 2 - leg, lz = dS / 2 - leg;
+      [[lx, lz], [-lx, lz], [lx, -lz], [-lx, -lz]].forEach(([x, z]) =>
+        out.push(part(new THREE.BoxGeometry(leg, deskY, leg), mat(dark, 0.7, 0.3), x, deskY / 2, z)));
+      // monitor: panel on a small stand
+      out.push(part(new THREE.BoxGeometry(leg, H * 0.12, leg), mat(dark, 0.5, 0.4), 0, deskY + top + H * 0.06, -dS * 0.2));
+      out.push(part(new THREE.BoxGeometry(wS * 0.42, H * 0.26, leg * 0.5), mat(0x0f172a, 0.2, 0.6, 0x0b1220), 0, deskY + top + H * 0.22, -dS * 0.2));
+      break;
+    }
+    case 'bin': {
+      const wall = Math.max(0.04, Math.min(wS, dS) * 0.08);
+      out.push(part(new THREE.BoxGeometry(wS, Math.max(0.04, H * 0.08), dS), mat(dark, 0.8, 0.05), 0, H * 0.04, 0)); // floor
+      out.push(part(new THREE.BoxGeometry(wS, H, wall), mat(c, 0.7, 0.05), 0, H / 2, dS / 2 - wall / 2));
+      out.push(part(new THREE.BoxGeometry(wS, H, wall), mat(c, 0.7, 0.05), 0, H / 2, -dS / 2 + wall / 2));
+      out.push(part(new THREE.BoxGeometry(wall, H, dS - wall * 2), mat(c, 0.7, 0.05), wS / 2 - wall / 2, H / 2, 0));
+      out.push(part(new THREE.BoxGeometry(wall, H, dS - wall * 2), mat(c, 0.7, 0.05), -wS / 2 + wall / 2, H / 2, 0));
+      break;
+    }
+    case 'gantry': {
+      const legW = Math.max(0.1, dS * 0.5), beamH = Math.max(0.15, H * 0.12);
+      // two end legs (span along X)
+      [wS / 2 - legW / 2, -wS / 2 + legW / 2].forEach((x) =>
+        out.push(part(new THREE.BoxGeometry(legW, H - beamH, legW), mat(dark, 0.6, 0.35), x, (H - beamH) / 2, 0)));
+      // top beam spanning the legs
+      out.push(part(new THREE.BoxGeometry(wS, beamH, legW * 0.9), mat(c, 0.5, 0.4), 0, H - beamH / 2, 0));
+      // trolley/hoist hanging from the beam
+      out.push(part(new THREE.BoxGeometry(wS * 0.12, beamH * 1.4, legW * 1.1), mat(light, 0.4, 0.5), wS * 0.1, H - beamH * 1.1, 0));
+      break;
+    }
     case 'zone':
     case 'path':
     default: {
