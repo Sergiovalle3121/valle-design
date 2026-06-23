@@ -8,6 +8,7 @@ import {
   Loader2, X, Save, Move3d, Grid3x3, RotateCw, RotateCcw, Trash2, Download,
   Box as BoxIcon, Eye, MapPin, Maximize2, Layers, Copy, Crosshair, Settings2,
   Boxes, ChevronRight, Ruler, MousePointer2, SlidersHorizontal, Undo2, Redo2, Spline,
+  ClipboardList,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/apiFetch';
 import { useToast } from '@/contexts/ToastContext';
@@ -52,6 +53,13 @@ interface Placement { x: number; y: number; w: number; h: number; rotation: numb
 type Sel = { type: 'station' | 'asset'; id: string } | null;
 /** A point-in-time copy of every editable collection, for undo/redo. */
 interface Snapshot { placements: [string, Placement][]; assets: Asset[]; annotations: Ann[] }
+/** Live quantity take-off computed from the editor's current state. */
+interface LocalTakeoff {
+  unit: string; footprintArea: number; totalStations: number; placedStations: number;
+  stationArea: number; equipmentCount: number; equipArea: number; usedArea: number;
+  util: number; wallLen: number; dimCount: number;
+  byKind: { kind: string; label: string; count: number; area: number }[];
+}
 /** A render-safe snapshot of the current selection for the properties panel. */
 interface SelSnap {
   type: 'station' | 'asset';
@@ -319,6 +327,14 @@ function buildAssetGroup(a: Asset, s: number, W: number, H: number, selected: bo
 
 const newId = (p: string) => `${p}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 const fmtDist = (d: number, unit: string) => `${Math.round(d).toLocaleString('es-MX')} ${unit}`;
+const fmtArea = (v: number, unit: string) => {
+  const m2 = unit === 'mm' ? v / 1e6 : unit === 'cm' ? v / 1e4 : v; // → m²
+  return `${m2.toLocaleString('es-MX', { maximumFractionDigits: m2 < 100 ? 2 : 0 })} m²`;
+};
+const fmtLen = (v: number, unit: string) => {
+  const m = unit === 'mm' ? v / 1000 : unit === 'cm' ? v / 100 : v; // → m
+  return `${m.toLocaleString('es-MX', { maximumFractionDigits: 2 })} m`;
+};
 
 /** Floor-plane line + end ticks + distance label for a dimension annotation. */
 function buildDim(a: Ann, s: number, W: number, H: number, unit: string): THREE.Object3D[] {
@@ -371,6 +387,7 @@ export default function Layout3DEditor({
   const [showView, setShowView] = useState(false);
   const [layers, setLayers] = useState({ stations: true, equipment: true, connectors: true, dims: true, labels: true, grid: true });
   const [hist, setHist] = useState({ undo: 0, redo: 0 }); // depths, for button enablement
+  const [takeoff, setTakeoff] = useState<LocalTakeoff | null>(null); // quantities panel (null = closed)
 
   // three.js refs
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -947,6 +964,34 @@ export default function Layout3DEditor({
   }, [endDraw]);
   const toggleMeasure = useCallback(() => setToolMode('measure'), [setToolMode]);
   const toggleWall = useCallback(() => setToolMode('wall'), [setToolMode]);
+  // Live quantity take-off from the current (possibly unsaved) editor state.
+  const openTakeoff = useCallback(() => {
+    const fp = data?.footprint; if (!fp) return;
+    const placements = [...placementsRef.current.values()];
+    const stationArea = placements.reduce((a, p) => a + p.w * p.h, 0);
+    const assets = [...assetsRef.current.values()];
+    const map = new Map<string, { count: number; area: number }>();
+    let equipArea = 0, wallLen = 0;
+    for (const a of assets) {
+      const area = a.w * a.h;
+      const c = map.get(a.kind) ?? { count: 0, area: 0 };
+      c.count += 1; c.area += area; map.set(a.kind, c);
+      if (a.kind !== 'zone' && a.kind !== 'agvpath') equipArea += area;
+      if (a.kind === 'wall') wallLen += Math.max(a.w, a.h);
+    }
+    const byKind = [...map.entries()]
+      .map(([kind, v]) => ({ kind, label: assetMeta(kind).label, count: v.count, area: v.area }))
+      .sort((p, q) => q.count - p.count || p.label.localeCompare(q.label));
+    const footprintArea = fp.footprintW * fp.footprintH;
+    const usedArea = stationArea + equipArea;
+    setTakeoff({
+      unit: fp.unit || 'mm', footprintArea, totalStations: data!.stations.length,
+      placedStations: placements.length, stationArea, equipmentCount: assets.length,
+      equipArea, usedArea, util: footprintArea > 0 ? Math.min(100, (usedArea / footprintArea) * 100) : 0,
+      wallLen, dimCount: [...annotationsRef.current.values()].filter((a) => a.type === 'dim').length, byKind,
+    });
+  }, [data]);
+
   const clearDims = useCallback(() => {
     const hasDim = [...annotationsRef.current.values()].some((a) => a.type === 'dim');
     if (!hasDim) return;
@@ -1163,6 +1208,7 @@ export default function Layout3DEditor({
           )}
         </div>
         <div className="w-px h-5 bg-white/10 mx-1" />
+        <T3Btn onClick={openTakeoff} title="Cantidades / lista de materiales"><ClipboardList className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={exportPng} title="Exportar PNG"><Download className="w-4 h-4" /></T3Btn>
         <div className="flex-1" />
         <button onClick={save} disabled={saving || !dirty} className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-sm font-medium text-white disabled:opacity-50" style={{ background: '#f43f5e' }}>
@@ -1275,6 +1321,65 @@ export default function Layout3DEditor({
           </div>
         </div>
       )}
+
+      {/* Quantities / take-off panel */}
+      {takeoff && (
+        <div className="absolute inset-0 z-[80] grid place-items-center bg-black/50 p-4" onClick={() => setTakeoff(null)}>
+          <div className="w-[420px] max-w-full max-h-[80vh] overflow-y-auto rounded-2xl border border-white/10 bg-gray-900 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
+              <ClipboardList className="w-4 h-4" style={{ color: '#22d3ee' }} />
+              <span className="text-sm font-semibold">Cantidades · {model} · {revision}</span>
+              <div className="flex-1" />
+              <button onClick={() => setTakeoff(null)} className="p-1 rounded-lg hover:bg-white/10"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="p-4">
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <Stat label="Estaciones" value={`${takeoff.placedStations}/${takeoff.totalStations}`} />
+                <Stat label="Equipos" value={`${takeoff.equipmentCount}`} />
+                <Stat label="Área huella" value={fmtArea(takeoff.footprintArea, takeoff.unit)} />
+                <Stat label="Aprovechamiento" value={`${takeoff.util.toFixed(1)} %`} highlight />
+                <Stat label="Área usada" value={fmtArea(takeoff.usedArea, takeoff.unit)} />
+                <Stat label="Muro total" value={fmtLen(takeoff.wallLen, takeoff.unit)} />
+              </div>
+              {takeoff.byKind.length > 0 ? (
+                <div className="rounded-xl border border-white/10 overflow-hidden">
+                  <table className="w-full text-[12.5px]">
+                    <thead><tr className="text-gray-400 bg-white/[0.04]"><th className="text-left font-medium px-3 py-1.5">Equipo</th><th className="text-right font-medium px-3 py-1.5">Cant.</th><th className="text-right font-medium px-3 py-1.5">Área</th></tr></thead>
+                    <tbody>
+                      {takeoff.byKind.map((r) => (
+                        <tr key={r.kind} className="border-t border-white/[0.06]">
+                          <td className="px-3 py-1.5">{r.label}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums">{r.count}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums text-gray-400">{fmtArea(r.area, takeoff.unit)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-[12px] text-gray-500 text-center py-3">Aún no hay equipo en el layout.</p>
+              )}
+              <div className="flex items-center justify-between mt-3">
+                <span className="text-[11px] text-gray-500">{takeoff.dimCount} {takeoff.dimCount === 1 ? 'cota' : 'cotas'}</span>
+                <button
+                  onClick={() => {
+                    const rows = [['Concepto', 'Cantidad', 'Área (m²)']];
+                    takeoff.byKind.forEach((r) => rows.push([r.label, String(r.count), fmtArea(r.area, takeoff.unit).replace(' m²', '')]));
+                    rows.push(['Estaciones colocadas', `${takeoff.placedStations}/${takeoff.totalStations}`, fmtArea(takeoff.stationArea, takeoff.unit).replace(' m²', '')]);
+                    rows.push(['Aprovechamiento', `${takeoff.util.toFixed(1)}%`, '']);
+                    rows.push(['Muro total', fmtLen(takeoff.wallLen, takeoff.unit), '']);
+                    const csv = rows.map((r) => r.join(',')).join('\n');
+                    navigator.clipboard?.writeText(csv).then(() => toast.success('Cantidades copiadas (CSV).', '3D'), () => toast.error('No se pudo copiar.', '3D'));
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"
+                >
+                  <Copy className="w-3.5 h-3.5" /> Copiar CSV
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>,
     document.body,
   );
@@ -1300,6 +1405,15 @@ function NumField({ label, value, onChange, onBegin }: { label: string; value: n
         className="w-full px-2 py-1 rounded-md bg-white/[0.06] border border-white/10 text-[13px] text-white focus:outline-none focus:border-cyan-400/60"
       />
     </label>
+  );
+}
+
+function Stat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div className={`rounded-lg px-3 py-2 ${highlight ? 'bg-cyan-500/15' : 'bg-white/[0.04]'}`}>
+      <div className="text-[10px] uppercase tracking-wide text-gray-500">{label}</div>
+      <div className={`text-[15px] font-semibold ${highlight ? 'text-cyan-300' : 'text-white'}`}>{value}</div>
+    </div>
   );
 }
 
