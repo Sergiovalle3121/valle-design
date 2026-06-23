@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import {
-  Loader2, X, Save, Move3d, Grid3x3, Grid2x2, ShieldAlert, RotateCw, RotateCcw, Trash2, Download, FileDown,
+  Loader2, X, Save, Move3d, Grid3x3, Grid2x2, ShieldAlert, RotateCw, RotateCcw, Trash2, Download, FileDown, Magnet,
   Box as BoxIcon, Eye, MapPin, Maximize2, Layers, Copy, Crosshair, Settings2,
   Boxes, ChevronRight, Ruler, MousePointer2, SlidersHorizontal, Undo2, Redo2, Spline,
   ClipboardList, Package, StickyNote, PersonStanding, HelpCircle,
@@ -472,6 +472,7 @@ export default function Layout3DEditor({
   const [data, setData] = useState<Layout | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [snap, setSnap] = useState(true);
+  const [osnap, setOsnap] = useState(true); // object snap: align to other objects' edges/centers (Fase 54)
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [selList, setSelList] = useState<SelItem[]>([]);
@@ -514,6 +515,7 @@ export default function Layout3DEditor({
   const gapsLoadedRef = useRef(false);
   const showGapsRef = useRef(false);
   const loadGapsRef = useRef<() => void>(() => {});
+  const guidesGroupRef = useRef<THREE.Group | null>(null); // object-snap alignment guides (Fase 54)
   const dxfModelRef = useRef<DxfModel | null>(null);
   const dxfMetaRef = useRef<DxfMeta | null>(null);
   const rebuildDxfRef = useRef<() => void>(() => {});
@@ -544,10 +546,12 @@ export default function Layout3DEditor({
   const wallChainRef = useRef<{ wx: number; wy: number } | null>(null);
   const selRef = useRef<SelItem[]>([]);
   const snapRef = useRef(snap);
+  const osnapRef = useRef(osnap);
   const toolRef = useRef(tool);
   const themeRef = useRef(theme);
   const sunRef = useRef(sun);
   useEffect(() => { snapRef.current = snap; }, [snap]);
+  useEffect(() => { osnapRef.current = osnap; }, [osnap]);
   useEffect(() => { toolRef.current = tool; }, [tool]);
   useEffect(() => { themeRef.current = theme; }, [theme]);
 
@@ -1088,6 +1092,7 @@ export default function Layout3DEditor({
     if (showHeatRef.current) { heatLoadedRef.current = true; loadHeatRef.current(); }
     const gapsGroup = new THREE.Group(); gapsGroup.visible = showGapsRef.current; scene.add(gapsGroup); gapsGroupRef.current = gapsGroup; gapsLoadedRef.current = false;
     if (showGapsRef.current) { gapsLoadedRef.current = true; loadGapsRef.current(); }
+    const guidesGroup = new THREE.Group(); scene.add(guidesGroup); guidesGroupRef.current = guidesGroup;
     const blocks = new THREE.Group(); scene.add(blocks); blocksRef.current = blocks;
     rebuildAssets();
     rebuildDims();
@@ -1109,7 +1114,33 @@ export default function Layout3DEditor({
     const ptr = new THREE.Vector2();
     const floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     const hit = new THREE.Vector3();
-    let drag: { lead: SelItem; items: SelItem[]; grabDX: number; grabDZ: number; start: Map<string, { x: number; y: number }> } | null = null;
+    let drag: { lead: SelItem; items: SelItem[]; grabDX: number; grabDZ: number; start: Map<string, { x: number; y: number }>; xEdges: number[]; yEdges: number[] } | null = null;
+    // Snap a moving box's edges/centre to other objects' edges/centres + the
+    // footprint, returning the offset to apply and the world axis to draw a guide.
+    const snap1D = (lo: number, len: number, edges: number[], tol: number): { off: number; axis: number } | null => {
+      const pts = [lo, lo + len / 2, lo + len];
+      let best: { off: number; axis: number; d: number } | null = null;
+      for (const p of pts) for (const ed of edges) {
+        const d = Math.abs(p - ed);
+        if (d <= tol && (!best || d < best.d)) best = { off: ed - p, axis: ed, d };
+      }
+      return best ? { off: best.off, axis: best.axis } : null;
+    };
+    const setGuides = (vx: number | null, hy: number | null) => {
+      const grp = guidesGroupRef.current; const ctx = ctxRef.current;
+      if (!grp || !ctx) return;
+      grp.children.slice().forEach((c) => { grp.remove(c); (c as THREE.Line).geometry?.dispose?.(); });
+      const { s, W, H } = ctx; const yy = 0.06;
+      const mat = () => new THREE.LineBasicMaterial({ color: 0x22d3ee });
+      if (vx !== null) {
+        const x = (vx - W / 2) * s;
+        grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x, yy, (-H / 2) * s), new THREE.Vector3(x, yy, (H / 2) * s)]), mat()));
+      }
+      if (hy !== null) {
+        const z = (hy - H / 2) * s;
+        grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3((-W / 2) * s, yy, z), new THREE.Vector3((W / 2) * s, yy, z)]), mat()));
+      }
+    };
     let downX = 0, downY = 0;
     let dragMoved = false;
     let dragSnap: Snapshot | null = null;
@@ -1195,7 +1226,20 @@ export default function Layout3DEditor({
         raycaster.ray.intersectPlane(floorPlane, hit);
         const start = new Map<string, { x: number; y: number }>();
         items.forEach((it) => { const p = getPlace(it); if (p) start.set(`${it.type}:${it.id}`, { x: p.x, y: p.y }); });
-        drag = { lead: item, items, grabDX: top.obj.position.x - hit.x, grabDZ: top.obj.position.z - hit.z, start };
+        // Collect alignment candidates from every OTHER object + the footprint.
+        const ctxD = ctxRef.current!;
+        const excl = new Set(items.map((it) => `${it.type}:${it.id}`));
+        const xEdges: number[] = [0, ctxD.W / 2, ctxD.W];
+        const yEdges: number[] = [0, ctxD.H / 2, ctxD.H];
+        placementsRef.current.forEach((p, id) => {
+          if (excl.has(`station:${id}`)) return;
+          xEdges.push(p.x, p.x + p.w / 2, p.x + p.w); yEdges.push(p.y, p.y + p.h / 2, p.y + p.h);
+        });
+        assetsRef.current.forEach((a) => {
+          if (excl.has(`asset:${a.id}`)) return;
+          xEdges.push(a.x, a.x + a.w / 2, a.x + a.w); yEdges.push(a.y, a.y + a.h / 2, a.y + a.h);
+        });
+        drag = { lead: item, items, grabDX: top.obj.position.x - hit.x, grabDZ: top.obj.position.z - hit.z, start, xEdges, yEdges };
         dragMoved = false; dragSnap = snapshot();
         controls.enabled = false;
         rebuildAll();
@@ -1236,8 +1280,20 @@ export default function Layout3DEditor({
       const worldCX = (hit.x + drag.grabDX) / ctx.s + ctx.W / 2;
       const worldCY = (hit.z + drag.grabDZ) / ctx.s + ctx.H / 2;
       // group delta from the lead's snapped position, clamped so all stay in bounds
-      let dx = snapWorld(worldCX - leadP.w / 2) - startLead.x;
-      let dy = snapWorld(worldCY - leadP.h / 2) - startLead.y;
+      let targetX = snapWorld(worldCX - leadP.w / 2);
+      let targetY = snapWorld(worldCY - leadP.h / 2);
+      // Object snap: align the lead's edges/centre to other objects + the footprint.
+      let gvx: number | null = null, ghy: number | null = null;
+      if (osnapRef.current && drag.xEdges) {
+        const tol = Math.max(ctx.W, ctx.H) * 0.012;
+        const sx = snap1D(targetX, leadP.w, drag.xEdges, tol);
+        if (sx) { targetX += sx.off; gvx = sx.axis; }
+        const sy = snap1D(targetY, leadP.h, drag.yEdges, tol);
+        if (sy) { targetY += sy.off; ghy = sy.axis; }
+      }
+      setGuides(gvx, ghy);
+      let dx = targetX - startLead.x;
+      let dy = targetY - startLead.y;
       let dxLo = -Infinity, dxHi = Infinity, dyLo = -Infinity, dyHi = Infinity;
       drag.items.forEach((it) => {
         const sp = drag!.start.get(`${it.type}:${it.id}`); const pp = getPlace(it); if (!sp || !pp) return;
@@ -1314,7 +1370,7 @@ export default function Layout3DEditor({
           setHist({ undo: undoStackRef.current.length, redo: 0 });
           setDirty(true);
         }
-        drag = null; dragSnap = null; controls.enabled = true; refreshSnap(); rebuildAll();
+        drag = null; dragSnap = null; controls.enabled = true; setGuides(null, null); refreshSnap(); rebuildAll();
       }
       try { renderer.domElement.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
     };
@@ -1382,6 +1438,7 @@ export default function Layout3DEditor({
       dirLightRef.current = null; notesGroupRef.current = null; dxfGroupRef.current = null;
       heatGroupRef.current = null; heatLoadedRef.current = false;
       gapsGroupRef.current = null; gapsLoadedRef.current = false;
+      guidesGroupRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, data]);
@@ -1732,6 +1789,7 @@ export default function Layout3DEditor({
         <T3Btn onClick={redo} disabled={hist.redo === 0} title="Rehacer (Ctrl+Shift+Z)"><Redo2 className="w-4 h-4" /></T3Btn>
         <div className="w-px h-5 bg-white/10 mx-1" />
         <T3Btn active={snap} onClick={() => setSnap((v) => !v)} title="Snap a grilla"><Grid3x3 className="w-4 h-4" /></T3Btn>
+        <T3Btn active={osnap} onClick={() => setOsnap((v) => !v)} title="Snap a objetos — alinea con bordes y centros de otros objetos (guías)"><Magnet className="w-4 h-4" /></T3Btn>
         <div className="w-px h-5 bg-white/10 mx-1" />
         <T3Btn onClick={() => viewPreset('iso')} title="Vista isométrica"><Maximize2 className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={() => viewPreset('top')} title="Vista superior (planta)"><Eye className="w-4 h-4" /></T3Btn>
