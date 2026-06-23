@@ -12,7 +12,7 @@ import {
   AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd,
   AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
   AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, RulerDimensionLine, Rows3, Waypoints,
-  ShieldCheck, CircleCheck, CircleAlert,
+  ShieldCheck, CircleCheck, CircleAlert, Printer,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/apiFetch';
 import { useToast } from '@/contexts/ToastContext';
@@ -25,6 +25,7 @@ import { arrangeLine, type ArrangeStation } from './arrange-line';
 import { connectLine, type ConnStation } from './connect-line';
 import { designChecks, type CheckBox, type DesignReport } from './design-checks';
 import { flowMetrics, type FlowCenter } from './flow-metrics';
+import { plotSheetModel } from './plot-sheet';
 
 /**
  * Full-screen interactive 3D layout editor — the "CAD" view of the plant floor.
@@ -1897,6 +1898,58 @@ export default function Layout3DEditor({
     a.download = `layout3d-${model}-${revision}.png`.replace(/[^\w.\-]+/g, '_');
     a.click();
   };
+  // Plot a printable PDF sheet: the rendered view + a title block (Fase 65).
+  const exportPdf = async () => {
+    const r = rendererRef.current, sc = sceneRef.current, cam = cameraRef.current, fp = data?.footprint;
+    if (!r || !sc || !cam || !fp) return;
+    try {
+      r.render(sc, cam);
+      const img = r.domElement.toDataURL('image/png');
+      const placements = [...placementsRef.current.values()];
+      const stationArea = placements.reduce((acc, p) => acc + p.w * p.h, 0);
+      const assets = [...assetsRef.current.values()];
+      const equipArea = assets.reduce((acc, x) => (x.kind !== 'zone' && x.kind !== 'agvpath' ? acc + x.w * x.h : acc), 0);
+      const footprintArea = fp.footprintW * fp.footprintH;
+      const util = footprintArea > 0 ? Math.min(100, ((stationArea + equipArea) / footprintArea) * 100) : 0;
+      const centers: Record<string, FlowCenter> = {};
+      placementsRef.current.forEach((p, id) => { centers[id] = { x: p.x + p.w / 2, y: p.y + p.h / 2 }; });
+      const flow = flowMetrics(connectorsRef.current, centers);
+      const sheet = plotSheetModel({
+        model, revision, unit: fp.unit || 'mm', footprintW: fp.footprintW, footprintH: fp.footprintH,
+        placedStations: placements.length, totalStations: data!.stations.length, equipmentCount: assets.length,
+        utilPct: util, flowLen: flow.totalLen, date: new Date(),
+      });
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const pageW = 297, pageH = 210, margin = 10;
+      // header band
+      doc.setFillColor(17, 24, 39); doc.rect(0, 0, pageW, 16, 'F');
+      doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
+      doc.text(`AXOS OS · ${sheet.title}`, margin, 11);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+      doc.text(sheet.subtitle, pageW - margin, 11, { align: 'right' });
+      // title block (right column)
+      const tbW = 70, tbX = pageW - margin - tbW, tbY = 22, rowH = 9;
+      const tbH = sheet.fields.length * rowH + 6;
+      doc.setDrawColor(150); doc.setFillColor(246, 248, 250); doc.rect(tbX, tbY, tbW, tbH, 'FD');
+      doc.setFontSize(8.5);
+      let y = tbY + 7;
+      for (const f of sheet.fields) {
+        doc.setFont('helvetica', 'normal'); doc.setTextColor(110, 116, 128); doc.text(f.label, tbX + 3, y);
+        doc.setFont('helvetica', 'bold'); doc.setTextColor(20, 24, 32); doc.text(f.value, tbX + tbW - 3, y, { align: 'right' });
+        y += rowH;
+      }
+      // drawing area (left) — fit the captured view preserving aspect
+      const imgX = margin, imgY = 22, imgW = tbX - margin - 6, imgH = pageH - imgY - margin;
+      const props = doc.getImageProperties(img);
+      const ar = (props.width || 4) / (props.height || 3);
+      let w = imgW, h = w / ar; if (h > imgH) { h = imgH; w = h * ar; }
+      doc.setDrawColor(205); doc.rect(imgX, imgY, imgW, imgH);
+      doc.addImage(img, 'PNG', imgX + (imgW - w) / 2, imgY + (imgH - h) / 2, w, h);
+      doc.save(`layout-${model}-${revision}.pdf`.replace(/[^\w.\-]+/g, '_'));
+      toast.success('Plano PDF generado.', '3D');
+    } catch (e) { console.error(e); toast.error('No se pudo generar el PDF.', '3D'); }
+  };
   // Export the 3D model as binary glTF (.glb) — opens in Blender, other CAD, etc.
   const exportGltf = async () => {
     const groups = [blocksRef.current, assetsGroupRef.current, connsGroupRef.current, groundRef.current].filter(Boolean) as THREE.Object3D[];
@@ -2083,6 +2136,7 @@ export default function Layout3DEditor({
         <T3Btn onClick={connectLineLayout} title="Conectar la línea — enlaza cada estación con la siguiente en secuencia (flujo)"><Waypoints className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={openChecks} title="Revisión de diseño — valida colocación, límites, traslapes y flujo"><ShieldCheck className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={openTakeoff} title="Cantidades / lista de materiales"><ClipboardList className="w-4 h-4" /></T3Btn>
+        <T3Btn onClick={exportPdf} title="Imprimir plano a PDF — vista + cajetín (modelo, revisión, huella, fecha)"><Printer className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={exportPng} title="Exportar imagen (PNG)"><Download className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={exportGltf} title="Exportar modelo 3D (.glb) — Blender, otros CAD"><Package className="w-4 h-4" /></T3Btn>
         {hasDxf && <T3Btn onClick={importDxfWalls} title="Convertir el plano DXF de fondo en muros editables"><BrickWall className="w-4 h-4" /></T3Btn>}
