@@ -12,6 +12,7 @@ import {
   AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd,
   AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
   AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, RulerDimensionLine, Rows3, Waypoints,
+  ShieldCheck, CircleCheck, CircleAlert,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/apiFetch';
 import { useToast } from '@/contexts/ToastContext';
@@ -22,6 +23,7 @@ import { dxfSnapPoints, nearestSnapPoint } from './dxf-snap';
 import { autoDimensions, type DimBox } from './auto-dimensions';
 import { arrangeLine, type ArrangeStation } from './arrange-line';
 import { connectLine, type ConnStation } from './connect-line';
+import { designChecks, type CheckBox, type DesignReport } from './design-checks';
 
 /**
  * Full-screen interactive 3D layout editor — the "CAD" view of the plant floor.
@@ -498,6 +500,7 @@ export default function Layout3DEditor({
   const [layers, setLayers] = useState({ stations: true, equipment: true, connectors: true, dims: true, notes: true, labels: true, grid: true, dxf: true });
   const [hist, setHist] = useState({ undo: 0, redo: 0 }); // depths, for button enablement
   const [takeoff, setTakeoff] = useState<LocalTakeoff | null>(null); // quantities panel (null = closed)
+  const [report, setReport] = useState<DesignReport | null>(null); // design-check report (null = closed) (Fase 63)
   const [showHeat, setShowHeat] = useState(false); // occupancy heat-map overlay on the floor (Fase 51)
   const [arr, setArr] = useState({ cols: 3, rows: 1, gap: 500, dx: 1000, dy: 0 }); // array/offset params (Fase 55)
   const [showGaps, setShowGaps] = useState(false); // clearance/safety gap markers overlay (Fase 52)
@@ -1541,6 +1544,23 @@ export default function Layout3DEditor({
     });
   }, [data]);
 
+  // Design-check / validation review of the current (possibly unsaved) state (Fase 63).
+  const openChecks = useCallback(() => {
+    const fp = data?.footprint; if (!fp) return;
+    const stations: CheckBox[] = [];
+    placementsRef.current.forEach((p, id) => {
+      stations.push({ id, label: stationsByIdRef.current.get(id)?.station ?? id, x: p.x, y: p.y, w: p.w, h: p.h });
+    });
+    const assets: CheckBox[] = [];
+    assetsRef.current.forEach((a) => {
+      const arch = assetMeta(a.kind).archetype;
+      if (arch === 'zone' || arch === 'path') return; // floor tints / lanes are meant to be large
+      assets.push({ id: a.id, label: a.label || assetMeta(a.kind).label, x: a.x, y: a.y, w: a.w, h: a.h });
+    });
+    const unplaced = Math.max(0, (data?.stations.length ?? 0) - placementsRef.current.size);
+    setReport(designChecks({ stations, assets, unplacedStations: unplaced, footprintW: fp.footprintW, footprintH: fp.footprintH, connectors: connectorsRef.current }));
+  }, [data]);
+
   // Resize the plant footprint / grid from the CAD; the scene rebuilds at the
   // new scale and the change persists on save (objects keep their world coords).
   const applyFootprint = useCallback(() => {
@@ -2054,6 +2074,7 @@ export default function Layout3DEditor({
         <div className="w-px h-5 bg-white/10 mx-1" />
         <T3Btn onClick={arrangeLineLayout} title="Acomodar la línea — ordena las estaciones por secuencia en filas equiespaciadas"><Rows3 className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={connectLineLayout} title="Conectar la línea — enlaza cada estación con la siguiente en secuencia (flujo)"><Waypoints className="w-4 h-4" /></T3Btn>
+        <T3Btn onClick={openChecks} title="Revisión de diseño — valida colocación, límites, traslapes y flujo"><ShieldCheck className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={openTakeoff} title="Cantidades / lista de materiales"><ClipboardList className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={exportPng} title="Exportar imagen (PNG)"><Download className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={exportGltf} title="Exportar modelo 3D (.glb) — Blender, otros CAD"><Package className="w-4 h-4" /></T3Btn>
@@ -2311,6 +2332,41 @@ export default function Layout3DEditor({
                   <Copy className="w-3.5 h-3.5" /> Copiar CSV
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Design-check / validation report */}
+      {report && (
+        <div className="absolute inset-0 z-[80] grid place-items-center bg-black/50 p-4" onClick={() => setReport(null)}>
+          <div className="w-[440px] max-w-full max-h-[80vh] overflow-y-auto rounded-2xl border border-white/10 bg-gray-900 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
+              <ShieldCheck className="w-4 h-4" style={{ color: report.score === 'ok' ? '#34d399' : report.score === 'warn' ? '#fbbf24' : '#f87171' }} />
+              <span className="text-sm font-semibold">Revisión de diseño · {model} · {revision}</span>
+              <div className="flex-1" />
+              <button onClick={() => setReport(null)} className="p-1 rounded-lg hover:bg-white/10"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="p-4 space-y-2">
+              <div className="text-[12.5px] mb-1">
+                {report.score === 'ok'
+                  ? <span className="text-emerald-400">Sin problemas detectados.</span>
+                  : <span className={report.score === 'error' ? 'text-rose-400' : 'text-amber-400'}>{report.errors} {report.errors === 1 ? 'error' : 'errores'} · {report.warnings} {report.warnings === 1 ? 'aviso' : 'avisos'}</span>}
+              </div>
+              {report.items.map((it) => {
+                const Icon = it.level === 'ok' ? CircleCheck : it.level === 'warn' ? CircleAlert : ShieldAlert;
+                const color = it.level === 'ok' ? '#34d399' : it.level === 'warn' ? '#fbbf24' : '#f87171';
+                return (
+                  <div key={it.key} className="flex items-start gap-2.5 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2">
+                    <Icon className="w-4 h-4 mt-0.5 shrink-0" style={{ color }} />
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-medium">{it.label}{it.count > 0 ? ` · ${it.count}` : ''}</div>
+                      <div className="text-[11.5px] text-gray-400 leading-snug">{it.detail}</div>
+                    </div>
+                  </div>
+                );
+              })}
+              <p className="text-[10.5px] text-gray-500 pt-1 leading-relaxed">Traslapes y límites se evalúan sobre la caja sin rotación (aproximado).</p>
             </div>
           </div>
         </div>
