@@ -18,6 +18,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { ASSET_CATEGORIES, assetMeta, type AssetArchetype } from './asset-catalog';
 import { parseDxf, type DxfModel } from './dxf';
 import { dxfToWalls } from './dxf-walls';
+import { dxfSnapPoints, nearestSnapPoint } from './dxf-snap';
 import { autoDimensions, type DimBox } from './auto-dimensions';
 
 /**
@@ -533,6 +534,8 @@ export default function Layout3DEditor({
   const walkKeysRef = useRef({ f: false, b: false, l: false, r: false });
   const savedCamRef = useRef<{ px: number; py: number; pz: number; tx: number; ty: number; tz: number } | null>(null);
   const previewLineRef = useRef<THREE.Line | null>(null);
+  const snapMarkerRef = useRef<THREE.Mesh | null>(null); // ring shown when the cursor snaps to the DXF underlay (Fase 60)
+  const dxfSnapRef = useRef<{ x: number; y: number }[]>([]); // precomputed DXF snap targets (footprint coords)
   const meshByIdRef = useRef<Map<string, THREE.Mesh>>(new Map());
   const groupByAssetRef = useRef<Map<string, THREE.Group>>(new Map());
   const layersRef = useRef(layers);
@@ -702,7 +705,7 @@ export default function Layout3DEditor({
         setData(d);
         // fetch + parse the read-only DXF backdrop (the endpoint already serves
         // the raw drawing); render it on the floor once ready.
-        dxfModelRef.current = null; dxfMetaRef.current = null; setHasDxf(false);
+        dxfModelRef.current = null; dxfMetaRef.current = null; dxfSnapRef.current = []; setHasDxf(false);
         if (d.dxf) {
           try {
             const rd = await apiFetch(`${API_BASE}/line-engineering/layout/dxf?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`);
@@ -711,6 +714,7 @@ export default function Layout3DEditor({
               dxfModelRef.current = raw?.data ? parseDxf(raw.data) : null;
               dxfMetaRef.current = d.dxf;
               setHasDxf(!!dxfModelRef.current && !!dxfMetaRef.current);
+              dxfSnapRef.current = dxfModelRef.current && dxfMetaRef.current ? dxfSnapPoints(dxfModelRef.current, dxfMetaRef.current) : [];
               rebuildDxfRef.current();
             }
           } catch { /* ignore — backdrop is optional */ }
@@ -1092,6 +1096,14 @@ export default function Layout3DEditor({
       new THREE.LineBasicMaterial({ color: 0xfcd34d }),
     );
     previewLine.visible = false; previewLineRef.current = previewLine; dimsGroup.add(previewLine);
+    // Snap-to-underlay marker — a flat ring that lights up on a DXF snap target.
+    // Added to the scene (not dimsGroup) so dim rebuilds never dispose it.
+    const snapMarker = new THREE.Mesh(
+      new THREE.RingGeometry(0.16, 0.28, 24),
+      new THREE.MeshBasicMaterial({ color: 0x34d399, transparent: true, opacity: 0.95, side: THREE.DoubleSide, depthTest: false }),
+    );
+    snapMarker.rotation.x = -Math.PI / 2; snapMarker.renderOrder = 999; snapMarker.visible = false;
+    snapMarkerRef.current = snapMarker; scene.add(snapMarker);
     const notesGroup = new THREE.Group(); scene.add(notesGroup); notesGroupRef.current = notesGroup;
     const dxfGroup = new THREE.Group(); scene.add(dxfGroup); dxfGroupRef.current = dxfGroup;
     const heatGroup = new THREE.Group(); heatGroup.visible = showHeatRef.current; scene.add(heatGroup); heatGroupRef.current = heatGroup; heatLoadedRef.current = false;
@@ -1184,6 +1196,25 @@ export default function Layout3DEditor({
       const ctx = ctxRef.current!;
       return { wx: hit.x / ctx.s + ctx.W / 2, wy: hit.z / ctx.s + ctx.H / 2 };
     };
+    /**
+     * Snap a raw floor point to the nearest DXF underlay target (object-snap to
+     * underlay) when osnap is on and a plan is loaded; otherwise grid-snap. (Fase 60)
+     */
+    const snapFloor = (wx: number, wy: number): { wx: number; wy: number; onDxf: boolean } => {
+      const ctx = ctxRef.current!;
+      if (osnapRef.current && dxfSnapRef.current.length) {
+        const tol = Math.max(ctx.W, ctx.H) * 0.012;
+        const hit = nearestSnapPoint(dxfSnapRef.current, wx, wy, tol);
+        if (hit) return { wx: hit.x, wy: hit.y, onDxf: true };
+      }
+      return { wx: snapWorld(wx), wy: snapWorld(wy), onDxf: false };
+    };
+    const showSnapMarker = (wx: number | null, wy?: number) => {
+      const m = snapMarkerRef.current; const ctx = ctxRef.current; if (!m || !ctx) return;
+      if (wx === null || wy === undefined) { m.visible = false; return; }
+      m.position.set((wx - ctx.W / 2) * ctx.s, 0.07, (wy - ctx.H / 2) * ctx.s);
+      m.visible = true;
+    };
     const onDown = (e: PointerEvent) => {
       downX = e.clientX; downY = e.clientY;
       if (walkRef.current) { walkLook = true; lookX = e.clientX; lookY = e.clientY; renderer.domElement.setPointerCapture(e.pointerId); return; }
@@ -1263,18 +1294,22 @@ export default function Layout3DEditor({
         return;
       }
       if (toolRef.current === 'measure' || toolRef.current === 'wall') {
+        const w = floorWorld(e); if (!w) { showSnapMarker(null); return; }
+        const s = snapFloor(w.wx, w.wy); // snap the live endpoint to the underlay
+        showSnapMarker(s.onDxf ? s.wx : null, s.wy);
         const a = toolRef.current === 'measure' ? measureARef.current : wallChainRef.current;
-        if (!a) return;
-        const w = floorWorld(e); if (!w) return;
+        if (!a) return; // marker shown for the first point; wait for the anchor to draw a segment
         const ctx = ctxRef.current!;
         const ax = (a.wx - ctx.W / 2) * ctx.s, az = (a.wy - ctx.H / 2) * ctx.s;
+        const ex = (s.wx - ctx.W / 2) * ctx.s, ez = (s.wy - ctx.H / 2) * ctx.s;
         const pl = previewLineRef.current;
-        if (pl) { (pl.geometry as THREE.BufferGeometry).setFromPoints([new THREE.Vector3(ax, 0.06, az), new THREE.Vector3(hit.x, 0.06, hit.z)]); pl.visible = true; }
-        const dist = Math.hypot(w.wx - a.wx, w.wy - a.wy);
+        if (pl) { (pl.geometry as THREE.BufferGeometry).setFromPoints([new THREE.Vector3(ax, 0.06, az), new THREE.Vector3(ex, 0.06, ez)]); pl.visible = true; }
+        const dist = Math.hypot(s.wx - a.wx, s.wy - a.wy);
+        const tag = s.onDxf ? ' · plano' : '';
         if (toolRef.current === 'wall') {
-          const deg = (((Math.atan2(w.wy - a.wy, w.wx - a.wx) * 180) / Math.PI) % 360 + 360) % 360;
-          setMeasureLive(`${fmtDist(dist, unit)} · ${Math.round(deg)}°`);
-        } else setMeasureLive(fmtDist(dist, unit));
+          const deg = (((Math.atan2(s.wy - a.wy, s.wx - a.wx) * 180) / Math.PI) % 360 + 360) % 360;
+          setMeasureLive(`${fmtDist(dist, unit)} · ${Math.round(deg)}°${tag}`);
+        } else setMeasureLive(`${fmtDist(dist, unit)}${tag}`);
         return;
       }
       if (!drag) return;
@@ -1320,7 +1355,8 @@ export default function Layout3DEditor({
         if (isClick) {
           const w = floorWorld(e);
           if (w) {
-            const pt = { wx: snapWorld(w.wx), wy: snapWorld(w.wy) };
+            const sp = snapFloor(w.wx, w.wy);
+            const pt = { wx: sp.wx, wy: sp.wy };
             if (!measureARef.current) { measureARef.current = pt; setMeasureLive(fmtDist(0, unit)); }
             else {
               const a = measureARef.current;
@@ -1343,10 +1379,12 @@ export default function Layout3DEditor({
         if (isClick) {
           const w = floorWorld(e);
           if (w) {
-            let pt = { wx: snapWorld(w.wx), wy: snapWorld(w.wy) };
+            const sp = snapFloor(w.wx, w.wy);
+            let pt = { wx: sp.wx, wy: sp.wy };
             const prev = wallChainRef.current;
-            // hold Shift to constrain the segment to 45° increments (ortho/diagonal)
-            if (prev && e.shiftKey) {
+            // hold Shift to constrain to 45° — but an explicit DXF snap wins (you
+            // clicked that point on the plan, so honour it over the angle lock).
+            if (prev && e.shiftKey && !sp.onDxf) {
               const len0 = Math.hypot(pt.wx - prev.wx, pt.wy - prev.wy);
               const ang = Math.round(Math.atan2(pt.wy - prev.wy, pt.wx - prev.wx) / (Math.PI / 4)) * (Math.PI / 4);
               pt = { wx: Math.round(prev.wx + Math.cos(ang) * len0), wy: Math.round(prev.wy + Math.sin(ang) * len0) };
@@ -1439,7 +1477,7 @@ export default function Layout3DEditor({
       if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
       sceneRef.current = null; rendererRef.current = null; cameraRef.current = null;
       blocksRef.current = null; assetsGroupRef.current = null; controlsRef.current = null;
-      dimsGroupRef.current = null; previewLineRef.current = null;
+      dimsGroupRef.current = null; previewLineRef.current = null; snapMarkerRef.current = null;
       connsGroupRef.current = null; gridGroupRef.current = null; groundRef.current = null; gridHelperRef.current = null;
       dirLightRef.current = null; notesGroupRef.current = null; dxfGroupRef.current = null;
       heatGroupRef.current = null; heatLoadedRef.current = false;
@@ -1456,6 +1494,7 @@ export default function Layout3DEditor({
   const endDraw = useCallback(() => {
     measureARef.current = null; wallChainRef.current = null; setMeasureLive(null);
     if (previewLineRef.current) previewLineRef.current.visible = false;
+    if (snapMarkerRef.current) snapMarkerRef.current.visible = false;
   }, []);
   const setToolMode = useCallback((next: 'select' | 'measure' | 'wall') => {
     setTool((prev) => {
@@ -1926,7 +1965,7 @@ export default function Layout3DEditor({
         <T3Btn onClick={redo} disabled={hist.redo === 0} title="Rehacer (Ctrl+Shift+Z)"><Redo2 className="w-4 h-4" /></T3Btn>
         <div className="w-px h-5 bg-white/10 mx-1" />
         <T3Btn active={snap} onClick={() => setSnap((v) => !v)} title="Snap a grilla"><Grid3x3 className="w-4 h-4" /></T3Btn>
-        <T3Btn active={osnap} onClick={() => setOsnap((v) => !v)} title="Snap a objetos — alinea con bordes y centros de otros objetos (guías)"><Magnet className="w-4 h-4" /></T3Btn>
+        <T3Btn active={osnap} onClick={() => setOsnap((v) => !v)} title="Snap a objetos y al plano DXF — alinea con bordes/centros y engancha a vértices y puntos medios del plano al medir o trazar muros"><Magnet className="w-4 h-4" /></T3Btn>
         <div className="w-px h-5 bg-white/10 mx-1" />
         <T3Btn onClick={() => viewPreset('iso')} title="Vista isométrica"><Maximize2 className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={() => viewPreset('top')} title="Vista superior (planta)"><Eye className="w-4 h-4" /></T3Btn>

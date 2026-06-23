@@ -69,13 +69,17 @@ export interface DxfToWallsResult {
   segmentsConsidered: number;
 }
 
-interface Pt {
+export interface Pt {
   x: number;
   y: number;
 }
 
-/** Map a normalised DXF point to footprint coordinates (mirrors rebuildDxf). */
-function toFootprint(nx: number, ny: number, model: DxfModel, p: DxfPlacement): Pt {
+/**
+ * Map a normalised DXF point to footprint coordinates (mirrors rebuildDxf).
+ * Exported so the snap layer (Fase 60) projects the same points the backdrop
+ * draws, guaranteeing snaps land exactly on the visible plan.
+ */
+export function dxfPointToFootprint(nx: number, ny: number, model: DxfModel, p: DxfPlacement): Pt {
   const scale = Number(p.scale) || 1;
   const ox = Number(p.offsetX) || 0;
   const oy = Number(p.offsetY) || 0;
@@ -159,7 +163,7 @@ export function dxfToWalls(
       const nx = Number(flat[i]);
       const ny = Number(flat[i + 1]);
       if (!Number.isFinite(nx) || !Number.isFinite(ny)) continue;
-      pts.push(toFootprint(nx, ny, model, placement));
+      pts.push(dxfPointToFootprint(nx, ny, model, placement));
     }
     const chain = simplify ? simplifyChain(pts, collinearDeg) : pts;
     for (let i = 0; i + 1 < chain.length; i++) {
