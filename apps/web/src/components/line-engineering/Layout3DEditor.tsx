@@ -929,7 +929,11 @@ export default function Layout3DEditor({
         const ax = (a.wx - ctx.W / 2) * ctx.s, az = (a.wy - ctx.H / 2) * ctx.s;
         const pl = previewLineRef.current;
         if (pl) { (pl.geometry as THREE.BufferGeometry).setFromPoints([new THREE.Vector3(ax, 0.06, az), new THREE.Vector3(hit.x, 0.06, hit.z)]); pl.visible = true; }
-        setMeasureLive(fmtDist(Math.hypot(w.wx - a.wx, w.wy - a.wy), unit));
+        const dist = Math.hypot(w.wx - a.wx, w.wy - a.wy);
+        if (toolRef.current === 'wall') {
+          const deg = (((Math.atan2(w.wy - a.wy, w.wx - a.wx) * 180) / Math.PI) % 360 + 360) % 360;
+          setMeasureLive(`${fmtDist(dist, unit)} · ${Math.round(deg)}°`);
+        } else setMeasureLive(fmtDist(dist, unit));
         return;
       }
       if (!drag) return;
@@ -984,8 +988,14 @@ export default function Layout3DEditor({
         if (isClick) {
           const w = floorWorld(e);
           if (w) {
-            const pt = { wx: snapWorld(w.wx), wy: snapWorld(w.wy) };
+            let pt = { wx: snapWorld(w.wx), wy: snapWorld(w.wy) };
             const prev = wallChainRef.current;
+            // hold Shift to constrain the segment to 45° increments (ortho/diagonal)
+            if (prev && e.shiftKey) {
+              const len0 = Math.hypot(pt.wx - prev.wx, pt.wy - prev.wy);
+              const ang = Math.round(Math.atan2(pt.wy - prev.wy, pt.wx - prev.wx) / (Math.PI / 4)) * (Math.PI / 4);
+              pt = { wx: Math.round(prev.wx + Math.cos(ang) * len0), wy: Math.round(prev.wy + Math.sin(ang) * len0) };
+            }
             if (prev && Math.hypot(pt.wx - prev.wx, pt.wy - prev.wy) > 1) {
               const thick = assetMeta('wall').h;
               const len = Math.hypot(pt.wx - prev.wx, pt.wy - prev.wy);
@@ -1461,7 +1471,7 @@ export default function Layout3DEditor({
               {tool === 'measure'
                 ? 'Clic en dos puntos para medir · arrastra el fondo para orbitar · Esc cancela'
                 : tool === 'wall'
-                  ? 'Clic en cada esquina para trazar muros · arrastra el fondo para orbitar · Esc termina'
+                  ? 'Clic en cada esquina para trazar muros · Shift = ángulos de 45° · arrastra el fondo para orbitar · Esc termina'
                   : 'Arrastra para mover · fondo = orbitar · rueda = zoom · R rota · Supr borra · clic en una cota la quita'}
             </div>
           </div>
