@@ -3,7 +3,9 @@ import { strict as assert } from "node:assert";
 import {
   assignObjectsToLayer,
   DEFAULT_CAD_LAYERS,
+  editableObjectIds,
   isLayerLocked,
+  isObjectLayerLocked,
   isLayerVisible,
   layerForObject,
   toggleCadLayerLocked,
@@ -30,5 +32,25 @@ assert.equal(
   layerForObject(assignments, "x", "layout"),
   "layout",
   "fallback works",
+);
+
+assert.equal(
+  isObjectLayerLocked(layers, assignments, "a", "layout"),
+  false,
+  "object on unlocked safety layer can be edited",
+);
+layers = toggleCadLayerLocked(layers, "safety");
+assert.equal(
+  isObjectLayerLocked(layers, assignments, "a", "layout"),
+  true,
+  "object on locked assigned layer is locked",
+);
+assert.deepEqual(
+  editableObjectIds(layers, assignments, [
+    { id: "a", fallbackLayer: "layout" },
+    { id: "x", fallbackLayer: "layout" },
+  ]),
+  ["x"],
+  "editableObjectIds filters locked objects",
 );
 console.log("cad layer specs passed");

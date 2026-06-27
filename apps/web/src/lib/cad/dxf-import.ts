@@ -24,6 +24,41 @@ export interface CadDxfImportResult {
   layers: string[];
 }
 
+export interface CadDxfWarningSummary {
+  key: string;
+  code: string;
+  entityType?: string;
+  layer?: string;
+  count: number;
+  message: string;
+}
+
+export function summarizeDxfImportWarnings(
+  warnings: CadDxfImportWarning[],
+): CadDxfWarningSummary[] {
+  const groups = new Map<string, CadDxfWarningSummary>();
+  for (const warning of warnings) {
+    const key = [
+      warning.code,
+      warning.entityType ?? "",
+      warning.layer ?? "",
+      warning.message,
+    ].join("|");
+    const existing = groups.get(key);
+    if (existing) existing.count += 1;
+    else
+      groups.set(key, {
+        key,
+        code: warning.code,
+        entityType: warning.entityType,
+        layer: warning.layer,
+        count: 1,
+        message: warning.message,
+      });
+  }
+  return [...groups.values()].sort((a, b) => b.count - a.count);
+}
+
 const DEFAULT_LAYER = "0";
 const MAX_DXF_ENTITIES = 50000;
 

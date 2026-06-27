@@ -1,6 +1,6 @@
 /** Pure CAD DXF import smoke tests. */
 import { strict as assert } from "node:assert";
-import { mapDxfEntityToPrimitive } from "./dxf-import";
+import { mapDxfEntityToPrimitive, summarizeDxfImportWarnings } from "./dxf-import";
 
 assert.equal(
   mapDxfEntityToPrimitive({
@@ -42,4 +42,27 @@ assert.equal(
   "unsupported_entity",
   "unsupported entities warn",
 );
+
+const grouped = summarizeDxfImportWarnings([
+  {
+    code: "unsupported_entity",
+    message: "No soportado",
+    entityType: "ARC",
+    layer: "A",
+  },
+  {
+    code: "unsupported_entity",
+    message: "No soportado",
+    entityType: "ARC",
+    layer: "A",
+  },
+  {
+    code: "invalid_text",
+    message: "Texto inválido",
+    entityType: "TEXT",
+    layer: "NOTES",
+  },
+]);
+assert.equal(grouped[0].count, 2, "groups repeated warnings");
+assert.equal(grouped[0].entityType, "ARC", "keeps warning entity type");
 console.log("cad dxf import specs passed");

@@ -87,6 +87,47 @@ assert.equal(
   "validator reports selection issue",
 );
 
+const flowPreview = previewCadCommand(
+  { id: "connect_flow", objectIds: ["smt", "aoi", "pack"] },
+  ctx,
+);
+assert.equal(
+  flowPreview.operations.some((op) => op.type === "report"),
+  true,
+  "connect flow includes flow metrics report",
+);
+
+const arrangePreview = previewCadCommand(
+  { id: "arrange_line", direction: "left_to_right", objectIds: ["smt", "aoi"] },
+  ctx,
+);
+assert.equal(
+  arrangePreview.operations.some((op) => op.type === "report"),
+  true,
+  "arrange line includes post-flow score report",
+);
+
+const collisionPreview = previewCadCommand(
+  { id: "find_collisions" },
+  {
+    ...ctx,
+    objects: [
+      ctx.objects[0],
+      { ...ctx.objects[0], id: "overlap", label: "Overlap", x: 500 },
+    ],
+  },
+);
+assert.equal(
+  collisionPreview.affectedObjectIds.includes("smt"),
+  true,
+  "collision preview reports object ids",
+);
+assert.equal(
+  collisionPreview.issues.some((issue) => issue.code === "collisions_found"),
+  true,
+  "collision preview warns when overlaps exist",
+);
+
 let history: CadCommandHistoryState = { undo: [], redo: [] };
 history = pushHistory(
   history,

@@ -7,11 +7,13 @@ import type {
   CadConnectorInput,
   CadOperation,
 } from "./types";
+import { measureBoxes, measurementLabel } from "../measurements";
+import { detectCadCollisions } from "../collisions";
+import { scoreFlowLayout } from "../flow-optimization";
 import {
   error,
   findObjectByLabel,
   outOfBounds,
-  overlaps,
   selectedObjects,
   validateDistance,
   warning,
@@ -24,7 +26,6 @@ const result = (
   applied: boolean,
   historyLabel: string,
 ): CadCommandResult => ({ ...preview, applied, historyLabel });
-const center = (b: CadBox) => ({ x: b.x + b.w / 2, y: b.y + b.h / 2 });
 const uniq = <T>(xs: T[]) => [...new Set(xs)];
 const bySequence = (xs: CadBox[]) =>
   [...xs].sort(
@@ -168,6 +169,26 @@ function flowObjects(
   return bySequence(objects);
 }
 
+function flowScoreRows(objects: CadBox[]): { label: string; value: string }[] {
+  const score = scoreFlowLayout(
+    objects.map((object) => ({
+      id: object.id,
+      label: object.label,
+      x: object.x + object.w / 2,
+      y: object.y + object.h / 2,
+    })),
+  );
+  return [
+    { label: "Score", value: `${score.score}/100` },
+    {
+      label: "Distancia total",
+      value: `${Math.round(score.totalDistance)} mm`,
+    },
+    { label: "Cruces", value: String(score.crossingCount) },
+    { label: "Backtracking", value: String(score.backtrackingCount) },
+  ];
+}
+
 export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
   {
     id: "create_clearance_aisle",
@@ -308,10 +329,15 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         to: xs[idx + 1].id,
         kind: "flow",
       }));
+      const flowReport: CadOperation = {
+        type: "report",
+        title: "Métricas de flujo",
+        rows: flowScoreRows(xs),
+      };
       return {
         summary: `Conectar ${ops.length} tramos de flujo.`,
         affectedObjectIds: xs.map((o) => o.id),
-        operations: ops,
+        operations: xs.length >= 2 ? [...ops, flowReport] : ops,
         issues:
           xs.length >= 2
             ? []
@@ -360,10 +386,18 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         else cursor.x += o.w + gap;
         return { type: "move", objectId: o.id, before: o, after };
       });
+      const arranged = ops
+        .map((op) => (op.type === "move" ? op.after : null))
+        .filter((box): box is CadBox => !!box);
+      const flowReport: CadOperation = {
+        type: "report",
+        title: "Score de flujo posterior",
+        rows: flowScoreRows(arranged),
+      };
       return {
         summary: `Acomodar ${xs.length} estaciones por secuencia.`,
         affectedObjectIds: xs.map((o) => o.id),
-        operations: ops,
+        operations: xs.length ? [...ops, flowReport] : ops,
         issues: xs.length
           ? []
           : [error("selection_empty", "No hay estaciones para acomodar.")],
@@ -414,25 +448,25 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
                 "No encontré ambos objetos para medir.",
               ),
             ];
-      const distance =
+      const measurement =
         a && b
-          ? Math.hypot(center(a).x - center(b).x, center(a).y - center(b).y)
-          : 0;
+          ? measureBoxes(a, b, "direct", c.unit === "m" ? "m" : "mm")
+          : null;
       return {
         summary:
-          a && b
-            ? `Distancia ${a.label} ↔ ${b.label}: ${Math.round(distance)}${c.unit}.`
+          a && b && measurement
+            ? measurementLabel(a, b, measurement)
             : "Medir distancia",
         affectedObjectIds: [a?.id, b?.id].filter(Boolean) as string[],
         operations:
-          a && b
+          a && b && measurement
             ? [
                 {
                   type: "measure",
                   from: a.id,
                   to: b.id,
-                  distance,
-                  unit: c.unit,
+                  distance: measurement.distanceMm,
+                  unit: "mm",
                 },
               ]
             : [],
@@ -462,22 +496,36 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
       const xs = ids?.length
         ? c.objects.filter((o) => ids.includes(o.id))
         : c.objects;
-      const rows: { label: string; value: string }[] = [];
-      for (let a = 0; a < xs.length; a++)
-        for (let b = a + 1; b < xs.length; b++)
-          if (overlaps(xs[a], xs[b]))
-            rows.push({ label: xs[a].label, value: xs[b].label });
+      const byId = new Map(xs.map((box) => [box.id, box]));
+      const collisions = detectCadCollisions(
+        xs.map((box) => ({
+          id: box.id,
+          label: box.label,
+          x: box.x + box.w / 2,
+          y: box.y + box.h / 2,
+          width: box.w,
+          height: box.h,
+        })),
+      );
+      const rows = collisions.map((hit) => ({
+        label: hit.aLabel,
+        value: `${hit.bLabel} · ${Math.round(hit.area)} mm²`,
+      }));
       return {
         summary: rows.length
           ? `${rows.length} colisiones detectadas.`
           : "Sin colisiones detectadas.",
-        affectedObjectIds: uniq(rows.flatMap((r) => [r.label, r.value])),
+        affectedObjectIds: uniq(
+          collisions
+            .flatMap((hit) => [hit.aId, hit.bId])
+            .filter((id) => byId.has(id)),
+        ),
         operations: [{ type: "report", title: "Colisiones", rows }],
         issues: rows.length
           ? [
               warning(
                 "collisions_found",
-                `${rows.length} traslapes básicos detectados.`,
+                `${rows.length} traslapes detectados con bounding boxes compartidos.`,
               ),
             ]
           : [],
