@@ -37,6 +37,30 @@ export interface DxfText {
   height?: number;
 }
 
+/** A full circle (Fase 68 — alta fidelidad). */
+export interface DxfCircle {
+  cx: number;
+  cy: number;
+  r: number;
+  layer: string;
+}
+
+/** A circular arc (Fase 68). Angles in degrees, CCW, measured before the Y flip. */
+export interface DxfArc {
+  cx: number;
+  cy: number;
+  r: number;
+  startAngle: number;
+  endAngle: number;
+  layer: string;
+}
+
+/** A custom CAD layer to register with an explicit AutoCAD color index (Fase 66/68). */
+export interface DxfLayerDef {
+  name: string;
+  color: number; // AutoCAD Color Index (1-255)
+}
+
 export interface DxfInput {
   footprintW: number;
   footprintH: number;
@@ -44,6 +68,10 @@ export interface DxfInput {
   boxes: DxfBox[];
   segments: DxfSegment[];
   texts: DxfText[];
+  circles?: DxfCircle[];
+  arcs?: DxfArc[];
+  /** Extra named layers (e.g. the user's CAD layers) with their colors. */
+  layerDefs?: DxfLayerDef[];
 }
 
 // AutoCAD Color Index per layer — keeps the export legible when opened.
@@ -96,12 +124,33 @@ export function buildDxf(input: DxfInput): string {
     g(72, 1); g(73, 2); // centre / middle alignment
     g(11, fmt(x)); g(21, fmt(y)); g(31, 0);
   };
+  const circle = (layer: string, cx: number, cy: number, r: number) => {
+    g(0, 'CIRCLE');
+    g(8, layer);
+    g(10, fmt(cx)); g(20, fmt(cy)); g(30, 0);
+    g(40, fmt(Math.abs(r)));
+  };
+  // Flipping Y mirrors the arc about the horizontal axis: angle θ → -θ and the
+  // sweep direction reverses, so start/end swap (start' = -end, end' = -start).
+  const norm360 = (a: number) => ((a % 360) + 360) % 360;
+  const arc = (layer: string, cx: number, cy: number, r: number, start: number, end: number) => {
+    g(0, 'ARC');
+    g(8, layer);
+    g(10, fmt(cx)); g(20, fmt(cy)); g(30, 0);
+    g(40, fmt(Math.abs(r)));
+    g(50, fmt(norm360(-end))); g(51, fmt(norm360(-start)));
+  };
 
   // Collect the layers actually used (footprint + box labels always present).
   const used = new Set<string>(['PLANO']);
   input.boxes.forEach((b) => { used.add(b.layer); if (b.label) used.add('TEXTO'); });
   input.segments.forEach((s) => used.add(s.layer));
   input.texts.forEach((t) => used.add(t.layer));
+  (input.circles ?? []).forEach((c) => used.add(c.layer));
+  (input.arcs ?? []).forEach((a) => used.add(a.layer));
+  // Explicit user layer colors override the built-in palette for matching names.
+  const customColor = new Map((input.layerDefs ?? []).map((d) => [d.name, d.color]));
+  (input.layerDefs ?? []).forEach((d) => used.add(d.name));
   const layers = [...used];
 
   // ── HEADER ──
@@ -116,7 +165,8 @@ export function buildDxf(input: DxfInput): string {
   g(0, 'SECTION'); g(2, 'TABLES');
   g(0, 'TABLE'); g(2, 'LAYER'); g(70, layers.length);
   for (const name of layers) {
-    g(0, 'LAYER'); g(2, name); g(70, 0); g(62, LAYER_COLOR[name] ?? 7); g(6, 'CONTINUOUS');
+    const color = customColor.get(name) ?? LAYER_COLOR[name] ?? 7;
+    g(0, 'LAYER'); g(2, name); g(70, 0); g(62, color); g(6, 'CONTINUOUS');
   }
   g(0, 'ENDTAB'); g(0, 'ENDSEC');
 
@@ -157,6 +207,14 @@ export function buildDxf(input: DxfInput): string {
   for (const t of input.texts) {
     const height = t.height && t.height > 0 ? t.height : Math.max(W, H) * 0.01;
     text(t.layer, t.x, flipY(t.y), t.text, height);
+  }
+
+  for (const c of input.circles ?? []) {
+    circle(c.layer, c.cx, flipY(c.cy), c.r);
+  }
+
+  for (const a of input.arcs ?? []) {
+    arc(a.layer, a.cx, flipY(a.cy), a.r, a.startAngle, a.endAngle);
   }
 
   g(0, 'ENDSEC');
