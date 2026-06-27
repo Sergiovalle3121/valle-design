@@ -70,6 +70,15 @@ export const CAD_INTENT_TOOLS: CideToolSpec[] = [
     description: 'Conecta las estaciones en secuencia con flechas de flujo. kind: flow|conveyor|return.',
     parameters: { type: 'object', properties: { kind: strProp('flow|conveyor|return (opcional)') } },
   },
+  {
+    name: 'moveStation',
+    description: 'Mueve una estación (por su nombre, ej. EST-10) a una posición absoluta x,y.',
+    parameters: {
+      type: 'object',
+      properties: { station: strProp('nombre de la estación'), x: numProp('x'), y: numProp('y') },
+      required: ['station', 'x', 'y'],
+    },
+  },
 ];
 
 export interface CadIntentContext {
@@ -95,5 +104,36 @@ export function buildCadIntentSystemPrompt(ctx: CadIntentContext): string {
       .join(', ');
     lines.push(`Estaciones colocadas (para ubicar geometría relativa): ${list}.`);
   }
+  return lines.join('\n');
+}
+
+export interface OptimizeContext extends CadIntentContext {
+  /** Distancia total de recorrido del flujo actual (centro a centro), en `unit`. */
+  totalFlow: number;
+  connectorCount: number;
+}
+
+/**
+ * System prompt del copiloto de optimización (Fase 72): pide al modelo proponer
+ * un reacomodo que baje el recorrido total sin sacar estaciones de la huella ni
+ * traslaparlas, usando moveStation / arrangeLine / connectLine.
+ */
+export function buildOptimizePrompt(ctx: OptimizeContext): string {
+  const lines = [
+    'Eres un ingeniero industrial que optimiza el layout de una línea de manufactura electrónica (EMS).',
+    'Objetivo: reducir la distancia total de recorrido del material y los cruces de flujo, manteniendo un flujo en secuencia limpio.',
+    'Propón los cambios EXCLUSIVAMENTE como tool-calls (moveStation para reposicionar, arrangeLine para reordenar en filas, connectLine para el flujo).',
+    'Restricciones duras: toda estación debe quedar dentro de la huella y NO debe traslaparse con otra. No inventes estaciones.',
+    `Unidad "${ctx.unit}"; huella ${Math.round(ctx.footprintW)} × ${Math.round(ctx.footprintH)}, origen (0,0) abajo-izquierda.`,
+    `Estado actual: ${ctx.stations.length} estaciones colocadas, ${ctx.connectorCount} conexiones, recorrido total ≈ ${Math.round(ctx.totalFlow)} ${ctx.unit}.`,
+  ];
+  if (ctx.stations.length > 0) {
+    const list = ctx.stations
+      .slice(0, 40)
+      .map((s) => `${s.station} @(${Math.round(s.x)},${Math.round(s.y)})`)
+      .join(', ');
+    lines.push(`Posiciones actuales: ${list}.`);
+  }
+  lines.push('Si el layout ya es bueno, no llames ninguna herramienta.');
   return lines.join('\n');
 }

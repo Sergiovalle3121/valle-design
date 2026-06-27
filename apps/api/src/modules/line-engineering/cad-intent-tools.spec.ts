@@ -1,4 +1,4 @@
-import { CAD_INTENT_TOOLS, buildCadIntentSystemPrompt } from './cad-intent-tools';
+import { CAD_INTENT_TOOLS, buildCadIntentSystemPrompt, buildOptimizePrompt } from './cad-intent-tools';
 
 describe('cad-intent-tools (Fase 69)', () => {
   it('exposes well-formed OpenAI-compatible tool specs', () => {
@@ -36,5 +36,26 @@ describe('cad-intent-tools (Fase 69)', () => {
   it('omits the station list when none are placed', () => {
     const sys = buildCadIntentSystemPrompt({ unit: 'm', footprintW: 20, footprintH: 10, stations: [] });
     expect(sys).not.toContain('Estaciones colocadas');
+  });
+
+  it('exposes a moveStation tool requiring station/x/y', () => {
+    const mv = CAD_INTENT_TOOLS.find((t) => t.name === 'moveStation');
+    expect(mv).toBeDefined();
+    expect((mv!.parameters as { required?: string[] }).required).toEqual(['station', 'x', 'y']);
+  });
+
+  it('builds an optimize prompt with flow + footprint context (Fase 72)', () => {
+    const sys = buildOptimizePrompt({
+      unit: 'mm',
+      footprintW: 20000,
+      footprintH: 10000,
+      stations: [{ station: 'EST-10', x: 1000, y: 2000 }],
+      totalFlow: 12345,
+      connectorCount: 3,
+    });
+    expect(sys).toContain('12345');
+    expect(sys).toContain('3 conexiones');
+    expect(sys).toContain('EST-10 @(1000,2000)');
+    expect(sys.toLowerCase()).toContain('recorrido');
   });
 });

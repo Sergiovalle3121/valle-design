@@ -104,6 +104,18 @@ export const CAD_TOOLS: CadTool[] = [
       parameters: { type: 'object', properties: { kind: strProp('flow|conveyor|return (opcional)') } },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'moveStation',
+      description: 'Mueve una estación (por su nombre, ej. EST-10) a una posición absoluta x,y.',
+      parameters: {
+        type: 'object',
+        properties: { station: strProp('nombre de la estación'), x: numProp('x'), y: numProp('y') },
+        required: ['station', 'x', 'y'],
+      },
+    },
+  },
 ];
 
 /** Tipos de asset válidos (espejo del asset-catalog del editor). */
@@ -120,7 +132,8 @@ export type CadIntent =
   | { kind: 'placeAsset'; asset: { kind: string; x: number; y: number; w: number; h: number; rotation: number; label?: string } }
   | { kind: 'draw'; action: DrawAction } // drawWall / addDimension → acciones declarativas
   | { kind: 'arrangeLine' }
-  | { kind: 'connectLine'; flow: 'flow' | 'conveyor' | 'return' };
+  | { kind: 'connectLine'; flow: 'flow' | 'conveyor' | 'return' }
+  | { kind: 'moveStation'; station: string; x: number; y: number };
 
 export type NormalizeResult = { ok: true; intent: CadIntent } | { ok: false; error: string };
 
@@ -183,6 +196,14 @@ export function normalizeToolCall(name: string, rawArgs: unknown): NormalizeResu
       const f = String(args.kind ?? 'flow').trim().toLowerCase();
       const flow = (FLOW_KINDS as readonly string[]).includes(f) ? (f as 'flow' | 'conveyor' | 'return') : 'flow';
       return { ok: true, intent: { kind: 'connectLine', flow } };
+    }
+    case 'moveStation': {
+      const station = String(args.station ?? '').trim();
+      const x = num(args.x);
+      const y = num(args.y);
+      if (!station) return { ok: false, error: 'moveStation requiere el nombre de la estación' };
+      if (x === null || y === null) return { ok: false, error: 'moveStation requiere x,y numéricos' };
+      return { ok: true, intent: { kind: 'moveStation', station: station.slice(0, 64), x, y } };
     }
     default:
       return { ok: false, error: `Herramienta desconocida: ${name}` };

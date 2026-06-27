@@ -13,7 +13,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { CideProvider, CideEngineError } from '../ai/cide-provider';
 import { LineEngineeringService } from './line-engineering.service';
-import { CAD_INTENT_TOOLS, buildCadIntentSystemPrompt } from './cad-intent-tools';
+import { CAD_INTENT_TOOLS, buildCadIntentSystemPrompt, buildOptimizePrompt } from './cad-intent-tools';
 
 const CIDE_BASE_URL = process.env.CIDE_BASE_URL || 'http://localhost:11434/v1';
 const CIDE_API_KEY = process.env.CIDE_API_KEY || null;
@@ -51,21 +51,65 @@ export class CadIntentService {
     }
 
     const layout = await this.layoutService.getLayout(model, revision);
+    const placed = layout.stations.filter(
+      (s): s is typeof s & { x: number; y: number } => s.x !== null && s.y !== null,
+    );
     const system = buildCadIntentSystemPrompt({
       unit: layout.footprint.unit,
       footprintW: layout.footprint.footprintW,
       footprintH: layout.footprint.footprintH,
-      stations: layout.stations
-        .filter((s): s is typeof s & { x: number; y: number } => s.x !== null && s.y !== null)
-        .map((s) => ({ station: s.station, x: s.x, y: s.y })),
+      stations: placed.map((s) => ({ station: s.station, x: s.x, y: s.y })),
     });
+    return this.runModel(system, text, model, revision);
+  }
 
+  /**
+   * Copiloto de optimización (Fase 72): pide al modelo un reacomodo que baje el
+   * recorrido total sin sacar estaciones de la huella ni traslaparlas. Devuelve
+   * tool-calls (moveStation/arrangeLine/connectLine) que el humano aprueba/aplica.
+   */
+  async optimize(model: string, revision: string): Promise<CadIntentResponse> {
+    if (process.env.AI_MOCK === '1') {
+      return { available: false, toolCalls: [], message: 'Motor CIDE en modo mock.' };
+    }
+    const layout = await this.layoutService.getLayout(model, revision);
+    const placed = layout.stations.filter(
+      (s): s is typeof s & { x: number; y: number; w: number | null; h: number | null } => s.x !== null && s.y !== null,
+    );
+    const center = (s: { x: number; y: number; w: number | null; h: number | null }) => ({
+      x: s.x + (s.w ?? 0) / 2,
+      y: s.y + (s.h ?? 0) / 2,
+    });
+    const byId = new Map(layout.stations.map((s) => [s.id, s]));
+    let totalFlow = 0;
+    for (const c of layout.connectors) {
+      const from = byId.get(c.from);
+      const to = byId.get(c.to);
+      if (from?.x != null && from.y != null && to?.x != null && to.y != null) {
+        const a = center(from as { x: number; y: number; w: number | null; h: number | null });
+        const b = center(to as { x: number; y: number; w: number | null; h: number | null });
+        totalFlow += Math.hypot(b.x - a.x, b.y - a.y);
+      }
+    }
+    const system = buildOptimizePrompt({
+      unit: layout.footprint.unit,
+      footprintW: layout.footprint.footprintW,
+      footprintH: layout.footprint.footprintH,
+      stations: placed.map((s) => ({ station: s.station, x: s.x, y: s.y })),
+      totalFlow,
+      connectorCount: layout.connectors.length,
+    });
+    return this.runModel(system, 'Optimiza este layout.', model, revision);
+  }
+
+  /** Una llamada al modelo con las CAD tools; degrada con gracia si CIDE no está. */
+  private async runModel(system: string, userText: string, model: string, revision: string): Promise<CadIntentResponse> {
     const provider = new CideProvider({ baseUrl: CIDE_BASE_URL, model: CIDE_MODEL, apiKey: CIDE_API_KEY });
     try {
       const comp = await provider.chat({
         messages: [
           { role: 'system', content: system },
-          { role: 'user', content: text },
+          { role: 'user', content: userText },
         ],
         tools: CAD_INTENT_TOOLS,
         maxTokens: CAD_INTENT_MAX_TOKENS,

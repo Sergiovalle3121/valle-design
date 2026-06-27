@@ -40,6 +40,14 @@ ok(CAD_TOOLS.some((t) => t.function.name === 'placeAsset'), 'incluye placeAsset'
 { const r = normalizeToolCall('connectLine', { kind: 'basura' });
   ok(r.ok && r.intent.kind === 'connectLine' && r.intent.flow === 'flow', 'connectLine cae a flow por default'); }
 
+// ── moveStation ──
+{ const r = normalizeToolCall('moveStation', { station: 'EST-10', x: 1500, y: 2000 });
+  ok(r.ok && r.intent.kind === 'moveStation' && r.intent.station === 'EST-10' && r.intent.x === 1500, 'moveStation válido'); }
+{ const r = normalizeToolCall('moveStation', { station: '', x: 1, y: 2 });
+  ok(!r.ok, 'moveStation rechaza estación vacía'); }
+{ const r = normalizeToolCall('moveStation', { station: 'EST-1', x: 'no', y: 2 });
+  ok(!r.ok, 'moveStation rechaza x no numérico'); }
+
 // ── herramienta desconocida ──
 { const r = normalizeToolCall('hackTheGibson', {});
   ok(!r.ok, 'herramienta desconocida → error'); }
