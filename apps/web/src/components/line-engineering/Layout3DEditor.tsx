@@ -12,7 +12,7 @@ import {
   AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd,
   AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
   AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, RulerDimensionLine, Rows3, Waypoints,
-  ShieldCheck, CircleCheck, CircleAlert, Printer, ChartLine, FileText, WandSparkles, Stamp, Upload, ImageOff, Activity, History, Group,
+  ShieldCheck, CircleCheck, CircleAlert, Printer, ChartLine, FileText, WandSparkles, Stamp, Upload, ImageOff, Activity, History, Group, Search,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/apiFetch';
 import { useToast } from '@/contexts/ToastContext';
@@ -47,6 +47,8 @@ import {
   type CadLayerId,
 } from '@/lib/cad/layers';
 import { CAD_TOOLBAR_ACTIONS, type CadToolbarActionId } from '@/lib/cad/toolbar';
+import { searchCadPalette, type CadPaletteEntry } from '@/lib/cad/command-palette';
+import { matchCadShortcut } from '@/lib/cad/keyboard-shortcuts';
 import dynamic from 'next/dynamic';
 
 // Analysis panels — the same modal components the 2D host shipped, lazy-loaded so
@@ -610,6 +612,9 @@ export default function Layout3DEditor({
   const [cloneSrc, setCloneSrc] = useState('');
   const [cloneBusy, setCloneBusy] = useState(false);
   const [showCommand, setShowCommand] = useState(false); // natural-language command dock (local function-calling scaffold)
+  const [showPalette, setShowPalette] = useState(false); // Cmd-K CAD palette (local registry/search)
+  const [paletteQuery, setPaletteQuery] = useState('');
+  const paletteOpenRef = useRef(false);
   const [commandText, setCommandText] = useState('');
   const [commandPreview, setCommandPreview] = useState<CommandPreviewState | null>(null);
   const [commandLog, setCommandLog] = useState<CadCommandHistoryItem[]>([]);
@@ -645,6 +650,7 @@ export default function Layout3DEditor({
   const [showHeat, setShowHeat] = useState(false); // occupancy heat-map overlay on the floor (Fase 51)
   const [arr, setArr] = useState({ cols: 3, rows: 1, gap: 500, dx: 1000, dy: 0 }); // array/offset params (Fase 55)
   const [showGaps, setShowGaps] = useState(false); // clearance/safety gap markers overlay (Fase 52)
+  useEffect(() => { paletteOpenRef.current = showPalette; }, [showPalette]);
 
   // three.js refs
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -2315,6 +2321,18 @@ export default function Layout3DEditor({
     else if (id === 'undo') undo();
     else if (id === 'redo') redo();
   };
+  const runPaletteEntry = (entry: CadPaletteEntry) => {
+    setShowPalette(false); setPaletteQuery('');
+    if (entry.kind === 'tool') { runToolbarAction(entry.id as CadToolbarActionId); return; }
+    if (entry.kind === 'command') {
+      const example = entry.keywords.find((kw) => kw.includes(' ')) ?? entry.label;
+      setShowCommand(true); setCommandText(example);
+      toast.success('Comando cargado en el Copiloto CAD para preview.', 'Cmd-K CAD');
+      return;
+    }
+    setTab('equipment');
+    toast.success(`${entry.label} listo en biblioteca de símbolos.`, 'Cmd-K CAD');
+  };
   const selectAll = () => {
     const items: SelItem[] = [
       ...[...placementsRef.current.keys()].map((id) => ({ type: 'station' as const, id })),
@@ -2495,13 +2513,16 @@ export default function Layout3DEditor({
     const onKey = (e: KeyboardEvent) => {
       const tgt = e.target as HTMLElement | null;
       if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return;
+      const cadShortcut = matchCadShortcut(e);
+      if (cadShortcut?.id === 'palette') { e.preventDefault(); setShowPalette(true); return; }
       // in walkthrough mode WASD/look take over; only Esc (exit) reaches here
       if (walkRef.current) { if (e.key === 'Escape') { e.preventDefault(); toggleWalk(); } return; }
       const g = data?.footprint.gridSize || 100;
       const step = e.shiftKey ? g * 5 : g;
       const hasSel = selRef.current.length > 0;
       if (e.key === 'Escape') {
-        if (toolRef.current !== 'select') { endDraw(); setTool('select'); toolRef.current = 'select'; }
+        if (paletteOpenRef.current) { setShowPalette(false); setPaletteQuery(''); }
+        else if (toolRef.current !== 'select') { endDraw(); setTool('select'); toolRef.current = 'select'; }
         else if (hasSel) { select([]); rebuildAll(); }
         else onClose();
       }
@@ -2526,6 +2547,7 @@ export default function Layout3DEditor({
 
   if (!open || typeof document === 'undefined') return null;
 
+  const paletteResults = searchCadPalette(paletteQuery).slice(0, 9);
   const tray = (data?.stations ?? []).filter((s) => !placedIds.has(s.id));
   const placedCount = placedIds.size;
   const assetCount = assetIds.size;
@@ -2826,6 +2848,27 @@ export default function Layout3DEditor({
                     ? 'Clic en cada esquina para trazar muros · Shift = ángulos de 45° · arrastra el fondo para orbitar · Esc termina'
                     : 'Arrastra para mover · Shift+clic multiselecciona · fondo = orbitar · rueda = zoom · R rota · Supr borra'}
             </div>
+            {showPalette && (
+              <div className="absolute top-3 right-3 z-30 w-[22rem] rounded-2xl border border-cyan-400/20 bg-gray-950/95 p-3 shadow-2xl backdrop-blur">
+                <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-2.5 py-2">
+                  <Search className="h-4 w-4 text-cyan-200" />
+                  <input autoFocus value={paletteQuery} onChange={(e) => setPaletteQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); setShowPalette(false); setPaletteQuery(''); } }} placeholder="Buscar comando, herramienta o símbolo..." className="min-w-0 flex-1 bg-transparent text-[13px] text-white placeholder:text-gray-500 outline-none" />
+                  <span className="rounded-md border border-white/10 px-1.5 py-0.5 text-[10px] text-gray-500">Ctrl K</span>
+                </div>
+                <div className="mt-2 max-h-80 overflow-y-auto space-y-1">
+                  {paletteResults.map((entry) => (
+                    <button key={`${entry.kind}-${entry.id}`} onClick={() => runPaletteEntry(entry)} className="flex w-full items-center justify-between gap-3 rounded-xl px-2.5 py-2 text-left hover:bg-white/[0.07]">
+                      <span className="min-w-0">
+                        <span className="block truncate text-[13px] font-semibold text-white">{entry.label}</span>
+                        <span className="block truncate text-[11px] text-gray-400">{entry.description}</span>
+                      </span>
+                      <span className="shrink-0 rounded-full border border-white/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-cyan-200">{entry.kind}</span>
+                    </button>
+                  ))}
+                  {paletteResults.length === 0 && <div className="px-2 py-6 text-center text-[12px] text-gray-500">Sin resultados CAD.</div>}
+                </div>
+              </div>
+            )}
             <div className="absolute top-3 left-3 z-20 rounded-2xl border border-white/10 bg-gray-900/85 p-1.5 shadow-2xl backdrop-blur">
               <div className="grid grid-cols-1 gap-1">
                 {CAD_TOOLBAR_ACTIONS.map((action) => (
