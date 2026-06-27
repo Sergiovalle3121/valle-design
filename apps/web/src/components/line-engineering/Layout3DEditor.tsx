@@ -603,7 +603,8 @@ export default function Layout3DEditor({
   const [versName, setVersName] = useState('');
   const [versBusy, setVersBusy] = useState(false);
   const [reloadTick, setReloadTick] = useState(0); // bump to re-run the load effect (after restore)
-  const [cellsTick, setCellsTick] = useState(0); // bump to re-render the cells list (cellsRef is a ref)
+  const [cellsTick, setCellsTick] = useState(0); // bump to re-render legacy cell-dependent overlays
+  const [cells, setCells] = useState<Cell[]>([]);
   const [showCells, setShowCells] = useState(false); // cells/zones panel
   const [showClone, setShowClone] = useState(false); // clone-from-template modal
   const [cloneSrc, setCloneSrc] = useState('');
@@ -824,11 +825,15 @@ export default function Layout3DEditor({
   useEffect(() => {
     if (!open || !model) return;
     let alive = true;
-    setData(null); setError(null); setSelList([]); setSelSnap(null); selRef.current = []; setDirty(false); setTab('stations');
-    overlayColorRef.current = new Map(); setOverlay(null);
-    setTool('select'); toolRef.current = 'select'; measureARef.current = null; wallChainRef.current = null; setMeasureLive(null);
-    setWalk(false); walkRef.current = false; savedCamRef.current = null;
-    undoStackRef.current = []; redoStackRef.current = []; setHist({ undo: 0, redo: 0 });
+    queueMicrotask(() => {
+      if (!alive) return;
+      setData(null); setError(null); setSelList([]); setSelSnap(null); setDirty(false); setTab('stations');
+    });
+    selRef.current = [];
+    overlayColorRef.current = new Map(); queueMicrotask(() => { if (alive) setOverlay(null); });
+    queueMicrotask(() => { if (alive) { setTool('select'); setMeasureLive(null); } }); toolRef.current = 'select'; measureARef.current = null; wallChainRef.current = null;
+    queueMicrotask(() => { if (alive) setWalk(false); }); walkRef.current = false; savedCamRef.current = null;
+    undoStackRef.current = []; redoStackRef.current = []; queueMicrotask(() => { if (alive) setHist({ undo: 0, redo: 0 }); });
     (async () => {
       try {
         const r = await apiFetch(`${API_BASE}/line-engineering/layout?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`);
@@ -856,6 +861,7 @@ export default function Layout3DEditor({
         stationsByIdRef.current = new Map(d.stations.map((s) => [s.id, s]));
         connectorsRef.current = (d.connectors ?? []).map((c) => ({ ...c }));
         cellsRef.current = (d.cells ?? []).map((c) => ({ ...c }));
+        setCells([...cellsRef.current]);
         setApproval((d as { approval?: LayoutApproval }).approval ?? { status: 'draft', by: null, at: null, note: null });
         loadedPlacedRef.current = new Set(pl.keys());
         setPlacedIds(new Set(pl.keys()));
@@ -1191,12 +1197,12 @@ export default function Layout3DEditor({
     const palette = ['#22d3ee', '#a78bfa', '#f472b6', '#fbbf24', '#34d399', '#60a5fa', '#fb7185', '#4ade80'];
     const color = palette[cellsRef.current.length % palette.length];
     cellsRef.current = [...cellsRef.current, { id: newId('cell'), name: `Celda ${cellsRef.current.length + 1}`, color, stationIds: [...new Set(ids)] }];
-    setCellsTick((t) => t + 1); setDirty(true); rebuildCells();
+    setCells([...cellsRef.current]); setCellsTick((t) => t + 1); setDirty(true); rebuildCells();
     toast.success('Celda creada.', '3D');
   };
   const deleteCell = (id: string) => {
     cellsRef.current = cellsRef.current.filter((c) => c.id !== id);
-    setCellsTick((t) => t + 1); setDirty(true); rebuildCells();
+    setCells([...cellsRef.current]); setCellsTick((t) => t + 1); setDirty(true); rebuildCells();
   };
 
   // ---- undo / redo (memento of the editable collections) ----
@@ -3131,15 +3137,15 @@ export default function Layout3DEditor({
             </div>
             <div className="p-4">
               <button onClick={createCellFromSelection} className="w-full mb-3 px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-[12px] font-medium">Crear celda con la selección</button>
-              {cellsRef.current.length === 0 ? (
+              {cells.length === 0 ? (
                 <p className="text-[12px] text-gray-500 text-center py-3">Selecciona estaciones (Shift+clic) y crea una celda para agruparlas.</p>
               ) : (
                 <div key={cellsTick} className="space-y-1.5">
-                  {cellsRef.current.map((c) => (
+                  {cells.map((c) => (
                     <div key={c.id} className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2">
                       <span className="inline-block w-3 h-3 rounded-sm shrink-0" style={{ background: c.color }} />
                       <div className="min-w-0 flex-1">
-                        <input defaultValue={c.name} onBlur={(e) => { const v = e.target.value.trim(); if (v) { c.name = v; setDirty(true); setCellsTick((t) => t + 1); } }} className="w-full bg-transparent text-[13px] font-medium outline-none focus:bg-white/[0.06] rounded px-1" />
+                        <input defaultValue={c.name} onBlur={(e) => { const v = e.target.value.trim(); if (v) { c.name = v; setCells([...cellsRef.current]); setDirty(true); setCellsTick((t) => t + 1); } }} className="w-full bg-transparent text-[13px] font-medium outline-none focus:bg-white/[0.06] rounded px-1" />
                         <div className="text-[11px] text-gray-400 px-1">{c.stationIds.length} estaciones</div>
                       </div>
                       <button onClick={() => deleteCell(c.id)} className="p-1 rounded-md text-rose-300 hover:bg-rose-500/20"><Trash2 className="w-3.5 h-3.5" /></button>
