@@ -15,6 +15,8 @@ function input(over: Partial<DxfInput> = {}): DxfInput {
 const countLine = (dxf: string) => (dxf.match(/\n0\nLINE\n/g) || []).length;
 const countText = (dxf: string) => (dxf.match(/\n0\nTEXT\n/g) || []).length;
 const countLayer = (dxf: string) => (dxf.match(/\n0\nLAYER\n/g) || []).length;
+const countCircle = (dxf: string) => (dxf.match(/\n0\nCIRCLE\n/g) || []).length;
+const countArc = (dxf: string) => (dxf.match(/\n0\nARC\n/g) || []).length;
 
 describe('buildDxf (Fase 53)', () => {
   it('emits a valid R12 ASCII DXF skeleton with the footprint outline', () => {
@@ -79,5 +81,32 @@ describe('buildDxf (Fase 53)', () => {
     const dxf = buildDxf(input({ footprintW: 0, footprintH: 0 }));
     expect(dxf).toContain('AC1009');
     expect(countLine(dxf)).toBe(4); // still a (unit) footprint box
+  });
+
+  // ── Fase 68: alta fidelidad (circles, arcs, custom layers) ──
+  it('emits a CIRCLE entity Y-flipped on its layer', () => {
+    const dxf = buildDxf(input({ circles: [{ cx: 100, cy: 100, r: 40, layer: 'EQUIPO' }] }));
+    expect(countCircle(dxf)).toBe(1);
+    expect(dxf).toContain('8\nEQUIPO');
+    expect(dxf).toContain('40\n40'); // radius
+    expect(dxf).toContain('20\n400'); // center y flipped: 500 - 100
+  });
+
+  it('emits an ARC with start/end mirrored by the Y flip', () => {
+    // a 0°→90° arc, mirrored about the horizontal axis, becomes 270°→360°
+    const dxf = buildDxf(input({ arcs: [{ cx: 0, cy: 0, r: 10, startAngle: 0, endAngle: 90, layer: 'MUROS' }] }));
+    expect(countArc(dxf)).toBe(1);
+    expect(dxf).toContain('50\n270'); // start' = -end = -90 → 270
+    expect(dxf).toContain('51\n0'); // end' = -start = -0 → 0
+    expect(dxf).toContain('20\n500'); // center y flipped: 500 - 0
+  });
+
+  it('registers custom CAD layers with their explicit color', () => {
+    const dxf = buildDxf(input({
+      circles: [{ cx: 10, cy: 10, r: 5, layer: 'Pasillos' }],
+      layerDefs: [{ name: 'Pasillos', color: 30 }],
+    }));
+    expect(dxf).toContain('2\nPasillos');
+    expect(dxf).toContain('62\n30'); // the custom color index wins
   });
 });
