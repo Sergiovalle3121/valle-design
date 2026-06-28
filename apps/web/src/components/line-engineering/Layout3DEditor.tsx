@@ -25,6 +25,7 @@ import { dxfSnapPoints, nearestSnapPoint } from './dxf-snap';
 import { autoDimensions, type DimBox } from './auto-dimensions';
 import { arrangeLine, type ArrangeStation } from './arrange-line';
 import { connectLine, type ConnStation } from './connect-line';
+import { rectangularArray, polarArray } from './cad-array';
 import { designChecks, type CheckBox, type DesignReport } from './design-checks';
 import { flowMetrics, type FlowCenter } from './flow-metrics';
 import { plotSheetModel } from './plot-sheet';
@@ -675,7 +676,7 @@ export default function Layout3DEditor({
   const overlayMenuRef = useRef<HTMLDivElement | null>(null);
   const overlayColorRef = useRef<Map<string, number>>(new Map()); // stationName → hex int (empty = no overlay)
   const [showHeat, setShowHeat] = useState(false); // occupancy heat-map overlay on the floor (Fase 51)
-  const [arr, setArr] = useState({ cols: 3, rows: 1, gap: 500, dx: 1000, dy: 0 }); // array/offset params (Fase 55)
+  const [arr, setArr] = useState({ cols: 3, rows: 1, gap: 500, dx: 1000, dy: 0, polarCount: 6, polarSpan: 360 }); // array/offset params (Fase 55)
   const [showGaps, setShowGaps] = useState(false); // clearance/safety gap markers overlay (Fase 52)
   useEffect(() => { paletteOpenRef.current = showPalette; }, [showPalette]);
 
@@ -2213,16 +2214,43 @@ export default function Layout3DEditor({
     const created: SelItem[] = [];
     sel.forEach((it) => {
       const src = assetsRef.current.get(it.id); if (!src) return;
-      for (let i = 0; i < c; i++) for (let j = 0; j < r; j++) {
-        if (i === 0 && j === 0) continue; // keep the original in place
-        const nx = src.x + i * (src.w + g), ny = src.y + j * (src.h + g);
-        if (nx + src.w > ctx.W || ny + src.h > ctx.H) continue; // skip copies off the plan
+      // Exact pitch = footprint + gap; delegate the grid maths to the tested
+      // rectangularArray helper (no duplicated loop logic).
+      const cells = rectangularArray({ x: src.x, y: src.y }, { cols: c, rows: r, dx: src.w + g, dy: src.h + g });
+      cells.forEach((cell) => {
+        if (cell.point.x === src.x && cell.point.y === src.y) return; // keep the original in place
+        if (cell.point.x + src.w > ctx.W || cell.point.y + src.h > ctx.H) return; // skip copies off the plan
         const id = newId('as');
-        assetsRef.current.set(id, { ...src, id, x: nx, y: ny });
+        assetsRef.current.set(id, { ...src, id, x: cell.point.x, y: cell.point.y });
         created.push({ type: 'asset', id });
-      }
+      });
     });
     commitCreated(created, 'copia(s) en arreglo.');
+  };
+  // Polar array: ring the selected equipment around the plant centre using the
+  // tested polarArray helper. The original copy stays; the rest fan out evenly.
+  const polarArrayAssets = (count: number, spanDeg: number) => {
+    const sel = editableItems(selRef.current.filter((s) => s.type === 'asset'), 'crear arreglo polar');
+    const n = Math.max(2, Math.min(60, Math.round(count)));
+    if (!sel.length) return;
+    const ctx = ctxRef.current!;
+    const center = { x: ctx.W / 2, y: ctx.H / 2 };
+    pushHistory();
+    const created: SelItem[] = [];
+    sel.forEach((it) => {
+      const src = assetsRef.current.get(it.id); if (!src) return;
+      const itemCenter = { x: src.x + src.w / 2, y: src.y + src.h / 2 };
+      const ring = polarArray(center, itemCenter, { count: n, angleSpanDeg: spanDeg, rotateItems: true });
+      ring.forEach((ai, idx) => {
+        if (idx === 0) return; // the first copy is the original position
+        const nx = ai.point.x - src.w / 2, ny = ai.point.y - src.h / 2;
+        if (nx < 0 || ny < 0 || nx + src.w > ctx.W || ny + src.h > ctx.H) return; // off the plan
+        const id = newId('as');
+        assetsRef.current.set(id, { ...src, id, x: nx, y: ny, rotation: (((src.rotation + ai.rotationDeg) % 360) + 360) % 360 });
+        created.push({ type: 'asset', id });
+      });
+    });
+    commitCreated(created, 'copia(s) en arreglo polar.');
   };
   const mirrorAssets = (axis: 'h' | 'v') => {
     const sel = editableItems(selRef.current.filter((s) => s.type === 'asset'), 'crear espejos');
@@ -3244,6 +3272,14 @@ export default function Layout3DEditor({
                       <span className="text-gray-500">dy</span>
                       <input type="number" value={arr.dy} onChange={(e) => setArr((a) => ({ ...a, dy: Number(e.target.value) }))} className="w-14 bg-white/[0.06] rounded px-1 py-0.5 text-center tabular-nums outline-none focus:ring-1 ring-cyan-500/40" />
                       <button onClick={() => offsetAssets(arr.dx, arr.dy)} className="ml-auto px-2 py-0.5 rounded-md bg-cyan-600 hover:bg-cyan-500 text-white text-[11px] font-medium">Crear</button>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[12px]">
+                      <span className="text-gray-400 w-12 shrink-0">Polar</span>
+                      <input type="number" min={2} max={60} value={arr.polarCount} onChange={(e) => setArr((a) => ({ ...a, polarCount: Number(e.target.value) }))} className="w-11 bg-white/[0.06] rounded px-1 py-0.5 text-center tabular-nums outline-none focus:ring-1 ring-cyan-500/40" title="número de copias alrededor del centro de la planta" />
+                      <span className="text-gray-500">en</span>
+                      <input type="number" min={1} max={360} value={arr.polarSpan} onChange={(e) => setArr((a) => ({ ...a, polarSpan: Number(e.target.value) }))} className="w-14 bg-white/[0.06] rounded px-1 py-0.5 text-center tabular-nums outline-none focus:ring-1 ring-cyan-500/40" title="ángulo total (360° = círculo completo)" />
+                      <span className="text-gray-500">°</span>
+                      <button onClick={() => polarArrayAssets(arr.polarCount, arr.polarSpan)} className="ml-auto px-2 py-0.5 rounded-md bg-cyan-600 hover:bg-cyan-500 text-white text-[11px] font-medium">Crear</button>
                     </div>
                   </div>
                 )}
