@@ -78,6 +78,16 @@ import {
   type CadValidationIssueRow,
   type CadValidationReport,
 } from '@/lib/cad/validation-report';
+import {
+  FACTORY_PRESETS,
+  presetToUnit,
+  clampFootprintUnit,
+  clampGridUnit,
+  unitToMeters,
+  formatMeters,
+  type WorldUnit,
+  type FactoryPreset,
+} from '@/lib/cad/world-scale';
 import dynamic from 'next/dynamic';
 
 // Analysis panels — the same modal components the 2D host shipped, lazy-loaded so
@@ -2234,13 +2244,25 @@ export default function Layout3DEditor({
   const applyFootprint = useCallback(() => {
     setData((d) => {
       if (!d) return d;
-      const w = Math.max(1000, Math.round(fpDraft.w) || d.footprint.footprintW);
-      const h = Math.max(1000, Math.round(fpDraft.h) || d.footprint.footprintH);
-      const g = Math.max(50, Math.round(fpDraft.g) || d.footprint.gridSize);
+      const unit = (d.footprint.unit || 'mm') as WorldUnit;
+      const w = clampFootprintUnit(Math.round(fpDraft.w) || d.footprint.footprintW, unit);
+      const h = clampFootprintUnit(Math.round(fpDraft.h) || d.footprint.footprintH, unit);
+      const g = clampGridUnit(Math.round(fpDraft.g) || d.footprint.gridSize, unit);
       return { ...d, footprint: { ...d.footprint, footprintW: w, footprintH: h, gridSize: g } };
     });
     setDirty(true); setShowView(false);
   }, [fpDraft]);
+
+  // One-click factory-scale presets — set the plant to a workcell … full nave
+  // size in real metres regardless of the layout's stored unit (EPIC 0). The
+  // scene rebuilds at the new scale and the change persists on save.
+  const applyPreset = useCallback((preset: FactoryPreset) => {
+    const unit = (data?.footprint.unit || 'mm') as WorldUnit;
+    const u = presetToUnit(preset, unit);
+    setData((d) => (d ? { ...d, footprint: { ...d.footprint, footprintW: u.width, footprintH: u.height, gridSize: u.grid } } : d));
+    setFpDraft({ w: u.width, h: u.height, g: u.grid });
+    setDirty(true); setShowView(false);
+  }, [data]);
 
   // Add a free-text note at the point the camera is looking at (round-trips 2D).
   const addNote = () => {
@@ -3835,11 +3857,28 @@ export default function Layout3DEditor({
                   <button key={t} onClick={() => setTheme(t)} className={`px-2 py-1 rounded-md text-[12px] ${theme === t ? 'bg-cyan-600 text-white' : 'bg-white/[0.06] text-gray-300 hover:bg-white/[0.12]'}`}>{THEMES[t].label}</button>
                 ))}
               </div>
+              <div className="text-[10px] uppercase tracking-wide text-gray-500 mt-2.5 mb-1.5">Escala de planta</div>
+              <div className="grid grid-cols-2 gap-1.5 mb-2">
+                {FACTORY_PRESETS.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => applyPreset(p)}
+                    title={p.hint}
+                    className="px-2 py-1 rounded-md text-left bg-white/[0.06] text-gray-200 hover:bg-cyan-600/30"
+                  >
+                    <span className="block text-[12px] leading-tight">{p.label}</span>
+                    <span className="block text-[9px] text-gray-400 leading-tight">{p.widthM}×{p.heightM} m</span>
+                  </button>
+                ))}
+              </div>
               <div className="text-[10px] uppercase tracking-wide text-gray-500 mt-2.5 mb-1.5">Plano ({data?.footprint.unit ?? 'mm'})</div>
-              <div className="grid grid-cols-3 gap-1.5 mb-2">
+              <div className="grid grid-cols-3 gap-1.5 mb-1">
                 <DimInput label="Ancho" value={fpDraft.w} onChange={(v) => setFpDraft((s) => ({ ...s, w: v }))} />
                 <DimInput label="Largo" value={fpDraft.h} onChange={(v) => setFpDraft((s) => ({ ...s, h: v }))} />
                 <DimInput label="Rejilla" value={fpDraft.g} onChange={(v) => setFpDraft((s) => ({ ...s, g: v }))} />
+              </div>
+              <div className="text-[10px] text-gray-500 mb-2">
+                ≈ {formatMeters(unitToMeters(fpDraft.w || 0, (data?.footprint.unit ?? 'mm') as WorldUnit))} × {formatMeters(unitToMeters(fpDraft.h || 0, (data?.footprint.unit ?? 'mm') as WorldUnit))}
               </div>
               <button onClick={applyFootprint} className="w-full px-2 py-1.5 rounded-md bg-cyan-600 hover:bg-cyan-500 text-white text-[12px] font-medium">Aplicar tamaño</button>
               <div className="text-[10px] uppercase tracking-wide text-gray-500 mt-2.5 mb-1">Sol / sombras</div>
