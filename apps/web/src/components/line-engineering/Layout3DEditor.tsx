@@ -19,7 +19,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { setWorkbenchChrome } from '@/lib/operatorChrome';
 import { ASSET_CATEGORIES, assetMeta, type AssetArchetype } from './asset-catalog';
 import { parseDxf, type DxfModel } from './dxf';
-import { dxfToWalls } from './dxf-walls';
+import { dxfPointToFootprint, dxfToWalls } from './dxf-walls';
 import { dxfSnapPoints, nearestSnapPoint } from './dxf-snap';
 import { autoDimensions, type DimBox } from './auto-dimensions';
 import { arrangeLine, type ArrangeStation } from './arrange-line';
@@ -37,6 +37,7 @@ import {
   type CadCommandPreview,
   type CadOperation,
 } from '@/lib/cad/commands';
+import { measureBoxes, measurementLabel, type CadMeasureMode } from '@/lib/cad/measurements';
 import { snapScalarToGrid } from '@/lib/cad/snapping';
 import {
   assignObjectsToLayer,
@@ -52,9 +53,12 @@ import { CAD_TOOLBAR_ACTIONS, type CadToolbarActionId } from '@/lib/cad/toolbar'
 import { searchCadPalette, type CadPaletteEntry } from '@/lib/cad/command-palette';
 import { matchCadShortcut } from '@/lib/cad/keyboard-shortcuts';
 import { exportCadLayoutDxf } from '@/lib/cad/layout-export-adapter';
-import { importDxfPrimitives, summarizeDxfImportWarnings, type CadDxfImportWarning } from '@/lib/cad/dxf-import';
-import { CAD_SYMBOL_LIBRARY, getCadSymbol } from '@/lib/cad/symbols';
-import { createCadSnapshot, pushCadSnapshot, restoreCadSnapshot, type CadSnapshotHistory } from '@/lib/cad/snapshots';
+import { importDxfPrimitives, summarizeDxfImportWarnings, type CadDxfImportResult, type CadDxfImportWarning, type CadDxfPoint, type CadDxfPrimitive } from '@/lib/cad/dxf-import';
+import { CAD_SYMBOL_LIBRARY, getCadSymbol, type CadSymbolCategory } from '@/lib/cad/symbols';
+import { detectCadCollisions, type CadCollisionHit } from '@/lib/cad/collisions';
+import { buildFlowSegments, scoreFlowLayout, type CadFlowNode, type CadFlowScore, type CadFlowSegment } from '@/lib/cad/flow-optimization';
+import { evaluateSafetyZones, type CadSafetyIssue, type CadSafetyZone } from '@/lib/cad/safety-zones';
+import { createCadSnapshot, diffCadSnapshots, pushCadSnapshot, restoreCadSnapshot, type CadSnapshotDiff, type CadSnapshotHistory } from '@/lib/cad/snapshots';
 import dynamic from 'next/dynamic';
 
 // Analysis panels — the same modal components the 2D host shipped, lazy-loaded so
@@ -187,6 +191,9 @@ const sameSel = (a: SelItem, b: SelItem) => a.type === b.type && a.id === b.id;
 /** A point-in-time copy of every editable collection, for undo/redo. */
 interface Snapshot { placements: [string, Placement][]; assets: Asset[]; annotations: Ann[]; connectors: Conn[] }
 interface CommandPreviewState { input: CadCommandInput; preview: CadCommandPreview }
+interface DxfExportOptions { scope: 'all' | 'selection'; includeHidden: boolean; includeMeasurements: boolean; includeLabels: boolean; units: 'mm' | 'm'; fileName: string }
+interface DxfExportSummary { objects: number; connectors: number; measurements: number; labels: number; layers: number }
+interface MeasurementRow { id: string; label: string; length: string }
 /** Live quantity take-off computed from the editor's current state. */
 interface LocalTakeoff {
   unit: string; footprintArea: number; totalStations: number; placedStations: number;
@@ -194,6 +201,7 @@ interface LocalTakeoff {
   util: number; wallLen: number; dimCount: number;
   flowLen: number; flowMaxHop: number; flowCount: number;
   byKind: { kind: string; label: string; count: number; area: number }[];
+  byLayer: { id: CadLayerId; label: string; count: number; area: number }[];
 }
 /** A render-safe snapshot of the current selection for the properties panel. */
 interface SelSnap {
@@ -509,7 +517,7 @@ function buildArchetype(archetype: AssetArchetype, wS: number, dS: number, H: nu
 }
 
 /** Build a positioned, rotated, pickable asset group (base at floor). */
-function buildAssetGroup(a: Asset, s: number, W: number, H: number, selected: boolean): THREE.Group {
+function buildAssetGroup(a: Asset, s: number, W: number, H: number, selected: boolean, alert = false): THREE.Group {
   const def = assetMeta(a.kind);
   const wS = Math.max(0.2, a.w * s);
   const dS = Math.max(0.2, a.h * s);
@@ -527,11 +535,11 @@ function buildAssetGroup(a: Asset, s: number, W: number, H: number, selected: bo
   hb.userData.assetId = a.id;
   group.add(hb);
 
-  if (selected) {
+  if (selected || alert) {
     const oh = Math.max(0.3, h3d);
     const outline = new THREE.LineSegments(
-      new THREE.EdgesGeometry(new THREE.BoxGeometry(wS * 1.04, oh * 1.04, dS * 1.04)),
-      new THREE.LineBasicMaterial({ color: SELECT }),
+      new THREE.EdgesGeometry(new THREE.BoxGeometry(wS * (alert ? 1.08 : 1.04), oh * 1.04, dS * (alert ? 1.08 : 1.04))),
+      new THREE.LineBasicMaterial({ color: alert ? 0xf87171 : SELECT }),
     );
     outline.position.y = oh / 2; group.add(outline);
   }
@@ -575,7 +583,7 @@ function buildDim(a: Ann, s: number, W: number, H: number, unit: string): THREE.
   [[ax, az], [bx, bz]].forEach(([cx, cz]) =>
     out.push(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(cx + px * t, y, cz + pz * t), new THREE.Vector3(cx - px * t, y, cz - pz * t)]), lineMat())));
   const dist = Math.hypot(a.x2 - a.x, a.y2 - a.y);
-  const label = makeLabel(fmtDist(dist, unit), 1.1);
+  const label = makeLabel(a.text || fmtDist(dist, unit), 1.1);
   label.position.set((ax + bx) / 2, y + 0.85, (az + bz) / 2);
   label.userData.dimId = a.id;
   out.push(label);
@@ -606,14 +614,19 @@ export default function Layout3DEditor({
   const [approvalBusy, setApprovalBusy] = useState(false);
   const [dxfBusy, setDxfBusy] = useState(false); // DXF backdrop upload/remove in flight (unify)
   const [dxfWarnings, setDxfWarnings] = useState<CadDxfImportWarning[]>([]);
+  const [dxfImportPreview, setDxfImportPreview] = useState<CadDxfImportResult | null>(null);
+  const [showDxfExport, setShowDxfExport] = useState(false);
+  const [dxfExportOptions, setDxfExportOptions] = useState<DxfExportOptions>({ scope: 'all', includeHidden: true, includeMeasurements: true, includeLabels: true, units: 'mm', fileName: '' });
+  const [dxfExportSummary, setDxfExportSummary] = useState<DxfExportSummary>({ objects: 0, connectors: 0, measurements: 0, labels: 0, layers: 0 });
   const dxfInputRef = useRef<HTMLInputElement | null>(null);
   const [showVersions, setShowVersions] = useState(false); // versions/scenarios modal (unify)
   const [localSnapshots, setLocalSnapshots] = useState<CadSnapshotHistory<Snapshot>>({ snapshots: [] });
+  const [snapshotDiff, setSnapshotDiff] = useState<CadSnapshotDiff | null>(null);
   const [versions, setVersions] = useState<{ id: string; name: string; createdAt: string; stationCount: number; assetCount: number }[]>([]);
   const [versName, setVersName] = useState('');
   const [versBusy, setVersBusy] = useState(false);
   const [reloadTick, setReloadTick] = useState(0); // bump to re-run the load effect (after restore)
-  const [cellsTick, setCellsTick] = useState(0); // bump to re-render the cells list (cellsRef is a ref)
+  const [cellsView, setCellsView] = useState<Cell[]>([]);
   const [showCells, setShowCells] = useState(false); // cells/zones panel
   const [showClone, setShowClone] = useState(false); // clone-from-template modal
   const [cloneSrc, setCloneSrc] = useState('');
@@ -621,6 +634,7 @@ export default function Layout3DEditor({
   const [showCommand, setShowCommand] = useState(false); // natural-language command dock (local function-calling scaffold)
   const [showPalette, setShowPalette] = useState(false); // Cmd-K CAD palette (local registry/search)
   const [paletteQuery, setPaletteQuery] = useState('');
+  const [recentPaletteActions, setRecentPaletteActions] = useState<string[]>([]);
   const paletteOpenRef = useRef(false);
   const [commandText, setCommandText] = useState('');
   const [commandPreview, setCommandPreview] = useState<CommandPreviewState | null>(null);
@@ -630,12 +644,15 @@ export default function Layout3DEditor({
   const [placedIds, setPlacedIds] = useState<Set<string>>(new Set());
   const [assetIds, setAssetIds] = useState<Set<string>>(new Set());
   const [tab, setTab] = useState<'stations' | 'equipment'>('stations');
+  const [symbolSearch, setSymbolSearch] = useState('');
+  const [symbolCategory, setSymbolCategory] = useState<CadSymbolCategory | 'all'>('all');
   const [tool, setTool] = useState<'select' | 'measure' | 'wall'>('select');
   const [viewMode, setViewMode] = useState<'3d' | '2d'>('3d'); // 2D = locked top-down plan view (CAD unificado)
   const [walk, setWalk] = useState(false); // first-person walkthrough mode
   const [showHelp, setShowHelp] = useState(false); // keyboard shortcuts overlay
   const [measureLive, setMeasureLive] = useState<string | null>(null);
   const [dimCount, setDimCount] = useState(0);
+  const [measurementRowsView, setMeasurementRowsView] = useState<MeasurementRow[]>([]);
   const [theme, setTheme] = useState<Theme3D>('dark');
   const [sun, setSun] = useState({ az: 35, el: 55 }); // sun azimuth/elevation (deg)
   const [showView, setShowView] = useState(false);
@@ -643,12 +660,20 @@ export default function Layout3DEditor({
   const [layers, setLayers] = useState({ stations: true, equipment: true, connectors: true, dims: true, notes: true, labels: true, grid: true, dxf: true });
   const [cadLayers, setCadLayers] = useState<CadLayer[]>(DEFAULT_CAD_LAYERS);
   const [layerAssignments, setLayerAssignments] = useState<CadLayerAssignments>({});
+  const [activeCadLayer, setActiveCadLayer] = useState<CadLayerId>('equipment');
   const cadLayersRef = useRef<CadLayer[]>(DEFAULT_CAD_LAYERS);
   const layerAssignmentsRef = useRef<CadLayerAssignments>({});
   const [objectTags, setObjectTags] = useState<Record<string, string>>({});
+  const [aisleWidth, setAisleWidth] = useState(1200);
   const [hist, setHist] = useState({ undo: 0, redo: 0 }); // depths, for button enablement
   const [takeoff, setTakeoff] = useState<LocalTakeoff | null>(null); // quantities panel (null = closed)
   const [report, setReport] = useState<DesignReport | null>(null); // design-check report (null = closed) (Fase 63)
+  const [collisionHits, setCollisionHits] = useState<CadCollisionHit[]>([]);
+  const [safetyIssues, setSafetyIssues] = useState<CadSafetyIssue[]>([]);
+  const [validationHighlightIds, setValidationHighlightIds] = useState<Set<string>>(new Set());
+  const [flowHealth, setFlowHealth] = useState<CadFlowScore | null>(null);
+  const [flowSequence, setFlowSequence] = useState<CadFlowNode[]>([]);
+  const [flowSegments, setFlowSegments] = useState<CadFlowSegment[]>([]);
   const [analysisPanel, setAnalysisPanel] = useState<string | null>(null); // active analysis panel key (unify)
   const [showAnalysis, setShowAnalysis] = useState(false); // analysis dropdown open
   const analysisMenuRef = useRef<HTMLDivElement | null>(null);
@@ -656,6 +681,7 @@ export default function Layout3DEditor({
   const [showOverlayMenu, setShowOverlayMenu] = useState(false);
   const overlayMenuRef = useRef<HTMLDivElement | null>(null);
   const overlayColorRef = useRef<Map<string, number>>(new Map()); // stationName → hex int (empty = no overlay)
+  const validationHighlightRef = useRef<Set<string>>(new Set());
   const [showHeat, setShowHeat] = useState(false); // occupancy heat-map overlay on the floor (Fase 51)
   const [arr, setArr] = useState({ cols: 3, rows: 1, gap: 500, dx: 1000, dy: 0 }); // array/offset params (Fase 55)
   const [showGaps, setShowGaps] = useState(false); // clearance/safety gap markers overlay (Fase 52)
@@ -814,7 +840,7 @@ export default function Layout3DEditor({
     const a = assetsRef.current.get(next.id);
     if (!a) return null;
     const def = assetMeta(a.kind);
-    return { type: 'asset', id: next.id, x: a.x, y: a.y, w: a.w, h: a.h, rotation: a.rotation, title: def.label, subtitle: `Equipo · ${a.kind}`, kind: a.kind, height: def.height, canDuplicate: true };
+    return { type: 'asset', id: next.id, x: a.x, y: a.y, w: a.w, h: a.h, rotation: a.rotation, title: a.label || def.label, subtitle: `Equipo · ${a.kind}${a.label ? ` · ${def.label}` : ''}`, kind: a.kind, height: def.height, canDuplicate: true };
   }, []);
   // Replace the whole selection (selSnap mirrors the single-object case).
   const select = useCallback((next: SelItem[]) => {
@@ -851,11 +877,13 @@ export default function Layout3DEditor({
   useEffect(() => {
     if (!open || !model) return;
     let alive = true;
-    setData(null); setError(null); setSelList([]); setSelSnap(null); selRef.current = []; setDirty(false); setTab('stations');
-    overlayColorRef.current = new Map(); setOverlay(null);
-    setTool('select'); toolRef.current = 'select'; measureARef.current = null; wallChainRef.current = null; setMeasureLive(null);
-    setWalk(false); walkRef.current = false; savedCamRef.current = null;
-    undoStackRef.current = []; redoStackRef.current = []; setHist({ undo: 0, redo: 0 });
+    queueMicrotask(() => {
+      if (!alive) return;
+      setData(null); setError(null); setSelList([]); setSelSnap(null); setDirty(false); setTab('stations');
+      setOverlay(null); setTool('select'); setMeasureLive(null); setWalk(false); setHist({ undo: 0, redo: 0 }); setCellsView([]); setValidationHighlightIds(new Set()); setFlowSequence([]); setFlowSegments([]); setSnapshotDiff(null);
+    });
+    selRef.current = []; overlayColorRef.current = new Map(); validationHighlightRef.current = new Set(); toolRef.current = 'select'; measureARef.current = null; wallChainRef.current = null;
+    walkRef.current = false; savedCamRef.current = null; undoStackRef.current = []; redoStackRef.current = [];
     (async () => {
       try {
         const r = await apiFetch(`${API_BASE}/line-engineering/layout?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`);
@@ -883,6 +911,7 @@ export default function Layout3DEditor({
         stationsByIdRef.current = new Map(d.stations.map((s) => [s.id, s]));
         connectorsRef.current = (d.connectors ?? []).map((c) => ({ ...c }));
         cellsRef.current = (d.cells ?? []).map((c) => ({ ...c }));
+        setCellsView(cellsRef.current.map((c) => ({ ...c, stationIds: [...c.stationIds] })));
         setApproval((d as { approval?: LayoutApproval }).approval ?? { status: 'draft', by: null, at: null, note: null });
         loadedPlacedRef.current = new Set(pl.keys());
         setPlacedIds(new Set(pl.keys()));
@@ -891,7 +920,7 @@ export default function Layout3DEditor({
         setData(d);
         // fetch + parse the read-only DXF backdrop (the endpoint already serves
         // the raw drawing); render it on the floor once ready.
-        dxfModelRef.current = null; dxfMetaRef.current = null; dxfSnapRef.current = []; setHasDxf(false); setDxfWarnings([]);
+        dxfModelRef.current = null; dxfMetaRef.current = null; dxfSnapRef.current = []; setHasDxf(false); setDxfWarnings([]); setDxfImportPreview(null);
         if (d.dxf) {
           try {
             const rd = await apiFetch(`${API_BASE}/line-engineering/layout/dxf?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`);
@@ -930,11 +959,12 @@ export default function Layout3DEditor({
       const st = byId.get(id); if (!st) return;
       const hgt = Math.max(0.6, Math.min(p.w * s, p.h * s) * 0.7);
       const isSel = selRef.current.some((s) => s.type === 'station' && s.id === id);
+      const isAlert = validationHighlightRef.current.has(id);
       const ov = overlayColorRef.current.get(st.station); // station-status overlay tint (unify)
-      const color = isSel ? SELECT : ov !== undefined ? ov : st.ctq ? AMBER : ROSE;
+      const color = isAlert ? 0xf87171 : isSel ? SELECT : ov !== undefined ? ov : st.ctq ? AMBER : ROSE;
       const mesh = new THREE.Mesh(
         new THREE.BoxGeometry(p.w * s, hgt, p.h * s),
-        new THREE.MeshStandardMaterial({ color, roughness: 0.45, metalness: 0.12, emissive: isSel ? 0x0e7490 : 0x000000 }),
+        new THREE.MeshStandardMaterial({ color, roughness: 0.45, metalness: 0.12, emissive: isAlert ? 0x7f1d1d : isSel ? 0x0e7490 : 0x000000 }),
       );
       mesh.castShadow = true;
       mesh.userData.stationId = id;
@@ -976,7 +1006,7 @@ export default function Layout3DEditor({
     const { s, W, H } = ctx;
     assetsRef.current.forEach((a) => {
       const isSel = selRef.current.some((s) => s.type === 'asset' && s.id === a.id);
-      const g = buildAssetGroup(a, s, W, H, isSel);
+      const g = buildAssetGroup(a, s, W, H, isSel, validationHighlightRef.current.has(a.id));
       group.add(g);
       groupByAssetRef.current.set(a.id, g);
     });
@@ -1000,6 +1030,18 @@ export default function Layout3DEditor({
     });
     if (preview && !group.children.includes(preview)) group.add(preview);
   }, [data]);
+  const refreshMeasurementRows = useCallback(() => {
+    const unit = data?.footprint.unit || 'mm';
+    setMeasurementRowsView([...annotationsRef.current.values()]
+      .filter((ann) => ann.type === 'dim' && ann.x2 != null && ann.y2 != null)
+      .map((ann) => ({
+        id: ann.id,
+        label: ann.text || fmtDist(Math.hypot((ann.x2 ?? ann.x) - ann.x, (ann.y2 ?? ann.y) - ann.y), unit),
+        length: fmtDist(Math.hypot((ann.x2 ?? ann.x) - ann.x, (ann.y2 ?? ann.y) - ann.y), unit),
+      }))
+      .slice(0, 8));
+  }, [data]);
+  useEffect(() => { refreshMeasurementRows(); }, [dimCount, refreshMeasurementRows]);
 
   // ---- (re)build the free-text notes overlay ----
   const rebuildNotes = useCallback(() => {
@@ -1218,12 +1260,12 @@ export default function Layout3DEditor({
     const palette = ['#22d3ee', '#a78bfa', '#f472b6', '#fbbf24', '#34d399', '#60a5fa', '#fb7185', '#4ade80'];
     const color = palette[cellsRef.current.length % palette.length];
     cellsRef.current = [...cellsRef.current, { id: newId('cell'), name: `Celda ${cellsRef.current.length + 1}`, color, stationIds: [...new Set(ids)] }];
-    setCellsTick((t) => t + 1); setDirty(true); rebuildCells();
+    setCellsView(cellsRef.current.map((c) => ({ ...c, stationIds: [...c.stationIds] }))); setDirty(true); rebuildCells();
     toast.success('Celda creada.', '3D');
   };
   const deleteCell = (id: string) => {
     cellsRef.current = cellsRef.current.filter((c) => c.id !== id);
-    setCellsTick((t) => t + 1); setDirty(true); rebuildCells();
+    setCellsView(cellsRef.current.map((c) => ({ ...c, stationIds: [...c.stationIds] }))); setDirty(true); rebuildCells();
   };
 
   // ---- undo / redo (memento of the editable collections) ----
@@ -1233,6 +1275,11 @@ export default function Layout3DEditor({
     annotations: [...annotationsRef.current.values()].map((a) => ({ ...a })),
     connectors: connectorsRef.current.map((c) => ({ ...c })),
   }), []);
+  const recordLocalSnapshot = useCallback((label: string, reason: 'manual' | 'command' | 'import' | 'restore' = 'manual') => {
+    const snap = createCadSnapshot(snapshot(), label, reason, `local-${Date.now()}`);
+    setLocalSnapshots((history) => pushCadSnapshot(history, snap, 20));
+    return snap.id;
+  }, [snapshot]);
   const pushHistory = useCallback(() => {
     undoStackRef.current.push(snapshot());
     if (undoStackRef.current.length > 80) undoStackRef.current.shift();
@@ -1765,6 +1812,16 @@ export default function Layout3DEditor({
     const byKind = [...map.entries()]
       .map(([kind, v]) => ({ kind, label: assetMeta(kind).label, count: v.count, area: v.area }))
       .sort((p, q) => q.count - p.count || p.label.localeCompare(q.label));
+    const layerMap = new Map<CadLayerId, { count: number; area: number }>();
+    const addLayer = (layerId: CadLayerId, area: number) => {
+      const row = layerMap.get(layerId) ?? { count: 0, area: 0 };
+      row.count += 1; row.area += area; layerMap.set(layerId, row);
+    };
+    placementsRef.current.forEach((p, id) => addLayer(layerAssignmentsRef.current[id] ?? 'layout', p.w * p.h));
+    assets.forEach((asset) => addLayer(layerAssignmentsRef.current[asset.id] ?? 'equipment', asset.w * asset.h));
+    const byLayer = cadLayers
+      .map((layer) => ({ id: layer.id, label: layer.label, count: layerMap.get(layer.id)?.count ?? 0, area: layerMap.get(layer.id)?.area ?? 0 }))
+      .filter((layer) => layer.count > 0);
     const footprintArea = fp.footprintW * fp.footprintH;
     const usedArea = stationArea + equipArea;
     // material-flow travel metrics from the line connectors (Fase 64)
@@ -1776,9 +1833,88 @@ export default function Layout3DEditor({
       placedStations: placements.length, stationArea, equipmentCount: assets.length,
       equipArea, usedArea, util: footprintArea > 0 ? Math.min(100, (usedArea / footprintArea) * 100) : 0,
       wallLen, dimCount: [...annotationsRef.current.values()].filter((a) => a.type === 'dim').length,
-      flowLen: flow.totalLen, flowMaxHop: flow.maxHop, flowCount: flow.count, byKind,
+      flowLen: flow.totalLen, flowMaxHop: flow.maxHop, flowCount: flow.count, byKind, byLayer,
     });
-  }, [data]);
+  }, [data, cadLayers]);
+
+
+  const currentCollisionBoxes = useCallback(() => {
+    const boxes = [
+      ...[...placementsRef.current.entries()].map(([id, p]) => ({
+        id,
+        label: stationsByIdRef.current.get(id)?.station ?? id,
+        x: p.x + p.w / 2,
+        y: p.y + p.h / 2,
+        width: p.w,
+        height: p.h,
+        layer: layerAssignments[id] ?? 'layout',
+      })),
+      ...[...assetsRef.current.values()].filter((asset) => {
+        const arch = assetMeta(asset.kind).archetype;
+        return arch !== 'zone' && arch !== 'path';
+      }).map((asset) => ({
+        id: asset.id,
+        label: asset.label || assetMeta(asset.kind).label,
+        x: asset.x + asset.w / 2,
+        y: asset.y + asset.h / 2,
+        width: asset.w,
+        height: asset.h,
+        layer: layerAssignments[asset.id] ?? 'equipment',
+      })),
+    ];
+    return boxes;
+  }, [layerAssignments]);
+  const currentSafetyZones = useCallback((): CadSafetyZone[] => {
+    const zones: CadSafetyZone[] = [];
+    assetsRef.current.forEach((asset) => {
+      if (assetMeta(asset.kind).archetype !== 'zone') return;
+      const tags = (objectTags[asset.id] ?? '').toLowerCase();
+      const label = (asset.label || assetMeta(asset.kind).label).toLowerCase();
+      const kind = tags.includes('no-go') || label.includes('no-go') ? 'no_go' : tags.includes('restricted') || label.includes('restricted') ? 'restricted' : null;
+      if (!kind) return;
+      zones.push({
+        id: asset.id,
+        kind,
+        label: asset.label || assetMeta(asset.kind).label,
+        x: asset.x + asset.w / 2,
+        y: asset.y + asset.h / 2,
+        width: asset.w,
+        height: asset.h,
+        layer: 'Safety',
+      });
+    });
+    return zones;
+  }, [objectTags]);
+  const selectCollisionPair = (hit: CadCollisionHit) => {
+    const pair: SelItem[] = [hit.aId, hit.bId].map((id) => placementsRef.current.has(id) ? { type: 'station' as const, id } : assetsRef.current.has(id) ? { type: 'asset' as const, id } : null).filter((item): item is SelItem => !!item);
+    if (!pair.length) return;
+    select(pair);
+    rebuildAll();
+    toast.success(`${hit.aLabel} ↔ ${hit.bLabel} seleccionado.`, 'Colisiones');
+  };
+  const selectSafetyIssue = (issue: CadSafetyIssue) => {
+    const items: SelItem[] = [issue.objectId, issue.zoneId].map((id) => placementsRef.current.has(id) ? { type: 'station' as const, id } : assetsRef.current.has(id) ? { type: 'asset' as const, id } : null).filter((item): item is SelItem => !!item);
+    if (!items.length) return;
+    select(items);
+    rebuildAll();
+    toast.success('Issue de seguridad seleccionado.', 'Safety');
+  };
+  const analyzeFlowHealth = () => {
+    const nodes = [...placementsRef.current.entries()]
+      .map(([id, p]) => ({
+        id,
+        label: stationsByIdRef.current.get(id)?.station ?? id,
+        x: p.x + p.w / 2,
+        y: p.y + p.h / 2,
+        sequence: data?.stations.findIndex((s) => s.id === id) ?? 0,
+      }))
+      .sort((a, b) => a.sequence - b.sequence)
+      .map((node) => ({ id: node.id, label: node.label, x: node.x, y: node.y }));
+    if (nodes.length < 2) { toast.error('Coloca al menos 2 estaciones para analizar flujo.', 'Flow Health'); return; }
+    setFlowSequence(nodes);
+    setFlowSegments(buildFlowSegments(nodes));
+    setFlowHealth(scoreFlowLayout(nodes));
+  };
 
   // Design-check / validation review of the current (possibly unsaved) state (Fase 63).
   const openChecks = useCallback(() => {
@@ -1794,8 +1930,45 @@ export default function Layout3DEditor({
       assets.push({ id: a.id, label: a.label || assetMeta(a.kind).label, x: a.x, y: a.y, w: a.w, h: a.h });
     });
     const unplaced = Math.max(0, (data?.stations.length ?? 0) - placementsRef.current.size);
+    const collisionBoxes = currentCollisionBoxes();
+    const safety = evaluateSafetyZones(collisionBoxes, currentSafetyZones());
+    const collisions = detectCadCollisions(collisionBoxes);
+    const highlightIds = new Set<string>();
+    collisions.forEach((hit) => { highlightIds.add(hit.aId); highlightIds.add(hit.bId); });
+    safety.forEach((issue) => { highlightIds.add(issue.objectId); highlightIds.add(issue.zoneId); });
+    validationHighlightRef.current = highlightIds;
+    setValidationHighlightIds(highlightIds);
+    setCollisionHits(collisions);
+    setSafetyIssues(safety);
+    rebuildAll();
     setReport(designChecks({ stations, assets, unplacedStations: unplaced, footprintW: fp.footprintW, footprintH: fp.footprintH, connectors: connectorsRef.current }));
-  }, [data]);
+  }, [data, currentCollisionBoxes, currentSafetyZones, rebuildAll]);
+  const clearValidationHighlights = () => {
+    validationHighlightRef.current = new Set();
+    setValidationHighlightIds(new Set());
+    rebuildAll();
+  };
+  const selectFlowNode = (id: string) => {
+    if (!placementsRef.current.has(id)) return;
+    select([{ type: 'station', id }]);
+    rebuildAll();
+  };
+  const selectFlowSequence = () => {
+    const items: SelItem[] = flowSequence.filter((node) => placementsRef.current.has(node.id)).map((node) => ({ type: 'station', id: node.id }));
+    if (!items.length) return;
+    select(items);
+    rebuildAll();
+    toast.success(`${items.length} estación(es) del flujo seleccionadas.`, 'Flow Health');
+  };
+  const selectFlowSegment = (segment: CadFlowSegment) => {
+    const items: SelItem[] = [segment.from.id, segment.to.id]
+      .filter((id) => placementsRef.current.has(id))
+      .map((id) => ({ type: 'station', id }));
+    if (items.length < 2) return;
+    select(items);
+    rebuildAll();
+    toast.success(`Tramo seleccionado: ${segment.from.label ?? segment.from.id} → ${segment.to.label ?? segment.to.id}.`, 'Flow Health');
+  };
 
   // Resize the plant footprint / grid from the CAD; the scene rebuilds at the
   // new scale and the change persists on save (objects keep their world coords).
@@ -1858,6 +2031,7 @@ export default function Layout3DEditor({
     const id = newId('as');
     assetsRef.current.set(id, { id, kind, x, y, w, h, rotation: 0, label: overrides?.label });
     setAssetIds((prev) => new Set(prev).add(id));
+    setLayerAssignments((cur) => assignObjectsToLayer(cur, [id], activeCadLayer));
     select([{ type: 'asset', id }]);
     setDirty(true); rebuildAll();
     return id;
@@ -1870,7 +2044,11 @@ export default function Layout3DEditor({
     };
     const kind = kindBySymbol[symbol.id] ?? 'machine';
     const id = addAsset(kind, { label: symbol.label, w: symbol.defaultWidth, h: symbol.defaultHeight });
-    if (id) toast.success(`${symbol.label} agregado al layout.`, 'Símbolos CAD');
+    if (id) {
+      const layer = symbol.layer as CadLayerId;
+      if (DEFAULT_CAD_LAYERS.some((item) => item.id === layer)) setLayerAssignments((cur) => assignObjectsToLayer(cur, [id], layer));
+      toast.success(`${symbol.label} agregado al layout.`, 'Símbolos CAD');
+    }
   };
   const fallbackLayerForItem = (item: SelItem): CadLayerId => item.type === 'station' ? 'layout' : 'equipment';
   const isItemLayerLocked = (item: SelItem) => isObjectLayerLocked(cadLayersRef.current, layerAssignmentsRef.current, item.id, fallbackLayerForItem(item));
@@ -1941,6 +2119,82 @@ export default function Layout3DEditor({
     }
     commitCreated(created, truncated ? `muros del plano (recortado a ${walls.length})` : 'muros importados del plano');
   };
+  const dxfPrimitiveBounds = (primitives: CadDxfPrimitive[]) => {
+    const points = primitives.flatMap((primitive) => primitive.points);
+    if (!points.length) return null;
+    return {
+      minX: Math.min(...points.map((point) => point.x)),
+      maxX: Math.max(...points.map((point) => point.x)),
+      minY: Math.min(...points.map((point) => point.y)),
+      maxY: Math.max(...points.map((point) => point.y)),
+    };
+  };
+  const projectDxfPoint = (point: CadDxfPoint, bounds: NonNullable<ReturnType<typeof dxfPrimitiveBounds>>, modelRef: DxfModel, meta: DxfMeta) =>
+    dxfPointToFootprint(point.x - bounds.minX, bounds.maxY - point.y, modelRef, meta);
+  const createDxfWallAsset = (a: { x: number; y: number }, b: { x: number; y: number }, label: string) => {
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    if (len < 60) return null;
+    const thick = assetMeta('wall').h;
+    const id = newId('as');
+    assetsRef.current.set(id, {
+      id,
+      kind: 'wall',
+      label,
+      x: (a.x + b.x) / 2 - len / 2,
+      y: (a.y + b.y) / 2 - thick / 2,
+      w: len,
+      h: thick,
+      rotation: (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI,
+    });
+    return id;
+  };
+  const convertDxfPrimitivesToEditable = () => {
+    const preview = dxfImportPreview; const dm = dxfModelRef.current; const meta = dxfMetaRef.current;
+    if (!preview || !dm || !meta) { toast.error('Carga un DXF antes de convertir entidades.', 'DXF'); return; }
+    const bounds = dxfPrimitiveBounds(preview.primitives);
+    if (!bounds) { toast.error('El DXF no tiene entidades soportadas para convertir.', 'DXF'); return; }
+    recordLocalSnapshot('Auto · antes de convertir DXF', 'import');
+    pushHistory();
+    const created: SelItem[] = [];
+    const layerUpdates: Record<string, CadLayerId> = {};
+    const tagUpdates: Record<string, string> = {};
+    let notes = 0;
+    let truncated = false;
+    const cap = 850;
+    for (const primitive of preview.primitives) {
+      if (created.length >= cap) { truncated = true; break; }
+      const points = primitive.points.map((point) => projectDxfPoint(point, bounds, dm, meta));
+      if (primitive.kind === 'text' && points[0] && primitive.text) {
+        const id = newId('nt');
+        annotationsRef.current.set(id, { id, type: 'text', x: snapWorld(points[0].x), y: snapWorld(points[0].y), text: primitive.text.slice(0, 80) });
+        notes++;
+        continue;
+      }
+      if (primitive.kind === 'rect' && points.length >= 4) {
+        const minX = Math.min(...points.map((point) => point.x)); const maxX = Math.max(...points.map((point) => point.x));
+        const minY = Math.min(...points.map((point) => point.y)); const maxY = Math.max(...points.map((point) => point.y));
+        if (maxX - minX >= 80 && maxY - minY >= 80) {
+          const id = newId('as');
+          assetsRef.current.set(id, { id, kind: 'zone', label: `DXF zone · ${primitive.layer}`, x: snapWorld(minX), y: snapWorld(minY), w: snapWorld(maxX - minX), h: snapWorld(maxY - minY), rotation: 0 });
+          created.push({ type: 'asset', id }); layerUpdates[id] = 'layout'; tagUpdates[id] = `dxf, dxf-layer:${primitive.layer}, editable-zone`;
+        }
+        continue;
+      }
+      for (let i = 0; i + 1 < points.length; i++) {
+        if (created.length >= cap) { truncated = true; break; }
+        const id = createDxfWallAsset(points[i], points[i + 1], `DXF line · ${primitive.layer}`);
+        if (id) { created.push({ type: 'asset', id }); layerUpdates[id] = 'layout'; tagUpdates[id] = `dxf, dxf-layer:${primitive.layer}, editable-wall`; }
+      }
+    }
+    if (!created.length && !notes) { toast.error('No se encontraron entidades DXF seguras para convertir.', 'DXF'); return; }
+    setAssetIds(new Set(assetsRef.current.keys()));
+    setLayerAssignments((cur) => ({ ...cur, ...layerUpdates }));
+    setObjectTags((cur) => ({ ...cur, ...tagUpdates }));
+    if (notes) { setDimCount([...annotationsRef.current.values()].filter((ann) => ann.type === 'dim').length); rebuildDims(); }
+    if (created.length) select(created.slice(0, 80));
+    setDirty(true); rebuildAll();
+    toast.success(`${created.length} objeto(s) y ${notes} nota(s) convertidos${truncated ? ' (recortado por seguridad)' : ''}.`, 'DXF editable');
+  };
   // ---- auto-dimension the layout into a measured drawing (Fase 59) ----
   // Acota lo seleccionado (o todo el layout): medidas generales + cotas
   // encadenadas centro a centro, fuera del recuadro — un plano acotado de un clic.
@@ -1982,6 +2236,7 @@ export default function Layout3DEditor({
     });
     if (list.length < 2) { toast.error('Coloca al menos 2 estaciones para acomodar la línea.', '3D'); return; }
     const pos = arrangeLine({ stations: list, footprintW: fp.footprintW, footprintH: fp.footprintH, gridSize: fp.gridSize }, {});
+    recordLocalSnapshot('Auto · antes de acomodar línea', 'command');
     pushHistory();
     let moved = 0;
     for (const [id, p] of Object.entries(pos)) {
@@ -2015,6 +2270,7 @@ export default function Layout3DEditor({
       if (!r.ok) { toast.error('No se pudo optimizar.', '3D'); return; }
       const d = (await r.json()) as { positions: { id: string; x: number; y: number; w: number; h: number; rotation: number }[]; improvedPct: number };
       if (!d.positions?.length) { toast.error('No hay estaciones para optimizar.', '3D'); return; }
+      recordLocalSnapshot('Auto · antes de optimizar flujo', 'command');
       pushHistory();
       d.positions.forEach((p) => placementsRef.current.set(p.id, { x: p.x, y: p.y, w: p.w, h: p.h, rotation: p.rotation }));
       setPlacedIds(new Set(placementsRef.current.keys()));
@@ -2031,6 +2287,7 @@ export default function Layout3DEditor({
       const text = await file.text();
       if (text.length > 12_000_000) { toast.error('El DXF supera 12 MB.', '3D'); return; }
       const importPreview = importDxfPrimitives(text);
+      setDxfImportPreview(importPreview);
       setDxfWarnings(importPreview.warnings);
       if (importPreview.warnings.length) toast.error(`DXF cargado con ${importPreview.warnings.length} advertencia(s); revisa el panel DXF para detalles.`, 'DXF');
       const dxfModel = parseDxf(text);
@@ -2059,7 +2316,7 @@ export default function Layout3DEditor({
     try {
       const res = await apiFetch(`${API_BASE}/line-engineering/layout/dxf?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`, { method: 'DELETE' });
       if (!res.ok) { toast.error('No se pudo quitar el DXF.', '3D'); return; }
-      dxfModelRef.current = null; dxfMetaRef.current = null; dxfSnapRef.current = []; setHasDxf(false); setDxfWarnings([]);
+      dxfModelRef.current = null; dxfMetaRef.current = null; dxfSnapRef.current = []; setHasDxf(false); setDxfWarnings([]); setDxfImportPreview(null);
       rebuildDxfRef.current(); setDirty(true);
       toast.success('Plano DXF quitado.', '3D');
     } catch { toast.error('Error de red.', '3D'); }
@@ -2078,8 +2335,7 @@ export default function Layout3DEditor({
 
   const saveLocalSnapshot = (reason: 'manual' | 'command' | 'import' | 'restore' = 'manual') => {
     const label = versName.trim() || `Local ${localSnapshots.snapshots.length + 1}`;
-    const snap = createCadSnapshot(snapshot(), label, reason, `local-${Date.now()}`);
-    setLocalSnapshots((history) => pushCadSnapshot(history, snap, 20));
+    recordLocalSnapshot(label, reason);
     setVersName('');
     toast.success('Snapshot local guardado en esta sesión.', 'Snapshots CAD');
   };
@@ -2091,6 +2347,14 @@ export default function Layout3DEditor({
     setLocalSnapshots(restored.history);
     setShowVersions(false);
     toast.success('Snapshot local restaurado.', 'Snapshots CAD');
+  };
+  const compareLocalSnapshot = (id: string) => {
+    const base = localSnapshots.snapshots.find((item) => item.id === id);
+    if (!base) { toast.error('No se encontró el snapshot local.', 'Snapshots CAD'); return; }
+    const current = createCadSnapshot(snapshot(), 'Actual', 'manual', 'current');
+    const diff = diffCadSnapshots(base, current);
+    setSnapshotDiff(diff);
+    toast.success(diff.changed ? 'El layout cambió desde ese snapshot.' : 'El layout coincide con ese snapshot.', 'Snapshots CAD');
   };
   const deleteLocalSnapshot = (id: string) => {
     setLocalSnapshots((history) => ({
@@ -2236,6 +2500,92 @@ export default function Layout3DEditor({
     items.forEach((it) => { const p = getPlaceRef(it); if (p) { p.x += ndx; p.y += ndy; } });
     setDirty(true); refreshSnap(); rebuildAll();
   };
+  const selectedMeasureBox = (item: SelItem) => {
+    const p = getPlaceRef(item);
+    if (!p) return null;
+    return {
+      id: item.id,
+      label: item.type === 'station' ? stationsByIdRef.current.get(item.id)?.station ?? item.id : assetsRef.current.get(item.id)?.label || assetMeta(assetsRef.current.get(item.id)?.kind || 'machine').label,
+      x: p.x, y: p.y, w: p.w, h: p.h,
+    };
+  };
+  const createSelectionMeasurement = (mode: CadMeasureMode = 'direct') => {
+    if (selRef.current.length !== 2) { toast.error('Selecciona exactamente 2 objetos para crear una cota centro-a-centro.', 'Medición'); return; }
+    const [aItem, bItem] = selRef.current;
+    const a = selectedMeasureBox(aItem); const b = selectedMeasureBox(bItem);
+    if (!a || !b) { toast.error('No pude medir la selección actual.', 'Medición'); return; }
+    const unit = data?.footprint.unit === 'm' ? 'm' : 'mm';
+    const measurement = measureBoxes(a, b, mode, unit);
+    pushHistory();
+    const id = newId('dim');
+    annotationsRef.current.set(id, { id, type: 'dim', x: measurement.from.x, y: measurement.from.y, x2: measurement.to.x, y2: measurement.to.y, text: measurementLabel(a, b, measurement) });
+    setDimCount([...annotationsRef.current.values()].filter((ann) => ann.type === 'dim').length);
+    setDirty(true); rebuildDims(); refreshMeasurementRows();
+    toast.success(`Cota creada: ${measurement.label}`, 'Medición');
+  };
+  const updateMeasurementText = (id: string, text: string) => {
+    const ann = annotationsRef.current.get(id);
+    if (!ann || ann.type !== 'dim') return;
+    ann.text = text;
+    setDirty(true); rebuildDims(); refreshMeasurementRows();
+  };
+  const deleteMeasurement = (id: string) => {
+    const ann = annotationsRef.current.get(id);
+    if (!ann || ann.type !== 'dim') return;
+    pushHistory();
+    annotationsRef.current.delete(id);
+    setDimCount([...annotationsRef.current.values()].filter((item) => item.type === 'dim').length);
+    setDirty(true); rebuildDims(); refreshMeasurementRows();
+    toast.success('Cota eliminada.', 'Medición');
+  };
+  const focusMeasurement = (id: string) => {
+    const ann = annotationsRef.current.get(id); const ctx = ctxRef.current; const ctrl = controlsRef.current;
+    if (!ann || ann.type !== 'dim' || ann.x2 == null || ann.y2 == null || !ctx || !ctrl) return;
+    const mx = (ann.x + ann.x2) / 2; const my = (ann.y + ann.y2) / 2;
+    ctrl.target.set((mx - ctx.W / 2) * ctx.s, 0, (my - ctx.H / 2) * ctx.s);
+    ctrl.update();
+    select([]); rebuildAll();
+    toast.success('Vista centrada en la cota.', 'Medición');
+  };
+
+  const createAisleBetweenSelection = () => {
+    if (selRef.current.length !== 2) { toast.error('Selecciona 2 objetos para crear un pasillo entre ellos.', 'Pasillos'); return; }
+    const [aItem, bItem] = selRef.current;
+    const a = selectedMeasureBox(aItem); const b = selectedMeasureBox(bItem);
+    const ctx = ctxRef.current;
+    if (!a || !b || !ctx) { toast.error('No pude calcular el pasillo para esta selección.', 'Pasillos'); return; }
+    const ac = { x: a.x + a.w / 2, y: a.y + a.h / 2 };
+    const bc = { x: b.x + b.w / 2, y: b.y + b.h / 2 };
+    const len = Math.hypot(bc.x - ac.x, bc.y - ac.y);
+    if (len < 1) { toast.error('Los objetos están demasiado cerca para crear un pasillo.', 'Pasillos'); return; }
+    const width = Math.max(100, Math.round(aisleWidth) || 1200);
+    const angle = (Math.atan2(bc.y - ac.y, bc.x - ac.x) * 180) / Math.PI;
+    pushHistory();
+    const id = newId('as');
+    assetsRef.current.set(id, { id, kind: 'agvpath', label: `Pasillo ${Math.round(width).toLocaleString('es-MX')}`, x: Math.max(0, Math.min(ctx.W - len, (ac.x + bc.x) / 2 - len / 2)), y: Math.max(0, Math.min(ctx.H - width, (ac.y + bc.y) / 2 - width / 2)), w: len, h: width, rotation: angle });
+    setAssetIds(new Set(assetsRef.current.keys()));
+    setLayerAssignments((cur) => assignObjectsToLayer(cur, [id], 'aisles'));
+    setObjectTags((cur) => ({ ...cur, [id]: 'aisle, clearance, material-flow' }));
+    select([{ type: 'asset', id }]);
+    setDirty(true); rebuildAll();
+    toast.success('Pasillo editable creado entre la selección.', 'Pasillos');
+  };
+  const createSafetyZoneAsset = (kind: 'no-go' | 'restricted') => {
+    const ctx = ctxRef.current; const ctrl = controlsRef.current; if (!ctx) return;
+    const w = kind === 'no-go' ? 2400 : 3000; const h = kind === 'no-go' ? 1800 : 2200;
+    const cx = ctrl ? ctrl.target.x / ctx.s + ctx.W / 2 : ctx.W / 2;
+    const cy = ctrl ? ctrl.target.z / ctx.s + ctx.H / 2 : ctx.H / 2;
+    pushHistory();
+    const id = newId('as');
+    assetsRef.current.set(id, { id, kind: 'zone', label: kind === 'no-go' ? 'No-go zone' : 'Restricted zone', x: Math.max(0, Math.min(ctx.W - w, snapWorld(cx - w / 2))), y: Math.max(0, Math.min(ctx.H - h, snapWorld(cy - h / 2))), w, h, rotation: 0 });
+    setAssetIds(new Set(assetsRef.current.keys()));
+    setLayerAssignments((cur) => assignObjectsToLayer(cur, [id], 'safety'));
+    setObjectTags((cur) => ({ ...cur, [id]: `${kind}, safety, controlled-area` }));
+    select([{ type: 'asset', id }]);
+    setDirty(true); rebuildAll();
+    toast.success(`${kind === 'no-go' ? 'No-go zone' : 'Restricted zone'} creada.`, 'Safety');
+  };
+
   const setField = (field: 'x' | 'y' | 'w' | 'h' | 'rotation', value: number) => {
     const cur = selList[0]; if (!cur) return;
     if (isItemLayerLocked(cur)) { toast.error('La capa del objeto está bloqueada. Desbloquéala para editar propiedades.', 'Capas'); return; }
@@ -2247,6 +2597,41 @@ export default function Layout3DEditor({
     else if (field === 'h') p.h = Math.max(50, Math.min(ctx.H, Math.round(v)));
     else if (field === 'x') p.x = Math.max(0, Math.min(ctx.W - p.w, Math.round(v)));
     else if (field === 'y') p.y = Math.max(0, Math.min(ctx.H - p.h, Math.round(v)));
+    setDirty(true); refreshSnap(); rebuildAll();
+  };
+  const updateSelectedAssetLabel = (value: string) => {
+    const cur = selList[0];
+    if (!cur || cur.type !== 'asset') return;
+    if (isItemLayerLocked(cur)) { toast.error('La capa del objeto está bloqueada. Desbloquéala para renombrar.', 'Capas'); return; }
+    const asset = assetsRef.current.get(cur.id); if (!asset) return;
+    asset.label = value.trim() || undefined;
+    setDirty(true); refreshSnap(); rebuildAll();
+  };
+  const updateSelectedTags = (value: string) => {
+    const cur = selList[0]; if (!cur) return;
+    if (isItemLayerLocked(cur)) { toast.error('La capa del objeto está bloqueada. Desbloquéala para editar tags.', 'Capas'); return; }
+    setObjectTags((state) => ({ ...state, [cur.id]: value }));
+    setDirty(true);
+  };
+  const assignSelectedToActiveLayer = () => {
+    const cur = selList[0]; if (!cur) return;
+    if (isItemLayerLocked(cur)) { toast.error('La capa actual del objeto está bloqueada. Desbloquéala antes de recategorizar.', 'Capas'); return; }
+    setLayerAssignments((state) => assignObjectsToLayer(state, [cur.id], activeCadLayer));
+    toast.success(`Objeto asignado a ${cadLayers.find((layer) => layer.id === activeCadLayer)?.label ?? activeCadLayer}.`, 'Capas');
+  };
+  const resetSelectedRotation = () => {
+    const cur = selList[0]; if (!cur) return;
+    if (isItemLayerLocked(cur)) { toast.error('La capa del objeto está bloqueada. Desbloquéala para rotar.', 'Capas'); return; }
+    const p = getPlaceRef(cur); if (!p) return;
+    pushHistory(); p.rotation = 0; setDirty(true); refreshSnap(); rebuildAll();
+  };
+  const centerSelectedInFootprint = () => {
+    const cur = selList[0]; const ctx = ctxRef.current; if (!cur || !ctx) return;
+    if (isItemLayerLocked(cur)) { toast.error('La capa del objeto está bloqueada. Desbloquéala para mover.', 'Capas'); return; }
+    const p = getPlaceRef(cur); if (!p) return;
+    pushHistory();
+    p.x = Math.max(0, Math.min(ctx.W - p.w, Math.round(ctx.W / 2 - p.w / 2)));
+    p.y = Math.max(0, Math.min(ctx.H - p.h, Math.round(ctx.H / 2 - p.h / 2)));
     setDirty(true); refreshSnap(); rebuildAll();
   };
   // Align the selected objects to the selection's bounding box (≥2 objects).
@@ -2346,7 +2731,7 @@ export default function Layout3DEditor({
       return;
     }
     const mutates = result.operations.some((op) => op.type === 'move' || op.type === 'connect');
-    if (mutates) pushHistory();
+    if (mutates) { recordLocalSnapshot(`Auto · ${result.historyLabel}`, 'command'); pushHistory(); }
     const changed = result.operations.some(applyCommandOperation);
     setCommandLog((items) => [createCadHistoryItem(commandPreview.input, 'applied', result.historyLabel, commandPreview.preview, result), ...items].slice(0, 12));
     if (changed) { setDirty(true); refreshSnap(); rebuildAll(); }
@@ -2374,11 +2759,36 @@ export default function Layout3DEditor({
     else if (id === 'flow') setLayers((cur) => ({ ...cur, connectors: !cur.connectors }));
     else if (id === 'measurements') setLayers((cur) => ({ ...cur, dims: !cur.dims }));
   };
+  const updateCadLayerLabel = (id: CadLayerId, label: string) => setCadLayers((cur) => cur.map((layer) => layer.id === id ? { ...layer, label } : layer));
+  const updateCadLayerColor = (id: CadLayerId, color: string) => setCadLayers((cur) => cur.map((layer) => layer.id === id ? { ...layer, color } : layer));
+  const resetCadLayerPresentation = () => {
+    setCadLayers(DEFAULT_CAD_LAYERS.map((layer) => ({ ...layer })));
+    toast.success('Capas CAD restauradas a la presentación estándar.', 'Capas');
+  };
   const assignSelectionToCadLayer = (id: CadLayerId) => {
     const ids = selRef.current.map((it) => it.id);
     if (!ids.length) { toast.error('Selecciona objetos para asignarlos a una capa.', 'Capas'); return; }
     setLayerAssignments((cur) => assignObjectsToLayer(cur, ids, id));
     toast.success(`${ids.length} objeto(s) asignados a ${cadLayers.find((l) => l.id === id)?.label ?? id}.`, 'Capas');
+  };
+  const selectCadLayerObjects = (id: CadLayerId) => {
+    const items: SelItem[] = [];
+    placementsRef.current.forEach((_, objectId) => { if ((layerAssignmentsRef.current[objectId] ?? 'layout') === id) items.push({ type: 'station', id: objectId }); });
+    assetsRef.current.forEach((_, objectId) => { if ((layerAssignmentsRef.current[objectId] ?? 'equipment') === id) items.push({ type: 'asset', id: objectId }); });
+    if (!items.length) { toast.error('No hay objetos visibles en esa capa.', 'Capas'); return; }
+    select(items.slice(0, 200));
+    toast.success(`${items.length} objeto(s) seleccionados en la capa.`, 'Capas');
+  };
+  const isolateCadLayer = (id: CadLayerId) => {
+    setLayers((cur) => ({
+      ...cur,
+      stations: id === 'layout',
+      equipment: id === 'equipment' || id === 'aisles' || id === 'safety',
+      connectors: id === 'flow',
+      dims: id === 'measurements',
+    }));
+    setCadLayers((cur) => cur.map((layer) => ({ ...layer, visible: layer.id === id })));
+    toast.success(`Capa ${cadLayers.find((layer) => layer.id === id)?.label ?? id} aislada.`, 'Capas');
   };
   const defaultLayerFor = (item: SelItem): CadLayerId => item.type === 'station' ? 'layout' : 'equipment';
   const selectionLayer = (item: SelItem): CadLayerId => layerAssignments[item.id] ?? defaultLayerFor(item);
@@ -2395,17 +2805,30 @@ export default function Layout3DEditor({
     else if (id === 'undo') undo();
     else if (id === 'redo') redo();
   };
+  const rememberPaletteAction = (entry: CadPaletteEntry) => {
+    setRecentPaletteActions((items) => [`${entry.kind}:${entry.id}`, ...items.filter((item) => item !== `${entry.kind}:${entry.id}`)].slice(0, 5));
+  };
   const runPaletteEntry = (entry: CadPaletteEntry) => {
-    setShowPalette(false); setPaletteQuery('');
+    setShowPalette(false); setPaletteQuery(''); rememberPaletteAction(entry);
     if (entry.kind === 'tool') { runToolbarAction(entry.id as CadToolbarActionId); return; }
     if (entry.kind === 'command') {
       const example = entry.keywords.find((kw) => kw.includes(' ')) ?? entry.label;
+      const parsed = parseCadCommand(example);
       setShowCommand(true); setCommandText(example);
-      toast.success('Comando cargado en el Copiloto CAD para preview.', 'Cmd-K CAD');
+      if (parsed.ok && parsed.input) {
+        const preview = previewCadCommand(parsed.input, buildCommandContext());
+        setCommandPreview({ input: parsed.input, preview });
+        setCommandLog((items) => [createCadHistoryItem(parsed.input!, 'previewed', preview.summary, preview), ...items].slice(0, 12));
+        toast.success('Preview listo en el Copiloto CAD.', 'Cmd-K CAD');
+      } else {
+        setCommandPreview(null);
+        toast.error(parsed.clarification || parsed.error || 'El comando necesita más contexto.', 'Cmd-K CAD');
+      }
       return;
     }
+    addCadSymbol(entry.id);
     setTab('equipment');
-    toast.success(`${entry.label} listo en biblioteca de símbolos.`, 'Cmd-K CAD');
+    toast.success(`${entry.label} insertado desde Cmd-K.`, 'Cmd-K CAD');
   };
   const selectAll = () => {
     const items: SelItem[] = [
@@ -2540,7 +2963,33 @@ export default function Layout3DEditor({
       );
     } catch { toast.error('No se pudo exportar el modelo 3D.', '3D'); }
   };
-  const exportDxf = async () => {
+  const computeDxfExportSummary = (options: DxfExportOptions): DxfExportSummary => {
+    const selectedIds = new Set(selRef.current.map((item) => item.id));
+    const inScope = (id: string) => options.scope === 'all' || selectedIds.has(id);
+    const objects = options.scope === 'selection' ? selRef.current.length : placementsRef.current.size + assetsRef.current.size;
+    const connectors = connectorsRef.current.filter((conn) => inScope(conn.from) && inScope(conn.to)).length;
+    return {
+      objects,
+      connectors,
+      measurements: options.includeMeasurements ? [...annotationsRef.current.values()].filter((ann) => ann.type === 'dim').length : 0,
+      labels: options.includeLabels ? [...annotationsRef.current.values()].filter((ann) => ann.type === 'text').length : 0,
+      layers: cadLayers.filter((layer) => options.includeHidden || layer.visible).length,
+    };
+  };
+  const setDxfOption = (patch: Partial<DxfExportOptions>) => {
+    setDxfExportOptions((cur) => {
+      const next = { ...cur, ...patch };
+      setDxfExportSummary(computeDxfExportSummary(next));
+      return next;
+    });
+  };
+  const openDxfExport = () => {
+    const next = { ...dxfExportOptions, units: data?.footprint.unit === 'm' ? 'm' as const : 'mm' as const, fileName: `layout-${model}-${revision}`.replace(/[^\w.\-]+/g, '_') };
+    setDxfExportOptions(next);
+    setDxfExportSummary(computeDxfExportSummary(next));
+    setShowDxfExport(true);
+  };
+  const exportDxf = async (options: DxfExportOptions = dxfExportOptions) => {
     try {
       const centerFor = (id: string): { x: number; y: number } | null => {
         const p = placementsRef.current.get(id);
@@ -2549,24 +2998,37 @@ export default function Layout3DEditor({
         if (asset) return { x: asset.x, y: asset.y };
         return null;
       };
+      const selectedIds = new Set(selRef.current.map((item) => item.id));
+      const includeObject = (id: string, fallback: CadLayerId) => {
+        if (options.scope === 'selection' && !selectedIds.has(id)) return false;
+        if (options.includeHidden) return true;
+        const layerId = layerAssignments[id] ?? fallback;
+        return cadLayers.find((layer) => layer.id === layerId)?.visible ?? true;
+      };
       const boxes = [
-        ...[...placementsRef.current.entries()].map(([id, p]) => ({ id, label: stationsByIdRef.current.get(id)?.station ?? id, x: p.x, y: p.y, width: p.w, height: p.h, layer: 'Layout' })),
-        ...[...assetsRef.current.values()].map((asset) => ({ id: asset.id, label: asset.label || assetMeta(asset.kind).label, x: asset.x, y: asset.y, width: asset.w, height: asset.h, layer: 'Equipment' })),
+        ...[...placementsRef.current.entries()]
+          .filter(([id]) => includeObject(id, 'layout'))
+          .map(([id, p]) => ({ id, label: stationsByIdRef.current.get(id)?.station ?? id, x: p.x, y: p.y, width: p.w, height: p.h, layer: cadLayers.find((layer) => layer.id === (layerAssignments[id] ?? 'layout'))?.label ?? 'Layout' })),
+        ...[...assetsRef.current.values()]
+          .filter((asset) => includeObject(asset.id, 'equipment'))
+          .map((asset) => ({ id: asset.id, label: asset.label || assetMeta(asset.kind).label, x: asset.x, y: asset.y, width: asset.w, height: asset.h, layer: cadLayers.find((layer) => layer.id === (layerAssignments[asset.id] ?? 'equipment'))?.label ?? 'Equipment' })),
       ];
       const connectors = connectorsRef.current.map((conn) => {
+        if (options.scope === 'selection' && (!selectedIds.has(conn.from) || !selectedIds.has(conn.to))) return null;
         const from = centerFor(conn.from); const to = centerFor(conn.to);
         return from && to ? { from, to, layer: 'Flow' } : null;
       }).filter((conn): conn is { from: { x: number; y: number }; to: { x: number; y: number }; layer: string } => !!conn);
-      const labels = [...annotationsRef.current.values()].filter((ann) => ann.type === 'text').map((ann) => ({ text: ann.text || 'Nota', x: ann.x, y: ann.y, layer: 'Text' }));
-      const measurements = [...annotationsRef.current.values()].filter((ann) => ann.type === 'dim' && ann.x2 != null && ann.y2 != null).map((ann) => ({ from: { x: ann.x, y: ann.y }, to: { x: ann.x2!, y: ann.y2! }, label: ann.text, layer: 'Measurements' }));
-      const exported = exportCadLayoutDxf({ boxes, connectors, labels, measurements }, { units: data?.footprint.unit === 'm' ? 'm' : 'mm', fileComment: `AXOS CAD ${model} ${revision}` });
+      const labels = options.includeLabels ? [...annotationsRef.current.values()].filter((ann) => ann.type === 'text').map((ann) => ({ text: ann.text || 'Nota', x: ann.x, y: ann.y, layer: 'Text' })) : [];
+      const measurements = options.includeMeasurements ? [...annotationsRef.current.values()].filter((ann) => ann.type === 'dim' && ann.x2 != null && ann.y2 != null).map((ann) => ({ from: { x: ann.x, y: ann.y }, to: { x: ann.x2!, y: ann.y2! }, label: ann.text, layer: 'Measurements' })) : [];
+      const exported = exportCadLayoutDxf({ boxes, connectors, labels, measurements }, { units: options.units, fileComment: `AXOS CAD ${model} ${revision}` });
       const blob = new Blob([exported.content], { type: 'application/dxf' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `layout-${model}-${revision}.dxf`.replace(/[^\w.\-]+/g, '_');
+      a.download = `${(options.fileName.trim() || `layout-${model}-${revision}`).replace(/[^\w.\-]+/g, '_')}.dxf`;
       a.click();
       URL.revokeObjectURL(url);
+      setShowDxfExport(false);
       toast.success(`Layout exportado a DXF (${exported.entityCount} entidades).`, 'DXF');
     } catch { toast.error('No se pudo exportar el DXF.', 'DXF'); }
   };
@@ -2641,6 +3103,31 @@ export default function Layout3DEditor({
   const placedCount = placedIds.size;
   const assetCount = assetIds.size;
   const dxfWarningSummary = summarizeDxfImportWarnings(dxfWarnings).slice(0, 6);
+  const dxfPrimitiveSummary = dxfImportPreview
+    ? dxfImportPreview.primitives.reduce<Record<string, number>>((acc, primitive) => { acc[primitive.kind] = (acc[primitive.kind] ?? 0) + 1; return acc; }, {})
+    : null;
+  const symbolCategories: Array<CadSymbolCategory | 'all'> = ['all', 'equipment', 'flow', 'safety', 'storage', 'operator'];
+  const filteredSymbols = CAD_SYMBOL_LIBRARY.filter((symbol) => {
+    const q = symbolSearch.trim().toLowerCase();
+    const matchesCategory = symbolCategory === 'all' || symbol.category === symbolCategory;
+    const matchesSearch = !q || [symbol.label, symbol.id, symbol.layer, symbol.category, ...symbol.tags].join(' ').toLowerCase().includes(q);
+    return matchesCategory && matchesSearch;
+  });
+  const cadLayerCounts = cadLayers.reduce<Record<CadLayerId, number>>((acc, layer) => ({ ...acc, [layer.id]: 0 }), {} as Record<CadLayerId, number>);
+  placedIds.forEach((id) => { cadLayerCounts[layerAssignments[id] ?? 'layout'] += 1; });
+  assetIds.forEach((id) => { cadLayerCounts[layerAssignments[id] ?? 'equipment'] += 1; });
+  const releaseBlockers = (report?.errors ?? 0) + collisionHits.length + safetyIssues.length;
+  const releaseWarnings = (report?.warnings ?? 0) + dxfWarnings.length + (flowHealth && flowHealth.score < 80 ? 1 : 0);
+  const releaseState = !report ? 'Sin validar' : releaseBlockers > 0 ? 'Bloqueado' : releaseWarnings > 0 ? 'Con avisos' : 'Listo';
+  const releaseTone = releaseState === 'Listo' ? 'text-emerald-300' : releaseState === 'Bloqueado' ? 'text-rose-300' : releaseState === 'Con avisos' ? 'text-amber-300' : 'text-gray-400';
+  const releaseChecks = [
+    { label: 'Diseño base', value: report ? `${report.errors} errores · ${report.warnings} avisos` : 'Pendiente', tone: report?.score === 'error' ? 'text-rose-300' : report?.score === 'warn' ? 'text-amber-300' : report ? 'text-emerald-300' : 'text-gray-400' },
+    { label: 'Colisiones', value: collisionHits.length ? `${collisionHits.length} choque(s)` : 'Sin choques activos', tone: collisionHits.length ? 'text-rose-300' : 'text-emerald-300' },
+    { label: 'Safety zones', value: safetyIssues.length ? `${safetyIssues.length} invasión(es)` : 'Sin invasiones activas', tone: safetyIssues.length ? 'text-amber-300' : 'text-emerald-300' },
+    { label: 'Flow Health', value: flowHealth ? `${flowHealth.score}/100` : 'No analizado', tone: !flowHealth ? 'text-gray-400' : flowHealth.score >= 80 ? 'text-emerald-300' : flowHealth.score >= 55 ? 'text-amber-300' : 'text-rose-300' },
+    { label: 'DXF import', value: dxfWarnings.length ? `${dxfWarnings.length} warning(s)` : 'Sin warnings activos', tone: dxfWarnings.length ? 'text-amber-300' : 'text-emerald-300' },
+  ];
+  const flowSegmentRows = [...flowSegments].sort((a, b) => b.distance - a.distance).slice(0, 5);
 
   // Portal to <body> so the full-screen overlay escapes the editor's glass
   // container (backdrop-filter would otherwise be the containing block for our
@@ -2709,15 +3196,29 @@ export default function Layout3DEditor({
               <div className="text-[10px] uppercase tracking-wide text-gray-500 mt-2.5 mb-1.5">Capas CAD</div>
               <div className="space-y-1">
                 {cadLayers.map((layer) => (
-                  <div key={layer.id} className="flex items-center gap-1.5 rounded-lg bg-white/[0.04] px-2 py-1">
-                    <button onClick={() => toggleCadLayerVisibility(layer.id)} className={`w-2.5 h-2.5 rounded-full ${layer.visible ? '' : 'opacity-30'}`} style={{ background: layer.color }} title={layer.visible ? 'Ocultar capa' : 'Mostrar capa'} />
-                    <span className={`min-w-0 flex-1 truncate ${layer.visible ? 'text-gray-200' : 'text-gray-500'}`}>{layer.label}</span>
-                    <button onClick={() => setCadLayers((cur) => toggleCadLayerLocked(cur, layer.id))} className={`text-[10px] ${layer.locked ? 'text-amber-300' : 'text-gray-500'}`}>{layer.locked ? 'Lock' : 'Open'}</button>
-                    <button onClick={() => assignSelectionToCadLayer(layer.id)} className="text-[10px] text-cyan-300 hover:text-cyan-100">Asignar</button>
+                  <div key={layer.id} className={`rounded-lg px-2 py-1 ${activeCadLayer === layer.id ? 'bg-cyan-400/[0.10] ring-1 ring-cyan-400/20' : 'bg-white/[0.04]'}`}>
+                    <div className="flex items-center gap-1.5">
+                      <button onClick={() => toggleCadLayerVisibility(layer.id)} className={`h-2.5 w-2.5 rounded-full ${layer.visible ? '' : 'opacity-30'}`} style={{ background: layer.color }} title={layer.visible ? 'Ocultar capa' : 'Mostrar capa'} />
+                      <button onClick={() => setActiveCadLayer(layer.id)} className={`min-w-0 flex-1 truncate text-left ${layer.visible ? 'text-gray-200' : 'text-gray-500'}`} title="Definir como capa activa">{layer.label}</button>
+                      <span className="rounded bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-gray-400">{cadLayerCounts[layer.id]}</span>
+                      <button onClick={() => setCadLayers((cur) => toggleCadLayerLocked(cur, layer.id))} className={`text-[10px] ${layer.locked ? 'text-amber-300' : 'text-gray-500'}`}>{layer.locked ? 'Lock' : 'Open'}</button>
+                    </div>
+                    <div className="mt-1 grid grid-cols-[1fr_auto] gap-1.5">
+                      <input value={layer.label} onChange={(e) => updateCadLayerLabel(layer.id, e.target.value)} className="min-w-0 rounded-md border border-white/10 bg-gray-950/70 px-1.5 py-0.5 text-[10.5px] text-gray-200 outline-none focus:ring-1 focus:ring-cyan-500/40" title="Renombrar capa local" />
+                      <input type="color" value={layer.color} onChange={(e) => updateCadLayerColor(layer.id, e.target.value)} className="h-6 w-7 rounded border border-white/10 bg-transparent p-0" title="Color local de capa" />
+                    </div>
+                    <div className="mt-1 flex items-center justify-end gap-2 text-[10px]">
+                      <button onClick={() => selectCadLayerObjects(layer.id)} className="text-gray-400 hover:text-white">Sel</button>
+                      <button onClick={() => isolateCadLayer(layer.id)} className="text-gray-400 hover:text-white">Solo</button>
+                      <button onClick={() => assignSelectionToCadLayer(layer.id)} className="text-cyan-300 hover:text-cyan-100">Asignar</button>
+                    </div>
                   </div>
                 ))}
               </div>
-              <div className="mt-1 text-[10px] text-gray-500">{Object.keys(layerAssignments).length} objeto(s) con capa asignada.</div>
+              <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-gray-500">
+                <span>{Object.keys(layerAssignments).length} objeto(s) con capa asignada · activa: {cadLayers.find((layer) => layer.id === activeCadLayer)?.label}</span>
+                <button onClick={resetCadLayerPresentation} className="text-gray-400 hover:text-white">Reset</button>
+              </div>
               <div className="text-[10px] uppercase tracking-wide text-gray-500 mt-2.5 mb-1.5">Tema</div>
               <div className="grid grid-cols-2 gap-1.5">
                 {(Object.keys(THEMES) as Theme3D[]).map((t) => (
@@ -2749,6 +3250,7 @@ export default function Layout3DEditor({
         <T3Btn onClick={runOptimize} disabled={serverBusy} title="Optimizar flujo — reordena para minimizar el recorrido (servidor)"><WandSparkles className="w-4 h-4" /></T3Btn>
         <T3Btn active={showCommand} onClick={() => setShowCommand((v) => !v)} title="Comandos en lenguaje natural — scaffold local para function calling"><ChevronRight className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={openChecks} title="Revisión de diseño — valida colocación, límites, traslapes y flujo"><ShieldCheck className="w-4 h-4" /></T3Btn>
+        <T3Btn active={!!flowHealth} onClick={analyzeFlowHealth} title="Flow Health — score, cruces y backtracking"><ChartLine className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={openTakeoff} title="Cantidades / lista de materiales"><ClipboardList className="w-4 h-4" /></T3Btn>
         <div className="relative" ref={analysisMenuRef}>
           <T3Btn active={showAnalysis || !!analysisPanel} onClick={() => setShowAnalysis((v) => !v)} title="Análisis del layout — balanceo, costos, flujo, escenarios, salud…"><ChartLine className="w-4 h-4" /></T3Btn>
@@ -2768,7 +3270,7 @@ export default function Layout3DEditor({
         <T3Btn onClick={() => dxfInputRef.current?.click()} disabled={dxfBusy} title="Cargar plano DXF de fondo (calcar el plano del cliente)"><Upload className="w-4 h-4" /></T3Btn>
         {hasDxf && <T3Btn onClick={importDxfWalls} title="Convertir el plano DXF de fondo en muros editables"><BrickWall className="w-4 h-4" /></T3Btn>}
         {hasDxf && <T3Btn onClick={removeDxf} disabled={dxfBusy} title="Quitar el plano DXF de fondo"><ImageOff className="w-4 h-4" /></T3Btn>}
-        <T3Btn onClick={exportDxf} title="Exportar a DXF (AutoCAD) — cada tipo en su capa"><FileDown className="w-4 h-4" /></T3Btn>
+        <T3Btn onClick={openDxfExport} title="Exportar a DXF (AutoCAD) — opciones de capas, selección y cotas"><FileDown className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={exportCsvSchedule} title="Exportar estaciones a CSV (Excel)"><FileText className="w-4 h-4" /></T3Btn>
         {dxfWarnings.length > 0 && (
           <div className="ml-1 inline-flex items-center gap-1 rounded-lg border border-amber-400/20 bg-amber-400/10 px-2 py-1 text-[11px] text-amber-100" title="Advertencias del último DXF importado">
@@ -2889,14 +3391,32 @@ export default function Layout3DEditor({
                 </>
               ) : (
                 <>
-                  <div className="text-[11px] uppercase tracking-wide text-gray-400 mb-2">Biblioteca CAD industrial</div>
-                  <div className="grid grid-cols-2 gap-1.5 mb-3">
-                    {CAD_SYMBOL_LIBRARY.slice(0, 12).map((symbol) => (
+                  <div className="mb-3 rounded-xl border border-rose-400/15 bg-rose-400/[0.05] p-2.5">
+                    <div className="text-[10px] uppercase tracking-wide text-rose-200 mb-1.5">Safety zones</div>
+                    <p className="mb-2 text-[10.5px] leading-snug text-rose-100/70">Crea zonas editables en la capa Safety para validar invasiones y clearances.</p>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button onClick={() => createSafetyZoneAsset('no-go')} className="rounded-lg border border-rose-300/20 bg-rose-400/[0.10] px-2 py-1.5 text-left text-[11px] font-semibold text-rose-100 hover:bg-rose-400/[0.16]">No-go zone</button>
+                      <button onClick={() => createSafetyZoneAsset('restricted')} className="rounded-lg border border-amber-300/20 bg-amber-400/[0.10] px-2 py-1.5 text-left text-[11px] font-semibold text-amber-100 hover:bg-amber-400/[0.16]">Restricted</button>
+                    </div>
+                  </div>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <div className="text-[11px] uppercase tracking-wide text-gray-400">Biblioteca CAD industrial</div>
+                    <span className="text-[10px] text-gray-500">{filteredSymbols.length}/{CAD_SYMBOL_LIBRARY.length}</span>
+                  </div>
+                  <input value={symbolSearch} onChange={(e) => setSymbolSearch(e.target.value)} placeholder="Buscar SMT, AOI, safety…" className="mb-2 w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white placeholder:text-gray-600 outline-none focus:border-cyan-400/60" />
+                  <div className="mb-2 flex gap-1 overflow-x-auto pb-1">
+                    {symbolCategories.map((category) => (
+                      <button key={category} onClick={() => setSymbolCategory(category)} className={`shrink-0 rounded-full border px-2 py-0.5 text-[10.5px] ${symbolCategory === category ? 'border-cyan-300/50 bg-cyan-400/15 text-cyan-100' : 'border-white/10 text-gray-400 hover:text-white'}`}>{category}</button>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-1 gap-1.5 mb-3">
+                    {filteredSymbols.map((symbol) => (
                       <button key={symbol.id} onClick={() => addCadSymbol(symbol.id)} title={`Agregar ${symbol.label}`} className="rounded-lg bg-cyan-400/[0.08] px-2 py-1.5 text-left text-[11px] text-cyan-100 hover:bg-cyan-400/[0.14]">
-                        <span className="block truncate font-semibold">{symbol.label}</span>
-                        <span className="block truncate text-[10px] text-cyan-200/70">{symbol.layer}</span>
+                        <span className="flex items-center justify-between gap-2"><span className="truncate font-semibold">{symbol.label}</span><span className="shrink-0 text-[10px] text-cyan-200/70">{Math.round(symbol.defaultWidth)}×{Math.round(symbol.defaultHeight)}</span></span>
+                        <span className="mt-0.5 block truncate text-[10px] text-cyan-200/70">{symbol.category} · {symbol.layer} · {symbol.tags.join(', ')}</span>
                       </button>
                     ))}
+                    {filteredSymbols.length === 0 && <div className="rounded-lg border border-white/10 bg-white/[0.03] px-2 py-3 text-center text-[11px] text-gray-500">Sin símbolos para ese filtro.</div>}
                   </div>
                   <div className="text-[11px] uppercase tracking-wide text-gray-400 mb-2">Agregar equipo</div>
                   {ASSET_CATEGORIES.map((cat) => (
@@ -2937,23 +3457,48 @@ export default function Layout3DEditor({
                 <span className="inline-flex items-center gap-1"><span className="inline-block w-3 h-2 rounded-sm" style={{ background: '#ef4444' }} /> traslape</span>
               </div>
             )}
-            {dxfWarnings.length > 0 && (
+            {(dxfWarnings.length > 0 || dxfImportPreview) && (
               <div className="absolute right-3 top-16 z-20 w-80 rounded-2xl border border-amber-400/20 bg-gray-950/90 p-3 shadow-2xl backdrop-blur">
                 <div className="mb-2 flex items-center justify-between gap-2">
-                  <div className="inline-flex items-center gap-2 text-[12px] font-semibold text-amber-100"><CircleAlert className="h-4 w-4" />Advertencias DXF</div>
-                  <button onClick={() => setDxfWarnings([])} className="rounded-md px-1.5 py-0.5 text-[11px] text-gray-400 hover:bg-white/10 hover:text-white">Ocultar</button>
+                  <div className="inline-flex items-center gap-2 text-[12px] font-semibold text-amber-100"><CircleAlert className="h-4 w-4" />Import DXF</div>
+                  <button onClick={() => { setDxfWarnings([]); setDxfImportPreview(null); }} className="rounded-md px-1.5 py-0.5 text-[11px] text-gray-400 hover:bg-white/10 hover:text-white">Ocultar</button>
                 </div>
-                <div className="mb-2 text-[11px] text-gray-400">Se cargó el plano; estas entidades se ignoraron o simplificaron localmente.</div>
-                <div className="max-h-44 space-y-1 overflow-y-auto">
-                  {dxfWarningSummary.map((warning) => (
-                    <div key={warning.key} className="rounded-lg bg-white/[0.04] px-2 py-1.5 text-[11px]">
-                      <div className="flex items-center justify-between gap-2 text-amber-100"><span className="truncate">{warning.message}</span><span className="shrink-0 rounded bg-amber-400/15 px-1.5 py-0.5">×{warning.count}</span></div>
-                      <div className="mt-0.5 text-[10px] text-gray-500">{warning.entityType ?? warning.code}{warning.layer ? ` · capa ${warning.layer}` : ''}</div>
+                {dxfImportPreview && dxfPrimitiveSummary && (
+                  <div className="mb-2 rounded-xl border border-cyan-400/15 bg-cyan-400/[0.06] p-2 text-[11px] text-cyan-100">
+                    <div className="font-semibold">{dxfImportPreview.primitives.length} entidades soportadas · {dxfImportPreview.layers.length || 1} capa(s)</div>
+                    <div className="mt-1 text-cyan-100/75">{Object.entries(dxfPrimitiveSummary).map(([kind, count]) => `${kind}: ${count}`).join(' · ')}</div>
+                    <button onClick={convertDxfPrimitivesToEditable} className="mt-2 w-full rounded-lg bg-cyan-600 px-2 py-1.5 text-[11px] font-semibold text-white hover:bg-cyan-500">Convertir entidades soportadas</button>
+                  </div>
+                )}
+                {dxfWarnings.length > 0 ? (
+                  <>
+                    <div className="mb-2 text-[11px] text-gray-400">Se cargó el plano; estas entidades se ignoraron o simplificaron localmente.</div>
+                    <div className="max-h-44 space-y-1 overflow-y-auto">
+                      {dxfWarningSummary.map((warning) => (
+                        <div key={warning.key} className="rounded-lg bg-white/[0.04] px-2 py-1.5 text-[11px]">
+                          <div className="flex items-center justify-between gap-2 text-amber-100"><span className="truncate">{warning.message}</span><span className="shrink-0 rounded bg-amber-400/15 px-1.5 py-0.5">×{warning.count}</span></div>
+                          <div className="mt-0.5 text-[10px] text-gray-500">{warning.entityType ?? warning.code}{warning.layer ? ` · capa ${warning.layer}` : ''}</div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </>
+                ) : <div className="text-[11px] text-gray-500">Sin advertencias críticas en el escaneo local.</div>}
               </div>
             )}
+            <div className="absolute bottom-3 right-3 z-20 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-gray-950/85 px-3 py-1.5 text-[11px] text-gray-300 shadow-xl backdrop-blur">
+              <span className="text-cyan-200">Tool: {tool}</span>
+              <span>{selList.length} sel</span>
+              <span>{data?.footprint.unit ?? 'mm'}</span>
+              <span>Layer {cadLayers.find((layer) => layer.id === activeCadLayer)?.label ?? activeCadLayer}</span>
+              <span>Snap {snap ? 'grid' : 'off'} / {osnap ? 'obj' : 'obj off'}</span>
+              <button onClick={openChecks} className={`${releaseTone} hover:text-white`}>Release {releaseState}</button>
+              {report && <span className={report.score === 'error' ? 'text-rose-300' : report.score === 'warn' ? 'text-amber-300' : 'text-emerald-300'}>Validación {report.score}</span>}
+              {flowHealth && <span className={flowHealth.score >= 80 ? 'text-emerald-300' : flowHealth.score >= 55 ? 'text-amber-300' : 'text-rose-300'}>Flow {flowHealth.score}</span>}
+              {safetyIssues.length > 0 && <span className="text-amber-300">Safety {safetyIssues.length}</span>}
+              {validationHighlightIds.size > 0 && <button onClick={clearValidationHighlights} className="text-rose-300 hover:text-white">Highlights {validationHighlightIds.size}</button>}
+              {dxfWarnings.length > 0 && <span className="text-amber-300">DXF {dxfWarnings.length}</span>}
+              {localSnapshots.snapshots.length > 0 && <span>Snapshots {localSnapshots.snapshots.length}</span>}
+            </div>
             {walk && (
               <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-emerald-500/95 text-white text-[12px] font-semibold inline-flex items-center gap-1.5 pointer-events-none">
                 <PersonStanding className="w-3.5 h-3.5" /> Recorrido · arrastra para mirar · WASD para caminar · Esc para salir
@@ -2982,6 +3527,15 @@ export default function Layout3DEditor({
                   <input autoFocus value={paletteQuery} onChange={(e) => setPaletteQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); setShowPalette(false); setPaletteQuery(''); } }} placeholder="Buscar comando, herramienta o símbolo..." className="min-w-0 flex-1 bg-transparent text-[13px] text-white placeholder:text-gray-500 outline-none" />
                   <span className="rounded-md border border-white/10 px-1.5 py-0.5 text-[10px] text-gray-500">Ctrl K</span>
                 </div>
+                {recentPaletteActions.length > 0 && !paletteQuery.trim() && (
+                  <div className="mt-2 flex flex-wrap gap-1 border-b border-white/10 pb-2">
+                    <span className="mr-1 self-center text-[10px] uppercase tracking-wide text-gray-500">Recientes</span>
+                    {recentPaletteActions.map((key) => {
+                      const [, id] = key.split(':');
+                      return <span key={key} className="rounded-full bg-white/[0.05] px-2 py-0.5 text-[10px] text-gray-400">{id}</span>;
+                    })}
+                  </div>
+                )}
                 <div className="mt-2 max-h-80 overflow-y-auto space-y-1">
                   {paletteResults.map((entry) => (
                     <button key={`${entry.kind}-${entry.id}`} onClick={() => runPaletteEntry(entry)} className="flex w-full items-center justify-between gap-3 rounded-xl px-2.5 py-2 text-left hover:bg-white/[0.07]">
@@ -2989,7 +3543,7 @@ export default function Layout3DEditor({
                         <span className="block truncate text-[13px] font-semibold text-white">{entry.label}</span>
                         <span className="block truncate text-[11px] text-gray-400">{entry.description}</span>
                       </span>
-                      <span className="shrink-0 rounded-full border border-white/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-cyan-200">{entry.kind}</span>
+                      <span className="shrink-0 text-right"><span className="block rounded-full border border-white/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-cyan-200">{entry.kind}</span>{entry.shortcut && <span className="mt-1 block text-[10px] text-gray-500">{entry.shortcut}</span>}</span>
                     </button>
                   ))}
                   {paletteResults.length === 0 && <div className="px-2 py-6 text-center text-[12px] text-gray-500">Sin resultados CAD.</div>}
@@ -3018,9 +3572,35 @@ export default function Layout3DEditor({
           {/* right: properties */}
           <div className="w-64 shrink-0 border-l border-white/10 bg-gray-900/60 overflow-y-auto">
             {selList.length === 0 ? (
-              <div className="p-4 text-[12px] text-gray-500 flex flex-col items-center gap-2 mt-8">
-                <Crosshair className="w-6 h-6 text-gray-600" />
-                <p className="text-center">Selecciona objetos para ver y editar sus propiedades. <b>Shift</b>+clic agrega o quita.</p>
+              <div className="p-4 text-[12px] text-gray-500 flex flex-col gap-3">
+                <div className="flex flex-col items-center gap-2 pt-4">
+                  <Crosshair className="w-6 h-6 text-gray-600" />
+                  <p className="text-center">Selecciona objetos para ver y editar sus propiedades. <b>Shift</b>+clic agrega o quita.</p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <div className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-cyan-200"><Ruler className="h-3.5 w-3.5" /> Cotas guardadas</div>
+                    <span className="rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-gray-300">{dimCount}</span>
+                  </div>
+                  {measurementRowsView.length ? (
+                    <div className="space-y-2">
+                      {measurementRowsView.map((measurement) => (
+                        <div key={measurement.id} className="rounded-lg border border-white/10 bg-gray-950/50 p-2">
+                          <input value={measurement.label} onFocus={pushHistory} onChange={(e) => updateMeasurementText(measurement.id, e.target.value)} className="mb-1 w-full rounded-md bg-white/[0.05] px-2 py-1 text-[11px] text-white outline-none focus:ring-1 focus:ring-cyan-500/40" />
+                          <div className="flex items-center justify-between gap-2 text-[10.5px] text-gray-400">
+                            <span>{measurement.length}</span>
+                            <div className="flex gap-1">
+                              <button onClick={() => focusMeasurement(measurement.id)} className="rounded-md bg-cyan-500/10 px-1.5 py-0.5 text-cyan-100 hover:bg-cyan-500/20">Ver</button>
+                              <button onClick={() => deleteMeasurement(measurement.id)} className="rounded-md bg-rose-500/10 px-1.5 py-0.5 text-rose-200 hover:bg-rose-500/20">Borrar</button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[11px] leading-relaxed text-gray-500">Selecciona dos objetos y usa “Cota entre objetos” para guardar distancias centro-a-centro. Las cotas exportan a DXF cuando la opción está activa.</p>
+                  )}
+                </div>
               </div>
             ) : selList.length > 1 || !selSnap ? (
               <div className="p-3.5">
@@ -3028,7 +3608,27 @@ export default function Layout3DEditor({
                   <Boxes className="w-4 h-4" style={{ color: '#22d3ee' }} />
                   <span className="text-sm font-semibold">{selList.length} seleccionados</span>
                 </div>
-                <div className="text-[11px] text-gray-400 mb-3">Alinea o mueve el grupo en bloque.</div>
+                <div className="text-[11px] text-gray-400 mb-3">Alinea, mide o mueve el grupo en bloque.</div>
+                {selList.length === 2 && (
+                  <div className="mb-3 rounded-xl border border-cyan-400/15 bg-cyan-400/[0.04] p-2.5">
+                    <div className="mb-2 text-[10px] uppercase tracking-wide text-cyan-200">Cota entre objetos</div>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      <button onClick={() => createSelectionMeasurement('direct')} className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[11px] text-gray-200 hover:bg-white/[0.12]">Directa</button>
+                      <button onClick={() => createSelectionMeasurement('horizontal')} className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[11px] text-gray-200 hover:bg-white/[0.12]">Horizontal</button>
+                      <button onClick={() => createSelectionMeasurement('vertical')} className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[11px] text-gray-200 hover:bg-white/[0.12]">Vertical</button>
+                    </div>
+                  </div>
+                )}
+                {selList.length === 2 && (
+                  <div className="mb-3 rounded-xl border border-amber-400/15 bg-amber-400/[0.04] p-2.5">
+                    <div className="mb-2 text-[10px] uppercase tracking-wide text-amber-200">Pasillo / clearance</div>
+                    <div className="flex items-center gap-2 text-[11px] text-gray-300">
+                      <span>Ancho</span>
+                      <input type="number" min={100} value={aisleWidth} onChange={(e) => setAisleWidth(Number(e.target.value) || 1200)} className="w-20 rounded-md bg-white/[0.06] px-2 py-1 text-right outline-none" />
+                      <button onClick={createAisleBetweenSelection} className="ml-auto rounded-lg bg-amber-500/20 px-2 py-1 text-amber-100 hover:bg-amber-500/30">Crear pasillo</button>
+                    </div>
+                  </div>
+                )}
                 <div className="text-[10px] uppercase tracking-wide text-gray-500 mb-1.5">Alinear</div>
                 <div className="grid grid-cols-3 gap-1.5 mb-3">
                   <AlignBtn title="Alinear a la izquierda" onClick={() => alignSelected('left')}><AlignHorizontalJustifyStart className="w-4 h-4" /></AlignBtn>
@@ -3072,6 +3672,14 @@ export default function Layout3DEditor({
                       <ReadField label="Tipo" value={selSnap.type === 'station' ? 'Estación' : 'Equipo'} />
                       <ReadField label="ID" value={selSnap.id} />
                     </div>
+                    {selSnap.type === 'asset' ? (
+                      <label className="block text-[11px] text-gray-400">
+                        <span className="block mb-1">Nombre visible</span>
+                        <input value={selSnap.title} onChange={(e) => updateSelectedAssetLabel(e.target.value)} placeholder="Nombre del equipo o zona" className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white placeholder:text-gray-600 outline-none" />
+                      </label>
+                    ) : (
+                      <ReadField label="Nombre" value={selSnap.title} />
+                    )}
                     <label className="block text-[11px] text-gray-400">
                       <span className="block mb-1">Capa</span>
                       <select value={selectionLayer(selList[0])} onChange={(e) => setSelectionLayer(selList[0], e.target.value as CadLayerId)} className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white outline-none">
@@ -3080,8 +3688,17 @@ export default function Layout3DEditor({
                     </label>
                     <label className="block text-[11px] text-gray-400">
                       <span className="block mb-1">Tags</span>
-                      <input value={objectTags[selSnap.id] ?? ''} onChange={(e) => setObjectTags((cur) => ({ ...cur, [selSnap.id]: e.target.value }))} placeholder="esd, safety, smt…" className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white placeholder:text-gray-600 outline-none" />
+                      <input value={objectTags[selSnap.id] ?? ''} onChange={(e) => updateSelectedTags(e.target.value)} placeholder="esd, safety, smt…" className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white placeholder:text-gray-600 outline-none" />
                     </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <ReadField label="Área" value={`${Math.round((selSnap.w * selSnap.h) / 1000).toLocaleString('es-MX')}k mm²`} />
+                      <ReadField label="Footprint" value={`${Math.round(selSnap.w)} × ${Math.round(selSnap.h)}`} />
+                    </div>
+                    <div className="grid grid-cols-3 gap-1.5 pt-1">
+                      <button onClick={assignSelectedToActiveLayer} className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[10.5px] text-gray-200 hover:bg-white/[0.12]">Capa activa</button>
+                      <button onClick={centerSelectedInFootprint} className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[10.5px] text-gray-200 hover:bg-white/[0.12]">Centrar</button>
+                      <button onClick={resetSelectedRotation} className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[10.5px] text-gray-200 hover:bg-white/[0.12]">Rot. 0°</button>
+                    </div>
                   </div>
                 )}
 
@@ -3177,12 +3794,30 @@ export default function Layout3DEditor({
               ) : (
                 <p className="text-[12px] text-gray-500 text-center py-3">Aún no hay equipo en el layout.</p>
               )}
+              {takeoff.byLayer.length > 0 && (
+                <div className="mt-3 rounded-xl border border-white/10 overflow-hidden">
+                  <div className="bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Uso por capa CAD</div>
+                  <table className="w-full text-[12.5px]">
+                    <tbody>
+                      {takeoff.byLayer.map((r) => (
+                        <tr key={r.id} className="border-t border-white/[0.06]">
+                          <td className="px-3 py-1.5">{r.label}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums">{r.count}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums text-gray-400">{fmtArea(r.area, takeoff.unit)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
               <div className="flex items-center justify-between mt-3">
                 <span className="text-[11px] text-gray-500">{takeoff.dimCount} {takeoff.dimCount === 1 ? 'cota' : 'cotas'}</span>
                 <button
                   onClick={() => {
                     const rows = [['Concepto', 'Cantidad', 'Área (m²)']];
                     takeoff.byKind.forEach((r) => rows.push([r.label, String(r.count), fmtArea(r.area, takeoff.unit).replace(' m²', '')]));
+                    rows.push(['--- Capas CAD ---', '', '']);
+                    takeoff.byLayer.forEach((r) => rows.push([`Capa: ${r.label}`, String(r.count), fmtArea(r.area, takeoff.unit).replace(' m²', '')]));
                     rows.push(['Estaciones colocadas', `${takeoff.placedStations}/${takeoff.totalStations}`, fmtArea(takeoff.stationArea, takeoff.unit).replace(' m²', '')]);
                     rows.push(['Aprovechamiento', `${takeoff.util.toFixed(1)}%`, '']);
                     rows.push(['Muro total', fmtLen(takeoff.wallLen, takeoff.unit), '']);
@@ -3203,6 +3838,99 @@ export default function Layout3DEditor({
         </div>
       )}
 
+
+
+      {showDxfExport && (
+        <div className="absolute inset-0 z-[80] grid place-items-center bg-black/50 p-4" onClick={() => setShowDxfExport(false)}>
+          <div className="w-[440px] max-w-full rounded-2xl border border-white/10 bg-gray-900 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
+              <FileDown className="h-4 w-4 text-cyan-300" />
+              <span className="text-sm font-semibold">Exportar DXF</span>
+              <div className="flex-1" />
+              <button onClick={() => setShowDxfExport(false)} className="rounded-lg p-1 hover:bg-white/10"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="space-y-3 p-4 text-[12px]">
+              <label className="block text-gray-400">Nombre de archivo
+                <input value={dxfExportOptions.fileName} onChange={(e) => setDxfOption({ fileName: e.target.value })} className="mt-1 w-full rounded-lg border border-white/10 bg-gray-950/70 px-2.5 py-2 text-white outline-none" />
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="rounded-lg bg-white/[0.04] p-2 text-gray-300"><span className="mb-1 block text-gray-500">Scope</span><select value={dxfExportOptions.scope} onChange={(e) => setDxfOption({ scope: e.target.value as DxfExportOptions['scope'] })} className="w-full bg-transparent text-white outline-none"><option className="text-gray-900" value="all">Todo</option><option className="text-gray-900" value="selection">Selección</option></select></label>
+                <label className="rounded-lg bg-white/[0.04] p-2 text-gray-300"><span className="mb-1 block text-gray-500">Unidades</span><select value={dxfExportOptions.units} onChange={(e) => setDxfOption({ units: e.target.value as DxfExportOptions['units'] })} className="w-full bg-transparent text-white outline-none"><option className="text-gray-900" value="mm">mm</option><option className="text-gray-900" value="m">m</option></select></label>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {([['includeHidden', 'Incluir capas ocultas'], ['includeMeasurements', 'Incluir cotas'], ['includeLabels', 'Incluir notas']] as const).map(([key, label]) => (
+                  <label key={key} className="inline-flex items-center gap-2 rounded-lg bg-white/[0.04] px-2 py-1.5 text-gray-300"><input type="checkbox" checked={dxfExportOptions[key]} onChange={(e) => setDxfOption({ [key]: e.target.checked })} className="accent-cyan-500" />{label}</label>
+                ))}
+              </div>
+              <div className="rounded-xl border border-cyan-400/15 bg-cyan-400/[0.05] p-3">
+                <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-cyan-200">Resumen</div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-gray-300"><span>Objetos</span><b className="text-right">{dxfExportSummary.objects}</b><span>Conectores</span><b className="text-right">{dxfExportSummary.connectors}</b><span>Cotas</span><b className="text-right">{dxfExportSummary.measurements}</b><span>Notas</span><b className="text-right">{dxfExportSummary.labels}</b><span>Layers</span><b className="text-right">{dxfExportSummary.layers}</b></div>
+              </div>
+              <button onClick={() => exportDxf(dxfExportOptions)} className="w-full rounded-lg bg-cyan-600 px-3 py-2 text-[12px] font-semibold text-white hover:bg-cyan-500">Descargar DXF</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {flowHealth && (
+        <div className="absolute inset-0 z-[80] grid place-items-center bg-black/50 p-4" onClick={() => setFlowHealth(null)}>
+          <div className="w-[420px] max-w-full rounded-2xl border border-white/10 bg-gray-900 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
+              <ChartLine className="h-4 w-4 text-cyan-300" />
+              <span className="text-sm font-semibold">Flow Health</span>
+              <div className="flex-1" />
+              <button onClick={() => setFlowHealth(null)} className="rounded-lg p-1 hover:bg-white/10"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="space-y-3 p-4 text-[12px]">
+              <div className="grid grid-cols-2 gap-2">
+                <Stat label="Score" value={`${flowHealth.score}/100`} highlight />
+                <Stat label="Distancia total" value={fmtLen(flowHealth.totalDistance, data?.footprint.unit || 'mm')} />
+                <Stat label="Cruces" value={`${flowHealth.crossingCount}`} />
+                <Stat label="Backtracking" value={`${flowHealth.backtrackingCount}`} />
+              </div>
+              {flowSequence.length > 0 && (
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-cyan-200">Secuencia de flujo</div>
+                    <button onClick={selectFlowSequence} className="rounded-lg border border-white/10 px-2 py-1 text-[11px] text-gray-300 hover:bg-white/10">Seleccionar ruta</button>
+                  </div>
+                  <div className="max-h-32 space-y-1 overflow-y-auto">
+                    {flowSequence.map((node, idx) => (
+                      <button key={node.id} onClick={() => selectFlowNode(node.id)} className="flex w-full items-center gap-2 rounded-lg bg-white/[0.04] px-2 py-1 text-left hover:bg-white/[0.09]">
+                        <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-cyan-400/15 text-[10px] font-semibold text-cyan-100">{idx + 1}</span>
+                        <span className="min-w-0 flex-1 truncate text-gray-200">{node.label ?? node.id}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-2 text-[10.5px] text-gray-500">{flowSegments.length} tramo(s) · clic en una estación para ubicarla.</div>
+                </div>
+              )}
+              {flowSegmentRows.length > 0 && (
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-cyan-200">Tramos críticos por distancia</div>
+                  <div className="space-y-1">
+                    {flowSegmentRows.map((segment, idx) => (
+                      <button key={`${segment.from.id}-${segment.to.id}`} onClick={() => selectFlowSegment(segment)} className="flex w-full items-center gap-2 rounded-lg bg-white/[0.04] px-2 py-1.5 text-left hover:bg-white/[0.09]">
+                        <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-amber-400/15 text-[10px] font-semibold text-amber-100">{idx + 1}</span>
+                        <span className="min-w-0 flex-1 truncate text-gray-200">{segment.from.label ?? segment.from.id} → {segment.to.label ?? segment.to.id}</span>
+                        <span className="shrink-0 tabular-nums text-gray-400">{fmtLen(segment.distance, data?.footprint.unit || 'mm')}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {flowHealth.suggestions.length ? (
+                <div className="rounded-xl border border-amber-400/20 bg-amber-400/10 p-3 text-amber-100">
+                  <div className="mb-1 font-semibold">Recomendaciones</div>
+                  <ul className="list-disc space-y-1 pl-4">{flowHealth.suggestions.map((s) => <li key={s}>{s}</li>)}</ul>
+                </div>
+              ) : <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-3 text-emerald-100">Flujo sano: sin cruces ni backtracking detectado.</div>}
+              <button onClick={() => { setShowCommand(true); setCommandText('acomoda la línea de izquierda a derecha'); setFlowHealth(null); }} className="w-full rounded-lg bg-cyan-600 px-3 py-2 text-[12px] font-semibold text-white hover:bg-cyan-500">Preparar comando arrange_line con preview</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Design-check / validation report */}
       {report && (
         <div className="absolute inset-0 z-[80] grid place-items-center bg-black/50 p-4" onClick={() => setReport(null)}>
@@ -3211,6 +3939,7 @@ export default function Layout3DEditor({
               <ShieldCheck className="w-4 h-4" style={{ color: report.score === 'ok' ? '#34d399' : report.score === 'warn' ? '#fbbf24' : '#f87171' }} />
               <span className="text-sm font-semibold">Revisión de diseño · {model} · {revision}</span>
               <div className="flex-1" />
+              {validationHighlightIds.size > 0 && <button onClick={clearValidationHighlights} className="rounded-lg border border-white/10 px-2 py-1 text-[11px] text-gray-300 hover:bg-white/10">Ocultar highlights</button>}
               <button onClick={() => setReport(null)} className="p-1 rounded-lg hover:bg-white/10"><X className="w-4 h-4" /></button>
             </div>
             <div className="p-4 space-y-2">
@@ -3219,6 +3948,58 @@ export default function Layout3DEditor({
                   ? <span className="text-emerald-400">Sin problemas detectados.</span>
                   : <span className={report.score === 'error' ? 'text-rose-400' : 'text-amber-400'}>{report.errors} {report.errors === 1 ? 'error' : 'errores'} · {report.warnings} {report.warnings === 1 ? 'aviso' : 'avisos'}</span>}
               </div>
+              <div className="mb-3 rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wide text-gray-500">Release readiness</div>
+                    <div className={`text-sm font-semibold ${releaseTone}`}>{releaseState}</div>
+                  </div>
+                  <div className="text-right text-[11px] text-gray-400">
+                    <div>{releaseBlockers} bloqueos</div>
+                    <div>{releaseWarnings} avisos</div>
+                  </div>
+                </div>
+                <div className="grid gap-1.5">
+                  {releaseChecks.map((check) => (
+                    <div key={check.label} className="flex items-center justify-between gap-2 rounded-lg bg-gray-950/50 px-2 py-1.5 text-[11.5px]">
+                      <span className="text-gray-300">{check.label}</span>
+                      <span className={check.tone}>{check.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {collisionHits.length > 0 && (
+                <div className="mb-3 rounded-xl border border-rose-400/20 bg-rose-400/10 p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2 text-[12px] font-semibold text-rose-100">
+                    <span>Colisiones detectadas · {collisionHits.length}</span>
+                    <button onClick={() => setCollisionHits([])} className="text-[11px] text-rose-200/70 hover:text-white">Ocultar</button>
+                  </div>
+                  <div className="max-h-36 space-y-1 overflow-y-auto">
+                    {collisionHits.slice(0, 8).map((hit) => (
+                      <button key={`${hit.aId}-${hit.bId}`} onClick={() => selectCollisionPair(hit)} className="w-full rounded-lg bg-white/[0.05] px-2 py-1.5 text-left text-[11.5px] hover:bg-white/[0.1]">
+                        <span className="block text-rose-100">{hit.aLabel} ↔ {hit.bLabel}</span>
+                        <span className="text-gray-400">Área aprox. {Math.round(hit.area).toLocaleString('es-MX')}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {safetyIssues.length > 0 && (
+                <div className="mb-3 rounded-xl border border-amber-400/20 bg-amber-400/10 p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2 text-[12px] font-semibold text-amber-100">
+                    <span>Safety zones invadidas · {safetyIssues.length}</span>
+                    <button onClick={() => setSafetyIssues([])} className="text-[11px] text-amber-200/70 hover:text-white">Ocultar</button>
+                  </div>
+                  <div className="max-h-36 space-y-1 overflow-y-auto">
+                    {safetyIssues.slice(0, 8).map((issue) => (
+                      <button key={`${issue.zoneId}-${issue.objectId}-${issue.code}`} onClick={() => selectSafetyIssue(issue)} className="w-full rounded-lg bg-white/[0.05] px-2 py-1.5 text-left text-[11.5px] hover:bg-white/[0.1]">
+                        <span className="block text-amber-100">{issue.message}</span>
+                        <span className="text-gray-400">Seleccionar objeto + zona</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               {report.items.map((it) => {
                 const Icon = it.level === 'ok' ? CircleCheck : it.level === 'warn' ? CircleAlert : ShieldAlert;
                 const color = it.level === 'ok' ? '#34d399' : it.level === 'warn' ? '#fbbf24' : '#f87171';
@@ -3259,6 +4040,11 @@ export default function Layout3DEditor({
                   <div className="text-[11px] font-semibold uppercase tracking-wide text-cyan-200">Snapshots locales de sesión</div>
                   <span className="text-[10px] text-gray-500">{localSnapshots.snapshots.length}/20</span>
                 </div>
+                {snapshotDiff && (
+                  <div className={`mb-2 rounded-lg px-2 py-1.5 text-[11px] ${snapshotDiff.changed ? 'bg-amber-400/10 text-amber-100' : 'bg-emerald-400/10 text-emerald-100'}`}>
+                    Comparación: {snapshotDiff.changed ? 'hay cambios vs snapshot' : 'sin cambios'} · {snapshotDiff.beforeHash} → {snapshotDiff.afterHash}
+                  </div>
+                )}
                 {localSnapshots.snapshots.length === 0 ? (
                   <p className="text-[11.5px] text-gray-500">Guarda puntos de restauración rápidos antes de importar, acomodar o probar comandos. No salen del navegador.</p>
                 ) : (
@@ -3269,6 +4055,7 @@ export default function Layout3DEditor({
                           <div className="truncate text-[12px] font-medium text-gray-100">{snap.label}</div>
                           <div className="text-[10.5px] text-gray-500">{new Date(snap.createdAt).toLocaleString('es-MX')} · {snap.reason}</div>
                         </div>
+                        <button onClick={() => compareLocalSnapshot(snap.id)} className="rounded-md bg-white/[0.06] px-2 py-1 text-[11px] text-gray-200 hover:bg-white/[0.12]">Comparar</button>
                         <button onClick={() => restoreLocalSnapshot(snap.id)} className="rounded-md bg-cyan-500/15 px-2 py-1 text-[11px] text-cyan-100 hover:bg-cyan-500/25">Restaurar</button>
                         <button onClick={() => deleteLocalSnapshot(snap.id)} className="rounded-md px-1.5 py-1 text-rose-300 hover:bg-rose-500/20"><Trash2 className="h-3.5 w-3.5" /></button>
                       </div>
@@ -3333,15 +4120,15 @@ export default function Layout3DEditor({
             </div>
             <div className="p-4">
               <button onClick={createCellFromSelection} className="w-full mb-3 px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-[12px] font-medium">Crear celda con la selección</button>
-              {cellsRef.current.length === 0 ? (
+              {cellsView.length === 0 ? (
                 <p className="text-[12px] text-gray-500 text-center py-3">Selecciona estaciones (Shift+clic) y crea una celda para agruparlas.</p>
               ) : (
-                <div key={cellsTick} className="space-y-1.5">
-                  {cellsRef.current.map((c) => (
+                <div className="space-y-1.5">
+                  {cellsView.map((c) => (
                     <div key={c.id} className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2">
                       <span className="inline-block w-3 h-3 rounded-sm shrink-0" style={{ background: c.color }} />
                       <div className="min-w-0 flex-1">
-                        <input defaultValue={c.name} onBlur={(e) => { const v = e.target.value.trim(); if (v) { c.name = v; setDirty(true); setCellsTick((t) => t + 1); } }} className="w-full bg-transparent text-[13px] font-medium outline-none focus:bg-white/[0.06] rounded px-1" />
+                        <input defaultValue={c.name} onBlur={(e) => { const v = e.target.value.trim(); if (v) { cellsRef.current = cellsRef.current.map((cell) => cell.id === c.id ? { ...cell, name: v } : cell); setCellsView(cellsRef.current.map((cell) => ({ ...cell, stationIds: [...cell.stationIds] }))); setDirty(true); } }} className="w-full bg-transparent text-[13px] font-medium outline-none focus:bg-white/[0.06] rounded px-1" />
                         <div className="text-[11px] text-gray-400 px-1">{c.stationIds.length} estaciones</div>
                       </div>
                       <button onClick={() => deleteCell(c.id)} className="p-1 rounded-md text-rose-300 hover:bg-rose-500/20"><Trash2 className="w-3.5 h-3.5" /></button>
