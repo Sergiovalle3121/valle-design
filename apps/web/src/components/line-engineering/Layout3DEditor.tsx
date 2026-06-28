@@ -89,6 +89,7 @@ import {
   type WorldUnit,
   type FactoryPreset,
 } from '@/lib/cad/world-scale';
+import PlantMinimap from './PlantMinimap';
 import dynamic from 'next/dynamic';
 
 // Analysis panels — the same modal components the 2D host shipped, lazy-loaded so
@@ -762,6 +763,7 @@ export default function Layout3DEditor({
   const [walk, setWalk] = useState(false); // first-person walkthrough mode
   const [showHelp, setShowHelp] = useState(false); // keyboard shortcuts overlay
   const [focusMode, setFocusMode] = useState(false); // hide side panels — maximise the canvas (EPIC 0)
+  const [showMinimap, setShowMinimap] = useState(true); // plant overview minimap (EPIC 0)
   const [measureLive, setMeasureLive] = useState<string | null>(null);
   const [dimCount, setDimCount] = useState(0);
   const [measurementRowsView, setMeasurementRowsView] = useState<MeasurementRow[]>([]);
@@ -3846,6 +3848,7 @@ export default function Layout3DEditor({
         <T3Btn onClick={() => fitView('plant')} title="Ajustar a la planta — encuadra toda la huella (Shift+F)"><Frame className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={() => fitView('selection')} disabled={selList.length === 0} title="Ajustar a la selección — encuadra los objetos seleccionados"><Focus className="w-4 h-4" /></T3Btn>
         <T3Btn active={focusMode} onClick={() => setFocusMode((v) => !v)} title="Modo foco — oculta los paneles laterales (\\)">{focusMode ? <PanelLeft className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}</T3Btn>
+        <T3Btn active={showMinimap} onClick={() => setShowMinimap((v) => !v)} title="Minimapa de la planta — vista general y navegación"><MapPin className="w-4 h-4" /></T3Btn>
         <div className="w-px h-5 bg-white/10 mx-1" />
         <T3Btn active={showHeat} onClick={() => setShowHeat((v) => !v)} title="Mapa de calor de ocupación en el piso"><Grid2x2 className="w-4 h-4" /></T3Btn>
         <T3Btn active={showGaps} onClick={() => setShowGaps((v) => !v)} title="Holguras de seguridad — marca los objetos demasiado juntos (ámbar) o traslapados (rojo)"><ShieldAlert className="w-4 h-4" /></T3Btn>
@@ -4203,6 +4206,15 @@ export default function Layout3DEditor({
           {/* 3D viewport */}
           <div className="relative flex-1 min-w-0">
             <div ref={mountRef} className="absolute inset-0" />
+            {showMinimap && (
+              <PlantMinimap
+                ctxRef={ctxRef}
+                placementsRef={placementsRef}
+                assetsRef={assetsRef}
+                cameraRef={cameraRef}
+                controlsRef={controlsRef}
+              />
+            )}
             {showHeat && (
               <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-xl bg-gray-900/80 backdrop-blur border border-white/10 text-[11px] text-gray-300 inline-flex items-center gap-2 pointer-events-none">
                 <Grid2x2 className="w-3.5 h-3.5" /> Ocupación del piso
