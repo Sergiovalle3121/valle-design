@@ -9,6 +9,7 @@ import {
   clampGridUnit,
   presetToUnit,
   adaptiveGridStepM,
+  niceScaleBarMeters,
   formatMeters,
   FACTORY_PRESETS,
   MIN_WORLD_M,
@@ -59,6 +60,18 @@ for (const span of [10, 40, 80, 150, 300, 500]) {
   const step = adaptiveGridStepM(span);
   const lines = span / step;
   assert.ok(lines <= 40 && lines >= 2, `~${Math.round(lines)} lines for ${span} m is readable`);
+}
+
+// --- nice scale-bar rounding (1/2/5 × 10^n) ---
+assert.equal(niceScaleBarMeters(90), 50, '90 → 50');
+assert.equal(niceScaleBarMeters(9), 5, '9 → 5');
+assert.equal(niceScaleBarMeters(3), 2, '3 → 2');
+assert.equal(niceScaleBarMeters(1.7), 1, '1.7 → 1');
+assert.equal(niceScaleBarMeters(0.3), 0.2, '0.3 → 0.2');
+assert.equal(niceScaleBarMeters(250), 200, '250 → 200');
+assert.ok(niceScaleBarMeters(0) > 0, 'zero is safe');
+for (const raw of [0.4, 1.3, 7, 42, 130, 480]) {
+  assert.ok(niceScaleBarMeters(raw) <= raw, `${raw} rounds down to a nice value`);
 }
 
 // --- formatting ---

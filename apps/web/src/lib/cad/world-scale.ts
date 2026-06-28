@@ -117,6 +117,18 @@ export function adaptiveGridStepM(spanM: number, targetDivisions = 24): number {
   return NICE_GRID_STEPS_M[NICE_GRID_STEPS_M.length - 1];
 }
 
+/**
+ * Round a raw metre length down to a "nice" 1/2/5 × 10ⁿ value — the standard
+ * map/CAD scale-bar convention (so a bar reads "50 m", never "47.3 m").
+ */
+export function niceScaleBarMeters(rawMeters: number): number {
+  if (!Number.isFinite(rawMeters) || rawMeters <= 0) return MIN_GRID_M;
+  const pow = Math.pow(10, Math.floor(Math.log10(rawMeters)));
+  const n = rawMeters / pow; // 1 … <10
+  const nice = n >= 5 ? 5 : n >= 2 ? 2 : 1;
+  return nice * pow;
+}
+
 /** Format a metre value for rulers/labels: `1.5 m`, `0.25 m`, `200 m`. */
 export function formatMeters(m: number): string {
   if (!Number.isFinite(m)) return '0 m';
