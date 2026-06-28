@@ -60,8 +60,8 @@ assert.equal(
 );
 assert.equal(
   CAD_COMMAND_REGISTRY.length,
-  8,
-  "initial registry exposes 8 commands",
+  9,
+  "initial registry exposes 9 commands",
 );
 
 const parsed = parseCadCommand("haz un pasillo de 1.2m entre SMT e inspección");
@@ -126,6 +126,34 @@ assert.equal(
   collisionPreview.issues.some((issue) => issue.code === "collisions_found"),
   true,
   "collision preview warns when overlaps exist",
+);
+
+const validatePreview = previewCadCommand(
+  { id: "validate_layout" },
+  {
+    ...ctx,
+    objects: [
+      ctx.objects[0],
+      { ...ctx.objects[0], id: "overlap", label: "Overlap", x: 500 },
+    ],
+  },
+);
+assert.equal(
+  validatePreview.operations.some(
+    (op) => op.type === "report" && op.title === "Validación de layout",
+  ),
+  true,
+  "validate layout emits a combined validation report",
+);
+assert.equal(
+  validatePreview.issues.some((issue) => issue.code === "layout_critical"),
+  true,
+  "validate layout flags critical severity on collisions",
+);
+assert.equal(
+  parseCadCommand("valida el layout").input?.id,
+  "validate_layout",
+  "parser recognizes validate layout intent",
 );
 
 let history: CadCommandHistoryState = { undo: [], redo: [] };

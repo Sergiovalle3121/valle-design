@@ -10,6 +10,7 @@ import type {
 import { measureBoxes, measurementLabel } from "../measurements";
 import { detectCadCollisions } from "../collisions";
 import { scoreFlowLayout } from "../flow-optimization";
+import { buildCadValidationReport } from "../validation-report";
 import {
   error,
   findObjectByLabel,
@@ -534,6 +535,97 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     execute: (i, c) => {
       const p = CAD_COMMAND_REGISTRY.find(
         (d) => d.id === "find_collisions",
+      )!.preview(i, c);
+      return result(p, true, p.summary);
+    },
+  },
+  {
+    id: "validate_layout",
+    label: "Validar layout",
+    category: "analysis",
+    description:
+      "Reporte combinado: colisiones, holguras, zonas de seguridad y flujo, con veredicto de severidad.",
+    inputSchema: {
+      objectIds: { type: "string[]", description: "Subconjunto opcional." },
+      requiredClearance: {
+        type: "number",
+        description: "Holgura mínima requerida en mm (opcional).",
+      },
+    },
+    examples: ["valida el layout", "valida el layout con holgura 800"],
+    validate: () => [],
+    preview: (i, c) => {
+      const input = i as Extract<CadCommandInput, { id: "validate_layout" }>;
+      const xs = input.objectIds?.length
+        ? c.objects.filter((o) => input.objectIds!.includes(o.id))
+        : c.objects;
+      const boxes = xs.map((box) => ({
+        id: box.id,
+        label: box.label,
+        x: box.x + box.w / 2,
+        y: box.y + box.h / 2,
+        width: box.w,
+        height: box.h,
+      }));
+      const flowNodes = bySequence(xs.filter((o) => o.type === "station")).map(
+        (box) => ({
+          id: box.id,
+          label: box.label,
+          x: box.x + box.w / 2,
+          y: box.y + box.h / 2,
+        }),
+      );
+      const report = buildCadValidationReport({
+        boxes,
+        flowNodes: flowNodes.length >= 2 ? flowNodes : undefined,
+        requiredClearance: input.requiredClearance,
+      });
+      const severityLabel =
+        report.severity === "critical"
+          ? "Crítico"
+          : report.severity === "warning"
+            ? "Advertencia"
+            : "OK";
+      const rows = [
+        { label: "Severidad", value: severityLabel },
+        { label: "Colisiones", value: String(report.collisions.length) },
+        { label: "Holguras", value: String(report.clearances.length) },
+        { label: "Zonas de seguridad", value: String(report.safety.length) },
+      ];
+      if (report.flow)
+        rows.push({ label: "Flujo", value: `${report.flow.score}/100` });
+      const affected = uniq([
+        ...report.collisions.flatMap((hit) => [hit.aId, hit.bId]),
+        ...report.clearances.flatMap((issue) => [issue.aId, issue.bId]),
+      ]).filter((id) => xs.some((o) => o.id === id));
+      return {
+        summary:
+          report.severity === "ok"
+            ? "Layout validado: sin incidencias."
+            : `Layout ${severityLabel.toLowerCase()}: ${report.collisions.length} colisiones, ${report.clearances.length} holguras, ${report.safety.length} zonas.`,
+        affectedObjectIds: affected,
+        operations: [{ type: "report", title: "Validación de layout", rows }],
+        issues:
+          report.severity === "critical"
+            ? [
+                error(
+                  "layout_critical",
+                  "El layout tiene incidencias críticas (colisiones o invasión de zona).",
+                ),
+              ]
+            : report.severity === "warning"
+              ? [
+                  warning(
+                    "layout_warning",
+                    "El layout tiene advertencias (holguras, zonas o flujo subóptimo).",
+                  ),
+                ]
+              : [],
+      };
+    },
+    execute: (i, c) => {
+      const p = CAD_COMMAND_REGISTRY.find(
+        (d) => d.id === "validate_layout",
       )!.preview(i, c);
       return result(p, true, p.summary);
     },

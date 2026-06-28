@@ -18,6 +18,19 @@ export function parseCadCommand(text: string): CadParseResult {
       clarification: "Escribe un comando CAD.",
     };
 
+  if (/valida|validaci[oó]n|diagn[oó]stic|revisa.*layout/.test(q)) {
+    const match = q.match(numberWithUnit);
+    const requiredClearance = match?.[1]
+      ? match[2] === "m"
+        ? Number(match[1].replace(",", ".")) * 1000
+        : Number(match[1].replace(",", "."))
+      : undefined;
+    return {
+      ok: true,
+      confidence: 0.8,
+      input: { id: "validate_layout", requiredClearance },
+    };
+  }
   if (/pasillo|holgura|separa|separar|clearance/.test(q)) {
     const match = q.match(numberWithUnit);
     const [targetA, targetB] = lastTwoTargets(raw);

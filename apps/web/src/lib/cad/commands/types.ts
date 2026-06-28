@@ -9,6 +9,7 @@ export type CadCommandId =
   | "arrange_line"
   | "measure_distance"
   | "find_collisions"
+  | "validate_layout"
   | "fit_to_view";
 
 export type CadCommandCategory = "layout" | "flow" | "analysis" | "viewport";
@@ -108,6 +109,7 @@ export type CadCommandInput =
     }
   | { id: "measure_distance"; targetA?: string; targetB?: string }
   | { id: "find_collisions"; objectIds?: string[] }
+  | { id: "validate_layout"; objectIds?: string[]; requiredClearance?: number }
   | { id: "fit_to_view"; objectIds?: string[] };
 
 export interface CadCommandSchemaField {
