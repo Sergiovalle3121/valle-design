@@ -11,6 +11,7 @@
  * Correr tests:  npx tsx src/components/line-engineering/snap-engine.spec.ts
  */
 import { Point } from './precision-input';
+export type { Point } from './precision-input';
 
 export type SnapType =
   | 'endpoint'

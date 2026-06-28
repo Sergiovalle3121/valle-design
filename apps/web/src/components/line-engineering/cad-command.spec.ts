@@ -6,7 +6,7 @@ import {
 let passed = 0; const fails: string[] = [];
 const ok = (cond: boolean, m: string) => { if (cond) passed++; else fails.push(m); };
 const near = (a: number, b: number, t = 1e-6) => Math.abs(a - b) < t;
-const first = (e: DrawAction[]) => e[0];
+const first = (e: DrawAction[]) => e[0] as DrawAction;
 
 // ── rect: dos esquinas → addRect (bbox normalizado) ──
 { let s = startCommand('rect');
@@ -20,7 +20,7 @@ const first = (e: DrawAction[]) => e[0];
 // ── circle: centro + punto perímetro → radio por distancia ──
 { let s = startCommand('circle');
   s = feedPoint(s, { x: 0, y: 0 });
-  ok(s.awaitingRadius, 'circle espera radio tras centro');
+  ok(s.awaitingRadius === true, 'circle espera radio tras centro');
   s = feedPoint(s, { x: 3, y: 4 });
   const a = first(s.emitted);
   ok(s.done && a.type === 'addCircle' && near(a.r, 5), 'circle radio = distancia (5)'); }
@@ -39,7 +39,7 @@ const first = (e: DrawAction[]) => e[0];
   s = feedPoint(s, { x: 10, y: 0 });
   const a = first(s.emitted);
   ok(a.type === 'addSegment' && near(a.b.x, 10), 'line: emite tramo 1');
-  ok(s.points.length === 1 && near(s.points[0].x, 10), 'line: reancla en último punto');
+  ok(s.points.length === 1 && near((s.points[0] as { x: number; y: number }).x, 10), 'line: reancla en último punto');
   s = feedPoint(s, { x: 10, y: 5 });
   const b = first(s.emitted);
   ok(b.type === 'addSegment' && near(b.a.x, 10) && near(b.b.y, 5), 'line: emite tramo 2 encadenado'); }
