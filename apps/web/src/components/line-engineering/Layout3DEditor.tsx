@@ -90,6 +90,7 @@ import {
   type FactoryPreset,
 } from '@/lib/cad/world-scale';
 import PlantMinimap from './PlantMinimap';
+import ScaleBar from './ScaleBar';
 import dynamic from 'next/dynamic';
 
 // Analysis panels — the same modal components the 2D host shipped, lazy-loaded so
@@ -4215,6 +4216,13 @@ export default function Layout3DEditor({
                 controlsRef={controlsRef}
               />
             )}
+            <ScaleBar
+              ctxRef={ctxRef}
+              cameraRef={cameraRef}
+              controlsRef={controlsRef}
+              mountRef={mountRef}
+              unit={(data?.footprint.unit ?? 'mm') as WorldUnit}
+            />
             {showHeat && (
               <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-xl bg-gray-900/80 backdrop-blur border border-white/10 text-[11px] text-gray-300 inline-flex items-center gap-2 pointer-events-none">
                 <Grid2x2 className="w-3.5 h-3.5" /> Ocupación del piso
