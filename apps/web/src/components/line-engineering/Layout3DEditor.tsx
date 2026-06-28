@@ -13,6 +13,7 @@ import {
   AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
   AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, RulerDimensionLine, Rows3, Waypoints,
   ShieldCheck, CircleCheck, CircleAlert, Printer, ChartLine, FileText, WandSparkles, Stamp, Upload, ImageOff, Activity, History, Group, Search,
+  Expand, Frame, Focus, PanelLeft, PanelLeftClose,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/apiFetch';
 import { useToast } from '@/contexts/ToastContext';
@@ -280,6 +281,9 @@ const HELP_SECTIONS: { title: string; rows: [string, string][] }[] = [
   { title: 'Vista', rows: [
     ['Arrastrar fondo', 'Orbitar'],
     ['Rueda', 'Acercar / alejar'],
+    ['F', 'Ajustar a contenido / selección'],
+    ['Shift+F', 'Ajustar a toda la planta'],
+    ['\\', 'Modo foco (ocultar paneles)'],
     ['Recorrido', 'Arrastrar = mirar · WASD = caminar'],
     ['?', 'Mostrar esta ayuda'],
   ] },
@@ -644,6 +648,7 @@ export default function Layout3DEditor({
   const [viewMode, setViewMode] = useState<'3d' | '2d'>('3d'); // 2D = locked top-down plan view (CAD unificado)
   const [walk, setWalk] = useState(false); // first-person walkthrough mode
   const [showHelp, setShowHelp] = useState(false); // keyboard shortcuts overlay
+  const [focusMode, setFocusMode] = useState(false); // hide side panels — maximise the canvas (EPIC 0)
   const [measureLive, setMeasureLive] = useState<string | null>(null);
   const [dimCount, setDimCount] = useState(0);
   const [theme, setTheme] = useState<Theme3D>('dark');
@@ -2413,7 +2418,7 @@ export default function Layout3DEditor({
     else if (id === 'zone') { setTab('equipment'); addAsset('zone'); }
     else if (id === 'equipment') setTab('equipment');
     else if (id === 'text') addNote();
-    else if (id === 'fit_view') viewPreset('iso');
+    else if (id === 'fit_view') fitView('all');
     else if (id === 'undo') undo();
     else if (id === 'redo') redo();
   };
@@ -2445,6 +2450,53 @@ export default function Layout3DEditor({
     else cam.position.set(d * 0.6, d * 0.85, d * 1.0);
     ctrl.target.set(0, 0, 0); ctrl.update();
   };
+
+  // World-space bounding box (footprint coords) of all content, or just the
+  // selection — used to frame the camera on plants too big to eyeball (EPIC 0).
+  const worldBounds = useCallback((scope: 'all' | 'selection'): { minX: number; minY: number; maxX: number; maxY: number } | null => {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    const add = (x: number, y: number, w: number, h: number) => {
+      minX = Math.min(minX, x); minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x + w); maxY = Math.max(maxY, y + h);
+    };
+    const sel = selRef.current;
+    const wantStation = (id: string) => scope === 'all' || sel.some((it) => it.type === 'station' && it.id === id);
+    const wantAsset = (id: string) => scope === 'all' || sel.some((it) => it.type === 'asset' && it.id === id);
+    placementsRef.current.forEach((p, id) => { if (wantStation(id)) add(p.x, p.y, p.w, p.h); });
+    assetsRef.current.forEach((a) => { if (wantAsset(a.id)) add(a.x, a.y, a.w, a.h); });
+    if (!Number.isFinite(minX)) return null;
+    return { minX, minY, maxX, maxY };
+  }, []);
+
+  // Frame a world-space box: centre the orbit target on it and pull the camera
+  // back far enough that the box fits the current FOV, keeping the view angle.
+  const fitToBounds = useCallback((b: { minX: number; minY: number; maxX: number; maxY: number }) => {
+    const cam = cameraRef.current; const ctrl = controlsRef.current; const ctx = ctxRef.current;
+    if (!cam || !ctrl || !ctx) return;
+    const { s, W, H } = ctx;
+    const cx = (b.minX + b.maxX) / 2, cy = (b.minY + b.maxY) / 2;
+    const targetX = (cx - W / 2) * s, targetZ = (cy - H / 2) * s;
+    const spanX = Math.max((b.maxX - b.minX) * s, s);
+    const spanZ = Math.max((b.maxY - b.minY) * s, s);
+    const fov = (cam.fov * Math.PI) / 180;
+    const aspect = cam.aspect || 1;
+    const fitForZ = (spanZ / 2) / Math.tan(fov / 2);
+    const fitForX = (spanX / 2) / Math.tan(fov / 2) / aspect;
+    const dist = Math.max(fitForZ, fitForX) * 1.25 + Math.max(spanX, spanZ) * 0.12;
+    const dir = new THREE.Vector3().subVectors(cam.position, ctrl.target);
+    if (dir.lengthSq() < 1e-6) dir.set(0.6, 0.85, 1.0);
+    dir.normalize().multiplyScalar(dist);
+    ctrl.target.set(targetX, 0, targetZ);
+    cam.position.set(targetX + dir.x, Math.max(dir.y, dist * 0.15), targetZ + dir.z);
+    ctrl.update();
+  }, []);
+
+  const fitView = useCallback((scope: 'all' | 'selection' | 'plant') => {
+    const ctx = ctxRef.current; if (!ctx) return;
+    const plant = { minX: 0, minY: 0, maxX: ctx.W, maxY: ctx.H };
+    const b = scope === 'plant' ? plant : (worldBounds(scope) ?? plant);
+    fitToBounds(b);
+  }, [worldBounds, fitToBounds]);
   // ---- 2D⇄3D view toggle: the CAD unifica plano (2D) y modelo (3D) (unify) ----
   // 2D = vista superior bloqueada (solo pan+zoom), como un plano CAD; 3D = órbita libre.
   const applyViewMode = useCallback((mode: '3d' | '2d') => {
@@ -2643,6 +2695,9 @@ export default function Layout3DEditor({
       else if (((e.key === 'z' || e.key === 'Z') && (e.ctrlKey || e.metaKey) && e.shiftKey) || ((e.key === 'y' || e.key === 'Y') && (e.ctrlKey || e.metaKey))) { e.preventDefault(); redo(); }
       else if ((e.key === 'm' || e.key === 'M')) { e.preventDefault(); toggleMeasure(); }
       else if ((e.key === 'w' || e.key === 'W')) { e.preventDefault(); toggleWall(); }
+      else if (e.key === 'f' && !e.shiftKey && !e.ctrlKey && !e.metaKey) { e.preventDefault(); fitView(hasSel ? 'selection' : 'all'); }
+      else if ((e.key === 'F' || (e.key === 'f' && e.shiftKey)) && !e.ctrlKey && !e.metaKey) { e.preventDefault(); fitView('plant'); }
+      else if (e.key === '\\') { e.preventDefault(); setFocusMode((v) => !v); }
       else if ((e.key === 'Delete' || e.key === 'Backspace') && hasSel) { e.preventDefault(); removeSelected(); }
       else if ((e.key === 'r' || e.key === 'R') && hasSel) { e.preventDefault(); rotateSelected(e.shiftKey ? -15 : 15); }
       else if ((e.key === 'd' || e.key === 'D') && (e.ctrlKey || e.metaKey) && hasSel) { e.preventDefault(); duplicateSelected(); }
@@ -2703,6 +2758,11 @@ export default function Layout3DEditor({
           <T3Btn onClick={() => viewPreset('front')} title="Vista frontal"><Layers className="w-4 h-4" /></T3Btn>
           <T3Btn active={walk} onClick={toggleWalk} title="Recorrido en primera persona — arrastra para mirar, WASD para caminar, Esc para salir"><PersonStanding className="w-4 h-4" /></T3Btn>
         </>)}
+        <T3Btn onClick={() => fitView('all')} title="Ajustar a contenido — encuadra todo el layout (F)"><Expand className="w-4 h-4" /></T3Btn>
+        <T3Btn onClick={() => fitView('plant')} title="Ajustar a la planta — encuadra toda la huella (Shift+F)"><Frame className="w-4 h-4" /></T3Btn>
+        <T3Btn onClick={() => fitView('selection')} disabled={selList.length === 0} title="Ajustar a la selección — encuadra los objetos seleccionados"><Focus className="w-4 h-4" /></T3Btn>
+        <T3Btn active={focusMode} onClick={() => setFocusMode((v) => !v)} title="Modo foco — oculta los paneles laterales (\\)">{focusMode ? <PanelLeft className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}</T3Btn>
+        <div className="w-px h-5 bg-white/10 mx-1" />
         <T3Btn active={showHeat} onClick={() => setShowHeat((v) => !v)} title="Mapa de calor de ocupación en el piso"><Grid2x2 className="w-4 h-4" /></T3Btn>
         <T3Btn active={showGaps} onClick={() => setShowGaps((v) => !v)} title="Holguras de seguridad — marca los objetos demasiado juntos (ámbar) o traslapados (rojo)"><ShieldAlert className="w-4 h-4" /></T3Btn>
         <div className="relative" ref={overlayMenuRef}>
@@ -2843,7 +2903,7 @@ export default function Layout3DEditor({
       ) : (
         <div className="flex flex-1 min-h-0">
           {/* left: stations tray + equipment palette */}
-          <div className="w-60 shrink-0 border-r border-white/10 bg-gray-900/60 flex flex-col">
+          <div className={`w-60 shrink-0 border-r border-white/10 bg-gray-900/60 flex-col ${focusMode ? 'hidden' : 'flex'}`}>
             {showCommand && (
               <div className="border-b border-cyan-400/20 bg-cyan-400/[0.06] p-3">
                 <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-cyan-200">
@@ -3055,7 +3115,7 @@ export default function Layout3DEditor({
           </div>
 
           {/* right: properties */}
-          <div className="w-64 shrink-0 border-l border-white/10 bg-gray-900/60 overflow-y-auto">
+          <div className={`w-64 shrink-0 border-l border-white/10 bg-gray-900/60 overflow-y-auto ${focusMode ? 'hidden' : ''}`}>
             {selList.length === 0 ? (
               <div className="p-4 text-[12px] text-gray-500 flex flex-col items-center gap-2 mt-8">
                 <Crosshair className="w-6 h-6 text-gray-600" />
