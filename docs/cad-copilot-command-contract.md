@@ -18,6 +18,7 @@ The command registry lives in `apps/web/src/lib/cad/commands/registry.ts` and is
 | `arrange_flow_line`      | flow     | Arrange selected objects by sequence and add flow connectors.   | `acomoda y conecta la linea de flujo`           |
 | `measure_distance`       | analysis | Measure center-to-center distance between two objects.          | `mide distancia entre AOI y empaque`            |
 | `find_collisions`        | analysis | Detect basic bounding-box overlaps.                             | `encuentra colisiones`                          |
+| `validate_layout`        | analysis | Build the combined validation report for layout readiness.      | `valida el layout`                              |
 | `fit_to_view`            | viewport | Ask the UI to focus the layout or selection.                    | `enfoca la selección`                           |
 
 ## Function-calling shape
@@ -33,6 +34,16 @@ Minimal flow:
 5. User confirms.
 6. UI calls `executeCadCommand(input, context)` and applies returned operations through existing editor primitives.
 7. UI records a `CadCommandHistoryItem` for undo/redo.
+
+## Workbench keyboard entry points
+
+The shortcut registry lives in `apps/web/src/lib/cad/keyboard-shortcuts.ts`. `Layout3DEditor.tsx` uses it for local workbench actions and reuses the existing toolbar/export/validation handlers:
+
+- `Ctrl/Cmd+K`: open the CAD command palette.
+- `V`, `M`, `A`, `L`, `Z`, `I`, `T`, `F`: select, measure, aisle command prep, connect flow, insert zone, open equipment, add text note, fit view.
+- `G`, `O`: toggle grid visibility and object/DXF snapping.
+- `Shift+V`, `E`: run layout validation and open DXF export.
+- `Ctrl/Cmd+Z`, `Ctrl/Cmd+Shift+Z`, `Ctrl/Cmd+Y`: undo/redo through the existing editor history path.
 
 ## Data boundaries
 

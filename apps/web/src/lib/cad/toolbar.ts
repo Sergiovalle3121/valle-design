@@ -32,7 +32,7 @@ export const CAD_TOOLBAR_ACTIONS: CadToolbarAction[] = [
     label: "Pan",
     shortcut: "Space",
     group: "navigate",
-    description: "Navegar el plano sin cambiar geometría.",
+    description: "Navegar el plano sin cambiar geometria.",
   },
   {
     id: "measure",
@@ -44,30 +44,35 @@ export const CAD_TOOLBAR_ACTIONS: CadToolbarAction[] = [
   {
     id: "aisle",
     label: "Aisle",
+    shortcut: "A",
     group: "draw",
-    description: "Preparar creación de pasillos/holguras.",
+    description: "Preparar creacion de pasillos/holguras.",
   },
   {
     id: "connector",
     label: "Connector",
+    shortcut: "L",
     group: "draw",
     description: "Conectar flujo entre estaciones.",
   },
   {
     id: "zone",
     label: "Zone",
+    shortcut: "Z",
     group: "insert",
-    description: "Insertar zona/rectángulo de layout.",
+    description: "Insertar zona/rectangulo de layout.",
   },
   {
     id: "equipment",
     label: "Equipment",
+    shortcut: "I",
     group: "insert",
     description: "Abrir paleta de equipo.",
   },
   {
     id: "text",
     label: "Text",
+    shortcut: "T",
     group: "insert",
     description: "Agregar etiqueta o nota.",
   },
@@ -83,14 +88,14 @@ export const CAD_TOOLBAR_ACTIONS: CadToolbarAction[] = [
     label: "Undo",
     shortcut: "Ctrl+Z",
     group: "history",
-    description: "Deshacer el último cambio.",
+    description: "Deshacer el ultimo cambio.",
   },
   {
     id: "redo",
     label: "Redo",
     shortcut: "Ctrl+Shift+Z",
     group: "history",
-    description: "Rehacer el último cambio.",
+    description: "Rehacer el ultimo cambio.",
   },
 ];
 

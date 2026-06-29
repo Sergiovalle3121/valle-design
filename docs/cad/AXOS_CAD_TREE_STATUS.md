@@ -8,25 +8,24 @@ AXOS CAD is beyond seed state. The active workbench already includes a unified 2
 
 ## This run
 
-This run adds a compound command-engine workflow:
+This run hardens the existing CAD keyboard shortcut path:
 
-- `arrange_flow_line` arranges selected or sequenced objects into a flow line.
-- The command creates previewable `move` operations for every object.
-- It creates previewable `connect` operations between sequence steps.
-- It emits a `report` operation with direction, spacing, score before, score after, and resulting distance.
-- It warns when the proposed line is clipped by the footprint.
+- `keyboard-shortcuts.ts` now includes draw/insert/productivity actions for aisle, connector, zone, equipment, text, fit view, grid, object snap, validation, and DXF export.
+- `Layout3DEditor.tsx` routes those shortcuts through the existing toolbar, validation, export, grid, and object-snap actions instead of creating a parallel action system.
+- The in-editor help overlay lists the newly usable keys so the workflow is discoverable from inside CAD.
+- `toolbar.ts` now exposes matching shortcut hints for the command palette/tool index.
 
-The workflow is visible through the existing CAD command dock because the editor already previews and applies command registry operations. It does not introduce a parallel editor, duplicate flow scoring, duplicate connector logic, or a new UI surface.
+The workflow is visible in the CAD workbench immediately: users can press `A`, `L`, `Z`, `I`, `T`, `F`, `G`, `O`, `Shift+V`, and `E` to run existing CAD actions. It does not introduce a parallel editor, duplicate toolbar actions, duplicate validation, or duplicate DXF export logic.
 
 ## Phase evidence
 
 | Backlog phase | Status | Evidence | Next step |
 | --- | --- | --- | --- |
-| Phase 0 - Audit plus visible fix | Complete for this run | `AXOS_CAD_CAPABILITY_AUDIT.md` plus a reachable command workflow | Keep audit current as PRs land. |
+| Phase 0 - Audit plus visible fix | Complete for this run | `AXOS_CAD_CAPABILITY_AUDIT.md` plus visible keyboard-driven workbench actions | Keep audit current as PRs land. |
 | Phase 17 - Flow Health | Advanced | `flow-optimization.ts`, Flow Health UI, and `arrange_flow_line` | Add richer flow recommendations and before/after preview cards. |
-| Phase 21 - Shortcuts and command line | Advanced | Command dock, parser, registry, palette, shortcuts | Add more industrial command examples and history reconciliation. |
+| Phase 21 - Shortcuts and command line | Advanced | Command dock, parser, registry, palette, expanded shortcut dispatch | Add Enter/command-history reconciliation after UI conflicts settle. |
 | Phase 27 - QA harness | In progress | Pure specs under `apps/web/src/lib/cad` | Add specs for each new command/helper. |
 
 ## Next CAD PR
 
-Recommended next phase: add an editable connector workflow or validation issue actions after PR 746 lands, so `Layout3DEditor.tsx` conflicts can be resolved against the latest viewport/minimap changes.
+Recommended next phase: add validation issue quick actions or editable connector grips after PR 746 lands, so `Layout3DEditor.tsx` conflicts can be resolved against the latest viewport/minimap changes.

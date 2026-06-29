@@ -17,6 +17,16 @@ assert.equal(
   "measure action has shortcut",
 );
 assert.equal(
+  findToolbarAction("text")?.shortcut,
+  "T",
+  "text action has shortcut",
+);
+assert.equal(
+  findToolbarAction("connector")?.shortcut,
+  "L",
+  "connector action has shortcut",
+);
+assert.equal(
   toolbarActionsByGroup("history").length,
   2,
   "history group exposes undo/redo",

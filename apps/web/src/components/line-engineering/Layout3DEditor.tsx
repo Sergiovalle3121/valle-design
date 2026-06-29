@@ -258,7 +258,17 @@ const HELP_SECTIONS: { title: string; rows: [string, string][] }[] = [
   { title: 'Herramientas', rows: [
     ['V', 'Seleccionar / mover'],
     ['M', 'Medir / acotar'],
+    ['A', 'Preparar pasillo / holgura'],
+    ['L', 'Conectar flujo'],
+    ['Z', 'Insertar zona'],
+    ['I', 'Abrir equipo / simbolos'],
+    ['T', 'Agregar nota'],
     ['W', 'Dibujar muros (Shift = 45°)'],
+    ['F', 'Enfocar layout'],
+    ['G', 'Mostrar / ocultar grilla'],
+    ['O', 'Activar / desactivar object snap'],
+    ['Shift+V', 'Validar layout'],
+    ['E', 'Exportar DXF'],
     ['Recorrido', 'Caminar en primera persona'],
   ] },
   { title: 'Selección', rows: [
@@ -282,6 +292,19 @@ const HELP_SECTIONS: { title: string; rows: [string, string][] }[] = [
     ['?', 'Mostrar esta ayuda'],
   ] },
 ];
+
+const TOOLBAR_SHORTCUT_IDS = new Set<CadToolbarActionId>([
+  'select',
+  'measure',
+  'aisle',
+  'connector',
+  'zone',
+  'equipment',
+  'text',
+  'fit_view',
+  'undo',
+  'redo',
+]);
 
 function disposeObject(o: THREE.Object3D) {
   o.traverse((c) => {
@@ -3068,6 +3091,31 @@ export default function Layout3DEditor({
       if (cadShortcut?.id === 'palette') { e.preventDefault(); setShowPalette(true); return; }
       // in walkthrough mode WASD/look take over; only Esc (exit) reaches here
       if (walkRef.current) { if (e.key === 'Escape') { e.preventDefault(); toggleWalk(); } return; }
+      if (cadShortcut && TOOLBAR_SHORTCUT_IDS.has(cadShortcut.id as CadToolbarActionId)) {
+        e.preventDefault();
+        runToolbarAction(cadShortcut.id as CadToolbarActionId);
+        return;
+      }
+      if (cadShortcut?.id === 'grid_toggle') {
+        e.preventDefault();
+        setLayers((cur) => ({ ...cur, grid: !cur.grid }));
+        return;
+      }
+      if (cadShortcut?.id === 'object_snap_toggle') {
+        e.preventDefault();
+        setOsnap((cur) => !cur);
+        return;
+      }
+      if (cadShortcut?.id === 'validate_layout') {
+        e.preventDefault();
+        openChecks();
+        return;
+      }
+      if (cadShortcut?.id === 'export_dxf') {
+        e.preventDefault();
+        openDxfExport();
+        return;
+      }
       const g = data?.footprint.gridSize || 100;
       const step = e.shiftKey ? g * 5 : g;
       const hasSel = selRef.current.length > 0;
@@ -3160,7 +3208,7 @@ export default function Layout3DEditor({
         <T3Btn active={tool === 'select'} onClick={() => setToolMode('select')} title="Seleccionar / mover (V)"><MousePointer2 className="w-4 h-4" /></T3Btn>
         <T3Btn active={tool === 'measure'} onClick={toggleMeasure} title="Medir / acotar (M)"><Ruler className="w-4 h-4" /></T3Btn>
         <T3Btn active={tool === 'wall'} onClick={toggleWall} title="Dibujar muros (W) — clic en puntos, Esc termina"><Spline className="w-4 h-4" /></T3Btn>
-        <T3Btn onClick={addNote} title="Agregar nota de texto (clic en una nota para quitarla)"><StickyNote className="w-4 h-4" /></T3Btn>
+        <T3Btn onClick={addNote} title="Agregar nota de texto (T)"><StickyNote className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={autoDimension} title="Acotar automáticamente — medidas generales y pasos del layout (o de la selección)"><RulerDimensionLine className="w-4 h-4" /></T3Btn>
         {dimCount > 0 && (
           <button onClick={clearDims} title="Quitar todas las cotas" className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] text-gray-300 hover:bg-white/10">
