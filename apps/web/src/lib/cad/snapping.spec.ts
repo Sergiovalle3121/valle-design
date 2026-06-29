@@ -2,12 +2,23 @@
 import { strict as assert } from "node:assert";
 import {
   collectSnapAnchors,
+  maybeSnapScalarToGrid,
   snapBoxPosition,
   snapScalarToGrid,
 } from "./snapping";
 
 assert.equal(snapScalarToGrid(149, 100), 100, "grid rounds down");
 assert.equal(snapScalarToGrid(151, 100), 200, "grid rounds up");
+assert.equal(
+  maybeSnapScalarToGrid(151.25, 100, false),
+  151.25,
+  "disabled grid snap preserves free placement",
+);
+assert.equal(
+  maybeSnapScalarToGrid(151.25, 100, true),
+  200,
+  "enabled grid snap quantizes placement",
+);
 
 const boxes = [
   { id: "a", x: 100, y: 100, w: 200, h: 100 },

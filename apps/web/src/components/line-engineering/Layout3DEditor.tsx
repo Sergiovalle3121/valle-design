@@ -38,7 +38,7 @@ import {
   type CadOperation,
 } from '@/lib/cad/commands';
 import { measureBoxes, measurementLabel, type CadMeasureMode } from '@/lib/cad/measurements';
-import { snapScalarToGrid } from '@/lib/cad/snapping';
+import { maybeSnapScalarToGrid } from '@/lib/cad/snapping';
 import {
   assignObjectsToLayer,
   DEFAULT_CAD_LAYERS,
@@ -966,7 +966,7 @@ export default function Layout3DEditor({
 
   const snapWorld = useCallback((v: number) => {
     const g = data?.footprint.gridSize || 1;
-    return snapRef.current ? snapScalarToGrid(v, g) : Math.round(v);
+    return maybeSnapScalarToGrid(v, g, snapRef.current);
   }, [data]);
 
   // ---- (re)build the station blocks + connectors ----
@@ -3219,7 +3219,8 @@ export default function Layout3DEditor({
         <T3Btn onClick={undo} disabled={hist.undo === 0} title="Deshacer (Ctrl+Z)"><Undo2 className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={redo} disabled={hist.redo === 0} title="Rehacer (Ctrl+Shift+Z)"><Redo2 className="w-4 h-4" /></T3Btn>
         <div className="w-px h-5 bg-white/10 mx-1" />
-        <T3Btn active={snap} onClick={() => setSnap((v) => !v)} title="Snap a grilla"><Grid3x3 className="w-4 h-4" /></T3Btn>
+        <T3Btn active={layers.grid} onClick={() => setLayers((v) => ({ ...v, grid: !v.grid }))} title={layers.grid ? 'Ocultar grilla del plano' : 'Mostrar grilla del plano'}><Grid3x3 className="w-4 h-4" /></T3Btn>
+        <T3Btn active={snap} onClick={() => setSnap((v) => !v)} title="Snap a grilla"><Crosshair className="w-4 h-4" /></T3Btn>
         <T3Btn active={osnap} onClick={() => setOsnap((v) => !v)} title="Snap a objetos y al plano DXF — alinea con bordes/centros y engancha a vértices y puntos medios del plano al medir o trazar muros"><Magnet className="w-4 h-4" /></T3Btn>
         <div className="w-px h-5 bg-white/10 mx-1" />
         {viewMode === '3d' && (<>
@@ -3550,7 +3551,7 @@ export default function Layout3DEditor({
               <span>{selList.length} sel</span>
               <span>{data?.footprint.unit ?? 'mm'}</span>
               <span>Layer {cadLayers.find((layer) => layer.id === activeCadLayer)?.label ?? activeCadLayer}</span>
-              <span>Snap {snap ? 'grid' : 'off'} / {osnap ? 'obj' : 'obj off'}</span>
+              <span>Grilla {layers.grid ? 'on' : 'off'} / Snap {snap ? 'grid' : 'free'} / {osnap ? 'obj' : 'obj off'}</span>
               <button onClick={openChecks} className={`${releaseTone} hover:text-white`}>Release {releaseState}</button>
               {report && <span className={report.score === 'error' ? 'text-rose-300' : report.score === 'warn' ? 'text-amber-300' : 'text-emerald-300'}>Validación {report.score}</span>}
               {flowHealth && <span className={flowHealth.score >= 80 ? 'text-emerald-300' : flowHealth.score >= 55 ? 'text-amber-300' : 'text-rose-300'}>Flow {flowHealth.score}</span>}

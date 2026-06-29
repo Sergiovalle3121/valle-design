@@ -53,6 +53,14 @@ export function snapScalarToGrid(value: number, gridSize: number): number {
   return Math.round(value / g) * g;
 }
 
+export function maybeSnapScalarToGrid(
+  value: number,
+  gridSize: number,
+  gridEnabled: boolean,
+): number {
+  return gridEnabled ? snapScalarToGrid(value, gridSize) : value;
+}
+
 export function snapPointToGrid(
   x: number,
   y: number,
