@@ -8,6 +8,7 @@ export type CadCommandId =
   | "connect_flow"
   | "arrange_line"
   | "arrange_flow_line"
+  | "arrange_rack_rows"
   | "measure_distance"
   | "find_collisions"
   | "validate_layout"
@@ -113,6 +114,16 @@ export type CadCommandInput =
       direction?: "left_to_right" | "top_to_bottom";
       objectIds?: string[];
       gap?: number;
+      margin?: number;
+    }
+  | {
+      id: "arrange_rack_rows";
+      orientation?: "horizontal" | "vertical";
+      objectIds?: string[];
+      rows?: number;
+      baysPerRow?: number;
+      bayGap?: number;
+      aisleWidth?: number;
       margin?: number;
     }
   | { id: "measure_distance"; targetA?: string; targetB?: string }

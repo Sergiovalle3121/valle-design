@@ -16,6 +16,7 @@ The command registry lives in `apps/web/src/lib/cad/commands/registry.ts` and is
 | `connect_flow`           | flow     | Create sequential flow connectors between stations.             | `conecta flujo de SMT a inspección`             |
 | `arrange_line`           | layout   | Propose a simple sequence-based station arrangement.            | `acomoda la línea de izquierda a derecha`       |
 | `arrange_flow_line`      | flow     | Arrange selected objects by sequence and add flow connectors.   | `acomoda y conecta la linea de flujo`           |
+| `arrange_rack_rows`      | layout   | Arrange selected racks/equipment into warehouse rack rows.      | `acomoda racks en 2 filas con pasillo 3m`       |
 | `measure_distance`       | analysis | Measure center-to-center distance between two objects.          | `mide distancia entre AOI y empaque`            |
 | `find_collisions`        | analysis | Detect basic bounding-box overlaps.                             | `encuentra colisiones`                          |
 | `validate_layout`        | analysis | Build the combined validation report for layout readiness.      | `valida el layout`                              |
@@ -73,3 +74,4 @@ The command engine is vendor-neutral. If the deployment points to self-hosted CI
 - `Layout3DEditor.tsx` now consumes command previews for the dock, but only as textual/operation previews.
 - Visual ghost previews are not implemented yet; textual/operation previews are the first contract.
 - Collision detection is basic axis-aligned bounding-box detection and intentionally ignores rotation for now.
+- `arrange_rack_rows` rearranges existing selected racks/equipment; it does not create new rack blocks yet.

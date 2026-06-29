@@ -303,6 +303,179 @@ function arrangeFlowLinePreview(
   };
 }
 
+const RACK_LABEL =
+  /rack|estante|warehouse|almacen|supermarket|pallet|tarima/i;
+
+function spatialOrder(a: CadBox, b: CadBox): number {
+  return a.y - b.y || a.x - b.x || a.label.localeCompare(b.label);
+}
+
+function rackObjects(
+  input: { objectIds?: string[] },
+  context: Parameters<CadCommandDefinition["preview"]>[1],
+): CadBox[] {
+  const explicit = input.objectIds?.length
+    ? input.objectIds
+    : context.selectedIds;
+  if (explicit.length)
+    return explicit
+      .map((id) => context.objects.find((object) => object.id === id))
+      .filter((object): object is CadBox => !!object);
+  return context.objects
+    .filter((object) => RACK_LABEL.test(`${object.id} ${object.label}`))
+    .sort(spatialOrder);
+}
+
+function clampInteger(
+  value: number | undefined,
+  min: number,
+  max: number,
+  fallback: number,
+): number {
+  const parsed = Number.isFinite(value) ? Math.trunc(value as number) : fallback;
+  return Math.max(min, Math.min(max, parsed));
+}
+
+function arrangeRackRowsPreview(
+  input: Extract<CadCommandInput, { id: "arrange_rack_rows" }>,
+  context: Parameters<CadCommandDefinition["preview"]>[1],
+): CadCommandPreview {
+  const objects = rackObjects(input, context);
+  const issues =
+    objects.length >= 2
+      ? []
+      : [
+          error(
+            "selection_too_small",
+            "Selecciona al menos 2 racks/equipos para acomodar filas de almacen.",
+          ),
+        ];
+  if (objects.length < 2)
+    return {
+      summary: "Acomodar filas de racks",
+      affectedObjectIds: objects.map((object) => object.id),
+      operations: [],
+      issues,
+    };
+
+  const orientation = input.orientation ?? "horizontal";
+  const defaultRows = objects.length > 6 ? 2 : 1;
+  const rows = clampInteger(input.rows, 1, objects.length, defaultRows);
+  let baysPerRow = clampInteger(
+    input.baysPerRow,
+    1,
+    objects.length,
+    Math.ceil(objects.length / rows),
+  );
+  if (rows * baysPerRow < objects.length) {
+    baysPerRow = Math.ceil(objects.length / rows);
+    issues.push(
+      warning(
+        "rack_row_capacity_expanded",
+        "La capacidad indicada no alcanza; se aumento el numero de bahias por fila.",
+        objects.map((object) => object.id),
+      ),
+    );
+  }
+
+  const aisleWidth = Math.max(0, input.aisleWidth ?? 3000);
+  const bayGap = Math.max(0, input.bayGap ?? 100);
+  const margin = Math.max(0, input.margin ?? 500);
+  const hasFootprint = context.footprintW > 0 && context.footprintH > 0;
+  const moveOps: CadOperation[] = [];
+  let clipped = false;
+  let cursor = 0;
+  const grouped: CadBox[][] = [];
+  while (cursor < objects.length) {
+    grouped.push(objects.slice(cursor, cursor + baysPerRow));
+    cursor += baysPerRow;
+  }
+
+  if (orientation === "vertical") {
+    let x = margin;
+    for (const row of grouped) {
+      let y = margin;
+      const columnWidth = Math.max(...row.map((object) => object.w));
+      for (const object of row) {
+        const target = { x, y };
+        const after = { ...object };
+        after.x = hasFootprint
+          ? clamp(target.x, 0, Math.max(0, context.footprintW - object.w))
+          : target.x;
+        after.y = hasFootprint
+          ? clamp(target.y, 0, Math.max(0, context.footprintH - object.h))
+          : target.y;
+        clipped ||= hasFootprint && (after.x !== target.x || after.y !== target.y);
+        moveOps.push({
+          type: "move",
+          objectId: object.id,
+          before: object,
+          after,
+        });
+        y += object.h + bayGap;
+      }
+      x += columnWidth + aisleWidth;
+    }
+  } else {
+    let y = margin;
+    for (const row of grouped) {
+      let x = margin;
+      const rowHeight = Math.max(...row.map((object) => object.h));
+      for (const object of row) {
+        const target = { x, y };
+        const after = { ...object };
+        after.x = hasFootprint
+          ? clamp(target.x, 0, Math.max(0, context.footprintW - object.w))
+          : target.x;
+        after.y = hasFootprint
+          ? clamp(target.y, 0, Math.max(0, context.footprintH - object.h))
+          : target.y;
+        clipped ||= hasFootprint && (after.x !== target.x || after.y !== target.y);
+        moveOps.push({
+          type: "move",
+          objectId: object.id,
+          before: object,
+          after,
+        });
+        x += object.w + bayGap;
+      }
+      y += rowHeight + aisleWidth;
+    }
+  }
+
+  if (clipped)
+    issues.push(
+      warning(
+        "rack_rows_clipped",
+        "Las filas no caben completas en el footprint; algunas posiciones fueron limitadas.",
+        objects.map((object) => object.id),
+      ),
+    );
+
+  const report: CadOperation = {
+    type: "report",
+    title: "Filas de racks",
+    rows: [
+      { label: "Objetos", value: String(objects.length) },
+      { label: "Filas", value: String(grouped.length) },
+      { label: "Bahias/fila", value: String(baysPerRow) },
+      {
+        label: "Orientacion",
+        value: orientation === "vertical" ? "Vertical" : "Horizontal",
+      },
+      { label: "Pasillo", value: `${Math.round(aisleWidth)} mm` },
+      { label: "Separacion bahias", value: `${Math.round(bayGap)} mm` },
+    ],
+  };
+
+  return {
+    summary: `Acomodar ${objects.length} racks/equipos en ${grouped.length} fila(s).`,
+    affectedObjectIds: objects.map((object) => object.id),
+    operations: [...moveOps, report],
+    issues,
+  };
+}
+
 export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
   {
     id: "create_clearance_aisle",
@@ -563,6 +736,47 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     execute: (i, c) => {
       const p = arrangeFlowLinePreview(
         i as Extract<CadCommandInput, { id: "arrange_flow_line" }>,
+        c,
+      );
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
+    id: "arrange_rack_rows",
+    label: "Acomodar racks",
+    category: "layout",
+    description:
+      "Acomoda racks/equipos seleccionados en filas de almacen con pasillos medibles.",
+    inputSchema: {
+      orientation: {
+        type: "enum",
+        enum: ["horizontal", "vertical"],
+        description: "Direccion de las filas de racks.",
+      },
+      objectIds: { type: "string[]", description: "Racks/equipos a acomodar." },
+      rows: { type: "number", description: "Numero de filas." },
+      baysPerRow: { type: "number", description: "Bahias por fila." },
+      bayGap: { type: "number", description: "Separacion entre bahias en mm." },
+      aisleWidth: { type: "number", description: "Ancho de pasillo en mm." },
+      margin: { type: "number", description: "Margen inicial en mm." },
+    },
+    examples: [
+      "acomoda racks en 2 filas con pasillo 3m",
+      "arrange warehouse racks in 3 rows",
+    ],
+    validate: (i, c) =>
+      arrangeRackRowsPreview(
+        i as Extract<CadCommandInput, { id: "arrange_rack_rows" }>,
+        c,
+      ).issues.filter((issue) => issue.level === "error"),
+    preview: (i, c) =>
+      arrangeRackRowsPreview(
+        i as Extract<CadCommandInput, { id: "arrange_rack_rows" }>,
+        c,
+      ),
+    execute: (i, c) => {
+      const p = arrangeRackRowsPreview(
+        i as Extract<CadCommandInput, { id: "arrange_rack_rows" }>,
         c,
       );
       return result(p, ok(p.issues), p.summary);

@@ -60,8 +60,8 @@ assert.equal(
 );
 assert.equal(
   CAD_COMMAND_REGISTRY.length,
-  10,
-  "registry exposes 10 commands",
+  11,
+  "registry exposes 11 commands",
 );
 
 const parsed = parseCadCommand("haz un pasillo de 1.2m entre SMT e inspección");
@@ -137,6 +137,104 @@ assert.equal(
   parseCadCommand("acomoda y conecta la linea de flujo").input?.id,
   "arrange_flow_line",
   "parser recognizes arrange and connect flow line intent",
+);
+
+const rackCtx: CadCommandContext = {
+  ...ctx,
+  footprintW: 12000,
+  footprintH: 9000,
+  selectedIds: ["rack-1", "rack-2", "rack-3", "rack-4"],
+  objects: [
+    {
+      id: "rack-1",
+      type: "asset",
+      label: "Rack A1",
+      x: 5000,
+      y: 100,
+      w: 1200,
+      h: 900,
+    },
+    {
+      id: "rack-2",
+      type: "asset",
+      label: "Rack A2",
+      x: 5000,
+      y: 1200,
+      w: 1200,
+      h: 900,
+    },
+    {
+      id: "rack-3",
+      type: "asset",
+      label: "Rack B1",
+      x: 5000,
+      y: 2300,
+      w: 1200,
+      h: 900,
+    },
+    {
+      id: "rack-4",
+      type: "asset",
+      label: "Rack B2",
+      x: 5000,
+      y: 3400,
+      w: 1200,
+      h: 900,
+    },
+  ],
+};
+const rackParsed = parseCadCommand(
+  "acomoda racks en 2 filas con pasillo de 3m",
+);
+assert.equal(
+  rackParsed.input?.id,
+  "arrange_rack_rows",
+  "parser recognizes rack row intent before generic aisle commands",
+);
+assert.equal(
+  rackParsed.input?.id === "arrange_rack_rows"
+    ? rackParsed.input.aisleWidth
+    : undefined,
+  3000,
+  "parser converts rack aisle metres to millimetres",
+);
+const rackPreview = previewCadCommand(
+  {
+    id: "arrange_rack_rows",
+    rows: 2,
+    baysPerRow: 2,
+    aisleWidth: 3000,
+    objectIds: ["rack-1", "rack-2", "rack-3", "rack-4"],
+  },
+  rackCtx,
+);
+assert.equal(
+  rackPreview.operations.filter((op) => op.type === "move").length,
+  4,
+  "rack rows move every selected rack",
+);
+assert.equal(
+  rackPreview.operations.some(
+    (op) => op.type === "report" && op.title === "Filas de racks",
+  ),
+  true,
+  "rack rows include a layout report",
+);
+const expandedRackPreview = previewCadCommand(
+  {
+    id: "arrange_rack_rows",
+    rows: 1,
+    baysPerRow: 2,
+    objectIds: ["rack-1", "rack-2", "rack-3", "rack-4"],
+  },
+  rackCtx,
+);
+assert.equal(
+  expandedRackPreview.issues.some(
+    (issue) => issue.code === "rack_row_capacity_expanded",
+  ),
+  true,
+  "rack rows warn when requested row capacity is too small",
 );
 
 const collisionPreview = previewCadCommand(
