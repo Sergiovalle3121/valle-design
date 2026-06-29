@@ -7,7 +7,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import {
   Loader2, X, Save, Move3d, Grid3x3, Grid2x2, ShieldAlert, RotateCw, RotateCcw, Trash2, Download, FileDown, Magnet, FlipHorizontal, FlipVertical, BrickWall,
   Box as BoxIcon, Eye, MapPin, Maximize2, Layers, Copy, Crosshair, Settings2,
-  Boxes, ChevronRight, Ruler, MousePointer2, SlidersHorizontal, Undo2, Redo2, Spline,
+  Boxes, ChevronRight, ChevronLeft, Ruler, MousePointer2, SlidersHorizontal, Undo2, Redo2, Spline,
   ClipboardList, Package, StickyNote, PersonStanding, HelpCircle,
   AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd,
   AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
@@ -3137,6 +3137,18 @@ export default function Layout3DEditor({
       {/* top bar (relative z-30 so dropdown popovers paint above the 3D content,
           which would otherwise stack over the backdrop-blur'd bar) */}
       <div className="relative z-30 flex items-center gap-2 px-4 py-2.5 border-b border-white/10 shrink-0 bg-gray-900/80 backdrop-blur">
+        {/* Salida persistente y SIEMPRE visible — anclada al inicio de la barra
+            (la X final puede quedar fuera de viewport en barras densas). Regla:
+            ninguna pantalla a foco total puede atrapar al usuario. */}
+        <button
+          onClick={onClose}
+          title="Salir del CAD — volver al dashboard (Esc)"
+          aria-label="Salir del CAD"
+          className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-white/[0.10] px-2.5 py-1.5 text-[13px] font-medium text-white hover:bg-white/[0.18] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+        >
+          <ChevronLeft className="w-4 h-4" /> Salir
+        </button>
+        <div className="w-px h-5 bg-white/10" />
         <BoxIcon className="w-4 h-4" style={{ color: '#f43f5e' }} />
         <span className="font-semibold text-sm">CAD · {model} · {revision}</span>
         <span className="text-[11px] text-gray-400 ml-1">{placedCount} estaciones · {assetCount} equipos</span>
