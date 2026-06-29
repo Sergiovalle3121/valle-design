@@ -17,10 +17,17 @@ assert.equal(
   "maps boxes and connectors to primitives",
 );
 assert.equal(model.texts?.[0].text, "Line 1", "maps labels");
+assert.equal(
+  model.layers?.find((layer) => layer.name === "Equipment")?.color,
+  5,
+  "maps equipment layer color",
+);
 const exported = exportCadLayoutDxf(input);
 assert.ok(
   exported.content.includes("0\nPOLYLINE"),
   "exports boxes as polylines",
 );
+assert.ok(exported.content.includes("1\nAOI"), "exports box labels");
 assert.ok(exported.content.includes("1\n5 mm"), "exports measurement label");
+assert.equal(exported.entityCount, 6, "counts box labels as DXF entities");
 console.log("cad layout export adapter specs passed");

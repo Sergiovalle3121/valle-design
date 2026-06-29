@@ -14,5 +14,7 @@ export * from "./command-palette";
 export * from "./copilot-contract";
 export * from "./annotations";
 export * from "./layout-export-adapter";
+export * from "./dxf-export-readiness";
 export * from "./keyboard-shortcuts";
 export * from "./validation-report";
+export * from "./object-properties";

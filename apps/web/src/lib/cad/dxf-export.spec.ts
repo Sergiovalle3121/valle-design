@@ -21,6 +21,7 @@ const result = exportCadDxf(
           { x: 0, y: 0 },
           { x: 5, y: 5 },
         ],
+        text: "Station 1",
       },
       { kind: "text", layer: "Labels", points: [{ x: 2, y: 3 }], text: "AOI" },
     ],
@@ -38,6 +39,7 @@ assert.ok(
   result.content.includes("0\nPOLYLINE"),
   "exports rectangles as closed polylines",
 );
+assert.ok(result.content.includes("1\nStation 1"), "exports primitive labels");
 assert.ok(result.content.includes("1\nAOI"), "exports text labels");
 assert.ok(result.content.includes("1\n12 mm"), "exports measurement labels");
 assert.ok(result.layers.includes("Equipment"), "tracks explicit layers");
@@ -45,6 +47,6 @@ assert.ok(
   result.layers.includes("Measurements"),
   "tracks implicit measurement layer",
 );
-assert.equal(result.entityCount, 5, "counts exported entities");
+assert.equal(result.entityCount, 6, "counts exported entities");
 assert.ok(result.content.endsWith("0\nEOF\n"), "terminates DXF");
 console.log("cad dxf export specs passed");

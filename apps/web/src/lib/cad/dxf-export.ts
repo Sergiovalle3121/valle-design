@@ -36,6 +36,7 @@ export interface CadDxfExportResult {
 const DEFAULT_LAYER = "0";
 const MEASUREMENT_LAYER = "Measurements";
 const TEXT_LAYER = "Text";
+const PRIMITIVE_LABEL_HEIGHT = 220;
 const DXF_UNIT_CODES: Record<CadDxfExportUnit, number> = { mm: 4, m: 6 };
 
 function safeLayerName(name: string | undefined): string {
@@ -165,6 +166,32 @@ function rectToClosedPoints(points: CadDxfPoint[]): CadDxfPoint[] {
   }
   return points;
 }
+function primitiveLabelPoint(primitive: CadDxfPrimitive): CadDxfPoint | null {
+  if (primitive.kind === "text" || !primitive.text || !primitive.points.length)
+    return null;
+  const xs = primitive.points.map((point) => point.x);
+  const ys = primitive.points.map((point) => point.y);
+  return {
+    x: (Math.min(...xs) + Math.max(...xs)) / 2,
+    y: (Math.min(...ys) + Math.max(...ys)) / 2,
+  };
+}
+function pushPrimitiveLabel(
+  lines: string[],
+  layer: string,
+  primitive: CadDxfPrimitive,
+): boolean {
+  const position = primitiveLabelPoint(primitive);
+  return position
+    ? pushText(
+        lines,
+        layer,
+        position,
+        primitive.text ?? "",
+        PRIMITIVE_LABEL_HEIGHT,
+      )
+    : false;
+}
 
 export function exportCadDxf(
   model: CadDxfExportModel,
@@ -180,15 +207,19 @@ export function exportCadDxf(
 
   for (const primitive of model.primitives ?? []) {
     const layer = safeLayerName(primitive.layer);
+    let wroteGeometry = false;
     if (primitive.kind === "line" && primitive.points.length >= 2) {
       pushLine(lines, layer, primitive.points[0], primitive.points[1]);
       entityCount += 1;
+      wroteGeometry = true;
     } else if (primitive.kind === "polyline" && primitive.points.length >= 2) {
       pushPolyline(lines, layer, primitive.points, false);
       entityCount += 1;
+      wroteGeometry = true;
     } else if (primitive.kind === "rect" && primitive.points.length >= 2) {
       pushPolyline(lines, layer, rectToClosedPoints(primitive.points), true);
       entityCount += 1;
+      wroteGeometry = true;
     } else if (
       primitive.kind === "text" &&
       primitive.points[0] &&
@@ -197,6 +228,8 @@ export function exportCadDxf(
       if (pushText(lines, layer, primitive.points[0], primitive.text))
         entityCount += 1;
     }
+    if (wroteGeometry && pushPrimitiveLabel(lines, layer, primitive))
+      entityCount += 1;
   }
   for (const text of model.texts ?? []) {
     if (

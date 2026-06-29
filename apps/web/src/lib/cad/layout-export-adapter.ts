@@ -1,5 +1,6 @@
 import {
   exportCadDxf,
+  type CadDxfExportLayer,
   type CadDxfExportModel,
   type CadDxfExportOptions,
   type CadDxfExportResult,
@@ -38,6 +39,16 @@ export interface CadLayoutExportInput {
   measurements?: CadExportMeasurement[];
 }
 
+const CAD_DXF_LAYER_COLORS: Record<string, number> = {
+  Layout: 4,
+  Equipment: 5,
+  Flow: 3,
+  Aisles: 2,
+  Measurements: 6,
+  Safety: 1,
+  Text: 7,
+};
+
 function rectPoints(box: CadExportBox) {
   const hw = box.width / 2;
   const hh = box.height / 2;
@@ -49,10 +60,24 @@ function rectPoints(box: CadExportBox) {
     { x: box.x - hw, y: box.y - hh },
   ];
 }
+function collectLayoutLayers(input: CadLayoutExportInput): CadDxfExportLayer[] {
+  const names = new Set<string>();
+  for (const box of input.boxes ?? []) names.add(box.layer ?? "Equipment");
+  for (const connector of input.connectors ?? [])
+    names.add(connector.layer ?? "Flow");
+  for (const label of input.labels ?? []) names.add(label.layer ?? "Text");
+  for (const measurement of input.measurements ?? [])
+    names.add(measurement.layer ?? "Measurements");
+  return [...names].sort((a, b) => a.localeCompare(b)).map((name) => ({
+    name,
+    color: CAD_DXF_LAYER_COLORS[name] ?? 7,
+  }));
+}
 export function cadLayoutToDxfExportModel(
   input: CadLayoutExportInput,
 ): CadDxfExportModel {
   return {
+    layers: collectLayoutLayers(input),
     primitives: [
       ...(input.boxes ?? []).map((box) => ({
         kind: "rect" as const,
