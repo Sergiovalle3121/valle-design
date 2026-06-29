@@ -15,6 +15,7 @@ The command registry lives in `apps/web/src/lib/cad/commands/registry.ts` and is
 | `distribute_selection`   | layout   | Distribute selected objects with equal spacing.                 | `distribuye horizontalmente`                    |
 | `connect_flow`           | flow     | Create sequential flow connectors between stations.             | `conecta flujo de SMT a inspección`             |
 | `arrange_line`           | layout   | Propose a simple sequence-based station arrangement.            | `acomoda la línea de izquierda a derecha`       |
+| `arrange_flow_line`      | flow     | Arrange selected objects by sequence and add flow connectors.   | `acomoda y conecta la linea de flujo`           |
 | `measure_distance`       | analysis | Measure center-to-center distance between two objects.          | `mide distancia entre AOI y empaque`            |
 | `find_collisions`        | analysis | Detect basic bounding-box overlaps.                             | `encuentra colisiones`                          |
 | `fit_to_view`            | viewport | Ask the UI to focus the layout or selection.                    | `enfoca la selección`                           |

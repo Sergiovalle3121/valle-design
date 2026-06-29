@@ -7,6 +7,7 @@ export type CadCommandId =
   | "distribute_selection"
   | "connect_flow"
   | "arrange_line"
+  | "arrange_flow_line"
   | "measure_distance"
   | "find_collisions"
   | "validate_layout"
@@ -106,6 +107,13 @@ export type CadCommandInput =
       id: "arrange_line";
       direction?: "left_to_right" | "top_to_bottom";
       objectIds?: string[];
+    }
+  | {
+      id: "arrange_flow_line";
+      direction?: "left_to_right" | "top_to_bottom";
+      objectIds?: string[];
+      gap?: number;
+      margin?: number;
     }
   | { id: "measure_distance"; targetA?: string; targetB?: string }
   | { id: "find_collisions"; objectIds?: string[] }

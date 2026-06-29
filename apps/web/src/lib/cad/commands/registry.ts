@@ -156,7 +156,7 @@ function distributePreview(
 }
 
 function flowObjects(
-  input: Extract<CadCommandInput, { id: "connect_flow" | "arrange_line" }>,
+  input: { objectIds?: string[] },
   context: Parameters<CadCommandDefinition["preview"]>[1],
 ) {
   const explicit = input.objectIds?.length
@@ -188,6 +188,119 @@ function flowScoreRows(objects: CadBox[]): { label: string; value: string }[] {
     { label: "Cruces", value: String(score.crossingCount) },
     { label: "Backtracking", value: String(score.backtrackingCount) },
   ];
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function flowScore(objects: CadBox[]) {
+  return scoreFlowLayout(
+    objects.map((object) => ({
+      id: object.id,
+      label: object.label,
+      x: object.x + object.w / 2,
+      y: object.y + object.h / 2,
+    })),
+  );
+}
+
+function arrangeFlowLinePreview(
+  input: Extract<CadCommandInput, { id: "arrange_flow_line" }>,
+  context: Parameters<CadCommandDefinition["preview"]>[1],
+): CadCommandPreview {
+  const objects = flowObjects(input, context);
+  const issues =
+    objects.length >= 2
+      ? []
+      : [
+          error(
+            "selection_too_small",
+            "Selecciona al menos 2 objetos para crear una linea de flujo.",
+          ),
+        ];
+  if (objects.length < 2)
+    return {
+      summary: "Acomodar linea de flujo",
+      affectedObjectIds: objects.map((object) => object.id),
+      operations: [],
+      issues,
+    };
+
+  const direction = input.direction ?? "left_to_right";
+  const gap = Math.max(0, input.gap ?? 500);
+  const margin = Math.max(0, input.margin ?? 500);
+  const hasFootprint = context.footprintW > 0 && context.footprintH > 0;
+  const cursor = { x: margin, y: margin };
+  const moveOps: CadOperation[] = [];
+  let clipped = false;
+
+  for (const object of objects) {
+    const after = { ...object };
+    if (direction === "top_to_bottom") {
+      after.x = hasFootprint
+        ? clamp(margin, 0, Math.max(0, context.footprintW - object.w))
+        : margin;
+      after.y = hasFootprint
+        ? clamp(cursor.y, 0, Math.max(0, context.footprintH - object.h))
+        : cursor.y;
+      clipped ||= hasFootprint && after.y !== cursor.y;
+      cursor.y += object.h + gap;
+    } else {
+      after.x = hasFootprint
+        ? clamp(cursor.x, 0, Math.max(0, context.footprintW - object.w))
+        : cursor.x;
+      after.y = hasFootprint
+        ? clamp(margin, 0, Math.max(0, context.footprintH - object.h))
+        : margin;
+      clipped ||= hasFootprint && after.x !== cursor.x;
+      cursor.x += object.w + gap;
+    }
+    moveOps.push({ type: "move", objectId: object.id, before: object, after });
+  }
+
+  if (clipped)
+    issues.push(
+      warning(
+        "flow_line_clipped",
+        "La linea no cabe completa en el footprint; algunas posiciones fueron limitadas.",
+        objects.map((object) => object.id),
+      ),
+    );
+
+  const arranged = moveOps
+    .map((op) => (op.type === "move" ? op.after : null))
+    .filter((box): box is CadBox => !!box);
+  const before = flowScore(objects);
+  const after = flowScore(arranged);
+  const connectOps: CadOperation[] = objects.slice(0, -1).map((object, idx) => ({
+    type: "connect",
+    from: object.id,
+    to: objects[idx + 1].id,
+    kind: "flow",
+  }));
+  const report: CadOperation = {
+    type: "report",
+    title: "Linea de flujo",
+    rows: [
+      { label: "Objetos", value: String(objects.length) },
+      {
+        label: "Direccion",
+        value: direction === "top_to_bottom" ? "Vertical" : "Horizontal",
+      },
+      { label: "Separacion", value: `${Math.round(gap)} mm` },
+      { label: "Score antes", value: `${before.score}/100` },
+      { label: "Score despues", value: `${after.score}/100` },
+      { label: "Distancia despues", value: `${Math.round(after.totalDistance)} mm` },
+    ],
+  };
+
+  return {
+    summary: `Acomodar y conectar ${objects.length} objetos como linea de flujo.`,
+    affectedObjectIds: objects.map((object) => object.id),
+    operations: [...moveOps, ...connectOps, report],
+    issues,
+  };
 }
 
 export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
@@ -408,6 +521,50 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
       const p = CAD_COMMAND_REGISTRY.find(
         (d) => d.id === "arrange_line",
       )!.preview(i, c);
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
+    id: "arrange_flow_line",
+    label: "Acomodar linea de flujo",
+    category: "flow",
+    description:
+      "Acomoda objetos por secuencia y crea conectores de flujo en una sola vista previa.",
+    inputSchema: {
+      direction: {
+        type: "enum",
+        enum: ["left_to_right", "top_to_bottom"],
+        description: "Direccion del acomodo.",
+      },
+      objectIds: { type: "string[]", description: "Objetos a acomodar." },
+      gap: {
+        type: "number",
+        description: "Separacion entre objetos en mm.",
+      },
+      margin: {
+        type: "number",
+        description: "Margen inicial desde el footprint en mm.",
+      },
+    },
+    examples: [
+      "acomoda y conecta la linea de flujo",
+      "crea una linea de flujo horizontal",
+    ],
+    validate: (i, c) =>
+      arrangeFlowLinePreview(
+        i as Extract<CadCommandInput, { id: "arrange_flow_line" }>,
+        c,
+      ).issues.filter((issue) => issue.level === "error"),
+    preview: (i, c) =>
+      arrangeFlowLinePreview(
+        i as Extract<CadCommandInput, { id: "arrange_flow_line" }>,
+        c,
+      ),
+    execute: (i, c) => {
+      const p = arrangeFlowLinePreview(
+        i as Extract<CadCommandInput, { id: "arrange_flow_line" }>,
+        c,
+      );
       return result(p, ok(p.issues), p.summary);
     },
   },

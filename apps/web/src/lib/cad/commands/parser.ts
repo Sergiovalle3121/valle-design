@@ -88,6 +88,27 @@ export function parseCadCommand(text: string): CadParseResult {
         axis: /vertical/.test(q) ? "vertical" : "horizontal",
       },
     };
+  if (
+    /(acomoda|ordena|reacomoda).*(conecta|flujo|secuencia)|linea de flujo|flow line|flujo conectado/.test(
+      q,
+    )
+  ) {
+    const match = q.match(numberWithUnit);
+    const value = match?.[1] ? Number(match[1].replace(",", ".")) : undefined;
+    const gap =
+      value == null ? undefined : match?.[2] === "m" ? value * 1000 : value;
+    return {
+      ok: true,
+      confidence: 0.82,
+      input: {
+        id: "arrange_flow_line",
+        direction: /vertical|arriba|abajo/.test(q)
+          ? "top_to_bottom"
+          : "left_to_right",
+        gap,
+      },
+    };
+  }
   if (/conecta|flujo|secuencia/.test(q))
     return { ok: true, confidence: 0.74, input: { id: "connect_flow" } };
   if (/acomoda|ordena|reacomoda|layout/.test(q))

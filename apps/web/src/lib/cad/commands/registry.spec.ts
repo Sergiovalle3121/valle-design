@@ -60,8 +60,8 @@ assert.equal(
 );
 assert.equal(
   CAD_COMMAND_REGISTRY.length,
-  9,
-  "initial registry exposes 9 commands",
+  10,
+  "registry exposes 10 commands",
 );
 
 const parsed = parseCadCommand("haz un pasillo de 1.2m entre SMT e inspección");
@@ -105,6 +105,38 @@ assert.equal(
   arrangePreview.operations.some((op) => op.type === "report"),
   true,
   "arrange line includes post-flow score report",
+);
+
+const flowLinePreview = previewCadCommand(
+  {
+    id: "arrange_flow_line",
+    direction: "left_to_right",
+    objectIds: ["smt", "aoi", "pack"],
+    gap: 250,
+  },
+  ctx,
+);
+assert.equal(
+  flowLinePreview.operations.filter((op) => op.type === "move").length,
+  3,
+  "flow line moves every object",
+);
+assert.equal(
+  flowLinePreview.operations.filter((op) => op.type === "connect").length,
+  2,
+  "flow line creates connectors between sequence steps",
+);
+assert.equal(
+  flowLinePreview.operations.some(
+    (op) => op.type === "report" && op.title === "Linea de flujo",
+  ),
+  true,
+  "flow line includes score report",
+);
+assert.equal(
+  parseCadCommand("acomoda y conecta la linea de flujo").input?.id,
+  "arrange_flow_line",
+  "parser recognizes arrange and connect flow line intent",
 );
 
 const collisionPreview = previewCadCommand(
