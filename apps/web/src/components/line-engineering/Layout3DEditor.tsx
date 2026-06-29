@@ -56,9 +56,10 @@ import { exportCadLayoutDxf } from '@/lib/cad/layout-export-adapter';
 import { evaluateCadDxfExportReadiness, type CadDxfExportLayerSummary, type CadDxfExportReadinessEntity, type CadDxfExportReadinessIssue } from '@/lib/cad/dxf-export-readiness';
 import { importDxfPrimitives, summarizeDxfImportWarnings, type CadDxfImportResult, type CadDxfImportWarning, type CadDxfPoint, type CadDxfPrimitive } from '@/lib/cad/dxf-import';
 import { CAD_SYMBOL_LIBRARY, getCadSymbol, type CadSymbolCategory } from '@/lib/cad/symbols';
-import { detectCadCollisions, type CadCollisionHit } from '@/lib/cad/collisions';
+import { CAD_LAYOUT_TEMPLATES, instantiateCadLayoutTemplate, type CadLayoutTemplateId } from '@/lib/cad/templates';
+import { detectCadCollisions, type CadClearanceIssue, type CadCollisionHit } from '@/lib/cad/collisions';
 import { buildFlowSegments, scoreFlowLayout, type CadFlowNode, type CadFlowScore, type CadFlowSegment } from '@/lib/cad/flow-optimization';
-import { evaluateSafetyZones, type CadSafetyIssue, type CadSafetyZone } from '@/lib/cad/safety-zones';
+import type { CadSafetyIssue, CadSafetyZone } from '@/lib/cad/safety-zones';
 import { createCadSnapshot, diffCadSnapshots, pushCadSnapshot, restoreCadSnapshot, type CadSnapshotDiff, type CadSnapshotHistory } from '@/lib/cad/snapshots';
 import {
   describeCadObjectProperties,
@@ -67,6 +68,7 @@ import {
   type CadPropertyObject,
   type CadSelectionProperties,
 } from '@/lib/cad/object-properties';
+import { buildCadValidationReport, type CadValidationReport } from '@/lib/cad/validation-report';
 import dynamic from 'next/dynamic';
 
 // Analysis panels — the same modal components the 2D host shipped, lazy-loaded so
@@ -598,6 +600,13 @@ const fmtLen = (v: number, unit: string) => {
   const m = unit === 'mm' ? v / 1000 : unit === 'cm' ? v / 100 : v; // → m
   return `${m.toLocaleString('es-MX', { maximumFractionDigits: 2 })} m`;
 };
+const defaultCadClearance = (unit: string) => {
+  if (unit === 'm') return 0.8;
+  if (unit === 'cm') return 80;
+  if (unit === 'in') return 32;
+  if (unit === 'ft') return 2.6;
+  return 800;
+};
 
 /** Floor-plane line + end ticks + distance label for a dimension annotation. */
 function buildDim(a: Ann, s: number, W: number, H: number, unit: string): THREE.Object3D[] {
@@ -704,7 +713,9 @@ export default function Layout3DEditor({
   const [takeoff, setTakeoff] = useState<LocalTakeoff | null>(null); // quantities panel (null = closed)
   const [report, setReport] = useState<DesignReport | null>(null); // design-check report (null = closed) (Fase 63)
   const [collisionHits, setCollisionHits] = useState<CadCollisionHit[]>([]);
+  const [clearanceIssues, setClearanceIssues] = useState<CadClearanceIssue[]>([]);
   const [safetyIssues, setSafetyIssues] = useState<CadSafetyIssue[]>([]);
+  const [cadValidationReport, setCadValidationReport] = useState<CadValidationReport | null>(null);
   const [validationHighlightIds, setValidationHighlightIds] = useState<Set<string>>(new Set());
   const [flowHealth, setFlowHealth] = useState<CadFlowScore | null>(null);
   const [flowSequence, setFlowSequence] = useState<CadFlowNode[]>([]);
@@ -972,7 +983,7 @@ export default function Layout3DEditor({
     queueMicrotask(() => {
       if (!alive) return;
       setData(null); setError(null); setSelList([]); setSelSnap(null); setDirty(false); setTab('stations');
-      setOverlay(null); setTool('select'); setMeasureLive(null); setWalk(false); setHist({ undo: 0, redo: 0 }); setCellsView([]); setValidationHighlightIds(new Set()); setFlowSequence([]); setFlowSegments([]); setSnapshotDiff(null);
+      setOverlay(null); setTool('select'); setMeasureLive(null); setWalk(false); setHist({ undo: 0, redo: 0 }); setCellsView([]); setValidationHighlightIds(new Set()); setCollisionHits([]); setClearanceIssues([]); setSafetyIssues([]); setCadValidationReport(null); setFlowHealth(null); setFlowSequence([]); setFlowSegments([]); setSnapshotDiff(null); setReport(null);
     });
     selRef.current = []; overlayColorRef.current = new Map(); validationHighlightRef.current = new Set(); toolRef.current = 'select'; measureARef.current = null; wallChainRef.current = null;
     walkRef.current = false; savedCamRef.current = null; undoStackRef.current = []; redoStackRef.current = [];
@@ -1977,22 +1988,8 @@ export default function Layout3DEditor({
     });
     return zones;
   }, [objectTags]);
-  const selectCollisionPair = (hit: CadCollisionHit) => {
-    const pair: SelItem[] = [hit.aId, hit.bId].map((id) => placementsRef.current.has(id) ? { type: 'station' as const, id } : assetsRef.current.has(id) ? { type: 'asset' as const, id } : null).filter((item): item is SelItem => !!item);
-    if (!pair.length) return;
-    select(pair);
-    rebuildAll();
-    toast.success(`${hit.aLabel} ↔ ${hit.bLabel} seleccionado.`, 'Colisiones');
-  };
-  const selectSafetyIssue = (issue: CadSafetyIssue) => {
-    const items: SelItem[] = [issue.objectId, issue.zoneId].map((id) => placementsRef.current.has(id) ? { type: 'station' as const, id } : assetsRef.current.has(id) ? { type: 'asset' as const, id } : null).filter((item): item is SelItem => !!item);
-    if (!items.length) return;
-    select(items);
-    rebuildAll();
-    toast.success('Issue de seguridad seleccionado.', 'Safety');
-  };
-  const analyzeFlowHealth = () => {
-    const nodes = [...placementsRef.current.entries()]
+  const currentFlowNodes = useCallback((): CadFlowNode[] => {
+    return [...placementsRef.current.entries()]
       .map(([id, p]) => ({
         id,
         label: stationsByIdRef.current.get(id)?.station ?? id,
@@ -2002,6 +1999,30 @@ export default function Layout3DEditor({
       }))
       .sort((a, b) => a.sequence - b.sequence)
       .map((node) => ({ id: node.id, label: node.label, x: node.x, y: node.y }));
+  }, [data]);
+  const selectCollisionPair = (hit: CadCollisionHit) => {
+    const pair: SelItem[] = [hit.aId, hit.bId].map((id) => placementsRef.current.has(id) ? { type: 'station' as const, id } : assetsRef.current.has(id) ? { type: 'asset' as const, id } : null).filter((item): item is SelItem => !!item);
+    if (!pair.length) return;
+    select(pair);
+    rebuildAll();
+    toast.success(`${hit.aLabel} ↔ ${hit.bLabel} seleccionado.`, 'Colisiones');
+  };
+  const selectClearanceIssue = (issue: CadClearanceIssue) => {
+    const pair: SelItem[] = [issue.aId, issue.bId].map((id) => placementsRef.current.has(id) ? { type: 'station' as const, id } : assetsRef.current.has(id) ? { type: 'asset' as const, id } : null).filter((item): item is SelItem => !!item);
+    if (!pair.length) return;
+    select(pair);
+    rebuildAll();
+    toast.success('Par de holgura seleccionado.', 'Clearance');
+  };
+  const selectSafetyIssue = (issue: CadSafetyIssue) => {
+    const items: SelItem[] = [issue.objectId, issue.zoneId].map((id) => placementsRef.current.has(id) ? { type: 'station' as const, id } : assetsRef.current.has(id) ? { type: 'asset' as const, id } : null).filter((item): item is SelItem => !!item);
+    if (!items.length) return;
+    select(items);
+    rebuildAll();
+    toast.success('Issue de seguridad seleccionado.', 'Safety');
+  };
+  const analyzeFlowHealth = () => {
+    const nodes = currentFlowNodes();
     if (nodes.length < 2) { toast.error('Coloca al menos 2 estaciones para analizar flujo.', 'Flow Health'); return; }
     setFlowSequence(nodes);
     setFlowSegments(buildFlowSegments(nodes));
@@ -2023,18 +2044,26 @@ export default function Layout3DEditor({
     });
     const unplaced = Math.max(0, (data?.stations.length ?? 0) - placementsRef.current.size);
     const collisionBoxes = currentCollisionBoxes();
-    const safety = evaluateSafetyZones(collisionBoxes, currentSafetyZones());
-    const collisions = detectCadCollisions(collisionBoxes);
+    const flowNodes = currentFlowNodes();
+    const cadReport = buildCadValidationReport({
+      boxes: collisionBoxes,
+      zones: currentSafetyZones(),
+      flowNodes: flowNodes.length >= 2 ? flowNodes : undefined,
+      requiredClearance: defaultCadClearance(fp.unit || 'mm'),
+    });
     const highlightIds = new Set<string>();
-    collisions.forEach((hit) => { highlightIds.add(hit.aId); highlightIds.add(hit.bId); });
-    safety.forEach((issue) => { highlightIds.add(issue.objectId); highlightIds.add(issue.zoneId); });
+    cadReport.collisions.forEach((hit) => { highlightIds.add(hit.aId); highlightIds.add(hit.bId); });
+    cadReport.clearances.forEach((issue) => { highlightIds.add(issue.aId); highlightIds.add(issue.bId); });
+    cadReport.safety.forEach((issue) => { highlightIds.add(issue.objectId); highlightIds.add(issue.zoneId); });
     validationHighlightRef.current = highlightIds;
     setValidationHighlightIds(highlightIds);
-    setCollisionHits(collisions);
-    setSafetyIssues(safety);
+    setCadValidationReport(cadReport);
+    setCollisionHits(cadReport.collisions);
+    setClearanceIssues(cadReport.clearances);
+    setSafetyIssues(cadReport.safety);
     rebuildAll();
     setReport(designChecks({ stations, assets, unplacedStations: unplaced, footprintW: fp.footprintW, footprintH: fp.footprintH, connectors: connectorsRef.current }));
-  }, [data, currentCollisionBoxes, currentSafetyZones, rebuildAll]);
+  }, [data, currentCollisionBoxes, currentFlowNodes, currentSafetyZones, rebuildAll]);
   const clearValidationHighlights = () => {
     validationHighlightRef.current = new Set();
     setValidationHighlightIds(new Set());
@@ -2141,6 +2170,77 @@ export default function Layout3DEditor({
       if (DEFAULT_CAD_LAYERS.some((item) => item.id === layer)) setLayerAssignments((cur) => assignObjectsToLayer(cur, [id], layer));
       toast.success(`${symbol.label} agregado al layout.`, 'Símbolos CAD');
     }
+  };
+  const applyCadTemplate = (templateId: CadLayoutTemplateId) => {
+    const ctx = ctxRef.current; const fp = data?.footprint;
+    if (!ctx || !fp) { toast.error('No hay footprint listo para aplicar la plantilla.', 'Plantillas CAD'); return; }
+    const generated = instantiateCadLayoutTemplate(templateId, { width: fp.footprintW || ctx.W, height: fp.footprintH || ctx.H, gridSize: fp.gridSize || 100 });
+    recordLocalSnapshot(`Auto · antes de plantilla ${generated.template.label}`, 'command');
+    pushHistory();
+    const created: SelItem[] = [];
+    const idByRef = new Map<string, string>();
+    const layerUpdates: Record<string, CadLayerId> = {};
+    const tagUpdates: Record<string, string> = {};
+    for (const item of generated.assets) {
+      const id = newId('as');
+      assetsRef.current.set(id, {
+        id,
+        kind: item.kind,
+        label: item.label,
+        x: item.x,
+        y: item.y,
+        w: item.w,
+        h: item.h,
+        rotation: item.rotation ?? 0,
+      });
+      idByRef.set(item.ref, id);
+      created.push({ type: 'asset', id });
+      layerUpdates[id] = item.layer;
+      tagUpdates[id] = [generated.template.id, ...item.tags].join(', ');
+    }
+    let noteCount = 0;
+    for (const item of generated.annotations) {
+      const id = newId('nt');
+      annotationsRef.current.set(id, {
+        id,
+        type: 'text',
+        text: item.text,
+        x: item.x,
+        y: item.y,
+        color: cadLayersRef.current.find((layer) => layer.id === item.layer)?.color,
+      });
+      noteCount++;
+    }
+    let connectorCount = 0;
+    for (const connector of generated.connectors) {
+      const from = idByRef.get(connector.fromRef);
+      const to = idByRef.get(connector.toRef);
+      if (!from || !to) continue;
+      connectorsRef.current = [...connectorsRef.current, { from, to, kind: connector.kind }];
+      connectorCount++;
+    }
+    const flowRefs = generated.connectors.flatMap((connector, idx) => idx === 0 ? [connector.fromRef, connector.toRef] : [connector.toRef]);
+    const flowNodes = [...new Set(flowRefs)]
+      .map((ref): CadFlowNode | null => {
+        const id = idByRef.get(ref);
+        if (!id) return null;
+        const item = assetsRef.current.get(id);
+        return item ? { id, label: item.label ?? item.id, x: item.x + item.w / 2, y: item.y + item.h / 2 } : null;
+      })
+      .filter((node): node is CadFlowNode => !!node);
+    if (flowNodes.length >= 2) {
+      setFlowSequence(flowNodes);
+      setFlowSegments(buildFlowSegments(flowNodes));
+      setFlowHealth(scoreFlowLayout(flowNodes));
+    }
+    setAssetIds(new Set(assetsRef.current.keys()));
+    setLayerAssignments((cur) => ({ ...cur, ...layerUpdates }));
+    setObjectTags((cur) => ({ ...cur, ...tagUpdates }));
+    if (created.length) select(created.slice(0, 80));
+    setDirty(true); rebuildAll(); refreshSnap();
+    const scaled = generated.scale < 1 ? ` · escala ${Math.round(generated.scale * 100)}%` : '';
+    toast.success(`${generated.template.label}: ${created.length} objetos, ${connectorCount} flujos, ${noteCount} notas${scaled}.`, 'Plantillas CAD');
+    if (generated.warnings[0]) toast.error(generated.warnings[0], 'Plantillas CAD');
   };
   const fallbackLayerForItem = (item: SelItem): CadLayerId => item.type === 'station' ? 'layout' : 'equipment';
   const isItemLayerLocked = (item: SelItem) => isObjectLayerLocked(cadLayersRef.current, layerAssignmentsRef.current, item.id, fallbackLayerForItem(item));
@@ -3314,15 +3414,21 @@ export default function Layout3DEditor({
       notes: objectNotes[selSnap.id],
     });
   })() : null;
-  const releaseBlockers = (report?.errors ?? 0) + collisionHits.length + safetyIssues.length;
-  const releaseWarnings = (report?.warnings ?? 0) + dxfWarnings.length + (flowHealth && flowHealth.score < 80 ? 1 : 0);
+  const validationFlow = cadValidationReport?.flow ?? flowHealth;
+  const safetyBlockers = safetyIssues.filter((issue) => issue.code === 'zone_invasion').length;
+  const safetyWarnings = safetyIssues.length - safetyBlockers;
+  const releaseBlockers = (report?.errors ?? 0) + collisionHits.length + safetyBlockers;
+  const releaseWarnings = (report?.warnings ?? 0) + clearanceIssues.length + safetyWarnings + dxfWarnings.length + (validationFlow && validationFlow.score < 80 ? 1 : 0);
+
   const releaseState = !report ? 'Sin validar' : releaseBlockers > 0 ? 'Bloqueado' : releaseWarnings > 0 ? 'Con avisos' : 'Listo';
   const releaseTone = releaseState === 'Listo' ? 'text-emerald-300' : releaseState === 'Bloqueado' ? 'text-rose-300' : releaseState === 'Con avisos' ? 'text-amber-300' : 'text-gray-400';
   const releaseChecks = [
     { label: 'Diseño base', value: report ? `${report.errors} errores · ${report.warnings} avisos` : 'Pendiente', tone: report?.score === 'error' ? 'text-rose-300' : report?.score === 'warn' ? 'text-amber-300' : report ? 'text-emerald-300' : 'text-gray-400' },
+    { label: 'CAD validation', value: cadValidationReport ? cadValidationReport.severity === 'critical' ? 'Critico' : cadValidationReport.severity === 'warning' ? 'Con avisos' : 'OK' : 'Pendiente', tone: cadValidationReport?.severity === 'critical' ? 'text-rose-300' : cadValidationReport?.severity === 'warning' ? 'text-amber-300' : cadValidationReport ? 'text-emerald-300' : 'text-gray-400' },
     { label: 'Colisiones', value: collisionHits.length ? `${collisionHits.length} choque(s)` : 'Sin choques activos', tone: collisionHits.length ? 'text-rose-300' : 'text-emerald-300' },
-    { label: 'Safety zones', value: safetyIssues.length ? `${safetyIssues.length} invasión(es)` : 'Sin invasiones activas', tone: safetyIssues.length ? 'text-amber-300' : 'text-emerald-300' },
-    { label: 'Flow Health', value: flowHealth ? `${flowHealth.score}/100` : 'No analizado', tone: !flowHealth ? 'text-gray-400' : flowHealth.score >= 80 ? 'text-emerald-300' : flowHealth.score >= 55 ? 'text-amber-300' : 'text-rose-300' },
+    { label: 'Holguras', value: clearanceIssues.length ? `${clearanceIssues.length} bajo minimo` : 'Dentro de minimo', tone: clearanceIssues.length ? 'text-amber-300' : 'text-emerald-300' },
+    { label: 'Safety zones', value: safetyIssues.length ? `${safetyIssues.length} issue(s)` : 'Sin invasiones activas', tone: safetyBlockers ? 'text-rose-300' : safetyIssues.length ? 'text-amber-300' : 'text-emerald-300' },
+    { label: 'Flow Health', value: validationFlow ? `${validationFlow.score}/100` : 'No analizado', tone: !validationFlow ? 'text-gray-400' : validationFlow.score >= 80 ? 'text-emerald-300' : validationFlow.score >= 55 ? 'text-amber-300' : 'text-rose-300' },
     { label: 'DXF import', value: dxfWarnings.length ? `${dxfWarnings.length} warning(s)` : 'Sin warnings activos', tone: dxfWarnings.length ? 'text-amber-300' : 'text-emerald-300' },
   ];
   const flowSegmentRows = [...flowSegments].sort((a, b) => b.distance - a.distance).slice(0, 5);
@@ -3604,6 +3710,20 @@ export default function Layout3DEditor({
                 </>
               ) : (
                 <>
+                  <div className="mb-3 rounded-xl border border-cyan-400/15 bg-cyan-400/[0.05] p-2.5">
+                    <div className="mb-1.5 flex items-center justify-between gap-2">
+                      <div className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-cyan-200"><Stamp className="h-3.5 w-3.5" /> Plantillas CAD</div>
+                      <span className="text-[10px] text-cyan-100/60">{CAD_LAYOUT_TEMPLATES.length}</span>
+                    </div>
+                    <div className="grid grid-cols-1 gap-1.5">
+                      {CAD_LAYOUT_TEMPLATES.map((template) => (
+                        <button key={template.id} onClick={() => applyCadTemplate(template.id)} title={template.description} className="rounded-lg bg-cyan-400/[0.08] px-2 py-1.5 text-left text-[11px] text-cyan-100 hover:bg-cyan-400/[0.14]">
+                          <span className="flex items-center justify-between gap-2"><span className="truncate font-semibold">{template.label}</span><span className="shrink-0 text-[10px] text-cyan-200/70">{template.assets.length} obj</span></span>
+                          <span className="mt-0.5 block truncate text-[10px] text-cyan-200/70">{template.category} · {template.description}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <div className="mb-3 rounded-xl border border-rose-400/15 bg-rose-400/[0.05] p-2.5">
                     <div className="text-[10px] uppercase tracking-wide text-rose-200 mb-1.5">Safety zones</div>
                     <p className="mb-2 text-[10.5px] leading-snug text-rose-100/70">Crea zonas editables en la capa Safety para validar invasiones y clearances.</p>
@@ -3706,7 +3826,9 @@ export default function Layout3DEditor({
               <span>Grilla {layers.grid ? 'on' : 'off'} / Snap {snap ? 'grid' : 'free'} / {osnap ? 'obj' : 'obj off'}</span>
               <button onClick={openChecks} className={`${releaseTone} hover:text-white`}>Release {releaseState}</button>
               {report && <span className={report.score === 'error' ? 'text-rose-300' : report.score === 'warn' ? 'text-amber-300' : 'text-emerald-300'}>Validación {report.score}</span>}
+              {cadValidationReport && <span className={cadValidationReport.severity === 'critical' ? 'text-rose-300' : cadValidationReport.severity === 'warning' ? 'text-amber-300' : 'text-emerald-300'}>CAD {cadValidationReport.severity}</span>}
               {flowHealth && <span className={flowHealth.score >= 80 ? 'text-emerald-300' : flowHealth.score >= 55 ? 'text-amber-300' : 'text-rose-300'}>Flow {flowHealth.score}</span>}
+              {clearanceIssues.length > 0 && <span className="text-amber-300">Clearance {clearanceIssues.length}</span>}
               {safetyIssues.length > 0 && <span className="text-amber-300">Safety {safetyIssues.length}</span>}
               {validationHighlightIds.size > 0 && <button onClick={clearValidationHighlights} className="text-rose-300 hover:text-white">Highlights {validationHighlightIds.size}</button>}
               {dxfWarnings.length > 0 && <span className="text-amber-300">DXF {dxfWarnings.length}</span>}
@@ -4260,6 +4382,20 @@ export default function Layout3DEditor({
                   ))}
                 </div>
               </div>
+              {cadValidationReport && (
+                <div className="mb-3 rounded-xl border border-cyan-400/20 bg-cyan-400/10 p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2 text-[12px] font-semibold text-cyan-100">
+                    <span>CAD validation center</span>
+                    <span className={cadValidationReport.severity === 'critical' ? 'text-rose-300' : cadValidationReport.severity === 'warning' ? 'text-amber-300' : 'text-emerald-300'}>{cadValidationReport.severity}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5 text-[11.5px]">
+                    <div className="rounded-lg bg-gray-950/50 px-2 py-1.5"><span className="text-gray-500">Collisions</span><b className="ml-2 tabular-nums text-white">{cadValidationReport.collisions.length}</b></div>
+                    <div className="rounded-lg bg-gray-950/50 px-2 py-1.5"><span className="text-gray-500">Clearance</span><b className="ml-2 tabular-nums text-white">{cadValidationReport.clearances.length}</b></div>
+                    <div className="rounded-lg bg-gray-950/50 px-2 py-1.5"><span className="text-gray-500">Safety</span><b className="ml-2 tabular-nums text-white">{cadValidationReport.safety.length}</b></div>
+                    <div className="rounded-lg bg-gray-950/50 px-2 py-1.5"><span className="text-gray-500">Flow</span><b className="ml-2 tabular-nums text-white">{cadValidationReport.flow ? `${cadValidationReport.flow.score}/100` : 'n/a'}</b></div>
+                  </div>
+                </div>
+              )}
               {collisionHits.length > 0 && (
                 <div className="mb-3 rounded-xl border border-rose-400/20 bg-rose-400/10 p-3">
                   <div className="mb-2 flex items-center justify-between gap-2 text-[12px] font-semibold text-rose-100">
@@ -4271,6 +4407,22 @@ export default function Layout3DEditor({
                       <button key={`${hit.aId}-${hit.bId}`} onClick={() => selectCollisionPair(hit)} className="w-full rounded-lg bg-white/[0.05] px-2 py-1.5 text-left text-[11.5px] hover:bg-white/[0.1]">
                         <span className="block text-rose-100">{hit.aLabel} ↔ {hit.bLabel}</span>
                         <span className="text-gray-400">Área aprox. {Math.round(hit.area).toLocaleString('es-MX')}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {clearanceIssues.length > 0 && (
+                <div className="mb-3 rounded-xl border border-amber-400/20 bg-amber-400/10 p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2 text-[12px] font-semibold text-amber-100">
+                    <span>Clearance warnings - {clearanceIssues.length}</span>
+                    <button onClick={() => setClearanceIssues([])} className="text-[11px] text-amber-200/70 hover:text-white">Ocultar</button>
+                  </div>
+                  <div className="max-h-36 space-y-1 overflow-y-auto">
+                    {clearanceIssues.slice(0, 8).map((issue) => (
+                      <button key={`${issue.aId}-${issue.bId}`} onClick={() => selectClearanceIssue(issue)} className="w-full rounded-lg bg-white/[0.05] px-2 py-1.5 text-left text-[11.5px] hover:bg-white/[0.1]">
+                        <span className="block text-amber-100">{issue.message}</span>
+                        <span className="text-gray-400">Actual {fmtLen(issue.distance, data?.footprint.unit || 'mm')} - minimo {fmtLen(issue.required, data?.footprint.unit || 'mm')}</span>
                       </button>
                     ))}
                   </div>

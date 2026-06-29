@@ -1,5 +1,13 @@
-import { strict as assert } from "node:assert";
 import { buildCadValidationReport } from "./validation-report";
+
+function assertEqual<T>(actual: T, expected: T, message: string) {
+  if (actual !== expected)
+    throw new Error(`${message}: expected ${String(expected)}, got ${String(actual)}`);
+}
+
+function assertOk(value: unknown, message: string) {
+  if (!value) throw new Error(message);
+}
 
 const report = buildCadValidationReport({
   boxes: [
@@ -11,7 +19,25 @@ const report = buildCadValidationReport({
     { id: "b", x: 5, y: 0 },
   ],
 });
-assert.equal(report.collisions.length, 1, "includes collision findings");
-assert.equal(report.severity, "critical", "collisions mark report critical");
-assert.ok(report.flow, "includes flow score when flow nodes are provided");
+assertEqual(report.collisions.length, 1, "includes collision findings");
+assertEqual(report.severity, "critical", "collisions mark report critical");
+assertOk(report.flow, "includes flow score when flow nodes are provided");
+
+const clearanceReport = buildCadValidationReport({
+  boxes: [
+    { id: "a", label: "Printer", x: 0, y: 0, width: 10, height: 10 },
+    { id: "b", label: "AOI", x: 18, y: 0, width: 10, height: 10 },
+  ],
+  requiredClearance: 12,
+});
+assertEqual(
+  clearanceReport.clearances.length,
+  1,
+  "includes clearance findings when objects are too close",
+);
+assertEqual(
+  clearanceReport.severity,
+  "warning",
+  "clearance findings mark report warning",
+);
 console.log("cad validation report specs passed");
