@@ -3819,7 +3819,7 @@ export default function Layout3DEditor({
             </select>
           </div>
         )}
-        <button onClick={save} disabled={saving || !dirty} className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-sm font-medium text-white disabled:opacity-50" style={{ background: '#f43f5e' }}>
+        <button onClick={save} disabled={saving || !dirty} className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-sm font-medium text-white disabled:opacity-50" style={{ background: '#e11d48' }}>
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Guardar
         </button>
         <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 ml-1" title="Cerrar (Esc)"><X className="w-5 h-5" /></button>
@@ -3868,7 +3868,7 @@ export default function Layout3DEditor({
                       <div key={`${issue.code}-${issue.message}`} className={`mt-1 text-[10.5px] ${issue.level === 'error' ? 'text-rose-300' : issue.level === 'warning' ? 'text-amber-300' : 'text-cyan-200'}`}>{issue.message}</div>
                     ))}
                     <div className="mt-2 flex gap-1.5">
-                      <button onClick={applyCommand} className="rounded-lg bg-emerald-500 px-2 py-1 text-[11px] font-semibold text-white hover:bg-emerald-400">Aplicar</button>
+                      <button onClick={applyCommand} className="rounded-lg bg-emerald-700 px-2 py-1 text-[11px] font-semibold text-white hover:bg-emerald-600">Aplicar</button>
                       <button onClick={() => setCommandPreview(null)} className="rounded-lg border border-white/10 px-2 py-1 text-[11px] text-gray-300 hover:bg-white/10">Cancelar</button>
                       <button onClick={() => setCommandPreview(null)} className="rounded-lg border border-white/10 px-2 py-1 text-[11px] text-gray-300 hover:bg-white/10">Editar</button>
                     </div>
@@ -4079,7 +4079,7 @@ export default function Layout3DEditor({
               {localSnapshots.snapshots.length > 0 && <span>Snapshots {localSnapshots.snapshots.length}</span>}
             </div>
             {walk && (
-              <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-emerald-500/95 text-white text-[12px] font-semibold inline-flex items-center gap-1.5 pointer-events-none">
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-emerald-700/95 text-white text-[12px] font-semibold inline-flex items-center gap-1.5 pointer-events-none">
                 <PersonStanding className="w-3.5 h-3.5" /> Recorrido · arrastra para mirar · WASD para caminar · Esc para salir
               </div>
             )}
