@@ -15,6 +15,17 @@ export interface CadLayer {
 }
 
 export type CadLayerAssignments = Record<string, CadLayerId>;
+export type CadLayerCounts = Partial<Record<CadLayerId, number>>;
+
+export interface CadLayerStateSummary {
+  total: number;
+  visible: number;
+  hidden: number;
+  locked: number;
+  objectCount: number;
+  hiddenObjectCount: number;
+  lockedObjectCount: number;
+}
 
 export const DEFAULT_CAD_LAYERS: CadLayer[] = [
   {
@@ -70,6 +81,48 @@ export function toggleCadLayerLocked(
 ): CadLayer[] {
   return layers.map((layer) =>
     layer.id === id ? { ...layer, locked: !layer.locked } : layer,
+  );
+}
+
+export function isolateCadLayerVisibility(
+  layers: CadLayer[],
+  id: CadLayerId,
+): CadLayer[] {
+  return layers.map((layer) => ({ ...layer, visible: layer.id === id }));
+}
+
+export function showAllCadLayers(layers: CadLayer[]): CadLayer[] {
+  return layers.map((layer) => ({ ...layer, visible: true }));
+}
+
+export function summarizeCadLayers(
+  layers: CadLayer[],
+  counts: CadLayerCounts = {},
+): CadLayerStateSummary {
+  return layers.reduce<CadLayerStateSummary>(
+    (summary, layer) => {
+      const count = counts[layer.id] ?? 0;
+      summary.objectCount += count;
+      if (layer.visible) summary.visible += 1;
+      else {
+        summary.hidden += 1;
+        summary.hiddenObjectCount += count;
+      }
+      if (layer.locked) {
+        summary.locked += 1;
+        summary.lockedObjectCount += count;
+      }
+      return summary;
+    },
+    {
+      total: layers.length,
+      visible: 0,
+      hidden: 0,
+      locked: 0,
+      objectCount: 0,
+      hiddenObjectCount: 0,
+      lockedObjectCount: 0,
+    },
   );
 }
 

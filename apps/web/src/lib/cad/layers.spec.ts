@@ -4,10 +4,13 @@ import {
   assignObjectsToLayer,
   DEFAULT_CAD_LAYERS,
   editableObjectIds,
+  isolateCadLayerVisibility,
   isLayerLocked,
   isObjectLayerLocked,
   isLayerVisible,
   layerForObject,
+  showAllCadLayers,
+  summarizeCadLayers,
   toggleCadLayerLocked,
   toggleCadLayerVisible,
 } from "./layers";
@@ -52,5 +55,26 @@ assert.deepEqual(
   ]),
   ["x"],
   "editableObjectIds filters locked objects",
+);
+
+layers = isolateCadLayerVisibility(layers, "safety");
+assert.deepEqual(
+  layers.filter((layer) => layer.visible).map((layer) => layer.id),
+  ["safety"],
+  "isolateCadLayerVisibility leaves only requested layer visible",
+);
+const hiddenSummary = summarizeCadLayers(layers, {
+  layout: 2,
+  equipment: 3,
+  safety: 1,
+});
+assert.equal(hiddenSummary.visible, 1, "summary counts visible layers");
+assert.equal(hiddenSummary.hiddenObjectCount, 5, "summary counts hidden objects");
+assert.equal(hiddenSummary.lockedObjectCount, 4, "summary counts locked objects");
+layers = showAllCadLayers(layers);
+assert.equal(
+  summarizeCadLayers(layers).hidden,
+  0,
+  "showAllCadLayers restores layer visibility",
 );
 console.log("cad layer specs passed");

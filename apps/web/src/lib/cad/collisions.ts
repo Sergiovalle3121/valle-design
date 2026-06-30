@@ -7,6 +7,7 @@ export interface CadCollisionBox {
   height: number;
   layer?: string;
   locked?: boolean;
+  tags?: string[];
 }
 export interface CadCollisionHit {
   aId: string;

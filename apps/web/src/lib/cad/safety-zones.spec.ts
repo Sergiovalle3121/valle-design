@@ -25,4 +25,43 @@ assert.equal(
   1,
   "reports no-go invasion",
 );
+
+const forkliftPath = {
+  id: "fp",
+  kind: "forklift_path" as const,
+  label: "Forklift main aisle",
+  x: 0,
+  y: 0,
+  width: 20,
+  height: 6,
+};
+const forkliftIssues = evaluateSafetyZones([a], [forkliftPath]);
+assert.equal(forkliftIssues.length, 1, "reports blocked forklift paths");
+assert.equal(
+  forkliftIssues[0].code,
+  "zone_invasion",
+  "forklift path obstruction is a blocker",
+);
+
+const esdZone = {
+  id: "esd",
+  kind: "esd_zone" as const,
+  label: "ESD controlled area",
+  x: 0,
+  y: 0,
+  width: 30,
+  height: 30,
+};
+assert.equal(
+  evaluateSafetyZones([{ ...a, tags: ["esd"] }], [esdZone]).length,
+  0,
+  "accepts ESD-tagged objects inside ESD zones",
+);
+const esdIssues = evaluateSafetyZones([a], [esdZone]);
+assert.equal(esdIssues.length, 1, "warns on unclassified objects in ESD zones");
+assert.equal(
+  esdIssues[0].code,
+  "esd_control_warning",
+  "ESD classification issue is a warning code",
+);
 console.log("cad safety zones specs passed");

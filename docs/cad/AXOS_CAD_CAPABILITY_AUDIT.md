@@ -2,6 +2,26 @@
 
 Last updated: 2026-06-29
 
+## 2026-06-29 - Safety path zone update
+
+Open CAD PRs inspected before this run included #869 (symbols), #864 (DXF preflight), #861 (validation quick fixes), #858 (dimensions), #853 (templates), #850 (flow), #847 (plot metadata), #844 (warehouse generator), and #838 (line-balance command). This run avoided those primary ownership areas and extended the existing Safety zone path instead of creating another validation center, symbol system, or editor.
+
+| Capability | Exists? | Files | Maturity | Gap | Next non-redundant PR | Owner files | Collision risk with open PRs |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Safety zones / aisle validation | Yes | `apps/web/src/lib/cad/safety-zones.ts`, `apps/web/src/lib/cad/collisions.ts`, `apps/web/src/lib/cad/object-properties.ts`, `apps/web/src/components/line-engineering/Layout3DEditor.tsx` | usable | No-go/restricted zones existed, but ESD zones and safety paths were not first-class validation inputs. | Add editable clearance-rule controls per safety zone after active validation/editor PRs settle. | `safety-zones.ts`, `Layout3DEditor.tsx` Safety rail | Medium: `Layout3DEditor.tsx` is active in other CAD PRs, so this run kept edits Safety-panel scoped. |
+
+Existing capability found: the CAD workbench already had a Safety rail, zone assets, object tags, layer assignments, validation highlights, `evaluateSafetyZones`, and the shared `buildCadValidationReport` modal.
+
+What this run reused: editable `zone` and `agvpath` assets, Safety/Aisles layers, object tags, validation highlights, the existing design-check modal, and the object properties safety classification helper.
+
+What this run extended: `CadSafetyZoneKind` now covers ESD zones, forklift paths, and emergency exits. Aisles and paths now report blocker-style obstructions through the existing safety issue list, while ESD zones warn when overlapping objects lack ESD classification.
+
+What this run wired into `Layout3DEditor`: the existing Safety rail now creates ESD zones, forklift safety paths, and emergency exit paths. Current assets tagged as aisles, no-go, restricted, ESD, forklift, or emergency paths are converted into safety zones for the shared validation report.
+
+What this run intentionally did not duplicate: no new editor, no new validation modal, no new path renderer, no new symbol library, no new layer model, and no new persistence path.
+
+Why this is non-redundant: it turns the existing Safety layer from generic no-go rectangles into a more industrial validation workflow for plant layouts, using the workbench objects users can already edit and export.
+
 This audit tracks the non-redundancy check for the CAD tree sprint. It is scoped to the current mainline CAD implementation and open PR risk observed during this run.
 
 | Capability | Exists? | Files | Maturity | Gap | Next non-redundant PR | Owner files | Collision risk with open PRs |
@@ -12,6 +32,7 @@ This audit tracks the non-redundancy check for the CAD tree sprint. It is scoped
 | Flow health | Yes | `apps/web/src/lib/cad/flow-optimization.ts`, `Layout3DEditor.tsx` | usable | Flow suggestions are not yet one-click compound workflows. | Preview-first flow-line command and later richer flow panel actions. | `flow-optimization.ts`, `commands/registry.ts` | Low unless touching viewport UI. |
 | Line balance / capacity | Partial | `apps/web/src/lib/cad/line-balance.ts`, `apps/web/src/lib/cad/commands/*`, `Layout3DEditor.tsx` command dock | partial | Report-only command exists; visual Yamazumi/load overlay still needs editor UI after active editor PRs settle. | Wire balance loads into the analysis panel overlay once `Layout3DEditor.tsx` churn is lower. | `line-balance.ts`, `commands/registry.ts`, future analysis panel UI | Low this run: no open command PR; high if editing editor overlay. |
 | Layers and locks | Yes | `apps/web/src/lib/cad/layers.ts`, `Layout3DEditor.tsx` | usable | Local only until backend persistence contract is wired. | Persist layer assignments after contract review. | `layers.ts`, layout API types | Medium: avoid if another layer PR opens. |
+| Layers and locks | Yes | `apps/web/src/lib/cad/layers.ts`, `Layout3DEditor.tsx` | strong | Viewport visibility now respects CAD layer assignments; local only until backend persistence contract is wired. | Persist layer assignments after contract review and add layer search/filter. | `layers.ts`, layout API types | Medium: open CAD PRs touch `Layout3DEditor.tsx`; helper ownership is low-risk. |
 | Object properties inspector | Yes | `apps/web/src/components/line-engineering/Layout3DEditor.tsx`, `apps/web/src/lib/cad/object-properties.ts` | usable | Rich metadata is local-only until object metadata persistence is approved. | Persist notes/tags/source metadata through the layout API contract. | `object-properties.ts`, editor properties panel | Medium: open CAD PRs also touch `Layout3DEditor.tsx`; keep changes panel-scoped. |
 | Industrial symbols | Yes | `apps/web/src/lib/cad/symbols.ts`, `Layout3DEditor.tsx` | strong | Manufacturing blocks cover SMT, inspection, test, post-SMT, quality gates, and calibration; native block instances still await the persistence decision. | Add native block-instance model after symbol persistence decision. | `symbols.ts`, future block helpers | Low this run: open editor PRs touch `Layout3DEditor.tsx`, so this PR edits symbol data/specs only. |
 | Industrial symbols | Yes | `apps/web/src/lib/cad/symbols.ts`, `Layout3DEditor.tsx` | usable | Inserted symbols are mapped to current asset archetypes, not native block instances. | Add native block-instance model after symbol persistence decision. | `symbols.ts`, future block helpers | Medium if touching symbol palette UI. |
@@ -61,6 +82,7 @@ Open CAD PRs #839, #838, and #746 touch the rack generator, command registry, an
 Open CAD PRs #847, #844, #839, and #838 touch `Layout3DEditor.tsx`, warehouse generator files, plot package files, and command registry files. This run avoided those primary areas and extended the existing template system in `apps/web/src/lib/cad/templates.ts`, which `Layout3DEditor.tsx` already renders through `CAD_LAYOUT_TEMPLATES`. The selected improvement adds a visible supermarket/kitting template without creating a second generator, command path, editor, layer model, flow model, or DXF export path.
 
 Open CAD PRs #850, #847, #844, #839, and #838 touch flow health, plot metadata, warehouse/rack generators, command registry, docs, and small slices of `Layout3DEditor.tsx`. This run avoided those lib ownership areas and selected the existing measurement workflow: `measurements.ts` already powered center-to-center permanent dimensions, annotations, the right inspector list, undo history, and DXF export. The PR extends the same helper/UI path with edge-horizontal and edge-vertical clearance dimensions instead of adding a second dimension system.
+Open CAD PRs #864, #861, #858, #853, #850, #847, #844, and #838 touch DXF preflight, validation quick fixes, dimensions, templates, flow, plot metadata, warehouse generators, and command registry. This run avoided those helpers and reused the existing CAD layer model. The selected improvement makes current CAD layer visibility object-level in the viewport, adds tested isolate/show-all/summary helpers, and wires the existing layer panel/status bar so users can recover from isolated layers and see hidden/locked object counts.
 
 ## Validation center update
 

@@ -24,6 +24,11 @@ assert.equal(
   "no-go",
   "safety classification normalizes underscores",
 );
+assert.equal(
+  cadSafetyClassificationFromTags(["emergency", "exit", "keep-clear"]),
+  "aisle",
+  "emergency keep-clear routes surface as aisle safety classification",
+);
 
 const object = describeCadObjectProperties({
   id: "as-1",

@@ -119,7 +119,11 @@ export function cadSafetyClassificationFromTags(
         tag === "aisle" ||
         tag === "clearance" ||
         tag === "material-flow" ||
-        tag.includes("forklift"),
+        tag.includes("forklift") ||
+        tag === "emergency" ||
+        tag === "exit" ||
+        tag === "egress" ||
+        tag === "keep-clear",
     )
   ) {
     return "aisle";
