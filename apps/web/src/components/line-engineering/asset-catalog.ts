@@ -21,6 +21,7 @@ export type AssetArchetype =
   | 'arm' // robot: base + articulated segments
   | 'machine' // generic process machine: body + top + panel
   | 'wall' // tall thin partition
+  | 'door' // architectural door / opening marker
   | 'zone' // flat floor tint (keep-out / area)
   | 'column' // structural cylinder pillar
   | 'pallet' // low slatted platform
@@ -86,6 +87,7 @@ export const ASSET_CATALOG: AssetDef[] = [
   // ── Estructura ─────────────────────────────────────────────────────────────
   { kind: 'wall', label: 'Muro', color: '#94a3b8', fill: 'rgba(148,163,184,0.20)', w: 3000, h: 150, height: 3000, archetype: 'wall', category: 'estructura' },
   { kind: 'column', label: 'Columna', color: '#6b7280', fill: 'rgba(107,114,128,0.18)', w: 400, h: 400, height: 3200, archetype: 'column', category: 'estructura' },
+  { kind: 'door', label: 'Puerta', color: '#38bdf8', fill: 'rgba(56,189,248,0.14)', w: 1000, h: 140, height: 2200, archetype: 'door', category: 'estructura' },
   { kind: 'fence', label: 'Barrera', color: '#eab308', fill: 'rgba(234,179,8,0.16)', w: 2000, h: 120, height: 1100, archetype: 'fence', category: 'estructura' },
   // ── Logística ──────────────────────────────────────────────────────────────
   { kind: 'agv', label: 'AGV', color: '#06b6d4', fill: 'rgba(6,182,212,0.12)', w: 1200, h: 800, height: 350, archetype: 'cart', category: 'logística' },
@@ -105,6 +107,7 @@ export const ASSET_CATALOG: AssetDef[] = [
   { kind: 'tool_crib', label: 'Tool crib', color: '#92400e', fill: 'rgba(146,64,14,0.12)', w: 1800, h: 900, height: 2000, archetype: 'shelf', category: 'utilidades' },
   { kind: 'calibration_station', label: 'Calibracion', color: '#0891b2', fill: 'rgba(8,145,178,0.12)', w: 1400, h: 800, height: 1150, archetype: 'desk', category: 'utilidades' },
   // ── Zona / Persona ─────────────────────────────────────────────────────────
+  { kind: 'room', label: 'Cuarto / area', color: '#14b8a6', fill: 'rgba(20,184,166,0.08)', w: 5000, h: 4000, height: 1, archetype: 'zone', category: 'zona' },
   { kind: 'zone', label: 'Zona', color: '#0ea5e9', fill: 'rgba(14,165,233,0.06)', w: 3000, h: 2000, height: 1, archetype: 'zone', category: 'zona' },
   { kind: 'operator', label: 'Operador', color: '#22c55e', fill: 'rgba(34,197,94,0.12)', w: 600, h: 600, height: 1750, archetype: 'person', category: 'persona' },
 ];

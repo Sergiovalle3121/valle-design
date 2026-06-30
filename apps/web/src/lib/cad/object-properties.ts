@@ -1,3 +1,8 @@
+import {
+  describeCadArchitectureObject,
+  type CadArchitectureObjectSummary,
+} from "./architecture";
+
 export type CadPropertyObjectType = "station" | "asset";
 
 export interface CadPropertyObject {
@@ -32,6 +37,7 @@ export interface CadObjectProperties {
   tagList: string[];
   source: CadObjectSourceMetadata;
   safetyClassification: "none" | "aisle" | "no-go" | "restricted" | "esd";
+  architecture: CadArchitectureObjectSummary | null;
   warnings: string[];
 }
 
@@ -137,6 +143,18 @@ export function describeCadObjectProperties(
   const tagList = parseCadObjectTags(object.tags);
   const source = cadObjectSourceFromTags(tagList);
   const safetyClassification = cadSafetyClassificationFromTags(tagList);
+  const architecture = describeCadArchitectureObject({
+    id: object.id,
+    kind: object.kind ?? object.type,
+    label: object.label,
+    x: object.x,
+    y: object.y,
+    width: object.width,
+    height: object.height,
+    rotation: object.rotation,
+    layerId: object.layerId,
+    tags: tagList,
+  });
   const warnings: string[] = [];
 
   if (object.layerLocked) {
@@ -151,6 +169,7 @@ export function describeCadObjectProperties(
   if (object.width <= 0 || object.height <= 0) {
     warnings.push("Object has a non-positive footprint.");
   }
+  warnings.push(...(architecture?.warnings ?? []));
 
   return {
     object,
@@ -168,6 +187,7 @@ export function describeCadObjectProperties(
     tagList,
     source,
     safetyClassification,
+    architecture,
     warnings,
   };
 }

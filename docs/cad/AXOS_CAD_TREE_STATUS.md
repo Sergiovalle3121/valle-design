@@ -2,6 +2,29 @@
 
 Last updated: 2026-06-30
 
+## 2026-06-30 - Architecture primitives and area takeoff
+
+This run starts the dedicated architecture/engineering CAD layer without adding a parallel editor:
+
+- `layers.ts` now includes Architecture, Structure, and Utilities layers.
+- `asset-catalog.ts` now exposes editable `door` and `room` assets; doors use a native door/opening archetype and rooms reuse the editable zone path.
+- Existing wall drawing and DXF wall conversion now assign Architecture layer metadata.
+- `architecture.ts` computes plant, occupied, open-floor, room, aisle, safety/no-go, utility, wall, door, and column takeoff metrics.
+- The existing takeoff modal now shows room/use/department breakdowns and copies those rows to CSV.
+- The existing object inspector now shows Engineering CAD fields for walls, doors, columns, rooms, and utilities.
+
+The implementation reuses the current asset model, layer state, inspector, takeoff modal, DXF export adapter, wall tool, and local tags/notes. It does not create another CAD editor, canvas, layer manager, DXF exporter, or command engine.
+
+## 2026-06-30 - Architecture validation readiness
+
+This run extends the existing shared CAD validation report for the architecture layer:
+
+- `validation-report.ts` now emits architecture issue rows for unlabeled rooms, missing room use, undersized rooms, blocked doors, walls crossing equipment, equipment outside rooms, tagged utility requirements without a matching utility point, and missing critical saved dimensions.
+- `Layout3DEditor.tsx` passes current stations, assets, CAD layers, tags, labels, and dimension count into the same `buildCadValidationReport` path used by the design-check modal.
+- Architecture findings are visible in the existing CAD validation center and feed the release readiness blocker/warning counts.
+- The plot/export package validation issue count now uses the unified normalized issue list instead of only collision/clearance/safety totals.
+
+The implementation reuses the current validation center, selection/highlight action path, object tags, CAD layers, and architecture metadata. It does not create another validator, release panel, editor, command engine, or persistence schema.
 ## 2026-06-30 - Material route command
 
 This run advances the existing CAD command/flow surface without adding another

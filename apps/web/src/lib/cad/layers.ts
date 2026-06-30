@@ -1,6 +1,9 @@
 export type CadLayerId =
   | "layout"
+  | "architecture"
+  | "structure"
   | "equipment"
+  | "utilities"
   | "flow"
   | "aisles"
   | "measurements"
@@ -36,9 +39,30 @@ export const DEFAULT_CAD_LAYERS: CadLayer[] = [
     locked: false,
   },
   {
+    id: "architecture",
+    label: "Architecture",
+    color: "#64748b",
+    visible: true,
+    locked: false,
+  },
+  {
+    id: "structure",
+    label: "Structure",
+    color: "#475569",
+    visible: true,
+    locked: false,
+  },
+  {
     id: "equipment",
     label: "Equipment",
     color: "#a78bfa",
+    visible: true,
+    locked: false,
+  },
+  {
+    id: "utilities",
+    label: "Utilities",
+    color: "#0ea5e9",
     visible: true,
     locked: false,
   },

@@ -2,6 +2,42 @@
 
 Last updated: 2026-06-30
 
+## 2026-06-30 - Architecture layer update
+
+Open CAD PRs inspected before this run included #900 (factory-scale workspace), #903 (viewport saved views), #904 (canvas focus), #905 (dock staging generator), #906 (supermarket kitting generator), and #907 (material route command). This run avoided those ownership areas and focused on architecture/drafting primitives and area takeoff.
+
+| Capability | Exists? | Files | Maturity | Gap | Next non-redundant PR | Owner files | Collision risk with open PRs |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Architecture primitives | Partial | `Layout3DEditor.tsx`, `asset-catalog.ts`, `architecture.ts`, `layers.ts` | usable | Walls, doors, columns, rooms are editable and visible, but room geometry is rectangular and door-wall association is not enforced. | Add architecture validation for blocked doors, walls crossing equipment, unlabeled rooms, and missing room use. | `validation-report.ts`, scoped inspector/takeoff UI | Medium: `Layout3DEditor.tsx` is large, but this run touched architecture rail/takeoff/inspector only. |
+| Area takeoff | Extended | `architecture.ts`, `Layout3DEditor.tsx` takeoff modal | usable | Takeoff separates open floor, rooms, aisles, safety/no-go, utilities, walls, columns, and doors; export package attachment remains pending. | Add release package takeoff export and title-block summaries. | `architecture.ts`, plot/export helpers | Low unless touching active plot PRs. |
+
+Existing capability found: the editor already had asset insertion, wall drawing, layer assignment, object inspector, takeoff modal, and DXF export. Utility asset blocks also existed in the shared catalog.
+
+What this run reused: editable assets, local tags/notes, CAD layers, layer visibility/lock state, the existing wall tool, DXF wall conversion, the object inspector, takeoff modal, and DXF export adapter.
+
+What this run extended: Architecture/Structure/Utilities layers, door and room catalog primitives, default layer classification, architecture technical metadata, engineering area takeoff, room use/department summaries, and DXF layer colors for the new layers.
+
+What this run intentionally did not duplicate: no new editor, canvas, command registry, DXF exporter, layer manager, validation engine, factory-scale workspace, viewport saved views, dock generator, supermarket generator, or material route command.
+
+Why this is non-redundant: it makes the existing AXOS CAD workbench capable of plant-shell drafting and engineering area measurement rather than only equipment placement.
+
+## 2026-06-30 - Architecture validation update
+
+Open CAD PRs inspected before this run still included #900 and #903-#907, plus the existing active PR #916. This run stayed on `codex/cad-architecture-active` and extended the validation path already introduced by the architecture layer.
+
+| Capability | Exists? | Files | Maturity | Gap | Next non-redundant PR | Owner files | Collision risk with open PRs |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Architecture validation | Extended | `validation-report.ts`, `Layout3DEditor.tsx`, `validation-report.spec.ts` | usable | Bounding-box rules now catch blocked doors, walls crossing equipment, unlabeled/unclassified rooms, undersized rooms, equipment outside rooms, tagged missing utilities, and missing saved dimensions. Rotation-aware walls, door-wall hosting, and typed utility metadata remain future work. | Add drawing sheet/title-block readiness and release package checklist. | `validation-report.ts`, sheet/title-block helpers | Medium: `Layout3DEditor.tsx` is large, but edits are limited to the existing validation modal/call path. |
+
+Existing capability found: `buildCadValidationReport` already normalized collision, clearance, safety, and flow issue rows and `Layout3DEditor.tsx` already displayed those rows in the design-check modal.
+
+What this run reused: shared validation report, current selection/highlight flow, object tags, architecture metadata, layer assignments, dimension annotations, release readiness counts, and plot package issue metadata.
+
+What this run extended: architecture-specific validation issue rows, architecture counts in the validation center, release blocker/warning totals, validation highlight ids for architecture issues, and plot package issue counts.
+
+What this run intentionally did not duplicate: no new validation center, no second release-readiness panel, no new object model, no command registry changes, no DXF/export duplication, and no backend persistence change.
+
+Why this is non-redundant: it turns the new architecture primitives from drawable objects into checkable engineering drawing content, while keeping the single CAD validation surface.
 ## 2026-06-30 - Material route command update
 
 Open CAD PRs inspected before this run included #900 (factory scale), #903

@@ -21,5 +21,6 @@ export * from "./object-properties";
 export * from "./templates";
 export * from "./line-balance";
 export * from "./warehouse-generators";
+export * from "./architecture";
 export * from "./viewport-bookmarks";
 export * from "./material-flow-route";

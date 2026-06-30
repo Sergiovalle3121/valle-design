@@ -78,5 +78,8 @@ assert.equal(
   "zone",
   "maintenance area inserts as an editable floor zone",
 );
+assert.equal(assetMeta("door").archetype, "door", "door has a native opening archetype");
+assert.equal(assetMeta("room").archetype, "zone", "room inserts as an editable area zone");
+assert.equal(assetMeta("room").category, "zona", "room appears in the zones group");
 
 console.log("asset catalog specs passed");
