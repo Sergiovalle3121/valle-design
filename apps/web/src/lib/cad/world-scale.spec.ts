@@ -36,7 +36,7 @@ assert.equal(clampGridMeters(9999), 50, 'huge grid clamps to maximum');
 
 // --- footprint clamping in the editor unit (mm) ---
 assert.equal(clampFootprintUnit(200000, 'mm'), 200000, '200 m footprint allowed in mm');
-assert.equal(clampFootprintUnit(2_000_000, 'mm'), MAX_WORLD_M * 1000, '2 km clamps to 500 m');
+assert.equal(clampFootprintUnit(2_000_000, 'mm'), MAX_WORLD_M * 1000, '2 km clamps to the plant max');
 assert.equal(clampFootprintUnit(10, 'mm'), MIN_WORLD_M * 1000, '10 mm clamps up to the floor');
 assert.equal(clampGridUnit(0, 'mm'), 100, '0 grid clamps to 100 mm');
 
@@ -53,10 +53,19 @@ for (const p of FACTORY_PRESETS) {
 const plant = FACTORY_PRESETS.find((p) => p.id === 'plant');
 assert.ok(plant && plant.widthM === 300 && plant.heightM === 200, 'plant preset is 300×200 m');
 
+// the work area opens up well beyond a single nave — the biggest preset spans a campus
+assert.ok(MAX_WORLD_M >= 1000, 'plant max opened up to at least 1 km per side');
+const biggest = FACTORY_PRESETS.reduce((a, b) => (b.widthM > a.widthM ? b : a));
+assert.ok(biggest.widthM > 500, 'largest preset is bigger than the old 500 m cap');
+assert.ok(
+  biggest.widthM <= MAX_WORLD_M && biggest.heightM <= MAX_WORLD_M,
+  'largest preset stays within the plant bounds',
+);
+
 // --- adaptive grid step keeps the line count sane and rises with the world ---
 assert.ok(adaptiveGridStepM(10) <= adaptiveGridStepM(300), 'bigger plant → coarser grid');
 assert.ok(adaptiveGridStepM(300) >= 5, '300 m plant uses a coarse step');
-for (const span of [10, 40, 80, 150, 300, 500]) {
+for (const span of [10, 40, 80, 150, 300, 500, 800, 1200, 1500]) {
   const step = adaptiveGridStepM(span);
   const lines = span / step;
   assert.ok(lines <= 40 && lines >= 2, `~${Math.round(lines)} lines for ${span} m is readable`);
