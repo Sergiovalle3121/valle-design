@@ -2,6 +2,16 @@
 
 Last updated: 2026-06-29
 
+## 2026-06-30 - Viewport saved views and zoom-to-issue
+
+This run advances large-plant viewport work without duplicating the editor or validation center:
+
+- `viewport-bookmarks.ts` provides tested local saved-view helpers for camera snapshots, bookmark cleanup, capped recency, and focus bounds.
+- The existing `Layout3DEditor` View popover now lets users save the current 2D/3D camera, restore saved views, delete saved views, and fit the current selection.
+- Saved views are local to the browser and keyed by model/revision; no backend contract or migration was added.
+- Existing collision, clearance, safety, and validation quick-fix selection now also moves the camera to the affected objects, so large factory issues are easier to find.
+- The implementation reuses current selection refs, editable station/equipment geometry, OrbitControls, validation rows, and the existing View popover. It does not create a second viewport system, minimap, validation modal, or CAD editor.
+
 ## 2026-06-29 - Safety paths and ESD zones
 
 This run advances Phase 15 (Safety / Aisles / Clearance Engine UI) without adding a parallel engine:

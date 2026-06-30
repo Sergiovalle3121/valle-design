@@ -91,6 +91,15 @@ import {
 } from '@/lib/cad/world-scale';
 import PlantMinimap from './PlantMinimap';
 import ScaleBar from './ScaleBar';
+import {
+  cadViewportFocusBounds,
+  createCadViewportBookmark,
+  describeCadViewportFocus,
+  removeCadViewportBookmark,
+  sanitizeCadViewportBookmarks,
+  upsertCadViewportBookmark,
+  type CadViewportBookmark,
+} from '@/lib/cad/viewport-bookmarks';
 import dynamic from 'next/dynamic';
 
 // Analysis panels — the same modal components the 2D host shipped, lazy-loaded so
@@ -772,6 +781,7 @@ export default function Layout3DEditor({
   const [sun, setSun] = useState({ az: 35, el: 55 }); // sun azimuth/elevation (deg)
   const [showView, setShowView] = useState(false);
   const [fpDraft, setFpDraft] = useState<{ w: number; h: number; g: number }>({ w: 0, h: 0, g: 0 });
+  const [viewportBookmarks, setViewportBookmarks] = useState<CadViewportBookmark[]>([]);
   const [layers, setLayers] = useState({ stations: true, equipment: true, connectors: true, dims: true, notes: true, labels: true, grid: true, dxf: true });
   const [cadLayers, setCadLayers] = useState<CadLayer[]>(DEFAULT_CAD_LAYERS);
   const [layerAssignments, setLayerAssignments] = useState<CadLayerAssignments>({});
@@ -805,7 +815,23 @@ export default function Layout3DEditor({
   const [showHeat, setShowHeat] = useState(false); // occupancy heat-map overlay on the floor (Fase 51)
   const [arr, setArr] = useState({ cols: 3, rows: 1, gap: 500, dx: 1000, dy: 0 }); // array/offset params (Fase 55)
   const [showGaps, setShowGaps] = useState(false); // clearance/safety gap markers overlay (Fase 52)
+  const viewportBookmarkStorageKey = `axos:cad:viewport-bookmarks:${model}:${revision}`;
   useEffect(() => { paletteOpenRef.current = showPalette; }, [showPalette]);
+  const readViewportBookmarks = () => {
+    try {
+      const raw = window.localStorage.getItem(viewportBookmarkStorageKey);
+      return sanitizeCadViewportBookmarks(raw ? JSON.parse(raw) : []);
+    } catch {
+      return [];
+    }
+  };
+  const persistViewportBookmarks = (bookmarks: CadViewportBookmark[]) => {
+    try {
+      window.localStorage.setItem(viewportBookmarkStorageKey, JSON.stringify(bookmarks));
+    } catch {
+      // Browser storage can be disabled; saved views stay usable for this session.
+    }
+  };
 
   // three.js refs
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -2099,11 +2125,68 @@ export default function Layout3DEditor({
       .sort((a, b) => a.sequence - b.sequence)
       .map((node) => ({ id: node.id, label: node.label, x: node.x, y: node.y }));
   }, [data]);
+  const configureOrbitControlsForMode = (mode: '3d' | '2d') => {
+    const ctrl = controlsRef.current;
+    if (!ctrl) return;
+    if (mode === '2d') {
+      ctrl.minPolarAngle = 0; ctrl.maxPolarAngle = 0.05;
+      ctrl.enableRotate = false;
+      ctrl.mouseButtons.LEFT = THREE.MOUSE.PAN;
+      ctrl.touches.ONE = THREE.TOUCH.PAN;
+    } else {
+      ctrl.minPolarAngle = 0; ctrl.maxPolarAngle = Math.PI / 2.05;
+      ctrl.enableRotate = true;
+      ctrl.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+      ctrl.touches.ONE = THREE.TOUCH.ROTATE;
+    }
+  };
+  const focusViewportItems = (items: SelItem[]) => {
+    const ctx = ctxRef.current; const cam = cameraRef.current; const ctrl = controlsRef.current; const fp = data?.footprint;
+    if (!ctx || !cam || !ctrl || !fp) return false;
+    const objects = items.map((item) => {
+      const place = getPlaceRef(item);
+      return place ? { id: item.id, x: place.x, y: place.y, w: place.w, h: place.h } : null;
+    }).filter((item): item is { id: string; x: number; y: number; w: number; h: number } => !!item);
+    const bounds = cadViewportFocusBounds(objects, {
+      padding: Math.max(fp.gridSize || 0, Math.max(fp.footprintW, fp.footprintH) * 0.015),
+      footprintW: fp.footprintW,
+      footprintH: fp.footprintH,
+    });
+    if (!bounds) return false;
+    if (walkRef.current) { setWalk(false); walkRef.current = false; }
+    configureOrbitControlsForMode(viewMode);
+    const targetX = (bounds.centerX - ctx.W / 2) * ctx.s;
+    const targetZ = (bounds.centerY - ctx.H / 2) * ctx.s;
+    const span = Math.max(bounds.width, bounds.height) * ctx.s;
+    const distance = Math.max(6, span * 1.9);
+    if (viewMode === '2d') cam.position.set(targetX, distance, targetZ + 0.01);
+    else cam.position.set(targetX + distance * 0.42, Math.max(5, distance * 0.58), targetZ + distance * 0.72);
+    ctrl.target.set(targetX, 0, targetZ);
+    ctrl.update();
+    return true;
+  };
+  const focusCurrentSelection = () => {
+    if (!selRef.current.length) { toast.error('Selecciona objetos para enfocar la vista.', 'Vistas CAD'); return; }
+    const focused = focusViewportItems(selRef.current);
+    if (!focused) { toast.error('No pude enfocar la seleccion actual.', 'Vistas CAD'); return; }
+    const fp = data?.footprint;
+    const objects = selRef.current.map((item) => {
+      const place = getPlaceRef(item);
+      return place ? { id: item.id, x: place.x, y: place.y, w: place.w, h: place.h } : null;
+    }).filter((item): item is { id: string; x: number; y: number; w: number; h: number } => !!item);
+    const bounds = cadViewportFocusBounds(objects, {
+      padding: fp?.gridSize ?? 0,
+      footprintW: fp?.footprintW,
+      footprintH: fp?.footprintH,
+    });
+    toast.success(bounds ? describeCadViewportFocus(bounds, fp?.unit || 'mm') : 'Seleccion enfocada.', 'Vistas CAD');
+  };
   const selectCollisionPair = (hit: CadCollisionHit) => {
     const pair: SelItem[] = [hit.aId, hit.bId].map((id) => placementsRef.current.has(id) ? { type: 'station' as const, id } : assetsRef.current.has(id) ? { type: 'asset' as const, id } : null).filter((item): item is SelItem => !!item);
     if (!pair.length) return;
     select(pair);
     rebuildAll();
+    focusViewportItems(pair);
     toast.success(`${hit.aLabel} ↔ ${hit.bLabel} seleccionado.`, 'Colisiones');
   };
   const selectClearanceIssue = (issue: CadClearanceIssue) => {
@@ -2111,6 +2194,7 @@ export default function Layout3DEditor({
     if (!pair.length) return;
     select(pair);
     rebuildAll();
+    focusViewportItems(pair);
     toast.success('Par de holgura seleccionado.', 'Clearance');
   };
   const selectSafetyIssue = (issue: CadSafetyIssue) => {
@@ -2118,6 +2202,7 @@ export default function Layout3DEditor({
     if (!items.length) return;
     select(items);
     rebuildAll();
+    focusViewportItems(items);
     toast.success('Issue de seguridad seleccionado.', 'Safety');
   };
   const selectValidationIssue = (issue: CadValidationIssueRow) => {
@@ -2141,6 +2226,7 @@ export default function Layout3DEditor({
     if (!items.length) return;
     select(items);
     rebuildAll();
+    focusViewportItems(items);
     toast.success(issue.actionLabel, 'CAD validation');
   };
   const analyzeFlowHealth = () => {
@@ -3360,6 +3446,49 @@ export default function Layout3DEditor({
   }, [worldBounds, fitToBounds]);
   // ---- 2D⇄3D view toggle: the CAD unifica plano (2D) y modelo (3D) (unify) ----
   // 2D = vista superior bloqueada (solo pan+zoom), como un plano CAD; 3D = órbita libre.
+  const saveCurrentViewportBookmark = () => {
+    const cam = cameraRef.current; const ctrl = controlsRef.current;
+    if (!cam || !ctrl) return;
+    const base = selRef.current.length ? `${selRef.current.length} selected` : viewMode === '2d' ? '2D plan' : '3D view';
+    const bookmark = createCadViewportBookmark({
+      id: newId('view'),
+      label: `${base} ${viewportBookmarks.length + 1}`,
+      camera: {
+        mode: viewMode,
+        position: { x: cam.position.x, y: cam.position.y, z: cam.position.z },
+        target: { x: ctrl.target.x, y: ctrl.target.y, z: ctrl.target.z },
+      },
+    });
+    const next = upsertCadViewportBookmark(viewportBookmarks, bookmark);
+    setViewportBookmarks(next);
+    persistViewportBookmarks(next);
+    toast.success(`${bookmark.label} guardada.`, 'Vistas CAD');
+  };
+  const restoreViewportBookmark = (bookmark: CadViewportBookmark) => {
+    const cam = cameraRef.current; const ctrl = controlsRef.current;
+    if (!cam || !ctrl) return;
+    if (walkRef.current) { setWalk(false); walkRef.current = false; }
+    setViewMode(bookmark.camera.mode);
+    configureOrbitControlsForMode(bookmark.camera.mode);
+    cam.position.set(bookmark.camera.position.x, bookmark.camera.position.y, bookmark.camera.position.z);
+    ctrl.target.set(bookmark.camera.target.x, bookmark.camera.target.y, bookmark.camera.target.z);
+    ctrl.update();
+    toast.success(`Vista restaurada: ${bookmark.label}.`, 'Vistas CAD');
+  };
+  const deleteViewportBookmark = (bookmark: CadViewportBookmark) => {
+    const next = removeCadViewportBookmark(viewportBookmarks, bookmark.id);
+    setViewportBookmarks(next);
+    persistViewportBookmarks(next);
+    toast.success(`Vista eliminada: ${bookmark.label}.`, 'Vistas CAD');
+  };
+  const toggleViewMenu = () => {
+    const next = !showView;
+    if (next) {
+      setViewportBookmarks(readViewportBookmarks());
+      if (data) setFpDraft({ w: data.footprint.footprintW, h: data.footprint.footprintH, g: data.footprint.gridSize });
+    }
+    setShowView(next);
+  };
   const applyViewMode = useCallback((mode: '3d' | '2d') => {
     const cam = cameraRef.current; const ctrl = controlsRef.current; const ctx = ctxRef.current;
     if (!cam || !ctrl || !ctx) return;
@@ -3866,9 +3995,9 @@ export default function Layout3DEditor({
           )}
         </div>
         <div className="relative" ref={viewMenuRef}>
-          <T3Btn active={showView} onClick={() => setShowView((v) => { const nv = !v; if (nv && data) setFpDraft({ w: data.footprint.footprintW, h: data.footprint.footprintH, g: data.footprint.gridSize }); return nv; })} title="Vista, capas y plano"><SlidersHorizontal className="w-4 h-4" /></T3Btn>
+          <T3Btn active={showView} onClick={toggleViewMenu} title="Vista, capas y plano"><SlidersHorizontal className="w-4 h-4" /></T3Btn>
           {showView && (
-            <div className="absolute left-0 top-full mt-1.5 w-56 rounded-xl border border-white/10 bg-gray-900 shadow-2xl p-3 z-10 text-[12px]">
+            <div className="absolute left-0 top-full mt-1.5 w-72 max-h-[78vh] overflow-y-auto rounded-xl border border-white/10 bg-gray-900 shadow-2xl p-3 z-10 text-[12px]">
               <div className="text-[10px] uppercase tracking-wide text-gray-500 mb-1.5">Capas</div>
               {([['stations', 'Estaciones'], ['equipment', 'Equipo'], ['connectors', 'Conexiones'], ['dims', 'Cotas'], ['notes', 'Notas'], ['labels', 'Etiquetas'], ['dxf', 'Plano DXF'], ['grid', 'Grilla']] as const).map(([k, lbl]) => (
                 <label key={k} className="flex items-center gap-2 py-1 cursor-pointer text-gray-300 hover:text-white">
@@ -3915,6 +4044,29 @@ export default function Layout3DEditor({
                   {cadLayerSummary.hiddenObjectCount} objeto(s) ocultos por capas CAD. Usa All para recuperar la vista completa.
                 </div>
               )}
+              <div className="mt-2.5 mb-1.5 flex items-center justify-between gap-2">
+                <div className="text-[10px] uppercase tracking-wide text-gray-500">Vistas</div>
+                <span className="text-[10px] text-gray-500">{viewportBookmarks.length}/8</span>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button onClick={saveCurrentViewportBookmark} className="rounded-md bg-white/[0.06] px-2 py-1.5 text-[11px] font-medium text-gray-200 hover:bg-white/[0.12]">Guardar vista</button>
+                <button onClick={focusCurrentSelection} disabled={!selList.length} className="rounded-md bg-white/[0.06] px-2 py-1.5 text-[11px] font-medium text-gray-200 hover:bg-white/[0.12] disabled:opacity-40">Fit seleccion</button>
+              </div>
+              <div className="mt-1.5 space-y-1">
+                {viewportBookmarks.length ? viewportBookmarks.map((bookmark) => (
+                  <div key={bookmark.id} className="grid grid-cols-[1fr_auto] items-center gap-1.5 rounded-lg bg-white/[0.04] px-2 py-1.5">
+                    <button onClick={() => restoreViewportBookmark(bookmark)} className="min-w-0 text-left">
+                      <div className="truncate text-[11.5px] font-medium text-gray-100">{bookmark.label}</div>
+                      <div className="text-[10px] text-gray-500">{bookmark.camera.mode.toUpperCase()} · {new Date(bookmark.savedAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}</div>
+                    </button>
+                    <button onClick={() => deleteViewportBookmark(bookmark)} className="rounded px-1.5 py-0.5 text-[10px] text-gray-500 hover:bg-white/[0.08] hover:text-white" title="Eliminar vista guardada">Del</button>
+                  </div>
+                )) : (
+                  <div className="rounded-lg border border-white/10 bg-white/[0.03] px-2 py-1.5 text-[10.5px] text-gray-500">
+                    Guarda vistas de una planta grande para volver rapido a areas, issues o revisiones.
+                  </div>
+                )}
+              </div>
               <div className="text-[10px] uppercase tracking-wide text-gray-500 mt-2.5 mb-1.5">Tema</div>
               <div className="grid grid-cols-2 gap-1.5">
                 {(Object.keys(THEMES) as Theme3D[]).map((t) => (

@@ -2,6 +2,24 @@
 
 Last updated: 2026-06-29
 
+## 2026-06-30 - Viewport saved views update
+
+Open CAD PRs inspected before this run included #900 (`codex/cad-tree-active`), which is clean and owns factory-scale plant presets/bounds work. This run avoided that area and selected a Phase 2 viewport navigation slice that can sit on current `main` without duplicating factory-scale helpers.
+
+| Capability | Exists? | Files | Maturity | Gap | Next non-redundant PR | Owner files | Collision risk with open PRs |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Large plant viewport navigation | Partial | `apps/web/src/components/line-engineering/Layout3DEditor.tsx`, `apps/web/src/lib/cad/viewport-bookmarks.ts` | usable | Users could switch 2D/3D and use presets, but could not save/restore working views or zoom validation issues in large layouts. | Add minimap/home view after factory-scale PR #900 lands. | `viewport-bookmarks.ts`, existing View popover | Low-medium: localized editor view-menu/issue-selection wiring; avoids #900 plant-scale files. |
+
+Existing capability found: the CAD workbench already had OrbitControls, 2D/3D modes, top/iso/front presets, selection refs, and validation issue rows.
+
+What this run reused: current station/equipment placement maps, existing selection and rebuild path, OrbitControls refs, the View popover, validation quick-fix rows, browser-local session patterns, and the pure CAD helper/spec convention.
+
+What this run extended: local saved camera views keyed by model/revision, fit-current-selection, and zoom-to-issue behavior for collision, clearance, safety, and validation issue rows.
+
+What this run intentionally did not duplicate: no second editor, no minimap system, no validation modal, no command engine change, no DXF path, no backend persistence, no migration, and no alternate geometry model.
+
+Why this is non-redundant: it closes a real large-layout navigation gap by making existing camera/selection/validation surfaces usable at plant scale while open PR #900 continues to own plant bounds and factory presets.
+
 ## 2026-06-29 - Safety path zone update
 
 Open CAD PRs inspected before this run included #869 (symbols), #864 (DXF preflight), #861 (validation quick fixes), #858 (dimensions), #853 (templates), #850 (flow), #847 (plot metadata), #844 (warehouse generator), and #838 (line-balance command). This run avoided those primary ownership areas and extended the existing Safety zone path instead of creating another validation center, symbol system, or editor.
