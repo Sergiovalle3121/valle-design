@@ -43,12 +43,14 @@ import { maybeSnapScalarToGrid } from '@/lib/cad/snapping';
 import {
   assignObjectsToLayer,
   DEFAULT_CAD_LAYERS,
+  hideEmptyCadLayers,
   isolateCadLayerVisibility,
   isObjectLayerLocked,
   showAllCadLayers,
   summarizeCadLayers,
   toggleCadLayerLocked,
   toggleCadLayerVisible,
+  unlockAllCadLayers,
   type CadLayer,
   type CadLayerAssignments,
   type CadLayerId,
@@ -3534,6 +3536,10 @@ export default function Layout3DEditor({
     setCadLayers((cur) => showAllCadLayers(cur));
     toast.success('Todas las capas CAD visibles.', 'Capas');
   };
+  const unlockAllCadLayerVisibility = () => {
+    setCadLayers((cur) => unlockAllCadLayers(cur));
+    toast.success('Todas las capas CAD desbloqueadas.', 'Capas');
+  };
   const defaultLayerFor = (item: SelItem): CadLayerId => item.type === 'station' ? 'layout' : 'equipment';
   const selectionLayer = (item: SelItem): CadLayerId => layerAssignments[item.id] ?? defaultLayerFor(item);
   const setSelectionLayer = (item: SelItem, layerId: CadLayerId) => setLayerAssignments((cur) => assignObjectsToLayer(cur, [item.id], layerId));
@@ -4229,6 +4235,8 @@ export default function Layout3DEditor({
                 <span>{Object.keys(layerAssignments).length} asignados · {cadLayerSummary.hiddenObjectCount} ocultos · {cadLayerSummary.lockedObjectCount} bloqueados</span>
                 <div className="inline-flex items-center gap-2">
                   <button onClick={showAllCadLayerVisibility} className="text-gray-500 dark:text-gray-400 hover:text-white">All</button>
+                  <button onClick={() => { setCadLayers((cur) => hideEmptyCadLayers(cur, cadLayerCounts)); toast.success('Capas CAD vacías ocultas.', 'Capas'); }} className="text-gray-500 dark:text-gray-400 hover:text-white" title="Ocultar capas sin objetos">Ocultar 0</button>
+                  <button onClick={unlockAllCadLayerVisibility} className="text-gray-500 dark:text-gray-400 hover:text-white" title="Desbloquear todas las capas">Unlock</button>
                   <button onClick={resetCadLayerPresentation} className="text-gray-500 dark:text-gray-400 hover:text-white">Reset</button>
                 </div>
               </div>
