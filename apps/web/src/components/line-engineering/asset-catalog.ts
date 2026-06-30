@@ -40,6 +40,8 @@ export type AssetCategory =
   | 'estructura'
   | 'logística'
   | 'zona'
+  | 'seguridad'
+  | 'utilidades'
   | 'persona';
 
 export interface AssetDef {
@@ -88,6 +90,20 @@ export const ASSET_CATALOG: AssetDef[] = [
   // ── Logística ──────────────────────────────────────────────────────────────
   { kind: 'agv', label: 'AGV', color: '#06b6d4', fill: 'rgba(6,182,212,0.12)', w: 1200, h: 800, height: 350, archetype: 'cart', category: 'logística' },
   { kind: 'agvpath', label: 'Ruta AGV', color: '#14b8a6', fill: 'rgba(20,184,166,0.10)', w: 4000, h: 300, height: 1, archetype: 'path', category: 'logística' },
+  // ── Safety / EHS ───────────────────────────────────────────────────────────
+  { kind: 'fire_extinguisher', label: 'Extintor', color: '#dc2626', fill: 'rgba(220,38,38,0.14)', w: 450, h: 350, height: 1400, archetype: 'cabinet', category: 'seguridad' },
+  { kind: 'eyewash', label: 'Lavaojos', color: '#059669', fill: 'rgba(5,150,105,0.12)', w: 700, h: 500, height: 1400, archetype: 'cabinet', category: 'seguridad' },
+  { kind: 'emergency_exit', label: 'Salida emerg.', color: '#16a34a', fill: 'rgba(22,163,74,0.12)', w: 2500, h: 900, height: 1, archetype: 'path', category: 'seguridad' },
+  { kind: 'first_aid', label: 'Primeros aux.', color: '#22c55e', fill: 'rgba(34,197,94,0.12)', w: 650, h: 450, height: 1500, archetype: 'cabinet', category: 'seguridad' },
+  { kind: 'spill_kit', label: 'Kit derrames', color: '#f59e0b', fill: 'rgba(245,158,11,0.14)', w: 700, h: 550, height: 900, archetype: 'bin', category: 'seguridad' },
+  { kind: 'ppe_station', label: 'PPE station', color: '#2563eb', fill: 'rgba(37,99,235,0.12)', w: 900, h: 450, height: 1800, archetype: 'cabinet', category: 'seguridad' },
+  // ── Utilities ──────────────────────────────────────────────────────────────
+  { kind: 'power_panel', label: 'Panel electrico', color: '#334155', fill: 'rgba(51,65,85,0.14)', w: 800, h: 350, height: 1800, archetype: 'cabinet', category: 'utilidades' },
+  { kind: 'compressed_air', label: 'Aire compr.', color: '#0284c7', fill: 'rgba(2,132,199,0.12)', w: 500, h: 500, height: 1600, archetype: 'column', category: 'utilidades' },
+  { kind: 'network_drop', label: 'Red / datos', color: '#7c3aed', fill: 'rgba(124,58,237,0.12)', w: 500, h: 350, height: 1200, archetype: 'cabinet', category: 'utilidades' },
+  { kind: 'maintenance_area', label: 'Mantto.', color: '#64748b', fill: 'rgba(100,116,139,0.10)', w: 2400, h: 1800, height: 1, archetype: 'zone', category: 'utilidades' },
+  { kind: 'tool_crib', label: 'Tool crib', color: '#92400e', fill: 'rgba(146,64,14,0.12)', w: 1800, h: 900, height: 2000, archetype: 'shelf', category: 'utilidades' },
+  { kind: 'calibration_station', label: 'Calibracion', color: '#0891b2', fill: 'rgba(8,145,178,0.12)', w: 1400, h: 800, height: 1150, archetype: 'desk', category: 'utilidades' },
   // ── Zona / Persona ─────────────────────────────────────────────────────────
   { kind: 'zone', label: 'Zona', color: '#0ea5e9', fill: 'rgba(14,165,233,0.06)', w: 3000, h: 2000, height: 1, archetype: 'zone', category: 'zona' },
   { kind: 'operator', label: 'Operador', color: '#22c55e', fill: 'rgba(34,197,94,0.12)', w: 600, h: 600, height: 1750, archetype: 'person', category: 'persona' },
@@ -107,6 +123,8 @@ export const ASSET_CATEGORIES: { category: AssetCategory; label: string; items: 
     { category: 'soporte', label: 'Soporte' },
     { category: 'estructura', label: 'Estructura' },
     { category: 'logística', label: 'Logística' },
+    { category: 'seguridad', label: 'Seguridad / EHS' },
+    { category: 'utilidades', label: 'Utilidades' },
     { category: 'zona', label: 'Zonas' },
     { category: 'persona', label: 'Personas' },
   ];

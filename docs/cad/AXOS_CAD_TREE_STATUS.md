@@ -88,3 +88,15 @@ Recommended next phase: add an editable connector workflow or validation issue a
 
 PR #796 advances the existing validation center by making the design-check modal use the shared CAD validation report for collisions, clearances, safety, and flow. User-visible additions are clearance warning rows, selection/highlight on clearance issues, CAD validation severity in the status bar, and release-readiness counts that distinguish blockers from warnings. It does not add a parallel validation engine, collision helper, CAD shell, or flow model.
 Recommended next phase: add a parametric rack row or SMT line generator with user inputs, building on `templates.ts` and the existing editable asset/connector model.
+
+## 2026-06-29 - EHS and utilities asset blocks
+
+This run extends the existing shared asset catalog instead of creating a third symbol/block system:
+
+- `asset-catalog.ts` now includes Safety/EHS blocks for fire extinguishers, eyewash, emergency exits, first aid, spill kits, and PPE stations.
+- `asset-catalog.ts` now includes Utilities blocks for power panels, compressed air, network drops, maintenance areas, tool cribs, and calibration stations.
+- `Layout3DEditor.tsx` already renders `ASSET_CATEGORIES` in the Equipment rail, so these blocks are immediately insertable, editable, selectable, duplicateable, measurable, and included in the existing DXF export adapter.
+- The blocks reuse existing asset archetypes instead of adding new Three.js rendering paths.
+- `asset-catalog.spec.ts` covers uniqueness, grouping, footprints, and archetype reuse.
+
+Phase evidence: Phase 11 (Blocks / industrial symbols) advances from generic core equipment toward a fuller plant-layout library. Next non-redundant step is native block-instance metadata/default layer hints after active `symbols.ts` and template PRs settle.
