@@ -128,12 +128,45 @@ Si el owner quiere "que se sienta más completo" más allá de A, las opciones h
 
 ## Antes / Después
 
-| Capacidad | Antes (hoy) | Después (tras FASE 1, pendiente de aprobación) |
+> **Decisión del owner (2026-06-30):** ejecutar **A + B**. Hecho en FASE 1 (ver changelog abajo).
+
+| Capacidad | Antes | Después (FASE 1) |
 | --- | --- | --- |
-| Paleta de comandos | Sólo Cmd-K; sin botón; no descubrible | _(pendiente)_ Botón "⌘K" visible en toolbar/header |
-| line-balance | Sólo mini-readout en preview del dock | _(pendiente / opcional B)_ Panel propio en Análisis |
-| copilot-contract | Huérfano | _(sin cambio recomendado)_ Documentado como plumbing de copiloto |
-| annotations | Huérfano | _(sin cambio recomendado)_ Documentado; candidato a consolidación futura |
+| Paleta de comandos | Sólo Cmd-K; sin botón; no descubrible | ✅ Botón visible en el header (icono Search, `title` con "⌘K / Ctrl K") que abre/cierra la paleta. `Layout3DEditor.tsx` toolbar |
+| line-balance | Sólo mini-readout en preview del dock | ✅ Panel local "Balance de línea (local)" en el dropdown Análisis, reusando `buildCadLineBalanceReport` sobre las estaciones en pantalla. `LineBalancePanel.tsx` |
+| copilot-contract | Huérfano | _(sin cambio)_ Documentado como plumbing de copiloto — no expuesto (sería feature nueva) |
+| annotations | Huérfano | _(sin cambio)_ Documentado; candidato a consolidación futura — no expuesto (duplicaría notas/cotas) |
+
+---
+
+## FASE 1 — changelog (ejecutado, A + B)
+
+**Mandato cumplido:** sólo se *expuso* lógica existente; **no** se añadió lógica CAD nueva ni se duplicó ningún módulo.
+
+- **A · Paleta de comandos descubrible** — nuevo `T3Btn` en el header de `Layout3DEditor.tsx`, junto al toggle del
+  dock de comandos, que llama `setShowPalette((v) => !v)`. Reusa el panel y la búsqueda (`searchCadPalette`) ya
+  existentes; la lógica de la paleta no cambia. Icono `Search` (ya importado).
+- **B · Balance de línea (local)** — nuevo componente presentacional `LineBalancePanel.tsx` registrado en
+  `ANALYSIS_PANELS` (key `linebalance`). Llama al helper existente `buildCadLineBalanceReport` con las estaciones
+  colocadas (orden de secuencia); los tiempos de ciclo se leen de la etiqueta vía el mismo helper. El render del
+  panel se especializa para pasarle las estaciones en pantalla (no `model/revision`), de modo que es **local y
+  determinístico** y no hace llamada al servidor. Se diferencia a propósito del panel server-backed
+  "Yamazumi (balanceo)".
+
+### Notas de implementación
+
+- **i18n:** `Layout3DEditor.tsx` y los componentes de panel de `line-engineering/` **no usan i18n** (0 usos de
+  `useTranslation`/`react-i18next`); todas las etiquetas/tooltips están hardcodeadas en español. Para "leer como el
+  código vecino" se siguió esa convención (texto español hardcodeado), en vez de introducir claves i18n que serían
+  inconsistentes con todo el editor. Si se decide migrar el CAD a i18n, debe hacerse como tarea aparte para todo el
+  módulo, no sólo estos dos controles.
+- **Gate / verificación:** el contenedor remoto **no tiene `node_modules` instalado** y la consigna prohíbe
+  `npm install`, por lo que `npm run build --workspace=web`, `tsc --noEmit` y `eslint` **no se pudieron ejecutar
+  localmente** (fallan por dependencias ausentes, no por el código). Verificación realizada: revisión manual del diff
+  contra las firmas reales de `buildCadLineBalanceReport`/`CadLineBalanceReport`/`CadLineBalanceStation`, paridad con
+  los patrones de los 15 paneles hermanos (mismo contrato `dynamic`/`open`/`onClose`, mismo shell `glass` con tema
+  claro+oscuro vía variantes `dark:`), e iconos `Scale`/`Gauge` confirmados como válidos en `lucide-react@^1.11.0`
+  (usados ya en `ScenarioCompare`/`LayoutScorecard`). El **CI del PR ejecuta el gate real**.
 
 ---
 
@@ -150,7 +183,8 @@ Si el owner quiere "que se sienta más completo" más allá de A, las opciones h
 
 ---
 
-## STOP — esperando aprobación del owner
+## Estado
 
-FASE 0 terminada. **No se ha cambiado código del editor.** Antes de FASE 1 necesito la decisión del owner sobre el
-alcance (ver tabla "Recomendación de FASE 1"): ejecutar **A** (recomendado), **A+B**, o sólo dejar la auditoría.
+- **FASE 0 (auditoría):** completa.
+- **Aprobación del owner (2026-06-30):** **A + B**.
+- **FASE 1 (exponer):** completa — ver "Antes / Después" y el changelog. Pendiente sólo el gate vía CI del PR.
