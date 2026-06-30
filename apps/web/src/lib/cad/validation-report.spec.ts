@@ -85,4 +85,93 @@ assertEqual(
   true,
   "safety issue rows include affected object ids",
 );
+
+const architectureReport = buildCadValidationReport({
+  boxes: [],
+  architectureObjects: [
+    {
+      id: "room-1",
+      kind: "room",
+      x: 0,
+      y: 0,
+      width: 2_000,
+      height: 2_000,
+      tags: "room",
+    },
+    {
+      id: "door-1",
+      kind: "door",
+      label: "Shipping door",
+      x: 100,
+      y: 100,
+      width: 900,
+      height: 120,
+      tags: "door",
+    },
+    {
+      id: "eq-1",
+      kind: "station",
+      label: "Pack station",
+      x: 150,
+      y: 80,
+      width: 700,
+      height: 500,
+      tags: "requires:power",
+    },
+  ],
+  unit: "mm",
+  dimensionCount: 0,
+});
+assertEqual(
+  architectureReport.severity,
+  "critical",
+  "blocked doors mark architecture validation critical",
+);
+assertOk(
+  architectureReport.architecture.some((issue) => issue.code === "room_missing_label"),
+  "architecture validation flags unlabeled rooms",
+);
+assertOk(
+  architectureReport.architecture.some((issue) => issue.code === "door_blocked"),
+  "architecture validation flags blocked doors",
+);
+assertOk(
+  architectureReport.architecture.some((issue) => issue.code === "utility_missing"),
+  "architecture validation flags missing explicit utility requirements",
+);
+assertOk(
+  architectureReport.issues.some((issue) => issue.category === "architecture"),
+  "architecture findings become normalized issue rows",
+);
+
+const wallReport = buildCadValidationReport({
+  boxes: [],
+  architectureObjects: [
+    {
+      id: "wall-1",
+      kind: "wall",
+      label: "North wall",
+      x: 0,
+      y: 0,
+      width: 4_000,
+      height: 150,
+      tags: "wall, architecture",
+    },
+    {
+      id: "station-1",
+      kind: "station",
+      label: "ICT",
+      x: 1_000,
+      y: 20,
+      width: 800,
+      height: 600,
+      tags: "",
+    },
+  ],
+});
+assertEqual(
+  wallReport.architecture[0]?.code,
+  "wall_crosses_equipment",
+  "architecture validation flags walls crossing equipment",
+);
 console.log("cad validation report specs passed");

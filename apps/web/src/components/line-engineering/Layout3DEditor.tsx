@@ -2207,11 +2207,40 @@ export default function Layout3DEditor({
       zones: currentSafetyZones(),
       flowNodes: flowNodes.length >= 2 ? flowNodes : undefined,
       requiredClearance: defaultCadClearance(fp.unit || 'mm'),
+      unit: fp.unit || 'mm',
+      dimensionCount: [...annotationsRef.current.values()].filter((a) => a.type === 'dim').length,
+      architectureObjects: [
+        ...[...placementsRef.current.entries()].map(([id, p]) => ({
+          id,
+          kind: 'station',
+          label: stationsByIdRef.current.get(id)?.station ?? id,
+          x: p.x,
+          y: p.y,
+          width: p.w,
+          height: p.h,
+          rotation: p.rotation,
+          layerId: layerAssignmentsRef.current[id] ?? 'layout',
+          tags: objectTagsRef.current[id],
+        })),
+        ...[...assetsRef.current.values()].map((asset) => ({
+          id: asset.id,
+          kind: asset.kind,
+          label: asset.label,
+          x: asset.x,
+          y: asset.y,
+          width: asset.w,
+          height: asset.h,
+          rotation: asset.rotation,
+          layerId: layerAssignmentsRef.current[asset.id] ?? defaultCadLayerForAssetKind(asset.kind, objectTagsRef.current[asset.id]),
+          tags: objectTagsRef.current[asset.id],
+        })),
+      ],
     });
     const highlightIds = new Set<string>();
     cadReport.collisions.forEach((hit) => { highlightIds.add(hit.aId); highlightIds.add(hit.bId); });
     cadReport.clearances.forEach((issue) => { highlightIds.add(issue.aId); highlightIds.add(issue.bId); });
     cadReport.safety.forEach((issue) => { highlightIds.add(issue.objectId); highlightIds.add(issue.zoneId); });
+    cadReport.architecture.forEach((issue) => { issue.affectedObjectIds.forEach((id) => highlightIds.add(id)); });
     validationHighlightRef.current = highlightIds;
     setValidationHighlightIds(highlightIds);
     setCadValidationReport(cadReport);
@@ -3418,7 +3447,7 @@ export default function Layout3DEditor({
       const dimensionCount = annotations.filter((item) => item.type === 'dim').length;
       const labelCount = annotations.filter((item) => item.type === 'text').length;
       const validationIssueCount = cadValidationReport
-        ? cadValidationReport.collisions.length + cadValidationReport.clearances.length + cadValidationReport.safety.length
+        ? cadValidationReport.issues.length
         : 0;
       const activeLayerLabel = cadLayers.find((layer) => layer.id === activeCadLayer)?.label ?? activeCadLayer;
       const approvalLabel = approval ? APPROVAL_META[approval.status].label : 'Borrador';
@@ -3775,8 +3804,11 @@ export default function Layout3DEditor({
   const validationFlow = cadValidationReport?.flow ?? flowHealth;
   const safetyBlockers = safetyIssues.filter((issue) => issue.code === 'zone_invasion').length;
   const safetyWarnings = safetyIssues.length - safetyBlockers;
-  const releaseBlockers = (report?.errors ?? 0) + collisionHits.length + safetyBlockers;
-  const releaseWarnings = (report?.warnings ?? 0) + clearanceIssues.length + safetyWarnings + dxfWarnings.length + (validationFlow && validationFlow.score < 80 ? 1 : 0);
+  const architectureIssues = cadValidationReport?.issues.filter((issue) => issue.category === 'architecture') ?? [];
+  const architectureBlockers = architectureIssues.filter((issue) => issue.severity === 'critical').length;
+  const architectureWarnings = architectureIssues.length - architectureBlockers;
+  const releaseBlockers = (report?.errors ?? 0) + collisionHits.length + safetyBlockers + architectureBlockers;
+  const releaseWarnings = (report?.warnings ?? 0) + clearanceIssues.length + safetyWarnings + architectureWarnings + dxfWarnings.length + (validationFlow && validationFlow.score < 80 ? 1 : 0);
 
   const releaseState = !report ? 'Sin validar' : releaseBlockers > 0 ? 'Bloqueado' : releaseWarnings > 0 ? 'Con avisos' : 'Listo';
   const releaseTone = releaseState === 'Listo' ? 'text-emerald-300' : releaseState === 'Bloqueado' ? 'text-rose-300' : releaseState === 'Con avisos' ? 'text-amber-300' : 'text-gray-500 dark:text-gray-400';
@@ -3785,6 +3817,7 @@ export default function Layout3DEditor({
     { label: 'CAD validation', value: cadValidationReport ? cadValidationReport.severity === 'critical' ? 'Critico' : cadValidationReport.severity === 'warning' ? 'Con avisos' : 'OK' : 'Pendiente', tone: cadValidationReport?.severity === 'critical' ? 'text-rose-300' : cadValidationReport?.severity === 'warning' ? 'text-amber-300' : cadValidationReport ? 'text-emerald-300' : 'text-gray-500 dark:text-gray-400' },
     { label: 'Colisiones', value: collisionHits.length ? `${collisionHits.length} choque(s)` : 'Sin choques activos', tone: collisionHits.length ? 'text-rose-300' : 'text-emerald-300' },
     { label: 'Holguras', value: clearanceIssues.length ? `${clearanceIssues.length} bajo minimo` : 'Dentro de minimo', tone: clearanceIssues.length ? 'text-amber-300' : 'text-emerald-300' },
+    { label: 'Arquitectura', value: architectureIssues.length ? `${architectureIssues.length} issue(s)` : 'Lista', tone: architectureBlockers ? 'text-rose-300' : architectureIssues.length ? 'text-amber-300' : 'text-emerald-300' },
     { label: 'Safety zones', value: safetyIssues.length ? `${safetyIssues.length} issue(s)` : 'Sin invasiones activas', tone: safetyBlockers ? 'text-rose-300' : safetyIssues.length ? 'text-amber-300' : 'text-emerald-300' },
     { label: 'Flow Health', value: validationFlow ? `${validationFlow.score}/100` : 'No analizado', tone: !validationFlow ? 'text-gray-500 dark:text-gray-400' : validationFlow.score >= 80 ? 'text-emerald-300' : validationFlow.score >= 55 ? 'text-amber-300' : 'text-rose-300' },
     { label: 'DXF import', value: dxfWarnings.length ? `${dxfWarnings.length} warning(s)` : 'Sin warnings activos', tone: dxfWarnings.length ? 'text-amber-300' : 'text-emerald-300' },
@@ -4923,6 +4956,7 @@ export default function Layout3DEditor({
                     <div className="rounded-lg bg-gray-950/50 px-2 py-1.5"><span className="text-gray-500">Collisions</span><b className="ml-2 tabular-nums text-white">{cadValidationReport.collisions.length}</b></div>
                     <div className="rounded-lg bg-gray-950/50 px-2 py-1.5"><span className="text-gray-500">Clearance</span><b className="ml-2 tabular-nums text-white">{cadValidationReport.clearances.length}</b></div>
                     <div className="rounded-lg bg-gray-950/50 px-2 py-1.5"><span className="text-gray-500">Safety</span><b className="ml-2 tabular-nums text-white">{cadValidationReport.safety.length}</b></div>
+                    <div className="rounded-lg bg-gray-950/50 px-2 py-1.5"><span className="text-gray-500">Architecture</span><b className="ml-2 tabular-nums text-white">{cadValidationReport.architecture.length}</b></div>
                     <div className="rounded-lg bg-gray-950/50 px-2 py-1.5"><span className="text-gray-500">Flow</span><b className="ml-2 tabular-nums text-white">{cadValidationReport.flow ? `${cadValidationReport.flow.score}/100` : 'n/a'}</b></div>
                   </div>
                   {cadValidationReport.issues.length > 0 && (

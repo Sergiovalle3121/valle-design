@@ -15,6 +15,17 @@ This run starts the dedicated architecture/engineering CAD layer without adding 
 
 The implementation reuses the current asset model, layer state, inspector, takeoff modal, DXF export adapter, wall tool, and local tags/notes. It does not create another CAD editor, canvas, layer manager, DXF exporter, or command engine.
 
+## 2026-06-30 - Architecture validation readiness
+
+This run extends the existing shared CAD validation report for the architecture layer:
+
+- `validation-report.ts` now emits architecture issue rows for unlabeled rooms, missing room use, undersized rooms, blocked doors, walls crossing equipment, equipment outside rooms, tagged utility requirements without a matching utility point, and missing critical saved dimensions.
+- `Layout3DEditor.tsx` passes current stations, assets, CAD layers, tags, labels, and dimension count into the same `buildCadValidationReport` path used by the design-check modal.
+- Architecture findings are visible in the existing CAD validation center and feed the release readiness blocker/warning counts.
+- The plot/export package validation issue count now uses the unified normalized issue list instead of only collision/clearance/safety totals.
+
+The implementation reuses the current validation center, selection/highlight action path, object tags, CAD layers, and architecture metadata. It does not create another validator, release panel, editor, command engine, or persistence schema.
+
 ## 2026-06-29 - Safety paths and ESD zones
 
 This run advances Phase 15 (Safety / Aisles / Clearance Engine UI) without adding a parallel engine:

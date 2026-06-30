@@ -18,7 +18,7 @@ AXOS CAD is now moving from equipment layout toward plant architecture and indus
 | Area takeoff | Extended | `architecture.ts` computes occupied/open/room/aisle/safety/utility area and grouping by layer/use/department. | Add export attachment and release-readiness scoring. |
 | Inspector | Extended | `object-properties.ts` exposes architecture technical metadata in the existing inspector. | Add richer equipment utility requirements. |
 | DXF export | Extended | Architecture, Structure, Utilities layer colors added to existing adapter. | Add paper-space title-block layer legend. |
-| Validation | Existing | Shared `validation-report.ts` remains the target. | Add architecture-specific validation rows. |
+| Validation | Extended | `validation-report.ts` now emits architecture issue rows for rooms, doors, walls, tagged utility requirements, and missing dimensions. | Add drawing-sheet/title-block readiness. |
 
 ## Non-duplication notes
 
@@ -46,4 +46,4 @@ This run intentionally did not duplicate:
 
 ## Release readiness impact
 
-The user can now start drafting a plant shell with walls, columns, doors, and rooms, classify rooms by department/use, inspect technical metadata, and copy an area takeoff summary. This is a visible engineering CAD improvement, but not yet a full release package. Architecture validation and typed utility metadata remain the next blockers for release-grade drawings.
+The user can now start drafting a plant shell with walls, columns, doors, and rooms, classify rooms by department/use, inspect technical metadata, copy an area takeoff summary, and run validation that flags blocked doors, wall/equipment conflicts, unlabeled rooms, missing room use, missing critical dimensions, and tagged utility requirements. This is a visible engineering CAD improvement, but not yet a full release package. Title-block readiness and typed utility metadata remain the next blockers for release-grade drawings.

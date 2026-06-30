@@ -21,6 +21,24 @@ What this run intentionally did not duplicate: no new editor, canvas, command re
 
 Why this is non-redundant: it makes the existing AXOS CAD workbench capable of plant-shell drafting and engineering area measurement rather than only equipment placement.
 
+## 2026-06-30 - Architecture validation update
+
+Open CAD PRs inspected before this run still included #900 and #903-#907, plus the existing active PR #916. This run stayed on `codex/cad-architecture-active` and extended the validation path already introduced by the architecture layer.
+
+| Capability | Exists? | Files | Maturity | Gap | Next non-redundant PR | Owner files | Collision risk with open PRs |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Architecture validation | Extended | `validation-report.ts`, `Layout3DEditor.tsx`, `validation-report.spec.ts` | usable | Bounding-box rules now catch blocked doors, walls crossing equipment, unlabeled/unclassified rooms, undersized rooms, equipment outside rooms, tagged missing utilities, and missing saved dimensions. Rotation-aware walls, door-wall hosting, and typed utility metadata remain future work. | Add drawing sheet/title-block readiness and release package checklist. | `validation-report.ts`, sheet/title-block helpers | Medium: `Layout3DEditor.tsx` is large, but edits are limited to the existing validation modal/call path. |
+
+Existing capability found: `buildCadValidationReport` already normalized collision, clearance, safety, and flow issue rows and `Layout3DEditor.tsx` already displayed those rows in the design-check modal.
+
+What this run reused: shared validation report, current selection/highlight flow, object tags, architecture metadata, layer assignments, dimension annotations, release readiness counts, and plot package issue metadata.
+
+What this run extended: architecture-specific validation issue rows, architecture counts in the validation center, release blocker/warning totals, validation highlight ids for architecture issues, and plot package issue counts.
+
+What this run intentionally did not duplicate: no new validation center, no second release-readiness panel, no new object model, no command registry changes, no DXF/export duplication, and no backend persistence change.
+
+Why this is non-redundant: it turns the new architecture primitives from drawable objects into checkable engineering drawing content, while keeping the single CAD validation surface.
+
 ## 2026-06-29 - Safety path zone update
 
 Open CAD PRs inspected before this run included #869 (symbols), #864 (DXF preflight), #861 (validation quick fixes), #858 (dimensions), #853 (templates), #850 (flow), #847 (plot metadata), #844 (warehouse generator), and #838 (line-balance command). This run avoided those primary ownership areas and extended the existing Safety zone path instead of creating another validation center, symbol system, or editor.

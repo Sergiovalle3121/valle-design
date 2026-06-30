@@ -90,6 +90,21 @@ The existing takeoff panel now separates:
 - area by room use
 - area by department
 
+## Engineering validation
+
+The shared CAD validation report now includes architecture-specific issue rows:
+
+- rooms missing a visible label
+- rooms missing a `use:*` classification
+- rooms below the planning area threshold
+- blocked door openings
+- walls crossing stations/equipment
+- equipment outside any room/department zone when rooms exist
+- explicit equipment utility requirements missing a matching utility point
+- missing critical saved dimensions for rooms, walls, or doors
+
+These checks reuse `buildCadValidationReport` and the existing design-check modal in `Layout3DEditor`; no parallel validation center was created.
+
 ## Export behavior
 
 DXF export continues through `exportCadLayoutDxf`. New Architecture, Structure, and Utilities layer colors were added to the existing DXF layer table. Architecture footprints are treated as critical labeled objects in export preflight so missing labels are visible before release.
@@ -100,8 +115,8 @@ DXF export continues through `exportCadLayoutDxf`. New Architecture, Structure, 
 - Door-wall association is not enforced yet.
 - Room/use metadata is local tag metadata and is not persisted through a dedicated backend schema.
 - Utilities do not yet carry typed voltage, pressure, network, or owner fields beyond labels/tags/notes.
-- Architecture validation rules such as walls crossing equipment and doors blocked remain future work.
+- Architecture validation is bounding-box based and does not account for rotation or wall-hosted door semantics yet.
 
 ## Next CAD phase
 
-The next non-redundant phase should add engineering validation rules for the architecture layer: unlabeled rooms, doors blocked, walls crossing equipment, utilities missing for equipment, and title-block completeness. This should extend `validation-report.ts` rather than creating a parallel validation engine.
+The next non-redundant phase should add release-package/title-block readiness: drawing sheet fields, layer legend completeness, revision/approval metadata, and export package summary attached to the current validation/takeoff surfaces.
