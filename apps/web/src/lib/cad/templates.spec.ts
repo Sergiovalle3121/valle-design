@@ -22,6 +22,37 @@ assert.ok(
   "SMT template includes safety layer objects",
 );
 
+const supermarket = instantiateCadLayoutTemplate("supermarket-kitting", {
+  width: 16000,
+  height: 9500,
+  gridSize: 100,
+});
+assert.ok(
+  supermarket.assets.length >= 16,
+  "supermarket template creates a complete editable kitting area",
+);
+assert.ok(
+  supermarket.assets.some((asset) => asset.tags.includes("kanban")),
+  "supermarket template includes kanban lanes",
+);
+assert.ok(
+  supermarket.assets.some((asset) => asset.tags.includes("kitting")),
+  "supermarket template includes kitting carts/areas",
+);
+assert.ok(
+  supermarket.assets.some((asset) => asset.layer === "aisles"),
+  "supermarket template includes aisle objects",
+);
+assert.ok(
+  supermarket.assets.some((asset) => asset.layer === "safety"),
+  "supermarket template includes safety objects",
+);
+assert.ok(
+  supermarket.connectors.some((connector) => connector.kind === "material") &&
+    supermarket.connectors.some((connector) => connector.kind === "flow"),
+  "supermarket template creates material and flow connectors",
+);
+
 const small = instantiateCadLayoutTemplate("ems-mini-factory", {
   width: 9000,
   height: 6000,

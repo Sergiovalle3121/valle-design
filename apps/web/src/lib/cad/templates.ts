@@ -3,6 +3,7 @@ import type { CadLayerId } from "./layers";
 export type CadLayoutTemplateId =
   | "ems-mini-factory"
   | "smt-line"
+  | "supermarket-kitting"
   | "warehouse-racks"
   | "packing-shipping-cell";
 
@@ -139,6 +140,51 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     connectors: [
       { fromRef: "receiving", toRef: "supermarket", kind: "material" },
       { fromRef: "supermarket", toRef: "shipping", kind: "material" },
+    ],
+  },
+  {
+    id: "supermarket-kitting",
+    label: "Supermarket + kitting",
+    description: "Kanban lanes, kitting carts, FIFO WIP, ESD boundary, and forklift/pedestrian aisles.",
+    category: "warehouse",
+    baseWidth: 15500,
+    baseHeight: 9200,
+    assets: [
+      asset("receiving", "zone", "Receiving drop", 700, 900, 2600, 1400, "layout", ["receiving", "drop-zone"]),
+      asset("incoming-qc", "workbench", "Incoming QC", 3700, 950, 1400, 850, "equipment", ["quality", "incoming"]),
+      asset("supermarket", "zone", "Material supermarket", 5600, 750, 4700, 1900, "layout", ["supermarket", "kitting"]),
+      asset("kanban-a", "zone", "Kanban lane A", 5800, 3300, 2600, 650, "layout", ["kanban", "lane-a"]),
+      asset("kanban-b", "zone", "Kanban lane B", 5800, 4250, 2600, 650, "layout", ["kanban", "lane-b"]),
+      asset("kanban-c", "zone", "Kanban lane C", 5800, 5200, 2600, 650, "layout", ["kanban", "lane-c"]),
+      asset("cart-a", "agv", "Kitting cart A", 9000, 3200, 1100, 750, "equipment", ["kitting", "cart"]),
+      asset("cart-b", "agv", "Kitting cart B", 9000, 4200, 1100, 750, "equipment", ["kitting", "cart"]),
+      asset("cart-c", "agv", "Kitting cart C", 9000, 5200, 1100, 750, "equipment", ["kitting", "cart"]),
+      asset("fifo", "zone", "FIFO WIP lane", 10800, 3450, 2100, 2200, "layout", ["fifo", "wip"]),
+      asset("point-of-use", "zone", "Line-side delivery", 13200, 3600, 1700, 2000, "layout", ["line-side", "delivery"]),
+      asset("replenishment", "rack", "Replenishment rack", 10800, 950, 2900, 900, "equipment", ["replenishment", "rack"]),
+      asset("kanban-board", "cabinet", "Kanban board", 14100, 1050, 650, 500, "equipment", ["kanban", "visual-management"]),
+      asset("forklift-aisle", "agvpath", "Forklift replenishment aisle", 500, 6650, 14500, 850, "aisles", ["forklift", "aisle"]),
+      asset("pedestrian", "agvpath", "Pedestrian pick aisle", 500, 2700, 14500, 450, "aisles", ["pedestrian", "aisle"]),
+      asset("esd", "zone", "ESD controlled kitting", 5350, 650, 9900, 5450, "safety", ["esd", "controlled-area"]),
+      asset("quarantine", "fence", "Material quarantine", 900, 3900, 2500, 1600, "safety", ["quality", "quarantine"]),
+      asset("operator", "operator", "Kitting operator", 10100, 4350, 600, 600, "equipment", ["operator", "kitting"]),
+    ],
+    annotations: [
+      note("title", "Supermarket + kitting - editable template", 750, 450, "measurements"),
+      note("pull", "Pull flow: receiving -> supermarket -> cart -> line-side", 5900, 3050, "flow"),
+      note("safety", "ESD boundary + quarantine included", 5400, 6300, "safety"),
+    ],
+    connectors: [
+      { fromRef: "receiving", toRef: "incoming-qc", kind: "material" },
+      { fromRef: "incoming-qc", toRef: "supermarket", kind: "material" },
+      { fromRef: "supermarket", toRef: "kanban-a", kind: "material" },
+      { fromRef: "kanban-a", toRef: "cart-a", kind: "flow" },
+      { fromRef: "kanban-b", toRef: "cart-b", kind: "flow" },
+      { fromRef: "kanban-c", toRef: "cart-c", kind: "flow" },
+      { fromRef: "cart-a", toRef: "fifo", kind: "flow" },
+      { fromRef: "cart-b", toRef: "fifo", kind: "flow" },
+      { fromRef: "cart-c", toRef: "fifo", kind: "flow" },
+      { fromRef: "fifo", toRef: "point-of-use", kind: "flow" },
     ],
   },
   {
