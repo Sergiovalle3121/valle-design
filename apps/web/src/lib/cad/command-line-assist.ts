@@ -36,6 +36,7 @@ const EMPTY_QUERY_PRIORITY: Partial<Record<CadCommandId, number>> = {
   distribute_selection: 7,
   connect_flow: 6,
   arrange_flow_line: 5,
+  trace_material_route: 5,
   validate_layout: 4,
   find_collisions: 3,
   fit_to_view: 2,
@@ -67,6 +68,7 @@ function exampleFor(commandId: CadCommandId, labels: string[] | undefined) {
     return "acomoda y conecta la linea de flujo";
   if (commandId === "arrange_rack_rows")
     return "acomoda racks en 2 filas con pasillo 3m";
+  if (commandId === "trace_material_route") return "traza ruta material";
   if (commandId === "validate_layout") return "valida el layout";
   if (commandId === "find_collisions") return "encuentra colisiones";
   if (commandId === "fit_to_view") return "enfoca la seleccion";

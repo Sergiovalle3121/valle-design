@@ -1,6 +1,36 @@
 # AXOS CAD Capability Audit
 
-Last updated: 2026-06-29
+Last updated: 2026-06-30
+
+## 2026-06-30 - Material route command update
+
+Open CAD PRs inspected before this run included #900 (factory scale), #903
+(viewport saved views), #904 (canvas focus workbench), #905 (dock/staging
+generator), and #906 (supermarket/kitting generator). All were clean, green, and
+already marked ready for Claude Integrator, so this run avoided their
+`Layout3DEditor.tsx` and `warehouse-generators.ts` ownership areas.
+
+Existing capability found: the local CAD command dock already passed editable
+objects, selected ids, and flow/material connectors into `CadCommandContext`;
+the dock and Cmd-K palette already render command registry entries and report
+operations.
+
+What this run reused: `CAD_COMMAND_REGISTRY`, `parseCadCommand`,
+`suggestCadCommands`, the existing `report` operation renderer, connector state
+from `Layout3DEditor`, and `scoreFlowLayout`.
+
+What this run extended: `material-flow-route.ts` now builds deterministic
+from-to route reports from existing connectors or selected/object sequence.
+`trace_material_route` exposes route distance, longest handoff, connector count,
+crossings, backtracking, and route legs through the current command UI.
+
+What this run intentionally did not duplicate: no new CAD editor, route panel,
+flow engine, connector model, generator, toolbar, backend endpoint, or
+persistence path was created.
+
+Why this is non-redundant: open generator PRs create warehouse/kitting geometry;
+this PR analyzes current route geometry through the existing command surface,
+so users can inspect material travel without waiting for another editor panel.
 
 ## 2026-06-30 - Viewport saved views update
 

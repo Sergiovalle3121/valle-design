@@ -18,6 +18,7 @@ The command registry lives in `apps/web/src/lib/cad/commands/registry.ts` and is
 | `arrange_flow_line`      | flow     | Arrange selected objects by sequence and add flow connectors.   | `acomoda y conecta la linea de flujo`           |
 | `arrange_rack_rows`      | layout   | Arrange selected racks/equipment into warehouse rack rows.      | `acomoda racks en 2 filas con pasillo 3m`       |
 | `analyze_line_balance`   | analysis | Report takt load, bottleneck, missing cycle times, and overloads. | `analiza balanceo de linea takt 45s`          |
+| `trace_material_route`   | flow     | Report the material from-to route using existing connectors or selected sequence. | `traza ruta material`             |
 | `measure_distance`       | analysis | Measure center-to-center distance between two objects.          | `mide distancia entre AOI y empaque`            |
 | `find_collisions`        | analysis | Detect basic bounding-box overlaps.                             | `encuentra colisiones`                          |
 | `validate_layout`        | analysis | Build the combined validation report for layout readiness.      | `valida el layout`                              |
@@ -76,3 +77,4 @@ The command engine is vendor-neutral. If the deployment points to self-hosted CI
 - Visual ghost previews are not implemented yet; textual/operation previews are the first contract.
 - Collision detection is basic axis-aligned bounding-box detection and intentionally ignores rotation for now.
 - `arrange_rack_rows` rearranges existing selected racks/equipment; it does not create new rack blocks yet.
+- `trace_material_route` reports local connector/sequence geometry only; it does not call backend material routing or MRP data.

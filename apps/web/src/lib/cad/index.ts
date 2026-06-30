@@ -22,3 +22,4 @@ export * from "./templates";
 export * from "./line-balance";
 export * from "./warehouse-generators";
 export * from "./viewport-bookmarks";
+export * from "./material-flow-route";

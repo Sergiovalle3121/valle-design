@@ -1,6 +1,27 @@
 # AXOS CAD Tree Status
 
-Last updated: 2026-06-29
+Last updated: 2026-06-30
+
+## 2026-06-30 - Material route command
+
+This run advances the existing CAD command/flow surface without adding another
+editor panel:
+
+- `material-flow-route.ts` builds a deterministic from-to route report from the
+  current connector graph or selected object sequence.
+- `trace_material_route` is registered in the existing command registry, parser,
+  command-assist suggestions, Cmd-K palette source, and OpenAI-compatible schema
+  path.
+- The existing `Layout3DEditor` command dock already passes connector state and
+  renders `report` operations, so users can type `traza ruta material` and see
+  total route distance, longest handoff, route legs, crossings, backtracking,
+  connector count, and score.
+- The workflow does not create a parallel flow model, route renderer, generator,
+  toolbar, backend endpoint, or persistence contract.
+
+Recommended next phase: after the active generator PRs land, connect this route
+report to generated supermarket/dock flows with route issue zoom and policy
+thresholds for excessive material travel.
 
 ## 2026-06-30 - Viewport saved views and zoom-to-issue
 
