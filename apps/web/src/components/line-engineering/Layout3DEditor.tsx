@@ -930,7 +930,7 @@ export default function Layout3DEditor({
   const rebuildDxfRef = useRef<() => void>(() => {});
   const [hasDxf, setHasDxf] = useState(false); // a DXF backdrop is loaded → can trace it into walls (Fase 58)
   const groundRef = useRef<THREE.Mesh | null>(null);
-  const gridHelperRef = useRef<THREE.GridHelper | null>(null);
+  const gridHelperRef = useRef<THREE.Object3D | null>(null);
   const dirLightRef = useRef<THREE.DirectionalLight | null>(null);
   const walkRef = useRef(false);
   const walkYawRef = useRef(0);
@@ -1061,8 +1061,18 @@ export default function Layout3DEditor({
       while (gg.children.length) { const o = gg.children[gg.children.length - 1]; gg.remove(o); disposeObject(o); }
       const { s, W, H } = ctx;
       const fpGrid = data?.footprint.gridSize || 1;
-      const grid = new THREE.GridHelper(Math.max(W * s, H * s), Math.min(60, Math.max(8, Math.round(Math.max(W, H) / fpGrid / 2))), th.gridA, th.gridB);
-      (grid.material as THREE.Material).transparent = true; (grid.material as THREE.Material).opacity = 0.6;
+      // Rectangular grid that matches the footprint exactly. A square GridHelper
+      // (side = max dimension) used to overhang non-square plants, drawing cells
+      // outside the placeable area — the user could see the cells but the drag
+      // clamp (ctx.W/ctx.H) refused to drop objects there. Now every visible cell
+      // is inside the plant, with ~square world cells, line count capped for perf.
+      const halfW = (W * s) / 2, halfH = (H * s) / 2;
+      const nx = Math.min(60, Math.max(2, Math.round(W / fpGrid)));
+      const nz = Math.min(60, Math.max(2, Math.round(H / fpGrid)));
+      const gridPts: THREE.Vector3[] = [];
+      for (let i = 0; i <= nx; i++) { const x = -halfW + (i / nx) * (W * s); gridPts.push(new THREE.Vector3(x, 0, -halfH), new THREE.Vector3(x, 0, halfH)); }
+      for (let j = 0; j <= nz; j++) { const z = -halfH + (j / nz) * (H * s); gridPts.push(new THREE.Vector3(-halfW, 0, z), new THREE.Vector3(halfW, 0, z)); }
+      const grid = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(gridPts), new THREE.LineBasicMaterial({ color: th.gridB, transparent: true, opacity: 0.6 }));
       grid.position.y = 0.01; gridHelperRef.current = grid; gg.add(grid);
       const edge = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(W * s, H * s)), new THREE.LineBasicMaterial({ color: 0x64748b }));
       edge.rotation.x = -Math.PI / 2; edge.position.y = 0.02; gg.add(edge);
