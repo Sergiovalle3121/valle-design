@@ -98,6 +98,20 @@ This audit tracks the non-redundancy check for the CAD tree sprint. It is scoped
 | Command palette and shortcuts | Yes | `command-palette.ts`, `keyboard-shortcuts.ts`, `Layout3DEditor.tsx` | usable | More command examples and compound workflows needed. | Add workflow commands before new UI. | `commands/*`, `command-palette.ts` | Low. |
 | Local snapshots | Yes | `snapshots.ts`, `Layout3DEditor.tsx` | usable | Session-local; backend version workflow separate. | Snapshot before more high-risk conversions. | `snapshots.ts`, editor versions modal | Medium if touching versions UI. |
 
+## 2026-06-30 dock/staging generator audit
+
+Open CAD PRs #900, #903, and #904 were clean and own factory scale, saved views, and canvas focus. This run stayed on the generator surface already present on `main`.
+
+Existing capability found: `warehouse-generators.ts` already created editable rack rows, and `Layout3DEditor.tsx` already had an Equipment rail generator card, editable assets, layer assignments, tags, annotations, local snapshots, selection, snapping, connector state, and DXF export.
+
+What this run reused: the warehouse generator contract, current asset kinds (`wall`, `zone`, `pallet`, `agvpath`), existing CAD layers (`layout`, `equipment`, `aisles`, `measurements`), object tags, generated annotations, snapshot/undo paths, and connector rendering.
+
+What this run extended: `generateWarehouseDockStaging` creates receiving/shipping/cross-dock doors, staging lanes, pallet slots, forklift apron lanes, labels, scaling warnings, and flow connector refs. `Layout3DEditor.tsx` now exposes those controls in the existing Equipment rail and resolves connector endpoints for both stations and editable assets.
+
+What this run intentionally did not duplicate: no new CAD editor, warehouse editor, template system, symbol library, command registry, validation engine, layer model, DXF exporter, or backend persistence path was introduced.
+
+Why this is non-redundant: rack rows solve storage layout, while dock/staging solves the inbound/outbound interface area needed for full warehouse and factory layouts. The next safe generator gap is a parametric supermarket/kitting lane generator using the same output contract.
+
 ## Existing implementation inspected
 
 - `AGENTS.md`

@@ -62,7 +62,12 @@ import { evaluateCadDxfExportReadiness, type CadDxfExportLayerSummary, type CadD
 import { importDxfPrimitives, summarizeDxfImportWarnings, type CadDxfImportResult, type CadDxfImportWarning, type CadDxfPoint, type CadDxfPrimitive } from '@/lib/cad/dxf-import';
 import { CAD_SYMBOL_LIBRARY, getCadSymbol, type CadSymbolCategory } from '@/lib/cad/symbols';
 import { CAD_LAYOUT_TEMPLATES, instantiateCadLayoutTemplate, type CadLayoutTemplateId } from '@/lib/cad/templates';
-import { generateWarehouseRackRows, type CadRackRowGeneratorInput } from '@/lib/cad/warehouse-generators';
+import {
+  generateWarehouseDockStaging,
+  generateWarehouseRackRows,
+  type CadDockStagingGeneratorInput,
+  type CadRackRowGeneratorInput,
+} from '@/lib/cad/warehouse-generators';
 import { type CadClearanceIssue, type CadCollisionHit } from '@/lib/cad/collisions';
 import { buildFlowSegments, scoreFlowLayout, type CadFlowNode, type CadFlowScore, type CadFlowSegment } from '@/lib/cad/flow-optimization';
 import type { CadSafetyIssue, CadSafetyZone, CadSafetyZoneKind } from '@/lib/cad/safety-zones';
@@ -768,6 +773,17 @@ export default function Layout3DEditor({
     orientation: 'horizontal',
     labelPrefix: 'R',
   });
+  const [dockGenerator, setDockGenerator] = useState<CadDockStagingGeneratorInput>({
+    dockCount: 4,
+    stagingLanes: 4,
+    dockWidth: 3200,
+    dockDepth: 900,
+    stagingDepth: 5000,
+    aisleWidth: 3600,
+    side: 'south',
+    mode: 'receiving',
+    labelPrefix: 'D',
+  });
   const [tool, setTool] = useState<'select' | 'measure' | 'wall'>('select');
   const [viewMode, setViewMode] = useState<'3d' | '2d'>('3d'); // 2D = locked top-down plan view (CAD unificado)
   const [walk, setWalk] = useState(false); // first-person walkthrough mode
@@ -1206,14 +1222,32 @@ export default function Layout3DEditor({
       label.userData.labelFor = id;
       blocks.add(label);
     });
-    // connectors as arched tubes between placed block tops
+    // connectors as arched tubes between stations or generated assets
+    const connectorEndpoint = (id: string): THREE.Vector3 | null => {
+      const station = placementsRef.current.get(id);
+      if (station) {
+        const height = Math.max(0.6, Math.min(station.w * s, station.h * s) * 0.7);
+        return new THREE.Vector3(
+          (station.x + station.w / 2 - W / 2) * s,
+          height + 0.2,
+          (station.y + station.h / 2 - H / 2) * s,
+        );
+      }
+      const asset = assetsRef.current.get(id);
+      if (!asset) return null;
+      const def = assetMeta(asset.kind);
+      const flat = def.archetype === 'zone' || def.archetype === 'path';
+      const height = flat ? 0.55 : Math.max(0.4, def.height * s);
+      return new THREE.Vector3(
+        (asset.x + asset.w / 2 - W / 2) * s,
+        height + 0.2,
+        (asset.y + asset.h / 2 - H / 2) * s,
+      );
+    };
     connectorsRef.current.forEach((cn) => {
-      const a = placementsRef.current.get(cn.from); const b = placementsRef.current.get(cn.to);
-      if (!a || !b) return;
-      const ha = Math.max(0.6, Math.min(a.w * s, a.h * s) * 0.7);
-      const hb = Math.max(0.6, Math.min(b.w * s, b.h * s) * 0.7);
-      const start = new THREE.Vector3((a.x + a.w / 2 - W / 2) * s, ha + 0.2, (a.y + a.h / 2 - H / 2) * s);
-      const end = new THREE.Vector3((b.x + b.w / 2 - W / 2) * s, hb + 0.2, (b.y + b.h / 2 - H / 2) * s);
+      const start = connectorEndpoint(cn.from);
+      const end = connectorEndpoint(cn.to);
+      if (!start || !end) return;
       const mid = start.clone().add(end).multiplyScalar(0.5); mid.y += start.distanceTo(end) * 0.22 + 0.8;
       const tube = new THREE.Mesh(
         new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(start, mid, end), 24, 0.09, 7, false),
@@ -2054,6 +2088,7 @@ export default function Layout3DEditor({
     // material-flow travel metrics from the line connectors (Fase 64)
     const centers: Record<string, FlowCenter> = {};
     placementsRef.current.forEach((p, id) => { centers[id] = { x: p.x + p.w / 2, y: p.y + p.h / 2 }; });
+    assets.forEach((asset) => { centers[asset.id] = { x: asset.x + asset.w / 2, y: asset.y + asset.h / 2 }; });
     const flow = flowMetrics(connectorsRef.current, centers);
     setTakeoff({
       unit: fp.unit || 'mm', footprintArea, totalStations: data!.stations.length,
@@ -2499,6 +2534,9 @@ export default function Layout3DEditor({
   const setRackGeneratorField = <K extends keyof CadRackRowGeneratorInput>(field: K, value: CadRackRowGeneratorInput[K]) => {
     setRackGenerator((state) => ({ ...state, [field]: value }));
   };
+  const setDockGeneratorField = <K extends keyof CadDockStagingGeneratorInput>(field: K, value: CadDockStagingGeneratorInput[K]) => {
+    setDockGenerator((state) => ({ ...state, [field]: value }));
+  };
   const applyRackRowGenerator = () => {
     const ctx = ctxRef.current; const fp = data?.footprint;
     if (!ctx || !fp) { toast.error('No hay footprint listo para generar racks.', 'Generador warehouse'); return; }
@@ -2545,6 +2583,69 @@ export default function Layout3DEditor({
     const scaled = generated.scale < 1 ? ` - escala ${Math.round(generated.scale * 100)}%` : '';
     toast.success(`${generated.summary.rackCount} racks, ${generated.summary.aisleCount} pasillos y ${generated.summary.labelCount} etiquetas${scaled}.`, 'Generador warehouse');
     if (generated.warnings[0]) toast.error(generated.warnings[0], 'Generador warehouse');
+  };
+  const applyDockStagingGenerator = () => {
+    const ctx = ctxRef.current; const fp = data?.footprint;
+    if (!ctx || !fp) { toast.error('No hay footprint listo para generar docks.', 'Generador dock'); return; }
+    const generated = generateWarehouseDockStaging(dockGenerator, { width: fp.footprintW || ctx.W, height: fp.footprintH || ctx.H, gridSize: fp.gridSize || 100 });
+    recordLocalSnapshot('Auto - antes de generar docks y staging', 'command');
+    pushHistory();
+    const created: SelItem[] = [];
+    const idByRef = new Map<string, string>();
+    const layerUpdates: Record<string, CadLayerId> = {};
+    const tagUpdates: Record<string, string> = {};
+
+    for (const item of generated.assets) {
+      const id = newId('as');
+      assetsRef.current.set(id, {
+        id,
+        kind: item.kind,
+        label: item.label,
+        x: item.x,
+        y: item.y,
+        w: item.w,
+        h: item.h,
+        rotation: item.rotation ?? 0,
+      });
+      idByRef.set(item.ref, id);
+      created.push({ type: 'asset', id });
+      layerUpdates[id] = item.layer;
+      tagUpdates[id] = item.tags.join(', ');
+    }
+
+    for (const item of generated.annotations) {
+      const id = newId('nt');
+      annotationsRef.current.set(id, {
+        id,
+        type: 'text',
+        text: item.text,
+        x: item.x,
+        y: item.y,
+        color: cadLayersRef.current.find((layer) => layer.id === item.layer)?.color,
+      });
+    }
+
+    const nextConnectors = [...connectorsRef.current];
+    let connectorCount = 0;
+    for (const connector of generated.connectors) {
+      const from = idByRef.get(connector.fromRef);
+      const to = idByRef.get(connector.toRef);
+      if (!from || !to) continue;
+      if (!nextConnectors.some((item) => item.from === from && item.to === to && (item.kind ?? 'flow') === connector.kind)) {
+        nextConnectors.push({ from, to, kind: connector.kind });
+        connectorCount++;
+      }
+    }
+    connectorsRef.current = nextConnectors;
+
+    setAssetIds(new Set(assetsRef.current.keys()));
+    setLayerAssignments((cur) => ({ ...cur, ...layerUpdates }));
+    setObjectTags((cur) => ({ ...cur, ...tagUpdates }));
+    if (created.length) select(created.slice(0, 140));
+    setDirty(true); rebuildAll(); refreshSnap();
+    const scaled = generated.scale < 1 ? ` - escala ${Math.round(generated.scale * 100)}%` : '';
+    toast.success(`${generated.summary.dockCount} docks, ${generated.summary.stagingLaneCount} staging, ${generated.summary.palletCount} pallets, ${connectorCount} flujos${scaled}.`, 'Generador dock');
+    if (generated.warnings[0]) toast.error(generated.warnings[0], 'Generador dock');
   };
   const fallbackLayerForItem = (item: SelItem): CadLayerId => item.type === 'station' ? 'layout' : 'equipment';
   const isItemLayerLocked = (item: SelItem) => isObjectLayerLocked(cadLayersRef.current, layerAssignmentsRef.current, item.id, fallbackLayerForItem(item));
@@ -4306,6 +4407,35 @@ export default function Layout3DEditor({
                     </div>
                     <button onClick={applyRackRowGenerator} className="mt-2 w-full rounded-lg bg-amber-500/90 px-2 py-1.5 text-[11px] font-semibold text-gray-950 hover:bg-amber-400">Generar racks editables</button>
                     <div className="mt-1.5 text-[10px] leading-snug text-amber-100/60">Crea racks, pasillos forklift y etiquetas en capas CAD existentes.</div>
+                  </div>
+                  <div className="mb-3 rounded-xl border border-emerald-400/15 bg-emerald-400/[0.05] p-2.5">
+                    <div className="mb-1.5 flex items-center justify-between gap-2">
+                      <div className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-emerald-200"><Waypoints className="h-3.5 w-3.5" /> Generador dock/staging</div>
+                      <span className="text-[10px] text-emerald-100/60">flow</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <DimInput label="Docks" value={dockGenerator.dockCount} onChange={(v) => setDockGeneratorField('dockCount', v)} />
+                      <DimInput label="Staging" value={dockGenerator.stagingLanes} onChange={(v) => setDockGeneratorField('stagingLanes', v)} />
+                      <DimInput label="Dock mm" value={dockGenerator.dockWidth} onChange={(v) => setDockGeneratorField('dockWidth', v)} />
+                      <DimInput label="Fondo" value={dockGenerator.stagingDepth} onChange={(v) => setDockGeneratorField('stagingDepth', v)} />
+                      <DimInput label="Apron" value={dockGenerator.aisleWidth} onChange={(v) => setDockGeneratorField('aisleWidth', v)} />
+                      <label className="block">
+                        <span className="block text-[9px] uppercase tracking-wide text-gray-500 mb-0.5">Prefijo</span>
+                        <input value={dockGenerator.labelPrefix} onChange={(e) => setDockGeneratorField('labelPrefix', e.target.value)} className="w-full px-1.5 py-1 rounded-md bg-white/[0.06] border border-white/10 text-[12px] text-white focus:outline-none focus:border-emerald-300/60" />
+                      </label>
+                    </div>
+                    <div className="mt-2 grid grid-cols-3 gap-1.5 text-[10.5px]">
+                      {(['receiving', 'shipping', 'crossdock'] as const).map((mode) => (
+                        <button key={mode} onClick={() => setDockGeneratorField('mode', mode)} className={`rounded-lg border px-1.5 py-1.5 font-semibold ${dockGenerator.mode === mode ? 'border-emerald-300/50 bg-emerald-400/15 text-emerald-100' : 'border-white/10 text-gray-400 hover:text-white'}`}>{mode === 'receiving' ? 'Recibir' : mode === 'shipping' ? 'Enviar' : 'Cross'}</button>
+                      ))}
+                    </div>
+                    <div className="mt-1.5 grid grid-cols-4 gap-1 text-[10.5px]">
+                      {(['north', 'south', 'west', 'east'] as const).map((side) => (
+                        <button key={side} onClick={() => setDockGeneratorField('side', side)} className={`rounded-lg border px-1.5 py-1 font-semibold ${dockGenerator.side === side ? 'border-emerald-300/50 bg-emerald-400/15 text-emerald-100' : 'border-white/10 text-gray-400 hover:text-white'}`}>{side === 'north' ? 'N' : side === 'south' ? 'S' : side === 'west' ? 'O' : 'E'}</button>
+                      ))}
+                    </div>
+                    <button onClick={applyDockStagingGenerator} className="mt-2 w-full rounded-lg bg-emerald-500/90 px-2 py-1.5 text-[11px] font-semibold text-gray-950 hover:bg-emerald-400">Generar dock + staging</button>
+                    <div className="mt-1.5 text-[10px] leading-snug text-emerald-100/60">Crea puertas, staging, pallets, apron forklift y flujos visibles como objetos editables.</div>
                   </div>
                   <div className="mb-3 rounded-xl border border-rose-400/15 bg-rose-400/[0.05] p-2.5">
                     <div className="text-[10px] uppercase tracking-wide text-rose-200 mb-1.5">Safety zones</div>

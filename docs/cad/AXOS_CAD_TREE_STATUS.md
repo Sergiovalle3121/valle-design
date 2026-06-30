@@ -249,6 +249,18 @@ This run makes the existing Copiloto CAD command line easier to use without chan
 - Missing-selection states are explicit, so users see why a command cannot preview yet.
 
 This advances Phase 21 (shortcuts + command line) while avoiding active PR areas for registry semantics, layers, validation, DXF, symbols, templates, flow, and safety.
+
+## 2026-06-30 - Dock and staging generator
+
+This run advances the generator backlog with a visible dock/staging workflow:
+
+- `apps/web/src/lib/cad/warehouse-generators.ts` now includes `generateWarehouseDockStaging` for receiving, shipping, and cross-dock layouts.
+- Generated layouts create editable dock doors, staging zones, pallet positions, a forklift apron, labels, CAD layer assignments, tags, bounds/scaling warnings, and flow connector refs.
+- `apps/web/src/components/line-engineering/Layout3DEditor.tsx` exposes the generator in the existing Equipment rail and maps generated refs into editable assets/connectors.
+- Connector rendering now resolves both stations and editable assets, so template/generator asset flows are visible in the current connector layer.
+- `apps/web/src/lib/cad/warehouse-generators.spec.ts` covers rack regressions plus dock/staging horizontal/vertical layouts and oversize behavior.
+
+Phase evidence: Factory templates/generators are now stronger for warehouse receiving/shipping. This is non-redundant with the rack generator because rack rows create storage capacity, while dock/staging creates inbound/outbound interface areas with flow. Next generator should parameterize supermarket/kitting lanes or line-side delivery without duplicating templates.
 ## 2026-06-29 - EHS and utilities asset blocks
 
 This run extends the existing shared asset catalog instead of creating a third symbol/block system:
