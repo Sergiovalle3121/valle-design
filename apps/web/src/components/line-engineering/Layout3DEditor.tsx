@@ -94,6 +94,7 @@ import {
   clampFootprintUnit,
   clampGridUnit,
   unitToMeters,
+  metersToUnit,
   formatMeters,
   type WorldUnit,
   type FactoryPreset,
@@ -814,6 +815,7 @@ export default function Layout3DEditor({
   const [sun, setSun] = useState({ az: 35, el: 55 }); // sun azimuth/elevation (deg)
   const [showView, setShowView] = useState(false);
   const [fpDraft, setFpDraft] = useState<{ w: number; h: number; g: number }>({ w: 0, h: 0, g: 0 });
+  const [plantDisplayUnit, setPlantDisplayUnit] = useState<'m' | 'mm'>('m'); // readout-only toggle, no cambia el footprint guardado
   const [viewportBookmarks, setViewportBookmarks] = useState<CadViewportBookmark[]>([]);
   const [layers, setLayers] = useState({ stations: true, equipment: true, connectors: true, dims: true, notes: true, labels: true, grid: true, dxf: true });
   const [cadLayers, setCadLayers] = useState<CadLayer[]>(DEFAULT_CAD_LAYERS);
@@ -4077,6 +4079,17 @@ export default function Layout3DEditor({
   placedIds.forEach((id) => { cadLayerCounts[layerAssignments[id] ?? 'layout'] += 1; });
   assetIds.forEach((id) => { cadLayerCounts[layerAssignments[id] ?? 'equipment'] += 1; });
   const cadLayerSummary = summarizeCadLayers(cadLayers, cadLayerCounts);
+  // Plant-scale safety: flag objects that sit outside the saved factory footprint (EPIC 0).
+  const plantBoundsW = data?.footprint.footprintW ?? 0;
+  const plantBoundsH = data?.footprint.footprintH ?? 0;
+  const outOfPlantBounds = (plantBoundsW > 0 && plantBoundsH > 0) ? (() => {
+    const outside = (o?: { x: number; y: number; w: number; h: number }) =>
+      !!o && (o.x < 0 || o.y < 0 || o.x + o.w > plantBoundsW || o.y + o.h > plantBoundsH);
+    let n = 0;
+    placedIds.forEach((id) => { if (outside(placementsRef.current.get(id))) n += 1; });
+    assetIds.forEach((id) => { if (outside(assetsRef.current.get(id))) n += 1; });
+    return n;
+  })() : 0;
   const selectedObjectProperties: CadObjectProperties | null = selSnap && selList[0] ? (() => {
     const layerId = selectionLayer(selList[0]);
     const layer = cadLayers.find((candidate) => candidate.id === layerId);
@@ -4102,7 +4115,7 @@ export default function Layout3DEditor({
   const safetyBlockers = safetyIssues.filter((issue) => issue.code === 'zone_invasion').length;
   const safetyWarnings = safetyIssues.length - safetyBlockers;
   const releaseBlockers = (report?.errors ?? 0) + collisionHits.length + safetyBlockers;
-  const releaseWarnings = (report?.warnings ?? 0) + clearanceIssues.length + safetyWarnings + dxfWarnings.length + (validationFlow && validationFlow.score < 80 ? 1 : 0);
+  const releaseWarnings = (report?.warnings ?? 0) + clearanceIssues.length + safetyWarnings + dxfWarnings.length + (validationFlow && validationFlow.score < 80 ? 1 : 0) + (outOfPlantBounds > 0 ? 1 : 0);
 
   const releaseState = !report ? 'Sin validar' : releaseBlockers > 0 ? 'Bloqueado' : releaseWarnings > 0 ? 'Con avisos' : 'Listo';
   const releaseTone = releaseState === 'Listo' ? 'text-emerald-300' : releaseState === 'Bloqueado' ? 'text-rose-300' : releaseState === 'Con avisos' ? 'text-amber-300' : 'text-gray-500 dark:text-gray-400';
@@ -4114,6 +4127,7 @@ export default function Layout3DEditor({
     { label: 'Safety zones', value: safetyIssues.length ? `${safetyIssues.length} issue(s)` : 'Sin invasiones activas', tone: safetyBlockers ? 'text-rose-300' : safetyIssues.length ? 'text-amber-300' : 'text-emerald-300' },
     { label: 'Flow Health', value: validationFlow ? `${validationFlow.score}/100` : 'No analizado', tone: !validationFlow ? 'text-gray-500 dark:text-gray-400' : validationFlow.score >= 80 ? 'text-emerald-300' : validationFlow.score >= 55 ? 'text-amber-300' : 'text-rose-300' },
     { label: 'DXF import', value: dxfWarnings.length ? `${dxfWarnings.length} warning(s)` : 'Sin warnings activos', tone: dxfWarnings.length ? 'text-amber-300' : 'text-emerald-300' },
+    { label: 'Límites de planta', value: outOfPlantBounds ? `${outOfPlantBounds} fuera de límites` : 'Dentro de la planta', tone: outOfPlantBounds ? 'text-amber-300' : 'text-emerald-300' },
   ];
   const flowSegmentRows = [...flowSegments].sort((a, b) => b.distance - a.distance).slice(0, 5);
   const flowReorderPreview = flowHealth?.reorderPreview;
@@ -4288,14 +4302,27 @@ export default function Layout3DEditor({
                   </button>
                 ))}
               </div>
-              <div className="text-[10px] uppercase tracking-wide text-gray-500 mt-2.5 mb-1.5">Plano ({data?.footprint.unit ?? 'mm'})</div>
+              <div className="mt-2.5 mb-1.5 flex items-center justify-between gap-2">
+                <span className="text-[10px] uppercase tracking-wide text-gray-500">Plano ({data?.footprint.unit ?? 'mm'})</span>
+                <div className="inline-flex overflow-hidden rounded-md border border-white/10 text-[9px]">
+                  {(['m', 'mm'] as const).map((u) => (
+                    <button key={u} onClick={() => setPlantDisplayUnit(u)} className={`px-1.5 py-0.5 ${plantDisplayUnit === u ? 'bg-cyan-600/40 text-cyan-100' : 'text-gray-500 hover:text-white'}`} title={`Mostrar tamaño en ${u === 'm' ? 'metros' : 'milímetros'}`}>{u}</button>
+                  ))}
+                </div>
+              </div>
               <div className="grid grid-cols-3 gap-1.5 mb-1">
                 <DimInput label="Ancho" value={fpDraft.w} onChange={(v) => setFpDraft((s) => ({ ...s, w: v }))} />
                 <DimInput label="Largo" value={fpDraft.h} onChange={(v) => setFpDraft((s) => ({ ...s, h: v }))} />
                 <DimInput label="Rejilla" value={fpDraft.g} onChange={(v) => setFpDraft((s) => ({ ...s, g: v }))} />
               </div>
               <div className="text-[10px] text-gray-500 mb-2">
-                ≈ {formatMeters(unitToMeters(fpDraft.w || 0, (data?.footprint.unit ?? 'mm') as WorldUnit))} × {formatMeters(unitToMeters(fpDraft.h || 0, (data?.footprint.unit ?? 'mm') as WorldUnit))}
+                ≈ {(() => {
+                  const unit = (data?.footprint.unit ?? 'mm') as WorldUnit;
+                  const fmt = (v: number) => plantDisplayUnit === 'm'
+                    ? formatMeters(unitToMeters(v || 0, unit))
+                    : `${Math.round(metersToUnit(unitToMeters(v || 0, unit), 'mm')).toLocaleString()} mm`;
+                  return `${fmt(fpDraft.w)} × ${fmt(fpDraft.h)}`;
+                })()}
               </div>
               <button onClick={applyFootprint} className="w-full px-2 py-1.5 rounded-md bg-cyan-600 hover:bg-cyan-500 text-white text-[12px] font-medium">Aplicar tamaño</button>
               <div className="text-[10px] uppercase tracking-wide text-gray-500 mt-2.5 mb-1">Sol / sombras</div>
