@@ -65,7 +65,7 @@ assert.ok(
 // --- adaptive grid step keeps the line count sane and rises with the world ---
 assert.ok(adaptiveGridStepM(10) <= adaptiveGridStepM(300), 'bigger plant → coarser grid');
 assert.ok(adaptiveGridStepM(300) >= 5, '300 m plant uses a coarse step');
-for (const span of [10, 40, 80, 150, 300, 500, 800, 1200, 1500]) {
+for (const span of [10, 40, 80, 150, 300, 500, 800, 1200, 1500, 2000]) {
   const step = adaptiveGridStepM(span);
   const lines = span / step;
   assert.ok(lines <= 40 && lines >= 2, `~${Math.round(lines)} lines for ${span} m is readable`);

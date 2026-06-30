@@ -31,7 +31,7 @@ export function unitToMeters(value: number, unit: WorldUnit): number {
 // Factory-scale bounds, in metres. A plant editor that tops out at a few metres
 // is exactly the "the box is tiny" pain; these open it up to a full nave.
 export const MIN_WORLD_M = 4; // a single, tight workcell
-export const MAX_WORLD_M = 1500; // up to a 1.5 km campus per side — room for the largest plants/logistics parks
+export const MAX_WORLD_M = 2000; // up to a 2 km campus per side — room for the largest plants/logistics parks
 export const MIN_GRID_M = 0.1; // 100 mm — finest practical grid
 export const MAX_GRID_M = 50; // coarse grid for a mega plant
 
@@ -87,6 +87,7 @@ export const FACTORY_PRESETS: FactoryPreset[] = [
   { id: 'mega', label: 'Mega planta', hint: '500 × 300 m · rejilla 10 m', widthM: 500, heightM: 300, gridM: 10 },
   { id: 'complex', label: 'Complejo', hint: '800 × 500 m · rejilla 20 m', widthM: 800, heightM: 500, gridM: 20 },
   { id: 'campus', label: 'Campus / parque', hint: '1500 × 900 m · rejilla 25 m', widthM: 1500, heightM: 900, gridM: 25 },
+  { id: 'macro', label: 'Macroplanta', hint: '2000 × 1200 m · rejilla 50 m', widthM: 2000, heightM: 1200, gridM: 50 },
 ];
 
 /** A preset translated into the editor's footprint unit (whole units). */
