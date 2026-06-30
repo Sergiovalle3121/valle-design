@@ -2091,6 +2091,40 @@ export default function Layout3DEditor({
     toast.success(`Tramo seleccionado: ${segment.from.label ?? segment.from.id} → ${segment.to.label ?? segment.to.id}.`, 'Flow Health');
   };
 
+  const applyFlowReorderPreview = () => {
+    const preview = flowHealth?.reorderPreview;
+    if (!preview?.improves) return;
+    const moves = preview.moves.filter((move) => placementsRef.current.has(move.id));
+    if (moves.length < 2) { toast.error('No hay suficientes estaciones movibles para aplicar la recomendacion.', 'Flow Health'); return; }
+    const locked = moves.filter((move) => isItemLayerLocked({ type: 'station', id: move.id }));
+    if (locked.length) {
+      select(locked.map((move) => ({ type: 'station', id: move.id })));
+      rebuildAll();
+      toast.error(`${locked.length} estacion(es) estan en capas bloqueadas; desbloquealas antes de reordenar.`, 'Flow Health');
+      return;
+    }
+    const fp = data?.footprint;
+    recordLocalSnapshot('Auto - antes de aplicar orden Flow Health', 'command');
+    pushHistory();
+    let moved = 0;
+    moves.forEach((move) => {
+      const placement = placementsRef.current.get(move.id);
+      if (!placement) return;
+      const maxX = Math.max(0, (fp?.footprintW ?? move.to.x + placement.w) - placement.w);
+      const maxY = Math.max(0, (fp?.footprintH ?? move.to.y + placement.h) - placement.h);
+      placement.x = Math.max(0, Math.min(maxX, snapWorld(move.to.x - placement.w / 2)));
+      placement.y = Math.max(0, Math.min(maxY, snapWorld(move.to.y - placement.h / 2)));
+      moved += 1;
+    });
+    const nextNodes = currentFlowNodes();
+    setFlowSequence(nextNodes);
+    setFlowSegments(buildFlowSegments(nextNodes));
+    setFlowHealth(scoreFlowLayout(nextNodes));
+    select(moves.map((move) => ({ type: 'station', id: move.id })));
+    setDirty(true); refreshSnap(); rebuildAll();
+    toast.success(`Orden Flow Health aplicado en eje ${preview.axis.toUpperCase()} (${moved} estaciones).`, 'Flow Health');
+  };
+
   // Resize the plant footprint / grid from the CAD; the scene rebuilds at the
   // new scale and the change persists on save (objects keep their world coords).
   const applyFootprint = useCallback(() => {
@@ -3432,6 +3466,8 @@ export default function Layout3DEditor({
     { label: 'DXF import', value: dxfWarnings.length ? `${dxfWarnings.length} warning(s)` : 'Sin warnings activos', tone: dxfWarnings.length ? 'text-amber-300' : 'text-emerald-300' },
   ];
   const flowSegmentRows = [...flowSegments].sort((a, b) => b.distance - a.distance).slice(0, 5);
+  const flowReorderPreview = flowHealth?.reorderPreview;
+  const flowReorderMoveRows = flowReorderPreview?.moves.filter((move) => move.from.x !== move.to.x || move.from.y !== move.to.y).slice(0, 5) ?? [];
   const dxfExportLayerRows = dxfExportSummary.layerSummary.filter((layer) => layer.included > 0 || layer.hidden > 0).slice(0, 5);
   const dxfExportIssueRows = dxfExportSummary.issues.slice(0, 5);
 
@@ -4288,7 +4324,7 @@ export default function Layout3DEditor({
 
       {flowHealth && (
         <div className="absolute inset-0 z-[80] grid place-items-center bg-black/50 p-4" onClick={() => setFlowHealth(null)}>
-          <div className="w-[420px] max-w-full rounded-2xl border border-white/10 bg-gray-900 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="w-[420px] max-w-full max-h-[86vh] overflow-y-auto rounded-2xl border border-white/10 bg-gray-900 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
               <ChartLine className="h-4 w-4 text-cyan-300" />
               <span className="text-sm font-semibold">Flow Health</span>
@@ -4331,6 +4367,45 @@ export default function Layout3DEditor({
                       </button>
                     ))}
                   </div>
+                </div>
+              )}
+              {flowReorderPreview?.improves && (
+                <div className="rounded-xl border border-cyan-400/20 bg-cyan-400/10 p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <div>
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-cyan-100">Vista previa de mejora</div>
+                      <div className="text-[11px] text-cyan-50/80">Reordenar slots en eje {flowReorderPreview.axis.toUpperCase()} sin cambiar la secuencia de proceso.</div>
+                    </div>
+                    <button onClick={applyFlowReorderPreview} className="shrink-0 rounded-lg bg-cyan-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-cyan-500">Aplicar</button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                    <div className="rounded-lg bg-gray-950/40 px-2 py-1.5">
+                      <div className="text-gray-400">Score</div>
+                      <div className="tabular-nums text-white">{flowReorderPreview.before.score} -&gt; {flowReorderPreview.after.score} <span className="text-emerald-300">+{flowReorderPreview.deltas.score}</span></div>
+                    </div>
+                    <div className="rounded-lg bg-gray-950/40 px-2 py-1.5">
+                      <div className="text-gray-400">Distancia</div>
+                      <div className="tabular-nums text-white">{flowReorderPreview.deltas.totalDistance >= 0 ? '-' : '+'}{fmtLen(Math.abs(flowReorderPreview.deltas.totalDistance), data?.footprint.unit || 'mm')}</div>
+                    </div>
+                    <div className="rounded-lg bg-gray-950/40 px-2 py-1.5">
+                      <div className="text-gray-400">Cruces</div>
+                      <div className="tabular-nums text-white">{flowReorderPreview.before.crossingCount} -&gt; {flowReorderPreview.after.crossingCount}</div>
+                    </div>
+                    <div className="rounded-lg bg-gray-950/40 px-2 py-1.5">
+                      <div className="text-gray-400">Backtracking</div>
+                      <div className="tabular-nums text-white">{flowReorderPreview.before.backtrackingCount} -&gt; {flowReorderPreview.after.backtrackingCount}</div>
+                    </div>
+                  </div>
+                  {flowReorderMoveRows.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {flowReorderMoveRows.map((move) => (
+                        <div key={move.id} className="flex items-center justify-between gap-2 rounded-lg bg-gray-950/40 px-2 py-1 text-[11px]">
+                          <span className="min-w-0 flex-1 truncate text-cyan-50">{move.label ?? move.id}</span>
+                          <span className="shrink-0 tabular-nums text-gray-400">{Math.round(move.to.x)}, {Math.round(move.to.y)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
               {flowHealth.suggestions.length ? (

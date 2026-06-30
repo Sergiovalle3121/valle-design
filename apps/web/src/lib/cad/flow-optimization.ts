@@ -9,12 +9,34 @@ export interface CadFlowSegment {
   to: CadFlowNode;
   distance: number;
 }
-export interface CadFlowScore {
+export interface CadFlowScoreSummary {
   totalDistance: number;
   crossingCount: number;
   backtrackingCount: number;
   score: number;
+}
+export interface CadFlowReorderMove {
+  id: string;
+  label?: string;
+  from: { x: number; y: number };
+  to: { x: number; y: number };
+}
+export interface CadFlowReorderPreview {
+  axis: "x" | "y";
+  before: CadFlowScoreSummary;
+  after: CadFlowScoreSummary;
+  deltas: {
+    score: number;
+    totalDistance: number;
+    crossingCount: number;
+    backtrackingCount: number;
+  };
+  moves: CadFlowReorderMove[];
+  improves: boolean;
+}
+export interface CadFlowScore extends CadFlowScoreSummary {
   suggestions: string[];
+  reorderPreview?: CadFlowReorderPreview;
 }
 
 function distance(a: CadFlowNode, b: CadFlowNode): number {
@@ -72,7 +94,8 @@ export function suggestSimpleFlowReorder(
 ): CadFlowNode[] {
   return [...nodes].sort((a, b) => a[axis] - b[axis]);
 }
-export function scoreFlowLayout(nodes: CadFlowNode[]): CadFlowScore {
+
+function scoreFlowStats(nodes: CadFlowNode[]): CadFlowScoreSummary {
   const totalDistance = calculateTotalFlowDistance(nodes);
   const crossingCount = detectFlowCrossings(nodes).length;
   const backtrackingCount = detectBacktracking(nodes).length;
@@ -80,18 +103,89 @@ export function scoreFlowLayout(nodes: CadFlowNode[]): CadFlowScore {
     0,
     100 - totalDistance / 1000 - crossingCount * 15 - backtrackingCount * 10,
   );
-  const suggestions: string[] = [];
-  if (crossingCount)
-    suggestions.push("Reduce cruces de flujo entre estaciones.");
-  if (backtrackingCount)
-    suggestions.push("Reordena estaciones para evitar backtracking.");
-  if (totalDistance > 25000)
-    suggestions.push("Acorta la distancia total del flujo.");
   return {
     totalDistance,
     crossingCount,
     backtrackingCount,
     score: Math.round(score),
+  };
+}
+
+function candidateFlowReorder(
+  nodes: CadFlowNode[],
+  axis: "x" | "y",
+  before: CadFlowScoreSummary,
+): CadFlowReorderPreview {
+  const orderedSlots = suggestSimpleFlowReorder(nodes, axis);
+  const movedNodes = nodes.map((node, index) => ({
+    ...node,
+    x: orderedSlots[index]?.x ?? node.x,
+    y: orderedSlots[index]?.y ?? node.y,
+  }));
+  const after = scoreFlowStats(movedNodes);
+  return {
+    axis,
+    before,
+    after,
+    deltas: {
+      score: after.score - before.score,
+      totalDistance: before.totalDistance - after.totalDistance,
+      crossingCount: before.crossingCount - after.crossingCount,
+      backtrackingCount: before.backtrackingCount - after.backtrackingCount,
+    },
+    moves: nodes.map((node, index) => ({
+      id: node.id,
+      label: node.label,
+      from: { x: node.x, y: node.y },
+      to: {
+        x: orderedSlots[index]?.x ?? node.x,
+        y: orderedSlots[index]?.y ?? node.y,
+      },
+    })),
+    improves: after.score > before.score || after.totalDistance < before.totalDistance,
+  };
+}
+
+export function buildFlowReorderPreview(
+  nodes: CadFlowNode[],
+): CadFlowReorderPreview | null {
+  if (nodes.length < 2) return null;
+  const before = scoreFlowStats(nodes);
+  const candidates = [
+    candidateFlowReorder(nodes, "x", before),
+    candidateFlowReorder(nodes, "y", before),
+  ];
+  return candidates.sort(
+    (a, b) =>
+      b.deltas.score - a.deltas.score ||
+      b.deltas.totalDistance - a.deltas.totalDistance ||
+      b.deltas.crossingCount - a.deltas.crossingCount ||
+      b.deltas.backtrackingCount - a.deltas.backtrackingCount,
+  )[0];
+}
+
+export function scoreFlowLayout(nodes: CadFlowNode[]): CadFlowScore {
+  const stats = scoreFlowStats(nodes);
+  const reorderPreview = buildFlowReorderPreview(nodes);
+  const suggestions: string[] = [];
+  if (stats.crossingCount)
+    suggestions.push("Reduce cruces de flujo entre estaciones.");
+  if (stats.backtrackingCount)
+    suggestions.push("Reordena estaciones para evitar backtracking.");
+  if (stats.totalDistance > 25000)
+    suggestions.push("Acorta la distancia total del flujo.");
+  if (reorderPreview?.improves) {
+    const benefit =
+      reorderPreview.deltas.score > 0
+        ? `mejorar ${reorderPreview.deltas.score} puntos`
+        : `reducir ${Math.round(reorderPreview.deltas.totalDistance)} mm`;
+    suggestions.push(
+      `Aplica el orden sugerido en eje ${reorderPreview.axis.toUpperCase()} para ${benefit}.`,
+    );
+  }
+  return {
+    ...stats,
     suggestions,
+    reorderPreview: reorderPreview?.improves ? reorderPreview : undefined,
   };
 }

@@ -57,6 +57,13 @@ This run adds an editable CAD template workflow:
 
 The workflow is visible in `Layout3DEditor` and reuses the current editable layout model. It does not introduce a parallel editor, duplicate symbol systems, duplicate flow scoring, or a new persistence path.
 
+This run hardens the existing Flow Health workbench:
+
+- `flow-optimization.ts` now returns a deterministic reorder preview with before/after score, distance, crossing, and backtracking deltas.
+- The existing `Layout3DEditor` Flow Health modal shows the preview as a compact improvement card.
+- Users can apply the suggested physical slot order directly from Flow Health; the action records a local snapshot, uses the existing undo stack, respects locked CAD layers, selects affected stations, and recomputes Flow Health.
+- The workflow reuses current station placements, connectors, layers, snapping, snapshots, and rebuild paths.
+- It does not add another flow engine, another command registry path, another editor, or backend optimization dependency.
 ## 2026-06-29 - Supermarket and kitting template
 
 This run extends the existing editable template workflow without touching the editor shell:
@@ -74,6 +81,7 @@ This does not create a second warehouse generator, block system, editor, layer m
 | --- | --- | --- | --- |
 | Phase 0 - Audit plus visible fix | Complete for this run | `AXOS_CAD_CAPABILITY_AUDIT.md` plus visible keyboard-driven workbench actions | Keep audit current as PRs land. |
 | Phase 17 - Flow Health | Advanced | `flow-optimization.ts`, Flow Health UI, and `arrange_flow_line` | Add richer flow recommendations and before/after preview cards. |
+| Phase 17 - Flow Health | Strong | `flow-optimization.ts`, Flow Health UI, reorder preview card, and reversible apply action | Add from-to table, operator walking path, or recommendation severity filters. |
 | Phase 21 - Shortcuts and command line | Advanced | Command dock, parser, registry, palette, expanded shortcut dispatch | Add Enter/command-history reconciliation after UI conflicts settle. |
 | Phase 0 - Audit plus visible fix | Complete for this run | `AXOS_CAD_CAPABILITY_AUDIT.md` plus a visible export modal improvement | Keep audit current as PRs land. |
 | Phase 7 - DXF Export Pro Workflow | Advanced | `dxf-export.ts`, `layout-export-adapter.ts`, `dxf-export-readiness.ts`, and the visible DXF export modal | Add optional validation report attachment/package metadata after export contract review. |

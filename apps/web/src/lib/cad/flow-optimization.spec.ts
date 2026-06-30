@@ -1,5 +1,6 @@
 import { strict as assert } from "node:assert";
 import {
+  buildFlowReorderPreview,
   calculateTotalFlowDistance,
   detectBacktracking,
   detectFlowCrossings,
@@ -28,5 +29,25 @@ assert.deepEqual(
 assert.ok(
   scoreFlowLayout(nodes).suggestions.length >= 2,
   "score includes actionable suggestions",
+);
+const reorderPreview = buildFlowReorderPreview(nodes);
+assert.ok(reorderPreview, "builds reorder preview");
+assert.equal(reorderPreview?.axis, "x", "chooses the strongest flow axis");
+assert.ok(
+  (reorderPreview?.deltas.score ?? 0) > 0,
+  "reorder preview improves the score",
+);
+assert.ok(
+  (reorderPreview?.deltas.totalDistance ?? 0) > 0,
+  "reorder preview reduces travel distance",
+);
+assert.deepEqual(
+  reorderPreview?.moves.map((move) => move.id),
+  ["smt", "pack", "aoi", "inspect"],
+  "reorder preview keeps process sequence and assigns better physical slots",
+);
+assert.ok(
+  scoreFlowLayout(nodes).reorderPreview?.improves,
+  "score exposes actionable reorder preview",
 );
 console.log("cad flow optimization specs passed");
