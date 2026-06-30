@@ -17,6 +17,7 @@ The command registry lives in `apps/web/src/lib/cad/commands/registry.ts` and is
 | `arrange_line`           | layout   | Propose a simple sequence-based station arrangement.            | `acomoda la línea de izquierda a derecha`       |
 | `arrange_flow_line`      | flow     | Arrange selected objects by sequence and add flow connectors.   | `acomoda y conecta la linea de flujo`           |
 | `arrange_rack_rows`      | layout   | Arrange selected racks/equipment into warehouse rack rows.      | `acomoda racks en 2 filas con pasillo 3m`       |
+| `analyze_line_balance`   | analysis | Report takt load, bottleneck, missing cycle times, and overloads. | `analiza balanceo de linea takt 45s`          |
 | `measure_distance`       | analysis | Measure center-to-center distance between two objects.          | `mide distancia entre AOI y empaque`            |
 | `find_collisions`        | analysis | Detect basic bounding-box overlaps.                             | `encuentra colisiones`                          |
 | `validate_layout`        | analysis | Build the combined validation report for layout readiness.      | `valida el layout`                              |

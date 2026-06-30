@@ -9,6 +9,7 @@ export type CadCommandId =
   | "arrange_line"
   | "arrange_flow_line"
   | "arrange_rack_rows"
+  | "analyze_line_balance"
   | "measure_distance"
   | "find_collisions"
   | "validate_layout"
@@ -126,13 +127,19 @@ export type CadCommandInput =
       aisleWidth?: number;
       margin?: number;
     }
+  | {
+      id: "analyze_line_balance";
+      objectIds?: string[];
+      taktTimeSec?: number;
+      cycleTimes?: Record<string, number>;
+    }
   | { id: "measure_distance"; targetA?: string; targetB?: string }
   | { id: "find_collisions"; objectIds?: string[] }
   | { id: "validate_layout"; objectIds?: string[]; requiredClearance?: number }
   | { id: "fit_to_view"; objectIds?: string[] };
 
 export interface CadCommandSchemaField {
-  type: "string" | "number" | "enum" | "string[]";
+  type: "string" | "number" | "enum" | "string[]" | "object";
   required?: boolean;
   description: string;
   enum?: string[];

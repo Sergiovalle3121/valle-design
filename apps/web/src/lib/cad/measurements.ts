@@ -1,5 +1,15 @@
-export type CadMeasureMode = "direct" | "horizontal" | "vertical";
+export type CadMeasureMode =
+  | "direct"
+  | "horizontal"
+  | "vertical"
+  | "edge-horizontal"
+  | "edge-vertical";
 export type CadMeasureUnit = "mm" | "m";
+export type CadMeasurementRelation =
+  | "center"
+  | "clearance"
+  | "touching"
+  | "overlap";
 
 export interface CadMeasurePoint {
   x: number;
@@ -23,6 +33,9 @@ export interface CadMeasurement {
   dxMm: number;
   dyMm: number;
   label: string;
+  relation: CadMeasurementRelation;
+  clearanceMm?: number;
+  overlapMm?: number;
 }
 
 export function boxCenter(box: CadMeasureBox): CadMeasurePoint {
@@ -37,10 +50,16 @@ export function measurePoints(
 ): CadMeasurement {
   const dxMm = to.x - from.x;
   const dyMm = to.y - from.y;
+  const pointMode =
+    mode === "edge-horizontal"
+      ? "horizontal"
+      : mode === "edge-vertical"
+        ? "vertical"
+        : mode;
   const distanceMm =
-    mode === "horizontal"
+    pointMode === "horizontal"
       ? Math.abs(dxMm)
-      : mode === "vertical"
+      : pointMode === "vertical"
         ? Math.abs(dyMm)
         : Math.hypot(dxMm, dyMm);
   return {
@@ -51,6 +70,7 @@ export function measurePoints(
     dxMm,
     dyMm,
     label: formatDistance(distanceMm, displayUnit),
+    relation: "center",
   };
 }
 
@@ -60,6 +80,9 @@ export function measureBoxes(
   mode: CadMeasureMode = "direct",
   displayUnit: CadMeasureUnit = "mm",
 ): CadMeasurement {
+  if (mode === "edge-horizontal" || mode === "edge-vertical") {
+    return measureBoxEdges(a, b, mode, displayUnit);
+  }
   return measurePoints(boxCenter(a), boxCenter(b), mode, displayUnit);
 }
 
@@ -78,13 +101,104 @@ export function measurementLabel(
   b: CadMeasureBox,
   measurement: CadMeasurement,
 ): string {
-  const axis =
-    measurement.mode === "horizontal"
-      ? "H"
-      : measurement.mode === "vertical"
-        ? "V"
-        : "D";
+  const axis = measurementAxisLabel(measurement.mode);
   return `${axis} ${a.label} ↔ ${b.label}: ${measurement.label}`;
+}
+
+function measurementAxisLabel(mode: CadMeasureMode): string {
+  if (mode === "horizontal") return "H";
+  if (mode === "vertical") return "V";
+  if (mode === "edge-horizontal") return "EDGE H";
+  if (mode === "edge-vertical") return "EDGE V";
+  return "D";
+}
+
+function measureBoxEdges(
+  a: CadMeasureBox,
+  b: CadMeasureBox,
+  mode: "edge-horizontal" | "edge-vertical",
+  displayUnit: CadMeasureUnit,
+): CadMeasurement {
+  if (mode === "edge-horizontal") {
+    const [left, right] =
+      boxCenter(a).x <= boxCenter(b).x ? [a, b] : [b, a];
+    const y = sharedMidpoint(
+      left.y,
+      left.y + left.h,
+      right.y,
+      right.y + right.h,
+      boxCenter(left).y,
+      boxCenter(right).y,
+    );
+    return edgeMeasurement(
+      { x: left.x + left.w, y },
+      { x: right.x, y },
+      mode,
+      displayUnit,
+    );
+  }
+
+  const [top, bottom] =
+    boxCenter(a).y <= boxCenter(b).y ? [a, b] : [b, a];
+  const x = sharedMidpoint(
+    top.x,
+    top.x + top.w,
+    bottom.x,
+    bottom.x + bottom.w,
+    boxCenter(top).x,
+    boxCenter(bottom).x,
+  );
+  return edgeMeasurement(
+    { x, y: top.y + top.h },
+    { x, y: bottom.y },
+    mode,
+    displayUnit,
+  );
+}
+
+function sharedMidpoint(
+  aMin: number,
+  aMax: number,
+  bMin: number,
+  bMax: number,
+  aCenter: number,
+  bCenter: number,
+): number {
+  const overlapMin = Math.max(aMin, bMin);
+  const overlapMax = Math.min(aMax, bMax);
+  if (overlapMax >= overlapMin) return (overlapMin + overlapMax) / 2;
+  return (aCenter + bCenter) / 2;
+}
+
+function edgeMeasurement(
+  from: CadMeasurePoint,
+  to: CadMeasurePoint,
+  mode: "edge-horizontal" | "edge-vertical",
+  displayUnit: CadMeasureUnit,
+): CadMeasurement {
+  const dxMm = to.x - from.x;
+  const dyMm = to.y - from.y;
+  const signed = mode === "edge-horizontal" ? dxMm : dyMm;
+  const clearanceMm = Math.max(0, signed);
+  const overlapMm = Math.max(0, -signed);
+  const relation =
+    overlapMm > 0 ? "overlap" : clearanceMm === 0 ? "touching" : "clearance";
+  const distanceMm = Math.abs(signed);
+  return {
+    from,
+    to,
+    mode,
+    distanceMm,
+    dxMm,
+    dyMm,
+    label:
+      relation === "overlap"
+        ? `${formatDistance(overlapMm, displayUnit)} overlap`
+        : `${formatDistance(clearanceMm, displayUnit)} clearance`,
+    relation,
+    clearanceMm,
+    overlapMm,
+  };
 }
 
 function trimNumber(value: number, decimals: number): string {

@@ -10,6 +10,7 @@ import type {
 import { measureBoxes, measurementLabel } from "../measurements";
 import { detectCadCollisions } from "../collisions";
 import { scoreFlowLayout } from "../flow-optimization";
+import { buildCadLineBalanceReport } from "../line-balance";
 import { buildCadValidationReport } from "../validation-report";
 import {
   error,
@@ -476,6 +477,119 @@ function arrangeRackRowsPreview(
   };
 }
 
+function lineBalanceObjects(
+  input: { objectIds?: string[] },
+  context: Parameters<CadCommandDefinition["preview"]>[1],
+): CadBox[] {
+  const explicit = input.objectIds?.length
+    ? input.objectIds
+    : context.selectedIds;
+  const objects = explicit.length
+    ? explicit
+        .map((id) => context.objects.find((object) => object.id === id))
+        .filter((object): object is CadBox => !!object)
+    : context.objects.filter((object) => object.type === "station");
+  return bySequence(objects);
+}
+
+function fmtSeconds(value: number | undefined): string {
+  return value == null ? "Sin dato" : `${Math.round(value * 10) / 10}s`;
+}
+
+function analyzeLineBalancePreview(
+  input: Extract<CadCommandInput, { id: "analyze_line_balance" }>,
+  context: Parameters<CadCommandDefinition["preview"]>[1],
+): CadCommandPreview {
+  const objects = lineBalanceObjects(input, context);
+  const issues =
+    objects.length >= 2
+      ? []
+      : [
+          error(
+            "selection_too_small",
+            "Selecciona al menos 2 estaciones para analizar balanceo.",
+          ),
+        ];
+  const report = buildCadLineBalanceReport({
+    taktTimeSec: input.taktTimeSec,
+    stations: objects.map((object) => ({
+      id: object.id,
+      label: object.label,
+      cycleTimeSec: input.cycleTimes?.[object.id],
+    })),
+  });
+
+  if (objects.length >= 2 && report.missingStationIds.length)
+    issues.push(
+      warning(
+        "line_balance_cycle_times_missing",
+        `Faltan tiempos de ciclo en ${report.missingStationIds.length} estacion(es).`,
+        report.missingStationIds,
+      ),
+    );
+  if (objects.length >= 2 && report.overloadedStationIds.length)
+    issues.push(
+      warning(
+        "line_balance_over_takt",
+        `${report.overloadedStationIds.length} estacion(es) exceden el takt.`,
+        report.overloadedStationIds,
+      ),
+    );
+  if (objects.length >= 2 && !report.taktTimeSec)
+    issues.push(
+      warning(
+        "line_balance_takt_missing",
+        "No se indico takt; el reporte usa el cuello de botella como referencia.",
+        objects.map((object) => object.id),
+      ),
+    );
+
+  const rows = [
+    { label: "Score", value: `${report.balanceScore}/100` },
+    {
+      label: "Cuello de botella",
+      value: report.bottleneck
+        ? `${report.bottleneck.label} (${fmtSeconds(report.bottleneck.cycleTimeSec)})`
+        : "Sin tiempos",
+    },
+    {
+      label: "Sobre takt",
+      value: String(report.overloadedStationIds.length),
+    },
+    { label: "Takt", value: fmtSeconds(report.taktTimeSec) },
+    {
+      label: "Estaciones medidas",
+      value: `${report.measuredStationCount}/${report.stationCount}`,
+    },
+    {
+      label: "Carga maxima",
+      value:
+        report.maxLoadPercent == null ? "Sin dato" : `${report.maxLoadPercent}%`,
+    },
+    {
+      label: "Eficiencia",
+      value:
+        report.balanceEfficiencyPercent == null
+          ? "Sin dato"
+          : `${report.balanceEfficiencyPercent}%`,
+    },
+    {
+      label: "Recomendacion",
+      value: report.recommendations[0] ?? "Sin recomendacion",
+    },
+  ];
+
+  return {
+    summary: `Analizar balanceo de ${objects.length} estacion(es).`,
+    affectedObjectIds: objects.map((object) => object.id),
+    operations:
+      objects.length >= 2
+        ? [{ type: "report", title: "Balanceo de linea", rows }]
+        : [],
+    issues,
+  };
+}
+
 export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
   {
     id: "create_clearance_aisle",
@@ -777,6 +891,46 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     execute: (i, c) => {
       const p = arrangeRackRowsPreview(
         i as Extract<CadCommandInput, { id: "arrange_rack_rows" }>,
+        c,
+      );
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
+    id: "analyze_line_balance",
+    label: "Analizar balanceo",
+    category: "analysis",
+    description:
+      "Calcula takt, cuello de botella, carga y faltantes de tiempos de ciclo para la linea seleccionada.",
+    inputSchema: {
+      objectIds: { type: "string[]", description: "Estaciones a analizar." },
+      taktTimeSec: {
+        type: "number",
+        description: "Takt objetivo en segundos.",
+      },
+      cycleTimes: {
+        type: "object",
+        description:
+          "Mapa opcional objectId -> segundos. Si falta, se leen etiquetas como CT=42s.",
+      },
+    },
+    examples: [
+      "analiza balanceo de linea takt 45s",
+      "yamazumi de estaciones seleccionadas",
+    ],
+    validate: (i, c) =>
+      analyzeLineBalancePreview(
+        i as Extract<CadCommandInput, { id: "analyze_line_balance" }>,
+        c,
+      ).issues.filter((issue) => issue.level === "error"),
+    preview: (i, c) =>
+      analyzeLineBalancePreview(
+        i as Extract<CadCommandInput, { id: "analyze_line_balance" }>,
+        c,
+      ),
+    execute: (i, c) => {
+      const p = analyzeLineBalancePreview(
+        i as Extract<CadCommandInput, { id: "analyze_line_balance" }>,
         c,
       );
       return result(p, ok(p.issues), p.summary);

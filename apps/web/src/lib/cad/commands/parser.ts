@@ -1,6 +1,8 @@
 import type { CadCommandInput, CadParseResult } from "./types";
 
 const numberWithUnit = /(\d+(?:[.,]\d+)?)\s*(mm|m|in|ft)?/i;
+const numberWithTimeUnit =
+  /(\d+(?:[.,]\d+)?)\s*(s|sec|seg|segundos|min|mins|minutos)\b/i;
 const lastTwoTargets = (text: string) =>
   text
     .split(/\b(?:entre| y | e | a )\b/i)
@@ -13,6 +15,14 @@ function unitValueToMm(match: RegExpMatchArray | null): number | undefined {
   const value = Number(match[1].replace(",", "."));
   if (!Number.isFinite(value)) return undefined;
   return match[2]?.toLowerCase() === "m" ? value * 1000 : value;
+}
+
+function unitValueToSeconds(match: RegExpMatchArray | null): number | undefined {
+  if (!match?.[1]) return undefined;
+  const value = Number(match[1].replace(",", "."));
+  if (!Number.isFinite(value)) return undefined;
+  const unit = match[2]?.toLowerCase() ?? "s";
+  return unit.startsWith("min") ? value * 60 : value;
 }
 
 function numberNear(text: string, pattern: RegExp): number | undefined {
@@ -39,6 +49,18 @@ export function parseCadCommand(text: string): CadParseResult {
       ok: true,
       confidence: 0.8,
       input: { id: "validate_layout", requiredClearance },
+    };
+  }
+  if (/balance|balanceo|yamazumi|takt|tacto|bottleneck|cuello/.test(q)) {
+    const taktTimeSec = unitValueToSeconds(
+      q.match(
+        /(?:takt|tacto|objetivo|target)\D*(\d+(?:[.,]\d+)?)\s*(s|sec|seg|segundos|min|mins|minutos)?/i,
+      ) ?? q.match(numberWithTimeUnit),
+    );
+    return {
+      ok: true,
+      confidence: 0.82,
+      input: { id: "analyze_line_balance", taktTimeSec },
     };
   }
   if (

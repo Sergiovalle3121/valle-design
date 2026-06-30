@@ -10,6 +10,8 @@ export interface CadDxfExportReadinessEntity {
   id: string;
   kind: CadDxfExportEntityKind;
   layer: string;
+  label?: string;
+  requiresLabel?: boolean;
   selected?: boolean;
   visible?: boolean;
 }
@@ -77,6 +79,10 @@ function optionAllows(
   return true;
 }
 
+function hasReadableLabel(value: string | undefined): boolean {
+  return (value ?? "").trim().length > 0;
+}
+
 export function evaluateCadDxfExportReadiness(
   input: CadDxfExportReadinessInput,
 ): CadDxfExportReadiness {
@@ -120,6 +126,13 @@ export function evaluateCadDxfExportReadiness(
   const availableLabels = input.entities.filter(
     (entity) => entity.kind === "label",
   ).length;
+  const missingRequiredLabels = input.entities.filter(
+    (entity) =>
+      entity.kind === "object" &&
+      entity.requiresLabel &&
+      optionAllows(entity, input) &&
+      !hasReadableLabel(entity.label),
+  ).length;
 
   if (input.scope === "selection" && input.selectedObjectCount === 0)
     issues.push({
@@ -160,6 +173,13 @@ export function evaluateCadDxfExportReadiness(
       level: "warning",
       message: "El ultimo DXF importado aun tiene advertencias.",
       count: input.dxfImportWarnings,
+    });
+  if (missingRequiredLabels > 0)
+    issues.push({
+      code: "critical_labels_missing",
+      level: "warning",
+      message: "Hay footprints criticos sin etiqueta visible antes de exportar.",
+      count: missingRequiredLabels,
     });
   if (!input.includeMeasurements && availableMeasurements > 0)
     issues.push({

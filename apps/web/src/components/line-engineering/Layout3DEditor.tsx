@@ -51,13 +51,15 @@ import {
 } from '@/lib/cad/layers';
 import { CAD_TOOLBAR_ACTIONS, type CadToolbarActionId } from '@/lib/cad/toolbar';
 import { searchCadPalette, type CadPaletteEntry } from '@/lib/cad/command-palette';
+import { suggestCadCommands, type CadCommandSuggestion } from '@/lib/cad/command-line-assist';
 import { matchCadShortcut } from '@/lib/cad/keyboard-shortcuts';
 import { exportCadLayoutDxf } from '@/lib/cad/layout-export-adapter';
 import { evaluateCadDxfExportReadiness, type CadDxfExportLayerSummary, type CadDxfExportReadinessEntity, type CadDxfExportReadinessIssue } from '@/lib/cad/dxf-export-readiness';
 import { importDxfPrimitives, summarizeDxfImportWarnings, type CadDxfImportResult, type CadDxfImportWarning, type CadDxfPoint, type CadDxfPrimitive } from '@/lib/cad/dxf-import';
 import { CAD_SYMBOL_LIBRARY, getCadSymbol, type CadSymbolCategory } from '@/lib/cad/symbols';
 import { CAD_LAYOUT_TEMPLATES, instantiateCadLayoutTemplate, type CadLayoutTemplateId } from '@/lib/cad/templates';
-import { detectCadCollisions, type CadClearanceIssue, type CadCollisionHit } from '@/lib/cad/collisions';
+import { generateWarehouseRackRows, type CadRackRowGeneratorInput } from '@/lib/cad/warehouse-generators';
+import { type CadClearanceIssue, type CadCollisionHit } from '@/lib/cad/collisions';
 import { buildFlowSegments, scoreFlowLayout, type CadFlowNode, type CadFlowScore, type CadFlowSegment } from '@/lib/cad/flow-optimization';
 import type { CadSafetyIssue, CadSafetyZone } from '@/lib/cad/safety-zones';
 import { createCadSnapshot, diffCadSnapshots, pushCadSnapshot, restoreCadSnapshot, type CadSnapshotDiff, type CadSnapshotHistory } from '@/lib/cad/snapshots';
@@ -68,7 +70,11 @@ import {
   type CadPropertyObject,
   type CadSelectionProperties,
 } from '@/lib/cad/object-properties';
-import { buildCadValidationReport, type CadValidationReport } from '@/lib/cad/validation-report';
+import {
+  buildCadValidationReport,
+  type CadValidationIssueRow,
+  type CadValidationReport,
+} from '@/lib/cad/validation-report';
 import dynamic from 'next/dynamic';
 
 // Analysis panels — the same modal components the 2D host shipped, lazy-loaded so
@@ -314,6 +320,27 @@ const TOOLBAR_SHORTCUT_IDS = new Set<CadToolbarActionId>([
   'fit_view',
   'undo',
   'redo',
+]);
+
+const DXF_LABEL_REQUIRED_ASSET_KINDS = new Set([
+  'workbench',
+  'conveyor',
+  'rack',
+  'robot',
+  'aoi',
+  'oven',
+  'printer',
+  'machine',
+  'gantry',
+  'cabinet',
+  'pallet',
+  'desk',
+  'bin',
+  'safety',
+  'fence',
+  'agv',
+  'agvpath',
+  'zone',
 ]);
 
 function disposeObject(o: THREE.Object3D) {
@@ -687,6 +714,15 @@ export default function Layout3DEditor({
   const [tab, setTab] = useState<'stations' | 'equipment'>('stations');
   const [symbolSearch, setSymbolSearch] = useState('');
   const [symbolCategory, setSymbolCategory] = useState<CadSymbolCategory | 'all'>('all');
+  const [rackGenerator, setRackGenerator] = useState<CadRackRowGeneratorInput>({
+    rows: 2,
+    baysPerRow: 4,
+    bayWidth: 2400,
+    rackDepth: 1100,
+    aisleWidth: 3000,
+    orientation: 'horizontal',
+    labelPrefix: 'R',
+  });
   const [tool, setTool] = useState<'select' | 'measure' | 'wall'>('select');
   const [viewMode, setViewMode] = useState<'3d' | '2d'>('3d'); // 2D = locked top-down plan view (CAD unificado)
   const [walk, setWalk] = useState(false); // first-person walkthrough mode
@@ -2021,6 +2057,29 @@ export default function Layout3DEditor({
     rebuildAll();
     toast.success('Issue de seguridad seleccionado.', 'Safety');
   };
+  const selectValidationIssue = (issue: CadValidationIssueRow) => {
+    if (issue.category === 'flow') {
+      if (cadValidationReport?.flow) {
+        setFlowHealth(cadValidationReport.flow);
+        setReport(null);
+        toast.success('Flow Health abierto desde validacion.', 'CAD validation');
+      }
+      return;
+    }
+    const items: SelItem[] = issue.affectedObjectIds
+      .map((id) =>
+        placementsRef.current.has(id)
+          ? { type: 'station' as const, id }
+          : assetsRef.current.has(id)
+            ? { type: 'asset' as const, id }
+            : null,
+      )
+      .filter((item): item is SelItem => !!item);
+    if (!items.length) return;
+    select(items);
+    rebuildAll();
+    toast.success(issue.actionLabel, 'CAD validation');
+  };
   const analyzeFlowHealth = () => {
     const nodes = currentFlowNodes();
     if (nodes.length < 2) { toast.error('Coloca al menos 2 estaciones para analizar flujo.', 'Flow Health'); return; }
@@ -2275,6 +2334,56 @@ export default function Layout3DEditor({
     const scaled = generated.scale < 1 ? ` · escala ${Math.round(generated.scale * 100)}%` : '';
     toast.success(`${generated.template.label}: ${created.length} objetos, ${connectorCount} flujos, ${noteCount} notas${scaled}.`, 'Plantillas CAD');
     if (generated.warnings[0]) toast.error(generated.warnings[0], 'Plantillas CAD');
+  };
+  const setRackGeneratorField = <K extends keyof CadRackRowGeneratorInput>(field: K, value: CadRackRowGeneratorInput[K]) => {
+    setRackGenerator((state) => ({ ...state, [field]: value }));
+  };
+  const applyRackRowGenerator = () => {
+    const ctx = ctxRef.current; const fp = data?.footprint;
+    if (!ctx || !fp) { toast.error('No hay footprint listo para generar racks.', 'Generador warehouse'); return; }
+    const generated = generateWarehouseRackRows(rackGenerator, { width: fp.footprintW || ctx.W, height: fp.footprintH || ctx.H, gridSize: fp.gridSize || 100 });
+    recordLocalSnapshot('Auto - antes de generar racks warehouse', 'command');
+    pushHistory();
+    const created: SelItem[] = [];
+    const layerUpdates: Record<string, CadLayerId> = {};
+    const tagUpdates: Record<string, string> = {};
+
+    for (const item of generated.assets) {
+      const id = newId('as');
+      assetsRef.current.set(id, {
+        id,
+        kind: item.kind,
+        label: item.label,
+        x: item.x,
+        y: item.y,
+        w: item.w,
+        h: item.h,
+        rotation: item.rotation ?? 0,
+      });
+      created.push({ type: 'asset', id });
+      layerUpdates[id] = item.layer;
+      tagUpdates[id] = item.tags.join(', ');
+    }
+    for (const item of generated.annotations) {
+      const id = newId('nt');
+      annotationsRef.current.set(id, {
+        id,
+        type: 'text',
+        text: item.text,
+        x: item.x,
+        y: item.y,
+        color: cadLayersRef.current.find((layer) => layer.id === item.layer)?.color,
+      });
+    }
+
+    setAssetIds(new Set(assetsRef.current.keys()));
+    setLayerAssignments((cur) => ({ ...cur, ...layerUpdates }));
+    setObjectTags((cur) => ({ ...cur, ...tagUpdates }));
+    if (created.length) select(created.slice(0, 120));
+    setDirty(true); rebuildAll(); refreshSnap();
+    const scaled = generated.scale < 1 ? ` - escala ${Math.round(generated.scale * 100)}%` : '';
+    toast.success(`${generated.summary.rackCount} racks, ${generated.summary.aisleCount} pasillos y ${generated.summary.labelCount} etiquetas${scaled}.`, 'Generador warehouse');
+    if (generated.warnings[0]) toast.error(generated.warnings[0], 'Generador warehouse');
   };
   const fallbackLayerForItem = (item: SelItem): CadLayerId => item.type === 'station' ? 'layout' : 'equipment';
   const isItemLayerLocked = (item: SelItem) => isObjectLayerLocked(cadLayersRef.current, layerAssignmentsRef.current, item.id, fallbackLayerForItem(item));
@@ -2736,7 +2845,8 @@ export default function Layout3DEditor({
     };
   };
   const createSelectionMeasurement = (mode: CadMeasureMode = 'direct') => {
-    if (selRef.current.length !== 2) { toast.error('Selecciona exactamente 2 objetos para crear una cota centro-a-centro.', 'Medición'); return; }
+    const dimensionKind = mode.startsWith('edge-') ? 'borde-a-borde' : 'centro-a-centro';
+    if (selRef.current.length !== 2) { toast.error(`Selecciona exactamente 2 objetos para crear una cota ${dimensionKind}.`, 'Medición'); return; }
     const [aItem, bItem] = selRef.current;
     const a = selectedMeasureBox(aItem); const b = selectedMeasureBox(bItem);
     if (!a || !b) { toast.error('No pude medir la selección actual.', 'Medición'); return; }
@@ -2931,18 +3041,31 @@ export default function Layout3DEditor({
       ...[...assetsRef.current.values()].map((a) => ({ id: a.id, type: 'asset' as const, label: a.label || assetMeta(a.kind).label, x: a.x, y: a.y, w: a.w, h: a.h, rotation: a.rotation })),
     ],
   });
-  const interpretCommand = () => {
-    const raw = commandText.trim();
+  const previewCommandText = (rawText: string) => {
+    const raw = rawText.trim();
     if (!raw) return;
     const parsed = parseCadCommand(raw);
     if (!parsed.ok || !parsed.input) {
       toast.error(parsed.clarification || parsed.error || 'No reconocí el comando CAD.', 'Comando CAD');
       setCommandPreview(null);
-      return;
+      return false;
     }
     const preview = previewCadCommand(parsed.input, buildCommandContext());
     setCommandPreview({ input: parsed.input, preview });
     setCommandLog((items) => [createCadHistoryItem(parsed.input!, 'previewed', preview.summary, preview), ...items].slice(0, 12));
+    return true;
+  };
+  const interpretCommand = () => {
+    previewCommandText(commandText);
+  };
+  const applyCommandSuggestion = (suggestion: CadCommandSuggestion) => {
+    setCommandText(suggestion.example);
+    if (!suggestion.ready) {
+      setCommandPreview(null);
+      toast.error(suggestion.reason, 'Comando CAD');
+      return;
+    }
+    previewCommandText(suggestion.example);
   };
   const applyCommandOperation = (op: CadOperation) => {
     if (op.type === 'move') {
@@ -3139,10 +3262,31 @@ export default function Layout3DEditor({
       const centers: Record<string, FlowCenter> = {};
       placementsRef.current.forEach((p, id) => { centers[id] = { x: p.x + p.w / 2, y: p.y + p.h / 2 }; });
       const flow = flowMetrics(connectorsRef.current, centers);
+      const annotations = [...annotationsRef.current.values()];
+      const dimensionCount = annotations.filter((item) => item.type === 'dim').length;
+      const labelCount = annotations.filter((item) => item.type === 'text').length;
+      const validationIssueCount = cadValidationReport
+        ? cadValidationReport.collisions.length + cadValidationReport.clearances.length + cadValidationReport.safety.length
+        : 0;
+      const activeLayerLabel = cadLayers.find((layer) => layer.id === activeCadLayer)?.label ?? activeCadLayer;
+      const approvalLabel = approval ? APPROVAL_META[approval.status].label : 'Borrador';
       const sheet = plotSheetModel({
         model, revision, unit: fp.unit || 'mm', footprintW: fp.footprintW, footprintH: fp.footprintH,
         placedStations: placements.length, totalStations: data!.stations.length, equipmentCount: assets.length,
         utilPct: util, flowLen: flow.totalLen, date: new Date(),
+        sheetSize: 'A4 landscape',
+        exportFormat: 'PDF',
+        approvalStatus: approvalLabel,
+        activeLayer: activeLayerLabel,
+        layerCount: cadLayers.length,
+        visibleLayerCount: cadLayers.filter((layer) => layer.visible).length,
+        lockedLayerCount: cadLayers.filter((layer) => layer.locked).length,
+        connectorCount: connectorsRef.current.length,
+        dimensionCount,
+        labelCount,
+        validationSeverity: cadValidationReport?.severity ?? 'pending',
+        validationIssueCount,
+        dxfWarningCount: dxfWarnings.length,
       });
       const { jsPDF } = await import('jspdf');
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
@@ -3212,11 +3356,27 @@ export default function Layout3DEditor({
     const entities: CadDxfExportReadinessEntity[] = [
       ...[...placementsRef.current.keys()].map((id) => {
         const layerId = layerAssignments[id] ?? 'layout';
-        return { id, kind: 'object' as const, layer: layerLabel(layerId), selected: selectedIds.has(id), visible: layerVisible(layerId) };
+        return {
+          id,
+          kind: 'object' as const,
+          layer: layerLabel(layerId),
+          label: stationsByIdRef.current.get(id)?.station,
+          requiresLabel: true,
+          selected: selectedIds.has(id),
+          visible: layerVisible(layerId),
+        };
       }),
       ...[...assetsRef.current.values()].map((asset) => {
         const layerId = layerAssignments[asset.id] ?? 'equipment';
-        return { id: asset.id, kind: 'object' as const, layer: layerLabel(layerId), selected: selectedIds.has(asset.id), visible: layerVisible(layerId) };
+        return {
+          id: asset.id,
+          kind: 'object' as const,
+          layer: layerLabel(layerId),
+          label: asset.label,
+          requiresLabel: DXF_LABEL_REQUIRED_ASSET_KINDS.has(asset.kind),
+          selected: selectedIds.has(asset.id),
+          visible: layerVisible(layerId),
+        };
       }),
       ...connectorsRef.current.map((conn) => ({
         id: `${conn.from}:${conn.to}`,
@@ -3227,10 +3387,10 @@ export default function Layout3DEditor({
       })),
       ...[...annotationsRef.current.values()]
         .filter((ann) => ann.type === 'dim' && ann.x2 != null && ann.y2 != null)
-        .map((ann) => ({ id: ann.id, kind: 'measurement' as const, layer: layerLabel('measurements'), selected: true, visible: layerVisible('measurements') })),
+        .map((ann) => ({ id: ann.id, kind: 'measurement' as const, layer: layerLabel('measurements'), label: ann.text, selected: true, visible: layerVisible('measurements') })),
       ...[...annotationsRef.current.values()]
         .filter((ann) => ann.type === 'text')
-        .map((ann) => ({ id: ann.id, kind: 'label' as const, layer: 'Text', selected: true, visible: layersRef.current.notes })),
+        .map((ann) => ({ id: ann.id, kind: 'label' as const, layer: 'Text', label: ann.text, selected: true, visible: layersRef.current.notes })),
     ];
     const readiness = evaluateCadDxfExportReadiness({
       scope: options.scope,
@@ -3410,6 +3570,17 @@ export default function Layout3DEditor({
   if (!open || typeof document === 'undefined') return null;
 
   const paletteResults = searchCadPalette(paletteQuery).slice(0, 9);
+  const commandAssistLabels = selList.map((item) => {
+    if (item.type === 'station') return data?.stations.find((station) => station.id === item.id)?.station ?? item.id;
+    if (selSnap?.type === 'asset' && selSnap.id === item.id) return selSnap.title;
+    return item.id;
+  });
+  const commandAssistSuggestions = showCommand ? suggestCadCommands({
+    query: commandText,
+    selectedCount: selList.length,
+    selectedObjectLabels: commandAssistLabels,
+    maxItems: commandText.trim() ? 4 : 3,
+  }) : [];
   const tray = (data?.stations ?? []).filter((s) => !placedIds.has(s.id));
   const placedCount = placedIds.size;
   const assetCount = assetIds.size;
@@ -3703,11 +3874,24 @@ export default function Layout3DEditor({
                     </div>
                   </div>
                 )}
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {['alinear centro', 'distribuir horizontal', 'conectar flujo'].map((hint) => (
-                    <button key={hint} onClick={() => setCommandText(hint)} className="rounded-full border border-white/10 px-2 py-0.5 text-[10.5px] text-gray-300 hover:border-cyan-400/50 hover:text-cyan-100">{hint}</button>
-                  ))}
-                </div>
+                {commandAssistSuggestions.length > 0 && (
+                  <div className="mt-2 space-y-1.5">
+                    <div className="flex items-center justify-between text-[10px] uppercase tracking-wide text-gray-500">
+                      <span>Sugerencias</span>
+                      <span>{selList.length} sel</span>
+                    </div>
+                    {commandAssistSuggestions.map((hint) => (
+                      <button key={hint.id} onClick={() => applyCommandSuggestion(hint)} title={hint.example} className={`w-full rounded-lg border px-2 py-1.5 text-left hover:bg-white/[0.08] ${hint.ready ? 'border-cyan-400/20 bg-cyan-400/[0.05]' : 'border-amber-400/20 bg-amber-400/[0.05]'}`}>
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="truncate text-[11px] font-semibold text-gray-100">{hint.label}</span>
+                          <span className={`shrink-0 text-[9.5px] uppercase tracking-wide ${hint.ready ? 'text-cyan-200' : 'text-amber-200'}`}>{hint.ready ? 'Preview' : 'Pendiente'}</span>
+                        </span>
+                        <span className="mt-0.5 block truncate text-[10.5px] text-gray-400">{hint.example}</span>
+                        <span className={`mt-0.5 block truncate text-[10px] ${hint.ready ? 'text-cyan-200/70' : 'text-amber-200/80'}`}>{hint.reason}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {commandLog.length > 0 && (
                   <div className="mt-2 space-y-1">
                     <div className="flex items-center justify-between text-[10px] uppercase tracking-wide text-gray-500">
@@ -3759,6 +3943,30 @@ export default function Layout3DEditor({
                         </button>
                       ))}
                     </div>
+                  </div>
+                  <div className="mb-3 rounded-xl border border-amber-400/15 bg-amber-400/[0.05] p-2.5">
+                    <div className="mb-1.5 flex items-center justify-between gap-2">
+                      <div className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-amber-200"><Rows3 className="h-3.5 w-3.5" /> Generador de racks</div>
+                      <span className="text-[10px] text-amber-100/60">editable</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <DimInput label="Filas" value={rackGenerator.rows} onChange={(v) => setRackGeneratorField('rows', v)} />
+                      <DimInput label="Bahias" value={rackGenerator.baysPerRow} onChange={(v) => setRackGeneratorField('baysPerRow', v)} />
+                      <DimInput label="Bay mm" value={rackGenerator.bayWidth} onChange={(v) => setRackGeneratorField('bayWidth', v)} />
+                      <DimInput label="Rack mm" value={rackGenerator.rackDepth} onChange={(v) => setRackGeneratorField('rackDepth', v)} />
+                      <DimInput label="Pasillo" value={rackGenerator.aisleWidth} onChange={(v) => setRackGeneratorField('aisleWidth', v)} />
+                      <label className="block">
+                        <span className="block text-[9px] uppercase tracking-wide text-gray-500 mb-0.5">Prefijo</span>
+                        <input value={rackGenerator.labelPrefix} onChange={(e) => setRackGeneratorField('labelPrefix', e.target.value)} className="w-full px-1.5 py-1 rounded-md bg-white/[0.06] border border-white/10 text-[12px] text-white focus:outline-none focus:border-amber-300/60" />
+                      </label>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-1.5 text-[11px]">
+                      {(['horizontal', 'vertical'] as const).map((orientation) => (
+                        <button key={orientation} onClick={() => setRackGeneratorField('orientation', orientation)} className={`rounded-lg border px-2 py-1.5 font-semibold ${rackGenerator.orientation === orientation ? 'border-amber-300/50 bg-amber-400/15 text-amber-100' : 'border-white/10 text-gray-400 hover:text-white'}`}>{orientation === 'horizontal' ? 'Horizontal' : 'Vertical'}</button>
+                      ))}
+                    </div>
+                    <button onClick={applyRackRowGenerator} className="mt-2 w-full rounded-lg bg-amber-500/90 px-2 py-1.5 text-[11px] font-semibold text-gray-950 hover:bg-amber-400">Generar racks editables</button>
+                    <div className="mt-1.5 text-[10px] leading-snug text-amber-100/60">Crea racks, pasillos forklift y etiquetas en capas CAD existentes.</div>
                   </div>
                   <div className="mb-3 rounded-xl border border-rose-400/15 bg-rose-400/[0.05] p-2.5">
                     <div className="text-[10px] uppercase tracking-wide text-rose-200 mb-1.5">Safety zones</div>
@@ -3969,7 +4177,7 @@ export default function Layout3DEditor({
                       ))}
                     </div>
                   ) : (
-                    <p className="text-[11px] leading-relaxed text-gray-500">Selecciona dos objetos y usa “Cota entre objetos” para guardar distancias centro-a-centro. Las cotas exportan a DXF cuando la opción está activa.</p>
+                    <p className="text-[11px] leading-relaxed text-gray-500">Selecciona dos objetos y usa “Cota entre objetos” para guardar distancias centro-a-centro o borde-a-borde. Las cotas exportan a DXF cuando la opción está activa.</p>
                   )}
                 </div>
               </div>
@@ -4010,10 +4218,12 @@ export default function Layout3DEditor({
                 {selList.length === 2 && (
                   <div className="mb-3 rounded-xl border border-cyan-400/15 bg-cyan-400/[0.04] p-2.5">
                     <div className="mb-2 text-[10px] uppercase tracking-wide text-cyan-200">Cota entre objetos</div>
-                    <div className="grid grid-cols-3 gap-1.5">
+                    <div className="grid grid-cols-2 gap-1.5">
                       <button onClick={() => createSelectionMeasurement('direct')} className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[11px] text-gray-200 hover:bg-white/[0.12]">Directa</button>
                       <button onClick={() => createSelectionMeasurement('horizontal')} className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[11px] text-gray-200 hover:bg-white/[0.12]">Horizontal</button>
                       <button onClick={() => createSelectionMeasurement('vertical')} className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[11px] text-gray-200 hover:bg-white/[0.12]">Vertical</button>
+                      <button onClick={() => createSelectionMeasurement('edge-horizontal')} className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[11px] text-gray-200 hover:bg-white/[0.12]">Borde H</button>
+                      <button onClick={() => createSelectionMeasurement('edge-vertical')} className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[11px] text-gray-200 hover:bg-white/[0.12]">Borde V</button>
                     </div>
                   </div>
                 )}
@@ -4469,6 +4679,25 @@ export default function Layout3DEditor({
                     <div className="rounded-lg bg-gray-950/50 px-2 py-1.5"><span className="text-gray-500">Safety</span><b className="ml-2 tabular-nums text-white">{cadValidationReport.safety.length}</b></div>
                     <div className="rounded-lg bg-gray-950/50 px-2 py-1.5"><span className="text-gray-500">Flow</span><b className="ml-2 tabular-nums text-white">{cadValidationReport.flow ? `${cadValidationReport.flow.score}/100` : 'n/a'}</b></div>
                   </div>
+                  {cadValidationReport.issues.length > 0 && (
+                    <div className="mt-2 space-y-1.5">
+                      {cadValidationReport.issues.slice(0, 4).map((issue) => (
+                        <button
+                          key={issue.id}
+                          onClick={() => selectValidationIssue(issue)}
+                          className={`w-full rounded-lg border px-2 py-1.5 text-left text-[11.5px] transition ${issue.severity === 'critical' ? 'border-rose-400/20 bg-rose-400/10 hover:bg-rose-400/15' : 'border-amber-400/20 bg-amber-400/10 hover:bg-amber-400/15'}`}
+                        >
+                          <span
+                            className={issue.severity === 'critical' ? 'block font-medium text-rose-100' : 'block font-medium text-amber-100'}
+                          >
+                            {issue.title}
+                          </span>
+                          <span className="block text-gray-300">{issue.suggestedFix}</span>
+                          <span className="block pt-0.5 text-[10.5px] text-gray-500">{issue.actionLabel}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
               {collisionHits.length > 0 && (

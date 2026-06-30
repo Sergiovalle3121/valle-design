@@ -101,4 +101,85 @@ assert.ok(
   "reports empty selection blocker",
 );
 
+const criticalLabels = evaluateCadDxfExportReadiness({
+  scope: "all",
+  includeHidden: false,
+  includeMeasurements: true,
+  includeLabels: true,
+  selectedObjectCount: 1,
+  entities: [
+    {
+      id: "rack-missing",
+      kind: "object" as const,
+      layer: "Equipment",
+      requiresLabel: true,
+      selected: true,
+      visible: true,
+    },
+    {
+      id: "aoi-labeled",
+      kind: "object" as const,
+      layer: "Equipment",
+      label: "AOI 1",
+      requiresLabel: true,
+      selected: true,
+      visible: true,
+    },
+    {
+      id: "hidden-path",
+      kind: "object" as const,
+      layer: "Aisles",
+      requiresLabel: true,
+      selected: true,
+      visible: false,
+    },
+  ],
+});
+
+assert.equal(
+  criticalLabels.canExport,
+  true,
+  "missing critical labels warn but do not block export",
+);
+assert.equal(
+  criticalLabels.issues.find((issue) => issue.code === "critical_labels_missing")
+    ?.count,
+  1,
+  "warns only for included unlabeled critical footprints",
+);
+
+const selectedCriticalLabels = evaluateCadDxfExportReadiness({
+  scope: "selection",
+  includeHidden: true,
+  includeMeasurements: true,
+  includeLabels: true,
+  selectedObjectCount: 1,
+  entities: [
+    {
+      id: "rack-unselected",
+      kind: "object" as const,
+      layer: "Equipment",
+      requiresLabel: true,
+      selected: false,
+      visible: true,
+    },
+    {
+      id: "zone-selected",
+      kind: "object" as const,
+      layer: "Safety",
+      requiresLabel: true,
+      selected: true,
+      visible: true,
+    },
+  ],
+});
+
+assert.equal(
+  selectedCriticalLabels.issues.find(
+    (issue) => issue.code === "critical_labels_missing",
+  )?.count,
+  1,
+  "selection scope only warns for selected unlabeled footprints",
+);
+
 console.log("cad dxf export readiness specs passed");

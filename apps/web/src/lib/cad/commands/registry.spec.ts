@@ -60,8 +60,8 @@ assert.equal(
 );
 assert.equal(
   CAD_COMMAND_REGISTRY.length,
-  11,
-  "registry exposes 11 commands",
+  12,
+  "registry exposes 12 commands",
 );
 
 const parsed = parseCadCommand("haz un pasillo de 1.2m entre SMT e inspección");
@@ -183,6 +183,35 @@ const rackCtx: CadCommandContext = {
     },
   ],
 };
+
+const lineBalancePreview = previewCadCommand(
+  {
+    id: "analyze_line_balance",
+    taktTimeSec: 45,
+    cycleTimes: { smt: 38, aoi: 52, pack: 41 },
+  },
+  ctx,
+);
+assert.equal(
+  lineBalancePreview.operations.some(
+    (op) => op.type === "report" && op.title === "Balanceo de linea",
+  ),
+  true,
+  "line balance emits a balance report",
+);
+assert.equal(
+  lineBalancePreview.issues.some(
+    (issue) => issue.code === "line_balance_over_takt",
+  ),
+  true,
+  "line balance warns when a station is over takt",
+);
+assert.equal(
+  parseCadCommand("analiza balanceo de linea takt 45s").input?.id,
+  "analyze_line_balance",
+  "parser recognizes line balance intent",
+);
+
 const rackParsed = parseCadCommand(
   "acomoda racks en 2 filas con pasillo de 3m",
 );
