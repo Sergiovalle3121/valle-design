@@ -3421,14 +3421,14 @@ export default function Layout3DEditor({
   const releaseWarnings = (report?.warnings ?? 0) + clearanceIssues.length + safetyWarnings + dxfWarnings.length + (validationFlow && validationFlow.score < 80 ? 1 : 0);
 
   const releaseState = !report ? 'Sin validar' : releaseBlockers > 0 ? 'Bloqueado' : releaseWarnings > 0 ? 'Con avisos' : 'Listo';
-  const releaseTone = releaseState === 'Listo' ? 'text-emerald-300' : releaseState === 'Bloqueado' ? 'text-rose-300' : releaseState === 'Con avisos' ? 'text-amber-300' : 'text-gray-400';
+  const releaseTone = releaseState === 'Listo' ? 'text-emerald-300' : releaseState === 'Bloqueado' ? 'text-rose-300' : releaseState === 'Con avisos' ? 'text-amber-300' : 'text-gray-500 dark:text-gray-400';
   const releaseChecks = [
-    { label: 'Diseño base', value: report ? `${report.errors} errores · ${report.warnings} avisos` : 'Pendiente', tone: report?.score === 'error' ? 'text-rose-300' : report?.score === 'warn' ? 'text-amber-300' : report ? 'text-emerald-300' : 'text-gray-400' },
-    { label: 'CAD validation', value: cadValidationReport ? cadValidationReport.severity === 'critical' ? 'Critico' : cadValidationReport.severity === 'warning' ? 'Con avisos' : 'OK' : 'Pendiente', tone: cadValidationReport?.severity === 'critical' ? 'text-rose-300' : cadValidationReport?.severity === 'warning' ? 'text-amber-300' : cadValidationReport ? 'text-emerald-300' : 'text-gray-400' },
+    { label: 'Diseño base', value: report ? `${report.errors} errores · ${report.warnings} avisos` : 'Pendiente', tone: report?.score === 'error' ? 'text-rose-300' : report?.score === 'warn' ? 'text-amber-300' : report ? 'text-emerald-300' : 'text-gray-500 dark:text-gray-400' },
+    { label: 'CAD validation', value: cadValidationReport ? cadValidationReport.severity === 'critical' ? 'Critico' : cadValidationReport.severity === 'warning' ? 'Con avisos' : 'OK' : 'Pendiente', tone: cadValidationReport?.severity === 'critical' ? 'text-rose-300' : cadValidationReport?.severity === 'warning' ? 'text-amber-300' : cadValidationReport ? 'text-emerald-300' : 'text-gray-500 dark:text-gray-400' },
     { label: 'Colisiones', value: collisionHits.length ? `${collisionHits.length} choque(s)` : 'Sin choques activos', tone: collisionHits.length ? 'text-rose-300' : 'text-emerald-300' },
     { label: 'Holguras', value: clearanceIssues.length ? `${clearanceIssues.length} bajo minimo` : 'Dentro de minimo', tone: clearanceIssues.length ? 'text-amber-300' : 'text-emerald-300' },
     { label: 'Safety zones', value: safetyIssues.length ? `${safetyIssues.length} issue(s)` : 'Sin invasiones activas', tone: safetyBlockers ? 'text-rose-300' : safetyIssues.length ? 'text-amber-300' : 'text-emerald-300' },
-    { label: 'Flow Health', value: validationFlow ? `${validationFlow.score}/100` : 'No analizado', tone: !validationFlow ? 'text-gray-400' : validationFlow.score >= 80 ? 'text-emerald-300' : validationFlow.score >= 55 ? 'text-amber-300' : 'text-rose-300' },
+    { label: 'Flow Health', value: validationFlow ? `${validationFlow.score}/100` : 'No analizado', tone: !validationFlow ? 'text-gray-500 dark:text-gray-400' : validationFlow.score >= 80 ? 'text-emerald-300' : validationFlow.score >= 55 ? 'text-amber-300' : 'text-rose-300' },
     { label: 'DXF import', value: dxfWarnings.length ? `${dxfWarnings.length} warning(s)` : 'Sin warnings activos', tone: dxfWarnings.length ? 'text-amber-300' : 'text-emerald-300' },
   ];
   const flowSegmentRows = [...flowSegments].sort((a, b) => b.distance - a.distance).slice(0, 5);
@@ -3457,10 +3457,10 @@ export default function Layout3DEditor({
         <div className="w-px h-5 bg-white/10" />
         <BoxIcon className="w-4 h-4" style={{ color: '#f43f5e' }} />
         <span className="font-semibold text-sm">CAD · {model} · {revision}</span>
-        <span className="text-[11px] text-gray-400 ml-1">{placedCount} estaciones · {assetCount} equipos</span>
+        <span className="text-[11px] text-gray-500 dark:text-gray-400 ml-1">{placedCount} estaciones · {assetCount} equipos</span>
         <div className="inline-flex items-center rounded-lg bg-white/[0.06] p-0.5 text-[12px] font-semibold ml-1">
-          <button onClick={() => { if (viewMode !== '2d') toggleViewMode(); }} className={`px-2.5 py-1 rounded-md transition-colors ${viewMode === '2d' ? 'bg-white/15 text-white' : 'text-gray-400 hover:text-gray-200'}`} title="Vista de plano 2D (superior, solo paneo y zoom)">2D</button>
-          <button onClick={() => { if (viewMode !== '3d') toggleViewMode(); }} className={`px-2.5 py-1 rounded-md transition-colors ${viewMode === '3d' ? 'bg-white/15 text-white' : 'text-gray-400 hover:text-gray-200'}`} title="Vista 3D (órbita libre)">3D</button>
+          <button onClick={() => { if (viewMode !== '2d') toggleViewMode(); }} className={`px-2.5 py-1 rounded-md transition-colors ${viewMode === '2d' ? 'bg-white/15 text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-200'}`} title="Vista de plano 2D (superior, solo paneo y zoom)">2D</button>
+          <button onClick={() => { if (viewMode !== '3d') toggleViewMode(); }} className={`px-2.5 py-1 rounded-md transition-colors ${viewMode === '3d' ? 'bg-white/15 text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-200'}`} title="Vista 3D (órbita libre)">3D</button>
         </div>
         <div className="w-px h-5 bg-white/10 mx-1" />
         <T3Btn active={tool === 'select'} onClick={() => setToolMode('select')} title="Seleccionar / mover (V)"><MousePointer2 className="w-4 h-4" /></T3Btn>
@@ -3494,7 +3494,7 @@ export default function Layout3DEditor({
           {showOverlayMenu && (
             <div className="absolute top-full mt-1 left-0 z-50 w-60 rounded-xl border border-white/10 bg-gray-900 shadow-2xl py-1">
               <div className="px-3 py-1.5 text-[10px] uppercase tracking-wide text-gray-500">Estado de estación</div>
-              <button onClick={() => loadOverlay(null)} className={`w-full text-left px-3 py-1.5 text-[12.5px] hover:bg-white/[0.08] ${overlay === null ? 'text-white' : 'text-gray-400'}`}>Ninguno</button>
+              <button onClick={() => loadOverlay(null)} className={`w-full text-left px-3 py-1.5 text-[12.5px] hover:bg-white/[0.08] ${overlay === null ? 'text-white' : 'text-gray-500 dark:text-gray-400'}`}>Ninguno</button>
               {OVERLAY_DEFS.map((o) => (
                 <button key={o.key} onClick={() => loadOverlay(o.key)} className={`w-full text-left px-3 py-1.5 text-[12.5px] hover:bg-white/[0.08] ${overlay === o.key ? 'text-white' : 'text-gray-200'}`}>{o.label}</button>
               ))}
@@ -3519,7 +3519,7 @@ export default function Layout3DEditor({
                     <div className="flex items-center gap-1.5">
                       <button onClick={() => toggleCadLayerVisibility(layer.id)} className={`h-2.5 w-2.5 rounded-full ${layer.visible ? '' : 'opacity-30'}`} style={{ background: layer.color }} title={layer.visible ? 'Ocultar capa' : 'Mostrar capa'} />
                       <button onClick={() => setActiveCadLayer(layer.id)} className={`min-w-0 flex-1 truncate text-left ${layer.visible ? 'text-gray-200' : 'text-gray-500'}`} title="Definir como capa activa">{layer.label}</button>
-                      <span className="rounded bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-gray-400">{cadLayerCounts[layer.id]}</span>
+                      <span className="rounded bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-gray-500 dark:text-gray-400">{cadLayerCounts[layer.id]}</span>
                       <button onClick={() => setCadLayers((cur) => toggleCadLayerLocked(cur, layer.id))} className={`text-[10px] ${layer.locked ? 'text-amber-300' : 'text-gray-500'}`}>{layer.locked ? 'Lock' : 'Open'}</button>
                     </div>
                     <div className="mt-1 grid grid-cols-[1fr_auto] gap-1.5">
@@ -3527,8 +3527,8 @@ export default function Layout3DEditor({
                       <input type="color" value={layer.color} onChange={(e) => updateCadLayerColor(layer.id, e.target.value)} className="h-6 w-7 rounded border border-white/10 bg-transparent p-0" title="Color local de capa" />
                     </div>
                     <div className="mt-1 flex items-center justify-end gap-2 text-[10px]">
-                      <button onClick={() => selectCadLayerObjects(layer.id)} className="text-gray-400 hover:text-white">Sel</button>
-                      <button onClick={() => isolateCadLayer(layer.id)} className="text-gray-400 hover:text-white">Solo</button>
+                      <button onClick={() => selectCadLayerObjects(layer.id)} className="text-gray-500 dark:text-gray-400 hover:text-white">Sel</button>
+                      <button onClick={() => isolateCadLayer(layer.id)} className="text-gray-500 dark:text-gray-400 hover:text-white">Solo</button>
                       <button onClick={() => assignSelectionToCadLayer(layer.id)} className="text-cyan-300 hover:text-cyan-100">Asignar</button>
                     </div>
                   </div>
@@ -3536,7 +3536,7 @@ export default function Layout3DEditor({
               </div>
               <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-gray-500">
                 <span>{Object.keys(layerAssignments).length} objeto(s) con capa asignada · activa: {cadLayers.find((layer) => layer.id === activeCadLayer)?.label}</span>
-                <button onClick={resetCadLayerPresentation} className="text-gray-400 hover:text-white">Reset</button>
+                <button onClick={resetCadLayerPresentation} className="text-gray-500 dark:text-gray-400 hover:text-white">Reset</button>
               </div>
               <div className="text-[10px] uppercase tracking-wide text-gray-500 mt-2.5 mb-1.5">Tema</div>
               <div className="grid grid-cols-2 gap-1.5">
@@ -3553,11 +3553,11 @@ export default function Layout3DEditor({
               <button onClick={applyFootprint} className="w-full px-2 py-1.5 rounded-md bg-cyan-600 hover:bg-cyan-500 text-white text-[12px] font-medium">Aplicar tamaño</button>
               <div className="text-[10px] uppercase tracking-wide text-gray-500 mt-2.5 mb-1">Sol / sombras</div>
               <label className="block mb-1.5">
-                <span className="flex justify-between text-[10px] text-gray-400"><span>Azimut</span><span>{sun.az}°</span></span>
+                <span className="flex justify-between text-[10px] text-gray-500 dark:text-gray-400"><span>Azimut</span><span>{sun.az}°</span></span>
                 <input type="range" min={0} max={360} value={sun.az} onChange={(e) => setSun((s) => ({ ...s, az: Number(e.target.value) }))} className="w-full accent-amber-400" />
               </label>
               <label className="block">
-                <span className="flex justify-between text-[10px] text-gray-400"><span>Altura</span><span>{sun.el}°</span></span>
+                <span className="flex justify-between text-[10px] text-gray-500 dark:text-gray-400"><span>Altura</span><span>{sun.el}°</span></span>
                 <input type="range" min={12} max={88} value={sun.el} onChange={(e) => setSun((s) => ({ ...s, el: Number(e.target.value) }))} className="w-full accent-amber-400" />
               </label>
             </div>
@@ -3621,7 +3621,7 @@ export default function Layout3DEditor({
       {error ? (
         <div className="flex-1 grid place-items-center text-amber-400 text-sm">{error}</div>
       ) : !data ? (
-        <div className="flex-1 grid place-items-center text-gray-400"><Loader2 className="w-7 h-7 animate-spin" /></div>
+        <div className="flex-1 grid place-items-center text-gray-500 dark:text-gray-400"><Loader2 className="w-7 h-7 animate-spin" /></div>
       ) : (
         <div className="flex flex-1 min-h-0">
           {/* left: stations tray + equipment palette */}
@@ -3631,7 +3631,7 @@ export default function Layout3DEditor({
                 <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-cyan-200">
                   <WandSparkles className="w-3.5 h-3.5" /> Copiloto CAD local
                 </div>
-                <p className="mt-1 text-[11px] leading-snug text-gray-400">
+                <p className="mt-1 text-[11px] leading-snug text-gray-500 dark:text-gray-400">
                   Interpreta comandos determinísticos hoy; mañana un modelo OpenAI-compatible puede llamar estas mismas acciones.
                 </p>
                 <form className="mt-2 flex gap-1.5" onSubmit={(e) => { e.preventDefault(); interpretCommand(); }}>
@@ -3646,13 +3646,13 @@ export default function Layout3DEditor({
                 {commandPreview && (
                   <div className="mt-2 rounded-xl border border-white/10 bg-gray-950/70 p-2">
                     <div className="text-[11px] font-semibold text-white">{commandPreview.preview.summary}</div>
-                    <div className="mt-1 text-[10.5px] text-gray-400">{commandPreview.preview.affectedObjectIds.length} objeto(s) · {commandPreview.preview.operations.length} operación(es)</div>
+                    <div className="mt-1 text-[10.5px] text-gray-500 dark:text-gray-400">{commandPreview.preview.affectedObjectIds.length} objeto(s) · {commandPreview.preview.operations.length} operación(es)</div>
                     {commandPreview.preview.operations.slice(0, 3).map((op, idx) => (
                       <div key={`${op.type}-${idx}`} className="mt-1 rounded-md bg-white/[0.04] px-1.5 py-1 text-[10.5px] text-gray-300">
                         {op.type === 'report' ? (
                           <div>
                             <div className="font-semibold text-cyan-100">{op.title}</div>
-                            {op.rows.slice(0, 3).map((row) => <div key={`${row.label}-${row.value}`} className="mt-0.5 flex justify-between gap-2 text-gray-400"><span className="truncate">{row.label}</span><span className="shrink-0 text-gray-200">{row.value}</span></div>)}
+                            {op.rows.slice(0, 3).map((row) => <div key={`${row.label}-${row.value}`} className="mt-0.5 flex justify-between gap-2 text-gray-500 dark:text-gray-400"><span className="truncate">{row.label}</span><span className="shrink-0 text-gray-200">{row.value}</span></div>)}
                           </div>
                         ) : op.type === 'move' ? `Mover ${op.objectId} → (${Math.round(op.after.x)}, ${Math.round(op.after.y)})` : op.type === 'connect' ? `Conectar ${op.from} → ${op.to}` : op.type === 'measure' ? `Medir ${Math.round(op.distance)} ${op.unit}` : op.type === 'focus' ? `Enfocar ${op.objectIds.length || 'todo'}` : ''}
                       </div>
@@ -3692,19 +3692,19 @@ export default function Layout3DEditor({
               </div>
             )}
             <div className="flex shrink-0 text-[12px] font-medium border-b border-white/10">
-              <button onClick={() => setTab('stations')} className={`flex-1 px-3 py-2 inline-flex items-center justify-center gap-1.5 ${tab === 'stations' ? 'text-white bg-white/[0.06]' : 'text-gray-400 hover:text-gray-200'}`}><MapPin className="w-3.5 h-3.5" /> Estaciones</button>
-              <button onClick={() => setTab('equipment')} className={`flex-1 px-3 py-2 inline-flex items-center justify-center gap-1.5 ${tab === 'equipment' ? 'text-white bg-white/[0.06]' : 'text-gray-400 hover:text-gray-200'}`}><Boxes className="w-3.5 h-3.5" /> Equipo</button>
+              <button onClick={() => setTab('stations')} className={`flex-1 px-3 py-2 inline-flex items-center justify-center gap-1.5 ${tab === 'stations' ? 'text-white bg-white/[0.06]' : 'text-gray-500 dark:text-gray-400 hover:text-gray-200'}`}><MapPin className="w-3.5 h-3.5" /> Estaciones</button>
+              <button onClick={() => setTab('equipment')} className={`flex-1 px-3 py-2 inline-flex items-center justify-center gap-1.5 ${tab === 'equipment' ? 'text-white bg-white/[0.06]' : 'text-gray-500 dark:text-gray-400 hover:text-gray-200'}`}><Boxes className="w-3.5 h-3.5" /> Equipo</button>
             </div>
             <div className="flex-1 overflow-y-auto p-3">
               {tab === 'stations' ? (
                 <>
-                  <div className="text-[11px] uppercase tracking-wide text-gray-400 mb-2">Por colocar ({tray.length})</div>
+                  <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">Por colocar ({tray.length})</div>
                   {tray.length === 0 ? (
                     <p className="text-[12px] text-gray-500">Todas las estaciones están en el plano.</p>
                   ) : tray.map((st) => (
                     <button key={st.id} onClick={() => placeStation(st)} className="w-full text-left mb-1.5 px-2.5 py-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.09] transition-colors">
                       <div className="text-sm font-medium">{st.station}</div>
-                      <div className="text-[11px] text-gray-400">{st.line} · clic para colocar</div>
+                      <div className="text-[11px] text-gray-500 dark:text-gray-400">{st.line} · clic para colocar</div>
                     </button>
                   ))}
                 </>
@@ -3733,13 +3733,13 @@ export default function Layout3DEditor({
                     </div>
                   </div>
                   <div className="mb-2 flex items-center justify-between gap-2">
-                    <div className="text-[11px] uppercase tracking-wide text-gray-400">Biblioteca CAD industrial</div>
+                    <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">Biblioteca CAD industrial</div>
                     <span className="text-[10px] text-gray-500">{filteredSymbols.length}/{CAD_SYMBOL_LIBRARY.length}</span>
                   </div>
                   <input value={symbolSearch} onChange={(e) => setSymbolSearch(e.target.value)} placeholder="Buscar SMT, AOI, safety…" className="mb-2 w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white placeholder:text-gray-600 outline-none focus:border-cyan-400/60" />
                   <div className="mb-2 flex gap-1 overflow-x-auto pb-1">
                     {symbolCategories.map((category) => (
-                      <button key={category} onClick={() => setSymbolCategory(category)} className={`shrink-0 rounded-full border px-2 py-0.5 text-[10.5px] ${symbolCategory === category ? 'border-cyan-300/50 bg-cyan-400/15 text-cyan-100' : 'border-white/10 text-gray-400 hover:text-white'}`}>{category}</button>
+                      <button key={category} onClick={() => setSymbolCategory(category)} className={`shrink-0 rounded-full border px-2 py-0.5 text-[10.5px] ${symbolCategory === category ? 'border-cyan-300/50 bg-cyan-400/15 text-cyan-100' : 'border-white/10 text-gray-500 dark:text-gray-400 hover:text-white'}`}>{category}</button>
                     ))}
                   </div>
                   <div className="grid grid-cols-1 gap-1.5 mb-3">
@@ -3751,7 +3751,7 @@ export default function Layout3DEditor({
                     ))}
                     {filteredSymbols.length === 0 && <div className="rounded-lg border border-white/10 bg-white/[0.03] px-2 py-3 text-center text-[11px] text-gray-500">Sin símbolos para ese filtro.</div>}
                   </div>
-                  <div className="text-[11px] uppercase tracking-wide text-gray-400 mb-2">Agregar equipo</div>
+                  <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">Agregar equipo</div>
                   {ASSET_CATEGORIES.map((cat) => (
                     <div key={cat.category} className="mb-3">
                       <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-1.5 flex items-center gap-1"><ChevronRight className="w-3 h-3" /> {cat.label}</div>
@@ -3794,7 +3794,7 @@ export default function Layout3DEditor({
               <div className="absolute right-3 top-16 z-20 w-80 rounded-2xl border border-amber-400/20 bg-gray-950/90 p-3 shadow-2xl backdrop-blur">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <div className="inline-flex items-center gap-2 text-[12px] font-semibold text-amber-100"><CircleAlert className="h-4 w-4" />Import DXF</div>
-                  <button onClick={() => { setDxfWarnings([]); setDxfImportPreview(null); }} className="rounded-md px-1.5 py-0.5 text-[11px] text-gray-400 hover:bg-white/10 hover:text-white">Ocultar</button>
+                  <button onClick={() => { setDxfWarnings([]); setDxfImportPreview(null); }} className="rounded-md px-1.5 py-0.5 text-[11px] text-gray-500 dark:text-gray-400 hover:bg-white/10 hover:text-white">Ocultar</button>
                 </div>
                 {dxfImportPreview && dxfPrimitiveSummary && (
                   <div className="mb-2 rounded-xl border border-cyan-400/15 bg-cyan-400/[0.06] p-2 text-[11px] text-cyan-100">
@@ -3805,7 +3805,7 @@ export default function Layout3DEditor({
                 )}
                 {dxfWarnings.length > 0 ? (
                   <>
-                    <div className="mb-2 text-[11px] text-gray-400">Se cargó el plano; estas entidades se ignoraron o simplificaron localmente.</div>
+                    <div className="mb-2 text-[11px] text-gray-500 dark:text-gray-400">Se cargó el plano; estas entidades se ignoraron o simplificaron localmente.</div>
                     <div className="max-h-44 space-y-1 overflow-y-auto">
                       {dxfWarningSummary.map((warning) => (
                         <div key={warning.key} className="rounded-lg bg-white/[0.04] px-2 py-1.5 text-[11px]">
@@ -3867,7 +3867,7 @@ export default function Layout3DEditor({
                     <span className="mr-1 self-center text-[10px] uppercase tracking-wide text-gray-500">Recientes</span>
                     {recentPaletteActions.map((key) => {
                       const [, id] = key.split(':');
-                      return <span key={key} className="rounded-full bg-white/[0.05] px-2 py-0.5 text-[10px] text-gray-400">{id}</span>;
+                      return <span key={key} className="rounded-full bg-white/[0.05] px-2 py-0.5 text-[10px] text-gray-500 dark:text-gray-400">{id}</span>;
                     })}
                   </div>
                 )}
@@ -3876,7 +3876,7 @@ export default function Layout3DEditor({
                     <button key={`${entry.kind}-${entry.id}`} onClick={() => runPaletteEntry(entry)} className="flex w-full items-center justify-between gap-3 rounded-xl px-2.5 py-2 text-left hover:bg-white/[0.07]">
                       <span className="min-w-0">
                         <span className="block truncate text-[13px] font-semibold text-white">{entry.label}</span>
-                        <span className="block truncate text-[11px] text-gray-400">{entry.description}</span>
+                        <span className="block truncate text-[11px] text-gray-500 dark:text-gray-400">{entry.description}</span>
                       </span>
                       <span className="shrink-0 text-right"><span className="block rounded-full border border-white/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-cyan-200">{entry.kind}</span>{entry.shortcut && <span className="mt-1 block text-[10px] text-gray-500">{entry.shortcut}</span>}</span>
                     </button>
@@ -3922,7 +3922,7 @@ export default function Layout3DEditor({
                       {measurementRowsView.map((measurement) => (
                         <div key={measurement.id} className="rounded-lg border border-white/10 bg-gray-950/50 p-2">
                           <input value={measurement.label} onFocus={pushHistory} onChange={(e) => updateMeasurementText(measurement.id, e.target.value)} className="mb-1 w-full rounded-md bg-white/[0.05] px-2 py-1 text-[11px] text-white outline-none focus:ring-1 focus:ring-cyan-500/40" />
-                          <div className="flex items-center justify-between gap-2 text-[10.5px] text-gray-400">
+                          <div className="flex items-center justify-between gap-2 text-[10.5px] text-gray-500 dark:text-gray-400">
                             <span>{measurement.length}</span>
                             <div className="flex gap-1">
                               <button onClick={() => focusMeasurement(measurement.id)} className="rounded-md bg-cyan-500/10 px-1.5 py-0.5 text-cyan-100 hover:bg-cyan-500/20">Ver</button>
@@ -3943,7 +3943,7 @@ export default function Layout3DEditor({
                   <Boxes className="w-4 h-4" style={{ color: '#22d3ee' }} />
                   <span className="text-sm font-semibold">{selList.length} seleccionados</span>
                 </div>
-                <div className="text-[11px] text-gray-400 mb-3">Alinea, mide o mueve el grupo en bloque.</div>
+                <div className="text-[11px] text-gray-500 dark:text-gray-400 mb-3">Alinea, mide o mueve el grupo en bloque.</div>
                 {selSummary && (
                   <div className="mb-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
                     <div className="mb-2 flex items-center justify-between gap-2">
@@ -4023,7 +4023,7 @@ export default function Layout3DEditor({
                   <Settings2 className="w-4 h-4" style={{ color: '#22d3ee' }} />
                   <span className="text-sm font-semibold">{selSnap.title}</span>
                 </div>
-                <div className="text-[11px] text-gray-400 mb-3">{selSnap.subtitle}</div>
+                <div className="text-[11px] text-gray-500 dark:text-gray-400 mb-3">{selSnap.subtitle}</div>
                 {selList[0] && isObjectLayerLocked(cadLayers, layerAssignments, selList[0].id, defaultLayerFor(selList[0])) && (
                   <div className="mb-3 rounded-lg border border-amber-400/20 bg-amber-400/10 px-2 py-1.5 text-[11px] text-amber-200">Capa bloqueada: las propiedades, drag y comandos destructivos quedan protegidos.</div>
                 )}
@@ -4035,24 +4035,24 @@ export default function Layout3DEditor({
                       <ReadField label="ID" value={selSnap.id} />
                     </div>
                     {selSnap.type === 'asset' ? (
-                      <label className="block text-[11px] text-gray-400">
+                      <label className="block text-[11px] text-gray-500 dark:text-gray-400">
                         <span className="block mb-1">Nombre visible</span>
                         <input value={selSnap.title} onChange={(e) => updateSelectedAssetLabel(e.target.value)} placeholder="Nombre del equipo o zona" className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white placeholder:text-gray-600 outline-none" />
                       </label>
                     ) : (
                       <ReadField label="Nombre" value={selSnap.title} />
                     )}
-                    <label className="block text-[11px] text-gray-400">
+                    <label className="block text-[11px] text-gray-500 dark:text-gray-400">
                       <span className="block mb-1">Capa</span>
                       <select value={selectionLayer(selList[0])} onChange={(e) => setSelectionLayer(selList[0], e.target.value as CadLayerId)} className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white outline-none">
                         {cadLayers.map((layer) => <option key={layer.id} value={layer.id} className="text-gray-900">{layer.label}{layer.locked ? ' (lock)' : ''}</option>)}
                       </select>
                     </label>
-                    <label className="block text-[11px] text-gray-400">
+                    <label className="block text-[11px] text-gray-500 dark:text-gray-400">
                       <span className="block mb-1">Tags</span>
                       <input value={objectTags[selSnap.id] ?? ''} onChange={(e) => updateSelectedTags(e.target.value)} placeholder="esd, safety, smt…" className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white placeholder:text-gray-600 outline-none" />
                     </label>
-                    <label className="block text-[11px] text-gray-400">
+                    <label className="block text-[11px] text-gray-500 dark:text-gray-400">
                       <span className="block mb-1">Notas</span>
                       <textarea value={objectNotes[selSnap.id] ?? ''} onChange={(e) => updateSelectedNotes(e.target.value)} rows={2} placeholder="Owner, restriccion, pendiente..." className="w-full resize-none rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white placeholder:text-gray-600 outline-none" />
                     </label>
@@ -4102,7 +4102,7 @@ export default function Layout3DEditor({
                   <div className="mt-3 pt-3 border-t border-white/10 space-y-2">
                     <div className="text-[10.5px] uppercase tracking-wide text-gray-500">Copiar equipo</div>
                     <div className="flex items-center gap-1.5 text-[12px]">
-                      <span className="text-gray-400 w-12 shrink-0">Arreglo</span>
+                      <span className="text-gray-500 dark:text-gray-400 w-12 shrink-0">Arreglo</span>
                       <input type="number" min={1} max={50} value={arr.cols} onChange={(e) => setArr((a) => ({ ...a, cols: Number(e.target.value) }))} className="w-11 bg-white/[0.06] rounded px-1 py-0.5 text-center tabular-nums outline-none focus:ring-1 ring-cyan-500/40" title="columnas" />
                       <span className="text-gray-500">×</span>
                       <input type="number" min={1} max={50} value={arr.rows} onChange={(e) => setArr((a) => ({ ...a, rows: Number(e.target.value) }))} className="w-11 bg-white/[0.06] rounded px-1 py-0.5 text-center tabular-nums outline-none focus:ring-1 ring-cyan-500/40" title="filas" />
@@ -4111,12 +4111,12 @@ export default function Layout3DEditor({
                       <button onClick={() => arrayAssets(arr.cols, arr.rows, arr.gap)} className="ml-auto px-2 py-0.5 rounded-md bg-cyan-600 hover:bg-cyan-500 text-white text-[11px] font-medium">Crear</button>
                     </div>
                     <div className="flex items-center gap-1.5 text-[12px]">
-                      <span className="text-gray-400 w-12 shrink-0">Espejo</span>
+                      <span className="text-gray-500 dark:text-gray-400 w-12 shrink-0">Espejo</span>
                       <button onClick={() => mirrorAssets('h')} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12]"><FlipHorizontal className="w-3.5 h-3.5" /> Horizontal</button>
                       <button onClick={() => mirrorAssets('v')} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12]"><FlipVertical className="w-3.5 h-3.5" /> Vertical</button>
                     </div>
                     <div className="flex items-center gap-1.5 text-[12px]">
-                      <span className="text-gray-400 w-12 shrink-0">Desfasar</span>
+                      <span className="text-gray-500 dark:text-gray-400 w-12 shrink-0">Desfasar</span>
                       <span className="text-gray-500">dx</span>
                       <input type="number" value={arr.dx} onChange={(e) => setArr((a) => ({ ...a, dx: Number(e.target.value) }))} className="w-14 bg-white/[0.06] rounded px-1 py-0.5 text-center tabular-nums outline-none focus:ring-1 ring-cyan-500/40" />
                       <span className="text-gray-500">dy</span>
@@ -4159,13 +4159,13 @@ export default function Layout3DEditor({
               {takeoff.byKind.length > 0 ? (
                 <div className="rounded-xl border border-white/10 overflow-hidden">
                   <table className="w-full text-[12.5px]">
-                    <thead><tr className="text-gray-400 bg-white/[0.04]"><th className="text-left font-medium px-3 py-1.5">Equipo</th><th className="text-right font-medium px-3 py-1.5">Cant.</th><th className="text-right font-medium px-3 py-1.5">Área</th></tr></thead>
+                    <thead><tr className="text-gray-500 dark:text-gray-400 bg-white/[0.04]"><th className="text-left font-medium px-3 py-1.5">Equipo</th><th className="text-right font-medium px-3 py-1.5">Cant.</th><th className="text-right font-medium px-3 py-1.5">Área</th></tr></thead>
                     <tbody>
                       {takeoff.byKind.map((r) => (
                         <tr key={r.kind} className="border-t border-white/[0.06]">
                           <td className="px-3 py-1.5">{r.label}</td>
                           <td className="px-3 py-1.5 text-right tabular-nums">{r.count}</td>
-                          <td className="px-3 py-1.5 text-right tabular-nums text-gray-400">{fmtArea(r.area, takeoff.unit)}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums text-gray-500 dark:text-gray-400">{fmtArea(r.area, takeoff.unit)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -4176,14 +4176,14 @@ export default function Layout3DEditor({
               )}
               {takeoff.byLayer.length > 0 && (
                 <div className="mt-3 rounded-xl border border-white/10 overflow-hidden">
-                  <div className="bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Uso por capa CAD</div>
+                  <div className="bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Uso por capa CAD</div>
                   <table className="w-full text-[12.5px]">
                     <tbody>
                       {takeoff.byLayer.map((r) => (
                         <tr key={r.id} className="border-t border-white/[0.06]">
                           <td className="px-3 py-1.5">{r.label}</td>
                           <td className="px-3 py-1.5 text-right tabular-nums">{r.count}</td>
-                          <td className="px-3 py-1.5 text-right tabular-nums text-gray-400">{fmtArea(r.area, takeoff.unit)}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums text-gray-500 dark:text-gray-400">{fmtArea(r.area, takeoff.unit)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -4231,7 +4231,7 @@ export default function Layout3DEditor({
               <button onClick={() => setShowDxfExport(false)} className="rounded-lg p-1 hover:bg-white/10"><X className="h-4 w-4" /></button>
             </div>
             <div className="space-y-3 p-4 text-[12px]">
-              <label className="block text-gray-400">Nombre de archivo
+              <label className="block text-gray-500 dark:text-gray-400">Nombre de archivo
                 <input value={dxfExportOptions.fileName} onChange={(e) => setDxfOption({ fileName: e.target.value })} className="mt-1 w-full rounded-lg border border-white/10 bg-gray-950/70 px-2.5 py-2 text-white outline-none" />
               </label>
               <div className="grid grid-cols-2 gap-2">
@@ -4280,7 +4280,7 @@ export default function Layout3DEditor({
                   <div className="flex items-center gap-2 rounded-lg bg-emerald-400/10 px-2 py-1.5 text-[11px] text-emerald-100"><CircleCheck className="h-3.5 w-3.5" />DXF listo para descargar.</div>
                 )}
               </div>
-              <button disabled={!dxfExportSummary.canExport} onClick={() => exportDxf(dxfExportOptions)} className={`w-full rounded-lg px-3 py-2 text-[12px] font-semibold text-white ${dxfExportSummary.canExport ? 'bg-cyan-600 hover:bg-cyan-500' : 'cursor-not-allowed bg-gray-700 text-gray-400'}`}>Descargar DXF</button>
+              <button disabled={!dxfExportSummary.canExport} onClick={() => exportDxf(dxfExportOptions)} className={`w-full rounded-lg px-3 py-2 text-[12px] font-semibold text-white ${dxfExportSummary.canExport ? 'bg-cyan-600 hover:bg-cyan-500' : 'cursor-not-allowed bg-gray-700 text-gray-500 dark:text-gray-400'}`}>Descargar DXF</button>
             </div>
           </div>
         </div>
@@ -4327,7 +4327,7 @@ export default function Layout3DEditor({
                       <button key={`${segment.from.id}-${segment.to.id}`} onClick={() => selectFlowSegment(segment)} className="flex w-full items-center gap-2 rounded-lg bg-white/[0.04] px-2 py-1.5 text-left hover:bg-white/[0.09]">
                         <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-amber-400/15 text-[10px] font-semibold text-amber-100">{idx + 1}</span>
                         <span className="min-w-0 flex-1 truncate text-gray-200">{segment.from.label ?? segment.from.id} → {segment.to.label ?? segment.to.id}</span>
-                        <span className="shrink-0 tabular-nums text-gray-400">{fmtLen(segment.distance, data?.footprint.unit || 'mm')}</span>
+                        <span className="shrink-0 tabular-nums text-gray-500 dark:text-gray-400">{fmtLen(segment.distance, data?.footprint.unit || 'mm')}</span>
                       </button>
                     ))}
                   </div>
@@ -4368,7 +4368,7 @@ export default function Layout3DEditor({
                     <div className="text-[10px] uppercase tracking-wide text-gray-500">Release readiness</div>
                     <div className={`text-sm font-semibold ${releaseTone}`}>{releaseState}</div>
                   </div>
-                  <div className="text-right text-[11px] text-gray-400">
+                  <div className="text-right text-[11px] text-gray-500 dark:text-gray-400">
                     <div>{releaseBlockers} bloqueos</div>
                     <div>{releaseWarnings} avisos</div>
                   </div>
@@ -4406,7 +4406,7 @@ export default function Layout3DEditor({
                     {collisionHits.slice(0, 8).map((hit) => (
                       <button key={`${hit.aId}-${hit.bId}`} onClick={() => selectCollisionPair(hit)} className="w-full rounded-lg bg-white/[0.05] px-2 py-1.5 text-left text-[11.5px] hover:bg-white/[0.1]">
                         <span className="block text-rose-100">{hit.aLabel} ↔ {hit.bLabel}</span>
-                        <span className="text-gray-400">Área aprox. {Math.round(hit.area).toLocaleString('es-MX')}</span>
+                        <span className="text-gray-500 dark:text-gray-400">Área aprox. {Math.round(hit.area).toLocaleString('es-MX')}</span>
                       </button>
                     ))}
                   </div>
@@ -4422,7 +4422,7 @@ export default function Layout3DEditor({
                     {clearanceIssues.slice(0, 8).map((issue) => (
                       <button key={`${issue.aId}-${issue.bId}`} onClick={() => selectClearanceIssue(issue)} className="w-full rounded-lg bg-white/[0.05] px-2 py-1.5 text-left text-[11.5px] hover:bg-white/[0.1]">
                         <span className="block text-amber-100">{issue.message}</span>
-                        <span className="text-gray-400">Actual {fmtLen(issue.distance, data?.footprint.unit || 'mm')} - minimo {fmtLen(issue.required, data?.footprint.unit || 'mm')}</span>
+                        <span className="text-gray-500 dark:text-gray-400">Actual {fmtLen(issue.distance, data?.footprint.unit || 'mm')} - minimo {fmtLen(issue.required, data?.footprint.unit || 'mm')}</span>
                       </button>
                     ))}
                   </div>
@@ -4438,7 +4438,7 @@ export default function Layout3DEditor({
                     {safetyIssues.slice(0, 8).map((issue) => (
                       <button key={`${issue.zoneId}-${issue.objectId}-${issue.code}`} onClick={() => selectSafetyIssue(issue)} className="w-full rounded-lg bg-white/[0.05] px-2 py-1.5 text-left text-[11.5px] hover:bg-white/[0.1]">
                         <span className="block text-amber-100">{issue.message}</span>
-                        <span className="text-gray-400">Seleccionar objeto + zona</span>
+                        <span className="text-gray-500 dark:text-gray-400">Seleccionar objeto + zona</span>
                       </button>
                     ))}
                   </div>
@@ -4452,7 +4452,7 @@ export default function Layout3DEditor({
                     <Icon className="w-4 h-4 mt-0.5 shrink-0" style={{ color }} />
                     <div className="min-w-0">
                       <div className="text-[13px] font-medium">{it.label}{it.count > 0 ? ` · ${it.count}` : ''}</div>
-                      <div className="text-[11.5px] text-gray-400 leading-snug">{it.detail}</div>
+                      <div className="text-[11.5px] text-gray-500 dark:text-gray-400 leading-snug">{it.detail}</div>
                     </div>
                   </div>
                 );
@@ -4515,7 +4515,7 @@ export default function Layout3DEditor({
                     <div key={v.id} className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2">
                       <div className="min-w-0 flex-1">
                         <div className="text-[13px] font-medium truncate">{v.name || 'Sin nombre'}</div>
-                        <div className="text-[11px] text-gray-400">{new Date(v.createdAt).toLocaleString('es-MX')} · {v.stationCount} est · {v.assetCount} eq</div>
+                        <div className="text-[11px] text-gray-500 dark:text-gray-400">{new Date(v.createdAt).toLocaleString('es-MX')} · {v.stationCount} est · {v.assetCount} eq</div>
                       </div>
                       <button onClick={() => restoreVersion(v.id)} disabled={versBusy} className="px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px] disabled:opacity-50">Restaurar</button>
                       <button onClick={() => deleteVersion(v.id)} className="p-1 rounded-md text-rose-300 hover:bg-rose-500/20"><Trash2 className="w-3.5 h-3.5" /></button>
@@ -4539,7 +4539,7 @@ export default function Layout3DEditor({
               <button onClick={() => setShowClone(false)} className="p-1 rounded-lg hover:bg-white/10"><X className="w-4 h-4" /></button>
             </div>
             <div className="p-4">
-              <p className="text-[12px] text-gray-400 mb-3">Copia el layout (estaciones, equipo, conexiones, celdas y plano) de otro modelo a <b className="text-gray-200">{model} · {revision}</b>. Reemplaza el actual.</p>
+              <p className="text-[12px] text-gray-500 dark:text-gray-400 mb-3">Copia el layout (estaciones, equipo, conexiones, celdas y plano) de otro modelo a <b className="text-gray-200">{model} · {revision}</b>. Reemplaza el actual.</p>
               <select value={cloneSrc} onChange={(e) => setCloneSrc(e.target.value)} className="w-full bg-white/[0.06] rounded-lg px-2.5 py-2 text-[13px] outline-none mb-3 focus:ring-1 ring-cyan-500/40">
                 <option value="" className="text-gray-900">Elige un modelo origen…</option>
                 {models.filter((m) => !(m.model === model && m.revision === revision)).map((m) => (
@@ -4573,7 +4573,7 @@ export default function Layout3DEditor({
                       <span className="inline-block w-3 h-3 rounded-sm shrink-0" style={{ background: c.color }} />
                       <div className="min-w-0 flex-1">
                         <input defaultValue={c.name} onBlur={(e) => { const v = e.target.value.trim(); if (v) { cellsRef.current = cellsRef.current.map((cell) => cell.id === c.id ? { ...cell, name: v } : cell); setCellsView(cellsRef.current.map((cell) => ({ ...cell, stationIds: [...cell.stationIds] }))); setDirty(true); } }} className="w-full bg-transparent text-[13px] font-medium outline-none focus:bg-white/[0.06] rounded px-1" />
-                        <div className="text-[11px] text-gray-400 px-1">{c.stationIds.length} estaciones</div>
+                        <div className="text-[11px] text-gray-500 dark:text-gray-400 px-1">{c.stationIds.length} estaciones</div>
                       </div>
                       <button onClick={() => deleteCell(c.id)} className="p-1 rounded-md text-rose-300 hover:bg-rose-500/20"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
@@ -4630,7 +4630,7 @@ export default function Layout3DEditor({
 
 function T3Btn({ active, onClick, title, children, disabled }: { active?: boolean; onClick: () => void; title: string; children: React.ReactNode; disabled?: boolean }) {
   return (
-    <button onClick={onClick} title={title} disabled={disabled} className={`p-1.5 rounded-lg transition-colors disabled:opacity-30 disabled:hover:bg-transparent ${active ? 'text-white' : 'text-gray-400 hover:bg-white/10'}`} style={active ? { background: '#0e7490' } : undefined}>
+    <button onClick={onClick} title={title} disabled={disabled} className={`p-1.5 rounded-lg transition-colors disabled:opacity-30 disabled:hover:bg-transparent ${active ? 'text-white' : 'text-gray-500 dark:text-gray-400 hover:bg-white/10'}`} style={active ? { background: '#0e7490' } : undefined}>
       {children}
     </button>
   );
@@ -4686,7 +4686,7 @@ function ReadField({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <span className="block text-[10px] uppercase tracking-wide text-gray-500 mb-0.5">{label}</span>
-      <div className="w-full px-2 py-1 rounded-md bg-white/[0.03] border border-white/5 text-[13px] text-gray-400">{value}</div>
+      <div className="w-full px-2 py-1 rounded-md bg-white/[0.03] border border-white/5 text-[13px] text-gray-500 dark:text-gray-400">{value}</div>
     </div>
   );
 }
