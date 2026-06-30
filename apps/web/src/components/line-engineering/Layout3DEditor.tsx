@@ -130,11 +130,16 @@ const ScenarioCompare = dynamic(() => import('./ScenarioCompare'), { ssr: false 
 const StandardWork = dynamic(() => import('./StandardWork'), { ssr: false });
 const DossierExport = dynamic(() => import('./DossierExport'), { ssr: false });
 const FlexLine = dynamic(() => import('./FlexLine'), { ssr: false });
+// Local, deterministic line-balance surface for the existing buildCadLineBalanceReport
+// helper (no server call) — reads the stations on the plan. Distinct from the
+// server-backed Yamazumi panel above.
+const LineBalancePanel = dynamic(() => import('./LineBalancePanel'), { ssr: false });
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const ANALYSIS_PANELS: { key: string; label: string; Comp: React.ComponentType<any> }[] = [
   { key: 'scorecard', label: 'Tarjeta de salud del layout', Comp: LayoutScorecard },
   { key: 'yamazumi', label: 'Yamazumi (balanceo)', Comp: YamazumiChart },
+  { key: 'linebalance', label: 'Balance de línea (local)', Comp: LineBalancePanel },
   { key: 'sim', label: 'Simulador de capacidad', Comp: WhatIfSimulator },
   { key: 'buffers', label: 'Inventario de desacople (WIP)', Comp: BufferPlanner },
   { key: 'loops', label: 'Bucles de operador', Comp: OperatorLoops },
@@ -4342,6 +4347,7 @@ export default function Layout3DEditor({
         <T3Btn onClick={connectLineLayout} title="Conectar la línea — enlaza cada estación con la siguiente en secuencia (flujo)"><Waypoints className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={runOptimize} disabled={serverBusy} title="Optimizar flujo — reordena para minimizar el recorrido (servidor)"><WandSparkles className="w-4 h-4" /></T3Btn>
         <T3Btn active={showCommand} onClick={() => setShowCommand((v) => !v)} title="Comandos en lenguaje natural — scaffold local para function calling"><ChevronRight className="w-4 h-4" /></T3Btn>
+        <T3Btn active={showPalette} onClick={() => setShowPalette((v) => !v)} title="Paleta de comandos (⌘K / Ctrl K) — busca comandos, herramientas y símbolos"><Search className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={openChecks} title="Revisión de diseño — valida colocación, límites, traslapes y flujo"><ShieldCheck className="w-4 h-4" /></T3Btn>
         <T3Btn active={!!flowHealth} onClick={analyzeFlowHealth} title="Flow Health — score, cruces y backtracking"><ChartLine className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={openTakeoff} title="Cantidades / lista de materiales"><ClipboardList className="w-4 h-4" /></T3Btn>
@@ -5542,6 +5548,14 @@ export default function Layout3DEditor({
         const it = ANALYSIS_PANELS.find((a) => a.key === analysisPanel);
         if (!it) return null;
         const C = it.Comp;
+        // Local line-balance panel runs on the on-screen stations (no server call),
+        // so it takes the placed stations in sequence order instead of model/revision.
+        if (analysisPanel === 'linebalance') {
+          const lbStations = (data?.stations ?? [])
+            .filter((s) => placementsRef.current.has(s.id))
+            .map((s) => ({ id: s.id, label: s.station }));
+          return <C stations={lbStations} unit={data?.footprint.unit || 'mm'} open onClose={() => setAnalysisPanel(null)} />;
+        }
         return <C model={model} revision={revision} open onClose={() => setAnalysisPanel(null)} />;
       })()}
 
