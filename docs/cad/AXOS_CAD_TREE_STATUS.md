@@ -25,6 +25,46 @@ This run extends the existing shared CAD validation report for the architecture 
 - The plot/export package validation issue count now uses the unified normalized issue list instead of only collision/clearance/safety totals.
 
 The implementation reuses the current validation center, selection/highlight action path, object tags, CAD layers, and architecture metadata. It does not create another validator, release panel, editor, command engine, or persistence schema.
+## 2026-06-30 - Material route command
+
+This run advances the existing CAD command/flow surface without adding another
+editor panel:
+
+- `material-flow-route.ts` builds a deterministic from-to route report from the
+  current connector graph or selected object sequence.
+- `trace_material_route` is registered in the existing command registry, parser,
+  command-assist suggestions, Cmd-K palette source, and OpenAI-compatible schema
+  path.
+- The existing `Layout3DEditor` command dock already passes connector state and
+  renders `report` operations, so users can type `traza ruta material` and see
+  total route distance, longest handoff, route legs, crossings, backtracking,
+  connector count, and score.
+- The workflow does not create a parallel flow model, route renderer, generator,
+  toolbar, backend endpoint, or persistence contract.
+
+Recommended next phase: after the active generator PRs land, connect this route
+report to generated supermarket/dock flows with route issue zoom and policy
+thresholds for excessive material travel.
+
+## 2026-06-30 - Viewport saved views and zoom-to-issue
+
+This run advances large-plant viewport work without duplicating the editor or validation center:
+
+- `viewport-bookmarks.ts` provides tested local saved-view helpers for camera snapshots, bookmark cleanup, capped recency, and focus bounds.
+- The existing `Layout3DEditor` View popover now lets users save the current 2D/3D camera, restore saved views, delete saved views, and fit the current selection.
+- Saved views are local to the browser and keyed by model/revision; no backend contract or migration was added.
+- Existing collision, clearance, safety, and validation quick-fix selection now also moves the camera to the affected objects, so large factory issues are easier to find.
+- The implementation reuses current selection refs, editable station/equipment geometry, OrbitControls, validation rows, and the existing View popover. It does not create a second viewport system, minimap, validation modal, or CAD editor.
+## 2026-06-30 - Parametric supermarket/kitting generator
+
+This run extends the existing warehouse generator path without adding a parallel factory template system:
+
+- `warehouse-generators.ts` now includes `generateWarehouseSupermarketKitting` for configurable kanban lanes, kitting carts, FIFO WIP, line-side delivery, receiving drop, incoming QC, replenishment rack, pedestrian/forklift aisles, and optional ESD/quarantine safety areas.
+- The existing Equipment rail in `Layout3DEditor.tsx` exposes compact controls for lane/cart counts, dimensions, orientation, prefix, ESD, and quarantine.
+- Applying the generator creates editable CAD assets, annotations, layer assignments, tags, material/flow connectors, a local snapshot, selection, snapping refresh, and Flow Health state.
+- Focused specs cover horizontal and vertical layouts, tags/layers, connectors, safety toggles, footprint containment, scaling, and responsiveness caps.
+
+This does not duplicate the static supermarket/kitting template or #905's dock/staging generator. The template remains a one-click starter; this generator creates user-sized kitting lane variants.
 
 ## 2026-06-29 - Safety paths and ESD zones
 
@@ -242,6 +282,18 @@ This run makes the existing Copiloto CAD command line easier to use without chan
 - Missing-selection states are explicit, so users see why a command cannot preview yet.
 
 This advances Phase 21 (shortcuts + command line) while avoiding active PR areas for registry semantics, layers, validation, DXF, symbols, templates, flow, and safety.
+
+## 2026-06-30 - Dock and staging generator
+
+This run advances the generator backlog with a visible dock/staging workflow:
+
+- `apps/web/src/lib/cad/warehouse-generators.ts` now includes `generateWarehouseDockStaging` for receiving, shipping, and cross-dock layouts.
+- Generated layouts create editable dock doors, staging zones, pallet positions, a forklift apron, labels, CAD layer assignments, tags, bounds/scaling warnings, and flow connector refs.
+- `apps/web/src/components/line-engineering/Layout3DEditor.tsx` exposes the generator in the existing Equipment rail and maps generated refs into editable assets/connectors.
+- Connector rendering now resolves both stations and editable assets, so template/generator asset flows are visible in the current connector layer.
+- `apps/web/src/lib/cad/warehouse-generators.spec.ts` covers rack regressions plus dock/staging horizontal/vertical layouts and oversize behavior.
+
+Phase evidence: Factory templates/generators are now stronger for warehouse receiving/shipping. This is non-redundant with the rack generator because rack rows create storage capacity, while dock/staging creates inbound/outbound interface areas with flow. Next generator should parameterize supermarket/kitting lanes or line-side delivery without duplicating templates.
 ## 2026-06-29 - EHS and utilities asset blocks
 
 This run extends the existing shared asset catalog instead of creating a third symbol/block system:

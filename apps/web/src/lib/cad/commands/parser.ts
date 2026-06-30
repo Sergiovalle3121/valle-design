@@ -64,6 +64,16 @@ export function parseCadCommand(text: string): CadParseResult {
     };
   }
   if (
+    /(ruta|recorrido|traza|trazar|trace|from-to|from to|camino|path)/.test(q) &&
+    /(material|materiales|flujo|flow|route|ruta|recorrido)/.test(q)
+  ) {
+    return {
+      ok: true,
+      confidence: 0.82,
+      input: { id: "trace_material_route" },
+    };
+  }
+  if (
     /(rack|racks|estante|estantes|almacen|warehouse|supermarket)/.test(
       q,
     ) &&

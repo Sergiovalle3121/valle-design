@@ -119,6 +119,20 @@ export function showAllCadLayers(layers: CadLayer[]): CadLayer[] {
   return layers.map((layer) => ({ ...layer, visible: true }));
 }
 
+export function unlockAllCadLayers(layers: CadLayer[]): CadLayer[] {
+  return layers.map((layer) => ({ ...layer, locked: false }));
+}
+
+export function hideEmptyCadLayers(
+  layers: CadLayer[],
+  counts: CadLayerCounts = {},
+): CadLayer[] {
+  return layers.map((layer) => ({
+    ...layer,
+    visible: (counts[layer.id] ?? 0) > 0,
+  }));
+}
+
 export function summarizeCadLayers(
   layers: CadLayer[],
   counts: CadLayerCounts = {},

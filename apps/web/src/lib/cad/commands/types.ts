@@ -10,6 +10,7 @@ export type CadCommandId =
   | "arrange_flow_line"
   | "arrange_rack_rows"
   | "analyze_line_balance"
+  | "trace_material_route"
   | "measure_distance"
   | "find_collisions"
   | "validate_layout"
@@ -132,6 +133,10 @@ export type CadCommandInput =
       objectIds?: string[];
       taktTimeSec?: number;
       cycleTimes?: Record<string, number>;
+    }
+  | {
+      id: "trace_material_route";
+      objectIds?: string[];
     }
   | { id: "measure_distance"; targetA?: string; targetB?: string }
   | { id: "find_collisions"; objectIds?: string[] }

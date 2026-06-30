@@ -4,6 +4,7 @@ import {
   assignObjectsToLayer,
   DEFAULT_CAD_LAYERS,
   editableObjectIds,
+  hideEmptyCadLayers,
   isolateCadLayerVisibility,
   isLayerLocked,
   isObjectLayerLocked,
@@ -13,6 +14,7 @@ import {
   summarizeCadLayers,
   toggleCadLayerLocked,
   toggleCadLayerVisible,
+  unlockAllCadLayers,
 } from "./layers";
 
 let layers = DEFAULT_CAD_LAYERS;
@@ -88,5 +90,27 @@ assert.equal(
   summarizeCadLayers(layers).hidden,
   0,
   "showAllCadLayers restores layer visibility",
+);
+
+let lockedAll = DEFAULT_CAD_LAYERS.map((layer) => ({ ...layer, locked: true }));
+lockedAll = unlockAllCadLayers(lockedAll);
+assert.ok(
+  lockedAll.every((layer) => !layer.locked),
+  "unlockAllCadLayers clears every layer lock",
+);
+
+const emptied = hideEmptyCadLayers(DEFAULT_CAD_LAYERS, {
+  layout: 3,
+  equipment: 0,
+});
+assert.equal(
+  emptied.find((layer) => layer.id === "layout")?.visible,
+  true,
+  "hideEmptyCadLayers keeps layers with objects visible",
+);
+assert.equal(
+  emptied.find((layer) => layer.id === "equipment")?.visible,
+  false,
+  "hideEmptyCadLayers hides layers without objects",
 );
 console.log("cad layer specs passed");

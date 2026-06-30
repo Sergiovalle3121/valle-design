@@ -11,6 +11,7 @@ import { measureBoxes, measurementLabel } from "../measurements";
 import { detectCadCollisions } from "../collisions";
 import { scoreFlowLayout } from "../flow-optimization";
 import { buildCadLineBalanceReport } from "../line-balance";
+import { buildCadMaterialRouteReport } from "../material-flow-route";
 import { buildCadValidationReport } from "../validation-report";
 import {
   error,
@@ -590,6 +591,134 @@ function analyzeLineBalancePreview(
   };
 }
 
+function materialRouteObjects(
+  input: { objectIds?: string[] },
+  context: Parameters<CadCommandDefinition["preview"]>[1],
+): CadBox[] {
+  const explicit = input.objectIds?.length
+    ? input.objectIds
+    : context.selectedIds;
+  if (explicit.length) {
+    return explicit
+      .map((id) => context.objects.find((object) => object.id === id))
+      .filter((object): object is CadBox => !!object);
+  }
+  const connectorIds = uniq(
+    (context.connectors ?? []).flatMap((connector) => [
+      connector.from,
+      connector.to,
+    ]),
+  );
+  if (connectorIds.length) {
+    return connectorIds
+      .map((id) => context.objects.find((object) => object.id === id))
+      .filter((object): object is CadBox => !!object);
+  }
+  return bySequence(context.objects.filter((object) => object.type === "station"));
+}
+
+function fmtDistanceMm(value: number | undefined): string {
+  return value == null ? "Sin dato" : `${Math.round(value)} mm`;
+}
+
+function traceMaterialRoutePreview(
+  input: Extract<CadCommandInput, { id: "trace_material_route" }>,
+  context: Parameters<CadCommandDefinition["preview"]>[1],
+): CadCommandPreview {
+  const objects = materialRouteObjects(input, context);
+  const issues =
+    objects.length >= 2
+      ? []
+      : [
+          error(
+            "selection_too_small",
+            "Selecciona al menos 2 objetos o crea conectores de flujo/material.",
+          ),
+        ];
+  if (objects.length < 2)
+    return {
+      summary: "Trazar ruta material",
+      affectedObjectIds: objects.map((object) => object.id),
+      operations: [],
+      issues,
+    };
+
+  const selectedIds = input.objectIds?.length
+    ? input.objectIds
+    : context.selectedIds.length
+      ? context.selectedIds
+      : undefined;
+  const report = buildCadMaterialRouteReport({
+    selectedIds,
+    connectors: context.connectors,
+    nodes: objects.map((object) => ({
+      id: object.id,
+      label: object.label,
+      x: object.x + object.w / 2,
+      y: object.y + object.h / 2,
+    })),
+  });
+
+  if (report.connectorCount === 0)
+    issues.push(
+      warning(
+        "material_route_no_connectors",
+        "No hay conectores flow/material; se uso la secuencia de objetos.",
+        report.routeNodeIds,
+      ),
+    );
+  if (report.missingConnectorRefs.length)
+    issues.push(
+      warning(
+        "material_route_missing_refs",
+        `${report.missingConnectorRefs.length} endpoint(s) de conector no existen en el layout.`,
+      ),
+    );
+  if (report.flow.crossingCount)
+    issues.push(
+      warning(
+        "material_route_crossings",
+        `${report.flow.crossingCount} cruce(s) de ruta material detectados.`,
+        report.routeNodeIds,
+      ),
+    );
+  if (report.flow.backtrackingCount)
+    issues.push(
+      warning(
+        "material_route_backtracking",
+        `${report.flow.backtrackingCount} tramo(s) con backtracking.`,
+        report.routeNodeIds,
+      ),
+    );
+
+  const rows = [
+    { label: "Objetos ruta", value: String(report.nodeCount) },
+    { label: "Tramos", value: String(report.legCount) },
+    { label: "Conectores usados", value: String(report.connectorCount) },
+    { label: "Distancia total", value: fmtDistanceMm(report.totalDistance) },
+    {
+      label: "Tramo mas largo",
+      value: report.longestLeg
+        ? `${report.longestLeg.fromLabel} -> ${report.longestLeg.toLabel} (${fmtDistanceMm(report.longestLeg.distance)})`
+        : "Sin dato",
+    },
+    { label: "Cruces", value: String(report.flow.crossingCount) },
+    { label: "Backtracking", value: String(report.flow.backtrackingCount) },
+    { label: "Score", value: `${report.flow.score}/100` },
+    ...report.legs.slice(0, 4).map((leg) => ({
+      label: `${leg.fromLabel} -> ${leg.toLabel}`,
+      value: fmtDistanceMm(leg.distance),
+    })),
+  ];
+
+  return {
+    summary: `Trazar ruta material de ${report.nodeCount} objeto(s): ${fmtDistanceMm(report.totalDistance)}.`,
+    affectedObjectIds: report.routeNodeIds,
+    operations: [{ type: "report", title: "Ruta material", rows }],
+    issues,
+  };
+}
+
 export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
   {
     id: "create_clearance_aisle",
@@ -931,6 +1060,41 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     execute: (i, c) => {
       const p = analyzeLineBalancePreview(
         i as Extract<CadCommandInput, { id: "analyze_line_balance" }>,
+        c,
+      );
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
+    id: "trace_material_route",
+    label: "Trazar ruta material",
+    category: "flow",
+    description:
+      "Reporta la ruta from-to de materiales usando conectores existentes o la secuencia seleccionada.",
+    inputSchema: {
+      objectIds: {
+        type: "string[]",
+        description: "Objetos a incluir en la ruta material.",
+      },
+    },
+    examples: [
+      "traza ruta material",
+      "reporte from-to de materiales",
+      "material route for selected stations",
+    ],
+    validate: (i, c) =>
+      traceMaterialRoutePreview(
+        i as Extract<CadCommandInput, { id: "trace_material_route" }>,
+        c,
+      ).issues.filter((issue) => issue.level === "error"),
+    preview: (i, c) =>
+      traceMaterialRoutePreview(
+        i as Extract<CadCommandInput, { id: "trace_material_route" }>,
+        c,
+      ),
+    execute: (i, c) => {
+      const p = traceMaterialRoutePreview(
+        i as Extract<CadCommandInput, { id: "trace_material_route" }>,
         c,
       );
       return result(p, ok(p.issues), p.summary);

@@ -13,6 +13,7 @@ import {
   AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
   AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, RulerDimensionLine, Rows3, Waypoints,
   ShieldCheck, CircleCheck, CircleAlert, Printer, ChartLine, FileText, WandSparkles, Stamp, Upload, ImageOff, Activity, History, Group, Search,
+  Expand, Frame, Focus, PanelLeft, PanelLeftClose,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/apiFetch';
 import { useToast } from '@/contexts/ToastContext';
@@ -42,12 +43,14 @@ import { maybeSnapScalarToGrid } from '@/lib/cad/snapping';
 import {
   assignObjectsToLayer,
   DEFAULT_CAD_LAYERS,
+  hideEmptyCadLayers,
   isolateCadLayerVisibility,
   isObjectLayerLocked,
   showAllCadLayers,
   summarizeCadLayers,
   toggleCadLayerLocked,
   toggleCadLayerVisible,
+  unlockAllCadLayers,
   type CadLayer,
   type CadLayerAssignments,
   type CadLayerId,
@@ -61,7 +64,14 @@ import { evaluateCadDxfExportReadiness, type CadDxfExportLayerSummary, type CadD
 import { importDxfPrimitives, summarizeDxfImportWarnings, type CadDxfImportResult, type CadDxfImportWarning, type CadDxfPoint, type CadDxfPrimitive } from '@/lib/cad/dxf-import';
 import { CAD_SYMBOL_LIBRARY, getCadSymbol, type CadSymbolCategory } from '@/lib/cad/symbols';
 import { CAD_LAYOUT_TEMPLATES, instantiateCadLayoutTemplate, type CadLayoutTemplateId } from '@/lib/cad/templates';
-import { generateWarehouseRackRows, type CadRackRowGeneratorInput } from '@/lib/cad/warehouse-generators';
+import {
+  generateWarehouseDockStaging,
+  generateWarehouseRackRows,
+  generateWarehouseSupermarketKitting,
+  type CadDockStagingGeneratorInput,
+  type CadRackRowGeneratorInput,
+  type CadSupermarketGeneratorInput,
+} from '@/lib/cad/warehouse-generators';
 import { type CadClearanceIssue, type CadCollisionHit } from '@/lib/cad/collisions';
 import { buildFlowSegments, scoreFlowLayout, type CadFlowNode, type CadFlowScore, type CadFlowSegment } from '@/lib/cad/flow-optimization';
 import type { CadSafetyIssue, CadSafetyZone, CadSafetyZoneKind } from '@/lib/cad/safety-zones';
@@ -83,6 +93,28 @@ import {
   type CadValidationIssueRow,
   type CadValidationReport,
 } from '@/lib/cad/validation-report';
+import {
+  FACTORY_PRESETS,
+  presetToUnit,
+  clampFootprintUnit,
+  clampGridUnit,
+  unitToMeters,
+  metersToUnit,
+  formatMeters,
+  type WorldUnit,
+  type FactoryPreset,
+} from '@/lib/cad/world-scale';
+import PlantMinimap from './PlantMinimap';
+import ScaleBar from './ScaleBar';
+import {
+  cadViewportFocusBounds,
+  createCadViewportBookmark,
+  describeCadViewportFocus,
+  removeCadViewportBookmark,
+  sanitizeCadViewportBookmarks,
+  upsertCadViewportBookmark,
+  type CadViewportBookmark,
+} from '@/lib/cad/viewport-bookmarks';
 import dynamic from 'next/dynamic';
 
 // Analysis panels — the same modal components the 2D host shipped, lazy-loaded so
@@ -330,6 +362,9 @@ const HELP_SECTIONS: { title: string; rows: [string, string][] }[] = [
   { title: 'Vista', rows: [
     ['Arrastrar fondo', 'Orbitar'],
     ['Rueda', 'Acercar / alejar'],
+    ['F', 'Ajustar a contenido / selección'],
+    ['Shift+F', 'Ajustar a toda la planta'],
+    ['\\', 'Modo foco (ocultar paneles)'],
     ['Recorrido', 'Arrastrar = mirar · WASD = caminar'],
     ['?', 'Mostrar esta ayuda'],
   ] },
@@ -770,10 +805,36 @@ export default function Layout3DEditor({
     orientation: 'horizontal',
     labelPrefix: 'R',
   });
+  const [dockGenerator, setDockGenerator] = useState<CadDockStagingGeneratorInput>({
+    dockCount: 4,
+    stagingLanes: 4,
+    dockWidth: 3200,
+    dockDepth: 900,
+    stagingDepth: 5000,
+    aisleWidth: 3600,
+    side: 'south',
+    mode: 'receiving',
+    labelPrefix: 'D',
+  });
+  const [supermarketGenerator, setSupermarketGenerator] = useState<CadSupermarketGeneratorInput>({
+    lanes: 3,
+    cartsPerLane: 1,
+    laneLength: 3600,
+    laneWidth: 750,
+    cartWidth: 1100,
+    cartDepth: 750,
+    aisleWidth: 1200,
+    orientation: 'horizontal',
+    labelPrefix: 'K',
+    includeEsdZone: true,
+    includeQuarantine: true,
+  });
   const [tool, setTool] = useState<'select' | 'measure' | 'wall'>('select');
   const [viewMode, setViewMode] = useState<'3d' | '2d'>('3d'); // 2D = locked top-down plan view (CAD unificado)
   const [walk, setWalk] = useState(false); // first-person walkthrough mode
   const [showHelp, setShowHelp] = useState(false); // keyboard shortcuts overlay
+  const [focusMode, setFocusMode] = useState(false); // hide side panels — maximise the canvas (EPIC 0)
+  const [showMinimap, setShowMinimap] = useState(true); // plant overview minimap (EPIC 0)
   const [measureLive, setMeasureLive] = useState<string | null>(null);
   const [dimCount, setDimCount] = useState(0);
   const [measurementRowsView, setMeasurementRowsView] = useState<MeasurementRow[]>([]);
@@ -781,6 +842,8 @@ export default function Layout3DEditor({
   const [sun, setSun] = useState({ az: 35, el: 55 }); // sun azimuth/elevation (deg)
   const [showView, setShowView] = useState(false);
   const [fpDraft, setFpDraft] = useState<{ w: number; h: number; g: number }>({ w: 0, h: 0, g: 0 });
+  const [plantDisplayUnit, setPlantDisplayUnit] = useState<'m' | 'mm'>('m'); // readout-only toggle, no cambia el footprint guardado
+  const [viewportBookmarks, setViewportBookmarks] = useState<CadViewportBookmark[]>([]);
   const [layers, setLayers] = useState({ stations: true, equipment: true, connectors: true, dims: true, notes: true, labels: true, grid: true, dxf: true });
   const [cadLayers, setCadLayers] = useState<CadLayer[]>(DEFAULT_CAD_LAYERS);
   const [layerAssignments, setLayerAssignments] = useState<CadLayerAssignments>({});
@@ -814,7 +877,23 @@ export default function Layout3DEditor({
   const [showHeat, setShowHeat] = useState(false); // occupancy heat-map overlay on the floor (Fase 51)
   const [arr, setArr] = useState({ cols: 3, rows: 1, gap: 500, dx: 1000, dy: 0 }); // array/offset params (Fase 55)
   const [showGaps, setShowGaps] = useState(false); // clearance/safety gap markers overlay (Fase 52)
+  const viewportBookmarkStorageKey = `axos:cad:viewport-bookmarks:${model}:${revision}`;
   useEffect(() => { paletteOpenRef.current = showPalette; }, [showPalette]);
+  const readViewportBookmarks = () => {
+    try {
+      const raw = window.localStorage.getItem(viewportBookmarkStorageKey);
+      return sanitizeCadViewportBookmarks(raw ? JSON.parse(raw) : []);
+    } catch {
+      return [];
+    }
+  };
+  const persistViewportBookmarks = (bookmarks: CadViewportBookmark[]) => {
+    try {
+      window.localStorage.setItem(viewportBookmarkStorageKey, JSON.stringify(bookmarks));
+    } catch {
+      // Browser storage can be disabled; saved views stay usable for this session.
+    }
+  };
 
   // three.js refs
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -1193,14 +1272,32 @@ export default function Layout3DEditor({
       label.userData.labelFor = id;
       blocks.add(label);
     });
-    // connectors as arched tubes between placed block tops
+    // connectors as arched tubes between stations or generated assets
+    const connectorEndpoint = (id: string): THREE.Vector3 | null => {
+      const station = placementsRef.current.get(id);
+      if (station) {
+        const height = Math.max(0.6, Math.min(station.w * s, station.h * s) * 0.7);
+        return new THREE.Vector3(
+          (station.x + station.w / 2 - W / 2) * s,
+          height + 0.2,
+          (station.y + station.h / 2 - H / 2) * s,
+        );
+      }
+      const asset = assetsRef.current.get(id);
+      if (!asset) return null;
+      const def = assetMeta(asset.kind);
+      const flat = def.archetype === 'zone' || def.archetype === 'path';
+      const height = flat ? 0.55 : Math.max(0.4, def.height * s);
+      return new THREE.Vector3(
+        (asset.x + asset.w / 2 - W / 2) * s,
+        height + 0.2,
+        (asset.y + asset.h / 2 - H / 2) * s,
+      );
+    };
     connectorsRef.current.forEach((cn) => {
-      const a = placementsRef.current.get(cn.from); const b = placementsRef.current.get(cn.to);
-      if (!a || !b) return;
-      const ha = Math.max(0.6, Math.min(a.w * s, a.h * s) * 0.7);
-      const hb = Math.max(0.6, Math.min(b.w * s, b.h * s) * 0.7);
-      const start = new THREE.Vector3((a.x + a.w / 2 - W / 2) * s, ha + 0.2, (a.y + a.h / 2 - H / 2) * s);
-      const end = new THREE.Vector3((b.x + b.w / 2 - W / 2) * s, hb + 0.2, (b.y + b.h / 2 - H / 2) * s);
+      const start = connectorEndpoint(cn.from);
+      const end = connectorEndpoint(cn.to);
+      if (!start || !end) return;
       const mid = start.clone().add(end).multiplyScalar(0.5); mid.y += start.distanceTo(end) * 0.22 + 0.8;
       const tube = new THREE.Mesh(
         new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(start, mid, end), 24, 0.09, 7, false),
@@ -2063,6 +2160,7 @@ export default function Layout3DEditor({
     // material-flow travel metrics from the line connectors (Fase 64)
     const centers: Record<string, FlowCenter> = {};
     placementsRef.current.forEach((p, id) => { centers[id] = { x: p.x + p.w / 2, y: p.y + p.h / 2 }; });
+    assets.forEach((asset) => { centers[asset.id] = { x: asset.x + asset.w / 2, y: asset.y + asset.h / 2 }; });
     const flow = flowMetrics(connectorsRef.current, centers);
     setTakeoff({
       unit: fp.unit || 'mm', footprintArea, totalStations: data!.stations.length,
@@ -2134,11 +2232,68 @@ export default function Layout3DEditor({
       .sort((a, b) => a.sequence - b.sequence)
       .map((node) => ({ id: node.id, label: node.label, x: node.x, y: node.y }));
   }, [data]);
+  const configureOrbitControlsForMode = (mode: '3d' | '2d') => {
+    const ctrl = controlsRef.current;
+    if (!ctrl) return;
+    if (mode === '2d') {
+      ctrl.minPolarAngle = 0; ctrl.maxPolarAngle = 0.05;
+      ctrl.enableRotate = false;
+      ctrl.mouseButtons.LEFT = THREE.MOUSE.PAN;
+      ctrl.touches.ONE = THREE.TOUCH.PAN;
+    } else {
+      ctrl.minPolarAngle = 0; ctrl.maxPolarAngle = Math.PI / 2.05;
+      ctrl.enableRotate = true;
+      ctrl.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+      ctrl.touches.ONE = THREE.TOUCH.ROTATE;
+    }
+  };
+  const focusViewportItems = (items: SelItem[]) => {
+    const ctx = ctxRef.current; const cam = cameraRef.current; const ctrl = controlsRef.current; const fp = data?.footprint;
+    if (!ctx || !cam || !ctrl || !fp) return false;
+    const objects = items.map((item) => {
+      const place = getPlaceRef(item);
+      return place ? { id: item.id, x: place.x, y: place.y, w: place.w, h: place.h } : null;
+    }).filter((item): item is { id: string; x: number; y: number; w: number; h: number } => !!item);
+    const bounds = cadViewportFocusBounds(objects, {
+      padding: Math.max(fp.gridSize || 0, Math.max(fp.footprintW, fp.footprintH) * 0.015),
+      footprintW: fp.footprintW,
+      footprintH: fp.footprintH,
+    });
+    if (!bounds) return false;
+    if (walkRef.current) { setWalk(false); walkRef.current = false; }
+    configureOrbitControlsForMode(viewMode);
+    const targetX = (bounds.centerX - ctx.W / 2) * ctx.s;
+    const targetZ = (bounds.centerY - ctx.H / 2) * ctx.s;
+    const span = Math.max(bounds.width, bounds.height) * ctx.s;
+    const distance = Math.max(6, span * 1.9);
+    if (viewMode === '2d') cam.position.set(targetX, distance, targetZ + 0.01);
+    else cam.position.set(targetX + distance * 0.42, Math.max(5, distance * 0.58), targetZ + distance * 0.72);
+    ctrl.target.set(targetX, 0, targetZ);
+    ctrl.update();
+    return true;
+  };
+  const focusCurrentSelection = () => {
+    if (!selRef.current.length) { toast.error('Selecciona objetos para enfocar la vista.', 'Vistas CAD'); return; }
+    const focused = focusViewportItems(selRef.current);
+    if (!focused) { toast.error('No pude enfocar la seleccion actual.', 'Vistas CAD'); return; }
+    const fp = data?.footprint;
+    const objects = selRef.current.map((item) => {
+      const place = getPlaceRef(item);
+      return place ? { id: item.id, x: place.x, y: place.y, w: place.w, h: place.h } : null;
+    }).filter((item): item is { id: string; x: number; y: number; w: number; h: number } => !!item);
+    const bounds = cadViewportFocusBounds(objects, {
+      padding: fp?.gridSize ?? 0,
+      footprintW: fp?.footprintW,
+      footprintH: fp?.footprintH,
+    });
+    toast.success(bounds ? describeCadViewportFocus(bounds, fp?.unit || 'mm') : 'Seleccion enfocada.', 'Vistas CAD');
+  };
   const selectCollisionPair = (hit: CadCollisionHit) => {
     const pair: SelItem[] = [hit.aId, hit.bId].map((id) => placementsRef.current.has(id) ? { type: 'station' as const, id } : assetsRef.current.has(id) ? { type: 'asset' as const, id } : null).filter((item): item is SelItem => !!item);
     if (!pair.length) return;
     select(pair);
     rebuildAll();
+    focusViewportItems(pair);
     toast.success(`${hit.aLabel} ↔ ${hit.bLabel} seleccionado.`, 'Colisiones');
   };
   const selectClearanceIssue = (issue: CadClearanceIssue) => {
@@ -2146,6 +2301,7 @@ export default function Layout3DEditor({
     if (!pair.length) return;
     select(pair);
     rebuildAll();
+    focusViewportItems(pair);
     toast.success('Par de holgura seleccionado.', 'Clearance');
   };
   const selectSafetyIssue = (issue: CadSafetyIssue) => {
@@ -2153,6 +2309,7 @@ export default function Layout3DEditor({
     if (!items.length) return;
     select(items);
     rebuildAll();
+    focusViewportItems(items);
     toast.success('Issue de seguridad seleccionado.', 'Safety');
   };
   const selectValidationIssue = (issue: CadValidationIssueRow) => {
@@ -2176,6 +2333,7 @@ export default function Layout3DEditor({
     if (!items.length) return;
     select(items);
     rebuildAll();
+    focusViewportItems(items);
     toast.success(issue.actionLabel, 'CAD validation');
   };
   const analyzeFlowHealth = () => {
@@ -2316,13 +2474,25 @@ export default function Layout3DEditor({
   const applyFootprint = useCallback(() => {
     setData((d) => {
       if (!d) return d;
-      const w = Math.max(1000, Math.round(fpDraft.w) || d.footprint.footprintW);
-      const h = Math.max(1000, Math.round(fpDraft.h) || d.footprint.footprintH);
-      const g = Math.max(50, Math.round(fpDraft.g) || d.footprint.gridSize);
+      const unit = (d.footprint.unit || 'mm') as WorldUnit;
+      const w = clampFootprintUnit(Math.round(fpDraft.w) || d.footprint.footprintW, unit);
+      const h = clampFootprintUnit(Math.round(fpDraft.h) || d.footprint.footprintH, unit);
+      const g = clampGridUnit(Math.round(fpDraft.g) || d.footprint.gridSize, unit);
       return { ...d, footprint: { ...d.footprint, footprintW: w, footprintH: h, gridSize: g } };
     });
     setDirty(true); setShowView(false);
   }, [fpDraft]);
+
+  // One-click factory-scale presets — set the plant to a workcell … full nave
+  // size in real metres regardless of the layout's stored unit (EPIC 0). The
+  // scene rebuilds at the new scale and the change persists on save.
+  const applyPreset = useCallback((preset: FactoryPreset) => {
+    const unit = (data?.footprint.unit || 'mm') as WorldUnit;
+    const u = presetToUnit(preset, unit);
+    setData((d) => (d ? { ...d, footprint: { ...d.footprint, footprintW: u.width, footprintH: u.height, gridSize: u.grid } } : d));
+    setFpDraft({ w: u.width, h: u.height, g: u.grid });
+    setDirty(true); setShowView(false);
+  }, [data]);
 
   // Add a free-text note at the point the camera is looking at (round-trips 2D).
   const addNote = () => {
@@ -2484,6 +2654,12 @@ export default function Layout3DEditor({
   const setRackGeneratorField = <K extends keyof CadRackRowGeneratorInput>(field: K, value: CadRackRowGeneratorInput[K]) => {
     setRackGenerator((state) => ({ ...state, [field]: value }));
   };
+  const setDockGeneratorField = <K extends keyof CadDockStagingGeneratorInput>(field: K, value: CadDockStagingGeneratorInput[K]) => {
+    setDockGenerator((state) => ({ ...state, [field]: value }));
+  };
+  const setSupermarketGeneratorField = <K extends keyof CadSupermarketGeneratorInput>(field: K, value: CadSupermarketGeneratorInput[K]) => {
+    setSupermarketGenerator((state) => ({ ...state, [field]: value }));
+  };
   const applyRackRowGenerator = () => {
     const ctx = ctxRef.current; const fp = data?.footprint;
     if (!ctx || !fp) { toast.error('No hay footprint listo para generar racks.', 'Generador warehouse'); return; }
@@ -2530,6 +2706,143 @@ export default function Layout3DEditor({
     const scaled = generated.scale < 1 ? ` - escala ${Math.round(generated.scale * 100)}%` : '';
     toast.success(`${generated.summary.rackCount} racks, ${generated.summary.aisleCount} pasillos y ${generated.summary.labelCount} etiquetas${scaled}.`, 'Generador warehouse');
     if (generated.warnings[0]) toast.error(generated.warnings[0], 'Generador warehouse');
+  };
+  const applyDockStagingGenerator = () => {
+    const ctx = ctxRef.current; const fp = data?.footprint;
+    if (!ctx || !fp) { toast.error('No hay footprint listo para generar docks.', 'Generador dock'); return; }
+    const generated = generateWarehouseDockStaging(dockGenerator, { width: fp.footprintW || ctx.W, height: fp.footprintH || ctx.H, gridSize: fp.gridSize || 100 });
+    recordLocalSnapshot('Auto - antes de generar docks y staging', 'command');
+    pushHistory();
+    const created: SelItem[] = [];
+    const idByRef = new Map<string, string>();
+    const layerUpdates: Record<string, CadLayerId> = {};
+    const tagUpdates: Record<string, string> = {};
+
+    for (const item of generated.assets) {
+      const id = newId('as');
+      assetsRef.current.set(id, {
+        id,
+        kind: item.kind,
+        label: item.label,
+        x: item.x,
+        y: item.y,
+        w: item.w,
+        h: item.h,
+        rotation: item.rotation ?? 0,
+      });
+      idByRef.set(item.ref, id);
+      created.push({ type: 'asset', id });
+      layerUpdates[id] = item.layer;
+      tagUpdates[id] = item.tags.join(', ');
+    }
+
+    for (const item of generated.annotations) {
+      const id = newId('nt');
+      annotationsRef.current.set(id, {
+        id,
+        type: 'text',
+        text: item.text,
+        x: item.x,
+        y: item.y,
+        color: cadLayersRef.current.find((layer) => layer.id === item.layer)?.color,
+      });
+    }
+
+    const nextConnectors = [...connectorsRef.current];
+    let connectorCount = 0;
+    for (const connector of generated.connectors) {
+      const from = idByRef.get(connector.fromRef);
+      const to = idByRef.get(connector.toRef);
+      if (!from || !to) continue;
+      if (!nextConnectors.some((item) => item.from === from && item.to === to && (item.kind ?? 'flow') === connector.kind)) {
+        nextConnectors.push({ from, to, kind: connector.kind });
+        connectorCount++;
+      }
+    }
+    connectorsRef.current = nextConnectors;
+
+    setAssetIds(new Set(assetsRef.current.keys()));
+    setLayerAssignments((cur) => ({ ...cur, ...layerUpdates }));
+    setObjectTags((cur) => ({ ...cur, ...tagUpdates }));
+    if (created.length) select(created.slice(0, 140));
+    setDirty(true); rebuildAll(); refreshSnap();
+    const scaled = generated.scale < 1 ? ` - escala ${Math.round(generated.scale * 100)}%` : '';
+    toast.success(`${generated.summary.dockCount} docks, ${generated.summary.stagingLaneCount} staging, ${generated.summary.palletCount} pallets, ${connectorCount} flujos${scaled}.`, 'Generador dock');
+    if (generated.warnings[0]) toast.error(generated.warnings[0], 'Generador dock');
+  };
+  const applySupermarketGenerator = () => {
+    const ctx = ctxRef.current; const fp = data?.footprint;
+    if (!ctx || !fp) { toast.error('No hay footprint listo para generar kitting.', 'Generador kitting'); return; }
+    const generated = generateWarehouseSupermarketKitting(supermarketGenerator, { width: fp.footprintW || ctx.W, height: fp.footprintH || ctx.H, gridSize: fp.gridSize || 100 });
+    recordLocalSnapshot('Auto - antes de generar supermarket/kitting', 'command');
+    pushHistory();
+    const created: SelItem[] = [];
+    const idByRef = new Map<string, string>();
+    const layerUpdates: Record<string, CadLayerId> = {};
+    const tagUpdates: Record<string, string> = {};
+
+    for (const item of generated.assets) {
+      const id = newId('as');
+      assetsRef.current.set(id, {
+        id,
+        kind: item.kind,
+        label: item.label,
+        x: item.x,
+        y: item.y,
+        w: item.w,
+        h: item.h,
+        rotation: item.rotation ?? 0,
+      });
+      idByRef.set(item.ref, id);
+      created.push({ type: 'asset', id });
+      layerUpdates[id] = item.layer;
+      tagUpdates[id] = item.tags.join(', ');
+    }
+
+    for (const item of generated.annotations) {
+      const id = newId('nt');
+      annotationsRef.current.set(id, {
+        id,
+        type: 'text',
+        text: item.text,
+        x: item.x,
+        y: item.y,
+        color: cadLayersRef.current.find((layer) => layer.id === item.layer)?.color,
+      });
+    }
+
+    let connectorCount = 0;
+    for (const connector of generated.connectors) {
+      const from = idByRef.get(connector.fromRef);
+      const to = idByRef.get(connector.toRef);
+      if (!from || !to) continue;
+      connectorsRef.current = [...connectorsRef.current, { from, to, kind: connector.kind }];
+      connectorCount++;
+    }
+
+    const flowRefs = generated.connectors.flatMap((connector, idx) => idx === 0 ? [connector.fromRef, connector.toRef] : [connector.toRef]);
+    const flowNodes = [...new Set(flowRefs)]
+      .map((ref): CadFlowNode | null => {
+        const id = idByRef.get(ref);
+        if (!id) return null;
+        const item = assetsRef.current.get(id);
+        return item ? { id, label: item.label ?? item.id, x: item.x + item.w / 2, y: item.y + item.h / 2 } : null;
+      })
+      .filter((node): node is CadFlowNode => !!node);
+    if (flowNodes.length >= 2) {
+      setFlowSequence(flowNodes);
+      setFlowSegments(buildFlowSegments(flowNodes));
+      setFlowHealth(scoreFlowLayout(flowNodes));
+    }
+
+    setAssetIds(new Set(assetsRef.current.keys()));
+    setLayerAssignments((cur) => ({ ...cur, ...layerUpdates }));
+    setObjectTags((cur) => ({ ...cur, ...tagUpdates }));
+    if (created.length) select(created.slice(0, 120));
+    setDirty(true); rebuildAll(); refreshSnap();
+    const scaled = generated.scale < 1 ? ` - escala ${Math.round(generated.scale * 100)}%` : '';
+    toast.success(`${generated.summary.laneCount} lanes, ${generated.summary.cartCount} carts y ${connectorCount} conectores${scaled}.`, 'Generador kitting');
+    if (generated.warnings[0]) toast.error(generated.warnings[0], 'Generador kitting');
   };
   const fallbackLayerForItem = (item: SelItem): CadLayerId => item.type === 'station' ? 'layout' : defaultLayerForAsset(item.id);
   const isItemLayerLocked = (item: SelItem) => isObjectLayerLocked(cadLayersRef.current, layerAssignmentsRef.current, item.id, fallbackLayerForItem(item));
@@ -3332,6 +3645,10 @@ export default function Layout3DEditor({
     setCadLayers((cur) => showAllCadLayers(cur));
     toast.success('Todas las capas CAD visibles.', 'Capas');
   };
+  const unlockAllCadLayerVisibility = () => {
+    setCadLayers((cur) => unlockAllCadLayers(cur));
+    toast.success('Todas las capas CAD desbloqueadas.', 'Capas');
+  };
   const defaultLayerFor = (item: SelItem): CadLayerId => {
     if (item.type === 'station') return 'layout';
     const selectedKind = selSnap?.id === item.id ? selSnap.kind : undefined;
@@ -3347,7 +3664,7 @@ export default function Layout3DEditor({
     else if (id === 'zone') { setTab('equipment'); addAsset('zone'); }
     else if (id === 'equipment') setTab('equipment');
     else if (id === 'text') addNote();
-    else if (id === 'fit_view') viewPreset('iso');
+    else if (id === 'fit_view') fitView('all');
     else if (id === 'undo') undo();
     else if (id === 'redo') redo();
   };
@@ -3392,8 +3709,98 @@ export default function Layout3DEditor({
     else cam.position.set(d * 0.6, d * 0.85, d * 1.0);
     ctrl.target.set(0, 0, 0); ctrl.update();
   };
+
+  // World-space bounding box (footprint coords) of all content, or just the
+  // selection — used to frame the camera on plants too big to eyeball (EPIC 0).
+  const worldBounds = useCallback((scope: 'all' | 'selection'): { minX: number; minY: number; maxX: number; maxY: number } | null => {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    const add = (x: number, y: number, w: number, h: number) => {
+      minX = Math.min(minX, x); minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x + w); maxY = Math.max(maxY, y + h);
+    };
+    const sel = selRef.current;
+    const wantStation = (id: string) => scope === 'all' || sel.some((it) => it.type === 'station' && it.id === id);
+    const wantAsset = (id: string) => scope === 'all' || sel.some((it) => it.type === 'asset' && it.id === id);
+    placementsRef.current.forEach((p, id) => { if (wantStation(id)) add(p.x, p.y, p.w, p.h); });
+    assetsRef.current.forEach((a) => { if (wantAsset(a.id)) add(a.x, a.y, a.w, a.h); });
+    if (!Number.isFinite(minX)) return null;
+    return { minX, minY, maxX, maxY };
+  }, []);
+
+  // Frame a world-space box: centre the orbit target on it and pull the camera
+  // back far enough that the box fits the current FOV, keeping the view angle.
+  const fitToBounds = useCallback((b: { minX: number; minY: number; maxX: number; maxY: number }) => {
+    const cam = cameraRef.current; const ctrl = controlsRef.current; const ctx = ctxRef.current;
+    if (!cam || !ctrl || !ctx) return;
+    const { s, W, H } = ctx;
+    const cx = (b.minX + b.maxX) / 2, cy = (b.minY + b.maxY) / 2;
+    const targetX = (cx - W / 2) * s, targetZ = (cy - H / 2) * s;
+    const spanX = Math.max((b.maxX - b.minX) * s, s);
+    const spanZ = Math.max((b.maxY - b.minY) * s, s);
+    const fov = (cam.fov * Math.PI) / 180;
+    const aspect = cam.aspect || 1;
+    const fitForZ = (spanZ / 2) / Math.tan(fov / 2);
+    const fitForX = (spanX / 2) / Math.tan(fov / 2) / aspect;
+    const dist = Math.max(fitForZ, fitForX) * 1.25 + Math.max(spanX, spanZ) * 0.12;
+    const dir = new THREE.Vector3().subVectors(cam.position, ctrl.target);
+    if (dir.lengthSq() < 1e-6) dir.set(0.6, 0.85, 1.0);
+    dir.normalize().multiplyScalar(dist);
+    ctrl.target.set(targetX, 0, targetZ);
+    cam.position.set(targetX + dir.x, Math.max(dir.y, dist * 0.15), targetZ + dir.z);
+    ctrl.update();
+  }, []);
+
+  const fitView = useCallback((scope: 'all' | 'selection' | 'plant') => {
+    const ctx = ctxRef.current; if (!ctx) return;
+    const plant = { minX: 0, minY: 0, maxX: ctx.W, maxY: ctx.H };
+    const b = scope === 'plant' ? plant : (worldBounds(scope) ?? plant);
+    fitToBounds(b);
+  }, [worldBounds, fitToBounds]);
   // ---- 2D⇄3D view toggle: the CAD unifica plano (2D) y modelo (3D) (unify) ----
   // 2D = vista superior bloqueada (solo pan+zoom), como un plano CAD; 3D = órbita libre.
+  const saveCurrentViewportBookmark = () => {
+    const cam = cameraRef.current; const ctrl = controlsRef.current;
+    if (!cam || !ctrl) return;
+    const base = selRef.current.length ? `${selRef.current.length} selected` : viewMode === '2d' ? '2D plan' : '3D view';
+    const bookmark = createCadViewportBookmark({
+      id: newId('view'),
+      label: `${base} ${viewportBookmarks.length + 1}`,
+      camera: {
+        mode: viewMode,
+        position: { x: cam.position.x, y: cam.position.y, z: cam.position.z },
+        target: { x: ctrl.target.x, y: ctrl.target.y, z: ctrl.target.z },
+      },
+    });
+    const next = upsertCadViewportBookmark(viewportBookmarks, bookmark);
+    setViewportBookmarks(next);
+    persistViewportBookmarks(next);
+    toast.success(`${bookmark.label} guardada.`, 'Vistas CAD');
+  };
+  const restoreViewportBookmark = (bookmark: CadViewportBookmark) => {
+    const cam = cameraRef.current; const ctrl = controlsRef.current;
+    if (!cam || !ctrl) return;
+    if (walkRef.current) { setWalk(false); walkRef.current = false; }
+    setViewMode(bookmark.camera.mode);
+    configureOrbitControlsForMode(bookmark.camera.mode);
+    cam.position.set(bookmark.camera.position.x, bookmark.camera.position.y, bookmark.camera.position.z);
+    ctrl.target.set(bookmark.camera.target.x, bookmark.camera.target.y, bookmark.camera.target.z);
+    ctrl.update();
+    toast.success(`Vista restaurada: ${bookmark.label}.`, 'Vistas CAD');
+  };
+  const deleteViewportBookmark = (bookmark: CadViewportBookmark) => {
+    const next = removeCadViewportBookmark(viewportBookmarks, bookmark.id);
+    setViewportBookmarks(next);
+    persistViewportBookmarks(next);
+    toast.success(`Vista eliminada: ${bookmark.label}.`, 'Vistas CAD');
+  };
+  const toggleViewMenu = () => {
+    const next = !showView;
+    if (next) {
+      setViewportBookmarks(readViewportBookmarks());
+      if (data) setFpDraft({ w: data.footprint.footprintW, h: data.footprint.footprintH, g: data.footprint.gridSize });
+    }
+    setShowView(next);
+  };
   const applyViewMode = useCallback((mode: '3d' | '2d') => {
     const cam = cameraRef.current; const ctrl = controlsRef.current; const ctx = ctxRef.current;
     if (!cam || !ctrl || !ctx) return;
@@ -3735,6 +4142,9 @@ export default function Layout3DEditor({
       else if (((e.key === 'z' || e.key === 'Z') && (e.ctrlKey || e.metaKey) && e.shiftKey) || ((e.key === 'y' || e.key === 'Y') && (e.ctrlKey || e.metaKey))) { e.preventDefault(); redo(); }
       else if ((e.key === 'm' || e.key === 'M')) { e.preventDefault(); toggleMeasure(); }
       else if ((e.key === 'w' || e.key === 'W')) { e.preventDefault(); toggleWall(); }
+      else if (e.key === 'f' && !e.shiftKey && !e.ctrlKey && !e.metaKey) { e.preventDefault(); fitView(hasSel ? 'selection' : 'all'); }
+      else if ((e.key === 'F' || (e.key === 'f' && e.shiftKey)) && !e.ctrlKey && !e.metaKey) { e.preventDefault(); fitView('plant'); }
+      else if (e.key === '\\') { e.preventDefault(); setFocusMode((v) => !v); }
       else if ((e.key === 'Delete' || e.key === 'Backspace') && hasSel) { e.preventDefault(); removeSelected(); }
       else if ((e.key === 'r' || e.key === 'R') && hasSel) { e.preventDefault(); rotateSelected(e.shiftKey ? -15 : 15); }
       else if ((e.key === 'd' || e.key === 'D') && (e.ctrlKey || e.metaKey) && hasSel) { e.preventDefault(); duplicateSelected(); }
@@ -3780,6 +4190,17 @@ export default function Layout3DEditor({
   placedIds.forEach((id) => { cadLayerCounts[layerAssignments[id] ?? 'layout'] += 1; });
   assetIds.forEach((id) => { cadLayerCounts[layerAssignments[id] ?? 'equipment'] += 1; });
   const cadLayerSummary = summarizeCadLayers(cadLayers, cadLayerCounts);
+  // Plant-scale safety: flag objects that sit outside the saved factory footprint (EPIC 0).
+  const plantBoundsW = data?.footprint.footprintW ?? 0;
+  const plantBoundsH = data?.footprint.footprintH ?? 0;
+  const outOfPlantBounds = (plantBoundsW > 0 && plantBoundsH > 0) ? (() => {
+    const outside = (o?: { x: number; y: number; w: number; h: number }) =>
+      !!o && (o.x < 0 || o.y < 0 || o.x + o.w > plantBoundsW || o.y + o.h > plantBoundsH);
+    let n = 0;
+    placedIds.forEach((id) => { if (outside(placementsRef.current.get(id))) n += 1; });
+    assetIds.forEach((id) => { if (outside(assetsRef.current.get(id))) n += 1; });
+    return n;
+  })() : 0;
   const selectedObjectProperties: CadObjectProperties | null = selSnap && selList[0] ? (() => {
     const layerId = selectionLayer(selList[0]);
     const layer = cadLayers.find((candidate) => candidate.id === layerId);
@@ -3808,7 +4229,7 @@ export default function Layout3DEditor({
   const architectureBlockers = architectureIssues.filter((issue) => issue.severity === 'critical').length;
   const architectureWarnings = architectureIssues.length - architectureBlockers;
   const releaseBlockers = (report?.errors ?? 0) + collisionHits.length + safetyBlockers + architectureBlockers;
-  const releaseWarnings = (report?.warnings ?? 0) + clearanceIssues.length + safetyWarnings + architectureWarnings + dxfWarnings.length + (validationFlow && validationFlow.score < 80 ? 1 : 0);
+  const releaseWarnings = (report?.warnings ?? 0) + clearanceIssues.length + safetyWarnings + architectureWarnings + dxfWarnings.length + (validationFlow && validationFlow.score < 80 ? 1 : 0) + (outOfPlantBounds > 0 ? 1 : 0);
 
   const releaseState = !report ? 'Sin validar' : releaseBlockers > 0 ? 'Bloqueado' : releaseWarnings > 0 ? 'Con avisos' : 'Listo';
   const releaseTone = releaseState === 'Listo' ? 'text-emerald-300' : releaseState === 'Bloqueado' ? 'text-rose-300' : releaseState === 'Con avisos' ? 'text-amber-300' : 'text-gray-500 dark:text-gray-400';
@@ -3821,6 +4242,7 @@ export default function Layout3DEditor({
     { label: 'Safety zones', value: safetyIssues.length ? `${safetyIssues.length} issue(s)` : 'Sin invasiones activas', tone: safetyBlockers ? 'text-rose-300' : safetyIssues.length ? 'text-amber-300' : 'text-emerald-300' },
     { label: 'Flow Health', value: validationFlow ? `${validationFlow.score}/100` : 'No analizado', tone: !validationFlow ? 'text-gray-500 dark:text-gray-400' : validationFlow.score >= 80 ? 'text-emerald-300' : validationFlow.score >= 55 ? 'text-amber-300' : 'text-rose-300' },
     { label: 'DXF import', value: dxfWarnings.length ? `${dxfWarnings.length} warning(s)` : 'Sin warnings activos', tone: dxfWarnings.length ? 'text-amber-300' : 'text-emerald-300' },
+    { label: 'Límites de planta', value: outOfPlantBounds ? `${outOfPlantBounds} fuera de límites` : 'Dentro de la planta', tone: outOfPlantBounds ? 'text-amber-300' : 'text-emerald-300' },
   ];
   const flowSegmentRows = [...flowSegments].sort((a, b) => b.distance - a.distance).slice(0, 5);
   const flowReorderPreview = flowHealth?.reorderPreview;
@@ -3880,6 +4302,12 @@ export default function Layout3DEditor({
           <T3Btn onClick={() => viewPreset('front')} title="Vista frontal"><Layers className="w-4 h-4" /></T3Btn>
           <T3Btn active={walk} onClick={toggleWalk} title="Recorrido en primera persona — arrastra para mirar, WASD para caminar, Esc para salir"><PersonStanding className="w-4 h-4" /></T3Btn>
         </>)}
+        <T3Btn onClick={() => fitView('all')} title="Ajustar a contenido — encuadra todo el layout (F)"><Expand className="w-4 h-4" /></T3Btn>
+        <T3Btn onClick={() => fitView('plant')} title="Ajustar a la planta — encuadra toda la huella (Shift+F)"><Frame className="w-4 h-4" /></T3Btn>
+        <T3Btn onClick={() => fitView('selection')} disabled={selList.length === 0} title="Ajustar a la selección — encuadra los objetos seleccionados"><Focus className="w-4 h-4" /></T3Btn>
+        <T3Btn active={focusMode} onClick={() => setFocusMode((v) => !v)} title="Modo foco — oculta los paneles laterales (\\)">{focusMode ? <PanelLeft className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}</T3Btn>
+        <T3Btn active={showMinimap} onClick={() => setShowMinimap((v) => !v)} title="Minimapa de la planta — vista general y navegación"><MapPin className="w-4 h-4" /></T3Btn>
+        <div className="w-px h-5 bg-white/10 mx-1" />
         <T3Btn active={showHeat} onClick={() => setShowHeat((v) => !v)} title="Mapa de calor de ocupación en el piso"><Grid2x2 className="w-4 h-4" /></T3Btn>
         <T3Btn active={showGaps} onClick={() => setShowGaps((v) => !v)} title="Holguras de seguridad — marca los objetos demasiado juntos (ámbar) o traslapados (rojo)"><ShieldAlert className="w-4 h-4" /></T3Btn>
         <div className="relative" ref={overlayMenuRef}>
@@ -3895,9 +4323,9 @@ export default function Layout3DEditor({
           )}
         </div>
         <div className="relative" ref={viewMenuRef}>
-          <T3Btn active={showView} onClick={() => setShowView((v) => { const nv = !v; if (nv && data) setFpDraft({ w: data.footprint.footprintW, h: data.footprint.footprintH, g: data.footprint.gridSize }); return nv; })} title="Vista, capas y plano"><SlidersHorizontal className="w-4 h-4" /></T3Btn>
+          <T3Btn active={showView} onClick={toggleViewMenu} title="Vista, capas y plano"><SlidersHorizontal className="w-4 h-4" /></T3Btn>
           {showView && (
-            <div className="absolute left-0 top-full mt-1.5 w-56 rounded-xl border border-white/10 bg-gray-900 shadow-2xl p-3 z-10 text-[12px]">
+            <div className="absolute left-0 top-full mt-1.5 w-72 max-h-[78vh] overflow-y-auto rounded-xl border border-white/10 bg-gray-900 shadow-2xl p-3 z-10 text-[12px]">
               <div className="text-[10px] uppercase tracking-wide text-gray-500 mb-1.5">Capas</div>
               {([['stations', 'Estaciones'], ['equipment', 'Equipo'], ['connectors', 'Conexiones'], ['dims', 'Cotas'], ['notes', 'Notas'], ['labels', 'Etiquetas'], ['dxf', 'Plano DXF'], ['grid', 'Grilla']] as const).map(([k, lbl]) => (
                 <label key={k} className="flex items-center gap-2 py-1 cursor-pointer text-gray-300 hover:text-white">
@@ -3936,6 +4364,8 @@ export default function Layout3DEditor({
                 <span>{Object.keys(layerAssignments).length} asignados · {cadLayerSummary.hiddenObjectCount} ocultos · {cadLayerSummary.lockedObjectCount} bloqueados</span>
                 <div className="inline-flex items-center gap-2">
                   <button onClick={showAllCadLayerVisibility} className="text-gray-500 dark:text-gray-400 hover:text-white">All</button>
+                  <button onClick={() => { setCadLayers((cur) => hideEmptyCadLayers(cur, cadLayerCounts)); toast.success('Capas CAD vacías ocultas.', 'Capas'); }} className="text-gray-500 dark:text-gray-400 hover:text-white" title="Ocultar capas sin objetos">Ocultar 0</button>
+                  <button onClick={unlockAllCadLayerVisibility} className="text-gray-500 dark:text-gray-400 hover:text-white" title="Desbloquear todas las capas">Unlock</button>
                   <button onClick={resetCadLayerPresentation} className="text-gray-500 dark:text-gray-400 hover:text-white">Reset</button>
                 </div>
               </div>
@@ -3944,17 +4374,70 @@ export default function Layout3DEditor({
                   {cadLayerSummary.hiddenObjectCount} objeto(s) ocultos por capas CAD. Usa All para recuperar la vista completa.
                 </div>
               )}
+              <div className="mt-2.5 mb-1.5 flex items-center justify-between gap-2">
+                <div className="text-[10px] uppercase tracking-wide text-gray-500">Vistas</div>
+                <span className="text-[10px] text-gray-500">{viewportBookmarks.length}/8</span>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button onClick={saveCurrentViewportBookmark} className="rounded-md bg-white/[0.06] px-2 py-1.5 text-[11px] font-medium text-gray-200 hover:bg-white/[0.12]">Guardar vista</button>
+                <button onClick={focusCurrentSelection} disabled={!selList.length} className="rounded-md bg-white/[0.06] px-2 py-1.5 text-[11px] font-medium text-gray-200 hover:bg-white/[0.12] disabled:opacity-40">Fit seleccion</button>
+              </div>
+              <div className="mt-1.5 space-y-1">
+                {viewportBookmarks.length ? viewportBookmarks.map((bookmark) => (
+                  <div key={bookmark.id} className="grid grid-cols-[1fr_auto] items-center gap-1.5 rounded-lg bg-white/[0.04] px-2 py-1.5">
+                    <button onClick={() => restoreViewportBookmark(bookmark)} className="min-w-0 text-left">
+                      <div className="truncate text-[11.5px] font-medium text-gray-100">{bookmark.label}</div>
+                      <div className="text-[10px] text-gray-500">{bookmark.camera.mode.toUpperCase()} · {new Date(bookmark.savedAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}</div>
+                    </button>
+                    <button onClick={() => deleteViewportBookmark(bookmark)} className="rounded px-1.5 py-0.5 text-[10px] text-gray-500 hover:bg-white/[0.08] hover:text-white" title="Eliminar vista guardada">Del</button>
+                  </div>
+                )) : (
+                  <div className="rounded-lg border border-white/10 bg-white/[0.03] px-2 py-1.5 text-[10.5px] text-gray-500">
+                    Guarda vistas de una planta grande para volver rapido a areas, issues o revisiones.
+                  </div>
+                )}
+              </div>
               <div className="text-[10px] uppercase tracking-wide text-gray-500 mt-2.5 mb-1.5">Tema</div>
               <div className="grid grid-cols-2 gap-1.5">
                 {(Object.keys(THEMES) as Theme3D[]).map((t) => (
                   <button key={t} onClick={() => setTheme(t)} className={`px-2 py-1 rounded-md text-[12px] ${theme === t ? 'bg-cyan-600 text-white' : 'bg-white/[0.06] text-gray-300 hover:bg-white/[0.12]'}`}>{THEMES[t].label}</button>
                 ))}
               </div>
-              <div className="text-[10px] uppercase tracking-wide text-gray-500 mt-2.5 mb-1.5">Plano ({data?.footprint.unit ?? 'mm'})</div>
-              <div className="grid grid-cols-3 gap-1.5 mb-2">
+              <div className="text-[10px] uppercase tracking-wide text-gray-500 mt-2.5 mb-1.5">Escala de planta</div>
+              <div className="grid grid-cols-2 gap-1.5 mb-2">
+                {FACTORY_PRESETS.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => applyPreset(p)}
+                    title={p.hint}
+                    className="px-2 py-1 rounded-md text-left bg-white/[0.06] text-gray-200 hover:bg-cyan-600/30"
+                  >
+                    <span className="block text-[12px] leading-tight">{p.label}</span>
+                    <span className="block text-[9px] text-gray-400 leading-tight">{p.widthM}×{p.heightM} m</span>
+                  </button>
+                ))}
+              </div>
+              <div className="mt-2.5 mb-1.5 flex items-center justify-between gap-2">
+                <span className="text-[10px] uppercase tracking-wide text-gray-500">Plano ({data?.footprint.unit ?? 'mm'})</span>
+                <div className="inline-flex overflow-hidden rounded-md border border-white/10 text-[9px]">
+                  {(['m', 'mm'] as const).map((u) => (
+                    <button key={u} onClick={() => setPlantDisplayUnit(u)} className={`px-1.5 py-0.5 ${plantDisplayUnit === u ? 'bg-cyan-600/40 text-cyan-100' : 'text-gray-500 hover:text-white'}`} title={`Mostrar tamaño en ${u === 'm' ? 'metros' : 'milímetros'}`}>{u}</button>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-1.5 mb-1">
                 <DimInput label="Ancho" value={fpDraft.w} onChange={(v) => setFpDraft((s) => ({ ...s, w: v }))} />
                 <DimInput label="Largo" value={fpDraft.h} onChange={(v) => setFpDraft((s) => ({ ...s, h: v }))} />
                 <DimInput label="Rejilla" value={fpDraft.g} onChange={(v) => setFpDraft((s) => ({ ...s, g: v }))} />
+              </div>
+              <div className="text-[10px] text-gray-500 mb-2">
+                ≈ {(() => {
+                  const unit = (data?.footprint.unit ?? 'mm') as WorldUnit;
+                  const fmt = (v: number) => plantDisplayUnit === 'm'
+                    ? formatMeters(unitToMeters(v || 0, unit))
+                    : `${Math.round(metersToUnit(unitToMeters(v || 0, unit), 'mm')).toLocaleString()} mm`;
+                  return `${fmt(fpDraft.w)} × ${fmt(fpDraft.h)}`;
+                })()}
               </div>
               <button onClick={applyFootprint} className="w-full px-2 py-1.5 rounded-md bg-cyan-600 hover:bg-cyan-500 text-white text-[12px] font-medium">Aplicar tamaño</button>
               <div className="text-[10px] uppercase tracking-wide text-gray-500 mt-2.5 mb-1">Sol / sombras</div>
@@ -4031,7 +4514,7 @@ export default function Layout3DEditor({
       ) : (
         <div className="flex flex-1 min-h-0">
           {/* left: stations tray + equipment palette */}
-          <div className="w-60 shrink-0 border-r border-white/10 bg-gray-900/60 flex flex-col">
+          <div className={`w-60 shrink-0 border-r border-white/10 bg-gray-900/60 flex-col ${focusMode ? 'hidden' : 'flex'}`}>
             {showCommand && (
               <div className="border-b border-cyan-400/20 bg-cyan-400/[0.06] p-3">
                 <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-cyan-200">
@@ -4180,6 +4663,65 @@ export default function Layout3DEditor({
                     <button onClick={applyRackRowGenerator} className="mt-2 w-full rounded-lg bg-amber-500/90 px-2 py-1.5 text-[11px] font-semibold text-gray-950 hover:bg-amber-400">Generar racks editables</button>
                     <div className="mt-1.5 text-[10px] leading-snug text-amber-100/60">Crea racks, pasillos forklift y etiquetas en capas CAD existentes.</div>
                   </div>
+                  <div className="mb-3 rounded-xl border border-emerald-400/15 bg-emerald-400/[0.05] p-2.5">
+                    <div className="mb-1.5 flex items-center justify-between gap-2">
+                      <div className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-emerald-200"><Waypoints className="h-3.5 w-3.5" /> Generador dock/staging</div>
+                      <span className="text-[10px] text-emerald-100/60">flow</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <DimInput label="Docks" value={dockGenerator.dockCount} onChange={(v) => setDockGeneratorField('dockCount', v)} />
+                      <DimInput label="Staging" value={dockGenerator.stagingLanes} onChange={(v) => setDockGeneratorField('stagingLanes', v)} />
+                      <DimInput label="Dock mm" value={dockGenerator.dockWidth} onChange={(v) => setDockGeneratorField('dockWidth', v)} />
+                      <DimInput label="Fondo" value={dockGenerator.stagingDepth} onChange={(v) => setDockGeneratorField('stagingDepth', v)} />
+                      <DimInput label="Apron" value={dockGenerator.aisleWidth} onChange={(v) => setDockGeneratorField('aisleWidth', v)} />
+                      <label className="block">
+                        <span className="block text-[9px] uppercase tracking-wide text-gray-500 mb-0.5">Prefijo</span>
+                        <input value={dockGenerator.labelPrefix} onChange={(e) => setDockGeneratorField('labelPrefix', e.target.value)} className="w-full px-1.5 py-1 rounded-md bg-white/[0.06] border border-white/10 text-[12px] text-white focus:outline-none focus:border-emerald-300/60" />
+                      </label>
+                    </div>
+                    <div className="mt-2 grid grid-cols-3 gap-1.5 text-[10.5px]">
+                      {(['receiving', 'shipping', 'crossdock'] as const).map((mode) => (
+                        <button key={mode} onClick={() => setDockGeneratorField('mode', mode)} className={`rounded-lg border px-1.5 py-1.5 font-semibold ${dockGenerator.mode === mode ? 'border-emerald-300/50 bg-emerald-400/15 text-emerald-100' : 'border-white/10 text-gray-400 hover:text-white'}`}>{mode === 'receiving' ? 'Recibir' : mode === 'shipping' ? 'Enviar' : 'Cross'}</button>
+                      ))}
+                    </div>
+                    <div className="mt-1.5 grid grid-cols-4 gap-1 text-[10.5px]">
+                      {(['north', 'south', 'west', 'east'] as const).map((side) => (
+                        <button key={side} onClick={() => setDockGeneratorField('side', side)} className={`rounded-lg border px-1.5 py-1 font-semibold ${dockGenerator.side === side ? 'border-emerald-300/50 bg-emerald-400/15 text-emerald-100' : 'border-white/10 text-gray-400 hover:text-white'}`}>{side === 'north' ? 'N' : side === 'south' ? 'S' : side === 'west' ? 'O' : 'E'}</button>
+                      ))}
+                    </div>
+                    <button onClick={applyDockStagingGenerator} className="mt-2 w-full rounded-lg bg-emerald-500/90 px-2 py-1.5 text-[11px] font-semibold text-gray-950 hover:bg-emerald-400">Generar dock + staging</button>
+                    <div className="mt-1.5 text-[10px] leading-snug text-emerald-100/60">Crea puertas, staging, pallets, apron forklift y flujos visibles como objetos editables.</div>
+                  </div>
+                  <div className="mb-3 rounded-xl border border-emerald-400/15 bg-emerald-400/[0.05] p-2.5">
+                    <div className="mb-1.5 flex items-center justify-between gap-2">
+                      <div className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-emerald-200"><Package className="h-3.5 w-3.5" /> Supermarket/kitting</div>
+                      <span className="text-[10px] text-emerald-100/60">param</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <DimInput label="Lanes" value={supermarketGenerator.lanes} onChange={(v) => setSupermarketGeneratorField('lanes', v)} />
+                      <DimInput label="Carts" value={supermarketGenerator.cartsPerLane} onChange={(v) => setSupermarketGeneratorField('cartsPerLane', v)} />
+                      <DimInput label="Lane mm" value={supermarketGenerator.laneLength} onChange={(v) => setSupermarketGeneratorField('laneLength', v)} />
+                      <DimInput label="Width" value={supermarketGenerator.laneWidth} onChange={(v) => setSupermarketGeneratorField('laneWidth', v)} />
+                      <DimInput label="Cart W" value={supermarketGenerator.cartWidth} onChange={(v) => setSupermarketGeneratorField('cartWidth', v)} />
+                      <DimInput label="Aisle" value={supermarketGenerator.aisleWidth} onChange={(v) => setSupermarketGeneratorField('aisleWidth', v)} />
+                      <label className="block">
+                        <span className="block text-[9px] uppercase tracking-wide text-gray-500 mb-0.5">Prefijo</span>
+                        <input value={supermarketGenerator.labelPrefix} onChange={(e) => setSupermarketGeneratorField('labelPrefix', e.target.value)} className="w-full px-1.5 py-1 rounded-md bg-white/[0.06] border border-white/10 text-[12px] text-white focus:outline-none focus:border-emerald-300/60" />
+                      </label>
+                      <DimInput label="Cart D" value={supermarketGenerator.cartDepth} onChange={(v) => setSupermarketGeneratorField('cartDepth', v)} />
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-1.5 text-[11px]">
+                      {(['horizontal', 'vertical'] as const).map((orientation) => (
+                        <button key={orientation} onClick={() => setSupermarketGeneratorField('orientation', orientation)} className={`rounded-lg border px-2 py-1.5 font-semibold ${supermarketGenerator.orientation === orientation ? 'border-emerald-300/50 bg-emerald-400/15 text-emerald-100' : 'border-white/10 text-gray-400 hover:text-white'}`}>{orientation === 'horizontal' ? 'Horizontal' : 'Vertical'}</button>
+                      ))}
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-1.5 text-[11px]">
+                      <button onClick={() => setSupermarketGeneratorField('includeEsdZone', !supermarketGenerator.includeEsdZone)} className={`rounded-lg border px-2 py-1.5 text-left font-semibold ${supermarketGenerator.includeEsdZone ? 'border-cyan-300/40 bg-cyan-400/15 text-cyan-100' : 'border-white/10 text-gray-400 hover:text-white'}`}>ESD zone</button>
+                      <button onClick={() => setSupermarketGeneratorField('includeQuarantine', !supermarketGenerator.includeQuarantine)} className={`rounded-lg border px-2 py-1.5 text-left font-semibold ${supermarketGenerator.includeQuarantine ? 'border-rose-300/40 bg-rose-400/15 text-rose-100' : 'border-white/10 text-gray-400 hover:text-white'}`}>Quarantine</button>
+                    </div>
+                    <button onClick={applySupermarketGenerator} className="mt-2 w-full rounded-lg bg-emerald-500/90 px-2 py-1.5 text-[11px] font-semibold text-gray-950 hover:bg-emerald-400">Generar kitting editable</button>
+                    <div className="mt-1.5 text-[10px] leading-snug text-emerald-100/60">Crea lanes kanban, carts, FIFO, line-side, ESD, quarantine y flujos.</div>
+                  </div>
                   <div className="mb-3 rounded-xl border border-rose-400/15 bg-rose-400/[0.05] p-2.5">
                     <div className="text-[10px] uppercase tracking-wide text-rose-200 mb-1.5">Safety zones</div>
                     <p className="mb-2 text-[10.5px] leading-snug text-rose-100/70">Crea zonas y rutas editables en Safety. Validacion detecta bloqueos, invasiones y objetos sin clasificacion ESD.</p>
@@ -4232,6 +4774,22 @@ export default function Layout3DEditor({
           {/* 3D viewport */}
           <div className="relative flex-1 min-w-0">
             <div ref={mountRef} className="absolute inset-0" />
+            {showMinimap && (
+              <PlantMinimap
+                ctxRef={ctxRef}
+                placementsRef={placementsRef}
+                assetsRef={assetsRef}
+                cameraRef={cameraRef}
+                controlsRef={controlsRef}
+              />
+            )}
+            <ScaleBar
+              ctxRef={ctxRef}
+              cameraRef={cameraRef}
+              controlsRef={controlsRef}
+              mountRef={mountRef}
+              unit={(data?.footprint.unit ?? 'mm') as WorldUnit}
+            />
             {showHeat && (
               <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-xl bg-gray-900/80 backdrop-blur border border-white/10 text-[11px] text-gray-300 inline-flex items-center gap-2 pointer-events-none">
                 <Grid2x2 className="w-3.5 h-3.5" /> Ocupación del piso
@@ -4366,7 +4924,7 @@ export default function Layout3DEditor({
           </div>
 
           {/* right: properties */}
-          <div className="w-64 shrink-0 border-l border-white/10 bg-gray-900/60 overflow-y-auto">
+          <div className={`w-64 shrink-0 border-l border-white/10 bg-gray-900/60 overflow-y-auto ${focusMode ? 'hidden' : ''}`}>
             {selList.length === 0 ? (
               <div className="p-4 text-[12px] text-gray-500 flex flex-col gap-3">
                 <div className="flex flex-col items-center gap-2 pt-4">

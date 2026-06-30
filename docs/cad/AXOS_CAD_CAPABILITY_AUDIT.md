@@ -38,6 +38,72 @@ What this run extended: architecture-specific validation issue rows, architectur
 What this run intentionally did not duplicate: no new validation center, no second release-readiness panel, no new object model, no command registry changes, no DXF/export duplication, and no backend persistence change.
 
 Why this is non-redundant: it turns the new architecture primitives from drawable objects into checkable engineering drawing content, while keeping the single CAD validation surface.
+## 2026-06-30 - Material route command update
+
+Open CAD PRs inspected before this run included #900 (factory scale), #903
+(viewport saved views), #904 (canvas focus workbench), #905 (dock/staging
+generator), and #906 (supermarket/kitting generator). All were clean, green, and
+already marked ready for Claude Integrator, so this run avoided their
+`Layout3DEditor.tsx` and `warehouse-generators.ts` ownership areas.
+
+Existing capability found: the local CAD command dock already passed editable
+objects, selected ids, and flow/material connectors into `CadCommandContext`;
+the dock and Cmd-K palette already render command registry entries and report
+operations.
+
+What this run reused: `CAD_COMMAND_REGISTRY`, `parseCadCommand`,
+`suggestCadCommands`, the existing `report` operation renderer, connector state
+from `Layout3DEditor`, and `scoreFlowLayout`.
+
+What this run extended: `material-flow-route.ts` now builds deterministic
+from-to route reports from existing connectors or selected/object sequence.
+`trace_material_route` exposes route distance, longest handoff, connector count,
+crossings, backtracking, and route legs through the current command UI.
+
+What this run intentionally did not duplicate: no new CAD editor, route panel,
+flow engine, connector model, generator, toolbar, backend endpoint, or
+persistence path was created.
+
+Why this is non-redundant: open generator PRs create warehouse/kitting geometry;
+this PR analyzes current route geometry through the existing command surface,
+so users can inspect material travel without waiting for another editor panel.
+
+## 2026-06-30 - Viewport saved views update
+
+Open CAD PRs inspected before this run included #900 (`codex/cad-tree-active`), which is clean and owns factory-scale plant presets/bounds work. This run avoided that area and selected a Phase 2 viewport navigation slice that can sit on current `main` without duplicating factory-scale helpers.
+
+| Capability | Exists? | Files | Maturity | Gap | Next non-redundant PR | Owner files | Collision risk with open PRs |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Large plant viewport navigation | Partial | `apps/web/src/components/line-engineering/Layout3DEditor.tsx`, `apps/web/src/lib/cad/viewport-bookmarks.ts` | usable | Users could switch 2D/3D and use presets, but could not save/restore working views or zoom validation issues in large layouts. | Add minimap/home view after factory-scale PR #900 lands. | `viewport-bookmarks.ts`, existing View popover | Low-medium: localized editor view-menu/issue-selection wiring; avoids #900 plant-scale files. |
+
+Existing capability found: the CAD workbench already had OrbitControls, 2D/3D modes, top/iso/front presets, selection refs, and validation issue rows.
+
+What this run reused: current station/equipment placement maps, existing selection and rebuild path, OrbitControls refs, the View popover, validation quick-fix rows, browser-local session patterns, and the pure CAD helper/spec convention.
+
+What this run extended: local saved camera views keyed by model/revision, fit-current-selection, and zoom-to-issue behavior for collision, clearance, safety, and validation issue rows.
+
+What this run intentionally did not duplicate: no second editor, no minimap system, no validation modal, no command engine change, no DXF path, no backend persistence, no migration, and no alternate geometry model.
+
+Why this is non-redundant: it closes a real large-layout navigation gap by making existing camera/selection/validation surfaces usable at plant scale while open PR #900 continues to own plant bounds and factory presets.
+## 2026-06-30 - Parametric supermarket/kitting generator
+
+Open CAD PRs inspected before this run included #900 (factory-scale workspace), #903 (viewport saved views), #904 (canvas focus workbench), and #905 (dock/staging generator). All were CLEAN with green CI and already had the ready-for-Claude comment, so this run avoided re-commenting and selected a non-duplicate generator gap.
+
+| Capability | Exists? | Files | Maturity | Gap | Next non-redundant PR | Owner files | Collision risk with open PRs |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Supermarket/kitting generator | Yes | `apps/web/src/lib/cad/warehouse-generators.ts`, `apps/web/src/components/line-engineering/Layout3DEditor.tsx` | usable | A static supermarket/kitting template existed, but users could not parameterize lane/cart counts, orientation, ESD, or quarantine from the workbench. | Add line-side delivery route variants or validation rules for min pick/forklift aisle widths. | `warehouse-generators.ts`, Equipment rail in `Layout3DEditor.tsx` | Medium: #905 also extends warehouse generators, but it owns dock/staging while this PR owns supermarket/kitting. |
+
+Existing capability found: the CAD workbench already had editable assets, tags, layer assignments, annotations, connector state, local snapshots, Flow Health, a static supermarket/kitting template, and a rack-row generator contract.
+
+What this run reused: `warehouse-generators.ts`, the existing Equipment rail, editable asset kinds (`zone`, `agv`, `agvpath`, `rack`, `workbench`, `fence`, `cabinet`, `operator`), CAD layers, object tags, annotations, connectors, local snapshot/undo, selection, snapping, and Flow Health.
+
+What this run extended: `generateWarehouseSupermarketKitting` now creates parameterized kanban lanes, kitting carts, receiving drop, incoming QC, material supermarket, replenishment rack, FIFO WIP, line-side delivery, pedestrian/forklift aisles, optional ESD boundary, optional quarantine, labels, and material/flow connectors.
+
+What this run wired into `Layout3DEditor`: the Equipment rail now exposes visible controls for lane count, carts per lane, lane length/width, cart size, aisle width, prefix, orientation, ESD, and quarantine. Applying the generator creates editable objects, tags/layers, labels, connectors, a local snapshot, selection, and Flow Health state.
+
+What this run intentionally did not duplicate: no new CAD editor, template launcher, symbol library, layer model, validation engine, command registry, DXF exporter, or backend persistence path was created.
+
+Why this is non-redundant: the existing supermarket/kitting template is a fixed starter, while this PR adds a user-controlled generator for line-feeding layout variants. It complements #905's dock/staging generator without creating another dock model.
 
 ## 2026-06-29 - Safety path zone update
 
@@ -86,6 +152,20 @@ This audit tracks the non-redundancy check for the CAD tree sprint. It is scoped
 | Supermarket/kitting template | Yes | `apps/web/src/lib/cad/templates.ts`, `templates.spec.ts`, `Layout3DEditor.tsx` | usable | Template is editable and visible, but not yet parameterized by lane/cart counts. | Add a parametric supermarket generator once generator PR conflicts settle. | `templates.ts`, future generator helper | Low: current run avoids `Layout3DEditor.tsx`, command registry, and warehouse generator PR files. |
 | Command palette and shortcuts | Yes | `command-palette.ts`, `keyboard-shortcuts.ts`, `Layout3DEditor.tsx` | usable | More command examples and compound workflows needed. | Add workflow commands before new UI. | `commands/*`, `command-palette.ts` | Low. |
 | Local snapshots | Yes | `snapshots.ts`, `Layout3DEditor.tsx` | usable | Session-local; backend version workflow separate. | Snapshot before more high-risk conversions. | `snapshots.ts`, editor versions modal | Medium if touching versions UI. |
+
+## 2026-06-30 dock/staging generator audit
+
+Open CAD PRs #900, #903, and #904 were clean and own factory scale, saved views, and canvas focus. This run stayed on the generator surface already present on `main`.
+
+Existing capability found: `warehouse-generators.ts` already created editable rack rows, and `Layout3DEditor.tsx` already had an Equipment rail generator card, editable assets, layer assignments, tags, annotations, local snapshots, selection, snapping, connector state, and DXF export.
+
+What this run reused: the warehouse generator contract, current asset kinds (`wall`, `zone`, `pallet`, `agvpath`), existing CAD layers (`layout`, `equipment`, `aisles`, `measurements`), object tags, generated annotations, snapshot/undo paths, and connector rendering.
+
+What this run extended: `generateWarehouseDockStaging` creates receiving/shipping/cross-dock doors, staging lanes, pallet slots, forklift apron lanes, labels, scaling warnings, and flow connector refs. `Layout3DEditor.tsx` now exposes those controls in the existing Equipment rail and resolves connector endpoints for both stations and editable assets.
+
+What this run intentionally did not duplicate: no new CAD editor, warehouse editor, template system, symbol library, command registry, validation engine, layer model, DXF exporter, or backend persistence path was introduced.
+
+Why this is non-redundant: rack rows solve storage layout, while dock/staging solves the inbound/outbound interface area needed for full warehouse and factory layouts. The next safe generator gap is a parametric supermarket/kitting lane generator using the same output contract.
 
 ## Existing implementation inspected
 
