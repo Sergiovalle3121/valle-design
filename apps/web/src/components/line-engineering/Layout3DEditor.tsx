@@ -65,8 +65,10 @@ import { CAD_LAYOUT_TEMPLATES, instantiateCadLayoutTemplate, type CadLayoutTempl
 import {
   generateWarehouseDockStaging,
   generateWarehouseRackRows,
+  generateWarehouseSupermarketKitting,
   type CadDockStagingGeneratorInput,
   type CadRackRowGeneratorInput,
+  type CadSupermarketGeneratorInput,
 } from '@/lib/cad/warehouse-generators';
 import { type CadClearanceIssue, type CadCollisionHit } from '@/lib/cad/collisions';
 import { buildFlowSegments, scoreFlowLayout, type CadFlowNode, type CadFlowScore, type CadFlowSegment } from '@/lib/cad/flow-optimization';
@@ -783,6 +785,19 @@ export default function Layout3DEditor({
     side: 'south',
     mode: 'receiving',
     labelPrefix: 'D',
+  });
+  const [supermarketGenerator, setSupermarketGenerator] = useState<CadSupermarketGeneratorInput>({
+    lanes: 3,
+    cartsPerLane: 1,
+    laneLength: 3600,
+    laneWidth: 750,
+    cartWidth: 1100,
+    cartDepth: 750,
+    aisleWidth: 1200,
+    orientation: 'horizontal',
+    labelPrefix: 'K',
+    includeEsdZone: true,
+    includeQuarantine: true,
   });
   const [tool, setTool] = useState<'select' | 'measure' | 'wall'>('select');
   const [viewMode, setViewMode] = useState<'3d' | '2d'>('3d'); // 2D = locked top-down plan view (CAD unificado)
@@ -2537,6 +2552,9 @@ export default function Layout3DEditor({
   const setDockGeneratorField = <K extends keyof CadDockStagingGeneratorInput>(field: K, value: CadDockStagingGeneratorInput[K]) => {
     setDockGenerator((state) => ({ ...state, [field]: value }));
   };
+  const setSupermarketGeneratorField = <K extends keyof CadSupermarketGeneratorInput>(field: K, value: CadSupermarketGeneratorInput[K]) => {
+    setSupermarketGenerator((state) => ({ ...state, [field]: value }));
+  };
   const applyRackRowGenerator = () => {
     const ctx = ctxRef.current; const fp = data?.footprint;
     if (!ctx || !fp) { toast.error('No hay footprint listo para generar racks.', 'Generador warehouse'); return; }
@@ -2646,6 +2664,80 @@ export default function Layout3DEditor({
     const scaled = generated.scale < 1 ? ` - escala ${Math.round(generated.scale * 100)}%` : '';
     toast.success(`${generated.summary.dockCount} docks, ${generated.summary.stagingLaneCount} staging, ${generated.summary.palletCount} pallets, ${connectorCount} flujos${scaled}.`, 'Generador dock');
     if (generated.warnings[0]) toast.error(generated.warnings[0], 'Generador dock');
+  };
+  const applySupermarketGenerator = () => {
+    const ctx = ctxRef.current; const fp = data?.footprint;
+    if (!ctx || !fp) { toast.error('No hay footprint listo para generar kitting.', 'Generador kitting'); return; }
+    const generated = generateWarehouseSupermarketKitting(supermarketGenerator, { width: fp.footprintW || ctx.W, height: fp.footprintH || ctx.H, gridSize: fp.gridSize || 100 });
+    recordLocalSnapshot('Auto - antes de generar supermarket/kitting', 'command');
+    pushHistory();
+    const created: SelItem[] = [];
+    const idByRef = new Map<string, string>();
+    const layerUpdates: Record<string, CadLayerId> = {};
+    const tagUpdates: Record<string, string> = {};
+
+    for (const item of generated.assets) {
+      const id = newId('as');
+      assetsRef.current.set(id, {
+        id,
+        kind: item.kind,
+        label: item.label,
+        x: item.x,
+        y: item.y,
+        w: item.w,
+        h: item.h,
+        rotation: item.rotation ?? 0,
+      });
+      idByRef.set(item.ref, id);
+      created.push({ type: 'asset', id });
+      layerUpdates[id] = item.layer;
+      tagUpdates[id] = item.tags.join(', ');
+    }
+
+    for (const item of generated.annotations) {
+      const id = newId('nt');
+      annotationsRef.current.set(id, {
+        id,
+        type: 'text',
+        text: item.text,
+        x: item.x,
+        y: item.y,
+        color: cadLayersRef.current.find((layer) => layer.id === item.layer)?.color,
+      });
+    }
+
+    let connectorCount = 0;
+    for (const connector of generated.connectors) {
+      const from = idByRef.get(connector.fromRef);
+      const to = idByRef.get(connector.toRef);
+      if (!from || !to) continue;
+      connectorsRef.current = [...connectorsRef.current, { from, to, kind: connector.kind }];
+      connectorCount++;
+    }
+
+    const flowRefs = generated.connectors.flatMap((connector, idx) => idx === 0 ? [connector.fromRef, connector.toRef] : [connector.toRef]);
+    const flowNodes = [...new Set(flowRefs)]
+      .map((ref): CadFlowNode | null => {
+        const id = idByRef.get(ref);
+        if (!id) return null;
+        const item = assetsRef.current.get(id);
+        return item ? { id, label: item.label ?? item.id, x: item.x + item.w / 2, y: item.y + item.h / 2 } : null;
+      })
+      .filter((node): node is CadFlowNode => !!node);
+    if (flowNodes.length >= 2) {
+      setFlowSequence(flowNodes);
+      setFlowSegments(buildFlowSegments(flowNodes));
+      setFlowHealth(scoreFlowLayout(flowNodes));
+    }
+
+    setAssetIds(new Set(assetsRef.current.keys()));
+    setLayerAssignments((cur) => ({ ...cur, ...layerUpdates }));
+    setObjectTags((cur) => ({ ...cur, ...tagUpdates }));
+    if (created.length) select(created.slice(0, 120));
+    setDirty(true); rebuildAll(); refreshSnap();
+    const scaled = generated.scale < 1 ? ` - escala ${Math.round(generated.scale * 100)}%` : '';
+    toast.success(`${generated.summary.laneCount} lanes, ${generated.summary.cartCount} carts y ${connectorCount} conectores${scaled}.`, 'Generador kitting');
+    if (generated.warnings[0]) toast.error(generated.warnings[0], 'Generador kitting');
   };
   const fallbackLayerForItem = (item: SelItem): CadLayerId => item.type === 'station' ? 'layout' : 'equipment';
   const isItemLayerLocked = (item: SelItem) => isObjectLayerLocked(cadLayersRef.current, layerAssignmentsRef.current, item.id, fallbackLayerForItem(item));
@@ -4436,6 +4528,36 @@ export default function Layout3DEditor({
                     </div>
                     <button onClick={applyDockStagingGenerator} className="mt-2 w-full rounded-lg bg-emerald-500/90 px-2 py-1.5 text-[11px] font-semibold text-gray-950 hover:bg-emerald-400">Generar dock + staging</button>
                     <div className="mt-1.5 text-[10px] leading-snug text-emerald-100/60">Crea puertas, staging, pallets, apron forklift y flujos visibles como objetos editables.</div>
+                  </div>
+                  <div className="mb-3 rounded-xl border border-emerald-400/15 bg-emerald-400/[0.05] p-2.5">
+                    <div className="mb-1.5 flex items-center justify-between gap-2">
+                      <div className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-emerald-200"><Package className="h-3.5 w-3.5" /> Supermarket/kitting</div>
+                      <span className="text-[10px] text-emerald-100/60">param</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <DimInput label="Lanes" value={supermarketGenerator.lanes} onChange={(v) => setSupermarketGeneratorField('lanes', v)} />
+                      <DimInput label="Carts" value={supermarketGenerator.cartsPerLane} onChange={(v) => setSupermarketGeneratorField('cartsPerLane', v)} />
+                      <DimInput label="Lane mm" value={supermarketGenerator.laneLength} onChange={(v) => setSupermarketGeneratorField('laneLength', v)} />
+                      <DimInput label="Width" value={supermarketGenerator.laneWidth} onChange={(v) => setSupermarketGeneratorField('laneWidth', v)} />
+                      <DimInput label="Cart W" value={supermarketGenerator.cartWidth} onChange={(v) => setSupermarketGeneratorField('cartWidth', v)} />
+                      <DimInput label="Aisle" value={supermarketGenerator.aisleWidth} onChange={(v) => setSupermarketGeneratorField('aisleWidth', v)} />
+                      <label className="block">
+                        <span className="block text-[9px] uppercase tracking-wide text-gray-500 mb-0.5">Prefijo</span>
+                        <input value={supermarketGenerator.labelPrefix} onChange={(e) => setSupermarketGeneratorField('labelPrefix', e.target.value)} className="w-full px-1.5 py-1 rounded-md bg-white/[0.06] border border-white/10 text-[12px] text-white focus:outline-none focus:border-emerald-300/60" />
+                      </label>
+                      <DimInput label="Cart D" value={supermarketGenerator.cartDepth} onChange={(v) => setSupermarketGeneratorField('cartDepth', v)} />
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-1.5 text-[11px]">
+                      {(['horizontal', 'vertical'] as const).map((orientation) => (
+                        <button key={orientation} onClick={() => setSupermarketGeneratorField('orientation', orientation)} className={`rounded-lg border px-2 py-1.5 font-semibold ${supermarketGenerator.orientation === orientation ? 'border-emerald-300/50 bg-emerald-400/15 text-emerald-100' : 'border-white/10 text-gray-400 hover:text-white'}`}>{orientation === 'horizontal' ? 'Horizontal' : 'Vertical'}</button>
+                      ))}
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-1.5 text-[11px]">
+                      <button onClick={() => setSupermarketGeneratorField('includeEsdZone', !supermarketGenerator.includeEsdZone)} className={`rounded-lg border px-2 py-1.5 text-left font-semibold ${supermarketGenerator.includeEsdZone ? 'border-cyan-300/40 bg-cyan-400/15 text-cyan-100' : 'border-white/10 text-gray-400 hover:text-white'}`}>ESD zone</button>
+                      <button onClick={() => setSupermarketGeneratorField('includeQuarantine', !supermarketGenerator.includeQuarantine)} className={`rounded-lg border px-2 py-1.5 text-left font-semibold ${supermarketGenerator.includeQuarantine ? 'border-rose-300/40 bg-rose-400/15 text-rose-100' : 'border-white/10 text-gray-400 hover:text-white'}`}>Quarantine</button>
+                    </div>
+                    <button onClick={applySupermarketGenerator} className="mt-2 w-full rounded-lg bg-emerald-500/90 px-2 py-1.5 text-[11px] font-semibold text-gray-950 hover:bg-emerald-400">Generar kitting editable</button>
+                    <div className="mt-1.5 text-[10px] leading-snug text-emerald-100/60">Crea lanes kanban, carts, FIFO, line-side, ESD, quarantine y flujos.</div>
                   </div>
                   <div className="mb-3 rounded-xl border border-rose-400/15 bg-rose-400/[0.05] p-2.5">
                     <div className="text-[10px] uppercase tracking-wide text-rose-200 mb-1.5">Safety zones</div>

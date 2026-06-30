@@ -49,6 +49,25 @@ What this run extended: local saved camera views keyed by model/revision, fit-cu
 What this run intentionally did not duplicate: no second editor, no minimap system, no validation modal, no command engine change, no DXF path, no backend persistence, no migration, and no alternate geometry model.
 
 Why this is non-redundant: it closes a real large-layout navigation gap by making existing camera/selection/validation surfaces usable at plant scale while open PR #900 continues to own plant bounds and factory presets.
+## 2026-06-30 - Parametric supermarket/kitting generator
+
+Open CAD PRs inspected before this run included #900 (factory-scale workspace), #903 (viewport saved views), #904 (canvas focus workbench), and #905 (dock/staging generator). All were CLEAN with green CI and already had the ready-for-Claude comment, so this run avoided re-commenting and selected a non-duplicate generator gap.
+
+| Capability | Exists? | Files | Maturity | Gap | Next non-redundant PR | Owner files | Collision risk with open PRs |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Supermarket/kitting generator | Yes | `apps/web/src/lib/cad/warehouse-generators.ts`, `apps/web/src/components/line-engineering/Layout3DEditor.tsx` | usable | A static supermarket/kitting template existed, but users could not parameterize lane/cart counts, orientation, ESD, or quarantine from the workbench. | Add line-side delivery route variants or validation rules for min pick/forklift aisle widths. | `warehouse-generators.ts`, Equipment rail in `Layout3DEditor.tsx` | Medium: #905 also extends warehouse generators, but it owns dock/staging while this PR owns supermarket/kitting. |
+
+Existing capability found: the CAD workbench already had editable assets, tags, layer assignments, annotations, connector state, local snapshots, Flow Health, a static supermarket/kitting template, and a rack-row generator contract.
+
+What this run reused: `warehouse-generators.ts`, the existing Equipment rail, editable asset kinds (`zone`, `agv`, `agvpath`, `rack`, `workbench`, `fence`, `cabinet`, `operator`), CAD layers, object tags, annotations, connectors, local snapshot/undo, selection, snapping, and Flow Health.
+
+What this run extended: `generateWarehouseSupermarketKitting` now creates parameterized kanban lanes, kitting carts, receiving drop, incoming QC, material supermarket, replenishment rack, FIFO WIP, line-side delivery, pedestrian/forklift aisles, optional ESD boundary, optional quarantine, labels, and material/flow connectors.
+
+What this run wired into `Layout3DEditor`: the Equipment rail now exposes visible controls for lane count, carts per lane, lane length/width, cart size, aisle width, prefix, orientation, ESD, and quarantine. Applying the generator creates editable objects, tags/layers, labels, connectors, a local snapshot, selection, and Flow Health state.
+
+What this run intentionally did not duplicate: no new CAD editor, template launcher, symbol library, layer model, validation engine, command registry, DXF exporter, or backend persistence path was created.
+
+Why this is non-redundant: the existing supermarket/kitting template is a fixed starter, while this PR adds a user-controlled generator for line-feeding layout variants. It complements #905's dock/staging generator without creating another dock model.
 
 ## 2026-06-29 - Safety path zone update
 

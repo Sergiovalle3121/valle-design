@@ -2,6 +2,7 @@ import { strict as assert } from "node:assert";
 import {
   generateWarehouseDockStaging,
   generateWarehouseRackRows,
+  generateWarehouseSupermarketKitting,
 } from "./warehouse-generators";
 
 const horizontal = generateWarehouseRackRows(
@@ -201,3 +202,128 @@ assert.ok(
 );
 
 console.log("cad warehouse generator specs passed");
+
+const supermarket = generateWarehouseSupermarketKitting(
+  {
+    lanes: 3,
+    cartsPerLane: 2,
+    laneLength: 3600,
+    laneWidth: 750,
+    cartWidth: 1100,
+    cartDepth: 750,
+    aisleWidth: 1200,
+    orientation: "horizontal",
+    labelPrefix: "K",
+    includeEsdZone: true,
+    includeQuarantine: true,
+  },
+  { width: 18000, height: 11000, gridSize: 100 },
+);
+
+assert.equal(supermarket.summary.laneCount, 3, "supermarket lane count matches inputs");
+assert.equal(supermarket.summary.cartCount, 6, "supermarket cart count matches inputs");
+assert.ok(
+  supermarket.assets.some(
+    (asset) =>
+      asset.label === "Material supermarket" &&
+      asset.layer === "layout" &&
+      asset.tags.includes("supermarket"),
+  ),
+  "supermarket generator emits editable supermarket zone",
+);
+assert.ok(
+  supermarket.assets.some(
+    (asset) =>
+      asset.kind === "agv" &&
+      asset.layer === "equipment" &&
+      asset.tags.includes("kitting"),
+  ),
+  "supermarket generator emits editable kitting carts",
+);
+assert.ok(
+  supermarket.assets.some(
+    (asset) => asset.layer === "safety" && asset.tags.includes("esd"),
+  ),
+  "supermarket generator emits optional ESD safety boundary",
+);
+assert.ok(
+  supermarket.connectors.some(
+    (connector) =>
+      connector.fromRef === "receiving-drop" &&
+      connector.toRef === "incoming-qc" &&
+      connector.kind === "material",
+  ),
+  "supermarket generator emits material flow connectors",
+);
+assert.ok(
+  supermarket.connectors.some(
+    (connector) =>
+      connector.toRef === "line-side-delivery" && connector.kind === "flow",
+  ),
+  "supermarket generator emits line-side flow connectors",
+);
+assert.ok(
+  supermarket.assets.every(
+    (asset) =>
+      asset.x >= 0 &&
+      asset.y >= 0 &&
+      asset.x + asset.w <= supermarket.summary.footprintWidth &&
+      asset.y + asset.h <= supermarket.summary.footprintHeight,
+  ),
+  "supermarket assets stay inside the footprint",
+);
+
+const verticalSupermarket = generateWarehouseSupermarketKitting(
+  {
+    lanes: 2,
+    cartsPerLane: 1,
+    laneLength: 3000,
+    laneWidth: 700,
+    cartWidth: 1000,
+    cartDepth: 700,
+    aisleWidth: 1000,
+    orientation: "vertical",
+    labelPrefix: "V",
+    includeEsdZone: false,
+    includeQuarantine: false,
+  },
+  { width: 9000, height: 14000, gridSize: 100 },
+);
+const verticalLane = verticalSupermarket.assets.find((asset) =>
+  asset.tags.includes("lane:V01"),
+);
+assert.ok(verticalLane, "vertical supermarket creates named lane tags");
+assert.ok(
+  verticalLane!.h > verticalLane!.w,
+  "vertical supermarket lanes run along the vertical direction",
+);
+assert.equal(
+  verticalSupermarket.summary.safetyCount,
+  0,
+  "optional safety objects can be disabled",
+);
+
+const tightSupermarket = generateWarehouseSupermarketKitting(
+  {
+    lanes: 12,
+    cartsPerLane: 10,
+    laneLength: 9000,
+    laneWidth: 1800,
+    cartWidth: 1800,
+    cartDepth: 1200,
+    aisleWidth: 3000,
+    orientation: "horizontal",
+    labelPrefix: "T",
+  },
+  { width: 7000, height: 5000, gridSize: 100 },
+);
+
+assert.equal(tightSupermarket.summary.laneCount, 8, "lane count is capped");
+assert.equal(
+  tightSupermarket.summary.cartCount,
+  48,
+  "cart count is capped for editor responsiveness",
+);
+assert.ok(tightSupermarket.scale < 1, "oversized supermarket layout scales down");
+assert.ok(tightSupermarket.warnings.length > 0, "oversized supermarket reports warnings");
+
