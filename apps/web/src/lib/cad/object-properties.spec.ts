@@ -54,6 +54,25 @@ assert.equal(
 );
 assert.equal(object.warnings.length, 1, "locked layer warning is reported");
 
+const wall = describeCadObjectProperties({
+  id: "wall-1",
+  type: "asset",
+  label: "North wall",
+  kind: "wall",
+  x: 0,
+  y: 0,
+  width: 6000,
+  height: 150,
+  rotation: 0,
+  layerId: "architecture",
+  layerLabel: "Architecture",
+  layerVisible: true,
+  layerLocked: false,
+  tags: "wall",
+});
+assert.equal(wall.architecture?.role, "wall", "wall metadata is exposed");
+assert.equal(wall.architecture?.length, 6000, "wall length is exposed");
+
 const summary = summarizeCadSelectionProperties([
   object.object,
   {

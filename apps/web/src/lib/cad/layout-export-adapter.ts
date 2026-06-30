@@ -41,7 +41,10 @@ export interface CadLayoutExportInput {
 
 const CAD_DXF_LAYER_COLORS: Record<string, number> = {
   Layout: 4,
+  Architecture: 8,
+  Structure: 9,
   Equipment: 5,
+  Utilities: 130,
   Flow: 3,
   Aisles: 2,
   Measurements: 6,

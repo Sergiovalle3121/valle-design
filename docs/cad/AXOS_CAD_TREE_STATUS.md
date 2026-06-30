@@ -1,6 +1,19 @@
 # AXOS CAD Tree Status
 
-Last updated: 2026-06-29
+Last updated: 2026-06-30
+
+## 2026-06-30 - Architecture primitives and area takeoff
+
+This run starts the dedicated architecture/engineering CAD layer without adding a parallel editor:
+
+- `layers.ts` now includes Architecture, Structure, and Utilities layers.
+- `asset-catalog.ts` now exposes editable `door` and `room` assets; doors use a native door/opening archetype and rooms reuse the editable zone path.
+- Existing wall drawing and DXF wall conversion now assign Architecture layer metadata.
+- `architecture.ts` computes plant, occupied, open-floor, room, aisle, safety/no-go, utility, wall, door, and column takeoff metrics.
+- The existing takeoff modal now shows room/use/department breakdowns and copies those rows to CSV.
+- The existing object inspector now shows Engineering CAD fields for walls, doors, columns, rooms, and utilities.
+
+The implementation reuses the current asset model, layer state, inspector, takeoff modal, DXF export adapter, wall tool, and local tags/notes. It does not create another CAD editor, canvas, layer manager, DXF exporter, or command engine.
 
 ## 2026-06-29 - Safety paths and ESD zones
 

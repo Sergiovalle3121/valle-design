@@ -74,6 +74,11 @@ import {
   type CadSelectionProperties,
 } from '@/lib/cad/object-properties';
 import {
+  buildCadArchitectureTakeoff,
+  defaultCadLayerForAssetKind,
+  type CadArchitectureTakeoffSummary,
+} from '@/lib/cad/architecture';
+import {
   buildCadValidationReport,
   type CadValidationIssueRow,
   type CadValidationReport,
@@ -219,6 +224,7 @@ interface LocalTakeoff {
   stationArea: number; equipmentCount: number; equipArea: number; usedArea: number;
   util: number; wallLen: number; dimCount: number;
   flowLen: number; flowMaxHop: number; flowCount: number;
+  architecture: CadArchitectureTakeoffSummary;
   byKind: { kind: string; label: string; count: number; area: number }[];
   byLayer: { id: CadLayerId; label: string; count: number; area: number }[];
 }
@@ -357,6 +363,10 @@ const DXF_LABEL_REQUIRED_ASSET_KINDS = new Set([
   'desk',
   'bin',
   'safety',
+  'wall',
+  'column',
+  'door',
+  'room',
   'fence',
   'agv',
   'agvpath',
@@ -494,6 +504,23 @@ function buildArchetype(archetype: AssetArchetype, wS: number, dS: number, H: nu
     case 'wall': {
       out.push(part(new THREE.BoxGeometry(wS, H, dS), mat(c, 0.9, 0.02), 0, H / 2, 0));
       out.push(part(new THREE.BoxGeometry(wS, H * 0.03, dS * 1.15), mat(dark, 0.8, 0.05), 0, H, 0));
+      break;
+    }
+    case 'door': {
+      const jamb = Math.max(0.04, dS * 0.35);
+      const leaf = part(new THREE.BoxGeometry(wS * 0.92, H * 0.92, jamb), mat(c, 0.65, 0.08), wS * 0.04, H * 0.46, -dS * 0.1);
+      leaf.rotation.y = -Math.PI / 5;
+      out.push(part(new THREE.BoxGeometry(wS, Math.max(0.04, H * 0.025), dS), mat(dark, 0.8, 0.05), 0, Math.max(0.03, H * 0.012), 0));
+      out.push(leaf);
+      const arcPoints = new THREE.EllipseCurve(0, 0, wS * 0.86, wS * 0.86, 0, Math.PI / 2).getPoints(24)
+        .map((point) => new THREE.Vector3(point.x, Math.max(0.06, H * 0.03), point.y));
+      const arc = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(arcPoints),
+        new THREE.LineBasicMaterial({ color: c }),
+      );
+      arc.position.set(-wS / 2, 0, -dS / 2);
+      arc.renderOrder = 4;
+      out.push(arc);
       break;
     }
     case 'cabinet': {
@@ -877,6 +904,10 @@ export default function Layout3DEditor({
   useEffect(() => { sunRef.current = sun; applySun(); }, [sun, applySun]);
 
   // ---- layer visibility (cheap: toggles object/group visibility, no rebuild) ----
+  const defaultLayerForAsset = useCallback((assetId: string): CadLayerId => {
+    const asset = assetsRef.current.get(assetId);
+    return asset ? defaultCadLayerForAssetKind(asset.kind, objectTagsRef.current[assetId]) : 'equipment';
+  }, []);
   const applyLayers = useCallback(() => {
     const L = layersRef.current;
     const cadVisible = (objectId: string, fallback: CadLayerId) => {
@@ -898,7 +929,7 @@ export default function Layout3DEditor({
       assetsGroupRef.current.visible = true;
       assetsGroupRef.current.children.forEach((child) => {
         const assetId = child.userData?.assetId as string | undefined;
-        if (assetId) child.visible = L.equipment && cadVisible(assetId, 'equipment');
+        if (assetId) child.visible = L.equipment && cadVisible(assetId, defaultLayerForAsset(assetId));
       });
     }
     if (connsGroupRef.current) connsGroupRef.current.visible = L.connectors && cadLayerVisible('flow');
@@ -911,7 +942,7 @@ export default function Layout3DEditor({
       const labelFor = o.userData?.labelFor as string | undefined;
       o.visible = labelFor ? L.labels && L.stations && cadVisible(labelFor, 'layout') : L.labels;
     });
-  }, []);
+  }, [defaultLayerForAsset]);
   useEffect(() => { applyLayersRef.current = applyLayers; }, [applyLayers]);
   useEffect(() => { layersRef.current = layers; applyLayers(); }, [layers, applyLayers]);
   useEffect(() => { cadLayersRef.current = cadLayers; applyLayers(); }, [cadLayers, applyLayers]);
@@ -960,7 +991,7 @@ export default function Layout3DEditor({
   const computePropertyObject = useCallback((item: SelItem): CadPropertyObject | null => {
     const place = getPlaceRef(item);
     if (!place) return null;
-    const fallbackLayer: CadLayerId = item.type === 'station' ? 'layout' : 'equipment';
+    const fallbackLayer: CadLayerId = item.type === 'station' ? 'layout' : defaultLayerForAsset(item.id);
     const layerId = layerAssignmentsRef.current[item.id] ?? fallbackLayer;
     const layer = cadLayersRef.current.find((candidate) => candidate.id === layerId);
 
@@ -1005,7 +1036,7 @@ export default function Layout3DEditor({
       tags: objectTagsRef.current[item.id],
       notes: objectNotesRef.current[item.id],
     };
-  }, [getPlaceRef]);
+  }, [defaultLayerForAsset, getPlaceRef]);
 
   // Snapshot the selection's geometry into render-safe state (reads refs only
   // from event handlers, never during render — the Minimap/2D editor pattern).
@@ -1723,12 +1754,12 @@ export default function Layout3DEditor({
         const inSel = selRef.current.some((s) => sameSel(s, item));
         const items = inSel && selRef.current.length > 1 ? [...selRef.current] : [item];
         if (!inSel) select([item]);
-        if (isObjectLayerLocked(cadLayersRef.current, layerAssignmentsRef.current, item.id, item.type === 'station' ? 'layout' : 'equipment')) {
+        if (isObjectLayerLocked(cadLayersRef.current, layerAssignmentsRef.current, item.id, item.type === 'station' ? 'layout' : defaultLayerForAsset(item.id))) {
           toast.error('El objeto está en una capa bloqueada. Desbloquea la capa para moverlo.', 'Capas');
           rebuildAll();
           return;
         }
-        const unlockedItems = items.filter((it) => !isObjectLayerLocked(cadLayersRef.current, layerAssignmentsRef.current, it.id, it.type === 'station' ? 'layout' : 'equipment'));
+        const unlockedItems = items.filter((it) => !isObjectLayerLocked(cadLayersRef.current, layerAssignmentsRef.current, it.id, it.type === 'station' ? 'layout' : defaultLayerForAsset(it.id)));
         if (unlockedItems.length !== items.length) toast.error('Algunos objetos no se moverán porque su capa está bloqueada.', 'Capas');
         raycaster.ray.intersectPlane(floorPlane, hit);
         const start = new Map<string, { x: number; y: number }>();
@@ -1868,6 +1899,8 @@ export default function Layout3DEditor({
               const id = newId('as');
               assetsRef.current.set(id, { id, kind: 'wall', x: cx - len / 2, y: cy - thick / 2, w: len, h: thick, rotation: angle });
               setAssetIds((s) => new Set(s).add(id));
+              setLayerAssignments((cur) => assignObjectsToLayer(cur, [id], 'architecture'));
+              setObjectTags((cur) => ({ ...cur, [id]: 'wall, architecture' }));
               setDirty(true); rebuildAssets();
             }
             wallChainRef.current = pt; setMeasureLive(fmtDist(0, unit));
@@ -1981,42 +2014,62 @@ export default function Layout3DEditor({
   const openTakeoff = useCallback(() => {
     const fp = data?.footprint; if (!fp) return;
     const placements = [...placementsRef.current.values()];
-    const stationArea = placements.reduce((a, p) => a + p.w * p.h, 0);
     const assets = [...assetsRef.current.values()];
     const map = new Map<string, { count: number; area: number }>();
-    let equipArea = 0, wallLen = 0;
     for (const a of assets) {
       const area = a.w * a.h;
       const c = map.get(a.kind) ?? { count: 0, area: 0 };
       c.count += 1; c.area += area; map.set(a.kind, c);
-      if (a.kind !== 'zone' && a.kind !== 'agvpath') equipArea += area;
-      if (a.kind === 'wall') wallLen += Math.max(a.w, a.h);
     }
     const byKind = [...map.entries()]
       .map(([kind, v]) => ({ kind, label: assetMeta(kind).label, count: v.count, area: v.area }))
       .sort((p, q) => q.count - p.count || p.label.localeCompare(q.label));
-    const layerMap = new Map<CadLayerId, { count: number; area: number }>();
-    const addLayer = (layerId: CadLayerId, area: number) => {
-      const row = layerMap.get(layerId) ?? { count: 0, area: 0 };
-      row.count += 1; row.area += area; layerMap.set(layerId, row);
-    };
-    placementsRef.current.forEach((p, id) => addLayer(layerAssignmentsRef.current[id] ?? 'layout', p.w * p.h));
-    assets.forEach((asset) => addLayer(layerAssignmentsRef.current[asset.id] ?? 'equipment', asset.w * asset.h));
-    const byLayer = cadLayers
-      .map((layer) => ({ id: layer.id, label: layer.label, count: layerMap.get(layer.id)?.count ?? 0, area: layerMap.get(layer.id)?.area ?? 0 }))
-      .filter((layer) => layer.count > 0);
     const footprintArea = fp.footprintW * fp.footprintH;
-    const usedArea = stationArea + equipArea;
+    const architecture = buildCadArchitectureTakeoff({
+      unit: fp.unit || 'mm',
+      footprintArea,
+      layers: cadLayers.map((layer) => ({ id: layer.id, label: layer.label })),
+      stations: [...placementsRef.current.entries()].map(([id, p]) => ({
+        id,
+        kind: 'station',
+        label: stationsByIdRef.current.get(id)?.station ?? id,
+        x: p.x,
+        y: p.y,
+        width: p.w,
+        height: p.h,
+        rotation: p.rotation,
+        layerId: layerAssignmentsRef.current[id] ?? 'layout',
+        tags: objectTagsRef.current[id],
+      })),
+      assets: assets.map((asset) => ({
+        id: asset.id,
+        kind: asset.kind,
+        label: asset.label || assetMeta(asset.kind).label,
+        x: asset.x,
+        y: asset.y,
+        width: asset.w,
+        height: asset.h,
+        rotation: asset.rotation,
+        layerId: layerAssignmentsRef.current[asset.id] ?? defaultCadLayerForAssetKind(asset.kind, objectTagsRef.current[asset.id]),
+        tags: objectTagsRef.current[asset.id],
+      })),
+    });
+    const byLayer = architecture.byLayer
+      .map((row) => {
+        const layer = cadLayers.find((candidate) => candidate.id === row.key);
+        return layer ? { id: layer.id, label: layer.label, count: row.count, area: row.area } : null;
+      })
+      .filter((row): row is { id: CadLayerId; label: string; count: number; area: number } => !!row);
     // material-flow travel metrics from the line connectors (Fase 64)
     const centers: Record<string, FlowCenter> = {};
     placementsRef.current.forEach((p, id) => { centers[id] = { x: p.x + p.w / 2, y: p.y + p.h / 2 }; });
     const flow = flowMetrics(connectorsRef.current, centers);
     setTakeoff({
       unit: fp.unit || 'mm', footprintArea, totalStations: data!.stations.length,
-      placedStations: placements.length, stationArea, equipmentCount: assets.length,
-      equipArea, usedArea, util: footprintArea > 0 ? Math.min(100, (usedArea / footprintArea) * 100) : 0,
-      wallLen, dimCount: [...annotationsRef.current.values()].filter((a) => a.type === 'dim').length,
-      flowLen: flow.totalLen, flowMaxHop: flow.maxHop, flowCount: flow.count, byKind, byLayer,
+      placedStations: placements.length, stationArea: architecture.stationArea, equipmentCount: assets.length,
+      equipArea: architecture.equipmentArea, usedArea: architecture.occupiedArea, util: architecture.occupiedPct,
+      wallLen: architecture.wallLength, dimCount: [...annotationsRef.current.values()].filter((a) => a.type === 'dim').length,
+      flowLen: flow.totalLen, flowMaxHop: flow.maxHop, flowCount: flow.count, architecture, byKind, byLayer,
     });
   }, [data, cadLayers]);
 
@@ -2043,7 +2096,7 @@ export default function Layout3DEditor({
         y: asset.y + asset.h / 2,
         width: asset.w,
         height: asset.h,
-        layer: layerAssignments[asset.id] ?? 'equipment',
+        layer: layerAssignments[asset.id] ?? defaultCadLayerForAssetKind(asset.kind, objectTags[asset.id]),
         tags: cadTags(objectTags[asset.id]),
       })),
     ];
@@ -2290,10 +2343,29 @@ export default function Layout3DEditor({
     const id = newId('as');
     assetsRef.current.set(id, { id, kind, x, y, w, h, rotation: 0, label: overrides?.label });
     setAssetIds((prev) => new Set(prev).add(id));
-    setLayerAssignments((cur) => assignObjectsToLayer(cur, [id], activeCadLayer));
+    const defaultLayer = defaultCadLayerForAssetKind(kind);
+    setLayerAssignments((cur) => assignObjectsToLayer(cur, [id], activeCadLayer === 'equipment' ? defaultLayer : activeCadLayer));
     select([{ type: 'asset', id }]);
     setDirty(true); rebuildAll();
     return id;
+  };
+  const addArchitectureAsset = (kind: 'column' | 'door' | 'room') => {
+    const labels: Record<'column' | 'door' | 'room', string> = {
+      column: 'Structural column',
+      door: 'Door opening',
+      room: 'Room / area',
+    };
+    const tags: Record<'column' | 'door' | 'room', string> = {
+      column: 'structure, column',
+      door: 'architecture, door, opening',
+      room: 'room, use:unclassified',
+    };
+    const id = addAsset(kind, { label: labels[kind] });
+    if (!id) return;
+    const layer = defaultCadLayerForAssetKind(kind, tags[kind]);
+    setLayerAssignments((cur) => assignObjectsToLayer(cur, [id], layer));
+    setObjectTags((cur) => ({ ...cur, [id]: tags[kind] }));
+    toast.success(`${labels[kind]} agregado.`, 'Arquitectura CAD');
   };
   const addCadSymbol = (symbolId: string) => {
     const symbol = getCadSymbol(symbolId);
@@ -2430,7 +2502,7 @@ export default function Layout3DEditor({
     toast.success(`${generated.summary.rackCount} racks, ${generated.summary.aisleCount} pasillos y ${generated.summary.labelCount} etiquetas${scaled}.`, 'Generador warehouse');
     if (generated.warnings[0]) toast.error(generated.warnings[0], 'Generador warehouse');
   };
-  const fallbackLayerForItem = (item: SelItem): CadLayerId => item.type === 'station' ? 'layout' : 'equipment';
+  const fallbackLayerForItem = (item: SelItem): CadLayerId => item.type === 'station' ? 'layout' : defaultLayerForAsset(item.id);
   const isItemLayerLocked = (item: SelItem) => isObjectLayerLocked(cadLayersRef.current, layerAssignmentsRef.current, item.id, fallbackLayerForItem(item));
   const editableItems = (items: SelItem[], action: string) => {
     const locked = items.filter(isItemLayerLocked);
@@ -2492,11 +2564,17 @@ export default function Layout3DEditor({
     }
     pushHistory();
     const created: SelItem[] = [];
+    const layerUpdates: Record<string, CadLayerId> = {};
+    const tagUpdates: Record<string, string> = {};
     for (const wl of walls) {
       const id = newId('as');
       assetsRef.current.set(id, { id, kind: 'wall', x: wl.x, y: wl.y, w: wl.w, h: wl.h, rotation: wl.rotation, label: 'Muro (plano)' });
+      layerUpdates[id] = 'architecture';
+      tagUpdates[id] = 'dxf, editable-wall, architecture';
       created.push({ type: 'asset', id });
     }
+    setLayerAssignments((cur) => ({ ...cur, ...layerUpdates }));
+    setObjectTags((cur) => ({ ...cur, ...tagUpdates }));
     commitCreated(created, truncated ? `muros del plano (recortado a ${walls.length})` : 'muros importados del plano');
   };
   const dxfPrimitiveBounds = (primitives: CadDxfPrimitive[]) => {
@@ -2563,7 +2641,7 @@ export default function Layout3DEditor({
       for (let i = 0; i + 1 < points.length; i++) {
         if (created.length >= cap) { truncated = true; break; }
         const id = createDxfWallAsset(points[i], points[i + 1], `DXF line · ${primitive.layer}`);
-        if (id) { created.push({ type: 'asset', id }); layerUpdates[id] = 'layout'; tagUpdates[id] = `dxf, dxf-layer:${primitive.layer}, editable-wall`; }
+        if (id) { created.push({ type: 'asset', id }); layerUpdates[id] = 'architecture'; tagUpdates[id] = `dxf, dxf-layer:${primitive.layer}, editable-wall, architecture`; }
       }
     }
     if (!created.length && !notes) { toast.error('No se encontraron entidades DXF seguras para convertir.', 'DXF'); return; }
@@ -3198,7 +3276,7 @@ export default function Layout3DEditor({
   const selectCadLayerObjects = (id: CadLayerId) => {
     const items: SelItem[] = [];
     placementsRef.current.forEach((_, objectId) => { if ((layerAssignmentsRef.current[objectId] ?? 'layout') === id) items.push({ type: 'station', id: objectId }); });
-    assetsRef.current.forEach((_, objectId) => { if ((layerAssignmentsRef.current[objectId] ?? 'equipment') === id) items.push({ type: 'asset', id: objectId }); });
+    assetsRef.current.forEach((_, objectId) => { if ((layerAssignmentsRef.current[objectId] ?? defaultLayerForAsset(objectId)) === id) items.push({ type: 'asset', id: objectId }); });
     if (!items.length) { toast.error('No hay objetos visibles en esa capa.', 'Capas'); return; }
     select(items.slice(0, 200));
     toast.success(`${items.length} objeto(s) seleccionados en la capa.`, 'Capas');
@@ -3207,7 +3285,7 @@ export default function Layout3DEditor({
     setLayers((cur) => ({
       ...cur,
       stations: id === 'layout',
-      equipment: id === 'equipment' || id === 'aisles' || id === 'safety',
+      equipment: id === 'equipment' || id === 'architecture' || id === 'structure' || id === 'utilities' || id === 'aisles' || id === 'safety',
       connectors: id === 'flow',
       dims: id === 'measurements',
     }));
@@ -3225,7 +3303,11 @@ export default function Layout3DEditor({
     setCadLayers((cur) => showAllCadLayers(cur));
     toast.success('Todas las capas CAD visibles.', 'Capas');
   };
-  const defaultLayerFor = (item: SelItem): CadLayerId => item.type === 'station' ? 'layout' : 'equipment';
+  const defaultLayerFor = (item: SelItem): CadLayerId => {
+    if (item.type === 'station') return 'layout';
+    const selectedKind = selSnap?.id === item.id ? selSnap.kind : undefined;
+    return selectedKind ? defaultCadLayerForAssetKind(selectedKind, objectTags[item.id]) : 'equipment';
+  };
   const selectionLayer = (item: SelItem): CadLayerId => layerAssignments[item.id] ?? defaultLayerFor(item);
   const setSelectionLayer = (item: SelItem, layerId: CadLayerId) => setLayerAssignments((cur) => assignObjectsToLayer(cur, [item.id], layerId));
   const runToolbarAction = (id: CadToolbarActionId) => {
@@ -3437,7 +3519,7 @@ export default function Layout3DEditor({
         };
       }),
       ...[...assetsRef.current.values()].map((asset) => {
-        const layerId = layerAssignments[asset.id] ?? 'equipment';
+        const layerId = layerAssignments[asset.id] ?? defaultCadLayerForAssetKind(asset.kind, objectTags[asset.id]);
         return {
           id: asset.id,
           kind: 'object' as const,
@@ -3525,8 +3607,8 @@ export default function Layout3DEditor({
           .filter(([id]) => includeObject(id, 'layout'))
           .map(([id, p]) => ({ id, label: stationsByIdRef.current.get(id)?.station ?? id, x: p.x, y: p.y, width: p.w, height: p.h, layer: layerLabel(layerAssignments[id] ?? 'layout') })),
         ...[...assetsRef.current.values()]
-          .filter((asset) => includeObject(asset.id, 'equipment'))
-          .map((asset) => ({ id: asset.id, label: asset.label || assetMeta(asset.kind).label, x: asset.x, y: asset.y, width: asset.w, height: asset.h, layer: layerLabel(layerAssignments[asset.id] ?? 'equipment') })),
+          .filter((asset) => includeObject(asset.id, defaultCadLayerForAssetKind(asset.kind, objectTags[asset.id])))
+          .map((asset) => ({ id: asset.id, label: asset.label || assetMeta(asset.kind).label, x: asset.x, y: asset.y, width: asset.w, height: asset.h, layer: layerLabel(layerAssignments[asset.id] ?? defaultCadLayerForAssetKind(asset.kind, objectTags[asset.id])) })),
       ];
       const connectors = connectorsRef.current.map((conn) => {
         if (!includeLayer('flow')) return null;
@@ -4028,6 +4110,19 @@ export default function Layout3DEditor({
                       ))}
                     </div>
                   </div>
+                  <div className="mb-3 rounded-xl border border-slate-300/15 bg-slate-300/[0.05] p-2.5">
+                    <div className="mb-1.5 flex items-center justify-between gap-2">
+                      <div className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-slate-200"><BrickWall className="h-3.5 w-3.5" /> Arquitectura</div>
+                      <span className="text-[10px] text-slate-200/60">editable</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button onClick={toggleWall} className={`rounded-lg px-2 py-1.5 text-left text-[11px] font-semibold ${tool === 'wall' ? 'bg-slate-200 text-slate-950' : 'bg-white/[0.06] text-slate-100 hover:bg-white/[0.12]'}`}>Trazar muro</button>
+                      <button onClick={() => addArchitectureAsset('column')} className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-left text-[11px] font-semibold text-slate-100 hover:bg-white/[0.12]">Columna</button>
+                      <button onClick={() => addArchitectureAsset('door')} className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-left text-[11px] font-semibold text-slate-100 hover:bg-white/[0.12]">Puerta</button>
+                      <button onClick={() => addArchitectureAsset('room')} className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-left text-[11px] font-semibold text-slate-100 hover:bg-white/[0.12]">Cuarto / area</button>
+                    </div>
+                    <div className="mt-1.5 text-[10px] leading-snug text-slate-200/60">Tags: use:smt, use:quality o dept:qa clasifican cuartos en el takeoff.</div>
+                  </div>
                   <div className="mb-3 rounded-xl border border-amber-400/15 bg-amber-400/[0.05] p-2.5">
                     <div className="mb-1.5 flex items-center justify-between gap-2">
                       <div className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-amber-200"><Rows3 className="h-3.5 w-3.5" /> Generador de racks</div>
@@ -4404,6 +4499,19 @@ export default function Layout3DEditor({
                           {selectedObjectProperties.source.dxfLayer && <ReadField label="DXF layer" value={selectedObjectProperties.source.dxfLayer} />}
                           <ReadField label="Safety" value={selectedObjectProperties.safetyClassification} />
                         </div>
+                        {selectedObjectProperties.architecture && (
+                          <div className="mt-2 rounded-lg border border-slate-300/10 bg-slate-300/[0.04] p-2">
+                            <div className="mb-1.5 flex items-center justify-between gap-2">
+                              <span className="text-[10px] uppercase tracking-wide text-slate-300">Engineering CAD</span>
+                              <span className="rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-slate-200">{selectedObjectProperties.architecture.role}</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              {selectedObjectProperties.architecture.technical.slice(0, 4).map((item) => (
+                                <ReadField key={`${item.label}-${item.value}`} label={item.label} value={item.value} />
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         {selectedObjectProperties.warnings.length > 0 && (
                           <div className="mt-2 rounded-md border border-amber-300/15 bg-amber-400/[0.06] px-2 py-1 text-[10.5px] text-amber-100">{selectedObjectProperties.warnings[0]}</div>
                         )}
@@ -4488,6 +4596,12 @@ export default function Layout3DEditor({
                 <Stat label="Aprovechamiento" value={`${takeoff.util.toFixed(1)} %`} highlight />
                 <Stat label="Área usada" value={fmtArea(takeoff.usedArea, takeoff.unit)} />
                 <Stat label="Muro total" value={fmtLen(takeoff.wallLen, takeoff.unit)} />
+                <Stat label="Cuartos" value={`${takeoff.architecture.roomCount} - ${fmtArea(takeoff.architecture.roomArea, takeoff.unit)}`} />
+                <Stat label="Piso libre" value={fmtArea(takeoff.architecture.openFloorArea, takeoff.unit)} />
+                <Stat label="Pasillos" value={fmtArea(takeoff.architecture.aisleArea, takeoff.unit)} />
+                <Stat label="Safety/no-go" value={fmtArea(takeoff.architecture.safetyArea, takeoff.unit)} />
+                <Stat label="Utilidades" value={`${takeoff.architecture.utilityCount} - ${fmtArea(takeoff.architecture.utilityArea, takeoff.unit)}`} />
+                <Stat label="Puertas/cols" value={`${takeoff.architecture.doorCount}/${takeoff.architecture.columnCount}`} />
                 {takeoff.flowCount > 0 && <Stat label="Flujo total" value={fmtLen(takeoff.flowLen, takeoff.unit)} />}
                 {takeoff.flowCount > 0 && <Stat label="Tramo más largo" value={fmtLen(takeoff.flowMaxHop, takeoff.unit)} />}
               </div>
@@ -4525,6 +4639,38 @@ export default function Layout3DEditor({
                   </table>
                 </div>
               )}
+              {takeoff.architecture.byRoomUse.length > 0 && (
+                <div className="mt-3 rounded-xl border border-white/10 overflow-hidden">
+                  <div className="bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Áreas por uso</div>
+                  <table className="w-full text-[12.5px]">
+                    <tbody>
+                      {takeoff.architecture.byRoomUse.map((r) => (
+                        <tr key={r.key} className="border-t border-white/[0.06]">
+                          <td className="px-3 py-1.5">{r.label}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums">{r.count}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums text-gray-500 dark:text-gray-400">{fmtArea(r.area, takeoff.unit)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {takeoff.architecture.byDepartment.length > 0 && (
+                <div className="mt-3 rounded-xl border border-white/10 overflow-hidden">
+                  <div className="bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Áreas por departamento</div>
+                  <table className="w-full text-[12.5px]">
+                    <tbody>
+                      {takeoff.architecture.byDepartment.map((r) => (
+                        <tr key={r.key} className="border-t border-white/[0.06]">
+                          <td className="px-3 py-1.5">{r.label}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums">{r.count}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums text-gray-500 dark:text-gray-400">{fmtArea(r.area, takeoff.unit)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
               <div className="flex items-center justify-between mt-3">
                 <span className="text-[11px] text-gray-500">{takeoff.dimCount} {takeoff.dimCount === 1 ? 'cota' : 'cotas'}</span>
                 <button
@@ -4536,6 +4682,17 @@ export default function Layout3DEditor({
                     rows.push(['Estaciones colocadas', `${takeoff.placedStations}/${takeoff.totalStations}`, fmtArea(takeoff.stationArea, takeoff.unit).replace(' m²', '')]);
                     rows.push(['Aprovechamiento', `${takeoff.util.toFixed(1)}%`, '']);
                     rows.push(['Muro total', fmtLen(takeoff.wallLen, takeoff.unit), '']);
+                    rows.push(['Cuartos', `${takeoff.architecture.roomCount}`, fmtArea(takeoff.architecture.roomArea, takeoff.unit).replace(' m²', '')]);
+                    rows.push(['Piso libre', '', fmtArea(takeoff.architecture.openFloorArea, takeoff.unit).replace(' m²', '')]);
+                    rows.push(['Pasillos', '', fmtArea(takeoff.architecture.aisleArea, takeoff.unit).replace(' m²', '')]);
+                    rows.push(['Safety/no-go', '', fmtArea(takeoff.architecture.safetyArea, takeoff.unit).replace(' m²', '')]);
+                    rows.push(['Utilidades', `${takeoff.architecture.utilityCount}`, fmtArea(takeoff.architecture.utilityArea, takeoff.unit).replace(' m²', '')]);
+                    rows.push(['Puertas', `${takeoff.architecture.doorCount}`, '']);
+                    rows.push(['Columnas', `${takeoff.architecture.columnCount}`, '']);
+                    rows.push(['--- Uso de cuartos ---', '', '']);
+                    takeoff.architecture.byRoomUse.forEach((r) => rows.push([`Uso: ${r.label}`, String(r.count), fmtArea(r.area, takeoff.unit).replace(' m²', '')]));
+                    rows.push(['--- Departamentos ---', '', '']);
+                    takeoff.architecture.byDepartment.forEach((r) => rows.push([`Dept: ${r.label}`, String(r.count), fmtArea(r.area, takeoff.unit).replace(' m²', '')]));
                     if (takeoff.flowCount > 0) {
                       rows.push(['Flujo total', fmtLen(takeoff.flowLen, takeoff.unit), '']);
                       rows.push(['Tramo más largo', fmtLen(takeoff.flowMaxHop, takeoff.unit), '']);

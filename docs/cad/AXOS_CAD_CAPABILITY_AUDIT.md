@@ -1,6 +1,25 @@
 # AXOS CAD Capability Audit
 
-Last updated: 2026-06-29
+Last updated: 2026-06-30
+
+## 2026-06-30 - Architecture layer update
+
+Open CAD PRs inspected before this run included #900 (factory-scale workspace), #903 (viewport saved views), #904 (canvas focus), #905 (dock staging generator), #906 (supermarket kitting generator), and #907 (material route command). This run avoided those ownership areas and focused on architecture/drafting primitives and area takeoff.
+
+| Capability | Exists? | Files | Maturity | Gap | Next non-redundant PR | Owner files | Collision risk with open PRs |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Architecture primitives | Partial | `Layout3DEditor.tsx`, `asset-catalog.ts`, `architecture.ts`, `layers.ts` | usable | Walls, doors, columns, rooms are editable and visible, but room geometry is rectangular and door-wall association is not enforced. | Add architecture validation for blocked doors, walls crossing equipment, unlabeled rooms, and missing room use. | `validation-report.ts`, scoped inspector/takeoff UI | Medium: `Layout3DEditor.tsx` is large, but this run touched architecture rail/takeoff/inspector only. |
+| Area takeoff | Extended | `architecture.ts`, `Layout3DEditor.tsx` takeoff modal | usable | Takeoff separates open floor, rooms, aisles, safety/no-go, utilities, walls, columns, and doors; export package attachment remains pending. | Add release package takeoff export and title-block summaries. | `architecture.ts`, plot/export helpers | Low unless touching active plot PRs. |
+
+Existing capability found: the editor already had asset insertion, wall drawing, layer assignment, object inspector, takeoff modal, and DXF export. Utility asset blocks also existed in the shared catalog.
+
+What this run reused: editable assets, local tags/notes, CAD layers, layer visibility/lock state, the existing wall tool, DXF wall conversion, the object inspector, takeoff modal, and DXF export adapter.
+
+What this run extended: Architecture/Structure/Utilities layers, door and room catalog primitives, default layer classification, architecture technical metadata, engineering area takeoff, room use/department summaries, and DXF layer colors for the new layers.
+
+What this run intentionally did not duplicate: no new editor, canvas, command registry, DXF exporter, layer manager, validation engine, factory-scale workspace, viewport saved views, dock generator, supermarket generator, or material route command.
+
+Why this is non-redundant: it makes the existing AXOS CAD workbench capable of plant-shell drafting and engineering area measurement rather than only equipment placement.
 
 ## 2026-06-29 - Safety path zone update
 

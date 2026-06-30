@@ -36,6 +36,18 @@ assert.equal(
   "layout",
   "fallback works",
 );
+assert.ok(
+  DEFAULT_CAD_LAYERS.some((layer) => layer.id === "architecture"),
+  "architecture layer is available",
+);
+assert.ok(
+  DEFAULT_CAD_LAYERS.some((layer) => layer.id === "structure"),
+  "structure layer is available",
+);
+assert.ok(
+  DEFAULT_CAD_LAYERS.some((layer) => layer.id === "utilities"),
+  "utilities layer is available",
+);
 
 assert.equal(
   isObjectLayerLocked(layers, assignments, "a", "layout"),
