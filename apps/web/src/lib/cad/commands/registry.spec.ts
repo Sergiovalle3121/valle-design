@@ -60,8 +60,8 @@ assert.equal(
 );
 assert.equal(
   CAD_COMMAND_REGISTRY.length,
-  12,
-  "registry exposes 12 commands",
+  13,
+  "registry exposes 13 commands",
 );
 
 const parsed = parseCadCommand("haz un pasillo de 1.2m entre SMT e inspección");
@@ -210,6 +210,34 @@ assert.equal(
   parseCadCommand("analiza balanceo de linea takt 45s").input?.id,
   "analyze_line_balance",
   "parser recognizes line balance intent",
+);
+
+const materialRoutePreview = previewCadCommand(
+  { id: "trace_material_route" },
+  {
+    ...ctx,
+    connectors: [
+      { from: "smt", to: "aoi", kind: "flow" },
+      { from: "aoi", to: "pack", kind: "material" },
+    ],
+  },
+);
+assert.equal(
+  materialRoutePreview.operations.some(
+    (op) => op.type === "report" && op.title === "Ruta material",
+  ),
+  true,
+  "material route emits a from-to route report",
+);
+assert.equal(
+  materialRoutePreview.affectedObjectIds.join(","),
+  "smt,aoi,pack",
+  "material route follows connector order",
+);
+assert.equal(
+  parseCadCommand("traza ruta material").input?.id,
+  "trace_material_route",
+  "parser recognizes material route intent",
 );
 
 const rackParsed = parseCadCommand(
