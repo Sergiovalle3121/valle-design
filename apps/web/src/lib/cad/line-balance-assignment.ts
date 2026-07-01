@@ -51,7 +51,7 @@ export interface CadLineBalanceAssignmentResult {
   warnings: CadLineBalanceAssignmentWarning[];
 }
 
-interface NormalizedTask extends Required<CadLineBalanceTask> {}
+type NormalizedTask = Required<CadLineBalanceTask>;
 
 function round(value: number, digits = 3): number {
   const scale = 10 ** digits;
