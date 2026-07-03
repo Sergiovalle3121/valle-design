@@ -18,7 +18,6 @@ This document tracks the first dedicated AXOS CAD architecture layer for factory
 - `docs/cad/AXOS_CAD_CAPABILITY_AUDIT.md`
 - `docs/cad/AXOS_CAD_TREE_STATUS.md`
 - `docs/cad-copilot-command-contract.md`
-- `docs/codex-night-log.md`
 - `docs/design/AXOS_DESIGN_LANGUAGE.md`
 
 ## What already existed
@@ -51,7 +50,6 @@ Room classification is local and tag-driven for now:
 - `use:warehouse`
 - `use:packing`
 - `use:shipping`
-- `use:office`
 - `use:ehs`
 - `use:utility`
 - `dept:qa`, `dept:warehouse`, etc.
