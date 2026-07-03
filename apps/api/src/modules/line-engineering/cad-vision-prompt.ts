@@ -21,13 +21,21 @@ export const VISION_SYSTEM_PROMPT = [
  * Rechazar URLs remotas evita SSRF (que el servidor descargue un recurso interno).
  */
 export function isDataImageUrl(url: unknown): url is string {
-  return typeof url === 'string' && /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(url);
+  return (
+    typeof url === 'string' &&
+    /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(url)
+  );
 }
 
 /** Mensaje en formato OpenAI-compatible (texto o contenido multimodal). */
 export interface VisionChatMessage {
   role: 'system' | 'user';
-  content: string | Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }>;
+  content:
+    | string
+    | Array<
+        | { type: 'text'; text: string }
+        | { type: 'image_url'; image_url: { url: string } }
+      >;
 }
 
 /** Arma los mensajes multimodales para la llamada de visión. */
@@ -37,7 +45,10 @@ export function buildVisionMessages(imageDataUrl: string): VisionChatMessage[] {
     {
       role: 'user',
       content: [
-        { type: 'text', text: 'Vectoriza este plano a JSON según el formato indicado.' },
+        {
+          type: 'text',
+          text: 'Vectoriza este plano a JSON según el formato indicado.',
+        },
         { type: 'image_url', image_url: { url: imageDataUrl } },
       ],
     },

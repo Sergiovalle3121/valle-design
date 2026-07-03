@@ -1,4 +1,8 @@
-import { VISION_SYSTEM_PROMPT, isDataImageUrl, buildVisionMessages } from './cad-vision-prompt';
+import {
+  VISION_SYSTEM_PROMPT,
+  isDataImageUrl,
+  buildVisionMessages,
+} from './cad-vision-prompt';
 
 describe('cad-vision-prompt (Fase 71)', () => {
   it('describes the expected JSON output', () => {
@@ -7,14 +11,20 @@ describe('cad-vision-prompt (Fase 71)', () => {
   });
 
   it('accepts only inline data image URLs (anti-SSRF)', () => {
-    expect(isDataImageUrl('data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==')).toBe(true);
-    expect(isDataImageUrl('data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD=')).toBe(true);
+    expect(
+      isDataImageUrl('data:image/png;base64,iVBORw0KGgoAAAANSUhEUg=='),
+    ).toBe(true);
+    expect(
+      isDataImageUrl('data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD='),
+    ).toBe(true);
     // remote URLs and non-image data must be rejected
     expect(isDataImageUrl('https://internal.local/secret.png')).toBe(false);
-    expect(isDataImageUrl('http://169.254.169.254/latest/meta-data')).toBe(false);
+    expect(isDataImageUrl('http://169.254.169.254/latest/meta-data')).toBe(
+      false,
+    );
     expect(isDataImageUrl('data:text/html;base64,PHNjcmlwdD4=')).toBe(false);
     expect(isDataImageUrl('file:///etc/passwd')).toBe(false);
-    expect(isDataImageUrl(123 as unknown)).toBe(false);
+    expect(isDataImageUrl(123)).toBe(false);
   });
 
   it('builds a multimodal message with system + image content', () => {

@@ -95,7 +95,9 @@ function fmt(n: number): string {
 
 /** DXF TEXT is single-line; strip control chars that would corrupt the file. */
 function sanitize(s: string): string {
-  return String(s ?? '').replace(/[\r\n]+/g, ' ').slice(0, 250);
+  return String(s ?? '')
+    .replace(/[\r\n]+/g, ' ')
+    .slice(0, 250);
 }
 
 /** Serialise layout primitives into an AutoCAD R12 (AC1009) ASCII DXF string. */
@@ -109,69 +111,125 @@ export function buildDxf(input: DxfInput): string {
     out.push(String(code));
     out.push(String(value));
   };
-  const seg = (layer: string, x1: number, y1: number, x2: number, y2: number) => {
+  const seg = (
+    layer: string,
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+  ) => {
     g(0, 'LINE');
     g(8, layer);
-    g(10, fmt(x1)); g(20, fmt(y1)); g(30, 0);
-    g(11, fmt(x2)); g(21, fmt(y2)); g(31, 0);
+    g(10, fmt(x1));
+    g(20, fmt(y1));
+    g(30, 0);
+    g(11, fmt(x2));
+    g(21, fmt(y2));
+    g(31, 0);
   };
-  const text = (layer: string, x: number, y: number, str: string, height: number) => {
+  const text = (
+    layer: string,
+    x: number,
+    y: number,
+    str: string,
+    height: number,
+  ) => {
     g(0, 'TEXT');
     g(8, layer);
-    g(10, fmt(x)); g(20, fmt(y)); g(30, 0);
+    g(10, fmt(x));
+    g(20, fmt(y));
+    g(30, 0);
     g(40, fmt(height));
     g(1, sanitize(str));
-    g(72, 1); g(73, 2); // centre / middle alignment
-    g(11, fmt(x)); g(21, fmt(y)); g(31, 0);
+    g(72, 1);
+    g(73, 2); // centre / middle alignment
+    g(11, fmt(x));
+    g(21, fmt(y));
+    g(31, 0);
   };
   const circle = (layer: string, cx: number, cy: number, r: number) => {
     g(0, 'CIRCLE');
     g(8, layer);
-    g(10, fmt(cx)); g(20, fmt(cy)); g(30, 0);
+    g(10, fmt(cx));
+    g(20, fmt(cy));
+    g(30, 0);
     g(40, fmt(Math.abs(r)));
   };
   // Flipping Y mirrors the arc about the horizontal axis: angle θ → -θ and the
   // sweep direction reverses, so start/end swap (start' = -end, end' = -start).
   const norm360 = (a: number) => ((a % 360) + 360) % 360;
-  const arc = (layer: string, cx: number, cy: number, r: number, start: number, end: number) => {
+  const arc = (
+    layer: string,
+    cx: number,
+    cy: number,
+    r: number,
+    start: number,
+    end: number,
+  ) => {
     g(0, 'ARC');
     g(8, layer);
-    g(10, fmt(cx)); g(20, fmt(cy)); g(30, 0);
+    g(10, fmt(cx));
+    g(20, fmt(cy));
+    g(30, 0);
     g(40, fmt(Math.abs(r)));
-    g(50, fmt(norm360(-end))); g(51, fmt(norm360(-start)));
+    g(50, fmt(norm360(-end)));
+    g(51, fmt(norm360(-start)));
   };
 
   // Collect the layers actually used (footprint + box labels always present).
   const used = new Set<string>(['PLANO']);
-  input.boxes.forEach((b) => { used.add(b.layer); if (b.label) used.add('TEXTO'); });
+  input.boxes.forEach((b) => {
+    used.add(b.layer);
+    if (b.label) used.add('TEXTO');
+  });
   input.segments.forEach((s) => used.add(s.layer));
   input.texts.forEach((t) => used.add(t.layer));
   (input.circles ?? []).forEach((c) => used.add(c.layer));
   (input.arcs ?? []).forEach((a) => used.add(a.layer));
   // Explicit user layer colors override the built-in palette for matching names.
-  const customColor = new Map((input.layerDefs ?? []).map((d) => [d.name, d.color]));
+  const customColor = new Map(
+    (input.layerDefs ?? []).map((d) => [d.name, d.color]),
+  );
   (input.layerDefs ?? []).forEach((d) => used.add(d.name));
   const layers = [...used];
 
   // ── HEADER ──
-  g(0, 'SECTION'); g(2, 'HEADER');
-  g(9, '$ACADVER'); g(1, 'AC1009');
-  g(9, '$INSUNITS'); g(70, UNIT_CODE[input.unit] ?? 0);
-  g(9, '$EXTMIN'); g(10, 0); g(20, 0); g(30, 0);
-  g(9, '$EXTMAX'); g(10, fmt(W)); g(20, fmt(H)); g(30, 0);
+  g(0, 'SECTION');
+  g(2, 'HEADER');
+  g(9, '$ACADVER');
+  g(1, 'AC1009');
+  g(9, '$INSUNITS');
+  g(70, UNIT_CODE[input.unit] ?? 0);
+  g(9, '$EXTMIN');
+  g(10, 0);
+  g(20, 0);
+  g(30, 0);
+  g(9, '$EXTMAX');
+  g(10, fmt(W));
+  g(20, fmt(H));
+  g(30, 0);
   g(0, 'ENDSEC');
 
   // ── TABLES (layer definitions) ──
-  g(0, 'SECTION'); g(2, 'TABLES');
-  g(0, 'TABLE'); g(2, 'LAYER'); g(70, layers.length);
+  g(0, 'SECTION');
+  g(2, 'TABLES');
+  g(0, 'TABLE');
+  g(2, 'LAYER');
+  g(70, layers.length);
   for (const name of layers) {
     const color = customColor.get(name) ?? LAYER_COLOR[name] ?? 7;
-    g(0, 'LAYER'); g(2, name); g(70, 0); g(62, color); g(6, 'CONTINUOUS');
+    g(0, 'LAYER');
+    g(2, name);
+    g(70, 0);
+    g(62, color);
+    g(6, 'CONTINUOUS');
   }
-  g(0, 'ENDTAB'); g(0, 'ENDSEC');
+  g(0, 'ENDTAB');
+  g(0, 'ENDSEC');
 
   // ── ENTITIES ──
-  g(0, 'SECTION'); g(2, 'ENTITIES');
+  g(0, 'SECTION');
+  g(2, 'ENTITIES');
 
   // Footprint outline (origin bottom-left after the Y flip).
   seg('PLANO', 0, 0, W, 0);
@@ -183,19 +241,33 @@ export function buildDxf(input: DxfInput): string {
     const cx = b.x + b.w / 2;
     const cy = b.y + b.h / 2;
     const rad = ((b.rotation || 0) * Math.PI) / 180;
-    const cos = Math.cos(rad), sin = Math.sin(rad);
-    const corners = ([[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h]] as const).map(
-      ([px, py]) => {
-        const dx = px - cx, dy = py - cy;
-        return [cx + dx * cos - dy * sin, flipY(cy + dx * sin + dy * cos)] as [number, number];
-      },
-    );
+    const cos = Math.cos(rad),
+      sin = Math.sin(rad);
+    const corners = (
+      [
+        [b.x, b.y],
+        [b.x + b.w, b.y],
+        [b.x + b.w, b.y + b.h],
+        [b.x, b.y + b.h],
+      ] as const
+    ).map(([px, py]) => {
+      const dx = px - cx,
+        dy = py - cy;
+      return [cx + dx * cos - dy * sin, flipY(cy + dx * sin + dy * cos)] as [
+        number,
+        number,
+      ];
+    });
     for (let i = 0; i < 4; i++) {
-      const a = corners[i], c = corners[(i + 1) % 4];
+      const a = corners[i],
+        c = corners[(i + 1) % 4];
       seg(b.layer, a[0], a[1], c[0], c[1]);
     }
     if (b.label) {
-      const height = Math.max(Math.min(b.w, b.h) * 0.22, Math.max(W, H) * 0.006);
+      const height = Math.max(
+        Math.min(b.w, b.h) * 0.22,
+        Math.max(W, H) * 0.006,
+      );
       text('TEXTO', cx, flipY(cy), b.label, height);
     }
   }

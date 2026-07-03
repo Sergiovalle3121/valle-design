@@ -13,7 +13,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { CideProvider, CideEngineError } from '../ai/cide-provider';
 import { LineEngineeringService } from './line-engineering.service';
-import { CAD_INTENT_TOOLS, buildCadIntentSystemPrompt, buildOptimizePrompt } from './cad-intent-tools';
+import {
+  CAD_INTENT_TOOLS,
+  buildCadIntentSystemPrompt,
+  buildOptimizePrompt,
+} from './cad-intent-tools';
 
 const CIDE_BASE_URL = process.env.CIDE_BASE_URL || 'http://localhost:11434/v1';
 const CIDE_API_KEY = process.env.CIDE_API_KEY || null;
@@ -41,18 +45,28 @@ export class CadIntentService {
    * Interpreta una instrucción NL contra el layout y devuelve las tool-calls que
    * el modelo propuso (sin aplicar). El frontend las valida y aplica.
    */
-  async interpret(model: string, revision: string, prompt: string): Promise<CadIntentResponse> {
+  async interpret(
+    model: string,
+    revision: string,
+    prompt: string,
+  ): Promise<CadIntentResponse> {
     const text = (prompt ?? '').trim();
-    if (!text) return { available: true, toolCalls: [], message: 'Instrucción vacía.' };
+    if (!text)
+      return { available: true, toolCalls: [], message: 'Instrucción vacía.' };
 
     if (process.env.AI_MOCK === '1') {
       // Modo prueba/CI: sin motor. Devuelve vacío de forma determinista.
-      return { available: false, toolCalls: [], message: 'Motor CIDE en modo mock.' };
+      return {
+        available: false,
+        toolCalls: [],
+        message: 'Motor CIDE en modo mock.',
+      };
     }
 
     const layout = await this.layoutService.getLayout(model, revision);
     const placed = layout.stations.filter(
-      (s): s is typeof s & { x: number; y: number } => s.x !== null && s.y !== null,
+      (s): s is typeof s & { x: number; y: number } =>
+        s.x !== null && s.y !== null,
     );
     const system = buildCadIntentSystemPrompt({
       unit: layout.footprint.unit,
@@ -70,13 +84,29 @@ export class CadIntentService {
    */
   async optimize(model: string, revision: string): Promise<CadIntentResponse> {
     if (process.env.AI_MOCK === '1') {
-      return { available: false, toolCalls: [], message: 'Motor CIDE en modo mock.' };
+      return {
+        available: false,
+        toolCalls: [],
+        message: 'Motor CIDE en modo mock.',
+      };
     }
     const layout = await this.layoutService.getLayout(model, revision);
     const placed = layout.stations.filter(
-      (s): s is typeof s & { x: number; y: number; w: number | null; h: number | null } => s.x !== null && s.y !== null,
+      (
+        s,
+      ): s is typeof s & {
+        x: number;
+        y: number;
+        w: number | null;
+        h: number | null;
+      } => s.x !== null && s.y !== null,
     );
-    const center = (s: { x: number; y: number; w: number | null; h: number | null }) => ({
+    const center = (s: {
+      x: number;
+      y: number;
+      w: number | null;
+      h: number | null;
+    }) => ({
       x: s.x + (s.w ?? 0) / 2,
       y: s.y + (s.h ?? 0) / 2,
     });
@@ -86,8 +116,12 @@ export class CadIntentService {
       const from = byId.get(c.from);
       const to = byId.get(c.to);
       if (from?.x != null && from.y != null && to?.x != null && to.y != null) {
-        const a = center(from as { x: number; y: number; w: number | null; h: number | null });
-        const b = center(to as { x: number; y: number; w: number | null; h: number | null });
+        const a = center(
+          from as { x: number; y: number; w: number | null; h: number | null },
+        );
+        const b = center(
+          to as { x: number; y: number; w: number | null; h: number | null },
+        );
         totalFlow += Math.hypot(b.x - a.x, b.y - a.y);
       }
     }
@@ -103,8 +137,17 @@ export class CadIntentService {
   }
 
   /** Una llamada al modelo con las CAD tools; degrada con gracia si CIDE no está. */
-  private async runModel(system: string, userText: string, model: string, revision: string): Promise<CadIntentResponse> {
-    const provider = new CideProvider({ baseUrl: CIDE_BASE_URL, model: CIDE_MODEL, apiKey: CIDE_API_KEY });
+  private async runModel(
+    system: string,
+    userText: string,
+    model: string,
+    revision: string,
+  ): Promise<CadIntentResponse> {
+    const provider = new CideProvider({
+      baseUrl: CIDE_BASE_URL,
+      model: CIDE_MODEL,
+      apiKey: CIDE_API_KEY,
+    });
     try {
       const comp = await provider.chat({
         messages: [
@@ -117,16 +160,27 @@ export class CadIntentService {
       });
       return {
         available: true,
-        toolCalls: comp.toolCalls.map((tc) => ({ name: tc.name, arguments: tc.arguments ?? {} })),
-        ...(comp.toolCalls.length === 0 && comp.content ? { message: comp.content.slice(0, 300) } : {}),
+        toolCalls: comp.toolCalls.map((tc) => ({
+          name: tc.name,
+          arguments: tc.arguments ?? {},
+        })),
+        ...(comp.toolCalls.length === 0 && comp.content
+          ? { message: comp.content.slice(0, 300) }
+          : {}),
       };
     } catch (err) {
-      const msg = err instanceof CideEngineError ? err.message : 'No se pudo contactar el motor CIDE.';
-      this.logger.warn(`cad-intent no disponible para ${model}|${revision}: ${msg}`);
+      const msg =
+        err instanceof CideEngineError
+          ? err.message
+          : 'No se pudo contactar el motor CIDE.';
+      this.logger.warn(
+        `cad-intent no disponible para ${model}|${revision}: ${msg}`,
+      );
       return {
         available: false,
         toolCalls: [],
-        message: 'El motor de IA (CIDE) no está disponible. Configura CIDE_BASE_URL para usar comandos en lenguaje natural.',
+        message:
+          'El motor de IA (CIDE) no está disponible. Configura CIDE_BASE_URL para usar comandos en lenguaje natural.',
       };
     }
   }

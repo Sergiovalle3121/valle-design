@@ -19,10 +19,15 @@ const strProp = (description: string) => ({ type: 'string', description });
 export const CAD_INTENT_TOOLS: CideToolSpec[] = [
   {
     name: 'setFootprint',
-    description: 'Cambia el tamaño de la huella (footprint) del layout, en la unidad actual.',
+    description:
+      'Cambia el tamaño de la huella (footprint) del layout, en la unidad actual.',
     parameters: {
       type: 'object',
-      properties: { footprintW: numProp('ancho'), footprintH: numProp('largo'), gridSize: numProp('paso de grilla (opcional)') },
+      properties: {
+        footprintW: numProp('ancho'),
+        footprintH: numProp('largo'),
+        gridSize: numProp('paso de grilla (opcional)'),
+      },
       required: ['footprintW', 'footprintH'],
     },
   },
@@ -34,8 +39,10 @@ export const CAD_INTENT_TOOLS: CideToolSpec[] = [
       type: 'object',
       properties: {
         kind: strProp('tipo de asset'),
-        x: numProp('x'), y: numProp('y'),
-        w: numProp('ancho (opcional)'), h: numProp('alto (opcional)'),
+        x: numProp('x'),
+        y: numProp('y'),
+        w: numProp('ancho (opcional)'),
+        h: numProp('alto (opcional)'),
         rotation: numProp('rotación en grados (opcional)'),
         label: strProp('etiqueta (opcional)'),
       },
@@ -47,7 +54,12 @@ export const CAD_INTENT_TOOLS: CideToolSpec[] = [
     description: 'Traza un muro entre dos puntos.',
     parameters: {
       type: 'object',
-      properties: { x1: numProp('x inicio'), y1: numProp('y inicio'), x2: numProp('x fin'), y2: numProp('y fin') },
+      properties: {
+        x1: numProp('x inicio'),
+        y1: numProp('y inicio'),
+        x2: numProp('x fin'),
+        y2: numProp('y fin'),
+      },
       required: ['x1', 'y1', 'x2', 'y2'],
     },
   },
@@ -56,26 +68,41 @@ export const CAD_INTENT_TOOLS: CideToolSpec[] = [
     description: 'Agrega una cota (línea de dimensión) entre dos puntos.',
     parameters: {
       type: 'object',
-      properties: { x1: numProp('x inicio'), y1: numProp('y inicio'), x2: numProp('x fin'), y2: numProp('y fin') },
+      properties: {
+        x1: numProp('x inicio'),
+        y1: numProp('y inicio'),
+        x2: numProp('x fin'),
+        y2: numProp('y fin'),
+      },
       required: ['x1', 'y1', 'x2', 'y2'],
     },
   },
   {
     name: 'arrangeLine',
-    description: 'Acomoda automáticamente las estaciones colocadas en filas por secuencia.',
+    description:
+      'Acomoda automáticamente las estaciones colocadas en filas por secuencia.',
     parameters: { type: 'object', properties: {} },
   },
   {
     name: 'connectLine',
-    description: 'Conecta las estaciones en secuencia con flechas de flujo. kind: flow|conveyor|return.',
-    parameters: { type: 'object', properties: { kind: strProp('flow|conveyor|return (opcional)') } },
+    description:
+      'Conecta las estaciones en secuencia con flechas de flujo. kind: flow|conveyor|return.',
+    parameters: {
+      type: 'object',
+      properties: { kind: strProp('flow|conveyor|return (opcional)') },
+    },
   },
   {
     name: 'moveStation',
-    description: 'Mueve una estación (por su nombre, ej. EST-10) a una posición absoluta x,y.',
+    description:
+      'Mueve una estación (por su nombre, ej. EST-10) a una posición absoluta x,y.',
     parameters: {
       type: 'object',
-      properties: { station: strProp('nombre de la estación'), x: numProp('x'), y: numProp('y') },
+      properties: {
+        station: strProp('nombre de la estación'),
+        x: numProp('x'),
+        y: numProp('y'),
+      },
       required: ['station', 'x', 'y'],
     },
   },
@@ -102,7 +129,9 @@ export function buildCadIntentSystemPrompt(ctx: CadIntentContext): string {
       .slice(0, 40)
       .map((s) => `${s.station} @(${Math.round(s.x)},${Math.round(s.y)})`)
       .join(', ');
-    lines.push(`Estaciones colocadas (para ubicar geometría relativa): ${list}.`);
+    lines.push(
+      `Estaciones colocadas (para ubicar geometría relativa): ${list}.`,
+    );
   }
   return lines.join('\n');
 }

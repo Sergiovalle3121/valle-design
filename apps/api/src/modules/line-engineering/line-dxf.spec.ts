@@ -30,7 +30,20 @@ describe('buildDxf (Fase 53)', () => {
   });
 
   it('serialises a station box as 4 lines + a centred label, Y-flipped', () => {
-    const dxf = buildDxf(input({ boxes: [{ x: 100, y: 100, w: 200, h: 100, label: 'EST-10', layer: 'ESTACIONES' }] }));
+    const dxf = buildDxf(
+      input({
+        boxes: [
+          {
+            x: 100,
+            y: 100,
+            w: 200,
+            h: 100,
+            label: 'EST-10',
+            layer: 'ESTACIONES',
+          },
+        ],
+      }),
+    );
     expect(countLine(dxf)).toBe(8); // footprint (4) + box (4)
     expect(countText(dxf)).toBe(1);
     expect(dxf).toContain('1\nEST-10'); // the TEXT string
@@ -43,10 +56,12 @@ describe('buildDxf (Fase 53)', () => {
   });
 
   it('declares one CAD layer per kind used', () => {
-    const dxf = buildDxf(input({
-      boxes: [{ x: 0, y: 0, w: 10, h: 10, label: 'A', layer: 'ESTACIONES' }],
-      segments: [{ x1: 0, y1: 0, x2: 10, y2: 10, layer: 'COTAS' }],
-    }));
+    const dxf = buildDxf(
+      input({
+        boxes: [{ x: 0, y: 0, w: 10, h: 10, label: 'A', layer: 'ESTACIONES' }],
+        segments: [{ x1: 0, y1: 0, x2: 10, y2: 10, layer: 'COTAS' }],
+      }),
+    );
     // PLANO (footprint) + ESTACIONES + TEXTO (label) + COTAS
     expect(countLayer(dxf)).toBe(4);
     expect(dxf).toContain('2\nESTACIONES');
@@ -55,7 +70,9 @@ describe('buildDxf (Fase 53)', () => {
   });
 
   it('emits flow/dimension segments as lines on their layer (Y-flipped)', () => {
-    const dxf = buildDxf(input({ segments: [{ x1: 0, y1: 0, x2: 100, y2: 200, layer: 'FLUJO' }] }));
+    const dxf = buildDxf(
+      input({ segments: [{ x1: 0, y1: 0, x2: 100, y2: 200, layer: 'FLUJO' }] }),
+    );
     expect(countLine(dxf)).toBe(5); // footprint (4) + 1 segment
     expect(dxf).toContain('8\nFLUJO');
     // endpoints flipped: y 0 -> 500, y 200 -> 300
@@ -64,7 +81,13 @@ describe('buildDxf (Fase 53)', () => {
   });
 
   it('rotates a box about its centre', () => {
-    const dxf = buildDxf(input({ boxes: [{ x: 100, y: 100, w: 200, h: 100, rotation: 90, layer: 'EQUIPO' }] }));
+    const dxf = buildDxf(
+      input({
+        boxes: [
+          { x: 100, y: 100, w: 200, h: 100, rotation: 90, layer: 'EQUIPO' },
+        ],
+      }),
+    );
     // a 90° rotation must move the corners off the axis-aligned positions
     expect(dxf).not.toContain('20\n400'); // would be the un-rotated top edge
     expect(countLine(dxf)).toBe(8);
@@ -73,7 +96,11 @@ describe('buildDxf (Fase 53)', () => {
   it('maps units and strips control chars from text', () => {
     expect(buildDxf(input({ unit: 'cm' }))).toContain('$INSUNITS\n70\n5');
     expect(buildDxf(input({ unit: 'parsec' }))).toContain('$INSUNITS\n70\n0');
-    const dxf = buildDxf(input({ texts: [{ x: 10, y: 10, text: 'línea1\nlínea2', layer: 'TEXTO' }] }));
+    const dxf = buildDxf(
+      input({
+        texts: [{ x: 10, y: 10, text: 'línea1\nlínea2', layer: 'TEXTO' }],
+      }),
+    );
     expect(dxf).toContain('1\nlínea1 línea2');
   });
 
@@ -85,7 +112,9 @@ describe('buildDxf (Fase 53)', () => {
 
   // ── Fase 68: alta fidelidad (circles, arcs, custom layers) ──
   it('emits a CIRCLE entity Y-flipped on its layer', () => {
-    const dxf = buildDxf(input({ circles: [{ cx: 100, cy: 100, r: 40, layer: 'EQUIPO' }] }));
+    const dxf = buildDxf(
+      input({ circles: [{ cx: 100, cy: 100, r: 40, layer: 'EQUIPO' }] }),
+    );
     expect(countCircle(dxf)).toBe(1);
     expect(dxf).toContain('8\nEQUIPO');
     expect(dxf).toContain('40\n40'); // radius
@@ -94,7 +123,13 @@ describe('buildDxf (Fase 53)', () => {
 
   it('emits an ARC with start/end mirrored by the Y flip', () => {
     // a 0°→90° arc, mirrored about the horizontal axis, becomes 270°→360°
-    const dxf = buildDxf(input({ arcs: [{ cx: 0, cy: 0, r: 10, startAngle: 0, endAngle: 90, layer: 'MUROS' }] }));
+    const dxf = buildDxf(
+      input({
+        arcs: [
+          { cx: 0, cy: 0, r: 10, startAngle: 0, endAngle: 90, layer: 'MUROS' },
+        ],
+      }),
+    );
     expect(countArc(dxf)).toBe(1);
     expect(dxf).toContain('50\n270'); // start' = -end = -90 → 270
     expect(dxf).toContain('51\n0'); // end' = -start = -0 → 0
@@ -102,10 +137,12 @@ describe('buildDxf (Fase 53)', () => {
   });
 
   it('registers custom CAD layers with their explicit color', () => {
-    const dxf = buildDxf(input({
-      circles: [{ cx: 10, cy: 10, r: 5, layer: 'Pasillos' }],
-      layerDefs: [{ name: 'Pasillos', color: 30 }],
-    }));
+    const dxf = buildDxf(
+      input({
+        circles: [{ cx: 10, cy: 10, r: 5, layer: 'Pasillos' }],
+        layerDefs: [{ name: 'Pasillos', color: 30 }],
+      }),
+    );
     expect(dxf).toContain('2\nPasillos');
     expect(dxf).toContain('62\n30'); // the custom color index wins
   });
