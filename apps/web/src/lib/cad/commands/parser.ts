@@ -208,6 +208,29 @@ export function parseCadCommand(text: string): CadParseResult {
       input: { id: "array_along_flow", count },
     };
   }
+  // Medición de regiones y zona envolvente (ADR §221) — ANTES de mide/medir
+  // (distancia entre dos) y de pasillo/clearance ("zona" no debe caer ahí).
+  if (/(área|area|superficie)/.test(q)) {
+    const targetLabel = raw
+      .match(/(?:área|area|superficie)\s+(?:de\s+)?(?:la\s+|el\s+)?(?:zona\s+)?(.+)$/i)?.[1]
+      ?.trim();
+    const generic = !targetLabel || /^(selecci[oó]n|grupo|zona seleccionada|esto)$/i.test(targetLabel);
+    return {
+      ok: true,
+      confidence: 0.84,
+      input: { id: "measure_area", targetLabel: generic ? undefined : targetLabel },
+    };
+  }
+  if (/(zona|envolvente|envuelve).*(alrededor|envolvente)|alrededor de la selecci[oó]n|envuelve/.test(q)) {
+    const margin = unitValueToMm(
+      q.match(/(?:margen|holgura)\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*(mm|m)?/i),
+    );
+    return {
+      ok: true,
+      confidence: 0.83,
+      input: { id: "create_zone_around", margin },
+    };
+  }
   if (/(offset|desfasa|desfase|paralela)/.test(q)) {
     const distance =
       unitValueToMm(

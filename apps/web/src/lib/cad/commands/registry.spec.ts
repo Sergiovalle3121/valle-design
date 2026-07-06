@@ -60,8 +60,8 @@ assert.equal(
 );
 assert.equal(
   CAD_COMMAND_REGISTRY.length,
-  20,
-  "registry exposes 20 commands",
+  22,
+  "registry exposes 22 commands",
 );
 
 const parsed = parseCadCommand("haz un pasillo de 1.2m entre SMT e inspección");
@@ -590,5 +590,74 @@ assert.equal(
   "create_clearance_aisle",
   "redo returns undone command",
 );
+
+// — Medición de regiones y zona envolvente (ADR §221) —
+assert.equal(
+  parseCadCommand("mide el área de la selección").input?.id,
+  "measure_area",
+  "parser recognizes area intent",
+);
+const areaOfTarget = parseCadCommand("mide el área de la zona Rack A1");
+assert.equal(
+  areaOfTarget.input?.id === "measure_area" ? areaOfTarget.input.targetLabel : undefined,
+  "Rack A1",
+  "parser captures the area target label",
+);
+const singleArea = previewCadCommand(
+  { id: "measure_area", objectIds: ["rack-1"] },
+  rackCtx,
+);
+const singleAreaReport = singleArea.operations.find((op) => op.type === "report");
+assert.equal(singleAreaReport?.type, "report", "single-object area emits a report");
+if (singleAreaReport?.type === "report") {
+  assert.equal(
+    singleAreaReport.rows.some((r) => r.label === "Área" && r.value.includes("1.08")),
+    true,
+    "1200×900 mm rack reports 1.08 m²",
+  );
+}
+const hullArea = previewCadCommand(
+  { id: "measure_area", objectIds: ["rack-1", "rack-2", "rack-3", "rack-4"] },
+  rackCtx,
+);
+const hullReport = hullArea.operations.find((op) => op.type === "report");
+if (hullReport?.type === "report") {
+  assert.equal(
+    hullReport.rows.some((r) => r.label.includes("casco convexo")),
+    true,
+    "multi-object area reports convex hull",
+  );
+}
+
+assert.equal(
+  parseCadCommand("crea una zona alrededor de la selección con margen de 800").input?.id,
+  "create_zone_around",
+  "parser recognizes zone-around intent",
+);
+const zonePreview = previewCadCommand(
+  { id: "create_zone_around", margin: 300, objectIds: ["rack-1", "rack-2"] },
+  rackCtx,
+);
+const zoneOp = zonePreview.operations.find((op) => op.type === "create");
+assert.equal(zoneOp?.type, "create", "zone-around proposes a create op");
+if (zoneOp?.type === "create") {
+  assert.equal(zoneOp.object.kind, "zone", "zone-around creates a fresh zone kind");
+  // racks 1-2: x 5000..6200, y 100..2100 → +300 de margen; arriba el margen
+  // se recorta al borde del plano (100−300 → 0).
+  assert.equal(zoneOp.object.x, 4700, "zone grows left by margin");
+  assert.equal(zoneOp.object.w, 1800, "zone width covers group + margins");
+  assert.equal(zoneOp.object.y, 0, "zone clamps to the footprint edge");
+  assert.equal(zoneOp.object.h, 2400, "zone height covers group + clipped margin");
+}
+assert.equal(
+  zonePreview.issues.some((i) => i.code === "zone_clipped"),
+  true,
+  "zone-around reports the clipped margin",
+);
+const emptyZone = executeCadCommand(
+  { id: "create_zone_around", objectIds: [] },
+  { ...rackCtx, selectedIds: [] },
+);
+assert.equal(emptyZone.applied, false, "zone-around requires a selection");
 
 console.log("cad command registry specs passed");

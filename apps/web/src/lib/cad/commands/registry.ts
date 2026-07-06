@@ -28,6 +28,10 @@ import {
   offsetObjectPreview,
 } from "./create-patterns";
 import {
+  createZoneAroundPreview,
+  measureAreaPreview,
+} from "./measure-region";
+import {
   chamferWallsPreview,
   extendWallPreview,
   trimWallPreview,
@@ -1574,6 +1578,65 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     execute: (i, c) => {
       const p = chamferWallsPreview(
         i as Extract<CadCommandInput, { id: "chamfer_walls" }>,
+        c,
+      );
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
+    id: "measure_area",
+    label: "Área y perímetro",
+    category: "analysis",
+    description:
+      "Área, perímetro y centroide de un objeto o del casco convexo de la selección.",
+    inputSchema: {
+      targetLabel: { type: "string", description: "Objeto a medir (opcional)." },
+      objectIds: { type: "string[]", description: "Objetos de la región." },
+    },
+    examples: ["área de la selección"],
+    validate: (i, c) =>
+      measureAreaPreview(
+        i as Extract<CadCommandInput, { id: "measure_area" }>,
+        c,
+      ).issues,
+    preview: (i, c) =>
+      measureAreaPreview(
+        i as Extract<CadCommandInput, { id: "measure_area" }>,
+        c,
+      ),
+    execute: (i, c) => {
+      const p = measureAreaPreview(
+        i as Extract<CadCommandInput, { id: "measure_area" }>,
+        c,
+      );
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
+    id: "create_zone_around",
+    label: "Zona envolvente",
+    category: "layout",
+    description:
+      "Crea una zona editable alrededor de la selección con un margen dado (celdas, keep-out, supermercados).",
+    inputSchema: {
+      margin: { type: "number", description: "Margen alrededor del grupo (default 500)." },
+      label: { type: "string", description: "Nombre de la zona." },
+      objectIds: { type: "string[]", description: "Objetos a envolver." },
+    },
+    examples: ["crea una zona alrededor de la selección con margen de 800"],
+    validate: (i, c) =>
+      createZoneAroundPreview(
+        i as Extract<CadCommandInput, { id: "create_zone_around" }>,
+        c,
+      ).issues,
+    preview: (i, c) =>
+      createZoneAroundPreview(
+        i as Extract<CadCommandInput, { id: "create_zone_around" }>,
+        c,
+      ),
+    execute: (i, c) => {
+      const p = createZoneAroundPreview(
+        i as Extract<CadCommandInput, { id: "create_zone_around" }>,
         c,
       );
       return result(p, ok(p.issues), p.summary);

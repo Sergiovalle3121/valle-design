@@ -32,6 +32,8 @@ import { describeCadIntent, normalizeToolCalls, type CadIntent } from './cad-int
 import { parseCoordinate, constrainPoint } from './precision-input';
 import { snap as resolveOsnap, rectGeometry, type SnapScene, type SnapType } from './snap-engine';
 import { normalizeVision, type VisionResult } from './cad-vision';
+import { detectCadFormat } from './cad-format-detect';
+import { NICE_SCALES, scaleBar, worldToPaper, type PlotLayout } from './plot-scale';
 import {
   createHistoryItem as createCadHistoryItem,
   executeCadCommand,
@@ -3273,6 +3275,11 @@ export default function Layout3DEditor({
     try {
       const text = await file.text();
       if (text.length > 12_000_000) { toast.error('El DXF supera 12 MB.', '3D'); return; }
+      // Detección de formato (Fase 74 cableada, ADR §222): un DWG binario jamás
+      // pasará el parser de texto — mejor un mensaje accionable que "sin líneas".
+      const fmt = detectCadFormat(text);
+      if (fmt.format === 'dwg') { toast.error(fmt.message, 'DXF'); return; }
+      if (fmt.format === 'unknown') toast.error(`${fmt.message} Intentaré leerlo de todos modos.`, 'DXF');
       const importPreview = importDxfPrimitives(text);
       setDxfImportPreview(importPreview);
       setDxfWarnings(importPreview.warnings);
@@ -3815,15 +3822,17 @@ export default function Layout3DEditor({
       if (!connectorsRef.current.some((c) => c.from === op.from && c.to === op.to && (c.kind ?? 'flow') === op.kind)) connectorsRef.current = [...connectorsRef.current, { from: op.from, to: op.to, kind: op.kind }];
       return true;
     } else if (op.type === 'create') {
-      // v1: solo duplicación de assets — el sourceId aporta kind/etiqueta/capa.
-      if (op.object.type !== 'asset' || !op.object.sourceId) return false;
-      const src = assetsRef.current.get(op.object.sourceId);
-      if (!src) return false;
+      // Con sourceId copia kind/etiqueta/capa del origen (duplicación); sin él,
+      // op.object.kind crea un asset fresco (zonas envolventes, muros nuevos).
+      if (op.object.type !== 'asset') return false;
+      const src = op.object.sourceId ? assetsRef.current.get(op.object.sourceId) : undefined;
+      const kind = src?.kind ?? op.object.kind;
+      if (!kind) return false;
       const id = newId('as');
-      assetsRef.current.set(id, { id, kind: src.kind, label: op.object.label || src.label, x: op.object.x, y: op.object.y, w: op.object.w, h: op.object.h, rotation: op.object.rotation ?? src.rotation });
+      assetsRef.current.set(id, { id, kind, label: op.object.label || src?.label, x: op.object.x, y: op.object.y, w: op.object.w, h: op.object.h, rotation: op.object.rotation ?? src?.rotation ?? 0 });
       setAssetIds(new Set(assetsRef.current.keys()));
-      const srcLayer = layerAssignmentsRef.current[op.object.sourceId];
-      if (srcLayer) setLayerAssignments((cur) => assignObjectsToLayer(cur, [id], srcLayer));
+      const srcLayer = op.object.sourceId ? layerAssignmentsRef.current[op.object.sourceId] : undefined;
+      setLayerAssignments((cur) => assignObjectsToLayer(cur, [id], srcLayer ?? defaultCadLayerForAssetKind(kind)));
       return true;
     } else if (op.type === 'focus') {
       const items: SelItem[] = op.objectIds.map((id) => placementsRef.current.has(id) ? { type: 'station' as const, id } : assetsRef.current.has(id) ? { type: 'asset' as const, id } : null).filter((it): it is SelItem => !!it);
@@ -4226,32 +4235,112 @@ export default function Layout3DEditor({
       const { jsPDF } = await import('jspdf');
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
       const pageW = 297, pageH = 210, margin = 10;
-      // header band
-      doc.setFillColor(17, 24, 39); doc.rect(0, 0, pageW, 16, 'F');
-      doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
-      doc.text(`AXOS OS · ${sheet.title}`, margin, 11);
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
-      doc.text(sheet.subtitle, pageW - margin, 11, { align: 'right' });
-      // title block (right column)
+      const drawHeader = () => {
+        doc.setFillColor(17, 24, 39); doc.rect(0, 0, pageW, 16, 'F');
+        doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
+        doc.text(`AXOS OS · ${sheet.title}`, margin, 11);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+        doc.text(sheet.subtitle, pageW - margin, 11, { align: 'right' });
+      };
+      drawHeader();
+      // ── Página 1: PLANO VECTORIAL A ESCALA REAL (Fase 70 cableada, ADR §222) ──
+      const unitStr = fp.unit === 'm' ? 'm' : 'mm';
       const tbW = 70, tbX = pageW - margin - tbW, tbY = 22, rowH = 9;
-      const tbH = sheet.fields.length * rowH + 6;
+      const imgX = margin, imgY = 22, imgW = tbX - margin - 6, imgH = pageH - imgY - margin - 9; // 9 mm para el escalímetro
+      // Escala "bonita" más detallada con la que la huella cabe en el área útil.
+      const wMm = unitStr === 'm' ? fp.footprintW * 1000 : fp.footprintW;
+      const hMm = unitStr === 'm' ? fp.footprintH * 1000 : fp.footprintH;
+      let plotScale = NICE_SCALES[NICE_SCALES.length - 1];
+      for (const s of NICE_SCALES) { if (wMm / s <= imgW && hMm / s <= imgH) { plotScale = s; break; } }
+      const layout: PlotLayout = {
+        scale: plotScale,
+        drawingWmm: wMm / plotScale,
+        drawingHmm: hMm / plotScale,
+        offsetXmm: imgX + Math.max(0, (imgW - wMm / plotScale) / 2),
+        offsetYmm: imgY + Math.max(0, (imgH - hMm / plotScale) / 2),
+        paper: { w: pageW, h: pageH },
+      };
+      // worldToPaper asume origen abajo-izquierda; el editor usa Y hacia abajo —
+      // se compensa con footprintH − y para que el papel coincida con la pantalla.
+      const toPaper = (x: number, y: number) => worldToPaper({ x, y: fp.footprintH - y }, { footprintH: fp.footprintH, unit: unitStr }, layout);
+      const drawPoly = (box: { x: number; y: number; w: number; h: number; rotation?: number }, style: 'S' | 'F' | 'FD') => {
+        const pts = rectGeometry(box).corners.map((c) => toPaper(c.x, c.y));
+        const deltas = pts.slice(1).map((p, i) => [p.x - pts[i].x, p.y - pts[i].y]);
+        doc.lines(deltas, pts[0].x, pts[0].y, [1, 1], style, true);
+      };
+      // borde de la huella
+      doc.setDrawColor(60); doc.setLineWidth(0.4);
+      doc.rect(layout.offsetXmm, layout.offsetYmm, layout.drawingWmm, layout.drawingHmm);
+      doc.setLineWidth(0.2);
+      const assetList = [...assetsRef.current.values()];
+      // zonas y pasillos al fondo
+      doc.setDrawColor(160); doc.setFillColor(235, 242, 250);
+      assetList.filter((a) => a.kind === 'zone').forEach((a) => drawPoly(a, 'FD'));
+      doc.setFillColor(252, 243, 219);
+      assetList.filter((a) => a.kind === 'agvpath' || a.kind === 'path').forEach((a) => drawPoly(a, 'FD'));
+      // equipo
+      doc.setDrawColor(90); doc.setFillColor(246, 248, 250);
+      assetList.filter((a) => a.kind !== 'zone' && a.kind !== 'agvpath' && a.kind !== 'path' && a.kind !== 'wall').forEach((a) => drawPoly(a, 'FD'));
+      // muros — trazo grueso
+      doc.setDrawColor(20); doc.setFillColor(40, 44, 52); doc.setLineWidth(0.3);
+      assetList.filter((a) => a.kind === 'wall').forEach((a) => drawPoly(a, 'FD'));
+      doc.setLineWidth(0.2);
+      // conectores de flujo
+      doc.setDrawColor(37, 99, 235);
+      connectorsRef.current.forEach((c) => {
+        const a = placementsRef.current.get(c.from); const b = placementsRef.current.get(c.to);
+        if (!a || !b) return;
+        const pa = toPaper(a.x + a.w / 2, a.y + a.h / 2); const pb = toPaper(b.x + b.w / 2, b.y + b.h / 2);
+        doc.line(pa.x, pa.y, pb.x, pb.y);
+      });
+      // estaciones + etiqueta cuando el tamaño en papel lo permite
+      doc.setDrawColor(30, 64, 175); doc.setFillColor(219, 234, 254);
+      placementsRef.current.forEach((p, id) => {
+        drawPoly(p, 'FD');
+        const paperW = (unitStr === 'm' ? p.w * 1000 : p.w) / plotScale;
+        if (paperW >= 10) {
+          const ccenter = toPaper(p.x + p.w / 2, p.y + p.h / 2);
+          doc.setFontSize(6); doc.setTextColor(15, 23, 42); doc.setFont('helvetica', 'normal');
+          doc.text((stationsByIdRef.current.get(id)?.station ?? id).slice(0, 14), ccenter.x, ccenter.y, { align: 'center' });
+        }
+      });
+      // escalímetro con divisiones alternadas + leyenda de escala
+      const bar = scaleBar(layout, unitStr);
+      const barY = pageH - margin - 5; let barX = imgX;
+      doc.setDrawColor(20);
+      for (let i = 0; i < bar.divisions; i++) {
+        if (i % 2 === 0) { doc.setFillColor(20, 24, 32); doc.rect(barX, barY, bar.intervalMm, 2, 'FD'); }
+        else { doc.setFillColor(255, 255, 255); doc.rect(barX, barY, bar.intervalMm, 2, 'FD'); }
+        barX += bar.intervalMm;
+      }
+      doc.setFontSize(6.5); doc.setTextColor(60, 66, 76);
+      for (let i = 0; i <= bar.divisions; i++) {
+        doc.text(`${Math.round(bar.intervalReal * i).toLocaleString('es-MX')}`, imgX + bar.intervalMm * i, barY - 1, { align: 'center' });
+      }
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(20, 24, 32);
+      doc.text(`Escala 1:${plotScale} · ${unitStr}`, barX + 5, barY + 2);
+      // cajetín (columna derecha) con la escala real incluida
+      const fields = [...sheet.fields, { label: 'Escala', value: `1:${plotScale}` }];
+      const tbH = fields.length * rowH + 6;
       doc.setDrawColor(150); doc.setFillColor(246, 248, 250); doc.rect(tbX, tbY, tbW, tbH, 'FD');
       doc.setFontSize(8.5);
       let y = tbY + 7;
-      for (const f of sheet.fields) {
+      for (const f of fields) {
         doc.setFont('helvetica', 'normal'); doc.setTextColor(110, 116, 128); doc.text(f.label, tbX + 3, y);
         doc.setFont('helvetica', 'bold'); doc.setTextColor(20, 24, 32); doc.text(f.value, tbX + tbW - 3, y, { align: 'right' });
         y += rowH;
       }
-      // drawing area (left) — fit the captured view preserving aspect
-      const imgX = margin, imgY = 22, imgW = tbX - margin - 6, imgH = pageH - imgY - margin;
+      // ── Página 2: vista 3D capturada (contexto visual) ──
+      doc.addPage('a4', 'landscape');
+      drawHeader();
+      const vX = margin, vY = 22, vW = pageW - margin * 2, vH = pageH - vY - margin;
       const props = doc.getImageProperties(img);
       const ar = (props.width || 4) / (props.height || 3);
-      let w = imgW, h = w / ar; if (h > imgH) { h = imgH; w = h * ar; }
-      doc.setDrawColor(205); doc.rect(imgX, imgY, imgW, imgH);
-      doc.addImage(img, 'PNG', imgX + (imgW - w) / 2, imgY + (imgH - h) / 2, w, h);
+      let w = vW, h = w / ar; if (h > vH) { h = vH; w = h * ar; }
+      doc.setDrawColor(205); doc.rect(vX, vY, vW, vH);
+      doc.addImage(img, 'PNG', vX + (vW - w) / 2, vY + (vH - h) / 2, w, h);
       doc.save(`layout-${model}-${revision}.pdf`.replace(/[^\w.\-]+/g, '_'));
-      toast.success('Plano PDF generado.', '3D');
+      toast.success(`Plano a escala 1:${plotScale} generado (PDF, 2 páginas).`, '3D');
     } catch (e) { console.error(e); toast.error('No se pudo generar el PDF.', '3D'); }
   };
   // Export the 3D model as binary glTF (.glb) — opens in Blender, other CAD, etc.
@@ -4826,7 +4915,7 @@ export default function Layout3DEditor({
         <T3Btn onClick={exportPdf} title="Imprimir plano a PDF — vista + cajetín (modelo, revisión, huella, fecha)"><Printer className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={exportPng} title="Exportar imagen (PNG)"><Download className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={exportGltf} title="Exportar modelo 3D (.glb) — Blender, otros CAD"><Package className="w-4 h-4" /></T3Btn>
-        <input ref={dxfInputRef} type="file" accept=".dxf" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onDxfFile(f); e.target.value = ''; }} />
+        <input ref={dxfInputRef} type="file" accept=".dxf,.dwg" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onDxfFile(f); e.target.value = ''; }} />
         <T3Btn onClick={() => dxfInputRef.current?.click()} disabled={dxfBusy} title="Cargar plano DXF de fondo (calcar el plano del cliente)"><Upload className="w-4 h-4" /></T3Btn>
         <input ref={visionInputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void onVisionFile(f); e.target.value = ''; }} />
         <T3Btn onClick={() => visionInputRef.current?.click()} disabled={visionBusy} title="Vectorizar plano con IA: sube una foto/imagen del plano y la visión (CIDE) propone muros y zonas editables">{visionBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ScanEye className="w-4 h-4" />}</T3Btn>

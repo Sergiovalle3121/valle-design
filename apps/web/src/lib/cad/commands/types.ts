@@ -21,7 +21,9 @@ export type CadCommandId =
   | "offset_object"
   | "extend_wall"
   | "trim_wall"
-  | "chamfer_walls";
+  | "chamfer_walls"
+  | "measure_area"
+  | "create_zone_around";
 
 export type CadCommandCategory = "layout" | "flow" | "analysis" | "viewport";
 export type CadIssueLevel = "info" | "warning" | "error";
@@ -71,11 +73,13 @@ export interface CadValidationIssue {
   objectIds?: string[];
 }
 
-/** Objeto nuevo propuesto por un comando. v1: duplicación — `sourceId` señala el
- * asset del que el editor copia kind/etiqueta/capa; sin un sourceId resoluble el
- * editor ignora la operación (las estaciones son del routing y no se duplican). */
+/** Objeto nuevo propuesto por un comando. Con `sourceId` resoluble el editor
+ * copia kind/etiqueta/capa del asset origen (duplicación); sin sourceId, `kind`
+ * permite crear un asset fresco (zona/muro) — sin ninguno de los dos la
+ * operación se ignora (las estaciones son del routing y no se crean). */
 export interface CadDraftObject {
   sourceId?: string;
+  kind?: string;
   type: CadObjectType;
   label: string;
   x: number;
@@ -205,6 +209,13 @@ export type CadCommandInput =
       wallB?: string;
       distance: number;
       objectIds?: string[];
+    }
+  | { id: "measure_area"; objectIds?: string[]; targetLabel?: string }
+  | {
+      id: "create_zone_around";
+      objectIds?: string[];
+      margin?: number;
+      label?: string;
     };
 
 export interface CadCommandSchemaField {
