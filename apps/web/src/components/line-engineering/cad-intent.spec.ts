@@ -1,5 +1,5 @@
 /** Tests de cad-intent (Fase 69). npx tsx src/components/line-engineering/cad-intent.spec.ts */
-import { CAD_TOOLS, normalizeToolCall, normalizeToolCalls } from './cad-intent';
+import { CAD_TOOLS, describeCadIntent, normalizeToolCall, normalizeToolCalls } from './cad-intent';
 
 let passed = 0; const fails: string[] = [];
 const ok = (cond: boolean, m: string) => { if (cond) passed++; else fails.push(m); };
@@ -59,6 +59,14 @@ ok(CAD_TOOLS.some((t) => t.function.name === 'placeAsset'), 'incluye placeAsset'
     { name: 'placeAsset', arguments: { kind: 'dragón', x: 5, y: 5 } },
   ]);
   ok(intents.length === 2 && errors.length === 1, 'batch separa válidos de inválidos'); }
+
+// ── describeCadIntent (etiquetas de la propuesta IA, ADR §215) ──
+{ const r = normalizeToolCall('moveStation', { station: 'EST-10', x: 1500, y: 2000 });
+  ok(r.ok && describeCadIntent(r.intent).includes('EST-10'), 'describe moveStation con nombre'); }
+{ const r = normalizeToolCall('placeAsset', { kind: 'aoi', x: 5, y: 5, label: 'AOI 2' });
+  ok(r.ok && describeCadIntent(r.intent).includes('AOI 2'), 'describe placeAsset con etiqueta'); }
+{ const r = normalizeToolCall('connectLine', { kind: 'conveyor' });
+  ok(r.ok && describeCadIntent(r.intent).includes('conveyor'), 'describe connectLine con tipo de flujo'); }
 
 if (fails.length) { console.log(`❌ ${passed}/${passed + fails.length}`); for (const f of fails) console.log('  - ' + f); process.exit(1); }
 console.log(`✅ ${passed}/${passed} cad-intent`);

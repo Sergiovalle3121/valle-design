@@ -210,6 +210,24 @@ export function normalizeToolCall(name: string, rawArgs: unknown): NormalizeResu
   }
 }
 
+/** Etiqueta humana de un intent — para listar la propuesta IA antes de aplicar. */
+export function describeCadIntent(intent: CadIntent): string {
+  switch (intent.kind) {
+    case 'setFootprint':
+      return `Huella → ${intent.footprintW} × ${intent.footprintH}${intent.gridSize ? ` (grilla ${intent.gridSize})` : ''}`;
+    case 'placeAsset':
+      return `Colocar ${intent.asset.label ?? intent.asset.kind} en (${Math.round(intent.asset.x)}, ${Math.round(intent.asset.y)})`;
+    case 'draw':
+      return 'Trazar muro/segmento';
+    case 'arrangeLine':
+      return 'Acomodar estaciones en línea por secuencia';
+    case 'connectLine':
+      return `Conectar estaciones con flujo (${intent.flow})`;
+    case 'moveStation':
+      return `Mover ${intent.station} a (${Math.round(intent.x)}, ${Math.round(intent.y)})`;
+  }
+}
+
 /** Normaliza una tanda de tool-calls, descartando (con motivo) las inválidas. */
 export function normalizeToolCalls(calls: { name: string; arguments: unknown }[]): {
   intents: CadIntent[];

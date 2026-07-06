@@ -28,6 +28,7 @@ import { connectLine, type ConnStation } from './connect-line';
 import { designChecks, type CheckBox, type DesignReport } from './design-checks';
 import { flowMetrics, type FlowCenter } from './flow-metrics';
 import { plotSheetModel } from './plot-sheet';
+import { describeCadIntent, normalizeToolCalls, type CadIntent } from './cad-intent';
 import {
   createHistoryItem as createCadHistoryItem,
   executeCadCommand,
@@ -793,6 +794,9 @@ export default function Layout3DEditor({
   const [commandText, setCommandText] = useState('');
   const [commandPreview, setCommandPreview] = useState<CommandPreviewState | null>(null);
   const [commandLog, setCommandLog] = useState<CadCommandHistoryItem[]>([]);
+  // Copiloto IA (ADR §215): propuesta NL→CAD / optimización — humano aprueba.
+  const [aiBusy, setAiBusy] = useState<null | 'intent' | 'optimize'>(null);
+  const [aiProposal, setAiProposal] = useState<{ source: 'intent' | 'optimize'; intents: CadIntent[]; errors: string[]; message?: string } | null>(null);
   const [selList, setSelList] = useState<SelItem[]>([]);
   const [selSnap, setSelSnap] = useState<SelSnap | null>(null);
   const [selSummary, setSelSummary] = useState<CadSelectionProperties | null>(null);
@@ -3627,6 +3631,89 @@ export default function Layout3DEditor({
     setCommandLog((items) => items.map((c) => c.id === item.id ? { ...c, status: 'applied' } : c));
     toast.success(`Rehecho: ${item.label}`, 'Comando CAD');
   };
+  // ── Copiloto IA (ADR §215): NL→CAD y optimización vía backend CIDE. El modelo
+  // solo PROPONE tool-calls; normalizeToolCalls valida y el humano aplica. ──
+  const requestAiProposal = async (source: 'intent' | 'optimize') => {
+    const prompt = commandText.trim();
+    if (source === 'intent' && !prompt) { toast.error('Escribe la instrucción para la IA.', 'Copiloto IA'); return; }
+    setAiBusy(source); setAiProposal(null);
+    try {
+      const r = source === 'intent'
+        ? await apiFetch(`${API_BASE}/line-engineering/layout/cad-intent`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model, revision, prompt }) })
+        : await apiFetch(`${API_BASE}/line-engineering/layout/optimize-copilot?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const body = await r.json() as { available: boolean; toolCalls: { name: string; arguments: unknown }[]; message?: string };
+      if (!body.available) { setAiProposal({ source, intents: [], errors: [], message: body.message || 'El motor de IA (CIDE) no está disponible.' }); return; }
+      const { intents, errors } = normalizeToolCalls(body.toolCalls ?? []);
+      if (!intents.length && !errors.length) { setAiProposal({ source, intents: [], errors: [], message: body.message || 'La IA no propuso acciones para esta instrucción.' }); return; }
+      setAiProposal({ source, intents, errors, message: body.message });
+    } catch {
+      setAiProposal({ source, intents: [], errors: [], message: 'No se pudo contactar el copiloto IA.' });
+    } finally { setAiBusy(null); }
+  };
+  const applyAiIntent = (intent: CadIntent): boolean => {
+    const ctx = ctxRef.current; if (!ctx) return false;
+    switch (intent.kind) {
+      case 'setFootprint': {
+        const unit = (data?.footprint.unit || 'mm') as WorldUnit;
+        setData((d) => d ? { ...d, footprint: { ...d.footprint, footprintW: clampFootprintUnit(Math.round(intent.footprintW), unit), footprintH: clampFootprintUnit(Math.round(intent.footprintH), unit), ...(intent.gridSize ? { gridSize: clampGridUnit(Math.round(intent.gridSize), unit) } : {}) } } : d);
+        return true;
+      }
+      case 'placeAsset': {
+        const a = intent.asset;
+        const id = newId('as');
+        assetsRef.current.set(id, { id, kind: a.kind, x: Math.max(0, Math.min(ctx.W - a.w, snapWorld(a.x))), y: Math.max(0, Math.min(ctx.H - a.h, snapWorld(a.y))), w: a.w, h: a.h, rotation: a.rotation, ...(a.label ? { label: a.label } : {}) });
+        setAssetIds((s) => new Set(s).add(id));
+        setLayerAssignments((cur) => assignObjectsToLayer(cur, [id], defaultCadLayerForAssetKind(a.kind)));
+        return true;
+      }
+      case 'draw': {
+        const seg = intent.action;
+        if (seg.type !== 'addSegment') return false;
+        const len = Math.hypot(seg.b.x - seg.a.x, seg.b.y - seg.a.y);
+        if (len < 1) return false;
+        const thick = assetMeta('wall').h;
+        const cx = (seg.a.x + seg.b.x) / 2, cy = (seg.a.y + seg.b.y) / 2;
+        const angle = (Math.atan2(seg.b.y - seg.a.y, seg.b.x - seg.a.x) * 180) / Math.PI;
+        const id = newId('as');
+        assetsRef.current.set(id, { id, kind: 'wall', x: cx - len / 2, y: cy - thick / 2, w: len, h: thick, rotation: angle });
+        setAssetIds((s) => new Set(s).add(id));
+        setLayerAssignments((cur) => assignObjectsToLayer(cur, [id], 'architecture'));
+        return true;
+      }
+      case 'arrangeLine':
+      case 'connectLine': {
+        // Sin selección explícita: el registry cae a TODAS las estaciones por secuencia.
+        const input: CadCommandInput = intent.kind === 'arrangeLine' ? { id: 'arrange_line' } : { id: 'connect_flow' };
+        const result = executeCadCommand(input, { ...buildCommandContext(), selectedIds: [] });
+        if (!result.applied) return false;
+        return result.operations.map(applyCommandOperation).some(Boolean);
+      }
+      case 'moveStation': {
+        const wanted = intent.station.trim().toLocaleLowerCase('es-MX');
+        let sid: string | null = null;
+        stationsByIdRef.current.forEach((st, id) => { if (!sid && (st.station ?? '').toLocaleLowerCase('es-MX') === wanted) sid = id; });
+        if (!sid) stationsByIdRef.current.forEach((st, id) => { if (!sid && (st.station ?? '').toLocaleLowerCase('es-MX').includes(wanted)) sid = id; });
+        const p = sid ? placementsRef.current.get(sid) : undefined;
+        if (!sid || !p) return false;
+        if (isItemLayerLocked({ type: 'station', id: sid })) return false;
+        p.x = Math.max(0, Math.min(ctx.W - p.w, snapWorld(intent.x)));
+        p.y = Math.max(0, Math.min(ctx.H - p.h, snapWorld(intent.y)));
+        return true;
+      }
+    }
+  };
+  const applyAiProposal = () => {
+    if (!aiProposal || !aiProposal.intents.length) return;
+    recordLocalSnapshot(`Auto · Copiloto IA (${aiProposal.source === 'intent' ? 'instrucción' : 'optimización'})`, 'command');
+    pushHistory();
+    const applied = aiProposal.intents.map(applyAiIntent).filter(Boolean).length;
+    if (applied) { setDirty(true); refreshSnap(); rebuildAll(); }
+    if (applied) toast.success(`Copiloto IA: ${applied}/${aiProposal.intents.length} acción(es) aplicadas.`, 'Copiloto IA');
+    else toast.error('Ninguna acción de la IA se pudo aplicar (revisa capas bloqueadas o nombres).', 'Copiloto IA');
+    if (aiProposal.source === 'intent' && applied) setCommandText('');
+    setAiProposal(null);
+  };
   const toggleCadLayerVisibility = (id: CadLayerId) => {
     setCadLayers((cur) => toggleCadLayerVisible(cur, id));
   };
@@ -4547,10 +4634,10 @@ export default function Layout3DEditor({
             {showCommand && (
               <div className="border-b border-cyan-400/20 bg-cyan-400/[0.06] p-3">
                 <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-cyan-200">
-                  <WandSparkles className="w-3.5 h-3.5" /> Copiloto CAD local
+                  <WandSparkles className="w-3.5 h-3.5" /> Copiloto CAD
                 </div>
                 <p className="mt-1 text-[11px] leading-snug text-gray-500 dark:text-gray-400">
-                  Interpreta comandos determinísticos hoy; mañana un modelo OpenAI-compatible puede llamar estas mismas acciones.
+                  Comandos determinísticos locales (Preview) o interpretación con IA (CIDE) — la IA solo propone; tú apruebas.
                 </p>
                 <form className="mt-2 flex gap-1.5" onSubmit={(e) => { e.preventDefault(); interpretCommand(); }}>
                   <input
@@ -4560,7 +4647,28 @@ export default function Layout3DEditor({
                     className="min-w-0 flex-1 rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white placeholder:text-gray-600 outline-none focus:border-cyan-400/60"
                   />
                   <button type="submit" className="rounded-lg bg-cyan-500 px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-cyan-400">Preview</button>
+                  <button type="button" onClick={() => void requestAiProposal('intent')} disabled={aiBusy !== null} title="Interpreta la instrucción con el motor de IA (CIDE)" className="rounded-lg bg-violet-600 px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-violet-500 disabled:opacity-50">{aiBusy === 'intent' ? '…' : 'IA'}</button>
                 </form>
+                <button type="button" onClick={() => void requestAiProposal('optimize')} disabled={aiBusy !== null} className="mt-1.5 w-full rounded-lg border border-violet-400/30 bg-violet-400/[0.08] px-2 py-1.5 text-[11px] font-semibold text-violet-200 hover:bg-violet-400/[0.14] disabled:opacity-50">
+                  {aiBusy === 'optimize' ? 'Analizando layout…' : 'Optimizar recorrido con IA'}
+                </button>
+                {aiProposal && (
+                  <div className="mt-2 rounded-xl border border-violet-400/25 bg-gray-950/70 p-2">
+                    <div className="text-[11px] font-semibold text-violet-200">Propuesta IA · {aiProposal.source === 'intent' ? 'instrucción' : 'optimización'}</div>
+                    {aiProposal.message && <div className="mt-1 text-[10.5px] text-amber-200">{aiProposal.message}</div>}
+                    {aiProposal.intents.slice(0, 6).map((intent, idx) => (
+                      <div key={`ai-${idx}`} className="mt-1 rounded-md bg-white/[0.04] px-1.5 py-1 text-[10.5px] text-gray-300">{describeCadIntent(intent)}</div>
+                    ))}
+                    {aiProposal.intents.length > 6 && <div className="mt-1 text-[10px] text-gray-500">…y {aiProposal.intents.length - 6} acción(es) más.</div>}
+                    {aiProposal.errors.slice(0, 2).map((err) => (
+                      <div key={err} className="mt-1 text-[10.5px] text-rose-300">Descartada: {err}</div>
+                    ))}
+                    <div className="mt-2 flex gap-1.5">
+                      {aiProposal.intents.length > 0 && <button onClick={applyAiProposal} className="rounded-lg bg-emerald-700 px-2 py-1 text-[11px] font-semibold text-white hover:bg-emerald-600">Aplicar {aiProposal.intents.length}</button>}
+                      <button onClick={() => setAiProposal(null)} className="rounded-lg border border-white/10 px-2 py-1 text-[11px] text-gray-300 hover:bg-white/10">Descartar</button>
+                    </div>
+                  </div>
+                )}
                 {commandPreview && (
                   <div className="mt-2 rounded-xl border border-white/10 bg-gray-950/70 p-2">
                     <div className="text-[11px] font-semibold text-white">{commandPreview.preview.summary}</div>
@@ -4572,7 +4680,7 @@ export default function Layout3DEditor({
                             <div className="font-semibold text-cyan-100">{op.title}</div>
                             {op.rows.slice(0, 3).map((row) => <div key={`${row.label}-${row.value}`} className="mt-0.5 flex justify-between gap-2 text-gray-500 dark:text-gray-400"><span className="truncate">{row.label}</span><span className="shrink-0 text-gray-200">{row.value}</span></div>)}
                           </div>
-                        ) : op.type === 'move' ? `Mover ${op.objectId} → (${Math.round(op.after.x)}, ${Math.round(op.after.y)})` : op.type === 'connect' ? `Conectar ${op.from} → ${op.to}` : op.type === 'measure' ? `Medir ${Math.round(op.distance)} ${op.unit}` : op.type === 'focus' ? `Enfocar ${op.objectIds.length || 'todo'}` : ''}
+                        ) : op.type === 'move' ? `Mover ${op.objectId} → (${Math.round(op.after.x)}, ${Math.round(op.after.y)})` : op.type === 'create' ? `Crear ${op.object.label} en (${Math.round(op.object.x)}, ${Math.round(op.object.y)})` : op.type === 'connect' ? `Conectar ${op.from} → ${op.to}` : op.type === 'measure' ? `Medir ${Math.round(op.distance)} ${op.unit}` : op.type === 'focus' ? `Enfocar ${op.objectIds.length || 'todo'}` : ''}
                       </div>
                     ))}
                     {commandPreview.preview.issues.slice(0, 2).map((issue) => (
