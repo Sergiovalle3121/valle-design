@@ -186,6 +186,10 @@ const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000').re
 // Etiquetas del glifo OSNAP (Fase 66 cableada, ADR §216) — se muestran en el HUD.
 const OSNAP_LABELS: Record<SnapType, string> = { endpoint: 'extremo', intersection: 'intersección', center: 'centro', midpoint: 'medio', perpendicular: 'perpendicular', node: 'plano', nearest: 'cercano', grid: 'grilla' };
 
+// Portapapeles CAD (ADR §220) — a nivel de módulo para que Ctrl+C/Ctrl+V
+// funcione también ENTRE layouts (copiar en AX-1000/A, pegar en AX-2000/B).
+const CAD_CLIPBOARD: { items: { kind: string; label?: string; x: number; y: number; w: number; h: number; rotation: number; layer?: string; tags?: string }[] } = { items: [] };
+
 // Approval / sign-off (ported from the 2D host, unify)
 type ApprovalStatus = 'draft' | 'in_review' | 'approved';
 interface LayoutApproval { status: ApprovalStatus; by: string | null; at: string | null; note: string | null }
@@ -1731,6 +1735,13 @@ export default function Layout3DEditor({
       new THREE.LineBasicMaterial({ color: 0xfcd34d }),
     );
     previewLine.visible = false; previewLineRef.current = previewLine; dimsGroup.add(previewLine);
+    // Marquee de selección (ADR §220): rectángulo en el piso — cian = ventana
+    // (izq→der, todo contenido), verde = cruce (der→izq, basta intersectar).
+    const marqueeLine = new THREE.LineLoop(
+      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()]),
+      new THREE.LineBasicMaterial({ color: 0x22d3ee, depthTest: false }),
+    );
+    marqueeLine.renderOrder = 998; marqueeLine.visible = false; scene.add(marqueeLine);
     // Snap-to-underlay marker — a flat ring that lights up on a DXF snap target.
     // Added to the scene (not dimsGroup) so dim rebuilds never dispose it.
     const snapMarker = new THREE.Mesh(
@@ -1797,6 +1808,14 @@ export default function Layout3DEditor({
     let downX = 0, downY = 0;
     let dragMoved = false;
     let dragSnap: Snapshot | null = null;
+    let marquee: { x0: number; y0: number; x1: number; y1: number } | null = null;
+    const drawMarquee = (m: { x0: number; y0: number; x1: number; y1: number }) => {
+      const ctx = ctxRef.current!;
+      const toWorld = (x: number, y: number) => new THREE.Vector3((x - ctx.W / 2) * ctx.s, 0.05, (y - ctx.H / 2) * ctx.s);
+      (marqueeLine.geometry as THREE.BufferGeometry).setFromPoints([toWorld(m.x0, m.y0), toWorld(m.x1, m.y0), toWorld(m.x1, m.y1), toWorld(m.x0, m.y1)]);
+      (marqueeLine.material as THREE.LineBasicMaterial).color.set(m.x1 >= m.x0 ? 0x22d3ee : 0x34d399);
+      marqueeLine.visible = true;
+    };
     const unit = data.footprint.unit || 'mm';
 
     const resolveAssetId = (o: THREE.Object3D | null): string | null => {
@@ -1939,6 +1958,15 @@ export default function Layout3DEditor({
         controls.enabled = false;
         rebuildAll();
         renderer.domElement.setPointerCapture(e.pointerId);
+      } else if (e.button === 0 && e.shiftKey) {
+        // Shift+arrastre en el fondo = marquee (ADR §220). Shift+clic simple
+        // sobre el fondo no hace nada (se resuelve en onUp por distancia).
+        const w = floorWorld(e);
+        if (w) {
+          marquee = { x0: w.wx, y0: w.wy, x1: w.wx, y1: w.wy };
+          controls.enabled = false;
+          renderer.domElement.setPointerCapture(e.pointerId);
+        }
       } else if (e.button === 0 && !e.shiftKey) {
         select([]); rebuildAll();
       }
@@ -1949,6 +1977,11 @@ export default function Layout3DEditor({
         walkYawRef.current -= (e.clientX - lookX) * 0.005;
         walkPitchRef.current = Math.max(-1.3, Math.min(1.3, walkPitchRef.current - (e.clientY - lookY) * 0.005));
         lookX = e.clientX; lookY = e.clientY;
+        return;
+      }
+      if (marquee) {
+        const w = floorWorld(e);
+        if (w) { marquee.x1 = w.wx; marquee.y1 = w.wy; drawMarquee(marquee); }
         return;
       }
       if (toolRef.current === 'measure' || toolRef.current === 'wall') {
@@ -2008,6 +2041,30 @@ export default function Layout3DEditor({
     };
     const onUp = (e: PointerEvent) => {
       if (walkRef.current) { walkLook = false; try { renderer.domElement.releasePointerCapture(e.pointerId); } catch { /* ignore */ } return; }
+      if (marquee) {
+        const m = marquee; marquee = null;
+        marqueeLine.visible = false; controls.enabled = true;
+        try { renderer.domElement.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+        const minX = Math.min(m.x0, m.x1), maxX = Math.max(m.x0, m.x1);
+        const minY = Math.min(m.y0, m.y1), maxY = Math.max(m.y0, m.y1);
+        if (maxX - minX < 5 && maxY - minY < 5) return; // fue un shift+clic, no un arrastre
+        const crossing = m.x1 < m.x0; // der→izq = cruce (semántica AutoCAD)
+        const inWindow = (box: { x: number; y: number; w: number; h: number; rotation?: number }) => {
+          const g = rectGeometry(box);
+          const contained = g.corners.every((c) => c.x >= minX && c.x <= maxX && c.y >= minY && c.y <= maxY);
+          if (contained || !crossing) return contained;
+          const xs = g.corners.map((c) => c.x); const ys = g.corners.map((c) => c.y);
+          return Math.min(...xs) <= maxX && Math.max(...xs) >= minX && Math.min(...ys) <= maxY && Math.max(...ys) >= minY;
+        };
+        const found: SelItem[] = [];
+        placementsRef.current.forEach((p, id) => { if (inWindow(p)) found.push({ type: 'station', id }); });
+        assetsRef.current.forEach((a) => { if (inWindow(a)) found.push({ type: 'asset', id: a.id }); });
+        const merged = [...selRef.current];
+        found.forEach((it) => { if (!merged.some((s) => sameSel(s, it))) merged.push(it); });
+        select(merged.slice(0, 300)); rebuildAll();
+        if (found.length) toast.success(`${found.length} objeto(s) seleccionados por ${crossing ? 'cruce' : 'ventana'}.`, 'Selección');
+        return;
+      }
       const isClick = Math.hypot(e.clientX - downX, e.clientY - downY) < 5;
       if (toolRef.current === 'measure') {
         if (isClick) {
@@ -2964,6 +3021,41 @@ export default function Layout3DEditor({
     pushHistory();
     items.forEach((it) => { const p = getPlaceRef(it); if (p) p.rotation = (((p.rotation + deg) % 360) + 360) % 360; });
     setDirty(true); refreshSnap(); rebuildAll();
+  };
+  // Portapapeles CAD (ADR §220): Ctrl+C copia los assets seleccionados (las
+  // estaciones son del routing, no viajan); Ctrl+V pega aquí o en OTRO layout.
+  const copySelection = () => {
+    const assets = selRef.current.filter((s) => s.type === 'asset');
+    const stations = selRef.current.length - assets.length;
+    if (!assets.length) { toast.error(stations ? 'Las estaciones no se copian (routing); selecciona equipos/activos.' : 'Selecciona objetos para copiar.', 'Portapapeles'); return; }
+    CAD_CLIPBOARD.items = assets.flatMap((it) => {
+      const src = assetsRef.current.get(it.id);
+      if (!src) return [];
+      return [{ kind: src.kind, label: src.label, x: src.x, y: src.y, w: src.w, h: src.h, rotation: src.rotation, layer: layerAssignmentsRef.current[it.id], tags: objectTagsRef.current[it.id] }];
+    });
+    toast.success(`${CAD_CLIPBOARD.items.length} objeto(s) copiados${stations ? ` (${stations} estación(es) omitidas)` : ''}.`, 'Portapapeles');
+  };
+  const pasteClipboard = () => {
+    const ctx = ctxRef.current;
+    if (!ctx) return;
+    if (!CAD_CLIPBOARD.items.length) { toast.error('El portapapeles CAD está vacío (Ctrl+C primero).', 'Portapapeles'); return; }
+    pushHistory();
+    const off = data?.footprint.gridSize || 200;
+    const created: SelItem[] = [];
+    const tagUpdates: Record<string, string> = {};
+    CAD_CLIPBOARD.items.forEach((clip) => {
+      const id = newId('as');
+      assetsRef.current.set(id, { id, kind: clip.kind, label: clip.label, x: Math.max(0, Math.min(ctx.W - clip.w, clip.x + off)), y: Math.max(0, Math.min(ctx.H - clip.h, clip.y + off)), w: clip.w, h: clip.h, rotation: clip.rotation });
+      const layer = (clip.layer as CadLayerId | undefined) ?? defaultCadLayerForAssetKind(clip.kind, clip.tags);
+      setLayerAssignments((cur) => assignObjectsToLayer(cur, [id], layer));
+      if (clip.tags) tagUpdates[id] = clip.tags;
+      created.push({ type: 'asset', id });
+    });
+    if (Object.keys(tagUpdates).length) setObjectTags((cur) => ({ ...cur, ...tagUpdates }));
+    setAssetIds(new Set(assetsRef.current.keys()));
+    select(created);
+    setDirty(true); rebuildAll();
+    toast.success(`${created.length} objeto(s) pegados.`, 'Portapapeles');
   };
   const duplicateSelected = () => {
     const assets = editableItems(selRef.current.filter((s) => s.type === 'asset'), 'duplicar');
@@ -4405,6 +4497,8 @@ export default function Layout3DEditor({
       else if ((e.key === 'Delete' || e.key === 'Backspace') && hasSel) { e.preventDefault(); removeSelected(); }
       else if ((e.key === 'r' || e.key === 'R') && hasSel) { e.preventDefault(); rotateSelected(e.shiftKey ? -15 : 15); }
       else if ((e.key === 'd' || e.key === 'D') && (e.ctrlKey || e.metaKey) && hasSel) { e.preventDefault(); duplicateSelected(); }
+      else if ((e.key === 'c' || e.key === 'C') && (e.ctrlKey || e.metaKey) && hasSel && !window.getSelection()?.toString()) { e.preventDefault(); copySelection(); }
+      else if ((e.key === 'v' || e.key === 'V') && (e.ctrlKey || e.metaKey)) { e.preventDefault(); pasteClipboard(); }
       else if (e.key === 'ArrowLeft' && hasSel) { e.preventDefault(); nudgeSelected(-step, 0); }
       else if (e.key === 'ArrowRight' && hasSel) { e.preventDefault(); nudgeSelected(step, 0); }
       else if (e.key === 'ArrowUp' && hasSel) { e.preventDefault(); nudgeSelected(0, -step); }
@@ -5168,7 +5262,7 @@ export default function Layout3DEditor({
                   ? 'Clic en dos puntos para medir · arrastra el fondo para orbitar · Esc cancela'
                   : tool === 'wall'
                     ? 'Clic en cada esquina para trazar muros · Shift = 45° · ORTO = ejes · teclea x,y / @dx,dy / @d<áng · Esc termina'
-                    : 'Arrastra para mover · Shift+clic multiselecciona · fondo = orbitar · rueda = zoom · R rota · Supr borra'}
+                    : 'Arrastra para mover · Shift+clic multiselecciona · Shift+arrastre = ventana · fondo = orbitar · rueda = zoom · R rota · Ctrl+C/V copia/pega · Supr borra'}
             </div>
             {visionPreview && (
               <div className="absolute top-3 right-3 z-30 w-[20rem] rounded-2xl border border-violet-400/25 bg-gray-950/95 p-3 shadow-2xl backdrop-blur">
@@ -5348,9 +5442,11 @@ export default function Layout3DEditor({
                   <button onClick={() => rotateSelected(15)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><RotateCw className="w-3.5 h-3.5" /> +15°</button>
                   <button onClick={() => rotateSelected(-15)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><RotateCcw className="w-3.5 h-3.5" /> −15°</button>
                   <button onClick={duplicateSelected} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><Copy className="w-3.5 h-3.5" /> Duplicar</button>
+                  <button onClick={copySelection} title="Ctrl+C — copia al portapapeles CAD (pega aquí o en otro layout)" className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><ClipboardList className="w-3.5 h-3.5" /> Copiar</button>
+                  <button onClick={pasteClipboard} title="Ctrl+V — pega el portapapeles CAD" className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><ClipboardList className="w-3.5 h-3.5" /> Pegar</button>
                   <button onClick={removeSelected} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 text-[12px]"><Trash2 className="w-3.5 h-3.5" /> Quitar</button>
                 </div>
-                <p className="text-[10.5px] text-gray-500 mt-3 leading-relaxed"><b>Shift</b>+clic agrega/quita · <b>Ctrl+A</b> todo · flechas mueven el grupo.</p>
+                <p className="text-[10.5px] text-gray-500 mt-3 leading-relaxed"><b>Shift</b>+clic agrega/quita · <b>Shift</b>+arrastre en el fondo = ventana (izq→der contiene, der→izq cruza) · <b>Ctrl+A</b> todo · <b>Ctrl+C/V</b> copia/pega · flechas mueven el grupo.</p>
               </div>
             ) : (
               <div className="p-3.5">
