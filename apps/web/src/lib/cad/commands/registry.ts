@@ -27,6 +27,11 @@ import {
   arrayRectangularPreview,
   offsetObjectPreview,
 } from "./create-patterns";
+import {
+  chamferWallsPreview,
+  extendWallPreview,
+  trimWallPreview,
+} from "./wall-edit";
 
 const ok = (issues: ReturnType<CadCommandDefinition["validate"]>) =>
   !issues.some((i) => i.level === "error");
@@ -1477,6 +1482,98 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     execute: (i, c) => {
       const p = offsetObjectPreview(
         i as Extract<CadCommandInput, { id: "offset_object" }>,
+        c,
+      );
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
+    id: "extend_wall",
+    label: "Extender muro",
+    category: "layout",
+    description:
+      "Alarga un muro hasta tocar la línea de otro muro (EXTEND de AutoCAD).",
+    inputSchema: {
+      target: { type: "string", description: "Muro a extender." },
+      boundary: { type: "string", description: "Muro frontera." },
+      objectIds: { type: "string[]", description: "Alternativa: 2 muros seleccionados." },
+    },
+    examples: ["extiende Muro 1 hasta Muro 2"],
+    validate: (i, c) =>
+      extendWallPreview(
+        i as Extract<CadCommandInput, { id: "extend_wall" }>,
+        c,
+      ).issues,
+    preview: (i, c) =>
+      extendWallPreview(i as Extract<CadCommandInput, { id: "extend_wall" }>, c),
+    execute: (i, c) => {
+      const p = extendWallPreview(
+        i as Extract<CadCommandInput, { id: "extend_wall" }>,
+        c,
+      );
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
+    id: "trim_wall",
+    label: "Recortar muro",
+    category: "layout",
+    description:
+      "Recorta un muro donde cruza a otro, conservando un lado (TRIM de AutoCAD).",
+    inputSchema: {
+      target: { type: "string", description: "Muro a recortar." },
+      cutter: { type: "string", description: "Muro de corte." },
+      keep: {
+        type: "enum",
+        enum: ["start", "end"],
+        description: "Lado que se conserva (default: el más largo).",
+      },
+      objectIds: { type: "string[]", description: "Alternativa: 2 muros seleccionados." },
+    },
+    examples: ["recorta Muro 1 en Muro 2"],
+    validate: (i, c) =>
+      trimWallPreview(i as Extract<CadCommandInput, { id: "trim_wall" }>, c)
+        .issues,
+    preview: (i, c) =>
+      trimWallPreview(i as Extract<CadCommandInput, { id: "trim_wall" }>, c),
+    execute: (i, c) => {
+      const p = trimWallPreview(
+        i as Extract<CadCommandInput, { id: "trim_wall" }>,
+        c,
+      );
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
+    id: "chamfer_walls",
+    label: "Chaflán entre muros",
+    category: "layout",
+    description:
+      "Recorta la esquina de dos muros y la une con un tramo diagonal (CHAMFER de AutoCAD).",
+    inputSchema: {
+      wallA: { type: "string", description: "Primer muro." },
+      wallB: { type: "string", description: "Segundo muro." },
+      distance: {
+        type: "number",
+        required: true,
+        description: "Distancia del corte desde la esquina.",
+      },
+      objectIds: { type: "string[]", description: "Alternativa: 2 muros seleccionados." },
+    },
+    examples: ["chaflán de 400 entre Muro 1 y Muro 2"],
+    validate: (i, c) =>
+      chamferWallsPreview(
+        i as Extract<CadCommandInput, { id: "chamfer_walls" }>,
+        c,
+      ).issues,
+    preview: (i, c) =>
+      chamferWallsPreview(
+        i as Extract<CadCommandInput, { id: "chamfer_walls" }>,
+        c,
+      ),
+    execute: (i, c) => {
+      const p = chamferWallsPreview(
+        i as Extract<CadCommandInput, { id: "chamfer_walls" }>,
         c,
       );
       return result(p, ok(p.issues), p.summary);

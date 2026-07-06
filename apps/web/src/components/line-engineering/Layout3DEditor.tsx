@@ -1247,6 +1247,13 @@ export default function Layout3DEditor({
         setPlacedIds(new Set(pl.keys()));
         setAssetIds(new Set(am.keys()));
         setDimCount([...an.values()].filter((a) => a.type === 'dim').length);
+        // Restaura la capa CAD por asset persistida en el layout (ADR §219).
+        const restoredLayers: CadLayerAssignments = {};
+        (d.assets ?? []).forEach((a) => {
+          const layer = (a as { layer?: string }).layer;
+          if (layer && DEFAULT_CAD_LAYERS.some((l) => l.id === layer)) restoredLayers[a.id] = layer as CadLayerId;
+        });
+        setLayerAssignments(restoredLayers);
         setData(d);
         // fetch + parse the read-only DXF backdrop (the endpoint already serves
         // the raw drawing); render it on the floor once ready.
@@ -3672,7 +3679,7 @@ export default function Layout3DEditor({
         const st = stationsByIdRef.current.get(id);
         return { id, type: 'station' as const, label: st?.station ?? id, x: p.x, y: p.y, w: p.w, h: p.h, rotation: p.rotation, sequence: data?.stations.findIndex((s) => s.id === id) ?? 0 };
       }),
-      ...[...assetsRef.current.values()].map((a) => ({ id: a.id, type: 'asset' as const, label: a.label || assetMeta(a.kind).label, x: a.x, y: a.y, w: a.w, h: a.h, rotation: a.rotation })),
+      ...[...assetsRef.current.values()].map((a) => ({ id: a.id, type: 'asset' as const, kind: a.kind, label: a.label || assetMeta(a.kind).label, x: a.x, y: a.y, w: a.w, h: a.h, rotation: a.rotation })),
     ],
   });
   const previewCommandText = (rawText: string) => {
@@ -4320,7 +4327,9 @@ export default function Layout3DEditor({
     try {
       const positions = [...placementsRef.current.entries()].map(([id, p]) => ({ id, ...p }));
       const cleared = [...loadedPlacedRef.current].filter((id) => !placementsRef.current.has(id));
-      const assets = [...assetsRef.current.values()];
+      // La capa CAD viaja por asset (LayoutAssetDto.layer, ADR §219): sin esto
+      // las asignaciones de capa morían en cada recarga.
+      const assets = [...assetsRef.current.values()].map((a) => ({ ...a, ...(layerAssignments[a.id] ? { layer: layerAssignments[a.id] } : {}) }));
       const annotations = [...annotationsRef.current.values()];
       const r = await apiFetch(`${API_BASE}/line-engineering/layout`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },

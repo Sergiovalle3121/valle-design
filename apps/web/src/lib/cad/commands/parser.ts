@@ -104,6 +104,53 @@ export function parseCadCommand(text: string): CadParseResult {
       },
     };
   }
+  // Edición de muros (ADR §218) — extend/trim/chamfer estilo AutoCAD.
+  const extendMatch = raw.match(/exti\w+\s+(.+?)\s+(?:hasta|hacia)\s+(.+)$/i);
+  if (extendMatch && /exti(e|é)nde|extender|extend/i.test(q)) {
+    return {
+      ok: true,
+      confidence: 0.85,
+      input: {
+        id: "extend_wall",
+        target: extendMatch[1].trim(),
+        boundary: extendMatch[2].trim(),
+      },
+    };
+  }
+  const trimMatch = raw.match(/recort\w+\s+(.+?)\s+(?:en|con|donde cruza)\s+(.+)$/i);
+  if (trimMatch && /recorta|recortar|trim/i.test(q)) {
+    const keep = /conserva\w*\s+(?:el\s+)?inicio/i.test(q)
+      ? ("start" as const)
+      : /conserva\w*\s+(?:el\s+)?fin(al)?/i.test(q)
+        ? ("end" as const)
+        : undefined;
+    const cutter = trimMatch[2].replace(/\s+conserva[\s\S]*$/i, "").trim();
+    return {
+      ok: true,
+      confidence: 0.84,
+      input: { id: "trim_wall", target: trimMatch[1].trim(), cutter, keep },
+    };
+  }
+  if (/chafl[aá]n|chamfer/i.test(q)) {
+    const distance = unitValueToMm(q.match(numberWithUnit));
+    const pair = raw.match(/entre\s+(.+?)\s+y\s+(.+)$/i);
+    if (!distance)
+      return {
+        ok: false,
+        confidence: 0.6,
+        clarification: "¿De cuánto es la distancia del chaflán?",
+      };
+    return {
+      ok: true,
+      confidence: 0.84,
+      input: {
+        id: "chamfer_walls",
+        distance,
+        wallA: pair?.[1]?.trim(),
+        wallB: pair?.[2]?.trim(),
+      },
+    };
+  }
   // Patrones de creación (ADR §214) — ANTES del pasillo/clearance porque
   // "separación" y "alrededor" colisionan con esos patrones más genéricos.
   if (

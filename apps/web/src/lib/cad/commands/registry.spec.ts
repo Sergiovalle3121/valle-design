@@ -60,8 +60,8 @@ assert.equal(
 );
 assert.equal(
   CAD_COMMAND_REGISTRY.length,
-  17,
-  "registry exposes 17 commands",
+  20,
+  "registry exposes 20 commands",
 );
 
 const parsed = parseCadCommand("haz un pasillo de 1.2m entre SMT e inspección");
@@ -476,6 +476,98 @@ assert.equal(
   true,
   "flow array explains the missing route",
 );
+
+// — Edición de muros: extend/trim/chamfer (ADR §218) —
+const wallCtx: CadCommandContext = {
+  unit: "mm",
+  footprintW: 10000,
+  footprintH: 6000,
+  selectedIds: ["wall-h", "wall-v"],
+  connectors: [],
+  objects: [
+    // horizontal: línea central (1000,1000)→(3000,1000), grosor 20
+    { id: "wall-h", type: "asset", kind: "wall", label: "Muro H", x: 1000, y: 990, w: 2000, h: 20, rotation: 0 },
+    // vertical: centro (4000,2000), w=2000 rotado 90° → línea (4000,1000)→(4000,3000)
+    { id: "wall-v", type: "asset", kind: "wall", label: "Muro V", x: 3000, y: 1990, w: 2000, h: 20, rotation: 90 },
+  ],
+};
+const extendParsed = parseCadCommand("extiende Muro H hasta Muro V");
+assert.equal(extendParsed.input?.id, "extend_wall", "parser recognizes extend intent");
+if (extendParsed.input?.id === "extend_wall") {
+  assert.equal(extendParsed.input.target, "Muro H", "parser reads extend target");
+  assert.equal(extendParsed.input.boundary, "Muro V", "parser reads extend boundary");
+}
+const extendPreview = previewCadCommand(
+  { id: "extend_wall", target: "Muro H", boundary: "Muro V" },
+  wallCtx,
+);
+const extendOp = extendPreview.operations.find((op) => op.type === "move");
+assert.equal(extendOp?.type, "move", "extend proposes a move");
+if (extendOp?.type === "move") {
+  assert.equal(extendOp.after.w, 3000, "extend grows the wall to reach the boundary line");
+  assert.equal(extendOp.after.x, 1000, "extend keeps the anchored end");
+}
+
+const trimCtx: CadCommandContext = {
+  ...wallCtx,
+  objects: [
+    { id: "wall-h", type: "asset", kind: "wall", label: "Muro H", x: 1000, y: 1990, w: 2000, h: 20, rotation: 0 },
+    // vertical cruzando en (2000,2000)
+    { id: "wall-v", type: "asset", kind: "wall", label: "Muro V", x: 1000, y: 1990, w: 2000, h: 20, rotation: 90 },
+  ],
+};
+const trimPreview = previewCadCommand(
+  { id: "trim_wall", target: "Muro H", cutter: "Muro V", keep: "start" },
+  trimCtx,
+);
+const trimOp = trimPreview.operations.find((op) => op.type === "move");
+assert.equal(trimOp?.type, "move", "trim proposes a move");
+if (trimOp?.type === "move") {
+  assert.equal(trimOp.after.w, 1000, "trim cuts the wall at the intersection");
+}
+assert.equal(
+  parseCadCommand("recorta Muro H en Muro V").input?.id,
+  "trim_wall",
+  "parser recognizes trim intent",
+);
+
+const chamferCtx: CadCommandContext = {
+  ...wallCtx,
+  selectedIds: ["wall-a", "wall-b"],
+  objects: [
+    // L: horizontal (1000,1000)→(3000,1000) y vertical (3000,1000)→(3000,3000)
+    { id: "wall-a", type: "asset", kind: "wall", label: "Muro A", x: 1000, y: 990, w: 2000, h: 20, rotation: 0 },
+    { id: "wall-b", type: "asset", kind: "wall", label: "Muro B", x: 2000, y: 1990, w: 2000, h: 20, rotation: 90 },
+  ],
+};
+const chamferParsed = parseCadCommand("chaflán de 400 entre Muro A y Muro B");
+assert.equal(chamferParsed.input?.id, "chamfer_walls", "parser recognizes chamfer intent");
+if (chamferParsed.input?.id === "chamfer_walls") {
+  assert.equal(chamferParsed.input.distance, 400, "parser reads chamfer distance");
+}
+const chamferPreview = previewCadCommand(
+  { id: "chamfer_walls", wallA: "Muro A", wallB: "Muro B", distance: 400 },
+  chamferCtx,
+);
+assert.equal(
+  chamferPreview.operations.filter((op) => op.type === "move").length,
+  2,
+  "chamfer trims both walls",
+);
+const chamferCreate = chamferPreview.operations.find((op) => op.type === "create");
+assert.equal(chamferCreate?.type, "create", "chamfer creates the diagonal segment");
+if (chamferCreate?.type === "create") {
+  assert.equal(
+    Math.abs(chamferCreate.object.w - Math.round(Math.hypot(400, 400))) <= 1,
+    true,
+    "chamfer segment length is sqrt(2)·distance",
+  );
+}
+const chamferTooBig = executeCadCommand(
+  { id: "chamfer_walls", wallA: "Muro A", wallB: "Muro B", distance: 5000 },
+  chamferCtx,
+);
+assert.equal(chamferTooBig.applied, false, "chamfer rejects distances that do not fit");
 
 let history: CadCommandHistoryState = { undo: [], redo: [] };
 history = pushHistory(

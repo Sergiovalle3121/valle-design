@@ -18,7 +18,10 @@ export type CadCommandId =
   | "array_rectangular"
   | "array_polar"
   | "array_along_flow"
-  | "offset_object";
+  | "offset_object"
+  | "extend_wall"
+  | "trim_wall"
+  | "chamfer_walls";
 
 export type CadCommandCategory = "layout" | "flow" | "analysis" | "viewport";
 export type CadIssueLevel = "info" | "warning" | "error";
@@ -41,6 +44,9 @@ export interface CadBox {
   h: number;
   rotation?: number;
   sequence?: number;
+  /** Kind del asset (wall/zone/rack/…) — lo aporta el editor; opcional para
+   * no romper contextos previos. Los comandos de muros filtran por esto. */
+  kind?: string;
 }
 
 export interface CadConnectorInput {
@@ -184,6 +190,21 @@ export type CadCommandInput =
       distance: number;
       side?: "left" | "right" | "up" | "down";
       copies?: number;
+    }
+  | { id: "extend_wall"; target?: string; boundary?: string; objectIds?: string[] }
+  | {
+      id: "trim_wall";
+      target?: string;
+      cutter?: string;
+      keep?: "start" | "end";
+      objectIds?: string[];
+    }
+  | {
+      id: "chamfer_walls";
+      wallA?: string;
+      wallB?: string;
+      distance: number;
+      objectIds?: string[];
     };
 
 export interface CadCommandSchemaField {

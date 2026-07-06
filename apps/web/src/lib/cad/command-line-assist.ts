@@ -31,6 +31,9 @@ const SELECTION_MINIMUMS: Partial<Record<CadCommandId, number>> = {
   array_polar: 1,
   array_along_flow: 1,
   offset_object: 1,
+  extend_wall: 2,
+  trim_wall: 2,
+  chamfer_walls: 2,
 };
 
 const EMPTY_QUERY_PRIORITY: Partial<Record<CadCommandId, number>> = {
