@@ -14,7 +14,11 @@ export type CadCommandId =
   | "measure_distance"
   | "find_collisions"
   | "validate_layout"
-  | "fit_to_view";
+  | "fit_to_view"
+  | "array_rectangular"
+  | "array_polar"
+  | "array_along_flow"
+  | "offset_object";
 
 export type CadCommandCategory = "layout" | "flow" | "analysis" | "viewport";
 export type CadIssueLevel = "info" | "warning" | "error";
@@ -61,8 +65,23 @@ export interface CadValidationIssue {
   objectIds?: string[];
 }
 
+/** Objeto nuevo propuesto por un comando. v1: duplicación — `sourceId` señala el
+ * asset del que el editor copia kind/etiqueta/capa; sin un sourceId resoluble el
+ * editor ignora la operación (las estaciones son del routing y no se duplican). */
+export interface CadDraftObject {
+  sourceId?: string;
+  type: CadObjectType;
+  label: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  rotation?: number;
+}
+
 export type CadOperation =
   | { type: "move"; objectId: string; before: CadBox; after: CadBox }
+  | { type: "create"; object: CadDraftObject }
   | { type: "connect"; from: string; to: string; kind: string }
   | {
       type: "measure";
@@ -141,7 +160,31 @@ export type CadCommandInput =
   | { id: "measure_distance"; targetA?: string; targetB?: string }
   | { id: "find_collisions"; objectIds?: string[] }
   | { id: "validate_layout"; objectIds?: string[]; requiredClearance?: number }
-  | { id: "fit_to_view"; objectIds?: string[] };
+  | { id: "fit_to_view"; objectIds?: string[] }
+  | {
+      id: "array_rectangular";
+      objectIds?: string[];
+      cols: number;
+      rows: number;
+      gapX?: number;
+      gapY?: number;
+    }
+  | {
+      id: "array_polar";
+      objectIds?: string[];
+      count: number;
+      angleSpanDeg?: number;
+      rotateItems?: boolean;
+      centerLabel?: string;
+    }
+  | { id: "array_along_flow"; objectIds?: string[]; count: number }
+  | {
+      id: "offset_object";
+      objectIds?: string[];
+      distance: number;
+      side?: "left" | "right" | "up" | "down";
+      copies?: number;
+    };
 
 export interface CadCommandSchemaField {
   type: "string" | "number" | "enum" | "string[]" | "object";

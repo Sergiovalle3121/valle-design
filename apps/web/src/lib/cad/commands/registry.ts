@@ -21,6 +21,12 @@ import {
   validateDistance,
   warning,
 } from "./validators";
+import {
+  arrayAlongFlowPreview,
+  arrayPolarPreview,
+  arrayRectangularPreview,
+  offsetObjectPreview,
+} from "./create-patterns";
 
 const ok = (issues: ReturnType<CadCommandDefinition["validate"]>) =>
   !issues.some((i) => i.level === "error");
@@ -1347,6 +1353,133 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         (d) => d.id === "fit_to_view",
       )!.preview(i, c);
       return result(p, true, p.summary);
+    },
+  },
+  {
+    id: "array_rectangular",
+    label: "Arreglo rectangular",
+    category: "layout",
+    description:
+      "Crea copias del activo seleccionado en una rejilla columnas×filas.",
+    inputSchema: {
+      cols: { type: "number", required: true, description: "Columnas." },
+      rows: { type: "number", required: true, description: "Filas." },
+      gapX: { type: "number", description: "Separación horizontal extra." },
+      gapY: { type: "number", description: "Separación vertical extra." },
+      objectIds: { type: "string[]", description: "Activos a replicar." },
+    },
+    examples: ["matriz 3x4 con separación de 500"],
+    validate: (i, c) =>
+      arrayRectangularPreview(
+        i as Extract<CadCommandInput, { id: "array_rectangular" }>,
+        c,
+      ).issues,
+    preview: (i, c) =>
+      arrayRectangularPreview(
+        i as Extract<CadCommandInput, { id: "array_rectangular" }>,
+        c,
+      ),
+    execute: (i, c) => {
+      const p = arrayRectangularPreview(
+        i as Extract<CadCommandInput, { id: "array_rectangular" }>,
+        c,
+      );
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
+    id: "array_polar",
+    label: "Arreglo polar",
+    category: "layout",
+    description:
+      "Crea copias del activo seleccionado alrededor de un centro (círculo o abanico).",
+    inputSchema: {
+      count: { type: "number", required: true, description: "Total de posiciones." },
+      angleSpanDeg: { type: "number", description: "Abanico en grados (default 360)." },
+      centerLabel: { type: "string", description: "Objeto que actúa como centro." },
+      objectIds: { type: "string[]", description: "Activo a replicar (exactamente 1)." },
+    },
+    examples: ["arreglo polar de 6 copias alrededor de Robot"],
+    validate: (i, c) =>
+      arrayPolarPreview(
+        i as Extract<CadCommandInput, { id: "array_polar" }>,
+        c,
+      ).issues,
+    preview: (i, c) =>
+      arrayPolarPreview(
+        i as Extract<CadCommandInput, { id: "array_polar" }>,
+        c,
+      ),
+    execute: (i, c) => {
+      const p = arrayPolarPreview(
+        i as Extract<CadCommandInput, { id: "array_polar" }>,
+        c,
+      );
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
+    id: "array_along_flow",
+    label: "Arreglo sobre flujo",
+    category: "flow",
+    description:
+      "Distribuye copias del activo seleccionado equiespaciadas a lo largo de la ruta de flujo conectada.",
+    inputSchema: {
+      count: { type: "number", required: true, description: "Copias a colocar." },
+      objectIds: { type: "string[]", description: "Activo a replicar (exactamente 1)." },
+    },
+    examples: ["coloca 5 copias a lo largo del flujo"],
+    validate: (i, c) =>
+      arrayAlongFlowPreview(
+        i as Extract<CadCommandInput, { id: "array_along_flow" }>,
+        c,
+      ).issues,
+    preview: (i, c) =>
+      arrayAlongFlowPreview(
+        i as Extract<CadCommandInput, { id: "array_along_flow" }>,
+        c,
+      ),
+    execute: (i, c) => {
+      const p = arrayAlongFlowPreview(
+        i as Extract<CadCommandInput, { id: "array_along_flow" }>,
+        c,
+      );
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
+    id: "offset_object",
+    label: "Copia paralela (offset)",
+    category: "layout",
+    description:
+      "Crea copias paralelas de los activos seleccionados a una distancia dada (útil para muros y pasillos).",
+    inputSchema: {
+      distance: { type: "number", required: true, description: "Distancia del offset." },
+      side: {
+        type: "enum",
+        enum: ["left", "right", "up", "down"],
+        description: "Lado hacia donde va la copia.",
+      },
+      copies: { type: "number", description: "Copias sucesivas (default 1)." },
+      objectIds: { type: "string[]", description: "Activos a copiar." },
+    },
+    examples: ["offset de 800 hacia abajo"],
+    validate: (i, c) =>
+      offsetObjectPreview(
+        i as Extract<CadCommandInput, { id: "offset_object" }>,
+        c,
+      ).issues,
+    preview: (i, c) =>
+      offsetObjectPreview(
+        i as Extract<CadCommandInput, { id: "offset_object" }>,
+        c,
+      ),
+    execute: (i, c) => {
+      const p = offsetObjectPreview(
+        i as Extract<CadCommandInput, { id: "offset_object" }>,
+        c,
+      );
+      return result(p, ok(p.issues), p.summary);
     },
   },
 ];

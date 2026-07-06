@@ -3578,6 +3578,17 @@ export default function Layout3DEditor({
     } else if (op.type === 'connect') {
       if (!connectorsRef.current.some((c) => c.from === op.from && c.to === op.to && (c.kind ?? 'flow') === op.kind)) connectorsRef.current = [...connectorsRef.current, { from: op.from, to: op.to, kind: op.kind }];
       return true;
+    } else if (op.type === 'create') {
+      // v1: solo duplicación de assets — el sourceId aporta kind/etiqueta/capa.
+      if (op.object.type !== 'asset' || !op.object.sourceId) return false;
+      const src = assetsRef.current.get(op.object.sourceId);
+      if (!src) return false;
+      const id = newId('as');
+      assetsRef.current.set(id, { id, kind: src.kind, label: op.object.label || src.label, x: op.object.x, y: op.object.y, w: op.object.w, h: op.object.h, rotation: op.object.rotation ?? src.rotation });
+      setAssetIds(new Set(assetsRef.current.keys()));
+      const srcLayer = layerAssignmentsRef.current[op.object.sourceId];
+      if (srcLayer) setLayerAssignments((cur) => assignObjectsToLayer(cur, [id], srcLayer));
+      return true;
     } else if (op.type === 'focus') {
       const items: SelItem[] = op.objectIds.map((id) => placementsRef.current.has(id) ? { type: 'station' as const, id } : assetsRef.current.has(id) ? { type: 'asset' as const, id } : null).filter((it): it is SelItem => !!it);
       if (items.length) select(items);
@@ -3592,9 +3603,11 @@ export default function Layout3DEditor({
       setCommandLog((items) => [createCadHistoryItem(commandPreview.input, 'failed', result.historyLabel, commandPreview.preview, result), ...items].slice(0, 12));
       return;
     }
-    const mutates = result.operations.some((op) => op.type === 'move' || op.type === 'connect');
+    const mutates = result.operations.some((op) => op.type === 'move' || op.type === 'connect' || op.type === 'create');
     if (mutates) { recordLocalSnapshot(`Auto · ${result.historyLabel}`, 'command'); pushHistory(); }
-    const changed = result.operations.some(applyCommandOperation);
+    // map + some: .some(applyCommandOperation) directo corta en la primera op
+    // aplicada y dejaba a medias los comandos multi-objeto (align, flow line).
+    const changed = result.operations.map(applyCommandOperation).some(Boolean);
     setCommandLog((items) => [createCadHistoryItem(commandPreview.input, 'applied', result.historyLabel, commandPreview.preview, result), ...items].slice(0, 12));
     if (changed) { setDirty(true); refreshSnap(); rebuildAll(); }
     setCommandPreview(null); setCommandText('');

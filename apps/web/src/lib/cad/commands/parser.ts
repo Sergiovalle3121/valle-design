@@ -104,6 +104,90 @@ export function parseCadCommand(text: string): CadParseResult {
       },
     };
   }
+  // Patrones de creación (ADR §214) — ANTES del pasillo/clearance porque
+  // "separación" y "alrededor" colisionan con esos patrones más genéricos.
+  if (
+    /(polar|circular|radial)/.test(q) &&
+    /(arreglo|matriz|array|copia|patron|patrón)/.test(q)
+  ) {
+    const count =
+      numberNear(q, /(\d+)\s*(?:copias|elementos|piezas|posiciones|veces)/i) ??
+      numberNear(q, /(?:de)\s*(\d+)\b/i);
+    if (!count)
+      return {
+        ok: false,
+        confidence: 0.6,
+        clarification: "¿Cuántas copias quieres en el arreglo polar?",
+      };
+    const angleSpanDeg = numberNear(q, /(?:en|abanico de)\s*(\d+(?:[.,]\d+)?)\s*(?:grados|°)/i);
+    const centerLabel = (raw.match(/alrededor de\s+(.+)$/i)?.[1] ??
+      raw.match(/centrado en\s+(.+)$/i)?.[1])?.trim();
+    return {
+      ok: true,
+      confidence: 0.85,
+      input: { id: "array_polar", count, angleSpanDeg, centerLabel },
+    };
+  }
+  const grid = q.match(/(\d+)\s*[x×]\s*(\d+)/);
+  if (grid && /(arreglo|matriz|array|rejilla|grid|copia)/.test(q)) {
+    const gap = unitValueToMm(
+      q.match(
+        /(?:separaci[oó]n|gap|espacio|paso)\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*(mm|m)?/i,
+      ),
+    );
+    return {
+      ok: true,
+      confidence: 0.86,
+      input: {
+        id: "array_rectangular",
+        cols: Number(grid[1]),
+        rows: Number(grid[2]),
+        gapX: gap,
+        gapY: gap,
+      },
+    };
+  }
+  if (/(a lo largo|siguiendo)\s+(?:de\s|del\s|la\s|el\s)?.*(flujo|ruta|recorrido)/.test(q)) {
+    const count = numberNear(q, /(\d+)/);
+    if (!count)
+      return {
+        ok: false,
+        confidence: 0.6,
+        clarification: "¿Cuántas copias quieres a lo largo del flujo?",
+      };
+    return {
+      ok: true,
+      confidence: 0.84,
+      input: { id: "array_along_flow", count },
+    };
+  }
+  if (/(offset|desfasa|desfase|paralela)/.test(q)) {
+    const distance =
+      unitValueToMm(
+        q.match(/(?:de|a)\s+(\d+(?:[.,]\d+)?)\s*(mm|m)?\b/i),
+      ) ?? unitValueToMm(q.match(numberWithUnit));
+    if (!distance)
+      return {
+        ok: false,
+        confidence: 0.6,
+        clarification: "¿A qué distancia quieres la copia paralela?",
+      };
+    const side = /arriba|encima|norte/.test(q)
+      ? ("up" as const)
+      : /abajo|debajo|sur/.test(q)
+        ? ("down" as const)
+        : /izquierda|oeste/.test(q)
+          ? ("left" as const)
+          : /derecha|este/.test(q)
+            ? ("right" as const)
+            : undefined;
+    const copies = numberNear(q, /(\d+)\s*(?:copias|veces)/i);
+    return {
+      ok: true,
+      confidence: 0.84,
+      input: { id: "offset_object", distance, side, copies },
+    };
+  }
   if (/pasillo|holgura|separa|separar|clearance/.test(q)) {
     const match = q.match(numberWithUnit);
     const [targetA, targetB] = lastTwoTargets(raw);

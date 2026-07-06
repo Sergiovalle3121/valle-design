@@ -60,8 +60,8 @@ assert.equal(
 );
 assert.equal(
   CAD_COMMAND_REGISTRY.length,
-  13,
-  "registry exposes 13 commands",
+  17,
+  "registry exposes 17 commands",
 );
 
 const parsed = parseCadCommand("haz un pasillo de 1.2m entre SMT e inspección");
@@ -341,6 +341,140 @@ assert.equal(
   parseCadCommand("valida el layout").input?.id,
   "validate_layout",
   "parser recognizes validate layout intent",
+);
+
+// — Comandos de creación por patrón (ADR §214) —
+const gridParsed = parseCadCommand("matriz 3x4 con separación de 500");
+assert.equal(
+  gridParsed.input?.id,
+  "array_rectangular",
+  "parser recognizes rectangular array intent",
+);
+if (gridParsed.input?.id === "array_rectangular") {
+  assert.equal(gridParsed.input.cols, 3, "parser reads cols");
+  assert.equal(gridParsed.input.rows, 4, "parser reads rows");
+  assert.equal(gridParsed.input.gapX, 500, "parser reads gap in mm");
+}
+const gridPreview = previewCadCommand(
+  { id: "array_rectangular", cols: 3, rows: 2, objectIds: ["rack-1"] },
+  rackCtx,
+);
+assert.equal(
+  gridPreview.operations.filter((op) => op.type === "create").length,
+  5,
+  "3x2 array creates 5 copies (original stays)",
+);
+const stationArray = executeCadCommand(
+  { id: "array_rectangular", cols: 2, rows: 2, objectIds: ["smt"] },
+  ctx,
+);
+assert.equal(stationArray.applied, false, "stations are not copyable");
+assert.equal(
+  stationArray.issues.some((i) => i.code === "stations_not_copyable"),
+  true,
+  "station copy attempt explains why",
+);
+
+const polarParsed = parseCadCommand(
+  "arreglo polar de 6 copias alrededor de Rack A1",
+);
+assert.equal(
+  polarParsed.input?.id,
+  "array_polar",
+  "parser recognizes polar array intent",
+);
+if (polarParsed.input?.id === "array_polar") {
+  assert.equal(polarParsed.input.count, 6, "parser reads polar count");
+  assert.equal(
+    polarParsed.input.centerLabel,
+    "Rack A1",
+    "parser captures center label",
+  );
+}
+const polarPreview = previewCadCommand(
+  { id: "array_polar", count: 4, centerLabel: "Rack A1", objectIds: ["rack-3"] },
+  rackCtx,
+);
+assert.equal(
+  polarPreview.operations.filter((op) => op.type === "create").length,
+  2,
+  "polar array keeps only in-bounds copies",
+);
+assert.equal(
+  polarPreview.issues.some((i) => i.code === "copies_out_of_bounds"),
+  true,
+  "polar array warns about dropped out-of-bounds copies",
+);
+
+const offsetParsed = parseCadCommand("offset de 800 hacia abajo");
+assert.equal(
+  offsetParsed.input?.id,
+  "offset_object",
+  "parser recognizes offset intent",
+);
+if (offsetParsed.input?.id === "offset_object") {
+  assert.equal(offsetParsed.input.distance, 800, "parser reads offset distance");
+  assert.equal(offsetParsed.input.side, "down", "parser reads offset side");
+}
+const offsetPreview = previewCadCommand(
+  { id: "offset_object", distance: 800, side: "down", objectIds: ["rack-1"] },
+  rackCtx,
+);
+const offsetOp = offsetPreview.operations.find((op) => op.type === "create");
+assert.equal(offsetOp?.type, "create", "offset proposes a create op");
+if (offsetOp?.type === "create") {
+  assert.equal(offsetOp.object.y, 900, "offset shifts copy 800 down");
+  assert.equal(offsetOp.object.x, 5000, "offset keeps x for horizontal object");
+}
+
+const flowArrayCtx: CadCommandContext = {
+  ...ctx,
+  selectedIds: ["cart"],
+  connectors: [
+    { from: "smt", to: "aoi", kind: "flow" },
+    { from: "aoi", to: "pack", kind: "flow" },
+  ],
+  objects: [
+    ...ctx.objects,
+    {
+      id: "cart",
+      type: "asset",
+      label: "Carrito",
+      x: 4000,
+      y: 3000,
+      w: 400,
+      h: 300,
+    },
+  ],
+};
+assert.equal(
+  parseCadCommand("coloca 5 copias a lo largo del flujo").input?.id,
+  "array_along_flow",
+  "parser recognizes array along flow intent",
+);
+const flowArrayPreview = previewCadCommand(
+  { id: "array_along_flow", count: 3 },
+  flowArrayCtx,
+);
+assert.equal(
+  flowArrayPreview.operations.filter((op) => op.type === "create").length,
+  3,
+  "flow array creates the requested copies along the route",
+);
+assert.equal(
+  flowArrayPreview.affectedObjectIds.includes("aoi"),
+  true,
+  "flow array reports the route stations",
+);
+const noRoute = executeCadCommand(
+  { id: "array_along_flow", count: 3 },
+  { ...flowArrayCtx, connectors: [] },
+);
+assert.equal(noRoute.applied, false, "flow array requires a connected route");
+assert.equal(
+  noRoute.issues.some((i) => i.code === "no_flow_route"),
+  true,
+  "flow array explains the missing route",
 );
 
 let history: CadCommandHistoryState = { undo: [], redo: [] };
