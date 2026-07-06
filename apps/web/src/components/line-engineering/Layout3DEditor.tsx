@@ -13,7 +13,7 @@ import {
   AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
   AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, RulerDimensionLine, Rows3, Waypoints,
   ShieldCheck, CircleCheck, CircleAlert, Printer, ChartLine, FileText, WandSparkles, Stamp, Upload, ImageOff, Activity, History, Group, Search,
-  Expand, Frame, Focus, PanelLeft, PanelLeftClose,
+  Expand, Frame, Focus, PanelLeft, PanelLeftClose, ScanEye,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/apiFetch';
 import { useToast } from '@/contexts/ToastContext';
@@ -21,7 +21,7 @@ import { setWorkbenchChrome } from '@/lib/operatorChrome';
 import { ASSET_CATEGORIES, assetMeta, type AssetArchetype } from './asset-catalog';
 import { parseDxf, type DxfModel } from './dxf';
 import { dxfPointToFootprint, dxfToWalls } from './dxf-walls';
-import { dxfSnapPoints, nearestSnapPoint } from './dxf-snap';
+import { dxfSnapPoints } from './dxf-snap';
 import { autoDimensions, type DimBox } from './auto-dimensions';
 import { arrangeLine, type ArrangeStation } from './arrange-line';
 import { connectLine, type ConnStation } from './connect-line';
@@ -29,6 +29,9 @@ import { designChecks, type CheckBox, type DesignReport } from './design-checks'
 import { flowMetrics, type FlowCenter } from './flow-metrics';
 import { plotSheetModel } from './plot-sheet';
 import { describeCadIntent, normalizeToolCalls, type CadIntent } from './cad-intent';
+import { parseCoordinate, constrainPoint } from './precision-input';
+import { snap as resolveOsnap, rectGeometry, type SnapScene, type SnapType } from './snap-engine';
+import { normalizeVision, type VisionResult } from './cad-vision';
 import {
   createHistoryItem as createCadHistoryItem,
   executeCadCommand,
@@ -179,6 +182,9 @@ const ANALYSIS_PANELS: { key: string; label: string; Comp: React.ComponentType<a
  */
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000').replace(/\/$/, '');
+
+// Etiquetas del glifo OSNAP (Fase 66 cableada, ADR §216) — se muestran en el HUD.
+const OSNAP_LABELS: Record<SnapType, string> = { endpoint: 'extremo', intersection: 'intersección', center: 'centro', midpoint: 'medio', perpendicular: 'perpendicular', node: 'plano', nearest: 'cercano', grid: 'grilla' };
 
 // Approval / sign-off (ported from the 2D host, unify)
 type ApprovalStatus = 'draft' | 'in_review' | 'approved';
@@ -774,6 +780,11 @@ export default function Layout3DEditor({
   const [dxfExportOptions, setDxfExportOptions] = useState<DxfExportOptions>({ scope: 'all', includeHidden: true, includeMeasurements: true, includeLabels: true, units: 'mm', fileName: '' });
   const [dxfExportSummary, setDxfExportSummary] = useState<DxfExportSummary>({ objects: 0, connectors: 0, measurements: 0, labels: 0, layers: 0, canExport: false, includedLayers: [], layerSummary: [], issues: [] });
   const dxfInputRef = useRef<HTMLInputElement | null>(null);
+  // Visión plano→muros (Fase 71 cableada, ADR §217): imagen → CIDE multimodal
+  // → normalizeVision → muros/zonas editables. El humano revisa antes de insertar.
+  const visionInputRef = useRef<HTMLInputElement | null>(null);
+  const [visionBusy, setVisionBusy] = useState(false);
+  const [visionPreview, setVisionPreview] = useState<(VisionResult & { imageName: string }) | null>(null);
   const [showVersions, setShowVersions] = useState(false); // versions/scenarios modal (unify)
   const [localSnapshots, setLocalSnapshots] = useState<CadSnapshotHistory<Snapshot>>({ snapshots: [] });
   const [snapshotDiff, setSnapshotDiff] = useState<CadSnapshotDiff | null>(null);
@@ -969,6 +980,13 @@ export default function Layout3DEditor({
   useEffect(() => { snapRef.current = snap; }, [snap]);
   useEffect(() => { osnapRef.current = osnap; }, [osnap]);
   useEffect(() => { toolRef.current = tool; }, [tool]);
+  // Núcleo de precisión (Fase 66 cableada, ADR §216): orto 0/90/180/270 y
+  // entrada tecleada de coordenadas para el trazo de muros.
+  const [orthoLock, setOrthoLock] = useState(false);
+  const orthoLockRef = useRef(orthoLock);
+  useEffect(() => { orthoLockRef.current = orthoLock; }, [orthoLock]);
+  const lastWallAngleRef = useRef<number | null>(null); // ángulo del último tramo → entrada directa de distancia
+  const [precisionText, setPrecisionText] = useState('');
   useEffect(() => { themeRef.current = theme; }, [theme]);
 
   // Workbench full-screen: el CAD (`fixed inset-0`) se monta DENTRO de una ruta
@@ -1807,15 +1825,31 @@ export default function Layout3DEditor({
       return { wx: hit.x / ctx.s + ctx.W / 2, wy: hit.z / ctx.s + ctx.H / 2 };
     };
     /**
-     * Snap a raw floor point to the nearest DXF underlay target (object-snap to
-     * underlay) when osnap is on and a plan is loaded; otherwise grid-snap. (Fase 60)
+     * OSNAP de escena completa (Fase 66 cableada, ADR §216): esquinas, puntos
+     * medios y centros de estaciones/assets + los puntos del DXF como nodos.
+     * Solo los ~48 objetos más cercanos alimentan el motor (plantas grandes no
+     * degradan el pointermove). Sin candidato dentro de tolerancia → grid-snap.
      */
-    const snapFloor = (wx: number, wy: number): { wx: number; wy: number; onDxf: boolean } => {
+    const snapFloor = (wx: number, wy: number): { wx: number; wy: number; onDxf: boolean; snapType?: SnapType } => {
       const ctx = ctxRef.current!;
-      if (osnapRef.current && dxfSnapRef.current.length) {
+      if (osnapRef.current) {
         const tol = Math.max(ctx.W, ctx.H) * 0.012;
-        const hit = nearestSnapPoint(dxfSnapRef.current, wx, wy, tol);
-        if (hit) return { wx: hit.x, wy: hit.y, onDxf: true };
+        const boxes: { x: number; y: number; w: number; h: number; rotation?: number; d: number }[] = [];
+        placementsRef.current.forEach((p) => boxes.push({ x: p.x, y: p.y, w: p.w, h: p.h, rotation: p.rotation, d: Math.hypot(p.x + p.w / 2 - wx, p.y + p.h / 2 - wy) }));
+        assetsRef.current.forEach((a) => boxes.push({ x: a.x, y: a.y, w: a.w, h: a.h, rotation: a.rotation, d: Math.hypot(a.x + a.w / 2 - wx, a.y + a.h / 2 - wy) }));
+        boxes.sort((a, b) => a.d - b.d);
+        const scene: SnapScene = { segments: [], endpoints: [], centers: [], nodes: dxfSnapRef.current };
+        for (const b of boxes.slice(0, 48)) {
+          const g = rectGeometry(b);
+          scene.segments!.push(...g.edges); scene.endpoints!.push(...g.corners); scene.centers!.push(g.center);
+        }
+        const hit = resolveOsnap({ x: wx, y: wy }, scene, {
+          tolerance: tol,
+          // intersección/perp/cercano quedan fuera: costosos u over-greedy para
+          // el pointermove; grid lo cubre el fallback snapWorld de siempre.
+          modes: { intersection: false, perpendicular: false, nearest: false, grid: false },
+        });
+        if (hit) return { wx: Math.round(hit.point.x), wy: Math.round(hit.point.y), onDxf: true, snapType: hit.type };
       }
       return { wx: snapWorld(wx), wy: snapWorld(wy), onDxf: false };
     };
@@ -1922,7 +1956,7 @@ export default function Layout3DEditor({
         const pl = previewLineRef.current;
         if (pl) { (pl.geometry as THREE.BufferGeometry).setFromPoints([new THREE.Vector3(ax, 0.06, az), new THREE.Vector3(ex, 0.06, ez)]); pl.visible = true; }
         const dist = Math.hypot(s.wx - a.wx, s.wy - a.wy);
-        const tag = s.onDxf ? ' · plano' : '';
+        const tag = s.onDxf ? ` · ${s.snapType ? OSNAP_LABELS[s.snapType] : 'plano'}` : '';
         if (toolRef.current === 'wall') {
           const deg = (((Math.atan2(s.wy - a.wy, s.wx - a.wx) * 180) / Math.PI) % 360 + 360) % 360;
           setMeasureLive(`${fmtDist(dist, unit)} · ${Math.round(deg)}°${tag}`);
@@ -1999,12 +2033,11 @@ export default function Layout3DEditor({
             const sp = snapFloor(w.wx, w.wy);
             let pt = { wx: sp.wx, wy: sp.wy };
             const prev = wallChainRef.current;
-            // hold Shift to constrain to 45° — but an explicit DXF snap wins (you
-            // clicked that point on the plan, so honour it over the angle lock).
-            if (prev && e.shiftKey && !sp.onDxf) {
-              const len0 = Math.hypot(pt.wx - prev.wx, pt.wy - prev.wy);
-              const ang = Math.round(Math.atan2(pt.wy - prev.wy, pt.wx - prev.wx) / (Math.PI / 4)) * (Math.PI / 4);
-              pt = { wx: Math.round(prev.wx + Math.cos(ang) * len0), wy: Math.round(prev.wy + Math.sin(ang) * len0) };
+            // Shift = incrementos de 45°; ORTO (toggle) = ejes 0/90/180/270 — pero
+            // un snap explícito a objeto/plano gana sobre el bloqueo de ángulo.
+            if (prev && (e.shiftKey || orthoLockRef.current) && !sp.onDxf) {
+              const c = constrainPoint({ x: prev.wx, y: prev.wy }, { x: pt.wx, y: pt.wy }, e.shiftKey ? { polarIncrementDeg: 45 } : { ortho: true });
+              pt = { wx: Math.round(c.point.x), wy: Math.round(c.point.y) };
             }
             if (prev && Math.hypot(pt.wx - prev.wx, pt.wy - prev.wy) > 1) {
               const thick = assetMeta('wall').h;
@@ -2017,6 +2050,7 @@ export default function Layout3DEditor({
               setAssetIds((s) => new Set(s).add(id));
               setLayerAssignments((cur) => assignObjectsToLayer(cur, [id], 'architecture'));
               setObjectTags((cur) => ({ ...cur, [id]: 'wall, architecture' }));
+              lastWallAngleRef.current = angle;
               setDirty(true); rebuildAssets();
             }
             wallChainRef.current = pt; setMeasureLive(fmtDist(0, unit));
@@ -2112,6 +2146,7 @@ export default function Layout3DEditor({
   // cancels any half-drawn cota or wall chain (called when leaving a draw tool)
   const endDraw = useCallback(() => {
     measureARef.current = null; wallChainRef.current = null; setMeasureLive(null);
+    lastWallAngleRef.current = null; setPrecisionText('');
     if (previewLineRef.current) previewLineRef.current.visible = false;
     if (snapMarkerRef.current) snapMarkerRef.current.visible = false;
   }, []);
@@ -2126,6 +2161,40 @@ export default function Layout3DEditor({
   }, [endDraw, select]);
   const toggleMeasure = useCallback(() => setToolMode('measure'), [setToolMode]);
   const toggleWall = useCallback(() => setToolMode('wall'), [setToolMode]);
+  // Entrada de precisión (ADR §216): agrega un vértice del muro desde una
+  // coordenada tecleada — misma matemática que el clic del wall tool.
+  const appendWallTo = (x: number, y: number) => {
+    const ctx = ctxRef.current; if (!ctx) return;
+    const nx = Math.max(0, Math.min(ctx.W, Math.round(x)));
+    const ny = Math.max(0, Math.min(ctx.H, Math.round(y)));
+    const prev = wallChainRef.current;
+    if (prev && Math.hypot(nx - prev.wx, ny - prev.wy) > 1) {
+      const thick = assetMeta('wall').h;
+      const len = Math.hypot(nx - prev.wx, ny - prev.wy);
+      const cx = (prev.wx + nx) / 2, cy = (prev.wy + ny) / 2;
+      const angle = (Math.atan2(ny - prev.wy, nx - prev.wx) * 180) / Math.PI;
+      pushHistory();
+      const id = newId('as');
+      assetsRef.current.set(id, { id, kind: 'wall', x: cx - len / 2, y: cy - thick / 2, w: len, h: thick, rotation: angle });
+      setAssetIds((s) => new Set(s).add(id));
+      setLayerAssignments((cur) => assignObjectsToLayer(cur, [id], 'architecture'));
+      setObjectTags((cur) => ({ ...cur, [id]: 'wall, architecture' }));
+      lastWallAngleRef.current = angle;
+      setDirty(true); rebuildAssets();
+      setMeasureLive(`Muro hasta (${nx}, ${ny})`);
+    } else if (!prev) {
+      setMeasureLive(`Inicio en (${nx}, ${ny})`);
+    }
+    wallChainRef.current = { wx: nx, wy: ny };
+  };
+  const submitPrecisionPoint = () => {
+    const raw = precisionText.trim(); if (!raw) return;
+    const chain = wallChainRef.current;
+    const parsed = parseCoordinate(raw, { last: chain ? { x: chain.wx, y: chain.wy } : null, lockedAngleDeg: lastWallAngleRef.current });
+    if (!parsed.ok) { toast.error(parsed.error, 'Precisión'); return; }
+    appendWallTo(parsed.point.x, parsed.point.y);
+    setPrecisionText('');
+  };
   // Live quantity take-off from the current (possibly unsaved) editor state.
   const openTakeoff = useCallback(() => {
     const fp = data?.footprint; if (!fp) return;
@@ -3140,6 +3209,70 @@ export default function Layout3DEditor({
       toast.success('Plano DXF quitado.', '3D');
     } catch { toast.error('Error de red.', '3D'); }
     finally { setDxfBusy(false); }
+  };
+  // ---- visión plano→muros (Fase 71 cableada, ADR §217) ----
+  const onVisionFile = async (file: File) => {
+    if (!data) return;
+    if (file.size > 4_000_000) { toast.error('La imagen supera 4 MB; reduce la resolución.', 'Visión'); return; }
+    setVisionBusy(true); setVisionPreview(null);
+    try {
+      const imageDataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error('read'));
+        reader.readAsDataURL(file);
+      });
+      const r = await apiFetch(`${API_BASE}/line-engineering/layout/vision`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model, revision, imageDataUrl }),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const body = await r.json() as { available: boolean; raw: string; message?: string };
+      if (!body.available || !body.raw) { toast.error(body.message || 'El motor de visión (CIDE) no está disponible.', 'Visión'); return; }
+      // El modelo a veces envuelve el JSON en ```json ... ``` — extrae el bloque.
+      const raw = body.raw.replace(/^[\s\S]*?(\{[\s\S]*\})[\s\S]*$/, '$1');
+      const result = normalizeVision(raw, data.footprint);
+      if (!result.walls.length && !result.zones.length) {
+        toast.error(result.errors[0] || 'El modelo no detectó muros ni zonas en el plano.', 'Visión');
+        return;
+      }
+      setVisionPreview({ ...result, imageName: file.name });
+    } catch { toast.error('No se pudo vectorizar el plano.', 'Visión'); }
+    finally { setVisionBusy(false); }
+  };
+  const applyVisionResult = () => {
+    const ctx = ctxRef.current; const vp = visionPreview;
+    if (!ctx || !vp) return;
+    recordLocalSnapshot(`Auto · Visión ${vp.imageName}`, 'command');
+    pushHistory();
+    const thick = assetMeta('wall').h;
+    const created: string[] = [];
+    for (const wall of vp.walls) {
+      const len = Math.hypot(wall.b.x - wall.a.x, wall.b.y - wall.a.y);
+      if (len < 1) continue;
+      const cx = (wall.a.x + wall.b.x) / 2, cy = (wall.a.y + wall.b.y) / 2;
+      const angle = (Math.atan2(wall.b.y - wall.a.y, wall.b.x - wall.a.x) * 180) / Math.PI;
+      const id = newId('as');
+      assetsRef.current.set(id, { id, kind: 'wall', x: cx - len / 2, y: cy - thick / 2, w: len, h: thick, rotation: angle, label: 'Muro (visión)' });
+      created.push(id);
+    }
+    const zoneIds: string[] = [];
+    for (const zone of vp.zones) {
+      const xs = zone.points.map((p) => p.x); const ys = zone.points.map((p) => p.y);
+      const minX = Math.max(0, Math.min(...xs)); const maxX = Math.min(ctx.W, Math.max(...xs));
+      const minY = Math.max(0, Math.min(...ys)); const maxY = Math.min(ctx.H, Math.max(...ys));
+      if (maxX - minX < 1 || maxY - minY < 1) continue;
+      const id = newId('as');
+      assetsRef.current.set(id, { id, kind: 'zone', label: zone.name || 'Zona (visión)', x: Math.round(minX), y: Math.round(minY), w: Math.round(maxX - minX), h: Math.round(maxY - minY), rotation: 0 });
+      zoneIds.push(id);
+    }
+    setAssetIds(new Set(assetsRef.current.keys()));
+    if (created.length) setLayerAssignments((cur) => assignObjectsToLayer(cur, created, 'architecture'));
+    if (zoneIds.length) setLayerAssignments((cur) => assignObjectsToLayer(cur, zoneIds, defaultCadLayerForAssetKind('zone')));
+    setObjectTags((cur) => { const next = { ...cur }; created.forEach((id) => { next[id] = 'wall, architecture, vision'; }); zoneIds.forEach((id) => { next[id] = 'zone, vision'; }); return next; });
+    setVisionPreview(null);
+    setDirty(true); rebuildAll();
+    toast.success(`Visión: ${created.length} muro(s) y ${zoneIds.length} zona(s) insertados como objetos editables.`, 'Visión');
   };
   // ---- versions / scenarios (ported from 2D, unify) ----
   const scopeQs = `model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`;
@@ -4592,6 +4725,8 @@ export default function Layout3DEditor({
         <T3Btn onClick={exportGltf} title="Exportar modelo 3D (.glb) — Blender, otros CAD"><Package className="w-4 h-4" /></T3Btn>
         <input ref={dxfInputRef} type="file" accept=".dxf" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onDxfFile(f); e.target.value = ''; }} />
         <T3Btn onClick={() => dxfInputRef.current?.click()} disabled={dxfBusy} title="Cargar plano DXF de fondo (calcar el plano del cliente)"><Upload className="w-4 h-4" /></T3Btn>
+        <input ref={visionInputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void onVisionFile(f); e.target.value = ''; }} />
+        <T3Btn onClick={() => visionInputRef.current?.click()} disabled={visionBusy} title="Vectorizar plano con IA: sube una foto/imagen del plano y la visión (CIDE) propone muros y zonas editables">{visionBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ScanEye className="w-4 h-4" />}</T3Btn>
         {hasDxf && <T3Btn onClick={importDxfWalls} title="Convertir el plano DXF de fondo en muros editables"><BrickWall className="w-4 h-4" /></T3Btn>}
         {hasDxf && <T3Btn onClick={removeDxf} disabled={dxfBusy} title="Quitar el plano DXF de fondo"><ImageOff className="w-4 h-4" /></T3Btn>}
         <T3Btn onClick={openDxfExport} title="Exportar a DXF (AutoCAD) — opciones de capas, selección y cotas"><FileDown className="w-4 h-4" /></T3Btn>
@@ -5001,6 +5136,21 @@ export default function Layout3DEditor({
                 {measureLive ? measureLive : (tool === 'measure' ? 'Clic en dos puntos para medir' : 'Clic para trazar muros · Esc termina')}
               </div>
             )}
+            {!walk && tool === 'wall' && (
+              <div className="absolute top-12 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 rounded-full border border-white/10 bg-gray-900/90 px-2 py-1.5 backdrop-blur">
+                <button onClick={() => setOrthoLock((v) => !v)} title="Orto: restringe los muros a 0/90/180/270 (como F8 de AutoCAD)" className={`rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${orthoLock ? 'bg-amber-400 text-gray-900' : 'bg-white/[0.08] text-gray-300 hover:bg-white/[0.15]'}`}>ORTO</button>
+                <form onSubmit={(e) => { e.preventDefault(); submitPrecisionPoint(); }} className="flex items-center gap-1">
+                  <input
+                    value={precisionText}
+                    onChange={(e) => setPrecisionText(e.target.value)}
+                    placeholder="x,y · @dx,dy · @30<45 · 100"
+                    title="Coordenada absoluta x,y · relativa @dx,dy · polar @dist<ángulo · solo distancia = sigue el ángulo del último tramo"
+                    className="w-44 rounded-lg border border-white/10 bg-gray-950/80 px-2 py-1 text-[11px] text-white placeholder:text-gray-600 outline-none focus:border-amber-400/60"
+                  />
+                  <button type="submit" className="rounded-lg bg-amber-400 px-2 py-1 text-[10.5px] font-semibold text-gray-900 hover:bg-amber-300">Ir</button>
+                </form>
+              </div>
+            )}
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-gray-900/80 backdrop-blur border border-white/10 text-[11px] text-gray-300 inline-flex items-center gap-2 pointer-events-none">
               <Move3d className="w-3.5 h-3.5" />
               {walk
@@ -5008,9 +5158,27 @@ export default function Layout3DEditor({
                 : tool === 'measure'
                   ? 'Clic en dos puntos para medir · arrastra el fondo para orbitar · Esc cancela'
                   : tool === 'wall'
-                    ? 'Clic en cada esquina para trazar muros · Shift = ángulos de 45° · arrastra el fondo para orbitar · Esc termina'
+                    ? 'Clic en cada esquina para trazar muros · Shift = 45° · ORTO = ejes · teclea x,y / @dx,dy / @d<áng · Esc termina'
                     : 'Arrastra para mover · Shift+clic multiselecciona · fondo = orbitar · rueda = zoom · R rota · Supr borra'}
             </div>
+            {visionPreview && (
+              <div className="absolute top-3 right-3 z-30 w-[20rem] rounded-2xl border border-violet-400/25 bg-gray-950/95 p-3 shadow-2xl backdrop-blur">
+                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-violet-200">
+                  <ScanEye className="h-3.5 w-3.5" /> Visión · {visionPreview.imageName}
+                </div>
+                <div className="mt-2 rounded-xl bg-white/[0.04] px-2.5 py-2 text-[12px] text-gray-200">
+                  {visionPreview.walls.length} muro(s) y {visionPreview.zones.length} zona(s) detectados{visionPreview.unitHint ? ` · unidad sugerida ${visionPreview.unitHint}` : ''}.
+                </div>
+                {visionPreview.errors.slice(0, 3).map((err) => (
+                  <div key={err} className="mt-1 text-[10.5px] text-amber-300">Descartado: {err}</div>
+                ))}
+                <p className="mt-2 text-[10.5px] leading-snug text-gray-500">Se insertan como muros/zonas EDITABLES escalados a la huella actual — revisa y ajusta después de insertar.</p>
+                <div className="mt-2 flex gap-1.5">
+                  <button onClick={applyVisionResult} className="rounded-lg bg-emerald-700 px-2.5 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-600">Insertar {visionPreview.walls.length + visionPreview.zones.length}</button>
+                  <button onClick={() => setVisionPreview(null)} className="rounded-lg border border-white/10 px-2.5 py-1.5 text-[11px] text-gray-300 hover:bg-white/10">Descartar</button>
+                </div>
+              </div>
+            )}
             {showPalette && (
               <div className="absolute top-3 right-3 z-30 w-[22rem] rounded-2xl border border-cyan-400/20 bg-gray-950/95 p-3 shadow-2xl backdrop-blur">
                 <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-2.5 py-2">
