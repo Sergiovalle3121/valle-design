@@ -60,8 +60,8 @@ assert.equal(
 );
 assert.equal(
   CAD_COMMAND_REGISTRY.length,
-  22,
-  "registry exposes 22 commands",
+  23,
+  "registry exposes 23 commands",
 );
 
 const parsed = parseCadCommand("haz un pasillo de 1.2m entre SMT e inspección");
@@ -659,5 +659,44 @@ const emptyZone = executeCadCommand(
   { ...rackCtx, selectedIds: [] },
 );
 assert.equal(emptyZone.applied, false, "zone-around requires a selection");
+
+// — Auto-acotado (ADR §225) —
+assert.equal(
+  parseCadCommand("acota la selección").input?.id,
+  "auto_dimension",
+  "parser recognizes auto-dimension intent",
+);
+const dimParsed = parseCadCommand("acota los huecos entre racks");
+assert.equal(
+  dimParsed.input?.id === "auto_dimension" ? dimParsed.input.mode : undefined,
+  "gaps",
+  "parser reads gaps mode",
+);
+const dimPreview = previewCadCommand(
+  { id: "auto_dimension", objectIds: ["rack-1", "rack-3"] },
+  { ...rackCtx, objects: rackCtx.objects.map((o) => (o.id === "rack-3" ? { ...o, x: 7000, y: 100 } : o)) },
+);
+// 2 objetos → 2 cotas de tamaño c/u + 1 de hueco (7000 − 6200 = 800)
+assert.equal(
+  dimPreview.operations.filter((op) => op.type === "annotate").length,
+  5,
+  "auto-dimension emits size dims per object plus the gap dim",
+);
+assert.equal(
+  dimPreview.operations.some(
+    (op) => op.type === "annotate" && op.annotation.text.includes("800"),
+  ),
+  true,
+  "gap dim carries the 800 mm distance",
+);
+const dimSizeOnly = previewCadCommand(
+  { id: "auto_dimension", mode: "size", objectIds: ["rack-1", "rack-2"] },
+  rackCtx,
+);
+assert.equal(
+  dimSizeOnly.operations.filter((op) => op.type === "annotate").length,
+  4,
+  "size mode emits only per-object dims",
+);
 
 console.log("cad command registry specs passed");

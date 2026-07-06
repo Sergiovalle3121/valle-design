@@ -112,6 +112,61 @@ export function measureAreaPreview(
   };
 }
 
+/**
+ * Auto-acotado (ADR §225): cotas de tamaño (ancho/alto) por objeto y cotas de
+ * hueco entre vecinos consecutivos en X — el trabajo mecánico de acotar un
+ * plano que en AutoCAD es DIMLINEAR uno por uno.
+ */
+export function autoDimensionPreview(
+  input: Extract<CadCommandInput, { id: "auto_dimension" }>,
+  context: CadCommandContext,
+): CadCommandPreview {
+  const { objects, issues } = selectedObjects(context, input.objectIds, 1);
+  if (objects.length > 30)
+    issues.push(
+      error("too_many_objects", "Máximo 30 objetos por acotado automático (selecciona menos)."),
+    );
+  if (!objects.length || issues.some((i) => i.level === "error"))
+    return empty("Acotar selección", issues);
+
+  const unit = String(context.unit || "mm");
+  const mode = input.mode ?? "both";
+  const off = Math.max(context.footprintW, context.footprintH) * 0.02;
+  const dims: Extract<CadOperation, { type: "annotate" }>[] = [];
+  if (mode !== "gaps") {
+    for (const o of objects) {
+      dims.push({
+        type: "annotate",
+        annotation: { kind: "dim", x: o.x, y: o.y + o.h + off, x2: o.x + o.w, y2: o.y + o.h + off, text: lengthLabel(o.w, unit) },
+      });
+      dims.push({
+        type: "annotate",
+        annotation: { kind: "dim", x: o.x + o.w + off, y: o.y, x2: o.x + o.w + off, y2: o.y + o.h, text: lengthLabel(o.h, unit) },
+      });
+    }
+  }
+  if (mode !== "size" && objects.length > 1) {
+    const sorted = [...objects].sort((a, b) => a.x - b.x);
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const a = sorted[i];
+      const b = sorted[i + 1];
+      const gap = b.x - (a.x + a.w);
+      if (gap <= 0) continue;
+      const y = Math.max(a.y + a.h, b.y + b.h) + off * 1.5;
+      dims.push({
+        type: "annotate",
+        annotation: { kind: "dim", x: a.x + a.w, y, x2: b.x, y2: y, text: lengthLabel(gap, unit) },
+      });
+    }
+  }
+  return {
+    summary: `Crear ${dims.length} cota(s) para ${objects.length} objeto(s).`,
+    affectedObjectIds: objects.map((o) => o.id),
+    operations: dims,
+    issues,
+  };
+}
+
 export function createZoneAroundPreview(
   input: Extract<CadCommandInput, { id: "create_zone_around" }>,
   context: CadCommandContext,

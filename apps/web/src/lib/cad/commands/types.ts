@@ -23,7 +23,8 @@ export type CadCommandId =
   | "trim_wall"
   | "chamfer_walls"
   | "measure_area"
-  | "create_zone_around";
+  | "create_zone_around"
+  | "auto_dimension";
 
 export type CadCommandCategory = "layout" | "flow" | "analysis" | "viewport";
 export type CadIssueLevel = "info" | "warning" | "error";
@@ -92,6 +93,10 @@ export interface CadDraftObject {
 export type CadOperation =
   | { type: "move"; objectId: string; before: CadBox; after: CadBox }
   | { type: "create"; object: CadDraftObject }
+  | {
+      type: "annotate";
+      annotation: { kind: "dim"; x: number; y: number; x2: number; y2: number; text: string };
+    }
   | { type: "connect"; from: string; to: string; kind: string }
   | {
       type: "measure";
@@ -216,6 +221,11 @@ export type CadCommandInput =
       objectIds?: string[];
       margin?: number;
       label?: string;
+    }
+  | {
+      id: "auto_dimension";
+      objectIds?: string[];
+      mode?: "size" | "gaps" | "both";
     };
 
 export interface CadCommandSchemaField {

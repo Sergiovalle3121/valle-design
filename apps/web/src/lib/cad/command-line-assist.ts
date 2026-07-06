@@ -36,6 +36,7 @@ const SELECTION_MINIMUMS: Partial<Record<CadCommandId, number>> = {
   chamfer_walls: 2,
   measure_area: 1,
   create_zone_around: 1,
+  auto_dimension: 1,
 };
 
 const EMPTY_QUERY_PRIORITY: Partial<Record<CadCommandId, number>> = {

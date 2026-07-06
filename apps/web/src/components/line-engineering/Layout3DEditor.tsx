@@ -242,6 +242,8 @@ interface St {
 interface Cell { id: string; name: string; color: string; stationIds: string[] }
 interface Conn { from: string; to: string; kind?: string }
 interface Asset { id: string; kind: string; x: number; y: number; w: number; h: number; rotation: number; label?: string }
+/** Bloque CAD reutilizable de la biblioteca del tenant (ADR §224). */
+interface CadBlockRow { id: string; name: string; assets: (Asset & { layer?: string })[]; createdAt?: string }
 /** A pair of objects flagged by the clearance analysis (Fase 43). */
 interface ClearancePair { a: string; b: string; aLabel: string; bLabel: string; gap: number }
 /** A free-text note or a dimension line (cota) on the plan — world coords. */
@@ -876,6 +878,8 @@ export default function Layout3DEditor({
   // Grupos CAD (Ctrl+G, ADR §223): assetId → groupId. Clic en un miembro
   // selecciona el grupo completo (Alt+clic entra al objeto individual).
   const [objectGroups, setObjectGroups] = useState<Record<string, string>>({});
+  // Biblioteca de bloques reutilizables del tenant (ADR §224).
+  const [cadBlocks, setCadBlocks] = useState<CadBlockRow[]>([]);
   const [activeCadLayer, setActiveCadLayer] = useState<CadLayerId>('equipment');
   const cadLayersRef = useRef<CadLayer[]>(DEFAULT_CAD_LAYERS);
   const layerAssignmentsRef = useRef<CadLayerAssignments>({});
@@ -3054,6 +3058,72 @@ export default function Layout3DEditor({
     }
     setDirty(true); refreshSnap(); rebuildAll();
   };
+  // Bloques CAD reutilizables (ADR §224): celdas estándar guardadas UNA vez e
+  // insertables en cualquier layout del tenant. La inserción llega agrupada.
+  const loadCadBlocks = async () => {
+    try {
+      const r = await apiFetch(`${API_BASE}/line-engineering/cad-blocks`);
+      if (r.ok) setCadBlocks(await r.json() as CadBlockRow[]);
+    } catch { /* transitorio — la sección muestra "sin bloques" */ }
+  };
+  const saveSelectionAsBlock = async () => {
+    const assets = selRef.current.filter((s) => s.type === 'asset');
+    if (!assets.length) { toast.error('Selecciona los equipos/activos que forman el bloque.', 'Bloques'); return; }
+    const name = (typeof window !== 'undefined' ? window.prompt('Nombre del bloque (ej. Celda SMT estándar):') : '')?.trim();
+    if (!name) return;
+    const sources = assets.map((it) => assetsRef.current.get(it.id)).filter((a): a is Asset => !!a);
+    const minX = Math.min(...sources.map((a) => a.x));
+    const minY = Math.min(...sources.map((a) => a.y));
+    const payload = sources.map((a) => ({ ...a, x: a.x - minX, y: a.y - minY, ...(layerAssignmentsRef.current[a.id] ? { layer: layerAssignmentsRef.current[a.id] } : {}) }));
+    try {
+      const r = await apiFetch(`${API_BASE}/line-engineering/cad-blocks`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, assets: payload }),
+      });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); toast.error(d?.message || 'No se pudo guardar el bloque.', 'Bloques'); return; }
+      toast.success(`Bloque "${name}" guardado (${payload.length} objetos) — disponible en todos los layouts.`, 'Bloques');
+      void loadCadBlocks();
+    } catch { toast.error('Error de red al guardar el bloque.', 'Bloques'); }
+  };
+  const insertCadBlock = (block: CadBlockRow) => {
+    const ctx = ctxRef.current; const ctrl = controlsRef.current;
+    if (!ctx || !block.assets.length) return;
+    pushHistory();
+    const bw = Math.max(...block.assets.map((a) => a.x + a.w));
+    const bh = Math.max(...block.assets.map((a) => a.y + a.h));
+    const cx = ctrl ? ctrl.target.x / ctx.s + ctx.W / 2 : ctx.W / 2;
+    const cy = ctrl ? ctrl.target.z / ctx.s + ctx.H / 2 : ctx.H / 2;
+    const ox = Math.max(0, Math.min(ctx.W - bw, Math.round(cx - bw / 2)));
+    const oy = Math.max(0, Math.min(ctx.H - bh, Math.round(cy - bh / 2)));
+    const gid = newId('grp');
+    const created: SelItem[] = [];
+    const groupUpdates: Record<string, string> = {};
+    block.assets.forEach((a) => {
+      const id = newId('as');
+      assetsRef.current.set(id, { id, kind: a.kind, label: a.label, x: ox + a.x, y: oy + a.y, w: a.w, h: a.h, rotation: a.rotation ?? 0 });
+      const layer = a.layer && DEFAULT_CAD_LAYERS.some((l) => l.id === a.layer) ? a.layer as CadLayerId : defaultCadLayerForAssetKind(a.kind);
+      setLayerAssignments((cur) => assignObjectsToLayer(cur, [id], layer));
+      groupUpdates[id] = gid;
+      created.push({ type: 'asset', id });
+    });
+    setObjectGroups((cur) => ({ ...cur, ...groupUpdates }));
+    setAssetIds(new Set(assetsRef.current.keys()));
+    select(created);
+    setDirty(true); rebuildAll();
+    toast.success(`Bloque "${block.name}" insertado como grupo (${created.length} objetos).`, 'Bloques');
+  };
+  const deleteCadBlock = async (block: CadBlockRow) => {
+    if (typeof window !== 'undefined' && !window.confirm(`¿Borrar el bloque "${block.name}" de la biblioteca del tenant?`)) return;
+    try {
+      const r = await apiFetch(`${API_BASE}/line-engineering/cad-blocks/${block.id}`, { method: 'DELETE' });
+      if (!r.ok) { toast.error('No se pudo borrar el bloque.', 'Bloques'); return; }
+      setCadBlocks((cur) => cur.filter((b) => b.id !== block.id));
+      toast.success(`Bloque "${block.name}" borrado.`, 'Bloques');
+    } catch { toast.error('Error de red.', 'Bloques'); }
+  };
+  // La biblioteca se refresca al abrir el editor (no por layout: es del tenant).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (open) void loadCadBlocks(); }, [open]);
   // Grupos CAD (Ctrl+G, ADR §223): los miembros se seleccionan/mueven/copian
   // como unidad; Alt+clic entra al objeto individual. Solo assets — las
   // estaciones se agrupan con Celdas (concepto de manufactura, no de dibujo).
@@ -3909,6 +3979,14 @@ export default function Layout3DEditor({
       const srcLayer = op.object.sourceId ? layerAssignmentsRef.current[op.object.sourceId] : undefined;
       setLayerAssignments((cur) => assignObjectsToLayer(cur, [id], srcLayer ?? defaultCadLayerForAssetKind(kind)));
       return true;
+    } else if (op.type === 'annotate') {
+      // Auto-acotado (ADR §225): cada cota entra como anotación dim normal —
+      // editable/borrable desde el panel de mediciones como cualquier otra.
+      const id = newId('dim');
+      annotationsRef.current.set(id, { id, type: 'dim', x: op.annotation.x, y: op.annotation.y, x2: op.annotation.x2, y2: op.annotation.y2, text: op.annotation.text });
+      setDimCount([...annotationsRef.current.values()].filter((ann) => ann.type === 'dim').length);
+      refreshMeasurementRows();
+      return true;
     } else if (op.type === 'focus') {
       const items: SelItem[] = op.objectIds.map((id) => placementsRef.current.has(id) ? { type: 'station' as const, id } : assetsRef.current.has(id) ? { type: 'asset' as const, id } : null).filter((it): it is SelItem => !!it);
       if (items.length) select(items);
@@ -3923,7 +4001,7 @@ export default function Layout3DEditor({
       setCommandLog((items) => [createCadHistoryItem(commandPreview.input, 'failed', result.historyLabel, commandPreview.preview, result), ...items].slice(0, 12));
       return;
     }
-    const mutates = result.operations.some((op) => op.type === 'move' || op.type === 'connect' || op.type === 'create');
+    const mutates = result.operations.some((op) => op.type === 'move' || op.type === 'connect' || op.type === 'create' || op.type === 'annotate');
     if (mutates) { recordLocalSnapshot(`Auto · ${result.historyLabel}`, 'command'); pushHistory(); }
     // map + some: .some(applyCommandOperation) directo corta en la primera op
     // aplicada y dejaba a medias los comandos multi-objeto (align, flow line).
@@ -5084,7 +5162,7 @@ export default function Layout3DEditor({
                             <div className="font-semibold text-cyan-100">{op.title}</div>
                             {op.rows.slice(0, 3).map((row) => <div key={`${row.label}-${row.value}`} className="mt-0.5 flex justify-between gap-2 text-gray-500 dark:text-gray-400"><span className="truncate">{row.label}</span><span className="shrink-0 text-gray-200">{row.value}</span></div>)}
                           </div>
-                        ) : op.type === 'move' ? `Mover ${op.objectId} → (${Math.round(op.after.x)}, ${Math.round(op.after.y)})` : op.type === 'create' ? `Crear ${op.object.label} en (${Math.round(op.object.x)}, ${Math.round(op.object.y)})` : op.type === 'connect' ? `Conectar ${op.from} → ${op.to}` : op.type === 'measure' ? `Medir ${Math.round(op.distance)} ${op.unit}` : op.type === 'focus' ? `Enfocar ${op.objectIds.length || 'todo'}` : ''}
+                        ) : op.type === 'move' ? `Mover ${op.objectId} → (${Math.round(op.after.x)}, ${Math.round(op.after.y)})` : op.type === 'create' ? `Crear ${op.object.label} en (${Math.round(op.object.x)}, ${Math.round(op.object.y)})` : op.type === 'annotate' ? `Cota ${op.annotation.text}` : op.type === 'connect' ? `Conectar ${op.from} → ${op.to}` : op.type === 'measure' ? `Medir ${Math.round(op.distance)} ${op.unit}` : op.type === 'focus' ? `Enfocar ${op.objectIds.length || 'todo'}` : ''}
                       </div>
                     ))}
                     {commandPreview.preview.issues.slice(0, 2).map((issue) => (
@@ -5166,6 +5244,29 @@ export default function Layout3DEditor({
                         </button>
                       ))}
                     </div>
+                  </div>
+                  <div className="mb-3 rounded-xl border border-violet-400/15 bg-violet-400/[0.05] p-2.5">
+                    <div className="mb-1.5 flex items-center justify-between gap-2">
+                      <div className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-violet-200"><Boxes className="h-3.5 w-3.5" /> Mis bloques</div>
+                      <span className="text-[10px] text-violet-100/60">{cadBlocks.length}</span>
+                    </div>
+                    <button onClick={() => void saveSelectionAsBlock()} title="Guarda los equipos seleccionados como bloque reutilizable — disponible en todos los layouts" className="mb-1.5 w-full rounded-lg border border-violet-400/25 bg-violet-400/[0.08] px-2 py-1.5 text-[11px] font-semibold text-violet-100 hover:bg-violet-400/[0.14]">
+                      + Guardar selección como bloque
+                    </button>
+                    {cadBlocks.length === 0 ? (
+                      <p className="text-[10.5px] leading-snug text-gray-500">Sin bloques aún: selecciona una celda armada y guárdala para reutilizarla en cualquier layout.</p>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-1.5">
+                        {cadBlocks.map((block) => (
+                          <div key={block.id} className="flex items-center gap-1">
+                            <button onClick={() => insertCadBlock(block)} title="Insertar en el centro de la vista (llega agrupado)" className="min-w-0 flex-1 rounded-lg bg-violet-400/[0.08] px-2 py-1.5 text-left text-[11px] text-violet-100 hover:bg-violet-400/[0.14]">
+                              <span className="flex items-center justify-between gap-2"><span className="truncate font-semibold">{block.name}</span><span className="shrink-0 text-[10px] text-violet-200/70">{block.assets.length} obj</span></span>
+                            </button>
+                            <button onClick={() => void deleteCadBlock(block)} title="Borrar bloque de la biblioteca" className="shrink-0 rounded-lg border border-white/10 p-1.5 text-gray-400 hover:bg-rose-500/20 hover:text-rose-300"><Trash2 className="h-3 w-3" /></button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="mb-3 rounded-xl border border-slate-300/15 bg-slate-300/[0.05] p-2.5">
                     <div className="mb-1.5 flex items-center justify-between gap-2">

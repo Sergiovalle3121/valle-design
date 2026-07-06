@@ -208,6 +208,15 @@ export function parseCadCommand(text: string): CadParseResult {
       input: { id: "array_along_flow", count },
     };
   }
+  // Auto-acotado (ADR §225) — ANTES de mide/medir.
+  if (/(acota|acotar|acotado|dimensiona|dimensionar)/.test(q)) {
+    const mode = /hueco|gap|espacio|entre/.test(q)
+      ? ("gaps" as const)
+      : /tama[nñ]o|ancho|alto|size/.test(q)
+        ? ("size" as const)
+        : undefined;
+    return { ok: true, confidence: 0.85, input: { id: "auto_dimension", mode } };
+  }
   // Medición de regiones y zona envolvente (ADR §221) — ANTES de mide/medir
   // (distancia entre dos) y de pasillo/clearance ("zona" no debe caer ahí).
   if (/(área|area|superficie)/.test(q)) {

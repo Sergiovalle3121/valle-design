@@ -28,6 +28,7 @@ import {
   offsetObjectPreview,
 } from "./create-patterns";
 import {
+  autoDimensionPreview,
   createZoneAroundPreview,
   measureAreaPreview,
 } from "./measure-region";
@@ -1637,6 +1638,39 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     execute: (i, c) => {
       const p = createZoneAroundPreview(
         i as Extract<CadCommandInput, { id: "create_zone_around" }>,
+        c,
+      );
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
+    id: "auto_dimension",
+    label: "Acotar selección",
+    category: "analysis",
+    description:
+      "Genera cotas de ancho/alto por objeto y de hueco entre vecinos — el acotado mecánico del plano.",
+    inputSchema: {
+      mode: {
+        type: "enum",
+        enum: ["size", "gaps", "both"],
+        description: "Qué cotas generar (default both).",
+      },
+      objectIds: { type: "string[]", description: "Objetos a acotar." },
+    },
+    examples: ["acota la selección"],
+    validate: (i, c) =>
+      autoDimensionPreview(
+        i as Extract<CadCommandInput, { id: "auto_dimension" }>,
+        c,
+      ).issues,
+    preview: (i, c) =>
+      autoDimensionPreview(
+        i as Extract<CadCommandInput, { id: "auto_dimension" }>,
+        c,
+      ),
+    execute: (i, c) => {
+      const p = autoDimensionPreview(
+        i as Extract<CadCommandInput, { id: "auto_dimension" }>,
         c,
       );
       return result(p, ok(p.issues), p.summary);
