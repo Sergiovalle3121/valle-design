@@ -190,7 +190,7 @@ const OSNAP_LABELS: Record<SnapType, string> = { endpoint: 'extremo', intersecti
 
 // Portapapeles CAD (ADR §220) — a nivel de módulo para que Ctrl+C/Ctrl+V
 // funcione también ENTRE layouts (copiar en AX-1000/A, pegar en AX-2000/B).
-const CAD_CLIPBOARD: { items: { kind: string; label?: string; x: number; y: number; w: number; h: number; rotation: number; layer?: string; tags?: string }[] } = { items: [] };
+const CAD_CLIPBOARD: { items: { kind: string; label?: string; x: number; y: number; w: number; h: number; rotation: number; layer?: string; tags?: string; group?: string }[] } = { items: [] };
 
 // Approval / sign-off (ported from the 2D host, unify)
 type ApprovalStatus = 'draft' | 'in_review' | 'approved';
@@ -873,9 +873,13 @@ export default function Layout3DEditor({
   const [layers, setLayers] = useState({ stations: true, equipment: true, connectors: true, dims: true, notes: true, labels: true, grid: true, dxf: true });
   const [cadLayers, setCadLayers] = useState<CadLayer[]>(DEFAULT_CAD_LAYERS);
   const [layerAssignments, setLayerAssignments] = useState<CadLayerAssignments>({});
+  // Grupos CAD (Ctrl+G, ADR §223): assetId → groupId. Clic en un miembro
+  // selecciona el grupo completo (Alt+clic entra al objeto individual).
+  const [objectGroups, setObjectGroups] = useState<Record<string, string>>({});
   const [activeCadLayer, setActiveCadLayer] = useState<CadLayerId>('equipment');
   const cadLayersRef = useRef<CadLayer[]>(DEFAULT_CAD_LAYERS);
   const layerAssignmentsRef = useRef<CadLayerAssignments>({});
+  const objectGroupsRef = useRef<Record<string, string>>({});
   const [objectTags, setObjectTags] = useState<Record<string, string>>({});
   const [objectNotes, setObjectNotes] = useState<Record<string, string>>({});
   const objectTagsRef = useRef<Record<string, string>>({});
@@ -1059,6 +1063,7 @@ export default function Layout3DEditor({
   useEffect(() => { layersRef.current = layers; applyLayers(); }, [layers, applyLayers]);
   useEffect(() => { cadLayersRef.current = cadLayers; applyLayers(); }, [cadLayers, applyLayers]);
   useEffect(() => { layerAssignmentsRef.current = layerAssignments; applyLayers(); }, [layerAssignments, applyLayers]);
+  useEffect(() => { objectGroupsRef.current = objectGroups; }, [objectGroups]);
   useEffect(() => { objectTagsRef.current = objectTags; }, [objectTags]);
   useEffect(() => { objectNotesRef.current = objectNotes; }, [objectNotes]);
 
@@ -1253,13 +1258,17 @@ export default function Layout3DEditor({
         setPlacedIds(new Set(pl.keys()));
         setAssetIds(new Set(am.keys()));
         setDimCount([...an.values()].filter((a) => a.type === 'dim').length);
-        // Restaura la capa CAD por asset persistida en el layout (ADR §219).
+        // Restaura la capa CAD y el grupo por asset persistidos (ADR §219/§223).
         const restoredLayers: CadLayerAssignments = {};
+        const restoredGroups: Record<string, string> = {};
         (d.assets ?? []).forEach((a) => {
           const layer = (a as { layer?: string }).layer;
           if (layer && DEFAULT_CAD_LAYERS.some((l) => l.id === layer)) restoredLayers[a.id] = layer as CadLayerId;
+          const group = (a as { group?: string }).group;
+          if (group) restoredGroups[a.id] = group;
         });
         setLayerAssignments(restoredLayers);
+        setObjectGroups(restoredGroups);
         setData(d);
         // fetch + parse the read-only DXF backdrop (the endpoint already serves
         // the raw drawing); render it on the floor once ready.
@@ -1922,16 +1931,21 @@ export default function Layout3DEditor({
       if (all.length) {
         const top = all[0];
         const item: SelItem = { type: top.type, id: top.id };
+        // Grupos (ADR §223): clic selecciona el grupo completo; Alt+clic entra
+        // al objeto individual sin disolver nada.
+        const groupItems = e.altKey ? [item] : expandGroupMembers(item);
         // Shift+click toggles membership without starting a drag
         if (e.shiftKey) {
           const exists = selRef.current.some((s) => sameSel(s, item));
-          select(exists ? selRef.current.filter((s) => !sameSel(s, item)) : [...selRef.current, item]);
+          select(exists
+            ? selRef.current.filter((s) => !groupItems.some((g) => sameSel(g, s)))
+            : [...selRef.current, ...groupItems.filter((g) => !selRef.current.some((s) => sameSel(s, g)))]);
           rebuildAll();
           return;
         }
         const inSel = selRef.current.some((s) => sameSel(s, item));
-        const items = inSel && selRef.current.length > 1 ? [...selRef.current] : [item];
-        if (!inSel) select([item]);
+        const items = inSel && selRef.current.length > 1 ? [...selRef.current] : groupItems;
+        if (!inSel) select(groupItems);
         if (isObjectLayerLocked(cadLayersRef.current, layerAssignmentsRef.current, item.id, item.type === 'station' ? 'layout' : defaultLayerForAsset(item.id))) {
           toast.error('El objeto está en una capa bloqueada. Desbloquea la capa para moverlo.', 'Capas');
           rebuildAll();
@@ -3019,10 +3033,54 @@ export default function Layout3DEditor({
     select([]); setDirty(true); rebuildAll();
   };
   const rotateSelected = (deg: number) => {
-    const items = editableItems(selRef.current, 'rotar'); if (!items.length) return;
+    const items = editableItems(selRef.current, 'rotar'); const ctx = ctxRef.current; if (!items.length || !ctx) return;
     pushHistory();
-    items.forEach((it) => { const p = getPlaceRef(it); if (p) p.rotation = (((p.rotation + deg) % 360) + 360) % 360; });
+    if (items.length >= 2) {
+      // Rotación de GRUPO (ADR §223): los centros orbitan el centroide de la
+      // selección además de girar cada objeto — antes cada uno giraba en su
+      // sitio y la celda se deshacía.
+      const boxes = items.map((it) => getPlaceRef(it)).filter((p): p is NonNullable<typeof p> => !!p);
+      const cx = boxes.reduce((s, p) => s + p.x + p.w / 2, 0) / boxes.length;
+      const cy = boxes.reduce((s, p) => s + p.y + p.h / 2, 0) / boxes.length;
+      const rad = (deg * Math.PI) / 180; const cos = Math.cos(rad); const sin = Math.sin(rad);
+      boxes.forEach((p) => {
+        const ox = p.x + p.w / 2 - cx; const oy = p.y + p.h / 2 - cy;
+        p.x = Math.max(0, Math.min(ctx.W - p.w, Math.round(cx + ox * cos - oy * sin - p.w / 2)));
+        p.y = Math.max(0, Math.min(ctx.H - p.h, Math.round(cy + ox * sin + oy * cos - p.h / 2)));
+        p.rotation = (((p.rotation + deg) % 360) + 360) % 360;
+      });
+    } else {
+      items.forEach((it) => { const p = getPlaceRef(it); if (p) p.rotation = (((p.rotation + deg) % 360) + 360) % 360; });
+    }
     setDirty(true); refreshSnap(); rebuildAll();
+  };
+  // Grupos CAD (Ctrl+G, ADR §223): los miembros se seleccionan/mueven/copian
+  // como unidad; Alt+clic entra al objeto individual. Solo assets — las
+  // estaciones se agrupan con Celdas (concepto de manufactura, no de dibujo).
+  const groupSelection = () => {
+    const assets = selRef.current.filter((s) => s.type === 'asset');
+    const stations = selRef.current.length - assets.length;
+    if (assets.length < 2) { toast.error('Selecciona al menos 2 equipos/activos para agrupar.', 'Grupos'); return; }
+    const gid = newId('grp');
+    setObjectGroups((cur) => { const next = { ...cur }; assets.forEach((it) => { next[it.id] = gid; }); return next; });
+    setDirty(true);
+    toast.success(`Grupo creado con ${assets.length} objeto(s)${stations ? ` (${stations} estación(es) fuera — usa Celdas)` : ''}. Alt+clic selecciona individual.`, 'Grupos');
+  };
+  const ungroupSelection = () => {
+    const gids = new Set(selRef.current.map((it) => objectGroupsRef.current[it.id]).filter(Boolean));
+    if (!gids.size) { toast.error('La selección no tiene grupos.', 'Grupos'); return; }
+    setObjectGroups((cur) => Object.fromEntries(Object.entries(cur).filter(([, gid]) => !gids.has(gid))));
+    setDirty(true);
+    toast.success(`${gids.size} grupo(s) disueltos.`, 'Grupos');
+  };
+  /** Expande un item a su grupo completo (v1: grupos solo de assets). */
+  const expandGroupMembers = (item: SelItem): SelItem[] => {
+    if (item.type !== 'asset') return [item];
+    const gid = objectGroupsRef.current[item.id];
+    if (!gid) return [item];
+    const members: SelItem[] = [];
+    assetsRef.current.forEach((_, id) => { if (objectGroupsRef.current[id] === gid) members.push({ type: 'asset', id }); });
+    return members.length ? members : [item];
   };
   // Portapapeles CAD (ADR §220): Ctrl+C copia los assets seleccionados (las
   // estaciones son del routing, no viajan); Ctrl+V pega aquí o en OTRO layout.
@@ -3033,7 +3091,7 @@ export default function Layout3DEditor({
     CAD_CLIPBOARD.items = assets.flatMap((it) => {
       const src = assetsRef.current.get(it.id);
       if (!src) return [];
-      return [{ kind: src.kind, label: src.label, x: src.x, y: src.y, w: src.w, h: src.h, rotation: src.rotation, layer: layerAssignmentsRef.current[it.id], tags: objectTagsRef.current[it.id] }];
+      return [{ kind: src.kind, label: src.label, x: src.x, y: src.y, w: src.w, h: src.h, rotation: src.rotation, layer: layerAssignmentsRef.current[it.id], tags: objectTagsRef.current[it.id], group: objectGroupsRef.current[it.id] }];
     });
     toast.success(`${CAD_CLIPBOARD.items.length} objeto(s) copiados${stations ? ` (${stations} estación(es) omitidas)` : ''}.`, 'Portapapeles');
   };
@@ -3045,15 +3103,22 @@ export default function Layout3DEditor({
     const off = data?.footprint.gridSize || 200;
     const created: SelItem[] = [];
     const tagUpdates: Record<string, string> = {};
+    const gidMap = new Map<string, string>();
+    const groupUpdates: Record<string, string> = {};
     CAD_CLIPBOARD.items.forEach((clip) => {
       const id = newId('as');
       assetsRef.current.set(id, { id, kind: clip.kind, label: clip.label, x: Math.max(0, Math.min(ctx.W - clip.w, clip.x + off)), y: Math.max(0, Math.min(ctx.H - clip.h, clip.y + off)), w: clip.w, h: clip.h, rotation: clip.rotation });
       const layer = (clip.layer as CadLayerId | undefined) ?? defaultCadLayerForAssetKind(clip.kind, clip.tags);
       setLayerAssignments((cur) => assignObjectsToLayer(cur, [id], layer));
       if (clip.tags) tagUpdates[id] = clip.tags;
+      if (clip.group) {
+        if (!gidMap.has(clip.group)) gidMap.set(clip.group, newId('grp'));
+        groupUpdates[id] = gidMap.get(clip.group)!;
+      }
       created.push({ type: 'asset', id });
     });
     if (Object.keys(tagUpdates).length) setObjectTags((cur) => ({ ...cur, ...tagUpdates }));
+    if (Object.keys(groupUpdates).length) setObjectGroups((cur) => ({ ...cur, ...groupUpdates }));
     setAssetIds(new Set(assetsRef.current.keys()));
     select(created);
     setDirty(true); rebuildAll();
@@ -3066,12 +3131,22 @@ export default function Layout3DEditor({
     const off = data?.footprint.gridSize || 200;
     pushHistory();
     const created: SelItem[] = [];
+    // Las copias de un grupo forman un grupo NUEVO (ADR §223) — no se cuelgan
+    // del original, o mover la copia arrastraría la celda fuente.
+    const gidMap = new Map<string, string>();
+    const groupUpdates: Record<string, string> = {};
     assets.forEach((it) => {
       const src = assetsRef.current.get(it.id); if (!src) return;
       const id = newId('as');
       assetsRef.current.set(id, { ...src, id, x: Math.max(0, Math.min(ctx.W - src.w, src.x + off)), y: Math.max(0, Math.min(ctx.H - src.h, src.y + off)) });
+      const gid = objectGroupsRef.current[it.id];
+      if (gid) {
+        if (!gidMap.has(gid)) gidMap.set(gid, newId('grp'));
+        groupUpdates[id] = gidMap.get(gid)!;
+      }
       created.push({ type: 'asset', id });
     });
+    if (Object.keys(groupUpdates).length) setObjectGroups((cur) => ({ ...cur, ...groupUpdates }));
     setAssetIds(new Set(assetsRef.current.keys()));
     if (created.length) select(created);
     setDirty(true); rebuildAll();
@@ -4508,9 +4583,9 @@ export default function Layout3DEditor({
     try {
       const positions = [...placementsRef.current.entries()].map(([id, p]) => ({ id, ...p }));
       const cleared = [...loadedPlacedRef.current].filter((id) => !placementsRef.current.has(id));
-      // La capa CAD viaja por asset (LayoutAssetDto.layer, ADR §219): sin esto
-      // las asignaciones de capa morían en cada recarga.
-      const assets = [...assetsRef.current.values()].map((a) => ({ ...a, ...(layerAssignments[a.id] ? { layer: layerAssignments[a.id] } : {}) }));
+      // La capa CAD y el grupo viajan por asset (ADR §219/§223): sin esto las
+      // asignaciones morían en cada recarga.
+      const assets = [...assetsRef.current.values()].map((a) => ({ ...a, ...(layerAssignments[a.id] ? { layer: layerAssignments[a.id] } : {}), ...(objectGroups[a.id] ? { group: objectGroups[a.id] } : {}) }));
       const annotations = [...annotationsRef.current.values()];
       const r = await apiFetch(`${API_BASE}/line-engineering/layout`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -4588,6 +4663,8 @@ export default function Layout3DEditor({
       else if ((e.key === 'd' || e.key === 'D') && (e.ctrlKey || e.metaKey) && hasSel) { e.preventDefault(); duplicateSelected(); }
       else if ((e.key === 'c' || e.key === 'C') && (e.ctrlKey || e.metaKey) && hasSel && !window.getSelection()?.toString()) { e.preventDefault(); copySelection(); }
       else if ((e.key === 'v' || e.key === 'V') && (e.ctrlKey || e.metaKey)) { e.preventDefault(); pasteClipboard(); }
+      else if ((e.key === 'g' || e.key === 'G') && (e.ctrlKey || e.metaKey) && e.shiftKey && hasSel) { e.preventDefault(); ungroupSelection(); }
+      else if ((e.key === 'g' || e.key === 'G') && (e.ctrlKey || e.metaKey) && hasSel) { e.preventDefault(); groupSelection(); }
       else if (e.key === 'ArrowLeft' && hasSel) { e.preventDefault(); nudgeSelected(-step, 0); }
       else if (e.key === 'ArrowRight' && hasSel) { e.preventDefault(); nudgeSelected(step, 0); }
       else if (e.key === 'ArrowUp' && hasSel) { e.preventDefault(); nudgeSelected(0, -step); }
@@ -5533,9 +5610,11 @@ export default function Layout3DEditor({
                   <button onClick={duplicateSelected} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><Copy className="w-3.5 h-3.5" /> Duplicar</button>
                   <button onClick={copySelection} title="Ctrl+C — copia al portapapeles CAD (pega aquí o en otro layout)" className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><ClipboardList className="w-3.5 h-3.5" /> Copiar</button>
                   <button onClick={pasteClipboard} title="Ctrl+V — pega el portapapeles CAD" className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><ClipboardList className="w-3.5 h-3.5" /> Pegar</button>
+                  <button onClick={groupSelection} title="Ctrl+G — agrupa los equipos seleccionados (clic selecciona el grupo; Alt+clic el objeto)" className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><Group className="w-3.5 h-3.5" /> Agrupar</button>
+                  <button onClick={ungroupSelection} title="Ctrl+Shift+G — disuelve los grupos de la selección" className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><Group className="w-3.5 h-3.5" /> Desagrupar</button>
                   <button onClick={removeSelected} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 text-[12px]"><Trash2 className="w-3.5 h-3.5" /> Quitar</button>
                 </div>
-                <p className="text-[10.5px] text-gray-500 mt-3 leading-relaxed"><b>Shift</b>+clic agrega/quita · <b>Shift</b>+arrastre en el fondo = ventana (izq→der contiene, der→izq cruza) · <b>Ctrl+A</b> todo · <b>Ctrl+C/V</b> copia/pega · flechas mueven el grupo.</p>
+                <p className="text-[10.5px] text-gray-500 mt-3 leading-relaxed"><b>Shift</b>+clic agrega/quita · <b>Shift</b>+arrastre en el fondo = ventana (izq→der contiene, der→izq cruza) · <b>Ctrl+A</b> todo · <b>Ctrl+C/V</b> copia/pega · <b>Ctrl+G</b> agrupa (Alt+clic = individual) · flechas mueven el grupo.</p>
               </div>
             ) : (
               <div className="p-3.5">
