@@ -24,16 +24,14 @@ export type CadCommandId =
   | "chamfer_walls"
   | "measure_area"
   | "create_zone_around"
+  | "draw_wall_segment"
+  | "draw_rect_zone"
   | "auto_dimension";
 
 export type CadCommandCategory = "layout" | "flow" | "analysis" | "viewport";
 export type CadIssueLevel = "info" | "warning" | "error";
 export type CadCommandStatus =
-  | "parsed"
-  | "previewed"
-  | "applied"
-  | "undone"
-  | "failed";
+  "parsed" | "previewed" | "applied" | "undone" | "failed";
 export type CadObjectType = "station" | "asset";
 export type CadUnit = "mm" | "m" | "in" | "ft";
 
@@ -95,7 +93,14 @@ export type CadOperation =
   | { type: "create"; object: CadDraftObject }
   | {
       type: "annotate";
-      annotation: { kind: "dim"; x: number; y: number; x2: number; y2: number; text: string };
+      annotation: {
+        kind: "dim";
+        x: number;
+        y: number;
+        x2: number;
+        y2: number;
+        text: string;
+      };
     }
   | { type: "connect"; from: string; to: string; kind: string }
   | {
@@ -200,7 +205,12 @@ export type CadCommandInput =
       side?: "left" | "right" | "up" | "down";
       copies?: number;
     }
-  | { id: "extend_wall"; target?: string; boundary?: string; objectIds?: string[] }
+  | {
+      id: "extend_wall";
+      target?: string;
+      boundary?: string;
+      objectIds?: string[];
+    }
   | {
       id: "trim_wall";
       target?: string;
@@ -220,6 +230,20 @@ export type CadCommandInput =
       id: "create_zone_around";
       objectIds?: string[];
       margin?: number;
+      label?: string;
+    }
+  | {
+      id: "draw_wall_segment";
+      from: { x: number; y: number };
+      to: { x: number; y: number };
+      thickness?: number;
+      label?: string;
+    }
+  | {
+      id: "draw_rect_zone";
+      from: { x: number; y: number };
+      to: { x: number; y: number };
+      kind?: "zone" | "room";
       label?: string;
     }
   | {

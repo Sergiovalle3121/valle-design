@@ -50,6 +50,8 @@ const EMPTY_QUERY_PRIORITY: Partial<Record<CadCommandId, number>> = {
   validate_layout: 4,
   find_collisions: 3,
   fit_to_view: 2,
+  draw_wall_segment: 1,
+  draw_rect_zone: 1,
 };
 
 const normalized = (value: string) =>
@@ -71,8 +73,7 @@ function exampleFor(commandId: CadCommandId, labels: string[] | undefined) {
     return `mide distancia entre ${a} y ${b}`;
   if (commandId === "align_selection")
     return "alinea las estaciones seleccionadas al centro";
-  if (commandId === "distribute_selection")
-    return "distribuye horizontalmente";
+  if (commandId === "distribute_selection") return "distribuye horizontalmente";
   if (commandId === "connect_flow") return "conecta flujo";
   if (commandId === "arrange_flow_line")
     return "acomoda y conecta la linea de flujo";
@@ -82,8 +83,12 @@ function exampleFor(commandId: CadCommandId, labels: string[] | undefined) {
   if (commandId === "validate_layout") return "valida el layout";
   if (commandId === "find_collisions") return "encuentra colisiones";
   if (commandId === "fit_to_view") return "enfoca la seleccion";
-  return CAD_COMMAND_REGISTRY.find((command) => command.id === commandId)
-    ?.examples[0] ?? "";
+  if (commandId === "draw_wall_segment") return "muro 0,0 @5000,0";
+  if (commandId === "draw_rect_zone") return "rect 0,0 @4000,2500";
+  return (
+    CAD_COMMAND_REGISTRY.find((command) => command.id === commandId)
+      ?.examples[0] ?? ""
+  );
 }
 
 function readinessReason(commandId: CadCommandId, selectedCount: number) {
