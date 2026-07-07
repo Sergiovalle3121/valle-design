@@ -28,13 +28,13 @@ AXOS CAD already had one editor, one asset catalog, one layer model, one object 
 
 The architecture layer now uses the existing editable asset model:
 
-| Primitive | Editable object kind | Default layer | Notes |
-| --- | --- | --- | --- |
-| Wall | `wall` | `architecture` | Can be traced with the existing `W` wall tool or converted from DXF walls. |
-| Column | `column` | `structure` | Uses the existing column renderer and inspector metadata. |
-| Door | `door` | `architecture` | New shared catalog item with a native door/opening archetype and swing arc hint. |
-| Room / area | `room` | `architecture` | New shared catalog item using the existing editable zone renderer. |
-| Utilities | utility asset kinds | `utilities` | Power, air, network, maintenance, tool crib, calibration, and eyewash classify as Utilities. |
+| Primitive   | Editable object kind | Default layer  | Notes                                                                                        |
+| ----------- | -------------------- | -------------- | -------------------------------------------------------------------------------------------- |
+| Wall        | `wall`               | `architecture` | Can be traced with the existing `W` wall tool or converted from DXF walls.                   |
+| Column      | `column`             | `structure`    | Uses the existing column renderer and inspector metadata.                                    |
+| Door        | `door`               | `architecture` | New shared catalog item with a native door/opening archetype and swing arc hint.             |
+| Room / area | `room`               | `architecture` | New shared catalog item using the existing editable zone renderer.                           |
+| Utilities   | utility asset kinds  | `utilities`    | Power, air, network, maintenance, tool crib, calibration, and eyewash classify as Utilities. |
 
 No new editor, canvas, renderer, layer manager, persistence table, or command engine was created.
 
@@ -118,3 +118,58 @@ DXF export continues through `exportCadLayoutDxf`. New Architecture, Structure, 
 ## Next CAD phase
 
 The next non-redundant phase should add release-package/title-block readiness: drawing sheet fields, layer legend completeness, revision/approval metadata, and export package summary attached to the current validation/takeoff surfaces.
+
+## CAD Phase 1 drafting extension — 2026-07-07
+
+The first Phase 1 implementation extends the existing command registry and the
+existing `Layout3DEditor` command dock. It does **not** add a second CAD editor,
+canvas, renderer, command engine, persistence table, or geometry store.
+
+What changed:
+
+- The precision input parser was promoted to the shared CAD library so both the
+  editor and deterministic command registry use the same coordinate math.
+- The existing command registry now supports coordinate-driven drafting commands:
+  - `draw_wall_segment`: `muro 0,0 @5000,0`, `wall 1000,1000 @3000<90 thickness 120`
+  - `draw_rect_zone`: `rect 0,0 @4000,2500`, `room 1000,1000 @5000,3000 etiqueta QA`
+- These commands emit the same `create` operation used by existing pattern,
+  offset, chamfer, and zone commands, so created geometry persists as normal
+  layout assets through the existing `/line-engineering/layout` save path.
+
+Non-redundancy guardrails:
+
+- `apps/web/src/components/line-engineering/precision-input.ts` is now a thin
+  compatibility re-export to the shared CAD precision module.
+- Coordinate drafting reuses `parseCadCommand`, `previewCadCommand`,
+  `executeCadCommand`, and `applyCommandOperation`; no alternate command runner
+  was introduced.
+- Walls continue to be normal `wall` assets on the architecture layer; rooms and
+  zones continue through the existing editable asset model.
+
+## CAD Phase 1 interactive drafting cascade — 2026-07-07
+
+The second Phase 1 slice wires the pre-existing pure CAD command reducer
+(`apps/web/src/components/line-engineering/cad-command.ts`) into the existing
+`Layout3DEditor` workbench. This is a UI wiring pass over the current editor,
+not a new drafting subsystem.
+
+User-visible additions:
+
+- Toolbar drafting actions: `Line`, `Pline`, and `Rect`.
+- Shortcuts: `L` starts line drafting, `P` starts polyline drafting, `B` starts
+  rectangle drafting, and the existing connector action moves to `Shift+L`.
+- The shared precision bar now works for wall tracing and the interactive
+  reducer-backed drafting tools: `x,y`, `@dx,dy`, `@dist<angle>`, and empty
+  Enter to finish chained commands.
+- LINE/PLINE create normal editable `wall` assets on the architecture layer.
+- RECT creates a normal editable `zone` asset through the same asset/save path.
+
+Non-redundancy guardrails:
+
+- The existing `cad-command.ts` reducer is now wired into `Layout3DEditor`;
+  no duplicate reducer or canvas was introduced.
+- Created geometry still uses `assetsRef`, `assignObjectsToLayer`, existing undo
+  snapshots, existing dirty/save flow, and the existing `/line-engineering/layout`
+  payload.
+- Existing wall tracing remains available; the new drafting tools are keyboard
+  and toolbar access to the same precision model for faster CAD-style work.

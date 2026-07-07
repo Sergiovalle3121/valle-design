@@ -22,9 +22,24 @@ assert.equal(
   "text action has shortcut",
 );
 assert.equal(
-  findToolbarAction("connector")?.shortcut,
+  findToolbarAction("line")?.shortcut,
   "L",
-  "connector action has shortcut",
+  "line action owns the plain drafting shortcut",
+);
+assert.equal(
+  findToolbarAction("polyline")?.shortcut,
+  "P",
+  "polyline action has shortcut",
+);
+assert.equal(
+  findToolbarAction("rect")?.shortcut,
+  "B",
+  "rect action has shortcut",
+);
+assert.equal(
+  findToolbarAction("connector")?.shortcut,
+  "Shift+L",
+  "connector action moves to shift-l",
 );
 assert.equal(
   toolbarActionsByGroup("history").length,

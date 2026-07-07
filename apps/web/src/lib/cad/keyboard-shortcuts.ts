@@ -2,6 +2,9 @@ export type CadKeyboardShortcutId =
   | "palette"
   | "select"
   | "measure"
+  | "line"
+  | "polyline"
+  | "rect"
   | "aisle"
   | "connector"
   | "zone"
@@ -49,6 +52,24 @@ export const CAD_KEYBOARD_SHORTCUTS: CadKeyboardShortcut[] = [
     description: "Herramienta de medicion.",
   },
   {
+    id: "line",
+    label: "Line",
+    key: "l",
+    description: "Trazar muros por segmentos encadenados.",
+  },
+  {
+    id: "polyline",
+    label: "Polyline",
+    key: "p",
+    description: "Trazar polilínea CAD de muros.",
+  },
+  {
+    id: "rect",
+    label: "Rectangle",
+    key: "b",
+    description: "Dibujar zona rectangular desde dos esquinas.",
+  },
+  {
     id: "aisle",
     label: "Aisle",
     key: "a",
@@ -58,6 +79,7 @@ export const CAD_KEYBOARD_SHORTCUTS: CadKeyboardShortcut[] = [
     id: "connector",
     label: "Connector",
     key: "l",
+    shift: true,
     description: "Conectar flujo de la linea seleccionada.",
   },
   {

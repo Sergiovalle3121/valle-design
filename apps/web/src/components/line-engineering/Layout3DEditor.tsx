@@ -30,6 +30,7 @@ import { flowMetrics, type FlowCenter } from './flow-metrics';
 import { plotSheetModel } from './plot-sheet';
 import { describeCadIntent, normalizeToolCalls, type CadIntent } from './cad-intent';
 import { parseCoordinate, constrainPoint } from './precision-input';
+import { startCommand, feedPoint, feedDistance, commit as commitDrawCommand, cancel as cancelDrawCommand, type CommandId as CadDrawCommandId, type CommandState as CadDrawCommandState, type DrawAction } from './cad-command';
 import { snap as resolveOsnap, rectGeometry, type SnapScene, type SnapType } from './snap-engine';
 import { normalizeVision, type VisionResult } from './cad-vision';
 import { detectCadFormat } from './cad-format-detect';
@@ -393,6 +394,9 @@ const HELP_SECTIONS: { title: string; rows: [string, string][] }[] = [
 const TOOLBAR_SHORTCUT_IDS = new Set<CadToolbarActionId>([
   'select',
   'measure',
+  'line',
+  'polyline',
+  'rect',
   'aisle',
   'connector',
   'zone',
@@ -402,6 +406,10 @@ const TOOLBAR_SHORTCUT_IDS = new Set<CadToolbarActionId>([
   'undo',
   'redo',
 ]);
+
+type EditorTool = 'select' | 'measure' | 'wall' | CadDrawCommandId;
+const CAD_DRAW_TOOLS = new Set<EditorTool>(['line', 'polyline', 'rect', 'circle', 'move', 'copy', 'offset']);
+const isCadDrawTool = (tool: EditorTool): tool is CadDrawCommandId => CAD_DRAW_TOOLS.has(tool);
 
 const DXF_LABEL_REQUIRED_ASSET_KINDS = new Set([
   'workbench',
@@ -857,7 +865,7 @@ export default function Layout3DEditor({
     includeEsdZone: true,
     includeQuarantine: true,
   });
-  const [tool, setTool] = useState<'select' | 'measure' | 'wall'>('select');
+  const [tool, setTool] = useState<EditorTool>('select');
   const [viewMode, setViewMode] = useState<'3d' | '2d'>('3d'); // 2D = locked top-down plan view (CAD unificado)
   const [walk, setWalk] = useState(false); // first-person walkthrough mode
   const [showHelp, setShowHelp] = useState(false); // keyboard shortcuts overlay
@@ -1001,6 +1009,8 @@ export default function Layout3DEditor({
   useEffect(() => { orthoLockRef.current = orthoLock; }, [orthoLock]);
   const lastWallAngleRef = useRef<number | null>(null); // ángulo del último tramo → entrada directa de distancia
   const [precisionText, setPrecisionText] = useState('');
+  const [drawPrompt, setDrawPrompt] = useState<string | null>(null);
+  const drawCommandRef = useRef<CadDrawCommandState | null>(null);
   useEffect(() => { themeRef.current = theme; }, [theme]);
 
   // Workbench full-screen: el CAD (`fixed inset-0`) se monta DENTRO de una ruta
@@ -2004,11 +2014,11 @@ export default function Layout3DEditor({
         if (w) { marquee.x1 = w.wx; marquee.y1 = w.wy; drawMarquee(marquee); }
         return;
       }
-      if (toolRef.current === 'measure' || toolRef.current === 'wall') {
+      if (toolRef.current === 'measure' || toolRef.current === 'wall' || isCadDrawTool(toolRef.current)) {
         const w = floorWorld(e); if (!w) { showSnapMarker(null); return; }
         const s = snapFloor(w.wx, w.wy); // snap the live endpoint to the underlay
         showSnapMarker(s.onDxf ? s.wx : null, s.wy);
-        const a = toolRef.current === 'measure' ? measureARef.current : wallChainRef.current;
+        const a = toolRef.current === 'measure' ? measureARef.current : toolRef.current === 'wall' ? wallChainRef.current : drawCommandRef.current?.points.at(-1) ? { wx: drawCommandRef.current.points.at(-1)!.x, wy: drawCommandRef.current.points.at(-1)!.y } : null;
         if (!a) return; // marker shown for the first point; wait for the anchor to draw a segment
         const ctx = ctxRef.current!;
         const ax = (a.wx - ctx.W / 2) * ctx.s, az = (a.wy - ctx.H / 2) * ctx.s;
@@ -2017,7 +2027,7 @@ export default function Layout3DEditor({
         if (pl) { (pl.geometry as THREE.BufferGeometry).setFromPoints([new THREE.Vector3(ax, 0.06, az), new THREE.Vector3(ex, 0.06, ez)]); pl.visible = true; }
         const dist = Math.hypot(s.wx - a.wx, s.wy - a.wy);
         const tag = s.onDxf ? ` · ${s.snapType ? OSNAP_LABELS[s.snapType] : 'plano'}` : '';
-        if (toolRef.current === 'wall') {
+        if (toolRef.current === 'wall' || isCadDrawTool(toolRef.current)) {
           const deg = (((Math.atan2(s.wy - a.wy, s.wx - a.wx) * 180) / Math.PI) % 360 + 360) % 360;
           setMeasureLive(`${fmtDist(dist, unit)} · ${Math.round(deg)}°${tag}`);
         } else setMeasureLive(`${fmtDist(dist, unit)}${tag}`);
@@ -2105,6 +2115,24 @@ export default function Layout3DEditor({
               measureARef.current = null; setMeasureLive(null);
               if (previewLineRef.current) previewLineRef.current.visible = false;
             }
+          }
+        }
+        try { renderer.domElement.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+        return;
+      }
+      if (isCadDrawTool(toolRef.current)) {
+        if (isClick) {
+          const w = floorWorld(e);
+          if (w) {
+            const sp = snapFloor(w.wx, w.wy);
+            let pt = { wx: sp.wx, wy: sp.wy };
+            const prev = drawCommandRef.current?.points.at(-1);
+            if (prev && (e.shiftKey || orthoLockRef.current) && !sp.onDxf) {
+              const c = constrainPoint({ x: prev.x, y: prev.y }, { x: pt.wx, y: pt.wy }, e.shiftKey ? { polarIncrementDeg: 45 } : { ortho: true });
+              pt = { wx: Math.round(c.point.x), wy: Math.round(c.point.y) };
+            }
+            if (!drawCommandRef.current) { const cmd = startCommand(toolRef.current); drawCommandRef.current = cmd; setDrawPrompt(cmd.prompt); }
+            feedDraftPoint(pt.wx, pt.wy);
           }
         }
         try { renderer.domElement.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
@@ -2229,22 +2257,112 @@ export default function Layout3DEditor({
 
   // cancels any half-drawn cota or wall chain (called when leaving a draw tool)
   const endDraw = useCallback(() => {
-    measureARef.current = null; wallChainRef.current = null; setMeasureLive(null);
+    measureARef.current = null; wallChainRef.current = null; drawCommandRef.current = null; setMeasureLive(null); setDrawPrompt(null);
     lastWallAngleRef.current = null; setPrecisionText('');
     if (previewLineRef.current) previewLineRef.current.visible = false;
     if (snapMarkerRef.current) snapMarkerRef.current.visible = false;
   }, []);
-  const setToolMode = useCallback((next: 'select' | 'measure' | 'wall') => {
+  const setToolMode = useCallback((next: EditorTool) => {
     setTool((prev) => {
       const t = prev === next && next !== 'select' ? 'select' : next;
       toolRef.current = t;
       if (t === 'select') endDraw();
       else { endDraw(); select([]); }
+      if (isCadDrawTool(t)) { const cmd = startCommand(t); drawCommandRef.current = cmd; setDrawPrompt(cmd.prompt); setMeasureLive(cmd.prompt); }
       return t;
     });
   }, [endDraw, select]);
   const toggleMeasure = useCallback(() => setToolMode('measure'), [setToolMode]);
   const toggleWall = useCallback(() => setToolMode('wall'), [setToolMode]);
+  const startCadDrawTool = useCallback((id: CadDrawCommandId) => setToolMode(id), [setToolMode]);
+  const createWallAssetFromPoints = (a: { x: number; y: number }, b: { x: number; y: number }, label?: string) => {
+    const ctx = ctxRef.current; if (!ctx) return false;
+    const ax = Math.max(0, Math.min(ctx.W, Math.round(a.x)));
+    const ay = Math.max(0, Math.min(ctx.H, Math.round(a.y)));
+    const bx = Math.max(0, Math.min(ctx.W, Math.round(b.x)));
+    const by = Math.max(0, Math.min(ctx.H, Math.round(b.y)));
+    const len = Math.hypot(bx - ax, by - ay);
+    if (len <= 1) return false;
+    const thick = assetMeta('wall').h;
+    const angle = (Math.atan2(by - ay, bx - ax) * 180) / Math.PI;
+    const id = newId('as');
+    assetsRef.current.set(id, { id, kind: 'wall', label, x: (ax + bx) / 2 - len / 2, y: (ay + by) / 2 - thick / 2, w: len, h: thick, rotation: angle });
+    setAssetIds((set) => new Set(set).add(id));
+    setLayerAssignments((cur) => assignObjectsToLayer(cur, [id], 'architecture'));
+    setObjectTags((cur) => ({ ...cur, [id]: 'wall, architecture, drafted' }));
+    lastWallAngleRef.current = angle;
+    return true;
+  };
+  const createRectAssetFromBox = (x: number, y: number, w: number, h: number, kind: 'zone' | 'room' = 'zone', label?: string) => {
+    const ctx = ctxRef.current; if (!ctx) return false;
+    const nx = Math.max(0, Math.min(ctx.W, Math.round(x)));
+    const ny = Math.max(0, Math.min(ctx.H, Math.round(y)));
+    const nw = Math.max(50, Math.min(ctx.W - nx, Math.round(w)));
+    const nh = Math.max(50, Math.min(ctx.H - ny, Math.round(h)));
+    const id = newId('as');
+    assetsRef.current.set(id, { id, kind, label: label ?? (kind === 'room' ? 'Room CAD' : 'Zona CAD'), x: nx, y: ny, w: nw, h: nh, rotation: 0 });
+    setAssetIds((set) => new Set(set).add(id));
+    setLayerAssignments((cur) => assignObjectsToLayer(cur, [id], defaultCadLayerForAssetKind(kind)));
+    setObjectTags((cur) => ({ ...cur, [id]: `${kind}, drafted` }));
+    return true;
+  };
+  const applyDrawAction = (action: DrawAction) => {
+    if (action.type === 'addSegment') return createWallAssetFromPoints(action.a, action.b, 'Muro CAD');
+    if (action.type === 'addPolyline') return action.points.slice(0, -1).map((point, idx) => createWallAssetFromPoints(point, action.points[idx + 1], `Pline ${idx + 1}`)).some(Boolean);
+    if (action.type === 'addRect') return createRectAssetFromBox(action.x, action.y, action.w, action.h, 'zone', 'Zona CAD');
+    if (action.type === 'addCircle') return createRectAssetFromBox(action.cx - action.r, action.cy - action.r, action.r * 2, action.r * 2, 'zone', `Círculo CAD Ø${Math.round(action.r * 2)}`);
+    if (action.type === 'moveBy' || action.type === 'copyBy') {
+      const isCopy = action.type === 'copyBy';
+      return selRef.current.map((item) => {
+        const place = getPlaceRef(item); if (!place) return false;
+        if (isCopy && item.type === 'asset') {
+          const src = assetsRef.current.get(item.id); if (!src) return false;
+          const id = newId('as');
+          assetsRef.current.set(id, { ...src, id, x: src.x + action.dx, y: src.y + action.dy, label: src.label ? `${src.label} copia` : src.label });
+          setAssetIds((set) => new Set(set).add(id));
+          setLayerAssignments((cur) => assignObjectsToLayer(cur, [id], layerAssignmentsRef.current[item.id] ?? defaultCadLayerForAssetKind(src.kind)));
+          return true;
+        }
+        place.x += action.dx; place.y += action.dy; return true;
+      }).some(Boolean);
+    }
+    if (action.type === 'offsetBy') {
+      return selRef.current.filter((item) => item.type === 'asset').map((item) => {
+        const src = assetsRef.current.get(item.id); if (!src) return false;
+        const id = newId('as');
+        assetsRef.current.set(id, { ...src, id, x: src.x + action.distance, y: src.y, label: src.label ? `${src.label} offset` : src.label });
+        setAssetIds((set) => new Set(set).add(id));
+        setLayerAssignments((cur) => assignObjectsToLayer(cur, [id], layerAssignmentsRef.current[item.id] ?? defaultCadLayerForAssetKind(src.kind)));
+        return true;
+      }).some(Boolean);
+    }
+    return false;
+  };
+  const applyDrawState = (state: CadDrawCommandState) => {
+    if (!state.emitted.length) return false;
+    pushHistory();
+    const changed = state.emitted.map(applyDrawAction).some(Boolean);
+    if (changed) { setDirty(true); rebuildAssets(); rebuildBlocks(); refreshSnap(); }
+    return changed;
+  };
+  function feedDraftPoint(x: number, y: number) {
+    const active = drawCommandRef.current; if (!active) return false;
+    const next = feedPoint(active, { x, y });
+    drawCommandRef.current = next.done ? null : next;
+    setDrawPrompt(next.done ? null : next.prompt); setMeasureLive(next.done ? null : next.prompt);
+    applyDrawState(next);
+    if (next.done) { setTool('select'); toolRef.current = 'select'; }
+    return true;
+  }
+  function commitActiveDraftCommand() {
+    const active = drawCommandRef.current; if (!active) return false;
+    const next = commitDrawCommand(active);
+    drawCommandRef.current = null; setDrawPrompt(null); setMeasureLive(null);
+    applyDrawState(next);
+    setTool('select'); toolRef.current = 'select';
+    return true;
+  }
+
   // Entrada de precisión (ADR §216): agrega un vértice del muro desde una
   // coordenada tecleada — misma matemática que el clic del wall tool.
   const appendWallTo = (x: number, y: number) => {
@@ -2272,7 +2390,24 @@ export default function Layout3DEditor({
     wallChainRef.current = { wx: nx, wy: ny };
   };
   const submitPrecisionPoint = () => {
-    const raw = precisionText.trim(); if (!raw) return;
+    const raw = precisionText.trim();
+    if (!raw) { if (drawCommandRef.current) commitActiveDraftCommand(); return; }
+    if (drawCommandRef.current) {
+      const last = drawCommandRef.current.points.at(-1) ?? null;
+      const parsed = parseCoordinate(raw, { last, lockedAngleDeg: lastWallAngleRef.current });
+      if (!parsed.ok) {
+        const d = Number(raw.replace(',', '.'));
+        if (Number.isFinite(d)) {
+          const next = feedDistance(drawCommandRef.current, d);
+          drawCommandRef.current = next.done ? null : next;
+          applyDrawState(next);
+          if (next.done) { setTool('select'); toolRef.current = 'select'; setDrawPrompt(null); setMeasureLive(null); }
+          setPrecisionText(''); return;
+        }
+        toast.error(parsed.error, 'Precisión'); return;
+      }
+      feedDraftPoint(parsed.point.x, parsed.point.y); setPrecisionText(''); return;
+    }
     const chain = wallChainRef.current;
     const parsed = parseCoordinate(raw, { last: chain ? { x: chain.wx, y: chain.wy } : null, lockedAngleDeg: lastWallAngleRef.current });
     if (!parsed.ok) { toast.error(parsed.error, 'Precisión'); return; }
@@ -4168,6 +4303,7 @@ export default function Layout3DEditor({
   const runToolbarAction = (id: CadToolbarActionId) => {
     if (id === 'select' || id === 'pan') setToolMode('select');
     else if (id === 'measure') setToolMode('measure');
+    else if (id === 'line' || id === 'polyline' || id === 'rect') startCadDrawTool(id);
     else if (id === 'aisle') { setShowCommand(true); setCommandText('haz un pasillo de 1.2m entre '); }
     else if (id === 'connector') connectLineLayout();
     else if (id === 'zone') { setTab('equipment'); addAsset('zone'); }
@@ -4723,6 +4859,7 @@ export default function Layout3DEditor({
       const hasSel = selRef.current.length > 0;
       if (e.key === 'Escape') {
         if (paletteOpenRef.current) { setShowPalette(false); setPaletteQuery(''); }
+        else if (drawCommandRef.current) { const cancelled = cancelDrawCommand(drawCommandRef.current); drawCommandRef.current = null; setDrawPrompt(null); setMeasureLive(null); setPrecisionText(''); if (!cancelled.emitted.length) toast.success('Comando de dibujo cancelado.', 'CAD'); setTool('select'); toolRef.current = 'select'; }
         else if (toolRef.current !== 'select') { endDraw(); setTool('select'); toolRef.current = 'select'; }
         else if (hasSel) { select([]); rebuildAll(); }
         else onClose();
@@ -4731,6 +4868,7 @@ export default function Layout3DEditor({
       else if ((e.key === 'a' || e.key === 'A') && (e.ctrlKey || e.metaKey)) { e.preventDefault(); selectAll(); }
       else if ((e.key === 'z' || e.key === 'Z') && (e.ctrlKey || e.metaKey) && !e.shiftKey) { e.preventDefault(); undo(); }
       else if (((e.key === 'z' || e.key === 'Z') && (e.ctrlKey || e.metaKey) && e.shiftKey) || ((e.key === 'y' || e.key === 'Y') && (e.ctrlKey || e.metaKey))) { e.preventDefault(); redo(); }
+      else if ((e.key === 'Enter') && drawCommandRef.current) { e.preventDefault(); commitActiveDraftCommand(); }
       else if ((e.key === 'm' || e.key === 'M')) { e.preventDefault(); toggleMeasure(); }
       else if ((e.key === 'w' || e.key === 'W')) { e.preventDefault(); toggleWall(); }
       else if (e.key === 'f' && !e.shiftKey && !e.ctrlKey && !e.metaKey) { e.preventDefault(); fitView(hasSel ? 'selection' : 'all'); }
@@ -5500,24 +5638,24 @@ export default function Layout3DEditor({
                 <PersonStanding className="w-3.5 h-3.5" /> Recorrido · arrastra para mirar · WASD para caminar · Esc para salir
               </div>
             )}
-            {!walk && (tool === 'measure' || tool === 'wall') && (
+            {!walk && (tool === 'measure' || tool === 'wall' || isCadDrawTool(tool)) && (
               <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-amber-400/95 text-gray-900 text-[12px] font-semibold inline-flex items-center gap-1.5 pointer-events-none">
                 {tool === 'measure' ? <Ruler className="w-3.5 h-3.5" /> : <Spline className="w-3.5 h-3.5" />}
-                {measureLive ? measureLive : (tool === 'measure' ? 'Clic en dos puntos para medir' : 'Clic para trazar muros · Esc termina')}
+                {measureLive || drawPrompt ? (measureLive || drawPrompt) : (tool === 'measure' ? 'Clic en dos puntos para medir' : isCadDrawTool(tool) ? 'Dibujo CAD activo · clic o coordenada · Enter termina' : 'Clic para trazar muros · Esc termina')}
               </div>
             )}
-            {!walk && tool === 'wall' && (
+            {!walk && (tool === 'wall' || isCadDrawTool(tool)) && (
               <div className="absolute top-12 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 rounded-full border border-white/10 bg-gray-900/90 px-2 py-1.5 backdrop-blur">
                 <button onClick={() => setOrthoLock((v) => !v)} title="Orto: restringe los muros a 0/90/180/270 (como F8 de AutoCAD)" className={`rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${orthoLock ? 'bg-amber-400 text-gray-900' : 'bg-white/[0.08] text-gray-300 hover:bg-white/[0.15]'}`}>ORTO</button>
                 <form onSubmit={(e) => { e.preventDefault(); submitPrecisionPoint(); }} className="flex items-center gap-1">
                   <input
                     value={precisionText}
                     onChange={(e) => setPrecisionText(e.target.value)}
-                    placeholder="x,y · @dx,dy · @30<45 · 100"
-                    title="Coordenada absoluta x,y · relativa @dx,dy · polar @dist<ángulo · solo distancia = sigue el ángulo del último tramo"
+                    placeholder={drawPrompt ? `${drawPrompt} · x,y / @dx,dy / Enter` : 'x,y · @dx,dy · @30<45 · 100'}
+                    title="Coordenada absoluta x,y · relativa @dx,dy · polar @dist<ángulo · Enter vacío termina LINE/PLINE"
                     className="w-44 rounded-lg border border-white/10 bg-gray-950/80 px-2 py-1 text-[11px] text-white placeholder:text-gray-600 outline-none focus:border-amber-400/60"
                   />
-                  <button type="submit" className="rounded-lg bg-amber-400 px-2 py-1 text-[10.5px] font-semibold text-gray-900 hover:bg-amber-300">Ir</button>
+                  <button type="submit" className="rounded-lg bg-amber-400 px-2 py-1 text-[10.5px] font-semibold text-gray-900 hover:bg-amber-300">{drawPrompt && !precisionText.trim() ? 'Enter' : 'Ir'}</button>
                 </form>
               </div>
             )}
@@ -5529,6 +5667,8 @@ export default function Layout3DEditor({
                   ? 'Clic en dos puntos para medir · arrastra el fondo para orbitar · Esc cancela'
                   : tool === 'wall'
                     ? 'Clic en cada esquina para trazar muros · Shift = 45° · ORTO = ejes · teclea x,y / @dx,dy / @d<áng · Esc termina'
+                  : isCadDrawTool(tool)
+                    ? 'LINE/PLINE/RECT: clic o coordenada · @relativo y @dist<ángulo · Enter termina · Esc cancela'
                     : 'Arrastra para mover · Shift+clic multiselecciona · Shift+arrastre = ventana · fondo = orbitar · rueda = zoom · R rota · Ctrl+C/V copia/pega · Supr borra'}
             </div>
             {visionPreview && (

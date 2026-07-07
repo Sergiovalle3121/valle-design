@@ -2,6 +2,9 @@ export type CadToolbarActionId =
   | "select"
   | "pan"
   | "measure"
+  | "line"
+  | "polyline"
+  | "rect"
   | "aisle"
   | "connector"
   | "zone"
@@ -42,6 +45,27 @@ export const CAD_TOOLBAR_ACTIONS: CadToolbarAction[] = [
     description: "Medir distancia entre puntos.",
   },
   {
+    id: "line",
+    label: "Line",
+    shortcut: "L",
+    group: "draw",
+    description: "Trazar muros por segmentos encadenados con precisión.",
+  },
+  {
+    id: "polyline",
+    label: "Pline",
+    shortcut: "P",
+    group: "draw",
+    description: "Trazar una polilínea de muros y terminar con Enter.",
+  },
+  {
+    id: "rect",
+    label: "Rect",
+    shortcut: "B",
+    group: "draw",
+    description: "Dibujar una zona/room rectangular desde dos esquinas.",
+  },
+  {
     id: "aisle",
     label: "Aisle",
     shortcut: "A",
@@ -51,7 +75,7 @@ export const CAD_TOOLBAR_ACTIONS: CadToolbarAction[] = [
   {
     id: "connector",
     label: "Connector",
-    shortcut: "L",
+    shortcut: "Shift+L",
     group: "draw",
     description: "Conectar flujo entre estaciones.",
   },

@@ -16,8 +16,23 @@ assert.equal(
 assert.equal(matchCadShortcut({ key: "t" })?.id, "text", "matches text tool");
 assert.equal(
   matchCadShortcut({ key: "l" })?.id,
+  "line",
+  "plain l starts precise line drafting",
+);
+assert.equal(
+  matchCadShortcut({ key: "l", shiftKey: true })?.id,
   "connector",
-  "matches connector tool",
+  "shift-l matches connector tool",
+);
+assert.equal(
+  matchCadShortcut({ key: "p" })?.id,
+  "polyline",
+  "matches polyline drafting",
+);
+assert.equal(
+  matchCadShortcut({ key: "b" })?.id,
+  "rect",
+  "matches rectangle drafting",
 );
 assert.equal(
   matchCadShortcut({ key: "g" })?.id,

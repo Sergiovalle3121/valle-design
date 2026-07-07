@@ -291,12 +291,14 @@ function arrangeFlowLinePreview(
     .filter((box): box is CadBox => !!box);
   const before = flowScore(objects);
   const after = flowScore(arranged);
-  const connectOps: CadOperation[] = objects.slice(0, -1).map((object, idx) => ({
-    type: "connect",
-    from: object.id,
-    to: objects[idx + 1].id,
-    kind: "flow",
-  }));
+  const connectOps: CadOperation[] = objects
+    .slice(0, -1)
+    .map((object, idx) => ({
+      type: "connect",
+      from: object.id,
+      to: objects[idx + 1].id,
+      kind: "flow",
+    }));
   const report: CadOperation = {
     type: "report",
     title: "Linea de flujo",
@@ -309,7 +311,10 @@ function arrangeFlowLinePreview(
       { label: "Separacion", value: `${Math.round(gap)} mm` },
       { label: "Score antes", value: `${before.score}/100` },
       { label: "Score despues", value: `${after.score}/100` },
-      { label: "Distancia despues", value: `${Math.round(after.totalDistance)} mm` },
+      {
+        label: "Distancia despues",
+        value: `${Math.round(after.totalDistance)} mm`,
+      },
     ],
   };
 
@@ -321,8 +326,7 @@ function arrangeFlowLinePreview(
   };
 }
 
-const RACK_LABEL =
-  /rack|estante|warehouse|almacen|supermarket|pallet|tarima/i;
+const RACK_LABEL = /rack|estante|warehouse|almacen|supermarket|pallet|tarima/i;
 
 function spatialOrder(a: CadBox, b: CadBox): number {
   return a.y - b.y || a.x - b.x || a.label.localeCompare(b.label);
@@ -350,7 +354,9 @@ function clampInteger(
   max: number,
   fallback: number,
 ): number {
-  const parsed = Number.isFinite(value) ? Math.trunc(value as number) : fallback;
+  const parsed = Number.isFinite(value)
+    ? Math.trunc(value as number)
+    : fallback;
   return Math.max(min, Math.min(max, parsed));
 }
 
@@ -423,7 +429,8 @@ function arrangeRackRowsPreview(
         after.y = hasFootprint
           ? clamp(target.y, 0, Math.max(0, context.footprintH - object.h))
           : target.y;
-        clipped ||= hasFootprint && (after.x !== target.x || after.y !== target.y);
+        clipped ||=
+          hasFootprint && (after.x !== target.x || after.y !== target.y);
         moveOps.push({
           type: "move",
           objectId: object.id,
@@ -448,7 +455,8 @@ function arrangeRackRowsPreview(
         after.y = hasFootprint
           ? clamp(target.y, 0, Math.max(0, context.footprintH - object.h))
           : target.y;
-        clipped ||= hasFootprint && (after.x !== target.x || after.y !== target.y);
+        clipped ||=
+          hasFootprint && (after.x !== target.x || after.y !== target.y);
         moveOps.push({
           type: "move",
           objectId: object.id,
@@ -581,7 +589,9 @@ function analyzeLineBalancePreview(
     {
       label: "Carga maxima",
       value:
-        report.maxLoadPercent == null ? "Sin dato" : `${report.maxLoadPercent}%`,
+        report.maxLoadPercent == null
+          ? "Sin dato"
+          : `${report.maxLoadPercent}%`,
     },
     {
       label: "Eficiencia",
@@ -630,7 +640,9 @@ function materialRouteObjects(
       .map((id) => context.objects.find((object) => object.id === id))
       .filter((object): object is CadBox => !!object);
   }
-  return bySequence(context.objects.filter((object) => object.type === "station"));
+  return bySequence(
+    context.objects.filter((object) => object.type === "station"),
+  );
 }
 
 function fmtDistanceMm(value: number | undefined): string {
@@ -731,6 +743,87 @@ function traceMaterialRoutePreview(
     summary: `Trazar ruta material de ${report.nodeCount} objeto(s): ${fmtDistanceMm(report.totalDistance)}.`,
     affectedObjectIds: report.routeNodeIds,
     operations: [{ type: "report", title: "Ruta material", rows }],
+    issues,
+  };
+}
+
+function drawWallSegmentPreview(
+  input: Extract<CadCommandInput, { id: "draw_wall_segment" }>,
+  context: Parameters<CadCommandDefinition["preview"]>[1],
+): CadCommandPreview {
+  const thickness = Math.max(1, input.thickness ?? 120);
+  const dx = input.to.x - input.from.x;
+  const dy = input.to.y - input.from.y;
+  const len = Math.hypot(dx, dy);
+  const issues =
+    len > 1
+      ? []
+      : [error("wall_too_short", "El muro necesita dos puntos distintos.")];
+  const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+  const object = {
+    type: "asset" as const,
+    kind: "wall",
+    label: input.label ?? "Muro CAD",
+    x: input.from.x + dx / 2 - len / 2,
+    y: input.from.y + dy / 2 - thickness / 2,
+    w: len,
+    h: thickness,
+    rotation: angle,
+  };
+  if (outOfBounds({ id: "draft-wall", ...object }, context))
+    issues.push(
+      warning(
+        "wall_out_of_bounds",
+        "El muro queda parcial o totalmente fuera del footprint.",
+      ),
+    );
+  return {
+    summary: `Dibujar muro de ${Math.round(len)} ${context.unit}.`,
+    affectedObjectIds: [],
+    operations: len > 1 ? [{ type: "create", object }] : [],
+    issues,
+  };
+}
+
+function drawRectZonePreview(
+  input: Extract<CadCommandInput, { id: "draw_rect_zone" }>,
+  context: Parameters<CadCommandDefinition["preview"]>[1],
+): CadCommandPreview {
+  const x = Math.min(input.from.x, input.to.x);
+  const y = Math.min(input.from.y, input.to.y);
+  const w = Math.abs(input.to.x - input.from.x);
+  const h = Math.abs(input.to.y - input.from.y);
+  const kind = input.kind ?? "zone";
+  const issues =
+    w > 1 && h > 1
+      ? []
+      : [
+          error(
+            "rect_too_small",
+            "El rectángulo necesita ancho y alto mayores a cero.",
+          ),
+        ];
+  const object = {
+    type: "asset" as const,
+    kind,
+    label: input.label ?? (kind === "room" ? "Room CAD" : "Zona CAD"),
+    x,
+    y,
+    w,
+    h,
+    rotation: 0,
+  };
+  if (outOfBounds({ id: "draft-rect", ...object }, context))
+    issues.push(
+      warning(
+        "rect_out_of_bounds",
+        "El rectángulo queda parcial o totalmente fuera del footprint.",
+      ),
+    );
+  return {
+    summary: `Dibujar ${kind === "room" ? "room" : "zona"} ${Math.round(w)}×${Math.round(h)} ${context.unit}.`,
+    affectedObjectIds: [],
+    operations: w > 1 && h > 1 ? [{ type: "create", object }] : [],
     issues,
   };
 }
@@ -1404,17 +1497,28 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     description:
       "Crea copias del activo seleccionado alrededor de un centro (círculo o abanico).",
     inputSchema: {
-      count: { type: "number", required: true, description: "Total de posiciones." },
-      angleSpanDeg: { type: "number", description: "Abanico en grados (default 360)." },
-      centerLabel: { type: "string", description: "Objeto que actúa como centro." },
-      objectIds: { type: "string[]", description: "Activo a replicar (exactamente 1)." },
+      count: {
+        type: "number",
+        required: true,
+        description: "Total de posiciones.",
+      },
+      angleSpanDeg: {
+        type: "number",
+        description: "Abanico en grados (default 360).",
+      },
+      centerLabel: {
+        type: "string",
+        description: "Objeto que actúa como centro.",
+      },
+      objectIds: {
+        type: "string[]",
+        description: "Activo a replicar (exactamente 1).",
+      },
     },
     examples: ["arreglo polar de 6 copias alrededor de Robot"],
     validate: (i, c) =>
-      arrayPolarPreview(
-        i as Extract<CadCommandInput, { id: "array_polar" }>,
-        c,
-      ).issues,
+      arrayPolarPreview(i as Extract<CadCommandInput, { id: "array_polar" }>, c)
+        .issues,
     preview: (i, c) =>
       arrayPolarPreview(
         i as Extract<CadCommandInput, { id: "array_polar" }>,
@@ -1435,8 +1539,15 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     description:
       "Distribuye copias del activo seleccionado equiespaciadas a lo largo de la ruta de flujo conectada.",
     inputSchema: {
-      count: { type: "number", required: true, description: "Copias a colocar." },
-      objectIds: { type: "string[]", description: "Activo a replicar (exactamente 1)." },
+      count: {
+        type: "number",
+        required: true,
+        description: "Copias a colocar.",
+      },
+      objectIds: {
+        type: "string[]",
+        description: "Activo a replicar (exactamente 1).",
+      },
     },
     examples: ["coloca 5 copias a lo largo del flujo"],
     validate: (i, c) =>
@@ -1464,7 +1575,11 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     description:
       "Crea copias paralelas de los activos seleccionados a una distancia dada (útil para muros y pasillos).",
     inputSchema: {
-      distance: { type: "number", required: true, description: "Distancia del offset." },
+      distance: {
+        type: "number",
+        required: true,
+        description: "Distancia del offset.",
+      },
       side: {
         type: "enum",
         enum: ["left", "right", "up", "down"],
@@ -1501,16 +1616,20 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     inputSchema: {
       target: { type: "string", description: "Muro a extender." },
       boundary: { type: "string", description: "Muro frontera." },
-      objectIds: { type: "string[]", description: "Alternativa: 2 muros seleccionados." },
+      objectIds: {
+        type: "string[]",
+        description: "Alternativa: 2 muros seleccionados.",
+      },
     },
     examples: ["extiende Muro 1 hasta Muro 2"],
     validate: (i, c) =>
+      extendWallPreview(i as Extract<CadCommandInput, { id: "extend_wall" }>, c)
+        .issues,
+    preview: (i, c) =>
       extendWallPreview(
         i as Extract<CadCommandInput, { id: "extend_wall" }>,
         c,
-      ).issues,
-    preview: (i, c) =>
-      extendWallPreview(i as Extract<CadCommandInput, { id: "extend_wall" }>, c),
+      ),
     execute: (i, c) => {
       const p = extendWallPreview(
         i as Extract<CadCommandInput, { id: "extend_wall" }>,
@@ -1533,7 +1652,10 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         enum: ["start", "end"],
         description: "Lado que se conserva (default: el más largo).",
       },
-      objectIds: { type: "string[]", description: "Alternativa: 2 muros seleccionados." },
+      objectIds: {
+        type: "string[]",
+        description: "Alternativa: 2 muros seleccionados.",
+      },
     },
     examples: ["recorta Muro 1 en Muro 2"],
     validate: (i, c) =>
@@ -1563,7 +1685,10 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         required: true,
         description: "Distancia del corte desde la esquina.",
       },
-      objectIds: { type: "string[]", description: "Alternativa: 2 muros seleccionados." },
+      objectIds: {
+        type: "string[]",
+        description: "Alternativa: 2 muros seleccionados.",
+      },
     },
     examples: ["chaflán de 400 entre Muro 1 y Muro 2"],
     validate: (i, c) =>
@@ -1591,7 +1716,10 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     description:
       "Área, perímetro y centroide de un objeto o del casco convexo de la selección.",
     inputSchema: {
-      targetLabel: { type: "string", description: "Objeto a medir (opcional)." },
+      targetLabel: {
+        type: "string",
+        description: "Objeto a medir (opcional).",
+      },
       objectIds: { type: "string[]", description: "Objetos de la región." },
     },
     examples: ["área de la selección"],
@@ -1620,7 +1748,10 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     description:
       "Crea una zona editable alrededor de la selección con un margen dado (celdas, keep-out, supermercados).",
     inputSchema: {
-      margin: { type: "number", description: "Margen alrededor del grupo (default 500)." },
+      margin: {
+        type: "number",
+        description: "Margen alrededor del grupo (default 500).",
+      },
       label: { type: "string", description: "Nombre de la zona." },
       objectIds: { type: "string[]", description: "Objetos a envolver." },
     },
@@ -1638,6 +1769,73 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     execute: (i, c) => {
       const p = createZoneAroundPreview(
         i as Extract<CadCommandInput, { id: "create_zone_around" }>,
+        c,
+      );
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+
+  {
+    id: "draw_wall_segment",
+    label: "Dibujar muro por coordenadas",
+    category: "layout",
+    description:
+      "Crea un muro preciso desde dos puntos CAD (x,y, @dx,dy o @dist<ángulo).",
+    inputSchema: {
+      from: { type: "object", required: true, description: "Punto inicial." },
+      to: { type: "object", required: true, description: "Punto final." },
+      thickness: { type: "number", description: "Espesor del muro." },
+      label: { type: "string", description: "Etiqueta opcional." },
+    },
+    examples: ["muro 0,0 @5000,0", "wall 1000,1000 @3000<90 thickness 120"],
+    validate: (i, c) =>
+      drawWallSegmentPreview(
+        i as Extract<CadCommandInput, { id: "draw_wall_segment" }>,
+        c,
+      ).issues.filter((issue) => issue.level === "error"),
+    preview: (i, c) =>
+      drawWallSegmentPreview(
+        i as Extract<CadCommandInput, { id: "draw_wall_segment" }>,
+        c,
+      ),
+    execute: (i, c) => {
+      const p = drawWallSegmentPreview(
+        i as Extract<CadCommandInput, { id: "draw_wall_segment" }>,
+        c,
+      );
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
+    id: "draw_rect_zone",
+    label: "Dibujar rectángulo/zona",
+    category: "layout",
+    description:
+      "Crea una zona o room rectangular desde dos esquinas precisas.",
+    inputSchema: {
+      from: { type: "object", required: true, description: "Primera esquina." },
+      to: { type: "object", required: true, description: "Esquina opuesta." },
+      kind: {
+        type: "enum",
+        enum: ["zone", "room"],
+        description: "Tipo de asset.",
+      },
+      label: { type: "string", description: "Etiqueta opcional." },
+    },
+    examples: ["rect 0,0 @4000,2500", "room 1000,1000 @5000,3000 etiqueta QA"],
+    validate: (i, c) =>
+      drawRectZonePreview(
+        i as Extract<CadCommandInput, { id: "draw_rect_zone" }>,
+        c,
+      ).issues.filter((issue) => issue.level === "error"),
+    preview: (i, c) =>
+      drawRectZonePreview(
+        i as Extract<CadCommandInput, { id: "draw_rect_zone" }>,
+        c,
+      ),
+    execute: (i, c) => {
+      const p = drawRectZonePreview(
+        i as Extract<CadCommandInput, { id: "draw_rect_zone" }>,
         c,
       );
       return result(p, ok(p.issues), p.summary);
