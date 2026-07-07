@@ -58,11 +58,7 @@ assert.equal(
   CAD_COMMAND_REGISTRY.length,
   "registry ids are unique",
 );
-assert.equal(
-  CAD_COMMAND_REGISTRY.length,
-  23,
-  "registry exposes 23 commands",
-);
+assert.equal(CAD_COMMAND_REGISTRY.length, 25, "registry exposes 25 commands");
 
 const parsed = parseCadCommand("haz un pasillo de 1.2m entre SMT e inspección");
 assert.equal(parsed.ok, true, "parser detects clearance aisle");
@@ -392,7 +388,12 @@ if (polarParsed.input?.id === "array_polar") {
   );
 }
 const polarPreview = previewCadCommand(
-  { id: "array_polar", count: 4, centerLabel: "Rack A1", objectIds: ["rack-3"] },
+  {
+    id: "array_polar",
+    count: 4,
+    centerLabel: "Rack A1",
+    objectIds: ["rack-3"],
+  },
   rackCtx,
 );
 assert.equal(
@@ -413,7 +414,11 @@ assert.equal(
   "parser recognizes offset intent",
 );
 if (offsetParsed.input?.id === "offset_object") {
-  assert.equal(offsetParsed.input.distance, 800, "parser reads offset distance");
+  assert.equal(
+    offsetParsed.input.distance,
+    800,
+    "parser reads offset distance",
+  );
   assert.equal(offsetParsed.input.side, "down", "parser reads offset side");
 }
 const offsetPreview = previewCadCommand(
@@ -486,16 +491,48 @@ const wallCtx: CadCommandContext = {
   connectors: [],
   objects: [
     // horizontal: línea central (1000,1000)→(3000,1000), grosor 20
-    { id: "wall-h", type: "asset", kind: "wall", label: "Muro H", x: 1000, y: 990, w: 2000, h: 20, rotation: 0 },
+    {
+      id: "wall-h",
+      type: "asset",
+      kind: "wall",
+      label: "Muro H",
+      x: 1000,
+      y: 990,
+      w: 2000,
+      h: 20,
+      rotation: 0,
+    },
     // vertical: centro (4000,2000), w=2000 rotado 90° → línea (4000,1000)→(4000,3000)
-    { id: "wall-v", type: "asset", kind: "wall", label: "Muro V", x: 3000, y: 1990, w: 2000, h: 20, rotation: 90 },
+    {
+      id: "wall-v",
+      type: "asset",
+      kind: "wall",
+      label: "Muro V",
+      x: 3000,
+      y: 1990,
+      w: 2000,
+      h: 20,
+      rotation: 90,
+    },
   ],
 };
 const extendParsed = parseCadCommand("extiende Muro H hasta Muro V");
-assert.equal(extendParsed.input?.id, "extend_wall", "parser recognizes extend intent");
+assert.equal(
+  extendParsed.input?.id,
+  "extend_wall",
+  "parser recognizes extend intent",
+);
 if (extendParsed.input?.id === "extend_wall") {
-  assert.equal(extendParsed.input.target, "Muro H", "parser reads extend target");
-  assert.equal(extendParsed.input.boundary, "Muro V", "parser reads extend boundary");
+  assert.equal(
+    extendParsed.input.target,
+    "Muro H",
+    "parser reads extend target",
+  );
+  assert.equal(
+    extendParsed.input.boundary,
+    "Muro V",
+    "parser reads extend boundary",
+  );
 }
 const extendPreview = previewCadCommand(
   { id: "extend_wall", target: "Muro H", boundary: "Muro V" },
@@ -504,16 +541,40 @@ const extendPreview = previewCadCommand(
 const extendOp = extendPreview.operations.find((op) => op.type === "move");
 assert.equal(extendOp?.type, "move", "extend proposes a move");
 if (extendOp?.type === "move") {
-  assert.equal(extendOp.after.w, 3000, "extend grows the wall to reach the boundary line");
+  assert.equal(
+    extendOp.after.w,
+    3000,
+    "extend grows the wall to reach the boundary line",
+  );
   assert.equal(extendOp.after.x, 1000, "extend keeps the anchored end");
 }
 
 const trimCtx: CadCommandContext = {
   ...wallCtx,
   objects: [
-    { id: "wall-h", type: "asset", kind: "wall", label: "Muro H", x: 1000, y: 1990, w: 2000, h: 20, rotation: 0 },
+    {
+      id: "wall-h",
+      type: "asset",
+      kind: "wall",
+      label: "Muro H",
+      x: 1000,
+      y: 1990,
+      w: 2000,
+      h: 20,
+      rotation: 0,
+    },
     // vertical cruzando en (2000,2000)
-    { id: "wall-v", type: "asset", kind: "wall", label: "Muro V", x: 1000, y: 1990, w: 2000, h: 20, rotation: 90 },
+    {
+      id: "wall-v",
+      type: "asset",
+      kind: "wall",
+      label: "Muro V",
+      x: 1000,
+      y: 1990,
+      w: 2000,
+      h: 20,
+      rotation: 90,
+    },
   ],
 };
 const trimPreview = previewCadCommand(
@@ -536,14 +597,42 @@ const chamferCtx: CadCommandContext = {
   selectedIds: ["wall-a", "wall-b"],
   objects: [
     // L: horizontal (1000,1000)→(3000,1000) y vertical (3000,1000)→(3000,3000)
-    { id: "wall-a", type: "asset", kind: "wall", label: "Muro A", x: 1000, y: 990, w: 2000, h: 20, rotation: 0 },
-    { id: "wall-b", type: "asset", kind: "wall", label: "Muro B", x: 2000, y: 1990, w: 2000, h: 20, rotation: 90 },
+    {
+      id: "wall-a",
+      type: "asset",
+      kind: "wall",
+      label: "Muro A",
+      x: 1000,
+      y: 990,
+      w: 2000,
+      h: 20,
+      rotation: 0,
+    },
+    {
+      id: "wall-b",
+      type: "asset",
+      kind: "wall",
+      label: "Muro B",
+      x: 2000,
+      y: 1990,
+      w: 2000,
+      h: 20,
+      rotation: 90,
+    },
   ],
 };
 const chamferParsed = parseCadCommand("chaflán de 400 entre Muro A y Muro B");
-assert.equal(chamferParsed.input?.id, "chamfer_walls", "parser recognizes chamfer intent");
+assert.equal(
+  chamferParsed.input?.id,
+  "chamfer_walls",
+  "parser recognizes chamfer intent",
+);
 if (chamferParsed.input?.id === "chamfer_walls") {
-  assert.equal(chamferParsed.input.distance, 400, "parser reads chamfer distance");
+  assert.equal(
+    chamferParsed.input.distance,
+    400,
+    "parser reads chamfer distance",
+  );
 }
 const chamferPreview = previewCadCommand(
   { id: "chamfer_walls", wallA: "Muro A", wallB: "Muro B", distance: 400 },
@@ -554,8 +643,14 @@ assert.equal(
   2,
   "chamfer trims both walls",
 );
-const chamferCreate = chamferPreview.operations.find((op) => op.type === "create");
-assert.equal(chamferCreate?.type, "create", "chamfer creates the diagonal segment");
+const chamferCreate = chamferPreview.operations.find(
+  (op) => op.type === "create",
+);
+assert.equal(
+  chamferCreate?.type,
+  "create",
+  "chamfer creates the diagonal segment",
+);
 if (chamferCreate?.type === "create") {
   assert.equal(
     Math.abs(chamferCreate.object.w - Math.round(Math.hypot(400, 400))) <= 1,
@@ -567,7 +662,11 @@ const chamferTooBig = executeCadCommand(
   { id: "chamfer_walls", wallA: "Muro A", wallB: "Muro B", distance: 5000 },
   chamferCtx,
 );
-assert.equal(chamferTooBig.applied, false, "chamfer rejects distances that do not fit");
+assert.equal(
+  chamferTooBig.applied,
+  false,
+  "chamfer rejects distances that do not fit",
+);
 
 let history: CadCommandHistoryState = { undo: [], redo: [] };
 history = pushHistory(
@@ -599,7 +698,9 @@ assert.equal(
 );
 const areaOfTarget = parseCadCommand("mide el área de la zona Rack A1");
 assert.equal(
-  areaOfTarget.input?.id === "measure_area" ? areaOfTarget.input.targetLabel : undefined,
+  areaOfTarget.input?.id === "measure_area"
+    ? areaOfTarget.input.targetLabel
+    : undefined,
   "Rack A1",
   "parser captures the area target label",
 );
@@ -607,11 +708,19 @@ const singleArea = previewCadCommand(
   { id: "measure_area", objectIds: ["rack-1"] },
   rackCtx,
 );
-const singleAreaReport = singleArea.operations.find((op) => op.type === "report");
-assert.equal(singleAreaReport?.type, "report", "single-object area emits a report");
+const singleAreaReport = singleArea.operations.find(
+  (op) => op.type === "report",
+);
+assert.equal(
+  singleAreaReport?.type,
+  "report",
+  "single-object area emits a report",
+);
 if (singleAreaReport?.type === "report") {
   assert.equal(
-    singleAreaReport.rows.some((r) => r.label === "Área" && r.value.includes("1.08")),
+    singleAreaReport.rows.some(
+      (r) => r.label === "Área" && r.value.includes("1.08"),
+    ),
     true,
     "1200×900 mm rack reports 1.08 m²",
   );
@@ -630,7 +739,8 @@ if (hullReport?.type === "report") {
 }
 
 assert.equal(
-  parseCadCommand("crea una zona alrededor de la selección con margen de 800").input?.id,
+  parseCadCommand("crea una zona alrededor de la selección con margen de 800")
+    .input?.id,
   "create_zone_around",
   "parser recognizes zone-around intent",
 );
@@ -641,13 +751,21 @@ const zonePreview = previewCadCommand(
 const zoneOp = zonePreview.operations.find((op) => op.type === "create");
 assert.equal(zoneOp?.type, "create", "zone-around proposes a create op");
 if (zoneOp?.type === "create") {
-  assert.equal(zoneOp.object.kind, "zone", "zone-around creates a fresh zone kind");
+  assert.equal(
+    zoneOp.object.kind,
+    "zone",
+    "zone-around creates a fresh zone kind",
+  );
   // racks 1-2: x 5000..6200, y 100..2100 → +300 de margen; arriba el margen
   // se recorta al borde del plano (100−300 → 0).
   assert.equal(zoneOp.object.x, 4700, "zone grows left by margin");
   assert.equal(zoneOp.object.w, 1800, "zone width covers group + margins");
   assert.equal(zoneOp.object.y, 0, "zone clamps to the footprint edge");
-  assert.equal(zoneOp.object.h, 2400, "zone height covers group + clipped margin");
+  assert.equal(
+    zoneOp.object.h,
+    2400,
+    "zone height covers group + clipped margin",
+  );
 }
 assert.equal(
   zonePreview.issues.some((i) => i.code === "zone_clipped"),
@@ -674,7 +792,12 @@ assert.equal(
 );
 const dimPreview = previewCadCommand(
   { id: "auto_dimension", objectIds: ["rack-1", "rack-3"] },
-  { ...rackCtx, objects: rackCtx.objects.map((o) => (o.id === "rack-3" ? { ...o, x: 7000, y: 100 } : o)) },
+  {
+    ...rackCtx,
+    objects: rackCtx.objects.map((o) =>
+      o.id === "rack-3" ? { ...o, x: 7000, y: 100 } : o,
+    ),
+  },
 );
 // 2 objetos → 2 cotas de tamaño c/u + 1 de hueco (7000 − 6200 = 800)
 assert.equal(
@@ -698,5 +821,63 @@ assert.equal(
   4,
   "size mode emits only per-object dims",
 );
+
+// — Drafting por coordenadas precisas (Fase CAD 1) —
+const wallDraftParsed = parseCadCommand("muro 0,0 @5000,0 espesor 120");
+assert.equal(
+  wallDraftParsed.input?.id,
+  "draw_wall_segment",
+  "parser recognizes coordinate wall drafting",
+);
+const wallDraftPreview = previewCadCommand(wallDraftParsed.input!, ctx);
+const wallDraftCreate = wallDraftPreview.operations.find(
+  (op) => op.type === "create",
+);
+assert.equal(
+  wallDraftCreate?.type,
+  "create",
+  "coordinate wall emits a create op",
+);
+if (wallDraftCreate?.type === "create") {
+  assert.equal(
+    wallDraftCreate.object.kind,
+    "wall",
+    "coordinate wall creates wall asset",
+  );
+  assert.equal(
+    wallDraftCreate.object.w,
+    5000,
+    "relative coordinate sets wall length",
+  );
+  assert.equal(wallDraftCreate.object.h, 120, "thickness is parsed");
+}
+
+const rectDraftParsed = parseCadCommand(
+  "room 1000,1000 @4000,2500 etiqueta QA",
+);
+assert.equal(
+  rectDraftParsed.input?.id,
+  "draw_rect_zone",
+  "parser recognizes coordinate room drafting",
+);
+const rectDraftPreview = previewCadCommand(rectDraftParsed.input!, ctx);
+const rectDraftCreate = rectDraftPreview.operations.find(
+  (op) => op.type === "create",
+);
+assert.equal(
+  rectDraftCreate?.type,
+  "create",
+  "coordinate rect emits a create op",
+);
+if (rectDraftCreate?.type === "create") {
+  assert.equal(
+    rectDraftCreate.object.kind,
+    "room",
+    "room command creates room asset",
+  );
+  assert.equal(rectDraftCreate.object.x, 1000, "room x is absolute");
+  assert.equal(rectDraftCreate.object.w, 4000, "relative room width is parsed");
+  assert.equal(rectDraftCreate.object.label, "QA", "label is parsed");
+}
 
 console.log("cad command registry specs passed");

@@ -1,3 +1,4 @@
+import { parseCoordinate, type Point } from "../precision-input";
 import type { CadCommandInput, CadParseResult } from "./types";
 
 const numberWithUnit = /(\d+(?:[.,]\d+)?)\s*(mm|m|in|ft)?/i;
@@ -17,7 +18,9 @@ function unitValueToMm(match: RegExpMatchArray | null): number | undefined {
   return match[2]?.toLowerCase() === "m" ? value * 1000 : value;
 }
 
-function unitValueToSeconds(match: RegExpMatchArray | null): number | undefined {
+function unitValueToSeconds(
+  match: RegExpMatchArray | null,
+): number | undefined {
   if (!match?.[1]) return undefined;
   const value = Number(match[1].replace(",", "."));
   if (!Number.isFinite(value)) return undefined;
@@ -32,6 +35,24 @@ function numberNear(text: string, pattern: RegExp): number | undefined {
   return Number.isFinite(value) ? value : undefined;
 }
 
+function parseDraftPointPair(
+  raw: string,
+): { from: Point; to: Point } | { error: string } {
+  const tokens =
+    raw.match(/@?-?\d+(?:\.\d+)?(?:,-?\d+(?:\.\d+)?|<-?\d+(?:\.\d+)?)?/g) ?? [];
+  if (tokens.length < 2)
+    return { error: "Indica dos puntos, por ejemplo: 0,0 @5000,0" };
+  const first = parseCoordinate(tokens[0]!);
+  if (!first.ok) return { error: first.error };
+  const second = parseCoordinate(tokens[1]!, { last: first.point });
+  if (!second.ok) return { error: second.error };
+  return { from: first.point, to: second.point };
+}
+
+function labelAfter(raw: string): string | undefined {
+  return raw.match(/(?:label|etiqueta|nombre)\s+(.+)$/i)?.[1]?.trim();
+}
+
 export function parseCadCommand(text: string): CadParseResult {
   const raw = text.trim();
   const q = raw.toLocaleLowerCase("es-MX");
@@ -42,6 +63,46 @@ export function parseCadCommand(text: string): CadParseResult {
       clarification: "Escribe un comando CAD.",
     };
 
+  if (/^(line|linea|línea|muro|wall)\b/.test(q) && /(\d|@)/.test(raw)) {
+    const pair = parseDraftPointPair(raw);
+    if ("error" in pair)
+      return { ok: false, confidence: 0.62, clarification: pair.error };
+    const thickness = unitValueToMm(
+      q.match(
+        /(?:grosor|espesor|thickness)\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*(mm|m)?/i,
+      ),
+    );
+    return {
+      ok: true,
+      confidence: 0.88,
+      input: {
+        id: "draw_wall_segment",
+        from: pair.from,
+        to: pair.to,
+        thickness,
+        label: labelAfter(raw),
+      },
+    };
+  }
+  if (
+    /^(rect|rectangle|rectangulo|rectángulo|room|cuarto|zona)\b/.test(q) &&
+    /(\d|@)/.test(raw)
+  ) {
+    const pair = parseDraftPointPair(raw);
+    if ("error" in pair)
+      return { ok: false, confidence: 0.62, clarification: pair.error };
+    return {
+      ok: true,
+      confidence: 0.87,
+      input: {
+        id: "draw_rect_zone",
+        from: pair.from,
+        to: pair.to,
+        kind: /room|cuarto/.test(q) ? "room" : "zone",
+        label: labelAfter(raw),
+      },
+    };
+  }
   if (/valida|validaci[oó]n|diagn[oó]stic|revisa.*layout/.test(q)) {
     const match = q.match(numberWithUnit);
     const requiredClearance = unitValueToMm(match);
@@ -74,9 +135,7 @@ export function parseCadCommand(text: string): CadParseResult {
     };
   }
   if (
-    /(rack|racks|estante|estantes|almacen|warehouse|supermarket)/.test(
-      q,
-    ) &&
+    /(rack|racks|estante|estantes|almacen|warehouse|supermarket)/.test(q) &&
     /(acomoda|ordena|organiza|fila|filas|row|rows|bahia|bahias|bays|pasillo|aisle)/.test(
       q,
     )
@@ -117,7 +176,9 @@ export function parseCadCommand(text: string): CadParseResult {
       },
     };
   }
-  const trimMatch = raw.match(/recort\w+\s+(.+?)\s+(?:en|con|donde cruza)\s+(.+)$/i);
+  const trimMatch = raw.match(
+    /recort\w+\s+(.+?)\s+(?:en|con|donde cruza)\s+(.+)$/i,
+  );
   if (trimMatch && /recorta|recortar|trim/i.test(q)) {
     const keep = /conserva\w*\s+(?:el\s+)?inicio/i.test(q)
       ? ("start" as const)
@@ -166,9 +227,14 @@ export function parseCadCommand(text: string): CadParseResult {
         confidence: 0.6,
         clarification: "¿Cuántas copias quieres en el arreglo polar?",
       };
-    const angleSpanDeg = numberNear(q, /(?:en|abanico de)\s*(\d+(?:[.,]\d+)?)\s*(?:grados|°)/i);
-    const centerLabel = (raw.match(/alrededor de\s+(.+)$/i)?.[1] ??
-      raw.match(/centrado en\s+(.+)$/i)?.[1])?.trim();
+    const angleSpanDeg = numberNear(
+      q,
+      /(?:en|abanico de)\s*(\d+(?:[.,]\d+)?)\s*(?:grados|°)/i,
+    );
+    const centerLabel = (
+      raw.match(/alrededor de\s+(.+)$/i)?.[1] ??
+      raw.match(/centrado en\s+(.+)$/i)?.[1]
+    )?.trim();
     return {
       ok: true,
       confidence: 0.85,
@@ -194,7 +260,11 @@ export function parseCadCommand(text: string): CadParseResult {
       },
     };
   }
-  if (/(a lo largo|siguiendo)\s+(?:de\s|del\s|la\s|el\s)?.*(flujo|ruta|recorrido)/.test(q)) {
+  if (
+    /(a lo largo|siguiendo)\s+(?:de\s|del\s|la\s|el\s)?.*(flujo|ruta|recorrido)/.test(
+      q,
+    )
+  ) {
     const count = numberNear(q, /(\d+)/);
     if (!count)
       return {
@@ -215,22 +285,37 @@ export function parseCadCommand(text: string): CadParseResult {
       : /tama[nñ]o|ancho|alto|size/.test(q)
         ? ("size" as const)
         : undefined;
-    return { ok: true, confidence: 0.85, input: { id: "auto_dimension", mode } };
+    return {
+      ok: true,
+      confidence: 0.85,
+      input: { id: "auto_dimension", mode },
+    };
   }
   // Medición de regiones y zona envolvente (ADR §221) — ANTES de mide/medir
   // (distancia entre dos) y de pasillo/clearance ("zona" no debe caer ahí).
   if (/(área|area|superficie)/.test(q)) {
     const targetLabel = raw
-      .match(/(?:área|area|superficie)\s+(?:de\s+)?(?:la\s+|el\s+)?(?:zona\s+)?(.+)$/i)?.[1]
+      .match(
+        /(?:área|area|superficie)\s+(?:de\s+)?(?:la\s+|el\s+)?(?:zona\s+)?(.+)$/i,
+      )?.[1]
       ?.trim();
-    const generic = !targetLabel || /^(selecci[oó]n|grupo|zona seleccionada|esto)$/i.test(targetLabel);
+    const generic =
+      !targetLabel ||
+      /^(selecci[oó]n|grupo|zona seleccionada|esto)$/i.test(targetLabel);
     return {
       ok: true,
       confidence: 0.84,
-      input: { id: "measure_area", targetLabel: generic ? undefined : targetLabel },
+      input: {
+        id: "measure_area",
+        targetLabel: generic ? undefined : targetLabel,
+      },
     };
   }
-  if (/(zona|envolvente|envuelve).*(alrededor|envolvente)|alrededor de la selecci[oó]n|envuelve/.test(q)) {
+  if (
+    /(zona|envolvente|envuelve).*(alrededor|envolvente)|alrededor de la selecci[oó]n|envuelve/.test(
+      q,
+    )
+  ) {
     const margin = unitValueToMm(
       q.match(/(?:margen|holgura)\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*(mm|m)?/i),
     );
@@ -242,9 +327,8 @@ export function parseCadCommand(text: string): CadParseResult {
   }
   if (/(offset|desfasa|desfase|paralela)/.test(q)) {
     const distance =
-      unitValueToMm(
-        q.match(/(?:de|a)\s+(\d+(?:[.,]\d+)?)\s*(mm|m)?\b/i),
-      ) ?? unitValueToMm(q.match(numberWithUnit));
+      unitValueToMm(q.match(/(?:de|a)\s+(\d+(?:[.,]\d+)?)\s*(mm|m)?\b/i)) ??
+      unitValueToMm(q.match(numberWithUnit));
     if (!distance)
       return {
         ok: false,
