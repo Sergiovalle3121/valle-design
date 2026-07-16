@@ -5,7 +5,9 @@ export type CadLayoutTemplateId =
   | "smt-line"
   | "supermarket-kitting"
   | "warehouse-racks"
-  | "packing-shipping-cell";
+  | "packing-shipping-cell"
+  | "architecture-floor-core"
+  | "civil-site-utilities";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -39,7 +41,7 @@ export interface CadLayoutTemplate {
   id: CadLayoutTemplateId;
   label: string;
   description: string;
-  category: "factory" | "production" | "warehouse" | "shipping";
+  category: "factory" | "production" | "warehouse" | "shipping" | "architecture" | "civil";
   baseWidth: number;
   baseHeight: number;
   assets: CadTemplateAsset[];
@@ -78,6 +80,74 @@ const note = (
 ): CadTemplateAnnotation => ({ ref, type: "text", text, x, y, layer });
 
 export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
+
+  {
+    id: "architecture-floor-core",
+    label: "Architecture floor core",
+    description: "Architectural starter with exterior walls, rooms, doors, columns, stairs, service core, dimensions, and egress zones.",
+    category: "architecture",
+    baseWidth: 24000,
+    baseHeight: 16000,
+    assets: [
+      asset("shell", "room", "Building shell", 700, 700, 22600, 14600, "architecture", ["architecture", "shell", "gross-area"]),
+      asset("lobby", "room", "Lobby / reception", 1300, 1300, 5200, 3600, "architecture", ["room", "use:lobby", "dept:front-office"]),
+      asset("open-office", "room", "Open studio", 7000, 1300, 7600, 5400, "architecture", ["room", "use:office", "dept:engineering"]),
+      asset("meeting", "room", "Meeting room", 15100, 1300, 3600, 3000, "architecture", ["room", "use:meeting", "dept:engineering"]),
+      asset("lab", "room", "Engineering lab", 15100, 4700, 3600, 4200, "architecture", ["room", "use:lab", "dept:engineering"]),
+      asset("warehouse", "room", "Warehouse / storage", 1300, 7600, 6500, 5600, "architecture", ["room", "use:warehouse", "dept:operations"]),
+      asset("utility", "room", "MEP / utility", 8200, 7600, 3100, 2700, "utilities", ["room", "use:utility", "dept:facilities"]),
+      asset("restrooms", "room", "Restrooms", 8200, 10600, 3100, 2600, "architecture", ["room", "use:restroom", "dept:shared"]),
+      asset("production", "room", "Flexible production hall", 11900, 9500, 10100, 3400, "architecture", ["room", "use:production", "dept:operations"]),
+      asset("egress", "agvpath", "Main egress corridor", 1300, 6500, 20700, 700, "aisles", ["egress", "corridor", "life-safety"]),
+      asset("stair", "stair", "Stair core", 19100, 1300, 2900, 3000, "structure", ["stairs", "egress"]),
+      asset("col-a", "column", "C1", 6900, 7200, 450, 450, "structure", ["column", "grid:a"]),
+      asset("col-b", "column", "C2", 11600, 7200, 450, 450, "structure", ["column", "grid:b"]),
+      asset("col-c", "column", "C3", 16100, 7200, 450, 450, "structure", ["column", "grid:c"]),
+      asset("front-door", "door", "Main double door", 3250, 650, 1700, 260, "architecture", ["door", "egress", "opening:main"]),
+      asset("dock-door", "door", "Service roll-up door", 1800, 13150, 2600, 300, "architecture", ["door", "dock", "opening:service"]),
+    ],
+    annotations: [
+      note("title", "Architectural floor core - editable universal CAD template", 1200, 420, "measurements"),
+      note("egress-note", "Egress corridor, doors, rooms, columns, and MEP core are separate CAD layers", 7200, 6200, "safety"),
+    ],
+    connectors: [
+      { fromRef: "front-door", toRef: "lobby", kind: "flow" },
+      { fromRef: "lobby", toRef: "egress", kind: "flow" },
+      { fromRef: "egress", toRef: "production", kind: "flow" },
+      { fromRef: "warehouse", toRef: "dock-door", kind: "material" },
+    ],
+  },
+  {
+    id: "civil-site-utilities",
+    label: "Civil site + utilities",
+    description: "Site plan starter with building pad, roads, parking, stormwater, electrical, water, compressed air, and safety setbacks.",
+    category: "civil",
+    baseWidth: 42000,
+    baseHeight: 26000,
+    assets: [
+      asset("property", "zone", "Property boundary", 800, 800, 40400, 24400, "layout", ["site", "boundary"]),
+      asset("building", "room", "Building pad", 10400, 6200, 16400, 9800, "architecture", ["building", "pad"]),
+      asset("truck-road", "agvpath", "Truck loop road", 3000, 3600, 36000, 1600, "aisles", ["road", "truck", "fire-lane"]),
+      asset("south-road", "agvpath", "South service road", 3000, 19900, 36000, 1400, "aisles", ["road", "service"]),
+      asset("parking", "zone", "Parking field", 28400, 7100, 9000, 8200, "layout", ["parking", "site"]),
+      asset("storm", "zone", "Stormwater basin", 5200, 17100, 7600, 4800, "utilities", ["stormwater", "detention"]),
+      asset("substation", "cabinet", "Electrical substation", 5200, 6900, 2600, 2100, "utilities", ["electrical", "utility"]),
+      asset("water", "cabinet", "Water service", 5200, 10100, 2100, 1500, "utilities", ["water", "utility"]),
+      asset("air", "cabinet", "Compressed air yard", 5200, 12600, 2400, 1600, "utilities", ["compressed-air", "utility"]),
+      asset("setback", "fence", "Fire / code setback", 9300, 5100, 18500, 12000, "safety", ["setback", "code", "fire"]),
+      asset("dock", "door", "Truck dock apron", 12400, 16050, 5200, 700, "architecture", ["dock", "apron"]),
+    ],
+    annotations: [
+      note("title", "Civil site + utilities - editable universal CAD template", 1200, 500, "measurements"),
+      note("utilities", "Utility nodes and roads are layer-separated for takeoff / DXF export", 15000, 18800, "utilities"),
+    ],
+    connectors: [
+      { fromRef: "substation", toRef: "building", kind: "material" },
+      { fromRef: "water", toRef: "building", kind: "material" },
+      { fromRef: "air", toRef: "building", kind: "material" },
+      { fromRef: "truck-road", toRef: "dock", kind: "flow" },
+    ],
+  },
   {
     id: "smt-line",
     label: "SMT line",

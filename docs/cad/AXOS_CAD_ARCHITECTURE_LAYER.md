@@ -173,3 +173,34 @@ Non-redundancy guardrails:
   payload.
 - Existing wall tracing remains available; the new drafting tools are keyboard
   and toolbar access to the same precision model for faster CAD-style work.
+
+## CAD Studio decoupling — 2026-07-15
+
+AXOS CAD is now exposed as a first-class universal design studio at
+`/dashboard/cad`, instead of being reachable only from the line-balancing page.
+The implementation still reuses the existing `Layout3DEditor`, command engine,
+layer model, DXF import/export, validation, takeoff, templates, symbols, and
+snapshot/version surfaces; no duplicate CAD canvas or persistence model was
+introduced.
+
+User-visible changes:
+
+- `/dashboard/cad` opens `Layout3DEditor` in `standalone` mode with the equipment
+  and universal CAD library visible first, not the station-balancing tray.
+- The global dashboard catalog and command palette include **AXOS CAD Studio** as
+  its own destination for architecture, engineering, civil/layout, warehouse,
+  utility, and plant design work.
+- `/dashboard/line-engineering` still keeps CAD available for manufacturing line
+  engineering, but its description is narrowed back to routing, takt, and
+  balance so CAD is not conceptually trapped in EMS balancing.
+- Standalone mode hides line-only arrange/connect shortcuts and uses generic
+  labels (`Puntos`, `Biblioteca`) while preserving all advanced CAD capabilities.
+
+Non-redundancy guardrails:
+
+- The route uses a universal CAD workspace key (`AXOS-CAD-STUDIO` /
+  `UNIVERSAL`) against the current layout API rather than creating a second
+  backend module.
+- Existing templates, layers, architecture takeoff, validation report,
+  precision-input, OSNAP, plotting, DXF, blocks, snapshots, and Copilot CAD are
+  reused directly.
