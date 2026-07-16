@@ -271,6 +271,7 @@ interface CommandPreviewState { input: CadCommandInput; preview: CadCommandPrevi
 interface DxfExportOptions { scope: 'all' | 'selection'; includeHidden: boolean; includeMeasurements: boolean; includeLabels: boolean; units: 'mm' | 'm'; fileName: string }
 interface DxfExportSummary { objects: number; connectors: number; measurements: number; labels: number; layers: number; canExport: boolean; includedLayers: string[]; layerSummary: CadDxfExportLayerSummary[]; issues: CadDxfExportReadinessIssue[] }
 interface MeasurementRow { id: string; label: string; length: string }
+interface CadSheetPackageDraft { project: string; drawingNo: string; discipline: string; sheet: string; revision: string; scale: string; preparedBy: string; checkedBy: string; approvedBy: string; notes: string }
 /** Live quantity take-off computed from the editor's current state. */
 interface LocalTakeoff {
   unit: string; footprintArea: number; totalStations: number; placedStations: number;
@@ -796,8 +797,10 @@ export default function Layout3DEditor({
   const [dxfWarnings, setDxfWarnings] = useState<CadDxfImportWarning[]>([]);
   const [dxfImportPreview, setDxfImportPreview] = useState<CadDxfImportResult | null>(null);
   const [showDxfExport, setShowDxfExport] = useState(false);
+  const [showSheetPackage, setShowSheetPackage] = useState(false);
   const [dxfExportOptions, setDxfExportOptions] = useState<DxfExportOptions>({ scope: 'all', includeHidden: true, includeMeasurements: true, includeLabels: true, units: 'mm', fileName: '' });
   const [dxfExportSummary, setDxfExportSummary] = useState<DxfExportSummary>({ objects: 0, connectors: 0, measurements: 0, labels: 0, layers: 0, canExport: false, includedLayers: [], layerSummary: [], issues: [] });
+  const [sheetPackageDraft, setSheetPackageDraft] = useState<CadSheetPackageDraft>({ project: 'AXOS universal CAD', drawingNo: 'A-0001', discipline: 'Architecture / Engineering', sheet: 'S-001', revision: 'P01', scale: 'Fit to sheet', preparedBy: '', checkedBy: '', approvedBy: '', notes: '' });
   const dxfInputRef = useRef<HTMLInputElement | null>(null);
   // Visión plano→muros (Fase 71 cableada, ADR §217): imagen → CIDE multimodal
   // → normalizeVision → muros/zonas editables. El humano revisa antes de insertar.
@@ -4919,6 +4922,27 @@ export default function Layout3DEditor({
   const dxfPrimitiveSummary = dxfImportPreview
     ? dxfImportPreview.primitives.reduce<Record<string, number>>((acc, primitive) => { acc[primitive.kind] = (acc[primitive.kind] ?? 0) + 1; return acc; }, {})
     : null;
+  const sheetPackageChecks = [
+    { label: 'Title block', ok: !!sheetPackageDraft.project.trim() && !!sheetPackageDraft.drawingNo.trim() && !!sheetPackageDraft.sheet.trim() && !!sheetPackageDraft.revision.trim(), detail: `${sheetPackageDraft.drawingNo || 'sin plano'} · ${sheetPackageDraft.sheet || 'sin hoja'} · rev ${sheetPackageDraft.revision || '—'}` },
+    { label: 'Capas visibles', ok: cadLayers.some((layer) => layer.visible), detail: `${cadLayers.filter((layer) => layer.visible).length}/${cadLayers.length} visibles` },
+    { label: 'Geometría editable', ok: placedCount + assetCount > 0, detail: `${placedCount} puntos · ${assetCount} objetos` },
+    { label: 'Cotas / anotaciones', ok: annotationsRef.current.size > 0, detail: `${annotationsRef.current.size} anotaciones` },
+    { label: 'Validación CAD', ok: cadValidationReport ? cadValidationReport.severity !== 'critical' : false, detail: cadValidationReport ? `${cadValidationReport.severity} · ${cadValidationReport.issues.length} issues` : 'pendiente de ejecutar' },
+    { label: 'Aprobación', ok: approval?.status === 'approved', detail: approval ? APPROVAL_META[approval.status].label : 'sin estado' },
+    { label: 'DXF / entrega', ok: dxfExportSummary.canExport || placedCount + assetCount > 0, detail: dxfExportSummary.canExport ? `${dxfExportSummary.objects} entidades listas` : 'exportable bajo demanda' },
+  ];
+  const sheetPackageReadyCount = sheetPackageChecks.filter((check) => check.ok).length;
+  const sheetPackageReadyPct = Math.round((sheetPackageReadyCount / sheetPackageChecks.length) * 100);
+  const sheetPackageManifest = {
+    project: sheetPackageDraft.project, drawingNo: sheetPackageDraft.drawingNo, discipline: sheetPackageDraft.discipline,
+    model, revision, sheet: sheetPackageDraft.sheet, sheetRevision: sheetPackageDraft.revision, scale: sheetPackageDraft.scale,
+    preparedBy: sheetPackageDraft.preparedBy, checkedBy: sheetPackageDraft.checkedBy, approvedBy: sheetPackageDraft.approvedBy,
+    packageReadyPct: sheetPackageReadyPct, generatedAt: new Date().toISOString(),
+    footprint: data?.footprint ?? null, counts: { stations: placedCount, assets: assetCount, annotations: annotationsRef.current.size, connectors: connectorsRef.current.length, cadLayers: cadLayers.length },
+    validation: cadValidationReport ? { severity: cadValidationReport.severity, issues: cadValidationReport.issues.length, collisions: cadValidationReport.collisions.length, clearances: cadValidationReport.clearances.length, safety: cadValidationReport.safety.length, architecture: cadValidationReport.architecture.length } : null,
+    dxf: { canExport: dxfExportSummary.canExport, objects: dxfExportSummary.objects, layers: dxfExportSummary.layers, issues: dxfExportSummary.issues.length },
+    notes: sheetPackageDraft.notes,
+  };
   const symbolCategories: Array<CadSymbolCategory | 'all'> = ['all', 'equipment', 'flow', 'safety', 'storage', 'operator'];
   const filteredSymbols = CAD_SYMBOL_LIBRARY.filter((symbol) => {
     const q = symbolSearch.trim().toLowerCase();
@@ -5213,6 +5237,7 @@ export default function Layout3DEditor({
             </div>
           )}
         </div>
+        <T3Btn active={showSheetPackage} onClick={() => setShowSheetPackage(true)} title="Paquete de entrega — cajetín, checklist, manifiesto y readiness"><Stamp className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={exportPdf} title="Imprimir plano a PDF — vista + cajetín (modelo, revisión, huella, fecha)"><Printer className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={exportPng} title="Exportar imagen (PNG)"><Download className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={exportGltf} title="Exportar modelo 3D (.glb) — Blender, otros CAD"><Package className="w-4 h-4" /></T3Btn>
@@ -5992,6 +6017,69 @@ export default function Layout3DEditor({
                 </p>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+
+      {showSheetPackage && (
+        <div className="absolute inset-0 z-[82] grid place-items-center bg-black/55 p-4" onClick={() => setShowSheetPackage(false)}>
+          <div className="w-[760px] max-w-full max-h-[84vh] overflow-y-auto rounded-2xl border border-white/10 bg-gray-900 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
+              <Stamp className="h-4 w-4 text-cyan-300" />
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold">Paquete premium de entrega CAD</div>
+                <div className="text-[11px] text-gray-500">Cajetín, revisión, validación, DXF, manifiesto y checklist de emisión.</div>
+              </div>
+              <div className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1 text-[12px] font-semibold text-cyan-100">{sheetPackageReadyPct}% listo</div>
+              <button onClick={() => setShowSheetPackage(false)} className="rounded-lg p-1 hover:bg-white/10"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="grid gap-4 p-4 lg:grid-cols-[1.05fr_0.95fr]">
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  {(['project', 'drawingNo', 'discipline', 'sheet', 'revision', 'scale', 'preparedBy', 'checkedBy', 'approvedBy'] as const).map((key) => (
+                    <label key={key} className={key === 'project' || key === 'discipline' ? 'col-span-2 block' : 'block'}>
+                      <span className="mb-1 block text-[10px] uppercase tracking-wide text-gray-500">{key === 'drawingNo' ? 'Drawing No.' : key === 'preparedBy' ? 'Prepared by' : key === 'checkedBy' ? 'Checked by' : key === 'approvedBy' ? 'Approved by' : key}</span>
+                      <input value={sheetPackageDraft[key]} onChange={(e) => setSheetPackageDraft((draft) => ({ ...draft, [key]: e.target.value }))} className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12.5px] text-white outline-none focus:border-cyan-400/60" />
+                    </label>
+                  ))}
+                </div>
+                <label className="block">
+                  <span className="mb-1 block text-[10px] uppercase tracking-wide text-gray-500">Notas de emisión</span>
+                  <textarea value={sheetPackageDraft.notes} onChange={(e) => setSheetPackageDraft((draft) => ({ ...draft, notes: e.target.value }))} rows={3} className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12.5px] text-white outline-none focus:border-cyan-400/60" placeholder="Alcance, exclusiones, normas, IFC/for review, etc." />
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <Stat label="Objetos" value={`${placedCount + assetCount}`} />
+                  <Stat label="Capas" value={`${cadLayers.length}`} />
+                  <Stat label="Issues" value={`${cadValidationReport?.issues.length ?? '—'}`} />
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Checklist de emisión</div>
+                  <div className="space-y-1.5">
+                    {sheetPackageChecks.map((check) => (
+                      <div key={check.label} className="flex items-center gap-2 rounded-lg bg-gray-950/50 px-2 py-1.5 text-[12px]">
+                        {check.ok ? <CircleCheck className="h-3.5 w-3.5 text-emerald-300" /> : <CircleAlert className="h-3.5 w-3.5 text-amber-300" />}
+                        <span className="flex-1 font-medium text-gray-200">{check.label}</span>
+                        <span className="max-w-[150px] truncate text-[11px] text-gray-500">{check.detail}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-gray-950/60 p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Manifest JSON</span>
+                    <button onClick={() => navigator.clipboard?.writeText(JSON.stringify(sheetPackageManifest, null, 2))} className="rounded-md bg-cyan-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-cyan-500">Copiar</button>
+                  </div>
+                  <pre className="max-h-52 overflow-auto whitespace-pre-wrap rounded-lg bg-black/30 p-2 text-[10.5px] leading-relaxed text-cyan-50/80">{JSON.stringify(sheetPackageManifest, null, 2)}</pre>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={exportPdf} className="rounded-xl bg-white px-3 py-2 text-[12px] font-semibold text-gray-900 hover:bg-cyan-50">Exportar PDF</button>
+                  <button onClick={openDxfExport} className="rounded-xl bg-cyan-600 px-3 py-2 text-[12px] font-semibold text-white hover:bg-cyan-500">Preparar DXF</button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

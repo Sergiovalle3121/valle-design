@@ -7,7 +7,9 @@ export type CadLayoutTemplateId =
   | "warehouse-racks"
   | "packing-shipping-cell"
   | "architecture-floor-core"
-  | "civil-site-utilities";
+  | "civil-site-utilities"
+  | "structural-grid-core"
+  | "mep-plantroom";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -41,7 +43,7 @@ export interface CadLayoutTemplate {
   id: CadLayoutTemplateId;
   label: string;
   description: string;
-  category: "factory" | "production" | "warehouse" | "shipping" | "architecture" | "civil";
+  category: "factory" | "production" | "warehouse" | "shipping" | "architecture" | "civil" | "structure" | "mep";
   baseWidth: number;
   baseHeight: number;
   assets: CadTemplateAsset[];
@@ -146,6 +148,71 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "water", toRef: "building", kind: "material" },
       { fromRef: "air", toRef: "building", kind: "material" },
       { fromRef: "truck-road", toRef: "dock", kind: "flow" },
+    ],
+  },
+  {
+    id: "structural-grid-core",
+    label: "Structural grid core",
+    description: "Column grid, shear/core zones, beams as walls, stairs, expansion joint, and inspection clearances for structural planning.",
+    category: "structure",
+    baseWidth: 30000,
+    baseHeight: 21000,
+    assets: [
+      asset("grid-a", "wall", "Grid A datum", 1800, 2400, 26000, 80, "measurements", ["grid", "datum", "axis:a"]),
+      asset("grid-b", "wall", "Grid B datum", 1800, 8600, 26000, 80, "measurements", ["grid", "datum", "axis:b"]),
+      asset("grid-c", "wall", "Grid C datum", 1800, 14800, 26000, 80, "measurements", ["grid", "datum", "axis:c"]),
+      asset("core", "room", "Shear / elevator core", 11600, 6200, 5200, 5200, "structure", ["core", "shear-wall", "vertical-transport"]),
+      asset("stair-a", "stair", "Stair A", 4800, 4200, 3000, 3600, "structure", ["stairs", "egress"]),
+      asset("stair-b", "stair", "Stair B", 21600, 12800, 3000, 3600, "structure", ["stairs", "egress"]),
+      asset("joint", "fence", "Expansion joint / seismic gap", 14500, 900, 360, 19000, "safety", ["expansion-joint", "seismic", "clearance"]),
+      asset("c1", "column", "A1", 4200, 4000, 520, 520, "structure", ["column", "grid:a1"]),
+      asset("c2", "column", "A2", 10200, 4000, 520, 520, "structure", ["column", "grid:a2"]),
+      asset("c3", "column", "A3", 16200, 4000, 520, 520, "structure", ["column", "grid:a3"]),
+      asset("c4", "column", "A4", 22200, 4000, 520, 520, "structure", ["column", "grid:a4"]),
+      asset("c5", "column", "B1", 4200, 10200, 520, 520, "structure", ["column", "grid:b1"]),
+      asset("c6", "column", "B2", 10200, 10200, 520, 520, "structure", ["column", "grid:b2"]),
+      asset("c7", "column", "B3", 16200, 10200, 520, 520, "structure", ["column", "grid:b3"]),
+      asset("c8", "column", "B4", 22200, 10200, 520, 520, "structure", ["column", "grid:b4"]),
+      asset("c9", "column", "C1", 4200, 16400, 520, 520, "structure", ["column", "grid:c1"]),
+      asset("c10", "column", "C2", 10200, 16400, 520, 520, "structure", ["column", "grid:c2"]),
+      asset("c11", "column", "C3", 16200, 16400, 520, 520, "structure", ["column", "grid:c3"]),
+      asset("c12", "column", "C4", 22200, 16400, 520, 520, "structure", ["column", "grid:c4"]),
+    ],
+    annotations: [
+      note("title", "Structural grid core - editable universal CAD template", 1200, 700, "measurements"),
+      note("joint-note", "Expansion joint and structural core are explicit validation/takeoff objects", 15400, 1900, "safety"),
+    ],
+    connectors: [],
+  },
+  {
+    id: "mep-plantroom",
+    label: "MEP plantroom",
+    description: "Mechanical/electrical plantroom with utility rooms, transformer, pumps, compressor, maintenance envelope, and service paths.",
+    category: "mep",
+    baseWidth: 22000,
+    baseHeight: 15000,
+    assets: [
+      asset("plant", "room", "MEP plantroom shell", 900, 900, 20200, 13200, "architecture", ["room", "use:utility", "dept:facilities"]),
+      asset("electrical", "room", "Electrical room", 1600, 1600, 4800, 3900, "utilities", ["electrical", "switchgear", "use:utility"]),
+      asset("mechanical", "room", "Mechanical room", 7200, 1600, 6100, 3900, "utilities", ["mechanical", "hvac", "use:utility"]),
+      asset("pump", "room", "Pump room", 14100, 1600, 5200, 3900, "utilities", ["pump", "water", "use:utility"]),
+      asset("service-aisle", "agvpath", "Service aisle", 1600, 6500, 17700, 900, "aisles", ["service", "maintenance", "egress"]),
+      asset("transformer", "cabinet", "Transformer / switchgear", 2500, 2800, 2500, 1200, "utilities", ["electrical", "transformer"]),
+      asset("ahu", "machine", "Air handling unit", 8300, 2550, 3600, 1500, "utilities", ["hvac", "ahu"]),
+      asset("compressor", "machine", "Compressed air skid", 8500, 9200, 3000, 1700, "utilities", ["compressed-air", "skid"]),
+      asset("pump-skid", "machine", "Pump skid", 15100, 2700, 3000, 1500, "utilities", ["pump", "water"]),
+      asset("maintenance", "fence", "Maintenance clearance", 7600, 8200, 5200, 3300, "safety", ["maintenance", "clearance", "restricted"]),
+      asset("egress-door", "door", "Rated egress door", 10200, 13950, 1700, 260, "architecture", ["door", "egress"]),
+    ],
+    annotations: [
+      note("title", "MEP plantroom - editable universal CAD template", 1200, 520, "measurements"),
+      note("clearance", "Maintenance envelopes and utility rooms are layer-separated", 7600, 7900, "safety"),
+    ],
+    connectors: [
+      { fromRef: "transformer", toRef: "electrical", kind: "material" },
+      { fromRef: "ahu", toRef: "mechanical", kind: "material" },
+      { fromRef: "pump-skid", toRef: "pump", kind: "material" },
+      { fromRef: "compressor", toRef: "service-aisle", kind: "flow" },
     ],
   },
   {

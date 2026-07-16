@@ -204,3 +204,40 @@ Non-redundancy guardrails:
 - Existing templates, layers, architecture takeoff, validation report,
   precision-input, OSNAP, plotting, DXF, blocks, snapshots, and Copilot CAD are
   reused directly.
+
+## CAD Studio release-package phase — 2026-07-16
+
+The universal studio now includes a release-package surface directly inside
+`Layout3DEditor`. This is the first delivery/readiness layer for real drawing
+packages, not a separate document manager.
+
+User-visible additions:
+
+- A **package** action in the CAD toolbar opens a premium delivery panel with
+  title-block fields: project, drawing number, discipline, sheet, revision,
+  scale, prepared/checked/approved by, and release notes.
+- The panel computes an issue-driven readiness percentage from existing editor
+  state: title-block completeness, visible layers, editable geometry,
+  annotations/dimensions, CAD validation severity, approval state, and DXF
+  readiness.
+- The panel exposes a copyable JSON manifest with footprint, object counts,
+  connector counts, layer counts, validation summary, DXF summary, revision
+  fields, and notes so a tenant can attach the manifest to external document
+  control or an engineering release workflow.
+- From the same panel users can jump to PDF export or DXF preparation, keeping
+  plotting/export connected to validation and release metadata.
+
+The same phase also adds broader universal starter templates for non-EMS work:
+
+- `structural-grid-core`: column grid, datum axes, stairs, structural core,
+  expansion joint, and seismic/clearance metadata.
+- `mep-plantroom`: MEP shell, electrical/mechanical/pump rooms, transformer,
+  AHU, compressor, pump skid, service aisle, maintenance envelope, and egress
+  door.
+
+Non-redundancy guardrails:
+
+- Release readiness is local/editor-derived and reuses current layout state,
+  approvals, validation, DXF readiness, annotations, layers, and export actions.
+- No new CAD backend, persistence table, canvas, drawing package module, or
+  duplicate validation engine was introduced.
