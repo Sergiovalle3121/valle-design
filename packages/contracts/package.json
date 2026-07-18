@@ -2,6 +2,7 @@
   "name": "@axos/contracts",
   "version": "1.0.0",
   "private": true,
+  "license": "UNLICENSED",
   "description": "Shared, side-effect-free contracts (types + pure derivations) for AXOS OS workspaces.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
