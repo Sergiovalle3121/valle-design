@@ -24,6 +24,11 @@ export const INDUSTRY_IDS = [
   "consumer-goods",
   "machinery",
   "logistics",
+  "food-service",
+  "retail",
+  "professional-services",
+  "construction",
+  "healthcare",
   "other",
 ] as const;
 
@@ -103,6 +108,31 @@ export const INDUSTRY_PROFILES: Record<IndustryId, IndustryProfile> = {
     id: "logistics",
     descriptorEs: "una empresa de logística y distribución",
     descriptorEn: "a logistics and distribution company",
+  },
+  "food-service": {
+    id: "food-service",
+    descriptorEs: "un restaurante o empresa de alimentos preparados",
+    descriptorEn: "a restaurant / food-service company",
+  },
+  retail: {
+    id: "retail",
+    descriptorEs: "una empresa de comercio minorista (retail)",
+    descriptorEn: "a retail company",
+  },
+  "professional-services": {
+    id: "professional-services",
+    descriptorEs: "una firma de servicios profesionales",
+    descriptorEn: "a professional-services firm",
+  },
+  construction: {
+    id: "construction",
+    descriptorEs: "una constructora",
+    descriptorEn: "a construction company",
+  },
+  healthcare: {
+    id: "healthcare",
+    descriptorEs: "una clínica u organización de salud",
+    descriptorEn: "a healthcare organization",
   },
   other: {
     id: "other",
