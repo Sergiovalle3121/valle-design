@@ -19,6 +19,34 @@ assert.ok(
   searchCadSymbols("aoi").some((symbol) => symbol.id === "aoi"),
   "search finds AOI",
 );
+// CAD universal (AXOS-CAD-UNIVERSAL-001): el catálogo sirve a cualquiera
+// diseñando cualquier cosa — búsquedas en español de casa/oficina/comercio.
+assert.ok(
+  searchCadSymbols("puerta").some((symbol) => symbol.id === "door-90"),
+  "search finds puertas (arquitectura)",
+);
+assert.ok(
+  searchCadSymbols("cama").some((symbol) => symbol.id === "bed-queen"),
+  "search finds camas (mobiliario)",
+);
+assert.ok(
+  searchCadSymbols("escritorio").some((symbol) => symbol.id === "desk"),
+  "search finds escritorios (oficina)",
+);
+assert.ok(
+  searchCadSymbols("restaurante").some(
+    (symbol) => symbol.id === "restaurant-table-4",
+  ),
+  "search finds mesas de restaurante (comercio)",
+);
+assert.ok(
+  CAD_SYMBOL_LIBRARY.filter((symbol) =>
+    ["architecture", "furniture", "office", "commerce"].includes(
+      symbol.category,
+    ),
+  ).length >= 20,
+  "ships a universal (non-EMS) symbol set",
+);
 assert.ok(
   searchCadSymbols("pick").some((symbol) => symbol.id === "pick-and-place"),
   "search finds pick-and-place equipment",
