@@ -19,6 +19,7 @@ export type CadCommandId =
   | "array_polar"
   | "array_along_flow"
   | "offset_object"
+  | "mirror_selection"
   | "extend_wall"
   | "trim_wall"
   | "chamfer_walls"
@@ -204,6 +205,15 @@ export type CadCommandInput =
       distance: number;
       side?: "left" | "right" | "up" | "down";
       copies?: number;
+    }
+  | {
+      id: "mirror_selection";
+      objectIds?: string[];
+      axis?: "vertical" | "horizontal";
+      /** Coordenada del eje; default: centro del bounding box de la selección. */
+      at?: number;
+      /** Default true: conserva originales y crea copias "(espejo)". */
+      copy?: boolean;
     }
   | {
       id: "extend_wall";

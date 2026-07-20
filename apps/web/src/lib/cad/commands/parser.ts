@@ -325,6 +325,19 @@ export function parseCadCommand(text: string): CadParseResult {
       input: { id: "create_zone_around", margin },
     };
   }
+  if (/(espejo|espejea|mirror|refleja)/.test(q)) {
+    const axis = /horizontal/.test(q)
+      ? ("horizontal" as const)
+      : ("vertical" as const);
+    const copy = /(sin\s+copia|en\s+sitio|sin\s+copiar|mover)/.test(q)
+      ? false
+      : undefined;
+    return {
+      ok: true,
+      confidence: 0.85,
+      input: { id: "mirror_selection", axis, copy },
+    };
+  }
   if (/(offset|desfasa|desfase|paralela)/.test(q)) {
     const distance =
       unitValueToMm(q.match(/(?:de|a)\s+(\d+(?:[.,]\d+)?)\s*(mm|m)?\b/i)) ??

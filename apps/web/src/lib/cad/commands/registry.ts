@@ -37,6 +37,7 @@ import {
   extendWallPreview,
   trimWallPreview,
 } from "./wall-edit";
+import { mirrorSelectionPreview } from "./mirror";
 
 const ok = (issues: ReturnType<CadCommandDefinition["validate"]>) =>
   !issues.some((i) => i.level === "error");
@@ -1602,6 +1603,52 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     execute: (i, c) => {
       const p = offsetObjectPreview(
         i as Extract<CadCommandInput, { id: "offset_object" }>,
+        c,
+      );
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
+    id: "mirror_selection",
+    label: "Espejo de selección",
+    category: "layout",
+    description:
+      "Refleja la selección sobre un eje vertical u horizontal (MIRROR de AutoCAD); por default conserva los originales y crea copias.",
+    inputSchema: {
+      axis: {
+        type: "enum",
+        enum: ["vertical", "horizontal"],
+        description: "Eje del espejo (default: vertical).",
+      },
+      at: {
+        type: "number",
+        description:
+          "Coordenada del eje; default: centro del conjunto seleccionado.",
+      },
+      copy: {
+        type: "enum",
+        enum: ["true", "false"],
+        description: "true (default) crea copias; false mueve en sitio.",
+      },
+      objectIds: {
+        type: "string[]",
+        description: "Alternativa: objetos seleccionados.",
+      },
+    },
+    examples: ["espejo vertical de la selección", "espejo horizontal sin copia"],
+    validate: (i, c) =>
+      mirrorSelectionPreview(
+        i as Extract<CadCommandInput, { id: "mirror_selection" }>,
+        c,
+      ).issues,
+    preview: (i, c) =>
+      mirrorSelectionPreview(
+        i as Extract<CadCommandInput, { id: "mirror_selection" }>,
+        c,
+      ),
+    execute: (i, c) => {
+      const p = mirrorSelectionPreview(
+        i as Extract<CadCommandInput, { id: "mirror_selection" }>,
         c,
       );
       return result(p, ok(p.issues), p.summary);
