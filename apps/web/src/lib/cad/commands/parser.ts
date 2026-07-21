@@ -493,6 +493,49 @@ export function parseCadCommand(text: string): CadParseResult {
       },
     };
   }
+  if (/\b(mueve|mover|lleva|llevar|desplaza|desplazar)\b/.test(q)) {
+    const abs = q.match(/\b(?:a|en|hasta)\s+(-?\d+)\s*[,x]\s*(-?\d+)/);
+    const rel = q.match(
+      /(\d+(?:[.,]\d+)?)\s*(mm|m)?\s*(?:a\s+la|hacia\s+la|hacia\s+el|al)?\s*(derecha|izquierda|arriba|abajo)/,
+    );
+    let dx: number | undefined;
+    let dy: number | undefined;
+    if (!abs && rel) {
+      const mag = Number(rel[1].replace(",", ".")) * (rel[2] === "m" ? 1000 : 1);
+      if (rel[3] === "derecha") dx = mag;
+      else if (rel[3] === "izquierda") dx = -mag;
+      else if (rel[3] === "abajo") dy = mag;
+      else dy = -mag;
+    }
+    const target = q
+      .replace(/^.*?\b(?:mueve|mover|lleva|llevar|desplaza|desplazar)\b\s*/, "")
+      .replace(/\b(?:a|en|hasta)\s+-?\d+\s*[,x]\s*-?\d+.*$/, "")
+      .replace(/\d+(?:[.,]\d+)?\s*(?:mm|m)?\s*(?:a\s+la|hacia\s+la|hacia\s+el|al)?\s*(?:derecha|izquierda|arriba|abajo).*$/, "")
+      .replace(/\b(la\s+selecci[oó]n|lo\s+seleccionado|esto|estos|esos?\s*(objetos)?)\b/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/^(?:una?|el|la|los|las)\s+/, "")
+      .trim();
+    if (!abs && dx === undefined && dy === undefined) {
+      return {
+        ok: false,
+        confidence: 0.6,
+        clarification: "¿A dónde lo muevo? ('a 2000,650' o '500 a la derecha')",
+      };
+    }
+    return {
+      ok: true,
+      confidence: 0.85,
+      input: {
+        id: "move_selection",
+        target: target || undefined,
+        x: abs ? Number(abs[1]) : undefined,
+        y: abs ? Number(abs[2]) : undefined,
+        dx,
+        dy,
+      },
+    };
+  }
   if (/(offset|desfasa|desfase|paralela)/.test(q)) {
     const distance =
       unitValueToMm(q.match(/(?:de|a)\s+(\d+(?:[.,]\d+)?)\s*(mm|m)?\b/i)) ??

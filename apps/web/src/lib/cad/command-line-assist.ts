@@ -35,6 +35,7 @@ const SELECTION_MINIMUMS: Partial<Record<CadCommandId, number>> = {
   mirror_selection: 1,
   delete_selection: 1,
   duplicate_selection: 1,
+  move_selection: 1,
   rotate_selection: 1,
   scale_selection: 1,
   extend_wall: 2,

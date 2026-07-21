@@ -40,6 +40,7 @@ import {
 import { deleteSelectionPreview } from "./delete";
 import { duplicateSelectionPreview } from "./duplicate";
 import { addLabelPreview } from "./label";
+import { moveSelectionPreview } from "./move";
 import { mirrorSelectionPreview } from "./mirror";
 import { placeSymbolPreview } from "./place-symbol";
 import {
@@ -1736,6 +1737,45 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     execute: (i, c) => {
       const p = duplicateSelectionPreview(
         i as Extract<CadCommandInput, { id: "duplicate_selection" }>,
+        c,
+      );
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
+    id: "move_selection",
+    label: "Mover selección",
+    category: "layout",
+    description:
+      "Mueve la selección o el objetivo por nombre (MOVE de AutoCAD): destino absoluto 'a 2000,650' o desplazamiento '500 a la derecha'; el grupo viaja rígido.",
+    inputSchema: {
+      target: {
+        type: "string",
+        description: "Objetivo por nombre: 'mueve la puerta…' (label o kind).",
+      },
+      x: { type: "number", description: "Destino X absoluto en mm." },
+      y: { type: "number", description: "Destino Y absoluto en mm." },
+      dx: { type: "number", description: "Desplazamiento X relativo en mm." },
+      dy: { type: "number", description: "Desplazamiento Y relativo en mm." },
+      objectIds: {
+        type: "string[]",
+        description: "Alternativa: objetos seleccionados.",
+      },
+    },
+    examples: ["mueve la puerta a 2000,650", "mueve la selección 500 a la derecha"],
+    validate: (i, c) =>
+      moveSelectionPreview(
+        i as Extract<CadCommandInput, { id: "move_selection" }>,
+        c,
+      ).issues,
+    preview: (i, c) =>
+      moveSelectionPreview(
+        i as Extract<CadCommandInput, { id: "move_selection" }>,
+        c,
+      ),
+    execute: (i, c) => {
+      const p = moveSelectionPreview(
+        i as Extract<CadCommandInput, { id: "move_selection" }>,
         c,
       );
       return result(p, ok(p.issues), p.summary);

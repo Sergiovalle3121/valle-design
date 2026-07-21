@@ -25,6 +25,7 @@ export type CadCommandId =
   | "scale_selection"
   | "delete_selection"
   | "duplicate_selection"
+  | "move_selection"
   | "add_label"
   | "extend_wall"
   | "trim_wall"
@@ -264,6 +265,18 @@ export type CadCommandInput =
       /** Objetivo por nombre: 'duplica el escritorio' (label o kind). */
       target?: string;
       /** Desplazamiento de la copia en mm; default +500,+500. */
+      dx?: number;
+      dy?: number;
+    }
+  | {
+      id: "move_selection";
+      objectIds?: string[];
+      /** Objetivo por nombre: 'mueve la puerta a 2000,650'. */
+      target?: string;
+      /** Destino absoluto (esquina sup-izq del conjunto, como place_symbol). */
+      x?: number;
+      y?: number;
+      /** Desplazamiento relativo en mm ('500 a la derecha'). */
       dx?: number;
       dy?: number;
     }
