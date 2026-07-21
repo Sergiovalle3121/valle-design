@@ -16,7 +16,8 @@ export type CadLayoutTemplateId =
   | "consultorio"
   | "restaurante"
   | "aula-escolar"
-  | "gimnasio";
+  | "gimnasio"
+  | "oficina-coworking";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -571,6 +572,37 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     connectors: [
       { fromRef: "entrada", toRef: "recepcion", kind: "flow" },
       { fromRef: "recepcion", toRef: "vestidores", kind: "flow" },
+    ],
+  },
+  {
+    id: "oficina-coworking",
+    label: "Oficina / Coworking",
+    description: "Arranque universal de oficina: recepción, seis escritorios en isla, sala de juntas y archivo.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["architecture", "shell", "oficina"]),
+      asset("entrada", "door", "Entrada", 1400, 650, 1200, 260, "architecture", ["door", "opening:main"]),
+      asset("recepcion", "furniture", "Recepción", 1500, 1400, 1800, 600, "equipment", ["furniture", "counter", "recepcion"]),
+      asset("juntas", "room", "Sala de juntas", 7700, 1300, 2900, 2800, "architecture", ["room", "use:meeting", "oficina"]),
+      asset("mesa-juntas", "meeting-table-8", "Mesa de juntas 8", 8200, 1800, 2400, 1100, "equipment", ["furniture", "meeting"]),
+      asset("archivo", "room", "Archivo", 7700, 4700, 2900, 1600, "architecture", ["room", "use:storage", "oficina"]),
+      asset("archivero-1", "file-cabinet", "Archivero", 7950, 4950, 500, 600, "equipment", ["furniture", "storage"]),
+      asset("archivero-2", "file-cabinet", "Archivero", 8650, 4950, 500, 600, "equipment", ["furniture", "storage"]),
+      asset("escritorio-1", "desk", "Escritorio", 1800, 3000, 1400, 700, "equipment", ["furniture", "desk"]),
+      asset("escritorio-2", "desk", "Escritorio", 3800, 3000, 1400, 700, "equipment", ["furniture", "desk"]),
+      asset("escritorio-3", "desk", "Escritorio", 5800, 3000, 1400, 700, "equipment", ["furniture", "desk"]),
+      asset("escritorio-4", "desk", "Escritorio", 1800, 4800, 1400, 700, "equipment", ["furniture", "desk"]),
+      asset("escritorio-5", "desk", "Escritorio", 3800, 4800, 1400, 700, "equipment", ["furniture", "desk"]),
+      asset("escritorio-6", "desk", "Escritorio", 5800, 4800, 1400, 700, "equipment", ["furniture", "desk"]),
+    ],
+    annotations: [
+      note("titulo", "Oficina / Coworking — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion", kind: "flow" },
+      { fromRef: "recepcion", toRef: "juntas", kind: "flow" },
     ],
   },
 ];
