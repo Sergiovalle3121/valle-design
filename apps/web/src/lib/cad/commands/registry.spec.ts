@@ -1797,4 +1797,77 @@ if (rectDraftCreate?.type === "create") {
   );
 }
 
+// Inventario de zona (AXOS-CAD-QUERY-008): '¿qué hay en la cocina?'
+// cuenta el contenido del cuarto con desglose; sin residuo cuenta todo.
+{
+  const inventarioCtx: CadCommandContext = {
+    unit: "mm",
+    footprintW: 12000,
+    footprintH: 8000,
+    selectedIds: [],
+    connectors: [],
+    objects: [
+      {
+        id: "coc",
+        type: "asset",
+        kind: "room",
+        label: "Cocina",
+        x: 0,
+        y: 0,
+        w: 3000,
+        h: 3000,
+      },
+      {
+        id: "est",
+        type: "asset",
+        kind: "stove",
+        label: "Estufa",
+        x: 500,
+        y: 500,
+        w: 600,
+        h: 600,
+      },
+      {
+        id: "ref",
+        type: "asset",
+        kind: "refrigerator",
+        label: "Refrigerador",
+        x: 2000,
+        y: 500,
+        w: 800,
+        h: 700,
+      },
+      {
+        id: "esc",
+        type: "asset",
+        kind: "desk",
+        label: "Escritorio",
+        x: 6000,
+        y: 5000,
+        w: 1200,
+        h: 700,
+      },
+    ],
+  };
+  const parsed = parseCadCommand("¿qué hay en la cocina?");
+  assert.equal(parsed.input?.id, "count_objects", "qué hay parsea a conteo");
+  if (parsed.input?.id === "count_objects") {
+    assert.equal(
+      parsed.input.query,
+      "lo que hay en la cocina",
+      "query de contención armada",
+    );
+    const p = previewCadCommand(parsed.input, inventarioCtx);
+    assert.equal(p.affectedObjectIds.length, 2, "estufa y refri, nada más");
+  }
+  const todo = parseCadCommand("¿qué hay?");
+  if (todo.input?.id === "count_objects") {
+    assert.equal(todo.input.query, undefined, "sin residuo cuenta todo");
+  }
+  const plano = parseCadCommand("¿qué hay en el plano?");
+  if (plano.input?.id === "count_objects") {
+    assert.equal(plano.input.query, undefined, "'en el plano' cuenta todo");
+  }
+}
+
 console.log("cad command registry specs passed");

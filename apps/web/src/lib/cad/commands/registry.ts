@@ -2214,7 +2214,7 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         description: "Qué contar ('mesas'); vacío cuenta todo el plano.",
       },
     },
-    examples: ["cuenta las mesas", "¿cuántas sillas hay?"],
+    examples: ["cuenta las mesas", "¿cuántas sillas hay?", "¿qué hay en la cocina?"],
     validate: (i, c) =>
       countObjectsPreview(
         i as Extract<CadCommandInput, { id: "count_objects" }>,

@@ -820,6 +820,27 @@ export function parseCadCommand(text: string): CadParseResult {
     }
     return { ok: true, confidence: 0.86, input: { id: "object_info", query } };
   }
+  // '¿qué hay en la cocina?' (AXOS-CAD-QUERY-008): inventario de zona —
+  // arma 'lo que hay en la X' y la contención (ZONE-001) hace el resto.
+  // Sin residuo (o 'en el plano') cuenta todo. Lookahead, no \b (ASCII).
+  if (/qu[eé]\s+(?:hay|tenemos|tengo)(?=[\s?!.]|$)/.test(q)) {
+    const residue = q
+      .replace(/^.*?qu[eé]\s+(?:hay|tenemos|tengo)(?=[\s?!.]|$)\s*/, "")
+      .replace(/\ben\s+el\s+(?:plano|layout)\b/g, "")
+      .replace(/[¿?¡!.]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    const query = residue
+      ? /^(?:en|dentro\s+de|adentro\s+de)(?:\s|$)/.test(residue)
+        ? `lo que hay ${residue}`
+        : residue.replace(/^(?:una?|el|la|los|las)\s+/, "")
+      : undefined;
+    return {
+      ok: true,
+      confidence: 0.84,
+      input: { id: "count_objects", query },
+    };
+  }
   if (/\b(cuenta|cuentame|cuéntame|cuantas|cuántas|cuantos|cuántos)\b/.test(q)) {
     const query = q
       .replace(/^.*?\b(?:cuenta|cuentame|cuéntame|cuantas|cuántas|cuantos|cuántos)\b\s*/, "")
