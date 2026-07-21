@@ -23,6 +23,7 @@ export type CadCommandId =
   | "place_symbol"
   | "rotate_selection"
   | "scale_selection"
+  | "delete_selection"
   | "extend_wall"
   | "trim_wall"
   | "chamfer_walls"
@@ -95,6 +96,7 @@ export interface CadDraftObject {
 export type CadOperation =
   | { type: "move"; objectId: string; before: CadBox; after: CadBox }
   | { type: "create"; object: CadDraftObject }
+  | { type: "delete"; objectId: string }
   | {
       type: "annotate";
       annotation: {
@@ -238,6 +240,11 @@ export type CadCommandInput =
       objectIds?: string[];
       /** Factor > 0 y ≠ 1; escala tamaños y posiciones desde el centro. */
       factor: number;
+    }
+  | {
+      id: "delete_selection";
+      /** Default: la selección actual. */
+      objectIds?: string[];
     }
   | {
       id: "extend_wall";

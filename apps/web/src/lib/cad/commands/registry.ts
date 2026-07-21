@@ -37,6 +37,7 @@ import {
   extendWallPreview,
   trimWallPreview,
 } from "./wall-edit";
+import { deleteSelectionPreview } from "./delete";
 import { mirrorSelectionPreview } from "./mirror";
 import { placeSymbolPreview } from "./place-symbol";
 import {
@@ -1654,6 +1655,37 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     execute: (i, c) => {
       const p = mirrorSelectionPreview(
         i as Extract<CadCommandInput, { id: "mirror_selection" }>,
+        c,
+      );
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
+    id: "delete_selection",
+    label: "Borrar selección",
+    category: "layout",
+    description:
+      "Borra los objetos seleccionados (ERASE de AutoCAD); el estudio respeta capas bloqueadas y limpia la selección.",
+    inputSchema: {
+      objectIds: {
+        type: "string[]",
+        description: "Alternativa: objetos seleccionados.",
+      },
+    },
+    examples: ["borra la selección", "elimina lo seleccionado"],
+    validate: (i, c) =>
+      deleteSelectionPreview(
+        i as Extract<CadCommandInput, { id: "delete_selection" }>,
+        c,
+      ).issues,
+    preview: (i, c) =>
+      deleteSelectionPreview(
+        i as Extract<CadCommandInput, { id: "delete_selection" }>,
+        c,
+      ),
+    execute: (i, c) => {
+      const p = deleteSelectionPreview(
+        i as Extract<CadCommandInput, { id: "delete_selection" }>,
         c,
       );
       return result(p, ok(p.issues), p.summary);

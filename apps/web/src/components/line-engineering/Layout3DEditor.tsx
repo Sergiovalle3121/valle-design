@@ -4130,6 +4130,19 @@ export default function Layout3DEditor({
       setDimCount([...annotationsRef.current.values()].filter((ann) => ann.type === 'dim').length);
       refreshMeasurementRows();
       return true;
+    } else if (op.type === 'delete') {
+      // ERASE conversacional (AXOS-CAD-DELETE-001): mismo contrato que Supr —
+      // respeta capas bloqueadas y saca al objeto de la selección viva.
+      const type = placementsRef.current.has(op.objectId) ? ('station' as const) : assetsRef.current.has(op.objectId) ? ('asset' as const) : null;
+      if (!type) return false;
+      if (isItemLayerLocked({ type, id: op.objectId })) {
+        toast.error(`Borrado omitido: ${op.objectId} está en una capa bloqueada.`, 'Capas');
+        return false;
+      }
+      if (type === 'station') { placementsRef.current.delete(op.objectId); setPlacedIds(new Set(placementsRef.current.keys())); }
+      else { assetsRef.current.delete(op.objectId); setAssetIds(new Set(assetsRef.current.keys())); }
+      if (selRef.current.some((s) => s.id === op.objectId)) select(selRef.current.filter((s) => s.id !== op.objectId));
+      return true;
     } else if (op.type === 'focus') {
       const items: SelItem[] = op.objectIds.map((id) => placementsRef.current.has(id) ? { type: 'station' as const, id } : assetsRef.current.has(id) ? { type: 'asset' as const, id } : null).filter((it): it is SelItem => !!it);
       if (items.length) select(items);
@@ -4144,7 +4157,7 @@ export default function Layout3DEditor({
       setCommandLog((items) => [createCadHistoryItem(commandPreview.input, 'failed', result.historyLabel, commandPreview.preview, result), ...items].slice(0, 12));
       return;
     }
-    const mutates = result.operations.some((op) => op.type === 'move' || op.type === 'connect' || op.type === 'create' || op.type === 'annotate');
+    const mutates = result.operations.some((op) => op.type === 'move' || op.type === 'connect' || op.type === 'create' || op.type === 'annotate' || op.type === 'delete');
     if (mutates) { recordLocalSnapshot(`Auto · ${result.historyLabel}`, 'command'); pushHistory(); }
     // map + some: .some(applyCommandOperation) directo corta en la primera op
     // aplicada y dejaba a medias los comandos multi-objeto (align, flow line).
@@ -5392,7 +5405,7 @@ export default function Layout3DEditor({
                             <div className="font-semibold text-cyan-100">{op.title}</div>
                             {op.rows.slice(0, 3).map((row) => <div key={`${row.label}-${row.value}`} className="mt-0.5 flex justify-between gap-2 text-gray-500 dark:text-gray-400"><span className="truncate">{row.label}</span><span className="shrink-0 text-gray-200">{row.value}</span></div>)}
                           </div>
-                        ) : op.type === 'move' ? `Mover ${op.objectId} → (${Math.round(op.after.x)}, ${Math.round(op.after.y)})` : op.type === 'create' ? `Crear ${op.object.label} en (${Math.round(op.object.x)}, ${Math.round(op.object.y)})` : op.type === 'annotate' ? `Cota ${op.annotation.text}` : op.type === 'connect' ? `Conectar ${op.from} → ${op.to}` : op.type === 'measure' ? `Medir ${Math.round(op.distance)} ${op.unit}` : op.type === 'focus' ? `Enfocar ${op.objectIds.length || 'todo'}` : ''}
+                        ) : op.type === 'move' ? `Mover ${op.objectId} → (${Math.round(op.after.x)}, ${Math.round(op.after.y)})` : op.type === 'create' ? `Crear ${op.object.label} en (${Math.round(op.object.x)}, ${Math.round(op.object.y)})` : op.type === 'delete' ? `Borrar ${op.objectId}` : op.type === 'annotate' ? `Cota ${op.annotation.text}` : op.type === 'connect' ? `Conectar ${op.from} → ${op.to}` : op.type === 'measure' ? `Medir ${Math.round(op.distance)} ${op.unit}` : op.type === 'focus' ? `Enfocar ${op.objectIds.length || 'todo'}` : ''}
                       </div>
                     ))}
                     {commandPreview.preview.issues.slice(0, 2).map((issue) => (

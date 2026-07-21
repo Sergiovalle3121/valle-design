@@ -404,6 +404,13 @@ export function parseCadCommand(text: string): CadParseResult {
       input: { id: "mirror_selection", axis, copy },
     };
   }
+  if (/\b(borra|borrar|elimina|eliminar|quita|quitar|suprime|delete)\b/.test(q)) {
+    return {
+      ok: true,
+      confidence: 0.85,
+      input: { id: "delete_selection" },
+    };
+  }
   if (/(offset|desfasa|desfase|paralela)/.test(q)) {
     const distance =
       unitValueToMm(q.match(/(?:de|a)\s+(\d+(?:[.,]\d+)?)\s*(mm|m)?\b/i)) ??
