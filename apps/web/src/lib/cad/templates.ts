@@ -19,7 +19,8 @@ export type CadLayoutTemplateId =
   | "gimnasio"
   | "oficina-coworking"
   | "bodega-pyme"
-  | "taller-mecanico";
+  | "taller-mecanico"
+  | "cafeteria";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -669,6 +670,39 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "porton-servicio", toRef: "bahia-1", kind: "material" },
       { fromRef: "porton-servicio", toRef: "bahia-2", kind: "material" },
       { fromRef: "recepcion", toRef: "bahia-1", kind: "flow" },
+    ],
+  },
+  {
+    id: "cafeteria",
+    label: "Cafetería",
+    description: "Arranque universal de cafetería: barra, caja, cocina compacta, cuatro mesas, baño y bodega con estante.",
+    category: "architecture",
+    baseWidth: 10000,
+    baseHeight: 7000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 8600, 5600, "architecture", ["architecture", "shell", "cafeteria"]),
+      asset("puerta-entrada", "door", "Puerta de entrada", 4500, 650, 900, 260, "architecture", ["door", "opening:entry"]),
+      asset("barra", "bar-counter", "Barra de café", 1200, 1400, 3000, 600, "equipment", ["bar", "cafeteria"]),
+      asset("caja", "counter", "Mostrador de caja", 4600, 1400, 1800, 600, "equipment", ["counter", "pos", "cafeteria"]),
+      asset("cocina", "room", "Cocina", 6900, 900, 2200, 2200, "architecture", ["room", "use:kitchen", "cafeteria"]),
+      asset("estufa", "stove", "Estufa", 7100, 1100, 600, 600, "equipment", ["stove", "kitchen"]),
+      asset("refri", "refrigerator", "Refrigerador", 8200, 1100, 750, 700, "equipment", ["refrigerator", "kitchen"]),
+      asset("mesa-1", "restaurant-table-4", "Mesa 1", 1500, 3600, 900, 900, "equipment", ["table", "seating"]),
+      asset("mesa-2", "restaurant-table-4", "Mesa 2", 3300, 3600, 900, 900, "equipment", ["table", "seating"]),
+      asset("mesa-3", "restaurant-table-4", "Mesa 3", 1500, 5100, 900, 900, "equipment", ["table", "seating"]),
+      asset("mesa-4", "restaurant-table-4", "Mesa 4", 3300, 5100, 900, 900, "equipment", ["table", "seating"]),
+      asset("bano", "room", "Baño", 6900, 3600, 1500, 1500, "architecture", ["room", "use:bathroom", "cafeteria"]),
+      asset("wc-cafeteria", "wc", "WC", 7100, 3800, 400, 650, "equipment", ["wc", "bathroom"]),
+      asset("bodega-cafe", "room", "Bodega", 6900, 5400, 2200, 900, "architecture", ["room", "use:storage", "cafeteria"]),
+      asset("estante-bodega", "shelf-gondola", "Estante de insumos", 7000, 5550, 1200, 450, "equipment", ["shelf", "storage"]),
+    ],
+    annotations: [
+      note("titulo", "Cafetería — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "puerta-entrada", toRef: "caja", kind: "flow" },
+      { fromRef: "caja", toRef: "barra", kind: "flow" },
+      { fromRef: "cocina", toRef: "barra", kind: "material" },
     ],
   },
 ];
