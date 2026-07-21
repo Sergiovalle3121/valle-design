@@ -1628,4 +1628,91 @@ if (rectDraftCreate?.type === "create") {
   assert.equal(simple.affectedObjectIds.length, 2, "conteo simple sin cambio");
 }
 
+// Objetivo por contención (AXOS-CAD-ZONE-001): 'borra lo que está en la
+// cocina' actúa sobre el contenido del cuarto, nunca sobre el cuarto.
+{
+  const casaCtx: CadCommandContext = {
+    unit: "mm",
+    footprintW: 12000,
+    footprintH: 8000,
+    selectedIds: [],
+    connectors: [],
+    objects: [
+      {
+        id: "coc",
+        type: "asset",
+        kind: "room",
+        label: "Cocina",
+        x: 0,
+        y: 0,
+        w: 3000,
+        h: 3000,
+      },
+      {
+        id: "est",
+        type: "asset",
+        kind: "stove",
+        label: "Estufa",
+        x: 500,
+        y: 500,
+        w: 600,
+        h: 600,
+      },
+      {
+        id: "ref",
+        type: "asset",
+        kind: "refrigerator",
+        label: "Refrigerador",
+        x: 2000,
+        y: 500,
+        w: 800,
+        h: 700,
+      },
+      {
+        id: "esc",
+        type: "asset",
+        kind: "desk",
+        label: "Escritorio",
+        x: 6000,
+        y: 5000,
+        w: 1200,
+        h: 700,
+      },
+    ],
+  };
+  const parsed = parseCadCommand("borra lo que está en la cocina");
+  assert.equal(parsed.input?.id, "delete_selection", "borrar en zona parsea");
+  if (parsed.input?.id === "delete_selection") {
+    const p = previewCadCommand(parsed.input, casaCtx);
+    assert.ok(!p.issues.some((i) => i.level === "error"), "borrado en zona ok");
+    assert.deepEqual(
+      [...p.affectedObjectIds].sort(),
+      ["est", "ref"],
+      "borra estufa y refri, no el cuarto ni el escritorio",
+    );
+  }
+  const conteo = previewCadCommand(
+    { id: "count_objects", query: "lo que hay en la cocina" },
+    casaCtx,
+  );
+  assert.equal(conteo.affectedObjectIds.length, 2, "cuenta el contenido");
+  const seleccion = previewCadCommand(
+    { id: "select_objects", query: "todo lo que está dentro de la cocina" },
+    casaCtx,
+  );
+  assert.deepEqual(
+    [...seleccion.affectedObjectIds].sort(),
+    ["est", "ref"],
+    "selecciona el contenido de la zona",
+  );
+  const vacio = previewCadCommand(
+    { id: "delete_selection", target: "lo que está en la terraza" },
+    casaCtx,
+  );
+  assert.ok(
+    vacio.issues.some((i) => i.level === "error"),
+    "zona inexistente reporta error",
+  );
+}
+
 console.log("cad command registry specs passed");

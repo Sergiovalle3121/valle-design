@@ -24,6 +24,30 @@ export function matchObjectsByName(
   const raw = query.trim();
   if (!raw) return [];
   if (/^tod[oa]s?$/i.test(raw)) return context.objects;
+  // Objetivo por contención (AXOS-CAD-ZONE-001): 'lo que está en la
+  // cocina' / 'dentro de la bodega' — los objetos cuyo centro cae dentro
+  // del contenedor nombrado, sin incluir al contenedor mismo. Hereda los
+  // compuestos: 'lo que hay en la cocina y la bodega' une ambos cuartos.
+  const zoneMatch = fold(raw).match(
+    /^(?:tod[oa]s?\s+)?(?:l[oa]s? que\s+(?:esta|estan|este|esten|hay)\s+(?:en|dentro de|adentro de)\s+|dentro de\s+|adentro de\s+)(.+)$/,
+  );
+  if (zoneMatch) {
+    const zoneName = zoneMatch[1]!
+      .replace(/^(?:las?|los|el|una?)\s+/, "")
+      .trim();
+    const containers = zoneName ? matchObjectsByName(context, zoneName) : [];
+    const inside = new Map<string, CadBox>();
+    for (const c of containers) {
+      for (const o of context.objects) {
+        if (containers.some((k) => k.id === o.id)) continue;
+        const cx = o.x + o.w / 2;
+        const cy = o.y + o.h / 2;
+        if (cx >= c.x && cx <= c.x + c.w && cy >= c.y && cy <= c.y + c.h)
+          inside.set(o.id, o);
+      }
+    }
+    return [...inside.values()];
+  }
   const candidates = [fold(raw), fold(raw).replace(/es$/, ""), fold(raw).replace(/s$/, "")];
   for (const needle of candidates) {
     if (!needle) continue;
