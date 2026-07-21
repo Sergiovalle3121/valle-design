@@ -2713,4 +2713,30 @@ if (rectDraftCreate?.type === "create") {
   }
 }
 
+// VOLTEAR (AXOS-CAD-ROT-002): 'voltea la mesa' = 180°; vueltas habladas.
+{
+  const voltea = parseCadCommand("voltea la mesa");
+  assert.equal(voltea.input?.id, "rotate_selection", "voltea parsea");
+  if (voltea.input?.id === "rotate_selection") {
+    assert.equal(voltea.input.angle, 180, "voltear = 180 grados");
+    assert.equal(voltea.input.target, "mesa", "voltear: objetivo");
+  }
+  const media = parseCadCommand("gira la mesa media vuelta");
+  if (media.input?.id === "rotate_selection") {
+    assert.equal(media.input.angle, 180, "media vuelta = 180");
+    assert.equal(media.input.target, "mesa", "media vuelta: objetivo");
+  }
+  const cuarto = parseCadCommand("dale un cuarto de vuelta a la mesa");
+  assert.equal(cuarto.input?.id, "rotate_selection", "dale…vuelta parsea");
+  if (cuarto.input?.id === "rotate_selection") {
+    assert.equal(cuarto.input.angle, 90, "un cuarto de vuelta = 90");
+    assert.equal(cuarto.input.target, "mesa", "cuarto de vuelta: objetivo");
+  }
+  const sola = parseCadCommand("voltéala");
+  if (sola.input?.id === "rotate_selection") {
+    assert.equal(sola.input.target, undefined, "voltéala → selección");
+    assert.equal(sola.input.angle, 180, "voltéala = 180");
+  }
+}
+
 console.log("cad command registry specs passed");

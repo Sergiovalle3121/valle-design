@@ -2504,7 +2504,7 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         description: "Alternativa: objetos seleccionados.",
       },
     },
-    examples: ["gira 90 la selección", "rota -45"],
+    examples: ["gira 90 la selección", "rota -45", "voltea la mesa"],
     validate: (i, c) =>
       rotateSelectionPreview(
         i as Extract<CadCommandInput, { id: "rotate_selection" }>,

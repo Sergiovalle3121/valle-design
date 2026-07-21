@@ -92,6 +92,7 @@ const QUERY_ALIASES: Partial<Record<CadCommandId, string[]>> = {
   place_symbol: ["esquina", "inserta"],
   duplicate_selection: ["clona", "copia"],
   resize_object: ["iguala"],
+  rotate_selection: ["voltea", "vuelta"],
 };
 
 const normalized = (value: string) =>

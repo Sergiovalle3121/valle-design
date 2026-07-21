@@ -804,6 +804,42 @@ export function parseCadCommand(text: string): CadParseResult {
       input: { id: "swap_objects", a: parts[0], b: parts[1] },
     };
   }
+  // VOLTEAR (AXOS-CAD-ROT-002): 'voltea la mesa' = 180°; 'media vuelta',
+  // 'un cuarto de vuelta' y 'tres cuartos de vuelta' hablan en vueltas.
+  const volteaMatch = raw.match(/^volt[eé]a(?:me|l[oa]s?)?\s*(.*)$/i);
+  const vueltas = /tres\s+cuartos\s+de\s+vuelta/i.test(raw)
+    ? 270
+    : /media\s+vuelta/i.test(raw)
+      ? 180
+      : /(?:un\s+)?cuarto\s+de\s+vuelta/i.test(raw)
+        ? 90
+        : undefined;
+  if (volteaMatch || (vueltas !== undefined && /(rota|gira|\bdale\b)/.test(q))) {
+    const residue = (volteaMatch ? volteaMatch[1]! : raw)
+      .replace(/^.*?\b(?:rota|gira|rotar|girar|dale)\b\s*/i, "")
+      .replace(
+        /\b(?:tres\s+cuartos|media|(?:un\s+)?cuarto)\s+(?:de\s+)?vueltas?\b/gi,
+        " ",
+      )
+      .replace(
+        /\b(?:la\s+selecci[oó]n|lo\s+seleccionado|esto|estos\s+objetos|esos\s+objetos)\b/gi,
+        " ",
+      )
+      .replace(/\ba\s+la\b|\bal\b/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/^(?:(?:el|la|los|las|un|una)\s+)+/i, "")
+      .trim();
+    return {
+      ok: true,
+      confidence: 0.85,
+      input: {
+        id: "rotate_selection",
+        angle: vueltas ?? 180,
+        target: residue || undefined,
+      },
+    };
+  }
   if (/(rota|gira|rotate)/.test(q) && !/(ruta|rotación de inventario)/.test(q)) {
     const m = q.match(/(-?\d+(?:[.,]\d+)?)\s*(?:°|grados|deg)?/);
     const angle = m ? Number(m[1].replace(",", ".")) : NaN;
