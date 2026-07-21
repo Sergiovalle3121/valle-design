@@ -359,3 +359,21 @@ assert.ok(
   ),
   "search finds ventilador",
 );
+
+// Vigesimotercera tanda universal (AXOS-CAD-UNIVERSAL-049): cocina y barra.
+assert.ok(
+  searchCadSymbols("fregadero").some((symbol) => symbol.id === "kitchen-sink"),
+  "search finds fregadero",
+);
+assert.ok(
+  searchCadSymbols("tarja").some((symbol) => symbol.id === "kitchen-sink"),
+  "search finds tarja",
+);
+assert.ok(
+  searchCadSymbols("banco alto").some((symbol) => symbol.id === "bar-stool"),
+  "search finds banco alto",
+);
+assert.ok(
+  searchCadSymbols("campana").some((symbol) => symbol.id === "range-hood"),
+  "search finds campana",
+);

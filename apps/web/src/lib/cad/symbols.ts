@@ -1093,6 +1093,37 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["ventilador", "fan", "aire", "pedestal"],
     ports: [],
   },
+  // — Vigesimotercera tanda universal (AXOS-CAD-UNIVERSAL-049): cocina y barra —
+  {
+    id: "kitchen-sink",
+    label: "Fregadero",
+    category: "equipment",
+    defaultWidth: 800,
+    defaultHeight: 550,
+    layer: "Furniture",
+    tags: ["fregadero", "tarja", "lavatrastes", "cocina", "sink"],
+    ports: [],
+  },
+  {
+    id: "bar-stool",
+    label: "Banco alto",
+    category: "furniture",
+    defaultWidth: 380,
+    defaultHeight: 380,
+    layer: "Furniture",
+    tags: ["banco alto", "banco", "stool", "barra", "taquería", "taqueria", "mostrador"],
+    ports: [],
+  },
+  {
+    id: "range-hood",
+    label: "Campana de cocina",
+    category: "equipment",
+    defaultWidth: 900,
+    defaultHeight: 500,
+    layer: "Furniture",
+    tags: ["campana", "extractor", "cocina", "hood", "humo"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {
