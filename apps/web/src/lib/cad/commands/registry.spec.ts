@@ -1565,4 +1565,67 @@ if (rectDraftCreate?.type === "create") {
   );
 }
 
+// CONTAR compuesto (AXOS-CAD-QUERY-006): 'cuenta las mesas y las sillas'.
+{
+  const comedorCtx: CadCommandContext = {
+    unit: "mm",
+    footprintW: 10000,
+    footprintH: 6000,
+    selectedIds: [],
+    objects: [
+      {
+        id: "m1",
+        type: "asset",
+        kind: "dining-table-4",
+        label: "Mesa 1",
+        x: 1000,
+        y: 1000,
+        w: 900,
+        h: 900,
+      },
+      {
+        id: "m2",
+        type: "asset",
+        kind: "dining-table-4",
+        label: "Mesa 2",
+        x: 3000,
+        y: 1000,
+        w: 900,
+        h: 900,
+      },
+      {
+        id: "s1",
+        type: "asset",
+        kind: "office-chair",
+        label: "Silla 1",
+        x: 5000,
+        y: 1000,
+        w: 500,
+        h: 500,
+      },
+      {
+        id: "b1",
+        type: "asset",
+        kind: "bar-counter",
+        label: "Barra",
+        x: 7000,
+        y: 1000,
+        w: 2000,
+        h: 600,
+      },
+    ],
+  };
+  const p = previewCadCommand(
+    { id: "count_objects", query: "mesas y las sillas" },
+    comedorCtx,
+  );
+  assert.ok(!p.issues.some((i) => i.level === "error"), "conteo compuesto ok");
+  assert.equal(p.affectedObjectIds.length, 3, "2 mesas + 1 silla, sin barra");
+  const simple = previewCadCommand(
+    { id: "count_objects", query: "mesas" },
+    comedorCtx,
+  );
+  assert.equal(simple.affectedObjectIds.length, 2, "conteo simple sin cambio");
+}
+
 console.log("cad command registry specs passed");
