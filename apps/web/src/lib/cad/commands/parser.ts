@@ -325,6 +325,30 @@ export function parseCadCommand(text: string): CadParseResult {
       input: { id: "create_zone_around", margin },
     };
   }
+  if (/(^|\s)(pon|coloca|inserta)\s/.test(q)) {
+    const coords = q.match(/(\d+)\s*[,x]\s*(\d+)/);
+    let query = q
+      .replace(/(^|\s)(pon|coloca|inserta)\s+(una?|unos?|el|la|los|las)?\s*/, " ")
+      .trim();
+    query = query.replace(/\ben\s+\d[\d\s.,x]*$/, "").trim();
+    if (!query) {
+      return {
+        ok: false,
+        confidence: 0.6,
+        clarification: "¿Qué símbolo coloco? (p. ej. 'puerta', 'cama')",
+      };
+    }
+    return {
+      ok: true,
+      confidence: 0.82,
+      input: {
+        id: "place_symbol",
+        query,
+        x: coords ? Number(coords[1]) : undefined,
+        y: coords ? Number(coords[2]) : undefined,
+      },
+    };
+  }
   if (/(rota|gira|rotate)/.test(q) && !/(ruta|rotación de inventario)/.test(q)) {
     const m = q.match(/(-?\d+(?:[.,]\d+)?)\s*(?:°|grados|deg)?/);
     const angle = m ? Number(m[1].replace(",", ".")) : NaN;

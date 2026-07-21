@@ -38,6 +38,7 @@ import {
   trimWallPreview,
 } from "./wall-edit";
 import { mirrorSelectionPreview } from "./mirror";
+import { placeSymbolPreview } from "./place-symbol";
 import {
   rotateSelectionPreview,
   scaleSelectionPreview,
@@ -1653,6 +1654,39 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     execute: (i, c) => {
       const p = mirrorSelectionPreview(
         i as Extract<CadCommandInput, { id: "mirror_selection" }>,
+        c,
+      );
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
+    id: "place_symbol",
+    label: "Colocar símbolo",
+    category: "layout",
+    description:
+      "Coloca un símbolo de la biblioteca por nombre ('puerta', 'cama', 'mostrador'), con coordenadas opcionales.",
+    inputSchema: {
+      query: {
+        type: "string",
+        description: "Qué colocar; busca en la biblioteca universal y EMS.",
+      },
+      x: { type: "number", description: "X en mm (opcional; default centro)." },
+      y: { type: "number", description: "Y en mm (opcional; default centro)." },
+    },
+    examples: ["pon una puerta", "coloca una cama en 3000,2000"],
+    validate: (i, c) =>
+      placeSymbolPreview(
+        i as Extract<CadCommandInput, { id: "place_symbol" }>,
+        c,
+      ).issues,
+    preview: (i, c) =>
+      placeSymbolPreview(
+        i as Extract<CadCommandInput, { id: "place_symbol" }>,
+        c,
+      ),
+    execute: (i, c) => {
+      const p = placeSymbolPreview(
+        i as Extract<CadCommandInput, { id: "place_symbol" }>,
         c,
       );
       return result(p, ok(p.issues), p.summary);

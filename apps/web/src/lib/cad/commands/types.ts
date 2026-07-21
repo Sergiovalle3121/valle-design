@@ -20,6 +20,7 @@ export type CadCommandId =
   | "array_along_flow"
   | "offset_object"
   | "mirror_selection"
+  | "place_symbol"
   | "rotate_selection"
   | "scale_selection"
   | "extend_wall"
@@ -216,6 +217,13 @@ export type CadCommandInput =
       at?: number;
       /** Default true: conserva originales y crea copias "(espejo)". */
       copy?: boolean;
+    }
+  | {
+      id: "place_symbol";
+      /** Qué colocar: busca en la biblioteca ('puerta', 'cama', 'aoi'…). */
+      query: string;
+      x?: number;
+      y?: number;
     }
   | {
       id: "rotate_selection";

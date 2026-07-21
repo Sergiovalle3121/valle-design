@@ -1,0 +1,74 @@
+/**
+ * Colocar símbolo (AXOS-CAD-PLACE-001): búsqueda en la biblioteca, medidas
+ * reales del símbolo, centrado por default y errores accionables.
+ */
+import { strict as assert } from "node:assert";
+import { placeSymbolPreview } from "./place-symbol";
+import { parseCadCommand } from "./parser";
+import type { CadCommandContext } from "./types";
+
+const ctx = {
+  unit: "mm",
+  footprintW: 10000,
+  footprintH: 6000,
+  objects: [],
+  selectedIds: [],
+} as unknown as CadCommandContext;
+
+// 'puerta' encuentra door-90 (900×150) y respeta coordenadas explícitas.
+{
+  const out = placeSymbolPreview(
+    { id: "place_symbol", query: "puerta", x: 2000, y: 650 },
+    ctx,
+  );
+  assert.equal(out.issues.length, 0, "sin issues");
+  const create = out.operations[0] as {
+    type: string;
+    object: { kind: string; w: number; h: number; x: number; y: number };
+  };
+  assert.equal(create.type, "create", "emite create");
+  assert.equal(create.object.kind, "door-90", "encuentra la puerta");
+  assert.equal(create.object.w, 900, "medida real de la puerta");
+  assert.equal(create.object.x, 2000, "respeta x explícita");
+}
+
+// Sin coordenadas: centra en el footprint (cama 1400×2000 → x=4300, y=2000).
+{
+  const out = placeSymbolPreview(
+    { id: "place_symbol", query: "cama matrimonial" },
+    ctx,
+  );
+  const create = out.operations[0] as { object: { x: number; y: number } };
+  assert.equal(create.object.x, 4300, "centrada en x");
+  assert.equal(create.object.y, 2000, "centrada en y");
+}
+
+// Errores accionables: sin query y símbolo inexistente.
+{
+  const empty = placeSymbolPreview(
+    { id: "place_symbol", query: "  " },
+    ctx,
+  );
+  assert.ok(empty.issues.length > 0, "sin query → error");
+  const missing = placeSymbolPreview(
+    { id: "place_symbol", query: "nave espacial" },
+    ctx,
+  );
+  assert.ok(missing.issues.length > 0, "símbolo inexistente → error");
+}
+
+// Parser: 'pon una puerta en 2000,650' → place_symbol con coordenadas.
+{
+  const parsed = parseCadCommand("pon una puerta en 2000,650");
+  assert.equal(parsed.ok, true, "parser acepta 'pon una puerta'");
+  assert.equal(parsed.input?.id, "place_symbol", "id correcto");
+  if (parsed.input?.id === "place_symbol") {
+    assert.equal(parsed.input.query, "puerta", "query limpia");
+    assert.equal(parsed.input.x, 2000, "x del parser");
+    assert.equal(parsed.input.y, 650, "y del parser");
+  }
+  const noQuery = parseCadCommand("coloca una");
+  assert.equal(noQuery.ok, false, "sin símbolo pide clarificación");
+}
+
+console.log("cad place-symbol specs passed");
