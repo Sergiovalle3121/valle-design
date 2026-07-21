@@ -20,7 +20,8 @@ export type CadLayoutTemplateId =
   | "oficina-coworking"
   | "bodega-pyme"
   | "taller-mecanico"
-  | "cafeteria";
+  | "cafeteria"
+  | "salon-belleza";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -703,6 +704,38 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "puerta-entrada", toRef: "caja", kind: "flow" },
       { fromRef: "caja", toRef: "barra", kind: "flow" },
       { fromRef: "cocina", toRef: "barra", kind: "material" },
+    ],
+  },
+  {
+    id: "salon-belleza",
+    label: "Salón de belleza",
+    description: "Arranque universal de salón/barbería: tres estaciones con tocador y silla, dos lavacabezas, recepción, sala de espera y baño.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["architecture", "shell", "salon"]),
+      asset("puerta-entrada", "door", "Puerta de entrada", 4000, 650, 900, 260, "architecture", ["door", "opening:entry"]),
+      asset("tocador-1", "styling-mirror", "Tocador 1", 1300, 1000, 1200, 450, "equipment", ["tocador", "salon"]),
+      asset("tocador-2", "styling-mirror", "Tocador 2", 3100, 1000, 1200, 450, "equipment", ["tocador", "salon"]),
+      asset("tocador-3", "styling-mirror", "Tocador 3", 4900, 1000, 1200, 450, "equipment", ["tocador", "salon"]),
+      asset("silla-1", "styling-chair", "Silla de estilista 1", 1600, 1600, 600, 600, "equipment", ["silla", "salon"]),
+      asset("silla-2", "styling-chair", "Silla de estilista 2", 3400, 1600, 600, 600, "equipment", ["silla", "salon"]),
+      asset("silla-3", "styling-chair", "Silla de estilista 3", 5200, 1600, 600, 600, "equipment", ["silla", "salon"]),
+      asset("lavado-1", "wash-station", "Lavacabezas 1", 6900, 1000, 600, 1000, "equipment", ["lavado", "salon"]),
+      asset("lavado-2", "wash-station", "Lavacabezas 2", 7600, 1000, 600, 1000, "equipment", ["lavado", "salon"]),
+      asset("recepcion-salon", "counter", "Recepción", 1300, 4200, 1800, 600, "equipment", ["counter", "recepcion", "salon"]),
+      asset("sofa-espera", "sofa-3", "Sofá de espera", 3400, 4100, 2100, 900, "equipment", ["sofa", "espera", "salon"]),
+      asset("bano-salon", "room", "Baño", 6700, 3700, 1500, 1500, "architecture", ["room", "use:bathroom", "salon"]),
+      asset("wc-salon", "wc", "WC", 6900, 3900, 400, 650, "equipment", ["wc", "bathroom"]),
+    ],
+    annotations: [
+      note("titulo", "Salón de belleza — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "puerta-entrada", toRef: "recepcion-salon", kind: "flow" },
+      { fromRef: "recepcion-salon", toRef: "silla-1", kind: "flow" },
+      { fromRef: "silla-1", toRef: "lavado-1", kind: "flow" },
     ],
   },
 ];

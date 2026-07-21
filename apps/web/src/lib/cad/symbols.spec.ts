@@ -131,3 +131,19 @@ assert.equal(
   4500,
   "auto a medida real (4.5 m de largo)",
 );
+
+// Cuarta tanda universal (AXOS-CAD-UNIVERSAL-012): salón de belleza.
+assert.ok(
+  searchCadSymbols("estilista").some((symbol) => symbol.id === "styling-chair"),
+  "search finds silla de estilista (salón)",
+);
+assert.ok(
+  searchCadSymbols("lavacabezas").some(
+    (symbol) => symbol.id === "wash-station",
+  ),
+  "search finds lavacabezas (salón)",
+);
+assert.ok(
+  searchCadSymbols("tocador").some((symbol) => symbol.id === "styling-mirror"),
+  "search finds tocador con espejo (salón)",
+);

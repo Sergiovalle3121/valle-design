@@ -754,6 +754,37 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["llantas", "neumáticos", "neumaticos", "tire", "estante", "taller"],
     ports: [],
   },
+  // — Cuarta tanda universal (AXOS-CAD-UNIVERSAL-012): salón de belleza —
+  {
+    id: "styling-chair",
+    label: "Silla de estilista",
+    category: "equipment",
+    defaultWidth: 600,
+    defaultHeight: 600,
+    layer: "Equipment",
+    tags: ["estilista", "silla", "salón", "salon", "belleza", "barbería", "barberia"],
+    ports: [],
+  },
+  {
+    id: "wash-station",
+    label: "Lavacabezas",
+    category: "equipment",
+    defaultWidth: 600,
+    defaultHeight: 1000,
+    layer: "Equipment",
+    tags: ["lavacabezas", "lavado", "shampoo", "salón", "salon", "belleza"],
+    ports: [],
+  },
+  {
+    id: "styling-mirror",
+    label: "Tocador con espejo",
+    category: "equipment",
+    defaultWidth: 1200,
+    defaultHeight: 450,
+    layer: "Equipment",
+    tags: ["tocador", "espejo", "estilista", "salón", "salon", "belleza"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {
