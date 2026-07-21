@@ -1715,4 +1715,86 @@ if (rectDraftCreate?.type === "create") {
   );
 }
 
+// Ubicación (AXOS-CAD-QUERY-007): '¿dónde está la estufa?' reporta el
+// cuarto más pequeño que la contiene — el muro perimetral no gana.
+{
+  const ubicacionCtx: CadCommandContext = {
+    unit: "mm",
+    footprintW: 12000,
+    footprintH: 8000,
+    selectedIds: [],
+    connectors: [],
+    objects: [
+      {
+        id: "shell",
+        type: "asset",
+        kind: "room",
+        label: "Muro perimetral",
+        x: 0,
+        y: 0,
+        w: 12000,
+        h: 8000,
+      },
+      {
+        id: "coc",
+        type: "asset",
+        kind: "room",
+        label: "Cocina",
+        x: 0,
+        y: 0,
+        w: 3000,
+        h: 3000,
+      },
+      {
+        id: "est",
+        type: "asset",
+        kind: "stove",
+        label: "Estufa",
+        x: 500,
+        y: 500,
+        w: 600,
+        h: 600,
+      },
+      {
+        id: "sofa",
+        type: "asset",
+        kind: "sofa-3",
+        label: "Sofá",
+        x: 6000,
+        y: 5000,
+        w: 2000,
+        h: 900,
+      },
+    ],
+  };
+  const parsed = parseCadCommand("¿dónde está la estufa?");
+  assert.equal(parsed.input?.id, "object_info", "dónde está parsea a info");
+  if (parsed.input?.id === "object_info") {
+    assert.equal(parsed.input.query, "estufa", "query limpia");
+  }
+  const p = previewCadCommand(
+    { id: "object_info", query: "estufa" },
+    ubicacionCtx,
+  );
+  assert.ok(
+    p.summary.includes("dentro de 'Cocina'"),
+    "resumen dice el cuarto específico",
+  );
+  const op = p.operations[0];
+  if (op.type === "report") {
+    assert.ok(
+      op.rows[0]!.value.includes("en 'Cocina'"),
+      "fila con ubicación",
+    );
+  }
+  const fuera = previewCadCommand(
+    { id: "object_info", query: "sofá" },
+    ubicacionCtx,
+  );
+  assert.ok(
+    fuera.summary.includes("dentro de 'Muro perimetral'"),
+    "sin cuarto específico cae al perimetral",
+  );
+}
+
 console.log("cad command registry specs passed");

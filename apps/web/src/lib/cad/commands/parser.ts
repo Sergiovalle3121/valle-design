@@ -784,6 +784,26 @@ export function parseCadCommand(text: string): CadParseResult {
       input: { id: "rename_object", target: m[1].trim(), name },
     };
   }
+  // '¿dónde está la estufa?' (AXOS-CAD-QUERY-007): INFO responde también
+  // la ubicación — en qué cuarto/zona vive cada coincidencia.
+  // OJO: \b de JS es ASCII — tras 'á' no hay frontera, por eso lookahead.
+  if (/d[oó]nde\s+(?:est[aá]n?|queda|anda)(?=[\s?!.]|$)/.test(q)) {
+    const query = q
+      .replace(/^.*?d[oó]nde\s+(?:est[aá]n?|queda|anda)(?=[\s?!.]|$)\s*/, "")
+      .replace(/[¿?¡!.]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/^(?:una?|el|la|los|las)\s+/, "")
+      .trim();
+    if (!query) {
+      return {
+        ok: false,
+        confidence: 0.6,
+        clarification: "¿Qué busco? ('¿dónde está la estufa?')",
+      };
+    }
+    return { ok: true, confidence: 0.86, input: { id: "object_info", query } };
+  }
   if (/cu[aá]nto\s+mide\b/.test(q) || /^info\s+/.test(q)) {
     const query = q
       .replace(/^.*?(?:cu[aá]nto\s+mide|^info)\s*/, "")

@@ -6,6 +6,7 @@
  */
 import { matchObjectsByName } from "./targets";
 import type {
+  CadBox,
   CadCommandContext,
   CadCommandInput,
   CadCommandPreview,
@@ -14,6 +15,31 @@ import type {
 import { error } from "./validators";
 
 const MAX_ROWS = 8;
+const CONTAINER_KINDS = new Set(["room", "zone", "wall"]);
+
+/**
+ * Ubicación (AXOS-CAD-QUERY-007): el cuarto/zona MÁS PEQUEÑO que contiene
+ * el centro del objeto — el muro perimetral contiene todo, así que gana el
+ * contenedor específico.
+ */
+function containerOf(
+  context: CadCommandContext,
+  o: CadBox,
+): CadBox | undefined {
+  const cx = o.x + o.w / 2;
+  const cy = o.y + o.h / 2;
+  return context.objects
+    .filter(
+      (c) =>
+        c.id !== o.id &&
+        CONTAINER_KINDS.has(c.kind ?? "") &&
+        cx >= c.x &&
+        cx <= c.x + c.w &&
+        cy >= c.y &&
+        cy <= c.y + c.h,
+    )
+    .sort((a, b) => a.w * a.h - b.w * b.h)[0];
+}
 
 export function objectInfoPreview(
   input: Extract<CadCommandInput, { id: "object_info" }>,
@@ -41,7 +67,6 @@ export function objectInfoPreview(
     const stations = context.objects.length - assets;
     // Área ocupada (AXOS-CAD-QUERY-004): suma de equipos/muebles; los
     // contenedores (cuartos, zonas, muros) no cuentan como ocupación.
-    const CONTAINER_KINDS = new Set(["room", "zone", "wall"]);
     const occupiedM2 = context.objects.reduce(
       (sum, o) =>
         CONTAINER_KINDS.has(o.kind ?? "")
@@ -78,10 +103,13 @@ export function objectInfoPreview(
     return { summary: "", affectedObjectIds: [], operations: [], issues };
   }
 
-  const rows = matched.slice(0, MAX_ROWS).map((o) => ({
-    label: o.label,
-    value: `${o.w}×${o.h} mm en (${Math.round(o.x)}, ${Math.round(o.y)})${o.rotation ? ` · ${o.rotation}°` : ""}`,
-  }));
+  const rows = matched.slice(0, MAX_ROWS).map((o) => {
+    const inside = containerOf(context, o);
+    return {
+      label: o.label,
+      value: `${o.w}×${o.h} mm en (${Math.round(o.x)}, ${Math.round(o.y)})${o.rotation ? ` · ${o.rotation}°` : ""}${inside ? ` · en '${inside.label}'` : ""}`,
+    };
+  });
   if (matched.length > MAX_ROWS) {
     rows.push({ label: "…", value: `${matched.length - MAX_ROWS} más` });
   }
@@ -94,11 +122,12 @@ export function objectInfoPreview(
     rows.push({ label: "Área total", value: `${totalM2.toFixed(2)} m²` });
   }
   const first = matched[0];
+  const firstInside = containerOf(context, first);
 
   return {
     summary:
       matched.length === 1
-        ? `${first.label}: ${first.w}×${first.h} mm en (${Math.round(first.x)}, ${Math.round(first.y)}).`
+        ? `${first.label}: ${first.w}×${first.h} mm en (${Math.round(first.x)}, ${Math.round(first.y)})${firstInside ? `, dentro de '${firstInside.label}'` : ""}.`
         : `${matched.length} coincidencias con '${raw}' — ${totalM2.toFixed(2)} m² en total.`,
     affectedObjectIds: matched.map((o) => o.id),
     operations: [

@@ -2178,7 +2178,7 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     label: "Info de objeto",
     category: "analysis",
     description:
-      "Responde medidas, posición y rotación de cada coincidencia, resaltándolas en el lienzo.",
+      "Responde medidas, posición, rotación y ubicación (en qué cuarto vive) de cada coincidencia, resaltándolas en el lienzo.",
     inputSchema: {
       query: {
         type: "string",
@@ -2186,7 +2186,7 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         description: "De qué objeto ('mesa', 'barra').",
       },
     },
-    examples: ["info de la mesa", "info de la barra"],
+    examples: ["info de la mesa", "info de la barra", "¿dónde está la estufa?"],
     validate: (i, c) =>
       objectInfoPreview(
         i as Extract<CadCommandInput, { id: "object_info" }>,
