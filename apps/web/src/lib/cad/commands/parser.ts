@@ -813,7 +813,7 @@ export function parseCadCommand(text: string): CadParseResult {
       },
     };
   }
-  if (/\b(mueve|mover|lleva|llevar|desplaza|desplazar)\b/.test(q)) {
+  if (/\b(mueve|mover|lleva|llevar|desplaza|desplazar|mete|meter)\b/.test(q)) {
     const abs = q.match(/\b(?:a|en|hasta)\s+(-?\d+)\s*[,x]\s*(-?\d+)/);
     const rel = q.match(
       /(\d+(?:[.,]\d+)?)\s*(mm|m)?\s*(?:a\s+la|hacia\s+la|hacia\s+el|al)?\s*(derecha|izquierda|arriba|abajo)/,
@@ -850,22 +850,42 @@ export function parseCadCommand(text: string): CadParseResult {
             ? "below"
             : undefined;
     }
+    // Destino de zona (AXOS-CAD-MOVE-004): 'mete la mesa en la cocina',
+    // 'lleva la silla al comedor' — solo cuando no hay coords, relativo
+    // ni ancla; las direcciones sueltas siguen pidiendo aclaración.
+    let into: string | undefined;
+    if (!abs && dx === undefined && dy === undefined && !moveAnchor) {
+      const intoM =
+        q.match(
+          /\b(?:dentro\s+de|adentro\s+de|en|a|hacia)\s+(?:la|el|los|las|una?)\s+(.+)$/,
+        ) ?? q.match(/\bal\s+(.+)$/);
+      const intoName = intoM?.[1]?.replace(/\s+/g, " ").trim();
+      if (
+        intoName &&
+        !/^(?:derecha|izquierda|arriba|abajo|centro|frente|fondo)$/.test(
+          intoName,
+        )
+      ) {
+        into = intoName;
+      }
+    }
     const target = q
-      .replace(/^.*?\b(?:mueve|mover|lleva|llevar|desplaza|desplazar)\b\s*/, "")
+      .replace(/^.*?\b(?:mueve|mover|lleva|llevar|desplaza|desplazar|mete|meter)\b\s*/, "")
       .replace(/\b(?:a|en|hasta)\s+-?\d+\s*[,x]\s*-?\d+.*$/, "")
       .replace(/\d+(?:[.,]\d+)?\s*(?:mm|m)?\s*(?:a\s+la|hacia\s+la|hacia\s+el|al)?\s*(?:derecha|izquierda|arriba|abajo).*$/, "")
       .replace(/\b(?:junto\s+al?|al\s+lado\s+del?|a\s+la\s+izquierda\s+del?|a\s+la\s+derecha\s+del?|arriba\s+del?|encima\s+del?|abajo\s+del?|debajo\s+del?)\s+.+$/, "")
+      .replace(into ? /\b(?:dentro\s+de|adentro\s+de|en|a|hacia)\s+(?:la|el|los|las|una?)\s+.+$|\bal\s+.+$/ : /$^/, "")
       .replace(/\b(la\s+selecci[oó]n|lo\s+seleccionado|esto|estos|esos?\s*(objetos)?)\b/g, "")
       .replace(/\s+/g, " ")
       .trim()
       .replace(/^(?:una?|el|la|los|las)\s+/, "")
       .trim();
-    if (!abs && dx === undefined && dy === undefined && !moveAnchor) {
+    if (!abs && dx === undefined && dy === undefined && !moveAnchor && !into) {
       return {
         ok: false,
         confidence: 0.6,
         clarification:
-          "¿A dónde lo muevo? ('a 2000,650', '500 a la derecha' o 'junto a la mesa')",
+          "¿A dónde lo muevo? ('a 2000,650', '500 a la derecha', 'junto a la mesa' o 'a la cocina')",
       };
     }
     return {
@@ -880,6 +900,7 @@ export function parseCadCommand(text: string): CadParseResult {
         dy,
         anchor: moveAnchor,
         anchorSide: moveAnchorSide,
+        into,
       },
     };
   }

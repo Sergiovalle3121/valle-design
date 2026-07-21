@@ -107,4 +107,50 @@ const ctx = {
   }
 }
 
+// Destino de zona (AXOS-CAD-MOVE-004): 'mete la mesa en la cocina' — el
+// conjunto aterriza centrado dentro del contenedor nombrado.
+{
+  const casa = {
+    unit: "mm",
+    footprintW: 12000,
+    footprintH: 8000,
+    objects: [
+      { id: "coc", type: "asset", kind: "room", label: "Cocina", x: 6000, y: 4000, w: 4000, h: 3000 },
+      { id: "mesa", type: "asset", kind: "dining-table-4", label: "Mesa", x: 1000, y: 1000, w: 1000, h: 1000 },
+    ],
+    selectedIds: [],
+  } as unknown as CadCommandContext;
+  const parsed = parseCadCommand("mete la mesa en la cocina");
+  assert.equal(parsed.input?.id, "move_selection", "mete → move_selection");
+  if (parsed.input?.id === "move_selection") {
+    assert.equal(parsed.input.target, "mesa", "target del parser");
+    assert.equal(parsed.input.into, "cocina", "into del parser");
+  }
+  const out = moveSelectionPreview(
+    { id: "move_selection", target: "mesa", into: "cocina" },
+    casa,
+  );
+  assert.equal(out.issues.length, 0, "mover a zona sin issues");
+  const m = out.operations[0];
+  if (m.type === "move") {
+    assert.equal(m.after.x, 7500, "mesa centrada en x de la cocina");
+    assert.equal(m.after.y, 5000, "mesa centrada en y de la cocina");
+  }
+  assert.ok(out.summary.includes("dentro de"), "resumen de zona");
+  const al = parseCadCommand("lleva la mesa al comedor");
+  if (al.input?.id === "move_selection") {
+    assert.equal(al.input.into, "comedor", "'al comedor' → into");
+  }
+  const dir = parseCadCommand("mueve la mesa a la izquierda");
+  assert.equal(dir.ok, false, "dirección suelta sigue pidiendo aclaración");
+  const missing = moveSelectionPreview(
+    { id: "move_selection", target: "mesa", into: "terraza" },
+    casa,
+  );
+  assert.ok(
+    missing.issues.some((i) => i.code === "move_into_not_found"),
+    "zona inexistente → error específico",
+  );
+}
+
 console.log("cad move specs passed");

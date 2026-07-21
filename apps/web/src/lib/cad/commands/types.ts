@@ -335,6 +335,9 @@ export type CadCommandInput =
       anchor?: string;
       /** Lado del ancla al mover (default right). */
       anchorSide?: "left" | "right" | "above" | "below";
+      /** 'mete la mesa en la cocina': el conjunto aterriza centrado dentro
+       * del contenedor nombrado (cuarto o zona). */
+      into?: string;
     }
   | {
       id: "count_objects";

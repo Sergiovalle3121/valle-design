@@ -65,15 +65,36 @@ export function moveSelectionPreview(
     anchorBox = anchors[0];
   }
 
+  // Destino de zona (AXOS-CAD-MOVE-004): 'mete la mesa en la cocina' — el
+  // conjunto aterriza centrado dentro del contenedor nombrado.
+  const intoQuery = input.into?.trim();
+  let intoBox: CadBox | undefined;
+  if (intoQuery && !anchorBox) {
+    const movedIds = new Set(objs.map((o) => o.id));
+    const containers = matchObjectsByName(context, intoQuery).filter(
+      (c) => !movedIds.has(c.id),
+    );
+    if (!containers.length) {
+      issues.push(
+        error(
+          "move_into_not_found",
+          `No encontré '${intoQuery}' para meter ahí el conjunto.`,
+        ),
+      );
+      return { summary: "", affectedObjectIds: [], operations: [], issues };
+    }
+    intoBox = containers[0];
+  }
+
   const hasAbs = Number.isFinite(input.x) && Number.isFinite(input.y);
   const hasRel =
     (Number.isFinite(input.dx) && (input.dx as number) !== 0) ||
     (Number.isFinite(input.dy) && (input.dy as number) !== 0);
-  if (!hasAbs && !hasRel && !input.center && !anchorBox) {
+  if (!hasAbs && !hasRel && !input.center && !anchorBox && !intoBox) {
     issues.push(
       error(
         "move_missing_destination",
-        "Dime a dónde: 'a 2000,650', '500 a la derecha', 'junto a la mesa' o 'céntrala'.",
+        "Dime a dónde: 'a 2000,650', '500 a la derecha', 'junto a la mesa', 'a la cocina' o 'céntrala'.",
       ),
     );
     return { summary: "", affectedObjectIds: [], operations: [], issues };
@@ -106,14 +127,18 @@ export function moveSelectionPreview(
       ? Math.round((input.x as number) - minX)
       : anchorX !== undefined
         ? Math.round(anchorX - minX)
-        : Math.round(Number.isFinite(input.dx) ? (input.dx as number) : 0);
+        : intoBox
+          ? Math.round(intoBox.x + (intoBox.w - (maxX - minX)) / 2 - minX)
+          : Math.round(Number.isFinite(input.dx) ? (input.dx as number) : 0);
   const dy = input.center
     ? Math.round(((context.footprintH ?? 6000) - (maxY - minY)) / 2 - minY)
     : hasAbs
       ? Math.round((input.y as number) - minY)
       : anchorY !== undefined
         ? Math.round(anchorY - minY)
-        : Math.round(Number.isFinite(input.dy) ? (input.dy as number) : 0);
+        : intoBox
+          ? Math.round(intoBox.y + (intoBox.h - (maxY - minY)) / 2 - minY)
+          : Math.round(Number.isFinite(input.dy) ? (input.dy as number) : 0);
 
   const operations: CadOperation[] = objs.map((o) => ({
     type: "move",
@@ -129,7 +154,9 @@ export function moveSelectionPreview(
         ? `Mover ${objs.length} objeto(s) a (${Math.round(input.x as number)}, ${Math.round(input.y as number)}).`
         : anchorBox
           ? `Mover ${objs.length} objeto(s) junto a '${anchorQuery}'.`
-          : `Mover ${objs.length} objeto(s) ${dx ? `${dx > 0 ? "+" : ""}${dx} en X` : ""}${dx && dy ? ", " : ""}${dy ? `${dy > 0 ? "+" : ""}${dy} en Y` : ""}.`,
+          : intoBox
+            ? `Mover ${objs.length} objeto(s) dentro de '${intoQuery}'.`
+            : `Mover ${objs.length} objeto(s) ${dx ? `${dx > 0 ? "+" : ""}${dx} en X` : ""}${dx && dy ? ", " : ""}${dy ? `${dy > 0 ? "+" : ""}${dy} en Y` : ""}.`,
     affectedObjectIds: objs.map((o) => o.id),
     operations,
     issues,

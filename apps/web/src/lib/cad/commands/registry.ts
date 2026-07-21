@@ -2238,7 +2238,7 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     label: "Mover selección",
     category: "layout",
     description:
-      "Mueve la selección o el objetivo por nombre (MOVE de AutoCAD): destino absoluto 'a 2000,650' o desplazamiento '500 a la derecha'; el grupo viaja rígido.",
+      "Mueve la selección o el objetivo por nombre (MOVE de AutoCAD): destino absoluto 'a 2000,650', desplazamiento '500 a la derecha' o dentro de una zona ('mete la mesa en la cocina'); el grupo viaja rígido.",
     inputSchema: {
       target: {
         type: "string",
@@ -2262,6 +2262,11 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         enum: ["left", "right", "above", "below"],
         description: "Lado del ancla al mover (default right).",
       },
+      into: {
+        type: "string",
+        description:
+          "Destino de zona: el conjunto aterriza centrado dentro de este cuarto/zona ('mete la mesa en la cocina').",
+      },
       objectIds: {
         type: "string[]",
         description: "Alternativa: objetos seleccionados.",
@@ -2271,6 +2276,7 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
       "mueve la puerta a 2000,650",
       "centra la mesa",
       "mueve la silla junto a la mesa",
+      "mete la mesa en la cocina",
     ],
     validate: (i, c) =>
       moveSelectionPreview(
