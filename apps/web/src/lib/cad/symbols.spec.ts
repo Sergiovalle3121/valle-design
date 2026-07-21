@@ -147,3 +147,17 @@ assert.ok(
   searchCadSymbols("tocador").some((symbol) => symbol.id === "styling-mirror"),
   "search finds tocador con espejo (salón)",
 );
+
+// Quinta tanda universal (AXOS-CAD-UNIVERSAL-015): panadería.
+assert.ok(
+  searchCadSymbols("horno").some((symbol) => symbol.id === "oven"),
+  "search finds horno (panadería)",
+);
+assert.ok(
+  searchCadSymbols("amasadora").some((symbol) => symbol.id === "dough-mixer"),
+  "search finds amasadora (panadería)",
+);
+assert.ok(
+  searchCadSymbols("vitrina").some((symbol) => symbol.id === "display-case"),
+  "search finds vitrina (panadería)",
+);

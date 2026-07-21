@@ -23,7 +23,8 @@ export type CadLayoutTemplateId =
   | "cafeteria"
   | "salon-belleza"
   | "farmacia"
-  | "jardin-eventos";
+  | "jardin-eventos"
+  | "panaderia";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -799,6 +800,36 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "acceso", toRef: "mesa-1", kind: "flow" },
       { fromRef: "mesa-1", toRef: "pista", kind: "flow" },
       { fromRef: "barra-jardin", toRef: "mesa-1", kind: "material" },
+    ],
+  },
+  {
+    id: "panaderia",
+    label: "Panadería",
+    description: "Arranque universal de panadería: venta con vitrinas y caja, taller con horno, amasadora y mesa de trabajo, y bodega de insumos.",
+    category: "architecture",
+    baseWidth: 10000,
+    baseHeight: 7000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 8600, 5600, "architecture", ["architecture", "shell", "panaderia"]),
+      asset("puerta-entrada", "door", "Puerta de entrada", 4500, 650, 900, 260, "architecture", ["door", "opening:entry"]),
+      asset("vitrina-1", "display-case", "Vitrina 1", 1300, 1400, 1500, 700, "equipment", ["vitrina", "venta"]),
+      asset("vitrina-2", "display-case", "Vitrina 2", 3100, 1400, 1500, 700, "equipment", ["vitrina", "venta"]),
+      asset("caja-pan", "counter", "Caja", 5000, 1400, 1800, 600, "equipment", ["counter", "pos"]),
+      asset("taller", "room", "Taller de horneado", 1300, 3200, 5200, 2900, "architecture", ["room", "use:kitchen", "panaderia"]),
+      asset("horno-pan", "oven", "Horno", 1600, 3500, 800, 800, "equipment", ["horno", "panaderia"]),
+      asset("amasadora-pan", "dough-mixer", "Amasadora", 2700, 3500, 600, 600, "equipment", ["amasadora", "panaderia"]),
+      asset("mesa-trabajo", "workbench", "Mesa de trabajo", 1600, 4800, 1800, 750, "equipment", ["mesa de trabajo", "panaderia"]),
+      asset("refri-pan", "refrigerator", "Refrigerador", 5500, 3500, 750, 700, "equipment", ["refrigerator", "panaderia"]),
+      asset("bodega-pan", "room", "Bodega de insumos", 7000, 3200, 2200, 2900, "architecture", ["room", "use:storage", "panaderia"]),
+      asset("estante-pan", "shelf-gondola", "Estante de harinas", 7200, 3500, 1200, 500, "equipment", ["shelf", "storage"]),
+    ],
+    annotations: [
+      note("titulo", "Panadería — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "puerta-entrada", toRef: "caja-pan", kind: "flow" },
+      { fromRef: "taller", toRef: "vitrina-1", kind: "material" },
+      { fromRef: "bodega-pan", toRef: "taller", kind: "material" },
     ],
   },
 ];

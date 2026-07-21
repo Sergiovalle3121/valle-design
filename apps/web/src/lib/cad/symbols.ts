@@ -785,6 +785,37 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["tocador", "espejo", "estilista", "salón", "salon", "belleza"],
     ports: [],
   },
+  // — Quinta tanda universal (AXOS-CAD-UNIVERSAL-015): panadería —
+  {
+    id: "oven",
+    label: "Horno",
+    category: "equipment",
+    defaultWidth: 800,
+    defaultHeight: 800,
+    layer: "Equipment",
+    tags: ["horno", "oven", "panadería", "panaderia", "cocina", "pizzería", "pizzeria"],
+    ports: [],
+  },
+  {
+    id: "dough-mixer",
+    label: "Amasadora",
+    category: "equipment",
+    defaultWidth: 600,
+    defaultHeight: 600,
+    layer: "Equipment",
+    tags: ["amasadora", "mixer", "panadería", "panaderia", "masa"],
+    ports: [],
+  },
+  {
+    id: "display-case",
+    label: "Vitrina",
+    category: "commerce",
+    defaultWidth: 1500,
+    defaultHeight: 700,
+    layer: "Commerce",
+    tags: ["vitrina", "display", "mostrador", "panadería", "panaderia", "tienda"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {
