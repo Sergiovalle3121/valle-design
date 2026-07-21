@@ -22,7 +22,8 @@ export type CadLayoutTemplateId =
   | "taller-mecanico"
   | "cafeteria"
   | "salon-belleza"
-  | "farmacia";
+  | "farmacia"
+  | "jardin-eventos";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -763,6 +764,41 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     connectors: [
       { fromRef: "puerta-entrada", toRef: "mostrador-atencion", kind: "flow" },
       { fromRef: "trastienda", toRef: "mostrador-atencion", kind: "material" },
+    ],
+  },
+  {
+    id: "jardin-eventos",
+    label: "Jardín de eventos",
+    description: "Arranque universal de jardín de eventos: acceso, seis mesas, pista de baile, escenario, barra, baño, estacionamiento y arbolado.",
+    category: "architecture",
+    baseWidth: 20000,
+    baseHeight: 12000,
+    assets: [
+      asset("perimetro", "room", "Perímetro del jardín", 700, 700, 18600, 10600, "architecture", ["architecture", "shell", "jardin"]),
+      asset("acceso", "door", "Acceso principal", 9300, 650, 1400, 260, "architecture", ["door", "opening:entry"]),
+      asset("mesa-1", "restaurant-table-4", "Mesa 1", 3000, 3200, 900, 900, "equipment", ["table", "evento"]),
+      asset("mesa-2", "restaurant-table-4", "Mesa 2", 5200, 3200, 900, 900, "equipment", ["table", "evento"]),
+      asset("mesa-3", "restaurant-table-4", "Mesa 3", 7400, 3200, 900, 900, "equipment", ["table", "evento"]),
+      asset("mesa-4", "restaurant-table-4", "Mesa 4", 3000, 5400, 900, 900, "equipment", ["table", "evento"]),
+      asset("mesa-5", "restaurant-table-4", "Mesa 5", 5200, 5400, 900, 900, "equipment", ["table", "evento"]),
+      asset("mesa-6", "restaurant-table-4", "Mesa 6", 7400, 5400, 900, 900, "equipment", ["table", "evento"]),
+      asset("pista", "zone", "Pista de baile", 10500, 3200, 4500, 3500, "layout", ["zone", "use:dancefloor", "evento"]),
+      asset("escenario", "zone", "Escenario", 15600, 3200, 2800, 2000, "layout", ["zone", "use:stage", "evento"]),
+      asset("barra-jardin", "bar-counter", "Barra de bebidas", 10500, 8200, 3000, 600, "equipment", ["bar", "evento"]),
+      asset("bano-jardin", "room", "Baños", 16200, 8200, 2200, 2200, "architecture", ["room", "use:bathroom", "jardin"]),
+      asset("wc-jardin", "wc", "WC", 16500, 8500, 400, 650, "equipment", ["wc", "bathroom"]),
+      asset("banca-1", "outdoor-bench", "Banca 1", 1500, 8600, 1500, 550, "architecture", ["banca", "exterior"]),
+      asset("arbol-1", "tree", "Árbol 1", 1500, 1200, 3000, 3000, "architecture", ["arbol", "exterior"]),
+      asset("arbol-2", "tree", "Árbol 2", 5800, 8000, 3000, 3000, "architecture", ["arbol", "exterior"]),
+      asset("banca-2", "outdoor-bench", "Banca 2", 3300, 8600, 1500, 550, "architecture", ["banca", "exterior"]),
+    ],
+    annotations: [
+      note("titulo", "Jardín de eventos — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "acceso", toRef: "mesa-1", kind: "flow" },
+      { fromRef: "mesa-1", toRef: "pista", kind: "flow" },
+      { fromRef: "barra-jardin", toRef: "mesa-1", kind: "material" },
     ],
   },
 ];
