@@ -38,7 +38,8 @@ export type CadLayoutTemplateId =
   | "minisuper"
   | "taqueria"
   | "carniceria"
-  | "fruteria";
+  | "fruteria"
+  | "barberia";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1266,6 +1267,36 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "mostrador-fruta", kind: "flow" },
       { fromRef: "bodega-fruta", toRef: "cajon-1", kind: "material" },
       { fromRef: "cajon-1", toRef: "mostrador-fruta", kind: "flow" },
+    ],
+  },
+  {
+    id: "barberia",
+    label: "Barbería",
+    description: "Arranque universal de barbería: sala de espera con sofá, tres estaciones de tocador con silla, lavacabezas y mostrador de cobro.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["architecture", "shell", "barberia"]),
+      asset("entrada", "door", "Entrada", 3500, 650, 1000, 260, "architecture", ["door", "opening:entry"]),
+      asset("espera", "zone", "Sala de espera", 1300, 1300, 2400, 1500, "layout", ["zone", "use:waiting", "barberia"]),
+      asset("sofa-espera", "sofa-3", "Sofá de espera", 1500, 1500, 2100, 900, "equipment", ["sofa", "barberia"]),
+      asset("tocador-b1", "styling-mirror", "Tocador 1", 4200, 1000, 1200, 450, "equipment", ["tocador", "barberia"]),
+      asset("tocador-b2", "styling-mirror", "Tocador 2", 5700, 1000, 1200, 450, "equipment", ["tocador", "barberia"]),
+      asset("silla-b1", "styling-chair", "Silla de barbero 1", 4500, 1600, 600, 600, "equipment", ["silla", "barberia"]),
+      asset("silla-b2", "styling-chair", "Silla de barbero 2", 6000, 1600, 600, 600, "equipment", ["silla", "barberia"]),
+      asset("lavado-b", "wash-station", "Lavacabezas", 7300, 1000, 600, 1000, "equipment", ["lavado", "barberia"]),
+      asset("mostrador-b", "counter", "Mostrador de cobro", 1500, 3600, 1800, 600, "equipment", ["counter", "barberia"]),
+      asset("bano-b", "room", "Baño", 6400, 3400, 1600, 1600, "architecture", ["room", "use:bathroom", "barberia"]),
+      asset("wc-b", "wc", "WC", 6600, 3600, 400, 650, "equipment", ["wc", "bathroom"]),
+    ],
+    annotations: [
+      note("titulo", "Barbería — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "espera", kind: "flow" },
+      { fromRef: "espera", toRef: "silla-b1", kind: "flow" },
+      { fromRef: "silla-b1", toRef: "mostrador-b", kind: "flow" },
     ],
   },
 ];
