@@ -848,6 +848,17 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["secadora", "dryer", "lavandería", "lavanderia", "ropa"],
     ports: [],
   },
+  // — Octava tanda universal (AXOS-CAD-UNIVERSAL-018): guardería —
+  {
+    id: "crib",
+    label: "Cuna",
+    category: "furniture",
+    defaultWidth: 700,
+    defaultHeight: 1300,
+    layer: "Furniture",
+    tags: ["cuna", "crib", "guardería", "guarderia", "bebé", "bebe", "kinder"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {

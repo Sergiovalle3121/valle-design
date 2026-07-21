@@ -177,3 +177,9 @@ assert.ok(
   searchCadSymbols("secadora").some((symbol) => symbol.id === "dryer"),
   "search finds secadora (lavandería)",
 );
+
+// Octava tanda universal (AXOS-CAD-UNIVERSAL-018): guardería.
+assert.ok(
+  searchCadSymbols("cuna").some((symbol) => symbol.id === "crib"),
+  "search finds cuna (guardería)",
+);

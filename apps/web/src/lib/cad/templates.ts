@@ -26,7 +26,8 @@ export type CadLayoutTemplateId =
   | "jardin-eventos"
   | "panaderia"
   | "veterinaria"
-  | "lavanderia";
+  | "lavanderia"
+  | "guarderia";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -895,6 +896,33 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "mostrador-lav", toRef: "lavadora-1", kind: "material" },
       { fromRef: "lavadora-1", toRef: "secadora-1", kind: "material" },
       { fromRef: "secadora-1", toRef: "mesa-doblado", kind: "material" },
+    ],
+  },
+  {
+    id: "guarderia",
+    label: "Guardería",
+    description: "Arranque universal de guardería: sala de juegos con mesas infantiles, área de cunas y baño.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["architecture", "shell", "guarderia"]),
+      asset("entrada", "door", "Entrada", 2200, 650, 900, 260, "architecture", ["door", "opening:main"]),
+      asset("sala-juegos", "zone", "Sala de juegos", 1300, 1300, 3600, 3000, "layout", ["zone", "use:play", "guarderia"]),
+      asset("mesa-infantil-1", "school-desk", "Mesa infantil 1", 1500, 2000, 600, 500, "equipment", ["mesa", "infantil"]),
+      asset("mesa-infantil-2", "school-desk", "Mesa infantil 2", 2400, 2000, 600, 500, "equipment", ["mesa", "infantil"]),
+      asset("cuna-1", "crib", "Cuna 1", 5200, 1300, 700, 1300, "equipment", ["cuna", "guarderia"]),
+      asset("cuna-2", "crib", "Cuna 2", 6100, 1300, 700, 1300, "equipment", ["cuna", "guarderia"]),
+      asset("cuna-3", "crib", "Cuna 3", 7000, 1300, 700, 1300, "equipment", ["cuna", "guarderia"]),
+      asset("bano-guarderia", "room", "Baño", 6700, 3700, 1500, 1500, "architecture", ["room", "use:bathroom", "guarderia"]),
+      asset("wc-guarderia", "wc", "WC", 6900, 3900, 400, 650, "equipment", ["wc", "bathroom"]),
+    ],
+    annotations: [
+      note("titulo", "Guardería — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "sala-juegos", kind: "flow" },
+      { fromRef: "sala-juegos", toRef: "cuna-1", kind: "flow" },
     ],
   },
 ];
