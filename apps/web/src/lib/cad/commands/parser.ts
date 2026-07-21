@@ -327,10 +327,14 @@ export function parseCadCommand(text: string): CadParseResult {
   }
   if (/(^|\s)(pon|coloca|inserta)\s/.test(q)) {
     const coords = q.match(/(\d+)\s*[,x]\s*(\d+)/);
+    const rot = q.match(/(?:girad[ao]|rotad[ao])\s+(-?\d+(?:[.,]\d+)?)/);
     let query = q
       .replace(/(^|\s)(pon|coloca|inserta)\s+(una?|unos?|el|la|los|las)?\s*/, " ")
       .trim();
-    query = query.replace(/\ben\s+\d[\d\s.,x]*$/, "").trim();
+    query = query
+      .replace(/\b(?:girad[ao]|rotad[ao])\s+-?\d[\d.,]*\s*/, "")
+      .replace(/\ben\s+\d[\d\s.,x]*$/, "")
+      .trim();
     if (!query) {
       return {
         ok: false,
@@ -346,6 +350,7 @@ export function parseCadCommand(text: string): CadParseResult {
         query,
         x: coords ? Number(coords[1]) : undefined,
         y: coords ? Number(coords[2]) : undefined,
+        rotation: rot ? Number(rot[1].replace(",", ".")) : undefined,
       },
     };
   }

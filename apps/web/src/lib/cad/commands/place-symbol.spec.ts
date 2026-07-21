@@ -71,4 +71,20 @@ const ctx = {
   assert.equal(noQuery.ok, false, "sin símbolo pide clarificación");
 }
 
+// Rotación al colocar: 'pon una puerta girada 90 en 2000,650'.
+{
+  const parsed = parseCadCommand("pon una puerta girada 90 en 2000,650");
+  assert.equal(parsed.input?.id, "place_symbol", "sigue siendo place");
+  if (parsed.input?.id === "place_symbol") {
+    assert.equal(parsed.input.query, "puerta", "query sin 'girada 90'");
+    assert.equal(parsed.input.rotation, 90, "rotación del parser");
+  }
+  const out = placeSymbolPreview(
+    { id: "place_symbol", query: "puerta", x: 0, y: 0, rotation: -90 },
+    ctx,
+  );
+  const create = out.operations[0] as { object: { rotation?: number } };
+  assert.equal(create.object.rotation, 270, "rotación normalizada (−90→270)");
+}
+
 console.log("cad place-symbol specs passed");

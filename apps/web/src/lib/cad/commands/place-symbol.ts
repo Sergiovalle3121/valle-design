@@ -4,6 +4,7 @@
  * emite el create con las medidas reales del símbolo. Sin coordenadas, lo
  * centra en el footprint para que el usuario lo arrastre a su sitio.
  */
+import { normalizeDeg } from "../../../components/line-engineering/precision-input";
 import { searchCadSymbols } from "../symbols";
 import type {
   CadCommandContext,
@@ -60,6 +61,9 @@ export function placeSymbolPreview(
           y,
           w: symbol.defaultWidth,
           h: symbol.defaultHeight,
+          rotation: Number.isFinite(input.rotation)
+            ? normalizeDeg(input.rotation as number)
+            : undefined,
         },
       },
     ],

@@ -224,6 +224,8 @@ export type CadCommandInput =
       query: string;
       x?: number;
       y?: number;
+      /** Grados; 'pon una puerta girada 90'. */
+      rotation?: number;
     }
   | {
       id: "rotate_selection";
