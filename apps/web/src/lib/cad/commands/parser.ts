@@ -499,6 +499,13 @@ export function parseCadCommand(text: string): CadParseResult {
             : undefined;
       query = query.slice(0, anchorMatch.index).trim();
     }
+    // 'pon una planta en cada esquina' (AXOS-CAD-PLACE-008): 4 piezas en
+    // las esquinas del footprint.
+    let corners: boolean | undefined;
+    if (/\ben\s+cada\s+esquina\b/.test(query)) {
+      corners = true;
+      query = query.replace(/\ben\s+cada\s+esquina\b/g, " ").replace(/\s+/g, " ").trim();
+    }
     // 'pon una silla en la cocina' (AXOS-CAD-PLACE-007): colocar dentro
     // de un cuarto/zona por nombre — solo sin coordenadas y sin ancla;
     // las direcciones sueltas no son zonas.
@@ -541,6 +548,7 @@ export function parseCadCommand(text: string): CadParseResult {
         anchorSide,
         anchorEach,
         into,
+        corners,
       },
     };
   }

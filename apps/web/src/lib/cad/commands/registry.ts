@@ -2371,6 +2371,11 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         description:
           "Colocar centrado dentro de este cuarto/zona ('pon una silla en la cocina').",
       },
+      corners: {
+        type: "enum",
+        enum: ["true", "false"],
+        description: "4 piezas en las esquinas del plano.",
+      },
     },
     examples: [
       "pon una puerta",
@@ -2380,6 +2385,7 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
       "pon un lavacabezas a la izquierda del tocador",
       "pon una silla junto a cada mesa",
       "pon una silla en la cocina",
+      "pon una planta en cada esquina",
     ],
     validate: (i, c) =>
       placeSymbolPreview(

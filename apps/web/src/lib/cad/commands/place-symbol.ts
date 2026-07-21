@@ -70,6 +70,42 @@ export function placeSymbolPreview(
   const gap = Math.max(0, input.gap ?? 100);
   const step = symbol.defaultWidth + gap;
   const totalW = symbol.defaultWidth + (count - 1) * step;
+  // En cada esquina (AXOS-CAD-PLACE-008): 4 piezas en las esquinas del
+  // footprint con margen de 200 mm; ignora conteo, anclas y coordenadas.
+  if (input.corners) {
+    const M = 200;
+    const W = context.footprintW ?? 10000;
+    const H = context.footprintH ?? 6000;
+    const w = symbol.defaultWidth;
+    const h = symbol.defaultHeight;
+    const spots = [
+      { x: M, y: M },
+      { x: W - w - M, y: M },
+      { x: M, y: H - h - M },
+      { x: W - w - M, y: H - h - M },
+    ];
+    const cornerRotation = Number.isFinite(input.rotation)
+      ? normalizeDeg(input.rotation as number)
+      : undefined;
+    return {
+      summary: `4 × ${symbol.label} — uno en cada esquina.`,
+      affectedObjectIds: [],
+      operations: spots.map((s, i) => ({
+        type: "create",
+        object: {
+          kind: symbol.id,
+          type: "asset",
+          label: `${symbol.label} ${i + 1}`,
+          x: Math.round(s.x),
+          y: Math.round(s.y),
+          w,
+          h,
+          rotation: cornerRotation,
+        },
+      })),
+      issues,
+    };
+  }
   // Ancla relacional (AXOS-CAD-PLACE-004/005): 'junto a la mesa' cae a la
   // derecha del ancla; 'a la izquierda de' termina la fila en el ancla;
   // 'arriba/debajo de' alinean x. Coordenadas explícitas ganan siempre.

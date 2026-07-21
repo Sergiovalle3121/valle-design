@@ -329,4 +329,43 @@ const ctx = {
   );
 }
 
+// En cada esquina (AXOS-CAD-PLACE-008): 4 piezas con margen de 200 mm.
+{
+  const esquinaCtx = {
+    unit: "mm",
+    footprintW: 10000,
+    footprintH: 6000,
+    objects: [],
+    selectedIds: [],
+  } as unknown as CadCommandContext;
+  const parsed = parseCadCommand("pon una silla en cada esquina");
+  assert.equal(parsed.input?.id, "place_symbol", "esquinas parsea");
+  if (parsed.input?.id === "place_symbol") {
+    assert.equal(parsed.input.query, "silla", "query limpia");
+    assert.equal(parsed.input.corners, true, "corners del parser");
+  }
+  const out = placeSymbolPreview(
+    { id: "place_symbol", query: "silla", corners: true },
+    esquinaCtx,
+  );
+  assert.equal(out.issues.length, 0, "esquinas sin issues");
+  assert.equal(out.operations.length, 4, "una pieza por esquina");
+  const ops = out.operations as {
+    object: { x: number; y: number; w: number; h: number };
+  }[];
+  assert.equal(ops[0].object.x, 200, "esquina sup-izq x");
+  assert.equal(ops[0].object.y, 200, "esquina sup-izq y");
+  assert.equal(
+    ops[3].object.x,
+    10000 - ops[3].object.w - 200,
+    "esquina inf-der x",
+  );
+  assert.equal(
+    ops[3].object.y,
+    6000 - ops[3].object.h - 200,
+    "esquina inf-der y",
+  );
+  assert.ok(out.summary.includes("cada esquina"), "resumen de esquinas");
+}
+
 console.log("cad place-symbol specs passed");

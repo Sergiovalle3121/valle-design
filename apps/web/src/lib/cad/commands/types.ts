@@ -288,6 +288,9 @@ export type CadCommandInput =
       /** 'pon una silla en la cocina': la pieza (o la fila) aterriza
        * centrada dentro del contenedor nombrado. */
       into?: string;
+      /** 'pon una planta en cada esquina': 4 piezas en las esquinas del
+       * footprint con margen de 200 mm. */
+      corners?: boolean;
     }
   | {
       id: "rotate_selection";
