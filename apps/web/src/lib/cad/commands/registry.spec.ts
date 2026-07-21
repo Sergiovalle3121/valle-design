@@ -59,7 +59,7 @@ assert.equal(
   CAD_COMMAND_REGISTRY.length,
   "registry ids are unique",
 );
-assert.equal(CAD_COMMAND_REGISTRY.length, 43, "registry exposes 43 commands");
+assert.equal(CAD_COMMAND_REGISTRY.length, 44, "registry exposes 44 commands");
 
 // Renombrar (AXOS-CAD-RENAME-001): primera coincidencia, con aviso si hay más.
 {
@@ -1194,6 +1194,60 @@ if (rectDraftCreate?.type === "create") {
   );
   assert.ok(
     sinTal.issues.some((i) => i.code === "array_target_not_found"),
+    "objetivo inexistente reporta error claro",
+  );
+}
+
+// CAMBIAR TAMAÑO (AXOS-CAD-RESIZE-001): w×h exactos por nombre.
+{
+  const parsed = parseCadCommand("cambia el tamaño de la mesa a 1500x900");
+  assert.ok(parsed.ok, "cambia el tamaño parsea");
+  assert.equal(parsed.input?.id, "resize_object", "resize por nombre");
+  if (parsed.input?.id === "resize_object") {
+    assert.equal(parsed.input.w, 1500, "ancho del parser");
+    assert.equal(parsed.input.h, 900, "alto del parser");
+    assert.equal(parsed.input.target, "mesa", "objetivo del resize");
+  }
+  const sinDims = parseCadCommand("cambia el tamaño de la mesa");
+  assert.equal(sinDims.ok, false, "sin dimensiones pide aclaración");
+
+  const mesaCtx: CadCommandContext = {
+    unit: "mm",
+    footprintW: 10000,
+    footprintH: 6000,
+    selectedIds: [],
+    objects: [
+      {
+        id: "m1",
+        type: "asset",
+        kind: "dining-table-4",
+        label: "Mesa comedor",
+        x: 3000,
+        y: 2000,
+        w: 1200,
+        h: 1200,
+      },
+    ],
+  };
+  const p = previewCadCommand(
+    { id: "resize_object", target: "mesa", w: 1500, h: 900 },
+    mesaCtx,
+  );
+  assert.ok(!p.issues.some((i) => i.level === "error"), "resize sin errores");
+  const op = p.operations[0];
+  assert.equal(op?.type, "move", "resize emite op move");
+  if (op?.type === "move") {
+    assert.equal(op.after.w, 1500, "ancho nuevo aplicado");
+    assert.equal(op.after.h, 900, "alto nuevo aplicado");
+    assert.equal(op.after.x, 3000, "posición x intacta");
+    assert.equal(op.after.y, 2000, "posición y intacta");
+  }
+  const sinTal = previewCadCommand(
+    { id: "resize_object", target: "piano", w: 1000, h: 1000 },
+    mesaCtx,
+  );
+  assert.ok(
+    sinTal.issues.some((i) => i.code === "resize_target_not_found"),
     "objetivo inexistente reporta error claro",
   );
 }

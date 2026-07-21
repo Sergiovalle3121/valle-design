@@ -30,6 +30,7 @@ export type CadCommandId =
   | "object_info"
   | "rename_object"
   | "select_objects"
+  | "resize_object"
   | "help_commands"
   | "clear_annotations"
   | "history_step"
@@ -339,6 +340,16 @@ export type CadCommandInput =
       id: "object_info";
       /** De qué objeto: '¿cuánto mide la mesa?'. */
       query: string;
+    }
+  | {
+      id: "resize_object";
+      objectIds?: string[];
+      /** Objetivo por nombre: 'cambia el tamaño de la mesa a 1500x900'. */
+      target?: string;
+      /** Ancho nuevo en mm; omitido conserva el actual. */
+      w?: number;
+      /** Alto nuevo en mm; omitido conserva el actual. */
+      h?: number;
     }
   | {
       id: "rename_object";

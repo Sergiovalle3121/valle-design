@@ -47,6 +47,7 @@ import { moveSelectionPreview } from "./move";
 import { mirrorSelectionPreview } from "./mirror";
 import { placeSymbolPreview } from "./place-symbol";
 import { renameObjectPreview } from "./rename";
+import { resizeObjectPreview } from "./resize";
 import { selectObjectsPreview } from "./select";
 import { matchObjectsByName } from "./targets";
 import {
@@ -2058,6 +2059,46 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     execute: (i, c) => {
       const p = renameObjectPreview(
         i as Extract<CadCommandInput, { id: "rename_object" }>,
+        c,
+      );
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
+    id: "resize_object",
+    label: "Cambiar tamaño",
+    category: "layout",
+    description:
+      "Fija el ancho×alto exacto en mm de un objeto por nombre o selección, conservando su posición.",
+    inputSchema: {
+      w: { type: "number", description: "Ancho nuevo en mm." },
+      h: { type: "number", description: "Alto nuevo en mm." },
+      target: {
+        type: "string",
+        description: "Objetivo por nombre (label o tipo).",
+      },
+      objectIds: {
+        type: "string[]",
+        description: "Alternativa: objetos seleccionados.",
+      },
+    },
+    examples: [
+      "cambia el tamaño de la mesa a 1500x900",
+      "redimensiona la barra a 2500x600",
+    ],
+    validate: (i, c) =>
+      resizeObjectPreview(
+        i as Extract<CadCommandInput, { id: "resize_object" }>,
+        c,
+      ).issues,
+    preview: (i, c) =>
+      resizeObjectPreview(
+        i as Extract<CadCommandInput, { id: "resize_object" }>,
+        c,
+      ),
+    execute: (i, c) => {
+      const p = resizeObjectPreview(
+        i as Extract<CadCommandInput, { id: "resize_object" }>,
         c,
       );
       return result(p, ok(p.issues), p.summary);

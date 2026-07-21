@@ -38,6 +38,7 @@ const SELECTION_MINIMUMS: Partial<Record<CadCommandId, number>> = {
   move_selection: 1,
   rotate_selection: 1,
   scale_selection: 1,
+  resize_object: 1,
   extend_wall: 2,
   trim_wall: 2,
   chamfer_walls: 2,

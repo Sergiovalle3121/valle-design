@@ -254,6 +254,43 @@ export function parseCadCommand(text: string): CadParseResult {
       input: { id: "array_polar", count, angleSpanDeg, centerLabel },
     };
   }
+  // CAMBIAR TAMAÑO (AXOS-CAD-RESIZE-001): 'cambia el tamaño de la mesa a
+  // 1500x900' — fija w×h exactos conservando la esquina superior izquierda.
+  const resizeMatch = raw.match(
+    /^(?:cambia\s+el\s+tama[ñn]o|redimensiona|ajusta\s+el\s+tama[ñn]o)\s+(.+)$/i,
+  );
+  if (resizeMatch) {
+    const dims = q.match(/(\d+(?:[.,]\d+)?)\s*[x×]\s*(\d+(?:[.,]\d+)?)/);
+    if (!dims)
+      return {
+        ok: false,
+        confidence: 0.6,
+        clarification:
+          "¿A qué tamaño? Dímelo en mm, p. ej. 'cambia el tamaño de la mesa a 1500x900'.",
+      };
+    const target = resizeMatch[1]!
+      .replace(/\ba?\s*\d+(?:[.,]\d+)?\s*[x×]\s*\d+(?:[.,]\d+)?\s*(?:mm)?\b/gi, " ")
+      .replace(
+        /\b(?:la\s+selecci[oó]n|lo\s+seleccionado|esto|estos\s+objetos|esos\s+objetos)\b/gi,
+        " ",
+      )
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/^(?:de|del)\s+/i, "")
+      .replace(/^(?:el|la|los|las)\s+/i, "")
+      .replace(/^(?:de|del)$/i, "")
+      .trim();
+    return {
+      ok: true,
+      confidence: 0.86,
+      input: {
+        id: "resize_object",
+        w: Number(dims[1]!.replace(",", ".")),
+        h: Number(dims[2]!.replace(",", ".")),
+        target: target || undefined,
+      },
+    };
+  }
   // FILA/REPETIR (AXOS-CAD-ARRAY-001): 'repite la silla 4 veces cada 600
   // a la derecha' — arreglo lineal conversacional con objetivo por nombre.
   const repeatMatch = raw.match(/^rep[ií]te(?:me|l[ao]s?)?\s+(.+)$/i);
