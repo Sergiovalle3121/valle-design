@@ -988,6 +988,17 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["copiadora", "impresora", "copier", "fotocopiadora", "papelería", "papeleria", "oficina"],
     ports: [],
   },
+  // — Decimoctava tanda universal (AXOS-CAD-UNIVERSAL-036): salud —
+  {
+    id: "exam-table",
+    label: "Camilla",
+    category: "equipment",
+    defaultWidth: 700,
+    defaultHeight: 1900,
+    layer: "Equipment",
+    tags: ["camilla", "exam table", "fisioterapia", "consultorio", "masaje", "spa", "exploración", "exploracion"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {

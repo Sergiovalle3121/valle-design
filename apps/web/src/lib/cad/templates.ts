@@ -43,7 +43,8 @@ export type CadLayoutTemplateId =
   | "tortilleria"
   | "papeleria"
   | "fondita"
-  | "estetica-canina";
+  | "estetica-canina"
+  | "fisioterapia";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1418,6 +1419,36 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "recepcion-ec", kind: "flow" },
       { fromRef: "recepcion-ec", toRef: "tina-ec", kind: "flow" },
       { fromRef: "tina-ec", toRef: "mesa-groom", kind: "flow" },
+    ],
+  },
+  {
+    id: "fisioterapia",
+    label: "Consultorio de fisioterapia",
+    description: "Arranque universal de fisioterapia: recepción, sala de espera, dos camillas, zona de ejercicios con caminadora y rack de pesas, y baño.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["architecture", "shell", "fisioterapia"]),
+      asset("entrada", "door", "Entrada", 3500, 650, 1000, 260, "architecture", ["door", "opening:entry"]),
+      asset("recepcion-fis", "counter", "Recepción", 1500, 1400, 1800, 600, "equipment", ["counter", "fisioterapia"]),
+      asset("espera-fis", "zone", "Sala de espera", 1300, 2400, 2400, 1400, "layout", ["zone", "use:waiting", "fisioterapia"]),
+      asset("sofa-fis", "sofa-3", "Sofá de espera", 1500, 2600, 2100, 900, "equipment", ["sofa", "fisioterapia"]),
+      asset("camilla-1", "exam-table", "Camilla 1", 4500, 1400, 700, 1900, "equipment", ["camilla", "fisioterapia"]),
+      asset("camilla-2", "exam-table", "Camilla 2", 5700, 1400, 700, 1900, "equipment", ["camilla", "fisioterapia"]),
+      asset("ejercicios-fis", "zone", "Zona de ejercicios", 4500, 3600, 3200, 1500, "layout", ["zone", "use:gym", "fisioterapia"]),
+      asset("caminadora-fis", "treadmill", "Caminadora", 4700, 3800, 800, 1200, "equipment", ["caminadora", "fisioterapia"]),
+      asset("pesas-fis", "weight-rack", "Rack de pesas", 6000, 3800, 1500, 600, "equipment", ["pesas", "fisioterapia"]),
+      asset("bano-fis", "room", "Baño", 7000, 1400, 1200, 1500, "architecture", ["room", "use:bathroom", "fisioterapia"]),
+      asset("wc-fis", "wc", "WC", 7150, 1550, 400, 650, "equipment", ["wc", "bathroom"]),
+    ],
+    annotations: [
+      note("titulo", "Consultorio de fisioterapia — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion-fis", kind: "flow" },
+      { fromRef: "recepcion-fis", toRef: "camilla-1", kind: "flow" },
+      { fromRef: "camilla-1", toRef: "ejercicios-fis", kind: "flow" },
     ],
   },
 ];

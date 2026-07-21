@@ -293,3 +293,15 @@ assert.ok(
   searchCadSymbols("fotocopiadora").some((symbol) => symbol.id === "copier"),
   "search finds fotocopiadora",
 );
+
+// Decimoctava tanda universal (AXOS-CAD-UNIVERSAL-036): salud.
+assert.ok(
+  searchCadSymbols("camilla").some((symbol) => symbol.id === "exam-table"),
+  "search finds camilla",
+);
+assert.ok(
+  searchCadSymbols("fisioterapia").some(
+    (symbol) => symbol.id === "exam-table",
+  ),
+  "search finds fisioterapia → camilla",
+);
