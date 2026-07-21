@@ -385,6 +385,11 @@ export type CadCommandInput =
        * copia el ancho×alto del primer objeto que coincida (excluyendo a los
        * objetivos). Los números explícitos w/h tienen prioridad. */
       like?: string;
+      /** Ajuste relativo en mm: 'haz la mesa 500 más ancha' — se suma al
+       * ancho actual de cada objeto (negativo angosta). Solo aplica sin w/h. */
+      dw?: number;
+      /** Ajuste relativo en mm sobre el alto actual (negativo reduce). */
+      dh?: number;
     }
   | {
       id: "swap_objects";

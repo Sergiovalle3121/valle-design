@@ -2153,6 +2153,14 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         description:
           "Referencia por nombre: copia el ancho×alto de ese objeto.",
       },
+      dw: {
+        type: "number",
+        description: "Ajuste relativo del ancho en mm (negativo angosta).",
+      },
+      dh: {
+        type: "number",
+        description: "Ajuste relativo del alto en mm (negativo reduce).",
+      },
       target: {
         type: "string",
         description: "Objetivo por nombre (label o tipo).",
@@ -2166,6 +2174,7 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
       "cambia el tamaño de la mesa a 1500x900",
       "redimensiona la barra a 2500x600",
       "haz la mesa del tamaño del escritorio",
+      "haz la mesa 500 más ancha",
     ],
     validate: (i, c) =>
       resizeObjectPreview(

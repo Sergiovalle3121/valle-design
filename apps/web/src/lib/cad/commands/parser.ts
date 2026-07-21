@@ -341,6 +341,91 @@ export function parseCadCommand(text: string): CadParseResult {
       input: { id: "resize_object", target: cleanTarget, like },
     };
   }
+  // AGRANDAR/ACHICAR RELATIVO (AXOS-CAD-RESIZE-003): 'haz la mesa 500 más
+  // ancha' — deltas en mm sobre el tamaño actual; con % ('20% más grande')
+  // escala desde el centro vía scale_selection.
+  const growVerb = raw.match(
+    /^(?:haz(?:me|l[oa]s?)?|deja(?:me|l[oa]s?)?|pon(?:me|l[oa]s?)?)\s+(.+)$/i,
+  );
+  if (growVerb) {
+    const rest = growVerb[1]!;
+    const adjMatch = rest.match(
+      /\bm[aá]s\s+(anch[oa]s?|angost[oa]s?|estrech[oa]s?|larg[oa]s?|cort[oa]s?|alt[oa]s?|baj[oa]s?|grandes?|chic[oa]s?|peque[ñn][oa]s?)\b/i,
+    );
+    if (adjMatch) {
+      const adj = adjMatch[1]!
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+      const growTarget = () => {
+        const t = rest
+          .replace(adjMatch[0]!, " ")
+          .replace(/\b\d+(?:[.,]\d+)?\s*(?:%|mm|m\b)?/gi, " ")
+          .replace(/\ben\b/gi, " ")
+          .replace(
+            /\b(?:la\s+selecci[oó]n|lo\s+seleccionado|esto|estos\s+objetos|esos\s+objetos)\b/gi,
+            " ",
+          )
+          .replace(/\s+/g, " ")
+          .trim()
+          .replace(/^(?:(?:el|la|los|las|un|una)\s+)+/i, "")
+          .trim();
+        return t || undefined;
+      };
+      const pct = rest.match(/(\d+(?:[.,]\d+)?)\s*%/);
+      if (pct) {
+        if (!/^(grande|chic|pequen)/.test(adj))
+          return {
+            ok: false,
+            confidence: 0.6,
+            clarification:
+              "Con porcentaje solo entiendo 'más grande' o 'más chica'; para un solo lado dímelo en mm ('500 más ancha').",
+          };
+        const p = Number(pct[1]!.replace(",", "."));
+        const factor = Number(
+          (adj.startsWith("grande") ? 1 + p / 100 : 1 - p / 100).toFixed(4),
+        );
+        if (factor <= 0)
+          return {
+            ok: false,
+            confidence: 0.6,
+            clarification: "Ese porcentaje dejaría el objeto sin tamaño.",
+          };
+        return {
+          ok: true,
+          confidence: 0.84,
+          input: { id: "scale_selection", target: growTarget(), factor },
+        };
+      }
+      const num = rest.match(/(\d+(?:[.,]\d+)?)\s*(mm|m)?(?=\s|$)/i);
+      if (!num)
+        return {
+          ok: false,
+          confidence: 0.6,
+          clarification:
+            "¿Cuántos mm? (ej. 'haz la mesa 500 más ancha' o '20% más grande')",
+        };
+      const mm = Math.round(
+        Number(num[1]!.replace(",", ".")) *
+          (num[2]?.toLowerCase() === "m" ? 1000 : 1),
+      );
+      const sign = /^(angost|estrech|cort|baj|chic|pequen)/.test(adj) ? -1 : 1;
+      const dw = /^(anch|angost|estrech|larg|cort|grande|chic|pequen)/.test(adj)
+        ? sign * mm
+        : 0;
+      const dh = /^(alt|baj|grande|chic|pequen)/.test(adj) ? sign * mm : 0;
+      return {
+        ok: true,
+        confidence: 0.85,
+        input: {
+          id: "resize_object",
+          target: growTarget(),
+          dw: dw || undefined,
+          dh: dh || undefined,
+        },
+      };
+    }
+  }
   // FILA/REPETIR (AXOS-CAD-ARRAY-001): 'repite la silla 4 veces cada 600
   // a la derecha' — arreglo lineal conversacional con objetivo por nombre.
   const repeatMatch = raw.match(/^rep[ií]te(?:me|l[ao]s?)?\s+(.+)$/i);

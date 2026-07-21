@@ -2510,4 +2510,66 @@ if (rectDraftCreate?.type === "create") {
   );
 }
 
+// AGRANDAR/ACHICAR RELATIVO (AXOS-CAD-RESIZE-003): 'haz la mesa 500 más
+// ancha' — deltas en mm; '20% más grande' escala desde el centro.
+{
+  const growCtx: CadCommandContext = {
+    unit: "mm",
+    footprintW: 12000,
+    footprintH: 8000,
+    selectedIds: ["mesa"],
+    connectors: [],
+    objects: [
+      {
+        id: "mesa",
+        type: "asset",
+        kind: "dining-table-4",
+        label: "Mesa",
+        x: 1000,
+        y: 1000,
+        w: 1000,
+        h: 1000,
+      },
+    ],
+  };
+  const ancha = parseCadCommand("haz la mesa 500 más ancha");
+  assert.equal(ancha.input?.id, "resize_object", "más ancha parsea");
+  if (ancha.input?.id === "resize_object") {
+    assert.equal(ancha.input.target, "mesa", "delta: objetivo");
+    assert.equal(ancha.input.dw, 500, "delta de ancho +500");
+    assert.equal(ancha.input.dh, undefined, "alto sin tocar");
+    const p = previewCadCommand(ancha.input, growCtx);
+    assert.equal(p.issues.length, 0, "delta sin issues");
+    const op = p.operations[0];
+    if (op?.type === "move") {
+      assert.equal(op.after.w, 1500, "ancho crece 500");
+      assert.equal(op.after.h, 1000, "alto se conserva");
+      assert.equal(op.after.x, 1000, "posición se conserva");
+    }
+  }
+  const baja = parseCadCommand("hazla 300 más baja");
+  assert.equal(baja.input?.id, "resize_object", "más baja parsea");
+  if (baja.input?.id === "resize_object") {
+    assert.equal(baja.input.target, undefined, "sin nombre → selección");
+    assert.equal(baja.input.dh, -300, "delta de alto −300");
+    const p = previewCadCommand(baja.input, growCtx);
+    const op = p.operations[0];
+    if (op?.type === "move") assert.equal(op.after.h, 700, "alto baja 300");
+  }
+  const pct = parseCadCommand("haz la mesa 20% más grande");
+  assert.equal(pct.input?.id, "scale_selection", "porcentaje → escalar");
+  if (pct.input?.id === "scale_selection") {
+    assert.equal(pct.input.factor, 1.2, "factor 1.2");
+    assert.equal(pct.input.target, "mesa", "porcentaje: objetivo");
+  }
+  const tooMuch = previewCadCommand(
+    { id: "resize_object", target: "mesa", dw: -2000 },
+    growCtx,
+  );
+  assert.ok(
+    tooMuch.issues.some((i) => i.code === "resize_invalid_size"),
+    "delta que aniquila el objeto → error específico",
+  );
+}
+
 console.log("cad command registry specs passed");

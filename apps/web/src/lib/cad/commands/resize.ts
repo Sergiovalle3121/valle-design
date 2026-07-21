@@ -3,7 +3,9 @@
  * 1500x900' — fija ancho×alto exactos en mm conservando la esquina superior
  * izquierda. Emite ops move (before/after) para que el editor y el undo lo
  * traten igual que un arrastre. Con `like` (AXOS-CAD-RESIZE-002: 'haz la
- * mesa del tamaño del escritorio') copia el w×h de la referencia.
+ * mesa del tamaño del escritorio') copia el w×h de la referencia. Con
+ * `dw`/`dh` (AXOS-CAD-RESIZE-003: 'haz la mesa 500 más ancha') ajusta en
+ * mm relativos sobre el tamaño actual de cada objeto.
  */
 import { matchObjectsByName, resolveCommandTargets } from "./targets";
 import type {
@@ -64,6 +66,35 @@ export function resizeObjectPreview(
     w = ref.w;
     h = ref.h;
     refLabel = ref.label;
+  }
+  const dw = Number.isFinite(input.dw) ? Math.round(input.dw as number) : 0;
+  const dh = Number.isFinite(input.dh) ? Math.round(input.dh as number) : 0;
+  if (w === undefined && h === undefined && (dw !== 0 || dh !== 0)) {
+    const bad = objs.find((o) => o.w + dw <= 0 || o.h + dh <= 0);
+    if (bad) {
+      issues.push(
+        error(
+          "resize_invalid_size",
+          `'${bad.label}' quedaría sin tamaño con ese ajuste; usa un valor menor.`,
+        ),
+      );
+      return { summary: "", affectedObjectIds: [], operations: [], issues };
+    }
+    const parts = [
+      dw !== 0 ? `${dw > 0 ? "+" : ""}${dw} mm de ancho` : "",
+      dh !== 0 ? `${dh > 0 ? "+" : ""}${dh} mm de alto` : "",
+    ].filter(Boolean);
+    return {
+      summary: `Ajustar ${objs.length} objeto(s): ${parts.join(" y ")}.`,
+      affectedObjectIds: objs.map((o) => o.id),
+      operations: objs.map((o) => ({
+        type: "move",
+        objectId: o.id,
+        before: o,
+        after: { ...o, w: o.w + dw, h: o.h + dh },
+      })),
+      issues,
+    };
   }
   if (
     (w !== undefined && w <= 0) ||
