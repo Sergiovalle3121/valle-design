@@ -20,6 +20,8 @@ export type CadCommandId =
   | "array_along_flow"
   | "offset_object"
   | "mirror_selection"
+  | "rotate_selection"
+  | "scale_selection"
   | "extend_wall"
   | "trim_wall"
   | "chamfer_walls"
@@ -214,6 +216,18 @@ export type CadCommandInput =
       at?: number;
       /** Default true: conserva originales y crea copias "(espejo)". */
       copy?: boolean;
+    }
+  | {
+      id: "rotate_selection";
+      objectIds?: string[];
+      /** Grados, positivo antihorario; gira alrededor del centro del conjunto. */
+      angle: number;
+    }
+  | {
+      id: "scale_selection";
+      objectIds?: string[];
+      /** Factor > 0 y ≠ 1; escala tamaños y posiciones desde el centro. */
+      factor: number;
     }
   | {
       id: "extend_wall";

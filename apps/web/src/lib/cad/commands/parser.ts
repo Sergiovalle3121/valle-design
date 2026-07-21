@@ -325,6 +325,43 @@ export function parseCadCommand(text: string): CadParseResult {
       input: { id: "create_zone_around", margin },
     };
   }
+  if (/(rota|gira|rotate)/.test(q) && !/(ruta|rotación de inventario)/.test(q)) {
+    const m = q.match(/(-?\d+(?:[.,]\d+)?)\s*(?:°|grados|deg)?/);
+    const angle = m ? Number(m[1].replace(",", ".")) : NaN;
+    if (!Number.isFinite(angle) || angle === 0) {
+      return {
+        ok: false,
+        confidence: 0.6,
+        clarification: "¿Cuántos grados giro la selección? (p. ej. 90 o -45)",
+      };
+    }
+    return {
+      ok: true,
+      confidence: 0.85,
+      input: { id: "rotate_selection", angle },
+    };
+  }
+  if (/(escala|scale|agranda|reduce)/.test(q)) {
+    const pct = q.match(/(\d+(?:[.,]\d+)?)\s*%/);
+    const num = q.match(/(?:por|x|×)?\s*(\d+(?:[.,]\d+)?)/);
+    const factor = pct
+      ? Number(pct[1].replace(",", ".")) / 100
+      : num
+        ? Number(num[1].replace(",", "."))
+        : NaN;
+    if (!Number.isFinite(factor) || factor <= 0 || factor === 1) {
+      return {
+        ok: false,
+        confidence: 0.6,
+        clarification: "¿Con qué factor escalo? (p. ej. 2, 0.5 o 150%)",
+      };
+    }
+    return {
+      ok: true,
+      confidence: 0.84,
+      input: { id: "scale_selection", factor },
+    };
+  }
   if (/(espejo|espejea|mirror|refleja)/.test(q)) {
     const axis = /horizontal/.test(q)
       ? ("horizontal" as const)

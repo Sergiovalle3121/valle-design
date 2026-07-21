@@ -38,6 +38,10 @@ import {
   trimWallPreview,
 } from "./wall-edit";
 import { mirrorSelectionPreview } from "./mirror";
+import {
+  rotateSelectionPreview,
+  scaleSelectionPreview,
+} from "./transform";
 
 const ok = (issues: ReturnType<CadCommandDefinition["validate"]>) =>
   !issues.some((i) => i.level === "error");
@@ -1649,6 +1653,76 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     execute: (i, c) => {
       const p = mirrorSelectionPreview(
         i as Extract<CadCommandInput, { id: "mirror_selection" }>,
+        c,
+      );
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
+    id: "rotate_selection",
+    label: "Rotar selección",
+    category: "layout",
+    description:
+      "Gira la selección N grados alrededor de su centro (ROTATE de AutoCAD).",
+    inputSchema: {
+      angle: {
+        type: "number",
+        description: "Grados; positivo antihorario (p. ej. 90 o -45).",
+      },
+      objectIds: {
+        type: "string[]",
+        description: "Alternativa: objetos seleccionados.",
+      },
+    },
+    examples: ["gira 90 la selección", "rota -45"],
+    validate: (i, c) =>
+      rotateSelectionPreview(
+        i as Extract<CadCommandInput, { id: "rotate_selection" }>,
+        c,
+      ).issues,
+    preview: (i, c) =>
+      rotateSelectionPreview(
+        i as Extract<CadCommandInput, { id: "rotate_selection" }>,
+        c,
+      ),
+    execute: (i, c) => {
+      const p = rotateSelectionPreview(
+        i as Extract<CadCommandInput, { id: "rotate_selection" }>,
+        c,
+      );
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
+    id: "scale_selection",
+    label: "Escalar selección",
+    category: "layout",
+    description:
+      "Escala tamaños y posiciones de la selección desde su centro (SCALE de AutoCAD).",
+    inputSchema: {
+      factor: {
+        type: "number",
+        description: "Factor > 0 (p. ej. 2 duplica, 0.5 reduce a la mitad).",
+      },
+      objectIds: {
+        type: "string[]",
+        description: "Alternativa: objetos seleccionados.",
+      },
+    },
+    examples: ["escala 2 la selección", "escala al 150%"],
+    validate: (i, c) =>
+      scaleSelectionPreview(
+        i as Extract<CadCommandInput, { id: "scale_selection" }>,
+        c,
+      ).issues,
+    preview: (i, c) =>
+      scaleSelectionPreview(
+        i as Extract<CadCommandInput, { id: "scale_selection" }>,
+        c,
+      ),
+    execute: (i, c) => {
+      const p = scaleSelectionPreview(
+        i as Extract<CadCommandInput, { id: "scale_selection" }>,
         c,
       );
       return result(p, ok(p.issues), p.summary);
