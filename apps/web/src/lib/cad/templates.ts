@@ -14,7 +14,8 @@ export type CadLayoutTemplateId =
   | "casa-habitacion"
   | "local-comercial"
   | "consultorio"
-  | "restaurante";
+  | "restaurante"
+  | "aula-escolar";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -508,6 +509,38 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     connectors: [
       { fromRef: "entrada", toRef: "comedor", kind: "flow" },
       { fromRef: "cocina", toRef: "comedor", kind: "material" },
+    ],
+  },
+  {
+    id: "aula-escolar",
+    label: "Aula escolar",
+    description: "Arranque universal de salón de clases: pizarrón al frente, escritorio del profesor y retícula de 12 pupitres.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 7000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 5600, "architecture", ["architecture", "shell", "aula"]),
+      asset("entrada", "door", "Entrada", 1200, 650, 900, 260, "architecture", ["door", "opening:main"]),
+      asset("pizarron", "whiteboard", "Pizarrón", 2800, 1000, 2400, 100, "equipment", ["whiteboard", "escuela"]),
+      asset("profesor", "furniture", "Escritorio del profesor", 6200, 1300, 1200, 600, "equipment", ["furniture", "desk", "profesor"]),
+      asset("pupitre-1", "school-desk", "Pupitre", 2000, 2600, 600, 500, "equipment", ["furniture", "pupitre"]),
+      asset("pupitre-2", "school-desk", "Pupitre", 3800, 2600, 600, 500, "equipment", ["furniture", "pupitre"]),
+      asset("pupitre-3", "school-desk", "Pupitre", 5600, 2600, 600, 500, "equipment", ["furniture", "pupitre"]),
+      asset("pupitre-4", "school-desk", "Pupitre", 2000, 3400, 600, 500, "equipment", ["furniture", "pupitre"]),
+      asset("pupitre-5", "school-desk", "Pupitre", 3800, 3400, 600, 500, "equipment", ["furniture", "pupitre"]),
+      asset("pupitre-6", "school-desk", "Pupitre", 5600, 3400, 600, 500, "equipment", ["furniture", "pupitre"]),
+      asset("pupitre-7", "school-desk", "Pupitre", 2000, 4200, 600, 500, "equipment", ["furniture", "pupitre"]),
+      asset("pupitre-8", "school-desk", "Pupitre", 3800, 4200, 600, 500, "equipment", ["furniture", "pupitre"]),
+      asset("pupitre-9", "school-desk", "Pupitre", 5600, 4200, 600, 500, "equipment", ["furniture", "pupitre"]),
+      asset("pupitre-10", "school-desk", "Pupitre", 2000, 5000, 600, 500, "equipment", ["furniture", "pupitre"]),
+      asset("pupitre-11", "school-desk", "Pupitre", 3800, 5000, 600, 500, "equipment", ["furniture", "pupitre"]),
+      asset("pupitre-12", "school-desk", "Pupitre", 5600, 5000, 600, 500, "equipment", ["furniture", "pupitre"]),
+    ],
+    annotations: [
+      note("titulo", "Aula escolar — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "pizarron", kind: "flow" },
     ],
   },
 ];
