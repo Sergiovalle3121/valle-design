@@ -1155,6 +1155,37 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["asador", "parrilla", "grill", "taquería", "taqueria", "jardín", "jardin", "carne asada"],
     ports: [],
   },
+  // — Vigesimoquinta tanda universal (AXOS-CAD-UNIVERSAL-054): autolavado y taller —
+  {
+    id: "vacuum-cleaner",
+    label: "Aspiradora",
+    category: "equipment",
+    defaultWidth: 450,
+    defaultHeight: 450,
+    layer: "Furniture",
+    tags: ["aspiradora", "vacuum", "autolavado", "limpieza"],
+    ports: [],
+  },
+  {
+    id: "pressure-washer",
+    label: "Hidrolavadora",
+    category: "equipment",
+    defaultWidth: 500,
+    defaultHeight: 400,
+    layer: "Furniture",
+    tags: ["hidrolavadora", "pressure washer", "autolavado", "lavado", "taller"],
+    ports: [],
+  },
+  {
+    id: "traffic-cone",
+    label: "Cono de tráfico",
+    category: "safety",
+    defaultWidth: 300,
+    defaultHeight: 300,
+    layer: "Furniture",
+    tags: ["cono", "tráfico", "trafico", "seguridad", "obra", "estacionamiento"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {

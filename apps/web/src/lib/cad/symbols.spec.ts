@@ -397,3 +397,21 @@ assert.ok(
   searchCadSymbols("parrilla").some((symbol) => symbol.id === "grill"),
   "search finds parrilla",
 );
+
+// Vigesimoquinta tanda universal (AXOS-CAD-UNIVERSAL-054): autolavado.
+assert.ok(
+  searchCadSymbols("aspiradora").some(
+    (symbol) => symbol.id === "vacuum-cleaner",
+  ),
+  "search finds aspiradora",
+);
+assert.ok(
+  searchCadSymbols("hidrolavadora").some(
+    (symbol) => symbol.id === "pressure-washer",
+  ),
+  "search finds hidrolavadora",
+);
+assert.ok(
+  searchCadSymbols("cono").some((symbol) => symbol.id === "traffic-cone"),
+  "search finds cono de tráfico",
+);
