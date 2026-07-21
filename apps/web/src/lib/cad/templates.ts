@@ -36,7 +36,8 @@ export type CadLayoutTemplateId =
   | "salon-fiestas"
   | "iglesia"
   | "minisuper"
-  | "taqueria";
+  | "taqueria"
+  | "carniceria";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1203,6 +1204,35 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "mostrador-togo", kind: "flow" },
       { fromRef: "comal", toRef: "barra-tacos", kind: "material" },
       { fromRef: "barra-tacos", toRef: "mesa-taq-1", kind: "flow" },
+    ],
+  },
+  {
+    id: "carniceria",
+    label: "Carnicería",
+    description: "Arranque universal de carnicería: vitrina de cortes con báscula y mostrador, dos congeladores y refrigerador, cuarto frío y mesa de corte.",
+    category: "architecture",
+    baseWidth: 11000,
+    baseHeight: 7000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 9600, 5600, "architecture", ["architecture", "shell", "carniceria"]),
+      asset("entrada", "door", "Entrada", 4500, 650, 1000, 260, "architecture", ["door", "opening:entry"]),
+      asset("area-atencion", "zone", "Área de atención", 1300, 1300, 4000, 2200, "layout", ["zone", "use:service", "carniceria"]),
+      asset("vitrina-cortes", "display-case", "Vitrina de cortes", 1500, 1500, 2000, 600, "equipment", ["vitrina", "carniceria"]),
+      asset("bascula-carn", "scale", "Báscula", 3700, 1500, 500, 500, "equipment", ["bascula", "carniceria"]),
+      asset("mostrador-carn", "counter", "Mostrador", 1500, 2600, 2600, 600, "equipment", ["counter", "carniceria"]),
+      asset("congelador-1", "freezer", "Congelador 1", 6000, 1300, 1500, 700, "equipment", ["congelador", "carniceria"]),
+      asset("congelador-2", "freezer", "Congelador 2", 7700, 1300, 1500, 700, "equipment", ["congelador", "carniceria"]),
+      asset("refri-carn", "refrigerator", "Refrigerador", 9300, 1300, 800, 700, "equipment", ["refrigerador", "carniceria"]),
+      asset("mesa-corte", "workbench", "Mesa de corte", 3000, 4500, 1800, 750, "equipment", ["mesa", "corte", "carniceria"]),
+      asset("cuarto-frio", "room", "Cuarto frío", 6000, 4200, 2600, 1900, "architecture", ["room", "use:coldroom", "carniceria"]),
+    ],
+    annotations: [
+      note("titulo", "Carnicería — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "mostrador-carn", kind: "flow" },
+      { fromRef: "cuarto-frio", toRef: "mesa-corte", kind: "material" },
+      { fromRef: "mesa-corte", toRef: "vitrina-cortes", kind: "material" },
     ],
   },
 ];
