@@ -223,4 +223,53 @@ const ctx = {
   assert.equal(belowOp.object.x, 3000, "debajo alinea la x");
 }
 
+// Uno por coincidencia (AXOS-CAD-PLACE-006): 'pon una silla junto a cada mesa'.
+{
+  const parsed = parseCadCommand("pon una silla junto a cada mesa");
+  assert.equal(parsed.input?.id, "place_symbol", "junto a cada es place");
+  if (parsed.input?.id === "place_symbol") {
+    assert.equal(parsed.input.anchor, "mesa", "ancla sin 'cada'");
+    assert.equal(parsed.input.anchorEach, true, "modo cada del parser");
+  }
+  const mesasCtx = {
+    unit: "mm",
+    footprintW: 20000,
+    footprintH: 10000,
+    objects: [
+      {
+        id: "m1",
+        type: "asset",
+        kind: "dining-table-4",
+        label: "Mesa 1",
+        x: 2000,
+        y: 2000,
+        w: 1200,
+        h: 1200,
+      },
+      {
+        id: "m2",
+        type: "asset",
+        kind: "dining-table-4",
+        label: "Mesa 2",
+        x: 6000,
+        y: 2000,
+        w: 1200,
+        h: 1200,
+      },
+    ],
+    selectedIds: [],
+  } as unknown as CadCommandContext;
+  const out = placeSymbolPreview(
+    { id: "place_symbol", query: "silla", anchor: "mesa", anchorEach: true },
+    mesasCtx,
+  );
+  assert.equal(out.issues.length, 0, "cada mesa sin issues");
+  assert.equal(out.operations.length, 2, "una silla por cada mesa");
+  const first = out.operations[0] as { object: { x: number; y: number } };
+  const second = out.operations[1] as { object: { x: number; y: number } };
+  assert.equal(first.object.x, 2000 + 1200 + 100, "primera junto a Mesa 1");
+  assert.equal(second.object.x, 6000 + 1200 + 100, "segunda junto a Mesa 2");
+  assert.equal(first.object.y, 2000, "misma altura que su mesa");
+}
+
 console.log("cad place-symbol specs passed");

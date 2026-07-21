@@ -478,13 +478,17 @@ export function parseCadCommand(text: string): CadParseResult {
     );
     let anchor: string | undefined;
     let anchorSide: "left" | "right" | "above" | "below" | undefined;
+    let anchorEach: boolean | undefined;
     if (anchorMatch) {
+      let anchorResidue = anchorMatch[2]!.replace(/\s+/g, " ").trim();
+      // 'junto a cada mesa' (AXOS-CAD-PLACE-006): uno por coincidencia.
+      if (/^cada\s+/i.test(anchorResidue)) {
+        anchorEach = true;
+        anchorResidue = anchorResidue.replace(/^cada\s+/i, "");
+      }
       anchor =
-        anchorMatch[2]!
-          .replace(/\s+/g, " ")
-          .trim()
-          .replace(/^(?:el|la|los|las|un|una)\s+/i, "")
-          .trim() || undefined;
+        anchorResidue.replace(/^(?:el|la|los|las|un|una)\s+/i, "").trim() ||
+        undefined;
       const phrase = anchorMatch[1]!;
       anchorSide = /izquierda/i.test(phrase)
         ? "left"
@@ -515,6 +519,7 @@ export function parseCadCommand(text: string): CadParseResult {
         gap: rowGap,
         anchor,
         anchorSide,
+        anchorEach,
       },
     };
   }

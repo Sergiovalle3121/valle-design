@@ -2268,6 +2268,11 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         enum: ["left", "right", "above", "below"],
         description: "Lado del ancla (default right).",
       },
+      anchorEach: {
+        type: "enum",
+        enum: ["true", "false"],
+        description: "Una pieza por cada coincidencia del ancla.",
+      },
     },
     examples: [
       "pon una puerta",
@@ -2275,6 +2280,7 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
       "pon 3 sillas en fila cada 200",
       "pon una silla junto a la mesa",
       "pon un lavacabezas a la izquierda del tocador",
+      "pon una silla junto a cada mesa",
     ],
     validate: (i, c) =>
       placeSymbolPreview(

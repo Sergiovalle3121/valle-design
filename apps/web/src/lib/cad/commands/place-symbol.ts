@@ -73,21 +73,56 @@ export function placeSymbolPreview(
   // derecha del ancla; 'a la izquierda de' termina la fila en el ancla;
   // 'arriba/debajo de' alinean x. Coordenadas explícitas ganan siempre.
   const anchorQuery = input.anchor?.trim();
-  let anchorBox: { x: number; y: number; w: number; h: number } | undefined;
-  if (anchorQuery) {
-    const anchors = matchObjectsByName(context, anchorQuery);
-    if (!anchors.length) {
-      issues.push(
-        error(
-          "place_anchor_not_found",
-          `No encontré '${anchorQuery}' para colocar junto a él.`,
-        ),
-      );
-      return { summary: "", affectedObjectIds: [], operations: [], issues };
-    }
-    anchorBox = anchors[0];
+  const anchors = anchorQuery ? matchObjectsByName(context, anchorQuery) : [];
+  if (anchorQuery && !anchors.length) {
+    issues.push(
+      error(
+        "place_anchor_not_found",
+        `No encontré '${anchorQuery}' para colocar junto a él.`,
+      ),
+    );
+    return { summary: "", affectedObjectIds: [], operations: [], issues };
   }
   const side = input.anchorSide ?? "right";
+  // 'junto a cada mesa' (AXOS-CAD-PLACE-006): una pieza por coincidencia,
+  // respetando el lado; ignora count/coordenadas (no aplican al modo cada).
+  if (input.anchorEach && anchors.length) {
+    const eachRotation = Number.isFinite(input.rotation)
+      ? normalizeDeg(input.rotation as number)
+      : undefined;
+    const eachOps: CadOperation[] = anchors.map((a, i) => ({
+      type: "create",
+      object: {
+        kind: symbol.id,
+        type: "asset",
+        label: anchors.length > 1 ? `${symbol.label} ${i + 1}` : symbol.label,
+        x: Math.round(
+          side === "left"
+            ? a.x - gap - symbol.defaultWidth
+            : side === "right"
+              ? a.x + a.w + gap
+              : a.x,
+        ),
+        y: Math.round(
+          side === "above"
+            ? a.y - gap - symbol.defaultHeight
+            : side === "below"
+              ? a.y + a.h + gap
+              : a.y,
+        ),
+        w: symbol.defaultWidth,
+        h: symbol.defaultHeight,
+        rotation: eachRotation,
+      },
+    }));
+    return {
+      summary: `${anchors.length} × ${symbol.label} — uno junto a cada '${anchorQuery}'.`,
+      affectedObjectIds: anchors.map((a) => a.id),
+      operations: eachOps,
+      issues,
+    };
+  }
+  const anchorBox = anchors[0];
   const anchorX = anchorBox
     ? side === "left"
       ? anchorBox.x - gap - totalW

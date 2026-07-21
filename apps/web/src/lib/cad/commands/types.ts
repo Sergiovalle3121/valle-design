@@ -279,6 +279,8 @@ export type CadCommandInput =
       anchor?: string;
       /** Lado del ancla; 'a la izquierda de', 'arriba de' (default right). */
       anchorSide?: "left" | "right" | "above" | "below";
+      /** 'junto a cada mesa': una pieza por cada coincidencia del ancla. */
+      anchorEach?: boolean;
     }
   | {
       id: "rotate_selection";
