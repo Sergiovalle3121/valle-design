@@ -524,6 +524,28 @@ export function parseCadCommand(text: string): CadParseResult {
   if (/\b(ayuda|help|comandos)\b/.test(q) || /qu[eé] puedes hacer/.test(q)) {
     return { ok: true, confidence: 0.9, input: { id: "help_commands" } };
   }
+  if (/\b(imprime|imprimir|plotea|plot|exporta|exportar|descarga|descargar)\b/.test(q)) {
+    const format = /\bdxf\b/.test(q)
+      ? ("dxf" as const)
+      : /\b(png|imagen)\b/.test(q)
+        ? ("png" as const)
+        : /\b(glb|3d|blender)\b/.test(q)
+          ? ("glb" as const)
+          : ("pdf" as const);
+    const paperMatch = q.match(/\b(a[0-4])\b/);
+    const paper = paperMatch
+      ? paperMatch[1].toUpperCase()
+      : /\bcarta\b/.test(q)
+        ? "letter"
+        : /\btabloide\b/.test(q)
+          ? "tabloid"
+          : undefined;
+    return {
+      ok: true,
+      confidence: 0.86,
+      input: { id: "studio_export", format, paper },
+    };
+  }
   if (/^(deshaz|deshacer|undo)\b/.test(q)) {
     return { ok: true, confidence: 0.9, input: { id: "history_step", action: "undo" } };
   }

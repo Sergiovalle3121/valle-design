@@ -4163,6 +4163,21 @@ export default function Layout3DEditor({
       // 'deshaz' / 'rehaz' (AXOS-CAD-UNDO-001): el mismo historial de Ctrl+Z.
       if (op.action === 'undo') undo(); else redo();
       return true;
+    } else if (op.type === 'studio_export') {
+      // 'imprime en a3' (AXOS-CAD-PLOT-003): dispara el export real; el papel
+      // pedido se sincroniza al selector y se pasa directo (el estado es async).
+      if (op.format === 'pdf') {
+        const paper = op.paper as CadPaperId | undefined;
+        if (paper) setPlotPaper(paper);
+        void exportPdf(paper);
+      } else if (op.format === 'dxf') {
+        void exportDxf();
+      } else if (op.format === 'png') {
+        exportPng();
+      } else {
+        void exportGltf();
+      }
+      return true;
     } else if (op.type === 'clear_annotations') {
       // Limpieza conversacional (AXOS-CAD-CLEAN-001): mismo contrato que el
       // botón de limpiar cotas — si no había nada que quitar, no aplica.
@@ -4558,7 +4573,7 @@ export default function Layout3DEditor({
     a.click();
   };
   // Plot a printable PDF sheet: the rendered view + a title block (Fase 65).
-  const exportPdf = async () => {
+  const exportPdf = async (paperOverride?: CadPaperId) => {
     const r = rendererRef.current, sc = sceneRef.current, cam = cameraRef.current, fp = data?.footprint;
     if (!r || !sc || !cam || !fp) return;
     try {
@@ -4589,7 +4604,7 @@ export default function Layout3DEditor({
       const plot = buildPlotSheet({
         drawingW: wMm,
         drawingH: hMm,
-        paper: plotPaper,
+        paper: paperOverride ?? plotPaper,
         orientation: wMm >= hMm ? 'landscape' : 'portrait',
         project: `Layout ${model}`,
         drawnBy: 'AXOS OS',
@@ -5367,7 +5382,7 @@ export default function Layout3DEditor({
             <option key={id} value={id} className="bg-gray-900">{CAD_PAPER_SIZES[id].label}</option>
           ))}
         </select>
-        <T3Btn onClick={exportPdf} title="Imprimir plano a PDF — hoja a escala estándar con cajetín + vista 3D"><Printer className="w-4 h-4" /></T3Btn>
+        <T3Btn onClick={() => exportPdf()} title="Imprimir plano a PDF — hoja a escala estándar con cajetín + vista 3D"><Printer className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={exportPng} title="Exportar imagen (PNG)"><Download className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={exportGltf} title="Exportar modelo 3D (.glb) — Blender, otros CAD"><Package className="w-4 h-4" /></T3Btn>
         <input ref={dxfInputRef} type="file" accept=".dxf,.dwg" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onDxfFile(f); e.target.value = ''; }} />
@@ -6204,7 +6219,7 @@ export default function Layout3DEditor({
                   <pre className="max-h-52 overflow-auto whitespace-pre-wrap rounded-lg bg-black/30 p-2 text-[10.5px] leading-relaxed text-cyan-50/80">{JSON.stringify(sheetPackageManifest, null, 2)}</pre>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <button onClick={exportPdf} className="rounded-xl bg-white px-3 py-2 text-[12px] font-semibold text-gray-900 hover:bg-cyan-50">Exportar PDF</button>
+                  <button onClick={() => exportPdf()} className="rounded-xl bg-white px-3 py-2 text-[12px] font-semibold text-gray-900 hover:bg-cyan-50">Exportar PDF</button>
                   <button onClick={openDxfExport} className="rounded-xl bg-cyan-600 px-3 py-2 text-[12px] font-semibold text-white hover:bg-cyan-500">Preparar DXF</button>
                 </div>
               </div>

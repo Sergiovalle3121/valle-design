@@ -59,7 +59,30 @@ assert.equal(
   CAD_COMMAND_REGISTRY.length,
   "registry ids are unique",
 );
-assert.equal(CAD_COMMAND_REGISTRY.length, 38, "registry exposes 38 commands");
+assert.equal(CAD_COMMAND_REGISTRY.length, 39, "registry exposes 39 commands");
+
+// Imprimir/Exportar (AXOS-CAD-PLOT-003): formato y papel desde la frase.
+{
+  const printed = parseCadCommand("imprime en a3");
+  assert.equal(printed.input?.id, "studio_export", "imprime parsea");
+  if (printed.input?.id === "studio_export") {
+    assert.equal(printed.input.format, "pdf", "default pdf");
+    assert.equal(printed.input.paper, "A3", "papel A3 de la frase");
+  }
+  const dxf = parseCadCommand("exporta el dxf");
+  if (dxf.input?.id === "studio_export") {
+    assert.equal(dxf.input.format, "dxf", "formato dxf");
+    assert.equal(dxf.input.paper, undefined, "sin papel");
+  }
+  const carta = parseCadCommand("imprime en carta");
+  if (carta.input?.id === "studio_export") {
+    assert.equal(carta.input.paper, "letter", "carta → letter");
+  }
+  const p = previewCadCommand({ id: "studio_export", format: "pdf", paper: "A3" }, ctx);
+  const op = p.operations[0];
+  assert.equal(op.type, "studio_export", "emite studio_export");
+  if (op.type === "studio_export") assert.equal(op.paper, "A3", "papel en la op");
+}
 
 // Deshacer conversacional (AXOS-CAD-UNDO-001).
 {

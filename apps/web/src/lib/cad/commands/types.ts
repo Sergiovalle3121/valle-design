@@ -31,6 +31,7 @@ export type CadCommandId =
   | "help_commands"
   | "clear_annotations"
   | "history_step"
+  | "studio_export"
   | "add_label"
   | "extend_wall"
   | "trim_wall"
@@ -107,6 +108,12 @@ export type CadOperation =
   | { type: "delete"; objectId: string }
   | { type: "clear_annotations"; kind: "dims" | "notes" | "all" }
   | { type: "history"; action: "undo" | "redo" }
+  | {
+      type: "studio_export";
+      format: "pdf" | "dxf" | "png" | "glb";
+      /** Papel para el PDF (A0-A4, letter, tabloid); default el del selector. */
+      paper?: string;
+    }
   | {
       type: "annotate";
       annotation:
@@ -309,6 +316,12 @@ export type CadCommandInput =
       id: "history_step";
       /** 'deshaz' / 'rehaz' del historial del estudio. */
       action: "undo" | "redo";
+    }
+  | {
+      id: "studio_export";
+      /** 'imprime en a3', 'exporta el dxf', 'exporta png', 'exporta 3d'. */
+      format?: "pdf" | "dxf" | "png" | "glb";
+      paper?: string;
     }
   | {
       id: "add_label";

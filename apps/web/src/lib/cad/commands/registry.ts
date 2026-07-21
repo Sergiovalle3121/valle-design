@@ -1795,6 +1795,46 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     },
   },
   {
+    id: "studio_export",
+    label: "Imprimir / Exportar",
+    category: "viewport",
+    description:
+      "'imprime en a3' genera el PDF a escala en ese papel; 'exporta el dxf/png/3d' descarga en el formato pedido.",
+    inputSchema: {
+      format: {
+        type: "enum",
+        enum: ["pdf", "dxf", "png", "glb"],
+        description: "Formato de salida (default pdf).",
+      },
+      paper: {
+        type: "enum",
+        enum: ["A0", "A1", "A2", "A3", "A4", "letter", "tabloid"],
+        description: "Papel para el PDF; default el del selector.",
+      },
+    },
+    examples: ["imprime en a3", "exporta el dxf"],
+    validate: () => [],
+    preview: (i) => {
+      const input = i as Extract<CadCommandInput, { id: "studio_export" }>;
+      const format = input.format ?? "pdf";
+      return {
+        summary:
+          format === "pdf"
+            ? `Imprimir el plano a PDF${input.paper ? ` en ${input.paper}` : ""}.`
+            : `Exportar el plano a ${format.toUpperCase()}.`,
+        affectedObjectIds: [],
+        operations: [
+          { type: "studio_export", format, paper: input.paper },
+        ],
+        issues: [],
+      };
+    },
+    execute: (i, c) => {
+      const p = CAD_COMMAND_REGISTRY.find((d) => d.id === "studio_export")!.preview(i, c);
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
     id: "history_step",
     label: "Deshacer / Rehacer",
     category: "viewport",
