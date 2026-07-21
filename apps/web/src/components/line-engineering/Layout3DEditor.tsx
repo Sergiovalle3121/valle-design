@@ -4159,6 +4159,10 @@ export default function Layout3DEditor({
       setDimCount([...annotationsRef.current.values()].filter((ann) => ann.type === 'dim').length);
       refreshMeasurementRows();
       return true;
+    } else if (op.type === 'history') {
+      // 'deshaz' / 'rehaz' (AXOS-CAD-UNDO-001): el mismo historial de Ctrl+Z.
+      if (op.action === 'undo') undo(); else redo();
+      return true;
     } else if (op.type === 'clear_annotations') {
       // Limpieza conversacional (AXOS-CAD-CLEAN-001): mismo contrato que el
       // botón de limpiar cotas — si no había nada que quitar, no aplica.

@@ -59,7 +59,20 @@ assert.equal(
   CAD_COMMAND_REGISTRY.length,
   "registry ids are unique",
 );
-assert.equal(CAD_COMMAND_REGISTRY.length, 37, "registry exposes 37 commands");
+assert.equal(CAD_COMMAND_REGISTRY.length, 38, "registry exposes 38 commands");
+
+// Deshacer conversacional (AXOS-CAD-UNDO-001).
+{
+  const parsedUndo = parseCadCommand("deshaz");
+  assert.equal(parsedUndo.input?.id, "history_step", "deshaz parsea");
+  if (parsedUndo.input?.id === "history_step") {
+    assert.equal(parsedUndo.input.action, "undo", "acción undo");
+  }
+  const p = previewCadCommand({ id: "history_step", action: "redo" }, ctx);
+  const op = p.operations[0];
+  assert.equal(op.type, "history", "emite operación history");
+  if (op.type === "history") assert.equal(op.action, "redo", "acción redo");
+}
 
 // Cadenas (AXOS-CAD-CHAIN-001): separadores explícitos; ' y ' pelón NO corta.
 {

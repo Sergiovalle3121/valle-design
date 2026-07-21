@@ -30,6 +30,7 @@ export type CadCommandId =
   | "select_objects"
   | "help_commands"
   | "clear_annotations"
+  | "history_step"
   | "add_label"
   | "extend_wall"
   | "trim_wall"
@@ -105,6 +106,7 @@ export type CadOperation =
   | { type: "create"; object: CadDraftObject }
   | { type: "delete"; objectId: string }
   | { type: "clear_annotations"; kind: "dims" | "notes" | "all" }
+  | { type: "history"; action: "undo" | "redo" }
   | {
       type: "annotate";
       annotation:
@@ -302,6 +304,11 @@ export type CadCommandInput =
       id: "clear_annotations";
       /** Qué limpiar: cotas (dims), notas (notes) o todo; default dims. */
       kind?: "dims" | "notes" | "all";
+    }
+  | {
+      id: "history_step";
+      /** 'deshaz' / 'rehaz' del historial del estudio. */
+      action: "undo" | "redo";
     }
   | {
       id: "add_label";

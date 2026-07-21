@@ -1795,6 +1795,39 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     },
   },
   {
+    id: "history_step",
+    label: "Deshacer / Rehacer",
+    category: "viewport",
+    description:
+      "'deshaz' revierte el último cambio y 'rehaz' lo vuelve a aplicar — el mismo historial que Ctrl+Z.",
+    inputSchema: {
+      action: {
+        type: "enum",
+        enum: ["undo", "redo"],
+        required: true,
+        description: "undo deshace, redo rehace.",
+      },
+    },
+    examples: ["deshaz", "rehaz"],
+    validate: () => [],
+    preview: (i) => {
+      const input = i as Extract<CadCommandInput, { id: "history_step" }>;
+      return {
+        summary:
+          input.action === "undo"
+            ? "Deshacer el último cambio."
+            : "Rehacer el cambio deshecho.",
+        affectedObjectIds: [],
+        operations: [{ type: "history", action: input.action }],
+        issues: [],
+      };
+    },
+    execute: (i, c) => {
+      const p = CAD_COMMAND_REGISTRY.find((d) => d.id === "history_step")!.preview(i, c);
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
     id: "help_commands",
     label: "Ayuda",
     category: "viewport",

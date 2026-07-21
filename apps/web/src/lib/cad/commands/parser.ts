@@ -524,6 +524,12 @@ export function parseCadCommand(text: string): CadParseResult {
   if (/\b(ayuda|help|comandos)\b/.test(q) || /qu[eé] puedes hacer/.test(q)) {
     return { ok: true, confidence: 0.9, input: { id: "help_commands" } };
   }
+  if (/^(deshaz|deshacer|undo)\b/.test(q)) {
+    return { ok: true, confidence: 0.9, input: { id: "history_step", action: "undo" } };
+  }
+  if (/^(rehaz|rehacer|redo)\b/.test(q)) {
+    return { ok: true, confidence: 0.9, input: { id: "history_step", action: "redo" } };
+  }
   if (/\b(selecciona|seleccionar|resalta|resaltar|elige|escoge)\b/.test(q)) {
     const query = q
       .replace(/^.*?\b(?:selecciona|seleccionar|resalta|resaltar|elige|escoge)\b\s*/, "")
