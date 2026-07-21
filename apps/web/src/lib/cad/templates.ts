@@ -30,7 +30,8 @@ export type CadLayoutTemplateId =
   | "guarderia"
   | "ferreteria"
   | "habitacion-hotel"
-  | "consultorio-dental";
+  | "consultorio-dental"
+  | "estacionamiento";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1010,6 +1011,36 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "recepcion-dental", kind: "flow" },
       { fromRef: "recepcion-dental", toRef: "clinica-dental", kind: "flow" },
       { fromRef: "clinica-dental", toRef: "esterilizacion", kind: "flow" },
+    ],
+  },
+  {
+    id: "estacionamiento",
+    label: "Estacionamiento",
+    description: "Arranque universal de estacionamiento: acceso, caseta de cobro, ocho cajones en dos filas y pasillo de circulación.",
+    category: "architecture",
+    baseWidth: 20000,
+    baseHeight: 14000,
+    assets: [
+      asset("perimetro", "room", "Perímetro", 700, 700, 18600, 12600, "architecture", ["architecture", "shell", "estacionamiento"]),
+      asset("acceso", "door", "Acceso vehicular", 9300, 650, 1400, 260, "architecture", ["door", "opening:gate"]),
+      asset("caseta", "room", "Caseta de cobro", 16800, 900, 1800, 1500, "architecture", ["room", "use:booth", "estacionamiento"]),
+      asset("mostrador-caseta", "counter", "Mostrador de caseta", 17000, 1100, 1200, 600, "equipment", ["counter", "cobro"]),
+      asset("cajon-a1", "parking-spot", "Cajón A1", 1500, 1000, 2500, 5000, "architecture", ["parking", "cajon"]),
+      asset("cajon-a2", "parking-spot", "Cajón A2", 4100, 1000, 2500, 5000, "architecture", ["parking", "cajon"]),
+      asset("cajon-a3", "parking-spot", "Cajón A3", 6700, 1000, 2500, 5000, "architecture", ["parking", "cajon"]),
+      asset("cajon-a4", "parking-spot", "Cajón A4", 9300, 1000, 2500, 5000, "architecture", ["parking", "cajon"]),
+      asset("pasillo-circulacion", "zone", "Pasillo de circulación", 1400, 6200, 15000, 1400, "aisles", ["aisle", "circulacion"]),
+      asset("cajon-b1", "parking-spot", "Cajón B1", 1500, 7800, 2500, 5000, "architecture", ["parking", "cajon"]),
+      asset("cajon-b2", "parking-spot", "Cajón B2", 4100, 7800, 2500, 5000, "architecture", ["parking", "cajon"]),
+      asset("cajon-b3", "parking-spot", "Cajón B3", 6700, 7800, 2500, 5000, "architecture", ["parking", "cajon"]),
+      asset("cajon-b4", "parking-spot", "Cajón B4", 9300, 7800, 2500, 5000, "architecture", ["parking", "cajon"]),
+    ],
+    annotations: [
+      note("titulo", "Estacionamiento — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "acceso", toRef: "pasillo-circulacion", kind: "flow" },
+      { fromRef: "pasillo-circulacion", toRef: "cajon-a1", kind: "flow" },
     ],
   },
 ];
