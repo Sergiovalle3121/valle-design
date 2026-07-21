@@ -49,7 +49,8 @@ export type CadLayoutTemplateId =
   | "cibercafe"
   | "gimnasio-box"
   | "polleria"
-  | "floreria";
+  | "floreria"
+  | "cremeria";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1605,6 +1606,34 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "mostrador-flo", kind: "flow" },
       { fromRef: "trastienda-flo", toRef: "mesa-arreglos-flo", kind: "material" },
       { fromRef: "mesa-arreglos-flo", toRef: "camara-flo", kind: "material" },
+    ],
+  },
+  {
+    id: "cremeria",
+    label: "Cremería",
+    description: "Arranque universal de cremería: mostrador con vitrina de lácteos, báscula, caja registradora, mesa de corte y rebanado, refrigerador, cuarto frío y despacho.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["architecture", "shell", "cremeria"]),
+      asset("entrada", "door", "Entrada", 3500, 650, 1000, 260, "architecture", ["door", "opening:entry"]),
+      asset("mostrador-cre", "counter", "Mostrador", 1500, 1400, 1800, 600, "equipment", ["counter", "cremeria"]),
+      asset("vitrina-cre", "display-case", "Vitrina de lácteos", 3600, 1400, 1800, 700, "equipment", ["vitrina", "queso", "cremeria"]),
+      asset("bascula-cre", "scale", "Báscula", 5700, 1400, 500, 500, "equipment", ["bascula", "cremeria"]),
+      asset("caja-cre", "cash-register", "Caja registradora", 6500, 1400, 450, 400, "equipment", ["caja", "cobro", "cremeria"]),
+      asset("mesa-corte-cre", "workbench", "Mesa de corte y rebanado", 1500, 2800, 2000, 800, "equipment", ["mesa", "corte", "cremeria"]),
+      asset("refri-cre", "refrigerator", "Refrigerador", 3900, 2800, 800, 700, "equipment", ["refrigerador", "cremeria"]),
+      asset("despacho-cre", "zone", "Despacho", 1300, 4000, 2600, 1200, "layout", ["zone", "use:service", "cremeria"]),
+      asset("cuarto-frio-cre", "room", "Cuarto frío", 6000, 3200, 1900, 1800, "architecture", ["room", "use:coldroom", "cremeria"]),
+    ],
+    annotations: [
+      note("titulo", "Cremería — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "mostrador-cre", kind: "flow" },
+      { fromRef: "cuarto-frio-cre", toRef: "mesa-corte-cre", kind: "material" },
+      { fromRef: "mesa-corte-cre", toRef: "vitrina-cre", kind: "material" },
     ],
   },
 ];
