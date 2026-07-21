@@ -34,7 +34,7 @@ import { startCommand, feedPoint, feedDistance, commit as commitDrawCommand, can
 import { snap as resolveOsnap, rectGeometry, type SnapScene, type SnapType } from './snap-engine';
 import { normalizeVision, type VisionResult } from './cad-vision';
 import { detectCadFormat } from './cad-format-detect';
-import { NICE_SCALES, scaleBar, worldToPaper, type PlotLayout } from './plot-scale';
+import { worldToPaper, type PlotLayout } from './plot-scale';
 import {
   createHistoryItem as createCadHistoryItem,
   executeCadCommand,
@@ -67,6 +67,7 @@ import { searchCadPalette, type CadPaletteEntry } from '@/lib/cad/command-palett
 import { suggestCadCommands, type CadCommandSuggestion } from '@/lib/cad/command-line-assist';
 import { matchCadShortcut } from '@/lib/cad/keyboard-shortcuts';
 import { exportCadLayoutDxf } from '@/lib/cad/layout-export-adapter';
+import { buildPlotSheet, CAD_PAPER_SIZES, type CadPaperId } from '@/lib/cad/plot-sheet';
 import { evaluateCadDxfExportReadiness, type CadDxfExportLayerSummary, type CadDxfExportReadinessEntity, type CadDxfExportReadinessIssue } from '@/lib/cad/dxf-export-readiness';
 import { importDxfPrimitives, summarizeDxfImportWarnings, type CadDxfImportResult, type CadDxfImportWarning, type CadDxfPoint, type CadDxfPrimitive } from '@/lib/cad/dxf-import';
 import { CAD_SYMBOL_LIBRARY, getCadSymbol, type CadSymbolCategory } from '@/lib/cad/symbols';
@@ -797,6 +798,7 @@ export default function Layout3DEditor({
   const [dxfWarnings, setDxfWarnings] = useState<CadDxfImportWarning[]>([]);
   const [dxfImportPreview, setDxfImportPreview] = useState<CadDxfImportResult | null>(null);
   const [showDxfExport, setShowDxfExport] = useState(false);
+  const [plotPaper, setPlotPaper] = useState<CadPaperId>('A4');
   const [showSheetPackage, setShowSheetPackage] = useState(false);
   const [dxfExportOptions, setDxfExportOptions] = useState<DxfExportOptions>({ scope: 'all', includeHidden: true, includeMeasurements: true, includeLabels: true, units: 'mm', fileName: '' });
   const [dxfExportSummary, setDxfExportSummary] = useState<DxfExportSummary>({ objects: 0, connectors: 0, measurements: 0, labels: 0, layers: 0, canExport: false, includedLayers: [], layerSummary: [], issues: [] });
@@ -3263,7 +3265,7 @@ export default function Layout3DEditor({
     } catch { toast.error('Error de red.', 'Bloques'); }
   };
   // La biblioteca se refresca al abrir el editor (no por layout: es del tenant).
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   useEffect(() => { if (open) void loadCadBlocks(); }, [open]);
   // Grupos CAD (Ctrl+G, ADR §223): los miembros se seleccionan/mueven/copian
   // como unidad; Alt+clic entra al objeto individual. Solo assets — las
@@ -4509,11 +4511,33 @@ export default function Layout3DEditor({
         : 0;
       const activeLayerLabel = cadLayers.find((layer) => layer.id === activeCadLayer)?.label ?? activeCadLayer;
       const approvalLabel = approval ? APPROVAL_META[approval.status].label : 'Borrador';
+      // Motor universal de ploteo: papel elegido por el usuario, orientación
+      // según la forma del dibujo y la MAYOR escala estándar que quepa.
+      const unitStr = fp.unit === 'm' ? 'm' : 'mm';
+      const wMm = unitStr === 'm' ? fp.footprintW * 1000 : fp.footprintW;
+      const hMm = unitStr === 'm' ? fp.footprintH * 1000 : fp.footprintH;
+      const plot = buildPlotSheet({
+        drawingW: wMm,
+        drawingH: hMm,
+        paper: plotPaper,
+        orientation: wMm >= hMm ? 'landscape' : 'portrait',
+        project: `Layout ${model}`,
+        drawnBy: 'AXOS OS',
+        date: new Date().toLocaleDateString('es-MX'),
+        revision,
+        sheetNumber: '1/2',
+      });
+      if (!plot.scale) {
+        toast.error(plot.issues[0] ?? 'El plano no cabe en este papel; usa uno más grande.', '3D');
+        return;
+      }
+      const plotScale = plot.scale;
+      const paperOrientationLabel = plot.orientation === 'landscape' ? 'horizontal' : 'vertical';
       const sheet = plotSheetModel({
         model, revision, unit: fp.unit || 'mm', footprintW: fp.footprintW, footprintH: fp.footprintH,
         placedStations: placements.length, totalStations: data!.stations.length, equipmentCount: assets.length,
         utilPct: util, flowLen: flow.totalLen, date: new Date(),
-        sheetSize: 'A4 landscape',
+        sheetSize: `${plot.paperLabel} ${paperOrientationLabel}`,
         exportFormat: 'PDF',
         approvalStatus: approvalLabel,
         activeLayer: activeLayerLabel,
@@ -4528,8 +4552,9 @@ export default function Layout3DEditor({
         dxfWarningCount: dxfWarnings.length,
       });
       const { jsPDF } = await import('jspdf');
-      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-      const pageW = 297, pageH = 210, margin = 10;
+      const paperBase = CAD_PAPER_SIZES[plot.paper];
+      const doc = new jsPDF({ orientation: plot.orientation, unit: 'mm', format: [paperBase.w, paperBase.h] });
+      const pageW = plot.sheetW, pageH = plot.sheetH, margin = 10;
       const drawHeader = () => {
         doc.setFillColor(17, 24, 39); doc.rect(0, 0, pageW, 16, 'F');
         doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
@@ -4537,22 +4562,15 @@ export default function Layout3DEditor({
         doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
         doc.text(sheet.subtitle, pageW - margin, 11, { align: 'right' });
       };
-      drawHeader();
-      // ── Página 1: PLANO VECTORIAL A ESCALA REAL (Fase 70 cableada, ADR §222) ──
-      const unitStr = fp.unit === 'm' ? 'm' : 'mm';
-      const tbW = 70, tbX = pageW - margin - tbW, tbY = 22, rowH = 9;
-      const imgX = margin, imgY = 22, imgW = tbX - margin - 6, imgH = pageH - imgY - margin - 9; // 9 mm para el escalímetro
-      // Escala "bonita" más detallada con la que la huella cabe en el área útil.
-      const wMm = unitStr === 'm' ? fp.footprintW * 1000 : fp.footprintW;
-      const hMm = unitStr === 'm' ? fp.footprintH * 1000 : fp.footprintH;
-      let plotScale = NICE_SCALES[NICE_SCALES.length - 1];
-      for (const s of NICE_SCALES) { if (wMm / s <= imgW && hMm / s <= imgH) { plotScale = s; break; } }
+      // ── Página 1: HOJA UNIVERSAL A ESCALA ESTÁNDAR (motor lib/cad/plot-sheet) ──
+      // Sin banner web: marco, dibujo centrado por el motor y cajetín inferior
+      // clásico, como una lámina de arquitectura. La ficha EMS vive en la pág. 2.
       const layout: PlotLayout = {
         scale: plotScale,
-        drawingWmm: wMm / plotScale,
-        drawingHmm: hMm / plotScale,
-        offsetXmm: imgX + Math.max(0, (imgW - wMm / plotScale) / 2),
-        offsetYmm: imgY + Math.max(0, (imgH - hMm / plotScale) / 2),
+        drawingWmm: plot.placement.w,
+        drawingHmm: plot.placement.h,
+        offsetXmm: plot.placement.x,
+        offsetYmm: plot.placement.y,
         paper: { w: pageW, h: pageH },
       };
       // worldToPaper asume origen abajo-izquierda; el editor usa Y hacia abajo —
@@ -4599,43 +4617,79 @@ export default function Layout3DEditor({
           doc.text((stationsByIdRef.current.get(id)?.station ?? id).slice(0, 14), ccenter.x, ccenter.y, { align: 'center' });
         }
       });
-      // escalímetro con divisiones alternadas + leyenda de escala
-      const bar = scaleBar(layout, unitStr);
-      const barY = pageH - margin - 5; let barX = imgX;
-      doc.setDrawColor(20);
-      for (let i = 0; i < bar.divisions; i++) {
-        if (i % 2 === 0) { doc.setFillColor(20, 24, 32); doc.rect(barX, barY, bar.intervalMm, 2, 'FD'); }
-        else { doc.setFillColor(255, 255, 255); doc.rect(barX, barY, bar.intervalMm, 2, 'FD'); }
-        barX += bar.intervalMm;
+      // marco de la lámina
+      doc.setDrawColor(20); doc.setLineWidth(0.5);
+      doc.rect(margin, margin, pageW - margin * 2, pageH - margin * 2);
+      doc.setLineWidth(0.2);
+      // cajetín inferior clásico: marca + 2 filas × 4 campos
+      const tb = { x: margin, y: pageH - margin - 30, w: pageW - margin * 2, h: 30 };
+      doc.setDrawColor(20); doc.setLineWidth(0.4); doc.rect(tb.x, tb.y, tb.w, tb.h); doc.setLineWidth(0.2);
+      const brandW = Math.min(60, tb.w * 0.22);
+      doc.line(tb.x + brandW, tb.y, tb.x + brandW, tb.y + tb.h);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(20, 24, 32);
+      doc.text('AXOS OS', tb.x + brandW / 2, tb.y + 13, { align: 'center' });
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(110, 116, 128);
+      doc.text(sheet.title, tb.x + brandW / 2, tb.y + 19, { align: 'center' });
+      const tbFields = [
+        { label: 'Proyecto', value: plot.titleBlock.project },
+        { label: 'Huella', value: sheet.footprintLabel },
+        { label: 'Escala', value: plot.scaleLabel },
+        { label: 'Papel', value: `${plot.paperLabel} ${paperOrientationLabel}` },
+        { label: 'Fecha', value: plot.titleBlock.date },
+        { label: 'Dibujó', value: plot.titleBlock.drawnBy },
+        { label: 'Hoja', value: plot.titleBlock.sheetNumber },
+        { label: 'Revisión', value: plot.titleBlock.revision },
+      ];
+      const cellW = (tb.w - brandW) / 4, cellH = tb.h / 2;
+      tbFields.forEach((f, i) => {
+        const cx = tb.x + brandW + (i % 4) * cellW, cy = tb.y + Math.floor(i / 4) * cellH;
+        doc.setDrawColor(150); doc.rect(cx, cy, cellW, cellH);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(110, 116, 128);
+        doc.text(f.label.toUpperCase(), cx + 2, cy + 4.5);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(20, 24, 32);
+        doc.text(String(f.value).slice(0, 34), cx + 2, cy + 10.5);
+      });
+      // escalímetro del motor: tramos redondos (1/2/5×10^n) alternados sobre el cajetín
+      if (plot.scaleBar) {
+        const bar = plot.scaleBar;
+        const barY = tb.y - 6; let barX = margin + 2;
+        doc.setDrawColor(20);
+        for (let i = 0; i < bar.segments; i++) {
+          if (i % 2 === 0) doc.setFillColor(20, 24, 32); else doc.setFillColor(255, 255, 255);
+          doc.rect(barX, barY, bar.segmentSheetMm, 2, 'FD');
+          barX += bar.segmentSheetMm;
+        }
+        doc.setFontSize(6.5); doc.setTextColor(60, 66, 76); doc.setFont('helvetica', 'normal');
+        for (let i = 0; i <= bar.segments; i++) {
+          const real = bar.segmentMm * i;
+          doc.text(real >= 1000 ? `${real / 1000}` : `${real}`, margin + 2 + bar.segmentSheetMm * i, barY - 1, { align: 'center' });
+        }
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(20, 24, 32);
+        doc.text(`Escala ${plot.scaleLabel} · tramo ${bar.label}`, barX + 5, barY + 2);
       }
-      doc.setFontSize(6.5); doc.setTextColor(60, 66, 76);
-      for (let i = 0; i <= bar.divisions; i++) {
-        doc.text(`${Math.round(bar.intervalReal * i).toLocaleString('es-MX')}`, imgX + bar.intervalMm * i, barY - 1, { align: 'center' });
-      }
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(20, 24, 32);
-      doc.text(`Escala 1:${plotScale} · ${unitStr}`, barX + 5, barY + 2);
-      // cajetín (columna derecha) con la escala real incluida
-      const fields = [...sheet.fields, { label: 'Escala', value: `1:${plotScale}` }];
-      const tbH = fields.length * rowH + 6;
+      // ── Página 2: vista 3D + ficha técnica EMS (el cajetín extendido) ──
+      doc.addPage([paperBase.w, paperBase.h], plot.orientation);
+      drawHeader();
+      const fields = [...sheet.fields, { label: 'Escala', value: plot.scaleLabel }, { label: 'Papel', value: `${plot.paperLabel} ${paperOrientationLabel}` }];
+      const tbW = 70, tbX = pageW - margin - tbW, tbY = 22, rowH = 8;
+      const tbH = Math.min(fields.length * rowH + 6, pageH - tbY - margin);
       doc.setDrawColor(150); doc.setFillColor(246, 248, 250); doc.rect(tbX, tbY, tbW, tbH, 'FD');
-      doc.setFontSize(8.5);
-      let y = tbY + 7;
+      doc.setFontSize(8);
+      let y = tbY + 6;
       for (const f of fields) {
+        if (y > tbY + tbH - 3) break;
         doc.setFont('helvetica', 'normal'); doc.setTextColor(110, 116, 128); doc.text(f.label, tbX + 3, y);
         doc.setFont('helvetica', 'bold'); doc.setTextColor(20, 24, 32); doc.text(f.value, tbX + tbW - 3, y, { align: 'right' });
         y += rowH;
       }
-      // ── Página 2: vista 3D capturada (contexto visual) ──
-      doc.addPage('a4', 'landscape');
-      drawHeader();
-      const vX = margin, vY = 22, vW = pageW - margin * 2, vH = pageH - vY - margin;
+      const vX = margin, vY = 22, vW = tbX - margin - 6, vH = pageH - vY - margin;
       const props = doc.getImageProperties(img);
       const ar = (props.width || 4) / (props.height || 3);
       let w = vW, h = w / ar; if (h > vH) { h = vH; w = h * ar; }
       doc.setDrawColor(205); doc.rect(vX, vY, vW, vH);
       doc.addImage(img, 'PNG', vX + (vW - w) / 2, vY + (vH - h) / 2, w, h);
       doc.save(`layout-${model}-${revision}.pdf`.replace(/[^\w.\-]+/g, '_'));
-      toast.success(`Plano a escala 1:${plotScale} generado (PDF, 2 páginas).`, '3D');
+      toast.success(`Plano ${plot.paperLabel} ${paperOrientationLabel} a escala 1:${plotScale} (PDF, 2 páginas).`, '3D');
     } catch (e) { console.error(e); toast.error('No se pudo generar el PDF.', '3D'); }
   };
   // Export the 3D model as binary glTF (.glb) — opens in Blender, other CAD, etc.
@@ -5238,7 +5292,12 @@ export default function Layout3DEditor({
           )}
         </div>
         <T3Btn active={showSheetPackage} onClick={() => setShowSheetPackage(true)} title="Paquete de entrega — cajetín, checklist, manifiesto y readiness"><Stamp className="w-4 h-4" /></T3Btn>
-        <T3Btn onClick={exportPdf} title="Imprimir plano a PDF — vista + cajetín (modelo, revisión, huella, fecha)"><Printer className="w-4 h-4" /></T3Btn>
+        <select value={plotPaper} onChange={(e) => setPlotPaper(e.target.value as CadPaperId)} title="Papel del plano (A4–A0, carta, tabloide) — la escala estándar se elige sola" className="h-7 self-center rounded-lg border border-white/10 bg-white/[0.06] px-1 text-[11px] text-gray-300 focus:outline-none">
+          {(Object.keys(CAD_PAPER_SIZES) as CadPaperId[]).map((id) => (
+            <option key={id} value={id} className="bg-gray-900">{CAD_PAPER_SIZES[id].label}</option>
+          ))}
+        </select>
+        <T3Btn onClick={exportPdf} title="Imprimir plano a PDF — hoja a escala estándar con cajetín + vista 3D"><Printer className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={exportPng} title="Exportar imagen (PNG)"><Download className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={exportGltf} title="Exportar modelo 3D (.glb) — Blender, otros CAD"><Package className="w-4 h-4" /></T3Btn>
         <input ref={dxfInputRef} type="file" accept=".dxf,.dwg" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onDxfFile(f); e.target.value = ''; }} />
