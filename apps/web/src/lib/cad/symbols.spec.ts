@@ -343,3 +343,19 @@ assert.ok(
   ),
   "search finds garrafón",
 );
+
+// Vigesimosegunda tanda universal (AXOS-CAD-UNIVERSAL-046): eléctricos.
+assert.ok(
+  searchCadSymbols("pantalla").some((symbol) => symbol.id === "tv-screen"),
+  "search finds pantalla",
+);
+assert.ok(
+  searchCadSymbols("microondas").some((symbol) => symbol.id === "microwave"),
+  "search finds microondas",
+);
+assert.ok(
+  searchCadSymbols("ventilador").some(
+    (symbol) => symbol.id === "pedestal-fan",
+  ),
+  "search finds ventilador",
+);

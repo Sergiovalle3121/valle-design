@@ -1062,6 +1062,37 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["garrafón", "garrafon", "agua", "dispensador", "water", "bebedero"],
     ports: [],
   },
+  // — Vigesimosegunda tanda universal (AXOS-CAD-UNIVERSAL-046): eléctricos —
+  {
+    id: "tv-screen",
+    label: "Pantalla / TV",
+    category: "equipment",
+    defaultWidth: 1200,
+    defaultHeight: 150,
+    layer: "Furniture",
+    tags: ["pantalla", "tv", "televisión", "television", "monitor", "sala"],
+    ports: [],
+  },
+  {
+    id: "microwave",
+    label: "Microondas",
+    category: "equipment",
+    defaultWidth: 500,
+    defaultHeight: 400,
+    layer: "Furniture",
+    tags: ["microondas", "microwave", "cocina", "comedor de empleados"],
+    ports: [],
+  },
+  {
+    id: "pedestal-fan",
+    label: "Ventilador de pedestal",
+    category: "equipment",
+    defaultWidth: 450,
+    defaultHeight: 450,
+    layer: "Furniture",
+    tags: ["ventilador", "fan", "aire", "pedestal"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {
