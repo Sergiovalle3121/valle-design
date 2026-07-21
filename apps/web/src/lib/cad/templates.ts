@@ -51,7 +51,8 @@ export type CadLayoutTemplateId =
   | "polleria"
   | "floreria"
   | "cremeria"
-  | "neveria";
+  | "neveria"
+  | "jugueria";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1663,6 +1664,35 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "mostrador-nev", kind: "flow" },
       { fromRef: "bodega-nev", toRef: "congelador-nev", kind: "material" },
       { fromRef: "congelador-nev", toRef: "vitrina-nev", kind: "material" },
+    ],
+  },
+  {
+    id: "jugueria",
+    label: "Juguería / Jugos y licuados",
+    description: "Arranque universal de juguería: barra de jugos, caja registradora, exhibidor de fruta con huacales, refrigerador, dos mesitas y bodega.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["architecture", "shell", "jugueria"]),
+      asset("entrada", "door", "Entrada", 3500, 650, 1000, 260, "architecture", ["door", "opening:entry"]),
+      asset("barra-jug", "bar-counter", "Barra de jugos", 1500, 1400, 2400, 600, "equipment", ["bar", "jugos", "jugueria"]),
+      asset("caja-jug", "cash-register", "Caja registradora", 4200, 1400, 450, 400, "equipment", ["caja", "cobro", "jugueria"]),
+      asset("exhibidor-jug", "shelf", "Exhibidor de fruta", 5000, 1400, 1800, 500, "equipment", ["estante", "fruta", "jugueria"]),
+      asset("huacal-jug-1", "fruit-crate", "Huacal de fruta", 7100, 1400, 500, 400, "equipment", ["huacal", "fruta", "jugueria"]),
+      asset("huacal-jug-2", "fruit-crate", "Huacal de fruta", 7100, 1900, 500, 400, "equipment", ["huacal", "fruta", "jugueria"]),
+      asset("refri-jug", "refrigerator", "Refrigerador", 1500, 2800, 800, 700, "equipment", ["refrigerador", "jugueria"]),
+      asset("mesa-jug-1", "restaurant-table-4", "Mesita 1", 3000, 3000, 900, 900, "equipment", ["table", "seating", "jugueria"]),
+      asset("mesa-jug-2", "restaurant-table-4", "Mesita 2", 4500, 3000, 900, 900, "equipment", ["table", "seating", "jugueria"]),
+      asset("bodega-jug", "room", "Bodega", 6000, 3200, 1900, 1800, "architecture", ["room", "use:storage", "jugueria"]),
+    ],
+    annotations: [
+      note("titulo", "Juguería — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "barra-jug", kind: "flow" },
+      { fromRef: "bodega-jug", toRef: "exhibidor-jug", kind: "material" },
+      { fromRef: "exhibidor-jug", toRef: "barra-jug", kind: "material" },
     ],
   },
 ];
