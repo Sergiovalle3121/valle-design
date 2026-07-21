@@ -39,8 +39,19 @@ export function objectInfoPreview(
     const areaM2 = (w / 1000) * (h / 1000);
     const assets = context.objects.filter((o) => o.type === "asset").length;
     const stations = context.objects.length - assets;
+    // Área ocupada (AXOS-CAD-QUERY-004): suma de equipos/muebles; los
+    // contenedores (cuartos, zonas, muros) no cuentan como ocupación.
+    const CONTAINER_KINDS = new Set(["room", "zone", "wall"]);
+    const occupiedM2 = context.objects.reduce(
+      (sum, o) =>
+        CONTAINER_KINDS.has(o.kind ?? "")
+          ? sum
+          : sum + (o.w / 1000) * (o.h / 1000),
+      0,
+    );
+    const freeM2 = Math.max(0, areaM2 - occupiedM2);
     return {
-      summary: `Plano de ${(w / 1000).toFixed(1)}×${(h / 1000).toFixed(1)} m (${areaM2.toFixed(1)} m²) con ${context.objects.length} objeto(s).`,
+      summary: `Plano de ${(w / 1000).toFixed(1)}×${(h / 1000).toFixed(1)} m (${areaM2.toFixed(1)} m²) con ${context.objects.length} objeto(s); ~${freeM2.toFixed(1)} m² libres.`,
       affectedObjectIds: [],
       operations: [
         {
@@ -50,6 +61,8 @@ export function objectInfoPreview(
             { label: "Ancho", value: `${w} mm (${(w / 1000).toFixed(2)} m)` },
             { label: "Alto", value: `${h} mm (${(h / 1000).toFixed(2)} m)` },
             { label: "Área", value: `${areaM2.toFixed(2)} m²` },
+            { label: "Área ocupada", value: `${occupiedM2.toFixed(2)} m²` },
+            { label: "Área libre (aprox)", value: `${freeM2.toFixed(2)} m²` },
             { label: "Objetos", value: `${context.objects.length}` },
             { label: "Equipos/muebles", value: `${assets}` },
             { label: "Estaciones", value: `${stations}` },

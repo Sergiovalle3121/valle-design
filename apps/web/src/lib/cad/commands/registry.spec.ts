@@ -1451,6 +1451,15 @@ if (rectDraftCreate?.type === "create") {
       ),
       "reporta el conteo total de objetos",
     );
+    // AXOS-CAD-QUERY-004: área ocupada por equipos y libre aproximada.
+    assert.ok(
+      report.rows.some((r) => r.label === "Área ocupada"),
+      "reporta el área ocupada",
+    );
+    assert.ok(
+      report.rows.some((r) => r.label === "Área libre (aprox)"),
+      "reporta el área libre",
+    );
   }
 }
 
