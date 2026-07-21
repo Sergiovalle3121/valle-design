@@ -13,6 +13,8 @@ export interface CadExportBox {
   y: number;
   width: number;
   height: number;
+  /** Grados; el rect se emite con las esquinas ya rotadas (AXOS-CAD-DXF-ROT-001). */
+  rotation?: number;
   layer?: string;
 }
 export interface CadExportConnector {
@@ -55,13 +57,22 @@ const CAD_DXF_LAYER_COLORS: Record<string, number> = {
 function rectPoints(box: CadExportBox) {
   const hw = box.width / 2;
   const hh = box.height / 2;
-  return [
-    { x: box.x - hw, y: box.y - hh },
-    { x: box.x + hw, y: box.y - hh },
-    { x: box.x + hw, y: box.y + hh },
-    { x: box.x - hw, y: box.y + hh },
-    { x: box.x - hw, y: box.y - hh },
-  ];
+  // Rotación real en el DXF: una puerta girada 90 llega girada a AutoCAD,
+  // no como su bounding box. dxf-export respeta >=5 puntos tal cual.
+  const rot = (((box.rotation ?? 0) % 360) + 360) % 360;
+  const rad = (rot * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  const corners = [
+    { x: -hw, y: -hh },
+    { x: hw, y: -hh },
+    { x: hw, y: hh },
+    { x: -hw, y: hh },
+  ].map((c) => ({
+    x: box.x + (rot ? c.x * cos - c.y * sin : c.x),
+    y: box.y + (rot ? c.x * sin + c.y * cos : c.y),
+  }));
+  return [...corners, corners[0]];
 }
 function collectLayoutLayers(input: CadLayoutExportInput): CadDxfExportLayer[] {
   const names = new Set<string>();

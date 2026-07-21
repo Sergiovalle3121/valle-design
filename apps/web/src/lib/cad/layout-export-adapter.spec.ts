@@ -22,6 +22,27 @@ assert.equal(
   5,
   "maps equipment layer color",
 );
+// Rotación real en el DXF (AXOS-CAD-DXF-ROT-001): 4×2 en (10,10) girada 90°
+// → esquinas (11,8),(11,12),(9,12),(9,8); sin rotación las esquinas quedan
+// axis-aligned como siempre.
+{
+  const rotated = cadLayoutToDxfExportModel({
+    boxes: [
+      { id: "door", label: "Puerta", x: 10, y: 10, width: 4, height: 2, rotation: 90 },
+    ],
+  });
+  const pts = rotated.primitives?.[0]?.points ?? [];
+  const near = (p: { x: number; y: number }, x: number, y: number) =>
+    Math.abs(p.x - x) < 1e-9 && Math.abs(p.y - y) < 1e-9;
+  assert.ok(near(pts[0], 11, 8), "esquina 1 rotada");
+  assert.ok(near(pts[1], 11, 12), "esquina 2 rotada");
+  assert.ok(near(pts[2], 9, 12), "esquina 3 rotada");
+  assert.ok(near(pts[3], 9, 8), "esquina 4 rotada");
+  assert.ok(near(pts[4], 11, 8), "polilínea cerrada");
+  const flat = cadLayoutToDxfExportModel(input);
+  assert.ok(near((flat.primitives?.[0]?.points ?? [])[0], 8, 9), "sin rotación queda igual");
+}
+
 const exported = exportCadLayoutDxf(input);
 assert.ok(
   exported.content.includes("0\nPOLYLINE"),

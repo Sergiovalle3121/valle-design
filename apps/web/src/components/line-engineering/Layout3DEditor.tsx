@@ -4847,10 +4847,10 @@ export default function Layout3DEditor({
       const boxes = [
         ...[...placementsRef.current.entries()]
           .filter(([id]) => includeObject(id, 'layout'))
-          .map(([id, p]) => ({ id, label: stationsByIdRef.current.get(id)?.station ?? id, x: p.x, y: p.y, width: p.w, height: p.h, layer: layerLabel(layerAssignments[id] ?? 'layout') })),
+          .map(([id, p]) => ({ id, label: stationsByIdRef.current.get(id)?.station ?? id, x: p.x, y: p.y, width: p.w, height: p.h, rotation: p.rotation, layer: layerLabel(layerAssignments[id] ?? 'layout') })),
         ...[...assetsRef.current.values()]
           .filter((asset) => includeObject(asset.id, defaultCadLayerForAssetKind(asset.kind, objectTags[asset.id])))
-          .map((asset) => ({ id: asset.id, label: asset.label || assetMeta(asset.kind).label, x: asset.x, y: asset.y, width: asset.w, height: asset.h, layer: layerLabel(layerAssignments[asset.id] ?? defaultCadLayerForAssetKind(asset.kind, objectTags[asset.id])) })),
+          .map((asset) => ({ id: asset.id, label: asset.label || assetMeta(asset.kind).label, x: asset.x, y: asset.y, width: asset.w, height: asset.h, rotation: asset.rotation, layer: layerLabel(layerAssignments[asset.id] ?? defaultCadLayerForAssetKind(asset.kind, objectTags[asset.id])) })),
       ];
       const connectors = connectorsRef.current.map((conn) => {
         if (!includeLayer('flow')) return null;
