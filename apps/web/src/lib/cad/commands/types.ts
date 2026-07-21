@@ -29,6 +29,7 @@ export type CadCommandId =
   | "count_objects"
   | "select_objects"
   | "help_commands"
+  | "clear_annotations"
   | "add_label"
   | "extend_wall"
   | "trim_wall"
@@ -103,6 +104,7 @@ export type CadOperation =
   | { type: "move"; objectId: string; before: CadBox; after: CadBox }
   | { type: "create"; object: CadDraftObject }
   | { type: "delete"; objectId: string }
+  | { type: "clear_annotations"; kind: "dims" | "notes" | "all" }
   | {
       type: "annotate";
       annotation:
@@ -294,6 +296,11 @@ export type CadCommandInput =
       query: string;
     }
   | { id: "help_commands" }
+  | {
+      id: "clear_annotations";
+      /** Qué limpiar: cotas (dims), notas (notes) o todo; default dims. */
+      kind?: "dims" | "notes" | "all";
+    }
   | {
       id: "add_label";
       /** El texto de la nota; 'escribe "Recepción" en 2000,1000'. */

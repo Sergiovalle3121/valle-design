@@ -58,7 +58,7 @@ assert.equal(
   CAD_COMMAND_REGISTRY.length,
   "registry ids are unique",
 );
-assert.equal(CAD_COMMAND_REGISTRY.length, 36, "registry exposes 36 commands");
+assert.equal(CAD_COMMAND_REGISTRY.length, 37, "registry exposes 37 commands");
 
 // Ayuda (AXOS-CAD-HELP-001): '¿qué puedes hacer?' lista el catálogo.
 {

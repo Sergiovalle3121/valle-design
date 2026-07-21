@@ -4138,6 +4138,20 @@ export default function Layout3DEditor({
       setDimCount([...annotationsRef.current.values()].filter((ann) => ann.type === 'dim').length);
       refreshMeasurementRows();
       return true;
+    } else if (op.type === 'clear_annotations') {
+      // Limpieza conversacional (AXOS-CAD-CLEAN-001): mismo contrato que el
+      // botón de limpiar cotas — si no había nada que quitar, no aplica.
+      let cleared = false;
+      annotationsRef.current.forEach((a, id) => {
+        if ((op.kind === 'dims' && a.type === 'dim') || (op.kind === 'notes' && a.type === 'text') || op.kind === 'all') {
+          annotationsRef.current.delete(id);
+          cleared = true;
+        }
+      });
+      if (!cleared) return false;
+      setDimCount([...annotationsRef.current.values()].filter((ann) => ann.type === 'dim').length);
+      refreshMeasurementRows(); rebuildDims(); rebuildNotes();
+      return true;
     } else if (op.type === 'delete') {
       // ERASE conversacional (AXOS-CAD-DELETE-001): mismo contrato que Supr —
       // respeta capas bloqueadas y saca al objeto de la selección viva.
@@ -4165,7 +4179,7 @@ export default function Layout3DEditor({
       setCommandLog((items) => [createCadHistoryItem(commandPreview.input, 'failed', result.historyLabel, commandPreview.preview, result), ...items].slice(0, 12));
       return;
     }
-    const mutates = result.operations.some((op) => op.type === 'move' || op.type === 'connect' || op.type === 'create' || op.type === 'annotate' || op.type === 'delete');
+    const mutates = result.operations.some((op) => op.type === 'move' || op.type === 'connect' || op.type === 'create' || op.type === 'annotate' || op.type === 'delete' || op.type === 'clear_annotations');
     if (mutates) { recordLocalSnapshot(`Auto · ${result.historyLabel}`, 'command'); pushHistory(); }
     // map + some: .some(applyCommandOperation) directo corta en la primera op
     // aplicada y dejaba a medias los comandos multi-objeto (align, flow line).
@@ -5413,7 +5427,7 @@ export default function Layout3DEditor({
                             <div className="font-semibold text-cyan-100">{op.title}</div>
                             {op.rows.slice(0, 3).map((row) => <div key={`${row.label}-${row.value}`} className="mt-0.5 flex justify-between gap-2 text-gray-500 dark:text-gray-400"><span className="truncate">{row.label}</span><span className="shrink-0 text-gray-200">{row.value}</span></div>)}
                           </div>
-                        ) : op.type === 'move' ? `Mover ${op.objectId} → (${Math.round(op.after.x)}, ${Math.round(op.after.y)})` : op.type === 'create' ? `Crear ${op.object.label} en (${Math.round(op.object.x)}, ${Math.round(op.object.y)})` : op.type === 'delete' ? `Borrar ${op.objectId}` : op.type === 'annotate' ? (op.annotation.kind === 'text' ? `Texto "${op.annotation.text}"` : `Cota ${op.annotation.text}`) : op.type === 'connect' ? `Conectar ${op.from} → ${op.to}` : op.type === 'measure' ? `Medir ${Math.round(op.distance)} ${op.unit}` : op.type === 'focus' ? `Enfocar ${op.objectIds.length || 'todo'}` : ''}
+                        ) : op.type === 'move' ? `Mover ${op.objectId} → (${Math.round(op.after.x)}, ${Math.round(op.after.y)})` : op.type === 'create' ? `Crear ${op.object.label} en (${Math.round(op.object.x)}, ${Math.round(op.object.y)})` : op.type === 'delete' ? `Borrar ${op.objectId}` : op.type === 'clear_annotations' ? `Quitar ${op.kind === 'dims' ? 'cotas' : op.kind === 'notes' ? 'notas' : 'anotaciones'}` : op.type === 'annotate' ? (op.annotation.kind === 'text' ? `Texto "${op.annotation.text}"` : `Cota ${op.annotation.text}`) : op.type === 'connect' ? `Conectar ${op.from} → ${op.to}` : op.type === 'measure' ? `Medir ${Math.round(op.distance)} ${op.unit}` : op.type === 'focus' ? `Enfocar ${op.objectIds.length || 'todo'}` : ''}
                       </div>
                     ))}
                     {commandPreview.preview.issues.slice(0, 2).map((issue) => (

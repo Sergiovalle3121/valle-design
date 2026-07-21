@@ -430,6 +430,21 @@ export function parseCadCommand(text: string): CadParseResult {
       input: { id: "mirror_selection", axis, copy, target: mirrorTarget || undefined },
     };
   }
+  if (
+    /\b(quita|quitar|borra|borrar|limpia|limpiar|elimina|eliminar)\b/.test(q) &&
+    /\b(cotas?|medidas|notas?|anotaciones|textos?)\b/.test(q)
+  ) {
+    const kind = /\b(anotaciones)\b/.test(q)
+      ? ("all" as const)
+      : /\b(notas?|textos?)\b/.test(q)
+        ? ("notes" as const)
+        : ("dims" as const);
+    return {
+      ok: true,
+      confidence: 0.86,
+      input: { id: "clear_annotations", kind },
+    };
+  }
   if (/\b(borra|borrar|elimina|eliminar|quita|quitar|suprime|delete)\b/.test(q)) {
     // Residuo tras el verbo = objetivo por nombre ('borra la puerta');
     // 'la selección/esto/esos objetos' siguen siendo la selección actual.

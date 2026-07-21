@@ -37,6 +37,7 @@ import {
   extendWallPreview,
   trimWallPreview,
 } from "./wall-edit";
+import { clearAnnotationsPreview } from "./clean";
 import { countObjectsPreview } from "./count";
 import { deleteSelectionPreview } from "./delete";
 import { duplicateSelectionPreview } from "./duplicate";
@@ -1760,6 +1761,35 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
       const p = duplicateSelectionPreview(
         i as Extract<CadCommandInput, { id: "duplicate_selection" }>,
         c,
+      );
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
+    id: "clear_annotations",
+    label: "Limpiar anotaciones",
+    category: "layout",
+    description:
+      "Quita cotas, notas de texto o todas las anotaciones del plano de un jalón, con deshacer por historial.",
+    inputSchema: {
+      kind: {
+        type: "enum",
+        enum: ["dims", "notes", "all"],
+        description: "Qué limpiar: cotas, notas o todo (default cotas).",
+      },
+    },
+    examples: ["quita las cotas", "borra las notas"],
+    validate: (i) =>
+      clearAnnotationsPreview(
+        i as Extract<CadCommandInput, { id: "clear_annotations" }>,
+      ).issues,
+    preview: (i) =>
+      clearAnnotationsPreview(
+        i as Extract<CadCommandInput, { id: "clear_annotations" }>,
+      ),
+    execute: (i) => {
+      const p = clearAnnotationsPreview(
+        i as Extract<CadCommandInput, { id: "clear_annotations" }>,
       );
       return result(p, ok(p.issues), p.summary);
     },
