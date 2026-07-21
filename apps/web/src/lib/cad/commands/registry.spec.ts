@@ -2640,4 +2640,77 @@ if (rectDraftCreate?.type === "create") {
   assert.equal(vago.ok, false, "sin destino → aclaración");
 }
 
+// PEGAR A LA PARED (AXOS-CAD-MOVE-006): 'pega la mesa a la pared (del
+// fondo)' — snap contra el muro del cuarto contenedor o del plano.
+{
+  const wallCtx: CadCommandContext = {
+    unit: "mm",
+    footprintW: 12000,
+    footprintH: 8000,
+    selectedIds: [],
+    connectors: [],
+    objects: [
+      {
+        id: "cocina",
+        type: "asset",
+        kind: "room",
+        label: "Cocina",
+        x: 1000,
+        y: 1000,
+        w: 3000,
+        h: 3000,
+      },
+      {
+        id: "mesa",
+        type: "asset",
+        kind: "dining-table-4",
+        label: "Mesa",
+        x: 2000,
+        y: 2000,
+        w: 500,
+        h: 500,
+      },
+      {
+        id: "silla",
+        type: "asset",
+        kind: "chair",
+        label: "Silla",
+        x: 500,
+        y: 5000,
+        w: 500,
+        h: 500,
+      },
+    ],
+  };
+  const near = parseCadCommand("pega la mesa a la pared");
+  assert.equal(near.input?.id, "move_selection", "pega parsea");
+  if (near.input?.id === "move_selection") {
+    assert.equal(near.input.wall, "nearest", "sin lado → la más cercana");
+    assert.equal(near.input.target, "mesa", "objetivo");
+    const p = previewCadCommand(near.input, wallCtx);
+    assert.equal(p.issues.length, 0, "pegar sin issues");
+    const op = p.operations[0];
+    if (op?.type === "move") {
+      assert.equal(op.after.x, 1000, "se recarga en el muro izquierdo de la cocina");
+      assert.equal(op.after.y, 2000, "el eje Y no se toca");
+    }
+  }
+  const fondo = parseCadCommand("arrima la mesa a la pared del fondo");
+  if (fondo.input?.id === "move_selection") {
+    assert.equal(fondo.input.wall, "bottom", "'del fondo' → bottom");
+    const p = previewCadCommand(fondo.input, wallCtx);
+    const op = p.operations[0];
+    if (op?.type === "move")
+      assert.equal(op.after.y, 3500, "el borde inferior toca el muro de la cocina");
+  }
+  const orilla = parseCadCommand("pega la silla a la pared de la izquierda");
+  if (orilla.input?.id === "move_selection") {
+    assert.equal(orilla.input.wall, "left", "lado explícito");
+    const p = previewCadCommand(orilla.input, wallCtx);
+    const op = p.operations[0];
+    if (op?.type === "move")
+      assert.equal(op.after.x, 0, "sin cuarto contenedor usa la orilla del plano");
+  }
+}
+
 console.log("cad command registry specs passed");

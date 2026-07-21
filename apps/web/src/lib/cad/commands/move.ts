@@ -93,6 +93,73 @@ export function moveSelectionPreview(
     };
   }
 
+  // Pegar a la pared (AXOS-CAD-MOVE-006): 'pega la mesa a la pared' — el
+  // conjunto se recarga contra el muro del contenedor más chico que lo
+  // contiene (cuarto/zona) o, si no hay, contra la orilla del plano;
+  // 'nearest' elige la pared más cercana.
+  if (input.wall) {
+    const movedIds = new Set(objs.map((o) => o.id));
+    const bminX = Math.min(...objs.map((o) => o.x));
+    const bminY = Math.min(...objs.map((o) => o.y));
+    const bmaxX = Math.max(...objs.map((o) => o.x + o.w));
+    const bmaxY = Math.max(...objs.map((o) => o.y + o.h));
+    const cx = (bminX + bmaxX) / 2;
+    const cy = (bminY + bmaxY) / 2;
+    const room = context.objects
+      .filter(
+        (o) =>
+          ["room", "zone"].includes(o.kind ?? "") &&
+          !movedIds.has(o.id) &&
+          cx >= o.x &&
+          cx <= o.x + o.w &&
+          cy >= o.y &&
+          cy <= o.y + o.h,
+      )
+      .sort((a, b) => a.w * a.h - b.w * b.h)[0];
+    const bounds = room
+      ? { x0: room.x, y0: room.y, x1: room.x + room.w, y1: room.y + room.h }
+      : {
+          x0: 0,
+          y0: 0,
+          x1: context.footprintW ?? 10000,
+          y1: context.footprintH ?? 6000,
+        };
+    const deltas = {
+      left: { dx: bounds.x0 - bminX, dy: 0 },
+      right: { dx: bounds.x1 - bmaxX, dy: 0 },
+      top: { dx: 0, dy: bounds.y0 - bminY },
+      bottom: { dx: 0, dy: bounds.y1 - bmaxY },
+    } as const;
+    const side =
+      input.wall === "nearest"
+        ? (Object.entries(deltas).sort(
+            (a, b) =>
+              Math.abs(a[1].dx + a[1].dy) - Math.abs(b[1].dx + b[1].dy),
+          )[0]![0] as keyof typeof deltas)
+        : input.wall;
+    const wallSides: Record<keyof typeof deltas, string> = {
+      left: "izquierda",
+      right: "derecha",
+      top: "de arriba",
+      bottom: "del fondo",
+    };
+    return {
+      summary: `Pegar ${objs.length} objeto(s) a la pared ${wallSides[side]}${room ? ` de '${room.label}'` : ""}.`,
+      affectedObjectIds: objs.map((o) => o.id),
+      operations: objs.map((o) => ({
+        type: "move",
+        objectId: o.id,
+        before: o,
+        after: {
+          ...o,
+          x: Math.round(o.x + deltas[side].dx),
+          y: Math.round(o.y + deltas[side].dy),
+        },
+      })),
+      issues,
+    };
+  }
+
   // Destino relacional (AXOS-CAD-MOVE-003): 'mueve la silla junto a la
   // mesa' — el conjunto aterriza al lado del ancla (excluyendo del ancla a
   // los propios objetos movidos).

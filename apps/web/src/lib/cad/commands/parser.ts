@@ -460,6 +460,49 @@ export function parseCadCommand(text: string): CadParseResult {
       },
     };
   }
+  // PEGAR A LA PARED (AXOS-CAD-MOVE-006): 'pega la mesa a la pared (del
+  // fondo)' — snap contra el muro del cuarto que la contiene o del plano.
+  const wallMatch = raw.match(
+    /^(?:pega(?:me)?|arrima(?:me)?|recarga(?:me)?)\s+(.+)$/i,
+  );
+  if (wallMatch) {
+    const residue = wallMatch[1]!;
+    const wallRef = /\b(?:a|contra)\s+(?:la\s+pared|el\s+muro|la\s+orilla)\b/i;
+    if (wallRef.test(residue)) {
+      const side = /izquierd/i.test(residue)
+        ? "left"
+        : /derech/i.test(residue)
+          ? "right"
+          : /\barriba\b|frente/i.test(residue)
+            ? "top"
+            : /fondo|abajo/i.test(residue)
+              ? "bottom"
+              : "nearest";
+      const target = residue
+        .replace(wallRef, " ")
+        .replace(
+          /\b(?:de\s+la\s+|de\s+|del\s+)?(?:izquierda|derecha|arriba|abajo|frente|fondo)\b/gi,
+          " ",
+        )
+        .replace(
+          /\b(?:la\s+selecci[oó]n|lo\s+seleccionado|esto|estos\s+objetos|esos\s+objetos)\b/gi,
+          " ",
+        )
+        .replace(/\s+/g, " ")
+        .trim()
+        .replace(/^(?:(?:el|la|los|las|un|una)\s+)+/i, "")
+        .trim();
+      return {
+        ok: true,
+        confidence: 0.85,
+        input: {
+          id: "move_selection",
+          target: target || undefined,
+          wall: side,
+        },
+      };
+    }
+  }
   // FILA/REPETIR (AXOS-CAD-ARRAY-001): 'repite la silla 4 veces cada 600
   // a la derecha' — arreglo lineal conversacional con objetivo por nombre.
   const repeatMatch = raw.match(/^rep[ií]te(?:me|l[ao]s?)?\s+(.+)$/i);

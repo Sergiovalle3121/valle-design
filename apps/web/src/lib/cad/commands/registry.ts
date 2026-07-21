@@ -2341,6 +2341,12 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         description:
           "true reparte los objetos entre los cuartos hoja en round-robin ('reparte las sillas entre los cuartos').",
       },
+      wall: {
+        type: "enum",
+        enum: ["left", "right", "top", "bottom", "nearest"],
+        description:
+          "Pega el conjunto contra ese muro del cuarto que lo contiene o del plano ('pega la mesa a la pared').",
+      },
       objectIds: {
         type: "string[]",
         description: "Alternativa: objetos seleccionados.",
@@ -2352,6 +2358,7 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
       "mueve la silla junto a la mesa",
       "mete la mesa en la cocina",
       "reparte las sillas entre los cuartos",
+      "pega la mesa a la pared",
     ],
     validate: (i, c) =>
       moveSelectionPreview(

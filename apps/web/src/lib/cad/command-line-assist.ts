@@ -85,7 +85,7 @@ const EMPTY_QUERY_PRIORITY: Partial<Record<CadCommandId, number>> = {
 // pertenece a measure_distance (contrato del spec), no va aquí.
 const QUERY_ALIASES: Partial<Record<CadCommandId, string[]>> = {
   delete_selection: ["vacia", "vaciar", "despejar", "quita"],
-  move_selection: ["mete", "meter", "lleva", "centra", "reparte"],
+  move_selection: ["mete", "meter", "lleva", "centra", "reparte", "pega", "arrima"],
   select_objects: ["cerca", "junto", "menos", "excepto"],
   count_objects: ["cuantos", "cuantas", "inventario"],
   object_info: ["donde", "ubicacion"],

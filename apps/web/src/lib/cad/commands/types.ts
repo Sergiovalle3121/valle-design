@@ -355,6 +355,10 @@ export type CadCommandInput =
        * centro de un cuarto hoja en round-robin (el conjunto NO viaja
        * rígido); los que exceden se escalonan para no apilarse. */
       perRoom?: boolean;
+      /** 'pega la mesa a la pared (del fondo)': el conjunto se recarga
+       * contra el muro del contenedor más chico que lo contiene (cuarto o
+       * zona) o, si no hay, contra la orilla del plano. */
+      wall?: "left" | "right" | "top" | "bottom" | "nearest";
     }
   | {
       id: "count_objects";
