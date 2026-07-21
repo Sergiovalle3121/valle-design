@@ -9,7 +9,11 @@ export type CadLayoutTemplateId =
   | "architecture-floor-core"
   | "civil-site-utilities"
   | "structural-grid-core"
-  | "mep-plantroom";
+  | "mep-plantroom"
+  // CAD universal (AXOS-CAD-UNIVERSAL-002): arranques para cualquiera.
+  | "casa-habitacion"
+  | "local-comercial"
+  | "consultorio";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -392,6 +396,85 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "inspection", toRef: "rework", kind: "flow" },
       { fromRef: "inspection", toRef: "packing", kind: "flow" },
       { fromRef: "packing", toRef: "shipping", kind: "flow" },
+    ],
+  },
+  {
+    id: "casa-habitacion",
+    label: "Casa habitación",
+    description: "Arranque universal: sala, comedor, cocina, dos recámaras y baño con muebles a medidas reales — edítalo a tu gusto.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["architecture", "shell", "casa"]),
+      asset("sala", "room", "Sala", 1300, 1300, 3600, 3000, "architecture", ["room", "use:living", "casa"]),
+      asset("comedor", "room", "Comedor", 5100, 1300, 3000, 3000, "architecture", ["room", "use:dining", "casa"]),
+      asset("cocina", "room", "Cocina", 8300, 1300, 2200, 3000, "architecture", ["room", "use:kitchen", "casa"]),
+      asset("recamara-1", "room", "Recámara principal", 1300, 4500, 3400, 2600, "architecture", ["room", "use:bedroom", "casa"]),
+      asset("recamara-2", "room", "Recámara 2", 4900, 4500, 2800, 2600, "architecture", ["room", "use:bedroom", "casa"]),
+      asset("bano", "room", "Baño", 7900, 4500, 1600, 2600, "architecture", ["room", "use:restroom", "casa"]),
+      asset("puerta-principal", "door", "Puerta principal", 2500, 650, 900, 260, "architecture", ["door", "opening:main"]),
+      asset("cama", "furniture", "Cama matrimonial", 1500, 4800, 1400, 2000, "equipment", ["furniture", "bed"]),
+      asset("sofa", "furniture", "Sofá 3 plazas", 1500, 1500, 2100, 900, "equipment", ["furniture", "sofa"]),
+      asset("mesa", "furniture", "Mesa comedor 4", 5700, 2000, 1200, 800, "equipment", ["furniture", "table"]),
+      asset("estufa", "furniture", "Estufa", 8450, 1500, 760, 600, "equipment", ["furniture", "stove"]),
+    ],
+    annotations: [
+      note("titulo", "Casa habitación — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "puerta-principal", toRef: "sala", kind: "flow" },
+    ],
+  },
+  {
+    id: "local-comercial",
+    label: "Local comercial",
+    description: "Arranque universal de tienda: piso de venta con mostrador y góndolas, bodega y baño.",
+    category: "architecture",
+    baseWidth: 10000,
+    baseHeight: 7000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 8600, 5600, "architecture", ["architecture", "shell", "tienda"]),
+      asset("piso-venta", "room", "Piso de venta", 1300, 1300, 5400, 4400, "architecture", ["room", "use:retail", "tienda"]),
+      asset("bodega", "room", "Bodega", 7000, 1300, 2000, 2600, "architecture", ["room", "use:warehouse", "tienda"]),
+      asset("bano", "room", "Baño", 7000, 4100, 2000, 1600, "architecture", ["room", "use:restroom", "tienda"]),
+      asset("entrada", "door", "Entrada", 2600, 650, 1200, 260, "architecture", ["door", "opening:main"]),
+      asset("mostrador", "furniture", "Mostrador con caja", 1500, 1500, 1800, 600, "equipment", ["furniture", "counter", "pos"]),
+      asset("gondola-1", "furniture", "Góndola 1", 1500, 2600, 1200, 500, "equipment", ["furniture", "shelf"]),
+      asset("gondola-2", "furniture", "Góndola 2", 3100, 2600, 1200, 500, "equipment", ["furniture", "shelf"]),
+      asset("gondola-3", "furniture", "Góndola 3", 4700, 2600, 1200, 500, "equipment", ["furniture", "shelf"]),
+    ],
+    annotations: [
+      note("titulo", "Local comercial — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "piso-venta", kind: "flow" },
+      { fromRef: "bodega", toRef: "piso-venta", kind: "material" },
+    ],
+  },
+  {
+    id: "consultorio",
+    label: "Consultorio",
+    description: "Arranque universal de consultorio: sala de espera con recepción, área de consulta y baño.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["architecture", "shell", "consultorio"]),
+      asset("espera", "room", "Sala de espera", 1300, 1300, 3200, 3800, "architecture", ["room", "use:lobby", "consultorio"]),
+      asset("consulta", "room", "Consultorio", 4700, 1300, 3400, 2600, "architecture", ["room", "use:exam", "consultorio"]),
+      asset("bano", "room", "Baño", 4700, 4100, 1800, 1000, "architecture", ["room", "use:restroom", "consultorio"]),
+      asset("entrada", "door", "Entrada", 2200, 650, 900, 260, "architecture", ["door", "opening:main"]),
+      asset("recepcion", "furniture", "Recepción", 1500, 1500, 1200, 600, "equipment", ["furniture", "desk"]),
+      asset("escritorio", "furniture", "Escritorio médico", 4900, 1500, 1200, 600, "equipment", ["furniture", "desk"]),
+      asset("camilla", "furniture", "Camilla", 6500, 2400, 700, 1900, "equipment", ["furniture", "bed", "exam"]),
+    ],
+    annotations: [
+      note("titulo", "Consultorio — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "espera", kind: "flow" },
+      { fromRef: "espera", toRef: "consulta", kind: "flow" },
     ],
   },
 ];
