@@ -818,20 +818,45 @@ export function parseCadCommand(text: string): CadParseResult {
       else if (rel[3] === "abajo") dy = mag;
       else dy = -mag;
     }
+    // Destino relacional (AXOS-CAD-MOVE-003): 'mueve la silla junto a la
+    // mesa' / 'a la izquierda del tocador'.
+    const moveAnchorM = q.match(
+      /\b(junto\s+al?|al\s+lado\s+del?|a\s+la\s+izquierda\s+del?|a\s+la\s+derecha\s+del?|arriba\s+del?|encima\s+del?|abajo\s+del?|debajo\s+del?)\s+(.+)$/,
+    );
+    let moveAnchor: string | undefined;
+    let moveAnchorSide: "left" | "right" | "above" | "below" | undefined;
+    if (moveAnchorM && !abs && dx === undefined && dy === undefined) {
+      moveAnchor =
+        moveAnchorM[2]!
+          .replace(/\s+/g, " ")
+          .trim()
+          .replace(/^(?:el|la|los|las|un|una)\s+/, "")
+          .trim() || undefined;
+      const phrase = moveAnchorM[1]!;
+      moveAnchorSide = /izquierda/.test(phrase)
+        ? "left"
+        : /arriba|encima/.test(phrase)
+          ? "above"
+          : /abajo|debajo/.test(phrase)
+            ? "below"
+            : undefined;
+    }
     const target = q
       .replace(/^.*?\b(?:mueve|mover|lleva|llevar|desplaza|desplazar)\b\s*/, "")
       .replace(/\b(?:a|en|hasta)\s+-?\d+\s*[,x]\s*-?\d+.*$/, "")
       .replace(/\d+(?:[.,]\d+)?\s*(?:mm|m)?\s*(?:a\s+la|hacia\s+la|hacia\s+el|al)?\s*(?:derecha|izquierda|arriba|abajo).*$/, "")
+      .replace(/\b(?:junto\s+al?|al\s+lado\s+del?|a\s+la\s+izquierda\s+del?|a\s+la\s+derecha\s+del?|arriba\s+del?|encima\s+del?|abajo\s+del?|debajo\s+del?)\s+.+$/, "")
       .replace(/\b(la\s+selecci[oó]n|lo\s+seleccionado|esto|estos|esos?\s*(objetos)?)\b/g, "")
       .replace(/\s+/g, " ")
       .trim()
       .replace(/^(?:una?|el|la|los|las)\s+/, "")
       .trim();
-    if (!abs && dx === undefined && dy === undefined) {
+    if (!abs && dx === undefined && dy === undefined && !moveAnchor) {
       return {
         ok: false,
         confidence: 0.6,
-        clarification: "¿A dónde lo muevo? ('a 2000,650' o '500 a la derecha')",
+        clarification:
+          "¿A dónde lo muevo? ('a 2000,650', '500 a la derecha' o 'junto a la mesa')",
       };
     }
     return {
@@ -844,6 +869,8 @@ export function parseCadCommand(text: string): CadParseResult {
         y: abs ? Number(abs[2]) : undefined,
         dx,
         dy,
+        anchor: moveAnchor,
+        anchorSide: moveAnchorSide,
       },
     };
   }

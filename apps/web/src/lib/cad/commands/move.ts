@@ -5,8 +5,9 @@
  * 500 a la derecha' desplaza en relativo. El grupo viaja rígido: un solo
  * delta para todos los objetos.
  */
-import { resolveCommandTargets } from "./targets";
+import { matchObjectsByName, resolveCommandTargets } from "./targets";
 import type {
+  CadBox,
   CadCommandContext,
   CadCommandInput,
   CadCommandPreview,
@@ -14,6 +15,8 @@ import type {
   CadValidationIssue,
 } from "./types";
 import { error } from "./validators";
+
+const ANCHOR_GAP = 100;
 
 export function moveSelectionPreview(
   input: Extract<CadCommandInput, { id: "move_selection" }>,
@@ -40,15 +43,37 @@ export function moveSelectionPreview(
     return { summary: "", affectedObjectIds: [], operations: [], issues };
   }
 
+  // Destino relacional (AXOS-CAD-MOVE-003): 'mueve la silla junto a la
+  // mesa' — el conjunto aterriza al lado del ancla (excluyendo del ancla a
+  // los propios objetos movidos).
+  const anchorQuery = input.anchor?.trim();
+  let anchorBox: CadBox | undefined;
+  if (anchorQuery) {
+    const movedIds = new Set(objs.map((o) => o.id));
+    const anchors = matchObjectsByName(context, anchorQuery).filter(
+      (a) => !movedIds.has(a.id),
+    );
+    if (!anchors.length) {
+      issues.push(
+        error(
+          "move_anchor_not_found",
+          `No encontré '${anchorQuery}' para mover junto a él.`,
+        ),
+      );
+      return { summary: "", affectedObjectIds: [], operations: [], issues };
+    }
+    anchorBox = anchors[0];
+  }
+
   const hasAbs = Number.isFinite(input.x) && Number.isFinite(input.y);
   const hasRel =
     (Number.isFinite(input.dx) && (input.dx as number) !== 0) ||
     (Number.isFinite(input.dy) && (input.dy as number) !== 0);
-  if (!hasAbs && !hasRel && !input.center) {
+  if (!hasAbs && !hasRel && !input.center && !anchorBox) {
     issues.push(
       error(
         "move_missing_destination",
-        "Dime a dónde: 'a 2000,650', '500 a la derecha' o 'céntrala'.",
+        "Dime a dónde: 'a 2000,650', '500 a la derecha', 'junto a la mesa' o 'céntrala'.",
       ),
     );
     return { summary: "", affectedObjectIds: [], operations: [], issues };
@@ -60,16 +85,35 @@ export function moveSelectionPreview(
   // centro del footprint — mismo delta rígido para todos.
   const maxX = Math.max(...objs.map((o) => o.x + o.w));
   const maxY = Math.max(...objs.map((o) => o.y + o.h));
+  const side = input.anchorSide ?? "right";
+  const anchorX = anchorBox
+    ? side === "left"
+      ? anchorBox.x - ANCHOR_GAP - (maxX - minX)
+      : side === "right"
+        ? anchorBox.x + anchorBox.w + ANCHOR_GAP
+        : anchorBox.x
+    : undefined;
+  const anchorY = anchorBox
+    ? side === "above"
+      ? anchorBox.y - ANCHOR_GAP - (maxY - minY)
+      : side === "below"
+        ? anchorBox.y + anchorBox.h + ANCHOR_GAP
+        : anchorBox.y
+    : undefined;
   const dx = input.center
     ? Math.round(((context.footprintW ?? 10000) - (maxX - minX)) / 2 - minX)
     : hasAbs
       ? Math.round((input.x as number) - minX)
-      : Math.round(Number.isFinite(input.dx) ? (input.dx as number) : 0);
+      : anchorX !== undefined
+        ? Math.round(anchorX - minX)
+        : Math.round(Number.isFinite(input.dx) ? (input.dx as number) : 0);
   const dy = input.center
     ? Math.round(((context.footprintH ?? 6000) - (maxY - minY)) / 2 - minY)
     : hasAbs
       ? Math.round((input.y as number) - minY)
-      : Math.round(Number.isFinite(input.dy) ? (input.dy as number) : 0);
+      : anchorY !== undefined
+        ? Math.round(anchorY - minY)
+        : Math.round(Number.isFinite(input.dy) ? (input.dy as number) : 0);
 
   const operations: CadOperation[] = objs.map((o) => ({
     type: "move",
@@ -83,7 +127,9 @@ export function moveSelectionPreview(
       ? `Centrar ${objs.length} objeto(s) en el plano.`
       : hasAbs
         ? `Mover ${objs.length} objeto(s) a (${Math.round(input.x as number)}, ${Math.round(input.y as number)}).`
-        : `Mover ${objs.length} objeto(s) ${dx ? `${dx > 0 ? "+" : ""}${dx} en X` : ""}${dx && dy ? ", " : ""}${dy ? `${dy > 0 ? "+" : ""}${dy} en Y` : ""}.`,
+        : anchorBox
+          ? `Mover ${objs.length} objeto(s) junto a '${anchorQuery}'.`
+          : `Mover ${objs.length} objeto(s) ${dx ? `${dx > 0 ? "+" : ""}${dx} en X` : ""}${dx && dy ? ", " : ""}${dy ? `${dy > 0 ? "+" : ""}${dy} en Y` : ""}.`,
     affectedObjectIds: objs.map((o) => o.id),
     operations,
     issues,

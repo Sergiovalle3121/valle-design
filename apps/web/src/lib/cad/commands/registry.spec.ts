@@ -1252,4 +1252,71 @@ if (rectDraftCreate?.type === "create") {
   );
 }
 
+// MOVER con ancla (AXOS-CAD-MOVE-003): 'mueve la silla junto a la mesa'.
+{
+  const parsed = parseCadCommand("mueve la silla junto a la mesa");
+  assert.ok(parsed.ok, "mueve junto a parsea");
+  assert.equal(parsed.input?.id, "move_selection", "sigue siendo move");
+  if (parsed.input?.id === "move_selection") {
+    assert.equal(parsed.input.target, "silla", "objetivo del move");
+    assert.equal(parsed.input.anchor, "mesa", "ancla del move");
+  }
+  const izq = parseCadCommand("mueve la silla a la izquierda de la mesa");
+  if (izq.input?.id === "move_selection")
+    assert.equal(izq.input.anchorSide, "left", "lado izquierdo al mover");
+  const rel = parseCadCommand("mueve la silla 500 a la derecha");
+  if (rel.input?.id === "move_selection") {
+    assert.equal(rel.input.dx, 500, "el relativo sigue igual");
+    assert.equal(rel.input.anchor, undefined, "relativo no arrastra ancla");
+  }
+
+  const comedorCtx: CadCommandContext = {
+    unit: "mm",
+    footprintW: 10000,
+    footprintH: 6000,
+    selectedIds: [],
+    objects: [
+      {
+        id: "s1",
+        type: "asset",
+        kind: "office-chair",
+        label: "Silla",
+        x: 500,
+        y: 500,
+        w: 500,
+        h: 500,
+      },
+      {
+        id: "m1",
+        type: "asset",
+        kind: "dining-table-4",
+        label: "Mesa comedor",
+        x: 4000,
+        y: 2000,
+        w: 1200,
+        h: 1200,
+      },
+    ],
+  };
+  const p = previewCadCommand(
+    { id: "move_selection", target: "silla", anchor: "mesa" },
+    comedorCtx,
+  );
+  assert.ok(!p.issues.some((i) => i.level === "error"), "move ancla sin errores");
+  const op = p.operations[0];
+  assert.equal(op?.type, "move", "emite op move");
+  if (op?.type === "move") {
+    assert.equal(op.after.x, 4000 + 1200 + 100, "aterriza a la derecha del ancla");
+    assert.equal(op.after.y, 2000, "misma altura que el ancla");
+  }
+  const sinAncla = previewCadCommand(
+    { id: "move_selection", target: "silla", anchor: "piano" },
+    comedorCtx,
+  );
+  assert.ok(
+    sinAncla.issues.some((i) => i.code === "move_anchor_not_found"),
+    "ancla inexistente reporta error claro",
+  );
+}
+
 console.log("cad command registry specs passed");

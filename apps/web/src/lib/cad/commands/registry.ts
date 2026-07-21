@@ -2184,12 +2184,25 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         enum: ["true", "false"],
         description: "true centra el conjunto en el footprint.",
       },
+      anchor: {
+        type: "string",
+        description: "Destino relacional: mover junto a este objeto.",
+      },
+      anchorSide: {
+        type: "enum",
+        enum: ["left", "right", "above", "below"],
+        description: "Lado del ancla al mover (default right).",
+      },
       objectIds: {
         type: "string[]",
         description: "Alternativa: objetos seleccionados.",
       },
     },
-    examples: ["mueve la puerta a 2000,650", "centra la mesa"],
+    examples: [
+      "mueve la puerta a 2000,650",
+      "centra la mesa",
+      "mueve la silla junto a la mesa",
+    ],
     validate: (i, c) =>
       moveSelectionPreview(
         i as Extract<CadCommandInput, { id: "move_selection" }>,

@@ -327,6 +327,10 @@ export type CadCommandInput =
       dy?: number;
       /** 'centra la mesa': centra el conjunto en el footprint. */
       center?: boolean;
+      /** 'mueve la silla junto a la mesa': destino relacional por nombre. */
+      anchor?: string;
+      /** Lado del ancla al mover (default right). */
+      anchorSide?: "left" | "right" | "above" | "below";
     }
   | {
       id: "count_objects";
