@@ -44,7 +44,8 @@ export type CadLayoutTemplateId =
   | "papeleria"
   | "fondita"
   | "estetica-canina"
-  | "fisioterapia";
+  | "fisioterapia"
+  | "spa";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1449,6 +1450,36 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "recepcion-fis", kind: "flow" },
       { fromRef: "recepcion-fis", toRef: "camilla-1", kind: "flow" },
       { fromRef: "camilla-1", toRef: "ejercicios-fis", kind: "flow" },
+    ],
+  },
+  {
+    id: "spa",
+    label: "Spa / Masajes",
+    description: "Arranque universal de spa: recepción, sala de espera con sofá, dos cabinas de masaje con camilla, sala de vapor y baño.",
+    category: "architecture",
+    baseWidth: 10000,
+    baseHeight: 7000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 8600, 5600, "architecture", ["architecture", "shell", "spa"]),
+      asset("entrada", "door", "Entrada", 4000, 650, 1000, 260, "architecture", ["door", "opening:entry"]),
+      asset("recepcion-spa", "counter", "Recepción", 1500, 1400, 1800, 600, "equipment", ["counter", "spa"]),
+      asset("espera-spa", "zone", "Sala de espera", 1300, 2400, 2400, 1400, "layout", ["zone", "use:waiting", "spa"]),
+      asset("sofa-spa", "sofa-3", "Sofá de espera", 1500, 2600, 2100, 900, "equipment", ["sofa", "spa"]),
+      asset("cabina-1", "room", "Cabina 1", 4500, 1300, 2000, 2400, "architecture", ["room", "use:massage", "spa"]),
+      asset("camilla-spa-1", "exam-table", "Camilla 1", 5100, 1500, 700, 1900, "equipment", ["camilla", "spa"]),
+      asset("cabina-2", "room", "Cabina 2", 6800, 1300, 2000, 2400, "architecture", ["room", "use:massage", "spa"]),
+      asset("camilla-spa-2", "exam-table", "Camilla 2", 7400, 1500, 700, 1900, "equipment", ["camilla", "spa"]),
+      asset("vapor-spa", "zone", "Sala de vapor", 4500, 4200, 2000, 1500, "layout", ["zone", "use:steam", "spa"]),
+      asset("bano-spa", "room", "Baño", 6800, 4200, 1600, 1500, "architecture", ["room", "use:bathroom", "spa"]),
+      asset("wc-spa", "wc", "WC", 6950, 4350, 400, 650, "equipment", ["wc", "bathroom"]),
+    ],
+    annotations: [
+      note("titulo", "Spa / Masajes — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion-spa", kind: "flow" },
+      { fromRef: "recepcion-spa", toRef: "cabina-1", kind: "flow" },
+      { fromRef: "cabina-1", toRef: "vapor-spa", kind: "flow" },
     ],
   },
 ];
