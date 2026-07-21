@@ -2022,4 +2022,64 @@ if (rectDraftCreate?.type === "create") {
   }
 }
 
+// Superlativos (AXOS-CAD-NAME-007): 'la mesa más grande' resuelve una
+// sola coincidencia por área; el plural simple sigue trayendo todas.
+{
+  const superCtx: CadCommandContext = {
+    unit: "mm",
+    footprintW: 12000,
+    footprintH: 8000,
+    selectedIds: [],
+    connectors: [],
+    objects: [
+      {
+        id: "m-chica",
+        type: "asset",
+        kind: "dining-table-4",
+        label: "Mesa chica",
+        x: 1000,
+        y: 1000,
+        w: 800,
+        h: 800,
+      },
+      {
+        id: "m-grande",
+        type: "asset",
+        kind: "dining-table-4",
+        label: "Mesa grande",
+        x: 4000,
+        y: 1000,
+        w: 1500,
+        h: 1000,
+      },
+    ],
+  };
+  const parsed = parseCadCommand("borra la mesa más grande");
+  assert.equal(parsed.input?.id, "delete_selection", "superlativo parsea");
+  if (parsed.input?.id === "delete_selection") {
+    const p = previewCadCommand(parsed.input, superCtx);
+    assert.deepEqual(
+      p.operations
+        .filter((op) => op.type === "delete")
+        .map((op) => (op.type === "delete" ? op.objectId : "?")),
+      ["m-grande"],
+      "borra solo la mesa de mayor área",
+    );
+  }
+  const chica = previewCadCommand(
+    { id: "select_objects", query: "mesa más pequeña" },
+    superCtx,
+  );
+  assert.deepEqual(
+    chica.affectedObjectIds,
+    ["m-chica"],
+    "selecciona la de menor área",
+  );
+  const plural = previewCadCommand(
+    { id: "count_objects", query: "mesas" },
+    superCtx,
+  );
+  assert.equal(plural.affectedObjectIds.length, 2, "el plural sigue igual");
+}
+
 console.log("cad command registry specs passed");

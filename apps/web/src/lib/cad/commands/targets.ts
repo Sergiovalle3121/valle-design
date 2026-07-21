@@ -73,6 +73,22 @@ export function matchObjectsByName(
     }
     return [...inside.values()];
   }
+  // Superlativos (AXOS-CAD-NAME-007): 'la mesa más grande' / 'el mueble
+  // más pequeño' — resuelve el nombre base y se queda con la coincidencia
+  // de mayor/menor área. Si el base no existe, cae al matching normal
+  // (un label literal con 'más grande' aún puede ganar abajo).
+  const superM = fold(raw).match(
+    /^(.+?)\s+mas\s+(grande|amplio|amplia|chic[oa]|pequen[oa])$/,
+  );
+  if (superM) {
+    const base = superM[1]!.replace(/^(?:las?|los|el|una?)\s+/, "").trim();
+    const baseHits = base ? matchObjectsByName(context, base) : [];
+    if (baseHits.length) {
+      const wantLargest = /grande|amplio|amplia/.test(superM[2]!);
+      const sorted = [...baseHits].sort((a, b) => b.w * b.h - a.w * a.h);
+      return [wantLargest ? sorted[0]! : sorted[sorted.length - 1]!];
+    }
+  }
   const candidates = [fold(raw), fold(raw).replace(/es$/, ""), fold(raw).replace(/s$/, "")];
   for (const needle of candidates) {
     if (!needle) continue;
