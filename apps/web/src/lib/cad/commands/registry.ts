@@ -1823,7 +1823,7 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         description: "Alternativa: objetos seleccionados.",
       },
     },
-    examples: ["borra la selección", "borra la puerta"],
+    examples: ["borra la selección", "borra la puerta", "despeja la cocina"],
     validate: (i, c) =>
       deleteSelectionPreview(
         i as Extract<CadCommandInput, { id: "delete_selection" }>,

@@ -1870,4 +1870,75 @@ if (rectDraftCreate?.type === "create") {
   }
 }
 
+// Despejar zona (AXOS-CAD-ZONE-003): 'despeja la cocina' borra el
+// contenido del cuarto — nunca el cuarto — vía la contención.
+{
+  const despejeCtx: CadCommandContext = {
+    unit: "mm",
+    footprintW: 12000,
+    footprintH: 8000,
+    selectedIds: [],
+    connectors: [],
+    objects: [
+      {
+        id: "coc",
+        type: "asset",
+        kind: "room",
+        label: "Cocina",
+        x: 0,
+        y: 0,
+        w: 3000,
+        h: 3000,
+      },
+      {
+        id: "est",
+        type: "asset",
+        kind: "stove",
+        label: "Estufa",
+        x: 500,
+        y: 500,
+        w: 600,
+        h: 600,
+      },
+      {
+        id: "esc",
+        type: "asset",
+        kind: "desk",
+        label: "Escritorio",
+        x: 6000,
+        y: 5000,
+        w: 1200,
+        h: 700,
+      },
+    ],
+  };
+  const parsed = parseCadCommand("despeja la cocina");
+  assert.equal(parsed.input?.id, "delete_selection", "despeja parsea a borrar");
+  if (parsed.input?.id === "delete_selection") {
+    assert.equal(
+      parsed.input.target,
+      "lo que está en cocina",
+      "target de contención armado",
+    );
+    const p = previewCadCommand(parsed.input, despejeCtx);
+    assert.deepEqual(
+      p.operations
+        .filter((op) => op.type === "delete")
+        .map((op) => (op.type === "delete" ? op.objectId : "?")),
+      ["est"],
+      "despeja la estufa, no el cuarto ni lo de afuera",
+    );
+  }
+  const vacia = parseCadCommand("vacía la bodega");
+  if (vacia.input?.id === "delete_selection") {
+    assert.equal(
+      vacia.input.target,
+      "lo que está en bodega",
+      "'vacía' también arma contención",
+    );
+  }
+  const bare = parseCadCommand("despeja");
+  assert.equal(bare.ok, false, "sin zona pide aclaración");
+}
+
 console.log("cad command registry specs passed");

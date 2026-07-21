@@ -635,6 +635,30 @@ export function parseCadCommand(text: string): CadParseResult {
       input: { id: "clear_annotations", kind },
     };
   }
+  // 'despeja la cocina' (AXOS-CAD-ZONE-003): vaciar una zona con un
+  // verbo — arma 'lo que está en X' y la contención borra el contenido
+  // del cuarto sin tocar al cuarto mismo.
+  if (/\b(despeja|despejar|vac[ií]a|vaciar)\b/.test(q)) {
+    const residue = q
+      .replace(/^.*?\b(?:despeja|despejar|vac[ií]a|vaciar)\b\s*/, "")
+      .replace(/[¿?¡!.]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/^(?:una?|el|la|los|las)\s+/, "")
+      .trim();
+    if (!residue) {
+      return {
+        ok: false,
+        confidence: 0.6,
+        clarification: "¿Qué despejo? ('despeja la cocina')",
+      };
+    }
+    return {
+      ok: true,
+      confidence: 0.84,
+      input: { id: "delete_selection", target: `lo que está en ${residue}` },
+    };
+  }
   if (/\b(borra|borrar|elimina|eliminar|quita|quitar|suprime|delete)\b/.test(q)) {
     // Residuo tras el verbo = objetivo por nombre ('borra la puerta');
     // 'la selección/esto/esos objetos' siguen siendo la selección actual.
