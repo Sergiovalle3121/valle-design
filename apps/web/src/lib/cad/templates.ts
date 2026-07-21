@@ -41,7 +41,8 @@ export type CadLayoutTemplateId =
   | "fruteria"
   | "barberia"
   | "tortilleria"
-  | "papeleria";
+  | "papeleria"
+  | "fondita";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1354,6 +1355,38 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "mostrador-pap", kind: "flow" },
       { fromRef: "bodega-pap", toRef: "gondola-pap-1", kind: "material" },
       { fromRef: "copiadora", toRef: "mostrador-pap", kind: "flow" },
+    ],
+  },
+  {
+    id: "fondita",
+    label: "Cocina económica / Fondita",
+    description: "Arranque universal de cocina económica: cocina con estufa, refrigerador y mesa de preparación, barra de servicio, comedor con cuatro mesas y baño.",
+    category: "architecture",
+    baseWidth: 10000,
+    baseHeight: 7000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 8600, 5600, "architecture", ["architecture", "shell", "fondita"]),
+      asset("entrada", "door", "Entrada", 4000, 650, 1000, 260, "architecture", ["door", "opening:entry"]),
+      asset("cocina-fon", "zone", "Cocina", 1300, 1300, 3200, 2400, "layout", ["zone", "use:kitchen", "fondita"]),
+      asset("estufa-fon", "stove", "Estufa", 1500, 1500, 900, 650, "equipment", ["estufa", "fondita"]),
+      asset("refri-fon", "refrigerator", "Refrigerador", 2600, 1500, 800, 700, "equipment", ["refrigerador", "fondita"]),
+      asset("mesa-prep-fon", "workbench", "Mesa de preparación", 1500, 2500, 1800, 750, "equipment", ["mesa", "fondita"]),
+      asset("barra-fon", "counter", "Barra de servicio", 1300, 4200, 2600, 600, "equipment", ["counter", "fondita"]),
+      asset("comedor-fon", "zone", "Comedor", 5000, 1300, 3800, 3200, "layout", ["zone", "use:dining", "fondita"]),
+      asset("mesa-fon-1", "restaurant-table-4", "Mesa 1", 5500, 1800, 900, 900, "equipment", ["table", "fondita"]),
+      asset("mesa-fon-2", "restaurant-table-4", "Mesa 2", 7300, 1800, 900, 900, "equipment", ["table", "fondita"]),
+      asset("mesa-fon-3", "restaurant-table-4", "Mesa 3", 5500, 3300, 900, 900, "equipment", ["table", "fondita"]),
+      asset("mesa-fon-4", "restaurant-table-4", "Mesa 4", 7300, 3300, 900, 900, "equipment", ["table", "fondita"]),
+      asset("bano-fon", "room", "Baño", 5200, 4800, 1600, 1500, "architecture", ["room", "use:bathroom", "fondita"]),
+      asset("wc-fon", "wc", "WC", 5400, 5000, 400, 650, "equipment", ["wc", "bathroom"]),
+    ],
+    annotations: [
+      note("titulo", "Cocina económica / Fondita — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "comedor-fon", kind: "flow" },
+      { fromRef: "estufa-fon", toRef: "barra-fon", kind: "material" },
+      { fromRef: "barra-fon", toRef: "mesa-fon-1", kind: "flow" },
     ],
   },
 ];
