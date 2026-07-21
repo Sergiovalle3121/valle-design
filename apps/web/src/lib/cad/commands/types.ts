@@ -381,6 +381,10 @@ export type CadCommandInput =
       w?: number;
       /** Alto nuevo en mm; omitido conserva el actual. */
       h?: number;
+      /** Referencia por nombre: 'haz la mesa del tamaño del escritorio' —
+       * copia el ancho×alto del primer objeto que coincida (excluyendo a los
+       * objetivos). Los números explícitos w/h tienen prioridad. */
+      like?: string;
     }
   | {
       id: "swap_objects";

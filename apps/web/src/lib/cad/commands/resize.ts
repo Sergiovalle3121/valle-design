@@ -2,9 +2,10 @@
  * Cambiar tamaño (AXOS-CAD-RESIZE-001): 'cambia el tamaño de la mesa a
  * 1500x900' — fija ancho×alto exactos en mm conservando la esquina superior
  * izquierda. Emite ops move (before/after) para que el editor y el undo lo
- * traten igual que un arrastre.
+ * traten igual que un arrastre. Con `like` (AXOS-CAD-RESIZE-002: 'haz la
+ * mesa del tamaño del escritorio') copia el w×h de la referencia.
  */
-import { resolveCommandTargets } from "./targets";
+import { matchObjectsByName, resolveCommandTargets } from "./targets";
 import type {
   CadCommandContext,
   CadCommandInput,
@@ -38,12 +39,32 @@ export function resizeObjectPreview(
     );
     return { summary: "", affectedObjectIds: [], operations: [], issues };
   }
-  const w = Number.isFinite(input.w)
+  let w = Number.isFinite(input.w)
     ? Math.round(input.w as number)
     : undefined;
-  const h = Number.isFinite(input.h)
+  let h = Number.isFinite(input.h)
     ? Math.round(input.h as number)
     : undefined;
+  let refLabel: string | undefined;
+  const likeName = input.like?.trim();
+  if (likeName && w === undefined && h === undefined) {
+    const targetIds = new Set(objs.map((o) => o.id));
+    const ref = matchObjectsByName(context, likeName).find(
+      (o) => !targetIds.has(o.id),
+    );
+    if (!ref) {
+      issues.push(
+        error(
+          "resize_like_not_found",
+          `No encontré '${likeName}' para copiar su tamaño.`,
+        ),
+      );
+      return { summary: "", affectedObjectIds: [], operations: [], issues };
+    }
+    w = ref.w;
+    h = ref.h;
+    refLabel = ref.label;
+  }
   if (
     (w !== undefined && w <= 0) ||
     (h !== undefined && h <= 0) ||
@@ -64,7 +85,7 @@ export function resizeObjectPreview(
     after: { ...o, w: w ?? o.w, h: h ?? o.h },
   }));
   return {
-    summary: `Cambiar tamaño de ${objs.length} objeto(s) a ${w ?? "ancho actual"}×${h ?? "alto actual"} mm.`,
+    summary: `Cambiar tamaño de ${objs.length} objeto(s) a ${w ?? "ancho actual"}×${h ?? "alto actual"} mm${refLabel ? ` (como '${refLabel}')` : ""}.`,
     affectedObjectIds: objs.map((o) => o.id),
     operations,
     issues,

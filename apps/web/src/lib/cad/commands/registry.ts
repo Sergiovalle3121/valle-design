@@ -2148,6 +2148,11 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     inputSchema: {
       w: { type: "number", description: "Ancho nuevo en mm." },
       h: { type: "number", description: "Alto nuevo en mm." },
+      like: {
+        type: "string",
+        description:
+          "Referencia por nombre: copia el ancho×alto de ese objeto.",
+      },
       target: {
         type: "string",
         description: "Objetivo por nombre (label o tipo).",
@@ -2160,6 +2165,7 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     examples: [
       "cambia el tamaño de la mesa a 1500x900",
       "redimensiona la barra a 2500x600",
+      "haz la mesa del tamaño del escritorio",
     ],
     validate: (i, c) =>
       resizeObjectPreview(

@@ -291,6 +291,56 @@ export function parseCadCommand(text: string): CadParseResult {
       },
     };
   }
+  // IGUALAR TAMAÑO (AXOS-CAD-RESIZE-002): 'haz la mesa del tamaño del
+  // escritorio' / 'iguala el tamaño de la mesa y el escritorio' — copia el
+  // w×h de la referencia sin pedir números.
+  const likeMatch =
+    raw.match(
+      /^(?:haz(?:me)?|pon(?:me)?|deja)\s+(.+?)\s+del\s+(?:mismo\s+)?tama[ñn]o\s+(?:que|del|de)\s+(.+)$/i,
+    ) ??
+    raw.match(
+      /^iguala(?:me)?\s+(?:el\s+tama[ñn]o\s+de\s+)?(.+?)\s+(?:con|al|a|y)\s+(.+)$/i,
+    );
+  if (likeMatch) {
+    const cleanName = (s: string) =>
+      s
+        .replace(/^(?:(?:de|del|el|la|los|las|un|una|unos|unas)\s+)+/i, "")
+        .replace(/\s+/g, " ")
+        .trim();
+    const target = cleanName(likeMatch[1]!);
+    const like = cleanName(likeMatch[2]!);
+    if (!like)
+      return {
+        ok: false,
+        confidence: 0.6,
+        clarification:
+          "¿Del tamaño de qué objeto? (ej. 'haz la mesa del tamaño del escritorio')",
+      };
+    const selectionWords =
+      /^(?:la\s+selecci[oó]n|lo\s+seleccionado|esto|estos\s+objetos|esos\s+objetos)$/i;
+    const cleanTarget =
+      !target || selectionWords.test(target) ? undefined : target;
+    // 'iguala la mesa a 1500x900' cae aquí: son números, no una referencia.
+    const likeDims = like.match(
+      /^(\d+(?:[.,]\d+)?)\s*[x×]\s*(\d+(?:[.,]\d+)?)\s*(?:mm)?$/i,
+    );
+    if (likeDims)
+      return {
+        ok: true,
+        confidence: 0.85,
+        input: {
+          id: "resize_object",
+          w: Number(likeDims[1]!.replace(",", ".")),
+          h: Number(likeDims[2]!.replace(",", ".")),
+          target: cleanTarget,
+        },
+      };
+    return {
+      ok: true,
+      confidence: 0.85,
+      input: { id: "resize_object", target: cleanTarget, like },
+    };
+  }
   // FILA/REPETIR (AXOS-CAD-ARRAY-001): 'repite la silla 4 veces cada 600
   // a la derecha' — arreglo lineal conversacional con objetivo por nombre.
   const repeatMatch = raw.match(/^rep[ií]te(?:me|l[ao]s?)?\s+(.+)$/i);

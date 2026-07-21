@@ -2436,4 +2436,78 @@ if (rectDraftCreate?.type === "create") {
   );
 }
 
+// IGUALAR TAMAÑO (AXOS-CAD-RESIZE-002): 'haz la mesa del tamaño del
+// escritorio' — copia el w×h de la referencia conservando la posición.
+{
+  const likeCtx: CadCommandContext = {
+    unit: "mm",
+    footprintW: 12000,
+    footprintH: 8000,
+    selectedIds: [],
+    connectors: [],
+    objects: [
+      {
+        id: "mesa",
+        type: "asset",
+        kind: "dining-table-4",
+        label: "Mesa",
+        x: 1000,
+        y: 1000,
+        w: 1000,
+        h: 1000,
+      },
+      {
+        id: "esc",
+        type: "asset",
+        kind: "desk",
+        label: "Escritorio",
+        x: 6000,
+        y: 4000,
+        w: 1400,
+        h: 700,
+      },
+    ],
+  };
+  const parsed = parseCadCommand("haz la mesa del tamaño del escritorio");
+  assert.equal(parsed.input?.id, "resize_object", "haz…del tamaño parsea");
+  if (parsed.input?.id === "resize_object") {
+    assert.equal(parsed.input.target, "mesa", "objetivo por nombre");
+    assert.equal(parsed.input.like, "escritorio", "referencia por nombre");
+    const p = previewCadCommand(parsed.input, likeCtx);
+    assert.equal(p.issues.length, 0, "igualar sin issues");
+    const op = p.operations[0];
+    if (op?.type === "move") {
+      assert.equal(op.after.w, 1400, "copia el ancho de la referencia");
+      assert.equal(op.after.h, 700, "copia el alto de la referencia");
+      assert.equal(op.after.x, 1000, "conserva la posición");
+    }
+  }
+  const igu = parseCadCommand("iguala el tamaño de la mesa y el escritorio");
+  assert.equal(igu.input?.id, "resize_object", "iguala parsea");
+  if (igu.input?.id === "resize_object") {
+    assert.equal(igu.input.target, "mesa", "iguala: objetivo");
+    assert.equal(igu.input.like, "escritorio", "'y' separa la referencia");
+  }
+  const alDel = parseCadCommand(
+    "iguala el tamaño de la mesa al del escritorio",
+  );
+  if (alDel.input?.id === "resize_object") {
+    assert.equal(alDel.input.like, "escritorio", "'al del' también separa");
+  }
+  const nums = parseCadCommand("iguala la mesa a 1500x900");
+  assert.equal(nums.input?.id, "resize_object", "iguala con números parsea");
+  if (nums.input?.id === "resize_object") {
+    assert.equal(nums.input.w, 1500, "números explícitos → w");
+    assert.equal(nums.input.like, undefined, "números no son referencia");
+  }
+  const missing = previewCadCommand(
+    { id: "resize_object", target: "mesa", like: "piano" },
+    likeCtx,
+  );
+  assert.ok(
+    missing.issues.some((i) => i.code === "resize_like_not_found"),
+    "referencia inexistente → error específico",
+  );
+}
+
 console.log("cad command registry specs passed");
