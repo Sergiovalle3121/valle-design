@@ -88,3 +88,19 @@ console.log("cad command line assist specs passed");
     "seleccionar por nombre en el top 3",
   );
 }
+
+// AXOS-CAD-ASSIST-004: REDIMENSIONAR aparece al teclear 'tamaño'.
+{
+  const items = suggestCadCommands({
+    query: "tamaño",
+    selectedCount: 1,
+    maxItems: 5,
+  });
+  assertEqual(
+    items[0]?.commandId,
+    "resize_object",
+    "query 'tamaño' sugiere cambiar tamaño primero",
+  );
+  const resize = items.find((item) => item.commandId === "resize_object");
+  assertEqual(resize?.ready, true, "con un objeto seleccionado queda listo");
+}
