@@ -958,9 +958,14 @@ export function parseCadCommand(text: string): CadParseResult {
     };
   }
   if (/distribu|espacia|equal/.test(q)) {
+    // Separación fija (AXOS-CAD-DIST-002): 'distribuye las mesas cada 800'.
+    const distGap = unitValueToMm(
+      q.match(/cada\s*(\d+(?:[.,]\d+)?)\s*(mm|m)?\b/i),
+    );
     const distTarget = q
       .replace(/^.*?\b(?:distribuye|distribuir|espacia|espaciar)\b\s*/, "")
       .replace(/\b(vertical(mente)?|horizontal(mente)?)\b/g, "")
+      .replace(/\bcada\s*\d+(?:[.,]\d+)?\s*(?:mm|m)?\b/gi, "")
       .replace(/\b(la\s+selecci[oó]n|lo\s+seleccionado|esto|estos|esos?\s*(objetos)?)\b/g, "")
       .replace(/\s+/g, " ")
       .trim()
@@ -973,6 +978,7 @@ export function parseCadCommand(text: string): CadParseResult {
         id: "distribute_selection",
         axis: /vertical/.test(q) ? "vertical" : "horizontal",
         target: distTarget || undefined,
+        gap: distGap,
       } as CadCommandInput,
     };
   }

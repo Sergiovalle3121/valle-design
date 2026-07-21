@@ -1319,4 +1319,56 @@ if (rectDraftCreate?.type === "create") {
   );
 }
 
+// DISTRIBUIR con separación fija (AXOS-CAD-DIST-002): 'cada 800'.
+{
+  const parsed = parseCadCommand("distribuye las mesas cada 800");
+  assert.ok(parsed.ok, "distribuye cada N parsea");
+  assert.equal(parsed.input?.id, "distribute_selection", "sigue distribute");
+  if (parsed.input?.id === "distribute_selection") {
+    assert.equal(parsed.input.gap, 800, "separación fija del parser");
+    assert.equal(parsed.input.target, "mesas", "objetivo sin 'cada N'");
+  }
+  const mesitasCtx: CadCommandContext = {
+    unit: "mm",
+    footprintW: 20000,
+    footprintH: 10000,
+    selectedIds: [],
+    objects: [
+      {
+        id: "m1",
+        type: "asset",
+        kind: "dining-table-4",
+        label: "Mesa 1",
+        x: 1000,
+        y: 1000,
+        w: 900,
+        h: 900,
+      },
+      {
+        id: "m2",
+        type: "asset",
+        kind: "dining-table-4",
+        label: "Mesa 2",
+        x: 5000,
+        y: 1000,
+        w: 900,
+        h: 900,
+      },
+    ],
+  };
+  const p = previewCadCommand(
+    { id: "distribute_selection", axis: "horizontal", target: "mesa", gap: 800 },
+    mesitasCtx,
+  );
+  assert.ok(
+    !p.issues.some((i) => i.level === "error"),
+    "gap fijo funciona con 2 objetos",
+  );
+  const second = p.operations.find(
+    (op) => op.type === "move" && op.objectId === "m2",
+  );
+  if (second?.type === "move")
+    assert.equal(second.after.x, 1000 + 900 + 800, "segunda a 800 del borde");
+}
+
 console.log("cad command registry specs passed");

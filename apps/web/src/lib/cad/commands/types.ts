@@ -180,6 +180,8 @@ export type CadCommandInput =
       objectIds?: string[];
       /** Objetivo por nombre: 'distribuye las sillas'. */
       target?: string;
+      /** Separación fija en mm: 'distribuye las mesas cada 800' (min 2 objetos). */
+      gap?: number;
     }
   | { id: "connect_flow"; from?: string; to?: string; objectIds?: string[] }
   | {

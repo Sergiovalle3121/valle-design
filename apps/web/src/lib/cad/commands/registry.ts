@@ -184,13 +184,23 @@ function distributePreview(
       ],
     };
   }
-  const { objects, issues } = selectedObjects(context, targetIds ?? input.objectIds, 3);
+  // Separación fija (AXOS-CAD-DIST-002): 'cada 800' apila desde el primero
+  // con ese hueco exacto; sin gap reparte los huecos iguales (min 3).
+  const fixedGap = Number.isFinite(input.gap)
+    ? Math.max(0, Math.round(input.gap as number))
+    : undefined;
+  const minCount = fixedGap !== undefined ? 2 : 3;
+  const { objects, issues } = selectedObjects(
+    context,
+    targetIds ?? input.objectIds,
+    minCount,
+  );
   const horizontal = input.axis === "horizontal";
   const sorted = [...objects].sort((a, b) =>
     horizontal ? a.x - b.x : a.y - b.y,
   );
   const start = horizontal ? sorted[0]?.x : sorted[0]?.y;
-  if (sorted.length < 3 || start == null)
+  if (sorted.length < minCount || start == null)
     return {
       summary: "Distribuir selección",
       affectedObjectIds: objects.map((o) => o.id),
@@ -201,7 +211,8 @@ function distributePreview(
     ? sorted[sorted.length - 1].x + sorted[sorted.length - 1].w
     : sorted[sorted.length - 1].y + sorted[sorted.length - 1].h;
   const total = sorted.reduce((sum, o) => sum + (horizontal ? o.w : o.h), 0);
-  const gap = (endEdge - start - total) / (sorted.length - 1);
+  const gap =
+    fixedGap ?? (endEdge - start - total) / (sorted.length - 1);
   let cursor = start;
   const operations: CadOperation[] = sorted.map((o) => {
     const after = { ...o };
@@ -211,7 +222,10 @@ function distributePreview(
     return { type: "move", objectId: o.id, before: o, after };
   });
   return {
-    summary: `Distribuir ${objects.length} objetos en ${input.axis}.`,
+    summary:
+      fixedGap !== undefined
+        ? `Distribuir ${objects.length} objetos cada ${fixedGap} mm en ${input.axis}.`
+        : `Distribuir ${objects.length} objetos en ${input.axis}.`,
     affectedObjectIds: objects.map((o) => o.id),
     operations,
     issues,
@@ -977,9 +991,13 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         enum: ["horizontal", "vertical"],
         description: "Eje de distribución.",
       },
+      gap: {
+        type: "number",
+        description: "Separación fija en mm ('cada 800'); sin ella iguala huecos.",
+      },
       objectIds: { type: "string[]", description: "Objetos afectados." },
     },
-    examples: ["distribuye horizontalmente"],
+    examples: ["distribuye horizontalmente", "distribuye las mesas cada 800"],
     validate: (i, c) =>
       distributePreview(
         i as Extract<CadCommandInput, { id: "distribute_selection" }>,
