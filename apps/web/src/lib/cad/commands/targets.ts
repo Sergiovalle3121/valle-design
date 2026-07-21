@@ -89,6 +89,30 @@ export function matchObjectsByName(
       return [wantLargest ? sorted[0]! : sorted[sorted.length - 1]!];
     }
   }
+  // Ordinales (AXOS-CAD-NAME-008): 'la primera mesa' / 'la última silla'
+  // — resuelve el base y escoge por orden del plano; un índice fuera de
+  // rango cae al error de objetivo no encontrado del comando.
+  const ordM = fold(raw).match(
+    /^(?:l[ao]s?\s+)?(primer[oa]?|segund[oa]|tercer[oa]?|cuart[oa]|ultim[oa])\s+(.+)$/,
+  );
+  if (ordM) {
+    const base = ordM[2]!.trim();
+    const baseHits = base ? matchObjectsByName(context, base) : [];
+    if (baseHits.length) {
+      const word = ordM[1]!;
+      const idx = /ultim/.test(word)
+        ? baseHits.length - 1
+        : /segund/.test(word)
+          ? 1
+          : /tercer/.test(word)
+            ? 2
+            : /cuart/.test(word)
+              ? 3
+              : 0;
+      const pick = baseHits[idx];
+      return pick ? [pick] : [];
+    }
+  }
   const candidates = [fold(raw), fold(raw).replace(/es$/, ""), fold(raw).replace(/s$/, "")];
   for (const needle of candidates) {
     if (!needle) continue;

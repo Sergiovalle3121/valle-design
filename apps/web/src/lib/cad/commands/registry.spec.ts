@@ -2082,4 +2082,72 @@ if (rectDraftCreate?.type === "create") {
   assert.equal(plural.affectedObjectIds.length, 2, "el plural sigue igual");
 }
 
+// Ordinales (AXOS-CAD-NAME-008): 'la primera mesa' escoge por orden del
+// plano; un índice fuera de rango reporta objetivo no encontrado.
+{
+  const ordenCtx: CadCommandContext = {
+    unit: "mm",
+    footprintW: 12000,
+    footprintH: 8000,
+    selectedIds: [],
+    connectors: [],
+    objects: [
+      {
+        id: "t1",
+        type: "asset",
+        kind: "dining-table-4",
+        label: "Mesa 1",
+        x: 1000,
+        y: 1000,
+        w: 900,
+        h: 900,
+      },
+      {
+        id: "t2",
+        type: "asset",
+        kind: "dining-table-4",
+        label: "Mesa 2",
+        x: 3000,
+        y: 1000,
+        w: 900,
+        h: 900,
+      },
+      {
+        id: "t3",
+        type: "asset",
+        kind: "dining-table-4",
+        label: "Mesa 3",
+        x: 5000,
+        y: 1000,
+        w: 900,
+        h: 900,
+      },
+    ],
+  };
+  const primera = previewCadCommand(
+    { id: "delete_selection", target: "primera mesa" },
+    ordenCtx,
+  );
+  assert.deepEqual(
+    primera.operations
+      .filter((op) => op.type === "delete")
+      .map((op) => (op.type === "delete" ? op.objectId : "?")),
+    ["t1"],
+    "la primera mesa es la del orden del plano",
+  );
+  const ultima = previewCadCommand(
+    { id: "select_objects", query: "última mesa" },
+    ordenCtx,
+  );
+  assert.deepEqual(ultima.affectedObjectIds, ["t3"], "la última es t3");
+  const cuarta = previewCadCommand(
+    { id: "delete_selection", target: "cuarta mesa" },
+    ordenCtx,
+  );
+  assert.ok(
+    cuarta.issues.some((i) => i.level === "error"),
+    "índice fuera de rango reporta error",
+  );
+}
+
 console.log("cad command registry specs passed");
