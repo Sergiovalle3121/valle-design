@@ -977,6 +977,17 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["máquina tortilladora", "maquina tortilladora", "tortilladora", "tortillería", "tortilleria", "tortillas"],
     ports: [],
   },
+  // — Decimoséptima tanda universal (AXOS-CAD-UNIVERSAL-033): papelería —
+  {
+    id: "copier",
+    label: "Copiadora",
+    category: "equipment",
+    defaultWidth: 700,
+    defaultHeight: 600,
+    layer: "Equipment",
+    tags: ["copiadora", "impresora", "copier", "fotocopiadora", "papelería", "papeleria", "oficina"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {

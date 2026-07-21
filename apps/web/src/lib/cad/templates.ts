@@ -40,7 +40,8 @@ export type CadLayoutTemplateId =
   | "carniceria"
   | "fruteria"
   | "barberia"
-  | "tortilleria";
+  | "tortilleria"
+  | "papeleria";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1326,6 +1327,33 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "bodega-maiz", toRef: "maquina-tort", kind: "material" },
       { fromRef: "maquina-tort", toRef: "mostrador-tort", kind: "material" },
       { fromRef: "entrada", toRef: "mostrador-tort", kind: "flow" },
+    ],
+  },
+  {
+    id: "papeleria",
+    label: "Papelería",
+    description: "Arranque universal de papelería: mostrador con vitrina, dos góndolas, copiadora, mesa de trabajo y bodega.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["architecture", "shell", "papeleria"]),
+      asset("entrada", "door", "Entrada", 3500, 650, 1000, 260, "architecture", ["door", "opening:entry"]),
+      asset("mostrador-pap", "counter", "Mostrador", 1500, 1400, 1800, 600, "equipment", ["counter", "papeleria"]),
+      asset("vitrina-pap", "display-case", "Vitrina de artículos", 3600, 1400, 1200, 600, "equipment", ["vitrina", "papeleria"]),
+      asset("copiadora", "copier", "Copiadora", 5200, 1400, 700, 600, "equipment", ["copiadora", "papeleria"]),
+      asset("gondola-pap-1", "shelf-gondola", "Góndola de papelería", 1500, 2800, 3000, 500, "equipment", ["gondola", "papeleria"]),
+      asset("gondola-pap-2", "shelf-gondola", "Góndola de escolares", 1500, 4000, 3000, 500, "equipment", ["gondola", "papeleria"]),
+      asset("mesa-trabajo-pap", "desk", "Mesa de trabajo", 5200, 2600, 1400, 700, "equipment", ["mesa", "papeleria"]),
+      asset("bodega-pap", "room", "Bodega", 6400, 3400, 1600, 1600, "architecture", ["room", "use:storage", "papeleria"]),
+    ],
+    annotations: [
+      note("titulo", "Papelería — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "mostrador-pap", kind: "flow" },
+      { fromRef: "bodega-pap", toRef: "gondola-pap-1", kind: "material" },
+      { fromRef: "copiadora", toRef: "mostrador-pap", kind: "flow" },
     ],
   },
 ];

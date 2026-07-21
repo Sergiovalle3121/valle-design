@@ -283,3 +283,13 @@ assert.ok(
   ),
   "search finds tortillería → máquina",
 );
+
+// Decimoséptima tanda universal (AXOS-CAD-UNIVERSAL-033): papelería.
+assert.ok(
+  searchCadSymbols("copiadora").some((symbol) => symbol.id === "copier"),
+  "search finds copiadora",
+);
+assert.ok(
+  searchCadSymbols("fotocopiadora").some((symbol) => symbol.id === "copier"),
+  "search finds fotocopiadora",
+);
