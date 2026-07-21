@@ -27,6 +27,7 @@ export type CadCommandId =
   | "duplicate_selection"
   | "move_selection"
   | "count_objects"
+  | "object_info"
   | "select_objects"
   | "help_commands"
   | "clear_annotations"
@@ -317,6 +318,11 @@ export type CadCommandInput =
   | {
       id: "select_objects";
       /** Qué seleccionar ('mesas', 'barra', 'todo'). */
+      query: string;
+    }
+  | {
+      id: "object_info";
+      /** De qué objeto: '¿cuánto mide la mesa?'. */
       query: string;
     }
   | { id: "help_commands" }

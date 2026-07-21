@@ -588,6 +588,22 @@ export function parseCadCommand(text: string): CadParseResult {
       input: { id: "select_objects", query },
     };
   }
+  if (/cu[aá]nto\s+mide\b/.test(q) || /^info\s+/.test(q)) {
+    const query = q
+      .replace(/^.*?(?:cu[aá]nto\s+mide|^info)\s*/, "")
+      .replace(/\b(de|del|la|el|los|las|una?)\b/g, " ")
+      .replace(/[¿?¡!.]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!query) {
+      return {
+        ok: false,
+        confidence: 0.6,
+        clarification: "¿De qué objeto? ('¿cuánto mide la mesa?')",
+      };
+    }
+    return { ok: true, confidence: 0.86, input: { id: "object_info", query } };
+  }
   if (/\b(cuenta|cuentame|cuéntame|cuantas|cuántas|cuantos|cuántos)\b/.test(q)) {
     const query = q
       .replace(/^.*?\b(?:cuenta|cuentame|cuéntame|cuantas|cuántas|cuantos|cuántos)\b\s*/, "")

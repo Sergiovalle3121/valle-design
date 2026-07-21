@@ -59,7 +59,28 @@ assert.equal(
   CAD_COMMAND_REGISTRY.length,
   "registry ids are unique",
 );
-assert.equal(CAD_COMMAND_REGISTRY.length, 41, "registry exposes 41 commands");
+assert.equal(CAD_COMMAND_REGISTRY.length, 42, "registry exposes 42 commands");
+
+// Info de objeto (AXOS-CAD-QUERY-002): '¿cuánto mide X?' responde medidas.
+{
+  const parsed = parseCadCommand("¿cuánto mide la smt?");
+  assert.equal(parsed.input?.id, "object_info", "cuánto mide parsea");
+  if (parsed.input?.id === "object_info") {
+    assert.equal(parsed.input.query, "smt", "query limpia");
+  }
+  const p = previewCadCommand({ id: "object_info", query: "smt" }, ctx);
+  const op = p.operations[0];
+  assert.equal(op.type, "report", "emite report");
+  if (op.type === "report") {
+    assert.ok(op.rows[0].value.includes("1000×600"), "medidas reales");
+  }
+  assert.ok(p.summary.includes("SMT"), "resumen con el objeto");
+  const missing = previewCadCommand({ id: "object_info", query: "nave espacial" }, ctx);
+  assert.ok(
+    missing.issues.some((i) => i.code === "info_not_found"),
+    "objetivo inexistente → error",
+  );
+}
 
 // Acotar por nombre (AXOS-CAD-NAME-005).
 {

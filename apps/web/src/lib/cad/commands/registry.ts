@@ -39,6 +39,7 @@ import {
 } from "./wall-edit";
 import { clearAnnotationsPreview } from "./clean";
 import { countObjectsPreview } from "./count";
+import { objectInfoPreview } from "./info";
 import { deleteSelectionPreview } from "./delete";
 import { duplicateSelectionPreview } from "./duplicate";
 import { addLabelPreview } from "./label";
@@ -2011,6 +2012,35 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     execute: (i, c) => {
       const p = selectObjectsPreview(
         i as Extract<CadCommandInput, { id: "select_objects" }>,
+        c,
+      );
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
+    id: "object_info",
+    label: "Info de objeto",
+    category: "analysis",
+    description:
+      "Responde medidas, posición y rotación de cada coincidencia, resaltándolas en el lienzo.",
+    inputSchema: {
+      query: {
+        type: "string",
+        required: true,
+        description: "De qué objeto ('mesa', 'barra').",
+      },
+    },
+    examples: ["info de la mesa", "info de la barra"],
+    validate: (i, c) =>
+      objectInfoPreview(
+        i as Extract<CadCommandInput, { id: "object_info" }>,
+        c,
+      ).issues,
+    preview: (i, c) =>
+      objectInfoPreview(i as Extract<CadCommandInput, { id: "object_info" }>, c),
+    execute: (i, c) => {
+      const p = objectInfoPreview(
+        i as Extract<CadCommandInput, { id: "object_info" }>,
         c,
       );
       return result(p, ok(p.issues), p.summary);
