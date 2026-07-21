@@ -218,6 +218,8 @@ export type CadCommandInput =
   | {
       id: "mirror_selection";
       objectIds?: string[];
+      /** Objetivo por nombre: 'espejo de la puerta' (label o kind). */
+      target?: string;
       axis?: "vertical" | "horizontal";
       /** Coordenada del eje; default: centro del bounding box de la selección. */
       at?: number;
@@ -236,12 +238,16 @@ export type CadCommandInput =
   | {
       id: "rotate_selection";
       objectIds?: string[];
+      /** Objetivo por nombre: 'rota la puerta 90' (label o kind). */
+      target?: string;
       /** Grados, positivo antihorario; gira alrededor del centro del conjunto. */
       angle: number;
     }
   | {
       id: "scale_selection";
       objectIds?: string[];
+      /** Objetivo por nombre: 'escala la mesa al 150%' (label o kind). */
+      target?: string;
       /** Factor > 0 y ≠ 1; escala tamaños y posiciones desde el centro. */
       factor: number;
     }

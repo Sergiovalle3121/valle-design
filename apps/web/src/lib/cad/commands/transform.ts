@@ -6,6 +6,7 @@
  * Ambos emiten moves con preview/undo del historial.
  */
 import { normalizeDeg } from "../../../components/line-engineering/precision-input";
+import { resolveCommandTargets } from "./targets";
 import type {
   CadBox,
   CadCommandContext,
@@ -17,20 +18,26 @@ import type {
 import { error } from "./validators";
 
 function resolveSelection(
-  input: { objectIds?: string[] },
+  input: { objectIds?: string[]; target?: string },
   context: CadCommandContext,
 ): { objs: CadBox[]; issues: CadValidationIssue[] } {
   const issues: CadValidationIssue[] = [];
-  const ids = input.objectIds?.length ? input.objectIds : context.selectedIds;
-  const objs = ids
-    .map((id) => context.objects.find((o) => o.id === id))
-    .filter((o): o is CadBox => !!o);
+  const { objs, usedTarget } = resolveCommandTargets(
+    context,
+    input.objectIds,
+    input.target,
+  );
   if (!objs.length) {
     issues.push(
-      error(
-        "transform_empty_selection",
-        "Selecciona al menos un objeto para transformar.",
-      ),
+      usedTarget
+        ? error(
+            "transform_target_not_found",
+            `No encontré '${input.target?.trim()}' en el plano.`,
+          )
+        : error(
+            "transform_empty_selection",
+            "Selecciona al menos un objeto para transformar.",
+          ),
     );
   }
   return { objs, issues };

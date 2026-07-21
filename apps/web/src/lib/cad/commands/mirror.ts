@@ -7,8 +7,8 @@
  * originales; con copy:false mueve los objetos en sitio.
  */
 import { normalizeDeg } from "../../../components/line-engineering/precision-input";
+import { resolveCommandTargets } from "./targets";
 import type {
-  CadBox,
   CadCommandContext,
   CadCommandInput,
   CadCommandPreview,
@@ -22,16 +22,22 @@ export function mirrorSelectionPreview(
   context: CadCommandContext,
 ): CadCommandPreview {
   const issues: CadValidationIssue[] = [];
-  const ids = input.objectIds?.length ? input.objectIds : context.selectedIds;
-  const objs = ids
-    .map((id) => context.objects.find((o) => o.id === id))
-    .filter((o): o is CadBox => !!o);
+  const { objs, usedTarget } = resolveCommandTargets(
+    context,
+    input.objectIds,
+    input.target,
+  );
   if (!objs.length) {
     issues.push(
-      error(
-        "mirror_empty_selection",
-        "Selecciona al menos un objeto para espejar.",
-      ),
+      usedTarget
+        ? error(
+            "mirror_target_not_found",
+            `No encontré '${input.target?.trim()}' en el plano.`,
+          )
+        : error(
+            "mirror_empty_selection",
+            "Selecciona al menos un objeto para espejar.",
+          ),
     );
     return { summary: "", affectedObjectIds: [], operations: [], issues };
   }

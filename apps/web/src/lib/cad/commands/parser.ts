@@ -364,10 +364,18 @@ export function parseCadCommand(text: string): CadParseResult {
         clarification: "¿Cuántos grados giro la selección? (p. ej. 90 o -45)",
       };
     }
+    const rotTarget = q
+      .replace(/^.*?\b(?:rota|gira|rotar|girar|rotate)\b\s*/, "")
+      .replace(/-?\d+(?:[.,]\d+)?\s*(?:°|grados|deg)?/g, "")
+      .replace(/\b(la\s+selecci[oó]n|lo\s+seleccionado|esto|estos|esos?\s*(objetos)?)\b/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/^(?:una?|el|la|los|las)\s+/, "")
+      .trim();
     return {
       ok: true,
       confidence: 0.85,
-      input: { id: "rotate_selection", angle },
+      input: { id: "rotate_selection", angle, target: rotTarget || undefined },
     };
   }
   if (/(escala|scale|agranda|reduce)/.test(q)) {
@@ -385,10 +393,18 @@ export function parseCadCommand(text: string): CadParseResult {
         clarification: "¿Con qué factor escalo? (p. ej. 2, 0.5 o 150%)",
       };
     }
+    const scaleTarget = q
+      .replace(/^.*?\b(?:escala|escalar|scale|agranda|agrandar|reduce|reducir)\b\s*/, "")
+      .replace(/\b(?:al?|por|x|×)?\s*\d+(?:[.,]\d+)?\s*%?/g, "")
+      .replace(/\b(la\s+selecci[oó]n|lo\s+seleccionado|esto|estos|esos?\s*(objetos)?)\b/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/^(?:una?|el|la|los|las)\s+/, "")
+      .trim();
     return {
       ok: true,
       confidence: 0.84,
-      input: { id: "scale_selection", factor },
+      input: { id: "scale_selection", factor, target: scaleTarget || undefined },
     };
   }
   if (/(espejo|espejea|mirror|refleja)/.test(q)) {
@@ -398,10 +414,20 @@ export function parseCadCommand(text: string): CadParseResult {
     const copy = /(sin\s+copia|en\s+sitio|sin\s+copiar|mover)/.test(q)
       ? false
       : undefined;
+    const mirrorTarget = q
+      .replace(/^.*?\b(?:espejo|espejea|espejear|mirror|refleja|reflejar)\b\s*/, "")
+      .replace(/\b(vertical|horizontal|sin\s+copiar?|en\s+sitio|mover)\b/g, "")
+      .replace(/\b(la\s+selecci[oó]n|lo\s+seleccionado|esto|estos|esos?\s*(objetos)?)\b/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/^(?:de\s+)?(?:una?|el|la|los|las)\s+/, "")
+      .replace(/^de\s+/, "")
+      .replace(/^(?:de|del)$/, "")
+      .trim();
     return {
       ok: true,
       confidence: 0.85,
-      input: { id: "mirror_selection", axis, copy },
+      input: { id: "mirror_selection", axis, copy, target: mirrorTarget || undefined },
     };
   }
   if (/\b(borra|borrar|elimina|eliminar|quita|quitar|suprime|delete)\b/.test(q)) {

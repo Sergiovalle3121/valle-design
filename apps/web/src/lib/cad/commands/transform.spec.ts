@@ -4,6 +4,7 @@
  * tamaños + posiciones desde el centro; entradas inválidas → error.
  */
 import { strict as assert } from "node:assert";
+import { parseCadCommand } from "./parser";
 import {
   rotateSelectionPreview,
   scaleSelectionPreview,
@@ -84,6 +85,43 @@ const ctx = (objects: CadBox[], selectedIds: string[]): CadCommandContext =>
     ctx([], []),
   );
   assert.ok(empty.issues.length > 0, "selección vacía rechazada");
+}
+
+// Objetivo por nombre (AXOS-CAD-NAME-002): 'rota la prensa 90' sin selección.
+{
+  const c = ctx([box({ id: "p1" }), box({ id: "m1", label: "Mesa", x: 500 })], []);
+  const out = rotateSelectionPreview(
+    { id: "rotate_selection", angle: 90, target: "prensa" },
+    c,
+  );
+  assert.equal(out.issues.length, 0, "resuelve por nombre sin selección");
+  assert.deepEqual(out.affectedObjectIds, ["p1"], "solo la prensa");
+  const missing = scaleSelectionPreview(
+    { id: "scale_selection", factor: 2, target: "torno" },
+    c,
+  );
+  assert.ok(
+    missing.issues.some((i) => i.code === "transform_target_not_found"),
+    "objetivo inexistente → error específico",
+  );
+}
+
+// Parser: el objetivo viaja en rotate/scale ('rota la mesa 90').
+{
+  const rot = parseCadCommand("rota la mesa 90");
+  if (rot.input?.id === "rotate_selection") {
+    assert.equal(rot.input.target, "mesa", "target del parser en rotate");
+    assert.equal(rot.input.angle, 90, "ángulo intacto");
+  }
+  const plain = parseCadCommand("rota 90");
+  if (plain.input?.id === "rotate_selection") {
+    assert.equal(plain.input.target, undefined, "sin residuo no hay target");
+  }
+  const sc = parseCadCommand("escala la mesa al 150%");
+  if (sc.input?.id === "scale_selection") {
+    assert.equal(sc.input.target, "mesa", "target del parser en scale");
+    assert.equal(sc.input.factor, 1.5, "factor intacto");
+  }
 }
 
 console.log("cad transform specs passed");

@@ -6,6 +6,7 @@
  */
 import { strict as assert } from "node:assert";
 import { mirrorSelectionPreview } from "./mirror";
+import { parseCadCommand } from "./parser";
 import type { CadBox, CadCommandContext } from "./types";
 
 const box = (over: Partial<CadBox>): CadBox =>
@@ -71,6 +72,26 @@ const ctx = (objects: CadBox[], selectedIds: string[]): CadCommandContext =>
   const out = mirrorSelectionPreview({ id: "mirror_selection" }, ctx([], []));
   assert.ok(out.issues.length > 0, "error sin selección");
   assert.equal(out.operations.length, 0, "sin operaciones");
+}
+
+// Objetivo por nombre (AXOS-CAD-NAME-002): 'espejo de la prensa' sin selección.
+{
+  const c = ctx([box({ id: "p1" })], []);
+  const out = mirrorSelectionPreview(
+    { id: "mirror_selection", target: "prensa" },
+    c,
+  );
+  assert.equal(out.issues.length, 0, "resuelve por nombre");
+  assert.deepEqual(out.affectedObjectIds, ["p1"], "espeja la prensa");
+  const parsed = parseCadCommand("espejo horizontal de la puerta");
+  if (parsed.input?.id === "mirror_selection") {
+    assert.equal(parsed.input.target, "puerta", "target del parser");
+    assert.equal(parsed.input.axis, "horizontal", "eje intacto");
+  }
+  const plain = parseCadCommand("espejo vertical de la selección");
+  if (plain.input?.id === "mirror_selection") {
+    assert.equal(plain.input.target, undefined, "'la selección' no es target");
+  }
 }
 
 console.log("cad mirror specs passed");
