@@ -46,6 +46,7 @@ import { moveSelectionPreview } from "./move";
 import { mirrorSelectionPreview } from "./mirror";
 import { placeSymbolPreview } from "./place-symbol";
 import { selectObjectsPreview } from "./select";
+import { matchObjectsByName } from "./targets";
 import {
   rotateSelectionPreview,
   scaleSelectionPreview,
@@ -1465,22 +1466,42 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     id: "fit_to_view",
     label: "Enfocar vista",
     category: "viewport",
-    description: "Solicita a la UI enfocar selección o layout.",
+    description:
+      "Encuadra la cámara: 'enfoca la cocina' selecciona por nombre y hace zoom; sin objetivo, encuadra la selección o el layout.",
     inputSchema: {
+      target: {
+        type: "string",
+        description: "Objetivo por nombre: 'enfoca la cocina'.",
+      },
       objectIds: { type: "string[]", description: "Objetos a enfocar." },
     },
-    examples: ["enfoca la selección"],
+    examples: ["enfoca la cocina", "enfoca la selección"],
     validate: () => [],
     preview: (i, c) => {
-      const ids =
-        (i as Extract<CadCommandInput, { id: "fit_to_view" }>).objectIds ??
-        c.selectedIds;
+      const input = i as Extract<CadCommandInput, { id: "fit_to_view" }>;
+      const byName = input.target?.trim()
+        ? matchObjectsByName(c, input.target).map((o) => o.id)
+        : null;
+      if (byName !== null && !byName.length) {
+        return {
+          summary: "",
+          affectedObjectIds: [],
+          operations: [],
+          issues: [
+            error(
+              "focus_target_not_found",
+              `No encontré '${input.target?.trim()}' en el plano.`,
+            ),
+          ],
+        };
+      }
+      const ids = byName ?? input.objectIds ?? c.selectedIds;
       return {
         summary: ids.length
-          ? `Enfocar ${ids.length} objetos.`
+          ? `Enfocar ${ids.length} objeto(s).`
           : "Enfocar layout completo.",
         affectedObjectIds: ids,
-        operations: [{ type: "focus", objectIds: ids }],
+        operations: [{ type: "focus", objectIds: ids, zoom: true }],
         issues: [],
       };
     },
@@ -1488,7 +1509,7 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
       const p = CAD_COMMAND_REGISTRY.find(
         (d) => d.id === "fit_to_view",
       )!.preview(i, c);
-      return result(p, true, p.summary);
+      return result(p, ok(p.issues), p.summary);
     },
   },
   {

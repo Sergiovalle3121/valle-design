@@ -4216,6 +4216,9 @@ export default function Layout3DEditor({
     } else if (op.type === 'focus') {
       const items: SelItem[] = op.objectIds.map((id) => placementsRef.current.has(id) ? { type: 'station' as const, id } : assetsRef.current.has(id) ? { type: 'asset' as const, id } : null).filter((it): it is SelItem => !!it);
       if (items.length) select(items);
+      // 'enfoca la cocina' (AXOS-CAD-ZOOM-001): fit_to_view manda zoom:true;
+      // seleccionar por nombre NO mueve la cámara (select_objects sin zoom).
+      if (op.zoom) fitView(items.length ? 'selection' : 'all');
     }
     return false;
   };

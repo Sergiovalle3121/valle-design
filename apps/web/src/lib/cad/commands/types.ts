@@ -139,7 +139,7 @@ export type CadOperation =
       distance: number;
       unit: string;
     }
-  | { type: "focus"; objectIds: string[] }
+  | { type: "focus"; objectIds: string[]; zoom?: boolean }
   | { type: "report"; title: string; rows: { label: string; value: string }[] };
 
 export interface CadCommandPreview {
@@ -209,7 +209,12 @@ export type CadCommandInput =
   | { id: "measure_distance"; targetA?: string; targetB?: string }
   | { id: "find_collisions"; objectIds?: string[] }
   | { id: "validate_layout"; objectIds?: string[]; requiredClearance?: number }
-  | { id: "fit_to_view"; objectIds?: string[] }
+  | {
+      id: "fit_to_view";
+      objectIds?: string[];
+      /** 'enfoca la cocina': selecciona por nombre y hace zoom. */
+      target?: string;
+    }
   | {
       id: "array_rectangular";
       objectIds?: string[];

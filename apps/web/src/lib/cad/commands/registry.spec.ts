@@ -61,6 +61,30 @@ assert.equal(
 );
 assert.equal(CAD_COMMAND_REGISTRY.length, 41, "registry exposes 41 commands");
 
+// Zoom por nombre (AXOS-CAD-ZOOM-001): 'enfoca X' resuelve y manda zoom.
+{
+  const parsed = parseCadCommand("enfoca la cocina");
+  assert.equal(parsed.input?.id, "fit_to_view", "enfoca parsea");
+  if (parsed.input?.id === "fit_to_view") {
+    assert.equal(parsed.input.target, "cocina", "target del parser");
+  }
+  const plain = parseCadCommand("enfoca la selección");
+  if (plain.input?.id === "fit_to_view") {
+    assert.equal(plain.input.target, undefined, "'la selección' no es target");
+  }
+  const p = previewCadCommand({ id: "fit_to_view", target: "smt" }, ctx);
+  const op = p.operations[0];
+  if (op?.type === "focus") {
+    assert.equal(op.zoom, true, "fit_to_view manda zoom");
+    assert.ok(op.objectIds.length >= 1, "resuelve el nombre");
+  }
+  const missing = previewCadCommand({ id: "fit_to_view", target: "nave espacial" }, ctx);
+  assert.ok(
+    missing.issues.some((i) => i.code === "focus_target_not_found"),
+    "objetivo inexistente → error",
+  );
+}
+
 // Guardar conversacional (AXOS-CAD-SAVE-001).
 {
   const saved = parseCadCommand("guarda el plano");

@@ -790,7 +790,19 @@ export function parseCadCommand(text: string): CadParseResult {
   }
   if (/colisi|traslape|overlap/.test(q))
     return { ok: true, confidence: 0.82, input: { id: "find_collisions" } };
-  if (/enfoca|zoom|fit/.test(q))
-    return { ok: true, confidence: 0.7, input: { id: "fit_to_view" } };
+  if (/enfoca|zoom|fit/.test(q)) {
+    const target = q
+      .replace(/^.*?\b(?:enfoca|enfocar|zoom|fit)\b\s*/, "")
+      .replace(/\b(la\s+selecci[oó]n|lo\s+seleccionado|todo|el\s+layout|el\s+plano|a|en)\b/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/^(?:una?|el|la|los|las)\s+/, "")
+      .trim();
+    return {
+      ok: true,
+      confidence: 0.7,
+      input: { id: "fit_to_view", target: target || undefined },
+    };
+  }
   return { ok: false, confidence: 0.1, error: "No reconocí el comando CAD." };
 }
