@@ -1941,4 +1941,85 @@ if (rectDraftCreate?.type === "create") {
   assert.equal(bare.ok, false, "sin zona pide aclaración");
 }
 
+// INFO de cuarto (AXOS-CAD-QUERY-009): '¿cuánto mide la cocina?'
+// responde contenido, área ocupada y libre del cuarto.
+{
+  const cuartoCtx: CadCommandContext = {
+    unit: "mm",
+    footprintW: 12000,
+    footprintH: 8000,
+    selectedIds: [],
+    connectors: [],
+    objects: [
+      {
+        id: "coc",
+        type: "asset",
+        kind: "room",
+        label: "Cocina",
+        x: 0,
+        y: 0,
+        w: 3000,
+        h: 3000,
+      },
+      {
+        id: "est",
+        type: "asset",
+        kind: "stove",
+        label: "Estufa",
+        x: 500,
+        y: 500,
+        w: 600,
+        h: 600,
+      },
+      {
+        id: "ref",
+        type: "asset",
+        kind: "refrigerator",
+        label: "Refrigerador",
+        x: 2000,
+        y: 500,
+        w: 800,
+        h: 700,
+      },
+      {
+        id: "esc",
+        type: "asset",
+        kind: "desk",
+        label: "Escritorio",
+        x: 6000,
+        y: 5000,
+        w: 1200,
+        h: 700,
+      },
+    ],
+  };
+  const p = previewCadCommand(
+    { id: "object_info", query: "cocina" },
+    cuartoCtx,
+  );
+  const op = p.operations[0];
+  if (op.type === "report") {
+    const byLabel = new Map(op.rows.map((r) => [r.label, r.value]));
+    assert.equal(byLabel.get("Contiene"), "2 objeto(s)", "contenido contado");
+    assert.equal(byLabel.get("Área del cuarto"), "9.00 m²", "área del cuarto");
+    assert.equal(byLabel.get("Área ocupada"), "0.92 m²", "ocupada del cuarto");
+    assert.equal(
+      byLabel.get("Área libre (aprox)"),
+      "8.08 m²",
+      "libre del cuarto",
+    );
+  }
+  const noRoom = previewCadCommand(
+    { id: "object_info", query: "estufa" },
+    cuartoCtx,
+  );
+  const opNo = noRoom.operations[0];
+  if (opNo.type === "report") {
+    assert.ok(
+      !opNo.rows.some((r) => r.label === "Contiene"),
+      "objetos normales no traen reporte de cuarto",
+    );
+  }
+}
+
 console.log("cad command registry specs passed");

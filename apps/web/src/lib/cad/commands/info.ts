@@ -122,6 +122,34 @@ export function objectInfoPreview(
     rows.push({ label: "Área total", value: `${totalM2.toFixed(2)} m²` });
   }
   const first = matched[0];
+  // INFO de cuarto (AXOS-CAD-QUERY-009): si la coincidencia única es un
+  // contenedor, el reporte suma su contenido (no-contenedores con centro
+  // dentro) y responde área ocupada y libre del cuarto.
+  if (matched.length === 1 && CONTAINER_KINDS.has(first.kind ?? "")) {
+    const contents = context.objects.filter((o) => {
+      if (o.id === first.id || CONTAINER_KINDS.has(o.kind ?? "")) return false;
+      const cx = o.x + o.w / 2;
+      const cy = o.y + o.h / 2;
+      return (
+        cx >= first.x &&
+        cx <= first.x + first.w &&
+        cy >= first.y &&
+        cy <= first.y + first.h
+      );
+    });
+    const roomM2 = (first.w / 1000) * (first.h / 1000);
+    const usedM2 = contents.reduce(
+      (sum, o) => sum + (o.w / 1000) * (o.h / 1000),
+      0,
+    );
+    rows.push({ label: "Contiene", value: `${contents.length} objeto(s)` });
+    rows.push({ label: "Área del cuarto", value: `${roomM2.toFixed(2)} m²` });
+    rows.push({ label: "Área ocupada", value: `${usedM2.toFixed(2)} m²` });
+    rows.push({
+      label: "Área libre (aprox)",
+      value: `${Math.max(0, roomM2 - usedM2).toFixed(2)} m²`,
+    });
+  }
   const firstInside = containerOf(context, first);
 
   return {
