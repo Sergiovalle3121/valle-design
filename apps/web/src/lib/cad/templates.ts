@@ -50,7 +50,8 @@ export type CadLayoutTemplateId =
   | "gimnasio-box"
   | "polleria"
   | "floreria"
-  | "cremeria";
+  | "cremeria"
+  | "neveria";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1634,6 +1635,34 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "mostrador-cre", kind: "flow" },
       { fromRef: "cuarto-frio-cre", toRef: "mesa-corte-cre", kind: "material" },
       { fromRef: "mesa-corte-cre", toRef: "vitrina-cre", kind: "material" },
+    ],
+  },
+  {
+    id: "neveria",
+    label: "Nevería / Paletería",
+    description: "Arranque universal de nevería: mostrador con vitrina de paletas, caja registradora, congelador de reserva, dos mesitas, bote de basura y bodega.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["architecture", "shell", "neveria"]),
+      asset("entrada", "door", "Entrada", 3500, 650, 1000, 260, "architecture", ["door", "opening:entry"]),
+      asset("mostrador-nev", "counter", "Mostrador", 1500, 1400, 1800, 600, "equipment", ["counter", "neveria"]),
+      asset("vitrina-nev", "display-case", "Vitrina de paletas", 3600, 1400, 1800, 700, "equipment", ["vitrina", "helado", "neveria"]),
+      asset("caja-nev", "cash-register", "Caja registradora", 5700, 1400, 450, 400, "equipment", ["caja", "cobro", "neveria"]),
+      asset("congelador-nev", "freezer", "Congelador de reserva", 6600, 1400, 1500, 700, "equipment", ["congelador", "neveria"]),
+      asset("mesa-nev-1", "restaurant-table-4", "Mesita 1", 1500, 3000, 900, 900, "equipment", ["table", "seating", "neveria"]),
+      asset("mesa-nev-2", "restaurant-table-4", "Mesita 2", 3000, 3000, 900, 900, "equipment", ["table", "seating", "neveria"]),
+      asset("basura-nev", "trash-bin", "Bote de basura", 5200, 3000, 400, 400, "equipment", ["basura", "neveria"]),
+      asset("bodega-nev", "room", "Bodega", 6000, 3200, 1900, 1800, "architecture", ["room", "use:storage", "neveria"]),
+    ],
+    annotations: [
+      note("titulo", "Nevería — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "mostrador-nev", kind: "flow" },
+      { fromRef: "bodega-nev", toRef: "congelador-nev", kind: "material" },
+      { fromRef: "congelador-nev", toRef: "vitrina-nev", kind: "material" },
     ],
   },
 ];
