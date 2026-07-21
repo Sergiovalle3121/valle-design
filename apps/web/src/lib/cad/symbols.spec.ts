@@ -87,3 +87,25 @@ assert.ok(
   "symbol placement preserves manufacturing tags",
 );
 console.log("cad symbols specs passed");
+
+// Segunda tanda universal (AXOS-CAD-UNIVERSAL-004): escuela, gimnasio,
+// exterior y baño público con búsqueda en español.
+assert.ok(
+  searchCadSymbols("caminadora").some((symbol) => symbol.id === "treadmill"),
+  "search finds caminadora (gimnasio)",
+);
+assert.ok(
+  searchCadSymbols("pupitre").some((symbol) => symbol.id === "school-desk"),
+  "search finds pupitre (escuela)",
+);
+assert.ok(
+  searchCadSymbols("estacionamiento").some(
+    (symbol) => symbol.id === "parking-spot",
+  ),
+  "search finds cajón de estacionamiento (exterior)",
+);
+assert.equal(
+  getCadSymbol("parking-spot")?.defaultWidth,
+  2500,
+  "cajón de estacionamiento a medida real (2.5 m)",
+);
