@@ -28,16 +28,35 @@ export function selectObjectsPreview(
     );
     return { summary: "", affectedObjectIds: [], operations: [], issues };
   }
-  const matched = matchObjectsByName(context, raw);
+  let matched = matchObjectsByName(context, raw);
   if (!matched.length) {
     issues.push(
       error("select_not_found", `No encontré '${raw}' en el plano.`),
     );
     return { summary: "", affectedObjectIds: [], operations: [], issues };
   }
+  // Exclusión (AXOS-CAD-SELECT-002): 'todo menos las mesas'.
+  const excludeQuery = input.exclude?.trim();
+  if (excludeQuery) {
+    const excluded = new Set(
+      matchObjectsByName(context, excludeQuery).map((o) => o.id),
+    );
+    matched = matched.filter((o) => !excluded.has(o.id));
+    if (!matched.length) {
+      issues.push(
+        error(
+          "select_all_excluded",
+          `Al quitar '${excludeQuery}' no queda nada que seleccionar.`,
+        ),
+      );
+      return { summary: "", affectedObjectIds: [], operations: [], issues };
+    }
+  }
 
   return {
-    summary: `Seleccionados ${matched.length} objeto(s) con '${raw}'.`,
+    summary: excludeQuery
+      ? `Seleccionados ${matched.length} objeto(s) con '${raw}' menos '${excludeQuery}'.`
+      : `Seleccionados ${matched.length} objeto(s) con '${raw}'.`,
     affectedObjectIds: matched.map((o) => o.id),
     operations: [{ type: "focus", objectIds: matched.map((o) => o.id) }],
     issues,

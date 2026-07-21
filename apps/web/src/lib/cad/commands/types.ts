@@ -345,6 +345,8 @@ export type CadCommandInput =
       id: "select_objects";
       /** Qué seleccionar ('mesas', 'barra', 'todo'). */
       query: string;
+      /** 'todo menos las mesas': término a excluir de las coincidencias. */
+      exclude?: string;
     }
   | {
       id: "object_info";

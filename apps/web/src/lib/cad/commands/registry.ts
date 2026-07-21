@@ -2068,8 +2068,16 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         required: true,
         description: "Qué seleccionar ('mesas', 'barra', 'todo').",
       },
+      exclude: {
+        type: "string",
+        description: "Término a excluir ('todo menos las mesas').",
+      },
     },
-    examples: ["selecciona las mesas", "resalta la barra"],
+    examples: [
+      "selecciona las mesas",
+      "resalta la barra",
+      "selecciona todo menos las mesas",
+    ],
     validate: (i, c) =>
       selectObjectsPreview(
         i as Extract<CadCommandInput, { id: "select_objects" }>,

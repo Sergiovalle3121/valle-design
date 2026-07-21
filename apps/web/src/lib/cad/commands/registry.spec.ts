@@ -1512,4 +1512,57 @@ if (rectDraftCreate?.type === "create") {
     );
 }
 
+// SELECCIONAR con exclusión (AXOS-CAD-SELECT-002): 'todo menos las mesas'.
+{
+  const parsed = parseCadCommand("selecciona todo menos las mesas");
+  assert.ok(parsed.ok, "selecciona con exclusión parsea");
+  assert.equal(parsed.input?.id, "select_objects", "sigue siendo select");
+  if (parsed.input?.id === "select_objects") {
+    assert.equal(parsed.input.query, "todo", "query base 'todo'");
+    assert.equal(parsed.input.exclude, "mesas", "término excluido");
+  }
+  const mixCtx: CadCommandContext = {
+    unit: "mm",
+    footprintW: 10000,
+    footprintH: 6000,
+    selectedIds: [],
+    objects: [
+      {
+        id: "m1",
+        type: "asset",
+        kind: "dining-table-4",
+        label: "Mesa 1",
+        x: 1000,
+        y: 1000,
+        w: 900,
+        h: 900,
+      },
+      {
+        id: "s1",
+        type: "asset",
+        kind: "office-chair",
+        label: "Silla 1",
+        x: 3000,
+        y: 1000,
+        w: 500,
+        h: 500,
+      },
+    ],
+  };
+  const p = previewCadCommand(
+    { id: "select_objects", query: "todo", exclude: "mesas" },
+    mixCtx,
+  );
+  assert.ok(!p.issues.some((i) => i.level === "error"), "exclusión sin errores");
+  assert.deepEqual(p.affectedObjectIds, ["s1"], "queda solo la silla");
+  const vacio = previewCadCommand(
+    { id: "select_objects", query: "mesas", exclude: "mesas" },
+    mixCtx,
+  );
+  assert.ok(
+    vacio.issues.some((i) => i.code === "select_all_excluded"),
+    "excluirlo todo reporta error claro",
+  );
+}
+
 console.log("cad command registry specs passed");

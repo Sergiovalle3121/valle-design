@@ -716,13 +716,22 @@ export function parseCadCommand(text: string): CadParseResult {
     return { ok: true, confidence: 0.9, input: { id: "history_step", action: "redo" } };
   }
   if (/\b(selecciona|seleccionar|resalta|resaltar|elige|escoge)\b/.test(q)) {
-    const query = q
+    let query = q
       .replace(/^.*?\b(?:selecciona|seleccionar|resalta|resaltar|elige|escoge)\b\s*/, "")
       .replace(/\b(en\s+el\s+plano|en\s+el\s+layout)\b/g, "")
       .replace(/\s+/g, " ")
       .trim()
       .replace(/^(?:tod[oa]s\s+(?:las|los)\s+|una?\s+|el\s+|la\s+|los\s+|las\s+)/, "")
       .trim();
+    // Exclusión (AXOS-CAD-SELECT-002): 'selecciona todo menos las mesas'.
+    let exclude: string | undefined;
+    const exclM = query.match(/\b(?:menos|excepto|salvo)\s+(.+)$/);
+    if (exclM) {
+      exclude =
+        exclM[1]!.replace(/^(?:una?|el|la|los|las)\s+/, "").trim() ||
+        undefined;
+      query = query.slice(0, exclM.index).trim();
+    }
     if (!query) {
       return {
         ok: false,
@@ -733,7 +742,7 @@ export function parseCadCommand(text: string): CadParseResult {
     return {
       ok: true,
       confidence: 0.84,
-      input: { id: "select_objects", query },
+      input: { id: "select_objects", query, exclude },
     };
   }
   if (/\b(renombra|renombrar|rename)\b/.test(q)) {
