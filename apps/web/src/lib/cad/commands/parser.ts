@@ -426,6 +426,40 @@ export function parseCadCommand(text: string): CadParseResult {
       };
     }
   }
+  // REPARTIR (AXOS-CAD-MOVE-005): 'reparte las sillas entre los cuartos' —
+  // cada objeto viaja al centro de un cuarto hoja en round-robin.
+  const repartMatch = raw.match(/^repart[ei](?:me)?\s+(.+)$/i);
+  if (repartMatch) {
+    const residue = repartMatch[1]!;
+    const roomsRef =
+      /\b(?:en|entre|por)\s+(?:los\s+|las\s+|cada\s+)?(?:cuartos?|habitaci[oó]n(?:es)?|zonas?|espacios?)\b/i;
+    if (!roomsRef.test(residue))
+      return {
+        ok: false,
+        confidence: 0.6,
+        clarification:
+          "¿Entre qué reparto? (ej. 'reparte las sillas entre los cuartos')",
+      };
+    const target = residue
+      .replace(roomsRef, " ")
+      .replace(
+        /\b(?:la\s+selecci[oó]n|lo\s+seleccionado|esto|estos\s+objetos|esos\s+objetos)\b/gi,
+        " ",
+      )
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/^(?:(?:el|la|los|las|un|una)\s+)+/i, "")
+      .trim();
+    return {
+      ok: true,
+      confidence: 0.85,
+      input: {
+        id: "move_selection",
+        target: target || undefined,
+        perRoom: true,
+      },
+    };
+  }
   // FILA/REPETIR (AXOS-CAD-ARRAY-001): 'repite la silla 4 veces cada 600
   // a la derecha' — arreglo lineal conversacional con objetivo por nombre.
   const repeatMatch = raw.match(/^rep[ií]te(?:me|l[ao]s?)?\s+(.+)$/i);

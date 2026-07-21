@@ -2335,6 +2335,12 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         description:
           "Destino de zona: el conjunto aterriza centrado dentro de este cuarto/zona ('mete la mesa en la cocina').",
       },
+      perRoom: {
+        type: "enum",
+        enum: ["true", "false"],
+        description:
+          "true reparte los objetos entre los cuartos hoja en round-robin ('reparte las sillas entre los cuartos').",
+      },
       objectIds: {
         type: "string[]",
         description: "Alternativa: objetos seleccionados.",
@@ -2345,6 +2351,7 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
       "centra la mesa",
       "mueve la silla junto a la mesa",
       "mete la mesa en la cocina",
+      "reparte las sillas entre los cuartos",
     ],
     validate: (i, c) =>
       moveSelectionPreview(

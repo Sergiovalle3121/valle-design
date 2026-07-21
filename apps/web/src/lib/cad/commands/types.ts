@@ -351,6 +351,10 @@ export type CadCommandInput =
       /** 'mete la mesa en la cocina': el conjunto aterriza centrado dentro
        * del contenedor nombrado (cuarto o zona). */
       into?: string;
+      /** 'reparte las sillas entre los cuartos': cada objeto viaja al
+       * centro de un cuarto hoja en round-robin (el conjunto NO viaja
+       * rígido); los que exceden se escalonan para no apilarse. */
+      perRoom?: boolean;
     }
   | {
       id: "count_objects";

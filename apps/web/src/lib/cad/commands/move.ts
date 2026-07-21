@@ -43,6 +43,56 @@ export function moveSelectionPreview(
     return { summary: "", affectedObjectIds: [], operations: [], issues };
   }
 
+  // Repartir (AXOS-CAD-MOVE-005): 'reparte las sillas entre los cuartos'
+  // — cada objeto viaja al centro de un cuarto hoja en round-robin (misma
+  // regla de hojas que PLACE-009: solo un contenedor MÁS CHICO cuenta como
+  // hijo); los que exceden el número de cuartos se escalonan 300 mm.
+  if (input.perRoom) {
+    const movedIds = new Set(objs.map((o) => o.id));
+    const containers = context.objects.filter(
+      (o) => ["room", "zone"].includes(o.kind ?? "") && !movedIds.has(o.id),
+    );
+    const leaves = containers.filter(
+      (r) =>
+        !containers.some((other) => {
+          if (other.id === r.id) return false;
+          if (other.w * other.h >= r.w * r.h) return false;
+          const cx = other.x + other.w / 2;
+          const cy = other.y + other.h / 2;
+          return cx >= r.x && cx <= r.x + r.w && cy >= r.y && cy <= r.y + r.h;
+        }),
+    );
+    if (!leaves.length) {
+      issues.push(
+        error(
+          "move_no_rooms",
+          "No hay cuartos ni zonas en el plano para repartir.",
+        ),
+      );
+      return { summary: "", affectedObjectIds: [], operations: [], issues };
+    }
+    const STAGGER = 300;
+    return {
+      summary: `Repartir ${objs.length} objeto(s) entre ${leaves.length} espacio(s).`,
+      affectedObjectIds: objs.map((o) => o.id),
+      operations: objs.map((o, i) => {
+        const room = leaves[i % leaves.length]!;
+        const round = Math.floor(i / leaves.length);
+        return {
+          type: "move",
+          objectId: o.id,
+          before: o,
+          after: {
+            ...o,
+            x: Math.round(room.x + (room.w - o.w) / 2 + round * STAGGER),
+            y: Math.round(room.y + (room.h - o.h) / 2 + round * STAGGER),
+          },
+        };
+      }),
+      issues,
+    };
+  }
+
   // Destino relacional (AXOS-CAD-MOVE-003): 'mueve la silla junto a la
   // mesa' — el conjunto aterriza al lado del ancla (excluyendo del ancla a
   // los propios objetos movidos).

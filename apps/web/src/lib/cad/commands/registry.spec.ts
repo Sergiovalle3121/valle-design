@@ -11,7 +11,7 @@ import {
   undoHistory,
   redoHistory,
 } from "./index";
-import type { CadCommandContext } from "./types";
+import type { CadBox, CadCommandContext } from "./types";
 import type { CadCommandHistoryState } from "./history";
 
 const ctx: CadCommandContext = {
@@ -2570,6 +2570,74 @@ if (rectDraftCreate?.type === "create") {
     tooMuch.issues.some((i) => i.code === "resize_invalid_size"),
     "delta que aniquila el objeto → error específico",
   );
+}
+
+// REPARTIR (AXOS-CAD-MOVE-005): 'reparte las sillas entre los cuartos' —
+// round-robin a los cuartos hoja, escalonando los que exceden.
+{
+  const roomBox = (id: string, label: string, x: number): CadBox => ({
+    id,
+    type: "asset",
+    kind: "room",
+    label,
+    x,
+    y: 1000,
+    w: 3000,
+    h: 3000,
+  });
+  const silla = (id: string, x: number): CadBox => ({
+    id,
+    type: "asset",
+    kind: "chair",
+    label: `Silla ${id}`,
+    x,
+    y: 5000,
+    w: 500,
+    h: 500,
+  });
+  const repCtx: CadCommandContext = {
+    unit: "mm",
+    footprintW: 12000,
+    footprintH: 8000,
+    selectedIds: [],
+    connectors: [],
+    objects: [
+      roomBox("cocina", "Cocina", 1000),
+      roomBox("comedor", "Comedor", 5000),
+      silla("s1", 500),
+      silla("s2", 1100),
+      silla("s3", 1700),
+    ],
+  };
+  const parsed = parseCadCommand("reparte las sillas entre los cuartos");
+  assert.equal(parsed.input?.id, "move_selection", "reparte parsea");
+  if (parsed.input?.id === "move_selection") {
+    assert.equal(parsed.input.perRoom, true, "modo repartir");
+    assert.equal(parsed.input.target, "sillas", "objetivo");
+    const p = previewCadCommand(parsed.input, repCtx);
+    assert.equal(p.issues.length, 0, "repartir sin issues");
+    assert.equal(p.operations.length, 3, "tres sillas viajan");
+    const [o1, o2, o3] = p.operations;
+    if (o1?.type === "move" && o2?.type === "move" && o3?.type === "move") {
+      assert.equal(o1.after.x, 2250, "silla 1 al centro de la cocina");
+      assert.equal(o2.after.x, 6250, "silla 2 al centro del comedor");
+      assert.equal(o3.after.x, 2550, "silla 3 vuelve a la cocina escalonada");
+      assert.equal(o3.after.y, 2550, "escalón también en Y");
+    }
+  }
+  const sinCuartos = previewCadCommand(
+    { id: "move_selection", target: "sillas", perRoom: true },
+    {
+      ...repCtx,
+      objects: repCtx.objects.filter((o) => o.kind === "chair"),
+    },
+  );
+  assert.ok(
+    sinCuartos.issues.some((i) => i.code === "move_no_rooms"),
+    "sin cuartos → error específico",
+  );
+  const vago = parseCadCommand("reparte las sillas");
+  assert.equal(vago.ok, false, "sin destino → aclaración");
 }
 
 console.log("cad command registry specs passed");
