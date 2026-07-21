@@ -1031,6 +1031,37 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["perchero", "coat rack", "abrigos", "recepción", "recepcion", "entrada"],
     ports: [],
   },
+  // — Vigesimoprimera tanda universal (AXOS-CAD-UNIVERSAL-043): mostrador —
+  {
+    id: "cash-register",
+    label: "Caja registradora",
+    category: "commerce",
+    defaultWidth: 450,
+    defaultHeight: 400,
+    layer: "Furniture",
+    tags: ["caja", "registradora", "cobro", "cash register", "punto de venta", "pos"],
+    ports: [],
+  },
+  {
+    id: "trash-bin",
+    label: "Bote de basura",
+    category: "equipment",
+    defaultWidth: 400,
+    defaultHeight: 400,
+    layer: "Furniture",
+    tags: ["basura", "bote", "cesto", "trash", "residuos", "papelera"],
+    ports: [],
+  },
+  {
+    id: "water-dispenser",
+    label: "Dispensador de agua",
+    category: "equipment",
+    defaultWidth: 350,
+    defaultHeight: 350,
+    layer: "Furniture",
+    tags: ["garrafón", "garrafon", "agua", "dispensador", "water", "bebedero"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {

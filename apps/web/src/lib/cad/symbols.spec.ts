@@ -325,3 +325,21 @@ assert.ok(
   searchCadSymbols("perchero").some((symbol) => symbol.id === "coat-rack"),
   "search finds perchero",
 );
+
+// Vigesimoprimera tanda universal (AXOS-CAD-UNIVERSAL-043): mostrador.
+assert.ok(
+  searchCadSymbols("registradora").some(
+    (symbol) => symbol.id === "cash-register",
+  ),
+  "search finds caja registradora",
+);
+assert.ok(
+  searchCadSymbols("basura").some((symbol) => symbol.id === "trash-bin"),
+  "search finds bote de basura",
+);
+assert.ok(
+  searchCadSymbols("garrafon").some(
+    (symbol) => symbol.id === "water-dispenser",
+  ),
+  "search finds garrafón",
+);
