@@ -73,6 +73,25 @@ export function matchObjectsByName(
     }
     return [...inside.values()];
   }
+  // Cardinales (AXOS-CAD-NAME-010): 'dos sillas' / '3 mesas' — las
+  // primeras N coincidencias en orden del plano; pedir más de las que
+  // hay cae al error de objetivo no encontrado del comando. Si el base
+  // no existe, sigue el matching normal (labels con número al frente).
+  const cardM = fold(raw).match(
+    /^(\d{1,2}|dos|tres|cuatro|cinco|seis)\s+(.+)$/,
+  );
+  if (cardM) {
+    const word = cardM[1]!;
+    const n = /^\d/.test(word)
+      ? Number(word)
+      : ({ dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6 } as const)[
+          word as "dos" | "tres" | "cuatro" | "cinco" | "seis"
+        ] ?? 0;
+    const baseHits = matchObjectsByName(context, cardM[2]!.trim());
+    if (n > 0 && baseHits.length) {
+      return baseHits.length >= n ? baseHits.slice(0, n) : [];
+    }
+  }
   // Más cercano (AXOS-CAD-NAME-009): 'la silla más cercana a la puerta'
   // — resuelve base y ancla y escoge la coincidencia con centro más
   // próximo; si base o ancla no existen, cae al matching normal.

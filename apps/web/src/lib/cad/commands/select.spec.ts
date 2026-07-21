@@ -68,3 +68,46 @@ const ctx = {
 }
 
 console.log("cad select specs passed");
+
+// Cardinales (AXOS-CAD-NAME-010): 'dos sillas' trae las primeras dos en
+// orden del plano; pedir más de las que hay cae a no-encontrado.
+{
+  const cardCtx = {
+    unit: "mm",
+    footprintW: 10000,
+    footprintH: 6000,
+    objects: [
+      { id: "s1", type: "asset", kind: "office-chair", label: "Silla 1", x: 1000, y: 1000, w: 500, h: 500 },
+      { id: "s2", type: "asset", kind: "office-chair", label: "Silla 2", x: 2000, y: 1000, w: 500, h: 500 },
+      { id: "s3", type: "asset", kind: "office-chair", label: "Silla 3", x: 3000, y: 1000, w: 500, h: 500 },
+    ],
+    selectedIds: [],
+  } as unknown as CadCommandContext;
+  const dos = selectObjectsPreview(
+    { id: "select_objects", query: "dos sillas" },
+    cardCtx,
+  );
+  assert.deepEqual(
+    dos.affectedObjectIds,
+    ["s1", "s2"],
+    "'dos sillas' trae las primeras dos",
+  );
+  const tres = selectObjectsPreview(
+    { id: "select_objects", query: "3 sillas" },
+    cardCtx,
+  );
+  assert.equal(tres.affectedObjectIds.length, 3, "'3 sillas' trae las tres");
+  const cinco = selectObjectsPreview(
+    { id: "select_objects", query: "cinco sillas" },
+    cardCtx,
+  );
+  assert.ok(
+    cinco.issues.length > 0,
+    "pedir cinco con tres en el plano reporta error",
+  );
+  const plural = selectObjectsPreview(
+    { id: "select_objects", query: "sillas" },
+    cardCtx,
+  );
+  assert.equal(plural.affectedObjectIds.length, 3, "el plural sigue igual");
+}
