@@ -113,3 +113,33 @@ const ctx = {
 }
 
 console.log("cad delete specs passed");
+
+// Objetivos compuestos (AXOS-CAD-NAME-006): 'borra el escritorio y el sofá'.
+{
+  const out = deleteSelectionPreview(
+    { id: "delete_selection", target: "escritorio y el sofá" },
+    ctx,
+  );
+  assert.equal(
+    out.operations.filter((op) => op.type === "delete").length,
+    2,
+    "el objetivo compuesto borra ambos",
+  );
+  const single = deleteSelectionPreview(
+    { id: "delete_selection", target: "escritorio" },
+    ctx,
+  );
+  assert.equal(
+    single.operations.filter((op) => op.type === "delete").length,
+    1,
+    "el objetivo simple sigue igual",
+  );
+  const missing = deleteSelectionPreview(
+    { id: "delete_selection", target: "piano y tuba" },
+    ctx,
+  );
+  assert.ok(
+    missing.issues.length > 0,
+    "compuesto sin coincidencias sigue reportando error",
+  );
+}

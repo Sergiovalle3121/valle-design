@@ -32,6 +32,19 @@ export function matchObjectsByName(
     );
     if (hits.length) return hits;
   }
+  // Objetivos compuestos (AXOS-CAD-NAME-006): 'las mesas y las sillas'.
+  // Solo como fallback — un label que contenga ' y ' literal gana arriba.
+  const parts = raw
+    .split(/\s*,\s*|\s+y\s+/i)
+    .map((t) => t.replace(/^(?:las?|los|el|una?)\s+/i, "").trim())
+    .filter(Boolean);
+  if (parts.length > 1) {
+    const seen = new Map<string, CadBox>();
+    for (const part of parts) {
+      for (const o of matchObjectsByName(context, part)) seen.set(o.id, o);
+    }
+    return [...seen.values()];
+  }
   return [];
 }
 
