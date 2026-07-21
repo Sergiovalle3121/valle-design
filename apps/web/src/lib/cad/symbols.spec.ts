@@ -161,3 +161,9 @@ assert.ok(
   searchCadSymbols("vitrina").some((symbol) => symbol.id === "display-case"),
   "search finds vitrina (panadería)",
 );
+
+// Sexta tanda universal (AXOS-CAD-UNIVERSAL-016): veterinaria.
+assert.ok(
+  searchCadSymbols("jaula").some((symbol) => symbol.id === "kennel-cage"),
+  "search finds jaula para mascotas (veterinaria)",
+);

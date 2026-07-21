@@ -24,7 +24,8 @@ export type CadLayoutTemplateId =
   | "salon-belleza"
   | "farmacia"
   | "jardin-eventos"
-  | "panaderia";
+  | "panaderia"
+  | "veterinaria";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -830,6 +831,37 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "puerta-entrada", toRef: "caja-pan", kind: "flow" },
       { fromRef: "taller", toRef: "vitrina-1", kind: "material" },
       { fromRef: "bodega-pan", toRef: "taller", kind: "material" },
+    ],
+  },
+  {
+    id: "veterinaria",
+    label: "Veterinaria",
+    description: "Arranque universal de clínica veterinaria: sala de espera con recepción, consultorio con mesa de exploración y hospitalización con jaulas.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["architecture", "shell", "veterinaria"]),
+      asset("entrada", "door", "Entrada", 2200, 650, 900, 260, "architecture", ["door", "opening:main"]),
+      asset("espera-vet", "room", "Sala de espera", 1300, 1300, 3200, 3800, "architecture", ["room", "use:lobby", "veterinaria"]),
+      asset("recepcion-vet", "counter", "Recepción", 1500, 1500, 1200, 600, "equipment", ["counter", "recepcion"]),
+      asset("silla-espera-1", "office-chair", "Silla de espera 1", 1500, 2600, 600, 600, "equipment", ["silla", "espera"]),
+      asset("silla-espera-2", "office-chair", "Silla de espera 2", 2300, 2600, 600, 600, "equipment", ["silla", "espera"]),
+      asset("consulta-vet", "room", "Consultorio", 4700, 1300, 3400, 2600, "architecture", ["room", "use:exam", "veterinaria"]),
+      asset("escritorio-vet", "furniture", "Escritorio veterinario", 4900, 1500, 1200, 600, "equipment", ["furniture", "desk"]),
+      asset("mesa-exploracion", "furniture", "Mesa de exploración", 6500, 2000, 700, 1400, "equipment", ["furniture", "exam", "veterinaria"]),
+      asset("hospitalizacion", "room", "Hospitalización", 4700, 4100, 3400, 1000, "architecture", ["room", "use:ward", "veterinaria"]),
+      asset("jaula-1", "kennel-cage", "Jaula 1", 4800, 4250, 900, 700, "equipment", ["jaula", "veterinaria"]),
+      asset("jaula-2", "kennel-cage", "Jaula 2", 5900, 4250, 900, 700, "equipment", ["jaula", "veterinaria"]),
+      asset("jaula-3", "kennel-cage", "Jaula 3", 7000, 4250, 900, 700, "equipment", ["jaula", "veterinaria"]),
+    ],
+    annotations: [
+      note("titulo", "Veterinaria — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "espera-vet", kind: "flow" },
+      { fromRef: "espera-vet", toRef: "consulta-vet", kind: "flow" },
+      { fromRef: "consulta-vet", toRef: "hospitalizacion", kind: "flow" },
     ],
   },
 ];

@@ -816,6 +816,17 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["vitrina", "display", "mostrador", "panadería", "panaderia", "tienda"],
     ports: [],
   },
+  // — Sexta tanda universal (AXOS-CAD-UNIVERSAL-016): veterinaria —
+  {
+    id: "kennel-cage",
+    label: "Jaula para mascotas",
+    category: "equipment",
+    defaultWidth: 900,
+    defaultHeight: 700,
+    layer: "Equipment",
+    tags: ["jaula", "kennel", "mascotas", "veterinaria", "hospitalización", "hospitalizacion"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {
