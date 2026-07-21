@@ -40,6 +40,7 @@ import {
   executeCadCommand,
   parseCadCommand,
   previewCadCommand,
+  splitCadCommandChain,
   type CadCommandHistoryItem,
   type CadCommandInput,
   type CadCommandPreview,
@@ -268,7 +269,7 @@ interface SelItem { type: 'station' | 'asset'; id: string }
 const sameSel = (a: SelItem, b: SelItem) => a.type === b.type && a.id === b.id;
 /** A point-in-time copy of every editable collection, for undo/redo. */
 interface Snapshot { placements: [string, Placement][]; assets: Asset[]; annotations: Ann[]; connectors: Conn[] }
-interface CommandPreviewState { input: CadCommandInput; preview: CadCommandPreview }
+interface CommandPreviewState { input: CadCommandInput; preview: CadCommandPreview; chain?: CadCommandInput[] }
 interface DxfExportOptions { scope: 'all' | 'selection'; includeHidden: boolean; includeMeasurements: boolean; includeLabels: boolean; units: 'mm' | 'm'; fileName: string }
 interface DxfExportSummary { objects: number; connectors: number; measurements: number; labels: number; layers: number; canExport: boolean; includedLayers: string[]; layerSummary: CadDxfExportLayerSummary[]; issues: CadDxfExportReadinessIssue[] }
 interface MeasurementRow { id: string; label: string; length: string }
@@ -4072,6 +4073,26 @@ export default function Layout3DEditor({
   const previewCommandText = (rawText: string) => {
     const raw = rawText.trim();
     if (!raw) return;
+    // Cadenas (AXOS-CAD-CHAIN-001): 'pon una puerta y luego céntrala' —
+    // todos los pasos deben parsear; el preview muestra el primero y el
+    // apply los ejecuta en orden contra el contexto vivo.
+    const parts = splitCadCommandChain(raw);
+    if (parts.length > 1) {
+      const inputs: CadCommandInput[] = [];
+      for (const part of parts) {
+        const parsedPart = parseCadCommand(part);
+        if (!parsedPart.ok || !parsedPart.input) {
+          toast.error(`Paso "${part}": ${parsedPart.clarification || parsedPart.error || 'no lo reconocí'}`, 'Comando CAD');
+          setCommandPreview(null);
+          return false;
+        }
+        inputs.push(parsedPart.input);
+      }
+      const preview = previewCadCommand(inputs[0], buildCommandContext());
+      setCommandPreview({ input: inputs[0], preview, chain: inputs });
+      setCommandLog((items) => [createCadHistoryItem(inputs[0], 'previewed', `${preview.summary} (+${inputs.length - 1} paso(s) más)`, preview), ...items].slice(0, 12));
+      return true;
+    }
     const parsed = parseCadCommand(raw);
     if (!parsed.ok || !parsed.input) {
       toast.error(parsed.clarification || parsed.error || 'No reconocí el comando CAD.', 'Comando CAD');
@@ -4173,21 +4194,31 @@ export default function Layout3DEditor({
   };
   const applyCommand = () => {
     if (!commandPreview) return;
-    const result = executeCadCommand(commandPreview.input, buildCommandContext());
-    if (!result.applied) {
-      toast.error(result.issues.find((i) => i.level === 'error')?.message || 'El comando no es válido.', 'Comando CAD');
-      setCommandLog((items) => [createCadHistoryItem(commandPreview.input, 'failed', result.historyLabel, commandPreview.preview, result), ...items].slice(0, 12));
-      return;
+    // Cadena o comando suelto (AXOS-CAD-CHAIN-001): cada paso se ejecuta
+    // contra el contexto YA mutado por el anterior ('pon una puerta y luego
+    // céntrala' centra la puerta recién creada); un solo snapshot → un undo.
+    const inputs = commandPreview.chain && commandPreview.chain.length > 1 ? commandPreview.chain : [commandPreview.input];
+    let snapshotTaken = false;
+    let anyChanged = false;
+    for (const input of inputs) {
+      const result = executeCadCommand(input, buildCommandContext());
+      if (!result.applied) {
+        toast.error(result.issues.find((i) => i.level === 'error')?.message || 'El comando no es válido.', 'Comando CAD');
+        setCommandLog((items) => [createCadHistoryItem(input, 'failed', result.historyLabel, commandPreview.preview, result), ...items].slice(0, 12));
+        break;
+      }
+      const mutates = result.operations.some((op) => op.type === 'move' || op.type === 'connect' || op.type === 'create' || op.type === 'annotate' || op.type === 'delete' || op.type === 'clear_annotations');
+      if (mutates && !snapshotTaken) { recordLocalSnapshot(`Auto · ${result.historyLabel}${inputs.length > 1 ? ` (cadena de ${inputs.length})` : ''}`, 'command'); pushHistory(); snapshotTaken = true; }
+      // map + some: .some(applyCommandOperation) directo corta en la primera op
+      // aplicada y dejaba a medias los comandos multi-objeto (align, flow line).
+      const changed = result.operations.map(applyCommandOperation).some(Boolean);
+      anyChanged = anyChanged || changed;
+      setCommandLog((items) => [createCadHistoryItem(input, 'applied', result.historyLabel, commandPreview.preview, result), ...items].slice(0, 12));
+      if (changed) { refreshSnap(); }
+      toast.success(result.historyLabel, 'Comando CAD');
     }
-    const mutates = result.operations.some((op) => op.type === 'move' || op.type === 'connect' || op.type === 'create' || op.type === 'annotate' || op.type === 'delete' || op.type === 'clear_annotations');
-    if (mutates) { recordLocalSnapshot(`Auto · ${result.historyLabel}`, 'command'); pushHistory(); }
-    // map + some: .some(applyCommandOperation) directo corta en la primera op
-    // aplicada y dejaba a medias los comandos multi-objeto (align, flow line).
-    const changed = result.operations.map(applyCommandOperation).some(Boolean);
-    setCommandLog((items) => [createCadHistoryItem(commandPreview.input, 'applied', result.historyLabel, commandPreview.preview, result), ...items].slice(0, 12));
-    if (changed) { setDirty(true); refreshSnap(); rebuildAll(); }
+    if (anyChanged) { setDirty(true); refreshSnap(); rebuildAll(); }
     setCommandPreview(null); setCommandText('');
-    toast.success(result.historyLabel, 'Comando CAD');
   };
   const undoLastCommand = () => {
     const item = commandLog.find((c) => c.status === 'applied');

@@ -5,6 +5,7 @@ import {
   executeCadCommand,
   parseCadCommand,
   previewCadCommand,
+  splitCadCommandChain,
   pushHistory,
   createHistoryItem,
   undoHistory,
@@ -59,6 +60,24 @@ assert.equal(
   "registry ids are unique",
 );
 assert.equal(CAD_COMMAND_REGISTRY.length, 37, "registry exposes 37 commands");
+
+// Cadenas (AXOS-CAD-CHAIN-001): separadores explícitos; ' y ' pelón NO corta.
+{
+  const chain = splitCadCommandChain("pon una puerta y luego céntrala; quita las cotas");
+  assert.deepEqual(
+    chain,
+    ["pon una puerta", "céntrala", "quita las cotas"],
+    "separa por 'y luego' y ';'",
+  );
+  for (const part of chain) {
+    assert.equal(parseCadCommand(part).ok, true, `'${part}' parsea solo`);
+  }
+  assert.deepEqual(
+    splitCadCommandChain("mide de la barra y la mesa"),
+    ["mide de la barra y la mesa"],
+    "' y ' pelón no separa (nombres compuestos)",
+  );
+}
 
 // Ayuda (AXOS-CAD-HELP-001): '¿qué puedes hacer?' lista el catálogo.
 {

@@ -53,6 +53,19 @@ function labelAfter(raw: string): string | undefined {
   return raw.match(/(?:label|etiqueta|nombre)\s+(.+)$/i)?.[1]?.trim();
 }
 
+/**
+ * Cadenas de comandos (AXOS-CAD-CHAIN-001): 'pon una puerta y luego
+ * céntrala' / 'quita las cotas; borra las notas'. Separadores EXPLÍCITOS
+ * (';', 'y luego', 'luego', 'y después', 'después') — el ' y ' pelón es
+ * ambiguo dentro de nombres y NO separa.
+ */
+export function splitCadCommandChain(text: string): string[] {
+  return text
+    .split(/\s*;\s*|\s+y\s+luego\s+|\s+luego\s+|\s+y\s+despu[eé]s\s+|\s+despu[eé]s\s+/i)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
 export function parseCadCommand(text: string): CadParseResult {
   const raw = text.trim();
   const q = raw.toLocaleLowerCase("es-MX");
