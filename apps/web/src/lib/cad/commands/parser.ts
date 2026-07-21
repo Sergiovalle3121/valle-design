@@ -411,6 +411,36 @@ export function parseCadCommand(text: string): CadParseResult {
       input: { id: "delete_selection" },
     };
   }
+  if (/\b(escribe|escribir|anota|rotula|texto|nota)\b/.test(q)) {
+    const coords = q.match(/(\d+)\s*[,x]\s*(\d+)/);
+    // El texto: entre comillas (conserva mayúsculas) o el residuo tras el verbo.
+    const quoted = raw.match(/['"“”‘’]([^'"“”‘’]+)['"“”‘’]/);
+    let label = quoted?.[1]?.trim() ?? "";
+    if (!label) {
+      label = raw
+        .replace(/^.*?\b(?:escribe|escribir|anota|rotula|texto|nota)\b\s*/i, "")
+        .replace(/\ben\s+\d[\d\s.,x]*$/i, "")
+        .trim();
+    }
+    if (!label) {
+      return {
+        ok: false,
+        confidence: 0.6,
+        clarification:
+          "¿Qué texto escribo? (p. ej. escribe 'Recepción' en 2000,1000)",
+      };
+    }
+    return {
+      ok: true,
+      confidence: 0.82,
+      input: {
+        id: "add_label",
+        text: label,
+        x: coords ? Number(coords[1]) : undefined,
+        y: coords ? Number(coords[2]) : undefined,
+      },
+    };
+  }
   if (/(offset|desfasa|desfase|paralela)/.test(q)) {
     const distance =
       unitValueToMm(q.match(/(?:de|a)\s+(\d+(?:[.,]\d+)?)\s*(mm|m)?\b/i)) ??

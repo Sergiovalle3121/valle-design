@@ -38,6 +38,7 @@ import {
   trimWallPreview,
 } from "./wall-edit";
 import { deleteSelectionPreview } from "./delete";
+import { addLabelPreview } from "./label";
 import { mirrorSelectionPreview } from "./mirror";
 import { placeSymbolPreview } from "./place-symbol";
 import {
@@ -1686,6 +1687,36 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     execute: (i, c) => {
       const p = deleteSelectionPreview(
         i as Extract<CadCommandInput, { id: "delete_selection" }>,
+        c,
+      );
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
+    id: "add_label",
+    label: "Texto en el plano",
+    category: "layout",
+    description:
+      "Escribe una nota de texto en el plano (TEXT de AutoCAD); sin coordenadas cae al centro para arrastrarla.",
+    inputSchema: {
+      text: {
+        type: "string",
+        description: "El texto de la nota.",
+      },
+      x: { type: "number", description: "Coordenada X en mm (opcional)." },
+      y: { type: "number", description: "Coordenada Y en mm (opcional)." },
+    },
+    examples: ["escribe 'Recepción' en 2000,1000", "anota 'Zona de carga'"],
+    validate: (i, c) =>
+      addLabelPreview(
+        i as Extract<CadCommandInput, { id: "add_label" }>,
+        c,
+      ).issues,
+    preview: (i, c) =>
+      addLabelPreview(i as Extract<CadCommandInput, { id: "add_label" }>, c),
+    execute: (i, c) => {
+      const p = addLabelPreview(
+        i as Extract<CadCommandInput, { id: "add_label" }>,
         c,
       );
       return result(p, ok(p.issues), p.summary);

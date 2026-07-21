@@ -4123,6 +4123,14 @@ export default function Layout3DEditor({
       setLayerAssignments((cur) => assignObjectsToLayer(cur, [id], srcLayer ?? defaultCadLayerForAssetKind(kind)));
       return true;
     } else if (op.type === 'annotate') {
+      if (op.annotation.kind === 'text') {
+        // TEXT conversacional (AXOS-CAD-TEXT-001): misma nota que el botón de
+        // notas — editable/arrastrable/borrable como cualquier otra.
+        const id = newId('nt');
+        annotationsRef.current.set(id, { id, type: 'text', x: op.annotation.x, y: op.annotation.y, text: op.annotation.text.slice(0, 240) });
+        rebuildNotes();
+        return true;
+      }
       // Auto-acotado (ADR §225): cada cota entra como anotación dim normal —
       // editable/borrable desde el panel de mediciones como cualquier otra.
       const id = newId('dim');
@@ -5405,7 +5413,7 @@ export default function Layout3DEditor({
                             <div className="font-semibold text-cyan-100">{op.title}</div>
                             {op.rows.slice(0, 3).map((row) => <div key={`${row.label}-${row.value}`} className="mt-0.5 flex justify-between gap-2 text-gray-500 dark:text-gray-400"><span className="truncate">{row.label}</span><span className="shrink-0 text-gray-200">{row.value}</span></div>)}
                           </div>
-                        ) : op.type === 'move' ? `Mover ${op.objectId} → (${Math.round(op.after.x)}, ${Math.round(op.after.y)})` : op.type === 'create' ? `Crear ${op.object.label} en (${Math.round(op.object.x)}, ${Math.round(op.object.y)})` : op.type === 'delete' ? `Borrar ${op.objectId}` : op.type === 'annotate' ? `Cota ${op.annotation.text}` : op.type === 'connect' ? `Conectar ${op.from} → ${op.to}` : op.type === 'measure' ? `Medir ${Math.round(op.distance)} ${op.unit}` : op.type === 'focus' ? `Enfocar ${op.objectIds.length || 'todo'}` : ''}
+                        ) : op.type === 'move' ? `Mover ${op.objectId} → (${Math.round(op.after.x)}, ${Math.round(op.after.y)})` : op.type === 'create' ? `Crear ${op.object.label} en (${Math.round(op.object.x)}, ${Math.round(op.object.y)})` : op.type === 'delete' ? `Borrar ${op.objectId}` : op.type === 'annotate' ? (op.annotation.kind === 'text' ? `Texto "${op.annotation.text}"` : `Cota ${op.annotation.text}`) : op.type === 'connect' ? `Conectar ${op.from} → ${op.to}` : op.type === 'measure' ? `Medir ${Math.round(op.distance)} ${op.unit}` : op.type === 'focus' ? `Enfocar ${op.objectIds.length || 'todo'}` : ''}
                       </div>
                     ))}
                     {commandPreview.preview.issues.slice(0, 2).map((issue) => (

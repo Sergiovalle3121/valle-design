@@ -24,6 +24,7 @@ export type CadCommandId =
   | "rotate_selection"
   | "scale_selection"
   | "delete_selection"
+  | "add_label"
   | "extend_wall"
   | "trim_wall"
   | "chamfer_walls"
@@ -99,14 +100,16 @@ export type CadOperation =
   | { type: "delete"; objectId: string }
   | {
       type: "annotate";
-      annotation: {
-        kind: "dim";
-        x: number;
-        y: number;
-        x2: number;
-        y2: number;
-        text: string;
-      };
+      annotation:
+        | {
+            kind: "dim";
+            x: number;
+            y: number;
+            x2: number;
+            y2: number;
+            text: string;
+          }
+        | { kind: "text"; x: number; y: number; text: string };
     }
   | { type: "connect"; from: string; to: string; kind: string }
   | {
@@ -245,6 +248,13 @@ export type CadCommandInput =
       id: "delete_selection";
       /** Default: la selección actual. */
       objectIds?: string[];
+    }
+  | {
+      id: "add_label";
+      /** El texto de la nota; 'escribe "Recepción" en 2000,1000'. */
+      text: string;
+      x?: number;
+      y?: number;
     }
   | {
       id: "extend_wall";
