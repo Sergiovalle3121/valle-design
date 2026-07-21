@@ -67,4 +67,41 @@ const ctx = {
   }
 }
 
+// Conteo por cuarto (AXOS-CAD-QUERY-010): '¿cuántas mesas hay en cada
+// cuarto?' desglosa por el cuarto que contiene cada coincidencia.
+{
+  const cuartosCtx = {
+    unit: "mm",
+    footprintW: 12000,
+    footprintH: 8000,
+    objects: [
+      { id: "coc", type: "asset", kind: "room", label: "Cocina", x: 0, y: 0, w: 4000, h: 4000 },
+      { id: "com", type: "asset", kind: "room", label: "Comedor", x: 5000, y: 0, w: 4000, h: 4000 },
+      { id: "m1", type: "asset", kind: "dining-table-4", label: "Mesa 1", x: 1000, y: 1000, w: 900, h: 900 },
+      { id: "m2", type: "asset", kind: "dining-table-4", label: "Mesa 2", x: 6000, y: 1000, w: 900, h: 900 },
+      { id: "m3", type: "asset", kind: "dining-table-4", label: "Mesa 3", x: 10000, y: 6000, w: 900, h: 900 },
+    ],
+    selectedIds: [],
+  } as unknown as CadCommandContext;
+  const parsed = parseCadCommand("¿cuántas mesas hay en cada cuarto?");
+  assert.equal(parsed.input?.id, "count_objects", "por cuarto parsea");
+  if (parsed.input?.id === "count_objects") {
+    assert.equal(parsed.input.query, "mesas", "query limpia");
+    assert.equal(parsed.input.byRoom, true, "byRoom del parser");
+    const p = countObjectsPreview(parsed.input, cuartosCtx);
+    const op = p.operations[0];
+    if (op.type === "report") {
+      const byLabel = new Map(op.rows.map((r) => [r.label, r.value]));
+      assert.equal(byLabel.get("Cocina"), "1", "una mesa en la cocina");
+      assert.equal(byLabel.get("Comedor"), "1", "una mesa en el comedor");
+      assert.equal(byLabel.get("Fuera de cuartos"), "1", "una mesa suelta");
+    }
+    assert.ok(p.summary.includes("3 espacio"), "resumen con espacios");
+  }
+  const normal = parseCadCommand("cuenta las mesas");
+  if (normal.input?.id === "count_objects") {
+    assert.equal(normal.input.byRoom, undefined, "conteo normal sin byRoom");
+  }
+}
+
 console.log("cad count specs passed");

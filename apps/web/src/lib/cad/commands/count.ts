@@ -35,6 +35,51 @@ export function countObjectsPreview(
     matched = raw ? matchObjectsByName(context, raw) : context.objects;
   }
 
+  // Conteo por cuarto (AXOS-CAD-QUERY-010): agrupa por el cuarto/zona MÁS
+  // PEQUEÑO que contiene el centro de cada coincidencia; los contenedores
+  // mismos no cuentan como contenido.
+  if (input.byRoom) {
+    const CONTAINER_KINDS = new Set(["room", "zone", "wall"]);
+    const items = matched.filter((o) => !CONTAINER_KINDS.has(o.kind ?? ""));
+    const byRoomLabel = new Map<string, number>();
+    for (const o of items) {
+      const cx = o.x + o.w / 2;
+      const cy = o.y + o.h / 2;
+      const room = context.objects
+        .filter(
+          (c) =>
+            c.id !== o.id &&
+            CONTAINER_KINDS.has(c.kind ?? "") &&
+            cx >= c.x &&
+            cx <= c.x + c.w &&
+            cy >= c.y &&
+            cy <= c.y + c.h,
+        )
+        .sort((a, b) => a.w * a.h - b.w * b.h)[0];
+      const key = room ? room.label : "Fuera de cuartos";
+      byRoomLabel.set(key, (byRoomLabel.get(key) ?? 0) + 1);
+    }
+    const roomRows = [...byRoomLabel.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([label, count]) => ({ label, value: String(count) }));
+    return {
+      summary: raw
+        ? `${items.length} × '${raw}' repartidos en ${byRoomLabel.size} espacio(s).`
+        : `${items.length} objeto(s) repartidos en ${byRoomLabel.size} espacio(s).`,
+      affectedObjectIds: items.map((o) => o.id),
+      operations: [
+        {
+          type: "report",
+          title: raw ? `Conteo por cuarto: '${raw}'` : "Conteo por cuarto",
+          rows: roomRows.length
+            ? roomRows
+            : [{ label: "Sin coincidencias", value: "0" }],
+        },
+      ],
+      issues: [],
+    };
+  }
+
   const byLabel = new Map<string, number>();
   for (const o of matched) {
     byLabel.set(o.label, (byLabel.get(o.label) ?? 0) + 1);

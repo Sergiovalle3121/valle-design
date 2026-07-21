@@ -352,6 +352,9 @@ export type CadCommandInput =
       id: "count_objects";
       /** Qué contar ('mesas', 'sillas'); vacío = todo el plano. */
       query?: string;
+      /** '¿cuántas mesas hay en cada cuarto?': desglosa el conteo por el
+       * cuarto/zona que contiene cada coincidencia. */
+      byRoom?: boolean;
     }
   | {
       id: "select_objects";

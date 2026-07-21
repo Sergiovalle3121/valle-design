@@ -894,8 +894,14 @@ export function parseCadCommand(text: string): CadParseResult {
     };
   }
   if (/\b(cuenta|cuentame|cuéntame|cuantas|cuántas|cuantos|cuántos)\b/.test(q)) {
+    // '¿cuántas mesas hay en cada cuarto?' (AXOS-CAD-QUERY-010): el
+    // conteo se desglosa por el cuarto que contiene cada coincidencia.
+    const byRoom = /\ben\s+cada\s+(?:cuarto|habitaci[oó]n|zona|espacio)\b/.test(
+      q,
+    );
     const query = q
       .replace(/^.*?\b(?:cuenta|cuentame|cuéntame|cuantas|cuántas|cuantos|cuántos)\b\s*/, "")
+      .replace(/\ben\s+cada\s+(?:cuarto|habitaci[oó]n|zona|espacio)\b/g, "")
       .replace(/\b(hay|tengo|tenemos|existen|en\s+el\s+plano|en\s+el\s+layout)\b/g, "")
       .replace(/[¿?¡!.]/g, "")
       .replace(/\s+/g, " ")
@@ -905,7 +911,11 @@ export function parseCadCommand(text: string): CadParseResult {
     return {
       ok: true,
       confidence: 0.85,
-      input: { id: "count_objects", query: query || undefined },
+      input: {
+        id: "count_objects",
+        query: query || undefined,
+        byRoom: byRoom || undefined,
+      },
     };
   }
   if (/\b(centra|centrar|centralo|centrala|céntralo|céntrala)\b/.test(q)) {
