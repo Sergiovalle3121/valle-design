@@ -47,7 +47,8 @@ export type CadLayoutTemplateId =
   | "fisioterapia"
   | "spa"
   | "cibercafe"
-  | "gimnasio-box";
+  | "gimnasio-box"
+  | "polleria";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1547,6 +1548,34 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "ring-box", kind: "flow" },
       { fromRef: "ring-box", toRef: "zona-costales", kind: "flow" },
       { fromRef: "vestidor-box", toRef: "ring-box", kind: "flow" },
+    ],
+  },
+  {
+    id: "polleria",
+    label: "Pollería",
+    description: "Arranque universal de pollería: mostrador con vitrina refrigerada y báscula, congelador, mesa de corte, refrigerador, cuarto frío y despacho.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["architecture", "shell", "polleria"]),
+      asset("entrada", "door", "Entrada", 3500, 650, 1000, 260, "architecture", ["door", "opening:entry"]),
+      asset("mostrador-pol", "counter", "Mostrador", 1500, 1400, 1800, 600, "equipment", ["counter", "polleria"]),
+      asset("vitrina-pol", "display-case", "Vitrina refrigerada", 3600, 1400, 1500, 600, "equipment", ["vitrina", "polleria"]),
+      asset("bascula-pol", "scale", "Báscula", 5400, 1400, 500, 500, "equipment", ["bascula", "polleria"]),
+      asset("congelador-pol", "freezer", "Congelador", 6300, 1400, 1500, 700, "equipment", ["congelador", "polleria"]),
+      asset("mesa-corte-pol", "workbench", "Mesa de corte", 1500, 2800, 1800, 750, "equipment", ["mesa", "corte", "polleria"]),
+      asset("refri-pol", "refrigerator", "Refrigerador", 3600, 2800, 800, 700, "equipment", ["refrigerador", "polleria"]),
+      asset("despacho-pol", "zone", "Despacho", 1300, 3900, 3000, 1300, "layout", ["zone", "use:service", "polleria"]),
+      asset("cuarto-frio-pol", "room", "Cuarto frío", 6000, 3200, 1900, 1800, "architecture", ["room", "use:coldroom", "polleria"]),
+    ],
+    annotations: [
+      note("titulo", "Pollería — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "mostrador-pol", kind: "flow" },
+      { fromRef: "cuarto-frio-pol", toRef: "mesa-corte-pol", kind: "material" },
+      { fromRef: "mesa-corte-pol", toRef: "vitrina-pol", kind: "material" },
     ],
   },
 ];
