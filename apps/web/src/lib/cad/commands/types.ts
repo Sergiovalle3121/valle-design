@@ -291,6 +291,9 @@ export type CadCommandInput =
       /** 'pon una planta en cada esquina': 4 piezas en las esquinas del
        * footprint con margen de 200 mm. */
       corners?: boolean;
+      /** 'pon una silla en cada cuarto': una pieza centrada en cada
+       * cuarto hoja (el muro perimetral no duplica). */
+      perRoom?: boolean;
     }
   | {
       id: "rotate_selection";

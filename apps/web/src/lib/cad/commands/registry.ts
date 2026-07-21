@@ -2381,6 +2381,11 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         enum: ["true", "false"],
         description: "4 piezas en las esquinas del plano.",
       },
+      perRoom: {
+        type: "enum",
+        enum: ["true", "false"],
+        description: "Una pieza centrada en cada cuarto hoja del plano.",
+      },
     },
     examples: [
       "pon una puerta",
@@ -2391,6 +2396,7 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
       "pon una silla junto a cada mesa",
       "pon una silla en la cocina",
       "pon una planta en cada esquina",
+      "pon una silla en cada cuarto",
     ],
     validate: (i, c) =>
       placeSymbolPreview(

@@ -72,6 +72,56 @@ export function placeSymbolPreview(
   const totalW = symbol.defaultWidth + (count - 1) * step;
   // En cada esquina (AXOS-CAD-PLACE-008): 4 piezas en las esquinas del
   // footprint con margen de 200 mm; ignora conteo, anclas y coordenadas.
+  // En cada cuarto (AXOS-CAD-PLACE-009): una pieza centrada en cada
+  // cuarto hoja — contenedores (room/zone) que no contienen el centro de
+  // otro contenedor; el muro perimetral queda fuera solo.
+  if (input.perRoom) {
+    const containers = context.objects.filter((o) =>
+      ["room", "zone"].includes(o.kind ?? ""),
+    );
+    const leaves = containers.filter(
+      (r) =>
+        !containers.some((other) => {
+          if (other.id === r.id) return false;
+          // Solo un contenedor MÁS CHICO cuenta como hijo — el centro del
+          // muro perimetral puede caer en la frontera de un cuarto.
+          if (other.w * other.h >= r.w * r.h) return false;
+          const cx = other.x + other.w / 2;
+          const cy = other.y + other.h / 2;
+          return cx >= r.x && cx <= r.x + r.w && cy >= r.y && cy <= r.y + r.h;
+        }),
+    );
+    if (!leaves.length) {
+      issues.push(
+        error(
+          "place_no_rooms",
+          "No hay cuartos ni zonas en el plano para repartir.",
+        ),
+      );
+      return { summary: "", affectedObjectIds: [], operations: [], issues };
+    }
+    const roomRotation = Number.isFinite(input.rotation)
+      ? normalizeDeg(input.rotation as number)
+      : undefined;
+    return {
+      summary: `${leaves.length} × ${symbol.label} — uno en cada cuarto.`,
+      affectedObjectIds: leaves.map((r) => r.id),
+      operations: leaves.map((r, i) => ({
+        type: "create",
+        object: {
+          kind: symbol.id,
+          type: "asset",
+          label: `${symbol.label} ${i + 1}`,
+          x: Math.round(r.x + (r.w - symbol.defaultWidth) / 2),
+          y: Math.round(r.y + (r.h - symbol.defaultHeight) / 2),
+          w: symbol.defaultWidth,
+          h: symbol.defaultHeight,
+          rotation: roomRotation,
+        },
+      })),
+      issues,
+    };
+  }
   if (input.corners) {
     const M = 200;
     const W = context.footprintW ?? 10000;

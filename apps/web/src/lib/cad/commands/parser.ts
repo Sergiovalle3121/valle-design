@@ -506,6 +506,16 @@ export function parseCadCommand(text: string): CadParseResult {
       corners = true;
       query = query.replace(/\ben\s+cada\s+esquina\b/g, " ").replace(/\s+/g, " ").trim();
     }
+    // 'pon una silla en cada cuarto' (AXOS-CAD-PLACE-009): una pieza
+    // centrada en cada cuarto hoja del plano.
+    let perRoom: boolean | undefined;
+    if (/\ben\s+cada\s+(?:cuarto|habitaci[oó]n|zona)\b/.test(query)) {
+      perRoom = true;
+      query = query
+        .replace(/\ben\s+cada\s+(?:cuarto|habitaci[oó]n|zona)\b/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
     // 'pon una silla en la cocina' (AXOS-CAD-PLACE-007): colocar dentro
     // de un cuarto/zona por nombre — solo sin coordenadas y sin ancla;
     // las direcciones sueltas no son zonas.
@@ -549,6 +559,7 @@ export function parseCadCommand(text: string): CadParseResult {
         anchorEach,
         into,
         corners,
+        perRoom,
       },
     };
   }

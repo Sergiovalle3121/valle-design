@@ -369,3 +369,48 @@ const ctx = {
 }
 
 console.log("cad place-symbol specs passed");
+
+// En cada cuarto (AXOS-CAD-PLACE-009): una pieza centrada por cuarto
+// hoja; el muro perimetral no duplica y sin cuartos hay error.
+{
+  const cuartosCtx = {
+    unit: "mm",
+    footprintW: 12000,
+    footprintH: 8000,
+    objects: [
+      { id: "shell", type: "asset", kind: "room", label: "Muro perimetral", x: 0, y: 0, w: 12000, h: 8000 },
+      { id: "coc", type: "asset", kind: "room", label: "Cocina", x: 0, y: 0, w: 4000, h: 4000 },
+      { id: "com", type: "asset", kind: "room", label: "Comedor", x: 5000, y: 0, w: 4000, h: 4000 },
+    ],
+    selectedIds: [],
+  } as unknown as CadCommandContext;
+  const parsed = parseCadCommand("pon una silla en cada cuarto");
+  assert.equal(parsed.input?.id, "place_symbol", "por cuarto parsea");
+  if (parsed.input?.id === "place_symbol") {
+    assert.equal(parsed.input.query, "silla", "query limpia");
+    assert.equal(parsed.input.perRoom, true, "perRoom del parser");
+  }
+  const out = placeSymbolPreview(
+    { id: "place_symbol", query: "silla", perRoom: true },
+    cuartosCtx,
+  );
+  assert.equal(out.issues.length, 0, "por cuarto sin issues");
+  assert.equal(out.operations.length, 2, "una silla por cuarto hoja");
+  const first = out.operations[0] as {
+    object: { x: number; y: number; w: number; h: number };
+  };
+  assert.equal(
+    first.object.x,
+    Math.round(0 + (4000 - first.object.w) / 2),
+    "centrada en x de la cocina",
+  );
+  assert.ok(out.summary.includes("cada cuarto"), "resumen por cuarto");
+  const vacio = placeSymbolPreview(
+    { id: "place_symbol", query: "silla", perRoom: true },
+    { unit: "mm", footprintW: 10000, footprintH: 6000, objects: [], selectedIds: [] } as unknown as CadCommandContext,
+  );
+  assert.ok(
+    vacio.issues.some((i) => i.code === "place_no_rooms"),
+    "sin cuartos → error específico",
+  );
+}
