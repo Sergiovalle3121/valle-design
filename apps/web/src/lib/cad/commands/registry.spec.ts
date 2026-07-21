@@ -58,7 +58,7 @@ assert.equal(
   CAD_COMMAND_REGISTRY.length,
   "registry ids are unique",
 );
-assert.equal(CAD_COMMAND_REGISTRY.length, 31, "registry exposes 31 commands");
+assert.equal(CAD_COMMAND_REGISTRY.length, 32, "registry exposes 32 commands");
 
 const parsed = parseCadCommand("haz un pasillo de 1.2m entre SMT e inspección");
 assert.equal(parsed.ok, true, "parser detects clearance aisle");

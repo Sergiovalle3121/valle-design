@@ -38,6 +38,7 @@ import {
   trimWallPreview,
 } from "./wall-edit";
 import { deleteSelectionPreview } from "./delete";
+import { duplicateSelectionPreview } from "./duplicate";
 import { addLabelPreview } from "./label";
 import { mirrorSelectionPreview } from "./mirror";
 import { placeSymbolPreview } from "./place-symbol";
@@ -1687,6 +1688,45 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     execute: (i, c) => {
       const p = deleteSelectionPreview(
         i as Extract<CadCommandInput, { id: "delete_selection" }>,
+        c,
+      );
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
+    id: "duplicate_selection",
+    label: "Duplicar selección",
+    category: "layout",
+    description:
+      "Duplica los objetos seleccionados (COPY de AutoCAD); la copia hereda kind/etiqueta/capa y se desplaza para no tapar al original.",
+    inputSchema: {
+      dx: {
+        type: "number",
+        description: "Desplazamiento X en mm (default 500).",
+      },
+      dy: {
+        type: "number",
+        description: "Desplazamiento Y en mm (default 500).",
+      },
+      objectIds: {
+        type: "string[]",
+        description: "Alternativa: objetos seleccionados.",
+      },
+    },
+    examples: ["duplica la selección", "copia esto a 800,0"],
+    validate: (i, c) =>
+      duplicateSelectionPreview(
+        i as Extract<CadCommandInput, { id: "duplicate_selection" }>,
+        c,
+      ).issues,
+    preview: (i, c) =>
+      duplicateSelectionPreview(
+        i as Extract<CadCommandInput, { id: "duplicate_selection" }>,
+        c,
+      ),
+    execute: (i, c) => {
+      const p = duplicateSelectionPreview(
+        i as Extract<CadCommandInput, { id: "duplicate_selection" }>,
         c,
       );
       return result(p, ok(p.issues), p.summary);

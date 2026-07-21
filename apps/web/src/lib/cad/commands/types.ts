@@ -24,6 +24,7 @@ export type CadCommandId =
   | "rotate_selection"
   | "scale_selection"
   | "delete_selection"
+  | "duplicate_selection"
   | "add_label"
   | "extend_wall"
   | "trim_wall"
@@ -248,6 +249,13 @@ export type CadCommandInput =
       id: "delete_selection";
       /** Default: la selección actual. */
       objectIds?: string[];
+    }
+  | {
+      id: "duplicate_selection";
+      objectIds?: string[];
+      /** Desplazamiento de la copia en mm; default +500,+500. */
+      dx?: number;
+      dy?: number;
     }
   | {
       id: "add_label";

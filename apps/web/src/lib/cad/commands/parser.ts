@@ -441,6 +441,18 @@ export function parseCadCommand(text: string): CadParseResult {
       },
     };
   }
+  if (/\b(duplica|duplicar|copia|copiar|clona|clonar)\b/.test(q)) {
+    const off = q.match(/\b(?:a|en)\s+(-?\d+)\s*[,x]\s*(-?\d+)/);
+    return {
+      ok: true,
+      confidence: 0.83,
+      input: {
+        id: "duplicate_selection",
+        dx: off ? Number(off[1]) : undefined,
+        dy: off ? Number(off[2]) : undefined,
+      },
+    };
+  }
   if (/(offset|desfasa|desfase|paralela)/.test(q)) {
     const distance =
       unitValueToMm(q.match(/(?:de|a)\s+(\d+(?:[.,]\d+)?)\s*(mm|m)?\b/i)) ??
