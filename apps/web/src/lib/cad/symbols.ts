@@ -966,6 +966,17 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["cajón de fruta", "cajon de fruta", "huacal", "guacal", "frutería", "fruteria", "verdulería", "verduleria"],
     ports: [],
   },
+  // — Decimosexta tanda universal (AXOS-CAD-UNIVERSAL-032): tortillería —
+  {
+    id: "tortilla-machine",
+    label: "Máquina tortilladora",
+    category: "equipment",
+    defaultWidth: 1200,
+    defaultHeight: 800,
+    layer: "Equipment",
+    tags: ["máquina tortilladora", "maquina tortilladora", "tortilladora", "tortillería", "tortilleria", "tortillas"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {

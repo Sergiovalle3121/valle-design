@@ -269,3 +269,17 @@ assert.ok(
   ),
   "search finds cajón de fruta",
 );
+
+// Decimosexta tanda universal (AXOS-CAD-UNIVERSAL-032): tortillería.
+assert.ok(
+  searchCadSymbols("tortilladora").some(
+    (symbol) => symbol.id === "tortilla-machine",
+  ),
+  "search finds tortilladora",
+);
+assert.ok(
+  searchCadSymbols("tortillería").some(
+    (symbol) => symbol.id === "tortilla-machine",
+  ),
+  "search finds tortillería → máquina",
+);

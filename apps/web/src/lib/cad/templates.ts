@@ -39,7 +39,8 @@ export type CadLayoutTemplateId =
   | "taqueria"
   | "carniceria"
   | "fruteria"
-  | "barberia";
+  | "barberia"
+  | "tortilleria";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1297,6 +1298,34 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "espera", kind: "flow" },
       { fromRef: "espera", toRef: "silla-b1", kind: "flow" },
       { fromRef: "silla-b1", toRef: "mostrador-b", kind: "flow" },
+    ],
+  },
+  {
+    id: "tortilleria",
+    label: "Tortillería",
+    description: "Arranque universal de tortillería: máquina tortilladora, comal, mesa de amasado, refrigerador de masa, mostrador con báscula, bodega de maíz y despacho.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["architecture", "shell", "tortilleria"]),
+      asset("entrada", "door", "Entrada", 3500, 650, 1000, 260, "architecture", ["door", "opening:entry"]),
+      asset("maquina-tort", "tortilla-machine", "Máquina tortilladora", 1500, 1500, 1200, 800, "equipment", ["tortilladora", "tortilleria"]),
+      asset("comal-tort", "stove", "Comal", 3000, 1500, 900, 650, "equipment", ["comal", "tortilleria"]),
+      asset("mesa-amasado", "workbench", "Mesa de amasado", 4500, 1500, 1800, 750, "equipment", ["mesa", "amasado", "tortilleria"]),
+      asset("refri-masa", "refrigerator", "Refrigerador de masa", 6800, 1500, 800, 700, "equipment", ["refrigerador", "tortilleria"]),
+      asset("despacho", "zone", "Despacho", 1300, 3300, 3000, 1300, "layout", ["zone", "use:service", "tortilleria"]),
+      asset("mostrador-tort", "counter", "Mostrador", 1500, 3600, 1800, 600, "equipment", ["counter", "tortilleria"]),
+      asset("bascula-tort", "scale", "Báscula", 3500, 3600, 500, 500, "equipment", ["bascula", "tortilleria"]),
+      asset("bodega-maiz", "room", "Bodega de maíz", 6000, 3200, 1900, 1800, "architecture", ["room", "use:storage", "tortilleria"]),
+    ],
+    annotations: [
+      note("titulo", "Tortillería — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "bodega-maiz", toRef: "maquina-tort", kind: "material" },
+      { fromRef: "maquina-tort", toRef: "mostrador-tort", kind: "material" },
+      { fromRef: "entrada", toRef: "mostrador-tort", kind: "flow" },
     ],
   },
 ];
