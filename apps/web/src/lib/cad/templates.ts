@@ -52,7 +52,8 @@ export type CadLayoutTemplateId =
   | "floreria"
   | "cremeria"
   | "neveria"
-  | "jugueria";
+  | "jugueria"
+  | "pescaderia";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1693,6 +1694,34 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "barra-jug", kind: "flow" },
       { fromRef: "bodega-jug", toRef: "exhibidor-jug", kind: "material" },
       { fromRef: "exhibidor-jug", toRef: "barra-jug", kind: "material" },
+    ],
+  },
+  {
+    id: "pescaderia",
+    label: "Pescadería",
+    description: "Arranque universal de pescadería: mostrador con vitrina con hielo, báscula, caja registradora, mesa de fileteado, congelador, cuarto frío y despacho.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["architecture", "shell", "pescaderia"]),
+      asset("entrada", "door", "Entrada", 3500, 650, 1000, 260, "architecture", ["door", "opening:entry"]),
+      asset("mostrador-pes", "counter", "Mostrador", 1500, 1400, 1800, 600, "equipment", ["counter", "pescaderia"]),
+      asset("vitrina-pes", "display-case", "Vitrina con hielo", 3600, 1400, 1800, 700, "equipment", ["vitrina", "hielo", "pescaderia"]),
+      asset("bascula-pes", "scale", "Báscula", 5700, 1400, 500, 500, "equipment", ["bascula", "pescaderia"]),
+      asset("caja-pes", "cash-register", "Caja registradora", 6500, 1400, 450, 400, "equipment", ["caja", "cobro", "pescaderia"]),
+      asset("mesa-fileteo-pes", "workbench", "Mesa de fileteado", 1500, 2800, 2000, 800, "equipment", ["mesa", "fileteado", "pescaderia"]),
+      asset("congelador-pes", "freezer", "Congelador", 3900, 2800, 1500, 700, "equipment", ["congelador", "pescaderia"]),
+      asset("despacho-pes", "zone", "Despacho", 1300, 4000, 2600, 1200, "layout", ["zone", "use:service", "pescaderia"]),
+      asset("cuarto-frio-pes", "room", "Cuarto frío", 6000, 3200, 1900, 1800, "architecture", ["room", "use:coldroom", "pescaderia"]),
+    ],
+    annotations: [
+      note("titulo", "Pescadería — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "mostrador-pes", kind: "flow" },
+      { fromRef: "cuarto-frio-pes", toRef: "mesa-fileteo-pes", kind: "material" },
+      { fromRef: "mesa-fileteo-pes", toRef: "vitrina-pes", kind: "material" },
     ],
   },
 ];
