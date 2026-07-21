@@ -1432,4 +1432,26 @@ if (rectDraftCreate?.type === "create") {
   );
 }
 
+// INFO del plano (AXOS-CAD-QUERY-003): '¿cuánto mide el plano?'.
+{
+  const parsed = parseCadCommand("¿cuánto mide el plano?");
+  assert.equal(parsed.input?.id, "object_info", "cuánto mide el plano es info");
+  const p = previewCadCommand({ id: "object_info", query: "plano" }, ctx);
+  assert.ok(!p.issues.some((i) => i.level === "error"), "plano sin errores");
+  const report = p.operations.find((op) => op.type === "report");
+  assert.equal(report?.type, "report", "info del plano emite reporte");
+  if (report?.type === "report") {
+    assert.ok(
+      report.rows.some((r) => r.label === "Área"),
+      "reporta el área del plano",
+    );
+    assert.ok(
+      report.rows.some(
+        (r) => r.label === "Objetos" && r.value === `${ctx.objects.length}`,
+      ),
+      "reporta el conteo total de objetos",
+    );
+  }
+}
+
 console.log("cad command registry specs passed");
