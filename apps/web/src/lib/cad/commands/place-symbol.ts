@@ -69,10 +69,11 @@ export function placeSymbolPreview(
   const gap = Math.max(0, input.gap ?? 100);
   const step = symbol.defaultWidth + gap;
   const totalW = symbol.defaultWidth + (count - 1) * step;
-  // Ancla relacional (AXOS-CAD-PLACE-004): 'junto a la mesa' cae a la
-  // derecha del ancla, misma altura; con coordenadas explícitas ganan ellas.
+  // Ancla relacional (AXOS-CAD-PLACE-004/005): 'junto a la mesa' cae a la
+  // derecha del ancla; 'a la izquierda de' termina la fila en el ancla;
+  // 'arriba/debajo de' alinean x. Coordenadas explícitas ganan siempre.
   const anchorQuery = input.anchor?.trim();
-  let anchorBox: { x: number; w: number; y: number } | undefined;
+  let anchorBox: { x: number; y: number; w: number; h: number } | undefined;
   if (anchorQuery) {
     const anchors = matchObjectsByName(context, anchorQuery);
     if (!anchors.length) {
@@ -86,15 +87,30 @@ export function placeSymbolPreview(
     }
     anchorBox = anchors[0];
   }
+  const side = input.anchorSide ?? "right";
+  const anchorX = anchorBox
+    ? side === "left"
+      ? anchorBox.x - gap - totalW
+      : side === "right"
+        ? anchorBox.x + anchorBox.w + gap
+        : anchorBox.x
+    : undefined;
+  const anchorY = anchorBox
+    ? side === "above"
+      ? anchorBox.y - gap - symbol.defaultHeight
+      : side === "below"
+        ? anchorBox.y + anchorBox.h + gap
+        : anchorBox.y
+    : undefined;
   const x = Number.isFinite(input.x)
     ? Math.round(input.x as number)
-    : anchorBox
-      ? Math.round(anchorBox.x + anchorBox.w + gap)
+    : anchorX !== undefined
+      ? Math.round(anchorX)
       : Math.round((context.footprintW ?? 10000) / 2 - totalW / 2);
   const y = Number.isFinite(input.y)
     ? Math.round(input.y as number)
-    : anchorBox
-      ? Math.round(anchorBox.y)
+    : anchorY !== undefined
+      ? Math.round(anchorY)
       : Math.round((context.footprintH ?? 6000) / 2 - symbol.defaultHeight / 2);
 
   const rotation = Number.isFinite(input.rotation)

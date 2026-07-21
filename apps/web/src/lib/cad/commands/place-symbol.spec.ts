@@ -167,4 +167,60 @@ const ctx = {
   );
 }
 
+// Lados del ancla (AXOS-CAD-PLACE-005): izquierda/derecha/arriba/abajo.
+{
+  const izq = parseCadCommand("pon una silla a la izquierda de la mesa");
+  assert.equal(izq.input?.id, "place_symbol", "lado izquierdo es place");
+  if (izq.input?.id === "place_symbol") {
+    assert.equal(izq.input.query, "silla", "query sin el lado");
+    assert.equal(izq.input.anchor, "mesa", "ancla con lado");
+    assert.equal(izq.input.anchorSide, "left", "lado izquierdo del parser");
+  }
+  const alDel = parseCadCommand("pon un lavacabezas a la izquierda del tocador");
+  if (alDel.input?.id === "place_symbol")
+    assert.equal(alDel.input.anchor, "tocador", "ancla tras 'del'");
+  const abajo = parseCadCommand("pon una silla debajo de la mesa");
+  if (abajo.input?.id === "place_symbol")
+    assert.equal(abajo.input.anchorSide, "below", "lado abajo del parser");
+
+  const mesaCtx = {
+    unit: "mm",
+    footprintW: 10000,
+    footprintH: 6000,
+    objects: [
+      {
+        id: "m1",
+        type: "asset",
+        kind: "dining-table-4",
+        label: "Mesa comedor",
+        x: 3000,
+        y: 2000,
+        w: 1200,
+        h: 1200,
+      },
+    ],
+    selectedIds: [],
+  } as unknown as CadCommandContext;
+  const left = placeSymbolPreview(
+    { id: "place_symbol", query: "silla", anchor: "mesa", anchorSide: "left" },
+    mesaCtx,
+  );
+  const leftOp = left.operations[0] as {
+    object: { x: number; y: number; w: number };
+  };
+  assert.equal(
+    leftOp.object.x + leftOp.object.w + 100,
+    3000,
+    "izquierda termina justo antes del ancla",
+  );
+  assert.equal(leftOp.object.y, 2000, "izquierda conserva la altura");
+  const below = placeSymbolPreview(
+    { id: "place_symbol", query: "silla", anchor: "mesa", anchorSide: "below" },
+    mesaCtx,
+  );
+  const belowOp = below.operations[0] as { object: { x: number; y: number } };
+  assert.equal(belowOp.object.y, 2000 + 1200 + 100, "debajo cae tras el ancla");
+  assert.equal(belowOp.object.x, 3000, "debajo alinea la x");
+}
+
 console.log("cad place-symbol specs passed");

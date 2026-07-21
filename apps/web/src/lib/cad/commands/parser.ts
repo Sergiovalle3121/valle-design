@@ -434,18 +434,28 @@ export function parseCadCommand(text: string): CadParseResult {
       .replace(/\ben\s+(?:fila|l[ií]nea)\b/gi, " ")
       .replace(/\s+/g, " ")
       .trim();
-    // 'pon una silla junto a la mesa' (AXOS-CAD-PLACE-004): ancla por nombre.
+    // 'pon una silla junto a la mesa' (AXOS-CAD-PLACE-004/005): ancla por
+    // nombre con lado opcional (izquierda/derecha/arriba/abajo).
     const anchorMatch = query.match(
-      /\b(?:junto\s+a|al\s+lado\s+de|a\s+un\s+lado\s+de)\s+(.+)$/i,
+      /\b(junto\s+al?|al\s+lado\s+del?|a\s+un\s+lado\s+del?|a\s+la\s+izquierda\s+del?|a\s+la\s+derecha\s+del?|arriba\s+del?|encima\s+del?|abajo\s+del?|debajo\s+del?)\s+(.+)$/i,
     );
     let anchor: string | undefined;
+    let anchorSide: "left" | "right" | "above" | "below" | undefined;
     if (anchorMatch) {
       anchor =
-        anchorMatch[1]!
+        anchorMatch[2]!
           .replace(/\s+/g, " ")
           .trim()
           .replace(/^(?:el|la|los|las|un|una)\s+/i, "")
           .trim() || undefined;
+      const phrase = anchorMatch[1]!;
+      anchorSide = /izquierda/i.test(phrase)
+        ? "left"
+        : /arriba|encima/i.test(phrase)
+          ? "above"
+          : /abajo|debajo/i.test(phrase)
+            ? "below"
+            : undefined;
       query = query.slice(0, anchorMatch.index).trim();
     }
     if (!query) {
@@ -467,6 +477,7 @@ export function parseCadCommand(text: string): CadParseResult {
         count,
         gap: rowGap,
         anchor,
+        anchorSide,
       },
     };
   }

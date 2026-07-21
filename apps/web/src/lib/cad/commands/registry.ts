@@ -2222,12 +2222,18 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         type: "string",
         description: "Colocar junto a este objeto (label o tipo).",
       },
+      anchorSide: {
+        type: "enum",
+        enum: ["left", "right", "above", "below"],
+        description: "Lado del ancla (default right).",
+      },
     },
     examples: [
       "pon una puerta",
       "coloca una cama en 3000,2000",
       "pon 3 sillas en fila cada 200",
       "pon una silla junto a la mesa",
+      "pon un lavacabezas a la izquierda del tocador",
     ],
     validate: (i, c) =>
       placeSymbolPreview(

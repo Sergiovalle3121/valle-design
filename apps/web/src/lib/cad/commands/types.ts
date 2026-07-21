@@ -276,6 +276,8 @@ export type CadCommandInput =
       gap?: number;
       /** 'pon una silla junto a la mesa': ancla por nombre (label o tipo). */
       anchor?: string;
+      /** Lado del ancla; 'a la izquierda de', 'arriba de' (default right). */
+      anchorSide?: "left" | "right" | "above" | "below";
     }
   | {
       id: "rotate_selection";
