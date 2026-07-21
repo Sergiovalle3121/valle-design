@@ -48,7 +48,8 @@ export type CadLayoutTemplateId =
   | "spa"
   | "cibercafe"
   | "gimnasio-box"
-  | "polleria";
+  | "polleria"
+  | "floreria";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1576,6 +1577,34 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "mostrador-pol", kind: "flow" },
       { fromRef: "cuarto-frio-pol", toRef: "mesa-corte-pol", kind: "material" },
       { fromRef: "mesa-corte-pol", toRef: "vitrina-pol", kind: "material" },
+    ],
+  },
+  {
+    id: "floreria",
+    label: "Florería",
+    description: "Arranque universal de florería: mostrador, cámara floral, mesa de arreglos, cubetas de flor, estante de macetas y trastienda.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["architecture", "shell", "floreria"]),
+      asset("entrada", "door", "Entrada", 3500, 650, 1000, 260, "architecture", ["door", "opening:entry"]),
+      asset("mostrador-flo", "counter", "Mostrador", 1500, 1400, 1800, 600, "equipment", ["counter", "floreria"]),
+      asset("camara-flo", "display-case", "Cámara floral", 3600, 1400, 1800, 700, "equipment", ["vitrina", "flor", "floreria"]),
+      asset("estante-flo", "shelf", "Estante de macetas", 5800, 1400, 2400, 500, "equipment", ["estante", "maceta", "floreria"]),
+      asset("mesa-arreglos-flo", "workbench", "Mesa de arreglos", 1500, 2600, 2000, 800, "equipment", ["mesa", "arreglos", "floreria"]),
+      asset("cubetas-flo", "zone", "Cubetas de flor", 3900, 2600, 1600, 900, "layout", ["zone", "use:display", "floreria"]),
+      asset("maceta-flo-1", "plant-pot", "Maceta", 1000, 4600, 450, 450, "equipment", ["maceta", "floreria"]),
+      asset("maceta-flo-2", "plant-pot", "Maceta", 1600, 4600, 450, 450, "equipment", ["maceta", "floreria"]),
+      asset("trastienda-flo", "room", "Trastienda", 6000, 3200, 1900, 1800, "architecture", ["room", "use:storage", "floreria"]),
+    ],
+    annotations: [
+      note("titulo", "Florería — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "mostrador-flo", kind: "flow" },
+      { fromRef: "trastienda-flo", toRef: "mesa-arreglos-flo", kind: "material" },
+      { fromRef: "mesa-arreglos-flo", toRef: "camara-flo", kind: "material" },
     ],
   },
 ];
