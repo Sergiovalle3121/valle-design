@@ -48,14 +48,10 @@ export function resolveCommandTargets(
       usedTarget: false,
     };
   }
-  const needle = target?.trim() ? fold(target.trim()) : "";
-  if (needle) {
-    return {
-      objs: context.objects.filter((o) =>
-        fold(`${o.label} ${o.kind ?? ""}`).includes(needle),
-      ),
-      usedTarget: true,
-    };
+  if (target?.trim()) {
+    // Mismo matching que contar/seleccionar (AXOS-CAD-NAME-003): plural
+    // plegado ('borra las mesas'), acentos y 'todo' = plano completo.
+    return { objs: matchObjectsByName(context, target), usedTarget: true };
   }
   return {
     objs: context.selectedIds

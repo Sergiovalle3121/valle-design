@@ -68,6 +68,17 @@ const ctx = {
     missing.issues.some((i) => i.code === "delete_target_not_found"),
     "objetivo inexistente → error específico",
   );
+  // Plural plegado unificado (AXOS-CAD-NAME-003): 'borra los escritorios'.
+  const plural = deleteSelectionPreview(
+    { id: "delete_selection", target: "escritorios" },
+    { ...ctx, selectedIds: [] } as unknown as CadCommandContext,
+  );
+  assert.deepEqual(plural.affectedObjectIds, ["a1"], "plural encuentra singular");
+  const everything = deleteSelectionPreview(
+    { id: "delete_selection", target: "todo" },
+    { ...ctx, selectedIds: [] } as unknown as CadCommandContext,
+  );
+  assert.equal(everything.operations.length, 2, "'todo' borra el plano completo");
 }
 
 // Parser: verbos naturales → delete_selection; 'borrador' no dispara.
