@@ -315,3 +315,13 @@ assert.ok(
   searchCadSymbols("boxeo").some((symbol) => symbol.id === "punching-bag"),
   "search finds boxeo → costal",
 );
+
+// Vigésima tanda universal (AXOS-CAD-UNIVERSAL-041): detalles.
+assert.ok(
+  searchCadSymbols("maceta").some((symbol) => symbol.id === "plant-pot"),
+  "search finds maceta",
+);
+assert.ok(
+  searchCadSymbols("perchero").some((symbol) => symbol.id === "coat-rack"),
+  "search finds perchero",
+);

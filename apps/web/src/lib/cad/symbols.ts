@@ -1010,6 +1010,27 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["costal", "saco", "box", "boxeo", "punching bag", "gimnasio"],
     ports: [],
   },
+  // — Vigésima tanda universal (AXOS-CAD-UNIVERSAL-041): detalles —
+  {
+    id: "plant-pot",
+    label: "Maceta",
+    category: "furniture",
+    defaultWidth: 400,
+    defaultHeight: 400,
+    layer: "Furniture",
+    tags: ["maceta", "planta", "flor", "plant", "decoración", "decoracion"],
+    ports: [],
+  },
+  {
+    id: "coat-rack",
+    label: "Perchero",
+    category: "furniture",
+    defaultWidth: 400,
+    defaultHeight: 400,
+    layer: "Furniture",
+    tags: ["perchero", "coat rack", "abrigos", "recepción", "recepcion", "entrada"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {
