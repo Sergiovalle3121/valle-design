@@ -21,7 +21,8 @@ export type CadLayoutTemplateId =
   | "bodega-pyme"
   | "taller-mecanico"
   | "cafeteria"
-  | "salon-belleza";
+  | "salon-belleza"
+  | "farmacia";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -736,6 +737,32 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "puerta-entrada", toRef: "recepcion-salon", kind: "flow" },
       { fromRef: "recepcion-salon", toRef: "silla-1", kind: "flow" },
       { fromRef: "silla-1", toRef: "lavado-1", kind: "flow" },
+    ],
+  },
+  {
+    id: "farmacia",
+    label: "Farmacia",
+    description: "Arranque universal de farmacia: mostrador de atención, góndolas de piso de venta, refrigerador de medicinas y trastienda con estante.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["architecture", "shell", "farmacia"]),
+      asset("puerta-entrada", "door", "Puerta de entrada", 4000, 650, 900, 260, "architecture", ["door", "opening:entry"]),
+      asset("mostrador-atencion", "counter", "Mostrador de atención", 1300, 1400, 1800, 600, "equipment", ["counter", "atencion", "farmacia"]),
+      asset("gondola-1", "shelf-gondola", "Góndola 1", 1300, 2800, 1200, 500, "equipment", ["gondola", "venta", "farmacia"]),
+      asset("gondola-2", "shelf-gondola", "Góndola 2", 3100, 2800, 1200, 500, "equipment", ["gondola", "venta", "farmacia"]),
+      asset("gondola-3", "shelf-gondola", "Góndola 3", 4900, 2800, 1200, 500, "equipment", ["gondola", "venta", "farmacia"]),
+      asset("refri-medicinas", "refrigerator", "Refrigerador de medicinas", 6900, 1100, 750, 700, "equipment", ["refrigerator", "medicinas", "farmacia"]),
+      asset("trastienda", "room", "Trastienda", 6700, 2900, 1500, 2200, "architecture", ["room", "use:storage", "farmacia"]),
+      asset("estante-trastienda", "shelf-gondola", "Estante de trastienda", 6800, 3100, 1200, 500, "equipment", ["shelf", "storage", "farmacia"]),
+    ],
+    annotations: [
+      note("titulo", "Farmacia — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "puerta-entrada", toRef: "mostrador-atencion", kind: "flow" },
+      { fromRef: "trastienda", toRef: "mostrador-atencion", kind: "material" },
     ],
   },
 ];
