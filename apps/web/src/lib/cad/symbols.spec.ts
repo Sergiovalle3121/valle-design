@@ -109,3 +109,25 @@ assert.equal(
   2500,
   "cajón de estacionamiento a medida real (2.5 m)",
 );
+
+// Tercera tanda universal (AXOS-CAD-UNIVERSAL-009): taller mecánico con
+// búsqueda en español y medidas reales.
+assert.ok(
+  searchCadSymbols("elevador").some((symbol) => symbol.id === "car-lift"),
+  "search finds elevador de auto (taller)",
+);
+assert.ok(
+  searchCadSymbols("banco de trabajo").some(
+    (symbol) => symbol.id === "workbench",
+  ),
+  "search finds banco de trabajo (taller)",
+);
+assert.ok(
+  searchCadSymbols("llantas").some((symbol) => symbol.id === "tire-rack"),
+  "search finds estante de llantas (taller)",
+);
+assert.equal(
+  getCadSymbol("car")?.defaultHeight,
+  4500,
+  "auto a medida real (4.5 m de largo)",
+);

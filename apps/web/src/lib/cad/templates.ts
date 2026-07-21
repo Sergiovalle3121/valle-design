@@ -18,7 +18,8 @@ export type CadLayoutTemplateId =
   | "aula-escolar"
   | "gimnasio"
   | "oficina-coworking"
-  | "bodega-pyme";
+  | "bodega-pyme"
+  | "taller-mecanico";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -635,6 +636,39 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "recibo", toRef: "rack-1", kind: "material" },
       { fromRef: "rack-2", toRef: "embarque", kind: "material" },
       { fromRef: "embarque", toRef: "porton-embarque", kind: "material" },
+    ],
+  },
+  {
+    id: "taller-mecanico",
+    label: "Taller mecánico",
+    description: "Arranque universal de taller automotriz: dos bahías con elevador, bancos de trabajo, herramientas, llantera y recepción de clientes.",
+    category: "factory",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["architecture", "shell", "taller"]),
+      asset("porton-servicio", "door", "Portón de servicio", 1900, 650, 2800, 260, "architecture", ["door", "opening:dock"]),
+      asset("puerta-clientes", "door", "Puerta de clientes", 9800, 650, 900, 260, "architecture", ["door", "opening:entry"]),
+      asset("bahia-1", "zone", "Bahía de servicio 1", 1400, 1100, 3600, 5000, "layout", ["zone", "use:service", "taller"]),
+      asset("bahia-2", "zone", "Bahía de servicio 2", 5200, 1100, 3600, 5000, "layout", ["zone", "use:service", "taller"]),
+      asset("elevador-1", "car-lift", "Elevador 1", 1500, 1200, 3400, 4800, "equipment", ["lift", "taller"]),
+      asset("elevador-2", "car-lift", "Elevador 2", 5300, 1200, 3400, 4800, "equipment", ["lift", "taller"]),
+      asset("auto-1", "car", "Auto en servicio", 2300, 1350, 1800, 4500, "equipment", ["car", "taller"]),
+      asset("banco-1", "workbench", "Banco de trabajo 1", 1600, 6400, 1800, 750, "equipment", ["workbench", "taller"]),
+      asset("banco-2", "workbench", "Banco de trabajo 2", 3600, 6400, 1800, 750, "equipment", ["workbench", "taller"]),
+      asset("gabinete", "tool-cabinet", "Gabinete de herramientas", 5600, 6500, 700, 450, "equipment", ["tools", "taller"]),
+      asset("compresor", "air-compressor", "Compresor de aire", 6500, 6500, 600, 600, "equipment", ["compressor", "taller"]),
+      asset("estante-llantas", "tire-rack", "Estante de llantas", 7300, 6500, 2000, 500, "equipment", ["tires", "storage", "taller"]),
+      asset("recepcion", "room", "Recepción de clientes", 9200, 1100, 2000, 2400, "architecture", ["room", "use:office", "taller"]),
+      asset("escritorio-recepcion", "desk", "Escritorio de recepción", 9400, 1300, 1400, 700, "equipment", ["furniture", "desk"]),
+    ],
+    annotations: [
+      note("titulo", "Taller mecánico — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "porton-servicio", toRef: "bahia-1", kind: "material" },
+      { fromRef: "porton-servicio", toRef: "bahia-2", kind: "material" },
+      { fromRef: "recepcion", toRef: "bahia-1", kind: "flow" },
     ],
   },
 ];
