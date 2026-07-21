@@ -28,6 +28,7 @@ export type CadCommandId =
   | "move_selection"
   | "count_objects"
   | "select_objects"
+  | "help_commands"
   | "add_label"
   | "extend_wall"
   | "trim_wall"
@@ -292,6 +293,7 @@ export type CadCommandInput =
       /** Qué seleccionar ('mesas', 'barra', 'todo'). */
       query: string;
     }
+  | { id: "help_commands" }
   | {
       id: "add_label";
       /** El texto de la nota; 'escribe "Recepción" en 2000,1000'. */

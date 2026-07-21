@@ -58,7 +58,23 @@ assert.equal(
   CAD_COMMAND_REGISTRY.length,
   "registry ids are unique",
 );
-assert.equal(CAD_COMMAND_REGISTRY.length, 35, "registry exposes 35 commands");
+assert.equal(CAD_COMMAND_REGISTRY.length, 36, "registry exposes 36 commands");
+
+// Ayuda (AXOS-CAD-HELP-001): '¿qué puedes hacer?' lista el catálogo.
+{
+  const help = parseCadCommand("¿qué puedes hacer?");
+  assert.equal(help.input?.id, "help_commands", "la pregunta parsea a ayuda");
+  const p = previewCadCommand({ id: "help_commands" }, ctx);
+  const op = p.operations[0];
+  assert.equal(op.type, "report", "ayuda emite reporte");
+  if (op.type === "report") {
+    assert.ok(op.rows.length >= 30, "lista el catálogo completo");
+    assert.ok(
+      op.rows.some((row) => row.label === "Mover selección"),
+      "incluye el kit universal",
+    );
+  }
+}
 
 const parsed = parseCadCommand("haz un pasillo de 1.2m entre SMT e inspección");
 assert.equal(parsed.ok, true, "parser detects clearance aisle");

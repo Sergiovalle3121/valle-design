@@ -840,6 +840,26 @@ function drawRectZonePreview(
   };
 }
 
+/** Catálogo como reporte (AXOS-CAD-HELP-001): un ejemplo por comando. La
+ * función se declara hoisted y solo corre en runtime, ya con el registry
+ * inicializado — sin ciclo de imports. */
+function helpCommandsPreview(): CadCommandPreview {
+  const rows = CAD_COMMAND_REGISTRY.filter(
+    (command) => command.id !== "help_commands",
+  ).map((command) => ({
+    label: command.label,
+    value: command.examples[0] ?? command.id,
+  }));
+  return {
+    summary: `${CAD_COMMAND_REGISTRY.length} comandos disponibles; dilos en español.`,
+    affectedObjectIds: [],
+    operations: [
+      { type: "report", title: "Comandos del copiloto CAD", rows },
+    ],
+    issues: [],
+  };
+}
+
 export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
   {
     id: "create_clearance_aisle",
@@ -1741,6 +1761,21 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         i as Extract<CadCommandInput, { id: "duplicate_selection" }>,
         c,
       );
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
+    id: "help_commands",
+    label: "Ayuda",
+    category: "viewport",
+    description:
+      "Lista todos los comandos del copiloto con un ejemplo de cada uno; di '¿qué puedes hacer?' cuando no recuerdes la frase.",
+    inputSchema: {},
+    examples: ["ayuda", "¿qué puedes hacer?"],
+    validate: () => [],
+    preview: () => helpCommandsPreview(),
+    execute: () => {
+      const p = helpCommandsPreview();
       return result(p, ok(p.issues), p.summary);
     },
   },

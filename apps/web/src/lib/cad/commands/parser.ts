@@ -493,6 +493,9 @@ export function parseCadCommand(text: string): CadParseResult {
       },
     };
   }
+  if (/\b(ayuda|help|comandos)\b/.test(q) || /qu[eé] puedes hacer/.test(q)) {
+    return { ok: true, confidence: 0.9, input: { id: "help_commands" } };
+  }
   if (/\b(selecciona|seleccionar|resalta|resaltar|elige|escoge)\b/.test(q)) {
     const query = q
       .replace(/^.*?\b(?:selecciona|seleccionar|resalta|resaltar|elige|escoge)\b\s*/, "")
