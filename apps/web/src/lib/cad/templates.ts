@@ -34,7 +34,8 @@ export type CadLayoutTemplateId =
   | "estacionamiento"
   | "cancha-futbol"
   | "salon-fiestas"
-  | "iglesia";
+  | "iglesia"
+  | "minisuper";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1137,6 +1138,38 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "vestibulo", kind: "flow" },
       { fromRef: "vestibulo", toRef: "nave", kind: "flow" },
       { fromRef: "nave", toRef: "presbiterio", kind: "flow" },
+    ],
+  },
+  {
+    id: "minisuper",
+    label: "Minisúper / Abarrotes",
+    description: "Arranque universal de minisúper o tienda de abarrotes: caja con vitrina, tres góndolas centrales, refrigeradores de pared, bodega con anaquel y pasillo de acceso.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["architecture", "shell", "minisuper", "abarrotes"]),
+      asset("entrada", "door", "Entrada", 2000, 650, 1000, 260, "architecture", ["door", "opening:entry"]),
+      asset("zona-cajas", "zone", "Área de cajas", 1300, 1200, 2400, 2200, "layout", ["zone", "use:checkout", "minisuper"]),
+      asset("caja", "counter", "Caja / Mostrador", 1500, 1400, 1800, 600, "equipment", ["counter", "caja", "minisuper"]),
+      asset("vitrina", "display-case", "Vitrina de dulces", 1500, 2400, 1200, 600, "equipment", ["vitrina", "minisuper"]),
+      asset("gondola-1", "shelf-gondola", "Góndola 1", 4000, 2000, 4000, 500, "equipment", ["gondola", "abarrotes"]),
+      asset("gondola-2", "shelf-gondola", "Góndola 2", 4000, 3300, 4000, 500, "equipment", ["gondola", "abarrotes"]),
+      asset("gondola-3", "shelf-gondola", "Góndola 3", 4000, 4600, 4000, 500, "equipment", ["gondola", "abarrotes"]),
+      asset("refri-1", "refrigerator", "Refrigerador de bebidas 1", 10300, 1500, 800, 700, "equipment", ["refrigerador", "minisuper"]),
+      asset("refri-2", "refrigerator", "Refrigerador de bebidas 2", 10300, 2400, 800, 700, "equipment", ["refrigerador", "minisuper"]),
+      asset("refri-3", "refrigerator", "Refrigerador de lácteos", 10300, 3300, 800, 700, "equipment", ["refrigerador", "minisuper"]),
+      asset("bodega", "room", "Bodega", 1300, 5000, 2400, 2000, "architecture", ["room", "use:storage", "minisuper"]),
+      asset("anaquel-bodega", "warehouse-rack", "Anaquel de bodega", 1500, 5300, 2000, 500, "equipment", ["rack", "bodega"]),
+      asset("pasillo-acceso", "zone", "Pasillo de acceso", 4000, 6000, 4000, 1000, "aisles", ["aisle", "minisuper"]),
+    ],
+    annotations: [
+      note("titulo", "Minisúper / Abarrotes — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "caja", kind: "flow" },
+      { fromRef: "gondola-1", toRef: "caja", kind: "flow" },
+      { fromRef: "bodega", toRef: "gondola-1", kind: "material" },
     ],
   },
 ];
