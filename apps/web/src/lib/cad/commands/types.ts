@@ -28,6 +28,7 @@ export type CadCommandId =
   | "move_selection"
   | "count_objects"
   | "object_info"
+  | "rename_object"
   | "select_objects"
   | "help_commands"
   | "clear_annotations"
@@ -119,6 +120,7 @@ export type CadOperation =
     }
   | { type: "studio_view"; mode: "2d" | "3d" }
   | { type: "studio_save" }
+  | { type: "rename"; objectId: string; label: string }
   | {
       type: "annotate";
       annotation:
@@ -324,6 +326,13 @@ export type CadCommandInput =
       id: "object_info";
       /** De qué objeto: '¿cuánto mide la mesa?'. */
       query: string;
+    }
+  | {
+      id: "rename_object";
+      /** Qué renombrar (primera coincidencia). */
+      target: string;
+      /** El nombre nuevo. */
+      name: string;
     }
   | { id: "help_commands" }
   | {

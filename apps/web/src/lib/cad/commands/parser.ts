@@ -588,6 +588,24 @@ export function parseCadCommand(text: string): CadParseResult {
       input: { id: "select_objects", query },
     };
   }
+  if (/\b(renombra|renombrar|rename)\b/.test(q)) {
+    const m = raw.match(
+      /\brenombra(?:r)?\s+(?:la\s+|el\s+|los\s+|las\s+)?(.+?)\s+(?:a|como)\s+(.+)$/i,
+    );
+    if (!m) {
+      return {
+        ok: false,
+        confidence: 0.6,
+        clarification: "¿Qué renombro y cómo? (\"renombra la mesa a 'Mesa VIP'\")",
+      };
+    }
+    const name = m[2].trim().replace(/^['"“”‘’]|['"“”‘’]$/g, "").trim();
+    return {
+      ok: true,
+      confidence: 0.86,
+      input: { id: "rename_object", target: m[1].trim(), name },
+    };
+  }
   if (/cu[aá]nto\s+mide\b/.test(q) || /^info\s+/.test(q)) {
     const query = q
       .replace(/^.*?(?:cu[aá]nto\s+mide|^info)\s*/, "")

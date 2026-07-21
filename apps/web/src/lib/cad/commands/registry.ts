@@ -46,6 +46,7 @@ import { addLabelPreview } from "./label";
 import { moveSelectionPreview } from "./move";
 import { mirrorSelectionPreview } from "./mirror";
 import { placeSymbolPreview } from "./place-symbol";
+import { renameObjectPreview } from "./rename";
 import { selectObjectsPreview } from "./select";
 import { matchObjectsByName } from "./targets";
 import {
@@ -2012,6 +2013,43 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     execute: (i, c) => {
       const p = selectObjectsPreview(
         i as Extract<CadCommandInput, { id: "select_objects" }>,
+        c,
+      );
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
+    id: "rename_object",
+    label: "Renombrar",
+    category: "layout",
+    description:
+      "Renombra la primera coincidencia; si hay varias lo avisa. Las estaciones toman su nombre del routing.",
+    inputSchema: {
+      target: {
+        type: "string",
+        required: true,
+        description: "Qué renombrar ('mesa', 'barra').",
+      },
+      name: {
+        type: "string",
+        required: true,
+        description: "El nombre nuevo.",
+      },
+    },
+    examples: ["renombra la mesa a 'Mesa VIP'", "renombra la barra como Caja"],
+    validate: (i, c) =>
+      renameObjectPreview(
+        i as Extract<CadCommandInput, { id: "rename_object" }>,
+        c,
+      ).issues.filter((issue) => issue.level === "error"),
+    preview: (i, c) =>
+      renameObjectPreview(
+        i as Extract<CadCommandInput, { id: "rename_object" }>,
+        c,
+      ),
+    execute: (i, c) => {
+      const p = renameObjectPreview(
+        i as Extract<CadCommandInput, { id: "rename_object" }>,
         c,
       );
       return result(p, ok(p.issues), p.summary);

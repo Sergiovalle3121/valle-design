@@ -4167,6 +4167,16 @@ export default function Layout3DEditor({
       // 'vista 2d' / 'vista 3d' (AXOS-CAD-VIEW-001): el mismo toggle del toolbar.
       setViewMode(op.mode); applyViewMode(op.mode);
       return true;
+    } else if (op.type === 'rename') {
+      // "renombra la mesa a 'Mesa VIP'" (AXOS-CAD-RENAME-001): solo assets —
+      // las estaciones toman su nombre del routing.
+      const asset = assetsRef.current.get(op.objectId);
+      if (!asset) {
+        toast.error('Las estaciones toman su nombre del routing; solo puedo renombrar equipos y objetos.', 'Comando CAD');
+        return false;
+      }
+      asset.label = op.label.slice(0, 80);
+      return true;
     } else if (op.type === 'studio_save') {
       // 'guarda' (AXOS-CAD-SAVE-001): el mismo botón Guardar del estudio.
       void save();
@@ -4237,7 +4247,7 @@ export default function Layout3DEditor({
         setCommandLog((items) => [createCadHistoryItem(input, 'failed', result.historyLabel, commandPreview.preview, result), ...items].slice(0, 12));
         break;
       }
-      const mutates = result.operations.some((op) => op.type === 'move' || op.type === 'connect' || op.type === 'create' || op.type === 'annotate' || op.type === 'delete' || op.type === 'clear_annotations');
+      const mutates = result.operations.some((op) => op.type === 'move' || op.type === 'connect' || op.type === 'create' || op.type === 'annotate' || op.type === 'delete' || op.type === 'clear_annotations' || op.type === 'rename');
       if (mutates && !snapshotTaken) { recordLocalSnapshot(`Auto · ${result.historyLabel}${inputs.length > 1 ? ` (cadena de ${inputs.length})` : ''}`, 'command'); pushHistory(); snapshotTaken = true; }
       // map + some: .some(applyCommandOperation) directo corta en la primera op
       // aplicada y dejaba a medias los comandos multi-objeto (align, flow line).
@@ -5488,7 +5498,7 @@ export default function Layout3DEditor({
                             <div className="font-semibold text-cyan-100">{op.title}</div>
                             {op.rows.slice(0, 3).map((row) => <div key={`${row.label}-${row.value}`} className="mt-0.5 flex justify-between gap-2 text-gray-500 dark:text-gray-400"><span className="truncate">{row.label}</span><span className="shrink-0 text-gray-200">{row.value}</span></div>)}
                           </div>
-                        ) : op.type === 'move' ? `Mover ${op.objectId} → (${Math.round(op.after.x)}, ${Math.round(op.after.y)})` : op.type === 'create' ? `Crear ${op.object.label} en (${Math.round(op.object.x)}, ${Math.round(op.object.y)})` : op.type === 'delete' ? `Borrar ${op.objectId}` : op.type === 'clear_annotations' ? `Quitar ${op.kind === 'dims' ? 'cotas' : op.kind === 'notes' ? 'notas' : 'anotaciones'}` : op.type === 'annotate' ? (op.annotation.kind === 'text' ? `Texto "${op.annotation.text}"` : `Cota ${op.annotation.text}`) : op.type === 'connect' ? `Conectar ${op.from} → ${op.to}` : op.type === 'measure' ? `Medir ${Math.round(op.distance)} ${op.unit}` : op.type === 'focus' ? `Enfocar ${op.objectIds.length || 'todo'}` : ''}
+                        ) : op.type === 'move' ? `Mover ${op.objectId} → (${Math.round(op.after.x)}, ${Math.round(op.after.y)})` : op.type === 'create' ? `Crear ${op.object.label} en (${Math.round(op.object.x)}, ${Math.round(op.object.y)})` : op.type === 'delete' ? `Borrar ${op.objectId}` : op.type === 'rename' ? `Renombrar a "${op.label}"` : op.type === 'clear_annotations' ? `Quitar ${op.kind === 'dims' ? 'cotas' : op.kind === 'notes' ? 'notas' : 'anotaciones'}` : op.type === 'annotate' ? (op.annotation.kind === 'text' ? `Texto "${op.annotation.text}"` : `Cota ${op.annotation.text}`) : op.type === 'connect' ? `Conectar ${op.from} → ${op.to}` : op.type === 'measure' ? `Medir ${Math.round(op.distance)} ${op.unit}` : op.type === 'focus' ? `Enfocar ${op.objectIds.length || 'todo'}` : ''}
                       </div>
                     ))}
                     {commandPreview.preview.issues.slice(0, 2).map((issue) => (

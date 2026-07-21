@@ -59,7 +59,37 @@ assert.equal(
   CAD_COMMAND_REGISTRY.length,
   "registry ids are unique",
 );
-assert.equal(CAD_COMMAND_REGISTRY.length, 42, "registry exposes 42 commands");
+assert.equal(CAD_COMMAND_REGISTRY.length, 43, "registry exposes 43 commands");
+
+// Renombrar (AXOS-CAD-RENAME-001): primera coincidencia, con aviso si hay más.
+{
+  const parsed = parseCadCommand("renombra la smt a 'Línea Uno'");
+  assert.equal(parsed.input?.id, "rename_object", "renombra parsea");
+  if (parsed.input?.id === "rename_object") {
+    assert.equal(parsed.input.target, "smt", "target del parser");
+    assert.equal(parsed.input.name, "Línea Uno", "nombre sin comillas");
+  }
+  const p = previewCadCommand(
+    { id: "rename_object", target: "smt", name: "Línea Uno" },
+    ctx,
+  );
+  const op = p.operations[0];
+  assert.equal(op.type, "rename", "emite rename");
+  if (op.type === "rename") {
+    assert.equal(op.objectId, "smt", "objeto correcto");
+    assert.equal(op.label, "Línea Uno", "nombre nuevo");
+  }
+  const vague = parseCadCommand("renombra");
+  assert.equal(vague.ok, false, "sin partes pide clarificación");
+  const missing = previewCadCommand(
+    { id: "rename_object", target: "nave espacial", name: "X" },
+    ctx,
+  );
+  assert.ok(
+    missing.issues.some((i) => i.code === "rename_not_found"),
+    "objetivo inexistente → error",
+  );
+}
 
 // Info de objeto (AXOS-CAD-QUERY-002): '¿cuánto mide X?' responde medidas.
 {
