@@ -123,4 +123,48 @@ const ctx = {
   );
 }
 
+// Ancla relacional (AXOS-CAD-PLACE-004): 'pon una silla junto a la mesa'.
+{
+  const parsed = parseCadCommand("pon una silla junto a la mesa");
+  assert.equal(parsed.input?.id, "place_symbol", "junto a sigue siendo place");
+  if (parsed.input?.id === "place_symbol") {
+    assert.equal(parsed.input.query, "silla", "query sin el ancla");
+    assert.equal(parsed.input.anchor, "mesa", "ancla del parser");
+  }
+  const mesaCtx = {
+    unit: "mm",
+    footprintW: 10000,
+    footprintH: 6000,
+    objects: [
+      {
+        id: "m1",
+        type: "asset",
+        kind: "dining-table-4",
+        label: "Mesa comedor",
+        x: 3000,
+        y: 2000,
+        w: 1200,
+        h: 1200,
+      },
+    ],
+    selectedIds: [],
+  } as unknown as CadCommandContext;
+  const out = placeSymbolPreview(
+    { id: "place_symbol", query: "silla", anchor: "mesa" },
+    mesaCtx,
+  );
+  assert.equal(out.issues.length, 0, "ancla encontrada sin issues");
+  const create = out.operations[0] as { object: { x: number; y: number } };
+  assert.equal(create.object.x, 3000 + 1200 + 100, "cae a la derecha del ancla");
+  assert.equal(create.object.y, 2000, "misma altura que el ancla");
+  const missing = placeSymbolPreview(
+    { id: "place_symbol", query: "silla", anchor: "piano" },
+    mesaCtx,
+  );
+  assert.ok(
+    missing.issues.some((i) => i.code === "place_anchor_not_found"),
+    "ancla inexistente reporta error claro",
+  );
+}
+
 console.log("cad place-symbol specs passed");

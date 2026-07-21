@@ -434,6 +434,20 @@ export function parseCadCommand(text: string): CadParseResult {
       .replace(/\ben\s+(?:fila|l[ií]nea)\b/gi, " ")
       .replace(/\s+/g, " ")
       .trim();
+    // 'pon una silla junto a la mesa' (AXOS-CAD-PLACE-004): ancla por nombre.
+    const anchorMatch = query.match(
+      /\b(?:junto\s+a|al\s+lado\s+de|a\s+un\s+lado\s+de)\s+(.+)$/i,
+    );
+    let anchor: string | undefined;
+    if (anchorMatch) {
+      anchor =
+        anchorMatch[1]!
+          .replace(/\s+/g, " ")
+          .trim()
+          .replace(/^(?:el|la|los|las|un|una)\s+/i, "")
+          .trim() || undefined;
+      query = query.slice(0, anchorMatch.index).trim();
+    }
     if (!query) {
       return {
         ok: false,
@@ -452,6 +466,7 @@ export function parseCadCommand(text: string): CadParseResult {
         rotation: rot ? Number(rot[1].replace(",", ".")) : undefined,
         count,
         gap: rowGap,
+        anchor,
       },
     };
   }

@@ -274,6 +274,8 @@ export type CadCommandInput =
       count?: number;
       /** Separación entre piezas de la fila en mm (default 100). */
       gap?: number;
+      /** 'pon una silla junto a la mesa': ancla por nombre (label o tipo). */
+      anchor?: string;
     }
   | {
       id: "rotate_selection";

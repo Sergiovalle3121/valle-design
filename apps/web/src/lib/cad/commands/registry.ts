@@ -2218,11 +2218,16 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         type: "number",
         description: "Separación de la fila en mm (default 100).",
       },
+      anchor: {
+        type: "string",
+        description: "Colocar junto a este objeto (label o tipo).",
+      },
     },
     examples: [
       "pon una puerta",
       "coloca una cama en 3000,2000",
       "pon 3 sillas en fila cada 200",
+      "pon una silla junto a la mesa",
     ],
     validate: (i, c) =>
       placeSymbolPreview(

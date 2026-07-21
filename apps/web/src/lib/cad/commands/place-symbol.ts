@@ -6,6 +6,7 @@
  */
 import { normalizeDeg } from "../../../components/line-engineering/precision-input";
 import { searchCadSymbols } from "../symbols";
+import { matchObjectsByName } from "./targets";
 import type {
   CadCommandContext,
   CadCommandInput,
@@ -68,12 +69,33 @@ export function placeSymbolPreview(
   const gap = Math.max(0, input.gap ?? 100);
   const step = symbol.defaultWidth + gap;
   const totalW = symbol.defaultWidth + (count - 1) * step;
+  // Ancla relacional (AXOS-CAD-PLACE-004): 'junto a la mesa' cae a la
+  // derecha del ancla, misma altura; con coordenadas explícitas ganan ellas.
+  const anchorQuery = input.anchor?.trim();
+  let anchorBox: { x: number; w: number; y: number } | undefined;
+  if (anchorQuery) {
+    const anchors = matchObjectsByName(context, anchorQuery);
+    if (!anchors.length) {
+      issues.push(
+        error(
+          "place_anchor_not_found",
+          `No encontré '${anchorQuery}' para colocar junto a él.`,
+        ),
+      );
+      return { summary: "", affectedObjectIds: [], operations: [], issues };
+    }
+    anchorBox = anchors[0];
+  }
   const x = Number.isFinite(input.x)
     ? Math.round(input.x as number)
-    : Math.round((context.footprintW ?? 10000) / 2 - totalW / 2);
+    : anchorBox
+      ? Math.round(anchorBox.x + anchorBox.w + gap)
+      : Math.round((context.footprintW ?? 10000) / 2 - totalW / 2);
   const y = Number.isFinite(input.y)
     ? Math.round(input.y as number)
-    : Math.round((context.footprintH ?? 6000) / 2 - symbol.defaultHeight / 2);
+    : anchorBox
+      ? Math.round(anchorBox.y)
+      : Math.round((context.footprintH ?? 6000) / 2 - symbol.defaultHeight / 2);
 
   const rotation = Number.isFinite(input.rotation)
     ? normalizeDeg(input.rotation as number)
