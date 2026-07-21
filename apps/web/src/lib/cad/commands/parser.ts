@@ -725,21 +725,40 @@ export function parseCadCommand(text: string): CadParseResult {
             : /medio|middle/.test(q)
               ? "middle"
               : "center";
+    const alignTarget = q
+      .replace(/^.*?\b(?:alinea|alinear|align)\b\s*/, "")
+      .replace(/\b(al?\s+)?(derecha|izquierda|arriba|abajo|medio|middle|centro|center|top|bottom|left|right)\b/g, "")
+      .replace(/\b(la\s+selecci[oó]n|lo\s+seleccionado|esto|estos|esos?\s*(objetos)?)\b/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/^(?:una?|el|la|los|las)\s+/, "")
+      .replace(/^(?:de|del|al)$/, "")
+      .trim();
     return {
       ok: true,
       confidence: 0.82,
-      input: { id: "align_selection", mode } as CadCommandInput,
+      input: { id: "align_selection", mode, target: alignTarget || undefined } as CadCommandInput,
     };
   }
-  if (/distribu|espacia|equal/.test(q))
+  if (/distribu|espacia|equal/.test(q)) {
+    const distTarget = q
+      .replace(/^.*?\b(?:distribuye|distribuir|espacia|espaciar)\b\s*/, "")
+      .replace(/\b(vertical(mente)?|horizontal(mente)?)\b/g, "")
+      .replace(/\b(la\s+selecci[oó]n|lo\s+seleccionado|esto|estos|esos?\s*(objetos)?)\b/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/^(?:una?|el|la|los|las)\s+/, "")
+      .trim();
     return {
       ok: true,
       confidence: 0.8,
       input: {
         id: "distribute_selection",
         axis: /vertical/.test(q) ? "vertical" : "horizontal",
-      },
+        target: distTarget || undefined,
+      } as CadCommandInput,
     };
+  }
   if (
     /(acomoda|ordena|reacomoda).*(conecta|flujo|secuencia)|linea de flujo|flow line|flujo conectado/.test(
       q,

@@ -167,11 +167,15 @@ export type CadCommandInput =
       id: "align_selection";
       mode: "left" | "center" | "right" | "top" | "middle" | "bottom";
       objectIds?: string[];
+      /** Objetivo por nombre: 'alinea las mesas al centro'. */
+      target?: string;
     }
   | {
       id: "distribute_selection";
       axis: "horizontal" | "vertical";
       objectIds?: string[];
+      /** Objetivo por nombre: 'distribuye las sillas'. */
+      target?: string;
     }
   | { id: "connect_flow"; from?: string; to?: string; objectIds?: string[] }
   | {

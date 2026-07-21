@@ -117,7 +117,21 @@ function alignPreview(
   input: Extract<CadCommandInput, { id: "align_selection" }>,
   context: Parameters<CadCommandDefinition["preview"]>[1],
 ): CadCommandPreview {
-  const { objects, issues } = selectedObjects(context, input.objectIds, 2);
+  // Objetivo por nombre (AXOS-CAD-NAME-004): 'alinea las mesas al centro'.
+  const targetIds = input.target?.trim()
+    ? matchObjectsByName(context, input.target).map((o) => o.id)
+    : undefined;
+  if (targetIds && !targetIds.length) {
+    return {
+      summary: "",
+      affectedObjectIds: [],
+      operations: [],
+      issues: [
+        error("target_not_found", `No encontré '${input.target?.trim()}' en el plano.`),
+      ],
+    };
+  }
+  const { objects, issues } = selectedObjects(context, targetIds ?? input.objectIds, 2);
   if (!objects.length)
     return {
       summary: "Alinear selección",
@@ -153,7 +167,21 @@ function distributePreview(
   input: Extract<CadCommandInput, { id: "distribute_selection" }>,
   context: Parameters<CadCommandDefinition["preview"]>[1],
 ): CadCommandPreview {
-  const { objects, issues } = selectedObjects(context, input.objectIds, 3);
+  // Objetivo por nombre (AXOS-CAD-NAME-004): 'distribuye las sillas'.
+  const targetIds = input.target?.trim()
+    ? matchObjectsByName(context, input.target).map((o) => o.id)
+    : undefined;
+  if (targetIds && !targetIds.length) {
+    return {
+      summary: "",
+      affectedObjectIds: [],
+      operations: [],
+      issues: [
+        error("target_not_found", `No encontré '${input.target?.trim()}' en el plano.`),
+      ],
+    };
+  }
+  const { objects, issues } = selectedObjects(context, targetIds ?? input.objectIds, 3);
   const horizontal = input.axis === "horizontal";
   const sorted = [...objects].sort((a, b) =>
     horizontal ? a.x - b.x : a.y - b.y,

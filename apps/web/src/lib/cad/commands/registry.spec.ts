@@ -61,6 +61,45 @@ assert.equal(
 );
 assert.equal(CAD_COMMAND_REGISTRY.length, 41, "registry exposes 41 commands");
 
+// Alinear/Distribuir por nombre (AXOS-CAD-NAME-004).
+{
+  const parsed = parseCadCommand("alinea las estaciones al centro");
+  assert.equal(parsed.input?.id, "align_selection", "alinea parsea");
+  if (parsed.input?.id === "align_selection") {
+    assert.equal(parsed.input.mode, "center", "modo centro");
+    assert.equal(parsed.input.target, "estaciones", "target del parser");
+  }
+  const plainAlign = parseCadCommand("alinea al centro");
+  if (plainAlign.input?.id === "align_selection") {
+    assert.equal(plainAlign.input.target, undefined, "sin residuo no hay target");
+  }
+  const mesasCtx = {
+    ...ctx,
+    selectedIds: [],
+    objects: [
+      { id: "t1", type: "asset", kind: "restaurant-table-4", label: "Mesa 4 personas", x: 0, y: 0, w: 900, h: 900 },
+      { id: "t2", type: "asset", kind: "restaurant-table-4", label: "Mesa 4 personas", x: 2000, y: 400, w: 900, h: 900 },
+    ],
+  } as CadCommandContext;
+  const aligned = previewCadCommand(
+    { id: "align_selection", mode: "center", target: "mesas" },
+    mesasCtx,
+  );
+  assert.equal(
+    aligned.affectedObjectIds.length,
+    2,
+    "resuelve mesas por nombre sin selección",
+  );
+  const missing = previewCadCommand(
+    { id: "align_selection", mode: "center", target: "nave espacial" },
+    ctx,
+  );
+  assert.ok(
+    missing.issues.some((i) => i.code === "target_not_found"),
+    "objetivo inexistente → error",
+  );
+}
+
 // Zoom por nombre (AXOS-CAD-ZOOM-001): 'enfoca X' resuelve y manda zoom.
 {
   const parsed = parseCadCommand("enfoca la cocina");
