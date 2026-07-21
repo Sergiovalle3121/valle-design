@@ -15,7 +15,8 @@ export type CadLayoutTemplateId =
   | "local-comercial"
   | "consultorio"
   | "restaurante"
-  | "aula-escolar";
+  | "aula-escolar"
+  | "gimnasio";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -541,6 +542,35 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     ],
     connectors: [
       { fromRef: "entrada", toRef: "pizarron", kind: "flow" },
+    ],
+  },
+  {
+    id: "gimnasio",
+    label: "Gimnasio",
+    description: "Arranque universal de gimnasio: recepción, zona de cardio con caminadoras, zona de pesas y vestidores.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["architecture", "shell", "gimnasio"]),
+      asset("entrada", "door", "Entrada", 1400, 650, 1200, 260, "architecture", ["door", "opening:main"]),
+      asset("recepcion", "furniture", "Recepción", 1500, 1400, 1800, 600, "equipment", ["furniture", "counter", "recepcion"]),
+      asset("vestidores", "room", "Vestidores y baños", 8300, 1300, 2300, 2600, "architecture", ["room", "use:restroom", "gimnasio"]),
+      asset("cardio-1", "treadmill", "Caminadora", 1600, 3000, 800, 1900, "equipment", ["gym", "cardio"]),
+      asset("cardio-2", "treadmill", "Caminadora", 2800, 3000, 800, 1900, "equipment", ["gym", "cardio"]),
+      asset("cardio-3", "treadmill", "Caminadora", 4000, 3000, 800, 1900, "equipment", ["gym", "cardio"]),
+      asset("rack-1", "weight-rack", "Rack de pesas", 6200, 3200, 1800, 600, "equipment", ["gym", "pesas"]),
+      asset("rack-2", "weight-rack", "Rack de pesas", 6200, 4400, 1800, 600, "equipment", ["gym", "pesas"]),
+      asset("banco-1", "gym-bench", "Banco de gimnasio", 8600, 4400, 1200, 500, "equipment", ["gym", "banco"]),
+      asset("banco-2", "gym-bench", "Banco de gimnasio", 8600, 5400, 1200, 500, "equipment", ["gym", "banco"]),
+      asset("espera", "furniture", "Sofá de espera", 3800, 1400, 2100, 900, "equipment", ["furniture", "sofa", "espera"]),
+    ],
+    annotations: [
+      note("titulo", "Gimnasio — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion", kind: "flow" },
+      { fromRef: "recepcion", toRef: "vestidores", kind: "flow" },
     ],
   },
 ];
