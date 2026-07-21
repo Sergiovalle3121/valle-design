@@ -305,3 +305,13 @@ assert.ok(
   ),
   "search finds fisioterapia → camilla",
 );
+
+// Decimonovena tanda universal (AXOS-CAD-UNIVERSAL-039): box.
+assert.ok(
+  searchCadSymbols("costal").some((symbol) => symbol.id === "punching-bag"),
+  "search finds costal de box",
+);
+assert.ok(
+  searchCadSymbols("boxeo").some((symbol) => symbol.id === "punching-bag"),
+  "search finds boxeo → costal",
+);

@@ -999,6 +999,17 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["camilla", "exam table", "fisioterapia", "consultorio", "masaje", "spa", "exploración", "exploracion"],
     ports: [],
   },
+  // — Decimonovena tanda universal (AXOS-CAD-UNIVERSAL-039): box —
+  {
+    id: "punching-bag",
+    label: "Costal de box",
+    category: "equipment",
+    defaultWidth: 500,
+    defaultHeight: 500,
+    layer: "Equipment",
+    tags: ["costal", "saco", "box", "boxeo", "punching bag", "gimnasio"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {

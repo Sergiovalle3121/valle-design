@@ -46,7 +46,8 @@ export type CadLayoutTemplateId =
   | "estetica-canina"
   | "fisioterapia"
   | "spa"
-  | "cibercafe";
+  | "cibercafe"
+  | "gimnasio-box";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1515,6 +1516,37 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "mostrador-cc", kind: "flow" },
       { fromRef: "mostrador-cc", toRef: "zona-pc", kind: "flow" },
       { fromRef: "copiadora-cc", toRef: "mostrador-cc", kind: "flow" },
+    ],
+  },
+  {
+    id: "gimnasio-box",
+    label: "Gimnasio de box",
+    description: "Arranque universal de gimnasio de box: ring, zona de costales, rack de pesas, caminadora, vestidor con banca y baño.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["architecture", "shell", "box"]),
+      asset("entrada", "door", "Entrada", 5000, 650, 1000, 260, "architecture", ["door", "opening:entry"]),
+      asset("ring-box", "zone", "Ring de box", 1500, 1500, 4000, 4000, "layout", ["zone", "use:ring", "box"]),
+      asset("zona-costales", "zone", "Zona de costales", 6300, 1300, 4200, 1200, "layout", ["zone", "use:bags", "box"]),
+      asset("costal-1", "punching-bag", "Costal 1", 6500, 1500, 500, 500, "equipment", ["costal", "box"]),
+      asset("costal-2", "punching-bag", "Costal 2", 7800, 1500, 500, 500, "equipment", ["costal", "box"]),
+      asset("costal-3", "punching-bag", "Costal 3", 9100, 1500, 500, 500, "equipment", ["costal", "box"]),
+      asset("pesas-box", "weight-rack", "Rack de pesas", 6500, 3500, 1500, 600, "equipment", ["pesas", "box"]),
+      asset("caminadora-box", "treadmill", "Caminadora", 8500, 3500, 800, 1400, "equipment", ["caminadora", "box"]),
+      asset("vestidor-box", "room", "Vestidor", 1500, 5800, 2400, 1400, "architecture", ["room", "use:lockers", "box"]),
+      asset("banca-box", "gym-bench", "Banca", 1700, 6000, 1200, 400, "equipment", ["banca", "box"]),
+      asset("bano-box", "room", "Baño", 6500, 5500, 1600, 1600, "architecture", ["room", "use:bathroom", "box"]),
+      asset("wc-box", "wc", "WC", 6650, 5650, 400, 650, "equipment", ["wc", "bathroom"]),
+    ],
+    annotations: [
+      note("titulo", "Gimnasio de box — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "ring-box", kind: "flow" },
+      { fromRef: "ring-box", toRef: "zona-costales", kind: "flow" },
+      { fromRef: "vestidor-box", toRef: "ring-box", kind: "flow" },
     ],
   },
 ];
