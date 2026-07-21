@@ -4,41 +4,19 @@
  * desglose por tipo. Cero es una respuesta válida (no un error), y el
  * plural se pliega ('mesas' encuentra 'Mesa 4 personas').
  */
+import { matchObjectsByName } from "./targets";
 import type {
   CadCommandContext,
   CadCommandInput,
   CadCommandPreview,
 } from "./types";
 
-const fold = (s: string) =>
-  s
-    .toLocaleLowerCase("es-MX")
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "");
-
 export function countObjectsPreview(
   input: Extract<CadCommandInput, { id: "count_objects" }>,
   context: CadCommandContext,
 ): CadCommandPreview {
   const raw = input.query?.trim() ?? "";
-  // Plural → singular por recorte: 'mesas'→'mesa', 'sillones'→'sillon'.
-  const candidates = raw
-    ? [fold(raw), fold(raw).replace(/es$/, ""), fold(raw).replace(/s$/, "")]
-    : [""];
-  let matched = context.objects;
-  if (raw) {
-    for (const needle of candidates) {
-      if (!needle) continue;
-      const hits = context.objects.filter((o) =>
-        fold(`${o.label} ${o.kind ?? ""}`).includes(needle),
-      );
-      if (hits.length) {
-        matched = hits;
-        break;
-      }
-      matched = [];
-    }
-  }
+  const matched = raw ? matchObjectsByName(context, raw) : context.objects;
 
   const byLabel = new Map<string, number>();
   for (const o of matched) {

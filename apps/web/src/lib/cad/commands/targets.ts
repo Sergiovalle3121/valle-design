@@ -12,6 +12,29 @@ const fold = (s: string) =>
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "");
 
+/**
+ * Matching por nombre con plural plegado: 'mesas' encuentra 'Mesa 4
+ * personas' probando el término tal cual y sin sufijos -es/-s. 'todo' /
+ * 'todos' devuelve el plano completo.
+ */
+export function matchObjectsByName(
+  context: CadCommandContext,
+  query: string,
+): CadBox[] {
+  const raw = query.trim();
+  if (!raw) return [];
+  if (/^tod[oa]s?$/i.test(raw)) return context.objects;
+  const candidates = [fold(raw), fold(raw).replace(/es$/, ""), fold(raw).replace(/s$/, "")];
+  for (const needle of candidates) {
+    if (!needle) continue;
+    const hits = context.objects.filter((o) =>
+      fold(`${o.label} ${o.kind ?? ""}`).includes(needle),
+    );
+    if (hits.length) return hits;
+  }
+  return [];
+}
+
 export function resolveCommandTargets(
   context: CadCommandContext,
   objectIds?: string[],

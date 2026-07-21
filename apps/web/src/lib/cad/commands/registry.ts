@@ -44,6 +44,7 @@ import { addLabelPreview } from "./label";
 import { moveSelectionPreview } from "./move";
 import { mirrorSelectionPreview } from "./mirror";
 import { placeSymbolPreview } from "./place-symbol";
+import { selectObjectsPreview } from "./select";
 import {
   rotateSelectionPreview,
   scaleSelectionPreview,
@@ -1738,6 +1739,38 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     execute: (i, c) => {
       const p = duplicateSelectionPreview(
         i as Extract<CadCommandInput, { id: "duplicate_selection" }>,
+        c,
+      );
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
+    id: "select_objects",
+    label: "Seleccionar por nombre",
+    category: "viewport",
+    description:
+      "Selecciona objetos por nombre o tipo ('selecciona las mesas', 'todo'); la selección queda viva para mover/rotar/borrar.",
+    inputSchema: {
+      query: {
+        type: "string",
+        required: true,
+        description: "Qué seleccionar ('mesas', 'barra', 'todo').",
+      },
+    },
+    examples: ["selecciona las mesas", "resalta la barra"],
+    validate: (i, c) =>
+      selectObjectsPreview(
+        i as Extract<CadCommandInput, { id: "select_objects" }>,
+        c,
+      ).issues,
+    preview: (i, c) =>
+      selectObjectsPreview(
+        i as Extract<CadCommandInput, { id: "select_objects" }>,
+        c,
+      ),
+    execute: (i, c) => {
+      const p = selectObjectsPreview(
+        i as Extract<CadCommandInput, { id: "select_objects" }>,
         c,
       );
       return result(p, ok(p.issues), p.summary);

@@ -27,6 +27,7 @@ export type CadCommandId =
   | "duplicate_selection"
   | "move_selection"
   | "count_objects"
+  | "select_objects"
   | "add_label"
   | "extend_wall"
   | "trim_wall"
@@ -285,6 +286,11 @@ export type CadCommandInput =
       id: "count_objects";
       /** Qué contar ('mesas', 'sillas'); vacío = todo el plano. */
       query?: string;
+    }
+  | {
+      id: "select_objects";
+      /** Qué seleccionar ('mesas', 'barra', 'todo'). */
+      query: string;
     }
   | {
       id: "add_label";

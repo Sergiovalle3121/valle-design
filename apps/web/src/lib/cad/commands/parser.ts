@@ -493,6 +493,27 @@ export function parseCadCommand(text: string): CadParseResult {
       },
     };
   }
+  if (/\b(selecciona|seleccionar|resalta|resaltar|elige|escoge)\b/.test(q)) {
+    const query = q
+      .replace(/^.*?\b(?:selecciona|seleccionar|resalta|resaltar|elige|escoge)\b\s*/, "")
+      .replace(/\b(en\s+el\s+plano|en\s+el\s+layout)\b/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/^(?:tod[oa]s\s+(?:las|los)\s+|una?\s+|el\s+|la\s+|los\s+|las\s+)/, "")
+      .trim();
+    if (!query) {
+      return {
+        ok: false,
+        confidence: 0.6,
+        clarification: "¿Qué selecciono? (p. ej. 'las mesas', 'la barra' o 'todo')",
+      };
+    }
+    return {
+      ok: true,
+      confidence: 0.84,
+      input: { id: "select_objects", query },
+    };
+  }
   if (/\b(cuenta|cuentame|cuéntame|cuantas|cuántas|cuantos|cuántos)\b/.test(q)) {
     const query = q
       .replace(/^.*?\b(?:cuenta|cuentame|cuéntame|cuantas|cuántas|cuantos|cuántos)\b\s*/, "")
