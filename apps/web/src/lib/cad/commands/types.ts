@@ -394,6 +394,8 @@ export type CadCommandInput =
       id: "auto_dimension";
       objectIds?: string[];
       mode?: "size" | "gaps" | "both";
+      /** Objetivo por nombre: 'acota las mesas'. */
+      target?: string;
     };
 
 export interface CadCommandSchemaField {

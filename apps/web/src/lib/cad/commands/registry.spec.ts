@@ -61,6 +61,27 @@ assert.equal(
 );
 assert.equal(CAD_COMMAND_REGISTRY.length, 41, "registry exposes 41 commands");
 
+// Acotar por nombre (AXOS-CAD-NAME-005).
+{
+  const parsed = parseCadCommand("acota las mesas");
+  assert.equal(parsed.input?.id, "auto_dimension", "acota parsea");
+  if (parsed.input?.id === "auto_dimension") {
+    assert.equal(parsed.input.target, "mesas", "target del parser");
+  }
+  const plain = parseCadCommand("acota la selección");
+  if (plain.input?.id === "auto_dimension") {
+    assert.equal(plain.input.target, undefined, "'la selección' no es target");
+  }
+  const missing = previewCadCommand(
+    { id: "auto_dimension", target: "nave espacial" },
+    ctx,
+  );
+  assert.ok(
+    missing.issues.some((i) => i.code === "target_not_found"),
+    "objetivo inexistente → error",
+  );
+}
+
 // Alinear/Distribuir por nombre (AXOS-CAD-NAME-004).
 {
   const parsed = parseCadCommand("alinea las estaciones al centro");

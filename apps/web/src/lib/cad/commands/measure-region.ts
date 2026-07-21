@@ -25,6 +25,7 @@ import type {
   CadOperation,
   CadValidationIssue,
 } from "./types";
+import { matchObjectsByName } from "./targets";
 import { error, findObjectByLabel, selectedObjects } from "./validators";
 
 const empty = (summary: string, issues: CadValidationIssue[]): CadCommandPreview => ({
@@ -121,7 +122,15 @@ export function autoDimensionPreview(
   input: Extract<CadCommandInput, { id: "auto_dimension" }>,
   context: CadCommandContext,
 ): CadCommandPreview {
-  const { objects, issues } = selectedObjects(context, input.objectIds, 1);
+  // Objetivo por nombre (AXOS-CAD-NAME-005): 'acota las mesas'.
+  const targetIds = input.target?.trim()
+    ? matchObjectsByName(context, input.target).map((o) => o.id)
+    : undefined;
+  if (targetIds && !targetIds.length)
+    return empty("Acotar selección", [
+      error("target_not_found", `No encontré '${input.target?.trim()}' en el plano.`),
+    ]);
+  const { objects, issues } = selectedObjects(context, targetIds ?? input.objectIds, 1);
   if (objects.length > 30)
     issues.push(
       error("too_many_objects", "Máximo 30 objetos por acotado automático (selecciona menos)."),

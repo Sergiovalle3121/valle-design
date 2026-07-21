@@ -298,10 +298,18 @@ export function parseCadCommand(text: string): CadParseResult {
       : /tama[nñ]o|ancho|alto|size/.test(q)
         ? ("size" as const)
         : undefined;
+    const dimTarget = q
+      .replace(/^.*?\b(?:acota|acotar|acotado|dimensiona|dimensionar)\b\s*/, "")
+      .replace(/\b(huecos?|gaps?|espacios?|entre|tama[nñ]os?|anchos?|altos?|size|todo)\b/g, "")
+      .replace(/\b(la\s+selecci[oó]n|lo\s+seleccionado|esto|estos|esos?\s*(objetos)?)\b/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/^(?:una?|el|la|los|las)\s+/, "")
+      .trim();
     return {
       ok: true,
       confidence: 0.85,
-      input: { id: "auto_dimension", mode },
+      input: { id: "auto_dimension", mode, target: dimTarget || undefined },
     };
   }
   // Medición de regiones y zona envolvente (ADR §221) — ANTES de mide/medir
