@@ -42,7 +42,8 @@ export type CadLayoutTemplateId =
   | "barberia"
   | "tortilleria"
   | "papeleria"
-  | "fondita";
+  | "fondita"
+  | "estetica-canina";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1387,6 +1388,36 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "comedor-fon", kind: "flow" },
       { fromRef: "estufa-fon", toRef: "barra-fon", kind: "material" },
       { fromRef: "barra-fon", toRef: "mesa-fon-1", kind: "flow" },
+    ],
+  },
+  {
+    id: "estetica-canina",
+    label: "Estética canina",
+    description: "Arranque universal de estética canina: recepción, sala de espera con sofá, tina de baño, mesa de estética, zona de secado, dos jaulas y baño.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["architecture", "shell", "estetica-canina"]),
+      asset("entrada", "door", "Entrada", 3500, 650, 1000, 260, "architecture", ["door", "opening:entry"]),
+      asset("recepcion-ec", "counter", "Recepción", 1500, 1400, 1800, 600, "equipment", ["counter", "estetica-canina"]),
+      asset("espera-ec", "zone", "Sala de espera", 1300, 2400, 2400, 1400, "layout", ["zone", "use:waiting", "estetica-canina"]),
+      asset("sofa-ec", "sofa-3", "Sofá de espera", 1500, 2600, 2100, 900, "equipment", ["sofa", "estetica-canina"]),
+      asset("tina-ec", "wash-station", "Tina de baño", 4500, 1400, 600, 1000, "equipment", ["tina", "estetica-canina"]),
+      asset("mesa-groom", "workbench", "Mesa de estética", 5500, 1400, 1800, 750, "equipment", ["mesa", "estetica-canina"]),
+      asset("secado-ec", "zone", "Zona de secado", 4500, 2800, 2400, 1200, "layout", ["zone", "use:drying", "estetica-canina"]),
+      asset("jaula-ec-1", "kennel-cage", "Jaula 1", 7500, 1400, 600, 900, "equipment", ["jaula", "estetica-canina"]),
+      asset("jaula-ec-2", "kennel-cage", "Jaula 2", 7500, 2500, 600, 900, "equipment", ["jaula", "estetica-canina"]),
+      asset("bano-ec", "room", "Baño", 6400, 3600, 1600, 1400, "architecture", ["room", "use:bathroom", "estetica-canina"]),
+      asset("wc-ec", "wc", "WC", 6600, 3800, 400, 650, "equipment", ["wc", "bathroom"]),
+    ],
+    annotations: [
+      note("titulo", "Estética canina — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion-ec", kind: "flow" },
+      { fromRef: "recepcion-ec", toRef: "tina-ec", kind: "flow" },
+      { fromRef: "tina-ec", toRef: "mesa-groom", kind: "flow" },
     ],
   },
 ];
