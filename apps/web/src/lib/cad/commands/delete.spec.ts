@@ -143,3 +143,47 @@ console.log("cad delete specs passed");
     "compuesto sin coincidencias sigue reportando error",
   );
 }
+
+// Proximidad (AXOS-CAD-ZONE-002): 'borra lo que está cerca de la mesa'
+// borra los vecinos (separación ≤ 1000 mm), nunca al ancla ni lo lejano.
+{
+  const vecindadCtx = {
+    unit: "mm",
+    footprintW: 12000,
+    footprintH: 8000,
+    objects: [
+      { id: "mesa", type: "asset", kind: "dining-table-4", label: "Mesa", x: 2000, y: 2000, w: 1000, h: 1000 },
+      { id: "silla", type: "asset", kind: "office-chair", label: "Silla", x: 3100, y: 2000, w: 500, h: 500 },
+      { id: "sofa", type: "asset", kind: "sofa-3", label: "Sofá", x: 6000, y: 2000, w: 2100, h: 900 },
+    ],
+    selectedIds: [],
+  } as unknown as CadCommandContext;
+  const out = deleteSelectionPreview(
+    { id: "delete_selection", target: "lo que está cerca de la mesa" },
+    vecindadCtx,
+  );
+  assert.deepEqual(
+    out.operations
+      .filter((op) => op.type === "delete")
+      .map((op) => (op.type === "delete" ? op.objectId : "?")),
+    ["silla"],
+    "borra la silla vecina, no el ancla ni el sofá lejano",
+  );
+  const junto = deleteSelectionPreview(
+    { id: "delete_selection", target: "junto a la mesa" },
+    vecindadCtx,
+  );
+  assert.equal(
+    junto.operations.filter((op) => op.type === "delete").length,
+    1,
+    "'junto a la mesa' también resuelve vecinos",
+  );
+  const lejos = deleteSelectionPreview(
+    { id: "delete_selection", target: "cerca del piano" },
+    vecindadCtx,
+  );
+  assert.ok(
+    lejos.issues.length > 0,
+    "ancla inexistente reporta error de objetivo",
+  );
+}

@@ -24,6 +24,31 @@ export function matchObjectsByName(
   const raw = query.trim();
   if (!raw) return [];
   if (/^tod[oa]s?$/i.test(raw)) return context.objects;
+  // Objetivo por proximidad (AXOS-CAD-ZONE-002): 'lo que está cerca de
+  // la mesa' / 'junto a la mesa' — separación caja-a-caja ≤ 1000 mm,
+  // excluyendo al ancla misma. Con varias anclas ('las mesas') se une
+  // la vecindad de todas.
+  const NEAR_GAP = 1000;
+  const nearMatch = fold(raw).match(
+    /^(?:tod[oa]s?\s+)?(?:l[oa]s? que\s+(?:esta|estan|este|esten|hay)\s+)?(?:cerca del?|junto al?|alrededor del?)\s+(.+)$/,
+  );
+  if (nearMatch) {
+    const anchorName = nearMatch[1]!
+      .replace(/^(?:las?|los|el|una?)\s+/, "")
+      .trim();
+    const anchors = anchorName ? matchObjectsByName(context, anchorName) : [];
+    const anchorIds = new Set(anchors.map((a) => a.id));
+    const near = new Map<string, CadBox>();
+    for (const a of anchors) {
+      for (const o of context.objects) {
+        if (anchorIds.has(o.id)) continue;
+        const gapX = Math.max(0, Math.max(a.x - (o.x + o.w), o.x - (a.x + a.w)));
+        const gapY = Math.max(0, Math.max(a.y - (o.y + o.h), o.y - (a.y + a.h)));
+        if (Math.max(gapX, gapY) <= NEAR_GAP) near.set(o.id, o);
+      }
+    }
+    return [...near.values()];
+  }
   // Objetivo por contención (AXOS-CAD-ZONE-001): 'lo que está en la
   // cocina' / 'dentro de la bodega' — los objetos cuyo centro cae dentro
   // del contenedor nombrado, sin incluir al contenedor mismo. Hereda los
