@@ -1124,6 +1124,37 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["campana", "extractor", "cocina", "hood", "humo"],
     ports: [],
   },
+  // — Vigesimocuarta tanda universal (AXOS-CAD-UNIVERSAL-051): recámara y patio —
+  {
+    id: "wall-mirror",
+    label: "Espejo de pared",
+    category: "furniture",
+    defaultWidth: 1000,
+    defaultHeight: 100,
+    layer: "Furniture",
+    tags: ["espejo de pared", "espejo", "probador", "gimnasio", "danza", "mirror"],
+    ports: [],
+  },
+  {
+    id: "bunk-bed",
+    label: "Litera",
+    category: "furniture",
+    defaultWidth: 2000,
+    defaultHeight: 1000,
+    layer: "Furniture",
+    tags: ["litera", "bunk", "recámara", "recamara", "dormitorio", "hostal"],
+    ports: [],
+  },
+  {
+    id: "grill",
+    label: "Asador / Parrilla",
+    category: "equipment",
+    defaultWidth: 800,
+    defaultHeight: 500,
+    layer: "Furniture",
+    tags: ["asador", "parrilla", "grill", "taquería", "taqueria", "jardín", "jardin", "carne asada"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {

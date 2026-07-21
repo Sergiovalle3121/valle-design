@@ -377,3 +377,23 @@ assert.ok(
   searchCadSymbols("campana").some((symbol) => symbol.id === "range-hood"),
   "search finds campana",
 );
+
+// Vigesimocuarta tanda universal (AXOS-CAD-UNIVERSAL-051): recámara y patio.
+assert.ok(
+  searchCadSymbols("espejo de pared").some(
+    (symbol) => symbol.id === "wall-mirror",
+  ),
+  "search finds espejo de pared",
+);
+assert.ok(
+  searchCadSymbols("litera").some((symbol) => symbol.id === "bunk-bed"),
+  "search finds litera",
+);
+assert.ok(
+  searchCadSymbols("asador").some((symbol) => symbol.id === "grill"),
+  "search finds asador",
+);
+assert.ok(
+  searchCadSymbols("parrilla").some((symbol) => symbol.id === "grill"),
+  "search finds parrilla",
+);
