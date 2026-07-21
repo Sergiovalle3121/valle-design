@@ -35,7 +35,8 @@ export type CadLayoutTemplateId =
   | "cancha-futbol"
   | "salon-fiestas"
   | "iglesia"
-  | "minisuper";
+  | "minisuper"
+  | "taqueria";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1170,6 +1171,38 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "caja", kind: "flow" },
       { fromRef: "gondola-1", toRef: "caja", kind: "flow" },
       { fromRef: "bodega", toRef: "gondola-1", kind: "material" },
+    ],
+  },
+  {
+    id: "taqueria",
+    label: "Taquería",
+    description: "Arranque universal de taquería: cocina con comal y refrigerador, barra de tacos, mostrador para llevar, comedor con cuatro mesas y baño.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["architecture", "shell", "taqueria"]),
+      asset("entrada", "door", "Entrada", 5500, 650, 1000, 260, "architecture", ["door", "opening:entry"]),
+      asset("cocina-taq", "zone", "Cocina", 1300, 1300, 3200, 2600, "layout", ["zone", "use:kitchen", "taqueria"]),
+      asset("comal", "stove", "Comal / Plancha", 1500, 1500, 900, 650, "equipment", ["comal", "taqueria"]),
+      asset("refri-taq", "refrigerator", "Refrigerador", 2600, 1500, 800, 700, "equipment", ["refrigerador", "taqueria"]),
+      asset("barra-tacos", "bar-counter", "Barra de tacos", 1500, 4200, 3000, 650, "equipment", ["barra", "taqueria"]),
+      asset("mostrador-togo", "counter", "Mostrador para llevar", 4800, 1300, 1800, 600, "equipment", ["counter", "para llevar"]),
+      asset("comedor-taq", "zone", "Comedor", 5000, 3000, 5800, 3800, "layout", ["zone", "use:dining", "taqueria"]),
+      asset("mesa-taq-1", "restaurant-table-4", "Mesa 1", 5500, 3300, 900, 900, "equipment", ["table", "taqueria"]),
+      asset("mesa-taq-2", "restaurant-table-4", "Mesa 2", 7500, 3300, 900, 900, "equipment", ["table", "taqueria"]),
+      asset("mesa-taq-3", "restaurant-table-4", "Mesa 3", 5500, 5300, 900, 900, "equipment", ["table", "taqueria"]),
+      asset("mesa-taq-4", "restaurant-table-4", "Mesa 4", 7500, 5300, 900, 900, "equipment", ["table", "taqueria"]),
+      asset("bano-taq", "room", "Baño", 9500, 1300, 1600, 1600, "architecture", ["room", "use:bathroom", "taqueria"]),
+      asset("wc-taq", "wc", "WC", 9700, 1500, 400, 650, "equipment", ["wc", "bathroom"]),
+    ],
+    annotations: [
+      note("titulo", "Taquería — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "mostrador-togo", kind: "flow" },
+      { fromRef: "comal", toRef: "barra-tacos", kind: "material" },
+      { fromRef: "barra-tacos", toRef: "mesa-taq-1", kind: "flow" },
     ],
   },
 ];
