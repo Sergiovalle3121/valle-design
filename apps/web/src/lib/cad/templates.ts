@@ -53,7 +53,8 @@ export type CadLayoutTemplateId =
   | "cremeria"
   | "neveria"
   | "jugueria"
-  | "pescaderia";
+  | "pescaderia"
+  | "boutique";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1722,6 +1723,35 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "mostrador-pes", kind: "flow" },
       { fromRef: "cuarto-frio-pes", toRef: "mesa-fileteo-pes", kind: "material" },
       { fromRef: "mesa-fileteo-pes", toRef: "vitrina-pes", kind: "material" },
+    ],
+  },
+  {
+    id: "boutique",
+    label: "Boutique / Tienda de ropa",
+    description: "Arranque universal de boutique: mostrador con caja, dos racks de ropa, mesa de exhibición, perchero, dos probadores y bodega.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["architecture", "shell", "boutique"]),
+      asset("entrada", "door", "Entrada", 3500, 650, 1000, 260, "architecture", ["door", "opening:entry"]),
+      asset("mostrador-bou", "counter", "Mostrador", 1500, 1400, 1800, 600, "equipment", ["counter", "boutique"]),
+      asset("caja-bou", "cash-register", "Caja registradora", 3600, 1400, 450, 400, "equipment", ["caja", "cobro", "boutique"]),
+      asset("rack-bou-1", "shelf", "Rack de ropa", 4800, 1400, 1600, 450, "equipment", ["rack", "ropa", "boutique"]),
+      asset("rack-bou-2", "shelf", "Rack de ropa", 6600, 1400, 1600, 450, "equipment", ["rack", "ropa", "boutique"]),
+      asset("perchero-bou", "coat-rack", "Perchero", 1200, 2600, 400, 400, "equipment", ["perchero", "boutique"]),
+      asset("mesa-exhibicion-bou", "display-case", "Mesa de exhibición", 4200, 2800, 1400, 700, "equipment", ["exhibicion", "boutique"]),
+      asset("probador-bou-1", "room", "Probador 1", 1200, 3800, 1200, 1300, "architecture", ["room", "use:fitting", "boutique"]),
+      asset("probador-bou-2", "room", "Probador 2", 2600, 3800, 1200, 1300, "architecture", ["room", "use:fitting", "boutique"]),
+      asset("bodega-bou", "room", "Bodega", 6000, 3200, 1900, 1800, "architecture", ["room", "use:storage", "boutique"]),
+    ],
+    annotations: [
+      note("titulo", "Boutique — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "mostrador-bou", kind: "flow" },
+      { fromRef: "bodega-bou", toRef: "rack-bou-1", kind: "material" },
+      { fromRef: "rack-bou-1", toRef: "mostrador-bou", kind: "material" },
     ],
   },
 ];
