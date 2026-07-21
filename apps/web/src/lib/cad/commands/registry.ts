@@ -134,7 +134,37 @@ function alignPreview(
       ],
     };
   }
-  const { objects, issues } = selectedObjects(context, targetIds ?? input.objectIds, 2);
+  // Referencia por nombre (AXOS-CAD-ALIGN-002): 'alinea las sillas con la
+  // mesa' — la línea de referencia sale del ancla, no del bounding box.
+  const anchorQuery = input.anchor?.trim();
+  let anchorBox: CadBox | undefined;
+  if (anchorQuery) {
+    const alignedIds = new Set(
+      (targetIds ?? input.objectIds ?? context.selectedIds).map(String),
+    );
+    const anchors = matchObjectsByName(context, anchorQuery).filter(
+      (a) => !alignedIds.has(a.id),
+    );
+    if (!anchors.length) {
+      return {
+        summary: "",
+        affectedObjectIds: [],
+        operations: [],
+        issues: [
+          error(
+            "align_anchor_not_found",
+            `No encontré '${anchorQuery}' para alinear con él.`,
+          ),
+        ],
+      };
+    }
+    anchorBox = anchors[0];
+  }
+  const { objects, issues } = selectedObjects(
+    context,
+    targetIds ?? input.objectIds,
+    anchorBox ? 1 : 2,
+  );
   if (!objects.length)
     return {
       summary: "Alinear selección",
@@ -142,10 +172,14 @@ function alignPreview(
       operations: [],
       issues,
     };
-  const minX = Math.min(...objects.map((o) => o.x));
-  const maxX = Math.max(...objects.map((o) => o.x + o.w));
-  const minY = Math.min(...objects.map((o) => o.y));
-  const maxY = Math.max(...objects.map((o) => o.y + o.h));
+  const minX = anchorBox ? anchorBox.x : Math.min(...objects.map((o) => o.x));
+  const maxX = anchorBox
+    ? anchorBox.x + anchorBox.w
+    : Math.max(...objects.map((o) => o.x + o.w));
+  const minY = anchorBox ? anchorBox.y : Math.min(...objects.map((o) => o.y));
+  const maxY = anchorBox
+    ? anchorBox.y + anchorBox.h
+    : Math.max(...objects.map((o) => o.y + o.h));
   const cx = (minX + maxX) / 2;
   const cy = (minY + maxY) / 2;
   const operations: CadOperation[] = objects.map((o) => {
@@ -159,7 +193,9 @@ function alignPreview(
     return { type: "move", objectId: o.id, before: o, after };
   });
   return {
-    summary: `Alinear ${objects.length} objetos (${input.mode}).`,
+    summary: anchorBox
+      ? `Alinear ${objects.length} objeto(s) con '${anchorQuery}' (${input.mode}).`
+      : `Alinear ${objects.length} objetos (${input.mode}).`,
     affectedObjectIds: objects.map((o) => o.id),
     operations,
     issues,
@@ -963,9 +999,16 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         enum: ["left", "center", "right", "top", "middle", "bottom"],
         description: "Modo de alineación.",
       },
+      anchor: {
+        type: "string",
+        description: "Referencia por nombre: alinear con este objeto.",
+      },
       objectIds: { type: "string[]", description: "Objetos afectados." },
     },
-    examples: ["alinea las estaciones seleccionadas al centro"],
+    examples: [
+      "alinea las estaciones seleccionadas al centro",
+      "alinea las sillas con la mesa",
+    ],
     validate: (i, c) =>
       alignPreview(i as Extract<CadCommandInput, { id: "align_selection" }>, c)
         .issues,

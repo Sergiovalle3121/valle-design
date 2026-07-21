@@ -173,6 +173,8 @@ export type CadCommandInput =
       objectIds?: string[];
       /** Objetivo por nombre: 'alinea las mesas al centro'. */
       target?: string;
+      /** Referencia por nombre: 'alinea las sillas con la mesa'. */
+      anchor?: string;
     }
   | {
       id: "distribute_selection";

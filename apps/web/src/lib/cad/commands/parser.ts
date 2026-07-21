@@ -942,8 +942,21 @@ export function parseCadCommand(text: string): CadParseResult {
             : /medio|middle/.test(q)
               ? "middle"
               : "center";
+    // ALINEAR con ancla (AXOS-CAD-ALIGN-002): 'alinea las sillas con la mesa'.
+    let alignAnchor: string | undefined;
+    const alignAnchorM = q.match(/\bcon\s+(.+)$/);
+    if (alignAnchorM) {
+      alignAnchor =
+        alignAnchorM[1]!
+          .replace(/\b(al?\s+)?(derecha|izquierda|arriba|abajo|medio|middle|centro|center|top|bottom|left|right)\b/g, " ")
+          .replace(/\s+/g, " ")
+          .trim()
+          .replace(/^(?:una?|el|la|los|las)\s+/, "")
+          .trim() || undefined;
+    }
     const alignTarget = q
       .replace(/^.*?\b(?:alinea|alinear|align)\b\s*/, "")
+      .replace(/\bcon\s+.+$/, "")
       .replace(/\b(al?\s+)?(derecha|izquierda|arriba|abajo|medio|middle|centro|center|top|bottom|left|right)\b/g, "")
       .replace(/\b(la\s+selecci[oó]n|lo\s+seleccionado|esto|estos|esos?\s*(objetos)?)\b/g, "")
       .replace(/\s+/g, " ")
@@ -954,7 +967,12 @@ export function parseCadCommand(text: string): CadParseResult {
     return {
       ok: true,
       confidence: 0.82,
-      input: { id: "align_selection", mode, target: alignTarget || undefined } as CadCommandInput,
+      input: {
+        id: "align_selection",
+        mode,
+        target: alignTarget || undefined,
+        anchor: alignAnchor,
+      } as CadCommandInput,
     };
   }
   if (/distribu|espacia|equal/.test(q)) {

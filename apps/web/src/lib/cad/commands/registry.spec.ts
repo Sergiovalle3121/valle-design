@@ -1371,4 +1371,65 @@ if (rectDraftCreate?.type === "create") {
     assert.equal(second.after.x, 1000 + 900 + 800, "segunda a 800 del borde");
 }
 
+// ALINEAR con referencia (AXOS-CAD-ALIGN-002): 'alinea las sillas con la mesa'.
+{
+  const parsed = parseCadCommand("alinea las sillas con la mesa");
+  assert.ok(parsed.ok, "alinea con parsea");
+  assert.equal(parsed.input?.id, "align_selection", "sigue siendo align");
+  if (parsed.input?.id === "align_selection") {
+    assert.equal(parsed.input.target, "sillas", "objetivo del align");
+    assert.equal(parsed.input.anchor, "mesa", "referencia del align");
+    assert.equal(parsed.input.mode, "center", "modo default center");
+  }
+  const comedorCtx: CadCommandContext = {
+    unit: "mm",
+    footprintW: 10000,
+    footprintH: 6000,
+    selectedIds: [],
+    objects: [
+      {
+        id: "s1",
+        type: "asset",
+        kind: "office-chair",
+        label: "Silla",
+        x: 500,
+        y: 500,
+        w: 500,
+        h: 500,
+      },
+      {
+        id: "m1",
+        type: "asset",
+        kind: "dining-table-4",
+        label: "Mesa comedor",
+        x: 4000,
+        y: 2000,
+        w: 1200,
+        h: 1200,
+      },
+    ],
+  };
+  const p = previewCadCommand(
+    { id: "align_selection", mode: "center", target: "silla", anchor: "mesa" },
+    comedorCtx,
+  );
+  assert.ok(
+    !p.issues.some((i) => i.level === "error"),
+    "align con ancla funciona con 1 objeto",
+  );
+  const op = p.operations[0];
+  if (op?.type === "move") {
+    assert.equal(op.after.x, Math.round(4600 - 250), "centrada en x del ancla");
+    assert.equal(op.after.y, 500, "y intacta en modo center");
+  }
+  const sinAncla = previewCadCommand(
+    { id: "align_selection", mode: "center", target: "silla", anchor: "piano" },
+    comedorCtx,
+  );
+  assert.ok(
+    sinAncla.issues.some((i) => i.code === "align_anchor_not_found"),
+    "referencia inexistente reporta error claro",
+  );
+}
+
 console.log("cad command registry specs passed");
