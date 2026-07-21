@@ -27,7 +27,8 @@ export type CadLayoutTemplateId =
   | "panaderia"
   | "veterinaria"
   | "lavanderia"
-  | "guarderia";
+  | "guarderia"
+  | "ferreteria";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -923,6 +924,34 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     connectors: [
       { fromRef: "entrada", toRef: "sala-juegos", kind: "flow" },
       { fromRef: "sala-juegos", toRef: "cuna-1", kind: "flow" },
+    ],
+  },
+  {
+    id: "ferreteria",
+    label: "Ferretería",
+    description: "Arranque universal de ferretería: mostrador, góndolas de venta, bodega con racks y mesa de cortes.",
+    category: "architecture",
+    baseWidth: 10000,
+    baseHeight: 7000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 8600, 5600, "architecture", ["architecture", "shell", "ferreteria"]),
+      asset("puerta-entrada", "door", "Puerta de entrada", 4500, 650, 900, 260, "architecture", ["door", "opening:entry"]),
+      asset("mostrador-fer", "counter", "Mostrador", 1300, 1400, 1800, 600, "equipment", ["counter", "pos", "ferreteria"]),
+      asset("gondola-fer-1", "shelf-gondola", "Góndola 1", 1300, 2800, 1200, 500, "equipment", ["gondola", "venta"]),
+      asset("gondola-fer-2", "shelf-gondola", "Góndola 2", 3100, 2800, 1200, 500, "equipment", ["gondola", "venta"]),
+      asset("gondola-fer-3", "shelf-gondola", "Góndola 3", 1300, 3900, 1200, 500, "equipment", ["gondola", "venta"]),
+      asset("gondola-fer-4", "shelf-gondola", "Góndola 4", 3100, 3900, 1200, 500, "equipment", ["gondola", "venta"]),
+      asset("bodega-fer", "room", "Bodega", 5300, 2900, 3300, 3000, "architecture", ["room", "use:storage", "ferreteria"]),
+      asset("rack-fer-1", "warehouse-rack", "Rack de bodega 1", 5600, 3200, 2700, 1100, "equipment", ["rack", "storage"]),
+      asset("rack-fer-2", "warehouse-rack", "Rack de bodega 2", 5600, 4500, 2700, 1100, "equipment", ["rack", "storage"]),
+      asset("mesa-cortes", "workbench", "Mesa de cortes", 5600, 1400, 1800, 750, "equipment", ["mesa de trabajo", "cortes"]),
+    ],
+    annotations: [
+      note("titulo", "Ferretería — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "puerta-entrada", toRef: "mostrador-fer", kind: "flow" },
+      { fromRef: "bodega-fer", toRef: "gondola-fer-1", kind: "material" },
     ],
   },
 ];
