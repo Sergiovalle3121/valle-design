@@ -100,4 +100,32 @@ assert.ok(
   "architecture layer area is reported",
 );
 
+// Capa por biblioteca de símbolos (AXOS-CAD-LAYER-001): los símbolos
+// universales aterrizan en su capa real, no todos en Equipos.
+assert.equal(
+  defaultCadLayerForAssetKind("door-90"),
+  "architecture",
+  "puerta universal → capa de arquitectura",
+);
+assert.equal(
+  defaultCadLayerForAssetKind("stairs-straight"),
+  "architecture",
+  "escalera → capa de arquitectura",
+);
+assert.equal(
+  defaultCadLayerForAssetKind("conveyor"),
+  "flow",
+  "conveyor → capa de flujo",
+);
+assert.equal(
+  defaultCadLayerForAssetKind("sofa-3"),
+  "equipment",
+  "mobiliario → equipment",
+);
+assert.equal(
+  defaultCadLayerForAssetKind("sofa-3", "safety"),
+  "safety",
+  "los tags especiales siguen ganando a la biblioteca",
+);
+
 console.log("cad architecture specs passed");

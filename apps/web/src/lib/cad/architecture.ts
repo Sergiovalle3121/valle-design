@@ -1,4 +1,5 @@
 import type { CadLayerId } from "./layers";
+import { getCadSymbol } from "./symbols";
 
 export type CadArchitectureRole =
   | "wall"
@@ -205,8 +206,20 @@ export function defaultCadLayerForAssetKind(
   if (UTILITY_KINDS.has(kind)) return "utilities";
   if (kind === "agvpath" || hasAnyTag(tags, ["aisle", "forklift", "pedestrian"])) return "aisles";
   if (SAFETY_KINDS.has(kind) || hasAnyTag(tags, ["safety", "no-go", "restricted", "emergency", "esd"])) return "safety";
+  // Biblioteca de símbolos como fuente de verdad (AXOS-CAD-LAYER-001): una
+  // puerta colocada por el copiloto va a Arquitectura, no a Equipos — igual
+  // en el DXF que se abre en AutoCAD. Los tags especiales de arriba ganan.
+  const symbol = getCadSymbol(kind);
+  if (symbol) return SYMBOL_CATEGORY_LAYERS[symbol.category] ?? "equipment";
   return "equipment";
 }
+
+/** Capa CAD por categoría de símbolo; lo no mapeado cae a equipment. */
+const SYMBOL_CATEGORY_LAYERS: Partial<Record<string, CadLayerId>> = {
+  architecture: "architecture",
+  flow: "flow",
+  safety: "safety",
+};
 
 export function describeCadArchitectureObject(
   object: CadArchitectureObjectInput,
