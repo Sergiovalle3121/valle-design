@@ -45,7 +45,8 @@ export type CadLayoutTemplateId =
   | "fondita"
   | "estetica-canina"
   | "fisioterapia"
-  | "spa";
+  | "spa"
+  | "cibercafe";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1480,6 +1481,40 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "recepcion-spa", kind: "flow" },
       { fromRef: "recepcion-spa", toRef: "cabina-1", kind: "flow" },
       { fromRef: "cabina-1", toRef: "vapor-spa", kind: "flow" },
+    ],
+  },
+  {
+    id: "cibercafe",
+    label: "Cibercafé / Café internet",
+    description: "Arranque universal de cibercafé: mostrador con copiadora, zona de computadoras con cuatro escritorios y sillas, vitrina de accesorios y baño.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["architecture", "shell", "cibercafe"]),
+      asset("entrada", "door", "Entrada", 3500, 650, 1000, 260, "architecture", ["door", "opening:entry"]),
+      asset("mostrador-cc", "counter", "Mostrador", 1500, 1400, 1800, 600, "equipment", ["counter", "cibercafe"]),
+      asset("copiadora-cc", "copier", "Copiadora", 3600, 1400, 700, 600, "equipment", ["copiadora", "cibercafe"]),
+      asset("vitrina-cc", "display-case", "Vitrina de accesorios", 6850, 1500, 1200, 600, "equipment", ["vitrina", "cibercafe"]),
+      asset("zona-pc", "zone", "Zona de computadoras", 1300, 2400, 5000, 2600, "layout", ["zone", "use:computers", "cibercafe"]),
+      asset("esc-cc-1", "desk", "Escritorio 1", 1500, 2600, 1400, 700, "equipment", ["escritorio", "cibercafe"]),
+      asset("esc-cc-2", "desk", "Escritorio 2", 3100, 2600, 1400, 700, "equipment", ["escritorio", "cibercafe"]),
+      asset("esc-cc-3", "desk", "Escritorio 3", 1500, 3800, 1400, 700, "equipment", ["escritorio", "cibercafe"]),
+      asset("esc-cc-4", "desk", "Escritorio 4", 3100, 3800, 1400, 700, "equipment", ["escritorio", "cibercafe"]),
+      asset("silla-cc-1", "office-chair", "Silla 1", 2950, 2700, 500, 500, "equipment", ["silla", "cibercafe"]),
+      asset("silla-cc-2", "office-chair", "Silla 2", 4550, 2700, 500, 500, "equipment", ["silla", "cibercafe"]),
+      asset("silla-cc-3", "office-chair", "Silla 3", 2950, 3900, 500, 500, "equipment", ["silla", "cibercafe"]),
+      asset("silla-cc-4", "office-chair", "Silla 4", 4550, 3900, 500, 500, "equipment", ["silla", "cibercafe"]),
+      asset("bano-cc", "room", "Baño", 6800, 3600, 1500, 1500, "architecture", ["room", "use:bathroom", "cibercafe"]),
+      asset("wc-cc", "wc", "WC", 6950, 3750, 400, 650, "equipment", ["wc", "bathroom"]),
+    ],
+    annotations: [
+      note("titulo", "Cibercafé / Café internet — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "mostrador-cc", kind: "flow" },
+      { fromRef: "mostrador-cc", toRef: "zona-pc", kind: "flow" },
+      { fromRef: "copiadora-cc", toRef: "mostrador-cc", kind: "flow" },
     ],
   },
 ];
