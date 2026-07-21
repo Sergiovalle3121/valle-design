@@ -59,3 +59,17 @@ assertEqual(blockedMeasure[0].ready, false, "missing selection is explicit");
 assertMatch(blockedMeasure[0].reason, /Selecciona 2/, "reason names blocker");
 
 console.log("cad command line assist specs passed");
+
+// Kit diario: sin selección, mirror/rotate/scale piden 1 objeto.
+{
+  const items = suggestCadCommands({ query: "rota", selectedCount: 0, maxItems: 6 });
+  const rotate = items.find((item) => item.commandId === "rotate_selection");
+  assertOk(rotate, "sugiere rotate ante 'rota'");
+  assertEqual(rotate?.ready, false, "sin seleccion no esta listo");
+}
+{
+  const items = suggestCadCommands({ query: "espejo", selectedCount: 2, maxItems: 6 });
+  const mirror = items.find((item) => item.commandId === "mirror_selection");
+  assertOk(mirror, "sugiere espejo");
+  assertEqual(mirror?.ready, true, "con seleccion queda listo");
+}

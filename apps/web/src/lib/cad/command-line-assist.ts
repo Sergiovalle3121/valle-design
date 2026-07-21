@@ -31,6 +31,10 @@ const SELECTION_MINIMUMS: Partial<Record<CadCommandId, number>> = {
   array_polar: 1,
   array_along_flow: 1,
   offset_object: 1,
+  // Kit diario (AXOS-CAD-MIRROR/XFORM-001): transformaciones sobre selección.
+  mirror_selection: 1,
+  rotate_selection: 1,
+  scale_selection: 1,
   extend_wall: 2,
   trim_wall: 2,
   chamfer_walls: 2,
