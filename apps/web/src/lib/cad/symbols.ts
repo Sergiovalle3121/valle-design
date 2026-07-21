@@ -881,6 +881,17 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["sillón dental", "sillon dental", "dental", "dentista", "consultorio"],
     ports: [],
   },
+  // — Undécima tanda universal (AXOS-CAD-UNIVERSAL-023): deportes —
+  {
+    id: "goal",
+    label: "Portería",
+    category: "equipment",
+    defaultWidth: 3000,
+    defaultHeight: 1000,
+    layer: "Equipment",
+    tags: ["portería", "porteria", "goal", "fútbol", "futbol", "cancha", "deporte"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {

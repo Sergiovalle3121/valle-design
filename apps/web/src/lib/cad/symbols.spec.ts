@@ -207,3 +207,9 @@ assert.ok(
   searchCadSymbols("dentista").some((symbol) => symbol.id === "dental-chair"),
   "search finds dentista → sillón dental",
 );
+
+// Undécima tanda universal (AXOS-CAD-UNIVERSAL-023): deportes.
+assert.ok(
+  searchCadSymbols("portería").some((symbol) => symbol.id === "goal"),
+  "search finds portería (cancha)",
+);

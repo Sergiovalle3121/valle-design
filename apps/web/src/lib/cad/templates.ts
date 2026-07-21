@@ -31,7 +31,8 @@ export type CadLayoutTemplateId =
   | "ferreteria"
   | "habitacion-hotel"
   | "consultorio-dental"
-  | "estacionamiento";
+  | "estacionamiento"
+  | "cancha-futbol";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1041,6 +1042,32 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     connectors: [
       { fromRef: "acceso", toRef: "pasillo-circulacion", kind: "flow" },
       { fromRef: "pasillo-circulacion", toRef: "cajon-a1", kind: "flow" },
+    ],
+  },
+  {
+    id: "cancha-futbol",
+    label: "Cancha de fútbol rápido",
+    description: "Arranque universal de cancha de fútbol rápido: cancha con línea media, dos porterías, gradas y bancas de jugadores.",
+    category: "architecture",
+    baseWidth: 30000,
+    baseHeight: 18000,
+    assets: [
+      asset("perimetro", "room", "Perímetro", 700, 700, 28600, 16600, "architecture", ["architecture", "shell", "cancha"]),
+      asset("acceso", "door", "Acceso", 14300, 650, 1400, 260, "architecture", ["door", "opening:entry"]),
+      asset("cancha", "zone", "Cancha", 1500, 2500, 27000, 13000, "layout", ["zone", "use:field", "cancha"]),
+      asset("linea-media", "zone", "Línea media", 14900, 2500, 200, 13000, "layout", ["zone", "line", "cancha"]),
+      asset("porteria-1", "goal", "Portería 1", 1600, 8500, 1000, 3000, "equipment", ["porteria", "cancha"]),
+      asset("porteria-2", "goal", "Portería 2", 27400, 8500, 1000, 3000, "equipment", ["porteria", "cancha"]),
+      asset("banca-jugadores-1", "outdoor-bench", "Banca de jugadores 1", 6000, 1100, 1500, 550, "architecture", ["banca", "jugadores"]),
+      asset("banca-jugadores-2", "outdoor-bench", "Banca de jugadores 2", 22500, 1100, 1500, 550, "architecture", ["banca", "jugadores"]),
+      asset("gradas", "zone", "Gradas", 1500, 16000, 27000, 1000, "layout", ["zone", "use:stands", "cancha"]),
+    ],
+    annotations: [
+      note("titulo", "Cancha de fútbol rápido — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "acceso", toRef: "cancha", kind: "flow" },
+      { fromRef: "cancha", toRef: "gradas", kind: "flow" },
     ],
   },
 ];
