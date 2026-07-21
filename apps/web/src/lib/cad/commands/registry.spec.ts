@@ -59,7 +59,19 @@ assert.equal(
   CAD_COMMAND_REGISTRY.length,
   "registry ids are unique",
 );
-assert.equal(CAD_COMMAND_REGISTRY.length, 40, "registry exposes 40 commands");
+assert.equal(CAD_COMMAND_REGISTRY.length, 41, "registry exposes 41 commands");
+
+// Guardar conversacional (AXOS-CAD-SAVE-001).
+{
+  const saved = parseCadCommand("guarda el plano");
+  assert.equal(saved.input?.id, "studio_save", "guarda parsea");
+  const bookmark = parseCadCommand("guarda la vista");
+  assert.notEqual(
+    bookmark.input?.id,
+    "studio_save",
+    "'guarda la vista' no es guardar el layout",
+  );
+}
 
 // Vista conversacional (AXOS-CAD-VIEW-001).
 {

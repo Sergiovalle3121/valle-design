@@ -4167,6 +4167,10 @@ export default function Layout3DEditor({
       // 'vista 2d' / 'vista 3d' (AXOS-CAD-VIEW-001): el mismo toggle del toolbar.
       setViewMode(op.mode); applyViewMode(op.mode);
       return true;
+    } else if (op.type === 'studio_save') {
+      // 'guarda' (AXOS-CAD-SAVE-001): el mismo botón Guardar del estudio.
+      void save();
+      return true;
     } else if (op.type === 'studio_export') {
       // 'imprime en a3' (AXOS-CAD-PLOT-003): dispara el export real; el papel
       // pedido se sincroniza al selector y se pasa directo (el estado es async).

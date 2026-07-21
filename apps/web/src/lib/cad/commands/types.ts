@@ -33,6 +33,7 @@ export type CadCommandId =
   | "history_step"
   | "studio_export"
   | "studio_view"
+  | "studio_save"
   | "add_label"
   | "extend_wall"
   | "trim_wall"
@@ -116,6 +117,7 @@ export type CadOperation =
       paper?: string;
     }
   | { type: "studio_view"; mode: "2d" | "3d" }
+  | { type: "studio_save" }
   | {
       type: "annotate";
       annotation:
@@ -330,6 +332,7 @@ export type CadCommandInput =
       /** 'vista 2d' = planta cenital tipo CAD; 'vista 3d' = orbital. */
       mode: "2d" | "3d";
     }
+  | { id: "studio_save" }
   | {
       id: "add_label";
       /** El texto de la nota; 'escribe "Recepción" en 2000,1000'. */

@@ -1795,6 +1795,26 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     },
   },
   {
+    id: "studio_save",
+    label: "Guardar",
+    category: "viewport",
+    description:
+      "'guarda' persiste el layout — lo mismo que el botón Guardar del estudio.",
+    inputSchema: {},
+    examples: ["guarda", "guarda el plano"],
+    validate: () => [],
+    preview: () => ({
+      summary: "Guardar el layout.",
+      affectedObjectIds: [],
+      operations: [{ type: "studio_save" }],
+      issues: [],
+    }),
+    execute: (i, c) => {
+      const p = CAD_COMMAND_REGISTRY.find((d) => d.id === "studio_save")!.preview(i, c);
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
     id: "studio_view",
     label: "Vista 2D / 3D",
     category: "viewport",
