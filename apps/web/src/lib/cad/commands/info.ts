@@ -59,6 +59,38 @@ export function objectInfoPreview(
     .toLocaleLowerCase("es-MX")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
+  // Reporte de cuartos (AXOS-CAD-QUERY-011): '¿cuánto miden los cuartos?'
+  // lista cada contenedor (cuarto/zona) con medidas y área, más el total.
+  if (/^(cada\s+)?(cuartos?|habitaciones|zonas)$/.test(folded)) {
+    const rooms = context.objects.filter((o) =>
+      CONTAINER_KINDS.has(o.kind ?? ""),
+    );
+    if (!rooms.length) {
+      issues.push(
+        error("info_no_rooms", "No hay cuartos ni zonas en el plano."),
+      );
+      return { summary: "", affectedObjectIds: [], operations: [], issues };
+    }
+    const totalRoomsM2 = rooms.reduce(
+      (sum, o) => sum + (o.w / 1000) * (o.h / 1000),
+      0,
+    );
+    return {
+      summary: `${rooms.length} cuarto(s)/zona(s) — ${totalRoomsM2.toFixed(2)} m² en total.`,
+      affectedObjectIds: rooms.map((o) => o.id),
+      operations: [
+        {
+          type: "report",
+          title: "Cuartos y zonas",
+          rows: rooms.map((o) => ({
+            label: o.label,
+            value: `${(o.w / 1000).toFixed(1)}×${(o.h / 1000).toFixed(1)} m · ${((o.w / 1000) * (o.h / 1000)).toFixed(2)} m²`,
+          })),
+        },
+      ],
+      issues,
+    };
+  }
   if (/^(el\s+)?(plano|layout|plan|terreno|footprint)$/.test(folded)) {
     const w = context.footprintW ?? 0;
     const h = context.footprintH ?? 0;

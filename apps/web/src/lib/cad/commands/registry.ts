@@ -2191,7 +2191,7 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         description: "De qué objeto ('mesa', 'barra').",
       },
     },
-    examples: ["info de la mesa", "info de la barra", "¿dónde está la estufa?"],
+    examples: ["info de la mesa", "info de la barra", "¿dónde está la estufa?", "info de los cuartos"],
     validate: (i, c) =>
       objectInfoPreview(
         i as Extract<CadCommandInput, { id: "object_info" }>,

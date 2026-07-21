@@ -867,9 +867,9 @@ export function parseCadCommand(text: string): CadParseResult {
     }
     return { ok: true, confidence: 0.86, input: { id: "object_info", query } };
   }
-  if (/cu[aá]nto\s+mide\b/.test(q) || /^info\s+/.test(q)) {
+  if (/cu[aá]nto\s+mide[ns]?\b/.test(q) || /^info\s+/.test(q)) {
     const query = q
-      .replace(/^.*?(?:cu[aá]nto\s+mide|^info)\s*/, "")
+      .replace(/^.*?(?:cu[aá]nto\s+mide[ns]?|^info)\s*/, "")
       .replace(/\b(de|del|la|el|los|las|una?)\b/g, " ")
       .replace(/[¿?¡!.]/g, "")
       .replace(/\s+/g, " ")

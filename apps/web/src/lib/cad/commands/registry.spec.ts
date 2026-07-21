@@ -2290,4 +2290,85 @@ if (rectDraftCreate?.type === "create") {
   assert.equal(plural.affectedObjectIds.length, 2, "el plural sigue igual");
 }
 
+// Reporte de cuartos (AXOS-CAD-QUERY-011): '¿cuánto miden los cuartos?'
+// lista cada contenedor con medidas y área; sin cuartos hay error.
+{
+  const cuartosInfoCtx: CadCommandContext = {
+    unit: "mm",
+    footprintW: 12000,
+    footprintH: 8000,
+    selectedIds: [],
+    connectors: [],
+    objects: [
+      {
+        id: "coc",
+        type: "asset",
+        kind: "room",
+        label: "Cocina",
+        x: 0,
+        y: 0,
+        w: 4000,
+        h: 3000,
+      },
+      {
+        id: "pat",
+        type: "asset",
+        kind: "zone",
+        label: "Patio",
+        x: 5000,
+        y: 0,
+        w: 2000,
+        h: 2000,
+      },
+      {
+        id: "est",
+        type: "asset",
+        kind: "stove",
+        label: "Estufa",
+        x: 500,
+        y: 500,
+        w: 600,
+        h: 600,
+      },
+    ],
+  };
+  const parsed = parseCadCommand("¿cuánto miden los cuartos?");
+  assert.equal(parsed.input?.id, "object_info", "miden los cuartos parsea");
+  if (parsed.input?.id === "object_info") {
+    assert.equal(parsed.input.query, "cuartos", "query limpia en plural");
+    const p = previewCadCommand(parsed.input, cuartosInfoCtx);
+    const op = p.operations[0];
+    if (op.type === "report") {
+      const byLabel = new Map(op.rows.map((r) => [r.label, r.value]));
+      assert.equal(
+        byLabel.get("Cocina"),
+        "4.0×3.0 m · 12.00 m²",
+        "fila de la cocina con medidas y área",
+      );
+      assert.equal(
+        byLabel.get("Patio"),
+        "2.0×2.0 m · 4.00 m²",
+        "las zonas también entran",
+      );
+      assert.ok(!byLabel.has("Estufa"), "los muebles no entran al reporte");
+    }
+    assert.ok(p.summary.includes("16.00 m²"), "total sumado en el resumen");
+  }
+  const vacio = previewCadCommand(
+    { id: "object_info", query: "cuartos" },
+    {
+      unit: "mm",
+      footprintW: 10000,
+      footprintH: 6000,
+      selectedIds: [],
+      connectors: [],
+      objects: [],
+    },
+  );
+  assert.ok(
+    vacio.issues.some((i) => i.code === "info_no_rooms"),
+    "sin cuartos → error específico",
+  );
+}
+
 console.log("cad command registry specs passed");
