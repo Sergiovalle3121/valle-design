@@ -257,3 +257,15 @@ assert.ok(
   searchCadSymbols("carnicería").some((symbol) => symbol.id === "freezer"),
   "search finds carnicería → congelador",
 );
+
+// Decimoquinta tanda universal (AXOS-CAD-UNIVERSAL-030): frutería.
+assert.ok(
+  searchCadSymbols("huacal").some((symbol) => symbol.id === "fruit-crate"),
+  "search finds huacal (frutería)",
+);
+assert.ok(
+  searchCadSymbols("cajón de fruta").some(
+    (symbol) => symbol.id === "fruit-crate",
+  ),
+  "search finds cajón de fruta",
+);

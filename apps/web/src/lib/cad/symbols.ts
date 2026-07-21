@@ -955,6 +955,17 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["báscula", "bascula", "scale", "peso", "abarrotes", "carnicería", "carniceria", "fruteria", "frutería"],
     ports: [],
   },
+  // — Decimoquinta tanda universal (AXOS-CAD-UNIVERSAL-030): frutería —
+  {
+    id: "fruit-crate",
+    label: "Cajón de fruta",
+    category: "equipment",
+    defaultWidth: 600,
+    defaultHeight: 400,
+    layer: "Equipment",
+    tags: ["cajón de fruta", "cajon de fruta", "huacal", "guacal", "frutería", "fruteria", "verdulería", "verduleria"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {

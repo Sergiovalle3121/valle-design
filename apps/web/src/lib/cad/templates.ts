@@ -37,7 +37,8 @@ export type CadLayoutTemplateId =
   | "iglesia"
   | "minisuper"
   | "taqueria"
-  | "carniceria";
+  | "carniceria"
+  | "fruteria";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1233,6 +1234,38 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "mostrador-carn", kind: "flow" },
       { fromRef: "cuarto-frio", toRef: "mesa-corte", kind: "material" },
       { fromRef: "mesa-corte", toRef: "vitrina-cortes", kind: "material" },
+    ],
+  },
+  {
+    id: "fruteria",
+    label: "Frutería / Verdulería",
+    description: "Arranque universal de frutería: mostrador con báscula, cajones de fruta, góndolas de fruta y verdura, refrigerador y bodega con anaquel.",
+    category: "architecture",
+    baseWidth: 10000,
+    baseHeight: 7000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 8600, 5600, "architecture", ["architecture", "shell", "fruteria"]),
+      asset("entrada", "door", "Entrada", 4000, 650, 1000, 260, "architecture", ["door", "opening:entry"]),
+      asset("mostrador-fruta", "counter", "Mostrador", 1300, 1400, 1800, 600, "equipment", ["counter", "fruteria"]),
+      asset("bascula-fruta", "scale", "Báscula", 3300, 1400, 500, 500, "equipment", ["bascula", "fruteria"]),
+      asset("zona-exhibicion", "zone", "Exhibición de fruta", 1300, 2400, 3200, 1000, "layout", ["zone", "use:display", "fruteria"]),
+      asset("cajon-1", "fruit-crate", "Cajón de fruta 1", 1500, 2600, 600, 400, "equipment", ["cajon", "fruteria"]),
+      asset("cajon-2", "fruit-crate", "Cajón de fruta 2", 2200, 2600, 600, 400, "equipment", ["cajon", "fruteria"]),
+      asset("cajon-3", "fruit-crate", "Cajón de fruta 3", 2900, 2600, 600, 400, "equipment", ["cajon", "fruteria"]),
+      asset("cajon-4", "fruit-crate", "Cajón de fruta 4", 3600, 2600, 600, 400, "equipment", ["cajon", "fruteria"]),
+      asset("gondola-fruta", "shelf-gondola", "Góndola de fruta", 5000, 1500, 3000, 500, "equipment", ["gondola", "fruteria"]),
+      asset("gondola-verdura", "shelf-gondola", "Góndola de verdura", 5000, 2800, 3000, 500, "equipment", ["gondola", "fruteria"]),
+      asset("refri-fruteria", "refrigerator", "Refrigerador", 8300, 1400, 800, 700, "equipment", ["refrigerador", "fruteria"]),
+      asset("bodega-fruta", "room", "Bodega", 1300, 4200, 2400, 1800, "architecture", ["room", "use:storage", "fruteria"]),
+      asset("anaquel-fruta", "warehouse-rack", "Anaquel de bodega", 1500, 4500, 2000, 500, "equipment", ["rack", "fruteria"]),
+    ],
+    annotations: [
+      note("titulo", "Frutería / Verdulería — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "mostrador-fruta", kind: "flow" },
+      { fromRef: "bodega-fruta", toRef: "cajon-1", kind: "material" },
+      { fromRef: "cajon-1", toRef: "mostrador-fruta", kind: "flow" },
     ],
   },
 ];
