@@ -55,7 +55,8 @@ export type CadLayoutTemplateId =
   | "jugueria"
   | "pescaderia"
   | "boutique"
-  | "hostal";
+  | "hostal"
+  | "autolavado";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1783,6 +1784,35 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     connectors: [
       { fromRef: "entrada", toRef: "recepcion-hos", kind: "flow" },
       { fromRef: "recepcion-hos", toRef: "dormitorio-hos", kind: "flow" },
+    ],
+  },
+  {
+    id: "autolavado",
+    label: "Autolavado",
+    description: "Arranque universal de autolavado: portón, dos carriles de lavado, equipo de lavado, zona de aspirado, caja y sala de espera con TV y dispensador.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 7000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 10600, 5600, "architecture", ["architecture", "shell", "autolavado"]),
+      asset("porton", "door", "Portón de entrada", 4500, 650, 2500, 260, "architecture", ["door", "opening:entry"]),
+      asset("carril-lav-1", "zone", "Carril de lavado 1", 1200, 1400, 3600, 2200, "layout", ["zone", "use:wash", "autolavado"]),
+      asset("carril-lav-2", "zone", "Carril de lavado 2", 5200, 1400, 3600, 2200, "layout", ["zone", "use:wash", "autolavado"]),
+      asset("equipo-lav", "workbench", "Equipo de lavado", 9200, 1400, 1500, 800, "equipment", ["equipo", "autolavado"]),
+      asset("aspirado-lav", "zone", "Zona de aspirado", 1200, 4000, 3600, 1800, "layout", ["zone", "use:vacuum", "autolavado"]),
+      asset("caja-lav", "counter", "Caja", 5600, 4200, 1500, 600, "equipment", ["counter", "autolavado"]),
+      asset("registradora-lav", "cash-register", "Caja registradora", 7300, 4200, 450, 400, "equipment", ["caja", "cobro", "autolavado"]),
+      asset("sala-lav", "zone", "Sala de espera", 8200, 4000, 2800, 1800, "layout", ["zone", "use:lounge", "autolavado"]),
+      asset("tv-lav", "tv-screen", "Pantalla", 8400, 4200, 1200, 150, "equipment", ["pantalla", "autolavado"]),
+      asset("garrafon-lav", "water-dispenser", "Dispensador de agua", 9800, 4500, 350, 350, "equipment", ["agua", "autolavado"]),
+    ],
+    annotations: [
+      note("titulo", "Autolavado — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "porton", toRef: "carril-lav-1", kind: "flow" },
+      { fromRef: "carril-lav-1", toRef: "aspirado-lav", kind: "flow" },
+      { fromRef: "aspirado-lav", toRef: "caja-lav", kind: "flow" },
     ],
   },
 ];
