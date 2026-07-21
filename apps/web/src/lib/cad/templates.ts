@@ -25,7 +25,8 @@ export type CadLayoutTemplateId =
   | "farmacia"
   | "jardin-eventos"
   | "panaderia"
-  | "veterinaria";
+  | "veterinaria"
+  | "lavanderia";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -862,6 +863,38 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "espera-vet", kind: "flow" },
       { fromRef: "espera-vet", toRef: "consulta-vet", kind: "flow" },
       { fromRef: "consulta-vet", toRef: "hospitalizacion", kind: "flow" },
+    ],
+  },
+  {
+    id: "lavanderia",
+    label: "Lavandería",
+    description: "Arranque universal de lavandería: mostrador de recepción, batería de lavadoras y secadoras, mesa de doblado y sillas de espera.",
+    category: "architecture",
+    baseWidth: 8000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 6600, 4600, "architecture", ["architecture", "shell", "lavanderia"]),
+      asset("puerta-entrada", "door", "Puerta de entrada", 3500, 650, 900, 260, "architecture", ["door", "opening:entry"]),
+      asset("mostrador-lav", "counter", "Mostrador", 1300, 1400, 1800, 600, "equipment", ["counter", "recepcion"]),
+      asset("lavadora-1", "washer", "Lavadora 1", 1300, 3000, 600, 600, "equipment", ["lavadora", "lavanderia"]),
+      asset("lavadora-2", "washer", "Lavadora 2", 2000, 3000, 600, 600, "equipment", ["lavadora", "lavanderia"]),
+      asset("lavadora-3", "washer", "Lavadora 3", 2700, 3000, 600, 600, "equipment", ["lavadora", "lavanderia"]),
+      asset("lavadora-4", "washer", "Lavadora 4", 3400, 3000, 600, 600, "equipment", ["lavadora", "lavanderia"]),
+      asset("secadora-1", "dryer", "Secadora 1", 1300, 4200, 600, 600, "equipment", ["secadora", "lavanderia"]),
+      asset("secadora-2", "dryer", "Secadora 2", 2000, 4200, 600, 600, "equipment", ["secadora", "lavanderia"]),
+      asset("secadora-3", "dryer", "Secadora 3", 2700, 4200, 600, 600, "equipment", ["secadora", "lavanderia"]),
+      asset("mesa-doblado", "workbench", "Mesa de doblado", 4300, 3000, 1800, 750, "equipment", ["mesa", "doblado", "lavanderia"]),
+      asset("silla-lav-1", "office-chair", "Silla de espera 1", 5200, 1400, 600, 600, "equipment", ["silla", "espera"]),
+      asset("silla-lav-2", "office-chair", "Silla de espera 2", 5900, 1400, 600, 600, "equipment", ["silla", "espera"]),
+    ],
+    annotations: [
+      note("titulo", "Lavandería — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "puerta-entrada", toRef: "mostrador-lav", kind: "flow" },
+      { fromRef: "mostrador-lav", toRef: "lavadora-1", kind: "material" },
+      { fromRef: "lavadora-1", toRef: "secadora-1", kind: "material" },
+      { fromRef: "secadora-1", toRef: "mesa-doblado", kind: "material" },
     ],
   },
 ];

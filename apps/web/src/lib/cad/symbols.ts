@@ -827,6 +827,27 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["jaula", "kennel", "mascotas", "veterinaria", "hospitalización", "hospitalizacion"],
     ports: [],
   },
+  // — Séptima tanda universal (AXOS-CAD-UNIVERSAL-017): lavandería —
+  {
+    id: "washer",
+    label: "Lavadora",
+    category: "equipment",
+    defaultWidth: 600,
+    defaultHeight: 600,
+    layer: "Equipment",
+    tags: ["lavadora", "washer", "lavandería", "lavanderia", "ropa"],
+    ports: [],
+  },
+  {
+    id: "dryer",
+    label: "Secadora",
+    category: "equipment",
+    defaultWidth: 600,
+    defaultHeight: 600,
+    layer: "Equipment",
+    tags: ["secadora", "dryer", "lavandería", "lavanderia", "ropa"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {

@@ -167,3 +167,13 @@ assert.ok(
   searchCadSymbols("jaula").some((symbol) => symbol.id === "kennel-cage"),
   "search finds jaula para mascotas (veterinaria)",
 );
+
+// Séptima tanda universal (AXOS-CAD-UNIVERSAL-017): lavandería.
+assert.ok(
+  searchCadSymbols("lavadora").some((symbol) => symbol.id === "washer"),
+  "search finds lavadora (lavandería)",
+);
+assert.ok(
+  searchCadSymbols("secadora").some((symbol) => symbol.id === "dryer"),
+  "search finds secadora (lavandería)",
+);
