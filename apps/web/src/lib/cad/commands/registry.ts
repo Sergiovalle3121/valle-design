@@ -1887,12 +1887,17 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
       y: { type: "number", description: "Destino Y absoluto en mm." },
       dx: { type: "number", description: "Desplazamiento X relativo en mm." },
       dy: { type: "number", description: "Desplazamiento Y relativo en mm." },
+      center: {
+        type: "enum",
+        enum: ["true", "false"],
+        description: "true centra el conjunto en el footprint.",
+      },
       objectIds: {
         type: "string[]",
         description: "Alternativa: objetos seleccionados.",
       },
     },
-    examples: ["mueve la puerta a 2000,650", "mueve la selección 500 a la derecha"],
+    examples: ["mueve la puerta a 2000,650", "centra la mesa"],
     validate: (i, c) =>
       moveSelectionPreview(
         i as Extract<CadCommandInput, { id: "move_selection" }>,

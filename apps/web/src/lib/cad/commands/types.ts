@@ -284,6 +284,8 @@ export type CadCommandInput =
       /** Desplazamiento relativo en mm ('500 a la derecha'). */
       dx?: number;
       dy?: number;
+      /** 'centra la mesa': centra el conjunto en el footprint. */
+      center?: boolean;
     }
   | {
       id: "count_objects";

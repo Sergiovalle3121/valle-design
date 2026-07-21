@@ -547,6 +547,25 @@ export function parseCadCommand(text: string): CadParseResult {
       input: { id: "count_objects", query: query || undefined },
     };
   }
+  if (/\b(centra|centrar|centralo|centrala|céntralo|céntrala)\b/.test(q)) {
+    const target = q
+      .replace(/^.*?\b(?:centra|centrar|centralo|centrala|céntralo|céntrala)\b\s*/, "")
+      .replace(/\b(en\s+el\s+plano|en\s+el\s+centro|al\s+centro|del\s+plano)\b/g, "")
+      .replace(/\b(la\s+selecci[oó]n|lo\s+seleccionado|esto|estos|esos?\s*(objetos)?)\b/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/^(?:una?|el|la|los|las)\s+/, "")
+      .trim();
+    return {
+      ok: true,
+      confidence: 0.85,
+      input: {
+        id: "move_selection",
+        center: true,
+        target: target || undefined,
+      },
+    };
+  }
   if (/\b(mueve|mover|lleva|llevar|desplaza|desplazar)\b/.test(q)) {
     const abs = q.match(/\b(?:a|en|hasta)\s+(-?\d+)\s*[,x]\s*(-?\d+)/);
     const rel = q.match(

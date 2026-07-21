@@ -84,4 +84,27 @@ const ctx = {
   assert.equal(vague.ok, false, "sin destino pide clarificación");
 }
 
+// Centrar (AXOS-CAD-MOVE-002): bbox (1000,1000)-(2400,2300) de 1400×1300 al
+// centro del footprint 10000×6000 → delta (+3300, +1350), rígido.
+{
+  const out = moveSelectionPreview({ id: "move_selection", center: true }, ctx);
+  assert.equal(out.issues.length, 0, "centrar sin issues");
+  const m = out.operations[0];
+  if (m.type === "move") {
+    assert.equal(m.after.x, 4300, "a1 centrado en x");
+    assert.equal(m.after.y, 2350, "a1 centrado en y");
+  }
+  assert.ok(out.summary.includes("Centrar"), "resumen de centrado");
+  const parsed = parseCadCommand("centra la mesa");
+  assert.equal(parsed.input?.id, "move_selection", "centra → move");
+  if (parsed.input?.id === "move_selection") {
+    assert.equal(parsed.input.center, true, "center del parser");
+    assert.equal(parsed.input.target, "mesa", "target del parser");
+  }
+  const plain = parseCadCommand("céntrala");
+  if (plain.input?.id === "move_selection") {
+    assert.equal(plain.input.target, undefined, "'céntrala' usa la selección");
+  }
+}
+
 console.log("cad move specs passed");
