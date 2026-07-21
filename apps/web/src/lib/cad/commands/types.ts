@@ -31,6 +31,7 @@ export type CadCommandId =
   | "rename_object"
   | "select_objects"
   | "resize_object"
+  | "swap_objects"
   | "help_commands"
   | "clear_annotations"
   | "history_step"
@@ -380,6 +381,15 @@ export type CadCommandInput =
       w?: number;
       /** Alto nuevo en mm; omitido conserva el actual. */
       h?: number;
+    }
+  | {
+      id: "swap_objects";
+      /** Primer objeto por nombre ('intercambia la mesa y el escritorio'). */
+      a?: string;
+      /** Segundo objeto por nombre. */
+      b?: string;
+      /** Alternativa: exactamente 2 objetos seleccionados. */
+      objectIds?: string[];
     }
   | {
       id: "rename_object";

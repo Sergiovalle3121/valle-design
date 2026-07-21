@@ -59,7 +59,7 @@ assert.equal(
   CAD_COMMAND_REGISTRY.length,
   "registry ids are unique",
 );
-assert.equal(CAD_COMMAND_REGISTRY.length, 44, "registry exposes 44 commands");
+assert.equal(CAD_COMMAND_REGISTRY.length, 45, "registry exposes 45 commands");
 
 // Renombrar (AXOS-CAD-RENAME-001): primera coincidencia, con aviso si hay más.
 {
@@ -2368,6 +2368,71 @@ if (rectDraftCreate?.type === "create") {
   assert.ok(
     vacio.issues.some((i) => i.code === "info_no_rooms"),
     "sin cuartos → error específico",
+  );
+}
+
+// Intercambiar (AXOS-CAD-SWAP-001): los dos objetos cambian de lugar
+// conservando tamaño y rotación; errores accionables.
+{
+  const swapCtx: CadCommandContext = {
+    unit: "mm",
+    footprintW: 12000,
+    footprintH: 8000,
+    selectedIds: [],
+    connectors: [],
+    objects: [
+      {
+        id: "mesa",
+        type: "asset",
+        kind: "dining-table-4",
+        label: "Mesa",
+        x: 1000,
+        y: 1000,
+        w: 1000,
+        h: 1000,
+      },
+      {
+        id: "esc",
+        type: "asset",
+        kind: "desk",
+        label: "Escritorio",
+        x: 6000,
+        y: 4000,
+        w: 1400,
+        h: 700,
+      },
+    ],
+  };
+  const parsed = parseCadCommand("intercambia la mesa y el escritorio");
+  assert.equal(parsed.input?.id, "swap_objects", "intercambia parsea");
+  if (parsed.input?.id === "swap_objects") {
+    assert.equal(parsed.input.a, "mesa", "primer nombre");
+    assert.equal(parsed.input.b, "escritorio", "segundo nombre");
+    const p = previewCadCommand(parsed.input, swapCtx);
+    assert.equal(p.issues.length, 0, "swap sin issues");
+    const [m1, m2] = p.operations;
+    if (m1.type === "move" && m2.type === "move") {
+      assert.equal(m1.after.x, 6000, "la mesa toma el lugar del escritorio");
+      assert.equal(m1.after.w, 1000, "la mesa conserva su tamaño");
+      assert.equal(m2.after.x, 1000, "el escritorio toma el lugar de la mesa");
+    }
+  }
+  const con = parseCadCommand("intercambia la estufa con el refrigerador");
+  if (con.input?.id === "swap_objects") {
+    assert.equal(con.input.b, "refrigerador", "'con' también separa");
+  }
+  const missing = previewCadCommand(
+    { id: "swap_objects", a: "mesa", b: "piano" },
+    swapCtx,
+  );
+  assert.ok(
+    missing.issues.some((i) => i.code === "swap_target_not_found"),
+    "nombre inexistente → error específico",
+  );
+  const uno = previewCadCommand({ id: "swap_objects" }, swapCtx);
+  assert.ok(
+    uno.issues.some((i) => i.code === "swap_needs_two"),
+    "sin pareja seleccionada → error específico",
   );
 }
 

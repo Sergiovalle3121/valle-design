@@ -48,6 +48,7 @@ import { mirrorSelectionPreview } from "./mirror";
 import { placeSymbolPreview } from "./place-symbol";
 import { renameObjectPreview } from "./rename";
 import { resizeObjectPreview } from "./resize";
+import { swapObjectsPreview } from "./swap";
 import { selectObjectsPreview } from "./select";
 import { matchObjectsByName } from "./targets";
 import {
@@ -2173,6 +2174,48 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     execute: (i, c) => {
       const p = resizeObjectPreview(
         i as Extract<CadCommandInput, { id: "resize_object" }>,
+        c,
+      );
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
+    id: "swap_objects",
+    label: "Intercambiar",
+    category: "layout",
+    description:
+      "Intercambia de lugar dos objetos por nombre o la pareja seleccionada; cada uno conserva su tamaño y rotación.",
+    inputSchema: {
+      a: {
+        type: "string",
+        description: "Primer objeto por nombre (label o tipo).",
+      },
+      b: {
+        type: "string",
+        description: "Segundo objeto por nombre.",
+      },
+      objectIds: {
+        type: "string[]",
+        description: "Alternativa: exactamente 2 seleccionados.",
+      },
+    },
+    examples: [
+      "intercambia la mesa y el escritorio",
+      "intercambia la estufa con el refrigerador",
+    ],
+    validate: (i, c) =>
+      swapObjectsPreview(
+        i as Extract<CadCommandInput, { id: "swap_objects" }>,
+        c,
+      ).issues,
+    preview: (i, c) =>
+      swapObjectsPreview(
+        i as Extract<CadCommandInput, { id: "swap_objects" }>,
+        c,
+      ),
+    execute: (i, c) => {
+      const p = swapObjectsPreview(
+        i as Extract<CadCommandInput, { id: "swap_objects" }>,
         c,
       );
       return result(p, ok(p.issues), p.summary);

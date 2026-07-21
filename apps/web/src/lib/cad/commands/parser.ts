@@ -563,6 +563,35 @@ export function parseCadCommand(text: string): CadParseResult {
       },
     };
   }
+  // 'intercambia la mesa y el escritorio' (AXOS-CAD-SWAP-001): los dos
+  // objetos cambian de lugar; sin nombres cae a la pareja seleccionada.
+  if (/\b(intercambia|intercambiar|permuta|permutar)\b/.test(q)) {
+    const residue = q
+      .replace(/^.*?\b(?:intercambia|intercambiar|permuta|permutar)\b\s*/, "")
+      .replace(/[¿?¡!.]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    const parts = residue
+      .split(/\s+y\s+|\s+con\s+|\s*,\s*/i)
+      .map((t) => t.replace(/^(?:las?|los|el|una?)\s+/i, "").trim())
+      .filter(Boolean);
+    if (parts.length === 0) {
+      return { ok: true, confidence: 0.84, input: { id: "swap_objects" } };
+    }
+    if (parts.length !== 2) {
+      return {
+        ok: false,
+        confidence: 0.6,
+        clarification:
+          "¿Cuáles dos intercambio? ('intercambia la mesa y el escritorio')",
+      };
+    }
+    return {
+      ok: true,
+      confidence: 0.85,
+      input: { id: "swap_objects", a: parts[0], b: parts[1] },
+    };
+  }
   if (/(rota|gira|rotate)/.test(q) && !/(ruta|rotación de inventario)/.test(q)) {
     const m = q.match(/(-?\d+(?:[.,]\d+)?)\s*(?:°|grados|deg)?/);
     const angle = m ? Number(m[1].replace(",", ".")) : NaN;
