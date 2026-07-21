@@ -2150,4 +2150,84 @@ if (rectDraftCreate?.type === "create") {
   );
 }
 
+// Posesivo de zona (AXOS-CAD-ZONE-004): 'las mesas de la cocina' trae
+// solo las del cuarto; los labels literales con 'de' siguen ganando.
+{
+  const posesivoCtx: CadCommandContext = {
+    unit: "mm",
+    footprintW: 12000,
+    footprintH: 8000,
+    selectedIds: [],
+    connectors: [],
+    objects: [
+      {
+        id: "coc",
+        type: "asset",
+        kind: "room",
+        label: "Cocina",
+        x: 0,
+        y: 0,
+        w: 4000,
+        h: 4000,
+      },
+      {
+        id: "m-in",
+        type: "asset",
+        kind: "dining-table-4",
+        label: "Mesa 1",
+        x: 1000,
+        y: 1000,
+        w: 900,
+        h: 900,
+      },
+      {
+        id: "m-out",
+        type: "asset",
+        kind: "dining-table-4",
+        label: "Mesa 2",
+        x: 8000,
+        y: 5000,
+        w: 900,
+        h: 900,
+      },
+      {
+        id: "m-corte",
+        type: "asset",
+        kind: "workbench",
+        label: "Mesa de corte",
+        x: 6000,
+        y: 1000,
+        w: 1800,
+        h: 750,
+      },
+    ],
+  };
+  const enCocina = previewCadCommand(
+    { id: "count_objects", query: "mesas de la cocina" },
+    posesivoCtx,
+  );
+  assert.deepEqual(
+    enCocina.affectedObjectIds,
+    ["m-in"],
+    "solo la mesa dentro de la cocina",
+  );
+  const literal = previewCadCommand(
+    { id: "object_info", query: "mesa de corte" },
+    posesivoCtx,
+  );
+  assert.deepEqual(
+    literal.affectedObjectIds,
+    ["m-corte"],
+    "el label literal con 'de' gana",
+  );
+  const terraza = previewCadCommand(
+    { id: "delete_selection", target: "mesas de la terraza" },
+    posesivoCtx,
+  );
+  assert.ok(
+    terraza.issues.some((i) => i.level === "error"),
+    "zona inexistente reporta error",
+  );
+}
+
 console.log("cad command registry specs passed");

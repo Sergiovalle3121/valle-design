@@ -121,6 +121,27 @@ export function matchObjectsByName(
     );
     if (hits.length) return hits;
   }
+  // Posesivo de zona (AXOS-CAD-ZONE-004): 'las mesas de la cocina' — las
+  // coincidencias del nombre cuyo centro cae dentro del cuarto nombrado.
+  // Solo cuando el matching directo falló: 'Mesa de corte' literal gana.
+  const possM = raw.match(/^(.+?)\s+del?\s+(?:l[oa]s?\s+|el\s+|la\s+)?(.+)$/i);
+  if (possM) {
+    const baseHits = matchObjectsByName(context, possM[1]!.trim());
+    const zones = matchObjectsByName(context, possM[2]!.trim()).filter((z) =>
+      ["room", "zone"].includes(z.kind ?? ""),
+    );
+    if (baseHits.length && zones.length) {
+      const insideZone = baseHits.filter((o) =>
+        zones.some((z) => {
+          if (z.id === o.id) return false;
+          const cx = o.x + o.w / 2;
+          const cy = o.y + o.h / 2;
+          return cx >= z.x && cx <= z.x + z.w && cy >= z.y && cy <= z.y + z.h;
+        }),
+      );
+      if (insideZone.length) return insideZone;
+    }
+  }
   // Objetivos compuestos (AXOS-CAD-NAME-006): 'las mesas y las sillas'.
   // Solo como fallback — un label que contenga ' y ' literal gana arriba.
   const parts = raw
