@@ -17,7 +17,8 @@ export type CadLayoutTemplateId =
   | "restaurante"
   | "aula-escolar"
   | "gimnasio"
-  | "oficina-coworking";
+  | "oficina-coworking"
+  | "bodega-pyme";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -603,6 +604,37 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     connectors: [
       { fromRef: "entrada", toRef: "recepcion", kind: "flow" },
       { fromRef: "recepcion", toRef: "juntas", kind: "flow" },
+    ],
+  },
+  {
+    id: "bodega-pyme",
+    label: "Bodega PyME",
+    description: "Arranque universal de bodega: recibo, cuatro racks en dos filas con pasillo de montacargas, embarque y oficina.",
+    category: "warehouse",
+    baseWidth: 14000,
+    baseHeight: 9000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 12600, 7600, "architecture", ["architecture", "shell", "bodega"]),
+      asset("porton-recibo", "door", "Portón de recibo", 1600, 650, 2400, 260, "architecture", ["door", "opening:dock"]),
+      asset("porton-embarque", "door", "Portón de embarque", 9600, 650, 2400, 260, "architecture", ["door", "opening:dock"]),
+      asset("recibo", "zone", "Zona de recibo", 1300, 1300, 3200, 2200, "layout", ["zone", "use:receiving", "bodega"]),
+      asset("embarque", "zone", "Zona de embarque", 9100, 1300, 3200, 2200, "layout", ["zone", "use:shipping", "bodega"]),
+      asset("rack-1", "warehouse-rack", "Rack A1", 1600, 4300, 2700, 1100, "equipment", ["rack", "storage"]),
+      asset("rack-2", "warehouse-rack", "Rack A2", 4800, 4300, 2700, 1100, "equipment", ["rack", "storage"]),
+      asset("rack-3", "warehouse-rack", "Rack B1", 1600, 6600, 2700, 1100, "equipment", ["rack", "storage"]),
+      asset("rack-4", "warehouse-rack", "Rack B2", 4800, 6600, 2700, 1100, "equipment", ["rack", "storage"]),
+      asset("pasillo", "forklift-path", "Pasillo de montacargas", 1600, 5600, 5900, 800, "aisles", ["aisle", "forklift"]),
+      asset("oficina", "room", "Oficina de bodega", 9100, 4700, 3200, 2600, "architecture", ["room", "use:office", "bodega"]),
+      asset("escritorio-bodega", "desk", "Escritorio", 9600, 5200, 1400, 700, "equipment", ["furniture", "desk"]),
+    ],
+    annotations: [
+      note("titulo", "Bodega PyME — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "porton-recibo", toRef: "recibo", kind: "material" },
+      { fromRef: "recibo", toRef: "rack-1", kind: "material" },
+      { fromRef: "rack-2", toRef: "embarque", kind: "material" },
+      { fromRef: "embarque", toRef: "porton-embarque", kind: "material" },
     ],
   },
 ];
