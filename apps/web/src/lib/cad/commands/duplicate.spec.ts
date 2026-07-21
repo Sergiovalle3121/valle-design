@@ -67,6 +67,20 @@ const ctx = {
   if (offset.input?.id === "duplicate_selection") {
     assert.equal(offset.input.dx, 800, "dx del parser");
     assert.equal(offset.input.dy, -200, "dy negativo del parser");
+    assert.equal(offset.input.target, undefined, "'esto' no es objetivo");
+  }
+  const named = parseCadCommand("duplica el escritorio");
+  if (named.input?.id === "duplicate_selection") {
+    assert.equal(named.input.target, "escritorio", "objetivo por nombre");
+  }
+  const byName = duplicateSelectionPreview(
+    { id: "duplicate_selection", target: "escritorio", dx: 300, dy: 0 },
+    { ...ctx, selectedIds: [] } as unknown as CadCommandContext,
+  );
+  const nop = byName.operations[0];
+  if (nop.type === "create") {
+    assert.equal(nop.object.sourceId, "a1", "resuelve por nombre sin selección");
+    assert.equal(nop.object.x, 1300, "offset aplicado al match");
   }
   const grid = parseCadCommand("copia en arreglo 3x2");
   assert.equal(grid.input?.id, "array_rectangular", "NxM sigue siendo array");

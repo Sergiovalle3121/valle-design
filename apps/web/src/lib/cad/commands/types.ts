@@ -249,10 +249,14 @@ export type CadCommandInput =
       id: "delete_selection";
       /** Default: la selección actual. */
       objectIds?: string[];
+      /** Objetivo por nombre: 'borra la puerta' (label o kind). */
+      target?: string;
     }
   | {
       id: "duplicate_selection";
       objectIds?: string[];
+      /** Objetivo por nombre: 'duplica el escritorio' (label o kind). */
+      target?: string;
       /** Desplazamiento de la copia en mm; default +500,+500. */
       dx?: number;
       dy?: number;

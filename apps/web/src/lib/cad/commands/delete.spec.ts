@@ -51,6 +51,25 @@ const ctx = {
   assert.equal(empty.operations.length, 0, "no emite operaciones");
 }
 
+// Objetivo por nombre (AXOS-CAD-NAME-001): 'borra el sofá' sin selección,
+// substring sin acentos sobre label/kind; sin match → error accionable.
+{
+  const byName = deleteSelectionPreview(
+    { id: "delete_selection", target: "sofa" },
+    { ...ctx, selectedIds: [] } as unknown as CadCommandContext,
+  );
+  assert.equal(byName.operations.length, 1, "encuentra el sofá sin acento");
+  assert.deepEqual(byName.affectedObjectIds, ["a2"], "match por label");
+  const missing = deleteSelectionPreview(
+    { id: "delete_selection", target: "nave espacial" },
+    ctx,
+  );
+  assert.ok(
+    missing.issues.some((i) => i.code === "delete_target_not_found"),
+    "objetivo inexistente → error específico",
+  );
+}
+
 // Parser: verbos naturales → delete_selection; 'borrador' no dispara.
 {
   for (const phrase of [
@@ -68,6 +87,18 @@ const ctx = {
     "delete_selection",
     "'borrador' no es borrar",
   );
+  const named = parseCadCommand("borra la puerta");
+  if (named.input?.id === "delete_selection") {
+    assert.equal(named.input.target, "puerta", "captura el objetivo por nombre");
+  }
+  const plainSel = parseCadCommand("borra la selección");
+  if (plainSel.input?.id === "delete_selection") {
+    assert.equal(
+      plainSel.input.target,
+      undefined,
+      "'la selección' no es objetivo",
+    );
+  }
 }
 
 console.log("cad delete specs passed");

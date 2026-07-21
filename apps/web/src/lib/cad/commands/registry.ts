@@ -1667,14 +1667,18 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     label: "Borrar selección",
     category: "layout",
     description:
-      "Borra los objetos seleccionados (ERASE de AutoCAD); el estudio respeta capas bloqueadas y limpia la selección.",
+      "Borra los objetos seleccionados o el objetivo por nombre (ERASE de AutoCAD); el estudio respeta capas bloqueadas y limpia la selección.",
     inputSchema: {
+      target: {
+        type: "string",
+        description: "Objetivo por nombre: 'borra la puerta' (label o kind).",
+      },
       objectIds: {
         type: "string[]",
         description: "Alternativa: objetos seleccionados.",
       },
     },
-    examples: ["borra la selección", "elimina lo seleccionado"],
+    examples: ["borra la selección", "borra la puerta"],
     validate: (i, c) =>
       deleteSelectionPreview(
         i as Extract<CadCommandInput, { id: "delete_selection" }>,
@@ -1698,8 +1702,13 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     label: "Duplicar selección",
     category: "layout",
     description:
-      "Duplica los objetos seleccionados (COPY de AutoCAD); la copia hereda kind/etiqueta/capa y se desplaza para no tapar al original.",
+      "Duplica los objetos seleccionados o el objetivo por nombre (COPY de AutoCAD); la copia hereda kind/etiqueta/capa y se desplaza para no tapar al original.",
     inputSchema: {
+      target: {
+        type: "string",
+        description:
+          "Objetivo por nombre: 'duplica el escritorio' (label o kind).",
+      },
       dx: {
         type: "number",
         description: "Desplazamiento X en mm (default 500).",

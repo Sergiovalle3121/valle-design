@@ -405,10 +405,17 @@ export function parseCadCommand(text: string): CadParseResult {
     };
   }
   if (/\b(borra|borrar|elimina|eliminar|quita|quitar|suprime|delete)\b/.test(q)) {
+    // Residuo tras el verbo = objetivo por nombre ('borra la puerta');
+    // 'la selección/esto/esos objetos' siguen siendo la selección actual.
+    const target = q
+      .replace(/^.*?\b(?:borra|borrar|elimina|eliminar|quita|quitar|suprime|delete)\b\s*/, "")
+      .replace(/\b(la\s+selecci[oó]n|lo\s+seleccionado|esto|estos|esos?\s*(objetos)?|todo)\b/g, "")
+      .replace(/^(?:una?|el|la|los|las)\s+/, "")
+      .trim();
     return {
       ok: true,
       confidence: 0.85,
-      input: { id: "delete_selection" },
+      input: { id: "delete_selection", target: target || undefined },
     };
   }
   if (/\b(escribe|escribir|anota|rotula|texto|nota)\b/.test(q)) {
@@ -443,11 +450,18 @@ export function parseCadCommand(text: string): CadParseResult {
   }
   if (/\b(duplica|duplicar|copia|copiar|clona|clonar)\b/.test(q)) {
     const off = q.match(/\b(?:a|en)\s+(-?\d+)\s*[,x]\s*(-?\d+)/);
+    const target = q
+      .replace(/^.*?\b(?:duplica|duplicar|copia|copiar|clona|clonar)\b\s*/, "")
+      .replace(/\b(?:a|en)\s+-?\d+\s*[,x]\s*-?\d+.*$/, "")
+      .replace(/\b(la\s+selecci[oó]n|lo\s+seleccionado|esto|estos|esos?\s*(objetos)?)\b/g, "")
+      .replace(/^(?:una?|el|la|los|las)\s+/, "")
+      .trim();
     return {
       ok: true,
       confidence: 0.83,
       input: {
         id: "duplicate_selection",
+        target: target || undefined,
         dx: off ? Number(off[1]) : undefined,
         dy: off ? Number(off[2]) : undefined,
       },

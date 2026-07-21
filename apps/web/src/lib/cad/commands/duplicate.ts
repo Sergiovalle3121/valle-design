@@ -4,8 +4,8 @@
  * (el estudio copia kind/etiqueta/capa del origen). Sin desplazamiento
  * explícito, la copia cae a +500,+500 mm para que no tape al original.
  */
+import { resolveCommandTargets } from "./targets";
 import type {
-  CadBox,
   CadCommandContext,
   CadCommandInput,
   CadCommandPreview,
@@ -19,16 +19,22 @@ export function duplicateSelectionPreview(
   context: CadCommandContext,
 ): CadCommandPreview {
   const issues: CadValidationIssue[] = [];
-  const ids = input.objectIds?.length ? input.objectIds : context.selectedIds;
-  const objs = ids
-    .map((id) => context.objects.find((o) => o.id === id))
-    .filter((o): o is CadBox => !!o);
+  const { objs, usedTarget } = resolveCommandTargets(
+    context,
+    input.objectIds,
+    input.target,
+  );
   if (!objs.length) {
     issues.push(
-      error(
-        "duplicate_empty_selection",
-        "Selecciona al menos un objeto para duplicar.",
-      ),
+      usedTarget
+        ? error(
+            "duplicate_target_not_found",
+            `No encontré '${input.target?.trim()}' en el plano.`,
+          )
+        : error(
+            "duplicate_empty_selection",
+            "Selecciona al menos un objeto para duplicar.",
+          ),
     );
     return { summary: "", affectedObjectIds: [], operations: [], issues };
   }

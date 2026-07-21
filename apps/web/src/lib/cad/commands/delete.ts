@@ -4,8 +4,8 @@
  * delete por objeto; el estudio decide si puede aplicarla (capas bloqueadas)
  * y limpia la selección. Sin selección, el error dice qué hacer.
  */
+import { resolveCommandTargets } from "./targets";
 import type {
-  CadBox,
   CadCommandContext,
   CadCommandInput,
   CadCommandPreview,
@@ -19,16 +19,22 @@ export function deleteSelectionPreview(
   context: CadCommandContext,
 ): CadCommandPreview {
   const issues: CadValidationIssue[] = [];
-  const ids = input.objectIds?.length ? input.objectIds : context.selectedIds;
-  const objs = ids
-    .map((id) => context.objects.find((o) => o.id === id))
-    .filter((o): o is CadBox => !!o);
+  const { objs, usedTarget } = resolveCommandTargets(
+    context,
+    input.objectIds,
+    input.target,
+  );
   if (!objs.length) {
     issues.push(
-      error(
-        "delete_empty_selection",
-        "Selecciona al menos un objeto para borrar.",
-      ),
+      usedTarget
+        ? error(
+            "delete_target_not_found",
+            `No encontré '${input.target?.trim()}' en el plano.`,
+          )
+        : error(
+            "delete_empty_selection",
+            "Selecciona al menos un objeto para borrar.",
+          ),
     );
     return { summary: "", affectedObjectIds: [], operations: [], issues };
   }
