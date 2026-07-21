@@ -24,6 +24,40 @@ export function matchObjectsByName(
   const raw = query.trim();
   if (!raw) return [];
   if (/^tod[oa]s?$/i.test(raw)) return context.objects;
+  // Entre dos anclas (AXOS-CAD-ZONE-005): 'lo que está entre la mesa y
+  // la puerta' — el sobre que abarca ambas anclas; entran los objetos
+  // no-contenedor con centro dentro, nunca las anclas mismas.
+  const betweenM = fold(raw).match(
+    /^(?:tod[oa]s?\s+)?(?:l[oa]s? que\s+(?:esta|estan|este|esten|hay)\s+)?entre\s+(.+)$/,
+  );
+  if (betweenM) {
+    const pair = betweenM[1]!
+      .split(/\s+y\s+/)
+      .map((t) => t.replace(/^(?:las?|los|el|una?)\s+/, "").trim())
+      .filter(Boolean);
+    if (pair.length === 2) {
+      const hitsA = matchObjectsByName(context, pair[0]!);
+      const a = hitsA[0];
+      const b = a
+        ? matchObjectsByName(context, pair[1]!).find((o) => o.id !== a.id)
+        : undefined;
+      if (a && b) {
+        const minX = Math.min(a.x, b.x);
+        const minY = Math.min(a.y, b.y);
+        const maxX = Math.max(a.x + a.w, b.x + b.w);
+        const maxY = Math.max(a.y + a.h, b.y + b.h);
+        const CONTAINERS = new Set(["room", "zone", "wall"]);
+        return context.objects.filter((o) => {
+          if (o.id === a.id || o.id === b.id) return false;
+          if (CONTAINERS.has(o.kind ?? "")) return false;
+          const cx = o.x + o.w / 2;
+          const cy = o.y + o.h / 2;
+          return cx >= minX && cx <= maxX && cy >= minY && cy <= maxY;
+        });
+      }
+      return [];
+    }
+  }
   // Objetivo por proximidad (AXOS-CAD-ZONE-002): 'lo que está cerca de
   // la mesa' / 'junto a la mesa' — separación caja-a-caja ≤ 1000 mm,
   // excluyendo al ancla misma. Con varias anclas ('las mesas') se une

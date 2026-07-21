@@ -187,3 +187,39 @@ console.log("cad delete specs passed");
     "ancla inexistente reporta error de objetivo",
   );
 }
+
+// Entre dos anclas (AXOS-CAD-ZONE-005): 'lo que está entre la mesa y la
+// puerta' borra lo del sobre, nunca las anclas ni lo de afuera.
+{
+  const entreCtx = {
+    unit: "mm",
+    footprintW: 12000,
+    footprintH: 8000,
+    objects: [
+      { id: "mesa", type: "asset", kind: "dining-table-4", label: "Mesa", x: 1000, y: 1000, w: 1000, h: 1000 },
+      { id: "puerta", type: "asset", kind: "door-90", label: "Puerta", x: 8000, y: 1000, w: 900, h: 150 },
+      { id: "silla-mid", type: "asset", kind: "office-chair", label: "Silla en medio", x: 4500, y: 1200, w: 500, h: 500 },
+      { id: "sofa-out", type: "asset", kind: "sofa-3", label: "Sofá lejano", x: 4000, y: 6000, w: 2100, h: 900 },
+    ],
+    selectedIds: [],
+  } as unknown as CadCommandContext;
+  const out = deleteSelectionPreview(
+    { id: "delete_selection", target: "lo que está entre la mesa y la puerta" },
+    entreCtx,
+  );
+  assert.deepEqual(
+    out.operations
+      .filter((op) => op.type === "delete")
+      .map((op) => (op.type === "delete" ? op.objectId : "?")),
+    ["silla-mid"],
+    "borra solo lo del sobre entre las anclas",
+  );
+  const missing = deleteSelectionPreview(
+    { id: "delete_selection", target: "entre el piano y la tuba" },
+    entreCtx,
+  );
+  assert.ok(
+    missing.issues.length > 0,
+    "anclas inexistentes reportan error de objetivo",
+  );
+}
