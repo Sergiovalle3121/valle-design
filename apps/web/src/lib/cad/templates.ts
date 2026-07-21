@@ -29,7 +29,8 @@ export type CadLayoutTemplateId =
   | "lavanderia"
   | "guarderia"
   | "ferreteria"
-  | "habitacion-hotel";
+  | "habitacion-hotel"
+  | "consultorio-dental";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -981,6 +982,34 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     connectors: [
       { fromRef: "puerta-hab", toRef: "cama-hab", kind: "flow" },
       { fromRef: "cama-hab", toRef: "bano-hab", kind: "flow" },
+    ],
+  },
+  {
+    id: "consultorio-dental",
+    label: "Consultorio dental",
+    description: "Arranque universal de consultorio dental: recepción con sala de espera, área clínica con sillón dental y gabinete, y esterilización.",
+    category: "architecture",
+    baseWidth: 8000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 6600, 4600, "architecture", ["architecture", "shell", "dental"]),
+      asset("entrada", "door", "Entrada", 2000, 650, 900, 260, "architecture", ["door", "opening:main"]),
+      asset("recepcion-dental", "counter", "Recepción", 1500, 1500, 1200, 600, "equipment", ["counter", "recepcion"]),
+      asset("silla-dental-1", "office-chair", "Silla de espera 1", 1500, 2600, 600, 600, "equipment", ["silla", "espera"]),
+      asset("silla-dental-2", "office-chair", "Silla de espera 2", 2200, 2600, 600, 600, "equipment", ["silla", "espera"]),
+      asset("clinica-dental", "room", "Área clínica", 4100, 1300, 3000, 2600, "architecture", ["room", "use:exam", "dental"]),
+      asset("sillon-dental", "dental-chair", "Sillón dental", 4700, 1600, 900, 1800, "equipment", ["sillon", "dental"]),
+      asset("gabinete-dental", "tool-cabinet", "Gabinete de instrumental", 6300, 1500, 700, 450, "equipment", ["gabinete", "dental"]),
+      asset("esterilizacion", "room", "Esterilización", 4100, 4100, 3000, 1000, "architecture", ["room", "use:clean", "dental"]),
+      asset("mesa-esterilizacion", "workbench", "Mesa de esterilización", 4300, 4250, 1800, 750, "equipment", ["mesa", "esterilizacion"]),
+    ],
+    annotations: [
+      note("titulo", "Consultorio dental — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion-dental", kind: "flow" },
+      { fromRef: "recepcion-dental", toRef: "clinica-dental", kind: "flow" },
+      { fromRef: "clinica-dental", toRef: "esterilizacion", kind: "flow" },
     ],
   },
 ];

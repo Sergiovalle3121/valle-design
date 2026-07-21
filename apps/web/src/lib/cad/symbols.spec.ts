@@ -195,3 +195,15 @@ assert.ok(
   ),
   "search finds mesa de noche (hotel)",
 );
+
+// Décima tanda universal (AXOS-CAD-UNIVERSAL-021): consultorio dental.
+assert.ok(
+  searchCadSymbols("sillón dental").some(
+    (symbol) => symbol.id === "dental-chair",
+  ),
+  "search finds sillón dental",
+);
+assert.ok(
+  searchCadSymbols("dentista").some((symbol) => symbol.id === "dental-chair"),
+  "search finds dentista → sillón dental",
+);

@@ -870,6 +870,17 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["buró", "buro", "nightstand", "mesa de noche", "recámara", "recamara", "hotel"],
     ports: [],
   },
+  // — Décima tanda universal (AXOS-CAD-UNIVERSAL-021): consultorio dental —
+  {
+    id: "dental-chair",
+    label: "Sillón dental",
+    category: "equipment",
+    defaultWidth: 900,
+    defaultHeight: 1800,
+    layer: "Equipment",
+    tags: ["sillón dental", "sillon dental", "dental", "dentista", "consultorio"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {
