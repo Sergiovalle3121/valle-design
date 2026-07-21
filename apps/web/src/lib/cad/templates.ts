@@ -54,7 +54,8 @@ export type CadLayoutTemplateId =
   | "neveria"
   | "jugueria"
   | "pescaderia"
-  | "boutique";
+  | "boutique"
+  | "hostal";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1752,6 +1753,36 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "mostrador-bou", kind: "flow" },
       { fromRef: "bodega-bou", toRef: "rack-bou-1", kind: "material" },
       { fromRef: "rack-bou-1", toRef: "mostrador-bou", kind: "material" },
+    ],
+  },
+  {
+    id: "hostal",
+    label: "Hostal / Casa de huéspedes",
+    description: "Arranque universal de hostal: recepción, casilleros, dormitorio compartido con literas, cocina común, baño compartido y sala común.",
+    category: "architecture",
+    baseWidth: 10000,
+    baseHeight: 7000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 8600, 5600, "architecture", ["architecture", "shell", "hostal"]),
+      asset("entrada", "door", "Entrada", 4500, 650, 900, 260, "architecture", ["door", "opening:entry"]),
+      asset("recepcion-hos", "counter", "Recepción", 1200, 1400, 1800, 600, "equipment", ["counter", "recepcion", "hostal"]),
+      asset("casilleros-hos", "shelf", "Casilleros", 3300, 1400, 1600, 450, "equipment", ["casilleros", "lockers", "hostal"]),
+      asset("dormitorio-hos", "room", "Dormitorio compartido", 5600, 900, 3500, 2600, "architecture", ["room", "use:bedroom", "hostal"]),
+      asset("litera-hos-1", "bunk-bed", "Litera 1", 5800, 1100, 2000, 1000, "equipment", ["litera", "hostal"]),
+      asset("litera-hos-2", "bunk-bed", "Litera 2", 5800, 2300, 2000, 1000, "equipment", ["litera", "hostal"]),
+      asset("cocina-hos", "room", "Cocina común", 1200, 2800, 2600, 1800, "architecture", ["room", "use:kitchen", "hostal"]),
+      asset("fregadero-hos", "kitchen-sink", "Fregadero", 1400, 3000, 800, 550, "equipment", ["fregadero", "hostal"]),
+      asset("refri-hos", "refrigerator", "Refrigerador", 2400, 3000, 750, 700, "equipment", ["refrigerador", "hostal"]),
+      asset("bano-hos", "room", "Baño compartido", 4200, 4200, 1800, 1800, "architecture", ["room", "use:bathroom", "hostal"]),
+      asset("wc-hos", "wc", "WC", 4400, 4400, 400, 650, "equipment", ["wc", "hostal"]),
+      asset("sala-hos", "zone", "Sala común", 6600, 4200, 2400, 1800, "layout", ["zone", "use:lounge", "hostal"]),
+    ],
+    annotations: [
+      note("titulo", "Hostal — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion-hos", kind: "flow" },
+      { fromRef: "recepcion-hos", toRef: "dormitorio-hos", kind: "flow" },
     ],
   },
 ];
