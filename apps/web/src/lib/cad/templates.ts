@@ -33,7 +33,8 @@ export type CadLayoutTemplateId =
   | "consultorio-dental"
   | "estacionamiento"
   | "cancha-futbol"
-  | "salon-fiestas";
+  | "salon-fiestas"
+  | "iglesia";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1100,6 +1101,42 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "mesa-fiesta-1", kind: "flow" },
       { fromRef: "mesa-fiesta-1", toRef: "pista-fiesta", kind: "flow" },
       { fromRef: "dulceria", toRef: "mesa-fiesta-1", kind: "material" },
+    ],
+  },
+  {
+    id: "iglesia",
+    label: "Iglesia / Salón de culto",
+    description: "Arranque universal de iglesia o salón de culto: vestíbulo, nave con dos columnas de bancas y pasillo central, presbiterio con púlpito y mesa de altar, sala de niños y baño.",
+    category: "architecture",
+    baseWidth: 16000,
+    baseHeight: 12000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 14600, 10600, "architecture", ["architecture", "shell", "iglesia"]),
+      asset("entrada", "door", "Entrada principal", 7300, 650, 1400, 260, "architecture", ["door", "opening:entry"]),
+      asset("vestibulo", "zone", "Vestíbulo", 5800, 1300, 4400, 1500, "layout", ["zone", "use:lobby", "iglesia"]),
+      asset("sala-ninos", "zone", "Sala de niños", 1300, 1300, 2600, 2600, "layout", ["zone", "use:kids", "iglesia"]),
+      asset("nave", "zone", "Nave", 4300, 3200, 7400, 5200, "layout", ["zone", "use:nave", "iglesia"]),
+      asset("banca-izq-1", "pew", "Banca izquierda 1", 4600, 3500, 2600, 550, "equipment", ["banca", "iglesia"]),
+      asset("banca-izq-2", "pew", "Banca izquierda 2", 4600, 4600, 2600, 550, "equipment", ["banca", "iglesia"]),
+      asset("banca-izq-3", "pew", "Banca izquierda 3", 4600, 5700, 2600, 550, "equipment", ["banca", "iglesia"]),
+      asset("banca-izq-4", "pew", "Banca izquierda 4", 4600, 6800, 2600, 550, "equipment", ["banca", "iglesia"]),
+      asset("banca-der-1", "pew", "Banca derecha 1", 8600, 3500, 2600, 550, "equipment", ["banca", "iglesia"]),
+      asset("banca-der-2", "pew", "Banca derecha 2", 8600, 4600, 2600, 550, "equipment", ["banca", "iglesia"]),
+      asset("banca-der-3", "pew", "Banca derecha 3", 8600, 5700, 2600, 550, "equipment", ["banca", "iglesia"]),
+      asset("banca-der-4", "pew", "Banca derecha 4", 8600, 6800, 2600, 550, "equipment", ["banca", "iglesia"]),
+      asset("presbiterio", "zone", "Presbiterio", 4300, 8800, 7400, 2000, "layout", ["zone", "use:chancel", "iglesia"]),
+      asset("pulpito", "pulpit", "Púlpito", 6600, 9200, 800, 600, "equipment", ["pulpito", "iglesia"]),
+      asset("mesa-altar", "workbench", "Mesa de altar", 8200, 9200, 1800, 750, "equipment", ["altar", "iglesia"]),
+      asset("bano-iglesia", "room", "Baño", 12500, 1300, 1800, 1800, "architecture", ["room", "use:bathroom", "iglesia"]),
+      asset("wc-iglesia", "wc", "WC", 12700, 1500, 400, 650, "equipment", ["wc", "bathroom"]),
+    ],
+    annotations: [
+      note("titulo", "Iglesia / Salón de culto — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "vestibulo", kind: "flow" },
+      { fromRef: "vestibulo", toRef: "nave", kind: "flow" },
+      { fromRef: "nave", toRef: "presbiterio", kind: "flow" },
     ],
   },
 ];

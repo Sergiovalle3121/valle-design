@@ -223,3 +223,17 @@ assert.ok(
   searchCadSymbols("inflable").some((symbol) => symbol.id === "bounce-house"),
   "search finds inflable (fiestas)",
 );
+
+// Decimotercera tanda universal (AXOS-CAD-UNIVERSAL-025): iglesia.
+assert.ok(
+  searchCadSymbols("banca de iglesia").some((symbol) => symbol.id === "pew"),
+  "search finds banca de iglesia",
+);
+assert.ok(
+  searchCadSymbols("púlpito").some((symbol) => symbol.id === "pulpit"),
+  "search finds púlpito (iglesia)",
+);
+assert.ok(
+  searchCadSymbols("templo").some((symbol) => symbol.id === "pew"),
+  "search finds templo → banca de iglesia",
+);

@@ -903,6 +903,27 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["brincolín", "brincolin", "inflable", "bounce", "fiesta", "salón de fiestas", "salon de fiestas"],
     ports: [],
   },
+  // — Decimotercera tanda universal (AXOS-CAD-UNIVERSAL-025): iglesia —
+  {
+    id: "pew",
+    label: "Banca de iglesia",
+    category: "furniture",
+    defaultWidth: 2600,
+    defaultHeight: 550,
+    layer: "Furniture",
+    tags: ["banca de iglesia", "pew", "iglesia", "templo", "capilla", "culto"],
+    ports: [],
+  },
+  {
+    id: "pulpit",
+    label: "Púlpito",
+    category: "furniture",
+    defaultWidth: 800,
+    defaultHeight: 600,
+    layer: "Furniture",
+    tags: ["púlpito", "pulpito", "pulpit", "iglesia", "templo", "altar"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {
