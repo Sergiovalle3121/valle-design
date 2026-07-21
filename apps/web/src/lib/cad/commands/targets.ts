@@ -73,6 +73,30 @@ export function matchObjectsByName(
     }
     return [...inside.values()];
   }
+  // Más cercano (AXOS-CAD-NAME-009): 'la silla más cercana a la puerta'
+  // — resuelve base y ancla y escoge la coincidencia con centro más
+  // próximo; si base o ancla no existen, cae al matching normal.
+  const nearestM = fold(raw).match(
+    /^(.+?)\s+mas\s+cercan[oa]s?\s+(?:a\s+la\s+|al\s+|a\s+el\s+|a\s+)(.+)$/,
+  );
+  if (nearestM) {
+    const baseHits = matchObjectsByName(context, nearestM[1]!.trim());
+    const anchors = matchObjectsByName(
+      context,
+      nearestM[2]!.replace(/^(?:las?|los|el|una?)\s+/, "").trim(),
+    ).filter((a) => !baseHits.some((b) => b.id === a.id));
+    if (baseHits.length && anchors.length) {
+      const a = anchors[0]!;
+      const acx = a.x + a.w / 2;
+      const acy = a.y + a.h / 2;
+      const sorted = [...baseHits].sort((p, q) => {
+        const dp = (p.x + p.w / 2 - acx) ** 2 + (p.y + p.h / 2 - acy) ** 2;
+        const dq = (q.x + q.w / 2 - acx) ** 2 + (q.y + q.h / 2 - acy) ** 2;
+        return dp - dq;
+      });
+      return [sorted[0]!];
+    }
+  }
   // Superlativos (AXOS-CAD-NAME-007): 'la mesa más grande' / 'el mueble
   // más pequeño' — resuelve el nombre base y se queda con la coincidencia
   // de mayor/menor área. Si el base no existe, cae al matching normal

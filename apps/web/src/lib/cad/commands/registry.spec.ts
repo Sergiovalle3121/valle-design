@@ -2230,4 +2230,64 @@ if (rectDraftCreate?.type === "create") {
   );
 }
 
+// Más cercano (AXOS-CAD-NAME-009): 'la silla más cercana a la puerta'
+// escoge por distancia al ancla; el plural simple sigue intacto.
+{
+  const cercanoCtx: CadCommandContext = {
+    unit: "mm",
+    footprintW: 12000,
+    footprintH: 8000,
+    selectedIds: [],
+    connectors: [],
+    objects: [
+      {
+        id: "puerta",
+        type: "asset",
+        kind: "door-90",
+        label: "Puerta",
+        x: 0,
+        y: 0,
+        w: 900,
+        h: 150,
+      },
+      {
+        id: "s-cerca",
+        type: "asset",
+        kind: "office-chair",
+        label: "Silla 1",
+        x: 1200,
+        y: 200,
+        w: 500,
+        h: 500,
+      },
+      {
+        id: "s-lejos",
+        type: "asset",
+        kind: "office-chair",
+        label: "Silla 2",
+        x: 8000,
+        y: 6000,
+        w: 500,
+        h: 500,
+      },
+    ],
+  };
+  const cerca = previewCadCommand(
+    { id: "delete_selection", target: "silla más cercana a la puerta" },
+    cercanoCtx,
+  );
+  assert.deepEqual(
+    cerca.operations
+      .filter((op) => op.type === "delete")
+      .map((op) => (op.type === "delete" ? op.objectId : "?")),
+    ["s-cerca"],
+    "borra la silla más próxima a la puerta",
+  );
+  const plural = previewCadCommand(
+    { id: "count_objects", query: "sillas" },
+    cercanoCtx,
+  );
+  assert.equal(plural.affectedObjectIds.length, 2, "el plural sigue igual");
+}
+
 console.log("cad command registry specs passed");
