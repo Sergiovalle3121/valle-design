@@ -892,6 +892,17 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["portería", "porteria", "goal", "fútbol", "futbol", "cancha", "deporte"],
     ports: [],
   },
+  // — Duodécima tanda universal (AXOS-CAD-UNIVERSAL-024): fiestas —
+  {
+    id: "bounce-house",
+    label: "Brincolín",
+    category: "equipment",
+    defaultWidth: 3000,
+    defaultHeight: 3000,
+    layer: "Equipment",
+    tags: ["brincolín", "brincolin", "inflable", "bounce", "fiesta", "salón de fiestas", "salon de fiestas"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {

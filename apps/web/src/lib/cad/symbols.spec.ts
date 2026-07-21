@@ -213,3 +213,13 @@ assert.ok(
   searchCadSymbols("portería").some((symbol) => symbol.id === "goal"),
   "search finds portería (cancha)",
 );
+
+// Duodécima tanda universal (AXOS-CAD-UNIVERSAL-024): fiestas.
+assert.ok(
+  searchCadSymbols("brincolín").some((symbol) => symbol.id === "bounce-house"),
+  "search finds brincolín (fiestas)",
+);
+assert.ok(
+  searchCadSymbols("inflable").some((symbol) => symbol.id === "bounce-house"),
+  "search finds inflable (fiestas)",
+);

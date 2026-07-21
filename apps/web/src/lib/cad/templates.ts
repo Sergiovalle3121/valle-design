@@ -32,7 +32,8 @@ export type CadLayoutTemplateId =
   | "habitacion-hotel"
   | "consultorio-dental"
   | "estacionamiento"
-  | "cancha-futbol";
+  | "cancha-futbol"
+  | "salon-fiestas";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1068,6 +1069,37 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     connectors: [
       { fromRef: "acceso", toRef: "cancha", kind: "flow" },
       { fromRef: "cancha", toRef: "gradas", kind: "flow" },
+    ],
+  },
+  {
+    id: "salon-fiestas",
+    label: "Salón de fiestas infantiles",
+    description: "Arranque universal de salón de fiestas: área de juegos con brincolín, mesas de invitados, dulcería, mesa de pastel, pista y baño.",
+    category: "architecture",
+    baseWidth: 15000,
+    baseHeight: 10000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 13600, 8600, "architecture", ["architecture", "shell", "fiestas"]),
+      asset("entrada", "door", "Entrada", 7000, 650, 1000, 260, "architecture", ["door", "opening:entry"]),
+      asset("area-juegos", "zone", "Área de juegos", 1300, 1300, 3600, 3600, "layout", ["zone", "use:play", "fiestas"]),
+      asset("brincolin", "bounce-house", "Brincolín", 1500, 1500, 3000, 3000, "equipment", ["brincolin", "fiestas"]),
+      asset("mesa-fiesta-1", "restaurant-table-4", "Mesa 1", 6000, 2000, 900, 900, "equipment", ["table", "fiestas"]),
+      asset("mesa-fiesta-2", "restaurant-table-4", "Mesa 2", 8000, 2000, 900, 900, "equipment", ["table", "fiestas"]),
+      asset("mesa-fiesta-3", "restaurant-table-4", "Mesa 3", 6000, 4000, 900, 900, "equipment", ["table", "fiestas"]),
+      asset("mesa-fiesta-4", "restaurant-table-4", "Mesa 4", 8000, 4000, 900, 900, "equipment", ["table", "fiestas"]),
+      asset("dulceria", "counter", "Dulcería", 10500, 1500, 1800, 600, "equipment", ["counter", "dulceria"]),
+      asset("mesa-pastel", "workbench", "Mesa de pastel", 10500, 3000, 1800, 750, "equipment", ["mesa", "pastel"]),
+      asset("pista-fiesta", "zone", "Pista de baile", 5500, 6000, 4000, 3000, "layout", ["zone", "use:dancefloor", "fiestas"]),
+      asset("bano-fiestas", "room", "Baño", 11500, 6500, 1800, 1800, "architecture", ["room", "use:bathroom", "fiestas"]),
+      asset("wc-fiestas", "wc", "WC", 11700, 6700, 400, 650, "equipment", ["wc", "bathroom"]),
+    ],
+    annotations: [
+      note("titulo", "Salón de fiestas infantiles — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "mesa-fiesta-1", kind: "flow" },
+      { fromRef: "mesa-fiesta-1", toRef: "pista-fiesta", kind: "flow" },
+      { fromRef: "dulceria", toRef: "mesa-fiesta-1", kind: "material" },
     ],
   },
 ];
