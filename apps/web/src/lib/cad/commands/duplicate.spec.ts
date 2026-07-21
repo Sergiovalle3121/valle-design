@@ -87,3 +87,50 @@ const ctx = {
 }
 
 console.log("cad duplicate specs passed");
+
+// Copia a una zona (AXOS-CAD-DUP-002): 'duplica la mesa en la bodega' —
+// la copia aterriza centrada dentro del contenedor.
+{
+  const casaCtx = {
+    unit: "mm",
+    footprintW: 12000,
+    footprintH: 8000,
+    objects: [
+      { id: "mesa", type: "asset", kind: "dining-table-4", label: "Mesa", x: 1000, y: 1000, w: 1000, h: 1000 },
+      { id: "bod", type: "asset", kind: "room", label: "Bodega", x: 6000, y: 4000, w: 4000, h: 3000 },
+    ],
+    selectedIds: [],
+  } as unknown as CadCommandContext;
+  const parsed = parseCadCommand("duplica la mesa en la bodega");
+  assert.equal(parsed.input?.id, "duplicate_selection", "duplica en zona parsea");
+  if (parsed.input?.id === "duplicate_selection") {
+    assert.equal(parsed.input.target, "mesa", "target del parser");
+    assert.equal(parsed.input.into, "bodega", "into del parser");
+    assert.equal(parsed.input.dx, undefined, "sin offset explícito");
+  }
+  const out = duplicateSelectionPreview(
+    { id: "duplicate_selection", target: "mesa", into: "bodega" },
+    casaCtx,
+  );
+  assert.equal(out.issues.length, 0, "copia a zona sin issues");
+  const op = out.operations[0];
+  if (op.type === "create") {
+    assert.equal(op.object.x, 7500, "copia centrada en x de la bodega");
+    assert.equal(op.object.y, 5000, "copia centrada en y de la bodega");
+    assert.equal(op.object.sourceId, "mesa", "hereda del original");
+  }
+  assert.ok(out.summary.includes("dentro de"), "resumen de zona");
+  const coords = parseCadCommand("copia la mesa a 800,0");
+  if (coords.input?.id === "duplicate_selection") {
+    assert.equal(coords.input.into, undefined, "offset explícito no es zona");
+    assert.equal(coords.input.dx, 800, "dx explícito intacto");
+  }
+  const missing = duplicateSelectionPreview(
+    { id: "duplicate_selection", target: "mesa", into: "terraza" },
+    casaCtx,
+  );
+  assert.ok(
+    missing.issues.some((i) => i.code === "duplicate_into_not_found"),
+    "zona inexistente → error específico",
+  );
+}

@@ -705,9 +705,28 @@ export function parseCadCommand(text: string): CadParseResult {
   }
   if (/\b(duplica|duplicar|copia|copiar|clona|clonar)\b/.test(q)) {
     const off = q.match(/\b(?:a|en)\s+(-?\d+)\s*[,x]\s*(-?\d+)/);
+    // 'duplica la mesa en la bodega' (AXOS-CAD-DUP-002): la copia
+    // aterriza centrada en la zona — solo sin offset explícito.
+    let into: string | undefined;
+    if (!off) {
+      const intoM =
+        q.match(
+          /\b(?:dentro\s+de|adentro\s+de|en|a|hacia)\s+(?:la|el|los|las|una?)\s+(.+)$/,
+        ) ?? q.match(/\bal\s+(.+)$/);
+      const intoName = intoM?.[1]?.replace(/\s+/g, " ").trim();
+      if (
+        intoName &&
+        !/^(?:derecha|izquierda|arriba|abajo|centro|frente|fondo)$/.test(
+          intoName,
+        )
+      ) {
+        into = intoName;
+      }
+    }
     const target = q
       .replace(/^.*?\b(?:duplica|duplicar|copia|copiar|clona|clonar)\b\s*/, "")
       .replace(/\b(?:a|en)\s+-?\d+\s*[,x]\s*-?\d+.*$/, "")
+      .replace(into ? /\b(?:dentro\s+de|adentro\s+de|en|a|hacia)\s+(?:la|el|los|las|una?)\s+.+$|\bal\s+.+$/ : /$^/, "")
       .replace(/\b(la\s+selecci[oó]n|lo\s+seleccionado|esto|estos|esos?\s*(objetos)?)\b/g, "")
       .replace(/^(?:una?|el|la|los|las)\s+/, "")
       .trim();
@@ -719,6 +738,7 @@ export function parseCadCommand(text: string): CadParseResult {
         target: target || undefined,
         dx: off ? Number(off[1]) : undefined,
         dy: off ? Number(off[2]) : undefined,
+        into,
       },
     };
   }

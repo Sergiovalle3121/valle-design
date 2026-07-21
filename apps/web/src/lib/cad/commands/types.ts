@@ -320,6 +320,9 @@ export type CadCommandInput =
       /** Desplazamiento de la copia en mm; default +500,+500. */
       dx?: number;
       dy?: number;
+      /** 'duplica la mesa en la bodega': la copia aterriza centrada
+       * dentro del contenedor nombrado (sin offset explícito). */
+      into?: string;
     }
   | {
       id: "move_selection";

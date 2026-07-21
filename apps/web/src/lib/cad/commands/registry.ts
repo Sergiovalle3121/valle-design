@@ -1866,8 +1866,13 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         type: "string[]",
         description: "Alternativa: objetos seleccionados.",
       },
+      into: {
+        type: "string",
+        description:
+          "Copia centrada dentro de este cuarto/zona ('duplica la mesa en la bodega').",
+      },
     },
-    examples: ["duplica la selección", "copia esto a 800,0"],
+    examples: ["duplica la selección", "copia esto a 800,0", "duplica la mesa en la bodega"],
     validate: (i, c) =>
       duplicateSelectionPreview(
         i as Extract<CadCommandInput, { id: "duplicate_selection" }>,
