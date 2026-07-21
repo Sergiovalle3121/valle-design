@@ -1795,6 +1795,39 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     },
   },
   {
+    id: "studio_view",
+    label: "Vista 2D / 3D",
+    category: "viewport",
+    description:
+      "'vista 2d' cambia a planta cenital tipo CAD; 'vista 3d' regresa a la cámara orbital.",
+    inputSchema: {
+      mode: {
+        type: "enum",
+        enum: ["2d", "3d"],
+        required: true,
+        description: "2d = planta cenital; 3d = orbital.",
+      },
+    },
+    examples: ["vista 2d", "vista 3d"],
+    validate: () => [],
+    preview: (i) => {
+      const input = i as Extract<CadCommandInput, { id: "studio_view" }>;
+      return {
+        summary:
+          input.mode === "2d"
+            ? "Cambiar a vista 2D (planta cenital)."
+            : "Cambiar a vista 3D (cámara orbital).",
+        affectedObjectIds: [],
+        operations: [{ type: "studio_view", mode: input.mode }],
+        issues: [],
+      };
+    },
+    execute: (i, c) => {
+      const p = CAD_COMMAND_REGISTRY.find((d) => d.id === "studio_view")!.preview(i, c);
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
     id: "studio_export",
     label: "Imprimir / Exportar",
     category: "viewport",

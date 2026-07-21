@@ -4163,6 +4163,10 @@ export default function Layout3DEditor({
       // 'deshaz' / 'rehaz' (AXOS-CAD-UNDO-001): el mismo historial de Ctrl+Z.
       if (op.action === 'undo') undo(); else redo();
       return true;
+    } else if (op.type === 'studio_view') {
+      // 'vista 2d' / 'vista 3d' (AXOS-CAD-VIEW-001): el mismo toggle del toolbar.
+      setViewMode(op.mode); applyViewMode(op.mode);
+      return true;
     } else if (op.type === 'studio_export') {
       // 'imprime en a3' (AXOS-CAD-PLOT-003): dispara el export real; el papel
       // pedido se sincroniza al selector y se pasa directo (el estado es async).

@@ -59,7 +59,24 @@ assert.equal(
   CAD_COMMAND_REGISTRY.length,
   "registry ids are unique",
 );
-assert.equal(CAD_COMMAND_REGISTRY.length, 39, "registry exposes 39 commands");
+assert.equal(CAD_COMMAND_REGISTRY.length, 40, "registry exposes 40 commands");
+
+// Vista conversacional (AXOS-CAD-VIEW-001).
+{
+  const planta = parseCadCommand("vista 2d");
+  assert.equal(planta.input?.id, "studio_view", "vista 2d parsea");
+  if (planta.input?.id === "studio_view") {
+    assert.equal(planta.input.mode, "2d", "modo 2d");
+  }
+  const orbital = parseCadCommand("vista 3d");
+  if (orbital.input?.id === "studio_view") {
+    assert.equal(orbital.input.mode, "3d", "modo 3d");
+  }
+  const cenital = parseCadCommand("ponme la planta");
+  if (cenital.input?.id === "studio_view") {
+    assert.equal(cenital.input.mode, "2d", "'planta' es 2d");
+  }
+}
 
 // Imprimir/Exportar (AXOS-CAD-PLOT-003): formato y papel desde la frase.
 {

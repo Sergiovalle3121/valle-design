@@ -524,6 +524,10 @@ export function parseCadCommand(text: string): CadParseResult {
   if (/\b(ayuda|help|comandos)\b/.test(q) || /qu[eé] puedes hacer/.test(q)) {
     return { ok: true, confidence: 0.9, input: { id: "help_commands" } };
   }
+  if (/\b(vista|modo)\s*(2\s*d|3\s*d)\b/.test(q) || /\b(planta|cenital)\b/.test(q)) {
+    const mode = /2\s*d|planta|cenital/.test(q) ? ("2d" as const) : ("3d" as const);
+    return { ok: true, confidence: 0.88, input: { id: "studio_view", mode } };
+  }
   if (/\b(imprime|imprimir|plotea|plot|exporta|exportar|descarga|descargar)\b/.test(q)) {
     const format = /\bdxf\b/.test(q)
       ? ("dxf" as const)

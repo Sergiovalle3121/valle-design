@@ -32,6 +32,7 @@ export type CadCommandId =
   | "clear_annotations"
   | "history_step"
   | "studio_export"
+  | "studio_view"
   | "add_label"
   | "extend_wall"
   | "trim_wall"
@@ -114,6 +115,7 @@ export type CadOperation =
       /** Papel para el PDF (A0-A4, letter, tabloid); default el del selector. */
       paper?: string;
     }
+  | { type: "studio_view"; mode: "2d" | "3d" }
   | {
       type: "annotate";
       annotation:
@@ -322,6 +324,11 @@ export type CadCommandInput =
       /** 'imprime en a3', 'exporta el dxf', 'exporta png', 'exporta 3d'. */
       format?: "pdf" | "dxf" | "png" | "glb";
       paper?: string;
+    }
+  | {
+      id: "studio_view";
+      /** 'vista 2d' = planta cenital tipo CAD; 'vista 3d' = orbital. */
+      mode: "2d" | "3d";
     }
   | {
       id: "add_label";
