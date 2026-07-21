@@ -13,7 +13,8 @@ export type CadLayoutTemplateId =
   // CAD universal (AXOS-CAD-UNIVERSAL-002): arranques para cualquiera.
   | "casa-habitacion"
   | "local-comercial"
-  | "consultorio";
+  | "consultorio"
+  | "restaurante";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -475,6 +476,38 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     connectors: [
       { fromRef: "entrada", toRef: "espera", kind: "flow" },
       { fromRef: "espera", toRef: "consulta", kind: "flow" },
+    ],
+  },
+  {
+    id: "restaurante",
+    label: "Restaurante",
+    description: "Arranque universal de restaurante: comedor con mesas, barra, cocina y baños.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["architecture", "shell", "restaurante"]),
+      asset("comedor", "room", "Comedor", 1300, 1300, 6000, 5400, "architecture", ["room", "use:dining", "restaurante"]),
+      asset("cocina", "room", "Cocina", 7700, 1300, 2900, 3000, "architecture", ["room", "use:kitchen", "restaurante"]),
+      asset("banos", "room", "Baños", 7700, 4700, 2900, 1600, "architecture", ["room", "use:restroom", "restaurante"]),
+      asset("entrada", "door", "Entrada", 2600, 650, 1200, 260, "architecture", ["door", "opening:main"]),
+      asset("barra", "furniture", "Barra con caja", 1500, 1500, 2500, 650, "equipment", ["furniture", "bar", "pos"]),
+      asset("mesa-1", "furniture", "Mesa 4 personas", 1800, 3000, 900, 900, "equipment", ["furniture", "table", "dining"]),
+      asset("mesa-2", "furniture", "Mesa 4 personas", 3400, 3000, 900, 900, "equipment", ["furniture", "table", "dining"]),
+      asset("mesa-3", "furniture", "Mesa 4 personas", 5000, 3000, 900, 900, "equipment", ["furniture", "table", "dining"]),
+      asset("mesa-4", "furniture", "Mesa 4 personas", 1800, 4900, 900, 900, "equipment", ["furniture", "table", "dining"]),
+      asset("mesa-5", "furniture", "Mesa 4 personas", 3400, 4900, 900, 900, "equipment", ["furniture", "table", "dining"]),
+      asset("mesa-6", "furniture", "Mesa 4 personas", 5000, 4900, 900, 900, "equipment", ["furniture", "table", "dining"]),
+      asset("estufa", "furniture", "Estufa 6 quemadores", 8000, 1600, 900, 700, "equipment", ["kitchen", "stove"]),
+      asset("refri", "furniture", "Refrigerador", 9600, 1600, 800, 750, "equipment", ["kitchen", "refrigerator"]),
+      asset("tarja", "furniture", "Tarja doble", 8000, 3300, 1000, 550, "equipment", ["kitchen", "sink"]),
+    ],
+    annotations: [
+      note("titulo", "Restaurante — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "comedor", kind: "flow" },
+      { fromRef: "cocina", toRef: "comedor", kind: "material" },
     ],
   },
 ];

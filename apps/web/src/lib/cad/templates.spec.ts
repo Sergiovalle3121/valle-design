@@ -74,7 +74,7 @@ assert.ok(
 console.log("cad templates specs passed");
 
 // CAD universal (AXOS-CAD-UNIVERSAL-002): arranques para cualquiera.
-for (const id of ["casa-habitacion", "local-comercial", "consultorio"]) {
+for (const id of ["casa-habitacion", "local-comercial", "consultorio", "restaurante"]) {
   const t = CAD_LAYOUT_TEMPLATES.find((template) => template.id === id);
   assert.ok(t, `${id} disponible`);
   assert.equal(t?.category, "architecture", `${id} es de arquitectura`);
