@@ -1463,4 +1463,53 @@ if (rectDraftCreate?.type === "create") {
   }
 }
 
+// Área total en INFO múltiple (AXOS-CAD-QUERY-005).
+{
+  const dosMesasCtx: CadCommandContext = {
+    unit: "mm",
+    footprintW: 10000,
+    footprintH: 6000,
+    selectedIds: [],
+    objects: [
+      {
+        id: "m1",
+        type: "asset",
+        kind: "dining-table-4",
+        label: "Mesa 1",
+        x: 1000,
+        y: 1000,
+        w: 1000,
+        h: 1000,
+      },
+      {
+        id: "m2",
+        type: "asset",
+        kind: "dining-table-4",
+        label: "Mesa 2",
+        x: 4000,
+        y: 1000,
+        w: 1000,
+        h: 2000,
+      },
+    ],
+  };
+  const p = previewCadCommand(
+    { id: "object_info", query: "mesas" },
+    dosMesasCtx,
+  );
+  assert.ok(!p.issues.some((i) => i.level === "error"), "info múltiple ok");
+  assert.ok(
+    p.summary.includes("3.00 m²"),
+    "el resumen suma el área total (1 + 2 m²)",
+  );
+  const rep = p.operations.find((op) => op.type === "report");
+  if (rep?.type === "report")
+    assert.ok(
+      rep.rows.some(
+        (r) => r.label === "Área total" && r.value === "3.00 m²",
+      ),
+      "el reporte incluye la fila de área total",
+    );
+}
+
 console.log("cad command registry specs passed");

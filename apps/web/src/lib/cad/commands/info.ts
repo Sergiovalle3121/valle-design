@@ -85,13 +85,21 @@ export function objectInfoPreview(
   if (matched.length > MAX_ROWS) {
     rows.push({ label: "…", value: `${matched.length - MAX_ROWS} más` });
   }
+  // Área total (AXOS-CAD-QUERY-005): con varias coincidencias, la suma en m².
+  const totalM2 = matched.reduce(
+    (sum, o) => sum + (o.w / 1000) * (o.h / 1000),
+    0,
+  );
+  if (matched.length > 1) {
+    rows.push({ label: "Área total", value: `${totalM2.toFixed(2)} m²` });
+  }
   const first = matched[0];
 
   return {
     summary:
       matched.length === 1
         ? `${first.label}: ${first.w}×${first.h} mm en (${Math.round(first.x)}, ${Math.round(first.y)}).`
-        : `${matched.length} coincidencias con '${raw}'.`,
+        : `${matched.length} coincidencias con '${raw}' — ${totalM2.toFixed(2)} m² en total.`,
     affectedObjectIds: matched.map((o) => o.id),
     operations: [
       { type: "report", title: `Info: '${raw}'`, rows },
