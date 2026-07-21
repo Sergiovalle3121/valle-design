@@ -37,6 +37,7 @@ import {
   extendWallPreview,
   trimWallPreview,
 } from "./wall-edit";
+import { countObjectsPreview } from "./count";
 import { deleteSelectionPreview } from "./delete";
 import { duplicateSelectionPreview } from "./duplicate";
 import { addLabelPreview } from "./label";
@@ -1737,6 +1738,37 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     execute: (i, c) => {
       const p = duplicateSelectionPreview(
         i as Extract<CadCommandInput, { id: "duplicate_selection" }>,
+        c,
+      );
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
+    id: "count_objects",
+    label: "Contar objetos",
+    category: "analysis",
+    description:
+      "Cuenta objetos del plano por nombre o tipo ('cuenta las mesas'); cero es respuesta válida y el reporte desglosa por etiqueta.",
+    inputSchema: {
+      query: {
+        type: "string",
+        description: "Qué contar ('mesas'); vacío cuenta todo el plano.",
+      },
+    },
+    examples: ["cuenta las mesas", "¿cuántas sillas hay?"],
+    validate: (i, c) =>
+      countObjectsPreview(
+        i as Extract<CadCommandInput, { id: "count_objects" }>,
+        c,
+      ).issues,
+    preview: (i, c) =>
+      countObjectsPreview(
+        i as Extract<CadCommandInput, { id: "count_objects" }>,
+        c,
+      ),
+    execute: (i, c) => {
+      const p = countObjectsPreview(
+        i as Extract<CadCommandInput, { id: "count_objects" }>,
         c,
       );
       return result(p, ok(p.issues), p.summary);

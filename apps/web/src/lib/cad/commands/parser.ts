@@ -493,6 +493,21 @@ export function parseCadCommand(text: string): CadParseResult {
       },
     };
   }
+  if (/\b(cuenta|cuentame|cuéntame|cuantas|cuántas|cuantos|cuántos)\b/.test(q)) {
+    const query = q
+      .replace(/^.*?\b(?:cuenta|cuentame|cuéntame|cuantas|cuántas|cuantos|cuántos)\b\s*/, "")
+      .replace(/\b(hay|tengo|tenemos|existen|en\s+el\s+plano|en\s+el\s+layout)\b/g, "")
+      .replace(/[¿?¡!.]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/^(?:una?|el|la|los|las)\s+/, "")
+      .trim();
+    return {
+      ok: true,
+      confidence: 0.85,
+      input: { id: "count_objects", query: query || undefined },
+    };
+  }
   if (/\b(mueve|mover|lleva|llevar|desplaza|desplazar)\b/.test(q)) {
     const abs = q.match(/\b(?:a|en|hasta)\s+(-?\d+)\s*[,x]\s*(-?\d+)/);
     const rel = q.match(

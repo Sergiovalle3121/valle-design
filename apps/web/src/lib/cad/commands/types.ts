@@ -26,6 +26,7 @@ export type CadCommandId =
   | "delete_selection"
   | "duplicate_selection"
   | "move_selection"
+  | "count_objects"
   | "add_label"
   | "extend_wall"
   | "trim_wall"
@@ -279,6 +280,11 @@ export type CadCommandInput =
       /** Desplazamiento relativo en mm ('500 a la derecha'). */
       dx?: number;
       dy?: number;
+    }
+  | {
+      id: "count_objects";
+      /** Qué contar ('mesas', 'sillas'); vacío = todo el plano. */
+      query?: string;
     }
   | {
       id: "add_label";
