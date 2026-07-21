@@ -183,3 +183,15 @@ assert.ok(
   searchCadSymbols("cuna").some((symbol) => symbol.id === "crib"),
   "search finds cuna (guardería)",
 );
+
+// Novena tanda universal (AXOS-CAD-UNIVERSAL-020): hotel.
+assert.ok(
+  searchCadSymbols("buró").some((symbol) => symbol.id === "nightstand"),
+  "search finds buró (hotel)",
+);
+assert.ok(
+  searchCadSymbols("mesa de noche").some(
+    (symbol) => symbol.id === "nightstand",
+  ),
+  "search finds mesa de noche (hotel)",
+);

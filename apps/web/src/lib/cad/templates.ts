@@ -28,7 +28,8 @@ export type CadLayoutTemplateId =
   | "veterinaria"
   | "lavanderia"
   | "guarderia"
-  | "ferreteria";
+  | "ferreteria"
+  | "habitacion-hotel";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -952,6 +953,34 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     connectors: [
       { fromRef: "puerta-entrada", toRef: "mostrador-fer", kind: "flow" },
       { fromRef: "bodega-fer", toRef: "gondola-fer-1", kind: "material" },
+    ],
+  },
+  {
+    id: "habitacion-hotel",
+    label: "Habitación de hotel",
+    description: "Arranque universal de habitación de hotel: cama matrimonial con burós, ropero, escritorio con silla y baño con regadera.",
+    category: "architecture",
+    baseWidth: 7000,
+    baseHeight: 5000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 5600, 3600, "architecture", ["architecture", "shell", "hotel"]),
+      asset("puerta-hab", "door", "Puerta de entrada", 1500, 650, 900, 260, "architecture", ["door", "opening:main"]),
+      asset("bano-hab", "room", "Baño", 4700, 700, 1600, 1600, "architecture", ["room", "use:bathroom", "hotel"]),
+      asset("regadera-hab", "shower", "Regadera", 4750, 750, 900, 900, "equipment", ["regadera", "bathroom"]),
+      asset("wc-hab", "wc", "WC", 5800, 1500, 400, 650, "equipment", ["wc", "bathroom"]),
+      asset("cama-hab", "bed-queen", "Cama matrimonial", 1500, 1500, 1400, 2000, "equipment", ["cama", "hotel"]),
+      asset("buro-1", "nightstand", "Buró 1", 1000, 1500, 450, 400, "equipment", ["buro", "hotel"]),
+      asset("buro-2", "nightstand", "Buró 2", 2950, 1500, 450, 400, "equipment", ["buro", "hotel"]),
+      asset("ropero-hab", "wardrobe", "Ropero", 1000, 3600, 1500, 600, "equipment", ["ropero", "hotel"]),
+      asset("escritorio-hab", "desk", "Escritorio", 3500, 3500, 1400, 700, "equipment", ["escritorio", "hotel"]),
+      asset("silla-hab", "office-chair", "Silla", 5100, 3500, 600, 600, "equipment", ["silla", "hotel"]),
+    ],
+    annotations: [
+      note("titulo", "Habitación de hotel — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "puerta-hab", toRef: "cama-hab", kind: "flow" },
+      { fromRef: "cama-hab", toRef: "bano-hab", kind: "flow" },
     ],
   },
 ];

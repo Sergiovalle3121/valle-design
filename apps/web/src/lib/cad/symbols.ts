@@ -859,6 +859,17 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["cuna", "crib", "guardería", "guarderia", "bebé", "bebe", "kinder"],
     ports: [],
   },
+  // — Novena tanda universal (AXOS-CAD-UNIVERSAL-020): hotel —
+  {
+    id: "nightstand",
+    label: "Buró",
+    category: "furniture",
+    defaultWidth: 450,
+    defaultHeight: 400,
+    layer: "Furniture",
+    tags: ["buró", "buro", "nightstand", "mesa de noche", "recámara", "recamara", "hotel"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {
