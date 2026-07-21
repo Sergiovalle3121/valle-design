@@ -237,3 +237,23 @@ assert.ok(
   searchCadSymbols("templo").some((symbol) => symbol.id === "pew"),
   "search finds templo → banca de iglesia",
 );
+
+// Decimocuarta tanda universal (AXOS-CAD-UNIVERSAL-028): comercio.
+assert.ok(
+  searchCadSymbols("congelador").some((symbol) => symbol.id === "freezer"),
+  "search finds congelador",
+);
+assert.ok(
+  searchCadSymbols("cafetera").some(
+    (symbol) => symbol.id === "coffee-machine",
+  ),
+  "search finds cafetera",
+);
+assert.ok(
+  searchCadSymbols("báscula").some((symbol) => symbol.id === "scale"),
+  "search finds báscula",
+);
+assert.ok(
+  searchCadSymbols("carnicería").some((symbol) => symbol.id === "freezer"),
+  "search finds carnicería → congelador",
+);

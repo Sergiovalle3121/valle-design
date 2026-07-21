@@ -924,6 +924,37 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["púlpito", "pulpito", "pulpit", "iglesia", "templo", "altar"],
     ports: [],
   },
+  // — Decimocuarta tanda universal (AXOS-CAD-UNIVERSAL-028): comercio —
+  {
+    id: "freezer",
+    label: "Congelador",
+    category: "equipment",
+    defaultWidth: 1500,
+    defaultHeight: 700,
+    layer: "Equipment",
+    tags: ["congelador", "freezer", "helados", "minisúper", "minisuper", "carnicería", "carniceria"],
+    ports: [],
+  },
+  {
+    id: "coffee-machine",
+    label: "Cafetera",
+    category: "equipment",
+    defaultWidth: 600,
+    defaultHeight: 500,
+    layer: "Equipment",
+    tags: ["cafetera", "coffee", "café", "cafe", "cafetería", "cafeteria", "barra"],
+    ports: [],
+  },
+  {
+    id: "scale",
+    label: "Báscula",
+    category: "equipment",
+    defaultWidth: 500,
+    defaultHeight: 500,
+    layer: "Equipment",
+    tags: ["báscula", "bascula", "scale", "peso", "abarrotes", "carnicería", "carniceria", "fruteria", "frutería"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {
