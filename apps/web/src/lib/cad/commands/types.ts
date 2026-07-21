@@ -225,10 +225,15 @@ export type CadCommandInput =
   | {
       id: "array_rectangular";
       objectIds?: string[];
+      /** Objetivo por nombre: 'repite la silla 4 veces'. */
+      target?: string;
       cols: number;
       rows: number;
       gapX?: number;
       gapY?: number;
+      /** Sentido del paso; -1 repite hacia la izquierda/arriba. */
+      dirX?: 1 | -1;
+      dirY?: 1 | -1;
     }
   | {
       id: "array_polar";

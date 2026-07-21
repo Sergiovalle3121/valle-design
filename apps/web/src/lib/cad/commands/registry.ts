@@ -1554,8 +1554,16 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
       gapX: { type: "number", description: "Separación horizontal extra." },
       gapY: { type: "number", description: "Separación vertical extra." },
       objectIds: { type: "string[]", description: "Activos a replicar." },
+      target: {
+        type: "string",
+        description: "Objetivo por nombre (label o tipo).",
+      },
     },
-    examples: ["matriz 3x4 con separación de 500"],
+    examples: [
+      "matriz 3x4 con separación de 500",
+      "repite la silla 4 veces cada 600",
+      "arreglo 2x3 de mesas",
+    ],
     validate: (i, c) =>
       arrayRectangularPreview(
         i as Extract<CadCommandInput, { id: "array_rectangular" }>,

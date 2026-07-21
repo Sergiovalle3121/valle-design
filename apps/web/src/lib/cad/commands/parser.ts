@@ -254,6 +254,56 @@ export function parseCadCommand(text: string): CadParseResult {
       input: { id: "array_polar", count, angleSpanDeg, centerLabel },
     };
   }
+  // FILA/REPETIR (AXOS-CAD-ARRAY-001): 'repite la silla 4 veces cada 600
+  // a la derecha' — arreglo lineal conversacional con objetivo por nombre.
+  const repeatMatch = raw.match(/^rep[ií]te(?:me|l[ao]s?)?\s+(.+)$/i);
+  if (repeatMatch) {
+    const times = numberNear(q, /(\d+)\s*veces\b/i);
+    if (!times || times < 1)
+      return {
+        ok: false,
+        confidence: 0.6,
+        clarification:
+          "¿Cuántas veces lo repito? (ej. 'repite la silla 4 veces')",
+      };
+    const gap = unitValueToMm(
+      q.match(/cada\s*(\d+(?:[.,]\d+)?)\s*(mm|m)?\b/i),
+    );
+    const vertical = /(abajo|arriba|columna|vertical)/.test(q);
+    const negative = /(izquierda|arriba)/.test(q);
+    const target = repeatMatch[1]!
+      .replace(/\b\d+\s*veces\b/gi, " ")
+      .replace(/\bcada\s*\d+(?:[.,]\d+)?\s*(?:mm|m)?\b/gi, " ")
+      .replace(
+        /\b(?:hacia\s+)?(?:a\s+la\s+)?(?:derecha|izquierda|arriba|abajo)\b/gi,
+        " ",
+      )
+      .replace(/\ben\s+(?:fila|columna|l[ií]nea)\b/gi, " ")
+      .replace(
+        /\b(?:la\s+selecci[oó]n|lo\s+seleccionado|esto|estos\s+objetos|esos\s+objetos)\b/gi,
+        " ",
+      )
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/^(?:el|la|los|las|un|una|unos|unas)\s+/i, "")
+      .replace(/^(?:de|del)\s+/i, "")
+      .replace(/^(?:de|del)$/i, "")
+      .trim();
+    return {
+      ok: true,
+      confidence: 0.86,
+      input: {
+        id: "array_rectangular",
+        cols: vertical ? 1 : times + 1,
+        rows: vertical ? times + 1 : 1,
+        gapX: vertical ? undefined : gap,
+        gapY: vertical ? gap : undefined,
+        dirX: !vertical && negative ? -1 : undefined,
+        dirY: vertical && negative ? -1 : undefined,
+        target: target || undefined,
+      },
+    };
+  }
   const grid = q.match(/(\d+)\s*[x×]\s*(\d+)/);
   if (grid && /(arreglo|matriz|array|rejilla|grid|copia)/.test(q)) {
     const gap = unitValueToMm(
@@ -261,6 +311,18 @@ export function parseCadCommand(text: string): CadParseResult {
         /(?:separaci[oó]n|gap|espacio|paso)\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*(mm|m)?/i,
       ),
     );
+    // 'arreglo 3x4 de mesas': el resto tras la rejilla es el objetivo.
+    const gridTarget = raw
+      .match(/[x×]\s*\d+\s+(?:de|con)\s+(.+)$/i)?.[1]
+      ?.replace(
+        /\b(?:separaci[oó]n|gap|espacio|paso)\s*(?:de\s*)?\d+(?:[.,]\d+)?\s*(?:mm|m)?\b/gi,
+        " ",
+      )
+      .replace(/\bcada\s*\d+(?:[.,]\d+)?\s*(?:mm|m)?\b/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/^(?:el|la|los|las)\s+/i, "")
+      .trim();
     return {
       ok: true,
       confidence: 0.86,
@@ -270,6 +332,7 @@ export function parseCadCommand(text: string): CadParseResult {
         rows: Number(grid[2]),
         gapX: gap,
         gapY: gap,
+        target: gridTarget || undefined,
       },
     };
   }

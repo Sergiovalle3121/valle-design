@@ -1115,4 +1115,87 @@ if (rectDraftCreate?.type === "create") {
   assert.equal(rectDraftCreate.object.label, "QA", "label is parsed");
 }
 
+// FILA/REPETIR (AXOS-CAD-ARRAY-001): repetición conversacional por nombre.
+{
+  const parsed = parseCadCommand(
+    "repite la silla 3 veces cada 600 a la derecha",
+  );
+  assert.ok(parsed.ok, "repite parsea");
+  assert.equal(
+    parsed.input?.id,
+    "array_rectangular",
+    "repite → arreglo rectangular",
+  );
+  if (parsed.input?.id === "array_rectangular") {
+    assert.equal(parsed.input.cols, 4, "3 repeticiones = 4 columnas");
+    assert.equal(parsed.input.rows, 1, "fila horizontal");
+    assert.equal(parsed.input.gapX, 600, "separación 'cada 600'");
+    assert.equal(parsed.input.target, "silla", "objetivo por nombre");
+  }
+  const abajo = parseCadCommand("repite la mesa 2 veces hacia abajo");
+  assert.equal(
+    abajo.input?.id,
+    "array_rectangular",
+    "repite hacia abajo parsea",
+  );
+  if (abajo.input?.id === "array_rectangular") {
+    assert.equal(abajo.input.rows, 3, "2 repeticiones hacia abajo = 3 filas");
+    assert.equal(abajo.input.cols, 1, "columna única");
+    assert.equal(abajo.input.target, "mesa", "objetivo hacia abajo");
+  }
+  const izq = parseCadCommand(
+    "repite la silla 2 veces cada 100 a la izquierda",
+  );
+  assert.equal(izq.input?.id, "array_rectangular", "repite a la izquierda");
+  if (izq.input?.id === "array_rectangular")
+    assert.equal(izq.input.dirX, -1, "izquierda repite en negativo");
+  const gridT = parseCadCommand("arreglo 2x3 de mesas");
+  assert.equal(gridT.input?.id, "array_rectangular", "arreglo NxM parsea");
+  if (gridT.input?.id === "array_rectangular")
+    assert.equal(gridT.input.target, "mesas", "rejilla con objetivo por nombre");
+
+  const sillasCtx: CadCommandContext = {
+    unit: "mm",
+    footprintW: 20000,
+    footprintH: 10000,
+    selectedIds: [],
+    objects: [
+      {
+        id: "s1",
+        type: "asset",
+        kind: "chair",
+        label: "Silla",
+        x: 5000,
+        y: 2000,
+        w: 450,
+        h: 450,
+      },
+    ],
+  };
+  const fila = previewCadCommand(
+    { id: "array_rectangular", cols: 4, rows: 1, gapX: 600, target: "silla" },
+    sillasCtx,
+  );
+  assert.ok(
+    !fila.issues.some((i) => i.level === "error"),
+    "fila por nombre sin errores",
+  );
+  const copias = fila.operations.filter((op) => op.type === "create");
+  assert.equal(copias.length, 3, "repite crea 3 copias sin selección previa");
+  if (copias[0]?.type === "create")
+    assert.equal(
+      copias[0].object.x,
+      5000 + 450 + 600,
+      "paso = ancho + separación",
+    );
+  const sinTal = previewCadCommand(
+    { id: "array_rectangular", cols: 3, rows: 1, target: "tractor" },
+    sillasCtx,
+  );
+  assert.ok(
+    sinTal.issues.some((i) => i.code === "array_target_not_found"),
+    "objetivo inexistente reporta error claro",
+  );
+}
+
 console.log("cad command registry specs passed");

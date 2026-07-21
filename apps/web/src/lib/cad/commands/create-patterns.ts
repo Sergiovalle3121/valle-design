@@ -14,6 +14,7 @@ import {
 } from "../../../components/line-engineering/cad-array";
 import { offsetSegment } from "../../../components/line-engineering/geom-edit";
 import { normalizeDeg } from "../../../components/line-engineering/precision-input";
+import { matchObjectsByName } from "./targets";
 import type {
   CadBox,
   CadCommandContext,
@@ -102,7 +103,25 @@ export function arrayRectangularPreview(
   input: Extract<CadCommandInput, { id: "array_rectangular" }>,
   context: CadCommandContext,
 ): CadCommandPreview {
-  const { assets, issues } = sourceAssets(context, input.objectIds);
+  // Objetivo por nombre (AXOS-CAD-ARRAY-001): 'repite la silla 4 veces'.
+  const targetQuery = input.target?.trim();
+  let assets: CadBox[];
+  let issues: CadValidationIssue[];
+  if (targetQuery) {
+    assets = matchObjectsByName(context, targetQuery).filter(
+      (o) => o.type === "asset",
+    );
+    issues = assets.length
+      ? []
+      : [
+          error(
+            "array_target_not_found",
+            `No encontré '${targetQuery}' para repetir en el plano.`,
+          ),
+        ];
+  } else {
+    ({ assets, issues } = sourceAssets(context, input.objectIds));
+  }
   const cols = Math.floor(input.cols);
   const rows = Math.floor(input.rows);
   if (!Number.isFinite(cols) || !Number.isFinite(rows) || cols < 1 || rows < 1)
@@ -121,11 +140,13 @@ export function arrayRectangularPreview(
 
   const gapX = Math.max(0, input.gapX ?? 0);
   const gapY = Math.max(0, input.gapY ?? 0);
+  const dirX = input.dirX ?? 1;
+  const dirY = input.dirY ?? 1;
   const ops: CadOperation[] = [];
   for (const src of assets) {
     const items = rectangularArray(
       { x: src.x, y: src.y },
-      { cols, rows, dx: src.w + gapX, dy: src.h + gapY },
+      { cols, rows, dx: (src.w + gapX) * dirX, dy: (src.h + gapY) * dirY },
     );
     // items[0] es la posición original — solo las copias se crean.
     for (const item of items.slice(1)) ops.push(createOp(src, item.point.x, item.point.y));
