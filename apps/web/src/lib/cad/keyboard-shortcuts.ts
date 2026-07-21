@@ -17,7 +17,11 @@ export type CadKeyboardShortcutId =
   | "grid_toggle"
   | "object_snap_toggle"
   | "validate_layout"
-  | "export_dxf";
+  | "export_dxf"
+  // Kit diario (AXOS-CAD-XFORM-001/MIRROR-001): transformaciones directas.
+  | "rotate"
+  | "scale"
+  | "mirror";
 
 export interface CadKeyboardShortcut {
   id: CadKeyboardShortcutId;
@@ -152,6 +156,24 @@ export const CAD_KEYBOARD_SHORTCUTS: CadKeyboardShortcut[] = [
     label: "Export DXF",
     key: "e",
     description: "Abrir exportacion DXF profesional.",
+  },
+  {
+    id: "rotate",
+    label: "Rotar",
+    key: "r",
+    description: "Rotar la seleccion (pide grados).",
+  },
+  {
+    id: "scale",
+    label: "Escalar",
+    key: "s",
+    description: "Escalar la seleccion (pide factor).",
+  },
+  {
+    id: "mirror",
+    label: "Espejo",
+    key: "x",
+    description: "Espejo de la seleccion (eje vertical).",
   },
 ];
 
