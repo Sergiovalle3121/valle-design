@@ -272,4 +272,61 @@ const ctx = {
   assert.equal(first.object.y, 2000, "misma altura que su mesa");
 }
 
+// Dentro de un cuarto (AXOS-CAD-PLACE-007): 'pon una silla en la cocina'
+// aterriza centrada en el contenedor; coordenadas siguen ganando.
+{
+  const casaCtx = {
+    unit: "mm",
+    footprintW: 12000,
+    footprintH: 8000,
+    objects: [
+      { id: "coc", type: "asset", kind: "room", label: "Cocina", x: 6000, y: 4000, w: 3000, h: 3000 },
+    ],
+    selectedIds: [],
+  } as unknown as CadCommandContext;
+  const parsed = parseCadCommand("pon una silla en la cocina");
+  assert.equal(parsed.input?.id, "place_symbol", "pon en zona parsea");
+  if (parsed.input?.id === "place_symbol") {
+    assert.equal(parsed.input.query, "silla", "query del parser");
+    assert.equal(parsed.input.into, "cocina", "into del parser");
+  }
+  const out = placeSymbolPreview(
+    { id: "place_symbol", query: "silla", into: "cocina" },
+    casaCtx,
+  );
+  assert.equal(out.issues.length, 0, "colocar en zona sin issues");
+  const op = out.operations[0] as {
+    object: { x: number; y: number; w: number; h: number };
+  };
+  assert.equal(
+    op.object.x,
+    Math.round(6000 + (3000 - op.object.w) / 2),
+    "centrada en x del cuarto",
+  );
+  assert.equal(
+    op.object.y,
+    Math.round(4000 + (3000 - op.object.h) / 2),
+    "centrada en y del cuarto",
+  );
+  assert.ok(out.summary.includes("dentro de"), "resumen de zona");
+  const fila = parseCadCommand("pon 2 sillas en la cocina");
+  if (fila.input?.id === "place_symbol") {
+    assert.equal(fila.input.count, 2, "conteo con zona");
+    assert.equal(fila.input.into, "cocina", "into con conteo");
+  }
+  const coords = parseCadCommand("pon una silla en 2000,1000");
+  if (coords.input?.id === "place_symbol") {
+    assert.equal(coords.input.into, undefined, "coordenadas no son zona");
+    assert.equal(coords.input.x, 2000, "x explícita intacta");
+  }
+  const missing = placeSymbolPreview(
+    { id: "place_symbol", query: "silla", into: "terraza" },
+    casaCtx,
+  );
+  assert.ok(
+    missing.issues.some((i) => i.code === "place_into_not_found"),
+    "zona inexistente → error específico",
+  );
+}
+
 console.log("cad place-symbol specs passed");

@@ -499,6 +499,26 @@ export function parseCadCommand(text: string): CadParseResult {
             : undefined;
       query = query.slice(0, anchorMatch.index).trim();
     }
+    // 'pon una silla en la cocina' (AXOS-CAD-PLACE-007): colocar dentro
+    // de un cuarto/zona por nombre — solo sin coordenadas y sin ancla;
+    // las direcciones sueltas no son zonas.
+    let into: string | undefined;
+    if (!coords && !anchor) {
+      const intoMatch =
+        query.match(
+          /\b(?:dentro\s+de|adentro\s+de|en|a)\s+(?:la|el|los|las|una?)\s+(.+)$/i,
+        ) ?? query.match(/\bal\s+(.+)$/i);
+      const intoName = intoMatch?.[1]?.replace(/\s+/g, " ").trim();
+      if (
+        intoName &&
+        !/^(?:derecha|izquierda|arriba|abajo|centro|frente|fondo)$/i.test(
+          intoName,
+        )
+      ) {
+        into = intoName;
+        query = query.slice(0, intoMatch!.index).trim();
+      }
+    }
     if (!query) {
       return {
         ok: false,
@@ -520,6 +540,7 @@ export function parseCadCommand(text: string): CadParseResult {
         anchor,
         anchorSide,
         anchorEach,
+        into,
       },
     };
   }

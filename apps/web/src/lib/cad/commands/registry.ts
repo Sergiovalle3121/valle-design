@@ -2361,6 +2361,11 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         enum: ["true", "false"],
         description: "Una pieza por cada coincidencia del ancla.",
       },
+      into: {
+        type: "string",
+        description:
+          "Colocar centrado dentro de este cuarto/zona ('pon una silla en la cocina').",
+      },
     },
     examples: [
       "pon una puerta",
@@ -2369,6 +2374,7 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
       "pon una silla junto a la mesa",
       "pon un lavacabezas a la izquierda del tocador",
       "pon una silla junto a cada mesa",
+      "pon una silla en la cocina",
     ],
     validate: (i, c) =>
       placeSymbolPreview(

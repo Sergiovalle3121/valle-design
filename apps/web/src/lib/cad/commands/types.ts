@@ -285,6 +285,9 @@ export type CadCommandInput =
       anchorSide?: "left" | "right" | "above" | "below";
       /** 'junto a cada mesa': una pieza por cada coincidencia del ancla. */
       anchorEach?: boolean;
+      /** 'pon una silla en la cocina': la pieza (o la fila) aterriza
+       * centrada dentro del contenedor nombrado. */
+      into?: string;
     }
   | {
       id: "rotate_selection";

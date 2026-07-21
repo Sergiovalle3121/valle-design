@@ -8,6 +8,7 @@ import { normalizeDeg } from "../../../components/line-engineering/precision-inp
 import { searchCadSymbols } from "../symbols";
 import { matchObjectsByName } from "./targets";
 import type {
+  CadBox,
   CadCommandContext,
   CadCommandInput,
   CadCommandPreview,
@@ -123,6 +124,24 @@ export function placeSymbolPreview(
     };
   }
   const anchorBox = anchors[0];
+  // Dentro de un cuarto (AXOS-CAD-PLACE-007): 'pon una silla en la
+  // cocina' — la pieza (o la fila completa) aterriza centrada dentro del
+  // contenedor nombrado. Coordenadas y ancla siguen ganando.
+  const intoQuery = input.into?.trim();
+  let intoBox: CadBox | undefined;
+  if (intoQuery && !anchorBox && !Number.isFinite(input.x)) {
+    const containers = matchObjectsByName(context, intoQuery);
+    if (!containers.length) {
+      issues.push(
+        error(
+          "place_into_not_found",
+          `No encontré '${intoQuery}' para colocar ahí.`,
+        ),
+      );
+      return { summary: "", affectedObjectIds: [], operations: [], issues };
+    }
+    intoBox = containers[0];
+  }
   const anchorX = anchorBox
     ? side === "left"
       ? anchorBox.x - gap - totalW
@@ -141,12 +160,16 @@ export function placeSymbolPreview(
     ? Math.round(input.x as number)
     : anchorX !== undefined
       ? Math.round(anchorX)
-      : Math.round((context.footprintW ?? 10000) / 2 - totalW / 2);
+      : intoBox
+        ? Math.round(intoBox.x + (intoBox.w - totalW) / 2)
+        : Math.round((context.footprintW ?? 10000) / 2 - totalW / 2);
   const y = Number.isFinite(input.y)
     ? Math.round(input.y as number)
     : anchorY !== undefined
       ? Math.round(anchorY)
-      : Math.round((context.footprintH ?? 6000) / 2 - symbol.defaultHeight / 2);
+      : intoBox
+        ? Math.round(intoBox.y + (intoBox.h - symbol.defaultHeight) / 2)
+        : Math.round((context.footprintH ?? 6000) / 2 - symbol.defaultHeight / 2);
 
   const rotation = Number.isFinite(input.rotation)
     ? normalizeDeg(input.rotation as number)
@@ -168,8 +191,12 @@ export function placeSymbolPreview(
   return {
     summary:
       count > 1
-        ? `${count} × ${symbol.label} en fila desde (${x}, ${y}).`
-        : `${symbol.label} colocado en (${x}, ${y}).`,
+        ? intoBox
+          ? `${count} × ${symbol.label} en fila dentro de '${intoQuery}'.`
+          : `${count} × ${symbol.label} en fila desde (${x}, ${y}).`
+        : intoBox
+          ? `${symbol.label} colocado dentro de '${intoQuery}'.`
+          : `${symbol.label} colocado en (${x}, ${y}).`,
     affectedObjectIds: [],
     operations,
     issues,
