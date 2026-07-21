@@ -73,3 +73,18 @@ console.log("cad command line assist specs passed");
   assertOk(mirror, "sugiere espejo");
   assertEqual(mirror?.ready, true, "con seleccion queda listo");
 }
+
+// Palette vacío sin selección (AXOS-CAD-ASSIST-002): el kit universal
+// primero — colocar y seleccionar por nombre arriba, no los comandos EMS.
+{
+  const items = suggestCadCommands({ selectedCount: 0, maxItems: 5 });
+  assertEqual(
+    items[0]?.commandId,
+    "place_symbol",
+    "sin seleccion, colocar simbolo encabeza",
+  );
+  assertOk(
+    items.slice(0, 3).some((item) => item.commandId === "select_objects"),
+    "seleccionar por nombre en el top 3",
+  );
+}

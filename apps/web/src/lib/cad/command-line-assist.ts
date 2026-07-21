@@ -48,6 +48,20 @@ const SELECTION_MINIMUMS: Partial<Record<CadCommandId, number>> = {
 
 const EMPTY_QUERY_PRIORITY: Partial<Record<CadCommandId, number>> = {
   measure_distance: 10,
+  // Kit diario universal (AXOS-CAD-ASSIST-002): con el palette vacío y sin
+  // selección, lo primero que ve cualquiera es colocar/seleccionar/contar —
+  // no los comandos EMS de planta. Con selección, el bump de readiness (+6)
+  // sube las transformaciones solo cuando ya aplican.
+  place_symbol: 10,
+  select_objects: 9,
+  move_selection: 8,
+  duplicate_selection: 7,
+  add_label: 6,
+  count_objects: 6,
+  rotate_selection: 6,
+  scale_selection: 5,
+  mirror_selection: 5,
+  delete_selection: 4,
   create_clearance_aisle: 9,
   align_selection: 8,
   distribute_selection: 7,
