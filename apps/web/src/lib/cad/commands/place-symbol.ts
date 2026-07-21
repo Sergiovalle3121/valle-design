@@ -10,9 +10,24 @@ import type {
   CadCommandContext,
   CadCommandInput,
   CadCommandPreview,
+  CadOperation,
   CadValidationIssue,
 } from "./types";
-import { error } from "./validators";
+import { error, warning } from "./validators";
+
+const MAX_ROW = 30;
+
+/** Busca tolerando plural español ('sillas' → 'silla', 'estantes' → 'estante'). */
+function searchWithPlural(q: string) {
+  const attempts = [q];
+  if (q.length > 3 && /es$/i.test(q)) attempts.push(q.slice(0, -2));
+  if (q.length > 2 && /s$/i.test(q)) attempts.push(q.slice(0, -1));
+  for (const attempt of attempts) {
+    const matches = searchCadSymbols(attempt);
+    if (matches.length) return matches;
+  }
+  return [];
+}
 
 export function placeSymbolPreview(
   input: Extract<CadCommandInput, { id: "place_symbol" }>,
@@ -29,7 +44,7 @@ export function placeSymbolPreview(
     );
     return { summary: "", affectedObjectIds: [], operations: [], issues };
   }
-  const matches = searchCadSymbols(q);
+  const matches = searchWithPlural(q);
   if (!matches.length) {
     issues.push(
       error(
@@ -40,33 +55,50 @@ export function placeSymbolPreview(
     return { summary: "", affectedObjectIds: [], operations: [], issues };
   }
   const symbol = matches[0];
+  let count = Math.max(1, Math.floor(input.count ?? 1));
+  if (count > MAX_ROW) {
+    issues.push(
+      warning(
+        "place_count_clamped",
+        `Una fila lleva máximo ${MAX_ROW} piezas; coloco ${MAX_ROW}.`,
+      ),
+    );
+    count = MAX_ROW;
+  }
+  const gap = Math.max(0, input.gap ?? 100);
+  const step = symbol.defaultWidth + gap;
+  const totalW = symbol.defaultWidth + (count - 1) * step;
   const x = Number.isFinite(input.x)
     ? Math.round(input.x as number)
-    : Math.round((context.footprintW ?? 10000) / 2 - symbol.defaultWidth / 2);
+    : Math.round((context.footprintW ?? 10000) / 2 - totalW / 2);
   const y = Number.isFinite(input.y)
     ? Math.round(input.y as number)
     : Math.round((context.footprintH ?? 6000) / 2 - symbol.defaultHeight / 2);
 
+  const rotation = Number.isFinite(input.rotation)
+    ? normalizeDeg(input.rotation as number)
+    : undefined;
+  const operations: CadOperation[] = Array.from({ length: count }, (_, i) => ({
+    type: "create",
+    object: {
+      kind: symbol.id,
+      type: "asset",
+      label: count > 1 ? `${symbol.label} ${i + 1}` : symbol.label,
+      x: x + i * step,
+      y,
+      w: symbol.defaultWidth,
+      h: symbol.defaultHeight,
+      rotation,
+    },
+  }));
+
   return {
-    summary: `${symbol.label} colocado en (${x}, ${y}).`,
+    summary:
+      count > 1
+        ? `${count} × ${symbol.label} en fila desde (${x}, ${y}).`
+        : `${symbol.label} colocado en (${x}, ${y}).`,
     affectedObjectIds: [],
-    operations: [
-      {
-        type: "create",
-        object: {
-          kind: symbol.id,
-          type: "asset",
-          label: symbol.label,
-          x,
-          y,
-          w: symbol.defaultWidth,
-          h: symbol.defaultHeight,
-          rotation: Number.isFinite(input.rotation)
-            ? normalizeDeg(input.rotation as number)
-            : undefined,
-        },
-      },
-    ],
+    operations,
     issues,
   };
 }

@@ -2210,8 +2210,20 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
       },
       x: { type: "number", description: "X en mm (opcional; default centro)." },
       y: { type: "number", description: "Y en mm (opcional; default centro)." },
+      count: {
+        type: "number",
+        description: "Cuántos colocar en fila (opcional; default 1).",
+      },
+      gap: {
+        type: "number",
+        description: "Separación de la fila en mm (default 100).",
+      },
     },
-    examples: ["pon una puerta", "coloca una cama en 3000,2000"],
+    examples: [
+      "pon una puerta",
+      "coloca una cama en 3000,2000",
+      "pon 3 sillas en fila cada 200",
+    ],
     validate: (i, c) =>
       placeSymbolPreview(
         i as Extract<CadCommandInput, { id: "place_symbol" }>,

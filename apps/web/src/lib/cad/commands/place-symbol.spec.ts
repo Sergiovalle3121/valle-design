@@ -87,4 +87,40 @@ const ctx = {
   assert.equal(create.object.rotation, 270, "rotación normalizada (−90→270)");
 }
 
+// Fila al colocar (AXOS-CAD-PLACE-003): 'pon 3 sillas en fila cada 200'.
+{
+  const parsed = parseCadCommand("pon 3 sillas en fila cada 200");
+  assert.equal(parsed.input?.id, "place_symbol", "pon N sillas es place");
+  if (parsed.input?.id === "place_symbol") {
+    assert.equal(parsed.input.query, "sillas", "query sin conteo ni fila");
+    assert.equal(parsed.input.count, 3, "conteo del parser");
+    assert.equal(parsed.input.gap, 200, "separación del parser");
+  }
+  const out = placeSymbolPreview(
+    { id: "place_symbol", query: "sillas", x: 1000, y: 1000, count: 3, gap: 200 },
+    ctx,
+  );
+  assert.equal(out.issues.length, 0, "plural 'sillas' encuentra la silla");
+  assert.equal(out.operations.length, 3, "tres creates en fila");
+  const first = out.operations[0] as { object: { x: number; w: number } };
+  const second = out.operations[1] as { object: { x: number } };
+  assert.equal(
+    second.object.x - first.object.x,
+    first.object.w + 200,
+    "paso = ancho + separación",
+  );
+  const single = parseCadCommand("pon una puerta en 2000,650");
+  if (single.input?.id === "place_symbol")
+    assert.equal(single.input.count, undefined, "sin conteo sigue igual");
+  const clamped = placeSymbolPreview(
+    { id: "place_symbol", query: "silla", count: 99 },
+    ctx,
+  );
+  assert.equal(clamped.operations.length, 30, "fila con tope de 30");
+  assert.ok(
+    clamped.issues.some((i) => i.code === "place_count_clamped"),
+    "el tope avisa con warning",
+  );
+}
+
 console.log("cad place-symbol specs passed");

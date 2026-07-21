@@ -419,6 +419,21 @@ export function parseCadCommand(text: string): CadParseResult {
       .replace(/\b(?:girad[ao]|rotad[ao])\s+-?\d[\d.,]*\s*/, "")
       .replace(/\ben\s+\d[\d\s.,x]*$/, "")
       .trim();
+    // 'pon 3 sillas en fila cada 200' (AXOS-CAD-PLACE-003): N en fila.
+    const countMatch = query.match(/^(\d{1,2})\s+/);
+    let count: number | undefined;
+    if (countMatch) {
+      count = Number(countMatch[1]);
+      query = query.slice(countMatch[0].length).trim();
+    }
+    const rowGap = unitValueToMm(
+      query.match(/cada\s*(\d+(?:[.,]\d+)?)\s*(mm|m)?\b/i),
+    );
+    query = query
+      .replace(/\bcada\s*\d+(?:[.,]\d+)?\s*(?:mm|m)?\b/gi, " ")
+      .replace(/\ben\s+(?:fila|l[ií]nea)\b/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim();
     if (!query) {
       return {
         ok: false,
@@ -435,6 +450,8 @@ export function parseCadCommand(text: string): CadParseResult {
         x: coords ? Number(coords[1]) : undefined,
         y: coords ? Number(coords[2]) : undefined,
         rotation: rot ? Number(rot[1].replace(",", ".")) : undefined,
+        count,
+        gap: rowGap,
       },
     };
   }

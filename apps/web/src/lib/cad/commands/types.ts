@@ -270,6 +270,10 @@ export type CadCommandInput =
       y?: number;
       /** Grados; 'pon una puerta girada 90'. */
       rotation?: number;
+      /** 'pon 3 sillas': coloca N en fila horizontal (default 1). */
+      count?: number;
+      /** Separación entre piezas de la fila en mm (default 100). */
+      gap?: number;
     }
   | {
       id: "rotate_selection";
