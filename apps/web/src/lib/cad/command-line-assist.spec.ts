@@ -104,3 +104,29 @@ console.log("cad command line assist specs passed");
   const resize = items.find((item) => item.commandId === "resize_object");
   assertEqual(resize?.ready, true, "con un objeto seleccionado queda listo");
 }
+
+// AXOS-CAD-ASSIST-005: sinónimos espaciales — palabras sin example ganan.
+{
+  const vacia = suggestCadCommands({ query: "vacia", maxItems: 5 });
+  assertEqual(
+    vacia[0]?.commandId,
+    "delete_selection",
+    "query 'vacia' sugiere borrar primero",
+  );
+  const mete = suggestCadCommands({ query: "mete", maxItems: 5 });
+  assertEqual(
+    mete[0]?.commandId,
+    "move_selection",
+    "query 'mete' sugiere mover primero",
+  );
+  const donde = suggestCadCommands({ query: "donde", maxItems: 5 });
+  assertOk(
+    donde.some((item) => item.commandId === "object_info"),
+    "query 'donde' trae info de objeto",
+  );
+  const cerca = suggestCadCommands({ query: "cerca", maxItems: 5 });
+  assertOk(
+    cerca.some((item) => item.commandId === "select_objects"),
+    "query 'cerca' trae seleccionar",
+  );
+}

@@ -78,6 +78,20 @@ const EMPTY_QUERY_PRIORITY: Partial<Record<CadCommandId, number>> = {
   draw_rect_zone: 1,
 };
 
+// Sinónimos espaciales (AXOS-CAD-ASSIST-005): palabras que la gente
+// teclea y que no viven en ningún example del registry — sin esto, el
+// palette las castigaba con la penalización de no-match. OJO: 'mide'
+// pertenece a measure_distance (contrato del spec), no va aquí.
+const QUERY_ALIASES: Partial<Record<CadCommandId, string[]>> = {
+  delete_selection: ["vacia", "vaciar", "despejar", "quita"],
+  move_selection: ["mete", "meter", "lleva", "centra"],
+  select_objects: ["cerca", "junto", "menos", "excepto"],
+  count_objects: ["cuantos", "cuantas", "inventario"],
+  object_info: ["donde", "ubicacion"],
+  place_symbol: ["esquina", "inserta"],
+  duplicate_selection: ["clona", "copia"],
+};
+
 const normalized = (value: string) =>
   value
     .normalize("NFD")
@@ -151,10 +165,14 @@ export function suggestCadCommands(
     let score = 0;
 
     if (query) {
+      const aliasHit = (QUERY_ALIASES[command.id] ?? []).some(
+        (alias) => alias.startsWith(query) || query.includes(alias),
+      );
       if (normalized(command.label).startsWith(query)) score += 8;
       if (normalized(command.id).includes(query)) score += 6;
       if (haystack.includes(query)) score += 4;
-      if (!haystack.includes(query)) score -= 6;
+      if (aliasHit) score += 7;
+      if (!haystack.includes(query) && !aliasHit) score -= 6;
     } else {
       score += EMPTY_QUERY_PRIORITY[command.id] ?? 0;
       if (minimum > 0 && selectedCount >= minimum) score += 6;
