@@ -123,7 +123,11 @@ export type CadLayoutTemplateId =
   | "supermercado"
   | "central-autobuses"
   | "tienda-departamental"
-  | "universidad-facultad";
+  | "universidad-facultad"
+  | "hospital-veterinario"
+  | "laboratorio-dental"
+  | "taller-textil"
+  | "estacionamiento-multinivel";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -4063,6 +4067,146 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "vestibulo", kind: "flow" },
       { fromRef: "vestibulo", toRef: "aula-magna", kind: "flow" },
       { fromRef: "vestibulo", toRef: "biblioteca", kind: "flow" },
+    ],
+  },
+  {
+    id: "hospital-veterinario",
+    label: "Hospital veterinario",
+    description:
+      "Plantilla editable de un hospital veterinario típico de México (14000×9000 mm): recepción y sala de espera, dos consultorios, quirófano, sala de rayos X, jaulas de hospitalización, estética canina y baño.",
+    category: "architecture",
+    baseWidth: 14000,
+    baseHeight: 9000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 12600, 7600, "architecture", ["shell", "hospital-veterinario", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 1200, 650, 1100, 260, "architecture", ["hospital-veterinario", "entrada", "acceso", "puerta"]),
+      asset("recepcion", "zone", "Recepción", 800, 900, 3000, 1600, "layout", ["hospital-veterinario", "recepcion", "atencion", "zona"]),
+      asset("mostrador", "counter", "Mostrador de recepción", 900, 1000, 2000, 500, "equipment", ["hospital-veterinario", "mostrador", "recepcion", "atencion"]),
+      asset("sala-espera", "zone", "Sala de espera", 800, 2700, 3000, 3400, "layout", ["hospital-veterinario", "sala-espera", "espera", "zona"]),
+      asset("banca-espera", "outdoor-bench", "Banca de espera", 900, 2900, 2000, 600, "equipment", ["hospital-veterinario", "banca", "espera", "mobiliario"]),
+      asset("consultorio-1", "room", "Consultorio 1", 4200, 900, 2600, 2000, "architecture", ["hospital-veterinario", "consultorio", "cuarto"]),
+      asset("mesa-exploracion", "exam-table", "Mesa de exploración", 4400, 1200, 1800, 1000, "equipment", ["hospital-veterinario", "mesa", "exploracion", "camilla"]),
+      asset("consultorio-2", "room", "Consultorio 2", 4200, 3100, 2600, 2000, "architecture", ["hospital-veterinario", "consultorio", "cuarto"]),
+      asset("quirofano", "room", "Quirófano", 7200, 900, 3000, 2600, "architecture", ["hospital-veterinario", "quirofano", "cirugia", "cuarto"]),
+      asset("rayos-x", "room", "Sala de rayos X", 7200, 3700, 3000, 1800, "architecture", ["hospital-veterinario", "rayos-x", "radiografia", "cuarto"]),
+      asset("hospitalizacion", "room", "Hospitalización (jaulas)", 10600, 900, 2600, 4600, "architecture", ["hospital-veterinario", "hospitalizacion", "jaulas", "cuarto"]),
+      asset("jaula", "rack", "Jaulas de hospitalización", 10800, 1200, 2200, 700, "equipment", ["hospital-veterinario", "jaula", "hospitalizacion", "mascota"]),
+      asset("peluqueria", "zone", "Estética canina", 4200, 5300, 4000, 2700, "layout", ["hospital-veterinario", "estetica", "peluqueria", "grooming", "zona"]),
+      asset("bano", "room", "Baño", 800, 6300, 3000, 1700, "architecture", ["hospital-veterinario", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 1000, 6600, 600, 700, "equipment", ["hospital-veterinario", "inodoro", "sanitario", "bano"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 3900, 900, 300, 300, "safety", ["hospital-veterinario", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Hospital veterinario — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion", kind: "flow" },
+      { fromRef: "recepcion", toRef: "consultorio-1", kind: "flow" },
+      { fromRef: "consultorio-1", toRef: "quirofano", kind: "flow" },
+    ],
+  },
+  {
+    id: "laboratorio-dental",
+    label: "Laboratorio dental",
+    description:
+      "Plantilla editable de un laboratorio dental (protésico) típico de México (12000×8000 mm): recepción, área de yeso y modelos, área de cerámica con horno, área de metal/colado, bodega de materiales, oficina y baño.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["shell", "laboratorio-dental", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 1200, 650, 1100, 260, "architecture", ["laboratorio-dental", "entrada", "acceso", "puerta"]),
+      asset("recepcion", "zone", "Recepción", 800, 900, 2600, 1600, "layout", ["laboratorio-dental", "recepcion", "atencion", "zona"]),
+      asset("mostrador", "counter", "Mostrador de recepción", 900, 1000, 1600, 500, "equipment", ["laboratorio-dental", "mostrador", "recepcion", "atencion"]),
+      asset("area-yeso", "zone", "Área de yeso y modelos", 800, 2700, 4600, 2400, "layout", ["laboratorio-dental", "yeso", "modelos", "zona"]),
+      asset("mesa-yeso", "workbench", "Mesa de yeso", 1000, 2900, 2000, 900, "equipment", ["laboratorio-dental", "mesa", "yeso", "trabajo"]),
+      asset("vibrador", "dental-vibrator", "Vibrador de yeso", 3200, 2900, 700, 500, "equipment", ["laboratorio-dental", "vibrador", "yeso", "equipo"]),
+      asset("area-ceramica", "zone", "Área de cerámica", 5800, 900, 4000, 2400, "layout", ["laboratorio-dental", "ceramica", "porcelana", "zona"]),
+      asset("horno-ceramica", "porcelain-furnace", "Horno de cerámica", 6000, 1100, 1200, 1000, "equipment", ["laboratorio-dental", "horno", "ceramica", "porcelana"]),
+      asset("area-metal", "zone", "Área de metal / colado", 5800, 3500, 4000, 1600, "layout", ["laboratorio-dental", "metal", "colado", "fundicion", "zona"]),
+      asset("fundidora", "casting-machine", "Fundidora / coladora", 6000, 3700, 1200, 1000, "equipment", ["laboratorio-dental", "fundidora", "colado", "metal"]),
+      asset("bodega", "room", "Bodega de materiales", 10200, 900, 1000, 4200, "architecture", ["laboratorio-dental", "bodega", "materiales", "cuarto"]),
+      asset("oficina", "room", "Oficina", 4200, 5300, 3000, 1700, "architecture", ["laboratorio-dental", "oficina", "administracion", "cuarto"]),
+      asset("bano", "room", "Baño", 800, 5300, 2600, 1700, "architecture", ["laboratorio-dental", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 1000, 5600, 600, 700, "equipment", ["laboratorio-dental", "inodoro", "sanitario", "bano"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 5500, 900, 300, 300, "safety", ["laboratorio-dental", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Laboratorio dental — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion", kind: "flow" },
+      { fromRef: "area-yeso", toRef: "area-ceramica", kind: "material" },
+      { fromRef: "area-ceramica", toRef: "area-metal", kind: "material" },
+    ],
+  },
+  {
+    id: "taller-textil",
+    label: "Taller textil (maquiladora)",
+    description:
+      "Plantilla editable de un taller textil / maquiladora de ropa típico de México (14000×9000 mm): oficina, almacén de tela, mesa de corte, línea de costura con máquinas, planchado y acabado, y almacén de producto terminado.",
+    category: "architecture",
+    baseWidth: 14000,
+    baseHeight: 9000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 12600, 7600, "architecture", ["shell", "taller-textil", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 1200, 650, 1100, 260, "architecture", ["taller-textil", "entrada", "acceso", "puerta"]),
+      asset("oficina", "room", "Oficina", 800, 900, 2600, 1800, "architecture", ["taller-textil", "oficina", "administracion", "cuarto"]),
+      asset("bano", "room", "Baño", 800, 2900, 2600, 1600, "architecture", ["taller-textil", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 1000, 3200, 600, 700, "equipment", ["taller-textil", "inodoro", "sanitario", "bano"]),
+      asset("almacen-tela", "zone", "Almacén de tela", 800, 4700, 3600, 3300, "layout", ["taller-textil", "almacen", "tela", "materia-prima", "zona"]),
+      asset("rack-tela", "rack", "Rack de tela", 900, 4900, 3400, 700, "equipment", ["taller-textil", "rack", "tela", "rollos"]),
+      asset("corte", "zone", "Mesa de corte", 4800, 900, 4600, 2400, "layout", ["taller-textil", "corte", "trazo", "zona"]),
+      asset("mesa-corte", "workbench", "Mesa de corte", 5000, 1100, 4000, 1000, "equipment", ["taller-textil", "mesa", "corte", "tendido"]),
+      asset("costura", "zone", "Línea de costura", 4800, 3500, 4600, 3200, "layout", ["taller-textil", "costura", "confeccion", "zona"]),
+      asset("maquina-1", "sewing-machine", "Máquina de coser 1", 5000, 3700, 1000, 800, "equipment", ["taller-textil", "maquina", "coser", "costura"]),
+      asset("maquina-2", "sewing-machine", "Máquina de coser 2", 6200, 3700, 1000, 800, "equipment", ["taller-textil", "maquina", "coser", "costura"]),
+      asset("planchado", "zone", "Planchado y acabado", 4800, 6900, 4600, 1100, "layout", ["taller-textil", "planchado", "acabado", "zona"]),
+      asset("almacen-pt", "zone", "Almacén de producto terminado", 9800, 900, 3400, 6100, "layout", ["taller-textil", "almacen", "producto-terminado", "zona"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 9500, 900, 300, 300, "safety", ["taller-textil", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Taller textil (maquiladora) — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "almacen-tela", toRef: "corte", kind: "material" },
+      { fromRef: "corte", toRef: "costura", kind: "flow" },
+      { fromRef: "costura", toRef: "almacen-pt", kind: "material" },
+    ],
+  },
+  {
+    id: "estacionamiento-multinivel",
+    label: "Estacionamiento multinivel",
+    description:
+      "Plantilla editable de un nivel de estacionamiento multinivel típico de México (16000×10000 mm): caseta de cobro con pluma, rampa de acceso, dos filas de cajones con pasillo de circulación, elevador/escaleras y baño.",
+    category: "architecture",
+    baseWidth: 16000,
+    baseHeight: 10000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 14600, 8600, "architecture", ["shell", "estacionamiento-multinivel", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada de autos", 1200, 650, 1600, 260, "architecture", ["estacionamiento-multinivel", "entrada", "acceso", "puerta"]),
+      asset("caseta", "room", "Caseta de cobro", 800, 900, 2000, 1600, "architecture", ["estacionamiento-multinivel", "caseta", "cobro", "cuarto"]),
+      asset("pluma", "parking-barrier", "Pluma de acceso", 2900, 1400, 900, 300, "equipment", ["estacionamiento-multinivel", "pluma", "barrera", "acceso"]),
+      asset("rampa", "zone", "Rampa de acceso", 12000, 900, 2800, 7000, "layout", ["estacionamiento-multinivel", "rampa", "circulacion", "zona"]),
+      asset("fila-1", "zone", "Fila de cajones 1", 800, 2700, 10600, 1900, "layout", ["estacionamiento-multinivel", "cajones", "estacionamiento", "zona"]),
+      asset("cajon-1", "parking-space", "Cajón 1", 1000, 2900, 2200, 1400, "equipment", ["estacionamiento-multinivel", "cajon", "lugar", "auto"]),
+      asset("cajon-2", "parking-space", "Cajón 2", 3400, 2900, 2200, 1400, "equipment", ["estacionamiento-multinivel", "cajon", "lugar", "auto"]),
+      asset("cajon-3", "parking-space", "Cajón 3", 5800, 2900, 2200, 1400, "equipment", ["estacionamiento-multinivel", "cajon", "lugar", "auto"]),
+      asset("pasillo", "zone", "Pasillo de circulación", 800, 4800, 10600, 1000, "layout", ["estacionamiento-multinivel", "pasillo", "circulacion", "zona"]),
+      asset("fila-2", "zone", "Fila de cajones 2", 800, 6000, 10600, 1900, "layout", ["estacionamiento-multinivel", "cajones", "estacionamiento", "zona"]),
+      asset("cajon-4", "parking-space", "Cajón 4", 1000, 6200, 2200, 1400, "equipment", ["estacionamiento-multinivel", "cajon", "lugar", "auto"]),
+      asset("elevador", "room", "Elevador y escaleras", 8600, 900, 1600, 1600, "architecture", ["estacionamiento-multinivel", "elevador", "escaleras", "cuarto"]),
+      asset("bano", "room", "Baño", 10600, 900, 1400, 1600, "architecture", ["estacionamiento-multinivel", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 10800, 1100, 600, 700, "equipment", ["estacionamiento-multinivel", "inodoro", "sanitario", "bano"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 11600, 2700, 300, 300, "safety", ["estacionamiento-multinivel", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Estacionamiento multinivel — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "caseta", kind: "flow" },
+      { fromRef: "caseta", toRef: "fila-1", kind: "flow" },
+      { fromRef: "rampa", toRef: "fila-1", kind: "flow" },
     ],
   },
 ];
