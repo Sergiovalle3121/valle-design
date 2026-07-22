@@ -147,7 +147,11 @@ export type CadLayoutTemplateId =
   | "centro-distribucion"
   | "granja-avicola"
   | "torre-corporativa"
-  | "clinica-oftalmologica";
+  | "clinica-oftalmologica"
+  | "estacion-tren"
+  | "estudio-grabacion"
+  | "herbolaria"
+  | "centro-idiomas";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -4931,6 +4935,142 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "recepcion", kind: "flow" },
       { fromRef: "recepcion", toRef: "optometria", kind: "flow" },
       { fromRef: "optometria", toRef: "quirofano", kind: "flow" },
+    ],
+  },
+  {
+    id: "estacion-tren",
+    label: "Estación de tren",
+    description:
+      "Plantilla editable de una estación de tren / metro típica de México (16000×10000 mm): vestíbulo con taquillas y torniquetes, dos andenes con vía, sala de espera, tienda/cafetería, sanitarios y oficina.",
+    category: "architecture",
+    baseWidth: 16000,
+    baseHeight: 10000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 14600, 8600, "architecture", ["shell", "estacion-tren", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 1200, 650, 1600, 260, "architecture", ["estacion-tren", "entrada", "acceso", "puerta"]),
+      asset("vestibulo", "zone", "Vestíbulo", 800, 900, 6800, 3200, "layout", ["estacion-tren", "vestibulo", "hall", "zona"]),
+      asset("taquillas", "counter", "Taquillas", 1000, 1200, 4000, 700, "equipment", ["estacion-tren", "taquillas", "boletos", "venta"]),
+      asset("torniquetes", "turnstile", "Torniquetes", 5400, 1200, 1600, 600, "equipment", ["estacion-tren", "torniquetes", "acceso", "control"]),
+      asset("anden-1", "zone", "Andén 1", 800, 4300, 13000, 1800, "layout", ["estacion-tren", "anden", "via", "zona"]),
+      asset("tren-1", "train-car", "Vagón de tren", 1000, 4500, 12000, 1400, "equipment", ["estacion-tren", "tren", "vagon", "metro"]),
+      asset("anden-2", "zone", "Andén 2", 800, 6300, 13000, 1800, "layout", ["estacion-tren", "anden", "via", "zona"]),
+      asset("sala-espera", "zone", "Sala de espera", 8000, 900, 4600, 3200, "layout", ["estacion-tren", "sala-espera", "espera", "zona"]),
+      asset("banca-1", "outdoor-bench", "Banca de espera", 8200, 1200, 4000, 600, "equipment", ["estacion-tren", "banca", "espera", "mobiliario"]),
+      asset("tienda", "room", "Tienda / cafetería", 13000, 900, 1800, 3200, "architecture", ["estacion-tren", "tienda", "cafeteria", "cuarto"]),
+      asset("sanitarios", "room", "Sanitarios", 5800, 8200, 3000, 1000, "architecture", ["estacion-tren", "sanitarios", "banos", "cuarto"]),
+      asset("wc", "wc", "Inodoro", 6000, 8400, 600, 700, "equipment", ["estacion-tren", "inodoro", "sanitario", "bano"]),
+      asset("oficina", "room", "Oficina", 9000, 8200, 3000, 1000, "architecture", ["estacion-tren", "oficina", "administracion", "cuarto"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 7300, 900, 300, 300, "safety", ["estacion-tren", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Estación de tren — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "vestibulo", kind: "flow" },
+      { fromRef: "vestibulo", toRef: "torniquetes", kind: "flow" },
+      { fromRef: "torniquetes", toRef: "anden-1", kind: "flow" },
+    ],
+  },
+  {
+    id: "estudio-grabacion",
+    label: "Estudio de grabación",
+    description:
+      "Plantilla editable de un estudio de grabación musical típico de México (12000×8000 mm): recepción, sala de control con consola, sala de grabación (live room), booth de voz, lounge, bodega de equipo y oficina.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["shell", "estudio-grabacion", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 1200, 650, 1100, 260, "architecture", ["estudio-grabacion", "entrada", "acceso", "puerta"]),
+      asset("recepcion", "zone", "Recepción", 800, 900, 2600, 1600, "layout", ["estudio-grabacion", "recepcion", "atencion", "zona"]),
+      asset("sala-control", "room", "Sala de control", 3800, 900, 3600, 2600, "architecture", ["estudio-grabacion", "control", "mezcla", "cuarto"]),
+      asset("consola", "mixing-console", "Consola de mezcla", 4000, 1200, 3200, 1000, "equipment", ["estudio-grabacion", "consola", "mezcla", "audio"]),
+      asset("sala-grabacion", "room", "Sala de grabación", 7800, 900, 3400, 4200, "architecture", ["estudio-grabacion", "grabacion", "live-room", "cuarto"]),
+      asset("microfono", "studio-mic", "Micrófono de estudio", 8000, 1200, 600, 600, "equipment", ["estudio-grabacion", "microfono", "grabacion", "audio"]),
+      asset("cabina-voz", "room", "Booth de voz", 3800, 3700, 2600, 1400, "architecture", ["estudio-grabacion", "booth", "voz", "cuarto"]),
+      asset("sala-descanso", "zone", "Lounge", 800, 2700, 2600, 2400, "layout", ["estudio-grabacion", "lounge", "descanso", "zona"]),
+      asset("sofa", "sofa-3", "Sofá", 900, 2900, 2000, 700, "equipment", ["estudio-grabacion", "sofa", "descanso", "mobiliario"]),
+      asset("bodega", "room", "Bodega de equipo", 6600, 3700, 1000, 1400, "architecture", ["estudio-grabacion", "bodega", "equipo", "cuarto"]),
+      asset("bano", "room", "Baño", 800, 5300, 2600, 1700, "architecture", ["estudio-grabacion", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 1000, 5600, 600, 700, "equipment", ["estudio-grabacion", "inodoro", "sanitario", "bano"]),
+      asset("oficina", "room", "Oficina", 3800, 5300, 3600, 1700, "architecture", ["estudio-grabacion", "oficina", "administracion", "cuarto"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 7500, 5300, 300, 300, "safety", ["estudio-grabacion", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Estudio de grabación — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion", kind: "flow" },
+      { fromRef: "recepcion", toRef: "sala-control", kind: "flow" },
+      { fromRef: "sala-control", toRef: "sala-grabacion", kind: "flow" },
+    ],
+  },
+  {
+    id: "herbolaria",
+    label: "Herbolaria / Tienda naturista",
+    description:
+      "Plantilla editable de una herbolaria / tienda naturista típica de México (9000×6000 mm): piso de venta con góndolas y vitrina de hierbas a granel, mostrador de caja, consultorio naturista, bodega y baño.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["shell", "herbolaria", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 1200, 650, 900, 260, "architecture", ["herbolaria", "entrada", "acceso", "puerta"]),
+      asset("piso-venta", "zone", "Piso de venta", 800, 900, 4600, 4200, "layout", ["herbolaria", "piso-venta", "exhibicion", "zona"]),
+      asset("gondola-1", "shelf-gondola", "Góndola de suplementos", 1000, 1200, 2600, 600, "equipment", ["herbolaria", "gondola", "suplementos", "productos"]),
+      asset("gondola-2", "shelf-gondola", "Góndola de productos", 1000, 2100, 2600, 600, "equipment", ["herbolaria", "gondola", "naturista", "productos"]),
+      asset("vitrina-hierbas", "display-case", "Vitrina de hierbas a granel", 1000, 3000, 2600, 600, "equipment", ["herbolaria", "vitrina", "hierbas", "granel"]),
+      asset("mostrador", "counter", "Mostrador de caja", 800, 4300, 3000, 600, "equipment", ["herbolaria", "mostrador", "caja", "atencion"]),
+      asset("caja", "cash-register", "Caja registradora", 3000, 4350, 500, 400, "equipment", ["herbolaria", "caja", "cobro", "registro"]),
+      asset("consultorio", "room", "Consultorio naturista", 5800, 900, 2400, 2000, "architecture", ["herbolaria", "consultorio", "naturista", "cuarto"]),
+      asset("camilla", "exam-table", "Camilla", 6000, 1200, 1800, 1000, "equipment", ["herbolaria", "camilla", "consulta", "naturista"]),
+      asset("bodega", "room", "Bodega", 5800, 3100, 2400, 1200, "architecture", ["herbolaria", "bodega", "almacen", "cuarto"]),
+      asset("bano", "room", "Baño", 5800, 4500, 2400, 800, "architecture", ["herbolaria", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 6000, 4600, 600, 600, "equipment", ["herbolaria", "inodoro", "sanitario", "bano"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 5100, 900, 250, 250, "safety", ["herbolaria", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Herbolaria / Tienda naturista — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "piso-venta", kind: "flow" },
+      { fromRef: "piso-venta", toRef: "mostrador", kind: "flow" },
+      { fromRef: "consultorio", toRef: "piso-venta", kind: "flow" },
+    ],
+  },
+  {
+    id: "centro-idiomas",
+    label: "Centro de idiomas",
+    description:
+      "Plantilla editable de un centro / academia de idiomas típico de México (12000×8000 mm): recepción, tres aulas, laboratorio de idiomas, sala de maestros, biblioteca de autoestudio, cafetería y baño.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["shell", "centro-idiomas", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 1200, 650, 1100, 260, "architecture", ["centro-idiomas", "entrada", "acceso", "puerta"]),
+      asset("recepcion", "zone", "Recepción", 800, 900, 2600, 1600, "layout", ["centro-idiomas", "recepcion", "atencion", "zona"]),
+      asset("mostrador", "counter", "Mostrador de recepción", 900, 1000, 1600, 500, "equipment", ["centro-idiomas", "mostrador", "recepcion", "atencion"]),
+      asset("aula-1", "room", "Aula 1", 800, 2700, 3000, 2200, "architecture", ["centro-idiomas", "aula", "clase", "cuarto"]),
+      asset("pizarron-1", "whiteboard", "Pizarrón", 900, 2800, 1400, 200, "equipment", ["centro-idiomas", "pizarron", "pizarra", "aula"]),
+      asset("aula-2", "room", "Aula 2", 800, 5100, 3000, 2000, "architecture", ["centro-idiomas", "aula", "clase", "cuarto"]),
+      asset("aula-3", "room", "Aula 3", 4200, 2700, 3000, 2200, "architecture", ["centro-idiomas", "aula", "clase", "cuarto"]),
+      asset("lab-idiomas", "room", "Laboratorio de idiomas", 4200, 5100, 3000, 2000, "architecture", ["centro-idiomas", "laboratorio", "idiomas", "cuarto"]),
+      asset("computadora", "language-lab-station", "Estación de laboratorio", 4400, 5300, 2600, 600, "equipment", ["centro-idiomas", "estacion", "computadora", "audio"]),
+      asset("sala-maestros", "room", "Sala de maestros", 7600, 900, 3600, 2000, "architecture", ["centro-idiomas", "maestros", "profesores", "cuarto"]),
+      asset("biblioteca", "zone", "Biblioteca de autoestudio", 7600, 3100, 3600, 2000, "layout", ["centro-idiomas", "biblioteca", "autoestudio", "zona"]),
+      asset("cafeteria", "zone", "Cafetería", 7600, 5300, 3600, 1800, "layout", ["centro-idiomas", "cafeteria", "descanso", "zona"]),
+      asset("bano", "room", "Baño", 4200, 900, 2600, 1600, "architecture", ["centro-idiomas", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 4400, 1100, 600, 700, "equipment", ["centro-idiomas", "inodoro", "sanitario", "bano"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 3900, 900, 300, 300, "safety", ["centro-idiomas", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Centro de idiomas — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion", kind: "flow" },
+      { fromRef: "recepcion", toRef: "aula-1", kind: "flow" },
+      { fromRef: "aula-1", toRef: "lab-idiomas", kind: "flow" },
     ],
   },
 ];
