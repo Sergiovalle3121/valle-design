@@ -365,6 +365,11 @@ export type CadCommandInput =
       rows?: number;
       /** 'acomoda las sillas en 3 columnas': fija columnas y calcula filas. */
       cols?: number;
+      /** 'aleja la silla de la mesa (800)': el conjunto se mueve en línea
+       * recta ALEJÁNDOSE del ancla nombrada, awayDist mm (default 500). */
+      awayFrom?: string;
+      /** Distancia del alejamiento en mm (default 500). */
+      awayDist?: number;
     }
   | {
       id: "count_objects";

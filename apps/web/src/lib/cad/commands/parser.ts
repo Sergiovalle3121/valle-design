@@ -523,6 +523,45 @@ export function parseCadCommand(text: string): CadParseResult {
       input: { id: "move_selection", target: parts[0], anchor: parts[1] },
     };
   }
+  // ALEJAR (AXOS-CAD-MOVE-009): 'aleja la silla de la mesa (800)' — el
+  // conjunto se aparta en línea recta del ancla; par inverso de juntar.
+  const alejaMatch = raw.match(
+    /^aleja(?:me|l[oa]s?)?\s+(.+?)\s+de\s+(?:l[oa]s?\s+|el\s+)?(.+?)\s*$/i,
+  );
+  if (alejaMatch) {
+    const distMatch = alejaMatch[2]!.match(
+      /^(.*?)\s+(\d+(?:[.,]\d+)?)\s*(mm|m)?$/i,
+    );
+    const awayFrom = (distMatch ? distMatch[1]! : alejaMatch[2]!)
+      .replace(/^(?:(?:el|la|los|las|un|una)\s+)+/i, "")
+      .trim();
+    const awayDist = distMatch
+      ? Math.round(
+          Number(distMatch[2]!.replace(",", ".")) *
+            (distMatch[3]?.toLowerCase() === "m" ? 1000 : 1),
+        )
+      : undefined;
+    const alejaTarget = alejaMatch[1]!
+      .replace(
+        /\b(?:la\s+selecci[oó]n|lo\s+seleccionado|esto|estos\s+objetos|esos\s+objetos)\b/gi,
+        " ",
+      )
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/^(?:(?:el|la|los|las|un|una)\s+)+/i, "")
+      .trim();
+    if (awayFrom)
+      return {
+        ok: true,
+        confidence: 0.84,
+        input: {
+          id: "move_selection",
+          target: alejaTarget || undefined,
+          awayFrom,
+          awayDist,
+        },
+      };
+  }
   // ACOMODAR EN CUADRÍCULA (AXOS-CAD-MOVE-008): 'acomoda las sillas en 2
   // filas' / 'en 3 columnas' — matriz desde la esquina del conjunto.
   const gridMatch = raw.match(

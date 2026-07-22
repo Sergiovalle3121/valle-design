@@ -125,6 +125,53 @@ export function moveSelectionPreview(
     };
   }
 
+  // Alejar (AXOS-CAD-MOVE-009): 'aleja la silla de la mesa (800)' — el
+  // conjunto se mueve en línea recta ALEJÁNDOSE del centro del ancla;
+  // par inverso de JUNTAR. Si los centros coinciden, se aleja a la derecha.
+  const awayQuery = input.awayFrom?.trim();
+  if (awayQuery) {
+    const movedIds = new Set(objs.map((o) => o.id));
+    const away = matchObjectsByName(context, awayQuery).find(
+      (a) => !movedIds.has(a.id),
+    );
+    if (!away) {
+      issues.push(
+        error(
+          "move_away_not_found",
+          `No encontré '${awayQuery}' para alejar el conjunto de él.`,
+        ),
+      );
+      return { summary: "", affectedObjectIds: [], operations: [], issues };
+    }
+    const aMinX = Math.min(...objs.map((o) => o.x));
+    const aMinY = Math.min(...objs.map((o) => o.y));
+    const aMaxX = Math.max(...objs.map((o) => o.x + o.w));
+    const aMaxY = Math.max(...objs.map((o) => o.y + o.h));
+    const vx = (aMinX + aMaxX) / 2 - (away.x + away.w / 2);
+    const vy = (aMinY + aMaxY) / 2 - (away.y + away.h / 2);
+    const len = Math.hypot(vx, vy);
+    const dist = Number.isFinite(input.awayDist)
+      ? Math.round(input.awayDist as number)
+      : 500;
+    const ux = len > 0 ? vx / len : 1;
+    const uy = len > 0 ? vy / len : 0;
+    return {
+      summary: `Alejar ${objs.length} objeto(s) ${dist} mm de '${away.label}'.`,
+      affectedObjectIds: objs.map((o) => o.id),
+      operations: objs.map((o) => ({
+        type: "move",
+        objectId: o.id,
+        before: o,
+        after: {
+          ...o,
+          x: Math.round(o.x + ux * dist),
+          y: Math.round(o.y + uy * dist),
+        },
+      })),
+      issues,
+    };
+  }
+
   // Pegar a la pared (AXOS-CAD-MOVE-006): 'pega la mesa a la pared' — el
   // conjunto se recarga contra el muro del contenedor más chico que lo
   // contiene (cuarto/zona) o, si no hay, contra la orilla del plano;

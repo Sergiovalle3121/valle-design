@@ -2375,6 +2375,15 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         type: "number",
         description: "Alternativa: fija N columnas y calcula las filas.",
       },
+      awayFrom: {
+        type: "string",
+        description:
+          "Aleja el conjunto en línea recta de este objeto ('aleja la silla de la mesa').",
+      },
+      awayDist: {
+        type: "number",
+        description: "Distancia del alejamiento en mm (default 500).",
+      },
       objectIds: {
         type: "string[]",
         description: "Alternativa: objetos seleccionados.",
@@ -2389,6 +2398,7 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
       "pega la mesa a la pared",
       "junta la silla y la mesa",
       "acomoda las sillas en 2 filas",
+      "aleja la silla de la mesa",
     ],
     validate: (i, c) =>
       moveSelectionPreview(

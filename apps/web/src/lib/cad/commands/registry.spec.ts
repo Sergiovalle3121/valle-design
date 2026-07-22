@@ -2786,6 +2786,35 @@ if (rectDraftCreate?.type === "create") {
   }
   const uno = parseCadCommand("junta la mesa");
   assert.equal(uno.ok, false, "una sola parte → aclaración");
+
+  // ALEJAR (AXOS-CAD-MOVE-009): par inverso — se aparta en línea recta.
+  const aleja = parseCadCommand("aleja la silla de la mesa");
+  assert.equal(aleja.input?.id, "move_selection", "aleja parsea");
+  if (aleja.input?.id === "move_selection") {
+    assert.equal(aleja.input.target, "silla", "alejar: objetivo");
+    assert.equal(aleja.input.awayFrom, "mesa", "alejar: ancla");
+    assert.equal(aleja.input.awayDist, undefined, "sin distancia → default");
+    const p = previewCadCommand(aleja.input, juntaCtx);
+    assert.equal(p.issues.length, 0, "alejar sin issues");
+    const op = p.operations[0];
+    if (op?.type === "move") {
+      assert.ok(op.after.x > 5000, "la silla se aparta de la mesa en X");
+      assert.ok(op.after.y > 5000, "y también en Y (línea recta al centro)");
+    }
+  }
+  const alejaDist = parseCadCommand("aleja la silla de la mesa 800");
+  if (alejaDist.input?.id === "move_selection") {
+    assert.equal(alejaDist.input.awayDist, 800, "distancia explícita en mm");
+    assert.equal(alejaDist.input.awayFrom, "mesa", "ancla sin el número");
+  }
+  const alejaMissing = previewCadCommand(
+    { id: "move_selection", target: "silla", awayFrom: "piano" },
+    juntaCtx,
+  );
+  assert.ok(
+    alejaMissing.issues.some((i) => i.code === "move_away_not_found"),
+    "ancla inexistente → error específico",
+  );
 }
 
 // CUADRÍCULA (AXOS-CAD-MOVE-008): 'acomoda las sillas en 2 filas' —
