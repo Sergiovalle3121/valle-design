@@ -88,7 +88,11 @@ export type CadLayoutTemplateId =
   | "estudio-fotografico"
   | "estudio-tatuajes"
   | "taller-carpinteria"
-  | "zapateria";
+  | "zapateria"
+  | "joyeria"
+  | "muebleria"
+  | "tienda-deportes"
+  | "cocina-fantasma";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -2849,6 +2853,138 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "piso_ventas", kind: "flow" },
       { fromRef: "piso_ventas", toRef: "mostrador_caja", kind: "flow" },
       { fromRef: "bodega", toRef: "vitrina", kind: "material" },
+    ],
+  },
+  {
+    id: "joyeria",
+    label: "Joyería",
+    description:
+      "Plantilla editable y realista para una joyería típica de México (9000×6000 mm): zona de ventas con vitrinas y mostrador, taller de reparación, bóveda de seguridad y equipamiento de seguridad.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("muro_perimetral", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["shell", "joyeria", "muro", "perimetral", "arquitectura"]),
+      asset("puerta_entrada", "door", "Puerta de entrada", 1200, 650, 1400, 260, "architecture", ["puerta", "entrada", "acceso", "joyeria"]),
+      asset("zona_ventas", "zone", "Área de ventas", 800, 800, 4400, 4400, "layout", ["zona", "ventas", "exhibicion", "clientes", "joyeria"]),
+      asset("taller_reparacion", "room", "Taller de reparación", 5400, 800, 2800, 1900, "architecture", ["taller", "reparacion", "trabajo", "joyeria"]),
+      asset("boveda_seguridad", "room", "Bóveda de seguridad", 5400, 2900, 2800, 2300, "architecture", ["boveda", "seguridad", "almacen", "joyeria"]),
+      asset("vitrina_exhibicion_1", "display-case", "Vitrina de exhibición 1", 900, 950, 3000, 650, "equipment", ["vitrina", "exhibicion", "mueble", "joyeria"]),
+      asset("vitrina_exhibicion_2", "display-case", "Vitrina de exhibición 2", 900, 1800, 650, 1900, "equipment", ["vitrina", "exhibicion", "mueble", "joyeria"]),
+      asset("mostrador", "counter", "Mostrador de atención", 1900, 2600, 2600, 700, "equipment", ["mostrador", "atencion", "mueble", "joyeria"]),
+      asset("caja_registradora", "cash-register", "Caja registradora", 4600, 2600, 450, 500, "equipment", ["caja", "registradora", "cobro", "joyeria"]),
+      asset("espejo_pared", "wall-mirror", "Espejo de pared", 4400, 950, 650, 200, "equipment", ["espejo", "pared", "clientes", "joyeria"]),
+      asset("sofa_espera", "sofa-3", "Sofá de espera", 1900, 4100, 1900, 750, "equipment", ["sofa", "espera", "clientes", "joyeria"]),
+      asset("mesa_trabajo", "workbench", "Mesa de trabajo", 5600, 1000, 2400, 700, "equipment", ["mesa", "trabajo", "taller", "joyeria"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 4850, 4900, 250, 250, "safety", ["extintor", "seguridad", "incendio", "joyeria"]),
+      asset("senal_salida_emergencia", "emergency-exit-sign", "Señal de salida de emergencia", 2700, 740, 300, 170, "safety", ["salida", "emergencia", "seguridad", "joyeria"]),
+    ],
+    annotations: [
+      note("titulo", "Joyería — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "puerta_entrada", toRef: "zona_ventas", kind: "flow" },
+      { fromRef: "mostrador", toRef: "caja_registradora", kind: "flow" },
+      { fromRef: "taller_reparacion", toRef: "boveda_seguridad", kind: "material" },
+    ],
+  },
+  {
+    id: "muebleria",
+    label: "Mueblería",
+    description:
+      "Plantilla CAD editable para una mueblería típica de México (12×8 m): zonas de exhibición de salas, recámaras y comedores, bodega de producto, oficina administrativa, caja de cobro, sanitario y equipo de seguridad. Todos los elementos son reposicionables y editables.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("muro_perimetral", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["shell", "muebleria", "muro", "perimetro", "arquitectura"]),
+      asset("entrada", "door", "Entrada principal", 1200, 650, 1100, 260, "architecture", ["muebleria", "entrada", "acceso", "puerta"]),
+      asset("exhib_salas", "zone", "Exhibición de salas", 800, 1050, 4600, 2900, "layout", ["muebleria", "exhibicion", "salas", "zona"]),
+      asset("exhib_recamaras", "zone", "Exhibición de recámaras", 800, 4100, 4600, 3000, "layout", ["muebleria", "exhibicion", "recamaras", "zona"]),
+      asset("exhib_comedores", "zone", "Exhibición de comedores", 5600, 1050, 2400, 3000, "layout", ["muebleria", "exhibicion", "comedores", "zona"]),
+      asset("bodega", "room", "Bodega de producto", 8200, 800, 3000, 3200, "architecture", ["muebleria", "bodega", "almacen", "cuarto"]),
+      asset("oficina", "room", "Oficina", 8200, 4200, 1900, 1400, "architecture", ["muebleria", "oficina", "administracion", "cuarto"]),
+      asset("sofa_muestra", "sofa-3", "Sala en exhibición", 1200, 1600, 2000, 900, "equipment", ["muebleria", "sala", "sofa", "muestra", "mobiliario"]),
+      asset("cama_muestra", "bed-queen", "Recámara en exhibición", 1200, 4600, 1600, 2000, "equipment", ["muebleria", "recamara", "cama", "muestra", "mobiliario"]),
+      asset("comedor_muestra", "restaurant-table-4", "Comedor en exhibición", 6000, 1600, 1400, 1400, "equipment", ["muebleria", "comedor", "mesa", "muestra", "mobiliario"]),
+      asset("rack_bodega", "rack", "Rack de almacenaje", 8400, 1000, 2400, 600, "equipment", ["muebleria", "bodega", "rack", "almacenaje", "equipo"]),
+      asset("caja", "cash-register", "Caja de cobro", 4500, 1150, 650, 500, "equipment", ["muebleria", "caja", "cobro", "punto de venta"]),
+      asset("sanitario", "wc", "Sanitario", 10500, 6600, 600, 600, "equipment", ["muebleria", "sanitario", "bano", "wc"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 850, 800, 250, 260, "safety", ["muebleria", "seguridad", "extintor", "proteccion"]),
+    ],
+    annotations: [
+      note("titulo", "Mueblería — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "caja", kind: "flow" },
+      { fromRef: "bodega", toRef: "exhib_salas", kind: "material" },
+      { fromRef: "bodega", toRef: "exhib_recamaras", kind: "material" },
+    ],
+  },
+  {
+    id: "tienda-deportes",
+    label: "Tienda de deportes",
+    description:
+      "Plantilla editable de una tienda de deportes típica de México (12000×8000 mm): muro perimetral, piso de venta, bodega, probadores, mobiliario de exhibición y elementos de seguridad.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["shell", "tienda-deportes", "muro", "perimetral", "arquitectura"]),
+      asset("entrada", "door", "Entrada principal", 5400, 650, 1200, 260, "architecture", ["tienda-deportes", "entrada", "puerta", "acceso"]),
+      asset("bodega", "room", "Bodega / Almacén", 8500, 800, 2700, 3000, "architecture", ["tienda-deportes", "bodega", "almacen", "cuarto"]),
+      asset("probadores", "room", "Probadores", 8500, 4000, 2700, 3100, "architecture", ["tienda-deportes", "probadores", "vestidores", "cuarto"]),
+      asset("zona-venta", "zone", "Piso de venta", 800, 800, 7400, 4400, "layout", ["tienda-deportes", "zona-venta", "piso-de-venta", "exhibicion"]),
+      asset("zona-cajas", "zone", "Zona de cajas", 800, 5400, 7400, 1700, "layout", ["tienda-deportes", "zona-cajas", "pago", "checkout"]),
+      asset("gondola-exhibicion", "shelf-gondola", "Góndola de exhibición", 1200, 1400, 2200, 700, "equipment", ["tienda-deportes", "gondola", "exhibicion", "mobiliario"]),
+      asset("rack-ropa", "rack", "Rack de ropa deportiva", 1200, 2800, 2200, 700, "equipment", ["tienda-deportes", "rack", "ropa-deportiva", "mobiliario"]),
+      asset("estanteria-calzado", "shelf", "Estantería de calzado", 4200, 1400, 2200, 700, "equipment", ["tienda-deportes", "estanteria", "calzado", "tenis"]),
+      asset("vitrina-accesorios", "display-case", "Vitrina de accesorios", 4200, 2800, 2200, 700, "equipment", ["tienda-deportes", "vitrina", "accesorios", "exhibicion"]),
+      asset("caja-registradora", "cash-register", "Caja registradora", 1200, 5900, 1800, 700, "equipment", ["tienda-deportes", "caja", "cobro", "mostrador"]),
+      asset("espejo-probador", "styling-mirror", "Espejo de probador", 8700, 4300, 400, 1400, "equipment", ["tienda-deportes", "espejo", "probador", "mobiliario"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 7700, 6600, 320, 320, "safety", ["tienda-deportes", "extintor", "seguridad", "proteccion-civil"]),
+      asset("senal-salida", "emergency-exit-sign", "Salida de emergencia", 6700, 780, 420, 220, "safety", ["tienda-deportes", "salida-emergencia", "senaletica", "seguridad"]),
+    ],
+    annotations: [
+      note("titulo", "Tienda de deportes — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "zona-venta", kind: "flow" },
+      { fromRef: "zona-venta", toRef: "zona-cajas", kind: "flow" },
+      { fromRef: "bodega", toRef: "zona-venta", kind: "material" },
+    ],
+  },
+  {
+    id: "cocina-fantasma",
+    label: "Cocina fantasma",
+    description:
+      "Plantilla universal editable de una cocina fantasma (dark kitchen) típica de México en un local de 9000×6000 mm: muro perimetral, puerta de despacho para repartidores en el muro superior, cámara fría y almacén seco, zonas de cocina caliente, preparación y empaque/despacho, equipo de cocción y refrigeración, y elementos de seguridad. Todas las medidas en milímetros y todos los assets son editables.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["shell", "cocina-fantasma", "muro", "perimetral", "arquitectura"]),
+      asset("puerta-despacho", "door", "Puerta de despacho", 3200, 650, 1100, 260, "architecture", ["cocina-fantasma", "puerta", "entrada", "despacho", "acceso"]),
+      asset("camara-fria", "room", "Cámara fría", 800, 850, 1500, 1450, "architecture", ["cocina-fantasma", "camara-fria", "refrigeracion", "almacenamiento", "cuarto"]),
+      asset("almacen-seco", "room", "Almacén seco", 800, 3400, 1500, 1700, "architecture", ["cocina-fantasma", "almacen-seco", "almacenamiento", "insumos", "cuarto"]),
+      asset("zona-cocina-caliente", "zone", "Zona de cocina caliente", 2700, 850, 2300, 1550, "layout", ["cocina-fantasma", "cocina-caliente", "zona", "coccion", "linea-caliente"]),
+      asset("zona-preparacion", "zone", "Zona de preparación", 5300, 850, 2700, 1550, "layout", ["cocina-fantasma", "preparacion", "zona", "prep", "mise-en-place"]),
+      asset("zona-empaque-despacho", "zone", "Zona de empaque y despacho", 2700, 3400, 3200, 1700, "layout", ["cocina-fantasma", "empaque", "despacho", "zona", "delivery"]),
+      asset("estufa-industrial", "stove", "Estufa industrial", 2850, 1000, 900, 550, "equipment", ["cocina-fantasma", "estufa", "coccion", "equipo", "gas"]),
+      asset("horno", "oven", "Horno de convección", 3900, 1000, 900, 550, "equipment", ["cocina-fantasma", "horno", "coccion", "equipo", "panaderia"]),
+      asset("mesa-trabajo", "workbench", "Mesa de trabajo", 5450, 1000, 1200, 600, "equipment", ["cocina-fantasma", "mesa-trabajo", "preparacion", "equipo", "acero-inoxidable"]),
+      asset("tarja-lavado", "kitchen-sink", "Tarja de lavado", 5450, 1750, 900, 500, "equipment", ["cocina-fantasma", "tarja", "lavado", "equipo", "higiene"]),
+      asset("refrigerador", "refrigerator", "Refrigerador vertical", 6900, 1000, 800, 900, "equipment", ["cocina-fantasma", "refrigerador", "refrigeracion", "equipo", "frio"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 7900, 3600, 350, 350, "safety", ["cocina-fantasma", "extintor", "seguridad", "proteccion-civil"]),
+      asset("tanque-gas", "gas-tank", "Tanque de gas LP", 6300, 3600, 700, 900, "safety", ["cocina-fantasma", "tanque-gas", "seguridad", "gas-lp"]),
+    ],
+    annotations: [
+      note("titulo", "Cocina fantasma — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "refrigerador", toRef: "mesa-trabajo", kind: "material" },
+      { fromRef: "mesa-trabajo", toRef: "estufa-industrial", kind: "flow" },
+      { fromRef: "estufa-industrial", toRef: "zona-empaque-despacho", kind: "flow" },
     ],
   },
 ];
