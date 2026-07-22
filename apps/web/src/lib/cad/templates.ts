@@ -115,7 +115,11 @@ export type CadLayoutTemplateId =
   | "cerveceria-artesanal"
   | "karaoke-bar"
   | "estacion-bomberos"
-  | "plaza-comidas";
+  | "plaza-comidas"
+  | "estacion-policia"
+  | "invernadero"
+  | "taller-soldadura"
+  | "hotel-lobby";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -3781,6 +3785,142 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "area-comun", kind: "flow" },
       { fromRef: "local-1", toRef: "area-comun", kind: "material" },
       { fromRef: "area-comun", toRef: "local-3", kind: "flow" },
+    ],
+  },
+  {
+    id: "estacion-policia",
+    label: "Estación de policía",
+    description:
+      "Plantilla editable de una estación de policía típica de México (14000×9000 mm): recepción con barandilla, área de oficiales, celdas de detención, sala de interrogatorio, armería, oficina del comandante y comedor.",
+    category: "architecture",
+    baseWidth: 14000,
+    baseHeight: 9000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 12600, 7600, "architecture", ["shell", "estacion-policia", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 1200, 650, 1100, 260, "architecture", ["estacion-policia", "entrada", "acceso", "puerta"]),
+      asset("recepcion", "zone", "Recepción y barandilla", 800, 900, 3000, 1600, "layout", ["estacion-policia", "recepcion", "barandilla", "zona"]),
+      asset("mostrador", "counter", "Mostrador de recepción", 900, 1000, 2000, 500, "equipment", ["estacion-policia", "mostrador", "recepcion", "atencion"]),
+      asset("oficiales", "zone", "Área de oficiales", 800, 2700, 5000, 2400, "layout", ["estacion-policia", "oficiales", "escritorios", "zona"]),
+      asset("escritorio-1", "desk", "Escritorio de oficial 1", 1000, 2900, 1800, 700, "equipment", ["estacion-policia", "escritorio", "oficial", "mobiliario"]),
+      asset("escritorio-2", "desk", "Escritorio de oficial 2", 3000, 2900, 1800, 700, "equipment", ["estacion-policia", "escritorio", "oficial", "mobiliario"]),
+      asset("celdas", "room", "Celdas de detención", 800, 5300, 3600, 2700, "architecture", ["estacion-policia", "celdas", "separos", "cuarto"]),
+      asset("interrogatorio", "room", "Sala de interrogatorio", 6200, 900, 2600, 2000, "architecture", ["estacion-policia", "interrogatorio", "cuarto"]),
+      asset("comandante", "room", "Oficina del comandante", 9200, 900, 3400, 2000, "architecture", ["estacion-policia", "comandante", "oficina", "cuarto"]),
+      asset("armeria", "room", "Armería", 6200, 3100, 2600, 2000, "architecture", ["estacion-policia", "armeria", "seguridad", "cuarto"]),
+      asset("bano", "room", "Baño", 9200, 3100, 3400, 2000, "architecture", ["estacion-policia", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 9400, 3400, 600, 700, "equipment", ["estacion-policia", "inodoro", "sanitario", "bano"]),
+      asset("comedor", "zone", "Comedor y estar", 4800, 5300, 7800, 2700, "layout", ["estacion-policia", "comedor", "estar", "zona"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 5000, 900, 300, 300, "safety", ["estacion-policia", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Estación de policía — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion", kind: "flow" },
+      { fromRef: "recepcion", toRef: "oficiales", kind: "flow" },
+      { fromRef: "oficiales", toRef: "celdas", kind: "flow" },
+    ],
+  },
+  {
+    id: "invernadero",
+    label: "Invernadero de producción",
+    description:
+      "Plantilla editable de un invernadero de producción típico de México (16000×10000 mm): mesas de cultivo, área de germinación, bodega de insumos, cuarto de riego con tinaco, oficina y área de carga y despacho.",
+    category: "architecture",
+    baseWidth: 16000,
+    baseHeight: 10000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 14600, 8600, "architecture", ["shell", "invernadero", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 1200, 650, 1100, 260, "architecture", ["invernadero", "entrada", "acceso", "puerta"]),
+      asset("mesas-cultivo", "zone", "Mesas de cultivo", 800, 900, 9000, 5600, "layout", ["invernadero", "cultivo", "mesas", "plantas", "zona"]),
+      asset("cama-1", "grow-bed", "Cama de cultivo 1", 1000, 1200, 4000, 1000, "equipment", ["invernadero", "cama", "cultivo", "siembra"]),
+      asset("cama-2", "grow-bed", "Cama de cultivo 2", 1000, 2500, 4000, 1000, "equipment", ["invernadero", "cama", "cultivo", "siembra"]),
+      asset("cama-3", "grow-bed", "Cama de cultivo 3", 5400, 1200, 4000, 1000, "equipment", ["invernadero", "cama", "cultivo", "siembra"]),
+      asset("cama-4", "grow-bed", "Cama de cultivo 4", 5400, 2500, 4000, 1000, "equipment", ["invernadero", "cama", "cultivo", "siembra"]),
+      asset("germinacion", "zone", "Área de germinación", 800, 6900, 9000, 2200, "layout", ["invernadero", "germinacion", "plantulas", "semillero", "zona"]),
+      asset("bodega-insumos", "room", "Bodega de insumos", 10200, 900, 4600, 2400, "architecture", ["invernadero", "bodega", "insumos", "cuarto"]),
+      asset("cuarto-riego", "room", "Cuarto de riego", 10200, 3500, 2600, 2400, "architecture", ["invernadero", "riego", "bombas", "cuarto"]),
+      asset("tinaco", "water-tank", "Tinaco de riego", 10400, 3700, 1000, 1000, "equipment", ["invernadero", "tinaco", "agua", "riego"]),
+      asset("oficina", "room", "Oficina", 13000, 3500, 1800, 2400, "architecture", ["invernadero", "oficina", "administracion", "cuarto"]),
+      asset("carga", "zone", "Carga y despacho", 10200, 6100, 4600, 3000, "layout", ["invernadero", "carga", "despacho", "embarque", "zona"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 10000, 900, 300, 300, "safety", ["invernadero", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Invernadero de producción — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "mesas-cultivo", kind: "flow" },
+      { fromRef: "germinacion", toRef: "mesas-cultivo", kind: "material" },
+      { fromRef: "cuarto-riego", toRef: "mesas-cultivo", kind: "material" },
+    ],
+  },
+  {
+    id: "taller-soldadura",
+    label: "Taller de soldadura",
+    description:
+      "Plantilla editable de un taller de soldadura y herrería típico de México (12000×8000 mm): oficina, baño, almacén de material con rack de perfiles, zona de soldadura con mesa y esmeril, zona de corte y almacén de producto terminado.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["shell", "taller-soldadura", "muro", "perimetral"]),
+      asset("porton", "door", "Portón de acceso", 1200, 650, 1600, 260, "architecture", ["taller-soldadura", "porton", "entrada", "acceso"]),
+      asset("oficina", "room", "Oficina", 800, 900, 2400, 1600, "architecture", ["taller-soldadura", "oficina", "administracion", "cuarto"]),
+      asset("bano", "room", "Baño", 800, 2700, 2400, 1600, "architecture", ["taller-soldadura", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 1000, 3000, 600, 700, "equipment", ["taller-soldadura", "inodoro", "sanitario", "bano"]),
+      asset("almacen-material", "zone", "Almacén de material", 800, 4500, 3600, 2500, "layout", ["taller-soldadura", "almacen", "material", "perfiles", "zona"]),
+      asset("rack-perfiles", "rack", "Rack de perfiles", 900, 4700, 3400, 700, "equipment", ["taller-soldadura", "rack", "perfiles", "acero"]),
+      asset("zona-soldadura", "zone", "Zona de soldadura", 3600, 900, 4600, 3200, "layout", ["taller-soldadura", "soldadura", "herreria", "zona"]),
+      asset("mesa-soldar", "workbench", "Mesa de soldar", 3900, 1200, 2400, 900, "equipment", ["taller-soldadura", "mesa", "soldar", "trabajo"]),
+      asset("soldadora", "welder", "Máquina de soldar", 6400, 1200, 1200, 900, "equipment", ["taller-soldadura", "soldadora", "soldar", "maquina"]),
+      asset("esmeril", "pedestal-grinder", "Esmeril de pedestal", 3900, 2600, 900, 700, "equipment", ["taller-soldadura", "esmeril", "amoladora", "pulir"]),
+      asset("zona-corte", "zone", "Zona de corte", 3600, 4500, 4600, 2500, "layout", ["taller-soldadura", "corte", "plasma", "zona"]),
+      asset("cortadora", "plasma-cutter", "Cortadora de plasma", 3900, 4800, 2000, 1200, "equipment", ["taller-soldadura", "cortadora", "plasma", "corte"]),
+      asset("almacen-pt", "zone", "Almacén de producto terminado", 8600, 900, 2700, 6100, "layout", ["taller-soldadura", "almacen", "producto-terminado", "zona"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 8300, 900, 300, 300, "safety", ["taller-soldadura", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Taller de soldadura — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "almacen-material", toRef: "zona-soldadura", kind: "material" },
+      { fromRef: "zona-soldadura", toRef: "zona-corte", kind: "flow" },
+      { fromRef: "zona-corte", toRef: "almacen-pt", kind: "material" },
+    ],
+  },
+  {
+    id: "hotel-lobby",
+    label: "Hotel — lobby y planta baja",
+    description:
+      "Plantilla editable de la planta baja de un hotel típico de México (14000×9000 mm): lobby con recepción/check-in, sala de estar, conserjería, elevadores, restaurante, tienda de regalos, sanitarios y salón de eventos.",
+    category: "architecture",
+    baseWidth: 14000,
+    baseHeight: 9000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 12600, 7600, "architecture", ["shell", "hotel-lobby", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 6400, 650, 1600, 260, "architecture", ["hotel-lobby", "entrada", "acceso", "puerta"]),
+      asset("lobby", "zone", "Lobby", 800, 900, 7000, 4200, "layout", ["hotel-lobby", "lobby", "vestibulo", "recepcion", "zona"]),
+      asset("recepcion", "counter", "Recepción / Check-in", 900, 1000, 3000, 700, "equipment", ["hotel-lobby", "recepcion", "checkin", "mostrador"]),
+      asset("sala-estar", "zone", "Sala de estar", 900, 2000, 3000, 2000, "layout", ["hotel-lobby", "sala-estar", "lounge", "zona"]),
+      asset("sofa-1", "sofa-3", "Sofá 1", 1000, 2200, 2000, 700, "equipment", ["hotel-lobby", "sofa", "estar", "mobiliario"]),
+      asset("sofa-2", "sofa-3", "Sofá 2", 1000, 3100, 2000, 700, "equipment", ["hotel-lobby", "sofa", "estar", "mobiliario"]),
+      asset("conserjeria", "counter", "Conserjería", 4200, 1000, 1800, 600, "equipment", ["hotel-lobby", "conserjeria", "atencion", "mostrador"]),
+      asset("elevadores", "zone", "Elevadores", 8200, 900, 2000, 2000, "layout", ["hotel-lobby", "elevadores", "circulacion", "zona"]),
+      asset("restaurante", "room", "Restaurante", 8200, 3100, 5000, 2600, "architecture", ["hotel-lobby", "restaurante", "comedor", "cuarto"]),
+      asset("mesa-rest", "restaurant-table-4", "Mesa de restaurante", 8600, 3400, 1400, 1400, "equipment", ["hotel-lobby", "mesa", "restaurante", "mobiliario"]),
+      asset("tienda", "room", "Tienda de regalos", 10600, 900, 2600, 2000, "architecture", ["hotel-lobby", "tienda", "regalos", "cuarto"]),
+      asset("sanitarios", "room", "Sanitarios", 800, 5300, 3000, 2700, "architecture", ["hotel-lobby", "sanitarios", "banos", "cuarto"]),
+      asset("wc", "wc", "Inodoro", 1000, 5600, 700, 900, "equipment", ["hotel-lobby", "inodoro", "sanitario", "bano"]),
+      asset("salon-eventos", "zone", "Salón de eventos", 4200, 5300, 9000, 2700, "layout", ["hotel-lobby", "salon", "eventos", "zona"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 7500, 900, 300, 300, "safety", ["hotel-lobby", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Hotel — lobby y planta baja — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "lobby", kind: "flow" },
+      { fromRef: "lobby", toRef: "recepcion", kind: "flow" },
+      { fromRef: "lobby", toRef: "elevadores", kind: "flow" },
     ],
   },
 ];
