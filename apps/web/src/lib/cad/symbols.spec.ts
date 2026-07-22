@@ -603,3 +603,19 @@ assert.ok(
   searchCadSymbols("desmontadora").some((symbol) => symbol.id === "tire-changer"),
   "search finds desmontadora de llantas",
 );
+
+// Trigésima séptima tanda universal (AXOS-CAD-UNIVERSAL-098): servicios.
+assert.ok(
+  searchCadSymbols("cajero automatico").some((symbol) => symbol.id === "atm"),
+  "search finds cajero automático (ATM)",
+);
+assert.ok(
+  searchCadSymbols("turnos").some(
+    (symbol) => symbol.id === "queue-ticket-dispenser",
+  ),
+  "search finds dispensador de turnos",
+);
+assert.ok(
+  searchCadSymbols("casilleros").some((symbol) => symbol.id === "locker-bank"),
+  "search finds casilleros",
+);

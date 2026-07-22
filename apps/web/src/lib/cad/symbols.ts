@@ -1527,6 +1527,37 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["vulcanizadora", "desmontadora de llantas", "montallantas", "llantas", "neumáticos", "neumaticos", "taller", "vulca"],
     ports: [],
   },
+  // Trigésima séptima tanda universal (AXOS-CAD-UNIVERSAL-098): servicios.
+  {
+    id: "atm",
+    label: "Cajero automático",
+    category: "commerce",
+    defaultWidth: 600,
+    defaultHeight: 700,
+    layer: "Equipment",
+    tags: ["cajero", "cajero automático", "cajero automatico", "atm", "banco", "efectivo", "retiro", "sucursal", "servicios"],
+    ports: [],
+  },
+  {
+    id: "queue-ticket-dispenser",
+    label: "Dispensador de turnos",
+    category: "equipment",
+    defaultWidth: 400,
+    defaultHeight: 400,
+    layer: "Equipment",
+    tags: ["turnomático", "turnomatico", "dispensador de turnos", "turnos", "fichas", "toma turno", "fila", "espera", "recepción", "recepcion"],
+    ports: [],
+  },
+  {
+    id: "locker-bank",
+    label: "Casilleros",
+    category: "storage",
+    defaultWidth: 900,
+    defaultHeight: 450,
+    layer: "Furniture",
+    tags: ["casilleros", "lockers", "guardado", "empleados", "vestidor", "pertenencias"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {

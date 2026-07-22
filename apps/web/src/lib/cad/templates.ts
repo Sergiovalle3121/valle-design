@@ -84,7 +84,11 @@ export type CadLayoutTemplateId =
   | "banco-sucursal"
   | "casa-empeno"
   | "biblioteca"
-  | "cine-sala";
+  | "cine-sala"
+  | "estudio-fotografico"
+  | "estudio-tatuajes"
+  | "taller-carpinteria"
+  | "zapateria";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -2713,6 +2717,138 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "vestibulo", kind: "flow" },
       { fromRef: "vestibulo", toRef: "pasillo-central", kind: "flow" },
       { fromRef: "cabina", toRef: "pantalla", kind: "material" },
+    ],
+  },
+  {
+    id: "estudio-fotografico",
+    label: "Estudio fotográfico",
+    description:
+      "Plantilla editable de un estudio fotográfico típico de México (9000×6000 mm): recepción y sala de espera junto a la entrada, set principal amplio con ciclorama, vestidor, área de maquillaje, zona de edición/retoque, baño y bodega de equipo. Circulación libre entre zonas.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["shell", "estudio-fotografico", "muro", "perimetral"]),
+      asset("puerta-entrada", "door", "Puerta de entrada", 1300, 650, 900, 260, "architecture", ["estudio-fotografico", "entrada", "acceso", "puerta"]),
+      asset("recepcion", "zone", "Recepción", 800, 1050, 2000, 1400, "layout", ["estudio-fotografico", "recepcion", "espera", "atencion"]),
+      asset("vestidor", "room", "Vestidor", 800, 2600, 2000, 1100, "architecture", ["estudio-fotografico", "vestidor", "cambio", "privado"]),
+      asset("bano", "room", "Baño", 800, 3850, 1500, 1200, "architecture", ["estudio-fotografico", "bano", "sanitario"]),
+      asset("set-principal", "zone", "Set principal", 3000, 1050, 4000, 2550, "layout", ["estudio-fotografico", "set", "sesion", "iluminacion"]),
+      asset("bodega", "room", "Bodega de equipo", 7200, 1050, 1000, 1950, "architecture", ["estudio-fotografico", "bodega", "equipo", "almacen"]),
+      asset("maquillaje", "zone", "Área de maquillaje", 3000, 3750, 1900, 1300, "layout", ["estudio-fotografico", "maquillaje", "peinado", "preparacion"]),
+      asset("edicion", "zone", "Edición y retoque", 5100, 3750, 1900, 1300, "layout", ["estudio-fotografico", "edicion", "retoque", "postproduccion"]),
+      asset("ciclorama", "photo-backdrop", "Ciclorama / fondo infinito", 5900, 1200, 900, 2200, "equipment", ["estudio-fotografico", "ciclorama", "fondo", "backdrop"]),
+      asset("sofa-espera", "sofa-3", "Sofá de sala de espera", 850, 1650, 1600, 600, "equipment", ["estudio-fotografico", "sala-espera", "mobiliario"]),
+      asset("espejo-maquillaje", "styling-mirror", "Espejo de maquillaje", 3100, 3850, 700, 300, "equipment", ["estudio-fotografico", "espejo", "maquillaje"]),
+      asset("escritorio-edicion", "desk", "Escritorio de edición", 5250, 3950, 1600, 700, "equipment", ["estudio-fotografico", "escritorio", "edicion"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 2820, 2600, 180, 200, "safety", ["estudio-fotografico", "seguridad", "extintor"]),
+    ],
+    annotations: [
+      note("titulo", "Estudio fotográfico — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "puerta-entrada", toRef: "recepcion", kind: "flow" },
+      { fromRef: "recepcion", toRef: "vestidor", kind: "flow" },
+      { fromRef: "vestidor", toRef: "set-principal", kind: "flow" },
+    ],
+  },
+  {
+    id: "estudio-tatuajes",
+    label: "Estudio de tatuajes",
+    description:
+      "Arranque universal editable de estudio de tatuajes mexicano (9000×6000 mm): recepción con sala de espera, sofá y mostrador de cobro, área abierta con camilla y estación de tatuaje, cabina privada, sala de esterilización con lavabo, baño con inodoro y extintor de seguridad.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["muro", "shell", "arquitectura", "estudio-tatuajes"]),
+      asset("entrada", "door", "Entrada principal", 1100, 650, 1000, 260, "architecture", ["entrada", "acceso", "estudio-tatuajes"]),
+      asset("sala-espera", "zone", "Sala de espera / recepción", 800, 950, 2400, 1450, "layout", ["recepcion", "espera", "estudio-tatuajes"]),
+      asset("sofa-espera", "sofa-3", "Sofá de espera", 850, 1050, 1600, 600, "equipment", ["sofa", "espera", "estudio-tatuajes"]),
+      asset("mostrador", "counter", "Mostrador de recepción", 850, 1900, 2200, 400, "equipment", ["mostrador", "recepcion", "cobro", "estudio-tatuajes"]),
+      asset("area-tatuaje", "zone", "Área de tatuaje abierta", 800, 2600, 4400, 2500, "layout", ["area-tatuaje", "estaciones", "estudio-tatuajes"]),
+      asset("camilla", "exam-table", "Camilla de tatuaje", 1000, 2900, 2000, 900, "equipment", ["camilla", "tatuaje", "estudio-tatuajes"]),
+      asset("estacion-tatuaje", "workbench", "Estación de tatuaje", 1000, 4100, 1600, 600, "equipment", ["estacion", "mesa-trabajo", "tatuaje", "estudio-tatuajes"]),
+      asset("cabina-privada", "room", "Cabina privada", 5500, 800, 2700, 1900, "architecture", ["cabina", "privada", "tatuaje", "estudio-tatuajes"]),
+      asset("esterilizacion", "room", "Sala de esterilización", 5500, 2900, 1500, 2200, "architecture", ["esterilizacion", "higiene", "estudio-tatuajes"]),
+      asset("bano", "room", "Baño", 7200, 2900, 1000, 2200, "architecture", ["bano", "sanitario", "estudio-tatuajes"]),
+      asset("lavabo", "sink", "Lavabo de esterilización", 5600, 3050, 800, 500, "equipment", ["lavabo", "esterilizacion", "estudio-tatuajes"]),
+      asset("inodoro", "wc", "Inodoro", 7350, 3050, 600, 700, "equipment", ["inodoro", "bano", "estudio-tatuajes"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 3300, 850, 150, 250, "safety", ["extintor", "seguridad", "estudio-tatuajes"]),
+    ],
+    annotations: [
+      note("titulo", "Estudio de tatuajes — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "sala-espera", kind: "flow" },
+      { fromRef: "sala-espera", toRef: "area-tatuaje", kind: "flow" },
+      { fromRef: "esterilizacion", toRef: "estacion-tatuaje", kind: "material" },
+    ],
+  },
+  {
+    id: "taller-carpinteria",
+    label: "Taller de carpintería",
+    description:
+      "Plantilla editable de un taller de carpintería típico de México (12×8 m): oficina, baño, almacén de madera, zonas de maquinado y ensamble, cuarto de acabados y zona de despacho, con flujo de material.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["shell", "muro-perimetral", "taller-carpinteria"]),
+      asset("entrada", "door", "Entrada principal", 5000, 650, 1100, 260, "architecture", ["entrada", "acceso", "puerta", "taller-carpinteria"]),
+      asset("oficina", "room", "Oficina", 800, 850, 2200, 1700, "architecture", ["oficina", "administracion", "taller-carpinteria"]),
+      asset("bano", "room", "Baño", 800, 2750, 1600, 1350, "architecture", ["bano", "sanitario", "taller-carpinteria"]),
+      asset("almacen-madera", "room", "Almacén de madera", 800, 4300, 2600, 2800, "architecture", ["almacen", "madera", "materia-prima", "taller-carpinteria"]),
+      asset("acabados", "room", "Cuarto de acabados y pintura", 8400, 850, 2800, 2900, "architecture", ["acabados", "pintura", "barniz", "taller-carpinteria"]),
+      asset("zona-maquinado", "zone", "Zona de maquinado", 3600, 850, 4600, 2900, "layout", ["maquinado", "corte", "cepillado", "taller-carpinteria"]),
+      asset("zona-ensamble", "zone", "Zona de ensamble", 3600, 3950, 4600, 3150, "layout", ["ensamble", "armado", "encolado", "taller-carpinteria"]),
+      asset("zona-despacho", "zone", "Zona de despacho y carga", 8400, 3950, 2800, 3150, "layout", ["despacho", "carga", "embarque", "taller-carpinteria"]),
+      asset("sierra-mesa", "table-saw", "Sierra de mesa", 4000, 1200, 1600, 1000, "equipment", ["sierra-de-mesa", "corte", "maquinaria", "taller-carpinteria"]),
+      asset("banco-trabajo", "workbench", "Banco de trabajo", 3900, 4300, 2000, 900, "equipment", ["banco-de-trabajo", "ensamble", "herramientas", "taller-carpinteria"]),
+      asset("rack-madera", "rack", "Rack de madera", 950, 4550, 2300, 700, "equipment", ["rack", "madera", "almacenaje", "taller-carpinteria"]),
+      asset("compresor", "air-compressor", "Compresor de aire", 8600, 6100, 900, 750, "equipment", ["compresor", "neumatica", "maquinaria", "taller-carpinteria"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 10950, 6950, 220, 220, "safety", ["extintor", "seguridad", "proteccion-civil", "taller-carpinteria"]),
+    ],
+    annotations: [
+      note("titulo", "Taller de carpintería — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "almacen-madera", toRef: "zona-maquinado", kind: "material" },
+      { fromRef: "zona-maquinado", toRef: "zona-ensamble", kind: "flow" },
+      { fromRef: "zona-ensamble", toRef: "acabados", kind: "flow" },
+    ],
+  },
+  {
+    id: "zapateria",
+    label: "Zapatería",
+    description:
+      "Plantilla editable de una zapatería típica mexicana en un footprint de 9000×6000 mm, con piso de ventas abierto, góndolas y vitrina de exhibición de calzado, mostrador de caja, banca y espejo de prueba, bodega, baño y seguridad.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("muro_perimetral", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["shell", "zapateria", "muro", "arquitectura"]),
+      asset("entrada", "door", "Entrada", 3900, 650, 1200, 260, "architecture", ["zapateria", "entrada", "acceso", "puerta"]),
+      asset("piso_ventas", "zone", "Piso de ventas", 760, 760, 7480, 2500, "layout", ["zapateria", "ventas", "exhibicion", "zona"]),
+      asset("bodega", "room", "Bodega", 760, 3400, 2400, 1850, "architecture", ["zapateria", "bodega", "almacen", "inventario"]),
+      asset("bano", "room", "Baño", 6650, 3400, 1590, 1850, "architecture", ["zapateria", "bano", "sanitario"]),
+      asset("gondola_1", "shelf-gondola", "Góndola de calzado 1", 1200, 1000, 1500, 500, "equipment", ["zapateria", "gondola", "exhibicion", "calzado"]),
+      asset("gondola_2", "shelf-gondola", "Góndola de calzado 2", 1200, 1800, 1500, 500, "equipment", ["zapateria", "gondola", "exhibicion", "calzado"]),
+      asset("vitrina", "display-case", "Vitrina de exhibición", 5200, 1000, 1500, 500, "equipment", ["zapateria", "vitrina", "exhibicion", "calzado"]),
+      asset("mostrador_caja", "counter", "Mostrador de caja", 6600, 2400, 1500, 500, "equipment", ["zapateria", "mostrador", "caja", "atencion"]),
+      asset("caja_registradora", "cash-register", "Caja registradora", 6700, 2100, 350, 260, "equipment", ["zapateria", "caja", "cobro", "registro"]),
+      asset("banca_prueba", "outdoor-bench", "Banca de prueba", 3400, 2400, 1400, 400, "equipment", ["zapateria", "banca", "prueba", "clientes"]),
+      asset("espejo_prueba", "styling-mirror", "Espejo de prueba", 5000, 2000, 200, 600, "equipment", ["zapateria", "espejo", "prueba"]),
+      asset("inodoro", "wc", "Inodoro", 6750, 4600, 450, 550, "equipment", ["zapateria", "sanitario", "wc"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 8000, 800, 180, 250, "safety", ["zapateria", "seguridad", "extintor"]),
+    ],
+    annotations: [
+      note("titulo", "Zapatería — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "piso_ventas", kind: "flow" },
+      { fromRef: "piso_ventas", toRef: "mostrador_caja", kind: "flow" },
+      { fromRef: "bodega", toRef: "vitrina", kind: "material" },
     ],
   },
 ];
