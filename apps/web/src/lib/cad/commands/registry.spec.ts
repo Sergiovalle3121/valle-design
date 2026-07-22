@@ -3013,8 +3013,8 @@ if (rectDraftCreate?.type === "create") {
     },
   );
   assert.ok(
-    big.summary.startsWith("Faltan 1"),
-    "800 m² con 1 extintor → falta el punto extintor",
+    big.summary.startsWith("Faltan 2"),
+    "800 m² con 1 extintor y 1 puerta → faltan extintores y salida alterna",
   );
   const bigRep = big.operations[0];
   if (bigRep?.type === "report") {
@@ -3024,6 +3024,15 @@ if (rectDraftCreate?.type === "create") {
         (r) => r.label === "Extintor" && r.value === "1 de 3 — faltan 2",
       ),
       "norma de 300 m² exige 3 extintores en 800 m²",
+    );
+    // AUDIT-003: arriba de 400 m² se exigen dos puertas.
+    assert.ok(
+      bigRep.rows.some(
+        (r) =>
+          r.label === "Puertas (entrada + alterna)" &&
+          r.value === "1 de 2 — faltan 1",
+      ),
+      "800 m² exige entrada + salida alterna",
     );
   }
 }

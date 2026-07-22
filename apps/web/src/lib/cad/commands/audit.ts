@@ -5,6 +5,8 @@
  * renglón dice cuántos hay o marca FALTA; el resumen enumera pendientes.
  * AUDIT-002: los extintores se exigen por superficie — uno por cada
  * 300 m² del footprint (referencia NOM-002-STPS), redondeando arriba.
+ * AUDIT-003: arriba de 400 m² se exigen dos puertas — la entrada y una
+ * salida alterna para evacuación.
  */
 import type {
   CadCommandContext,
@@ -13,6 +15,7 @@ import type {
 } from "./types";
 
 const M2_PER_EXTINGUISHER = 300;
+const M2_SECOND_DOOR = 400;
 
 export function auditPlanPreview(
   context: CadCommandContext,
@@ -27,7 +30,11 @@ export function auditPlanPreview(
     { label: "Extintor", n: count("fire-extinguisher"), req: extRequired },
     { label: "Botiquín", n: count("first-aid-kit"), req: 1 },
     { label: "Salida de emergencia", n: count("emergency-exit-sign"), req: 1 },
-    { label: "Puerta de entrada", n: count("door"), req: 1 },
+    {
+      label: planAreaM2 > M2_SECOND_DOOR ? "Puertas (entrada + alterna)" : "Puerta de entrada",
+      n: count("door"),
+      req: planAreaM2 > M2_SECOND_DOOR ? 2 : 1,
+    },
   ];
   const missing = checks.filter((c) => c.n < c.req);
   const report: CadOperation = {
