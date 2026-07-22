@@ -92,7 +92,11 @@ export type CadLayoutTemplateId =
   | "joyeria"
   | "muebleria"
   | "tienda-deportes"
-  | "cocina-fantasma";
+  | "cocina-fantasma"
+  | "estudio-yoga"
+  | "taller-bicicletas"
+  | "consultorio-psicologia"
+  | "vivero";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -2985,6 +2989,138 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "refrigerador", toRef: "mesa-trabajo", kind: "material" },
       { fromRef: "mesa-trabajo", toRef: "estufa-industrial", kind: "flow" },
       { fromRef: "estufa-industrial", toRef: "zona-empaque-despacho", kind: "flow" },
+    ],
+  },
+  {
+    id: "estudio-yoga",
+    label: "Estudio de yoga",
+    description:
+      "Plantilla editable y realista de un estudio de yoga típico de México (10000×7000 mm): muro perimetral, entrada principal en el muro superior, área de recepción y espera, sala principal de práctica con espejo de pared y barra de ballet, vestidor y baño en la columna derecha, y equipamiento básico con señalización de seguridad. Todos los elementos son editables y no invaden el footprint.",
+    category: "architecture",
+    baseWidth: 10000,
+    baseHeight: 7000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 8600, 5600, "architecture", ["shell", "estudio-yoga", "muro-perimetral", "arquitectura"]),
+      asset("entrada", "door", "Entrada principal", 1200, 650, 1000, 260, "architecture", ["estudio-yoga", "entrada", "puerta", "acceso"]),
+      asset("recepcion", "zone", "Recepción y espera", 900, 1050, 3600, 1050, "layout", ["estudio-yoga", "recepcion", "espera", "area-abierta"]),
+      asset("mostrador", "counter", "Mostrador de recepción", 4900, 1050, 1600, 600, "equipment", ["estudio-yoga", "mostrador", "recepcion", "mobiliario"]),
+      asset("garrafon", "water-dispenser", "Garrafón de agua", 4900, 1750, 400, 400, "equipment", ["estudio-yoga", "garrafon", "agua", "hidratacion"]),
+      asset("sala-principal", "room", "Sala principal de práctica", 900, 2300, 5600, 3700, "architecture", ["estudio-yoga", "sala-principal", "practica", "salon"]),
+      asset("espejo-sala", "wall-mirror", "Espejo de pared", 950, 2450, 140, 2400, "equipment", ["estudio-yoga", "espejo", "pared", "equipo"]),
+      asset("barra-ballet", "ballet-barre", "Barra de ballet", 1300, 2500, 1600, 100, "equipment", ["estudio-yoga", "barra", "ballet", "equipo"]),
+      asset("bocina", "speaker", "Bocina de sonido", 6050, 2400, 300, 300, "equipment", ["estudio-yoga", "bocina", "sonido", "audio"]),
+      asset("maceta", "plant-pot", "Maceta decorativa", 5950, 5450, 350, 350, "equipment", ["estudio-yoga", "planta", "maceta", "decoracion"]),
+      asset("vestidor", "room", "Vestidor", 6900, 2300, 2200, 1700, "architecture", ["estudio-yoga", "vestidor", "cambiador", "salon"]),
+      asset("bano", "room", "Baño", 6900, 4200, 2200, 1800, "architecture", ["estudio-yoga", "bano", "sanitario", "salon"]),
+      asset("inodoro", "wc", "Inodoro", 8500, 5350, 450, 550, "equipment", ["estudio-yoga", "inodoro", "bano", "equipo"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 6550, 780, 250, 250, "safety", ["estudio-yoga", "extintor", "seguridad", "proteccion"]),
+    ],
+    annotations: [
+      note("titulo", "Estudio de yoga — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion", kind: "flow" },
+      { fromRef: "recepcion", toRef: "sala-principal", kind: "flow" },
+      { fromRef: "sala-principal", toRef: "vestidor", kind: "flow" },
+    ],
+  },
+  {
+    id: "taller-bicicletas",
+    label: "Taller de bicicletas",
+    description:
+      "Plantilla editable de un taller de bicicletas típico de México (9000×6000 mm): área de exhibición y venta al frente, área de reparación con banco de trabajo y compresor, bodega de refacciones, baño y equipo de seguridad.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["shell", "taller-bicicletas", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 1400, 650, 900, 260, "architecture", ["taller-bicicletas", "entrada", "acceso"]),
+      asset("zona-venta", "zone", "Área de exhibición y venta", 900, 900, 3000, 1600, "layout", ["taller-bicicletas", "exhibicion", "venta"]),
+      asset("zona-reparacion", "zone", "Área de reparación", 900, 2700, 5000, 2400, "layout", ["taller-bicicletas", "reparacion", "servicio"]),
+      asset("bodega", "room", "Bodega de refacciones", 6400, 900, 1700, 1800, "architecture", ["taller-bicicletas", "bodega", "almacen"]),
+      asset("bano", "room", "Baño", 6400, 2900, 1700, 1400, "architecture", ["taller-bicicletas", "bano", "sanitario"]),
+      asset("mostrador", "counter", "Mostrador de atención", 2600, 1000, 1100, 450, "equipment", ["taller-bicicletas", "mostrador", "atencion"]),
+      asset("caja", "cash-register", "Caja registradora", 3250, 1050, 350, 280, "equipment", ["taller-bicicletas", "caja", "cobro"]),
+      asset("exhibidor", "rack", "Exhibidor de bicicletas", 1000, 1000, 1300, 500, "equipment", ["taller-bicicletas", "exhibidor", "bicicletas"]),
+      asset("estante", "shelf", "Estante de refacciones", 1000, 1800, 1600, 400, "equipment", ["taller-bicicletas", "estante", "refacciones"]),
+      asset("banco-trabajo", "workbench", "Banco de trabajo", 1000, 2900, 2000, 600, "equipment", ["taller-bicicletas", "banco-trabajo", "herramientas"]),
+      asset("compresor", "air-compressor", "Compresor de aire", 1000, 4200, 700, 500, "equipment", ["taller-bicicletas", "compresor", "aire"]),
+      asset("inodoro", "wc", "Inodoro", 6600, 3100, 600, 700, "equipment", ["taller-bicicletas", "inodoro", "sanitario"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 6000, 900, 220, 220, "safety", ["taller-bicicletas", "extintor", "seguridad"]),
+    ],
+    annotations: [
+      note("titulo", "Taller de bicicletas — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "zona-venta", kind: "flow" },
+      { fromRef: "zona-venta", toRef: "zona-reparacion", kind: "flow" },
+      { fromRef: "bodega", toRef: "banco-trabajo", kind: "material" },
+    ],
+  },
+  {
+    id: "consultorio-psicologia",
+    label: "Consultorio de psicología",
+    description:
+      "Plantilla editable de un consultorio de psicología típico de México (9000×6000 mm): muro perimetral, puerta de acceso en el muro superior, recepción, sala de espera, consultorio principal con diván y escritorio, baño con WC, área de terapia infantil y equipo de seguridad. Los cuartos y zonas están separados con pasillos de circulación y el mobiliario queda contenido en cada espacio para mover, redimensionar o eliminar libremente cada elemento.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("muro", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["shell", "muro-perimetral", "arquitectura", "consultorio-psicologia"]),
+      asset("puerta", "door", "Puerta de entrada", 1400, 650, 1000, 260, "architecture", ["puerta", "entrada", "acceso", "consultorio-psicologia"]),
+      asset("recepcion", "zone", "Recepción", 750, 750, 3600, 900, "layout", ["recepcion", "atencion", "zona", "consultorio-psicologia"]),
+      asset("sala-espera", "room", "Sala de espera", 750, 1850, 3600, 1500, "architecture", ["sala-de-espera", "espera", "consultorio-psicologia"]),
+      asset("consultorio", "room", "Consultorio principal", 4650, 750, 3550, 4450, "architecture", ["consultorio", "terapia", "privado", "consultorio-psicologia"]),
+      asset("bano", "room", "Baño", 750, 3550, 1700, 1650, "architecture", ["bano", "sanitario", "consultorio-psicologia"]),
+      asset("terapia-infantil", "zone", "Área de terapia infantil", 2650, 3550, 1700, 1650, "layout", ["terapia-infantil", "juego", "zona", "consultorio-psicologia"]),
+      asset("mostrador", "counter", "Mostrador de recepción", 850, 850, 1600, 500, "equipment", ["mostrador", "recepcion", "mobiliario", "consultorio-psicologia"]),
+      asset("sofa-espera", "sofa-3", "Sofá de sala de espera", 850, 2050, 2000, 700, "equipment", ["sofa", "espera", "mobiliario", "consultorio-psicologia"]),
+      asset("perchero", "coat-rack", "Perchero", 3900, 2000, 350, 350, "equipment", ["perchero", "mobiliario", "consultorio-psicologia"]),
+      asset("escritorio", "desk", "Escritorio del terapeuta", 4900, 950, 1800, 800, "equipment", ["escritorio", "terapeuta", "mobiliario", "consultorio-psicologia"]),
+      asset("divan", "sofa-3", "Diván del paciente", 4900, 3000, 2200, 750, "equipment", ["divan", "sofa", "paciente", "mobiliario", "consultorio-psicologia"]),
+      asset("wc", "wc", "Inodoro", 850, 3700, 500, 650, "equipment", ["wc", "inodoro", "sanitario", "consultorio-psicologia"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 4700, 850, 250, 350, "safety", ["extintor", "seguridad", "proteccion-civil", "consultorio-psicologia"]),
+    ],
+    annotations: [
+      note("titulo", "Consultorio de psicología — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "puerta", toRef: "recepcion", kind: "flow" },
+      { fromRef: "recepcion", toRef: "sala-espera", kind: "flow" },
+      { fromRef: "sala-espera", toRef: "consultorio", kind: "flow" },
+    ],
+  },
+  {
+    id: "vivero",
+    label: "Vivero y centro de jardinería",
+    description:
+      "Plantilla editable de un vivero y centro de jardinería típico de México (12000×8000 mm): muro perimetral, bodega de insumos, sanitarios, zonas abiertas de exhibición de plantas, germinación de plántulas y carga/descarga, mostrador de cobro con caja, góndolas de productos, rack de herramientas, mesa de trasplante, tinaco de riego y extintor de seguridad.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["shell", "vivero", "muro", "perimetral"]),
+      asset("entrada-principal", "door", "Entrada principal", 5400, 650, 1200, 260, "architecture", ["entrada", "acceso", "vivero"]),
+      asset("bodega-insumos", "room", "Bodega de insumos", 800, 850, 2400, 2500, "architecture", ["bodega", "almacen", "insumos", "vivero"]),
+      asset("sanitarios", "room", "Sanitarios", 800, 3600, 1800, 1600, "architecture", ["sanitarios", "bano", "vivero"]),
+      asset("zona-exhibicion", "zone", "Zona de exhibición de plantas", 3600, 850, 3600, 3200, "layout", ["exhibicion", "plantas", "venta", "vivero"]),
+      asset("zona-germinacion", "zone", "Vivero de germinación", 3600, 4400, 3600, 2600, "layout", ["germinacion", "plantulas", "semillero", "vivero"]),
+      asset("zona-carga", "zone", "Zona de carga y descarga", 7600, 4400, 3600, 2600, "layout", ["carga", "descarga", "maniobras", "vivero"]),
+      asset("mostrador-cobro", "counter", "Mostrador de cobro", 7800, 900, 2600, 900, "equipment", ["mostrador", "cobro", "atencion", "vivero"]),
+      asset("caja-registradora", "cash-register", "Caja registradora", 8000, 1050, 500, 400, "equipment", ["caja", "registradora", "cobro", "vivero"]),
+      asset("gondola-productos", "shelf-gondola", "Góndola de productos", 7800, 2200, 2600, 700, "equipment", ["gondola", "estante", "productos", "vivero"]),
+      asset("rack-herramientas", "rack", "Rack de herramientas", 7800, 3100, 2600, 700, "equipment", ["rack", "herramientas", "jardineria", "vivero"]),
+      asset("mesa-trasplante", "workbench", "Mesa de trasplante", 3800, 4600, 1600, 900, "equipment", ["mesa", "trabajo", "trasplante", "vivero"]),
+      asset("tinaco", "water-tank", "Tinaco de riego", 10000, 4600, 1000, 1000, "equipment", ["tinaco", "agua", "riego", "vivero"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 800, 6800, 300, 300, "safety", ["extintor", "seguridad", "incendio", "vivero"]),
+    ],
+    annotations: [
+      note("titulo", "Vivero y centro de jardinería — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada-principal", toRef: "zona-exhibicion", kind: "flow" },
+      { fromRef: "zona-exhibicion", toRef: "mostrador-cobro", kind: "flow" },
+      { fromRef: "bodega-insumos", toRef: "mesa-trasplante", kind: "material" },
     ],
   },
 ];
