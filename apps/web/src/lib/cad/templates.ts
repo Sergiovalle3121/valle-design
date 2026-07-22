@@ -75,7 +75,8 @@ export type CadLayoutTemplateId =
   | "estancia-adultos"
   | "salon-fiestas-infantil"
   | "marisqueria"
-  | "hamburgueseria";
+  | "hamburgueseria"
+  | "laboratorio-clinico";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -2409,6 +2410,38 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "mostrador-ham", kind: "flow" },
       { fromRef: "cocina-ham", toRef: "mostrador-ham", kind: "material" },
       { fromRef: "mostrador-ham", toRef: "mesa-ham-1", kind: "flow" },
+    ],
+  },
+  {
+    id: "laboratorio-clinico",
+    label: "Laboratorio clínico",
+    description: "Plantilla universal editable de un laboratorio clínico: recepción y sala de espera, sala de toma de muestras (flebotomía), laboratorio de análisis clínicos, sanitario y equipamiento de seguridad.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["shell", "laboratorio-clinico", "muro", "perimetral", "arquitectura"]),
+      asset("entrada-principal", "door", "Entrada principal", 2100, 650, 900, 260, "architecture", ["laboratorio-clinico", "entrada", "acceso", "puerta"]),
+      asset("sala-espera", "zone", "Sala de espera y recepción", 750, 750, 5800, 1750, "layout", ["laboratorio-clinico", "sala-espera", "recepcion", "area-publica"]),
+      asset("recepcion", "counter", "Módulo de recepción", 1900, 1050, 1500, 450, "equipment", ["laboratorio-clinico", "recepcion", "mostrador", "atencion"]),
+      asset("sala-toma-muestras", "room", "Sala de toma de muestras", 750, 2700, 2600, 2550, "architecture", ["laboratorio-clinico", "toma-muestras", "flebotomia", "cuarto"]),
+      asset("sillon-flebotomia", "exam-table", "Sillón de flebotomía", 950, 3050, 1700, 950, "equipment", ["laboratorio-clinico", "flebotomia", "toma-muestras", "sillon"]),
+      asset("laboratorio-analisis", "room", "Laboratorio de análisis clínicos", 3550, 2700, 4700, 2550, "architecture", ["laboratorio-clinico", "analisis", "laboratorio", "cuarto"]),
+      asset("mesa-analisis", "workbench", "Mesa de análisis", 3750, 4450, 4300, 550, "equipment", ["laboratorio-clinico", "mesa-trabajo", "analisis", "equipo"]),
+      asset("refrigerador-reactivos", "refrigerator", "Refrigerador de reactivos", 7500, 2900, 600, 650, "equipment", ["laboratorio-clinico", "refrigerador", "reactivos", "muestras"]),
+      asset("lavabo-laboratorio", "sink", "Lavabo de laboratorio", 3750, 3050, 750, 550, "equipment", ["laboratorio-clinico", "lavabo", "higiene", "laboratorio"]),
+      asset("sanitario", "room", "Sanitario", 6700, 750, 1550, 1750, "architecture", ["laboratorio-clinico", "sanitario", "bano", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 6900, 1000, 550, 650, "equipment", ["laboratorio-clinico", "inodoro", "sanitario"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 3600, 2750, 220, 220, "safety", ["laboratorio-clinico", "seguridad", "extintor", "proteccion-civil"]),
+      asset("botiquin", "first-aid-kit", "Botiquín de primeros auxilios", 3050, 2850, 250, 200, "safety", ["laboratorio-clinico", "seguridad", "botiquin", "primeros-auxilios"]),
+    ],
+    annotations: [
+      note("titulo", "Laboratorio clínico — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada-principal", toRef: "recepcion", kind: "flow" },
+      { fromRef: "recepcion", toRef: "sala-toma-muestras", kind: "flow" },
+      { fromRef: "sillon-flebotomia", toRef: "laboratorio-analisis", kind: "material" },
     ],
   },
 ];
