@@ -471,3 +471,27 @@ assert.ok(
   searchCadSymbols("picnic").some((symbol) => symbol.id === "picnic-table"),
   "search finds mesa de picnic",
 );
+
+// Vigesimonovena tanda universal (AXOS-CAD-UNIVERSAL-064): protección civil.
+assert.ok(
+  searchCadSymbols("extintor").some(
+    (symbol) => symbol.id === "fire-extinguisher",
+  ),
+  "search finds extintor",
+);
+assert.ok(
+  searchCadSymbols("botiquin").some((symbol) => symbol.id === "first-aid-kit"),
+  "search finds botiquín",
+);
+assert.ok(
+  searchCadSymbols("salida de emergencia").some(
+    (symbol) => symbol.id === "emergency-exit-sign",
+  ),
+  "search finds salida de emergencia",
+);
+assert.ok(
+  searchCadSymbols("proteccion civil").some(
+    (symbol) => symbol.id === "fire-extinguisher",
+  ),
+  "search finds protección civil → extintor",
+);

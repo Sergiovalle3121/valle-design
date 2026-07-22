@@ -1279,6 +1279,37 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["mesa de picnic", "picnic", "terraza", "jardín", "jardin", "exterior"],
     ports: [],
   },
+  // — Vigesimonovena tanda universal (AXOS-CAD-UNIVERSAL-064): protección civil —
+  {
+    id: "fire-extinguisher",
+    label: "Extintor",
+    category: "safety",
+    defaultWidth: 300,
+    defaultHeight: 300,
+    layer: "Furniture",
+    tags: ["extintor", "extinguidor", "fuego", "protección civil", "proteccion civil", "fire extinguisher"],
+    ports: [],
+  },
+  {
+    id: "first-aid-kit",
+    label: "Botiquín",
+    category: "safety",
+    defaultWidth: 400,
+    defaultHeight: 200,
+    layer: "Furniture",
+    tags: ["botiquín", "botiquin", "primeros auxilios", "first aid", "protección civil", "proteccion civil"],
+    ports: [],
+  },
+  {
+    id: "emergency-exit-sign",
+    label: "Salida de emergencia",
+    category: "safety",
+    defaultWidth: 600,
+    defaultHeight: 200,
+    layer: "Furniture",
+    tags: ["salida de emergencia", "emergencia", "ruta de evacuación", "ruta de evacuacion", "exit", "protección civil", "proteccion civil"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {
