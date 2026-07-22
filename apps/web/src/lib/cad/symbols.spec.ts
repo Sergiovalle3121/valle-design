@@ -455,3 +455,19 @@ assert.ok(
   ),
   "search finds resbaladilla",
 );
+
+// Vigesimoctava tanda universal (AXOS-CAD-UNIVERSAL-061): terraza.
+assert.ok(
+  searchCadSymbols("sombrilla").some(
+    (symbol) => symbol.id === "patio-umbrella",
+  ),
+  "search finds sombrilla",
+);
+assert.ok(
+  searchCadSymbols("rosticero").some((symbol) => symbol.id === "rotisserie"),
+  "search finds rosticero",
+);
+assert.ok(
+  searchCadSymbols("picnic").some((symbol) => symbol.id === "picnic-table"),
+  "search finds mesa de picnic",
+);

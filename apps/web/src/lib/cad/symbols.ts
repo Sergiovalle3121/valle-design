@@ -1248,6 +1248,37 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["juegos", "juegos infantiles", "resbaladilla", "columpios", "guardería", "guarderia", "parque"],
     ports: [],
   },
+  // — Vigesimoctava tanda universal (AXOS-CAD-UNIVERSAL-061): terraza y asado —
+  {
+    id: "patio-umbrella",
+    label: "Sombrilla de terraza",
+    category: "furniture",
+    defaultWidth: 2000,
+    defaultHeight: 2000,
+    layer: "Furniture",
+    tags: ["sombrilla", "umbrella", "terraza", "patio", "sombra"],
+    ports: [],
+  },
+  {
+    id: "rotisserie",
+    label: "Horno rosticero",
+    category: "equipment",
+    defaultWidth: 900,
+    defaultHeight: 700,
+    layer: "Furniture",
+    tags: ["rosticero", "rosticería", "rosticeria", "pollo rostizado", "rotisserie"],
+    ports: [],
+  },
+  {
+    id: "picnic-table",
+    label: "Mesa de picnic",
+    category: "furniture",
+    defaultWidth: 1800,
+    defaultHeight: 1500,
+    layer: "Furniture",
+    tags: ["mesa de picnic", "picnic", "terraza", "jardín", "jardin", "exterior"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {
