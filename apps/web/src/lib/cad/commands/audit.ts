@@ -10,6 +10,9 @@
  * AUDIT-004: renglón informativo de aforo estimado (una persona por cada
  * 1.5 m² de superficie) — el dato que pide protección civil para el
  * dictamen; no marca falta, sólo orienta.
+ * AUDIT-005: bucle cerrado — cuando falta algo, el resumen sugiere la
+ * frase exacta que lo resuelve ('pon 2 extintores en las esquinas'), para
+ * que el usuario pase de la revisión al arreglo sin pensar el comando.
  */
 import type {
   CadCommandContext,
@@ -30,11 +33,24 @@ export function auditPlanPreview(
     ((context.footprintW ?? 10000) / 1000) *
     ((context.footprintH ?? 6000) / 1000);
   const extRequired = Math.max(1, Math.ceil(planAreaM2 / M2_PER_EXTINGUISHER));
+  const fix = (key: string, falta: number) => {
+    switch (key) {
+      case "ext":
+        return `pon ${falta} extintor${falta > 1 ? "es" : ""} en las esquinas`;
+      case "kit":
+        return "pon un botiquín en la recepción";
+      case "exit":
+        return "pon una salida de emergencia en el muro del fondo";
+      default:
+        return `pon ${falta} puerta${falta > 1 ? "s" : ""} más`;
+    }
+  };
   const checks = [
-    { label: "Extintor", n: count("fire-extinguisher"), req: extRequired },
-    { label: "Botiquín", n: count("first-aid-kit"), req: 1 },
-    { label: "Salida de emergencia", n: count("emergency-exit-sign"), req: 1 },
+    { key: "ext", label: "Extintor", n: count("fire-extinguisher"), req: extRequired },
+    { key: "kit", label: "Botiquín", n: count("first-aid-kit"), req: 1 },
+    { key: "exit", label: "Salida de emergencia", n: count("emergency-exit-sign"), req: 1 },
     {
+      key: "door",
       label: planAreaM2 > M2_SECOND_DOOR ? "Puertas (entrada + alterna)" : "Puerta de entrada",
       n: count("door"),
       req: planAreaM2 > M2_SECOND_DOOR ? 2 : 1,
@@ -65,7 +81,9 @@ export function auditPlanPreview(
     summary: missing.length
       ? `Faltan ${missing.length} punto(s): ${missing
           .map((c) => c.label.toLowerCase())
-          .join(", ")}.`
+          .join(", ")}. Sugerencia: ${missing
+          .map((c) => fix(c.key, c.req - c.n))
+          .join("; ")}.`
       : "El plano trae extintor, botiquín, salida de emergencia y puerta. Listo para protección civil.",
     affectedObjectIds: [],
     operations: [report],

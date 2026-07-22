@@ -2904,6 +2904,12 @@ if (rectDraftCreate?.type === "create") {
   };
   const p = previewCadCommand({ id: "audit_plan" }, bare);
   assert.ok(p.summary.includes("Faltan 3"), "enumera 3 faltantes");
+  // AUDIT-005: bucle cerrado — el resumen sugiere la frase que lo arregla.
+  assert.ok(
+    p.summary.includes("Sugerencia:") &&
+      p.summary.includes("pon 1 extintor en las esquinas"),
+    "sugerencia accionable con la frase exacta",
+  );
   const rep = p.operations[0];
   if (rep?.type === "report") {
     assert.equal(rep.rows.length, 5, "cuatro del checklist + aforo");
