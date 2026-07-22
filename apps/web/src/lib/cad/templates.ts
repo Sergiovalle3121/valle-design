@@ -70,7 +70,8 @@ export type CadLayoutTemplateId =
   | "imprenta"
   | "salon-unas"
   | "taller-celulares"
-  | "mercado";
+  | "mercado"
+  | "parque-vecinal";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -2235,6 +2236,36 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "porton", toRef: "pasillo-mer", kind: "flow" },
       { fromRef: "pasillo-mer", toRef: "puesto-mer-1", kind: "flow" },
       { fromRef: "pasillo-mer", toRef: "puesto-mer-4", kind: "flow" },
+    ],
+  },
+  {
+    id: "parque-vecinal",
+    label: "Parque vecinal",
+    description: "Arranque universal de parque vecinal: andador central, juegos infantiles, áreas de pasto, mesa de picnic con sombrilla, bancas, maceta y bote de basura.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("shell", "room", "Perímetro del parque", 700, 700, 10600, 6600, "architecture", ["architecture", "shell", "parque"]),
+      asset("entrada", "door", "Acceso", 5000, 650, 1500, 260, "architecture", ["door", "opening:entry"]),
+      asset("andador-par", "zone", "Andador", 4700, 1200, 2600, 5600, "layout", ["zone", "use:path", "parque"]),
+      asset("juegos-par", "playground", "Juegos infantiles", 1400, 1400, 3000, 2500, "equipment", ["juegos", "parque"]),
+      asset("pasto-par-1", "zone", "Área de pasto", 1200, 4400, 3200, 2200, "layout", ["zone", "use:lawn", "parque"]),
+      asset("pasto-par-2", "zone", "Área de pasto", 7600, 1200, 3200, 2400, "layout", ["zone", "use:lawn", "parque"]),
+      asset("sombrilla-par", "patio-umbrella", "Sombrilla", 7700, 4100, 2000, 2000, "equipment", ["sombrilla", "parque"]),
+      asset("picnic-par", "picnic-table", "Mesa de picnic", 7800, 4200, 1800, 1500, "equipment", ["picnic", "parque"]),
+      asset("banca-par-1", "outdoor-bench", "Banca", 4900, 2000, 1500, 500, "equipment", ["banca", "parque"]),
+      asset("banca-par-2", "outdoor-bench", "Banca", 4900, 4600, 1500, 500, "equipment", ["banca", "parque"]),
+      asset("maceta-par", "plant-pot", "Maceta", 5900, 3400, 450, 450, "equipment", ["maceta", "parque"]),
+      asset("basura-par", "trash-bin", "Bote de basura", 5900, 5400, 400, 400, "equipment", ["basura", "parque"]),
+    ],
+    annotations: [
+      note("titulo", "Parque vecinal — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "andador-par", kind: "flow" },
+      { fromRef: "andador-par", toRef: "juegos-par", kind: "flow" },
+      { fromRef: "andador-par", toRef: "picnic-par", kind: "flow" },
     ],
   },
 ];
