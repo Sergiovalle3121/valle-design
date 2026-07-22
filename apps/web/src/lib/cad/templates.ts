@@ -119,7 +119,11 @@ export type CadLayoutTemplateId =
   | "estacion-policia"
   | "invernadero"
   | "taller-soldadura"
-  | "hotel-lobby";
+  | "hotel-lobby"
+  | "supermercado"
+  | "central-autobuses"
+  | "tienda-departamental"
+  | "universidad-facultad";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -3921,6 +3925,144 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "lobby", kind: "flow" },
       { fromRef: "lobby", toRef: "recepcion", kind: "flow" },
       { fromRef: "lobby", toRef: "elevadores", kind: "flow" },
+    ],
+  },
+  {
+    id: "supermercado",
+    label: "Supermercado",
+    description:
+      "Plantilla editable de un supermercado / autoservicio típico de México (16000×10000 mm): línea de cajas, piso de venta con góndolas, frutas y verduras, refrigerados, panadería, bodega y sanitarios.",
+    category: "architecture",
+    baseWidth: 16000,
+    baseHeight: 10000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 14600, 8600, "architecture", ["shell", "supermercado", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 1200, 650, 1600, 260, "architecture", ["supermercado", "entrada", "acceso", "puerta"]),
+      asset("cajas", "zone", "Línea de cajas", 800, 900, 9000, 1400, "layout", ["supermercado", "cajas", "checkout", "pago", "zona"]),
+      asset("caja-1", "cash-register", "Caja 1", 1000, 1000, 500, 600, "equipment", ["supermercado", "caja", "cobro", "registro"]),
+      asset("caja-2", "cash-register", "Caja 2", 2200, 1000, 500, 600, "equipment", ["supermercado", "caja", "cobro", "registro"]),
+      asset("piso-venta", "zone", "Piso de venta", 800, 2500, 9000, 4000, "layout", ["supermercado", "piso-venta", "abarrotes", "zona"]),
+      asset("gondola-1", "shelf-gondola", "Góndola 1", 1200, 2900, 7000, 600, "equipment", ["supermercado", "gondola", "estante", "abarrotes"]),
+      asset("gondola-2", "shelf-gondola", "Góndola 2", 1200, 3900, 7000, 600, "equipment", ["supermercado", "gondola", "estante", "abarrotes"]),
+      asset("gondola-3", "shelf-gondola", "Góndola 3", 1200, 4900, 7000, 600, "equipment", ["supermercado", "gondola", "estante", "abarrotes"]),
+      asset("frutas-verduras", "zone", "Frutas y verduras", 800, 6900, 4400, 2200, "layout", ["supermercado", "frutas", "verduras", "perecederos", "zona"]),
+      asset("refrigerados", "zone", "Refrigerados", 5400, 6900, 4400, 2200, "layout", ["supermercado", "refrigerados", "frios", "lacteos", "zona"]),
+      asset("panaderia", "room", "Panadería", 10200, 900, 4600, 2600, "architecture", ["supermercado", "panaderia", "horno", "cuarto"]),
+      asset("bodega", "room", "Bodega", 10200, 3700, 4600, 3000, "architecture", ["supermercado", "bodega", "almacen", "cuarto"]),
+      asset("sanitarios", "room", "Sanitarios", 10200, 6900, 2600, 2200, "architecture", ["supermercado", "sanitarios", "banos", "cuarto"]),
+      asset("wc", "wc", "Inodoro", 10400, 7200, 700, 900, "equipment", ["supermercado", "inodoro", "sanitario", "bano"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 9500, 900, 300, 300, "safety", ["supermercado", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Supermercado — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "piso-venta", kind: "flow" },
+      { fromRef: "piso-venta", toRef: "cajas", kind: "flow" },
+      { fromRef: "bodega", toRef: "piso-venta", kind: "material" },
+    ],
+  },
+  {
+    id: "central-autobuses",
+    label: "Central de autobuses",
+    description:
+      "Plantilla editable de una central de autobuses típica de México (16000×10000 mm): sala de espera con bancas, línea de taquillas, dos andenes de abordaje, paquetería, tienda/cafetería y sanitarios.",
+    category: "architecture",
+    baseWidth: 16000,
+    baseHeight: 10000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 14600, 8600, "architecture", ["shell", "central-autobuses", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 1200, 650, 1600, 260, "architecture", ["central-autobuses", "entrada", "acceso", "puerta"]),
+      asset("sala-espera", "zone", "Sala de espera", 800, 900, 7000, 4200, "layout", ["central-autobuses", "sala-espera", "espera", "zona"]),
+      asset("banca-1", "outdoor-bench", "Banca de espera 1", 1000, 1200, 5000, 600, "equipment", ["central-autobuses", "banca", "espera", "mobiliario"]),
+      asset("banca-2", "outdoor-bench", "Banca de espera 2", 1000, 2100, 5000, 600, "equipment", ["central-autobuses", "banca", "espera", "mobiliario"]),
+      asset("taquillas", "counter", "Línea de taquillas", 800, 5300, 4000, 700, "equipment", ["central-autobuses", "taquillas", "boletos", "venta"]),
+      asset("anden-1", "zone", "Andén de abordaje 1", 8200, 900, 6600, 2000, "layout", ["central-autobuses", "anden", "abordaje", "zona"]),
+      asset("autobus-1", "vehicle", "Autobús 1", 8600, 1200, 5000, 1400, "equipment", ["central-autobuses", "autobus", "camion", "vehiculo"]),
+      asset("anden-2", "zone", "Andén de abordaje 2", 8200, 3100, 6600, 2000, "layout", ["central-autobuses", "anden", "abordaje", "zona"]),
+      asset("autobus-2", "vehicle", "Autobús 2", 8600, 3400, 5000, 1400, "equipment", ["central-autobuses", "autobus", "camion", "vehiculo"]),
+      asset("tienda", "room", "Tienda / cafetería", 800, 6200, 3000, 2900, "architecture", ["central-autobuses", "tienda", "cafeteria", "cuarto"]),
+      asset("sanitarios", "room", "Sanitarios", 4200, 6200, 3000, 2900, "architecture", ["central-autobuses", "sanitarios", "banos", "cuarto"]),
+      asset("wc", "wc", "Inodoro", 4400, 6500, 700, 900, "equipment", ["central-autobuses", "inodoro", "sanitario", "bano"]),
+      asset("paqueteria", "room", "Paquetería y equipaje", 8200, 5300, 6600, 3800, "architecture", ["central-autobuses", "paqueteria", "equipaje", "cuarto"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 7500, 900, 300, 300, "safety", ["central-autobuses", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Central de autobuses — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "sala-espera", kind: "flow" },
+      { fromRef: "sala-espera", toRef: "taquillas", kind: "flow" },
+      { fromRef: "taquillas", toRef: "anden-1", kind: "flow" },
+    ],
+  },
+  {
+    id: "tienda-departamental",
+    label: "Tienda departamental",
+    description:
+      "Plantilla editable de una tienda departamental típica de México (16000×10000 mm): departamento de ropa con exhibidores y maniquíes, departamento de hogar con vitrinas, línea de cajas, probadores, bodega y sanitarios.",
+    category: "architecture",
+    baseWidth: 16000,
+    baseHeight: 10000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 14600, 8600, "architecture", ["shell", "tienda-departamental", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 7400, 650, 1600, 260, "architecture", ["tienda-departamental", "entrada", "acceso", "puerta"]),
+      asset("planta-ropa", "zone", "Departamento de ropa", 800, 900, 6800, 4200, "layout", ["tienda-departamental", "ropa", "moda", "zona"]),
+      asset("exhibidor-1", "rack", "Exhibidor de ropa 1", 1000, 1200, 2600, 600, "equipment", ["tienda-departamental", "exhibidor", "rack", "ropa"]),
+      asset("exhibidor-2", "rack", "Exhibidor de ropa 2", 1000, 2100, 2600, 600, "equipment", ["tienda-departamental", "exhibidor", "rack", "ropa"]),
+      asset("maniqui-1", "mannequin", "Maniquí", 4200, 1200, 500, 900, "equipment", ["tienda-departamental", "maniqui", "exhibicion", "moda"]),
+      asset("planta-hogar", "zone", "Departamento de hogar", 8200, 900, 6600, 4200, "layout", ["tienda-departamental", "hogar", "muebles", "zona"]),
+      asset("vitrina", "display-case", "Vitrina de hogar", 8600, 1200, 3000, 600, "equipment", ["tienda-departamental", "vitrina", "exhibicion", "hogar"]),
+      asset("cajas", "zone", "Línea de cajas", 800, 5300, 7000, 1400, "layout", ["tienda-departamental", "cajas", "checkout", "pago", "zona"]),
+      asset("caja-1", "cash-register", "Caja 1", 1000, 5500, 500, 600, "equipment", ["tienda-departamental", "caja", "cobro", "registro"]),
+      asset("probadores", "room", "Probadores", 800, 6900, 3000, 2200, "architecture", ["tienda-departamental", "probadores", "vestidores", "cuarto"]),
+      asset("espejo", "styling-mirror", "Espejo de probador", 900, 7100, 400, 1400, "equipment", ["tienda-departamental", "espejo", "probador", "mobiliario"]),
+      asset("bodega", "room", "Bodega", 8200, 5300, 6600, 3800, "architecture", ["tienda-departamental", "bodega", "almacen", "cuarto"]),
+      asset("sanitarios", "room", "Sanitarios", 4200, 6900, 3000, 2200, "architecture", ["tienda-departamental", "sanitarios", "banos", "cuarto"]),
+      asset("wc", "wc", "Inodoro", 4400, 7200, 700, 900, "equipment", ["tienda-departamental", "inodoro", "sanitario", "bano"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 7500, 5300, 300, 300, "safety", ["tienda-departamental", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Tienda departamental — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "planta-ropa", kind: "flow" },
+      { fromRef: "planta-ropa", toRef: "cajas", kind: "flow" },
+      { fromRef: "bodega", toRef: "planta-hogar", kind: "material" },
+    ],
+  },
+  {
+    id: "universidad-facultad",
+    label: "Universidad — facultad",
+    description:
+      "Plantilla editable de una facultad universitaria típica de México (16000×10000 mm): aula magna, aulas, laboratorio, biblioteca, sala de cómputo, cafetería, sala de maestros y sanitarios.",
+    category: "architecture",
+    baseWidth: 16000,
+    baseHeight: 10000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 14600, 8600, "architecture", ["shell", "universidad-facultad", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 7400, 650, 1600, 260, "architecture", ["universidad-facultad", "entrada", "acceso", "puerta"]),
+      asset("vestibulo", "zone", "Vestíbulo", 6000, 900, 4000, 1400, "layout", ["universidad-facultad", "vestibulo", "acceso", "zona"]),
+      asset("aula-magna", "room", "Aula magna", 800, 900, 4600, 3200, "architecture", ["universidad-facultad", "aula-magna", "auditorio", "cuarto"]),
+      asset("aula-1", "room", "Aula 1", 800, 4300, 3400, 2400, "architecture", ["universidad-facultad", "aula", "salon", "cuarto"]),
+      asset("aula-2", "room", "Aula 2", 800, 6900, 3400, 2200, "architecture", ["universidad-facultad", "aula", "salon", "cuarto"]),
+      asset("laboratorio", "room", "Laboratorio", 4400, 4300, 3600, 2400, "architecture", ["universidad-facultad", "laboratorio", "practicas", "cuarto"]),
+      asset("biblioteca", "room", "Biblioteca", 10600, 900, 4200, 3200, "architecture", ["universidad-facultad", "biblioteca", "acervo", "cuarto"]),
+      asset("cafeteria", "zone", "Cafetería", 8200, 4300, 6600, 2400, "layout", ["universidad-facultad", "cafeteria", "comedor", "zona"]),
+      asset("mesa-cafe", "restaurant-table-4", "Mesa de cafetería", 8600, 4600, 1400, 1400, "equipment", ["universidad-facultad", "mesa", "cafeteria", "mobiliario"]),
+      asset("sala-maestros", "room", "Sala de maestros", 4400, 6900, 3600, 2200, "architecture", ["universidad-facultad", "maestros", "profesores", "cuarto"]),
+      asset("sanitarios", "room", "Sanitarios", 8200, 6900, 3000, 2200, "architecture", ["universidad-facultad", "sanitarios", "banos", "cuarto"]),
+      asset("wc", "wc", "Inodoro", 8400, 7200, 700, 900, "equipment", ["universidad-facultad", "inodoro", "sanitario", "bano"]),
+      asset("computo", "zone", "Sala de cómputo", 11400, 6900, 3400, 2200, "layout", ["universidad-facultad", "computo", "computadoras", "zona"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 5600, 900, 300, 300, "safety", ["universidad-facultad", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Universidad — facultad — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "vestibulo", kind: "flow" },
+      { fromRef: "vestibulo", toRef: "aula-magna", kind: "flow" },
+      { fromRef: "vestibulo", toRef: "biblioteca", kind: "flow" },
     ],
   },
 ];
