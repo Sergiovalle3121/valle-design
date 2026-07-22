@@ -139,7 +139,11 @@ export type CadLayoutTemplateId =
   | "museo"
   | "autoescuela"
   | "balneario"
-  | "planta-tratamiento-agua";
+  | "planta-tratamiento-agua"
+  | "planta-embotelladora"
+  | "establo-lecheria"
+  | "casino"
+  | "centro-rehabilitacion";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -4640,6 +4644,150 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "rejillas", toRef: "tanque-sedimentacion", kind: "material" },
       { fromRef: "tanque-sedimentacion", toRef: "reactor", kind: "material" },
       { fromRef: "filtros", toRef: "tanque-almacenamiento", kind: "material" },
+    ],
+  },
+  {
+    id: "planta-embotelladora",
+    label: "Planta embotelladora",
+    description:
+      "Plantilla editable de una planta embotelladora típica de México (16000×10000 mm): almacén de preformas con sopladora, línea de llenado y etiquetado, línea de empaque, almacén de producto terminado, laboratorio de calidad y andén de carga.",
+    category: "architecture",
+    baseWidth: 16000,
+    baseHeight: 10000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 14600, 8600, "architecture", ["shell", "planta-embotelladora", "muro", "perimetral"]),
+      asset("porton", "door", "Portón de acceso", 1200, 650, 1600, 260, "architecture", ["planta-embotelladora", "porton", "entrada", "acceso"]),
+      asset("almacen-mp", "zone", "Almacén de preformas", 800, 900, 3600, 4000, "layout", ["planta-embotelladora", "almacen", "preformas", "materia-prima", "zona"]),
+      asset("soplado", "blow-molder", "Sopladora de botellas", 1000, 1200, 2600, 1400, "equipment", ["planta-embotelladora", "sopladora", "soplado", "botellas"]),
+      asset("linea-llenado", "zone", "Línea de llenado", 4800, 900, 7000, 2400, "layout", ["planta-embotelladora", "llenado", "linea", "zona"]),
+      asset("llenadora", "filling-machine", "Llenadora", 5000, 1100, 3000, 1200, "equipment", ["planta-embotelladora", "llenadora", "llenado", "envasado"]),
+      asset("etiquetadora", "labeling-machine", "Etiquetadora", 8400, 1100, 1600, 1200, "equipment", ["planta-embotelladora", "etiquetadora", "etiquetado", "envasado"]),
+      asset("linea-empaque", "zone", "Línea de empaque", 4800, 3500, 7000, 2400, "layout", ["planta-embotelladora", "empaque", "embalaje", "zona"]),
+      asset("banda", "conveyor-belt", "Banda transportadora", 5000, 3700, 6600, 700, "equipment", ["planta-embotelladora", "banda", "transportadora", "empaque"]),
+      asset("almacen-pt", "zone", "Almacén de producto terminado", 800, 5300, 3600, 3700, "layout", ["planta-embotelladora", "almacen", "producto-terminado", "zona"]),
+      asset("montacargas", "forklift", "Montacargas", 1000, 5500, 1400, 1800, "equipment", ["planta-embotelladora", "montacargas", "carga", "maniobras"]),
+      asset("laboratorio", "room", "Laboratorio de calidad", 12200, 900, 2600, 2400, "architecture", ["planta-embotelladora", "laboratorio", "calidad", "cuarto"]),
+      asset("oficina", "room", "Oficina", 12200, 3500, 2600, 2400, "architecture", ["planta-embotelladora", "oficina", "administracion", "cuarto"]),
+      asset("bano", "room", "Baño", 4800, 6100, 2600, 2900, "architecture", ["planta-embotelladora", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 5000, 6400, 600, 700, "equipment", ["planta-embotelladora", "inodoro", "sanitario", "bano"]),
+      asset("anden", "zone", "Andén de carga", 7800, 6100, 7000, 2900, "layout", ["planta-embotelladora", "anden", "carga", "embarque", "zona"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 4500, 900, 300, 300, "safety", ["planta-embotelladora", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Planta embotelladora — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "almacen-mp", toRef: "linea-llenado", kind: "material" },
+      { fromRef: "linea-llenado", toRef: "linea-empaque", kind: "material" },
+      { fromRef: "linea-empaque", toRef: "almacen-pt", kind: "material" },
+    ],
+  },
+  {
+    id: "establo-lecheria",
+    label: "Establo / Lechería",
+    description:
+      "Plantilla editable de un establo lechero típico de México (16000×10000 mm): corrales con comederos, sala de ordeña con ordeñadora, tanque frío de leche, almacén de forraje, bodega, oficina y andén de carga.",
+    category: "architecture",
+    baseWidth: 16000,
+    baseHeight: 10000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 14600, 8600, "architecture", ["shell", "establo-lecheria", "muro", "perimetral"]),
+      asset("porton", "door", "Portón de acceso", 1200, 650, 1600, 260, "architecture", ["establo-lecheria", "porton", "entrada", "acceso"]),
+      asset("corral-1", "zone", "Corral 1", 800, 900, 6800, 3200, "layout", ["establo-lecheria", "corral", "ganado", "vacas", "zona"]),
+      asset("comedero", "feed-bunk", "Comedero", 1000, 1200, 6400, 600, "equipment", ["establo-lecheria", "comedero", "forraje", "alimento"]),
+      asset("corral-2", "zone", "Corral 2", 800, 4300, 6800, 2600, "layout", ["establo-lecheria", "corral", "ganado", "vacas", "zona"]),
+      asset("sala-ordena", "room", "Sala de ordeña", 8000, 900, 4600, 3200, "architecture", ["establo-lecheria", "ordena", "ordeño", "cuarto"]),
+      asset("ordenadora", "milking-machine", "Ordeñadora", 8200, 1200, 4000, 1400, "equipment", ["establo-lecheria", "ordenadora", "ordeño", "leche"]),
+      asset("tanque-leche", "milk-tank", "Tanque frío de leche", 13000, 900, 1800, 3200, "equipment", ["establo-lecheria", "tanque", "leche", "frio"]),
+      asset("almacen-forraje", "zone", "Almacén de forraje", 8000, 4300, 4600, 2600, "layout", ["establo-lecheria", "forraje", "pacas", "almacen", "zona"]),
+      asset("pacas", "hay-bale", "Pacas de forraje", 8200, 4500, 2000, 2000, "equipment", ["establo-lecheria", "pacas", "heno", "forraje"]),
+      asset("bodega", "room", "Bodega", 13000, 4300, 1800, 2600, "architecture", ["establo-lecheria", "bodega", "almacen", "cuarto"]),
+      asset("oficina", "room", "Oficina", 800, 7100, 2600, 1900, "architecture", ["establo-lecheria", "oficina", "administracion", "cuarto"]),
+      asset("bano", "room", "Baño", 3600, 7100, 2600, 1900, "architecture", ["establo-lecheria", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 3800, 7400, 600, 700, "equipment", ["establo-lecheria", "inodoro", "sanitario", "bano"]),
+      asset("carga", "zone", "Andén de carga", 6600, 7100, 8200, 1900, "layout", ["establo-lecheria", "carga", "embarque", "zona"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 7300, 900, 300, 300, "safety", ["establo-lecheria", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Establo / Lechería — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "corral-1", toRef: "sala-ordena", kind: "flow" },
+      { fromRef: "sala-ordena", toRef: "tanque-leche", kind: "material" },
+      { fromRef: "almacen-forraje", toRef: "corral-1", kind: "material" },
+    ],
+  },
+  {
+    id: "casino",
+    label: "Casino",
+    description:
+      "Plantilla editable de un casino típico de México (14000×9000 mm): acceso con caja/cajero, sala de máquinas tragamonedas, sala de mesas de juego, bar, restaurante, sanitarios y bodega.",
+    category: "architecture",
+    baseWidth: 14000,
+    baseHeight: 9000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 12600, 7600, "architecture", ["shell", "casino", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 1200, 650, 1100, 260, "architecture", ["casino", "entrada", "acceso", "puerta"]),
+      asset("recepcion", "zone", "Acceso y valet", 800, 900, 2600, 1600, "layout", ["casino", "recepcion", "acceso", "zona"]),
+      asset("caja", "counter", "Caja / cajero", 900, 1000, 1600, 500, "equipment", ["casino", "caja", "cajero", "fichas"]),
+      asset("salon-maquinas", "zone", "Sala de máquinas", 3800, 900, 5600, 4600, "layout", ["casino", "maquinas", "tragamonedas", "slots", "zona"]),
+      asset("maquina-1", "slot-machine", "Tragamonedas 1", 4000, 1200, 700, 900, "equipment", ["casino", "maquina", "tragamonedas", "slot"]),
+      asset("maquina-2", "slot-machine", "Tragamonedas 2", 5000, 1200, 700, 900, "equipment", ["casino", "maquina", "tragamonedas", "slot"]),
+      asset("maquina-3", "slot-machine", "Tragamonedas 3", 6000, 1200, 700, 900, "equipment", ["casino", "maquina", "tragamonedas", "slot"]),
+      asset("salon-mesas", "zone", "Sala de mesas de juego", 9800, 900, 3400, 4600, "layout", ["casino", "mesas", "ruleta", "cartas", "zona"]),
+      asset("mesa-ruleta", "casino-table", "Mesa de ruleta", 10000, 1200, 2400, 1400, "equipment", ["casino", "mesa", "ruleta", "juego"]),
+      asset("bar", "bar-counter", "Barra", 800, 2700, 2600, 700, "equipment", ["casino", "barra", "bar", "servicio"]),
+      asset("banco-bar", "bar-stool", "Bancos de barra", 900, 3500, 2000, 450, "equipment", ["casino", "bancos", "barra", "mobiliario"]),
+      asset("restaurante", "room", "Restaurante", 800, 5700, 3200, 2300, "architecture", ["casino", "restaurante", "comedor", "cuarto"]),
+      asset("bano", "room", "Baño", 4200, 5700, 2600, 2300, "architecture", ["casino", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 4400, 6000, 600, 700, "equipment", ["casino", "inodoro", "sanitario", "bano"]),
+      asset("bodega", "room", "Bodega", 9800, 5700, 3400, 2300, "architecture", ["casino", "bodega", "almacen", "cuarto"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 9500, 900, 300, 300, "safety", ["casino", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Casino — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion", kind: "flow" },
+      { fromRef: "recepcion", toRef: "salon-maquinas", kind: "flow" },
+      { fromRef: "salon-maquinas", toRef: "salon-mesas", kind: "flow" },
+    ],
+  },
+  {
+    id: "centro-rehabilitacion",
+    label: "Centro de rehabilitación",
+    description:
+      "Plantilla editable de un centro de rehabilitación física típico de México (14000×9000 mm): recepción, gimnasio terapéutico con caminadora y barras paralelas, cubículos de terapia, hidroterapia, electroterapia, oficina y baño.",
+    category: "architecture",
+    baseWidth: 14000,
+    baseHeight: 9000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 12600, 7600, "architecture", ["shell", "centro-rehabilitacion", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 1200, 650, 1100, 260, "architecture", ["centro-rehabilitacion", "entrada", "acceso", "puerta"]),
+      asset("recepcion", "zone", "Recepción", 800, 900, 2600, 1600, "layout", ["centro-rehabilitacion", "recepcion", "atencion", "zona"]),
+      asset("mostrador", "counter", "Mostrador de recepción", 900, 1000, 1600, 500, "equipment", ["centro-rehabilitacion", "mostrador", "recepcion", "atencion"]),
+      asset("gimnasio-terapeutico", "zone", "Gimnasio terapéutico", 3800, 900, 5600, 4200, "layout", ["centro-rehabilitacion", "gimnasio", "terapia", "ejercicio", "zona"]),
+      asset("caminadora", "treadmill", "Caminadora", 4000, 1200, 900, 1500, "equipment", ["centro-rehabilitacion", "caminadora", "marcha", "terapia"]),
+      asset("barras-paralelas", "parallel-bars", "Barras paralelas", 5200, 1200, 2400, 700, "equipment", ["centro-rehabilitacion", "barras", "paralelas", "marcha"]),
+      asset("colchoneta", "exercise-mat", "Colchoneta", 5200, 2400, 2400, 1400, "equipment", ["centro-rehabilitacion", "colchoneta", "tapete", "ejercicio"]),
+      asset("cubiculo-1", "room", "Cubículo de terapia 1", 9800, 900, 3400, 1400, "architecture", ["centro-rehabilitacion", "cubiculo", "terapia", "cuarto"]),
+      asset("camilla-1", "exam-table", "Camilla de terapia", 10000, 1100, 1800, 1000, "equipment", ["centro-rehabilitacion", "camilla", "terapia", "paciente"]),
+      asset("cubiculo-2", "room", "Cubículo de terapia 2", 9800, 2500, 3400, 1400, "architecture", ["centro-rehabilitacion", "cubiculo", "terapia", "cuarto"]),
+      asset("hidroterapia", "room", "Hidroterapia", 9800, 4100, 3400, 2000, "architecture", ["centro-rehabilitacion", "hidroterapia", "tina", "cuarto"]),
+      asset("tina", "hydro-tub", "Tina de hidroterapia", 10000, 4300, 1800, 1400, "equipment", ["centro-rehabilitacion", "tina", "hidroterapia", "agua"]),
+      asset("electroterapia", "zone", "Electroterapia", 3800, 5300, 5600, 2700, "layout", ["centro-rehabilitacion", "electroterapia", "terapia", "zona"]),
+      asset("bano", "room", "Baño", 800, 5300, 2600, 1700, "architecture", ["centro-rehabilitacion", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 1000, 5600, 600, 700, "equipment", ["centro-rehabilitacion", "inodoro", "sanitario", "bano"]),
+      asset("oficina", "room", "Oficina", 9800, 6300, 3400, 1700, "architecture", ["centro-rehabilitacion", "oficina", "administracion", "cuarto"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 9500, 900, 300, 300, "safety", ["centro-rehabilitacion", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Centro de rehabilitación — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion", kind: "flow" },
+      { fromRef: "recepcion", toRef: "gimnasio-terapeutico", kind: "flow" },
+      { fromRef: "gimnasio-terapeutico", toRef: "cubiculo-1", kind: "flow" },
     ],
   },
 ];
