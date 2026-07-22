@@ -2359,6 +2359,7 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
       "mete la mesa en la cocina",
       "reparte las sillas entre los cuartos",
       "pega la mesa a la pared",
+      "junta la silla y la mesa",
     ],
     validate: (i, c) =>
       moveSelectionPreview(

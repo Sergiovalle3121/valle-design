@@ -503,6 +503,26 @@ export function parseCadCommand(text: string): CadParseResult {
       };
     }
   }
+  // JUNTAR (AXOS-CAD-MOVE-007): 'junta la silla y la mesa' — el primero
+  // nombrado viaja junto al segundo (azúcar sobre mover con ancla).
+  const juntaMatch = raw.match(/^junta(?:me|l[oa]s?)?\s+(.+)$/i);
+  if (juntaMatch) {
+    const parts = juntaMatch[1]!
+      .split(/\s+y\s+|\s+con\s+|\s*,\s*/i)
+      .map((t) => t.replace(/^(?:las?|los|el|una?)\s+/i, "").trim())
+      .filter(Boolean);
+    if (parts.length !== 2)
+      return {
+        ok: false,
+        confidence: 0.6,
+        clarification: "¿Cuáles dos junto? (ej. 'junta la silla y la mesa')",
+      };
+    return {
+      ok: true,
+      confidence: 0.84,
+      input: { id: "move_selection", target: parts[0], anchor: parts[1] },
+    };
+  }
   // FILA/REPETIR (AXOS-CAD-ARRAY-001): 'repite la silla 4 veces cada 600
   // a la derecha' — arreglo lineal conversacional con objetivo por nombre.
   const repeatMatch = raw.match(/^rep[ií]te(?:me|l[ao]s?)?\s+(.+)$/i);

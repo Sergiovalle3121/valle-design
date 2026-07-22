@@ -2739,4 +2739,53 @@ if (rectDraftCreate?.type === "create") {
   }
 }
 
+// JUNTAR (AXOS-CAD-MOVE-007): 'junta la silla y la mesa' — el primero
+// viaja junto al segundo con el gap estándar del ancla.
+{
+  const juntaCtx: CadCommandContext = {
+    unit: "mm",
+    footprintW: 12000,
+    footprintH: 8000,
+    selectedIds: [],
+    connectors: [],
+    objects: [
+      {
+        id: "mesa",
+        type: "asset",
+        kind: "dining-table-4",
+        label: "Mesa",
+        x: 2000,
+        y: 2000,
+        w: 1000,
+        h: 500,
+      },
+      {
+        id: "silla",
+        type: "asset",
+        kind: "chair",
+        label: "Silla",
+        x: 5000,
+        y: 5000,
+        w: 400,
+        h: 400,
+      },
+    ],
+  };
+  const junta = parseCadCommand("junta la silla con la mesa");
+  assert.equal(junta.input?.id, "move_selection", "junta parsea");
+  if (junta.input?.id === "move_selection") {
+    assert.equal(junta.input.target, "silla", "el primero viaja");
+    assert.equal(junta.input.anchor, "mesa", "el segundo ancla");
+    const p = previewCadCommand(junta.input, juntaCtx);
+    assert.equal(p.issues.length, 0, "juntar sin issues");
+    const op = p.operations[0];
+    if (op?.type === "move") {
+      assert.equal(op.after.x, 3100, "aterriza al lado derecho de la mesa");
+      assert.equal(op.after.y, 2000, "alineada al ancla");
+    }
+  }
+  const uno = parseCadCommand("junta la mesa");
+  assert.equal(uno.ok, false, "una sola parte → aclaración");
+}
+
 console.log("cad command registry specs passed");
