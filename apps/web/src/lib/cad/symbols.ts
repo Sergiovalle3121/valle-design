@@ -1217,6 +1217,37 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["boiler", "calentador", "agua caliente", "water heater", "patio"],
     ports: [],
   },
+  // — Vigesimoséptima tanda universal (AXOS-CAD-UNIVERSAL-060): patio de casa —
+  {
+    id: "laundry-sink",
+    label: "Lavadero",
+    category: "equipment",
+    defaultWidth: 800,
+    defaultHeight: 600,
+    layer: "Furniture",
+    tags: ["lavadero", "patio de servicio", "ropa", "lavado a mano"],
+    ports: [],
+  },
+  {
+    id: "clothesline",
+    label: "Tendedero",
+    category: "equipment",
+    defaultWidth: 2000,
+    defaultHeight: 400,
+    layer: "Furniture",
+    tags: ["tendedero", "ropa", "patio", "clothesline", "secado"],
+    ports: [],
+  },
+  {
+    id: "playground",
+    label: "Juegos infantiles",
+    category: "equipment",
+    defaultWidth: 3000,
+    defaultHeight: 2500,
+    layer: "Furniture",
+    tags: ["juegos", "juegos infantiles", "resbaladilla", "columpios", "guardería", "guarderia", "parque"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {

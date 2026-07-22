@@ -435,3 +435,23 @@ assert.ok(
   ),
   "search finds calentador",
 );
+
+// Vigesimoséptima tanda universal (AXOS-CAD-UNIVERSAL-060): patio de casa.
+assert.ok(
+  searchCadSymbols("lavadero").some((symbol) => symbol.id === "laundry-sink"),
+  "search finds lavadero",
+);
+assert.ok(
+  searchCadSymbols("tendedero").some((symbol) => symbol.id === "clothesline"),
+  "search finds tendedero",
+);
+assert.ok(
+  searchCadSymbols("columpios").some((symbol) => symbol.id === "playground"),
+  "search finds columpios",
+);
+assert.ok(
+  searchCadSymbols("resbaladilla").some(
+    (symbol) => symbol.id === "playground",
+  ),
+  "search finds resbaladilla",
+);
