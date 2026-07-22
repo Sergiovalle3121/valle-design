@@ -49,4 +49,28 @@ assert.ok(
 );
 assert.equal(result.entityCount, 6, "counts exported entities");
 assert.ok(result.content.endsWith("0\nEOF\n"), "terminates DXF");
+
+// Geometría curva real (AXOS-CAD-DEPTH-A1): círculo y arco nativos.
+const curved = exportCadDxf({
+  primitives: [
+    { kind: "circle", layer: "Holes", points: [{ x: 100, y: 50 }], radius: 12 },
+    {
+      kind: "arc",
+      layer: "Fillets",
+      points: [{ x: 0, y: 0 }],
+      radius: 20,
+      startAngle: 0,
+      endAngle: 90,
+    },
+  ],
+});
+assert.ok(curved.content.includes("0\nCIRCLE"), "exports native CIRCLE");
+assert.ok(curved.content.includes("0\nARC"), "exports native ARC");
+assert.ok(curved.content.includes("40\n12"), "CIRCLE carries radius via code 40");
+assert.ok(
+  curved.content.includes("50\n0") && curved.content.includes("51\n90"),
+  "ARC carries start/end angles via codes 50/51",
+);
+assert.equal(curved.entityCount, 2, "curved geometry counts two entities");
+
 console.log("cad dxf export specs passed");

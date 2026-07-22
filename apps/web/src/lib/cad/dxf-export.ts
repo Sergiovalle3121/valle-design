@@ -141,6 +141,32 @@ function pushPolyline(
   }
   pushPair(lines, 0, "SEQEND");
 }
+function pushCircle(
+  lines: string[],
+  layer: string,
+  center: CadDxfPoint,
+  radius: number,
+) {
+  pushPair(lines, 0, "CIRCLE");
+  pushPair(lines, 8, layer);
+  pushPoint(lines, center);
+  pushPair(lines, 40, fmt(radius));
+}
+function pushArc(
+  lines: string[],
+  layer: string,
+  center: CadDxfPoint,
+  radius: number,
+  startAngle: number,
+  endAngle: number,
+) {
+  pushPair(lines, 0, "ARC");
+  pushPair(lines, 8, layer);
+  pushPoint(lines, center);
+  pushPair(lines, 40, fmt(radius));
+  pushPair(lines, 50, fmt(startAngle));
+  pushPair(lines, 51, fmt(endAngle));
+}
 function pushText(
   lines: string[],
   layer: string,
@@ -218,6 +244,33 @@ export function exportCadDxf(
       wroteGeometry = true;
     } else if (primitive.kind === "rect" && primitive.points.length >= 2) {
       pushPolyline(lines, layer, rectToClosedPoints(primitive.points), true);
+      entityCount += 1;
+      wroteGeometry = true;
+    } else if (
+      primitive.kind === "circle" &&
+      primitive.points[0] &&
+      typeof primitive.radius === "number" &&
+      primitive.radius > 0
+    ) {
+      pushCircle(lines, layer, primitive.points[0], primitive.radius);
+      entityCount += 1;
+      wroteGeometry = true;
+    } else if (
+      primitive.kind === "arc" &&
+      primitive.points[0] &&
+      typeof primitive.radius === "number" &&
+      primitive.radius > 0 &&
+      typeof primitive.startAngle === "number" &&
+      typeof primitive.endAngle === "number"
+    ) {
+      pushArc(
+        lines,
+        layer,
+        primitive.points[0],
+        primitive.radius,
+        primitive.startAngle,
+        primitive.endAngle,
+      );
       entityCount += 1;
       wroteGeometry = true;
     } else if (

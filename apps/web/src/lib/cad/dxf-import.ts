@@ -1,7 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import DxfParser from "dxf-parser";
 
-export type CadDxfPrimitiveKind = "line" | "polyline" | "rect" | "text";
+export type CadDxfPrimitiveKind =
+  | "line"
+  | "polyline"
+  | "rect"
+  | "text"
+  | "circle"
+  | "arc";
 export interface CadDxfPoint {
   x: number;
   y: number;
@@ -11,6 +17,12 @@ export interface CadDxfPrimitive {
   layer: string;
   points: CadDxfPoint[];
   text?: string;
+  /** Radio, sólo para kind "circle" y "arc". */
+  radius?: number;
+  /** Ángulo inicial en grados (CCW desde +X), sólo para kind "arc". */
+  startAngle?: number;
+  /** Ángulo final en grados (CCW desde +X), sólo para kind "arc". */
+  endAngle?: number;
 }
 export interface CadDxfImportWarning {
   code: string;
@@ -133,6 +145,56 @@ export function mapDxfEntityToPrimitive(entity: any): {
         kind: closed && isAxisAlignedRect(closedPoints) ? "rect" : "polyline",
         layer,
         points: closedPoints,
+      },
+    };
+  }
+  if (type === "CIRCLE") {
+    const center = pt(entity.center);
+    const radius = num(entity.radius);
+    if (center && radius != null && radius > 0)
+      return {
+        primitive: { kind: "circle", layer, points: [center], radius },
+      };
+    return {
+      warning: {
+        code: "invalid_circle",
+        message: "CIRCLE sin centro o radio válido.",
+        entityType: type,
+        layer,
+      },
+    };
+  }
+  if (type === "ARC") {
+    const center = pt(entity.center);
+    const radius = num(entity.radius);
+    // dxf-parser entrega startAngle/endAngle en RADIANES (códigos 50/51 del DXF
+    // llegan en grados y la librería los convierte). Los normalizamos a grados
+    // para conservar la convención del modelo de primitivas.
+    const startRad = num(entity.startAngle);
+    const endRad = num(entity.endAngle);
+    if (
+      center &&
+      radius != null &&
+      radius > 0 &&
+      startRad != null &&
+      endRad != null
+    )
+      return {
+        primitive: {
+          kind: "arc",
+          layer,
+          points: [center],
+          radius,
+          startAngle: (startRad * 180) / Math.PI,
+          endAngle: (endRad * 180) / Math.PI,
+        },
+      };
+    return {
+      warning: {
+        code: "invalid_arc",
+        message: "ARC sin centro, radio o ángulos válidos.",
+        entityType: type,
+        layer,
       },
     };
   }
