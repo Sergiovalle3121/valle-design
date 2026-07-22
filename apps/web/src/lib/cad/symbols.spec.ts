@@ -557,3 +557,19 @@ assert.ok(
   ),
   "search finds pila bautismal",
 );
+
+// Trigésima cuarta tanda universal (AXOS-CAD-UNIVERSAL-083): laboratorio.
+assert.ok(
+  searchCadSymbols("centrifuga").some((symbol) => symbol.id === "centrifuge"),
+  "search finds centrífuga",
+);
+assert.ok(
+  searchCadSymbols("autoclave").some((symbol) => symbol.id === "autoclave"),
+  "search finds autoclave",
+);
+assert.ok(
+  searchCadSymbols("flebotomia").some(
+    (symbol) => symbol.id === "phlebotomy-chair",
+  ),
+  "search finds sillón de flebotomía",
+);

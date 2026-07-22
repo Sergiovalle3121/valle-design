@@ -1434,6 +1434,37 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["pila bautismal", "bautismo", "bautizo", "iglesia", "templo"],
     ports: [],
   },
+  // — Trigésima cuarta tanda universal (AXOS-CAD-UNIVERSAL-083): laboratorio —
+  {
+    id: "phlebotomy-chair",
+    label: "Sillón de toma de muestra",
+    category: "equipment",
+    defaultWidth: 700,
+    defaultHeight: 1300,
+    layer: "Equipment",
+    tags: ["sillón de toma de muestra", "sillon de toma de muestra", "toma de muestra", "flebotomía", "flebotomia", "laboratorio", "análisis clínicos"],
+    ports: [],
+  },
+  {
+    id: "centrifuge",
+    label: "Centrífuga",
+    category: "equipment",
+    defaultWidth: 500,
+    defaultHeight: 450,
+    layer: "Equipment",
+    tags: ["centrífuga", "centrifuga", "centrifuge", "laboratorio", "análisis clínicos", "muestras", "sangre"],
+    ports: [],
+  },
+  {
+    id: "autoclave",
+    label: "Autoclave / Esterilizador",
+    category: "equipment",
+    defaultWidth: 600,
+    defaultHeight: 700,
+    layer: "Equipment",
+    tags: ["autoclave", "esterilizador", "esterilización", "esterilizacion", "laboratorio", "consultorio", "dental"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {
