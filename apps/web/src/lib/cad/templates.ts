@@ -64,7 +64,8 @@ export type CadLayoutTemplateId =
   | "rosticeria"
   | "terraza-jardin"
   | "vinateria"
-  | "pasteleria";
+  | "pasteleria"
+  | "academia-baile";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -2055,6 +2056,35 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "mostrador-pas", kind: "flow" },
       { fromRef: "taller-pas", toRef: "vitrina-pas", kind: "material" },
       { fromRef: "horno-pas", toRef: "espiguero-pas", kind: "material" },
+    ],
+  },
+  {
+    id: "academia-baile",
+    label: "Academia de baile",
+    description: "Arranque universal de academia de baile: recepción, duela con espejos de pared, barra de ballet, bocinas, vestidor con banca.",
+    category: "architecture",
+    baseWidth: 10000,
+    baseHeight: 7000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 8600, 5600, "architecture", ["architecture", "shell", "academia"]),
+      asset("entrada", "door", "Entrada", 4500, 650, 900, 260, "architecture", ["door", "opening:entry"]),
+      asset("recepcion-bai", "counter", "Recepción", 1200, 1200, 1800, 600, "equipment", ["counter", "academia"]),
+      asset("duela-bai", "zone", "Duela de baile", 3600, 1200, 5500, 3400, "layout", ["zone", "use:dance", "academia"]),
+      asset("espejo-bai-1", "wall-mirror", "Espejo de pared", 3700, 1300, 1000, 100, "equipment", ["espejo", "academia"]),
+      asset("espejo-bai-2", "wall-mirror", "Espejo de pared", 4900, 1300, 1000, 100, "equipment", ["espejo", "academia"]),
+      asset("barra-bai-1", "ballet-barre", "Barra de ballet", 6100, 1300, 2500, 150, "equipment", ["ballet", "academia"]),
+      asset("bocina-bai-1", "speaker", "Bocina", 3700, 4100, 500, 400, "equipment", ["bocina", "academia"]),
+      asset("bocina-bai-2", "speaker", "Bocina", 8100, 4100, 500, 400, "equipment", ["bocina", "academia"]),
+      asset("vestidor-bai", "room", "Vestidor", 1200, 3400, 2000, 1900, "architecture", ["room", "use:dressing", "academia"]),
+      asset("banca-bai", "outdoor-bench", "Banca", 1400, 3600, 1500, 500, "equipment", ["banca", "academia"]),
+    ],
+    annotations: [
+      note("titulo", "Academia de baile — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion-bai", kind: "flow" },
+      { fromRef: "recepcion-bai", toRef: "duela-bai", kind: "flow" },
+      { fromRef: "vestidor-bai", toRef: "duela-bai", kind: "flow" },
     ],
   },
 ];
