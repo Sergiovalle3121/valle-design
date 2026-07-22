@@ -99,7 +99,11 @@ export type CadLayoutTemplateId =
   | "vivero"
   | "cerrajeria"
   | "material-construccion"
-  | "bar-cantina";
+  | "bar-cantina"
+  | "gasolinera"
+  | "agencia-autos"
+  | "escuela-primaria"
+  | "gimnasio-crossfit";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -3222,6 +3226,142 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "barra", kind: "flow" },
       { fromRef: "cocina", toRef: "barra", kind: "material" },
       { fromRef: "barra", toRef: "zona-mesas", kind: "flow" },
+    ],
+  },
+  {
+    id: "gasolinera",
+    label: "Gasolinera / Estación de servicio",
+    description:
+      "Plantilla editable de una gasolinera típica de México (12000×8000 mm): marquesina con islas de despacho, tienda de conveniencia con mostrador y góndolas, baño, oficina y área de aire y agua. Todos los elementos son reposicionables.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["shell", "gasolinera", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada a la tienda", 8800, 650, 1000, 260, "architecture", ["gasolinera", "entrada", "acceso", "puerta"]),
+      asset("zona-despacho", "zone", "Marquesina y despacho", 800, 900, 6800, 3400, "layout", ["gasolinera", "despacho", "islas", "combustible", "zona"]),
+      asset("isla-1", "fuel-dispenser", "Isla de despacho 1", 1600, 1600, 700, 1200, "equipment", ["gasolinera", "bomba", "dispensador", "combustible"]),
+      asset("isla-2", "fuel-dispenser", "Isla de despacho 2", 3600, 1600, 700, 1200, "equipment", ["gasolinera", "bomba", "dispensador", "combustible"]),
+      asset("isla-3", "fuel-dispenser", "Isla de despacho 3", 5600, 1600, 700, 1200, "equipment", ["gasolinera", "bomba", "dispensador", "combustible"]),
+      asset("tienda", "room", "Tienda de conveniencia", 8000, 900, 3200, 3000, "architecture", ["gasolinera", "tienda", "conveniencia", "cuarto"]),
+      asset("mostrador", "counter", "Mostrador de cobro", 8300, 1200, 1600, 500, "equipment", ["gasolinera", "mostrador", "cobro", "atencion"]),
+      asset("caja", "cash-register", "Caja registradora", 8300, 1900, 500, 400, "equipment", ["gasolinera", "caja", "cobro", "registro"]),
+      asset("gondola", "shelf-gondola", "Góndola de productos", 9600, 1200, 1400, 2400, "equipment", ["gasolinera", "gondola", "productos", "exhibicion"]),
+      asset("oficina", "room", "Oficina", 800, 4700, 2400, 2000, "architecture", ["gasolinera", "oficina", "administracion", "cuarto"]),
+      asset("aire-agua", "zone", "Área de aire y agua", 3600, 4700, 3600, 2000, "layout", ["gasolinera", "aire", "agua", "servicios", "zona"]),
+      asset("bano", "room", "Baño", 8000, 4300, 1600, 1600, "architecture", ["gasolinera", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 8200, 4600, 600, 700, "equipment", ["gasolinera", "inodoro", "sanitario", "bano"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 7400, 4400, 300, 300, "safety", ["gasolinera", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Gasolinera / Estación de servicio — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "tienda", kind: "flow" },
+      { fromRef: "zona-despacho", toRef: "tienda", kind: "flow" },
+      { fromRef: "gondola", toRef: "caja", kind: "material" },
+    ],
+  },
+  {
+    id: "agencia-autos",
+    label: "Agencia de autos",
+    description:
+      "Plantilla editable de una agencia de autos típica de México (12000×8000 mm): piso de exhibición con autos, módulos de ventas, recepción y caja, oficina del gerente, área de entrega de autos y bodega de refacciones.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["shell", "agencia-autos", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 5400, 650, 1200, 260, "architecture", ["agencia-autos", "entrada", "acceso", "puerta"]),
+      asset("showroom", "zone", "Piso de exhibición", 800, 900, 6800, 4200, "layout", ["agencia-autos", "showroom", "exhibicion", "autos", "zona"]),
+      asset("auto-1", "vehicle", "Auto en exhibición 1", 1200, 1400, 2400, 1400, "equipment", ["agencia-autos", "auto", "vehiculo", "exhibicion"]),
+      asset("auto-2", "vehicle", "Auto en exhibición 2", 4400, 1400, 2400, 1400, "equipment", ["agencia-autos", "auto", "vehiculo", "exhibicion"]),
+      asset("auto-3", "vehicle", "Auto en exhibición 3", 1200, 3200, 2400, 1400, "equipment", ["agencia-autos", "auto", "vehiculo", "exhibicion"]),
+      asset("modulo-ventas", "desk", "Módulo de ventas", 4600, 3400, 1600, 900, "equipment", ["agencia-autos", "ventas", "escritorio", "asesor"]),
+      asset("recepcion", "counter", "Recepción", 5000, 5400, 2000, 700, "equipment", ["agencia-autos", "recepcion", "mostrador", "atencion"]),
+      asset("caja", "cash-register", "Caja", 800, 5400, 2000, 700, "equipment", ["agencia-autos", "caja", "cobro", "pagos"]),
+      asset("oficina-gerente", "room", "Oficina del gerente", 8000, 900, 3200, 2000, "architecture", ["agencia-autos", "oficina", "gerente", "cuarto"]),
+      asset("entrega-autos", "zone", "Área de entrega", 8000, 3100, 3200, 2000, "layout", ["agencia-autos", "entrega", "autos", "zona"]),
+      asset("refacciones", "room", "Bodega de refacciones", 8000, 5300, 3200, 1800, "architecture", ["agencia-autos", "refacciones", "bodega", "cuarto"]),
+      asset("bano", "room", "Baño", 3200, 5400, 1600, 1700, "architecture", ["agencia-autos", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 3400, 5700, 600, 700, "equipment", ["agencia-autos", "inodoro", "sanitario", "bano"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 7400, 5400, 300, 300, "safety", ["agencia-autos", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Agencia de autos — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "showroom", kind: "flow" },
+      { fromRef: "showroom", toRef: "recepcion", kind: "flow" },
+      { fromRef: "refacciones", toRef: "entrega-autos", kind: "material" },
+    ],
+  },
+  {
+    id: "escuela-primaria",
+    label: "Escuela primaria",
+    description:
+      "Plantilla editable de una escuela primaria típica de México (16000×10000 mm): tres aulas, dirección, biblioteca, sanitarios, patio central con área de juegos y comedor. Todos los elementos son reposicionables y editables.",
+    category: "architecture",
+    baseWidth: 16000,
+    baseHeight: 10000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 14600, 8600, "architecture", ["shell", "escuela-primaria", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 7400, 650, 1200, 260, "architecture", ["escuela-primaria", "entrada", "acceso", "puerta"]),
+      asset("patio", "zone", "Patio central", 5800, 900, 4400, 4000, "layout", ["escuela-primaria", "patio", "recreo", "zona"]),
+      asset("aula-1", "room", "Aula 1", 800, 900, 3400, 2600, "architecture", ["escuela-primaria", "aula", "salon", "clase"]),
+      asset("aula-2", "room", "Aula 2", 800, 3700, 3400, 2600, "architecture", ["escuela-primaria", "aula", "salon", "clase"]),
+      asset("aula-3", "room", "Aula 3", 800, 6500, 3400, 2400, "architecture", ["escuela-primaria", "aula", "salon", "clase"]),
+      asset("pizarron", "whiteboard", "Pizarrón del aula 1", 900, 1000, 1400, 200, "equipment", ["escuela-primaria", "pizarron", "pizarra", "aula"]),
+      asset("direccion", "room", "Dirección", 11800, 900, 3400, 2000, "architecture", ["escuela-primaria", "direccion", "administracion", "cuarto"]),
+      asset("biblioteca", "room", "Biblioteca", 11800, 3100, 3400, 2600, "architecture", ["escuela-primaria", "biblioteca", "acervo", "cuarto"]),
+      asset("sanitarios", "room", "Sanitarios", 11800, 5900, 3400, 2400, "architecture", ["escuela-primaria", "sanitarios", "banos", "cuarto"]),
+      asset("wc", "wc", "Inodoro", 12000, 6200, 700, 900, "equipment", ["escuela-primaria", "inodoro", "sanitario", "bano"]),
+      asset("comedor", "zone", "Comedor techado", 4400, 6500, 7000, 2400, "layout", ["escuela-primaria", "comedor", "cafeteria", "zona"]),
+      asset("juegos", "zone", "Área de juegos", 5800, 5100, 4400, 1200, "layout", ["escuela-primaria", "juegos", "recreo", "zona"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 7400, 4400, 300, 300, "safety", ["escuela-primaria", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Escuela primaria — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "patio", kind: "flow" },
+      { fromRef: "patio", toRef: "aula-1", kind: "flow" },
+      { fromRef: "direccion", toRef: "biblioteca", kind: "flow" },
+    ],
+  },
+  {
+    id: "gimnasio-crossfit",
+    label: "Box de CrossFit",
+    description:
+      "Plantilla editable de un box de CrossFit típico de México (12000×8000 mm): recepción, zona de peso libre con racks, área funcional abierta, zona de cardio, vestidores con lockers, baño y regaderas.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["shell", "gimnasio-crossfit", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 1200, 650, 1100, 260, "architecture", ["gimnasio-crossfit", "entrada", "acceso", "puerta"]),
+      asset("recepcion", "zone", "Recepción", 800, 900, 2600, 1600, "layout", ["gimnasio-crossfit", "recepcion", "atencion", "zona"]),
+      asset("mostrador", "counter", "Mostrador de recepción", 900, 1000, 1600, 500, "equipment", ["gimnasio-crossfit", "mostrador", "recepcion", "atencion"]),
+      asset("zona-funcional", "zone", "Área funcional (box)", 3600, 900, 4400, 1600, "layout", ["gimnasio-crossfit", "funcional", "box", "wod", "zona"]),
+      asset("zona-peso", "zone", "Zona de peso libre", 800, 2700, 4600, 4400, "layout", ["gimnasio-crossfit", "peso", "pesas", "levantamiento", "zona"]),
+      asset("rack-1", "power-rack", "Rack de sentadilla 1", 1000, 2900, 1200, 900, "equipment", ["gimnasio-crossfit", "rack", "sentadilla", "pesas"]),
+      asset("rack-2", "power-rack", "Rack de sentadilla 2", 3000, 2900, 1200, 900, "equipment", ["gimnasio-crossfit", "rack", "sentadilla", "pesas"]),
+      asset("zona-cardio", "zone", "Zona de cardio", 5600, 2700, 3400, 2400, "layout", ["gimnasio-crossfit", "cardio", "resistencia", "zona"]),
+      asset("caminadora", "treadmill", "Caminadora", 5800, 2900, 900, 1500, "equipment", ["gimnasio-crossfit", "caminadora", "cardio", "correr"]),
+      asset("lockers", "room", "Vestidores", 8200, 900, 3000, 1600, "architecture", ["gimnasio-crossfit", "vestidores", "lockers", "cuarto"]),
+      asset("banca-lockers", "locker-bank", "Casilleros", 8400, 1100, 2400, 450, "equipment", ["gimnasio-crossfit", "casilleros", "lockers", "guardado"]),
+      asset("bano", "room", "Baño", 8200, 2700, 3000, 2400, "architecture", ["gimnasio-crossfit", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 8400, 3000, 600, 700, "equipment", ["gimnasio-crossfit", "inodoro", "sanitario", "bano"]),
+      asset("regaderas", "zone", "Regaderas", 8200, 5300, 3000, 1800, "layout", ["gimnasio-crossfit", "regaderas", "ducha", "zona"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 5400, 5400, 300, 300, "safety", ["gimnasio-crossfit", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Box de CrossFit — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion", kind: "flow" },
+      { fromRef: "recepcion", toRef: "zona-peso", kind: "flow" },
+      { fromRef: "zona-peso", toRef: "zona-cardio", kind: "flow" },
     ],
   },
 ];
