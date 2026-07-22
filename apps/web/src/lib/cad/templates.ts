@@ -143,7 +143,11 @@ export type CadLayoutTemplateId =
   | "planta-embotelladora"
   | "establo-lecheria"
   | "casino"
-  | "centro-rehabilitacion";
+  | "centro-rehabilitacion"
+  | "centro-distribucion"
+  | "granja-avicola"
+  | "torre-corporativa"
+  | "clinica-oftalmologica";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -4788,6 +4792,145 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "recepcion", kind: "flow" },
       { fromRef: "recepcion", toRef: "gimnasio-terapeutico", kind: "flow" },
       { fromRef: "gimnasio-terapeutico", toRef: "cubiculo-1", kind: "flow" },
+    ],
+  },
+  {
+    id: "centro-distribucion",
+    label: "Centro de distribución (CEDIS)",
+    description:
+      "Plantilla editable de un centro de distribución (CEDIS) típico de México (16000×10000 mm): andén de recibo, almacén de racks, pasillo central, área de picking, área de embarque, oficina y baño.",
+    category: "architecture",
+    baseWidth: 16000,
+    baseHeight: 10000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 14600, 8600, "architecture", ["shell", "centro-distribucion", "muro", "perimetral"]),
+      asset("porton-recibo", "door", "Andén de recibo", 1200, 650, 1600, 260, "architecture", ["centro-distribucion", "porton", "recibo", "acceso"]),
+      asset("recibo", "zone", "Área de recibo", 800, 900, 3600, 3200, "layout", ["centro-distribucion", "recibo", "descarga", "zona"]),
+      asset("almacen-1", "zone", "Almacén de racks", 4800, 900, 9000, 3200, "layout", ["centro-distribucion", "almacen", "racks", "estanteria", "zona"]),
+      asset("rack-1", "rack", "Rack selectivo 1", 5000, 1100, 4000, 700, "equipment", ["centro-distribucion", "rack", "selectivo", "tarima"]),
+      asset("rack-2", "rack", "Rack selectivo 2", 5000, 2100, 4000, 700, "equipment", ["centro-distribucion", "rack", "selectivo", "tarima"]),
+      asset("rack-3", "rack", "Rack selectivo 3", 9200, 1100, 4000, 700, "equipment", ["centro-distribucion", "rack", "selectivo", "tarima"]),
+      asset("pasillo-central", "zone", "Pasillo central", 800, 4300, 13000, 1200, "layout", ["centro-distribucion", "pasillo", "circulacion", "zona"]),
+      asset("picking", "zone", "Área de picking", 4800, 5700, 6000, 3300, "layout", ["centro-distribucion", "picking", "surtido", "zona"]),
+      asset("montacargas", "forklift", "Montacargas", 5000, 5900, 1400, 1800, "equipment", ["centro-distribucion", "montacargas", "carga", "maniobras"]),
+      asset("embarque", "zone", "Área de embarque", 11200, 5700, 3600, 3300, "layout", ["centro-distribucion", "embarque", "carga", "zona"]),
+      asset("oficina", "room", "Oficina", 800, 5700, 3600, 1900, "architecture", ["centro-distribucion", "oficina", "administracion", "cuarto"]),
+      asset("bano", "room", "Baño", 800, 7800, 2600, 1200, "architecture", ["centro-distribucion", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 1000, 8000, 600, 700, "equipment", ["centro-distribucion", "inodoro", "sanitario", "bano"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 4500, 900, 300, 300, "safety", ["centro-distribucion", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Centro de distribución (CEDIS) — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "porton-recibo", toRef: "recibo", kind: "flow" },
+      { fromRef: "recibo", toRef: "almacen-1", kind: "material" },
+      { fromRef: "almacen-1", toRef: "picking", kind: "material" },
+    ],
+  },
+  {
+    id: "granja-avicola",
+    label: "Granja avícola",
+    description:
+      "Plantilla editable de una granja avícola típica de México (16000×10000 mm): casetas de engorda con comederos y bebederos, sala de incubación, clasificación de huevo, almacén de alimento, oficina y andén de carga.",
+    category: "architecture",
+    baseWidth: 16000,
+    baseHeight: 10000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 14600, 8600, "architecture", ["shell", "granja-avicola", "muro", "perimetral"]),
+      asset("porton", "door", "Portón de acceso", 1200, 650, 1600, 260, "architecture", ["granja-avicola", "porton", "entrada", "acceso"]),
+      asset("caseta-1", "zone", "Caseta de engorda 1", 800, 900, 6800, 3200, "layout", ["granja-avicola", "caseta", "engorda", "pollos", "zona"]),
+      asset("comederos-1", "poultry-feeder", "Comederos", 1000, 1200, 6400, 600, "equipment", ["granja-avicola", "comederos", "alimento", "aves"]),
+      asset("bebederos-1", "poultry-drinker", "Bebederos", 1000, 2100, 6400, 600, "equipment", ["granja-avicola", "bebederos", "agua", "aves"]),
+      asset("caseta-2", "zone", "Caseta de engorda 2", 800, 4300, 6800, 2600, "layout", ["granja-avicola", "caseta", "engorda", "pollos", "zona"]),
+      asset("incubadora", "room", "Sala de incubación", 8000, 900, 3600, 2400, "architecture", ["granja-avicola", "incubacion", "nacimiento", "cuarto"]),
+      asset("incubadora-equipo", "incubator", "Incubadora", 8200, 1100, 3200, 1400, "equipment", ["granja-avicola", "incubadora", "huevo", "nacimiento"]),
+      asset("clasificacion", "room", "Clasificación de huevo", 8000, 3500, 3600, 2400, "architecture", ["granja-avicola", "clasificacion", "huevo", "cuarto"]),
+      asset("almacen-alimento", "zone", "Almacén de alimento", 12000, 900, 2800, 5000, "layout", ["granja-avicola", "almacen", "alimento", "zona"]),
+      asset("oficina", "room", "Oficina", 800, 7100, 2600, 1900, "architecture", ["granja-avicola", "oficina", "administracion", "cuarto"]),
+      asset("bano", "room", "Baño", 3600, 7100, 2600, 1900, "architecture", ["granja-avicola", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 3800, 7400, 600, 700, "equipment", ["granja-avicola", "inodoro", "sanitario", "bano"]),
+      asset("carga", "zone", "Andén de carga", 6600, 6100, 8200, 2900, "layout", ["granja-avicola", "carga", "embarque", "zona"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 7300, 900, 300, 300, "safety", ["granja-avicola", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Granja avícola — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "incubadora", toRef: "caseta-1", kind: "material" },
+      { fromRef: "caseta-1", toRef: "clasificacion", kind: "material" },
+      { fromRef: "almacen-alimento", toRef: "caseta-1", kind: "material" },
+    ],
+  },
+  {
+    id: "torre-corporativa",
+    label: "Torre corporativa (lobby y planta)",
+    description:
+      "Plantilla editable de la planta baja de una torre corporativa típica de México (14000×9000 mm): lobby con recepción y sala de espera, banco de elevadores con control de acceso, sala ejecutiva, cafetería, piso de oficinas y sanitarios.",
+    category: "architecture",
+    baseWidth: 14000,
+    baseHeight: 9000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 12600, 7600, "architecture", ["shell", "torre-corporativa", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 6400, 650, 1600, 260, "architecture", ["torre-corporativa", "entrada", "acceso", "puerta"]),
+      asset("lobby", "zone", "Lobby", 800, 900, 7000, 4600, "layout", ["torre-corporativa", "lobby", "vestibulo", "zona"]),
+      asset("recepcion", "counter", "Recepción", 900, 1000, 3000, 700, "equipment", ["torre-corporativa", "recepcion", "mostrador", "atencion"]),
+      asset("sala-espera", "zone", "Sala de espera", 900, 2000, 3000, 2000, "layout", ["torre-corporativa", "sala-espera", "lounge", "zona"]),
+      asset("sofa", "sofa-3", "Sofá de espera", 1000, 2200, 2000, 700, "equipment", ["torre-corporativa", "sofa", "espera", "mobiliario"]),
+      asset("elevadores", "zone", "Banco de elevadores", 8200, 900, 2000, 4600, "layout", ["torre-corporativa", "elevadores", "circulacion", "zona"]),
+      asset("control-acceso", "counter", "Control de acceso", 8200, 4700, 2000, 600, "equipment", ["torre-corporativa", "control-acceso", "torniquetes", "seguridad"]),
+      asset("sala-juntas", "room", "Sala ejecutiva", 10600, 900, 2600, 2000, "architecture", ["torre-corporativa", "sala-juntas", "ejecutiva", "cuarto"]),
+      asset("cafeteria", "zone", "Cafetería", 10600, 3100, 2600, 2400, "layout", ["torre-corporativa", "cafeteria", "comedor", "zona"]),
+      asset("oficinas", "zone", "Piso de oficinas", 800, 5700, 7000, 2300, "layout", ["torre-corporativa", "oficinas", "open-plan", "zona"]),
+      asset("escritorio-1", "desk", "Escritorio", 1000, 5900, 1800, 700, "equipment", ["torre-corporativa", "escritorio", "oficina", "mobiliario"]),
+      asset("sanitarios", "room", "Sanitarios", 8200, 5700, 2600, 2300, "architecture", ["torre-corporativa", "sanitarios", "banos", "cuarto"]),
+      asset("wc", "wc", "Inodoro", 8400, 6000, 600, 700, "equipment", ["torre-corporativa", "inodoro", "sanitario", "bano"]),
+      asset("ductos", "room", "Cuarto de servicios", 11000, 5700, 2200, 2300, "architecture", ["torre-corporativa", "ductos", "servicios", "cuarto"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 7900, 900, 300, 300, "safety", ["torre-corporativa", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Torre corporativa (lobby y planta) — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "lobby", kind: "flow" },
+      { fromRef: "lobby", toRef: "control-acceso", kind: "flow" },
+      { fromRef: "control-acceso", toRef: "elevadores", kind: "flow" },
+    ],
+  },
+  {
+    id: "clinica-oftalmologica",
+    label: "Clínica oftalmológica",
+    description:
+      "Plantilla editable de una clínica oftalmológica típica de México (12000×8000 mm): recepción y sala de espera, consultorio de optometría, consultorio general, quirófano de láser, óptica de venta de armazones, oficina y baño.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["shell", "clinica-oftalmologica", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 1200, 650, 1100, 260, "architecture", ["clinica-oftalmologica", "entrada", "acceso", "puerta"]),
+      asset("recepcion", "zone", "Recepción", 800, 900, 3000, 1600, "layout", ["clinica-oftalmologica", "recepcion", "atencion", "zona"]),
+      asset("mostrador", "counter", "Mostrador de recepción", 900, 1000, 2000, 500, "equipment", ["clinica-oftalmologica", "mostrador", "recepcion", "atencion"]),
+      asset("sala-espera", "zone", "Sala de espera", 800, 2700, 3000, 3400, "layout", ["clinica-oftalmologica", "sala-espera", "espera", "zona"]),
+      asset("sofa-espera", "sofa-3", "Sofá de espera", 900, 2900, 2000, 700, "equipment", ["clinica-oftalmologica", "sofa", "espera", "mobiliario"]),
+      asset("optometria", "room", "Consultorio de optometría", 4200, 900, 2600, 2000, "architecture", ["clinica-oftalmologica", "optometria", "vista", "cuarto"]),
+      asset("foropter", "phoropter", "Foróptero", 4400, 1200, 900, 900, "equipment", ["clinica-oftalmologica", "foropter", "graduacion", "vista"]),
+      asset("consultorio", "room", "Consultorio general", 7200, 900, 2600, 2000, "architecture", ["clinica-oftalmologica", "consultorio", "medico", "cuarto"]),
+      asset("quirofano", "room", "Quirófano de láser", 4200, 3100, 2600, 2000, "architecture", ["clinica-oftalmologica", "quirofano", "laser", "cirugia", "cuarto"]),
+      asset("equipo-laser", "laser-machine", "Equipo de láser", 4400, 3300, 1200, 900, "equipment", ["clinica-oftalmologica", "laser", "equipo", "cirugia"]),
+      asset("optica", "zone", "Óptica", 7200, 3100, 4000, 2000, "layout", ["clinica-oftalmologica", "optica", "armazones", "lentes", "zona"]),
+      asset("vitrina", "display-case", "Vitrina de armazones", 7400, 3300, 3000, 600, "equipment", ["clinica-oftalmologica", "vitrina", "armazones", "exhibicion"]),
+      asset("oficina", "room", "Oficina", 4200, 5300, 3000, 1700, "architecture", ["clinica-oftalmologica", "oficina", "administracion", "cuarto"]),
+      asset("bano", "room", "Baño", 800, 5300, 2600, 1700, "architecture", ["clinica-oftalmologica", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 1000, 5600, 600, 700, "equipment", ["clinica-oftalmologica", "inodoro", "sanitario", "bano"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 9800, 900, 300, 300, "safety", ["clinica-oftalmologica", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Clínica oftalmológica — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion", kind: "flow" },
+      { fromRef: "recepcion", toRef: "optometria", kind: "flow" },
+      { fromRef: "optometria", toRef: "quirofano", kind: "flow" },
     ],
   },
 ];
