@@ -1496,6 +1496,37 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["rocola", "sinfonola", "jukebox", "música", "musica", "cantina", "bar", "entretenimiento"],
     ports: [],
   },
+  // Trigésima sexta tanda universal (AXOS-CAD-UNIVERSAL-093): taller/oficios.
+  {
+    id: "pedestal-grinder",
+    label: "Esmeril de pedestal",
+    category: "equipment",
+    defaultWidth: 500,
+    defaultHeight: 400,
+    layer: "Equipment",
+    tags: ["esmeril", "esmeril de pedestal", "amoladora", "pulidora", "afilar", "herrería", "herreria", "taller", "oficio"],
+    ports: [],
+  },
+  {
+    id: "table-saw",
+    label: "Sierra de mesa",
+    category: "equipment",
+    defaultWidth: 1000,
+    defaultHeight: 800,
+    layer: "Equipment",
+    tags: ["sierra", "sierra de mesa", "sierra circular", "carpintería", "carpinteria", "madera", "banco de corte", "taller"],
+    ports: [],
+  },
+  {
+    id: "tire-changer",
+    label: "Desmontadora de llantas",
+    category: "equipment",
+    defaultWidth: 1000,
+    defaultHeight: 1000,
+    layer: "Equipment",
+    tags: ["vulcanizadora", "desmontadora de llantas", "montallantas", "llantas", "neumáticos", "neumaticos", "taller", "vulca"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {

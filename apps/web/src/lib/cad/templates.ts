@@ -80,7 +80,11 @@ export type CadLayoutTemplateId =
   | "funeraria"
   | "notaria"
   | "despacho-contable"
-  | "inmobiliaria";
+  | "inmobiliaria"
+  | "banco-sucursal"
+  | "casa-empeno"
+  | "biblioteca"
+  | "cine-sala";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -2577,6 +2581,138 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "sala_espera", kind: "flow" },
       { fromRef: "sala_espera", toRef: "recepcion", kind: "flow" },
       { fromRef: "recepcion", toRef: "oficina_privada", kind: "flow" },
+    ],
+  },
+  {
+    id: "banco-sucursal",
+    label: "Sucursal bancaria",
+    description:
+      "Plantilla universal y editable de una sucursal bancaria típica de México (12000×8000 mm): muro perimetral, entrada al norte, área pública con sala de espera y cajeros automáticos, línea de cajas/ventanillas, área de ejecutivos de cuenta, oficina de gerente, bóveda, sanitario y cuarto de empleados. Coordenadas en milímetros, listas para reubicar o escalar cada zona, cuarto y mueble.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["shell", "banco-sucursal", "muro", "envolvente"]),
+      asset("entrada", "door", "Entrada principal", 5400, 650, 1200, 260, "architecture", ["banco-sucursal", "entrada", "acceso", "clientes"]),
+      asset("sala-espera", "zone", "Sala de espera", 850, 900, 4100, 2200, "layout", ["banco-sucursal", "sala-espera", "area-publica", "clientes"]),
+      asset("cajeros-automaticos", "zone", "Cajeros automáticos (ATM)", 8100, 900, 3000, 2200, "layout", ["banco-sucursal", "cajeros-automaticos", "atm", "autoservicio"]),
+      asset("silleria-espera", "sofa-3", "Sillería de espera", 1000, 1200, 2400, 900, "equipment", ["banco-sucursal", "mobiliario", "espera", "asientos"]),
+      asset("linea-cajas", "counter", "Línea de cajas / Ventanillas", 850, 3300, 7000, 700, "equipment", ["banco-sucursal", "ventanillas", "cajas", "atencion"]),
+      asset("area-ejecutivos", "zone", "Área de ejecutivos de cuenta", 850, 4300, 4500, 2800, "layout", ["banco-sucursal", "ejecutivos", "atencion-personalizada", "cuentas"]),
+      asset("escritorio-ejecutivo", "desk", "Escritorio ejecutivo", 1050, 4600, 1900, 1000, "equipment", ["banco-sucursal", "escritorio", "ejecutivo", "mobiliario"]),
+      asset("oficina-gerente", "room", "Oficina de gerente", 5600, 4300, 2400, 1400, "architecture", ["banco-sucursal", "gerencia", "oficina", "privado"]),
+      asset("boveda", "room", "Bóveda", 8300, 4300, 2800, 1400, "architecture", ["banco-sucursal", "boveda", "seguridad", "efectivo"]),
+      asset("sanitario", "room", "Sanitario", 5600, 6000, 1800, 1100, "architecture", ["banco-sucursal", "sanitario", "servicios"]),
+      asset("inodoro", "wc", "Inodoro", 5750, 6200, 600, 600, "equipment", ["banco-sucursal", "inodoro", "sanitario"]),
+      asset("cuarto-empleados", "room", "Cuarto de empleados / Comedor", 7700, 6000, 3400, 1100, "architecture", ["banco-sucursal", "empleados", "comedor", "descanso"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 10850, 3300, 300, 300, "safety", ["banco-sucursal", "seguridad", "extintor", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Sucursal bancaria — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "sala-espera", kind: "flow" },
+      { fromRef: "sala-espera", toRef: "linea-cajas", kind: "flow" },
+      { fromRef: "linea-cajas", toRef: "boveda", kind: "material" },
+    ],
+  },
+  {
+    id: "casa-empeno",
+    label: "Casa de empeño",
+    description:
+      "Plantilla universal editable de casa de empeño mexicana típica (9000×6000 mm): acceso al frente, zona de atención al cliente, mostrador con vitrinas de joyería y electrónicos, caja de cobro, mesa de avalúo con báscula, bodega segura de resguardo, oficina, baño y extintor. Circulación clara entre el área de clientes y el área de personal.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("muro", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["shell", "casa-empeno", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 1300, 650, 1000, 260, "architecture", ["casa-empeno", "entrada", "acceso", "puerta"]),
+      asset("zona-atencion", "zone", "Zona de atención al cliente", 900, 1000, 4600, 1300, "layout", ["casa-empeno", "atencion", "clientes", "espera"]),
+      asset("mostrador", "counter", "Mostrador de atención", 900, 2350, 1900, 350, "equipment", ["casa-empeno", "mostrador", "atencion"]),
+      asset("vitrina-joyeria", "display-case", "Vitrina de joyería", 2950, 2350, 1200, 350, "equipment", ["casa-empeno", "vitrina", "joyeria", "exhibicion"]),
+      asset("vitrina-electronicos", "display-case", "Vitrina de electrónicos", 4300, 2350, 1200, 350, "equipment", ["casa-empeno", "vitrina", "electronicos", "exhibicion"]),
+      asset("caja", "cash-register", "Caja registradora", 1000, 2800, 700, 450, "equipment", ["casa-empeno", "caja", "cobro", "pagos"]),
+      asset("mesa-avaluo", "desk", "Mesa de avalúo", 2100, 2850, 1500, 800, "equipment", ["casa-empeno", "avaluo", "valuacion", "escritorio"]),
+      asset("bascula", "scale", "Báscula de avalúo", 3750, 2900, 500, 500, "equipment", ["casa-empeno", "bascula", "avaluo", "peso"]),
+      asset("bodega", "room", "Bodega segura de resguardo", 5700, 2900, 2500, 2300, "architecture", ["casa-empeno", "bodega", "resguardo", "seguridad"]),
+      asset("rack", "rack", "Rack de resguardo", 5900, 3150, 2100, 550, "equipment", ["casa-empeno", "rack", "almacenaje", "resguardo"]),
+      asset("oficina", "room", "Oficina administrativa", 900, 4100, 1900, 1100, "architecture", ["casa-empeno", "oficina", "administracion"]),
+      asset("bano", "room", "Baño", 3000, 4100, 1500, 1100, "architecture", ["casa-empeno", "bano", "sanitario"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 7900, 850, 250, 250, "safety", ["casa-empeno", "extintor", "seguridad", "proteccion"]),
+    ],
+    annotations: [
+      note("titulo", "Casa de empeño — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "zona-atencion", kind: "flow" },
+      { fromRef: "zona-atencion", toRef: "mostrador", kind: "flow" },
+      { fromRef: "mesa-avaluo", toRef: "bodega", kind: "material" },
+    ],
+  },
+  {
+    id: "biblioteca",
+    label: "Biblioteca pública",
+    description:
+      "Plantilla editable de una biblioteca pública típica de México (12000×8000 mm): muro perimetral, entrada al norte, mostrador de préstamo, sala infantil, área de cómputo, estantería de acervo, zona de lectura, hemeroteca, sanitarios y elementos de seguridad. Todos los elementos son reposicionables y editables.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["shell", "biblioteca", "muro", "perimetral"]),
+      asset("entrada-principal", "door", "Entrada principal", 5400, 650, 1200, 260, "architecture", ["entrada", "acceso", "biblioteca", "puerta"]),
+      asset("mostrador-prestamo", "counter", "Mostrador de préstamo", 4800, 1100, 2000, 700, "equipment", ["mostrador", "prestamo", "atencion", "biblioteca"]),
+      asset("sala-infantil", "room", "Sala infantil", 900, 1000, 2800, 2600, "architecture", ["infantil", "ninos", "sala", "biblioteca"]),
+      asset("area-computo", "zone", "Área de cómputo", 900, 4000, 2800, 2800, "layout", ["computo", "internet", "digital", "biblioteca"]),
+      asset("estanteria-central", "shelf-gondola", "Estantería de acervo", 4000, 2600, 2800, 1400, "equipment", ["estanteria", "acervo", "libros", "biblioteca"]),
+      asset("sanitarios", "room", "Sanitarios", 4000, 4400, 2400, 2200, "architecture", ["sanitarios", "banos", "servicios", "biblioteca"]),
+      asset("wc-1", "wc", "Inodoro", 4200, 4700, 700, 900, "equipment", ["inodoro", "sanitario", "bano", "biblioteca"]),
+      asset("zona-lectura", "zone", "Zona de lectura", 7400, 1000, 3600, 3000, "layout", ["lectura", "mesas", "silencio", "biblioteca"]),
+      asset("mesa-lectura-1", "restaurant-table-4", "Mesa de lectura", 7800, 1600, 1200, 1200, "equipment", ["mesa", "lectura", "consulta", "biblioteca"]),
+      asset("hemeroteca", "shelf", "Hemeroteca", 7400, 4400, 3600, 800, "equipment", ["hemeroteca", "revistas", "periodicos", "biblioteca"]),
+      asset("bebedero", "water-dispenser", "Bebedero", 6800, 6200, 500, 500, "equipment", ["bebedero", "agua", "hidratacion", "biblioteca"]),
+      asset("extintor-1", "fire-extinguisher", "Extintor", 10800, 6600, 300, 300, "safety", ["extintor", "seguridad", "proteccion", "biblioteca"]),
+      asset("salida-emergencia", "emergency-exit-sign", "Salida de emergencia", 6700, 750, 350, 250, "safety", ["salida", "emergencia", "senalizacion", "biblioteca"]),
+    ],
+    annotations: [
+      note("titulo", "Biblioteca pública — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada-principal", toRef: "mostrador-prestamo", kind: "flow" },
+      { fromRef: "mostrador-prestamo", toRef: "estanteria-central", kind: "flow" },
+      { fromRef: "estanteria-central", toRef: "zona-lectura", kind: "material" },
+    ],
+  },
+  {
+    id: "cine-sala",
+    label: "Sala de cine",
+    description:
+      "Plantilla editable de una sala de cine típica mexicana (12000×8000 mm): muro perimetral, entrada superior, vestíbulo, cabina de proyección, dos bloques de butacas con pasillo central, estrado con pantalla y bocinas, más equipo de seguridad.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("muro", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["shell", "cine-sala", "muro-perimetral", "envolvente"]),
+      asset("entrada", "door", "Puerta de entrada", 5500, 650, 1000, 260, "architecture", ["entrada", "acceso", "puerta", "cine-sala"]),
+      asset("vestibulo", "zone", "Vestíbulo de acceso", 4200, 900, 3000, 900, "layout", ["vestibulo", "acceso", "circulacion", "cine-sala"]),
+      asset("cabina", "room", "Cabina de proyección", 9000, 900, 2000, 1200, "architecture", ["cabina", "proyeccion", "cuarto-tecnico", "cine-sala"]),
+      asset("pasillo-central", "zone", "Pasillo central", 5600, 2300, 700, 3900, "layout", ["pasillo", "circulacion", "evacuacion", "cine-sala"]),
+      asset("butacas-izq", "pew", "Butacas izquierda", 1300, 2300, 4100, 3900, "equipment", ["butacas", "asientos", "publico", "cine-sala"]),
+      asset("butacas-der", "pew", "Butacas derecha", 6500, 2300, 4100, 3900, "equipment", ["butacas", "asientos", "publico", "cine-sala"]),
+      asset("estrado", "stage", "Estrado de pantalla", 2000, 6400, 8000, 350, "equipment", ["estrado", "tarima", "escenario", "cine-sala"]),
+      asset("pantalla", "tv-screen", "Pantalla de cine", 2200, 6800, 7600, 300, "equipment", ["pantalla", "proyeccion", "cine-sala"]),
+      asset("bocina-izq", "speaker", "Bocina izquierda", 1200, 6450, 600, 500, "equipment", ["bocina", "audio", "sonido", "cine-sala"]),
+      asset("bocina-der", "speaker", "Bocina derecha", 10200, 6450, 600, 500, "equipment", ["bocina", "audio", "sonido", "cine-sala"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 780, 2400, 250, 250, "safety", ["extintor", "seguridad", "proteccion-civil", "cine-sala"]),
+      asset("salida-emergencia", "emergency-exit-sign", "Señal de salida de emergencia", 780, 6400, 300, 200, "safety", ["salida", "emergencia", "evacuacion", "cine-sala"]),
+      asset("bote-basura", "trash-bin", "Bote de basura", 7000, 1900, 300, 300, "equipment", ["basura", "limpieza", "cine-sala"]),
+    ],
+    annotations: [
+      note("titulo", "Sala de cine — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "vestibulo", kind: "flow" },
+      { fromRef: "vestibulo", toRef: "pasillo-central", kind: "flow" },
+      { fromRef: "cabina", toRef: "pantalla", kind: "material" },
     ],
   },
 ];

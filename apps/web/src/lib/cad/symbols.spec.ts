@@ -589,3 +589,17 @@ assert.ok(
   searchCadSymbols("rocola").some((symbol) => symbol.id === "jukebox"),
   "search finds rocola",
 );
+
+// Trigésima sexta tanda universal (AXOS-CAD-UNIVERSAL-093): taller/oficios.
+assert.ok(
+  searchCadSymbols("esmeril").some((symbol) => symbol.id === "pedestal-grinder"),
+  "search finds esmeril de pedestal",
+);
+assert.ok(
+  searchCadSymbols("sierra de mesa").some((symbol) => symbol.id === "table-saw"),
+  "search finds sierra de mesa",
+);
+assert.ok(
+  searchCadSymbols("desmontadora").some((symbol) => symbol.id === "tire-changer"),
+  "search finds desmontadora de llantas",
+);
