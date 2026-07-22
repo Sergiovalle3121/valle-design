@@ -71,7 +71,8 @@ export type CadLayoutTemplateId =
   | "salon-unas"
   | "taller-celulares"
   | "mercado"
-  | "parque-vecinal";
+  | "parque-vecinal"
+  | "estancia-adultos";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -2266,6 +2267,41 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "andador-par", kind: "flow" },
       { fromRef: "andador-par", toRef: "juegos-par", kind: "flow" },
       { fromRef: "andador-par", toRef: "picnic-par", kind: "flow" },
+    ],
+  },
+  {
+    id: "estancia-adultos",
+    label: "Estancia de día para adultos mayores",
+    description: "Arranque universal de estancia de día: recepción, sala de estar con TV y sillones, comedor, área de descanso con camas, cocina, baño accesible y jardín.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["architecture", "shell", "estancia-adultos"]),
+      asset("entrada", "door", "Entrada", 5000, 650, 1200, 260, "architecture", ["door", "opening:entry"]),
+      asset("recepcion-est", "counter", "Recepción", 1200, 1200, 1500, 600, "equipment", ["counter", "estancia-adultos"]),
+      asset("sala-est", "zone", "Sala de estar", 3000, 1200, 3400, 2400, "layout", ["zone", "use:living", "estancia-adultos"]),
+      asset("sofa-est", "sofa-3", "Sillones", 3200, 1400, 2000, 900, "equipment", ["sofa", "estancia-adultos"]),
+      asset("tv-est", "tv-screen", "Pantalla", 3200, 3200, 1200, 150, "equipment", ["pantalla", "estancia-adultos"]),
+      asset("comedor-est", "zone", "Comedor", 6800, 1200, 3600, 2400, "layout", ["zone", "use:dining", "estancia-adultos"]),
+      asset("mesa-est-1", "restaurant-table-4", "Mesa", 7000, 1500, 900, 900, "equipment", ["table", "estancia-adultos"]),
+      asset("mesa-est-2", "restaurant-table-4", "Mesa", 8600, 1500, 900, 900, "equipment", ["table", "estancia-adultos"]),
+      asset("descanso-est", "room", "Área de descanso", 1200, 3900, 4000, 2900, "architecture", ["room", "use:rest", "estancia-adultos"]),
+      asset("cama-est-1", "bed-queen", "Cama", 1400, 4200, 1400, 2000, "equipment", ["cama", "estancia-adultos"]),
+      asset("cama-est-2", "bed-queen", "Cama", 3200, 4200, 1400, 2000, "equipment", ["cama", "estancia-adultos"]),
+      asset("cocina-est", "room", "Cocina", 5600, 3900, 2400, 1600, "architecture", ["room", "use:kitchen", "estancia-adultos"]),
+      asset("bano-est", "room", "Baño accesible", 5600, 5700, 2400, 1100, "architecture", ["room", "use:bathroom", "accesible", "estancia-adultos"]),
+      asset("wc-est", "wc", "WC", 5800, 5900, 400, 650, "equipment", ["wc", "estancia-adultos"]),
+      asset("jardin-est", "zone", "Jardín", 8400, 3900, 2400, 2900, "layout", ["zone", "use:garden", "estancia-adultos"]),
+      asset("banca-est", "outdoor-bench", "Banca", 8600, 4200, 1500, 500, "equipment", ["banca", "estancia-adultos"]),
+    ],
+    annotations: [
+      note("titulo", "Estancia de día — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion-est", kind: "flow" },
+      { fromRef: "recepcion-est", toRef: "sala-est", kind: "flow" },
+      { fromRef: "sala-est", toRef: "comedor-est", kind: "flow" },
     ],
   },
 ];
