@@ -58,7 +58,8 @@ export type CadLayoutTemplateId =
   | "hostal"
   | "autolavado"
   | "llantera"
-  | "purificadora";
+  | "purificadora"
+  | "optica";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1873,6 +1874,35 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "caja-pur", kind: "flow" },
       { fromRef: "equipo-pur", toRef: "llenado-pur", kind: "material" },
       { fromRef: "llenado-pur", toRef: "llenos-pur", kind: "material" },
+    ],
+  },
+  {
+    id: "optica",
+    label: "Óptica",
+    description: "Arranque universal de óptica: mostrador con caja, exhibidores de armazones, espejo de pared, sala de espera, gabinete de examen visual y taller de ajuste.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["architecture", "shell", "optica"]),
+      asset("entrada", "door", "Entrada", 3500, 650, 1000, 260, "architecture", ["door", "opening:entry"]),
+      asset("mostrador-opt", "counter", "Mostrador", 1500, 1400, 1800, 600, "equipment", ["counter", "optica"]),
+      asset("registradora-opt", "cash-register", "Caja registradora", 3600, 1400, 450, 400, "equipment", ["caja", "cobro", "optica"]),
+      asset("exhibidor-opt-1", "display-case", "Exhibidor de armazones", 4800, 1400, 1500, 500, "equipment", ["exhibidor", "armazones", "optica"]),
+      asset("exhibidor-opt-2", "display-case", "Exhibidor de armazones", 6500, 1400, 1500, 500, "equipment", ["exhibidor", "armazones", "optica"]),
+      asset("espejo-opt", "wall-mirror", "Espejo de pared", 1200, 2600, 1000, 100, "equipment", ["espejo", "optica"]),
+      asset("espera-opt", "zone", "Sala de espera", 1200, 3400, 2400, 1600, "layout", ["zone", "use:lounge", "optica"]),
+      asset("gabinete-opt", "room", "Gabinete de examen", 4200, 3000, 2400, 2200, "architecture", ["room", "use:exam", "optica"]),
+      asset("equipo-opt", "workbench", "Equipo de examen visual", 4400, 3200, 1200, 700, "equipment", ["equipo", "examen", "optica"]),
+      asset("taller-opt", "room", "Taller de ajuste", 7000, 3200, 1300, 1800, "architecture", ["room", "use:workshop", "optica"]),
+    ],
+    annotations: [
+      note("titulo", "Óptica — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "mostrador-opt", kind: "flow" },
+      { fromRef: "espera-opt", toRef: "gabinete-opt", kind: "flow" },
+      { fromRef: "gabinete-opt", toRef: "taller-opt", kind: "material" },
     ],
   },
 ];
