@@ -2906,7 +2906,7 @@ if (rectDraftCreate?.type === "create") {
   assert.ok(p.summary.includes("Faltan 3"), "enumera 3 faltantes");
   const rep = p.operations[0];
   if (rep?.type === "report") {
-    assert.equal(rep.rows.length, 4, "cuatro renglones del checklist");
+    assert.equal(rep.rows.length, 5, "cuatro del checklist + aforo");
     assert.ok(
       rep.rows.some((r) => r.label === "Extintor" && r.value === "FALTA"),
       "extintor marcado como faltante",
@@ -2916,6 +2916,13 @@ if (rectDraftCreate?.type === "create") {
         (r) => r.label === "Puerta de entrada" && r.value.includes("✓"),
       ),
       "puerta presente con palomita",
+    );
+    // AUDIT-004: aforo estimado en 60 m² → floor(60/1.5) = 40 personas.
+    assert.ok(
+      rep.rows.some(
+        (r) => r.label === "Aforo estimado" && r.value.includes("~40 personas"),
+      ),
+      "renglón de aforo con el estimado por superficie",
     );
   }
   const full = previewCadCommand(

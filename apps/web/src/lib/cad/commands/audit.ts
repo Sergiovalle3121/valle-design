@@ -7,6 +7,9 @@
  * 300 m² del footprint (referencia NOM-002-STPS), redondeando arriba.
  * AUDIT-003: arriba de 400 m² se exigen dos puertas — la entrada y una
  * salida alterna para evacuación.
+ * AUDIT-004: renglón informativo de aforo estimado (una persona por cada
+ * 1.5 m² de superficie) — el dato que pide protección civil para el
+ * dictamen; no marca falta, sólo orienta.
  */
 import type {
   CadCommandContext,
@@ -16,6 +19,7 @@ import type {
 
 const M2_PER_EXTINGUISHER = 300;
 const M2_SECOND_DOOR = 400;
+const M2_PER_PERSON = 1.5;
 
 export function auditPlanPreview(
   context: CadCommandContext,
@@ -37,18 +41,25 @@ export function auditPlanPreview(
     },
   ];
   const missing = checks.filter((c) => c.n < c.req);
+  const aforo = Math.max(1, Math.floor(planAreaM2 / M2_PER_PERSON));
   const report: CadOperation = {
     type: "report",
     title: `Protección civil — revisión del plano (${Math.round(planAreaM2)} m²)`,
-    rows: checks.map((c) => ({
-      label: c.label,
-      value:
-        c.n >= c.req
-          ? `✓ ${c.n} en el plano${c.req > 1 ? ` (norma: ${c.req})` : ""}`
-          : c.n > 0
-            ? `${c.n} de ${c.req} — faltan ${c.req - c.n}`
-            : "FALTA",
-    })),
+    rows: [
+      ...checks.map((c) => ({
+        label: c.label,
+        value:
+          c.n >= c.req
+            ? `✓ ${c.n} en el plano${c.req > 1 ? ` (norma: ${c.req})` : ""}`
+            : c.n > 0
+              ? `${c.n} de ${c.req} — faltan ${c.req - c.n}`
+              : "FALTA",
+      })),
+      {
+        label: "Aforo estimado",
+        value: `~${aforo} personas (1 por ${M2_PER_PERSON} m²)`,
+      },
+    ],
   };
   return {
     summary: missing.length
