@@ -68,7 +68,8 @@ export type CadLayoutTemplateId =
   | "academia-baile"
   | "refaccionaria"
   | "imprenta"
-  | "salon-unas";
+  | "salon-unas"
+  | "taller-celulares";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -2175,6 +2176,34 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "recepcion-un", kind: "flow" },
       { fromRef: "recepcion-un", toRef: "espera-un", kind: "flow" },
       { fromRef: "espera-un", toRef: "mesa-manicura-un-1", kind: "flow" },
+    ],
+  },
+  {
+    id: "taller-celulares",
+    label: "Taller de celulares",
+    description: "Arranque universal de taller de celulares: mostrador con caja, dos vitrinas de equipos y accesorios, mesa de reparación, estante de refacciones y despacho.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["architecture", "shell", "taller-celulares"]),
+      asset("entrada", "door", "Entrada", 3500, 650, 1000, 260, "architecture", ["door", "opening:entry"]),
+      asset("mostrador-cel", "counter", "Mostrador", 1500, 1400, 1800, 600, "equipment", ["counter", "taller-celulares"]),
+      asset("registradora-cel", "cash-register", "Caja registradora", 3600, 1400, 450, 400, "equipment", ["caja", "cobro", "taller-celulares"]),
+      asset("vitrina-cel-1", "display-case", "Vitrina de equipos", 4800, 1400, 1500, 600, "equipment", ["vitrina", "equipos", "taller-celulares"]),
+      asset("vitrina-cel-2", "display-case", "Vitrina de accesorios", 6500, 1400, 1500, 600, "equipment", ["vitrina", "accesorios", "taller-celulares"]),
+      asset("mesa-rep-cel", "workbench", "Mesa de reparación", 1500, 2800, 2000, 800, "equipment", ["mesa", "reparacion", "taller-celulares"]),
+      asset("refacciones-cel", "shelf", "Estante de refacciones", 4000, 2800, 2000, 450, "equipment", ["estante", "refacciones", "taller-celulares"]),
+      asset("despacho-cel", "zone", "Despacho", 1300, 4000, 2600, 1200, "layout", ["zone", "use:service", "taller-celulares"]),
+      asset("bodega-cel", "room", "Bodega", 6000, 3200, 1900, 1800, "architecture", ["room", "use:storage", "taller-celulares"]),
+    ],
+    annotations: [
+      note("titulo", "Taller de celulares — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "mostrador-cel", kind: "flow" },
+      { fromRef: "mostrador-cel", toRef: "mesa-rep-cel", kind: "material" },
+      { fromRef: "refacciones-cel", toRef: "mesa-rep-cel", kind: "material" },
     ],
   },
 ];
