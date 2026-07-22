@@ -62,7 +62,8 @@ export type CadLayoutTemplateId =
   | "optica"
   | "departamento"
   | "rosticeria"
-  | "terraza-jardin";
+  | "terraza-jardin"
+  | "vinateria";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1996,6 +1997,34 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "barra-ter", kind: "flow" },
       { fromRef: "asador-ter", toRef: "barra-ter", kind: "material" },
       { fromRef: "barra-ter", toRef: "mesa-picnic-ter-1", kind: "flow" },
+    ],
+  },
+  {
+    id: "vinateria",
+    label: "Vinatería / Licorería",
+    description: "Arranque universal de vinatería: mostrador con caja, dos góndolas de vinos, refrigerador de cervezas, vitrina de licores, despacho y bodega.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["architecture", "shell", "vinateria"]),
+      asset("entrada", "door", "Entrada", 3500, 650, 1000, 260, "architecture", ["door", "opening:entry"]),
+      asset("mostrador-vin", "counter", "Mostrador", 1500, 1400, 1800, 600, "equipment", ["counter", "vinateria"]),
+      asset("registradora-vin", "cash-register", "Caja registradora", 3600, 1400, 450, 400, "equipment", ["caja", "cobro", "vinateria"]),
+      asset("gondola-vin-1", "shelf-gondola", "Góndola de vinos", 4800, 1400, 1500, 500, "equipment", ["gondola", "vinos", "vinateria"]),
+      asset("gondola-vin-2", "shelf-gondola", "Góndola de vinos", 6500, 1400, 1500, 500, "equipment", ["gondola", "vinos", "vinateria"]),
+      asset("refri-cervezas-vin", "refrigerator", "Refrigerador de cervezas", 1200, 2600, 800, 700, "equipment", ["refrigerador", "cervezas", "vinateria"]),
+      asset("vitrina-vin", "display-case", "Vitrina de licores", 2400, 2600, 1500, 600, "equipment", ["vitrina", "licores", "vinateria"]),
+      asset("despacho-vin", "zone", "Despacho", 1300, 4000, 2600, 1200, "layout", ["zone", "use:service", "vinateria"]),
+      asset("bodega-vin", "room", "Bodega", 6000, 3200, 1900, 1800, "architecture", ["room", "use:storage", "vinateria"]),
+    ],
+    annotations: [
+      note("titulo", "Vinatería — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "mostrador-vin", kind: "flow" },
+      { fromRef: "bodega-vin", toRef: "gondola-vin-1", kind: "material" },
+      { fromRef: "gondola-vin-1", toRef: "mostrador-vin", kind: "material" },
     ],
   },
 ];
