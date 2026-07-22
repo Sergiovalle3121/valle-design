@@ -1186,6 +1186,37 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["cono", "tráfico", "trafico", "seguridad", "obra", "estacionamiento"],
     ports: [],
   },
+  // — Vigesimosexta tanda universal (AXOS-CAD-UNIVERSAL-057): servicios del patio —
+  {
+    id: "water-tank",
+    label: "Tinaco",
+    category: "equipment",
+    defaultWidth: 1100,
+    defaultHeight: 1100,
+    layer: "Furniture",
+    tags: ["tinaco", "tanque de agua", "water tank", "azotea", "cisterna"],
+    ports: [],
+  },
+  {
+    id: "gas-tank",
+    label: "Tanque de gas estacionario",
+    category: "equipment",
+    defaultWidth: 1600,
+    defaultHeight: 800,
+    layer: "Furniture",
+    tags: ["tanque de gas", "gas", "estacionario", "lp", "patio"],
+    ports: [],
+  },
+  {
+    id: "water-heater",
+    label: "Boiler / Calentador",
+    category: "equipment",
+    defaultWidth: 500,
+    defaultHeight: 500,
+    layer: "Furniture",
+    tags: ["boiler", "calentador", "agua caliente", "water heater", "patio"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {

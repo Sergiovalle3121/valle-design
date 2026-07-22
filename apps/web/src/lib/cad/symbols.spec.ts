@@ -415,3 +415,23 @@ assert.ok(
   searchCadSymbols("cono").some((symbol) => symbol.id === "traffic-cone"),
   "search finds cono de tráfico",
 );
+
+// Vigesimosexta tanda universal (AXOS-CAD-UNIVERSAL-057): patio.
+assert.ok(
+  searchCadSymbols("tinaco").some((symbol) => symbol.id === "water-tank"),
+  "search finds tinaco",
+);
+assert.ok(
+  searchCadSymbols("tanque de gas").some((symbol) => symbol.id === "gas-tank"),
+  "search finds tanque de gas",
+);
+assert.ok(
+  searchCadSymbols("boiler").some((symbol) => symbol.id === "water-heater"),
+  "search finds boiler",
+);
+assert.ok(
+  searchCadSymbols("calentador").some(
+    (symbol) => symbol.id === "water-heater",
+  ),
+  "search finds calentador",
+);
