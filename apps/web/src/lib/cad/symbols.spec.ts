@@ -619,3 +619,30 @@ assert.ok(
   searchCadSymbols("casilleros").some((symbol) => symbol.id === "locker-bank"),
   "search finds casilleros",
 );
+
+// Tandas 38-43 (AXOS-CAD-UNIVERSAL-130..135): equipo de las plantillas a mano.
+for (const [query, id] of [
+  ["bomba de gasolina", "fuel-dispenser"],
+  ["automovil", "vehicle"],
+  ["montacargas", "forklift"],
+  ["olla de coccion", "brew-kettle"],
+  ["tanque de fermentacion", "fermenter"],
+  ["molino de malta", "grain-mill"],
+  ["soldadora", "welder"],
+  ["cortadora de plasma", "plasma-cutter"],
+  ["prensa", "press-machine"],
+  ["carril de alberca", "pool-lane"],
+  ["trampolin", "diving-board"],
+  ["pista de boliche", "bowling-lane"],
+  ["linea de produccion", "assembly-line"],
+  ["cama de cultivo", "grow-bed"],
+  ["rack de sentadilla", "power-rack"],
+  ["camion de bomberos", "fire-truck"],
+  ["ciclorama", "photo-backdrop"],
+  ["butacas", "seating-block"],
+] as const) {
+  assert.ok(
+    searchCadSymbols(query).some((symbol) => symbol.id === id),
+    `search finds ${id} via "${query}"`,
+  );
+}
