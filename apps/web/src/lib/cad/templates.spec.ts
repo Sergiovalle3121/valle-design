@@ -74,7 +74,7 @@ assert.ok(
 console.log("cad templates specs passed");
 
 // CAD universal (AXOS-CAD-UNIVERSAL-002): arranques para cualquiera.
-for (const id of ["casa-habitacion", "local-comercial", "consultorio", "restaurante", "aula-escolar", "gimnasio", "oficina-coworking", "bodega-pyme", "taller-mecanico", "cafeteria", "salon-belleza", "farmacia", "jardin-eventos", "panaderia", "veterinaria", "lavanderia", "guarderia", "ferreteria", "habitacion-hotel", "consultorio-dental", "estacionamiento", "cancha-futbol", "salon-fiestas", "iglesia", "minisuper", "taqueria", "carniceria", "fruteria", "barberia", "tortilleria", "papeleria", "fondita", "estetica-canina", "fisioterapia", "spa", "cibercafe", "gimnasio-box", "polleria", "floreria", "cremeria", "neveria", "jugueria", "pescaderia", "boutique", "hostal", "autolavado", "llantera"]) {
+for (const id of ["casa-habitacion", "local-comercial", "consultorio", "restaurante", "aula-escolar", "gimnasio", "oficina-coworking", "bodega-pyme", "taller-mecanico", "cafeteria", "salon-belleza", "farmacia", "jardin-eventos", "panaderia", "veterinaria", "lavanderia", "guarderia", "ferreteria", "habitacion-hotel", "consultorio-dental", "estacionamiento", "cancha-futbol", "salon-fiestas", "iglesia", "minisuper", "taqueria", "carniceria", "fruteria", "barberia", "tortilleria", "papeleria", "fondita", "estetica-canina", "fisioterapia", "spa", "cibercafe", "gimnasio-box", "polleria", "floreria", "cremeria", "neveria", "jugueria", "pescaderia", "boutique", "hostal", "autolavado", "llantera", "purificadora"]) {
   const t = CAD_LAYOUT_TEMPLATES.find((template) => template.id === id);
   assert.ok(t, `${id} disponible`);
   assert.ok(

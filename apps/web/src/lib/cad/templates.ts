@@ -57,7 +57,8 @@ export type CadLayoutTemplateId =
   | "boutique"
   | "hostal"
   | "autolavado"
-  | "llantera";
+  | "llantera"
+  | "purificadora";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1844,6 +1845,34 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "porton", toRef: "bahia-lla-1", kind: "flow" },
       { fromRef: "rack-lla", toRef: "montadora-lla", kind: "material" },
       { fromRef: "montadora-lla", toRef: "bahia-lla-1", kind: "material" },
+    ],
+  },
+  {
+    id: "purificadora",
+    label: "Purificadora de agua",
+    description: "Arranque universal de purificadora: área de llenado, equipo de purificación, filtros, estantes de garrafones, caja con registradora y bodega.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["architecture", "shell", "purificadora"]),
+      asset("entrada", "door", "Entrada", 3500, 650, 1000, 260, "architecture", ["door", "opening:entry"]),
+      asset("llenado-pur", "zone", "Área de llenado", 1200, 1400, 2600, 1800, "layout", ["zone", "use:fill", "purificadora"]),
+      asset("equipo-pur", "workbench", "Equipo de purificación", 4200, 1400, 1800, 800, "equipment", ["equipo", "filtro", "purificadora"]),
+      asset("filtros-pur", "shelf", "Filtros y repuestos", 6400, 1400, 1600, 450, "equipment", ["estante", "filtros", "purificadora"]),
+      asset("llenos-pur", "shelf", "Garrafones llenos", 1200, 3600, 2400, 600, "equipment", ["estante", "garrafones", "purificadora"]),
+      asset("vacios-pur", "zone", "Garrafones vacíos", 3900, 3600, 1600, 900, "layout", ["zone", "garrafones", "purificadora"]),
+      asset("caja-pur", "counter", "Caja", 5800, 3600, 1500, 600, "equipment", ["counter", "purificadora"]),
+      asset("registradora-pur", "cash-register", "Caja registradora", 5800, 4400, 450, 400, "equipment", ["caja", "cobro", "purificadora"]),
+      asset("bodega-pur", "room", "Bodega", 7400, 3400, 900, 1700, "architecture", ["room", "use:storage", "purificadora"]),
+    ],
+    annotations: [
+      note("titulo", "Purificadora — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "caja-pur", kind: "flow" },
+      { fromRef: "equipo-pur", toRef: "llenado-pur", kind: "material" },
+      { fromRef: "llenado-pur", toRef: "llenos-pur", kind: "material" },
     ],
   },
 ];
