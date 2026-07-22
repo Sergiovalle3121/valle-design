@@ -2929,6 +2929,74 @@ if (rectDraftCreate?.type === "create") {
     },
   );
   assert.ok(full.summary.includes("Listo"), "plano completo → listo");
+
+  // AUDIT-002: extintores por superficie — uno por cada 300 m².
+  const big = previewCadCommand(
+    { id: "audit_plan" },
+    {
+      unit: "mm",
+      footprintW: 40000,
+      footprintH: 20000,
+      selectedIds: [],
+      connectors: [],
+      objects: [
+        {
+          id: "p1",
+          type: "asset",
+          kind: "door",
+          label: "Puerta",
+          x: 0,
+          y: 0,
+          w: 900,
+          h: 260,
+        },
+        {
+          id: "e1",
+          type: "asset",
+          kind: "fire-extinguisher",
+          label: "Extintor",
+          x: 100,
+          y: 100,
+          w: 300,
+          h: 300,
+        },
+        {
+          id: "b1",
+          type: "asset",
+          kind: "first-aid-kit",
+          label: "Botiquín",
+          x: 500,
+          y: 100,
+          w: 400,
+          h: 200,
+        },
+        {
+          id: "s1",
+          type: "asset",
+          kind: "emergency-exit-sign",
+          label: "Salida",
+          x: 900,
+          y: 100,
+          w: 600,
+          h: 200,
+        },
+      ],
+    },
+  );
+  assert.ok(
+    big.summary.startsWith("Faltan 1"),
+    "800 m² con 1 extintor → falta el punto extintor",
+  );
+  const bigRep = big.operations[0];
+  if (bigRep?.type === "report") {
+    assert.ok(bigRep.title.includes("800 m²"), "el título trae el área");
+    assert.ok(
+      bigRep.rows.some(
+        (r) => r.label === "Extintor" && r.value === "1 de 3 — faltan 2",
+      ),
+      "norma de 300 m² exige 3 extintores en 800 m²",
+    );
+  }
 }
 
 console.log("cad command registry specs passed");
