@@ -523,3 +523,19 @@ assert.ok(
   searchCadSymbols("ballet").some((symbol) => symbol.id === "ballet-barre"),
   "search finds barra de ballet",
 );
+
+// Trigésima segunda tanda universal (AXOS-CAD-UNIVERSAL-078): velación.
+assert.ok(
+  searchCadSymbols("ataud").some((symbol) => symbol.id === "coffin"),
+  "search finds ataúd",
+);
+assert.ok(
+  searchCadSymbols("reclinatorio").some((symbol) => symbol.id === "kneeler"),
+  "search finds reclinatorio",
+);
+assert.ok(
+  searchCadSymbols("corona funebre").some(
+    (symbol) => symbol.id === "wreath-stand",
+  ),
+  "search finds corona fúnebre",
+);

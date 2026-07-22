@@ -1372,6 +1372,37 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["barra de ballet", "ballet", "danza", "baile", "academia"],
     ports: [],
   },
+  // — Trigésima segunda tanda universal (AXOS-CAD-UNIVERSAL-078): velación —
+  {
+    id: "coffin",
+    label: "Ataúd",
+    category: "furniture",
+    defaultWidth: 2100,
+    defaultHeight: 700,
+    layer: "Furniture",
+    tags: ["ataúd", "ataud", "féretro", "feretro", "funeraria", "velación", "velacion"],
+    ports: [],
+  },
+  {
+    id: "kneeler",
+    label: "Reclinatorio",
+    category: "furniture",
+    defaultWidth: 600,
+    defaultHeight: 400,
+    layer: "Furniture",
+    tags: ["reclinatorio", "funeraria", "iglesia", "capilla", "velación", "velacion"],
+    ports: [],
+  },
+  {
+    id: "wreath-stand",
+    label: "Corona fúnebre",
+    category: "furniture",
+    defaultWidth: 700,
+    defaultHeight: 400,
+    layer: "Furniture",
+    tags: ["corona fúnebre", "corona funebre", "arreglo", "flores", "funeraria"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {
