@@ -73,7 +73,8 @@ export type CadLayoutTemplateId =
   | "mercado"
   | "parque-vecinal"
   | "estancia-adultos"
-  | "salon-fiestas-infantil";
+  | "salon-fiestas-infantil"
+  | "marisqueria";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -2336,6 +2337,41 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "recepcion-inf", kind: "flow" },
       { fromRef: "recepcion-inf", toRef: "juegos-inf", kind: "flow" },
       { fromRef: "cocina-inf", toRef: "mesa-inf-3", kind: "material" },
+    ],
+  },
+  {
+    id: "marisqueria",
+    label: "Marisquería",
+    description: "Arranque universal de marisquería: barra de mariscos con vitrina fría, cocina con estufa y refrigerador, mesas del comedor, caja, baño y bodega.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["architecture", "shell", "marisqueria"]),
+      asset("entrada", "door", "Entrada", 5000, 650, 1200, 260, "architecture", ["door", "opening:entry"]),
+      asset("barra-mar", "bar-counter", "Barra de mariscos", 1200, 1200, 3000, 700, "equipment", ["barra", "marisqueria"]),
+      asset("vitrina-mar", "display-case", "Vitrina fría", 4400, 1200, 1800, 600, "equipment", ["vitrina", "hielo", "marisqueria"]),
+      asset("caja-mar", "cash-register", "Caja registradora", 6400, 1200, 450, 400, "equipment", ["caja", "cobro", "marisqueria"]),
+      asset("mesa-mar-1", "restaurant-table-4", "Mesa", 1200, 2600, 900, 900, "equipment", ["table", "marisqueria"]),
+      asset("mesa-mar-2", "restaurant-table-4", "Mesa", 2600, 2600, 900, 900, "equipment", ["table", "marisqueria"]),
+      asset("mesa-mar-3", "restaurant-table-4", "Mesa", 4000, 2600, 900, 900, "equipment", ["table", "marisqueria"]),
+      asset("mesa-mar-4", "restaurant-table-4", "Mesa", 1200, 4000, 900, 900, "equipment", ["table", "marisqueria"]),
+      asset("mesa-mar-5", "restaurant-table-4", "Mesa", 2600, 4000, 900, 900, "equipment", ["table", "marisqueria"]),
+      asset("mesa-mar-6", "restaurant-table-4", "Mesa", 4000, 4000, 900, 900, "equipment", ["table", "marisqueria"]),
+      asset("cocina-mar", "room", "Cocina", 7400, 1200, 3400, 2600, "architecture", ["room", "use:kitchen", "marisqueria"]),
+      asset("estufa-mar", "stove", "Estufa", 7600, 1400, 700, 600, "equipment", ["stove", "marisqueria"]),
+      asset("refri-mar", "refrigerator", "Refrigerador", 9800, 1400, 800, 700, "equipment", ["refrigerador", "marisqueria"]),
+      asset("bano-mar", "room", "Baño", 7400, 4200, 2000, 1600, "architecture", ["room", "use:bathroom", "marisqueria"]),
+      asset("wc-mar", "wc", "WC", 7600, 4400, 400, 650, "equipment", ["wc", "marisqueria"]),
+      asset("bodega-mar", "room", "Bodega", 9600, 4200, 1800, 1600, "architecture", ["room", "use:storage", "marisqueria"]),
+    ],
+    annotations: [
+      note("titulo", "Marisquería — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "barra-mar", kind: "flow" },
+      { fromRef: "cocina-mar", toRef: "barra-mar", kind: "material" },
+      { fromRef: "barra-mar", toRef: "mesa-mar-1", kind: "flow" },
     ],
   },
 ];
