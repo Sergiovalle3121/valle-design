@@ -111,7 +111,11 @@ export type CadLayoutTemplateId =
   | "clinica-urgencias"
   | "kinder"
   | "nave-industrial"
-  | "call-center";
+  | "call-center"
+  | "cerveceria-artesanal"
+  | "karaoke-bar"
+  | "estacion-bomberos"
+  | "plaza-comidas";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -3639,6 +3643,144 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "recepcion", kind: "flow" },
       { fromRef: "recepcion", toRef: "piso-operaciones", kind: "flow" },
       { fromRef: "piso-operaciones", toRef: "sala-junta", kind: "flow" },
+    ],
+  },
+  {
+    id: "cerveceria-artesanal",
+    label: "Cervecería artesanal",
+    description:
+      "Plantilla editable de una cervecería artesanal típica de México (14000×9000 mm): taproom con barra y mesas, sala de cocción con olla y molino, área de fermentación con tanques, almacén y baño.",
+    category: "architecture",
+    baseWidth: 14000,
+    baseHeight: 9000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 12600, 7600, "architecture", ["shell", "cerveceria-artesanal", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 1200, 650, 1100, 260, "architecture", ["cerveceria-artesanal", "entrada", "acceso", "puerta"]),
+      asset("taproom", "zone", "Taproom", 800, 900, 6000, 4200, "layout", ["cerveceria-artesanal", "taproom", "bar", "degustacion", "zona"]),
+      asset("barra", "bar-counter", "Barra", 900, 1000, 4000, 700, "equipment", ["cerveceria-artesanal", "barra", "servicio", "bar"]),
+      asset("banco-1", "bar-stool", "Bancos de barra", 1000, 1800, 3600, 450, "equipment", ["cerveceria-artesanal", "bancos", "barra", "mobiliario"]),
+      asset("mesa-1", "restaurant-table-4", "Mesa 1", 1200, 2700, 1400, 1400, "equipment", ["cerveceria-artesanal", "mesa", "comedor", "mobiliario"]),
+      asset("mesa-2", "restaurant-table-4", "Mesa 2", 3200, 2700, 1400, 1400, "equipment", ["cerveceria-artesanal", "mesa", "comedor", "mobiliario"]),
+      asset("sala-coccion", "zone", "Sala de cocción", 7200, 900, 5600, 2000, "layout", ["cerveceria-artesanal", "coccion", "maceracion", "zona"]),
+      asset("olla-coccion", "brew-kettle", "Olla de cocción", 7600, 1200, 1600, 1400, "equipment", ["cerveceria-artesanal", "olla", "coccion", "maceracion"]),
+      asset("molino", "grain-mill", "Molino de malta", 9600, 1200, 1200, 1200, "equipment", ["cerveceria-artesanal", "molino", "malta", "grano"]),
+      asset("fermentacion", "zone", "Área de fermentación", 7200, 3100, 5600, 2400, "layout", ["cerveceria-artesanal", "fermentacion", "tanques", "zona"]),
+      asset("tanque-1", "fermenter", "Tanque de fermentación 1", 7600, 3400, 1200, 1800, "equipment", ["cerveceria-artesanal", "tanque", "fermentador", "cerveza"]),
+      asset("tanque-2", "fermenter", "Tanque de fermentación 2", 9200, 3400, 1200, 1800, "equipment", ["cerveceria-artesanal", "tanque", "fermentador", "cerveza"]),
+      asset("almacen", "room", "Almacén", 800, 5300, 3000, 2700, "architecture", ["cerveceria-artesanal", "almacen", "bodega", "cuarto"]),
+      asset("bano", "room", "Baño", 4200, 5300, 2600, 2700, "architecture", ["cerveceria-artesanal", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 4400, 5600, 600, 700, "equipment", ["cerveceria-artesanal", "inodoro", "sanitario", "bano"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 7000, 900, 300, 300, "safety", ["cerveceria-artesanal", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Cervecería artesanal — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "taproom", kind: "flow" },
+      { fromRef: "sala-coccion", toRef: "fermentacion", kind: "material" },
+      { fromRef: "fermentacion", toRef: "barra", kind: "material" },
+    ],
+  },
+  {
+    id: "karaoke-bar",
+    label: "Karaoke bar",
+    description:
+      "Plantilla editable de un karaoke bar típico de México (12000×8000 mm): recepción, barra central con área de mesas, cinco cabinas privadas de karaoke, cocina y baño.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["shell", "karaoke-bar", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 1200, 650, 1100, 260, "architecture", ["karaoke-bar", "entrada", "acceso", "puerta"]),
+      asset("recepcion", "zone", "Recepción", 800, 900, 2600, 1600, "layout", ["karaoke-bar", "recepcion", "atencion", "zona"]),
+      asset("mostrador", "counter", "Mostrador de recepción", 900, 1000, 1600, 500, "equipment", ["karaoke-bar", "mostrador", "recepcion", "atencion"]),
+      asset("barra", "bar-counter", "Barra central", 800, 2700, 3000, 600, "equipment", ["karaoke-bar", "barra", "bar", "servicio"]),
+      asset("area-mesas", "zone", "Área de mesas", 800, 3500, 3000, 3500, "layout", ["karaoke-bar", "mesas", "comedor", "zona"]),
+      asset("mesa-1", "restaurant-table-4", "Mesa", 900, 3700, 1300, 1300, "equipment", ["karaoke-bar", "mesa", "mobiliario"]),
+      asset("cabina-1", "room", "Cabina privada 1", 4200, 900, 2400, 1800, "architecture", ["karaoke-bar", "cabina", "privada", "cuarto"]),
+      asset("cabina-2", "room", "Cabina privada 2", 4200, 2900, 2400, 1800, "architecture", ["karaoke-bar", "cabina", "privada", "cuarto"]),
+      asset("cabina-3", "room", "Cabina privada 3", 4200, 4900, 2400, 2100, "architecture", ["karaoke-bar", "cabina", "privada", "cuarto"]),
+      asset("cabina-4", "room", "Cabina privada 4", 7000, 900, 2400, 1800, "architecture", ["karaoke-bar", "cabina", "privada", "cuarto"]),
+      asset("cabina-5", "room", "Cabina privada 5", 7000, 2900, 2400, 1800, "architecture", ["karaoke-bar", "cabina", "privada", "cuarto"]),
+      asset("bano", "room", "Baño", 9600, 900, 1600, 2400, "architecture", ["karaoke-bar", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 9800, 1100, 600, 700, "equipment", ["karaoke-bar", "inodoro", "sanitario", "bano"]),
+      asset("cocina", "room", "Cocina", 7000, 4900, 4200, 2100, "architecture", ["karaoke-bar", "cocina", "preparacion", "cuarto"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 3900, 900, 300, 300, "safety", ["karaoke-bar", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Karaoke bar — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion", kind: "flow" },
+      { fromRef: "recepcion", toRef: "area-mesas", kind: "flow" },
+      { fromRef: "cocina", toRef: "barra", kind: "material" },
+    ],
+  },
+  {
+    id: "estacion-bomberos",
+    label: "Estación de bomberos",
+    description:
+      "Plantilla editable de una estación de bomberos típica de México (16000×10000 mm): bahía de camiones, torre de mangueras, taller de equipo, oficina, dormitorios, cocina, comedor y gimnasio.",
+    category: "architecture",
+    baseWidth: 16000,
+    baseHeight: 10000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 14600, 8600, "architecture", ["shell", "estacion-bomberos", "muro", "perimetral"]),
+      asset("porton", "door", "Portón de la bahía", 2000, 650, 4000, 260, "architecture", ["estacion-bomberos", "porton", "entrada", "acceso"]),
+      asset("bahia", "zone", "Bahía de camiones", 800, 900, 7000, 4400, "layout", ["estacion-bomberos", "bahia", "camiones", "zona"]),
+      asset("camion-1", "fire-truck", "Camión de bomberos 1", 1200, 1200, 2600, 1600, "equipment", ["estacion-bomberos", "camion", "bombero", "vehiculo"]),
+      asset("camion-2", "fire-truck", "Camión de bomberos 2", 4400, 1200, 2600, 1600, "equipment", ["estacion-bomberos", "camion", "bombero", "vehiculo"]),
+      asset("torre-mangueras", "room", "Torre de mangueras", 800, 5500, 2000, 3500, "architecture", ["estacion-bomberos", "torre", "mangueras", "cuarto"]),
+      asset("taller", "room", "Taller de equipo", 3000, 5500, 3800, 3500, "architecture", ["estacion-bomberos", "taller", "equipo", "cuarto"]),
+      asset("oficina", "room", "Oficina", 8200, 900, 3000, 2000, "architecture", ["estacion-bomberos", "oficina", "administracion", "cuarto"]),
+      asset("dormitorios", "room", "Dormitorios", 8200, 3100, 3000, 2400, "architecture", ["estacion-bomberos", "dormitorios", "descanso", "cuarto"]),
+      asset("cama-1", "bed-queen", "Litera", 8400, 3300, 1400, 2000, "equipment", ["estacion-bomberos", "cama", "litera", "descanso"]),
+      asset("cocina", "room", "Cocina", 8200, 5700, 3000, 2000, "architecture", ["estacion-bomberos", "cocina", "comedor", "cuarto"]),
+      asset("comedor", "zone", "Comedor y estar", 11400, 900, 3400, 4600, "layout", ["estacion-bomberos", "comedor", "estar", "zona"]),
+      asset("gimnasio", "zone", "Gimnasio", 11400, 5700, 3400, 2400, "layout", ["estacion-bomberos", "gimnasio", "acondicionamiento", "zona"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 7500, 900, 300, 300, "safety", ["estacion-bomberos", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Estación de bomberos — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "porton", toRef: "bahia", kind: "flow" },
+      { fromRef: "bahia", toRef: "taller", kind: "flow" },
+      { fromRef: "oficina", toRef: "dormitorios", kind: "flow" },
+    ],
+  },
+  {
+    id: "plaza-comidas",
+    label: "Plaza de comidas (food court)",
+    description:
+      "Plantilla editable de una plaza de comidas típica de México (16000×10000 mm): locales de comida alrededor, área común de mesas al centro, sanitarios y módulo de limpieza.",
+    category: "architecture",
+    baseWidth: 16000,
+    baseHeight: 10000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 14600, 8600, "architecture", ["shell", "plaza-comidas", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 7400, 650, 1600, 260, "architecture", ["plaza-comidas", "entrada", "acceso", "puerta"]),
+      asset("local-1", "room", "Local de comida 1", 800, 900, 2600, 2000, "architecture", ["plaza-comidas", "local", "comida", "cuarto"]),
+      asset("local-2", "room", "Local de comida 2", 3600, 900, 2600, 2000, "architecture", ["plaza-comidas", "local", "comida", "cuarto"]),
+      asset("local-3", "room", "Local de comida 3", 9800, 900, 2600, 2000, "architecture", ["plaza-comidas", "local", "comida", "cuarto"]),
+      asset("local-4", "room", "Local de comida 4", 12600, 900, 2600, 2000, "architecture", ["plaza-comidas", "local", "comida", "cuarto"]),
+      asset("local-5", "room", "Local de comida 5", 800, 3100, 2600, 2000, "architecture", ["plaza-comidas", "local", "comida", "cuarto"]),
+      asset("local-6", "room", "Local de comida 6", 12600, 3100, 2600, 2000, "architecture", ["plaza-comidas", "local", "comida", "cuarto"]),
+      asset("area-comun", "zone", "Área común de mesas", 4200, 3100, 8000, 5000, "layout", ["plaza-comidas", "comedor", "mesas", "comun", "zona"]),
+      asset("mesa-1", "restaurant-table-4", "Mesa 1", 4600, 3500, 1400, 1400, "equipment", ["plaza-comidas", "mesa", "comedor", "mobiliario"]),
+      asset("mesa-2", "restaurant-table-4", "Mesa 2", 6400, 3500, 1400, 1400, "equipment", ["plaza-comidas", "mesa", "comedor", "mobiliario"]),
+      asset("sanitarios", "room", "Sanitarios", 800, 5300, 2600, 2800, "architecture", ["plaza-comidas", "sanitarios", "banos", "cuarto"]),
+      asset("wc", "wc", "Inodoro", 1000, 5600, 700, 900, "equipment", ["plaza-comidas", "inodoro", "sanitario", "bano"]),
+      asset("modulo-limpieza", "room", "Módulo de limpieza", 12600, 5300, 2600, 2800, "architecture", ["plaza-comidas", "limpieza", "intendencia", "cuarto"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 7500, 3000, 300, 300, "safety", ["plaza-comidas", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Plaza de comidas (food court) — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "area-comun", kind: "flow" },
+      { fromRef: "local-1", toRef: "area-comun", kind: "material" },
+      { fromRef: "area-comun", toRef: "local-3", kind: "flow" },
     ],
   },
 ];
