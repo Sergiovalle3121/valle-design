@@ -61,7 +61,8 @@ export type CadLayoutTemplateId =
   | "purificadora"
   | "optica"
   | "departamento"
-  | "rosticeria";
+  | "rosticeria"
+  | "terraza-jardin";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1965,6 +1966,36 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "mostrador-ros", kind: "flow" },
       { fromRef: "cuarto-frio-ros", toRef: "mesa-prep-ros", kind: "material" },
       { fromRef: "mesa-prep-ros", toRef: "rosticero-ros", kind: "material" },
+    ],
+  },
+  {
+    id: "terraza-jardin",
+    label: "Terraza / Asador de jardín",
+    description: "Arranque universal de terraza: asador con barra exterior, dos sombrillas con mesas de picnic, banca, macetas y área de pasto.",
+    category: "architecture",
+    baseWidth: 10000,
+    baseHeight: 7000,
+    assets: [
+      asset("shell", "room", "Perímetro del jardín", 700, 700, 8600, 5600, "architecture", ["architecture", "shell", "terraza"]),
+      asset("entrada", "door", "Acceso", 4500, 650, 900, 260, "architecture", ["door", "opening:entry"]),
+      asset("asador-ter", "grill", "Asador", 1200, 1200, 800, 500, "equipment", ["asador", "terraza"]),
+      asset("barra-ter", "bar-counter", "Barra exterior", 2400, 1200, 2400, 600, "equipment", ["barra", "terraza"]),
+      asset("sombrilla-ter-1", "patio-umbrella", "Sombrilla 1", 1500, 3000, 2000, 2000, "equipment", ["sombrilla", "terraza"]),
+      asset("mesa-picnic-ter-1", "picnic-table", "Mesa de picnic 1", 1600, 3200, 1800, 1500, "equipment", ["picnic", "terraza"]),
+      asset("sombrilla-ter-2", "patio-umbrella", "Sombrilla 2", 4200, 3000, 2000, 2000, "equipment", ["sombrilla", "terraza"]),
+      asset("mesa-picnic-ter-2", "picnic-table", "Mesa de picnic 2", 4300, 3200, 1800, 1500, "equipment", ["picnic", "terraza"]),
+      asset("banca-ter", "outdoor-bench", "Banca exterior", 6800, 3600, 1500, 500, "equipment", ["banca", "terraza"]),
+      asset("maceta-ter-1", "plant-pot", "Maceta", 8600, 1200, 450, 450, "equipment", ["maceta", "terraza"]),
+      asset("maceta-ter-2", "plant-pot", "Maceta", 8600, 1800, 450, 450, "equipment", ["maceta", "terraza"]),
+      asset("pasto-ter", "zone", "Área de pasto", 6800, 1200, 1600, 2000, "layout", ["zone", "use:lawn", "terraza"]),
+    ],
+    annotations: [
+      note("titulo", "Terraza — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "barra-ter", kind: "flow" },
+      { fromRef: "asador-ter", toRef: "barra-ter", kind: "material" },
+      { fromRef: "barra-ter", toRef: "mesa-picnic-ter-1", kind: "flow" },
     ],
   },
 ];
