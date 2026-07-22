@@ -1403,6 +1403,37 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["corona fúnebre", "corona funebre", "arreglo", "flores", "funeraria"],
     ports: [],
   },
+  // — Trigésima tercera tanda universal (AXOS-CAD-UNIVERSAL-080): templo —
+  {
+    id: "church-altar",
+    label: "Altar mayor",
+    category: "furniture",
+    defaultWidth: 2400,
+    defaultHeight: 1000,
+    layer: "Furniture",
+    tags: ["altar", "altar mayor", "iglesia", "templo", "parroquia", "misa"],
+    ports: [],
+  },
+  {
+    id: "confessional",
+    label: "Confesionario",
+    category: "furniture",
+    defaultWidth: 1200,
+    defaultHeight: 900,
+    layer: "Furniture",
+    tags: ["confesionario", "confesión", "confesion", "iglesia", "templo"],
+    ports: [],
+  },
+  {
+    id: "baptismal-font",
+    label: "Pila bautismal",
+    category: "furniture",
+    defaultWidth: 900,
+    defaultHeight: 900,
+    layer: "Furniture",
+    tags: ["pila bautismal", "bautismo", "bautizo", "iglesia", "templo"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {

@@ -539,3 +539,21 @@ assert.ok(
   ),
   "search finds corona fúnebre",
 );
+
+// Trigésima tercera tanda universal (AXOS-CAD-UNIVERSAL-080): templo.
+assert.ok(
+  searchCadSymbols("altar mayor").some((symbol) => symbol.id === "church-altar"),
+  "search finds altar mayor",
+);
+assert.ok(
+  searchCadSymbols("confesionario").some(
+    (symbol) => symbol.id === "confessional",
+  ),
+  "search finds confesionario",
+);
+assert.ok(
+  searchCadSymbols("pila bautismal").some(
+    (symbol) => symbol.id === "baptismal-font",
+  ),
+  "search finds pila bautismal",
+);
