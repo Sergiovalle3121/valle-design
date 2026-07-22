@@ -74,7 +74,8 @@ export type CadLayoutTemplateId =
   | "parque-vecinal"
   | "estancia-adultos"
   | "salon-fiestas-infantil"
-  | "marisqueria";
+  | "marisqueria"
+  | "hamburgueseria";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -2372,6 +2373,42 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "barra-mar", kind: "flow" },
       { fromRef: "cocina-mar", toRef: "barra-mar", kind: "material" },
       { fromRef: "barra-mar", toRef: "mesa-mar-1", kind: "flow" },
+    ],
+  },
+  {
+    id: "hamburgueseria",
+    label: "Hamburguesería / Comida rápida",
+    description: "Arranque universal de hamburguesería: mostrador con caja, cocina con plancha/asador, refrigerador, barra alta con bancos, mesas, pantalla de menú y bote de basura.",
+    category: "architecture",
+    baseWidth: 10000,
+    baseHeight: 7000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 8600, 5600, "architecture", ["architecture", "shell", "hamburgueseria"]),
+      asset("entrada", "door", "Entrada", 4500, 650, 1000, 260, "architecture", ["door", "opening:entry"]),
+      asset("mostrador-ham", "counter", "Mostrador", 1500, 1400, 2400, 600, "equipment", ["counter", "hamburgueseria"]),
+      asset("caja-ham", "cash-register", "Caja registradora", 4100, 1400, 450, 400, "equipment", ["caja", "cobro", "hamburgueseria"]),
+      asset("menu-ham", "tv-screen", "Pantalla de menú", 1500, 900, 1200, 150, "equipment", ["pantalla", "menu", "hamburgueseria"]),
+      asset("cocina-ham", "room", "Cocina", 6000, 900, 2900, 2200, "architecture", ["room", "use:kitchen", "hamburgueseria"]),
+      asset("plancha-ham", "grill", "Plancha / asador", 6200, 1100, 800, 500, "equipment", ["plancha", "asador", "hamburgueseria"]),
+      asset("refri-ham", "refrigerator", "Refrigerador", 7800, 1100, 800, 700, "equipment", ["refrigerador", "hamburgueseria"]),
+      asset("barra-alta-ham", "bar-counter", "Barra alta", 1200, 2800, 2400, 500, "equipment", ["barra", "hamburgueseria"]),
+      asset("banco-ham-1", "bar-stool", "Banco alto", 1400, 3400, 380, 380, "equipment", ["banco", "hamburgueseria"]),
+      asset("banco-ham-2", "bar-stool", "Banco alto", 2000, 3400, 380, 380, "equipment", ["banco", "hamburgueseria"]),
+      asset("mesa-ham-1", "restaurant-table-4", "Mesa", 4200, 3600, 900, 900, "equipment", ["table", "hamburgueseria"]),
+      asset("mesa-ham-2", "restaurant-table-4", "Mesa", 5600, 3600, 900, 900, "equipment", ["table", "hamburgueseria"]),
+      asset("mesa-ham-3", "restaurant-table-4", "Mesa", 4200, 5000, 900, 900, "equipment", ["table", "hamburgueseria"]),
+      asset("mesa-ham-4", "restaurant-table-4", "Mesa", 5600, 5000, 900, 900, "equipment", ["table", "hamburgueseria"]),
+      asset("bano-ham", "room", "Baño", 7000, 3800, 1900, 1700, "architecture", ["room", "use:bathroom", "hamburgueseria"]),
+      asset("wc-ham", "wc", "WC", 7200, 4000, 400, 650, "equipment", ["wc", "hamburgueseria"]),
+      asset("basura-ham", "trash-bin", "Bote de basura", 1200, 5000, 400, 400, "equipment", ["basura", "hamburgueseria"]),
+    ],
+    annotations: [
+      note("titulo", "Hamburguesería — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "mostrador-ham", kind: "flow" },
+      { fromRef: "cocina-ham", toRef: "mostrador-ham", kind: "material" },
+      { fromRef: "mostrador-ham", toRef: "mesa-ham-1", kind: "flow" },
     ],
   },
 ];
