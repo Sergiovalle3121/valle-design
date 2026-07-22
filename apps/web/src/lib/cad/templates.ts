@@ -135,7 +135,11 @@ export type CadLayoutTemplateId =
   | "estudio-tv"
   | "club-deportivo"
   | "antro-discoteca"
-  | "tienda-mascotas";
+  | "tienda-mascotas"
+  | "museo"
+  | "autoescuela"
+  | "balneario"
+  | "planta-tratamiento-agua";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -4496,6 +4500,146 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "piso-venta", kind: "flow" },
       { fromRef: "piso-venta", toRef: "mostrador", kind: "flow" },
       { fromRef: "estetica", toRef: "consultorio", kind: "flow" },
+    ],
+  },
+  {
+    id: "museo",
+    label: "Museo",
+    description:
+      "Plantilla editable de un museo típico de México (16000×10000 mm): vestíbulo con taquilla, tres salas de exhibición con vitrinas, bóveda de acervo, taller de restauración, cafetería, tienda y sanitarios.",
+    category: "architecture",
+    baseWidth: 16000,
+    baseHeight: 10000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 14600, 8600, "architecture", ["shell", "museo", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 7400, 650, 1600, 260, "architecture", ["museo", "entrada", "acceso", "puerta"]),
+      asset("vestibulo", "zone", "Vestíbulo y taquilla", 6000, 900, 4000, 1600, "layout", ["museo", "vestibulo", "taquilla", "zona"]),
+      asset("taquilla", "counter", "Taquilla", 6200, 1000, 1600, 500, "equipment", ["museo", "taquilla", "boletos", "acceso"]),
+      asset("sala-1", "zone", "Sala de exhibición 1", 800, 900, 4600, 3200, "layout", ["museo", "sala", "exhibicion", "zona"]),
+      asset("vitrina-1", "display-case", "Vitrina 1", 1000, 1200, 3000, 600, "equipment", ["museo", "vitrina", "exhibicion", "acervo"]),
+      asset("sala-2", "zone", "Sala de exhibición 2", 10600, 900, 4200, 3200, "layout", ["museo", "sala", "exhibicion", "zona"]),
+      asset("vitrina-2", "display-case", "Vitrina 2", 10800, 1200, 3000, 600, "equipment", ["museo", "vitrina", "exhibicion", "acervo"]),
+      asset("sala-3", "zone", "Sala de exhibición 3", 800, 4300, 6800, 2600, "layout", ["museo", "sala", "exhibicion", "zona"]),
+      asset("boveda", "room", "Bóveda de acervo", 8200, 4300, 3000, 2600, "architecture", ["museo", "boveda", "acervo", "resguardo", "cuarto"]),
+      asset("restauracion", "room", "Taller de restauración", 11600, 4300, 3200, 2600, "architecture", ["museo", "restauracion", "taller", "cuarto"]),
+      asset("mesa-restauracion", "workbench", "Mesa de restauración", 11800, 4600, 2000, 900, "equipment", ["museo", "mesa", "restauracion", "trabajo"]),
+      asset("cafeteria", "zone", "Cafetería", 800, 7100, 4000, 1900, "layout", ["museo", "cafeteria", "comedor", "zona"]),
+      asset("tienda", "room", "Tienda del museo", 5200, 7100, 3000, 1900, "architecture", ["museo", "tienda", "souvenirs", "cuarto"]),
+      asset("sanitarios", "room", "Sanitarios", 8600, 7100, 3000, 1900, "architecture", ["museo", "sanitarios", "banos", "cuarto"]),
+      asset("wc", "wc", "Inodoro", 8800, 7400, 600, 700, "equipment", ["museo", "inodoro", "sanitario", "bano"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 5600, 900, 300, 300, "safety", ["museo", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Museo — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "vestibulo", kind: "flow" },
+      { fromRef: "vestibulo", toRef: "sala-1", kind: "flow" },
+      { fromRef: "restauracion", toRef: "boveda", kind: "material" },
+    ],
+  },
+  {
+    id: "autoescuela",
+    label: "Autoescuela",
+    description:
+      "Plantilla editable de una escuela de manejo típica de México (14000×9000 mm): recepción, aula teórica con simulador, patio de prácticas con auto y conos, oficina, sala de espera y baño.",
+    category: "architecture",
+    baseWidth: 14000,
+    baseHeight: 9000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 12600, 7600, "architecture", ["shell", "autoescuela", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 1200, 650, 1100, 260, "architecture", ["autoescuela", "entrada", "acceso", "puerta"]),
+      asset("recepcion", "zone", "Recepción", 800, 900, 2600, 1600, "layout", ["autoescuela", "recepcion", "atencion", "zona"]),
+      asset("mostrador", "counter", "Mostrador de recepción", 900, 1000, 1600, 500, "equipment", ["autoescuela", "mostrador", "recepcion", "atencion"]),
+      asset("aula", "room", "Aula teórica", 800, 2700, 3400, 2400, "architecture", ["autoescuela", "aula", "teoria", "cuarto"]),
+      asset("pizarron", "whiteboard", "Pizarrón", 900, 2800, 1400, 200, "equipment", ["autoescuela", "pizarron", "pizarra", "aula"]),
+      asset("simulador", "driving-simulator", "Simulador de manejo", 900, 3400, 1400, 1200, "equipment", ["autoescuela", "simulador", "manejo", "practica"]),
+      asset("patio-practicas", "zone", "Patio de prácticas", 4600, 900, 8600, 5600, "layout", ["autoescuela", "patio", "practicas", "manejo", "zona"]),
+      asset("auto-practica", "vehicle", "Auto de prácticas", 5000, 1200, 2400, 1400, "equipment", ["autoescuela", "auto", "practicas", "vehiculo"]),
+      asset("cono-1", "traffic-cone", "Cono de tráfico", 8000, 2000, 300, 300, "equipment", ["autoescuela", "cono", "trafico", "practica"]),
+      asset("oficina", "room", "Oficina", 800, 5300, 3400, 2700, "architecture", ["autoescuela", "oficina", "administracion", "cuarto"]),
+      asset("sala-espera", "zone", "Sala de espera", 8200, 6900, 5000, 1100, "layout", ["autoescuela", "sala-espera", "espera", "zona"]),
+      asset("bano", "room", "Baño", 4600, 6900, 3000, 1100, "architecture", ["autoescuela", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 4800, 7100, 600, 700, "equipment", ["autoescuela", "inodoro", "sanitario", "bano"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 4300, 900, 300, 300, "safety", ["autoescuela", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Autoescuela — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion", kind: "flow" },
+      { fromRef: "recepcion", toRef: "aula", kind: "flow" },
+      { fromRef: "aula", toRef: "patio-practicas", kind: "flow" },
+    ],
+  },
+  {
+    id: "balneario",
+    label: "Balneario",
+    description:
+      "Plantilla editable de un balneario típico de México (16000×10000 mm): taquilla, alberca principal con carriles, chapoteadero con toboganes, palapas, vestidores, regaderas y restaurante.",
+    category: "architecture",
+    baseWidth: 16000,
+    baseHeight: 10000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 14600, 8600, "architecture", ["shell", "balneario", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 1200, 650, 1600, 260, "architecture", ["balneario", "entrada", "acceso", "puerta"]),
+      asset("taquilla", "zone", "Taquilla y acceso", 800, 900, 2600, 1600, "layout", ["balneario", "taquilla", "acceso", "zona"]),
+      asset("mostrador", "counter", "Mostrador de taquilla", 900, 1000, 1600, 500, "equipment", ["balneario", "mostrador", "taquilla", "cobro"]),
+      asset("alberca-grande", "zone", "Alberca principal", 3800, 900, 7000, 4600, "layout", ["balneario", "alberca", "piscina", "nado", "zona"]),
+      asset("carril-1", "pool-lane", "Carril de alberca", 4000, 1200, 6400, 900, "equipment", ["balneario", "carril", "alberca", "nado"]),
+      asset("chapoteadero", "zone", "Chapoteadero", 11000, 900, 3800, 2200, "layout", ["balneario", "chapoteadero", "ninos", "zona"]),
+      asset("toboganes", "water-slide", "Toboganes", 11200, 1200, 2000, 1600, "equipment", ["balneario", "toboganes", "resbaladilla", "agua"]),
+      asset("palapa-1", "palapa", "Palapa 1", 3800, 6000, 2000, 2000, "equipment", ["balneario", "palapa", "sombra", "descanso"]),
+      asset("palapa-2", "palapa", "Palapa 2", 6200, 6000, 2000, 2000, "equipment", ["balneario", "palapa", "sombra", "descanso"]),
+      asset("vestidor-h", "room", "Vestidor de hombres", 800, 2700, 2600, 2400, "architecture", ["balneario", "vestidor", "hombres", "cuarto"]),
+      asset("vestidor-m", "room", "Vestidor de mujeres", 800, 5300, 2600, 2400, "architecture", ["balneario", "vestidor", "mujeres", "cuarto"]),
+      asset("regaderas", "zone", "Regaderas", 8600, 6000, 2400, 2000, "layout", ["balneario", "regaderas", "ducha", "zona"]),
+      asset("cocina", "room", "Restaurante / cocina", 11200, 3300, 3600, 2600, "architecture", ["balneario", "restaurante", "cocina", "cuarto"]),
+      asset("palapa-3", "palapa", "Palapa comedor", 11200, 6100, 3600, 2900, "equipment", ["balneario", "palapa", "comedor", "sombra"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 3500, 900, 300, 300, "safety", ["balneario", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Balneario — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "taquilla", kind: "flow" },
+      { fromRef: "taquilla", toRef: "alberca-grande", kind: "flow" },
+      { fromRef: "vestidor-h", toRef: "alberca-grande", kind: "flow" },
+    ],
+  },
+  {
+    id: "planta-tratamiento-agua",
+    label: "Planta de tratamiento de agua",
+    description:
+      "Plantilla editable de una planta de tratamiento de aguas residuales (PTAR) típica de México (16000×10000 mm): cribado, sedimentación, reactor biológico, clarificador, filtros, laboratorio de calidad, dosificación química y tanque de agua tratada.",
+    category: "architecture",
+    baseWidth: 16000,
+    baseHeight: 10000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 14600, 8600, "architecture", ["shell", "planta-tratamiento-agua", "muro", "perimetral"]),
+      asset("porton", "door", "Portón de acceso", 1200, 650, 1600, 260, "architecture", ["planta-tratamiento-agua", "porton", "entrada", "acceso"]),
+      asset("rejillas", "zone", "Cribado / rejillas", 800, 900, 3600, 3200, "layout", ["planta-tratamiento-agua", "cribado", "rejillas", "zona"]),
+      asset("tanque-sedimentacion", "settling-tank", "Tanque de sedimentación", 4800, 900, 3600, 3200, "equipment", ["planta-tratamiento-agua", "sedimentacion", "tanque", "decantador"]),
+      asset("reactor", "bioreactor", "Reactor biológico", 8800, 900, 3600, 3200, "equipment", ["planta-tratamiento-agua", "reactor", "biologico", "lodos-activados"]),
+      asset("clarificador", "clarifier", "Clarificador", 12800, 900, 2000, 3200, "equipment", ["planta-tratamiento-agua", "clarificador", "secundario", "tanque"]),
+      asset("filtros", "zone", "Filtros", 800, 4700, 4600, 2200, "layout", ["planta-tratamiento-agua", "filtros", "arena", "zona"]),
+      asset("filtro-1", "sand-filter", "Filtro de arena", 1000, 4900, 2000, 1800, "equipment", ["planta-tratamiento-agua", "filtro", "arena", "pulido"]),
+      asset("laboratorio", "room", "Laboratorio de calidad", 5800, 4700, 3000, 2200, "architecture", ["planta-tratamiento-agua", "laboratorio", "calidad", "cuarto"]),
+      asset("mesa-lab", "workbench", "Mesa de laboratorio", 6000, 4900, 2600, 900, "equipment", ["planta-tratamiento-agua", "mesa", "laboratorio", "analisis"]),
+      asset("cuarto-quimicos", "room", "Dosificación química", 9200, 4700, 3000, 2200, "architecture", ["planta-tratamiento-agua", "quimicos", "dosificacion", "cuarto"]),
+      asset("oficina", "room", "Oficina", 12600, 4700, 2200, 2200, "architecture", ["planta-tratamiento-agua", "oficina", "administracion", "cuarto"]),
+      asset("bano", "room", "Baño", 800, 7100, 2600, 1900, "architecture", ["planta-tratamiento-agua", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 1000, 7400, 600, 700, "equipment", ["planta-tratamiento-agua", "inodoro", "sanitario", "bano"]),
+      asset("tanque-almacenamiento", "zone", "Tanque de agua tratada", 3800, 7100, 11000, 1900, "layout", ["planta-tratamiento-agua", "tanque", "agua-tratada", "almacenamiento", "zona"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 4500, 900, 300, 300, "safety", ["planta-tratamiento-agua", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Planta de tratamiento de agua — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "rejillas", toRef: "tanque-sedimentacion", kind: "material" },
+      { fromRef: "tanque-sedimentacion", toRef: "reactor", kind: "material" },
+      { fromRef: "filtros", toRef: "tanque-almacenamiento", kind: "material" },
     ],
   },
 ];
