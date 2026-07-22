@@ -523,6 +523,43 @@ export function parseCadCommand(text: string): CadParseResult {
       input: { id: "move_selection", target: parts[0], anchor: parts[1] },
     };
   }
+  // ACOMODAR EN CUADRÍCULA (AXOS-CAD-MOVE-008): 'acomoda las sillas en 2
+  // filas' / 'en 3 columnas' — matriz desde la esquina del conjunto.
+  const gridMatch = raw.match(
+    /^(?:acomoda(?:me)?|ordena(?:me)?|forma)\s+(.+?)\s+en\s+(\d{1,2}|dos|tres|cuatro|cinco|seis)\s+(filas?|hileras?|columnas?)\s*$/i,
+  );
+  if (gridMatch) {
+    const gridNums: Record<string, number> = {
+      dos: 2,
+      tres: 3,
+      cuatro: 4,
+      cinco: 5,
+      seis: 6,
+    };
+    const gridN =
+      gridNums[gridMatch[2]!.toLowerCase()] ?? Number(gridMatch[2]);
+    const isCols = /^column/i.test(gridMatch[3]!);
+    const gridTarget = gridMatch[1]!
+      .replace(
+        /\b(?:la\s+selecci[oó]n|lo\s+seleccionado|esto|estos\s+objetos|esos\s+objetos)\b/gi,
+        " ",
+      )
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/^(?:(?:el|la|los|las|un|una)\s+)+/i, "")
+      .trim();
+    if (Number.isFinite(gridN) && gridN >= 1)
+      return {
+        ok: true,
+        confidence: 0.85,
+        input: {
+          id: "move_selection",
+          target: gridTarget || undefined,
+          rows: isCols ? undefined : gridN,
+          cols: isCols ? gridN : undefined,
+        },
+      };
+  }
   // FILA/REPETIR (AXOS-CAD-ARRAY-001): 'repite la silla 4 veces cada 600
   // a la derecha' — arreglo lineal conversacional con objetivo por nombre.
   const repeatMatch = raw.match(/^rep[ií]te(?:me|l[ao]s?)?\s+(.+)$/i);

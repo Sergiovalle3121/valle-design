@@ -93,6 +93,38 @@ export function moveSelectionPreview(
     };
   }
 
+  // Acomodo en cuadrícula (AXOS-CAD-MOVE-008): 'acomoda las sillas en 2
+  // filas' — matriz anclada en la esquina del conjunto (orden del plano:
+  // arriba-abajo, izquierda-derecha), celdas del objeto más grande + 200.
+  if (input.rows || input.cols) {
+    const GRID_GAP = 200;
+    const sorted = [...objs].sort((a, b) => a.y - b.y || a.x - b.x);
+    const n = sorted.length;
+    const cols = input.cols
+      ? Math.max(1, Math.round(input.cols))
+      : Math.max(1, Math.ceil(n / Math.max(1, Math.round(input.rows ?? 1))));
+    const rows = Math.ceil(n / cols);
+    const cellW = Math.max(...sorted.map((o) => o.w)) + GRID_GAP;
+    const cellH = Math.max(...sorted.map((o) => o.h)) + GRID_GAP;
+    const ox = Math.min(...sorted.map((o) => o.x));
+    const oy = Math.min(...sorted.map((o) => o.y));
+    return {
+      summary: `Acomodar ${n} objeto(s) en ${rows} fila(s) × ${cols} columna(s).`,
+      affectedObjectIds: sorted.map((o) => o.id),
+      operations: sorted.map((o, i) => ({
+        type: "move",
+        objectId: o.id,
+        before: o,
+        after: {
+          ...o,
+          x: Math.round(ox + (i % cols) * cellW),
+          y: Math.round(oy + Math.floor(i / cols) * cellH),
+        },
+      })),
+      issues,
+    };
+  }
+
   // Pegar a la pared (AXOS-CAD-MOVE-006): 'pega la mesa a la pared' — el
   // conjunto se recarga contra el muro del contenedor más chico que lo
   // contiene (cuarto/zona) o, si no hay, contra la orilla del plano;

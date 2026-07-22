@@ -2788,4 +2788,61 @@ if (rectDraftCreate?.type === "create") {
   assert.equal(uno.ok, false, "una sola parte → aclaración");
 }
 
+// CUADRÍCULA (AXOS-CAD-MOVE-008): 'acomoda las sillas en 2 filas' —
+// matriz desde la esquina del conjunto en orden del plano.
+{
+  const gridChair = (id: string, x: number, y: number): CadBox => ({
+    id,
+    type: "asset",
+    kind: "chair",
+    label: `Silla ${id}`,
+    x,
+    y,
+    w: 400,
+    h: 400,
+  });
+  const gridCtx: CadCommandContext = {
+    unit: "mm",
+    footprintW: 12000,
+    footprintH: 8000,
+    selectedIds: [],
+    connectors: [],
+    objects: [
+      gridChair("g1", 500, 500),
+      gridChair("g2", 1200, 500),
+      gridChair("g3", 500, 1200),
+      gridChair("g4", 1200, 1200),
+      gridChair("g5", 2000, 2000),
+    ],
+  };
+  const filas = parseCadCommand("acomoda las sillas en 2 filas");
+  assert.equal(filas.input?.id, "move_selection", "cuadrícula parsea");
+  if (filas.input?.id === "move_selection") {
+    assert.equal(filas.input.rows, 2, "dos filas");
+    assert.equal(filas.input.target, "sillas", "cuadrícula: objetivo");
+    const p = previewCadCommand(filas.input, gridCtx);
+    assert.equal(p.issues.length, 0, "cuadrícula sin issues");
+    const after = p.operations.flatMap((op) =>
+      op.type === "move" ? [op.after] : [],
+    );
+    assert.equal(after.length, 5, "cinco sillas viajan");
+    assert.deepEqual(
+      after.map((a) => [a.x, a.y]),
+      [
+        [500, 500],
+        [1100, 500],
+        [1700, 500],
+        [500, 1100],
+        [1100, 1100],
+      ],
+      "matriz 2×3 anclada en la esquina con celdas de 600",
+    );
+  }
+  const columnas = parseCadCommand("ordena las sillas en tres columnas");
+  if (columnas.input?.id === "move_selection") {
+    assert.equal(columnas.input.cols, 3, "tres columnas en palabra");
+    assert.equal(columnas.input.rows, undefined, "columnas fija cols");
+  }
+}
+
 console.log("cad command registry specs passed");

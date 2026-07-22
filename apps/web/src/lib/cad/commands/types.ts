@@ -359,6 +359,11 @@ export type CadCommandInput =
        * contra el muro del contenedor más chico que lo contiene (cuarto o
        * zona) o, si no hay, contra la orilla del plano. */
       wall?: "left" | "right" | "top" | "bottom" | "nearest";
+      /** 'acomoda las sillas en 2 filas': matriz anclada en la esquina del
+       * conjunto, celdas del objeto más grande + separación fija. */
+      rows?: number;
+      /** 'acomoda las sillas en 3 columnas': fija columnas y calcula filas. */
+      cols?: number;
     }
   | {
       id: "count_objects";

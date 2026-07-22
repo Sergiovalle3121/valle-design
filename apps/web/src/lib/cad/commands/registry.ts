@@ -2347,6 +2347,15 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         description:
           "Pega el conjunto contra ese muro del cuarto que lo contiene o del plano ('pega la mesa a la pared').",
       },
+      rows: {
+        type: "number",
+        description:
+          "Acomoda los objetos en N filas desde la esquina del conjunto ('acomoda las sillas en 2 filas').",
+      },
+      cols: {
+        type: "number",
+        description: "Alternativa: fija N columnas y calcula las filas.",
+      },
       objectIds: {
         type: "string[]",
         description: "Alternativa: objetos seleccionados.",
@@ -2360,6 +2369,7 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
       "reparte las sillas entre los cuartos",
       "pega la mesa a la pared",
       "junta la silla y la mesa",
+      "acomoda las sillas en 2 filas",
     ],
     validate: (i, c) =>
       moveSelectionPreview(
