@@ -67,7 +67,8 @@ export type CadLayoutTemplateId =
   | "pasteleria"
   | "academia-baile"
   | "refaccionaria"
-  | "imprenta";
+  | "imprenta"
+  | "salon-unas";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -2144,6 +2145,36 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "mostrador-imp", kind: "flow" },
       { fromRef: "escritorio-imp", toRef: "copiadora-imp-1", kind: "material" },
       { fromRef: "copiadora-imp-1", toRef: "mesa-acabados-imp", kind: "material" },
+    ],
+  },
+  {
+    id: "salon-unas",
+    label: "Salón de uñas",
+    description: "Arranque universal de salón de uñas: recepción con caja, dos mesas de manicura, estante de esmaltes, tocador con espejo, sala de espera con pantalla y baño.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["architecture", "shell", "salon-unas"]),
+      asset("entrada", "door", "Entrada", 3500, 650, 1000, 260, "architecture", ["door", "opening:entry"]),
+      asset("recepcion-un", "counter", "Recepción", 1500, 1400, 1500, 600, "equipment", ["counter", "salon-unas"]),
+      asset("registradora-un", "cash-register", "Caja registradora", 3200, 1400, 450, 400, "equipment", ["caja", "cobro", "salon-unas"]),
+      asset("mesa-manicura-un-1", "desk", "Mesa de manicura", 4400, 1400, 1200, 700, "equipment", ["manicura", "salon-unas"]),
+      asset("mesa-manicura-un-2", "desk", "Mesa de manicura", 6000, 1400, 1200, 700, "equipment", ["manicura", "salon-unas"]),
+      asset("esmaltes-un", "shelf", "Estante de esmaltes", 1200, 2600, 2000, 450, "equipment", ["esmaltes", "salon-unas"]),
+      asset("tocador-un", "styling-mirror", "Tocador con espejo", 3600, 2600, 1200, 600, "equipment", ["tocador", "salon-unas"]),
+      asset("espera-un", "zone", "Sala de espera", 1300, 3800, 2600, 1400, "layout", ["zone", "use:lounge", "salon-unas"]),
+      asset("tv-un", "tv-screen", "Pantalla", 4400, 4400, 1200, 150, "equipment", ["pantalla", "salon-unas"]),
+      asset("bano-un", "room", "Baño", 6000, 3200, 1900, 1800, "architecture", ["room", "use:bathroom", "salon-unas"]),
+      asset("wc-un", "wc", "WC", 6200, 3400, 400, 650, "equipment", ["wc", "salon-unas"]),
+    ],
+    annotations: [
+      note("titulo", "Salón de uñas — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion-un", kind: "flow" },
+      { fromRef: "recepcion-un", toRef: "espera-un", kind: "flow" },
+      { fromRef: "espera-un", toRef: "mesa-manicura-un-1", kind: "flow" },
     ],
   },
 ];
