@@ -32,6 +32,7 @@ export type CadCommandId =
   | "select_objects"
   | "resize_object"
   | "swap_objects"
+  | "audit_plan"
   | "help_commands"
   | "clear_annotations"
   | "history_step"
@@ -403,6 +404,11 @@ export type CadCommandInput =
       dw?: number;
       /** Ajuste relativo en mm sobre el alto actual (negativo reduce). */
       dh?: number;
+    }
+  | {
+      /** Revisión de protección civil (AXOS-CAD-AUDIT-001): '¿qué le falta
+       * al plano?' — checklist de extintor, botiquín, salida y puerta. */
+      id: "audit_plan";
     }
   | {
       id: "swap_objects";

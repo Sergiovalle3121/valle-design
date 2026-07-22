@@ -834,6 +834,14 @@ export function parseCadCommand(text: string): CadParseResult {
   }
   // 'intercambia la mesa y el escritorio' (AXOS-CAD-SWAP-001): los dos
   // objetos cambian de lugar; sin nombres cae a la pareja seleccionada.
+  // REVISAR PLANO (AXOS-CAD-AUDIT-001): 'revisa el plano' / '¿qué le falta
+  // al plano para protección civil?' — checklist de seguridad.
+  if (
+    /^(?:revisa(?:me)?|checa|audita)\s+(?:el\s+)?plano\b/i.test(raw) ||
+    /qu[eé]\s+(?:le\s+)?falta\s+(?:al\s+)?plano\b/i.test(raw) ||
+    /protecci[oó]n\s+civil/i.test(raw)
+  )
+    return { ok: true, confidence: 0.85, input: { id: "audit_plan" } };
   if (/\b(intercambia|intercambiar|permuta|permutar)\b/.test(q)) {
     const residue = q
       .replace(/^.*?\b(?:intercambia|intercambiar|permuta|permutar)\b\s*/, "")

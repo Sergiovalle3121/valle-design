@@ -59,7 +59,7 @@ assert.equal(
   CAD_COMMAND_REGISTRY.length,
   "registry ids are unique",
 );
-assert.equal(CAD_COMMAND_REGISTRY.length, 45, "registry exposes 45 commands");
+assert.equal(CAD_COMMAND_REGISTRY.length, 46, "registry exposes 46 commands");
 
 // Renombrar (AXOS-CAD-RENAME-001): primera coincidencia, con aviso si hay más.
 {
@@ -2843,6 +2843,92 @@ if (rectDraftCreate?.type === "create") {
     assert.equal(columnas.input.cols, 3, "tres columnas en palabra");
     assert.equal(columnas.input.rows, undefined, "columnas fija cols");
   }
+}
+
+// REVISAR PLANO (AXOS-CAD-AUDIT-001): checklist de protección civil —
+// el comando 46 del catálogo.
+{
+  const parsed = parseCadCommand(
+    "¿qué le falta al plano para protección civil?",
+  );
+  assert.equal(parsed.input?.id, "audit_plan", "revisión parsea");
+  const revisa = parseCadCommand("revisa el plano");
+  assert.equal(revisa.input?.id, "audit_plan", "'revisa el plano' parsea");
+  const bare: CadCommandContext = {
+    unit: "mm",
+    footprintW: 10000,
+    footprintH: 6000,
+    selectedIds: [],
+    connectors: [],
+    objects: [
+      {
+        id: "p1",
+        type: "asset",
+        kind: "door",
+        label: "Puerta",
+        x: 0,
+        y: 0,
+        w: 900,
+        h: 260,
+      },
+    ],
+  };
+  const p = previewCadCommand({ id: "audit_plan" }, bare);
+  assert.ok(p.summary.includes("Faltan 3"), "enumera 3 faltantes");
+  const rep = p.operations[0];
+  if (rep?.type === "report") {
+    assert.equal(rep.rows.length, 4, "cuatro renglones del checklist");
+    assert.ok(
+      rep.rows.some((r) => r.label === "Extintor" && r.value === "FALTA"),
+      "extintor marcado como faltante",
+    );
+    assert.ok(
+      rep.rows.some(
+        (r) => r.label === "Puerta de entrada" && r.value.includes("✓"),
+      ),
+      "puerta presente con palomita",
+    );
+  }
+  const full = previewCadCommand(
+    { id: "audit_plan" },
+    {
+      ...bare,
+      objects: [
+        ...bare.objects,
+        {
+          id: "e1",
+          type: "asset",
+          kind: "fire-extinguisher",
+          label: "Extintor",
+          x: 100,
+          y: 100,
+          w: 300,
+          h: 300,
+        },
+        {
+          id: "b1",
+          type: "asset",
+          kind: "first-aid-kit",
+          label: "Botiquín",
+          x: 500,
+          y: 100,
+          w: 400,
+          h: 200,
+        },
+        {
+          id: "s1",
+          type: "asset",
+          kind: "emergency-exit-sign",
+          label: "Salida",
+          x: 900,
+          y: 100,
+          w: 600,
+          h: 200,
+        },
+      ],
+    },
+  );
+  assert.ok(full.summary.includes("Listo"), "plano completo → listo");
 }
 
 console.log("cad command registry specs passed");

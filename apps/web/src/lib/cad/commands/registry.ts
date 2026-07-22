@@ -49,6 +49,7 @@ import { placeSymbolPreview } from "./place-symbol";
 import { renameObjectPreview } from "./rename";
 import { resizeObjectPreview } from "./resize";
 import { swapObjectsPreview } from "./swap";
+import { auditPlanPreview } from "./audit";
 import { selectObjectsPreview } from "./select";
 import { matchObjectsByName } from "./targets";
 import {
@@ -2233,6 +2234,24 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         i as Extract<CadCommandInput, { id: "swap_objects" }>,
         c,
       );
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
+    id: "audit_plan",
+    label: "Revisar plano",
+    category: "analysis",
+    description:
+      "Checklist de protección civil: verifica extintor, botiquín, salida de emergencia y puerta, y enumera lo que falta.",
+    inputSchema: {},
+    examples: [
+      "revisa el plano",
+      "¿qué le falta al plano para protección civil?",
+    ],
+    validate: () => [],
+    preview: (_i, c) => auditPlanPreview(c),
+    execute: (_i, c) => {
+      const p = auditPlanPreview(c);
       return result(p, ok(p.issues), p.summary);
     },
   },
