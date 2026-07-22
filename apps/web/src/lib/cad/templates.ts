@@ -131,7 +131,11 @@ export type CadLayoutTemplateId =
   | "rastro-frigorifico"
   | "clinica-estetica"
   | "centro-datos"
-  | "recicladora";
+  | "recicladora"
+  | "estudio-tv"
+  | "club-deportivo"
+  | "antro-discoteca"
+  | "tienda-mascotas";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -4351,6 +4355,147 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "recepcion-material", toRef: "separacion", kind: "material" },
       { fromRef: "separacion", toRef: "prensa", kind: "material" },
       { fromRef: "prensa", toRef: "almacen-papel", kind: "material" },
+    ],
+  },
+  {
+    id: "estudio-tv",
+    label: "Estudio de televisión",
+    description:
+      "Plantilla editable de un estudio de televisión típico de México (16000×10000 mm): recepción, foro/set con ciclorama y cámaras, cabina de control, camerinos, utilería, maquillaje/vestuario, edición y baño.",
+    category: "architecture",
+    baseWidth: 16000,
+    baseHeight: 10000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 14600, 8600, "architecture", ["shell", "estudio-tv", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 1200, 650, 1100, 260, "architecture", ["estudio-tv", "entrada", "acceso", "puerta"]),
+      asset("recepcion", "zone", "Recepción", 800, 900, 2600, 1600, "layout", ["estudio-tv", "recepcion", "atencion", "zona"]),
+      asset("foro", "zone", "Foro / set", 3800, 900, 7000, 5600, "layout", ["estudio-tv", "foro", "set", "grabacion", "zona"]),
+      asset("set-1", "tv-set", "Set de grabación", 4200, 1200, 3000, 2400, "equipment", ["estudio-tv", "set", "escenografia", "foro"]),
+      asset("camara-1", "tv-camera", "Cámara de TV", 7600, 1200, 900, 900, "equipment", ["estudio-tv", "camara", "grabacion", "video"]),
+      asset("ciclorama", "photo-backdrop", "Ciclorama", 4200, 3900, 3000, 2200, "equipment", ["estudio-tv", "ciclorama", "fondo", "foro"]),
+      asset("control", "room", "Cabina de control", 11000, 900, 3800, 2600, "architecture", ["estudio-tv", "control", "switcher", "cuarto"]),
+      asset("consola-control", "desk", "Consola de control", 11200, 1200, 3400, 900, "equipment", ["estudio-tv", "consola", "control", "switcher"]),
+      asset("camerino-1", "room", "Camerino 1", 11000, 3700, 1800, 2000, "architecture", ["estudio-tv", "camerino", "talento", "cuarto"]),
+      asset("camerino-2", "room", "Camerino 2", 13000, 3700, 1800, 2000, "architecture", ["estudio-tv", "camerino", "talento", "cuarto"]),
+      asset("utileria", "room", "Utilería / bodega", 800, 2700, 2600, 3800, "architecture", ["estudio-tv", "utileria", "bodega", "cuarto"]),
+      asset("maquillaje", "zone", "Maquillaje y vestuario", 3800, 6900, 4000, 2100, "layout", ["estudio-tv", "maquillaje", "vestuario", "zona"]),
+      asset("edicion", "room", "Edición / postproducción", 8200, 6900, 3000, 2100, "architecture", ["estudio-tv", "edicion", "postproduccion", "cuarto"]),
+      asset("bano", "room", "Baño", 11600, 6900, 3200, 2100, "architecture", ["estudio-tv", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 11800, 7200, 600, 700, "equipment", ["estudio-tv", "inodoro", "sanitario", "bano"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 10900, 900, 300, 300, "safety", ["estudio-tv", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Estudio de televisión — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion", kind: "flow" },
+      { fromRef: "recepcion", toRef: "foro", kind: "flow" },
+      { fromRef: "control", toRef: "foro", kind: "material" },
+    ],
+  },
+  {
+    id: "club-deportivo",
+    label: "Club deportivo",
+    description:
+      "Plantilla editable de un club deportivo típico de México (16000×10000 mm): recepción, cancha de fútbol rápido, alberca con carriles, gimnasio, vestidores de hombres y mujeres, regaderas y cafetería.",
+    category: "architecture",
+    baseWidth: 16000,
+    baseHeight: 10000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 14600, 8600, "architecture", ["shell", "club-deportivo", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 1200, 650, 1100, 260, "architecture", ["club-deportivo", "entrada", "acceso", "puerta"]),
+      asset("recepcion", "zone", "Recepción", 800, 900, 2600, 1600, "layout", ["club-deportivo", "recepcion", "atencion", "zona"]),
+      asset("cancha-futbol", "zone", "Cancha de fútbol rápido", 3800, 900, 7000, 4200, "layout", ["club-deportivo", "cancha", "futbol", "deporte", "zona"]),
+      asset("porteria", "goal", "Portería", 4000, 1100, 500, 1400, "equipment", ["club-deportivo", "porteria", "futbol", "deporte"]),
+      asset("alberca", "zone", "Alberca", 11000, 900, 3800, 4200, "layout", ["club-deportivo", "alberca", "piscina", "nado", "zona"]),
+      asset("carril-alberca", "pool-lane", "Carril de alberca", 11200, 1200, 3400, 900, "equipment", ["club-deportivo", "carril", "alberca", "nado"]),
+      asset("gimnasio", "zone", "Gimnasio", 800, 2700, 2600, 4300, "layout", ["club-deportivo", "gimnasio", "pesas", "cardio", "zona"]),
+      asset("caminadora", "treadmill", "Caminadora", 1000, 2900, 900, 1500, "equipment", ["club-deportivo", "caminadora", "cardio", "correr"]),
+      asset("vestidor-h", "room", "Vestidor de hombres", 3800, 5300, 3400, 3700, "architecture", ["club-deportivo", "vestidor", "hombres", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 4000, 5500, 600, 700, "equipment", ["club-deportivo", "inodoro", "sanitario", "vestidor"]),
+      asset("vestidor-m", "room", "Vestidor de mujeres", 7400, 5300, 3400, 3700, "architecture", ["club-deportivo", "vestidor", "mujeres", "cuarto"]),
+      asset("regaderas", "zone", "Regaderas", 11000, 5300, 3800, 2000, "layout", ["club-deportivo", "regaderas", "ducha", "zona"]),
+      asset("cafeteria", "zone", "Cafetería", 11000, 7500, 3800, 1500, "layout", ["club-deportivo", "cafeteria", "snack", "zona"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 10900, 900, 300, 300, "safety", ["club-deportivo", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Club deportivo — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion", kind: "flow" },
+      { fromRef: "recepcion", toRef: "cancha-futbol", kind: "flow" },
+      { fromRef: "vestidor-h", toRef: "alberca", kind: "flow" },
+    ],
+  },
+  {
+    id: "antro-discoteca",
+    label: "Antro / Discoteca",
+    description:
+      "Plantilla editable de un antro / discoteca típico de México (14000×9000 mm): acceso, pista de baile con cabina de DJ, barra con bancos, zona VIP, cocina, baños y bodega.",
+    category: "architecture",
+    baseWidth: 14000,
+    baseHeight: 9000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 12600, 7600, "architecture", ["shell", "antro-discoteca", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada / acceso", 1200, 650, 1100, 260, "architecture", ["antro-discoteca", "entrada", "acceso", "puerta"]),
+      asset("recepcion", "zone", "Taquilla y acceso", 800, 900, 2600, 1600, "layout", ["antro-discoteca", "recepcion", "taquilla", "zona"]),
+      asset("pista", "zone", "Pista de baile", 3800, 900, 5600, 4600, "layout", ["antro-discoteca", "pista", "baile", "zona"]),
+      asset("cabina-dj", "room", "Cabina de DJ", 4200, 1200, 2000, 1400, "architecture", ["antro-discoteca", "dj", "cabina", "cuarto"]),
+      asset("consola-dj", "dj-booth", "Consola de DJ", 4400, 1400, 1600, 600, "equipment", ["antro-discoteca", "dj", "consola", "tornamesa"]),
+      asset("barra", "bar-counter", "Barra", 800, 2700, 2600, 700, "equipment", ["antro-discoteca", "barra", "bar", "servicio"]),
+      asset("banco-barra", "bar-stool", "Bancos de barra", 900, 3500, 2000, 450, "equipment", ["antro-discoteca", "bancos", "barra", "mobiliario"]),
+      asset("vip", "zone", "Zona VIP", 9800, 900, 3400, 4600, "layout", ["antro-discoteca", "vip", "reservados", "zona"]),
+      asset("sofa-vip", "sofa-3", "Sofá VIP", 10000, 1200, 2000, 700, "equipment", ["antro-discoteca", "sofa", "vip", "mobiliario"]),
+      asset("bano-h", "room", "Baño de hombres", 800, 5700, 2600, 2300, "architecture", ["antro-discoteca", "bano", "hombres", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 1000, 6000, 600, 700, "equipment", ["antro-discoteca", "inodoro", "sanitario", "bano"]),
+      asset("bano-m", "room", "Baño de mujeres", 3800, 5700, 2600, 2300, "architecture", ["antro-discoteca", "bano", "mujeres", "cuarto"]),
+      asset("cocina", "room", "Cocina / snack", 6600, 5700, 3200, 2300, "architecture", ["antro-discoteca", "cocina", "snack", "cuarto"]),
+      asset("bodega", "room", "Bodega", 9800, 5700, 3400, 2300, "architecture", ["antro-discoteca", "bodega", "almacen", "cuarto"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 9500, 900, 300, 300, "safety", ["antro-discoteca", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Antro / Discoteca — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion", kind: "flow" },
+      { fromRef: "recepcion", toRef: "pista", kind: "flow" },
+      { fromRef: "cocina", toRef: "barra", kind: "material" },
+    ],
+  },
+  {
+    id: "tienda-mascotas",
+    label: "Tienda de mascotas",
+    description:
+      "Plantilla editable de una tienda de mascotas (pet shop) típica de México (12000×8000 mm): piso de venta con góndolas, acuarios y jaulas, caja, estética canina, consultorio veterinario, bodega y baño.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["shell", "tienda-mascotas", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 1200, 650, 1100, 260, "architecture", ["tienda-mascotas", "entrada", "acceso", "puerta"]),
+      asset("piso-venta", "zone", "Piso de venta", 800, 900, 6800, 4200, "layout", ["tienda-mascotas", "piso-venta", "exhibicion", "zona"]),
+      asset("gondola-1", "shelf-gondola", "Góndola de alimento 1", 1000, 1200, 2600, 600, "equipment", ["tienda-mascotas", "gondola", "alimento", "croquetas"]),
+      asset("gondola-2", "shelf-gondola", "Góndola de accesorios", 1000, 2100, 2600, 600, "equipment", ["tienda-mascotas", "gondola", "accesorios", "juguetes"]),
+      asset("acuarios", "aquarium-rack", "Acuarios", 4200, 1200, 2600, 900, "equipment", ["tienda-mascotas", "acuarios", "peces", "pecera"]),
+      asset("jaulas", "pet-cage", "Jaulas de exhibición", 4200, 2400, 2600, 1400, "equipment", ["tienda-mascotas", "jaulas", "mascotas", "cachorros"]),
+      asset("mostrador", "counter", "Mostrador de caja", 800, 5300, 3000, 600, "equipment", ["tienda-mascotas", "mostrador", "caja", "atencion"]),
+      asset("caja", "cash-register", "Caja registradora", 3000, 5350, 500, 400, "equipment", ["tienda-mascotas", "caja", "cobro", "registro"]),
+      asset("estetica", "room", "Estética canina", 8000, 900, 3200, 2000, "architecture", ["tienda-mascotas", "estetica", "peluqueria", "grooming", "cuarto"]),
+      asset("tina-bano", "pet-tub", "Tina de baño", 8200, 1200, 1600, 1000, "equipment", ["tienda-mascotas", "tina", "bano", "estetica"]),
+      asset("consultorio", "room", "Consultorio veterinario", 8000, 3100, 3200, 2000, "architecture", ["tienda-mascotas", "consultorio", "veterinario", "cuarto"]),
+      asset("mesa-vet", "exam-table", "Mesa de exploración", 8200, 3400, 1800, 1000, "equipment", ["tienda-mascotas", "mesa", "exploracion", "veterinario"]),
+      asset("bodega", "room", "Bodega", 4200, 5300, 3000, 1700, "architecture", ["tienda-mascotas", "bodega", "almacen", "cuarto"]),
+      asset("bano", "room", "Baño", 8000, 5300, 3200, 1700, "architecture", ["tienda-mascotas", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 8200, 5600, 600, 700, "equipment", ["tienda-mascotas", "inodoro", "sanitario", "bano"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 7500, 900, 300, 300, "safety", ["tienda-mascotas", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Tienda de mascotas — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "piso-venta", kind: "flow" },
+      { fromRef: "piso-venta", toRef: "mostrador", kind: "flow" },
+      { fromRef: "estetica", toRef: "consultorio", kind: "flow" },
     ],
   },
 ];
