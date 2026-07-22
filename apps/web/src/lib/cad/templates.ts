@@ -96,7 +96,10 @@ export type CadLayoutTemplateId =
   | "estudio-yoga"
   | "taller-bicicletas"
   | "consultorio-psicologia"
-  | "vivero";
+  | "vivero"
+  | "cerrajeria"
+  | "material-construccion"
+  | "bar-cantina";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -3121,6 +3124,104 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada-principal", toRef: "zona-exhibicion", kind: "flow" },
       { fromRef: "zona-exhibicion", toRef: "mostrador-cobro", kind: "flow" },
       { fromRef: "bodega-insumos", toRef: "mesa-trasplante", kind: "material" },
+    ],
+  },
+  {
+    id: "cerrajeria",
+    label: "Cerrajería",
+    description:
+      "Plantilla CAD editable y realista para una cerrajería típica de México (9000×6000 mm): muro perimetral, entrada superior, zona de atención con mostrador y vitrina, taller de duplicado y reparación, almacén de llaves y herramientas, y baño. Layers separados para arquitectura, layout, equipo y seguridad.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["shell", "cerrajeria", "muro", "perimetral", "arquitectura"]),
+      asset("entrada", "door", "Entrada principal", 4050, 650, 900, 260, "architecture", ["cerrajeria", "entrada", "puerta", "acceso"]),
+      asset("atencion", "zone", "Área de atención al cliente", 750, 750, 4300, 1600, "layout", ["cerrajeria", "atencion", "cliente", "zona", "mostrador"]),
+      asset("taller", "room", "Taller de duplicado y reparación", 5150, 750, 3100, 2600, "architecture", ["cerrajeria", "taller", "duplicado", "reparacion", "cuarto"]),
+      asset("bano", "room", "Baño", 7250, 3600, 1000, 1550, "architecture", ["cerrajeria", "bano", "sanitario", "cuarto"]),
+      asset("vitrina", "display-case", "Vitrina de candados y cerraduras", 850, 820, 1700, 500, "equipment", ["cerrajeria", "vitrina", "exhibicion", "candados", "cerraduras"]),
+      asset("mostrador", "counter", "Mostrador de atención", 850, 2050, 3900, 220, "equipment", ["cerrajeria", "mostrador", "atencion", "venta"]),
+      asset("caja", "cash-register", "Caja registradora", 3900, 1750, 380, 260, "equipment", ["cerrajeria", "caja", "cobro", "registradora"]),
+      asset("banco_trabajo", "workbench", "Banco de trabajo (duplicadora)", 5350, 900, 2600, 750, "equipment", ["cerrajeria", "banco", "trabajo", "duplicado", "herramientas"]),
+      asset("estante_llaves", "shelf-gondola", "Estante de llaves y moldes", 800, 3600, 3200, 550, "equipment", ["cerrajeria", "estante", "llaves", "moldes", "almacen"]),
+      asset("rack_herramientas", "rack", "Rack de herramientas", 800, 4400, 2400, 550, "equipment", ["cerrajeria", "rack", "herramientas", "almacen"]),
+      asset("wc", "wc", "Inodoro", 7350, 3750, 550, 550, "equipment", ["cerrajeria", "wc", "sanitario", "bano"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 4820, 800, 180, 200, "safety", ["cerrajeria", "extintor", "seguridad", "incendio"]),
+    ],
+    annotations: [
+      note("titulo", "Cerrajería — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "atencion", kind: "flow" },
+      { fromRef: "mostrador", toRef: "taller", kind: "flow" },
+      { fromRef: "estante_llaves", toRef: "banco_trabajo", kind: "material" },
+    ],
+  },
+  {
+    id: "material-construccion",
+    label: "Tienda de materiales de construcción",
+    description:
+      "Plantilla editable y realista de una tienda de materiales de construcción (tlapalería/materialista) típica de México (12000×8000 mm): mostrador de ventas, exhibición de ferretería, bodega de cemento y agregados, racks de varilla, oficina, baño y equipo de seguridad.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["shell", "material-construccion", "muro", "perimetro", "arquitectura"]),
+      asset("door_entrada", "door", "Entrada principal", 4000, 650, 1400, 260, "architecture", ["material-construccion", "entrada", "acceso", "puerta"]),
+      asset("room_oficina", "room", "Oficina administrativa", 9400, 900, 1800, 1600, "architecture", ["material-construccion", "oficina", "administracion", "cuarto"]),
+      asset("room_bano", "room", "Baño de servicio", 9400, 2800, 1800, 1500, "architecture", ["material-construccion", "bano", "sanitario", "servicio"]),
+      asset("wc_sanitario", "wc", "Sanitario", 9650, 3050, 600, 750, "equipment", ["material-construccion", "wc", "sanitario", "bano"]),
+      asset("zone_exhibicion", "zone", "Exhibición y ventas", 800, 1050, 8200, 1700, "layout", ["material-construccion", "exhibicion", "ventas", "showroom", "circulacion"]),
+      asset("counter_mostrador", "counter", "Mostrador de atención", 900, 1200, 2600, 700, "equipment", ["material-construccion", "mostrador", "atencion", "ventas"]),
+      asset("cash_caja", "cash-register", "Caja registradora", 3700, 1250, 600, 500, "equipment", ["material-construccion", "caja", "cobro", "punto-de-venta"]),
+      asset("gondola_ferreteria", "shelf-gondola", "Góndola de ferretería", 5000, 1200, 3600, 600, "equipment", ["material-construccion", "gondola", "ferreteria", "herramientas", "exhibicion"]),
+      asset("zone_bodega", "zone", "Bodega de cemento y agregados", 800, 2900, 8200, 4300, "layout", ["material-construccion", "bodega", "almacen", "cemento", "agregados"]),
+      asset("rack_varilla", "rack", "Rack de varilla y perfiles", 900, 3100, 900, 3900, "equipment", ["material-construccion", "rack", "varilla", "perfiles", "acero"]),
+      asset("pallet_cemento", "pallet-stack", "Tarima de sacos de cemento", 3000, 3300, 2600, 2000, "equipment", ["material-construccion", "cemento", "tarima", "sacos", "agregados"]),
+      asset("scale_bascula", "scale", "Báscula de piso", 6800, 5600, 1300, 900, "equipment", ["material-construccion", "bascula", "peso", "carga"]),
+      asset("ext_extintor", "fire-extinguisher", "Extintor", 8600, 6800, 300, 300, "safety", ["material-construccion", "extintor", "seguridad", "incendio"]),
+    ],
+    annotations: [
+      note("titulo", "Tienda de materiales de construcción — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "door_entrada", toRef: "zone_exhibicion", kind: "flow" },
+      { fromRef: "counter_mostrador", toRef: "zone_bodega", kind: "material" },
+      { fromRef: "zone_bodega", toRef: "door_entrada", kind: "material" },
+    ],
+  },
+  {
+    id: "bar-cantina",
+    label: "Bar / Cantina",
+    description:
+      "Plantilla CAD editable de un bar/cantina típico de México (12000×8000 mm): barra con bancos, zona de mesas, cocina con estufa, refrigerador y fregadero, y sanitario.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["shell", "bar-cantina", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 5300, 650, 1100, 260, "architecture", ["bar-cantina", "acceso", "entrada"]),
+      asset("zona-mesas", "zone", "Zona de mesas", 800, 1500, 6900, 3600, "layout", ["bar-cantina", "comedor", "clientes"]),
+      asset("mesa-1", "restaurant-table-4", "Mesa cantina 1", 1300, 2100, 1300, 1300, "equipment", ["bar-cantina", "mesa", "mobiliario"]),
+      asset("mesa-2", "restaurant-table-4", "Mesa cantina 2", 3400, 2100, 1300, 1300, "equipment", ["bar-cantina", "mesa", "mobiliario"]),
+      asset("barra", "bar-counter", "Barra de cantina", 800, 5600, 6000, 700, "equipment", ["bar-cantina", "barra", "servicio"]),
+      asset("bancos-barra", "bar-stool", "Bancos de barra", 900, 6400, 5800, 450, "equipment", ["bar-cantina", "bancos", "mobiliario"]),
+      asset("cocina", "room", "Cocina", 8300, 800, 2900, 3000, "architecture", ["bar-cantina", "cocina", "preparacion"]),
+      asset("estufa", "stove", "Estufa", 8500, 1050, 1000, 750, "equipment", ["bar-cantina", "cocina", "equipo"]),
+      asset("refrigerador", "refrigerator", "Refrigerador", 8500, 2100, 900, 850, "equipment", ["bar-cantina", "cocina", "refrigeracion"]),
+      asset("fregadero", "kitchen-sink", "Fregadero de cocina", 9900, 1050, 1050, 750, "equipment", ["bar-cantina", "cocina", "lavado"]),
+      asset("bano", "room", "Baño", 8300, 4400, 2900, 2600, "architecture", ["bar-cantina", "sanitario", "servicios"]),
+      asset("inodoro", "wc", "Inodoro", 8600, 5200, 750, 750, "equipment", ["bar-cantina", "sanitario", "equipo"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 6600, 770, 320, 320, "safety", ["bar-cantina", "seguridad", "proteccion"]),
+    ],
+    annotations: [
+      note("titulo", "Bar / Cantina — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "barra", kind: "flow" },
+      { fromRef: "cocina", toRef: "barra", kind: "material" },
+      { fromRef: "barra", toRef: "zona-mesas", kind: "flow" },
     ],
   },
 ];
