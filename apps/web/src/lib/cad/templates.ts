@@ -56,7 +56,8 @@ export type CadLayoutTemplateId =
   | "pescaderia"
   | "boutique"
   | "hostal"
-  | "autolavado";
+  | "autolavado"
+  | "llantera";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1813,6 +1814,36 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "porton", toRef: "carril-lav-1", kind: "flow" },
       { fromRef: "carril-lav-1", toRef: "aspirado-lav", kind: "flow" },
       { fromRef: "aspirado-lav", toRef: "caja-lav", kind: "flow" },
+    ],
+  },
+  {
+    id: "llantera",
+    label: "Llantera / Vulcanizadora",
+    description: "Arranque universal de llantera: portón, dos bahías de servicio, montadora de llantas, compresor, rack de llantas, conos, caja y bodega.",
+    category: "architecture",
+    baseWidth: 10000,
+    baseHeight: 7000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 8600, 5600, "architecture", ["architecture", "shell", "llantera"]),
+      asset("porton", "door", "Portón", 4500, 650, 2200, 260, "architecture", ["door", "opening:entry"]),
+      asset("bahia-lla-1", "zone", "Bahía de servicio 1", 1200, 1400, 3200, 2400, "layout", ["zone", "use:service", "llantera"]),
+      asset("bahia-lla-2", "zone", "Bahía de servicio 2", 4800, 1400, 3200, 2400, "layout", ["zone", "use:service", "llantera"]),
+      asset("montadora-lla", "workbench", "Montadora de llantas", 8300, 1400, 900, 700, "equipment", ["montadora", "llantera"]),
+      asset("compresor-lla", "air-compressor", "Compresor de aire", 8300, 2400, 750, 600, "equipment", ["compresor", "llantera"]),
+      asset("rack-lla", "rack", "Rack de llantas", 1200, 4200, 2400, 600, "equipment", ["rack", "llantas", "llantera"]),
+      asset("cono-lla-1", "traffic-cone", "Cono", 4000, 4200, 300, 300, "safety", ["cono", "llantera"]),
+      asset("cono-lla-2", "traffic-cone", "Cono", 4500, 4200, 300, 300, "safety", ["cono", "llantera"]),
+      asset("caja-lla", "counter", "Caja", 5600, 4400, 1500, 600, "equipment", ["counter", "llantera"]),
+      asset("registradora-lla", "cash-register", "Caja registradora", 7300, 4400, 450, 400, "equipment", ["caja", "cobro", "llantera"]),
+      asset("bodega-lla", "room", "Bodega", 8000, 4000, 1300, 1800, "architecture", ["room", "use:storage", "llantera"]),
+    ],
+    annotations: [
+      note("titulo", "Llantera — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "porton", toRef: "bahia-lla-1", kind: "flow" },
+      { fromRef: "rack-lla", toRef: "montadora-lla", kind: "material" },
+      { fromRef: "montadora-lla", toRef: "bahia-lla-1", kind: "material" },
     ],
   },
 ];
