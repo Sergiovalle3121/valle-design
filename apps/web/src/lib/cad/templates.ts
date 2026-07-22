@@ -65,7 +65,8 @@ export type CadLayoutTemplateId =
   | "terraza-jardin"
   | "vinateria"
   | "pasteleria"
-  | "academia-baile";
+  | "academia-baile"
+  | "refaccionaria";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -2085,6 +2086,34 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "recepcion-bai", kind: "flow" },
       { fromRef: "recepcion-bai", toRef: "duela-bai", kind: "flow" },
       { fromRef: "vestidor-bai", toRef: "duela-bai", kind: "flow" },
+    ],
+  },
+  {
+    id: "refaccionaria",
+    label: "Refaccionaria",
+    description: "Arranque universal de refaccionaria: mostrador con caja, dos racks de refacciones, góndola de accesorios, vitrina de aditivos, despacho y bodega.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["architecture", "shell", "refaccionaria"]),
+      asset("entrada", "door", "Entrada", 3500, 650, 1000, 260, "architecture", ["door", "opening:entry"]),
+      asset("mostrador-ref", "counter", "Mostrador", 1500, 1400, 1800, 600, "equipment", ["counter", "refaccionaria"]),
+      asset("registradora-ref", "cash-register", "Caja registradora", 3600, 1400, 450, 400, "equipment", ["caja", "cobro", "refaccionaria"]),
+      asset("rack-ref-1", "rack", "Rack de refacciones", 4800, 1400, 1500, 500, "equipment", ["rack", "refacciones", "refaccionaria"]),
+      asset("rack-ref-2", "rack", "Rack de refacciones", 6500, 1400, 1500, 500, "equipment", ["rack", "refacciones", "refaccionaria"]),
+      asset("gondola-ref", "shelf-gondola", "Góndola de accesorios", 1200, 2600, 2400, 500, "equipment", ["gondola", "accesorios", "refaccionaria"]),
+      asset("vitrina-ref", "display-case", "Vitrina de aditivos", 4000, 2600, 1500, 600, "equipment", ["vitrina", "aditivos", "refaccionaria"]),
+      asset("despacho-ref", "zone", "Despacho", 1300, 4000, 2600, 1200, "layout", ["zone", "use:service", "refaccionaria"]),
+      asset("bodega-ref", "room", "Bodega", 6000, 3200, 1900, 1800, "architecture", ["room", "use:storage", "refaccionaria"]),
+    ],
+    annotations: [
+      note("titulo", "Refaccionaria — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "mostrador-ref", kind: "flow" },
+      { fromRef: "bodega-ref", toRef: "rack-ref-1", kind: "material" },
+      { fromRef: "rack-ref-1", toRef: "mostrador-ref", kind: "material" },
     ],
   },
 ];
