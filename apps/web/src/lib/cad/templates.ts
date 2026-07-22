@@ -103,7 +103,11 @@ export type CadLayoutTemplateId =
   | "gasolinera"
   | "agencia-autos"
   | "escuela-primaria"
-  | "gimnasio-crossfit";
+  | "gimnasio-crossfit"
+  | "alberca-publica"
+  | "boliche"
+  | "teatro"
+  | "clinica-dental";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -3362,6 +3366,139 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "recepcion", kind: "flow" },
       { fromRef: "recepcion", toRef: "zona-peso", kind: "flow" },
       { fromRef: "zona-peso", toRef: "zona-cardio", kind: "flow" },
+    ],
+  },
+  {
+    id: "alberca-publica",
+    label: "Alberca pública",
+    description:
+      "Plantilla editable de una alberca pública típica de México (14000×9000 mm): alberca con carriles y trampolín, recepción con taquilla, vestidores de hombres y mujeres, regaderas, área de camastros y caseta de bombas.",
+    category: "architecture",
+    baseWidth: 14000,
+    baseHeight: 9000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 12600, 7600, "architecture", ["shell", "alberca-publica", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 1200, 650, 1100, 260, "architecture", ["alberca-publica", "entrada", "acceso", "puerta"]),
+      asset("recepcion", "zone", "Recepción", 800, 900, 2600, 1600, "layout", ["alberca-publica", "recepcion", "atencion", "zona"]),
+      asset("taquilla", "counter", "Taquilla", 900, 1000, 1600, 500, "equipment", ["alberca-publica", "taquilla", "cobro", "acceso"]),
+      asset("alberca", "zone", "Alberca", 3800, 900, 6800, 4600, "layout", ["alberca-publica", "alberca", "piscina", "nado", "zona"]),
+      asset("carril-1", "pool-lane", "Carril 1", 4000, 1100, 6400, 900, "equipment", ["alberca-publica", "carril", "nado", "alberca"]),
+      asset("carril-2", "pool-lane", "Carril 2", 4000, 2200, 6400, 900, "equipment", ["alberca-publica", "carril", "nado", "alberca"]),
+      asset("carril-3", "pool-lane", "Carril 3", 4000, 3300, 6400, 900, "equipment", ["alberca-publica", "carril", "nado", "alberca"]),
+      asset("trampolin", "diving-board", "Trampolín", 10000, 4600, 600, 700, "equipment", ["alberca-publica", "trampolin", "clavados", "alberca"]),
+      asset("vestidor-h", "room", "Vestidor de hombres", 800, 2700, 2600, 2400, "architecture", ["alberca-publica", "vestidor", "hombres", "cuarto"]),
+      asset("vestidor-m", "room", "Vestidor de mujeres", 800, 5300, 2600, 2400, "architecture", ["alberca-publica", "vestidor", "mujeres", "cuarto"]),
+      asset("regaderas", "zone", "Regaderas", 3800, 5700, 3600, 2000, "layout", ["alberca-publica", "regaderas", "ducha", "zona"]),
+      asset("camastros", "zone", "Área de camastros", 7600, 5700, 5000, 2000, "layout", ["alberca-publica", "camastros", "asoleadero", "zona"]),
+      asset("caseta-bombas", "room", "Caseta de bombas", 11000, 900, 2000, 1600, "architecture", ["alberca-publica", "bombas", "filtros", "cuarto"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 3500, 900, 300, 300, "safety", ["alberca-publica", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Alberca pública — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion", kind: "flow" },
+      { fromRef: "recepcion", toRef: "alberca", kind: "flow" },
+      { fromRef: "vestidor-h", toRef: "alberca", kind: "flow" },
+    ],
+  },
+  {
+    id: "boliche",
+    label: "Boliche",
+    description:
+      "Plantilla editable de un boliche típico de México (16000×9000 mm): pistas de boliche, recepción con renta de zapatos, área de jugadores, snack bar con cocina, área de maquinitas y baños.",
+    category: "architecture",
+    baseWidth: 16000,
+    baseHeight: 9000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 14600, 7600, "architecture", ["shell", "boliche", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 1200, 650, 1100, 260, "architecture", ["boliche", "entrada", "acceso", "puerta"]),
+      asset("recepcion", "zone", "Recepción y renta de zapatos", 800, 900, 3000, 1600, "layout", ["boliche", "recepcion", "renta", "zapatos", "zona"]),
+      asset("mostrador-renta", "counter", "Mostrador de renta", 900, 1000, 2000, 500, "equipment", ["boliche", "mostrador", "renta", "atencion"]),
+      asset("bano", "room", "Baños", 4200, 900, 2600, 1600, "architecture", ["boliche", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 4400, 1100, 600, 700, "equipment", ["boliche", "inodoro", "sanitario", "bano"]),
+      asset("arcade", "zone", "Área de maquinitas", 7200, 900, 3600, 1600, "layout", ["boliche", "arcade", "maquinitas", "juegos", "zona"]),
+      asset("cocina", "room", "Cocina del snack", 11000, 900, 3600, 1600, "architecture", ["boliche", "cocina", "snack", "cuarto"]),
+      asset("pista-1", "bowling-lane", "Pista 1", 800, 2700, 13000, 900, "equipment", ["boliche", "pista", "bowling", "boliche"]),
+      asset("pista-2", "bowling-lane", "Pista 2", 800, 3800, 13000, 900, "equipment", ["boliche", "pista", "bowling", "boliche"]),
+      asset("pista-3", "bowling-lane", "Pista 3", 800, 4900, 13000, 900, "equipment", ["boliche", "pista", "bowling", "boliche"]),
+      asset("area-jugadores", "zone", "Área de jugadores", 800, 6000, 10000, 1900, "layout", ["boliche", "jugadores", "mesas", "zona"]),
+      asset("snack-bar", "counter", "Snack bar", 11200, 6200, 3000, 700, "equipment", ["boliche", "snack", "bar", "comida"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 14800, 6800, 300, 300, "safety", ["boliche", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Boliche — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion", kind: "flow" },
+      { fromRef: "recepcion", toRef: "area-jugadores", kind: "flow" },
+      { fromRef: "cocina", toRef: "snack-bar", kind: "material" },
+    ],
+  },
+  {
+    id: "teatro",
+    label: "Teatro",
+    description:
+      "Plantilla editable de un teatro típico de México (16000×10000 mm): escenario con foso de orquesta, dos bloques de butacas con pasillo central, vestíbulo con taquilla, camerinos y cabina de control.",
+    category: "architecture",
+    baseWidth: 16000,
+    baseHeight: 10000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 14600, 8600, "architecture", ["shell", "teatro", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 7400, 650, 1200, 260, "architecture", ["teatro", "entrada", "acceso", "puerta"]),
+      asset("camerino-1", "room", "Camerino 1", 800, 900, 3000, 1600, "architecture", ["teatro", "camerino", "actores", "cuarto"]),
+      asset("cabina", "room", "Cabina de control", 3900, 900, 1700, 1600, "architecture", ["teatro", "cabina", "control", "iluminacion", "cuarto"]),
+      asset("vestibulo", "zone", "Vestíbulo y taquilla", 5800, 900, 4400, 1400, "layout", ["teatro", "vestibulo", "taquilla", "acceso", "zona"]),
+      asset("taquilla", "counter", "Taquilla", 6000, 1000, 1600, 500, "equipment", ["teatro", "taquilla", "boletos", "cobro"]),
+      asset("camerino-2", "room", "Camerino 2", 12200, 900, 3000, 1600, "architecture", ["teatro", "camerino", "actores", "cuarto"]),
+      asset("butacas-izq", "seating-block", "Butacas izquierda", 1200, 2700, 6000, 4300, "equipment", ["teatro", "butacas", "asientos", "publico"]),
+      asset("pasillo-central", "zone", "Pasillo central", 7400, 2700, 1200, 4300, "layout", ["teatro", "pasillo", "circulacion", "evacuacion", "zona"]),
+      asset("butacas-der", "seating-block", "Butacas derecha", 8800, 2700, 6000, 4300, "equipment", ["teatro", "butacas", "asientos", "publico"]),
+      asset("foso", "zone", "Foso de orquesta", 6400, 7100, 3200, 400, "layout", ["teatro", "foso", "orquesta", "musicos", "zona"]),
+      asset("escenario", "zone", "Escenario", 1200, 7500, 13600, 1400, "layout", ["teatro", "escenario", "foro", "tablas", "zona"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 900, 7000, 300, 300, "safety", ["teatro", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Teatro — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "vestibulo", kind: "flow" },
+      { fromRef: "vestibulo", toRef: "butacas-izq", kind: "flow" },
+      { fromRef: "cabina", toRef: "escenario", kind: "material" },
+    ],
+  },
+  {
+    id: "clinica-dental",
+    label: "Clínica dental",
+    description:
+      "Plantilla editable de una clínica dental típica de México (12000×7000 mm): recepción y sala de espera, dos cubículos con sillón dental, sala de esterilización, sala de rayos X y baño.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 7000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 10600, 5600, "architecture", ["shell", "clinica-dental", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 1400, 650, 1000, 260, "architecture", ["clinica-dental", "entrada", "acceso", "puerta"]),
+      asset("recepcion", "zone", "Recepción", 800, 900, 3000, 1600, "layout", ["clinica-dental", "recepcion", "atencion", "zona"]),
+      asset("mostrador", "counter", "Mostrador de recepción", 900, 1000, 2000, 500, "equipment", ["clinica-dental", "mostrador", "recepcion", "atencion"]),
+      asset("sala-espera", "zone", "Sala de espera", 800, 2700, 3000, 3400, "layout", ["clinica-dental", "sala-espera", "espera", "zona"]),
+      asset("sofa-espera", "sofa-3", "Sofá de espera", 900, 2900, 2000, 700, "equipment", ["clinica-dental", "sofa", "espera", "mobiliario"]),
+      asset("cubiculo-1", "room", "Cubículo 1", 4200, 900, 2200, 2400, "architecture", ["clinica-dental", "cubiculo", "consultorio", "cuarto"]),
+      asset("sillon-1", "dental-chair", "Sillón dental 1", 4400, 1100, 1400, 1600, "equipment", ["clinica-dental", "sillon", "dental", "unidad"]),
+      asset("cubiculo-2", "room", "Cubículo 2", 6800, 900, 2200, 2400, "architecture", ["clinica-dental", "cubiculo", "consultorio", "cuarto"]),
+      asset("sillon-2", "dental-chair", "Sillón dental 2", 7000, 1100, 1400, 1600, "equipment", ["clinica-dental", "sillon", "dental", "unidad"]),
+      asset("esterilizacion", "room", "Sala de esterilización", 9200, 900, 2000, 2400, "architecture", ["clinica-dental", "esterilizacion", "higiene", "cuarto"]),
+      asset("rayos-x", "room", "Sala de rayos X", 4200, 3500, 2200, 2600, "architecture", ["clinica-dental", "rayos-x", "radiografia", "cuarto"]),
+      asset("bano", "room", "Baño", 6800, 3500, 2200, 2600, "architecture", ["clinica-dental", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 7000, 3800, 600, 700, "equipment", ["clinica-dental", "inodoro", "sanitario", "bano"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 9400, 3500, 300, 300, "safety", ["clinica-dental", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Clínica dental — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion", kind: "flow" },
+      { fromRef: "recepcion", toRef: "sala-espera", kind: "flow" },
+      { fromRef: "esterilizacion", toRef: "cubiculo-1", kind: "material" },
     ],
   },
 ];
