@@ -1465,6 +1465,37 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["autoclave", "esterilizador", "esterilización", "esterilizacion", "laboratorio", "consultorio", "dental"],
     ports: [],
   },
+  // Trigésima quinta tanda universal (AXOS-CAD-UNIVERSAL-085): bar y cantina.
+  {
+    id: "pool-table",
+    label: "Mesa de billar",
+    category: "furniture",
+    defaultWidth: 2840,
+    defaultHeight: 1575,
+    layer: "Furniture",
+    tags: ["mesa de billar", "billar", "pool", "salón de billar", "salon de billar", "billiard", "taco", "entretenimiento", "cantina", "bar"],
+    ports: [],
+  },
+  {
+    id: "foosball-table",
+    label: "Futbolito",
+    category: "furniture",
+    defaultWidth: 1400,
+    defaultHeight: 760,
+    layer: "Furniture",
+    tags: ["futbolito", "futbolín", "futbolin", "foosball", "maquinita de futbolito", "juego", "entretenimiento", "cantina", "bar"],
+    ports: [],
+  },
+  {
+    id: "jukebox",
+    label: "Rocola",
+    category: "furniture",
+    defaultWidth: 900,
+    defaultHeight: 650,
+    layer: "Furniture",
+    tags: ["rocola", "sinfonola", "jukebox", "música", "musica", "cantina", "bar", "entretenimiento"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {

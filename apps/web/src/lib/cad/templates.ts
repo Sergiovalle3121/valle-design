@@ -76,7 +76,11 @@ export type CadLayoutTemplateId =
   | "salon-fiestas-infantil"
   | "marisqueria"
   | "hamburgueseria"
-  | "laboratorio-clinico";
+  | "laboratorio-clinico"
+  | "funeraria"
+  | "notaria"
+  | "despacho-contable"
+  | "inmobiliaria";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -2442,6 +2446,137 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada-principal", toRef: "recepcion", kind: "flow" },
       { fromRef: "recepcion", toRef: "sala-toma-muestras", kind: "flow" },
       { fromRef: "sillon-flebotomia", toRef: "laboratorio-analisis", kind: "material" },
+    ],
+  },
+  {
+    id: "funeraria",
+    label: "Funeraria",
+    description: "Plantilla editable de una funeraria: dos salas de velación, sala de exposición de ataúdes, sala de preparación, oficina de trámites, vestíbulo y cafetería, con mobiliario y seguridad básicos.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("muro_perimetral", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["shell", "funeraria", "muro", "perimetro", "envolvente"]),
+      asset("entrada", "door", "Entrada principal", 5400, 650, 1400, 260, "architecture", ["funeraria", "puerta", "entrada", "acceso"]),
+      asset("capilla_a", "room", "Sala de velación A", 800, 900, 3100, 2600, "architecture", ["funeraria", "capilla", "velacion", "sala"]),
+      asset("vestibulo", "zone", "Vestíbulo / recepción", 4100, 900, 3400, 2600, "layout", ["funeraria", "vestibulo", "recepcion", "circulacion", "espera"]),
+      asset("sala_exposicion", "room", "Sala de exposición de ataúdes", 7700, 900, 3400, 2600, "architecture", ["funeraria", "exposicion", "ataudes", "muestrario", "sala"]),
+      asset("capilla_b", "room", "Sala de velación B", 800, 3900, 3100, 2900, "architecture", ["funeraria", "capilla", "velacion", "sala"]),
+      asset("oficina", "room", "Oficina de trámites", 4100, 3900, 3400, 1400, "architecture", ["funeraria", "oficina", "tramites", "administracion"]),
+      asset("cafeteria", "zone", "Cafetería", 4100, 5500, 3400, 1300, "layout", ["funeraria", "cafeteria", "cafe", "descanso"]),
+      asset("sala_preparacion", "room", "Sala de preparación", 7700, 3900, 3400, 2900, "architecture", ["funeraria", "preparacion", "embalsamamiento", "sala"]),
+      asset("vitrina_ataudes", "display-case", "Vitrina de ataúdes", 7900, 1100, 1200, 900, "equipment", ["funeraria", "vitrina", "ataudes", "exhibidor", "mobiliario"]),
+      asset("mesa_preparacion", "exam-table", "Mesa de preparación", 8100, 4700, 2000, 900, "equipment", ["funeraria", "mesa", "preparacion", "equipo"]),
+      asset("bancas_capilla", "pew", "Bancas de capilla", 1200, 1400, 2200, 1600, "equipment", ["funeraria", "bancas", "capilla", "asientos", "mobiliario"]),
+      asset("escritorio", "desk", "Escritorio de oficina", 4400, 4200, 1600, 800, "equipment", ["funeraria", "escritorio", "oficina", "mobiliario"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 7500, 3600, 250, 250, "safety", ["funeraria", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Funeraria — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "vestibulo", kind: "flow" },
+      { fromRef: "vestibulo", toRef: "capilla_a", kind: "flow" },
+      { fromRef: "vestibulo", toRef: "sala_exposicion", kind: "flow" },
+    ],
+  },
+  {
+    id: "notaria",
+    label: "Notaría",
+    description:
+      "Plantilla CAD editable de una notaría típica mexicana en un footprint de 9000×6000 mm, con recepción, sala de firmas, oficina del notario, archivo de protocolos y baño.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["shell", "notaria", "muro", "perimetral", "arquitectura"]),
+      asset("entrada", "door", "Entrada principal", 1200, 650, 900, 260, "architecture", ["notaria", "entrada", "acceso", "puerta"]),
+      asset("recepcion", "zone", "Recepción y sala de espera", 800, 800, 3100, 1600, "layout", ["notaria", "recepcion", "espera", "publico", "zona"]),
+      asset("sala_firmas", "room", "Sala de firmas y escrituración", 4300, 800, 3900, 1600, "architecture", ["notaria", "sala", "firmas", "escrituracion", "clientes"]),
+      asset("oficina_notario", "room", "Oficina del notario", 800, 2800, 2700, 2350, "architecture", ["notaria", "oficina", "notario", "privado"]),
+      asset("archivo", "room", "Archivo y protocolo", 5700, 2800, 2500, 2350, "architecture", ["notaria", "archivo", "protocolo", "documentos"]),
+      asset("bano", "room", "Baño", 4100, 4300, 1300, 850, "architecture", ["notaria", "bano", "sanitario"]),
+      asset("mostrador", "counter", "Mostrador de recepción", 1100, 1600, 1700, 450, "equipment", ["notaria", "mostrador", "recepcion", "atencion"]),
+      asset("sofa_espera", "sofa-3", "Sillería de espera", 900, 850, 1700, 550, "equipment", ["notaria", "espera", "mobiliario", "sala"]),
+      asset("escritorio_notario", "desk", "Escritorio del notario", 1100, 3200, 1600, 800, "equipment", ["notaria", "escritorio", "notario", "mobiliario"]),
+      asset("mesa_firmas", "conference-table", "Mesa de firmas", 5200, 1100, 2400, 900, "equipment", ["notaria", "mesa", "firmas", "junta"]),
+      asset("archivero", "file-cabinet", "Archivero de protocolos", 5900, 3000, 2100, 650, "equipment", ["notaria", "archivero", "protocolo", "documentos"]),
+      asset("inodoro", "wc", "Inodoro", 4250, 4450, 500, 650, "equipment", ["notaria", "inodoro", "sanitario", "bano"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 3600, 2500, 250, 250, "safety", ["notaria", "extintor", "seguridad", "proteccion"]),
+    ],
+    annotations: [
+      note("titulo", "Notaría — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion", kind: "flow" },
+      { fromRef: "recepcion", toRef: "sala_firmas", kind: "flow" },
+      { fromRef: "oficina_notario", toRef: "archivo", kind: "material" },
+    ],
+  },
+  {
+    id: "despacho-contable",
+    label: "Despacho contable",
+    description:
+      "Plantilla universal editable para un despacho contable típico en México (9000×6000 mm): recepción, área de trabajo de contadores, oficina del contador titular, sala de juntas, archivo y sanitario, con mobiliario, equipo y circulación definida.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["shell", "despacho-contable", "muro", "perimetral", "arquitectura"]),
+      asset("puerta-entrada", "door", "Puerta de entrada", 3800, 650, 1000, 260, "architecture", ["despacho-contable", "puerta", "entrada", "acceso"]),
+      asset("recepcion", "zone", "Recepción y sala de espera", 3200, 980, 2200, 1500, "layout", ["despacho-contable", "recepcion", "zona", "espera", "clientes"]),
+      asset("area-trabajo", "zone", "Área de trabajo contable", 900, 980, 2100, 1500, "layout", ["despacho-contable", "area-trabajo", "contadores", "zona", "escritorios"]),
+      asset("oficina-titular", "room", "Oficina del contador titular", 5600, 980, 2500, 1500, "architecture", ["despacho-contable", "oficina", "contador-titular", "privada", "cuarto"]),
+      asset("sala-juntas", "room", "Sala de juntas", 5600, 2700, 2500, 2400, "architecture", ["despacho-contable", "sala-juntas", "reuniones", "cuarto"]),
+      asset("archivo", "room", "Archivo de expedientes", 900, 2700, 1700, 2400, "architecture", ["despacho-contable", "archivo", "documentos", "expedientes", "cuarto"]),
+      asset("sanitario", "room", "Sanitario", 2800, 3700, 1400, 1400, "architecture", ["despacho-contable", "sanitario", "bano", "cuarto"]),
+      asset("escritorio-trabajo", "desk", "Escritorio de contador", 1000, 1200, 1400, 700, "equipment", ["despacho-contable", "escritorio", "mobiliario", "trabajo"]),
+      asset("mostrador-recepcion", "counter", "Mostrador de recepción", 3400, 1900, 1600, 450, "equipment", ["despacho-contable", "mostrador", "recepcion", "mobiliario"]),
+      asset("archivero", "file-cabinet", "Archivero", 1050, 2900, 1300, 550, "equipment", ["despacho-contable", "archivero", "mobiliario", "documentos"]),
+      asset("copiadora", "copier", "Copiadora multifuncional", 2500, 1000, 450, 600, "equipment", ["despacho-contable", "copiadora", "equipo", "impresion"]),
+      asset("wc", "wc", "WC", 2900, 3850, 600, 750, "equipment", ["despacho-contable", "wc", "sanitario", "equipo"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 4900, 2600, 250, 250, "safety", ["despacho-contable", "extintor", "seguridad", "proteccion"]),
+    ],
+    annotations: [
+      note("titulo", "Despacho contable — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "puerta-entrada", toRef: "recepcion", kind: "flow" },
+      { fromRef: "recepcion", toRef: "area-trabajo", kind: "flow" },
+      { fromRef: "area-trabajo", toRef: "archivo", kind: "material" },
+    ],
+  },
+  {
+    id: "inmobiliaria",
+    label: "Inmobiliaria",
+    description:
+      "Plantilla editable de una inmobiliaria típica de México con sala de espera, recepción, oficina privada, sala de juntas, escritorios de agentes y baño. Footprint 9000×6000 mm.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["estructura", "inmobiliaria", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 1600, 650, 900, 260, "architecture", ["entrada", "puerta", "inmobiliaria", "acceso"]),
+      asset("sala_espera", "zone", "Sala de espera", 900, 900, 2400, 1800, "layout", ["sala", "espera", "inmobiliaria", "clientes"]),
+      asset("recepcion", "counter", "Mostrador de recepción", 3500, 900, 1600, 500, "equipment", ["recepcion", "mostrador", "inmobiliaria", "atencion"]),
+      asset("garrafon", "water-dispenser", "Garrafón de agua", 3500, 1650, 400, 400, "equipment", ["garrafon", "agua", "inmobiliaria", "dispensador"]),
+      asset("oficina_privada", "room", "Oficina privada", 5600, 900, 2500, 1800, "architecture", ["oficina", "privada", "inmobiliaria", "gerente"]),
+      asset("pantalla", "tv-screen", "Pantalla de listados", 7500, 1100, 500, 200, "equipment", ["pantalla", "listados", "inmobiliaria", "television"]),
+      asset("escritorio_1", "desk", "Escritorio agente 1", 900, 3100, 1200, 700, "equipment", ["escritorio", "agente", "inmobiliaria", "ventas"]),
+      asset("escritorio_2", "desk", "Escritorio agente 2", 2600, 3100, 1200, 700, "equipment", ["escritorio", "agente", "inmobiliaria", "ventas"]),
+      asset("sala_juntas", "room", "Sala de juntas", 4400, 3100, 2200, 1900, "architecture", ["sala", "juntas", "inmobiliaria", "reuniones"]),
+      asset("bano", "room", "Baño", 6900, 3100, 1200, 1400, "architecture", ["bano", "sanitario", "inmobiliaria"]),
+      asset("wc", "wc", "Inodoro", 7100, 3300, 500, 600, "equipment", ["wc", "inodoro", "inmobiliaria", "bano"]),
+      asset("lavabo", "sink", "Lavabo", 7100, 4050, 400, 350, "equipment", ["lavabo", "lavamanos", "inmobiliaria", "bano"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 1000, 4900, 200, 200, "safety", ["extintor", "seguridad", "inmobiliaria"]),
+    ],
+    annotations: [
+      note("titulo", "Inmobiliaria — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "sala_espera", kind: "flow" },
+      { fromRef: "sala_espera", toRef: "recepcion", kind: "flow" },
+      { fromRef: "recepcion", toRef: "oficina_privada", kind: "flow" },
     ],
   },
 ];

@@ -573,3 +573,19 @@ assert.ok(
   ),
   "search finds sillón de flebotomía",
 );
+
+// Trigésima quinta tanda universal (AXOS-CAD-UNIVERSAL-085): bar y cantina.
+assert.ok(
+  searchCadSymbols("billar").some((symbol) => symbol.id === "pool-table"),
+  "search finds mesa de billar",
+);
+assert.ok(
+  searchCadSymbols("futbolito").some(
+    (symbol) => symbol.id === "foosball-table",
+  ),
+  "search finds futbolito",
+);
+assert.ok(
+  searchCadSymbols("rocola").some((symbol) => symbol.id === "jukebox"),
+  "search finds rocola",
+);
