@@ -59,7 +59,8 @@ export type CadLayoutTemplateId =
   | "autolavado"
   | "llantera"
   | "purificadora"
-  | "optica";
+  | "optica"
+  | "departamento";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1903,6 +1904,38 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "mostrador-opt", kind: "flow" },
       { fromRef: "espera-opt", toRef: "gabinete-opt", kind: "flow" },
       { fromRef: "gabinete-opt", toRef: "taller-opt", kind: "material" },
+    ],
+  },
+  {
+    id: "departamento",
+    label: "Departamento",
+    description: "Arranque universal de departamento de renta: sala, comedor, cocina con fregadero y refrigerador, dos recámaras con camas y baño completo.",
+    category: "architecture",
+    baseWidth: 10000,
+    baseHeight: 7000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 8600, 5600, "architecture", ["architecture", "shell", "departamento"]),
+      asset("entrada", "door", "Entrada", 4500, 650, 900, 260, "architecture", ["door", "opening:entry"]),
+      asset("sala-dep", "zone", "Sala", 1200, 1200, 2600, 2000, "layout", ["zone", "use:living", "departamento"]),
+      asset("comedor-dep", "zone", "Comedor", 4200, 1200, 2200, 2000, "layout", ["zone", "use:dining", "departamento"]),
+      asset("mesa-dep", "restaurant-table-4", "Mesa de comedor", 4800, 1700, 900, 900, "equipment", ["table", "departamento"]),
+      asset("cocina-dep", "room", "Cocina", 6900, 900, 2200, 2000, "architecture", ["room", "use:kitchen", "departamento"]),
+      asset("fregadero-dep", "kitchen-sink", "Fregadero", 7100, 1100, 800, 550, "equipment", ["fregadero", "departamento"]),
+      asset("refri-dep", "refrigerator", "Refrigerador", 8300, 1700, 750, 700, "equipment", ["refrigerador", "departamento"]),
+      asset("recamara-dep-1", "room", "Recámara principal", 1200, 3600, 2800, 2600, "architecture", ["room", "use:bedroom", "departamento"]),
+      asset("cama-dep-1", "bed-queen", "Cama matrimonial", 1400, 3900, 1400, 2000, "equipment", ["cama", "departamento"]),
+      asset("recamara-dep-2", "room", "Recámara 2", 4300, 3600, 2400, 2600, "architecture", ["room", "use:bedroom", "departamento"]),
+      asset("cama-dep-2", "furniture", "Cama individual", 4500, 3900, 1000, 1900, "equipment", ["cama", "departamento"]),
+      asset("bano-dep", "room", "Baño", 7100, 3600, 2000, 1600, "architecture", ["room", "use:bathroom", "departamento"]),
+      asset("wc-dep", "wc", "WC", 7300, 3800, 400, 650, "equipment", ["wc", "departamento"]),
+    ],
+    annotations: [
+      note("titulo", "Departamento — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "sala-dep", kind: "flow" },
+      { fromRef: "sala-dep", toRef: "comedor-dep", kind: "flow" },
+      { fromRef: "cocina-dep", toRef: "comedor-dep", kind: "material" },
     ],
   },
 ];
