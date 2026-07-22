@@ -66,7 +66,8 @@ export type CadLayoutTemplateId =
   | "vinateria"
   | "pasteleria"
   | "academia-baile"
-  | "refaccionaria";
+  | "refaccionaria"
+  | "imprenta";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -2114,6 +2115,35 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "mostrador-ref", kind: "flow" },
       { fromRef: "bodega-ref", toRef: "rack-ref-1", kind: "material" },
       { fromRef: "rack-ref-1", toRef: "mostrador-ref", kind: "material" },
+    ],
+  },
+  {
+    id: "imprenta",
+    label: "Imprenta / Centro de copiado",
+    description: "Arranque universal de imprenta: mostrador con caja, dos copiadoras, estación de diseño, mesa de acabados, estante de papel y bodega.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["architecture", "shell", "imprenta"]),
+      asset("entrada", "door", "Entrada", 3500, 650, 1000, 260, "architecture", ["door", "opening:entry"]),
+      asset("mostrador-imp", "counter", "Mostrador", 1500, 1400, 1800, 600, "equipment", ["counter", "imprenta"]),
+      asset("registradora-imp", "cash-register", "Caja registradora", 3600, 1400, 450, 400, "equipment", ["caja", "cobro", "imprenta"]),
+      asset("copiadora-imp-1", "copier", "Copiadora", 4800, 1400, 700, 600, "equipment", ["copiadora", "imprenta"]),
+      asset("copiadora-imp-2", "copier", "Copiadora", 5800, 1400, 700, 600, "equipment", ["copiadora", "imprenta"]),
+      asset("mesa-acabados-imp", "workbench", "Mesa de acabados", 6800, 1400, 1400, 700, "equipment", ["mesa", "acabados", "imprenta"]),
+      asset("estante-papel-imp", "shelf", "Estante de papel", 1200, 2600, 2400, 500, "equipment", ["estante", "papel", "imprenta"]),
+      asset("escritorio-imp", "desk", "Estación de diseño", 4000, 2800, 1200, 700, "equipment", ["escritorio", "diseño", "imprenta"]),
+      asset("despacho-imp", "zone", "Despacho", 1300, 4000, 2600, 1200, "layout", ["zone", "use:service", "imprenta"]),
+      asset("bodega-imp", "room", "Bodega", 6000, 3200, 1900, 1800, "architecture", ["room", "use:storage", "imprenta"]),
+    ],
+    annotations: [
+      note("titulo", "Imprenta — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "mostrador-imp", kind: "flow" },
+      { fromRef: "escritorio-imp", toRef: "copiadora-imp-1", kind: "material" },
+      { fromRef: "copiadora-imp-1", toRef: "mesa-acabados-imp", kind: "material" },
     ],
   },
 ];
