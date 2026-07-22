@@ -63,7 +63,8 @@ export type CadLayoutTemplateId =
   | "departamento"
   | "rosticeria"
   | "terraza-jardin"
-  | "vinateria";
+  | "vinateria"
+  | "pasteleria";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -2025,6 +2026,35 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "mostrador-vin", kind: "flow" },
       { fromRef: "bodega-vin", toRef: "gondola-vin-1", kind: "material" },
       { fromRef: "gondola-vin-1", toRef: "mostrador-vin", kind: "material" },
+    ],
+  },
+  {
+    id: "pasteleria",
+    label: "Pastelería",
+    description: "Arranque universal de pastelería: mostrador con caja y vitrina de pasteles, taller de repostería con horno, batidora planetaria, espiguero y refrigerador.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["architecture", "shell", "pasteleria"]),
+      asset("entrada", "door", "Entrada", 3500, 650, 1000, 260, "architecture", ["door", "opening:entry"]),
+      asset("mostrador-pas", "counter", "Mostrador", 1500, 1400, 1800, 600, "equipment", ["counter", "pasteleria"]),
+      asset("registradora-pas", "cash-register", "Caja registradora", 3600, 1400, 450, 400, "equipment", ["caja", "cobro", "pasteleria"]),
+      asset("vitrina-pas", "display-case", "Vitrina de pasteles", 4800, 1400, 1800, 700, "equipment", ["vitrina", "pasteles", "pasteleria"]),
+      asset("taller-pas", "room", "Taller de repostería", 5600, 2800, 2500, 2200, "architecture", ["room", "use:workshop", "pasteleria"]),
+      asset("horno-pas", "oven", "Horno", 5800, 3000, 700, 700, "equipment", ["horno", "pasteleria"]),
+      asset("batidora-pas", "stand-mixer", "Batidora planetaria", 6700, 3000, 450, 450, "equipment", ["batidora", "pasteleria"]),
+      asset("espiguero-pas", "bread-rack", "Espiguero", 7400, 3000, 700, 500, "equipment", ["espiguero", "pasteleria"]),
+      asset("refri-pas", "refrigerator", "Refrigerador", 5800, 4000, 800, 700, "equipment", ["refrigerador", "pasteleria"]),
+      asset("despacho-pas", "zone", "Despacho", 1300, 3400, 2600, 1600, "layout", ["zone", "use:service", "pasteleria"]),
+    ],
+    annotations: [
+      note("titulo", "Pastelería — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "mostrador-pas", kind: "flow" },
+      { fromRef: "taller-pas", toRef: "vitrina-pas", kind: "material" },
+      { fromRef: "horno-pas", toRef: "espiguero-pas", kind: "material" },
     ],
   },
 ];
