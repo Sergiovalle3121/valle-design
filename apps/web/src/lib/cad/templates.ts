@@ -107,7 +107,11 @@ export type CadLayoutTemplateId =
   | "alberca-publica"
   | "boliche"
   | "teatro"
-  | "clinica-dental";
+  | "clinica-dental"
+  | "clinica-urgencias"
+  | "kinder"
+  | "nave-industrial"
+  | "call-center";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -3499,6 +3503,142 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "recepcion", kind: "flow" },
       { fromRef: "recepcion", toRef: "sala-espera", kind: "flow" },
       { fromRef: "esterilizacion", toRef: "cubiculo-1", kind: "material" },
+    ],
+  },
+  {
+    id: "clinica-urgencias",
+    label: "Clínica de urgencias",
+    description:
+      "Plantilla editable de una clínica de urgencias típica de México (14000×9000 mm): triage y recepción, sala de espera, sala de urgencias con camillas, dos consultorios, laboratorio, farmacia interna y baño.",
+    category: "architecture",
+    baseWidth: 14000,
+    baseHeight: 9000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 12600, 7600, "architecture", ["shell", "clinica-urgencias", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 1200, 650, 1100, 260, "architecture", ["clinica-urgencias", "entrada", "acceso", "puerta"]),
+      asset("triage", "zone", "Triage y recepción", 800, 900, 3000, 1600, "layout", ["clinica-urgencias", "triage", "recepcion", "zona"]),
+      asset("mostrador-triage", "counter", "Mostrador de triage", 900, 1000, 2000, 500, "equipment", ["clinica-urgencias", "mostrador", "triage", "atencion"]),
+      asset("sala-espera", "zone", "Sala de espera", 800, 2700, 3000, 3400, "layout", ["clinica-urgencias", "sala-espera", "espera", "zona"]),
+      asset("sofa-espera", "sofa-3", "Sofá de espera", 900, 2900, 2000, 700, "equipment", ["clinica-urgencias", "sofa", "espera", "mobiliario"]),
+      asset("urgencias", "room", "Sala de urgencias", 4200, 900, 4600, 3000, "architecture", ["clinica-urgencias", "urgencias", "camillas", "cuarto"]),
+      asset("camilla-1", "exam-table", "Camilla 1", 4400, 1200, 2000, 900, "equipment", ["clinica-urgencias", "camilla", "urgencias", "paciente"]),
+      asset("camilla-2", "exam-table", "Camilla 2", 4400, 2400, 2000, 900, "equipment", ["clinica-urgencias", "camilla", "urgencias", "paciente"]),
+      asset("consultorio-1", "room", "Consultorio 1", 9200, 900, 3400, 1400, "architecture", ["clinica-urgencias", "consultorio", "medico", "cuarto"]),
+      asset("consultorio-2", "room", "Consultorio 2", 9200, 2500, 3400, 1400, "architecture", ["clinica-urgencias", "consultorio", "medico", "cuarto"]),
+      asset("laboratorio", "room", "Laboratorio", 4200, 4100, 4600, 2000, "architecture", ["clinica-urgencias", "laboratorio", "analisis", "cuarto"]),
+      asset("farmacia", "room", "Farmacia interna", 9200, 4100, 3400, 2000, "architecture", ["clinica-urgencias", "farmacia", "medicamentos", "cuarto"]),
+      asset("bano", "room", "Baño", 800, 6300, 3000, 1700, "architecture", ["clinica-urgencias", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 1000, 6600, 600, 700, "equipment", ["clinica-urgencias", "inodoro", "sanitario", "bano"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 3900, 900, 300, 300, "safety", ["clinica-urgencias", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Clínica de urgencias — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "triage", kind: "flow" },
+      { fromRef: "triage", toRef: "urgencias", kind: "flow" },
+      { fromRef: "laboratorio", toRef: "urgencias", kind: "material" },
+    ],
+  },
+  {
+    id: "kinder",
+    label: "Jardín de niños (kínder)",
+    description:
+      "Plantilla editable de un jardín de niños típico de México (12000×8000 mm): tres salones por grado, dirección, área de juegos, comedor, área de siesta, sanitarios infantiles y equipo de seguridad.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["shell", "kinder", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 1200, 650, 1100, 260, "architecture", ["kinder", "entrada", "acceso", "puerta"]),
+      asset("direccion", "room", "Dirección", 800, 900, 2600, 1600, "architecture", ["kinder", "direccion", "administracion", "cuarto"]),
+      asset("salon-1", "room", "Salón 1", 800, 2700, 3000, 2200, "architecture", ["kinder", "salon", "preescolar", "cuarto"]),
+      asset("salon-2", "room", "Salón 2", 800, 5100, 3000, 2000, "architecture", ["kinder", "salon", "preescolar", "cuarto"]),
+      asset("salon-3", "room", "Salón 3", 4200, 2700, 3000, 2200, "architecture", ["kinder", "salon", "preescolar", "cuarto"]),
+      asset("patio-juegos", "zone", "Área de juegos", 4200, 900, 6800, 1600, "layout", ["kinder", "juegos", "recreo", "patio", "zona"]),
+      asset("juegos-infantiles", "playground", "Juegos infantiles", 5000, 1100, 3000, 1200, "equipment", ["kinder", "juegos", "resbaladilla", "columpio"]),
+      asset("comedor", "zone", "Comedor", 7600, 2700, 3600, 2200, "layout", ["kinder", "comedor", "cafeteria", "zona"]),
+      asset("mesa-comedor", "restaurant-table-4", "Mesa de comedor", 8000, 3000, 1400, 1400, "equipment", ["kinder", "mesa", "comedor", "mobiliario"]),
+      asset("sanitarios", "room", "Sanitarios infantiles", 4200, 5100, 3000, 2000, "architecture", ["kinder", "sanitarios", "banos", "cuarto"]),
+      asset("wc", "wc", "Inodoro", 4400, 5400, 600, 700, "equipment", ["kinder", "inodoro", "sanitario", "bano"]),
+      asset("area-siesta", "zone", "Área de siesta", 7600, 5100, 3600, 2000, "layout", ["kinder", "siesta", "descanso", "zona"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 3600, 900, 300, 300, "safety", ["kinder", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Jardín de niños (kínder) — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "patio-juegos", kind: "flow" },
+      { fromRef: "patio-juegos", toRef: "salon-1", kind: "flow" },
+      { fromRef: "direccion", toRef: "salon-1", kind: "flow" },
+    ],
+  },
+  {
+    id: "nave-industrial",
+    label: "Nave industrial",
+    description:
+      "Plantilla editable de una nave industrial típica de México (16000×10000 mm): oficina, baño, almacén de materia prima, zona de producción con línea y máquinas, almacén de producto terminado y andén de carga con montacargas.",
+    category: "architecture",
+    baseWidth: 16000,
+    baseHeight: 10000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 14600, 8600, "architecture", ["shell", "nave-industrial", "muro", "perimetral"]),
+      asset("porton", "door", "Portón de acceso", 7400, 650, 1600, 260, "architecture", ["nave-industrial", "porton", "entrada", "acceso"]),
+      asset("oficina", "room", "Oficina", 800, 900, 2600, 1800, "architecture", ["nave-industrial", "oficina", "administracion", "cuarto"]),
+      asset("bano", "room", "Baño", 800, 2900, 2600, 1600, "architecture", ["nave-industrial", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 1000, 3200, 600, 700, "equipment", ["nave-industrial", "inodoro", "sanitario", "bano"]),
+      asset("almacen-mp", "zone", "Almacén de materia prima", 800, 4700, 3600, 4400, "layout", ["nave-industrial", "almacen", "materia-prima", "zona"]),
+      asset("rack-1", "rack", "Rack de almacenaje", 900, 4900, 3400, 700, "equipment", ["nave-industrial", "rack", "almacenaje", "estante"]),
+      asset("zona-produccion", "zone", "Zona de producción", 4800, 900, 6800, 5600, "layout", ["nave-industrial", "produccion", "manufactura", "zona"]),
+      asset("linea-1", "assembly-line", "Línea de producción", 5200, 1400, 6000, 900, "equipment", ["nave-industrial", "linea", "ensamble", "produccion"]),
+      asset("banco-trabajo", "workbench", "Banco de trabajo", 5200, 2800, 2400, 900, "equipment", ["nave-industrial", "banco", "trabajo", "herramientas"]),
+      asset("prensa", "press-machine", "Prensa", 8200, 2800, 1600, 1200, "equipment", ["nave-industrial", "prensa", "maquina", "produccion"]),
+      asset("almacen-pt", "zone", "Almacén de producto terminado", 4800, 6900, 6800, 2200, "layout", ["nave-industrial", "almacen", "producto-terminado", "zona"]),
+      asset("anden", "zone", "Andén de carga", 12000, 4700, 3200, 4400, "layout", ["nave-industrial", "anden", "carga", "embarque", "zona"]),
+      asset("montacargas", "forklift", "Montacargas", 12400, 7000, 1400, 1800, "equipment", ["nave-industrial", "montacargas", "carga", "maniobras"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 11800, 900, 300, 300, "safety", ["nave-industrial", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Nave industrial — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "almacen-mp", toRef: "zona-produccion", kind: "material" },
+      { fromRef: "zona-produccion", toRef: "almacen-pt", kind: "material" },
+      { fromRef: "almacen-pt", toRef: "anden", kind: "material" },
+    ],
+  },
+  {
+    id: "call-center",
+    label: "Call center",
+    description:
+      "Plantilla editable de un call center típico de México (14000×9000 mm): recepción, piso de operaciones open-plan con estaciones de trabajo, sala de juntas, sala de capacitación, comedor y baño.",
+    category: "architecture",
+    baseWidth: 14000,
+    baseHeight: 9000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 12600, 7600, "architecture", ["shell", "call-center", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 1200, 650, 1100, 260, "architecture", ["call-center", "entrada", "acceso", "puerta"]),
+      asset("recepcion", "zone", "Recepción", 800, 900, 2600, 1600, "layout", ["call-center", "recepcion", "atencion", "zona"]),
+      asset("mostrador", "counter", "Mostrador de recepción", 900, 1000, 1600, 500, "equipment", ["call-center", "mostrador", "recepcion", "atencion"]),
+      asset("piso-operaciones", "zone", "Piso de operaciones", 800, 2700, 8600, 4400, "layout", ["call-center", "operaciones", "open-plan", "estaciones", "zona"]),
+      asset("estacion-1", "desk", "Estación de trabajo 1", 1000, 2900, 1800, 700, "equipment", ["call-center", "estacion", "escritorio", "agente"]),
+      asset("estacion-2", "desk", "Estación de trabajo 2", 3000, 2900, 1800, 700, "equipment", ["call-center", "estacion", "escritorio", "agente"]),
+      asset("estacion-3", "desk", "Estación de trabajo 3", 5000, 2900, 1800, 700, "equipment", ["call-center", "estacion", "escritorio", "agente"]),
+      asset("estacion-4", "desk", "Estación de trabajo 4", 1000, 3800, 1800, 700, "equipment", ["call-center", "estacion", "escritorio", "agente"]),
+      asset("sala-junta", "room", "Sala de juntas", 9800, 900, 3400, 2000, "architecture", ["call-center", "sala-juntas", "reuniones", "cuarto"]),
+      asset("capacitacion", "room", "Sala de capacitación", 9800, 3100, 3400, 2000, "architecture", ["call-center", "capacitacion", "entrenamiento", "cuarto"]),
+      asset("comedor", "zone", "Comedor", 9800, 5300, 3400, 1800, "layout", ["call-center", "comedor", "descanso", "zona"]),
+      asset("bano", "room", "Baño", 4200, 900, 2600, 1600, "architecture", ["call-center", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 4400, 1100, 600, 700, "equipment", ["call-center", "inodoro", "sanitario", "bano"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 7400, 900, 300, 300, "safety", ["call-center", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Call center — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion", kind: "flow" },
+      { fromRef: "recepcion", toRef: "piso-operaciones", kind: "flow" },
+      { fromRef: "piso-operaciones", toRef: "sala-junta", kind: "flow" },
     ],
   },
 ];
