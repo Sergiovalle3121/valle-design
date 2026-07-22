@@ -127,7 +127,11 @@ export type CadLayoutTemplateId =
   | "hospital-veterinario"
   | "laboratorio-dental"
   | "taller-textil"
-  | "estacionamiento-multinivel";
+  | "estacionamiento-multinivel"
+  | "rastro-frigorifico"
+  | "clinica-estetica"
+  | "centro-datos"
+  | "recicladora";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -4207,6 +4211,146 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "caseta", kind: "flow" },
       { fromRef: "caseta", toRef: "fila-1", kind: "flow" },
       { fromRef: "rampa", toRef: "fila-1", kind: "flow" },
+    ],
+  },
+  {
+    id: "rastro-frigorifico",
+    label: "Rastro / Frigorífico",
+    description:
+      "Plantilla editable de un rastro / frigorífico (procesadora de carne) típico de México (16000×10000 mm): corral de recepción, área de matanza con riel, deshuese, cámara fría, área de lavado, despacho, oficina y baño.",
+    category: "architecture",
+    baseWidth: 16000,
+    baseHeight: 10000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 14600, 8600, "architecture", ["shell", "rastro-frigorifico", "muro", "perimetral"]),
+      asset("porton", "door", "Portón de recepción", 1200, 650, 1600, 260, "architecture", ["rastro-frigorifico", "porton", "entrada", "acceso"]),
+      asset("corral", "zone", "Corral de recepción", 800, 900, 3600, 3200, "layout", ["rastro-frigorifico", "corral", "ganado", "recepcion", "zona"]),
+      asset("matanza", "room", "Área de matanza", 4800, 900, 3600, 3200, "architecture", ["rastro-frigorifico", "matanza", "sacrificio", "cuarto"]),
+      asset("riel", "meat-rail", "Riel aéreo", 5000, 1200, 3200, 300, "equipment", ["rastro-frigorifico", "riel", "canal", "transporte"]),
+      asset("deshuese", "room", "Deshuese", 8800, 900, 3600, 3200, "architecture", ["rastro-frigorifico", "deshuese", "corte", "cuarto"]),
+      asset("mesa-deshuese", "workbench", "Mesa de deshuese", 9000, 1200, 3200, 900, "equipment", ["rastro-frigorifico", "mesa", "deshuese", "corte"]),
+      asset("camara-fria", "room", "Cámara fría", 12800, 900, 2000, 4400, "architecture", ["rastro-frigorifico", "camara-fria", "refrigeracion", "cuarto"]),
+      asset("refrigerador", "refrigerator", "Refrigerador", 13000, 1200, 1600, 1400, "equipment", ["rastro-frigorifico", "refrigerador", "frio", "carne"]),
+      asset("lavado", "zone", "Área de lavado", 800, 4700, 3600, 2200, "layout", ["rastro-frigorifico", "lavado", "sanitizacion", "zona"]),
+      asset("tarja-lavado", "kitchen-sink", "Tarja de lavado", 1000, 4900, 1600, 700, "equipment", ["rastro-frigorifico", "tarja", "lavado", "higiene"]),
+      asset("oficina", "room", "Oficina", 800, 7100, 2600, 1900, "architecture", ["rastro-frigorifico", "oficina", "administracion", "cuarto"]),
+      asset("bano", "room", "Baño", 3600, 7100, 2600, 1900, "architecture", ["rastro-frigorifico", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 3800, 7400, 600, 700, "equipment", ["rastro-frigorifico", "inodoro", "sanitario", "bano"]),
+      asset("despacho", "zone", "Despacho y carga", 6600, 4700, 8200, 4300, "layout", ["rastro-frigorifico", "despacho", "carga", "embarque", "zona"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 4500, 900, 300, 300, "safety", ["rastro-frigorifico", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Rastro / Frigorífico — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "corral", toRef: "matanza", kind: "flow" },
+      { fromRef: "matanza", toRef: "deshuese", kind: "material" },
+      { fromRef: "deshuese", toRef: "camara-fria", kind: "material" },
+    ],
+  },
+  {
+    id: "clinica-estetica",
+    label: "Clínica estética",
+    description:
+      "Plantilla editable de una clínica de medicina estética típica de México (12000×8000 mm): recepción y sala de espera, dos cabinas de tratamiento, sala de láser, área de recuperación, oficina y baño.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["shell", "clinica-estetica", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada principal", 1200, 650, 1100, 260, "architecture", ["clinica-estetica", "entrada", "acceso", "puerta"]),
+      asset("recepcion", "zone", "Recepción", 800, 900, 3000, 1600, "layout", ["clinica-estetica", "recepcion", "atencion", "zona"]),
+      asset("mostrador", "counter", "Mostrador de recepción", 900, 1000, 2000, 500, "equipment", ["clinica-estetica", "mostrador", "recepcion", "atencion"]),
+      asset("sala-espera", "zone", "Sala de espera", 800, 2700, 3000, 2400, "layout", ["clinica-estetica", "sala-espera", "espera", "zona"]),
+      asset("sofa-espera", "sofa-3", "Sofá de espera", 900, 2900, 2000, 700, "equipment", ["clinica-estetica", "sofa", "espera", "mobiliario"]),
+      asset("cabina-1", "room", "Cabina de tratamiento 1", 4200, 900, 2600, 2000, "architecture", ["clinica-estetica", "cabina", "tratamiento", "cuarto"]),
+      asset("camilla-1", "exam-table", "Camilla de tratamiento", 4400, 1200, 1800, 1000, "equipment", ["clinica-estetica", "camilla", "tratamiento", "facial"]),
+      asset("cabina-2", "room", "Cabina de tratamiento 2", 7200, 900, 2600, 2000, "architecture", ["clinica-estetica", "cabina", "tratamiento", "cuarto"]),
+      asset("sala-laser", "room", "Sala de láser", 4200, 3100, 2600, 2000, "architecture", ["clinica-estetica", "laser", "depilacion", "cuarto"]),
+      asset("equipo-laser", "laser-machine", "Equipo de láser", 4400, 3300, 1200, 900, "equipment", ["clinica-estetica", "laser", "equipo", "depilacion"]),
+      asset("recuperacion", "zone", "Área de recuperación", 7200, 3100, 4000, 2000, "layout", ["clinica-estetica", "recuperacion", "descanso", "zona"]),
+      asset("oficina", "room", "Oficina", 4200, 5300, 3000, 1700, "architecture", ["clinica-estetica", "oficina", "administracion", "cuarto"]),
+      asset("bano", "room", "Baño", 800, 5300, 2600, 1700, "architecture", ["clinica-estetica", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 1000, 5600, 600, 700, "equipment", ["clinica-estetica", "inodoro", "sanitario", "bano"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 9800, 900, 300, 300, "safety", ["clinica-estetica", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Clínica estética — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion", kind: "flow" },
+      { fromRef: "recepcion", toRef: "cabina-1", kind: "flow" },
+      { fromRef: "cabina-1", toRef: "recuperacion", kind: "flow" },
+    ],
+  },
+  {
+    id: "centro-datos",
+    label: "Centro de datos",
+    description:
+      "Plantilla editable de un centro de datos (data center) típico de México (14000×9000 mm): control de acceso, sala de servidores con racks, sala de UPS, cuarto de clima (CRAC), planta de emergencia, NOC de monitoreo y baño.",
+    category: "architecture",
+    baseWidth: 14000,
+    baseHeight: 9000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 12600, 7600, "architecture", ["shell", "centro-datos", "muro", "perimetral"]),
+      asset("entrada", "door", "Entrada / control de acceso", 1200, 650, 1100, 260, "architecture", ["centro-datos", "entrada", "acceso", "puerta"]),
+      asset("recepcion", "zone", "Control de acceso", 800, 900, 2600, 1600, "layout", ["centro-datos", "recepcion", "acceso", "zona"]),
+      asset("sala-servidores", "room", "Sala de servidores", 3800, 900, 6800, 5600, "architecture", ["centro-datos", "servidores", "site", "cuarto"]),
+      asset("rack-1", "server-rack", "Rack de servidores 1", 4200, 1200, 1000, 900, "equipment", ["centro-datos", "rack", "servidor", "site"]),
+      asset("rack-2", "server-rack", "Rack de servidores 2", 5600, 1200, 1000, 900, "equipment", ["centro-datos", "rack", "servidor", "site"]),
+      asset("rack-3", "server-rack", "Rack de servidores 3", 7000, 1200, 1000, 900, "equipment", ["centro-datos", "rack", "servidor", "site"]),
+      asset("rack-4", "server-rack", "Rack de servidores 4", 4200, 2400, 1000, 900, "equipment", ["centro-datos", "rack", "servidor", "site"]),
+      asset("sala-ups", "room", "Sala de UPS", 800, 2700, 2600, 2400, "architecture", ["centro-datos", "ups", "baterias", "cuarto"]),
+      asset("ups", "ups-unit", "UPS / baterías", 1000, 2900, 2000, 900, "equipment", ["centro-datos", "ups", "baterias", "respaldo"]),
+      asset("clima", "room", "Cuarto de clima (CRAC)", 11000, 900, 2000, 2600, "architecture", ["centro-datos", "clima", "crac", "enfriamiento", "cuarto"]),
+      asset("planta", "room", "Planta de emergencia", 11000, 3700, 2000, 2800, "architecture", ["centro-datos", "planta", "generador", "emergencia", "cuarto"]),
+      asset("monitoreo", "zone", "NOC de monitoreo", 800, 5300, 3000, 2700, "layout", ["centro-datos", "noc", "monitoreo", "zona"]),
+      asset("escritorio-noc", "desk", "Escritorio de monitoreo", 1000, 5500, 1800, 700, "equipment", ["centro-datos", "escritorio", "noc", "monitoreo"]),
+      asset("bano", "room", "Baño", 4200, 6900, 2600, 1100, "architecture", ["centro-datos", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 4400, 7100, 600, 700, "equipment", ["centro-datos", "inodoro", "sanitario", "bano"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 10700, 900, 300, 300, "safety", ["centro-datos", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Centro de datos — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion", kind: "flow" },
+      { fromRef: "recepcion", toRef: "sala-servidores", kind: "flow" },
+      { fromRef: "sala-ups", toRef: "sala-servidores", kind: "material" },
+    ],
+  },
+  {
+    id: "recicladora",
+    label: "Recicladora / Centro de acopio",
+    description:
+      "Plantilla editable de una recicladora / centro de acopio típico de México (16000×10000 mm): recepción de material con báscula, banda de separación, área de prensado, almacenes de papel, plástico y metal, oficina y baño.",
+    category: "architecture",
+    baseWidth: 16000,
+    baseHeight: 10000,
+    assets: [
+      asset("muro-perimetral", "room", "Muro perimetral", 700, 700, 14600, 8600, "architecture", ["shell", "recicladora", "muro", "perimetral"]),
+      asset("porton", "door", "Portón de acceso", 1200, 650, 1600, 260, "architecture", ["recicladora", "porton", "entrada", "acceso"]),
+      asset("recepcion-material", "zone", "Recepción de material", 800, 900, 4600, 3200, "layout", ["recicladora", "recepcion", "acopio", "zona"]),
+      asset("bascula", "scale", "Báscula de pesaje", 1000, 1200, 1400, 900, "equipment", ["recicladora", "bascula", "peso", "acopio"]),
+      asset("separacion", "zone", "Banda de separación", 5800, 900, 5000, 3200, "layout", ["recicladora", "separacion", "clasificacion", "zona"]),
+      asset("banda", "conveyor-belt", "Banda transportadora", 6000, 1200, 4600, 700, "equipment", ["recicladora", "banda", "transportadora", "separacion"]),
+      asset("prensa", "room", "Área de prensado", 11200, 900, 3600, 3200, "architecture", ["recicladora", "prensa", "compactado", "cuarto"]),
+      asset("prensa-paca", "baler", "Prensa de pacas", 11400, 1200, 3200, 1400, "equipment", ["recicladora", "prensa", "paca", "compactadora"]),
+      asset("almacen-papel", "zone", "Almacén de papel y cartón", 800, 4700, 4600, 4300, "layout", ["recicladora", "almacen", "papel", "carton", "zona"]),
+      asset("almacen-plastico", "zone", "Almacén de plástico", 5800, 4700, 4600, 4300, "layout", ["recicladora", "almacen", "plastico", "pet", "zona"]),
+      asset("almacen-metal", "zone", "Almacén de metal", 10800, 4700, 4000, 2100, "layout", ["recicladora", "almacen", "metal", "chatarra", "zona"]),
+      asset("oficina", "room", "Oficina", 10800, 7000, 2000, 2000, "architecture", ["recicladora", "oficina", "administracion", "cuarto"]),
+      asset("bano", "room", "Baño", 13000, 7000, 1800, 2000, "architecture", ["recicladora", "bano", "sanitario", "cuarto"]),
+      asset("inodoro", "wc", "Inodoro", 13200, 7300, 600, 700, "equipment", ["recicladora", "inodoro", "sanitario", "bano"]),
+      asset("extintor", "fire-extinguisher", "Extintor", 5500, 900, 300, 300, "safety", ["recicladora", "extintor", "seguridad", "proteccion-civil"]),
+    ],
+    annotations: [
+      note("titulo", "Recicladora / Centro de acopio — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "recepcion-material", toRef: "separacion", kind: "material" },
+      { fromRef: "separacion", toRef: "prensa", kind: "material" },
+      { fromRef: "prensa", toRef: "almacen-papel", kind: "material" },
     ],
   },
 ];
