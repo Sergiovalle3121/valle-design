@@ -509,3 +509,17 @@ assert.ok(
   searchCadSymbols("nixtamal").some((symbol) => symbol.id === "nixtamal-mill"),
   "search finds molino de nixtamal",
 );
+
+// Trigésima primera tanda universal (AXOS-CAD-UNIVERSAL-068): escenario.
+assert.ok(
+  searchCadSymbols("bocina").some((symbol) => symbol.id === "speaker"),
+  "search finds bocina",
+);
+assert.ok(
+  searchCadSymbols("tarima").some((symbol) => symbol.id === "stage"),
+  "search finds tarima",
+);
+assert.ok(
+  searchCadSymbols("ballet").some((symbol) => symbol.id === "ballet-barre"),
+  "search finds barra de ballet",
+);

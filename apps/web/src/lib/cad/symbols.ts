@@ -1341,6 +1341,37 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["molino", "nixtamal", "masa", "tortillería", "tortilleria"],
     ports: [],
   },
+  // — Trigésima primera tanda universal (AXOS-CAD-UNIVERSAL-068): escenario y baile —
+  {
+    id: "speaker",
+    label: "Bocina",
+    category: "equipment",
+    defaultWidth: 500,
+    defaultHeight: 400,
+    layer: "Furniture",
+    tags: ["bocina", "bafle", "speaker", "audio", "sonido", "fiesta"],
+    ports: [],
+  },
+  {
+    id: "stage",
+    label: "Tarima / Escenario",
+    category: "equipment",
+    defaultWidth: 4000,
+    defaultHeight: 2000,
+    layer: "Furniture",
+    tags: ["tarima", "escenario", "stage", "eventos", "templete"],
+    ports: [],
+  },
+  {
+    id: "ballet-barre",
+    label: "Barra de ballet",
+    category: "equipment",
+    defaultWidth: 2500,
+    defaultHeight: 150,
+    layer: "Furniture",
+    tags: ["barra de ballet", "ballet", "danza", "baile", "academia"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {
