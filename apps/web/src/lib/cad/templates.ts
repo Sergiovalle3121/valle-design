@@ -60,7 +60,8 @@ export type CadLayoutTemplateId =
   | "llantera"
   | "purificadora"
   | "optica"
-  | "departamento";
+  | "departamento"
+  | "rosticeria";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -1936,6 +1937,34 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "sala-dep", kind: "flow" },
       { fromRef: "sala-dep", toRef: "comedor-dep", kind: "flow" },
       { fromRef: "cocina-dep", toRef: "comedor-dep", kind: "material" },
+    ],
+  },
+  {
+    id: "rosticeria",
+    label: "Rosticería",
+    description: "Arranque universal de rosticería: mostrador con horno rosticero al frente, caja registradora, vitrina de complementos, mesa de preparación, refrigerador, cuarto frío y despacho.",
+    category: "architecture",
+    baseWidth: 9000,
+    baseHeight: 6000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 7600, 4600, "architecture", ["architecture", "shell", "rosticeria"]),
+      asset("entrada", "door", "Entrada", 3500, 650, 1000, 260, "architecture", ["door", "opening:entry"]),
+      asset("mostrador-ros", "counter", "Mostrador", 1500, 1400, 1800, 600, "equipment", ["counter", "rosticeria"]),
+      asset("rosticero-ros", "rotisserie", "Horno rosticero", 3600, 1400, 900, 700, "equipment", ["rosticero", "rosticeria"]),
+      asset("registradora-ros", "cash-register", "Caja registradora", 4800, 1400, 450, 400, "equipment", ["caja", "cobro", "rosticeria"]),
+      asset("vitrina-ros", "display-case", "Vitrina de complementos", 5600, 1400, 1500, 600, "equipment", ["vitrina", "rosticeria"]),
+      asset("mesa-prep-ros", "workbench", "Mesa de preparación", 1500, 2800, 2000, 800, "equipment", ["mesa", "preparacion", "rosticeria"]),
+      asset("refri-ros", "refrigerator", "Refrigerador", 3900, 2800, 800, 700, "equipment", ["refrigerador", "rosticeria"]),
+      asset("despacho-ros", "zone", "Despacho", 1300, 4000, 2600, 1200, "layout", ["zone", "use:service", "rosticeria"]),
+      asset("cuarto-frio-ros", "room", "Cuarto frío", 6000, 3200, 1900, 1800, "architecture", ["room", "use:coldroom", "rosticeria"]),
+    ],
+    annotations: [
+      note("titulo", "Rosticería — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "mostrador-ros", kind: "flow" },
+      { fromRef: "cuarto-frio-ros", toRef: "mesa-prep-ros", kind: "material" },
+      { fromRef: "mesa-prep-ros", toRef: "rosticero-ros", kind: "material" },
     ],
   },
 ];
