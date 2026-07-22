@@ -1310,6 +1310,37 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["salida de emergencia", "emergencia", "ruta de evacuación", "ruta de evacuacion", "exit", "protección civil", "proteccion civil"],
     ports: [],
   },
+  // — Trigésima tanda universal (AXOS-CAD-UNIVERSAL-066): masa y repostería —
+  {
+    id: "bread-rack",
+    label: "Espiguero",
+    category: "equipment",
+    defaultWidth: 700,
+    defaultHeight: 500,
+    layer: "Furniture",
+    tags: ["espiguero", "charolas", "pan", "panadería", "panaderia"],
+    ports: [],
+  },
+  {
+    id: "stand-mixer",
+    label: "Batidora planetaria",
+    category: "equipment",
+    defaultWidth: 450,
+    defaultHeight: 450,
+    layer: "Furniture",
+    tags: ["batidora", "planetaria", "pastelería", "pasteleria", "repostería", "reposteria"],
+    ports: [],
+  },
+  {
+    id: "nixtamal-mill",
+    label: "Molino de nixtamal",
+    category: "equipment",
+    defaultWidth: 700,
+    defaultHeight: 600,
+    layer: "Furniture",
+    tags: ["molino", "nixtamal", "masa", "tortillería", "tortilleria"],
+    ports: [],
+  },
 ] as const;
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {

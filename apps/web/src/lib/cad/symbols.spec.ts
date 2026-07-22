@@ -495,3 +495,17 @@ assert.ok(
   ),
   "search finds protección civil → extintor",
 );
+
+// Trigésima tanda universal (AXOS-CAD-UNIVERSAL-066): masa y repostería.
+assert.ok(
+  searchCadSymbols("espiguero").some((symbol) => symbol.id === "bread-rack"),
+  "search finds espiguero",
+);
+assert.ok(
+  searchCadSymbols("batidora").some((symbol) => symbol.id === "stand-mixer"),
+  "search finds batidora",
+);
+assert.ok(
+  searchCadSymbols("nixtamal").some((symbol) => symbol.id === "nixtamal-mill"),
+  "search finds molino de nixtamal",
+);
