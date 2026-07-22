@@ -72,7 +72,8 @@ export type CadLayoutTemplateId =
   | "taller-celulares"
   | "mercado"
   | "parque-vecinal"
-  | "estancia-adultos";
+  | "estancia-adultos"
+  | "salon-fiestas-infantil";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -2302,6 +2303,39 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "recepcion-est", kind: "flow" },
       { fromRef: "recepcion-est", toRef: "sala-est", kind: "flow" },
       { fromRef: "sala-est", toRef: "comedor-est", kind: "flow" },
+    ],
+  },
+  {
+    id: "salon-fiestas-infantil",
+    label: "Salón de fiestas infantiles",
+    description: "Arranque universal de salón infantil: recepción, área de juegos con brincolín, escenario con bocinas, mesas para invitados, cocina de servicio y baños.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["architecture", "shell", "salon-fiestas-infantil"]),
+      asset("entrada", "door", "Entrada", 5000, 650, 1500, 260, "architecture", ["door", "opening:entry"]),
+      asset("recepcion-inf", "counter", "Recepción", 1200, 1200, 1500, 600, "equipment", ["counter", "salon-fiestas-infantil"]),
+      asset("juegos-inf", "playground", "Área de juegos", 1200, 2200, 3200, 2600, "equipment", ["juegos", "brincolin", "salon-fiestas-infantil"]),
+      asset("escenario-inf", "stage", "Escenario", 8400, 1200, 3000, 2000, "equipment", ["escenario", "show", "salon-fiestas-infantil"]),
+      asset("bocina-inf-1", "speaker", "Bocina", 8400, 3400, 500, 400, "equipment", ["bocina", "salon-fiestas-infantil"]),
+      asset("bocina-inf-2", "speaker", "Bocina", 10900, 3400, 500, 400, "equipment", ["bocina", "salon-fiestas-infantil"]),
+      asset("mesa-inf-1", "restaurant-table-4", "Mesa de invitados", 5200, 2400, 900, 900, "equipment", ["table", "salon-fiestas-infantil"]),
+      asset("mesa-inf-2", "restaurant-table-4", "Mesa de invitados", 6600, 2400, 900, 900, "equipment", ["table", "salon-fiestas-infantil"]),
+      asset("mesa-inf-3", "restaurant-table-4", "Mesa de invitados", 5200, 3800, 900, 900, "equipment", ["table", "salon-fiestas-infantil"]),
+      asset("mesa-inf-4", "restaurant-table-4", "Mesa de invitados", 6600, 3800, 900, 900, "equipment", ["table", "salon-fiestas-infantil"]),
+      asset("cocina-inf", "room", "Cocina de servicio", 1200, 5200, 3000, 1600, "architecture", ["room", "use:kitchen", "salon-fiestas-infantil"]),
+      asset("bano-inf", "room", "Baños", 4600, 5200, 2400, 1600, "architecture", ["room", "use:bathroom", "salon-fiestas-infantil"]),
+      asset("wc-inf", "wc", "WC", 4800, 5400, 400, 650, "equipment", ["wc", "salon-fiestas-infantil"]),
+      asset("basura-inf", "trash-bin", "Bote de basura", 7400, 5400, 400, 400, "equipment", ["basura", "salon-fiestas-infantil"]),
+    ],
+    annotations: [
+      note("titulo", "Salón infantil — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "entrada", toRef: "recepcion-inf", kind: "flow" },
+      { fromRef: "recepcion-inf", toRef: "juegos-inf", kind: "flow" },
+      { fromRef: "cocina-inf", toRef: "mesa-inf-3", kind: "material" },
     ],
   },
 ];
