@@ -69,7 +69,8 @@ export type CadLayoutTemplateId =
   | "refaccionaria"
   | "imprenta"
   | "salon-unas"
-  | "taller-celulares";
+  | "taller-celulares"
+  | "mercado";
 
 export interface CadTemplateAsset {
   ref: string;
@@ -2204,6 +2205,36 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       { fromRef: "entrada", toRef: "mostrador-cel", kind: "flow" },
       { fromRef: "mostrador-cel", toRef: "mesa-rep-cel", kind: "material" },
       { fromRef: "refacciones-cel", toRef: "mesa-rep-cel", kind: "material" },
+    ],
+  },
+  {
+    id: "mercado",
+    label: "Mercado / Pasaje comercial",
+    description: "Arranque universal de mercado: portón, pasillo central y seis puestos como locales independientes, con mostradores de muestra y bote de basura.",
+    category: "architecture",
+    baseWidth: 12000,
+    baseHeight: 8000,
+    assets: [
+      asset("shell", "room", "Muro perimetral", 700, 700, 10600, 6600, "architecture", ["architecture", "shell", "mercado"]),
+      asset("porton", "door", "Portón", 5000, 650, 2000, 260, "architecture", ["door", "opening:entry"]),
+      asset("pasillo-mer", "zone", "Pasillo central", 4700, 1200, 2600, 5600, "layout", ["zone", "use:aisle", "mercado"]),
+      asset("puesto-mer-1", "room", "Puesto 1", 1200, 1200, 3200, 1700, "architecture", ["room", "use:stall", "mercado"]),
+      asset("puesto-mer-2", "room", "Puesto 2", 1200, 3100, 3200, 1700, "architecture", ["room", "use:stall", "mercado"]),
+      asset("puesto-mer-3", "room", "Puesto 3", 1200, 5000, 3200, 1700, "architecture", ["room", "use:stall", "mercado"]),
+      asset("puesto-mer-4", "room", "Puesto 4", 7600, 1200, 3200, 1700, "architecture", ["room", "use:stall", "mercado"]),
+      asset("puesto-mer-5", "room", "Puesto 5", 7600, 3100, 3200, 1700, "architecture", ["room", "use:stall", "mercado"]),
+      asset("puesto-mer-6", "room", "Puesto 6", 7600, 5000, 3200, 1700, "architecture", ["room", "use:stall", "mercado"]),
+      asset("mostrador-mer-1", "counter", "Mostrador", 1400, 1400, 1500, 500, "equipment", ["counter", "mercado"]),
+      asset("mostrador-mer-4", "counter", "Mostrador", 7800, 1400, 1500, 500, "equipment", ["counter", "mercado"]),
+      asset("basura-mer", "trash-bin", "Bote de basura", 5800, 6400, 400, 400, "equipment", ["basura", "mercado"]),
+    ],
+    annotations: [
+      note("titulo", "Mercado — plantilla universal editable", 1200, 420, "measurements"),
+    ],
+    connectors: [
+      { fromRef: "porton", toRef: "pasillo-mer", kind: "flow" },
+      { fromRef: "pasillo-mer", toRef: "puesto-mer-1", kind: "flow" },
+      { fromRef: "pasillo-mer", toRef: "puesto-mer-4", kind: "flow" },
     ],
   },
 ];
