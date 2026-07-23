@@ -219,9 +219,14 @@ kernel. El gap DXF de AXOS CAD **no es de kernel, es de cableado**.
 
 **Pendiente DXF (deuda honesta):** el HATCH importado sólo avisa (dxf-parser lo
 descarta antes de nuestro mapper; recuperar el relleno exigiría parsear HATCH a
-mano); la capa importada viaja como tag, no como definición de capa real.
-ARC/ELLIPSE/SPLINE importados se materializan por teselado (CAD-NEXT-062), no
-como entidades curvas editables. La persistencia canónica NO duplica el
+mano); la capa importada sigue viajando como tag `dxf-layer:` (el modelo de
+capas CAD es una unión cerrada, no admite capas arbitrarias), pero
+**CAD-NEXT-063b** ya la mapea por nombre a la capa CAD semánticamente correcta
+al materializar: `mapDxfLayerToCadLayer` clasifica MUROS→architecture,
+COLUMNAS→structure, ELEC/HVAC→utilities, EJES/DIMS→measurements,
+EGRESS→safety, etc., así el dibujo importado aterriza en capas alternables y
+bloqueables en vez de amontonarse en "layout". ARC/ELLIPSE/SPLINE importados se
+materializan por teselado (CAD-NEXT-062), no como entidades curvas editables. La persistencia canónica NO duplica el
 documento en el servidor: el layout persistido round-tripea sin pérdida con
 `CadDocument` por los adaptadores probados, así que almacenar una copia
 serializada sería duplicación con riesgo de divergencia (decisión CAD-NEXT-011

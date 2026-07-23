@@ -76,6 +76,7 @@ import { createDefaultIndustryRegistry, type SmartObjectInstance } from '@/lib/c
 import { summarizeIndustryObjects, industryRollupToCsv, type IndustrySummary } from '@/lib/cad/industry-rollup';
 import { tessellateDxfPrimitive } from '@/lib/cad/curve-tessellate';
 import { DWG_UNAVAILABLE_REASON } from '@/lib/cad/interop-provider';
+import { mapDxfLayerToCadLayer } from '@/lib/cad/dxf-layer-map';
 import { CAD_LAYOUT_TEMPLATES, instantiateCadLayoutTemplate, type CadLayoutTemplateId } from '@/lib/cad/templates';
 import {
   generateWarehouseDockStaging,
@@ -3595,7 +3596,7 @@ export default function Layout3DEditor({
         if (maxX - minX >= 80 && maxY - minY >= 80) {
           const id = newId('as');
           assetsRef.current.set(id, { id, kind: 'zone', label: `DXF zone · ${primitive.layer}`, x: snapWorld(minX), y: snapWorld(minY), w: snapWorld(maxX - minX), h: snapWorld(maxY - minY), rotation: 0 });
-          created.push({ type: 'asset', id }); layerUpdates[id] = 'layout'; tagUpdates[id] = `dxf, dxf-layer:${primitive.layer}, editable-zone`;
+          created.push({ type: 'asset', id }); layerUpdates[id] = mapDxfLayerToCadLayer(primitive.layer, 'layout'); tagUpdates[id] = `dxf, dxf-layer:${primitive.layer}, editable-zone`;
         }
         continue;
       }
@@ -3608,7 +3609,7 @@ export default function Layout3DEditor({
           const d = snapWorld(r * 2);
           const id = newId('as');
           assetsRef.current.set(id, { id, kind: 'zone', label: `DXF círculo · ${primitive.layer}`, x: snapWorld(points[0].x - r), y: snapWorld(points[0].y - r), w: d, h: d, rotation: 0, shape: 'circle' });
-          created.push({ type: 'asset', id }); layerUpdates[id] = 'layout'; tagUpdates[id] = `dxf, dxf-layer:${primitive.layer}, editable-circle`;
+          created.push({ type: 'asset', id }); layerUpdates[id] = mapDxfLayerToCadLayer(primitive.layer, 'layout'); tagUpdates[id] = `dxf, dxf-layer:${primitive.layer}, editable-circle`;
         }
         continue;
       }
@@ -3622,7 +3623,7 @@ export default function Layout3DEditor({
       for (let i = 0; i + 1 < chain.length; i++) {
         if (created.length >= cap) { truncated = true; break; }
         const id = createDxfWallAsset(chain[i], chain[i + 1], `DXF ${curvePoints ? primitive.kind : 'line'} · ${primitive.layer}`);
-        if (id) { created.push({ type: 'asset', id }); layerUpdates[id] = 'architecture'; tagUpdates[id] = `dxf, dxf-layer:${primitive.layer}, editable-wall, architecture`; }
+        if (id) { created.push({ type: 'asset', id }); layerUpdates[id] = mapDxfLayerToCadLayer(primitive.layer, 'architecture'); tagUpdates[id] = `dxf, dxf-layer:${primitive.layer}, editable-wall, architecture`; }
       }
     }
     if (!created.length && !notes) { toast.error('No se encontraron entidades DXF seguras para convertir.', 'DXF'); return; }
