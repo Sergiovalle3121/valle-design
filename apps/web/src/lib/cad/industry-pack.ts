@@ -345,11 +345,135 @@ export const civilPack: IndustryPack = {
   objects: [parkingStallObject],
 };
 
+// ---------------------------------------------------------------------------
+// Pack 4 — Logística / Almacén: rack de pallets + pasillo de montacargas
+// ---------------------------------------------------------------------------
+
+/** Huella estándar de un pallet (mm) y holgura por posición. */
+const PALLET_W = 1200;
+const PALLET_D = 1000;
+const PALLET_SLOT_GAP = 100;
+/** Ancho mínimo de pasillo para montacargas contrapesado (aprox., mm). */
+const FORKLIFT_AISLE_MIN = 3500;
+
+/**
+ * Rack de pallets: caja rectangular; calcula posiciones por nivel (a lo largo
+ * del frente) y capacidad total = posiciones × niveles.
+ */
+export const palletRackObject: IndustryObjectDef = {
+  id: "logistics.pallet-rack",
+  label: "Rack de pallets",
+  industry: "logistica",
+  category: "almacenamiento",
+  fields: [
+    { key: "length", label: "Frente", type: "number", unit: "mm", default: 8400, min: 1 },
+    { key: "depth", label: "Fondo", type: "number", unit: "mm", default: 1100, min: 1 },
+    { key: "levels", label: "Niveles", type: "number", default: 4, min: 1 },
+  ],
+  toEntities: (instance) => {
+    const length = numField(palletRackObject, instance, "length");
+    const depth = numField(palletRackObject, instance, "depth");
+    return [
+      {
+        id: instance.id,
+        type: "box",
+        kind: "rack",
+        x: instance.x,
+        y: instance.y,
+        w: length,
+        h: depth,
+        rotation: instance.rotation ?? 0,
+        layer: "logistica",
+        shape: "rect",
+        label: "Rack de pallets",
+      },
+    ];
+  },
+  calculate: (instance) => {
+    const length = numField(palletRackObject, instance, "length");
+    const levels = Math.max(1, Math.floor(numField(palletRackObject, instance, "levels")));
+    const slotsPerLevel = Math.floor(length / (PALLET_W + PALLET_SLOT_GAP));
+    return {
+      slotsPerLevel,
+      palletPositions: slotsPerLevel * levels,
+      frontMeters: round2(length / 1000),
+    };
+  },
+  validate: (instance) => {
+    const findings: IndustryFinding[] = [];
+    const depth = numField(palletRackObject, instance, "depth");
+    if (depth < PALLET_D)
+      findings.push({
+        level: "warning",
+        message: `Fondo ${depth} mm menor que un pallet (${PALLET_D} mm): el pallet sobresaldría.`,
+      });
+    if (numField(palletRackObject, instance, "length") < PALLET_W + PALLET_SLOT_GAP)
+      findings.push({ level: "error", message: "El frente no cabe ni una posición de pallet." });
+    return findings;
+  },
+};
+
+/**
+ * Pasillo de montacargas: zona rectangular con REGLA NORMATIVA de ancho mínimo
+ * para operación segura de montacargas contrapesado.
+ */
+export const forkliftAisleObject: IndustryObjectDef = {
+  id: "logistics.forklift-aisle",
+  label: "Pasillo de montacargas",
+  industry: "logistica",
+  category: "vialidad",
+  fields: [
+    { key: "width", label: "Ancho", type: "number", unit: "mm", default: 3500, min: 1 },
+    { key: "length", label: "Largo", type: "number", unit: "mm", default: 20000, min: 1 },
+  ],
+  toEntities: (instance) => {
+    const width = numField(forkliftAisleObject, instance, "width");
+    const length = numField(forkliftAisleObject, instance, "length");
+    return [
+      {
+        id: instance.id,
+        type: "box",
+        kind: "agvpath",
+        x: instance.x,
+        y: instance.y,
+        w: width,
+        h: length,
+        rotation: instance.rotation ?? 0,
+        layer: "logistica",
+        shape: "rect",
+        label: "Pasillo montacargas",
+      },
+    ];
+  },
+  calculate: (instance) => {
+    const width = numField(forkliftAisleObject, instance, "width");
+    const length = numField(forkliftAisleObject, instance, "length");
+    return { areaM2: round2((width * length) / MM2_PER_M2), lengthMeters: round2(length / 1000) };
+  },
+  validate: (instance) => {
+    const findings: IndustryFinding[] = [];
+    const width = numField(forkliftAisleObject, instance, "width");
+    if (width < FORKLIFT_AISLE_MIN)
+      findings.push({
+        level: "error",
+        message: `Pasillo de ${width} mm: un montacargas contrapesado requiere ≥ ${FORKLIFT_AISLE_MIN} mm.`,
+      });
+    return findings;
+  },
+};
+
+export const logisticsPack: IndustryPack = {
+  id: "logistica",
+  label: "Logística / Almacén",
+  objects: [forkliftAisleObject, palletRackObject],
+};
+
 /** Crea un registro con los packs de arranque ya cargados. */
 export function createDefaultIndustryRegistry(): IndustryPackRegistry {
   const registry = new IndustryPackRegistry();
   registry.register(manufacturingPack);
   registry.register(processPack);
   registry.register(civilPack);
+  registry.register(logisticsPack);
   return registry;
 }

@@ -11,14 +11,21 @@ import { layoutToCadDocument, cadDocumentToLayout, type CadEntity } from "./cad-
 const registry = createDefaultIndustryRegistry();
 
 // --- el registro carga los packs y los aplana ------------------------------
-assert.equal(registry.listPacks().length, 3, "tres packs cargados");
+assert.equal(registry.listPacks().length, 4, "cuatro packs cargados");
 assert.deepEqual(
   registry.listObjects().map((o) => o.id),
-  ["civil.parking-stall", "mfg.workstation", "process.tank"],
+  [
+    "civil.parking-stall",
+    "logistics.forklift-aisle",
+    "logistics.pallet-rack",
+    "mfg.workstation",
+    "process.tank",
+  ],
   "objetos aplanados y ordenados por id",
 );
 assert.equal(registry.getObject("mfg.workstation")?.industry, "manufactura");
 assert.equal(registry.getObject("civil.parking-stall")?.industry, "civil");
+assert.equal(registry.getObject("logistics.pallet-rack")?.industry, "logistica");
 
 // --- objeto 1: estación de trabajo → CAJA rectangular ----------------------
 const ws: SmartObjectInstance = {
@@ -91,6 +98,25 @@ assert.ok(registry.validate(narrowAccessible).some((f) => f.level === "error"), 
 // Ancho por debajo del mínimo recomendado (no accesible) → aviso.
 const narrow: SmartObjectInstance = { id: "p3", objectId: "civil.parking-stall", x: 0, y: 0, props: { width: 2000 } };
 assert.ok(registry.validate(narrow).some((f) => f.level === "warning"), "ancho < 2400 mm → aviso");
+
+// --- pack 4: logística — rack de pallets y pasillo normativo -----------------
+const rack: SmartObjectInstance = { id: "r1", objectId: "logistics.pallet-rack", x: 0, y: 0, props: { length: 8400, depth: 1100, levels: 4 } };
+const rackBox = registry.instantiate(rack)[0];
+assert.ok(rackBox.type === "box" && rackBox.w === 8400 && rackBox.h === 1100, "rack con su huella");
+const rackCalc = registry.calculate(rack);
+assert.equal(rackCalc.slotsPerLevel, 6, "8400 / (1200+100) = 6 posiciones por nivel");
+assert.equal(rackCalc.palletPositions, 24, "6 × 4 niveles = 24 pallets");
+assert.equal(registry.validate(rack).length, 0, "rack estándar válido");
+const shallowRack: SmartObjectInstance = { id: "r2", objectId: "logistics.pallet-rack", x: 0, y: 0, props: { depth: 800 } };
+assert.ok(registry.validate(shallowRack).some((f) => f.level === "warning"), "fondo < pallet → aviso");
+const tinyRack: SmartObjectInstance = { id: "r3", objectId: "logistics.pallet-rack", x: 0, y: 0, props: { length: 1000 } };
+assert.ok(registry.validate(tinyRack).some((f) => f.level === "error"), "frente sin posiciones → error");
+
+const aisle: SmartObjectInstance = { id: "pa1", objectId: "logistics.forklift-aisle", x: 0, y: 0, props: { width: 3500, length: 20000 } };
+assert.equal(registry.calculate(aisle).areaM2, 70, "3.5 × 20 = 70 m²");
+assert.equal(registry.validate(aisle).length, 0, "pasillo de 3500 mm cumple");
+const narrowAisle: SmartObjectInstance = { id: "pa2", objectId: "logistics.forklift-aisle", x: 0, y: 0, props: { width: 2500 } };
+assert.ok(registry.validate(narrowAisle).some((f) => f.level === "error"), "pasillo angosto → error normativo");
 
 // --- objeto desconocido ------------------------------------------------------
 const unknown: SmartObjectInstance = { id: "x", objectId: "nope", x: 0, y: 0, props: {} };
