@@ -11,7 +11,7 @@ import { layoutToCadDocument, cadDocumentToLayout, type CadEntity } from "./cad-
 const registry = createDefaultIndustryRegistry();
 
 // --- el registro carga los packs y los aplana ------------------------------
-assert.equal(registry.listPacks().length, 4, "cuatro packs cargados");
+assert.equal(registry.listPacks().length, 5, "cinco packs cargados");
 assert.deepEqual(
   registry.listObjects().map((o) => o.id),
   [
@@ -20,6 +20,8 @@ assert.deepEqual(
     "logistics.pallet-rack",
     "mfg.workstation",
     "process.tank",
+    "retail.checkout-lane",
+    "retail.gondola",
   ],
   "objetos aplanados y ordenados por id",
 );
@@ -117,6 +119,29 @@ assert.equal(registry.calculate(aisle).areaM2, 70, "3.5 × 20 = 70 m²");
 assert.equal(registry.validate(aisle).length, 0, "pasillo de 3500 mm cumple");
 const narrowAisle: SmartObjectInstance = { id: "pa2", objectId: "logistics.forklift-aisle", x: 0, y: 0, props: { width: 2500 } };
 assert.ok(registry.validate(narrowAisle).some((f) => f.level === "error"), "pasillo angosto → error normativo");
+
+// --- pack 5: retail — góndola con facings y línea de cajas con fila ----------
+const gondola: SmartObjectInstance = { id: "g1", objectId: "retail.gondola", x: 0, y: 0, props: { length: 3600, depth: 600, levels: 5, facingWidth: 300 } };
+const gondolaBox = registry.instantiate(gondola)[0];
+assert.ok(gondolaBox.type === "box" && gondolaBox.w === 3600 && gondolaBox.h === 600, "góndola con su huella");
+const gondolaCalc = registry.calculate(gondola);
+assert.equal(gondolaCalc.facingsPerLevel, 12, "3600 / 300 = 12 facings por nivel");
+assert.equal(gondolaCalc.totalFacings, 60, "12 × 5 niveles = 60 facings");
+assert.equal(registry.validate(gondola).length, 0, "góndola estándar válida");
+const tinyGondola: SmartObjectInstance = { id: "g2", objectId: "retail.gondola", x: 0, y: 0, props: { length: 200, facingWidth: 300 } };
+assert.ok(registry.validate(tinyGondola).some((f) => f.level === "error"), "frente sin facings → error");
+
+const lane: SmartObjectInstance = { id: "c1", objectId: "retail.checkout-lane", x: 100, y: 100, props: { width: 1500, depth: 2400, queueSpace: 4000 } };
+const laneEntities = registry.instantiate(lane);
+assert.equal(laneEntities.length, 2, "la caja de cobro emite mueble + zona de fila");
+const laneQueue = laneEntities.find((e) => e.id === "c1:queue");
+assert.ok(laneQueue && laneQueue.type === "box" && laneQueue.kind === "zone", "la fila es una zona propia");
+assert.ok(laneQueue && laneQueue.type === "box" && laneQueue.y === 100 + 2400 && laneQueue.h === 4000, "la fila queda detrás del mueble con su espacio");
+const laneCalc = registry.calculate(lane);
+assert.equal(laneCalc.shoppersInQueue, 6, "4000 / 600 = 6 clientes en fila");
+assert.equal(registry.validate(lane).length, 0, "fila de 4000 mm cumple");
+const shortLane: SmartObjectInstance = { id: "c2", objectId: "retail.checkout-lane", x: 0, y: 0, props: { queueSpace: 2000 } };
+assert.ok(registry.validate(shortLane).some((f) => f.level === "warning"), "fila corta → aviso");
 
 // --- objeto desconocido ------------------------------------------------------
 const unknown: SmartObjectInstance = { id: "x", objectId: "nope", x: 0, y: 0, props: {} };

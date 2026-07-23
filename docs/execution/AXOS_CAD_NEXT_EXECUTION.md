@@ -411,3 +411,14 @@ Gates verdes: `tsc` (web+api), `eslint`, `test:specs` (81/81), `check:nav`,
    los dos barridos del editor dejan de ser O(n²), con **equivalencia probada**
    (300 cajas → resultados idénticos al doble bucle, mismo orden).
 9. **CAD-NEXT-011** — persistencia/undo del editor sobre `CadDocument`.
+10. **CAD-NEXT-092/093 (verticales 4 y 5)** — **✓ hechos**: **Logística/Almacén**
+    (rack de pallets con posiciones por nivel = `floor(frente / (1200+100))` ×
+    niveles, aviso si el fondo no cubre un pallet; pasillo de montacargas con
+    regla normativa de ancho ≥ 3500 mm) y **Retail/Comercio** (góndola con
+    facings por nivel/totales y error si el frente no cabe un facing; línea de
+    cajas que emite DOS entidades — el mueble y una **zona de fila** `id:queue`
+    detrás — con aviso si la fila baja de 4000 mm y clientes estimados =
+    `floor(fila/600)`). Ya son **cinco industrias** (manufactura, proceso,
+    civil, logística, retail) sobre el MISMO documento, registro, paleta y
+    motor de reglas; la zona de fila demuestra objetos inteligentes
+    multi-entidad revisables por las reglas como cualquier caja.

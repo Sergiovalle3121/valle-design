@@ -468,6 +468,133 @@ export const logisticsPack: IndustryPack = {
   objects: [forkliftAisleObject, palletRackObject],
 };
 
+// ---------------------------------------------------------------------------
+// Pack 5 — Retail / Comercio: góndola + línea de cajas
+// ---------------------------------------------------------------------------
+
+/** Espacio mínimo de fila frente a una caja de cobro (mm). */
+const CHECKOUT_QUEUE_MIN = 4000;
+
+/**
+ * Góndola de exhibición: calcula frentes (facings) por nivel a lo largo del
+ * frente y el total = frentes × niveles — el número que le importa a retail.
+ */
+export const gondolaObject: IndustryObjectDef = {
+  id: "retail.gondola",
+  label: "Góndola de exhibición",
+  industry: "retail",
+  category: "exhibición",
+  fields: [
+    { key: "length", label: "Frente", type: "number", unit: "mm", default: 3600, min: 1 },
+    { key: "depth", label: "Fondo", type: "number", unit: "mm", default: 600, min: 1 },
+    { key: "levels", label: "Niveles", type: "number", default: 5, min: 1 },
+    { key: "facingWidth", label: "Ancho de frente", type: "number", unit: "mm", default: 300, min: 1 },
+  ],
+  toEntities: (instance) => {
+    const length = numField(gondolaObject, instance, "length");
+    const depth = numField(gondolaObject, instance, "depth");
+    return [
+      {
+        id: instance.id,
+        type: "box",
+        kind: "rack",
+        x: instance.x,
+        y: instance.y,
+        w: length,
+        h: depth,
+        rotation: instance.rotation ?? 0,
+        layer: "retail",
+        shape: "rect",
+        label: "Góndola",
+      },
+    ];
+  },
+  calculate: (instance) => {
+    const length = numField(gondolaObject, instance, "length");
+    const levels = Math.max(1, Math.floor(numField(gondolaObject, instance, "levels")));
+    const facingWidth = Math.max(1, numField(gondolaObject, instance, "facingWidth"));
+    const facingsPerLevel = Math.floor(length / facingWidth);
+    return { facingsPerLevel, totalFacings: facingsPerLevel * levels, frontMeters: round2(length / 1000) };
+  },
+  validate: (instance) => {
+    const findings: IndustryFinding[] = [];
+    if (numField(gondolaObject, instance, "length") < numField(gondolaObject, instance, "facingWidth"))
+      findings.push({ level: "error", message: "El frente no cabe ni un facing." });
+    return findings;
+  },
+};
+
+/**
+ * Línea de cajas: mueble de cobro con REGLA de espacio de fila — sin ≥4 m de
+ * fila libre frente a la caja, el pasillo se bloquea en hora pico.
+ */
+export const checkoutLaneObject: IndustryObjectDef = {
+  id: "retail.checkout-lane",
+  label: "Línea de cajas",
+  industry: "retail",
+  category: "cobro",
+  fields: [
+    { key: "width", label: "Ancho", type: "number", unit: "mm", default: 1500, min: 1 },
+    { key: "depth", label: "Fondo", type: "number", unit: "mm", default: 2400, min: 1 },
+    { key: "queueSpace", label: "Espacio de fila", type: "number", unit: "mm", default: 4000, min: 0 },
+  ],
+  toEntities: (instance) => {
+    const width = numField(checkoutLaneObject, instance, "width");
+    const depth = numField(checkoutLaneObject, instance, "depth");
+    const queueSpace = Math.max(0, numField(checkoutLaneObject, instance, "queueSpace"));
+    return [
+      {
+        id: instance.id,
+        type: "box",
+        kind: "workbench",
+        x: instance.x,
+        y: instance.y,
+        w: width,
+        h: depth,
+        rotation: instance.rotation ?? 0,
+        layer: "retail",
+        shape: "rect",
+        label: "Caja de cobro",
+      },
+      // La fila se dibuja como zona propia (detrás del mueble): visible y
+      // revisable por el motor de reglas como cualquier otra caja.
+      {
+        id: `${instance.id}:queue`,
+        type: "box",
+        kind: "zone",
+        x: instance.x,
+        y: instance.y + depth,
+        w: width,
+        h: queueSpace,
+        rotation: instance.rotation ?? 0,
+        layer: "retail",
+        shape: "rect",
+        label: "Fila",
+      },
+    ];
+  },
+  calculate: (instance) => {
+    const queueSpace = Math.max(0, numField(checkoutLaneObject, instance, "queueSpace"));
+    return { queueMeters: round2(queueSpace / 1000), shoppersInQueue: Math.floor(queueSpace / 600) };
+  },
+  validate: (instance) => {
+    const findings: IndustryFinding[] = [];
+    const queueSpace = Math.max(0, numField(checkoutLaneObject, instance, "queueSpace"));
+    if (queueSpace < CHECKOUT_QUEUE_MIN)
+      findings.push({
+        level: "warning",
+        message: `Fila de ${queueSpace} mm: se recomiendan ≥ ${CHECKOUT_QUEUE_MIN} mm para no bloquear el pasillo.`,
+      });
+    return findings;
+  },
+};
+
+export const retailPack: IndustryPack = {
+  id: "retail",
+  label: "Retail / Comercio",
+  objects: [checkoutLaneObject, gondolaObject],
+};
+
 /** Crea un registro con los packs de arranque ya cargados. */
 export function createDefaultIndustryRegistry(): IndustryPackRegistry {
   const registry = new IndustryPackRegistry();
@@ -475,5 +602,6 @@ export function createDefaultIndustryRegistry(): IndustryPackRegistry {
   registry.register(processPack);
   registry.register(civilPack);
   registry.register(logisticsPack);
+  registry.register(retailPack);
   return registry;
 }
