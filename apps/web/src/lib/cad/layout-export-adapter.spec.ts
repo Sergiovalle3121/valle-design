@@ -3,6 +3,7 @@ import {
   cadLayoutToDxfExportModel,
   exportCadLayoutDxf,
 } from "./layout-export-adapter";
+import { importDxfPrimitives } from "./dxf-import";
 
 const input = {
   boxes: [{ id: "aoi", label: "AOI", x: 10, y: 10, width: 4, height: 2 }],
@@ -64,6 +65,27 @@ assert.equal(
   });
   assert.ok(dxf.content.includes("0\nCIRCLE"), "el DXF contiene una entidad CIRCLE");
   assert.ok(dxf.content.includes("40\n6"), "el CIRCLE lleva su radio (código 40)");
+}
+
+// Round-trip del cable de círculo (CAD-NEXT-020): el asset redondo del editor
+// se exporta por exportCadLayoutDxf (la MISMA función que llama el editor) y se
+// reimporta como un círculo, con su centro y radio intactos. Antes salía cuadrado.
+{
+  const dxf = exportCadLayoutDxf({
+    boxes: [{ id: "col", label: "Columna", x: 20, y: 30, width: 12, height: 12, shape: "circle" }],
+  });
+  const back = importDxfPrimitives(dxf.content);
+  const circle = back.primitives.find((p) => p.kind === "circle");
+  assert.ok(circle, "el círculo sobrevive el round-trip del editor como círculo");
+  assert.equal(circle?.radius, 6, "el radio (width/2) se conserva");
+  assert.ok(
+    circle?.points?.[0]?.x === 20 && circle?.points?.[0]?.y === 30,
+    "el centro del círculo se conserva",
+  );
+  assert.ok(
+    !back.warnings.some((w) => w.code === "unsupported_entity"),
+    "ninguna entidad queda como no soportada",
+  );
 }
 
 const exported = exportCadLayoutDxf(input);

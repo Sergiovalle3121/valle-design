@@ -1,0 +1,355 @@
+/**
+ * Framework de Industry Packs de AXOS CAD Next (CAD-NEXT-090).
+ *
+ * La ventaja competitiva de AXOS CAD frente a un CAD genérico es que un objeto
+ * no es sólo geometría: es un **objeto inteligente de un dominio** (una estación
+ * de trabajo, un tanque de proceso, un cajón de estacionamiento) con parámetros,
+ * cálculos de negocio y reglas. Un Industry Pack registra esos objetos para una
+ * industria concreta, pero TODOS comparten el mismo `CadDocument`, el mismo
+ * render y el mismo motor de comandos — no hay editores paralelos por industria.
+ *
+ * Este módulo define el contrato + un registro, y deja que cada objeto sepa:
+ *  - `toEntities`: cómo se dibuja en el documento canónico (cajas/círculos, etc.),
+ *  - `calculate`: qué números de negocio produce (área, capacidad, throughput…),
+ *  - `validate`: qué reglas debe cumplir.
+ *
+ * Puro (sin three/DOM/Date.now): registro y objetos se testean en Node y el
+ * resultado (`CadEntity[]`) entra al mismo documento del resto del CAD.
+ */
+
+import type { CadEntity } from "./cad-document";
+
+/** Un parámetro editable de un objeto inteligente. */
+export interface IndustryField {
+  key: string;
+  label: string;
+  type: "number" | "text";
+  /** Unidad mostrada (mm, s, m³…) — informativa. */
+  unit?: string;
+  default: number | string;
+  /** Mínimo para campos numéricos (validación de rango básica). */
+  min?: number;
+}
+
+/** Una instancia colocada de un objeto inteligente en el plano. */
+export interface SmartObjectInstance {
+  /** Id único de esta instancia (= id de la entidad principal generada). */
+  id: string;
+  /** Id del objeto de industria del que es instancia. */
+  objectId: string;
+  /** Ancla en coordenadas del documento (esquina superior-izquierda). */
+  x: number;
+  y: number;
+  rotation?: number;
+  /** Valores de los parámetros; los faltantes toman el `default` del campo. */
+  props: Record<string, number | string>;
+}
+
+export interface IndustryFinding {
+  level: "error" | "warning";
+  message: string;
+}
+
+/** Definición de un objeto inteligente de una industria. */
+export interface IndustryObjectDef {
+  id: string;
+  label: string;
+  /** Industria a la que pertenece (para agrupar en la paleta). */
+  industry: string;
+  /** Categoría/subgrupo dentro de la industria. */
+  category: string;
+  fields: IndustryField[];
+  /** Proyecta la instancia a entidades canónicas del documento compartido. */
+  toEntities: (instance: SmartObjectInstance) => CadEntity[];
+  /** Cálculos de negocio derivados de los parámetros (área, capacidad…). */
+  calculate?: (instance: SmartObjectInstance) => Record<string, number>;
+  /** Reglas de dominio; vacío = válido. */
+  validate?: (instance: SmartObjectInstance) => IndustryFinding[];
+}
+
+export interface IndustryPack {
+  id: string;
+  label: string;
+  objects: IndustryObjectDef[];
+}
+
+/** Devuelve el valor de un parámetro o el `default` del campo. */
+export function fieldValue(
+  def: IndustryObjectDef,
+  instance: SmartObjectInstance,
+  key: string,
+): number | string {
+  const field = def.fields.find((f) => f.key === key);
+  const raw = instance.props[key];
+  if (raw !== undefined && raw !== null && raw !== "") return raw;
+  return field ? field.default : 0;
+}
+/** Igual que `fieldValue` pero forzando número (para geometría/cálculo). */
+export function numField(
+  def: IndustryObjectDef,
+  instance: SmartObjectInstance,
+  key: string,
+): number {
+  const v = fieldValue(def, instance, key);
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * Registro de Industry Packs. Un objeto por concern (no duplica industrias):
+ * registrar dos veces la misma industria la reemplaza, con aviso vía el valor
+ * de retorno para que el llamador decida.
+ */
+export class IndustryPackRegistry {
+  private packs = new Map<string, IndustryPack>();
+
+  register(pack: IndustryPack): { replaced: boolean } {
+    const replaced = this.packs.has(pack.id);
+    this.packs.set(pack.id, pack);
+    return { replaced };
+  }
+
+  getPack(id: string): IndustryPack | undefined {
+    return this.packs.get(id);
+  }
+
+  listPacks(): IndustryPack[] {
+    return [...this.packs.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  }
+
+  /** Todos los objetos de todos los packs, aplanados y ordenados por id. */
+  listObjects(): IndustryObjectDef[] {
+    return this.listPacks()
+      .flatMap((p) => p.objects)
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  }
+
+  getObject(objectId: string): IndustryObjectDef | undefined {
+    for (const pack of this.packs.values()) {
+      const found = pack.objects.find((o) => o.id === objectId);
+      if (found) return found;
+    }
+    return undefined;
+  }
+
+  /** Instancia → entidades canónicas, o `[]` si el objeto no está registrado. */
+  instantiate(instance: SmartObjectInstance): CadEntity[] {
+    const def = this.getObject(instance.objectId);
+    return def ? def.toEntities(instance) : [];
+  }
+
+  /** Cálculos de negocio de una instancia (vacío si no aplica). */
+  calculate(instance: SmartObjectInstance): Record<string, number> {
+    const def = this.getObject(instance.objectId);
+    return def?.calculate ? def.calculate(instance) : {};
+  }
+
+  /** Hallazgos de validación; un objeto desconocido es un error. */
+  validate(instance: SmartObjectInstance): IndustryFinding[] {
+    const def = this.getObject(instance.objectId);
+    if (!def) return [{ level: "error", message: `Objeto desconocido: ${instance.objectId}` }];
+    return def.validate ? def.validate(instance) : [];
+  }
+}
+
+const MM2_PER_M2 = 1_000_000;
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+// ---------------------------------------------------------------------------
+// Pack 1 — Manufactura (MES): la estación de trabajo (geometría rectangular)
+// ---------------------------------------------------------------------------
+
+/** Estación de trabajo: caja rectangular con tiempo de ciclo y operarios. */
+export const workstationObject: IndustryObjectDef = {
+  id: "mfg.workstation",
+  label: "Estación de trabajo",
+  industry: "manufactura",
+  category: "línea",
+  fields: [
+    { key: "width", label: "Ancho", type: "number", unit: "mm", default: 1500, min: 1 },
+    { key: "depth", label: "Fondo", type: "number", unit: "mm", default: 800, min: 1 },
+    { key: "cycleTimeSec", label: "Tiempo de ciclo", type: "number", unit: "s", default: 45, min: 0 },
+    { key: "operators", label: "Operarios", type: "number", default: 1, min: 0 },
+    { key: "name", label: "Nombre", type: "text", default: "Estación" },
+  ],
+  toEntities: (instance) => {
+    const width = numField(workstationObject, instance, "width");
+    const depth = numField(workstationObject, instance, "depth");
+    const label = String(fieldValue(workstationObject, instance, "name"));
+    return [
+      {
+        id: instance.id,
+        type: "box",
+        kind: "workstation",
+        x: instance.x,
+        y: instance.y,
+        w: width,
+        h: depth,
+        rotation: instance.rotation ?? 0,
+        layer: "manufactura",
+        shape: "rect",
+        label,
+      },
+    ];
+  },
+  calculate: (instance) => {
+    const width = numField(workstationObject, instance, "width");
+    const depth = numField(workstationObject, instance, "depth");
+    const cycle = numField(workstationObject, instance, "cycleTimeSec");
+    const areaM2 = round2((width * depth) / MM2_PER_M2);
+    const throughputPerHour = cycle > 0 ? Math.round(3600 / cycle) : 0;
+    return { areaM2, throughputPerHour };
+  },
+  validate: (instance) => {
+    const findings: IndustryFinding[] = [];
+    if (numField(workstationObject, instance, "cycleTimeSec") <= 0)
+      findings.push({ level: "warning", message: "Tiempo de ciclo 0: no se puede estimar el throughput." });
+    if (numField(workstationObject, instance, "operators") < 0)
+      findings.push({ level: "error", message: "El número de operarios no puede ser negativo." });
+    return findings;
+  },
+};
+
+export const manufacturingPack: IndustryPack = {
+  id: "manufactura",
+  label: "Manufactura / MES",
+  objects: [workstationObject],
+};
+
+// ---------------------------------------------------------------------------
+// Pack 2 — Proceso / almacenamiento: el tanque (geometría CIRCULAR real)
+// ---------------------------------------------------------------------------
+
+/**
+ * Tanque de proceso: se dibuja como CÍRCULO real (usa `shape:"circle"`,
+ * CAD-NEXT-020) y calcula volumen cilíndrico. Industria deliberadamente
+ * contrastante con la manufactura para probar que un solo documento/render
+ * sirve a geometrías y dominios distintos.
+ */
+export const storageTankObject: IndustryObjectDef = {
+  id: "process.tank",
+  label: "Tanque de proceso",
+  industry: "proceso",
+  category: "almacenamiento",
+  fields: [
+    { key: "diameter", label: "Diámetro", type: "number", unit: "mm", default: 3000, min: 1 },
+    { key: "heightM", label: "Altura", type: "number", unit: "m", default: 6, min: 0 },
+    { key: "product", label: "Producto", type: "text", default: "Agua" },
+  ],
+  toEntities: (instance) => {
+    const d = numField(storageTankObject, instance, "diameter");
+    const product = String(fieldValue(storageTankObject, instance, "product"));
+    return [
+      {
+        id: instance.id,
+        type: "box",
+        kind: "tank",
+        x: instance.x,
+        y: instance.y,
+        w: d,
+        h: d,
+        rotation: 0,
+        layer: "proceso",
+        shape: "circle",
+        label: `Tanque · ${product}`,
+      },
+    ];
+  },
+  calculate: (instance) => {
+    const d = numField(storageTankObject, instance, "diameter");
+    const heightM = numField(storageTankObject, instance, "heightM");
+    const radiusM = d / 2 / 1000;
+    const footprintM2 = round2(Math.PI * radiusM * radiusM);
+    const volumeM3 = round2(footprintM2 * heightM);
+    return { footprintM2, volumeM3, capacityLiters: Math.round(volumeM3 * 1000) };
+  },
+  validate: (instance) => {
+    const findings: IndustryFinding[] = [];
+    if (numField(storageTankObject, instance, "diameter") <= 0)
+      findings.push({ level: "error", message: "El diámetro debe ser mayor que 0." });
+    if (numField(storageTankObject, instance, "heightM") <= 0)
+      findings.push({ level: "warning", message: "Altura 0: el volumen será 0." });
+    return findings;
+  },
+};
+
+export const processPack: IndustryPack = {
+  id: "proceso",
+  label: "Proceso / Almacenamiento",
+  objects: [storageTankObject],
+};
+
+// ---------------------------------------------------------------------------
+// Pack 3 — Civil / urbanismo: el cajón de estacionamiento (regla normativa)
+// ---------------------------------------------------------------------------
+
+/** Mínimos de accesibilidad (aprox.) para un cajón normal vs. accesible, en mm. */
+const STALL_MIN_WIDTH = 2400;
+const STALL_ACCESSIBLE_MIN_WIDTH = 3800;
+
+/**
+ * Cajón de estacionamiento: caja rectangular con una **regla normativa** real —
+ * un cajón accesible exige un ancho mínimo mayor. Tercera industria para mostrar
+ * que el mismo documento/registro sirve a manufactura, proceso y obra civil.
+ */
+export const parkingStallObject: IndustryObjectDef = {
+  id: "civil.parking-stall",
+  label: "Cajón de estacionamiento",
+  industry: "civil",
+  category: "vialidad",
+  fields: [
+    { key: "width", label: "Ancho", type: "number", unit: "mm", default: 2500, min: 1 },
+    { key: "length", label: "Largo", type: "number", unit: "mm", default: 5000, min: 1 },
+    { key: "accessible", label: "Accesible (1/0)", type: "number", default: 0, min: 0 },
+  ],
+  toEntities: (instance) => {
+    const width = numField(parkingStallObject, instance, "width");
+    const length = numField(parkingStallObject, instance, "length");
+    const accessible = numField(parkingStallObject, instance, "accessible") >= 1;
+    return [
+      {
+        id: instance.id,
+        type: "box",
+        kind: "parking-stall",
+        x: instance.x,
+        y: instance.y,
+        w: width,
+        h: length,
+        rotation: instance.rotation ?? 0,
+        layer: "civil",
+        shape: "rect",
+        label: accessible ? "Cajón accesible" : "Cajón",
+      },
+    ];
+  },
+  calculate: (instance) => {
+    const width = numField(parkingStallObject, instance, "width");
+    const length = numField(parkingStallObject, instance, "length");
+    return { areaM2: round2((width * length) / MM2_PER_M2) };
+  },
+  validate: (instance) => {
+    const findings: IndustryFinding[] = [];
+    const width = numField(parkingStallObject, instance, "width");
+    const accessible = numField(parkingStallObject, instance, "accessible") >= 1;
+    if (accessible && width < STALL_ACCESSIBLE_MIN_WIDTH)
+      findings.push({ level: "error", message: `Un cajón accesible requiere ≥ ${STALL_ACCESSIBLE_MIN_WIDTH} mm de ancho.` });
+    else if (!accessible && width < STALL_MIN_WIDTH)
+      findings.push({ level: "warning", message: `Ancho ${width} mm por debajo del mínimo recomendado (${STALL_MIN_WIDTH} mm).` });
+    return findings;
+  },
+};
+
+export const civilPack: IndustryPack = {
+  id: "civil",
+  label: "Civil / Urbanismo",
+  objects: [parkingStallObject],
+};
+
+/** Crea un registro con los packs de arranque ya cargados. */
+export function createDefaultIndustryRegistry(): IndustryPackRegistry {
+  const registry = new IndustryPackRegistry();
+  registry.register(manufacturingPack);
+  registry.register(processPack);
+  registry.register(civilPack);
+  return registry;
+}

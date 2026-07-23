@@ -1,0 +1,109 @@
+/** Documento CAD canónico y adaptador sin pérdida (CAD-NEXT-010). */
+import { strict as assert } from "node:assert";
+import {
+  cadDocumentStats,
+  cadDocumentToLayout,
+  commitChange,
+  layoutToCadDocument,
+  serializeCadDocument,
+  type LayoutInput,
+} from "./cad-document";
+
+// --- fixture representativa: caja, círculo, texto, cota y conector ----------
+const layout: LayoutInput = {
+  assets: [
+    { id: "a2", kind: "wall", x: 0, y: 0, w: 300, h: 15, rotation: 0, label: "Muro", layer: "architecture" },
+    { id: "a1", kind: "zone", x: 20, y: 30, w: 24, h: 24, rotation: 0, shape: "circle", label: "Columna", group: "g1" },
+    { id: "a3", kind: "zone", x: 100, y: 100, w: 50, h: 40, rotation: 45 },
+  ],
+  annotations: [
+    { id: "n1", type: "text", x: 5, y: 5, text: "Nota" },
+    { id: "d1", type: "dim", x: 0, y: 0, x2: 300, y2: 0, text: "300 mm" },
+  ],
+  connectors: [{ from: "s1", to: "s2", kind: "conveyor" }],
+  layers: [
+    { id: "architecture", name: "Arquitectura", color: "#888", visible: true, locked: false },
+    { id: "layout", name: "Layout", color: "#4af", visible: true, locked: false },
+  ],
+};
+
+// --- round-trip sin pérdida -------------------------------------------------
+const doc = layoutToCadDocument(layout, { unit: "mm" });
+const back = cadDocumentToLayout(doc);
+
+// El asset redondo conserva su forma, etiqueta y grupo.
+const circle = back.assets.find((a) => a.id === "a1");
+assert.ok(circle, "el círculo sobrevive el round-trip");
+assert.equal(circle?.shape, "circle", "shape:circle preservado");
+assert.equal(circle?.group, "g1", "grupo preservado");
+assert.equal(circle?.label, "Columna", "etiqueta preservada");
+
+// Un asset sin capa NO gana una capa espuria (default '0' es implícito).
+const plain = back.assets.find((a) => a.id === "a3");
+assert.equal(plain?.layer, undefined, "asset sin capa vuelve sin capa");
+assert.equal(plain?.rotation, 45, "rotación preservada");
+assert.equal(plain?.shape, undefined, "asset rectangular no gana shape");
+
+// La cota recupera su segundo punto.
+const dim = back.annotations.find((a) => a.id === "d1");
+assert.equal(dim?.type, "dim");
+assert.equal(dim?.x2, 300, "x2 de la cota preservado");
+assert.equal(dim?.text, "300 mm", "texto de la cota preservado");
+
+// El conector recupera from/to/kind.
+assert.equal(back.connectors.length, 1, "un conector");
+assert.equal(back.connectors[0].from, "s1");
+assert.equal(back.connectors[0].kind, "conveyor");
+
+// Igualdad estructural exacta entrada↔salida (normalizando el orden por id).
+const norm = (l: Required<LayoutInput>) => ({
+  assets: [...l.assets].sort((a, b) => (a.id < b.id ? -1 : 1)),
+  annotations: [...l.annotations].sort((a, b) => (a.id < b.id ? -1 : 1)),
+  connectors: [...l.connectors].sort((a, b) => (a.from + a.to < b.from + b.to ? -1 : 1)),
+  layers: [...l.layers].sort((a, b) => (a.id < b.id ? -1 : 1)),
+});
+assert.deepEqual(
+  norm(back),
+  norm({
+    assets: layout.assets ?? [],
+    annotations: layout.annotations ?? [],
+    connectors: layout.connectors ?? [],
+    layers: layout.layers ?? [],
+  }),
+  "round-trip idéntico al layout original",
+);
+
+// --- determinismo: el orden de entrada no cambia el serializado ------------
+const shuffled: LayoutInput = {
+  assets: [layout.assets![2], layout.assets![0], layout.assets![1]],
+  annotations: [layout.annotations![1], layout.annotations![0]],
+  connectors: layout.connectors,
+  layers: [layout.layers![1], layout.layers![0]],
+};
+assert.equal(
+  serializeCadDocument(layoutToCadDocument(shuffled, { unit: "mm" })),
+  serializeCadDocument(doc),
+  "mismo contenido en otro orden → mismo texto serializado",
+);
+
+// --- estadísticas -----------------------------------------------------------
+const stats = cadDocumentStats(doc);
+assert.equal(stats.box, 3, "3 cajas");
+assert.equal(stats.text, 1, "1 texto");
+assert.equal(stats.dimension, 1, "1 cota");
+assert.equal(stats.connector, 1, "1 conector");
+
+// --- versionado inmutable ---------------------------------------------------
+const v2 = commitChange(doc, "mover columna");
+assert.equal(doc.meta.version, 1, "el documento original no se muta");
+assert.equal(v2.meta.version, 2, "commitChange incrementa la versión");
+assert.equal(v2.history.at(-1)?.label, "mover columna", "el cambio queda en el historial");
+assert.equal(doc.history.length, 0, "el historial original sigue vacío");
+// El contenido geométrico no cambia al versionar.
+assert.equal(
+  serializeCadDocument({ ...v2, meta: doc.meta, history: [] }),
+  serializeCadDocument(doc),
+  "versionar no altera entidades ni capas",
+);
+
+console.log("cad cad-document specs passed");

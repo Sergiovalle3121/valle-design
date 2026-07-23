@@ -38,6 +38,27 @@ const source = exportCadDxf({
         { x: 200, y: 0 },
       ],
     },
+    {
+      kind: "ellipse",
+      layer: "TANKS",
+      points: [{ x: 40, y: 30 }],
+      majorAxis: { x: 25, y: 0 },
+      axisRatio: 0.5,
+      startAngle: 0,
+      endAngle: 360,
+    },
+    {
+      kind: "spline",
+      layer: "CURVES",
+      points: [
+        { x: 0, y: 0 },
+        { x: 10, y: 20 },
+        { x: 30, y: 20 },
+        { x: 40, y: 0 },
+      ],
+      degree: 3,
+      knots: [0, 0, 0, 0, 1, 1, 1, 1],
+    },
   ],
 });
 
@@ -66,10 +87,38 @@ assert.ok(
 const line = imported.primitives.find((p) => p.kind === "line");
 assert.ok(line, "la línea sigue presente tras el round-trip");
 
-// Ninguna advertencia de entidad no soportada: círculo y arco ya no se pierden.
+// ELLIPSE nativa (CAD-NEXT-061): centro, eje mayor y razón sobreviven.
+const ellipse = imported.primitives.find((p) => p.kind === "ellipse");
+assert.ok(ellipse, "la elipse sobrevive el round-trip como elipse");
+assert.ok(
+  ellipse && near(ellipse.points[0].x, 40) && near(ellipse.points[0].y, 30),
+  "el centro de la elipse se conserva",
+);
+assert.ok(
+  ellipse && near(ellipse.majorAxis?.x ?? -1, 25) && near(ellipse.majorAxis?.y ?? -1, 0),
+  "el eje mayor (relativo al centro) se conserva",
+);
+assert.ok(ellipse && near(ellipse.axisRatio ?? -1, 0.5), "la razón de ejes se conserva");
+assert.ok(
+  ellipse && near(ellipse.startAngle ?? -1, 0) && near(ellipse.endAngle ?? -1, 360),
+  "los parámetros vuelven en grados (elipse completa 0..360)",
+);
+
+// SPLINE nativa (CAD-NEXT-061): puntos de control, grado y nudos sobreviven.
+const spline = imported.primitives.find((p) => p.kind === "spline");
+assert.ok(spline, "la spline sobrevive el round-trip como spline");
+assert.equal(spline?.points.length, 4, "los 4 puntos de control se conservan");
+assert.ok(
+  spline && near(spline.points[1].x, 10) && near(spline.points[1].y, 20),
+  "las coordenadas de control se conservan",
+);
+assert.equal(spline?.degree, 3, "el grado se conserva");
+assert.equal(spline?.knots?.length, 8, "el vector de nudos se conserva (n+grado+1)");
+
+// Ninguna advertencia de entidad no soportada: las curvas ya no se pierden.
 assert.ok(
   !imported.warnings.some((w) => w.code === "unsupported_entity"),
-  "círculo y arco ya no generan advertencia de entidad no soportada",
+  "círculo, arco, elipse y spline ya no generan advertencia de entidad no soportada",
 );
 
 console.log("cad dxf round-trip specs passed");

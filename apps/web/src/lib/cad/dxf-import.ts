@@ -7,7 +7,9 @@ export type CadDxfPrimitiveKind =
   | "rect"
   | "text"
   | "circle"
-  | "arc";
+  | "arc"
+  | "ellipse"
+  | "spline";
 export interface CadDxfPoint {
   x: number;
   y: number;
@@ -19,10 +21,18 @@ export interface CadDxfPrimitive {
   text?: string;
   /** Radio, sólo para kind "circle" y "arc". */
   radius?: number;
-  /** Ángulo inicial en grados (CCW desde +X), sólo para kind "arc". */
+  /** Ángulo inicial en grados (CCW desde +X), sólo para kind "arc" y "ellipse". */
   startAngle?: number;
-  /** Ángulo final en grados (CCW desde +X), sólo para kind "arc". */
+  /** Ángulo final en grados (CCW desde +X), sólo para kind "arc" y "ellipse". */
   endAngle?: number;
+  /** Extremo del eje mayor RELATIVO al centro, sólo para kind "ellipse". */
+  majorAxis?: CadDxfPoint;
+  /** Razón eje menor / eje mayor (0..1], sólo para kind "ellipse". */
+  axisRatio?: number;
+  /** Grado de la curva, sólo para kind "spline" (points = puntos de control). */
+  degree?: number;
+  /** Vector de nudos, sólo para kind "spline". */
+  knots?: number[];
 }
 export interface CadDxfImportWarning {
   code: string;
@@ -198,6 +208,65 @@ export function mapDxfEntityToPrimitive(entity: any): {
       },
     };
   }
+  if (type === "ELLIPSE") {
+    const center = pt(entity.center);
+    const major = pt(entity.majorAxisEndPoint ?? entity.majorAxisEndpoint);
+    const ratio = num(entity.axisRatio);
+    // dxf-parser entrega los parámetros 41/42 en RADIANES (así van en el DXF);
+    // los normalizamos a grados como el resto del modelo. Elipse completa =
+    // 0..360 (2π en el archivo).
+    const startRad = num(entity.startAngle) ?? 0;
+    const endRad = num(entity.endAngle) ?? Math.PI * 2;
+    if (center && major && ratio != null && ratio > 0) {
+      return {
+        primitive: {
+          kind: "ellipse",
+          layer,
+          points: [center],
+          majorAxis: major,
+          axisRatio: ratio,
+          startAngle: (startRad * 180) / Math.PI,
+          endAngle: (endRad * 180) / Math.PI,
+        },
+      };
+    }
+    return {
+      warning: {
+        code: "invalid_ellipse",
+        message: "ELLIPSE sin centro, eje mayor o razón válidos.",
+        entityType: type,
+        layer,
+      },
+    };
+  }
+  if (type === "SPLINE") {
+    const control = (Array.isArray(entity.controlPoints) ? entity.controlPoints : [])
+      .map(pt)
+      .filter(Boolean) as CadDxfPoint[];
+    const degree = num(entity.degree) ?? 3;
+    const knots = (Array.isArray(entity.knotValues) ? entity.knotValues : [])
+      .map((k: unknown) => Number(k))
+      .filter((k: number) => Number.isFinite(k));
+    if (control.length >= 2 && degree >= 1) {
+      return {
+        primitive: {
+          kind: "spline",
+          layer,
+          points: control,
+          degree,
+          ...(knots.length ? { knots } : {}),
+        },
+      };
+    }
+    return {
+      warning: {
+        code: "invalid_spline",
+        message: "SPLINE sin suficientes puntos de control.",
+        entityType: type,
+        layer,
+      },
+    };
+  }
   if (type === "TEXT" || type === "MTEXT") {
     const pos = pt(entity.position ?? entity.startPoint ?? entity.insert);
     const text = String(
@@ -224,6 +293,127 @@ export function mapDxfEntityToPrimitive(entity: any): {
   };
 }
 
+/** Transformación de un INSERT: posición + rotación (grados) + escala. */
+interface InsertTransform {
+  x: number;
+  y: number;
+  rotationDeg: number;
+  sx: number;
+  sy: number;
+}
+
+function transformPoint(p: CadDxfPoint, t: InsertTransform): CadDxfPoint {
+  const rad = (t.rotationDeg * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  const x = p.x * t.sx;
+  const y = p.y * t.sy;
+  return { x: t.x + x * cos - y * sin, y: t.y + x * sin + y * cos };
+}
+function transformVector(v: CadDxfPoint, t: InsertTransform): CadDxfPoint {
+  const rad = (t.rotationDeg * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  const x = v.x * t.sx;
+  const y = v.y * t.sy;
+  return { x: x * cos - y * sin, y: x * sin + y * cos };
+}
+
+/** Aplica la transformación del INSERT a una primitiva ya mapeada. */
+function transformPrimitive(
+  primitive: CadDxfPrimitive,
+  t: InsertTransform,
+): CadDxfPrimitive {
+  const out: CadDxfPrimitive = {
+    ...primitive,
+    points: primitive.points.map((p) => transformPoint(p, t)),
+  };
+  if (primitive.majorAxis) out.majorAxis = transformVector(primitive.majorAxis, t);
+  if (typeof primitive.radius === "number") {
+    // Escala uniforme esperada; ante anisotropía se usa el promedio (avisado).
+    out.radius = primitive.radius * ((Math.abs(t.sx) + Math.abs(t.sy)) / 2);
+  }
+  if (primitive.kind === "arc") {
+    // El arco gira con el bloque; la elipse no (sus params son relativos al
+    // eje mayor, que ya rotó como vector).
+    out.startAngle = (primitive.startAngle ?? 0) + t.rotationDeg;
+    out.endAngle = (primitive.endAngle ?? 0) + t.rotationDeg;
+  }
+  return out;
+}
+
+const MAX_INSERT_DEPTH = 4;
+
+/**
+ * Expande un INSERT a las primitivas de su bloque, transformadas (posición +
+ * rotación + escala). Los INSERT anidados se expanden recursivamente hasta
+ * `MAX_INSERT_DEPTH`; un bloque desconocido o la anisotropía sobre entidades
+ * circulares generan advertencia honesta en vez de geometría silenciosamente
+ * mala (CAD-NEXT-063).
+ */
+function expandInsert(
+  entity: any,
+  blocks: Record<string, any>,
+  warnings: CadDxfImportWarning[],
+  depth: number,
+): CadDxfPrimitive[] {
+  const name = String(entity?.name ?? "");
+  const layer = String(entity?.layer || DEFAULT_LAYER);
+  const block = blocks[name];
+  if (!block || !Array.isArray(block.entities)) {
+    warnings.push({
+      code: "unknown_block",
+      message: `INSERT de bloque desconocido: "${name || "(sin nombre)"}".`,
+      entityType: "INSERT",
+      layer,
+    });
+    return [];
+  }
+  if (depth >= MAX_INSERT_DEPTH) {
+    warnings.push({
+      code: "insert_depth",
+      message: `INSERT anidado más allá de ${MAX_INSERT_DEPTH} niveles: "${name}" no se expande.`,
+      entityType: "INSERT",
+      layer,
+    });
+    return [];
+  }
+  const t: InsertTransform = {
+    x: Number(entity?.position?.x) || 0,
+    y: Number(entity?.position?.y) || 0,
+    rotationDeg: Number(entity?.rotation) || 0,
+    sx: Number(entity?.xScale) || 1,
+    sy: Number(entity?.yScale) || 1,
+  };
+  const anisotropic = Math.abs(Math.abs(t.sx) - Math.abs(t.sy)) > 1e-9;
+  let warnedAnisotropy = false;
+  const expanded: CadDxfPrimitive[] = [];
+  for (const child of block.entities) {
+    const childType = String(child?.type || "").toUpperCase();
+    const nested =
+      childType === "INSERT"
+        ? expandInsert(child, blocks, warnings, depth + 1)
+        : (() => {
+            const mapped = mapDxfEntityToPrimitive(child);
+            if (mapped.warning) warnings.push(mapped.warning);
+            return mapped.primitive ? [mapped.primitive] : [];
+          })();
+    for (const primitive of nested) {
+      if (anisotropic && typeof primitive.radius === "number" && !warnedAnisotropy) {
+        warnedAnisotropy = true;
+        warnings.push({
+          code: "anisotropic_insert",
+          message: `INSERT "${name}" con escala no uniforme sobre geometría circular: el radio se aproxima por el promedio.`,
+          entityType: "INSERT",
+          layer,
+        });
+      }
+      expanded.push(transformPrimitive(primitive, t));
+    }
+  }
+  return expanded;
+}
+
 export function importDxfPrimitives(text: string): CadDxfImportResult {
   const warnings: CadDxfImportWarning[] = [];
   let parsed: any;
@@ -241,9 +431,23 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
   const entities: any[] = Array.isArray(parsed?.entities)
     ? parsed.entities.slice(0, MAX_DXF_ENTITIES)
     : [];
+  const blocks: Record<string, any> =
+    parsed?.blocks && typeof parsed.blocks === "object" ? parsed.blocks : {};
   const primitives: CadDxfPrimitive[] = [];
   const layers = new Set<string>();
   for (const entity of entities) {
+    if (primitives.length >= MAX_DXF_ENTITIES) break;
+    const type = String(entity?.type || "").toUpperCase();
+    if (type === "INSERT") {
+      // Expansión de bloques (CAD-NEXT-063): las puertas/luminarias/mobiliario
+      // insertados dejan de perderse como "no soportados".
+      for (const primitive of expandInsert(entity, blocks, warnings, 0)) {
+        if (primitives.length >= MAX_DXF_ENTITIES) break;
+        primitives.push(primitive);
+        layers.add(primitive.layer);
+      }
+      continue;
+    }
     const mapped = mapDxfEntityToPrimitive(entity);
     if (mapped.primitive) {
       primitives.push(mapped.primitive);

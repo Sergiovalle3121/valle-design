@@ -37,8 +37,30 @@ assert.equal(
   "Dock",
   "TEXT maps content",
 );
+// SPLINE ya es nativa (CAD-NEXT-061): puntos de control + grado + nudos.
+const spline = mapDxfEntityToPrimitive({
+  type: "SPLINE",
+  layer: "CURVES",
+  degree: 3,
+  controlPoints: [
+    { x: 0, y: 0 },
+    { x: 10, y: 20 },
+    { x: 30, y: 20 },
+    { x: 40, y: 0 },
+  ],
+  knotValues: [0, 0, 0, 0, 1, 1, 1, 1],
+}).primitive;
+assert.equal(spline?.kind, "spline", "SPLINE maps to spline");
+assert.equal(spline?.points.length, 4, "conserva los 4 puntos de control");
+assert.equal(spline?.degree, 3, "conserva el grado");
+assert.equal(spline?.knots?.length, 8, "conserva el vector de nudos");
 assert.equal(
   mapDxfEntityToPrimitive({ type: "SPLINE", layer: "X" }).warning?.code,
+  "invalid_spline",
+  "SPLINE sin puntos de control avisa como inválida",
+);
+assert.equal(
+  mapDxfEntityToPrimitive({ type: "3DSOLID", layer: "X" }).warning?.code,
   "unsupported_entity",
   "unsupported entities warn",
 );

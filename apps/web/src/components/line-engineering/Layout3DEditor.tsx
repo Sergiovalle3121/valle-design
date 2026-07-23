@@ -72,6 +72,8 @@ import { buildPlotSheet, CAD_PAPER_SIZES, type CadPaperId } from '@/lib/cad/plot
 import { evaluateCadDxfExportReadiness, type CadDxfExportLayerSummary, type CadDxfExportReadinessEntity, type CadDxfExportReadinessIssue } from '@/lib/cad/dxf-export-readiness';
 import { importDxfPrimitives, summarizeDxfImportWarnings, type CadDxfImportResult, type CadDxfImportWarning, type CadDxfPoint, type CadDxfPrimitive } from '@/lib/cad/dxf-import';
 import { CAD_SYMBOL_LIBRARY, getCadSymbol, type CadSymbolCategory } from '@/lib/cad/symbols';
+import { createDefaultIndustryRegistry, type SmartObjectInstance } from '@/lib/cad/industry-pack';
+import { tessellateDxfPrimitive } from '@/lib/cad/curve-tessellate';
 import { CAD_LAYOUT_TEMPLATES, instantiateCadLayoutTemplate, type CadLayoutTemplateId } from '@/lib/cad/templates';
 import {
   generateWarehouseDockStaging,
@@ -244,7 +246,7 @@ interface St {
 }
 interface Cell { id: string; name: string; color: string; stationIds: string[] }
 interface Conn { from: string; to: string; kind?: string }
-interface Asset { id: string; kind: string; x: number; y: number; w: number; h: number; rotation: number; label?: string }
+interface Asset { id: string; kind: string; x: number; y: number; w: number; h: number; rotation: number; label?: string; shape?: 'rect' | 'circle' }
 /** Bloque CAD reutilizable de la biblioteca del tenant (ADR §224). */
 interface CadBlockRow { id: string; name: string; assets: (Asset & { layer?: string })[]; createdAt?: string }
 /** A pair of objects flagged by the clearance analysis (Fase 43). */
@@ -268,7 +270,7 @@ interface Placement { x: number; y: number; w: number; h: number; rotation: numb
 interface SelItem { type: 'station' | 'asset'; id: string }
 const sameSel = (a: SelItem, b: SelItem) => a.type === b.type && a.id === b.id;
 /** A point-in-time copy of every editable collection, for undo/redo. */
-interface Snapshot { placements: [string, Placement][]; assets: Asset[]; annotations: Ann[]; connectors: Conn[] }
+interface Snapshot { placements: [string, Placement][]; assets: Asset[]; annotations: Ann[]; connectors: Conn[]; layers: CadLayerAssignments; tags: Record<string, string> }
 interface CommandPreviewState { input: CadCommandInput; preview: CadCommandPreview; chain?: CadCommandInput[] }
 interface DxfExportOptions { scope: 'all' | 'selection'; includeHidden: boolean; includeMeasurements: boolean; includeLabels: boolean; units: 'mm' | 'm'; fileName: string }
 interface DxfExportSummary { objects: number; connectors: number; measurements: number; labels: number; layers: number; canExport: boolean; includedLayers: string[]; layerSummary: CadDxfExportLayerSummary[]; issues: CadDxfExportReadinessIssue[] }
@@ -492,7 +494,7 @@ function part(geo: THREE.BufferGeometry, material: THREE.Material, x = 0, y = 0,
   return m;
 }
 
-function buildArchetype(archetype: AssetArchetype, wS: number, dS: number, H: number, colorHex: string): THREE.Object3D[] {
+function buildArchetype(archetype: AssetArchetype, wS: number, dS: number, H: number, colorHex: string, shape: 'rect' | 'circle' = 'rect'): THREE.Object3D[] {
   const c = new THREE.Color(colorHex);
   const dark = c.clone().multiplyScalar(0.6);
   const light = c.clone().lerp(new THREE.Color(0xffffff), 0.25);
@@ -672,10 +674,26 @@ function buildArchetype(archetype: AssetArchetype, wS: number, dS: number, H: nu
     case 'zone':
     case 'path':
     default: {
+      const opacity = archetype === 'path' ? 0.22 : 0.14;
+      if (shape === 'circle') {
+        // disco plano con borde: el radio sigue la caja delimitadora (wS≈dS).
+        const ring2d = new THREE.EllipseCurve(0, 0, wS / 2, dS / 2, 0, Math.PI * 2).getPoints(64);
+        const fillC = new THREE.Mesh(
+          new THREE.ShapeGeometry(new THREE.Shape(ring2d)),
+          new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity, side: THREE.DoubleSide }),
+        );
+        fillC.rotation.x = -Math.PI / 2; fillC.position.y = 0.04; out.push(fillC);
+        const ring = new THREE.LineLoop(
+          new THREE.BufferGeometry().setFromPoints(ring2d.map((p) => new THREE.Vector3(p.x, 0, p.y))),
+          new THREE.LineBasicMaterial({ color: c }),
+        );
+        ring.position.y = 0.05; out.push(ring);
+        break;
+      }
       // flat translucent footprint with a coloured border
       const fill = new THREE.Mesh(
         new THREE.PlaneGeometry(wS, dS),
-        new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: archetype === 'path' ? 0.22 : 0.14, side: THREE.DoubleSide }),
+        new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity, side: THREE.DoubleSide }),
       );
       fill.rotation.x = -Math.PI / 2; fill.position.y = 0.04; out.push(fill);
       const edge = new THREE.LineSegments(
@@ -696,7 +714,7 @@ function buildAssetGroup(a: Asset, s: number, W: number, H: number, selected: bo
   const dS = Math.max(0.2, a.h * s);
   const h3d = Math.max(0.05, def.height * s);
   const group = new THREE.Group();
-  buildArchetype(def.archetype, wS, dS, h3d, def.color).forEach((o) => group.add(o));
+  buildArchetype(def.archetype, wS, dS, h3d, def.color, a.shape).forEach((o) => group.add(o));
 
   // invisible, forgiving hit box covering the whole bounding volume
   const flat = def.archetype === 'zone' || def.archetype === 'path';
@@ -730,6 +748,8 @@ function buildAssetGroup(a: Asset, s: number, W: number, H: number, selected: bo
   return group;
 }
 
+/** Registro de Industry Packs (CAD-NEXT-090): objetos inteligentes por industria. */
+const INDUSTRY_REGISTRY = createDefaultIndustryRegistry();
 const newId = (p: string) => `${p}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 const fmtDist = (d: number, unit: string) => `${Math.round(d).toLocaleString('es-MX')} ${unit}`;
 const fmtArea = (v: number, unit: string) => {
@@ -1667,6 +1687,10 @@ export default function Layout3DEditor({
     assets: [...assetsRef.current.values()].map((a) => ({ ...a })),
     annotations: [...annotationsRef.current.values()].map((a) => ({ ...a })),
     connectors: connectorsRef.current.map((c) => ({ ...c })),
+    // Capa y tags viajan en el snapshot: al deshacer un dibujo recién creado,
+    // su capa/tag ya no quedan colgando (bug §3.1b, CAD-NEXT-021).
+    layers: { ...layerAssignmentsRef.current },
+    tags: { ...objectTagsRef.current },
   }), []);
   const recordLocalSnapshot = useCallback((label: string, reason: 'manual' | 'command' | 'import' | 'restore' = 'manual') => {
     const snap = createCadSnapshot(snapshot(), label, reason, `local-${Date.now()}`);
@@ -1684,6 +1708,13 @@ export default function Layout3DEditor({
     assetsRef.current = new Map(s.assets.map((a) => [a.id, { ...a }]));
     annotationsRef.current = new Map(s.annotations.map((a) => [a.id, { ...a }]));
     connectorsRef.current = (s.connectors ?? []).map((c) => ({ ...c }));
+    // Restaura capa/tags junto al resto (defensivo con snapshots antiguos que
+    // no los llevaban). Se fija el ref además del estado para que el rebuild
+    // síncrono siguiente ya use los valores restaurados.
+    const restoredLayers = { ...(s.layers ?? {}) };
+    const restoredTags = { ...(s.tags ?? {}) };
+    layerAssignmentsRef.current = restoredLayers; setLayerAssignments(restoredLayers);
+    objectTagsRef.current = restoredTags; setObjectTags(restoredTags);
     setPlacedIds(new Set(placementsRef.current.keys()));
     setAssetIds(new Set(assetsRef.current.keys()));
     setDimCount([...annotationsRef.current.values()].filter((a) => a.type === 'dim').length);
@@ -2302,14 +2333,18 @@ export default function Layout3DEditor({
     lastWallAngleRef.current = angle;
     return true;
   };
-  const createRectAssetFromBox = (x: number, y: number, w: number, h: number, kind: 'zone' | 'room' = 'zone', label?: string) => {
+  const createRectAssetFromBox = (x: number, y: number, w: number, h: number, kind: 'zone' | 'room' = 'zone', label?: string, shape: 'rect' | 'circle' = 'rect') => {
     const ctx = ctxRef.current; if (!ctx) return false;
     const nx = Math.max(0, Math.min(ctx.W, Math.round(x)));
     const ny = Math.max(0, Math.min(ctx.H, Math.round(y)));
-    const nw = Math.max(50, Math.min(ctx.W - nx, Math.round(w)));
-    const nh = Math.max(50, Math.min(ctx.H - ny, Math.round(h)));
+    let nw = Math.max(50, Math.min(ctx.W - nx, Math.round(w)));
+    let nh = Math.max(50, Math.min(ctx.H - ny, Math.round(h)));
+    // Un círculo se mantiene redondo: el recorte por bordes no debe deformarlo.
+    if (shape === 'circle') { const d = Math.min(nw, nh); nw = d; nh = d; }
     const id = newId('as');
-    assetsRef.current.set(id, { id, kind, label: label ?? (kind === 'room' ? 'Room CAD' : 'Zona CAD'), x: nx, y: ny, w: nw, h: nh, rotation: 0 });
+    const asset: Asset = { id, kind, label: label ?? (kind === 'room' ? 'Room CAD' : 'Zona CAD'), x: nx, y: ny, w: nw, h: nh, rotation: 0 };
+    if (shape === 'circle') asset.shape = 'circle';
+    assetsRef.current.set(id, asset);
     setAssetIds((set) => new Set(set).add(id));
     setLayerAssignments((cur) => assignObjectsToLayer(cur, [id], defaultCadLayerForAssetKind(kind)));
     setObjectTags((cur) => ({ ...cur, [id]: `${kind}, drafted` }));
@@ -2319,7 +2354,7 @@ export default function Layout3DEditor({
     if (action.type === 'addSegment') return createWallAssetFromPoints(action.a, action.b, 'Muro CAD');
     if (action.type === 'addPolyline') return action.points.slice(0, -1).map((point, idx) => createWallAssetFromPoints(point, action.points[idx + 1], `Pline ${idx + 1}`)).some(Boolean);
     if (action.type === 'addRect') return createRectAssetFromBox(action.x, action.y, action.w, action.h, 'zone', 'Zona CAD');
-    if (action.type === 'addCircle') return createRectAssetFromBox(action.cx - action.r, action.cy - action.r, action.r * 2, action.r * 2, 'zone', `Círculo CAD Ø${Math.round(action.r * 2)}`);
+    if (action.type === 'addCircle') return createRectAssetFromBox(action.cx - action.r, action.cy - action.r, action.r * 2, action.r * 2, 'zone', `Círculo CAD Ø${Math.round(action.r * 2)}`, 'circle');
     if (action.type === 'moveBy' || action.type === 'copyBy') {
       const isCopy = action.type === 'copyBy';
       return selRef.current.map((item) => {
@@ -2848,7 +2883,7 @@ export default function Layout3DEditor({
     select([{ type: 'station', id: st.id }]);
     setDirty(true); rebuildAll();
   };
-  const addAsset = (kind: string, overrides?: { label?: string; w?: number; h?: number }) => {
+  const addAsset = (kind: string, overrides?: { label?: string; w?: number; h?: number; shape?: 'rect' | 'circle' }) => {
     const ctx = ctxRef.current; if (!ctx) return null;
     pushHistory();
     const def = assetMeta(kind);
@@ -2856,7 +2891,7 @@ export default function Layout3DEditor({
     const x = snapWorld(ctx.W / 2 - w / 2);
     const y = snapWorld(ctx.H / 2 - h / 2);
     const id = newId('as');
-    assetsRef.current.set(id, { id, kind, x, y, w, h, rotation: 0, label: overrides?.label });
+    assetsRef.current.set(id, { id, kind, x, y, w, h, rotation: 0, label: overrides?.label, ...(overrides?.shape === 'circle' ? { shape: 'circle' as const } : {}) });
     setAssetIds((prev) => new Set(prev).add(id));
     const defaultLayer = defaultCadLayerForAssetKind(kind);
     setLayerAssignments((cur) => assignObjectsToLayer(cur, [id], activeCadLayer === 'equipment' ? defaultLayer : activeCadLayer));
@@ -2895,6 +2930,24 @@ export default function Layout3DEditor({
       if (DEFAULT_CAD_LAYERS.some((item) => item.id === layer)) setLayerAssignments((cur) => assignObjectsToLayer(cur, [id], layer));
       toast.success(`${symbol.label} agregado al layout.`, 'Símbolos CAD');
     }
+  };
+  // Suelta un objeto inteligente de un Industry Pack (CAD-NEXT-090/091): el pack
+  // proyecta la instancia a una entidad canónica y reutilizamos addAsset. El
+  // tanque llega con shape:'circle' → se dibuja como disco (CAD-NEXT-020). El
+  // toast muestra los cálculos de negocio del propio objeto.
+  const addIndustryObject = (objectId: string) => {
+    const def = INDUSTRY_REGISTRY.getObject(objectId);
+    if (!def) return;
+    const instance: SmartObjectInstance = { id: newId('as'), objectId, x: 0, y: 0, props: {} };
+    const entity = def.toEntities(instance).find((e) => e.type === 'box');
+    if (!entity || entity.type !== 'box') return;
+    const renderKind = entity.shape === 'circle' ? 'zone' : 'machine';
+    const id = addAsset(renderKind, { label: entity.label, w: entity.w, h: entity.h, shape: entity.shape });
+    if (!id) return;
+    setObjectTags((cur) => ({ ...cur, [id]: `industry:${def.industry}, ${objectId}` }));
+    const calc = def.calculate?.(instance) ?? {};
+    const summary = Object.entries(calc).map(([k, v]) => `${k} ${v}`).join(' · ');
+    toast.success(`${def.label} agregada${summary ? ` — ${summary}` : ''}.`, 'Industry Pack');
   };
   const applyCadTemplate = (templateId: CadLayoutTemplateId) => {
     const ctx = ctxRef.current; const fp = data?.footprint;
@@ -3398,7 +3451,21 @@ export default function Layout3DEditor({
     commitCreated(created, truncated ? `muros del plano (recortado a ${walls.length})` : 'muros importados del plano');
   };
   const dxfPrimitiveBounds = (primitives: CadDxfPrimitive[]) => {
-    const points = primitives.flatMap((primitive) => primitive.points);
+    // Las curvas aportan su EXTENSIÓN real (teselada), no sólo su centro: así la
+    // normalización coincide con la del backdrop (parseDxf también tesela) y lo
+    // convertido cae encima de lo que se ve (CAD-NEXT-062).
+    const points = primitives.flatMap((primitive) => {
+      const curve = tessellateDxfPrimitive(primitive, 24);
+      if (curve && curve.length) return curve;
+      if (primitive.kind === 'circle' && primitive.points[0] && primitive.radius) {
+        const c = primitive.points[0];
+        return [
+          { x: c.x - primitive.radius, y: c.y - primitive.radius },
+          { x: c.x + primitive.radius, y: c.y + primitive.radius },
+        ];
+      }
+      return primitive.points;
+    });
     if (!points.length) return null;
     return {
       minX: Math.min(...points.map((point) => point.x)),
@@ -3458,9 +3525,29 @@ export default function Layout3DEditor({
         }
         continue;
       }
-      for (let i = 0; i + 1 < points.length; i++) {
+      // Un CIRCLE del DXF llega como centro (points[0]) + radio: se materializa
+      // como un asset redondo de verdad (shape:'circle', CAD-NEXT-020) en vez de
+      // perderse por tener un solo punto. Cierra el round-trip dibujo→DXF→reimport.
+      if (primitive.kind === 'circle' && points[0] && primitive.radius) {
+        const r = primitive.radius * (Number(meta.scale) || 1);
+        if (r * 2 >= 80) {
+          const d = snapWorld(r * 2);
+          const id = newId('as');
+          assetsRef.current.set(id, { id, kind: 'zone', label: `DXF círculo · ${primitive.layer}`, x: snapWorld(points[0].x - r), y: snapWorld(points[0].y - r), w: d, h: d, rotation: 0, shape: 'circle' });
+          created.push({ type: 'asset', id }); layerUpdates[id] = 'layout'; tagUpdates[id] = `dxf, dxf-layer:${primitive.layer}, editable-circle`;
+        }
+        continue;
+      }
+      // Curvas (arco/elipse/spline): se teselan a la TRAYECTORIA real
+      // (CAD-NEXT-062, De Boor para splines — no el polígono de control) en
+      // coordenadas crudas del DXF y cada tramo se materializa como muro.
+      const curvePoints = tessellateDxfPrimitive(primitive, 24);
+      const chain = curvePoints
+        ? curvePoints.map((point) => projectDxfPoint(point, bounds, dm, meta))
+        : points;
+      for (let i = 0; i + 1 < chain.length; i++) {
         if (created.length >= cap) { truncated = true; break; }
-        const id = createDxfWallAsset(points[i], points[i + 1], `DXF line · ${primitive.layer}`);
+        const id = createDxfWallAsset(chain[i], chain[i + 1], `DXF ${curvePoints ? primitive.kind : 'line'} · ${primitive.layer}`);
         if (id) { created.push({ type: 'asset', id }); layerUpdates[id] = 'architecture'; tagUpdates[id] = `dxf, dxf-layer:${primitive.layer}, editable-wall, architecture`; }
       }
     }
@@ -4935,7 +5022,7 @@ export default function Layout3DEditor({
           .map(([id, p]) => ({ id, label: stationsByIdRef.current.get(id)?.station ?? id, x: p.x, y: p.y, width: p.w, height: p.h, rotation: p.rotation, layer: layerLabel(layerAssignments[id] ?? 'layout') })),
         ...[...assetsRef.current.values()]
           .filter((asset) => includeObject(asset.id, defaultCadLayerForAssetKind(asset.kind, objectTags[asset.id])))
-          .map((asset) => ({ id: asset.id, label: asset.label || assetMeta(asset.kind).label, x: asset.x, y: asset.y, width: asset.w, height: asset.h, rotation: asset.rotation, layer: layerLabel(layerAssignments[asset.id] ?? defaultCadLayerForAssetKind(asset.kind, objectTags[asset.id])) })),
+          .map((asset) => ({ id: asset.id, label: asset.label || assetMeta(asset.kind).label, x: asset.x, y: asset.y, width: asset.w, height: asset.h, rotation: asset.rotation, layer: layerLabel(layerAssignments[asset.id] ?? defaultCadLayerForAssetKind(asset.kind, objectTags[asset.id])), ...(asset.shape === 'circle' ? { shape: 'circle' as const } : {}) })),
       ];
       const connectors = connectorsRef.current.map((conn) => {
         if (!includeLayer('flow')) return null;
@@ -5709,6 +5796,17 @@ export default function Layout3DEditor({
                       <button onClick={() => createSafetyZoneAsset('esd')} className="rounded-lg border border-cyan-300/20 bg-cyan-400/[0.10] px-2 py-1.5 text-left text-[11px] font-semibold text-cyan-100 hover:bg-cyan-400/[0.16]">ESD zone</button>
                       <button onClick={() => createSafetyPathAsset('forklift')} className="rounded-lg border border-emerald-300/20 bg-emerald-400/[0.10] px-2 py-1.5 text-left text-[11px] font-semibold text-emerald-100 hover:bg-emerald-400/[0.16]">Forklift path</button>
                       <button onClick={() => createSafetyPathAsset('emergency')} className="rounded-lg border border-sky-300/20 bg-sky-400/[0.10] px-2 py-1.5 text-left text-[11px] font-semibold text-sky-100 hover:bg-sky-400/[0.16]">Emergency exit</button>
+                    </div>
+                  </div>
+                  <div className="mb-2 rounded-lg border border-violet-300/20 bg-violet-400/[0.06] p-2">
+                    <div className="mb-1.5 text-[11px] uppercase tracking-wide text-violet-200/80">Industry Packs</div>
+                    <div className="grid grid-cols-1 gap-1.5">
+                      {INDUSTRY_REGISTRY.listObjects().map((obj) => (
+                        <button key={obj.id} onClick={() => addIndustryObject(obj.id)} title={`Agregar ${obj.label}`} className="rounded-lg bg-violet-400/[0.10] px-2 py-1.5 text-left text-[11px] text-violet-100 hover:bg-violet-400/[0.16]">
+                          <span className="flex items-center justify-between gap-2"><span className="truncate font-semibold">{obj.label}</span><span className="shrink-0 text-[10px] text-violet-200/70">{obj.industry}</span></span>
+                          <span className="mt-0.5 block truncate text-[10px] text-violet-200/70">objeto inteligente · {obj.category}</span>
+                        </button>
+                      ))}
                     </div>
                   </div>
                   <div className="mb-2 flex items-center justify-between gap-2">

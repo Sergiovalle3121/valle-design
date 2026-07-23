@@ -1,3 +1,5 @@
+import { gridPairCandidates, type Aabb } from "./rule-engine";
+
 export interface CadCollisionBox {
   id: string;
   label?: string;
@@ -55,15 +57,22 @@ export function boxesOverlap(
     area: overlapX * overlapY,
   };
 }
+function toAabb(box: CadCollisionBox): Aabb {
+  const b = bounds(box);
+  return { minX: b.left, minY: b.top, maxX: b.right, maxY: b.bottom };
+}
+
 export function detectCadCollisions(
   boxes: CadCollisionBox[],
 ): CadCollisionHit[] {
+  // Broad phase compartido con el motor de reglas (CAD-NEXT-101/102): un solo
+  // núcleo geométrico y el barrido deja de ser O(n²). Los pares llegan en el
+  // mismo orden (i<j asc) que el doble bucle, así el resultado es idéntico.
   const hits: CadCollisionHit[] = [];
-  for (let i = 0; i < boxes.length; i += 1) {
-    for (let j = i + 1; j < boxes.length; j += 1) {
-      const hit = boxesOverlap(boxes[i], boxes[j]);
-      if (hit) hits.push(hit);
-    }
+  const aabbs = boxes.map(toAabb);
+  for (const [i, j] of gridPairCandidates(aabbs)) {
+    const hit = boxesOverlap(boxes[i], boxes[j]);
+    if (hit) hits.push(hit);
   }
   return hits.sort((a, b) => b.area - a.area);
 }
@@ -78,19 +87,20 @@ export function findClearanceIssues(
   boxes: CadCollisionBox[],
   required: number,
 ): CadClearanceIssue[] {
+  // Índice expandido por la holgura requerida: ningún par a distancia < required
+  // se escapa (los que solapan comparten celda con expansión ≥ 0).
   const issues: CadClearanceIssue[] = [];
-  for (let i = 0; i < boxes.length; i += 1) {
-    for (let j = i + 1; j < boxes.length; j += 1) {
-      const distance = edgeDistance(boxes[i], boxes[j]);
-      if (distance < required)
-        issues.push({
-          aId: boxes[i].id,
-          bId: boxes[j].id,
-          distance,
-          required,
-          message: `Separación insuficiente entre ${boxes[i].label ?? boxes[i].id} y ${boxes[j].label ?? boxes[j].id}.`,
-        });
-    }
+  const aabbs = boxes.map(toAabb);
+  for (const [i, j] of gridPairCandidates(aabbs, Math.max(0, required))) {
+    const distance = edgeDistance(boxes[i], boxes[j]);
+    if (distance < required)
+      issues.push({
+        aId: boxes[i].id,
+        bId: boxes[j].id,
+        distance,
+        required,
+        message: `Separación insuficiente entre ${boxes[i].label ?? boxes[i].id} y ${boxes[j].label ?? boxes[j].id}.`,
+      });
   }
   return issues;
 }

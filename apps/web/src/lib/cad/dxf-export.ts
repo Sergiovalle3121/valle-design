@@ -102,8 +102,10 @@ function pushLayerTable(
 function pushHeader(lines: string[], options: CadDxfExportOptions) {
   pushPair(lines, 0, "SECTION");
   pushPair(lines, 2, "HEADER");
+  // AC1015 (AutoCAD 2000): la versión mínima honesta para las entidades que
+  // emitimos — ELLIPSE no existe en R12 (AC1009).
   pushPair(lines, 9, "$ACADVER");
-  pushPair(lines, 1, "AC1009");
+  pushPair(lines, 1, "AC1015");
   pushPair(lines, 9, "$INSUNITS");
   pushPair(lines, 70, DXF_UNIT_CODES[options.units ?? "mm"]);
   if (options.fileComment) {
@@ -166,6 +168,57 @@ function pushArc(
   pushPair(lines, 40, fmt(radius));
   pushPair(lines, 50, fmt(startAngle));
   pushPair(lines, 51, fmt(endAngle));
+}
+function pushEllipse(
+  lines: string[],
+  layer: string,
+  center: CadDxfPoint,
+  majorAxis: CadDxfPoint,
+  axisRatio: number,
+  startAngleDeg: number,
+  endAngleDeg: number,
+) {
+  pushPair(lines, 0, "ELLIPSE");
+  pushPair(lines, 8, layer);
+  pushPoint(lines, center);
+  // 11/21/31: extremo del eje mayor RELATIVO al centro (convención DXF).
+  pushPair(lines, 11, fmt(majorAxis.x));
+  pushPair(lines, 21, fmt(majorAxis.y));
+  pushPair(lines, 31, "0");
+  pushPair(lines, 40, fmt(axisRatio));
+  // 41/42: parámetros en RADIANES en el archivo; el modelo usa grados.
+  pushPair(lines, 41, fmt((startAngleDeg * Math.PI) / 180));
+  pushPair(lines, 42, fmt((endAngleDeg * Math.PI) / 180));
+}
+/** Vector de nudos clamped uniforme: n + grado + 1 valores en [0,1]. */
+function clampedKnots(controlCount: number, degree: number): number[] {
+  const knots: number[] = [];
+  const spans = controlCount - degree;
+  for (let i = 0; i <= degree; i++) knots.push(0);
+  for (let i = 1; i < spans; i++) knots.push(i / spans);
+  for (let i = 0; i <= degree; i++) knots.push(1);
+  return knots;
+}
+function pushSpline(
+  lines: string[],
+  layer: string,
+  controlPoints: CadDxfPoint[],
+  degree: number,
+  knots?: number[],
+) {
+  const expectedKnots = controlPoints.length + degree + 1;
+  const knotValues =
+    knots && knots.length === expectedKnots
+      ? knots
+      : clampedKnots(controlPoints.length, degree);
+  pushPair(lines, 0, "SPLINE");
+  pushPair(lines, 8, layer);
+  pushPair(lines, 70, 8); // planar
+  pushPair(lines, 71, degree);
+  pushPair(lines, 72, knotValues.length);
+  pushPair(lines, 73, controlPoints.length);
+  for (const knot of knotValues) pushPair(lines, 40, fmt(knot));
+  for (const point of controlPoints) pushPoint(lines, point);
 }
 function pushText(
   lines: string[],
@@ -270,6 +323,34 @@ export function exportCadDxf(
         primitive.radius,
         primitive.startAngle,
         primitive.endAngle,
+      );
+      entityCount += 1;
+      wroteGeometry = true;
+    } else if (
+      primitive.kind === "ellipse" &&
+      primitive.points[0] &&
+      primitive.majorAxis &&
+      typeof primitive.axisRatio === "number" &&
+      primitive.axisRatio > 0
+    ) {
+      pushEllipse(
+        lines,
+        layer,
+        primitive.points[0],
+        primitive.majorAxis,
+        primitive.axisRatio,
+        primitive.startAngle ?? 0,
+        primitive.endAngle ?? 360,
+      );
+      entityCount += 1;
+      wroteGeometry = true;
+    } else if (primitive.kind === "spline" && primitive.points.length >= 2) {
+      pushSpline(
+        lines,
+        layer,
+        primitive.points,
+        Math.max(1, Math.min(primitive.degree ?? 3, primitive.points.length - 1)),
+        primitive.knots,
       );
       entityCount += 1;
       wroteGeometry = true;
