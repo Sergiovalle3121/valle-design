@@ -774,6 +774,124 @@ export const healthPack: IndustryPack = {
   objects: [examRoomObject, patientBedObject],
 };
 
+// ---------------------------------------------------------------------------
+// Pack 7 — Educación: aula con aforo por área + mesa de laboratorio
+// ---------------------------------------------------------------------------
+
+/** Área por alumno recomendada en un aula (m²) y área mínima del aula (m²). */
+const CLASSROOM_M2_PER_STUDENT = 1.5;
+const CLASSROOM_MIN_M2 = 15;
+/** Ancho por puesto y fondo mínimo de una mesa de laboratorio (mm). */
+const LAB_STATION_WIDTH = 1200;
+const LAB_BENCH_MIN_DEPTH = 600;
+
+/**
+ * Aula: cuarto rectangular cuyo AFORO se deriva del área (un alumno por cada
+ * 1.5 m²) — el número que le importa a un proyectista escolar. Norma de área
+ * mínima por debajo de la cual el aula no es viable.
+ */
+export const classroomObject: IndustryObjectDef = {
+  id: "education.classroom",
+  label: "Aula",
+  industry: "educacion",
+  category: "docencia",
+  propsFromSize: (w, h) => ({ width: w, depth: h }),
+  fields: [
+    { key: "width", label: "Ancho", type: "number", unit: "mm", default: 6000, min: 1 },
+    { key: "depth", label: "Fondo", type: "number", unit: "mm", default: 5000, min: 1 },
+  ],
+  toEntities: (instance) => {
+    const width = numField(classroomObject, instance, "width");
+    const depth = numField(classroomObject, instance, "depth");
+    return [
+      {
+        id: instance.id,
+        type: "box",
+        kind: "zone",
+        x: instance.x,
+        y: instance.y,
+        w: width,
+        h: depth,
+        rotation: instance.rotation ?? 0,
+        layer: "educacion",
+        shape: "rect",
+        label: "Aula",
+      },
+    ];
+  },
+  calculate: (instance) => {
+    const width = numField(classroomObject, instance, "width");
+    const depth = numField(classroomObject, instance, "depth");
+    const areaM2 = (width * depth) / MM2_PER_M2;
+    return { areaM2: round2(areaM2), capacity: Math.floor(areaM2 / CLASSROOM_M2_PER_STUDENT) };
+  },
+  validate: (instance) => {
+    const findings: IndustryFinding[] = [];
+    const width = numField(classroomObject, instance, "width");
+    const depth = numField(classroomObject, instance, "depth");
+    if ((width * depth) / MM2_PER_M2 < CLASSROOM_MIN_M2)
+      findings.push({
+        level: "error",
+        message: `Aula por debajo de ${CLASSROOM_MIN_M2} m²: no aloja un grupo mínimo con circulación.`,
+      });
+    return findings;
+  },
+};
+
+/**
+ * Mesa de laboratorio: banco de trabajo cuyos PUESTOS se derivan del largo
+ * (un puesto por cada 1200 mm) con regla de fondo mínimo para el equipo.
+ */
+export const labBenchObject: IndustryObjectDef = {
+  id: "education.lab-bench",
+  label: "Mesa de laboratorio",
+  industry: "educacion",
+  category: "laboratorio",
+  propsFromSize: (w, h) => ({ length: w, depth: h }),
+  fields: [
+    { key: "length", label: "Largo", type: "number", unit: "mm", default: 3600, min: 1 },
+    { key: "depth", label: "Fondo", type: "number", unit: "mm", default: 750, min: 1 },
+  ],
+  toEntities: (instance) => {
+    const length = numField(labBenchObject, instance, "length");
+    const depth = numField(labBenchObject, instance, "depth");
+    return [
+      {
+        id: instance.id,
+        type: "box",
+        kind: "workbench",
+        x: instance.x,
+        y: instance.y,
+        w: length,
+        h: depth,
+        rotation: instance.rotation ?? 0,
+        layer: "educacion",
+        shape: "rect",
+        label: "Mesa de laboratorio",
+      },
+    ];
+  },
+  calculate: (instance) => {
+    const length = numField(labBenchObject, instance, "length");
+    return { stations: Math.floor(length / LAB_STATION_WIDTH), lengthMeters: round2(length / 1000) };
+  },
+  validate: (instance) => {
+    const findings: IndustryFinding[] = [];
+    if (numField(labBenchObject, instance, "depth") < LAB_BENCH_MIN_DEPTH)
+      findings.push({
+        level: "warning",
+        message: `Fondo menor que ${LAB_BENCH_MIN_DEPTH} mm: no cabe el equipo de laboratorio con seguridad.`,
+      });
+    return findings;
+  },
+};
+
+export const educationPack: IndustryPack = {
+  id: "educacion",
+  label: "Educación",
+  objects: [classroomObject, labBenchObject],
+};
+
 /** Crea un registro con los packs de arranque ya cargados. */
 export function createDefaultIndustryRegistry(): IndustryPackRegistry {
   const registry = new IndustryPackRegistry();
@@ -783,5 +901,6 @@ export function createDefaultIndustryRegistry(): IndustryPackRegistry {
   registry.register(logisticsPack);
   registry.register(retailPack);
   registry.register(healthPack);
+  registry.register(educationPack);
   return registry;
 }

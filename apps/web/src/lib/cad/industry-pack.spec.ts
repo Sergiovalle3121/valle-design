@@ -11,11 +11,13 @@ import { layoutToCadDocument, cadDocumentToLayout, type CadEntity } from "./cad-
 const registry = createDefaultIndustryRegistry();
 
 // --- el registro carga los packs y los aplana ------------------------------
-assert.equal(registry.listPacks().length, 6, "seis packs cargados");
+assert.equal(registry.listPacks().length, 7, "siete packs cargados");
 assert.deepEqual(
   registry.listObjects().map((o) => o.id),
   [
     "civil.parking-stall",
+    "education.classroom",
+    "education.lab-bench",
     "health.exam-room",
     "health.patient-bed",
     "logistics.forklift-aisle",
@@ -171,6 +173,29 @@ assert.ok(careZone && careZone.type === "box" && careZone.x === 100 + 1000 && ca
 assert.equal(registry.validate(bed).length, 0, "900 mm de atención cumple");
 const tightBed: SmartObjectInstance = { id: "b2", objectId: "health.patient-bed", x: 0, y: 0, props: { careSpace: 600 } };
 assert.ok(registry.validate(tightBed).some((f) => f.level === "warning"), "atención de 600 mm → aviso");
+
+// --- pack 7: educación — aula con aforo y mesa de laboratorio ----------------
+const classroom: SmartObjectInstance = { id: "e1", objectId: "education.classroom", x: 0, y: 0, props: { width: 6000, depth: 5000 } };
+const classroomCalc = registry.calculate(classroom);
+assert.equal(classroomCalc.areaM2, 30, "aula 6×5 = 30 m²");
+assert.equal(classroomCalc.capacity, 20, "30 / 1.5 = 20 alumnos de aforo");
+assert.equal(registry.validate(classroom).length, 0, "aula de 30 m² es válida");
+const tinyClassroom: SmartObjectInstance = { id: "e2", objectId: "education.classroom", x: 0, y: 0, props: { width: 3000, depth: 3000 } };
+assert.ok(registry.validate(tinyClassroom).some((f) => f.level === "error"), "aula de 9 m² → error de área mínima");
+// Re-evaluable y con cálculo vivo por geometría.
+assert.ok(
+  registry.validatePlaced("education.classroom", 3000, 3000).some((f) => f.level === "error"),
+  "aula encogida → error re-evaluado",
+);
+assert.equal(registry.calculatePlaced("education.classroom", 6000, 5000).capacity, 20, "aforo vivo del aula");
+
+const bench: SmartObjectInstance = { id: "e3", objectId: "education.lab-bench", x: 0, y: 0, props: { length: 3600, depth: 750 } };
+const benchBox = registry.instantiate(bench)[0];
+assert.ok(benchBox.type === "box" && benchBox.w === 3600 && benchBox.h === 750, "mesa con su huella");
+assert.equal(registry.calculate(bench).stations, 3, "3600 / 1200 = 3 puestos");
+assert.equal(registry.validate(bench).length, 0, "fondo de 750 mm cumple");
+const shallowBench: SmartObjectInstance = { id: "e4", objectId: "education.lab-bench", x: 0, y: 0, props: { depth: 500 } };
+assert.ok(registry.validate(shallowBench).some((f) => f.level === "warning"), "fondo angosto → aviso");
 
 // --- objeto desconocido ------------------------------------------------------
 const unknown: SmartObjectInstance = { id: "x", objectId: "nope", x: 0, y: 0, props: {} };

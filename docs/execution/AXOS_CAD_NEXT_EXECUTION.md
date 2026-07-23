@@ -484,6 +484,12 @@ Gates verdes: `tsc` (web+api), `eslint`, `test:specs` (81/81), `check:nav`,
     comas/comillas; BOM UTF-8 para Excel) con un botón "Exportar CSV" en el
     panel. La capacidad del layout deja de vivir en pantalla y se entrega a una
     cotización o a un cliente — el lazo de negocio cerrado.
+    **CAD-NEXT-103 (séptimo vertical):** **Educación** — aula cuyo AFORO se
+    deriva del área (1 alumno / 1.5 m²) con norma de área mínima, y mesa de
+    laboratorio con puestos por largo y fondo mínimo. Ya son **siete
+    industrias**; añadirla NO tocó paleta, reglas, cálculo vivo, BOM ni CSV:
+    todo el cableado transversal la recoge gratis — la prueba de que el
+    framework de Industry Packs es la palanca correcta.
 11. **CAD-NEXT-066 (cotas DIMENSION nativas)** — **✓ hecho**: las mediciones
     dejan de aplanarse a línea+texto y viajan como entidad **DIMENSION real**
     (alineada, 70=33) que referencia un **bloque anónimo `*D{n}`** con la
