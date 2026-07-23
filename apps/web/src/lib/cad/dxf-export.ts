@@ -21,11 +21,29 @@ export interface CadDxfExportMeasurement {
   to: CadDxfPoint;
   label?: string;
 }
+/** Definición de bloque reutilizable (sección BLOCKS — CAD-NEXT-064). */
+export interface CadDxfExportBlock {
+  name: string;
+  primitives: CadDxfPrimitive[];
+}
+/** Referencia INSERT a un bloque, con su transformación. */
+export interface CadDxfExportInsert {
+  block: string;
+  x: number;
+  y: number;
+  /** Grados CCW. */
+  rotation?: number;
+  scaleX?: number;
+  scaleY?: number;
+  layer?: string;
+}
 export interface CadDxfExportModel {
   primitives?: CadDxfPrimitive[];
   layers?: CadDxfExportLayer[];
   texts?: CadDxfExportText[];
   measurements?: CadDxfExportMeasurement[];
+  blocks?: CadDxfExportBlock[];
+  inserts?: CadDxfExportInsert[];
 }
 export interface CadDxfExportResult {
   content: string;
@@ -67,6 +85,11 @@ function uniqueLayers(model: CadDxfExportModel): string[] {
   for (const layer of model.layers ?? []) names.add(safeLayerName(layer.name));
   for (const primitive of model.primitives ?? [])
     names.add(safeLayerName(primitive.layer));
+  for (const block of model.blocks ?? [])
+    for (const primitive of block.primitives)
+      names.add(safeLayerName(primitive.layer));
+  for (const insert of model.inserts ?? [])
+    names.add(safeLayerName(insert.layer));
   for (const text of model.texts ?? [])
     names.add(safeLayerName(text.layer ?? TEXT_LAYER));
   for (const measurement of model.measurements ?? [])
@@ -272,6 +295,106 @@ function pushPrimitiveLabel(
     : false;
 }
 
+/**
+ * Escribe la geometría de una primitiva (compartido entre ENTITIES y BLOCKS).
+ * Devuelve true si escribió geometría no-texto (candidata a etiqueta).
+ */
+function writePrimitiveGeometry(
+  lines: string[],
+  layer: string,
+  primitive: CadDxfPrimitive,
+): { wrote: boolean; isGeometry: boolean } {
+  if (primitive.kind === "line" && primitive.points.length >= 2) {
+    pushLine(lines, layer, primitive.points[0], primitive.points[1]);
+    return { wrote: true, isGeometry: true };
+  }
+  if (primitive.kind === "polyline" && primitive.points.length >= 2) {
+    pushPolyline(lines, layer, primitive.points, false);
+    return { wrote: true, isGeometry: true };
+  }
+  if (primitive.kind === "rect" && primitive.points.length >= 2) {
+    pushPolyline(lines, layer, rectToClosedPoints(primitive.points), true);
+    return { wrote: true, isGeometry: true };
+  }
+  if (
+    primitive.kind === "circle" &&
+    primitive.points[0] &&
+    typeof primitive.radius === "number" &&
+    primitive.radius > 0
+  ) {
+    pushCircle(lines, layer, primitive.points[0], primitive.radius);
+    return { wrote: true, isGeometry: true };
+  }
+  if (
+    primitive.kind === "arc" &&
+    primitive.points[0] &&
+    typeof primitive.radius === "number" &&
+    primitive.radius > 0 &&
+    typeof primitive.startAngle === "number" &&
+    typeof primitive.endAngle === "number"
+  ) {
+    pushArc(
+      lines,
+      layer,
+      primitive.points[0],
+      primitive.radius,
+      primitive.startAngle,
+      primitive.endAngle,
+    );
+    return { wrote: true, isGeometry: true };
+  }
+  if (
+    primitive.kind === "ellipse" &&
+    primitive.points[0] &&
+    primitive.majorAxis &&
+    typeof primitive.axisRatio === "number" &&
+    primitive.axisRatio > 0
+  ) {
+    pushEllipse(
+      lines,
+      layer,
+      primitive.points[0],
+      primitive.majorAxis,
+      primitive.axisRatio,
+      primitive.startAngle ?? 0,
+      primitive.endAngle ?? 360,
+    );
+    return { wrote: true, isGeometry: true };
+  }
+  if (primitive.kind === "spline" && primitive.points.length >= 2) {
+    pushSpline(
+      lines,
+      layer,
+      primitive.points,
+      Math.max(1, Math.min(primitive.degree ?? 3, primitive.points.length - 1)),
+      primitive.knots,
+    );
+    return { wrote: true, isGeometry: true };
+  }
+  if (primitive.kind === "text" && primitive.points[0] && primitive.text) {
+    const wrote = pushText(lines, layer, primitive.points[0], primitive.text);
+    return { wrote, isGeometry: false };
+  }
+  return { wrote: false, isGeometry: false };
+}
+
+/** Sección BLOCKS: definiciones reutilizables (mismos códigos que lee el parser). */
+function pushBlocks(lines: string[], blocks: CadDxfExportBlock[]) {
+  pushPair(lines, 0, "SECTION");
+  pushPair(lines, 2, "BLOCKS");
+  for (const block of blocks) {
+    pushPair(lines, 0, "BLOCK");
+    pushPair(lines, 8, DEFAULT_LAYER);
+    pushPair(lines, 2, safeText(block.name) || "BLOQUE");
+    pushPair(lines, 70, 0);
+    pushPoint(lines, { x: 0, y: 0 });
+    for (const primitive of block.primitives)
+      writePrimitiveGeometry(lines, safeLayerName(primitive.layer), primitive);
+    pushPair(lines, 0, "ENDBLK");
+  }
+  pushPair(lines, 0, "ENDSEC");
+}
+
 export function exportCadDxf(
   model: CadDxfExportModel,
   options: CadDxfExportOptions = {},
@@ -281,89 +404,28 @@ export function exportCadDxf(
   let entityCount = 0;
   pushHeader(lines, options);
   pushLayerTable(lines, model, layers);
+  if (model.blocks?.length) pushBlocks(lines, model.blocks);
   pushPair(lines, 0, "SECTION");
   pushPair(lines, 2, "ENTITIES");
 
   for (const primitive of model.primitives ?? []) {
     const layer = safeLayerName(primitive.layer);
-    let wroteGeometry = false;
-    if (primitive.kind === "line" && primitive.points.length >= 2) {
-      pushLine(lines, layer, primitive.points[0], primitive.points[1]);
+    const { wrote, isGeometry } = writePrimitiveGeometry(lines, layer, primitive);
+    if (wrote) entityCount += 1;
+    if (wrote && isGeometry && pushPrimitiveLabel(lines, layer, primitive))
       entityCount += 1;
-      wroteGeometry = true;
-    } else if (primitive.kind === "polyline" && primitive.points.length >= 2) {
-      pushPolyline(lines, layer, primitive.points, false);
-      entityCount += 1;
-      wroteGeometry = true;
-    } else if (primitive.kind === "rect" && primitive.points.length >= 2) {
-      pushPolyline(lines, layer, rectToClosedPoints(primitive.points), true);
-      entityCount += 1;
-      wroteGeometry = true;
-    } else if (
-      primitive.kind === "circle" &&
-      primitive.points[0] &&
-      typeof primitive.radius === "number" &&
-      primitive.radius > 0
-    ) {
-      pushCircle(lines, layer, primitive.points[0], primitive.radius);
-      entityCount += 1;
-      wroteGeometry = true;
-    } else if (
-      primitive.kind === "arc" &&
-      primitive.points[0] &&
-      typeof primitive.radius === "number" &&
-      primitive.radius > 0 &&
-      typeof primitive.startAngle === "number" &&
-      typeof primitive.endAngle === "number"
-    ) {
-      pushArc(
-        lines,
-        layer,
-        primitive.points[0],
-        primitive.radius,
-        primitive.startAngle,
-        primitive.endAngle,
-      );
-      entityCount += 1;
-      wroteGeometry = true;
-    } else if (
-      primitive.kind === "ellipse" &&
-      primitive.points[0] &&
-      primitive.majorAxis &&
-      typeof primitive.axisRatio === "number" &&
-      primitive.axisRatio > 0
-    ) {
-      pushEllipse(
-        lines,
-        layer,
-        primitive.points[0],
-        primitive.majorAxis,
-        primitive.axisRatio,
-        primitive.startAngle ?? 0,
-        primitive.endAngle ?? 360,
-      );
-      entityCount += 1;
-      wroteGeometry = true;
-    } else if (primitive.kind === "spline" && primitive.points.length >= 2) {
-      pushSpline(
-        lines,
-        layer,
-        primitive.points,
-        Math.max(1, Math.min(primitive.degree ?? 3, primitive.points.length - 1)),
-        primitive.knots,
-      );
-      entityCount += 1;
-      wroteGeometry = true;
-    } else if (
-      primitive.kind === "text" &&
-      primitive.points[0] &&
-      primitive.text
-    ) {
-      if (pushText(lines, layer, primitive.points[0], primitive.text))
-        entityCount += 1;
-    }
-    if (wroteGeometry && pushPrimitiveLabel(lines, layer, primitive))
-      entityCount += 1;
+  }
+  for (const insert of model.inserts ?? []) {
+    pushPair(lines, 0, "INSERT");
+    pushPair(lines, 8, safeLayerName(insert.layer));
+    pushPair(lines, 2, safeText(insert.block));
+    pushPoint(lines, { x: insert.x, y: insert.y });
+    if (insert.rotation) pushPair(lines, 50, fmt(insert.rotation));
+    if (insert.scaleX !== undefined && insert.scaleX !== 1)
+      pushPair(lines, 41, fmt(insert.scaleX));
+    if (insert.scaleY !== undefined && insert.scaleY !== 1)
+      pushPair(lines, 42, fmt(insert.scaleY));
+    entityCount += 1;
   }
   for (const text of model.texts ?? []) {
     if (

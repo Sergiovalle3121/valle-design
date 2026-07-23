@@ -192,7 +192,7 @@ kernel. El gap DXF de AXOS CAD **no es de kernel, es de cableado**.
 | `ELLIPSE` | ✓ (11/21 eje mayor, 40 razón, 41/42 params — **CAD-NEXT-061**) | ✕ (editor no tiene elipses) | ✓ (centro+eje+razón, params→grados) | ✓ (**teselado → muros — CAD-NEXT-062**) | ✓ (`dxf-roundtrip.spec`) |
 | `SPLINE` | ✓ (70/71/72/73, nudos 40, control 10/20 — **CAD-NEXT-061**) | ✕ (editor no tiene splines) | ✓ (control+grado+nudos) | ✓ (**De Boor teselado → muros, la CURVA real — CAD-NEXT-062**) | ✓ (`dxf-roundtrip.spec`) |
 | `HATCH` | ✕ | ✕ | ✕ | ✕ | — |
-| `INSERT`/bloques | ✕ (el modelo de export no tiene bloques aún) | ✕ | ✓ (**expansión con posición+rotación+escala, anidado ≤4 — CAD-NEXT-063**) | ✓ (vía las primitivas expandidas) | ✓ (`dxf-insert.spec` contra el parser real) |
+| `INSERT`/bloques | ✓ (**sección BLOCKS + INSERT con rotación/escala — CAD-NEXT-064**) | ✕ (el editor aún no emite bloques) | ✓ (**expansión con posición+rotación+escala, anidado ≤4 — CAD-NEXT-063**) | ✓ (vía las primitivas expandidas) | ✓ (`dxf-insert.spec`: export propio → parser real → expansión propia) |
 | `DIMENSION` (nativa) | ✕ (se emite como líneas+texto) | ✕ | ✕ | ✕ | — |
 
 **Lecturas clave:**
