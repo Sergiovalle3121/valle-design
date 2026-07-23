@@ -74,6 +74,7 @@ import { importDxfPrimitives, summarizeDxfImportWarnings, type CadDxfImportResul
 import { CAD_SYMBOL_LIBRARY, getCadSymbol, type CadSymbolCategory } from '@/lib/cad/symbols';
 import { createDefaultIndustryRegistry, type SmartObjectInstance } from '@/lib/cad/industry-pack';
 import { tessellateDxfPrimitive } from '@/lib/cad/curve-tessellate';
+import { DWG_UNAVAILABLE_REASON } from '@/lib/cad/interop-provider';
 import { CAD_LAYOUT_TEMPLATES, instantiateCadLayoutTemplate, type CadLayoutTemplateId } from '@/lib/cad/templates';
 import {
   generateWarehouseDockStaging,
@@ -3654,7 +3655,9 @@ export default function Layout3DEditor({
       // Detección de formato (Fase 74 cableada, ADR §222): un DWG binario jamás
       // pasará el parser de texto — mejor un mensaje accionable que "sin líneas".
       const fmt = detectCadFormat(text);
-      if (fmt.format === 'dwg') { toast.error(fmt.message, 'DXF'); return; }
+      // DWG: la razón viene del contrato de interoperabilidad (D5, fuente única
+      // de verdad) — nunca se finge soporte sin proveedor licenciado.
+      if (fmt.format === 'dwg') { toast.error(DWG_UNAVAILABLE_REASON, 'DXF'); return; }
       if (fmt.format === 'unknown') toast.error(`${fmt.message} Intentaré leerlo de todos modos.`, 'DXF');
       const importPreview = importDxfPrimitives(text);
       setDxfImportPreview(importPreview);
@@ -5891,6 +5894,8 @@ export default function Layout3DEditor({
                 </div>
                 {dxfImportPreview && dxfPrimitiveSummary && (
                   <div className="mb-2 rounded-xl border border-cyan-400/15 bg-cyan-400/[0.06] p-2 text-[11px] text-cyan-100">
+                    {/* Soporte honesto de formatos (contrato D5): DXF nativo; DWG sólo con proveedor licenciado. */}
+                    <div className="mb-1 text-[10px] text-cyan-200/70" title={DWG_UNAVAILABLE_REASON}>Formatos: DXF ✓ nativo · DWG ✕ requiere proveedor licenciado</div>
                     <div className="font-semibold">{dxfImportPreview.primitives.length} entidades soportadas · {dxfImportPreview.layers.length || 1} capa(s)</div>
                     <div className="mt-1 text-cyan-100/75">{Object.entries(dxfPrimitiveSummary).map(([kind, count]) => `${kind}: ${count}`).join(' · ')}</div>
                     <button onClick={convertDxfPrimitivesToEditable} className="mt-2 w-full rounded-lg bg-cyan-600 px-2 py-1.5 text-[11px] font-semibold text-white hover:bg-cyan-500">Convertir entidades soportadas</button>
