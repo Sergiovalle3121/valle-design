@@ -22,6 +22,12 @@ export interface CadExportBox {
    * un cuadrado. Por defecto (sin shape) es un rectángulo (AXOS-CAD-WIRE-001).
    */
   shape?: "circle" | "rect";
+  /**
+   * Además del contorno, emite el área como HATCH de relleno SOLID
+   * (CAD-NEXT-067) — las zonas del editor llegan a AutoCAD como áreas
+   * rellenas de verdad, no como rectángulos vacíos.
+   */
+  hatch?: boolean;
 }
 export interface CadExportConnector {
   from: { x: number; y: number };
@@ -127,6 +133,13 @@ export function cadLayoutToDxfExportModel(
       layer: label.layer ?? "Text",
     })),
     measurements: input.measurements,
+    hatches: (input.boxes ?? [])
+      .filter((box) => box.hatch && box.shape !== "circle")
+      .map((box) => ({
+        layer: box.layer ?? "Equipment",
+        // Mismo contorno rotado que la polilínea, sin repetir el cierre.
+        points: rectPoints(box).slice(0, 4),
+      })),
   };
 }
 export function exportCadLayoutDxf(

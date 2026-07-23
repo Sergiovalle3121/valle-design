@@ -2769,7 +2769,7 @@ export default function Layout3DEditor({
     setSafetyIssues(cadReport.safety);
     rebuildAll();
     setReport(designChecks({ stations, assets, unplacedStations: unplaced, footprintW: fp.footprintW, footprintH: fp.footprintH, connectors: connectorsRef.current }));
-  }, [data, currentCollisionBoxes, currentFlowNodes, currentSafetyZones, rebuildAll]);
+  }, [data, currentCollisionBoxes, currentFlowNodes, currentSafetyZones, snapshot, rebuildAll]);
   const clearValidationHighlights = () => {
     validationHighlightRef.current = new Set();
     setValidationHighlightIds(new Set());
@@ -5035,7 +5035,7 @@ export default function Layout3DEditor({
           .map(([id, p]) => ({ id, label: stationsByIdRef.current.get(id)?.station ?? id, x: p.x, y: p.y, width: p.w, height: p.h, rotation: p.rotation, layer: layerLabel(layerAssignments[id] ?? 'layout') })),
         ...[...assetsRef.current.values()]
           .filter((asset) => includeObject(asset.id, defaultCadLayerForAssetKind(asset.kind, objectTags[asset.id])))
-          .map((asset) => ({ id: asset.id, label: asset.label || assetMeta(asset.kind).label, x: asset.x, y: asset.y, width: asset.w, height: asset.h, rotation: asset.rotation, layer: layerLabel(layerAssignments[asset.id] ?? defaultCadLayerForAssetKind(asset.kind, objectTags[asset.id])), ...(asset.shape === 'circle' ? { shape: 'circle' as const } : {}) })),
+          .map((asset) => ({ id: asset.id, label: asset.label || assetMeta(asset.kind).label, x: asset.x, y: asset.y, width: asset.w, height: asset.h, rotation: asset.rotation, layer: layerLabel(layerAssignments[asset.id] ?? defaultCadLayerForAssetKind(asset.kind, objectTags[asset.id])), ...(asset.shape === 'circle' ? { shape: 'circle' as const } : {}), ...(assetMeta(asset.kind).archetype === 'zone' ? { hatch: true } : {}) })),
       ];
       const connectors = connectorsRef.current.map((conn) => {
         if (!includeLayer('flow')) return null;

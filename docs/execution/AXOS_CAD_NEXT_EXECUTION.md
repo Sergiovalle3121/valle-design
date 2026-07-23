@@ -191,7 +191,7 @@ kernel. El gap DXF de AXOS CAD **no es de kernel, es de cableado**.
 | Tabla `LAYER` (+color) | ✓ | ~ (nombre de capa por caja) | ✓ (recoge capas) | ~ (tag `dxf-layer:`) | — |
 | `ELLIPSE` | ✓ (11/21 eje mayor, 40 razón, 41/42 params — **CAD-NEXT-061**) | ✕ (editor no tiene elipses) | ✓ (centro+eje+razón, params→grados) | ✓ (**teselado → muros — CAD-NEXT-062**) | ✓ (`dxf-roundtrip.spec`) |
 | `SPLINE` | ✓ (70/71/72/73, nudos 40, control 10/20 — **CAD-NEXT-061**) | ✕ (editor no tiene splines) | ✓ (control+grado+nudos) | ✓ (**De Boor teselado → muros, la CURVA real — CAD-NEXT-062**) | ✓ (`dxf-roundtrip.spec`) |
-| `HATCH` | ✕ | ✕ | ✕ | ✕ | — |
+| `HATCH` | ✓ (**relleno SOLID con contorno poligonal — CAD-NEXT-067**) | ✓ (**las ZONAS del editor salen como área rellena**) | ✕ con AVISO honesto (`hatch_dropped`: dxf-parser lo descarta; el pre-escaneo del texto lo reporta al panel de avisos en vez de perderlo en silencio) | ✕ | ✓ (`dxf-hatch.spec`: estructura de export + aviso de import + el contorno sí reimporta) |
 | `INSERT`/bloques | ✓ (**sección BLOCKS + INSERT con rotación/escala — CAD-NEXT-064**) | ✕ (el editor aún no emite bloques) | ✓ (**expansión con posición+rotación+escala, anidado ≤4 — CAD-NEXT-063**) | ✓ (vía las primitivas expandidas) | ✓ (`dxf-insert.spec`: export propio → parser real → expansión propia) |
 | `DIMENSION` (nativa) | ✓ (**entidad alineada 70=33 + bloque anónimo `*D{n}` con la geometría renderizada — CAD-NEXT-066**) | ✓ (**las cotas del editor salen como DIMENSION vía `measurements`**) | ✓ (**expansión del bloque `*D`; sin bloque → texto de la cota + aviso**) | ✓ (vía las primitivas expandidas) | ✓ (`dxf-dimension.spec`: export propio → parser real → expansión propia + fallback) |
 
@@ -217,10 +217,15 @@ kernel. El gap DXF de AXOS CAD **no es de kernel, es de cableado**.
    `dxfImportPreview` sigue alimentando el panel de conteo; el backdrop
    (`parseDxf`) sigue disponible como fondo de calco.
 
-**Pendiente DXF (deuda honesta):** HATCH nativo no se soporta en el kernel
-(el achurado propio de `hatch.ts` sigue sin viajar por DXF); la capa importada
-viaja como tag, no como definición de capa real. ARC/ELLIPSE/SPLINE importados
-se materializan por teselado (CAD-NEXT-062), no como entidades curvas editables.
+**Pendiente DXF (deuda honesta):** el HATCH importado sólo avisa (dxf-parser lo
+descarta antes de nuestro mapper; recuperar el relleno exigiría parsear HATCH a
+mano); la capa importada viaja como tag, no como definición de capa real.
+ARC/ELLIPSE/SPLINE importados se materializan por teselado (CAD-NEXT-062), no
+como entidades curvas editables. La persistencia canónica NO duplica el
+documento en el servidor: el layout persistido round-tripea sin pérdida con
+`CadDocument` por los adaptadores probados, así que almacenar una copia
+serializada sería duplicación con riesgo de divergencia (decisión CAD-NEXT-011
+pieza 3, regla "un sistema por concern").
 
 ### 3.3 Baseline de rendimiento (CAD-NEXT-050)
 

@@ -28,6 +28,12 @@ export interface CadDxfExportMeasurement {
   /** Desfase perpendicular de la línea de cota (con signo); 0 = sobre el tramo. */
   offset?: number;
 }
+/** Área rellena (HATCH SOLID) delimitada por un contorno cerrado (CAD-NEXT-067). */
+export interface CadDxfExportHatch {
+  layer?: string;
+  /** Vértices del contorno; se cierra solo (no repetir el primero). */
+  points: CadDxfPoint[];
+}
 /** Definición de bloque reutilizable (sección BLOCKS — CAD-NEXT-064). */
 export interface CadDxfExportBlock {
   name: string;
@@ -51,6 +57,7 @@ export interface CadDxfExportModel {
   measurements?: CadDxfExportMeasurement[];
   blocks?: CadDxfExportBlock[];
   inserts?: CadDxfExportInsert[];
+  hatches?: CadDxfExportHatch[];
 }
 export interface CadDxfExportResult {
   content: string;
@@ -97,6 +104,8 @@ function uniqueLayers(model: CadDxfExportModel): string[] {
       names.add(safeLayerName(primitive.layer));
   for (const insert of model.inserts ?? [])
     names.add(safeLayerName(insert.layer));
+  for (const hatch of model.hatches ?? [])
+    names.add(safeLayerName(hatch.layer));
   for (const text of model.texts ?? [])
     names.add(safeLayerName(text.layer ?? TEXT_LAYER));
   for (const measurement of model.measurements ?? [])
@@ -471,6 +480,37 @@ function pushDimension(lines: string[], layer: string, dim: PreparedDimension) {
   pushPair(lines, 34, "0");
 }
 
+/**
+ * HATCH de relleno SOLID con un contorno poligonal cerrado — los códigos del
+ * estándar DXF (patrón 2=SOLID, 70=1 sólido, camino 92=2 polilínea, 73=1
+ * cerrado). dxf-parser lo DESCARTA al leer (el import lo avisa honesto); los
+ * CAD reales lo pintan como área rellena.
+ */
+function pushHatch(lines: string[], layer: string, hatch: CadDxfExportHatch) {
+  pushPair(lines, 0, "HATCH");
+  pushPair(lines, 8, layer);
+  pushPoint(lines, { x: 0, y: 0 }); // punto de elevación (siempre 0 en 2D)
+  pushPair(lines, 210, "0");
+  pushPair(lines, 220, "0");
+  pushPair(lines, 230, "1");
+  pushPair(lines, 2, "SOLID");
+  pushPair(lines, 70, 1); // relleno sólido
+  pushPair(lines, 71, 0); // no asociativo
+  pushPair(lines, 91, 1); // 1 camino de contorno
+  pushPair(lines, 92, 2); // camino = polilínea
+  pushPair(lines, 72, 0); // sin bulge
+  pushPair(lines, 73, 1); // cerrado
+  pushPair(lines, 93, hatch.points.length);
+  for (const point of hatch.points) {
+    pushPair(lines, 10, fmt(point.x));
+    pushPair(lines, 20, fmt(point.y));
+  }
+  pushPair(lines, 97, 0); // sin objetos fuente
+  pushPair(lines, 75, 0); // estilo normal
+  pushPair(lines, 76, 1); // patrón predefinido
+  pushPair(lines, 98, 0); // sin puntos semilla
+}
+
 /** Sección BLOCKS: definiciones reutilizables (mismos códigos que lee el parser). */
 function pushBlocks(lines: string[], blocks: CadDxfExportBlock[]) {
   pushPair(lines, 0, "SECTION");
@@ -531,6 +571,11 @@ export function exportCadDxf(
       pushPair(lines, 41, fmt(insert.scaleX));
     if (insert.scaleY !== undefined && insert.scaleY !== 1)
       pushPair(lines, 42, fmt(insert.scaleY));
+    entityCount += 1;
+  }
+  for (const hatch of model.hatches ?? []) {
+    if (hatch.points.length < 3) continue; // un relleno necesita área real
+    pushHatch(lines, safeLayerName(hatch.layer), hatch);
     entityCount += 1;
   }
   for (const text of model.texts ?? []) {

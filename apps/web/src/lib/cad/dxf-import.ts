@@ -453,8 +453,31 @@ function expandDimension(
     : [];
 }
 
+/**
+ * Cuenta entidades HATCH en el texto crudo. dxf-parser las DESCARTA en
+ * silencio (ni siquiera llegan al bucle de entidades), así que sin este
+ * pre-escaneo un plano achurado importaría con los rellenos perdidos y CERO
+ * avisos — pérdida silenciosa, lo contrario del contrato honesto del import.
+ */
+function countRawHatchEntities(text: string): number {
+  const lines = text.split(/\r?\n/);
+  let count = 0;
+  for (let i = 0; i + 1 < lines.length; i += 1) {
+    if (lines[i].trim() === "0" && lines[i + 1].trim().toUpperCase() === "HATCH")
+      count += 1;
+  }
+  return count;
+}
+
 export function importDxfPrimitives(text: string): CadDxfImportResult {
   const warnings: CadDxfImportWarning[] = [];
+  const hatchCount = countRawHatchEntities(text);
+  if (hatchCount > 0)
+    warnings.push({
+      code: "hatch_dropped",
+      message: `El archivo trae ${hatchCount} achurado(s) HATCH; el relleno aún no se importa (la geometría restante sí).`,
+      entityType: "HATCH",
+    });
   let parsed: any;
   try {
     parsed = new (DxfParser as any)().parseSync(text);
