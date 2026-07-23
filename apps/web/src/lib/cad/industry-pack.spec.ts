@@ -184,6 +184,33 @@ assert.deepEqual(
 );
 assert.deepEqual(registry.validatePlaced("nope", 100, 100), [], "objeto desconocido → sin hallazgos");
 
+// Cálculos vivos por geometría (CAD-NEXT-096): redimensionar recalcula.
+assert.equal(
+  registry.calculatePlaced("logistics.pallet-rack", 8400, 1100).palletPositions,
+  24,
+  "rack de 8400 → 24 posiciones (niveles por defecto)",
+);
+assert.equal(
+  registry.calculatePlaced("logistics.pallet-rack", 5200, 1100).palletPositions,
+  16,
+  "rack encogido a 5200 → 16 posiciones en vivo",
+);
+assert.equal(
+  registry.calculatePlaced("retail.gondola", 3600, 600).totalFacings,
+  60,
+  "góndola de 3600 → 60 facings",
+);
+assert.equal(
+  registry.calculatePlaced("process.tank", 3000, 3000).footprintM2,
+  7.07,
+  "tanque de 3000 → huella recalculada",
+);
+assert.deepEqual(
+  registry.calculatePlaced("retail.checkout-lane", 1500, 2400),
+  {},
+  "sin propsFromSize no hay cálculos inventados",
+);
+
 // --- registro: registrar dos veces reemplaza con aviso ----------------------
 const r2 = new IndustryPackRegistry();
 assert.equal(r2.register(manufacturingPack).replaced, false, "primer registro no reemplaza");

@@ -5283,6 +5283,19 @@ export default function Layout3DEditor({
       notes: objectNotes[selSnap.id],
     });
   })() : null;
+  // Bloque Industry Pack VIVO (CAD-NEXT-096): métricas y primera norma del
+  // pack re-calculadas con el tamaño actual del asset seleccionado.
+  const selectedIndustryInfo = selSnap && selSnap.type === 'asset' ? (() => {
+    const tags = (objectTags[selSnap.id] ?? '').split(/[,\n]/).map((t) => t.trim());
+    const objectId = tags.find((t) => INDUSTRY_REGISTRY.getObject(t));
+    if (!objectId) return null;
+    const def = INDUSTRY_REGISTRY.getObject(objectId)!;
+    return {
+      label: def.label,
+      metrics: INDUSTRY_REGISTRY.calculatePlaced(objectId, selSnap.w, selSnap.h),
+      findings: INDUSTRY_REGISTRY.validatePlaced(objectId, selSnap.w, selSnap.h),
+    };
+  })() : null;
   const validationFlow = cadValidationReport?.flow ?? flowHealth;
   const safetyBlockers = safetyIssues.filter((issue) => issue.code === 'zone_invasion').length;
   const safetyWarnings = safetyIssues.length - safetyBlockers;
@@ -6268,6 +6281,24 @@ export default function Layout3DEditor({
                                 <ReadField key={`${item.label}-${item.value}`} label={item.label} value={item.value} />
                               ))}
                             </div>
+                          </div>
+                        )}
+                        {selectedIndustryInfo && (
+                          <div className="mt-2 rounded-lg border border-violet-300/10 bg-violet-300/[0.05] p-2">
+                            <div className="mb-1.5 flex items-center justify-between gap-2">
+                              <span className="text-[10px] uppercase tracking-wide text-violet-300">Industry Pack</span>
+                              <span className="rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-violet-200">{selectedIndustryInfo.label}</span>
+                            </div>
+                            {Object.keys(selectedIndustryInfo.metrics).length > 0 && (
+                              <div className="grid grid-cols-2 gap-2">
+                                {Object.entries(selectedIndustryInfo.metrics).slice(0, 4).map(([metric, value]) => (
+                                  <ReadField key={metric} label={metric} value={value.toLocaleString('es-MX')} />
+                                ))}
+                              </div>
+                            )}
+                            {selectedIndustryInfo.findings.length > 0 && (
+                              <div className={`mt-2 rounded-md px-2 py-1 text-[10.5px] ${selectedIndustryInfo.findings[0].level === 'error' ? 'border border-rose-300/15 bg-rose-400/[0.06] text-rose-100' : 'border border-amber-300/15 bg-amber-400/[0.06] text-amber-100'}`}>{selectedIndustryInfo.findings[0].message}</div>
+                            )}
                           </div>
                         )}
                         {selectedObjectProperties.warnings.length > 0 && (

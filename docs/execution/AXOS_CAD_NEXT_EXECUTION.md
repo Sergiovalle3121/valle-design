@@ -460,6 +460,12 @@ Gates verdes: `tsc` (web+api), `eslint`, `test:specs` (81/81), `check:nav`,
     el plano, no sólo un toast al soltarlo. Honesto: objetos sin reglas
     geométricas re-evaluables (línea de cajas — la fila es otro objeto)
     devuelven `[]`, sin hallazgos inventados con defaults.
+    **CAD-NEXT-096:** el panel de propiedades muestra el bloque **Industry
+    Pack VIVO** — `calculatePlaced` re-corre los cálculos de negocio con el
+    tamaño actual del asset seleccionado (encoger un rack de 8400 a 5200
+    baja de 24 a 16 posiciones de pallet EN VIVO) más la primera norma
+    violada al tamaño actual. El objeto inteligente ya se comporta como tal
+    en todo su ciclo: drop → selección → resize → revisión.
 11. **CAD-NEXT-066 (cotas DIMENSION nativas)** — **✓ hecho**: las mediciones
     dejan de aplanarse a línea+texto y viajan como entidad **DIMENSION real**
     (alineada, 70=33) que referencia un **bloque anónimo `*D{n}`** con la

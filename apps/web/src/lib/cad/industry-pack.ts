@@ -175,6 +175,23 @@ export class IndustryPackRegistry {
       props: def.propsFromSize(w, h),
     });
   }
+
+  /**
+   * Re-calcula los números de negocio del pack con el tamaño ACTUAL del
+   * objeto colocado (CAD-NEXT-096): redimensionar un rack actualiza sus
+   * posiciones de pallet en vivo. `{}` si no es re-calculable por geometría.
+   */
+  calculatePlaced(objectId: string, w: number, h: number): Record<string, number> {
+    const def = this.getObject(objectId);
+    if (!def?.propsFromSize || !def.calculate) return {};
+    return def.calculate({
+      id: "placed",
+      objectId,
+      x: 0,
+      y: 0,
+      props: def.propsFromSize(w, h),
+    });
+  }
 }
 
 const MM2_PER_M2 = 1_000_000;
