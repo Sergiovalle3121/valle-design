@@ -52,7 +52,7 @@ export function buildSyntheticLayout(options: SyntheticLayoutOptions): {
   const cell = options.cellSize ?? 4000;
   const rng = makeRng(options.seed ?? 42);
   const columns = Math.ceil(Math.sqrt(count));
-  const layout: Required<LayoutInput> = { assets: [], annotations: [], connectors: [], layers: [] };
+  const layout: Required<LayoutInput> = { assets: [], annotations: [], connectors: [], layers: [], stations: [] };
 
   for (let i = 0; i < count; i++) {
     const col = i % columns;

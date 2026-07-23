@@ -193,7 +193,7 @@ kernel. El gap DXF de AXOS CAD **no es de kernel, es de cableado**.
 | `SPLINE` | ✓ (70/71/72/73, nudos 40, control 10/20 — **CAD-NEXT-061**) | ✕ (editor no tiene splines) | ✓ (control+grado+nudos) | ✓ (**De Boor teselado → muros, la CURVA real — CAD-NEXT-062**) | ✓ (`dxf-roundtrip.spec`) |
 | `HATCH` | ✕ | ✕ | ✕ | ✕ | — |
 | `INSERT`/bloques | ✓ (**sección BLOCKS + INSERT con rotación/escala — CAD-NEXT-064**) | ✕ (el editor aún no emite bloques) | ✓ (**expansión con posición+rotación+escala, anidado ≤4 — CAD-NEXT-063**) | ✓ (vía las primitivas expandidas) | ✓ (`dxf-insert.spec`: export propio → parser real → expansión propia) |
-| `DIMENSION` (nativa) | ✕ (se emite como líneas+texto) | ✕ | ✕ | ✕ | — |
+| `DIMENSION` (nativa) | ✓ (**entidad alineada 70=33 + bloque anónimo `*D{n}` con la geometría renderizada — CAD-NEXT-066**) | ✓ (**las cotas del editor salen como DIMENSION vía `measurements`**) | ✓ (**expansión del bloque `*D`; sin bloque → texto de la cota + aviso**) | ✓ (vía las primitivas expandidas) | ✓ (`dxf-dimension.spec`: export propio → parser real → expansión propia + fallback) |
 
 **Lecturas clave:**
 
@@ -217,9 +217,10 @@ kernel. El gap DXF de AXOS CAD **no es de kernel, es de cableado**.
    `dxfImportPreview` sigue alimentando el panel de conteo; el backdrop
    (`parseDxf`) sigue disponible como fondo de calco.
 
-**Pendiente DXF (deuda honesta):** ARC no tiene asset destino (se descarta);
-ELLIPSE/SPLINE/HATCH/INSERT/DIMENSION nativos no se soportan ni en kernel ni en
-editor; la capa importada viaja como tag, no como definición de capa real.
+**Pendiente DXF (deuda honesta):** HATCH nativo no se soporta en el kernel
+(el achurado propio de `hatch.ts` sigue sin viajar por DXF); la capa importada
+viaja como tag, no como definición de capa real. ARC/ELLIPSE/SPLINE importados
+se materializan por teselado (CAD-NEXT-062), no como entidades curvas editables.
 
 ### 3.3 Baseline de rendimiento (CAD-NEXT-050)
 
@@ -411,6 +412,14 @@ Gates verdes: `tsc` (web+api), `eslint`, `test:specs` (81/81), `check:nav`,
    los dos barridos del editor dejan de ser O(n²), con **equivalencia probada**
    (300 cajas → resultados idénticos al doble bucle, mismo orden).
 9. **CAD-NEXT-011** — persistencia/undo del editor sobre `CadDocument`.
+   **Pieza 1 hecha (esquema v2):** el documento canónico ya sostiene TODO lo
+   que lleva el snapshot de undo del editor — cajas con **`tags`** y la nueva
+   entidad **`station`** (colocaciones de línea con geometría y rotación,
+   capa estable `Stations`) — con round-trip sin pérdida, serialización
+   determinista y compatibilidad con layouts v1 (sin tags/estaciones no se
+   inventa nada). `CAD_DOCUMENT_SCHEMA` sube a 2 (aditivo). Falta la pieza 2:
+   que el editor construya sus snapshots de undo/persistencia COMO
+   `CadDocument` en lugar del `Snapshot` ad-hoc.
 10. **CAD-NEXT-092/093 (verticales 4 y 5)** — **✓ hechos**: **Logística/Almacén**
     (rack de pallets con posiciones por nivel = `floor(frente / (1200+100))` ×
     niveles, aviso si el fondo no cubre un pallet; pasillo de montacargas con
@@ -422,3 +431,14 @@ Gates verdes: `tsc` (web+api), `eslint`, `test:specs` (81/81), `check:nav`,
     civil, logística, retail) sobre el MISMO documento, registro, paleta y
     motor de reglas; la zona de fila demuestra objetos inteligentes
     multi-entidad revisables por las reglas como cualquier caja.
+11. **CAD-NEXT-066 (cotas DIMENSION nativas)** — **✓ hecho**: las mediciones
+    dejan de aplanarse a línea+texto y viajan como entidad **DIMENSION real**
+    (alineada, 70=33) que referencia un **bloque anónimo `*D{n}`** con la
+    geometría renderizada por `dimension.ts` (extensiones, línea de cota,
+    flechas, texto) — el mismo esquema que escribe AutoCAD. El import expande
+    el bloque de vuelta a primitivas; una DIMENSION ajena sin bloque cae
+    honestamente al texto de su medición con advertencia
+    `dimension_without_block`, nunca geometría inventada. El cable del editor
+    salió gratis: `measurements` del adaptador ahora emite DIMENSION, así que
+    las cotas del editor llegan a AutoCAD como cotas. Round-trip probado con
+    el parser real (`dxf-dimension.spec.ts`).

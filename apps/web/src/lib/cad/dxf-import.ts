@@ -414,6 +414,45 @@ function expandInsert(
   return expanded;
 }
 
+/**
+ * Expande una entidad DIMENSION a la geometría de su bloque anónimo *D
+ * (líneas de extensión, línea de cota, flechas y texto). Si el archivo no
+ * trae el bloque renderizado, cae honestamente al texto de la medición en el
+ * ancla del texto, con advertencia (CAD-NEXT-066).
+ */
+function expandDimension(
+  entity: any,
+  blocks: Record<string, any>,
+  warnings: CadDxfImportWarning[],
+): CadDxfPrimitive[] {
+  const layer = String(entity?.layer || DEFAULT_LAYER);
+  const blockName = String(entity?.block ?? "");
+  const block = blockName ? blocks[blockName] : undefined;
+  if (block && Array.isArray(block.entities) && block.entities.length) {
+    const expanded: CadDxfPrimitive[] = [];
+    for (const child of block.entities) {
+      const mapped = mapDxfEntityToPrimitive(child);
+      if (mapped.warning) warnings.push(mapped.warning);
+      if (mapped.primitive) expanded.push(mapped.primitive);
+    }
+    if (expanded.length) return expanded;
+  }
+  const anchor = pt(entity?.middleOfText) ?? pt(entity?.anchorPoint);
+  const measured = num(entity?.actualMeasurement);
+  const label =
+    String(entity?.text ?? "").trim() ||
+    (measured != null && measured > 0 ? String(Number(measured.toFixed(2))) : "");
+  warnings.push({
+    code: "dimension_without_block",
+    message: `DIMENSION sin bloque de geometría ("${blockName || "(sin nombre)"}"): se conserva sólo el texto de la cota.`,
+    entityType: "DIMENSION",
+    layer,
+  });
+  return anchor && label
+    ? [{ kind: "text", layer, points: [anchor], text: label }]
+    : [];
+}
+
 export function importDxfPrimitives(text: string): CadDxfImportResult {
   const warnings: CadDxfImportWarning[] = [];
   let parsed: any;
@@ -442,6 +481,16 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
       // Expansión de bloques (CAD-NEXT-063): las puertas/luminarias/mobiliario
       // insertados dejan de perderse como "no soportados".
       for (const primitive of expandInsert(entity, blocks, warnings, 0)) {
+        if (primitives.length >= MAX_DXF_ENTITIES) break;
+        primitives.push(primitive);
+        layers.add(primitive.layer);
+      }
+      continue;
+    }
+    if (type === "DIMENSION") {
+      // Cotas nativas (CAD-NEXT-066): la geometría renderizada vive en el
+      // bloque anónimo *D que referencia la entidad.
+      for (const primitive of expandDimension(entity, blocks, warnings)) {
         if (primitives.length >= MAX_DXF_ENTITIES) break;
         primitives.push(primitive);
         layers.add(primitive.layer);

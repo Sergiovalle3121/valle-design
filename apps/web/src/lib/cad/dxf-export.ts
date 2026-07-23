@@ -1,4 +1,9 @@
 import type { CadDxfPoint, CadDxfPrimitive } from "./dxf-import";
+import {
+  alignedDimension,
+  DEFAULT_DIMENSION_STYLE,
+  type DimensionGeometry,
+} from "./dimension";
 
 export type CadDxfExportUnit = "mm" | "m";
 export interface CadDxfExportOptions {
@@ -20,6 +25,8 @@ export interface CadDxfExportMeasurement {
   from: CadDxfPoint;
   to: CadDxfPoint;
   label?: string;
+  /** Desfase perpendicular de la línea de cota (con signo); 0 = sobre el tramo. */
+  offset?: number;
 }
 /** Definición de bloque reutilizable (sección BLOCKS — CAD-NEXT-064). */
 export interface CadDxfExportBlock {
@@ -378,6 +385,92 @@ function writePrimitiveGeometry(
   return { wrote: false, isGeometry: false };
 }
 
+/**
+ * Geometría renderizada de una cota como primitivas (líneas de extensión,
+ * línea de cota, flechas y texto), lista para vivir en su bloque anónimo *D.
+ */
+function dimensionBlockPrimitives(
+  geo: DimensionGeometry,
+  layer: string,
+  label: string,
+): CadDxfPrimitive[] {
+  const seg = (a: CadDxfPoint, b: CadDxfPoint): CadDxfPrimitive => ({
+    kind: "line",
+    layer,
+    points: [a, b],
+  });
+  const arrow = (tri: CadDxfPoint[]): CadDxfPrimitive => ({
+    kind: "polyline",
+    layer,
+    points: [...tri, tri[0]],
+  });
+  return [
+    seg(geo.extensionA.a, geo.extensionA.b),
+    seg(geo.extensionB.a, geo.extensionB.b),
+    seg(geo.dimLine.a, geo.dimLine.b),
+    arrow(geo.arrowA),
+    arrow(geo.arrowB),
+    { kind: "text", layer, points: [geo.textAnchor], text: label },
+  ];
+}
+
+interface PreparedDimension {
+  measurement: CadDxfExportMeasurement;
+  geo: DimensionGeometry;
+  blockName: string;
+  label: string;
+}
+
+/** Resuelve cada cota exportable a su geometría + bloque anónimo *D{n}. */
+function prepareDimensions(
+  measurements: CadDxfExportMeasurement[],
+): PreparedDimension[] {
+  const prepared: PreparedDimension[] = [];
+  for (const measurement of measurements) {
+    const geo = alignedDimension(
+      measurement.from,
+      measurement.to,
+      measurement.offset ?? 0,
+      DEFAULT_DIMENSION_STYLE,
+    );
+    if (!geo) continue; // cota degenerada (from == to): no hay nada que medir
+    prepared.push({
+      measurement,
+      geo,
+      blockName: `*D${prepared.length + 1}`,
+      label: safeText(measurement.label ?? fmt(geo.measurement)),
+    });
+  }
+  return prepared;
+}
+
+/**
+ * Entidad DIMENSION nativa (cota alineada) que referencia su bloque *D con la
+ * geometría renderizada — el mismo esquema que escribe AutoCAD.
+ */
+function pushDimension(lines: string[], layer: string, dim: PreparedDimension) {
+  pushPair(lines, 0, "DIMENSION");
+  pushPair(lines, 8, layer);
+  pushPair(lines, 2, dim.blockName);
+  // 10/20/30: punto de definición (extremo de la línea de cota).
+  pushPoint(lines, dim.geo.dimLine.b);
+  // 11/21/31: centro del texto.
+  pushPair(lines, 11, fmt(dim.geo.textAnchor.x));
+  pushPair(lines, 21, fmt(dim.geo.textAnchor.y));
+  pushPair(lines, 31, "0");
+  // 70: tipo 1 (alineada) + 32 (la geometría vive en un bloque referenciado).
+  pushPair(lines, 70, 33);
+  pushPair(lines, 1, dim.label);
+  pushPair(lines, 42, fmt(dim.geo.measurement));
+  // 13/23 y 14/24: orígenes de las líneas de extensión (los puntos medidos).
+  pushPair(lines, 13, fmt(dim.measurement.from.x));
+  pushPair(lines, 23, fmt(dim.measurement.from.y));
+  pushPair(lines, 33, "0");
+  pushPair(lines, 14, fmt(dim.measurement.to.x));
+  pushPair(lines, 24, fmt(dim.measurement.to.y));
+  pushPair(lines, 34, "0");
+}
+
 /** Sección BLOCKS: definiciones reutilizables (mismos códigos que lee el parser). */
 function pushBlocks(lines: string[], blocks: CadDxfExportBlock[]) {
   pushPair(lines, 0, "SECTION");
@@ -386,7 +479,8 @@ function pushBlocks(lines: string[], blocks: CadDxfExportBlock[]) {
     pushPair(lines, 0, "BLOCK");
     pushPair(lines, 8, DEFAULT_LAYER);
     pushPair(lines, 2, safeText(block.name) || "BLOQUE");
-    pushPair(lines, 70, 0);
+    // Flag 1: bloque anónimo (los *D de las cotas), 0: bloque con nombre.
+    pushPair(lines, 70, block.name.startsWith("*") ? 1 : 0);
     pushPoint(lines, { x: 0, y: 0 });
     for (const primitive of block.primitives)
       writePrimitiveGeometry(lines, safeLayerName(primitive.layer), primitive);
@@ -402,9 +496,21 @@ export function exportCadDxf(
   const layers = uniqueLayers(model);
   const lines: string[] = [];
   let entityCount = 0;
+  // Cotas nativas (CAD-NEXT-066): cada medición se materializa como entidad
+  // DIMENSION + bloque anónimo *D{n} con su geometría renderizada.
+  const dimensions = prepareDimensions(model.measurements ?? []);
+  const dimensionBlocks: CadDxfExportBlock[] = dimensions.map((dim) => ({
+    name: dim.blockName,
+    primitives: dimensionBlockPrimitives(
+      dim.geo,
+      safeLayerName(dim.measurement.layer ?? MEASUREMENT_LAYER),
+      dim.label,
+    ),
+  }));
+  const allBlocks = [...(model.blocks ?? []), ...dimensionBlocks];
   pushHeader(lines, options);
   pushLayerTable(lines, model, layers);
-  if (model.blocks?.length) pushBlocks(lines, model.blocks);
+  if (allBlocks.length) pushBlocks(lines, allBlocks);
   pushPair(lines, 0, "SECTION");
   pushPair(lines, 2, "ENTITIES");
 
@@ -439,18 +545,13 @@ export function exportCadDxf(
     )
       entityCount += 1;
   }
-  for (const measurement of model.measurements ?? []) {
-    const layer = safeLayerName(measurement.layer ?? MEASUREMENT_LAYER);
-    pushLine(lines, layer, measurement.from, measurement.to);
+  for (const dim of dimensions) {
+    pushDimension(
+      lines,
+      safeLayerName(dim.measurement.layer ?? MEASUREMENT_LAYER),
+      dim,
+    );
     entityCount += 1;
-    if (measurement.label) {
-      const midpoint = {
-        x: (measurement.from.x + measurement.to.x) / 2,
-        y: (measurement.from.y + measurement.to.y) / 2,
-      };
-      if (pushText(lines, layer, midpoint, measurement.label, 200))
-        entityCount += 1;
-    }
   }
 
   pushPair(lines, 0, "ENDSEC");

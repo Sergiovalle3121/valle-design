@@ -95,5 +95,7 @@ assert.ok(
 );
 assert.ok(exported.content.includes("1\nAOI"), "exports box labels");
 assert.ok(exported.content.includes("1\n5 mm"), "exports measurement label");
-assert.equal(exported.entityCount, 6, "counts box labels as DXF entities");
+// La medición viaja como UNA entidad DIMENSION nativa con bloque *D (CAD-NEXT-066).
+assert.ok(exported.content.includes("0\nDIMENSION"), "measurement is a native DIMENSION");
+assert.equal(exported.entityCount, 5, "counts box labels as DXF entities");
 console.log("cad layout export adapter specs passed");

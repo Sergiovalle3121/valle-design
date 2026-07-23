@@ -61,6 +61,7 @@ const norm = (l: Required<LayoutInput>) => ({
   annotations: [...l.annotations].sort((a, b) => (a.id < b.id ? -1 : 1)),
   connectors: [...l.connectors].sort((a, b) => (a.from + a.to < b.from + b.to ? -1 : 1)),
   layers: [...l.layers].sort((a, b) => (a.id < b.id ? -1 : 1)),
+  stations: [...l.stations].sort((a, b) => (a.id < b.id ? -1 : 1)),
 });
 assert.deepEqual(
   norm(back),
@@ -69,6 +70,7 @@ assert.deepEqual(
     annotations: layout.annotations ?? [],
     connectors: layout.connectors ?? [],
     layers: layout.layers ?? [],
+    stations: [],
   }),
   "round-trip idéntico al layout original",
 );
@@ -105,5 +107,52 @@ assert.equal(
   serializeCadDocument(doc),
   "versionar no altera entidades ni capas",
 );
+
+// --- v2 (CAD-NEXT-011): tags en cajas + colocaciones de estación -------------
+// El snapshot de undo del editor lleva assets con tags Y estaciones colocadas;
+// el documento canónico debe sostener AMBOS sin pérdida para poder ser la
+// fuente de verdad del undo/persistencia.
+const snapshotLike = layoutToCadDocument({
+  assets: [
+    { id: "a1", kind: "workbench", x: 0, y: 0, w: 100, h: 50, rotation: 0, tags: ["use:smt", "requires:power"] },
+  ],
+  stations: [
+    { id: "st1", x: 500, y: 200, w: 1200, h: 800, rotation: 90 },
+    { id: "st0", x: 0, y: 0, w: 1000, h: 700, rotation: 0 },
+  ],
+});
+const snapshotBack = cadDocumentToLayout(snapshotLike);
+assert.deepEqual(
+  snapshotBack.assets[0]?.tags,
+  ["use:smt", "requires:power"],
+  "los tags sobreviven el round-trip",
+);
+assert.equal(snapshotBack.stations.length, 2, "las estaciones sobreviven el round-trip");
+assert.deepEqual(
+  snapshotBack.stations.find((s) => s.id === "st1"),
+  { id: "st1", x: 500, y: 200, w: 1200, h: 800, rotation: 90 },
+  "cada colocación conserva su geometría y rotación",
+);
+assert.equal(cadDocumentStats(snapshotLike).station, 2, "stats cuenta estaciones");
+// Determinismo: los tags y estaciones también serializan estable.
+const snapshotShuffled = layoutToCadDocument({
+  stations: [
+    { id: "st0", x: 0, y: 0, w: 1000, h: 700, rotation: 0 },
+    { id: "st1", x: 500, y: 200, w: 1200, h: 800, rotation: 90 },
+  ],
+  assets: [
+    { id: "a1", kind: "workbench", x: 0, y: 0, w: 100, h: 50, rotation: 0, tags: ["use:smt", "requires:power"] },
+  ],
+});
+assert.equal(
+  serializeCadDocument(snapshotShuffled),
+  serializeCadDocument(snapshotLike),
+  "tags/estaciones en otro orden → mismo texto serializado",
+);
+// Compatibilidad: un layout v1 (sin tags ni estaciones) sigue redondo.
+const v1Back = cadDocumentToLayout(layoutToCadDocument({ assets: layout.assets }));
+assert.equal(v1Back.assets.length, layout.assets!.length, "layout v1 sigue redondo");
+assert.ok(v1Back.assets.every((a) => a.tags === undefined), "sin tags no se inventan tags");
+assert.deepEqual(v1Back.stations, [], "sin estaciones no se inventan estaciones");
 
 console.log("cad cad-document specs passed");

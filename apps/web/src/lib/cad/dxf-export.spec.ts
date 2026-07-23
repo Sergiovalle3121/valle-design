@@ -41,13 +41,21 @@ assert.ok(
 );
 assert.ok(result.content.includes("1\nStation 1"), "exports primitive labels");
 assert.ok(result.content.includes("1\nAOI"), "exports text labels");
+// Cotas nativas (CAD-NEXT-066): DIMENSION + bloque anónimo *D con la geometría.
+assert.ok(result.content.includes("0\nDIMENSION"), "exports native DIMENSION");
+assert.ok(result.content.includes("2\n*D1"), "DIMENSION references its *D block");
+assert.ok(
+  result.content.includes("0\nBLOCK") && result.content.includes("0\nENDBLK"),
+  "measurement geometry lives in a BLOCKS section",
+);
 assert.ok(result.content.includes("1\n12 mm"), "exports measurement labels");
+assert.ok(result.content.includes("42\n12"), "DIMENSION carries the real measurement");
 assert.ok(result.layers.includes("Equipment"), "tracks explicit layers");
 assert.ok(
   result.layers.includes("Measurements"),
   "tracks implicit measurement layer",
 );
-assert.equal(result.entityCount, 6, "counts exported entities");
+assert.equal(result.entityCount, 5, "counts exported entities");
 assert.ok(result.content.endsWith("0\nEOF\n"), "terminates DXF");
 
 // Geometría curva real (AXOS-CAD-DEPTH-A1): círculo y arco nativos.

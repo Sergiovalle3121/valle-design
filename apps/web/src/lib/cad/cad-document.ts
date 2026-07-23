@@ -40,6 +40,17 @@ export interface LayoutAssetInput {
   layer?: string;
   group?: string;
   shape?: "rect" | "circle";
+  /** Etiquetas libres del objeto (`use:smt`, `requires:power`, …). */
+  tags?: string[];
+}
+/** Colocación de una estación de línea en el plano (el catálogo vive aparte). */
+export interface LayoutStationPlacementInput {
+  id: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  rotation: number;
 }
 export interface LayoutAnnotationInput {
   id: string;
@@ -69,6 +80,7 @@ export interface LayoutInput {
   annotations?: LayoutAnnotationInput[];
   connectors?: LayoutConnectorInput[];
   layers?: LayoutLayerInput[];
+  stations?: LayoutStationPlacementInput[];
 }
 
 // ---------------------------------------------------------------------------
@@ -100,6 +112,17 @@ export type CadEntity =
       shape: "rect" | "circle";
       label?: string;
       group?: string;
+      tags?: string[];
+    }
+  | {
+      id: string;
+      type: "station";
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+      rotation: number;
+      layer: string;
     }
   | {
       id: string;
@@ -148,7 +171,10 @@ export interface CadDocument {
   history: CadChange[];
 }
 
-export const CAD_DOCUMENT_SCHEMA = 1;
+/** v2: cajas con `tags` + entidad `station` (colocaciones de línea) — CAD-NEXT-011. */
+export const CAD_DOCUMENT_SCHEMA = 2;
+/** Capa estable de las colocaciones de estación. */
+const STATIONS_LAYER = "Stations";
 /** Prefijo estable del id de conector (from→to) para round-trip determinista. */
 const CONNECTOR_PREFIX = "conn:";
 
@@ -186,7 +212,21 @@ export function layoutToCadDocument(
     };
     if (a.label !== undefined) box.label = a.label;
     if (a.group !== undefined) box.group = a.group;
+    if (a.tags !== undefined) box.tags = [...a.tags];
     entities.push(box);
+  }
+
+  for (const s of layout.stations ?? []) {
+    entities.push({
+      id: s.id,
+      type: "station",
+      x: s.x,
+      y: s.y,
+      w: s.w,
+      h: s.h,
+      rotation: s.rotation,
+      layer: STATIONS_LAYER,
+    });
   }
 
   for (const an of layout.annotations ?? []) {
@@ -261,6 +301,7 @@ export function cadDocumentToLayout(doc: CadDocument): Required<LayoutInput> {
   const assets: LayoutAssetInput[] = [];
   const annotations: LayoutAnnotationInput[] = [];
   const connectors: LayoutConnectorInput[] = [];
+  const stations: LayoutStationPlacementInput[] = [];
 
   for (const e of doc.entities) {
     if (e.type === "box") {
@@ -277,7 +318,10 @@ export function cadDocumentToLayout(doc: CadDocument): Required<LayoutInput> {
       if (e.layer !== DEFAULT_LAYER_ID) a.layer = e.layer;
       if (e.group !== undefined) a.group = e.group;
       if (e.shape === "circle") a.shape = "circle";
+      if (e.tags !== undefined) a.tags = [...e.tags];
       assets.push(a);
+    } else if (e.type === "station") {
+      stations.push({ id: e.id, x: e.x, y: e.y, w: e.w, h: e.h, rotation: e.rotation });
     } else if (e.type === "text") {
       const an: LayoutAnnotationInput = { id: e.id, type: "text", x: e.x, y: e.y, text: e.text };
       if (e.layer !== "Text") an.layer = e.layer;
@@ -303,7 +347,7 @@ export function cadDocumentToLayout(doc: CadDocument): Required<LayoutInput> {
     }
   }
 
-  return { assets, annotations, connectors, layers: doc.layers.map((l) => ({ ...l })) };
+  return { assets, annotations, connectors, layers: doc.layers.map((l) => ({ ...l })), stations };
 }
 
 // ---------------------------------------------------------------------------
@@ -331,7 +375,13 @@ function orderedEntity(e: CadEntity): Record<string, unknown> {
     return {
       id: e.id, type: e.type, kind: e.kind, x: e.x, y: e.y, w: e.w, h: e.h,
       rotation: e.rotation, layer: e.layer, shape: e.shape,
-      label: e.label ?? null, group: e.group ?? null,
+      label: e.label ?? null, group: e.group ?? null, tags: e.tags ?? null,
+    };
+  }
+  if (e.type === "station") {
+    return {
+      id: e.id, type: e.type, x: e.x, y: e.y, w: e.w, h: e.h,
+      rotation: e.rotation, layer: e.layer,
     };
   }
   if (e.type === "text") {
@@ -366,7 +416,7 @@ export function serializeCadDocument(doc: CadDocument): string {
 
 /** Cuenta de entidades por tipo — útil para paneles/telemetría. */
 export function cadDocumentStats(doc: CadDocument): Record<CadEntity["type"], number> {
-  const stats: Record<CadEntity["type"], number> = { box: 0, text: 0, dimension: 0, connector: 0 };
+  const stats: Record<CadEntity["type"], number> = { box: 0, station: 0, text: 0, dimension: 0, connector: 0 };
   for (const e of doc.entities) stats[e.type]++;
   return stats;
 }
