@@ -210,4 +210,26 @@ const noDocReport = buildCadValidationReport({ boxes: [] });
 assertEqual(noDocReport.document.length, 0, "no document input → no document findings");
 assertEqual(noDocReport.severity, "ok", "empty report stays ok");
 
+// --- hallazgos normativos de Industry Packs (CAD-NEXT-095) -------------------
+const industryReport = buildCadValidationReport({
+  boxes: [],
+  industryFindings: [
+    { assetId: "aisle-1", objectLabel: "Pasillo de montacargas", level: "error", message: "Pasillo de 2500 mm: requiere ≥ 3500 mm." },
+    { assetId: "stall-1", objectLabel: "Cajón de estacionamiento", level: "warning", message: "Ancho < 2400 mm." },
+  ],
+});
+assertEqual(industryReport.severity, "critical", "industry error marks report critical");
+assertEqual(industryReport.industry.length, 2, "both findings kept on the report");
+assertOk(
+  industryReport.issues.some(
+    (row) => row.category === "industry" && row.severity === "critical" && row.affectedObjectIds.includes("aisle-1"),
+  ),
+  "industry findings surface as actionable rows with the asset attached",
+);
+assertEqual(
+  buildCadValidationReport({ boxes: [] }).industry.length,
+  0,
+  "no industry findings input → empty list",
+);
+
 console.log("cad validation report specs passed");

@@ -153,6 +153,37 @@ const wsDefault: SmartObjectInstance = { id: "w3", objectId: "mfg.workstation", 
 const wsDefaultBox = registry.instantiate(wsDefault)[0];
 assert.ok(wsDefaultBox.type === "box" && wsDefaultBox.w === 1500, "sin props usa el ancho por defecto");
 
+// --- re-evaluación por geometría (CAD-NEXT-095) ------------------------------
+// Un objeto colocado y redimensionado se re-valida con su tamaño ACTUAL.
+assert.ok(
+  registry.validatePlaced("logistics.forklift-aisle", 2500, 20000).some((f) => f.level === "error"),
+  "pasillo angostado a 2500 → error re-evaluado",
+);
+assert.equal(
+  registry.validatePlaced("logistics.forklift-aisle", 3500, 20000).length,
+  0,
+  "pasillo de 3500 sigue cumpliendo",
+);
+assert.ok(
+  registry.validatePlaced("civil.parking-stall", 2000, 5000).some((f) => f.level === "warning"),
+  "cajón angostado a 2000 → aviso re-evaluado",
+);
+assert.ok(
+  registry.validatePlaced("logistics.pallet-rack", 1000, 1100).some((f) => f.level === "error"),
+  "rack encogido sin posiciones → error re-evaluado",
+);
+assert.ok(
+  registry.validatePlaced("retail.gondola", 200, 600).some((f) => f.level === "error"),
+  "góndola sin frente para un facing → error re-evaluado",
+);
+// Honesto: objetos sin reglas geométricas re-evaluables no inventan hallazgos.
+assert.deepEqual(
+  registry.validatePlaced("retail.checkout-lane", 100, 100),
+  [],
+  "la línea de cajas no es re-evaluable por tamaño (la fila es otro objeto)",
+);
+assert.deepEqual(registry.validatePlaced("nope", 100, 100), [], "objeto desconocido → sin hallazgos");
+
 // --- registro: registrar dos veces reemplaza con aviso ----------------------
 const r2 = new IndustryPackRegistry();
 assert.equal(r2.register(manufacturingPack).replaced, false, "primer registro no reemplaza");

@@ -65,6 +65,14 @@ export interface IndustryObjectDef {
   calculate?: (instance: SmartObjectInstance) => Record<string, number>;
   /** Reglas de dominio; vacío = válido. */
   validate?: (instance: SmartObjectInstance) => IndustryFinding[];
+  /**
+   * Recupera los parámetros GEOMÉTRICOS desde el tamaño del objeto colocado
+   * (ancho × fondo del asset en el editor). Permite RE-EVALUAR las reglas del
+   * pack en REVISAR PLANO después de redimensionar (CAD-NEXT-095). Ausente =
+   * las reglas del objeto no son re-evaluables desde la geometría (honesto:
+   * mejor ningún hallazgo que uno inventado con defaults).
+   */
+  propsFromSize?: (w: number, h: number) => Record<string, number>;
 }
 
 export interface IndustryPack {
@@ -150,6 +158,23 @@ export class IndustryPackRegistry {
     if (!def) return [{ level: "error", message: `Objeto desconocido: ${instance.objectId}` }];
     return def.validate ? def.validate(instance) : [];
   }
+
+  /**
+   * Re-evalúa las reglas del pack para un objeto YA COLOCADO usando sólo su
+   * geometría actual (CAD-NEXT-095). Devuelve `[]` si el objeto no está
+   * registrado o no declara `propsFromSize` — sin hallazgos inventados.
+   */
+  validatePlaced(objectId: string, w: number, h: number): IndustryFinding[] {
+    const def = this.getObject(objectId);
+    if (!def?.propsFromSize || !def.validate) return [];
+    return def.validate({
+      id: "placed",
+      objectId,
+      x: 0,
+      y: 0,
+      props: def.propsFromSize(w, h),
+    });
+  }
 }
 
 const MM2_PER_M2 = 1_000_000;
@@ -231,6 +256,7 @@ export const storageTankObject: IndustryObjectDef = {
   label: "Tanque de proceso",
   industry: "proceso",
   category: "almacenamiento",
+  propsFromSize: (w) => ({ diameter: w }),
   fields: [
     { key: "diameter", label: "Diámetro", type: "number", unit: "mm", default: 3000, min: 1 },
     { key: "heightM", label: "Altura", type: "number", unit: "m", default: 6, min: 0 },
@@ -297,6 +323,7 @@ export const parkingStallObject: IndustryObjectDef = {
   label: "Cajón de estacionamiento",
   industry: "civil",
   category: "vialidad",
+  propsFromSize: (w, h) => ({ width: w, length: h }),
   fields: [
     { key: "width", label: "Ancho", type: "number", unit: "mm", default: 2500, min: 1 },
     { key: "length", label: "Largo", type: "number", unit: "mm", default: 5000, min: 1 },
@@ -365,6 +392,7 @@ export const palletRackObject: IndustryObjectDef = {
   label: "Rack de pallets",
   industry: "logistica",
   category: "almacenamiento",
+  propsFromSize: (w, h) => ({ length: w, depth: h }),
   fields: [
     { key: "length", label: "Frente", type: "number", unit: "mm", default: 8400, min: 1 },
     { key: "depth", label: "Fondo", type: "number", unit: "mm", default: 1100, min: 1 },
@@ -422,6 +450,7 @@ export const forkliftAisleObject: IndustryObjectDef = {
   label: "Pasillo de montacargas",
   industry: "logistica",
   category: "vialidad",
+  propsFromSize: (w, h) => ({ width: w, length: h }),
   fields: [
     { key: "width", label: "Ancho", type: "number", unit: "mm", default: 3500, min: 1 },
     { key: "length", label: "Largo", type: "number", unit: "mm", default: 20000, min: 1 },
@@ -484,6 +513,7 @@ export const gondolaObject: IndustryObjectDef = {
   label: "Góndola de exhibición",
   industry: "retail",
   category: "exhibición",
+  propsFromSize: (w, h) => ({ length: w, depth: h }),
   fields: [
     { key: "length", label: "Frente", type: "number", unit: "mm", default: 3600, min: 1 },
     { key: "depth", label: "Fondo", type: "number", unit: "mm", default: 600, min: 1 },

@@ -2717,6 +2717,21 @@ export default function Layout3DEditor({
     const unplaced = Math.max(0, (data?.stations.length ?? 0) - placementsRef.current.size);
     const collisionBoxes = currentCollisionBoxes();
     const flowNodes = currentFlowNodes();
+    // Re-evaluación normativa de Industry Packs (CAD-NEXT-095): los assets
+    // soltados desde la paleta llevan su objectId como tag; las reglas
+    // geométricas del pack se re-corren con el tamaño ACTUAL del objeto.
+    const industryFindings = [...assetsRef.current.values()].flatMap((asset) => {
+      const tags = (objectTagsRef.current[asset.id] ?? '').split(/[,\n]/).map((t) => t.trim());
+      const objectId = tags.find((t) => INDUSTRY_REGISTRY.getObject(t));
+      if (!objectId) return [];
+      const def = INDUSTRY_REGISTRY.getObject(objectId)!;
+      return INDUSTRY_REGISTRY.validatePlaced(objectId, asset.w, asset.h).map((finding) => ({
+        assetId: asset.id,
+        objectLabel: def.label,
+        level: finding.level,
+        message: finding.message,
+      }));
+    });
     const cadReport = buildCadValidationReport({
       boxes: collisionBoxes,
       zones: currentSafetyZones(),
@@ -2727,6 +2742,7 @@ export default function Layout3DEditor({
       // documento (ids duplicados, fuera del área — estaciones incluidas).
       document: editorSnapshotToCadDocument(snapshot()),
       footprint: { w: fp.footprintW, h: fp.footprintH },
+      industryFindings,
       dimensionCount: [...annotationsRef.current.values()].filter((a) => a.type === 'dim').length,
       architectureObjects: [
         ...[...placementsRef.current.entries()].map(([id, p]) => ({
@@ -2761,6 +2777,7 @@ export default function Layout3DEditor({
     cadReport.safety.forEach((issue) => { highlightIds.add(issue.objectId); highlightIds.add(issue.zoneId); });
     cadReport.architecture.forEach((issue) => { issue.affectedObjectIds.forEach((id) => highlightIds.add(id)); });
     cadReport.document.forEach((finding) => { finding.entityIds.forEach((id) => highlightIds.add(id)); });
+    cadReport.industry.forEach((finding) => { highlightIds.add(finding.assetId); });
     validationHighlightRef.current = highlightIds;
     setValidationHighlightIds(highlightIds);
     setCadValidationReport(cadReport);

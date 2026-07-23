@@ -24,6 +24,8 @@ export interface CadValidationReport {
   architecture: CadArchitectureValidationIssue[];
   /** Hallazgos del motor de reglas canónico sobre el CadDocument (CAD-NEXT-101). */
   document: RuleFinding[];
+  /** Hallazgos normativos de Industry Packs re-evaluados (CAD-NEXT-095). */
+  industry: CadIndustryValidationFinding[];
   issues: CadValidationIssueRow[];
   flow?: CadFlowScore;
   severity: "ok" | "warning" | "critical";
@@ -35,7 +37,16 @@ export type CadValidationIssueCategory =
   | "safety"
   | "architecture"
   | "document"
+  | "industry"
   | "flow";
+
+/** Hallazgo normativo de un Industry Pack re-evaluado sobre un objeto colocado. */
+export interface CadIndustryValidationFinding {
+  assetId: string;
+  objectLabel: string;
+  level: "error" | "warning";
+  message: string;
+}
 
 export interface CadValidationIssueRow {
   id: string;
@@ -396,6 +407,7 @@ function buildIssueRows(input: {
   safety: CadSafetyIssue[];
   architecture: CadArchitectureValidationIssue[];
   document: RuleFinding[];
+  industry: CadIndustryValidationFinding[];
   flow?: CadFlowScore;
 }): CadValidationIssueRow[] {
   const rows: CadValidationIssueRow[] = [];
@@ -474,6 +486,20 @@ function buildIssueRows(input: {
     });
   }
 
+  input.industry.forEach((finding, index) => {
+    rows.push({
+      id: `industry:${finding.assetId}:${index}`,
+      category: "industry",
+      severity: finding.level === "error" ? "critical" : "warning",
+      title: `Norma de industria: ${finding.objectLabel}`,
+      detail: finding.message,
+      affectedObjectIds: [finding.assetId],
+      actionLabel: "Select industry issue",
+      suggestedFix:
+        "Ajusta el tamaño del objeto para cumplir la norma del pack o documenta la excepción.",
+    });
+  });
+
   if (input.flow && input.flow.score < 70) {
     rows.push({
       id: "flow:score",
@@ -508,6 +534,8 @@ export function buildCadValidationReport(input: {
   document?: CadDocument;
   /** Área de trabajo (para la regla fuera-de-límites del documento). */
   footprint?: { w: number; h: number };
+  /** Hallazgos normativos de packs ya re-evaluados por el llamador. */
+  industryFindings?: CadIndustryValidationFinding[];
 }): CadValidationReport {
   const collisions = detectCadCollisions(input.boxes);
   const clearances = input.requiredClearance
@@ -528,19 +556,22 @@ export function buildCadValidationReport(input: {
       : undefined,
   );
   const document = runDocumentRules(input.document, input.footprint);
+  const industry = input.industryFindings ?? [];
   const severity =
     collisions.length ||
     safety.some((issue) => issue.code === "zone_invasion") ||
     architecture.some((issue) => issue.severity === "critical") ||
-    document.some((finding) => finding.level === "error")
+    document.some((finding) => finding.level === "error") ||
+    industry.some((finding) => finding.level === "error")
       ? "critical"
       : clearances.length ||
           safety.length ||
           architecture.length ||
           document.length ||
+          industry.length ||
           (flow && flow.score < 70)
         ? "warning"
         : "ok";
-  const issues = buildIssueRows({ collisions, clearances, safety, architecture, document, flow });
-  return { collisions, clearances, safety, architecture, document, issues, flow, severity };
+  const issues = buildIssueRows({ collisions, clearances, safety, architecture, document, industry, flow });
+  return { collisions, clearances, safety, architecture, document, industry, issues, flow, severity };
 }

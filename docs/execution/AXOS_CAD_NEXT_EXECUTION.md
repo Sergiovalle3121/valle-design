@@ -451,10 +451,15 @@ Gates verdes: `tsc` (web+api), `eslint`, `test:specs` (81/81), `check:nav`,
     **CAD-NEXT-094:** el drop de la paleta materializa TODAS las cajas del
     objeto (antes sólo la primera: la zona de fila se perdía al soltar) con
     sus offsets relativos, un solo nivel de undo, tags y selección múltiple.
-    Deuda honesta: las validaciones normativas del pack corren al soltar
-    (toast), aún no se re-evalúan en REVISAR PLANO tras redimensionar — eso
-    exige recuperar props desde la geometría (mapeo por objeto, unidad
-    futura).
+    **CAD-NEXT-095:** las reglas normativas de los packs se **re-evalúan en
+    REVISAR PLANO** con el tamaño ACTUAL del objeto — `propsFromSize` recupera
+    los parámetros geométricos (cajón, pasillo, rack, góndola, tanque) y
+    `validatePlaced` re-corre `validate`; los hallazgos entran al panel de
+    issues (categoría `industry`, severidad agregada, resaltado). Angostar un
+    pasillo de montacargas a 2500 mm ahora ES un hallazgo crítico al revisar
+    el plano, no sólo un toast al soltarlo. Honesto: objetos sin reglas
+    geométricas re-evaluables (línea de cajas — la fila es otro objeto)
+    devuelven `[]`, sin hallazgos inventados con defaults.
 11. **CAD-NEXT-066 (cotas DIMENSION nativas)** — **✓ hecho**: las mediciones
     dejan de aplanarse a línea+texto y viajan como entidad **DIMENSION real**
     (alineada, 70=33) que referencia un **bloque anónimo `*D{n}`** con la
