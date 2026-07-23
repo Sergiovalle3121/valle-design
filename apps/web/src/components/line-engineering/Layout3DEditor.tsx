@@ -88,6 +88,8 @@ import { type CadClearanceIssue, type CadCollisionHit } from '@/lib/cad/collisio
 import { buildFlowSegments, scoreFlowLayout, type CadFlowNode, type CadFlowScore, type CadFlowSegment } from '@/lib/cad/flow-optimization';
 import type { CadSafetyIssue, CadSafetyZone, CadSafetyZoneKind } from '@/lib/cad/safety-zones';
 import { createCadSnapshot, diffCadSnapshots, pushCadSnapshot, restoreCadSnapshot, type CadSnapshotDiff, type CadSnapshotHistory } from '@/lib/cad/snapshots';
+import { cadDocumentToEditorSnapshot, editorSnapshotToCadDocument } from '@/lib/cad/editor-snapshot';
+import type { CadDocument } from '@/lib/cad/cad-document';
 import {
   describeCadObjectProperties,
   summarizeCadSelectionProperties,
@@ -1011,8 +1013,11 @@ export default function Layout3DEditor({
   const groupByAssetRef = useRef<Map<string, THREE.Group>>(new Map());
   const layersRef = useRef(layers);
   const applyLayersRef = useRef<() => void>(() => {});
-  const undoStackRef = useRef<Snapshot[]>([]);
-  const redoStackRef = useRef<Snapshot[]>([]);
+  // Las pilas de undo/redo almacenan el DOCUMENTO CANÓNICO (CAD-NEXT-011):
+  // cada nivel de deshacer es un CadDocument completo y la restauración pasa
+  // por el adaptador sin pérdida (capas asignadas y tags incluidos).
+  const undoStackRef = useRef<CadDocument[]>([]);
+  const redoStackRef = useRef<CadDocument[]>([]);
 
   // layout state refs (drive both the scene and the save)
   const placementsRef = useRef<Map<string, Placement>>(new Map());
@@ -1699,7 +1704,7 @@ export default function Layout3DEditor({
     return snap.id;
   }, [snapshot]);
   const pushHistory = useCallback(() => {
-    undoStackRef.current.push(snapshot());
+    undoStackRef.current.push(editorSnapshotToCadDocument(snapshot()));
     if (undoStackRef.current.length > 80) undoStackRef.current.shift();
     redoStackRef.current = [];
     setHist({ undo: undoStackRef.current.length, redo: 0 });
@@ -1727,14 +1732,14 @@ export default function Layout3DEditor({
   }, [computeSnap, rebuildAll]);
   const undo = useCallback(() => {
     if (!undoStackRef.current.length) return;
-    redoStackRef.current.push(snapshot());
-    restore(undoStackRef.current.pop()!);
+    redoStackRef.current.push(editorSnapshotToCadDocument(snapshot()));
+    restore(cadDocumentToEditorSnapshot<CadLayerId>(undoStackRef.current.pop()!));
     setHist({ undo: undoStackRef.current.length, redo: redoStackRef.current.length });
   }, [snapshot, restore]);
   const redo = useCallback(() => {
     if (!redoStackRef.current.length) return;
-    undoStackRef.current.push(snapshot());
-    restore(redoStackRef.current.pop()!);
+    undoStackRef.current.push(editorSnapshotToCadDocument(snapshot()));
+    restore(cadDocumentToEditorSnapshot<CadLayerId>(redoStackRef.current.pop()!));
     setHist({ undo: undoStackRef.current.length, redo: redoStackRef.current.length });
   }, [snapshot, restore]);
 
@@ -2214,7 +2219,7 @@ export default function Layout3DEditor({
       }
       if (drag) {
         if (dragMoved && dragSnap) {
-          undoStackRef.current.push(dragSnap);
+          undoStackRef.current.push(editorSnapshotToCadDocument(dragSnap));
           if (undoStackRef.current.length > 80) undoStackRef.current.shift();
           redoStackRef.current = [];
           setHist({ undo: undoStackRef.current.length, redo: 0 });

@@ -417,9 +417,14 @@ Gates verdes: `tsc` (web+api), `eslint`, `test:specs` (81/81), `check:nav`,
    entidad **`station`** (colocaciones de línea con geometría y rotación,
    capa estable `Stations`) — con round-trip sin pérdida, serialización
    determinista y compatibilidad con layouts v1 (sin tags/estaciones no se
-   inventa nada). `CAD_DOCUMENT_SCHEMA` sube a 2 (aditivo). Falta la pieza 2:
-   que el editor construya sus snapshots de undo/persistencia COMO
-   `CadDocument` en lugar del `Snapshot` ad-hoc.
+   inventa nada). `CAD_DOCUMENT_SCHEMA` sube a 2 (aditivo).
+   **Pieza 2 hecha (undo canónico):** las pilas de undo/redo del editor
+   almacenan **`CadDocument`** — cada Ctrl+Z/Ctrl+Y convierte el estado por el
+   adaptador puro `editor-snapshot.ts` (snapshot del editor ↔ documento, con
+   capas asignadas y tags de assets Y estaciones, golden round-trip probado).
+   El documento canónico deja de ser un modelo paralelo: es la memoria real
+   del deshacer del editor. Falta la pieza 3: persistencia al API como
+   documento serializado.
 10. **CAD-NEXT-092/093 (verticales 4 y 5)** — **✓ hechos**: **Logística/Almacén**
     (rack de pallets con posiciones por nivel = `floor(frente / (1200+100))` ×
     niveles, aviso si el fondo no cubre un pallet; pasillo de montacargas con

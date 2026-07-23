@@ -51,6 +51,10 @@ export interface LayoutStationPlacementInput {
   w: number;
   h: number;
   rotation: number;
+  /** Capa asignada en el editor; por defecto la capa estable de estaciones. */
+  layer?: string;
+  /** Etiquetas libres de la estación. */
+  tags?: string[];
 }
 export interface LayoutAnnotationInput {
   id: string;
@@ -123,6 +127,7 @@ export type CadEntity =
       h: number;
       rotation: number;
       layer: string;
+      tags?: string[];
     }
   | {
       id: string;
@@ -174,7 +179,7 @@ export interface CadDocument {
 /** v2: cajas con `tags` + entidad `station` (colocaciones de línea) — CAD-NEXT-011. */
 export const CAD_DOCUMENT_SCHEMA = 2;
 /** Capa estable de las colocaciones de estación. */
-const STATIONS_LAYER = "Stations";
+export const STATIONS_LAYER = "Stations";
 /** Prefijo estable del id de conector (from→to) para round-trip determinista. */
 const CONNECTOR_PREFIX = "conn:";
 
@@ -217,7 +222,7 @@ export function layoutToCadDocument(
   }
 
   for (const s of layout.stations ?? []) {
-    entities.push({
+    const station: CadEntity = {
       id: s.id,
       type: "station",
       x: s.x,
@@ -225,8 +230,10 @@ export function layoutToCadDocument(
       w: s.w,
       h: s.h,
       rotation: s.rotation,
-      layer: STATIONS_LAYER,
-    });
+      layer: s.layer ?? STATIONS_LAYER,
+    };
+    if (s.tags !== undefined) station.tags = [...s.tags];
+    entities.push(station);
   }
 
   for (const an of layout.annotations ?? []) {
@@ -321,7 +328,10 @@ export function cadDocumentToLayout(doc: CadDocument): Required<LayoutInput> {
       if (e.tags !== undefined) a.tags = [...e.tags];
       assets.push(a);
     } else if (e.type === "station") {
-      stations.push({ id: e.id, x: e.x, y: e.y, w: e.w, h: e.h, rotation: e.rotation });
+      const s: LayoutStationPlacementInput = { id: e.id, x: e.x, y: e.y, w: e.w, h: e.h, rotation: e.rotation };
+      if (e.layer !== STATIONS_LAYER) s.layer = e.layer;
+      if (e.tags !== undefined) s.tags = [...e.tags];
+      stations.push(s);
     } else if (e.type === "text") {
       const an: LayoutAnnotationInput = { id: e.id, type: "text", x: e.x, y: e.y, text: e.text };
       if (e.layer !== "Text") an.layer = e.layer;
@@ -381,7 +391,7 @@ function orderedEntity(e: CadEntity): Record<string, unknown> {
   if (e.type === "station") {
     return {
       id: e.id, type: e.type, x: e.x, y: e.y, w: e.w, h: e.h,
-      rotation: e.rotation, layer: e.layer,
+      rotation: e.rotation, layer: e.layer, tags: e.tags ?? null,
     };
   }
   if (e.type === "text") {
