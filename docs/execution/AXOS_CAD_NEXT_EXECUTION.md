@@ -479,6 +479,11 @@ Gates verdes: `tsc` (web+api), `eslint`, `test:specs` (81/81), `check:nav`,
     "Objetos inteligentes" con lo que un CAD genérico NO puede dar: el total
     de posiciones de pallet del almacén, los facings de exhibición, las camas.
     AutoCAD ve rectángulos; AXOS cuenta capacidad.
+    **CAD-NEXT-099:** `industryRollupToCsv` serializa ese BOM a CSV entregable
+    (industria, objeto, cantidad + una columna por métrica; escape correcto de
+    comas/comillas; BOM UTF-8 para Excel) con un botón "Exportar CSV" en el
+    panel. La capacidad del layout deja de vivir en pantalla y se entrega a una
+    cotización o a un cliente — el lazo de negocio cerrado.
 11. **CAD-NEXT-066 (cotas DIMENSION nativas)** — **✓ hecho**: las mediciones
     dejan de aplanarse a línea+texto y viajan como entidad **DIMENSION real**
     (alineada, 70=33) que referencia un **bloque anónimo `*D{n}`** con la

@@ -1,7 +1,7 @@
 /** Resumen / BOM de objetos inteligentes por industria (CAD-NEXT-098). */
 import { strict as assert } from "node:assert";
 import { createDefaultIndustryRegistry } from "./industry-pack";
-import { summarizeIndustryObjects, type PlacedIndustryObject } from "./industry-rollup";
+import { summarizeIndustryObjects, industryRollupToCsv, type PlacedIndustryObject } from "./industry-rollup";
 
 const registry = createDefaultIndustryRegistry();
 
@@ -72,5 +72,37 @@ assert.equal(
   8,
   "rack de 2600 → 2 slots × 4 niveles por defecto = 8, recalculado por geometría",
 );
+
+// --- CSV entregable (CAD-NEXT-099) -------------------------------------------
+const csv = industryRollupToCsv(summary);
+const lines = csv.split("\n");
+// Encabezado: industria, objeto, cantidad + unión ordenada de métricas.
+assert.equal(
+  lines[0],
+  "industria,objeto,cantidad,facingsPerLevel,frontMeters,palletPositions,slotsPerLevel,totalFacings",
+  "encabezado con la unión ordenada de métricas",
+);
+// El rack trae posiciones pero no facings; la góndola al revés → celdas vacías.
+const rackLine = lines.find((l) => l.startsWith("logistica,"));
+assert.ok(rackLine, "fila del rack presente");
+// cols: facingsPerLevel(vacío), frontMeters(8.4+5.2=13.6), palletPositions 40, slots 10, totalFacings(vacío)
+assert.equal(rackLine, "logistica,Rack de pallets,2,,13.6,40,10,", "fila del rack con facings vacíos");
+const gondolaLine = lines.find((l) => l.startsWith("retail,"));
+// cols: facingsPerLevel 12, frontMeters 3.6, palletPositions(vacío), slots(vacío), totalFacings 60
+assert.equal(gondolaLine, "retail,Góndola de exhibición,1,12,3.6,,,60", "fila de la góndola con posiciones vacías");
+
+// Escape: una etiqueta con coma se envuelve en comillas.
+const escaped = industryRollupToCsv({
+  objects: [{ objectId: "x.y", label: 'Mesa, grande "premium"', industry: "test", count: 1, metrics: {} }],
+  industries: [{ industry: "test", objectCount: 1, instanceCount: 1 }],
+  totalInstances: 1,
+});
+assert.ok(
+  escaped.split("\n")[1].includes('"Mesa, grande ""premium"""'),
+  "la etiqueta con coma y comillas se escapa correctamente",
+);
+
+// Determinista: mismo resumen → mismo CSV.
+assert.equal(industryRollupToCsv(summary), csv, "el CSV es determinista");
 
 console.log("cad industry-rollup specs passed");

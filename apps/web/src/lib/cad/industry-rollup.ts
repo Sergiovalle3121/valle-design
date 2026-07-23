@@ -107,3 +107,32 @@ export function summarizeIndustryObjects(
     totalInstances: objects.reduce((sum, row) => sum + row.count, 0),
   };
 }
+
+/** Escapa una celda CSV: envuelve en comillas si trae coma, comilla o salto. */
+function csvCell(value: string | number): string {
+  const s = String(value);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+/**
+ * Serializa el resumen a CSV entregable (CAD-NEXT-099): una fila por objeto
+ * inteligente con industria, etiqueta, conteo y una columna por cada métrica
+ * de negocio (unión ordenada de todas las claves; celda vacía donde el objeto
+ * no expone esa métrica). Determinista y con escape correcto de comas/comillas.
+ */
+export function industryRollupToCsv(summary: IndustrySummary): string {
+  // Unión ordenada de todas las claves de métrica que aparecen en el resumen.
+  const metricKeys = [
+    ...new Set(summary.objects.flatMap((o) => Object.keys(o.metrics))),
+  ].sort();
+  const header = ["industria", "objeto", "cantidad", ...metricKeys];
+  const rows = summary.objects.map((o) => [
+    o.industry,
+    o.label,
+    o.count,
+    ...metricKeys.map((key) => (key in o.metrics ? o.metrics[key] : "")),
+  ]);
+  return [header, ...rows]
+    .map((cells) => cells.map(csvCell).join(","))
+    .join("\n");
+}

@@ -73,7 +73,7 @@ import { evaluateCadDxfExportReadiness, type CadDxfExportLayerSummary, type CadD
 import { importDxfPrimitives, summarizeDxfImportWarnings, type CadDxfImportResult, type CadDxfImportWarning, type CadDxfPoint, type CadDxfPrimitive } from '@/lib/cad/dxf-import';
 import { CAD_SYMBOL_LIBRARY, getCadSymbol, type CadSymbolCategory } from '@/lib/cad/symbols';
 import { createDefaultIndustryRegistry, type SmartObjectInstance } from '@/lib/cad/industry-pack';
-import { summarizeIndustryObjects, type IndustrySummary } from '@/lib/cad/industry-rollup';
+import { summarizeIndustryObjects, industryRollupToCsv, type IndustrySummary } from '@/lib/cad/industry-rollup';
 import { tessellateDxfPrimitive } from '@/lib/cad/curve-tessellate';
 import { DWG_UNAVAILABLE_REASON } from '@/lib/cad/interop-provider';
 import { CAD_LAYOUT_TEMPLATES, instantiateCadLayoutTemplate, type CadLayoutTemplateId } from '@/lib/cad/templates';
@@ -2804,6 +2804,19 @@ export default function Layout3DEditor({
     validationHighlightRef.current = new Set();
     setValidationHighlightIds(new Set());
     rebuildAll();
+  };
+  // Entregable de capacidad (CAD-NEXT-099): el BOM de objetos inteligentes a CSV.
+  const exportIndustryCsv = () => {
+    if (!industrySummary || industrySummary.totalInstances === 0) return;
+    const csv = industryRollupToCsv(industrySummary);
+    const blob = new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `capacidad-${model}-${revision}`.replace(/[^\w.\-]+/g, '_') + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('BOM de capacidad exportado a CSV.', 'Objetos inteligentes');
   };
   const selectFlowNode = (id: string) => {
     if (!placementsRef.current.has(id)) return;
@@ -6814,7 +6827,10 @@ export default function Layout3DEditor({
               )}
               {industrySummary && industrySummary.totalInstances > 0 && (
                 <div className="mb-3 rounded-xl border border-violet-400/20 bg-violet-400/[0.07] p-3">
-                  <div className="mb-2 text-[12px] font-semibold text-violet-100">Objetos inteligentes · {industrySummary.totalInstances}</div>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="text-[12px] font-semibold text-violet-100">Objetos inteligentes · {industrySummary.totalInstances}</span>
+                    <button onClick={exportIndustryCsv} className="rounded-lg bg-violet-400/[0.14] px-2 py-1 text-[10.5px] text-violet-100 hover:bg-violet-400/[0.22]">Exportar CSV</button>
+                  </div>
                   <div className="space-y-1.5">
                     {industrySummary.objects.map((obj) => (
                       <div key={obj.objectId} className="rounded-lg bg-gray-950/40 px-2 py-1.5 text-[11.5px]">
