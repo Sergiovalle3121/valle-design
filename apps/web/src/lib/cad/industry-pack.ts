@@ -642,6 +642,138 @@ export const retailPack: IndustryPack = {
   objects: [checkoutLaneObject, gondolaObject],
 };
 
+// ---------------------------------------------------------------------------
+// Pack 6 — Salud / Clínicas: consultorio + cama con zona de atención
+// ---------------------------------------------------------------------------
+
+/** Área mínima normativa de un consultorio de medicina general (m²). */
+const EXAM_ROOM_MIN_M2 = 7.5;
+/** Espacio lateral mínimo de atención de enfermería junto a la cama (mm). */
+const BED_CARE_MIN = 900;
+
+/**
+ * Consultorio: cuarto rectangular con NORMA de área mínima — bajo 7.5 m² la
+ * consulta no cabe con escritorio, camilla y circulación.
+ */
+export const examRoomObject: IndustryObjectDef = {
+  id: "health.exam-room",
+  label: "Consultorio",
+  industry: "salud",
+  category: "atención",
+  propsFromSize: (w, h) => ({ width: w, depth: h }),
+  fields: [
+    { key: "width", label: "Ancho", type: "number", unit: "mm", default: 3000, min: 1 },
+    { key: "depth", label: "Fondo", type: "number", unit: "mm", default: 2500, min: 1 },
+  ],
+  toEntities: (instance) => {
+    const width = numField(examRoomObject, instance, "width");
+    const depth = numField(examRoomObject, instance, "depth");
+    return [
+      {
+        id: instance.id,
+        type: "box",
+        kind: "zone",
+        x: instance.x,
+        y: instance.y,
+        w: width,
+        h: depth,
+        rotation: instance.rotation ?? 0,
+        layer: "salud",
+        shape: "rect",
+        label: "Consultorio",
+      },
+    ];
+  },
+  calculate: (instance) => {
+    const width = numField(examRoomObject, instance, "width");
+    const depth = numField(examRoomObject, instance, "depth");
+    return { areaM2: round2((width * depth) / MM2_PER_M2) };
+  },
+  validate: (instance) => {
+    const findings: IndustryFinding[] = [];
+    const width = numField(examRoomObject, instance, "width");
+    const depth = numField(examRoomObject, instance, "depth");
+    const areaM2 = (width * depth) / MM2_PER_M2;
+    if (areaM2 < EXAM_ROOM_MIN_M2)
+      findings.push({
+        level: "error",
+        message: `Consultorio de ${round2(areaM2)} m²: la norma exige ≥ ${EXAM_ROOM_MIN_M2} m².`,
+      });
+    return findings;
+  },
+};
+
+/**
+ * Cama de hospital: objeto multi-entidad — la cama Y su zona de atención de
+ * enfermería al costado, visible y revisable por el motor de reglas.
+ */
+export const patientBedObject: IndustryObjectDef = {
+  id: "health.patient-bed",
+  label: "Cama de hospital",
+  industry: "salud",
+  category: "hospitalización",
+  fields: [
+    { key: "width", label: "Ancho", type: "number", unit: "mm", default: 1000, min: 1 },
+    { key: "length", label: "Largo", type: "number", unit: "mm", default: 2100, min: 1 },
+    { key: "careSpace", label: "Espacio de atención", type: "number", unit: "mm", default: 900, min: 0 },
+  ],
+  toEntities: (instance) => {
+    const width = numField(patientBedObject, instance, "width");
+    const length = numField(patientBedObject, instance, "length");
+    const careSpace = Math.max(0, numField(patientBedObject, instance, "careSpace"));
+    return [
+      {
+        id: instance.id,
+        type: "box",
+        kind: "workbench",
+        x: instance.x,
+        y: instance.y,
+        w: width,
+        h: length,
+        rotation: instance.rotation ?? 0,
+        layer: "salud",
+        shape: "rect",
+        label: "Cama",
+      },
+      // Zona de atención al costado de la cama: la enfermería necesita ese
+      // espacio libre para maniobrar; se dibuja y se revisa como cualquier caja.
+      {
+        id: `${instance.id}:atencion`,
+        type: "box",
+        kind: "zone",
+        x: instance.x + width,
+        y: instance.y,
+        w: careSpace,
+        h: length,
+        rotation: instance.rotation ?? 0,
+        layer: "salud",
+        shape: "rect",
+        label: "Atención",
+      },
+    ];
+  },
+  calculate: (instance) => {
+    const careSpace = Math.max(0, numField(patientBedObject, instance, "careSpace"));
+    return { careMeters: round2(careSpace / 1000) };
+  },
+  validate: (instance) => {
+    const findings: IndustryFinding[] = [];
+    const careSpace = Math.max(0, numField(patientBedObject, instance, "careSpace"));
+    if (careSpace < BED_CARE_MIN)
+      findings.push({
+        level: "warning",
+        message: `Espacio de atención de ${careSpace} mm: la enfermería requiere ≥ ${BED_CARE_MIN} mm al costado.`,
+      });
+    return findings;
+  },
+};
+
+export const healthPack: IndustryPack = {
+  id: "salud",
+  label: "Salud / Clínicas",
+  objects: [examRoomObject, patientBedObject],
+};
+
 /** Crea un registro con los packs de arranque ya cargados. */
 export function createDefaultIndustryRegistry(): IndustryPackRegistry {
   const registry = new IndustryPackRegistry();
@@ -650,5 +782,6 @@ export function createDefaultIndustryRegistry(): IndustryPackRegistry {
   registry.register(civilPack);
   registry.register(logisticsPack);
   registry.register(retailPack);
+  registry.register(healthPack);
   return registry;
 }

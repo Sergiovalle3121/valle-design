@@ -466,6 +466,12 @@ Gates verdes: `tsc` (web+api), `eslint`, `test:specs` (81/81), `check:nav`,
     baja de 24 a 16 posiciones de pallet EN VIVO) más la primera norma
     violada al tamaño actual. El objeto inteligente ya se comporta como tal
     en todo su ciclo: drop → selección → resize → revisión.
+    **CAD-NEXT-097 (sexto vertical):** **Salud / Clínicas** — consultorio con
+    NORMA de área mínima (≥ 7.5 m², re-evaluable por geometría y con cálculo
+    vivo) y cama de hospital multi-entidad (cama + zona de atención de
+    enfermería al costado, aviso si < 900 mm). Ya son **seis industrias**
+    (manufactura, proceso, civil, logística, retail, salud) sobre el mismo
+    documento, registro, paleta, motor de reglas y panel de propiedades.
 11. **CAD-NEXT-066 (cotas DIMENSION nativas)** — **✓ hecho**: las mediciones
     dejan de aplanarse a línea+texto y viajan como entidad **DIMENSION real**
     (alineada, 70=33) que referencia un **bloque anónimo `*D{n}`** con la

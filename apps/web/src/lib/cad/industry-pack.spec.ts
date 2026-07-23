@@ -11,11 +11,13 @@ import { layoutToCadDocument, cadDocumentToLayout, type CadEntity } from "./cad-
 const registry = createDefaultIndustryRegistry();
 
 // --- el registro carga los packs y los aplana ------------------------------
-assert.equal(registry.listPacks().length, 5, "cinco packs cargados");
+assert.equal(registry.listPacks().length, 6, "seis packs cargados");
 assert.deepEqual(
   registry.listObjects().map((o) => o.id),
   [
     "civil.parking-stall",
+    "health.exam-room",
+    "health.patient-bed",
     "logistics.forklift-aisle",
     "logistics.pallet-rack",
     "mfg.workstation",
@@ -142,6 +144,33 @@ assert.equal(laneCalc.shoppersInQueue, 6, "4000 / 600 = 6 clientes en fila");
 assert.equal(registry.validate(lane).length, 0, "fila de 4000 mm cumple");
 const shortLane: SmartObjectInstance = { id: "c2", objectId: "retail.checkout-lane", x: 0, y: 0, props: { queueSpace: 2000 } };
 assert.ok(registry.validate(shortLane).some((f) => f.level === "warning"), "fila corta → aviso");
+
+// --- pack 6: salud — consultorio normado y cama con zona de atención ---------
+const examRoom: SmartObjectInstance = { id: "h1", objectId: "health.exam-room", x: 0, y: 0, props: { width: 3000, depth: 2500 } };
+assert.equal(registry.calculate(examRoom).areaM2, 7.5, "consultorio 3×2.5 = 7.5 m²");
+assert.equal(registry.validate(examRoom).length, 0, "7.5 m² cumple la norma exacta");
+const tinyRoom: SmartObjectInstance = { id: "h2", objectId: "health.exam-room", x: 0, y: 0, props: { width: 2500, depth: 2500 } };
+assert.ok(registry.validate(tinyRoom).some((f) => f.level === "error"), "6.25 m² → error normativo");
+// Re-evaluable por geometría: encoger el consultorio dispara la norma en vivo.
+assert.ok(
+  registry.validatePlaced("health.exam-room", 2500, 2500).some((f) => f.level === "error"),
+  "consultorio encogido → error re-evaluado",
+);
+assert.equal(
+  registry.calculatePlaced("health.exam-room", 3000, 2500).areaM2,
+  7.5,
+  "área viva del consultorio",
+);
+
+const bed: SmartObjectInstance = { id: "b1", objectId: "health.patient-bed", x: 100, y: 100, props: { width: 1000, length: 2100, careSpace: 900 } };
+const bedEntities = registry.instantiate(bed);
+assert.equal(bedEntities.length, 2, "la cama emite cama + zona de atención");
+const careZone = bedEntities.find((e) => e.id === "b1:atencion");
+assert.ok(careZone && careZone.type === "box" && careZone.kind === "zone", "la atención es una zona propia");
+assert.ok(careZone && careZone.type === "box" && careZone.x === 100 + 1000 && careZone.w === 900, "la zona queda al costado con su espacio");
+assert.equal(registry.validate(bed).length, 0, "900 mm de atención cumple");
+const tightBed: SmartObjectInstance = { id: "b2", objectId: "health.patient-bed", x: 0, y: 0, props: { careSpace: 600 } };
+assert.ok(registry.validate(tightBed).some((f) => f.level === "warning"), "atención de 600 mm → aviso");
 
 // --- objeto desconocido ------------------------------------------------------
 const unknown: SmartObjectInstance = { id: "x", objectId: "nope", x: 0, y: 0, props: {} };
