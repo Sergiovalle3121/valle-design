@@ -73,6 +73,7 @@ import { evaluateCadDxfExportReadiness, type CadDxfExportLayerSummary, type CadD
 import { importDxfPrimitives, summarizeDxfImportWarnings, type CadDxfImportResult, type CadDxfImportWarning, type CadDxfPoint, type CadDxfPrimitive } from '@/lib/cad/dxf-import';
 import { CAD_SYMBOL_LIBRARY, getCadSymbol, type CadSymbolCategory } from '@/lib/cad/symbols';
 import { createDefaultIndustryRegistry, type SmartObjectInstance } from '@/lib/cad/industry-pack';
+import { summarizeIndustryObjects, type IndustrySummary } from '@/lib/cad/industry-rollup';
 import { tessellateDxfPrimitive } from '@/lib/cad/curve-tessellate';
 import { DWG_UNAVAILABLE_REASON } from '@/lib/cad/interop-provider';
 import { CAD_LAYOUT_TEMPLATES, instantiateCadLayoutTemplate, type CadLayoutTemplateId } from '@/lib/cad/templates';
@@ -936,6 +937,7 @@ export default function Layout3DEditor({
   const [clearanceIssues, setClearanceIssues] = useState<CadClearanceIssue[]>([]);
   const [safetyIssues, setSafetyIssues] = useState<CadSafetyIssue[]>([]);
   const [cadValidationReport, setCadValidationReport] = useState<CadValidationReport | null>(null);
+  const [industrySummary, setIndustrySummary] = useState<IndustrySummary | null>(null);
   const [validationHighlightIds, setValidationHighlightIds] = useState<Set<string>>(new Set());
   const [flowHealth, setFlowHealth] = useState<CadFlowScore | null>(null);
   const [flowSequence, setFlowSequence] = useState<CadFlowNode[]>([]);
@@ -1270,7 +1272,7 @@ export default function Layout3DEditor({
     queueMicrotask(() => {
       if (!alive) return;
       setData(null); setError(null); setSelList([]); setSelSnap(null); setDirty(false); setTab('stations');
-      setOverlay(null); setTool('select'); setMeasureLive(null); setWalk(false); setHist({ undo: 0, redo: 0 }); setCellsView([]); setValidationHighlightIds(new Set()); setCollisionHits([]); setClearanceIssues([]); setSafetyIssues([]); setCadValidationReport(null); setFlowHealth(null); setFlowSequence([]); setFlowSegments([]); setSnapshotDiff(null); setReport(null);
+      setOverlay(null); setTool('select'); setMeasureLive(null); setWalk(false); setHist({ undo: 0, redo: 0 }); setCellsView([]); setValidationHighlightIds(new Set()); setCollisionHits([]); setClearanceIssues([]); setSafetyIssues([]); setCadValidationReport(null); setIndustrySummary(null); setFlowHealth(null); setFlowSequence([]); setFlowSegments([]); setSnapshotDiff(null); setReport(null);
     });
     selRef.current = []; overlayColorRef.current = new Map(); validationHighlightRef.current = new Set(); toolRef.current = 'select'; measureARef.current = null; wallChainRef.current = null;
     walkRef.current = false; savedCamRef.current = null; undoStackRef.current = []; redoStackRef.current = [];
@@ -2720,10 +2722,12 @@ export default function Layout3DEditor({
     // Re-evaluación normativa de Industry Packs (CAD-NEXT-095): los assets
     // soltados desde la paleta llevan su objectId como tag; las reglas
     // geométricas del pack se re-corren con el tamaño ACTUAL del objeto.
-    const industryFindings = [...assetsRef.current.values()].flatMap((asset) => {
+    const placedIndustry = [...assetsRef.current.values()].flatMap((asset) => {
       const tags = (objectTagsRef.current[asset.id] ?? '').split(/[,\n]/).map((t) => t.trim());
       const objectId = tags.find((t) => INDUSTRY_REGISTRY.getObject(t));
-      if (!objectId) return [];
+      return objectId ? [{ asset, objectId }] : [];
+    });
+    const industryFindings = placedIndustry.flatMap(({ asset, objectId }) => {
       const def = INDUSTRY_REGISTRY.getObject(objectId)!;
       return INDUSTRY_REGISTRY.validatePlaced(objectId, asset.w, asset.h).map((finding) => ({
         assetId: asset.id,
@@ -2732,6 +2736,15 @@ export default function Layout3DEditor({
         message: finding.message,
       }));
     });
+    // BOM de objetos inteligentes (CAD-NEXT-098): conteo + métricas de negocio
+    // sumadas con el tamaño actual de cada objeto — lo que un CAD genérico no
+    // puede dar (total de posiciones de pallet, facings, camas…).
+    setIndustrySummary(
+      summarizeIndustryObjects(
+        placedIndustry.map(({ asset, objectId }) => ({ objectId, w: asset.w, h: asset.h })),
+        INDUSTRY_REGISTRY,
+      ),
+    );
     const cadReport = buildCadValidationReport({
       boxes: collisionBoxes,
       zones: currentSafetyZones(),
@@ -6797,6 +6810,28 @@ export default function Layout3DEditor({
                       ))}
                     </div>
                   )}
+                </div>
+              )}
+              {industrySummary && industrySummary.totalInstances > 0 && (
+                <div className="mb-3 rounded-xl border border-violet-400/20 bg-violet-400/[0.07] p-3">
+                  <div className="mb-2 text-[12px] font-semibold text-violet-100">Objetos inteligentes · {industrySummary.totalInstances}</div>
+                  <div className="space-y-1.5">
+                    {industrySummary.objects.map((obj) => (
+                      <div key={obj.objectId} className="rounded-lg bg-gray-950/40 px-2 py-1.5 text-[11.5px]">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-violet-100">{obj.label}</span>
+                          <span className="tabular-nums text-gray-400">×{obj.count}</span>
+                        </div>
+                        {Object.keys(obj.metrics).length > 0 && (
+                          <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10.5px] text-gray-400">
+                            {Object.entries(obj.metrics).map(([metric, value]) => (
+                              <span key={metric}>{metric}: <b className="tabular-nums text-gray-200">{value.toLocaleString('es-MX')}</b></span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
               {collisionHits.length > 0 && (

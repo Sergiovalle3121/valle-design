@@ -472,6 +472,13 @@ Gates verdes: `tsc` (web+api), `eslint`, `test:specs` (81/81), `check:nav`,
     enfermería al costado, aviso si < 900 mm). Ya son **seis industrias**
     (manufactura, proceso, civil, logística, retail, salud) sobre el mismo
     documento, registro, paleta, motor de reglas y panel de propiedades.
+    **CAD-NEXT-098 (resumen/BOM inteligente):** `industry-rollup.ts` agrega
+    los objetos de pack colocados por objectId — conteo + métricas de negocio
+    SUMADAS con el tamaño actual de cada instancia (vía `calculatePlaced`) +
+    rollup por industria, determinista. REVISAR PLANO muestra el bloque
+    "Objetos inteligentes" con lo que un CAD genérico NO puede dar: el total
+    de posiciones de pallet del almacén, los facings de exhibición, las camas.
+    AutoCAD ve rectángulos; AXOS cuenta capacidad.
 11. **CAD-NEXT-066 (cotas DIMENSION nativas)** — **✓ hecho**: las mediciones
     dejan de aplanarse a línea+texto y viajan como entidad **DIMENSION real**
     (alineada, 70=33) que referencia un **bloque anónimo `*D{n}`** con la
