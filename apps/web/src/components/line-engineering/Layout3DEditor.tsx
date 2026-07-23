@@ -89,7 +89,7 @@ import { buildFlowSegments, scoreFlowLayout, type CadFlowNode, type CadFlowScore
 import type { CadSafetyIssue, CadSafetyZone, CadSafetyZoneKind } from '@/lib/cad/safety-zones';
 import { createCadSnapshot, diffCadSnapshots, pushCadSnapshot, restoreCadSnapshot, type CadSnapshotDiff, type CadSnapshotHistory } from '@/lib/cad/snapshots';
 import { cadDocumentToEditorSnapshot, editorSnapshotToCadDocument } from '@/lib/cad/editor-snapshot';
-import type { CadDocument } from '@/lib/cad/cad-document';
+import type { CadDocument, CadEntity } from '@/lib/cad/cad-document';
 import {
   describeCadObjectProperties,
   summarizeCadSelectionProperties,
@@ -2947,18 +2947,38 @@ export default function Layout3DEditor({
   // tanque llega con shape:'circle' → se dibuja como disco (CAD-NEXT-020). El
   // toast muestra los cálculos de negocio del propio objeto.
   const addIndustryObject = (objectId: string) => {
+    const ctx = ctxRef.current; if (!ctx) return;
     const def = INDUSTRY_REGISTRY.getObject(objectId);
     if (!def) return;
     const instance: SmartObjectInstance = { id: newId('as'), objectId, x: 0, y: 0, props: {} };
-    const entity = def.toEntities(instance).find((e) => e.type === 'box');
-    if (!entity || entity.type !== 'box') return;
-    const renderKind = entity.shape === 'circle' ? 'zone' : 'machine';
-    const id = addAsset(renderKind, { label: entity.label, w: entity.w, h: entity.h, shape: entity.shape });
-    if (!id) return;
-    setObjectTags((cur) => ({ ...cur, [id]: `industry:${def.industry}, ${objectId}` }));
+    // TODAS las cajas del objeto inteligente (CAD-NEXT-094): la línea de cajas
+    // trae mueble + zona de fila; antes sólo la primera sobrevivía al drop.
+    const entities = def.toEntities(instance).filter((e): e is Extract<CadEntity, { type: 'box' }> => e.type === 'box');
+    if (!entities.length) return;
+    pushHistory();
+    const primary = entities[0];
+    const baseX = snapWorld(ctx.W / 2 - primary.w / 2);
+    const baseY = snapWorld(ctx.H / 2 - primary.h / 2);
+    const created: SelItem[] = [];
+    const tagUpdates: Record<string, string> = {};
+    for (const entity of entities) {
+      const id = newId('as');
+      const renderKind = entity.shape === 'circle' || entity.kind === 'zone' ? 'zone' : 'machine';
+      // Offset relativo al primario: la fila queda DETRÁS de la caja, como la
+      // definió el pack, no encimada en el centro.
+      assetsRef.current.set(id, { id, kind: renderKind, x: baseX + (entity.x - primary.x), y: baseY + (entity.y - primary.y), w: entity.w, h: entity.h, rotation: entity.rotation ?? 0, label: entity.label, ...(entity.shape === 'circle' ? { shape: 'circle' as const } : {}) });
+      created.push({ type: 'asset', id });
+      tagUpdates[id] = `industry:${def.industry}, ${objectId}`;
+    }
+    setAssetIds((prev) => { const next = new Set(prev); for (const c of created) next.add(c.id); return next; });
+    const defaultLayer = defaultCadLayerForAssetKind('machine');
+    setLayerAssignments((cur) => assignObjectsToLayer(cur, created.map((c) => c.id), activeCadLayer === 'equipment' ? defaultLayer : activeCadLayer));
+    setObjectTags((cur) => ({ ...cur, ...tagUpdates }));
+    select(created);
+    setDirty(true); rebuildAll();
     const calc = def.calculate?.(instance) ?? {};
     const summary = Object.entries(calc).map(([k, v]) => `${k} ${v}`).join(' · ');
-    toast.success(`${def.label} agregada${summary ? ` — ${summary}` : ''}.`, 'Industry Pack');
+    toast.success(`${def.label} agregada${entities.length > 1 ? ` (${entities.length} objetos)` : ''}${summary ? ` — ${summary}` : ''}.`, 'Industry Pack');
   };
   const applyCadTemplate = (templateId: CadLayoutTemplateId) => {
     const ctx = ctxRef.current; const fp = data?.footprint;

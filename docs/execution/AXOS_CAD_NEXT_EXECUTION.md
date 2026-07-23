@@ -448,6 +448,13 @@ Gates verdes: `tsc` (web+api), `eslint`, `test:specs` (81/81), `check:nav`,
     civil, logística, retail) sobre el MISMO documento, registro, paleta y
     motor de reglas; la zona de fila demuestra objetos inteligentes
     multi-entidad revisables por las reglas como cualquier caja.
+    **CAD-NEXT-094:** el drop de la paleta materializa TODAS las cajas del
+    objeto (antes sólo la primera: la zona de fila se perdía al soltar) con
+    sus offsets relativos, un solo nivel de undo, tags y selección múltiple.
+    Deuda honesta: las validaciones normativas del pack corren al soltar
+    (toast), aún no se re-evalúan en REVISAR PLANO tras redimensionar — eso
+    exige recuperar props desde la geometría (mapeo por objeto, unidad
+    futura).
 11. **CAD-NEXT-066 (cotas DIMENSION nativas)** — **✓ hecho**: las mediciones
     dejan de aplanarse a línea+texto y viajan como entidad **DIMENSION real**
     (alineada, 70=33) que referencia un **bloque anónimo `*D{n}`** con la
