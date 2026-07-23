@@ -2723,6 +2723,10 @@ export default function Layout3DEditor({
       flowNodes: flowNodes.length >= 2 ? flowNodes : undefined,
       requiredClearance: defaultCadClearance(fp.unit || 'mm'),
       unit: fp.unit || 'mm',
+      // El documento canónico del estado actual habilita las reglas de
+      // documento (ids duplicados, fuera del área — estaciones incluidas).
+      document: editorSnapshotToCadDocument(snapshot()),
+      footprint: { w: fp.footprintW, h: fp.footprintH },
       dimensionCount: [...annotationsRef.current.values()].filter((a) => a.type === 'dim').length,
       architectureObjects: [
         ...[...placementsRef.current.entries()].map(([id, p]) => ({
@@ -2756,6 +2760,7 @@ export default function Layout3DEditor({
     cadReport.clearances.forEach((issue) => { highlightIds.add(issue.aId); highlightIds.add(issue.bId); });
     cadReport.safety.forEach((issue) => { highlightIds.add(issue.objectId); highlightIds.add(issue.zoneId); });
     cadReport.architecture.forEach((issue) => { issue.affectedObjectIds.forEach((id) => highlightIds.add(id)); });
+    cadReport.document.forEach((finding) => { finding.entityIds.forEach((id) => highlightIds.add(id)); });
     validationHighlightRef.current = highlightIds;
     setValidationHighlightIds(highlightIds);
     setCadValidationReport(cadReport);
@@ -5194,7 +5199,7 @@ export default function Layout3DEditor({
     preparedBy: sheetPackageDraft.preparedBy, checkedBy: sheetPackageDraft.checkedBy, approvedBy: sheetPackageDraft.approvedBy,
     packageReadyPct: sheetPackageReadyPct, generatedAt: new Date().toISOString(),
     footprint: data?.footprint ?? null, counts: { stations: placedCount, assets: assetCount, annotations: annotationsRef.current.size, connectors: connectorsRef.current.length, cadLayers: cadLayers.length },
-    validation: cadValidationReport ? { severity: cadValidationReport.severity, issues: cadValidationReport.issues.length, collisions: cadValidationReport.collisions.length, clearances: cadValidationReport.clearances.length, safety: cadValidationReport.safety.length, architecture: cadValidationReport.architecture.length } : null,
+    validation: cadValidationReport ? { severity: cadValidationReport.severity, issues: cadValidationReport.issues.length, collisions: cadValidationReport.collisions.length, clearances: cadValidationReport.clearances.length, safety: cadValidationReport.safety.length, architecture: cadValidationReport.architecture.length, document: cadValidationReport.document.length } : null,
     dxf: { canExport: dxfExportSummary.canExport, objects: dxfExportSummary.objects, layers: dxfExportSummary.layers, issues: dxfExportSummary.issues.length },
     notes: sheetPackageDraft.notes,
   };

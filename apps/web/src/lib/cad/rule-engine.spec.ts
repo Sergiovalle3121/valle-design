@@ -1,6 +1,6 @@
 /** Motor de reglas transversal sobre el documento canónico (CAD-NEXT-100). */
 import { strict as assert } from "node:assert";
-import type { CadDocument, CadEntity } from "./cad-document";
+import { layoutToCadDocument, type CadDocument, type CadEntity } from "./cad-document";
 import {
   aabbGap,
   boxAabb,
@@ -98,6 +98,28 @@ assert.equal(engine.run(doc([box("a", 0, 0, 30, 30), box("b", 60, 60, 30, 30)]))
   assert.deepEqual([...indexedOverlap].sort(), [...bruteOverlap].sort(), "solape: índice ≡ fuerza bruta");
   const indexedClearance = new Set(minClearanceRule(MIN_GAP).evaluate(crowdDoc).map((f) => f.entityIds.join("|")));
   assert.deepEqual([...indexedClearance].sort(), [...bruteClearance].sort(), "holgura: índice ≡ fuerza bruta");
+}
+
+// --- las estaciones también son geometría (CAD-NEXT-101 pieza 2) -------------
+{
+  const stationDoc = layoutToCadDocument({
+    assets: [{ id: "mesa", kind: "workbench", x: 0, y: 0, w: 1000, h: 1000, rotation: 0, label: "Mesa" }],
+    stations: [
+      // Solapa con la mesa Y sobresale del footprint de 5000×5000.
+      { id: "st-fuera", x: 4500, y: 0, w: 1200, h: 800, rotation: 0 },
+      { id: "st-encima", x: 500, y: 500, w: 1000, h: 700, rotation: 0 },
+    ],
+  });
+  const overlaps = overlapRule.evaluate(stationDoc);
+  assert.ok(
+    overlaps.some((f) => f.entityIds.includes("st-encima") && f.entityIds.includes("mesa")),
+    "una estación encima de un asset se detecta como solape",
+  );
+  const bounds = withinBoundsRule({ w: 5000, h: 5000 }).evaluate(stationDoc);
+  assert.ok(
+    bounds.some((f) => f.entityIds.includes("st-fuera")),
+    "una estación fuera del área se detecta",
+  );
 }
 
 console.log("cad rule-engine specs passed");

@@ -40,18 +40,33 @@ export interface Aabb {
 
 const LEVEL_ORDER: Record<RuleLevel, number> = { error: 0, warning: 1, info: 2 };
 
-/** Sólo las entidades de caja tienen extensión revisable geométricamente. */
-type BoxEntity = Extract<CadEntity, { type: "box" }>;
-function boxes(doc: CadDocument): BoxEntity[] {
-  return doc.entities.filter((e): e is BoxEntity => e.type === "box");
+/**
+ * Entidades con extensión geométrica revisable: cajas Y estaciones (ambas son
+ * rectángulos con rotación; las estaciones existen desde el esquema v2).
+ */
+type GeomEntity = Extract<CadEntity, { type: "box" | "station" }>;
+function boxes(doc: CadDocument): GeomEntity[] {
+  return doc.entities.filter(
+    (e): e is GeomEntity => e.type === "box" || e.type === "station",
+  );
+}
+function geomLabel(e: GeomEntity): string {
+  return (e.type === "box" ? e.label : undefined) ?? e.id;
 }
 
 /**
- * Caja envolvente alineada a ejes de una entidad de caja, teniendo en cuenta la
- * rotación (medias-extensiones proyectadas). El ancla (x,y) es la esquina
- * superior-izquierda de la caja SIN rotar; se rota alrededor de su centro.
+ * Caja envolvente alineada a ejes de una entidad rectangular, teniendo en
+ * cuenta la rotación (medias-extensiones proyectadas). El ancla (x,y) es la
+ * esquina superior-izquierda SIN rotar; se rota alrededor de su centro.
+ * Estructural: cualquier rectángulo {x,y,w,h,rotation} sirve.
  */
-export function boxAabb(e: BoxEntity): Aabb {
+export function boxAabb(e: {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  rotation: number;
+}): Aabb {
   const cx = e.x + e.w / 2;
   const cy = e.y + e.h / 2;
   const rad = ((e.rotation || 0) * Math.PI) / 180;
@@ -161,7 +176,7 @@ export const overlapRule: CadRule = {
         findings.push({
           ruleId: "overlap",
           level: "warning",
-          message: `"${list[i].label ?? list[i].id}" y "${list[j].label ?? list[j].id}" se solapan.`,
+          message: `"${geomLabel(list[i])}" y "${geomLabel(list[j])}" se solapan.`,
           entityIds: [list[i].id, list[j].id],
         });
       }
@@ -183,7 +198,7 @@ export function withinBoundsRule(footprint: { w: number; h: number }): CadRule {
           findings.push({
             ruleId: "within-bounds",
             level: "error",
-            message: `"${e.label ?? e.id}" sobresale del área de trabajo.`,
+            message: `"${geomLabel(e)}" sobresale del área de trabajo.`,
             entityIds: [e.id],
           });
         }
@@ -209,7 +224,7 @@ export function minClearanceRule(minGap: number): CadRule {
           findings.push({
             ruleId: "min-clearance",
             level: "warning",
-            message: `"${list[i].label ?? list[i].id}" y "${list[j].label ?? list[j].id}" están a ${Math.round(gap)} (< ${minGap}).`,
+            message: `"${geomLabel(list[i])}" y "${geomLabel(list[j])}" están a ${Math.round(gap)} (< ${minGap}).`,
             entityIds: [list[i].id, list[j].id],
           });
         }

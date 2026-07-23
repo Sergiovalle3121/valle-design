@@ -1,4 +1,5 @@
 import { buildCadValidationReport } from "./validation-report";
+import { layoutToCadDocument } from "./cad-document";
 
 function assertEqual<T>(actual: T, expected: T, message: string) {
   if (actual !== expected)
@@ -174,4 +175,39 @@ assertEqual(
   "wall_crosses_equipment",
   "architecture validation flags walls crossing equipment",
 );
+
+// --- reglas del documento canónico (CAD-NEXT-101 pieza 2) --------------------
+// Un id duplicado y una estación fuera del área: ambos vienen del motor de
+// reglas sobre el CadDocument, no del barrido de cajas histórico.
+const documentReport = buildCadValidationReport({
+  boxes: [],
+  document: layoutToCadDocument({
+    assets: [
+      { id: "dup", kind: "workbench", x: 0, y: 0, w: 100, h: 100, rotation: 0 },
+      { id: "dup", kind: "workbench", x: 500, y: 0, w: 100, h: 100, rotation: 0 },
+    ],
+    stations: [{ id: "st-lejos", x: 9000, y: 0, w: 1000, h: 800, rotation: 0 }],
+  }),
+  footprint: { w: 5000, h: 5000 },
+});
+assertEqual(documentReport.severity, "critical", "document errors mark report critical");
+assertEqual(
+  documentReport.document.filter((f) => f.ruleId === "duplicate-ids").length,
+  1,
+  "duplicate id detected via canonical engine",
+);
+assertOk(
+  documentReport.document.some((f) => f.ruleId === "within-bounds" && f.entityIds.includes("st-lejos")),
+  "station out of bounds detected via canonical engine",
+);
+assertOk(
+  documentReport.issues.some((row) => row.category === "document" && row.severity === "critical"),
+  "document findings surface as actionable issue rows",
+);
+
+// Sin documento no hay hallazgos de documento (compatibilidad hacia atrás).
+const noDocReport = buildCadValidationReport({ boxes: [] });
+assertEqual(noDocReport.document.length, 0, "no document input → no document findings");
+assertEqual(noDocReport.severity, "ok", "empty report stays ok");
+
 console.log("cad validation report specs passed");

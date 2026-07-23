@@ -14,12 +14,16 @@ import type { CadFlowNode, CadFlowScore } from "./flow-optimization";
 import { scoreFlowLayout } from "./flow-optimization";
 import type { CadSafetyIssue, CadSafetyZone } from "./safety-zones";
 import { evaluateSafetyZones } from "./safety-zones";
+import type { CadDocument } from "./cad-document";
+import { duplicateIdsRule, RuleEngine, withinBoundsRule, type RuleFinding } from "./rule-engine";
 
 export interface CadValidationReport {
   collisions: CadCollisionHit[];
   clearances: CadClearanceIssue[];
   safety: CadSafetyIssue[];
   architecture: CadArchitectureValidationIssue[];
+  /** Hallazgos del motor de reglas canónico sobre el CadDocument (CAD-NEXT-101). */
+  document: RuleFinding[];
   issues: CadValidationIssueRow[];
   flow?: CadFlowScore;
   severity: "ok" | "warning" | "critical";
@@ -30,6 +34,7 @@ export type CadValidationIssueCategory =
   | "clearance"
   | "safety"
   | "architecture"
+  | "document"
   | "flow";
 
 export interface CadValidationIssueRow {
@@ -361,11 +366,36 @@ function buildArchitectureValidationIssues(
   return issues;
 }
 
+const DOCUMENT_RULE_FIXES: Record<string, string> = {
+  "duplicate-ids":
+    "Renombra o elimina el objeto duplicado; los ids repetidos rompen undo y persistencia.",
+  "within-bounds":
+    "Mueve el objeto dentro del área de trabajo o amplía el footprint del plano.",
+};
+
+/**
+ * Corre las reglas del documento canónico que el resto del reporte NO cubre ya
+ * (los solapes/holguras los cubren collisions/clearances con la misma
+ * geometría compartida): ids duplicados y fuera del área de trabajo — ambas
+ * también sobre las ESTACIONES, que el barrido de cajas histórico no ve.
+ */
+function runDocumentRules(
+  document: CadDocument | undefined,
+  footprint: { w: number; h: number } | undefined,
+): RuleFinding[] {
+  if (!document) return [];
+  const engine = new RuleEngine([duplicateIdsRule]);
+  if (footprint && footprint.w > 0 && footprint.h > 0)
+    engine.add(withinBoundsRule(footprint));
+  return engine.run(document);
+}
+
 function buildIssueRows(input: {
   collisions: CadCollisionHit[];
   clearances: CadClearanceIssue[];
   safety: CadSafetyIssue[];
   architecture: CadArchitectureValidationIssue[];
+  document: RuleFinding[];
   flow?: CadFlowScore;
 }): CadValidationIssueRow[] {
   const rows: CadValidationIssueRow[] = [];
@@ -429,6 +459,21 @@ function buildIssueRows(input: {
     });
   }
 
+  for (const finding of input.document) {
+    rows.push({
+      id: `document:${finding.ruleId}:${finding.entityIds.join(":") || "global"}`,
+      category: "document",
+      severity: finding.level === "error" ? "critical" : "warning",
+      title: `Documento: ${finding.ruleId === "duplicate-ids" ? "id duplicado" : finding.ruleId === "within-bounds" ? "fuera del área" : finding.ruleId}`,
+      detail: finding.message,
+      affectedObjectIds: finding.entityIds,
+      actionLabel: finding.entityIds.length ? "Select document issue" : "Review document",
+      suggestedFix:
+        DOCUMENT_RULE_FIXES[finding.ruleId] ??
+        "Revisa el hallazgo del motor de reglas del documento canónico.",
+    });
+  }
+
   if (input.flow && input.flow.score < 70) {
     rows.push({
       id: "flow:score",
@@ -459,6 +504,10 @@ export function buildCadValidationReport(input: {
   unit?: string;
   minimumRoomArea?: number;
   dimensionCount?: number;
+  /** Documento canónico del estado actual; habilita las reglas de documento. */
+  document?: CadDocument;
+  /** Área de trabajo (para la regla fuera-de-límites del documento). */
+  footprint?: { w: number; h: number };
 }): CadValidationReport {
   const collisions = detectCadCollisions(input.boxes);
   const clearances = input.requiredClearance
@@ -478,17 +527,20 @@ export function buildCadValidationReport(input: {
         }
       : undefined,
   );
+  const document = runDocumentRules(input.document, input.footprint);
   const severity =
     collisions.length ||
     safety.some((issue) => issue.code === "zone_invasion") ||
-    architecture.some((issue) => issue.severity === "critical")
+    architecture.some((issue) => issue.severity === "critical") ||
+    document.some((finding) => finding.level === "error")
       ? "critical"
       : clearances.length ||
           safety.length ||
           architecture.length ||
+          document.length ||
           (flow && flow.score < 70)
         ? "warning"
         : "ok";
-  const issues = buildIssueRows({ collisions, clearances, safety, architecture, flow });
-  return { collisions, clearances, safety, architecture, issues, flow, severity };
+  const issues = buildIssueRows({ collisions, clearances, safety, architecture, document, flow });
+  return { collisions, clearances, safety, architecture, document, issues, flow, severity };
 }

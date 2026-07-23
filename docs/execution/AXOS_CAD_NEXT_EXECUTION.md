@@ -411,6 +411,13 @@ Gates verdes: `tsc` (web+api), `eslint`, `test:specs` (81/81), `check:nav`,
    phase `gridPairCandidates` del motor de reglas — un solo núcleo geométrico y
    los dos barridos del editor dejan de ser O(n²), con **equivalencia probada**
    (300 cajas → resultados idénticos al doble bucle, mismo orden).
+   **Pieza 2 hecha:** el motor canónico ALIMENTA el reporte cableado —
+   `buildCadValidationReport` acepta el `CadDocument` del estado actual (el
+   editor lo construye con una línea vía `editorSnapshotToCadDocument`) y corre
+   las reglas que el barrido histórico no cubre: **ids duplicados** y **fuera
+   del área de trabajo**, ahora TAMBIÉN sobre las estaciones (las reglas
+   geométricas del motor cubren `box` y `station`). Los hallazgos entran al
+   mismo panel de issues con severidad, selección y resaltado.
 9. **CAD-NEXT-011** — persistencia/undo del editor sobre `CadDocument`.
    **Pieza 1 hecha (esquema v2):** el documento canónico ya sostiene TODO lo
    que lleva el snapshot de undo del editor — cajas con **`tags`** y la nueva
