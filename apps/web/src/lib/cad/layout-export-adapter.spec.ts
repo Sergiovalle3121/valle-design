@@ -43,6 +43,29 @@ assert.equal(
   assert.ok(near((flat.primitives?.[0]?.points ?? [])[0], 8, 9), "sin rotación queda igual");
 }
 
+// Objeto redondo (AXOS-CAD-WIRE-001): un box con shape:"circle" sale como un
+// CIRCLE real en el DXF (centro en x,y, radio = width/2), no como cuadrado, así
+// que abre como círculo en AutoCAD.
+{
+  const round = cadLayoutToDxfExportModel({
+    boxes: [
+      { id: "col", label: "Columna", x: 20, y: 30, width: 12, height: 12, shape: "circle" },
+    ],
+  });
+  const prim = round.primitives?.[0];
+  assert.equal(prim?.kind, "circle", "shape:circle → primitiva circle");
+  assert.equal(prim?.radius, 6, "radio = width/2");
+  assert.ok(
+    prim?.points?.[0]?.x === 20 && prim?.points?.[0]?.y === 30,
+    "centro del círculo en (x,y)",
+  );
+  const dxf = exportCadLayoutDxf({
+    boxes: [{ id: "col", label: "Columna", x: 20, y: 30, width: 12, height: 12, shape: "circle" }],
+  });
+  assert.ok(dxf.content.includes("0\nCIRCLE"), "el DXF contiene una entidad CIRCLE");
+  assert.ok(dxf.content.includes("40\n6"), "el CIRCLE lleva su radio (código 40)");
+}
+
 const exported = exportCadLayoutDxf(input);
 assert.ok(
   exported.content.includes("0\nPOLYLINE"),

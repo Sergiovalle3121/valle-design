@@ -16,6 +16,12 @@ export interface CadExportBox {
   /** Grados; el rect se emite con las esquinas ya rotadas (AXOS-CAD-DXF-ROT-001). */
   rotation?: number;
   layer?: string;
+  /**
+   * Forma del objeto. "circle" lo emite como un CIRCLE real en el DXF (centro
+   * en x,y; radio = width/2), de modo que abre como círculo en AutoCAD y no como
+   * un cuadrado. Por defecto (sin shape) es un rectángulo (AXOS-CAD-WIRE-001).
+   */
+  shape?: "circle" | "rect";
 }
 export interface CadExportConnector {
   from: { x: number; y: number };
@@ -93,12 +99,22 @@ export function cadLayoutToDxfExportModel(
   return {
     layers: collectLayoutLayers(input),
     primitives: [
-      ...(input.boxes ?? []).map((box) => ({
-        kind: "rect" as const,
-        layer: box.layer ?? "Equipment",
-        points: rectPoints(box),
-        text: box.label,
-      })),
+      ...(input.boxes ?? []).map((box) =>
+        box.shape === "circle"
+          ? {
+              kind: "circle" as const,
+              layer: box.layer ?? "Equipment",
+              points: [{ x: box.x, y: box.y }],
+              radius: box.width / 2,
+              text: box.label,
+            }
+          : {
+              kind: "rect" as const,
+              layer: box.layer ?? "Equipment",
+              points: rectPoints(box),
+              text: box.label,
+            },
+      ),
       ...(input.connectors ?? []).map((connector) => ({
         kind: "line" as const,
         layer: connector.layer ?? "Flow",
