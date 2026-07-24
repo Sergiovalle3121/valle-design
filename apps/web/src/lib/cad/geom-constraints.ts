@@ -81,6 +81,57 @@ export function makeEqualLength(target: Segment, reference: Segment): Segment {
   return fromMidAngleLen(midpoint(target), segmentAngle(target), length(reference));
 }
 
+/** Extremo que permanece fijo al aplicar una restricción dimensional. */
+export type Anchor = "start" | "end" | "mid";
+
+/** Dirección unitaria actual del segmento; si es degenerado, eje +X. */
+function unitDir(s: Segment): CadVec2 {
+  const dx = s.b.x - s.a.x;
+  const dy = s.b.y - s.a.y;
+  const m = Math.hypot(dx, dy);
+  return m === 0 ? { x: 1, y: 0 } : { x: dx / m, y: dy / m };
+}
+
+/**
+ * Restricción dimensional de LONGITUD (CAD-NEXT-112): fija la longitud exacta
+ * del segmento conservando su dirección y el extremo `anchor`. Con `start` (por
+ * defecto) el primer punto queda fijo y el segundo se mueve; con `mid` ambos se
+ * mueven simétricamente respecto al centro. Una longitud ≤ 0 se ignora
+ * (devuelve el segmento sin cambio) — no existe un segmento de longitud nula.
+ */
+export function setLength(s: Segment, length: number, anchor: Anchor = "start"): Segment {
+  if (!(length > 0)) return s;
+  const d = unitDir(s);
+  if (anchor === "start") {
+    return { a: { ...s.a }, b: { x: s.a.x + d.x * length, y: s.a.y + d.y * length } };
+  }
+  if (anchor === "end") {
+    return { a: { x: s.b.x - d.x * length, y: s.b.y - d.y * length }, b: { ...s.b } };
+  }
+  const mx = (s.a.x + s.b.x) / 2, my = (s.a.y + s.b.y) / 2;
+  const h = length / 2;
+  return { a: { x: mx - d.x * h, y: my - d.y * h }, b: { x: mx + d.x * h, y: my + d.y * h } };
+}
+
+/**
+ * Restricción dimensional de ÁNGULO (CAD-NEXT-112): fija el ángulo ABSOLUTO del
+ * segmento (grados, 0° = eje +X, sentido antihorario) conservando su longitud y
+ * el extremo `anchor`.
+ */
+export function setAngle(s: Segment, angleDeg: number, anchor: Anchor = "start"): Segment {
+  const len = length(s);
+  const rad = (angleDeg * Math.PI) / 180;
+  const vx = Math.cos(rad) * len, vy = Math.sin(rad) * len;
+  if (anchor === "start") {
+    return { a: { ...s.a }, b: { x: s.a.x + vx, y: s.a.y + vy } };
+  }
+  if (anchor === "end") {
+    return { a: { x: s.b.x - vx, y: s.b.y - vy }, b: { ...s.b } };
+  }
+  const mx = (s.a.x + s.b.x) / 2, my = (s.a.y + s.b.y) / 2;
+  return { a: { x: mx - vx / 2, y: my - vy / 2 }, b: { x: mx + vx / 2, y: my + vy / 2 } };
+}
+
 /**
  * Colineal: proyecta ambos extremos del objetivo sobre la recta infinita que
  * pasa por la referencia. A diferencia de las demás, cambia posición y

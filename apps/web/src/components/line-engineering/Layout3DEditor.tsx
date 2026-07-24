@@ -77,7 +77,7 @@ import { summarizeIndustryObjects, industryRollupToCsv, type IndustrySummary } f
 import { tessellateDxfPrimitive } from '@/lib/cad/curve-tessellate';
 import { DWG_UNAVAILABLE_REASON } from '@/lib/cad/interop-provider';
 import { mapDxfLayerToCadLayer } from '@/lib/cad/dxf-layer-map';
-import { makeHorizontal, makeVertical, makeParallel, makePerpendicular, makeEqualLength, makeCollinear, type Segment } from '@/lib/cad/geom-constraints';
+import { makeHorizontal, makeVertical, makeParallel, makePerpendicular, makeEqualLength, makeCollinear, setLength, setAngle, type Segment } from '@/lib/cad/geom-constraints';
 import { buildMleader } from '@/lib/cad/mleader';
 import { CAD_LAYOUT_TEMPLATES, instantiateCadLayoutTemplate, type CadLayoutTemplateId } from '@/lib/cad/templates';
 import {
@@ -2849,6 +2849,23 @@ export default function Layout3DEditor({
     }
     setDirty(true); rebuildAll(); refreshSnap();
     toast.success(`Restricción aplicada a ${targets.length} muro(s).`, 'Restricciones');
+  };
+
+  // Restricción dimensional (CAD-NEXT-112): fija longitud o ángulo EXACTOS del
+  // muro seleccionado conservando su primer extremo — el otro medio del panel
+  // paramétrico (geométricas + dimensionales) de AutoCAD.
+  const applyWallDimension = (kind: 'length' | 'angle', value: number) => {
+    if (!Number.isFinite(value)) return;
+    const sel = selRef.current.find((it) => it.type === 'asset');
+    const wall = sel && assetsRef.current.get(sel.id);
+    if (!wall || wall.kind !== 'wall') { toast.error('Selecciona un muro para fijar su dimensión.', 'Dimensiones'); return; }
+    if (kind === 'length' && !(value > 0)) { toast.error('La longitud debe ser mayor que cero.', 'Dimensiones'); return; }
+    pushHistory();
+    const seg = wallToSegment(wall);
+    const out = kind === 'length' ? setLength(seg, value, 'start') : setAngle(seg, value, 'start');
+    assetsRef.current.set(wall.id, applySegmentToWall(wall, out));
+    setDirty(true); rebuildAll(); refreshSnap();
+    toast.success(kind === 'length' ? `Longitud fijada a ${Math.round(value)} mm.` : `Ángulo fijado a ${value}°.`, 'Dimensiones');
   };
 
   // Entregable de capacidad (CAD-NEXT-099): el BOM de objetos inteligentes a CSV.
@@ -6344,6 +6361,36 @@ export default function Layout3DEditor({
                 </div>
                 <div className="text-[11px] text-gray-500 dark:text-gray-400 mb-3">{selSnap.subtitle}</div>
                 <button onClick={createLeaderForSelection} title="Crea una directriz con nota que apunta a este objeto (flecha + texto), como MLEADER en AutoCAD" className="mb-3 w-full rounded-lg border border-sky-400/25 bg-sky-400/[0.08] px-2 py-1.5 text-[11px] font-semibold text-sky-100 hover:bg-sky-400/[0.14]">＋ Directriz / Nota</button>
+                {selSnap.type === 'asset' && selSnap.kind === 'wall' && (
+                  <div className="mb-3 rounded-xl border border-emerald-400/15 bg-emerald-400/[0.04] p-2.5">
+                    <div className="mb-1.5 text-[10px] uppercase tracking-wide text-emerald-200">Dimensiones exactas</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="block text-[10px] text-gray-500 dark:text-gray-400">
+                        <span className="block mb-1">Longitud (mm)</span>
+                        <input
+                          key={`len-${selSnap.id}-${Math.round(selSnap.w)}`}
+                          type="number"
+                          defaultValue={Math.round(selSnap.w)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') applyWallDimension('length', Number((e.target as HTMLInputElement).value)); }}
+                          onBlur={(e) => { const v = Number(e.target.value); if (v > 0 && Math.round(v) !== Math.round(selSnap.w)) applyWallDimension('length', v); }}
+                          className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white outline-none"
+                        />
+                      </label>
+                      <label className="block text-[10px] text-gray-500 dark:text-gray-400">
+                        <span className="block mb-1">Ángulo (°)</span>
+                        <input
+                          key={`ang-${selSnap.id}-${Math.round((selSnap.rotation * 180) / Math.PI)}`}
+                          type="number"
+                          defaultValue={Math.round((selSnap.rotation * 180) / Math.PI)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') applyWallDimension('angle', Number((e.target as HTMLInputElement).value)); }}
+                          onBlur={(e) => { const v = Number(e.target.value); if (Number.isFinite(v) && Math.round(v) !== Math.round((selSnap.rotation * 180) / Math.PI)) applyWallDimension('angle', v); }}
+                          className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white outline-none"
+                        />
+                      </label>
+                    </div>
+                    <div className="mt-1.5 text-[10px] text-gray-500 dark:text-gray-400">Fija el valor exacto conservando el primer extremo del muro. Enter aplica.</div>
+                  </div>
+                )}
                 {selList[0] && isObjectLayerLocked(cadLayers, layerAssignments, selList[0].id, defaultLayerFor(selList[0])) && (
                   <div className="mb-3 rounded-lg border border-amber-400/20 bg-amber-400/10 px-2 py-1.5 text-[11px] text-amber-200">Capa bloqueada: las propiedades, drag y comandos destructivos quedan protegidos.</div>
                 )}

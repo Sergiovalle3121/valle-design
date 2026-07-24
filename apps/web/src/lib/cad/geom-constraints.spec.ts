@@ -7,6 +7,8 @@ import {
   makePerpendicular,
   makeEqualLength,
   makeCollinear,
+  setLength,
+  setAngle,
   segmentAngle,
   type Segment,
 } from "./geom-constraints";
@@ -92,6 +94,41 @@ const mid = (s: Segment) => ({ x: (s.a.x + s.b.x) / 2, y: (s.a.y + s.b.y) / 2 })
 {
   const s: Segment = { a: { x: 1, y: 2 }, b: { x: 7, y: 3 } };
   assert.deepEqual(makeHorizontal(s), makeHorizontal(s), "determinista");
+}
+
+// --- restricción dimensional: longitud exacta (CAD-NEXT-112) ---------------
+{
+  const s: Segment = { a: { x: 0, y: 0 }, b: { x: 3, y: 4 } }; // largo 5, dir (0.6,0.8)
+  const g = setLength(s, 10); // anchor start
+  assert.ok(near(g.a.x, 0) && near(g.a.y, 0), "longitud/start: primer punto fijo");
+  assert.ok(near(g.b.x, 6) && near(g.b.y, 8), "longitud/start: segundo punto a 10 en la misma dirección");
+  assert.ok(near(len(g), 10), "longitud exacta = 10");
+  // anchor end conserva el segundo punto
+  const ge = setLength(s, 10, "end");
+  assert.ok(near(ge.b.x, 3) && near(ge.b.y, 4), "longitud/end: segundo punto fijo");
+  assert.ok(near(len(ge), 10), "longitud/end también da 10");
+  // anchor mid conserva el centro
+  const gm = setLength(s, 10, "mid");
+  assert.ok(near(mid(gm).x, 1.5) && near(mid(gm).y, 2), "longitud/mid: centro fijo");
+  assert.ok(near(len(gm), 10), "longitud/mid también da 10");
+  // longitud no positiva se ignora
+  assert.deepEqual(setLength(s, 0), s, "longitud 0 se ignora");
+  assert.deepEqual(setLength(s, -3), s, "longitud negativa se ignora");
+}
+
+// --- restricción dimensional: ángulo exacto --------------------------------
+{
+  const s: Segment = { a: { x: 0, y: 0 }, b: { x: 5, y: 0 } }; // largo 5, 0°
+  const g = setAngle(s, 90); // vertical, anchor start
+  assert.ok(near(g.a.x, 0) && near(g.a.y, 0), "ángulo/start: primer punto fijo");
+  assert.ok(near(g.b.x, 0) && near(g.b.y, 5), "ángulo 90° → segundo punto arriba, largo preservado");
+  assert.ok(near(len(g), 5), "ángulo: conserva longitud");
+  // ángulo 45° absoluto
+  const g45 = setAngle({ a: { x: 0, y: 0 }, b: { x: 10, y: 0 } }, 45);
+  assert.ok(near(segmentAngle(g45), Math.PI / 4), "ángulo 45° absoluto");
+  // anchor mid pivota en el centro
+  const gm = setAngle(s, 90, "mid");
+  assert.ok(near(mid(gm).x, 2.5) && near(mid(gm).y, 0), "ángulo/mid: centro fijo");
 }
 
 console.log("cad geom-constraints specs passed");

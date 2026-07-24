@@ -226,6 +226,13 @@ largo) con el primer muro como referencia. Es el núcleo del "dibujo
 paramétrico" que distingue a un CAD profesional (GEOMCONSTRAINT en AutoCAD);
 alcance honesto: aplicar-una-vez, no un solver bidireccional vivo.
 
+**CAD-NEXT-112 (restricciones dimensionales) — ✓ hecho:** `setLength` y
+`setAngle` (ancla start/end/mid) fijan longitud y ángulo EXACTOS de un
+segmento; el panel del muro expone "Dimensiones exactas" con inputs de Longitud
+(mm) y Ángulo (°) que aplican con precisión conservando el primer extremo.
+Junto con CAD-NEXT-110 completa el par paramétrico de AutoCAD: restricciones
+geométricas + dimensionales.
+
 **CAD-NEXT-111 (directriz con nota / MLEADER) — ✓ hecho:** `mleader.ts`
 calcula la geometría pura de una directriz (punta de flecha → línea directriz →
 codo horizontal → ancla de texto; el codo se aleja de la punta para no pisar el
