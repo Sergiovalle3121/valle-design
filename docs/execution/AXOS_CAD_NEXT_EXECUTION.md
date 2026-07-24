@@ -5,6 +5,12 @@
 > el tracker vivo de la ejecución: auditoría de verdad, matriz de cableado,
 > compatibilidad, decisiones, riesgos y estado local/remoto/PR.
 
+> **Actualización 2026-07-24:** `CadDocument` evolucionó de v2 a v3 con
+> persistencia canónica, entidades de primera clase, grafo de restricciones y
+> passthrough opaco. La evidencia y los límites vigentes están en
+> `docs/execution/AXOS_CAD_GRAND_LEAP_EXECUTION.md`; las menciones históricas a
+> v2 debajo describen el estado de aquel corte.
+
 ## 0. Estado base verificado
 
 | Campo | Valor |

@@ -77,7 +77,7 @@ import { summarizeIndustryObjects, industryRollupToCsv, type IndustrySummary } f
 import { tessellateDxfPrimitive } from '@/lib/cad/curve-tessellate';
 import { DWG_UNAVAILABLE_REASON } from '@/lib/cad/interop-provider';
 import { mapDxfLayerToCadLayer } from '@/lib/cad/dxf-layer-map';
-import { makeHorizontal, makeVertical, makeParallel, makePerpendicular, makeEqualLength, makeCollinear, setLength, setAngle, type Segment } from '@/lib/cad/geom-constraints';
+import { solveCadConstraints, upsertCadConstraint } from '@/lib/cad/live-constraints';
 import { buildMleader } from '@/lib/cad/mleader';
 import { CAD_LAYOUT_TEMPLATES, instantiateCadLayoutTemplate, type CadLayoutTemplateId } from '@/lib/cad/templates';
 import {
@@ -93,7 +93,14 @@ import { buildFlowSegments, scoreFlowLayout, type CadFlowNode, type CadFlowScore
 import type { CadSafetyIssue, CadSafetyZone, CadSafetyZoneKind } from '@/lib/cad/safety-zones';
 import { createCadSnapshot, diffCadSnapshots, pushCadSnapshot, restoreCadSnapshot, type CadSnapshotDiff, type CadSnapshotHistory } from '@/lib/cad/snapshots';
 import { cadDocumentToEditorSnapshot, editorSnapshotToCadDocument } from '@/lib/cad/editor-snapshot';
-import type { CadDocument, CadEntity } from '@/lib/cad/cad-document';
+import {
+  commitChange,
+  migrateCadDocument,
+  replaceEditorProjection,
+  type CadConstraintKind,
+  type CadDocument,
+  type CadEntity,
+} from '@/lib/cad/cad-document';
 import {
   describeCadObjectProperties,
   summarizeCadSelectionProperties,
@@ -253,7 +260,7 @@ interface St {
 }
 interface Cell { id: string; name: string; color: string; stationIds: string[] }
 interface Conn { from: string; to: string; kind?: string }
-interface Asset { id: string; kind: string; x: number; y: number; w: number; h: number; rotation: number; label?: string; shape?: 'rect' | 'circle' }
+interface Asset { id: string; kind: string; x: number; y: number; w: number; h: number; rotation: number; label?: string; shape?: 'rect' | 'circle'; tags?: string[] }
 /** Bloque CAD reutilizable de la biblioteca del tenant (ADR §224). */
 interface CadBlockRow { id: string; name: string; assets: (Asset & { layer?: string })[]; createdAt?: string }
 /** A pair of objects flagged by the clearance analysis (Fase 43). */
@@ -271,6 +278,8 @@ interface Layout {
   assets?: Asset[];
   annotations?: Ann[];
   dxf?: DxfMeta | null;
+  cadDocument?: Record<string, unknown> | null;
+  cadDocumentVersion?: number;
 }
 interface Placement { x: number; y: number; w: number; h: number; rotation: number }
 /** One selectable object (a station block or an equipment asset). */
@@ -859,7 +868,7 @@ export default function Layout3DEditor({
   const [commandLog, setCommandLog] = useState<CadCommandHistoryItem[]>([]);
   // Copiloto IA (ADR §215): propuesta NL→CAD / optimización — humano aprueba.
   const [aiBusy, setAiBusy] = useState<null | 'intent' | 'optimize'>(null);
-  const [aiProposal, setAiProposal] = useState<{ source: 'intent' | 'optimize'; intents: CadIntent[]; errors: string[]; message?: string } | null>(null);
+  const [aiProposal, setAiProposal] = useState<{ source: 'intent' | 'optimize'; intents: CadIntent[]; descriptions?: string[]; errors: string[]; message?: string } | null>(null);
   const [selList, setSelList] = useState<SelItem[]>([]);
   const [selSnap, setSelSnap] = useState<SelSnap | null>(null);
   const [selSummary, setSelSummary] = useState<CadSelectionProperties | null>(null);
@@ -1023,6 +1032,7 @@ export default function Layout3DEditor({
   // por el adaptador sin pérdida (capas asignadas y tags incluidos).
   const undoStackRef = useRef<CadDocument[]>([]);
   const redoStackRef = useRef<CadDocument[]>([]);
+  const loadedCadDocumentRef = useRef<CadDocument | null>(null);
 
   // layout state refs (drive both the scene and the save)
   const placementsRef = useRef<Map<string, Placement>>(new Map());
@@ -1278,7 +1288,7 @@ export default function Layout3DEditor({
       setOverlay(null); setTool('select'); setMeasureLive(null); setWalk(false); setHist({ undo: 0, redo: 0 }); setCellsView([]); setValidationHighlightIds(new Set()); setCollisionHits([]); setClearanceIssues([]); setSafetyIssues([]); setCadValidationReport(null); setIndustrySummary(null); setFlowHealth(null); setFlowSequence([]); setFlowSegments([]); setSnapshotDiff(null); setReport(null);
     });
     selRef.current = []; overlayColorRef.current = new Map(); validationHighlightRef.current = new Set(); toolRef.current = 'select'; measureARef.current = null; wallChainRef.current = null;
-    walkRef.current = false; savedCamRef.current = null; undoStackRef.current = []; redoStackRef.current = [];
+    walkRef.current = false; savedCamRef.current = null; undoStackRef.current = []; redoStackRef.current = []; loadedCadDocumentRef.current = null;
     (async () => {
       try {
         const r = await apiFetch(`${API_BASE}/line-engineering/layout?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`);
@@ -1315,14 +1325,34 @@ export default function Layout3DEditor({
         // Restaura la capa CAD y el grupo por asset persistidos (ADR §219/§223).
         const restoredLayers: CadLayerAssignments = {};
         const restoredGroups: Record<string, string> = {};
+        const restoredTags: Record<string, string> = {};
         (d.assets ?? []).forEach((a) => {
           const layer = (a as { layer?: string }).layer;
           if (layer && DEFAULT_CAD_LAYERS.some((l) => l.id === layer)) restoredLayers[a.id] = layer as CadLayerId;
           const group = (a as { group?: string }).group;
           if (group) restoredGroups[a.id] = group;
+          if (a.tags?.length) restoredTags[a.id] = a.tags.join(', ');
         });
         setLayerAssignments(restoredLayers);
         setObjectGroups(restoredGroups);
+        objectTagsRef.current = restoredTags;
+        setObjectTags(restoredTags);
+        const projection = editorSnapshotToCadDocument({
+          placements: [...pl.entries()],
+          assets: [...am.values()],
+          annotations: [...an.values()],
+          connectors: connectorsRef.current,
+          layers: restoredLayers,
+          tags: restoredTags,
+        }, { unit: d.footprint.unit });
+        try {
+          loadedCadDocumentRef.current = d.cadDocument
+            ? replaceEditorProjection(migrateCadDocument(d.cadDocument), projection)
+            : projection;
+        } catch {
+          loadedCadDocumentRef.current = projection;
+          toast.error('El documento CAD canónico no era válido; se cargó la proyección compatible.', 'CAD');
+        }
         setData(d);
         // fetch + parse the read-only DXF backdrop (the endpoint already serves
         // the raw drawing); render it on the floor once ready.
@@ -1708,12 +1738,16 @@ export default function Layout3DEditor({
     setLocalSnapshots((history) => pushCadSnapshot(history, snap, 20));
     return snap.id;
   }, [snapshot]);
+  const snapshotDocument = useCallback((value: Snapshot = snapshot()) => {
+    const projection = editorSnapshotToCadDocument(value, { unit: data?.footprint.unit || 'mm' });
+    return replaceEditorProjection(loadedCadDocumentRef.current, projection);
+  }, [data?.footprint.unit, snapshot]);
   const pushHistory = useCallback(() => {
-    undoStackRef.current.push(editorSnapshotToCadDocument(snapshot()));
+    undoStackRef.current.push(snapshotDocument());
     if (undoStackRef.current.length > 80) undoStackRef.current.shift();
     redoStackRef.current = [];
     setHist({ undo: undoStackRef.current.length, redo: 0 });
-  }, [snapshot]);
+  }, [snapshotDocument]);
   const restore = useCallback((s: Snapshot) => {
     placementsRef.current = new Map(s.placements.map(([id, p]) => [id, { ...p }]));
     assetsRef.current = new Map(s.assets.map((a) => [a.id, { ...a }]));
@@ -1737,16 +1771,20 @@ export default function Layout3DEditor({
   }, [computeSnap, rebuildAll]);
   const undo = useCallback(() => {
     if (!undoStackRef.current.length) return;
-    redoStackRef.current.push(editorSnapshotToCadDocument(snapshot()));
-    restore(cadDocumentToEditorSnapshot<CadLayerId>(undoStackRef.current.pop()!));
+    redoStackRef.current.push(snapshotDocument());
+    const document = undoStackRef.current.pop()!;
+    loadedCadDocumentRef.current = document;
+    restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
     setHist({ undo: undoStackRef.current.length, redo: redoStackRef.current.length });
-  }, [snapshot, restore]);
+  }, [snapshotDocument, restore]);
   const redo = useCallback(() => {
     if (!redoStackRef.current.length) return;
-    undoStackRef.current.push(editorSnapshotToCadDocument(snapshot()));
-    restore(cadDocumentToEditorSnapshot<CadLayerId>(redoStackRef.current.pop()!));
+    undoStackRef.current.push(snapshotDocument());
+    const document = redoStackRef.current.pop()!;
+    loadedCadDocumentRef.current = document;
+    restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
     setHist({ undo: undoStackRef.current.length, redo: redoStackRef.current.length });
-  }, [snapshot, restore]);
+  }, [snapshotDocument, restore]);
 
   // ---- scene lifecycle ----
   useEffect(() => {
@@ -2224,11 +2262,29 @@ export default function Layout3DEditor({
       }
       if (drag) {
         if (dragMoved && dragSnap) {
-          undoStackRef.current.push(editorSnapshotToCadDocument(dragSnap));
+          undoStackRef.current.push(snapshotDocument(dragSnap));
           if (undoStackRef.current.length > 80) undoStackRef.current.shift();
           redoStackRef.current = [];
           setHist({ undo: undoStackRef.current.length, redo: 0 });
-          setDirty(true);
+          const changedIds = selRef.current.map((item) => item.id);
+          const currentDocument = snapshotDocument();
+          if (currentDocument.constraints.length) {
+            const solved = solveCadConstraints(currentDocument, changedIds);
+            if (solved.converged) {
+              loadedCadDocumentRef.current = solved.document;
+              restore(cadDocumentToEditorSnapshot(solved.document));
+              setDirty(true);
+            } else {
+              const beforeDrag = snapshotDocument(dragSnap);
+              loadedCadDocumentRef.current = beforeDrag;
+              restore(cadDocumentToEditorSnapshot(beforeDrag));
+              undoStackRef.current.pop();
+              setHist({ undo: undoStackRef.current.length, redo: 0 });
+              toast.error(solved.issues[0]?.message || 'El movimiento contradice una restricción y fue revertido.', 'Restricciones');
+            }
+          } else {
+            setDirty(true);
+          }
         }
         drag = null; dragSnap = null; controls.enabled = true; setGuides(null, null); refreshSnap(); rebuildAll();
       }
@@ -2756,7 +2812,7 @@ export default function Layout3DEditor({
       unit: fp.unit || 'mm',
       // El documento canónico del estado actual habilita las reglas de
       // documento (ids duplicados, fuera del área — estaciones incluidas).
-      document: editorSnapshotToCadDocument(snapshot()),
+      document: snapshotDocument(),
       footprint: { w: fp.footprintW, h: fp.footprintH },
       industryFindings,
       dimensionCount: [...annotationsRef.current.values()].filter((a) => a.type === 'dim').length,
@@ -2802,28 +2858,27 @@ export default function Layout3DEditor({
     setSafetyIssues(cadReport.safety);
     rebuildAll();
     setReport(designChecks({ stations, assets, unplacedStations: unplaced, footprintW: fp.footprintW, footprintH: fp.footprintH, connectors: connectorsRef.current }));
-  }, [data, currentCollisionBoxes, currentFlowNodes, currentSafetyZones, snapshot, rebuildAll]);
+  }, [data, currentCollisionBoxes, currentFlowNodes, currentSafetyZones, snapshot, snapshotDocument, rebuildAll]);
   const clearValidationHighlights = () => {
     validationHighlightRef.current = new Set();
     setValidationHighlightIds(new Set());
     rebuildAll();
   };
-  // Restricciones geométricas paramétricas (CAD-NEXT-110): impone una relación
-  // sobre los muros seleccionados con precisión, en vez de arrastrar a ojo. El
+  // Restricciones geométricas vivas (CAD-GL-030): persisten la relación en el
+  // documento y la reevalúan después de editar o ejecutar comandos. El
   // PRIMER muro seleccionado es la referencia (para paralelo/perpendicular/
   // igualar/colineal); horizontal y vertical no necesitan referencia y se
   // aplican a todos. Cada muro se guarda como centro+rotación+largo, así que la
-  // operación sobre segmentos se traduce de vuelta conservando el centro.
-  const wallToSegment = (a: Asset): Segment => {
-    const cx = a.x + a.w / 2, cy = a.y + a.h / 2;
-    const hx = (Math.cos(a.rotation) * a.w) / 2, hy = (Math.sin(a.rotation) * a.w) / 2;
-    return { a: { x: cx - hx, y: cy - hy }, b: { x: cx + hx, y: cy + hy } };
-  };
-  const applySegmentToWall = (a: Asset, seg: Segment): Asset => {
-    const cx = (seg.a.x + seg.b.x) / 2, cy = (seg.a.y + seg.b.y) / 2;
-    const newLen = Math.hypot(seg.b.x - seg.a.x, seg.b.y - seg.a.y);
-    const newRot = Math.atan2(seg.b.y - seg.a.y, seg.b.x - seg.a.x);
-    return { ...a, w: newLen, x: cx - newLen / 2, y: cy - a.h / 2, rotation: newRot };
+  // solver sobre segmentos se traduce de vuelta conservando el centro.
+  const solveAndRestoreConstraints = (document: CadDocument, changedIds: string[]) => {
+    const solved = solveCadConstraints(document, changedIds);
+    if (!solved.converged) {
+      toast.error(solved.issues[0]?.message || 'Las restricciones son inconsistentes.', 'Restricciones');
+      return false;
+    }
+    loadedCadDocumentRef.current = solved.document;
+    restore(cadDocumentToEditorSnapshot<CadLayerId>(solved.document));
+    return true;
   };
   const applyWallConstraint = (kind: 'horizontal' | 'vertical' | 'parallel' | 'perpendicular' | 'equal' | 'collinear') => {
     const walls = selRef.current
@@ -2833,38 +2888,55 @@ export default function Layout3DEditor({
     const needsRef = kind !== 'horizontal' && kind !== 'vertical';
     if (needsRef && walls.length < 2) { toast.error('Selecciona al menos dos muros: el primero es la referencia.', 'Restricciones'); return; }
     if (!needsRef && walls.length < 1) { toast.error('Selecciona uno o más muros.', 'Restricciones'); return; }
+    const redoBefore = [...redoStackRef.current];
     pushHistory();
-    const refSeg = wallToSegment(walls[0]);
     const targets = needsRef ? walls.slice(1) : walls;
+    const constraintKind: CadConstraintKind = kind === 'equal' ? 'equalLength' : kind;
+    let document = snapshotDocument();
     for (const wall of targets) {
-      const seg = wallToSegment(wall);
-      const out =
-        kind === 'horizontal' ? makeHorizontal(seg)
-        : kind === 'vertical' ? makeVertical(seg)
-        : kind === 'parallel' ? makeParallel(seg, refSeg)
-        : kind === 'perpendicular' ? makePerpendicular(seg, refSeg)
-        : kind === 'equal' ? makeEqualLength(seg, refSeg)
-        : makeCollinear(seg, refSeg);
-      assetsRef.current.set(wall.id, applySegmentToWall(wall, out));
+      const entityIds = needsRef ? [walls[0].id, wall.id] : [wall.id];
+      document = upsertCadConstraint(document, {
+        id: `${constraintKind}:${entityIds.join(':')}`,
+        kind: constraintKind,
+        entityIds,
+        enabled: true,
+      });
     }
-    setDirty(true); rebuildAll(); refreshSnap();
+    if (!solveAndRestoreConstraints(document, [walls[0].id])) {
+      undoStackRef.current.pop();
+      redoStackRef.current = redoBefore;
+      setHist({ undo: undoStackRef.current.length, redo: redoStackRef.current.length });
+      return;
+    }
+    setDirty(true); refreshSnap();
     toast.success(`Restricción aplicada a ${targets.length} muro(s).`, 'Restricciones');
   };
 
-  // Restricción dimensional (CAD-NEXT-112): fija longitud o ángulo EXACTOS del
-  // muro seleccionado conservando su primer extremo — el otro medio del panel
-  // paramétrico (geométricas + dimensionales) de AutoCAD.
+  // Restricción dimensional viva: fija longitud o ángulo exactos y conserva la
+  // relación al editar después el muro.
   const applyWallDimension = (kind: 'length' | 'angle', value: number) => {
     if (!Number.isFinite(value)) return;
     const sel = selRef.current.find((it) => it.type === 'asset');
     const wall = sel && assetsRef.current.get(sel.id);
     if (!wall || wall.kind !== 'wall') { toast.error('Selecciona un muro para fijar su dimensión.', 'Dimensiones'); return; }
     if (kind === 'length' && !(value > 0)) { toast.error('La longitud debe ser mayor que cero.', 'Dimensiones'); return; }
+    const redoBefore = [...redoStackRef.current];
     pushHistory();
-    const seg = wallToSegment(wall);
-    const out = kind === 'length' ? setLength(seg, value, 'start') : setAngle(seg, value, 'start');
-    assetsRef.current.set(wall.id, applySegmentToWall(wall, out));
-    setDirty(true); rebuildAll(); refreshSnap();
+    const constraintKind: CadConstraintKind = kind === 'length' ? 'distance' : 'angle';
+    const document = upsertCadConstraint(snapshotDocument(), {
+      id: `${constraintKind}:${wall.id}`,
+      kind: constraintKind,
+      entityIds: [wall.id],
+      value,
+      enabled: true,
+    });
+    if (!solveAndRestoreConstraints(document, [wall.id])) {
+      undoStackRef.current.pop();
+      redoStackRef.current = redoBefore;
+      setHist({ undo: undoStackRef.current.length, redo: redoStackRef.current.length });
+      return;
+    }
+    setDirty(true); refreshSnap();
     toast.success(kind === 'length' ? `Longitud fijada a ${Math.round(value)} mm.` : `Ángulo fijado a ${value}°.`, 'Dimensiones');
   };
 
@@ -4484,26 +4556,100 @@ export default function Layout3DEditor({
     }
     return false;
   };
+  const isMutatingCommandOperation = (op: CadOperation) =>
+    op.type === 'move'
+    || op.type === 'connect'
+    || op.type === 'create'
+    || op.type === 'annotate'
+    || op.type === 'delete'
+    || op.type === 'clear_annotations'
+    || op.type === 'rename';
+  const canApplyCommandOperation = (op: CadOperation) => {
+    if (!isMutatingCommandOperation(op)) return true;
+    if (op.type === 'move' || op.type === 'delete') {
+      const type = placementsRef.current.has(op.objectId) ? ('station' as const) : assetsRef.current.has(op.objectId) ? ('asset' as const) : null;
+      return !!type && !isItemLayerLocked({ type, id: op.objectId });
+    }
+    if (op.type === 'connect') {
+      const exists = (id: string) => placementsRef.current.has(id) || assetsRef.current.has(id);
+      return exists(op.from) && exists(op.to);
+    }
+    if (op.type === 'create') return op.object.type === 'asset' && !!(op.object.kind || (op.object.sourceId && assetsRef.current.has(op.object.sourceId)));
+    if (op.type === 'rename') return assetsRef.current.has(op.objectId);
+    if (op.type === 'clear_annotations') {
+      return [...annotationsRef.current.values()].some((annotation) =>
+        op.kind === 'all'
+        || (op.kind === 'dims' && annotation.type === 'dim')
+        || (op.kind === 'notes' && annotation.type === 'text'),
+      );
+    }
+    return true;
+  };
   const applyCommand = () => {
     if (!commandPreview) return;
     // Cadena o comando suelto (AXOS-CAD-CHAIN-001): cada paso se ejecuta
     // contra el contexto YA mutado por el anterior ('pon una puerta y luego
     // céntrala' centra la puerta recién creada); un solo snapshot → un undo.
     const inputs = commandPreview.chain && commandPreview.chain.length > 1 ? commandPreview.chain : [commandPreview.input];
+    const transactionCheckpoint = snapshotDocument();
+    const transactionWasDirty = dirty;
     let snapshotTaken = false;
     let anyChanged = false;
+    const rollbackCommandTransaction = () => {
+      loadedCadDocumentRef.current = transactionCheckpoint;
+      restore(cadDocumentToEditorSnapshot(transactionCheckpoint));
+      if (snapshotTaken) undoStackRef.current.pop();
+      redoStackRef.current = [];
+      setHist({ undo: undoStackRef.current.length, redo: 0 });
+      setDirty(transactionWasDirty);
+    };
     for (const input of inputs) {
       const result = executeCadCommand(input, buildCommandContext());
       if (!result.applied) {
+        if (snapshotTaken) rollbackCommandTransaction();
+        anyChanged = false;
         toast.error(result.issues.find((i) => i.level === 'error')?.message || 'El comando no es válido.', 'Comando CAD');
         setCommandLog((items) => [createCadHistoryItem(input, 'failed', result.historyLabel, commandPreview.preview, result), ...items].slice(0, 12));
         break;
       }
-      const mutates = result.operations.some((op) => op.type === 'move' || op.type === 'connect' || op.type === 'create' || op.type === 'annotate' || op.type === 'delete' || op.type === 'clear_annotations' || op.type === 'rename');
+      const mutatingOperations = result.operations.filter(isMutatingCommandOperation);
+      const blockedOperation = mutatingOperations.find((op) => !canApplyCommandOperation(op));
+      if (blockedOperation) {
+        if (snapshotTaken) rollbackCommandTransaction();
+        anyChanged = false;
+        setCommandLog((items) => [createCadHistoryItem(input, 'failed', `Transacción cancelada: ${result.historyLabel}`, commandPreview.preview, result), ...items].slice(0, 12));
+        toast.error('No se aplicó ningún cambio: una operación no pudo validarse.', 'Comando CAD');
+        break;
+      }
+      const mutates = mutatingOperations.length > 0;
       if (mutates && !snapshotTaken) { recordLocalSnapshot(`Auto · ${result.historyLabel}${inputs.length > 1 ? ` (cadena de ${inputs.length})` : ''}`, 'command'); pushHistory(); snapshotTaken = true; }
       // map + some: .some(applyCommandOperation) directo corta en la primera op
       // aplicada y dejaba a medias los comandos multi-objeto (align, flow line).
-      const changed = result.operations.map(applyCommandOperation).some(Boolean);
+      const operationResults = result.operations.map(applyCommandOperation);
+      const changed = operationResults.some(Boolean);
+      const partialFailure = mutatingOperations.some((operation) => {
+        const index = result.operations.indexOf(operation);
+        return !operationResults[index];
+      });
+      if (partialFailure) {
+        rollbackCommandTransaction();
+        setCommandLog((items) => [createCadHistoryItem(input, 'failed', `Rollback: ${result.historyLabel}`, commandPreview.preview, result), ...items].slice(0, 12));
+        toast.error('La operación falló y la transacción completa fue revertida.', 'Comando CAD');
+        anyChanged = false;
+        break;
+      }
+      if (changed && snapshotDocument().constraints.length) {
+        const solved = solveCadConstraints(snapshotDocument(), result.affectedObjectIds);
+        if (!solved.converged) {
+          rollbackCommandTransaction();
+          setCommandLog((items) => [createCadHistoryItem(input, 'failed', `Restricción incompatible: ${result.historyLabel}`, commandPreview.preview, result), ...items].slice(0, 12));
+          toast.error(solved.issues[0]?.message || 'Las restricciones no pudieron resolverse; se revirtió la transacción.', 'Restricciones');
+          anyChanged = false;
+          break;
+        }
+        loadedCadDocumentRef.current = solved.document;
+        restore(cadDocumentToEditorSnapshot(solved.document));
+      }
       anyChanged = anyChanged || changed;
       setCommandLog((items) => [createCadHistoryItem(input, 'applied', result.historyLabel, commandPreview.preview, result), ...items].slice(0, 12));
       if (changed) { refreshSnap(); }
@@ -4526,6 +4672,17 @@ export default function Layout3DEditor({
     setCommandLog((items) => items.map((c) => c.id === item.id ? { ...c, status: 'applied' } : c));
     toast.success(`Rehecho: ${item.label}`, 'Comando CAD');
   };
+  const buildAiIntentProposalDescription = (intent: CadIntent) => {
+    if (intent.kind !== 'cleanupGeometry') return describeCadIntent(intent);
+    const preview = previewCadCommand({
+      id: 'cleanup_geometry',
+      tolerance: intent.tolerance,
+      angleToleranceDeg: intent.angleToleranceDeg,
+      minLength: intent.minLength,
+    }, buildCommandContext());
+    const evidence = preview.issues.slice(0, 3).map((issue) => issue.message).join(' · ');
+    return `${preview.summary}${evidence ? ` Evidencia: ${evidence}` : ''}`;
+  };
   // ── Copiloto IA (ADR §215): NL→CAD y optimización vía backend CIDE. El modelo
   // solo PROPONE tool-calls; normalizeToolCalls valida y el humano aplica. ──
   const requestAiProposal = async (source: 'intent' | 'optimize') => {
@@ -4541,7 +4698,7 @@ export default function Layout3DEditor({
       if (!body.available) { setAiProposal({ source, intents: [], errors: [], message: body.message || 'El motor de IA (CIDE) no está disponible.' }); return; }
       const { intents, errors } = normalizeToolCalls(body.toolCalls ?? []);
       if (!intents.length && !errors.length) { setAiProposal({ source, intents: [], errors: [], message: body.message || 'La IA no propuso acciones para esta instrucción.' }); return; }
-      setAiProposal({ source, intents, errors, message: body.message });
+      setAiProposal({ source, intents, descriptions: intents.map(buildAiIntentProposalDescription), errors, message: body.message });
     } catch {
       setAiProposal({ source, intents: [], errors: [], message: 'No se pudo contactar el copiloto IA.' });
     } finally { setAiBusy(null); }
@@ -4596,16 +4753,50 @@ export default function Layout3DEditor({
         p.y = Math.max(0, Math.min(ctx.H - p.h, snapWorld(intent.y)));
         return true;
       }
+      case 'cleanupGeometry': {
+        const input: CadCommandInput = {
+          id: 'cleanup_geometry',
+          tolerance: intent.tolerance,
+          angleToleranceDeg: intent.angleToleranceDeg,
+          minLength: intent.minLength,
+        };
+        const result = executeCadCommand(input, buildCommandContext());
+        if (!result.applied) return false;
+        return result.operations.map(applyCommandOperation).some(Boolean);
+      }
     }
   };
   const applyAiProposal = () => {
     if (!aiProposal || !aiProposal.intents.length) return;
+    const checkpoint = snapshotDocument();
+    const footprintBefore = data?.footprint ? { ...data.footprint } : null;
+    const wasDirty = dirty;
     recordLocalSnapshot(`Auto · Copiloto IA (${aiProposal.source === 'intent' ? 'instrucción' : 'optimización'})`, 'command');
     pushHistory();
     const applied = aiProposal.intents.map(applyAiIntent).filter(Boolean).length;
-    if (applied) { setDirty(true); refreshSnap(); rebuildAll(); }
-    if (applied) toast.success(`Copiloto IA: ${applied}/${aiProposal.intents.length} acción(es) aplicadas.`, 'Copiloto IA');
-    else toast.error('Ninguna acción de la IA se pudo aplicar (revisa capas bloqueadas o nombres).', 'Copiloto IA');
+    const rollbackProposal = (message: string) => {
+      loadedCadDocumentRef.current = checkpoint;
+      restore(cadDocumentToEditorSnapshot(checkpoint));
+      if (footprintBefore) setData((current) => current ? { ...current, footprint: footprintBefore } : current);
+      undoStackRef.current.pop();
+      redoStackRef.current = [];
+      setHist({ undo: undoStackRef.current.length, redo: 0 });
+      setDirty(wasDirty);
+      toast.error(message, 'Copiloto IA');
+    };
+    if (applied !== aiProposal.intents.length) {
+      rollbackProposal('La propuesta no era aplicable completa; se revirtió sin cambios parciales.');
+      return;
+    }
+    const constrained = solveCadConstraints(snapshotDocument());
+    if (!constrained.converged) {
+      rollbackProposal(constrained.issues[0]?.message || 'La propuesta contradice las restricciones y fue revertida.');
+      return;
+    }
+    loadedCadDocumentRef.current = constrained.document;
+    restore(cadDocumentToEditorSnapshot(constrained.document));
+    setDirty(true); refreshSnap(); rebuildAll();
+    toast.success(`Copiloto IA: ${applied}/${aiProposal.intents.length} acción(es) aplicadas como una transacción.`, 'Copiloto IA');
     if (aiProposal.source === 'intent' && applied) setCommandText('');
     setAiProposal(null);
   };
@@ -5217,19 +5408,30 @@ export default function Layout3DEditor({
       const cleared = [...loadedPlacedRef.current].filter((id) => !placementsRef.current.has(id));
       // La capa CAD y el grupo viajan por asset (ADR §219/§223): sin esto las
       // asignaciones morían en cada recarga.
-      const assets = [...assetsRef.current.values()].map((a) => ({ ...a, ...(layerAssignments[a.id] ? { layer: layerAssignments[a.id] } : {}), ...(objectGroups[a.id] ? { group: objectGroups[a.id] } : {}) }));
+      const assets = [...assetsRef.current.values()].map((a) => ({
+        ...a,
+        ...(layerAssignments[a.id] ? { layer: layerAssignments[a.id] } : {}),
+        ...(objectGroups[a.id] ? { group: objectGroups[a.id] } : {}),
+        ...(objectTagsRef.current[a.id] ? { tags: cadTags(objectTagsRef.current[a.id]) } : {}),
+      }));
       const annotations = [...annotationsRef.current.values()];
+      const cadDocument = commitChange(snapshotDocument(), 'save');
       const r = await apiFetch(`${API_BASE}/line-engineering/layout`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model, revision, footprint: data.footprint, positions, cleared,
           connectors: connectorsRef.current, assets,
           annotations, cells: cellsRef.current,
+          cadDocument,
+          expectedCadDocumentVersion: data.cadDocumentVersion ?? 0,
           // persist the DXF backdrop placement so saving from the CAD never drops it (unify fix)
           ...(dxfMetaRef.current ? { dxf: dxfMetaRef.current } : {}),
         }),
       });
       if (!r.ok) { const d = await r.json().catch(() => ({})); toast.error(d?.message || 'No se pudo guardar.', '3D'); return; }
+      const saved = await r.json() as Layout;
+      if (saved.cadDocument) loadedCadDocumentRef.current = migrateCadDocument(saved.cadDocument);
+      setData(saved);
       toast.success('Layout 3D guardado.', '3D');
       loadedPlacedRef.current = new Set(placementsRef.current.keys());
       setDirty(false);
@@ -5740,7 +5942,7 @@ export default function Layout3DEditor({
                     <div className="text-[11px] font-semibold text-violet-200">Propuesta IA · {aiProposal.source === 'intent' ? 'instrucción' : 'optimización'}</div>
                     {aiProposal.message && <div className="mt-1 text-[10.5px] text-amber-200">{aiProposal.message}</div>}
                     {aiProposal.intents.slice(0, 6).map((intent, idx) => (
-                      <div key={`ai-${idx}`} className="mt-1 rounded-md bg-white/[0.04] px-1.5 py-1 text-[10.5px] text-gray-300">{describeCadIntent(intent)}</div>
+                      <div key={`ai-${idx}`} className="mt-1 rounded-md bg-white/[0.04] px-1.5 py-1 text-[10.5px] text-gray-300">{aiProposal.descriptions?.[idx] ?? describeCadIntent(intent)}</div>
                     ))}
                     {aiProposal.intents.length > 6 && <div className="mt-1 text-[10px] text-gray-500">…y {aiProposal.intents.length - 6} acción(es) más.</div>}
                     {aiProposal.errors.slice(0, 2).map((err) => (
@@ -6383,7 +6585,7 @@ export default function Layout3DEditor({
                           type="number"
                           defaultValue={Math.round((selSnap.rotation * 180) / Math.PI)}
                           onKeyDown={(e) => { if (e.key === 'Enter') applyWallDimension('angle', Number((e.target as HTMLInputElement).value)); }}
-                          onBlur={(e) => { const v = Number(e.target.value); if (Number.isFinite(v) && Math.round(v) !== Math.round((selSnap.rotation * 180) / Math.PI)) applyWallDimension('angle', v); }}
+                          onBlur={(e) => { const v = Number(e.target.value); if (Number.isFinite(v) && Math.round(v) !== Math.round(selSnap.rotation)) applyWallDimension('angle', v); }}
                           className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white outline-none"
                         />
                       </label>

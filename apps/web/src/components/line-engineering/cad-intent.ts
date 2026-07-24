@@ -116,6 +116,21 @@ export const CAD_TOOLS: CadTool[] = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'cleanupGeometry',
+      description: 'Analiza y propone correcciones de geometría: duplicados, muros casi ortogonales y segmentos muy cortos. Nunca aplica sin confirmación.',
+      parameters: {
+        type: 'object',
+        properties: {
+          tolerance: numProp('tolerancia geométrica, opcional'),
+          angleToleranceDeg: numProp('tolerancia angular en grados, opcional'),
+          minLength: numProp('longitud mínima a reportar, opcional'),
+        },
+      },
+    },
+  },
 ];
 
 /** Tipos de asset válidos (espejo del asset-catalog del editor). */
@@ -133,7 +148,8 @@ export type CadIntent =
   | { kind: 'draw'; action: DrawAction } // drawWall / addDimension → acciones declarativas
   | { kind: 'arrangeLine' }
   | { kind: 'connectLine'; flow: 'flow' | 'conveyor' | 'return' }
-  | { kind: 'moveStation'; station: string; x: number; y: number };
+  | { kind: 'moveStation'; station: string; x: number; y: number }
+  | { kind: 'cleanupGeometry'; tolerance?: number; angleToleranceDeg?: number; minLength?: number };
 
 export type NormalizeResult = { ok: true; intent: CadIntent } | { ok: false; error: string };
 
@@ -205,6 +221,21 @@ export function normalizeToolCall(name: string, rawArgs: unknown): NormalizeResu
       if (x === null || y === null) return { ok: false, error: 'moveStation requiere x,y numéricos' };
       return { ok: true, intent: { kind: 'moveStation', station: station.slice(0, 64), x, y } };
     }
+    case 'cleanupGeometry': {
+      const tolerance = num(args.tolerance);
+      const angleToleranceDeg = num(args.angleToleranceDeg);
+      const minLength = num(args.minLength);
+      if (tolerance !== null && tolerance <= 0) return { ok: false, error: 'cleanupGeometry requiere tolerancia positiva' };
+      return {
+        ok: true,
+        intent: {
+          kind: 'cleanupGeometry',
+          ...(tolerance !== null ? { tolerance } : {}),
+          ...(angleToleranceDeg !== null ? { angleToleranceDeg } : {}),
+          ...(minLength !== null ? { minLength } : {}),
+        },
+      };
+    }
     default:
       return { ok: false, error: `Herramienta desconocida: ${name}` };
   }
@@ -225,6 +256,8 @@ export function describeCadIntent(intent: CadIntent): string {
       return `Conectar estaciones con flujo (${intent.flow})`;
     case 'moveStation':
       return `Mover ${intent.station} a (${Math.round(intent.x)}, ${Math.round(intent.y)})`;
+    case 'cleanupGeometry':
+      return `Analizar limpieza geométrica${intent.tolerance ? ` (tolerancia ${intent.tolerance})` : ''}; mostrará diff antes de aplicar`;
   }
 }
 

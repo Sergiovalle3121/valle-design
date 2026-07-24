@@ -113,6 +113,15 @@ export interface CadPerfBaselineResult {
 function docToDxfPrimitives(doc: CadDocument): CadDxfPrimitive[] {
   const primitives: CadDxfPrimitive[] = [];
   for (const e of doc.entities) {
+    if (e.type === "circle") {
+      primitives.push({
+        kind: "circle",
+        layer: e.layer,
+        points: [{ x: e.center.x, y: e.center.y }],
+        radius: e.radius,
+      });
+      continue;
+    }
     if (e.type !== "box") continue;
     if (e.shape === "circle") {
       primitives.push({

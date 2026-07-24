@@ -19,9 +19,10 @@
  *    `history` (base de undo/redo auditable y de la futura ChangeHistory).
  *  - **Puro**: sin `three`, sin DOM, sin `Date.now()` — testeable en Node.
  *
- * Es el esqueleto de `CadDocument` (ModelSpace/Layers/Entities). Bloques,
- * espacios de papel, restricciones y enlaces a objetos de negocio se añaden en
- * unidades posteriores sobre esta misma base, no como sistemas paralelos.
+ * El esquema v3 incluye ModelSpace/PaperSpace, estilos, bloques, restricciones,
+ * xrefs, enlaces de negocio y passthrough opaco para entidades no soportadas.
+ * El editor legado sigue siendo una proyección compatible, no otra fuente de
+ * verdad.
  */
 
 // ---------------------------------------------------------------------------
@@ -102,6 +103,38 @@ export interface CadDocumentMeta {
   unit: string;
 }
 
+export interface CadPoint2 {
+  x: number;
+  y: number;
+}
+
+export interface CadPoint3 extends CadPoint2 {
+  z: number;
+}
+
+export type CadPropertySource = "byLayer" | "byBlock" | "explicit";
+
+export interface CadEntityPresentation {
+  color?: { source: CadPropertySource; value?: string };
+  linetype?: { source: CadPropertySource; value?: string; scale?: number };
+  lineweight?: { source: CadPropertySource; value?: number };
+}
+
+export interface CadEntityMetadata {
+  [key: string]: string | number | boolean | null;
+}
+
+export interface CadEntityContext {
+  handle?: string;
+  elevation?: number;
+  normal?: CadPoint3;
+  presentation?: CadEntityPresentation;
+  metadata?: CadEntityMetadata;
+  provenance?: { provider: string; sourceId?: string; importedAt?: string };
+  businessLink?: { tenantId?: string; entityType: string; entityId: string };
+  editable?: boolean;
+}
+
 export type CadEntity =
   | {
       id: string;
@@ -117,6 +150,7 @@ export type CadEntity =
       label?: string;
       group?: string;
       tags?: string[];
+      context?: CadEntityContext;
     }
   | {
       id: string;
@@ -128,6 +162,7 @@ export type CadEntity =
       rotation: number;
       layer: string;
       tags?: string[];
+      context?: CadEntityContext;
     }
   | {
       id: string;
@@ -137,6 +172,10 @@ export type CadEntity =
       text: string;
       layer: string;
       color?: string;
+      style?: string;
+      height?: number;
+      rotation?: number;
+      context?: CadEntityContext;
     }
   | {
       id: string;
@@ -146,6 +185,8 @@ export type CadEntity =
       layer: string;
       text?: string;
       color?: string;
+      style?: string;
+      context?: CadEntityContext;
     }
   | {
       id: string;
@@ -154,6 +195,108 @@ export type CadEntity =
       to: string;
       kind: string;
       layer: string;
+      context?: CadEntityContext;
+    }
+  | {
+      id: string;
+      type: "line";
+      start: CadPoint3;
+      end: CadPoint3;
+      layer: string;
+      context?: CadEntityContext;
+    }
+  | {
+      id: string;
+      type: "polyline";
+      vertices: (CadPoint3 & { bulge?: number })[];
+      closed: boolean;
+      layer: string;
+      context?: CadEntityContext;
+    }
+  | {
+      id: string;
+      type: "circle";
+      center: CadPoint3;
+      radius: number;
+      layer: string;
+      legacy?: { kind: string; rotation: number; label?: string; group?: string; tags?: string[] };
+      context?: CadEntityContext;
+    }
+  | {
+      id: string;
+      type: "arc";
+      center: CadPoint3;
+      radius: number;
+      startAngle: number;
+      endAngle: number;
+      layer: string;
+      context?: CadEntityContext;
+    }
+  | {
+      id: string;
+      type: "ellipse";
+      center: CadPoint3;
+      majorAxis: CadPoint3;
+      ratio: number;
+      startParameter: number;
+      endParameter: number;
+      layer: string;
+      context?: CadEntityContext;
+    }
+  | {
+      id: string;
+      type: "spline";
+      degree: number;
+      controlPoints: CadPoint3[];
+      knots: number[];
+      weights?: number[];
+      closed?: boolean;
+      layer: string;
+      context?: CadEntityContext;
+    }
+  | {
+      id: string;
+      type: "mtext";
+      insertion: CadPoint3;
+      text: string;
+      width?: number;
+      height?: number;
+      rotation?: number;
+      style?: string;
+      layer: string;
+      context?: CadEntityContext;
+    }
+  | {
+      id: string;
+      type: "hatch";
+      pattern: string;
+      solid: boolean;
+      boundaries: CadPoint3[][];
+      scale?: number;
+      angle?: number;
+      layer: string;
+      context?: CadEntityContext;
+    }
+  | {
+      id: string;
+      type: "mleader";
+      vertices: CadPoint3[];
+      text: string;
+      textPosition: CadPoint3;
+      style?: string;
+      layer: string;
+      context?: CadEntityContext;
+    }
+  | {
+      id: string;
+      type: "insert";
+      block: string;
+      insertion: CadPoint3;
+      scale: CadPoint3;
+      rotation: number;
+      attributes?: Record<string, string>;
+      layer: string;
+      context?: CadEntityContext;
     };
 
 export interface CadLayerDef {
@@ -162,6 +305,80 @@ export interface CadLayerDef {
   color: string;
   visible: boolean;
   locked: boolean;
+  linetype?: string;
+  lineweight?: number;
+  plot?: boolean;
+}
+
+export interface CadStyleTable {
+  text: Record<string, { fontFamily?: string; height?: number }>;
+  dimension: Record<string, { textStyle?: string; arrowSize?: number; precision?: number }>;
+  table: Record<string, { textStyle?: string; rowHeight?: number }>;
+  plot: Record<string, { colorMode?: "color" | "monochrome"; lineweightScale?: number }>;
+}
+
+export interface CadBlockDefinition {
+  id: string;
+  name: string;
+  basePoint: CadPoint3;
+  entities: CadEntity[];
+  attributes?: Record<string, { defaultValue?: string; required?: boolean }>;
+}
+
+export type CadConstraintKind =
+  | "coincident"
+  | "horizontal"
+  | "vertical"
+  | "parallel"
+  | "perpendicular"
+  | "collinear"
+  | "equalLength"
+  | "distance"
+  | "angle";
+
+export interface CadConstraint {
+  id: string;
+  kind: CadConstraintKind;
+  entityIds: string[];
+  value?: number;
+  enabled: boolean;
+}
+
+export interface CadLossManifestEntry {
+  code: string;
+  entityId?: string;
+  sourceType?: string;
+  detail: string;
+  severity: "info" | "warning" | "error";
+}
+
+export interface CadOpaqueEntity {
+  id: string;
+  provider: string;
+  sourceType: string;
+  layer?: string;
+  raw: string;
+  editable: false;
+}
+
+export interface CadPaperSpace {
+  id: string;
+  name: string;
+  entityIds: string[];
+  page: {
+    width: number;
+    height: number;
+    unit: "mm" | "in";
+    orientation: "portrait" | "landscape";
+  };
+}
+
+export interface CadExternalReference {
+  id: string;
+  name: string;
+  uri: string;
+  revision?: string;
+  loaded: boolean;
 }
 
 export interface CadChange {
@@ -174,10 +391,18 @@ export interface CadDocument {
   layers: CadLayerDef[];
   entities: CadEntity[];
   history: CadChange[];
+  modelSpace: { entityIds: string[] };
+  paperSpaces: CadPaperSpace[];
+  styles: CadStyleTable;
+  blocks: CadBlockDefinition[];
+  constraints: CadConstraint[];
+  externalReferences: CadExternalReference[];
+  unsupportedEntities: CadOpaqueEntity[];
+  lossManifest: CadLossManifestEntry[];
 }
 
-/** v2: cajas con `tags` + entidad `station` (colocaciones de línea) — CAD-NEXT-011. */
-export const CAD_DOCUMENT_SCHEMA = 2;
+/** v3: modelo profesional extensible con migración aditiva desde v1/v2. */
+export const CAD_DOCUMENT_SCHEMA = 3;
 /** Capa estable de las colocaciones de estación. */
 export const STATIONS_LAYER = "Stations";
 /** Prefijo estable del id de conector (from→to) para round-trip determinista. */
@@ -185,6 +410,14 @@ const CONNECTOR_PREFIX = "conn:";
 
 function byId(a: { id: string }, b: { id: string }): number {
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+}
+
+function emptyStyles(): CadStyleTable {
+  return { text: {}, dimension: {}, table: {}, plot: {} };
+}
+
+function point3(x: number, y: number, z = 0): CadPoint3 {
+  return { x, y, z };
 }
 
 // ---------------------------------------------------------------------------
@@ -203,6 +436,21 @@ export function layoutToCadDocument(
   const entities: CadEntity[] = [];
 
   for (const a of layout.assets ?? []) {
+    if (a.shape === "circle" && Math.abs(a.w - a.h) <= 1e-9) {
+      const circle: Extract<CadEntity, { type: "circle" }> = {
+        id: a.id,
+        type: "circle",
+        center: point3(a.x + a.w / 2, a.y + a.h / 2),
+        radius: a.w / 2,
+        layer: a.layer ?? DEFAULT_LAYER_ID,
+        legacy: { kind: a.kind, rotation: a.rotation },
+      };
+      if (a.label !== undefined) circle.legacy!.label = a.label;
+      if (a.group !== undefined) circle.legacy!.group = a.group;
+      if (a.tags !== undefined) circle.legacy!.tags = [...a.tags];
+      entities.push(circle);
+      continue;
+    }
     const box: CadEntity = {
       id: a.id,
       type: "box",
@@ -283,6 +531,7 @@ export function layoutToCadDocument(
     }))
     .sort(byId);
 
+  const orderedEntities = entities.sort(byId);
   return {
     meta: {
       version: options.version ?? 1,
@@ -290,8 +539,16 @@ export function layoutToCadDocument(
       unit: options.unit ?? "mm",
     },
     layers,
-    entities: entities.sort(byId),
+    entities: orderedEntities,
     history: [],
+    modelSpace: { entityIds: orderedEntities.map((entity) => entity.id) },
+    paperSpaces: [],
+    styles: emptyStyles(),
+    blocks: [],
+    constraints: [],
+    externalReferences: [],
+    unsupportedEntities: [],
+    lossManifest: [],
   };
 }
 
@@ -327,6 +584,22 @@ export function cadDocumentToLayout(doc: CadDocument): Required<LayoutInput> {
       if (e.shape === "circle") a.shape = "circle";
       if (e.tags !== undefined) a.tags = [...e.tags];
       assets.push(a);
+    } else if (e.type === "circle" && e.legacy) {
+      const a: LayoutAssetInput = {
+        id: e.id,
+        kind: e.legacy.kind,
+        x: e.center.x - e.radius,
+        y: e.center.y - e.radius,
+        w: e.radius * 2,
+        h: e.radius * 2,
+        rotation: e.legacy.rotation,
+        shape: "circle",
+      };
+      if (e.layer !== DEFAULT_LAYER_ID) a.layer = e.layer;
+      if (e.legacy.label !== undefined) a.label = e.legacy.label;
+      if (e.legacy.group !== undefined) a.group = e.legacy.group;
+      if (e.legacy.tags !== undefined) a.tags = [...e.legacy.tags];
+      assets.push(a);
     } else if (e.type === "station") {
       const s: LayoutStationPlacementInput = { id: e.id, x: e.x, y: e.y, w: e.w, h: e.h, rotation: e.rotation };
       if (e.layer !== STATIONS_LAYER) s.layer = e.layer;
@@ -350,7 +623,7 @@ export function cadDocumentToLayout(doc: CadDocument): Required<LayoutInput> {
       if (e.layer !== "Measurements") an.layer = e.layer;
       if (e.color !== undefined) an.color = e.color;
       annotations.push(an);
-    } else {
+    } else if (e.type === "connector") {
       const c: LayoutConnectorInput = { from: e.from, to: e.to };
       if (e.kind !== "flow") c.kind = e.kind;
       connectors.push(c);
@@ -375,35 +648,34 @@ export function commitChange(doc: CadDocument, label: string): CadDocument {
     meta: { ...doc.meta, version },
     entities: doc.entities.map((e) => ({ ...e })),
     layers: doc.layers.map((l) => ({ ...l })),
+    modelSpace: { entityIds: [...doc.modelSpace.entityIds] },
+    paperSpaces: structuredClone(doc.paperSpaces),
+    styles: structuredClone(doc.styles),
+    blocks: structuredClone(doc.blocks),
+    constraints: structuredClone(doc.constraints),
+    externalReferences: structuredClone(doc.externalReferences),
+    unsupportedEntities: structuredClone(doc.unsupportedEntities),
+    lossManifest: structuredClone(doc.lossManifest),
     history: [...doc.history, { version, label }],
   };
 }
 
+function stableValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stableValue);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, nested]) => [key, stableValue(nested)]),
+    );
+  }
+  return value;
+}
+
 function orderedEntity(e: CadEntity): Record<string, unknown> {
-  // Orden de claves fijo por tipo → JSON estable byte a byte.
-  if (e.type === "box") {
-    return {
-      id: e.id, type: e.type, kind: e.kind, x: e.x, y: e.y, w: e.w, h: e.h,
-      rotation: e.rotation, layer: e.layer, shape: e.shape,
-      label: e.label ?? null, group: e.group ?? null, tags: e.tags ?? null,
-    };
-  }
-  if (e.type === "station") {
-    return {
-      id: e.id, type: e.type, x: e.x, y: e.y, w: e.w, h: e.h,
-      rotation: e.rotation, layer: e.layer, tags: e.tags ?? null,
-    };
-  }
-  if (e.type === "text") {
-    return { id: e.id, type: e.type, x: e.x, y: e.y, text: e.text, layer: e.layer, color: e.color ?? null };
-  }
-  if (e.type === "dimension") {
-    return {
-      id: e.id, type: e.type, ax: e.a.x, ay: e.a.y, bx: e.b.x, by: e.b.y,
-      layer: e.layer, text: e.text ?? null, color: e.color ?? null,
-    };
-  }
-  return { id: e.id, type: e.type, from: e.from, to: e.to, kind: e.kind, layer: e.layer };
+  // Orden recursivo de claves sin cambiar la forma del schema. El serializado
+  // también es un formato de reload; no se aplana ni descarta contexto v3.
+  return stableValue(e) as Record<string, unknown>;
 }
 
 /**
@@ -415,18 +687,107 @@ function orderedEntity(e: CadEntity): Record<string, unknown> {
 export function serializeCadDocument(doc: CadDocument): string {
   const payload = {
     meta: { version: doc.meta.version, schema: doc.meta.schema, unit: doc.meta.unit },
-    layers: [...doc.layers].sort(byId).map((l) => ({
-      id: l.id, name: l.name, color: l.color, visible: l.visible, locked: l.locked,
-    })),
+    layers: [...doc.layers].sort(byId).map(stableValue),
     entities: [...doc.entities].sort(byId).map(orderedEntity),
     history: doc.history.map((h) => ({ version: h.version, label: h.label })),
+    modelSpace: { entityIds: [...doc.modelSpace.entityIds].sort() },
+    paperSpaces: [...doc.paperSpaces].sort(byId).map(stableValue),
+    styles: stableValue(doc.styles),
+    blocks: [...doc.blocks].sort(byId).map((block) => stableValue({
+      ...block,
+      entities: [...block.entities].sort(byId),
+    })),
+    constraints: [...doc.constraints].sort(byId).map(stableValue),
+    externalReferences: [...doc.externalReferences].sort(byId).map(stableValue),
+    unsupportedEntities: [...doc.unsupportedEntities].sort(byId).map(stableValue),
+    lossManifest: doc.lossManifest.map(stableValue),
   };
   return JSON.stringify(payload);
 }
 
 /** Cuenta de entidades por tipo — útil para paneles/telemetría. */
 export function cadDocumentStats(doc: CadDocument): Record<CadEntity["type"], number> {
-  const stats: Record<CadEntity["type"], number> = { box: 0, station: 0, text: 0, dimension: 0, connector: 0 };
+  const stats = {
+    box: 0, station: 0, text: 0, dimension: 0, connector: 0, line: 0,
+    polyline: 0, circle: 0, arc: 0, ellipse: 0, spline: 0, mtext: 0,
+    hatch: 0, mleader: 0, insert: 0,
+  } satisfies Record<CadEntity["type"], number>;
   for (const e of doc.entities) stats[e.type]++;
   return stats;
+}
+
+function finite(value: unknown): boolean {
+  if (typeof value === "number") return Number.isFinite(value);
+  if (Array.isArray(value)) return value.every(finite);
+  if (value && typeof value === "object") return Object.values(value).every(finite);
+  return true;
+}
+
+function withV3Defaults(doc: Partial<CadDocument>): CadDocument {
+  const entities = Array.isArray(doc.entities) ? doc.entities : [];
+  return {
+    meta: {
+      version: Number(doc.meta?.version) || 1,
+      schema: CAD_DOCUMENT_SCHEMA,
+      unit: doc.meta?.unit || "mm",
+    },
+    layers: Array.isArray(doc.layers) ? doc.layers : [],
+    entities,
+    history: Array.isArray(doc.history) ? doc.history : [],
+    modelSpace: doc.modelSpace ?? { entityIds: entities.map((entity) => entity.id).sort() },
+    paperSpaces: Array.isArray(doc.paperSpaces) ? doc.paperSpaces : [],
+    styles: doc.styles ?? emptyStyles(),
+    blocks: Array.isArray(doc.blocks) ? doc.blocks : [],
+    constraints: Array.isArray(doc.constraints) ? doc.constraints : [],
+    externalReferences: Array.isArray(doc.externalReferences) ? doc.externalReferences : [],
+    unsupportedEntities: Array.isArray(doc.unsupportedEntities) ? doc.unsupportedEntities : [],
+    lossManifest: Array.isArray(doc.lossManifest) ? doc.lossManifest : [],
+  };
+}
+
+/** Deterministic additive migration from v1/v2 to the current schema. */
+export function migrateCadDocument(value: unknown): CadDocument {
+  if (!value || typeof value !== "object") throw new Error("CadDocument must be an object.");
+  const raw = value as Partial<CadDocument>;
+  const schema = Number(raw.meta?.schema) || 1;
+  if (schema > CAD_DOCUMENT_SCHEMA) throw new Error(`Unsupported CadDocument schema ${schema}.`);
+  const migrated = withV3Defaults(raw);
+  if (!finite(migrated)) throw new Error("CadDocument contains non-finite numeric values.");
+  const ids = migrated.entities.map((entity) => entity.id);
+  if (ids.some((id) => typeof id !== "string" || !id) || new Set(ids).size !== ids.length) {
+    throw new Error("CadDocument entity ids must be non-empty and unique.");
+  }
+  return migrated;
+}
+
+export function parseCadDocument(serialized: string): CadDocument {
+  if (serialized.length > 20_000_000) throw new Error("CadDocument exceeds the 20 MB client limit.");
+  return migrateCadDocument(JSON.parse(serialized));
+}
+
+/**
+ * Replace the legacy editor projection without dropping first-class entities,
+ * constraints, blocks, xrefs or opaque provider payloads.
+ */
+export function replaceEditorProjection(
+  base: CadDocument | null | undefined,
+  projection: CadDocument,
+): CadDocument {
+  const projectionIds = new Set(projection.entities.map((entity) => entity.id));
+  const preserved = base
+    ? base.entities.filter((entity) =>
+        !projectionIds.has(entity.id)
+        && !["box", "station", "text", "dimension", "connector"].includes(entity.type)
+        && (entity.type !== "circle" || !entity.legacy),
+      )
+    : [];
+  const entities = [...projection.entities, ...preserved].sort(byId);
+  const current = base ? migrateCadDocument(base) : projection;
+  return {
+    ...current,
+    meta: { ...current.meta, schema: CAD_DOCUMENT_SCHEMA, unit: projection.meta.unit },
+    layers: projection.layers.length ? projection.layers : current.layers,
+    entities,
+    modelSpace: { entityIds: entities.map((entity) => entity.id) },
+  };
 }

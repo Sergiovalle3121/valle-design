@@ -20,6 +20,7 @@ describe('cad-intent-tools (Fase 69)', () => {
         'drawWall',
         'arrangeLine',
         'connectLine',
+        'cleanupGeometry',
       ]),
     );
   });

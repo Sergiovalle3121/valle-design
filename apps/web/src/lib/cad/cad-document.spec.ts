@@ -5,7 +5,11 @@ import {
   cadDocumentToLayout,
   commitChange,
   layoutToCadDocument,
+  migrateCadDocument,
+  parseCadDocument,
   serializeCadDocument,
+  CAD_DOCUMENT_SCHEMA,
+  type CadDocument,
   type LayoutInput,
 } from "./cad-document";
 
@@ -87,10 +91,16 @@ assert.equal(
   serializeCadDocument(doc),
   "mismo contenido en otro orden → mismo texto serializado",
 );
+assert.deepEqual(
+  norm(cadDocumentToLayout(parseCadDocument(serializeCadDocument(doc)))),
+  norm(back),
+  "serializar → parsear → proyectar conserva cajas, círculo, texto, cota y conector",
+);
 
 // --- estadísticas -----------------------------------------------------------
 const stats = cadDocumentStats(doc);
-assert.equal(stats.box, 3, "3 cajas");
+assert.equal(stats.box, 2, "2 cajas");
+assert.equal(stats.circle, 1, "1 círculo de primera clase");
 assert.equal(stats.text, 1, "1 texto");
 assert.equal(stats.dimension, 1, "1 cota");
 assert.equal(stats.connector, 1, "1 conector");
@@ -154,5 +164,84 @@ const v1Back = cadDocumentToLayout(layoutToCadDocument({ assets: layout.assets }
 assert.equal(v1Back.assets.length, layout.assets!.length, "layout v1 sigue redondo");
 assert.ok(v1Back.assets.every((a) => a.tags === undefined), "sin tags no se inventan tags");
 assert.deepEqual(v1Back.stations, [], "sin estaciones no se inventan estaciones");
+
+// --- v3: migración aditiva + entidades de primera clase --------------------
+const legacyV2 = {
+  meta: { version: 7, schema: 2, unit: "mm" },
+  layers: [],
+  entities: [{ id: "legacy-line", type: "box", kind: "wall", x: 0, y: 0, w: 100, h: 10, rotation: 0, layer: "0", shape: "rect" }],
+  history: [{ version: 7, label: "legacy" }],
+};
+const migrated = migrateCadDocument(legacyV2);
+assert.equal(migrated.meta.schema, CAD_DOCUMENT_SCHEMA, "v2 migra a schema vigente");
+assert.deepEqual(migrated.modelSpace.entityIds, ["legacy-line"], "v2 gana model space determinista");
+assert.deepEqual(migrated.constraints, [], "v2 gana constraint graph vacío");
+assert.deepEqual(migrated.lossManifest, [], "v2 gana loss manifest explícito");
+
+const professional: CadDocument = {
+  ...migrated,
+  entities: [
+    {
+      id: "line-1",
+      type: "line",
+      start: { x: 0, y: 0, z: 0 },
+      end: { x: 1000, y: 0, z: 0 },
+      layer: "A-WALL",
+      context: {
+        handle: "1A",
+        presentation: { color: { source: "byLayer" }, linetype: { source: "byLayer" } },
+        metadata: { discipline: "architecture" },
+      },
+    },
+    {
+      id: "insert-1",
+      type: "insert",
+      block: "door",
+      insertion: { x: 500, y: 0, z: 0 },
+      scale: { x: 1, y: 1, z: 1 },
+      rotation: 0,
+      attributes: { MARK: "D-01" },
+      layer: "A-DOOR",
+    },
+  ],
+  modelSpace: { entityIds: ["line-1", "insert-1"] },
+  blocks: [{
+    id: "door",
+    name: "Door",
+    basePoint: { x: 0, y: 0, z: 0 },
+    entities: [],
+    attributes: { MARK: { required: true } },
+  }],
+  constraints: [{
+    id: "horizontal-line-1",
+    kind: "horizontal",
+    entityIds: ["line-1"],
+    enabled: true,
+  }],
+  unsupportedEntities: [{
+    id: "proxy-1",
+    provider: "dxf",
+    sourceType: "ACAD_PROXY_ENTITY",
+    raw: "opaque-payload",
+    editable: false,
+  }],
+  lossManifest: [{
+    code: "proxy_preserved",
+    entityId: "proxy-1",
+    sourceType: "ACAD_PROXY_ENTITY",
+    detail: "Preserved opaquely.",
+    severity: "info",
+  }],
+};
+const professionalText = serializeCadDocument(professional);
+const professionalBack = parseCadDocument(professionalText);
+assert.equal(serializeCadDocument(professionalBack), professionalText, "v3 round-trip conserva estilos, bloques, constraints y passthrough");
+assert.equal(professionalBack.unsupportedEntities[0]?.raw, "opaque-payload", "passthrough opaco permanece intacto");
+assert.equal(cadDocumentStats(professionalBack).line, 1, "stats cuenta entidades v3");
+assert.throws(
+  () => migrateCadDocument({ ...legacyV2, entities: [{ ...legacyV2.entities[0], x: Number.NaN }] }),
+  /non-finite/,
+  "rechaza coordenadas no finitas",
+);
 
 console.log("cad cad-document specs passed");

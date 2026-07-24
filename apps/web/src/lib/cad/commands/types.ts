@@ -47,7 +47,8 @@ export type CadCommandId =
   | "create_zone_around"
   | "draw_wall_segment"
   | "draw_rect_zone"
-  | "auto_dimension";
+  | "auto_dimension"
+  | "cleanup_geometry";
 
 export type CadCommandCategory = "layout" | "flow" | "analysis" | "viewport";
 export type CadIssueLevel = "info" | "warning" | "error";
@@ -508,10 +509,18 @@ export type CadCommandInput =
       mode?: "size" | "gaps" | "both";
       /** Objetivo por nombre: 'acota las mesas'. */
       target?: string;
+    }
+  | {
+      id: "cleanup_geometry";
+      objectIds?: string[];
+      tolerance?: number;
+      angleToleranceDeg?: number;
+      minLength?: number;
+      removeTiny?: boolean;
     };
 
 export interface CadCommandSchemaField {
-  type: "string" | "number" | "enum" | "string[]" | "object";
+  type: "string" | "number" | "boolean" | "enum" | "string[]" | "object";
   required?: boolean;
   description: string;
   enum?: string[];

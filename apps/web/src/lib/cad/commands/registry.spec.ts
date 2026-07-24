@@ -59,7 +59,7 @@ assert.equal(
   CAD_COMMAND_REGISTRY.length,
   "registry ids are unique",
 );
-assert.equal(CAD_COMMAND_REGISTRY.length, 46, "registry exposes 46 commands");
+assert.equal(CAD_COMMAND_REGISTRY.length, 47, "registry exposes 47 commands");
 
 // Renombrar (AXOS-CAD-RENAME-001): primera coincidencia, con aviso si hay más.
 {

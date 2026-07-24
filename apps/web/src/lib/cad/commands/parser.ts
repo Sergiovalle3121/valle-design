@@ -76,6 +76,28 @@ export function parseCadCommand(text: string): CadParseResult {
       clarification: "Escribe un comando CAD.",
     };
 
+  if (
+    /\b(limpia|limpiar|depura|depurar|cleanup)\b/.test(q) &&
+    /\b(geometr[ií]a|duplicad|segment|muro|plano)\b/.test(q)
+  ) {
+    const tolerance = unitValueToMm(
+      q.match(/tolerancia\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*(mm|m)?/i),
+    );
+    const minLength = unitValueToMm(
+      q.match(/(?:m[ií]nimo|menores?\s+de)\s*(\d+(?:[.,]\d+)?)\s*(mm|m)?/i),
+    );
+    return {
+      ok: true,
+      confidence: 0.9,
+      input: {
+        id: "cleanup_geometry",
+        tolerance,
+        minLength,
+        removeTiny: /\b(elimina|borra|quita)\b.*\b(cortos?|peque[nñ]os?|tiny)\b/.test(q),
+      },
+    };
+  }
+
   if (/^(line|linea|línea|muro|wall)\b/.test(q) && /(\d|@)/.test(raw)) {
     const pair = parseDraftPointPair(raw);
     if ("error" in pair)

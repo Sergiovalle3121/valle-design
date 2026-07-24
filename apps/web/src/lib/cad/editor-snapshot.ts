@@ -182,6 +182,21 @@ export function cadDocumentToEditorSnapshot<L extends string = string>(
       snap.assets.push(asset);
       if (e.layer !== DEFAULT_LAYER_ID) snap.layers[e.id] = e.layer as L;
       if (e.tags?.length) snap.tags[e.id] = joinTags(e.tags);
+    } else if (e.type === "circle" && e.legacy) {
+      const asset: CadEditorAsset = {
+        id: e.id,
+        kind: e.legacy.kind,
+        x: e.center.x - e.radius,
+        y: e.center.y - e.radius,
+        w: e.radius * 2,
+        h: e.radius * 2,
+        rotation: e.legacy.rotation,
+        shape: "circle",
+      };
+      if (e.legacy.label !== undefined) asset.label = e.legacy.label;
+      snap.assets.push(asset);
+      if (e.layer !== DEFAULT_LAYER_ID) snap.layers[e.id] = e.layer as L;
+      if (e.legacy.tags?.length) snap.tags[e.id] = joinTags(e.legacy.tags);
     } else if (e.type === "station") {
       snap.placements.push([e.id, { x: e.x, y: e.y, w: e.w, h: e.h, rotation: e.rotation }]);
       if (e.layer !== STATIONS_LAYER) snap.layers[e.id] = e.layer as L;
@@ -204,7 +219,7 @@ export function cadDocumentToEditorSnapshot<L extends string = string>(
       if (e.color !== undefined) annotation.color = e.color;
       snap.annotations.push(annotation);
       if (e.layer !== DIM_LAYER) snap.layers[e.id] = e.layer as L;
-    } else {
+    } else if (e.type === "connector") {
       const connector: CadEditorConnector = { from: e.from, to: e.to };
       if (e.kind !== "flow") connector.kind = e.kind;
       snap.connectors.push(connector);

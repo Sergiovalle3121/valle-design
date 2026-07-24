@@ -13,7 +13,7 @@
  * la rotación; los círculos usan su caja envolvente (cota superior conservadora).
  */
 
-import type { CadDocument, CadEntity } from "./cad-document";
+import type { CadDocument } from "./cad-document";
 
 export type RuleLevel = "error" | "warning" | "info";
 
@@ -44,14 +44,34 @@ const LEVEL_ORDER: Record<RuleLevel, number> = { error: 0, warning: 1, info: 2 }
  * Entidades con extensión geométrica revisable: cajas Y estaciones (ambas son
  * rectángulos con rotación; las estaciones existen desde el esquema v2).
  */
-type GeomEntity = Extract<CadEntity, { type: "box" | "station" }>;
+type GeomEntity = {
+  id: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  rotation: number;
+  label?: string;
+};
 function boxes(doc: CadDocument): GeomEntity[] {
-  return doc.entities.filter(
-    (e): e is GeomEntity => e.type === "box" || e.type === "station",
-  );
+  return doc.entities.flatMap((entity): GeomEntity[] => {
+    if (entity.type === "box" || entity.type === "station") return [entity];
+    if (entity.type === "circle" && entity.legacy) {
+      return [{
+        id: entity.id,
+        x: entity.center.x - entity.radius,
+        y: entity.center.y - entity.radius,
+        w: entity.radius * 2,
+        h: entity.radius * 2,
+        rotation: 0,
+        label: entity.legacy.label,
+      }];
+    }
+    return [];
+  });
 }
 function geomLabel(e: GeomEntity): string {
-  return (e.type === "box" ? e.label : undefined) ?? e.id;
+  return e.label ?? e.id;
 }
 
 /**

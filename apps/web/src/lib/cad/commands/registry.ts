@@ -38,6 +38,7 @@ import {
   trimWallPreview,
 } from "./wall-edit";
 import { clearAnnotationsPreview } from "./clean";
+import { geometryCleanupPreview } from "./geometry-cleanup";
 import { countObjectsPreview } from "./count";
 import { objectInfoPreview } from "./info";
 import { deleteSelectionPreview } from "./delete";
@@ -2860,6 +2861,38 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     execute: (i, c) => {
       const p = autoDimensionPreview(
         i as Extract<CadCommandInput, { id: "auto_dimension" }>,
+        c,
+      );
+      return result(p, ok(p.issues), p.summary);
+    },
+  },
+  {
+    id: "cleanup_geometry",
+    label: "Limpieza geométrica",
+    category: "analysis",
+    description:
+      "Detecta duplicados, muros casi ortogonales y segmentos muy cortos; produce evidencia y diff antes de aplicar.",
+    inputSchema: {
+      objectIds: { type: "string[]", description: "Selección a revisar; vacío = todo el plano." },
+      tolerance: { type: "number", description: "Tolerancia geométrica en unidades del dibujo." },
+      angleToleranceDeg: { type: "number", description: "Tolerancia angular en grados." },
+      minLength: { type: "number", description: "Longitud mínima antes de marcar un segmento." },
+      removeTiny: { type: "boolean", description: "Si es true, propone borrar segmentos muy cortos." },
+    },
+    examples: ["limpia la geometría", "limpia duplicados con tolerancia 2"],
+    validate: (i, c) =>
+      geometryCleanupPreview(
+        i as Extract<CadCommandInput, { id: "cleanup_geometry" }>,
+        c,
+      ).issues.filter((issue) => issue.level === "error"),
+    preview: (i, c) =>
+      geometryCleanupPreview(
+        i as Extract<CadCommandInput, { id: "cleanup_geometry" }>,
+        c,
+      ),
+    execute: (i, c) => {
+      const p = geometryCleanupPreview(
+        i as Extract<CadCommandInput, { id: "cleanup_geometry" }>,
         c,
       );
       return result(p, ok(p.issues), p.summary);

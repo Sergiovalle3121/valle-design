@@ -106,6 +106,19 @@ export const CAD_INTENT_TOOLS: CideToolSpec[] = [
       required: ['station', 'x', 'y'],
     },
   },
+  {
+    name: 'cleanupGeometry',
+    description:
+      'Solicita una limpieza geométrica gobernada. El cliente calcula evidencia y diff deterministas; el usuario confirma antes de aplicar.',
+    parameters: {
+      type: 'object',
+      properties: {
+        tolerance: numProp('tolerancia geométrica opcional'),
+        angleToleranceDeg: numProp('tolerancia angular opcional en grados'),
+        minLength: numProp('longitud mínima opcional'),
+      },
+    },
+  },
 ];
 
 export interface CadIntentContext {

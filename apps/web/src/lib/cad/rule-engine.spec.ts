@@ -16,7 +16,13 @@ function box(id: string, x: number, y: number, w: number, h: number, rotation = 
   return { id, type: "box", kind: "zone", x, y, w, h, rotation, layer: "0", shape: "rect", ...(label ? { label } : {}) };
 }
 function doc(entities: CadEntity[]): CadDocument {
-  return { meta: { version: 1, schema: 1, unit: "mm" }, layers: [], entities, history: [] };
+  const base = layoutToCadDocument({});
+  return {
+    ...base,
+    meta: { version: 1, schema: 1, unit: "mm" },
+    entities,
+    modelSpace: { entityIds: entities.map((entity) => entity.id) },
+  };
 }
 const near = (a: number, b: number, tol = 1e-6) => Math.abs(a - b) <= tol;
 

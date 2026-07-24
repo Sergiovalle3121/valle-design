@@ -38,7 +38,8 @@ const snapshot: CadEditorSnapshot = {
 const doc = editorSnapshotToCadDocument(snapshot);
 const stats = cadDocumentStats(doc);
 assert.equal(stats.station, 2, "2 estaciones en el documento");
-assert.equal(stats.box, 2, "2 assets");
+assert.equal(stats.box, 1, "1 asset rectangular");
+assert.equal(stats.circle, 1, "1 asset circular de primera clase");
 assert.equal(stats.text, 1, "1 nota");
 assert.equal(stats.dimension, 1, "1 cota");
 assert.equal(stats.connector, 2, "2 conectores");

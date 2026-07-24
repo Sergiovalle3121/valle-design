@@ -7,6 +7,7 @@ const ok = (cond: boolean, m: string) => { if (cond) passed++; else fails.push(m
 // ── esquema de tools ──
 ok(CAD_TOOLS.length >= 6 && CAD_TOOLS.every((t) => t.type === 'function' && !!t.function.name), 'CAD_TOOLS bien formado');
 ok(CAD_TOOLS.some((t) => t.function.name === 'placeAsset'), 'incluye placeAsset');
+ok(CAD_TOOLS.some((t) => t.function.name === 'cleanupGeometry'), 'incluye cleanupGeometry');
 
 // ── setFootprint ──
 { const r = normalizeToolCall('setFootprint', { footprintW: 20000, footprintH: 10000 });
@@ -67,6 +68,13 @@ ok(CAD_TOOLS.some((t) => t.function.name === 'placeAsset'), 'incluye placeAsset'
   ok(r.ok && describeCadIntent(r.intent).includes('AOI 2'), 'describe placeAsset con etiqueta'); }
 { const r = normalizeToolCall('connectLine', { kind: 'conveyor' });
   ok(r.ok && describeCadIntent(r.intent).includes('conveyor'), 'describe connectLine con tipo de flujo'); }
+
+{ const r = normalizeToolCall('cleanupGeometry', { tolerance: 2, angleToleranceDeg: 1 });
+  ok(r.ok && r.intent.kind === 'cleanupGeometry' && r.intent.tolerance === 2, 'cleanupGeometry valido'); }
+{ const r = normalizeToolCall('cleanupGeometry', { tolerance: -1 });
+  ok(!r.ok, 'cleanupGeometry rechaza tolerancia negativa'); }
+{ const r = normalizeToolCall('cleanupGeometry', { tolerance: 2 });
+  ok(r.ok && describeCadIntent(r.intent).includes('diff'), 'describe cleanup comunica preview/diff'); }
 
 if (fails.length) { console.log(`❌ ${passed}/${passed + fails.length}`); for (const f of fails) console.log('  - ' + f); process.exit(1); }
 console.log(`✅ ${passed}/${passed} cad-intent`);
