@@ -78,6 +78,7 @@ import { tessellateDxfPrimitive } from '@/lib/cad/curve-tessellate';
 import { DWG_UNAVAILABLE_REASON } from '@/lib/cad/interop-provider';
 import { mapDxfLayerToCadLayer } from '@/lib/cad/dxf-layer-map';
 import { makeHorizontal, makeVertical, makeParallel, makePerpendicular, makeEqualLength, makeCollinear, type Segment } from '@/lib/cad/geom-constraints';
+import { buildMleader } from '@/lib/cad/mleader';
 import { CAD_LAYOUT_TEMPLATES, instantiateCadLayoutTemplate, type CadLayoutTemplateId } from '@/lib/cad/templates';
 import {
   generateWarehouseDockStaging,
@@ -2959,6 +2960,32 @@ export default function Layout3DEditor({
       y: Math.max(0, Math.min(ctx.H, snapWorld(ty))),
     });
     setDirty(true); rebuildNotes();
+  };
+
+  // Directriz con nota (MLEADER · CAD-NEXT-111): flecha con texto que apunta al
+  // objeto seleccionado — "NOTA: muro cortafuego 2 h", "ver detalle 3". Se
+  // compone honestamente de las primitivas de anotación que el editor ya
+  // renderiza y exporta a DXF (dos 'dim' para la directriz + codo y un 'text'
+  // para la nota); la geometría del codo y del ancla la calcula buildMleader.
+  const createLeaderForSelection = () => {
+    if (!selSnap) { toast.error('Selecciona un objeto para anotarlo.', 'Directriz'); return; }
+    const text = (typeof window !== 'undefined' ? window.prompt('Nota de la directriz:') : '')?.trim();
+    if (!text) return;
+    // Punta en la esquina superior derecha del objeto; codo desplazado hacia
+    // arriba-derecha para que la directriz salga del objeto sin pisarlo.
+    const tip = { x: selSnap.x + selSnap.w, y: selSnap.y };
+    const elbow = { x: tip.x + 900, y: tip.y - 900 };
+    const g = buildMleader(tip, elbow);
+    pushHistory();
+    const leaderId = newId('ld');
+    annotationsRef.current.set(leaderId, { id: leaderId, type: 'dim', x: g.leaderLine[0].x, y: g.leaderLine[0].y, x2: g.leaderLine[1].x, y2: g.leaderLine[1].y });
+    const doglegId = newId('ld');
+    annotationsRef.current.set(doglegId, { id: doglegId, type: 'dim', x: g.dogleg[0].x, y: g.dogleg[0].y, x2: g.dogleg[1].x, y2: g.dogleg[1].y });
+    const textId = newId('nt');
+    annotationsRef.current.set(textId, { id: textId, type: 'text', text: text.slice(0, 240), x: g.textAnchor.x, y: g.textAnchor.y });
+    setDimCount([...annotationsRef.current.values()].filter((ann) => ann.type === 'dim').length);
+    setDirty(true); rebuildDims(); rebuildNotes();
+    toast.success('Directriz creada.', 'Anotación');
   };
 
   const clearDims = useCallback(() => {
@@ -6316,6 +6343,7 @@ export default function Layout3DEditor({
                   <span className="text-sm font-semibold">{selSnap.title}</span>
                 </div>
                 <div className="text-[11px] text-gray-500 dark:text-gray-400 mb-3">{selSnap.subtitle}</div>
+                <button onClick={createLeaderForSelection} title="Crea una directriz con nota que apunta a este objeto (flecha + texto), como MLEADER en AutoCAD" className="mb-3 w-full rounded-lg border border-sky-400/25 bg-sky-400/[0.08] px-2 py-1.5 text-[11px] font-semibold text-sky-100 hover:bg-sky-400/[0.14]">＋ Directriz / Nota</button>
                 {selList[0] && isObjectLayerLocked(cadLayers, layerAssignments, selList[0].id, defaultLayerFor(selList[0])) && (
                   <div className="mb-3 rounded-lg border border-amber-400/20 bg-amber-400/10 px-2 py-1.5 text-[11px] text-amber-200">Capa bloqueada: las propiedades, drag y comandos destructivos quedan protegidos.</div>
                 )}

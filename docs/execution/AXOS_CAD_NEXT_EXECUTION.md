@@ -226,6 +226,15 @@ largo) con el primer muro como referencia. Es el núcleo del "dibujo
 paramétrico" que distingue a un CAD profesional (GEOMCONSTRAINT en AutoCAD);
 alcance honesto: aplicar-una-vez, no un solver bidireccional vivo.
 
+**CAD-NEXT-111 (directriz con nota / MLEADER) — ✓ hecho:** `mleader.ts`
+calcula la geometría pura de una directriz (punta de flecha → línea directriz →
+codo horizontal → ancla de texto; el codo se aleja de la punta para no pisar el
+texto). El editor añade "＋ Directriz / Nota" en el panel de objeto único: apunta
+al objeto seleccionado y compone la directriz con las primitivas de anotación
+existentes (2 `dim` + 1 `text`), así hereda render y export DXF sin código nuevo
+de dibujo. Alcance honesto: se compone de primitivas, no es una entidad MLEADER
+de primera clase.
+
 **Pendiente DXF (deuda honesta):** el HATCH importado sólo avisa (dxf-parser lo
 descarta antes de nuestro mapper; recuperar el relleno exigiría parsear HATCH a
 mano); la capa importada sigue viajando como tag `dxf-layer:` (el modelo de
