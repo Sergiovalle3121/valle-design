@@ -77,6 +77,7 @@ import { summarizeIndustryObjects, industryRollupToCsv, type IndustrySummary } f
 import { tessellateDxfPrimitive } from '@/lib/cad/curve-tessellate';
 import { DWG_UNAVAILABLE_REASON } from '@/lib/cad/interop-provider';
 import { mapDxfLayerToCadLayer } from '@/lib/cad/dxf-layer-map';
+import { makeHorizontal, makeVertical, makeParallel, makePerpendicular, makeEqualLength, makeCollinear, type Segment } from '@/lib/cad/geom-constraints';
 import { CAD_LAYOUT_TEMPLATES, instantiateCadLayoutTemplate, type CadLayoutTemplateId } from '@/lib/cad/templates';
 import {
   generateWarehouseDockStaging,
@@ -2806,6 +2807,49 @@ export default function Layout3DEditor({
     setValidationHighlightIds(new Set());
     rebuildAll();
   };
+  // Restricciones geométricas paramétricas (CAD-NEXT-110): impone una relación
+  // sobre los muros seleccionados con precisión, en vez de arrastrar a ojo. El
+  // PRIMER muro seleccionado es la referencia (para paralelo/perpendicular/
+  // igualar/colineal); horizontal y vertical no necesitan referencia y se
+  // aplican a todos. Cada muro se guarda como centro+rotación+largo, así que la
+  // operación sobre segmentos se traduce de vuelta conservando el centro.
+  const wallToSegment = (a: Asset): Segment => {
+    const cx = a.x + a.w / 2, cy = a.y + a.h / 2;
+    const hx = (Math.cos(a.rotation) * a.w) / 2, hy = (Math.sin(a.rotation) * a.w) / 2;
+    return { a: { x: cx - hx, y: cy - hy }, b: { x: cx + hx, y: cy + hy } };
+  };
+  const applySegmentToWall = (a: Asset, seg: Segment): Asset => {
+    const cx = (seg.a.x + seg.b.x) / 2, cy = (seg.a.y + seg.b.y) / 2;
+    const newLen = Math.hypot(seg.b.x - seg.a.x, seg.b.y - seg.a.y);
+    const newRot = Math.atan2(seg.b.y - seg.a.y, seg.b.x - seg.a.x);
+    return { ...a, w: newLen, x: cx - newLen / 2, y: cy - a.h / 2, rotation: newRot };
+  };
+  const applyWallConstraint = (kind: 'horizontal' | 'vertical' | 'parallel' | 'perpendicular' | 'equal' | 'collinear') => {
+    const walls = selRef.current
+      .filter((it) => it.type === 'asset')
+      .map((it) => assetsRef.current.get(it.id))
+      .filter((a): a is Asset => !!a && a.kind === 'wall');
+    const needsRef = kind !== 'horizontal' && kind !== 'vertical';
+    if (needsRef && walls.length < 2) { toast.error('Selecciona al menos dos muros: el primero es la referencia.', 'Restricciones'); return; }
+    if (!needsRef && walls.length < 1) { toast.error('Selecciona uno o más muros.', 'Restricciones'); return; }
+    pushHistory();
+    const refSeg = wallToSegment(walls[0]);
+    const targets = needsRef ? walls.slice(1) : walls;
+    for (const wall of targets) {
+      const seg = wallToSegment(wall);
+      const out =
+        kind === 'horizontal' ? makeHorizontal(seg)
+        : kind === 'vertical' ? makeVertical(seg)
+        : kind === 'parallel' ? makeParallel(seg, refSeg)
+        : kind === 'perpendicular' ? makePerpendicular(seg, refSeg)
+        : kind === 'equal' ? makeEqualLength(seg, refSeg)
+        : makeCollinear(seg, refSeg);
+      assetsRef.current.set(wall.id, applySegmentToWall(wall, out));
+    }
+    setDirty(true); rebuildAll(); refreshSnap();
+    toast.success(`Restricción aplicada a ${targets.length} muro(s).`, 'Restricciones');
+  };
+
   // Entregable de capacidad (CAD-NEXT-099): el BOM de objetos inteligentes a CSV.
   const exportIndustryCsv = () => {
     if (!industrySummary || industrySummary.totalInstances === 0) return;
@@ -6193,6 +6237,26 @@ export default function Layout3DEditor({
                     )}
                   </div>
                 )}
+                {(() => {
+                  const wallCount = selList.filter((it) => it.type === 'asset' && assetsRef.current.get(it.id)?.kind === 'wall').length;
+                  if (wallCount < 1) return null;
+                  return (
+                    <div className="mb-3 rounded-xl border border-emerald-400/15 bg-emerald-400/[0.04] p-2.5">
+                      <div className="mb-1 flex items-center justify-between gap-2">
+                        <span className="text-[10px] uppercase tracking-wide text-emerald-200">Restricciones · {wallCount} muro(s)</span>
+                      </div>
+                      <div className="mb-1.5 text-[10px] text-gray-500 dark:text-gray-400">El primer muro seleccionado es la referencia.</div>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        <button onClick={() => applyWallConstraint('horizontal')} className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[11px] text-gray-200 hover:bg-white/[0.12]">Horizontal</button>
+                        <button onClick={() => applyWallConstraint('vertical')} className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[11px] text-gray-200 hover:bg-white/[0.12]">Vertical</button>
+                        <button onClick={() => applyWallConstraint('equal')} disabled={wallCount < 2} className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[11px] text-gray-200 hover:bg-white/[0.12] disabled:opacity-40">Igualar</button>
+                        <button onClick={() => applyWallConstraint('parallel')} disabled={wallCount < 2} className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[11px] text-gray-200 hover:bg-white/[0.12] disabled:opacity-40">Paralelo</button>
+                        <button onClick={() => applyWallConstraint('perpendicular')} disabled={wallCount < 2} className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[11px] text-gray-200 hover:bg-white/[0.12] disabled:opacity-40">Perpend.</button>
+                        <button onClick={() => applyWallConstraint('collinear')} disabled={wallCount < 2} className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[11px] text-gray-200 hover:bg-white/[0.12] disabled:opacity-40">Colineal</button>
+                      </div>
+                    </div>
+                  );
+                })()}
                 {selList.length === 2 && (
                   <div className="mb-3 rounded-xl border border-cyan-400/15 bg-cyan-400/[0.04] p-2.5">
                     <div className="mb-2 text-[10px] uppercase tracking-wide text-cyan-200">Cota entre objetos</div>

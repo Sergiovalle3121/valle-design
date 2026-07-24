@@ -217,6 +217,15 @@ kernel. El gap DXF de AXOS CAD **no es de kernel, es de cableado**.
    `dxfImportPreview` sigue alimentando el panel de conteo; el backdrop
    (`parseDxf`) sigue disponible como fondo de calco.
 
+**CAD-NEXT-110 (dibujo paramétrico) — ✓ primera pieza:** `geom-constraints.ts`
+implementa restricciones geométricas aplicar-una-vez sobre segmentos —
+horizontal, vertical, paralelo, perpendicular, igualar-longitud y colineal—
+que pivotan en el punto medio y (salvo igualar/colineal) preservan longitud y
+orientación. El editor las cablea a los muros seleccionados (centro+rotación+
+largo) con el primer muro como referencia. Es el núcleo del "dibujo
+paramétrico" que distingue a un CAD profesional (GEOMCONSTRAINT en AutoCAD);
+alcance honesto: aplicar-una-vez, no un solver bidireccional vivo.
+
 **Pendiente DXF (deuda honesta):** el HATCH importado sólo avisa (dxf-parser lo
 descarta antes de nuestro mapper; recuperar el relleno exigiría parsear HATCH a
 mano); la capa importada sigue viajando como tag `dxf-layer:` (el modelo de
