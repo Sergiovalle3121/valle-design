@@ -5,10 +5,10 @@
   "license": "UNLICENSED",
   "description": "Shared, side-effect-free contracts (types + pure derivations) for AXOS OS workspaces.",
   "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "types": "./src/index.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
+      "types": "./src/index.ts",
       "default": "./dist/index.js"
     }
   },
