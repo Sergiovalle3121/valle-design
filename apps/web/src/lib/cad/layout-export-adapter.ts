@@ -5,6 +5,7 @@ import {
   type CadDxfExportOptions,
   type CadDxfExportResult,
 } from "./dxf-export";
+import type { CadDxfPrimitive } from "./dxf-import";
 
 export interface CadExportBox {
   id: string;
@@ -51,6 +52,8 @@ export interface CadLayoutExportInput {
   connectors?: CadExportConnector[];
   labels?: CadExportTextLabel[];
   measurements?: CadExportMeasurement[];
+  /** First-class canonical entities that must not be flattened to boxes. */
+  primitives?: CadDxfPrimitive[];
 }
 
 const CAD_DXF_LAYER_COLORS: Record<string, number> = {
@@ -94,6 +97,8 @@ function collectLayoutLayers(input: CadLayoutExportInput): CadDxfExportLayer[] {
   for (const label of input.labels ?? []) names.add(label.layer ?? "Text");
   for (const measurement of input.measurements ?? [])
     names.add(measurement.layer ?? "Measurements");
+  for (const primitive of input.primitives ?? [])
+    names.add(primitive.layer || "0");
   return [...names].sort((a, b) => a.localeCompare(b)).map((name) => ({
     name,
     color: CAD_DXF_LAYER_COLORS[name] ?? 7,
@@ -105,6 +110,7 @@ export function cadLayoutToDxfExportModel(
   return {
     layers: collectLayoutLayers(input),
     primitives: [
+      ...(input.primitives ?? []),
       ...(input.boxes ?? []).map((box) =>
         box.shape === "circle"
           ? {

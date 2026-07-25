@@ -1,0 +1,1113 @@
+import {
+  commitChange,
+  type CadDocument,
+  type CadEntity,
+  type CadEntityContext,
+  type CadPoint2,
+  type CadPoint3,
+} from "./cad-document";
+import {
+  tessellateArc,
+  tessellateEllipse,
+  tessellateSpline,
+} from "./curve-tessellate";
+
+export type CadNativeEntity = Extract<
+  CadEntity,
+  { type: "arc" | "ellipse" | "spline" }
+>;
+export type CadNativeEntityType = CadNativeEntity["type"];
+
+export interface CadBounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
+export interface CadRenderPath {
+  points: CadPoint2[];
+  closed: boolean;
+}
+
+export type CadGripKind =
+  | "center"
+  | "endpoint"
+  | "quadrant"
+  | "axis"
+  | "control";
+
+export interface CadGrip {
+  id: string;
+  kind: CadGripKind;
+  point: CadPoint2;
+  label: string;
+}
+
+export type CadSnapKind =
+  | "center"
+  | "endpoint"
+  | "quadrant"
+  | "tangent"
+  | "control";
+
+export interface CadSnapPoint {
+  kind: CadSnapKind;
+  point: CadPoint2;
+  label: string;
+}
+
+export type CadPropertyValue = string | number | boolean;
+export type CadPropertyBag = Record<string, CadPropertyValue>;
+
+export interface CadEntityRenderer<E extends CadNativeEntity = CadNativeEntity> {
+  paths(entity: E, segments?: number): CadRenderPath[];
+}
+
+export interface CadHitTester<E extends CadNativeEntity = CadNativeEntity> {
+  hitTest(entity: E, point: CadPoint2, tolerance: number): boolean;
+  intersectsWindow(entity: E, window: CadBounds, crossing: boolean): boolean;
+}
+
+export interface CadGripProvider<E extends CadNativeEntity = CadNativeEntity> {
+  grips(entity: E): CadGrip[];
+  moveGrip(entity: E, gripId: string, point: CadPoint2): E;
+}
+
+export interface CadSnapProvider<E extends CadNativeEntity = CadNativeEntity> {
+  snaps(entity: E, cursor?: CadPoint2): CadSnapPoint[];
+}
+
+export interface CadPropertyAdapter<E extends CadNativeEntity = CadNativeEntity> {
+  read(entity: E): CadPropertyBag;
+  write(entity: E, patch: Partial<CadPropertyBag>): E;
+}
+
+export interface CadBoundsProvider<E extends CadNativeEntity = CadNativeEntity> {
+  bounds(entity: E): CadBounds;
+}
+
+export interface CadEntityTransform {
+  translation?: CadPoint2;
+  rotationDeg?: number;
+  scale?: number;
+  origin?: CadPoint2;
+}
+
+export interface CadCommandAdapter<E extends CadNativeEntity = CadNativeEntity> {
+  transform(entity: E, transform: CadEntityTransform): E;
+}
+
+export interface CadEntityAdapter<E extends CadNativeEntity = CadNativeEntity> {
+  type: E["type"];
+  renderer: CadEntityRenderer<E>;
+  hitTester: CadHitTester<E>;
+  grips: CadGripProvider<E>;
+  snaps: CadSnapProvider<E>;
+  properties: CadPropertyAdapter<E>;
+  bounds: CadBoundsProvider<E>;
+  commands: CadCommandAdapter<E>;
+}
+
+function point3(point: CadPoint2, z = 0): CadPoint3 {
+  return { x: point.x, y: point.y, z };
+}
+
+function cloneContext(context: CadEntityContext | undefined): CadEntityContext | undefined {
+  if (!context) return undefined;
+  return {
+    ...context,
+    ...(context.normal ? { normal: { ...context.normal } } : {}),
+    ...(context.presentation
+      ? {
+          presentation: {
+            ...context.presentation,
+            ...(context.presentation.color
+              ? { color: { ...context.presentation.color } }
+              : {}),
+            ...(context.presentation.linetype
+              ? { linetype: { ...context.presentation.linetype } }
+              : {}),
+            ...(context.presentation.lineweight
+              ? { lineweight: { ...context.presentation.lineweight } }
+              : {}),
+          },
+        }
+      : {}),
+    ...(context.metadata ? { metadata: { ...context.metadata } } : {}),
+    ...(context.provenance ? { provenance: { ...context.provenance } } : {}),
+    ...(context.businessLink ? { businessLink: { ...context.businessLink } } : {}),
+  };
+}
+
+function pointsBounds(points: CadPoint2[]): CadBounds {
+  if (!points.length)
+    return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+  return {
+    minX: Math.min(...points.map((point) => point.x)),
+    minY: Math.min(...points.map((point) => point.y)),
+    maxX: Math.max(...points.map((point) => point.x)),
+    maxY: Math.max(...points.map((point) => point.y)),
+  };
+}
+
+function boundsContained(inner: CadBounds, outer: CadBounds): boolean {
+  return (
+    inner.minX >= outer.minX &&
+    inner.maxX <= outer.maxX &&
+    inner.minY >= outer.minY &&
+    inner.maxY <= outer.maxY
+  );
+}
+
+function boundsIntersect(a: CadBounds, b: CadBounds): boolean {
+  return (
+    a.minX <= b.maxX &&
+    a.maxX >= b.minX &&
+    a.minY <= b.maxY &&
+    a.maxY >= b.minY
+  );
+}
+
+function distanceToSegment(
+  point: CadPoint2,
+  start: CadPoint2,
+  end: CadPoint2,
+): number {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const length2 = dx * dx + dy * dy;
+  if (length2 <= 1e-18) return Math.hypot(point.x - start.x, point.y - start.y);
+  const t = Math.max(
+    0,
+    Math.min(
+      1,
+      ((point.x - start.x) * dx + (point.y - start.y) * dy) / length2,
+    ),
+  );
+  return Math.hypot(
+    point.x - (start.x + t * dx),
+    point.y - (start.y + t * dy),
+  );
+}
+
+function pathHit(paths: CadRenderPath[], point: CadPoint2, tolerance: number): boolean {
+  return paths.some((path) => {
+    for (let index = 1; index < path.points.length; index += 1) {
+      if (
+        distanceToSegment(point, path.points[index - 1], path.points[index]) <=
+        tolerance
+      )
+        return true;
+    }
+    if (
+      path.closed &&
+      path.points.length > 2 &&
+      distanceToSegment(
+        point,
+        path.points[path.points.length - 1],
+        path.points[0],
+      ) <= tolerance
+    )
+      return true;
+    return false;
+  });
+}
+
+function transformPoint(point: CadPoint3, transform: CadEntityTransform): CadPoint3 {
+  const origin = transform.origin ?? { x: 0, y: 0 };
+  const scale = transform.scale ?? 1;
+  const rotation = ((transform.rotationDeg ?? 0) * Math.PI) / 180;
+  const cos = Math.cos(rotation);
+  const sin = Math.sin(rotation);
+  const localX = (point.x - origin.x) * scale;
+  const localY = (point.y - origin.y) * scale;
+  return {
+    x:
+      origin.x +
+      localX * cos -
+      localY * sin +
+      (transform.translation?.x ?? 0),
+    y:
+      origin.y +
+      localX * sin +
+      localY * cos +
+      (transform.translation?.y ?? 0),
+    z: point.z * scale,
+  };
+}
+
+function transformVector(point: CadPoint3, transform: CadEntityTransform): CadPoint3 {
+  const scale = transform.scale ?? 1;
+  const rotation = ((transform.rotationDeg ?? 0) * Math.PI) / 180;
+  const cos = Math.cos(rotation);
+  const sin = Math.sin(rotation);
+  return {
+    x: (point.x * cos - point.y * sin) * scale,
+    y: (point.x * sin + point.y * cos) * scale,
+    z: point.z * scale,
+  };
+}
+
+function finite(value: CadPropertyValue | undefined, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function positive(value: CadPropertyValue | undefined, fallback: number): number {
+  const next = finite(value, fallback);
+  return next > 0 ? next : fallback;
+}
+
+function anglePoint(center: CadPoint3, radius: number, angleDeg: number): CadPoint2 {
+  const angle = (angleDeg * Math.PI) / 180;
+  return {
+    x: center.x + Math.cos(angle) * radius,
+    y: center.y + Math.sin(angle) * radius,
+  };
+}
+
+function normalizedSweep(startAngle: number, endAngle: number): number {
+  let sweep = endAngle - startAngle;
+  while (sweep <= 0) sweep += 360;
+  return sweep;
+}
+
+function angleOnArc(angle: number, startAngle: number, endAngle: number): boolean {
+  const sweep = normalizedSweep(startAngle, endAngle);
+  let offset = angle - startAngle;
+  while (offset < 0) offset += 360;
+  return offset <= sweep + 1e-7;
+}
+
+function commonHitTester<E extends CadNativeEntity>(
+  renderer: CadEntityRenderer<E>,
+  boundsProvider: CadBoundsProvider<E>,
+): CadHitTester<E> {
+  return {
+    hitTest: (entity, point, tolerance) =>
+      boundsIntersect(boundsProvider.bounds(entity), {
+        minX: point.x - tolerance,
+        minY: point.y - tolerance,
+        maxX: point.x + tolerance,
+        maxY: point.y + tolerance,
+      }) && pathHit(renderer.paths(entity, 96), point, tolerance),
+    intersectsWindow: (entity, window, crossing) => {
+      const entityBounds = boundsProvider.bounds(entity);
+      return crossing
+        ? boundsIntersect(entityBounds, window)
+        : boundsContained(entityBounds, window);
+    },
+  };
+}
+
+const arcRenderer: CadEntityRenderer<Extract<CadNativeEntity, { type: "arc" }>> = {
+  paths: (entity, segments = 72) => [
+    {
+      points: tessellateArc(
+        entity.center,
+        entity.radius,
+        entity.startAngle,
+        entity.endAngle,
+        segments,
+      ),
+      closed: false,
+    },
+  ],
+};
+
+const arcBounds: CadBoundsProvider<Extract<CadNativeEntity, { type: "arc" }>> = {
+  bounds: (entity) =>
+    pointsBounds(
+      [entity.startAngle, entity.endAngle, 0, 90, 180, 270]
+        .filter(
+          (angle, index) =>
+            index < 2 ||
+            angleOnArc(angle, entity.startAngle, entity.endAngle),
+        )
+        .map((angle) => anglePoint(entity.center, entity.radius, angle)),
+    ),
+};
+
+const arcAdapter: CadEntityAdapter<
+  Extract<CadNativeEntity, { type: "arc" }>
+> = {
+  type: "arc",
+  renderer: arcRenderer,
+  bounds: arcBounds,
+  hitTester: commonHitTester(arcRenderer, arcBounds),
+  grips: {
+    grips: (entity) => [
+      {
+        id: "center",
+        kind: "center",
+        point: entity.center,
+        label: "Centro",
+      },
+      {
+        id: "start",
+        kind: "endpoint",
+        point: anglePoint(entity.center, entity.radius, entity.startAngle),
+        label: "Inicio",
+      },
+      {
+        id: "end",
+        kind: "endpoint",
+        point: anglePoint(entity.center, entity.radius, entity.endAngle),
+        label: "Fin",
+      },
+      ...[0, 90, 180, 270]
+        .filter((angle) =>
+          angleOnArc(angle, entity.startAngle, entity.endAngle),
+        )
+        .map((angle) => ({
+          id: `quadrant:${angle}`,
+          kind: "quadrant" as const,
+          point: anglePoint(entity.center, entity.radius, angle),
+          label: `Cuadrante ${angle}°`,
+        })),
+    ],
+    moveGrip: (entity, gripId, point) => {
+      if (gripId === "center") {
+        return { ...entity, center: point3(point, entity.center.z) };
+      }
+      const dx = point.x - entity.center.x;
+      const dy = point.y - entity.center.y;
+      const radius = Math.hypot(dx, dy);
+      if (!(radius > 0)) return entity;
+      const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+      if (gripId === "start") return { ...entity, radius, startAngle: angle };
+      if (gripId === "end") return { ...entity, radius, endAngle: angle };
+      if (gripId.startsWith("quadrant:")) return { ...entity, radius };
+      return entity;
+    },
+  },
+  snaps: {
+    snaps: (entity, cursor) => {
+      const points: CadSnapPoint[] = [
+        { kind: "center", point: entity.center, label: "Centro" },
+        {
+          kind: "endpoint",
+          point: anglePoint(entity.center, entity.radius, entity.startAngle),
+          label: "Extremo inicial",
+        },
+        {
+          kind: "endpoint",
+          point: anglePoint(entity.center, entity.radius, entity.endAngle),
+          label: "Extremo final",
+        },
+        ...[0, 90, 180, 270]
+          .filter((angle) =>
+            angleOnArc(angle, entity.startAngle, entity.endAngle),
+          )
+          .map((angle) => ({
+            kind: "quadrant" as const,
+            point: anglePoint(entity.center, entity.radius, angle),
+            label: `Cuadrante ${angle}°`,
+          })),
+      ];
+      if (cursor) {
+        const dx = cursor.x - entity.center.x;
+        const dy = cursor.y - entity.center.y;
+        const distance = Math.hypot(dx, dy);
+        if (distance > entity.radius) {
+          const base = (Math.atan2(dy, dx) * 180) / Math.PI;
+          const offset = (Math.acos(entity.radius / distance) * 180) / Math.PI;
+          for (const angle of [base - offset, base + offset]) {
+            if (angleOnArc(angle, entity.startAngle, entity.endAngle)) {
+              points.push({
+                kind: "tangent",
+                point: anglePoint(entity.center, entity.radius, angle),
+                label: "Tangente",
+              });
+            }
+          }
+        }
+      }
+      return points;
+    },
+  },
+  properties: {
+    read: (entity) => ({
+      centerX: entity.center.x,
+      centerY: entity.center.y,
+      radius: entity.radius,
+      startAngle: entity.startAngle,
+      endAngle: entity.endAngle,
+      layer: entity.layer,
+    }),
+    write: (entity, patch) => ({
+      ...entity,
+      center: {
+        ...entity.center,
+        x: finite(patch.centerX, entity.center.x),
+        y: finite(patch.centerY, entity.center.y),
+      },
+      radius: positive(patch.radius, entity.radius),
+      startAngle: finite(patch.startAngle, entity.startAngle),
+      endAngle: finite(patch.endAngle, entity.endAngle),
+      layer: typeof patch.layer === "string" ? patch.layer : entity.layer,
+    }),
+  },
+  commands: {
+    transform: (entity, transform) => ({
+      ...entity,
+      center: transformPoint(entity.center, transform),
+      radius: entity.radius * Math.abs(transform.scale ?? 1),
+      startAngle: entity.startAngle + (transform.rotationDeg ?? 0),
+      endAngle: entity.endAngle + (transform.rotationDeg ?? 0),
+      context: cloneContext(entity.context),
+    }),
+  },
+};
+
+const ellipseRenderer: CadEntityRenderer<
+  Extract<CadNativeEntity, { type: "ellipse" }>
+> = {
+  paths: (entity, segments = 96) => [
+    {
+      points: tessellateEllipse(
+        entity.center,
+        entity.majorAxis,
+        entity.ratio,
+        entity.startParameter,
+        entity.endParameter,
+        segments,
+      ),
+      closed:
+        normalizedSweep(entity.startParameter, entity.endParameter) >=
+        360 - 1e-7,
+    },
+  ],
+};
+
+const ellipseBounds: CadBoundsProvider<
+  Extract<CadNativeEntity, { type: "ellipse" }>
+> = {
+  bounds: (entity) =>
+    pointsBounds(ellipseRenderer.paths(entity, 192)[0].points),
+};
+
+function ellipsePoint(
+  entity: Extract<CadNativeEntity, { type: "ellipse" }>,
+  parameterDeg: number,
+): CadPoint2 {
+  return tessellateEllipse(
+    entity.center,
+    entity.majorAxis,
+    entity.ratio,
+    parameterDeg,
+    parameterDeg + 1e-8,
+    1,
+  )[0];
+}
+
+const ellipseAdapter: CadEntityAdapter<
+  Extract<CadNativeEntity, { type: "ellipse" }>
+> = {
+  type: "ellipse",
+  renderer: ellipseRenderer,
+  bounds: ellipseBounds,
+  hitTester: commonHitTester(ellipseRenderer, ellipseBounds),
+  grips: {
+    grips: (entity) => [
+      { id: "center", kind: "center", point: entity.center, label: "Centro" },
+      {
+        id: "major:positive",
+        kind: "axis",
+        point: {
+          x: entity.center.x + entity.majorAxis.x,
+          y: entity.center.y + entity.majorAxis.y,
+        },
+        label: "Eje mayor",
+      },
+      {
+        id: "major:negative",
+        kind: "axis",
+        point: {
+          x: entity.center.x - entity.majorAxis.x,
+          y: entity.center.y - entity.majorAxis.y,
+        },
+        label: "Eje mayor",
+      },
+      {
+        id: "minor:positive",
+        kind: "axis",
+        point: {
+          x: entity.center.x - entity.majorAxis.y * entity.ratio,
+          y: entity.center.y + entity.majorAxis.x * entity.ratio,
+        },
+        label: "Eje menor",
+      },
+      {
+        id: "minor:negative",
+        kind: "axis",
+        point: {
+          x: entity.center.x + entity.majorAxis.y * entity.ratio,
+          y: entity.center.y - entity.majorAxis.x * entity.ratio,
+        },
+        label: "Eje menor",
+      },
+      {
+        id: "start",
+        kind: "endpoint",
+        point: ellipsePoint(entity, entity.startParameter),
+        label: "Inicio",
+      },
+      {
+        id: "end",
+        kind: "endpoint",
+        point: ellipsePoint(entity, entity.endParameter),
+        label: "Fin",
+      },
+    ],
+    moveGrip: (entity, gripId, point) => {
+      if (gripId === "center")
+        return { ...entity, center: point3(point, entity.center.z) };
+      const vector = {
+        x: point.x - entity.center.x,
+        y: point.y - entity.center.y,
+        z: entity.majorAxis.z,
+      };
+      if (gripId.startsWith("major:")) {
+        const sign = gripId.endsWith("negative") ? -1 : 1;
+        return {
+          ...entity,
+          majorAxis: {
+            x: vector.x * sign,
+            y: vector.y * sign,
+            z: vector.z,
+          },
+        };
+      }
+      if (gripId.startsWith("minor:")) {
+        const majorLength = Math.hypot(entity.majorAxis.x, entity.majorAxis.y);
+        if (!(majorLength > 0)) return entity;
+        return {
+          ...entity,
+          ratio: Math.max(
+            1e-6,
+            Math.min(1, Math.hypot(vector.x, vector.y) / majorLength),
+          ),
+        };
+      }
+      const majorLength = Math.hypot(entity.majorAxis.x, entity.majorAxis.y);
+      if (!(majorLength > 0)) return entity;
+      const rotation = Math.atan2(entity.majorAxis.y, entity.majorAxis.x);
+      const cos = Math.cos(-rotation);
+      const sin = Math.sin(-rotation);
+      const localX = vector.x * cos - vector.y * sin;
+      const localY = vector.x * sin + vector.y * cos;
+      const parameter =
+        (Math.atan2(localY / entity.ratio, localX) * 180) / Math.PI;
+      if (gripId === "start") return { ...entity, startParameter: parameter };
+      if (gripId === "end") return { ...entity, endParameter: parameter };
+      return entity;
+    },
+  },
+  snaps: {
+    snaps: (entity) => [
+      { kind: "center", point: entity.center, label: "Centro" },
+      ...[0, 90, 180, 270].map((parameter) => ({
+        kind: "quadrant" as const,
+        point: ellipsePoint(entity, parameter),
+        label: `Cuadrante ${parameter}°`,
+      })),
+      {
+        kind: "endpoint",
+        point: ellipsePoint(entity, entity.startParameter),
+        label: "Extremo inicial",
+      },
+      {
+        kind: "endpoint",
+        point: ellipsePoint(entity, entity.endParameter),
+        label: "Extremo final",
+      },
+    ],
+  },
+  properties: {
+    read: (entity) => ({
+      centerX: entity.center.x,
+      centerY: entity.center.y,
+      majorAxisX: entity.majorAxis.x,
+      majorAxisY: entity.majorAxis.y,
+      ratio: entity.ratio,
+      startParameter: entity.startParameter,
+      endParameter: entity.endParameter,
+      layer: entity.layer,
+    }),
+    write: (entity, patch) => ({
+      ...entity,
+      center: {
+        ...entity.center,
+        x: finite(patch.centerX, entity.center.x),
+        y: finite(patch.centerY, entity.center.y),
+      },
+      majorAxis: {
+        ...entity.majorAxis,
+        x: finite(patch.majorAxisX, entity.majorAxis.x),
+        y: finite(patch.majorAxisY, entity.majorAxis.y),
+      },
+      ratio: Math.max(1e-6, Math.min(1, positive(patch.ratio, entity.ratio))),
+      startParameter: finite(
+        patch.startParameter,
+        entity.startParameter,
+      ),
+      endParameter: finite(patch.endParameter, entity.endParameter),
+      layer: typeof patch.layer === "string" ? patch.layer : entity.layer,
+    }),
+  },
+  commands: {
+    transform: (entity, transform) => ({
+      ...entity,
+      center: transformPoint(entity.center, transform),
+      majorAxis: transformVector(entity.majorAxis, transform),
+      context: cloneContext(entity.context),
+    }),
+  },
+};
+
+const splineRenderer: CadEntityRenderer<
+  Extract<CadNativeEntity, { type: "spline" }>
+> = {
+  paths: (entity, segments = 96) => [
+    {
+      points: tessellateSpline(
+        entity.controlPoints,
+        entity.degree,
+        entity.knots,
+        segments,
+      ),
+      closed: entity.closed === true,
+    },
+  ],
+};
+
+const splineBounds: CadBoundsProvider<
+  Extract<CadNativeEntity, { type: "spline" }>
+> = {
+  bounds: (entity) =>
+    pointsBounds(splineRenderer.paths(entity, 160)[0].points),
+};
+
+const splineAdapter: CadEntityAdapter<
+  Extract<CadNativeEntity, { type: "spline" }>
+> = {
+  type: "spline",
+  renderer: splineRenderer,
+  bounds: splineBounds,
+  hitTester: commonHitTester(splineRenderer, splineBounds),
+  grips: {
+    grips: (entity) =>
+      entity.controlPoints.map((point, index) => ({
+        id: `control:${index}`,
+        kind: "control",
+        point,
+        label: `Control ${index + 1}`,
+      })),
+    moveGrip: (entity, gripId, point) => {
+      const index = Number(gripId.split(":")[1]);
+      if (!Number.isInteger(index) || !entity.controlPoints[index]) return entity;
+      return {
+        ...entity,
+        controlPoints: entity.controlPoints.map((control, current) =>
+          current === index ? point3(point, control.z) : { ...control },
+        ),
+      };
+    },
+  },
+  snaps: {
+    snaps: (entity) =>
+      entity.controlPoints.map((point, index) => ({
+        kind:
+          index === 0 || index === entity.controlPoints.length - 1
+            ? ("endpoint" as const)
+            : ("control" as const),
+        point,
+        label:
+          index === 0
+            ? "Extremo inicial"
+            : index === entity.controlPoints.length - 1
+              ? "Extremo final"
+              : `Control ${index + 1}`,
+      })),
+  },
+  properties: {
+    read: (entity) => ({
+      degree: entity.degree,
+      controlPointCount: entity.controlPoints.length,
+      closed: entity.closed === true,
+      layer: entity.layer,
+    }),
+    write: (entity, patch) => ({
+      ...entity,
+      degree: Math.max(
+        1,
+        Math.min(
+          entity.controlPoints.length - 1,
+          Math.floor(finite(patch.degree, entity.degree)),
+        ),
+      ),
+      closed:
+        typeof patch.closed === "boolean" ? patch.closed : entity.closed,
+      layer: typeof patch.layer === "string" ? patch.layer : entity.layer,
+    }),
+  },
+  commands: {
+    transform: (entity, transform) => ({
+      ...entity,
+      controlPoints: entity.controlPoints.map((point) =>
+        transformPoint(point, transform),
+      ),
+      knots: [...entity.knots],
+      ...(entity.weights ? { weights: [...entity.weights] } : {}),
+      context: cloneContext(entity.context),
+    }),
+  },
+};
+
+export class CadEntityRegistry {
+  private readonly adapters = new Map<
+    CadNativeEntityType,
+    CadEntityAdapter<CadNativeEntity>
+  >();
+
+  register<E extends CadNativeEntity>(adapter: CadEntityAdapter<E>): this {
+    this.adapters.set(
+      adapter.type,
+      adapter as CadEntityAdapter<CadNativeEntity>,
+    );
+    return this;
+  }
+
+  supports(entity: CadEntity): entity is CadNativeEntity {
+    return this.adapters.has(entity.type as CadNativeEntityType);
+  }
+
+  adapter<E extends CadNativeEntity>(entity: E): CadEntityAdapter<E> {
+    const adapter = this.adapters.get(entity.type);
+    if (!adapter) throw new Error(`No CAD entity adapter registered for ${entity.type}.`);
+    return adapter as CadEntityAdapter<E>;
+  }
+}
+
+export const CAD_ENTITY_REGISTRY = new CadEntityRegistry()
+  .register(arcAdapter)
+  .register(ellipseAdapter)
+  .register(splineAdapter);
+
+export type CadEntityCommand =
+  | { type: "transform"; entityId: string; transform: CadEntityTransform }
+  | { type: "properties"; entityId: string; patch: Partial<CadPropertyBag> }
+  | { type: "grip"; entityId: string; gripId: string; point: CadPoint2 }
+  | { type: "copy"; entityId: string; newEntityId: string; offset?: CadPoint2 }
+  | { type: "delete"; entityId: string };
+
+export interface CadEntityCommandResult {
+  document: CadDocument;
+  affectedEntityIds: string[];
+  createdEntityIds: string[];
+  deletedEntityIds: string[];
+}
+
+export function executeCadEntityCommand(
+  document: CadDocument,
+  command: CadEntityCommand,
+  registry = CAD_ENTITY_REGISTRY,
+): CadEntityCommandResult {
+  const source = document.entities.find((entity) => entity.id === command.entityId);
+  if (!source || !registry.supports(source))
+    throw new Error(`Native CAD entity ${command.entityId} was not found.`);
+  const adapter = registry.adapter(source);
+  let entities = [...document.entities];
+  const createdEntityIds: string[] = [];
+  const deletedEntityIds: string[] = [];
+  const label = `${command.type}:${source.type}`;
+
+  if (command.type === "delete") {
+    entities = entities.filter((entity) => entity.id !== source.id);
+    deletedEntityIds.push(source.id);
+  } else if (command.type === "copy") {
+    if (document.entities.some((entity) => entity.id === command.newEntityId))
+      throw new Error(`CAD entity id ${command.newEntityId} already exists.`);
+    const copy = adapter.commands.transform(
+      { ...source, id: command.newEntityId, context: cloneContext(source.context) },
+      { translation: command.offset ?? { x: 0, y: 0 } },
+    );
+    entities.push(copy);
+    createdEntityIds.push(copy.id);
+  } else {
+    const next =
+      command.type === "transform"
+        ? adapter.commands.transform(source, command.transform)
+        : command.type === "properties"
+          ? adapter.properties.write(source, command.patch)
+          : adapter.grips.moveGrip(source, command.gripId, command.point);
+    entities = entities.map((entity) => (entity.id === source.id ? next : entity));
+  }
+
+  entities.sort((a, b) => a.id.localeCompare(b.id));
+  const nextDocument = commitChange(
+    {
+      ...document,
+      entities,
+      modelSpace: {
+        entityIds: document.modelSpace.entityIds
+          .filter((id) => !deletedEntityIds.includes(id))
+          .concat(createdEntityIds)
+          .sort(),
+      },
+    },
+    label,
+  );
+  return {
+    document: nextDocument,
+    affectedEntityIds: [source.id],
+    createdEntityIds,
+    deletedEntityIds,
+  };
+}
+
+interface SpatialEntry {
+  bounds: CadBounds;
+  cells: string[];
+  overflow: boolean;
+}
+
+/**
+ * Incremental uniform-grid index for native CAD entities. It avoids scanning
+ * the whole document on pointermove and window selection. Very large entities
+ * live in a bounded overflow set instead of exploding the number of buckets.
+ */
+export class CadSpatialIndex {
+  private readonly buckets = new Map<string, Set<string>>();
+  private readonly entries = new Map<string, SpatialEntry>();
+  private readonly overflow = new Set<string>();
+
+  constructor(
+    private readonly cellSize = 2_000,
+    private readonly maxCellsPerEntity = 4_096,
+  ) {
+    if (!(cellSize > 0)) throw new Error("cellSize must be positive.");
+  }
+
+  private cellKeys(bounds: CadBounds): string[] {
+    const minX = Math.floor(bounds.minX / this.cellSize);
+    const maxX = Math.floor(bounds.maxX / this.cellSize);
+    const minY = Math.floor(bounds.minY / this.cellSize);
+    const maxY = Math.floor(bounds.maxY / this.cellSize);
+    const count = (maxX - minX + 1) * (maxY - minY + 1);
+    if (count > this.maxCellsPerEntity) return [];
+    const cells: string[] = [];
+    for (let x = minX; x <= maxX; x += 1)
+      for (let y = minY; y <= maxY; y += 1) cells.push(`${x}:${y}`);
+    return cells;
+  }
+
+  upsert(id: string, bounds: CadBounds): void {
+    this.remove(id);
+    const cells = this.cellKeys(bounds);
+    const overflow = cells.length === 0;
+    this.entries.set(id, { bounds: { ...bounds }, cells, overflow });
+    if (overflow) this.overflow.add(id);
+    for (const cell of cells) {
+      const bucket = this.buckets.get(cell) ?? new Set<string>();
+      bucket.add(id);
+      this.buckets.set(cell, bucket);
+    }
+  }
+
+  remove(id: string): void {
+    const entry = this.entries.get(id);
+    if (!entry) return;
+    for (const cell of entry.cells) {
+      const bucket = this.buckets.get(cell);
+      bucket?.delete(id);
+      if (bucket?.size === 0) this.buckets.delete(cell);
+    }
+    this.overflow.delete(id);
+    this.entries.delete(id);
+  }
+
+  search(bounds: CadBounds): string[] {
+    const result = new Set<string>(this.overflow);
+    for (const cell of this.cellKeys(bounds)) {
+      for (const id of this.buckets.get(cell) ?? []) result.add(id);
+    }
+    return [...result]
+      .filter((id) => {
+        const entry = this.entries.get(id);
+        return !!entry && boundsIntersect(entry.bounds, bounds);
+      })
+      .sort();
+  }
+
+  bounds(id: string): CadBounds | null {
+    const bounds = this.entries.get(id)?.bounds;
+    return bounds ? { ...bounds } : null;
+  }
+
+  get size(): number {
+    return this.entries.size;
+  }
+
+  clear(): void {
+    this.buckets.clear();
+    this.entries.clear();
+    this.overflow.clear();
+  }
+}
+
+export interface CadSceneSink<P> {
+  create(entity: CadNativeEntity): P;
+  update(entity: CadNativeEntity, projection: P): P;
+  remove(entityId: string, projection: P): void;
+}
+
+export interface CadSceneSyncStats {
+  created: number;
+  updated: number;
+  removed: number;
+  unchanged: number;
+  total: number;
+}
+
+export interface CadScenePatch {
+  upsert: CadNativeEntity[];
+  remove: string[];
+}
+
+/**
+ * Incremental CadDocument → scene projection. The canonical document remains
+ * authoritative; projections and their per-entity hashes are disposable.
+ */
+export class CadSceneSynchronizer<P> {
+  readonly spatialIndex: CadSpatialIndex;
+  private readonly versions = new Map<string, string>();
+  private readonly projections = new Map<string, P>();
+
+  constructor(
+    private readonly registry = CAD_ENTITY_REGISTRY,
+    spatialIndex = new CadSpatialIndex(),
+  ) {
+    this.spatialIndex = spatialIndex;
+  }
+
+  sync(document: CadDocument, sink: CadSceneSink<P>): CadSceneSyncStats {
+    const current = new Map(
+      document.entities
+        .filter((entity): entity is CadNativeEntity => this.registry.supports(entity))
+        .map((entity) => [entity.id, entity]),
+    );
+    let created = 0;
+    let updated = 0;
+    let removed = 0;
+    let unchanged = 0;
+
+    for (const [id, projection] of [...this.projections]) {
+      if (current.has(id)) continue;
+      sink.remove(id, projection);
+      this.projections.delete(id);
+      this.versions.delete(id);
+      this.spatialIndex.remove(id);
+      removed += 1;
+    }
+
+    for (const entity of current.values()) {
+      const version = JSON.stringify(entity);
+      const previous = this.projections.get(entity.id);
+      if (!previous) {
+        this.projections.set(entity.id, sink.create(entity));
+        this.spatialIndex.upsert(
+          entity.id,
+          this.registry.adapter(entity).bounds.bounds(entity),
+        );
+        created += 1;
+      } else if (this.versions.get(entity.id) !== version) {
+        this.projections.set(entity.id, sink.update(entity, previous));
+        this.spatialIndex.upsert(
+          entity.id,
+          this.registry.adapter(entity).bounds.bounds(entity),
+        );
+        updated += 1;
+      } else {
+        unchanged += 1;
+      }
+      this.versions.set(entity.id, version);
+    }
+
+    return {
+      created,
+      updated,
+      removed,
+      unchanged,
+      total: current.size,
+    };
+  }
+
+  /**
+   * Applies a known document delta without scanning or hashing the complete
+   * drawing. Command handlers can use this for pointermove and small edits,
+   * while `sync` remains the safe reconciliation path after load/undo/redo.
+   */
+  applyPatch(patch: CadScenePatch, sink: CadSceneSink<P>): CadSceneSyncStats {
+    let created = 0;
+    let updated = 0;
+    let removed = 0;
+    let unchanged = 0;
+
+    for (const id of new Set(patch.remove)) {
+      const projection = this.projections.get(id);
+      if (!projection) continue;
+      sink.remove(id, projection);
+      this.projections.delete(id);
+      this.versions.delete(id);
+      this.spatialIndex.remove(id);
+      removed += 1;
+    }
+
+    for (const entity of patch.upsert) {
+      const version = JSON.stringify(entity);
+      const previous = this.projections.get(entity.id);
+      if (!previous) {
+        this.projections.set(entity.id, sink.create(entity));
+        created += 1;
+      } else if (this.versions.get(entity.id) !== version) {
+        this.projections.set(entity.id, sink.update(entity, previous));
+        updated += 1;
+      } else {
+        unchanged += 1;
+      }
+      if (!previous || this.versions.get(entity.id) !== version) {
+        this.spatialIndex.upsert(
+          entity.id,
+          this.registry.adapter(entity).bounds.bounds(entity),
+        );
+      }
+      this.versions.set(entity.id, version);
+    }
+
+    return {
+      created,
+      updated,
+      removed,
+      unchanged,
+      total: this.projections.size,
+    };
+  }
+
+  projection(entityId: string): P | undefined {
+    return this.projections.get(entityId);
+  }
+
+  entries(): [string, P][] {
+    return [...this.projections.entries()];
+  }
+
+  clear(sink: Pick<CadSceneSink<P>, "remove">): void {
+    for (const [id, projection] of this.projections)
+      sink.remove(id, projection);
+    this.projections.clear();
+    this.versions.clear();
+    this.spatialIndex.clear();
+  }
+}

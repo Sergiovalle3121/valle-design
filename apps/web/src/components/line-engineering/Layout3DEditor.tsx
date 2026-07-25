@@ -102,6 +102,23 @@ import {
   type CadEntity,
 } from '@/lib/cad/cad-document';
 import {
+  CAD_ENTITY_REGISTRY,
+  CadSceneSynchronizer,
+  executeCadEntityCommand,
+  type CadNativeEntity,
+  type CadPropertyBag,
+  type CadScenePatch,
+} from '@/lib/cad/entity-runtime';
+import {
+  buildCadNativeObject,
+  disposeCadNativeObject,
+  setCadNativeObjectSelected,
+} from '@/lib/cad/entity-three';
+import {
+  cadDocumentNativeDxfPrimitives,
+  cadDxfCurvesToNativeEntities,
+} from '@/lib/cad/dxf-cad-document';
+import {
   describeCadObjectProperties,
   summarizeCadSelectionProperties,
   type CadObjectProperties,
@@ -872,6 +889,9 @@ export default function Layout3DEditor({
   const [selList, setSelList] = useState<SelItem[]>([]);
   const [selSnap, setSelSnap] = useState<SelSnap | null>(null);
   const [selSummary, setSelSummary] = useState<CadSelectionProperties | null>(null);
+  const [nativeSelectionIds, setNativeSelectionIds] = useState<string[]>([]);
+  const [nativeDocumentRevision, setNativeDocumentRevision] = useState(0);
+  const [nativeEntities, setNativeEntities] = useState<CadNativeEntity[]>([]);
   const [placedIds, setPlacedIds] = useState<Set<string>>(new Set());
   const [assetIds, setAssetIds] = useState<Set<string>>(new Set());
   const [tab, setTab] = useState<'stations' | 'equipment'>(standalone ? 'equipment' : 'stations');
@@ -990,6 +1010,7 @@ export default function Layout3DEditor({
   const controlsRef = useRef<OrbitControls | null>(null);
   const blocksRef = useRef<THREE.Group | null>(null);
   const assetsGroupRef = useRef<THREE.Group | null>(null);
+  const nativeGroupRef = useRef<THREE.Group | null>(null);
   const dimsGroupRef = useRef<THREE.Group | null>(null);
   const notesGroupRef = useRef<THREE.Group | null>(null);
   const connsGroupRef = useRef<THREE.Group | null>(null);
@@ -1033,6 +1054,10 @@ export default function Layout3DEditor({
   const undoStackRef = useRef<CadDocument[]>([]);
   const redoStackRef = useRef<CadDocument[]>([]);
   const loadedCadDocumentRef = useRef<CadDocument | null>(null);
+  const nativeSelectionIdsRef = useRef<string[]>([]);
+  const nativeSceneSyncRef = useRef<CadSceneSynchronizer<THREE.Object3D> | null>(null);
+  if (nativeSceneSyncRef.current === null)
+    nativeSceneSyncRef.current = new CadSceneSynchronizer<THREE.Object3D>();
 
   // layout state refs (drive both the scene and the save)
   const placementsRef = useRef<Map<string, Placement>>(new Map());
@@ -1110,6 +1135,20 @@ export default function Layout3DEditor({
       assetsGroupRef.current.children.forEach((child) => {
         const assetId = child.userData?.assetId as string | undefined;
         if (assetId) child.visible = L.equipment && cadVisible(assetId, defaultLayerForAsset(assetId));
+      });
+    }
+    if (nativeGroupRef.current) {
+      const document = loadedCadDocumentRef.current;
+      nativeGroupRef.current.visible = L.equipment;
+      nativeGroupRef.current.children.forEach((child) => {
+        const entityId = child.userData?.nativeEntityId as string | undefined;
+        const entity = entityId
+          ? document?.entities.find((candidate) => candidate.id === entityId)
+          : undefined;
+        const layer = entity
+          ? document?.layers.find((candidate) => candidate.id === entity.layer)
+          : undefined;
+        child.visible = L.equipment && layer?.visible !== false;
       });
     }
     if (connsGroupRef.current) connsGroupRef.current.visible = L.connectors && cadLayerVisible('flow');
@@ -1284,10 +1323,10 @@ export default function Layout3DEditor({
     let alive = true;
     queueMicrotask(() => {
       if (!alive) return;
-      setData(null); setError(null); setSelList([]); setSelSnap(null); setDirty(false); setTab('stations');
+      setData(null); setError(null); setSelList([]); setSelSnap(null); setNativeSelectionIds([]); setNativeEntities([]); setDirty(false); setTab('stations');
       setOverlay(null); setTool('select'); setMeasureLive(null); setWalk(false); setHist({ undo: 0, redo: 0 }); setCellsView([]); setValidationHighlightIds(new Set()); setCollisionHits([]); setClearanceIssues([]); setSafetyIssues([]); setCadValidationReport(null); setIndustrySummary(null); setFlowHealth(null); setFlowSequence([]); setFlowSegments([]); setSnapshotDiff(null); setReport(null);
     });
-    selRef.current = []; overlayColorRef.current = new Map(); validationHighlightRef.current = new Set(); toolRef.current = 'select'; measureARef.current = null; wallChainRef.current = null;
+    selRef.current = []; nativeSelectionIdsRef.current = []; overlayColorRef.current = new Map(); validationHighlightRef.current = new Set(); toolRef.current = 'select'; measureARef.current = null; wallChainRef.current = null;
     walkRef.current = false; savedCamRef.current = null; undoStackRef.current = []; redoStackRef.current = []; loadedCadDocumentRef.current = null;
     (async () => {
       try {
@@ -1353,6 +1392,13 @@ export default function Layout3DEditor({
           loadedCadDocumentRef.current = projection;
           toast.error('El documento CAD canónico no era válido; se cargó la proyección compatible.', 'CAD');
         }
+        setNativeEntities(
+          (loadedCadDocumentRef.current?.entities ?? []).filter(
+            (entity): entity is CadNativeEntity =>
+              CAD_ENTITY_REGISTRY.supports(entity),
+          ),
+        );
+        setNativeDocumentRevision((value) => value + 1);
         setData(d);
         // fetch + parse the read-only DXF backdrop (the endpoint already serves
         // the raw drawing); render it on the floor once ready.
@@ -1512,6 +1558,65 @@ export default function Layout3DEditor({
     });
   }, []);
 
+  const refreshNativeSelectionVisuals = useCallback(() => {
+    const selected = new Set(nativeSelectionIdsRef.current);
+    for (const [id, object] of nativeSceneSyncRef.current?.entries() ?? [])
+      setCadNativeObjectSelected(object, selected.has(id));
+  }, []);
+  const selectNative = useCallback((ids: string[]) => {
+    const document = loadedCadDocumentRef.current;
+    const next = [...new Set(ids)]
+      .filter((id) => {
+        const entity = document?.entities.find((candidate) => candidate.id === id);
+        return !!entity && CAD_ENTITY_REGISTRY.supports(entity);
+      })
+      .slice(0, 300);
+    nativeSelectionIdsRef.current = next;
+    setNativeSelectionIds(next);
+    selRef.current = [];
+    setSelList([]);
+    setSelSnap(null);
+    setSelSummary(null);
+    refreshNativeSelectionVisuals();
+  }, [refreshNativeSelectionVisuals]);
+  const clearNativeSelection = useCallback(() => {
+    nativeSelectionIdsRef.current = [];
+    setNativeSelectionIds([]);
+    refreshNativeSelectionVisuals();
+  }, [refreshNativeSelectionVisuals]);
+  const syncNativeScene = useCallback((
+    document = loadedCadDocumentRef.current,
+    patch?: CadScenePatch,
+  ) => {
+    const group = nativeGroupRef.current;
+    const context = ctxRef.current;
+    const synchronizer = nativeSceneSyncRef.current;
+    if (!document || !group || !context || !synchronizer) return;
+    const render = (entity: CadNativeEntity) => {
+      const object = buildCadNativeObject(entity, {
+        scale: context.s,
+        width: context.W,
+        height: context.H,
+      }, nativeSelectionIdsRef.current.includes(entity.id));
+      group.add(object);
+      return object;
+    };
+    const sink: Parameters<typeof synchronizer.sync>[1] = {
+      create: render,
+      update: (entity, projection) => {
+        disposeCadNativeObject(projection);
+        return render(entity);
+      },
+      remove: (_id, projection) => {
+        disposeCadNativeObject(projection);
+      },
+    };
+    if (patch) synchronizer.applyPatch(patch, sink);
+    else synchronizer.sync(document, sink);
+    refreshNativeSelectionVisuals();
+    applyLayersRef.current();
+  }, [refreshNativeSelectionVisuals]);
+
   // ---- (re)build the read-only DXF floor-plan overlay (lines on the floor) ----
   const rebuildDxf = useCallback(() => {
     const group = dxfGroupRef.current; const ctx = ctxRef.current;
@@ -1664,7 +1769,7 @@ export default function Layout3DEditor({
     }
   }, [showGaps, loadGaps]);
 
-  const rebuildAll = useCallback(() => { rebuildBlocks(); rebuildAssets(); rebuildDims(); rebuildNotes(); rebuildCellsRef.current(); }, [rebuildBlocks, rebuildAssets, rebuildDims, rebuildNotes]);
+  const rebuildAll = useCallback(() => { rebuildBlocks(); rebuildAssets(); rebuildDims(); rebuildNotes(); syncNativeScene(); rebuildCellsRef.current(); }, [rebuildBlocks, rebuildAssets, rebuildDims, rebuildNotes, syncNativeScene]);
 
   // ---- live station-status overlay: colour blocks by MES / heat / etc. (unify) ----
   const loadOverlay = useCallback(async (kind: OverlayKind | null) => {
@@ -1767,6 +1872,9 @@ export default function Layout3DEditor({
     const kept = selRef.current.filter((c) => c.type === 'station' ? placementsRef.current.has(c.id) : assetsRef.current.has(c.id));
     selRef.current = kept; setSelList(kept);
     setSelSnap(kept.length === 1 ? computeSnap(kept[0]) : null);
+    const nativeIds = new Set((loadedCadDocumentRef.current?.entities ?? []).filter((entity) => CAD_ENTITY_REGISTRY.supports(entity)).map((entity) => entity.id));
+    const keptNative = nativeSelectionIdsRef.current.filter((id) => nativeIds.has(id));
+    nativeSelectionIdsRef.current = keptNative; setNativeSelectionIds(keptNative);
     setDirty(true); rebuildAll();
   }, [computeSnap, rebuildAll]);
   const undo = useCallback(() => {
@@ -1774,6 +1882,13 @@ export default function Layout3DEditor({
     redoStackRef.current.push(snapshotDocument());
     const document = undoStackRef.current.pop()!;
     loadedCadDocumentRef.current = document;
+    setNativeEntities(
+      document.entities.filter(
+        (entity): entity is CadNativeEntity =>
+          CAD_ENTITY_REGISTRY.supports(entity),
+      ),
+    );
+    setNativeDocumentRevision((value) => value + 1);
     restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
     setHist({ undo: undoStackRef.current.length, redo: redoStackRef.current.length });
   }, [snapshotDocument, restore]);
@@ -1782,9 +1897,86 @@ export default function Layout3DEditor({
     undoStackRef.current.push(snapshotDocument());
     const document = redoStackRef.current.pop()!;
     loadedCadDocumentRef.current = document;
+    setNativeEntities(
+      document.entities.filter(
+        (entity): entity is CadNativeEntity =>
+          CAD_ENTITY_REGISTRY.supports(entity),
+      ),
+    );
+    setNativeDocumentRevision((value) => value + 1);
     restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
     setHist({ undo: undoStackRef.current.length, redo: redoStackRef.current.length });
   }, [snapshotDocument, restore]);
+
+  const commitNativeCommands = useCallback((
+    commands: Parameters<typeof executeCadEntityCommand>[1][],
+    nextSelection?: string[],
+  ) => {
+    if (!commands.length) return;
+    const checkpoint = snapshotDocument();
+    try {
+      let document = checkpoint;
+      for (const command of commands)
+        document = executeCadEntityCommand(document, command).document;
+      undoStackRef.current.push(checkpoint);
+      if (undoStackRef.current.length > 80) undoStackRef.current.shift();
+      redoStackRef.current = [];
+      setHist({ undo: undoStackRef.current.length, redo: 0 });
+      loadedCadDocumentRef.current = document;
+      const existing = new Set(document.entities.map((entity) => entity.id));
+      const selected = (nextSelection ?? nativeSelectionIdsRef.current).filter((id) => existing.has(id));
+      nativeSelectionIdsRef.current = selected;
+      setNativeSelectionIds(selected);
+      setNativeEntities(
+        document.entities.filter(
+          (entity): entity is CadNativeEntity =>
+            CAD_ENTITY_REGISTRY.supports(entity),
+        ),
+      );
+      setNativeDocumentRevision((value) => value + 1);
+      setDirty(true);
+      const touchedIds = new Set(
+        commands.flatMap((command) =>
+          command.type === 'copy'
+            ? [command.entityId, command.newEntityId]
+            : [command.entityId],
+        ),
+      );
+      const upsert = document.entities.filter(
+        (entity): entity is CadNativeEntity =>
+          touchedIds.has(entity.id) && CAD_ENTITY_REGISTRY.supports(entity),
+      );
+      const remove = checkpoint.entities
+        .filter(
+          (entity) =>
+            touchedIds.has(entity.id) &&
+            !document.entities.some((candidate) => candidate.id === entity.id),
+        )
+        .map((entity) => entity.id);
+      syncNativeScene(document, { upsert, remove });
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : 'No se pudo editar la entidad.', 'Entidad CAD');
+    }
+  }, [snapshotDocument, syncNativeScene, toast]);
+  const updateNativeProperties = useCallback((entityId: string, patch: Partial<CadPropertyBag>) => {
+    commitNativeCommands([{ type: 'properties', entityId, patch }]);
+  }, [commitNativeCommands]);
+  const transformNativeSelection = useCallback((transform: { translation?: { x: number; y: number }; rotationDeg?: number; scale?: number; origin?: { x: number; y: number } }) => {
+    commitNativeCommands(nativeSelectionIdsRef.current.map((entityId) => ({ type: 'transform' as const, entityId, transform })));
+  }, [commitNativeCommands]);
+  const copyNativeSelection = useCallback(() => {
+    const offset = Math.max(1, data?.footprint.gridSize ?? 100);
+    const ids = nativeSelectionIdsRef.current.map(() => newId('cad'));
+    commitNativeCommands(nativeSelectionIdsRef.current.map((entityId, index) => ({
+      type: 'copy' as const,
+      entityId,
+      newEntityId: ids[index],
+      offset: { x: offset, y: offset },
+    })), ids);
+  }, [commitNativeCommands, data?.footprint.gridSize]);
+  const removeNativeSelection = useCallback(() => {
+    commitNativeCommands(nativeSelectionIdsRef.current.map((entityId) => ({ type: 'delete' as const, entityId })), []);
+  }, [commitNativeCommands]);
 
   // ---- scene lifecycle ----
   useEffect(() => {
@@ -1797,6 +1989,9 @@ export default function Layout3DEditor({
     const W = fp.footprintW || 1; const H = fp.footprintH || 1;
     const s = 30 / Math.max(W, H);
     ctxRef.current = { s, W, H };
+    nativeSceneSyncRef.current?.clear({
+      remove: (_id, projection) => disposeCadNativeObject(projection),
+    });
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0a0f1e);
@@ -1842,6 +2037,7 @@ export default function Layout3DEditor({
     rebuildCellsRef.current();
 
     const assetsGroup = new THREE.Group(); scene.add(assetsGroup); assetsGroupRef.current = assetsGroup;
+    const nativeGroup = new THREE.Group(); scene.add(nativeGroup); nativeGroupRef.current = nativeGroup;
     const connsGroup = new THREE.Group(); scene.add(connsGroup); connsGroupRef.current = connsGroup;
     const dimsGroup = new THREE.Group(); scene.add(dimsGroup); dimsGroupRef.current = dimsGroup;
     const previewLine = new THREE.Line(
@@ -1873,6 +2069,7 @@ export default function Layout3DEditor({
     const guidesGroup = new THREE.Group(); scene.add(guidesGroup); guidesGroupRef.current = guidesGroup;
     const blocks = new THREE.Group(); scene.add(blocks); blocksRef.current = blocks;
     rebuildAssets();
+    syncNativeScene();
     rebuildDims();
     rebuildNotes();
     rebuildDxf();
@@ -1889,10 +2086,12 @@ export default function Layout3DEditor({
 
     // ---- drag a station block or an asset on the floor ----
     const raycaster = new THREE.Raycaster();
+    raycaster.params.Line = { threshold: 0.22 };
     const ptr = new THREE.Vector2();
     const floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     const hit = new THREE.Vector3();
     let drag: { lead: SelItem; items: SelItem[]; grabDX: number; grabDZ: number; start: Map<string, { x: number; y: number }>; xEdges: number[]; yEdges: number[] } | null = null;
+    let nativeGripDrag: { entityId: string; gripId: string; checkpoint: CadDocument; moved: boolean } | null = null;
     // Snap a moving box's edges/centre to other objects' edges/centres + the
     // footprint, returning the offset to apply and the world axis to draw a guide.
     const snap1D = (lo: number, len: number, edges: number[], tol: number): { off: number; axis: number } | null => {
@@ -1935,6 +2134,11 @@ export default function Layout3DEditor({
     const resolveAssetId = (o: THREE.Object3D | null): string | null => {
       let cur: THREE.Object3D | null = o;
       while (cur) { if (cur.userData?.assetId) return cur.userData.assetId as string; cur = cur.parent; }
+      return null;
+    };
+    const resolveNativeEntityId = (o: THREE.Object3D | null): string | null => {
+      let cur: THREE.Object3D | null = o;
+      while (cur) { if (cur.userData?.nativeEntityId) return cur.userData.nativeEntityId as string; cur = cur.parent; }
       return null;
     };
     const getPlace = (it: SelItem) => (it.type === 'station' ? placementsRef.current.get(it.id) : assetsRef.current.get(it.id));
@@ -1983,6 +2187,22 @@ export default function Layout3DEditor({
           const g = rectGeometry(b);
           scene.segments!.push(...g.edges); scene.endpoints!.push(...g.corners); scene.centers!.push(g.center);
         }
+        const document = loadedCadDocumentRef.current;
+        const nativeIds = nativeSceneSyncRef.current?.spatialIndex.search({
+          minX: wx - tol * 4,
+          minY: wy - tol * 4,
+          maxX: wx + tol * 4,
+          maxY: wy + tol * 4,
+        }) ?? [];
+        for (const id of nativeIds.slice(0, 48)) {
+          const entity = document?.entities.find((candidate) => candidate.id === id);
+          if (!entity || !CAD_ENTITY_REGISTRY.supports(entity)) continue;
+          for (const snap of CAD_ENTITY_REGISTRY.adapter(entity).snaps.snaps(entity, { x: wx, y: wy })) {
+            if (snap.kind === 'center') scene.centers!.push(snap.point);
+            else if (snap.kind === 'control') scene.nodes!.push(snap.point);
+            else scene.endpoints!.push(snap.point);
+          }
+        }
         const hit = resolveOsnap({ x: wx, y: wy }, scene, {
           tolerance: tol,
           // intersección/perp/cercano quedan fuera: costosos u over-greedy para
@@ -2030,9 +2250,37 @@ export default function Layout3DEditor({
         .map((h) => ({ d: h.distance, id: resolveAssetId(h.object) }))
         .filter((h) => h.id)
         .map((h) => ({ d: h.d, type: 'asset' as const, id: h.id as string, obj: groupByAssetRef.current.get(h.id as string)! }));
-      const all = [...stationHits, ...assetHits].sort((a, b) => a.d - b.d);
+      const nativeHits = raycaster.intersectObjects(nativeGroup.children, true)
+        .map((h) => ({ d: h.distance, id: resolveNativeEntityId(h.object), gripId: h.object.userData?.nativeGripId as string | undefined }))
+        .filter((h) => h.id)
+        .map((h) => ({ d: h.d, type: 'native' as const, id: h.id as string, obj: h, gripId: h.gripId }));
+      const all = [...stationHits, ...assetHits, ...nativeHits].sort((a, b) => a.d - b.d);
       if (all.length) {
         const top = all[0];
+        if (top.type === 'native') {
+          if (top.gripId) {
+            selectNative([top.id]);
+            nativeGripDrag = {
+              entityId: top.id,
+              gripId: top.gripId,
+              checkpoint: snapshotDocument(),
+              moved: false,
+            };
+            controls.enabled = false;
+            renderer.domElement.setPointerCapture(e.pointerId);
+            return;
+          }
+          const current = nativeSelectionIdsRef.current;
+          const next = e.shiftKey
+            ? current.includes(top.id)
+              ? current.filter((id) => id !== top.id)
+              : [...current, top.id]
+            : [top.id];
+          selectNative(next);
+          rebuildAll();
+          return;
+        }
+        clearNativeSelection();
         const item: SelItem = { type: top.type, id: top.id };
         // Grupos (ADR §223): clic selecciona el grupo completo; Alt+clic entra
         // al objeto individual sin disolver nada.
@@ -2087,7 +2335,7 @@ export default function Layout3DEditor({
           renderer.domElement.setPointerCapture(e.pointerId);
         }
       } else if (e.button === 0 && !e.shiftKey) {
-        select([]); rebuildAll();
+        select([]); clearNativeSelection(); rebuildAll();
       }
     };
     const onMove = (e: PointerEvent) => {
@@ -2101,6 +2349,33 @@ export default function Layout3DEditor({
       if (marquee) {
         const w = floorWorld(e);
         if (w) { marquee.x1 = w.wx; marquee.y1 = w.wy; drawMarquee(marquee); }
+        return;
+      }
+      if (nativeGripDrag) {
+        const world = floorWorld(e);
+        if (!world) return;
+        const snapped = snapFloor(world.wx, world.wy);
+        const document = loadedCadDocumentRef.current;
+        const entity = document?.entities.find((candidate) => candidate.id === nativeGripDrag!.entityId);
+        if (!document || !entity || !CAD_ENTITY_REGISTRY.supports(entity)) return;
+        const next = CAD_ENTITY_REGISTRY.adapter(entity).grips.moveGrip(entity, nativeGripDrag.gripId, { x: snapped.wx, y: snapped.wy });
+        const nextDocument = {
+          ...document,
+          entities: document.entities.map((candidate) => candidate.id === entity.id ? next : candidate),
+        };
+        loadedCadDocumentRef.current = nextDocument;
+        nativeGripDrag.moved = true;
+        setNativeEntities(
+          nextDocument.entities.filter(
+            (candidate): candidate is CadNativeEntity =>
+              CAD_ENTITY_REGISTRY.supports(candidate),
+          ),
+        );
+        setNativeDocumentRevision((value) => value + 1);
+        syncNativeScene(loadedCadDocumentRef.current, {
+          upsert: [next],
+          remove: [],
+        });
         return;
       }
       if (toolRef.current === 'measure' || toolRef.current === 'wall' || isCadDrawTool(toolRef.current)) {
@@ -2160,6 +2435,28 @@ export default function Layout3DEditor({
     };
     const onUp = (e: PointerEvent) => {
       if (walkRef.current) { walkLook = false; try { renderer.domElement.releasePointerCapture(e.pointerId); } catch { /* ignore */ } return; }
+      if (nativeGripDrag) {
+        if (nativeGripDrag.moved && loadedCadDocumentRef.current) {
+          undoStackRef.current.push(nativeGripDrag.checkpoint);
+          if (undoStackRef.current.length > 80) undoStackRef.current.shift();
+          redoStackRef.current = [];
+          loadedCadDocumentRef.current = commitChange(loadedCadDocumentRef.current, `grip:${nativeGripDrag.entityId}:${nativeGripDrag.gripId}`);
+          setHist({ undo: undoStackRef.current.length, redo: 0 });
+          setNativeEntities(
+            loadedCadDocumentRef.current.entities.filter(
+              (entity): entity is CadNativeEntity =>
+                CAD_ENTITY_REGISTRY.supports(entity),
+            ),
+          );
+          setNativeDocumentRevision((value) => value + 1);
+          setDirty(true);
+          syncNativeScene(loadedCadDocumentRef.current);
+        }
+        nativeGripDrag = null;
+        controls.enabled = true;
+        try { renderer.domElement.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+        return;
+      }
       if (marquee) {
         const m = marquee; marquee = null;
         marqueeLine.visible = false; controls.enabled = true;
@@ -2178,10 +2475,21 @@ export default function Layout3DEditor({
         const found: SelItem[] = [];
         placementsRef.current.forEach((p, id) => { if (inWindow(p)) found.push({ type: 'station', id }); });
         assetsRef.current.forEach((a) => { if (inWindow(a)) found.push({ type: 'asset', id: a.id }); });
+        const nativeWindow = { minX, minY, maxX, maxY };
+        const document = loadedCadDocumentRef.current;
+        const nativeFound = (nativeSceneSyncRef.current?.spatialIndex.search(nativeWindow) ?? [])
+          .filter((id) => {
+            const entity = document?.entities.find((candidate) => candidate.id === id);
+            return !!entity && CAD_ENTITY_REGISTRY.supports(entity)
+              && CAD_ENTITY_REGISTRY.adapter(entity).hitTester.intersectsWindow(entity, nativeWindow, crossing);
+          });
         const merged = [...selRef.current];
         found.forEach((it) => { if (!merged.some((s) => sameSel(s, it))) merged.push(it); });
-        select(merged.slice(0, 300)); rebuildAll();
-        if (found.length) toast.success(`${found.length} objeto(s) seleccionados por ${crossing ? 'cruce' : 'ventana'}.`, 'Selección');
+        select(merged.slice(0, 300));
+        const mergedNative = [...new Set([...nativeSelectionIdsRef.current, ...nativeFound])].slice(0, 300);
+        nativeSelectionIdsRef.current = mergedNative; setNativeSelectionIds(mergedNative);
+        rebuildAll();
+        if (found.length + nativeFound.length) toast.success(`${found.length + nativeFound.length} objeto(s) seleccionados por ${crossing ? 'cruce' : 'ventana'}.`, 'Selección');
         return;
       }
       const isClick = Math.hypot(e.clientX - downX, e.clientY - downY) < 5;
@@ -2345,10 +2653,11 @@ export default function Layout3DEditor({
       window.removeEventListener('keyup', walkKu);
       controls.dispose();
       disposeObject(scene);
+      nativeSceneSyncRef.current?.clear({ remove: () => {} });
       renderer.dispose();
       if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
       sceneRef.current = null; rendererRef.current = null; cameraRef.current = null;
-      blocksRef.current = null; assetsGroupRef.current = null; controlsRef.current = null;
+      blocksRef.current = null; assetsGroupRef.current = null; nativeGroupRef.current = null; controlsRef.current = null;
       dimsGroupRef.current = null; previewLineRef.current = null; snapMarkerRef.current = null;
       connsGroupRef.current = null; gridGroupRef.current = null; groundRef.current = null; gridHelperRef.current = null;
       dirLightRef.current = null; notesGroupRef.current = null; dxfGroupRef.current = null;
@@ -2374,11 +2683,11 @@ export default function Layout3DEditor({
       const t = prev === next && next !== 'select' ? 'select' : next;
       toolRef.current = t;
       if (t === 'select') endDraw();
-      else { endDraw(); select([]); }
+      else { endDraw(); select([]); clearNativeSelection(); }
       if (isCadDrawTool(t)) { const cmd = startCommand(t); drawCommandRef.current = cmd; setDrawPrompt(cmd.prompt); setMeasureLive(cmd.prompt); }
       return t;
     });
-  }, [endDraw, select]);
+  }, [clearNativeSelection, endDraw, select]);
   const toggleMeasure = useCallback(() => setToolMode('measure'), [setToolMode]);
   const toggleWall = useCallback(() => setToolMode('wall'), [setToolMode]);
   const startCadDrawTool = useCallback((id: CadDrawCommandId) => setToolMode(id), [setToolMode]);
@@ -3736,18 +4045,30 @@ export default function Layout3DEditor({
     recordLocalSnapshot('Auto · antes de convertir DXF', 'import');
     pushHistory();
     const created: SelItem[] = [];
+    const nativeCreated: CadNativeEntity[] = [];
     const layerUpdates: Record<string, CadLayerId> = {};
     const tagUpdates: Record<string, string> = {};
     let notes = 0;
     let truncated = false;
     const cap = 850;
     for (const primitive of preview.primitives) {
-      if (created.length >= cap) { truncated = true; break; }
+      if (created.length + nativeCreated.length >= cap) { truncated = true; break; }
       const points = primitive.points.map((point) => projectDxfPoint(point, bounds, dm, meta));
       if (primitive.kind === 'text' && points[0] && primitive.text) {
         const id = newId('nt');
         annotationsRef.current.set(id, { id, type: 'text', x: snapWorld(points[0].x), y: snapWorld(points[0].y), text: primitive.text.slice(0, 80) });
         notes++;
+        continue;
+      }
+      if (primitive.kind === 'arc' || primitive.kind === 'ellipse' || primitive.kind === 'spline') {
+        const imported = cadDxfCurvesToNativeEntities([primitive], {
+          idPrefix: newId('cad'),
+          projection: {
+            point: (point) => projectDxfPoint(point, bounds, dm, meta),
+          },
+          provider: 'dxf',
+        });
+        nativeCreated.push(...imported);
         continue;
       }
       if (primitive.kind === 'rect' && points.length >= 4) {
@@ -3773,27 +4094,42 @@ export default function Layout3DEditor({
         }
         continue;
       }
-      // Curvas (arco/elipse/spline): se teselan a la TRAYECTORIA real
-      // (CAD-NEXT-062, De Boor para splines — no el polígono de control) en
-      // coordenadas crudas del DXF y cada tramo se materializa como muro.
-      const curvePoints = tessellateDxfPrimitive(primitive, 24);
-      const chain = curvePoints
-        ? curvePoints.map((point) => projectDxfPoint(point, bounds, dm, meta))
-        : points;
+      const chain = points;
       for (let i = 0; i + 1 < chain.length; i++) {
-        if (created.length >= cap) { truncated = true; break; }
-        const id = createDxfWallAsset(chain[i], chain[i + 1], `DXF ${curvePoints ? primitive.kind : 'line'} · ${primitive.layer}`);
+        if (created.length + nativeCreated.length >= cap) { truncated = true; break; }
+        const id = createDxfWallAsset(chain[i], chain[i + 1], `DXF line · ${primitive.layer}`);
         if (id) { created.push({ type: 'asset', id }); layerUpdates[id] = mapDxfLayerToCadLayer(primitive.layer, 'architecture'); tagUpdates[id] = `dxf, dxf-layer:${primitive.layer}, editable-wall, architecture`; }
       }
     }
-    if (!created.length && !notes) { toast.error('No se encontraron entidades DXF seguras para convertir.', 'DXF'); return; }
+    if (!created.length && !nativeCreated.length && !notes) { toast.error('No se encontraron entidades DXF seguras para convertir.', 'DXF'); return; }
     setAssetIds(new Set(assetsRef.current.keys()));
     setLayerAssignments((cur) => ({ ...cur, ...layerUpdates }));
     setObjectTags((cur) => ({ ...cur, ...tagUpdates }));
     if (notes) { setDimCount([...annotationsRef.current.values()].filter((ann) => ann.type === 'dim').length); rebuildDims(); }
-    if (created.length) select(created.slice(0, 80));
+    if (nativeCreated.length) {
+      const current = snapshotDocument();
+      const nativeIds = new Set(nativeCreated.map((entity) => entity.id));
+      const entities = [...current.entities.filter((entity) => !nativeIds.has(entity.id)), ...nativeCreated]
+        .sort((a, b) => a.id.localeCompare(b.id));
+      const document = commitChange({
+        ...current,
+        entities,
+        modelSpace: { entityIds: entities.map((entity) => entity.id) },
+      }, 'import:dxf-native-curves');
+      loadedCadDocumentRef.current = document;
+      nativeSelectionIdsRef.current = nativeCreated.map((entity) => entity.id).slice(0, 80);
+      setNativeSelectionIds(nativeSelectionIdsRef.current);
+      setNativeEntities(
+        document.entities.filter(
+          (entity): entity is CadNativeEntity =>
+            CAD_ENTITY_REGISTRY.supports(entity),
+        ),
+      );
+      setNativeDocumentRevision((value) => value + 1);
+      syncNativeScene(document);
+    } else if (created.length) select(created.slice(0, 80));
     setDirty(true); rebuildAll();
-    toast.success(`${created.length} objeto(s) y ${notes} nota(s) convertidos${truncated ? ' (recortado por seguridad)' : ''}.`, 'DXF editable');
+    toast.success(`${created.length} objeto(s), ${nativeCreated.length} curva(s) nativa(s) y ${notes} nota(s) convertidos${truncated ? ' (recortado por seguridad)' : ''}.`, 'DXF editable');
   };
   // ---- auto-dimension the layout into a measured drawing (Fase 59) ----
   // Acota lo seleccionado (o todo el layout): medidas generales + cotas
@@ -4900,7 +5236,12 @@ export default function Layout3DEditor({
       ...[...placementsRef.current.keys()].map((id) => ({ type: 'station' as const, id })),
       ...[...assetsRef.current.keys()].map((id) => ({ type: 'asset' as const, id })),
     ];
-    select(items); rebuildAll();
+    select(items);
+    const nativeIds = (loadedCadDocumentRef.current?.entities ?? [])
+      .filter((entity) => CAD_ENTITY_REGISTRY.supports(entity))
+      .map((entity) => entity.id);
+    nativeSelectionIdsRef.current = nativeIds; setNativeSelectionIds(nativeIds);
+    rebuildAll();
   };
   const viewPreset = (preset: 'top' | 'iso' | 'front') => {
     const cam = cameraRef.current; const ctrl = controlsRef.current; const ctx = ctxRef.current;
@@ -4925,6 +5266,12 @@ export default function Layout3DEditor({
     const wantAsset = (id: string) => scope === 'all' || sel.some((it) => it.type === 'asset' && it.id === id);
     placementsRef.current.forEach((p, id) => { if (wantStation(id)) add(p.x, p.y, p.w, p.h); });
     assetsRef.current.forEach((a) => { if (wantAsset(a.id)) add(a.x, a.y, a.w, a.h); });
+    const selectedNative = new Set(nativeSelectionIdsRef.current);
+    for (const entity of loadedCadDocumentRef.current?.entities ?? []) {
+      if (!CAD_ENTITY_REGISTRY.supports(entity) || (scope === 'selection' && !selectedNative.has(entity.id))) continue;
+      const bounds = CAD_ENTITY_REGISTRY.adapter(entity).bounds.bounds(entity);
+      add(bounds.minX, bounds.minY, bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
+    }
     if (!Number.isFinite(minX)) return null;
     return { minX, minY, maxX, maxY };
   }, []);
@@ -5273,6 +5620,7 @@ export default function Layout3DEditor({
   };
   const computeDxfExportSummary = (options: DxfExportOptions): DxfExportSummary => {
     const selectedIds = new Set(selRef.current.map((item) => item.id));
+    const selectedNativeIds = new Set(nativeSelectionIdsRef.current);
     const layerLabel = (id: CadLayerId) => cadLayers.find((layer) => layer.id === id)?.label ?? id;
     const layerVisible = (id: CadLayerId) => cadLayers.find((layer) => layer.id === id)?.visible ?? true;
     const entities: CadDxfExportReadinessEntity[] = [
@@ -5313,13 +5661,19 @@ export default function Layout3DEditor({
       ...[...annotationsRef.current.values()]
         .filter((ann) => ann.type === 'text')
         .map((ann) => ({ id: ann.id, kind: 'label' as const, layer: 'Text', label: ann.text, selected: true, visible: layersRef.current.notes })),
+      ...(loadedCadDocumentRef.current?.entities ?? [])
+        .filter((entity) => CAD_ENTITY_REGISTRY.supports(entity))
+        .map((entity) => {
+          const layer = loadedCadDocumentRef.current?.layers.find((candidate) => candidate.id === entity.layer);
+          return { id: entity.id, kind: 'object' as const, layer: layer?.name ?? entity.layer, label: entity.type.toUpperCase(), selected: selectedNativeIds.has(entity.id), visible: layer?.visible !== false };
+        }),
     ];
     const readiness = evaluateCadDxfExportReadiness({
       scope: options.scope,
       includeHidden: options.includeHidden,
       includeMeasurements: options.includeMeasurements,
       includeLabels: options.includeLabels,
-      selectedObjectCount: selectedIds.size,
+      selectedObjectCount: selectedIds.size + selectedNativeIds.size,
       entities,
       validationBlockers: (report?.errors ?? 0) + collisionHits.length + safetyIssues.length,
       validationWarnings: (report?.warnings ?? 0) + dxfWarnings.length + (flowHealth && flowHealth.score < 80 ? 1 : 0),
@@ -5368,6 +5722,7 @@ export default function Layout3DEditor({
         return null;
       };
       const selectedIds = new Set(selRef.current.map((item) => item.id));
+      const selectedNativeIds = new Set(nativeSelectionIdsRef.current);
       const includeObject = (id: string, fallback: CadLayerId) => {
         if (options.scope === 'selection' && !selectedIds.has(id)) return false;
         return includeLayer(layerAssignments[id] ?? fallback);
@@ -5388,7 +5743,13 @@ export default function Layout3DEditor({
       }).filter((conn): conn is { from: { x: number; y: number }; to: { x: number; y: number }; layer: string } => !!conn);
       const labels = options.includeLabels && (options.includeHidden || layersRef.current.notes) ? [...annotationsRef.current.values()].filter((ann) => ann.type === 'text').map((ann) => ({ text: ann.text || 'Nota', x: ann.x, y: ann.y, layer: 'Text' })) : [];
       const measurements = options.includeMeasurements && includeLayer('measurements') ? [...annotationsRef.current.values()].filter((ann) => ann.type === 'dim' && ann.x2 != null && ann.y2 != null).map((ann) => ({ from: { x: ann.x, y: ann.y }, to: { x: ann.x2!, y: ann.y2! }, label: ann.text, layer: layerLabel('measurements') })) : [];
-      const exported = exportCadLayoutDxf({ boxes, connectors, labels, measurements }, { units: options.units, fileComment: `AXOS CAD ${model} ${revision}` });
+      const primitives = cadDocumentNativeDxfPrimitives(snapshotDocument(), (entity) => {
+        if (!CAD_ENTITY_REGISTRY.supports(entity)) return false;
+        if (options.scope === 'selection' && !selectedNativeIds.has(entity.id)) return false;
+        const layer = loadedCadDocumentRef.current?.layers.find((candidate) => candidate.id === entity.layer);
+        return options.includeHidden || layer?.visible !== false;
+      });
+      const exported = exportCadLayoutDxf({ boxes, connectors, labels, measurements, primitives }, { units: options.units, fileComment: `AXOS CAD ${model} ${revision}` });
       const blob = new Blob([exported.content], { type: 'application/dxf' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -5430,7 +5791,17 @@ export default function Layout3DEditor({
       });
       if (!r.ok) { const d = await r.json().catch(() => ({})); toast.error(d?.message || 'No se pudo guardar.', '3D'); return; }
       const saved = await r.json() as Layout;
-      if (saved.cadDocument) loadedCadDocumentRef.current = migrateCadDocument(saved.cadDocument);
+      if (saved.cadDocument) {
+        const document = migrateCadDocument(saved.cadDocument);
+        loadedCadDocumentRef.current = document;
+        setNativeEntities(
+          document.entities.filter(
+            (entity): entity is CadNativeEntity =>
+              CAD_ENTITY_REGISTRY.supports(entity),
+          ),
+        );
+        setNativeDocumentRevision((value) => value + 1);
+      }
       setData(saved);
       toast.success('Layout 3D guardado.', '3D');
       loadedPlacedRef.current = new Set(placementsRef.current.keys());
@@ -5476,12 +5847,13 @@ export default function Layout3DEditor({
       }
       const g = data?.footprint.gridSize || 100;
       const step = e.shiftKey ? g * 5 : g;
-      const hasSel = selRef.current.length > 0;
+      const hasNativeSelection = nativeSelectionIdsRef.current.length > 0;
+      const hasSel = selRef.current.length > 0 || hasNativeSelection;
       if (e.key === 'Escape') {
         if (paletteOpenRef.current) { setShowPalette(false); setPaletteQuery(''); }
         else if (drawCommandRef.current) { const cancelled = cancelDrawCommand(drawCommandRef.current); drawCommandRef.current = null; setDrawPrompt(null); setMeasureLive(null); setPrecisionText(''); if (!cancelled.emitted.length) toast.success('Comando de dibujo cancelado.', 'CAD'); setTool('select'); toolRef.current = 'select'; }
         else if (toolRef.current !== 'select') { endDraw(); setTool('select'); toolRef.current = 'select'; }
-        else if (hasSel) { select([]); rebuildAll(); }
+        else if (hasSel) { select([]); clearNativeSelection(); rebuildAll(); }
         else onClose();
       }
       else if (e.key === '?' || (e.key === '/' && e.shiftKey)) { e.preventDefault(); setShowHelp((v) => !v); }
@@ -5494,17 +5866,17 @@ export default function Layout3DEditor({
       else if (e.key === 'f' && !e.shiftKey && !e.ctrlKey && !e.metaKey) { e.preventDefault(); fitView(hasSel ? 'selection' : 'all'); }
       else if ((e.key === 'F' || (e.key === 'f' && e.shiftKey)) && !e.ctrlKey && !e.metaKey) { e.preventDefault(); fitView('plant'); }
       else if (e.key === '\\') { e.preventDefault(); setFocusMode((v) => !v); }
-      else if ((e.key === 'Delete' || e.key === 'Backspace') && hasSel) { e.preventDefault(); removeSelected(); }
-      else if ((e.key === 'r' || e.key === 'R') && hasSel) { e.preventDefault(); rotateSelected(e.shiftKey ? -15 : 15); }
-      else if ((e.key === 'd' || e.key === 'D') && (e.ctrlKey || e.metaKey) && hasSel) { e.preventDefault(); duplicateSelected(); }
-      else if ((e.key === 'c' || e.key === 'C') && (e.ctrlKey || e.metaKey) && hasSel && !window.getSelection()?.toString()) { e.preventDefault(); copySelection(); }
+      else if ((e.key === 'Delete' || e.key === 'Backspace') && hasSel) { e.preventDefault(); if (hasNativeSelection) removeNativeSelection(); else removeSelected(); }
+      else if ((e.key === 'r' || e.key === 'R') && hasSel) { e.preventDefault(); if (hasNativeSelection) transformNativeSelection({ rotationDeg: e.shiftKey ? -15 : 15 }); else rotateSelected(e.shiftKey ? -15 : 15); }
+      else if ((e.key === 'd' || e.key === 'D') && (e.ctrlKey || e.metaKey) && hasSel) { e.preventDefault(); if (hasNativeSelection) copyNativeSelection(); else duplicateSelected(); }
+      else if ((e.key === 'c' || e.key === 'C') && (e.ctrlKey || e.metaKey) && hasSel && !window.getSelection()?.toString()) { e.preventDefault(); if (hasNativeSelection) copyNativeSelection(); else copySelection(); }
       else if ((e.key === 'v' || e.key === 'V') && (e.ctrlKey || e.metaKey)) { e.preventDefault(); pasteClipboard(); }
       else if ((e.key === 'g' || e.key === 'G') && (e.ctrlKey || e.metaKey) && e.shiftKey && hasSel) { e.preventDefault(); ungroupSelection(); }
       else if ((e.key === 'g' || e.key === 'G') && (e.ctrlKey || e.metaKey) && hasSel) { e.preventDefault(); groupSelection(); }
-      else if (e.key === 'ArrowLeft' && hasSel) { e.preventDefault(); nudgeSelected(-step, 0); }
-      else if (e.key === 'ArrowRight' && hasSel) { e.preventDefault(); nudgeSelected(step, 0); }
-      else if (e.key === 'ArrowUp' && hasSel) { e.preventDefault(); nudgeSelected(0, -step); }
-      else if (e.key === 'ArrowDown' && hasSel) { e.preventDefault(); nudgeSelected(0, step); }
+      else if (e.key === 'ArrowLeft' && hasSel) { e.preventDefault(); if (hasNativeSelection) transformNativeSelection({ translation: { x: -step, y: 0 } }); else nudgeSelected(-step, 0); }
+      else if (e.key === 'ArrowRight' && hasSel) { e.preventDefault(); if (hasNativeSelection) transformNativeSelection({ translation: { x: step, y: 0 } }); else nudgeSelected(step, 0); }
+      else if (e.key === 'ArrowUp' && hasSel) { e.preventDefault(); if (hasNativeSelection) transformNativeSelection({ translation: { x: 0, y: -step } }); else nudgeSelected(0, -step); }
+      else if (e.key === 'ArrowDown' && hasSel) { e.preventDefault(); if (hasNativeSelection) transformNativeSelection({ translation: { x: 0, y: step } }); else nudgeSelected(0, step); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -5513,6 +5885,22 @@ export default function Layout3DEditor({
 
   if (!open || typeof document === 'undefined') return null;
 
+  const allNativeEntities = nativeEntities;
+  const nativeById = new Map(allNativeEntities.map((entity) => [entity.id, entity]));
+  const nativeSelectedEntities = nativeSelectionIds
+    .map((id) => nativeById.get(id))
+    .filter((entity): entity is CadNativeEntity => !!entity);
+  const primaryNativeEntity = nativeSelectedEntities.length === 1 ? nativeSelectedEntities[0] : null;
+  const primaryNativeAdapter = primaryNativeEntity ? CAD_ENTITY_REGISTRY.adapter(primaryNativeEntity) : null;
+  const primaryNativeProperties = primaryNativeEntity && primaryNativeAdapter
+    ? primaryNativeAdapter.properties.read(primaryNativeEntity)
+    : null;
+  const primaryNativeBounds = primaryNativeEntity && primaryNativeAdapter
+    ? primaryNativeAdapter.bounds.bounds(primaryNativeEntity)
+    : null;
+  const primaryNativeGrips = primaryNativeEntity && primaryNativeAdapter
+    ? primaryNativeAdapter.grips.grips(primaryNativeEntity)
+    : [];
   const paletteResults = searchCadPalette(paletteQuery).slice(0, 9);
   const commandAssistLabels = selList.map((item) => {
     if (item.type === 'station') return data?.stations.find((station) => station.id === item.id)?.station ?? item.id;
@@ -6418,12 +6806,100 @@ export default function Layout3DEditor({
 
           {/* right: properties */}
           <div className={`w-64 shrink-0 border-l border-white/10 bg-gray-900/60 overflow-y-auto ${focusMode ? 'hidden' : ''}`}>
-            {selList.length === 0 ? (
+            {nativeSelectedEntities.length > 0 ? (
+              <div className="p-3.5" data-testid="cad-native-properties">
+                <div className="mb-1 flex items-center gap-2">
+                  <Spline className="h-4 w-4 text-cyan-300" />
+                  <span className="text-sm font-semibold">
+                    {primaryNativeEntity ? primaryNativeEntity.type.toUpperCase() : `${nativeSelectedEntities.length} curvas nativas`}
+                  </span>
+                </div>
+                <div className="mb-3 text-[11px] text-gray-500 dark:text-gray-400">
+                  Geometría canónica · selección, grips, snaps y DXF sin aproximación persistida.
+                </div>
+                {primaryNativeEntity && primaryNativeProperties && primaryNativeBounds ? (
+                  <>
+                    <div className="mb-3 grid grid-cols-2 gap-2 rounded-xl border border-cyan-400/15 bg-cyan-400/[0.04] p-2.5">
+                      <ReadField label="ID" value={primaryNativeEntity.id} />
+                      <ReadField label="Capa" value={primaryNativeEntity.layer} />
+                      <ReadField label="Bounds" value={`${Math.round(primaryNativeBounds.maxX - primaryNativeBounds.minX)} × ${Math.round(primaryNativeBounds.maxY - primaryNativeBounds.minY)}`} />
+                      <ReadField label="Grips" value={`${primaryNativeGrips.length}`} />
+                    </div>
+                    <div className="mb-3 grid grid-cols-2 gap-2">
+                      {Object.entries(primaryNativeProperties).map(([key, value]) => {
+                        if (typeof value === 'boolean')
+                          return <ReadField key={key} label={key} value={value ? 'Sí' : 'No'} />;
+                        return (
+                          <label key={`${primaryNativeEntity.id}-${key}-${nativeDocumentRevision}`} className="text-[10.5px] text-gray-500 dark:text-gray-400">
+                            {key}
+                            <input
+                              data-testid={`cad-native-property-${key}`}
+                              type={typeof value === 'number' ? 'number' : 'text'}
+                              defaultValue={String(value)}
+                              step={typeof value === 'number' ? 'any' : undefined}
+                              onBlur={(event) => {
+                                const next = typeof value === 'number' ? Number(event.target.value) : event.target.value;
+                                if ((typeof next === 'number' && !Number.isFinite(next)) || next === value) return;
+                                updateNativeProperties(primaryNativeEntity.id, { [key]: next });
+                              }}
+                              className="mt-1 w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white outline-none focus:ring-1 focus:ring-cyan-500/40"
+                            />
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <div className="mb-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
+                      <div className="mb-2 text-[10px] uppercase tracking-wide text-cyan-200">Grips disponibles</div>
+                      <div className="flex flex-wrap gap-1">
+                        {primaryNativeGrips.slice(0, 12).map((grip) => (
+                          <span key={grip.id} className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] text-gray-300">{grip.label}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="mb-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5 text-[11px] text-gray-400">
+                    La transformación o el borrado se aplicará a las {nativeSelectedEntities.length} entidades seleccionadas.
+                  </div>
+                )}
+                <div className="mb-2 grid grid-cols-3 gap-1.5">
+                  <button data-testid="cad-native-move-x" onClick={() => transformNativeSelection({ translation: { x: data.footprint.gridSize || 1, y: 0 } })} className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[11px] text-gray-200 hover:bg-white/[0.12]">Mover +X</button>
+                  <button data-testid="cad-native-rotate" onClick={() => transformNativeSelection({ rotationDeg: 15, origin: primaryNativeBounds ? { x: (primaryNativeBounds.minX + primaryNativeBounds.maxX) / 2, y: (primaryNativeBounds.minY + primaryNativeBounds.maxY) / 2 } : undefined })} className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[11px] text-gray-200 hover:bg-white/[0.12]">Rotar +15°</button>
+                  <button data-testid="cad-native-scale" onClick={() => transformNativeSelection({ scale: 1.1, origin: primaryNativeBounds ? { x: (primaryNativeBounds.minX + primaryNativeBounds.maxX) / 2, y: (primaryNativeBounds.minY + primaryNativeBounds.maxY) / 2 } : undefined })} className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[11px] text-gray-200 hover:bg-white/[0.12]">Escala 110%</button>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <button data-testid="cad-native-copy" onClick={copyNativeSelection} className="inline-flex items-center gap-1 rounded-md bg-white/[0.06] px-2 py-1 text-[12px] hover:bg-white/[0.12]"><Copy className="h-3.5 w-3.5" /> Copiar</button>
+                  <button data-testid="cad-native-delete" onClick={removeNativeSelection} className="inline-flex items-center gap-1 rounded-md bg-rose-500/20 px-2 py-1 text-[12px] text-rose-300 hover:bg-rose-500/30"><Trash2 className="h-3.5 w-3.5" /> Quitar</button>
+                  <button onClick={clearNativeSelection} className="rounded-md bg-white/[0.06] px-2 py-1 text-[12px] hover:bg-white/[0.12]">Deseleccionar</button>
+                </div>
+              </div>
+            ) : selList.length === 0 ? (
               <div className="p-4 text-[12px] text-gray-500 flex flex-col gap-3">
                 <div className="flex flex-col items-center gap-2 pt-4">
                   <Crosshair className="w-6 h-6 text-gray-600" />
                   <p className="text-center">Selecciona objetos para ver y editar sus propiedades. <b>Shift</b>+clic agrega o quita.</p>
                 </div>
+                {allNativeEntities.length > 0 && (
+                  <div className="rounded-xl border border-cyan-400/15 bg-cyan-400/[0.04] p-2.5" data-testid="cad-native-entity-list">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <span className="text-[10px] uppercase tracking-wide text-cyan-200">Entidades nativas</span>
+                      <span className="rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-gray-300">{allNativeEntities.length}</span>
+                    </div>
+                    <div className="space-y-1">
+                      {allNativeEntities.slice(0, 20).map((entity) => (
+                        <button
+                          key={entity.id}
+                          data-testid={`cad-native-entity-${entity.id}`}
+                          onClick={() => selectNative([entity.id])}
+                          className="flex w-full items-center justify-between gap-2 rounded-lg bg-gray-950/45 px-2 py-1.5 text-left text-[11px] text-gray-200 hover:bg-white/[0.08]"
+                        >
+                          <span className="truncate">{entity.id}</span>
+                          <span className="text-[10px] text-cyan-300">{entity.type.toUpperCase()}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <div className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-cyan-200"><Ruler className="h-3.5 w-3.5" /> Cotas guardadas</div>
