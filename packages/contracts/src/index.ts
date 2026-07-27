@@ -5,3 +5,4 @@ export * from "./industries";
 export * from "./plan-tiers";
 export * from "./documents";
 export * from "./presentations";
+export * from "./document-authoring";
