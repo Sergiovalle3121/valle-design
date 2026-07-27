@@ -36,4 +36,61 @@ describe('validateCadDocumentPayload', () => {
     );
     expect(() => validateCadDocumentPayload(payload)).toThrow(message);
   });
+
+  it('validates bounded paper spaces, viewports and publication receipts', () => {
+    const withPaper = {
+      ...valid,
+      paperSpaces: [
+        {
+          id: 'sheet-1',
+          name: 'General',
+          entityIds: [],
+          page: {
+            width: 420,
+            height: 297,
+            unit: 'mm',
+            orientation: 'landscape',
+          },
+          viewports: [
+            {
+              id: 'viewport-1',
+              paperBounds: { x: 10, y: 10, width: 400, height: 240 },
+              modelBounds: { x: 0, y: 0, width: 20_000, height: 10_000 },
+              scale: 50,
+              locked: true,
+            },
+          ],
+        },
+      ],
+      publications: [
+        {
+          id: 'publication-1',
+          paperSpaceIds: ['sheet-1'],
+          fileName: 'sheet-set.pdf',
+          sha256: 'a'.repeat(64),
+          bytes: 1024,
+          publishedAt: '2026-07-26T00:00:00.000Z',
+          publishedBy: 'ie@test',
+        },
+      ],
+    };
+    expect(validateCadDocumentPayload(withPaper)).toEqual(withPaper);
+    expect(() =>
+      validateCadDocumentPayload({
+        ...withPaper,
+        paperSpaces: [
+          {
+            ...withPaper.paperSpaces[0],
+            viewports: [{ ...withPaper.paperSpaces[0].viewports[0], scale: 0 }],
+          },
+        ],
+      }),
+    ).toThrow('escalas de viewport');
+    expect(() =>
+      validateCadDocumentPayload({
+        ...withPaper,
+        publications: [{ ...withPaper.publications[0], sha256: 'unsafe' }],
+      }),
+    ).toThrow('publicación inválido');
+  });
 });

@@ -179,7 +179,7 @@ passthrough, pero no reemplaza el parser ni fabrica soporte DWG.
 | documento          | persisted         | schema v3 amplio; renderer/editor v3 general pendiente              |
 | edición            | wired en vertical | cleanup y restricciones; grips por entidad v3 pendientes            |
 | interoperabilidad  | partial           | DXF real existente; matriz de pérdidas todavía abierta              |
-| documentación/plot | wired parcial     | PDF vectorial a escala existente; paper space/sheet sets pendientes |
+| documentación/plot | wired vertical    | paper spaces/sheet sets/PDF vectorial multihoja; overrides UI completos pendientes |
 | rendimiento        | measured kernel   | 1k/10k/100k se registran abajo; render interactivo no medido        |
 | confiabilidad      | tested vertical   | specs/typecheck; e2e interactivo todavía insuficiente               |
 | 3D                 | partial histórico | layout Three.js; sin kernel sólido/superficie profesional           |
@@ -266,4 +266,6 @@ schema IA, payload API acotado, tags, reload y conflicto de versión stale.
    simultáneas extremas; el token actual detecta writers stale secuenciales.
 5. Benchmarks de navegador, memoria, selección/snapping y workers.
 6. E2E del recorrido import→edit→cleanup→undo→save→reload→export.
-7. Paper spaces/viewports/plot styles y revisión asíncrona por entidad.
+7. Editor de múltiples viewports y overrides de capa/plot styles por viewport;
+   paper spaces, sheet sets y publicación vectorial base se cerraron en
+   `AXOS_CAD_PROFESSIONAL_DAILY_DRIVER.md`.

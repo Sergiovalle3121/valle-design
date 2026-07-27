@@ -365,12 +365,46 @@ export interface CadPaperSpace {
   id: string;
   name: string;
   entityIds: string[];
+  order?: number;
+  includeInPublish?: boolean;
   page: {
     width: number;
     height: number;
     unit: "mm" | "in";
     orientation: "portrait" | "landscape";
   };
+  pageSetup?: {
+    paper: "A4" | "A3" | "A2" | "A1" | "A0" | "letter" | "tabloid" | "custom";
+    margins: { top: number; right: number; bottom: number; left: number };
+    colorMode: "color" | "monochrome";
+    lineweightScale: number;
+  };
+  viewports?: CadPaperViewport[];
+  titleBlock?: {
+    block?: string;
+    attributes: Record<string, string>;
+  };
+}
+
+export interface CadPaperViewport {
+  id: string;
+  name?: string;
+  paperBounds: { x: number; y: number; width: number; height: number };
+  modelBounds: { x: number; y: number; width: number; height: number };
+  scale: number;
+  locked: boolean;
+  layerVisibility?: Record<string, boolean>;
+  layerOverrides?: Record<string, { color?: string; linetype?: string; lineweight?: number }>;
+}
+
+export interface CadPublicationRecord {
+  id: string;
+  paperSpaceIds: string[];
+  fileName: string;
+  sha256: string;
+  bytes: number;
+  publishedAt: string;
+  publishedBy: string;
 }
 
 export interface CadExternalReference {
@@ -399,6 +433,7 @@ export interface CadDocument {
   externalReferences: CadExternalReference[];
   unsupportedEntities: CadOpaqueEntity[];
   lossManifest: CadLossManifestEntry[];
+  publications: CadPublicationRecord[];
 }
 
 /** v3: modelo profesional extensible con migración aditiva desde v1/v2. */
@@ -549,6 +584,7 @@ export function layoutToCadDocument(
     externalReferences: [],
     unsupportedEntities: [],
     lossManifest: [],
+    publications: [],
   };
 }
 
@@ -656,6 +692,7 @@ export function commitChange(doc: CadDocument, label: string): CadDocument {
     externalReferences: structuredClone(doc.externalReferences),
     unsupportedEntities: structuredClone(doc.unsupportedEntities),
     lossManifest: structuredClone(doc.lossManifest),
+    publications: structuredClone(doc.publications),
     history: [...doc.history, { version, label }],
   };
 }
@@ -701,6 +738,7 @@ export function serializeCadDocument(doc: CadDocument): string {
     externalReferences: [...doc.externalReferences].sort(byId).map(stableValue),
     unsupportedEntities: [...doc.unsupportedEntities].sort(byId).map(stableValue),
     lossManifest: doc.lossManifest.map(stableValue),
+    publications: doc.publications.map(stableValue),
   };
   return JSON.stringify(payload);
 }
@@ -742,6 +780,7 @@ function withV3Defaults(doc: Partial<CadDocument>): CadDocument {
     externalReferences: Array.isArray(doc.externalReferences) ? doc.externalReferences : [],
     unsupportedEntities: Array.isArray(doc.unsupportedEntities) ? doc.unsupportedEntities : [],
     lossManifest: Array.isArray(doc.lossManifest) ? doc.lossManifest : [],
+    publications: Array.isArray(doc.publications) ? doc.publications : [],
   };
 }
 
