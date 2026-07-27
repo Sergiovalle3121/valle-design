@@ -22,6 +22,7 @@ import {
   type CadDxfImportWarning,
   type CadDxfPrimitive,
 } from "./dxf-import";
+import { PRODUCT_LABEL } from "@/config/brand";
 
 export type CadInteropFormat = "dxf" | "dwg";
 
@@ -75,7 +76,7 @@ const importFailure = (error: string): CadInteropImportResult => ({
 /** Proveedor DXF nativo: envuelve el kernel propio (round-trip testeado). */
 export const nativeDxfProvider: CadInteroperabilityProvider = {
   id: "axos-dxf",
-  label: "AXOS DXF nativo",
+  label: `${PRODUCT_LABEL.design} · DXF nativo`,
   format: "dxf",
   availability: () => ({ available: true }),
   importDrawing: (content) => {
@@ -92,7 +93,7 @@ export const nativeDxfProvider: CadInteroperabilityProvider = {
 
 export const DWG_UNAVAILABLE_REASON =
   "DWG requiere un proveedor con licencia (ODA Drawings SDK / Autodesk RealDWG). " +
-  "AXOS CAD no hace ingeniería inversa del formato: conecta un proveedor " +
+  `${PRODUCT_LABEL.design} no hace ingeniería inversa del formato: conecta un proveedor ` +
   "licenciado que implemente CadInteroperabilityProvider o convierte el archivo " +
   "a DXF para importarlo hoy.";
 

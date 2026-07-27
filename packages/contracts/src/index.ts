@@ -6,3 +6,7 @@ export * from "./plan-tiers";
 export * from "./documents";
 export * from "./presentations";
 export * from "./document-authoring";
+export * from "./product-catalog";
+export * from "./entitlements";
+export * from "./brand";
+export * from "./legal";

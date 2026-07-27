@@ -5,6 +5,7 @@ import type React from 'react';
 import Link from 'next/link';
 import { ChevronLeft, DraftingCompass, Layers3, Ruler, Sparkles } from 'lucide-react';
 import { glass } from '@/lib/glass';
+import { PRODUCT_LABEL } from "@/config/brand";
 
 const Layout3DEditor = dynamic(
   () => import('@/components/line-engineering/Layout3DEditor'),
@@ -26,7 +27,7 @@ export default function CadStudioPage() {
             <DraftingCompass className="h-5 w-5" />
           </span>
           <div className="min-w-0 flex-1">
-            <h1 className="text-lg font-semibold leading-tight">AXOS CAD Studio</h1>
+            <h1 className="text-lg font-semibold leading-tight">{PRODUCT_LABEL.design}</h1>
             <p className="text-[12px] leading-tight text-gray-500 dark:text-gray-400">
               CAD universal 2D/3D para arquitectura, ingeniería, almacenes, plantas, obra civil y layouts técnicos — separado del balanceo EMS.
             </p>
@@ -45,7 +46,7 @@ export default function CadStudioPage() {
         models={[{ model: UNIVERSAL_CAD_MODEL, revision: UNIVERSAL_CAD_REVISION }]}
         open
         standalone
-        title="AXOS CAD Studio"
+        title={PRODUCT_LABEL.design}
         subtitle="Modo universal: arquitectura, ingeniería, obra civil, almacenes y plantas; no depende de balanceo de línea."
         onClose={() => { window.location.href = '/dashboard'; }}
       />

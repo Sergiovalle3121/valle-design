@@ -78,6 +78,7 @@ import { tessellateDxfPrimitive } from '@/lib/cad/curve-tessellate';
 import { DWG_UNAVAILABLE_REASON } from '@/lib/cad/interop-provider';
 import { mapDxfLayerToCadLayer } from '@/lib/cad/dxf-layer-map';
 import { solveCadConstraints, upsertCadConstraint } from '@/lib/cad/live-constraints';
+import { BRAND, PRODUCT_LABEL } from '@/config/brand';
 import { buildMleader } from '@/lib/cad/mleader';
 import { CAD_LAYOUT_TEMPLATES, instantiateCadLayoutTemplate, type CadLayoutTemplateId } from '@/lib/cad/templates';
 import {
@@ -873,7 +874,7 @@ export default function Layout3DEditor({
   const [publicationWarnings, setPublicationWarnings] = useState<CadPublishWarning[]>([]);
   const [dxfExportOptions, setDxfExportOptions] = useState<DxfExportOptions>({ scope: 'all', includeHidden: true, includeMeasurements: true, includeLabels: true, units: 'mm', fileName: '' });
   const [dxfExportSummary, setDxfExportSummary] = useState<DxfExportSummary>({ objects: 0, connectors: 0, measurements: 0, labels: 0, layers: 0, canExport: false, includedLayers: [], layerSummary: [], issues: [] });
-  const [sheetPackageDraft, setSheetPackageDraft] = useState<CadSheetPackageDraft>({ project: 'AXOS universal CAD', drawingNo: 'A-0001', discipline: 'Architecture / Engineering', sheet: 'S-001', revision: 'P01', scale: 'Fit to sheet', preparedBy: '', checkedBy: '', approvedBy: '', notes: '' });
+  const [sheetPackageDraft, setSheetPackageDraft] = useState<CadSheetPackageDraft>({ project: PRODUCT_LABEL.design, drawingNo: 'A-0001', discipline: 'Architecture / Engineering', sheet: 'S-001', revision: 'P01', scale: 'Fit to sheet', preparedBy: '', checkedBy: '', approvedBy: '', notes: '' });
   const dxfInputRef = useRef<HTMLInputElement | null>(null);
   // Visión plano→muros (Fase 71 cableada, ADR §217): imagen → CIDE multimodal
   // → normalizeVision → muros/zonas editables. El humano revisa antes de insertar.
@@ -5598,7 +5599,7 @@ export default function Layout3DEditor({
         paper: paperOverride ?? plotPaper,
         orientation: wMm >= hMm ? 'landscape' : 'portrait',
         project: `Layout ${model}`,
-        drawnBy: 'AXOS OS',
+        drawnBy: BRAND.legalEntityName,
         date: new Date().toLocaleDateString('es-MX'),
         revision,
         sheetNumber: '1/2',
@@ -5634,7 +5635,7 @@ export default function Layout3DEditor({
       const drawHeader = () => {
         doc.setFillColor(17, 24, 39); doc.rect(0, 0, pageW, 16, 'F');
         doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
-        doc.text(`AXOS OS · ${sheet.title}`, margin, 11);
+        doc.text(`${BRAND.brandName} · ${sheet.title}`, margin, 11);
         doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
         doc.text(sheet.subtitle, pageW - margin, 11, { align: 'right' });
       };
@@ -5703,7 +5704,7 @@ export default function Layout3DEditor({
       const brandW = Math.min(60, tb.w * 0.22);
       doc.line(tb.x + brandW, tb.y, tb.x + brandW, tb.y + tb.h);
       doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(20, 24, 32);
-      doc.text('AXOS OS', tb.x + brandW / 2, tb.y + 13, { align: 'center' });
+      doc.text(BRAND.brandName, tb.x + brandW / 2, tb.y + 13, { align: 'center' });
       doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(110, 116, 128);
       doc.text(sheet.title, tb.x + brandW / 2, tb.y + 19, { align: 'center' });
       const tbFields = [
@@ -5929,7 +5930,7 @@ export default function Layout3DEditor({
         const layer = loadedCadDocumentRef.current?.layers.find((candidate) => candidate.id === entity.layer);
         return options.includeHidden || layer?.visible !== false;
       });
-      const exported = exportCadLayoutDxf({ boxes, connectors, labels, measurements, primitives }, { units: options.units, fileComment: `AXOS CAD ${model} ${revision}` });
+      const exported = exportCadLayoutDxf({ boxes, connectors, labels, measurements, primitives }, { units: options.units, fileComment: `${PRODUCT_LABEL.design} ${model} ${revision}` });
       const blob = new Blob([exported.content], { type: 'application/dxf' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -6054,7 +6055,7 @@ export default function Layout3DEditor({
           pdf.rect(x, y, cellW, cellH); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(5.5); pdf.setTextColor(100, 116, 139); pdf.text(label, x + 2, y + 4);
           pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8); pdf.setTextColor(17, 24, 39); pdf.text(String(value).slice(0, 42), x + 2, y + 9.5, { maxWidth: cellW - 4 });
         });
-        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7); pdf.text(`AXOS CAD · ${sheetIndex + 1}/${plan.sheets.length}`, sheet.width - 8, 5, { align: 'right' });
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7); pdf.text(`${PRODUCT_LABEL.design} · ${sheetIndex + 1}/${plan.sheets.length}`, sheet.width - 8, 5, { align: 'right' });
       });
       const buffer = pdf.output('arraybuffer');
       const digest = await crypto.subtle.digest('SHA-256', buffer);
@@ -6191,7 +6192,7 @@ export default function Layout3DEditor({
     maxItems: commandText.trim() ? 4 : 3,
   }) : [];
   const tray = (data?.stations ?? []).filter((s) => !placedIds.has(s.id));
-  const cadTitle = title?.trim() || (standalone ? 'AXOS CAD Studio' : `CAD · ${model} · ${revision}`);
+  const cadTitle = title?.trim() || (standalone ? PRODUCT_LABEL.design : `CAD · ${model} · ${revision}`);
   const cadSubtitle = subtitle?.trim() || (standalone
     ? 'Diseño universal 2D/3D para arquitectura, ingeniería, almacenes, plantas y layouts técnicos.'
     : 'Workbench CAD conectado al gemelo industrial y al balanceo de línea.');
