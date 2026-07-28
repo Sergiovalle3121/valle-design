@@ -87,6 +87,7 @@ import {
   saveCadRecovery,
   type CadRecoveryRecord,
 } from '@/lib/cad/cad-recovery';
+import { planCadNativeRenderBudget } from '@/lib/cad/native-render-budget';
 import { exportCadLayoutDxf } from '@/lib/cad/layout-export-adapter';
 import { buildPlotSheet, CAD_PAPER_SIZES, type CadPaperId } from '@/lib/cad/plot-sheet';
 import { evaluateCadDxfExportReadiness, type CadDxfExportLayerSummary, type CadDxfExportReadinessEntity, type CadDxfExportReadinessIssue } from '@/lib/cad/dxf-export-readiness';
@@ -956,6 +957,7 @@ export default function Layout3DEditor({
   const [nativeSelectionIds, setNativeSelectionIds] = useState<string[]>([]);
   const [nativeDocumentRevision, setNativeDocumentRevision] = useState(0);
   const [nativeEntities, setNativeEntities] = useState<CadNativeEntity[]>([]);
+  const [nativeRenderStats, setNativeRenderStats] = useState({ total: 0, rendered: 0, omitted: 0 });
   const [placedIds, setPlacedIds] = useState<Set<string>>(new Set());
   const [assetIds, setAssetIds] = useState<Set<string>>(new Set());
   const [tab, setTab] = useState<'stations' | 'equipment'>(standalone ? 'equipment' : 'stations');
@@ -1726,8 +1728,26 @@ export default function Layout3DEditor({
         disposeCadNativeObject(projection);
       },
     };
-    if (patch) synchronizer.applyPatch(patch, sink);
-    else synchronizer.sync(document, sink);
+    const nativeDocumentEntities = document.entities.filter(
+      (entity): entity is CadNativeEntity => CAD_ENTITY_REGISTRY.supports(entity),
+    );
+    const renderPlan = planCadNativeRenderBudget(
+      nativeDocumentEntities,
+      nativeSelectionIdsRef.current,
+    );
+    setNativeRenderStats((current) =>
+      current.total === renderPlan.total
+        && current.rendered === renderPlan.rendered
+        && current.omitted === renderPlan.omitted
+        ? current
+        : {
+            total: renderPlan.total,
+            rendered: renderPlan.rendered,
+            omitted: renderPlan.omitted,
+          },
+    );
+    if (patch && !renderPlan.limited) synchronizer.applyPatch(patch, sink);
+    else synchronizer.sync({ ...document, entities: renderPlan.entities }, sink);
     refreshNativeSelectionVisuals();
     applyLayersRef.current();
   }, [refreshNativeSelectionVisuals]);
@@ -7293,6 +7313,15 @@ export default function Layout3DEditor({
             <div className="absolute bottom-3 right-3 z-20 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-gray-950/85 px-3 py-1.5 text-[11px] text-gray-300 shadow-xl backdrop-blur">
               <span className="text-cyan-200">Tool: {tool}</span>
               <span>{selList.length} sel</span>
+              <span title="Entidades nativas en el documento canónico">Native {nativeEntities.length}</span>
+              {nativeRenderStats.omitted > 0 && (
+                <span
+                  className="text-amber-300"
+                  title={`${nativeRenderStats.omitted.toLocaleString()} entidades permanecen en el documento canónico y usan nivel de detalle visual`}
+                >
+                  LOD {nativeRenderStats.rendered.toLocaleString()}/{nativeRenderStats.total.toLocaleString()}
+                </span>
+              )}
               <span>{data?.footprint.unit ?? 'mm'}</span>
               <span title="Modelo, revisión funcional y versión CAS">{model} · {revision} · v{data?.cadDocumentVersion ?? 0}</span>
               <span className={saving ? 'text-cyan-200' : dirty ? 'text-amber-300' : 'text-emerald-300'}>{saving ? 'Guardando…' : dirty ? 'Modificado' : 'Guardado'}</span>

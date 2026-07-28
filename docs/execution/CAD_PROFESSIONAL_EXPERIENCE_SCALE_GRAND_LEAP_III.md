@@ -118,7 +118,7 @@ Orden de ejecución:
 
 ### 2026-07-28 01:10–01:16 — Native HATCH end-to-end
 
-- Commit: pendiente al cerrar este checkpoint.
+- Commit: `de59a1dc` (`feat(cad): make hatch native and DXF round-trip safe`).
 - Vertical: documentación nativa y precisión P1.
 - Cambios:
   - `HATCH` se añadió al registry/synchronizer/índice espacial canónicos;
@@ -145,7 +145,99 @@ Orden de ejecución:
 - Siguiente acción: eliminar el límite monolítico de 8 MB reutilizando el blob
   store documental con CAS y recuperación segura.
 
+### 2026-07-28 01:16–01:41 — Large Drawing Durability & Recovery
+
+- Commit: `41e99718` (`feat(cad): scale persistence and add scoped recovery`).
+- Vertical: persistencia grande y recuperación operativa.
+- Cambios:
+  - transporte automático multipart/gzip para `CadDocument` mayor a 6 MB;
+  - presupuesto archivado de 128 MiB sin relajar el endpoint JSON de 8 MB;
+  - manifiesto compacto content-addressed en `cad_document`, con SHA-256,
+    tamaños comprimido/no comprimido y resumen de schema/versión/entidades;
+  - reutilización de `DOCUMENT_BLOB_STORE` y su aislamiento tenant-scoped, sin
+    crear otro blob store ni una tabla/migración paralela;
+  - rehidratación transparente en lectura, publicación y restore, conservando
+    el compare-and-swap SQL y los recibos de publicación server-managed;
+  - snapshots guardan el manifiesto compacto en vez de duplicar el dibujo;
+  - checkpoints IndexedDB a los 3 s y cada 15 s mientras hay cambios, segregados
+    por tenant, usuario, building, project, modelo y revisión, con TTL de 7 días;
+  - la UI sólo ofrece restaurar si el checkpoint conserva la misma versión CAS;
+    un save exitoso lo elimina.
+- Evidencia exacta:
+  - integración API con documento de 8.1 MB: manifiesto persistido, documento
+    completo hidratado y rechazo de la ruta JSON sin avanzar CAS;
+  - Jest focal API: 3/3 suites, 57/57 tests, 17.06 s;
+  - `npm run test:specs --workspace apps/web`: 110/110 specs, 119.3 s;
+  - TypeScript API: exit 0, 22.8 s; TypeScript web: exit 0, 39.8 s;
+  - ESLint API tocado: exit 0; web tocado: cero errores y sólo 19 warnings
+    históricos del editor monolítico; módulos nuevos sin warnings;
+  - `git diff --check`: limpio.
+- Límites honestos: el adapter actual mantiene el límite comprimido de
+  20 MiB y carga un blob por vez; el contrato permite sustituirlo por object
+  storage streaming sin tocar el dominio. Una carrera CAS puede dejar un blob
+  content-addressed no referenciado; no se inventó refcount/GC en este cambio.
+- Riesgo/rollback: no hay migración nueva. Los documentos pequeños siguen inline;
+  los grandes requieren que el lector de manifiestos permanezca desplegado. Un
+  rollback de código no borra el blob, pero debe conservar/reponer este reader
+  antes de volver a editar esos documentos.
+- Siguiente acción: medir corpus 10k/100k y frame/memoria en Chromium real,
+  después recorrer load→edit→save/reload→undo/redo→DXF/PDF.
+
+### 2026-07-28 01:41–02:13 — Browser scale, LOD y save/reload real
+
+- Commit: pendiente al cerrar este checkpoint.
+- Vertical: rendimiento y degradación controlada para dibujos grandes.
+- Hallazgo reproducido antes del cambio: 100,000 ARC canónicos intentaban crear
+  100,000 `Object3D`; el hilo principal dejó de responder y Chromium cerró la
+  pestaña. Se registró como fallo en vez de declarar éxito por el benchmark de
+  kernel.
+- Cambios:
+  - planificador puro y determinista para la proyección visual desechable;
+  - hasta 10,000 entidades se proyectan completas; por encima de 50,000 se usa
+    una muestra uniforme de 2,500 que siempre prioriza la selección activa;
+  - la lista de entidades, serialización, edición, CAS, DXF y recuperación siguen
+    usando el documento canónico completo;
+  - la barra declara `LOD renderizadas/total` y la cantidad omitida, sin ocultar
+    la degradación ni prometer fidelidad visual total a 100k.
+- Evidencia Chromium real en build de desarrollo local, con instrumentación de
+  DOM incluida en los tiempos (por tanto son límites superiores, no SLA):
+
+| Corpus | Recorrido verificado | Resultado observado |
+| --- | --- | --- |
+| 10k ARC | load, command preview/execute, select, edit, undo, redo, save CAS | carga ≤19.93 s sin LOD; preview 2.04 s; execute 1.12 s; edit 3.99 s; undo 11.11 s; redo 10.00 s; save/re-render ≤45.46 s, CAS v1→v2 |
+| 100k ARC | load LOD, 2D, select, edit, multipart/gzip save, reload, inspect geometry | carga respondiente ≤27.04 s; cambio 2D 0.84 s; edit 5.07 s; save/re-render ≤26.90 s, CAS v1→v2; reload respondiente ≤46.08 s; ARC persistió de 0°–90° a 15°–105° |
+
+- Evidencia automatizada:
+  - spec de 100k valida tamaño exacto, muestreo uniforme/determinista, unicidad,
+    prioridad de selección, overflow de selección y ruta completa a 10k;
+  - TypeScript web completo: exit 0, 136.6 s;
+  - ESLint focal: cero errores; 19 warnings históricos del editor monolítico;
+  - el arnés HTTP separa corpus 10k/100k, aplica CAS y sólo descomprime la ruta
+    `/layout/cad-archive`; el save 100k avanzó CAS y sobrevivió al reload.
+- Límites honestos: `performance.memory` y `requestAnimationFrame` no estaban
+  expuestos por el sandbox de automatización, por lo que no se inventa memoria
+  ni frame time. A 100k la edición existe pero selección/reload siguen en decenas
+  de segundos; las 97,500 entidades no detalladas no son pickables directamente
+  hasta entrar en la muestra. El siguiente salto debe ser batching/viewport
+  culling con selección respaldada por el índice espacial, no aumentar objetos.
+- Riesgo/rollback: el LOD sólo afecta la proyección Three.js. Eliminar el
+  planificador restaura el comportamiento anterior sin migrar datos, pero vuelve
+  a exponer el crash de 100k. El umbral está centralizado y cubierto por spec.
+- Siguiente acción: gates completos, revisión del diff/tenancy, commit, sincronía
+  con `origin/main`, push y PR draft.
+
 ## Evidencia acumulada
 
-Se completará con commits, comandos, resultados exactos, métricas, entorno,
-riesgos, rollback, matrices antes/después y claims permitidos/prohibidos.
+| Capacidad | Antes | Después de esta rama |
+| --- | --- | --- |
+| Interacción | consola volátil; Escape podía cerrar | historial segregado/auditable, repetición y atajos profesionales |
+| HATCH | se perdía al importar DXF | entidad nativa editable y round-trip poligonal |
+| Persistencia >8 MB | rechazada por JSON | gzip/blob content-addressed hasta presupuesto de 128 MiB |
+| Recuperación | sin checkpoint | IndexedDB segregado, TTL y guard CAS-compatible |
+| Navegador 100k | cierre de pestaña | documento completo con LOD explícito y save/reload CAS |
+
+Claims permitidos: los recorridos y límites exactos anteriores, DXF del
+subconjunto soportado, persistencia/recovery multi-tenant conforme a los
+contratos probados y degradación LOD explícita. Claims prohibidos: paridad DWG,
+60 FPS/tiempo real a 100k, fidelidad visual simultánea de las 100k entidades,
+memoria no medida o equivalencia general con AutoCAD.
