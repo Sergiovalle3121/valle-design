@@ -66,3 +66,10 @@ console.log("cad keyboard shortcuts specs passed");
 assert.equal(matchCadShortcut({ key: "r" })?.id, "rotate", "matches rotate");
 assert.equal(matchCadShortcut({ key: "s" })?.id, "scale", "matches scale");
 assert.equal(matchCadShortcut({ key: "x" })?.id, "mirror", "matches mirror");
+assert.equal(
+  matchCadShortcut({ key: "s", metaKey: true })?.id,
+  "save",
+  "matches platform save",
+);
+assert.equal(matchCadShortcut({ key: "F3" })?.id, "object_snap_toggle", "F3 toggles osnap");
+assert.equal(matchCadShortcut({ key: "F8" })?.id, "ortho_toggle", "F8 toggles ortho");

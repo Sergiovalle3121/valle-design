@@ -13,9 +13,11 @@ export type CadKeyboardShortcutId =
   | "fit_view"
   | "undo"
   | "redo"
+  | "save"
   | "cancel"
   | "grid_toggle"
   | "object_snap_toggle"
+  | "ortho_toggle"
   | "validate_layout"
   | "export_dxf"
   // Kit diario (AXOS-CAD-XFORM-001/MIRROR-001): transformaciones directas.
@@ -120,6 +122,13 @@ export const CAD_KEYBOARD_SHORTCUTS: CadKeyboardShortcut[] = [
     description: "Rehacer.",
   },
   {
+    id: "save",
+    label: "Save",
+    key: "s",
+    ctrl: true,
+    description: "Guardar el documento canónico.",
+  },
+  {
     id: "redo",
     label: "Redo",
     key: "y",
@@ -143,6 +152,18 @@ export const CAD_KEYBOARD_SHORTCUTS: CadKeyboardShortcut[] = [
     label: "Object snap",
     key: "o",
     description: "Activar o desactivar snaps a objetos/DXF.",
+  },
+  {
+    id: "object_snap_toggle",
+    label: "Object snap",
+    key: "f3",
+    description: "Activar o desactivar snaps a objetos/DXF.",
+  },
+  {
+    id: "ortho_toggle",
+    label: "Ortho",
+    key: "f8",
+    description: "Restringir el dibujo a ejes ortogonales.",
   },
   {
     id: "validate_layout",

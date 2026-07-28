@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { apiFetch } from '@/lib/apiFetch';
 import { useToast } from '@/contexts/ToastContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { setWorkbenchChrome } from '@/lib/operatorChrome';
 import { ASSET_CATEGORIES, assetMeta, type AssetArchetype } from './asset-catalog';
 import { parseDxf, type DxfModel } from './dxf';
@@ -67,6 +69,14 @@ import { CAD_TOOLBAR_ACTIONS, type CadToolbarActionId } from '@/lib/cad/toolbar'
 import { searchCadPalette, type CadPaletteEntry } from '@/lib/cad/command-palette';
 import { suggestCadCommands, type CadCommandSuggestion } from '@/lib/cad/command-line-assist';
 import { matchCadShortcut } from '@/lib/cad/keyboard-shortcuts';
+import {
+  cadCommandHistoryStorageKey,
+  navigateCadCommandHistory,
+  parseCadCommandHistory,
+  prependCadCommandHistory,
+  repeatableCadCommand,
+  serializeCadCommandHistory,
+} from '@/lib/cad/command-session';
 import { exportCadLayoutDxf } from '@/lib/cad/layout-export-adapter';
 import { buildPlotSheet, CAD_PAPER_SIZES, type CadPaperId } from '@/lib/cad/plot-sheet';
 import { evaluateCadDxfExportReadiness, type CadDxfExportLayerSummary, type CadDxfExportReadinessEntity, type CadDxfExportReadinessIssue } from '@/lib/cad/dxf-export-readiness';
@@ -317,7 +327,7 @@ interface SelItem { type: 'station' | 'asset'; id: string }
 const sameSel = (a: SelItem, b: SelItem) => a.type === b.type && a.id === b.id;
 /** A point-in-time copy of every editable collection, for undo/redo. */
 interface Snapshot { placements: [string, Placement][]; assets: Asset[]; annotations: Ann[]; connectors: Conn[]; layers: CadLayerAssignments; tags: Record<string, string> }
-interface CommandPreviewState { input: CadCommandInput; preview: CadCommandPreview; chain?: CadCommandInput[] }
+interface CommandPreviewState { input: CadCommandInput; preview: CadCommandPreview; chain?: CadCommandInput[]; rawInput: string }
 interface DxfExportOptions { scope: 'all' | 'selection'; includeHidden: boolean; includeMeasurements: boolean; includeLabels: boolean; units: 'mm' | 'm'; fileName: string }
 interface DxfExportSummary { objects: number; connectors: number; measurements: number; labels: number; layers: number; canExport: boolean; includedLayers: string[]; layerSummary: CadDxfExportLayerSummary[]; issues: CadDxfExportReadinessIssue[] }
 interface MeasurementRow { id: string; label: string; length: string }
@@ -850,10 +860,13 @@ export default function Layout3DEditor({
   subtitle?: string;
 }) {
   const toast = useToast();
+  const { user, tenantId } = useAuth();
+  const { buildingId, projectId } = useWorkspace();
   const mountRef = useRef<HTMLDivElement | null>(null);
   const viewMenuRef = useRef<HTMLDivElement | null>(null);
   const [data, setData] = useState<Layout | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [connectionState, setConnectionState] = useState<'checking' | 'online' | 'offline'>('checking');
   const [snap, setSnap] = useState(true);
   const [osnap, setOsnap] = useState(true); // object snap: align to other objects' edges/centers (Fase 54)
   const [dirty, setDirty] = useState(false);
@@ -893,7 +906,7 @@ export default function Layout3DEditor({
   const [showClone, setShowClone] = useState(false); // clone-from-template modal
   const [cloneSrc, setCloneSrc] = useState('');
   const [cloneBusy, setCloneBusy] = useState(false);
-  const [showCommand, setShowCommand] = useState(false); // natural-language command dock (local function-calling scaffold)
+  const [showCommand, setShowCommand] = useState(true); // always-accessible deterministic command dock
   const [showPalette, setShowPalette] = useState(false); // Cmd-K CAD palette (local registry/search)
   const [paletteQuery, setPaletteQuery] = useState('');
   const [recentPaletteActions, setRecentPaletteActions] = useState<string[]>([]);
@@ -901,6 +914,11 @@ export default function Layout3DEditor({
   const [commandText, setCommandText] = useState('');
   const [commandPreview, setCommandPreview] = useState<CommandPreviewState | null>(null);
   const [commandLog, setCommandLog] = useState<CadCommandHistoryItem[]>([]);
+  const [commandHistoryCursor, setCommandHistoryCursor] = useState(-1);
+  const [commandHistoryHydratedKey, setCommandHistoryHydratedKey] = useState<string | null>(null);
+  const commandInputRef = useRef<HTMLInputElement | null>(null);
+  const commandPreviewRef = useRef<CommandPreviewState | null>(null);
+  const commandTextRef = useRef('');
   // Copiloto IA (ADR §215): propuesta NL→CAD / optimización — humano aprueba.
   const [aiBusy, setAiBusy] = useState<null | 'intent' | 'optimize'>(null);
   const [aiProposal, setAiProposal] = useState<{ source: 'intent' | 'optimize'; intents: CadIntent[]; descriptions?: string[]; errors: string[]; message?: string } | null>(null);
@@ -1005,6 +1023,41 @@ export default function Layout3DEditor({
   const [showGaps, setShowGaps] = useState(false); // clearance/safety gap markers overlay (Fase 52)
   const viewportBookmarkStorageKey = `axos:cad:viewport-bookmarks:${model}:${revision}`;
   useEffect(() => { paletteOpenRef.current = showPalette; }, [showPalette]);
+  useEffect(() => { commandPreviewRef.current = commandPreview; }, [commandPreview]);
+  useEffect(() => { commandTextRef.current = commandText; }, [commandText]);
+  const commandHistoryStorageKey = cadCommandHistoryStorageKey({
+    tenantId,
+    userId: user?.id,
+    buildingId,
+    projectId,
+    model,
+    revision,
+  });
+  useEffect(() => {
+    let active = true;
+    let restoredHistory: CadCommandHistoryItem[] = [];
+    try {
+      if (open && commandHistoryStorageKey)
+        restoredHistory = parseCadCommandHistory(window.localStorage.getItem(commandHistoryStorageKey));
+    } catch {
+      restoredHistory = [];
+    }
+    queueMicrotask(() => {
+      if (!active) return;
+      setCommandHistoryHydratedKey(open ? commandHistoryStorageKey : null);
+      setCommandHistoryCursor(-1);
+      setCommandLog(restoredHistory);
+    });
+    return () => { active = false; };
+  }, [commandHistoryStorageKey, open]);
+  useEffect(() => {
+    if (!open || !commandHistoryStorageKey || commandHistoryHydratedKey !== commandHistoryStorageKey) return;
+    try {
+      window.localStorage.setItem(commandHistoryStorageKey, serializeCadCommandHistory(commandLog));
+    } catch {
+      // Private browsing/storage pressure keeps the in-memory audit available.
+    }
+  }, [commandHistoryHydratedKey, commandHistoryStorageKey, commandLog, open]);
   const readViewportBookmarks = () => {
     try {
       const raw = window.localStorage.getItem(viewportBookmarkStorageKey);
@@ -1341,7 +1394,7 @@ export default function Layout3DEditor({
     let alive = true;
     queueMicrotask(() => {
       if (!alive) return;
-      setData(null); setError(null); setSelList([]); setSelSnap(null); setNativeSelectionIds([]); setNativeEntities([]); setDirty(false); setTab('stations');
+      setData(null); setError(null); setConnectionState('checking'); setSelList([]); setSelSnap(null); setNativeSelectionIds([]); setNativeEntities([]); setDirty(false); setTab('stations');
       setOverlay(null); setTool('select'); setMeasureLive(null); setWalk(false); setHist({ undo: 0, redo: 0 }); setCellsView([]); setPaperSpaces([]); setPublicationRecords([]); setActivePaperSpaceId(null); setPublicationWarnings([]); setValidationHighlightIds(new Set()); setCollisionHits([]); setClearanceIssues([]); setSafetyIssues([]); setCadValidationReport(null); setIndustrySummary(null); setFlowHealth(null); setFlowSequence([]); setFlowSegments([]); setSnapshotDiff(null); setReport(null);
     });
     selRef.current = []; nativeSelectionIdsRef.current = []; overlayColorRef.current = new Map(); validationHighlightRef.current = new Set(); toolRef.current = 'select'; measureARef.current = null; wallChainRef.current = null;
@@ -1350,6 +1403,7 @@ export default function Layout3DEditor({
       try {
         const r = await apiFetch(`${API_BASE}/line-engineering/layout?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`);
         if (!alive) return;
+        setConnectionState('online');
         if (!r.ok) { setError('No se pudo cargar el layout.'); return; }
         const d = (await r.json()) as Layout;
         const pl = new Map<string, Placement>();
@@ -1450,7 +1504,7 @@ export default function Layout3DEditor({
           } catch { /* ignore — backdrop is optional */ }
         }
       } catch {
-        if (alive) setError('No se pudo cargar el layout.');
+        if (alive) { setConnectionState('offline'); setError('No se pudo cargar el layout.'); }
       }
     })();
     return () => { alive = false; };
@@ -4929,8 +4983,8 @@ export default function Layout3DEditor({
         inputs.push(parsedPart.input);
       }
       const preview = previewCadCommand(inputs[0], buildCommandContext());
-      setCommandPreview({ input: inputs[0], preview, chain: inputs });
-      setCommandLog((items) => [createCadHistoryItem(inputs[0], 'previewed', `${preview.summary} (+${inputs.length - 1} paso(s) más)`, preview), ...items].slice(0, 12));
+      setCommandPreview({ input: inputs[0], preview, chain: inputs, rawInput: raw });
+      setCommandLog((items) => prependCadCommandHistory(items, createCadHistoryItem(inputs[0], 'previewed', `${preview.summary} (+${inputs.length - 1} paso(s) más)`, preview, undefined, { rawInput: raw, affectedObjectIds: preview.affectedObjectIds })));
       return true;
     }
     const parsed = parseCadCommand(raw);
@@ -4940,12 +4994,30 @@ export default function Layout3DEditor({
       return false;
     }
     const preview = previewCadCommand(parsed.input, buildCommandContext());
-    setCommandPreview({ input: parsed.input, preview });
-    setCommandLog((items) => [createCadHistoryItem(parsed.input!, 'previewed', preview.summary, preview), ...items].slice(0, 12));
+    setCommandPreview({ input: parsed.input, preview, rawInput: raw });
+    setCommandLog((items) => prependCadCommandHistory(items, createCadHistoryItem(parsed.input!, 'previewed', preview.summary, preview, undefined, { rawInput: raw, affectedObjectIds: preview.affectedObjectIds })));
     return true;
   };
+  const repeatLastCommand = () => {
+    const raw = repeatableCadCommand(commandLog);
+    if (!raw) {
+      toast.error('No hay un comando aplicado para repetir.', 'Comando CAD');
+      return false;
+    }
+    setCommandText(raw);
+    setCommandHistoryCursor(-1);
+    return previewCommandText(raw);
+  };
   const interpretCommand = () => {
-    previewCommandText(commandText);
+    setCommandHistoryCursor(-1);
+    if (!commandText.trim()) repeatLastCommand();
+    else previewCommandText(commandText);
+  };
+  const navigateCommandLineHistory = (direction: 'older' | 'newer') => {
+    const next = navigateCadCommandHistory(commandLog, commandHistoryCursor, direction);
+    setCommandHistoryCursor(next.cursor);
+    setCommandText(next.value);
+    setCommandPreview(null);
   };
   const applyCommandSuggestion = (suggestion: CadCommandSuggestion) => {
     setCommandText(suggestion.example);
@@ -5120,12 +5192,19 @@ export default function Layout3DEditor({
       setDirty(transactionWasDirty);
     };
     for (const input of inputs) {
+      const commandStartedAt = Date.now();
       const result = executeCadCommand(input, buildCommandContext());
+      const audit = () => ({
+        rawInput: commandPreview.rawInput,
+        durationMs: Date.now() - commandStartedAt,
+        affectedObjectIds: result.affectedObjectIds,
+        completedAt: new Date().toISOString(),
+      });
       if (!result.applied) {
         if (snapshotTaken) rollbackCommandTransaction();
         anyChanged = false;
         toast.error(result.issues.find((i) => i.level === 'error')?.message || 'El comando no es válido.', 'Comando CAD');
-        setCommandLog((items) => [createCadHistoryItem(input, 'failed', result.historyLabel, commandPreview.preview, result), ...items].slice(0, 12));
+        setCommandLog((items) => prependCadCommandHistory(items, createCadHistoryItem(input, 'failed', result.historyLabel, commandPreview.preview, result, audit())));
         break;
       }
       const mutatingOperations = result.operations.filter(isMutatingCommandOperation);
@@ -5133,7 +5212,7 @@ export default function Layout3DEditor({
       if (blockedOperation) {
         if (snapshotTaken) rollbackCommandTransaction();
         anyChanged = false;
-        setCommandLog((items) => [createCadHistoryItem(input, 'failed', `Transacción cancelada: ${result.historyLabel}`, commandPreview.preview, result), ...items].slice(0, 12));
+        setCommandLog((items) => prependCadCommandHistory(items, createCadHistoryItem(input, 'failed', `Transacción cancelada: ${result.historyLabel}`, commandPreview.preview, result, audit())));
         toast.error('No se aplicó ningún cambio: una operación no pudo validarse.', 'Comando CAD');
         break;
       }
@@ -5149,7 +5228,7 @@ export default function Layout3DEditor({
       });
       if (partialFailure) {
         rollbackCommandTransaction();
-        setCommandLog((items) => [createCadHistoryItem(input, 'failed', `Rollback: ${result.historyLabel}`, commandPreview.preview, result), ...items].slice(0, 12));
+        setCommandLog((items) => prependCadCommandHistory(items, createCadHistoryItem(input, 'failed', `Rollback: ${result.historyLabel}`, commandPreview.preview, result, audit())));
         toast.error('La operación falló y la transacción completa fue revertida.', 'Comando CAD');
         anyChanged = false;
         break;
@@ -5158,7 +5237,7 @@ export default function Layout3DEditor({
         const solved = solveCadConstraints(snapshotDocument(), result.affectedObjectIds);
         if (!solved.converged) {
           rollbackCommandTransaction();
-          setCommandLog((items) => [createCadHistoryItem(input, 'failed', `Restricción incompatible: ${result.historyLabel}`, commandPreview.preview, result), ...items].slice(0, 12));
+          setCommandLog((items) => prependCadCommandHistory(items, createCadHistoryItem(input, 'failed', `Restricción incompatible: ${result.historyLabel}`, commandPreview.preview, result, audit())));
           toast.error(solved.issues[0]?.message || 'Las restricciones no pudieron resolverse; se revirtió la transacción.', 'Restricciones');
           anyChanged = false;
           break;
@@ -5167,7 +5246,7 @@ export default function Layout3DEditor({
         restore(cadDocumentToEditorSnapshot(solved.document));
       }
       anyChanged = anyChanged || changed;
-      setCommandLog((items) => [createCadHistoryItem(input, 'applied', result.historyLabel, commandPreview.preview, result), ...items].slice(0, 12));
+      setCommandLog((items) => prependCadCommandHistory(items, createCadHistoryItem(input, 'applied', result.historyLabel, commandPreview.preview, result, audit())));
       if (changed) { refreshSnap(); }
       toast.success(result.historyLabel, 'Comando CAD');
     }
@@ -5398,8 +5477,8 @@ export default function Layout3DEditor({
       setShowCommand(true); setCommandText(example);
       if (parsed.ok && parsed.input) {
         const preview = previewCadCommand(parsed.input, buildCommandContext());
-        setCommandPreview({ input: parsed.input, preview });
-        setCommandLog((items) => [createCadHistoryItem(parsed.input!, 'previewed', preview.summary, preview), ...items].slice(0, 12));
+        setCommandPreview({ input: parsed.input, preview, rawInput: example });
+        setCommandLog((items) => prependCadCommandHistory(items, createCadHistoryItem(parsed.input!, 'previewed', preview.summary, preview, undefined, { rawInput: example, affectedObjectIds: preview.affectedObjectIds })));
         toast.success('Preview listo en el Copiloto CAD.', 'Cmd-K CAD');
       } else {
         setCommandPreview(null);
@@ -5970,6 +6049,7 @@ export default function Layout3DEditor({
           ...(dxfMetaRef.current ? { dxf: dxfMetaRef.current } : {}),
         }),
       });
+      setConnectionState('online');
       if (!r.ok) { const d = await r.json().catch(() => ({})); toast.error(d?.message || 'No se pudo guardar.', '3D'); return null; }
       const saved = await r.json() as Layout;
       if (saved.cadDocument) {
@@ -5990,7 +6070,7 @@ export default function Layout3DEditor({
       setDirty(false);
       onSaved?.();
       return saved;
-    } catch { toast.error('Error de red.', '3D'); return null; } finally { setSaving(false); }
+    } catch { setConnectionState('offline'); toast.error('Error de red.', '3D'); return null; } finally { setSaving(false); }
   };
 
   const publishSheetSetPdf = async () => {
@@ -6103,6 +6183,11 @@ export default function Layout3DEditor({
         runToolbarAction(cadShortcut.id as CadToolbarActionId);
         return;
       }
+      if (cadShortcut?.id === 'save') {
+        e.preventDefault();
+        void save();
+        return;
+      }
       if (cadShortcut?.id === 'grid_toggle') {
         e.preventDefault();
         setLayers((cur) => ({ ...cur, grid: !cur.grid }));
@@ -6111,6 +6196,11 @@ export default function Layout3DEditor({
       if (cadShortcut?.id === 'object_snap_toggle') {
         e.preventDefault();
         setOsnap((cur) => !cur);
+        return;
+      }
+      if (cadShortcut?.id === 'ortho_toggle') {
+        e.preventDefault();
+        setOrthoLock((cur) => !cur);
         return;
       }
       if (cadShortcut?.id === 'validate_layout') {
@@ -6128,11 +6218,13 @@ export default function Layout3DEditor({
       const hasNativeSelection = nativeSelectionIdsRef.current.length > 0;
       const hasSel = selRef.current.length > 0 || hasNativeSelection;
       if (e.key === 'Escape') {
+        e.preventDefault();
         if (paletteOpenRef.current) { setShowPalette(false); setPaletteQuery(''); }
+        else if (commandPreviewRef.current) { setCommandPreview(null); }
+        else if (commandTextRef.current.trim()) { setCommandText(''); setCommandHistoryCursor(-1); }
         else if (drawCommandRef.current) { const cancelled = cancelDrawCommand(drawCommandRef.current); drawCommandRef.current = null; setDrawPrompt(null); setMeasureLive(null); setPrecisionText(''); if (!cancelled.emitted.length) toast.success('Comando de dibujo cancelado.', 'CAD'); setTool('select'); toolRef.current = 'select'; }
         else if (toolRef.current !== 'select') { endDraw(); setTool('select'); toolRef.current = 'select'; }
         else if (hasSel) { select([]); clearNativeSelection(); rebuildAll(); }
-        else onClose();
       }
       else if (e.key === '?' || (e.key === '/' && e.shiftKey)) { e.preventDefault(); setShowHelp((v) => !v); }
       else if ((e.key === 'a' || e.key === 'A') && (e.ctrlKey || e.metaKey)) { e.preventDefault(); selectAll(); }
@@ -6520,7 +6612,7 @@ export default function Layout3DEditor({
         {!standalone && <T3Btn onClick={arrangeLineLayout} title="Acomodar la línea — ordena las estaciones por secuencia en filas equiespaciadas"><Rows3 className="w-4 h-4" /></T3Btn>}
         {!standalone && <T3Btn onClick={connectLineLayout} title="Conectar la línea — enlaza cada estación con la siguiente en secuencia (flujo)"><Waypoints className="w-4 h-4" /></T3Btn>}
         <T3Btn onClick={runOptimize} disabled={serverBusy} title="Optimizar flujo — reordena para minimizar el recorrido (servidor)"><WandSparkles className="w-4 h-4" /></T3Btn>
-        <T3Btn active={showCommand} onClick={() => setShowCommand((v) => !v)} title="Comandos en lenguaje natural — scaffold local para function calling"><ChevronRight className="w-4 h-4" /></T3Btn>
+        <T3Btn active={showCommand} onClick={() => { setFocusMode(false); setShowCommand(true); window.requestAnimationFrame(() => commandInputRef.current?.focus()); }} title="Línea de comandos determinística — historial, preview y repetición"><ChevronRight className="w-4 h-4" /></T3Btn>
         <T3Btn active={showPalette} onClick={() => setShowPalette((v) => !v)} title="Paleta de comandos (⌘K / Ctrl K) — busca comandos, herramientas y símbolos"><Search className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={openChecks} title="Revisión de diseño — valida colocación, límites, traslapes y flujo"><ShieldCheck className="w-4 h-4" /></T3Btn>
         <T3Btn active={!!flowHealth} onClick={analyzeFlowHealth} title="Flow Health — score, cruces y backtracking"><ChartLine className="w-4 h-4" /></T3Btn>
@@ -6577,7 +6669,7 @@ export default function Layout3DEditor({
         <button onClick={save} disabled={saving || !dirty} className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-sm font-medium text-white disabled:opacity-50" style={{ background: '#e11d48' }}>
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Guardar
         </button>
-        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 ml-1" title="Cerrar (Esc)"><X className="w-5 h-5" /></button>
+        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 ml-1" title="Cerrar editor"><X className="w-5 h-5" /></button>
       </div>
 
       {error ? (
@@ -6598,8 +6690,16 @@ export default function Layout3DEditor({
                 </p>
                 <form className="mt-2 flex gap-1.5" onSubmit={(e) => { e.preventDefault(); interpretCommand(); }}>
                   <input
+                    ref={commandInputRef}
+                    aria-label="Línea de comandos CAD"
                     value={commandText}
-                    onChange={(e) => setCommandText(e.target.value)}
+                    onChange={(e) => { setCommandText(e.target.value); setCommandHistoryCursor(-1); }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'ArrowUp') { e.preventDefault(); navigateCommandLineHistory('older'); }
+                      else if (e.key === 'ArrowDown') { e.preventDefault(); navigateCommandLineHistory('newer'); }
+                      else if ((e.key === 'Enter' || e.key === ' ') && !commandText.trim()) { e.preventDefault(); repeatLastCommand(); }
+                      else if (e.key === 'Escape') { e.preventDefault(); if (commandPreview) setCommandPreview(null); else { setCommandText(''); setCommandHistoryCursor(-1); } }
+                    }}
                     placeholder="pasillo 1.2 entre SMT e inspección"
                     className="min-w-0 flex-1 rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white placeholder:text-gray-600 outline-none focus:border-cyan-400/60"
                   />
@@ -6680,7 +6780,7 @@ export default function Layout3DEditor({
                     </div>
                     {commandLog.slice(0, 3).map((item) => (
                       <div key={item.id} className="rounded-lg bg-white/[0.04] px-2 py-1 text-[10.5px] text-gray-300">
-                        <span className={item.status === 'failed' ? 'text-rose-300' : item.status === 'applied' ? 'text-emerald-300' : 'text-cyan-200'}>{item.status}</span> · {item.label}
+                        <span className={item.status === 'failed' ? 'text-rose-300' : item.status === 'applied' ? 'text-emerald-300' : 'text-cyan-200'}>{item.status}</span> · {item.label}{item.durationMs !== undefined ? ` · ${item.durationMs} ms` : ''}{item.affectedObjectIds?.length ? ` · ${item.affectedObjectIds.length} obj` : ''}
                       </div>
                     ))}
                   </div>
@@ -6969,10 +7069,15 @@ export default function Layout3DEditor({
               <span className="text-cyan-200">Tool: {tool}</span>
               <span>{selList.length} sel</span>
               <span>{data?.footprint.unit ?? 'mm'}</span>
+              <span title="Modelo, revisión funcional y versión CAS">{model} · {revision} · v{data?.cadDocumentVersion ?? 0}</span>
+              <span className={saving ? 'text-cyan-200' : dirty ? 'text-amber-300' : 'text-emerald-300'}>{saving ? 'Guardando…' : dirty ? 'Modificado' : 'Guardado'}</span>
+              <span className={connectionState === 'online' ? 'text-emerald-300' : connectionState === 'offline' ? 'text-rose-300' : 'text-gray-400'}>{connectionState === 'online' ? 'API online' : connectionState === 'offline' ? 'API offline' : 'API…'}</span>
               <span>Layer {cadLayers.find((layer) => layer.id === activeCadLayer)?.label ?? activeCadLayer}</span>
               {cadLayerSummary.hiddenObjectCount > 0 && <span className="text-amber-300">Hidden layer objs {cadLayerSummary.hiddenObjectCount}</span>}
               {cadLayerSummary.lockedObjectCount > 0 && <span className="text-amber-300">Locked layer objs {cadLayerSummary.lockedObjectCount}</span>}
-              <span>Grilla {layers.grid ? 'on' : 'off'} / Snap {snap ? 'grid' : 'free'} / {osnap ? 'obj' : 'obj off'}</span>
+              <span>Grilla {layers.grid ? 'on' : 'off'} / Snap {snap ? 'grid' : 'free'}</span>
+              <button onClick={() => setOsnap((value) => !value)} className={osnap ? 'text-cyan-200 hover:text-white' : 'text-gray-500 hover:text-white'}>OSNAP {osnap ? 'on' : 'off'} · F3</button>
+              <button onClick={() => setOrthoLock((value) => !value)} className={orthoLock ? 'text-amber-300 hover:text-white' : 'text-gray-500 hover:text-white'}>ORTHO {orthoLock ? 'on' : 'off'} · F8</button>
               <button onClick={openChecks} className={`${releaseTone} hover:text-white`}>Release {releaseState}</button>
               {report && <span className={report.score === 'error' ? 'text-rose-300' : report.score === 'warn' ? 'text-amber-300' : 'text-emerald-300'}>Validación {report.score}</span>}
               {cadValidationReport && <span className={cadValidationReport.severity === 'critical' ? 'text-rose-300' : cadValidationReport.severity === 'warning' ? 'text-amber-300' : 'text-emerald-300'}>CAD {cadValidationReport.severity}</span>}
