@@ -827,6 +827,18 @@ export function buildCadPublishPlan(
     .sort(
       (a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id.localeCompare(b.id),
     );
+  document.externalReferences.forEach((reference) => {
+    const status = reference.status ?? (reference.loaded ? "loaded" : "unloaded");
+    if (status === "loaded") return;
+    orderedSpaces.forEach((space) => warnings.push({
+      code: status === "unloaded" ? "xref_unloaded" : `xref_${status}_cache`,
+      sheetId: space.id,
+      entityId: reference.insertId,
+      detail: status === "unloaded"
+        ? `Xref ${reference.name} is unloaded and is omitted from publication.`
+        : `Xref ${reference.name} is ${status}; publication uses its last loaded vector cache.`,
+    }));
+  });
   const sheets = orderedSpaces.map((space): CadPublishSheet => {
     const colorMode = space.pageSetup?.colorMode ?? "monochrome";
     const lineweightScale = space.pageSetup?.lineweightScale ?? 1;

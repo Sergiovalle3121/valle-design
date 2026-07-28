@@ -6,9 +6,9 @@
 | --- | --- |
 | `MISSION_STARTED_AT` | 2026-07-28 12:08:49 -06:00 |
 | `MISSION_TARGET_END` | 2026-07-28 22:08:49 -06:00 |
-| `MISSION_CURRENT_PHASE` | P2-B — Xrefs |
-| `MISSION_COMPLETED_GATES` | viewport 100k; recovery worker/journal; blob GC bifásico y tenant-safe; selección profesional; precisión dinámica y tracking; HATCH asociativo; MTEXT nativo; DIMENSION asociativa; MLEADER canónico; BLOCK/INSERT profesional; workbench profesional; layouts y publicación multi-viewport browser-proven |
-| `MISSION_NEXT_ACTION` | cerrar el ciclo Xref tenant-safe: attach/overlay/reload/unload/detach/bind, hash/version/stale/missing, grafo/ciclos/profundidad, permisos y publish/DXF |
+| `MISSION_CURRENT_PHASE` | P2-C — Drawing compare y colaboración |
+| `MISSION_COMPLETED_GATES` | viewport 100k; recovery worker/journal; blob GC bifásico y tenant-safe; selección profesional; precisión dinámica y tracking; HATCH asociativo; MTEXT nativo; DIMENSION asociativa; MLEADER canónico; BLOCK/INSERT profesional; workbench profesional; layouts/publicación multi-viewport; Xrefs tenant-safe browser-proven |
+| `MISSION_NEXT_ACTION` | construir compare base/mine/theirs, diff geométrico/propiedades, overlay/navegación, keep mine/theirs/manual merge, auto-merge disjunto, conflictos y review auditado |
 | Repositorio | `Sergiovalle3121/axos-os` |
 | Base | `1625ba26a07876943b821586c46b02c9f47f6bac` (`origin/main`) |
 | Rama / PR | `codex/cad-professional-grand-leap-iii` / #1416 |
@@ -51,11 +51,11 @@ Sólo se conceden puntos por evidencia actual del repositorio y navegador.
 | Entidades de documentación | 10 | 10 | `browser-proven` | HATCH, MTEXT, siete DIM y MLEADER completan su ciclo canónico |
 | Rendimiento 10k/100k | 15 | 10 | `browser-proven` parcial | viewport real, lotes cancelables y arnés 100k; aún no 60 FPS ni memoria estabilizada |
 | Persistencia/recovery/versionado | 10 | 9 | `browser-proven` | worker/journal/cuota y lifecycle de blobs; falta delta journal nativo |
-| Capas, bloques y referencias | 10 | 9 | `browser-proven` parcial | BLOCK/INSERT nativo, anidado, atribuible, tenant-safe e instanciado; xrefs aún parciales |
+| Capas, bloques y referencias | 10 | 10 | `browser-proven` | BLOCK/INSERT profesional y Xrefs tenant-safe con ciclo attach/overlay/reload/unload/detach/bind, hash/version/grafo y publish/DXF explícitos |
 | Layouts, viewports y publicación | 10 | 9 | `browser-proven` | multi-viewport editable, freeze/overrides, page setup, orden, preflight, preview exacto, PDF multihoja y recibo auditado; el cajetín custom referenciado aún no sustituye su geometría en PDF |
 | Interoperabilidad/extensibilidad | 5 | 4 | `browser-proven` parcial | BLOCK/INSERT, HATCH, MTEXT, DIM y MLEADER completan DXF semántico; DWG `provider-required` |
 | Calidad enterprise/seguridad/pruebas | 10 | 9 | `tested` | CI/tenant/brand/smokes verdes; falta arnés perf bloqueante |
-| **Total** | **100** | **87** |  | Sin claim de paridad general |
+| **Total** | **100** | **88** |  | Sin claim de paridad general |
 
 ## Paridad completa separada
 
@@ -382,6 +382,39 @@ No se editan ramas comerciales, ERP o PDF durante la construcción CAD.
   extraer 162 líneas de UI y 146 de lógica pura: el wiring añadido vuelve a
   evidenciar la deuda arquitectónica y no se oculta. El siguiente bloque es
   P2-B, Xrefs tenant-safe.
+
+### 2026-07-28 16:02–16:22 — P2-B / Xrefs tenant-safe
+
+- `CadExternalReference` conserva URI `tenant-layout://`, asset/revisión,
+  attachment u overlay, versión, SHA-256, ruta relativa lógica, ids de
+  bloque/INSERT, dependencias, estado y timestamps. No acepta ni persiste rutas
+  locales del navegador; resolver otra revisión reutiliza el GET de layout ya
+  protegido por `engineering:read` y por repositorios tenant-scoped estrictos.
+- La geometría referenciada se proyecta sobre BLOCK/INSERT canónico en vez de
+  crear un segundo renderer: obtiene batching, selección, transform, undo/redo,
+  persistencia, PDF y DXF existentes. Unload retira sólo el INSERT; Reload
+  reconstruye el bloque preservando transform; Detach limpia vínculo/caché;
+  Bind resuelve la instancia a entidades locales editables.
+- Attachment propaga referencias attachment anidadas; Overlay y las overlay
+  anidadas no se propagan. El grafo guarda edges, calcula profundidad máxima 8
+  y rechaza ciclos/profundidad antes de mutar. Compare confronta hash/versión y
+  entidades added/modified/deleted; stale, missing y denied quedan visibles.
+- Publicación omite Xrefs descargadas y emite warnings; para stale/missing usa
+  de forma explícita la última caché vectorial cargada. DXF conserva la
+  proyección como BLOCK/INSERT, sin fingir que el vínculo tenant seguirá vivo;
+  Bind es la conversión explícita a geometría local.
+- `CadXrefPalette` ocupa el mismo dock profesional de BLOCK sin tapar el canvas:
+  attach tenant, modo, transform, filas con status/hash/version, compare,
+  reload/load, unload, bind, detach y grafo. Captura stale/compare inspeccionada.
+- Evidencia: spec Xref cubre URI/hash, attach, unload, reload, compare, bind,
+  detach, ciclos, depth, semántica overlay/attachment, PDF y DXF; `paper-space`,
+  TypeScript, ESLint focal y diff-check verdes. Chromium prueba permiso negado,
+  persistencia/reload, stale/missing, compare/reload, unload/load, DXF,
+  bind+undo/redo, overlay/detach y ciclo: 1/1 en 29.9 s. Regresión #18–#21:
+  4/4 verde en 4.7 min.
+- La rúbrica sube 87 → 88 al cerrar referencias. `Layout3DEditor.tsx` queda en
+  10,244 líneas; la paleta (90) y el kernel (325) están extraídos, pero el
+  wiring confirma que la reducción del monolito sigue pendiente. Sigue P2-C.
 
 ## Claims
 

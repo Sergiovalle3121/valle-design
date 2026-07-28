@@ -161,6 +161,7 @@ import {
   type CadBlockDefinition,
   type CadDocument,
   type CadEntity,
+  type CadExternalReference,
   type CadLayerDef,
   type CadPaperSpace,
   type CadPublicationRecord,
@@ -185,6 +186,19 @@ import {
   setCadViewportLayerVisibility,
   updateCadPaperViewport,
 } from '@/lib/cad/cad-layout-manager';
+import {
+  analyzeCadXrefGraph,
+  attachCadXref,
+  bindCadXref,
+  compareCadXrefVersion,
+  detachCadXref,
+  hashCadXrefDocument,
+  markCadXrefStatus,
+  reloadCadXref,
+  unloadCadXref,
+  type CadXrefAssetSnapshot,
+  type CadXrefVersionComparison,
+} from '@/lib/cad/cad-xrefs';
 import {
   CAD_ENTITY_REGISTRY,
   CadSceneSynchronizer,
@@ -262,6 +276,7 @@ import { CadDimensionPalette, type CadDimensionDraft } from './cad-workbench/Cad
 import { CadMLeaderPalette, type CadMLeaderDraft } from './cad-workbench/CadMLeaderPalette';
 import { CadBlockPalette, type CadBlockDefinitionDraft, type CadBlockInsertDraft } from './cad-workbench/CadBlockPalette';
 import { CadLayoutManager } from './cad-workbench/CadLayoutManager';
+import { CadXrefPalette, type CadXrefAttachDraft } from './cad-workbench/CadXrefPalette';
 import { CadWorkspaceDock } from './cad-workbench/CadWorkspaceDock';
 import { cadEntityAssociationAnchor } from '@/lib/cad/associative-dimension';
 import {
@@ -1001,10 +1016,12 @@ export default function Layout3DEditor({
   const [showSheetPackage, setShowSheetPackage] = useState(false);
   const [paperSpaces, setPaperSpaces] = useState<CadPaperSpace[]>([]);
   const [paperSpaceLayers, setPaperSpaceLayers] = useState<CadLayerDef[]>([]);
+  const [cadXrefs, setCadXrefs] = useState<CadExternalReference[]>([]);
   const [publicationRecords, setPublicationRecords] = useState<CadPublicationRecord[]>([]);
   const [activePaperSpaceId, setActivePaperSpaceId] = useState<string | null>(null);
   const [activePaperViewportId, setActivePaperViewportId] = useState<string | null>(null);
   const [layoutPreviewSheet, setLayoutPreviewSheet] = useState<CadPublishSheet | null>(null);
+  const [cadLibraryTab, setCadLibraryTab] = useState<'blocks' | 'xrefs'>('blocks');
   const [publishingSheetSet, setPublishingSheetSet] = useState(false);
   const [publicationWarnings, setPublicationWarnings] = useState<CadPublishWarning[]>([]);
   const [dxfExportOptions, setDxfExportOptions] = useState<DxfExportOptions>({ scope: 'all', includeHidden: true, includeMeasurements: true, includeLabels: true, units: 'mm', fileName: '' });
@@ -1654,7 +1671,7 @@ export default function Layout3DEditor({
     queueMicrotask(() => {
       if (!alive) return;
       setData(null); setError(null); setConnectionState('checking'); setSelList([]); setSelSnap(null); setNativeSelectionIds([]); setNativeEntities([]); setDirty(false); setRecoveryCandidate(null); setRecoverySavedAt(null); setTab('stations');
-      setOverlay(null); setTool('select'); setMeasureLive(null); setWalk(false); setHist({ undo: 0, redo: 0 }); setCellsView([]); setPaperSpaces([]); setPaperSpaceLayers([]); setPublicationRecords([]); setActivePaperSpaceId(null); setActivePaperViewportId(null); setLayoutPreviewSheet(null); setPublicationWarnings([]); setValidationHighlightIds(new Set()); setCollisionHits([]); setClearanceIssues([]); setSafetyIssues([]); setCadValidationReport(null); setIndustrySummary(null); setFlowHealth(null); setFlowSequence([]); setFlowSegments([]); setSnapshotDiff(null); setReport(null);
+      setOverlay(null); setTool('select'); setMeasureLive(null); setWalk(false); setHist({ undo: 0, redo: 0 }); setCellsView([]); setPaperSpaces([]); setPaperSpaceLayers([]); setCadXrefs([]); setPublicationRecords([]); setActivePaperSpaceId(null); setActivePaperViewportId(null); setLayoutPreviewSheet(null); setPublicationWarnings([]); setValidationHighlightIds(new Set()); setCollisionHits([]); setClearanceIssues([]); setSafetyIssues([]); setCadValidationReport(null); setIndustrySummary(null); setFlowHealth(null); setFlowSequence([]); setFlowSegments([]); setSnapshotDiff(null); setReport(null);
     });
     selRef.current = []; nativeSelectionIdsRef.current = []; overlayColorRef.current = new Map(); validationHighlightRef.current = new Set(); toolRef.current = 'select'; measureARef.current = null; wallChainRef.current = null;
     walkRef.current = false; savedCamRef.current = null; undoStackRef.current = []; redoStackRef.current = []; loadedCadDocumentRef.current = null;
@@ -1737,6 +1754,7 @@ export default function Layout3DEditor({
         }));
         setPaperSpaces(restoredPaperSpaces);
         setPaperSpaceLayers(loadedCadDocumentRef.current.layers.map((layer) => ({ ...layer })));
+        setCadXrefs(loadedCadDocumentRef.current.externalReferences.map((reference) => ({ ...reference })));
         setPublicationRecords([...loadedCadDocumentRef.current.publications]);
         setActivePaperSpaceId(restoredPaperSpaces[0]?.id ?? null);
         setActivePaperViewportId(restoredPaperSpaces[0]?.viewports?.[0]?.id ?? null);
@@ -2406,6 +2424,7 @@ export default function Layout3DEditor({
     loadedCadDocumentRef.current = document;
     setPaperSpaces(document.paperSpaces.map((space) => ({ ...space })));
     setPaperSpaceLayers(document.layers.map((layer) => ({ ...layer })));
+    setCadXrefs(document.externalReferences.map((reference) => ({ ...reference })));
     setPublicationRecords([...document.publications]);
     setActivePaperSpaceId((current) => document.paperSpaces.some((space) => space.id === current) ? current : (document.paperSpaces[0]?.id ?? null));
     setActivePaperViewportId((current) => document.paperSpaces.some((space) => space.viewports?.some((viewport) => viewport.id === current)) ? current : (document.paperSpaces[0]?.viewports?.[0]?.id ?? null));
@@ -2427,6 +2446,7 @@ export default function Layout3DEditor({
     loadedCadDocumentRef.current = document;
     setPaperSpaces(document.paperSpaces.map((space) => ({ ...space })));
     setPaperSpaceLayers(document.layers.map((layer) => ({ ...layer })));
+    setCadXrefs(document.externalReferences.map((reference) => ({ ...reference })));
     setPublicationRecords([...document.publications]);
     setActivePaperSpaceId((current) => document.paperSpaces.some((space) => space.id === current) ? current : (document.paperSpaces[0]?.id ?? null));
     setActivePaperViewportId((current) => document.paperSpaces.some((space) => space.viewports?.some((viewport) => viewport.id === current)) ? current : (document.paperSpaces[0]?.viewports?.[0]?.id ?? null));
@@ -2503,6 +2523,7 @@ export default function Layout3DEditor({
       loadedCadDocumentRef.current = document;
       setPaperSpaces(document.paperSpaces.map((space) => ({ ...space })));
       setPaperSpaceLayers(document.layers.map((layer) => ({ ...layer })));
+      setCadXrefs(document.externalReferences.map((reference) => ({ ...reference })));
       setPublicationRecords([...document.publications]);
       setActivePaperSpaceId(document.paperSpaces[0]?.id ?? null);
       setActivePaperViewportId(document.paperSpaces[0]?.viewports?.[0]?.id ?? null);
@@ -2819,7 +2840,7 @@ export default function Layout3DEditor({
   const removeNativeSelection = useCallback(() => {
     commitNativeCommands(nativeSelectionIdsRef.current.map((entityId) => ({ type: 'delete' as const, entityId })), []);
   }, [commitNativeCommands]);
-  const commitBlockMutation = useCallback((mutate: (document: CadDocument) => CadDocument, selection: string[], success: string) => {
+  const commitBlockMutation = useCallback((mutate: (document: CadDocument) => CadDocument, selection: string[], success: string, notificationTitle = 'BLOCK', rethrow = false) => {
     const checkpoint = snapshotDocument();
     try {
       const document = mutate(checkpoint);
@@ -2829,6 +2850,8 @@ export default function Layout3DEditor({
       redoStackRef.current = [];
       setHist({ undo: undoStackRef.current.length, redo: 0 });
       loadedCadDocumentRef.current = document;
+      setPaperSpaceLayers(document.layers.map((layer) => ({ ...layer })));
+      setCadXrefs(document.externalReferences.map((reference) => ({ ...reference })));
       const selectable = new Set(document.entities.filter((entity) => CAD_ENTITY_REGISTRY.supports(entity)).map((entity) => entity.id));
       nativeSelectionIdsRef.current = selection.filter((id) => selectable.has(id));
       setNativeSelectionIds(nativeSelectionIdsRef.current);
@@ -2837,9 +2860,10 @@ export default function Layout3DEditor({
       setDirty(true);
       restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
       syncNativeScene(document);
-      toast.success(success, 'BLOCK');
+      toast.success(success, notificationTitle);
     } catch (cause) {
-      toast.error(cause instanceof Error ? cause.message : 'No se pudo completar la operación de bloque.', 'BLOCK');
+      toast.error(cause instanceof Error ? cause.message : `No se pudo completar la operación ${notificationTitle}.`, notificationTitle);
+      if (rethrow) throw cause;
     }
   }, [restore, snapshotDocument, syncNativeScene, toast]);
   const defineProfessionalBlock = useCallback((draft: CadBlockDefinitionDraft) => {
@@ -2910,6 +2934,78 @@ export default function Layout3DEditor({
   }, [commitBlockMutation]);
   const purgeProfessionalBlocks = useCallback(() => {
     commitBlockMutation((document) => purgeUnusedCadBlocks(document).document, nativeSelectionIdsRef.current, 'Definiciones no usadas purgadas.');
+  }, [commitBlockMutation]);
+
+  const fetchCadXrefSnapshot = useCallback(async (assetId: string, sourceRevision: string, displayName = assetId): Promise<CadXrefAssetSnapshot> => {
+    const response = await apiFetch(`${API_BASE}/line-engineering/layout?model=${encodeURIComponent(assetId)}&revision=${encodeURIComponent(sourceRevision)}`);
+    if (response.status === 401 || response.status === 403) throw new Error('Permission denied for this tenant CAD asset.');
+    if (response.status === 404) throw new Error('Referenced tenant CAD asset is missing.');
+    if (!response.ok) throw new Error('The tenant CAD asset could not be resolved.');
+    const source = await response.json() as Layout;
+    if (!source.cadDocument) throw new Error('Referenced tenant CAD asset has no canonical CAD document.');
+    const document = migrateCadDocument(source.cadDocument);
+    return {
+      tenantId: tenantId ?? 'tenant-context',
+      assetId,
+      name: displayName,
+      revision: sourceRevision,
+      version: source.cadDocumentVersion ?? document.meta.version,
+      contentHash: await hashCadXrefDocument(document),
+      document,
+      fetchedAt: new Date().toISOString(),
+    };
+  }, [tenantId]);
+
+  const attachProfessionalXref = useCallback(async (draft: CadXrefAttachDraft) => {
+    const source = await fetchCadXrefSnapshot(draft.assetId, draft.revision, draft.name);
+    const id = newId('xref');
+    commitBlockMutation((document) => attachCadXref(document, {
+      id,
+      snapshot: source,
+      mode: draft.mode,
+      hostAssetId: `${model}@${revision}`,
+      insertion: { x: draft.x, y: draft.y, z: 0 },
+      scale: draft.scale,
+      rotation: draft.rotation,
+    }), [`xref:${id}:insert`], `${draft.mode === 'overlay' ? 'Overlay' : 'Attachment'} ${draft.assetId}@${draft.revision} vinculado.`, 'XREF', true);
+  }, [commitBlockMutation, fetchCadXrefSnapshot, model, revision]);
+
+  const compareProfessionalXref = useCallback(async (reference: CadExternalReference): Promise<CadXrefVersionComparison | null> => {
+    try {
+      const source = await fetchCadXrefSnapshot(reference.assetId ?? reference.name, reference.revision ?? 'UNIVERSAL', reference.name);
+      const comparison = compareCadXrefVersion(snapshotDocument(), reference.id, source);
+      commitBlockMutation((current) => markCadXrefStatus(current, reference.id, comparison.changed ? 'stale' : 'loaded'), nativeSelectionIdsRef.current, comparison.changed ? 'La referencia tiene una versión más reciente.' : 'La referencia está actualizada.', 'XREF');
+      return comparison;
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : 'Xref compare failed.';
+      const status = /permission/i.test(message) ? 'denied' : 'missing';
+      commitBlockMutation((current) => markCadXrefStatus(current, reference.id, status, message), nativeSelectionIdsRef.current, message, 'XREF');
+      throw cause;
+    }
+  }, [commitBlockMutation, fetchCadXrefSnapshot, snapshotDocument]);
+
+  const reloadProfessionalXref = useCallback(async (reference: CadExternalReference) => {
+    try {
+      const source = await fetchCadXrefSnapshot(reference.assetId ?? reference.name, reference.revision ?? 'UNIVERSAL', reference.name);
+      commitBlockMutation((document) => reloadCadXref(document, reference.id, source, `${model}@${revision}`), [reference.insertId ?? `xref:${reference.id}:insert`], `${reference.name} recargada a v${source.version}.`, 'XREF', true);
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : 'Xref reload failed.';
+      const status = /permission/i.test(message) ? 'denied' : 'missing';
+      commitBlockMutation((current) => markCadXrefStatus(current, reference.id, status, message), nativeSelectionIdsRef.current, message, 'XREF');
+      throw cause;
+    }
+  }, [commitBlockMutation, fetchCadXrefSnapshot, model, revision]);
+
+  const unloadProfessionalXref = useCallback((id: string) => {
+    commitBlockMutation((document) => unloadCadXref(document, id), [], 'Referencia descargada; vínculo y caché conservados.', 'XREF');
+  }, [commitBlockMutation]);
+
+  const detachProfessionalXref = useCallback((id: string) => {
+    commitBlockMutation((document) => detachCadXref(document, id), [], 'Referencia y proyección eliminadas del dibujo.', 'XREF');
+  }, [commitBlockMutation]);
+
+  const bindProfessionalXref = useCallback((id: string) => {
+    commitBlockMutation((document) => bindCadXref(document, id), [], 'Referencia ligada como geometría local editable.', 'XREF');
   }, [commitBlockMutation]);
   const insertNativeEntities = useCallback((incoming: CadNativeEntity[], label: string) => {
     if (!incoming.length) return false;
@@ -7416,6 +7512,7 @@ export default function Layout3DEditor({
         const document = migrateCadDocument(saved.cadDocument);
         loadedCadDocumentRef.current = document;
         setPaperSpaceLayers(document.layers.map((layer) => ({ ...layer })));
+        setCadXrefs(document.externalReferences.map((reference) => ({ ...reference })));
         setPublicationRecords([...document.publications]);
         setNativeEntities(
           document.entities.filter(
@@ -7672,7 +7769,7 @@ export default function Layout3DEditor({
   const primaryNativeGrips = primaryNativeEntity && primaryNativeAdapter
     ? primaryNativeAdapter.grips.grips(primaryNativeEntity)
     : [];
-  const professionalBlockDefinitions = [...(loadedCadDocumentRef.current?.blocks ?? [])];
+  const professionalBlockDefinitions = [...(loadedCadDocumentRef.current?.blocks ?? [])].filter((block) => !block.id.startsWith('xref:'));
   for (const row of cadBlocks) {
     if (row.definition && !professionalBlockDefinitions.some((block) => block.id === row.definition!.id))
       professionalBlockDefinitions.push({ ...row.definition, version: row.version ?? row.definition.version ?? 1, library: { ...row.definition.library, scope: 'tenant', sourceId: row.id } });
@@ -7791,6 +7888,7 @@ export default function Layout3DEditor({
     ? paperSpaceLayers
     : cadLayers.map((layer) => ({ id: layer.id, name: layer.label, color: layer.color, visible: layer.visible, locked: layer.locked }));
   const activeLayoutPreflight = activePaperSpace ? preflightCadPaperSpace(activePaperSpace, activeLayoutLayers.map((layer) => layer.id)) : [];
+  const cadXrefGraph = analyzeCadXrefGraph({ externalReferences: cadXrefs }, `${model}@${revision}`);
   const sheetPackageChecks = [
     { label: 'Title block', ok: !!sheetPackageDraft.project.trim() && !!sheetPackageDraft.drawingNo.trim() && !!sheetPackageDraft.sheet.trim() && !!sheetPackageDraft.revision.trim(), detail: `${sheetPackageDraft.drawingNo || 'sin plano'} · ${sheetPackageDraft.sheet || 'sin hoja'} · rev ${sheetPackageDraft.revision || '—'}` },
     { label: 'Conjunto de hojas', ok: paperSpaces.some((space) => space.includeInPublish !== false && (space.viewports?.length ?? 0) > 0), detail: `${paperSpaces.filter((space) => space.includeInPublish !== false).length} publicables · ${paperSpaces.reduce((total, space) => total + (space.viewports?.length ?? 0), 0)} viewports` },
@@ -7956,22 +8054,43 @@ export default function Layout3DEditor({
       onCreate={createAssociativeMleader}
     />
   ) : activeProfessionalDock === 'blocks' ? (
-    <CadBlockPalette
-      docked
-      blocks={professionalBlockDefinitions}
-      selectedEntityCount={new Set([...selList.map((item) => item.id), ...nativeSelectionIds]).size}
-      selectedInsert={primaryNativeEntity?.type === 'insert' ? { id: primaryNativeEntity.id, block: primaryNativeEntity.block } : null}
-      defaultPoint={{
-        x: Math.max(0, Math.min(ctxRef.current?.W ?? 0, controlsRef.current && ctxRef.current ? controlsRef.current.target.x / ctxRef.current.s + ctxRef.current.W / 2 : (ctxRef.current?.W ?? 0) / 2)),
-        y: Math.max(0, Math.min(ctxRef.current?.H ?? 0, controlsRef.current && ctxRef.current ? controlsRef.current.target.z / ctxRef.current.s + ctxRef.current.H / 2 : (ctxRef.current?.H ?? 0) / 2)),
-      }}
-      onDefine={defineProfessionalBlock}
-      onInsert={insertProfessionalBlock}
-      onRedefine={redefineProfessionalBlock}
-      onReplace={replaceProfessionalBlock}
-      onExplode={explodeProfessionalInsert}
-      onPurge={purgeProfessionalBlocks}
-    />
+    <div data-testid="cad-library-dock" className="flex h-full min-h-0 flex-col">
+      <div className="grid grid-cols-2 border-b border-white/10 p-1.5">
+        <button data-testid="cad-library-tab-blocks" onClick={() => setCadLibraryTab('blocks')} className={`rounded-lg px-2 py-1 text-[10.5px] font-semibold ${cadLibraryTab === 'blocks' ? 'bg-cyan-400/15 text-cyan-100' : 'text-gray-500 hover:bg-white/[0.05]'}`}>BLOCK / INSERT</button>
+        <button data-testid="cad-library-tab-xrefs" onClick={() => setCadLibraryTab('xrefs')} className={`rounded-lg px-2 py-1 text-[10.5px] font-semibold ${cadLibraryTab === 'xrefs' ? 'bg-cyan-400/15 text-cyan-100' : 'text-gray-500 hover:bg-white/[0.05]'}`}>XREF ({cadXrefs.length})</button>
+      </div>
+      <div className="min-h-0 flex-1 overflow-hidden">
+        {cadLibraryTab === 'blocks' ? <CadBlockPalette
+          docked
+          blocks={professionalBlockDefinitions}
+          selectedEntityCount={new Set([...selList.map((item) => item.id), ...nativeSelectionIds]).size}
+          selectedInsert={primaryNativeEntity?.type === 'insert' ? { id: primaryNativeEntity.id, block: primaryNativeEntity.block } : null}
+          defaultPoint={{
+            x: Math.max(0, Math.min(ctxRef.current?.W ?? 0, controlsRef.current && ctxRef.current ? controlsRef.current.target.x / ctxRef.current.s + ctxRef.current.W / 2 : (ctxRef.current?.W ?? 0) / 2)),
+            y: Math.max(0, Math.min(ctxRef.current?.H ?? 0, controlsRef.current && ctxRef.current ? controlsRef.current.target.z / ctxRef.current.s + ctxRef.current.H / 2 : (ctxRef.current?.H ?? 0) / 2)),
+          }}
+          onDefine={defineProfessionalBlock}
+          onInsert={insertProfessionalBlock}
+          onRedefine={redefineProfessionalBlock}
+          onReplace={replaceProfessionalBlock}
+          onExplode={explodeProfessionalInsert}
+          onPurge={purgeProfessionalBlocks}
+        /> : <CadXrefPalette
+          references={cadXrefs}
+          graph={cadXrefGraph}
+          defaultPoint={{
+            x: Math.max(0, Math.min(ctxRef.current?.W ?? 0, controlsRef.current && ctxRef.current ? controlsRef.current.target.x / ctxRef.current.s + ctxRef.current.W / 2 : (ctxRef.current?.W ?? 0) / 2)),
+            y: Math.max(0, Math.min(ctxRef.current?.H ?? 0, controlsRef.current && ctxRef.current ? controlsRef.current.target.z / ctxRef.current.s + ctxRef.current.H / 2 : (ctxRef.current?.H ?? 0) / 2)),
+          }}
+          onAttach={attachProfessionalXref}
+          onCompare={compareProfessionalXref}
+          onReload={reloadProfessionalXref}
+          onUnload={unloadProfessionalXref}
+          onDetach={detachProfessionalXref}
+          onBind={bindProfessionalXref}
+        />}
+      </div>
+    </div>
   ) : activeProfessionalDock === 'workspace' ? (
     <CadWorkspaceDock
       preferences={workspacePreferences}

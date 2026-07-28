@@ -503,9 +503,24 @@ export interface CadPublicationRecord {
 export interface CadExternalReference {
   id: string;
   name: string;
+  /** Tenant asset URI. Browser-local absolute paths are never persisted. */
   uri: string;
   revision?: string;
   loaded: boolean;
+  mode?: "attachment" | "overlay";
+  tenantId?: string;
+  assetId?: string;
+  sourceVersion?: number;
+  contentHash?: string;
+  relativePath?: string;
+  blockId?: string;
+  insertId?: string;
+  dependencyAssetIds?: string[];
+  dependencyEdges?: Array<{ from: string; to: string; mode: "attachment" | "overlay" }>;
+  status?: "loaded" | "unloaded" | "missing" | "stale" | "denied" | "cycle" | "depth_exceeded";
+  lastLoadedAt?: string;
+  lastCheckedAt?: string;
+  error?: string;
 }
 
 export interface CadChange {
