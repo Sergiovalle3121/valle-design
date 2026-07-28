@@ -6,9 +6,9 @@
 | --- | --- |
 | `MISSION_STARTED_AT` | 2026-07-28 12:08:49 -06:00 |
 | `MISSION_TARGET_END` | 2026-07-28 22:08:49 -06:00 |
-| `MISSION_CURRENT_PHASE` | P1-D — MLEADER semántico |
-| `MISSION_COMPLETED_GATES` | viewport 100k; recovery worker/journal; blob GC bifásico y tenant-safe; selección profesional; precisión dinámica y tracking; HATCH asociativo; MTEXT nativo; DIMENSION asociativa |
-| `MISSION_NEXT_ACTION` | modelar MLEADER con landing, dogleg, contenido MTEXT/bloque, estilos, grips y round-trip |
+| `MISSION_CURRENT_PHASE` | P1-E — BLOCK/INSERT profesional |
+| `MISSION_COMPLETED_GATES` | viewport 100k; recovery worker/journal; blob GC bifásico y tenant-safe; selección profesional; precisión dinámica y tracking; HATCH asociativo; MTEXT nativo; DIMENSION asociativa; MLEADER canónico |
+| `MISSION_NEXT_ACTION` | auditar y completar definiciones/instancias, anidación, atributos, transformaciones, librería, round-trip y batching de bloques |
 | Repositorio | `Sergiovalle3121/axos-os` |
 | Base | `1625ba26a07876943b821586c46b02c9f47f6bac` (`origin/main`) |
 | Rama / PR | `codex/cad-professional-grand-leap-iii` / #1416 |
@@ -35,9 +35,9 @@ revisiones y mergeabilidad inmediatamente antes de cada merge.
 - Recovery aún serializa snapshots completos periódicos desde el hilo principal.
 - El blob store conserva una frontera reutilizable, pero carece de lifecycle/GC
   y su adaptador de base carga blobs completos.
-- HATCH, MTEXT y siete clases de DIMENSION son nativos; HATCH y DIMENSION son
-  asociativos y regenerables, y sus ciclos de edición/publicación/DXF están
-  demostrados. MLEADER sigue incompleto.
+- HATCH, MTEXT, siete clases de DIMENSION y MLEADER son nativos; HATCH,
+  DIMENSION y MLEADER son asociativos y regenerables, y sus ciclos de
+  edición/publicación/DXF están demostrados.
 
 ## Rúbrica inicial de CAD 2D profesional
 
@@ -48,14 +48,14 @@ Sólo se conceden puntos por evidencia actual del repositorio y navegador.
 | Workbench y arquitectura | 10 | 5 | `tested` parcial | dock aislado; editor aún monolítico y por encima de 8k líneas |
 | Precisión, input y snaps | 10 | 9 | `browser-proven` | dynamic input, snaps derivados, POLAR/ORTHO/OTRACK y tolerancia por zoom; falta preferencia persistida por usuario |
 | Selección y modificación | 10 | 9 | `browser-proven` | controlador unificado, geometrías profesionales, cycling y quick select; falta stress E2E de trazos 100k |
-| Entidades de documentación | 10 | 9 | `browser-proven` parcial | HATCH, MTEXT y siete DIM completos; MLEADER incompleto |
+| Entidades de documentación | 10 | 10 | `browser-proven` | HATCH, MTEXT, siete DIM y MLEADER completan su ciclo canónico |
 | Rendimiento 10k/100k | 15 | 10 | `browser-proven` parcial | viewport real, lotes cancelables y arnés 100k; aún no 60 FPS ni memoria estabilizada |
 | Persistencia/recovery/versionado | 10 | 9 | `browser-proven` | worker/journal/cuota y lifecycle de blobs; falta delta journal nativo |
 | Capas, bloques y referencias | 10 | 5 | `tested` parcial | capas/bloques presentes; xrefs parciales |
 | Layouts, viewports y publicación | 10 | 6 | `tested` | paper space/PDF/recibos; UI multi-viewport parcial |
 | Interoperabilidad/extensibilidad | 5 | 3 | `tested` | DXF semántico acotado; DWG `provider-required` |
 | Calidad enterprise/seguridad/pruebas | 10 | 9 | `tested` | CI/tenant/brand/smokes verdes; falta arnés perf bloqueante |
-| **Total** | **100** | **74** |  | Sin claim de paridad general |
+| **Total** | **100** | **75** |  | Sin claim de paridad general |
 
 ## Paridad completa separada
 
@@ -265,6 +265,30 @@ No se editan ramas comerciales, ERP o PDF durante la construcción CAD.
   24.1 s.
 - Deuda visible: `Layout3DEditor.tsx` llegó a 9,549 líneas; la siguiente
   extracción por controladores/paneles continúa pendiente.
+
+### 2026-07-28 14:04–14:19 — P1-D / MLEADER canónico
+
+- MLEADER es una entidad única con múltiples líneas, tip/arrow, elbow, landing
+  y dogleg; el mismo modelo conserva contenido Text/MTEXT, estilo tipográfico,
+  máscara, alineación y cinco arrowheads. Registry, índice, selección unitaria,
+  grips, snaps, propiedades, transforms y undo/redo operan sobre esa entidad.
+- Cada línea puede asociarse mediante una referencia tipada. El command bus
+  regenera los tips al editar una fuente y marca `broken` al eliminarla;
+  detach/reassociate preserva la semántica y la UI expone el estado explícito.
+- La migración sólo pliega la composición histórica DIM + dogleg + TEXT cuando
+  los ids y la geometría la hacen inequívoca. Las composiciones ambiguas se
+  conservan y reciben `legacy_mleader_ambiguous`, sin pérdida silenciosa.
+- PDF conserva paths y texto vectorial. DXF emite MLEADER real con context,
+  múltiples `LEADER_LINE` y XDATA `AXOS_MLEADER`; el import reconstruye líneas,
+  contenido, formato y transformación como una entidad `detached` sin duplicar
+  las primitivas internas.
+- Evidencia: migración, geometría, asociación/broken, registry, paper-space y
+  round-trip DXF verdes; TypeScript y ESLint focal sin errores. Chromium crea
+  dos líneas asociadas, cambia arrow, detach/reassociate, edita contenido
+  multilínea, prueba undo/redo, guarda/recarga, descarga/reimporta DXF y marca
+  `broken` al borrar la fuente: 1/1 verde en 26.5 s.
+- Deuda visible: `Layout3DEditor.tsx` queda en 9,465 líneas; se mantiene el gate
+  explícito de extraer más controladores/paneles durante la misión.
 
 ## Claims
 

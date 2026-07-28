@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import DxfParser from "dxf-parser";
 import type { CadDimensionEntity } from "./associative-dimension";
+import type { CadMleaderEntity } from "./associative-mleader";
 
 export type CadDxfPrimitiveKind =
   | "line"
@@ -69,6 +70,10 @@ export type CadDxfSemanticDimension = Omit<
   CadDimensionEntity,
   "id" | "type" | "context" | "references" | "associative" | "associationStatus"
 > & { blockName: string };
+export type CadDxfSemanticMleader = Omit<
+  CadMleaderEntity,
+  "id" | "type" | "context" | "references" | "associative" | "associationStatus"
+> & { sourceOrdinal: number };
 export interface CadDxfImportWarning {
   code: string;
   message: string;
@@ -80,6 +85,7 @@ export interface CadDxfImportResult {
   hatches: CadDxfHatch[];
   mtexts: CadDxfMText[];
   semanticDimensions: CadDxfSemanticDimension[];
+  mleaders: CadDxfSemanticMleader[];
   warnings: CadDxfImportWarning[];
   layers: string[];
 }
@@ -657,6 +663,84 @@ export function parseRawDxfSemanticDimensions(text: string): CadDxfSemanticDimen
   return dimensions;
 }
 
+const MLEADER_ARROWS = new Set<NonNullable<CadDxfSemanticMleader["arrowhead"]>>([
+  "closed-filled", "open", "architectural-tick", "dot", "none",
+]);
+
+export function parseRawDxfSemanticMleaders(text: string): CadDxfSemanticMleader[] {
+  const pairs = rawDxfPairs(text);
+  const mleaders: CadDxfSemanticMleader[] = [];
+  let sourceOrdinal = -1;
+  for (let start = 0; start < pairs.length && mleaders.length < MAX_DXF_ENTITIES; start += 1) {
+    if (pairs[start].code !== 0 || pairs[start].value.toUpperCase() !== "MLEADER") continue;
+    sourceOrdinal += 1;
+    let end = start + 1;
+    while (end < pairs.length && pairs[end].code !== 0) end += 1;
+    const entityPairs = pairs.slice(start + 1, end);
+    const applicationIndex = entityPairs.findIndex((pair) => pair.code === 1001 && pair.value === "AXOS_MLEADER");
+    if (applicationIndex < 0) { start = end - 1; continue; }
+    const first = (code: number) => entityPairs.find((pair) => pair.code === code)?.value;
+    const metadataPairs = entityPairs.slice(applicationIndex + 1).filter((pair) => pair.code === 1000);
+    const metadata = new Map<string, string>();
+    const lines = new Map<number, Map<number, CadDxfPoint>>();
+    for (const pair of metadataPairs) {
+      const separator = pair.value.indexOf("=");
+      if (separator <= 0) continue;
+      const key = pair.value.slice(0, separator);
+      const value = pair.value.slice(separator + 1);
+      if (key === "line") {
+        const [rawLine, rawPoint, rawX, rawY] = value.split(",");
+        const lineIndex = Number(rawLine); const pointIndex = Number(rawPoint); const x = num(rawX); const y = num(rawY);
+        if (Number.isInteger(lineIndex) && Number.isInteger(pointIndex) && lineIndex >= 0 && pointIndex >= 0 && x !== null && y !== null) {
+          const line = lines.get(lineIndex) ?? new Map<number, CadDxfPoint>();
+          line.set(pointIndex, { x, y });
+          lines.set(lineIndex, line);
+        }
+      } else metadata.set(key, value);
+    }
+    const leaderLines = [...lines.entries()].sort(([a], [b]) => a - b)
+      .map(([, line]) => [...line.entries()].sort(([a], [b]) => a - b).map(([, point]) => point))
+      .filter((line) => line.length >= 2);
+    const textX = num(metadata.get("textX")); const textY = num(metadata.get("textY"));
+    if (!leaderLines.length || textX === null || textY === null) { start = end - 1; continue; }
+    const decode = (value: string | undefined, fallback = "") => {
+      try { return decodeURIComponent(value ?? fallback); } catch { return fallback; }
+    };
+    const textChunks = [...metadata.entries()].filter(([key]) => /^text\d+$/.test(key)).sort(([a], [b]) => Number(a.slice(4)) - Number(b.slice(4))).map(([, value]) => value).join("");
+    const arrow = metadata.get("arrowhead") as NonNullable<CadDxfSemanticMleader["arrowhead"]> | undefined;
+    const numeric = (key: string) => num(metadata.get(key));
+    const textWidth = numeric("textWidth"); const textHeight = numeric("textHeight"); const textRotation = numeric("textRotation");
+    const lineSpacing = numeric("lineSpacing"); const backgroundPadding = numeric("backgroundPadding");
+    const doglegLength = numeric("doglegLength"); const arrowSize = numeric("arrowSize");
+    const alignment = metadata.get("textAlignment");
+    mleaders.push({
+      sourceOrdinal,
+      layer: first(8) || DEFAULT_LAYER,
+      vertices: leaderLines[0].map((point) => ({ ...point, z: 0 })),
+      leaderLines: leaderLines.map((line) => line.map((point) => ({ ...point, z: 0 }))),
+      text: decode(textChunks),
+      textPosition: { x: textX, y: textY, z: 0 },
+      contentType: metadata.get("contentType") === "text" ? "text" : "mtext",
+      style: decode(metadata.get("style"), "Standard"),
+      ...(textWidth !== null && textWidth > 0 ? { textWidth } : {}),
+      ...(textHeight !== null && textHeight > 0 ? { textHeight } : {}),
+      ...(textRotation !== null ? { textRotation } : {}),
+      ...(alignment && ["left", "center", "right", "justify"].includes(alignment) ? { textAlignment: alignment as NonNullable<CadDxfSemanticMleader["textAlignment"]> } : {}),
+      fontFamily: decode(metadata.get("fontFamily"), "Arial"),
+      ...(lineSpacing !== null && lineSpacing > 0 ? { lineSpacing } : {}),
+      bold: metadata.get("bold") === "1", italic: metadata.get("italic") === "1", underline: metadata.get("underline") === "1",
+      backgroundMask: metadata.get("backgroundMask") === "1", backgroundColor: metadata.get("backgroundColor") || undefined,
+      ...(backgroundPadding !== null && backgroundPadding >= 0 ? { backgroundPadding } : {}),
+      landing: metadata.get("landing") !== "0",
+      ...(doglegLength !== null && doglegLength > 0 ? { doglegLength } : {}),
+      ...(arrow && MLEADER_ARROWS.has(arrow) ? { arrowhead: arrow } : {}),
+      ...(arrowSize !== null && arrowSize > 0 ? { arrowSize } : {}),
+    });
+    start = end - 1;
+  }
+  return mleaders;
+}
+
 /**
  * dxf-parser currently drops HATCH. Parse polyline boundary paths directly
  * from ASCII group codes so solid and predefined-pattern hatches survive the
@@ -761,6 +845,7 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
   const rawHatchResult = parseRawDxfHatches(text);
   const rawMTexts = parseRawDxfMTexts(text);
   const semanticDimensions = parseRawDxfSemanticDimensions(text);
+  const mleaders = parseRawDxfSemanticMleaders(text);
   const warnings: CadDxfImportWarning[] = [...rawHatchResult.warnings];
   let parsed: any;
   try {
@@ -771,14 +856,15 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
       hatches: rawHatchResult.hatches,
       mtexts: rawMTexts,
       semanticDimensions,
-      layers: [...new Set([...rawHatchResult.hatches.map((hatch) => hatch.layer), ...rawMTexts.map((mtext) => mtext.layer), ...semanticDimensions.map((dimension) => dimension.layer)])].sort(),
+      mleaders,
+      layers: [...new Set([...rawHatchResult.hatches.map((hatch) => hatch.layer), ...rawMTexts.map((mtext) => mtext.layer), ...semanticDimensions.map((dimension) => dimension.layer), ...mleaders.map((mleader) => mleader.layer)])].sort(),
       warnings: [
         ...warnings,
         { code: "parse_failed", message: "No se pudo parsear el DXF." },
       ],
     };
   }
-  const remainingEntityCapacity = Math.max(0, MAX_DXF_ENTITIES - rawHatchResult.hatches.length - rawMTexts.length - semanticDimensions.length);
+  const remainingEntityCapacity = Math.max(0, MAX_DXF_ENTITIES - rawHatchResult.hatches.length - rawMTexts.length - semanticDimensions.length - mleaders.length);
   const entities: any[] = Array.isArray(parsed?.entities)
     ? parsed.entities.slice(0, remainingEntityCapacity)
     : [];
@@ -787,9 +873,15 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
   const primitives: CadDxfPrimitive[] = [];
   const layers = new Set<string>();
   const semanticDimensionBlocks = new Set(semanticDimensions.map((dimension) => dimension.blockName));
+  const semanticMleaderOrdinals = new Set(mleaders.map((mleader) => mleader.sourceOrdinal));
+  let mleaderOrdinal = -1;
   for (const entity of entities) {
     if (primitives.length >= remainingEntityCapacity) break;
     const type = String(entity?.type || "").toUpperCase();
+    if (type === "MLEADER") {
+      mleaderOrdinal += 1;
+      if (semanticMleaderOrdinals.has(mleaderOrdinal)) continue;
+    }
     if (type === "MTEXT") continue;
     if (type === "INSERT") {
       // Expansión de bloques (CAD-NEXT-063): las puertas/luminarias/mobiliario
@@ -830,5 +922,6 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
   for (const hatch of rawHatchResult.hatches) layers.add(hatch.layer);
   for (const mtext of rawMTexts) layers.add(mtext.layer);
   for (const dimension of semanticDimensions) layers.add(dimension.layer);
-  return { primitives, hatches: rawHatchResult.hatches, mtexts: rawMTexts, semanticDimensions, warnings, layers: [...layers].sort() };
+  for (const mleader of mleaders) layers.add(mleader.layer);
+  return { primitives, hatches: rawHatchResult.hatches, mtexts: rawMTexts, semanticDimensions, mleaders, warnings, layers: [...layers].sort() };
 }

@@ -5,6 +5,7 @@ import {
 } from "./entity-runtime";
 import { layoutCadMText } from "./mtext-layout";
 import { buildCadDimensionGeometry } from "./associative-dimension";
+import { buildCadMleaderGeometry } from "./associative-mleader";
 
 export interface CadThreeViewport {
   scale: number;
@@ -345,6 +346,37 @@ export function buildCadNativeObject(
         backgroundMask: true,
         backgroundColor: "#0f172a",
         backgroundPadding: 0.1,
+        layer: entity.layer,
+        context: entity.context,
+      }, viewport, elevation);
+      if (sprite) {
+        sprite.userData.nativeEntityId = entity.id;
+        group.add(sprite);
+      }
+    }
+  }
+  if (entity.type === "mleader") {
+    const geometry = buildCadMleaderGeometry(entity);
+    if (geometry && entity.text.trim()) {
+      const sprite = buildCadMTextSprite({
+        id: `${entity.id}:content`,
+        type: "mtext",
+        insertion: { ...geometry.textAnchor, z: 0 },
+        text: entity.text,
+        width: entity.textWidth ?? 1800,
+        height: entity.textHeight ?? 120,
+        rotation: entity.textRotation ?? 0,
+        alignment: geometry.textDirection > 0 ? "middle-left" : "middle-right",
+        paragraphAlignment: entity.textAlignment ?? "left",
+        style: entity.style,
+        fontFamily: entity.fontFamily ?? "Arial",
+        lineSpacing: entity.lineSpacing ?? 1.2,
+        bold: entity.bold,
+        italic: entity.italic,
+        underline: entity.underline,
+        backgroundMask: entity.backgroundMask,
+        backgroundColor: entity.backgroundColor,
+        backgroundPadding: entity.backgroundPadding,
         layer: entity.layer,
         context: entity.context,
       }, viewport, elevation);

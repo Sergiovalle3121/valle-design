@@ -202,6 +202,29 @@ const deletedLineDocument = executeCadEntityCommand(movedLineDocument.document, 
 const brokenDimension = deletedLineDocument.document.entities.find((entity) => entity.id === associatedDimension.id);
 assert.equal(brokenDimension?.type === "dimension" ? brokenDimension.associationStatus : null, "broken");
 
+const associatedMleader: Extract<CadNativeEntity, { type: "mleader" }> = {
+  id: "mleader-associated", type: "mleader", layer: "NOTES", text: "Inspect connection",
+  vertices: [{ x: 100, y: 0, z: 0 }, { x: 260, y: 100, z: 0 }],
+  leaderLines: [[{ x: 100, y: 0, z: 0 }, { x: 260, y: 100, z: 0 }]],
+  textPosition: { x: 500, y: 100, z: 0 }, landing: true, arrowSize: 20,
+  associative: true, references: [{ entityId: nativeLine.id, anchor: "center" }], associationStatus: "associated",
+};
+const mleaderRuntime = CAD_ENTITY_REGISTRY.adapter(associatedMleader);
+assert.ok(mleaderRuntime.renderer.paths(associatedMleader).length >= 3);
+assert.equal(mleaderRuntime.properties.read(associatedMleader).leaderLineCount, 1);
+const mleaderDocument = migrateCadDocument({ meta: { version: 1, schema: 3, unit: "mm" }, entities: [nativeLine, associatedMleader] });
+const stretchedLine = executeCadEntityCommand(mleaderDocument, { type: "properties", entityId: nativeLine.id, patch: { endX: 300 } });
+const regeneratedMleader = stretchedLine.document.entities.find((entity) => entity.id === associatedMleader.id);
+assert.equal(regeneratedMleader?.type, "mleader");
+if (regeneratedMleader?.type === "mleader") {
+  assert.deepEqual(regeneratedMleader.vertices[0], { x: 150, y: 0, z: 0 });
+  assert.equal(regeneratedMleader.associationStatus, "associated");
+}
+const brokenMleaderDocument = executeCadEntityCommand(stretchedLine.document, { type: "delete", entityId: nativeLine.id });
+assert.equal(brokenMleaderDocument.document.entities.find((entity) => entity.id === associatedMleader.id)?.type === "mleader"
+  ? (brokenMleaderDocument.document.entities.find((entity) => entity.id === associatedMleader.id) as typeof associatedMleader).associationStatus
+  : null, "broken");
+
 const hatch: Extract<CadNativeEntity, { type: "hatch" }> = {
   id: "hatch-1",
   type: "hatch",

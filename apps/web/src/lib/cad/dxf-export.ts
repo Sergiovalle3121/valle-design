@@ -5,6 +5,8 @@ import {
   type DimensionGeometry,
 } from "./dimension";
 import { buildCadDimensionGeometry, type CadDimensionEntity, type CadDimensionGeometry } from "./associative-dimension";
+import { buildCadMleaderGeometry, type CadMleaderEntity } from "./associative-mleader";
+import { DEFAULT_MLEADER_STYLE } from "./mleader";
 
 export type CadDxfExportUnit = "mm" | "m";
 export interface CadDxfExportOptions {
@@ -43,6 +45,10 @@ export interface CadDxfExportMText {
 }
 export type CadDxfExportSemanticDimension = Omit<
   CadDimensionEntity,
+  "id" | "type" | "context" | "references" | "associative" | "associationStatus"
+>;
+export type CadDxfExportMleader = Omit<
+  CadMleaderEntity,
   "id" | "type" | "context" | "references" | "associative" | "associationStatus"
 >;
 export interface CadDxfExportMeasurement {
@@ -92,6 +98,7 @@ export interface CadDxfExportModel {
   mtexts?: CadDxfExportMText[];
   measurements?: CadDxfExportMeasurement[];
   semanticDimensions?: CadDxfExportSemanticDimension[];
+  mleaders?: CadDxfExportMleader[];
   blocks?: CadDxfExportBlock[];
   inserts?: CadDxfExportInsert[];
   hatches?: CadDxfExportHatch[];
@@ -154,6 +161,7 @@ function uniqueLayers(model: CadDxfExportModel): string[] {
     names.add(safeLayerName(measurement.layer ?? MEASUREMENT_LAYER));
   for (const dimension of model.semanticDimensions ?? [])
     names.add(safeLayerName(dimension.layer ?? MEASUREMENT_LAYER));
+  for (const mleader of model.mleaders ?? []) names.add(safeLayerName(mleader.layer ?? TEXT_LAYER));
   return [...names].sort((a, b) => a.localeCompare(b));
 }
 function layerColor(model: CadDxfExportModel, name: string): number {
@@ -204,9 +212,12 @@ function pushLayerTable(
   pushPair(lines, 0, "ENDTAB");
   pushPair(lines, 0, "TABLE");
   pushPair(lines, 2, "APPID");
-  pushPair(lines, 70, 1);
+  pushPair(lines, 70, 2);
   pushPair(lines, 0, "APPID");
   pushPair(lines, 2, "AXOS_DIM");
+  pushPair(lines, 70, 0);
+  pushPair(lines, 0, "APPID");
+  pushPair(lines, 2, "AXOS_MLEADER");
   pushPair(lines, 70, 0);
   pushPair(lines, 0, "ENDTAB");
   pushPair(lines, 0, "ENDSEC");
@@ -744,6 +755,50 @@ function pushSemanticDimension(lines: string[], dimension: PreparedSemanticDimen
   metadata.forEach((value) => pushPair(lines, 1000, safeText(value).slice(0, 240)));
 }
 
+function pushMleader(lines: string[], entity: CadDxfExportMleader): boolean {
+  const geometry = buildCadMleaderGeometry({ id: "dxf-mleader", type: "mleader", ...entity });
+  if (!geometry) return false;
+  const layer = safeLayerName(entity.layer ?? TEXT_LAYER);
+  pushPair(lines, 0, "MLEADER");
+  pushPair(lines, 8, layer);
+  pushPair(lines, 100, "AcDbMLeader");
+  pushPair(lines, 270, 2);
+  pushPair(lines, 300, "CONTEXT_DATA{");
+  pushPair(lines, 40, 1);
+  pushPair(lines, 10, fmt(entity.textPosition.x));
+  pushPair(lines, 20, fmt(entity.textPosition.y));
+  pushPair(lines, 30, 0);
+  pushPair(lines, 304, safeText(entity.text));
+  for (const leader of geometry.leaderLines) {
+    pushPair(lines, 302, "LEADER{");
+    pushPair(lines, 304, "LEADER_LINE{");
+    leader.forEach((point) => pushPoint(lines, point));
+    pushPair(lines, 305, "}");
+    pushPair(lines, 303, "}");
+  }
+  pushPair(lines, 301, "}");
+  pushPair(lines, 170, 1);
+  pushPair(lines, 171, entity.contentType === "text" ? 1 : 2);
+  pushPair(lines, 1001, "AXOS_MLEADER");
+  const encodedText = encodeURIComponent(entity.text);
+  const metadata = [
+    `contentType=${entity.contentType ?? "mtext"}`, `style=${encodeURIComponent(entity.style ?? "Standard")}`,
+    `textX=${fmt(entity.textPosition.x)}`, `textY=${fmt(entity.textPosition.y)}`,
+    `textWidth=${fmt(entity.textWidth ?? 1800)}`, `textHeight=${fmt(entity.textHeight ?? 120)}`,
+    `textRotation=${fmt(entity.textRotation ?? 0)}`, `textAlignment=${entity.textAlignment ?? "left"}`,
+    `fontFamily=${encodeURIComponent(entity.fontFamily ?? "Arial")}`, `lineSpacing=${fmt(entity.lineSpacing ?? 1.2)}`,
+    `bold=${entity.bold ? 1 : 0}`, `italic=${entity.italic ? 1 : 0}`, `underline=${entity.underline ? 1 : 0}`,
+    `backgroundMask=${entity.backgroundMask ? 1 : 0}`, `backgroundColor=${entity.backgroundColor ?? ""}`,
+    `backgroundPadding=${fmt(entity.backgroundPadding ?? 0.15)}`, `landing=${entity.landing === false ? 0 : 1}`,
+    `doglegLength=${fmt(entity.doglegLength ?? DEFAULT_MLEADER_STYLE.doglegLength)}`,
+    `arrowhead=${entity.arrowhead ?? "closed-filled"}`, `arrowSize=${fmt(entity.arrowSize ?? DEFAULT_MLEADER_STYLE.arrowSize)}`,
+  ];
+  geometry.leaderLines.forEach((leader, lineIndex) => leader.forEach((point, pointIndex) => metadata.push(`line=${lineIndex},${pointIndex},${fmt(point.x)},${fmt(point.y)}`)));
+  for (let index = 0; index * 200 < encodedText.length; index += 1) metadata.push(`text${index}=${encodedText.slice(index * 200, (index + 1) * 200)}`);
+  metadata.forEach((value) => pushPair(lines, 1000, value));
+  return true;
+}
+
 /** Sección BLOCKS: definiciones reutilizables (mismos códigos que lee el parser). */
 function pushBlocks(lines: string[], blocks: CadDxfExportBlock[]) {
   pushPair(lines, 0, "SECTION");
@@ -830,6 +885,8 @@ export function exportCadDxf(
   }
   for (const text of model.mtexts ?? [])
     if (pushMText(lines, safeLayerName(text.layer ?? TEXT_LAYER), text)) entityCount += 1;
+  for (const mleader of model.mleaders ?? [])
+    if (pushMleader(lines, mleader)) entityCount += 1;
   for (const dim of dimensions) {
     pushDimension(
       lines,

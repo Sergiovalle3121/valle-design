@@ -3,11 +3,13 @@ import { migrateCadDocument } from "./cad-document";
 import {
   cadDocumentNativeDxfHatches,
   cadDocumentNativeDxfMTexts,
+  cadDocumentNativeDxfMleaders,
   cadDocumentNativeDxfPrimitives,
   cadDocumentNativeDxfSemanticDimensions,
   cadDxfCurvesToNativeEntities,
   cadDxfHatchesToNativeEntities,
   cadDxfMTextsToNativeEntities,
+  cadDxfMleadersToNativeEntities,
   cadDxfSemanticDimensionsToNativeEntities,
 } from "./dxf-cad-document";
 import { exportCadDxf } from "./dxf-export";
@@ -115,6 +117,41 @@ const source = migrateCadDocument({
         { entityId: "source-line", anchor: "end" },
       ],
       associationStatus: "associated",
+    },
+    {
+      id: "mleader-native",
+      type: "mleader",
+      vertices: [{ x: 20, y: 300, z: 0 }, { x: 180, y: 380, z: 0 }],
+      leaderLines: [
+        [{ x: 20, y: 300, z: 0 }, { x: 180, y: 380, z: 0 }],
+        [{ x: 20, y: 460, z: 0 }, { x: 180, y: 380, z: 0 }],
+      ],
+      text: "Inspect connection\nTorque 25 Nm",
+      textPosition: { x: 500, y: 380, z: 0 },
+      contentType: "mtext",
+      textWidth: 1200,
+      textHeight: 90,
+      textRotation: 5,
+      textAlignment: "left",
+      fontFamily: "Arial",
+      lineSpacing: 1.3,
+      bold: true,
+      underline: true,
+      backgroundMask: true,
+      backgroundColor: "#112233",
+      backgroundPadding: 0.2,
+      landing: true,
+      doglegLength: 320,
+      arrowhead: "open",
+      arrowSize: 18,
+      style: "Mechanical",
+      associative: true,
+      references: [
+        { entityId: "source-a", anchor: "center" },
+        { entityId: "source-b", anchor: "center" },
+      ],
+      associationStatus: "associated",
+      layer: "NOTES",
     },
   ],
 });
@@ -237,6 +274,32 @@ const everyDimensionDxf = exportCadDxf({
 const everyDimensionRoundTrip = importDxfPrimitives(everyDimensionDxf.content);
 assert.deepEqual(everyDimensionRoundTrip.semanticDimensions.map((dimension) => dimension.dimensionKind), everyDimensionKind);
 assert.equal(everyDimensionRoundTrip.primitives.length, 0);
+
+const mleaders = cadDocumentNativeDxfMleaders(source);
+assert.equal(mleaders.length, 1);
+const mleaderDxf = exportCadDxf({ mleaders }, { units: "mm" });
+assert.match(mleaderDxf.content, /0\r?\nMLEADER/);
+assert.match(mleaderDxf.content, /1001\r?\nAXOS_MLEADER/);
+const reimportedMleaders = importDxfPrimitives(mleaderDxf.content);
+assert.equal(reimportedMleaders.mleaders.length, 1);
+const nativeMleaders = cadDxfMleadersToNativeEntities(reimportedMleaders.mleaders, { idPrefix: "roundtrip" });
+const mleader = nativeMleaders[0];
+assert.equal(mleader.type, "mleader");
+if (mleader.type === "mleader") {
+  assert.equal(mleader.leaderLines?.length, 2);
+  assert.deepEqual(mleader.leaderLines?.[1][0], { x: 20, y: 460, z: 0 });
+  assert.equal(mleader.text, "Inspect connection\nTorque 25 Nm");
+  assert.deepEqual(mleader.textPosition, { x: 500, y: 380, z: 0 });
+  assert.equal(mleader.textWidth, 1200);
+  assert.equal(mleader.textHeight, 90);
+  assert.equal(mleader.bold, true);
+  assert.equal(mleader.underline, true);
+  assert.equal(mleader.backgroundMask, true);
+  assert.equal(mleader.landing, true);
+  assert.equal(mleader.arrowhead, "open");
+  assert.equal(mleader.associative, false);
+  assert.equal(mleader.associationStatus, "detached");
+}
 
 // Editor projection flips Y; orientation-aware import swaps the arc endpoints
 // so the same geometric sweep survives instead of silently mirroring it.

@@ -4,8 +4,8 @@ import type {
   CadPoint2,
   CadPoint3,
 } from "./cad-document";
-import type { CadDxfHatch, CadDxfMText, CadDxfPoint, CadDxfPrimitive, CadDxfSemanticDimension } from "./dxf-import";
-import type { CadDxfExportHatch, CadDxfExportMText, CadDxfExportSemanticDimension } from "./dxf-export";
+import type { CadDxfHatch, CadDxfMText, CadDxfPoint, CadDxfPrimitive, CadDxfSemanticDimension, CadDxfSemanticMleader } from "./dxf-import";
+import type { CadDxfExportHatch, CadDxfExportMText, CadDxfExportMleader, CadDxfExportSemanticDimension } from "./dxf-export";
 import type { CadNativeEntity } from "./entity-runtime";
 
 export interface CadDxfProjection {
@@ -320,6 +320,41 @@ export function cadDxfSemanticDimensionsToNativeEntities(
   });
 }
 
+export function cadDxfMleadersToNativeEntities(
+  mleaders: CadDxfSemanticMleader[],
+  options: CadDxfNativeImportOptions = {},
+): CadNativeEntity[] {
+  const projection = options.projection ?? identityProjection;
+  const prefix = options.idPrefix ?? "dxf";
+  const provider = options.provider ?? "dxf";
+  const scaleFactor =
+    (Math.hypot(...Object.values(mappedVector(projection, { x: 0, y: 0 }, { x: 1, y: 0 }))) +
+      Math.hypot(...Object.values(mappedVector(projection, { x: 0, y: 0 }, { x: 0, y: 1 })))) /
+    2;
+  return mleaders.map((mleader, index): CadNativeEntity => {
+    const properties = { ...mleader } as Record<string, unknown>;
+    ["sourceOrdinal", "vertices", "leaderLines", "textPosition", "textWidth", "textHeight", "textRotation", "doglegLength", "arrowSize"].forEach((key) => delete properties[key]);
+    const leaderLines = (mleader.leaderLines?.length ? mleader.leaderLines : [mleader.vertices])
+      .map((line) => line.map((point) => point3(projection.point(point))));
+    return {
+      id: `${prefix}:mleader:${index.toString().padStart(6, "0")}`,
+      type: "mleader",
+      ...(properties as Omit<CadDxfSemanticMleader, "sourceOrdinal" | "vertices" | "leaderLines" | "textPosition" | "textWidth" | "textHeight" | "textRotation" | "doglegLength" | "arrowSize">),
+      vertices: leaderLines[0],
+      leaderLines,
+      textPosition: point3(projection.point(mleader.textPosition)),
+      ...(mleader.textWidth !== undefined ? { textWidth: mleader.textWidth * scaleFactor } : {}),
+      ...(mleader.textHeight !== undefined ? { textHeight: mleader.textHeight * scaleFactor } : {}),
+      textRotation: projectedAngle(projection, mleader.textPosition, 1, mleader.textRotation ?? 0),
+      ...(mleader.doglegLength !== undefined ? { doglegLength: mleader.doglegLength * scaleFactor } : {}),
+      ...(mleader.arrowSize !== undefined ? { arrowSize: mleader.arrowSize * scaleFactor } : {}),
+      associative: false,
+      associationStatus: "detached",
+      context: { provenance: { provider }, metadata: { sourceType: "MLEADER", sourceLayer: mleader.layer } },
+    };
+  });
+}
+
 function clampedKnots(controlCount: number, degree: number): number[] {
   const knots: number[] = [];
   const spans = controlCount - degree;
@@ -469,5 +504,19 @@ export function cadDocumentNativeDxfSemanticDimensions(
       const dimension = { ...entity } as Record<string, unknown>;
       ["id", "type", "context", "references", "associative", "associationStatus"].forEach((key) => delete dimension[key]);
       return dimension as unknown as CadDxfExportSemanticDimension;
+    });
+}
+
+export function cadDocumentNativeDxfMleaders(
+  document: CadDocument,
+  filter?: (entity: CadEntity) => boolean,
+): CadDxfExportMleader[] {
+  return document.entities
+    .filter((entity) => entity.type === "mleader" && (filter ? filter(entity) : true))
+    .map((entity) => {
+      if (entity.type !== "mleader") throw new Error("Unexpected non-MLEADER entity.");
+      const mleader = { ...entity } as Record<string, unknown>;
+      ["id", "type", "context", "references", "associative", "associationStatus"].forEach((key) => delete mleader[key]);
+      return mleader as unknown as CadDxfExportMleader;
     });
 }

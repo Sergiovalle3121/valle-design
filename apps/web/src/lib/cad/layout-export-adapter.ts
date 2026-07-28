@@ -3,6 +3,7 @@ import {
   type CadDxfExportLayer,
   type CadDxfExportHatch,
   type CadDxfExportMText,
+  type CadDxfExportMleader,
   type CadDxfExportSemanticDimension,
   type CadDxfExportModel,
   type CadDxfExportOptions,
@@ -63,6 +64,8 @@ export interface CadLayoutExportInput {
   mtexts?: CadDxfExportMText[];
   /** First-class semantic DIMENSION entities. */
   semanticDimensions?: CadDxfExportSemanticDimension[];
+  /** First-class semantic MLEADER entities. */
+  mleaders?: CadDxfExportMleader[];
 }
 
 const CAD_DXF_LAYER_COLORS: Record<string, number> = {
@@ -111,6 +114,7 @@ function collectLayoutLayers(input: CadLayoutExportInput): CadDxfExportLayer[] {
   for (const hatch of input.hatches ?? []) names.add(hatch.layer || "0");
   for (const mtext of input.mtexts ?? []) names.add(mtext.layer || "Text");
   for (const dimension of input.semanticDimensions ?? []) names.add(dimension.layer || "Measurements");
+  for (const mleader of input.mleaders ?? []) names.add(mleader.layer || "Text");
   return [...names].sort((a, b) => a.localeCompare(b)).map((name) => ({
     name,
     color: CAD_DXF_LAYER_COLORS[name] ?? 7,
@@ -153,6 +157,7 @@ export function cadLayoutToDxfExportModel(
     measurements: input.measurements,
     mtexts: input.mtexts,
     semanticDimensions: input.semanticDimensions,
+    mleaders: input.mleaders,
     hatches: [
       ...(input.hatches ?? []),
       ...(input.boxes ?? [])

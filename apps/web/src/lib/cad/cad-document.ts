@@ -321,10 +321,37 @@ export type CadEntity =
   | {
       id: string;
       type: "mleader";
+      /** Primary leader line; retained for schema-v3 backward compatibility. */
       vertices: CadPoint3[];
+      /** One or more tip-to-elbow leader lines. */
+      leaderLines?: CadPoint3[][];
       text: string;
       textPosition: CadPoint3;
+      contentType?: "text" | "mtext";
+      textWidth?: number;
+      textHeight?: number;
+      textRotation?: number;
+      textAlignment?: "left" | "center" | "right" | "justify";
+      fontFamily?: string;
+      lineSpacing?: number;
+      bold?: boolean;
+      italic?: boolean;
+      underline?: boolean;
+      backgroundMask?: boolean;
+      backgroundColor?: string;
+      backgroundPadding?: number;
+      landing?: boolean;
+      doglegLength?: number;
+      arrowhead?: "closed-filled" | "open" | "architectural-tick" | "dot" | "none";
+      arrowSize?: number;
       style?: string;
+      associative?: boolean;
+      references?: Array<{
+        entityId: string;
+        anchor: "start" | "end" | "center" | "arc-start" | "arc-end" | "major-start" | "major-end" | "control" | "insertion" | "corner-ne";
+        index?: number;
+      }>;
+      associationStatus?: "associated" | "broken" | "detached";
       layer: string;
       context?: CadEntityContext;
     }
@@ -354,6 +381,7 @@ export interface CadLayerDef {
 export interface CadStyleTable {
   text: Record<string, { fontFamily?: string; height?: number }>;
   dimension: Record<string, { textStyle?: string; arrowSize?: number; precision?: number }>;
+  mleader?: Record<string, { textStyle?: string; arrowSize?: number; doglegLength?: number; landing?: boolean }>;
   table: Record<string, { textStyle?: string; rowHeight?: number }>;
   plot: Record<string, { colorMode?: "color" | "monochrome"; lineweightScale?: number }>;
 }
@@ -489,7 +517,7 @@ function byId(a: { id: string }, b: { id: string }): number {
 }
 
 function emptyStyles(): CadStyleTable {
-  return { text: {}, dimension: {}, table: {}, plot: {} };
+  return { text: {}, dimension: {}, mleader: {}, table: {}, plot: {} };
 }
 
 function point3(x: number, y: number, z = 0): CadPoint3 {
@@ -825,13 +853,82 @@ function withV3Defaults(doc: Partial<CadDocument>): CadDocument {
   };
 }
 
+const legacyPointEqual = (a: CadPoint2, b: CadPoint2, tolerance = 1e-6) =>
+  Math.hypot(a.x - b.x, a.y - b.y) <= tolerance;
+
+/**
+ * The former editor emitted a leader as two `ld_*` legacy DIM annotations plus
+ * one `nt_*` TEXT at the landing endpoint. Only that exact, isolated signature
+ * is folded into one MLEADER; ambiguous candidates remain untouched and gain a
+ * loss-manifest warning instead of being guessed.
+ */
+export function migrateLegacyMleaderCompositions(document: CadDocument): CadDocument {
+  const dimensions = document.entities.filter((entity): entity is Extract<CadEntity, { type: "dimension" }> =>
+    entity.type === "dimension" && !entity.dimensionKind && /^ld_/.test(entity.id));
+  const texts = document.entities.filter((entity): entity is Extract<CadEntity, { type: "text" }> =>
+    entity.type === "text" && /^nt_/.test(entity.id));
+  const used = new Set<string>();
+  const created: Extract<CadEntity, { type: "mleader" }>[] = [];
+  const warnings: CadLossManifestEntry[] = [];
+  for (const dogleg of dimensions) {
+    if (used.has(dogleg.id) || Math.abs(dogleg.a.y - dogleg.b.y) > 1e-6) continue;
+    const candidates = dimensions.filter((leader) =>
+      leader.id !== dogleg.id && !used.has(leader.id) &&
+      [leader.a, leader.b].some((point) => legacyPointEqual(point, dogleg.a) || legacyPointEqual(point, dogleg.b)));
+    const textCandidates = texts.filter((text) =>
+      !used.has(text.id) && (legacyPointEqual({ x: text.x, y: text.y }, dogleg.a) || legacyPointEqual({ x: text.x, y: text.y }, dogleg.b)));
+    if (candidates.length !== 1 || textCandidates.length !== 1) {
+      if (candidates.length || textCandidates.length) warnings.push({
+        code: "legacy_mleader_ambiguous",
+        entityId: dogleg.id,
+        sourceType: "DIM+DIM+TEXT",
+        detail: "Legacy leader composition was not uniquely identifiable and remains unflattened.",
+        severity: "warning",
+      });
+      continue;
+    }
+    const leader = candidates[0];
+    const text = textCandidates[0];
+    const shared = [leader.a, leader.b].find((point) => legacyPointEqual(point, dogleg.a) || legacyPointEqual(point, dogleg.b))!;
+    const tip = legacyPointEqual(leader.a, shared) ? leader.b : leader.a;
+    const textPosition = { x: text.x, y: text.y, z: 0 };
+    const id = `mleader:migrated:${[leader.id, dogleg.id, text.id].sort().join("+")}`;
+    created.push({
+      id,
+      type: "mleader",
+      vertices: [point3(tip.x, tip.y), point3(shared.x, shared.y)],
+      leaderLines: [[point3(tip.x, tip.y), point3(shared.x, shared.y)]],
+      text: text.text,
+      textPosition,
+      contentType: "text",
+      landing: true,
+      doglegLength: Math.hypot(dogleg.b.x - dogleg.a.x, dogleg.b.y - dogleg.a.y),
+      arrowhead: "closed-filled",
+      associationStatus: "detached",
+      associative: false,
+      style: "Standard",
+      layer: text.layer || leader.layer,
+      context: { provenance: { provider: "legacy-editor" }, metadata: { migratedLeader: leader.id, migratedDogleg: dogleg.id, migratedText: text.id } },
+    });
+    used.add(leader.id); used.add(dogleg.id); used.add(text.id);
+  }
+  if (!created.length && !warnings.length) return document;
+  const entities = [...document.entities.filter((entity) => !used.has(entity.id)), ...created].sort(byId);
+  return {
+    ...document,
+    entities,
+    modelSpace: { entityIds: entities.map((entity) => entity.id) },
+    lossManifest: [...document.lossManifest, ...warnings],
+  };
+}
+
 /** Deterministic additive migration from v1/v2 to the current schema. */
 export function migrateCadDocument(value: unknown): CadDocument {
   if (!value || typeof value !== "object") throw new Error("CadDocument must be an object.");
   const raw = value as Partial<CadDocument>;
   const schema = Number(raw.meta?.schema) || 1;
   if (schema > CAD_DOCUMENT_SCHEMA) throw new Error(`Unsupported CadDocument schema ${schema}.`);
-  const migrated = withV3Defaults(raw);
+  const migrated = migrateLegacyMleaderCompositions(withV3Defaults(raw));
   if (!finite(migrated)) throw new Error("CadDocument contains non-finite numeric values.");
   const ids = migrated.entities.map((entity) => entity.id);
   if (ids.some((id) => typeof id !== "string" || !id) || new Set(ids).size !== ids.length) {

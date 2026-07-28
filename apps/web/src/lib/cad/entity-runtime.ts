@@ -16,6 +16,8 @@ import { layoutCadMText } from "./mtext-layout";
 import { regenerateAssociativeDimensions } from "./associative-dimension";
 import { circleAdapter, isLegacyCircle, lineAdapter } from "./basic-native-adapters";
 import { dimensionAdapter } from "./dimension-entity-adapter";
+import { mleaderAdapter } from "./mleader-entity-adapter";
+import { regenerateAssociativeMleaders } from "./associative-mleader";
 import {
   hatchRegionContainsPoint,
   regenerateAssociativeHatches,
@@ -24,7 +26,7 @@ import {
 
 export type CadNativeEntity = Extract<
   CadEntity,
-  { type: "line" | "circle" | "arc" | "ellipse" | "spline" | "hatch" | "mtext" | "dimension" }
+  { type: "line" | "circle" | "arc" | "ellipse" | "spline" | "hatch" | "mtext" | "dimension" | "mleader" }
 >;
 export type CadNativeEntityType = CadNativeEntity["type"];
 
@@ -1140,7 +1142,8 @@ export const CAD_ENTITY_REGISTRY = new CadEntityRegistry()
   .register(splineAdapter)
   .register(mtextAdapter)
   .register(hatchAdapter)
-  .register(dimensionAdapter);
+  .register(dimensionAdapter)
+  .register(mleaderAdapter);
 
 function rectangularBoundary(entity: Extract<CadEntity, { type: "box" | "station" }>): CadPoint2[] {
   const center = { x: entity.x + entity.w / 2, y: entity.y + entity.h / 2 };
@@ -1175,6 +1178,7 @@ export function cadEntityBoundaryPaths(
     return entity.boundaries.map((points) => ({ sourceId: entity.id, points, closed: true }));
   if (entity.type === "mtext") return [];
   if (entity.type === "dimension") return [];
+  if (entity.type === "mleader") return [];
   return registry.adapter(entity).renderer.paths(entity, 192)
     .map((path) => ({ sourceId: entity.id, points: path.points, closed: path.closed }));
 }
@@ -1186,6 +1190,7 @@ export type CadEntityCommand =
   | { type: "copy"; entityId: string; newEntityId: string; offset?: CadPoint2 }
   | { type: "hatch-association"; entityId: string; associative: boolean }
   | { type: "dimension-association"; entityId: string; associative: boolean }
+  | { type: "mleader-association"; entityId: string; associative: boolean }
   | { type: "delete"; entityId: string };
 
 export interface CadEntityCommandResult {
@@ -1238,6 +1243,14 @@ export function executeCadEntityCommand(
       associationStatus: command.associative ? "associated" : "detached",
     } : entity);
     regenerationSourceIds = command.associative ? [...new Set((source.references ?? []).map((reference) => reference.entityId))] : [];
+  } else if (command.type === "mleader-association") {
+    if (source.type !== "mleader") throw new Error("MLeader association commands require an MLEADER entity.");
+    entities = entities.map((entity) => entity.id === source.id ? {
+      ...source,
+      associative: command.associative,
+      associationStatus: command.associative ? "associated" : "detached",
+    } : entity);
+    regenerationSourceIds = command.associative ? [...new Set((source.references ?? []).map((reference) => reference.entityId))] : [];
   } else {
     const next =
       command.type === "transform"
@@ -1254,7 +1267,8 @@ export function executeCadEntityCommand(
     (entity) => cadEntityBoundaryPaths(entity, registry),
   );
   const regeneratedDimensions = regenerateAssociativeDimensions(regenerated.entities, regenerationSourceIds);
-  entities = regeneratedDimensions.entities;
+  const regeneratedMleaders = regenerateAssociativeMleaders(regeneratedDimensions.entities, regenerationSourceIds);
+  entities = regeneratedMleaders.entities;
   entities.sort((a, b) => a.id.localeCompare(b.id));
   const nextDocument = commitChange(
     {
@@ -1271,7 +1285,7 @@ export function executeCadEntityCommand(
   );
   return {
     document: nextDocument,
-    affectedEntityIds: [...new Set([source.id, ...regenerated.regeneratedIds, ...regenerated.brokenIds, ...regeneratedDimensions.regeneratedIds, ...regeneratedDimensions.brokenIds])],
+    affectedEntityIds: [...new Set([source.id, ...regenerated.regeneratedIds, ...regenerated.brokenIds, ...regeneratedDimensions.regeneratedIds, ...regeneratedDimensions.brokenIds, ...regeneratedMleaders.regeneratedIds, ...regeneratedMleaders.brokenIds])],
     createdEntityIds,
     deletedEntityIds,
   };

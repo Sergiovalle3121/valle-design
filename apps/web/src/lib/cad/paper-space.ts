@@ -13,6 +13,7 @@ import {
   tessellateSpline,
 } from "./curve-tessellate";
 import { buildCadDimensionGeometry } from "./associative-dimension";
+import { buildCadMleaderGeometry } from "./associative-mleader";
 
 export const CAD_SHEET_PAPERS = {
   A4: { width: 210, height: 297 },
@@ -687,18 +688,26 @@ function renderEntity(
     return commands;
   }
   if (entity.type === "mleader") {
-    const commands = [path(entity.vertices)].filter(
-      (value): value is CadVectorCommand => !!value,
-    );
+    const geometry = buildCadMleaderGeometry(entity);
+    if (!geometry) return [];
+    const commands = geometry.paths.map((item) => path(item.points, item.closed)).filter((value): value is CadVectorCommand => !!value);
+    const scale = Math.hypot(matrix.a, matrix.b);
     commands.push({
       kind: "text",
       entityId: entity.id,
       viewportId: context.viewport.id,
-      point: point(matrix, entity.textPosition),
+      point: point(matrix, geometry.textAnchor),
       text: entity.text,
-      size: 2.5,
-      rotation: 0,
+      size: Math.max(1.5, Math.min(12, (entity.textHeight ?? 120) * scale)),
+      rotation: entity.textRotation ?? 0,
       color: style.stroke,
+      align: entity.textAlignment ?? "left",
+      maxWidth: (entity.textWidth ?? 1800) * scale,
+      bold: entity.bold,
+      italic: entity.italic,
+      underline: entity.underline,
+      backgroundMask: entity.backgroundMask,
+      backgroundColor: entity.backgroundColor,
     });
     return commands;
   }

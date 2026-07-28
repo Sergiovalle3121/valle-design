@@ -120,7 +120,7 @@ import { DWG_UNAVAILABLE_REASON } from '@/lib/cad/interop-provider';
 import { mapDxfLayerToCadLayer } from '@/lib/cad/dxf-layer-map';
 import { solveCadConstraints, upsertCadConstraint } from '@/lib/cad/live-constraints';
 import { BRAND, PRODUCT_LABEL } from '@/config/brand';
-import { buildMleader } from '@/lib/cad/mleader';
+import { cadMleaderAssociationAnchor, type CadMleaderReference } from '@/lib/cad/associative-mleader';
 import { CAD_LAYOUT_TEMPLATES, instantiateCadLayoutTemplate, type CadLayoutTemplateId } from '@/lib/cad/templates';
 import {
   generateWarehouseDockStaging,
@@ -176,11 +176,13 @@ import {
 import {
   cadDocumentNativeDxfHatches,
   cadDocumentNativeDxfMTexts,
+  cadDocumentNativeDxfMleaders,
   cadDocumentNativeDxfPrimitives,
   cadDocumentNativeDxfSemanticDimensions,
   cadDxfCurvesToNativeEntities,
   cadDxfHatchesToNativeEntities,
   cadDxfMTextsToNativeEntities,
+  cadDxfMleadersToNativeEntities,
   cadDxfSemanticDimensionsToNativeEntities,
 } from '@/lib/cad/dxf-cad-document';
 import {
@@ -222,6 +224,7 @@ import { CadDynamicInput } from './cad-workbench/CadDynamicInput';
 import { CadHatchPalette } from './cad-workbench/CadHatchPalette';
 import { CadMTextEditor, type CadMTextDraft } from './cad-workbench/CadMTextEditor';
 import { CadDimensionPalette, type CadDimensionDraft } from './cad-workbench/CadDimensionPalette';
+import { CadMLeaderPalette, type CadMLeaderDraft } from './cad-workbench/CadMLeaderPalette';
 import { cadEntityAssociationAnchor } from '@/lib/cad/associative-dimension';
 import {
   cadViewportFocusBounds,
@@ -1059,6 +1062,7 @@ export default function Layout3DEditor({
   const [mtextEditorOpen, setMTextEditorOpen] = useState(false);
   const [editingMTextId, setEditingMTextId] = useState<string | null>(null);
   const [showDimensionPalette, setShowDimensionPalette] = useState(false);
+  const [showMleaderPalette, setShowMleaderPalette] = useState(false);
   const [viewMode, setViewMode] = useState<'3d' | '2d'>('3d'); // 2D = locked top-down plan view (CAD unificado)
   const [walk, setWalk] = useState(false); // first-person walkthrough mode
   const [showHelp, setShowHelp] = useState(false); // keyboard shortcuts overlay
@@ -2729,6 +2733,63 @@ export default function Layout3DEditor({
       toast.success(`Cota ${draft.kind} asociada a ${new Set(references.map((reference) => reference.entityId)).size} fuente(s).`, 'Dimensión');
     }
   }, [activeCadLayer, data?.footprint.gridSize, data?.footprint.unit, insertNativeEntities, toast]);
+  const createAssociativeMleader = useCallback((draft: CadMLeaderDraft) => {
+    const document = loadedCadDocumentRef.current;
+    if (!document || !draft.text.trim()) return;
+    const selectedIds = [...new Set([...nativeSelectionIdsRef.current, ...selRef.current.map((item) => item.id)])];
+    const sources = selectedIds.map((id) => document.entities.find((entity) => entity.id === id)).filter((entity): entity is CadEntity => !!entity && entity.type !== 'mleader');
+    const referenceFor = (entity: CadEntity): CadMleaderReference | null => {
+      if (entity.type === 'box' || entity.type === 'station') return { entityId: entity.id, anchor: 'corner-ne' };
+      if (entity.type === 'line' || entity.type === 'circle' || entity.type === 'arc' || entity.type === 'ellipse' || entity.type === 'hatch' || entity.type === 'dimension') return { entityId: entity.id, anchor: 'center' };
+      if (entity.type === 'polyline') return { entityId: entity.id, anchor: 'start' };
+      if (entity.type === 'spline') return { entityId: entity.id, anchor: 'control', index: 0 };
+      if (entity.type === 'mtext' || entity.type === 'insert' || entity.type === 'text') return { entityId: entity.id, anchor: 'insertion' };
+      return null;
+    };
+    const resolved = sources.flatMap((source) => {
+      const reference = referenceFor(source);
+      const point = reference ? cadMleaderAssociationAnchor(source, reference) : null;
+      return reference && point ? [{ reference, point }] : [];
+    });
+    if (!resolved.length) { toast.error('La selección no aporta destinos compatibles.', 'MLEADER'); return; }
+    const base = Math.max(1, data?.footprint.gridSize ?? 100);
+    const center = resolved.reduce((sum, item) => ({ x: sum.x + item.point.x / resolved.length, y: sum.y + item.point.y / resolved.length }), { x: 0, y: 0 });
+    const style = document.styles.mleader?.[draft.style] ?? {};
+    const doglegLength = style.doglegLength ?? draft.doglegLength;
+    const elbow = { x: center.x + base * 5, y: center.y - base * 4, z: 0 };
+    const leaderLines = resolved.map((item) => [{ ...item.point, z: 0 }, { ...elbow }]);
+    const entity: CadNativeEntity = {
+      id: newId('mleader'),
+      type: 'mleader',
+      vertices: leaderLines[0],
+      leaderLines,
+      text: draft.text.trim(),
+      textPosition: { x: elbow.x + doglegLength, y: elbow.y, z: 0 },
+      contentType: draft.contentType,
+      style: draft.style,
+      landing: style.landing ?? draft.landing,
+      doglegLength,
+      arrowhead: draft.arrowhead,
+      arrowSize: style.arrowSize ?? draft.arrowSize,
+      textWidth: draft.textWidth,
+      textHeight: draft.textHeight,
+      textAlignment: draft.textAlignment,
+      fontFamily: 'Arial',
+      lineSpacing: 1.2,
+      backgroundMask: draft.backgroundMask,
+      backgroundColor: '#111827',
+      backgroundPadding: 0.15,
+      associative: true,
+      references: resolved.map((item) => item.reference),
+      associationStatus: 'associated',
+      layer: activeCadLayer,
+      context: { provenance: { provider: 'cad-editor' }, metadata: { sourceType: 'MLEADER' } },
+    };
+    if (insertNativeEntities([entity], 'create:mleader')) {
+      setShowMleaderPalette(false);
+      toast.success(`MLEADER asociado con ${leaderLines.length} línea(s).`, 'MLEADER');
+    }
+  }, [activeCadLayer, data?.footprint.gridSize, insertNativeEntities, toast]);
 
   // ---- scene lifecycle ----
   useEffect(() => {
@@ -4330,30 +4391,11 @@ export default function Layout3DEditor({
     setDirty(true); rebuildNotes();
   };
 
-  // Directriz con nota (MLEADER · CAD-NEXT-111): flecha con texto que apunta al
-  // objeto seleccionado — "NOTA: muro cortafuego 2 h", "ver detalle 3". Se
-  // compone honestamente de las primitivas de anotación que el editor ya
-  // renderiza y exporta a DXF (dos 'dim' para la directriz + codo y un 'text'
-  // para la nota); la geometría del codo y del ancla la calcula buildMleader.
+  // La composición histórica de dos DIM + TEXT deja de crearse: el editor abre
+  // la paleta de una entidad MLEADER canónica, seleccionable y persistente.
   const createLeaderForSelection = () => {
-    if (!selSnap) { toast.error('Selecciona un objeto para anotarlo.', 'Directriz'); return; }
-    const text = (typeof window !== 'undefined' ? window.prompt('Nota de la directriz:') : '')?.trim();
-    if (!text) return;
-    // Punta en la esquina superior derecha del objeto; codo desplazado hacia
-    // arriba-derecha para que la directriz salga del objeto sin pisarlo.
-    const tip = { x: selSnap.x + selSnap.w, y: selSnap.y };
-    const elbow = { x: tip.x + 900, y: tip.y - 900 };
-    const g = buildMleader(tip, elbow);
-    pushHistory();
-    const leaderId = newId('ld');
-    annotationsRef.current.set(leaderId, { id: leaderId, type: 'dim', x: g.leaderLine[0].x, y: g.leaderLine[0].y, x2: g.leaderLine[1].x, y2: g.leaderLine[1].y });
-    const doglegId = newId('ld');
-    annotationsRef.current.set(doglegId, { id: doglegId, type: 'dim', x: g.dogleg[0].x, y: g.dogleg[0].y, x2: g.dogleg[1].x, y2: g.dogleg[1].y });
-    const textId = newId('nt');
-    annotationsRef.current.set(textId, { id: textId, type: 'text', text: text.slice(0, 240), x: g.textAnchor.x, y: g.textAnchor.y });
-    setDimCount([...annotationsRef.current.values()].filter((ann) => ann.type === 'dim').length);
-    setDirty(true); rebuildDims(); rebuildNotes();
-    toast.success('Directriz creada.', 'Anotación');
+    if (!selSnap && !nativeSelectionIdsRef.current.length) { toast.error('Selecciona uno o más destinos para anotarlos.', 'MLEADER'); return; }
+    setShowMleaderPalette(true);
   };
 
   const createHatchForSelection = (solid: boolean) => {
@@ -5190,7 +5232,11 @@ export default function Layout3DEditor({
     );
     const mtextAnchorPrimitives: CadDxfPrimitive[] = preview.mtexts.map((mtext) => ({ kind: 'text', layer: mtext.layer, points: [mtext.insertion], text: mtext.text }));
     const dimensionPointPrimitives: CadDxfPrimitive[] = preview.semanticDimensions.map((dimension) => ({ kind: 'polyline', layer: dimension.layer, points: [dimension.a, dimension.b, ...(dimension.c ? [dimension.c] : [])] }));
-    const bounds = dxfPrimitiveBounds([...preview.primitives, ...hatchBoundaryPrimitives, ...mtextAnchorPrimitives, ...dimensionPointPrimitives]);
+    const mleaderPointPrimitives: CadDxfPrimitive[] = preview.mleaders.flatMap((mleader) => [
+      ...(mleader.leaderLines ?? [mleader.vertices]).map((points) => ({ kind: 'polyline' as const, layer: mleader.layer, points })),
+      { kind: 'text' as const, layer: mleader.layer, points: [mleader.textPosition], text: mleader.text },
+    ]);
+    const bounds = dxfPrimitiveBounds([...preview.primitives, ...hatchBoundaryPrimitives, ...mtextAnchorPrimitives, ...dimensionPointPrimitives, ...mleaderPointPrimitives]);
     if (!bounds) { toast.error('El DXF no tiene entidades soportadas para convertir.', 'DXF'); return; }
     recordLocalSnapshot('Auto · antes de convertir DXF', 'import');
     pushHistory();
@@ -5210,11 +5256,16 @@ export default function Layout3DEditor({
       projection: { point: (point) => projectDxfPoint(point, bounds, dm, meta) },
       provider: 'dxf',
     }).slice(0, Math.max(0, 850 - nativeHatches.length - nativeMTexts.length));
-    const nativeCreated: CadNativeEntity[] = [...nativeHatches, ...nativeMTexts, ...nativeDimensions];
+    const nativeMleaders = cadDxfMleadersToNativeEntities(preview.mleaders, {
+      idPrefix: newId('cad'),
+      projection: { point: (point) => projectDxfPoint(point, bounds, dm, meta) },
+      provider: 'dxf',
+    }).slice(0, Math.max(0, 850 - nativeHatches.length - nativeMTexts.length - nativeDimensions.length));
+    const nativeCreated: CadNativeEntity[] = [...nativeHatches, ...nativeMTexts, ...nativeDimensions, ...nativeMleaders];
     const layerUpdates: Record<string, CadLayerId> = {};
     const tagUpdates: Record<string, string> = {};
     let notes = 0;
-    let truncated = preview.hatches.length + preview.mtexts.length + preview.semanticDimensions.length > nativeCreated.length;
+    let truncated = preview.hatches.length + preview.mtexts.length + preview.semanticDimensions.length + preview.mleaders.length > nativeCreated.length;
     const cap = 850;
     for (const primitive of preview.primitives) {
       if (created.length + nativeCreated.length >= cap) { truncated = true; break; }
@@ -6947,7 +6998,12 @@ export default function Layout3DEditor({
         const layer = loadedCadDocumentRef.current?.layers.find((candidate) => candidate.id === entity.layer);
         return options.includeHidden || layer?.visible !== false;
       }) : [];
-      const exported = exportCadLayoutDxf({ boxes, connectors, labels, measurements, primitives, hatches, mtexts, semanticDimensions }, { units: options.units, fileComment: `${PRODUCT_LABEL.design} ${model} ${revision}` });
+      const mleaders = options.includeLabels ? cadDocumentNativeDxfMleaders(snapshotDocument(), (entity) => {
+        if (options.scope === 'selection' && !selectedNativeIds.has(entity.id)) return false;
+        const layer = loadedCadDocumentRef.current?.layers.find((candidate) => candidate.id === entity.layer);
+        return options.includeHidden || layer?.visible !== false;
+      }) : [];
+      const exported = exportCadLayoutDxf({ boxes, connectors, labels, measurements, primitives, hatches, mtexts, semanticDimensions, mleaders }, { units: options.units, fileComment: `${PRODUCT_LABEL.design} ${model} ${revision}` });
       const blob = new Blob([exported.content], { type: 'application/dxf' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -7314,12 +7370,14 @@ export default function Layout3DEditor({
     : 'Workbench CAD conectado al gemelo industrial y al balanceo de línea.');
   const placedCount = placedIds.size;
   const assetCount = assetIds.size;
+  const mleaderSelectedCount = new Set([...nativeSelectionIds, ...selList.map((item) => item.id)]).size;
   const dxfWarningSummary = summarizeDxfImportWarnings(dxfWarnings).slice(0, 6);
   const dxfPrimitiveSummary = dxfImportPreview
     ? dxfImportPreview.primitives.reduce<Record<string, number>>((acc, primitive) => { acc[primitive.kind] = (acc[primitive.kind] ?? 0) + 1; return acc; }, {
         ...(dxfImportPreview.hatches.length ? { hatch: dxfImportPreview.hatches.length } : {}),
         ...(dxfImportPreview.mtexts.length ? { mtext: dxfImportPreview.mtexts.length } : {}),
         ...(dxfImportPreview.semanticDimensions.length ? { dimension: dxfImportPreview.semanticDimensions.length } : {}),
+        ...(dxfImportPreview.mleaders.length ? { mleader: dxfImportPreview.mleaders.length } : {}),
       })
     : null;
   const orderedPaperSpaces = [...paperSpaces].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id.localeCompare(b.id));
@@ -7521,6 +7579,17 @@ export default function Layout3DEditor({
               defaultOffset={Math.max(1, (data?.footprint.gridSize ?? 100) * 2)}
               styles={Object.keys(loadedCadDocumentRef.current?.styles.dimension ?? {})}
               onCreate={createAssociativeDimension}
+            />
+          )}
+        </div>
+        <div className="relative">
+          <T3Btn active={showMleaderPalette} onClick={() => setShowMleaderPalette((value) => !value)} title="MLEADER: directriz semántica asociativa con una o múltiples líneas"><Waypoints className="h-4 w-4" /></T3Btn>
+          {showMleaderPalette && (
+            <CadMLeaderPalette
+              selectedCount={mleaderSelectedCount}
+              defaultSize={Math.max(1, (data?.footprint.gridSize ?? 100) * 1.8)}
+              styles={Object.keys(loadedCadDocumentRef.current?.styles.mleader ?? { Standard: {} })}
+              onCreate={createAssociativeMleader}
             />
           )}
         </div>
@@ -8069,7 +8138,7 @@ export default function Layout3DEditor({
                   <div className="mb-2 rounded-xl border border-cyan-400/15 bg-cyan-400/[0.06] p-2 text-[11px] text-cyan-100">
                     {/* Soporte honesto de formatos (contrato D5): DXF nativo; DWG sólo con proveedor licenciado. */}
                     <div className="mb-1 text-[10px] text-cyan-200/70" title={DWG_UNAVAILABLE_REASON}>Formatos: DXF ✓ nativo · DWG ✕ requiere proveedor licenciado</div>
-                    <div className="font-semibold">{dxfImportPreview.primitives.length + dxfImportPreview.hatches.length + dxfImportPreview.mtexts.length + dxfImportPreview.semanticDimensions.length} entidades soportadas · {dxfImportPreview.layers.length || 1} capa(s)</div>
+                    <div className="font-semibold">{dxfImportPreview.primitives.length + dxfImportPreview.hatches.length + dxfImportPreview.mtexts.length + dxfImportPreview.semanticDimensions.length + dxfImportPreview.mleaders.length} entidades soportadas · {dxfImportPreview.layers.length || 1} capa(s)</div>
                     <div className="mt-1 text-cyan-100/75">{Object.entries(dxfPrimitiveSummary).map(([kind, count]) => `${kind}: ${count}`).join(' · ')}</div>
                     <button onClick={convertDxfPrimitivesToEditable} className="mt-2 w-full rounded-lg bg-cyan-600 px-2 py-1.5 text-[11px] font-semibold text-white hover:bg-cyan-500">Convertir entidades soportadas</button>
                   </div>
@@ -8286,7 +8355,7 @@ export default function Layout3DEditor({
                     </div>
                     <div className="mb-3 grid grid-cols-2 gap-2">
                       {Object.entries(primaryNativeProperties).map(([key, value]) => {
-                        if (primaryNativeEntity.type === 'mtext' && key === 'text')
+                        if ((primaryNativeEntity.type === 'mtext' || primaryNativeEntity.type === 'mleader') && key === 'text')
                           return (
                             <label key={`${primaryNativeEntity.id}-${key}-${nativeDocumentRevision}`} className="col-span-2 text-[10.5px] text-gray-500 dark:text-gray-400">
                               text
@@ -8383,6 +8452,14 @@ export default function Layout3DEditor({
                     <span className="text-gray-500">{primaryNativeEntity.references?.length ?? 0} refs</span>
                     <button data-testid="cad-dimension-reassociate" onClick={() => commitNativeCommands([{ type: 'dimension-association', entityId: primaryNativeEntity.id, associative: true }])} className="ml-auto rounded bg-emerald-500/20 px-2 py-1 text-emerald-100 hover:bg-emerald-500/30">Reasociar</button>
                     <button data-testid="cad-dimension-detach" onClick={() => commitNativeCommands([{ type: 'dimension-association', entityId: primaryNativeEntity.id, associative: false }])} className="rounded bg-white/[0.06] px-2 py-1 text-gray-300 hover:bg-white/[0.12]">Desasociar</button>
+                  </div>
+                )}
+                {primaryNativeEntity?.type === 'mleader' && (
+                  <div className="mt-2 flex items-center gap-1.5 rounded-lg border border-sky-400/15 bg-sky-400/[0.05] p-2 text-[10.5px]">
+                    <span className={primaryNativeEntity.associationStatus === 'broken' ? 'text-rose-300' : 'text-sky-200'}>{primaryNativeEntity.associationStatus ?? (primaryNativeEntity.associative ? 'associated' : 'detached')}</span>
+                    <span className="text-gray-500">{primaryNativeEntity.references?.length ?? 0} refs · {primaryNativeEntity.leaderLines?.length ?? 1} leaders</span>
+                    <button data-testid="cad-mleader-reassociate" onClick={() => commitNativeCommands([{ type: 'mleader-association', entityId: primaryNativeEntity.id, associative: true }])} className="ml-auto rounded bg-sky-500/20 px-2 py-1 text-sky-100 hover:bg-sky-500/30">Reasociar</button>
+                    <button data-testid="cad-mleader-detach" onClick={() => commitNativeCommands([{ type: 'mleader-association', entityId: primaryNativeEntity.id, associative: false }])} className="rounded bg-white/[0.06] px-2 py-1 text-gray-300 hover:bg-white/[0.12]">Desasociar</button>
                   </div>
                 )}
               </div>
