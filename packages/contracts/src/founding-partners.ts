@@ -57,7 +57,9 @@ export const FOUNDING_PARTNER_STATUSES = [
 export type FoundingPartnerStatus = (typeof FOUNDING_PARTNER_STATUSES)[number];
 
 /** ÚNICO estado que descuenta. Añadir un estado nuevo no abre descuento. */
-export const DISCOUNTING_STATUSES: readonly FoundingPartnerStatus[] = ["active"];
+export const DISCOUNTING_STATUSES: readonly FoundingPartnerStatus[] = [
+  "active",
+];
 
 export interface FoundingPartnerView {
   readonly id: string;
@@ -141,6 +143,24 @@ export function validateFoundingPartnerProposal(
   return problems;
 }
 
+/**
+ * Meses COMPLETOS transcurridos, redondeando hacia abajo.
+ *
+ * Existe junto a `monthsBetween` (que redondea hacia arriba) porque las dos
+ * direcciones sirven a preguntas opuestas. Validar una propuesta pregunta
+ * «¿cuánto abarca como máximo?» y ahí conviene redondear hacia arriba para no
+ * dejar pasar una duración excesiva. Emitir un cupón pregunta «¿cuántos meses
+ * concedo?», y ahí redondear hacia arriba REGALA un mes: once días de ventana
+ * se convertirían en un mes entero de descuento que nadie aprobó.
+ */
+export function fullMonthsBetween(from: Date, to: Date): number {
+  let months =
+    (to.getUTCFullYear() - from.getUTCFullYear()) * 12 +
+    (to.getUTCMonth() - from.getUTCMonth());
+  if (to.getUTCDate() < from.getUTCDate()) months -= 1;
+  return Math.max(0, months);
+}
+
 /** Meses completos entre dos fechas, redondeando hacia arriba. */
 export function monthsBetween(from: Date, to: Date): number {
   const months =
@@ -183,9 +203,86 @@ export function foundingPartnerDiscountBps(
   target: "recurring" | "implementation",
   now: Date = new Date(),
 ): number {
-  if (target === "implementation" && !FOUNDING_PARTNER_APPLIES_TO_IMPLEMENTATION) {
+  if (
+    target === "implementation" &&
+    !FOUNDING_PARTNER_APPLIES_TO_IMPLEMENTATION
+  ) {
     return 0;
   }
   if (!foundingPartnerIsActive(agreement, now)) return 0;
   return Math.min(agreement.discountBps, FOUNDING_PARTNER_MAX_DISCOUNT_BPS);
+}
+
+/* ─────────────────────── Traducción al proveedor de pagos ─────────────────── */
+
+/**
+ * Forma del descuento tal y como debe existir en el proveedor de pagos.
+ *
+ * Hasta ahora el programa vivía sólo en la base de datos: un acuerdo aprobado
+ * decía «25 % durante seis meses» y el cliente recibía la factura completa. Un
+ * descuento que no llega a la factura no es un descuento, es una promesa.
+ *
+ * Este objeto es lo que hay que crear del otro lado, y cada campo existe para
+ * que la política sobreviva al viaje:
+ *
+ *   percentOff       el descuento, ya acotado al tope de política;
+ *   durationMonths   cuántos meses dura — `null` significa una sola factura,
+ *                    que es lo único honesto cuando queda menos de un mes;
+ *   redeemBy         después de esta fecha el cupón no se puede canjear, así
+ *                    que un enlace de checkout viejo no revive un acuerdo
+ *                    terminado;
+ *   maxRedemptions   siempre 1: el cupón pertenece a UN acuerdo de UNA
+ *                    organización y no puede reutilizarse en otra.
+ */
+export interface FoundingPartnerCouponPlan {
+  readonly percentOff: number;
+  readonly durationMonths: number | null;
+  readonly redeemBy: Date;
+  readonly maxRedemptions: 1;
+}
+
+/**
+ * Cupón que corresponde a un acuerdo, o `null` si hoy no descuenta.
+ *
+ * La duración se cuenta desde AHORA y no desde el inicio del acuerdo: si el
+ * cliente tarda dos meses en contratar, le quedan cuatro de los seis, no seis
+ * nuevos. Contar desde el inicio convertiría cada demora en una extensión
+ * gratuita del programa.
+ */
+export function foundingPartnerCouponPlan(
+  agreement: Parameters<typeof foundingPartnerIsActive>[0] & {
+    readonly discountBps: number;
+  },
+  now: Date = new Date(),
+): FoundingPartnerCouponPlan | null {
+  const bps = foundingPartnerDiscountBps(agreement, "recurring", now);
+  if (bps <= 0) return null;
+
+  const endsAt = new Date(agreement.endsAt);
+  const remaining = Math.min(
+    fullMonthsBetween(now, endsAt),
+    FOUNDING_PARTNER_MAX_MONTHS,
+  );
+
+  return {
+    percentOff: bps / 100,
+    // Menos de un mes de ventana no se puede expresar como «repetir N meses».
+    // Se concede una factura y se acaba: estirarlo a un mes entero regalaría
+    // días que nadie aprobó.
+    durationMonths: remaining >= 1 ? remaining : null,
+    redeemBy: endsAt,
+    maxRedemptions: 1,
+  };
+}
+
+/**
+ * Identificador estable del cupón de un acuerdo.
+ *
+ * Se deriva del id del acuerdo para que dos checkouts del mismo cliente pidan
+ * EL MISMO cupón. Generar uno por intento llenaría la cuenta del proveedor de
+ * cupones huérfanos y —peor— dejaría que dos sesiones abiertas a la vez
+ * canjearan dos descuentos distintos para un único acuerdo.
+ */
+export function foundingPartnerCouponId(agreementId: string): string {
+  return `fp-${agreementId}`;
 }

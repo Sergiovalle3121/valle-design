@@ -290,7 +290,9 @@ export const LEGACY_TIER_OFFER_MAP: Readonly<
 export const LEGACY_NULL_TIER_EQUIVALENT = "enterprise" as const;
 
 /** Ofertas legacy que corresponden a un `plan_tier` (o a su ausencia). */
-export function legacyOffersForTier(tier: string | null | undefined): readonly string[] {
+export function legacyOffersForTier(
+  tier: string | null | undefined,
+): readonly string[] {
   const key =
     tier === "starter" || tier === "professional" || tier === "enterprise"
       ? tier
@@ -320,4 +322,30 @@ export function legacyCapabilitySatisfied(
   const accepted = LEGACY_CAPABILITY_BRIDGE[legacyCapability];
   if (!accepted) return false;
   return accepted.some((cap) => capabilities.includes(cap));
+}
+
+/**
+ * Cupo de asientos que traía cada plan heredado. `0` = sin tope, que es lo que
+ * el enterprise legacy concedía de facto.
+ *
+ * Vive aquí —y no sólo dentro de la migración— porque el relleno bajo demanda
+ * tiene que conceder EXACTAMENTE lo mismo que concedió la migración. Dos
+ * caminos hacia el mismo grant con cupos distintos producirían clientes que
+ * pierden asientos según por dónde llegaron.
+ */
+export const LEGACY_TIER_SEATS: Readonly<
+  Record<"starter" | "professional" | "enterprise", number>
+> = {
+  starter: 5,
+  professional: 50,
+  enterprise: 0,
+};
+
+/** Asientos del plan heredado, tratando la ausencia como enterprise. */
+export function legacySeatsForTier(tier: string | null | undefined): number {
+  const key =
+    tier === "starter" || tier === "professional" || tier === "enterprise"
+      ? tier
+      : LEGACY_NULL_TIER_EQUIVALENT;
+  return LEGACY_TIER_SEATS[key];
 }

@@ -16,9 +16,16 @@ export const PLAN_TIER_IDS = ["starter", "professional", "enterprise"] as const;
 export type PlanTierId = (typeof PLAN_TIER_IDS)[number];
 
 /**
- * Capacidades comerciales exigibles por plan. Cada id corresponde a una
- * frontera REAL aplicada por la API (guard `PlanCapabilityGuard`); la página
- * de precios no puede prometer una capacidad que no exista aquí.
+ * Capacidades del contrato comercial HEREDADO.
+ *
+ * Ya no las aplica ningún guard: los endpoints exigen capacidades por producto
+ * (`ProductCapabilityId`) y el adaptador que resolvía contra `plan_tier` —con
+ * su fail-open— está retirado. Estos ids sobreviven por dos razones concretas:
+ * `LEGACY_CAPABILITY_BRIDGE` los traduce, y la migración de datos que
+ * materializó los planes en grants los referencia como registro histórico.
+ *
+ * No añadas usos nuevos. `scripts/check-legacy-entitlement-adapter.mjs` impide
+ * que el guard y el decorador vuelvan.
  *
  * - `core-operations`: ventas, compras, inventario, calidad, planeación y MES.
  * - `finance-suite`: suite financiera ERP (GL/AR/AP workbench, tesorería,
@@ -70,7 +77,8 @@ export const DEFAULT_SELF_SERVICE_TIER: PlanTierId = "starter";
 
 export function isPlanTierId(value: unknown): value is PlanTierId {
   return (
-    typeof value === "string" && (PLAN_TIER_IDS as readonly string[]).includes(value)
+    typeof value === "string" &&
+    (PLAN_TIER_IDS as readonly string[]).includes(value)
   );
 }
 
