@@ -6,9 +6,9 @@
 | --- | --- |
 | `MISSION_STARTED_AT` | 2026-07-28 12:08:49 -06:00 |
 | `MISSION_TARGET_END` | 2026-07-28 22:08:49 -06:00 |
-| `MISSION_CURRENT_PHASE` | P2-A — Multiple viewports y layouts |
-| `MISSION_COMPLETED_GATES` | viewport 100k; recovery worker/journal; blob GC bifásico y tenant-safe; selección profesional; precisión dinámica y tracking; HATCH asociativo; MTEXT nativo; DIMENSION asociativa; MLEADER canónico; BLOCK/INSERT profesional; workbench profesional browser-proven |
-| `MISSION_NEXT_ACTION` | completar edición multi-viewport, overrides por viewport, preview exacto y publicación seleccionada/batch sin duplicar el documento canónico |
+| `MISSION_CURRENT_PHASE` | P2-B — Xrefs |
+| `MISSION_COMPLETED_GATES` | viewport 100k; recovery worker/journal; blob GC bifásico y tenant-safe; selección profesional; precisión dinámica y tracking; HATCH asociativo; MTEXT nativo; DIMENSION asociativa; MLEADER canónico; BLOCK/INSERT profesional; workbench profesional; layouts y publicación multi-viewport browser-proven |
+| `MISSION_NEXT_ACTION` | cerrar el ciclo Xref tenant-safe: attach/overlay/reload/unload/detach/bind, hash/version/stale/missing, grafo/ciclos/profundidad, permisos y publish/DXF |
 | Repositorio | `Sergiovalle3121/axos-os` |
 | Base | `1625ba26a07876943b821586c46b02c9f47f6bac` (`origin/main`) |
 | Rama / PR | `codex/cad-professional-grand-leap-iii` / #1416 |
@@ -52,10 +52,10 @@ Sólo se conceden puntos por evidencia actual del repositorio y navegador.
 | Rendimiento 10k/100k | 15 | 10 | `browser-proven` parcial | viewport real, lotes cancelables y arnés 100k; aún no 60 FPS ni memoria estabilizada |
 | Persistencia/recovery/versionado | 10 | 9 | `browser-proven` | worker/journal/cuota y lifecycle de blobs; falta delta journal nativo |
 | Capas, bloques y referencias | 10 | 9 | `browser-proven` parcial | BLOCK/INSERT nativo, anidado, atribuible, tenant-safe e instanciado; xrefs aún parciales |
-| Layouts, viewports y publicación | 10 | 6 | `tested` | paper space/PDF/recibos; UI multi-viewport parcial |
+| Layouts, viewports y publicación | 10 | 9 | `browser-proven` | multi-viewport editable, freeze/overrides, page setup, orden, preflight, preview exacto, PDF multihoja y recibo auditado; el cajetín custom referenciado aún no sustituye su geometría en PDF |
 | Interoperabilidad/extensibilidad | 5 | 4 | `browser-proven` parcial | BLOCK/INSERT, HATCH, MTEXT, DIM y MLEADER completan DXF semántico; DWG `provider-required` |
 | Calidad enterprise/seguridad/pruebas | 10 | 9 | `tested` | CI/tenant/brand/smokes verdes; falta arnés perf bloqueante |
-| **Total** | **100** | **84** |  | Sin claim de paridad general |
+| **Total** | **100** | **87** |  | Sin claim de paridad general |
 
 ## Paridad completa separada
 
@@ -351,6 +351,37 @@ No se editan ramas comerciales, ERP o PDF durante la construcción CAD.
 - La rúbrica sube 80 → 84. No se conceden los dos puntos restantes de
   arquitectura: `Layout3DEditor.tsx` queda en 9,833 líneas y todavía requiere
   extraer viewport/status/properties. El siguiente bloque es P2-A.
+
+### 2026-07-28 15:33–16:02 — P2-A / Layouts y múltiples viewports
+
+- `CadLayoutManager` extrae la superficie de papel y ofrece create, activate,
+  drag-move, grip-resize, lock, duplicate y delete sobre los `CadPaperViewport`
+  canónicos. `cad-layout-manager` centraliza normalización contra márgenes,
+  escala fit, freeze/override por capa y preflight de área, escala, lock,
+  solapes y todas las capas congeladas; no crea otro documento ni command bus.
+- Cada viewport conserva bounds de papel/modelo, escala estándar o custom,
+  escala anotativa, vista nombrada, visibilidad y color/linetype/lineweight por
+  capa. Las capas proceden del `CadDocument` real y sobreviven undo/redo,
+  recovery, guardado y reload. Cambiar papel, orientación o márgenes normaliza
+  todos los viewports, no sólo el primario.
+- Page setup expone A0–A4, Letter/Tabloid, orientación, cuatro márgenes, modo de
+  color y factor de lineweight. El cajetín conserva campos/numeración y una
+  referencia de biblioteca; las hojas se incluyen/excluyen y reordenan por
+  drag/drop o botones. La geometría custom del bloque aún no reemplaza el
+  cajetín vectorial estándar en el PDF, por lo que no se concede 10/10.
+- El preview exacto consume `buildCadPublishPlan`, la misma fuente vectorial que
+  el publicador: clipping rectangular por viewport, escalas y overrides. El
+  flujo probado guarda, recarga, publica tres hojas en un PDF, calcula SHA-256
+  y registra el recibo CAS antes de descargar.
+- Evidencia: specs `cad-layout-manager` y `paper-space`, TypeScript, diff-check y
+  ESLint focal verdes. Chromium #20 edita dos viewports, mueve/redimensiona,
+  congela `CURVES`, aplica override, bloquea, preflight/preview, reordena tres
+  hojas, guarda/recarga y publica/audita PDF: 1/1 en 30.4 s. Regresión CAD
+  #12–#20: 9/9 verde en 5.9 min; captura visual inspeccionada.
+- La rúbrica sube 84 → 87. `Layout3DEditor.tsx` queda en 10,125 líneas pese a
+  extraer 162 líneas de UI y 146 de lógica pura: el wiring añadido vuelve a
+  evidenciar la deuda arquitectónica y no se oculta. El siguiente bloque es
+  P2-B, Xrefs tenant-safe.
 
 ## Claims
 

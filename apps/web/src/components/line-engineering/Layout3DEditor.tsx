@@ -161,19 +161,30 @@ import {
   type CadBlockDefinition,
   type CadDocument,
   type CadEntity,
+  type CadLayerDef,
   type CadPaperSpace,
   type CadPublicationRecord,
 } from '@/lib/cad/cad-document';
 import {
-  CAD_SHEET_SCALES,
   CAD_SHEET_PAPERS,
   buildCadPublishPlan,
   createCadPaperSpace,
   createThreeSheetDemo,
   reorderCadPaperSpaces,
+  type CadPublishSheet,
   type CadPublishWarning,
   type CadSheetPaper,
 } from '@/lib/cad/paper-space';
+import {
+  createCadPaperViewport,
+  deleteCadPaperViewport,
+  duplicateCadPaperViewport,
+  normalizeCadViewportPaperBounds,
+  preflightCadPaperSpace,
+  setCadViewportLayerOverride,
+  setCadViewportLayerVisibility,
+  updateCadPaperViewport,
+} from '@/lib/cad/cad-layout-manager';
 import {
   CAD_ENTITY_REGISTRY,
   CadSceneSynchronizer,
@@ -250,6 +261,7 @@ import { CadMTextEditor, type CadMTextDraft } from './cad-workbench/CadMTextEdit
 import { CadDimensionPalette, type CadDimensionDraft } from './cad-workbench/CadDimensionPalette';
 import { CadMLeaderPalette, type CadMLeaderDraft } from './cad-workbench/CadMLeaderPalette';
 import { CadBlockPalette, type CadBlockDefinitionDraft, type CadBlockInsertDraft } from './cad-workbench/CadBlockPalette';
+import { CadLayoutManager } from './cad-workbench/CadLayoutManager';
 import { CadWorkspaceDock } from './cad-workbench/CadWorkspaceDock';
 import { cadEntityAssociationAnchor } from '@/lib/cad/associative-dimension';
 import {
@@ -988,8 +1000,11 @@ export default function Layout3DEditor({
   const [plotPaper, setPlotPaper] = useState<CadPaperId>('A4');
   const [showSheetPackage, setShowSheetPackage] = useState(false);
   const [paperSpaces, setPaperSpaces] = useState<CadPaperSpace[]>([]);
+  const [paperSpaceLayers, setPaperSpaceLayers] = useState<CadLayerDef[]>([]);
   const [publicationRecords, setPublicationRecords] = useState<CadPublicationRecord[]>([]);
   const [activePaperSpaceId, setActivePaperSpaceId] = useState<string | null>(null);
+  const [activePaperViewportId, setActivePaperViewportId] = useState<string | null>(null);
+  const [layoutPreviewSheet, setLayoutPreviewSheet] = useState<CadPublishSheet | null>(null);
   const [publishingSheetSet, setPublishingSheetSet] = useState(false);
   const [publicationWarnings, setPublicationWarnings] = useState<CadPublishWarning[]>([]);
   const [dxfExportOptions, setDxfExportOptions] = useState<DxfExportOptions>({ scope: 'all', includeHidden: true, includeMeasurements: true, includeLabels: true, units: 'mm', fileName: '' });
@@ -1639,7 +1654,7 @@ export default function Layout3DEditor({
     queueMicrotask(() => {
       if (!alive) return;
       setData(null); setError(null); setConnectionState('checking'); setSelList([]); setSelSnap(null); setNativeSelectionIds([]); setNativeEntities([]); setDirty(false); setRecoveryCandidate(null); setRecoverySavedAt(null); setTab('stations');
-      setOverlay(null); setTool('select'); setMeasureLive(null); setWalk(false); setHist({ undo: 0, redo: 0 }); setCellsView([]); setPaperSpaces([]); setPublicationRecords([]); setActivePaperSpaceId(null); setPublicationWarnings([]); setValidationHighlightIds(new Set()); setCollisionHits([]); setClearanceIssues([]); setSafetyIssues([]); setCadValidationReport(null); setIndustrySummary(null); setFlowHealth(null); setFlowSequence([]); setFlowSegments([]); setSnapshotDiff(null); setReport(null);
+      setOverlay(null); setTool('select'); setMeasureLive(null); setWalk(false); setHist({ undo: 0, redo: 0 }); setCellsView([]); setPaperSpaces([]); setPaperSpaceLayers([]); setPublicationRecords([]); setActivePaperSpaceId(null); setActivePaperViewportId(null); setLayoutPreviewSheet(null); setPublicationWarnings([]); setValidationHighlightIds(new Set()); setCollisionHits([]); setClearanceIssues([]); setSafetyIssues([]); setCadValidationReport(null); setIndustrySummary(null); setFlowHealth(null); setFlowSequence([]); setFlowSegments([]); setSnapshotDiff(null); setReport(null);
     });
     selRef.current = []; nativeSelectionIdsRef.current = []; overlayColorRef.current = new Map(); validationHighlightRef.current = new Set(); toolRef.current = 'select'; measureARef.current = null; wallChainRef.current = null;
     walkRef.current = false; savedCamRef.current = null; undoStackRef.current = []; redoStackRef.current = []; loadedCadDocumentRef.current = null;
@@ -1721,8 +1736,11 @@ export default function Layout3DEditor({
           titleBlock: space.titleBlock ? { ...space.titleBlock, attributes: { ...space.titleBlock.attributes } } : undefined,
         }));
         setPaperSpaces(restoredPaperSpaces);
+        setPaperSpaceLayers(loadedCadDocumentRef.current.layers.map((layer) => ({ ...layer })));
         setPublicationRecords([...loadedCadDocumentRef.current.publications]);
         setActivePaperSpaceId(restoredPaperSpaces[0]?.id ?? null);
+        setActivePaperViewportId(restoredPaperSpaces[0]?.viewports?.[0]?.id ?? null);
+        setLayoutPreviewSheet(null);
         setNativeEntities(
           (loadedCadDocumentRef.current?.entities ?? []).filter(
             (entity): entity is CadNativeEntity =>
@@ -2387,8 +2405,11 @@ export default function Layout3DEditor({
     const document = undoStackRef.current.pop()!;
     loadedCadDocumentRef.current = document;
     setPaperSpaces(document.paperSpaces.map((space) => ({ ...space })));
+    setPaperSpaceLayers(document.layers.map((layer) => ({ ...layer })));
     setPublicationRecords([...document.publications]);
     setActivePaperSpaceId((current) => document.paperSpaces.some((space) => space.id === current) ? current : (document.paperSpaces[0]?.id ?? null));
+    setActivePaperViewportId((current) => document.paperSpaces.some((space) => space.viewports?.some((viewport) => viewport.id === current)) ? current : (document.paperSpaces[0]?.viewports?.[0]?.id ?? null));
+    setLayoutPreviewSheet(null);
     setNativeEntities(
       document.entities.filter(
         (entity): entity is CadNativeEntity =>
@@ -2405,8 +2426,11 @@ export default function Layout3DEditor({
     const document = redoStackRef.current.pop()!;
     loadedCadDocumentRef.current = document;
     setPaperSpaces(document.paperSpaces.map((space) => ({ ...space })));
+    setPaperSpaceLayers(document.layers.map((layer) => ({ ...layer })));
     setPublicationRecords([...document.publications]);
     setActivePaperSpaceId((current) => document.paperSpaces.some((space) => space.id === current) ? current : (document.paperSpaces[0]?.id ?? null));
+    setActivePaperViewportId((current) => document.paperSpaces.some((space) => space.viewports?.some((viewport) => viewport.id === current)) ? current : (document.paperSpaces[0]?.viewports?.[0]?.id ?? null));
+    setLayoutPreviewSheet(null);
     setNativeEntities(
       document.entities.filter(
         (entity): entity is CadNativeEntity =>
@@ -2478,8 +2502,11 @@ export default function Layout3DEditor({
       const document = migrateCadDocument(recoveryCandidate.document);
       loadedCadDocumentRef.current = document;
       setPaperSpaces(document.paperSpaces.map((space) => ({ ...space })));
+      setPaperSpaceLayers(document.layers.map((layer) => ({ ...layer })));
       setPublicationRecords([...document.publications]);
       setActivePaperSpaceId(document.paperSpaces[0]?.id ?? null);
+      setActivePaperViewportId(document.paperSpaces[0]?.viewports?.[0]?.id ?? null);
+      setLayoutPreviewSheet(null);
       setNativeEntities(
         document.entities.filter(
           (entity): entity is CadNativeEntity => CAD_ENTITY_REGISTRY.supports(entity),
@@ -2509,9 +2536,15 @@ export default function Layout3DEditor({
     loadedCadDocumentRef.current = commitChange({ ...checkpoint, paperSpaces: normalized }, label);
     setPaperSpaces(normalized);
     setActivePaperSpaceId((current) => normalized.some((space) => space.id === current) ? current : (normalized[0]?.id ?? null));
+    setActivePaperViewportId((current) => {
+      if (normalized.some((space) => space.viewports?.some((viewport) => viewport.id === current))) return current;
+      const selected = normalized.find((space) => space.id === activePaperSpaceId) ?? normalized[0];
+      return selected?.viewports?.[0]?.id ?? null;
+    });
+    setLayoutPreviewSheet(null);
     setHist({ undo: undoStackRef.current.length, redo: 0 });
     setDirty(true);
-  }, [snapshotDocument]);
+  }, [activePaperSpaceId, snapshotDocument]);
 
   const seedThreeSheetSet = useCallback(() => {
     if (!data) return;
@@ -2535,6 +2568,7 @@ export default function Layout3DEditor({
     });
     commitPaperSpaces(created, 'Crear conjunto de tres hojas');
     setActivePaperSpaceId(created[0]?.id ?? null);
+    setActivePaperViewportId(created[0]?.viewports?.[0]?.id ?? null);
   }, [commitPaperSpaces, data, paperSpaces.length, sheetPackageDraft, toast]);
 
   const addPaperSpace = useCallback(() => {
@@ -2562,6 +2596,7 @@ export default function Layout3DEditor({
     });
     commitPaperSpaces([...paperSpaces, created], 'Agregar espacio de papel');
     setActivePaperSpaceId(id);
+    setActivePaperViewportId(created.viewports?.[0]?.id ?? null);
   }, [commitPaperSpaces, data, paperSpaces, sheetPackageDraft]);
 
   const updateActivePaperSpace = useCallback((update: (space: CadPaperSpace) => CadPaperSpace, label: string) => {
@@ -2592,6 +2627,8 @@ export default function Layout3DEditor({
 
   const selectPaperSpace = useCallback((space: CadPaperSpace) => {
     setActivePaperSpaceId(space.id);
+    setActivePaperViewportId(space.viewports?.[0]?.id ?? null);
+    setLayoutPreviewSheet(null);
     const attributes = space.titleBlock?.attributes ?? {};
     setSheetPackageDraft((draft) => ({
       ...draft,
@@ -2614,12 +2651,12 @@ export default function Layout3DEditor({
       const width = landscape ? base.height : base.width;
       const height = landscape ? base.width : base.height;
       const margins = space.pageSetup?.margins ?? { top: 10, right: 10, bottom: 10, left: 10 };
-      return {
+      const nextSpace: CadPaperSpace = {
         ...space,
         page: { ...space.page, width, height },
-        viewports: (space.viewports ?? []).map((viewport, index) => index === 0 ? { ...viewport, paperBounds: { x: margins.left, y: margins.top, width: Math.max(1, width - margins.left - margins.right), height: Math.max(1, height - margins.top - margins.bottom - 30) } } : viewport),
         pageSetup: { paper, margins, colorMode: space.pageSetup?.colorMode ?? 'monochrome', lineweightScale: space.pageSetup?.lineweightScale ?? 1 },
       };
+      return { ...nextSpace, viewports: (space.viewports ?? []).map((viewport) => ({ ...viewport, paperBounds: normalizeCadViewportPaperBounds(nextSpace, viewport.paperBounds) })) };
     }, `Cambiar papel a ${paper}`);
   }, [updateActivePaperSpace]);
 
@@ -2628,18 +2665,91 @@ export default function Layout3DEditor({
       if (space.page.orientation === orientation) return space;
       const width = space.page.height;
       const height = space.page.width;
-      const margins = space.pageSetup?.margins ?? { top: 10, right: 10, bottom: 10, left: 10 };
-      return {
+      const nextSpace: CadPaperSpace = {
         ...space,
         page: { ...space.page, width, height, orientation },
-        viewports: (space.viewports ?? []).map((viewport, index) => index === 0 ? { ...viewport, paperBounds: { x: margins.left, y: margins.top, width: Math.max(1, width - margins.left - margins.right), height: Math.max(1, height - margins.top - margins.bottom - 30) } } : viewport),
       };
+      return { ...nextSpace, viewports: (space.viewports ?? []).map((viewport) => ({ ...viewport, paperBounds: normalizeCadViewportPaperBounds(nextSpace, viewport.paperBounds) })) };
     }, `Cambiar orientación a ${orientation}`);
   }, [updateActivePaperSpace]);
 
-  const updatePrimaryViewport = useCallback((update: (viewport: NonNullable<CadPaperSpace['viewports']>[number]) => NonNullable<CadPaperSpace['viewports']>[number], label: string) => {
-    updateActivePaperSpace((space) => ({ ...space, viewports: (space.viewports ?? []).map((viewport, index) => index === 0 ? update(viewport) : viewport) }), label);
+  const updateActivePageMargin = useCallback((edge: 'top' | 'right' | 'bottom' | 'left', value: number) => {
+    if (!Number.isFinite(value) || value < 0) return;
+    updateActivePaperSpace((space) => {
+      const margins = { ...(space.pageSetup?.margins ?? { top: 10, right: 10, bottom: 10, left: 10 }), [edge]: value };
+      const nextSpace: CadPaperSpace = {
+        ...space,
+        pageSetup: {
+          paper: space.pageSetup?.paper ?? 'custom',
+          margins,
+          colorMode: space.pageSetup?.colorMode ?? 'monochrome',
+          lineweightScale: space.pageSetup?.lineweightScale ?? 1,
+        },
+      };
+      return { ...nextSpace, viewports: (space.viewports ?? []).map((viewport) => ({ ...viewport, paperBounds: normalizeCadViewportPaperBounds(nextSpace, viewport.paperBounds) })) };
+    }, `Actualizar margen ${edge}`);
   }, [updateActivePaperSpace]);
+
+  const addPaperViewport = useCallback(() => {
+    if (!data || !activePaperSpaceId) return;
+    const id = newId('viewport');
+    updateActivePaperSpace((space) => ({
+      ...space,
+      viewports: [...(space.viewports ?? []), createCadPaperViewport({
+        space,
+        id,
+        modelBounds: space.viewports?.[0]?.modelBounds ?? { x: 0, y: 0, width: data.footprint.footprintW, height: data.footprint.footprintH },
+        unit: data.footprint.unit,
+      })],
+    }), 'Agregar viewport');
+    setActivePaperViewportId(id);
+  }, [activePaperSpaceId, data, updateActivePaperSpace]);
+
+  const changePaperViewport = useCallback((id: string, update: (viewport: NonNullable<CadPaperSpace['viewports']>[number]) => NonNullable<CadPaperSpace['viewports']>[number], label: string) => {
+    updateActivePaperSpace((space) => updateCadPaperViewport(space, id, update), label);
+  }, [updateActivePaperSpace]);
+
+  const duplicatePaperViewport = useCallback((id: string) => {
+    const duplicateId = newId('viewport');
+    updateActivePaperSpace((space) => duplicateCadPaperViewport(space, id, duplicateId), 'Duplicar viewport');
+    setActivePaperViewportId(duplicateId);
+  }, [updateActivePaperSpace]);
+
+  const removePaperViewport = useCallback((id: string) => {
+    const activeSpace = paperSpaces.find((space) => space.id === activePaperSpaceId);
+    const nextViewport = activeSpace?.viewports?.find((viewport) => viewport.id !== id)?.id ?? null;
+    updateActivePaperSpace((space) => deleteCadPaperViewport(space, id), 'Eliminar viewport');
+    setActivePaperViewportId(nextViewport);
+  }, [activePaperSpaceId, paperSpaces, updateActivePaperSpace]);
+
+  const changePaperViewportLayerVisibility = useCallback((id: string, layerId: string, visible: boolean) => {
+    updateActivePaperSpace((space) => setCadViewportLayerVisibility(space, id, layerId, visible), visible ? 'Descongelar capa en viewport' : 'Congelar capa en viewport');
+  }, [updateActivePaperSpace]);
+
+  const changePaperViewportLayerOverride = useCallback((id: string, layerId: string, override: { color?: string; linetype?: string; lineweight?: number } | null) => {
+    updateActivePaperSpace((space) => setCadViewportLayerOverride(space, id, layerId, override), override ? 'Actualizar override de capa' : 'Restablecer override de capa');
+  }, [updateActivePaperSpace]);
+
+  const requestLayoutPreview = useCallback(() => {
+    if (!activePaperSpaceId) return;
+    const document = snapshotDocument();
+    const plan = buildCadPublishPlan({
+      ...document,
+      paperSpaces: paperSpaces.map((space) => space.id === activePaperSpaceId ? { ...space, includeInPublish: true } : space),
+    });
+    setLayoutPreviewSheet(plan.sheets.find((sheet) => sheet.id === activePaperSpaceId) ?? null);
+  }, [activePaperSpaceId, paperSpaces, snapshotDocument]);
+
+  const movePaperSpace = useCallback((sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return;
+    const ordered = [...paperSpaces].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id.localeCompare(b.id));
+    const sourceIndex = ordered.findIndex((space) => space.id === sourceId);
+    const targetIndex = ordered.findIndex((space) => space.id === targetId);
+    if (sourceIndex < 0 || targetIndex < 0) return;
+    const [source] = ordered.splice(sourceIndex, 1);
+    ordered.splice(targetIndex, 0, source);
+    commitPaperSpaces(ordered, 'Reordenar hojas por arrastre');
+  }, [commitPaperSpaces, paperSpaces]);
 
   const commitNativeCommands = useCallback((
     commands: Parameters<typeof executeCadEntityCommand>[1][],
@@ -7305,6 +7415,7 @@ export default function Layout3DEditor({
       if (saved.cadDocument) {
         const document = migrateCadDocument(saved.cadDocument);
         loadedCadDocumentRef.current = document;
+        setPaperSpaceLayers(document.layers.map((layer) => ({ ...layer })));
         setPublicationRecords([...document.publications]);
         setNativeEntities(
           document.entities.filter(
@@ -7676,7 +7787,10 @@ export default function Layout3DEditor({
     : null;
   const orderedPaperSpaces = [...paperSpaces].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id.localeCompare(b.id));
   const activePaperSpace = orderedPaperSpaces.find((space) => space.id === activePaperSpaceId) ?? orderedPaperSpaces[0] ?? null;
-  const activePaperViewport = activePaperSpace?.viewports?.[0] ?? null;
+  const activeLayoutLayers = paperSpaceLayers.length
+    ? paperSpaceLayers
+    : cadLayers.map((layer) => ({ id: layer.id, name: layer.label, color: layer.color, visible: layer.visible, locked: layer.locked }));
+  const activeLayoutPreflight = activePaperSpace ? preflightCadPaperSpace(activePaperSpace, activeLayoutLayers.map((layer) => layer.id)) : [];
   const sheetPackageChecks = [
     { label: 'Title block', ok: !!sheetPackageDraft.project.trim() && !!sheetPackageDraft.drawingNo.trim() && !!sheetPackageDraft.sheet.trim() && !!sheetPackageDraft.revision.trim(), detail: `${sheetPackageDraft.drawingNo || 'sin plano'} · ${sheetPackageDraft.sheet || 'sin hoja'} · rev ${sheetPackageDraft.revision || '—'}` },
     { label: 'Conjunto de hojas', ok: paperSpaces.some((space) => space.includeInPublish !== false && (space.viewports?.length ?? 0) > 0), detail: `${paperSpaces.filter((space) => space.includeInPublish !== false).length} publicables · ${paperSpaces.reduce((total, space) => total + (space.viewports?.length ?? 0), 0)} viewports` },
@@ -9191,7 +9305,7 @@ export default function Layout3DEditor({
 
 
       {showSheetPackage && (
-        <div className="absolute inset-0 z-[82] grid place-items-center bg-black/55 p-4" onClick={() => setShowSheetPackage(false)}>
+        <div data-testid="cad-sheet-package" className="absolute inset-0 z-[82] grid place-items-center bg-black/55 p-4" onClick={() => setShowSheetPackage(false)}>
           <div className="w-[760px] max-w-full max-h-[84vh] overflow-y-auto rounded-2xl border border-white/10 bg-gray-900 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
               <Stamp className="h-4 w-4 text-cyan-300" />
@@ -9200,13 +9314,13 @@ export default function Layout3DEditor({
                 <div className="text-[11px] text-gray-500">Cajetín, revisión, validación, DXF, manifiesto y checklist de emisión.</div>
               </div>
               <div className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1 text-[12px] font-semibold text-cyan-100">{sheetPackageReadyPct}% listo</div>
-              <button onClick={() => setShowSheetPackage(false)} className="rounded-lg p-1 hover:bg-white/10"><X className="h-4 w-4" /></button>
+              <button aria-label="Cerrar paquete de entrega" onClick={() => setShowSheetPackage(false)} className="rounded-lg p-1 hover:bg-white/10"><X className="h-4 w-4" /></button>
             </div>
             <div className="border-b border-white/10 bg-gray-950/35 px-4 py-3">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="mr-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-500">Layouts</span>
                 {orderedPaperSpaces.map((space) => (
-                  <button key={space.id} onClick={() => selectPaperSpace(space)} className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold ${space.id === activePaperSpace?.id ? 'border-cyan-300/50 bg-cyan-400/15 text-cyan-100' : 'border-white/10 bg-white/[0.04] text-gray-400 hover:bg-white/[0.08]'}`}>
+                  <button key={space.id} data-testid={`cad-layout-tab-${space.id}`} draggable onDragStart={(event) => event.dataTransfer.setData('text/plain', space.id)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); movePaperSpace(event.dataTransfer.getData('text/plain'), space.id); }} onClick={() => selectPaperSpace(space)} className={`cursor-grab rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold active:cursor-grabbing ${space.id === activePaperSpace?.id ? 'border-cyan-300/50 bg-cyan-400/15 text-cyan-100' : 'border-white/10 bg-white/[0.04] text-gray-400 hover:bg-white/[0.08]'}`}>
                     {space.name}{space.includeInPublish === false ? ' · excluida' : ''}
                   </button>
                 ))}
@@ -9227,17 +9341,25 @@ export default function Layout3DEditor({
                     <select value={activePaperSpace.page.orientation} onChange={(event) => changeActiveOrientation(event.target.value as 'portrait' | 'landscape')} className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white"><option value="landscape">Horizontal</option><option value="portrait">Vertical</option></select>
                   </label>
                   <label className="flex items-end gap-2 pb-1.5 text-[11px] text-gray-300"><input type="checkbox" checked={activePaperSpace.includeInPublish !== false} onChange={(event) => updateActivePaperSpace((space) => ({ ...space, includeInPublish: event.target.checked }), event.target.checked ? 'Incluir hoja' : 'Excluir hoja')} /> Publicar</label>
-                  {activePaperViewport && (<>
-                    <label className="block"><span className="mb-1 block text-[10px] uppercase tracking-wide text-gray-500">Escala viewport</span>
-                      <select value={activePaperViewport.scale} disabled={activePaperViewport.locked} onChange={(event) => updatePrimaryViewport((viewport) => ({ ...viewport, scale: Number(event.target.value) }), 'Cambiar escala de viewport')} className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white disabled:cursor-not-allowed disabled:opacity-45">{CAD_SHEET_SCALES.map((scale) => <option key={scale} value={scale}>1:{scale}</option>)}</select>
-                    </label>
-                    {(['x', 'y', 'width', 'height'] as const).map((field) => (
-                      <label key={field} className="block"><span className="mb-1 block text-[10px] uppercase tracking-wide text-gray-500">Modelo {field}</span>
-                        <input type="number" key={`${activePaperViewport.id}:${field}`} defaultValue={activePaperViewport.modelBounds[field]} disabled={activePaperViewport.locked} onBlur={(event) => { const value = Number(event.target.value); if (Number.isFinite(value) && ((field === 'x' || field === 'y') || value > 0)) updatePrimaryViewport((viewport) => ({ ...viewport, modelBounds: { ...viewport.modelBounds, [field]: value } }), `Actualizar viewport ${field}`); }} className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white disabled:cursor-not-allowed disabled:opacity-45" />
-                      </label>
-                    ))}
-                    <button onClick={() => updatePrimaryViewport((viewport) => ({ ...viewport, locked: !viewport.locked }), activePaperViewport.locked ? 'Desbloquear viewport' : 'Bloquear viewport')} className={`self-end rounded-lg border px-2 py-1.5 text-[11px] font-semibold ${activePaperViewport.locked ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-200' : 'border-amber-300/25 bg-amber-400/10 text-amber-200'}`}>{activePaperViewport.locked ? 'Viewport bloqueado' : 'Viewport editable'}</button>
-                  </>)}
+                  {(['top', 'right', 'bottom', 'left'] as const).map((edge) => <label key={edge} className="block"><span className="mb-1 block text-[10px] uppercase tracking-wide text-gray-500">Margen {edge}</span><input data-testid={`cad-page-margin-${edge}`} type="number" min="0" value={activePaperSpace.pageSetup?.margins?.[edge] ?? 10} onChange={(event) => updateActivePageMargin(edge, Number(event.target.value))} className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white" /></label>)}
+                  <label className="block"><span className="mb-1 block text-[10px] uppercase tracking-wide text-gray-500">Color</span><select value={activePaperSpace.pageSetup?.colorMode ?? 'monochrome'} onChange={(event) => updateActivePaperSpace((space) => ({ ...space, pageSetup: { paper: space.pageSetup?.paper ?? 'custom', margins: space.pageSetup?.margins ?? { top: 10, right: 10, bottom: 10, left: 10 }, colorMode: event.target.value as 'color' | 'monochrome', lineweightScale: space.pageSetup?.lineweightScale ?? 1 } }), 'Cambiar modo de color')} className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white"><option value="monochrome">Monochrome</option><option value="color">Color</option></select></label>
+                  <label className="block"><span className="mb-1 block text-[10px] uppercase tracking-wide text-gray-500">Lineweight</span><input type="number" min="0.01" step="0.1" value={activePaperSpace.pageSetup?.lineweightScale ?? 1} onChange={(event) => Number(event.target.value) > 0 && updateActivePaperSpace((space) => ({ ...space, pageSetup: { paper: space.pageSetup?.paper ?? 'custom', margins: space.pageSetup?.margins ?? { top: 10, right: 10, bottom: 10, left: 10 }, colorMode: space.pageSetup?.colorMode ?? 'monochrome', lineweightScale: Number(event.target.value) } }), 'Cambiar escala de lineweight')} className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white" /></label>
+                  <label className="col-span-2 block"><span className="mb-1 block text-[10px] uppercase tracking-wide text-gray-500">Biblioteca de cajetines</span><select data-testid="cad-title-block-library" value={activePaperSpace.titleBlock?.block ?? ''} onChange={(event) => updateActivePaperSpace((space) => ({ ...space, titleBlock: { ...space.titleBlock, block: event.target.value || undefined, attributes: { ...(space.titleBlock?.attributes ?? {}) } } }), 'Cambiar biblioteca de cajetín')} className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white"><option value="">Cajetín vectorial estándar</option>{professionalBlockDefinitions.map((block) => <option key={block.id} value={block.id}>{block.name}</option>)}</select></label>
+                  <CadLayoutManager
+                    space={activePaperSpace}
+                    activeViewportId={activePaperViewportId}
+                    layers={activeLayoutLayers}
+                    preflight={activeLayoutPreflight}
+                    preview={layoutPreviewSheet?.id === activePaperSpace.id ? layoutPreviewSheet : null}
+                    onActivate={setActivePaperViewportId}
+                    onAdd={addPaperViewport}
+                    onDuplicate={duplicatePaperViewport}
+                    onDelete={removePaperViewport}
+                    onChange={changePaperViewport}
+                    onLayerVisibility={changePaperViewportLayerVisibility}
+                    onLayerOverride={changePaperViewportLayerOverride}
+                    onRequestPreview={requestLayoutPreview}
+                  />
                   <div className="col-span-full flex justify-end gap-2 border-t border-white/10 pt-2">
                     <button onClick={() => commitPaperSpaces(reorderCadPaperSpaces(paperSpaces, activePaperSpace.id, -1), 'Reordenar hoja')} disabled={(activePaperSpace.order ?? 0) <= 0} className="rounded-md border border-white/10 px-2 py-1 text-[11px] disabled:opacity-30">← Subir</button>
                     <button onClick={() => commitPaperSpaces(reorderCadPaperSpaces(paperSpaces, activePaperSpace.id, 1), 'Reordenar hoja')} disabled={(activePaperSpace.order ?? 0) >= paperSpaces.length - 1} className="rounded-md border border-white/10 px-2 py-1 text-[11px] disabled:opacity-30">Bajar →</button>

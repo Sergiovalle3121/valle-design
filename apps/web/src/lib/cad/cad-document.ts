@@ -482,6 +482,10 @@ export interface CadPaperViewport {
   modelBounds: { x: number; y: number; width: number; height: number };
   scale: number;
   locked: boolean;
+  /** Independent annotation scale for annotative content in this viewport. */
+  annotationScale?: number;
+  /** Optional named model view used to restore this viewport deterministically. */
+  namedView?: string;
   layerVisibility?: Record<string, boolean>;
   layerOverrides?: Record<string, { color?: string; linetype?: string; lineweight?: number }>;
 }
