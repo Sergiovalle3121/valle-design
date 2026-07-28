@@ -121,6 +121,14 @@ import { mapDxfLayerToCadLayer } from '@/lib/cad/dxf-layer-map';
 import { solveCadConstraints, upsertCadConstraint } from '@/lib/cad/live-constraints';
 import { BRAND, PRODUCT_LABEL } from '@/config/brand';
 import { cadMleaderAssociationAnchor, type CadMleaderReference } from '@/lib/cad/associative-mleader';
+import {
+  defineCadBlock,
+  explodeCadInsert,
+  insertCadBlock as insertCanonicalCadBlock,
+  purgeUnusedCadBlocks,
+  redefineCadBlock,
+  replaceCadBlock,
+} from '@/lib/cad/professional-blocks';
 import { CAD_LAYOUT_TEMPLATES, instantiateCadLayoutTemplate, type CadLayoutTemplateId } from '@/lib/cad/templates';
 import {
   generateWarehouseDockStaging,
@@ -140,6 +148,7 @@ import {
   migrateCadDocument,
   replaceEditorProjection,
   type CadConstraintKind,
+  type CadBlockDefinition,
   type CadDocument,
   type CadEntity,
   type CadPaperSpace,
@@ -166,20 +175,25 @@ import {
   type CadScenePatch,
 } from '@/lib/cad/entity-runtime';
 import {
+  buildCadInsertBatchObject,
   buildCadNativeOverviewObject,
   buildCadNativeObject,
   disposeCadNativeObject,
+  setCadInsertBatchHiddenLayers,
   setCadNativeOverviewHiddenLayers,
   setCadNativeObjectSelected,
   updateCadNativeOverviewObject,
 } from '@/lib/cad/entity-three';
 import {
   cadDocumentNativeDxfHatches,
+  cadDocumentDxfBlocks,
+  cadDocumentDxfInserts,
   cadDocumentNativeDxfMTexts,
   cadDocumentNativeDxfMleaders,
   cadDocumentNativeDxfPrimitives,
   cadDocumentNativeDxfSemanticDimensions,
   cadDxfCurvesToNativeEntities,
+  cadDxfBlocksToCadDocumentParts,
   cadDxfHatchesToNativeEntities,
   cadDxfMTextsToNativeEntities,
   cadDxfMleadersToNativeEntities,
@@ -225,6 +239,7 @@ import { CadHatchPalette } from './cad-workbench/CadHatchPalette';
 import { CadMTextEditor, type CadMTextDraft } from './cad-workbench/CadMTextEditor';
 import { CadDimensionPalette, type CadDimensionDraft } from './cad-workbench/CadDimensionPalette';
 import { CadMLeaderPalette, type CadMLeaderDraft } from './cad-workbench/CadMLeaderPalette';
+import { CadBlockPalette, type CadBlockDefinitionDraft, type CadBlockInsertDraft } from './cad-workbench/CadBlockPalette';
 import { cadEntityAssociationAnchor } from '@/lib/cad/associative-dimension';
 import {
   cadViewportFocusBounds,
@@ -362,7 +377,7 @@ interface Cell { id: string; name: string; color: string; stationIds: string[] }
 interface Conn { from: string; to: string; kind?: string }
 interface Asset { id: string; kind: string; x: number; y: number; w: number; h: number; rotation: number; label?: string; shape?: 'rect' | 'circle'; tags?: string[] }
 /** Bloque CAD reutilizable de la biblioteca del tenant (ADR §224). */
-interface CadBlockRow { id: string; name: string; assets: (Asset & { layer?: string })[]; createdAt?: string }
+interface CadBlockRow { id: string; name: string; assets: (Asset & { layer?: string })[]; definition?: CadBlockDefinition | null; version?: number; createdAt?: string }
 /** A pair of objects flagged by the clearance analysis (Fase 43). */
 interface ClearancePair { a: string; b: string; aLabel: string; bLabel: string; gap: number }
 /** A free-text note or a dimension line (cota) on the plan — world coords. */
@@ -1063,6 +1078,7 @@ export default function Layout3DEditor({
   const [editingMTextId, setEditingMTextId] = useState<string | null>(null);
   const [showDimensionPalette, setShowDimensionPalette] = useState(false);
   const [showMleaderPalette, setShowMleaderPalette] = useState(false);
+  const [showBlockPalette, setShowBlockPalette] = useState(false);
   const [viewMode, setViewMode] = useState<'3d' | '2d'>('3d'); // 2D = locked top-down plan view (CAD unificado)
   const [walk, setWalk] = useState(false); // first-person walkthrough mode
   const [showHelp, setShowHelp] = useState(false); // keyboard shortcuts overlay
@@ -1085,6 +1101,12 @@ export default function Layout3DEditor({
   const [objectGroups, setObjectGroups] = useState<Record<string, string>>({});
   // Biblioteca de bloques reutilizables del tenant (ADR §224).
   const [cadBlocks, setCadBlocks] = useState<CadBlockRow[]>([]);
+  const loadCadBlocks = useCallback(async () => {
+    try {
+      const response = await apiFetch(`${API_BASE}/line-engineering/cad-blocks`);
+      if (response.ok) setCadBlocks(await response.json() as CadBlockRow[]);
+    } catch { /* transitorio — la sección muestra "sin bloques" */ }
+  }, []);
   const [activeCadLayer, setActiveCadLayer] = useState<CadLayerId>('equipment');
   const cadLayersRef = useRef<CadLayer[]>(DEFAULT_CAD_LAYERS);
   const layerAssignmentsRef = useRef<CadLayerAssignments>({});
@@ -1178,6 +1200,7 @@ export default function Layout3DEditor({
   const blocksRef = useRef<THREE.Group | null>(null);
   const assetsGroupRef = useRef<THREE.Group | null>(null);
   const nativeGroupRef = useRef<THREE.Group | null>(null);
+  const nativeInsertBatchRef = useRef<THREE.Group | null>(null);
   const nativeOverviewRef = useRef<THREE.LineSegments | null>(null);
   const nativeOverviewDocumentRef = useRef<CadDocument | null>(null);
   const dimsGroupRef = useRef<THREE.Group | null>(null);
@@ -1344,6 +1367,15 @@ export default function Layout3DEditor({
                 .map((layer) => layer.id) ?? [],
             ),
           );
+          return;
+        }
+        if (child.userData?.nativeBlockBatch === true) {
+          child.visible = L.equipment;
+          setCadInsertBatchHiddenLayers(child as THREE.Group, new Set(
+            document?.layers
+              .filter((layer) => layer.visible === false)
+              .map((layer) => layer.id) ?? [],
+          ));
           return;
         }
         const entityId = child.userData?.nativeEntityId as string | undefined;
@@ -1790,8 +1822,13 @@ export default function Layout3DEditor({
 
   const refreshNativeSelectionVisuals = useCallback(() => {
     const selected = new Set(nativeSelectionIdsRef.current);
-    for (const [id, object] of nativeSceneSyncRef.current?.entries() ?? [])
+    for (const [id, object] of nativeSceneSyncRef.current?.entries() ?? []) {
       setCadNativeObjectSelected(object, selected.has(id));
+      if (object.userData.nativeBlockBatched === true)
+        object.traverse((child) => {
+          if (child.userData.nativePath === true) child.visible = selected.has(id);
+        });
+    }
   }, []);
   const selectNative = useCallback((ids: string[]) => {
     const document = loadedCadDocumentRef.current;
@@ -1826,12 +1863,33 @@ export default function Layout3DEditor({
     const synchronizer = nativeSceneSyncRef.current;
     const selectionIndex = nativeSelectionIndexRef.current;
     if (!document || !group || !context || !synchronizer || !selectionIndex) return;
+    if (nativeInsertBatchRef.current) {
+      group.remove(nativeInsertBatchRef.current);
+      disposeCadNativeObject(nativeInsertBatchRef.current);
+    }
+    const insertBatches = buildCadInsertBatchObject(document, {
+      scale: context.s,
+      width: context.W,
+      height: context.H,
+    });
+    group.add(insertBatches);
+    nativeInsertBatchRef.current = insertBatches;
+    const batchedInsertIds = new Set<string>(
+      (insertBatches.userData.nativeBlockBatchInsertIds as string[] | undefined) ?? [],
+    );
     const render = (entity: CadNativeEntity) => {
       const object = buildCadNativeObject(entity, {
         scale: context.s,
         width: context.W,
         height: context.H,
-      }, nativeSelectionIdsRef.current.includes(entity.id));
+      }, nativeSelectionIdsRef.current.includes(entity.id), document);
+      if (entity.type === 'insert' && batchedInsertIds.has(entity.id)) {
+        object.userData.nativeBlockBatched = true;
+        object.traverse((child) => {
+          if (child.userData.nativePath === true)
+            child.visible = nativeSelectionIdsRef.current.includes(entity.id);
+        });
+      }
       object.visible = document.layers.find((layer) => layer.id === entity.layer)?.visible !== false;
       group.add(object);
       return object;
@@ -1851,8 +1909,8 @@ export default function Layout3DEditor({
     );
     if (nativeIndexedDocumentRef.current !== document) {
       if (patch && nativeIndexedDocumentRef.current)
-        selectionIndex.applyPatch(patch);
-      else selectionIndex.replace(nativeDocumentEntities);
+        selectionIndex.applyPatch(patch, document);
+      else selectionIndex.replace(nativeDocumentEntities, document);
       nativeIndexedDocumentRef.current = document;
     }
     const visibleEntities = nativeViewportBoundsRef.current
@@ -2582,6 +2640,98 @@ export default function Layout3DEditor({
   const removeNativeSelection = useCallback(() => {
     commitNativeCommands(nativeSelectionIdsRef.current.map((entityId) => ({ type: 'delete' as const, entityId })), []);
   }, [commitNativeCommands]);
+  const commitBlockMutation = useCallback((mutate: (document: CadDocument) => CadDocument, selection: string[], success: string) => {
+    const checkpoint = snapshotDocument();
+    try {
+      const document = mutate(checkpoint);
+      if (document === checkpoint) { toast.success('No había definiciones de bloque sin uso.', 'BLOCK'); return; }
+      undoStackRef.current.push(checkpoint);
+      if (undoStackRef.current.length > 80) undoStackRef.current.shift();
+      redoStackRef.current = [];
+      setHist({ undo: undoStackRef.current.length, redo: 0 });
+      loadedCadDocumentRef.current = document;
+      const selectable = new Set(document.entities.filter((entity) => CAD_ENTITY_REGISTRY.supports(entity)).map((entity) => entity.id));
+      nativeSelectionIdsRef.current = selection.filter((id) => selectable.has(id));
+      setNativeSelectionIds(nativeSelectionIdsRef.current);
+      setNativeEntities(document.entities.filter((entity): entity is CadNativeEntity => CAD_ENTITY_REGISTRY.supports(entity)));
+      setNativeDocumentRevision((value) => value + 1);
+      setDirty(true);
+      restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
+      syncNativeScene(document);
+      toast.success(success, 'BLOCK');
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : 'No se pudo completar la operación de bloque.', 'BLOCK');
+    }
+  }, [restore, snapshotDocument, syncNativeScene, toast]);
+  const defineProfessionalBlock = useCallback((draft: CadBlockDefinitionDraft) => {
+    const entityIds = [...new Set([...selRef.current.map((item) => item.id), ...nativeSelectionIdsRef.current])];
+    const source = snapshotDocument();
+    const selectedEntities = source.entities.filter((entity) => entityIds.includes(entity.id));
+    const bounds = selectedEntities.reduce<CadBounds | null>((current, entity) => {
+      const next = CAD_ENTITY_REGISTRY.supports(entity)
+        ? CAD_ENTITY_REGISTRY.adapter(entity).bounds.bounds(entity, source)
+        : entity.type === 'box' || entity.type === 'station'
+          ? { minX: entity.x, minY: entity.y, maxX: entity.x + entity.w, maxY: entity.y + entity.h }
+          : null;
+      return !next ? current : !current ? next : { minX: Math.min(current.minX, next.minX), minY: Math.min(current.minY, next.minY), maxX: Math.max(current.maxX, next.maxX), maxY: Math.max(current.maxY, next.maxY) };
+    }, null);
+    if (!entityIds.length || !bounds) { toast.error('Selecciona al menos una entidad geométrica para crear el bloque.', 'BLOCK'); return; }
+    const blockId = newId('block');
+    const insertId = newId('insert');
+    const basePoint = { x: bounds.minX, y: bounds.minY, z: 0 };
+    let libraryDefinition: CadBlockDefinition | undefined;
+    commitBlockMutation((document) => {
+      const next = defineCadBlock(document, {
+        id: blockId, name: draft.name, entityIds, basePoint, insertId,
+        description: draft.description, keywords: draft.keywords,
+        library: { scope: draft.tenantLibrary ? 'tenant' : 'document', ...(draft.tenantLibrary && tenantId ? { tenantId } : {}) },
+        ...(draft.attributeTag ? { attributes: { [draft.attributeTag]: { defaultValue: draft.attributeDefault ?? '', prompt: draft.attributeTag, position: { x: basePoint.x, y: basePoint.y + Math.max(1, data?.footprint.gridSize ?? 100), z: 0 } } } } : {}),
+        ...(draft.businessEntityType && draft.businessEntityId ? { businessLink: { ...(tenantId ? { tenantId } : {}), entityType: draft.businessEntityType, entityId: draft.businessEntityId } } : {}),
+      });
+      libraryDefinition = next.blocks.find((block) => block.id === blockId);
+      return next;
+    }, [insertId], `BLOCK ${draft.name} creado como una definición y una instancia viva.`);
+    if (draft.tenantLibrary && libraryDefinition) void apiFetch(`${API_BASE}/line-engineering/cad-blocks`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: draft.name, definition: libraryDefinition }),
+    }).then((response) => response.ok ? loadCadBlocks() : toast.error('El BLOCK quedó en el dibujo, pero no se pudo publicar en la biblioteca tenant.', 'BLOCK')).catch(() => toast.error('El BLOCK quedó en el dibujo, pero falló la biblioteca tenant.', 'BLOCK'));
+  }, [commitBlockMutation, data?.footprint.gridSize, snapshotDocument, tenantId, toast]);
+  const insertProfessionalBlock = useCallback((blockId: string, draft: CadBlockInsertDraft) => {
+    const insertId = newId('insert');
+    commitBlockMutation((document) => {
+      const libraryRow = cadBlocks.find((row) => row.definition?.id === blockId);
+      const libraryDefinition = libraryRow?.definition;
+      const source = libraryDefinition && !document.blocks.some((block) => block.id === blockId)
+        ? { ...document, blocks: [...document.blocks, { ...structuredClone(libraryDefinition), version: libraryRow?.version ?? libraryDefinition.version ?? 1, library: { ...libraryDefinition.library, scope: 'tenant' as const, sourceId: libraryRow?.id } }].sort((a, b) => a.id.localeCompare(b.id)) }
+        : document;
+      return insertCanonicalCadBlock(source, {
+      id: insertId, block: blockId, insertion: { x: draft.x, y: draft.y, z: 0 },
+      scale: { x: draft.scaleX, y: draft.scaleY, z: 1 }, rotation: draft.rotation,
+      layer: activeCadLayer, attributes: draft.attributes,
+      });
+    }, [insertId], 'INSERT creado sin explotar su definición.');
+  }, [activeCadLayer, cadBlocks, commitBlockMutation]);
+  const redefineProfessionalBlock = useCallback((blockId: string) => {
+    const entityIds = [...new Set([...selRef.current.map((item) => item.id), ...nativeSelectionIdsRef.current])];
+    commitBlockMutation((document) => {
+      const entities = entityIds.map((id) => document.entities.find((entity) => entity.id === id)).filter((entity): entity is CadEntity => !!entity);
+      return redefineCadBlock(document, blockId, entities);
+    }, nativeSelectionIdsRef.current, 'Definición actualizada; todas sus instancias se regeneraron.');
+    const updatedDefinition = loadedCadDocumentRef.current?.blocks.find((block) => block.id === blockId);
+    const libraryRow = cadBlocks.find((candidate) => candidate.definition?.id === blockId);
+    if (updatedDefinition && libraryRow) void apiFetch(`${API_BASE}/line-engineering/cad-blocks/${libraryRow.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ definition: updatedDefinition }),
+    }).then((response) => response.ok ? loadCadBlocks() : toast.error('Redefinición local guardada; la biblioteca tenant no pudo versionarse.', 'BLOCK')).catch(() => toast.error('Redefinición local guardada; falló la biblioteca tenant.', 'BLOCK'));
+  }, [cadBlocks, commitBlockMutation, toast]);
+  const replaceProfessionalBlock = useCallback((sourceBlock: string, targetBlock: string) => {
+    commitBlockMutation((document) => replaceCadBlock(document, sourceBlock, targetBlock), nativeSelectionIdsRef.current, 'Instancias reemplazadas conservando transformaciones y atributos compatibles.');
+  }, [commitBlockMutation]);
+  const explodeProfessionalInsert = useCallback((insertId: string) => {
+    commitBlockMutation((document) => explodeCadInsert(document, insertId), [], 'INSERT explotado en geometría editable independiente.');
+  }, [commitBlockMutation]);
+  const purgeProfessionalBlocks = useCallback(() => {
+    commitBlockMutation((document) => purgeUnusedCadBlocks(document).document, nativeSelectionIdsRef.current, 'Definiciones no usadas purgadas.');
+  }, [commitBlockMutation]);
   const insertNativeEntities = useCallback((incoming: CadNativeEntity[], label: string) => {
     if (!incoming.length) return false;
     const checkpoint = snapshotDocument();
@@ -3665,6 +3815,7 @@ export default function Layout3DEditor({
       controls.dispose();
       disposeObject(scene);
       nativeSceneSyncRef.current?.clear({ remove: () => {} });
+      nativeInsertBatchRef.current = null;
       nativeOverviewRef.current = null;
       nativeOverviewDocumentRef.current = null;
       nativeViewportBoundsRef.current = null;
@@ -4988,12 +5139,6 @@ export default function Layout3DEditor({
   };
   // Bloques CAD reutilizables (ADR §224): celdas estándar guardadas UNA vez e
   // insertables en cualquier layout del tenant. La inserción llega agrupada.
-  const loadCadBlocks = async () => {
-    try {
-      const r = await apiFetch(`${API_BASE}/line-engineering/cad-blocks`);
-      if (r.ok) setCadBlocks(await r.json() as CadBlockRow[]);
-    } catch { /* transitorio — la sección muestra "sin bloques" */ }
-  };
   const saveSelectionAsBlock = async () => {
     const assets = selRef.current.filter((s) => s.type === 'asset');
     if (!assets.length) { toast.error('Selecciona los equipos/activos que forman el bloque.', 'Bloques'); return; }
@@ -5051,7 +5196,7 @@ export default function Layout3DEditor({
   };
   // La biblioteca se refresca al abrir el editor (no por layout: es del tenant).
    
-  useEffect(() => { if (open) void loadCadBlocks(); }, [open]);
+  useEffect(() => { if (open) void loadCadBlocks(); }, [loadCadBlocks, open]);
   // Grupos CAD (Ctrl+G, ADR §223): los miembros se seleccionan/mueven/copian
   // como unidad; Alt+clic entra al objeto individual. Solo assets — las
   // estaciones se agrupan con Celdas (concepto de manufactura, no de dibujo).
@@ -5261,13 +5406,19 @@ export default function Layout3DEditor({
       projection: { point: (point) => projectDxfPoint(point, bounds, dm, meta) },
       provider: 'dxf',
     }).slice(0, Math.max(0, 850 - nativeHatches.length - nativeMTexts.length - nativeDimensions.length));
-    const nativeCreated: CadNativeEntity[] = [...nativeHatches, ...nativeMTexts, ...nativeDimensions, ...nativeMleaders];
+    const importedBlockParts = cadDxfBlocksToCadDocumentParts(preview.blocks, preview.inserts, {
+      idPrefix: newId('cad'),
+      projection: { point: (point) => projectDxfPoint(point, bounds, dm, meta) },
+      provider: 'dxf',
+    });
+    const nativeCreated: CadNativeEntity[] = [...nativeHatches, ...nativeMTexts, ...nativeDimensions, ...nativeMleaders, ...importedBlockParts.inserts];
     const layerUpdates: Record<string, CadLayerId> = {};
     const tagUpdates: Record<string, string> = {};
     let notes = 0;
     let truncated = preview.hatches.length + preview.mtexts.length + preview.semanticDimensions.length + preview.mleaders.length > nativeCreated.length;
     const cap = 850;
-    for (const primitive of preview.primitives) {
+    for (const [primitiveIndex, primitive] of preview.primitives.entries()) {
+      if (preview.inserts.length && preview.primitiveSources[primitiveIndex] === 'insert') continue;
       if (created.length + nativeCreated.length >= cap) { truncated = true; break; }
       const points = primitive.points.map((point) => projectDxfPoint(point, bounds, dm, meta));
       if (primitive.kind === 'text' && points[0] && primitive.text) {
@@ -5330,6 +5481,7 @@ export default function Layout3DEditor({
       const document = commitChange({
         ...current,
         entities,
+        blocks: [...current.blocks, ...importedBlockParts.blocks].sort((a, b) => a.id.localeCompare(b.id)),
         modelSpace: { entityIds: entities.map((entity) => entity.id) },
       }, 'import:dxf-native-entities');
       loadedCadDocumentRef.current = document;
@@ -5345,7 +5497,7 @@ export default function Layout3DEditor({
       syncNativeScene(document);
     } else if (created.length) select(created.slice(0, 80));
     setDirty(true); rebuildAll();
-    toast.success(`${created.length} objeto(s), ${nativeCreated.length} entidad(es) nativa(s) y ${notes} nota(s) convertidos${truncated ? ' (recortado por seguridad)' : ''}.`, 'DXF editable');
+    toast.success(`${created.length} objeto(s), ${nativeCreated.length} entidad(es) nativa(s), ${importedBlockParts.blocks.length} bloque(s) y ${notes} nota(s) convertidos${truncated ? ' (recortado por seguridad)' : ''}.`, 'DXF editable');
   };
   // ---- auto-dimension the layout into a measured drawing (Fase 59) ----
   // Acota lo seleccionado (o todo el layout): medidas generales + cotas
@@ -6502,7 +6654,7 @@ export default function Layout3DEditor({
     const selectedNative = new Set(nativeSelectionIdsRef.current);
     for (const entity of loadedCadDocumentRef.current?.entities ?? []) {
       if (!CAD_ENTITY_REGISTRY.supports(entity) || (scope === 'selection' && !selectedNative.has(entity.id))) continue;
-      const bounds = CAD_ENTITY_REGISTRY.adapter(entity).bounds.bounds(entity);
+      const bounds = CAD_ENTITY_REGISTRY.adapter(entity).bounds.bounds(entity, loadedCadDocumentRef.current ?? undefined);
       add(bounds.minX, bounds.minY, bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
     }
     if (!Number.isFinite(minX)) return null;
@@ -6977,33 +7129,40 @@ export default function Layout3DEditor({
       }).filter((conn): conn is { from: { x: number; y: number }; to: { x: number; y: number }; layer: string } => !!conn);
       const labels = options.includeLabels && (options.includeHidden || layersRef.current.notes) ? [...annotationsRef.current.values()].filter((ann) => ann.type === 'text').map((ann) => ({ text: ann.text || 'Nota', x: ann.x, y: ann.y, layer: 'Text' })) : [];
       const measurements = options.includeMeasurements && includeLayer('measurements') ? [...annotationsRef.current.values()].filter((ann) => ann.type === 'dim' && ann.x2 != null && ann.y2 != null).map((ann) => ({ from: { x: ann.x, y: ann.y }, to: { x: ann.x2!, y: ann.y2! }, label: ann.text, layer: layerLabel('measurements') })) : [];
-      const primitives = cadDocumentNativeDxfPrimitives(snapshotDocument(), (entity) => {
+      const dxfDocument = snapshotDocument();
+      const primitives = cadDocumentNativeDxfPrimitives(dxfDocument, (entity) => {
         if (!CAD_ENTITY_REGISTRY.supports(entity)) return false;
         if (options.scope === 'selection' && !selectedNativeIds.has(entity.id)) return false;
         const layer = loadedCadDocumentRef.current?.layers.find((candidate) => candidate.id === entity.layer);
         return options.includeHidden || layer?.visible !== false;
       });
-      const hatches = cadDocumentNativeDxfHatches(snapshotDocument(), (entity) => {
+      const hatches = cadDocumentNativeDxfHatches(dxfDocument, (entity) => {
         if (options.scope === 'selection' && !selectedNativeIds.has(entity.id)) return false;
         const layer = loadedCadDocumentRef.current?.layers.find((candidate) => candidate.id === entity.layer);
         return options.includeHidden || layer?.visible !== false;
       });
-      const mtexts = options.includeLabels ? cadDocumentNativeDxfMTexts(snapshotDocument(), (entity) => {
+      const mtexts = options.includeLabels ? cadDocumentNativeDxfMTexts(dxfDocument, (entity) => {
         if (options.scope === 'selection' && !selectedNativeIds.has(entity.id)) return false;
         const layer = loadedCadDocumentRef.current?.layers.find((candidate) => candidate.id === entity.layer);
         return options.includeHidden || layer?.visible !== false;
       }) : [];
-      const semanticDimensions = options.includeMeasurements ? cadDocumentNativeDxfSemanticDimensions(snapshotDocument(), (entity) => {
+      const semanticDimensions = options.includeMeasurements ? cadDocumentNativeDxfSemanticDimensions(dxfDocument, (entity) => {
         if (options.scope === 'selection' && !selectedNativeIds.has(entity.id)) return false;
         const layer = loadedCadDocumentRef.current?.layers.find((candidate) => candidate.id === entity.layer);
         return options.includeHidden || layer?.visible !== false;
       }) : [];
-      const mleaders = options.includeLabels ? cadDocumentNativeDxfMleaders(snapshotDocument(), (entity) => {
+      const mleaders = options.includeLabels ? cadDocumentNativeDxfMleaders(dxfDocument, (entity) => {
         if (options.scope === 'selection' && !selectedNativeIds.has(entity.id)) return false;
         const layer = loadedCadDocumentRef.current?.layers.find((candidate) => candidate.id === entity.layer);
         return options.includeHidden || layer?.visible !== false;
       }) : [];
-      const exported = exportCadLayoutDxf({ boxes, connectors, labels, measurements, primitives, hatches, mtexts, semanticDimensions, mleaders }, { units: options.units, fileComment: `${PRODUCT_LABEL.design} ${model} ${revision}` });
+      const blocks = cadDocumentDxfBlocks(dxfDocument);
+      const inserts = cadDocumentDxfInserts(dxfDocument, (entity) => {
+        if (options.scope === 'selection' && !selectedNativeIds.has(entity.id)) return false;
+        const layer = dxfDocument.layers.find((candidate) => candidate.id === entity.layer);
+        return options.includeHidden || layer?.visible !== false;
+      });
+      const exported = exportCadLayoutDxf({ boxes, connectors, labels, measurements, primitives, hatches, mtexts, semanticDimensions, mleaders, blocks, inserts }, { units: options.units, fileComment: `${PRODUCT_LABEL.design} ${model} ${revision}` });
       const blob = new Blob([exported.content], { type: 'application/dxf' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -7312,11 +7471,16 @@ export default function Layout3DEditor({
     ? primaryNativeAdapter.properties.read(primaryNativeEntity)
     : null;
   const primaryNativeBounds = primaryNativeEntity && primaryNativeAdapter
-    ? primaryNativeAdapter.bounds.bounds(primaryNativeEntity)
+    ? primaryNativeAdapter.bounds.bounds(primaryNativeEntity, loadedCadDocumentRef.current ?? undefined)
     : null;
   const primaryNativeGrips = primaryNativeEntity && primaryNativeAdapter
     ? primaryNativeAdapter.grips.grips(primaryNativeEntity)
     : [];
+  const professionalBlockDefinitions = [...(loadedCadDocumentRef.current?.blocks ?? [])];
+  for (const row of cadBlocks) {
+    if (row.definition && !professionalBlockDefinitions.some((block) => block.id === row.definition!.id))
+      professionalBlockDefinitions.push({ ...row.definition, version: row.version ?? row.definition.version ?? 1, library: { ...row.definition.library, scope: 'tenant', sourceId: row.id } });
+  }
   const editingMTextEntity = editingMTextId
     ? nativeById.get(editingMTextId)
     : null;
@@ -7590,6 +7754,26 @@ export default function Layout3DEditor({
               defaultSize={Math.max(1, (data?.footprint.gridSize ?? 100) * 1.8)}
               styles={Object.keys(loadedCadDocumentRef.current?.styles.mleader ?? { Standard: {} })}
               onCreate={createAssociativeMleader}
+            />
+          )}
+        </div>
+        <div className="relative">
+          <T3Btn active={showBlockPalette} onClick={() => setShowBlockPalette((value) => !value)} title="BLOCK/INSERT: definiciones vivas, atributos, biblioteca, redefine, replace, explode y purge"><Boxes className="h-4 w-4" /></T3Btn>
+          {showBlockPalette && (
+            <CadBlockPalette
+              blocks={professionalBlockDefinitions}
+              selectedEntityCount={new Set([...selList.map((item) => item.id), ...nativeSelectionIds]).size}
+              selectedInsert={primaryNativeEntity?.type === 'insert' ? { id: primaryNativeEntity.id, block: primaryNativeEntity.block } : null}
+              defaultPoint={{
+                x: Math.max(0, Math.min(ctxRef.current?.W ?? 0, controlsRef.current && ctxRef.current ? controlsRef.current.target.x / ctxRef.current.s + ctxRef.current.W / 2 : (ctxRef.current?.W ?? 0) / 2)),
+                y: Math.max(0, Math.min(ctxRef.current?.H ?? 0, controlsRef.current && ctxRef.current ? controlsRef.current.target.z / ctxRef.current.s + ctxRef.current.H / 2 : (ctxRef.current?.H ?? 0) / 2)),
+              }}
+              onDefine={defineProfessionalBlock}
+              onInsert={insertProfessionalBlock}
+              onRedefine={redefineProfessionalBlock}
+              onReplace={replaceProfessionalBlock}
+              onExplode={explodeProfessionalInsert}
+              onPurge={purgeProfessionalBlocks}
             />
           )}
         </div>

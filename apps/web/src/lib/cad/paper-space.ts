@@ -2,6 +2,7 @@ import {
   type CadBlockDefinition,
   type CadDocument,
   type CadEntity,
+  type CadEntityPresentation,
   type CadLayerDef,
   type CadPaperSpace,
   type CadPaperViewport,
@@ -434,6 +435,22 @@ function visibleLayer(
   return override ?? layers.get(layerId)?.visible ?? true;
 }
 
+function blockPresentation(
+  own: CadEntityPresentation | undefined,
+  inherited: CadEntityPresentation | undefined,
+): CadEntityPresentation | undefined {
+  if (!own) return undefined;
+  const property = <T extends { source: "byLayer" | "byBlock" | "explicit" }>(
+    value: T | undefined,
+    parent: T | undefined,
+  ) => value?.source === "byBlock" ? parent : value;
+  return {
+    color: property(own.color, inherited?.color),
+    linetype: property(own.linetype, inherited?.linetype),
+    lineweight: property(own.lineweight, inherited?.lineweight),
+  };
+}
+
 function styleFor(
   entity: CadEntity,
   layerId: string,
@@ -441,10 +458,12 @@ function styleFor(
   viewport: CadPaperViewport,
   colorMode: "color" | "monochrome",
   lineweightScale: number,
+  inheritedPresentation?: CadEntityPresentation,
 ): CadVectorStyle {
   const layer = layers.get(layerId);
   const override = viewport.layerOverrides?.[layerId];
-  const explicit = entity.context?.presentation?.color;
+  const presentation = blockPresentation(entity.context?.presentation, inheritedPresentation);
+  const explicit = presentation?.color;
   const color =
     colorMode === "monochrome"
       ? "#111827"
@@ -454,7 +473,7 @@ function styleFor(
         "#334155");
   const rawWidth =
     override?.lineweight ??
-    entity.context?.presentation?.lineweight?.value ??
+    (presentation?.lineweight?.source === "explicit" ? presentation.lineweight.value : undefined) ??
     layer?.lineweight ??
     0.18;
   return {
@@ -527,6 +546,7 @@ function renderEntity(
     colorMode: "color" | "monochrome";
     lineweightScale: number;
     inheritedLayer?: string;
+    inheritedPresentation?: CadEntityPresentation;
     depth: number;
     stack: string[];
     warnings: CadPublishWarning[];
@@ -542,6 +562,7 @@ function renderEntity(
     context.viewport,
     context.colorMode,
     context.lineweightScale,
+    context.inheritedPresentation,
   );
   const path = (points: CadPoint2[], closed = false, fill?: string) =>
     commandPath(
@@ -746,31 +767,41 @@ function renderEntity(
       context.entityMatrix,
       insertTransform(entity, block),
     );
+    const effectiveInsertPresentation = blockPresentation(
+      entity.context?.presentation,
+      context.inheritedPresentation,
+    );
     const commands = block.entities.flatMap((child) =>
       renderEntity(child, {
         ...context,
         entityMatrix: nestedMatrix,
         inheritedLayer: layerId,
+        inheritedPresentation: effectiveInsertPresentation,
         depth: context.depth + 1,
         stack: [...context.stack, block.id],
       }),
     );
-    const attributes = Object.entries(entity.attributes ?? {});
-    attributes.forEach(([key, value], index) =>
+    Object.entries(block.attributes ?? {}).forEach(([key, definition], index) => {
+      if (definition.invisible) return;
+      const value = definition.constant
+        ? (definition.defaultValue ?? "")
+        : (entity.attributes?.[key] ?? definition.defaultValue ?? "");
+      if (!value) return;
+      const anchor = definition.position ?? {
+        x: block.basePoint.x,
+        y: block.basePoint.y + index * 120,
+      };
       commands.push({
         kind: "text",
         entityId: `${entity.id}:attribute:${key}`,
         viewportId: context.viewport.id,
-        point: point(multiply(context.viewportMatrix, context.entityMatrix), {
-          x: entity.insertion.x,
-          y: entity.insertion.y + index * 120,
-        }),
+        point: point(multiply(context.viewportMatrix, nestedMatrix), anchor),
         text: value,
-        size: 2.2,
-        rotation: entity.rotation,
+        size: Math.max(1.5, Math.min(12, (definition.height ?? 120) * Math.hypot(nestedMatrix.a, nestedMatrix.b) * Math.hypot(context.viewportMatrix.a, context.viewportMatrix.b))),
+        rotation: Math.atan2(nestedMatrix.b, nestedMatrix.a) * 180 / Math.PI,
         color: style.stroke,
-      }),
-    );
+      });
+    });
     return commands;
   }
   return [];

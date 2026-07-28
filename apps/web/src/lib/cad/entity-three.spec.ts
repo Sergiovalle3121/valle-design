@@ -1,14 +1,17 @@
 import assert from "node:assert/strict";
 import {
+  buildCadInsertBatchObject,
   buildCadNativeOverviewObject,
   buildCadNativeObject,
   disposeCadNativeObject,
+  setCadInsertBatchHiddenLayers,
   setCadNativeOverviewHiddenLayers,
   setCadNativeObjectSelected,
   updateCadNativeOverviewObject,
 } from "./entity-three";
 import type { BufferAttribute } from "three";
 import type { CadNativeEntity } from "./entity-runtime";
+import type { CadDocument } from "./cad-document";
 
 const arc: Extract<CadNativeEntity, { type: "arc" }> = {
   id: "arc-render",
@@ -111,5 +114,31 @@ assert.equal(
   true,
 );
 disposeCadNativeObject(overview);
+
+const blockDocument: CadDocument = {
+  meta: { version: 1, schema: 3, unit: "mm" },
+  layers: [{ id: "0", name: "0", color: "#ffffff", visible: true, locked: false }],
+  entities: Array.from({ length: 1_000 }, (_, index): Extract<CadNativeEntity, { type: "insert" }> => ({
+    id: `insert-${index}`, type: "insert", block: "symbol",
+    insertion: { x: index * 20, y: 100, z: 0 }, scale: { x: 1, y: 1, z: 1 }, rotation: 0, layer: "0",
+  })),
+  history: [], modelSpace: { entityIds: Array.from({ length: 1_000 }, (_, index) => `insert-${index}`) }, paperSpaces: [],
+  styles: { text: {}, dimension: {}, mleader: {}, table: {}, plot: {} },
+  blocks: [{ id: "symbol", name: "SYMBOL", basePoint: { x: 0, y: 0, z: 0 }, entities: [{ id: "symbol-line", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 10, y: 0, z: 0 }, layer: "0" }] }],
+  constraints: [], externalReferences: [], unsupportedEntities: [], lossManifest: [], publications: [],
+};
+const insertBatches = buildCadInsertBatchObject(blockDocument, { scale: 0.01, width: 20_000, height: 1_000 });
+assert.equal(insertBatches.userData.nativeBlockBatchInstances, 1_000);
+assert.equal(insertBatches.userData.nativeBlockBatchDrawCalls, 1);
+assert.equal(insertBatches.userData.nativeBlockBatchBaseSegments, 1);
+assert.equal(insertBatches.children.length, 1, "1,000 repeated symbols share one LineSegments draw call");
+const instancedGeometry = (insertBatches.children[0] as import("three").LineSegments).geometry as import("three").InstancedBufferGeometry;
+assert.equal(instancedGeometry.instanceCount, 1_000);
+assert.equal(instancedGeometry.getAttribute("position").count, 2, "base geometry is uploaded once");
+setCadInsertBatchHiddenLayers(insertBatches, new Set(["0"]));
+assert.equal(insertBatches.children[0].visible, false);
+setCadInsertBatchHiddenLayers(insertBatches, new Set());
+assert.equal(insertBatches.children[0].visible, true);
+disposeCadNativeObject(insertBatches);
 
 console.log("cad native Three.js renderer specs passed");

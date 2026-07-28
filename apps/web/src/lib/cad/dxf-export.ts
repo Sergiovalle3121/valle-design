@@ -79,6 +79,23 @@ export interface CadDxfExportHatch {
 export interface CadDxfExportBlock {
   name: string;
   primitives: CadDxfPrimitive[];
+  inserts?: CadDxfExportInsert[];
+  basePoint?: CadDxfPoint;
+  attributes?: Record<string, {
+    defaultValue?: string;
+    prompt?: string;
+    position?: CadDxfPoint;
+    height?: number;
+    invisible?: boolean;
+    constant?: boolean;
+  }>;
+  version?: number;
+  description?: string;
+  keywords?: string[];
+  libraryScope?: "document" | "tenant";
+  libraryTenantId?: string;
+  businessEntityType?: string;
+  businessEntityId?: string;
 }
 /** Referencia INSERT a un bloque, con su transformación. */
 export interface CadDxfExportInsert {
@@ -90,6 +107,7 @@ export interface CadDxfExportInsert {
   scaleX?: number;
   scaleY?: number;
   layer?: string;
+  attributes?: Record<string, string>;
 }
 export interface CadDxfExportModel {
   primitives?: CadDxfPrimitive[];
@@ -146,9 +164,10 @@ function uniqueLayers(model: CadDxfExportModel): string[] {
   for (const layer of model.layers ?? []) names.add(safeLayerName(layer.name));
   for (const primitive of model.primitives ?? [])
     names.add(safeLayerName(primitive.layer));
-  for (const block of model.blocks ?? [])
-    for (const primitive of block.primitives)
-      names.add(safeLayerName(primitive.layer));
+  for (const block of model.blocks ?? []) {
+    for (const primitive of block.primitives) names.add(safeLayerName(primitive.layer));
+    for (const insert of block.inserts ?? []) names.add(safeLayerName(insert.layer));
+  }
   for (const insert of model.inserts ?? [])
     names.add(safeLayerName(insert.layer));
   for (const hatch of model.hatches ?? [])
@@ -212,12 +231,15 @@ function pushLayerTable(
   pushPair(lines, 0, "ENDTAB");
   pushPair(lines, 0, "TABLE");
   pushPair(lines, 2, "APPID");
-  pushPair(lines, 70, 2);
+  pushPair(lines, 70, 3);
   pushPair(lines, 0, "APPID");
   pushPair(lines, 2, "AXOS_DIM");
   pushPair(lines, 70, 0);
   pushPair(lines, 0, "APPID");
   pushPair(lines, 2, "AXOS_MLEADER");
+  pushPair(lines, 70, 0);
+  pushPair(lines, 0, "APPID");
+  pushPair(lines, 2, "AXOS_BLOCK");
   pushPair(lines, 70, 0);
   pushPair(lines, 0, "ENDTAB");
   pushPair(lines, 0, "ENDSEC");
@@ -800,6 +822,39 @@ function pushMleader(lines: string[], entity: CadDxfExportMleader): boolean {
 }
 
 /** Sección BLOCKS: definiciones reutilizables (mismos códigos que lee el parser). */
+function pushInsert(lines: string[], insert: CadDxfExportInsert, definition?: CadDxfExportBlock) {
+  const attributes = Object.entries(insert.attributes ?? {}).filter(([tag]) => !!definition?.attributes?.[tag]);
+  pushPair(lines, 0, "INSERT");
+  pushPair(lines, 8, safeLayerName(insert.layer));
+  pushPair(lines, 2, safeText(insert.block));
+  if (attributes.length) pushPair(lines, 66, 1);
+  pushPoint(lines, { x: insert.x, y: insert.y });
+  if (insert.rotation) pushPair(lines, 50, fmt(insert.rotation));
+  if (insert.scaleX !== undefined && insert.scaleX !== 1) pushPair(lines, 41, fmt(insert.scaleX));
+  if (insert.scaleY !== undefined && insert.scaleY !== 1) pushPair(lines, 42, fmt(insert.scaleY));
+  pushPair(lines, 1001, "AXOS_BLOCK");
+  pushPair(lines, 1000, "kind=insert");
+  for (const [tag, value] of Object.entries(insert.attributes ?? {}))
+    pushPair(lines, 1000, `attribute=${encodeURIComponent(tag)},${encodeURIComponent(value)}`);
+  for (const [tag, value] of attributes) {
+    const attribute = definition?.attributes?.[tag];
+    const base = definition?.basePoint ?? { x: 0, y: 0 };
+    const local = attribute?.position ?? base;
+    const x = (local.x - base.x) * (insert.scaleX ?? 1);
+    const y = (local.y - base.y) * (insert.scaleY ?? 1);
+    const radians = (insert.rotation ?? 0) * Math.PI / 180;
+    pushPair(lines, 0, "ATTRIB");
+    pushPair(lines, 8, safeLayerName(insert.layer));
+    pushPoint(lines, { x: insert.x + x * Math.cos(radians) - y * Math.sin(radians), y: insert.y + x * Math.sin(radians) + y * Math.cos(radians) });
+    pushPair(lines, 40, fmt(Math.max(1e-9, (attribute?.height ?? 120) * Math.abs(insert.scaleY ?? 1))));
+    pushPair(lines, 1, safeText(value));
+    pushPair(lines, 2, safeText(tag));
+    pushPair(lines, 70, (attribute?.invisible ? 1 : 0) | (attribute?.constant ? 2 : 0));
+    if (insert.rotation) pushPair(lines, 50, fmt(insert.rotation));
+  }
+  if (attributes.length) { pushPair(lines, 0, "SEQEND"); pushPair(lines, 8, safeLayerName(insert.layer)); }
+}
+
 function pushBlocks(lines: string[], blocks: CadDxfExportBlock[]) {
   pushPair(lines, 0, "SECTION");
   pushPair(lines, 2, "BLOCKS");
@@ -809,9 +864,32 @@ function pushBlocks(lines: string[], blocks: CadDxfExportBlock[]) {
     pushPair(lines, 2, safeText(block.name) || "BLOQUE");
     // Flag 1: bloque anónimo (los *D de las cotas), 0: bloque con nombre.
     pushPair(lines, 70, block.name.startsWith("*") ? 1 : 0);
-    pushPoint(lines, { x: 0, y: 0 });
+    pushPoint(lines, block.basePoint ?? { x: 0, y: 0 });
+    if (!block.name.startsWith("*")) {
+      pushPair(lines, 1001, "AXOS_BLOCK");
+      pushPair(lines, 1000, "kind=definition");
+      pushPair(lines, 1000, `version=${Math.max(1, Math.floor(block.version ?? 1))}`);
+      pushPair(lines, 1000, `description=${encodeURIComponent(block.description ?? "")}`);
+      pushPair(lines, 1000, `keywords=${encodeURIComponent((block.keywords ?? []).join("\n"))}`);
+      pushPair(lines, 1000, `libraryScope=${block.libraryScope ?? "document"}`);
+      pushPair(lines, 1000, `libraryTenantId=${encodeURIComponent(block.libraryTenantId ?? "")}`);
+      pushPair(lines, 1000, `businessEntityType=${encodeURIComponent(block.businessEntityType ?? "")}`);
+      pushPair(lines, 1000, `businessEntityId=${encodeURIComponent(block.businessEntityId ?? "")}`);
+    }
     for (const primitive of block.primitives)
       writePrimitiveGeometry(lines, safeLayerName(primitive.layer), primitive);
+    for (const insert of block.inserts ?? [])
+      pushInsert(lines, insert, blocks.find((candidate) => candidate.name === insert.block));
+    for (const [tag, attribute] of Object.entries(block.attributes ?? {})) {
+      pushPair(lines, 0, "ATTDEF");
+      pushPair(lines, 8, DEFAULT_LAYER);
+      pushPoint(lines, attribute.position ?? block.basePoint ?? { x: 0, y: 0 });
+      pushPair(lines, 40, fmt(Math.max(1e-9, attribute.height ?? 120)));
+      pushPair(lines, 1, safeText(attribute.defaultValue ?? ""));
+      pushPair(lines, 3, safeText(attribute.prompt ?? tag));
+      pushPair(lines, 2, safeText(tag));
+      pushPair(lines, 70, (attribute.invisible ? 1 : 0) | (attribute.constant ? 2 : 0));
+    }
     pushPair(lines, 0, "ENDBLK");
   }
   pushPair(lines, 0, "ENDSEC");
@@ -855,15 +933,8 @@ export function exportCadDxf(
       entityCount += 1;
   }
   for (const insert of model.inserts ?? []) {
-    pushPair(lines, 0, "INSERT");
-    pushPair(lines, 8, safeLayerName(insert.layer));
-    pushPair(lines, 2, safeText(insert.block));
-    pushPoint(lines, { x: insert.x, y: insert.y });
-    if (insert.rotation) pushPair(lines, 50, fmt(insert.rotation));
-    if (insert.scaleX !== undefined && insert.scaleX !== 1)
-      pushPair(lines, 41, fmt(insert.scaleX));
-    if (insert.scaleY !== undefined && insert.scaleY !== 1)
-      pushPair(lines, 42, fmt(insert.scaleY));
+    const definition = allBlocks.find((block) => block.name === insert.block);
+    pushInsert(lines, insert, definition);
     entityCount += 1;
   }
   for (const hatch of model.hatches ?? []) {

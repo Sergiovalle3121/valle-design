@@ -74,6 +74,37 @@ export type CadDxfSemanticMleader = Omit<
   CadMleaderEntity,
   "id" | "type" | "context" | "references" | "associative" | "associationStatus"
 > & { sourceOrdinal: number };
+export interface CadDxfBlockAttributeDefinition {
+  defaultValue?: string;
+  prompt?: string;
+  position?: CadDxfPoint;
+  height?: number;
+  invisible?: boolean;
+  constant?: boolean;
+}
+export interface CadDxfSemanticInsert {
+  block: string;
+  insertion: CadDxfPoint;
+  scaleX: number;
+  scaleY: number;
+  rotation: number;
+  layer: string;
+  attributes: Record<string, string>;
+}
+export interface CadDxfSemanticBlock {
+  name: string;
+  basePoint: CadDxfPoint;
+  primitives: CadDxfPrimitive[];
+  inserts: CadDxfSemanticInsert[];
+  attributes: Record<string, CadDxfBlockAttributeDefinition>;
+  version?: number;
+  description?: string;
+  keywords?: string[];
+  libraryScope?: "document" | "tenant";
+  libraryTenantId?: string;
+  businessEntityType?: string;
+  businessEntityId?: string;
+}
 export interface CadDxfImportWarning {
   code: string;
   message: string;
@@ -82,10 +113,14 @@ export interface CadDxfImportWarning {
 }
 export interface CadDxfImportResult {
   primitives: CadDxfPrimitive[];
+  primitiveSources: Array<"entity" | "insert" | "dimension">;
   hatches: CadDxfHatch[];
   mtexts: CadDxfMText[];
   semanticDimensions: CadDxfSemanticDimension[];
   mleaders: CadDxfSemanticMleader[];
+  /** Preserved BLOCK table and live top-level INSERTs; primitives remain for backward compatibility. */
+  blocks: CadDxfSemanticBlock[];
+  inserts: CadDxfSemanticInsert[];
   warnings: CadDxfImportWarning[];
   layers: string[];
 }
@@ -434,6 +469,7 @@ function expandInsert(
   const expanded: CadDxfPrimitive[] = [];
   for (const child of block.entities) {
     const childType = String(child?.type || "").toUpperCase();
+    if (childType === "ATTDEF" || childType === "ATTRIB" || childType === "SEQEND") continue;
     const nested =
       childType === "INSERT"
         ? expandInsert(child, blocks, warnings, depth + 1)
@@ -510,6 +546,119 @@ function rawDxfPairs(text: string): RawDxfPair[] {
     if (Number.isInteger(code)) pairs.push({ code, value: lines[index + 1].trim() });
   }
   return pairs;
+}
+
+interface RawBlockXdata {
+  definitions: Map<string, Map<string, string>>;
+  insertAttributes: Map<string, Array<Record<string, string>>>;
+}
+
+function decodeComponent(value: string | undefined): string {
+  try { return decodeURIComponent(value ?? ''); } catch { return value ?? ''; }
+}
+
+function insertSignature(name: string, x: number, y: number, rotation: number): string {
+  return `${name}|${x.toFixed(9)}|${y.toFixed(9)}|${rotation.toFixed(9)}`;
+}
+
+function parseRawBlockXdata(text: string): RawBlockXdata {
+  const pairs = rawDxfPairs(text);
+  const definitions = new Map<string, Map<string, string>>();
+  const insertAttributes = new Map<string, Array<Record<string, string>>>();
+  for (let start = 0; start < pairs.length; start += 1) {
+    const kind = pairs[start].code === 0 ? pairs[start].value.toUpperCase() : '';
+    if (kind !== 'BLOCK' && kind !== 'INSERT') continue;
+    let end = start + 1;
+    while (end < pairs.length && pairs[end].code !== 0) end += 1;
+    const entityPairs = pairs.slice(start + 1, end);
+    const application = entityPairs.findIndex((pair) => pair.code === 1001 && pair.value === 'AXOS_BLOCK');
+    if (application < 0) { start = end - 1; continue; }
+    const first = (code: number) => entityPairs.find((pair) => pair.code === code)?.value;
+    const metadata = entityPairs.slice(application + 1).filter((pair) => pair.code === 1000).map((pair) => pair.value);
+    if (kind === 'BLOCK') {
+      const name = first(2) ?? '';
+      const values = new Map<string, string>();
+      metadata.forEach((entry) => { const separator = entry.indexOf('='); if (separator > 0) values.set(entry.slice(0, separator), entry.slice(separator + 1)); });
+      if (name) definitions.set(name, values);
+    } else {
+      const attributes: Record<string, string> = {};
+      metadata.filter((entry) => entry.startsWith('attribute=')).forEach((entry) => {
+        const [tag, ...value] = entry.slice('attribute='.length).split(',');
+        if (tag) attributes[decodeComponent(tag)] = decodeComponent(value.join(','));
+      });
+      const signature = insertSignature(first(2) ?? '', Number(first(10) ?? 0) || 0, Number(first(20) ?? 0) || 0, Number(first(50) ?? 0) || 0);
+      const queue = insertAttributes.get(signature) ?? [];
+      queue.push(attributes);
+      insertAttributes.set(signature, queue);
+    }
+    start = end - 1;
+  }
+  return { definitions, insertAttributes };
+}
+
+function semanticInsert(entity: any, xdata: RawBlockXdata): CadDxfSemanticInsert {
+  const block = String(entity?.name ?? entity?.block ?? '');
+  const x = Number(entity?.position?.x) || 0;
+  const y = Number(entity?.position?.y) || 0;
+  const rotation = Number(entity?.rotation) || 0;
+  const queue = xdata.insertAttributes.get(insertSignature(block, x, y, rotation));
+  const attributes = queue?.shift() ?? {};
+  return {
+    block,
+    insertion: { x, y },
+    scaleX: Number(entity?.xScale) || 1,
+    scaleY: Number(entity?.yScale) || 1,
+    rotation,
+    layer: String(entity?.layer || DEFAULT_LAYER),
+    attributes,
+  };
+}
+
+function semanticBlocks(
+  parsedBlocks: Record<string, any>,
+  xdata: RawBlockXdata,
+  warnings: CadDxfImportWarning[],
+): CadDxfSemanticBlock[] {
+  return Object.entries(parsedBlocks).filter(([name]) => !name.startsWith('*')).map(([name, raw]) => {
+    const primitives: CadDxfPrimitive[] = [];
+    const inserts: CadDxfSemanticInsert[] = [];
+    const attributes: Record<string, CadDxfBlockAttributeDefinition> = {};
+    for (const entity of Array.isArray(raw?.entities) ? raw.entities : []) {
+      const type = String(entity?.type ?? '').toUpperCase();
+      if (type === 'INSERT') { inserts.push(semanticInsert(entity, xdata)); continue; }
+      if (type === 'ATTDEF') {
+        const tag = String(entity?.tag ?? '').trim();
+        if (tag) attributes[tag] = {
+          defaultValue: String(entity?.text ?? ''), prompt: String(entity?.prompt ?? tag),
+          ...(entity?.startPoint ? { position: { x: Number(entity.startPoint.x) || 0, y: Number(entity.startPoint.y) || 0 } } : {}),
+          ...(Number(entity?.textHeight) > 0 ? { height: Number(entity.textHeight) } : {}),
+          invisible: !!entity?.invisible, constant: !!entity?.constant,
+        };
+        continue;
+      }
+      const mapped = mapDxfEntityToPrimitive(entity);
+      if (mapped.primitive) primitives.push(mapped.primitive);
+      if (mapped.warning) warnings.push(mapped.warning);
+    }
+    const metadata = xdata.definitions.get(name);
+    const version = Number(metadata?.get('version'));
+    const scope = metadata?.get('libraryScope');
+    const libraryScope: CadDxfSemanticBlock['libraryScope'] = scope === 'tenant' || scope === 'document' ? scope : undefined;
+    return {
+      name,
+      basePoint: { x: Number(raw?.position?.x) || 0, y: Number(raw?.position?.y) || 0 },
+      primitives,
+      inserts,
+      attributes,
+      ...(Number.isInteger(version) && version > 0 ? { version } : {}),
+      ...(metadata?.has('description') ? { description: decodeComponent(metadata.get('description')) } : {}),
+      ...(metadata?.has('keywords') ? { keywords: decodeComponent(metadata.get('keywords')).split('\n').filter(Boolean) } : {}),
+      ...(libraryScope ? { libraryScope } : {}),
+      ...(metadata?.has('libraryTenantId') && decodeComponent(metadata.get('libraryTenantId')) ? { libraryTenantId: decodeComponent(metadata.get('libraryTenantId')) } : {}),
+      ...(metadata?.has('businessEntityType') && decodeComponent(metadata.get('businessEntityType')) ? { businessEntityType: decodeComponent(metadata.get('businessEntityType')) } : {}),
+      ...(metadata?.has('businessEntityId') && decodeComponent(metadata.get('businessEntityId')) ? { businessEntityId: decodeComponent(metadata.get('businessEntityId')) } : {}),
+    };
+  }).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 function mtextAlignment(value: number): NonNullable<CadDxfMText["alignment"]> {
@@ -846,6 +995,7 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
   const rawMTexts = parseRawDxfMTexts(text);
   const semanticDimensions = parseRawDxfSemanticDimensions(text);
   const mleaders = parseRawDxfSemanticMleaders(text);
+  const blockXdata = parseRawBlockXdata(text);
   const warnings: CadDxfImportWarning[] = [...rawHatchResult.warnings];
   let parsed: any;
   try {
@@ -853,10 +1003,13 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
   } catch {
     return {
       primitives: [],
+      primitiveSources: [],
       hatches: rawHatchResult.hatches,
       mtexts: rawMTexts,
       semanticDimensions,
       mleaders,
+      blocks: [],
+      inserts: [],
       layers: [...new Set([...rawHatchResult.hatches.map((hatch) => hatch.layer), ...rawMTexts.map((mtext) => mtext.layer), ...semanticDimensions.map((dimension) => dimension.layer), ...mleaders.map((mleader) => mleader.layer)])].sort(),
       warnings: [
         ...warnings,
@@ -868,9 +1021,14 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
   const entities: any[] = Array.isArray(parsed?.entities)
     ? parsed.entities.slice(0, remainingEntityCapacity)
     : [];
-  const blocks: Record<string, any> =
+  const parsedBlocks: Record<string, any> =
     parsed?.blocks && typeof parsed.blocks === "object" ? parsed.blocks : {};
+  const blocks = semanticBlocks(parsedBlocks, blockXdata, warnings);
+  const inserts = entities
+    .filter((entity) => String(entity?.type || "").toUpperCase() === "INSERT")
+    .map((entity) => semanticInsert(entity, blockXdata));
   const primitives: CadDxfPrimitive[] = [];
+  const primitiveSources: CadDxfImportResult["primitiveSources"] = [];
   const layers = new Set<string>();
   const semanticDimensionBlocks = new Set(semanticDimensions.map((dimension) => dimension.blockName));
   const semanticMleaderOrdinals = new Set(mleaders.map((mleader) => mleader.sourceOrdinal));
@@ -886,9 +1044,10 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
     if (type === "INSERT") {
       // Expansión de bloques (CAD-NEXT-063): las puertas/luminarias/mobiliario
       // insertados dejan de perderse como "no soportados".
-      for (const primitive of expandInsert(entity, blocks, warnings, 0)) {
+      for (const primitive of expandInsert(entity, parsedBlocks, warnings, 0)) {
         if (primitives.length >= remainingEntityCapacity) break;
         primitives.push(primitive);
+        primitiveSources.push("insert");
         layers.add(primitive.layer);
       }
       continue;
@@ -897,9 +1056,10 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
       if (semanticDimensionBlocks.has(String(entity?.block ?? entity?.blockName ?? ""))) continue;
       // Cotas nativas (CAD-NEXT-066): la geometría renderizada vive en el
       // bloque anónimo *D que referencia la entidad.
-      for (const primitive of expandDimension(entity, blocks, warnings)) {
+      for (const primitive of expandDimension(entity, parsedBlocks, warnings)) {
         if (primitives.length >= remainingEntityCapacity) break;
         primitives.push(primitive);
+        primitiveSources.push("dimension");
         layers.add(primitive.layer);
       }
       continue;
@@ -907,6 +1067,7 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
     const mapped = mapDxfEntityToPrimitive(entity);
     if (mapped.primitive) {
       primitives.push(mapped.primitive);
+      primitiveSources.push("entity");
       layers.add(mapped.primitive.layer);
     }
     if (mapped.warning) warnings.push(mapped.warning);
@@ -923,5 +1084,5 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
   for (const mtext of rawMTexts) layers.add(mtext.layer);
   for (const dimension of semanticDimensions) layers.add(dimension.layer);
   for (const mleader of mleaders) layers.add(mleader.layer);
-  return { primitives, hatches: rawHatchResult.hatches, mtexts: rawMTexts, semanticDimensions, mleaders, warnings, layers: [...layers].sort() };
+  return { primitives, primitiveSources, hatches: rawHatchResult.hatches, mtexts: rawMTexts, semanticDimensions, mleaders, blocks, inserts, warnings, layers: [...layers].sort() };
 }

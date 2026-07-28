@@ -391,7 +391,27 @@ export interface CadBlockDefinition {
   name: string;
   basePoint: CadPoint3;
   entities: CadEntity[];
-  attributes?: Record<string, { defaultValue?: string; required?: boolean }>;
+  attributes?: Record<string, {
+    defaultValue?: string;
+    required?: boolean;
+    prompt?: string;
+    position?: CadPoint3;
+    height?: number;
+    style?: string;
+    invisible?: boolean;
+    constant?: boolean;
+  }>;
+  description?: string;
+  keywords?: string[];
+  /** Monotonic content version; redefining a block updates every live INSERT. */
+  version?: number;
+  library?: {
+    scope: "document" | "tenant";
+    tenantId?: string;
+    sourceId?: string;
+  };
+  thumbnail?: { svg: string; generatedAt?: string };
+  businessLink?: CadEntityContext["businessLink"];
 }
 
 export type CadConstraintKind =

@@ -6,6 +6,8 @@ import {
 import { layoutCadMText } from "./mtext-layout";
 import { buildCadDimensionGeometry } from "./associative-dimension";
 import { buildCadMleaderGeometry } from "./associative-mleader";
+import type { CadDocument } from "./cad-document";
+import { buildCadInsertBatches, resolveCadInsert } from "./professional-blocks";
 
 export interface CadThreeViewport {
   scale: number;
@@ -27,6 +29,32 @@ const cadNativeOverviewStates = new WeakMap<THREE.LineSegments, CadNativeOvervie
 
 const DEFAULT_COLOR = 0x60a5fa;
 const SELECTED_COLOR = 0x22d3ee;
+
+const CAD_INSERT_BATCH_VERTEX_SHADER = `
+attribute vec4 instanceLinear;
+attribute vec2 instanceTranslate;
+uniform float cadScale;
+uniform vec2 cadCenter;
+uniform float cadElevation;
+void main() {
+  vec2 world = vec2(
+    instanceLinear.x * position.x + instanceLinear.z * position.y + instanceTranslate.x,
+    instanceLinear.y * position.x + instanceLinear.w * position.y + instanceTranslate.y
+  );
+  vec3 scenePosition = vec3(
+    (world.x - cadCenter.x) * cadScale,
+    cadElevation,
+    (world.y - cadCenter.y) * cadScale
+  );
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(scenePosition, 1.0);
+}`;
+
+const CAD_INSERT_BATCH_FRAGMENT_SHADER = `
+uniform vec3 cadColor;
+uniform float cadOpacity;
+void main() {
+  gl_FragColor = vec4(cadColor, cadOpacity);
+}`;
 
 function scenePoint(
   point: { x: number; y: number },
@@ -212,6 +240,117 @@ export function buildCadNativeOverviewObject(
   return object;
 }
 
+/**
+ * Builds real GPU-instanced line geometry for repeated INSERT definitions.
+ * Geometry is uploaded once per block/style and every INSERT contributes only
+ * a six-number affine matrix. Per-instance text stays a separate semantic
+ * projection because its attribute value can differ for every INSERT.
+ */
+export function buildCadInsertBatchObject(
+  document: CadDocument,
+  viewport: CadThreeViewport,
+  minimumInstances = 2,
+): THREE.Group {
+  const group = new THREE.Group();
+  group.name = "cad-native:insert-batches";
+  group.userData.nativeBlockBatch = true;
+  const batchedInsertIds = new Set<string>();
+  let drawCalls = 0;
+  let instances = 0;
+  let baseSegments = 0;
+
+  for (const batch of buildCadInsertBatches(document)) {
+    if (batch.insertIds.length < Math.max(2, minimumInstances)) continue;
+    const block = document.blocks.find((candidate) => candidate.id === batch.block);
+    const firstInsert = document.entities.find(
+      (candidate): candidate is Extract<CadNativeEntity, { type: "insert" }> =>
+        candidate.type === "insert" && candidate.id === batch.insertIds[0],
+    );
+    if (!block || !firstInsert) continue;
+    const probe: Extract<CadNativeEntity, { type: "insert" }> = {
+      ...firstInsert,
+      id: `${firstInsert.id}:batch-probe`,
+      insertion: { ...block.basePoint },
+      rotation: 0,
+      scale: { x: 1, y: 1, z: 1 },
+    };
+    const styles = new Map<string, { color: number; layer: string; positions: number[] }>();
+    const resolved = resolveCadInsert(document, probe).entities;
+    for (const child of resolved) {
+      if (child.type === "text" || child.type === "mtext" || !CAD_ENTITY_REGISTRY.supports(child)) continue;
+      const color = entityColor(child);
+      const styleKey = `${child.layer}|${color}`;
+      const style = styles.get(styleKey) ?? { color, layer: child.layer, positions: [] };
+      for (const path of CAD_ENTITY_REGISTRY.adapter(child).renderer.paths(child, 64, document)) {
+        if (path.points.length < 2) continue;
+        const segmentCount = path.points.length - 1 + (path.closed ? 1 : 0);
+        for (let index = 0; index < segmentCount; index += 1) {
+          const from = path.points[index];
+          const to = path.points[(index + 1) % path.points.length];
+          style.positions.push(from.x, from.y, 0, to.x, to.y, 0);
+        }
+      }
+      styles.set(styleKey, style);
+    }
+    if (!styles.size) continue;
+
+    const linear = new Float32Array(batch.matrices.length * 4);
+    const translate = new Float32Array(batch.matrices.length * 2);
+    batch.matrices.forEach(([a, b, c, d, e, f], index) => {
+      linear.set([a, b, c, d], index * 4);
+      translate.set([e, f], index * 2);
+    });
+    for (const style of styles.values()) {
+      if (!style.positions.length) continue;
+      const geometry = new THREE.InstancedBufferGeometry();
+      geometry.setAttribute("position", new THREE.Float32BufferAttribute(style.positions, 3));
+      geometry.setAttribute("instanceLinear", new THREE.InstancedBufferAttribute(linear, 4));
+      geometry.setAttribute("instanceTranslate", new THREE.InstancedBufferAttribute(translate, 2));
+      geometry.instanceCount = batch.matrices.length;
+      const material = new THREE.ShaderMaterial({
+        uniforms: {
+          cadScale: { value: viewport.scale },
+          cadCenter: { value: new THREE.Vector2(viewport.width / 2, viewport.height / 2) },
+          cadElevation: { value: viewport.elevation ?? 0.105 },
+          cadColor: { value: new THREE.Color(style.color) },
+          cadOpacity: { value: 0.9 },
+        },
+        vertexShader: CAD_INSERT_BATCH_VERTEX_SHADER,
+        fragmentShader: CAD_INSERT_BATCH_FRAGMENT_SHADER,
+        transparent: true,
+        depthTest: false,
+      });
+      const line = new THREE.LineSegments(geometry, material);
+      line.name = `cad-native:insert-batch:${batch.key}:${style.layer}`;
+      line.renderOrder = 29;
+      line.frustumCulled = false;
+      line.userData.nativeBlockBatchPath = true;
+      line.userData.nativeBlockBatchLayer = style.layer;
+      line.userData.nativeBlockBatchInsertIds = [...batch.insertIds];
+      group.add(line);
+      drawCalls += 1;
+      baseSegments += style.positions.length / 6;
+    }
+    batch.insertIds.forEach((id) => batchedInsertIds.add(id));
+    instances += batch.insertIds.length;
+  }
+  group.userData.nativeBlockBatchInsertIds = [...batchedInsertIds];
+  group.userData.nativeBlockBatchDrawCalls = drawCalls;
+  group.userData.nativeBlockBatchInstances = instances;
+  group.userData.nativeBlockBatchBaseSegments = baseSegments;
+  return group;
+}
+
+export function setCadInsertBatchHiddenLayers(
+  object: THREE.Group,
+  hiddenLayers: ReadonlySet<string>,
+): void {
+  object.children.forEach((child) => {
+    if (child.userData.nativeBlockBatchPath === true)
+      child.visible = !hiddenLayers.has(String(child.userData.nativeBlockBatchLayer ?? "0"));
+  });
+}
+
 /** Returns false when a structural insert requires rebuilding the batch. */
 export function updateCadNativeOverviewObject(
   object: THREE.LineSegments,
@@ -317,6 +456,7 @@ export function buildCadNativeObject(
   entity: CadNativeEntity,
   viewport: CadThreeViewport,
   selected = false,
+  document?: CadDocument,
 ): THREE.Group {
   const group = new THREE.Group();
   group.name = `cad-native:${entity.id}`;
@@ -386,6 +526,17 @@ export function buildCadNativeObject(
       }
     }
   }
+  if (entity.type === "insert" && document) {
+    for (const child of resolveCadInsert(document, entity).entities) {
+      if (child.type !== "text" && child.type !== "mtext") continue;
+      const sprite = buildCadMTextSprite(child.type === "mtext" ? child : {
+        id: child.id, type: "mtext", insertion: { x: child.x, y: child.y, z: 0 }, text: child.text,
+        width: Math.max(child.height ?? 120, child.text.length * (child.height ?? 120) * 0.6), height: child.height ?? 120,
+        rotation: child.rotation ?? 0, style: child.style, layer: child.layer, context: child.context,
+      }, viewport, elevation);
+      if (sprite) { sprite.userData.nativeEntityId = entity.id; group.add(sprite); }
+    }
+  }
 
   if (entity.type === "hatch" && entity.solid && entity.boundaries[0]?.length >= 3) {
     const shapePath = (boundary: typeof entity.boundaries[number]) =>
@@ -426,7 +577,7 @@ export function buildCadNativeObject(
     group.add(fill);
   }
 
-  for (const path of adapter.renderer.paths(entity, 96)) {
+  for (const path of adapter.renderer.paths(entity, 96, document)) {
     if (path.points.length < 2) continue;
     const points = path.points.map((point) =>
       scenePoint(point, viewport, elevation),

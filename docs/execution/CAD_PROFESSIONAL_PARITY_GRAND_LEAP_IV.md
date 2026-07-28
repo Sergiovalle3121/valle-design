@@ -6,9 +6,9 @@
 | --- | --- |
 | `MISSION_STARTED_AT` | 2026-07-28 12:08:49 -06:00 |
 | `MISSION_TARGET_END` | 2026-07-28 22:08:49 -06:00 |
-| `MISSION_CURRENT_PHASE` | P1-E — BLOCK/INSERT profesional |
-| `MISSION_COMPLETED_GATES` | viewport 100k; recovery worker/journal; blob GC bifásico y tenant-safe; selección profesional; precisión dinámica y tracking; HATCH asociativo; MTEXT nativo; DIMENSION asociativa; MLEADER canónico |
-| `MISSION_NEXT_ACTION` | auditar y completar definiciones/instancias, anidación, atributos, transformaciones, librería, round-trip y batching de bloques |
+| `MISSION_CURRENT_PHASE` | P1-F — Workbench profesional |
+| `MISSION_COMPLETED_GATES` | viewport 100k; recovery worker/journal; blob GC bifásico y tenant-safe; selección profesional; precisión dinámica y tracking; HATCH asociativo; MTEXT nativo; DIMENSION asociativa; MLEADER canónico; BLOCK/INSERT profesional |
+| `MISSION_NEXT_ACTION` | reorganizar el workbench sin cubrir el canvas y demostrar 1366×768–4K, temas, docks, accesibilidad y preferencias profesionales |
 | Repositorio | `Sergiovalle3121/axos-os` |
 | Base | `1625ba26a07876943b821586c46b02c9f47f6bac` (`origin/main`) |
 | Rama / PR | `codex/cad-professional-grand-leap-iii` / #1416 |
@@ -51,11 +51,11 @@ Sólo se conceden puntos por evidencia actual del repositorio y navegador.
 | Entidades de documentación | 10 | 10 | `browser-proven` | HATCH, MTEXT, siete DIM y MLEADER completan su ciclo canónico |
 | Rendimiento 10k/100k | 15 | 10 | `browser-proven` parcial | viewport real, lotes cancelables y arnés 100k; aún no 60 FPS ni memoria estabilizada |
 | Persistencia/recovery/versionado | 10 | 9 | `browser-proven` | worker/journal/cuota y lifecycle de blobs; falta delta journal nativo |
-| Capas, bloques y referencias | 10 | 5 | `tested` parcial | capas/bloques presentes; xrefs parciales |
+| Capas, bloques y referencias | 10 | 9 | `browser-proven` parcial | BLOCK/INSERT nativo, anidado, atribuible, tenant-safe e instanciado; xrefs aún parciales |
 | Layouts, viewports y publicación | 10 | 6 | `tested` | paper space/PDF/recibos; UI multi-viewport parcial |
-| Interoperabilidad/extensibilidad | 5 | 3 | `tested` | DXF semántico acotado; DWG `provider-required` |
+| Interoperabilidad/extensibilidad | 5 | 4 | `browser-proven` parcial | BLOCK/INSERT, HATCH, MTEXT, DIM y MLEADER completan DXF semántico; DWG `provider-required` |
 | Calidad enterprise/seguridad/pruebas | 10 | 9 | `tested` | CI/tenant/brand/smokes verdes; falta arnés perf bloqueante |
-| **Total** | **100** | **75** |  | Sin claim de paridad general |
+| **Total** | **100** | **80** |  | Sin claim de paridad general |
 
 ## Paridad completa separada
 
@@ -289,6 +289,40 @@ No se editan ramas comerciales, ERP o PDF durante la construcción CAD.
   `broken` al borrar la fuente: 1/1 verde en 26.5 s.
 - Deuda visible: `Layout3DEditor.tsx` queda en 9,465 líneas; se mantiene el gate
   explícito de extraer más controladores/paneles durante la misión.
+
+### 2026-07-28 14:19–14:56 — P1-E / BLOCK e INSERT profesional
+
+- `CadBlockDefinition` conserva base point, geometría canónica, ATTDEF completos,
+  metadata, keywords, versión, thumbnail, alcance document/tenant y vínculo de
+  negocio. INSERT sigue siendo una entidad única con matriz, capa, atributos y
+  presentación; el resolver aplana sólo como proyección desechable.
+- Anidación y ciclos se analizan con profundidad acotada. Transformaciones
+  anisotrópicas conservan círculos como elipses y aproximan arcos cuando ya no
+  pueden representarse exactamente; ByLayer y ByBlock se resuelven desde la
+  instancia. Define, Insert, Redefine, Replace, Explode y Purge usan el mismo
+  documento canónico, selección, propiedades, grips, undo/redo y guardado.
+- La paleta busca nombre/keywords/negocio, genera thumbnail determinista y
+  publica/recupera definiciones versionadas. La API valida payloads de hasta
+  1 MB y 500 entidades, incrementa versión al redefinir y aplica scope tenant;
+  migración agrega `definition` y `version` sin destruir la biblioteca legacy.
+- DXF emite y recupera BLOCK/ENDBLK, INSERT, ATTDEF, ATTRIB/SEQEND y metadata
+  AXOS, incluidas definiciones anidadas y valores por instancia. PDF conserva
+  geometría/texto vectorial, posiciones/altura ATTDEF y herencia ByBlock bajo
+  plot color o monocromo. La importación mantiene expansión compatible pero el
+  editor omite duplicados cuando existe semántica INSERT.
+- Repeticiones usan `InstancedBufferGeometry`: prueba estructural con 1,000
+  símbolos confirma un buffer de dos vértices base, 1,000 matrices y un draw
+  call por estilo. El índice canónico mantiene picks unitarios y la instancia
+  seleccionada recibe overlay/grips sin desactivar el batch.
+- Evidencia: runtime/índice/Three.js, definición/ciclos/operaciones, paper-space
+  y round-trip DXF verdes; SQLite/Jest 2/2 tenant/search/version/validación;
+  TypeScript y ESLint focal sin errores. Chromium define, publica tenant,
+  inserta dos instancias, cambia transform/atributo, undo/redo, guarda/recarga,
+  descarga/reimporta DXF y explota sólo la seleccionada: 1/1 en 26.4 s.
+- La rúbrica sube 75 → 80 por bloques e interoperabilidad demostrados. No se
+  concede el punto restante de capas/referencias porque Xrefs continúa parcial.
+  Deuda visible: `Layout3DEditor.tsx` queda en 9,810 líneas; P1-F debe reducir
+  acoplamiento y evitar panels que oculten el canvas.
 
 ## Claims
 

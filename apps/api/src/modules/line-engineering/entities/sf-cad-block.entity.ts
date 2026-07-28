@@ -27,4 +27,12 @@ export class SfCadBlock extends TenantBaseEntity {
   /** Assets del bloque con posiciones relativas al origen (0,0). */
   @Column({ type: JSON_COLUMN_TYPE })
   assets: LayoutAsset[];
+
+  /** Canonical CadBlockDefinition; NULL keeps legacy asset-only rows readable. */
+  @Column({ type: JSON_COLUMN_TYPE, nullable: true })
+  definition: Record<string, unknown> | null;
+
+  /** Optimistic, monotonic library version incremented on redefine. */
+  @Column({ type: 'integer', default: 1 })
+  version: number;
 }

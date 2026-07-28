@@ -5,12 +5,14 @@ import {
   type CadNativeEntity,
   type CadScenePatch,
 } from "./entity-runtime";
+import type { CadDocument } from "./cad-document";
 
 function centerDistanceSquared(
   entity: CadNativeEntity,
   point: { x: number; y: number },
+  document?: CadDocument,
 ): number {
-  const bounds = CAD_ENTITY_REGISTRY.adapter(entity).bounds.bounds(entity);
+  const bounds = CAD_ENTITY_REGISTRY.adapter(entity).bounds.bounds(entity, document);
   const dx = (bounds.minX + bounds.maxX) / 2 - point.x;
   const dy = (bounds.minY + bounds.maxY) / 2 - point.y;
   return dx * dx + dy * dy;
@@ -80,8 +82,9 @@ function entityMatchesPath(
   selectionPath: readonly { x: number; y: number }[],
   mode: CadPathSelectionMode,
   crossing: boolean,
+  document?: CadDocument,
 ): boolean {
-  const entityPaths = CAD_ENTITY_REGISTRY.adapter(entity).renderer.paths(entity, 64);
+  const entityPaths = CAD_ENTITY_REGISTRY.adapter(entity).renderer.paths(entity, 64, document);
   const selectionSegments = segments(selectionPath, mode !== "fence");
   const entityPoints = entityPaths.flatMap((path) => path.points);
   const entitySegments = entityPaths.flatMap((path) => segments(path.points, path.closed));
@@ -102,17 +105,20 @@ function entityMatchesPath(
 export class CadNativeSelectionIndex {
   private readonly spatialIndex: CadSpatialIndex;
   private readonly entities = new Map<string, CadNativeEntity>();
+  private document?: CadDocument;
 
   constructor(cellSize = 100) {
     this.spatialIndex = new CadSpatialIndex(cellSize);
   }
 
-  replace(entities: readonly CadNativeEntity[]): void {
+  replace(entities: readonly CadNativeEntity[], document?: CadDocument): void {
     this.clear();
+    this.document = document;
     for (const entity of entities) this.upsert(entity);
   }
 
-  applyPatch(patch: CadScenePatch): void {
+  applyPatch(patch: CadScenePatch, document?: CadDocument): void {
+    if (document) this.document = document;
     for (const id of new Set(patch.remove)) this.remove(id);
     for (const entity of patch.upsert) this.upsert(entity);
   }
@@ -121,7 +127,7 @@ export class CadNativeSelectionIndex {
     this.entities.set(entity.id, entity);
     this.spatialIndex.upsert(
       entity.id,
-      CAD_ENTITY_REGISTRY.adapter(entity).bounds.bounds(entity),
+      CAD_ENTITY_REGISTRY.adapter(entity).bounds.bounds(entity, this.document),
     );
   }
 
@@ -161,10 +167,11 @@ export class CadNativeSelectionIndex {
           entity,
           point,
           tolerance,
+          this.document,
         ),
       )
       .sort((left, right) =>
-        centerDistanceSquared(left, point) - centerDistanceSquared(right, point)
+        centerDistanceSquared(left, point, this.document) - centerDistanceSquared(right, point, this.document)
         || left.id.localeCompare(right.id),
       )
       .slice(0, limit);
@@ -181,6 +188,7 @@ export class CadNativeSelectionIndex {
         entity,
         bounds,
         crossing,
+        this.document,
       )) continue;
       result.push(entity);
       if (result.length >= limit) break;
@@ -199,7 +207,7 @@ export class CadNativeSelectionIndex {
     if (!bounds) return [];
     const result: CadNativeEntity[] = [];
     for (const entity of this.search(bounds)) {
-      if (!entityMatchesPath(entity, points, mode, crossing)) continue;
+      if (!entityMatchesPath(entity, points, mode, crossing, this.document)) continue;
       result.push(entity);
       if (result.length >= limit) break;
     }
@@ -213,5 +221,6 @@ export class CadNativeSelectionIndex {
   clear(): void {
     this.entities.clear();
     this.spatialIndex.clear();
+    this.document = undefined;
   }
 }

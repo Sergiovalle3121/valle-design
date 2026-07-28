@@ -18,6 +18,7 @@ import { circleAdapter, isLegacyCircle, lineAdapter } from "./basic-native-adapt
 import { dimensionAdapter } from "./dimension-entity-adapter";
 import { mleaderAdapter } from "./mleader-entity-adapter";
 import { regenerateAssociativeMleaders } from "./associative-mleader";
+import { resolveCadInsert } from "./professional-blocks";
 import {
   hatchRegionContainsPoint,
   regenerateAssociativeHatches,
@@ -26,7 +27,7 @@ import {
 
 export type CadNativeEntity = Extract<
   CadEntity,
-  { type: "line" | "circle" | "arc" | "ellipse" | "spline" | "hatch" | "mtext" | "dimension" | "mleader" }
+  { type: "line" | "circle" | "arc" | "ellipse" | "spline" | "hatch" | "mtext" | "dimension" | "mleader" | "insert" }
 >;
 export type CadNativeEntityType = CadNativeEntity["type"];
 
@@ -73,12 +74,12 @@ export type CadPropertyValue = string | number | boolean;
 export type CadPropertyBag = Record<string, CadPropertyValue>;
 
 export interface CadEntityRenderer<E extends CadNativeEntity = CadNativeEntity> {
-  paths(entity: E, segments?: number): CadRenderPath[];
+  paths(entity: E, segments?: number, document?: CadDocument): CadRenderPath[];
 }
 
 export interface CadHitTester<E extends CadNativeEntity = CadNativeEntity> {
-  hitTest(entity: E, point: CadPoint2, tolerance: number): boolean;
-  intersectsWindow(entity: E, window: CadBounds, crossing: boolean): boolean;
+  hitTest(entity: E, point: CadPoint2, tolerance: number, document?: CadDocument): boolean;
+  intersectsWindow(entity: E, window: CadBounds, crossing: boolean, document?: CadDocument): boolean;
 }
 
 export interface CadGripProvider<E extends CadNativeEntity = CadNativeEntity> {
@@ -96,7 +97,7 @@ export interface CadPropertyAdapter<E extends CadNativeEntity = CadNativeEntity>
 }
 
 export interface CadBoundsProvider<E extends CadNativeEntity = CadNativeEntity> {
-  bounds(entity: E): CadBounds;
+  bounds(entity: E, document?: CadDocument): CadBounds;
 }
 
 export interface CadEntityTransform {
@@ -1109,6 +1110,99 @@ const hatchAdapter: CadEntityAdapter<CadHatchEntity> = {
   },
 };
 
+type CadInsertEntity = Extract<CadNativeEntity, { type: "insert" }>;
+
+function blockChildPaths(entity: CadEntity, segments = 96): CadRenderPath[] {
+  if (entity.type === "line" && !isLegacyCircle(entity)) return lineAdapter.renderer.paths(entity, segments);
+  if (entity.type === "circle" && !isLegacyCircle(entity)) return circleAdapter.renderer.paths(entity, segments);
+  if (entity.type === "arc") return arcAdapter.renderer.paths(entity, segments);
+  if (entity.type === "ellipse") return ellipseAdapter.renderer.paths(entity, segments);
+  if (entity.type === "spline") return splineAdapter.renderer.paths(entity, segments);
+  if (entity.type === "polyline") return [{ points: entity.vertices, closed: entity.closed }];
+  if (entity.type === "hatch") return hatchAdapter.renderer.paths(entity, segments);
+  if (entity.type === "mtext") return mtextAdapter.renderer.paths(entity, segments);
+  if (entity.type === "dimension") return dimensionAdapter.renderer.paths(entity, segments);
+  if (entity.type === "mleader") return mleaderAdapter.renderer.paths(entity, segments);
+  return [];
+}
+
+function insertRenderPaths(entity: CadInsertEntity, segments = 96, document?: CadDocument): CadRenderPath[] {
+  if (!document) {
+    const radius = 50;
+    return [
+      { points: [{ x: entity.insertion.x - radius, y: entity.insertion.y }, { x: entity.insertion.x + radius, y: entity.insertion.y }], closed: false },
+      { points: [{ x: entity.insertion.x, y: entity.insertion.y - radius }, { x: entity.insertion.x, y: entity.insertion.y + radius }], closed: false },
+    ];
+  }
+  return resolveCadInsert(document, entity, 16).entities.flatMap((child) => blockChildPaths(child, segments));
+}
+
+const insertAdapter: CadEntityAdapter<CadInsertEntity> = {
+  type: "insert",
+  renderer: { paths: insertRenderPaths },
+  bounds: {
+    bounds: (entity, document) => {
+      const points = insertRenderPaths(entity, 96, document).flatMap((path) => path.points);
+      return points.length ? pointsBounds(points) : { minX: entity.insertion.x - 50, minY: entity.insertion.y - 50, maxX: entity.insertion.x + 50, maxY: entity.insertion.y + 50 };
+    },
+  },
+  hitTester: {
+    hitTest: (entity, point, tolerance, document) => pathHit(insertRenderPaths(entity, 96, document), point, tolerance),
+    intersectsWindow: (entity, window, crossing, document) => {
+      const bounds = insertAdapter.bounds.bounds(entity, document);
+      return crossing ? boundsIntersect(bounds, window) : boundsContained(bounds, window);
+    },
+  },
+  grips: {
+    grips: (entity) => {
+      const radians = entity.rotation * Math.PI / 180;
+      const reach = Math.max(200, Math.abs(entity.scale.x) * 400, Math.abs(entity.scale.y) * 400);
+      return [
+        { id: "insertion", kind: "endpoint", point: entity.insertion, label: "Inserción BLOCK" },
+        { id: "rotation", kind: "control", point: { x: entity.insertion.x + Math.cos(radians) * reach, y: entity.insertion.y + Math.sin(radians) * reach }, label: "Rotación INSERT" },
+        { id: "scale", kind: "control", point: { x: entity.insertion.x + Math.cos(radians + Math.PI / 4) * reach, y: entity.insertion.y + Math.sin(radians + Math.PI / 4) * reach }, label: "Escala INSERT" },
+      ];
+    },
+    moveGrip: (entity, gripId, point) => {
+      if (gripId === "insertion") return { ...entity, insertion: point3(point, entity.insertion.z) };
+      const distance = Math.hypot(point.x - entity.insertion.x, point.y - entity.insertion.y);
+      if (gripId === "rotation") return { ...entity, rotation: Math.atan2(point.y - entity.insertion.y, point.x - entity.insertion.x) * 180 / Math.PI };
+      if (gripId === "scale") {
+        const factor = Math.max(1e-9, distance / 400);
+        return { ...entity, scale: { x: Math.sign(entity.scale.x || 1) * factor, y: Math.sign(entity.scale.y || 1) * factor, z: entity.scale.z } };
+      }
+      return entity;
+    },
+  },
+  snaps: { snaps: (entity) => [{ kind: "endpoint", point: entity.insertion, label: "Inserción BLOCK" }] },
+  properties: {
+    read: (entity) => ({
+      block: entity.block, insertionX: entity.insertion.x, insertionY: entity.insertion.y,
+      scaleX: entity.scale.x, scaleY: entity.scale.y, rotation: entity.rotation, layer: entity.layer,
+      attributeCount: Object.keys(entity.attributes ?? {}).length,
+      ...Object.fromEntries(Object.entries(entity.attributes ?? {}).map(([key, value]) => [`attribute:${key}`, value])),
+    }),
+    write: (entity, patch) => ({
+      ...entity,
+      block: typeof patch.block === "string" ? patch.block : entity.block,
+      insertion: { x: finite(patch.insertionX, entity.insertion.x), y: finite(patch.insertionY, entity.insertion.y), z: entity.insertion.z },
+      scale: { x: finite(patch.scaleX, entity.scale.x), y: finite(patch.scaleY, entity.scale.y), z: entity.scale.z },
+      rotation: finite(patch.rotation, entity.rotation),
+      layer: typeof patch.layer === "string" ? patch.layer : entity.layer,
+      attributes: Object.fromEntries(Object.entries(entity.attributes ?? {}).map(([key, value]) => [key, typeof patch[`attribute:${key}`] === "string" ? patch[`attribute:${key}`] as string : value])),
+    }),
+  },
+  commands: {
+    transform: (entity, transform) => ({
+      ...entity,
+      insertion: transformPoint(entity.insertion, transform),
+      scale: { x: entity.scale.x * Math.abs(transform.scale ?? 1), y: entity.scale.y * Math.abs(transform.scale ?? 1), z: entity.scale.z * Math.abs(transform.scale ?? 1) },
+      rotation: entity.rotation + (transform.rotationDeg ?? 0),
+      context: cloneContext(entity.context),
+    }),
+  },
+};
+
 export class CadEntityRegistry {
   private readonly adapters = new Map<
     CadNativeEntityType,
@@ -1143,7 +1237,8 @@ export const CAD_ENTITY_REGISTRY = new CadEntityRegistry()
   .register(mtextAdapter)
   .register(hatchAdapter)
   .register(dimensionAdapter)
-  .register(mleaderAdapter);
+  .register(mleaderAdapter)
+  .register(insertAdapter);
 
 function rectangularBoundary(entity: Extract<CadEntity, { type: "box" | "station" }>): CadPoint2[] {
   const center = { x: entity.x + entity.w / 2, y: entity.y + entity.h / 2 };
@@ -1426,6 +1521,7 @@ export class CadSceneSynchronizer<P> {
   private readonly versions = new Map<string, string>();
   private readonly projections = new Map<string, P>();
   private syncGeneration = 0;
+  private currentDocument?: CadDocument;
 
   constructor(
     private readonly registry = CAD_ENTITY_REGISTRY,
@@ -1436,6 +1532,7 @@ export class CadSceneSynchronizer<P> {
 
   sync(document: CadDocument, sink: CadSceneSink<P>): CadSceneSyncStats {
     this.syncGeneration += 1;
+    this.currentDocument = document;
     const current = new Map(
       document.entities
         .filter((entity): entity is CadNativeEntity => this.registry.supports(entity))
@@ -1462,14 +1559,14 @@ export class CadSceneSynchronizer<P> {
         this.projections.set(entity.id, sink.create(entity));
         this.spatialIndex.upsert(
           entity.id,
-          this.registry.adapter(entity).bounds.bounds(entity),
+          this.registry.adapter(entity).bounds.bounds(entity, document),
         );
         created += 1;
       } else if (this.versions.get(entity.id) !== version) {
         this.projections.set(entity.id, sink.update(entity, previous));
         this.spatialIndex.upsert(
           entity.id,
-          this.registry.adapter(entity).bounds.bounds(entity),
+          this.registry.adapter(entity).bounds.bounds(entity, document),
         );
         updated += 1;
       } else {
@@ -1499,6 +1596,7 @@ export class CadSceneSynchronizer<P> {
     options: CadProgressiveSceneSyncOptions = {},
   ): Promise<CadProgressiveSceneSyncStats> {
     const generation = ++this.syncGeneration;
+    this.currentDocument = document;
     const entities = document.entities.filter(
       (entity): entity is CadNativeEntity => this.registry.supports(entity),
     );
@@ -1554,7 +1652,7 @@ export class CadSceneSynchronizer<P> {
         if (!previous || this.versions.get(entity.id) !== version) {
           this.spatialIndex.upsert(
             entity.id,
-            this.registry.adapter(entity).bounds.bounds(entity),
+            this.registry.adapter(entity).bounds.bounds(entity, document),
           );
         }
         this.versions.set(entity.id, version);
@@ -1603,7 +1701,7 @@ export class CadSceneSynchronizer<P> {
       if (!previous || this.versions.get(entity.id) !== version) {
         this.spatialIndex.upsert(
           entity.id,
-          this.registry.adapter(entity).bounds.bounds(entity),
+          this.registry.adapter(entity).bounds.bounds(entity, this.currentDocument),
         );
       }
       this.versions.set(entity.id, version);
@@ -1628,6 +1726,7 @@ export class CadSceneSynchronizer<P> {
 
   clear(sink: Pick<CadSceneSink<P>, "remove">): void {
     this.syncGeneration += 1;
+    this.currentDocument = undefined;
     for (const [id, projection] of this.projections)
       sink.remove(id, projection);
     this.projections.clear();

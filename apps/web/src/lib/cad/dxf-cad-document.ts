@@ -1,11 +1,12 @@
 import type {
+  CadBlockDefinition,
   CadDocument,
   CadEntity,
   CadPoint2,
   CadPoint3,
 } from "./cad-document";
-import type { CadDxfHatch, CadDxfMText, CadDxfPoint, CadDxfPrimitive, CadDxfSemanticDimension, CadDxfSemanticMleader } from "./dxf-import";
-import type { CadDxfExportHatch, CadDxfExportMText, CadDxfExportMleader, CadDxfExportSemanticDimension } from "./dxf-export";
+import type { CadDxfHatch, CadDxfMText, CadDxfPoint, CadDxfPrimitive, CadDxfSemanticBlock, CadDxfSemanticDimension, CadDxfSemanticInsert, CadDxfSemanticMleader } from "./dxf-import";
+import type { CadDxfExportBlock, CadDxfExportHatch, CadDxfExportInsert, CadDxfExportMText, CadDxfExportMleader, CadDxfExportSemanticDimension } from "./dxf-export";
 import type { CadNativeEntity } from "./entity-runtime";
 
 export interface CadDxfProjection {
@@ -519,4 +520,133 @@ export function cadDocumentNativeDxfMleaders(
       ["id", "type", "context", "references", "associative", "associationStatus"].forEach((key) => delete mleader[key]);
       return mleader as unknown as CadDxfExportMleader;
     });
+}
+
+function dxfPrimitiveToBlockEntity(
+  primitive: CadDxfPrimitive,
+  id: string,
+  projection: CadDxfProjection,
+  provider: string,
+): CadEntity | null {
+  const context = sourceContext(primitive, provider);
+  if (primitive.kind === "line" && primitive.points.length >= 2)
+    return { id, type: "line", start: point3(projection.point(primitive.points[0])), end: point3(projection.point(primitive.points[1])), layer: primitive.layer, context };
+  if ((primitive.kind === "polyline" || primitive.kind === "rect") && primitive.points.length >= 2) {
+    const source = primitive.points;
+    const closed = source.length > 2 && source[0].x === source.at(-1)?.x && source[0].y === source.at(-1)?.y;
+    return { id, type: "polyline", vertices: (closed ? source.slice(0, -1) : source).map((value) => point3(projection.point(value))), closed, layer: primitive.layer, context };
+  }
+  if (primitive.kind === "text" && primitive.points[0]) {
+    const insertion = projection.point(primitive.points[0]);
+    return { id, type: "text", x: insertion.x, y: insertion.y, text: primitive.text ?? "", layer: primitive.layer, context };
+  }
+  if (primitive.kind === "circle" && primitive.points[0] && (primitive.radius ?? 0) > 0) {
+    const center = primitive.points[0];
+    const xAxis = mappedVector(projection, center, { x: primitive.radius!, y: 0 });
+    const yAxis = mappedVector(projection, center, { x: 0, y: primitive.radius! });
+    const rx = Math.hypot(xAxis.x, xAxis.y); const ry = Math.hypot(yAxis.x, yAxis.y);
+    if (Math.abs(rx - ry) <= Math.max(rx, ry, 1) * 1e-9)
+      return { id, type: "circle", center: point3(projection.point(center)), radius: (rx + ry) / 2, layer: primitive.layer, context };
+    return { id, type: "ellipse", center: point3(projection.point(center)), majorAxis: point3(rx >= ry ? xAxis : yAxis), ratio: Math.min(rx, ry) / Math.max(rx, ry), startParameter: 0, endParameter: 360, layer: primitive.layer, context };
+  }
+  return cadDxfCurvesToNativeEntities([primitive], { idPrefix: id, projection, provider })[0] ?? null;
+}
+
+function semanticInsertToEntity(
+  insert: CadDxfSemanticInsert,
+  id: string,
+  blockIds: Map<string, string>,
+  projection: CadDxfProjection,
+  provider: string,
+): Extract<CadEntity, { type: "insert" }> {
+  const origin = projection.point(insert.insertion);
+  const xVector = mappedVector(projection, insert.insertion, { x: insert.scaleX, y: 0 });
+  const yVector = mappedVector(projection, insert.insertion, { x: 0, y: insert.scaleY });
+  return {
+    id,
+    type: "insert",
+    block: blockIds.get(insert.block) ?? insert.block,
+    insertion: point3(origin),
+    scale: { x: Math.hypot(xVector.x, xVector.y), y: Math.hypot(yVector.x, yVector.y), z: 1 },
+    rotation: projectedAngle(projection, insert.insertion, 1, insert.rotation),
+    attributes: { ...insert.attributes },
+    layer: insert.layer,
+    context: { provenance: { provider }, metadata: { sourceType: "INSERT", sourceBlock: insert.block } },
+  };
+}
+
+/** Restores imported BLOCK tables and INSERTs as canonical live definitions/instances. */
+export function cadDxfBlocksToCadDocumentParts(
+  blocks: CadDxfSemanticBlock[],
+  inserts: CadDxfSemanticInsert[],
+  options: CadDxfNativeImportOptions = {},
+): { blocks: CadBlockDefinition[]; inserts: Array<Extract<CadEntity, { type: "insert" }>> } {
+  const projection = options.projection ?? identityProjection;
+  const prefix = options.idPrefix ?? "dxf";
+  const provider = options.provider ?? "dxf";
+  const blockIds = new Map(blocks.map((block, index) => [block.name, `${prefix}:block:${index.toString().padStart(4, "0")}`]));
+  const definitions = blocks.map((block): CadBlockDefinition => {
+    const id = blockIds.get(block.name)!;
+    const entities: CadEntity[] = block.primitives.map((primitive, index) => dxfPrimitiveToBlockEntity(primitive, `${id}:entity:${index}`, projection, provider)).filter((entity): entity is CadEntity => entity !== null);
+    block.inserts.forEach((insert, index) => entities.push(semanticInsertToEntity(insert, `${id}:insert:${index}`, blockIds, projection, provider)));
+    return {
+      id,
+      name: block.name,
+      basePoint: point3(projection.point(block.basePoint)),
+      entities,
+      attributes: Object.fromEntries(Object.entries(block.attributes).map(([tag, attribute]) => {
+        const { position, ...definition } = attribute;
+        return [tag, { ...definition, ...(position ? { position: point3(projection.point(position)) } : {}) }];
+      })),
+      version: block.version ?? 1,
+      description: block.description,
+      keywords: block.keywords,
+      library: { scope: block.libraryScope ?? "document", ...(block.libraryTenantId ? { tenantId: block.libraryTenantId } : {}) },
+      ...(block.businessEntityType && block.businessEntityId ? { businessLink: { entityType: block.businessEntityType, entityId: block.businessEntityId } } : {}),
+    };
+  });
+  return {
+    blocks: definitions,
+    inserts: inserts.map((insert, index) => semanticInsertToEntity(insert, `${prefix}:insert:${index.toString().padStart(6, "0")}`, blockIds, projection, provider)),
+  };
+}
+
+function blockEntityToDxfPrimitive(entity: CadEntity): CadDxfPrimitive | null {
+  const native = cadEntityToDxfPrimitive(entity);
+  if (native) return native;
+  if (entity.type === "text") return { kind: "text", layer: entity.layer, points: [{ x: entity.x, y: entity.y }], text: entity.text };
+  if (entity.type === "mtext") return { kind: "text", layer: entity.layer, points: [{ x: entity.insertion.x, y: entity.insertion.y }], text: entity.text };
+  if (entity.type === "box" || entity.type === "station") {
+    const radians = entity.rotation * Math.PI / 180; const cos = Math.cos(radians); const sin = Math.sin(radians);
+    const cx = entity.x + entity.w / 2; const cy = entity.y + entity.h / 2;
+    const points = [{ x: -entity.w / 2, y: -entity.h / 2 }, { x: entity.w / 2, y: -entity.h / 2 }, { x: entity.w / 2, y: entity.h / 2 }, { x: -entity.w / 2, y: entity.h / 2 }]
+      .map((value) => ({ x: cx + value.x * cos - value.y * sin, y: cy + value.x * sin + value.y * cos }));
+    return { kind: "polyline", layer: entity.layer, points: [...points, points[0]], text: entity.type === "box" ? entity.label : undefined };
+  }
+  return null;
+}
+
+export function cadDocumentDxfBlocks(document: CadDocument): CadDxfExportBlock[] {
+  return document.blocks.map((block) => ({
+    name: block.name,
+    basePoint: { x: block.basePoint.x, y: block.basePoint.y },
+    primitives: block.entities.map(blockEntityToDxfPrimitive).filter((primitive): primitive is CadDxfPrimitive => primitive !== null),
+    inserts: block.entities.filter((entity): entity is Extract<CadEntity, { type: "insert" }> => entity.type === "insert").map((entity) => ({ block: document.blocks.find((candidate) => candidate.id === entity.block)?.name ?? entity.block, x: entity.insertion.x, y: entity.insertion.y, scaleX: entity.scale.x, scaleY: entity.scale.y, rotation: entity.rotation, layer: entity.layer, attributes: entity.attributes })),
+    attributes: Object.fromEntries(Object.entries(block.attributes ?? {}).map(([tag, attribute]) => [tag, { ...attribute, ...(attribute.position ? { position: { x: attribute.position.x, y: attribute.position.y } } : {}) }])),
+    version: block.version,
+    description: block.description,
+    keywords: block.keywords,
+    libraryScope: block.library?.scope,
+    libraryTenantId: block.library?.tenantId,
+    businessEntityType: block.businessLink?.entityType,
+    businessEntityId: block.businessLink?.entityId,
+  }));
+}
+
+export function cadDocumentDxfInserts(document: CadDocument, filter?: (entity: Extract<CadEntity, { type: "insert" }>) => boolean): CadDxfExportInsert[] {
+  return document.entities.filter((entity): entity is Extract<CadEntity, { type: "insert" }> => entity.type === "insert" && (filter ? filter(entity) : true)).map((entity) => ({
+    block: document.blocks.find((block) => block.id === entity.block)?.name ?? entity.block,
+    x: entity.insertion.x, y: entity.insertion.y, scaleX: entity.scale.x, scaleY: entity.scale.y,
+    rotation: entity.rotation, layer: entity.layer, attributes: entity.attributes,
+  }));
 }

@@ -1,6 +1,8 @@
 import {
   exportCadDxf,
   type CadDxfExportLayer,
+  type CadDxfExportBlock,
+  type CadDxfExportInsert,
   type CadDxfExportHatch,
   type CadDxfExportMText,
   type CadDxfExportMleader,
@@ -66,6 +68,9 @@ export interface CadLayoutExportInput {
   semanticDimensions?: CadDxfExportSemanticDimension[];
   /** First-class semantic MLEADER entities. */
   mleaders?: CadDxfExportMleader[];
+  /** Reusable canonical BLOCK definitions and live INSERT instances. */
+  blocks?: CadDxfExportBlock[];
+  inserts?: CadDxfExportInsert[];
 }
 
 const CAD_DXF_LAYER_COLORS: Record<string, number> = {
@@ -158,6 +163,8 @@ export function cadLayoutToDxfExportModel(
     mtexts: input.mtexts,
     semanticDimensions: input.semanticDimensions,
     mleaders: input.mleaders,
+    blocks: input.blocks,
+    inserts: input.inserts,
     hatches: [
       ...(input.hatches ?? []),
       ...(input.boxes ?? [])
