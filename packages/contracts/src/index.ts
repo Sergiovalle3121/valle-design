@@ -15,5 +15,7 @@ export * from "./public-catalog";
 export * from "./intelligence-consumption";
 export * from "./founding-partners";
 export * from "./entitlements";
+export * from "./onboarding";
+export * from "./migration";
 export * from "./brand";
 export * from "./legal";
