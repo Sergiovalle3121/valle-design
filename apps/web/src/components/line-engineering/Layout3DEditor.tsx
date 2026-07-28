@@ -188,6 +188,7 @@ import {
 } from '@/lib/cad/world-scale';
 import PlantMinimap from './PlantMinimap';
 import ScaleBar from './ScaleBar';
+import { CadCommandDock, type CadAiProposal } from './cad-workbench/CadCommandDock';
 import {
   cadViewportFocusBounds,
   createCadViewportBookmark,
@@ -954,7 +955,7 @@ export default function Layout3DEditor({
   const commandTextRef = useRef('');
   // Copiloto IA (ADR §215): propuesta NL→CAD / optimización — humano aprueba.
   const [aiBusy, setAiBusy] = useState<null | 'intent' | 'optimize'>(null);
-  const [aiProposal, setAiProposal] = useState<{ source: 'intent' | 'optimize'; intents: CadIntent[]; descriptions?: string[]; errors: string[]; message?: string } | null>(null);
+  const [aiProposal, setAiProposal] = useState<CadAiProposal | null>(null);
   const [selList, setSelList] = useState<SelItem[]>([]);
   const [selSnap, setSelSnap] = useState<SelSnap | null>(null);
   const [selSummary, setSelSummary] = useState<CadSelectionProperties | null>(null);
@@ -6986,111 +6987,31 @@ export default function Layout3DEditor({
           {/* left: stations tray + equipment palette */}
           <div className={`w-60 shrink-0 border-r border-white/10 bg-gray-900/60 flex-col ${focusMode ? 'hidden' : 'flex'}`}>
             {showCommand && (
-              <div className="border-b border-cyan-400/20 bg-cyan-400/[0.06] p-3">
-                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-cyan-200">
-                  <WandSparkles className="w-3.5 h-3.5" /> Copiloto CAD
-                </div>
-                <p className="mt-1 text-[11px] leading-snug text-gray-500 dark:text-gray-400">
-                  Comandos determinísticos locales (Preview) o interpretación con IA (CIDE) — la IA solo propone; tú apruebas.
-                </p>
-                <form className="mt-2 flex gap-1.5" onSubmit={(e) => { e.preventDefault(); interpretCommand(); }}>
-                  <input
-                    ref={commandInputRef}
-                    aria-label="Línea de comandos CAD"
-                    value={commandText}
-                    onChange={(e) => { setCommandText(e.target.value); setCommandHistoryCursor(-1); }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'ArrowUp') { e.preventDefault(); navigateCommandLineHistory('older'); }
-                      else if (e.key === 'ArrowDown') { e.preventDefault(); navigateCommandLineHistory('newer'); }
-                      else if ((e.key === 'Enter' || e.key === ' ') && !commandText.trim()) { e.preventDefault(); repeatLastCommand(); }
-                      else if (e.key === 'Escape') { e.preventDefault(); if (commandPreview) setCommandPreview(null); else { setCommandText(''); setCommandHistoryCursor(-1); } }
-                    }}
-                    placeholder="pasillo 1.2 entre SMT e inspección"
-                    className="min-w-0 flex-1 rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white placeholder:text-gray-600 outline-none focus:border-cyan-400/60"
-                  />
-                  <button type="submit" className="rounded-lg bg-cyan-500 px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-cyan-400">Preview</button>
-                  <button type="button" onClick={() => void requestAiProposal('intent')} disabled={aiBusy !== null} title="Interpreta la instrucción con el motor de IA (CIDE)" className="rounded-lg bg-violet-600 px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-violet-500 disabled:opacity-50">{aiBusy === 'intent' ? '…' : 'IA'}</button>
-                </form>
-                <button type="button" onClick={() => void requestAiProposal('optimize')} disabled={aiBusy !== null} className="mt-1.5 w-full rounded-lg border border-violet-400/30 bg-violet-400/[0.08] px-2 py-1.5 text-[11px] font-semibold text-violet-200 hover:bg-violet-400/[0.14] disabled:opacity-50">
-                  {aiBusy === 'optimize' ? 'Analizando layout…' : 'Optimizar recorrido con IA'}
-                </button>
-                {aiProposal && (
-                  <div className="mt-2 rounded-xl border border-violet-400/25 bg-gray-950/70 p-2">
-                    <div className="text-[11px] font-semibold text-violet-200">Propuesta IA · {aiProposal.source === 'intent' ? 'instrucción' : 'optimización'}</div>
-                    {aiProposal.message && <div className="mt-1 text-[10.5px] text-amber-200">{aiProposal.message}</div>}
-                    {aiProposal.intents.slice(0, 6).map((intent, idx) => (
-                      <div key={`ai-${idx}`} className="mt-1 rounded-md bg-white/[0.04] px-1.5 py-1 text-[10.5px] text-gray-300">{aiProposal.descriptions?.[idx] ?? describeCadIntent(intent)}</div>
-                    ))}
-                    {aiProposal.intents.length > 6 && <div className="mt-1 text-[10px] text-gray-500">…y {aiProposal.intents.length - 6} acción(es) más.</div>}
-                    {aiProposal.errors.slice(0, 2).map((err) => (
-                      <div key={err} className="mt-1 text-[10.5px] text-rose-300">Descartada: {err}</div>
-                    ))}
-                    <div className="mt-2 flex gap-1.5">
-                      {aiProposal.intents.length > 0 && <button onClick={applyAiProposal} className="rounded-lg bg-emerald-700 px-2 py-1 text-[11px] font-semibold text-white hover:bg-emerald-600">Aplicar {aiProposal.intents.length}</button>}
-                      <button onClick={() => setAiProposal(null)} className="rounded-lg border border-white/10 px-2 py-1 text-[11px] text-gray-300 hover:bg-white/10">Descartar</button>
-                    </div>
-                  </div>
-                )}
-                {commandPreview && (
-                  <div className="mt-2 rounded-xl border border-white/10 bg-gray-950/70 p-2">
-                    <div className="text-[11px] font-semibold text-white">{commandPreview.preview.summary}</div>
-                    <div className="mt-1 text-[10.5px] text-gray-500 dark:text-gray-400">{commandPreview.preview.affectedObjectIds.length} objeto(s) · {commandPreview.preview.operations.length} operación(es)</div>
-                    {commandPreview.preview.operations.slice(0, 3).map((op, idx) => (
-                      <div key={`${op.type}-${idx}`} className="mt-1 rounded-md bg-white/[0.04] px-1.5 py-1 text-[10.5px] text-gray-300">
-                        {op.type === 'report' ? (
-                          <div>
-                            <div className="font-semibold text-cyan-100">{op.title}</div>
-                            {op.rows.slice(0, 3).map((row) => <div key={`${row.label}-${row.value}`} className="mt-0.5 flex justify-between gap-2 text-gray-500 dark:text-gray-400"><span className="truncate">{row.label}</span><span className="shrink-0 text-gray-200">{row.value}</span></div>)}
-                          </div>
-                        ) : op.type === 'move' ? `Mover ${op.objectId} → (${Math.round(op.after.x)}, ${Math.round(op.after.y)})` : op.type === 'create' ? `Crear ${op.object.label} en (${Math.round(op.object.x)}, ${Math.round(op.object.y)})` : op.type === 'delete' ? `Borrar ${op.objectId}` : op.type === 'rename' ? `Renombrar a "${op.label}"` : op.type === 'clear_annotations' ? `Quitar ${op.kind === 'dims' ? 'cotas' : op.kind === 'notes' ? 'notas' : 'anotaciones'}` : op.type === 'annotate' ? (op.annotation.kind === 'text' ? `Texto "${op.annotation.text}"` : `Cota ${op.annotation.text}`) : op.type === 'connect' ? `Conectar ${op.from} → ${op.to}` : op.type === 'measure' ? `Medir ${Math.round(op.distance)} ${op.unit}` : op.type === 'focus' ? `Enfocar ${op.objectIds.length || 'todo'}` : ''}
-                      </div>
-                    ))}
-                    {commandPreview.preview.issues.slice(0, 2).map((issue) => (
-                      <div key={`${issue.code}-${issue.message}`} className={`mt-1 text-[10.5px] ${issue.level === 'error' ? 'text-rose-300' : issue.level === 'warning' ? 'text-amber-300' : 'text-cyan-200'}`}>{issue.message}</div>
-                    ))}
-                    <div className="mt-2 flex gap-1.5">
-                      <button onClick={applyCommand} className="rounded-lg bg-emerald-700 px-2 py-1 text-[11px] font-semibold text-white hover:bg-emerald-600">Aplicar</button>
-                      <button onClick={() => setCommandPreview(null)} className="rounded-lg border border-white/10 px-2 py-1 text-[11px] text-gray-300 hover:bg-white/10">Cancelar</button>
-                      <button onClick={() => setCommandPreview(null)} className="rounded-lg border border-white/10 px-2 py-1 text-[11px] text-gray-300 hover:bg-white/10">Editar</button>
-                    </div>
-                  </div>
-                )}
-                {commandAssistSuggestions.length > 0 && (
-                  <div className="mt-2 space-y-1.5">
-                    <div className="flex items-center justify-between text-[10px] uppercase tracking-wide text-gray-500">
-                      <span>Sugerencias</span>
-                      <span>{selList.length} sel</span>
-                    </div>
-                    {commandAssistSuggestions.map((hint) => (
-                      <button key={hint.id} onClick={() => applyCommandSuggestion(hint)} title={hint.example} className={`w-full rounded-lg border px-2 py-1.5 text-left hover:bg-white/[0.08] ${hint.ready ? 'border-cyan-400/20 bg-cyan-400/[0.05]' : 'border-amber-400/20 bg-amber-400/[0.05]'}`}>
-                        <span className="flex items-center justify-between gap-2">
-                          <span className="truncate text-[11px] font-semibold text-gray-100">{hint.label}</span>
-                          <span className={`shrink-0 text-[9.5px] uppercase tracking-wide ${hint.ready ? 'text-cyan-200' : 'text-amber-200'}`}>{hint.ready ? 'Preview' : 'Pendiente'}</span>
-                        </span>
-                        <span className="mt-0.5 block truncate text-[10.5px] text-gray-400">{hint.example}</span>
-                        <span className={`mt-0.5 block truncate text-[10px] ${hint.ready ? 'text-cyan-200/70' : 'text-amber-200/80'}`}>{hint.reason}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {commandLog.length > 0 && (
-                  <div className="mt-2 space-y-1">
-                    <div className="flex items-center justify-between text-[10px] uppercase tracking-wide text-gray-500">
-                      <span>Historial</span>
-                      <span>{commandLog.length}</span>
-                    </div>
-                    <div className="flex gap-1.5">
-                      <button onClick={undoLastCommand} disabled={!commandLog.some((c) => c.status === 'applied') || hist.undo === 0} className="flex-1 rounded-lg border border-white/10 px-2 py-1 text-[10.5px] text-gray-300 disabled:opacity-40 hover:bg-white/10">Deshacer cmd</button>
-                      <button onClick={redoLastCommand} disabled={!commandLog.some((c) => c.status === 'undone') || hist.redo === 0} className="flex-1 rounded-lg border border-white/10 px-2 py-1 text-[10.5px] text-gray-300 disabled:opacity-40 hover:bg-white/10">Rehacer cmd</button>
-                    </div>
-                    {commandLog.slice(0, 3).map((item) => (
-                      <div key={item.id} className="rounded-lg bg-white/[0.04] px-2 py-1 text-[10.5px] text-gray-300">
-                        <span className={item.status === 'failed' ? 'text-rose-300' : item.status === 'applied' ? 'text-emerald-300' : 'text-cyan-200'}>{item.status}</span> · {item.label}{item.durationMs !== undefined ? ` · ${item.durationMs} ms` : ''}{item.affectedObjectIds?.length ? ` · ${item.affectedObjectIds.length} obj` : ''}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <CadCommandDock
+                inputRef={commandInputRef}
+                value={commandText}
+                preview={commandPreview}
+                log={commandLog}
+                suggestions={commandAssistSuggestions}
+                selectionCount={selList.length}
+                aiBusy={aiBusy}
+                aiProposal={aiProposal}
+                canUndo={commandLog.some((command) => command.status === 'applied') && hist.undo > 0}
+                canRedo={commandLog.some((command) => command.status === 'undone') && hist.redo > 0}
+                onValueChange={(value) => { setCommandText(value); setCommandHistoryCursor(-1); }}
+                onSubmit={interpretCommand}
+                onHistory={navigateCommandLineHistory}
+                onRepeat={repeatLastCommand}
+                onClearInput={() => { setCommandText(''); setCommandHistoryCursor(-1); }}
+                onDismissPreview={() => setCommandPreview(null)}
+                onRequestAi={(source) => void requestAiProposal(source)}
+                onApplyAi={applyAiProposal}
+                onDiscardAi={() => setAiProposal(null)}
+                onApplyPreview={applyCommand}
+                onSuggestion={applyCommandSuggestion}
+                onUndo={undoLastCommand}
+                onRedo={redoLastCommand}
+              />
             )}
             <div className="flex shrink-0 text-[12px] font-medium border-b border-white/10">
               <button onClick={() => setTab('stations')} className={`flex-1 px-3 py-2 inline-flex items-center justify-center gap-1.5 ${tab === 'stations' ? 'text-white bg-white/[0.06]' : 'text-gray-500 dark:text-gray-400 hover:text-gray-200'}`}><MapPin className="w-3.5 h-3.5" /> {standalone ? 'Puntos' : 'Estaciones'}</button>
