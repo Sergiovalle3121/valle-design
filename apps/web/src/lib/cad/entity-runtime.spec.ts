@@ -169,6 +169,41 @@ const rotatedHatchEntity = rotatedHatch.document.entities[0];
 assert.equal(rotatedHatchEntity.type, "hatch");
 if (rotatedHatchEntity.type === "hatch") assert.equal(rotatedHatchEntity.angle, 60);
 
+const associativeHatch: typeof hatch = {
+  ...hatch,
+  id: "hatch-associated",
+  associative: true,
+  boundaryRefs: [ellipse.id],
+  associationStatus: "associated",
+};
+const associativeDocument = migrateCadDocument({
+  meta: { version: 1, schema: 3, unit: "mm" },
+  entities: [ellipse, associativeHatch],
+});
+const movedBoundary = executeCadEntityCommand(associativeDocument, {
+  type: "transform",
+  entityId: ellipse.id,
+  transform: { translation: { x: 50, y: 25 } },
+});
+const regeneratedHatch = movedBoundary.document.entities.find((entity) => entity.id === associativeHatch.id);
+assert.ok(regeneratedHatch?.type === "hatch");
+assert.equal(regeneratedHatch.associationStatus, "associated");
+assert.ok(regeneratedHatch.boundaries[0].every((point) => point.x >= 170));
+assert.ok(movedBoundary.affectedEntityIds.includes(associativeHatch.id));
+const brokenBoundary = executeCadEntityCommand(movedBoundary.document, {
+  type: "delete",
+  entityId: ellipse.id,
+});
+const brokenHatch = brokenBoundary.document.entities.find((entity) => entity.id === associativeHatch.id);
+assert.ok(brokenHatch?.type === "hatch" && brokenHatch.associationStatus === "broken");
+const detachedHatchResult = executeCadEntityCommand(movedBoundary.document, {
+  type: "hatch-association",
+  entityId: associativeHatch.id,
+  associative: false,
+});
+const detachedHatch = detachedHatchResult.document.entities.find((entity) => entity.id === associativeHatch.id);
+assert.ok(detachedHatch?.type === "hatch" && detachedHatch.associationStatus === "detached" && detachedHatch.associative === false);
+
 const index = new CadSpatialIndex(100);
 index.upsert("arc", arcRuntime.bounds.bounds(arc));
 index.upsert("ellipse", ellipseRuntime.bounds.bounds(ellipse));

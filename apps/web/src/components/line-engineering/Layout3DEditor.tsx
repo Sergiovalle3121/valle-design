@@ -106,6 +106,7 @@ import {
   trackFromAcquiredPoints,
 } from '@/lib/cad/precision-tracking';
 import { defaultCadDynamicValues, type CadDynamicInputResult } from '@/lib/cad/dynamic-input';
+import { cadPointInBoundary, regenerateAssociativeHatches, resolveCadHatchRegionWithSources, stitchCadBoundaryPaths } from '@/lib/cad/hatch-associativity';
 import { cadViewportBoundsChanged, cadViewportBoundsFromCamera } from '@/lib/cad/native-viewport';
 import { exportCadLayoutDxf } from '@/lib/cad/layout-export-adapter';
 import { buildPlotSheet, CAD_PAPER_SIZES, type CadPaperId } from '@/lib/cad/plot-sheet';
@@ -157,6 +158,7 @@ import {
 import {
   CAD_ENTITY_REGISTRY,
   CadSceneSynchronizer,
+  cadEntityBoundaryPaths,
   executeCadEntityCommand,
   type CadNativeEntity,
   type CadBounds,
@@ -213,6 +215,7 @@ import {
   type CadSelectionGeometryMode,
 } from './cad-workbench/CadSelectionPalette';
 import { CadDynamicInput } from './cad-workbench/CadDynamicInput';
+import { CadHatchPalette } from './cad-workbench/CadHatchPalette';
 import {
   cadViewportFocusBounds,
   createCadViewportBookmark,
@@ -1042,6 +1045,10 @@ export default function Layout3DEditor({
   const [quickSelectionLayer, setQuickSelectionLayer] = useState('');
   const [quickSelectionText, setQuickSelectionText] = useState('');
   const [professionalSelection, setProfessionalSelection] = useState<CadSelectionState>(EMPTY_CAD_SELECTION);
+  const [hatchPickMode, setHatchPickMode] = useState(false);
+  const [showHatchPalette, setShowHatchPalette] = useState(false);
+  const [hatchPickSolid, setHatchPickSolid] = useState(false);
+  const [hatchIslandStyle, setHatchIslandStyle] = useState<'normal' | 'outer' | 'ignore'>('normal');
   const [viewMode, setViewMode] = useState<'3d' | '2d'>('3d'); // 2D = locked top-down plan view (CAD unificado)
   const [walk, setWalk] = useState(false); // first-person walkthrough mode
   const [showHelp, setShowHelp] = useState(false); // keyboard shortcuts overlay
@@ -1206,6 +1213,8 @@ export default function Layout3DEditor({
   const professionalSelectionRef = useRef<CadSelectionState>(EMPTY_CAD_SELECTION);
   const selectionGeometryModeRef = useRef<CadSelectionGeometryMode>('pick');
   const selectionOperationRef = useRef<CadSelectionOperation>('replace');
+  const hatchPickModeRef = useRef(false);
+  const hatchPickCallbackRef = useRef<(point: { x: number; y: number }) => void>(() => {});
   const nativeSceneSyncRef = useRef<CadSceneSynchronizer<THREE.Object3D> | null>(null);
   const nativeSelectionIndexRef = useRef<CadNativeSelectionIndex | null>(null);
   const nativeViewportBoundsRef = useRef<CadBounds | null>(null);
@@ -1235,6 +1244,7 @@ export default function Layout3DEditor({
   useEffect(() => { toolRef.current = tool; }, [tool]);
   useEffect(() => { selectionGeometryModeRef.current = selectionGeometryMode; }, [selectionGeometryMode]);
   useEffect(() => { selectionOperationRef.current = selectionOperation; }, [selectionOperation]);
+  useEffect(() => { hatchPickModeRef.current = hatchPickMode; }, [hatchPickMode]);
   // Núcleo de precisión (Fase 66 cableada, ADR §216): orto 0/90/180/270 y
   // entrada tecleada de coordenadas para el trazo de muros.
   const [orthoLock, setOrthoLock] = useState(false);
@@ -2916,6 +2926,11 @@ export default function Layout3DEditor({
       downX = e.clientX; downY = e.clientY;
       if (walkRef.current) { walkLook = true; lookX = e.clientX; lookY = e.clientY; renderer.domElement.setPointerCapture(e.pointerId); return; }
       if (toolRef.current !== 'select') return; // measure/wall resolve on click (pointerup); drag still orbits
+      if (e.button === 0 && hatchPickModeRef.current) {
+        const world = floorWorld(e);
+        if (world) hatchPickCallbackRef.current({ x: world.wx, y: world.wy });
+        return;
+      }
       const selectionMode = selectionGeometryModeRef.current;
       if (e.button === 0 && (selectionMode === 'window' || selectionMode === 'crossing')) {
         const world = floorWorld(e);
@@ -3233,7 +3248,15 @@ export default function Layout3DEditor({
           undoStackRef.current.push(nativeGripDrag.checkpoint);
           if (undoStackRef.current.length > 80) undoStackRef.current.shift();
           redoStackRef.current = [];
-          loadedCadDocumentRef.current = commitChange(loadedCadDocumentRef.current, `grip:${nativeGripDrag.entityId}:${nativeGripDrag.gripId}`);
+          const regenerated = regenerateAssociativeHatches(
+            loadedCadDocumentRef.current.entities,
+            [nativeGripDrag.entityId],
+            (entity) => cadEntityBoundaryPaths(entity),
+          );
+          loadedCadDocumentRef.current = commitChange({
+            ...loadedCadDocumentRef.current,
+            entities: regenerated.entities,
+          }, `grip:${nativeGripDrag.entityId}:${nativeGripDrag.gripId}`);
           setHist({ undo: undoStackRef.current.length, redo: 0 });
           setNativeEntities(
             loadedCadDocumentRef.current.entities.filter(
@@ -4203,6 +4226,11 @@ export default function Layout3DEditor({
   };
 
   const createHatchForSelection = (solid: boolean) => {
+    const document = loadedCadDocumentRef.current;
+    const selectedNativeSources = (document?.entities ?? [])
+      .filter((entity) => nativeSelectionIdsRef.current.includes(entity.id))
+      .filter((entity) => entity.type !== 'hatch');
+    const nativeBoundaries = stitchCadBoundaryPaths(selectedNativeSources.flatMap((entity) => cadEntityBoundaryPaths(entity)));
     const assets = selRef.current
       .filter((item): item is SelItem & { type: 'asset' } => item.type === 'asset')
       .map((item) => assetsRef.current.get(item.id))
@@ -4213,11 +4241,13 @@ export default function Layout3DEditor({
         asset.id,
         defaultCadLayerForAssetKind(asset.kind, objectTagsRef.current[asset.id]),
       ));
-    if (!assets.length) {
-      toast.error('Selecciona al menos un contorno de asset en una capa editable.', 'HATCH');
+    if (!assets.length && !nativeBoundaries.loops.length) {
+      toast.error(nativeBoundaries.openSourceIds.length
+        ? `Boundary abierto: ${nativeBoundaries.openSourceIds.join(', ')}.`
+        : 'Selecciona assets o curvas que formen al menos un boundary cerrado.', 'HATCH');
       return;
     }
-    const entities: CadNativeEntity[] = assets.map((asset) => {
+    const assetHatches: CadNativeEntity[] = assets.map((asset) => {
       const center = { x: asset.x + asset.w / 2, y: asset.y + asset.h / 2 };
       const angle = ((asset.rotation ?? 0) * Math.PI) / 180;
       const cos = Math.cos(angle);
@@ -4245,6 +4275,10 @@ export default function Layout3DEditor({
         }))],
         scale: Math.max(1, data?.footprint.gridSize ?? 100),
         angle: 45,
+        origin: { x: center.x, y: center.y, z: 0 },
+        islandStyle: 'normal',
+        associative: false,
+        associationStatus: 'detached',
         layer: layerAssignmentsRef.current[asset.id] ?? defaultCadLayerForAssetKind(asset.kind, objectTagsRef.current[asset.id]),
         context: {
           provenance: { provider: 'cad-editor' },
@@ -4252,9 +4286,119 @@ export default function Layout3DEditor({
         },
       };
     });
+    const nativeHatches: CadNativeEntity[] = nativeBoundaries.loops.map((boundary, boundaryIndex) => ({
+      id: newId('hatch'),
+      type: 'hatch',
+      pattern: solid ? 'SOLID' : 'ANSI31',
+      solid,
+      boundaries: [boundary.map((point) => ({ ...point, z: 0 }))],
+      scale: Math.max(1, data?.footprint.gridSize ?? 100),
+      angle: 45,
+      origin: { ...boundary[0], z: 0 },
+      islandStyle: 'normal',
+      associative: true,
+      boundaryRefs: [...(nativeBoundaries.loopSourceIds[boundaryIndex] ?? nativeBoundaries.sourceIds)],
+      associationStatus: 'associated',
+      layer: selectedNativeSources[0]?.layer ?? activeCadLayer,
+      context: {
+        provenance: { provider: 'cad-editor' },
+        metadata: { sourceType: 'ASSOCIATIVE_CLOSED_BOUNDARY' },
+      },
+    }));
+    const entities = [...assetHatches, ...nativeHatches];
     if (insertNativeEntities(entities, `create:hatch:${solid ? 'solid' : 'ANSI31'}`))
       toast.success(`${entities.length} HATCH ${solid ? 'SOLID' : 'ANSI31'} creado(s).`, 'HATCH');
   };
+
+  const createHatchAtPoint = useCallback((point: { x: number; y: number }) => {
+    const legacyEntities = new Map<string, CadEntity>();
+    assetsRef.current.forEach((asset, id) => {
+      legacyEntities.set(id, {
+        id,
+        type: 'box',
+        kind: asset.kind,
+        x: asset.x,
+        y: asset.y,
+        w: asset.w,
+        h: asset.h,
+        rotation: asset.rotation,
+        layer: layerAssignmentsRef.current[id] ?? defaultCadLayerForAssetKind(asset.kind, objectTagsRef.current[id]),
+        shape: asset.shape ?? 'rect',
+      });
+    });
+    placementsRef.current.forEach((placement, id) => {
+      if (legacyEntities.has(id)) return;
+      legacyEntities.set(id, {
+        id,
+        type: 'station',
+        x: placement.x,
+        y: placement.y,
+        w: placement.w,
+        h: placement.h,
+        rotation: placement.rotation,
+        layer: layerAssignmentsRef.current[id] ?? 'layout',
+      });
+    });
+
+    const closedPaths = (entities: readonly CadEntity[]) => entities
+      .flatMap((entity) => cadEntityBoundaryPaths(entity))
+      .filter((path) => path.closed && path.points.length >= 3);
+    const pointBounds = { minX: point.x, minY: point.y, maxX: point.x, maxY: point.y };
+    const pointNative = (nativeSelectionIndexRef.current?.search(pointBounds, 256) ?? [])
+      .filter((entity) => entity.type !== 'hatch');
+    const pointLegacy = [...legacyEntities.values()].filter((entity) =>
+      closedPaths([entity]).some((path) => cadPointInBoundary(point, path.points)));
+    const preliminary = stitchCadBoundaryPaths(closedPaths([...pointNative, ...pointLegacy]));
+    const preliminaryRegion = resolveCadHatchRegionWithSources(preliminary, point, 'ignore');
+    const outer = preliminaryRegion.boundaries[0];
+    if (!outer) {
+      toast.error('No se encontrÃ³ una regiÃ³n cerrada bajo el punto. Revisa gaps del boundary.', 'HATCH');
+      return;
+    }
+    const regionBounds = outer.reduce((bounds, vertex) => ({
+      minX: Math.min(bounds.minX, vertex.x),
+      minY: Math.min(bounds.minY, vertex.y),
+      maxX: Math.max(bounds.maxX, vertex.x),
+      maxY: Math.max(bounds.maxY, vertex.y),
+    }), { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity });
+    const nativeRegion = (nativeSelectionIndexRef.current?.search(regionBounds, 4_096) ?? [])
+      .filter((entity) => entity.type !== 'hatch');
+    const legacyRegion = [...legacyEntities.values()].filter((entity) =>
+      closedPaths([entity]).some((path) => path.points.some((vertex) =>
+        vertex.x >= regionBounds.minX && vertex.x <= regionBounds.maxX
+        && vertex.y >= regionBounds.minY && vertex.y <= regionBounds.maxY)));
+    const built = stitchCadBoundaryPaths(closedPaths([...nativeRegion, ...legacyRegion]));
+    const region = resolveCadHatchRegionWithSources(built, point, hatchIslandStyle);
+    if (!region.boundaries.length) {
+      toast.error('No se encontró una región cerrada bajo el punto. Revisa gaps del boundary.', 'HATCH');
+      return;
+    }
+    const hatch: CadNativeEntity = {
+      id: newId('hatch'),
+      type: 'hatch',
+      pattern: hatchPickSolid ? 'SOLID' : 'ANSI31',
+      solid: hatchPickSolid,
+      boundaries: region.boundaries.map((boundary) => boundary.map((vertex) => ({ ...vertex, z: 0 }))),
+      scale: Math.max(1, data?.footprint.gridSize ?? 100),
+      angle: 45,
+      origin: { ...point, z: 0 },
+      islandStyle: hatchIslandStyle,
+      associative: true,
+      boundaryRefs: region.sourceIds,
+      associationStatus: 'associated',
+      layer: activeCadLayer,
+      context: {
+        provenance: { provider: 'cad-editor' },
+        metadata: { sourceType: 'HATCH_PICK_POINT', sourceCount: region.sourceIds.length },
+      },
+    };
+    if (insertNativeEntities([hatch], `create:hatch:pick:${hatchPickSolid ? 'solid' : 'ANSI31'}`)) {
+      setHatchPickMode(false);
+      hatchPickModeRef.current = false;
+      toast.success(`HATCH por punto creado con ${region.boundaries.length} loop(s).`, 'HATCH');
+    }
+  }, [activeCadLayer, data?.footprint.gridSize, hatchIslandStyle, hatchPickSolid, insertNativeEntities, toast]);
+  useEffect(() => { hatchPickCallbackRef.current = createHatchAtPoint; }, [createHatchAtPoint]);
 
   const clearDims = useCallback(() => {
     const hasDim = [...annotationsRef.current.values()].some((a) => a.type === 'dim');
@@ -6892,7 +7036,8 @@ export default function Layout3DEditor({
       const hasSel = selRef.current.length > 0 || hasNativeSelection;
       if (e.key === 'Escape') {
         e.preventDefault();
-        if (paletteOpenRef.current) { setShowPalette(false); setPaletteQuery(''); }
+        if (hatchPickModeRef.current) { hatchPickModeRef.current = false; setHatchPickMode(false); }
+        else if (paletteOpenRef.current) { setShowPalette(false); setPaletteQuery(''); }
         else if (commandPreviewRef.current) { setCommandPreview(null); }
         else if (commandTextRef.current.trim()) { setCommandText(''); setCommandHistoryCursor(-1); }
         else if (drawCommandRef.current) { const cancelled = cancelDrawCommand(drawCommandRef.current); drawCommandRef.current = null; setDrawPrompt(null); setMeasureLive(null); setPrecisionText(''); if (!cancelled.emitted.length) toast.success('Comando de dibujo cancelado.', 'CAD'); setTool('select'); toolRef.current = 'select'; }
@@ -7168,6 +7313,20 @@ export default function Layout3DEditor({
         <T3Btn active={tool === 'measure'} onClick={toggleMeasure} title="Medir / acotar (M)"><Ruler className="w-4 h-4" /></T3Btn>
         <T3Btn active={tool === 'wall'} onClick={toggleWall} title="Dibujar muros (W) — clic en puntos, Esc termina"><Spline className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={addNote} title="Agregar nota de texto (T)"><StickyNote className="w-4 h-4" /></T3Btn>
+        <div className="relative">
+          <T3Btn active={showHatchPalette || hatchPickMode} onClick={() => setShowHatchPalette((value) => !value)} title="HATCH: selección, pick point, islands y asociatividad"><BrickWall className="h-4 w-4" /></T3Btn>
+          {showHatchPalette && (
+            <CadHatchPalette
+              pickMode={hatchPickMode}
+              solid={hatchPickSolid}
+              islandStyle={hatchIslandStyle}
+              onSolidChange={setHatchPickSolid}
+              onIslandStyleChange={setHatchIslandStyle}
+              onPickModeChange={(active) => { hatchPickModeRef.current = active; setHatchPickMode(active); if (active) setShowHatchPalette(false); }}
+              onCreateFromSelection={(solid) => { createHatchForSelection(solid); setShowHatchPalette(false); }}
+            />
+          )}
+        </div>
         <T3Btn onClick={autoDimension} title="Acotar automáticamente — medidas generales y pasos del layout (o de la selección)"><RulerDimensionLine className="w-4 h-4" /></T3Btn>
         {dimCount > 0 && (
           <button onClick={clearDims} title="Quitar todas las cotas" className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] text-gray-300 hover:bg-white/10">
@@ -7783,6 +7942,11 @@ export default function Layout3DEditor({
               {dxfWarnings.length > 0 && <span className="text-amber-300">DXF {dxfWarnings.length}</span>}
               {localSnapshots.snapshots.length > 0 && <span>Snapshots {localSnapshots.snapshots.length}</span>}
             </div>
+            {hatchPickMode && (
+              <div className="pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-full bg-violet-600/95 px-3 py-1.5 text-[12px] font-semibold text-white">
+                HATCH {hatchPickSolid ? 'SOLID' : 'ANSI31'} · clic dentro de una región cerrada · islands {hatchIslandStyle}
+              </div>
+            )}
             {walk && (
               <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-emerald-700/95 text-white text-[12px] font-semibold inline-flex items-center gap-1.5 pointer-events-none">
                 <PersonStanding className="w-3.5 h-3.5" /> Recorrido · arrastra para mirar · WASD para caminar · Esc para salir
@@ -7965,6 +8129,24 @@ export default function Layout3DEditor({
                   <button data-testid="cad-native-delete" onClick={removeNativeSelection} className="inline-flex items-center gap-1 rounded-md bg-rose-500/20 px-2 py-1 text-[12px] text-rose-300 hover:bg-rose-500/30"><Trash2 className="h-3.5 w-3.5" /> Quitar</button>
                   <button onClick={clearNativeSelection} className="rounded-md bg-white/[0.06] px-2 py-1 text-[12px] hover:bg-white/[0.12]">Deseleccionar</button>
                 </div>
+                {primaryNativeEntity?.type === 'hatch' && (
+                  <div className="mt-2 flex items-center gap-1.5 rounded-lg border border-violet-400/15 bg-violet-400/[0.05] p-2 text-[10.5px]">
+                    <span className={primaryNativeEntity.associationStatus === 'broken' ? 'text-rose-300' : 'text-violet-200'}>
+                      {primaryNativeEntity.associationStatus ?? (primaryNativeEntity.associative ? 'associated' : 'detached')}
+                    </span>
+                    <span className="text-gray-500">{primaryNativeEntity.boundaryRefs?.length ?? 0} refs</span>
+                    <button
+                      data-testid="cad-hatch-reassociate"
+                      onClick={() => commitNativeCommands([{ type: 'hatch-association', entityId: primaryNativeEntity.id, associative: true }])}
+                      className="ml-auto rounded bg-violet-500/20 px-2 py-1 text-violet-100 hover:bg-violet-500/30"
+                    >Reasociar</button>
+                    <button
+                      data-testid="cad-hatch-detach"
+                      onClick={() => commitNativeCommands([{ type: 'hatch-association', entityId: primaryNativeEntity.id, associative: false }])}
+                      className="rounded bg-white/[0.06] px-2 py-1 text-gray-300 hover:bg-white/[0.12]"
+                    >Desasociar</button>
+                  </div>
+                )}
               </div>
             ) : selList.length === 0 ? (
               <div className="p-4 text-[12px] text-gray-500 flex flex-col gap-3">

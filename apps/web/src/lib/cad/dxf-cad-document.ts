@@ -221,6 +221,10 @@ export function cadDxfHatchesToNativeEntities(
         boundaries,
         scale: Math.max(1e-9, (hatch.scale ?? 1) * scaleFactor),
         angle: projectedAngle(projection, { x: 0, y: 0 }, 1, hatch.angle ?? 0),
+        ...(hatch.origin ? { origin: point3(projection.point(hatch.origin)) } : {}),
+        islandStyle: hatch.islandStyle ?? "normal",
+        associative: false,
+        associationStatus: "detached",
         layer: hatch.layer,
         context: {
           provenance: { provider },
@@ -335,6 +339,8 @@ export function cadDocumentNativeDxfHatches(
         solid: entity.solid,
         scale: entity.scale,
         angle: entity.angle,
+        ...(entity.origin ? { origin: { x: entity.origin.x, y: entity.origin.y } } : {}),
+        islandStyle: entity.islandStyle ?? "normal",
       };
     });
 }

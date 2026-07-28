@@ -12,6 +12,11 @@ import {
   tessellateSpline,
 } from "./curve-tessellate";
 import { hatchPolygon } from "./hatch";
+import {
+  hatchRegionContainsPoint,
+  regenerateAssociativeHatches,
+  type CadBoundaryPath,
+} from "./hatch-associativity";
 
 export type CadNativeEntity = Extract<
   CadEntity,
@@ -788,8 +793,7 @@ function hatchBoundaries(entity: CadHatchEntity): CadPoint2[][] {
 }
 
 function hatchContains(entity: CadHatchEntity, point: CadPoint2): boolean {
-  const [outer, ...holes] = hatchBoundaries(entity);
-  return !!outer && pointInPolygon(point, outer) && !holes.some((hole) => pointInPolygon(point, hole));
+  return hatchRegionContainsPoint(hatchBoundaries(entity), point, entity.islandStyle ?? "normal");
 }
 
 const hatchRenderer: CadEntityRenderer<CadHatchEntity> = {
@@ -802,11 +806,10 @@ const hatchRenderer: CadEntityRenderer<CadHatchEntity> = {
     const spacing = Math.max(entity.scale ?? diagonal / 40, diagonal / 256, 1e-6);
     const pattern = entity.pattern.trim().toUpperCase();
     const angles = pattern === "CROSS" ? [entity.angle ?? 45, (entity.angle ?? 45) + 90] : [entity.angle ?? 45];
-    const [, ...holes] = boundaries;
     const strokes = angles.flatMap((angle) =>
-      hatchPolygon(boundaries[0], { angle, spacing }).filter((segment) => {
+      hatchPolygon(boundaries[0], { angle, spacing, origin: entity.origin }).filter((segment) => {
         const midpoint = { x: (segment.a.x + segment.b.x) / 2, y: (segment.a.y + segment.b.y) / 2 };
-        return !holes.some((hole) => pointInPolygon(midpoint, hole));
+        return hatchRegionContainsPoint(boundaries, midpoint, entity.islandStyle ?? "normal");
       }),
     );
     return [
@@ -903,6 +906,12 @@ const hatchAdapter: CadEntityAdapter<CadHatchEntity> = {
       scale: entity.scale ?? 1,
       angle: entity.angle ?? 0,
       boundaryCount: entity.boundaries.length,
+      islandStyle: entity.islandStyle ?? "normal",
+      associative: entity.associative ?? false,
+      associationStatus: entity.associationStatus ?? (entity.associative ? "associated" : "detached"),
+      boundaryReferenceCount: entity.boundaryRefs?.length ?? 0,
+      originX: entity.origin?.x ?? 0,
+      originY: entity.origin?.y ?? 0,
       layer: entity.layer,
     }),
     write: (entity, patch) => {
@@ -918,6 +927,16 @@ const hatchAdapter: CadEntityAdapter<CadHatchEntity> = {
         solid,
         scale: positive(patch.scale, entity.scale ?? 1),
         angle: finite(patch.angle, entity.angle ?? 0),
+        origin: {
+          x: finite(patch.originX, entity.origin?.x ?? 0),
+          y: finite(patch.originY, entity.origin?.y ?? 0),
+          z: entity.origin?.z ?? 0,
+        },
+        islandStyle: patch.islandStyle === "outer" || patch.islandStyle === "ignore" || patch.islandStyle === "normal"
+          ? patch.islandStyle
+          : entity.islandStyle ?? "normal",
+        associative: typeof patch.associative === "boolean" ? patch.associative : entity.associative,
+        associationStatus: patch.associative === false ? "detached" : entity.associationStatus,
         layer: typeof patch.layer === "string" ? patch.layer : entity.layer,
       };
     },
@@ -928,6 +947,7 @@ const hatchAdapter: CadEntityAdapter<CadHatchEntity> = {
       boundaries: entity.boundaries.map((boundary) => boundary.map((point) => transformPoint(point, transform))),
       scale: (entity.scale ?? 1) * Math.abs(transform.scale ?? 1),
       angle: (entity.angle ?? 0) + (transform.rotationDeg ?? 0),
+      origin: entity.origin ? transformPoint(entity.origin, transform) : undefined,
       context: cloneContext(entity.context),
     }),
   },
@@ -964,11 +984,47 @@ export const CAD_ENTITY_REGISTRY = new CadEntityRegistry()
   .register(splineAdapter)
   .register(hatchAdapter);
 
+function rectangularBoundary(entity: Extract<CadEntity, { type: "box" | "station" }>): CadPoint2[] {
+  const center = { x: entity.x + entity.w / 2, y: entity.y + entity.h / 2 };
+  if (entity.type === "box" && entity.shape === "circle") {
+    return Array.from({ length: 64 }, (_, index) => {
+      const angle = (index / 64) * Math.PI * 2;
+      return { x: center.x + Math.cos(angle) * entity.w / 2, y: center.y + Math.sin(angle) * entity.h / 2 };
+    });
+  }
+  const radians = (entity.rotation * Math.PI) / 180;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  return [
+    { x: -entity.w / 2, y: -entity.h / 2 },
+    { x: entity.w / 2, y: -entity.h / 2 },
+    { x: entity.w / 2, y: entity.h / 2 },
+    { x: -entity.w / 2, y: entity.h / 2 },
+  ].map((point) => ({
+    x: center.x + point.x * cos - point.y * sin,
+    y: center.y + point.x * sin + point.y * cos,
+  }));
+}
+
+export function cadEntityBoundaryPaths(
+  entity: CadEntity,
+  registry = CAD_ENTITY_REGISTRY,
+): CadBoundaryPath[] {
+  if (entity.type === "box" || entity.type === "station")
+    return [{ sourceId: entity.id, points: rectangularBoundary(entity), closed: true }];
+  if (!registry.supports(entity)) return [];
+  if (entity.type === "hatch")
+    return entity.boundaries.map((points) => ({ sourceId: entity.id, points, closed: true }));
+  return registry.adapter(entity).renderer.paths(entity, 192)
+    .map((path) => ({ sourceId: entity.id, points: path.points, closed: path.closed }));
+}
+
 export type CadEntityCommand =
   | { type: "transform"; entityId: string; transform: CadEntityTransform }
   | { type: "properties"; entityId: string; patch: Partial<CadPropertyBag> }
   | { type: "grip"; entityId: string; gripId: string; point: CadPoint2 }
   | { type: "copy"; entityId: string; newEntityId: string; offset?: CadPoint2 }
+  | { type: "hatch-association"; entityId: string; associative: boolean }
   | { type: "delete"; entityId: string };
 
 export interface CadEntityCommandResult {
@@ -991,6 +1047,7 @@ export function executeCadEntityCommand(
   const createdEntityIds: string[] = [];
   const deletedEntityIds: string[] = [];
   const label = `${command.type}:${source.type}`;
+  let regenerationSourceIds = [source.id];
 
   if (command.type === "delete") {
     entities = entities.filter((entity) => entity.id !== source.id);
@@ -1004,6 +1061,14 @@ export function executeCadEntityCommand(
     );
     entities.push(copy);
     createdEntityIds.push(copy.id);
+  } else if (command.type === "hatch-association") {
+    if (source.type !== "hatch") throw new Error("Hatch association commands require a HATCH entity.");
+    entities = entities.map((entity) => entity.id === source.id ? {
+      ...source,
+      associative: command.associative,
+      associationStatus: command.associative ? "associated" : "detached",
+    } : entity);
+    regenerationSourceIds = command.associative ? [...(source.boundaryRefs ?? [])] : [];
   } else {
     const next =
       command.type === "transform"
@@ -1014,6 +1079,12 @@ export function executeCadEntityCommand(
     entities = entities.map((entity) => (entity.id === source.id ? next : entity));
   }
 
+  const regenerated = regenerateAssociativeHatches(
+    entities,
+    regenerationSourceIds,
+    (entity) => cadEntityBoundaryPaths(entity, registry),
+  );
+  entities = regenerated.entities;
   entities.sort((a, b) => a.id.localeCompare(b.id));
   const nextDocument = commitChange(
     {
@@ -1030,7 +1101,7 @@ export function executeCadEntityCommand(
   );
   return {
     document: nextDocument,
-    affectedEntityIds: [source.id],
+    affectedEntityIds: [...new Set([source.id, ...regenerated.regeneratedIds, ...regenerated.brokenIds])],
     createdEntityIds,
     deletedEntityIds,
   };

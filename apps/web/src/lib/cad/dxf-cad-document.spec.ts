@@ -56,6 +56,10 @@ const source = migrateCadDocument({
       ]],
       scale: 12,
       angle: 45,
+      origin: { x: 23, y: 37, z: 0 },
+      islandStyle: "outer",
+      associative: false,
+      associationStatus: "detached",
       layer: "AREAS",
     },
   ],
@@ -107,6 +111,9 @@ if (hatch.type === "hatch") {
   assert.equal(hatch.solid, false);
   assert.equal(hatch.scale, 12);
   assert.equal(hatch.angle, 45);
+  assert.deepEqual(hatch.origin, { x: 23, y: 37, z: 0 });
+  assert.equal(hatch.islandStyle, "outer");
+  assert.equal(hatch.associationStatus, "detached");
   assert.deepEqual(hatch.boundaries[0][0], { x: 10, y: 20, z: 0 });
 }
 

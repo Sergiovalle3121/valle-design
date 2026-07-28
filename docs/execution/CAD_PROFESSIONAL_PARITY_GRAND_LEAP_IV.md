@@ -6,9 +6,9 @@
 | --- | --- |
 | `MISSION_STARTED_AT` | 2026-07-28 12:08:49 -06:00 |
 | `MISSION_TARGET_END` | 2026-07-28 22:08:49 -06:00 |
-| `MISSION_CURRENT_PHASE` | P1-A — HATCH asociativo y regiones arbitrarias |
-| `MISSION_COMPLETED_GATES` | viewport 100k; recovery worker/journal; blob GC bifásico y tenant-safe; selección profesional; precisión dinámica y tracking |
-| `MISSION_NEXT_ACTION` | cerrar boundary/pick-point/islands/asociatividad/regeneración de HATCH con persistencia y round-trip |
+| `MISSION_CURRENT_PHASE` | P1-B — MTEXT profesional |
+| `MISSION_COMPLETED_GATES` | viewport 100k; recovery worker/journal; blob GC bifásico y tenant-safe; selección profesional; precisión dinámica y tracking; HATCH asociativo |
+| `MISSION_NEXT_ACTION` | cerrar edición MTEXT multilínea, formato, estilos, grips y round-trip |
 | Repositorio | `Sergiovalle3121/axos-os` |
 | Base | `1625ba26a07876943b821586c46b02c9f47f6bac` (`origin/main`) |
 | Rama / PR | `codex/cad-professional-grand-leap-iii` / #1416 |
@@ -35,8 +35,9 @@ revisiones y mergeabilidad inmediatamente antes de cada merge.
 - Recovery aún serializa snapshots completos periódicos desde el hilo principal.
 - El blob store conserva una frontera reutilizable, pero carece de lifecycle/GC
   y su adaptador de base carga blobs completos.
-- HATCH poligonal es nativo y round-trip; asociatividad/pick-point arbitrario y
-  varios ciclos de documentación siguen incompletos.
+- HATCH es nativo, asociativo, regenerable, seleccionable por boundary o pick
+  point y conserva patrón/origen/islands en round-trip; otros ciclos de
+  documentación siguen incompletos.
 
 ## Rúbrica inicial de CAD 2D profesional
 
@@ -47,14 +48,14 @@ Sólo se conceden puntos por evidencia actual del repositorio y navegador.
 | Workbench y arquitectura | 10 | 5 | `tested` parcial | dock aislado; editor aún monolítico y por encima de 8k líneas |
 | Precisión, input y snaps | 10 | 9 | `browser-proven` | dynamic input, snaps derivados, POLAR/ORTHO/OTRACK y tolerancia por zoom; falta preferencia persistida por usuario |
 | Selección y modificación | 10 | 9 | `browser-proven` | controlador unificado, geometrías profesionales, cycling y quick select; falta stress E2E de trazos 100k |
-| Entidades de documentación | 10 | 4 | `tested` parcial | HATCH poligonal nativo; MTEXT/DIM/MLEADER incompletos |
+| Entidades de documentación | 10 | 6 | `browser-proven` parcial | HATCH asociativo completo; MTEXT/DIM/MLEADER incompletos |
 | Rendimiento 10k/100k | 15 | 10 | `browser-proven` parcial | viewport real, lotes cancelables y arnés 100k; aún no 60 FPS ni memoria estabilizada |
 | Persistencia/recovery/versionado | 10 | 9 | `browser-proven` | worker/journal/cuota y lifecycle de blobs; falta delta journal nativo |
 | Capas, bloques y referencias | 10 | 5 | `tested` parcial | capas/bloques presentes; xrefs parciales |
 | Layouts, viewports y publicación | 10 | 6 | `tested` | paper space/PDF/recibos; UI multi-viewport parcial |
 | Interoperabilidad/extensibilidad | 5 | 3 | `tested` | DXF semántico acotado; DWG `provider-required` |
 | Calidad enterprise/seguridad/pruebas | 10 | 9 | `tested` | CI/tenant/brand/smokes verdes; falta arnés perf bloqueante |
-| **Total** | **100** | **69** |  | Sin claim de paridad general |
+| **Total** | **100** | **71** |  | Sin claim de paridad general |
 
 ## Paridad completa separada
 
@@ -196,6 +197,26 @@ No se editan ramas comerciales, ERP o PDF durante la construcción CAD.
   p95 5.27 ms (gate <12 ms). Specs de snaps/input/tracking/shortcuts/toolbar,
   TypeScript y lint focal verdes. Chromium crea un círculo por centro absoluto,
   Tab, diámetro con unidad, lock de campo y toggles F10/F11: 1/1 verde.
+
+### 2026-07-28 13:14–13:29 — P1-A / HATCH asociativo
+
+- Boundary builder cose segmentos abiertos con tolerancia, conserva ids fuente
+  por loop y resuelve región por pick point con islas `normal`, `outer` e
+  `ignore`; hit-test y render respetan la misma regla par-impar.
+- HATCH creado desde una selección nativa conserva referencias a sus límites;
+  los creados desde activos heredados quedan explícitamente `detached`. El
+  command bus central regenera boundaries tras propiedades, grips o transforms
+  de la fuente y marca `broken` si una referencia se abre o desaparece.
+- La paleta expone ANSI31/SOLID, selección, pick point e islands. Pick point usa
+  el índice espacial en dos pasos —punto y bounds del contorno exterior— en vez
+  de recorrer las 100,000 entidades canónicas; el popover se cierra al crear.
+- Origen de patrón, estilo de islas y estado de asociación viven en el documento
+  canónico. DXF preserva origen/seed e island style; una importación DXF queda
+  honestamente `detached` porque no se inventan handles fuente inexistentes.
+- Evidencia: stitch/islands/regeneración, runtime, patrón y round-trip DXF verdes;
+  TypeScript y ESLint focal verdes. Chromium crea ANSI31 sobre ELLIPSE, prueba
+  detach/reattach, regenera al editar el eje, guarda y marca `broken` al borrar
+  la fuente: 1/1 verde en 16.8 s.
 
 ## Claims
 

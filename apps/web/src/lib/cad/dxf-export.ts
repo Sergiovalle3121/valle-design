@@ -39,6 +39,10 @@ export interface CadDxfExportHatch {
   solid?: boolean;
   scale?: number;
   angle?: number;
+  /** Origen del patrón/seed point. */
+  origin?: CadDxfPoint;
+  /** Regla de detección de islas DXF: normal=0, outer=1, ignore=2. */
+  islandStyle?: "normal" | "outer" | "ignore";
 }
 /** Definición de bloque reutilizable (sección BLOCKS — CAD-NEXT-064). */
 export interface CadDxfExportBlock {
@@ -512,6 +516,8 @@ function pushHatch(lines: string[], layer: string, hatch: CadDxfExportHatch) {
   const pattern = solid ? "SOLID" : requestedPattern.toUpperCase() === "SOLID" ? "ANSI31" : requestedPattern;
   const angle = Number.isFinite(hatch.angle) ? hatch.angle! : 45;
   const scale = Number.isFinite(hatch.scale) && hatch.scale! > 0 ? hatch.scale! : 1;
+  const origin = hatch.origin ?? boundaries[0]?.[0] ?? { x: 0, y: 0 };
+  const islandStyle = hatch.islandStyle === "outer" ? 1 : hatch.islandStyle === "ignore" ? 2 : 0;
   pushPair(lines, 0, "HATCH");
   pushPair(lines, 8, layer);
   pushPoint(lines, { x: 0, y: 0 }); // punto de elevación (siempre 0 en 2D)
@@ -533,7 +539,7 @@ function pushHatch(lines: string[], layer: string, hatch: CadDxfExportHatch) {
     }
     pushPair(lines, 97, 0); // sin objetos fuente
   }
-  pushPair(lines, 75, 0); // estilo normal
+  pushPair(lines, 75, islandStyle);
   pushPair(lines, 76, 1); // patrón predefinido
   if (!solid) {
     const definitionAngles = pattern.toUpperCase() === "CROSS" ? [angle, angle + 90] : [angle];
@@ -543,14 +549,15 @@ function pushHatch(lines: string[], layer: string, hatch: CadDxfExportHatch) {
     pushPair(lines, 78, definitionAngles.length);
     for (const definitionAngle of definitionAngles) {
       pushPair(lines, 53, fmt(definitionAngle));
-      pushPair(lines, 43, 0);
-      pushPair(lines, 44, 0);
+      pushPair(lines, 43, fmt(origin.x));
+      pushPair(lines, 44, fmt(origin.y));
       pushPair(lines, 45, 0);
       pushPair(lines, 46, fmt(scale));
       pushPair(lines, 79, 0);
     }
   }
-  pushPair(lines, 98, 0); // sin puntos semilla
+  pushPair(lines, 98, 1);
+  pushPoint(lines, origin);
 }
 
 /** Sección BLOCKS: definiciones reutilizables (mismos códigos que lee el parser). */

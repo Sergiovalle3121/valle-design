@@ -274,6 +274,11 @@ export type CadEntity =
       boundaries: CadPoint3[][];
       scale?: number;
       angle?: number;
+      origin?: CadPoint3;
+      islandStyle?: "normal" | "outer" | "ignore";
+      associative?: boolean;
+      boundaryRefs?: string[];
+      associationStatus?: "associated" | "broken" | "detached";
       layer: string;
       context?: CadEntityContext;
     }

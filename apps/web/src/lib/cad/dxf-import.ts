@@ -41,6 +41,8 @@ export interface CadDxfHatch {
   boundaries: CadDxfPoint[][];
   scale?: number;
   angle?: number;
+  origin?: CadDxfPoint;
+  islandStyle?: "normal" | "outer" | "ignore";
 }
 export interface CadDxfImportWarning {
   code: string;
@@ -502,6 +504,22 @@ export function parseRawDxfHatches(text: string): {
     const solid = Number(first(70) ?? 0) === 1 || pattern.toUpperCase() === "SOLID";
     const scale = num(first(41));
     const angle = num(first(52));
+    const islandCode = Number(first(75) ?? 0);
+    const islandStyle: CadDxfHatch["islandStyle"] = islandCode === 1 ? "outer" : islandCode === 2 ? "ignore" : "normal";
+    const seedCountIndex = entityPairs.findIndex((pair) => pair.code === 98);
+    const seedX = seedCountIndex >= 0
+      ? num(entityPairs.find((pair, index) => index > seedCountIndex && pair.code === 10)?.value)
+      : null;
+    const seedY = seedCountIndex >= 0
+      ? num(entityPairs.find((pair, index) => index > seedCountIndex && pair.code === 20)?.value)
+      : null;
+    const patternOriginX = num(first(43));
+    const patternOriginY = num(first(44));
+    const origin = seedX !== null && seedY !== null
+      ? { x: seedX, y: seedY }
+      : patternOriginX !== null && patternOriginY !== null
+        ? { x: patternOriginX, y: patternOriginY }
+        : undefined;
     const boundaries: CadDxfPoint[][] = [];
     let unsupportedEdgePath = false;
     for (let cursor = 0; cursor < entityPairs.length; cursor += 1) {
@@ -538,6 +556,8 @@ export function parseRawDxfHatches(text: string): {
         boundaries,
         ...(scale !== null && scale > 0 ? { scale } : {}),
         ...(angle !== null ? { angle } : {}),
+        ...(origin ? { origin } : {}),
+        islandStyle,
       });
       if (unsupportedEdgePath)
         warnings.push({
