@@ -12,9 +12,20 @@ export const CAD_NATIVE_LARGE_DRAWING_RENDER_LIMIT = 2_500;
 export interface CadNativeRenderPlan {
   entities: CadNativeEntity[];
   total: number;
+  visible: number;
   rendered: number;
   omitted: number;
   limited: boolean;
+  viewportDriven: boolean;
+}
+
+export interface CadNativeViewportRenderOptions {
+  /** Entities returned by the full-document spatial index for the visible bounds. */
+  visibleEntities?: readonly CadNativeEntity[];
+  /** Detailed entities allowed while the viewport still contains a large drawing. */
+  largeViewportLimit?: number;
+  /** Detailed entities allowed once a zoomed viewport is below the large threshold. */
+  detailedViewportLimit?: number;
 }
 
 /**
@@ -26,26 +37,39 @@ export function planCadNativeRenderBudget(
   entities: readonly CadNativeEntity[],
   selectedEntityIds: readonly string[] = [],
   limit?: number,
+  viewport?: CadNativeViewportRenderOptions,
 ): CadNativeRenderPlan {
   const total = entities.length;
+  const candidates = viewport?.visibleEntities ?? entities;
+  const visible = candidates.length;
+  const viewportDriven = viewport?.visibleEntities !== undefined;
+  const detailedViewportLimit = viewport?.detailedViewportLimit
+    ?? CAD_NATIVE_DETAILED_RENDER_LIMIT;
+  const largeViewportLimit = viewport?.largeViewportLimit
+    ?? CAD_NATIVE_LARGE_DRAWING_RENDER_LIMIT;
   const requestedLimit = limit ?? (
-    total > CAD_NATIVE_LARGE_DRAWING_THRESHOLD
-      ? CAD_NATIVE_LARGE_DRAWING_RENDER_LIMIT
-      : CAD_NATIVE_DETAILED_RENDER_LIMIT
+    total > CAD_NATIVE_LARGE_DRAWING_THRESHOLD && visible > detailedViewportLimit
+      ? largeViewportLimit
+      : detailedViewportLimit
   );
   const safeLimit = Math.max(0, Math.floor(requestedLimit));
-  if (total <= safeLimit) {
+  if (total <= safeLimit && !viewportDriven) {
     return {
       entities: entities as CadNativeEntity[],
       total,
+      visible: total,
       rendered: total,
       omitted: 0,
       limited: false,
+      viewportDriven: false,
     };
   }
 
   if (safeLimit === 0) {
-    return { entities: [], total, rendered: 0, omitted: total, limited: true };
+    return {
+      entities: [], total, visible, rendered: 0, omitted: total,
+      limited: total > 0, viewportDriven,
+    };
   }
 
   const selectedIds = new Set(selectedEntityIds);
@@ -58,24 +82,33 @@ export function planCadNativeRenderBudget(
     return {
       entities: selected,
       total,
+      visible,
       rendered: selected.length,
       omitted: total - selected.length,
       limited: true,
+      viewportDriven,
     };
   }
 
-  const candidates = entities.filter((entity) => !selectedInPlan.has(entity.id));
-  const step = candidates.length / remainingBudget;
-  const sampled = Array.from(
-    { length: remainingBudget },
-    (_, index) => candidates[Math.floor(index * step)],
+  const detailCandidates = candidates.filter(
+    (entity) => !selectedInPlan.has(entity.id),
   );
+  const sampleCount = Math.min(remainingBudget, detailCandidates.length);
+  const step = detailCandidates.length / sampleCount;
+  const sampled = sampleCount === detailCandidates.length
+    ? detailCandidates
+    : Array.from(
+        { length: sampleCount },
+        (_, index) => detailCandidates[Math.floor(index * step)],
+      );
   const planned = [...selected, ...sampled];
   return {
     entities: planned,
     total,
+    visible,
     rendered: planned.length,
     omitted: total - planned.length,
-    limited: true,
+    limited: planned.length < total,
+    viewportDriven,
   };
 }

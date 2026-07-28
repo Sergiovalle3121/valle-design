@@ -6,9 +6,9 @@
 | --- | --- |
 | `MISSION_STARTED_AT` | 2026-07-28 12:08:49 -06:00 |
 | `MISSION_TARGET_END` | 2026-07-28 22:08:49 -06:00 |
-| `MISSION_CURRENT_PHASE` | P0-A — descomposición segura del workbench |
-| `MISSION_COMPLETED_GATES` | baseline 1k/10k/100k; dock tipado extraído; prueba focal, TypeScript y lint sin errores |
-| `MISSION_NEXT_ACTION` | extraer estado/render del viewport y sustituir la muestra fija por planificación visible |
+| `MISSION_CURRENT_PHASE` | P0-C — recovery, compresión y cuotas fuera del hilo principal |
+| `MISSION_COMPLETED_GATES` | dock extraído; render dirigido por viewport y progresivo; Chromium 100k verde |
+| `MISSION_NEXT_ACTION` | mover serialización/compresión de recovery a worker y probar IndexedDB/cuota real |
 | Repositorio | `Sergiovalle3121/axos-os` |
 | Base | `1625ba26a07876943b821586c46b02c9f47f6bac` (`origin/main`) |
 | Rama / PR | `codex/cad-professional-grand-leap-iii` / #1416 |
@@ -44,17 +44,17 @@ Sólo se conceden puntos por evidencia actual del repositorio y navegador.
 
 | Área | Máximo | Inicial | Estado dominante | Evidencia / brecha |
 | --- | ---: | ---: | --- | --- |
-| Workbench y arquitectura | 10 | 4 | `wired` | editor funcional pero monolito de 8,761 líneas |
+| Workbench y arquitectura | 10 | 5 | `tested` parcial | dock aislado; editor aún monolítico y por encima de 8k líneas |
 | Precisión, input y snaps | 10 | 5 | `tested` | coordenadas/OSNAP base; falta dynamic input y tracking completo |
 | Selección y modificación | 10 | 5 | `browser-proven` parcial | pick/window canónico; faltan fence/lasso/cycling/quick select |
 | Entidades de documentación | 10 | 4 | `tested` parcial | HATCH poligonal nativo; MTEXT/DIM/MLEADER incompletos |
-| Rendimiento 10k/100k | 15 | 6 | `browser-proven` parcial | 100k sobrevive y guarda; detalle fijo, latencias de decenas de segundos |
+| Rendimiento 10k/100k | 15 | 10 | `browser-proven` parcial | viewport real, lotes cancelables y arnés 100k; aún no 60 FPS ni memoria estabilizada |
 | Persistencia/recovery/versionado | 10 | 6 | `tested` | gzip/blob/CAS/recovery; snapshot pesado y lifecycle incompleto |
 | Capas, bloques y referencias | 10 | 5 | `tested` parcial | capas/bloques presentes; xrefs parciales |
 | Layouts, viewports y publicación | 10 | 6 | `tested` | paper space/PDF/recibos; UI multi-viewport parcial |
 | Interoperabilidad/extensibilidad | 5 | 3 | `tested` | DXF semántico acotado; DWG `provider-required` |
 | Calidad enterprise/seguridad/pruebas | 10 | 9 | `tested` | CI/tenant/brand/smokes verdes; falta arnés perf bloqueante |
-| **Total** | **100** | **53** |  | Sin claim de paridad general |
+| **Total** | **100** | **58** |  | Sin claim de paridad general |
 
 ## Paridad completa separada
 
@@ -97,6 +97,26 @@ No se editan ramas comerciales, ERP o PDF durante la construcción CAD.
   advertencias heredadas del monolito; `git diff --check` verde.
 - Baseline medido: escena inicial 100k 858.8 ms; índice 100k 236.0 ms;
   hit-test p95 0.221 ms; overview 274.9 ms, 19.2 MB y un draw call.
+
+### 2026-07-28 12:16–12:28 — P0-B / viewport y progresividad
+
+- El detalle ya consulta el índice canónico con bounds derivados de la cámara;
+  la selección conserva prioridad aunque quede fuera del viewport.
+- Los viewports densos mantienen un máximo de 2,500 objetos detallados; al
+  acercarse, el presupuesto puede materializar hasta 10,000 visibles.
+- `CadSceneSynchronizer.syncProgressive` preserva proyecciones compartidas,
+  elimina las obsoletas de inmediato y crea/actualiza en lotes cancelables de
+  160 para ceder el hilo entre lotes.
+- Hallazgo del gate: las consultas espaciales de más de 4,096 celdas devolvían
+  vacío. Se corrigió con full scan acotado y regresión, sin alterar el guard de
+  overflow usado para entidades gigantes.
+- Chromium real, corpus 100,000 ARC / payload 14,690,240 bytes: canónico listo
+  11,466 ms; detalle listo 27,186 ms; frame de control 85.2 ms; zoom/replan
+  27,735 ms; visibles 100,000 → 72,500; detalle 2,500 en ambos niveles.
+- Gate: `CAD_PERF_E2E=1 npx playwright test
+  e2e/performance/cad-viewport-100k.spec.ts --project=chromium` — 1/1 verde.
+- Specs focales: viewport 5/5, sync progresivo 9/9, runtime/selección/render
+  verdes; TypeScript y lint focal verdes.
 
 ## Claims
 

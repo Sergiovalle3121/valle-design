@@ -1098,10 +1098,15 @@ export class CadSpatialIndex {
   }
 
   search(bounds: CadBounds): string[] {
-    const result = new Set<string>(this.overflow);
-    for (const cell of this.cellKeys(bounds)) {
+    const cells = this.cellKeys(bounds);
+    // A viewport or crossing window can legitimately span more cells than the
+    // per-entity overflow guard. In that case an empty cell list means
+    // "bounded full scan", not "no matches".
+    const result = cells.length
+      ? new Set<string>(this.overflow)
+      : new Set<string>(this.entries.keys());
+    for (const cell of cells)
       for (const id of this.buckets.get(cell) ?? []) result.add(id);
-    }
     return [...result]
       .filter((id) => {
         const entry = this.entries.get(id);
@@ -1140,6 +1145,18 @@ export interface CadSceneSyncStats {
   total: number;
 }
 
+export interface CadProgressiveSceneSyncStats extends CadSceneSyncStats {
+  processed: number;
+  batches: number;
+  cancelled: boolean;
+}
+
+export interface CadProgressiveSceneSyncOptions {
+  batchSize?: number;
+  schedule?: () => Promise<void>;
+  onBatch?: (stats: CadProgressiveSceneSyncStats) => void;
+}
+
 export interface CadScenePatch {
   upsert: CadNativeEntity[];
   remove: string[];
@@ -1153,6 +1170,7 @@ export class CadSceneSynchronizer<P> {
   readonly spatialIndex: CadSpatialIndex;
   private readonly versions = new Map<string, string>();
   private readonly projections = new Map<string, P>();
+  private syncGeneration = 0;
 
   constructor(
     private readonly registry = CAD_ENTITY_REGISTRY,
@@ -1162,6 +1180,7 @@ export class CadSceneSynchronizer<P> {
   }
 
   sync(document: CadDocument, sink: CadSceneSink<P>): CadSceneSyncStats {
+    this.syncGeneration += 1;
     const current = new Map(
       document.entities
         .filter((entity): entity is CadNativeEntity => this.registry.supports(entity))
@@ -1214,11 +1233,91 @@ export class CadSceneSynchronizer<P> {
   }
 
   /**
+   * Reconciles a scene without blocking the UI on thousands of Three.js object
+   * creations. Existing projections that remain in the target are preserved;
+   * removals happen immediately and new/changed entities are applied in
+   * cancellable batches.
+   */
+  async syncProgressive(
+    document: CadDocument,
+    sink: CadSceneSink<P>,
+    options: CadProgressiveSceneSyncOptions = {},
+  ): Promise<CadProgressiveSceneSyncStats> {
+    const generation = ++this.syncGeneration;
+    const entities = document.entities.filter(
+      (entity): entity is CadNativeEntity => this.registry.supports(entity),
+    );
+    const currentIds = new Set(entities.map((entity) => entity.id));
+    const stats: CadProgressiveSceneSyncStats = {
+      created: 0,
+      updated: 0,
+      removed: 0,
+      unchanged: 0,
+      processed: 0,
+      batches: 0,
+      total: entities.length,
+      cancelled: false,
+    };
+
+    for (const [id, projection] of [...this.projections]) {
+      if (currentIds.has(id)) continue;
+      sink.remove(id, projection);
+      this.projections.delete(id);
+      this.versions.delete(id);
+      this.spatialIndex.remove(id);
+      stats.removed += 1;
+    }
+
+    const batchSize = Math.max(1, Math.floor(options.batchSize ?? 200));
+    const schedule = options.schedule ?? (() => new Promise<void>((resolve) => {
+      if (typeof requestIdleCallback === 'function') {
+        requestIdleCallback(() => resolve(), { timeout: 50 });
+      } else {
+        setTimeout(resolve, 0);
+      }
+    }));
+
+    for (let start = 0; start < entities.length; start += batchSize) {
+      if (start > 0) await schedule();
+      if (generation !== this.syncGeneration) {
+        stats.cancelled = true;
+        return stats;
+      }
+      const batch = entities.slice(start, start + batchSize);
+      for (const entity of batch) {
+        const version = JSON.stringify(entity);
+        const previous = this.projections.get(entity.id);
+        if (!previous) {
+          this.projections.set(entity.id, sink.create(entity));
+          stats.created += 1;
+        } else if (this.versions.get(entity.id) !== version) {
+          this.projections.set(entity.id, sink.update(entity, previous));
+          stats.updated += 1;
+        } else {
+          stats.unchanged += 1;
+        }
+        if (!previous || this.versions.get(entity.id) !== version) {
+          this.spatialIndex.upsert(
+            entity.id,
+            this.registry.adapter(entity).bounds.bounds(entity),
+          );
+        }
+        this.versions.set(entity.id, version);
+      }
+      stats.processed += batch.length;
+      stats.batches += 1;
+      options.onBatch?.({ ...stats });
+    }
+    return stats;
+  }
+
+  /**
    * Applies a known document delta without scanning or hashing the complete
    * drawing. Command handlers can use this for pointermove and small edits,
    * while `sync` remains the safe reconciliation path after load/undo/redo.
    */
   applyPatch(patch: CadScenePatch, sink: CadSceneSink<P>): CadSceneSyncStats {
+    this.syncGeneration += 1;
     let created = 0;
     let updated = 0;
     let removed = 0;
@@ -1273,6 +1372,7 @@ export class CadSceneSynchronizer<P> {
   }
 
   clear(sink: Pick<CadSceneSink<P>, "remove">): void {
+    this.syncGeneration += 1;
     for (const [id, projection] of this.projections)
       sink.remove(id, projection);
     this.projections.clear();

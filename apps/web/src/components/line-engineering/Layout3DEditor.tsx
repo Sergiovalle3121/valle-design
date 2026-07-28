@@ -89,6 +89,7 @@ import {
 } from '@/lib/cad/cad-recovery';
 import { planCadNativeRenderBudget } from '@/lib/cad/native-render-budget';
 import { CadNativeSelectionIndex } from '@/lib/cad/native-selection-index';
+import { cadViewportBoundsChanged, cadViewportBoundsFromCamera } from '@/lib/cad/native-viewport';
 import { exportCadLayoutDxf } from '@/lib/cad/layout-export-adapter';
 import { buildPlotSheet, CAD_PAPER_SIZES, type CadPaperId } from '@/lib/cad/plot-sheet';
 import { evaluateCadDxfExportReadiness, type CadDxfExportLayerSummary, type CadDxfExportReadinessEntity, type CadDxfExportReadinessIssue } from '@/lib/cad/dxf-export-readiness';
@@ -141,6 +142,7 @@ import {
   CadSceneSynchronizer,
   executeCadEntityCommand,
   type CadNativeEntity,
+  type CadBounds,
   type CadPropertyBag,
   type CadScenePatch,
 } from '@/lib/cad/entity-runtime';
@@ -962,7 +964,7 @@ export default function Layout3DEditor({
   const [nativeSelectionIds, setNativeSelectionIds] = useState<string[]>([]);
   const [nativeDocumentRevision, setNativeDocumentRevision] = useState(0);
   const [nativeEntities, setNativeEntities] = useState<CadNativeEntity[]>([]);
-  const [nativeRenderStats, setNativeRenderStats] = useState({ total: 0, rendered: 0, omitted: 0 });
+  const [nativeRenderStats, setNativeRenderStats] = useState({ total: 0, visible: 0, rendered: 0, omitted: 0, batching: false });
   const [placedIds, setPlacedIds] = useState<Set<string>>(new Set());
   const [assetIds, setAssetIds] = useState<Set<string>>(new Set());
   const [tab, setTab] = useState<'stations' | 'equipment'>(standalone ? 'equipment' : 'stations');
@@ -1165,6 +1167,7 @@ export default function Layout3DEditor({
   const nativeSelectionIdsRef = useRef<string[]>([]);
   const nativeSceneSyncRef = useRef<CadSceneSynchronizer<THREE.Object3D> | null>(null);
   const nativeSelectionIndexRef = useRef<CadNativeSelectionIndex | null>(null);
+  const nativeViewportBoundsRef = useRef<CadBounds | null>(null);
   const nativeIndexedDocumentRef = useRef<CadDocument | null>(null);
   if (nativeSceneSyncRef.current === null)
     nativeSceneSyncRef.current = new CadSceneSynchronizer<THREE.Object3D>();
@@ -1740,6 +1743,7 @@ export default function Layout3DEditor({
         width: context.W,
         height: context.H,
       }, nativeSelectionIdsRef.current.includes(entity.id));
+      object.visible = document.layers.find((layer) => layer.id === entity.layer)?.visible !== false;
       group.add(object);
       return object;
     };
@@ -1756,16 +1760,21 @@ export default function Layout3DEditor({
     const nativeDocumentEntities = document.entities.filter(
       (entity): entity is CadNativeEntity => CAD_ENTITY_REGISTRY.supports(entity),
     );
-    const renderPlan = planCadNativeRenderBudget(
-      nativeDocumentEntities,
-      nativeSelectionIdsRef.current,
-    );
     if (nativeIndexedDocumentRef.current !== document) {
       if (patch && nativeIndexedDocumentRef.current)
         selectionIndex.applyPatch(patch);
       else selectionIndex.replace(nativeDocumentEntities);
       nativeIndexedDocumentRef.current = document;
     }
+    const visibleEntities = nativeViewportBoundsRef.current
+      ? selectionIndex.search(nativeViewportBoundsRef.current)
+      : undefined;
+    const renderPlan = planCadNativeRenderBudget(
+      nativeDocumentEntities,
+      nativeSelectionIdsRef.current,
+      undefined,
+      visibleEntities ? { visibleEntities } : undefined,
+    );
     const rebuildNativeOverview = () => {
       if (nativeOverviewRef.current)
         disposeCadNativeObject(nativeOverviewRef.current);
@@ -1795,19 +1804,34 @@ export default function Layout3DEditor({
       nativeOverviewRef.current = null;
       nativeOverviewDocumentRef.current = null;
     }
+    const progressive = renderPlan.rendered > 500;
     setNativeRenderStats((current) =>
       current.total === renderPlan.total
+        && current.visible === renderPlan.visible
         && current.rendered === renderPlan.rendered
         && current.omitted === renderPlan.omitted
+        && current.batching === progressive
         ? current
         : {
             total: renderPlan.total,
+            visible: renderPlan.visible,
             rendered: renderPlan.rendered,
             omitted: renderPlan.omitted,
+            batching: progressive,
           },
     );
-    if (patch && !renderPlan.limited) synchronizer.applyPatch(patch, sink);
-    else synchronizer.sync({ ...document, entities: renderPlan.entities }, sink);
+    const projectedDocument = { ...document, entities: renderPlan.entities };
+    if (progressive) {
+      void synchronizer.syncProgressive(projectedDocument, sink, {
+        batchSize: 160,
+      }).then((stats) => {
+        if (stats.cancelled) return;
+        refreshNativeSelectionVisuals();
+        applyLayersRef.current();
+        setNativeRenderStats((current) => ({ ...current, batching: false }));
+      });
+    } else if (patch && !renderPlan.limited) synchronizer.applyPatch(patch, sink);
+    else synchronizer.sync(projectedDocument, sink);
     refreshNativeSelectionVisuals();
     applyLayersRef.current();
   }, [refreshNativeSelectionVisuals]);
@@ -2425,6 +2449,7 @@ export default function Layout3DEditor({
     const W = fp.footprintW || 1; const H = fp.footprintH || 1;
     const s = 30 / Math.max(W, H);
     ctxRef.current = { s, W, H };
+    nativeViewportBoundsRef.current = { minX: 0, minY: 0, maxX: W, maxY: H };
     nativeSceneSyncRef.current?.clear({
       remove: (_id, projection) => disposeCadNativeObject(projection),
     });
@@ -2519,6 +2544,18 @@ export default function Layout3DEditor({
     controls.maxPolarAngle = Math.PI / 2.05;
     controls.target.set(0, 0, 0); controls.update();
     controlsRef.current = controls;
+    let viewportSyncTimer: ReturnType<typeof setTimeout> | null = null;
+    const queueNativeViewportSync = () => {
+      if (viewportSyncTimer) clearTimeout(viewportSyncTimer);
+      viewportSyncTimer = setTimeout(() => {
+        const bounds = cadViewportBoundsFromCamera(camera, { scale: s, width: W, height: H });
+        if (!bounds || !cadViewportBoundsChanged(nativeViewportBoundsRef.current, bounds)) return;
+        nativeViewportBoundsRef.current = bounds;
+        syncNativeScene();
+      }, 80);
+    };
+    controls.addEventListener('change', queueNativeViewportSync);
+    queueNativeViewportSync();
 
     // ---- drag a station block or an asset on the floor ----
     const raycaster = new THREE.Raycaster();
@@ -3066,6 +3103,7 @@ export default function Layout3DEditor({
     const onResize = () => {
       const w = mount.clientWidth || width; const hh = mount.clientHeight || height;
       renderer.setSize(w, hh); camera.aspect = w / hh; camera.updateProjectionMatrix();
+      queueNativeViewportSync();
     };
     const ro = new ResizeObserver(onResize); ro.observe(mount);
 
@@ -3085,6 +3123,7 @@ export default function Layout3DEditor({
         camera.position.z = Math.max(-lim, Math.min(lim, camera.position.z));
         camera.position.y = eyeY;
         camera.lookAt(camera.position.x + Math.sin(yaw) * Math.cos(pitch), camera.position.y + Math.sin(pitch), camera.position.z - Math.cos(yaw) * Math.cos(pitch));
+        if (k.f || k.b || k.l || k.r) queueNativeViewportSync();
       } else {
         controls.update();
       }
@@ -3095,17 +3134,20 @@ export default function Layout3DEditor({
 
     return () => {
       disposed = true; cancelAnimationFrame(raf);
+      if (viewportSyncTimer) clearTimeout(viewportSyncTimer);
       ro.disconnect();
       renderer.domElement.removeEventListener('pointerdown', onDown);
       renderer.domElement.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('keydown', walkKd);
       window.removeEventListener('keyup', walkKu);
+      controls.removeEventListener('change', queueNativeViewportSync);
       controls.dispose();
       disposeObject(scene);
       nativeSceneSyncRef.current?.clear({ remove: () => {} });
       nativeOverviewRef.current = null;
       nativeOverviewDocumentRef.current = null;
+      nativeViewportBoundsRef.current = null;
       renderer.dispose();
       if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
       sceneRef.current = null; rendererRef.current = null; cameraRef.current = null;
@@ -7312,10 +7354,15 @@ export default function Layout3DEditor({
               <span title="Entidades nativas en el documento canónico">Native {nativeEntities.length}</span>
               {nativeRenderStats.omitted > 0 && (
                 <span
+                  data-testid="cad-native-render-stats"
+                  data-total={nativeRenderStats.total}
+                  data-visible={nativeRenderStats.visible}
+                  data-rendered={nativeRenderStats.rendered}
+                  data-batching={nativeRenderStats.batching ? 'true' : 'false'}
                   className="text-amber-300"
-                  title={`${nativeRenderStats.omitted.toLocaleString()} entidades permanecen en el documento canónico y usan nivel de detalle visual`}
+                  title={`${nativeRenderStats.visible.toLocaleString()} entidades en bounds visibles; ${nativeRenderStats.omitted.toLocaleString()} permanecen sólo en overview/canónico`}
                 >
-                  LOD {nativeRenderStats.rendered.toLocaleString()}/{nativeRenderStats.total.toLocaleString()} · overview completo
+                  Viewport {nativeRenderStats.rendered.toLocaleString()}/{nativeRenderStats.visible.toLocaleString()} visibles · {nativeRenderStats.total.toLocaleString()} total{nativeRenderStats.batching ? ' · cargando…' : ''}
                 </span>
               )}
               <span>{data?.footprint.unit ?? 'mm'}</span>

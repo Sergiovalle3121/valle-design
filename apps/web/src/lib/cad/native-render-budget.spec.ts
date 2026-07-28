@@ -18,9 +18,11 @@ const entities: CadNativeEntity[] = Array.from({ length: 100_000 }, (_, index) =
 
 const plan = planCadNativeRenderBudget(entities, ["arc-99999", "arc-50001"]);
 assert.equal(plan.total, 100_000);
+assert.equal(plan.visible, 100_000);
 assert.equal(plan.rendered, CAD_NATIVE_LARGE_DRAWING_RENDER_LIMIT);
 assert.equal(plan.omitted, 100_000 - CAD_NATIVE_LARGE_DRAWING_RENDER_LIMIT);
 assert.equal(plan.limited, true);
+assert.equal(plan.viewportDriven, false);
 assert.deepEqual(plan.entities.slice(0, 2).map((entity) => entity.id), [
   "arc-50001",
   "arc-99999",
@@ -41,9 +43,11 @@ assert.equal(complete.entities, small);
 assert.deepEqual(complete, {
   entities: small,
   total: 5,
+  visible: 5,
   rendered: 5,
   omitted: 0,
   limited: false,
+  viewportDriven: false,
 });
 
 const selectedOverflow = planCadNativeRenderBudget(entities.slice(0, 10), [
@@ -59,3 +63,29 @@ const tenThousand = planCadNativeRenderBudget(
 );
 assert.equal(tenThousand.limited, false);
 assert.equal(tenThousand.rendered, CAD_NATIVE_DETAILED_RENDER_LIMIT);
+
+const zoomedEntities = entities.slice(51_000, 51_600);
+const zoomed = planCadNativeRenderBudget(
+  entities,
+  ['arc-99999'],
+  undefined,
+  { visibleEntities: zoomedEntities },
+);
+assert.equal(zoomed.viewportDriven, true);
+assert.equal(zoomed.visible, 600);
+assert.equal(zoomed.rendered, 601);
+assert.equal(zoomed.entities[0]?.id, 'arc-99999');
+assert.deepEqual(zoomed.entities.slice(1), zoomedEntities);
+
+const denseViewport = planCadNativeRenderBudget(
+  entities,
+  [],
+  undefined,
+  { visibleEntities: entities.slice(10_000, 30_000) },
+);
+assert.equal(denseViewport.visible, 20_000);
+assert.equal(denseViewport.rendered, CAD_NATIVE_LARGE_DRAWING_RENDER_LIMIT);
+assert.ok(denseViewport.entities.every((entity) => {
+  const index = Number(entity.id.slice(4));
+  return index >= 10_000 && index < 30_000;
+}));

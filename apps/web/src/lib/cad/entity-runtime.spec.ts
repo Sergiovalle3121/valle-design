@@ -176,6 +176,10 @@ assert.deepEqual(
   index.search({ minX: 90, minY: 90, maxX: 110, maxY: 160 }),
   ["arc"],
 );
+assert.deepEqual(
+  index.search({ minX: -100_000, minY: -100_000, maxX: 100_000, maxY: 100_000 }),
+  ["arc", "ellipse"],
+);
 assert.equal(index.bounds("ellipse")?.maxX, 380);
 
 type Projection = { id: string; revision: number };
