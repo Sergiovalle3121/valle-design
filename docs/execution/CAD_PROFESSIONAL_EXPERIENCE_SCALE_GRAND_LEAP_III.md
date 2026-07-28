@@ -241,6 +241,21 @@ Orden de ejecución:
 - Siguiente acción: publicar la rama y abrir PR draft; no hacer auto-merge porque
   el merge a `main` despliega producción.
 
+### 2026-07-28 02:18–02:26 — Publicación y tenant-safety CI
+
+- Rama publicada con SHA remoto igual al local y PR draft #1416 abierto.
+- La primera corrida CI `30342043079` llegó al gate tenant-safety y se detuvo
+  porque el inventario versionado conservaba números de línea anteriores.
+- Diagnóstico: las 40/40 pruebas del analizador pasaron; no hubo hallazgo nuevo,
+  cambio de severidad ni entrada baseline faltante. El código añadido desplazó
+  18 ubicaciones ya conocidas en `line-engineering.service.ts`.
+- Remediación: inventario/reporte regenerados con el comando oficial y diff
+  revisado; sólo cambian esos 18 números de línea.
+- Evidencia local: `npm run test:tenant-safety`, 40/40; `npm run
+  check:tenant-safety`, pass con 987 hallazgos y 987 entradas baseline.
+- Siguiente acción: commit/push del inventario, esperar la nueva corrida completa
+  y corregir únicamente fallos atribuibles a esta rama.
+
 ## Evidencia acumulada
 
 | Capacidad | Antes | Después de esta rama |
