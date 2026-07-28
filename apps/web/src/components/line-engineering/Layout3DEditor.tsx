@@ -83,6 +83,7 @@ import {
 } from '@/lib/cad/large-document-transport';
 import {
   clearCadRecovery,
+  CadRecoveryQuotaError,
   loadCadRecovery,
   saveCadRecovery,
   type CadRecoveryRecord,
@@ -906,6 +907,8 @@ export default function Layout3DEditor({
   const [dirty, setDirty] = useState(false);
   const [recoveryCandidate, setRecoveryCandidate] = useState<CadRecoveryRecord | null>(null);
   const [recoverySavedAt, setRecoverySavedAt] = useState<string | null>(null);
+  const [recoveryWarning, setRecoveryWarning] = useState<string | null>(null);
+  const recoveryWriteInFlightRef = useRef(false);
   const [saving, setSaving] = useState(false);
   const [serverBusy, setServerBusy] = useState(false); // server auto-arrange/optimize in flight (unify)
   const [approval, setApproval] = useState<LayoutApproval | null>(null); // sign-off status (unify)
@@ -2154,19 +2157,36 @@ export default function Layout3DEditor({
     if (!open || !dirty || !data || !recoveryScope) return;
     let active = true;
     const checkpoint = () => {
+      if (recoveryWriteInFlightRef.current) return;
+      recoveryWriteInFlightRef.current = true;
       const document = snapshotDocument();
       void saveCadRecovery(recoveryScope, document, data.cadDocumentVersion ?? 0)
-        .then((record) => { if (active) setRecoverySavedAt(record.savedAt); })
-        .catch(() => undefined);
+        .then((record) => {
+          if (!active) return;
+          setRecoverySavedAt(record.savedAt);
+          setRecoveryWarning(null);
+        })
+        .catch((cause) => {
+          if (!active) return;
+          setRecoveryWarning(cause instanceof CadRecoveryQuotaError
+            ? cause.message
+            : 'No se pudo actualizar la recuperación local. Guarda el dibujo en el servidor.');
+        })
+        .finally(() => { recoveryWriteInFlightRef.current = false; });
+    };
+    const checkpointWhenHidden = () => {
+      if (document.visibilityState === 'hidden') checkpoint();
     };
     const initialTimer = window.setTimeout(checkpoint, 3_000);
     const interval = window.setInterval(checkpoint, 15_000);
     window.addEventListener('beforeunload', checkpoint);
+    document.addEventListener('visibilitychange', checkpointWhenHidden);
     return () => {
       active = false;
       window.clearTimeout(initialTimer);
       window.clearInterval(interval);
       window.removeEventListener('beforeunload', checkpoint);
+      document.removeEventListener('visibilitychange', checkpointWhenHidden);
     };
   }, [data, dirty, open, recoveryScope, snapshotDocument]);
 
@@ -6410,6 +6430,7 @@ export default function Layout3DEditor({
       setDirty(false);
       setRecoveryCandidate(null);
       setRecoverySavedAt(null);
+      setRecoveryWarning(null);
       if (recoveryScope) void clearCadRecovery(recoveryScope).catch(() => undefined);
       onSaved?.();
       return saved;
@@ -7277,6 +7298,9 @@ export default function Layout3DEditor({
                   <div className="min-w-0 flex-1">
                     <div className="text-[12px] font-semibold text-amber-100">Borrador local recuperable</div>
                     <div className="mt-1 text-[10.5px] leading-snug text-gray-400">Guardado automáticamente {new Date(recoveryCandidate.savedAt).toLocaleString()} en este tenant, usuario y workspace.</div>
+                    {recoveryCandidate.format !== 'legacy-object' && (
+                      <div className="mt-1 text-[10px] text-sky-200/80">Journal #{recoveryCandidate.journalSequence} · {(recoveryCandidate.storedBytes / 1_000_000).toFixed(2)} MB local · {recoveryCandidate.format} · {recoveryCandidate.encoder ?? 'legacy'}</div>
+                    )}
                     <div className="mt-2 flex gap-2">
                       <button onClick={restoreRecoveryCandidate} className="rounded-lg bg-amber-400 px-2.5 py-1.5 text-[11px] font-semibold text-gray-950 hover:bg-amber-300">Restaurar</button>
                       <button onClick={discardRecoveryCandidate} className="rounded-lg border border-white/10 px-2.5 py-1.5 text-[11px] text-gray-300 hover:bg-white/10">Descartar</button>
@@ -7369,6 +7393,7 @@ export default function Layout3DEditor({
               <span title="Modelo, revisión funcional y versión CAS">{model} · {revision} · v{data?.cadDocumentVersion ?? 0}</span>
               <span className={saving ? 'text-cyan-200' : dirty ? 'text-amber-300' : 'text-emerald-300'}>{saving ? 'Guardando…' : dirty ? 'Modificado' : 'Guardado'}</span>
               {dirty && recoverySavedAt && <span className="text-sky-300" title={recoverySavedAt}>Recovery local activo</span>}
+              {dirty && recoveryWarning && <span className="text-rose-300" title={recoveryWarning}>Recovery local en riesgo</span>}
               <span className={connectionState === 'online' ? 'text-emerald-300' : connectionState === 'offline' ? 'text-rose-300' : 'text-gray-400'}>{connectionState === 'online' ? 'API online' : connectionState === 'offline' ? 'API offline' : 'API…'}</span>
               <span>Layer {cadLayers.find((layer) => layer.id === activeCadLayer)?.label ?? activeCadLayer}</span>
               {cadLayerSummary.hiddenObjectCount > 0 && <span className="text-amber-300">Hidden layer objs {cadLayerSummary.hiddenObjectCount}</span>}

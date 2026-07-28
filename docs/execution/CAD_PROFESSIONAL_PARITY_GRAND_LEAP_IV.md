@@ -6,9 +6,9 @@
 | --- | --- |
 | `MISSION_STARTED_AT` | 2026-07-28 12:08:49 -06:00 |
 | `MISSION_TARGET_END` | 2026-07-28 22:08:49 -06:00 |
-| `MISSION_CURRENT_PHASE` | P0-C — recovery, compresión y cuotas fuera del hilo principal |
-| `MISSION_COMPLETED_GATES` | dock extraído; render dirigido por viewport y progresivo; Chromium 100k verde |
-| `MISSION_NEXT_ACTION` | mover serialización/compresión de recovery a worker y probar IndexedDB/cuota real |
+| `MISSION_CURRENT_PHASE` | P0-D — lifecycle/GC del blob store y frontera object-storage |
+| `MISSION_COMPLETED_GATES` | viewport 100k; recovery worker + journal gzip + restore + cuota real en Chromium |
+| `MISSION_NEXT_ACTION` | inventariar referencias de blobs, impedir borrado referenciado y ejecutar GC seguro |
 | Repositorio | `Sergiovalle3121/axos-os` |
 | Base | `1625ba26a07876943b821586c46b02c9f47f6bac` (`origin/main`) |
 | Rama / PR | `codex/cad-professional-grand-leap-iii` / #1416 |
@@ -49,12 +49,12 @@ Sólo se conceden puntos por evidencia actual del repositorio y navegador.
 | Selección y modificación | 10 | 5 | `browser-proven` parcial | pick/window canónico; faltan fence/lasso/cycling/quick select |
 | Entidades de documentación | 10 | 4 | `tested` parcial | HATCH poligonal nativo; MTEXT/DIM/MLEADER incompletos |
 | Rendimiento 10k/100k | 15 | 10 | `browser-proven` parcial | viewport real, lotes cancelables y arnés 100k; aún no 60 FPS ni memoria estabilizada |
-| Persistencia/recovery/versionado | 10 | 6 | `tested` | gzip/blob/CAS/recovery; snapshot pesado y lifecycle incompleto |
+| Persistencia/recovery/versionado | 10 | 8 | `browser-proven` | worker gzip, journal rotativo, restore y cuota; falta delta journal nativo |
 | Capas, bloques y referencias | 10 | 5 | `tested` parcial | capas/bloques presentes; xrefs parciales |
 | Layouts, viewports y publicación | 10 | 6 | `tested` | paper space/PDF/recibos; UI multi-viewport parcial |
 | Interoperabilidad/extensibilidad | 5 | 3 | `tested` | DXF semántico acotado; DWG `provider-required` |
 | Calidad enterprise/seguridad/pruebas | 10 | 9 | `tested` | CI/tenant/brand/smokes verdes; falta arnés perf bloqueante |
-| **Total** | **100** | **58** |  | Sin claim de paridad general |
+| **Total** | **100** | **60** |  | Sin claim de paridad general |
 
 ## Paridad completa separada
 
@@ -117,6 +117,25 @@ No se editan ramas comerciales, ERP o PDF durante la construcción CAD.
   e2e/performance/cad-viewport-100k.spec.ts --project=chromium` — 1/1 verde.
 - Specs focales: viewport 5/5, sync progresivo 9/9, runtime/selección/render
   verdes; TypeScript y lint focal verdes.
+
+### 2026-07-28 12:28–12:38 — P0-C / recovery durable
+
+- Recovery v2 usa un Web Worker real para `JSON.stringify`, SHA-256, gzip,
+  descompresión y parseo; el fallback cede el event loop y queda identificado.
+- IndexedDB conserva un journal append-only de tres checkpoints por scope
+  tenant/usuario/workspace/dibujo y hasta 24 globales; expira a siete días.
+- Cada registro guarda Blob comprimido, tamaños, SHA, secuencia y encoder; no
+  duplica el documento completo inline. La carga intenta de nuevo hacia atrás
+  si el checkpoint más nuevo está vencido o corrupto.
+- La cuota se estima, poda antes de escribir, reintenta una vez tras
+  `QuotaExceededError` y muestra riesgo visible si persiste.
+- Los checkpoints no se solapan; se disparan tras 3 s, cada 15 s, al ocultarse
+  la pestaña y antes de descargar/cerrar. El último checkpoint de cierre
+  también forma parte del journal.
+- Chromium real: journal [2,3,4], `encoder=worker`, gzip, Blob sin documento
+  inline, reload/restore de la última geometría y cuota del origen forzada a
+  1 byte con aviso visible — 2/2 verde.
+- Codec 7/7, scope isolation 2/2, TypeScript y lint focal verdes.
 
 ## Claims
 
