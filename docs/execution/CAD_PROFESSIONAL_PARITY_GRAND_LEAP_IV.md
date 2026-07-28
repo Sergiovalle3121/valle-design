@@ -6,9 +6,9 @@
 | --- | --- |
 | `MISSION_STARTED_AT` | 2026-07-28 12:08:49 -06:00 |
 | `MISSION_TARGET_END` | 2026-07-28 22:08:49 -06:00 |
-| `MISSION_CURRENT_PHASE` | P0-D — lifecycle/GC del blob store y frontera object-storage |
-| `MISSION_COMPLETED_GATES` | viewport 100k; recovery worker + journal gzip + restore + cuota real en Chromium |
-| `MISSION_NEXT_ACTION` | inventariar referencias de blobs, impedir borrado referenciado y ejecutar GC seguro |
+| `MISSION_CURRENT_PHASE` | P0-E — selection controller profesional |
+| `MISSION_COMPLETED_GATES` | viewport 100k; recovery worker/journal; blob GC bifásico y tenant-safe |
+| `MISSION_NEXT_ACTION` | unificar modos pick/add/remove/window/crossing/polygon/fence/lasso y previous/last/all/invert |
 | Repositorio | `Sergiovalle3121/axos-os` |
 | Base | `1625ba26a07876943b821586c46b02c9f47f6bac` (`origin/main`) |
 | Rama / PR | `codex/cad-professional-grand-leap-iii` / #1416 |
@@ -49,12 +49,12 @@ Sólo se conceden puntos por evidencia actual del repositorio y navegador.
 | Selección y modificación | 10 | 5 | `browser-proven` parcial | pick/window canónico; faltan fence/lasso/cycling/quick select |
 | Entidades de documentación | 10 | 4 | `tested` parcial | HATCH poligonal nativo; MTEXT/DIM/MLEADER incompletos |
 | Rendimiento 10k/100k | 15 | 10 | `browser-proven` parcial | viewport real, lotes cancelables y arnés 100k; aún no 60 FPS ni memoria estabilizada |
-| Persistencia/recovery/versionado | 10 | 8 | `browser-proven` | worker gzip, journal rotativo, restore y cuota; falta delta journal nativo |
+| Persistencia/recovery/versionado | 10 | 9 | `browser-proven` | worker/journal/cuota y lifecycle de blobs; falta delta journal nativo |
 | Capas, bloques y referencias | 10 | 5 | `tested` parcial | capas/bloques presentes; xrefs parciales |
 | Layouts, viewports y publicación | 10 | 6 | `tested` | paper space/PDF/recibos; UI multi-viewport parcial |
 | Interoperabilidad/extensibilidad | 5 | 3 | `tested` | DXF semántico acotado; DWG `provider-required` |
 | Calidad enterprise/seguridad/pruebas | 10 | 9 | `tested` | CI/tenant/brand/smokes verdes; falta arnés perf bloqueante |
-| **Total** | **100** | **60** |  | Sin claim de paridad general |
+| **Total** | **100** | **61** |  | Sin claim de paridad general |
 
 ## Paridad completa separada
 
@@ -136,6 +136,25 @@ No se editan ramas comerciales, ERP o PDF durante la construcción CAD.
   inline, reload/restore de la última geometría y cuota del origen forzada a
   1 byte con aviso visible — 2/2 verde.
 - Codec 7/7, scope isolation 2/2, TypeScript y lint focal verdes.
+
+### 2026-07-28 12:38–12:44 — P0-D / lifecycle de blobs
+
+- `DocumentBlobLifecycleService` inventaría referencias desde versiones PDF,
+  assets del autor, documento CAD actual y snapshots CAD; toda consulta pasa
+  por repositorios tenant-scoped estrictos.
+- GC bifásico: blob viejo no referenciado se marca; sólo un barrido posterior,
+  tras la gracia y una nueva comprobación, puede borrarlo. Una referencia o un
+  `put` deduplicado limpia la marca.
+- El primitivo directo `delete` del adaptador de base rechaza blobs sin marca
+  de lifecycle; el endpoint operativo es dry-run por defecto y exige
+  `confirm="collect-unreferenced-blobs"` para mutar.
+- Migración agrega `gc_marked_at` e índice tenant/GC/edad. El resultado reporta
+  escaneados, referenciados, recientes, marcados, borrados y bytes recuperados.
+- El contrato `StreamingDocumentBlobStore` define `putStream/getStream` para un
+  adaptador S3-compatible sin fingir que el adaptador DB actual hace streaming.
+- Evidencia SQLite/Jest: referencias de cuatro consumidores preservadas,
+  orphan marcado y luego eliminado, 512 bytes recuperados, tenant B aislado;
+  2/2 lifecycle + 5/5 DocumentsService, API typecheck y lint focal verdes.
 
 ## Claims
 
