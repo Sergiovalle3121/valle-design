@@ -13,7 +13,7 @@ import {
   AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
   AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, RulerDimensionLine, Rows3, Waypoints,
   ShieldCheck, CircleCheck, CircleAlert, Printer, ChartLine, FileText, WandSparkles, Stamp, Upload, ImageOff, Activity, History, Group, Search,
-  Expand, Frame, Focus, PanelLeft, PanelLeftClose, ScanEye,
+  Expand, Frame, Focus, PanelLeft, PanelLeftClose, ScanEye, GitMerge,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/apiFetch';
 import { useToast } from '@/contexts/ToastContext';
@@ -167,6 +167,10 @@ import {
   type CadPublicationRecord,
 } from '@/lib/cad/cad-document';
 import {
+  cadReviewLinkIsActive,
+  type CadEntityDiffRow,
+} from '@/lib/cad/cad-collaboration';
+import {
   CAD_SHEET_PAPERS,
   buildCadPublishPlan,
   createCadPaperSpace,
@@ -277,6 +281,7 @@ import { CadMLeaderPalette, type CadMLeaderDraft } from './cad-workbench/CadMLea
 import { CadBlockPalette, type CadBlockDefinitionDraft, type CadBlockInsertDraft } from './cad-workbench/CadBlockPalette';
 import { CadLayoutManager } from './cad-workbench/CadLayoutManager';
 import { CadXrefPalette, type CadXrefAttachDraft } from './cad-workbench/CadXrefPalette';
+import { CadCollaborationPalette } from './cad-workbench/CadCollaborationPalette';
 import { CadWorkspaceDock } from './cad-workbench/CadWorkspaceDock';
 import { cadEntityAssociationAnchor } from '@/lib/cad/associative-dimension';
 import {
@@ -1022,6 +1027,8 @@ export default function Layout3DEditor({
   const [activePaperViewportId, setActivePaperViewportId] = useState<string | null>(null);
   const [layoutPreviewSheet, setLayoutPreviewSheet] = useState<CadPublishSheet | null>(null);
   const [cadLibraryTab, setCadLibraryTab] = useState<'blocks' | 'xrefs'>('blocks');
+  const [showCollaborationDock, setShowCollaborationDock] = useState(false);
+  const [cadReviewReadOnly, setCadReviewReadOnly] = useState(false);
   const [publishingSheetSet, setPublishingSheetSet] = useState(false);
   const [publicationWarnings, setPublicationWarnings] = useState<CadPublishWarning[]>([]);
   const [dxfExportOptions, setDxfExportOptions] = useState<DxfExportOptions>({ scope: 'all', includeHidden: true, includeMeasurements: true, includeLabels: true, units: 'mm', fileName: '' });
@@ -1671,7 +1678,7 @@ export default function Layout3DEditor({
     queueMicrotask(() => {
       if (!alive) return;
       setData(null); setError(null); setConnectionState('checking'); setSelList([]); setSelSnap(null); setNativeSelectionIds([]); setNativeEntities([]); setDirty(false); setRecoveryCandidate(null); setRecoverySavedAt(null); setTab('stations');
-      setOverlay(null); setTool('select'); setMeasureLive(null); setWalk(false); setHist({ undo: 0, redo: 0 }); setCellsView([]); setPaperSpaces([]); setPaperSpaceLayers([]); setCadXrefs([]); setPublicationRecords([]); setActivePaperSpaceId(null); setActivePaperViewportId(null); setLayoutPreviewSheet(null); setPublicationWarnings([]); setValidationHighlightIds(new Set()); setCollisionHits([]); setClearanceIssues([]); setSafetyIssues([]); setCadValidationReport(null); setIndustrySummary(null); setFlowHealth(null); setFlowSequence([]); setFlowSegments([]); setSnapshotDiff(null); setReport(null);
+      setOverlay(null); setTool('select'); setMeasureLive(null); setWalk(false); setHist({ undo: 0, redo: 0 }); setCellsView([]); setPaperSpaces([]); setPaperSpaceLayers([]); setCadXrefs([]); setPublicationRecords([]); setActivePaperSpaceId(null); setActivePaperViewportId(null); setLayoutPreviewSheet(null); setPublicationWarnings([]); setValidationHighlightIds(new Set()); setCollisionHits([]); setClearanceIssues([]); setSafetyIssues([]); setCadValidationReport(null); setIndustrySummary(null); setFlowHealth(null); setFlowSequence([]); setFlowSegments([]); setSnapshotDiff(null); setReport(null); setShowCollaborationDock(false); setCadReviewReadOnly(false);
     });
     selRef.current = []; nativeSelectionIdsRef.current = []; overlayColorRef.current = new Map(); validationHighlightRef.current = new Set(); toolRef.current = 'select'; measureARef.current = null; wallChainRef.current = null;
     walkRef.current = false; savedCamRef.current = null; undoStackRef.current = []; redoStackRef.current = []; loadedCadDocumentRef.current = null;
@@ -1756,6 +1763,10 @@ export default function Layout3DEditor({
         setPaperSpaceLayers(loadedCadDocumentRef.current.layers.map((layer) => ({ ...layer })));
         setCadXrefs(loadedCadDocumentRef.current.externalReferences.map((reference) => ({ ...reference })));
         setPublicationRecords([...loadedCadDocumentRef.current.publications]);
+        const reviewToken = new URLSearchParams(window.location.search).get('cadReview');
+        const readOnlyReview = !!reviewToken && cadReviewLinkIsActive(loadedCadDocumentRef.current, reviewToken);
+        setCadReviewReadOnly(readOnlyReview);
+        if (readOnlyReview) setShowCollaborationDock(true);
         setActivePaperSpaceId(restoredPaperSpaces[0]?.id ?? null);
         setActivePaperViewportId(restoredPaperSpaces[0]?.viewports?.[0]?.id ?? null);
         setLayoutPreviewSheet(null);
@@ -2461,6 +2472,44 @@ export default function Layout3DEditor({
     restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
     setHist({ undo: undoStackRef.current.length, redo: redoStackRef.current.length });
   }, [snapshotDocument, restore]);
+
+  const applyCollaborationDocument = useCallback((next: CadDocument, label: string) => {
+    if (cadReviewReadOnly) {
+      toast.error('Este enlace de revisión es de solo lectura.', 'Review');
+      return;
+    }
+    pushHistory();
+    const document = commitChange(next, label);
+    loadedCadDocumentRef.current = document;
+    setPaperSpaces(document.paperSpaces.map((space) => ({ ...space })));
+    setPaperSpaceLayers(document.layers.map((layer) => ({ ...layer })));
+    setCadXrefs(document.externalReferences.map((reference) => ({ ...reference })));
+    setPublicationRecords([...document.publications]);
+    setNativeEntities(document.entities.filter((entity): entity is CadNativeEntity => CAD_ENTITY_REGISTRY.supports(entity)));
+    setNativeDocumentRevision((value) => value + 1);
+    restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
+    toast.success(label, 'Compare / Merge');
+  }, [cadReviewReadOnly, pushHistory, restore, toast]);
+  const visualizeCollaborationDiff = useCallback((rows: CadEntityDiffRow[]) => {
+    const ids = new Set(rows.map((row) => row.entityId));
+    validationHighlightRef.current = ids;
+    setValidationHighlightIds(ids);
+    rebuildAll();
+  }, [rebuildAll]);
+  const navigateCollaborationDiff = useCallback((entityId: string) => {
+    validationHighlightRef.current = new Set([entityId]);
+    setValidationHighlightIds(new Set([entityId]));
+    if (placementsRef.current.has(entityId)) {
+      clearNativeSelection(); select([{ type: 'station', id: entityId }]);
+    } else if (assetsRef.current.has(entityId)) {
+      clearNativeSelection(); select([{ type: 'asset', id: entityId }]);
+    } else if (loadedCadDocumentRef.current?.entities.some((entity) => entity.id === entityId)) {
+      select([]);
+      nativeSelectionIdsRef.current = [entityId];
+      setNativeSelectionIds([entityId]);
+    }
+    rebuildAll();
+  }, [clearNativeSelection, rebuildAll, select]);
 
   useEffect(() => {
     if (!open || !data || !recoveryScope || dirty) return;
@@ -6029,7 +6078,7 @@ export default function Layout3DEditor({
     }));
   };
   const saveVersion = async () => {
-    if (!model) return;
+    if (!model || cadReviewReadOnly) return;
     setVersBusy(true);
     try {
       const r = await apiFetch(`${API_BASE}/line-engineering/layout/snapshots`, {
@@ -6041,7 +6090,7 @@ export default function Layout3DEditor({
     } catch { toast.error('Error de red.', '3D'); } finally { setVersBusy(false); }
   };
   const restoreVersion = async (id: string) => {
-    if (!model) return;
+    if (!model || cadReviewReadOnly) return;
     setVersBusy(true);
     try {
       const r = await apiFetch(`${API_BASE}/line-engineering/layout/snapshots/${id}/restore?${scopeQs}`, { method: 'POST' });
@@ -6051,7 +6100,7 @@ export default function Layout3DEditor({
     } catch { toast.error('Error de red.', '3D'); } finally { setVersBusy(false); }
   };
   const deleteVersion = async (id: string) => {
-    if (!model) return;
+    if (!model || cadReviewReadOnly) return;
     try {
       const r = await apiFetch(`${API_BASE}/line-engineering/layout/snapshots/${id}?${scopeQs}`, { method: 'DELETE' });
       if (r.ok) setVersions((await r.json()) as typeof versions);
@@ -6059,7 +6108,7 @@ export default function Layout3DEditor({
   };
   // ---- clone from another model's layout as a template (ported from 2D, unify) ----
   const cloneFrom = async () => {
-    if (!cloneSrc || !model) return;
+    if (!cloneSrc || !model || cadReviewReadOnly) return;
     const [fromModel, fromRevision] = cloneSrc.split('|');
     setCloneBusy(true);
     try {
@@ -6074,7 +6123,7 @@ export default function Layout3DEditor({
   };
   // ---- approval / sign-off (ported from 2D, unify) ----
   const setApprovalStatus = async (status: ApprovalStatus) => {
-    if (!model) return;
+    if (!model || cadReviewReadOnly) return;
     setApprovalBusy(true);
     try {
       const r = await apiFetch(`${API_BASE}/line-engineering/layout/approval`, {
@@ -7467,6 +7516,10 @@ export default function Layout3DEditor({
   };
   const save = async (): Promise<Layout | null> => {
     if (!model || !data) return null;
+    if (cadReviewReadOnly) {
+      toast.error('Este enlace de revisión no puede guardar ni publicar cambios.', 'Review');
+      return null;
+    }
     setSaving(true);
     try {
       const positions = [...placementsRef.current.entries()].map(([id, p]) => ({ id, ...p }));
@@ -7792,14 +7845,16 @@ export default function Layout3DEditor({
       : showDimensionPalette ? 'dimension'
         : showMleaderPalette ? 'mleader'
           : showBlockPalette ? 'blocks'
-            : showWorkspaceDock ? 'workspace'
-              : null;
+            : showCollaborationDock ? 'collaboration'
+              : showWorkspaceDock ? 'workspace'
+                : null;
   const closeProfessionalDocks = () => {
     setShowSelectionPalette(false);
     setShowHatchPalette(false);
     setShowDimensionPalette(false);
     setShowMleaderPalette(false);
     setShowBlockPalette(false);
+    setShowCollaborationDock(false);
     setShowWorkspaceDock(false);
   };
   const toggleProfessionalDock = (dock: NonNullable<typeof activeProfessionalDock>) => {
@@ -7815,6 +7870,7 @@ export default function Layout3DEditor({
     else if (dock === 'dimension') setShowDimensionPalette(true);
     else if (dock === 'mleader') setShowMleaderPalette(true);
     else if (dock === 'blocks') setShowBlockPalette(true);
+    else if (dock === 'collaboration') setShowCollaborationDock(true);
     else setShowWorkspaceDock(true);
   };
   const handleCadContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -8001,7 +8057,8 @@ export default function Layout3DEditor({
       : activeProfessionalDock === 'dimension' ? 'Dimensiones'
         : activeProfessionalDock === 'mleader' ? 'MLeader'
           : activeProfessionalDock === 'blocks' ? 'Bloques / Xrefs'
-            : 'Workspace';
+            : activeProfessionalDock === 'collaboration' ? 'Compare / Merge / Review'
+              : 'Workspace';
   const professionalDockContent = activeProfessionalDock === 'selection' ? (
     <CadSelectionPalette
       docked
@@ -8091,6 +8148,15 @@ export default function Layout3DEditor({
         />}
       </div>
     </div>
+  ) : activeProfessionalDock === 'collaboration' && loadedCadDocumentRef.current ? (
+    <CadCollaborationPalette
+      document={snapshotDocument()}
+      actor={user?.id ?? 'authenticated-user'}
+      reviewReadOnly={cadReviewReadOnly}
+      onDocumentChange={applyCollaborationDocument}
+      onVisualize={visualizeCollaborationDiff}
+      onNavigate={navigateCollaborationDiff}
+    />
   ) : activeProfessionalDock === 'workspace' ? (
     <CadWorkspaceDock
       preferences={workspacePreferences}
@@ -8122,6 +8188,7 @@ export default function Layout3DEditor({
         <div className="w-px h-5 bg-white/10" />
         <BoxIcon className="w-4 h-4" style={{ color: '#f43f5e' }} />
         <span className="font-semibold text-sm">{cadTitle}</span>
+        {cadReviewReadOnly && <span data-testid="cad-review-banner" className="rounded-full border border-amber-300/25 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold text-amber-200">REVIEW · SOLO LECTURA</span>}
         <span className="hidden xl:inline text-[11px] text-gray-500 dark:text-gray-400 max-w-[520px] truncate">{cadSubtitle}</span>
         <span className="text-[11px] text-gray-500 dark:text-gray-400 ml-1">{placedCount} estaciones · {assetCount} equipos</span>
         <div className="inline-flex items-center rounded-lg bg-white/[0.06] p-0.5 text-[12px] font-semibold ml-1">
@@ -8160,6 +8227,9 @@ export default function Layout3DEditor({
         </div>
         <div className="relative">
           <T3Btn active={showBlockPalette} onClick={() => toggleProfessionalDock('blocks')} title="BLOCK/INSERT: definiciones vivas, atributos, biblioteca y XREF, redefine, replace, explode y purge"><Boxes className="h-4 w-4" /></T3Btn>
+        </div>
+        <div className="relative">
+          <T3Btn active={showCollaborationDock} onClick={() => toggleProfessionalDock('collaboration')} title="Compare / Merge / Review: base, mine, theirs, conflictos, comentarios, markups y links de revisión"><GitMerge className="h-4 w-4" /></T3Btn>
         </div>
         <T3Btn onClick={autoDimension} title="Acotar automáticamente — medidas generales y pasos del layout (o de la selección)"><RulerDimensionLine className="w-4 h-4" /></T3Btn>
         {dimCount > 0 && (
@@ -8358,7 +8428,7 @@ export default function Layout3DEditor({
             <option key={id} value={id} className="bg-gray-900">{CAD_PAPER_SIZES[id].label}</option>
           ))}
         </select>
-        <T3Btn onClick={() => void publishSheetSetPdf()} title="Publicar conjunto PDF vectorial — hojas, viewports y cajetines"><Printer className="w-4 h-4" /></T3Btn>
+        <T3Btn disabled={cadReviewReadOnly} onClick={() => void publishSheetSetPdf()} title="Publicar conjunto PDF vectorial — hojas, viewports y cajetines"><Printer className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={exportPng} title="Exportar imagen (PNG)"><Download className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={exportGltf} title="Exportar modelo 3D (.glb) — Blender, otros CAD"><Package className="w-4 h-4" /></T3Btn>
         <input ref={dxfInputRef} type="file" accept=".dxf,.dwg" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onDxfFile(f); e.target.value = ''; }} />
@@ -8383,14 +8453,14 @@ export default function Layout3DEditor({
         {approval && (
           <div className="inline-flex items-center gap-1.5 mr-1.5" title="Estado de aprobación del layout">
             <Stamp className="w-3.5 h-3.5" style={{ color: APPROVAL_META[approval.status].color }} />
-            <select value={approval.status} disabled={approvalBusy} onChange={(e) => setApprovalStatus(e.target.value as ApprovalStatus)} className="text-[12px] rounded-md px-1.5 py-1 bg-white/[0.06] border border-white/10 outline-none" style={{ color: APPROVAL_META[approval.status].color }}>
+            <select value={approval.status} disabled={approvalBusy || cadReviewReadOnly} onChange={(e) => setApprovalStatus(e.target.value as ApprovalStatus)} className="text-[12px] rounded-md px-1.5 py-1 bg-white/[0.06] border border-white/10 outline-none" style={{ color: APPROVAL_META[approval.status].color }}>
               <option value="draft" className="text-gray-900">Borrador</option>
               <option value="in_review" className="text-gray-900">En revisión</option>
               <option value="approved" className="text-gray-900">Aprobado</option>
             </select>
           </div>
         )}
-        <button onClick={save} disabled={saving || !dirty} className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-sm font-medium text-white disabled:opacity-50" style={{ background: '#e11d48' }}>
+        <button data-testid="cad-save" onClick={save} disabled={saving || !dirty || cadReviewReadOnly} className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-sm font-medium text-white disabled:opacity-50" style={{ background: '#e11d48' }}>
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Guardar
         </button>
         <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 ml-1" title="Cerrar editor"><X className="w-5 h-5" /></button>
@@ -9529,7 +9599,7 @@ export default function Layout3DEditor({
                   <pre className="max-h-52 overflow-auto whitespace-pre-wrap rounded-lg bg-black/30 p-2 text-[10.5px] leading-relaxed text-cyan-50/80">{JSON.stringify(sheetPackageManifest, null, 2)}</pre>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <button onClick={() => void publishSheetSetPdf()} disabled={publishingSheetSet || !paperSpaces.some((space) => space.includeInPublish !== false)} className="rounded-xl bg-white px-3 py-2 text-[12px] font-semibold text-gray-900 hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-50">{publishingSheetSet ? 'Publicando…' : `Publicar PDF (${paperSpaces.filter((space) => space.includeInPublish !== false).length})`}</button>
+                  <button onClick={() => void publishSheetSetPdf()} disabled={cadReviewReadOnly || publishingSheetSet || !paperSpaces.some((space) => space.includeInPublish !== false)} className="rounded-xl bg-white px-3 py-2 text-[12px] font-semibold text-gray-900 hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-50">{publishingSheetSet ? 'Publicando…' : `Publicar PDF (${paperSpaces.filter((space) => space.includeInPublish !== false).length})`}</button>
                   <button onClick={openDxfExport} className="rounded-xl bg-cyan-600 px-3 py-2 text-[12px] font-semibold text-white hover:bg-cyan-500">Preparar DXF</button>
                 </div>
                 {publicationWarnings.length > 0 && (
@@ -10020,7 +10090,7 @@ export default function Layout3DEditor({
             <div className="p-4">
               <div className="flex items-center gap-2 mb-3">
                 <input value={versName} onChange={(e) => setVersName(e.target.value)} placeholder="Nombre de la versión/snapshot (opcional)" className="flex-1 bg-white/[0.06] rounded-lg px-2.5 py-1.5 text-[13px] outline-none focus:ring-1 ring-cyan-500/40" />
-                <button onClick={saveVersion} disabled={versBusy} className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-[12px] font-medium disabled:opacity-50">Guardar versión</button>
+                <button onClick={saveVersion} disabled={cadReviewReadOnly || versBusy} className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-[12px] font-medium disabled:opacity-50">Guardar versión</button>
                 <button onClick={() => saveLocalSnapshot('manual')} className="px-3 py-1.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.14] text-white text-[12px] font-medium">Snapshot local</button>
               </div>
               <div className="mb-4 rounded-xl border border-cyan-400/15 bg-cyan-400/[0.04] p-3">

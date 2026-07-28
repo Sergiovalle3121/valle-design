@@ -528,6 +528,68 @@ export interface CadChange {
   label: string;
 }
 
+export type CadReviewThreadStatus = "open" | "resolved";
+
+export interface CadReviewThread {
+  id: string;
+  entityId?: string;
+  body: string;
+  author: string;
+  assignedTo?: string;
+  status: CadReviewThreadStatus;
+  createdAt: string;
+  resolvedAt?: string;
+  resolvedBy?: string;
+  markup?: {
+    kind: "note" | "arrow" | "cloud";
+    point?: CadPoint2;
+    color: string;
+  };
+}
+
+export interface CadReviewLink {
+  id: string;
+  token: string;
+  label: string;
+  readOnly: true;
+  createdAt: string;
+  createdBy: string;
+  expiresAt?: string;
+  revokedAt?: string;
+}
+
+export interface CadCollaborationAuditEvent {
+  id: string;
+  action:
+    | "version_created"
+    | "merge_applied"
+    | "comment_added"
+    | "comment_resolved"
+    | "review_link_created"
+    | "review_link_revoked";
+  actor: string;
+  at: string;
+  detail: string;
+  entityIds?: string[];
+}
+
+export interface CadVersionSnapshot {
+  id: string;
+  label: string;
+  createdAt: string;
+  createdBy: string;
+  contentHash: string;
+  /** Full canonical content without collaboration recursion. */
+  document: Omit<CadDocument, "collaboration">;
+}
+
+export interface CadCollaborationState {
+  versions: CadVersionSnapshot[];
+  threads: CadReviewThread[];
+  reviewLinks: CadReviewLink[];
+  audit: CadCollaborationAuditEvent[];
+}
+
 export interface CadDocument {
   meta: CadDocumentMeta;
   layers: CadLayerDef[];
@@ -542,6 +604,8 @@ export interface CadDocument {
   unsupportedEntities: CadOpaqueEntity[];
   lossManifest: CadLossManifestEntry[];
   publications: CadPublicationRecord[];
+  /** Review/merge metadata persisted in the same tenant-scoped CAS document. */
+  collaboration?: CadCollaborationState;
 }
 
 /** v3: modelo profesional extensible con migración aditiva desde v1/v2. */
@@ -801,6 +865,7 @@ export function commitChange(doc: CadDocument, label: string): CadDocument {
     unsupportedEntities: structuredClone(doc.unsupportedEntities),
     lossManifest: structuredClone(doc.lossManifest),
     publications: structuredClone(doc.publications),
+    collaboration: doc.collaboration ? structuredClone(doc.collaboration) : undefined,
     history: [...doc.history, { version, label }],
   };
 }
@@ -847,6 +912,7 @@ export function serializeCadDocument(doc: CadDocument): string {
     unsupportedEntities: [...doc.unsupportedEntities].sort(byId).map(stableValue),
     lossManifest: doc.lossManifest.map(stableValue),
     publications: doc.publications.map(stableValue),
+    collaboration: doc.collaboration ? stableValue(doc.collaboration) : undefined,
   };
   return JSON.stringify(payload);
 }
@@ -889,6 +955,10 @@ function withV3Defaults(doc: Partial<CadDocument>): CadDocument {
     unsupportedEntities: Array.isArray(doc.unsupportedEntities) ? doc.unsupportedEntities : [],
     lossManifest: Array.isArray(doc.lossManifest) ? doc.lossManifest : [],
     publications: Array.isArray(doc.publications) ? doc.publications : [],
+    collaboration:
+      doc.collaboration && typeof doc.collaboration === "object"
+        ? doc.collaboration
+        : undefined,
   };
 }
 

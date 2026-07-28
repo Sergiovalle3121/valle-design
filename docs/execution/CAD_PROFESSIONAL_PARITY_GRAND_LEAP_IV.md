@@ -6,9 +6,9 @@
 | --- | --- |
 | `MISSION_STARTED_AT` | 2026-07-28 12:08:49 -06:00 |
 | `MISSION_TARGET_END` | 2026-07-28 22:08:49 -06:00 |
-| `MISSION_CURRENT_PHASE` | P2-C — Drawing compare y colaboración |
-| `MISSION_COMPLETED_GATES` | viewport 100k; recovery worker/journal; blob GC bifásico y tenant-safe; selección profesional; precisión dinámica y tracking; HATCH asociativo; MTEXT nativo; DIMENSION asociativa; MLEADER canónico; BLOCK/INSERT profesional; workbench profesional; layouts/publicación multi-viewport; Xrefs tenant-safe browser-proven |
-| `MISSION_NEXT_ACTION` | construir compare base/mine/theirs, diff geométrico/propiedades, overlay/navegación, keep mine/theirs/manual merge, auto-merge disjunto, conflictos y review auditado |
+| `MISSION_CURRENT_PHASE` | P3 — Acceptance journey y hardening final |
+| `MISSION_COMPLETED_GATES` | viewport 100k; recovery worker/journal; blob GC bifásico y tenant-safe; selección profesional; precisión dinámica y tracking; HATCH asociativo; MTEXT nativo; DIMENSION asociativa; MLEADER canónico; BLOCK/INSERT profesional; workbench profesional; layouts/publicación multi-viewport; Xrefs tenant-safe; compare/merge/review tenant-safe browser-proven |
+| `MISSION_NEXT_ACTION` | construir el acceptance journey neutral de 50 pasos, ejecutar matrices/full gates, revisar arquitectura y preparar integración final sin claims inflados |
 | Repositorio | `Sergiovalle3121/axos-os` |
 | Base | `1625ba26a07876943b821586c46b02c9f47f6bac` (`origin/main`) |
 | Rama / PR | `codex/cad-professional-grand-leap-iii` / #1416 |
@@ -45,7 +45,7 @@ Sólo se conceden puntos por evidencia actual del repositorio y navegador.
 
 | Área | Máximo | Inicial | Estado dominante | Evidencia / brecha |
 | --- | ---: | ---: | --- | --- |
-| Workbench y arquitectura | 10 | 8 | `browser-proven` parcial | docks sin overlay, workspace persistido, ribbon, status, command/search, temas/locale y matriz 1366–4K; monolito aún por encima de 9k líneas |
+| Workbench y arquitectura | 10 | 9 | `browser-proven` parcial | docks sin overlay incluido compare/merge/review, workspace persistido, ribbon, status, command/search, temas/locale y matriz 1366–4K; monolito aún por encima de 10k líneas |
 | Precisión, input y snaps | 10 | 10 | `browser-proven` | dynamic input, snaps derivados, POLAR/ORTHO/OTRACK, tolerancia por zoom y crosshair/pickbox/aperture persistidos por usuario |
 | Selección y modificación | 10 | 9 | `browser-proven` | controlador unificado, geometrías profesionales, cycling y quick select; falta stress E2E de trazos 100k |
 | Entidades de documentación | 10 | 10 | `browser-proven` | HATCH, MTEXT, siete DIM y MLEADER completan su ciclo canónico |
@@ -55,7 +55,7 @@ Sólo se conceden puntos por evidencia actual del repositorio y navegador.
 | Layouts, viewports y publicación | 10 | 9 | `browser-proven` | multi-viewport editable, freeze/overrides, page setup, orden, preflight, preview exacto, PDF multihoja y recibo auditado; el cajetín custom referenciado aún no sustituye su geometría en PDF |
 | Interoperabilidad/extensibilidad | 5 | 4 | `browser-proven` parcial | BLOCK/INSERT, HATCH, MTEXT, DIM y MLEADER completan DXF semántico; DWG `provider-required` |
 | Calidad enterprise/seguridad/pruebas | 10 | 9 | `tested` | CI/tenant/brand/smokes verdes; falta arnés perf bloqueante |
-| **Total** | **100** | **88** |  | Sin claim de paridad general |
+| **Total** | **100** | **89** |  | Sin claim de paridad general |
 
 ## Paridad completa separada
 
@@ -415,6 +415,37 @@ No se editan ramas comerciales, ERP o PDF durante la construcción CAD.
 - La rúbrica sube 87 → 88 al cerrar referencias. `Layout3DEditor.tsx` queda en
   10,244 líneas; la paleta (90) y el kernel (325) están extraídos, pero el
   wiring confirma que la reducción del monolito sigue pendiente. Sigue P2-C.
+
+### 2026-07-28 16:22–17:10 — P2-C / compare, merge y colaboración
+
+- `CadDocument` incorpora estado de colaboración canónico con historial de
+  versiones, hilos de revisión, enlaces y auditoría. Cada versión guarda un
+  snapshot completo no recursivo y la retención está acotada a 12; migración,
+  clonación y serialización preservan el contrato existente.
+- El kernel puro compara entidades por id y separa Added/Modified/Deleted,
+  geometría y propiedades. El three-way merge Base/Mine/Theirs aplica cambios
+  disjuntos automáticamente y clasifica `both_added`, `both_modified` y
+  `delete_modify`; una colisión sin resolver impide aplicar el merge completo.
+- La resolución permite Keep mine, Keep theirs o JSON manual validado antes de
+  mutar. La aplicación entra al mismo documento canónico y stack de undo/redo;
+  overlay, filtros y navegación resaltan diferencias sin duplicar renderer.
+- Review soporta comentario por entidad o dibujo, cloud/arrow/note, asignación,
+  resolve y audit. Los enlaces son siempre read-only, autenticados y ligados al
+  tenant; incluyen expiración y revocación, y deshabilitan guardar, publicar,
+  aprobar, clonar, snapshots y mutaciones de review al abrir `?cadReview=`.
+- La API rechaza estructuras excesivas o inválidas: 12 versiones, 500 hilos,
+  20 links y 500 eventos; también valida tokens, status y cuerpos. No se añadió
+  un backend paralelo ni se persistieron rutas o credenciales locales.
+- Evidencia: kernel compare/merge/review, documento/snapshots/editor-snapshot y
+  API validator 7/7 verdes; TypeScript web/API y ESLint focal sin errores.
+  Chromium #22 demuestra merge disjunto, rechazo/resolución de colisión manual,
+  persistencia CAS, comentario/markup/asignación/resolve, link read-only y audit:
+  1/1 verde. Regresión #18–#22: 5/5 verde en 5.9 min; captura
+  `compare-collision-review.png` inspeccionada sin notificaciones superpuestas.
+- La rúbrica sube prudentemente 88 → 89 por el workbench de revisión demostrado;
+  no se adjudican puntos de delta journal, perf bloqueante, DWG ni arquitectura.
+  `Layout3DEditor.tsx` queda en 10,314 líneas. Sigue el acceptance journey y los
+  gates finales; esto aún no es un cierre de misión.
 
 ## Claims
 

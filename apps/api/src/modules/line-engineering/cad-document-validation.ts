@@ -10,6 +10,10 @@ const MAX_CONSTRAINTS = 250_000;
 const MAX_PAPER_SPACES = 500;
 const MAX_VIEWPORTS_PER_PAPER_SPACE = 32;
 const MAX_PUBLICATIONS = 1_000;
+const MAX_CAD_VERSIONS = 12;
+const MAX_REVIEW_THREADS = 500;
+const MAX_REVIEW_LINKS = 20;
+const MAX_COLLABORATION_AUDIT_EVENTS = 500;
 const MAX_DEPTH = 64;
 
 function objectValue(value: unknown): Record<string, unknown> | null {
@@ -203,6 +207,60 @@ export function validateCadDocumentPayload(
       ) {
         throw new BadRequestException(
           'CadDocument contiene un registro de publicación inválido.',
+        );
+      }
+    }
+  }
+  const collaboration = document.collaboration;
+  if (collaboration !== undefined) {
+    const state = objectValue(collaboration);
+    if (!state) {
+      throw new BadRequestException(
+        'CadDocument collaboration debe ser un objeto.',
+      );
+    }
+    const boundedArrays: Array<[string, unknown, number]> = [
+      ['versions', state.versions, MAX_CAD_VERSIONS],
+      ['threads', state.threads, MAX_REVIEW_THREADS],
+      ['reviewLinks', state.reviewLinks, MAX_REVIEW_LINKS],
+      ['audit', state.audit, MAX_COLLABORATION_AUDIT_EVENTS],
+    ];
+    for (const [name, value, limit] of boundedArrays) {
+      if (!Array.isArray(value) || value.length > limit) {
+        throw new BadRequestException(
+          `CadDocument collaboration.${name} admite mÃ¡ximo ${limit} registros.`,
+        );
+      }
+    }
+    for (const rawLink of state.reviewLinks as unknown[]) {
+      const link = objectValue(rawLink);
+      if (
+        typeof link?.id !== 'string' ||
+        !link.id ||
+        link.id.length > 128 ||
+        typeof link?.token !== 'string' ||
+        link.token.length < 16 ||
+        link.token.length > 256 ||
+        link.readOnly !== true
+      ) {
+        throw new BadRequestException(
+          'CadDocument contiene un enlace de revisiÃ³n invÃ¡lido.',
+        );
+      }
+    }
+    for (const rawThread of state.threads as unknown[]) {
+      const thread = objectValue(rawThread);
+      if (
+        typeof thread?.id !== 'string' ||
+        !thread.id ||
+        thread.id.length > 128 ||
+        typeof thread?.body !== 'string' ||
+        !thread.body.trim() ||
+        thread.body.length > 1_000 ||
+        !['open', 'resolved'].includes(String(thread.status))
+      ) {
+        throw new BadRequestException(
+          'CadDocument contiene un comentario de revisiÃ³n invÃ¡lido.',
         );
       }
     }

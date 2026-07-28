@@ -108,4 +108,37 @@ describe('validateCadDocumentPayload', () => {
       }),
     ).toEqual(large);
   });
+
+  it('bounds and validates CAD collaboration state', () => {
+    const collaboration = {
+      versions: [],
+      threads: [{ id: 'thread-1', body: 'Review this wall', status: 'open' }],
+      reviewLinks: [
+        { id: 'link-1', token: '0123456789abcdef', readOnly: true },
+      ],
+      audit: [],
+    };
+    expect(validateCadDocumentPayload({ ...valid, collaboration })).toEqual({
+      ...valid,
+      collaboration,
+    });
+    expect(() =>
+      validateCadDocumentPayload({
+        ...valid,
+        collaboration: {
+          ...collaboration,
+          reviewLinks: [{ id: 'link-1', token: 'short', readOnly: true }],
+        },
+      }),
+    ).toThrow('enlace de revisiÃ³n invÃ¡lido');
+    expect(() =>
+      validateCadDocumentPayload({
+        ...valid,
+        collaboration: {
+          ...collaboration,
+          versions: Array.from({ length: 13 }, () => ({})),
+        },
+      }),
+    ).toThrow('collaboration.versions admite mÃ¡ximo 12');
+  });
 });
