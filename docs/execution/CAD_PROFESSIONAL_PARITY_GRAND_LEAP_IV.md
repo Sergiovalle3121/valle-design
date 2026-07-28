@@ -6,9 +6,9 @@
 | --- | --- |
 | `MISSION_STARTED_AT` | 2026-07-28 12:08:49 -06:00 |
 | `MISSION_TARGET_END` | 2026-07-28 22:08:49 -06:00 |
-| `MISSION_CURRENT_PHASE` | P0-E — selection controller profesional |
-| `MISSION_COMPLETED_GATES` | viewport 100k; recovery worker/journal; blob GC bifásico y tenant-safe |
-| `MISSION_NEXT_ACTION` | unificar modos pick/add/remove/window/crossing/polygon/fence/lasso y previous/last/all/invert |
+| `MISSION_CURRENT_PHASE` | P0-F — dynamic input, snaps y tracking |
+| `MISSION_COMPLETED_GATES` | viewport 100k; recovery worker/journal; blob GC bifásico y tenant-safe; selección profesional |
+| `MISSION_NEXT_ACTION` | unificar resolución de OSNAP, tracking polar/ortogonal y entrada dinámica contextual |
 | Repositorio | `Sergiovalle3121/axos-os` |
 | Base | `1625ba26a07876943b821586c46b02c9f47f6bac` (`origin/main`) |
 | Rama / PR | `codex/cad-professional-grand-leap-iii` / #1416 |
@@ -46,7 +46,7 @@ Sólo se conceden puntos por evidencia actual del repositorio y navegador.
 | --- | ---: | ---: | --- | --- |
 | Workbench y arquitectura | 10 | 5 | `tested` parcial | dock aislado; editor aún monolítico y por encima de 8k líneas |
 | Precisión, input y snaps | 10 | 5 | `tested` | coordenadas/OSNAP base; falta dynamic input y tracking completo |
-| Selección y modificación | 10 | 5 | `browser-proven` parcial | pick/window canónico; faltan fence/lasso/cycling/quick select |
+| Selección y modificación | 10 | 9 | `browser-proven` | controlador unificado, geometrías profesionales, cycling y quick select; falta stress E2E de trazos 100k |
 | Entidades de documentación | 10 | 4 | `tested` parcial | HATCH poligonal nativo; MTEXT/DIM/MLEADER incompletos |
 | Rendimiento 10k/100k | 15 | 10 | `browser-proven` parcial | viewport real, lotes cancelables y arnés 100k; aún no 60 FPS ni memoria estabilizada |
 | Persistencia/recovery/versionado | 10 | 9 | `browser-proven` | worker/journal/cuota y lifecycle de blobs; falta delta journal nativo |
@@ -54,7 +54,7 @@ Sólo se conceden puntos por evidencia actual del repositorio y navegador.
 | Layouts, viewports y publicación | 10 | 6 | `tested` | paper space/PDF/recibos; UI multi-viewport parcial |
 | Interoperabilidad/extensibilidad | 5 | 3 | `tested` | DXF semántico acotado; DWG `provider-required` |
 | Calidad enterprise/seguridad/pruebas | 10 | 9 | `tested` | CI/tenant/brand/smokes verdes; falta arnés perf bloqueante |
-| **Total** | **100** | **61** |  | Sin claim de paridad general |
+| **Total** | **100** | **65** |  | Sin claim de paridad general |
 
 ## Paridad completa separada
 
@@ -155,6 +155,23 @@ No se editan ramas comerciales, ERP o PDF durante la construcción CAD.
 - Evidencia SQLite/Jest: referencias de cuatro consumidores preservadas,
   orphan marcado y luego eliminado, 512 bytes recuperados, tenant B aislado;
   2/2 lifecycle + 5/5 DocumentsService, API typecheck y lint focal verdes.
+
+### 2026-07-28 12:44–12:58 — P0-E / selección profesional
+
+- `selection-controller` mantiene selección actual/anterior/última y operaciones
+  replace/add/remove/toggle sin acoplarlas a React ni a Three.js. `all` e
+  `invert` operan contra el universo canónico completo.
+- `Quick Select` combina tipo, capa, texto e inspección de propiedades para
+  estaciones, activos y ARC/ELLIPSE/SPLINE/HATCH nativos.
+- La paleta expone pick, window, crossing, polygon, fence y lasso; los tres
+  trazos libres usan geometría real para contención/intersección. Window y
+  crossing conservan semántica direccional en modo pick.
+- Los point picks repetidos consultan hasta 16 candidatos del índice canónico y
+  ciclan de forma determinista, incluso si la entidad está omitida del detalle
+  por LOD. Selecciones mixtas ya no requieren dos estados mutuamente excluyentes.
+- Evidencia: reducer/filtros/geometría e índice focales verdes; TypeScript verde;
+  ESLint focal sin errores; Chromium completa quick → add → previous → last →
+  all → invert en 10.1 s, 1/1 verde.
 
 ## Claims
 

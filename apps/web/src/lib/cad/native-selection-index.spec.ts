@@ -41,6 +41,29 @@ const windowHits = index.intersecting({
 }, false);
 assert.deepEqual(windowHits.map((entity) => entity.id), [omitted.id]);
 
+const polygon = [
+  { x: omitted.center.x - 7, y: omitted.center.y - 7 },
+  { x: omitted.center.x + 7, y: omitted.center.y - 7 },
+  { x: omitted.center.x + 7, y: omitted.center.y + 7 },
+  { x: omitted.center.x - 7, y: omitted.center.y + 7 },
+];
+assert.deepEqual(index.path(polygon, "polygon", false).map((entity) => entity.id), [omitted.id]);
+assert.deepEqual(index.path([
+  { x: omitted.center.x - 7, y: omitted.center.y },
+  { x: omitted.center.x + 7, y: omitted.center.y },
+], "fence").map((entity) => entity.id), [omitted.id]);
+assert.deepEqual(index.path([
+  { x: omitted.center.x, y: omitted.center.y - 7 },
+  { x: omitted.center.x + 7, y: omitted.center.y },
+  { x: omitted.center.x, y: omitted.center.y + 7 },
+], "lasso").map((entity) => entity.id), [omitted.id]);
+assert.deepEqual(index.path([
+  { x: omitted.center.x - 2, y: omitted.center.y - 2 },
+  { x: omitted.center.x + 2, y: omitted.center.y - 2 },
+  { x: omitted.center.x + 2, y: omitted.center.y + 2 },
+  { x: omitted.center.x - 2, y: omitted.center.y + 2 },
+], "polygon", false), []);
+
 const moved = {
   ...omitted,
   center: { ...omitted.center, y: 500 },

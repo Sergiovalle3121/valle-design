@@ -90,6 +90,15 @@ import {
 } from '@/lib/cad/cad-recovery';
 import { planCadNativeRenderBudget } from '@/lib/cad/native-render-budget';
 import { CadNativeSelectionIndex } from '@/lib/cad/native-selection-index';
+import {
+  EMPTY_CAD_SELECTION,
+  reduceCadSelection,
+  type CadSelectableItem,
+  type CadSelectionAction,
+  type CadSelectionOperation,
+  type CadSelectionState,
+} from '@/lib/cad/selection-controller';
+import { cadSelectionPathMatchesPolygon } from '@/lib/cad/selection-shapes';
 import { cadViewportBoundsChanged, cadViewportBoundsFromCamera } from '@/lib/cad/native-viewport';
 import { exportCadLayoutDxf } from '@/lib/cad/layout-export-adapter';
 import { buildPlotSheet, CAD_PAPER_SIZES, type CadPaperId } from '@/lib/cad/plot-sheet';
@@ -192,6 +201,10 @@ import {
 import PlantMinimap from './PlantMinimap';
 import ScaleBar from './ScaleBar';
 import { CadCommandDock, type CadAiProposal } from './cad-workbench/CadCommandDock';
+import {
+  CadSelectionPalette,
+  type CadSelectionGeometryMode,
+} from './cad-workbench/CadSelectionPalette';
 import {
   cadViewportFocusBounds,
   createCadViewportBookmark,
@@ -1007,6 +1020,13 @@ export default function Layout3DEditor({
     includeQuarantine: true,
   });
   const [tool, setTool] = useState<EditorTool>('select');
+  const [showSelectionPalette, setShowSelectionPalette] = useState(false);
+  const [selectionGeometryMode, setSelectionGeometryMode] = useState<CadSelectionGeometryMode>('pick');
+  const [selectionOperation, setSelectionOperation] = useState<CadSelectionOperation>('replace');
+  const [quickSelectionType, setQuickSelectionType] = useState('');
+  const [quickSelectionLayer, setQuickSelectionLayer] = useState('');
+  const [quickSelectionText, setQuickSelectionText] = useState('');
+  const [professionalSelection, setProfessionalSelection] = useState<CadSelectionState>(EMPTY_CAD_SELECTION);
   const [viewMode, setViewMode] = useState<'3d' | '2d'>('3d'); // 2D = locked top-down plan view (CAD unificado)
   const [walk, setWalk] = useState(false); // first-person walkthrough mode
   const [showHelp, setShowHelp] = useState(false); // keyboard shortcuts overlay
@@ -1168,6 +1188,9 @@ export default function Layout3DEditor({
   const redoStackRef = useRef<CadDocument[]>([]);
   const loadedCadDocumentRef = useRef<CadDocument | null>(null);
   const nativeSelectionIdsRef = useRef<string[]>([]);
+  const professionalSelectionRef = useRef<CadSelectionState>(EMPTY_CAD_SELECTION);
+  const selectionGeometryModeRef = useRef<CadSelectionGeometryMode>('pick');
+  const selectionOperationRef = useRef<CadSelectionOperation>('replace');
   const nativeSceneSyncRef = useRef<CadSceneSynchronizer<THREE.Object3D> | null>(null);
   const nativeSelectionIndexRef = useRef<CadNativeSelectionIndex | null>(null);
   const nativeViewportBoundsRef = useRef<CadBounds | null>(null);
@@ -1195,6 +1218,8 @@ export default function Layout3DEditor({
   useEffect(() => { snapRef.current = snap; }, [snap]);
   useEffect(() => { osnapRef.current = osnap; }, [osnap]);
   useEffect(() => { toolRef.current = tool; }, [tool]);
+  useEffect(() => { selectionGeometryModeRef.current = selectionGeometryMode; }, [selectionGeometryMode]);
+  useEffect(() => { selectionOperationRef.current = selectionOperation; }, [selectionOperation]);
   // Núcleo de precisión (Fase 66 cableada, ADR §216): orto 0/90/180/270 y
   // entrada tecleada de coordenadas para el trazo de muros.
   const [orthoLock, setOrthoLock] = useState(false);
@@ -1417,11 +1442,20 @@ export default function Layout3DEditor({
     const objects = next.map(computePropertyObject).filter((item): item is CadPropertyObject => !!item);
     setSelSummary(summarizeCadSelectionProperties(objects));
   }, [computePropertyObject, computeSnap]);
+  const recordProfessionalSelection = useCallback((keys: readonly string[]) => {
+    const next = reduceCadSelection(professionalSelectionRef.current, { type: 'apply', keys });
+    professionalSelectionRef.current = next;
+    setProfessionalSelection(next);
+  }, []);
   // Replace the whole selection (selSnap mirrors the single-object case).
   const select = useCallback((next: SelItem[]) => {
     selRef.current = next; setSelList(next);
     refreshSelectionSnapshot(next);
-  }, [refreshSelectionSnapshot]);
+    recordProfessionalSelection([
+      ...next.map((item) => `${item.type}:${item.id}`),
+      ...nativeSelectionIdsRef.current.map((id) => `native:${id}`),
+    ]);
+  }, [recordProfessionalSelection, refreshSelectionSnapshot]);
   const refreshSnap = useCallback(() => refreshSelectionSnapshot(selRef.current), [refreshSelectionSnapshot]);
 
   // ---- first-person walkthrough: drop to eye level, look by dragging, WASD ----
@@ -1724,13 +1758,15 @@ export default function Layout3DEditor({
     setSelList([]);
     setSelSnap(null);
     setSelSummary(null);
+    recordProfessionalSelection(next.map((id) => `native:${id}`));
     refreshNativeSelectionVisuals();
-  }, [refreshNativeSelectionVisuals]);
+  }, [recordProfessionalSelection, refreshNativeSelectionVisuals]);
   const clearNativeSelection = useCallback(() => {
     nativeSelectionIdsRef.current = [];
     setNativeSelectionIds([]);
+    recordProfessionalSelection(selRef.current.map((item) => `${item.type}:${item.id}`));
     refreshNativeSelectionVisuals();
-  }, [refreshNativeSelectionVisuals]);
+  }, [recordProfessionalSelection, refreshNativeSelectionVisuals]);
   const syncNativeScene = useCallback((
     document = loadedCadDocumentRef.current,
     patch?: CadScenePatch,
@@ -1992,6 +2028,75 @@ export default function Layout3DEditor({
   }, [showGaps, loadGaps]);
 
   const rebuildAll = useCallback(() => { rebuildBlocks(); rebuildAssets(); rebuildDims(); rebuildNotes(); syncNativeScene(); rebuildCellsRef.current(); }, [rebuildBlocks, rebuildAssets, rebuildDims, rebuildNotes, syncNativeScene]);
+
+  const buildSelectionUniverse = useCallback((): CadSelectableItem[] => {
+    const result: CadSelectableItem[] = [];
+    placementsRef.current.forEach((_placement, id) => {
+      const station = stationsByIdRef.current.get(id);
+      result.push({
+        key: `station:${id}`,
+        type: 'station',
+        layer: layerAssignmentsRef.current[id] ?? 'layout',
+        label: station?.station ?? id,
+        properties: { line: station?.line ?? '', ctq: station?.ctq ?? false },
+      });
+    });
+    assetsRef.current.forEach((asset, id) => {
+      result.push({
+        key: `asset:${id}`,
+        type: 'asset',
+        layer: layerAssignmentsRef.current[id] ?? defaultLayerForAsset(id),
+        label: asset.label || assetMeta(asset.kind).label,
+        properties: { kind: asset.kind, tags: objectTagsRef.current[id] ?? '', notes: objectNotesRef.current[id] ?? '' },
+      });
+    });
+    for (const entity of loadedCadDocumentRef.current?.entities ?? []) {
+      if (!CAD_ENTITY_REGISTRY.supports(entity)) continue;
+      result.push({
+        key: `native:${entity.id}`,
+        type: entity.type,
+        layer: entity.layer,
+        label: `${entity.type.toUpperCase()} ${entity.id}`,
+        properties: CAD_ENTITY_REGISTRY.adapter(entity).properties.read(entity),
+      });
+    }
+    return result;
+  }, [defaultLayerForAsset]);
+
+  const applyProfessionalSelection = useCallback((action: CadSelectionAction) => {
+    const next = reduceCadSelection(professionalSelectionRef.current, action);
+    professionalSelectionRef.current = next;
+    setProfessionalSelection(next);
+    const legacy: SelItem[] = [];
+    const nativeIds: string[] = [];
+    for (const key of next.current) {
+      const separator = key.indexOf(':');
+      const type = key.slice(0, separator);
+      const id = key.slice(separator + 1);
+      if (!id) continue;
+      if (type === 'native') nativeIds.push(id);
+      else if (type === 'station' || type === 'asset') legacy.push({ type, id });
+    }
+    selRef.current = legacy;
+    setSelList(legacy);
+    refreshSelectionSnapshot(legacy);
+    nativeSelectionIdsRef.current = nativeIds;
+    setNativeSelectionIds(nativeIds);
+    refreshNativeSelectionVisuals();
+  }, [refreshNativeSelectionVisuals, refreshSelectionSnapshot]);
+
+  const runQuickSelection = useCallback(() => {
+    applyProfessionalSelection({
+      type: 'quick',
+      universe: buildSelectionUniverse(),
+      filter: {
+        ...(quickSelectionType ? { types: [quickSelectionType] } : {}),
+        ...(quickSelectionLayer ? { layers: [quickSelectionLayer] } : {}),
+        ...(quickSelectionText ? { text: quickSelectionText } : {}),
+      },
+      operation: selectionOperation,
+    });
+  }, [applyProfessionalSelection, buildSelectionUniverse, quickSelectionLayer, quickSelectionText, quickSelectionType, selectionOperation]);
 
   // ---- live station-status overlay: colour blocks by MES / heat / etc. (unify) ----
   const loadOverlay = useCallback(async (kind: OverlayKind | null) => {
@@ -2615,11 +2720,21 @@ export default function Layout3DEditor({
     let dragMoved = false;
     let dragSnap: Snapshot | null = null;
     let marquee: { x0: number; y0: number; x1: number; y1: number } | null = null;
+    let selectionPath: { x: number; y: number }[] | null = null;
     const drawMarquee = (m: { x0: number; y0: number; x1: number; y1: number }) => {
       const ctx = ctxRef.current!;
       const toWorld = (x: number, y: number) => new THREE.Vector3((x - ctx.W / 2) * ctx.s, 0.05, (y - ctx.H / 2) * ctx.s);
       (marqueeLine.geometry as THREE.BufferGeometry).setFromPoints([toWorld(m.x0, m.y0), toWorld(m.x1, m.y0), toWorld(m.x1, m.y1), toWorld(m.x0, m.y1)]);
       (marqueeLine.material as THREE.LineBasicMaterial).color.set(m.x1 >= m.x0 ? 0x22d3ee : 0x34d399);
+      marqueeLine.visible = true;
+    };
+    const drawSelectionPath = (points: readonly { x: number; y: number }[]) => {
+      const ctx = ctxRef.current!;
+      (marqueeLine.geometry as THREE.BufferGeometry).setFromPoints(points.map((point) =>
+        new THREE.Vector3((point.x - ctx.W / 2) * ctx.s, 0.05, (point.y - ctx.H / 2) * ctx.s)));
+      (marqueeLine.material as THREE.LineBasicMaterial).color.set(
+        selectionGeometryModeRef.current === 'fence' ? 0xf59e0b : 0xa78bfa,
+      );
       marqueeLine.visible = true;
     };
     const unit = data.footprint.unit || 'mm';
@@ -2713,6 +2828,25 @@ export default function Layout3DEditor({
       downX = e.clientX; downY = e.clientY;
       if (walkRef.current) { walkLook = true; lookX = e.clientX; lookY = e.clientY; renderer.domElement.setPointerCapture(e.pointerId); return; }
       if (toolRef.current !== 'select') return; // measure/wall resolve on click (pointerup); drag still orbits
+      const selectionMode = selectionGeometryModeRef.current;
+      if (e.button === 0 && (selectionMode === 'window' || selectionMode === 'crossing')) {
+        const world = floorWorld(e);
+        if (world) {
+          marquee = { x0: world.wx, y0: world.wy, x1: world.wx, y1: world.wy };
+          controls.enabled = false;
+          renderer.domElement.setPointerCapture(e.pointerId);
+        }
+        return;
+      }
+      if (e.button === 0 && (selectionMode === 'polygon' || selectionMode === 'fence' || selectionMode === 'lasso')) {
+        const world = floorWorld(e);
+        if (world) {
+          selectionPath = [{ x: world.wx, y: world.wy }];
+          controls.enabled = false;
+          renderer.domElement.setPointerCapture(e.pointerId);
+        }
+        return;
+      }
       setPtr(e); raycaster.setFromCamera(ptr, camera);
       // clicking a dimension label removes that cota
       const dimHit = raycaster.intersectObjects(dimsGroup.children, false).find((h) => (h.object as THREE.Sprite).userData?.dimId);
@@ -2782,33 +2916,51 @@ export default function Layout3DEditor({
             renderer.domElement.setPointerCapture(e.pointerId);
             return;
           }
-          const current = nativeSelectionIdsRef.current;
-          const next = e.shiftKey
-            ? current.includes(top.id)
-              ? current.filter((id) => id !== top.id)
-              : [...current, top.id]
-            : [top.id];
-          selectNative(next);
+          const world = floorWorld(e);
+          const context = ctxRef.current;
+          const canonicalCandidates = world && context
+            ? nativeSelectionIndexRef.current?.hitTest(
+              { x: world.wx, y: world.wy },
+              Math.max(context.W, context.H) * 0.003,
+              16,
+            ).map((entity) => `native:${entity.id}`) ?? []
+            : [];
+          const operation = e.ctrlKey || e.metaKey
+            ? 'remove'
+            : e.shiftKey
+              ? 'toggle'
+              : selectionOperationRef.current;
+          applyProfessionalSelection(canonicalCandidates.length > 1
+            ? { type: 'cycle', candidates: canonicalCandidates, operation }
+            : { type: 'apply', keys: [`native:${top.id}`], operation });
           rebuildAll();
           return;
         }
-        clearNativeSelection();
         const item: SelItem = { type: top.type, id: top.id };
         // Grupos (ADR §223): clic selecciona el grupo completo; Alt+clic entra
         // al objeto individual sin disolver nada.
         const groupItems = e.altKey ? [item] : expandGroupMembers(item);
-        // Shift+click toggles membership without starting a drag
-        if (e.shiftKey) {
-          const exists = selRef.current.some((s) => sameSel(s, item));
-          select(exists
-            ? selRef.current.filter((s) => !groupItems.some((g) => sameSel(g, s)))
-            : [...selRef.current, ...groupItems.filter((g) => !selRef.current.some((s) => sameSel(s, g)))]);
+        const operation = e.ctrlKey || e.metaKey
+          ? 'remove'
+          : e.shiftKey
+            ? 'toggle'
+            : selectionOperationRef.current;
+        // Membership operations never start a move; they only mutate the set.
+        if (operation !== 'replace') {
+          applyProfessionalSelection({
+            type: 'apply',
+            keys: groupItems.map((candidate) => `${candidate.type}:${candidate.id}`),
+            operation,
+          });
           rebuildAll();
           return;
         }
         const inSel = selRef.current.some((s) => sameSel(s, item));
         const items = inSel && selRef.current.length > 1 ? [...selRef.current] : groupItems;
-        if (!inSel) select(groupItems);
+        if (!inSel) applyProfessionalSelection({
+          type: 'apply',
+          keys: groupItems.map((candidate) => `${candidate.type}:${candidate.id}`),
+        });
         if (isObjectLayerLocked(cadLayersRef.current, layerAssignmentsRef.current, item.id, item.type === 'station' ? 'layout' : defaultLayerForAsset(item.id))) {
           toast.error('El objeto está en una capa bloqueada. Desbloquea la capa para moverlo.', 'Capas');
           rebuildAll();
@@ -2847,7 +2999,10 @@ export default function Layout3DEditor({
           renderer.domElement.setPointerCapture(e.pointerId);
         }
       } else if (e.button === 0 && !e.shiftKey) {
-        select([]); clearNativeSelection(); rebuildAll();
+        if (selectionOperationRef.current === 'replace') {
+          applyProfessionalSelection({ type: 'clear' });
+          rebuildAll();
+        }
       }
     };
     const onMove = (e: PointerEvent) => {
@@ -2861,6 +3016,15 @@ export default function Layout3DEditor({
       if (marquee) {
         const w = floorWorld(e);
         if (w) { marquee.x1 = w.wx; marquee.y1 = w.wy; drawMarquee(marquee); }
+        return;
+      }
+      if (selectionPath) {
+        const world = floorWorld(e);
+        const previous = selectionPath.at(-1);
+        if (world && previous && Math.hypot(world.wx - previous.x, world.wy - previous.y) >= 2) {
+          selectionPath.push({ x: world.wx, y: world.wy });
+          drawSelectionPath(selectionPath);
+        }
         return;
       }
       if (nativeGripDrag) {
@@ -2947,6 +3111,35 @@ export default function Layout3DEditor({
     };
     const onUp = (e: PointerEvent) => {
       if (walkRef.current) { walkLook = false; try { renderer.domElement.releasePointerCapture(e.pointerId); } catch { /* ignore */ } return; }
+      if (selectionPath) {
+        const points = selectionPath;
+        selectionPath = null;
+        marqueeLine.visible = false;
+        controls.enabled = true;
+        try { renderer.domElement.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+        const mode = selectionGeometryModeRef.current;
+        const pathMode = mode === 'polygon' || mode === 'fence' || mode === 'lasso' ? mode : 'lasso';
+        const minimum = pathMode === 'fence' ? 2 : 3;
+        if (points.length < minimum) return;
+        const legacyKeys: string[] = [];
+        placementsRef.current.forEach((placement, id) => {
+          if (cadSelectionPathMatchesPolygon(points, rectGeometry(placement).corners, pathMode, pathMode !== 'polygon'))
+            legacyKeys.push(`station:${id}`);
+        });
+        assetsRef.current.forEach((asset, id) => {
+          if (cadSelectionPathMatchesPolygon(points, rectGeometry(asset).corners, pathMode, pathMode !== 'polygon'))
+            legacyKeys.push(`asset:${id}`);
+        });
+        const nativeKeys = (nativeSelectionIndexRef.current?.path(points, pathMode, pathMode !== 'polygon', 300) ?? [])
+          .map((entity) => `native:${entity.id}`);
+        applyProfessionalSelection({
+          type: 'apply',
+          keys: [...legacyKeys, ...nativeKeys],
+          operation: selectionOperationRef.current,
+        });
+        toast.success(`${legacyKeys.length + nativeKeys.length} objeto(s) por ${pathMode}.`, 'Selección');
+        return;
+      }
       if (nativeGripDrag) {
         if (nativeGripDrag.moved && loadedCadDocumentRef.current) {
           undoStackRef.current.push(nativeGripDrag.checkpoint);
@@ -2976,7 +3169,8 @@ export default function Layout3DEditor({
         const minX = Math.min(m.x0, m.x1), maxX = Math.max(m.x0, m.x1);
         const minY = Math.min(m.y0, m.y1), maxY = Math.max(m.y0, m.y1);
         if (maxX - minX < 5 && maxY - minY < 5) return; // fue un shift+clic, no un arrastre
-        const crossing = m.x1 < m.x0; // der→izq = cruce (semántica AutoCAD)
+        const explicitMode = selectionGeometryModeRef.current;
+        const crossing = explicitMode === 'crossing' || (explicitMode === 'pick' && m.x1 < m.x0); // der→izq = cruce (semántica AutoCAD)
         const inWindow = (box: { x: number; y: number; w: number; h: number; rotation?: number }) => {
           const g = rectGeometry(box);
           const contained = g.corners.every((c) => c.x >= minX && c.x <= maxX && c.y >= minY && c.y <= maxY);
@@ -2990,11 +3184,14 @@ export default function Layout3DEditor({
         const nativeWindow = { minX, minY, maxX, maxY };
         const nativeFound = (nativeSelectionIndexRef.current?.intersecting(nativeWindow, crossing, 300) ?? [])
           .map((entity) => entity.id);
-        const merged = [...selRef.current];
-        found.forEach((it) => { if (!merged.some((s) => sameSel(s, it))) merged.push(it); });
-        select(merged.slice(0, 300));
-        const mergedNative = [...new Set([...nativeSelectionIdsRef.current, ...nativeFound])].slice(0, 300);
-        nativeSelectionIdsRef.current = mergedNative; setNativeSelectionIds(mergedNative);
+        applyProfessionalSelection({
+          type: 'apply',
+          keys: [
+            ...found.map((item) => `${item.type}:${item.id}`),
+            ...nativeFound.map((id) => `native:${id}`),
+          ],
+          operation: explicitMode === 'pick' ? 'add' : selectionOperationRef.current,
+        });
         rebuildAll();
         if (found.length + nativeFound.length) toast.success(`${found.length + nativeFound.length} objeto(s) seleccionados por ${crossing ? 'cruce' : 'ventana'}.`, 'Selección');
         return;
@@ -5832,15 +6029,7 @@ export default function Layout3DEditor({
     toast.success(`${entry.label} insertado desde Cmd-K.`, 'Cmd-K CAD');
   };
   const selectAll = () => {
-    const items: SelItem[] = [
-      ...[...placementsRef.current.keys()].map((id) => ({ type: 'station' as const, id })),
-      ...[...assetsRef.current.keys()].map((id) => ({ type: 'asset' as const, id })),
-    ];
-    select(items);
-    const nativeIds = (loadedCadDocumentRef.current?.entities ?? [])
-      .filter((entity) => CAD_ENTITY_REGISTRY.supports(entity))
-      .map((entity) => entity.id);
-    nativeSelectionIdsRef.current = nativeIds; setNativeSelectionIds(nativeIds);
+    applyProfessionalSelection({ type: 'all', universe: buildSelectionUniverse() });
     rebuildAll();
   };
   const viewPreset = (preset: 'top' | 'iso' | 'front') => {
@@ -6640,6 +6829,9 @@ export default function Layout3DEditor({
   const primaryNativeGrips = primaryNativeEntity && primaryNativeAdapter
     ? primaryNativeAdapter.grips.grips(primaryNativeEntity)
     : [];
+  const professionalSelectionUniverse = showSelectionPalette ? buildSelectionUniverse() : [];
+  const professionalSelectionTypes = [...new Set(professionalSelectionUniverse.map((item) => item.type))].sort();
+  const professionalSelectionLayers = [...new Set(professionalSelectionUniverse.map((item) => item.layer).filter((layer): layer is string => !!layer))].sort();
   const paletteResults = searchCadPalette(paletteQuery).slice(0, 9);
   const commandAssistLabels = selList.map((item) => {
     if (item.type === 'station') return data?.stations.find((station) => station.id === item.id)?.station ?? item.id;
@@ -6804,6 +6996,39 @@ export default function Layout3DEditor({
         </div>
         <div className="w-px h-5 bg-white/10 mx-1" />
         <T3Btn active={tool === 'select'} onClick={() => setToolMode('select')} title="Seleccionar / mover (V)"><MousePointer2 className="w-4 h-4" /></T3Btn>
+        <div className="relative">
+          <T3Btn
+            active={showSelectionPalette || selectionGeometryMode !== 'pick' || selectionOperation !== 'replace'}
+            onClick={() => { setToolMode('select'); setShowSelectionPalette((value) => !value); }}
+            title="Selección profesional: ventana, cruce, polígono, fence, lasso, filtros y cycling"
+          >
+            <ScanEye className="h-4 w-4" />
+          </T3Btn>
+          {showSelectionPalette && (
+            <CadSelectionPalette
+              selectedCount={professionalSelection.current.length}
+              previousCount={professionalSelection.previous.length}
+              mode={selectionGeometryMode}
+              operation={selectionOperation}
+              quickType={quickSelectionType}
+              quickLayer={quickSelectionLayer}
+              quickText={quickSelectionText}
+              entityTypes={professionalSelectionTypes}
+              layers={professionalSelectionLayers}
+              onModeChange={(mode) => { selectionGeometryModeRef.current = mode; setSelectionGeometryMode(mode); }}
+              onOperationChange={(operation) => { selectionOperationRef.current = operation; setSelectionOperation(operation); }}
+              onQuickTypeChange={setQuickSelectionType}
+              onQuickLayerChange={setQuickSelectionLayer}
+              onQuickTextChange={setQuickSelectionText}
+              onPrevious={() => applyProfessionalSelection({ type: 'previous' })}
+              onLast={() => applyProfessionalSelection({ type: 'last', operation: selectionOperation })}
+              onAll={() => applyProfessionalSelection({ type: 'all', universe: professionalSelectionUniverse })}
+              onInvert={() => applyProfessionalSelection({ type: 'invert', universe: professionalSelectionUniverse })}
+              onQuick={runQuickSelection}
+              onClear={() => applyProfessionalSelection({ type: 'clear' })}
+            />
+          )}
+        </div>
         <T3Btn active={tool === 'measure'} onClick={toggleMeasure} title="Medir / acotar (M)"><Ruler className="w-4 h-4" /></T3Btn>
         <T3Btn active={tool === 'wall'} onClick={toggleWall} title="Dibujar muros (W) — clic en puntos, Esc termina"><Spline className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={addNote} title="Agregar nota de texto (T)"><StickyNote className="w-4 h-4" /></T3Btn>
