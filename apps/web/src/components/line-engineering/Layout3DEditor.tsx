@@ -177,9 +177,11 @@ import {
   cadDocumentNativeDxfHatches,
   cadDocumentNativeDxfMTexts,
   cadDocumentNativeDxfPrimitives,
+  cadDocumentNativeDxfSemanticDimensions,
   cadDxfCurvesToNativeEntities,
   cadDxfHatchesToNativeEntities,
   cadDxfMTextsToNativeEntities,
+  cadDxfSemanticDimensionsToNativeEntities,
 } from '@/lib/cad/dxf-cad-document';
 import {
   describeCadObjectProperties,
@@ -219,6 +221,8 @@ import {
 import { CadDynamicInput } from './cad-workbench/CadDynamicInput';
 import { CadHatchPalette } from './cad-workbench/CadHatchPalette';
 import { CadMTextEditor, type CadMTextDraft } from './cad-workbench/CadMTextEditor';
+import { CadDimensionPalette, type CadDimensionDraft } from './cad-workbench/CadDimensionPalette';
+import { cadEntityAssociationAnchor } from '@/lib/cad/associative-dimension';
 import {
   cadViewportFocusBounds,
   createCadViewportBookmark,
@@ -1054,6 +1058,7 @@ export default function Layout3DEditor({
   const [hatchIslandStyle, setHatchIslandStyle] = useState<'normal' | 'outer' | 'ignore'>('normal');
   const [mtextEditorOpen, setMTextEditorOpen] = useState(false);
   const [editingMTextId, setEditingMTextId] = useState<string | null>(null);
+  const [showDimensionPalette, setShowDimensionPalette] = useState(false);
   const [viewMode, setViewMode] = useState<'3d' | '2d'>('3d'); // 2D = locked top-down plan view (CAD unificado)
   const [walk, setWalk] = useState(false); // first-person walkthrough mode
   const [showHelp, setShowHelp] = useState(false); // keyboard shortcuts overlay
@@ -2513,8 +2518,14 @@ export default function Layout3DEditor({
     const checkpoint = snapshotDocument();
     try {
       let document = checkpoint;
-      for (const command of commands)
-        document = executeCadEntityCommand(document, command).document;
+      const touchedIds = new Set<string>();
+      for (const command of commands) {
+        const result = executeCadEntityCommand(document, command);
+        document = result.document;
+        result.affectedEntityIds.forEach((id) => touchedIds.add(id));
+        result.createdEntityIds.forEach((id) => touchedIds.add(id));
+        result.deletedEntityIds.forEach((id) => touchedIds.add(id));
+      }
       undoStackRef.current.push(checkpoint);
       if (undoStackRef.current.length > 80) undoStackRef.current.shift();
       redoStackRef.current = [];
@@ -2532,13 +2543,6 @@ export default function Layout3DEditor({
       );
       setNativeDocumentRevision((value) => value + 1);
       setDirty(true);
-      const touchedIds = new Set(
-        commands.flatMap((command) =>
-          command.type === 'copy'
-            ? [command.entityId, command.newEntityId]
-            : [command.entityId],
-        ),
-      );
       const upsert = document.entities.filter(
         (entity): entity is CadNativeEntity =>
           touchedIds.has(entity.id) && CAD_ENTITY_REGISTRY.supports(entity),
@@ -2659,6 +2663,72 @@ export default function Layout3DEditor({
     setEditingMTextId(null);
     setMTextEditorOpen(false);
   }, [commitNativeCommands, editingMTextId, insertNativeEntities]);
+  const createAssociativeDimension = useCallback((draft: CadDimensionDraft) => {
+    const document = loadedCadDocumentRef.current;
+    if (!document) return;
+    const selectedSources = nativeSelectionIdsRef.current
+      .map((id) => document.entities.find((entity) => entity.id === id))
+      .filter((entity): entity is CadEntity => !!entity && entity.type !== 'dimension' && entity.type !== 'hatch' && entity.type !== 'mtext');
+    const primary = selectedSources[0];
+    type DimensionReference = NonNullable<Extract<CadEntity, { type: 'dimension' }>['references']>[number];
+    let references: DimensionReference[] = [];
+    if (primary?.type === 'line' && (draft.kind === 'linear' || draft.kind === 'aligned' || draft.kind === 'ordinate'))
+      references = [{ entityId: primary.id, anchor: 'start' }, { entityId: primary.id, anchor: 'end' }];
+    else if ((primary?.type === 'arc' || primary?.type === 'circle') && (draft.kind === 'radius' || draft.kind === 'diameter'))
+      references = [{ entityId: primary.id, anchor: 'center' }, { entityId: primary.id, anchor: 'arc-start' }];
+    else if (primary?.type === 'arc' && (draft.kind === 'angular' || draft.kind === 'arc-length'))
+      references = [{ entityId: primary.id, anchor: 'center' }, { entityId: primary.id, anchor: 'arc-start' }, { entityId: primary.id, anchor: 'arc-end' }];
+    else if (selectedSources.length >= 2 && (draft.kind === 'linear' || draft.kind === 'aligned' || draft.kind === 'ordinate')) {
+      const referenceFor = (entity: CadEntity): DimensionReference | null => {
+        if (entity.type === 'line' || entity.type === 'spline') return { entityId: entity.id, anchor: 'start' };
+        if (entity.type === 'circle' || entity.type === 'arc' || entity.type === 'ellipse') return { entityId: entity.id, anchor: 'center' };
+        return null;
+      };
+      const first = referenceFor(selectedSources[0]);
+      const second = referenceFor(selectedSources[1]);
+      if (first && second) references = [first, second];
+    }
+    const definitionPoints = references.map((reference) => {
+      const source = document.entities.find((entity) => entity.id === reference.entityId);
+      return source ? cadEntityAssociationAnchor(source, reference) : null;
+    });
+    const required = draft.kind === 'angular' || draft.kind === 'arc-length' ? 3 : 2;
+    if (definitionPoints.length < required || definitionPoints.some((point) => !point)) {
+      toast.error('La selección no aporta referencias compatibles con ese tipo de cota.', 'Dimensión');
+      return;
+    }
+    const style = document.styles.dimension[draft.style] ?? {};
+    const entity: CadNativeEntity = {
+      id: newId('dim'),
+      type: 'dimension',
+      dimensionKind: draft.kind,
+      a: definitionPoints[0]!,
+      b: definitionPoints[1]!,
+      ...(definitionPoints[2] ? { c: definitionPoints[2]! } : {}),
+      axis: draft.axis,
+      offset: draft.offset,
+      ...(draft.kind === 'radius' || draft.kind === 'diameter' ? { radius: Math.hypot(definitionPoints[1]!.x - definitionPoints[0]!.x, definitionPoints[1]!.y - definitionPoints[0]!.y) } : {}),
+      style: draft.style,
+      precision: style.precision ?? draft.precision,
+      sourceUnit: data?.footprint.unit === 'm' ? 'm' : 'mm',
+      units: draft.units,
+      ...(draft.alternateUnits ? { alternateUnits: draft.alternateUnits } : {}),
+      prefix: draft.prefix,
+      suffix: draft.suffix,
+      extensionLines: draft.extensionLines,
+      arrowhead: draft.arrowhead,
+      arrowSize: style.arrowSize ?? Math.max(1, (data?.footprint.gridSize ?? 100) * 1.8),
+      associative: true,
+      references,
+      associationStatus: 'associated',
+      layer: activeCadLayer,
+      context: { provenance: { provider: 'cad-editor' }, metadata: { sourceType: 'ASSOCIATIVE_DIMENSION' } },
+    };
+    if (insertNativeEntities([entity], `create:dimension:${draft.kind}`)) {
+      setShowDimensionPalette(false);
+      toast.success(`Cota ${draft.kind} asociada a ${new Set(references.map((reference) => reference.entityId)).size} fuente(s).`, 'Dimensión');
+    }
+  }, [activeCadLayer, data?.footprint.gridSize, data?.footprint.unit, insertNativeEntities, toast]);
 
   // ---- scene lifecycle ----
   useEffect(() => {
@@ -5119,7 +5189,8 @@ export default function Layout3DEditor({
       hatch.boundaries.map((points) => ({ kind: 'polyline' as const, layer: hatch.layer, points })),
     );
     const mtextAnchorPrimitives: CadDxfPrimitive[] = preview.mtexts.map((mtext) => ({ kind: 'text', layer: mtext.layer, points: [mtext.insertion], text: mtext.text }));
-    const bounds = dxfPrimitiveBounds([...preview.primitives, ...hatchBoundaryPrimitives, ...mtextAnchorPrimitives]);
+    const dimensionPointPrimitives: CadDxfPrimitive[] = preview.semanticDimensions.map((dimension) => ({ kind: 'polyline', layer: dimension.layer, points: [dimension.a, dimension.b, ...(dimension.c ? [dimension.c] : [])] }));
+    const bounds = dxfPrimitiveBounds([...preview.primitives, ...hatchBoundaryPrimitives, ...mtextAnchorPrimitives, ...dimensionPointPrimitives]);
     if (!bounds) { toast.error('El DXF no tiene entidades soportadas para convertir.', 'DXF'); return; }
     recordLocalSnapshot('Auto · antes de convertir DXF', 'import');
     pushHistory();
@@ -5134,11 +5205,16 @@ export default function Layout3DEditor({
       projection: { point: (point) => projectDxfPoint(point, bounds, dm, meta) },
       provider: 'dxf',
     }).slice(0, Math.max(0, 850 - nativeHatches.length));
-    const nativeCreated: CadNativeEntity[] = [...nativeHatches, ...nativeMTexts];
+    const nativeDimensions = cadDxfSemanticDimensionsToNativeEntities(preview.semanticDimensions, {
+      idPrefix: newId('cad'),
+      projection: { point: (point) => projectDxfPoint(point, bounds, dm, meta) },
+      provider: 'dxf',
+    }).slice(0, Math.max(0, 850 - nativeHatches.length - nativeMTexts.length));
+    const nativeCreated: CadNativeEntity[] = [...nativeHatches, ...nativeMTexts, ...nativeDimensions];
     const layerUpdates: Record<string, CadLayerId> = {};
     const tagUpdates: Record<string, string> = {};
     let notes = 0;
-    let truncated = preview.hatches.length + preview.mtexts.length > nativeCreated.length;
+    let truncated = preview.hatches.length + preview.mtexts.length + preview.semanticDimensions.length > nativeCreated.length;
     const cap = 850;
     for (const primitive of preview.primitives) {
       if (created.length + nativeCreated.length >= cap) { truncated = true; break; }
@@ -6866,7 +6942,12 @@ export default function Layout3DEditor({
         const layer = loadedCadDocumentRef.current?.layers.find((candidate) => candidate.id === entity.layer);
         return options.includeHidden || layer?.visible !== false;
       }) : [];
-      const exported = exportCadLayoutDxf({ boxes, connectors, labels, measurements, primitives, hatches, mtexts }, { units: options.units, fileComment: `${PRODUCT_LABEL.design} ${model} ${revision}` });
+      const semanticDimensions = options.includeMeasurements ? cadDocumentNativeDxfSemanticDimensions(snapshotDocument(), (entity) => {
+        if (options.scope === 'selection' && !selectedNativeIds.has(entity.id)) return false;
+        const layer = loadedCadDocumentRef.current?.layers.find((candidate) => candidate.id === entity.layer);
+        return options.includeHidden || layer?.visible !== false;
+      }) : [];
+      const exported = exportCadLayoutDxf({ boxes, connectors, labels, measurements, primitives, hatches, mtexts, semanticDimensions }, { units: options.units, fileComment: `${PRODUCT_LABEL.design} ${model} ${revision}` });
       const blob = new Blob([exported.content], { type: 'application/dxf' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -7235,7 +7316,11 @@ export default function Layout3DEditor({
   const assetCount = assetIds.size;
   const dxfWarningSummary = summarizeDxfImportWarnings(dxfWarnings).slice(0, 6);
   const dxfPrimitiveSummary = dxfImportPreview
-    ? dxfImportPreview.primitives.reduce<Record<string, number>>((acc, primitive) => { acc[primitive.kind] = (acc[primitive.kind] ?? 0) + 1; return acc; }, { ...(dxfImportPreview.hatches.length ? { hatch: dxfImportPreview.hatches.length } : {}) })
+    ? dxfImportPreview.primitives.reduce<Record<string, number>>((acc, primitive) => { acc[primitive.kind] = (acc[primitive.kind] ?? 0) + 1; return acc; }, {
+        ...(dxfImportPreview.hatches.length ? { hatch: dxfImportPreview.hatches.length } : {}),
+        ...(dxfImportPreview.mtexts.length ? { mtext: dxfImportPreview.mtexts.length } : {}),
+        ...(dxfImportPreview.semanticDimensions.length ? { dimension: dxfImportPreview.semanticDimensions.length } : {}),
+      })
     : null;
   const orderedPaperSpaces = [...paperSpaces].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id.localeCompare(b.id));
   const activePaperSpace = orderedPaperSpaces.find((space) => space.id === activePaperSpaceId) ?? orderedPaperSpaces[0] ?? null;
@@ -7425,6 +7510,17 @@ export default function Layout3DEditor({
               onIslandStyleChange={setHatchIslandStyle}
               onPickModeChange={(active) => { hatchPickModeRef.current = active; setHatchPickMode(active); if (active) setShowHatchPalette(false); }}
               onCreateFromSelection={(solid) => { createHatchForSelection(solid); setShowHatchPalette(false); }}
+            />
+          )}
+        </div>
+        <div className="relative">
+          <T3Btn active={showDimensionPalette} onClick={() => setShowDimensionPalette((value) => !value)} title="Dimensiones asociativas: linear, aligned, angular, radius, diameter, ordinate y arc length"><RulerDimensionLine className="w-4 h-4" /></T3Btn>
+          {showDimensionPalette && (
+            <CadDimensionPalette
+              selectedCount={nativeSelectionIds.length}
+              defaultOffset={Math.max(1, (data?.footprint.gridSize ?? 100) * 2)}
+              styles={Object.keys(loadedCadDocumentRef.current?.styles.dimension ?? {})}
+              onCreate={createAssociativeDimension}
             />
           )}
         </div>
@@ -7973,7 +8069,7 @@ export default function Layout3DEditor({
                   <div className="mb-2 rounded-xl border border-cyan-400/15 bg-cyan-400/[0.06] p-2 text-[11px] text-cyan-100">
                     {/* Soporte honesto de formatos (contrato D5): DXF nativo; DWG sólo con proveedor licenciado. */}
                     <div className="mb-1 text-[10px] text-cyan-200/70" title={DWG_UNAVAILABLE_REASON}>Formatos: DXF ✓ nativo · DWG ✕ requiere proveedor licenciado</div>
-                    <div className="font-semibold">{dxfImportPreview.primitives.length + dxfImportPreview.hatches.length} entidades soportadas · {dxfImportPreview.layers.length || 1} capa(s)</div>
+                    <div className="font-semibold">{dxfImportPreview.primitives.length + dxfImportPreview.hatches.length + dxfImportPreview.mtexts.length + dxfImportPreview.semanticDimensions.length} entidades soportadas · {dxfImportPreview.layers.length || 1} capa(s)</div>
                     <div className="mt-1 text-cyan-100/75">{Object.entries(dxfPrimitiveSummary).map(([kind, count]) => `${kind}: ${count}`).join(' · ')}</div>
                     <button onClick={convertDxfPrimitivesToEditable} className="mt-2 w-full rounded-lg bg-cyan-600 px-2 py-1.5 text-[11px] font-semibold text-white hover:bg-cyan-500">Convertir entidades soportadas</button>
                   </div>
@@ -8280,6 +8376,14 @@ export default function Layout3DEditor({
                     onClick={() => openMTextEditor(primaryNativeEntity.id)}
                     className="mt-2 w-full rounded-lg border border-cyan-400/20 bg-cyan-400/[0.08] px-3 py-1.5 text-[11px] font-semibold text-cyan-100 hover:bg-cyan-400/[0.14]"
                   >Editar contenido y formato MTEXT</button>
+                )}
+                {primaryNativeEntity?.type === 'dimension' && primaryNativeEntity.dimensionKind && (
+                  <div className="mt-2 flex items-center gap-1.5 rounded-lg border border-emerald-400/15 bg-emerald-400/[0.05] p-2 text-[10.5px]">
+                    <span className={primaryNativeEntity.associationStatus === 'broken' ? 'text-rose-300' : 'text-emerald-200'}>{primaryNativeEntity.associationStatus ?? (primaryNativeEntity.associative ? 'associated' : 'detached')}</span>
+                    <span className="text-gray-500">{primaryNativeEntity.references?.length ?? 0} refs</span>
+                    <button data-testid="cad-dimension-reassociate" onClick={() => commitNativeCommands([{ type: 'dimension-association', entityId: primaryNativeEntity.id, associative: true }])} className="ml-auto rounded bg-emerald-500/20 px-2 py-1 text-emerald-100 hover:bg-emerald-500/30">Reasociar</button>
+                    <button data-testid="cad-dimension-detach" onClick={() => commitNativeCommands([{ type: 'dimension-association', entityId: primaryNativeEntity.id, associative: false }])} className="rounded bg-white/[0.06] px-2 py-1 text-gray-300 hover:bg-white/[0.12]">Desasociar</button>
+                  </div>
                 )}
               </div>
             ) : selList.length === 0 ? (

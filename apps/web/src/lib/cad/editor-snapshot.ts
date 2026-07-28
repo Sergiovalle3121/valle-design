@@ -206,7 +206,7 @@ export function cadDocumentToEditorSnapshot<L extends string = string>(
       if (e.color !== undefined) annotation.color = e.color;
       snap.annotations.push(annotation);
       if (e.layer !== TEXT_LAYER) snap.layers[e.id] = e.layer as L;
-    } else if (e.type === "dimension") {
+    } else if (e.type === "dimension" && !e.dimensionKind) {
       const annotation: CadEditorAnnotation = {
         id: e.id,
         type: "dim",

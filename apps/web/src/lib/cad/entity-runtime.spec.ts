@@ -151,6 +151,57 @@ assert.equal(editedMtext.columns, 2);
 const movedMtext = mtextRuntime.grips.moveGrip(mtext, "insertion", { x: 250, y: 350 });
 assert.deepEqual(movedMtext.insertion, { x: 250, y: 350, z: 0 });
 
+const nativeLine: Extract<CadNativeEntity, { type: "line" }> = {
+  id: "line-source",
+  type: "line",
+  start: { x: 0, y: 0, z: 0 },
+  end: { x: 200, y: 0, z: 0 },
+  layer: "GEOMETRY",
+};
+const nativeCircle: Extract<CadNativeEntity, { type: "circle" }> = {
+  id: "circle-source",
+  type: "circle",
+  center: { x: 300, y: 300, z: 0 },
+  radius: 75,
+  layer: "GEOMETRY",
+};
+assert.equal(CAD_ENTITY_REGISTRY.adapter(nativeLine).hitTester.hitTest(nativeLine, { x: 100, y: 1 }, 2), true);
+assert.equal(CAD_ENTITY_REGISTRY.adapter(nativeCircle).hitTester.hitTest(nativeCircle, { x: 375, y: 300 }, 0.1), true);
+const associatedDimension: Extract<CadNativeEntity, { type: "dimension" }> = {
+  id: "dimension-associated",
+  type: "dimension",
+  dimensionKind: "aligned",
+  a: { x: 0, y: 0 },
+  b: { x: 200, y: 0 },
+  offset: 40,
+  associative: true,
+  references: [
+    { entityId: nativeLine.id, anchor: "start" },
+    { entityId: nativeLine.id, anchor: "end" },
+  ],
+  associationStatus: "associated",
+  layer: "DIMENSIONS",
+};
+const dimensionDocument = migrateCadDocument({
+  meta: { version: 1, schema: 3, unit: "mm" },
+  entities: [nativeLine, nativeCircle, associatedDimension],
+});
+const movedLineDocument = executeCadEntityCommand(dimensionDocument, {
+  type: "transform",
+  entityId: nativeLine.id,
+  transform: { translation: { x: 25, y: 10 } },
+});
+const regeneratedDimension = movedLineDocument.document.entities.find((entity) => entity.id === associatedDimension.id);
+assert.equal(regeneratedDimension?.type, "dimension");
+if (regeneratedDimension?.type === "dimension") {
+  assert.deepEqual(regeneratedDimension.a, { x: 25, y: 10, z: 0 });
+  assert.deepEqual(regeneratedDimension.b, { x: 225, y: 10, z: 0 });
+  assert.equal(regeneratedDimension.associationStatus, "associated");
+}
+const deletedLineDocument = executeCadEntityCommand(movedLineDocument.document, { type: "delete", entityId: nativeLine.id });
+const brokenDimension = deletedLineDocument.document.entities.find((entity) => entity.id === associatedDimension.id);
+assert.equal(brokenDimension?.type === "dimension" ? brokenDimension.associationStatus : null, "broken");
+
 const hatch: Extract<CadNativeEntity, { type: "hatch" }> = {
   id: "hatch-1",
   type: "hatch",

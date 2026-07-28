@@ -182,10 +182,35 @@ export type CadEntity =
       type: "dimension";
       a: { x: number; y: number };
       b: { x: number; y: number };
+      c?: { x: number; y: number };
+      dimensionKind?: "linear" | "aligned" | "angular" | "radius" | "diameter" | "ordinate" | "arc-length";
+      axis?: "x" | "y";
+      offset?: number;
+      radius?: number;
       layer: string;
       text?: string;
       color?: string;
       style?: string;
+      precision?: number;
+      units?: "mm" | "cm" | "m" | "in" | "ft";
+      sourceUnit?: "mm" | "cm" | "m" | "in" | "ft";
+      prefix?: string;
+      suffix?: string;
+      alternateUnits?: "mm" | "cm" | "m" | "in" | "ft";
+      extensionLines?: boolean;
+      arrowhead?: "closed-filled" | "open" | "architectural-tick" | "dot";
+      arrowSize?: number;
+      extensionGap?: number;
+      extensionOvershoot?: number;
+      textGap?: number;
+      textPosition?: { x: number; y: number };
+      associative?: boolean;
+      references?: Array<{
+        entityId: string;
+        anchor: "start" | "end" | "center" | "arc-start" | "arc-end" | "major-start" | "major-end" | "control" | "insertion";
+        index?: number;
+      }>;
+      associationStatus?: "associated" | "broken" | "detached";
       context?: CadEntityContext;
     }
   | {
@@ -832,7 +857,8 @@ export function replaceEditorProjection(
   const preserved = base
     ? base.entities.filter((entity) =>
         !projectionIds.has(entity.id)
-        && !["box", "station", "text", "dimension", "connector"].includes(entity.type)
+        && !["box", "station", "text", "connector"].includes(entity.type)
+        && (entity.type !== "dimension" || !!entity.dimensionKind)
         && (entity.type !== "circle" || !entity.legacy),
       )
     : [];

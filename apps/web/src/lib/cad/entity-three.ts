@@ -4,6 +4,7 @@ import {
   type CadNativeEntity,
 } from "./entity-runtime";
 import { layoutCadMText } from "./mtext-layout";
+import { buildCadDimensionGeometry } from "./associative-dimension";
 
 export interface CadThreeViewport {
   scale: number;
@@ -327,6 +328,31 @@ export function buildCadNativeObject(
   if (entity.type === "mtext") {
     const sprite = buildCadMTextSprite(entity, viewport, elevation);
     if (sprite) group.add(sprite);
+  }
+  if (entity.type === "dimension") {
+    const dimension = buildCadDimensionGeometry(entity);
+    if (dimension) {
+      const sprite = buildCadMTextSprite({
+        id: `${entity.id}:label`,
+        type: "mtext",
+        insertion: { ...dimension.textAnchor, z: 0 },
+        text: dimension.label,
+        width: Math.max(entity.arrowSize ?? 180, dimension.label.length * (entity.arrowSize ?? 180) * 0.45),
+        height: Math.max(1, (entity.arrowSize ?? 180) * 0.55),
+        rotation: dimension.textAngle,
+        alignment: "middle-center",
+        paragraphAlignment: "center",
+        backgroundMask: true,
+        backgroundColor: "#0f172a",
+        backgroundPadding: 0.1,
+        layer: entity.layer,
+        context: entity.context,
+      }, viewport, elevation);
+      if (sprite) {
+        sprite.userData.nativeEntityId = entity.id;
+        group.add(sprite);
+      }
+    }
   }
 
   if (entity.type === "hatch" && entity.solid && entity.boundaries[0]?.length >= 3) {

@@ -13,6 +13,9 @@ import {
 } from "./curve-tessellate";
 import { hatchPolygon } from "./hatch";
 import { layoutCadMText } from "./mtext-layout";
+import { regenerateAssociativeDimensions } from "./associative-dimension";
+import { circleAdapter, isLegacyCircle, lineAdapter } from "./basic-native-adapters";
+import { dimensionAdapter } from "./dimension-entity-adapter";
 import {
   hatchRegionContainsPoint,
   regenerateAssociativeHatches,
@@ -21,7 +24,7 @@ import {
 
 export type CadNativeEntity = Extract<
   CadEntity,
-  { type: "arc" | "ellipse" | "spline" | "hatch" | "mtext" }
+  { type: "line" | "circle" | "arc" | "ellipse" | "spline" | "hatch" | "mtext" | "dimension" }
 >;
 export type CadNativeEntityType = CadNativeEntity["type"];
 
@@ -1119,7 +1122,7 @@ export class CadEntityRegistry {
   }
 
   supports(entity: CadEntity): entity is CadNativeEntity {
-    return this.adapters.has(entity.type as CadNativeEntityType);
+    return !isLegacyCircle(entity) && this.adapters.has(entity.type as CadNativeEntityType);
   }
 
   adapter<E extends CadNativeEntity>(entity: E): CadEntityAdapter<E> {
@@ -1130,11 +1133,14 @@ export class CadEntityRegistry {
 }
 
 export const CAD_ENTITY_REGISTRY = new CadEntityRegistry()
+  .register(lineAdapter)
+  .register(circleAdapter)
   .register(arcAdapter)
   .register(ellipseAdapter)
   .register(splineAdapter)
   .register(mtextAdapter)
-  .register(hatchAdapter);
+  .register(hatchAdapter)
+  .register(dimensionAdapter);
 
 function rectangularBoundary(entity: Extract<CadEntity, { type: "box" | "station" }>): CadPoint2[] {
   const center = { x: entity.x + entity.w / 2, y: entity.y + entity.h / 2 };
@@ -1168,6 +1174,7 @@ export function cadEntityBoundaryPaths(
   if (entity.type === "hatch")
     return entity.boundaries.map((points) => ({ sourceId: entity.id, points, closed: true }));
   if (entity.type === "mtext") return [];
+  if (entity.type === "dimension") return [];
   return registry.adapter(entity).renderer.paths(entity, 192)
     .map((path) => ({ sourceId: entity.id, points: path.points, closed: path.closed }));
 }
@@ -1178,6 +1185,7 @@ export type CadEntityCommand =
   | { type: "grip"; entityId: string; gripId: string; point: CadPoint2 }
   | { type: "copy"; entityId: string; newEntityId: string; offset?: CadPoint2 }
   | { type: "hatch-association"; entityId: string; associative: boolean }
+  | { type: "dimension-association"; entityId: string; associative: boolean }
   | { type: "delete"; entityId: string };
 
 export interface CadEntityCommandResult {
@@ -1222,6 +1230,14 @@ export function executeCadEntityCommand(
       associationStatus: command.associative ? "associated" : "detached",
     } : entity);
     regenerationSourceIds = command.associative ? [...(source.boundaryRefs ?? [])] : [];
+  } else if (command.type === "dimension-association") {
+    if (source.type !== "dimension") throw new Error("Dimension association commands require a DIMENSION entity.");
+    entities = entities.map((entity) => entity.id === source.id ? {
+      ...source,
+      associative: command.associative,
+      associationStatus: command.associative ? "associated" : "detached",
+    } : entity);
+    regenerationSourceIds = command.associative ? [...new Set((source.references ?? []).map((reference) => reference.entityId))] : [];
   } else {
     const next =
       command.type === "transform"
@@ -1237,7 +1253,8 @@ export function executeCadEntityCommand(
     regenerationSourceIds,
     (entity) => cadEntityBoundaryPaths(entity, registry),
   );
-  entities = regenerated.entities;
+  const regeneratedDimensions = regenerateAssociativeDimensions(regenerated.entities, regenerationSourceIds);
+  entities = regeneratedDimensions.entities;
   entities.sort((a, b) => a.id.localeCompare(b.id));
   const nextDocument = commitChange(
     {
@@ -1254,7 +1271,7 @@ export function executeCadEntityCommand(
   );
   return {
     document: nextDocument,
-    affectedEntityIds: [...new Set([source.id, ...regenerated.regeneratedIds, ...regenerated.brokenIds])],
+    affectedEntityIds: [...new Set([source.id, ...regenerated.regeneratedIds, ...regenerated.brokenIds, ...regeneratedDimensions.regeneratedIds, ...regeneratedDimensions.brokenIds])],
     createdEntityIds,
     deletedEntityIds,
   };

@@ -4,9 +4,11 @@ import {
   cadDocumentNativeDxfHatches,
   cadDocumentNativeDxfMTexts,
   cadDocumentNativeDxfPrimitives,
+  cadDocumentNativeDxfSemanticDimensions,
   cadDxfCurvesToNativeEntities,
   cadDxfHatchesToNativeEntities,
   cadDxfMTextsToNativeEntities,
+  cadDxfSemanticDimensionsToNativeEntities,
 } from "./dxf-cad-document";
 import { exportCadDxf } from "./dxf-export";
 import { importDxfPrimitives } from "./dxf-import";
@@ -86,6 +88,34 @@ const source = migrateCadDocument({
       columns: 2,
       layer: "TEXT",
     },
+    {
+      id: "dimension-native",
+      type: "dimension",
+      dimensionKind: "aligned",
+      a: { x: 20, y: 40 },
+      b: { x: 274.6, y: 40 },
+      offset: 35,
+      layer: "DIMENSIONS",
+      style: "Architectural",
+      precision: 3,
+      sourceUnit: "mm",
+      units: "in",
+      alternateUnits: "mm",
+      prefix: "~",
+      suffix: " typ",
+      extensionLines: false,
+      arrowhead: "architectural-tick",
+      arrowSize: 9,
+      extensionGap: 2,
+      extensionOvershoot: 4,
+      textGap: 5,
+      associative: true,
+      references: [
+        { entityId: "source-line", anchor: "start" },
+        { entityId: "source-line", anchor: "end" },
+      ],
+      associationStatus: "associated",
+    },
   ],
 });
 
@@ -164,6 +194,49 @@ if (mtext.type === "mtext") {
   assert.equal(mtext.backgroundColor, "#112233");
   assert.equal(mtext.columns, 2);
 }
+
+const semanticDimensions = cadDocumentNativeDxfSemanticDimensions(source);
+assert.equal(semanticDimensions.length, 1);
+const dimensionDxf = exportCadDxf({ semanticDimensions }, { units: "mm" });
+assert.match(dimensionDxf.content, /1001\r?\nAXOS_DIM/);
+const reimportedDimensions = importDxfPrimitives(dimensionDxf.content);
+assert.equal(reimportedDimensions.semanticDimensions.length, 1);
+assert.equal(reimportedDimensions.primitives.length, 0, "own *D block is not duplicated as flattened geometry");
+const nativeDimensions = cadDxfSemanticDimensionsToNativeEntities(reimportedDimensions.semanticDimensions, { idPrefix: "roundtrip" });
+const semanticDimension = nativeDimensions[0];
+assert.equal(semanticDimension.type, "dimension");
+if (semanticDimension.type === "dimension") {
+  assert.equal(semanticDimension.dimensionKind, "aligned");
+  assert.deepEqual(semanticDimension.a, { x: 20, y: 40, z: 0 });
+  assert.deepEqual(semanticDimension.b, { x: 274.6, y: 40, z: 0 });
+  assert.equal(semanticDimension.offset, 35);
+  assert.equal(semanticDimension.style, "Architectural");
+  assert.equal(semanticDimension.precision, 3);
+  assert.equal(semanticDimension.units, "in");
+  assert.equal(semanticDimension.alternateUnits, "mm");
+  assert.equal(semanticDimension.prefix, "~");
+  assert.equal(semanticDimension.suffix, " typ");
+  assert.equal(semanticDimension.extensionLines, false);
+  assert.equal(semanticDimension.arrowhead, "architectural-tick");
+  assert.equal(semanticDimension.associative, false);
+  assert.equal(semanticDimension.associationStatus, "detached");
+}
+
+const everyDimensionKind = ["linear", "aligned", "angular", "radius", "diameter", "ordinate", "arc-length"] as const;
+const everyDimensionDxf = exportCadDxf({
+  semanticDimensions: everyDimensionKind.map((dimensionKind, index) => ({
+    layer: "DIMENSIONS",
+    dimensionKind,
+    a: { x: index * 200, y: 0 },
+    b: { x: index * 200 + 100, y: 0 },
+    ...((dimensionKind === "angular" || dimensionKind === "arc-length") ? { c: { x: index * 200, y: 100 }, radius: 50 } : {}),
+    ...((dimensionKind === "radius" || dimensionKind === "diameter") ? { radius: 100 } : {}),
+    offset: 25,
+  })),
+});
+const everyDimensionRoundTrip = importDxfPrimitives(everyDimensionDxf.content);
+assert.deepEqual(everyDimensionRoundTrip.semanticDimensions.map((dimension) => dimension.dimensionKind), everyDimensionKind);
+assert.equal(everyDimensionRoundTrip.primitives.length, 0);
 
 // Editor projection flips Y; orientation-aware import swaps the arc endpoints
 // so the same geometric sweep survives instead of silently mirroring it.

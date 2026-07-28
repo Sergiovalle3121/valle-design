@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import DxfParser from "dxf-parser";
+import type { CadDimensionEntity } from "./associative-dimension";
 
 export type CadDxfPrimitiveKind =
   | "line"
@@ -64,6 +65,10 @@ export interface CadDxfMText {
   backgroundPadding?: number;
   columns?: number;
 }
+export type CadDxfSemanticDimension = Omit<
+  CadDimensionEntity,
+  "id" | "type" | "context" | "references" | "associative" | "associationStatus"
+> & { blockName: string };
 export interface CadDxfImportWarning {
   code: string;
   message: string;
@@ -74,6 +79,7 @@ export interface CadDxfImportResult {
   primitives: CadDxfPrimitive[];
   hatches: CadDxfHatch[];
   mtexts: CadDxfMText[];
+  semanticDimensions: CadDxfSemanticDimension[];
   warnings: CadDxfImportWarning[];
   layers: string[];
 }
@@ -566,6 +572,91 @@ export function parseRawDxfMTexts(text: string): CadDxfMText[] {
   return result;
 }
 
+const DIMENSION_KINDS = new Set<CadDxfSemanticDimension["dimensionKind"]>([
+  "linear", "aligned", "angular", "radius", "diameter", "ordinate", "arc-length",
+]);
+const DIMENSION_UNITS = new Set<NonNullable<CadDxfSemanticDimension["units"]>>(["mm", "cm", "m", "in", "ft"]);
+const DIMENSION_ARROWS = new Set<NonNullable<CadDxfSemanticDimension["arrowhead"]>>([
+  "closed-filled", "open", "architectural-tick", "dot",
+]);
+
+/**
+ * AXOS dimensions use ordinary DIMENSION entities plus registered XDATA. The
+ * metadata retains semantic formatting while the anonymous *D block keeps the
+ * drawing visible in CAD readers that do not understand AXOS_DIM.
+ */
+export function parseRawDxfSemanticDimensions(text: string): CadDxfSemanticDimension[] {
+  const pairs = rawDxfPairs(text);
+  const dimensions: CadDxfSemanticDimension[] = [];
+  for (let start = 0; start < pairs.length && dimensions.length < MAX_DXF_ENTITIES; start += 1) {
+    if (pairs[start].code !== 0 || pairs[start].value.toUpperCase() !== "DIMENSION") continue;
+    let end = start + 1;
+    while (end < pairs.length && pairs[end].code !== 0) end += 1;
+    const entityPairs = pairs.slice(start + 1, end);
+    const applicationIndex = entityPairs.findIndex((pair) => pair.code === 1001 && pair.value === "AXOS_DIM");
+    if (applicationIndex < 0) { start = end - 1; continue; }
+    const first = (code: number) => entityPairs.find((pair) => pair.code === code)?.value;
+    const point = (xCode: number, yCode: number): CadDxfPoint | null => {
+      const x = num(first(xCode));
+      const y = num(first(yCode));
+      return x === null || y === null ? null : { x, y };
+    };
+    const metadata = new Map<string, string>();
+    for (const pair of entityPairs.slice(applicationIndex + 1)) {
+      if (pair.code !== 1000) continue;
+      const separator = pair.value.indexOf("=");
+      if (separator > 0) metadata.set(pair.value.slice(0, separator), pair.value.slice(separator + 1));
+    }
+    const rawKind = metadata.get("kind") as CadDxfSemanticDimension["dimensionKind"] | undefined;
+    const kind = rawKind && DIMENSION_KINDS.has(rawKind) ? rawKind : null;
+    const a = point(13, 23);
+    const b = point(14, 24) ?? point(10, 20);
+    const blockName = first(2) ?? "";
+    if (!kind || !a || !b || !blockName) { start = end - 1; continue; }
+    const numericMetadata = (key: string) => num(metadata.get(key));
+    const rawUnits = metadata.get("units") as NonNullable<CadDxfSemanticDimension["units"]> | undefined;
+    const rawSourceUnit = metadata.get("sourceUnit") as NonNullable<CadDxfSemanticDimension["sourceUnit"]> | undefined;
+    const rawAlternate = metadata.get("alternateUnits") as NonNullable<CadDxfSemanticDimension["alternateUnits"]> | undefined;
+    const rawArrow = metadata.get("arrowhead") as NonNullable<CadDxfSemanticDimension["arrowhead"]> | undefined;
+    const c = point(15, 25);
+    const precision = num(first(271));
+    const offset = numericMetadata("offset");
+    const radius = numericMetadata("radius");
+    const arrowSize = numericMetadata("arrowSize");
+    const extensionGap = numericMetadata("extensionGap");
+    const extensionOvershoot = numericMetadata("extensionOvershoot");
+    const textGap = numericMetadata("textGap");
+    const textOverride = metadata.get("textOverride") ?? "";
+    dimensions.push({
+      blockName,
+      layer: first(8) || DEFAULT_LAYER,
+      dimensionKind: kind,
+      a,
+      b,
+      ...(c ? { c } : {}),
+      axis: metadata.get("axis") === "y" ? "y" : "x",
+      ...(offset !== null ? { offset } : {}),
+      ...(radius !== null && radius > 0 ? { radius } : {}),
+      style: first(3) || "Standard",
+      ...(precision !== null ? { precision: Math.max(0, Math.min(8, Math.floor(precision))) } : {}),
+      ...(rawUnits && DIMENSION_UNITS.has(rawUnits) ? { units: rawUnits } : {}),
+      ...(rawSourceUnit && DIMENSION_UNITS.has(rawSourceUnit) ? { sourceUnit: rawSourceUnit } : {}),
+      ...(rawAlternate && DIMENSION_UNITS.has(rawAlternate) ? { alternateUnits: rawAlternate } : {}),
+      prefix: metadata.get("prefix") ?? "",
+      suffix: metadata.get("suffix") ?? "",
+      extensionLines: metadata.get("extensionLines") !== "0",
+      ...(rawArrow && DIMENSION_ARROWS.has(rawArrow) ? { arrowhead: rawArrow } : {}),
+      ...(arrowSize !== null && arrowSize > 0 ? { arrowSize } : {}),
+      ...(extensionGap !== null && extensionGap >= 0 ? { extensionGap } : {}),
+      ...(extensionOvershoot !== null && extensionOvershoot >= 0 ? { extensionOvershoot } : {}),
+      ...(textGap !== null && textGap >= 0 ? { textGap } : {}),
+      ...(textOverride ? { text: textOverride } : {}),
+    });
+    start = end - 1;
+  }
+  return dimensions;
+}
+
 /**
  * dxf-parser currently drops HATCH. Parse polyline boundary paths directly
  * from ASCII group codes so solid and predefined-pattern hatches survive the
@@ -669,6 +760,7 @@ export function parseRawDxfHatches(text: string): {
 export function importDxfPrimitives(text: string): CadDxfImportResult {
   const rawHatchResult = parseRawDxfHatches(text);
   const rawMTexts = parseRawDxfMTexts(text);
+  const semanticDimensions = parseRawDxfSemanticDimensions(text);
   const warnings: CadDxfImportWarning[] = [...rawHatchResult.warnings];
   let parsed: any;
   try {
@@ -678,14 +770,15 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
       primitives: [],
       hatches: rawHatchResult.hatches,
       mtexts: rawMTexts,
-      layers: [...new Set([...rawHatchResult.hatches.map((hatch) => hatch.layer), ...rawMTexts.map((mtext) => mtext.layer)])].sort(),
+      semanticDimensions,
+      layers: [...new Set([...rawHatchResult.hatches.map((hatch) => hatch.layer), ...rawMTexts.map((mtext) => mtext.layer), ...semanticDimensions.map((dimension) => dimension.layer)])].sort(),
       warnings: [
         ...warnings,
         { code: "parse_failed", message: "No se pudo parsear el DXF." },
       ],
     };
   }
-  const remainingEntityCapacity = Math.max(0, MAX_DXF_ENTITIES - rawHatchResult.hatches.length - rawMTexts.length);
+  const remainingEntityCapacity = Math.max(0, MAX_DXF_ENTITIES - rawHatchResult.hatches.length - rawMTexts.length - semanticDimensions.length);
   const entities: any[] = Array.isArray(parsed?.entities)
     ? parsed.entities.slice(0, remainingEntityCapacity)
     : [];
@@ -693,6 +786,7 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
     parsed?.blocks && typeof parsed.blocks === "object" ? parsed.blocks : {};
   const primitives: CadDxfPrimitive[] = [];
   const layers = new Set<string>();
+  const semanticDimensionBlocks = new Set(semanticDimensions.map((dimension) => dimension.blockName));
   for (const entity of entities) {
     if (primitives.length >= remainingEntityCapacity) break;
     const type = String(entity?.type || "").toUpperCase();
@@ -708,6 +802,7 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
       continue;
     }
     if (type === "DIMENSION") {
+      if (semanticDimensionBlocks.has(String(entity?.block ?? entity?.blockName ?? ""))) continue;
       // Cotas nativas (CAD-NEXT-066): la geometría renderizada vive en el
       // bloque anónimo *D que referencia la entidad.
       for (const primitive of expandDimension(entity, blocks, warnings)) {
@@ -734,5 +829,6 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
     });
   for (const hatch of rawHatchResult.hatches) layers.add(hatch.layer);
   for (const mtext of rawMTexts) layers.add(mtext.layer);
-  return { primitives, hatches: rawHatchResult.hatches, mtexts: rawMTexts, warnings, layers: [...layers].sort() };
+  for (const dimension of semanticDimensions) layers.add(dimension.layer);
+  return { primitives, hatches: rawHatchResult.hatches, mtexts: rawMTexts, semanticDimensions, warnings, layers: [...layers].sort() };
 }

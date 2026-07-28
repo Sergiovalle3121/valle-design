@@ -12,6 +12,7 @@ import {
   tessellateEllipse,
   tessellateSpline,
 } from "./curve-tessellate";
+import { buildCadDimensionGeometry } from "./associative-dimension";
 
 export const CAD_SHEET_PAPERS = {
   A4: { width: 210, height: 297 },
@@ -643,26 +644,19 @@ function renderEntity(
     ];
   }
   if (entity.type === "dimension") {
-    const label =
-      entity.text ??
-      `${Math.hypot(entity.b.x - entity.a.x, entity.b.y - entity.a.y).toFixed(0)} ${"mm"}`;
-    const middle = {
-      x: (entity.a.x + entity.b.x) / 2,
-      y: (entity.a.y + entity.b.y) / 2,
-    };
-    const commands = [path([entity.a, entity.b])].filter(
+    const geometry = buildCadDimensionGeometry(entity);
+    if (!geometry) return [];
+    const commands = geometry.paths.map((item) => path(item.points, item.closed)).filter(
       (value): value is CadVectorCommand => !!value,
     );
     commands.push({
       kind: "text",
       entityId: entity.id,
       viewportId: context.viewport.id,
-      point: point(matrix, middle),
-      text: label,
-      size: 2.5,
-      rotation:
-        (Math.atan2(entity.b.y - entity.a.y, entity.b.x - entity.a.x) * 180) /
-        Math.PI,
+      point: point(matrix, geometry.textAnchor),
+      text: geometry.label,
+      size: Math.max(1.5, Math.min(8, (entity.arrowSize ?? 180) * Math.hypot(matrix.a, matrix.b) * 0.55)),
+      rotation: geometry.textAngle,
       color: style.stroke,
       align: "center",
     });

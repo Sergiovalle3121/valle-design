@@ -4,6 +4,7 @@ import {
   DEFAULT_DIMENSION_STYLE,
   type DimensionGeometry,
 } from "./dimension";
+import { buildCadDimensionGeometry, type CadDimensionEntity, type CadDimensionGeometry } from "./associative-dimension";
 
 export type CadDxfExportUnit = "mm" | "m";
 export interface CadDxfExportOptions {
@@ -40,6 +41,10 @@ export interface CadDxfExportMText {
   backgroundPadding?: number;
   columns?: number;
 }
+export type CadDxfExportSemanticDimension = Omit<
+  CadDimensionEntity,
+  "id" | "type" | "context" | "references" | "associative" | "associationStatus"
+>;
 export interface CadDxfExportMeasurement {
   layer?: string;
   from: CadDxfPoint;
@@ -86,6 +91,7 @@ export interface CadDxfExportModel {
   texts?: CadDxfExportText[];
   mtexts?: CadDxfExportMText[];
   measurements?: CadDxfExportMeasurement[];
+  semanticDimensions?: CadDxfExportSemanticDimension[];
   blocks?: CadDxfExportBlock[];
   inserts?: CadDxfExportInsert[];
   hatches?: CadDxfExportHatch[];
@@ -146,6 +152,8 @@ function uniqueLayers(model: CadDxfExportModel): string[] {
     names.add(safeLayerName(text.layer ?? TEXT_LAYER));
   for (const measurement of model.measurements ?? [])
     names.add(safeLayerName(measurement.layer ?? MEASUREMENT_LAYER));
+  for (const dimension of model.semanticDimensions ?? [])
+    names.add(safeLayerName(dimension.layer ?? MEASUREMENT_LAYER));
   return [...names].sort((a, b) => a.localeCompare(b));
 }
 function layerColor(model: CadDxfExportModel, name: string): number {
@@ -193,6 +201,13 @@ function pushLayerTable(
     pushPair(lines, 3, font);
     pushPair(lines, 4, "");
   }
+  pushPair(lines, 0, "ENDTAB");
+  pushPair(lines, 0, "TABLE");
+  pushPair(lines, 2, "APPID");
+  pushPair(lines, 70, 1);
+  pushPair(lines, 0, "APPID");
+  pushPair(lines, 2, "AXOS_DIM");
+  pushPair(lines, 70, 0);
   pushPair(lines, 0, "ENDTAB");
   pushPair(lines, 0, "ENDSEC");
 }
@@ -661,6 +676,74 @@ function pushHatch(lines: string[], layer: string, hatch: CadDxfExportHatch) {
   pushPoint(lines, origin);
 }
 
+interface PreparedSemanticDimension {
+  entity: CadDxfExportSemanticDimension;
+  geometry: CadDimensionGeometry;
+  blockName: string;
+}
+
+function semanticDimensionBlockPrimitives(dimension: PreparedSemanticDimension): CadDxfPrimitive[] {
+  const layer = safeLayerName(dimension.entity.layer ?? MEASUREMENT_LAYER);
+  return [
+    ...dimension.geometry.paths.map((path): CadDxfPrimitive => ({
+      kind: path.closed ? "rect" : path.points.length === 2 ? "line" : "polyline",
+      layer,
+      points: path.closed ? [...path.points, path.points[0]] : path.points,
+    })),
+    { kind: "text", layer, points: [dimension.geometry.textAnchor], text: dimension.geometry.label },
+  ];
+}
+
+function prepareSemanticDimensions(
+  dimensions: CadDxfExportSemanticDimension[],
+  blockOffset: number,
+): PreparedSemanticDimension[] {
+  return dimensions.flatMap((entity, index) => {
+    const canonical: CadDimensionEntity = { id: `dxf-dimension:${index}`, type: "dimension", ...entity };
+    const geometry = buildCadDimensionGeometry(canonical);
+    return geometry ? [{ entity, geometry, blockName: `*D${blockOffset + index + 1}` }] : [];
+  });
+}
+
+function semanticDimensionType(kind: CadDxfExportSemanticDimension["dimensionKind"]): number {
+  return ({ linear: 0, aligned: 1, angular: 5, radius: 4, diameter: 3, ordinate: 6, "arc-length": 8 } as const)[kind ?? "aligned"] + 32;
+}
+
+function pushSemanticDimension(lines: string[], dimension: PreparedSemanticDimension) {
+  const entity = dimension.entity;
+  const pointPair = (xCode: number, yCode: number, point: CadDxfPoint) => {
+    pushPair(lines, xCode, fmt(point.x));
+    pushPair(lines, yCode, fmt(point.y));
+    pushPair(lines, xCode + 20, "0");
+  };
+  pushPair(lines, 0, "DIMENSION");
+  pushPair(lines, 8, safeLayerName(entity.layer ?? MEASUREMENT_LAYER));
+  pushPair(lines, 2, dimension.blockName);
+  pushPoint(lines, entity.b);
+  pointPair(11, 21, dimension.geometry.textAnchor);
+  pushPair(lines, 70, semanticDimensionType(entity.dimensionKind));
+  pushPair(lines, 1, safeText(dimension.geometry.label));
+  pushPair(lines, 3, safeStyleName(entity.style));
+  pushPair(lines, 42, fmt(dimension.geometry.measurement));
+  pointPair(13, 23, entity.a);
+  pointPair(14, 24, entity.b);
+  if (entity.c) pointPair(15, 25, entity.c);
+  pushPair(lines, 40, fmt(entity.offset ?? entity.radius ?? 0));
+  pushPair(lines, 271, Math.max(0, Math.min(8, Math.floor(entity.precision ?? 2))));
+  pushPair(lines, 1001, "AXOS_DIM");
+  const metadata = [
+    `kind=${entity.dimensionKind ?? "aligned"}`, `axis=${entity.axis ?? "x"}`,
+    `units=${entity.units ?? entity.sourceUnit ?? "mm"}`, `sourceUnit=${entity.sourceUnit ?? "mm"}`,
+    `alternateUnits=${entity.alternateUnits ?? ""}`, `prefix=${entity.prefix ?? ""}`, `suffix=${entity.suffix ?? ""}`,
+    `arrowhead=${entity.arrowhead ?? "closed-filled"}`, `extensionLines=${entity.extensionLines === false ? 0 : 1}`,
+    `arrowSize=${fmt(entity.arrowSize ?? DEFAULT_DIMENSION_STYLE.arrowSize)}`, `offset=${fmt(entity.offset ?? 0)}`,
+    `radius=${fmt(entity.radius ?? 0)}`, `extensionGap=${fmt(entity.extensionGap ?? DEFAULT_DIMENSION_STYLE.extensionGap)}`,
+    `extensionOvershoot=${fmt(entity.extensionOvershoot ?? DEFAULT_DIMENSION_STYLE.extensionOvershoot)}`,
+    `textGap=${fmt(entity.textGap ?? DEFAULT_DIMENSION_STYLE.textGap)}`, `textOverride=${entity.text ?? ""}`,
+  ];
+  metadata.forEach((value) => pushPair(lines, 1000, safeText(value).slice(0, 240)));
+}
+
 /** Sección BLOCKS: definiciones reutilizables (mismos códigos que lee el parser). */
 function pushBlocks(lines: string[], blocks: CadDxfExportBlock[]) {
   pushPair(lines, 0, "SECTION");
@@ -689,6 +772,7 @@ export function exportCadDxf(
   // Cotas nativas (CAD-NEXT-066): cada medición se materializa como entidad
   // DIMENSION + bloque anónimo *D{n} con su geometría renderizada.
   const dimensions = prepareDimensions(model.measurements ?? []);
+  const semanticDimensions = prepareSemanticDimensions(model.semanticDimensions ?? [], dimensions.length);
   const dimensionBlocks: CadDxfExportBlock[] = dimensions.map((dim) => ({
     name: dim.blockName,
     primitives: dimensionBlockPrimitives(
@@ -697,7 +781,11 @@ export function exportCadDxf(
       dim.label,
     ),
   }));
-  const allBlocks = [...(model.blocks ?? []), ...dimensionBlocks];
+  const semanticDimensionBlocks: CadDxfExportBlock[] = semanticDimensions.map((dimension) => ({
+    name: dimension.blockName,
+    primitives: semanticDimensionBlockPrimitives(dimension),
+  }));
+  const allBlocks = [...(model.blocks ?? []), ...dimensionBlocks, ...semanticDimensionBlocks];
   pushHeader(lines, options);
   pushLayerTable(lines, model, layers);
   if (allBlocks.length) pushBlocks(lines, allBlocks);
@@ -748,6 +836,10 @@ export function exportCadDxf(
       safeLayerName(dim.measurement.layer ?? MEASUREMENT_LAYER),
       dim,
     );
+    entityCount += 1;
+  }
+  for (const dimension of semanticDimensions) {
+    pushSemanticDimension(lines, dimension);
     entityCount += 1;
   }
 

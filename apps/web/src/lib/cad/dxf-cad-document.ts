@@ -4,8 +4,8 @@ import type {
   CadPoint2,
   CadPoint3,
 } from "./cad-document";
-import type { CadDxfHatch, CadDxfMText, CadDxfPoint, CadDxfPrimitive } from "./dxf-import";
-import type { CadDxfExportHatch, CadDxfExportMText } from "./dxf-export";
+import type { CadDxfHatch, CadDxfMText, CadDxfPoint, CadDxfPrimitive, CadDxfSemanticDimension } from "./dxf-import";
+import type { CadDxfExportHatch, CadDxfExportMText, CadDxfExportSemanticDimension } from "./dxf-export";
 import type { CadNativeEntity } from "./entity-runtime";
 
 export interface CadDxfProjection {
@@ -277,6 +277,49 @@ export function cadDxfMTextsToNativeEntities(
   }));
 }
 
+export function cadDxfSemanticDimensionsToNativeEntities(
+  dimensions: CadDxfSemanticDimension[],
+  options: CadDxfNativeImportOptions = {},
+): CadNativeEntity[] {
+  const projection = options.projection ?? identityProjection;
+  const prefix = options.idPrefix ?? "dxf";
+  const provider = options.provider ?? "dxf";
+  const origin = { x: 0, y: 0 };
+  const scaleFactor =
+    (Math.hypot(...Object.values(mappedVector(projection, origin, { x: 1, y: 0 }))) +
+      Math.hypot(...Object.values(mappedVector(projection, origin, { x: 0, y: 1 })))) /
+    2;
+  return dimensions.map((dimension, index): CadNativeEntity => {
+    const projectedA = projection.point(dimension.a);
+    const projectedB = projection.point(dimension.b);
+    const projectedC = dimension.c ? projection.point(dimension.c) : undefined;
+    const reflected = projectionOrientation(projection, dimension.a) < 0;
+    const swapAngular = reflected && (dimension.dimensionKind === "angular" || dimension.dimensionKind === "arc-length") && projectedC;
+    const properties = { ...dimension } as Record<string, unknown>;
+    ["blockName", "a", "b", "c", "offset", "radius", "arrowSize", "extensionGap", "extensionOvershoot", "textGap"].forEach((key) => delete properties[key]);
+    return {
+      id: `${prefix}:dimension:${index.toString().padStart(6, "0")}`,
+      type: "dimension",
+      ...(properties as Omit<CadDxfSemanticDimension, "blockName" | "a" | "b" | "c" | "offset" | "radius" | "arrowSize" | "extensionGap" | "extensionOvershoot" | "textGap">),
+      a: point3(projectedA),
+      b: point3(swapAngular ? projectedC : projectedB),
+      ...(projectedC ? { c: point3(swapAngular ? projectedB : projectedC) } : {}),
+      ...(dimension.offset !== undefined ? { offset: dimension.offset * scaleFactor * (reflected && dimension.dimensionKind === "aligned" ? -1 : 1) } : {}),
+      ...(dimension.radius !== undefined ? { radius: dimension.radius * scaleFactor } : {}),
+      ...(dimension.arrowSize !== undefined ? { arrowSize: dimension.arrowSize * scaleFactor } : {}),
+      ...(dimension.extensionGap !== undefined ? { extensionGap: dimension.extensionGap * scaleFactor } : {}),
+      ...(dimension.extensionOvershoot !== undefined ? { extensionOvershoot: dimension.extensionOvershoot * scaleFactor } : {}),
+      ...(dimension.textGap !== undefined ? { textGap: dimension.textGap * scaleFactor } : {}),
+      associative: false,
+      associationStatus: "detached",
+      context: {
+        provenance: { provider },
+        metadata: { sourceType: "DIMENSION", sourceLayer: dimension.layer },
+      },
+    };
+  });
+}
+
 function clampedKnots(controlCount: number, degree: number): number[] {
   const knots: number[] = [];
   const spans = controlCount - degree;
@@ -412,5 +455,19 @@ export function cadDocumentNativeDxfMTexts(
         backgroundPadding: entity.backgroundPadding,
         columns: entity.columns,
       };
+    });
+}
+
+export function cadDocumentNativeDxfSemanticDimensions(
+  document: CadDocument,
+  filter?: (entity: CadEntity) => boolean,
+): CadDxfExportSemanticDimension[] {
+  return document.entities
+    .filter((entity) => entity.type === "dimension" && !!entity.dimensionKind && (filter ? filter(entity) : true))
+    .map((entity) => {
+      if (entity.type !== "dimension" || !entity.dimensionKind) throw new Error("Unexpected non-semantic DIMENSION entity.");
+      const dimension = { ...entity } as Record<string, unknown>;
+      ["id", "type", "context", "references", "associative", "associationStatus"].forEach((key) => delete dimension[key]);
+      return dimension as unknown as CadDxfExportSemanticDimension;
     });
 }
