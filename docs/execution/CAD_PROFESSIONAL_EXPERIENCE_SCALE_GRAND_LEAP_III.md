@@ -185,7 +185,7 @@ Orden de ejecución:
 
 ### 2026-07-28 01:41–02:13 — Browser scale, LOD y save/reload real
 
-- Commit: pendiente al cerrar este checkpoint.
+- Commit: `45bbd470` (`feat(cad): keep 100k drawings responsive with explicit LOD`).
 - Vertical: rendimiento y degradación controlada para dibujos grandes.
 - Hallazgo reproducido antes del cambio: 100,000 ARC canónicos intentaban crear
   100,000 `Object3D`; el hilo principal dejó de responder y Chromium cerró la
@@ -210,8 +210,11 @@ Orden de ejecución:
 - Evidencia automatizada:
   - spec de 100k valida tamaño exacto, muestreo uniforme/determinista, unicidad,
     prioridad de selección, overflow de selección y ruta completa a 10k;
-  - TypeScript web completo: exit 0, 136.6 s;
+  - gate final web: 111/111 specs, 178.6 s; TypeScript exit 0, 69.3 s;
+  - gate final API: TypeScript exit 0, 109.9 s; 3/3 suites y 57/57 tests,
+    18.794 s de Jest;
   - ESLint focal: cero errores; 19 warnings históricos del editor monolítico;
+  - `git diff --check`: limpio; worktree sin arnés/logs temporales;
   - el arnés HTTP separa corpus 10k/100k, aplica CAS y sólo descomprime la ruta
     `/layout/cad-archive`; el save 100k avanzó CAS y sobrevivió al reload.
 - Límites honestos: `performance.memory` y `requestAnimationFrame` no estaban
@@ -225,6 +228,18 @@ Orden de ejecución:
   a exponer el crash de 100k. El umbral está centralizado y cubierto por spec.
 - Siguiente acción: gates completos, revisión del diff/tenancy, commit, sincronía
   con `origin/main`, push y PR draft.
+
+### 2026-07-28 02:13–02:18 — Hardening final
+
+- Commits CAD: `40778d50`, `de59a1dc`, `41e99718` y `45bbd470`.
+- `origin/main` permaneció en `06a35ff1` después del fetch final; no fue necesario
+  rebase ni mezclar trabajo concurrente.
+- Los listeners y pestañas del arnés se cerraron, y sus scripts/logs/sqlite se
+  eliminaron de `work/`; no forman parte del diff.
+- Resultado: cuatro verticales funcionales cerradas sobre la arquitectura
+  existente, con gates verdes y límites operativos documentados.
+- Siguiente acción: publicar la rama y abrir PR draft; no hacer auto-merge porque
+  el merge a `main` despliega producción.
 
 ## Evidencia acumulada
 
