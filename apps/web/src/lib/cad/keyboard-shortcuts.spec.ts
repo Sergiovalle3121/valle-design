@@ -34,6 +34,8 @@ assert.equal(
   "rect",
   "matches rectangle drafting",
 );
+assert.equal(matchCadShortcut({ key: "c" })?.id, "circle", "matches circle drafting");
+assert.equal(matchCadShortcut({ key: "o", shiftKey: true })?.id, "offset", "matches precise offset");
 assert.equal(
   matchCadShortcut({ key: "g" })?.id,
   "grid_toggle",
@@ -73,3 +75,5 @@ assert.equal(
 );
 assert.equal(matchCadShortcut({ key: "F3" })?.id, "object_snap_toggle", "F3 toggles osnap");
 assert.equal(matchCadShortcut({ key: "F8" })?.id, "ortho_toggle", "F8 toggles ortho");
+assert.equal(matchCadShortcut({ key: "F10" })?.id, "polar_tracking_toggle", "F10 toggles polar tracking");
+assert.equal(matchCadShortcut({ key: "F11" })?.id, "object_tracking_toggle", "F11 toggles object tracking");

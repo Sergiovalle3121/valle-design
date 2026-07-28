@@ -6,9 +6,9 @@
 | --- | --- |
 | `MISSION_STARTED_AT` | 2026-07-28 12:08:49 -06:00 |
 | `MISSION_TARGET_END` | 2026-07-28 22:08:49 -06:00 |
-| `MISSION_CURRENT_PHASE` | P0-F — dynamic input, snaps y tracking |
-| `MISSION_COMPLETED_GATES` | viewport 100k; recovery worker/journal; blob GC bifásico y tenant-safe; selección profesional |
-| `MISSION_NEXT_ACTION` | unificar resolución de OSNAP, tracking polar/ortogonal y entrada dinámica contextual |
+| `MISSION_CURRENT_PHASE` | P1-A — HATCH asociativo y regiones arbitrarias |
+| `MISSION_COMPLETED_GATES` | viewport 100k; recovery worker/journal; blob GC bifásico y tenant-safe; selección profesional; precisión dinámica y tracking |
+| `MISSION_NEXT_ACTION` | cerrar boundary/pick-point/islands/asociatividad/regeneración de HATCH con persistencia y round-trip |
 | Repositorio | `Sergiovalle3121/axos-os` |
 | Base | `1625ba26a07876943b821586c46b02c9f47f6bac` (`origin/main`) |
 | Rama / PR | `codex/cad-professional-grand-leap-iii` / #1416 |
@@ -45,7 +45,7 @@ Sólo se conceden puntos por evidencia actual del repositorio y navegador.
 | Área | Máximo | Inicial | Estado dominante | Evidencia / brecha |
 | --- | ---: | ---: | --- | --- |
 | Workbench y arquitectura | 10 | 5 | `tested` parcial | dock aislado; editor aún monolítico y por encima de 8k líneas |
-| Precisión, input y snaps | 10 | 5 | `tested` | coordenadas/OSNAP base; falta dynamic input y tracking completo |
+| Precisión, input y snaps | 10 | 9 | `browser-proven` | dynamic input, snaps derivados, POLAR/ORTHO/OTRACK y tolerancia por zoom; falta preferencia persistida por usuario |
 | Selección y modificación | 10 | 9 | `browser-proven` | controlador unificado, geometrías profesionales, cycling y quick select; falta stress E2E de trazos 100k |
 | Entidades de documentación | 10 | 4 | `tested` parcial | HATCH poligonal nativo; MTEXT/DIM/MLEADER incompletos |
 | Rendimiento 10k/100k | 15 | 10 | `browser-proven` parcial | viewport real, lotes cancelables y arnés 100k; aún no 60 FPS ni memoria estabilizada |
@@ -54,7 +54,7 @@ Sólo se conceden puntos por evidencia actual del repositorio y navegador.
 | Layouts, viewports y publicación | 10 | 6 | `tested` | paper space/PDF/recibos; UI multi-viewport parcial |
 | Interoperabilidad/extensibilidad | 5 | 3 | `tested` | DXF semántico acotado; DWG `provider-required` |
 | Calidad enterprise/seguridad/pruebas | 10 | 9 | `tested` | CI/tenant/brand/smokes verdes; falta arnés perf bloqueante |
-| **Total** | **100** | **65** |  | Sin claim de paridad general |
+| **Total** | **100** | **69** |  | Sin claim de paridad general |
 
 ## Paridad completa separada
 
@@ -172,6 +172,30 @@ No se editan ramas comerciales, ERP o PDF durante la construcción CAD.
 - Evidencia: reducer/filtros/geometría e índice focales verdes; TypeScript verde;
   ESLint focal sin errores; Chromium completa quick → add → previous → last →
   all → invert en 10.1 s, 1/1 verde.
+
+### 2026-07-28 12:58–13:14 — P0-F / precisión, snaps y tracking
+
+- Entrada dinámica accesible y sin mutación hasta `Aplicar`: ABS, REL y POLAR;
+  distancia/ángulo; radio/diámetro; offset; Tab entre campos, bloqueo,
+  defaults, error inline, locale decimal y unidades mm/cm/m/in/ft.
+- CIRCLE y OFFSET dejaron de ser estados internos inaccesibles: están en el
+  dock/toolbar y tienen shortcuts C / Shift+O. CIRCLE consume centro exacto y
+  radio o diámetro desde el mismo command reducer existente.
+- OSNAP conserva endpoint/midpoint/center/node y cablea quadrant, intersection,
+  apparent intersection, extension, perpendicular, tangent, nearest,
+  insertion y geometric center. Curvas nativas aportan paths y semántica sin
+  depender de su proyección detallada.
+- La apertura de snap ahora representa 12 px en mundo y cambia con cámara/zoom;
+  mantiene clamps de seguridad. Cada query espacial limita 48 entidades y 96
+  segmentos derivados.
+- POLAR configurable 15/30/45/90 y ORTHO se resuelven sobre el rubber-band;
+  OTRACK conserva hasta ocho puntos OSNAP adquiridos, combina ejes X/Y, dibuja
+  extension lines y permite limpiar el conjunto. Status bar y F10/F11 exponen
+  estado y toggles.
+- Benchmark Node sobre 100,000 ARC: query OSNAP profesional indexada p50 2.30 ms,
+  p95 5.27 ms (gate <12 ms). Specs de snaps/input/tracking/shortcuts/toolbar,
+  TypeScript y lint focal verdes. Chromium crea un círculo por centro absoluto,
+  Tab, diámetro con unidad, lock de campo y toggles F10/F11: 1/1 verde.
 
 ## Claims
 

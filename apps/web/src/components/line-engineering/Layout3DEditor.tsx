@@ -99,6 +99,13 @@ import {
   type CadSelectionState,
 } from '@/lib/cad/selection-controller';
 import { cadSelectionPathMatchesPolygon } from '@/lib/cad/selection-shapes';
+import {
+  acquireCadTrackingPoint,
+  cadWorldToleranceFromView,
+  resolveCadPolarTracking,
+  trackFromAcquiredPoints,
+} from '@/lib/cad/precision-tracking';
+import { defaultCadDynamicValues, type CadDynamicInputResult } from '@/lib/cad/dynamic-input';
 import { cadViewportBoundsChanged, cadViewportBoundsFromCamera } from '@/lib/cad/native-viewport';
 import { exportCadLayoutDxf } from '@/lib/cad/layout-export-adapter';
 import { buildPlotSheet, CAD_PAPER_SIZES, type CadPaperId } from '@/lib/cad/plot-sheet';
@@ -205,6 +212,7 @@ import {
   CadSelectionPalette,
   type CadSelectionGeometryMode,
 } from './cad-workbench/CadSelectionPalette';
+import { CadDynamicInput } from './cad-workbench/CadDynamicInput';
 import {
   cadViewportFocusBounds,
   createCadViewportBookmark,
@@ -279,7 +287,12 @@ const ANALYSIS_PANELS: { key: string; label: string; Comp: React.ComponentType<a
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000').replace(/\/$/, '');
 
 // Etiquetas del glifo OSNAP (Fase 66 cableada, ADR §216) — se muestran en el HUD.
-const OSNAP_LABELS: Record<SnapType, string> = { endpoint: 'extremo', intersection: 'intersección', center: 'centro', midpoint: 'medio', perpendicular: 'perpendicular', node: 'plano', nearest: 'cercano', grid: 'grilla' };
+const OSNAP_LABELS: Record<SnapType, string> = {
+  endpoint: 'extremo', midpoint: 'medio', center: 'centro', 'geometric-center': 'centro geométrico',
+  node: 'nodo', quadrant: 'cuadrante', intersection: 'intersección', insertion: 'inserción',
+  perpendicular: 'perpendicular', tangent: 'tangente', nearest: 'cercano',
+  'apparent-intersection': 'intersección aparente', extension: 'extensión', grid: 'grilla',
+};
 
 // Portapapeles CAD (ADR §220) — a nivel de módulo para que Ctrl+C/Ctrl+V
 // funcione también ENTRE layouts (copiar en AX-1000/A, pegar en AX-2000/B).
@@ -492,6 +505,8 @@ const TOOLBAR_SHORTCUT_IDS = new Set<CadToolbarActionId>([
   'line',
   'polyline',
   'rect',
+  'circle',
+  'offset',
   'aisle',
   'connector',
   'zone',
@@ -1224,7 +1239,18 @@ export default function Layout3DEditor({
   // entrada tecleada de coordenadas para el trazo de muros.
   const [orthoLock, setOrthoLock] = useState(false);
   const orthoLockRef = useRef(orthoLock);
+  const [polarTracking, setPolarTracking] = useState(true);
+  const polarTrackingRef = useRef(polarTracking);
+  const [polarIncrement, setPolarIncrement] = useState(45);
+  const polarIncrementRef = useRef(polarIncrement);
+  const [objectSnapTracking, setObjectSnapTracking] = useState(true);
+  const objectSnapTrackingRef = useRef(objectSnapTracking);
+  const acquiredTrackingPointsRef = useRef<Array<{ x: number; y: number }>>([]);
+  const [acquiredTrackingPointCount, setAcquiredTrackingPointCount] = useState(0);
   useEffect(() => { orthoLockRef.current = orthoLock; }, [orthoLock]);
+  useEffect(() => { polarTrackingRef.current = polarTracking; }, [polarTracking]);
+  useEffect(() => { polarIncrementRef.current = polarIncrement; }, [polarIncrement]);
+  useEffect(() => { objectSnapTrackingRef.current = objectSnapTracking; }, [objectSnapTracking]);
   const lastWallAngleRef = useRef<number | null>(null); // ángulo del último tramo → entrada directa de distancia
   const [precisionText, setPrecisionText] = useState('');
   const [drawPrompt, setDrawPrompt] = useState<string | null>(null);
@@ -2782,19 +2808,36 @@ export default function Layout3DEditor({
      * Solo los ~48 objetos más cercanos alimentan el motor (plantas grandes no
      * degradan el pointermove). Sin candidato dentro de tolerancia → grid-snap.
      */
-    const snapFloor = (wx: number, wy: number): { wx: number; wy: number; onDxf: boolean; snapType?: SnapType } => {
+    const snapFloor = (wx: number, wy: number, acquire = false): { wx: number; wy: number; onDxf: boolean; snapType?: SnapType; tracking?: 'object' | 'polar' | 'ortho'; trackingAngle?: number } => {
       const ctx = ctxRef.current!;
+      const tol = cadWorldToleranceFromView({
+        cameraDistance: camera.position.distanceTo(controls.target),
+        verticalFovDeg: camera.fov,
+        viewportHeightPx: renderer.domElement.clientHeight,
+        drawingToSceneScale: ctx.s,
+        aperturePx: 12,
+        min: Math.max(0.01, Math.min(ctx.W, ctx.H) * 0.00001),
+        max: Math.max(ctx.W, ctx.H) * 0.02,
+      });
       if (osnapRef.current) {
-        const tol = Math.max(ctx.W, ctx.H) * 0.012;
         const boxes: { x: number; y: number; w: number; h: number; rotation?: number; d: number }[] = [];
         placementsRef.current.forEach((p) => boxes.push({ x: p.x, y: p.y, w: p.w, h: p.h, rotation: p.rotation, d: Math.hypot(p.x + p.w / 2 - wx, p.y + p.h / 2 - wy) }));
         assetsRef.current.forEach((a) => boxes.push({ x: a.x, y: a.y, w: a.w, h: a.h, rotation: a.rotation, d: Math.hypot(a.x + a.w / 2 - wx, a.y + a.h / 2 - wy) }));
         boxes.sort((a, b) => a.d - b.d);
-        const scene: SnapScene = { segments: [], endpoints: [], centers: [], nodes: dxfSnapRef.current };
+        const scene: SnapScene = {
+          segments: [], endpoints: [], centers: [], quadrants: [], geometricCenters: [],
+          insertions: [], tangents: [], nodes: dxfSnapRef.current,
+        };
         for (const b of boxes.slice(0, 48)) {
           const g = rectGeometry(b);
-          scene.segments!.push(...g.edges); scene.endpoints!.push(...g.corners); scene.centers!.push(g.center);
+          scene.segments!.push(...g.edges);
+          scene.endpoints!.push(...g.corners);
+          scene.centers!.push(g.center);
+          scene.geometricCenters!.push(g.center);
+          scene.insertions!.push(g.center);
         }
+        const anchor = drawCommandRef.current?.points.at(-1)
+          ?? (wallChainRef.current ? { x: wallChainRef.current.wx, y: wallChainRef.current.wy } : null);
         const nativeCandidates = nativeSelectionIndexRef.current?.search({
           minX: wx - tol * 4,
           minY: wy - tol * 4,
@@ -2802,19 +2845,64 @@ export default function Layout3DEditor({
           maxY: wy + tol * 4,
         }, 48) ?? [];
         for (const entity of nativeCandidates) {
-          for (const snap of CAD_ENTITY_REGISTRY.adapter(entity).snaps.snaps(entity, { x: wx, y: wy })) {
+          for (const path of CAD_ENTITY_REGISTRY.adapter(entity).renderer.paths(entity, 24)) {
+            for (let index = 1; index < path.points.length; index++)
+              scene.segments!.push({ a: path.points[index - 1], b: path.points[index] });
+            if (path.closed && path.points.length > 2)
+              scene.segments!.push({ a: path.points.at(-1)!, b: path.points[0] });
+          }
+          for (const snap of CAD_ENTITY_REGISTRY.adapter(entity).snaps.snaps(entity, anchor ?? { x: wx, y: wy })) {
             if (snap.kind === 'center') scene.centers!.push(snap.point);
             else if (snap.kind === 'control') scene.nodes!.push(snap.point);
+            else if (snap.kind === 'quadrant') scene.quadrants!.push(snap.point);
+            else if (snap.kind === 'tangent') scene.tangents!.push(snap.point);
             else scene.endpoints!.push(snap.point);
           }
         }
         const hit = resolveOsnap({ x: wx, y: wy }, scene, {
           tolerance: tol,
+          from: anchor,
+          maxSegments: 96,
           // intersección/perp/cercano quedan fuera: costosos u over-greedy para
           // el pointermove; grid lo cubre el fallback snapWorld de siempre.
-          modes: { intersection: false, perpendicular: false, nearest: false, grid: false },
+          modes: { grid: false },
         });
-        if (hit) return { wx: Math.round(hit.point.x), wy: Math.round(hit.point.y), onDxf: true, snapType: hit.type };
+        if (hit) {
+          if (acquire && objectSnapTrackingRef.current) {
+            acquiredTrackingPointsRef.current = acquireCadTrackingPoint(
+              acquiredTrackingPointsRef.current,
+              hit.point,
+              tol * 0.25,
+            );
+            setAcquiredTrackingPointCount(acquiredTrackingPointsRef.current.length);
+          }
+          setGuides(null, null);
+          return { wx: hit.point.x, wy: hit.point.y, onDxf: true, snapType: hit.type };
+        }
+      }
+      const anchor = drawCommandRef.current?.points.at(-1)
+        ?? (wallChainRef.current ? { x: wallChainRef.current.wx, y: wallChainRef.current.wy } : null);
+      if (objectSnapTrackingRef.current && acquiredTrackingPointsRef.current.length) {
+        const tracked = trackFromAcquiredPoints({ x: wx, y: wy }, acquiredTrackingPointsRef.current, tol);
+        if (tracked.snapped) {
+          setGuides(
+            tracked.guides.find((guide) => guide.axis === 'x')?.value ?? null,
+            tracked.guides.find((guide) => guide.axis === 'y')?.value ?? null,
+          );
+          return { wx: tracked.point.x, wy: tracked.point.y, onDxf: false, tracking: 'object' };
+        }
+      }
+      setGuides(null, null);
+      if (anchor && (orthoLockRef.current || polarTrackingRef.current)) {
+        const increment = orthoLockRef.current ? 90 : polarIncrementRef.current;
+        const tracked = resolveCadPolarTracking(anchor, { x: wx, y: wy }, increment, orthoLockRef.current ? 45 : Math.min(6, increment / 4));
+        if (tracked.snapped) return {
+          wx: tracked.point.x,
+          wy: tracked.point.y,
+          onDxf: false,
+          tracking: orthoLockRef.current ? 'ortho' : 'polar',
+          trackingAngle: tracked.angle,
+        };
       }
       return { wx: snapWorld(wx), wy: snapWorld(wy), onDxf: false };
     };
@@ -3057,7 +3145,7 @@ export default function Layout3DEditor({
       if (toolRef.current === 'measure' || toolRef.current === 'wall' || isCadDrawTool(toolRef.current)) {
         const w = floorWorld(e); if (!w) { showSnapMarker(null); return; }
         const s = snapFloor(w.wx, w.wy); // snap the live endpoint to the underlay
-        showSnapMarker(s.onDxf ? s.wx : null, s.wy);
+        showSnapMarker(s.onDxf || s.tracking ? s.wx : null, s.wy);
         const a = toolRef.current === 'measure' ? measureARef.current : toolRef.current === 'wall' ? wallChainRef.current : drawCommandRef.current?.points.at(-1) ? { wx: drawCommandRef.current.points.at(-1)!.x, wy: drawCommandRef.current.points.at(-1)!.y } : null;
         if (!a) return; // marker shown for the first point; wait for the anchor to draw a segment
         const ctx = ctxRef.current!;
@@ -3201,7 +3289,7 @@ export default function Layout3DEditor({
         if (isClick) {
           const w = floorWorld(e);
           if (w) {
-            const sp = snapFloor(w.wx, w.wy);
+            const sp = snapFloor(w.wx, w.wy, true);
             const pt = { wx: sp.wx, wy: sp.wy };
             if (!measureARef.current) { measureARef.current = pt; setMeasureLive(fmtDist(0, unit)); }
             else {
@@ -3225,7 +3313,7 @@ export default function Layout3DEditor({
         if (isClick) {
           const w = floorWorld(e);
           if (w) {
-            const sp = snapFloor(w.wx, w.wy);
+            const sp = snapFloor(w.wx, w.wy, true);
             let pt = { wx: sp.wx, wy: sp.wy };
             const prev = drawCommandRef.current?.points.at(-1);
             if (prev && (e.shiftKey || orthoLockRef.current) && !sp.onDxf) {
@@ -3243,7 +3331,7 @@ export default function Layout3DEditor({
         if (isClick) {
           const w = floorWorld(e);
           if (w) {
-            const sp = snapFloor(w.wx, w.wy);
+            const sp = snapFloor(w.wx, w.wy, true);
             let pt = { wx: sp.wx, wy: sp.wy };
             const prev = wallChainRef.current;
             // Shift = incrementos de 45°; ORTO (toggle) = ejes 0/90/180/270 — pero
@@ -3385,7 +3473,7 @@ export default function Layout3DEditor({
   // cancels any half-drawn cota or wall chain (called when leaving a draw tool)
   const endDraw = useCallback(() => {
     measureARef.current = null; wallChainRef.current = null; drawCommandRef.current = null; setMeasureLive(null); setDrawPrompt(null);
-    lastWallAngleRef.current = null; setPrecisionText('');
+    lastWallAngleRef.current = null;
     if (previewLineRef.current) previewLineRef.current.visible = false;
     if (snapMarkerRef.current) snapMarkerRef.current.visible = false;
   }, []);
@@ -3543,6 +3631,23 @@ export default function Layout3DEditor({
     const parsed = parseCoordinate(raw, { last: chain ? { x: chain.wx, y: chain.wy } : null, lockedAngleDeg: lastWallAngleRef.current });
     if (!parsed.ok) { toast.error(parsed.error, 'Precisión'); return; }
     appendWallTo(parsed.point.x, parsed.point.y);
+    setPrecisionText('');
+  };
+  const commitDynamicInput = (result: Extract<CadDynamicInputResult, { ok: true }>) => {
+    if ('point' in result) {
+      if (drawCommandRef.current) feedDraftPoint(result.point.x, result.point.y);
+      else if (toolRef.current === 'wall') appendWallTo(result.point.x, result.point.y);
+      setPrecisionText('');
+      return;
+    }
+    const active = drawCommandRef.current;
+    if (!active) return;
+    const next = feedDistance(active, result.scalar);
+    drawCommandRef.current = next.done ? null : next;
+    applyDrawState(next);
+    setDrawPrompt(next.done ? null : next.prompt);
+    setMeasureLive(next.done ? null : next.prompt);
+    if (next.done) { setTool('select'); toolRef.current = 'select'; }
     setPrecisionText('');
   };
   // Live quantity take-off from the current (possibly unsaved) editor state.
@@ -5993,7 +6098,7 @@ export default function Layout3DEditor({
   const runToolbarAction = (id: CadToolbarActionId) => {
     if (id === 'select' || id === 'pan') setToolMode('select');
     else if (id === 'measure') setToolMode('measure');
-    else if (id === 'line' || id === 'polyline' || id === 'rect') startCadDrawTool(id);
+    else if (id === 'line' || id === 'polyline' || id === 'rect' || id === 'circle' || id === 'offset') startCadDrawTool(id);
     else if (id === 'aisle') { setShowCommand(true); setCommandText('haz un pasillo de 1.2m entre '); }
     else if (id === 'connector') connectLineLayout();
     else if (id === 'zone') { setTab('equipment'); addAsset('zone'); }
@@ -6761,6 +6866,16 @@ export default function Layout3DEditor({
         setOrthoLock((cur) => !cur);
         return;
       }
+      if (cadShortcut?.id === 'polar_tracking_toggle') {
+        e.preventDefault();
+        setPolarTracking((cur) => !cur);
+        return;
+      }
+      if (cadShortcut?.id === 'object_tracking_toggle') {
+        e.preventDefault();
+        setObjectSnapTracking((cur) => !cur);
+        return;
+      }
       if (cadShortcut?.id === 'validate_layout') {
         e.preventDefault();
         openChecks();
@@ -6832,6 +6947,27 @@ export default function Layout3DEditor({
   const professionalSelectionUniverse = showSelectionPalette ? buildSelectionUniverse() : [];
   const professionalSelectionTypes = [...new Set(professionalSelectionUniverse.map((item) => item.type))].sort();
   const professionalSelectionLayers = [...new Set(professionalSelectionUniverse.map((item) => item.layer).filter((layer): layer is string => !!layer))].sort();
+  const activeDynamicCommand = drawCommandRef.current;
+  const dynamicInputKind: 'point' | 'radius' | 'offset' = activeDynamicCommand?.id === 'offset'
+    ? 'offset'
+    : activeDynamicCommand?.id === 'circle' && activeDynamicCommand.awaitingRadius
+      ? 'radius'
+      : 'point';
+  const dynamicAnchor = activeDynamicCommand?.points.at(-1)
+    ?? (wallChainRef.current ? { x: wallChainRef.current.wx, y: wallChainRef.current.wy } : null);
+  const dynamicGridDefault = data?.footprint.gridSize || 1;
+  const dynamicInputDefaults = {
+    ...defaultCadDynamicValues(
+      dynamicAnchor,
+      dynamicAnchor
+        ? { x: dynamicAnchor.x + dynamicGridDefault, y: dynamicAnchor.y }
+        : { x: 0, y: 0 },
+    ),
+    angle: lastWallAngleRef.current ?? polarIncrement,
+    radius: dynamicGridDefault,
+    diameter: dynamicGridDefault * 2,
+    offset: dynamicGridDefault,
+  };
   const paletteResults = searchCadPalette(paletteQuery).slice(0, 9);
   const commandAssistLabels = selList.map((item) => {
     if (item.type === 'station') return data?.stations.find((station) => station.id === item.id)?.station ?? item.id;
@@ -7626,6 +7762,17 @@ export default function Layout3DEditor({
               <span>Grilla {layers.grid ? 'on' : 'off'} / Snap {snap ? 'grid' : 'free'}</span>
               <button onClick={() => setOsnap((value) => !value)} className={osnap ? 'text-cyan-200 hover:text-white' : 'text-gray-500 hover:text-white'}>OSNAP {osnap ? 'on' : 'off'} · F3</button>
               <button onClick={() => setOrthoLock((value) => !value)} className={orthoLock ? 'text-amber-300 hover:text-white' : 'text-gray-500 hover:text-white'}>ORTHO {orthoLock ? 'on' : 'off'} · F8</button>
+              <button onClick={() => setPolarTracking((value) => !value)} className={polarTracking ? 'text-violet-300 hover:text-white' : 'text-gray-500 hover:text-white'}>POLAR {polarTracking ? `${polarIncrement}°` : 'off'} · F10</button>
+              <select
+                aria-label="Incremento polar"
+                value={polarIncrement}
+                onChange={(event) => setPolarIncrement(Number(event.target.value))}
+                className="rounded bg-white/[0.06] px-1 py-0.5 text-[10px] text-gray-200 outline-none"
+              >
+                {[15, 30, 45, 90].map((value) => <option key={value} value={value} className="text-gray-900">{value}°</option>)}
+              </select>
+              <button onClick={() => setObjectSnapTracking((value) => !value)} className={objectSnapTracking ? 'text-fuchsia-300 hover:text-white' : 'text-gray-500 hover:text-white'}>OTRACK {objectSnapTracking ? `on · ${acquiredTrackingPointCount}` : 'off'} · F11</button>
+              {acquiredTrackingPointCount > 0 && <button onClick={() => { acquiredTrackingPointsRef.current = []; setAcquiredTrackingPointCount(0); }} className="text-gray-500 hover:text-white">Limpiar tracking</button>}
               <button onClick={openChecks} className={`${releaseTone} hover:text-white`}>Release {releaseState}</button>
               {report && <span className={report.score === 'error' ? 'text-rose-300' : report.score === 'warn' ? 'text-amber-300' : 'text-emerald-300'}>Validación {report.score}</span>}
               {cadValidationReport && <span className={cadValidationReport.severity === 'critical' ? 'text-rose-300' : cadValidationReport.severity === 'warning' ? 'text-amber-300' : 'text-emerald-300'}>CAD {cadValidationReport.severity}</span>}
@@ -7650,16 +7797,19 @@ export default function Layout3DEditor({
             {!walk && (tool === 'wall' || isCadDrawTool(tool)) && (
               <div className="absolute top-12 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 rounded-full border border-white/10 bg-gray-900/90 px-2 py-1.5 backdrop-blur">
                 <button onClick={() => setOrthoLock((v) => !v)} title="Orto: restringe los muros a 0/90/180/270 (como F8 de AutoCAD)" className={`rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${orthoLock ? 'bg-amber-400 text-gray-900' : 'bg-white/[0.08] text-gray-300 hover:bg-white/[0.15]'}`}>ORTO</button>
-                <form onSubmit={(e) => { e.preventDefault(); submitPrecisionPoint(); }} className="flex items-center gap-1">
-                  <input
-                    value={precisionText}
-                    onChange={(e) => setPrecisionText(e.target.value)}
-                    placeholder={drawPrompt ? `${drawPrompt} · x,y / @dx,dy / Enter` : 'x,y · @dx,dy · @30<45 · 100'}
-                    title="Coordenada absoluta x,y · relativa @dx,dy · polar @dist<ángulo · Enter vacío termina LINE/PLINE"
-                    className="w-44 rounded-lg border border-white/10 bg-gray-950/80 px-2 py-1 text-[11px] text-white placeholder:text-gray-600 outline-none focus:border-amber-400/60"
-                  />
-                  <button type="submit" className="rounded-lg bg-amber-400 px-2 py-1 text-[10.5px] font-semibold text-gray-900 hover:bg-amber-300">{drawPrompt && !precisionText.trim() ? 'Enter' : 'Ir'}</button>
-                </form>
+                <CadDynamicInput
+                  key={`${dynamicInputKind}:${dynamicAnchor ? 'anchored' : 'origin'}`}
+                  kind={dynamicInputKind}
+                  anchor={dynamicAnchor}
+                  documentUnit={data?.footprint.unit === 'm' ? 'm' : 'mm'}
+                  locale="es-MX"
+                  defaults={dynamicInputDefaults}
+                  onCommit={commitDynamicInput}
+                  onCancel={() => { setPrecisionText(''); endDraw(); setTool('select'); toolRef.current = 'select'; }}
+                />
+                {activeDynamicCommand && (activeDynamicCommand.id === 'line' || activeDynamicCommand.id === 'polyline') && (
+                  <button onClick={commitActiveDraftCommand} className="rounded-lg border border-white/10 px-2 py-1 text-[10px] text-gray-300 hover:bg-white/10">Terminar</button>
+                )}
               </div>
             )}
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-gray-900/80 backdrop-blur border border-white/10 text-[11px] text-gray-300 inline-flex items-center gap-2 pointer-events-none">
