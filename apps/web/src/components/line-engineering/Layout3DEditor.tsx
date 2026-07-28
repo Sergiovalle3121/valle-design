@@ -54,14 +54,8 @@ import { maybeSnapScalarToGrid } from '@/lib/cad/snapping';
 import {
   assignObjectsToLayer,
   DEFAULT_CAD_LAYERS,
-  hideEmptyCadLayers,
-  isolateCadLayerVisibility,
   isObjectLayerLocked,
-  showAllCadLayers,
   summarizeCadLayers,
-  toggleCadLayerLocked,
-  toggleCadLayerVisible,
-  unlockAllCadLayers,
   type CadLayer,
   type CadLayerAssignments,
   type CadLayerId,
@@ -170,6 +164,13 @@ import {
   cadReviewLinkIsActive,
   type CadEntityDiffRow,
 } from '@/lib/cad/cad-collaboration';
+import { applyCadLineFillet } from '@/lib/cad/cad-fillet';
+import {
+  cadLayerIdFromName,
+  createCadDocumentLayer,
+  deleteCadDocumentLayer,
+  updateCadDocumentLayer,
+} from '@/lib/cad/cad-layer-manager';
 import {
   CAD_SHEET_PAPERS,
   buildCadPublishPlan,
@@ -999,6 +1000,7 @@ export default function Layout3DEditor({
   );
   const mountRef = useRef<HTMLDivElement | null>(null);
   const viewMenuRef = useRef<HTMLDivElement | null>(null);
+  const viewMenuPanelRef = useRef<HTMLDivElement | null>(null);
   const [data, setData] = useState<Layout | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [connectionState, setConnectionState] = useState<'checking' | 'online' | 'offline'>('checking');
@@ -1021,6 +1023,8 @@ export default function Layout3DEditor({
   const [showSheetPackage, setShowSheetPackage] = useState(false);
   const [paperSpaces, setPaperSpaces] = useState<CadPaperSpace[]>([]);
   const [paperSpaceLayers, setPaperSpaceLayers] = useState<CadLayerDef[]>([]);
+  const [newCadLayerName, setNewCadLayerName] = useState('');
+  const [newCadLayerColor, setNewCadLayerColor] = useState('#22d3ee');
   const [cadXrefs, setCadXrefs] = useState<CadExternalReference[]>([]);
   const [publicationRecords, setPublicationRecords] = useState<CadPublicationRecord[]>([]);
   const [activePaperSpaceId, setActivePaperSpaceId] = useState<string | null>(null);
@@ -1029,6 +1033,7 @@ export default function Layout3DEditor({
   const [cadLibraryTab, setCadLibraryTab] = useState<'blocks' | 'xrefs'>('blocks');
   const [showCollaborationDock, setShowCollaborationDock] = useState(false);
   const [cadReviewReadOnly, setCadReviewReadOnly] = useState(false);
+  const [filletRadius, setFilletRadius] = useState(100);
   const [publishingSheetSet, setPublishingSheetSet] = useState(false);
   const [publicationWarnings, setPublicationWarnings] = useState<CadPublishWarning[]>([]);
   const [dxfExportOptions, setDxfExportOptions] = useState<DxfExportOptions>({ scope: 'all', includeHidden: true, includeMeasurements: true, includeLabels: true, units: 'mm', fileName: '' });
@@ -1145,6 +1150,7 @@ export default function Layout3DEditor({
   const [theme, setTheme] = useState<Theme3D>('dark');
   const [sun, setSun] = useState({ az: 35, el: 55 }); // sun azimuth/elevation (deg)
   const [showView, setShowView] = useState(false);
+  const [viewMenuPosition, setViewMenuPosition] = useState({ left: 8, top: 56 });
   const [fpDraft, setFpDraft] = useState<{ w: number; h: number; g: number }>({ w: 0, h: 0, g: 0 });
   const [plantDisplayUnit, setPlantDisplayUnit] = useState<'m' | 'mm'>('m'); // readout-only toggle, no cambia el footprint guardado
   const [viewportBookmarks, setViewportBookmarks] = useState<CadViewportBookmark[]>([]);
@@ -1164,6 +1170,17 @@ export default function Layout3DEditor({
   }, []);
   const [activeCadLayer, setActiveCadLayer] = useState<CadLayerId>('equipment');
   const cadLayersRef = useRef<CadLayer[]>(DEFAULT_CAD_LAYERS);
+  const syncCadLayerState = useCallback((document: CadDocument) => {
+    const projected = document.layers.length
+      ? document.layers.map((layer) => ({ id: layer.id, label: layer.name, color: layer.color, visible: layer.visible, locked: layer.locked }))
+      : DEFAULT_CAD_LAYERS.map((layer) => ({ ...layer }));
+    cadLayersRef.current = projected;
+    setCadLayers(projected);
+    setPaperSpaceLayers(document.layers.map((layer) => ({ ...layer })));
+    setActiveCadLayer((current) => projected.some((layer) => layer.id === current)
+      ? current
+      : (projected.find((layer) => !layer.locked)?.id ?? projected[0]?.id ?? '0'));
+  }, []);
   const layerAssignmentsRef = useRef<CadLayerAssignments>({});
   const objectGroupsRef = useRef<Record<string, string>>({});
   const [objectTags, setObjectTags] = useState<Record<string, string>>({});
@@ -1518,7 +1535,10 @@ export default function Layout3DEditor({
   // close the view/layers popover when clicking outside it
   useEffect(() => {
     if (!showView) return;
-    const onDoc = (e: MouseEvent) => { if (viewMenuRef.current && !viewMenuRef.current.contains(e.target as Node)) setShowView(false); };
+    const onDoc = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (viewMenuRef.current && !viewMenuRef.current.contains(target) && !viewMenuPanelRef.current?.contains(target)) setShowView(false);
+    };
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
   }, [showView]);
@@ -1722,7 +1742,7 @@ export default function Layout3DEditor({
         const restoredTags: Record<string, string> = {};
         (d.assets ?? []).forEach((a) => {
           const layer = (a as { layer?: string }).layer;
-          if (layer && DEFAULT_CAD_LAYERS.some((l) => l.id === layer)) restoredLayers[a.id] = layer as CadLayerId;
+          if (layer?.trim()) restoredLayers[a.id] = layer;
           const group = (a as { group?: string }).group;
           if (group) restoredGroups[a.id] = group;
           if (a.tags?.length) restoredTags[a.id] = a.tags.join(', ');
@@ -1760,7 +1780,7 @@ export default function Layout3DEditor({
           titleBlock: space.titleBlock ? { ...space.titleBlock, attributes: { ...space.titleBlock.attributes } } : undefined,
         }));
         setPaperSpaces(restoredPaperSpaces);
-        setPaperSpaceLayers(loadedCadDocumentRef.current.layers.map((layer) => ({ ...layer })));
+        syncCadLayerState(loadedCadDocumentRef.current);
         setCadXrefs(loadedCadDocumentRef.current.externalReferences.map((reference) => ({ ...reference })));
         setPublicationRecords([...loadedCadDocumentRef.current.publications]);
         const reviewToken = new URLSearchParams(window.location.search).get('cadReview');
@@ -1799,7 +1819,9 @@ export default function Layout3DEditor({
       }
     })();
     return () => { alive = false; };
-  }, [open, model, revision, reloadTick]);
+  // `toast` intentionally stays out: the provider object is not referentially
+  // stable and would reload the complete drawing after every notification.
+  }, [open, model, revision, reloadTick, syncCadLayerState]);
 
   const snapWorld = useCallback((v: number) => {
     const g = data?.footprint.gridSize || 1;
@@ -2434,7 +2456,7 @@ export default function Layout3DEditor({
     const document = undoStackRef.current.pop()!;
     loadedCadDocumentRef.current = document;
     setPaperSpaces(document.paperSpaces.map((space) => ({ ...space })));
-    setPaperSpaceLayers(document.layers.map((layer) => ({ ...layer })));
+    syncCadLayerState(document);
     setCadXrefs(document.externalReferences.map((reference) => ({ ...reference })));
     setPublicationRecords([...document.publications]);
     setActivePaperSpaceId((current) => document.paperSpaces.some((space) => space.id === current) ? current : (document.paperSpaces[0]?.id ?? null));
@@ -2449,14 +2471,14 @@ export default function Layout3DEditor({
     setNativeDocumentRevision((value) => value + 1);
     restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
     setHist({ undo: undoStackRef.current.length, redo: redoStackRef.current.length });
-  }, [snapshotDocument, restore]);
+  }, [restore, snapshotDocument, syncCadLayerState]);
   const redo = useCallback(() => {
     if (!redoStackRef.current.length) return;
     undoStackRef.current.push(snapshotDocument());
     const document = redoStackRef.current.pop()!;
     loadedCadDocumentRef.current = document;
     setPaperSpaces(document.paperSpaces.map((space) => ({ ...space })));
-    setPaperSpaceLayers(document.layers.map((layer) => ({ ...layer })));
+    syncCadLayerState(document);
     setCadXrefs(document.externalReferences.map((reference) => ({ ...reference })));
     setPublicationRecords([...document.publications]);
     setActivePaperSpaceId((current) => document.paperSpaces.some((space) => space.id === current) ? current : (document.paperSpaces[0]?.id ?? null));
@@ -2471,7 +2493,7 @@ export default function Layout3DEditor({
     setNativeDocumentRevision((value) => value + 1);
     restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
     setHist({ undo: undoStackRef.current.length, redo: redoStackRef.current.length });
-  }, [snapshotDocument, restore]);
+  }, [restore, snapshotDocument, syncCadLayerState]);
 
   const applyCollaborationDocument = useCallback((next: CadDocument, label: string) => {
     if (cadReviewReadOnly) {
@@ -2482,14 +2504,14 @@ export default function Layout3DEditor({
     const document = commitChange(next, label);
     loadedCadDocumentRef.current = document;
     setPaperSpaces(document.paperSpaces.map((space) => ({ ...space })));
-    setPaperSpaceLayers(document.layers.map((layer) => ({ ...layer })));
+    syncCadLayerState(document);
     setCadXrefs(document.externalReferences.map((reference) => ({ ...reference })));
     setPublicationRecords([...document.publications]);
     setNativeEntities(document.entities.filter((entity): entity is CadNativeEntity => CAD_ENTITY_REGISTRY.supports(entity)));
     setNativeDocumentRevision((value) => value + 1);
     restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
     toast.success(label, 'Compare / Merge');
-  }, [cadReviewReadOnly, pushHistory, restore, toast]);
+  }, [cadReviewReadOnly, pushHistory, restore, syncCadLayerState, toast]);
   const visualizeCollaborationDiff = useCallback((rows: CadEntityDiffRow[]) => {
     const ids = new Set(rows.map((row) => row.entityId));
     validationHighlightRef.current = ids;
@@ -2571,7 +2593,7 @@ export default function Layout3DEditor({
       const document = migrateCadDocument(recoveryCandidate.document);
       loadedCadDocumentRef.current = document;
       setPaperSpaces(document.paperSpaces.map((space) => ({ ...space })));
-      setPaperSpaceLayers(document.layers.map((layer) => ({ ...layer })));
+      syncCadLayerState(document);
       setCadXrefs(document.externalReferences.map((reference) => ({ ...reference })));
       setPublicationRecords([...document.publications]);
       setActivePaperSpaceId(document.paperSpaces[0]?.id ?? null);
@@ -2589,7 +2611,7 @@ export default function Layout3DEditor({
     } catch {
       toast.error('El borrador local no pudo restaurarse.', 'CAD');
     }
-  }, [recoveryCandidate, restore, toast]);
+  }, [recoveryCandidate, restore, syncCadLayerState, toast]);
 
   const discardRecoveryCandidate = useCallback(() => {
     setRecoveryCandidate(null);
@@ -2825,12 +2847,15 @@ export default function Layout3DEditor({
     commands: Parameters<typeof executeCadEntityCommand>[1][],
     nextSelection?: string[],
   ) => {
-    if (!commands.length) return;
+    if (!commands.length) return false;
     const checkpoint = snapshotDocument();
     try {
       let document = checkpoint;
       const touchedIds = new Set<string>();
       for (const command of commands) {
+        const source = document.entities.find((entity) => entity.id === command.entityId);
+        const lockedLayer = source && document.layers.find((layer) => layer.id === source.layer)?.locked;
+        if (lockedLayer) throw new Error(`Layer ${source.layer} is locked. Unlock it before editing ${source.id}.`);
         const result = executeCadEntityCommand(document, command);
         document = result.document;
         result.affectedEntityIds.forEach((id) => touchedIds.add(id));
@@ -2866,8 +2891,10 @@ export default function Layout3DEditor({
         )
         .map((entity) => entity.id);
       syncNativeScene(document, { upsert, remove });
+      return true;
     } catch (cause) {
       toast.error(cause instanceof Error ? cause.message : 'No se pudo editar la entidad.', 'Entidad CAD');
+      return false;
     }
   }, [snapshotDocument, syncNativeScene, toast]);
   const updateNativeProperties = useCallback((entityId: string, patch: Partial<CadPropertyBag>) => {
@@ -2889,17 +2916,17 @@ export default function Layout3DEditor({
   const removeNativeSelection = useCallback(() => {
     commitNativeCommands(nativeSelectionIdsRef.current.map((entityId) => ({ type: 'delete' as const, entityId })), []);
   }, [commitNativeCommands]);
-  const commitBlockMutation = useCallback((mutate: (document: CadDocument) => CadDocument, selection: string[], success: string, notificationTitle = 'BLOCK', rethrow = false) => {
+  const commitBlockMutation = useCallback((mutate: (document: CadDocument) => CadDocument, selection: string[], success: string, notificationTitle = 'BLOCK', rethrow = false): boolean => {
     const checkpoint = snapshotDocument();
     try {
       const document = mutate(checkpoint);
-      if (document === checkpoint) { toast.success('No había definiciones de bloque sin uso.', 'BLOCK'); return; }
+      if (document === checkpoint) { toast.success('No había cambios que aplicar.', notificationTitle); return false; }
       undoStackRef.current.push(checkpoint);
       if (undoStackRef.current.length > 80) undoStackRef.current.shift();
       redoStackRef.current = [];
       setHist({ undo: undoStackRef.current.length, redo: 0 });
       loadedCadDocumentRef.current = document;
-      setPaperSpaceLayers(document.layers.map((layer) => ({ ...layer })));
+      syncCadLayerState(document);
       setCadXrefs(document.externalReferences.map((reference) => ({ ...reference })));
       const selectable = new Set(document.entities.filter((entity) => CAD_ENTITY_REGISTRY.supports(entity)).map((entity) => entity.id));
       nativeSelectionIdsRef.current = selection.filter((id) => selectable.has(id));
@@ -2910,11 +2937,22 @@ export default function Layout3DEditor({
       restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
       syncNativeScene(document);
       toast.success(success, notificationTitle);
+      return true;
     } catch (cause) {
       toast.error(cause instanceof Error ? cause.message : `No se pudo completar la operación ${notificationTitle}.`, notificationTitle);
       if (rethrow) throw cause;
+      return false;
     }
-  }, [restore, snapshotDocument, syncNativeScene, toast]);
+  }, [restore, snapshotDocument, syncCadLayerState, syncNativeScene, toast]);
+  const filletNativeLines = useCallback((lineIds: [string, string]) => {
+    const arcId = newId('fillet');
+    commitBlockMutation(
+      (document) => applyCadLineFillet(document, { lineAId: lineIds[0], lineBId: lineIds[1], radius: filletRadius, arcId }),
+      [arcId],
+      `FILLET R${filletRadius} aplicado como ARC tangente.`,
+      'FILLET',
+    );
+  }, [commitBlockMutation, filletRadius]);
   const defineProfessionalBlock = useCallback((draft: CadBlockDefinitionDraft) => {
     const entityIds = [...new Set([...selRef.current.map((item) => item.id), ...nativeSelectionIdsRef.current])];
     const source = snapshotDocument();
@@ -6870,28 +6908,85 @@ export default function Layout3DEditor({
     setAiProposal(null);
   };
   const toggleCadLayerVisibility = (id: CadLayerId) => {
-    setCadLayers((cur) => toggleCadLayerVisible(cur, id));
+    const layer = cadLayers.find((candidate) => candidate.id === id);
+    if (!layer) return;
+    commitBlockMutation(
+      (document) => updateCadDocumentLayer(document, id, { visible: !layer.visible }),
+      nativeSelectionIdsRef.current,
+      `Capa ${layer.label} ${layer.visible ? 'oculta' : 'visible'}.`,
+      'Capas',
+    );
   };
-  const updateCadLayerLabel = (id: CadLayerId, label: string) => setCadLayers((cur) => cur.map((layer) => layer.id === id ? { ...layer, label } : layer));
-  const updateCadLayerColor = (id: CadLayerId, color: string) => setCadLayers((cur) => cur.map((layer) => layer.id === id ? { ...layer, color } : layer));
+  const updateCadLayerLabel = (id: CadLayerId, label: string) => {
+    if (cadLayers.find((layer) => layer.id === id)?.label === label.trim()) return;
+    commitBlockMutation((document) => updateCadDocumentLayer(document, id, { name: label }), nativeSelectionIdsRef.current, `Capa ${id} renombrada.`, 'Capas');
+  };
+  const updateCadLayerColor = (id: CadLayerId, color: string) => {
+    if (cadLayers.find((layer) => layer.id === id)?.color === color) return;
+    commitBlockMutation((document) => updateCadDocumentLayer(document, id, { color }), nativeSelectionIdsRef.current, `Color de ${id} actualizado.`, 'Capas');
+  };
+  const toggleCadLayerLock = (id: CadLayerId) => {
+    const layer = cadLayers.find((candidate) => candidate.id === id);
+    if (!layer) return;
+    commitBlockMutation((document) => updateCadDocumentLayer(document, id, { locked: !layer.locked }), nativeSelectionIdsRef.current, `Capa ${layer.label} ${layer.locked ? 'desbloqueada' : 'bloqueada'}.`, 'Capas');
+  };
+  const createCanonicalCadLayer = () => {
+    try {
+      const id = cadLayerIdFromName(newCadLayerName);
+      const created = commitBlockMutation(
+        (document) => createCadDocumentLayer(document, { name: newCadLayerName, color: newCadLayerColor }),
+        nativeSelectionIdsRef.current,
+        `Capa ${newCadLayerName.trim()} creada.`,
+        'Capas',
+      );
+      if (created) {
+        setActiveCadLayer(id);
+        setNewCadLayerName('');
+      }
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : 'No se pudo crear la capa.', 'Capas');
+    }
+  };
+  const deleteCanonicalCadLayer = (id: CadLayerId) => {
+    const target = cadLayers.find((layer) => layer.id === '0' && layer.id !== id)?.id
+      ?? cadLayers.find((layer) => layer.id !== id)?.id;
+    if (!target) { toast.error('Debe existir otra capa para reasignar el contenido.', 'Capas'); return; }
+    commitBlockMutation(
+      (document) => deleteCadDocumentLayer(document, id, target),
+      nativeSelectionIdsRef.current,
+      `Capa ${id} eliminada; contenido reasignado a ${target}.`,
+      'Capas',
+    );
+  };
   const resetCadLayerPresentation = () => {
     setLayers((cur) => ({ ...cur, stations: true, equipment: true, connectors: true, dims: true }));
-    setCadLayers(DEFAULT_CAD_LAYERS.map((layer) => ({ ...layer })));
-    toast.success('Capas CAD restauradas a la presentación estándar.', 'Capas');
+    const document = loadedCadDocumentRef.current;
+    if (document?.layers.length) {
+      commitBlockMutation(
+        (current) => commitChange({ ...current, layers: current.layers.map((layer) => ({ ...layer, visible: true, locked: false })) }, 'layer:reset-presentation'),
+        nativeSelectionIdsRef.current,
+        'Capas visibles y desbloqueadas.',
+        'Capas',
+      );
+    } else setCadLayers(DEFAULT_CAD_LAYERS.map((layer) => ({ ...layer })));
   };
   const assignSelectionToCadLayer = (id: CadLayerId) => {
     const ids = selRef.current.map((it) => it.id);
-    if (!ids.length) { toast.error('Selecciona objetos para asignarlos a una capa.', 'Capas'); return; }
-    setLayerAssignments((cur) => assignObjectsToLayer(cur, ids, id));
-    toast.success(`${ids.length} objeto(s) asignados a ${cadLayers.find((l) => l.id === id)?.label ?? id}.`, 'Capas');
+    const nativeIds = [...nativeSelectionIdsRef.current];
+    if (!ids.length && !nativeIds.length) { toast.error('Selecciona objetos para asignarlos a una capa.', 'Capas'); return; }
+    if (ids.length) setLayerAssignments((cur) => assignObjectsToLayer(cur, ids, id));
+    if (nativeIds.length) commitNativeCommands(nativeIds.map((entityId) => ({ type: 'properties' as const, entityId, patch: { layer: id } })));
+    toast.success(`${ids.length + nativeIds.length} objeto(s) asignados a ${cadLayers.find((l) => l.id === id)?.label ?? id}.`, 'Capas');
   };
   const selectCadLayerObjects = (id: CadLayerId) => {
     const items: SelItem[] = [];
     placementsRef.current.forEach((_, objectId) => { if ((layerAssignmentsRef.current[objectId] ?? 'layout') === id) items.push({ type: 'station', id: objectId }); });
     assetsRef.current.forEach((_, objectId) => { if ((layerAssignmentsRef.current[objectId] ?? defaultLayerForAsset(objectId)) === id) items.push({ type: 'asset', id: objectId }); });
-    if (!items.length) { toast.error('No hay objetos visibles en esa capa.', 'Capas'); return; }
-    select(items.slice(0, 200));
-    toast.success(`${items.length} objeto(s) seleccionados en la capa.`, 'Capas');
+    const nativeIds = nativeEntities.filter((entity) => entity.layer === id).map((entity) => entity.id);
+    if (!items.length && !nativeIds.length) { toast.error('No hay objetos visibles en esa capa.', 'Capas'); return; }
+    if (nativeIds.length) selectNative(nativeIds.slice(0, 200));
+    else select(items.slice(0, 200));
+    toast.success(`${items.length + nativeIds.length} objeto(s) seleccionados en la capa.`, 'Capas');
   };
   const isolateCadLayer = (id: CadLayerId) => {
     setLayers((cur) => ({
@@ -6901,8 +6996,12 @@ export default function Layout3DEditor({
       connectors: id === 'flow',
       dims: id === 'measurements',
     }));
-    setCadLayers((cur) => isolateCadLayerVisibility(cur, id));
-    toast.success(`Capa ${cadLayers.find((layer) => layer.id === id)?.label ?? id} aislada.`, 'Capas');
+    commitBlockMutation(
+      (document) => commitChange({ ...document, layers: document.layers.map((layer) => ({ ...layer, visible: layer.id === id })) }, `layer:isolate:${id}`),
+      nativeSelectionIdsRef.current,
+      `Capa ${cadLayers.find((layer) => layer.id === id)?.label ?? id} aislada.`,
+      'Capas',
+    );
   };
   const showAllCadLayerVisibility = () => {
     setLayers((cur) => ({
@@ -6912,12 +7011,20 @@ export default function Layout3DEditor({
       connectors: true,
       dims: true,
     }));
-    setCadLayers((cur) => showAllCadLayers(cur));
-    toast.success('Todas las capas CAD visibles.', 'Capas');
+    commitBlockMutation(
+      (document) => commitChange({ ...document, layers: document.layers.map((layer) => ({ ...layer, visible: true })) }, 'layer:show-all'),
+      nativeSelectionIdsRef.current,
+      'Todas las capas CAD visibles.',
+      'Capas',
+    );
   };
   const unlockAllCadLayerVisibility = () => {
-    setCadLayers((cur) => unlockAllCadLayers(cur));
-    toast.success('Todas las capas CAD desbloqueadas.', 'Capas');
+    commitBlockMutation(
+      (document) => commitChange({ ...document, layers: document.layers.map((layer) => ({ ...layer, locked: false })) }, 'layer:unlock-all'),
+      nativeSelectionIdsRef.current,
+      'Todas las capas CAD desbloqueadas.',
+      'Capas',
+    );
   };
   const defaultLayerFor = (item: SelItem): CadLayerId => {
     if (item.type === 'station') return 'layout';
@@ -7070,6 +7177,11 @@ export default function Layout3DEditor({
   const toggleViewMenu = () => {
     const next = !showView;
     if (next) {
+      const bounds = viewMenuRef.current?.getBoundingClientRect();
+      if (bounds) setViewMenuPosition({
+        left: Math.max(8, Math.min(bounds.left, window.innerWidth - 304)),
+        top: bounds.bottom + 6,
+      });
       setViewportBookmarks(readViewportBookmarks());
       if (data) setFpDraft({ w: data.footprint.footprintW, h: data.footprint.footprintH, g: data.footprint.gridSize });
     }
@@ -7564,7 +7676,7 @@ export default function Layout3DEditor({
       if (saved.cadDocument) {
         const document = migrateCadDocument(saved.cadDocument);
         loadedCadDocumentRef.current = document;
-        setPaperSpaceLayers(document.layers.map((layer) => ({ ...layer })));
+        syncCadLayerState(document);
         setCadXrefs(document.externalReferences.map((reference) => ({ ...reference })));
         setPublicationRecords([...document.publications]);
         setNativeEntities(
@@ -7811,6 +7923,9 @@ export default function Layout3DEditor({
   const nativeSelectedEntities = nativeSelectionIds
     .map((id) => nativeById.get(id))
     .filter((entity): entity is CadNativeEntity => !!entity);
+  const selectedNativeLineIds = nativeSelectedEntities.length === 2 && nativeSelectedEntities.every((entity) => entity.type === 'line')
+    ? nativeSelectedEntities.map((entity) => entity.id) as [string, string]
+    : null;
   const primaryNativeEntity = nativeSelectedEntities.length === 1 ? nativeSelectedEntities[0] : null;
   const primaryNativeAdapter = primaryNativeEntity ? CAD_ENTITY_REGISTRY.adapter(primaryNativeEntity) : null;
   const primaryNativeProperties = primaryNativeEntity && primaryNativeAdapter
@@ -7977,8 +8092,10 @@ export default function Layout3DEditor({
     return matchesCategory && matchesSearch;
   });
   const cadLayerCounts = cadLayers.reduce<Record<CadLayerId, number>>((acc, layer) => ({ ...acc, [layer.id]: 0 }), {} as Record<CadLayerId, number>);
-  placedIds.forEach((id) => { cadLayerCounts[layerAssignments[id] ?? 'layout'] += 1; });
-  assetIds.forEach((id) => { cadLayerCounts[layerAssignments[id] ?? 'equipment'] += 1; });
+  const incrementCadLayerCount = (id: CadLayerId) => { cadLayerCounts[id] = (cadLayerCounts[id] ?? 0) + 1; };
+  placedIds.forEach((id) => incrementCadLayerCount(layerAssignments[id] ?? 'layout'));
+  assetIds.forEach((id) => incrementCadLayerCount(layerAssignments[id] ?? 'equipment'));
+  nativeEntities.forEach((entity) => incrementCadLayerCount(entity.layer));
   const cadLayerSummary = summarizeCadLayers(cadLayers, cadLayerCounts);
   // Plant-scale safety: flag objects that sit outside the saved factory footprint (EPIC 0).
   const plantBoundsW = data?.footprint.footprintW ?? 0;
@@ -8274,8 +8391,8 @@ export default function Layout3DEditor({
         </div>
         <div className="relative" ref={viewMenuRef}>
           <T3Btn active={showView} onClick={toggleViewMenu} title="Vista, capas y plano"><SlidersHorizontal className="w-4 h-4" /></T3Btn>
-          {showView && (
-            <div className="absolute left-0 top-full mt-1.5 w-72 max-h-[78vh] overflow-y-auto rounded-xl border border-white/10 bg-gray-900 shadow-2xl p-3 z-10 text-[12px]">
+          {showView && typeof document !== 'undefined' && createPortal(
+            <div ref={viewMenuPanelRef} data-testid="cad-layer-manager" style={viewMenuPosition} className="fixed z-[90] w-72 max-h-[78vh] overflow-y-auto rounded-xl border border-white/10 bg-gray-900 shadow-2xl p-3 text-[12px]">
               <div className="text-[10px] uppercase tracking-wide text-gray-500 mb-1.5">Capas</div>
               {([['stations', standalone ? 'Puntos' : 'Estaciones'], ['equipment', 'Biblioteca'], ['connectors', 'Conexiones'], ['dims', 'Cotas'], ['notes', 'Notas'], ['labels', 'Etiquetas'], ['dxf', 'Plano DXF'], ['grid', 'Grilla']] as const).map(([k, lbl]) => (
                 <label key={k} className="flex items-center gap-2 py-1 cursor-pointer text-gray-300 hover:text-white">
@@ -8289,23 +8406,37 @@ export default function Layout3DEditor({
                   {cadLayerSummary.visible}/{cadLayerSummary.total} visibles
                 </div>
               </div>
+              <div className="mb-2 grid grid-cols-[1fr_auto_auto] gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] p-1.5">
+                <input
+                  data-testid="cad-layer-new-name"
+                  value={newCadLayerName}
+                  onChange={(event) => setNewCadLayerName(event.target.value)}
+                  onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); createCanonicalCadLayer(); } }}
+                  disabled={cadReviewReadOnly}
+                  placeholder="Nueva capa"
+                  className="min-w-0 rounded-md border border-white/10 bg-gray-950/70 px-2 py-1 text-[10.5px] text-gray-200 outline-none focus:ring-1 focus:ring-cyan-500/40 disabled:opacity-50"
+                />
+                <input data-testid="cad-layer-new-color" type="color" value={newCadLayerColor} onChange={(event) => setNewCadLayerColor(event.target.value)} disabled={cadReviewReadOnly} className="h-7 w-8 rounded border border-white/10 bg-transparent p-0 disabled:opacity-50" title="Color de la nueva capa" />
+                <button data-testid="cad-layer-create" onClick={createCanonicalCadLayer} disabled={cadReviewReadOnly || !newCadLayerName.trim()} className="rounded-md bg-cyan-500/15 px-2 text-[10px] font-semibold text-cyan-200 hover:bg-cyan-500/25 disabled:opacity-40">Crear</button>
+              </div>
               <div className="space-y-1">
                 {cadLayers.map((layer) => (
-                  <div key={layer.id} className={`rounded-lg px-2 py-1 ${activeCadLayer === layer.id ? 'bg-cyan-400/[0.10] ring-1 ring-cyan-400/20' : 'bg-white/[0.04]'}`}>
+                  <div key={layer.id} data-testid={`cad-layer-row-${layer.id}`} className={`rounded-lg px-2 py-1 ${activeCadLayer === layer.id ? 'bg-cyan-400/[0.10] ring-1 ring-cyan-400/20' : 'bg-white/[0.04]'}`}>
                     <div className="flex items-center gap-1.5">
-                      <button onClick={() => toggleCadLayerVisibility(layer.id)} className={`h-2.5 w-2.5 rounded-full ${layer.visible ? '' : 'opacity-30'}`} style={{ background: layer.color }} title={layer.visible ? 'Ocultar capa' : 'Mostrar capa'} />
-                      <button onClick={() => setActiveCadLayer(layer.id)} className={`min-w-0 flex-1 truncate text-left ${layer.visible ? 'text-gray-200' : 'text-gray-500'}`} title="Definir como capa activa">{layer.label}</button>
+                      <button data-testid={`cad-layer-visible-${layer.id}`} onClick={() => toggleCadLayerVisibility(layer.id)} disabled={cadReviewReadOnly} className={`h-2.5 w-2.5 rounded-full ${layer.visible ? '' : 'opacity-30'} disabled:cursor-not-allowed`} style={{ background: layer.color }} title={layer.visible ? 'Ocultar capa' : 'Mostrar capa'} />
+                      <button data-testid={`cad-layer-active-${layer.id}`} onClick={() => setActiveCadLayer(layer.id)} className={`min-w-0 flex-1 truncate text-left ${layer.visible ? 'text-gray-200' : 'text-gray-500'}`} title="Definir como capa activa">{layer.label}</button>
                       <span className="rounded bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-gray-500 dark:text-gray-400">{cadLayerCounts[layer.id]}</span>
-                      <button onClick={() => setCadLayers((cur) => toggleCadLayerLocked(cur, layer.id))} className={`text-[10px] ${layer.locked ? 'text-amber-300' : 'text-gray-500'}`}>{layer.locked ? 'Lock' : 'Open'}</button>
+                      <button data-testid={`cad-layer-lock-${layer.id}`} onClick={() => toggleCadLayerLock(layer.id)} disabled={cadReviewReadOnly} className={`text-[10px] ${layer.locked ? 'text-amber-300' : 'text-gray-500'} disabled:opacity-40`}>{layer.locked ? 'Lock' : 'Open'}</button>
                     </div>
                     <div className="mt-1 grid grid-cols-[1fr_auto] gap-1.5">
-                      <input value={layer.label} onChange={(e) => updateCadLayerLabel(layer.id, e.target.value)} className="min-w-0 rounded-md border border-white/10 bg-gray-950/70 px-1.5 py-0.5 text-[10.5px] text-gray-200 outline-none focus:ring-1 focus:ring-cyan-500/40" title="Renombrar capa local" />
-                      <input type="color" value={layer.color} onChange={(e) => updateCadLayerColor(layer.id, e.target.value)} className="h-6 w-7 rounded border border-white/10 bg-transparent p-0" title="Color local de capa" />
+                      <input key={`${layer.id}:${layer.label}`} data-testid={`cad-layer-name-${layer.id}`} defaultValue={layer.label} onBlur={(event) => updateCadLayerLabel(layer.id, event.target.value)} disabled={cadReviewReadOnly} className="min-w-0 rounded-md border border-white/10 bg-gray-950/70 px-1.5 py-0.5 text-[10.5px] text-gray-200 outline-none focus:ring-1 focus:ring-cyan-500/40 disabled:opacity-50" title="Renombrar capa del documento" />
+                      <input data-testid={`cad-layer-color-${layer.id}`} type="color" value={layer.color} onChange={(event) => updateCadLayerColor(layer.id, event.target.value)} disabled={cadReviewReadOnly} className="h-6 w-7 rounded border border-white/10 bg-transparent p-0 disabled:opacity-50" title="Color de capa" />
                     </div>
                     <div className="mt-1 flex items-center justify-end gap-2 text-[10px]">
                       <button onClick={() => selectCadLayerObjects(layer.id)} className="text-gray-500 dark:text-gray-400 hover:text-white">Sel</button>
-                      <button onClick={() => isolateCadLayer(layer.id)} className="text-gray-500 dark:text-gray-400 hover:text-white">Solo</button>
-                      <button onClick={() => assignSelectionToCadLayer(layer.id)} className="text-cyan-300 hover:text-cyan-100">Asignar</button>
+                      <button onClick={() => isolateCadLayer(layer.id)} disabled={cadReviewReadOnly} className="text-gray-500 dark:text-gray-400 hover:text-white disabled:opacity-40">Solo</button>
+                      <button onClick={() => assignSelectionToCadLayer(layer.id)} disabled={cadReviewReadOnly} className="text-cyan-300 hover:text-cyan-100 disabled:opacity-40">Asignar</button>
+                      {layer.id !== '0' && <button data-testid={`cad-layer-delete-${layer.id}`} onClick={() => deleteCanonicalCadLayer(layer.id)} disabled={cadReviewReadOnly || cadLayers.length < 2} className="text-rose-300/80 hover:text-rose-200 disabled:opacity-40">Borrar</button>}
                     </div>
                   </div>
                 ))}
@@ -8314,7 +8445,12 @@ export default function Layout3DEditor({
                 <span>{Object.keys(layerAssignments).length} asignados · {cadLayerSummary.hiddenObjectCount} ocultos · {cadLayerSummary.lockedObjectCount} bloqueados</span>
                 <div className="inline-flex items-center gap-2">
                   <button onClick={showAllCadLayerVisibility} className="text-gray-500 dark:text-gray-400 hover:text-white">All</button>
-                  <button onClick={() => { setCadLayers((cur) => hideEmptyCadLayers(cur, cadLayerCounts)); toast.success('Capas CAD vacías ocultas.', 'Capas'); }} className="text-gray-500 dark:text-gray-400 hover:text-white" title="Ocultar capas sin objetos">Ocultar 0</button>
+                  <button onClick={() => commitBlockMutation(
+                    (document) => commitChange({ ...document, layers: document.layers.map((layer) => ({ ...layer, visible: (cadLayerCounts[layer.id] ?? 0) > 0 })) }, 'layer:hide-empty'),
+                    nativeSelectionIdsRef.current,
+                    'Capas CAD vacías ocultas.',
+                    'Capas',
+                  )} disabled={cadReviewReadOnly} className="text-gray-500 dark:text-gray-400 hover:text-white disabled:opacity-40" title="Ocultar capas sin objetos">Ocultar 0</button>
                   <button onClick={unlockAllCadLayerVisibility} className="text-gray-500 dark:text-gray-400 hover:text-white" title="Desbloquear todas las capas">Unlock</button>
                   <button onClick={resetCadLayerPresentation} className="text-gray-500 dark:text-gray-400 hover:text-white">Reset</button>
                 </div>
@@ -8399,7 +8535,8 @@ export default function Layout3DEditor({
                 <span className="flex justify-between text-[10px] text-gray-500 dark:text-gray-400"><span>Altura</span><span>{sun.el}°</span></span>
                 <input type="range" min={12} max={88} value={sun.el} onChange={(e) => setSun((s) => ({ ...s, el: Number(e.target.value) }))} className="w-full accent-amber-400" />
               </label>
-            </div>
+            </div>,
+            document.body,
           )}
         </div>
         <div className="w-px h-5 bg-white/10 mx-1" />
@@ -9024,7 +9161,16 @@ export default function Layout3DEditor({
                 <div className="mb-3 text-[11px] text-gray-500 dark:text-gray-400">
                   Geometría canónica · selección, grips, snaps y DXF sin aproximación persistida.
                 </div>
-                {primaryNativeEntity && primaryNativeProperties && primaryNativeBounds ? (
+                {selectedNativeLineIds ? (
+                  <div data-testid="cad-fillet-control" className="rounded-xl border border-violet-400/20 bg-violet-400/[0.07] p-3">
+                    <div className="text-[10px] uppercase tracking-wide text-violet-200">FILLET · 2 LINE</div>
+                    <p className="mt-1 text-[10.5px] text-gray-400">Recorta ambas líneas y crea un ARC tangente en una sola operación reversible.</p>
+                    <div className="mt-2 grid grid-cols-[1fr_auto] gap-2">
+                      <label className="text-[10px] text-gray-500">Radio<input data-testid="cad-fillet-radius" type="number" min="0.000001" value={filletRadius} onChange={(event) => setFilletRadius(Math.max(0.000001, Number(event.target.value) || 0.000001))} className="mt-1 w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white outline-none focus:ring-1 focus:ring-violet-400/50" /></label>
+                      <button data-testid="cad-fillet-apply" disabled={cadReviewReadOnly} onClick={() => filletNativeLines(selectedNativeLineIds)} className="self-end rounded-lg bg-violet-500 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-violet-400 disabled:opacity-40">Aplicar FILLET</button>
+                    </div>
+                  </div>
+                ) : primaryNativeEntity && primaryNativeProperties && primaryNativeBounds ? (
                   <>
                     <div className="mb-3 grid grid-cols-2 gap-2 rounded-xl border border-cyan-400/15 bg-cyan-400/[0.04] p-2.5">
                       <ReadField label="ID" value={primaryNativeEntity.id} />

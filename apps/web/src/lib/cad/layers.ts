@@ -1,13 +1,5 @@
-export type CadLayerId =
-  | "layout"
-  | "architecture"
-  | "structure"
-  | "equipment"
-  | "utilities"
-  | "flow"
-  | "aisles"
-  | "measurements"
-  | "safety";
+/** Canonical layer ids are user-defined strings; defaults remain exported below. */
+export type CadLayerId = string;
 
 export interface CadLayer {
   id: CadLayerId;

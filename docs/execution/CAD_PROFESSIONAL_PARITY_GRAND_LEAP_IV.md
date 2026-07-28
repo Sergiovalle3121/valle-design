@@ -447,6 +447,34 @@ No se editan ramas comerciales, ERP o PDF durante la construcción CAD.
   `Layout3DEditor.tsx` queda en 10,314 líneas. Sigue el acceptance journey y los
   gates finales; esto aún no es un cierre de misión.
 
+### 2026-07-28 17:10–17:39 — P3-A / FILLET y capas canónicas
+
+- `applyCadLineFillet` resuelve dos LINE sobre sus rectas infinitas, determina
+  los rayos conservados, recorta ambos extremos y crea un ARC menor tangente con
+  centro/radio exactos. Rechaza ids inválidos, paralelas, colineales y radios
+  que exceden los segmentos; la mutación completa ocupa una sola entrada de
+  undo/redo y regenera asociaciones dependientes mediante el command bus.
+- La paleta de propiedades ofrece FILLET cuando hay exactamente dos LINE
+  seleccionadas. El ARC conserva metadata de procedencia, propiedades/grips,
+  guardado y round-trip DXF; Chromium #23 prueba R500, centro 4500/4500,
+  undo/redo, CAS, reload y reimportación DXF.
+- `cad-layer-manager` crea ids DXF deterministas, valida nombre/color,
+  actualiza nombre/visibilidad/lock y elimina con reasignación transaccional de
+  model space, BLOCK children y overrides de viewport. Los documentos legacy
+  sin tabla de capas reciben `0` al crear la primera capa de usuario.
+- El editor ya no limita los ids a nueve presets: la tabla canónica alimenta la
+  paleta, capa activa, counts y render. Crear, renombrar, colorear, ocultar,
+  aislar, bloquear, asignar y borrar persisten en el mismo `CadDocument`; una
+  capa bloqueada impide transform/property/grip/copy/delete de entidades nativas.
+- Evidencia: specs FILLET y layer manager, TypeScript y ESLint focal con 0
+  errores. Chromium #24 cubre creación, asignación, lock efectivo, rename,
+  borrado/reasignación, movimiento, guardado y reload. Regresión conjunta
+  #23–#24: 2/2 verde en 59.9 s; visual del administrador capturado por locator.
+- La rúbrica sube prudentemente 89 → 90 por edición geométrica y administración
+  de capas demostradas. `Layout3DEditor.tsx` queda en 10,449 líneas: el kernel
+  nuevo está aislado, pero el wiring incrementa la deuda de extracción. Sigue
+  P3-B, el acceptance journey completo y los gates finales; no es cierre.
+
 ## Claims
 
 Permitido inicialmente: capacidades exactas demostradas en #1416 y documentos
