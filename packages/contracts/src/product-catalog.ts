@@ -20,10 +20,16 @@
  * nunca escondidas en la interfaz.
  *
  * ─── Precios ─────────────────────────────────────────────────────────────────
- * `listPriceUsd: null` significa "sin decisión publicada del owner". El sitio
- * muestra "precio a consultar", no un número inventado. El precio real de cobro
- * SIEMPRE se resuelve server-side desde el proveedor de pagos vía la allowlist
- * `priceEnvVar`; el navegador jamás envía montos ni price ids.
+ * Este archivo NO contiene precios. Un precio depende del mercado, la moneda,
+ * la vigencia y el tratamiento fiscal; meterlo en la definición del producto
+ * obliga a duplicar el catálogo entero por cada país. El precio vive en
+ * `pricing.ts` (modelo) y `price-book-mx.ts` (cifras del mercado mexicano),
+ * indexado por `offerCode`.
+ *
+ * El identificador de precio del proveedor de pagos también vive en el libro,
+ * no aquí, por la misma razón y por una adicional: el precio que se MUESTRA y
+ * el que se COBRA deben resolverse por caminos distintos. El navegador jamás
+ * envía ninguno de los dos.
  */
 
 /** Códigos internos estables. `platform-core` es la base común incluida. */
@@ -121,6 +127,14 @@ export const BILLING_METRICS = [
   "author_seat",
   "tenant_package",
   "connector",
+  /** Entorno dedicado de nube privada; se cotiza, nunca se cobra en línea. */
+  "environment",
+  /**
+   * Terminal operativa de planta. Es un LÍMITE incluido en la oferta de MES,
+   * no una unidad de cobro automático: sin medición confiable del uso real,
+   * cobrar por terminal sería inventar una factura.
+   */
+  "terminal",
 ] as const;
 
 export type BillingMetric = (typeof BILLING_METRICS)[number];
@@ -144,6 +158,29 @@ export function isDeploymentModel(value: unknown): value is DeploymentModel {
     typeof value === "string" &&
     (DEPLOYMENT_MODELS as readonly string[]).includes(value)
   );
+}
+
+/**
+ * Disponibilidad COMERCIAL de cada modalidad.
+ *
+ * `customer_hosted` NO está disponible de forma general y no puede cotizarse
+ * como si lo estuviera. Requiere licencia firmada verificable, enforcement
+ * técnico, procedimiento de actualización y soporte definido; nada de eso
+ * existe todavía. Publicarlo como GA sería vender una obligación de soporte
+ * que no se puede cumplir y entregar el software sin ningún control de uso.
+ *
+ * Esta constante es la ÚNICA autoridad: la web, el configurador y el checkout
+ * la consultan. Cambiarla es la decisión explícita que habilita la modalidad.
+ */
+export const DEPLOYMENT_AVAILABILITY = {
+  saas_shared: "general",
+  private_cloud: "general",
+  customer_hosted: "limited",
+} as const satisfies Readonly<Record<DeploymentModel, "general" | "limited">>;
+
+/** ¿Se puede cotizar y contratar esta modalidad hoy? */
+export function deploymentIsSellable(model: DeploymentModel): boolean {
+  return DEPLOYMENT_AVAILABILITY[model] === "general";
 }
 
 /** Periodicidad de la oferta. */
@@ -195,18 +232,7 @@ export interface OfferDefinition {
   readonly salesMotion: SalesMotion;
   /** Capacidades que concede esta oferta (corte de edición). */
   readonly capabilities: readonly ProductCapabilityId[];
-  /**
-   * Precio de lista publicable en USD. `null` = SIN decisión del owner: la web
-   * muestra "precio a consultar" y jamás inventa una cifra.
-   */
-  readonly listPriceUsd: number | null;
   readonly minQuantity: number;
-  /**
-   * Variable de entorno que contiene el price id del proveedor de pagos.
-   * ALLOWLIST: el backend sólo puede cobrar precios nombrados aquí. El
-   * navegador nunca envía price ids, montos ni monedas.
-   */
-  readonly priceEnvVar: string | null;
   readonly trialPolicy: TrialPolicy;
   /** Oferta sólo alcanzable por migración legacy; no se ofrece a prospectos. */
   readonly legacyOnly?: boolean;
@@ -281,17 +307,15 @@ function assistedOffer(params: {
     billingMetric: params.billingMetric,
     salesMotion: "assisted",
     capabilities: params.capabilities,
-    listPriceUsd: null,
     minQuantity: params.minQuantity ?? 1,
-    priceEnvVar: null,
     trialPolicy: NO_TRIAL,
   };
 }
 
 /**
- * Constructor de ofertas de autoservicio. El precio de cobro vive en el
- * proveedor de pagos y se resuelve por `priceEnvVar`; `listPriceUsd` queda en
- * `null` hasta que el owner publique una tarifa.
+ * Constructor de ofertas de autoservicio. El precio publicable y el
+ * identificador de precio del proveedor viven en el libro de precios del
+ * mercado, no aquí.
  */
 function selfServiceOffer(params: {
   code: string;
@@ -300,7 +324,6 @@ function selfServiceOffer(params: {
   billingInterval: Exclude<BillingInterval, "custom">;
   billingMetric: BillingMetric;
   capabilities: readonly ProductCapabilityId[];
-  priceEnvVar: string;
   trialPolicy?: TrialPolicy;
   minQuantity?: number;
 }): OfferDefinition {
@@ -313,9 +336,7 @@ function selfServiceOffer(params: {
     billingMetric: params.billingMetric,
     salesMotion: "self_service",
     capabilities: params.capabilities,
-    listPriceUsd: null,
     minQuantity: params.minQuantity ?? 1,
-    priceEnvVar: params.priceEnvVar,
     trialPolicy: params.trialPolicy ?? TRIAL_14,
   };
 }
@@ -337,9 +358,7 @@ function legacyOffer(params: {
     billingMetric: params.billingMetric,
     salesMotion: "assisted",
     capabilities: params.capabilities,
-    listPriceUsd: null,
     minQuantity: 1,
-    priceEnvVar: null,
     trialPolicy: NO_TRIAL,
     legacyOnly: true,
   };
@@ -365,9 +384,7 @@ export const PRODUCT_CATALOG: Readonly<Record<ProductCode, ProductDefinition>> =
           billingMetric: "included",
           salesMotion: "included",
           capabilities: PLATFORM_CAPABILITIES,
-          listPriceUsd: 0,
           minQuantity: 1,
-          priceEnvVar: null,
           trialPolicy: NO_TRIAL,
         },
       ],
@@ -535,7 +552,6 @@ export const PRODUCT_CATALOG: Readonly<Record<ProductCode, ProductDefinition>> =
           billingInterval: "monthly",
           billingMetric: "author_seat",
           capabilities: ["design.cad", "design.viewer"],
-          priceEnvVar: "BILLING_PRICE_DESIGN_SAAS_MONTHLY",
         }),
         selfServiceOffer({
           code: "design-saas-annual",
@@ -544,7 +560,6 @@ export const PRODUCT_CATALOG: Readonly<Record<ProductCode, ProductDefinition>> =
           billingInterval: "annual",
           billingMetric: "author_seat",
           capabilities: ["design.cad", "design.viewer"],
-          priceEnvVar: "BILLING_PRICE_DESIGN_SAAS_ANNUAL",
         }),
         assistedOffer({
           code: "design-private-cloud",
@@ -574,7 +589,6 @@ export const PRODUCT_CATALOG: Readonly<Record<ProductCode, ProductDefinition>> =
           billingInterval: "monthly",
           billingMetric: "named_user",
           capabilities: ["documents.editor", "documents.pdf"],
-          priceEnvVar: "BILLING_PRICE_DOCUMENTS_SAAS_MONTHLY",
         }),
         selfServiceOffer({
           code: "documents-saas-annual",
@@ -583,7 +597,6 @@ export const PRODUCT_CATALOG: Readonly<Record<ProductCode, ProductDefinition>> =
           billingInterval: "annual",
           billingMetric: "named_user",
           capabilities: ["documents.editor", "documents.pdf"],
-          priceEnvVar: "BILLING_PRICE_DOCUMENTS_SAAS_ANNUAL",
         }),
         assistedOffer({
           code: "documents-private-cloud",
@@ -617,7 +630,6 @@ export const PRODUCT_CATALOG: Readonly<Record<ProductCode, ProductDefinition>> =
           billingInterval: "monthly",
           billingMetric: "named_user",
           capabilities: ["spreadsheets.editor"],
-          priceEnvVar: "BILLING_PRICE_SPREADSHEETS_SAAS_MONTHLY",
         }),
         selfServiceOffer({
           code: "spreadsheets-saas-annual",
@@ -626,7 +638,6 @@ export const PRODUCT_CATALOG: Readonly<Record<ProductCode, ProductDefinition>> =
           billingInterval: "annual",
           billingMetric: "named_user",
           capabilities: ["spreadsheets.editor"],
-          priceEnvVar: "BILLING_PRICE_SPREADSHEETS_SAAS_ANNUAL",
         }),
         assistedOffer({
           code: "spreadsheets-private-cloud",
@@ -656,7 +667,6 @@ export const PRODUCT_CATALOG: Readonly<Record<ProductCode, ProductDefinition>> =
           billingInterval: "monthly",
           billingMetric: "named_user",
           capabilities: ["presentations.editor"],
-          priceEnvVar: "BILLING_PRICE_PRESENTATIONS_SAAS_MONTHLY",
         }),
         selfServiceOffer({
           code: "presentations-saas-annual",
@@ -665,7 +675,6 @@ export const PRODUCT_CATALOG: Readonly<Record<ProductCode, ProductDefinition>> =
           billingInterval: "annual",
           billingMetric: "named_user",
           capabilities: ["presentations.editor"],
-          priceEnvVar: "BILLING_PRICE_PRESENTATIONS_SAAS_ANNUAL",
         }),
       ],
     },
@@ -724,6 +733,17 @@ export const PRODUCT_CATALOG: Readonly<Record<ProductCode, ProductDefinition>> =
           code: "integrations-saas-connectors",
           productCode: "integrations",
           edition: "standard",
+          deploymentModel: "saas_shared",
+          billingMetric: "connector",
+          capabilities: ["integrations.connectors"],
+        }),
+        // Conector especializado: mismo producto y misma capacidad, distinto
+        // esfuerzo de construcción. Se separa como oferta porque su precio y su
+        // implementación son otros, no porque conceda algo distinto.
+        assistedOffer({
+          code: "integrations-saas-custom",
+          productCode: "integrations",
+          edition: "professional",
           deploymentModel: "saas_shared",
           billingMetric: "connector",
           capabilities: ["integrations.connectors"],

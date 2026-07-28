@@ -114,6 +114,13 @@ export interface ProductGrantView {
   readonly billingMetric: string;
   readonly deploymentModel: string;
   readonly grantSource: GrantSource;
+  /**
+   * Paquete comercial que originó el grant; `null` si se contrató suelto.
+   * La pantalla de suscripción lo usa para explicar POR QUÉ el cliente tiene
+   * un producto que no recuerda haber comprado por separado.
+   */
+  readonly sourceBundleCode: string | null;
+  readonly sourceBundleOfferCode: string | null;
   readonly trialStartsAt: string | null;
   readonly trialEndsAt: string | null;
   readonly currentPeriodStartsAt: string | null;
