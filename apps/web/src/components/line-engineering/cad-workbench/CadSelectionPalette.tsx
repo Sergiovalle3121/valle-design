@@ -3,6 +3,7 @@ import type { CadSelectionOperation } from '@/lib/cad/selection-controller';
 export type CadSelectionGeometryMode = 'pick' | 'window' | 'crossing' | 'polygon' | 'fence' | 'lasso';
 
 interface CadSelectionPaletteProps {
+  docked?: boolean;
   selectedCount: number;
   previousCount: number;
   mode: CadSelectionGeometryMode;
@@ -47,7 +48,7 @@ export function CadSelectionPalette(props: CadSelectionPaletteProps) {
   return (
     <div
       data-testid="cad-selection-palette"
-      className="absolute right-0 top-full z-50 mt-1.5 w-[340px] rounded-xl border border-white/10 bg-gray-900 p-3 text-[11px] shadow-2xl"
+      className={props.docked ? 'w-full p-3 text-[11px]' : 'absolute right-0 top-full z-50 mt-1.5 w-[340px] rounded-xl border border-white/10 bg-gray-900 p-3 text-[11px] shadow-2xl'}
     >
       <div className="mb-2 flex items-center justify-between gap-2">
         <div className="text-[10px] font-semibold uppercase tracking-wide text-cyan-200">Selección profesional</div>

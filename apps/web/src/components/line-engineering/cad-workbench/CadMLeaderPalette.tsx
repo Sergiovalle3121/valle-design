@@ -17,20 +17,21 @@ export interface CadMLeaderDraft {
 }
 
 interface CadMLeaderPaletteProps {
+  docked?: boolean;
   selectedCount: number;
   defaultSize: number;
   styles: string[];
   onCreate(draft: CadMLeaderDraft): void;
 }
 
-export function CadMLeaderPalette({ selectedCount, defaultSize, styles, onCreate }: CadMLeaderPaletteProps) {
+export function CadMLeaderPalette({ selectedCount, defaultSize, styles, onCreate, docked }: CadMLeaderPaletteProps) {
   const [draft, setDraft] = useState<CadMLeaderDraft>({
     text: '', contentType: 'mtext', style: styles[0] ?? 'Standard', landing: true,
     doglegLength: defaultSize * 4, arrowhead: 'closed-filled', arrowSize: defaultSize,
     textWidth: defaultSize * 12, textHeight: defaultSize * 0.8, textAlignment: 'left', backgroundMask: true,
   });
   return (
-    <div data-testid="cad-mleader-palette" className="absolute right-0 top-full z-50 mt-1.5 w-80 rounded-xl border border-sky-400/20 bg-gray-950 p-3 text-[10.5px] shadow-2xl">
+    <div data-testid="cad-mleader-palette" className={docked ? 'w-full p-3 text-[10.5px]' : 'absolute right-0 top-full z-50 mt-1.5 w-80 rounded-xl border border-sky-400/20 bg-gray-950 p-3 text-[10.5px] shadow-2xl'}>
       <div className="mb-2 flex items-center justify-between"><span className="font-semibold text-sky-100">MLEADER semántico</span><span className="text-gray-500">{selectedCount} destino(s)</span></div>
       <label className="text-gray-400">Contenido
         <textarea data-testid="cad-mleader-content" value={draft.text} onChange={(event) => setDraft((current) => ({ ...current, text: event.target.value.slice(0, 16_384) }))} rows={4} placeholder="Nota técnica…" className="mt-1 w-full resize-y rounded border border-white/10 bg-black/30 px-2 py-1.5 text-white" />

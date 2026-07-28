@@ -18,6 +18,7 @@ import {
 import { apiFetch } from '@/lib/apiFetch';
 import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { setWorkbenchChrome } from '@/lib/operatorChrome';
 import { ASSET_CATEGORIES, assetMeta, type AssetArchetype } from './asset-catalog';
@@ -69,6 +70,15 @@ import { CAD_TOOLBAR_ACTIONS, type CadToolbarActionId } from '@/lib/cad/toolbar'
 import { searchCadPalette, type CadPaletteEntry } from '@/lib/cad/command-palette';
 import { suggestCadCommands, type CadCommandSuggestion } from '@/lib/cad/command-line-assist';
 import { matchCadShortcut } from '@/lib/cad/keyboard-shortcuts';
+import {
+  CAD_WORKSPACE_DEFAULTS,
+  applyCadWorkspaceProfile,
+  buildCadWorkspaceShortcuts,
+  cadWorkspaceStorageKey,
+  normalizeCadWorkspacePreferences,
+  type CadWorkspacePreferences,
+  type CadWorkspaceProfile,
+} from '@/lib/cad/cad-workspace';
 import {
   cadCommandHistoryStorageKey,
   navigateCadCommandHistory,
@@ -240,6 +250,7 @@ import { CadMTextEditor, type CadMTextDraft } from './cad-workbench/CadMTextEdit
 import { CadDimensionPalette, type CadDimensionDraft } from './cad-workbench/CadDimensionPalette';
 import { CadMLeaderPalette, type CadMLeaderDraft } from './cad-workbench/CadMLeaderPalette';
 import { CadBlockPalette, type CadBlockDefinitionDraft, type CadBlockInsertDraft } from './cad-workbench/CadBlockPalette';
+import { CadWorkspaceDock } from './cad-workbench/CadWorkspaceDock';
 import { cadEntityAssociationAnchor } from '@/lib/cad/associative-dimension';
 import {
   cadViewportFocusBounds,
@@ -938,6 +949,7 @@ export default function Layout3DEditor({
 }) {
   const toast = useToast();
   const { user, tenantId } = useAuth();
+  const { resolvedScheme } = useTheme();
   const { buildingId, projectId } = useWorkspace();
   const recoveryScope = useMemo(
     () =>
@@ -1079,6 +1091,10 @@ export default function Layout3DEditor({
   const [showDimensionPalette, setShowDimensionPalette] = useState(false);
   const [showMleaderPalette, setShowMleaderPalette] = useState(false);
   const [showBlockPalette, setShowBlockPalette] = useState(false);
+  const [showWorkspaceDock, setShowWorkspaceDock] = useState(false);
+  const [workspacePreferences, setWorkspacePreferences] = useState<CadWorkspacePreferences>(CAD_WORKSPACE_DEFAULTS);
+  const [workspaceHydratedKey, setWorkspaceHydratedKey] = useState<string | null>(null);
+  const [cadContextMenu, setCadContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [viewMode, setViewMode] = useState<'3d' | '2d'>('3d'); // 2D = locked top-down plan view (CAD unificado)
   const [walk, setWalk] = useState(false); // first-person walkthrough mode
   const [showHelp, setShowHelp] = useState(false); // keyboard shortcuts overlay
@@ -1256,6 +1272,9 @@ export default function Layout3DEditor({
   const nativeSelectionIndexRef = useRef<CadNativeSelectionIndex | null>(null);
   const nativeViewportBoundsRef = useRef<CadBounds | null>(null);
   const nativeIndexedDocumentRef = useRef<CadDocument | null>(null);
+  const workspacePreferencesRef = useRef<CadWorkspacePreferences>(CAD_WORKSPACE_DEFAULTS);
+  const workspaceShortcutsRef = useRef(buildCadWorkspaceShortcuts(CAD_WORKSPACE_DEFAULTS));
+  const crosshairOverlayRef = useRef<HTMLDivElement | null>(null);
   if (nativeSceneSyncRef.current === null)
     nativeSceneSyncRef.current = new CadSceneSynchronizer<THREE.Object3D>();
   if (nativeSelectionIndexRef.current === null)
@@ -1303,6 +1322,56 @@ export default function Layout3DEditor({
   const [drawPrompt, setDrawPrompt] = useState<string | null>(null);
   const drawCommandRef = useRef<CadDrawCommandState | null>(null);
   useEffect(() => { themeRef.current = theme; }, [theme]);
+  useEffect(() => { setTheme(resolvedScheme === 'light' ? 'light' : 'dark'); }, [resolvedScheme]);
+
+  const workspacePreferenceKey = useMemo(
+    () => cadWorkspaceStorageKey({ tenantId, userId: user?.id }),
+    [tenantId, user?.id],
+  );
+  useEffect(() => {
+    if (!open) {
+      setWorkspaceHydratedKey(null);
+      return;
+    }
+    let restored = CAD_WORKSPACE_DEFAULTS;
+    try {
+      const serialized = window.localStorage.getItem(workspacePreferenceKey);
+      restored = normalizeCadWorkspacePreferences(serialized ? JSON.parse(serialized) : null);
+    } catch {
+      restored = CAD_WORKSPACE_DEFAULTS;
+    }
+    workspacePreferencesRef.current = restored;
+    workspaceShortcutsRef.current = buildCadWorkspaceShortcuts(restored);
+    setWorkspacePreferences(restored);
+    setShowCommand(restored.commandDock);
+    setShowMinimap(restored.minimap);
+    setWorkspaceHydratedKey(workspacePreferenceKey);
+  }, [open, workspacePreferenceKey]);
+  useEffect(() => {
+    workspacePreferencesRef.current = workspacePreferences;
+    workspaceShortcutsRef.current = buildCadWorkspaceShortcuts(workspacePreferences);
+    if (!open || workspaceHydratedKey !== workspacePreferenceKey) return;
+    try {
+      window.localStorage.setItem(workspacePreferenceKey, JSON.stringify(workspacePreferences));
+    } catch { /* local workspace persistence is best-effort */ }
+  }, [open, workspaceHydratedKey, workspacePreferenceKey, workspacePreferences]);
+
+  const updateWorkspacePreferences = useCallback((next: CadWorkspacePreferences) => {
+    const normalized = normalizeCadWorkspacePreferences(next);
+    workspacePreferencesRef.current = normalized;
+    workspaceShortcutsRef.current = buildCadWorkspaceShortcuts(normalized);
+    setWorkspacePreferences(normalized);
+    setShowCommand(normalized.commandDock);
+    setShowMinimap(normalized.minimap);
+  }, []);
+  const applyWorkspaceProfile = useCallback((profile: CadWorkspaceProfile) => {
+    updateWorkspacePreferences(applyCadWorkspaceProfile(workspacePreferencesRef.current, profile));
+    setFocusMode(false);
+  }, [updateWorkspacePreferences]);
+  const resetWorkspacePreferences = useCallback(() => {
+    updateWorkspacePreferences(CAD_WORKSPACE_DEFAULTS);
+    setFocusMode(false);
+  }, [updateWorkspacePreferences]);
 
   // Workbench full-screen: el CAD (`fixed inset-0`) se monta DENTRO de una ruta
   // standard (pestaña CAD de line-engineering). Mientras está abierto se declara
@@ -2969,6 +3038,7 @@ export default function Layout3DEditor({
     const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(width, height);
+    renderer.domElement.style.cursor = 'none';
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     rendererRef.current = renderer;
@@ -3160,17 +3230,21 @@ export default function Layout3DEditor({
      * Solo los ~48 objetos más cercanos alimentan el motor (plantas grandes no
      * degradan el pointermove). Sin candidato dentro de tolerancia → grid-snap.
      */
-    const snapFloor = (wx: number, wy: number, acquire = false): { wx: number; wy: number; onDxf: boolean; snapType?: SnapType; tracking?: 'object' | 'polar' | 'ortho'; trackingAngle?: number } => {
+    const pointerWorldTolerance = (pixels: number) => {
       const ctx = ctxRef.current!;
-      const tol = cadWorldToleranceFromView({
+      return cadWorldToleranceFromView({
         cameraDistance: camera.position.distanceTo(controls.target),
         verticalFovDeg: camera.fov,
         viewportHeightPx: renderer.domElement.clientHeight,
         drawingToSceneScale: ctx.s,
-        aperturePx: 12,
+        aperturePx: pixels,
         min: Math.max(0.01, Math.min(ctx.W, ctx.H) * 0.00001),
         max: Math.max(ctx.W, ctx.H) * 0.02,
       });
+    };
+    const snapFloor = (wx: number, wy: number, acquire = false): { wx: number; wy: number; onDxf: boolean; snapType?: SnapType; tracking?: 'object' | 'polar' | 'ortho'; trackingAngle?: number } => {
+      const ctx = ctxRef.current!;
+      const tol = pointerWorldTolerance(workspacePreferencesRef.current.aperturePx);
       if (osnapRef.current) {
         const boxes: { x: number; y: number; w: number; h: number; rotation?: number; d: number }[] = [];
         placementsRef.current.forEach((p) => boxes.push({ x: p.x, y: p.y, w: p.w, h: p.h, rotation: p.rotation, d: Math.hypot(p.x + p.w / 2 - wx, p.y + p.h / 2 - wy) }));
@@ -3330,7 +3404,7 @@ export default function Layout3DEditor({
         const world = floorWorld(e);
         const context = ctxRef.current;
         if (world && context) {
-          const tolerance = Math.max(context.W, context.H) * 0.003;
+          const tolerance = pointerWorldTolerance(workspacePreferencesRef.current.pickBoxPx);
           const canonicalHit = nativeSelectionIndexRef.current?.hitTest(
             { x: world.wx, y: world.wy },
             tolerance,
@@ -3366,7 +3440,7 @@ export default function Layout3DEditor({
           const canonicalCandidates = world && context
             ? nativeSelectionIndexRef.current?.hitTest(
               { x: world.wx, y: world.wy },
-              Math.max(context.W, context.H) * 0.003,
+              pointerWorldTolerance(workspacePreferencesRef.current.pickBoxPx),
               16,
             ).map((entity) => `native:${entity.id}`) ?? []
             : [];
@@ -3451,6 +3525,12 @@ export default function Layout3DEditor({
       }
     };
     const onMove = (e: PointerEvent) => {
+      const overlay = crosshairOverlayRef.current;
+      if (overlay) {
+        const rect = renderer.domElement.getBoundingClientRect();
+        overlay.style.display = 'block';
+        overlay.style.transform = `translate(${e.clientX - rect.left}px, ${e.clientY - rect.top}px)`;
+      }
       if (walkRef.current) {
         if (!walkLook) return;
         walkYawRef.current -= (e.clientX - lookX) * 0.005;
@@ -3755,8 +3835,12 @@ export default function Layout3DEditor({
       }
       try { renderer.domElement.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
     };
+    const onPointerLeave = () => {
+      if (crosshairOverlayRef.current) crosshairOverlayRef.current.style.display = 'none';
+    };
     renderer.domElement.addEventListener('pointerdown', onDown);
     renderer.domElement.addEventListener('pointermove', onMove);
+    renderer.domElement.addEventListener('pointerleave', onPointerLeave);
     window.addEventListener('pointerup', onUp);
 
     // WASD movement while walking
@@ -3808,6 +3892,7 @@ export default function Layout3DEditor({
       ro.disconnect();
       renderer.domElement.removeEventListener('pointerdown', onDown);
       renderer.domElement.removeEventListener('pointermove', onMove);
+      renderer.domElement.removeEventListener('pointerleave', onPointerLeave);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('keydown', walkKd);
       window.removeEventListener('keyup', walkKu);
@@ -7368,7 +7453,7 @@ export default function Layout3DEditor({
     const onKey = (e: KeyboardEvent) => {
       const tgt = e.target as HTMLElement | null;
       if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return;
-      const cadShortcut = matchCadShortcut(e);
+      const cadShortcut = matchCadShortcut(e, workspaceShortcutsRef.current);
       if (cadShortcut?.id === 'palette') { e.preventDefault(); setShowPalette(true); return; }
       // in walkthrough mode WASD/look take over; only Esc (exit) reaches here
       if (walkRef.current) { if (e.key === 'Escape') { e.preventDefault(); toggleWalk(); } return; }
@@ -7494,6 +7579,51 @@ export default function Layout3DEditor({
   const professionalSelectionUniverse = showSelectionPalette ? buildSelectionUniverse() : [];
   const professionalSelectionTypes = [...new Set(professionalSelectionUniverse.map((item) => item.type))].sort();
   const professionalSelectionLayers = [...new Set(professionalSelectionUniverse.map((item) => item.layer).filter((layer): layer is string => !!layer))].sort();
+  const activeProfessionalDock = showSelectionPalette ? 'selection'
+    : showHatchPalette ? 'hatch'
+      : showDimensionPalette ? 'dimension'
+        : showMleaderPalette ? 'mleader'
+          : showBlockPalette ? 'blocks'
+            : showWorkspaceDock ? 'workspace'
+              : null;
+  const closeProfessionalDocks = () => {
+    setShowSelectionPalette(false);
+    setShowHatchPalette(false);
+    setShowDimensionPalette(false);
+    setShowMleaderPalette(false);
+    setShowBlockPalette(false);
+    setShowWorkspaceDock(false);
+  };
+  const toggleProfessionalDock = (dock: NonNullable<typeof activeProfessionalDock>) => {
+    const wasOpen = activeProfessionalDock === dock;
+    closeProfessionalDocks();
+    if (wasOpen) return;
+    setFocusMode(false);
+    if (!workspacePreferencesRef.current.rightDock) {
+      updateWorkspacePreferences({ ...workspacePreferencesRef.current, rightDock: true });
+    }
+    if (dock === 'selection') { setToolMode('select'); setShowSelectionPalette(true); }
+    else if (dock === 'hatch') setShowHatchPalette(true);
+    else if (dock === 'dimension') setShowDimensionPalette(true);
+    else if (dock === 'mleader') setShowMleaderPalette(true);
+    else if (dock === 'blocks') setShowBlockPalette(true);
+    else setShowWorkspaceDock(true);
+  };
+  const handleCadContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const action = workspacePreferencesRef.current.rightClickAction;
+    if (action === 'repeat') { repeatLastCommand(); return; }
+    if (action === 'enter') {
+      if (drawCommandRef.current) commitActiveDraftCommand();
+      else repeatLastCommand();
+      return;
+    }
+    const rect = event.currentTarget.getBoundingClientRect();
+    setCadContextMenu({
+      x: Math.max(8, Math.min(rect.width - 180, event.clientX - rect.left)),
+      y: Math.max(8, Math.min(rect.height - 176, event.clientY - rect.top)),
+    });
+  };
   const activeDynamicCommand = drawCommandRef.current;
   const dynamicInputKind: 'point' | 'radius' | 'offset' = activeDynamicCommand?.id === 'offset'
     ? 'offset'
@@ -7654,15 +7784,97 @@ export default function Layout3DEditor({
   const flowReorderMoveRows = flowReorderPreview?.moves.filter((move) => move.from.x !== move.to.x || move.from.y !== move.to.y).slice(0, 5) ?? [];
   const dxfExportLayerRows = dxfExportSummary.layerSummary.filter((layer) => layer.included > 0 || layer.hidden > 0).slice(0, 5);
   const dxfExportIssueRows = dxfExportSummary.issues.slice(0, 5);
+  const professionalDockTitle = activeProfessionalDock === 'selection' ? 'Selección'
+    : activeProfessionalDock === 'hatch' ? 'Hatch'
+      : activeProfessionalDock === 'dimension' ? 'Dimensiones'
+        : activeProfessionalDock === 'mleader' ? 'MLeader'
+          : activeProfessionalDock === 'blocks' ? 'Bloques / Xrefs'
+            : 'Workspace';
+  const professionalDockContent = activeProfessionalDock === 'selection' ? (
+    <CadSelectionPalette
+      docked
+      selectedCount={professionalSelection.current.length}
+      previousCount={professionalSelection.previous.length}
+      mode={selectionGeometryMode}
+      operation={selectionOperation}
+      quickType={quickSelectionType}
+      quickLayer={quickSelectionLayer}
+      quickText={quickSelectionText}
+      entityTypes={professionalSelectionTypes}
+      layers={professionalSelectionLayers}
+      onModeChange={(mode) => { selectionGeometryModeRef.current = mode; setSelectionGeometryMode(mode); }}
+      onOperationChange={(operation) => { selectionOperationRef.current = operation; setSelectionOperation(operation); }}
+      onQuickTypeChange={setQuickSelectionType}
+      onQuickLayerChange={setQuickSelectionLayer}
+      onQuickTextChange={setQuickSelectionText}
+      onPrevious={() => applyProfessionalSelection({ type: 'previous' })}
+      onLast={() => applyProfessionalSelection({ type: 'last', operation: selectionOperation })}
+      onAll={() => applyProfessionalSelection({ type: 'all', universe: professionalSelectionUniverse })}
+      onInvert={() => applyProfessionalSelection({ type: 'invert', universe: professionalSelectionUniverse })}
+      onQuick={runQuickSelection}
+      onClear={() => applyProfessionalSelection({ type: 'clear' })}
+    />
+  ) : activeProfessionalDock === 'hatch' ? (
+    <CadHatchPalette
+      docked
+      pickMode={hatchPickMode}
+      solid={hatchPickSolid}
+      islandStyle={hatchIslandStyle}
+      onSolidChange={setHatchPickSolid}
+      onIslandStyleChange={setHatchIslandStyle}
+      onPickModeChange={(active) => { hatchPickModeRef.current = active; setHatchPickMode(active); if (active) setShowHatchPalette(false); }}
+      onCreateFromSelection={(solid) => { createHatchForSelection(solid); setShowHatchPalette(false); }}
+    />
+  ) : activeProfessionalDock === 'dimension' ? (
+    <CadDimensionPalette
+      docked
+      selectedCount={nativeSelectionIds.length}
+      defaultOffset={Math.max(1, (data?.footprint.gridSize ?? 100) * 2)}
+      styles={Object.keys(loadedCadDocumentRef.current?.styles.dimension ?? {})}
+      onCreate={createAssociativeDimension}
+    />
+  ) : activeProfessionalDock === 'mleader' ? (
+    <CadMLeaderPalette
+      docked
+      selectedCount={mleaderSelectedCount}
+      defaultSize={Math.max(1, (data?.footprint.gridSize ?? 100) * 1.8)}
+      styles={Object.keys(loadedCadDocumentRef.current?.styles.mleader ?? { Standard: {} })}
+      onCreate={createAssociativeMleader}
+    />
+  ) : activeProfessionalDock === 'blocks' ? (
+    <CadBlockPalette
+      docked
+      blocks={professionalBlockDefinitions}
+      selectedEntityCount={new Set([...selList.map((item) => item.id), ...nativeSelectionIds]).size}
+      selectedInsert={primaryNativeEntity?.type === 'insert' ? { id: primaryNativeEntity.id, block: primaryNativeEntity.block } : null}
+      defaultPoint={{
+        x: Math.max(0, Math.min(ctxRef.current?.W ?? 0, controlsRef.current && ctxRef.current ? controlsRef.current.target.x / ctxRef.current.s + ctxRef.current.W / 2 : (ctxRef.current?.W ?? 0) / 2)),
+        y: Math.max(0, Math.min(ctxRef.current?.H ?? 0, controlsRef.current && ctxRef.current ? controlsRef.current.target.z / ctxRef.current.s + ctxRef.current.H / 2 : (ctxRef.current?.H ?? 0) / 2)),
+      }}
+      onDefine={defineProfessionalBlock}
+      onInsert={insertProfessionalBlock}
+      onRedefine={redefineProfessionalBlock}
+      onReplace={replaceProfessionalBlock}
+      onExplode={explodeProfessionalInsert}
+      onPurge={purgeProfessionalBlocks}
+    />
+  ) : activeProfessionalDock === 'workspace' ? (
+    <CadWorkspaceDock
+      preferences={workspacePreferences}
+      onChange={updateWorkspacePreferences}
+      onProfile={applyWorkspaceProfile}
+      onReset={resetWorkspacePreferences}
+    />
+  ) : null;
 
   // Portal to <body> so the full-screen overlay escapes the editor's glass
   // container (backdrop-filter would otherwise be the containing block for our
   // position:fixed and trap it inside the box instead of the viewport).
   return createPortal(
-    <div className="fixed inset-0 z-[70] flex flex-col bg-gray-950 text-white">
+    <div data-color-scheme={resolvedScheme} className={`fixed inset-0 z-[70] flex flex-col ${resolvedScheme === 'light' ? 'bg-slate-100 text-slate-950' : 'bg-gray-950 text-white'}`}>
       {/* top bar (relative z-30 so dropdown popovers paint above the 3D content,
           which would otherwise stack over the backdrop-blur'd bar) */}
-      <div className="relative z-30 flex flex-wrap items-center gap-2 px-4 py-2.5 border-b border-white/10 shrink-0 bg-gray-900/80 backdrop-blur">
+      <div data-testid="cad-top-toolbar" className={`relative z-30 flex flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap border-b px-4 backdrop-blur [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0 ${resolvedScheme === 'light' ? 'border-slate-300 bg-white/90' : 'border-white/10 bg-gray-900/80'} ${workspacePreferences.toolbarDensity === 'compact' ? 'h-12 py-1.5' : 'h-14 py-2.5'}`}>
         {/* Cierre persistente y SIEMPRE visible (X clara) anclado al inicio de la
             barra. La barra usa flex-wrap para que las herramientas NUNCA recorten
             ni choquen. Regla: ninguna pantalla a foco total puede atrapar. */}
@@ -7670,7 +7882,7 @@ export default function Layout3DEditor({
           onClick={onClose}
           title="Cerrar el CAD — volver al dashboard (Esc)"
           aria-label="Cerrar el CAD"
-          className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-rose-500/90 px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-rose-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+          className="sticky left-0 z-20 inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-rose-500/95 px-3 py-1.5 text-[13px] font-semibold text-white shadow-xl hover:bg-rose-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
         >
           <X className="w-4 h-4" /> Cerrar
         </button>
@@ -7683,99 +7895,38 @@ export default function Layout3DEditor({
           <button onClick={() => { if (viewMode !== '2d') toggleViewMode(); }} className={`px-2.5 py-1 rounded-md transition-colors ${viewMode === '2d' ? 'bg-white/15 text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-200'}`} title="Vista de plano 2D (superior, solo paneo y zoom)">2D</button>
           <button onClick={() => { if (viewMode !== '3d') toggleViewMode(); }} className={`px-2.5 py-1 rounded-md transition-colors ${viewMode === '3d' ? 'bg-white/15 text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-200'}`} title="Vista 3D (órbita libre)">3D</button>
         </div>
+        <div data-testid="cad-space-tabs" className="inline-flex items-center overflow-hidden rounded-lg border border-white/10 bg-white/[0.04] text-[10.5px] font-semibold">
+          <button onClick={() => setShowSheetPackage(false)} className={`px-2 py-1 ${!showSheetPackage ? 'bg-cyan-500/20 text-cyan-100' : 'text-gray-400 hover:bg-white/10 hover:text-white'}`}>Model</button>
+          {orderedPaperSpaces.slice(0, 3).map((space) => (
+            <button key={space.id} onClick={() => { selectPaperSpace(space); setShowSheetPackage(true); }} className={`border-l border-white/10 px-2 py-1 ${showSheetPackage && space.id === activePaperSpace?.id ? 'bg-cyan-500/20 text-cyan-100' : 'text-gray-400 hover:bg-white/10 hover:text-white'}`}>{space.name}</button>
+          ))}
+          <button onClick={() => setShowSheetPackage(true)} className="border-l border-white/10 px-2 py-1 text-gray-400 hover:bg-white/10 hover:text-white" title="Administrar layouts, viewports y publicación">Layout{orderedPaperSpaces.length ? ` · ${orderedPaperSpaces.length}` : ' +'}</button>
+        </div>
         <div className="w-px h-5 bg-white/10 mx-1" />
         <T3Btn active={tool === 'select'} onClick={() => setToolMode('select')} title="Seleccionar / mover (V)"><MousePointer2 className="w-4 h-4" /></T3Btn>
         <div className="relative">
           <T3Btn
             active={showSelectionPalette || selectionGeometryMode !== 'pick' || selectionOperation !== 'replace'}
-            onClick={() => { setToolMode('select'); setShowSelectionPalette((value) => !value); }}
+            onClick={() => toggleProfessionalDock('selection')}
             title="Selección profesional: ventana, cruce, polígono, fence, lasso, filtros y cycling"
           >
             <ScanEye className="h-4 w-4" />
           </T3Btn>
-          {showSelectionPalette && (
-            <CadSelectionPalette
-              selectedCount={professionalSelection.current.length}
-              previousCount={professionalSelection.previous.length}
-              mode={selectionGeometryMode}
-              operation={selectionOperation}
-              quickType={quickSelectionType}
-              quickLayer={quickSelectionLayer}
-              quickText={quickSelectionText}
-              entityTypes={professionalSelectionTypes}
-              layers={professionalSelectionLayers}
-              onModeChange={(mode) => { selectionGeometryModeRef.current = mode; setSelectionGeometryMode(mode); }}
-              onOperationChange={(operation) => { selectionOperationRef.current = operation; setSelectionOperation(operation); }}
-              onQuickTypeChange={setQuickSelectionType}
-              onQuickLayerChange={setQuickSelectionLayer}
-              onQuickTextChange={setQuickSelectionText}
-              onPrevious={() => applyProfessionalSelection({ type: 'previous' })}
-              onLast={() => applyProfessionalSelection({ type: 'last', operation: selectionOperation })}
-              onAll={() => applyProfessionalSelection({ type: 'all', universe: professionalSelectionUniverse })}
-              onInvert={() => applyProfessionalSelection({ type: 'invert', universe: professionalSelectionUniverse })}
-              onQuick={runQuickSelection}
-              onClear={() => applyProfessionalSelection({ type: 'clear' })}
-            />
-          )}
         </div>
         <T3Btn active={tool === 'measure'} onClick={toggleMeasure} title="Medir / acotar (M)"><Ruler className="w-4 h-4" /></T3Btn>
         <T3Btn active={tool === 'wall'} onClick={toggleWall} title="Dibujar muros (W) — clic en puntos, Esc termina"><Spline className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={() => openMTextEditor()} title="MTEXT: texto multilÃ­nea semÃ¡ntico, estilos y mÃ¡scara"><StickyNote className="w-4 h-4" /></T3Btn>
         <div className="relative">
-          <T3Btn active={showHatchPalette || hatchPickMode} onClick={() => setShowHatchPalette((value) => !value)} title="HATCH: selección, pick point, islands y asociatividad"><BrickWall className="h-4 w-4" /></T3Btn>
-          {showHatchPalette && (
-            <CadHatchPalette
-              pickMode={hatchPickMode}
-              solid={hatchPickSolid}
-              islandStyle={hatchIslandStyle}
-              onSolidChange={setHatchPickSolid}
-              onIslandStyleChange={setHatchIslandStyle}
-              onPickModeChange={(active) => { hatchPickModeRef.current = active; setHatchPickMode(active); if (active) setShowHatchPalette(false); }}
-              onCreateFromSelection={(solid) => { createHatchForSelection(solid); setShowHatchPalette(false); }}
-            />
-          )}
+          <T3Btn active={showHatchPalette || hatchPickMode} onClick={() => toggleProfessionalDock('hatch')} title="HATCH: selección, pick point, islands y asociatividad"><BrickWall className="h-4 w-4" /></T3Btn>
         </div>
         <div className="relative">
-          <T3Btn active={showDimensionPalette} onClick={() => setShowDimensionPalette((value) => !value)} title="Dimensiones asociativas: linear, aligned, angular, radius, diameter, ordinate y arc length"><RulerDimensionLine className="w-4 h-4" /></T3Btn>
-          {showDimensionPalette && (
-            <CadDimensionPalette
-              selectedCount={nativeSelectionIds.length}
-              defaultOffset={Math.max(1, (data?.footprint.gridSize ?? 100) * 2)}
-              styles={Object.keys(loadedCadDocumentRef.current?.styles.dimension ?? {})}
-              onCreate={createAssociativeDimension}
-            />
-          )}
+          <T3Btn active={showDimensionPalette} onClick={() => toggleProfessionalDock('dimension')} title="Dimensiones asociativas: linear, aligned, angular, radius, diameter, ordinate y arc length"><RulerDimensionLine className="w-4 h-4" /></T3Btn>
         </div>
         <div className="relative">
-          <T3Btn active={showMleaderPalette} onClick={() => setShowMleaderPalette((value) => !value)} title="MLEADER: directriz semántica asociativa con una o múltiples líneas"><Waypoints className="h-4 w-4" /></T3Btn>
-          {showMleaderPalette && (
-            <CadMLeaderPalette
-              selectedCount={mleaderSelectedCount}
-              defaultSize={Math.max(1, (data?.footprint.gridSize ?? 100) * 1.8)}
-              styles={Object.keys(loadedCadDocumentRef.current?.styles.mleader ?? { Standard: {} })}
-              onCreate={createAssociativeMleader}
-            />
-          )}
+          <T3Btn active={showMleaderPalette} onClick={() => toggleProfessionalDock('mleader')} title="MLEADER: directriz semántica asociativa con una o múltiples líneas"><Waypoints className="h-4 w-4" /></T3Btn>
         </div>
         <div className="relative">
-          <T3Btn active={showBlockPalette} onClick={() => setShowBlockPalette((value) => !value)} title="BLOCK/INSERT: definiciones vivas, atributos, biblioteca, redefine, replace, explode y purge"><Boxes className="h-4 w-4" /></T3Btn>
-          {showBlockPalette && (
-            <CadBlockPalette
-              blocks={professionalBlockDefinitions}
-              selectedEntityCount={new Set([...selList.map((item) => item.id), ...nativeSelectionIds]).size}
-              selectedInsert={primaryNativeEntity?.type === 'insert' ? { id: primaryNativeEntity.id, block: primaryNativeEntity.block } : null}
-              defaultPoint={{
-                x: Math.max(0, Math.min(ctxRef.current?.W ?? 0, controlsRef.current && ctxRef.current ? controlsRef.current.target.x / ctxRef.current.s + ctxRef.current.W / 2 : (ctxRef.current?.W ?? 0) / 2)),
-                y: Math.max(0, Math.min(ctxRef.current?.H ?? 0, controlsRef.current && ctxRef.current ? controlsRef.current.target.z / ctxRef.current.s + ctxRef.current.H / 2 : (ctxRef.current?.H ?? 0) / 2)),
-              }}
-              onDefine={defineProfessionalBlock}
-              onInsert={insertProfessionalBlock}
-              onRedefine={redefineProfessionalBlock}
-              onReplace={replaceProfessionalBlock}
-              onExplode={explodeProfessionalInsert}
-              onPurge={purgeProfessionalBlocks}
-            />
-          )}
+          <T3Btn active={showBlockPalette} onClick={() => toggleProfessionalDock('blocks')} title="BLOCK/INSERT: definiciones vivas, atributos, biblioteca y XREF, redefine, replace, explode y purge"><Boxes className="h-4 w-4" /></T3Btn>
         </div>
         <T3Btn onClick={autoDimension} title="Acotar automáticamente — medidas generales y pasos del layout (o de la selección)"><RulerDimensionLine className="w-4 h-4" /></T3Btn>
         {dimCount > 0 && (
@@ -7801,7 +7952,8 @@ export default function Layout3DEditor({
         <T3Btn onClick={() => fitView('plant')} title="Ajustar a la planta — encuadra toda la huella (Shift+F)"><Frame className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={() => fitView('selection')} disabled={selList.length === 0} title="Ajustar a la selección — encuadra los objetos seleccionados"><Focus className="w-4 h-4" /></T3Btn>
         <T3Btn active={focusMode} onClick={() => setFocusMode((v) => !v)} title="Modo foco — oculta los paneles laterales (\\)">{focusMode ? <PanelLeft className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}</T3Btn>
-        <T3Btn active={showMinimap} onClick={() => setShowMinimap((v) => !v)} title="Minimapa de la planta — vista general y navegación"><MapPin className="w-4 h-4" /></T3Btn>
+        <T3Btn active={showWorkspaceDock} onClick={() => toggleProfessionalDock('workspace')} title="Workspace profesional: docks, tema, idioma, puntero, clic derecho y atajos"><Settings2 className="w-4 h-4" /></T3Btn>
+        <T3Btn active={showMinimap} onClick={() => updateWorkspacePreferences({ ...workspacePreferencesRef.current, minimap: !workspacePreferencesRef.current.minimap })} title="Minimapa de la planta — vista general y navegación"><MapPin className="w-4 h-4" /></T3Btn>
         <div className="w-px h-5 bg-white/10 mx-1" />
         <T3Btn active={showHeat} onClick={() => setShowHeat((v) => !v)} title="Mapa de calor de ocupación en el piso"><Grid2x2 className="w-4 h-4" /></T3Btn>
         <T3Btn active={showGaps} onClick={() => setShowGaps((v) => !v)} title="Holguras de seguridad — marca los objetos demasiado juntos (ámbar) o traslapados (rojo)"><ShieldAlert className="w-4 h-4" /></T3Btn>
@@ -7951,7 +8103,7 @@ export default function Layout3DEditor({
         {!standalone && <T3Btn onClick={arrangeLineLayout} title="Acomodar la línea — ordena las estaciones por secuencia en filas equiespaciadas"><Rows3 className="w-4 h-4" /></T3Btn>}
         {!standalone && <T3Btn onClick={connectLineLayout} title="Conectar la línea — enlaza cada estación con la siguiente en secuencia (flujo)"><Waypoints className="w-4 h-4" /></T3Btn>}
         <T3Btn onClick={runOptimize} disabled={serverBusy} title="Optimizar flujo — reordena para minimizar el recorrido (servidor)"><WandSparkles className="w-4 h-4" /></T3Btn>
-        <T3Btn active={showCommand} onClick={() => { setFocusMode(false); setShowCommand(true); window.requestAnimationFrame(() => commandInputRef.current?.focus()); }} title="Línea de comandos determinística — historial, preview y repetición"><ChevronRight className="w-4 h-4" /></T3Btn>
+        <T3Btn active={showCommand && workspacePreferences.commandDock} onClick={() => { setFocusMode(false); updateWorkspacePreferences({ ...workspacePreferencesRef.current, commandDock: true }); window.requestAnimationFrame(() => commandInputRef.current?.focus()); }} title="Línea de comandos determinística — historial, preview y repetición"><ChevronRight className="w-4 h-4" /></T3Btn>
         <T3Btn active={showPalette} onClick={() => setShowPalette((v) => !v)} title="Paleta de comandos (⌘K / Ctrl K) — busca comandos, herramientas y símbolos"><Search className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={openChecks} title="Revisión de diseño — valida colocación, límites, traslapes y flujo"><ShieldCheck className="w-4 h-4" /></T3Btn>
         <T3Btn active={!!flowHealth} onClick={analyzeFlowHealth} title="Flow Health — score, cruces y backtracking"><ChartLine className="w-4 h-4" /></T3Btn>
@@ -8018,8 +8170,8 @@ export default function Layout3DEditor({
       ) : (
         <div className="flex flex-1 min-h-0">
           {/* left: stations tray + equipment palette */}
-          <div className={`w-60 shrink-0 border-r border-white/10 bg-gray-900/60 flex-col ${focusMode ? 'hidden' : 'flex'}`}>
-            {showCommand && (
+          <div data-testid="cad-left-dock" className={`w-60 shrink-0 border-r border-white/10 bg-gray-900/95 text-white flex-col ${focusMode || (!workspacePreferences.leftDock && !workspacePreferences.commandDock) ? 'hidden' : 'flex'}`}>
+            {showCommand && workspacePreferences.commandDock && (
               <CadCommandDock
                 inputRef={commandInputRef}
                 value={commandText}
@@ -8046,6 +8198,7 @@ export default function Layout3DEditor({
                 onRedo={redoLastCommand}
               />
             )}
+            {workspacePreferences.leftDock && (<>
             <div className="flex shrink-0 text-[12px] font-medium border-b border-white/10">
               <button onClick={() => setTab('stations')} className={`flex-1 px-3 py-2 inline-flex items-center justify-center gap-1.5 ${tab === 'stations' ? 'text-white bg-white/[0.06]' : 'text-gray-500 dark:text-gray-400 hover:text-gray-200'}`}><MapPin className="w-3.5 h-3.5" /> {standalone ? 'Puntos' : 'Estaciones'}</button>
               <button onClick={() => setTab('equipment')} className={`flex-1 px-3 py-2 inline-flex items-center justify-center gap-1.5 ${tab === 'equipment' ? 'text-white bg-white/[0.06]' : 'text-gray-500 dark:text-gray-400 hover:text-gray-200'}`}><Boxes className="w-3.5 h-3.5" /> Biblioteca</button>
@@ -8256,11 +8409,38 @@ export default function Layout3DEditor({
                 </>
               )}
             </div>
+            </>)}
           </div>
 
           {/* 3D viewport */}
-          <div className="relative flex-1 min-w-0">
+          <div
+            data-testid="cad-canvas"
+            className="relative min-w-0 flex-1 overflow-hidden"
+            onContextMenu={handleCadContextMenu}
+            onPointerDown={() => setCadContextMenu(null)}
+          >
             <div ref={mountRef} className="absolute inset-0" />
+            <div ref={crosshairOverlayRef} data-testid="cad-crosshair" aria-hidden="true" className="pointer-events-none absolute left-0 top-0 z-20 hidden size-0">
+              <span className="absolute left-1/2 top-1/2 h-px -translate-x-1/2 -translate-y-1/2 bg-cyan-100/90 mix-blend-difference" style={{ width: `${workspacePreferences.crosshairPercent}%` }} />
+              <span className="absolute left-1/2 top-1/2 w-px -translate-x-1/2 -translate-y-1/2 bg-cyan-100/90 mix-blend-difference" style={{ height: `${workspacePreferences.crosshairPercent}%` }} />
+              <span data-testid="cad-pick-box" className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 border border-cyan-100/90 mix-blend-difference" style={{ width: workspacePreferences.pickBoxPx, height: workspacePreferences.pickBoxPx }} />
+              <span data-testid="cad-snap-aperture" className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-amber-300/60" style={{ width: workspacePreferences.aperturePx * 2, height: workspacePreferences.aperturePx * 2 }} />
+            </div>
+            {cadContextMenu && (
+              <div
+                data-testid="cad-context-menu"
+                role="menu"
+                className="absolute z-50 w-44 overflow-hidden rounded-xl border border-white/15 bg-gray-950/95 p-1.5 text-[11px] text-gray-200 shadow-2xl backdrop-blur"
+                style={{ left: cadContextMenu.x, top: cadContextMenu.y }}
+                onPointerDown={(event) => event.stopPropagation()}
+              >
+                <button role="menuitem" onClick={() => { repeatLastCommand(); setCadContextMenu(null); }} className="w-full rounded-lg px-2 py-1.5 text-left hover:bg-white/10">Repetir último comando</button>
+                <button role="menuitem" onClick={() => { if (drawCommandRef.current) commitActiveDraftCommand(); setCadContextMenu(null); }} className="w-full rounded-lg px-2 py-1.5 text-left hover:bg-white/10">Enter / terminar</button>
+                <button role="menuitem" onClick={() => { selectAll(); setCadContextMenu(null); }} className="w-full rounded-lg px-2 py-1.5 text-left hover:bg-white/10">Seleccionar todo</button>
+                <button role="menuitem" disabled={selList.length === 0 && nativeSelectionIds.length === 0} onClick={() => { if (nativeSelectionIds.length) removeNativeSelection(); else removeSelected(); setCadContextMenu(null); }} className="w-full rounded-lg px-2 py-1.5 text-left text-rose-200 hover:bg-rose-400/10 disabled:opacity-40">Eliminar selección</button>
+                <button role="menuitem" onClick={() => { closeProfessionalDocks(); updateWorkspacePreferences({ ...workspacePreferencesRef.current, rightDock: true }); setCadContextMenu(null); }} className="w-full rounded-lg px-2 py-1.5 text-left hover:bg-white/10">Mostrar propiedades</button>
+              </div>
+            )}
             {recoveryCandidate && (
               <div className="absolute left-3 top-16 z-30 w-80 rounded-2xl border border-amber-300/30 bg-gray-950/95 p-3 shadow-2xl backdrop-blur">
                 <div className="flex items-start gap-2">
@@ -8279,7 +8459,7 @@ export default function Layout3DEditor({
                 </div>
               </div>
             )}
-            {showMinimap && (
+            {showMinimap && workspacePreferences.minimap && (
               <PlantMinimap
                 ctxRef={ctxRef}
                 placementsRef={placementsRef}
@@ -8517,7 +8697,19 @@ export default function Layout3DEditor({
           </div>
 
           {/* right: properties */}
-          <div className={`w-64 shrink-0 border-l border-white/10 bg-gray-900/60 overflow-y-auto ${focusMode ? 'hidden' : ''}`}>
+          <div
+            data-testid="cad-right-dock"
+            className={`${activeProfessionalDock ? 'w-[min(560px,42vw)] overflow-hidden' : 'w-64 overflow-y-auto'} shrink-0 border-l border-white/10 bg-gray-900/95 text-white ${focusMode || (!workspacePreferences.rightDock && !activeProfessionalDock) ? 'hidden' : ''}`}
+          >
+            {activeProfessionalDock ? (
+              <div className="flex h-full min-h-0 flex-col">
+                <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-3 py-2">
+                  <div className="inline-flex items-center gap-2 text-[12px] font-semibold text-cyan-100"><Settings2 className="h-3.5 w-3.5" />{professionalDockTitle}</div>
+                  <button aria-label="Cerrar panel profesional" onClick={closeProfessionalDocks} className="rounded-lg p-1 text-gray-400 hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-cyan-300/60"><X className="h-4 w-4" /></button>
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto">{professionalDockContent}</div>
+              </div>
+            ) : (<>
             {nativeSelectedEntities.length > 0 ? (
               <div className="p-3.5" data-testid="cad-native-properties">
                 <div className="mb-1 flex items-center gap-2">
@@ -8992,6 +9184,7 @@ export default function Layout3DEditor({
                 </p>
               </div>
             )}
+            </>)}
           </div>
         </div>
       )}

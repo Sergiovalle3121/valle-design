@@ -17,19 +17,20 @@ export interface CadDimensionDraft {
 }
 
 interface CadDimensionPaletteProps {
+  docked?: boolean;
   selectedCount: number;
   defaultOffset: number;
   styles: string[];
   onCreate: (draft: CadDimensionDraft) => void;
 }
 
-export function CadDimensionPalette({ selectedCount, defaultOffset, styles, onCreate }: CadDimensionPaletteProps) {
+export function CadDimensionPalette({ selectedCount, defaultOffset, styles, onCreate, docked }: CadDimensionPaletteProps) {
   const [draft, setDraft] = useState<CadDimensionDraft>({
     kind: 'aligned', axis: 'x', offset: defaultOffset, style: styles[0] ?? 'Standard', precision: 2,
     units: 'mm', alternateUnits: '', prefix: '', suffix: '', extensionLines: true, arrowhead: 'closed-filled',
   });
   return (
-    <div data-testid="cad-dimension-palette" className="absolute right-0 top-full z-50 mt-1.5 w-80 rounded-xl border border-emerald-400/20 bg-gray-950 p-3 text-[10.5px] shadow-2xl">
+    <div data-testid="cad-dimension-palette" className={docked ? 'w-full p-3 text-[10.5px]' : 'absolute right-0 top-full z-50 mt-1.5 w-80 rounded-xl border border-emerald-400/20 bg-gray-950 p-3 text-[10.5px] shadow-2xl'}>
       <div className="mb-2 flex items-center justify-between"><span className="font-semibold text-emerald-100">Dimensión asociativa</span><span className="text-gray-500">{selectedCount} fuente(s)</span></div>
       <div className="grid grid-cols-2 gap-2">
         <label className="col-span-2 text-gray-400">Tipo<select data-testid="cad-dimension-kind" value={draft.kind} onChange={(event) => setDraft((current) => ({ ...current, kind: event.target.value as CadDimensionDraft['kind'] }))} className="mt-1 w-full rounded border border-white/10 bg-gray-900 px-2 py-1 text-white">

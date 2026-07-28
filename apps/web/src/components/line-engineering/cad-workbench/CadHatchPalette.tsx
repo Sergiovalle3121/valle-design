@@ -1,4 +1,5 @@
 interface CadHatchPaletteProps {
+  docked?: boolean;
   pickMode: boolean;
   solid: boolean;
   islandStyle: 'normal' | 'outer' | 'ignore';
@@ -16,9 +17,10 @@ export function CadHatchPalette({
   onIslandStyleChange,
   onPickModeChange,
   onCreateFromSelection,
+  docked,
 }: CadHatchPaletteProps) {
   return (
-    <div data-testid="cad-hatch-palette" className="absolute right-0 top-full z-50 mt-1.5 w-72 rounded-xl border border-white/10 bg-gray-900 p-3 text-[11px] shadow-2xl">
+    <div data-testid="cad-hatch-palette" className={docked ? 'w-full p-3 text-[11px]' : 'absolute right-0 top-full z-50 mt-1.5 w-72 rounded-xl border border-white/10 bg-gray-900 p-3 text-[11px] shadow-2xl'}>
       <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-cyan-200">HATCH nativo</div>
       <div className="mb-2 grid grid-cols-2 gap-1">
         <button onClick={() => onSolidChange(false)} className={`rounded-md border px-2 py-1 ${!solid ? 'border-cyan-400/40 bg-cyan-400/15 text-cyan-100' : 'border-white/10 text-gray-300'}`}>ANSI31</button>

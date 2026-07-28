@@ -25,6 +25,7 @@ export interface CadBlockInsertDraft {
 }
 
 interface CadBlockPaletteProps {
+  docked?: boolean;
   blocks: CadBlockDefinition[];
   selectedEntityCount: number;
   selectedInsert?: { id: string; block: string } | null;
@@ -44,7 +45,7 @@ function parseAttributes(value: string): Record<string, string> {
   }).filter((entry): entry is [string, string] => !!entry?.[0]));
 }
 
-export function CadBlockPalette({ blocks, selectedEntityCount, selectedInsert, defaultPoint, onDefine, onInsert, onRedefine, onReplace, onExplode, onPurge }: CadBlockPaletteProps) {
+export function CadBlockPalette({ blocks, selectedEntityCount, selectedInsert, defaultPoint, onDefine, onInsert, onRedefine, onReplace, onExplode, onPurge, docked }: CadBlockPaletteProps) {
   const [query, setQuery] = useState('');
   const [selectedBlock, setSelectedBlock] = useState(blocks[0]?.id ?? '');
   const [name, setName] = useState('');
@@ -60,7 +61,7 @@ export function CadBlockPalette({ blocks, selectedEntityCount, selectedInsert, d
   const selectedDefinition = blocks.find((block) => block.id === selectedBlock) ?? visibleBlocks[0];
   const input = 'mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white outline-none focus:border-cyan-400/50';
   return (
-    <div data-testid="cad-block-palette" className="absolute left-0 top-full z-50 mt-1.5 grid w-[620px] max-w-[92vw] grid-cols-[250px_1fr] overflow-hidden rounded-xl border border-cyan-400/20 bg-gray-950 text-[10.5px] shadow-2xl">
+    <div data-testid="cad-block-palette" className={docked ? 'grid w-full grid-cols-[minmax(150px,0.7fr)_minmax(220px,1.3fr)] overflow-hidden text-[10.5px]' : 'absolute left-0 top-full z-50 mt-1.5 grid w-[620px] max-w-[92vw] grid-cols-[250px_1fr] overflow-hidden rounded-xl border border-cyan-400/20 bg-gray-950 text-[10.5px] shadow-2xl'}>
       <section className="border-r border-white/10 p-3">
         <div className="mb-2 flex items-center justify-between"><span className="font-semibold text-cyan-100">BLOCK / INSERT</span><span className="text-gray-500">{blocks.length}</span></div>
         <input aria-label="Buscar bloques" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar nombre, tag, negocio…" className={input} />

@@ -107,8 +107,6 @@ test('BLOCK/INSERT stays native through tenant library, attributes, persistence,
   await palette.getByLabel('Publicar en biblioteca tenant').check();
   await page.getByTestId('cad-block-define').click();
 
-  const properties = page.getByTestId('cad-native-properties');
-  await expect(properties).toContainText('INSERT');
   await expect(page.getByTestId('cad-block-row-DOOR')).toBeVisible();
   await expect.poll(() => backend.snapshot().library.length).toBe(1);
   expect(backend.snapshot().library[0].definition.library?.scope).toBe('tenant');
@@ -121,6 +119,9 @@ test('BLOCK/INSERT stays native through tenant library, attributes, persistence,
   await page.getByTestId('cad-block-attributes').fill('MARK=D-02');
   await page.getByTestId('cad-block-insert').click();
 
+  await page.getByLabel('Cerrar panel profesional').click();
+  const properties = page.getByTestId('cad-native-properties');
+  await expect(properties).toContainText('INSERT');
   await expect(page.getByTestId('cad-native-property-rotation')).toHaveValue('30');
   await expect(page.getByTestId('cad-native-property-scaleX')).toHaveValue('1.5');
   await expect(page.getByTestId('cad-native-property-attribute:MARK')).toHaveValue('D-02');

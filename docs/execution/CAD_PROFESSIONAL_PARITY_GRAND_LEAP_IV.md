@@ -6,9 +6,9 @@
 | --- | --- |
 | `MISSION_STARTED_AT` | 2026-07-28 12:08:49 -06:00 |
 | `MISSION_TARGET_END` | 2026-07-28 22:08:49 -06:00 |
-| `MISSION_CURRENT_PHASE` | P1-F — Workbench profesional |
-| `MISSION_COMPLETED_GATES` | viewport 100k; recovery worker/journal; blob GC bifásico y tenant-safe; selección profesional; precisión dinámica y tracking; HATCH asociativo; MTEXT nativo; DIMENSION asociativa; MLEADER canónico; BLOCK/INSERT profesional |
-| `MISSION_NEXT_ACTION` | reorganizar el workbench sin cubrir el canvas y demostrar 1366×768–4K, temas, docks, accesibilidad y preferencias profesionales |
+| `MISSION_CURRENT_PHASE` | P2-A — Multiple viewports y layouts |
+| `MISSION_COMPLETED_GATES` | viewport 100k; recovery worker/journal; blob GC bifásico y tenant-safe; selección profesional; precisión dinámica y tracking; HATCH asociativo; MTEXT nativo; DIMENSION asociativa; MLEADER canónico; BLOCK/INSERT profesional; workbench profesional browser-proven |
+| `MISSION_NEXT_ACTION` | completar edición multi-viewport, overrides por viewport, preview exacto y publicación seleccionada/batch sin duplicar el documento canónico |
 | Repositorio | `Sergiovalle3121/axos-os` |
 | Base | `1625ba26a07876943b821586c46b02c9f47f6bac` (`origin/main`) |
 | Rama / PR | `codex/cad-professional-grand-leap-iii` / #1416 |
@@ -45,8 +45,8 @@ Sólo se conceden puntos por evidencia actual del repositorio y navegador.
 
 | Área | Máximo | Inicial | Estado dominante | Evidencia / brecha |
 | --- | ---: | ---: | --- | --- |
-| Workbench y arquitectura | 10 | 5 | `tested` parcial | dock aislado; editor aún monolítico y por encima de 8k líneas |
-| Precisión, input y snaps | 10 | 9 | `browser-proven` | dynamic input, snaps derivados, POLAR/ORTHO/OTRACK y tolerancia por zoom; falta preferencia persistida por usuario |
+| Workbench y arquitectura | 10 | 8 | `browser-proven` parcial | docks sin overlay, workspace persistido, ribbon, status, command/search, temas/locale y matriz 1366–4K; monolito aún por encima de 9k líneas |
+| Precisión, input y snaps | 10 | 10 | `browser-proven` | dynamic input, snaps derivados, POLAR/ORTHO/OTRACK, tolerancia por zoom y crosshair/pickbox/aperture persistidos por usuario |
 | Selección y modificación | 10 | 9 | `browser-proven` | controlador unificado, geometrías profesionales, cycling y quick select; falta stress E2E de trazos 100k |
 | Entidades de documentación | 10 | 10 | `browser-proven` | HATCH, MTEXT, siete DIM y MLEADER completan su ciclo canónico |
 | Rendimiento 10k/100k | 15 | 10 | `browser-proven` parcial | viewport real, lotes cancelables y arnés 100k; aún no 60 FPS ni memoria estabilizada |
@@ -55,7 +55,7 @@ Sólo se conceden puntos por evidencia actual del repositorio y navegador.
 | Layouts, viewports y publicación | 10 | 6 | `tested` | paper space/PDF/recibos; UI multi-viewport parcial |
 | Interoperabilidad/extensibilidad | 5 | 4 | `browser-proven` parcial | BLOCK/INSERT, HATCH, MTEXT, DIM y MLEADER completan DXF semántico; DWG `provider-required` |
 | Calidad enterprise/seguridad/pruebas | 10 | 9 | `tested` | CI/tenant/brand/smokes verdes; falta arnés perf bloqueante |
-| **Total** | **100** | **80** |  | Sin claim de paridad general |
+| **Total** | **100** | **84** |  | Sin claim de paridad general |
 
 ## Paridad completa separada
 
@@ -323,6 +323,34 @@ No se editan ramas comerciales, ERP o PDF durante la construcción CAD.
   concede el punto restante de capas/referencias porque Xrefs continúa parcial.
   Deuda visible: `Layout3DEditor.tsx` queda en 9,810 líneas; P1-F debe reducir
   acoplamiento y evitar panels que oculten el canvas.
+
+### 2026-07-28 14:56–15:33 — P1-F / Workbench profesional
+
+- Las cinco paletas profesionales (selección, HATCH, DIMENSION, MLEADER y
+  BLOCK/XREF) dejaron de ser popovers absolutos: comparten un dock derecho de
+  hasta 560 px que participa en el layout flex y nunca cubre el canvas. El dock
+  de propiedades vuelve al cerrar la herramienta; el E2E de BLOCK fue adaptado
+  a ese flujo explícito y su ciclo funcional permanece verde.
+- `CadWorkspacePreferences` persiste por tenant/usuario perfiles drafting,
+  review, presentation y focus; visibilidad de biblioteca/propiedades/command/
+  minimapa; densidad; crosshair; pick box; apertura OSNAP; clic derecho y
+  overrides de atajos. Parser, normalización, clamps y conflictos tienen spec.
+- El motor usa esos valores, no sólo controles: apertura y pick tolerance se
+  convierten de píxeles a mundo según zoom; el crosshair DOM sigue al pointer
+  sin estado React por frame; shortcuts personalizados alimentan el dispatcher
+  real; clic derecho ofrece menú contextual o Enter/repeat configurables.
+- Ribbon horizontal de 48 px sin wrap ni scrollbar visible, cierre sticky,
+  command line/search accesibles, status bar, Model/Layout tabs y focus visible.
+  Tema claro cambia canvas/cinta y conserva docks técnicos oscuros de alto
+  contraste; tema oscuro, inglés/español y DPR 2 se verificaron en navegador.
+- Evidencia Chromium: 1366×768, 1440×900, 1920×1080, 2560×1440 y 3840×2160,
+  persistencia/reload, Q→LINE, context menu, medidas 14/18 px, docking sin
+  solape, perfiles y screenshots claro/oscuro EN/ES: 1/1 verde en 3.0 min.
+  Regresión CAD 12–18: 7/7 verde; spec workspace, TypeScript y diff-check
+  verdes; ESLint focal 0 errores.
+- La rúbrica sube 80 → 84. No se conceden los dos puntos restantes de
+  arquitectura: `Layout3DEditor.tsx` queda en 9,833 líneas y todavía requiere
+  extraer viewport/status/properties. El siguiente bloque es P2-A.
 
 ## Claims
 
