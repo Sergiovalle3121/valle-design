@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import { migrateCadDocument } from "./cad-document";
 import {
   cadDocumentNativeDxfHatches,
+  cadDocumentNativeDxfMTexts,
   cadDocumentNativeDxfPrimitives,
   cadDxfCurvesToNativeEntities,
   cadDxfHatchesToNativeEntities,
+  cadDxfMTextsToNativeEntities,
 } from "./dxf-cad-document";
 import { exportCadDxf } from "./dxf-export";
 import { importDxfPrimitives } from "./dxf-import";
@@ -62,6 +64,28 @@ const source = migrateCadDocument({
       associationStatus: "detached",
       layer: "AREAS",
     },
+    {
+      id: "mtext-native",
+      type: "mtext",
+      insertion: { x: 250, y: 350, z: 0 },
+      text: "Nota multilÃ­nea\nSegunda lÃ­nea",
+      width: 900,
+      height: 80,
+      rotation: 15,
+      alignment: "middle-center",
+      paragraphAlignment: "center",
+      style: "Notes",
+      fontFamily: "Arial",
+      lineSpacing: 1.35,
+      bold: true,
+      italic: true,
+      underline: true,
+      backgroundMask: true,
+      backgroundColor: "#112233",
+      backgroundPadding: 0.2,
+      columns: 2,
+      layer: "TEXT",
+    },
   ],
 });
 
@@ -115,6 +139,30 @@ if (hatch.type === "hatch") {
   assert.equal(hatch.islandStyle, "outer");
   assert.equal(hatch.associationStatus, "detached");
   assert.deepEqual(hatch.boundaries[0][0], { x: 10, y: 20, z: 0 });
+}
+
+const mtexts = cadDocumentNativeDxfMTexts(source);
+assert.equal(mtexts.length, 1);
+const mtextDxf = exportCadDxf({ mtexts }, { units: "mm" });
+assert.match(mtextDxf.content, /\r?\nMTEXT\r?\n/);
+const reimportedMTexts = importDxfPrimitives(mtextDxf.content);
+assert.equal(reimportedMTexts.mtexts.length, 1);
+const nativeMTexts = cadDxfMTextsToNativeEntities(reimportedMTexts.mtexts, { idPrefix: "roundtrip" });
+const mtext = nativeMTexts[0];
+assert.equal(mtext.type, "mtext");
+if (mtext.type === "mtext") {
+  assert.equal(mtext.text, "Nota multilÃ­nea\nSegunda lÃ­nea");
+  assert.equal(mtext.width, 900);
+  assert.equal(mtext.height, 80);
+  assert.ok(Math.abs((mtext.rotation ?? 0) - 15) < 1e-9);
+  assert.equal(mtext.alignment, "middle-center");
+  assert.equal(mtext.paragraphAlignment, "center");
+  assert.equal(mtext.bold, true);
+  assert.equal(mtext.italic, true);
+  assert.equal(mtext.underline, true);
+  assert.equal(mtext.backgroundMask, true);
+  assert.equal(mtext.backgroundColor, "#112233");
+  assert.equal(mtext.columns, 2);
 }
 
 // Editor projection flips Y; orientation-aware import swaps the arc endpoints

@@ -263,6 +263,17 @@ export type CadEntity =
       height?: number;
       rotation?: number;
       style?: string;
+      alignment?: "top-left" | "top-center" | "top-right" | "middle-left" | "middle-center" | "middle-right" | "bottom-left" | "bottom-center" | "bottom-right";
+      paragraphAlignment?: "left" | "center" | "right" | "justify";
+      fontFamily?: string;
+      lineSpacing?: number;
+      bold?: boolean;
+      italic?: boolean;
+      underline?: boolean;
+      backgroundMask?: boolean;
+      backgroundColor?: string;
+      backgroundPadding?: number;
+      columns?: number;
       layer: string;
       context?: CadEntityContext;
     }

@@ -175,9 +175,11 @@ import {
 } from '@/lib/cad/entity-three';
 import {
   cadDocumentNativeDxfHatches,
+  cadDocumentNativeDxfMTexts,
   cadDocumentNativeDxfPrimitives,
   cadDxfCurvesToNativeEntities,
   cadDxfHatchesToNativeEntities,
+  cadDxfMTextsToNativeEntities,
 } from '@/lib/cad/dxf-cad-document';
 import {
   describeCadObjectProperties,
@@ -216,6 +218,7 @@ import {
 } from './cad-workbench/CadSelectionPalette';
 import { CadDynamicInput } from './cad-workbench/CadDynamicInput';
 import { CadHatchPalette } from './cad-workbench/CadHatchPalette';
+import { CadMTextEditor, type CadMTextDraft } from './cad-workbench/CadMTextEditor';
 import {
   cadViewportFocusBounds,
   createCadViewportBookmark,
@@ -1049,6 +1052,8 @@ export default function Layout3DEditor({
   const [showHatchPalette, setShowHatchPalette] = useState(false);
   const [hatchPickSolid, setHatchPickSolid] = useState(false);
   const [hatchIslandStyle, setHatchIslandStyle] = useState<'normal' | 'outer' | 'ignore'>('normal');
+  const [mtextEditorOpen, setMTextEditorOpen] = useState(false);
+  const [editingMTextId, setEditingMTextId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'3d' | '2d'>('3d'); // 2D = locked top-down plan view (CAD unificado)
   const [walk, setWalk] = useState(false); // first-person walkthrough mode
   const [showHelp, setShowHelp] = useState(false); // keyboard shortcuts overlay
@@ -2598,6 +2603,62 @@ export default function Layout3DEditor({
     syncNativeScene(document, { upsert: incoming, remove: [] });
     return true;
   }, [snapshotDocument, syncNativeScene, toast]);
+  const openMTextEditor = useCallback((entityId: string | null = null) => {
+    setEditingMTextId(entityId);
+    setMTextEditorOpen(true);
+  }, []);
+  const saveMTextDraft = useCallback((draft: CadMTextDraft) => {
+    const patch: Partial<CadPropertyBag> = {
+      text: draft.text.trim(),
+      insertionX: draft.insertionX,
+      insertionY: draft.insertionY,
+      width: draft.width,
+      height: draft.height,
+      rotation: draft.rotation,
+      alignment: draft.alignment,
+      paragraphAlignment: draft.paragraphAlignment,
+      style: draft.style,
+      fontFamily: draft.fontFamily,
+      lineSpacing: draft.lineSpacing,
+      bold: draft.bold,
+      italic: draft.italic,
+      underline: draft.underline,
+      backgroundMask: draft.backgroundMask,
+      backgroundColor: draft.backgroundColor,
+      backgroundPadding: draft.backgroundPadding,
+      columns: draft.columns,
+      layer: draft.layer,
+    };
+    if (editingMTextId) commitNativeCommands([{ type: 'properties', entityId: editingMTextId, patch }]);
+    else {
+      const entity: CadNativeEntity = {
+        id: newId('mtext'),
+        type: 'mtext',
+        insertion: { x: draft.insertionX, y: draft.insertionY, z: 0 },
+        text: draft.text.trim(),
+        width: draft.width,
+        height: draft.height,
+        rotation: draft.rotation,
+        alignment: draft.alignment,
+        paragraphAlignment: draft.paragraphAlignment,
+        style: draft.style,
+        fontFamily: draft.fontFamily,
+        lineSpacing: draft.lineSpacing,
+        bold: draft.bold,
+        italic: draft.italic,
+        underline: draft.underline,
+        backgroundMask: draft.backgroundMask,
+        backgroundColor: draft.backgroundColor,
+        backgroundPadding: draft.backgroundPadding,
+        columns: draft.columns,
+        layer: draft.layer,
+        context: { provenance: { provider: 'cad-editor' }, metadata: { sourceType: 'MTEXT' } },
+      };
+      insertNativeEntities([entity], 'create:mtext');
+    }
+    setEditingMTextId(null);
+    setMTextEditorOpen(false);
+  }, [commitNativeCommands, editingMTextId, insertNativeEntities]);
 
   // ---- scene lifecycle ----
   useEffect(() => {
@@ -5057,20 +5118,27 @@ export default function Layout3DEditor({
     const hatchBoundaryPrimitives: CadDxfPrimitive[] = preview.hatches.flatMap((hatch) =>
       hatch.boundaries.map((points) => ({ kind: 'polyline' as const, layer: hatch.layer, points })),
     );
-    const bounds = dxfPrimitiveBounds([...preview.primitives, ...hatchBoundaryPrimitives]);
+    const mtextAnchorPrimitives: CadDxfPrimitive[] = preview.mtexts.map((mtext) => ({ kind: 'text', layer: mtext.layer, points: [mtext.insertion], text: mtext.text }));
+    const bounds = dxfPrimitiveBounds([...preview.primitives, ...hatchBoundaryPrimitives, ...mtextAnchorPrimitives]);
     if (!bounds) { toast.error('El DXF no tiene entidades soportadas para convertir.', 'DXF'); return; }
     recordLocalSnapshot('Auto · antes de convertir DXF', 'import');
     pushHistory();
     const created: SelItem[] = [];
-    const nativeCreated: CadNativeEntity[] = cadDxfHatchesToNativeEntities(preview.hatches, {
+    const nativeHatches = cadDxfHatchesToNativeEntities(preview.hatches, {
       idPrefix: newId('cad'),
       projection: { point: (point) => projectDxfPoint(point, bounds, dm, meta) },
       provider: 'dxf',
     }).slice(0, 850);
+    const nativeMTexts = cadDxfMTextsToNativeEntities(preview.mtexts, {
+      idPrefix: newId('cad'),
+      projection: { point: (point) => projectDxfPoint(point, bounds, dm, meta) },
+      provider: 'dxf',
+    }).slice(0, Math.max(0, 850 - nativeHatches.length));
+    const nativeCreated: CadNativeEntity[] = [...nativeHatches, ...nativeMTexts];
     const layerUpdates: Record<string, CadLayerId> = {};
     const tagUpdates: Record<string, string> = {};
     let notes = 0;
-    let truncated = preview.hatches.length > nativeCreated.length;
+    let truncated = preview.hatches.length + preview.mtexts.length > nativeCreated.length;
     const cap = 850;
     for (const primitive of preview.primitives) {
       if (created.length + nativeCreated.length >= cap) { truncated = true; break; }
@@ -6793,7 +6861,12 @@ export default function Layout3DEditor({
         const layer = loadedCadDocumentRef.current?.layers.find((candidate) => candidate.id === entity.layer);
         return options.includeHidden || layer?.visible !== false;
       });
-      const exported = exportCadLayoutDxf({ boxes, connectors, labels, measurements, primitives, hatches }, { units: options.units, fileComment: `${PRODUCT_LABEL.design} ${model} ${revision}` });
+      const mtexts = options.includeLabels ? cadDocumentNativeDxfMTexts(snapshotDocument(), (entity) => {
+        if (options.scope === 'selection' && !selectedNativeIds.has(entity.id)) return false;
+        const layer = loadedCadDocumentRef.current?.layers.find((candidate) => candidate.id === entity.layer);
+        return options.includeHidden || layer?.visible !== false;
+      }) : [];
+      const exported = exportCadLayoutDxf({ boxes, connectors, labels, measurements, primitives, hatches, mtexts }, { units: options.units, fileComment: `${PRODUCT_LABEL.design} ${model} ${revision}` });
       const blob = new Blob([exported.content], { type: 'application/dxf' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -6920,8 +6993,26 @@ export default function Layout3DEditor({
               pdf.lines(deltas, origin.x, origin.y, [1, 1], style, command.closed);
             } else {
               const [r, g, b] = color(command.color);
-              pdf.setTextColor(r, g, b); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(command.size);
-              pdf.text(command.text, command.point.x, command.point.y, { align: command.align ?? 'left', angle: command.rotation, maxWidth: Math.max(10, viewport.clip.width) });
+              const maxWidth = Math.max(1, Math.min(command.maxWidth ?? viewport.clip.width, viewport.clip.width));
+              const lines = command.text.replace(/\r\n?/g, '\n').split('\n');
+              const lineHeight = command.size * 0.4;
+              const alignOffset = command.align === 'center' ? maxWidth / 2 : command.align === 'right' ? maxWidth : 0;
+              if (command.backgroundMask) {
+                const [mr, mg, mb] = color(command.backgroundColor ?? '#ffffff');
+                pdf.setFillColor(mr, mg, mb);
+                pdf.rect(command.point.x - alignOffset - 0.8, command.point.y - command.size * 0.32, maxWidth + 1.6, Math.max(lineHeight, lines.length * lineHeight) + 1.2, 'F');
+              }
+              pdf.setTextColor(r, g, b); pdf.setFont('helvetica', command.bold && command.italic ? 'bolditalic' : command.bold ? 'bold' : command.italic ? 'italic' : 'normal'); pdf.setFontSize(command.size);
+              pdf.text(command.text, command.point.x, command.point.y, { align: command.align ?? 'left', angle: command.rotation, maxWidth });
+              if (command.underline && Math.abs(command.rotation) < 1e-9) {
+                pdf.setDrawColor(r, g, b); pdf.setLineWidth(Math.max(0.08, command.size * 0.015));
+                lines.forEach((line, index) => {
+                  const width = Math.min(maxWidth, pdf.getTextWidth(line));
+                  const x = command.point.x - (command.align === 'center' ? width / 2 : command.align === 'right' ? width : 0);
+                  const y = command.point.y + index * lineHeight + 0.5;
+                  pdf.line(x, y, x + width, y);
+                });
+              }
             }
           });
           pdf.restoreGraphicsState(); pdf.setLineDashPattern([], 0); pdf.setDrawColor(100, 116, 139); pdf.setLineWidth(0.15);
@@ -7089,6 +7180,16 @@ export default function Layout3DEditor({
   const primaryNativeGrips = primaryNativeEntity && primaryNativeAdapter
     ? primaryNativeAdapter.grips.grips(primaryNativeEntity)
     : [];
+  const editingMTextEntity = editingMTextId
+    ? nativeById.get(editingMTextId)
+    : null;
+  const editingMText = editingMTextEntity?.type === 'mtext' ? editingMTextEntity : null;
+  const mtextContext = ctxRef.current;
+  const mtextControl = controlsRef.current;
+  const mtextDefaultInsertion = mtextContext ? {
+    x: Math.max(0, Math.min(mtextContext.W, snapWorld(mtextControl ? mtextControl.target.x / mtextContext.s + mtextContext.W / 2 : mtextContext.W / 2))),
+    y: Math.max(0, Math.min(mtextContext.H, snapWorld(mtextControl ? mtextControl.target.z / mtextContext.s + mtextContext.H / 2 : mtextContext.H / 2))),
+  } : { x: 0, y: 0 };
   const professionalSelectionUniverse = showSelectionPalette ? buildSelectionUniverse() : [];
   const professionalSelectionTypes = [...new Set(professionalSelectionUniverse.map((item) => item.type))].sort();
   const professionalSelectionLayers = [...new Set(professionalSelectionUniverse.map((item) => item.layer).filter((layer): layer is string => !!layer))].sort();
@@ -7312,7 +7413,7 @@ export default function Layout3DEditor({
         </div>
         <T3Btn active={tool === 'measure'} onClick={toggleMeasure} title="Medir / acotar (M)"><Ruler className="w-4 h-4" /></T3Btn>
         <T3Btn active={tool === 'wall'} onClick={toggleWall} title="Dibujar muros (W) — clic en puntos, Esc termina"><Spline className="w-4 h-4" /></T3Btn>
-        <T3Btn onClick={addNote} title="Agregar nota de texto (T)"><StickyNote className="w-4 h-4" /></T3Btn>
+        <T3Btn onClick={() => openMTextEditor()} title="MTEXT: texto multilÃ­nea semÃ¡ntico, estilos y mÃ¡scara"><StickyNote className="w-4 h-4" /></T3Btn>
         <div className="relative">
           <T3Btn active={showHatchPalette || hatchPickMode} onClick={() => setShowHatchPalette((value) => !value)} title="HATCH: selección, pick point, islands y asociatividad"><BrickWall className="h-4 w-4" /></T3Btn>
           {showHatchPalette && (
@@ -7976,6 +8077,17 @@ export default function Layout3DEditor({
                 )}
               </div>
             )}
+            {mtextEditorOpen && (
+              <CadMTextEditor
+                initial={editingMText}
+                defaultInsertion={mtextDefaultInsertion}
+                defaultLayer={activeCadLayer}
+                defaultHeight={Math.max(1, data.footprint.gridSize || 100)}
+                textStyles={loadedCadDocumentRef.current?.styles.text ?? { Standard: { fontFamily: 'Arial', height: 120 } }}
+                onSave={saveMTextDraft}
+                onCancel={() => { setEditingMTextId(null); setMTextEditorOpen(false); }}
+              />
+            )}
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-gray-900/80 backdrop-blur border border-white/10 text-[11px] text-gray-300 inline-flex items-center gap-2 pointer-events-none">
               <Move3d className="w-3.5 h-3.5" />
               {walk
@@ -8078,6 +8190,21 @@ export default function Layout3DEditor({
                     </div>
                     <div className="mb-3 grid grid-cols-2 gap-2">
                       {Object.entries(primaryNativeProperties).map(([key, value]) => {
+                        if (primaryNativeEntity.type === 'mtext' && key === 'text')
+                          return (
+                            <label key={`${primaryNativeEntity.id}-${key}-${nativeDocumentRevision}`} className="col-span-2 text-[10.5px] text-gray-500 dark:text-gray-400">
+                              text
+                              <textarea
+                                data-testid="cad-native-property-text"
+                                defaultValue={String(value)}
+                                rows={4}
+                                onBlur={(event) => {
+                                  if (event.target.value !== value) updateNativeProperties(primaryNativeEntity.id, { text: event.target.value });
+                                }}
+                                className="mt-1 w-full resize-y rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white outline-none focus:ring-1 focus:ring-cyan-500/40"
+                              />
+                            </label>
+                          );
                         if (typeof value === 'boolean')
                           return (
                             <label key={`${primaryNativeEntity.id}-${key}-${nativeDocumentRevision}`} className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-gray-950/50 px-2 py-1.5 text-[10.5px] text-gray-400">
@@ -8146,6 +8273,13 @@ export default function Layout3DEditor({
                       className="rounded bg-white/[0.06] px-2 py-1 text-gray-300 hover:bg-white/[0.12]"
                     >Desasociar</button>
                   </div>
+                )}
+                {primaryNativeEntity?.type === 'mtext' && (
+                  <button
+                    data-testid="cad-mtext-edit"
+                    onClick={() => openMTextEditor(primaryNativeEntity.id)}
+                    className="mt-2 w-full rounded-lg border border-cyan-400/20 bg-cyan-400/[0.08] px-3 py-1.5 text-[11px] font-semibold text-cyan-100 hover:bg-cyan-400/[0.14]"
+                  >Editar contenido y formato MTEXT</button>
                 )}
               </div>
             ) : selList.length === 0 ? (

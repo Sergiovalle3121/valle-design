@@ -12,6 +12,7 @@ import {
   tessellateSpline,
 } from "./curve-tessellate";
 import { hatchPolygon } from "./hatch";
+import { layoutCadMText } from "./mtext-layout";
 import {
   hatchRegionContainsPoint,
   regenerateAssociativeHatches,
@@ -20,7 +21,7 @@ import {
 
 export type CadNativeEntity = Extract<
   CadEntity,
-  { type: "arc" | "ellipse" | "spline" | "hatch" }
+  { type: "arc" | "ellipse" | "spline" | "hatch" | "mtext" }
 >;
 export type CadNativeEntityType = CadNativeEntity["type"];
 
@@ -784,6 +785,156 @@ const splineAdapter: CadEntityAdapter<
   },
 };
 
+type CadMTextEntity = Extract<CadNativeEntity, { type: "mtext" }>;
+
+const mtextRenderer: CadEntityRenderer<CadMTextEntity> = {
+  paths: (entity) => [{ points: layoutCadMText(entity).corners, closed: true }],
+};
+
+const mtextBounds: CadBoundsProvider<CadMTextEntity> = {
+  bounds: (entity) => layoutCadMText(entity).bounds,
+};
+
+function mtextLocalPoint(entity: CadMTextEntity, point: CadPoint2): CadPoint2 {
+  const radians = -((entity.rotation ?? 0) * Math.PI) / 180;
+  const dx = point.x - entity.insertion.x;
+  const dy = point.y - entity.insertion.y;
+  return {
+    x: dx * Math.cos(radians) - dy * Math.sin(radians),
+    y: dx * Math.sin(radians) + dy * Math.cos(radians),
+  };
+}
+
+const mtextAdapter: CadEntityAdapter<CadMTextEntity> = {
+  type: "mtext",
+  renderer: mtextRenderer,
+  bounds: mtextBounds,
+  hitTester: {
+    hitTest: (entity, point, tolerance) => {
+      const layout = layoutCadMText(entity);
+      return pointInPolygon(point, layout.corners) || pathHit(mtextRenderer.paths(entity), point, tolerance);
+    },
+    intersectsWindow: (entity, window, crossing) => {
+      const bounds = mtextBounds.bounds(entity);
+      return crossing ? boundsIntersect(bounds, window) : boundsContained(bounds, window);
+    },
+  },
+  grips: {
+    grips: (entity) => {
+      const layout = layoutCadMText(entity);
+      const right = {
+        x: (layout.corners[1].x + layout.corners[2].x) / 2,
+        y: (layout.corners[1].y + layout.corners[2].y) / 2,
+      };
+      const bottom = {
+        x: (layout.corners[2].x + layout.corners[3].x) / 2,
+        y: (layout.corners[2].y + layout.corners[3].y) / 2,
+      };
+      const rotationRadians = ((entity.rotation ?? 0) * Math.PI) / 180;
+      return [
+        { id: "insertion", kind: "endpoint" as const, point: entity.insertion, label: "InserciÃ³n" },
+        { id: "width", kind: "control" as const, point: right, label: "Ancho de columna" },
+        { id: "height", kind: "control" as const, point: bottom, label: "Altura de texto" },
+        {
+          id: "rotation",
+          kind: "control" as const,
+          point: {
+            x: entity.insertion.x + Math.cos(rotationRadians) * Math.max(layout.width, layout.fontSize * 2),
+            y: entity.insertion.y + Math.sin(rotationRadians) * Math.max(layout.width, layout.fontSize * 2),
+          },
+          label: "RotaciÃ³n",
+        },
+      ];
+    },
+    moveGrip: (entity, gripId, point) => {
+      if (gripId === "insertion") return { ...entity, insertion: point3(point, entity.insertion.z) };
+      const local = mtextLocalPoint(entity, point);
+      if (gripId === "width") {
+        const alignment = entity.alignment ?? "top-left";
+        const multiplier = alignment.endsWith("center") ? 2 : 1;
+        return { ...entity, width: Math.max(entity.height ?? 1, Math.abs(local.x) * multiplier) };
+      }
+      if (gripId === "height")
+        return { ...entity, height: Math.max(1e-6, Math.abs(local.y) / Math.max(1, entity.text.split(/\r?\n/).length)) };
+      if (gripId === "rotation")
+        return { ...entity, rotation: (Math.atan2(point.y - entity.insertion.y, point.x - entity.insertion.x) * 180) / Math.PI };
+      return entity;
+    },
+  },
+  snaps: {
+    snaps: (entity) => [
+      { kind: "endpoint" as const, point: entity.insertion, label: "InserciÃ³n MTEXT" },
+      ...layoutCadMText(entity).corners.map((point, index) => ({
+        kind: "control" as const,
+        point,
+        label: `Esquina MTEXT ${index + 1}`,
+      })),
+    ],
+  },
+  properties: {
+    read: (entity) => ({
+      text: entity.text,
+      insertionX: entity.insertion.x,
+      insertionY: entity.insertion.y,
+      width: entity.width ?? (entity.height ?? 120) * 20,
+      height: entity.height ?? 120,
+      rotation: entity.rotation ?? 0,
+      alignment: entity.alignment ?? "top-left",
+      paragraphAlignment: entity.paragraphAlignment ?? "left",
+      style: entity.style ?? "Standard",
+      fontFamily: entity.fontFamily ?? "Arial",
+      lineSpacing: entity.lineSpacing ?? 1.2,
+      bold: entity.bold ?? false,
+      italic: entity.italic ?? false,
+      underline: entity.underline ?? false,
+      backgroundMask: entity.backgroundMask ?? false,
+      backgroundColor: entity.backgroundColor ?? "#111827",
+      backgroundPadding: entity.backgroundPadding ?? 0.15,
+      columns: entity.columns ?? 1,
+      layer: entity.layer,
+    }),
+    write: (entity, patch) => ({
+      ...entity,
+      text: typeof patch.text === "string" ? patch.text.slice(0, 16_384) : entity.text,
+      insertion: {
+        x: finite(patch.insertionX, entity.insertion.x),
+        y: finite(patch.insertionY, entity.insertion.y),
+        z: entity.insertion.z,
+      },
+      width: positive(patch.width, entity.width ?? (entity.height ?? 120) * 20),
+      height: positive(patch.height, entity.height ?? 120),
+      rotation: finite(patch.rotation, entity.rotation ?? 0),
+      alignment: typeof patch.alignment === "string" && /^(top|middle|bottom)-(left|center|right)$/.test(patch.alignment)
+        ? patch.alignment as CadMTextEntity["alignment"]
+        : entity.alignment ?? "top-left",
+      paragraphAlignment: patch.paragraphAlignment === "center" || patch.paragraphAlignment === "right" || patch.paragraphAlignment === "justify" || patch.paragraphAlignment === "left"
+        ? patch.paragraphAlignment
+        : entity.paragraphAlignment ?? "left",
+      style: typeof patch.style === "string" ? patch.style.slice(0, 128) : entity.style,
+      fontFamily: typeof patch.fontFamily === "string" ? patch.fontFamily.slice(0, 128) : entity.fontFamily,
+      lineSpacing: Math.max(0.5, Math.min(4, positive(patch.lineSpacing, entity.lineSpacing ?? 1.2))),
+      bold: typeof patch.bold === "boolean" ? patch.bold : entity.bold,
+      italic: typeof patch.italic === "boolean" ? patch.italic : entity.italic,
+      underline: typeof patch.underline === "boolean" ? patch.underline : entity.underline,
+      backgroundMask: typeof patch.backgroundMask === "boolean" ? patch.backgroundMask : entity.backgroundMask,
+      backgroundColor: typeof patch.backgroundColor === "string" ? patch.backgroundColor : entity.backgroundColor,
+      backgroundPadding: Math.max(0, Math.min(2, finite(patch.backgroundPadding, entity.backgroundPadding ?? 0.15))),
+      columns: Math.max(1, Math.min(8, Math.floor(positive(patch.columns, entity.columns ?? 1)))),
+      layer: typeof patch.layer === "string" ? patch.layer : entity.layer,
+    }),
+  },
+  commands: {
+    transform: (entity, transform) => ({
+      ...entity,
+      insertion: transformPoint(entity.insertion, transform),
+      width: (entity.width ?? (entity.height ?? 120) * 20) * Math.abs(transform.scale ?? 1),
+      height: (entity.height ?? 120) * Math.abs(transform.scale ?? 1),
+      rotation: (entity.rotation ?? 0) + (transform.rotationDeg ?? 0),
+      context: cloneContext(entity.context),
+    }),
+  },
+};
+
 type CadHatchEntity = Extract<CadNativeEntity, { type: "hatch" }>;
 
 function hatchBoundaries(entity: CadHatchEntity): CadPoint2[][] {
@@ -982,6 +1133,7 @@ export const CAD_ENTITY_REGISTRY = new CadEntityRegistry()
   .register(arcAdapter)
   .register(ellipseAdapter)
   .register(splineAdapter)
+  .register(mtextAdapter)
   .register(hatchAdapter);
 
 function rectangularBoundary(entity: Extract<CadEntity, { type: "box" | "station" }>): CadPoint2[] {
@@ -1015,6 +1167,7 @@ export function cadEntityBoundaryPaths(
   if (!registry.supports(entity)) return [];
   if (entity.type === "hatch")
     return entity.boundaries.map((points) => ({ sourceId: entity.id, points, closed: true }));
+  if (entity.type === "mtext") return [];
   return registry.adapter(entity).renderer.paths(entity, 192)
     .map((path) => ({ sourceId: entity.id, points: path.points, closed: path.closed }));
 }

@@ -2,6 +2,7 @@ import {
   exportCadDxf,
   type CadDxfExportLayer,
   type CadDxfExportHatch,
+  type CadDxfExportMText,
   type CadDxfExportModel,
   type CadDxfExportOptions,
   type CadDxfExportResult,
@@ -57,6 +58,8 @@ export interface CadLayoutExportInput {
   primitives?: CadDxfPrimitive[];
   /** First-class canonical HATCH entities, including holes and pattern data. */
   hatches?: CadDxfExportHatch[];
+  /** First-class semantic multiline text entities. */
+  mtexts?: CadDxfExportMText[];
 }
 
 const CAD_DXF_LAYER_COLORS: Record<string, number> = {
@@ -103,6 +106,7 @@ function collectLayoutLayers(input: CadLayoutExportInput): CadDxfExportLayer[] {
   for (const primitive of input.primitives ?? [])
     names.add(primitive.layer || "0");
   for (const hatch of input.hatches ?? []) names.add(hatch.layer || "0");
+  for (const mtext of input.mtexts ?? []) names.add(mtext.layer || "Text");
   return [...names].sort((a, b) => a.localeCompare(b)).map((name) => ({
     name,
     color: CAD_DXF_LAYER_COLORS[name] ?? 7,
@@ -143,6 +147,7 @@ export function cadLayoutToDxfExportModel(
       layer: label.layer ?? "Text",
     })),
     measurements: input.measurements,
+    mtexts: input.mtexts,
     hatches: [
       ...(input.hatches ?? []),
       ...(input.boxes ?? [])

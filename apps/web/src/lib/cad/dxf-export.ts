@@ -20,6 +20,26 @@ export interface CadDxfExportText {
   text: string;
   height?: number;
 }
+export interface CadDxfExportMText {
+  layer?: string;
+  insertion: CadDxfPoint;
+  text: string;
+  width?: number;
+  height?: number;
+  rotation?: number;
+  alignment?: "top-left" | "top-center" | "top-right" | "middle-left" | "middle-center" | "middle-right" | "bottom-left" | "bottom-center" | "bottom-right";
+  paragraphAlignment?: "left" | "center" | "right" | "justify";
+  style?: string;
+  fontFamily?: string;
+  lineSpacing?: number;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  backgroundMask?: boolean;
+  backgroundColor?: string;
+  backgroundPadding?: number;
+  columns?: number;
+}
 export interface CadDxfExportMeasurement {
   layer?: string;
   from: CadDxfPoint;
@@ -64,6 +84,7 @@ export interface CadDxfExportModel {
   primitives?: CadDxfPrimitive[];
   layers?: CadDxfExportLayer[];
   texts?: CadDxfExportText[];
+  mtexts?: CadDxfExportMText[];
   measurements?: CadDxfExportMeasurement[];
   blocks?: CadDxfExportBlock[];
   inserts?: CadDxfExportInsert[];
@@ -87,6 +108,9 @@ function safeLayerName(name: string | undefined): string {
 }
 function safeText(value: string): string {
   return value.replace(/[\r\n]/g, " ").trim();
+}
+function safeStyleName(value: string | undefined): string {
+  return safeText(value ?? "Standard").replace(/[<>/\\"':;?*|=`,]/g, "_").slice(0, 64) || "Standard";
 }
 function fmt(value: number): string {
   if (!Number.isFinite(value)) return "0";
@@ -118,6 +142,8 @@ function uniqueLayers(model: CadDxfExportModel): string[] {
     names.add(safeLayerName(hatch.layer));
   for (const text of model.texts ?? [])
     names.add(safeLayerName(text.layer ?? TEXT_LAYER));
+  for (const text of model.mtexts ?? [])
+    names.add(safeLayerName(text.layer ?? TEXT_LAYER));
   for (const measurement of model.measurements ?? [])
     names.add(safeLayerName(measurement.layer ?? MEASUREMENT_LAYER));
   return [...names].sort((a, b) => a.localeCompare(b));
@@ -144,6 +170,28 @@ function pushLayerTable(
     pushPair(lines, 70, 0);
     pushPair(lines, 62, layerColor(model, layer));
     pushPair(lines, 6, "CONTINUOUS");
+  }
+  pushPair(lines, 0, "ENDTAB");
+  const textStyles = new Map<string, string>([["Standard", "arial.ttf"]]);
+  for (const mtext of model.mtexts ?? []) {
+    const name = safeStyleName(mtext.style);
+    const family = safeText(mtext.fontFamily ?? "Arial").replace(/[^\w.-]+/g, "").toLowerCase() || "arial";
+    textStyles.set(name, family.endsWith(".ttf") || family.endsWith(".shx") ? family : `${family}.ttf`);
+  }
+  pushPair(lines, 0, "TABLE");
+  pushPair(lines, 2, "STYLE");
+  pushPair(lines, 70, textStyles.size);
+  for (const [name, font] of textStyles) {
+    pushPair(lines, 0, "STYLE");
+    pushPair(lines, 2, name);
+    pushPair(lines, 70, 0);
+    pushPair(lines, 40, 0);
+    pushPair(lines, 41, 1);
+    pushPair(lines, 50, 0);
+    pushPair(lines, 71, 0);
+    pushPair(lines, 42, 2.5);
+    pushPair(lines, 3, font);
+    pushPair(lines, 4, "");
   }
   pushPair(lines, 0, "ENDTAB");
   pushPair(lines, 0, "ENDSEC");
@@ -283,6 +331,59 @@ function pushText(
   pushPoint(lines, position);
   pushPair(lines, 40, fmt(height));
   pushPair(lines, 1, content);
+  return true;
+}
+
+function mtextAttachment(alignment: CadDxfExportMText["alignment"]): number {
+  return {
+    "top-left": 1, "top-center": 2, "top-right": 3,
+    "middle-left": 4, "middle-center": 5, "middle-right": 6,
+    "bottom-left": 7, "bottom-center": 8, "bottom-right": 9,
+  }[alignment ?? "top-left"];
+}
+
+function pushMText(lines: string[], layer: string, text: CadDxfExportMText): boolean {
+  const plain = text.text.replace(/\r\n?/g, "\n").trim();
+  if (!plain) return false;
+  const family = safeText(text.fontFamily ?? "Arial").replace(/[;|{}\\]/g, "") || "Arial";
+  let content = plain.replace(/\\/g, "\\\\").replace(/\n/g, "\\P");
+  if (text.underline) content = `\\L${content}\\l`;
+  content = `{\\f${family}|b${text.bold ? 1 : 0}|i${text.italic ? 1 : 0};${content}}`;
+  if (text.paragraphAlignment && text.paragraphAlignment !== "left") {
+    const code = text.paragraphAlignment === "center" ? "c" : text.paragraphAlignment === "right" ? "r" : "j";
+    content = `\\p${code};${content}`;
+  }
+  pushPair(lines, 0, "MTEXT");
+  pushPair(lines, 8, layer);
+  pushPoint(lines, text.insertion);
+  pushPair(lines, 40, fmt(text.height ?? 120));
+  pushPair(lines, 41, fmt(text.width ?? (text.height ?? 120) * 20));
+  pushPair(lines, 71, mtextAttachment(text.alignment));
+  pushPair(lines, 72, 1);
+  while (content.length > 240) {
+    pushPair(lines, 3, content.slice(0, 240));
+    content = content.slice(240);
+  }
+  pushPair(lines, 1, content);
+  pushPair(lines, 7, safeStyleName(text.style));
+  pushPair(lines, 50, fmt(text.rotation ?? 0));
+  pushPair(lines, 73, 2);
+  pushPair(lines, 44, fmt(text.lineSpacing ?? 1.2));
+  if (text.backgroundMask) {
+    pushPair(lines, 90, 1);
+    pushPair(lines, 45, fmt(1 + Math.max(0, text.backgroundPadding ?? 0.15)));
+    if (/^#[0-9a-f]{6}$/i.test(text.backgroundColor ?? ""))
+      pushPair(lines, 420, Number.parseInt(text.backgroundColor!.slice(1), 16));
+  }
+  const columns = Math.max(1, Math.min(8, Math.floor(text.columns ?? 1)));
+  pushPair(lines, 75, columns > 1 ? 1 : 0);
+  if (columns > 1) {
+    pushPair(lines, 76, columns);
+    pushPair(lines, 78, 0);
+    pushPair(lines, 79, 0);
+    pushPair(lines, 48, fmt((text.width ?? (text.height ?? 120) * 20) / columns));
+    pushPair(lines, 49, fmt(text.height ?? 120));
+  }
   return true;
 }
 function rectToClosedPoints(points: CadDxfPoint[]): CadDxfPoint[] {
@@ -639,6 +740,8 @@ export function exportCadDxf(
     )
       entityCount += 1;
   }
+  for (const text of model.mtexts ?? [])
+    if (pushMText(lines, safeLayerName(text.layer ?? TEXT_LAYER), text)) entityCount += 1;
   for (const dim of dimensions) {
     pushDimension(
       lines,

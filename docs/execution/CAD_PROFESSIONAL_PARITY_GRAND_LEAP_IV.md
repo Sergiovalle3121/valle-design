@@ -6,9 +6,9 @@
 | --- | --- |
 | `MISSION_STARTED_AT` | 2026-07-28 12:08:49 -06:00 |
 | `MISSION_TARGET_END` | 2026-07-28 22:08:49 -06:00 |
-| `MISSION_CURRENT_PHASE` | P1-B — MTEXT profesional |
-| `MISSION_COMPLETED_GATES` | viewport 100k; recovery worker/journal; blob GC bifásico y tenant-safe; selección profesional; precisión dinámica y tracking; HATCH asociativo |
-| `MISSION_NEXT_ACTION` | cerrar edición MTEXT multilínea, formato, estilos, grips y round-trip |
+| `MISSION_CURRENT_PHASE` | P1-C — dimensiones asociativas |
+| `MISSION_COMPLETED_GATES` | viewport 100k; recovery worker/journal; blob GC bifásico y tenant-safe; selección profesional; precisión dinámica y tracking; HATCH asociativo; MTEXT nativo |
+| `MISSION_NEXT_ACTION` | modelar cotas lineal/alineada/angular/radio/diámetro/ordenada/arco con referencias, recompute y broken state |
 | Repositorio | `Sergiovalle3121/axos-os` |
 | Base | `1625ba26a07876943b821586c46b02c9f47f6bac` (`origin/main`) |
 | Rama / PR | `codex/cad-professional-grand-leap-iii` / #1416 |
@@ -48,14 +48,14 @@ Sólo se conceden puntos por evidencia actual del repositorio y navegador.
 | Workbench y arquitectura | 10 | 5 | `tested` parcial | dock aislado; editor aún monolítico y por encima de 8k líneas |
 | Precisión, input y snaps | 10 | 9 | `browser-proven` | dynamic input, snaps derivados, POLAR/ORTHO/OTRACK y tolerancia por zoom; falta preferencia persistida por usuario |
 | Selección y modificación | 10 | 9 | `browser-proven` | controlador unificado, geometrías profesionales, cycling y quick select; falta stress E2E de trazos 100k |
-| Entidades de documentación | 10 | 6 | `browser-proven` parcial | HATCH asociativo completo; MTEXT/DIM/MLEADER incompletos |
+| Entidades de documentación | 10 | 7 | `browser-proven` parcial | HATCH y MTEXT completos; DIM/MLEADER incompletos |
 | Rendimiento 10k/100k | 15 | 10 | `browser-proven` parcial | viewport real, lotes cancelables y arnés 100k; aún no 60 FPS ni memoria estabilizada |
 | Persistencia/recovery/versionado | 10 | 9 | `browser-proven` | worker/journal/cuota y lifecycle de blobs; falta delta journal nativo |
 | Capas, bloques y referencias | 10 | 5 | `tested` parcial | capas/bloques presentes; xrefs parciales |
 | Layouts, viewports y publicación | 10 | 6 | `tested` | paper space/PDF/recibos; UI multi-viewport parcial |
 | Interoperabilidad/extensibilidad | 5 | 3 | `tested` | DXF semántico acotado; DWG `provider-required` |
 | Calidad enterprise/seguridad/pruebas | 10 | 9 | `tested` | CI/tenant/brand/smokes verdes; falta arnés perf bloqueante |
-| **Total** | **100** | **71** |  | Sin claim de paridad general |
+| **Total** | **100** | **72** |  | Sin claim de paridad general |
 
 ## Paridad completa separada
 
@@ -217,6 +217,29 @@ No se editan ramas comerciales, ERP o PDF durante la construcción CAD.
   TypeScript y ESLint focal verdes. Chromium crea ANSI31 sobre ELLIPSE, prueba
   detach/reattach, regenera al editar el eje, guarda y marca `broken` al borrar
   la fuente: 1/1 verde en 16.8 s.
+
+### 2026-07-28 13:29–13:45 — P1-B / MTEXT nativo
+
+- MTEXT entró al registry/command bus/índice espacial nativos con hit-test de su
+  caja rotada, selección, snaps, grips de inserción/ancho/altura/rotación,
+  transforms, propiedades, undo/redo y persistencia completa en `CadDocument`.
+- Editor dentro del lienzo: contenido multilínea hasta 16 KiB, width, text
+  height, rotación, nueve attachment points, alineación left/center/right/
+  justify, estilo, familia con fallback, interlineado, bold/italic/underline,
+  máscara con padding y hasta ocho columnas. El panel de propiedades usa
+  `textarea`, por lo que no destruye saltos de línea.
+- `mtext-layout` mide y envuelve texto sin DOM, con caché acotada de 4,096
+  entradas apta para worker. El renderer usa CanvasTexture sólo como proyección
+  desechable y mantiene la semántica en el documento; justify distribuye gaps.
+- Publicación PDF conserva texto vectorial, alineación, max-width, énfasis,
+  subrayado y máscara. DXF emite MTEXT real con chunks 1/3, attachment, STYLE,
+  font fallback, line spacing, background y columnas 75/76/48/49; import raw
+  reconstruye la entidad semántica y evita duplicarla como TEXT plano.
+- Evidencia: layout/cache, runtime, paper-space y round-trip DXF verdes;
+  TypeScript y ESLint focal verdes. Chromium crea, formatea, edita, undo/redo,
+  guarda, recarga, descarga y reimporta el MTEXT: 1/1 verde en 16.7 s.
+- Deuda visible: `Layout3DEditor.tsx` llegó a 9,445 líneas; la extracción por
+  controladores/paneles sigue siendo un gate pendiente y no se oculta.
 
 ## Claims
 

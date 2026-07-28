@@ -120,6 +120,37 @@ assert.equal(
   true,
 );
 
+const mtext: Extract<CadNativeEntity, { type: "mtext" }> = {
+  id: "mtext-1",
+  type: "mtext",
+  insertion: { x: 200, y: 300, z: 0 },
+  text: "Nota de proceso\nSegunda lÃ­nea",
+  width: 500,
+  height: 50,
+  rotation: 0,
+  alignment: "top-left",
+  paragraphAlignment: "left",
+  lineSpacing: 1.2,
+  layer: "TEXT",
+};
+const mtextRuntime = CAD_ENTITY_REGISTRY.adapter(mtext);
+assert.equal(mtextRuntime.hitTester.hitTest(mtext, { x: 220, y: 280 }, 1), true);
+assert.equal(mtextRuntime.grips.grips(mtext).length, 4);
+const editedMtext = mtextRuntime.properties.write(mtext, {
+  text: "Texto editado",
+  width: 650,
+  paragraphAlignment: "center",
+  bold: true,
+  columns: 2,
+});
+assert.equal(editedMtext.text, "Texto editado");
+assert.equal(editedMtext.width, 650);
+assert.equal(editedMtext.paragraphAlignment, "center");
+assert.equal(editedMtext.bold, true);
+assert.equal(editedMtext.columns, 2);
+const movedMtext = mtextRuntime.grips.moveGrip(mtext, "insertion", { x: 250, y: 350 });
+assert.deepEqual(movedMtext.insertion, { x: 250, y: 350, z: 0 });
+
 const hatch: Extract<CadNativeEntity, { type: "hatch" }> = {
   id: "hatch-1",
   type: "hatch",

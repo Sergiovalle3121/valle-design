@@ -4,8 +4,8 @@ import type {
   CadPoint2,
   CadPoint3,
 } from "./cad-document";
-import type { CadDxfHatch, CadDxfPoint, CadDxfPrimitive } from "./dxf-import";
-import type { CadDxfExportHatch } from "./dxf-export";
+import type { CadDxfHatch, CadDxfMText, CadDxfPoint, CadDxfPrimitive } from "./dxf-import";
+import type { CadDxfExportHatch, CadDxfExportMText } from "./dxf-export";
 import type { CadNativeEntity } from "./entity-runtime";
 
 export interface CadDxfProjection {
@@ -238,6 +238,45 @@ export function cadDxfHatchesToNativeEntities(
     .filter((entity): entity is CadNativeEntity => entity !== null);
 }
 
+export function cadDxfMTextsToNativeEntities(
+  mtexts: CadDxfMText[],
+  options: CadDxfNativeImportOptions = {},
+): CadNativeEntity[] {
+  const projection = options.projection ?? identityProjection;
+  const prefix = options.idPrefix ?? "dxf";
+  const provider = options.provider ?? "dxf";
+  const scaleFactor =
+    (Math.hypot(...Object.values(mappedVector(projection, { x: 0, y: 0 }, { x: 1, y: 0 }))) +
+      Math.hypot(...Object.values(mappedVector(projection, { x: 0, y: 0 }, { x: 0, y: 1 })))) /
+    2;
+  return mtexts.map((mtext, index): CadNativeEntity => ({
+    id: `${prefix}:mtext:${index.toString().padStart(6, "0")}`,
+    type: "mtext",
+    insertion: point3(projection.point(mtext.insertion)),
+    text: mtext.text,
+    width: Math.max(1e-9, (mtext.width ?? (mtext.height ?? 120) * 20) * scaleFactor),
+    height: Math.max(1e-9, (mtext.height ?? 120) * scaleFactor),
+    rotation: projectedAngle(projection, mtext.insertion, 1, mtext.rotation ?? 0),
+    alignment: mtext.alignment ?? "top-left",
+    paragraphAlignment: mtext.paragraphAlignment ?? "left",
+    style: mtext.style ?? "Standard",
+    fontFamily: mtext.fontFamily ?? "Arial",
+    lineSpacing: mtext.lineSpacing ?? 1.2,
+    bold: mtext.bold ?? false,
+    italic: mtext.italic ?? false,
+    underline: mtext.underline ?? false,
+    backgroundMask: mtext.backgroundMask ?? false,
+    backgroundColor: mtext.backgroundColor,
+    backgroundPadding: mtext.backgroundPadding ?? 0.15,
+    columns: mtext.columns ?? 1,
+    layer: mtext.layer,
+    context: {
+      provenance: { provider },
+      metadata: { sourceType: "MTEXT", sourceLayer: mtext.layer },
+    },
+  }));
+}
+
 function clampedKnots(controlCount: number, degree: number): number[] {
   const knots: number[] = [];
   const spans = controlCount - degree;
@@ -341,6 +380,37 @@ export function cadDocumentNativeDxfHatches(
         angle: entity.angle,
         ...(entity.origin ? { origin: { x: entity.origin.x, y: entity.origin.y } } : {}),
         islandStyle: entity.islandStyle ?? "normal",
+      };
+    });
+}
+
+export function cadDocumentNativeDxfMTexts(
+  document: CadDocument,
+  filter?: (entity: CadEntity) => boolean,
+): CadDxfExportMText[] {
+  return document.entities
+    .filter((entity) => entity.type === "mtext" && (filter ? filter(entity) : true))
+    .map((entity) => {
+      if (entity.type !== "mtext") throw new Error("Unexpected non-MTEXT entity.");
+      return {
+        layer: entity.layer,
+        insertion: { x: entity.insertion.x, y: entity.insertion.y },
+        text: entity.text,
+        width: entity.width,
+        height: entity.height,
+        rotation: entity.rotation,
+        alignment: entity.alignment,
+        paragraphAlignment: entity.paragraphAlignment,
+        style: entity.style,
+        fontFamily: entity.fontFamily,
+        lineSpacing: entity.lineSpacing,
+        bold: entity.bold,
+        italic: entity.italic,
+        underline: entity.underline,
+        backgroundMask: entity.backgroundMask,
+        backgroundColor: entity.backgroundColor,
+        backgroundPadding: entity.backgroundPadding,
+        columns: entity.columns,
       };
     });
 }

@@ -44,6 +44,26 @@ export interface CadDxfHatch {
   origin?: CadDxfPoint;
   islandStyle?: "normal" | "outer" | "ignore";
 }
+export interface CadDxfMText {
+  layer: string;
+  insertion: CadDxfPoint;
+  text: string;
+  width?: number;
+  height?: number;
+  rotation?: number;
+  alignment?: "top-left" | "top-center" | "top-right" | "middle-left" | "middle-center" | "middle-right" | "bottom-left" | "bottom-center" | "bottom-right";
+  paragraphAlignment?: "left" | "center" | "right" | "justify";
+  style?: string;
+  fontFamily?: string;
+  lineSpacing?: number;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  backgroundMask?: boolean;
+  backgroundColor?: string;
+  backgroundPadding?: number;
+  columns?: number;
+}
 export interface CadDxfImportWarning {
   code: string;
   message: string;
@@ -53,6 +73,7 @@ export interface CadDxfImportWarning {
 export interface CadDxfImportResult {
   primitives: CadDxfPrimitive[];
   hatches: CadDxfHatch[];
+  mtexts: CadDxfMText[];
   warnings: CadDxfImportWarning[];
   layers: string[];
 }
@@ -479,6 +500,72 @@ function rawDxfPairs(text: string): RawDxfPair[] {
   return pairs;
 }
 
+function mtextAlignment(value: number): NonNullable<CadDxfMText["alignment"]> {
+  return [
+    "top-left", "top-center", "top-right",
+    "middle-left", "middle-center", "middle-right",
+    "bottom-left", "bottom-center", "bottom-right",
+  ][Math.max(1, Math.min(9, value)) - 1] as NonNullable<CadDxfMText["alignment"]>;
+}
+
+function decodeMTextContent(value: string): Pick<CadDxfMText, "text" | "fontFamily" | "bold" | "italic" | "underline" | "paragraphAlignment"> {
+  const font = /\\f([^|;]+)\|b([01])\|i([01]);/i.exec(value);
+  const paragraph = /\\p([crj]);/i.exec(value)?.[1]?.toLowerCase();
+  const underline = /\\L/.test(value);
+  const text = value
+    .replace(/\\p[crj];/gi, "")
+    .replace(/\{?\\f[^;]+;/gi, "")
+    .replace(/\\[LlOoKk]/g, "")
+    .replace(/\\P/g, "\n")
+    .replace(/[{}]/g, "")
+    .replace(/\\\\/g, "\\")
+    .trim();
+  return {
+    text,
+    ...(font?.[1] ? { fontFamily: font[1] } : {}),
+    ...(font ? { bold: font[2] === "1", italic: font[3] === "1" } : {}),
+    underline,
+    paragraphAlignment: paragraph === "c" ? "center" : paragraph === "r" ? "right" : paragraph === "j" ? "justify" : "left",
+  };
+}
+
+export function parseRawDxfMTexts(text: string): CadDxfMText[] {
+  const pairs = rawDxfPairs(text);
+  const result: CadDxfMText[] = [];
+  for (let start = 0; start < pairs.length && result.length < MAX_DXF_ENTITIES; start += 1) {
+    if (pairs[start].code !== 0 || pairs[start].value.toUpperCase() !== "MTEXT") continue;
+    let end = start + 1;
+    while (end < pairs.length && pairs[end].code !== 0) end += 1;
+    const entityPairs = pairs.slice(start + 1, end);
+    const first = (code: number) => entityPairs.find((pair) => pair.code === code)?.value;
+    const x = num(first(10));
+    const y = num(first(20));
+    const content = entityPairs.filter((pair) => pair.code === 1 || pair.code === 3).map((pair) => pair.value).join("");
+    const decoded = decodeMTextContent(content);
+    if (x !== null && y !== null && decoded.text) {
+      const trueColor = num(first(420));
+      const backgroundPadding = num(first(45));
+      result.push({
+        layer: first(8) || DEFAULT_LAYER,
+        insertion: { x, y },
+        ...decoded,
+        ...(num(first(41)) !== null ? { width: num(first(41))! } : {}),
+        ...(num(first(40)) !== null ? { height: num(first(40))! } : {}),
+        ...(num(first(50)) !== null ? { rotation: num(first(50))! } : {}),
+        alignment: mtextAlignment(Number(first(71) ?? 1)),
+        style: first(7) || "Standard",
+        ...(num(first(44)) !== null ? { lineSpacing: num(first(44))! } : {}),
+        backgroundMask: (Number(first(90) ?? 0) & 1) === 1,
+        ...(trueColor !== null ? { backgroundColor: `#${Math.max(0, trueColor).toString(16).padStart(6, "0").slice(-6)}` } : {}),
+        ...(backgroundPadding !== null ? { backgroundPadding: Math.max(0, backgroundPadding - 1) } : {}),
+        columns: Math.max(1, Math.min(8, Number(first(76) ?? 1) || 1)),
+      });
+    }
+    start = end - 1;
+  }
+  return result;
+}
+
 /**
  * dxf-parser currently drops HATCH. Parse polyline boundary paths directly
  * from ASCII group codes so solid and predefined-pattern hatches survive the
@@ -581,6 +668,7 @@ export function parseRawDxfHatches(text: string): {
 
 export function importDxfPrimitives(text: string): CadDxfImportResult {
   const rawHatchResult = parseRawDxfHatches(text);
+  const rawMTexts = parseRawDxfMTexts(text);
   const warnings: CadDxfImportWarning[] = [...rawHatchResult.warnings];
   let parsed: any;
   try {
@@ -589,14 +677,15 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
     return {
       primitives: [],
       hatches: rawHatchResult.hatches,
-      layers: [...new Set(rawHatchResult.hatches.map((hatch) => hatch.layer))].sort(),
+      mtexts: rawMTexts,
+      layers: [...new Set([...rawHatchResult.hatches.map((hatch) => hatch.layer), ...rawMTexts.map((mtext) => mtext.layer)])].sort(),
       warnings: [
         ...warnings,
         { code: "parse_failed", message: "No se pudo parsear el DXF." },
       ],
     };
   }
-  const remainingEntityCapacity = Math.max(0, MAX_DXF_ENTITIES - rawHatchResult.hatches.length);
+  const remainingEntityCapacity = Math.max(0, MAX_DXF_ENTITIES - rawHatchResult.hatches.length - rawMTexts.length);
   const entities: any[] = Array.isArray(parsed?.entities)
     ? parsed.entities.slice(0, remainingEntityCapacity)
     : [];
@@ -607,6 +696,7 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
   for (const entity of entities) {
     if (primitives.length >= remainingEntityCapacity) break;
     const type = String(entity?.type || "").toUpperCase();
+    if (type === "MTEXT") continue;
     if (type === "INSERT") {
       // Expansión de bloques (CAD-NEXT-063): las puertas/luminarias/mobiliario
       // insertados dejan de perderse como "no soportados".
@@ -643,5 +733,6 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
       message: `DXF recortado a ${MAX_DXF_ENTITIES} entidades incluyendo HATCH.`,
     });
   for (const hatch of rawHatchResult.hatches) layers.add(hatch.layer);
-  return { primitives, hatches: rawHatchResult.hatches, warnings, layers: [...layers].sort() };
+  for (const mtext of rawMTexts) layers.add(mtext.layer);
+  return { primitives, hatches: rawHatchResult.hatches, mtexts: rawMTexts, warnings, layers: [...layers].sort() };
 }

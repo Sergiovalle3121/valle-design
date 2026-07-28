@@ -3,6 +3,7 @@ import {
   CAD_ENTITY_REGISTRY,
   type CadNativeEntity,
 } from "./entity-runtime";
+import { layoutCadMText } from "./mtext-layout";
 
 export interface CadThreeViewport {
   scale: number;
@@ -41,6 +42,67 @@ function entityColor(entity: CadNativeEntity): number {
   const value = entity.context?.presentation?.color?.value;
   if (!value || !/^#[0-9a-f]{6}$/i.test(value)) return DEFAULT_COLOR;
   return Number.parseInt(value.slice(1), 16);
+}
+
+function buildCadMTextSprite(
+  entity: Extract<CadNativeEntity, { type: "mtext" }>,
+  viewport: CadThreeViewport,
+  elevation: number,
+): THREE.Sprite | null {
+  if (typeof document === "undefined") return null;
+  const layout = layoutCadMText(entity);
+  const paddingWorld = entity.backgroundMask
+    ? layout.fontSize * Math.max(0, entity.backgroundPadding ?? 0.15)
+    : 0;
+  const logicalWidth = layout.width + paddingWorld * 2;
+  const logicalHeight = layout.height + paddingWorld * 2;
+  const pixelsPerUnit = Math.max(0.05, Math.min(4, 1_024 / logicalWidth, 512 / logicalHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(2, Math.ceil(logicalWidth * pixelsPerUnit));
+  canvas.height = Math.max(2, Math.ceil(logicalHeight * pixelsPerUnit));
+  const context = canvas.getContext("2d");
+  if (!context) return null;
+  if (entity.backgroundMask) {
+    context.fillStyle = /^#[0-9a-f]{6}$/i.test(entity.backgroundColor ?? "")
+      ? entity.backgroundColor!
+      : "#111827";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+  }
+  context.fillStyle = entity.context?.presentation?.color?.value ?? "#e2e8f0";
+  context.textBaseline = "alphabetic";
+  context.font = `${entity.italic ? "italic " : ""}${entity.bold ? "bold " : ""}${Math.max(1, layout.fontSize * pixelsPerUnit)}px ${layout.fontStack}`;
+  const localMinX = Math.min(...layout.lines.map((line) => line.x), 0);
+  const localMaxY = Math.max(...layout.lines.map((line) => line.y + layout.fontSize), 0);
+  for (const line of layout.lines) {
+    const x = (line.x - localMinX + paddingWorld) * pixelsPerUnit;
+    const y = (localMaxY - line.y + paddingWorld) * pixelsPerUnit;
+    const words = line.justify ? line.text.trim().split(/\s+/).filter(Boolean) : [];
+    if (words.length > 1) {
+      const wordWidths = words.map((word) => context.measureText(word).width);
+      const gap = Math.max(0, (layout.columnWidth * pixelsPerUnit - wordWidths.reduce((sum, width) => sum + width, 0)) / (words.length - 1));
+      let cursor = x;
+      words.forEach((word, index) => {
+        context.fillText(word, cursor, y);
+        cursor += wordWidths[index] + gap;
+      });
+    } else context.fillText(line.text, x, y);
+    if (entity.underline && line.width > 0) {
+      context.fillRect(x, y + Math.max(1, layout.fontSize * pixelsPerUnit * 0.08), line.width * pixelsPerUnit, Math.max(1, layout.fontSize * pixelsPerUnit * 0.04));
+    }
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+  const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
+  material.rotation = ((entity.rotation ?? 0) * Math.PI) / 180;
+  const sprite = new THREE.Sprite(material);
+  const center = layout.corners.reduce((sum, point) => ({ x: sum.x + point.x / 4, y: sum.y + point.y / 4 }), { x: 0, y: 0 });
+  sprite.position.copy(scenePoint(center, viewport, elevation + 0.005));
+  sprite.scale.set(logicalWidth * viewport.scale, logicalHeight * viewport.scale, 1);
+  sprite.renderOrder = 30;
+  sprite.userData.nativeEntityId = entity.id;
+  sprite.userData.nativeText = true;
+  return sprite;
 }
 
 function overviewPoints(
@@ -262,6 +324,11 @@ export function buildCadNativeObject(
   const elevation = viewport.elevation ?? 0.11;
   const adapter = CAD_ENTITY_REGISTRY.adapter(entity);
 
+  if (entity.type === "mtext") {
+    const sprite = buildCadMTextSprite(entity, viewport, elevation);
+    if (sprite) group.add(sprite);
+  }
+
   if (entity.type === "hatch" && entity.solid && entity.boundaries[0]?.length >= 3) {
     const shapePath = (boundary: typeof entity.boundaries[number]) =>
       boundary.map((point) => ({
@@ -353,8 +420,13 @@ export function disposeCadNativeObject(object: THREE.Object3D): void {
       | THREE.Material
       | THREE.Material[]
       | undefined;
-    if (Array.isArray(material)) material.forEach((item) => item.dispose());
-    else material?.dispose?.();
+    const disposeMaterial = (item: THREE.Material) => {
+      const texture = (item as THREE.SpriteMaterial).map;
+      texture?.dispose();
+      item.dispose();
+    };
+    if (Array.isArray(material)) material.forEach(disposeMaterial);
+    else if (material) disposeMaterial(material);
   });
   object.removeFromParent();
 }

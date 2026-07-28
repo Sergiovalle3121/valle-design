@@ -96,7 +96,13 @@ export type CadVectorCommand =
       size: number;
       rotation: number;
       color: string;
-      align?: "left" | "center" | "right";
+      align?: "left" | "center" | "right" | "justify";
+      maxWidth?: number;
+      bold?: boolean;
+      italic?: boolean;
+      underline?: boolean;
+      backgroundMask?: boolean;
+      backgroundColor?: string;
     };
 
 export interface CadPublishWarning {
@@ -624,6 +630,15 @@ function renderEntity(
         size: Math.max(1.5, Math.min(12, (entity.height ?? 120) * scale)),
         rotation: entity.rotation ?? 0,
         color: style.stroke,
+        ...(entity.type === "mtext" ? {
+          align: entity.paragraphAlignment ?? "left",
+          maxWidth: (entity.width ?? (entity.height ?? 120) * 20) * scale,
+          bold: entity.bold,
+          italic: entity.italic,
+          underline: entity.underline,
+          backgroundMask: entity.backgroundMask,
+          backgroundColor: entity.backgroundColor,
+        } : {}),
       },
     ];
   }
