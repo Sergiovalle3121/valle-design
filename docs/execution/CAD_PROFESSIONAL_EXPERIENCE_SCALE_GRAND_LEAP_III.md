@@ -7,7 +7,7 @@
 | Inicio | 2026-07-28 00:41:25 -06:00 |
 | Objetivo de ventana | 2026-07-28 08:41:25 -06:00 |
 | Repositorio | `Sergiovalle3121/axos-os` |
-| Base | `06a35ff1a84b089636de0f168d4d9592d857f557` (`origin/main`) |
+| Base actual | `1625ba26a07876943b821586c46b02c9f47f6bac` (`origin/main`) |
 | Rama | `codex/cad-professional-grand-leap-iii` |
 | Worktree | `D:\\Codex\\Projects\\axos-os-cad-grand-leap-iii` |
 | Integración | Commits focales, push y PR draft; sin auto-merge |
@@ -91,7 +91,7 @@ Orden de ejecución:
 
 ### 2026-07-28 01:04–01:10 — Professional Interaction Core
 
-- Commit: `40778d50` (`feat(cad): harden professional command interaction`).
+- Commit: `5a0714d1` (`feat(cad): harden professional command interaction`).
 - Vertical: interacción profesional.
 - Cambios:
   - línea de comandos visible y enfocable desde la barra;
@@ -118,7 +118,7 @@ Orden de ejecución:
 
 ### 2026-07-28 01:10–01:16 — Native HATCH end-to-end
 
-- Commit: `de59a1dc` (`feat(cad): make hatch native and DXF round-trip safe`).
+- Commit: `25b00875` (`feat(cad): make hatch native and DXF round-trip safe`).
 - Vertical: documentación nativa y precisión P1.
 - Cambios:
   - `HATCH` se añadió al registry/synchronizer/índice espacial canónicos;
@@ -147,7 +147,7 @@ Orden de ejecución:
 
 ### 2026-07-28 01:16–01:41 — Large Drawing Durability & Recovery
 
-- Commit: `41e99718` (`feat(cad): scale persistence and add scoped recovery`).
+- Commit: `75463b3a` (`feat(cad): scale persistence and add scoped recovery`).
 - Vertical: persistencia grande y recuperación operativa.
 - Cambios:
   - transporte automático multipart/gzip para `CadDocument` mayor a 6 MB;
@@ -185,7 +185,7 @@ Orden de ejecución:
 
 ### 2026-07-28 01:41–02:13 — Browser scale, LOD y save/reload real
 
-- Commit: `45bbd470` (`feat(cad): keep 100k drawings responsive with explicit LOD`).
+- Commit: `63a78c6e` (`feat(cad): keep 100k drawings responsive with explicit LOD`).
 - Vertical: rendimiento y degradación controlada para dibujos grandes.
 - Hallazgo reproducido antes del cambio: 100,000 ARC canónicos intentaban crear
   100,000 `Object3D`; el hilo principal dejó de responder y Chromium cerró la
@@ -217,12 +217,12 @@ Orden de ejecución:
   - `git diff --check`: limpio; worktree sin arnés/logs temporales;
   - el arnés HTTP separa corpus 10k/100k, aplica CAS y sólo descomprime la ruta
     `/layout/cad-archive`; el save 100k avanzó CAS y sobrevivió al reload.
-- Límites honestos: `performance.memory` y `requestAnimationFrame` no estaban
-  expuestos por el sandbox de automatización, por lo que no se inventa memoria
-  ni frame time. A 100k la edición existe pero selección/reload siguen en decenas
-  de segundos; las 97,500 entidades no detalladas no son pickables directamente
-  hasta entrar en la muestra. El siguiente salto debe ser batching/viewport
-  culling con selección respaldada por el índice espacial, no aumentar objetos.
+- Límites honestos en ese checkpoint: `performance.memory` y
+  `requestAnimationFrame` no estaban expuestos por el sandbox de automatización,
+  por lo que no se inventó memoria ni frame time. La brecha entonces abierta era
+  que las 97,500 entidades no detalladas aún no eran pickables directamente; el
+  checkpoint posterior la cierra con batching e índice canónico, sin aumentar
+  el número de objetos Three.js detallados.
 - Riesgo/rollback: el LOD sólo afecta la proyección Three.js. Eliminar el
   planificador restaura el comportamiento anterior sin migrar datos, pero vuelve
   a exponer el crash de 100k. El umbral está centralizado y cubierto por spec.
@@ -231,9 +231,10 @@ Orden de ejecución:
 
 ### 2026-07-28 02:13–02:18 — Hardening final
 
-- Commits CAD: `40778d50`, `de59a1dc`, `41e99718` y `45bbd470`.
-- `origin/main` permaneció en `06a35ff1` después del fetch final; no fue necesario
-  rebase ni mezclar trabajo concurrente.
+- Commits CAD en ese checkpoint: `5a0714d1`, `25b00875`, `75463b3a` y
+  `63a78c6e` (identificadores actuales después de la sincronización final).
+- En ese checkpoint `origin/main` permanecía en `06a35ff1`; la sincronización
+  posterior sobre el nuevo commit de landing se registra abajo.
 - Los listeners y pestañas del arnés se cerraron, y sus scripts/logs/sqlite se
   eliminaron de `work/`; no forman parte del diff.
 - Resultado: cuatro verticales funcionales cerradas sobre la arquitectura
@@ -263,6 +264,65 @@ Orden de ejecución:
 - Siguiente acción: commit/push del inventario, esperar la nueva corrida completa
   y corregir únicamente fallos atribuibles a esta rama.
 
+### 2026-07-28 02:26–11:44 — Selección canónica y overview completo a 100k
+
+- Vertical: escala interactiva y fidelidad operativa de dibujos grandes.
+- Cambios:
+  - índice espacial canónico independiente de la escena Three.js para las
+    100,000 entidades, actualizado por reemplazo o parches incrementales;
+  - point hit-test, ventana/crossing y OSNAP consultan el documento completo,
+    aunque una entidad no pertenezca a las 2,500 proyecciones detalladas;
+  - una entidad seleccionada fuera del LOD se materializa inmediatamente en el
+    presupuesto detallado, sustituyendo una muestra y sin ampliar el límite;
+  - overview de todas las entidades en un único `LineSegments`/draw call, con
+    slots fijos, rangos de buffer sucios y visibilidad por capa sin reconstruir
+    miles de objetos;
+  - la escena excluye el overview de raycast y conserva la geometría canónica
+    exacta para selección, edición, DXF, guardado y recuperación.
+- Evidencia de navegador real con corpus de 100,000 ARC:
+  - UI estable: `Native 100000` y
+    `LOD 2,500/100,000 · overview completo`;
+  - `arc-1`, omitida de la muestra detallada original, fue seleccionada desde
+    la lista, materializada, movida en +X y guardada;
+  - el servidor de prueba avanzó CAS v1→v2, conservó las 100,000 entidades y
+    cambió `arc-1.center` de `(30,10)` a `(40,10)`;
+  - después de reload la UI volvió a mostrar 100,000 entidades y los controles
+    canónicos expusieron `centerX=40`, `centerY=10`;
+  - cero errores de consola; pestañas, listeners, arnés y logs fueron cerrados
+    y eliminados.
+- Benchmark aislado final (esta máquina, no SLA):
+
+| Medida | Resultado |
+| --- | ---: |
+| índice espacial base 100k, build | 193.36 ms |
+| índice espacial base 100k, query p95 | 0.537 ms |
+| índice canónico 100k, build | 422.41 ms |
+| hit-test canónico 100k, p50 / p95 | 0.041 / 0.119 ms |
+| overview 100k, build / posición | 218.86 ms / 19,200,000 bytes |
+| overview draw calls | 1 |
+| sincronizador 100k, carga inicial | 755.24 ms |
+| sincronizador, parche de 100 entidades | 1.43 ms |
+
+- Gates posteriores al cambio:
+  - web: 112/112 specs; TypeScript exit 0;
+  - ESLint completo: exit 0, 0 errores y 39 warnings; los nuevos módulos de
+    índice/overview/benchmark no reportaron warnings;
+  - marca: 0 violaciones; tenant-safety: 40/40 pruebas y baseline 987/987;
+  - API TypeScript: exit 0. La suite API completa local no entregó salida antes
+    del timeout de 8 minutos y no dejó procesos huérfanos; el commit publicado
+    anterior ya tenía CI completo verde y el nuevo commit sólo modifica web/docs.
+  - `git diff --check`: limpio.
+- Límites honestos: el overview usa hasta ocho segmentos y la primera ruta por
+  entidad; para HATCH dibuja el contorno exterior. Es una orientación global,
+  no una promesa de teselación completa simultánea. La selección, propiedades,
+  persistencia y exportación siguen leyendo el documento canónico exacto.
+- Riesgo/rollback: overview e índice son proyecciones reconstruibles, sin cambio
+  de schema. Retirarlos no migra datos, pero restaura la brecha de selección y
+  visibilidad de entidades omitidas por LOD.
+- Sincronía final: `origin/main` avanzó a `1625ba26` por el PR #1415 de
+  landing. Sus archivos no se solapaban con esta rama; los ocho commits se
+  rebasaron sin conflictos y el worktree quedó 0 detrás / 8 delante.
+
 ## Evidencia acumulada
 
 | Capacidad | Antes | Después de esta rama |
@@ -271,10 +331,10 @@ Orden de ejecución:
 | HATCH | se perdía al importar DXF | entidad nativa editable y round-trip poligonal |
 | Persistencia >8 MB | rechazada por JSON | gzip/blob content-addressed hasta presupuesto de 128 MiB |
 | Recuperación | sin checkpoint | IndexedDB segregado, TTL y guard CAS-compatible |
-| Navegador 100k | cierre de pestaña | documento completo con LOD explícito y save/reload CAS |
+| Navegador 100k | cierre de pestaña | overview completo batched, selección canónica, LOD explícito y save/reload CAS |
 
 Claims permitidos: los recorridos y límites exactos anteriores, DXF del
 subconjunto soportado, persistencia/recovery multi-tenant conforme a los
 contratos probados y degradación LOD explícita. Claims prohibidos: paridad DWG,
-60 FPS/tiempo real a 100k, fidelidad visual simultánea de las 100k entidades,
+60 FPS/tiempo real a 100k, teselación detallada simultánea de las 100k entidades,
 memoria no medida o equivalencia general con AutoCAD.

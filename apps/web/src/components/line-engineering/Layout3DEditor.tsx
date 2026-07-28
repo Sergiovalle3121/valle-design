@@ -88,6 +88,7 @@ import {
   type CadRecoveryRecord,
 } from '@/lib/cad/cad-recovery';
 import { planCadNativeRenderBudget } from '@/lib/cad/native-render-budget';
+import { CadNativeSelectionIndex } from '@/lib/cad/native-selection-index';
 import { exportCadLayoutDxf } from '@/lib/cad/layout-export-adapter';
 import { buildPlotSheet, CAD_PAPER_SIZES, type CadPaperId } from '@/lib/cad/plot-sheet';
 import { evaluateCadDxfExportReadiness, type CadDxfExportLayerSummary, type CadDxfExportReadinessEntity, type CadDxfExportReadinessIssue } from '@/lib/cad/dxf-export-readiness';
@@ -144,9 +145,12 @@ import {
   type CadScenePatch,
 } from '@/lib/cad/entity-runtime';
 import {
+  buildCadNativeOverviewObject,
   buildCadNativeObject,
   disposeCadNativeObject,
+  setCadNativeOverviewHiddenLayers,
   setCadNativeObjectSelected,
+  updateCadNativeOverviewObject,
 } from '@/lib/cad/entity-three';
 import {
   cadDocumentNativeDxfHatches,
@@ -1112,6 +1116,8 @@ export default function Layout3DEditor({
   const blocksRef = useRef<THREE.Group | null>(null);
   const assetsGroupRef = useRef<THREE.Group | null>(null);
   const nativeGroupRef = useRef<THREE.Group | null>(null);
+  const nativeOverviewRef = useRef<THREE.LineSegments | null>(null);
+  const nativeOverviewDocumentRef = useRef<CadDocument | null>(null);
   const dimsGroupRef = useRef<THREE.Group | null>(null);
   const notesGroupRef = useRef<THREE.Group | null>(null);
   const connsGroupRef = useRef<THREE.Group | null>(null);
@@ -1157,8 +1163,12 @@ export default function Layout3DEditor({
   const loadedCadDocumentRef = useRef<CadDocument | null>(null);
   const nativeSelectionIdsRef = useRef<string[]>([]);
   const nativeSceneSyncRef = useRef<CadSceneSynchronizer<THREE.Object3D> | null>(null);
+  const nativeSelectionIndexRef = useRef<CadNativeSelectionIndex | null>(null);
+  const nativeIndexedDocumentRef = useRef<CadDocument | null>(null);
   if (nativeSceneSyncRef.current === null)
     nativeSceneSyncRef.current = new CadSceneSynchronizer<THREE.Object3D>();
+  if (nativeSelectionIndexRef.current === null)
+    nativeSelectionIndexRef.current = new CadNativeSelectionIndex();
 
   // layout state refs (drive both the scene and the save)
   const placementsRef = useRef<Map<string, Placement>>(new Map());
@@ -1242,9 +1252,21 @@ export default function Layout3DEditor({
       const document = loadedCadDocumentRef.current;
       nativeGroupRef.current.visible = L.equipment;
       nativeGroupRef.current.children.forEach((child) => {
+        if (child.userData?.nativeOverview === true) {
+          child.visible = L.equipment;
+          setCadNativeOverviewHiddenLayers(
+            child as THREE.LineSegments,
+            new Set(
+              document?.layers
+                .filter((layer) => layer.visible === false)
+                .map((layer) => layer.id) ?? [],
+            ),
+          );
+          return;
+        }
         const entityId = child.userData?.nativeEntityId as string | undefined;
         const entity = entityId
-          ? document?.entities.find((candidate) => candidate.id === entityId)
+          ? nativeSelectionIndexRef.current?.entity(entityId)
           : undefined;
         const layer = entity
           ? document?.layers.find((candidate) => candidate.id === entity.layer)
@@ -1684,7 +1706,8 @@ export default function Layout3DEditor({
     const document = loadedCadDocumentRef.current;
     const next = [...new Set(ids)]
       .filter((id) => {
-        const entity = document?.entities.find((candidate) => candidate.id === id);
+        const entity = nativeSelectionIndexRef.current?.entity(id)
+          ?? document?.entities.find((candidate) => candidate.id === id);
         return !!entity && CAD_ENTITY_REGISTRY.supports(entity);
       })
       .slice(0, 300);
@@ -1708,7 +1731,8 @@ export default function Layout3DEditor({
     const group = nativeGroupRef.current;
     const context = ctxRef.current;
     const synchronizer = nativeSceneSyncRef.current;
-    if (!document || !group || !context || !synchronizer) return;
+    const selectionIndex = nativeSelectionIndexRef.current;
+    if (!document || !group || !context || !synchronizer || !selectionIndex) return;
     const render = (entity: CadNativeEntity) => {
       const object = buildCadNativeObject(entity, {
         scale: context.s,
@@ -1735,6 +1759,41 @@ export default function Layout3DEditor({
       nativeDocumentEntities,
       nativeSelectionIdsRef.current,
     );
+    if (nativeIndexedDocumentRef.current !== document) {
+      if (patch && nativeIndexedDocumentRef.current)
+        selectionIndex.applyPatch(patch);
+      else selectionIndex.replace(nativeDocumentEntities);
+      nativeIndexedDocumentRef.current = document;
+    }
+    const rebuildNativeOverview = () => {
+      if (nativeOverviewRef.current)
+        disposeCadNativeObject(nativeOverviewRef.current);
+      const overview = buildCadNativeOverviewObject(nativeDocumentEntities, {
+        scale: context.s,
+        width: context.W,
+        height: context.H,
+      }, 8, new Set(
+        document.layers
+          .filter((layer) => layer.visible === false)
+          .map((layer) => layer.id),
+      ));
+      group.add(overview);
+      nativeOverviewRef.current = overview;
+      nativeOverviewDocumentRef.current = document;
+    };
+    if (renderPlan.limited) {
+      if (!nativeOverviewRef.current) rebuildNativeOverview();
+      else if (patch) {
+        if (!updateCadNativeOverviewObject(nativeOverviewRef.current, patch))
+          rebuildNativeOverview();
+        else nativeOverviewDocumentRef.current = document;
+      } else if (nativeOverviewDocumentRef.current !== document)
+        rebuildNativeOverview();
+    } else if (nativeOverviewRef.current) {
+      disposeCadNativeObject(nativeOverviewRef.current);
+      nativeOverviewRef.current = null;
+      nativeOverviewDocumentRef.current = null;
+    }
     setNativeRenderStats((current) =>
       current.total === renderPlan.total
         && current.rendered === renderPlan.rendered
@@ -2563,16 +2622,13 @@ export default function Layout3DEditor({
           const g = rectGeometry(b);
           scene.segments!.push(...g.edges); scene.endpoints!.push(...g.corners); scene.centers!.push(g.center);
         }
-        const document = loadedCadDocumentRef.current;
-        const nativeIds = nativeSceneSyncRef.current?.spatialIndex.search({
+        const nativeCandidates = nativeSelectionIndexRef.current?.search({
           minX: wx - tol * 4,
           minY: wy - tol * 4,
           maxX: wx + tol * 4,
           maxY: wy + tol * 4,
-        }) ?? [];
-        for (const id of nativeIds.slice(0, 48)) {
-          const entity = document?.entities.find((candidate) => candidate.id === id);
-          if (!entity || !CAD_ENTITY_REGISTRY.supports(entity)) continue;
+        }, 48) ?? [];
+        for (const entity of nativeCandidates) {
           for (const snap of CAD_ENTITY_REGISTRY.adapter(entity).snaps.snaps(entity, { x: wx, y: wy })) {
             if (snap.kind === 'center') scene.centers!.push(snap.point);
             else if (snap.kind === 'control') scene.nodes!.push(snap.point);
@@ -2626,10 +2682,32 @@ export default function Layout3DEditor({
         .map((h) => ({ d: h.distance, id: resolveAssetId(h.object) }))
         .filter((h) => h.id)
         .map((h) => ({ d: h.d, type: 'asset' as const, id: h.id as string, obj: groupByAssetRef.current.get(h.id as string)! }));
-      const nativeHits = raycaster.intersectObjects(nativeGroup.children, true)
+      const nativeHits = raycaster.intersectObjects(
+        nativeGroup.children.filter((child) => child.userData.nativeOverview !== true),
+        true,
+      )
         .map((h) => ({ d: h.distance, id: resolveNativeEntityId(h.object), gripId: h.object.userData?.nativeGripId as string | undefined }))
         .filter((h) => h.id)
         .map((h) => ({ d: h.d, type: 'native' as const, id: h.id as string, obj: h, gripId: h.gripId }));
+      if (!stationHits.length && !assetHits.length && !nativeHits.length) {
+        const world = floorWorld(e);
+        const context = ctxRef.current;
+        if (world && context) {
+          const tolerance = Math.max(context.W, context.H) * 0.003;
+          const canonicalHit = nativeSelectionIndexRef.current?.hitTest(
+            { x: world.wx, y: world.wy },
+            tolerance,
+            1,
+          )[0];
+          if (canonicalHit) nativeHits.push({
+            d: 0,
+            type: 'native',
+            id: canonicalHit.id,
+            obj: { d: 0, id: canonicalHit.id, gripId: undefined },
+            gripId: undefined,
+          });
+        }
+      }
       const all = [...stationHits, ...assetHits, ...nativeHits].sort((a, b) => a.d - b.d);
       if (all.length) {
         const top = all[0];
@@ -2852,13 +2930,8 @@ export default function Layout3DEditor({
         placementsRef.current.forEach((p, id) => { if (inWindow(p)) found.push({ type: 'station', id }); });
         assetsRef.current.forEach((a) => { if (inWindow(a)) found.push({ type: 'asset', id: a.id }); });
         const nativeWindow = { minX, minY, maxX, maxY };
-        const document = loadedCadDocumentRef.current;
-        const nativeFound = (nativeSceneSyncRef.current?.spatialIndex.search(nativeWindow) ?? [])
-          .filter((id) => {
-            const entity = document?.entities.find((candidate) => candidate.id === id);
-            return !!entity && CAD_ENTITY_REGISTRY.supports(entity)
-              && CAD_ENTITY_REGISTRY.adapter(entity).hitTester.intersectsWindow(entity, nativeWindow, crossing);
-          });
+        const nativeFound = (nativeSelectionIndexRef.current?.intersecting(nativeWindow, crossing, 300) ?? [])
+          .map((entity) => entity.id);
         const merged = [...selRef.current];
         found.forEach((it) => { if (!merged.some((s) => sameSel(s, it))) merged.push(it); });
         select(merged.slice(0, 300));
@@ -3030,6 +3103,8 @@ export default function Layout3DEditor({
       controls.dispose();
       disposeObject(scene);
       nativeSceneSyncRef.current?.clear({ remove: () => {} });
+      nativeOverviewRef.current = null;
+      nativeOverviewDocumentRef.current = null;
       renderer.dispose();
       if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
       sceneRef.current = null; rendererRef.current = null; cameraRef.current = null;
@@ -7319,7 +7394,7 @@ export default function Layout3DEditor({
                   className="text-amber-300"
                   title={`${nativeRenderStats.omitted.toLocaleString()} entidades permanecen en el documento canónico y usan nivel de detalle visual`}
                 >
-                  LOD {nativeRenderStats.rendered.toLocaleString()}/{nativeRenderStats.total.toLocaleString()}
+                  LOD {nativeRenderStats.rendered.toLocaleString()}/{nativeRenderStats.total.toLocaleString()} · overview completo
                 </span>
               )}
               <span>{data?.footprint.unit ?? 'mm'}</span>
@@ -7540,7 +7615,10 @@ export default function Layout3DEditor({
                         <button
                           key={entity.id}
                           data-testid={`cad-native-entity-${entity.id}`}
-                          onClick={() => selectNative([entity.id])}
+                          onClick={() => {
+                            selectNative([entity.id]);
+                            syncNativeScene();
+                          }}
                           className="flex w-full items-center justify-between gap-2 rounded-lg bg-gray-950/45 px-2 py-1.5 text-left text-[11px] text-gray-200 hover:bg-white/[0.08]"
                         >
                           <span className="truncate">{entity.id}</span>

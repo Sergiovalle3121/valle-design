@@ -11,6 +11,17 @@ export interface CadThreeViewport {
   elevation?: number;
 }
 
+interface CadNativeOverviewState {
+  entitySlots: Map<string, number>;
+  entities: Map<string, CadNativeEntity>;
+  hiddenLayers: Set<string>;
+  maxSegmentsPerEntity: number;
+  viewport: CadThreeViewport;
+}
+
+const CAD_NATIVE_OVERVIEW_COLOR = 0x475569;
+const cadNativeOverviewStates = new WeakMap<THREE.LineSegments, CadNativeOverviewState>();
+
 const DEFAULT_COLOR = 0x60a5fa;
 const SELECTED_COLOR = 0x22d3ee;
 
@@ -30,6 +41,188 @@ function entityColor(entity: CadNativeEntity): number {
   const value = entity.context?.presentation?.color?.value;
   if (!value || !/^#[0-9a-f]{6}$/i.test(value)) return DEFAULT_COLOR;
   return Number.parseInt(value.slice(1), 16);
+}
+
+function overviewPoints(
+  entity: CadNativeEntity,
+  maxSegments: number,
+): { points: { x: number; y: number }[]; closed: boolean } {
+  if (entity.type === "hatch") {
+    return {
+      points: entity.boundaries[0] ?? [],
+      closed: true,
+    };
+  }
+  const path = CAD_ENTITY_REGISTRY.adapter(entity).renderer.paths(
+    entity,
+    maxSegments,
+  )[0];
+  return path ?? { points: [], closed: false };
+}
+
+function sampledOverviewPoints(
+  points: readonly { x: number; y: number }[],
+  closed: boolean,
+  maxSegments: number,
+): { x: number; y: number }[] {
+  const maxPoints = closed ? maxSegments : maxSegments + 1;
+  if (points.length <= maxPoints) return [...points];
+  const denominator = closed ? maxPoints : maxPoints - 1;
+  return Array.from({ length: maxPoints }, (_, index) =>
+    points[Math.floor((index * (points.length - (closed ? 0 : 1))) / denominator)],
+  );
+}
+
+function writeOverviewSlot(
+  positions: Float32Array,
+  slot: number,
+  entity: CadNativeEntity | null,
+  state: CadNativeOverviewState,
+): void {
+  const start = slot * state.maxSegmentsPerEntity * 6;
+  positions.fill(0, start, start + state.maxSegmentsPerEntity * 6);
+  if (!entity || state.hiddenLayers.has(entity.layer)) return;
+  const path = overviewPoints(entity, state.maxSegmentsPerEntity);
+  const points = sampledOverviewPoints(
+    path.points,
+    path.closed,
+    state.maxSegmentsPerEntity,
+  );
+  const segmentCount = Math.min(
+    state.maxSegmentsPerEntity,
+    Math.max(0, points.length - 1 + (path.closed ? 1 : 0)),
+  );
+  for (let index = 0; index < segmentCount; index += 1) {
+    const from = points[index];
+    const to = points[(index + 1) % points.length];
+    const fromScene = scenePoint(from, state.viewport, state.viewport.elevation ?? 0.085);
+    const toScene = scenePoint(to, state.viewport, state.viewport.elevation ?? 0.085);
+    const offset = start + index * 6;
+    positions.set(
+      [fromScene.x, fromScene.y, fromScene.z, toScene.x, toScene.y, toScene.z],
+      offset,
+    );
+  }
+}
+
+/**
+ * One-draw-call overview for very large canonical drawings. Each entity owns a
+ * fixed geometry slot, so common edit patches update typed-array ranges without
+ * recreating thousands of Three.js objects.
+ */
+export function buildCadNativeOverviewObject(
+  entities: readonly CadNativeEntity[],
+  viewport: CadThreeViewport,
+  maxSegmentsPerEntity = 8,
+  hiddenLayers: ReadonlySet<string> = new Set(),
+): THREE.LineSegments {
+  const safeSegments = Math.max(1, Math.floor(maxSegmentsPerEntity));
+  const positions = new Float32Array(entities.length * safeSegments * 6);
+  const state: CadNativeOverviewState = {
+    entitySlots: new Map(entities.map((entity, index) => [entity.id, index])),
+    entities: new Map(entities.map((entity) => [entity.id, entity])),
+    hiddenLayers: new Set(hiddenLayers),
+    maxSegmentsPerEntity: safeSegments,
+    viewport: { ...viewport },
+  };
+  entities.forEach((entity, index) =>
+    writeOverviewSlot(positions, index, entity, state),
+  );
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  const object = new THREE.LineSegments(
+    geometry,
+    new THREE.LineBasicMaterial({
+      color: CAD_NATIVE_OVERVIEW_COLOR,
+      transparent: true,
+      opacity: 0.48,
+      depthTest: false,
+    }),
+  );
+  object.name = "cad-native:overview";
+  object.renderOrder = 28;
+  object.frustumCulled = false;
+  object.userData.nativeOverview = true;
+  object.userData.nativeOverviewEntities = entities.length;
+  cadNativeOverviewStates.set(object, state);
+  return object;
+}
+
+/** Returns false when a structural insert requires rebuilding the batch. */
+export function updateCadNativeOverviewObject(
+  object: THREE.LineSegments,
+  patch: { upsert: CadNativeEntity[]; remove: string[] },
+): boolean {
+  const state = cadNativeOverviewStates.get(object);
+  const attribute = object.geometry.getAttribute("position") as THREE.BufferAttribute | undefined;
+  if (!state || !attribute || !(attribute.array instanceof Float32Array)) return false;
+  if (patch.upsert.some((entity) => !state.entitySlots.has(entity.id))) return false;
+  const positions = attribute.array;
+  const dirtySlots = new Set<number>();
+  for (const id of new Set(patch.remove)) {
+    const slot = state.entitySlots.get(id);
+    if (slot !== undefined) {
+      state.entities.delete(id);
+      writeOverviewSlot(positions, slot, null, state);
+      dirtySlots.add(slot);
+    }
+  }
+  for (const entity of patch.upsert) {
+    const slot = state.entitySlots.get(entity.id);
+    if (slot !== undefined) {
+      state.entities.set(entity.id, entity);
+      writeOverviewSlot(positions, slot, entity, state);
+      dirtySlots.add(slot);
+    }
+  }
+  if (dirtySlots.size) {
+    let first = Number.POSITIVE_INFINITY;
+    let last = -1;
+    for (const slot of dirtySlots) {
+      first = Math.min(first, slot);
+      last = Math.max(last, slot);
+    }
+    attribute.clearUpdateRanges();
+    attribute.addUpdateRange(
+      first * state.maxSegmentsPerEntity * 6,
+      (last - first + 1) * state.maxSegmentsPerEntity * 6,
+    );
+    attribute.needsUpdate = true;
+  }
+  return true;
+}
+
+/** Applies document-layer visibility without rebuilding the overview batch. */
+export function setCadNativeOverviewHiddenLayers(
+  object: THREE.LineSegments,
+  hiddenLayers: ReadonlySet<string>,
+): void {
+  const state = cadNativeOverviewStates.get(object);
+  const attribute = object.geometry.getAttribute("position") as THREE.BufferAttribute | undefined;
+  if (!state || !attribute || !(attribute.array instanceof Float32Array)) return;
+  const changedLayers = new Set([
+    ...[...state.hiddenLayers].filter((layer) => !hiddenLayers.has(layer)),
+    ...[...hiddenLayers].filter((layer) => !state.hiddenLayers.has(layer)),
+  ]);
+  if (!changedLayers.size) return;
+  state.hiddenLayers = new Set(hiddenLayers);
+  let first = Number.POSITIVE_INFINITY;
+  let last = -1;
+  for (const [id, entity] of state.entities) {
+    if (!changedLayers.has(entity.layer)) continue;
+    const slot = state.entitySlots.get(id);
+    if (slot === undefined) continue;
+    writeOverviewSlot(attribute.array, slot, entity, state);
+    first = Math.min(first, slot);
+    last = Math.max(last, slot);
+  }
+  if (last < 0) return;
+  attribute.clearUpdateRanges();
+  attribute.addUpdateRange(
+    first * state.maxSegmentsPerEntity * 6,
+    (last - first + 1) * state.maxSegmentsPerEntity * 6,
+  );
+  attribute.needsUpdate = true;
 }
 
 export function setCadNativeObjectSelected(

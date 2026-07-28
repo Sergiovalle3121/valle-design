@@ -5,6 +5,8 @@ import {
   CadSpatialIndex,
   type CadNativeEntity,
 } from "./entity-runtime";
+import { buildCadNativeOverviewObject, disposeCadNativeObject } from "./entity-three";
+import { CadNativeSelectionIndex } from "./native-selection-index";
 
 interface BenchmarkResult {
   entities: number;
@@ -80,6 +82,41 @@ const nativeEntities: CadNativeEntity[] = Array.from(
     layer: "BENCHMARK",
   }),
 );
+const selectionIndex = new CadNativeSelectionIndex();
+const selectionIndexStarted = performance.now();
+selectionIndex.replace(nativeEntities);
+const selectionIndexBuildMs = performance.now() - selectionIndexStarted;
+const selectionSamples: number[] = [];
+for (let query = 0; query < 200; query += 1) {
+  const entityIndex = (query * 499) % nativeEntities.length;
+  const entity = nativeEntities[entityIndex];
+  assert.equal(entity.type, "arc");
+  const queryStarted = performance.now();
+  const hit = selectionIndex.hitTest({
+    x: entity.center.x + entity.radius,
+    y: entity.center.y,
+  }, 0.5, 1);
+  selectionSamples.push(performance.now() - queryStarted);
+  assert.equal(hit[0]?.id, entity.id);
+}
+
+const overviewStarted = performance.now();
+const overview = buildCadNativeOverviewObject(
+  nativeEntities,
+  { scale: 0.01, width: 20_000, height: 2_000 },
+);
+const overviewBuildMs = performance.now() - overviewStarted;
+const overviewPositionBytes = overview.geometry.getAttribute("position").array.byteLength;
+assert.equal(overview.userData.nativeOverviewEntities, 100_000);
+assert.equal(overviewPositionBytes, 19_200_000);
+disposeCadNativeObject(overview);
+
+const canonicalHitP95Ms = percentile(selectionSamples, 0.95);
+assert.ok(
+  canonicalHitP95Ms < 12,
+  `canonical hit-test p95 must stay below 12ms (actual ${canonicalHitP95Ms.toFixed(2)}ms)`,
+);
+
 const synchronizer = new CadSceneSynchronizer<{ revision: number }>();
 const sink = {
   create: () => ({ revision: 1 }),
@@ -116,6 +153,18 @@ console.log(
         initialMs,
         patchEntities: 100,
         patchMs,
+      },
+      canonicalSelection: {
+        entities: selectionIndex.size,
+        buildMs: selectionIndexBuildMs,
+        hitP50Ms: percentile(selectionSamples, 0.5),
+        hitP95Ms: canonicalHitP95Ms,
+      },
+      overview: {
+        entities: nativeEntities.length,
+        buildMs: overviewBuildMs,
+        positionBytes: overviewPositionBytes,
+        drawCalls: 1,
       },
     },
     null,
