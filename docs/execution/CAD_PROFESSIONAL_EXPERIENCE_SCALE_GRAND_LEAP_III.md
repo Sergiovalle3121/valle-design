@@ -253,6 +253,13 @@ Orden de ejecución:
   revisado; sólo cambian esos 18 números de línea.
 - Evidencia local: `npm run test:tenant-safety`, 40/40; `npm run
   check:tenant-safety`, pass con 987 hallazgos y 987 entradas baseline.
+- La segunda corrida `30342414519` superó tenant-safety y detectó dos IDs
+  internos nuevos con la marca heredada. Como ambos nacen en esta rama y aún no
+  están desplegados, se reemplazan por IDs neutrales estables (`cad-recovery` y
+  `cad-editor`) en vez de ampliar la allowlist o acoplar persistencia a una marca.
+- La verificación local descubrió que el gate de marca comparaba separadores
+  POSIX contra rutas Windows; se normaliza `relative()` para que la allowlist de
+  route handlers produzca el mismo resultado local y en CI Linux.
 - Siguiente acción: commit/push del inventario, esperar la nueva corrida completa
   y corregir únicamente fallos atribuibles a esta rama.
 

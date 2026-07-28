@@ -3807,7 +3807,7 @@ export default function Layout3DEditor({
         angle: 45,
         layer: layerAssignmentsRef.current[asset.id] ?? defaultCadLayerForAssetKind(asset.kind, objectTagsRef.current[asset.id]),
         context: {
-          provenance: { provider: 'axos-editor' },
+          provenance: { provider: 'cad-editor' },
           metadata: { sourceAssetId: asset.id, sourceType: 'CLOSED_ASSET_BOUNDARY' },
         },
       };

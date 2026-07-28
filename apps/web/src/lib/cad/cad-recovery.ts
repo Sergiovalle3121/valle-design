@@ -1,6 +1,6 @@
 import type { CadDocument } from "./cad-document";
 
-const DATABASE_NAME = "axos-cad-recovery";
+const DATABASE_NAME = "cad-recovery";
 const STORE_NAME = "checkpoints";
 const DATABASE_VERSION = 1;
 const MAX_RECOVERY_AGE_MS = 7 * 24 * 60 * 60 * 1000;
