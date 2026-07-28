@@ -74,6 +74,11 @@ export const GRANT_SOURCES = [
   "platform_included",
   /** Solicitud del prospecto. Nunca produce acceso, sólo deja rastro comercial. */
   "signup_request",
+  /**
+   * Licencia firmada de un despliegue en la infraestructura del cliente. Es el
+   * sustituto del proveedor de pagos cuando no hay proveedor al que preguntar.
+   */
+  "signed_licence",
 ] as const;
 
 export type GrantSource = (typeof GRANT_SOURCES)[number];

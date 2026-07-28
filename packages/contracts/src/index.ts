@@ -17,5 +17,6 @@ export * from "./founding-partners";
 export * from "./entitlements";
 export * from "./onboarding";
 export * from "./migration";
+export * from "./licence";
 export * from "./brand";
 export * from "./legal";
