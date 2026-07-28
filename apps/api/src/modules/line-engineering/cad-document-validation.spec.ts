@@ -1,5 +1,8 @@
 import { BadRequestException } from '@nestjs/common';
-import { validateCadDocumentPayload } from './cad-document-validation';
+import {
+  CAD_DOCUMENT_MAX_ARCHIVE_BYTES,
+  validateCadDocumentPayload,
+} from './cad-document-validation';
 
 describe('validateCadDocumentPayload', () => {
   const valid = {
@@ -92,5 +95,17 @@ describe('validateCadDocumentPayload', () => {
         publications: [{ ...withPaper.publications[0], sha256: 'unsafe' }],
       }),
     ).toThrow('publicación inválido');
+  });
+
+  it('keeps the JSON route bounded while allowing a validated archive budget', () => {
+    const large = { ...valid, recoveryNotes: 'x'.repeat(8_000_100) };
+    expect(() => validateCadDocumentPayload(large)).toThrow(
+      BadRequestException,
+    );
+    expect(
+      validateCadDocumentPayload(large, {
+        maxBytes: CAD_DOCUMENT_MAX_ARCHIVE_BYTES,
+      }),
+    ).toEqual(large);
   });
 });

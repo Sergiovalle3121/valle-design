@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -77,6 +77,16 @@ import {
   repeatableCadCommand,
   serializeCadCommandHistory,
 } from '@/lib/cad/command-session';
+import {
+  gzipCadDocumentJson,
+  serializeCadDocumentForTransport,
+} from '@/lib/cad/large-document-transport';
+import {
+  clearCadRecovery,
+  loadCadRecovery,
+  saveCadRecovery,
+  type CadRecoveryRecord,
+} from '@/lib/cad/cad-recovery';
 import { exportCadLayoutDxf } from '@/lib/cad/layout-export-adapter';
 import { buildPlotSheet, CAD_PAPER_SIZES, type CadPaperId } from '@/lib/cad/plot-sheet';
 import { evaluateCadDxfExportReadiness, type CadDxfExportLayerSummary, type CadDxfExportReadinessEntity, type CadDxfExportReadinessIssue } from '@/lib/cad/dxf-export-readiness';
@@ -864,6 +874,20 @@ export default function Layout3DEditor({
   const toast = useToast();
   const { user, tenantId } = useAuth();
   const { buildingId, projectId } = useWorkspace();
+  const recoveryScope = useMemo(
+    () =>
+      tenantId && user?.id
+        ? {
+            tenantId,
+            userId: user.id,
+            buildingId,
+            projectId,
+            model,
+            revision,
+          }
+        : null,
+    [buildingId, model, projectId, revision, tenantId, user?.id],
+  );
   const mountRef = useRef<HTMLDivElement | null>(null);
   const viewMenuRef = useRef<HTMLDivElement | null>(null);
   const [data, setData] = useState<Layout | null>(null);
@@ -872,6 +896,8 @@ export default function Layout3DEditor({
   const [snap, setSnap] = useState(true);
   const [osnap, setOsnap] = useState(true); // object snap: align to other objects' edges/centers (Fase 54)
   const [dirty, setDirty] = useState(false);
+  const [recoveryCandidate, setRecoveryCandidate] = useState<CadRecoveryRecord | null>(null);
+  const [recoverySavedAt, setRecoverySavedAt] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [serverBusy, setServerBusy] = useState(false); // server auto-arrange/optimize in flight (unify)
   const [approval, setApproval] = useState<LayoutApproval | null>(null); // sign-off status (unify)
@@ -1396,7 +1422,7 @@ export default function Layout3DEditor({
     let alive = true;
     queueMicrotask(() => {
       if (!alive) return;
-      setData(null); setError(null); setConnectionState('checking'); setSelList([]); setSelSnap(null); setNativeSelectionIds([]); setNativeEntities([]); setDirty(false); setTab('stations');
+      setData(null); setError(null); setConnectionState('checking'); setSelList([]); setSelSnap(null); setNativeSelectionIds([]); setNativeEntities([]); setDirty(false); setRecoveryCandidate(null); setRecoverySavedAt(null); setTab('stations');
       setOverlay(null); setTool('select'); setMeasureLive(null); setWalk(false); setHist({ undo: 0, redo: 0 }); setCellsView([]); setPaperSpaces([]); setPublicationRecords([]); setActivePaperSpaceId(null); setPublicationWarnings([]); setValidationHighlightIds(new Set()); setCollisionHits([]); setClearanceIssues([]); setSafetyIssues([]); setCadValidationReport(null); setIndustrySummary(null); setFlowHealth(null); setFlowSequence([]); setFlowSegments([]); setSnapshotDiff(null); setReport(null);
     });
     selRef.current = []; nativeSelectionIdsRef.current = []; overlayColorRef.current = new Map(); validationHighlightRef.current = new Set(); toolRef.current = 'select'; measureARef.current = null; wallChainRef.current = null;
@@ -2002,6 +2028,71 @@ export default function Layout3DEditor({
     restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
     setHist({ undo: undoStackRef.current.length, redo: redoStackRef.current.length });
   }, [snapshotDocument, restore]);
+
+  useEffect(() => {
+    if (!open || !data || !recoveryScope || dirty) return;
+    let active = true;
+    void loadCadRecovery(recoveryScope)
+      .then((candidate) => {
+        if (!active || !candidate) return;
+        if (candidate.baseCadDocumentVersion === (data.cadDocumentVersion ?? 0)) {
+          setRecoveryCandidate(candidate);
+          setRecoverySavedAt(candidate.savedAt);
+        } else {
+          void clearCadRecovery(recoveryScope).catch(() => undefined);
+        }
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [data, dirty, open, recoveryScope]);
+
+  useEffect(() => {
+    if (!open || !dirty || !data || !recoveryScope) return;
+    let active = true;
+    const checkpoint = () => {
+      const document = snapshotDocument();
+      void saveCadRecovery(recoveryScope, document, data.cadDocumentVersion ?? 0)
+        .then((record) => { if (active) setRecoverySavedAt(record.savedAt); })
+        .catch(() => undefined);
+    };
+    const initialTimer = window.setTimeout(checkpoint, 3_000);
+    const interval = window.setInterval(checkpoint, 15_000);
+    window.addEventListener('beforeunload', checkpoint);
+    return () => {
+      active = false;
+      window.clearTimeout(initialTimer);
+      window.clearInterval(interval);
+      window.removeEventListener('beforeunload', checkpoint);
+    };
+  }, [data, dirty, open, recoveryScope, snapshotDocument]);
+
+  const restoreRecoveryCandidate = useCallback(() => {
+    if (!recoveryCandidate) return;
+    try {
+      const document = migrateCadDocument(recoveryCandidate.document);
+      loadedCadDocumentRef.current = document;
+      setPaperSpaces(document.paperSpaces.map((space) => ({ ...space })));
+      setPublicationRecords([...document.publications]);
+      setActivePaperSpaceId(document.paperSpaces[0]?.id ?? null);
+      setNativeEntities(
+        document.entities.filter(
+          (entity): entity is CadNativeEntity => CAD_ENTITY_REGISTRY.supports(entity),
+        ),
+      );
+      setNativeDocumentRevision((value) => value + 1);
+      restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
+      setRecoveryCandidate(null);
+      toast.success('Borrador local recuperado. Guárdalo para confirmar.', 'CAD');
+    } catch {
+      toast.error('El borrador local no pudo restaurarse.', 'CAD');
+    }
+  }, [recoveryCandidate, restore, toast]);
+
+  const discardRecoveryCandidate = useCallback(() => {
+    setRecoveryCandidate(null);
+    setRecoverySavedAt(null);
+    if (recoveryScope) void clearCadRecovery(recoveryScope).catch(() => undefined);
+  }, [recoveryScope]);
 
   const commitPaperSpaces = useCallback((next: CadPaperSpace[], label: string) => {
     const checkpoint = snapshotDocument();
@@ -6134,18 +6225,30 @@ export default function Layout3DEditor({
       }));
       const annotations = [...annotationsRef.current.values()];
       const cadDocument = commitChange(snapshotDocument(), 'save');
-      const r = await apiFetch(`${API_BASE}/line-engineering/layout`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model, revision, footprint: data.footprint, positions, cleared,
-          connectors: connectorsRef.current, assets,
-          annotations, cells: cellsRef.current,
-          cadDocument,
-          expectedCadDocumentVersion: data.cadDocumentVersion ?? 0,
-          // persist the DXF backdrop placement so saving from the CAD never drops it (unify fix)
-          ...(dxfMetaRef.current ? { dxf: dxfMetaRef.current } : {}),
-        }),
-      });
+      const layoutPayload = {
+        model, revision, footprint: data.footprint, positions, cleared,
+        connectors: connectorsRef.current, assets,
+        annotations, cells: cellsRef.current,
+        expectedCadDocumentVersion: data.cadDocumentVersion ?? 0,
+        // persist the DXF backdrop placement so saving from the CAD never drops it (unify fix)
+        ...(dxfMetaRef.current ? { dxf: dxfMetaRef.current } : {}),
+      };
+      const serializedCadDocument = serializeCadDocumentForTransport(cadDocument);
+      let r: Response;
+      if (serializedCadDocument.useArchive) {
+        const archive = await gzipCadDocumentJson(serializedCadDocument.json);
+        const form = new FormData();
+        form.append('layout', JSON.stringify(layoutPayload));
+        form.append('file', archive, 'cad-document.json.gz');
+        r = await apiFetch(`${API_BASE}/line-engineering/layout/cad-archive`, {
+          method: 'PUT', body: form,
+        });
+      } else {
+        r = await apiFetch(`${API_BASE}/line-engineering/layout`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...layoutPayload, cadDocument }),
+        });
+      }
       setConnectionState('online');
       if (!r.ok) { const d = await r.json().catch(() => ({})); toast.error(d?.message || 'No se pudo guardar.', '3D'); return null; }
       const saved = await r.json() as Layout;
@@ -6162,12 +6265,22 @@ export default function Layout3DEditor({
         setNativeDocumentRevision((value) => value + 1);
       }
       setData(saved);
-      toast.success('Layout 3D guardado.', '3D');
+      toast.success(serializedCadDocument.useArchive
+        ? `Dibujo grande guardado (${(serializedCadDocument.bytes / 1_000_000).toFixed(1)} MB).`
+        : 'Layout 3D guardado.', '3D');
       loadedPlacedRef.current = new Set(placementsRef.current.keys());
       setDirty(false);
+      setRecoveryCandidate(null);
+      setRecoverySavedAt(null);
+      if (recoveryScope) void clearCadRecovery(recoveryScope).catch(() => undefined);
       onSaved?.();
       return saved;
-    } catch { setConnectionState('offline'); toast.error('Error de red.', '3D'); return null; } finally { setSaving(false); }
+    } catch (saveError) {
+      const message = saveError instanceof Error ? saveError.message : 'Error de red.';
+      if (message === 'Error de red.') setConnectionState('offline');
+      toast.error(message, '3D');
+      return null;
+    } finally { setSaving(false); }
   };
 
   const publishSheetSetPdf = async () => {
@@ -7099,6 +7212,21 @@ export default function Layout3DEditor({
           {/* 3D viewport */}
           <div className="relative flex-1 min-w-0">
             <div ref={mountRef} className="absolute inset-0" />
+            {recoveryCandidate && (
+              <div className="absolute left-3 top-16 z-30 w-80 rounded-2xl border border-amber-300/30 bg-gray-950/95 p-3 shadow-2xl backdrop-blur">
+                <div className="flex items-start gap-2">
+                  <History className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[12px] font-semibold text-amber-100">Borrador local recuperable</div>
+                    <div className="mt-1 text-[10.5px] leading-snug text-gray-400">Guardado automáticamente {new Date(recoveryCandidate.savedAt).toLocaleString()} en este tenant, usuario y workspace.</div>
+                    <div className="mt-2 flex gap-2">
+                      <button onClick={restoreRecoveryCandidate} className="rounded-lg bg-amber-400 px-2.5 py-1.5 text-[11px] font-semibold text-gray-950 hover:bg-amber-300">Restaurar</button>
+                      <button onClick={discardRecoveryCandidate} className="rounded-lg border border-white/10 px-2.5 py-1.5 text-[11px] text-gray-300 hover:bg-white/10">Descartar</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
             {showMinimap && (
               <PlantMinimap
                 ctxRef={ctxRef}
@@ -7168,6 +7296,7 @@ export default function Layout3DEditor({
               <span>{data?.footprint.unit ?? 'mm'}</span>
               <span title="Modelo, revisión funcional y versión CAS">{model} · {revision} · v{data?.cadDocumentVersion ?? 0}</span>
               <span className={saving ? 'text-cyan-200' : dirty ? 'text-amber-300' : 'text-emerald-300'}>{saving ? 'Guardando…' : dirty ? 'Modificado' : 'Guardado'}</span>
+              {dirty && recoverySavedAt && <span className="text-sky-300" title={recoverySavedAt}>Recovery local activo</span>}
               <span className={connectionState === 'online' ? 'text-emerald-300' : connectionState === 'offline' ? 'text-rose-300' : 'text-gray-400'}>{connectionState === 'online' ? 'API online' : connectionState === 'offline' ? 'API offline' : 'API…'}</span>
               <span>Layer {cadLayers.find((layer) => layer.id === activeCadLayer)?.label ?? activeCadLayer}</span>
               {cadLayerSummary.hiddenObjectCount > 0 && <span className="text-amber-300">Hidden layer objs {cadLayerSummary.hiddenObjectCount}</span>}
