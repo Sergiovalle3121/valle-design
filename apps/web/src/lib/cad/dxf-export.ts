@@ -31,8 +31,14 @@ export interface CadDxfExportMeasurement {
 /** Área rellena (HATCH SOLID) delimitada por un contorno cerrado (CAD-NEXT-067). */
 export interface CadDxfExportHatch {
   layer?: string;
-  /** Vértices del contorno; se cierra solo (no repetir el primero). */
-  points: CadDxfPoint[];
+  /** Vértices del contorno único; compatibilidad con el adaptador de cajas. */
+  points?: CadDxfPoint[];
+  /** Primer contorno exterior y, opcionalmente, contornos interiores. */
+  boundaries?: CadDxfPoint[][];
+  pattern?: string;
+  solid?: boolean;
+  scale?: number;
+  angle?: number;
 }
 /** Definición de bloque reutilizable (sección BLOCKS — CAD-NEXT-064). */
 export interface CadDxfExportBlock {
@@ -486,28 +492,64 @@ function pushDimension(lines: string[], layer: string, dim: PreparedDimension) {
  * cerrado). dxf-parser lo DESCARTA al leer (el import lo avisa honesto); los
  * CAD reales lo pintan como área rellena.
  */
+function hatchLoops(hatch: CadDxfExportHatch): CadDxfPoint[][] {
+  return (hatch.boundaries?.length ? hatch.boundaries : hatch.points ? [hatch.points] : [])
+    .map((boundary) => {
+      if (boundary.length > 3) {
+        const first = boundary[0];
+        const last = boundary.at(-1)!;
+        if (first.x === last.x && first.y === last.y) return boundary.slice(0, -1);
+      }
+      return boundary;
+    })
+    .filter((boundary) => boundary.length >= 3);
+}
+
 function pushHatch(lines: string[], layer: string, hatch: CadDxfExportHatch) {
+  const boundaries = hatchLoops(hatch);
+  const requestedPattern = safeText(hatch.pattern || (hatch.solid === false ? "ANSI31" : "SOLID")) || "SOLID";
+  const solid = hatch.solid ?? requestedPattern.toUpperCase() === "SOLID";
+  const pattern = solid ? "SOLID" : requestedPattern.toUpperCase() === "SOLID" ? "ANSI31" : requestedPattern;
+  const angle = Number.isFinite(hatch.angle) ? hatch.angle! : 45;
+  const scale = Number.isFinite(hatch.scale) && hatch.scale! > 0 ? hatch.scale! : 1;
   pushPair(lines, 0, "HATCH");
   pushPair(lines, 8, layer);
   pushPoint(lines, { x: 0, y: 0 }); // punto de elevación (siempre 0 en 2D)
   pushPair(lines, 210, "0");
   pushPair(lines, 220, "0");
   pushPair(lines, 230, "1");
-  pushPair(lines, 2, "SOLID");
-  pushPair(lines, 70, 1); // relleno sólido
+  pushPair(lines, 2, pattern);
+  pushPair(lines, 70, solid ? 1 : 0);
   pushPair(lines, 71, 0); // no asociativo
-  pushPair(lines, 91, 1); // 1 camino de contorno
-  pushPair(lines, 92, 2); // camino = polilínea
-  pushPair(lines, 72, 0); // sin bulge
-  pushPair(lines, 73, 1); // cerrado
-  pushPair(lines, 93, hatch.points.length);
-  for (const point of hatch.points) {
-    pushPair(lines, 10, fmt(point.x));
-    pushPair(lines, 20, fmt(point.y));
+  pushPair(lines, 91, boundaries.length);
+  for (const boundary of boundaries) {
+    pushPair(lines, 92, 2); // camino = polilínea
+    pushPair(lines, 72, 0); // sin bulge
+    pushPair(lines, 73, 1); // cerrado
+    pushPair(lines, 93, boundary.length);
+    for (const point of boundary) {
+      pushPair(lines, 10, fmt(point.x));
+      pushPair(lines, 20, fmt(point.y));
+    }
+    pushPair(lines, 97, 0); // sin objetos fuente
   }
-  pushPair(lines, 97, 0); // sin objetos fuente
   pushPair(lines, 75, 0); // estilo normal
   pushPair(lines, 76, 1); // patrón predefinido
+  if (!solid) {
+    const definitionAngles = pattern.toUpperCase() === "CROSS" ? [angle, angle + 90] : [angle];
+    pushPair(lines, 52, fmt(angle));
+    pushPair(lines, 41, fmt(scale));
+    pushPair(lines, 77, 0);
+    pushPair(lines, 78, definitionAngles.length);
+    for (const definitionAngle of definitionAngles) {
+      pushPair(lines, 53, fmt(definitionAngle));
+      pushPair(lines, 43, 0);
+      pushPair(lines, 44, 0);
+      pushPair(lines, 45, 0);
+      pushPair(lines, 46, fmt(scale));
+      pushPair(lines, 79, 0);
+    }
+  }
   pushPair(lines, 98, 0); // sin puntos semilla
 }
 
@@ -574,7 +616,7 @@ export function exportCadDxf(
     entityCount += 1;
   }
   for (const hatch of model.hatches ?? []) {
-    if (hatch.points.length < 3) continue; // un relleno necesita área real
+    if (!hatchLoops(hatch).length) continue; // un relleno necesita área real
     pushHatch(lines, safeLayerName(hatch.layer), hatch);
     entityCount += 1;
   }

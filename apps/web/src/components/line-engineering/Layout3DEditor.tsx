@@ -138,8 +138,10 @@ import {
   setCadNativeObjectSelected,
 } from '@/lib/cad/entity-three';
 import {
+  cadDocumentNativeDxfHatches,
   cadDocumentNativeDxfPrimitives,
   cadDxfCurvesToNativeEntities,
+  cadDxfHatchesToNativeEntities,
 } from '@/lib/cad/dxf-cad-document';
 import {
   describeCadObjectProperties,
@@ -2211,6 +2213,35 @@ export default function Layout3DEditor({
   const removeNativeSelection = useCallback(() => {
     commitNativeCommands(nativeSelectionIdsRef.current.map((entityId) => ({ type: 'delete' as const, entityId })), []);
   }, [commitNativeCommands]);
+  const insertNativeEntities = useCallback((incoming: CadNativeEntity[], label: string) => {
+    if (!incoming.length) return false;
+    const checkpoint = snapshotDocument();
+    const existingIds = new Set(checkpoint.entities.map((entity) => entity.id));
+    if (incoming.some((entity) => existingIds.has(entity.id))) {
+      toast.error('Una entidad nativa ya existe en el documento.', 'Entidad CAD');
+      return false;
+    }
+    const entities = [...checkpoint.entities, ...incoming].sort((a, b) => a.id.localeCompare(b.id));
+    const document = commitChange({
+      ...checkpoint,
+      entities,
+      modelSpace: {
+        entityIds: [...new Set([...checkpoint.modelSpace.entityIds, ...incoming.map((entity) => entity.id)])].sort(),
+      },
+    }, label);
+    undoStackRef.current.push(checkpoint);
+    if (undoStackRef.current.length > 80) undoStackRef.current.shift();
+    redoStackRef.current = [];
+    setHist({ undo: undoStackRef.current.length, redo: 0 });
+    loadedCadDocumentRef.current = document;
+    nativeSelectionIdsRef.current = incoming.map((entity) => entity.id);
+    setNativeSelectionIds(nativeSelectionIdsRef.current);
+    setNativeEntities(document.entities.filter((entity): entity is CadNativeEntity => CAD_ENTITY_REGISTRY.supports(entity)));
+    setNativeDocumentRevision((value) => value + 1);
+    setDirty(true);
+    syncNativeScene(document, { upsert: incoming, remove: [] });
+    return true;
+  }, [snapshotDocument, syncNativeScene, toast]);
 
   // ---- scene lifecycle ----
   useEffect(() => {
@@ -3620,6 +3651,60 @@ export default function Layout3DEditor({
     toast.success('Directriz creada.', 'Anotación');
   };
 
+  const createHatchForSelection = (solid: boolean) => {
+    const assets = selRef.current
+      .filter((item): item is SelItem & { type: 'asset' } => item.type === 'asset')
+      .map((item) => assetsRef.current.get(item.id))
+      .filter((asset): asset is Asset => !!asset)
+      .filter((asset) => !isObjectLayerLocked(
+        cadLayersRef.current,
+        layerAssignmentsRef.current,
+        asset.id,
+        defaultCadLayerForAssetKind(asset.kind, objectTagsRef.current[asset.id]),
+      ));
+    if (!assets.length) {
+      toast.error('Selecciona al menos un contorno de asset en una capa editable.', 'HATCH');
+      return;
+    }
+    const entities: CadNativeEntity[] = assets.map((asset) => {
+      const center = { x: asset.x + asset.w / 2, y: asset.y + asset.h / 2 };
+      const angle = ((asset.rotation ?? 0) * Math.PI) / 180;
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      const local = asset.shape === 'circle'
+        ? Array.from({ length: 48 }, (_, index) => {
+            const theta = (index / 48) * Math.PI * 2;
+            return { x: Math.cos(theta) * asset.w / 2, y: Math.sin(theta) * asset.h / 2 };
+          })
+        : [
+            { x: -asset.w / 2, y: -asset.h / 2 },
+            { x: asset.w / 2, y: -asset.h / 2 },
+            { x: asset.w / 2, y: asset.h / 2 },
+            { x: -asset.w / 2, y: asset.h / 2 },
+          ];
+      return {
+        id: newId('hatch'),
+        type: 'hatch',
+        pattern: solid ? 'SOLID' : 'ANSI31',
+        solid,
+        boundaries: [local.map((point) => ({
+          x: center.x + point.x * cos - point.y * sin,
+          y: center.y + point.x * sin + point.y * cos,
+          z: 0,
+        }))],
+        scale: Math.max(1, data?.footprint.gridSize ?? 100),
+        angle: 45,
+        layer: layerAssignmentsRef.current[asset.id] ?? defaultCadLayerForAssetKind(asset.kind, objectTagsRef.current[asset.id]),
+        context: {
+          provenance: { provider: 'axos-editor' },
+          metadata: { sourceAssetId: asset.id, sourceType: 'CLOSED_ASSET_BOUNDARY' },
+        },
+      };
+    });
+    if (insertNativeEntities(entities, `create:hatch:${solid ? 'solid' : 'ANSI31'}`))
+      toast.success(`${entities.length} HATCH ${solid ? 'SOLID' : 'ANSI31'} creado(s).`, 'HATCH');
+  };
+
   const clearDims = useCallback(() => {
     const hasDim = [...annotationsRef.current.values()].some((a) => a.type === 'dim');
     if (!hasDim) return;
@@ -4274,16 +4359,23 @@ export default function Layout3DEditor({
   const convertDxfPrimitivesToEditable = () => {
     const preview = dxfImportPreview; const dm = dxfModelRef.current; const meta = dxfMetaRef.current;
     if (!preview || !dm || !meta) { toast.error('Carga un DXF antes de convertir entidades.', 'DXF'); return; }
-    const bounds = dxfPrimitiveBounds(preview.primitives);
+    const hatchBoundaryPrimitives: CadDxfPrimitive[] = preview.hatches.flatMap((hatch) =>
+      hatch.boundaries.map((points) => ({ kind: 'polyline' as const, layer: hatch.layer, points })),
+    );
+    const bounds = dxfPrimitiveBounds([...preview.primitives, ...hatchBoundaryPrimitives]);
     if (!bounds) { toast.error('El DXF no tiene entidades soportadas para convertir.', 'DXF'); return; }
     recordLocalSnapshot('Auto · antes de convertir DXF', 'import');
     pushHistory();
     const created: SelItem[] = [];
-    const nativeCreated: CadNativeEntity[] = [];
+    const nativeCreated: CadNativeEntity[] = cadDxfHatchesToNativeEntities(preview.hatches, {
+      idPrefix: newId('cad'),
+      projection: { point: (point) => projectDxfPoint(point, bounds, dm, meta) },
+      provider: 'dxf',
+    }).slice(0, 850);
     const layerUpdates: Record<string, CadLayerId> = {};
     const tagUpdates: Record<string, string> = {};
     let notes = 0;
-    let truncated = false;
+    let truncated = preview.hatches.length > nativeCreated.length;
     const cap = 850;
     for (const primitive of preview.primitives) {
       if (created.length + nativeCreated.length >= cap) { truncated = true; break; }
@@ -4349,7 +4441,7 @@ export default function Layout3DEditor({
         ...current,
         entities,
         modelSpace: { entityIds: entities.map((entity) => entity.id) },
-      }, 'import:dxf-native-curves');
+      }, 'import:dxf-native-entities');
       loadedCadDocumentRef.current = document;
       nativeSelectionIdsRef.current = nativeCreated.map((entity) => entity.id).slice(0, 80);
       setNativeSelectionIds(nativeSelectionIdsRef.current);
@@ -4363,7 +4455,7 @@ export default function Layout3DEditor({
       syncNativeScene(document);
     } else if (created.length) select(created.slice(0, 80));
     setDirty(true); rebuildAll();
-    toast.success(`${created.length} objeto(s), ${nativeCreated.length} curva(s) nativa(s) y ${notes} nota(s) convertidos${truncated ? ' (recortado por seguridad)' : ''}.`, 'DXF editable');
+    toast.success(`${created.length} objeto(s), ${nativeCreated.length} entidad(es) nativa(s) y ${notes} nota(s) convertidos${truncated ? ' (recortado por seguridad)' : ''}.`, 'DXF editable');
   };
   // ---- auto-dimension the layout into a measured drawing (Fase 59) ----
   // Acota lo seleccionado (o todo el layout): medidas generales + cotas
@@ -6009,7 +6101,12 @@ export default function Layout3DEditor({
         const layer = loadedCadDocumentRef.current?.layers.find((candidate) => candidate.id === entity.layer);
         return options.includeHidden || layer?.visible !== false;
       });
-      const exported = exportCadLayoutDxf({ boxes, connectors, labels, measurements, primitives }, { units: options.units, fileComment: `${PRODUCT_LABEL.design} ${model} ${revision}` });
+      const hatches = cadDocumentNativeDxfHatches(snapshotDocument(), (entity) => {
+        if (options.scope === 'selection' && !selectedNativeIds.has(entity.id)) return false;
+        const layer = loadedCadDocumentRef.current?.layers.find((candidate) => candidate.id === entity.layer);
+        return options.includeHidden || layer?.visible !== false;
+      });
+      const exported = exportCadLayoutDxf({ boxes, connectors, labels, measurements, primitives, hatches }, { units: options.units, fileComment: `${PRODUCT_LABEL.design} ${model} ${revision}` });
       const blob = new Blob([exported.content], { type: 'application/dxf' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -6292,7 +6389,7 @@ export default function Layout3DEditor({
   const assetCount = assetIds.size;
   const dxfWarningSummary = summarizeDxfImportWarnings(dxfWarnings).slice(0, 6);
   const dxfPrimitiveSummary = dxfImportPreview
-    ? dxfImportPreview.primitives.reduce<Record<string, number>>((acc, primitive) => { acc[primitive.kind] = (acc[primitive.kind] ?? 0) + 1; return acc; }, {})
+    ? dxfImportPreview.primitives.reduce<Record<string, number>>((acc, primitive) => { acc[primitive.kind] = (acc[primitive.kind] ?? 0) + 1; return acc; }, { ...(dxfImportPreview.hatches.length ? { hatch: dxfImportPreview.hatches.length } : {}) })
     : null;
   const orderedPaperSpaces = [...paperSpaces].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id.localeCompare(b.id));
   const activePaperSpace = orderedPaperSpaces.find((space) => space.id === activePaperSpaceId) ?? orderedPaperSpaces[0] ?? null;
@@ -7045,7 +7142,7 @@ export default function Layout3DEditor({
                   <div className="mb-2 rounded-xl border border-cyan-400/15 bg-cyan-400/[0.06] p-2 text-[11px] text-cyan-100">
                     {/* Soporte honesto de formatos (contrato D5): DXF nativo; DWG sólo con proveedor licenciado. */}
                     <div className="mb-1 text-[10px] text-cyan-200/70" title={DWG_UNAVAILABLE_REASON}>Formatos: DXF ✓ nativo · DWG ✕ requiere proveedor licenciado</div>
-                    <div className="font-semibold">{dxfImportPreview.primitives.length} entidades soportadas · {dxfImportPreview.layers.length || 1} capa(s)</div>
+                    <div className="font-semibold">{dxfImportPreview.primitives.length + dxfImportPreview.hatches.length} entidades soportadas · {dxfImportPreview.layers.length || 1} capa(s)</div>
                     <div className="mt-1 text-cyan-100/75">{Object.entries(dxfPrimitiveSummary).map(([kind, count]) => `${kind}: ${count}`).join(' · ')}</div>
                     <button onClick={convertDxfPrimitivesToEditable} className="mt-2 w-full rounded-lg bg-cyan-600 px-2 py-1.5 text-[11px] font-semibold text-white hover:bg-cyan-500">Convertir entidades soportadas</button>
                   </div>
@@ -7217,7 +7314,13 @@ export default function Layout3DEditor({
                     <div className="mb-3 grid grid-cols-2 gap-2">
                       {Object.entries(primaryNativeProperties).map(([key, value]) => {
                         if (typeof value === 'boolean')
-                          return <ReadField key={key} label={key} value={value ? 'Sí' : 'No'} />;
+                          return (
+                            <label key={`${primaryNativeEntity.id}-${key}-${nativeDocumentRevision}`} className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-gray-950/50 px-2 py-1.5 text-[10.5px] text-gray-400">
+                              {key}
+                              <input type="checkbox" checked={value} onChange={(event) => updateNativeProperties(primaryNativeEntity.id, { [key]: event.target.checked })} className="accent-cyan-500" />
+                            </label>
+                          );
+                        if (key.endsWith('Count')) return <ReadField key={key} label={key} value={String(value)} />;
                         return (
                           <label key={`${primaryNativeEntity.id}-${key}-${nativeDocumentRevision}`} className="text-[10.5px] text-gray-500 dark:text-gray-400">
                             {key}
@@ -7409,6 +7512,8 @@ export default function Layout3DEditor({
                   </>
                 )}
                 <div className="flex flex-wrap gap-1.5">
+                  <button data-testid="cad-create-hatch-pattern" onClick={() => createHatchForSelection(false)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-cyan-500/15 text-cyan-100 hover:bg-cyan-500/25 text-[12px]"><BrickWall className="w-3.5 h-3.5" /> HATCH ANSI31</button>
+                  <button data-testid="cad-create-hatch-solid" onClick={() => createHatchForSelection(true)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-cyan-500/15 text-cyan-100 hover:bg-cyan-500/25 text-[12px]"><BrickWall className="w-3.5 h-3.5" /> Relleno SOLID</button>
                   <button onClick={() => rotateSelected(15)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><RotateCw className="w-3.5 h-3.5" /> +15°</button>
                   <button onClick={() => rotateSelected(-15)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><RotateCcw className="w-3.5 h-3.5" /> −15°</button>
                   <button onClick={duplicateSelected} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><Copy className="w-3.5 h-3.5" /> Duplicar</button>
@@ -7428,6 +7533,12 @@ export default function Layout3DEditor({
                 </div>
                 <div className="text-[11px] text-gray-500 dark:text-gray-400 mb-3">{selSnap.subtitle}</div>
                 <button onClick={createLeaderForSelection} title="Crea una directriz con nota que apunta a este objeto (flecha + texto), como MLEADER en AutoCAD" className="mb-3 w-full rounded-lg border border-sky-400/25 bg-sky-400/[0.08] px-2 py-1.5 text-[11px] font-semibold text-sky-100 hover:bg-sky-400/[0.14]">＋ Directriz / Nota</button>
+                {selSnap.type === 'asset' && (
+                  <div className="mb-3 grid grid-cols-2 gap-1.5">
+                    <button data-testid="cad-create-hatch-pattern" onClick={() => createHatchForSelection(false)} className="rounded-lg border border-cyan-400/25 bg-cyan-400/[0.08] px-2 py-1.5 text-[11px] font-semibold text-cyan-100 hover:bg-cyan-400/[0.14]">HATCH ANSI31</button>
+                    <button data-testid="cad-create-hatch-solid" onClick={() => createHatchForSelection(true)} className="rounded-lg border border-cyan-400/25 bg-cyan-400/[0.08] px-2 py-1.5 text-[11px] font-semibold text-cyan-100 hover:bg-cyan-400/[0.14]">Relleno SOLID</button>
+                  </div>
+                )}
                 {selSnap.type === 'asset' && selSnap.kind === 'wall' && (
                   <div className="mb-3 rounded-xl border border-emerald-400/15 bg-emerald-400/[0.04] p-2.5">
                     <div className="mb-1.5 text-[10px] uppercase tracking-wide text-emerald-200">Dimensiones exactas</div>

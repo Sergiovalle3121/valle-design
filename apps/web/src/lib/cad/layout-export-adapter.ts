@@ -1,6 +1,7 @@
 import {
   exportCadDxf,
   type CadDxfExportLayer,
+  type CadDxfExportHatch,
   type CadDxfExportModel,
   type CadDxfExportOptions,
   type CadDxfExportResult,
@@ -54,6 +55,8 @@ export interface CadLayoutExportInput {
   measurements?: CadExportMeasurement[];
   /** First-class canonical entities that must not be flattened to boxes. */
   primitives?: CadDxfPrimitive[];
+  /** First-class canonical HATCH entities, including holes and pattern data. */
+  hatches?: CadDxfExportHatch[];
 }
 
 const CAD_DXF_LAYER_COLORS: Record<string, number> = {
@@ -99,6 +102,7 @@ function collectLayoutLayers(input: CadLayoutExportInput): CadDxfExportLayer[] {
     names.add(measurement.layer ?? "Measurements");
   for (const primitive of input.primitives ?? [])
     names.add(primitive.layer || "0");
+  for (const hatch of input.hatches ?? []) names.add(hatch.layer || "0");
   return [...names].sort((a, b) => a.localeCompare(b)).map((name) => ({
     name,
     color: CAD_DXF_LAYER_COLORS[name] ?? 7,
@@ -139,13 +143,18 @@ export function cadLayoutToDxfExportModel(
       layer: label.layer ?? "Text",
     })),
     measurements: input.measurements,
-    hatches: (input.boxes ?? [])
-      .filter((box) => box.hatch && box.shape !== "circle")
-      .map((box) => ({
-        layer: box.layer ?? "Equipment",
-        // Mismo contorno rotado que la polilínea, sin repetir el cierre.
-        points: rectPoints(box).slice(0, 4),
-      })),
+    hatches: [
+      ...(input.hatches ?? []),
+      ...(input.boxes ?? [])
+        .filter((box) => box.hatch && box.shape !== "circle")
+        .map((box) => ({
+          layer: box.layer ?? "Equipment",
+          // Mismo contorno rotado que la polilínea, sin repetir el cierre.
+          points: rectPoints(box).slice(0, 4),
+          pattern: "SOLID",
+          solid: true,
+        })),
+    ],
   };
 }
 export function exportCadLayoutDxf(

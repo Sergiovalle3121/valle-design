@@ -89,9 +89,9 @@ Orden de ejecución:
 - Siguiente acción: Interaction Core sobre el command bus existente, después
   HATCH nativo y persistencia grande reutilizando el blob store documental.
 
-### 2026-07-28 01:04–01:18 — Professional Interaction Core
+### 2026-07-28 01:04–01:10 — Professional Interaction Core
 
-- Commit: pendiente al cerrar este checkpoint.
+- Commit: `40778d50` (`feat(cad): harden professional command interaction`).
 - Vertical: interacción profesional.
 - Cambios:
   - línea de comandos visible y enfocable desde la barra;
@@ -115,6 +115,35 @@ Orden de ejecución:
   de él. Los atajos llaman las rutas de guardado/precisión existentes.
 - Siguiente acción: cerrar HATCH nativo en runtime, propiedades y DXF sin crear
   un segundo motor geométrico.
+
+### 2026-07-28 01:10–01:16 — Native HATCH end-to-end
+
+- Commit: pendiente al cerrar este checkpoint.
+- Vertical: documentación nativa y precisión P1.
+- Cambios:
+  - `HATCH` se añadió al registry/synchronizer/índice espacial canónicos;
+  - render de patrón recortado, relleno SOLID real, huecos, hit-test, grips,
+    snaps, bounds, propiedades, transform/copy/delete y undo/redo;
+  - creación ANSI31 o SOLID desde contornos de assets seleccionados;
+  - propiedades editables de patrón, sólido, escala, ángulo y capa;
+  - parser ASCII de HATCH poligonal porque `dxf-parser` lo descarta;
+  - export/import preservan sólido, patrón, escala, ángulo y varios contornos;
+  - import DXF convierte HATCH a entidad canónica y export DXF consume la misma
+    entidad, sin aplanarla a líneas persistidas.
+- Evidencia exacta:
+  - `npm run test:specs --workspace=web`: 108/108 specs, 119.6 s.
+  - `npx tsc --noEmit -p apps/web/tsconfig.json`: exit 0, 36.2 s.
+  - ESLint de runtime/Three/DXF/adaptadores tocados: exit 0, cero warnings.
+  - Specs focales: runtime, renderer Three.js, bridge DXF y HATCH, 4/4 verdes.
+  - `git diff --check`: limpio.
+- Límite honesto: contornos DXF poligonales son lossless; edge paths curvos de
+  HATCH todavía generan `hatch_edge_path_partial`/`hatch_unsupported_boundary`
+  en vez de inventar geometría. DWG sigue requiriendo proveedor licenciado.
+- Riesgo/rollback: la proyección Three es desechable; quitar el adapter HATCH
+  vuelve al comportamiento previo sin migración de base. El documento v3 ya
+  soportaba la entidad, por lo que no se añadió schema paralelo.
+- Siguiente acción: eliminar el límite monolítico de 8 MB reutilizando el blob
+  store documental con CAS y recuperación segura.
 
 ## Evidencia acumulada
 

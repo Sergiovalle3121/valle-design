@@ -120,6 +120,55 @@ assert.equal(
   true,
 );
 
+const hatch: Extract<CadNativeEntity, { type: "hatch" }> = {
+  id: "hatch-1",
+  type: "hatch",
+  pattern: "ANSI31",
+  solid: false,
+  boundaries: [
+    [
+      { x: 0, y: 0, z: 0 },
+      { x: 100, y: 0, z: 0 },
+      { x: 100, y: 100, z: 0 },
+      { x: 0, y: 100, z: 0 },
+    ],
+    [
+      { x: 40, y: 40, z: 0 },
+      { x: 60, y: 40, z: 0 },
+      { x: 60, y: 60, z: 0 },
+      { x: 40, y: 60, z: 0 },
+    ],
+  ],
+  scale: 10,
+  angle: 45,
+  layer: "AREAS",
+};
+const hatchRuntime = CAD_ENTITY_REGISTRY.adapter(hatch);
+assert.ok(hatchRuntime.renderer.paths(hatch).length > 2, "pattern renderer emits clipped strokes");
+assert.equal(hatchRuntime.hitTester.hitTest(hatch, { x: 10, y: 10 }, 0.1), true);
+assert.equal(hatchRuntime.hitTester.hitTest(hatch, { x: 50, y: 50 }, 0.1), false, "hole remains selectable as empty space");
+assert.deepEqual(hatchRuntime.bounds.bounds(hatch), { minX: 0, minY: 0, maxX: 100, maxY: 100 });
+assert.equal(hatchRuntime.snaps.snaps(hatch).length, 9);
+const editedHatch = hatchRuntime.properties.write(hatch, { solid: true, angle: 30, scale: 20 });
+assert.equal(editedHatch.solid, true);
+assert.equal(editedHatch.pattern, "SOLID");
+assert.equal(editedHatch.angle, 30);
+assert.equal(editedHatch.scale, 20);
+const movedHatch = hatchRuntime.grips.moveGrip(hatch, "boundary:0:vertex:0", { x: -10, y: -5 });
+assert.deepEqual(movedHatch.boundaries[0][0], { x: -10, y: -5, z: 0 });
+const hatchDocument = migrateCadDocument({
+  meta: { version: 1, schema: 3, unit: "mm" },
+  entities: [hatch],
+});
+const rotatedHatch = executeCadEntityCommand(hatchDocument, {
+  type: "transform",
+  entityId: hatch.id,
+  transform: { rotationDeg: 15, origin: { x: 50, y: 50 } },
+});
+const rotatedHatchEntity = rotatedHatch.document.entities[0];
+assert.equal(rotatedHatchEntity.type, "hatch");
+if (rotatedHatchEntity.type === "hatch") assert.equal(rotatedHatchEntity.angle, 60);
+
 const index = new CadSpatialIndex(100);
 index.upsert("arc", arcRuntime.bounds.bounds(arc));
 index.upsert("ellipse", ellipseRuntime.bounds.bounds(ellipse));

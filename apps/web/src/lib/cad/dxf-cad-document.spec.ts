@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { migrateCadDocument } from "./cad-document";
 import {
+  cadDocumentNativeDxfHatches,
   cadDocumentNativeDxfPrimitives,
   cadDxfCurvesToNativeEntities,
+  cadDxfHatchesToNativeEntities,
 } from "./dxf-cad-document";
 import { exportCadDxf } from "./dxf-export";
 import { importDxfPrimitives } from "./dxf-import";
@@ -41,6 +43,21 @@ const source = migrateCadDocument({
       knots: [0, 0, 0, 1, 1, 1],
       layer: "SPLINES",
     },
+    {
+      id: "hatch-native",
+      type: "hatch",
+      pattern: "ANSI31",
+      solid: false,
+      boundaries: [[
+        { x: 10, y: 20, z: 0 },
+        { x: 110, y: 20, z: 0 },
+        { x: 110, y: 80, z: 0 },
+        { x: 10, y: 80, z: 0 },
+      ]],
+      scale: 12,
+      angle: 45,
+      layer: "AREAS",
+    },
   ],
 });
 
@@ -74,6 +91,23 @@ assert.equal(spline?.type, "spline");
 if (spline?.type === "spline") {
   assert.equal(spline.degree, 2);
   assert.deepEqual(spline.knots, [0, 0, 0, 1, 1, 1]);
+}
+
+const hatches = cadDocumentNativeDxfHatches(source);
+assert.equal(hatches.length, 1);
+const hatchDxf = exportCadDxf({ hatches }, { units: "mm" });
+const reimportedHatches = importDxfPrimitives(hatchDxf.content);
+assert.equal(reimportedHatches.warnings.length, 0);
+const nativeHatches = cadDxfHatchesToNativeEntities(reimportedHatches.hatches, { idPrefix: "roundtrip" });
+assert.equal(nativeHatches.length, 1);
+const hatch = nativeHatches[0];
+assert.equal(hatch.type, "hatch");
+if (hatch.type === "hatch") {
+  assert.equal(hatch.pattern, "ANSI31");
+  assert.equal(hatch.solid, false);
+  assert.equal(hatch.scale, 12);
+  assert.equal(hatch.angle, 45);
+  assert.deepEqual(hatch.boundaries[0][0], { x: 10, y: 20, z: 0 });
 }
 
 // Editor projection flips Y; orientation-aware import swaps the arc endpoints

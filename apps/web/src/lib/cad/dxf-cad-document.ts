@@ -4,7 +4,8 @@ import type {
   CadPoint2,
   CadPoint3,
 } from "./cad-document";
-import type { CadDxfPoint, CadDxfPrimitive } from "./dxf-import";
+import type { CadDxfHatch, CadDxfPoint, CadDxfPrimitive } from "./dxf-import";
+import type { CadDxfExportHatch } from "./dxf-export";
 import type { CadNativeEntity } from "./entity-runtime";
 
 export interface CadDxfProjection {
@@ -195,6 +196,44 @@ export function cadDxfCurvesToNativeEntities(
   return entities;
 }
 
+export function cadDxfHatchesToNativeEntities(
+  hatches: CadDxfHatch[],
+  options: CadDxfNativeImportOptions = {},
+): CadNativeEntity[] {
+  const projection = options.projection ?? identityProjection;
+  const prefix = options.idPrefix ?? "dxf";
+  const provider = options.provider ?? "dxf";
+  const scaleFactor =
+    (Math.hypot(...Object.values(mappedVector(projection, { x: 0, y: 0 }, { x: 1, y: 0 }))) +
+      Math.hypot(...Object.values(mappedVector(projection, { x: 0, y: 0 }, { x: 0, y: 1 })))) /
+    2;
+  return hatches
+    .map((hatch, index): CadNativeEntity | null => {
+      const boundaries = hatch.boundaries
+        .map((boundary) => boundary.map((point) => point3(projection.point(point))))
+        .filter((boundary) => boundary.length >= 3);
+      if (!boundaries.length) return null;
+      return {
+        id: `${prefix}:hatch:${index.toString().padStart(6, "0")}`,
+        type: "hatch",
+        pattern: hatch.pattern,
+        solid: hatch.solid,
+        boundaries,
+        scale: Math.max(1e-9, (hatch.scale ?? 1) * scaleFactor),
+        angle: projectedAngle(projection, { x: 0, y: 0 }, 1, hatch.angle ?? 0),
+        layer: hatch.layer,
+        context: {
+          provenance: { provider },
+          metadata: {
+            sourceType: "HATCH",
+            sourceLayer: hatch.layer,
+          },
+        },
+      };
+    })
+    .filter((entity): entity is CadNativeEntity => entity !== null);
+}
+
 function clampedKnots(controlCount: number, degree: number): number[] {
   const knots: number[] = [];
   const spans = controlCount - degree;
@@ -277,4 +316,25 @@ export function cadDocumentNativeDxfPrimitives(
     .filter((entity) => (filter ? filter(entity) : true))
     .map(cadEntityToDxfPrimitive)
     .filter((primitive): primitive is CadDxfPrimitive => primitive !== null);
+}
+
+export function cadDocumentNativeDxfHatches(
+  document: CadDocument,
+  filter?: (entity: CadEntity) => boolean,
+): CadDxfExportHatch[] {
+  return document.entities
+    .filter((entity) => entity.type === "hatch" && (filter ? filter(entity) : true))
+    .map((entity) => {
+      if (entity.type !== "hatch") throw new Error("Unexpected non-hatch entity.");
+      return {
+        layer: entity.layer,
+        boundaries: entity.boundaries.map((boundary) =>
+          boundary.map((point) => ({ x: point.x, y: point.y })),
+        ),
+        pattern: entity.pattern,
+        solid: entity.solid,
+        scale: entity.scale,
+        angle: entity.angle,
+      };
+    });
 }

@@ -34,4 +34,29 @@ assert.equal(
 );
 disposeCadNativeObject(object);
 
+const hatch: Extract<CadNativeEntity, { type: "hatch" }> = {
+  id: "hatch-render",
+  type: "hatch",
+  pattern: "SOLID",
+  solid: true,
+  boundaries: [[
+    { x: 100, y: 100, z: 0 },
+    { x: 900, y: 100, z: 0 },
+    { x: 900, y: 900, z: 0 },
+    { x: 100, y: 900, z: 0 },
+  ]],
+  layer: "AREAS",
+};
+const hatchObject = buildCadNativeObject(
+  hatch,
+  { scale: 0.01, width: 1_000, height: 1_000 },
+  false,
+);
+assert.ok(hatchObject.children.some((child) => child.userData.nativeFill), "solid hatch has a real fill mesh");
+assert.ok(hatchObject.children.some((child) => child.userData.nativePath), "solid hatch keeps its editable outline");
+setCadNativeObjectSelected(hatchObject, true);
+const hatchFill = hatchObject.children.find((child) => child.userData.nativeFill);
+assert.equal(hatchFill?.userData.nativeEntityId, hatch.id);
+disposeCadNativeObject(hatchObject);
+
 console.log("cad native Three.js renderer specs passed");

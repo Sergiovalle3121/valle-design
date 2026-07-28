@@ -11,10 +11,11 @@ import {
   tessellateEllipse,
   tessellateSpline,
 } from "./curve-tessellate";
+import { hatchPolygon } from "./hatch";
 
 export type CadNativeEntity = Extract<
   CadEntity,
-  { type: "arc" | "ellipse" | "spline" }
+  { type: "arc" | "ellipse" | "spline" | "hatch" }
 >;
 export type CadNativeEntityType = CadNativeEntity["type"];
 
@@ -212,6 +213,19 @@ function pathHit(paths: CadRenderPath[], point: CadPoint2, tolerance: number): b
       return true;
     return false;
   });
+}
+
+function pointInPolygon(point: CadPoint2, polygon: CadPoint2[]): boolean {
+  let inside = false;
+  for (let current = 0, previous = polygon.length - 1; current < polygon.length; previous = current, current += 1) {
+    const a = polygon[current];
+    const b = polygon[previous];
+    const crosses =
+      (a.y > point.y) !== (b.y > point.y) &&
+      point.x < ((b.x - a.x) * (point.y - a.y)) / (b.y - a.y) + a.x;
+    if (crosses) inside = !inside;
+  }
+  return inside;
 }
 
 function transformPoint(point: CadPoint3, transform: CadEntityTransform): CadPoint3 {
@@ -765,6 +779,160 @@ const splineAdapter: CadEntityAdapter<
   },
 };
 
+type CadHatchEntity = Extract<CadNativeEntity, { type: "hatch" }>;
+
+function hatchBoundaries(entity: CadHatchEntity): CadPoint2[][] {
+  return entity.boundaries
+    .map((boundary) => boundary.map((point) => ({ x: point.x, y: point.y })))
+    .filter((boundary) => boundary.length >= 3);
+}
+
+function hatchContains(entity: CadHatchEntity, point: CadPoint2): boolean {
+  const [outer, ...holes] = hatchBoundaries(entity);
+  return !!outer && pointInPolygon(point, outer) && !holes.some((hole) => pointInPolygon(point, hole));
+}
+
+const hatchRenderer: CadEntityRenderer<CadHatchEntity> = {
+  paths: (entity) => {
+    const boundaries = hatchBoundaries(entity);
+    const outlines: CadRenderPath[] = boundaries.map((points) => ({ points, closed: true }));
+    if (entity.solid || !boundaries[0]) return outlines;
+    const bounds = pointsBounds(boundaries.flat());
+    const diagonal = Math.hypot(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
+    const spacing = Math.max(entity.scale ?? diagonal / 40, diagonal / 256, 1e-6);
+    const pattern = entity.pattern.trim().toUpperCase();
+    const angles = pattern === "CROSS" ? [entity.angle ?? 45, (entity.angle ?? 45) + 90] : [entity.angle ?? 45];
+    const [, ...holes] = boundaries;
+    const strokes = angles.flatMap((angle) =>
+      hatchPolygon(boundaries[0], { angle, spacing }).filter((segment) => {
+        const midpoint = { x: (segment.a.x + segment.b.x) / 2, y: (segment.a.y + segment.b.y) / 2 };
+        return !holes.some((hole) => pointInPolygon(midpoint, hole));
+      }),
+    );
+    return [
+      ...outlines,
+      ...strokes.map((segment) => ({ points: [segment.a, segment.b], closed: false })),
+    ];
+  },
+};
+
+const hatchBounds: CadBoundsProvider<CadHatchEntity> = {
+  bounds: (entity) => pointsBounds(hatchBoundaries(entity).flat()),
+};
+
+const hatchAdapter: CadEntityAdapter<CadHatchEntity> = {
+  type: "hatch",
+  renderer: hatchRenderer,
+  bounds: hatchBounds,
+  hitTester: {
+    hitTest: (entity, point, tolerance) =>
+      hatchContains(entity, point) || pathHit(hatchRenderer.paths(entity), point, tolerance),
+    intersectsWindow: (entity, window, crossing) => {
+      const entityBounds = hatchBounds.bounds(entity);
+      return crossing ? boundsIntersect(entityBounds, window) : boundsContained(entityBounds, window);
+    },
+  },
+  grips: {
+    grips: (entity) => {
+      const bounds = hatchBounds.bounds(entity);
+      return [
+        {
+          id: "center",
+          kind: "center" as const,
+          point: { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 },
+          label: "Centro",
+        },
+        ...entity.boundaries.flatMap((boundary, boundaryIndex) =>
+          boundary.map((point, vertexIndex) => ({
+            id: `boundary:${boundaryIndex}:vertex:${vertexIndex}`,
+            kind: "control" as const,
+            point: { x: point.x, y: point.y },
+            label: `Contorno ${boundaryIndex + 1} · vértice ${vertexIndex + 1}`,
+          })),
+        ),
+      ];
+    },
+    moveGrip: (entity, gripId, point) => {
+      if (gripId === "center") {
+        const bounds = hatchBounds.bounds(entity);
+        const center = { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 };
+        return hatchAdapter.commands.transform(entity, {
+          translation: { x: point.x - center.x, y: point.y - center.y },
+        });
+      }
+      const match = /^boundary:(\d+):vertex:(\d+)$/.exec(gripId);
+      if (!match) return entity;
+      const boundaryIndex = Number(match[1]);
+      const vertexIndex = Number(match[2]);
+      if (!entity.boundaries[boundaryIndex]?.[vertexIndex]) return entity;
+      return {
+        ...entity,
+        boundaries: entity.boundaries.map((boundary, currentBoundary) =>
+          boundary.map((vertex, currentVertex) =>
+            currentBoundary === boundaryIndex && currentVertex === vertexIndex
+              ? point3(point, vertex.z)
+              : { ...vertex },
+          ),
+        ),
+      };
+    },
+  },
+  snaps: {
+    snaps: (entity) => {
+      const bounds = hatchBounds.bounds(entity);
+      return [
+        {
+          kind: "center" as const,
+          point: { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 },
+          label: "Centro",
+        },
+        ...entity.boundaries.flatMap((boundary, boundaryIndex) =>
+          boundary.map((point, vertexIndex) => ({
+            kind: "endpoint" as const,
+            point: { x: point.x, y: point.y },
+            label: `Contorno ${boundaryIndex + 1} · vértice ${vertexIndex + 1}`,
+          })),
+        ),
+      ];
+    },
+  },
+  properties: {
+    read: (entity) => ({
+      pattern: entity.pattern,
+      solid: entity.solid,
+      scale: entity.scale ?? 1,
+      angle: entity.angle ?? 0,
+      boundaryCount: entity.boundaries.length,
+      layer: entity.layer,
+    }),
+    write: (entity, patch) => {
+      let pattern = typeof patch.pattern === "string" && patch.pattern.trim() ? patch.pattern.trim() : entity.pattern;
+      let solid = typeof patch.solid === "boolean" ? patch.solid : entity.solid;
+      if (typeof patch.pattern === "string" && patch.pattern.trim())
+        solid = pattern.toUpperCase() === "SOLID";
+      if (patch.solid === true) pattern = "SOLID";
+      else if (patch.solid === false && pattern.toUpperCase() === "SOLID") pattern = "ANSI31";
+      return {
+        ...entity,
+        pattern,
+        solid,
+        scale: positive(patch.scale, entity.scale ?? 1),
+        angle: finite(patch.angle, entity.angle ?? 0),
+        layer: typeof patch.layer === "string" ? patch.layer : entity.layer,
+      };
+    },
+  },
+  commands: {
+    transform: (entity, transform) => ({
+      ...entity,
+      boundaries: entity.boundaries.map((boundary) => boundary.map((point) => transformPoint(point, transform))),
+      scale: (entity.scale ?? 1) * Math.abs(transform.scale ?? 1),
+      angle: (entity.angle ?? 0) + (transform.rotationDeg ?? 0),
+      context: cloneContext(entity.context),
+    }),
+  },
+};
+
 export class CadEntityRegistry {
   private readonly adapters = new Map<
     CadNativeEntityType,
@@ -793,7 +961,8 @@ export class CadEntityRegistry {
 export const CAD_ENTITY_REGISTRY = new CadEntityRegistry()
   .register(arcAdapter)
   .register(ellipseAdapter)
-  .register(splineAdapter);
+  .register(splineAdapter)
+  .register(hatchAdapter);
 
 export type CadEntityCommand =
   | { type: "transform"; entityId: string; transform: CadEntityTransform }

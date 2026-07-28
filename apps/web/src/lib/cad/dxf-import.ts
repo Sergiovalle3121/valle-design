@@ -34,6 +34,14 @@ export interface CadDxfPrimitive {
   /** Vector de nudos, sólo para kind "spline". */
   knots?: number[];
 }
+export interface CadDxfHatch {
+  layer: string;
+  pattern: string;
+  solid: boolean;
+  boundaries: CadDxfPoint[][];
+  scale?: number;
+  angle?: number;
+}
 export interface CadDxfImportWarning {
   code: string;
   message: string;
@@ -42,6 +50,7 @@ export interface CadDxfImportWarning {
 }
 export interface CadDxfImportResult {
   primitives: CadDxfPrimitive[];
+  hatches: CadDxfHatch[];
   warnings: CadDxfImportWarning[];
   layers: string[];
 }
@@ -453,58 +462,136 @@ function expandDimension(
     : [];
 }
 
-/**
- * Cuenta entidades HATCH en el texto crudo. dxf-parser las DESCARTA en
- * silencio (ni siquiera llegan al bucle de entidades), así que sin este
- * pre-escaneo un plano achurado importaría con los rellenos perdidos y CERO
- * avisos — pérdida silenciosa, lo contrario del contrato honesto del import.
- */
-function countRawHatchEntities(text: string): number {
+interface RawDxfPair {
+  code: number;
+  value: string;
+}
+
+function rawDxfPairs(text: string): RawDxfPair[] {
   const lines = text.split(/\r?\n/);
-  let count = 0;
-  for (let i = 0; i + 1 < lines.length; i += 1) {
-    if (lines[i].trim() === "0" && lines[i + 1].trim().toUpperCase() === "HATCH")
-      count += 1;
+  const pairs: RawDxfPair[] = [];
+  for (let index = 0; index + 1 < lines.length; index += 2) {
+    const code = Number(lines[index].trim());
+    if (Number.isInteger(code)) pairs.push({ code, value: lines[index + 1].trim() });
   }
-  return count;
+  return pairs;
+}
+
+/**
+ * dxf-parser currently drops HATCH. Parse polyline boundary paths directly
+ * from ASCII group codes so solid and predefined-pattern hatches survive the
+ * same import pipeline. Edge paths (arc/spline loops) remain explicit warnings.
+ */
+export function parseRawDxfHatches(text: string): {
+  hatches: CadDxfHatch[];
+  warnings: CadDxfImportWarning[];
+} {
+  const pairs = rawDxfPairs(text);
+  const hatches: CadDxfHatch[] = [];
+  const warnings: CadDxfImportWarning[] = [];
+  let scannedHatches = 0;
+  for (let start = 0; start < pairs.length && scannedHatches < MAX_DXF_ENTITIES; start += 1) {
+    if (pairs[start].code !== 0 || pairs[start].value.toUpperCase() !== "HATCH") continue;
+    scannedHatches += 1;
+    let end = start + 1;
+    while (end < pairs.length && pairs[end].code !== 0) end += 1;
+    const entityPairs = pairs.slice(start + 1, end);
+    const first = (code: number) => entityPairs.find((pair) => pair.code === code)?.value;
+    const layer = first(8) || DEFAULT_LAYER;
+    const pattern = first(2) || "SOLID";
+    const solid = Number(first(70) ?? 0) === 1 || pattern.toUpperCase() === "SOLID";
+    const scale = num(first(41));
+    const angle = num(first(52));
+    const boundaries: CadDxfPoint[][] = [];
+    let unsupportedEdgePath = false;
+    for (let cursor = 0; cursor < entityPairs.length; cursor += 1) {
+      if (entityPairs[cursor].code !== 92) continue;
+      const pathFlags = Number(entityPairs[cursor].value) || 0;
+      const nextPath = entityPairs.findIndex((pair, index) => index > cursor && pair.code === 92);
+      const pathEnd = nextPath >= 0 ? nextPath : entityPairs.length;
+      if ((pathFlags & 2) === 0) {
+        unsupportedEdgePath = true;
+        cursor = pathEnd - 1;
+        continue;
+      }
+      const countIndex = entityPairs.findIndex((pair, index) => index > cursor && index < pathEnd && pair.code === 93);
+      const vertexCount = countIndex >= 0 ? Number(entityPairs[countIndex].value) : 0;
+      const boundary: CadDxfPoint[] = [];
+      let pendingX: number | null = null;
+      for (let index = countIndex + 1; index < pathEnd && boundary.length < vertexCount; index += 1) {
+        const pair = entityPairs[index];
+        if (pair.code === 10) pendingX = num(pair.value);
+        else if (pair.code === 20 && pendingX !== null) {
+          const y = num(pair.value);
+          if (y !== null) boundary.push({ x: pendingX, y });
+          pendingX = null;
+        }
+      }
+      if (boundary.length >= 3) boundaries.push(boundary);
+      cursor = pathEnd - 1;
+    }
+    if (boundaries.length) {
+      hatches.push({
+        layer,
+        pattern,
+        solid,
+        boundaries,
+        ...(scale !== null && scale > 0 ? { scale } : {}),
+        ...(angle !== null ? { angle } : {}),
+      });
+      if (unsupportedEdgePath)
+        warnings.push({
+          code: "hatch_edge_path_partial",
+          message: "HATCH conserva sus contornos poligonales; un contorno curvo no soportado fue omitido.",
+          entityType: "HATCH",
+          layer,
+        });
+    } else {
+      warnings.push({
+        code: "hatch_unsupported_boundary",
+        message: "HATCH sin contorno poligonal compatible; no se importó el relleno.",
+        entityType: "HATCH",
+        layer,
+      });
+    }
+    start = end - 1;
+  }
+  return { hatches, warnings };
 }
 
 export function importDxfPrimitives(text: string): CadDxfImportResult {
-  const warnings: CadDxfImportWarning[] = [];
-  const hatchCount = countRawHatchEntities(text);
-  if (hatchCount > 0)
-    warnings.push({
-      code: "hatch_dropped",
-      message: `El archivo trae ${hatchCount} achurado(s) HATCH; el relleno aún no se importa (la geometría restante sí).`,
-      entityType: "HATCH",
-    });
+  const rawHatchResult = parseRawDxfHatches(text);
+  const warnings: CadDxfImportWarning[] = [...rawHatchResult.warnings];
   let parsed: any;
   try {
     parsed = new (DxfParser as any)().parseSync(text);
   } catch {
     return {
       primitives: [],
-      layers: [],
+      hatches: rawHatchResult.hatches,
+      layers: [...new Set(rawHatchResult.hatches.map((hatch) => hatch.layer))].sort(),
       warnings: [
+        ...warnings,
         { code: "parse_failed", message: "No se pudo parsear el DXF." },
       ],
     };
   }
+  const remainingEntityCapacity = Math.max(0, MAX_DXF_ENTITIES - rawHatchResult.hatches.length);
   const entities: any[] = Array.isArray(parsed?.entities)
-    ? parsed.entities.slice(0, MAX_DXF_ENTITIES)
+    ? parsed.entities.slice(0, remainingEntityCapacity)
     : [];
   const blocks: Record<string, any> =
     parsed?.blocks && typeof parsed.blocks === "object" ? parsed.blocks : {};
   const primitives: CadDxfPrimitive[] = [];
   const layers = new Set<string>();
   for (const entity of entities) {
-    if (primitives.length >= MAX_DXF_ENTITIES) break;
+    if (primitives.length >= remainingEntityCapacity) break;
     const type = String(entity?.type || "").toUpperCase();
     if (type === "INSERT") {
       // Expansión de bloques (CAD-NEXT-063): las puertas/luminarias/mobiliario
       // insertados dejan de perderse como "no soportados".
       for (const primitive of expandInsert(entity, blocks, warnings, 0)) {
-        if (primitives.length >= MAX_DXF_ENTITIES) break;
+        if (primitives.length >= remainingEntityCapacity) break;
         primitives.push(primitive);
         layers.add(primitive.layer);
       }
@@ -514,7 +601,7 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
       // Cotas nativas (CAD-NEXT-066): la geometría renderizada vive en el
       // bloque anónimo *D que referencia la entidad.
       for (const primitive of expandDimension(entity, blocks, warnings)) {
-        if (primitives.length >= MAX_DXF_ENTITIES) break;
+        if (primitives.length >= remainingEntityCapacity) break;
         primitives.push(primitive);
         layers.add(primitive.layer);
       }
@@ -529,11 +616,12 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
   }
   if (
     Array.isArray(parsed?.entities) &&
-    parsed.entities.length > MAX_DXF_ENTITIES
+    parsed.entities.length > remainingEntityCapacity
   )
     warnings.push({
       code: "entity_limit",
-      message: `DXF recortado a ${MAX_DXF_ENTITIES} entidades.`,
+      message: `DXF recortado a ${MAX_DXF_ENTITIES} entidades incluyendo HATCH.`,
     });
-  return { primitives, warnings, layers: [...layers].sort() };
+  for (const hatch of rawHatchResult.hatches) layers.add(hatch.layer);
+  return { primitives, hatches: rawHatchResult.hatches, warnings, layers: [...layers].sort() };
 }
