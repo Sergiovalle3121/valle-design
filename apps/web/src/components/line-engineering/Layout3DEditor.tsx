@@ -1335,6 +1335,7 @@ export default function Layout3DEditor({
   const workspacePreferencesRef = useRef<CadWorkspacePreferences>(CAD_WORKSPACE_DEFAULTS);
   const workspaceShortcutsRef = useRef(buildCadWorkspaceShortcuts(CAD_WORKSPACE_DEFAULTS));
   const crosshairOverlayRef = useRef<HTMLDivElement | null>(null);
+  const cursorCoordinateRef = useRef<HTMLSpanElement | null>(null);
   if (nativeSceneSyncRef.current === null)
     nativeSceneSyncRef.current = new CadSceneSynchronizer<THREE.Object3D>();
   if (nativeSelectionIndexRef.current === null)
@@ -3477,16 +3478,29 @@ export default function Layout3DEditor({
     let dragSnap: Snapshot | null = null;
     let marquee: { x0: number; y0: number; x1: number; y1: number } | null = null;
     let selectionPath: { x: number; y: number }[] | null = null;
+    const updateMarqueeGeometry = (points: readonly THREE.Vector3[]) => {
+      const geometry = marqueeLine.geometry as THREE.BufferGeometry;
+      let position = geometry.getAttribute('position') as THREE.BufferAttribute | undefined;
+      if (!position || position.count < points.length) {
+        const capacity = 2 ** Math.ceil(Math.log2(Math.max(4, points.length)));
+        position = new THREE.BufferAttribute(new Float32Array(capacity * 3), 3);
+        geometry.setAttribute('position', position);
+      }
+      points.forEach((point, index) => position!.setXYZ(index, point.x, point.y, point.z));
+      position.needsUpdate = true;
+      geometry.setDrawRange(0, points.length);
+      geometry.computeBoundingSphere();
+    };
     const drawMarquee = (m: { x0: number; y0: number; x1: number; y1: number }) => {
       const ctx = ctxRef.current!;
       const toWorld = (x: number, y: number) => new THREE.Vector3((x - ctx.W / 2) * ctx.s, 0.05, (y - ctx.H / 2) * ctx.s);
-      (marqueeLine.geometry as THREE.BufferGeometry).setFromPoints([toWorld(m.x0, m.y0), toWorld(m.x1, m.y0), toWorld(m.x1, m.y1), toWorld(m.x0, m.y1)]);
+      updateMarqueeGeometry([toWorld(m.x0, m.y0), toWorld(m.x1, m.y0), toWorld(m.x1, m.y1), toWorld(m.x0, m.y1)]);
       (marqueeLine.material as THREE.LineBasicMaterial).color.set(m.x1 >= m.x0 ? 0x22d3ee : 0x34d399);
       marqueeLine.visible = true;
     };
     const drawSelectionPath = (points: readonly { x: number; y: number }[]) => {
       const ctx = ctxRef.current!;
-      (marqueeLine.geometry as THREE.BufferGeometry).setFromPoints(points.map((point) =>
+      updateMarqueeGeometry(points.map((point) =>
         new THREE.Vector3((point.x - ctx.W / 2) * ctx.s, 0.05, (point.y - ctx.H / 2) * ctx.s)));
       (marqueeLine.material as THREE.LineBasicMaterial).color.set(
         selectionGeometryModeRef.current === 'fence' ? 0xf59e0b : 0xa78bfa,
@@ -3838,6 +3852,14 @@ export default function Layout3DEditor({
         const rect = renderer.domElement.getBoundingClientRect();
         overlay.style.display = 'block';
         overlay.style.transform = `translate(${e.clientX - rect.left}px, ${e.clientY - rect.top}px)`;
+      }
+      const cursorWorld = floorWorld(e);
+      if (cursorCoordinateRef.current) {
+        cursorCoordinateRef.current.dataset.x = cursorWorld ? String(cursorWorld.wx) : '';
+        cursorCoordinateRef.current.dataset.y = cursorWorld ? String(cursorWorld.wy) : '';
+        cursorCoordinateRef.current.textContent = cursorWorld
+          ? `X ${cursorWorld.wx.toFixed(2)} · Y ${cursorWorld.wy.toFixed(2)}`
+          : 'X — · Y —';
       }
       if (walkRef.current) {
         if (!walkLook) return;
@@ -8243,6 +8265,7 @@ export default function Layout3DEditor({
       onSolidChange={setHatchPickSolid}
       onIslandStyleChange={setHatchIslandStyle}
       onPickModeChange={(active) => { hatchPickModeRef.current = active; setHatchPickMode(active); if (active) setShowHatchPalette(false); }}
+      onCreateAtPoint={(point) => { createHatchAtPoint(point); setShowHatchPalette(false); }}
       onCreateFromSelection={(solid) => { createHatchForSelection(solid); setShowHatchPalette(false); }}
     />
   ) : activeProfessionalDock === 'dimension' ? (
@@ -8998,7 +9021,7 @@ export default function Layout3DEditor({
             )}
             <div className="absolute bottom-3 right-3 z-20 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-gray-950/85 px-3 py-1.5 text-[11px] text-gray-300 shadow-xl backdrop-blur">
               <span className="text-cyan-200">Tool: {tool}</span>
-              <span>{selList.length} sel</span>
+              <span data-testid="cad-selection-status-count">{professionalSelection.current.length} sel</span>
               <span title="Entidades nativas en el documento canónico">Native {nativeEntities.length}</span>
               {nativeRenderStats.omitted > 0 && (
                 <span
@@ -9014,6 +9037,7 @@ export default function Layout3DEditor({
                 </span>
               )}
               <span>{data?.footprint.unit ?? 'mm'}</span>
+              <span ref={cursorCoordinateRef} data-testid="cad-cursor-coordinate" data-x="" data-y="" className="font-mono tabular-nums" title="Coordenadas del cursor en el dibujo">X — · Y —</span>
               <span title="Modelo, revisión funcional y versión CAS">{model} · {revision} · v{data?.cadDocumentVersion ?? 0}</span>
               <span className={saving ? 'text-cyan-200' : dirty ? 'text-amber-300' : 'text-emerald-300'}>{saving ? 'Guardando…' : dirty ? 'Modificado' : 'Guardado'}</span>
               {dirty && recoverySavedAt && <span className="text-sky-300" title={recoverySavedAt}>Recovery local activo</span>}

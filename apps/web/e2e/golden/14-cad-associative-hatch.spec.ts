@@ -102,3 +102,30 @@ test('HATCH remains associated, regenerates with its source and reports a broken
   const broken = backend.snapshot().document.entities.find((entity): entity is CadHatch => entity.type === 'hatch');
   expect(broken?.associationStatus).toBe('broken');
 });
+
+test('HATCH resolves an exact interior point through the production boundary picker', async ({ context, page }) => {
+  await installMockBackend(context);
+  await loginAsMaster(context);
+  const backend = await installCadBackend(context);
+  await page.goto('/dashboard/cad');
+
+  await page.getByTitle(/^HATCH:/).click();
+  const palette = page.getByTestId('cad-hatch-palette');
+  await expect(palette).toBeVisible();
+  await palette.getByTestId('cad-hatch-point-x').fill('7000');
+  await palette.getByTestId('cad-hatch-point-y').fill('4000');
+  await palette.getByTestId('cad-hatch-create-exact').click();
+
+  const properties = page.getByTestId('cad-native-properties');
+  await expect(properties).toContainText('HATCH');
+  await expect(properties).toContainText('associated');
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await expect.poll(() => backend.snapshot().version).toBe(1);
+
+  const hatch = backend.snapshot().document.entities.find((entity): entity is CadHatch => entity.type === 'hatch');
+  expect(hatch).toBeDefined();
+  expect(hatch?.origin).toMatchObject({ x: 7_000, y: 4_000 });
+  expect(hatch?.boundaryRefs).toEqual(['hatch-source-ellipse']);
+  expect(hatch?.associationStatus).toBe('associated');
+  expect(hatch?.boundaries).toHaveLength(1);
+});

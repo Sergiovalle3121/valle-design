@@ -7,8 +7,8 @@
 | `MISSION_STARTED_AT` | 2026-07-28 12:08:49 -06:00 |
 | `MISSION_TARGET_END` | 2026-07-28 22:08:49 -06:00 |
 | `MISSION_CURRENT_PHASE` | P3 — Acceptance journey y hardening final |
-| `MISSION_COMPLETED_GATES` | viewport 100k; recovery worker/journal; blob GC bifásico y tenant-safe; selección profesional; precisión dinámica y tracking; HATCH asociativo; MTEXT nativo; DIMENSION asociativa; MLEADER canónico; BLOCK/INSERT profesional; workbench profesional; layouts/publicación multi-viewport; Xrefs tenant-safe; compare/merge/review tenant-safe browser-proven |
-| `MISSION_NEXT_ACTION` | construir el acceptance journey neutral de 50 pasos, ejecutar matrices/full gates, revisar arquitectura y preparar integración final sin claims inflados |
+| `MISSION_COMPLETED_GATES` | viewport 100k; recovery worker/journal; blob GC bifásico y tenant-safe; selección profesional espacial; precisión dinámica y tracking; HATCH asociativo por selección/punto; MTEXT nativo; DIMENSION asociativa; MLEADER canónico; BLOCK/INSERT profesional; workbench profesional; layouts/publicación multi-viewport; Xrefs tenant-safe; compare/merge/review tenant-safe; FILLET/TRIM/EXTEND y capas canónicas browser-proven |
+| `MISSION_NEXT_ACTION` | consolidar la matriz neutral de 50 pasos, ejecutar gates amplios/performance, revisar arquitectura y preparar integración final sin claims inflados |
 | Repositorio | `Sergiovalle3121/axos-os` |
 | Base | `1625ba26a07876943b821586c46b02c9f47f6bac` (`origin/main`) |
 | Rama / PR | `codex/cad-professional-grand-leap-iii` / #1416 |
@@ -502,6 +502,32 @@ No se editan ramas comerciales, ERP o PDF durante la construcción CAD.
   reclama paridad general. `Layout3DEditor.tsx` queda en 10,514 líneas. Sigue
   P3-C: selección espacial explícita, HATCH por punto interior y matriz de
   evidencia antes de los gates finales.
+
+### 2026-07-28 18:04–18:17 — P3-C / Selección espacial y HATCH por punto
+
+- La barra de estado muestra coordenadas X/Y del dibujo y el total del
+  controlador de selección unificado —incluidas entidades nativas— mediante
+  actualización DOM sin render React por cada movimiento del puntero.
+- Chromium calibra pantalla↔mundo desde esa lectura y arrastra sobre el canvas
+  WebGL real: Window contiene una LINE, Crossing incorpora otra parcialmente
+  cruzada, Lasso encierra una tercera y dos picks no-grip ciclan entre dos LINE
+  solapadas. No se invoca el reducer ni el índice desde el test.
+- El trazo libre dejó de llamar `BufferGeometry.setFromPoints` sobre un buffer
+  de cuatro vértices: ahora crece por potencias de dos, conserva draw range y
+  actualiza en sitio. Así desaparece el warning de Three.js y se evita una
+  realocación por cada `pointermove` durante lasso/fence/polygon.
+- HATCH acepta X/Y exactos desde su dock y entrega el punto al mismo detector
+  productivo usado por el canvas. El test crea el hatch en 7000,4000 dentro de
+  una ELLIPSE, confirma origen, loop, referencia y asociación, guarda por CAS y
+  conserva en paralelo el flujo anterior de selección/regeneración/broken.
+- Evidencia: TypeScript, reducer e índice verdes; ESLint focal 0 errores;
+  Chromium #12 + #14 completo 4/4 en 1.8 min; diff-check verde. Quedan
+  browser-proven los pasos 18–21 y 23 del journey, además de los pasos de grips
+  y asociación ya demostrados en #10/#14.
+- La rúbrica permanece en 90: la selección espacial ya tiene evidencia real,
+  pero no se concede el punto faltante sin estrés de trazos sobre 100k y gates
+  finales. `Layout3DEditor.tsx` queda en 10,538 líneas. Sigue P3-D, matriz
+  trazable 1–50 y ejecución amplia de aceptación/performance.
 
 ## Claims
 
