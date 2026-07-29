@@ -2,6 +2,7 @@ import {
   type CadBlockDefinition,
   type CadDocument,
   type CadEntity,
+  type CadEntityPresentation,
   type CadLayerDef,
   type CadPaperSpace,
   type CadPaperViewport,
@@ -12,6 +13,8 @@ import {
   tessellateEllipse,
   tessellateSpline,
 } from "./curve-tessellate";
+import { buildCadDimensionGeometry } from "./associative-dimension";
+import { buildCadMleaderGeometry } from "./associative-mleader";
 
 export const CAD_SHEET_PAPERS = {
   A4: { width: 210, height: 297 },
@@ -96,7 +99,13 @@ export type CadVectorCommand =
       size: number;
       rotation: number;
       color: string;
-      align?: "left" | "center" | "right";
+      align?: "left" | "center" | "right" | "justify";
+      maxWidth?: number;
+      bold?: boolean;
+      italic?: boolean;
+      underline?: boolean;
+      backgroundMask?: boolean;
+      backgroundColor?: string;
     };
 
 export interface CadPublishWarning {
@@ -426,6 +435,22 @@ function visibleLayer(
   return override ?? layers.get(layerId)?.visible ?? true;
 }
 
+function blockPresentation(
+  own: CadEntityPresentation | undefined,
+  inherited: CadEntityPresentation | undefined,
+): CadEntityPresentation | undefined {
+  if (!own) return undefined;
+  const property = <T extends { source: "byLayer" | "byBlock" | "explicit" }>(
+    value: T | undefined,
+    parent: T | undefined,
+  ) => value?.source === "byBlock" ? parent : value;
+  return {
+    color: property(own.color, inherited?.color),
+    linetype: property(own.linetype, inherited?.linetype),
+    lineweight: property(own.lineweight, inherited?.lineweight),
+  };
+}
+
 function styleFor(
   entity: CadEntity,
   layerId: string,
@@ -433,10 +458,12 @@ function styleFor(
   viewport: CadPaperViewport,
   colorMode: "color" | "monochrome",
   lineweightScale: number,
+  inheritedPresentation?: CadEntityPresentation,
 ): CadVectorStyle {
   const layer = layers.get(layerId);
   const override = viewport.layerOverrides?.[layerId];
-  const explicit = entity.context?.presentation?.color;
+  const presentation = blockPresentation(entity.context?.presentation, inheritedPresentation);
+  const explicit = presentation?.color;
   const color =
     colorMode === "monochrome"
       ? "#111827"
@@ -446,7 +473,7 @@ function styleFor(
         "#334155");
   const rawWidth =
     override?.lineweight ??
-    entity.context?.presentation?.lineweight?.value ??
+    (presentation?.lineweight?.source === "explicit" ? presentation.lineweight.value : undefined) ??
     layer?.lineweight ??
     0.18;
   return {
@@ -519,6 +546,7 @@ function renderEntity(
     colorMode: "color" | "monochrome";
     lineweightScale: number;
     inheritedLayer?: string;
+    inheritedPresentation?: CadEntityPresentation;
     depth: number;
     stack: string[];
     warnings: CadPublishWarning[];
@@ -534,6 +562,7 @@ function renderEntity(
     context.viewport,
     context.colorMode,
     context.lineweightScale,
+    context.inheritedPresentation,
   );
   const path = (points: CadPoint2[], closed = false, fill?: string) =>
     commandPath(
@@ -624,30 +653,32 @@ function renderEntity(
         size: Math.max(1.5, Math.min(12, (entity.height ?? 120) * scale)),
         rotation: entity.rotation ?? 0,
         color: style.stroke,
+        ...(entity.type === "mtext" ? {
+          align: entity.paragraphAlignment ?? "left",
+          maxWidth: (entity.width ?? (entity.height ?? 120) * 20) * scale,
+          bold: entity.bold,
+          italic: entity.italic,
+          underline: entity.underline,
+          backgroundMask: entity.backgroundMask,
+          backgroundColor: entity.backgroundColor,
+        } : {}),
       },
     ];
   }
   if (entity.type === "dimension") {
-    const label =
-      entity.text ??
-      `${Math.hypot(entity.b.x - entity.a.x, entity.b.y - entity.a.y).toFixed(0)} ${"mm"}`;
-    const middle = {
-      x: (entity.a.x + entity.b.x) / 2,
-      y: (entity.a.y + entity.b.y) / 2,
-    };
-    const commands = [path([entity.a, entity.b])].filter(
+    const geometry = buildCadDimensionGeometry(entity);
+    if (!geometry) return [];
+    const commands = geometry.paths.map((item) => path(item.points, item.closed)).filter(
       (value): value is CadVectorCommand => !!value,
     );
     commands.push({
       kind: "text",
       entityId: entity.id,
       viewportId: context.viewport.id,
-      point: point(matrix, middle),
-      text: label,
-      size: 2.5,
-      rotation:
-        (Math.atan2(entity.b.y - entity.a.y, entity.b.x - entity.a.x) * 180) /
-        Math.PI,
+      point: point(matrix, geometry.textAnchor),
+      text: geometry.label,
+      size: Math.max(1.5, Math.min(8, (entity.arrowSize ?? 180) * Math.hypot(matrix.a, matrix.b) * 0.55)),
+      rotation: geometry.textAngle,
       color: style.stroke,
       align: "center",
     });
@@ -678,18 +709,26 @@ function renderEntity(
     return commands;
   }
   if (entity.type === "mleader") {
-    const commands = [path(entity.vertices)].filter(
-      (value): value is CadVectorCommand => !!value,
-    );
+    const geometry = buildCadMleaderGeometry(entity);
+    if (!geometry) return [];
+    const commands = geometry.paths.map((item) => path(item.points, item.closed)).filter((value): value is CadVectorCommand => !!value);
+    const scale = Math.hypot(matrix.a, matrix.b);
     commands.push({
       kind: "text",
       entityId: entity.id,
       viewportId: context.viewport.id,
-      point: point(matrix, entity.textPosition),
+      point: point(matrix, geometry.textAnchor),
       text: entity.text,
-      size: 2.5,
-      rotation: 0,
+      size: Math.max(1.5, Math.min(12, (entity.textHeight ?? 120) * scale)),
+      rotation: entity.textRotation ?? 0,
       color: style.stroke,
+      align: entity.textAlignment ?? "left",
+      maxWidth: (entity.textWidth ?? 1800) * scale,
+      bold: entity.bold,
+      italic: entity.italic,
+      underline: entity.underline,
+      backgroundMask: entity.backgroundMask,
+      backgroundColor: entity.backgroundColor,
     });
     return commands;
   }
@@ -728,31 +767,41 @@ function renderEntity(
       context.entityMatrix,
       insertTransform(entity, block),
     );
+    const effectiveInsertPresentation = blockPresentation(
+      entity.context?.presentation,
+      context.inheritedPresentation,
+    );
     const commands = block.entities.flatMap((child) =>
       renderEntity(child, {
         ...context,
         entityMatrix: nestedMatrix,
         inheritedLayer: layerId,
+        inheritedPresentation: effectiveInsertPresentation,
         depth: context.depth + 1,
         stack: [...context.stack, block.id],
       }),
     );
-    const attributes = Object.entries(entity.attributes ?? {});
-    attributes.forEach(([key, value], index) =>
+    Object.entries(block.attributes ?? {}).forEach(([key, definition], index) => {
+      if (definition.invisible) return;
+      const value = definition.constant
+        ? (definition.defaultValue ?? "")
+        : (entity.attributes?.[key] ?? definition.defaultValue ?? "");
+      if (!value) return;
+      const anchor = definition.position ?? {
+        x: block.basePoint.x,
+        y: block.basePoint.y + index * 120,
+      };
       commands.push({
         kind: "text",
         entityId: `${entity.id}:attribute:${key}`,
         viewportId: context.viewport.id,
-        point: point(multiply(context.viewportMatrix, context.entityMatrix), {
-          x: entity.insertion.x,
-          y: entity.insertion.y + index * 120,
-        }),
+        point: point(multiply(context.viewportMatrix, nestedMatrix), anchor),
         text: value,
-        size: 2.2,
-        rotation: entity.rotation,
+        size: Math.max(1.5, Math.min(12, (definition.height ?? 120) * Math.hypot(nestedMatrix.a, nestedMatrix.b) * Math.hypot(context.viewportMatrix.a, context.viewportMatrix.b))),
+        rotation: Math.atan2(nestedMatrix.b, nestedMatrix.a) * 180 / Math.PI,
         color: style.stroke,
-      }),
-    );
+      });
+    });
     return commands;
   }
   return [];
@@ -778,6 +827,18 @@ export function buildCadPublishPlan(
     .sort(
       (a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id.localeCompare(b.id),
     );
+  document.externalReferences.forEach((reference) => {
+    const status = reference.status ?? (reference.loaded ? "loaded" : "unloaded");
+    if (status === "loaded") return;
+    orderedSpaces.forEach((space) => warnings.push({
+      code: status === "unloaded" ? "xref_unloaded" : `xref_${status}_cache`,
+      sheetId: space.id,
+      entityId: reference.insertId,
+      detail: status === "unloaded"
+        ? `Xref ${reference.name} is unloaded and is omitted from publication.`
+        : `Xref ${reference.name} is ${status}; publication uses its last loaded vector cache.`,
+    }));
+  });
   const sheets = orderedSpaces.map((space): CadPublishSheet => {
     const colorMode = space.pageSetup?.colorMode ?? "monochrome";
     const lineweightScale = space.pageSetup?.lineweightScale ?? 1;

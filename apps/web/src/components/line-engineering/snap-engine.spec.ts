@@ -48,6 +48,19 @@ const nearP = (p: Point, x: number, y: number, t = 1e-6) => near(p.x, x, t) && n
   const r = snap({ x: 5, y: 1 }, scene, { tolerance: 3, modes: { midpoint: true, nearest: false } });
   ok(r !== null && r.type === 'midpoint' && nearP(r.point, 5, 0), 'midpoint detectado'); }
 
+// Tessellation de curvas no debe inventar midpoints que desplacen un tangent real.
+{ const scene: SnapScene = {
+    segments: [
+      { a: { x: 0, y: 0 }, b: { x: 5, y: 0 }, pathId: 'curve', ordinal: 0, pathLength: 2 },
+      { a: { x: 5, y: 0 }, b: { x: 10, y: 1 }, pathId: 'curve', ordinal: 1, pathLength: 2 },
+    ],
+    midpoints: [],
+    perpendicularSegments: [],
+    tangents: [{ x: 5, y: 0 }],
+  };
+  const r = snap({ x: 5, y: 0 }, scene, { tolerance: 1, modes: { nearest: false } });
+  ok(r !== null && r.type === 'tangent', 'tangent gana cuando la curva no declara midpoint semántico'); }
+
 // ── snap: modo deshabilitado se ignora ──
 { const scene: SnapScene = { endpoints: [{ x: 0, y: 0 }], gridSize: 10 };
   const r = snap({ x: 1, y: 1 }, scene, { tolerance: 3, modes: { endpoint: false } });

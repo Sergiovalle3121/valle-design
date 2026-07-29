@@ -143,6 +143,7 @@ const entities: CadEntity[] = [
     rotation: 0,
     attributes: { TAG: "P-101" },
     layer: "visible",
+    context: { presentation: { color: { source: "explicit", value: "#ff0000" }, lineweight: { source: "explicit", value: 0.6 } } },
   },
   {
     id: "missing-insert",
@@ -187,6 +188,7 @@ const paperSpaces = createThreeSheetDemo({
   },
 });
 paperSpaces[0].viewports![0].layerVisibility = { hidden: false };
+paperSpaces[1].pageSetup = { ...paperSpaces[1].pageSetup!, colorMode: "color" };
 
 const document: CadDocument = {
   ...base,
@@ -208,9 +210,10 @@ const document: CadDocument = {
           start: { x: 0, y: 0, z: 0 },
           end: { x: 20, y: 0, z: 0 },
           layer: "0",
+          context: { presentation: { color: { source: "byBlock" }, lineweight: { source: "byBlock" } } },
         },
       ],
-      attributes: { TAG: { required: true } },
+      attributes: { TAG: { required: true, position: { x: 5, y: 5, z: 0 }, height: 10 } },
     },
   ],
 };
@@ -269,6 +272,15 @@ assert.ok(
     (command) => command.entityId === "tag-line",
   ),
   "expande la geometria viva del bloque",
+);
+const colorBlockViewport = plan.sheets.flatMap((sheet) => sheet.viewports).find((viewport) =>
+  viewport.commands.some((command) => command.entityId === "tag-line" && command.kind === "path" && command.style.stroke === "#ff0000"),
+);
+const blockPath = colorBlockViewport?.commands.find((command) => command.entityId === "tag-line" && command.kind === "path");
+const layerPath = colorBlockViewport?.commands.find((command) => command.entityId === "line" && command.kind === "path");
+assert.ok(
+  blockPath?.kind === "path" && layerPath?.kind === "path" && blockPath.style.lineWidth > layerPath.style.lineWidth,
+  "resuelve color y lineweight ByBlock desde la presentacion de cada INSERT",
 );
 assert.ok(
   plan.sheets[0].viewports[0].commands.some(

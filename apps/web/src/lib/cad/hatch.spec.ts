@@ -30,6 +30,13 @@ assert.ok(
 );
 
 // --- achurado vertical -----------------------------------------------------
+const shifted = hatchPolygon(square, { angle: 0, spacing: 2, origin: { x: 0, y: 1 } });
+assert.deepEqual(
+  shifted.map((segment) => segment.a.y),
+  [1, 3, 5, 7, 9],
+  "el origen desplaza la rejilla del patrÃ³n sin mover el boundary",
+);
+
 const v = hatchPolygon(square, { angle: 90, spacing: 2 });
 assert.equal(v.length, 4, "achurado a 90° también da 4 líneas");
 assert.ok(

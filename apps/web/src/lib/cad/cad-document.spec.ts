@@ -244,4 +244,31 @@ assert.throws(
   "rechaza coordenadas no finitas",
 );
 
+const legacyLeader = migrateCadDocument({
+  meta: { version: 1, schema: 3, unit: "mm" },
+  entities: [
+    { id: "ld_leader", type: "dimension", a: { x: 0, y: 0 }, b: { x: 100, y: 80 }, layer: "NOTES" },
+    { id: "ld_dogleg", type: "dimension", a: { x: 100, y: 80 }, b: { x: 260, y: 80 }, layer: "NOTES" },
+    { id: "nt_content", type: "text", x: 260, y: 80, text: "Legacy note", layer: "NOTES" },
+  ],
+});
+assert.equal(legacyLeader.entities.length, 1, "legacy DIM+DIM+TEXT folds into one entity only when unique");
+assert.equal(legacyLeader.entities[0].type, "mleader");
+if (legacyLeader.entities[0].type === "mleader") {
+  assert.deepEqual(legacyLeader.entities[0].vertices, [{ x: 0, y: 0, z: 0 }, { x: 100, y: 80, z: 0 }]);
+  assert.equal(legacyLeader.entities[0].text, "Legacy note");
+  assert.equal(legacyLeader.entities[0].associationStatus, "detached");
+}
+const ambiguousLeader = migrateCadDocument({
+  meta: { version: 1, schema: 3, unit: "mm" },
+  entities: [
+    { id: "ld_leader", type: "dimension", a: { x: 0, y: 0 }, b: { x: 100, y: 80 }, layer: "NOTES" },
+    { id: "ld_dogleg", type: "dimension", a: { x: 100, y: 80 }, b: { x: 260, y: 80 }, layer: "NOTES" },
+    { id: "nt_content_a", type: "text", x: 260, y: 80, text: "A", layer: "NOTES" },
+    { id: "nt_content_b", type: "text", x: 260, y: 80, text: "B", layer: "NOTES" },
+  ],
+});
+assert.equal(ambiguousLeader.entities.some((entity) => entity.type === "mleader"), false);
+assert.equal(ambiguousLeader.lossManifest.some((entry) => entry.code === "legacy_mleader_ambiguous"), true);
+
 console.log("cad cad-document specs passed");

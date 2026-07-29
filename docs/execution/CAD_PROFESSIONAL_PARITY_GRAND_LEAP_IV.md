@@ -1,0 +1,603 @@
+# CAD Professional Parity — Grand Leap IV
+
+## Control de misión
+
+| Campo | Valor |
+| --- | --- |
+| `MISSION_STARTED_AT` | 2026-07-28 12:08:49 -06:00 |
+| `MISSION_TARGET_END` | 2026-07-28 22:08:49 -06:00 |
+| `MISSION_CURRENT_PHASE` | P3 — Acceptance journey y hardening final |
+| `MISSION_COMPLETED_GATES` | viewport 100k; recovery worker/journal; blob GC bifásico y tenant-safe; selección profesional espacial; precisión dinámica y tracking; HATCH asociativo por selección/punto; MTEXT nativo; DIMENSION asociativa; MLEADER canónico; BLOCK/INSERT profesional; workbench profesional; layouts/publicación multi-viewport; Xrefs tenant-safe; compare/merge/review tenant-safe; FILLET/TRIM/EXTEND y capas canónicas browser-proven |
+| `MISSION_NEXT_ACTION` | ejecutar matriz CAD amplia, gates web/API/DB/migraciones y CI; revisar arquitectura y preparar integración final sin claims inflados |
+| Repositorio | `Sergiovalle3121/axos-os` |
+| Base | `1625ba26a07876943b821586c46b02c9f47f6bac` (`origin/main`) |
+| Rama / PR | `codex/cad-professional-grand-leap-iii` / #1416 |
+| Head inicial | `8c840c92c529888de3e72e6cbcef41bff18d79a5` |
+| Worktree | `D:\Codex\Projects\axos-os-cad-grand-leap-iii` |
+
+La misión continúa desde el HEAD exacto de #1416 porque el PR sigue abierto. El
+worktree histórico de IA permanece intacto. La instrucción directa más reciente
+del propietario pide integrar al final todos los PRs abiertos; se hará como
+squash merge manual, nunca automerge, sólo tras verificar head SHA, CI,
+revisiones y mergeabilidad inmediatamente antes de cada merge.
+
+## Baseline autoritativo
+
+- `Layout3DEditor.tsx`: 8,761 líneas.
+- Fuente canónica: `CadDocument` v3.
+- Un solo command bus, registry de entidades e índice espacial canónico.
+- #1416 añadió point/window/OSNAP sobre las 100,000 entidades y materialización
+  bajo demanda; por tanto la brecha “97,500 no seleccionables” ya está cerrada.
+- La proyección detallada aún usa una muestra uniforme fija de 2,500 por encima
+  de 50,000; no consulta el viewport visible.
+- El overview completo usa un `LineSegments`, slots fijos y un draw call, con
+  geometría simplificada de hasta ocho segmentos por entidad.
+- Recovery aún serializa snapshots completos periódicos desde el hilo principal.
+- El blob store conserva una frontera reutilizable, pero carece de lifecycle/GC
+  y su adaptador de base carga blobs completos.
+- HATCH, MTEXT, siete clases de DIMENSION y MLEADER son nativos; HATCH,
+  DIMENSION y MLEADER son asociativos y regenerables, y sus ciclos de
+  edición/publicación/DXF están demostrados.
+
+## Rúbrica inicial de CAD 2D profesional
+
+Sólo se conceden puntos por evidencia actual del repositorio y navegador.
+
+| Área | Máximo | Inicial | Estado dominante | Evidencia / brecha |
+| --- | ---: | ---: | --- | --- |
+| Workbench y arquitectura | 10 | 9 | `browser-proven` parcial | docks sin overlay incluido compare/merge/review, workspace persistido, ribbon, status, command/search, temas/locale y matriz 1366–4K; monolito aún por encima de 10k líneas |
+| Precisión, input y snaps | 10 | 10 | `browser-proven` | dynamic input, snaps derivados, POLAR/ORTHO/OTRACK, tolerancia por zoom y crosshair/pickbox/aperture persistidos por usuario |
+| Selección y modificación | 10 | 9 | `browser-proven` | controlador unificado, geometrías profesionales, cycling y quick select; falta stress E2E de trazos 100k |
+| Entidades de documentación | 10 | 10 | `browser-proven` | HATCH, MTEXT, siete DIM y MLEADER completan su ciclo canónico |
+| Rendimiento 10k/100k | 15 | 10 | `browser-proven` parcial | viewport real, lotes cancelables y arnés 100k; aún no 60 FPS ni memoria estabilizada |
+| Persistencia/recovery/versionado | 10 | 9 | `browser-proven` | worker/journal/cuota y lifecycle de blobs; falta delta journal nativo |
+| Capas, bloques y referencias | 10 | 10 | `browser-proven` | BLOCK/INSERT profesional y Xrefs tenant-safe con ciclo attach/overlay/reload/unload/detach/bind, hash/version/grafo y publish/DXF explícitos |
+| Layouts, viewports y publicación | 10 | 9 | `browser-proven` | multi-viewport editable, freeze/overrides, page setup, orden, preflight, preview exacto, PDF multihoja y recibo auditado; el cajetín custom referenciado aún no sustituye su geometría en PDF |
+| Interoperabilidad/extensibilidad | 5 | 4 | `browser-proven` parcial | BLOCK/INSERT, HATCH, MTEXT, DIM y MLEADER completan DXF semántico; DWG `provider-required` |
+| Calidad enterprise/seguridad/pruebas | 10 | 9 | `tested` | CI/tenant/brand/smokes verdes; falta arnés perf bloqueante |
+| **Total** | **100** | **89** |  | Sin claim de paridad general |
+
+## Paridad completa separada
+
+No entra en la puntuación 2D anterior: modelado 3D paramétrico, superficies,
+render fotorrealista, siete toolsets verticales, ecosistema de complementos,
+RealDWG u otras tecnologías propietarias. Esas áreas permanecen
+`missing` o `provider-required` y no se usarán como claim comercial.
+
+## Ledger inicial de integración
+
+| PR | Área | Estado inicial | Regla de salida |
+| ---: | --- | --- | --- |
+| #1417 | comercial | draft, mergeable | revisar CI/head y squash manual al final |
+| #1416 | CAD | draft, mergeable, CI verde | actualizar con Grand Leap IV, gates y squash manual |
+| #1402 | ERP | ready, no mergeable | actualizar sobre main sin perder trabajo; CI verde |
+| #1398 | PDF | draft, no mergeable | actualizar sobre main sin perder trabajo; CI verde |
+
+No se editan ramas comerciales, ERP o PDF durante la construcción CAD.
+
+## Checkpoints
+
+### 2026-07-28 12:08–12:15 — Reanudación
+
+- GitHub: cuatro PRs abiertos inventariados; #1416 sigue en
+  `8c840c92`, mergeable y con CI verde.
+- Git: head local/remoto idénticos; `origin/main=1625ba26`; worktree limpio.
+- Reglas: `AGENTS.md`, guía web/Next y arquitectura/ejecuciones CAD leídas.
+- Decisión: continuar en la rama/PR existente, medir antes de optimizar y
+  comenzar por una extracción que habilite selección/render sin duplicación.
+- Siguiente: baseline focal, benchmark y primera extracción P0-A.
+
+### 2026-07-28 12:15–12:16 — P0-A / primer corte
+
+- `CadCommandDock` separa UI, preview, sugerencias, IA e historial del editor;
+  el componente padre conserva las mutaciones y el command bus existentes.
+- `describeCadPreviewOperation` cubre todas las variantes del contrato y evita
+  previews vacíos para guardar, exportar, vistas e historial.
+- `Layout3DEditor.tsx`: 8,761 → 8,682 líneas, sin mover lógica a ciegas.
+- Evidencia: prueba focal 4/4; `tsc --noEmit` verde; ESLint 0 errores y 19
+  advertencias heredadas del monolito; `git diff --check` verde.
+- Baseline medido: escena inicial 100k 858.8 ms; índice 100k 236.0 ms;
+  hit-test p95 0.221 ms; overview 274.9 ms, 19.2 MB y un draw call.
+
+### 2026-07-28 12:16–12:28 — P0-B / viewport y progresividad
+
+- El detalle ya consulta el índice canónico con bounds derivados de la cámara;
+  la selección conserva prioridad aunque quede fuera del viewport.
+- Los viewports densos mantienen un máximo de 2,500 objetos detallados; al
+  acercarse, el presupuesto puede materializar hasta 10,000 visibles.
+- `CadSceneSynchronizer.syncProgressive` preserva proyecciones compartidas,
+  elimina las obsoletas de inmediato y crea/actualiza en lotes cancelables de
+  160 para ceder el hilo entre lotes.
+- Hallazgo del gate: las consultas espaciales de más de 4,096 celdas devolvían
+  vacío. Se corrigió con full scan acotado y regresión, sin alterar el guard de
+  overflow usado para entidades gigantes.
+- Chromium real, corpus 100,000 ARC / payload 14,690,240 bytes: canónico listo
+  11,466 ms; detalle listo 27,186 ms; frame de control 85.2 ms; zoom/replan
+  27,735 ms; visibles 100,000 → 72,500; detalle 2,500 en ambos niveles.
+- Gate: `CAD_PERF_E2E=1 npx playwright test
+  e2e/performance/cad-viewport-100k.spec.ts --project=chromium` — 1/1 verde.
+- Specs focales: viewport 5/5, sync progresivo 9/9, runtime/selección/render
+  verdes; TypeScript y lint focal verdes.
+
+### 2026-07-28 12:28–12:38 — P0-C / recovery durable
+
+- Recovery v2 usa un Web Worker real para `JSON.stringify`, SHA-256, gzip,
+  descompresión y parseo; el fallback cede el event loop y queda identificado.
+- IndexedDB conserva un journal append-only de tres checkpoints por scope
+  tenant/usuario/workspace/dibujo y hasta 24 globales; expira a siete días.
+- Cada registro guarda Blob comprimido, tamaños, SHA, secuencia y encoder; no
+  duplica el documento completo inline. La carga intenta de nuevo hacia atrás
+  si el checkpoint más nuevo está vencido o corrupto.
+- La cuota se estima, poda antes de escribir, reintenta una vez tras
+  `QuotaExceededError` y muestra riesgo visible si persiste.
+- Los checkpoints no se solapan; se disparan tras 3 s, cada 15 s, al ocultarse
+  la pestaña y antes de descargar/cerrar. El último checkpoint de cierre
+  también forma parte del journal.
+- Chromium real: journal [2,3,4], `encoder=worker`, gzip, Blob sin documento
+  inline, reload/restore de la última geometría y cuota del origen forzada a
+  1 byte con aviso visible — 2/2 verde.
+- Codec 7/7, scope isolation 2/2, TypeScript y lint focal verdes.
+
+### 2026-07-28 12:38–12:44 — P0-D / lifecycle de blobs
+
+- `DocumentBlobLifecycleService` inventaría referencias desde versiones PDF,
+  assets del autor, documento CAD actual y snapshots CAD; toda consulta pasa
+  por repositorios tenant-scoped estrictos.
+- GC bifásico: blob viejo no referenciado se marca; sólo un barrido posterior,
+  tras la gracia y una nueva comprobación, puede borrarlo. Una referencia o un
+  `put` deduplicado limpia la marca.
+- El primitivo directo `delete` del adaptador de base rechaza blobs sin marca
+  de lifecycle; el endpoint operativo es dry-run por defecto y exige
+  `confirm="collect-unreferenced-blobs"` para mutar.
+- Migración agrega `gc_marked_at` e índice tenant/GC/edad. El resultado reporta
+  escaneados, referenciados, recientes, marcados, borrados y bytes recuperados.
+- El contrato `StreamingDocumentBlobStore` define `putStream/getStream` para un
+  adaptador S3-compatible sin fingir que el adaptador DB actual hace streaming.
+- Evidencia SQLite/Jest: referencias de cuatro consumidores preservadas,
+  orphan marcado y luego eliminado, 512 bytes recuperados, tenant B aislado;
+  2/2 lifecycle + 5/5 DocumentsService, API typecheck y lint focal verdes.
+
+### 2026-07-28 12:44–12:58 — P0-E / selección profesional
+
+- `selection-controller` mantiene selección actual/anterior/última y operaciones
+  replace/add/remove/toggle sin acoplarlas a React ni a Three.js. `all` e
+  `invert` operan contra el universo canónico completo.
+- `Quick Select` combina tipo, capa, texto e inspección de propiedades para
+  estaciones, activos y ARC/ELLIPSE/SPLINE/HATCH nativos.
+- La paleta expone pick, window, crossing, polygon, fence y lasso; los tres
+  trazos libres usan geometría real para contención/intersección. Window y
+  crossing conservan semántica direccional en modo pick.
+- Los point picks repetidos consultan hasta 16 candidatos del índice canónico y
+  ciclan de forma determinista, incluso si la entidad está omitida del detalle
+  por LOD. Selecciones mixtas ya no requieren dos estados mutuamente excluyentes.
+- Evidencia: reducer/filtros/geometría e índice focales verdes; TypeScript verde;
+  ESLint focal sin errores; Chromium completa quick → add → previous → last →
+  all → invert en 10.1 s, 1/1 verde.
+
+### 2026-07-28 12:58–13:14 — P0-F / precisión, snaps y tracking
+
+- Entrada dinámica accesible y sin mutación hasta `Aplicar`: ABS, REL y POLAR;
+  distancia/ángulo; radio/diámetro; offset; Tab entre campos, bloqueo,
+  defaults, error inline, locale decimal y unidades mm/cm/m/in/ft.
+- CIRCLE y OFFSET dejaron de ser estados internos inaccesibles: están en el
+  dock/toolbar y tienen shortcuts C / Shift+O. CIRCLE consume centro exacto y
+  radio o diámetro desde el mismo command reducer existente.
+- OSNAP conserva endpoint/midpoint/center/node y cablea quadrant, intersection,
+  apparent intersection, extension, perpendicular, tangent, nearest,
+  insertion y geometric center. Curvas nativas aportan paths y semántica sin
+  depender de su proyección detallada.
+- La apertura de snap ahora representa 12 px en mundo y cambia con cámara/zoom;
+  mantiene clamps de seguridad. Cada query espacial limita 48 entidades y 96
+  segmentos derivados.
+- POLAR configurable 15/30/45/90 y ORTHO se resuelven sobre el rubber-band;
+  OTRACK conserva hasta ocho puntos OSNAP adquiridos, combina ejes X/Y, dibuja
+  extension lines y permite limpiar el conjunto. Status bar y F10/F11 exponen
+  estado y toggles.
+- Benchmark Node sobre 100,000 ARC: query OSNAP profesional indexada p50 2.30 ms,
+  p95 5.27 ms (gate <12 ms). Specs de snaps/input/tracking/shortcuts/toolbar,
+  TypeScript y lint focal verdes. Chromium crea un círculo por centro absoluto,
+  Tab, diámetro con unidad, lock de campo y toggles F10/F11: 1/1 verde.
+
+### 2026-07-28 13:14–13:29 — P1-A / HATCH asociativo
+
+- Boundary builder cose segmentos abiertos con tolerancia, conserva ids fuente
+  por loop y resuelve región por pick point con islas `normal`, `outer` e
+  `ignore`; hit-test y render respetan la misma regla par-impar.
+- HATCH creado desde una selección nativa conserva referencias a sus límites;
+  los creados desde activos heredados quedan explícitamente `detached`. El
+  command bus central regenera boundaries tras propiedades, grips o transforms
+  de la fuente y marca `broken` si una referencia se abre o desaparece.
+- La paleta expone ANSI31/SOLID, selección, pick point e islands. Pick point usa
+  el índice espacial en dos pasos —punto y bounds del contorno exterior— en vez
+  de recorrer las 100,000 entidades canónicas; el popover se cierra al crear.
+- Origen de patrón, estilo de islas y estado de asociación viven en el documento
+  canónico. DXF preserva origen/seed e island style; una importación DXF queda
+  honestamente `detached` porque no se inventan handles fuente inexistentes.
+- Evidencia: stitch/islands/regeneración, runtime, patrón y round-trip DXF verdes;
+  TypeScript y ESLint focal verdes. Chromium crea ANSI31 sobre ELLIPSE, prueba
+  detach/reattach, regenera al editar el eje, guarda y marca `broken` al borrar
+  la fuente: 1/1 verde en 16.8 s.
+
+### 2026-07-28 13:29–13:45 — P1-B / MTEXT nativo
+
+- MTEXT entró al registry/command bus/índice espacial nativos con hit-test de su
+  caja rotada, selección, snaps, grips de inserción/ancho/altura/rotación,
+  transforms, propiedades, undo/redo y persistencia completa en `CadDocument`.
+- Editor dentro del lienzo: contenido multilínea hasta 16 KiB, width, text
+  height, rotación, nueve attachment points, alineación left/center/right/
+  justify, estilo, familia con fallback, interlineado, bold/italic/underline,
+  máscara con padding y hasta ocho columnas. El panel de propiedades usa
+  `textarea`, por lo que no destruye saltos de línea.
+- `mtext-layout` mide y envuelve texto sin DOM, con caché acotada de 4,096
+  entradas apta para worker. El renderer usa CanvasTexture sólo como proyección
+  desechable y mantiene la semántica en el documento; justify distribuye gaps.
+- Publicación PDF conserva texto vectorial, alineación, max-width, énfasis,
+  subrayado y máscara. DXF emite MTEXT real con chunks 1/3, attachment, STYLE,
+  font fallback, line spacing, background y columnas 75/76/48/49; import raw
+  reconstruye la entidad semántica y evita duplicarla como TEXT plano.
+- Evidencia: layout/cache, runtime, paper-space y round-trip DXF verdes;
+  TypeScript y ESLint focal verdes. Chromium crea, formatea, edita, undo/redo,
+  guarda, recarga, descarga y reimporta el MTEXT: 1/1 verde en 16.7 s.
+- Deuda visible: `Layout3DEditor.tsx` llegó a 9,445 líneas; la extracción por
+  controladores/paneles sigue siendo un gate pendiente y no se oculta.
+
+### 2026-07-28 13:45–14:04 — P1-C / DIMENSION asociativa
+
+- Entidad canónica para linear, aligned, angular, radius, diameter, ordinate y
+  arc length, con estilos, precisión 0–8, unidades/alternas, prefijo/sufijo,
+  override, extension lines y cuatro arrowheads. Una sola geometría pura nutre
+  render, hit-test, bounds, grips, propiedades, PDF vectorial y bloque DXF.
+- Las referencias tipadas resuelven endpoints, centros, extremos de arco, ejes
+  de elipse, controles de spline e inserciones. El command bus regenera después
+  de propiedades/grips/transforms y marca `broken` si la fuente desaparece;
+  detach/reassociate preserva las referencias sin aplanar la cota.
+- LINE y CIRCLE entraron al registry nativo para que una edición real de la
+  línea o círculo alimente el mismo ciclo asociativo. El sincronizador de escena
+  recibe también todos los ids regenerados, evitando una vista obsoleta.
+- DXF emite DIMENSION real con bloque anónimo `*D` compatible y XDATA registrada
+  `AXOS_DIM`; el import reconoce esa semántica, evita duplicar la geometría del
+  bloque y transforma escala/reflexión antes de crear una cota `detached`. Los
+  siete tipos completan round-trip. PDF conserva paths, texto y orientación.
+- Evidencia: geometría de siete tipos, asociación/broken, registry y round-trip
+  DXF verdes; TypeScript y ESLint focal sin errores. Chromium crea la cota sobre
+  LINE, prueba detach/reassociate, cambia 200→260, undo/redo, guarda, recarga,
+  descarga/reimporta DXF y marca `broken` al borrar la fuente: 1/1 verde en
+  24.1 s.
+- Deuda visible: `Layout3DEditor.tsx` llegó a 9,549 líneas; la siguiente
+  extracción por controladores/paneles continúa pendiente.
+
+### 2026-07-28 14:04–14:19 — P1-D / MLEADER canónico
+
+- MLEADER es una entidad única con múltiples líneas, tip/arrow, elbow, landing
+  y dogleg; el mismo modelo conserva contenido Text/MTEXT, estilo tipográfico,
+  máscara, alineación y cinco arrowheads. Registry, índice, selección unitaria,
+  grips, snaps, propiedades, transforms y undo/redo operan sobre esa entidad.
+- Cada línea puede asociarse mediante una referencia tipada. El command bus
+  regenera los tips al editar una fuente y marca `broken` al eliminarla;
+  detach/reassociate preserva la semántica y la UI expone el estado explícito.
+- La migración sólo pliega la composición histórica DIM + dogleg + TEXT cuando
+  los ids y la geometría la hacen inequívoca. Las composiciones ambiguas se
+  conservan y reciben `legacy_mleader_ambiguous`, sin pérdida silenciosa.
+- PDF conserva paths y texto vectorial. DXF emite MLEADER real con context,
+  múltiples `LEADER_LINE` y XDATA `AXOS_MLEADER`; el import reconstruye líneas,
+  contenido, formato y transformación como una entidad `detached` sin duplicar
+  las primitivas internas.
+- Evidencia: migración, geometría, asociación/broken, registry, paper-space y
+  round-trip DXF verdes; TypeScript y ESLint focal sin errores. Chromium crea
+  dos líneas asociadas, cambia arrow, detach/reassociate, edita contenido
+  multilínea, prueba undo/redo, guarda/recarga, descarga/reimporta DXF y marca
+  `broken` al borrar la fuente: 1/1 verde en 26.5 s.
+- Deuda visible: `Layout3DEditor.tsx` queda en 9,465 líneas; se mantiene el gate
+  explícito de extraer más controladores/paneles durante la misión.
+
+### 2026-07-28 14:19–14:56 — P1-E / BLOCK e INSERT profesional
+
+- `CadBlockDefinition` conserva base point, geometría canónica, ATTDEF completos,
+  metadata, keywords, versión, thumbnail, alcance document/tenant y vínculo de
+  negocio. INSERT sigue siendo una entidad única con matriz, capa, atributos y
+  presentación; el resolver aplana sólo como proyección desechable.
+- Anidación y ciclos se analizan con profundidad acotada. Transformaciones
+  anisotrópicas conservan círculos como elipses y aproximan arcos cuando ya no
+  pueden representarse exactamente; ByLayer y ByBlock se resuelven desde la
+  instancia. Define, Insert, Redefine, Replace, Explode y Purge usan el mismo
+  documento canónico, selección, propiedades, grips, undo/redo y guardado.
+- La paleta busca nombre/keywords/negocio, genera thumbnail determinista y
+  publica/recupera definiciones versionadas. La API valida payloads de hasta
+  1 MB y 500 entidades, incrementa versión al redefinir y aplica scope tenant;
+  migración agrega `definition` y `version` sin destruir la biblioteca legacy.
+- DXF emite y recupera BLOCK/ENDBLK, INSERT, ATTDEF, ATTRIB/SEQEND y metadata
+  AXOS, incluidas definiciones anidadas y valores por instancia. PDF conserva
+  geometría/texto vectorial, posiciones/altura ATTDEF y herencia ByBlock bajo
+  plot color o monocromo. La importación mantiene expansión compatible pero el
+  editor omite duplicados cuando existe semántica INSERT.
+- Repeticiones usan `InstancedBufferGeometry`: prueba estructural con 1,000
+  símbolos confirma un buffer de dos vértices base, 1,000 matrices y un draw
+  call por estilo. El índice canónico mantiene picks unitarios y la instancia
+  seleccionada recibe overlay/grips sin desactivar el batch.
+- Evidencia: runtime/índice/Three.js, definición/ciclos/operaciones, paper-space
+  y round-trip DXF verdes; SQLite/Jest 2/2 tenant/search/version/validación;
+  TypeScript y ESLint focal sin errores. Chromium define, publica tenant,
+  inserta dos instancias, cambia transform/atributo, undo/redo, guarda/recarga,
+  descarga/reimporta DXF y explota sólo la seleccionada: 1/1 en 26.4 s.
+- La rúbrica sube 75 → 80 por bloques e interoperabilidad demostrados. No se
+  concede el punto restante de capas/referencias porque Xrefs continúa parcial.
+  Deuda visible: `Layout3DEditor.tsx` queda en 9,810 líneas; P1-F debe reducir
+  acoplamiento y evitar panels que oculten el canvas.
+
+### 2026-07-28 14:56–15:33 — P1-F / Workbench profesional
+
+- Las cinco paletas profesionales (selección, HATCH, DIMENSION, MLEADER y
+  BLOCK/XREF) dejaron de ser popovers absolutos: comparten un dock derecho de
+  hasta 560 px que participa en el layout flex y nunca cubre el canvas. El dock
+  de propiedades vuelve al cerrar la herramienta; el E2E de BLOCK fue adaptado
+  a ese flujo explícito y su ciclo funcional permanece verde.
+- `CadWorkspacePreferences` persiste por tenant/usuario perfiles drafting,
+  review, presentation y focus; visibilidad de biblioteca/propiedades/command/
+  minimapa; densidad; crosshair; pick box; apertura OSNAP; clic derecho y
+  overrides de atajos. Parser, normalización, clamps y conflictos tienen spec.
+- El motor usa esos valores, no sólo controles: apertura y pick tolerance se
+  convierten de píxeles a mundo según zoom; el crosshair DOM sigue al pointer
+  sin estado React por frame; shortcuts personalizados alimentan el dispatcher
+  real; clic derecho ofrece menú contextual o Enter/repeat configurables.
+- Ribbon horizontal de 48 px sin wrap ni scrollbar visible, cierre sticky,
+  command line/search accesibles, status bar, Model/Layout tabs y focus visible.
+  Tema claro cambia canvas/cinta y conserva docks técnicos oscuros de alto
+  contraste; tema oscuro, inglés/español y DPR 2 se verificaron en navegador.
+- Evidencia Chromium: 1366×768, 1440×900, 1920×1080, 2560×1440 y 3840×2160,
+  persistencia/reload, Q→LINE, context menu, medidas 14/18 px, docking sin
+  solape, perfiles y screenshots claro/oscuro EN/ES: 1/1 verde en 3.0 min.
+  Regresión CAD 12–18: 7/7 verde; spec workspace, TypeScript y diff-check
+  verdes; ESLint focal 0 errores.
+- La rúbrica sube 80 → 84. No se conceden los dos puntos restantes de
+  arquitectura: `Layout3DEditor.tsx` queda en 9,833 líneas y todavía requiere
+  extraer viewport/status/properties. El siguiente bloque es P2-A.
+
+### 2026-07-28 15:33–16:02 — P2-A / Layouts y múltiples viewports
+
+- `CadLayoutManager` extrae la superficie de papel y ofrece create, activate,
+  drag-move, grip-resize, lock, duplicate y delete sobre los `CadPaperViewport`
+  canónicos. `cad-layout-manager` centraliza normalización contra márgenes,
+  escala fit, freeze/override por capa y preflight de área, escala, lock,
+  solapes y todas las capas congeladas; no crea otro documento ni command bus.
+- Cada viewport conserva bounds de papel/modelo, escala estándar o custom,
+  escala anotativa, vista nombrada, visibilidad y color/linetype/lineweight por
+  capa. Las capas proceden del `CadDocument` real y sobreviven undo/redo,
+  recovery, guardado y reload. Cambiar papel, orientación o márgenes normaliza
+  todos los viewports, no sólo el primario.
+- Page setup expone A0–A4, Letter/Tabloid, orientación, cuatro márgenes, modo de
+  color y factor de lineweight. El cajetín conserva campos/numeración y una
+  referencia de biblioteca; las hojas se incluyen/excluyen y reordenan por
+  drag/drop o botones. La geometría custom del bloque aún no reemplaza el
+  cajetín vectorial estándar en el PDF, por lo que no se concede 10/10.
+- El preview exacto consume `buildCadPublishPlan`, la misma fuente vectorial que
+  el publicador: clipping rectangular por viewport, escalas y overrides. El
+  flujo probado guarda, recarga, publica tres hojas en un PDF, calcula SHA-256
+  y registra el recibo CAS antes de descargar.
+- Evidencia: specs `cad-layout-manager` y `paper-space`, TypeScript, diff-check y
+  ESLint focal verdes. Chromium #20 edita dos viewports, mueve/redimensiona,
+  congela `CURVES`, aplica override, bloquea, preflight/preview, reordena tres
+  hojas, guarda/recarga y publica/audita PDF: 1/1 en 30.4 s. Regresión CAD
+  #12–#20: 9/9 verde en 5.9 min; captura visual inspeccionada.
+- La rúbrica sube 84 → 87. `Layout3DEditor.tsx` queda en 10,125 líneas pese a
+  extraer 162 líneas de UI y 146 de lógica pura: el wiring añadido vuelve a
+  evidenciar la deuda arquitectónica y no se oculta. El siguiente bloque es
+  P2-B, Xrefs tenant-safe.
+
+### 2026-07-28 16:02–16:22 — P2-B / Xrefs tenant-safe
+
+- `CadExternalReference` conserva URI `tenant-layout://`, asset/revisión,
+  attachment u overlay, versión, SHA-256, ruta relativa lógica, ids de
+  bloque/INSERT, dependencias, estado y timestamps. No acepta ni persiste rutas
+  locales del navegador; resolver otra revisión reutiliza el GET de layout ya
+  protegido por `engineering:read` y por repositorios tenant-scoped estrictos.
+- La geometría referenciada se proyecta sobre BLOCK/INSERT canónico en vez de
+  crear un segundo renderer: obtiene batching, selección, transform, undo/redo,
+  persistencia, PDF y DXF existentes. Unload retira sólo el INSERT; Reload
+  reconstruye el bloque preservando transform; Detach limpia vínculo/caché;
+  Bind resuelve la instancia a entidades locales editables.
+- Attachment propaga referencias attachment anidadas; Overlay y las overlay
+  anidadas no se propagan. El grafo guarda edges, calcula profundidad máxima 8
+  y rechaza ciclos/profundidad antes de mutar. Compare confronta hash/versión y
+  entidades added/modified/deleted; stale, missing y denied quedan visibles.
+- Publicación omite Xrefs descargadas y emite warnings; para stale/missing usa
+  de forma explícita la última caché vectorial cargada. DXF conserva la
+  proyección como BLOCK/INSERT, sin fingir que el vínculo tenant seguirá vivo;
+  Bind es la conversión explícita a geometría local.
+- `CadXrefPalette` ocupa el mismo dock profesional de BLOCK sin tapar el canvas:
+  attach tenant, modo, transform, filas con status/hash/version, compare,
+  reload/load, unload, bind, detach y grafo. Captura stale/compare inspeccionada.
+- Evidencia: spec Xref cubre URI/hash, attach, unload, reload, compare, bind,
+  detach, ciclos, depth, semántica overlay/attachment, PDF y DXF; `paper-space`,
+  TypeScript, ESLint focal y diff-check verdes. Chromium prueba permiso negado,
+  persistencia/reload, stale/missing, compare/reload, unload/load, DXF,
+  bind+undo/redo, overlay/detach y ciclo: 1/1 en 29.9 s. Regresión #18–#21:
+  4/4 verde en 4.7 min.
+- La rúbrica sube 87 → 88 al cerrar referencias. `Layout3DEditor.tsx` queda en
+  10,244 líneas; la paleta (90) y el kernel (325) están extraídos, pero el
+  wiring confirma que la reducción del monolito sigue pendiente. Sigue P2-C.
+
+### 2026-07-28 16:22–17:10 — P2-C / compare, merge y colaboración
+
+- `CadDocument` incorpora estado de colaboración canónico con historial de
+  versiones, hilos de revisión, enlaces y auditoría. Cada versión guarda un
+  snapshot completo no recursivo y la retención está acotada a 12; migración,
+  clonación y serialización preservan el contrato existente.
+- El kernel puro compara entidades por id y separa Added/Modified/Deleted,
+  geometría y propiedades. El three-way merge Base/Mine/Theirs aplica cambios
+  disjuntos automáticamente y clasifica `both_added`, `both_modified` y
+  `delete_modify`; una colisión sin resolver impide aplicar el merge completo.
+- La resolución permite Keep mine, Keep theirs o JSON manual validado antes de
+  mutar. La aplicación entra al mismo documento canónico y stack de undo/redo;
+  overlay, filtros y navegación resaltan diferencias sin duplicar renderer.
+- Review soporta comentario por entidad o dibujo, cloud/arrow/note, asignación,
+  resolve y audit. Los enlaces son siempre read-only, autenticados y ligados al
+  tenant; incluyen expiración y revocación, y deshabilitan guardar, publicar,
+  aprobar, clonar, snapshots y mutaciones de review al abrir `?cadReview=`.
+- La API rechaza estructuras excesivas o inválidas: 12 versiones, 500 hilos,
+  20 links y 500 eventos; también valida tokens, status y cuerpos. No se añadió
+  un backend paralelo ni se persistieron rutas o credenciales locales.
+- Evidencia: kernel compare/merge/review, documento/snapshots/editor-snapshot y
+  API validator 7/7 verdes; TypeScript web/API y ESLint focal sin errores.
+  Chromium #22 demuestra merge disjunto, rechazo/resolución de colisión manual,
+  persistencia CAS, comentario/markup/asignación/resolve, link read-only y audit:
+  1/1 verde. Regresión #18–#22: 5/5 verde en 5.9 min; captura
+  `compare-collision-review.png` inspeccionada sin notificaciones superpuestas.
+- La rúbrica sube prudentemente 88 → 89 por el workbench de revisión demostrado;
+  no se adjudican puntos de delta journal, perf bloqueante, DWG ni arquitectura.
+  `Layout3DEditor.tsx` queda en 10,314 líneas. Sigue el acceptance journey y los
+  gates finales; esto aún no es un cierre de misión.
+
+### 2026-07-28 17:10–17:39 — P3-A / FILLET y capas canónicas
+
+- `applyCadLineFillet` resuelve dos LINE sobre sus rectas infinitas, determina
+  los rayos conservados, recorta ambos extremos y crea un ARC menor tangente con
+  centro/radio exactos. Rechaza ids inválidos, paralelas, colineales y radios
+  que exceden los segmentos; la mutación completa ocupa una sola entrada de
+  undo/redo y regenera asociaciones dependientes mediante el command bus.
+- La paleta de propiedades ofrece FILLET cuando hay exactamente dos LINE
+  seleccionadas. El ARC conserva metadata de procedencia, propiedades/grips,
+  guardado y round-trip DXF; Chromium #23 prueba R500, centro 4500/4500,
+  undo/redo, CAS, reload y reimportación DXF.
+- `cad-layer-manager` crea ids DXF deterministas, valida nombre/color,
+  actualiza nombre/visibilidad/lock y elimina con reasignación transaccional de
+  model space, BLOCK children y overrides de viewport. Los documentos legacy
+  sin tabla de capas reciben `0` al crear la primera capa de usuario.
+- El editor ya no limita los ids a nueve presets: la tabla canónica alimenta la
+  paleta, capa activa, counts y render. Crear, renombrar, colorear, ocultar,
+  aislar, bloquear, asignar y borrar persisten en el mismo `CadDocument`; una
+  capa bloqueada impide transform/property/grip/copy/delete de entidades nativas.
+- Evidencia: specs FILLET y layer manager, TypeScript y ESLint focal con 0
+  errores. Chromium #24 cubre creación, asignación, lock efectivo, rename,
+  borrado/reasignación, movimiento, guardado y reload. Regresión conjunta
+  #23–#24: 2/2 verde en 59.9 s; visual del administrador capturado por locator.
+- La rúbrica sube prudentemente 89 → 90 por edición geométrica y administración
+  de capas demostradas. `Layout3DEditor.tsx` queda en 10,449 líneas: el kernel
+  nuevo está aislado, pero el wiring incrementa la deuda de extracción. Sigue
+  P3-B, el acceptance journey completo y los gates finales; no es cierre.
+
+### 2026-07-28 17:39–18:04 — P3-B / Edición LINE y precisión neutral
+
+- El kernel `cad-line-edit` añade TRIM y EXTEND deterministas sobre LINE
+  canónicas. TRIM mueve sólo el extremo elegido hasta la intersección con el
+  segmento cortante; EXTEND exige que la frontera alcance la recta en la
+  dirección exterior correcta. Paralelas, ids repetidos, intersecciones
+  interiores y fronteras que no alcanzan se rechazan sin mutar.
+- Ambas operaciones recorren `executeCadEntityCommand` para regenerar HATCH,
+  DIMENSION y MLEADER asociativos, y consolidan la edición completa en una sola
+  versión/entrada de historial. La paleta de propiedades aparece únicamente al
+  seleccionar dos LINE y deja explícitos operación, objetivo y extremo.
+- POLYLINE incorpora cierre explícito desde el comando activo; la entidad
+  emitida añade el tramo último→primero. El flujo de precisión confirma cambio
+  de unidad visible a milímetros, capa canónica, coordenadas absolutas,
+  relativas y polares, cierre de tres vértices y OFFSET persistido. Además se
+  corrigió una regresión real: MOVE/COPY/OFFSET ya no pierden la selección al
+  entrar a la herramienta de modificación.
+- Evidencia: `cad-command` 19/19 y `cad-line-edit` verdes; TypeScript verde;
+  ESLint focal 0 errores y 135 advertencias heredadas. Chromium #25 valida
+  TRIM+EXTEND, propiedades, historial, guardado y reload; #26 valida pasos
+  2–7, 13 y 14 del journey con seis entidades persistidas. Regresión conjunta
+  #23–#26: 4/4 verde en 2.2 min; diff-check sin errores.
+- La rúbrica se mantiene prudentemente en 90: este corte cierra edición base y
+  precisión demostrable, pero el acceptance journey aún no es 50/50 y no se
+  reclama paridad general. `Layout3DEditor.tsx` queda en 10,514 líneas. Sigue
+  P3-C: selección espacial explícita, HATCH por punto interior y matriz de
+  evidencia antes de los gates finales.
+
+### 2026-07-28 18:04–18:17 — P3-C / Selección espacial y HATCH por punto
+
+- La barra de estado muestra coordenadas X/Y del dibujo y el total del
+  controlador de selección unificado —incluidas entidades nativas— mediante
+  actualización DOM sin render React por cada movimiento del puntero.
+- Chromium calibra pantalla↔mundo desde esa lectura y arrastra sobre el canvas
+  WebGL real: Window contiene una LINE, Crossing incorpora otra parcialmente
+  cruzada, Lasso encierra una tercera y dos picks no-grip ciclan entre dos LINE
+  solapadas. No se invoca el reducer ni el índice desde el test.
+- El trazo libre dejó de llamar `BufferGeometry.setFromPoints` sobre un buffer
+  de cuatro vértices: ahora crece por potencias de dos, conserva draw range y
+  actualiza en sitio. Así desaparece el warning de Three.js y se evita una
+  realocación por cada `pointermove` durante lasso/fence/polygon.
+- HATCH acepta X/Y exactos desde su dock y entrega el punto al mismo detector
+  productivo usado por el canvas. El test crea el hatch en 7000,4000 dentro de
+  una ELLIPSE, confirma origen, loop, referencia y asociación, guarda por CAS y
+  conserva en paralelo el flujo anterior de selección/regeneración/broken.
+- Evidencia: TypeScript, reducer e índice verdes; ESLint focal 0 errores;
+  Chromium #12 + #14 completo 4/4 en 1.8 min; diff-check verde. Quedan
+  browser-proven los pasos 18–21 y 23 del journey, además de los pasos de grips
+  y asociación ya demostrados en #10/#14.
+- La rúbrica permanece en 90: la selección espacial ya tiene evidencia real,
+  pero no se concede el punto faltante sin estrés de trazos sobre 100k y gates
+  finales. `Layout3DEditor.tsx` queda en 10,538 líneas. Sigue P3-D, matriz
+  trazable 1–50 y ejecución amplia de aceptación/performance.
+
+### 2026-07-28 18:17–18:39 — P3-D / Journey 50/50, OSNAP y loss manifest
+
+- `cad-acceptance-journey.ts` enumera exactamente los 50 pasos obligatorios y
+  enlaza evidencia existente; su checker falla ante números/rutas/acciones
+  faltantes o duplicados. Resultado actual: 45 `browser-proven` y cinco gates
+  `performance`; no queda ningún paso clasificado sólo por una unidad.
+- Chromium #28 inicia LINE cinco veces y exige en el HUD productivo endpoint,
+  midpoint, intersection, perpendicular y tangent. El test reveló que cada
+  cuerda tessellada de ARC fabricaba midpoints, intersections y perpendiculares.
+  `SnapScene` ahora separa candidatos semánticos, marca paths/ordinales y omite
+  sólo vecinos del mismo path; intersecciones entre paths y auto-cruces no
+  adyacentes permanecen disponibles. Núcleo 15/15 y navegador 1/1 verdes.
+- El journey espacial añadió drag de un grip real por puntero. La tolerancia
+  verifica destino en ambos ejes sin fingir que una cámara perspective produce
+  una transformación afín perfecta; #12 queda verde en 52.9 s.
+- Chromium #27 sube DXF con ARC soportado + POINT no soportado, convierte,
+  edita y guarda el ARC, persiste `dxf_import:unsupported_entity` en el
+  `CadDocument.lossManifest`, lo expone en el manifiesto de entrega y vuelve a
+  exportar/reimportar ARC. El warning dejó de ser un toast efímero.
+- Gate explícito 10k/100k: 10k canónico 6,861 ms, frame 105.9 ms; 100k canónico
+  11,741 ms, detalle 28,565 ms, frame 58.6 ms, zoom 26,403 ms, heap observado
+  364 MB. Tras zoom se seleccionó `perf-arc-099999`, inicialmente fuera del
+  detalle, y se materializó desde el índice; 2/2 verde con artefactos JSON.
+- La matriz y cifras completas quedan en `CAD_ACCEPTANCE_JOURNEY_IV.md`. La
+  rúbrica se mantiene en 90: el journey está demostrado, pero no se inventan
+  60 FPS, memoria estabilizada, DWG, delta journal ni descomposición del
+  monolito. `Layout3DEditor.tsx` queda en 10,562 líneas. Sigue P3-E, gates
+  amplios y auditoría final antes de integrar.
+
+### 2026-07-28 18:39–19:53 — P3-E / Gates amplios, supply chain y CI
+
+- La regresión completa web queda en 134/134 specs. El build de producción
+  genera las 148 rutas con Next 16.2.12; TypeScript web, TypeScript API y build
+  Nest terminan sin errores. La matriz Chromium CAD #10–#28 vuelve a cerrar
+  23/23 en 11.8 min después de actualizar el lockfile; el checker conserva
+  exactamente 50/50 pasos, 45 `browser-proven` y cinco `performance`.
+- La suite Jest completa del backend agotó primero el heap predeterminado tras
+  13.5 min sin reportar aserciones fallidas. El script `test` ahora reserva
+  4 GiB, igual que el build; la repetición completa terminó con código 0 en
+  13 min 18 s. Esto convierte un falso negativo operativo reproducible en un
+  gate ejecutable sin alterar el comportamiento del backend.
+- El fallo de GitHub Actions 30411960782 quedó aislado a cuatro errores
+  `prettier/prettier` en los DTO/controller de la biblioteca de bloques, frente
+  a 1,900 warnings históricos no bloqueantes. Prettier se aplicó sólo a esos
+  dos archivos y ESLint focal quedó con código 0.
+- `npm audit fix` sin `--force` actualiza únicamente parches compatibles del
+  lockfile, entre ellos Next 16.2.10→16.2.12, DOMPurify 3.4.11→3.4.12 e
+  Immutable 5.1.5→5.1.9; build, specs y navegador pasan después del cambio.
+  No se aplican los majors sugeridos para SQLite, Sharp o ExcelJS sin una
+  migración dedicada. El inventario residual se registra como deuda: 23
+  hallazgos de producción (2 low, 2 moderate, 18 high y 1 critical), dominados
+  por cadenas transitivas antiguas de SQLite/ExcelJS y avisos aún abiertos de
+  Next/Sharp.
+- Supply chain: SBOM CycloneDX válido con 493 componentes; 483 licencias
+  permitidas, cuatro en revisión legal, cero bloqueadas y cero desconocidas.
+  Brand gate verde; inventario de tenant safety 987/987 y 40/40 pruebas verdes.
+  `git diff --check` no encuentra errores.
+- Límite explícito de entorno: este host Windows no tiene Docker, `psql` ni un
+  servicio PostgreSQL instalado. La CI sí levanta PostgreSQL 16.14 y el run
+  verde 30384590435 ya probó bootstrap y ambos golden flows; el run actual se
+  detuvo en lint antes de repetir las etapas de base de datos. No se reclama
+  aquí un ciclo local migration up/down/up inexistente.
+- La rúbrica permanece deliberadamente en 90. Se cerraron ejecución, precisión,
+  persistencia y gates amplios con evidencia, pero siguen fuera de alcance DWG
+  nativo, 60 FPS sostenidos, estabilización de memoria, delta journal y la
+  extracción del monolito.
+
+## Claims
+
+Permitido inicialmente: capacidades exactas demostradas en #1416 y documentos
+anteriores. Prohibido: “100/100”, equivalencia general con AutoCAD, 60 FPS,
+memoria no medida, DWG nativo o production-proven sin evidencia operativa.

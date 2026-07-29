@@ -20,6 +20,10 @@ export function createHistoryItem(
   label: string,
   preview?: CadCommandPreview,
   result?: CadCommandResult,
+  audit?: Pick<
+    CadCommandHistoryItem,
+    "rawInput" | "durationMs" | "affectedObjectIds" | "completedAt"
+  >,
 ): CadCommandHistoryItem {
   return {
     id: id(),
@@ -30,6 +34,7 @@ export function createHistoryItem(
     createdAt: new Date().toISOString(),
     preview,
     result,
+    ...audit,
   };
 }
 

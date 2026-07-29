@@ -17,6 +17,8 @@ export interface HatchOptions {
   angle: number;
   /** Separación perpendicular entre líneas, en unidades reales (> 0). */
   spacing: number;
+  /** Origen local del patrón; desplaza la rejilla sin mover el boundary. */
+  origin?: CadVec2;
 }
 
 export interface HatchSegment {
@@ -47,10 +49,11 @@ export function hatchPolygon(
 ): HatchSegment[] {
   if (boundary.length < 3 || options.spacing <= 0) return [];
   const { angle, spacing } = options;
+  const origin = options.origin ?? { x: 0, y: 0 };
 
   // Trabajamos en un marco rotado donde las líneas de achurado son
   // horizontales; al final rotamos los segmentos de vuelta.
-  const rotated = boundary.map((p) => rotate(p, -angle));
+  const rotated = boundary.map((p) => rotate({ x: p.x - origin.x, y: p.y - origin.y }, -angle));
   let minY = Infinity;
   let maxY = -Infinity;
   for (const p of rotated) {
@@ -81,9 +84,11 @@ export function hatchPolygon(
       const x0 = crossings[j];
       const x1 = crossings[j + 1];
       if (x1 - x0 <= EPS) continue;
+      const rotatedA = rotate({ x: x0, y }, angle);
+      const rotatedB = rotate({ x: x1, y }, angle);
       segments.push({
-        a: rotate({ x: x0, y }, angle),
-        b: rotate({ x: x1, y }, angle),
+        a: { x: rotatedA.x + origin.x, y: rotatedA.y + origin.y },
+        b: { x: rotatedB.x + origin.x, y: rotatedB.y + origin.y },
       });
     }
   }

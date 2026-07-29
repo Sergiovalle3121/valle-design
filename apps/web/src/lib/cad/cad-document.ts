@@ -182,10 +182,35 @@ export type CadEntity =
       type: "dimension";
       a: { x: number; y: number };
       b: { x: number; y: number };
+      c?: { x: number; y: number };
+      dimensionKind?: "linear" | "aligned" | "angular" | "radius" | "diameter" | "ordinate" | "arc-length";
+      axis?: "x" | "y";
+      offset?: number;
+      radius?: number;
       layer: string;
       text?: string;
       color?: string;
       style?: string;
+      precision?: number;
+      units?: "mm" | "cm" | "m" | "in" | "ft";
+      sourceUnit?: "mm" | "cm" | "m" | "in" | "ft";
+      prefix?: string;
+      suffix?: string;
+      alternateUnits?: "mm" | "cm" | "m" | "in" | "ft";
+      extensionLines?: boolean;
+      arrowhead?: "closed-filled" | "open" | "architectural-tick" | "dot";
+      arrowSize?: number;
+      extensionGap?: number;
+      extensionOvershoot?: number;
+      textGap?: number;
+      textPosition?: { x: number; y: number };
+      associative?: boolean;
+      references?: Array<{
+        entityId: string;
+        anchor: "start" | "end" | "center" | "arc-start" | "arc-end" | "major-start" | "major-end" | "control" | "insertion";
+        index?: number;
+      }>;
+      associationStatus?: "associated" | "broken" | "detached";
       context?: CadEntityContext;
     }
   | {
@@ -263,6 +288,17 @@ export type CadEntity =
       height?: number;
       rotation?: number;
       style?: string;
+      alignment?: "top-left" | "top-center" | "top-right" | "middle-left" | "middle-center" | "middle-right" | "bottom-left" | "bottom-center" | "bottom-right";
+      paragraphAlignment?: "left" | "center" | "right" | "justify";
+      fontFamily?: string;
+      lineSpacing?: number;
+      bold?: boolean;
+      italic?: boolean;
+      underline?: boolean;
+      backgroundMask?: boolean;
+      backgroundColor?: string;
+      backgroundPadding?: number;
+      columns?: number;
       layer: string;
       context?: CadEntityContext;
     }
@@ -274,16 +310,48 @@ export type CadEntity =
       boundaries: CadPoint3[][];
       scale?: number;
       angle?: number;
+      origin?: CadPoint3;
+      islandStyle?: "normal" | "outer" | "ignore";
+      associative?: boolean;
+      boundaryRefs?: string[];
+      associationStatus?: "associated" | "broken" | "detached";
       layer: string;
       context?: CadEntityContext;
     }
   | {
       id: string;
       type: "mleader";
+      /** Primary leader line; retained for schema-v3 backward compatibility. */
       vertices: CadPoint3[];
+      /** One or more tip-to-elbow leader lines. */
+      leaderLines?: CadPoint3[][];
       text: string;
       textPosition: CadPoint3;
+      contentType?: "text" | "mtext";
+      textWidth?: number;
+      textHeight?: number;
+      textRotation?: number;
+      textAlignment?: "left" | "center" | "right" | "justify";
+      fontFamily?: string;
+      lineSpacing?: number;
+      bold?: boolean;
+      italic?: boolean;
+      underline?: boolean;
+      backgroundMask?: boolean;
+      backgroundColor?: string;
+      backgroundPadding?: number;
+      landing?: boolean;
+      doglegLength?: number;
+      arrowhead?: "closed-filled" | "open" | "architectural-tick" | "dot" | "none";
+      arrowSize?: number;
       style?: string;
+      associative?: boolean;
+      references?: Array<{
+        entityId: string;
+        anchor: "start" | "end" | "center" | "arc-start" | "arc-end" | "major-start" | "major-end" | "control" | "insertion" | "corner-ne";
+        index?: number;
+      }>;
+      associationStatus?: "associated" | "broken" | "detached";
       layer: string;
       context?: CadEntityContext;
     }
@@ -313,6 +381,7 @@ export interface CadLayerDef {
 export interface CadStyleTable {
   text: Record<string, { fontFamily?: string; height?: number }>;
   dimension: Record<string, { textStyle?: string; arrowSize?: number; precision?: number }>;
+  mleader?: Record<string, { textStyle?: string; arrowSize?: number; doglegLength?: number; landing?: boolean }>;
   table: Record<string, { textStyle?: string; rowHeight?: number }>;
   plot: Record<string, { colorMode?: "color" | "monochrome"; lineweightScale?: number }>;
 }
@@ -322,7 +391,27 @@ export interface CadBlockDefinition {
   name: string;
   basePoint: CadPoint3;
   entities: CadEntity[];
-  attributes?: Record<string, { defaultValue?: string; required?: boolean }>;
+  attributes?: Record<string, {
+    defaultValue?: string;
+    required?: boolean;
+    prompt?: string;
+    position?: CadPoint3;
+    height?: number;
+    style?: string;
+    invisible?: boolean;
+    constant?: boolean;
+  }>;
+  description?: string;
+  keywords?: string[];
+  /** Monotonic content version; redefining a block updates every live INSERT. */
+  version?: number;
+  library?: {
+    scope: "document" | "tenant";
+    tenantId?: string;
+    sourceId?: string;
+  };
+  thumbnail?: { svg: string; generatedAt?: string };
+  businessLink?: CadEntityContext["businessLink"];
 }
 
 export type CadConstraintKind =
@@ -393,6 +482,10 @@ export interface CadPaperViewport {
   modelBounds: { x: number; y: number; width: number; height: number };
   scale: number;
   locked: boolean;
+  /** Independent annotation scale for annotative content in this viewport. */
+  annotationScale?: number;
+  /** Optional named model view used to restore this viewport deterministically. */
+  namedView?: string;
   layerVisibility?: Record<string, boolean>;
   layerOverrides?: Record<string, { color?: string; linetype?: string; lineweight?: number }>;
 }
@@ -410,14 +503,91 @@ export interface CadPublicationRecord {
 export interface CadExternalReference {
   id: string;
   name: string;
+  /** Tenant asset URI. Browser-local absolute paths are never persisted. */
   uri: string;
   revision?: string;
   loaded: boolean;
+  mode?: "attachment" | "overlay";
+  tenantId?: string;
+  assetId?: string;
+  sourceVersion?: number;
+  contentHash?: string;
+  relativePath?: string;
+  blockId?: string;
+  insertId?: string;
+  dependencyAssetIds?: string[];
+  dependencyEdges?: Array<{ from: string; to: string; mode: "attachment" | "overlay" }>;
+  status?: "loaded" | "unloaded" | "missing" | "stale" | "denied" | "cycle" | "depth_exceeded";
+  lastLoadedAt?: string;
+  lastCheckedAt?: string;
+  error?: string;
 }
 
 export interface CadChange {
   version: number;
   label: string;
+}
+
+export type CadReviewThreadStatus = "open" | "resolved";
+
+export interface CadReviewThread {
+  id: string;
+  entityId?: string;
+  body: string;
+  author: string;
+  assignedTo?: string;
+  status: CadReviewThreadStatus;
+  createdAt: string;
+  resolvedAt?: string;
+  resolvedBy?: string;
+  markup?: {
+    kind: "note" | "arrow" | "cloud";
+    point?: CadPoint2;
+    color: string;
+  };
+}
+
+export interface CadReviewLink {
+  id: string;
+  token: string;
+  label: string;
+  readOnly: true;
+  createdAt: string;
+  createdBy: string;
+  expiresAt?: string;
+  revokedAt?: string;
+}
+
+export interface CadCollaborationAuditEvent {
+  id: string;
+  action:
+    | "version_created"
+    | "merge_applied"
+    | "comment_added"
+    | "comment_resolved"
+    | "review_link_created"
+    | "review_link_revoked";
+  actor: string;
+  at: string;
+  detail: string;
+  entityIds?: string[];
+}
+
+export interface CadVersionSnapshot {
+  id: string;
+  label: string;
+  createdAt: string;
+  createdBy: string;
+  contentHash: string;
+  /** Full canonical content without collaboration recursion. */
+  document: Omit<CadDocument, "collaboration">;
+}
+
+export interface CadCollaborationState {
+  versions: CadVersionSnapshot[];
+  threads: CadReviewThread[];
+  reviewLinks: CadReviewLink[];
+  audit: CadCollaborationAuditEvent[];
 }
 
 export interface CadDocument {
@@ -434,6 +604,8 @@ export interface CadDocument {
   unsupportedEntities: CadOpaqueEntity[];
   lossManifest: CadLossManifestEntry[];
   publications: CadPublicationRecord[];
+  /** Review/merge metadata persisted in the same tenant-scoped CAS document. */
+  collaboration?: CadCollaborationState;
 }
 
 /** v3: modelo profesional extensible con migración aditiva desde v1/v2. */
@@ -448,7 +620,7 @@ function byId(a: { id: string }, b: { id: string }): number {
 }
 
 function emptyStyles(): CadStyleTable {
-  return { text: {}, dimension: {}, table: {}, plot: {} };
+  return { text: {}, dimension: {}, mleader: {}, table: {}, plot: {} };
 }
 
 function point3(x: number, y: number, z = 0): CadPoint3 {
@@ -693,6 +865,7 @@ export function commitChange(doc: CadDocument, label: string): CadDocument {
     unsupportedEntities: structuredClone(doc.unsupportedEntities),
     lossManifest: structuredClone(doc.lossManifest),
     publications: structuredClone(doc.publications),
+    collaboration: doc.collaboration ? structuredClone(doc.collaboration) : undefined,
     history: [...doc.history, { version, label }],
   };
 }
@@ -739,6 +912,7 @@ export function serializeCadDocument(doc: CadDocument): string {
     unsupportedEntities: [...doc.unsupportedEntities].sort(byId).map(stableValue),
     lossManifest: doc.lossManifest.map(stableValue),
     publications: doc.publications.map(stableValue),
+    collaboration: doc.collaboration ? stableValue(doc.collaboration) : undefined,
   };
   return JSON.stringify(payload);
 }
@@ -781,6 +955,79 @@ function withV3Defaults(doc: Partial<CadDocument>): CadDocument {
     unsupportedEntities: Array.isArray(doc.unsupportedEntities) ? doc.unsupportedEntities : [],
     lossManifest: Array.isArray(doc.lossManifest) ? doc.lossManifest : [],
     publications: Array.isArray(doc.publications) ? doc.publications : [],
+    collaboration:
+      doc.collaboration && typeof doc.collaboration === "object"
+        ? doc.collaboration
+        : undefined,
+  };
+}
+
+const legacyPointEqual = (a: CadPoint2, b: CadPoint2, tolerance = 1e-6) =>
+  Math.hypot(a.x - b.x, a.y - b.y) <= tolerance;
+
+/**
+ * The former editor emitted a leader as two `ld_*` legacy DIM annotations plus
+ * one `nt_*` TEXT at the landing endpoint. Only that exact, isolated signature
+ * is folded into one MLEADER; ambiguous candidates remain untouched and gain a
+ * loss-manifest warning instead of being guessed.
+ */
+export function migrateLegacyMleaderCompositions(document: CadDocument): CadDocument {
+  const dimensions = document.entities.filter((entity): entity is Extract<CadEntity, { type: "dimension" }> =>
+    entity.type === "dimension" && !entity.dimensionKind && /^ld_/.test(entity.id));
+  const texts = document.entities.filter((entity): entity is Extract<CadEntity, { type: "text" }> =>
+    entity.type === "text" && /^nt_/.test(entity.id));
+  const used = new Set<string>();
+  const created: Extract<CadEntity, { type: "mleader" }>[] = [];
+  const warnings: CadLossManifestEntry[] = [];
+  for (const dogleg of dimensions) {
+    if (used.has(dogleg.id) || Math.abs(dogleg.a.y - dogleg.b.y) > 1e-6) continue;
+    const candidates = dimensions.filter((leader) =>
+      leader.id !== dogleg.id && !used.has(leader.id) &&
+      [leader.a, leader.b].some((point) => legacyPointEqual(point, dogleg.a) || legacyPointEqual(point, dogleg.b)));
+    const textCandidates = texts.filter((text) =>
+      !used.has(text.id) && (legacyPointEqual({ x: text.x, y: text.y }, dogleg.a) || legacyPointEqual({ x: text.x, y: text.y }, dogleg.b)));
+    if (candidates.length !== 1 || textCandidates.length !== 1) {
+      if (candidates.length || textCandidates.length) warnings.push({
+        code: "legacy_mleader_ambiguous",
+        entityId: dogleg.id,
+        sourceType: "DIM+DIM+TEXT",
+        detail: "Legacy leader composition was not uniquely identifiable and remains unflattened.",
+        severity: "warning",
+      });
+      continue;
+    }
+    const leader = candidates[0];
+    const text = textCandidates[0];
+    const shared = [leader.a, leader.b].find((point) => legacyPointEqual(point, dogleg.a) || legacyPointEqual(point, dogleg.b))!;
+    const tip = legacyPointEqual(leader.a, shared) ? leader.b : leader.a;
+    const textPosition = { x: text.x, y: text.y, z: 0 };
+    const id = `mleader:migrated:${[leader.id, dogleg.id, text.id].sort().join("+")}`;
+    created.push({
+      id,
+      type: "mleader",
+      vertices: [point3(tip.x, tip.y), point3(shared.x, shared.y)],
+      leaderLines: [[point3(tip.x, tip.y), point3(shared.x, shared.y)]],
+      text: text.text,
+      textPosition,
+      contentType: "text",
+      landing: true,
+      doglegLength: Math.hypot(dogleg.b.x - dogleg.a.x, dogleg.b.y - dogleg.a.y),
+      arrowhead: "closed-filled",
+      associationStatus: "detached",
+      associative: false,
+      style: "Standard",
+      layer: text.layer || leader.layer,
+      context: { provenance: { provider: "legacy-editor" }, metadata: { migratedLeader: leader.id, migratedDogleg: dogleg.id, migratedText: text.id } },
+    });
+    used.add(leader.id); used.add(dogleg.id); used.add(text.id);
+  }
+  if (!created.length && !warnings.length) return document;
+  const entities = [...document.entities.filter((entity) => !used.has(entity.id)), ...created].sort(byId);
+  return {
+    ...document,
+    entities,
+    modelSpace: { entityIds: entities.map((entity) => entity.id) },
+    lossManifest: [...document.lossManifest, ...warnings],
   };
 }
 
@@ -790,7 +1037,7 @@ export function migrateCadDocument(value: unknown): CadDocument {
   const raw = value as Partial<CadDocument>;
   const schema = Number(raw.meta?.schema) || 1;
   if (schema > CAD_DOCUMENT_SCHEMA) throw new Error(`Unsupported CadDocument schema ${schema}.`);
-  const migrated = withV3Defaults(raw);
+  const migrated = migrateLegacyMleaderCompositions(withV3Defaults(raw));
   if (!finite(migrated)) throw new Error("CadDocument contains non-finite numeric values.");
   const ids = migrated.entities.map((entity) => entity.id);
   if (ids.some((id) => typeof id !== "string" || !id) || new Set(ids).size !== ids.length) {
@@ -816,7 +1063,8 @@ export function replaceEditorProjection(
   const preserved = base
     ? base.entities.filter((entity) =>
         !projectionIds.has(entity.id)
-        && !["box", "station", "text", "dimension", "connector"].includes(entity.type)
+        && !["box", "station", "text", "connector"].includes(entity.type)
+        && (entity.type !== "dimension" || !!entity.dimensionKind)
         && (entity.type !== "circle" || !entity.legacy),
       )
     : [];

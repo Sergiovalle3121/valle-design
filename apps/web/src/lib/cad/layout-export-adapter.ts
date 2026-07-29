@@ -1,6 +1,12 @@
 import {
   exportCadDxf,
   type CadDxfExportLayer,
+  type CadDxfExportBlock,
+  type CadDxfExportInsert,
+  type CadDxfExportHatch,
+  type CadDxfExportMText,
+  type CadDxfExportMleader,
+  type CadDxfExportSemanticDimension,
   type CadDxfExportModel,
   type CadDxfExportOptions,
   type CadDxfExportResult,
@@ -54,6 +60,17 @@ export interface CadLayoutExportInput {
   measurements?: CadExportMeasurement[];
   /** First-class canonical entities that must not be flattened to boxes. */
   primitives?: CadDxfPrimitive[];
+  /** First-class canonical HATCH entities, including holes and pattern data. */
+  hatches?: CadDxfExportHatch[];
+  /** First-class semantic multiline text entities. */
+  mtexts?: CadDxfExportMText[];
+  /** First-class semantic DIMENSION entities. */
+  semanticDimensions?: CadDxfExportSemanticDimension[];
+  /** First-class semantic MLEADER entities. */
+  mleaders?: CadDxfExportMleader[];
+  /** Reusable canonical BLOCK definitions and live INSERT instances. */
+  blocks?: CadDxfExportBlock[];
+  inserts?: CadDxfExportInsert[];
 }
 
 const CAD_DXF_LAYER_COLORS: Record<string, number> = {
@@ -99,6 +116,10 @@ function collectLayoutLayers(input: CadLayoutExportInput): CadDxfExportLayer[] {
     names.add(measurement.layer ?? "Measurements");
   for (const primitive of input.primitives ?? [])
     names.add(primitive.layer || "0");
+  for (const hatch of input.hatches ?? []) names.add(hatch.layer || "0");
+  for (const mtext of input.mtexts ?? []) names.add(mtext.layer || "Text");
+  for (const dimension of input.semanticDimensions ?? []) names.add(dimension.layer || "Measurements");
+  for (const mleader of input.mleaders ?? []) names.add(mleader.layer || "Text");
   return [...names].sort((a, b) => a.localeCompare(b)).map((name) => ({
     name,
     color: CAD_DXF_LAYER_COLORS[name] ?? 7,
@@ -139,13 +160,23 @@ export function cadLayoutToDxfExportModel(
       layer: label.layer ?? "Text",
     })),
     measurements: input.measurements,
-    hatches: (input.boxes ?? [])
-      .filter((box) => box.hatch && box.shape !== "circle")
-      .map((box) => ({
-        layer: box.layer ?? "Equipment",
-        // Mismo contorno rotado que la polilínea, sin repetir el cierre.
-        points: rectPoints(box).slice(0, 4),
-      })),
+    mtexts: input.mtexts,
+    semanticDimensions: input.semanticDimensions,
+    mleaders: input.mleaders,
+    blocks: input.blocks,
+    inserts: input.inserts,
+    hatches: [
+      ...(input.hatches ?? []),
+      ...(input.boxes ?? [])
+        .filter((box) => box.hatch && box.shape !== "circle")
+        .map((box) => ({
+          layer: box.layer ?? "Equipment",
+          // Mismo contorno rotado que la polilínea, sin repetir el cierre.
+          points: rectPoints(box).slice(0, 4),
+          pattern: "SOLID",
+          solid: true,
+        })),
+    ],
   };
 }
 export function exportCadLayoutDxf(

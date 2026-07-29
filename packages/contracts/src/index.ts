@@ -4,6 +4,7 @@ export * from "./sheets";
 export * from "./industries";
 export * from "./plan-tiers";
 export * from "./documents";
+export * from "./pdf-coordinates";
 export * from "./presentations";
 export * from "./document-authoring";
 export * from "./product-catalog";

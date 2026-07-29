@@ -547,6 +547,13 @@ export interface CadCommandHistoryItem {
   label: string;
   status: CadCommandStatus;
   createdAt: string;
+  /** Exact deterministic command text used for history navigation/repeat. */
+  rawInput?: string;
+  /** Wall-clock execution time for the audited command step. */
+  durationMs?: number;
+  /** Canonical object identifiers reported by preview/execute. */
+  affectedObjectIds?: string[];
+  completedAt?: string;
   preview?: CadCommandPreview;
   result?: CadCommandResult;
 }

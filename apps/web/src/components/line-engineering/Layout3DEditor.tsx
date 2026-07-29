@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -13,10 +13,13 @@ import {
   AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
   AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, RulerDimensionLine, Rows3, Waypoints,
   ShieldCheck, CircleCheck, CircleAlert, Printer, ChartLine, FileText, WandSparkles, Stamp, Upload, ImageOff, Activity, History, Group, Search,
-  Expand, Frame, Focus, PanelLeft, PanelLeftClose, ScanEye,
+  Expand, Frame, Focus, PanelLeft, PanelLeftClose, ScanEye, GitMerge,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/apiFetch';
 import { useToast } from '@/contexts/ToastContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { setWorkbenchChrome } from '@/lib/operatorChrome';
 import { ASSET_CATEGORIES, assetMeta, type AssetArchetype } from './asset-catalog';
 import { parseDxf, type DxfModel } from './dxf';
@@ -30,7 +33,7 @@ import { flowMetrics, type FlowCenter } from './flow-metrics';
 import { plotSheetModel } from './plot-sheet';
 import { describeCadIntent, normalizeToolCalls, type CadIntent } from './cad-intent';
 import { parseCoordinate, constrainPoint } from './precision-input';
-import { startCommand, feedPoint, feedDistance, commit as commitDrawCommand, cancel as cancelDrawCommand, type CommandId as CadDrawCommandId, type CommandState as CadDrawCommandState, type DrawAction } from './cad-command';
+import { startCommand, feedPoint, feedDistance, commit as commitDrawCommand, closePolyline as closeDrawPolyline, cancel as cancelDrawCommand, type CommandId as CadDrawCommandId, type CommandState as CadDrawCommandState, type DrawAction } from './cad-command';
 import { snap as resolveOsnap, rectGeometry, type SnapScene, type SnapType } from './snap-engine';
 import { normalizeVision, type VisionResult } from './cad-vision';
 import { detectCadFormat } from './cad-format-detect';
@@ -51,14 +54,8 @@ import { maybeSnapScalarToGrid } from '@/lib/cad/snapping';
 import {
   assignObjectsToLayer,
   DEFAULT_CAD_LAYERS,
-  hideEmptyCadLayers,
-  isolateCadLayerVisibility,
   isObjectLayerLocked,
-  showAllCadLayers,
   summarizeCadLayers,
-  toggleCadLayerLocked,
-  toggleCadLayerVisible,
-  unlockAllCadLayers,
   type CadLayer,
   type CadLayerAssignments,
   type CadLayerId,
@@ -67,6 +64,54 @@ import { CAD_TOOLBAR_ACTIONS, type CadToolbarActionId } from '@/lib/cad/toolbar'
 import { searchCadPalette, type CadPaletteEntry } from '@/lib/cad/command-palette';
 import { suggestCadCommands, type CadCommandSuggestion } from '@/lib/cad/command-line-assist';
 import { matchCadShortcut } from '@/lib/cad/keyboard-shortcuts';
+import {
+  CAD_WORKSPACE_DEFAULTS,
+  applyCadWorkspaceProfile,
+  buildCadWorkspaceShortcuts,
+  cadWorkspaceStorageKey,
+  normalizeCadWorkspacePreferences,
+  type CadWorkspacePreferences,
+  type CadWorkspaceProfile,
+} from '@/lib/cad/cad-workspace';
+import {
+  cadCommandHistoryStorageKey,
+  navigateCadCommandHistory,
+  parseCadCommandHistory,
+  prependCadCommandHistory,
+  repeatableCadCommand,
+  serializeCadCommandHistory,
+} from '@/lib/cad/command-session';
+import {
+  gzipCadDocumentJson,
+  serializeCadDocumentForTransport,
+} from '@/lib/cad/large-document-transport';
+import {
+  clearCadRecovery,
+  CadRecoveryQuotaError,
+  loadCadRecovery,
+  saveCadRecovery,
+  type CadRecoveryRecord,
+} from '@/lib/cad/cad-recovery';
+import { planCadNativeRenderBudget } from '@/lib/cad/native-render-budget';
+import { CadNativeSelectionIndex } from '@/lib/cad/native-selection-index';
+import {
+  EMPTY_CAD_SELECTION,
+  reduceCadSelection,
+  type CadSelectableItem,
+  type CadSelectionAction,
+  type CadSelectionOperation,
+  type CadSelectionState,
+} from '@/lib/cad/selection-controller';
+import { cadSelectionPathMatchesPolygon } from '@/lib/cad/selection-shapes';
+import {
+  acquireCadTrackingPoint,
+  cadWorldToleranceFromView,
+  resolveCadPolarTracking,
+  trackFromAcquiredPoints,
+} from '@/lib/cad/precision-tracking';
+import { defaultCadDynamicValues, type CadDynamicInputResult } from '@/lib/cad/dynamic-input';
+import { cadPointInBoundary, regenerateAssociativeHatches, resolveCadHatchRegionWithSources, stitchCadBoundaryPaths } from '@/lib/cad/hatch-associativity';
+import { cadViewportBoundsChanged, cadViewportBoundsFromCamera } from '@/lib/cad/native-viewport';
 import { exportCadLayoutDxf } from '@/lib/cad/layout-export-adapter';
 import { buildPlotSheet, CAD_PAPER_SIZES, type CadPaperId } from '@/lib/cad/plot-sheet';
 import { evaluateCadDxfExportReadiness, type CadDxfExportLayerSummary, type CadDxfExportReadinessEntity, type CadDxfExportReadinessIssue } from '@/lib/cad/dxf-export-readiness';
@@ -79,7 +124,15 @@ import { DWG_UNAVAILABLE_REASON } from '@/lib/cad/interop-provider';
 import { mapDxfLayerToCadLayer } from '@/lib/cad/dxf-layer-map';
 import { solveCadConstraints, upsertCadConstraint } from '@/lib/cad/live-constraints';
 import { BRAND, PRODUCT_LABEL } from '@/config/brand';
-import { buildMleader } from '@/lib/cad/mleader';
+import { cadMleaderAssociationAnchor, type CadMleaderReference } from '@/lib/cad/associative-mleader';
+import {
+  defineCadBlock,
+  explodeCadInsert,
+  insertCadBlock as insertCanonicalCadBlock,
+  purgeUnusedCadBlocks,
+  redefineCadBlock,
+  replaceCadBlock,
+} from '@/lib/cad/professional-blocks';
 import { CAD_LAYOUT_TEMPLATES, instantiateCadLayoutTemplate, type CadLayoutTemplateId } from '@/lib/cad/templates';
 import {
   generateWarehouseDockStaging,
@@ -99,37 +152,93 @@ import {
   migrateCadDocument,
   replaceEditorProjection,
   type CadConstraintKind,
+  type CadBlockDefinition,
   type CadDocument,
   type CadEntity,
+  type CadExternalReference,
+  type CadLayerDef,
   type CadPaperSpace,
   type CadPublicationRecord,
 } from '@/lib/cad/cad-document';
 import {
-  CAD_SHEET_SCALES,
+  cadReviewLinkIsActive,
+  type CadEntityDiffRow,
+} from '@/lib/cad/cad-collaboration';
+import { applyCadLineFillet } from '@/lib/cad/cad-fillet';
+import { applyCadLineEdit, type CadLineEndpoint } from '@/lib/cad/cad-line-edit';
+import {
+  cadLayerIdFromName,
+  createCadDocumentLayer,
+  deleteCadDocumentLayer,
+  updateCadDocumentLayer,
+} from '@/lib/cad/cad-layer-manager';
+import {
   CAD_SHEET_PAPERS,
   buildCadPublishPlan,
   createCadPaperSpace,
   createThreeSheetDemo,
   reorderCadPaperSpaces,
+  type CadPublishSheet,
   type CadPublishWarning,
   type CadSheetPaper,
 } from '@/lib/cad/paper-space';
 import {
+  createCadPaperViewport,
+  deleteCadPaperViewport,
+  duplicateCadPaperViewport,
+  normalizeCadViewportPaperBounds,
+  preflightCadPaperSpace,
+  setCadViewportLayerOverride,
+  setCadViewportLayerVisibility,
+  updateCadPaperViewport,
+} from '@/lib/cad/cad-layout-manager';
+import {
+  analyzeCadXrefGraph,
+  attachCadXref,
+  bindCadXref,
+  compareCadXrefVersion,
+  detachCadXref,
+  hashCadXrefDocument,
+  markCadXrefStatus,
+  reloadCadXref,
+  unloadCadXref,
+  type CadXrefAssetSnapshot,
+  type CadXrefVersionComparison,
+} from '@/lib/cad/cad-xrefs';
+import {
   CAD_ENTITY_REGISTRY,
   CadSceneSynchronizer,
+  cadEntityBoundaryPaths,
   executeCadEntityCommand,
   type CadNativeEntity,
+  type CadBounds,
   type CadPropertyBag,
   type CadScenePatch,
 } from '@/lib/cad/entity-runtime';
 import {
+  buildCadInsertBatchObject,
+  buildCadNativeOverviewObject,
   buildCadNativeObject,
   disposeCadNativeObject,
+  setCadInsertBatchHiddenLayers,
+  setCadNativeOverviewHiddenLayers,
   setCadNativeObjectSelected,
+  updateCadNativeOverviewObject,
 } from '@/lib/cad/entity-three';
 import {
+  cadDocumentNativeDxfHatches,
+  cadDocumentDxfBlocks,
+  cadDocumentDxfInserts,
+  cadDocumentNativeDxfMTexts,
+  cadDocumentNativeDxfMleaders,
   cadDocumentNativeDxfPrimitives,
+  cadDocumentNativeDxfSemanticDimensions,
   cadDxfCurvesToNativeEntities,
+  cadDxfBlocksToCadDocumentParts,
+  cadDxfHatchesToNativeEntities,
+  cadDxfMTextsToNativeEntities,
+  cadDxfMleadersToNativeEntities,
+  cadDxfSemanticDimensionsToNativeEntities,
 } from '@/lib/cad/dxf-cad-document';
 import {
   describeCadObjectProperties,
@@ -161,6 +270,22 @@ import {
 } from '@/lib/cad/world-scale';
 import PlantMinimap from './PlantMinimap';
 import ScaleBar from './ScaleBar';
+import { CadCommandDock, type CadAiProposal } from './cad-workbench/CadCommandDock';
+import {
+  CadSelectionPalette,
+  type CadSelectionGeometryMode,
+} from './cad-workbench/CadSelectionPalette';
+import { CadDynamicInput } from './cad-workbench/CadDynamicInput';
+import { CadHatchPalette } from './cad-workbench/CadHatchPalette';
+import { CadMTextEditor, type CadMTextDraft } from './cad-workbench/CadMTextEditor';
+import { CadDimensionPalette, type CadDimensionDraft } from './cad-workbench/CadDimensionPalette';
+import { CadMLeaderPalette, type CadMLeaderDraft } from './cad-workbench/CadMLeaderPalette';
+import { CadBlockPalette, type CadBlockDefinitionDraft, type CadBlockInsertDraft } from './cad-workbench/CadBlockPalette';
+import { CadLayoutManager } from './cad-workbench/CadLayoutManager';
+import { CadXrefPalette, type CadXrefAttachDraft } from './cad-workbench/CadXrefPalette';
+import { CadCollaborationPalette } from './cad-workbench/CadCollaborationPalette';
+import { CadWorkspaceDock } from './cad-workbench/CadWorkspaceDock';
+import { cadEntityAssociationAnchor } from '@/lib/cad/associative-dimension';
 import {
   cadViewportFocusBounds,
   createCadViewportBookmark,
@@ -235,7 +360,12 @@ const ANALYSIS_PANELS: { key: string; label: string; Comp: React.ComponentType<a
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000').replace(/\/$/, '');
 
 // Etiquetas del glifo OSNAP (Fase 66 cableada, ADR §216) — se muestran en el HUD.
-const OSNAP_LABELS: Record<SnapType, string> = { endpoint: 'extremo', intersection: 'intersección', center: 'centro', midpoint: 'medio', perpendicular: 'perpendicular', node: 'plano', nearest: 'cercano', grid: 'grilla' };
+const OSNAP_LABELS: Record<SnapType, string> = {
+  endpoint: 'extremo', midpoint: 'medio', center: 'centro', 'geometric-center': 'centro geométrico',
+  node: 'nodo', quadrant: 'cuadrante', intersection: 'intersección', insertion: 'inserción',
+  perpendicular: 'perpendicular', tangent: 'tangente', nearest: 'cercano',
+  'apparent-intersection': 'intersección aparente', extension: 'extensión', grid: 'grilla',
+};
 
 // Portapapeles CAD (ADR §220) — a nivel de módulo para que Ctrl+C/Ctrl+V
 // funcione también ENTRE layouts (copiar en AX-1000/A, pegar en AX-2000/B).
@@ -292,7 +422,7 @@ interface Cell { id: string; name: string; color: string; stationIds: string[] }
 interface Conn { from: string; to: string; kind?: string }
 interface Asset { id: string; kind: string; x: number; y: number; w: number; h: number; rotation: number; label?: string; shape?: 'rect' | 'circle'; tags?: string[] }
 /** Bloque CAD reutilizable de la biblioteca del tenant (ADR §224). */
-interface CadBlockRow { id: string; name: string; assets: (Asset & { layer?: string })[]; createdAt?: string }
+interface CadBlockRow { id: string; name: string; assets: (Asset & { layer?: string })[]; definition?: CadBlockDefinition | null; version?: number; createdAt?: string }
 /** A pair of objects flagged by the clearance analysis (Fase 43). */
 interface ClearancePair { a: string; b: string; aLabel: string; bLabel: string; gap: number }
 /** A free-text note or a dimension line (cota) on the plan — world coords. */
@@ -317,7 +447,7 @@ interface SelItem { type: 'station' | 'asset'; id: string }
 const sameSel = (a: SelItem, b: SelItem) => a.type === b.type && a.id === b.id;
 /** A point-in-time copy of every editable collection, for undo/redo. */
 interface Snapshot { placements: [string, Placement][]; assets: Asset[]; annotations: Ann[]; connectors: Conn[]; layers: CadLayerAssignments; tags: Record<string, string> }
-interface CommandPreviewState { input: CadCommandInput; preview: CadCommandPreview; chain?: CadCommandInput[] }
+interface CommandPreviewState { input: CadCommandInput; preview: CadCommandPreview; chain?: CadCommandInput[]; rawInput: string }
 interface DxfExportOptions { scope: 'all' | 'selection'; includeHidden: boolean; includeMeasurements: boolean; includeLabels: boolean; units: 'mm' | 'm'; fileName: string }
 interface DxfExportSummary { objects: number; connectors: number; measurements: number; labels: number; layers: number; canExport: boolean; includedLayers: string[]; layerSummary: CadDxfExportLayerSummary[]; issues: CadDxfExportReadinessIssue[] }
 interface MeasurementRow { id: string; label: string; length: string }
@@ -448,6 +578,8 @@ const TOOLBAR_SHORTCUT_IDS = new Set<CadToolbarActionId>([
   'line',
   'polyline',
   'rect',
+  'circle',
+  'offset',
   'aisle',
   'connector',
   'zone',
@@ -850,13 +982,36 @@ export default function Layout3DEditor({
   subtitle?: string;
 }) {
   const toast = useToast();
+  const { user, tenantId } = useAuth();
+  const { resolvedScheme } = useTheme();
+  const { buildingId, projectId } = useWorkspace();
+  const recoveryScope = useMemo(
+    () =>
+      tenantId && user?.id
+        ? {
+            tenantId,
+            userId: user.id,
+            buildingId,
+            projectId,
+            model,
+            revision,
+          }
+        : null,
+    [buildingId, model, projectId, revision, tenantId, user?.id],
+  );
   const mountRef = useRef<HTMLDivElement | null>(null);
   const viewMenuRef = useRef<HTMLDivElement | null>(null);
+  const viewMenuPanelRef = useRef<HTMLDivElement | null>(null);
   const [data, setData] = useState<Layout | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [connectionState, setConnectionState] = useState<'checking' | 'online' | 'offline'>('checking');
   const [snap, setSnap] = useState(true);
   const [osnap, setOsnap] = useState(true); // object snap: align to other objects' edges/centers (Fase 54)
   const [dirty, setDirty] = useState(false);
+  const [recoveryCandidate, setRecoveryCandidate] = useState<CadRecoveryRecord | null>(null);
+  const [recoverySavedAt, setRecoverySavedAt] = useState<string | null>(null);
+  const [recoveryWarning, setRecoveryWarning] = useState<string | null>(null);
+  const recoveryWriteInFlightRef = useRef(false);
   const [saving, setSaving] = useState(false);
   const [serverBusy, setServerBusy] = useState(false); // server auto-arrange/optimize in flight (unify)
   const [approval, setApproval] = useState<LayoutApproval | null>(null); // sign-off status (unify)
@@ -868,8 +1023,21 @@ export default function Layout3DEditor({
   const [plotPaper, setPlotPaper] = useState<CadPaperId>('A4');
   const [showSheetPackage, setShowSheetPackage] = useState(false);
   const [paperSpaces, setPaperSpaces] = useState<CadPaperSpace[]>([]);
+  const [paperSpaceLayers, setPaperSpaceLayers] = useState<CadLayerDef[]>([]);
+  const [newCadLayerName, setNewCadLayerName] = useState('');
+  const [newCadLayerColor, setNewCadLayerColor] = useState('#22d3ee');
+  const [cadXrefs, setCadXrefs] = useState<CadExternalReference[]>([]);
   const [publicationRecords, setPublicationRecords] = useState<CadPublicationRecord[]>([]);
   const [activePaperSpaceId, setActivePaperSpaceId] = useState<string | null>(null);
+  const [activePaperViewportId, setActivePaperViewportId] = useState<string | null>(null);
+  const [layoutPreviewSheet, setLayoutPreviewSheet] = useState<CadPublishSheet | null>(null);
+  const [cadLibraryTab, setCadLibraryTab] = useState<'blocks' | 'xrefs'>('blocks');
+  const [showCollaborationDock, setShowCollaborationDock] = useState(false);
+  const [cadReviewReadOnly, setCadReviewReadOnly] = useState(false);
+  const [filletRadius, setFilletRadius] = useState(100);
+  const [lineEditOperation, setLineEditOperation] = useState<'trim' | 'extend'>('trim');
+  const [lineEditEndpoint, setLineEditEndpoint] = useState<CadLineEndpoint>('start');
+  const [lineEditTargetId, setLineEditTargetId] = useState('');
   const [publishingSheetSet, setPublishingSheetSet] = useState(false);
   const [publicationWarnings, setPublicationWarnings] = useState<CadPublishWarning[]>([]);
   const [dxfExportOptions, setDxfExportOptions] = useState<DxfExportOptions>({ scope: 'all', includeHidden: true, includeMeasurements: true, includeLabels: true, units: 'mm', fileName: '' });
@@ -893,7 +1061,7 @@ export default function Layout3DEditor({
   const [showClone, setShowClone] = useState(false); // clone-from-template modal
   const [cloneSrc, setCloneSrc] = useState('');
   const [cloneBusy, setCloneBusy] = useState(false);
-  const [showCommand, setShowCommand] = useState(false); // natural-language command dock (local function-calling scaffold)
+  const [showCommand, setShowCommand] = useState(true); // always-accessible deterministic command dock
   const [showPalette, setShowPalette] = useState(false); // Cmd-K CAD palette (local registry/search)
   const [paletteQuery, setPaletteQuery] = useState('');
   const [recentPaletteActions, setRecentPaletteActions] = useState<string[]>([]);
@@ -901,15 +1069,21 @@ export default function Layout3DEditor({
   const [commandText, setCommandText] = useState('');
   const [commandPreview, setCommandPreview] = useState<CommandPreviewState | null>(null);
   const [commandLog, setCommandLog] = useState<CadCommandHistoryItem[]>([]);
+  const [commandHistoryCursor, setCommandHistoryCursor] = useState(-1);
+  const [commandHistoryHydratedKey, setCommandHistoryHydratedKey] = useState<string | null>(null);
+  const commandInputRef = useRef<HTMLInputElement | null>(null);
+  const commandPreviewRef = useRef<CommandPreviewState | null>(null);
+  const commandTextRef = useRef('');
   // Copiloto IA (ADR §215): propuesta NL→CAD / optimización — humano aprueba.
   const [aiBusy, setAiBusy] = useState<null | 'intent' | 'optimize'>(null);
-  const [aiProposal, setAiProposal] = useState<{ source: 'intent' | 'optimize'; intents: CadIntent[]; descriptions?: string[]; errors: string[]; message?: string } | null>(null);
+  const [aiProposal, setAiProposal] = useState<CadAiProposal | null>(null);
   const [selList, setSelList] = useState<SelItem[]>([]);
   const [selSnap, setSelSnap] = useState<SelSnap | null>(null);
   const [selSummary, setSelSummary] = useState<CadSelectionProperties | null>(null);
   const [nativeSelectionIds, setNativeSelectionIds] = useState<string[]>([]);
   const [nativeDocumentRevision, setNativeDocumentRevision] = useState(0);
   const [nativeEntities, setNativeEntities] = useState<CadNativeEntity[]>([]);
+  const [nativeRenderStats, setNativeRenderStats] = useState({ total: 0, visible: 0, rendered: 0, omitted: 0, batching: false });
   const [placedIds, setPlacedIds] = useState<Set<string>>(new Set());
   const [assetIds, setAssetIds] = useState<Set<string>>(new Set());
   const [tab, setTab] = useState<'stations' | 'equipment'>(standalone ? 'equipment' : 'stations');
@@ -949,6 +1123,26 @@ export default function Layout3DEditor({
     includeQuarantine: true,
   });
   const [tool, setTool] = useState<EditorTool>('select');
+  const [showSelectionPalette, setShowSelectionPalette] = useState(false);
+  const [selectionGeometryMode, setSelectionGeometryMode] = useState<CadSelectionGeometryMode>('pick');
+  const [selectionOperation, setSelectionOperation] = useState<CadSelectionOperation>('replace');
+  const [quickSelectionType, setQuickSelectionType] = useState('');
+  const [quickSelectionLayer, setQuickSelectionLayer] = useState('');
+  const [quickSelectionText, setQuickSelectionText] = useState('');
+  const [professionalSelection, setProfessionalSelection] = useState<CadSelectionState>(EMPTY_CAD_SELECTION);
+  const [hatchPickMode, setHatchPickMode] = useState(false);
+  const [showHatchPalette, setShowHatchPalette] = useState(false);
+  const [hatchPickSolid, setHatchPickSolid] = useState(false);
+  const [hatchIslandStyle, setHatchIslandStyle] = useState<'normal' | 'outer' | 'ignore'>('normal');
+  const [mtextEditorOpen, setMTextEditorOpen] = useState(false);
+  const [editingMTextId, setEditingMTextId] = useState<string | null>(null);
+  const [showDimensionPalette, setShowDimensionPalette] = useState(false);
+  const [showMleaderPalette, setShowMleaderPalette] = useState(false);
+  const [showBlockPalette, setShowBlockPalette] = useState(false);
+  const [showWorkspaceDock, setShowWorkspaceDock] = useState(false);
+  const [workspacePreferences, setWorkspacePreferences] = useState<CadWorkspacePreferences>(CAD_WORKSPACE_DEFAULTS);
+  const [workspaceHydratedKey, setWorkspaceHydratedKey] = useState<string | null>(null);
+  const [cadContextMenu, setCadContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [viewMode, setViewMode] = useState<'3d' | '2d'>('3d'); // 2D = locked top-down plan view (CAD unificado)
   const [walk, setWalk] = useState(false); // first-person walkthrough mode
   const [showHelp, setShowHelp] = useState(false); // keyboard shortcuts overlay
@@ -960,6 +1154,7 @@ export default function Layout3DEditor({
   const [theme, setTheme] = useState<Theme3D>('dark');
   const [sun, setSun] = useState({ az: 35, el: 55 }); // sun azimuth/elevation (deg)
   const [showView, setShowView] = useState(false);
+  const [viewMenuPosition, setViewMenuPosition] = useState({ left: 8, top: 56 });
   const [fpDraft, setFpDraft] = useState<{ w: number; h: number; g: number }>({ w: 0, h: 0, g: 0 });
   const [plantDisplayUnit, setPlantDisplayUnit] = useState<'m' | 'mm'>('m'); // readout-only toggle, no cambia el footprint guardado
   const [viewportBookmarks, setViewportBookmarks] = useState<CadViewportBookmark[]>([]);
@@ -971,8 +1166,25 @@ export default function Layout3DEditor({
   const [objectGroups, setObjectGroups] = useState<Record<string, string>>({});
   // Biblioteca de bloques reutilizables del tenant (ADR §224).
   const [cadBlocks, setCadBlocks] = useState<CadBlockRow[]>([]);
+  const loadCadBlocks = useCallback(async () => {
+    try {
+      const response = await apiFetch(`${API_BASE}/line-engineering/cad-blocks`);
+      if (response.ok) setCadBlocks(await response.json() as CadBlockRow[]);
+    } catch { /* transitorio — la sección muestra "sin bloques" */ }
+  }, []);
   const [activeCadLayer, setActiveCadLayer] = useState<CadLayerId>('equipment');
   const cadLayersRef = useRef<CadLayer[]>(DEFAULT_CAD_LAYERS);
+  const syncCadLayerState = useCallback((document: CadDocument) => {
+    const projected = document.layers.length
+      ? document.layers.map((layer) => ({ id: layer.id, label: layer.name, color: layer.color, visible: layer.visible, locked: layer.locked }))
+      : DEFAULT_CAD_LAYERS.map((layer) => ({ ...layer }));
+    cadLayersRef.current = projected;
+    setCadLayers(projected);
+    setPaperSpaceLayers(document.layers.map((layer) => ({ ...layer })));
+    setActiveCadLayer((current) => projected.some((layer) => layer.id === current)
+      ? current
+      : (projected.find((layer) => !layer.locked)?.id ?? projected[0]?.id ?? '0'));
+  }, []);
   const layerAssignmentsRef = useRef<CadLayerAssignments>({});
   const objectGroupsRef = useRef<Record<string, string>>({});
   const [objectTags, setObjectTags] = useState<Record<string, string>>({});
@@ -1005,6 +1217,41 @@ export default function Layout3DEditor({
   const [showGaps, setShowGaps] = useState(false); // clearance/safety gap markers overlay (Fase 52)
   const viewportBookmarkStorageKey = `axos:cad:viewport-bookmarks:${model}:${revision}`;
   useEffect(() => { paletteOpenRef.current = showPalette; }, [showPalette]);
+  useEffect(() => { commandPreviewRef.current = commandPreview; }, [commandPreview]);
+  useEffect(() => { commandTextRef.current = commandText; }, [commandText]);
+  const commandHistoryStorageKey = cadCommandHistoryStorageKey({
+    tenantId,
+    userId: user?.id,
+    buildingId,
+    projectId,
+    model,
+    revision,
+  });
+  useEffect(() => {
+    let active = true;
+    let restoredHistory: CadCommandHistoryItem[] = [];
+    try {
+      if (open && commandHistoryStorageKey)
+        restoredHistory = parseCadCommandHistory(window.localStorage.getItem(commandHistoryStorageKey));
+    } catch {
+      restoredHistory = [];
+    }
+    queueMicrotask(() => {
+      if (!active) return;
+      setCommandHistoryHydratedKey(open ? commandHistoryStorageKey : null);
+      setCommandHistoryCursor(-1);
+      setCommandLog(restoredHistory);
+    });
+    return () => { active = false; };
+  }, [commandHistoryStorageKey, open]);
+  useEffect(() => {
+    if (!open || !commandHistoryStorageKey || commandHistoryHydratedKey !== commandHistoryStorageKey) return;
+    try {
+      window.localStorage.setItem(commandHistoryStorageKey, serializeCadCommandHistory(commandLog));
+    } catch {
+      // Private browsing/storage pressure keeps the in-memory audit available.
+    }
+  }, [commandHistoryHydratedKey, commandHistoryStorageKey, commandLog, open]);
   const readViewportBookmarks = () => {
     try {
       const raw = window.localStorage.getItem(viewportBookmarkStorageKey);
@@ -1029,6 +1276,9 @@ export default function Layout3DEditor({
   const blocksRef = useRef<THREE.Group | null>(null);
   const assetsGroupRef = useRef<THREE.Group | null>(null);
   const nativeGroupRef = useRef<THREE.Group | null>(null);
+  const nativeInsertBatchRef = useRef<THREE.Group | null>(null);
+  const nativeOverviewRef = useRef<THREE.LineSegments | null>(null);
+  const nativeOverviewDocumentRef = useRef<CadDocument | null>(null);
   const dimsGroupRef = useRef<THREE.Group | null>(null);
   const notesGroupRef = useRef<THREE.Group | null>(null);
   const connsGroupRef = useRef<THREE.Group | null>(null);
@@ -1073,9 +1323,23 @@ export default function Layout3DEditor({
   const redoStackRef = useRef<CadDocument[]>([]);
   const loadedCadDocumentRef = useRef<CadDocument | null>(null);
   const nativeSelectionIdsRef = useRef<string[]>([]);
+  const professionalSelectionRef = useRef<CadSelectionState>(EMPTY_CAD_SELECTION);
+  const selectionGeometryModeRef = useRef<CadSelectionGeometryMode>('pick');
+  const selectionOperationRef = useRef<CadSelectionOperation>('replace');
+  const hatchPickModeRef = useRef(false);
+  const hatchPickCallbackRef = useRef<(point: { x: number; y: number }) => void>(() => {});
   const nativeSceneSyncRef = useRef<CadSceneSynchronizer<THREE.Object3D> | null>(null);
+  const nativeSelectionIndexRef = useRef<CadNativeSelectionIndex | null>(null);
+  const nativeViewportBoundsRef = useRef<CadBounds | null>(null);
+  const nativeIndexedDocumentRef = useRef<CadDocument | null>(null);
+  const workspacePreferencesRef = useRef<CadWorkspacePreferences>(CAD_WORKSPACE_DEFAULTS);
+  const workspaceShortcutsRef = useRef(buildCadWorkspaceShortcuts(CAD_WORKSPACE_DEFAULTS));
+  const crosshairOverlayRef = useRef<HTMLDivElement | null>(null);
+  const cursorCoordinateRef = useRef<HTMLSpanElement | null>(null);
   if (nativeSceneSyncRef.current === null)
     nativeSceneSyncRef.current = new CadSceneSynchronizer<THREE.Object3D>();
+  if (nativeSelectionIndexRef.current === null)
+    nativeSelectionIndexRef.current = new CadNativeSelectionIndex();
 
   // layout state refs (drive both the scene and the save)
   const placementsRef = useRef<Map<string, Placement>>(new Map());
@@ -1095,16 +1359,81 @@ export default function Layout3DEditor({
   useEffect(() => { snapRef.current = snap; }, [snap]);
   useEffect(() => { osnapRef.current = osnap; }, [osnap]);
   useEffect(() => { toolRef.current = tool; }, [tool]);
+  useEffect(() => { selectionGeometryModeRef.current = selectionGeometryMode; }, [selectionGeometryMode]);
+  useEffect(() => { selectionOperationRef.current = selectionOperation; }, [selectionOperation]);
+  useEffect(() => { hatchPickModeRef.current = hatchPickMode; }, [hatchPickMode]);
   // Núcleo de precisión (Fase 66 cableada, ADR §216): orto 0/90/180/270 y
   // entrada tecleada de coordenadas para el trazo de muros.
   const [orthoLock, setOrthoLock] = useState(false);
   const orthoLockRef = useRef(orthoLock);
+  const [polarTracking, setPolarTracking] = useState(true);
+  const polarTrackingRef = useRef(polarTracking);
+  const [polarIncrement, setPolarIncrement] = useState(45);
+  const polarIncrementRef = useRef(polarIncrement);
+  const [objectSnapTracking, setObjectSnapTracking] = useState(true);
+  const objectSnapTrackingRef = useRef(objectSnapTracking);
+  const acquiredTrackingPointsRef = useRef<Array<{ x: number; y: number }>>([]);
+  const [acquiredTrackingPointCount, setAcquiredTrackingPointCount] = useState(0);
   useEffect(() => { orthoLockRef.current = orthoLock; }, [orthoLock]);
+  useEffect(() => { polarTrackingRef.current = polarTracking; }, [polarTracking]);
+  useEffect(() => { polarIncrementRef.current = polarIncrement; }, [polarIncrement]);
+  useEffect(() => { objectSnapTrackingRef.current = objectSnapTracking; }, [objectSnapTracking]);
   const lastWallAngleRef = useRef<number | null>(null); // ángulo del último tramo → entrada directa de distancia
   const [precisionText, setPrecisionText] = useState('');
   const [drawPrompt, setDrawPrompt] = useState<string | null>(null);
+  const [canCloseDraftPolyline, setCanCloseDraftPolyline] = useState(false);
   const drawCommandRef = useRef<CadDrawCommandState | null>(null);
   useEffect(() => { themeRef.current = theme; }, [theme]);
+  useEffect(() => { setTheme(resolvedScheme === 'light' ? 'light' : 'dark'); }, [resolvedScheme]);
+
+  const workspacePreferenceKey = useMemo(
+    () => cadWorkspaceStorageKey({ tenantId, userId: user?.id }),
+    [tenantId, user?.id],
+  );
+  useEffect(() => {
+    if (!open) {
+      setWorkspaceHydratedKey(null);
+      return;
+    }
+    let restored = CAD_WORKSPACE_DEFAULTS;
+    try {
+      const serialized = window.localStorage.getItem(workspacePreferenceKey);
+      restored = normalizeCadWorkspacePreferences(serialized ? JSON.parse(serialized) : null);
+    } catch {
+      restored = CAD_WORKSPACE_DEFAULTS;
+    }
+    workspacePreferencesRef.current = restored;
+    workspaceShortcutsRef.current = buildCadWorkspaceShortcuts(restored);
+    setWorkspacePreferences(restored);
+    setShowCommand(restored.commandDock);
+    setShowMinimap(restored.minimap);
+    setWorkspaceHydratedKey(workspacePreferenceKey);
+  }, [open, workspacePreferenceKey]);
+  useEffect(() => {
+    workspacePreferencesRef.current = workspacePreferences;
+    workspaceShortcutsRef.current = buildCadWorkspaceShortcuts(workspacePreferences);
+    if (!open || workspaceHydratedKey !== workspacePreferenceKey) return;
+    try {
+      window.localStorage.setItem(workspacePreferenceKey, JSON.stringify(workspacePreferences));
+    } catch { /* local workspace persistence is best-effort */ }
+  }, [open, workspaceHydratedKey, workspacePreferenceKey, workspacePreferences]);
+
+  const updateWorkspacePreferences = useCallback((next: CadWorkspacePreferences) => {
+    const normalized = normalizeCadWorkspacePreferences(next);
+    workspacePreferencesRef.current = normalized;
+    workspaceShortcutsRef.current = buildCadWorkspaceShortcuts(normalized);
+    setWorkspacePreferences(normalized);
+    setShowCommand(normalized.commandDock);
+    setShowMinimap(normalized.minimap);
+  }, []);
+  const applyWorkspaceProfile = useCallback((profile: CadWorkspaceProfile) => {
+    updateWorkspacePreferences(applyCadWorkspaceProfile(workspacePreferencesRef.current, profile));
+    setFocusMode(false);
+  }, [updateWorkspacePreferences]);
+  const resetWorkspacePreferences = useCallback(() => {
+    updateWorkspacePreferences(CAD_WORKSPACE_DEFAULTS);
+    setFocusMode(false);
+  }, [updateWorkspacePreferences]);
 
   // Workbench full-screen: el CAD (`fixed inset-0`) se monta DENTRO de una ruta
   // standard (pestaña CAD de line-engineering). Mientras está abierto se declara
@@ -1159,9 +1488,30 @@ export default function Layout3DEditor({
       const document = loadedCadDocumentRef.current;
       nativeGroupRef.current.visible = L.equipment;
       nativeGroupRef.current.children.forEach((child) => {
+        if (child.userData?.nativeOverview === true) {
+          child.visible = L.equipment;
+          setCadNativeOverviewHiddenLayers(
+            child as THREE.LineSegments,
+            new Set(
+              document?.layers
+                .filter((layer) => layer.visible === false)
+                .map((layer) => layer.id) ?? [],
+            ),
+          );
+          return;
+        }
+        if (child.userData?.nativeBlockBatch === true) {
+          child.visible = L.equipment;
+          setCadInsertBatchHiddenLayers(child as THREE.Group, new Set(
+            document?.layers
+              .filter((layer) => layer.visible === false)
+              .map((layer) => layer.id) ?? [],
+          ));
+          return;
+        }
         const entityId = child.userData?.nativeEntityId as string | undefined;
         const entity = entityId
-          ? document?.entities.find((candidate) => candidate.id === entityId)
+          ? nativeSelectionIndexRef.current?.entity(entityId)
           : undefined;
         const layer = entity
           ? document?.layers.find((candidate) => candidate.id === entity.layer)
@@ -1191,7 +1541,10 @@ export default function Layout3DEditor({
   // close the view/layers popover when clicking outside it
   useEffect(() => {
     if (!showView) return;
-    const onDoc = (e: MouseEvent) => { if (viewMenuRef.current && !viewMenuRef.current.contains(e.target as Node)) setShowView(false); };
+    const onDoc = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (viewMenuRef.current && !viewMenuRef.current.contains(target) && !viewMenuPanelRef.current?.contains(target)) setShowView(false);
+    };
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
   }, [showView]);
@@ -1305,11 +1658,20 @@ export default function Layout3DEditor({
     const objects = next.map(computePropertyObject).filter((item): item is CadPropertyObject => !!item);
     setSelSummary(summarizeCadSelectionProperties(objects));
   }, [computePropertyObject, computeSnap]);
+  const recordProfessionalSelection = useCallback((keys: readonly string[]) => {
+    const next = reduceCadSelection(professionalSelectionRef.current, { type: 'apply', keys });
+    professionalSelectionRef.current = next;
+    setProfessionalSelection(next);
+  }, []);
   // Replace the whole selection (selSnap mirrors the single-object case).
   const select = useCallback((next: SelItem[]) => {
     selRef.current = next; setSelList(next);
     refreshSelectionSnapshot(next);
-  }, [refreshSelectionSnapshot]);
+    recordProfessionalSelection([
+      ...next.map((item) => `${item.type}:${item.id}`),
+      ...nativeSelectionIdsRef.current.map((id) => `native:${id}`),
+    ]);
+  }, [recordProfessionalSelection, refreshSelectionSnapshot]);
   const refreshSnap = useCallback(() => refreshSelectionSnapshot(selRef.current), [refreshSelectionSnapshot]);
 
   // ---- first-person walkthrough: drop to eye level, look by dragging, WASD ----
@@ -1341,8 +1703,8 @@ export default function Layout3DEditor({
     let alive = true;
     queueMicrotask(() => {
       if (!alive) return;
-      setData(null); setError(null); setSelList([]); setSelSnap(null); setNativeSelectionIds([]); setNativeEntities([]); setDirty(false); setTab('stations');
-      setOverlay(null); setTool('select'); setMeasureLive(null); setWalk(false); setHist({ undo: 0, redo: 0 }); setCellsView([]); setPaperSpaces([]); setPublicationRecords([]); setActivePaperSpaceId(null); setPublicationWarnings([]); setValidationHighlightIds(new Set()); setCollisionHits([]); setClearanceIssues([]); setSafetyIssues([]); setCadValidationReport(null); setIndustrySummary(null); setFlowHealth(null); setFlowSequence([]); setFlowSegments([]); setSnapshotDiff(null); setReport(null);
+      setData(null); setError(null); setConnectionState('checking'); setSelList([]); setSelSnap(null); setNativeSelectionIds([]); setNativeEntities([]); setDirty(false); setRecoveryCandidate(null); setRecoverySavedAt(null); setTab('stations');
+      setOverlay(null); setTool('select'); setMeasureLive(null); setWalk(false); setHist({ undo: 0, redo: 0 }); setCellsView([]); setPaperSpaces([]); setPaperSpaceLayers([]); setCadXrefs([]); setPublicationRecords([]); setActivePaperSpaceId(null); setActivePaperViewportId(null); setLayoutPreviewSheet(null); setPublicationWarnings([]); setValidationHighlightIds(new Set()); setCollisionHits([]); setClearanceIssues([]); setSafetyIssues([]); setCadValidationReport(null); setIndustrySummary(null); setFlowHealth(null); setFlowSequence([]); setFlowSegments([]); setSnapshotDiff(null); setReport(null); setShowCollaborationDock(false); setCadReviewReadOnly(false);
     });
     selRef.current = []; nativeSelectionIdsRef.current = []; overlayColorRef.current = new Map(); validationHighlightRef.current = new Set(); toolRef.current = 'select'; measureARef.current = null; wallChainRef.current = null;
     walkRef.current = false; savedCamRef.current = null; undoStackRef.current = []; redoStackRef.current = []; loadedCadDocumentRef.current = null;
@@ -1350,6 +1712,7 @@ export default function Layout3DEditor({
       try {
         const r = await apiFetch(`${API_BASE}/line-engineering/layout?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`);
         if (!alive) return;
+        setConnectionState('online');
         if (!r.ok) { setError('No se pudo cargar el layout.'); return; }
         const d = (await r.json()) as Layout;
         const pl = new Map<string, Placement>();
@@ -1385,7 +1748,7 @@ export default function Layout3DEditor({
         const restoredTags: Record<string, string> = {};
         (d.assets ?? []).forEach((a) => {
           const layer = (a as { layer?: string }).layer;
-          if (layer && DEFAULT_CAD_LAYERS.some((l) => l.id === layer)) restoredLayers[a.id] = layer as CadLayerId;
+          if (layer?.trim()) restoredLayers[a.id] = layer;
           const group = (a as { group?: string }).group;
           if (group) restoredGroups[a.id] = group;
           if (a.tags?.length) restoredTags[a.id] = a.tags.join(', ');
@@ -1423,8 +1786,16 @@ export default function Layout3DEditor({
           titleBlock: space.titleBlock ? { ...space.titleBlock, attributes: { ...space.titleBlock.attributes } } : undefined,
         }));
         setPaperSpaces(restoredPaperSpaces);
+        syncCadLayerState(loadedCadDocumentRef.current);
+        setCadXrefs(loadedCadDocumentRef.current.externalReferences.map((reference) => ({ ...reference })));
         setPublicationRecords([...loadedCadDocumentRef.current.publications]);
+        const reviewToken = new URLSearchParams(window.location.search).get('cadReview');
+        const readOnlyReview = !!reviewToken && cadReviewLinkIsActive(loadedCadDocumentRef.current, reviewToken);
+        setCadReviewReadOnly(readOnlyReview);
+        if (readOnlyReview) setShowCollaborationDock(true);
         setActivePaperSpaceId(restoredPaperSpaces[0]?.id ?? null);
+        setActivePaperViewportId(restoredPaperSpaces[0]?.viewports?.[0]?.id ?? null);
+        setLayoutPreviewSheet(null);
         setNativeEntities(
           (loadedCadDocumentRef.current?.entities ?? []).filter(
             (entity): entity is CadNativeEntity =>
@@ -1450,11 +1821,13 @@ export default function Layout3DEditor({
           } catch { /* ignore — backdrop is optional */ }
         }
       } catch {
-        if (alive) setError('No se pudo cargar el layout.');
+        if (alive) { setConnectionState('offline'); setError('No se pudo cargar el layout.'); }
       }
     })();
     return () => { alive = false; };
-  }, [open, model, revision, reloadTick]);
+  // `toast` intentionally stays out: the provider object is not referentially
+  // stable and would reload the complete drawing after every notification.
+  }, [open, model, revision, reloadTick, syncCadLayerState]);
 
   const snapWorld = useCallback((v: number) => {
     const g = data?.footprint.gridSize || 1;
@@ -1593,14 +1966,20 @@ export default function Layout3DEditor({
 
   const refreshNativeSelectionVisuals = useCallback(() => {
     const selected = new Set(nativeSelectionIdsRef.current);
-    for (const [id, object] of nativeSceneSyncRef.current?.entries() ?? [])
+    for (const [id, object] of nativeSceneSyncRef.current?.entries() ?? []) {
       setCadNativeObjectSelected(object, selected.has(id));
+      if (object.userData.nativeBlockBatched === true)
+        object.traverse((child) => {
+          if (child.userData.nativePath === true) child.visible = selected.has(id);
+        });
+    }
   }, []);
   const selectNative = useCallback((ids: string[]) => {
     const document = loadedCadDocumentRef.current;
     const next = [...new Set(ids)]
       .filter((id) => {
-        const entity = document?.entities.find((candidate) => candidate.id === id);
+        const entity = nativeSelectionIndexRef.current?.entity(id)
+          ?? document?.entities.find((candidate) => candidate.id === id);
         return !!entity && CAD_ENTITY_REGISTRY.supports(entity);
       })
       .slice(0, 300);
@@ -1610,13 +1989,15 @@ export default function Layout3DEditor({
     setSelList([]);
     setSelSnap(null);
     setSelSummary(null);
+    recordProfessionalSelection(next.map((id) => `native:${id}`));
     refreshNativeSelectionVisuals();
-  }, [refreshNativeSelectionVisuals]);
+  }, [recordProfessionalSelection, refreshNativeSelectionVisuals]);
   const clearNativeSelection = useCallback(() => {
     nativeSelectionIdsRef.current = [];
     setNativeSelectionIds([]);
+    recordProfessionalSelection(selRef.current.map((item) => `${item.type}:${item.id}`));
     refreshNativeSelectionVisuals();
-  }, [refreshNativeSelectionVisuals]);
+  }, [recordProfessionalSelection, refreshNativeSelectionVisuals]);
   const syncNativeScene = useCallback((
     document = loadedCadDocumentRef.current,
     patch?: CadScenePatch,
@@ -1624,13 +2005,36 @@ export default function Layout3DEditor({
     const group = nativeGroupRef.current;
     const context = ctxRef.current;
     const synchronizer = nativeSceneSyncRef.current;
-    if (!document || !group || !context || !synchronizer) return;
+    const selectionIndex = nativeSelectionIndexRef.current;
+    if (!document || !group || !context || !synchronizer || !selectionIndex) return;
+    if (nativeInsertBatchRef.current) {
+      group.remove(nativeInsertBatchRef.current);
+      disposeCadNativeObject(nativeInsertBatchRef.current);
+    }
+    const insertBatches = buildCadInsertBatchObject(document, {
+      scale: context.s,
+      width: context.W,
+      height: context.H,
+    });
+    group.add(insertBatches);
+    nativeInsertBatchRef.current = insertBatches;
+    const batchedInsertIds = new Set<string>(
+      (insertBatches.userData.nativeBlockBatchInsertIds as string[] | undefined) ?? [],
+    );
     const render = (entity: CadNativeEntity) => {
       const object = buildCadNativeObject(entity, {
         scale: context.s,
         width: context.W,
         height: context.H,
-      }, nativeSelectionIdsRef.current.includes(entity.id));
+      }, nativeSelectionIdsRef.current.includes(entity.id), document);
+      if (entity.type === 'insert' && batchedInsertIds.has(entity.id)) {
+        object.userData.nativeBlockBatched = true;
+        object.traverse((child) => {
+          if (child.userData.nativePath === true)
+            child.visible = nativeSelectionIdsRef.current.includes(entity.id);
+        });
+      }
+      object.visible = document.layers.find((layer) => layer.id === entity.layer)?.visible !== false;
       group.add(object);
       return object;
     };
@@ -1644,8 +2048,81 @@ export default function Layout3DEditor({
         disposeCadNativeObject(projection);
       },
     };
-    if (patch) synchronizer.applyPatch(patch, sink);
-    else synchronizer.sync(document, sink);
+    const nativeDocumentEntities = document.entities.filter(
+      (entity): entity is CadNativeEntity => CAD_ENTITY_REGISTRY.supports(entity),
+    );
+    if (nativeIndexedDocumentRef.current !== document) {
+      if (patch && nativeIndexedDocumentRef.current)
+        selectionIndex.applyPatch(patch, document);
+      else selectionIndex.replace(nativeDocumentEntities, document);
+      nativeIndexedDocumentRef.current = document;
+    }
+    const visibleEntities = nativeViewportBoundsRef.current
+      ? selectionIndex.search(nativeViewportBoundsRef.current)
+      : undefined;
+    const renderPlan = planCadNativeRenderBudget(
+      nativeDocumentEntities,
+      nativeSelectionIdsRef.current,
+      undefined,
+      visibleEntities ? { visibleEntities } : undefined,
+    );
+    const rebuildNativeOverview = () => {
+      if (nativeOverviewRef.current)
+        disposeCadNativeObject(nativeOverviewRef.current);
+      const overview = buildCadNativeOverviewObject(nativeDocumentEntities, {
+        scale: context.s,
+        width: context.W,
+        height: context.H,
+      }, 8, new Set(
+        document.layers
+          .filter((layer) => layer.visible === false)
+          .map((layer) => layer.id),
+      ));
+      group.add(overview);
+      nativeOverviewRef.current = overview;
+      nativeOverviewDocumentRef.current = document;
+    };
+    if (renderPlan.limited) {
+      if (!nativeOverviewRef.current) rebuildNativeOverview();
+      else if (patch) {
+        if (!updateCadNativeOverviewObject(nativeOverviewRef.current, patch))
+          rebuildNativeOverview();
+        else nativeOverviewDocumentRef.current = document;
+      } else if (nativeOverviewDocumentRef.current !== document)
+        rebuildNativeOverview();
+    } else if (nativeOverviewRef.current) {
+      disposeCadNativeObject(nativeOverviewRef.current);
+      nativeOverviewRef.current = null;
+      nativeOverviewDocumentRef.current = null;
+    }
+    const progressive = renderPlan.rendered > 500;
+    setNativeRenderStats((current) =>
+      current.total === renderPlan.total
+        && current.visible === renderPlan.visible
+        && current.rendered === renderPlan.rendered
+        && current.omitted === renderPlan.omitted
+        && current.batching === progressive
+        ? current
+        : {
+            total: renderPlan.total,
+            visible: renderPlan.visible,
+            rendered: renderPlan.rendered,
+            omitted: renderPlan.omitted,
+            batching: progressive,
+          },
+    );
+    const projectedDocument = { ...document, entities: renderPlan.entities };
+    if (progressive) {
+      void synchronizer.syncProgressive(projectedDocument, sink, {
+        batchSize: 160,
+      }).then((stats) => {
+        if (stats.cancelled) return;
+        refreshNativeSelectionVisuals();
+        applyLayersRef.current();
+        setNativeRenderStats((current) => ({ ...current, batching: false }));
+      });
+    } else if (patch && !renderPlan.limited) synchronizer.applyPatch(patch, sink);
+    else synchronizer.sync(projectedDocument, sink);
     refreshNativeSelectionVisuals();
     applyLayersRef.current();
   }, [refreshNativeSelectionVisuals]);
@@ -1804,6 +2281,75 @@ export default function Layout3DEditor({
 
   const rebuildAll = useCallback(() => { rebuildBlocks(); rebuildAssets(); rebuildDims(); rebuildNotes(); syncNativeScene(); rebuildCellsRef.current(); }, [rebuildBlocks, rebuildAssets, rebuildDims, rebuildNotes, syncNativeScene]);
 
+  const buildSelectionUniverse = useCallback((): CadSelectableItem[] => {
+    const result: CadSelectableItem[] = [];
+    placementsRef.current.forEach((_placement, id) => {
+      const station = stationsByIdRef.current.get(id);
+      result.push({
+        key: `station:${id}`,
+        type: 'station',
+        layer: layerAssignmentsRef.current[id] ?? 'layout',
+        label: station?.station ?? id,
+        properties: { line: station?.line ?? '', ctq: station?.ctq ?? false },
+      });
+    });
+    assetsRef.current.forEach((asset, id) => {
+      result.push({
+        key: `asset:${id}`,
+        type: 'asset',
+        layer: layerAssignmentsRef.current[id] ?? defaultLayerForAsset(id),
+        label: asset.label || assetMeta(asset.kind).label,
+        properties: { kind: asset.kind, tags: objectTagsRef.current[id] ?? '', notes: objectNotesRef.current[id] ?? '' },
+      });
+    });
+    for (const entity of loadedCadDocumentRef.current?.entities ?? []) {
+      if (!CAD_ENTITY_REGISTRY.supports(entity)) continue;
+      result.push({
+        key: `native:${entity.id}`,
+        type: entity.type,
+        layer: entity.layer,
+        label: `${entity.type.toUpperCase()} ${entity.id}`,
+        properties: CAD_ENTITY_REGISTRY.adapter(entity).properties.read(entity),
+      });
+    }
+    return result;
+  }, [defaultLayerForAsset]);
+
+  const applyProfessionalSelection = useCallback((action: CadSelectionAction) => {
+    const next = reduceCadSelection(professionalSelectionRef.current, action);
+    professionalSelectionRef.current = next;
+    setProfessionalSelection(next);
+    const legacy: SelItem[] = [];
+    const nativeIds: string[] = [];
+    for (const key of next.current) {
+      const separator = key.indexOf(':');
+      const type = key.slice(0, separator);
+      const id = key.slice(separator + 1);
+      if (!id) continue;
+      if (type === 'native') nativeIds.push(id);
+      else if (type === 'station' || type === 'asset') legacy.push({ type, id });
+    }
+    selRef.current = legacy;
+    setSelList(legacy);
+    refreshSelectionSnapshot(legacy);
+    nativeSelectionIdsRef.current = nativeIds;
+    setNativeSelectionIds(nativeIds);
+    refreshNativeSelectionVisuals();
+  }, [refreshNativeSelectionVisuals, refreshSelectionSnapshot]);
+
+  const runQuickSelection = useCallback(() => {
+    applyProfessionalSelection({
+      type: 'quick',
+      universe: buildSelectionUniverse(),
+      filter: {
+        ...(quickSelectionType ? { types: [quickSelectionType] } : {}),
+        ...(quickSelectionLayer ? { layers: [quickSelectionLayer] } : {}),
+        ...(quickSelectionText ? { text: quickSelectionText } : {}),
+      },
+      operation: selectionOperation,
+    });
+  }, [applyProfessionalSelection, buildSelectionUniverse, quickSelectionLayer, quickSelectionText, quickSelectionType, selectionOperation]);
+
   // ---- live station-status overlay: colour blocks by MES / heat / etc. (unify) ----
   const loadOverlay = useCallback(async (kind: OverlayKind | null) => {
     setOverlay(kind); setShowOverlayMenu(false);
@@ -1916,8 +2462,12 @@ export default function Layout3DEditor({
     const document = undoStackRef.current.pop()!;
     loadedCadDocumentRef.current = document;
     setPaperSpaces(document.paperSpaces.map((space) => ({ ...space })));
+    syncCadLayerState(document);
+    setCadXrefs(document.externalReferences.map((reference) => ({ ...reference })));
     setPublicationRecords([...document.publications]);
     setActivePaperSpaceId((current) => document.paperSpaces.some((space) => space.id === current) ? current : (document.paperSpaces[0]?.id ?? null));
+    setActivePaperViewportId((current) => document.paperSpaces.some((space) => space.viewports?.some((viewport) => viewport.id === current)) ? current : (document.paperSpaces[0]?.viewports?.[0]?.id ?? null));
+    setLayoutPreviewSheet(null);
     setNativeEntities(
       document.entities.filter(
         (entity): entity is CadNativeEntity =>
@@ -1927,15 +2477,19 @@ export default function Layout3DEditor({
     setNativeDocumentRevision((value) => value + 1);
     restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
     setHist({ undo: undoStackRef.current.length, redo: redoStackRef.current.length });
-  }, [snapshotDocument, restore]);
+  }, [restore, snapshotDocument, syncCadLayerState]);
   const redo = useCallback(() => {
     if (!redoStackRef.current.length) return;
     undoStackRef.current.push(snapshotDocument());
     const document = redoStackRef.current.pop()!;
     loadedCadDocumentRef.current = document;
     setPaperSpaces(document.paperSpaces.map((space) => ({ ...space })));
+    syncCadLayerState(document);
+    setCadXrefs(document.externalReferences.map((reference) => ({ ...reference })));
     setPublicationRecords([...document.publications]);
     setActivePaperSpaceId((current) => document.paperSpaces.some((space) => space.id === current) ? current : (document.paperSpaces[0]?.id ?? null));
+    setActivePaperViewportId((current) => document.paperSpaces.some((space) => space.viewports?.some((viewport) => viewport.id === current)) ? current : (document.paperSpaces[0]?.viewports?.[0]?.id ?? null));
+    setLayoutPreviewSheet(null);
     setNativeEntities(
       document.entities.filter(
         (entity): entity is CadNativeEntity =>
@@ -1945,7 +2499,131 @@ export default function Layout3DEditor({
     setNativeDocumentRevision((value) => value + 1);
     restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
     setHist({ undo: undoStackRef.current.length, redo: redoStackRef.current.length });
-  }, [snapshotDocument, restore]);
+  }, [restore, snapshotDocument, syncCadLayerState]);
+
+  const applyCollaborationDocument = useCallback((next: CadDocument, label: string) => {
+    if (cadReviewReadOnly) {
+      toast.error('Este enlace de revisión es de solo lectura.', 'Review');
+      return;
+    }
+    pushHistory();
+    const document = commitChange(next, label);
+    loadedCadDocumentRef.current = document;
+    setPaperSpaces(document.paperSpaces.map((space) => ({ ...space })));
+    syncCadLayerState(document);
+    setCadXrefs(document.externalReferences.map((reference) => ({ ...reference })));
+    setPublicationRecords([...document.publications]);
+    setNativeEntities(document.entities.filter((entity): entity is CadNativeEntity => CAD_ENTITY_REGISTRY.supports(entity)));
+    setNativeDocumentRevision((value) => value + 1);
+    restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
+    toast.success(label, 'Compare / Merge');
+  }, [cadReviewReadOnly, pushHistory, restore, syncCadLayerState, toast]);
+  const visualizeCollaborationDiff = useCallback((rows: CadEntityDiffRow[]) => {
+    const ids = new Set(rows.map((row) => row.entityId));
+    validationHighlightRef.current = ids;
+    setValidationHighlightIds(ids);
+    rebuildAll();
+  }, [rebuildAll]);
+  const navigateCollaborationDiff = useCallback((entityId: string) => {
+    validationHighlightRef.current = new Set([entityId]);
+    setValidationHighlightIds(new Set([entityId]));
+    if (placementsRef.current.has(entityId)) {
+      clearNativeSelection(); select([{ type: 'station', id: entityId }]);
+    } else if (assetsRef.current.has(entityId)) {
+      clearNativeSelection(); select([{ type: 'asset', id: entityId }]);
+    } else if (loadedCadDocumentRef.current?.entities.some((entity) => entity.id === entityId)) {
+      select([]);
+      nativeSelectionIdsRef.current = [entityId];
+      setNativeSelectionIds([entityId]);
+    }
+    rebuildAll();
+  }, [clearNativeSelection, rebuildAll, select]);
+
+  useEffect(() => {
+    if (!open || !data || !recoveryScope || dirty) return;
+    let active = true;
+    void loadCadRecovery(recoveryScope)
+      .then((candidate) => {
+        if (!active || !candidate) return;
+        if (candidate.baseCadDocumentVersion === (data.cadDocumentVersion ?? 0)) {
+          setRecoveryCandidate(candidate);
+          setRecoverySavedAt(candidate.savedAt);
+        } else {
+          void clearCadRecovery(recoveryScope).catch(() => undefined);
+        }
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [data, dirty, open, recoveryScope]);
+
+  useEffect(() => {
+    if (!open || !dirty || !data || !recoveryScope) return;
+    let active = true;
+    const checkpoint = () => {
+      if (recoveryWriteInFlightRef.current) return;
+      recoveryWriteInFlightRef.current = true;
+      const document = snapshotDocument();
+      void saveCadRecovery(recoveryScope, document, data.cadDocumentVersion ?? 0)
+        .then((record) => {
+          if (!active) return;
+          setRecoverySavedAt(record.savedAt);
+          setRecoveryWarning(null);
+        })
+        .catch((cause) => {
+          if (!active) return;
+          setRecoveryWarning(cause instanceof CadRecoveryQuotaError
+            ? cause.message
+            : 'No se pudo actualizar la recuperación local. Guarda el dibujo en el servidor.');
+        })
+        .finally(() => { recoveryWriteInFlightRef.current = false; });
+    };
+    const checkpointWhenHidden = () => {
+      if (document.visibilityState === 'hidden') checkpoint();
+    };
+    const initialTimer = window.setTimeout(checkpoint, 3_000);
+    const interval = window.setInterval(checkpoint, 15_000);
+    window.addEventListener('beforeunload', checkpoint);
+    document.addEventListener('visibilitychange', checkpointWhenHidden);
+    return () => {
+      active = false;
+      window.clearTimeout(initialTimer);
+      window.clearInterval(interval);
+      window.removeEventListener('beforeunload', checkpoint);
+      document.removeEventListener('visibilitychange', checkpointWhenHidden);
+    };
+  }, [data, dirty, open, recoveryScope, snapshotDocument]);
+
+  const restoreRecoveryCandidate = useCallback(() => {
+    if (!recoveryCandidate) return;
+    try {
+      const document = migrateCadDocument(recoveryCandidate.document);
+      loadedCadDocumentRef.current = document;
+      setPaperSpaces(document.paperSpaces.map((space) => ({ ...space })));
+      syncCadLayerState(document);
+      setCadXrefs(document.externalReferences.map((reference) => ({ ...reference })));
+      setPublicationRecords([...document.publications]);
+      setActivePaperSpaceId(document.paperSpaces[0]?.id ?? null);
+      setActivePaperViewportId(document.paperSpaces[0]?.viewports?.[0]?.id ?? null);
+      setLayoutPreviewSheet(null);
+      setNativeEntities(
+        document.entities.filter(
+          (entity): entity is CadNativeEntity => CAD_ENTITY_REGISTRY.supports(entity),
+        ),
+      );
+      setNativeDocumentRevision((value) => value + 1);
+      restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
+      setRecoveryCandidate(null);
+      toast.success('Borrador local recuperado. Guárdalo para confirmar.', 'CAD');
+    } catch {
+      toast.error('El borrador local no pudo restaurarse.', 'CAD');
+    }
+  }, [recoveryCandidate, restore, syncCadLayerState, toast]);
+
+  const discardRecoveryCandidate = useCallback(() => {
+    setRecoveryCandidate(null);
+    setRecoverySavedAt(null);
+    if (recoveryScope) void clearCadRecovery(recoveryScope).catch(() => undefined);
+  }, [recoveryScope]);
 
   const commitPaperSpaces = useCallback((next: CadPaperSpace[], label: string) => {
     const checkpoint = snapshotDocument();
@@ -1956,9 +2634,15 @@ export default function Layout3DEditor({
     loadedCadDocumentRef.current = commitChange({ ...checkpoint, paperSpaces: normalized }, label);
     setPaperSpaces(normalized);
     setActivePaperSpaceId((current) => normalized.some((space) => space.id === current) ? current : (normalized[0]?.id ?? null));
+    setActivePaperViewportId((current) => {
+      if (normalized.some((space) => space.viewports?.some((viewport) => viewport.id === current))) return current;
+      const selected = normalized.find((space) => space.id === activePaperSpaceId) ?? normalized[0];
+      return selected?.viewports?.[0]?.id ?? null;
+    });
+    setLayoutPreviewSheet(null);
     setHist({ undo: undoStackRef.current.length, redo: 0 });
     setDirty(true);
-  }, [snapshotDocument]);
+  }, [activePaperSpaceId, snapshotDocument]);
 
   const seedThreeSheetSet = useCallback(() => {
     if (!data) return;
@@ -1982,6 +2666,7 @@ export default function Layout3DEditor({
     });
     commitPaperSpaces(created, 'Crear conjunto de tres hojas');
     setActivePaperSpaceId(created[0]?.id ?? null);
+    setActivePaperViewportId(created[0]?.viewports?.[0]?.id ?? null);
   }, [commitPaperSpaces, data, paperSpaces.length, sheetPackageDraft, toast]);
 
   const addPaperSpace = useCallback(() => {
@@ -2009,6 +2694,7 @@ export default function Layout3DEditor({
     });
     commitPaperSpaces([...paperSpaces, created], 'Agregar espacio de papel');
     setActivePaperSpaceId(id);
+    setActivePaperViewportId(created.viewports?.[0]?.id ?? null);
   }, [commitPaperSpaces, data, paperSpaces, sheetPackageDraft]);
 
   const updateActivePaperSpace = useCallback((update: (space: CadPaperSpace) => CadPaperSpace, label: string) => {
@@ -2039,6 +2725,8 @@ export default function Layout3DEditor({
 
   const selectPaperSpace = useCallback((space: CadPaperSpace) => {
     setActivePaperSpaceId(space.id);
+    setActivePaperViewportId(space.viewports?.[0]?.id ?? null);
+    setLayoutPreviewSheet(null);
     const attributes = space.titleBlock?.attributes ?? {};
     setSheetPackageDraft((draft) => ({
       ...draft,
@@ -2061,12 +2749,12 @@ export default function Layout3DEditor({
       const width = landscape ? base.height : base.width;
       const height = landscape ? base.width : base.height;
       const margins = space.pageSetup?.margins ?? { top: 10, right: 10, bottom: 10, left: 10 };
-      return {
+      const nextSpace: CadPaperSpace = {
         ...space,
         page: { ...space.page, width, height },
-        viewports: (space.viewports ?? []).map((viewport, index) => index === 0 ? { ...viewport, paperBounds: { x: margins.left, y: margins.top, width: Math.max(1, width - margins.left - margins.right), height: Math.max(1, height - margins.top - margins.bottom - 30) } } : viewport),
         pageSetup: { paper, margins, colorMode: space.pageSetup?.colorMode ?? 'monochrome', lineweightScale: space.pageSetup?.lineweightScale ?? 1 },
       };
+      return { ...nextSpace, viewports: (space.viewports ?? []).map((viewport) => ({ ...viewport, paperBounds: normalizeCadViewportPaperBounds(nextSpace, viewport.paperBounds) })) };
     }, `Cambiar papel a ${paper}`);
   }, [updateActivePaperSpace]);
 
@@ -2075,29 +2763,111 @@ export default function Layout3DEditor({
       if (space.page.orientation === orientation) return space;
       const width = space.page.height;
       const height = space.page.width;
-      const margins = space.pageSetup?.margins ?? { top: 10, right: 10, bottom: 10, left: 10 };
-      return {
+      const nextSpace: CadPaperSpace = {
         ...space,
         page: { ...space.page, width, height, orientation },
-        viewports: (space.viewports ?? []).map((viewport, index) => index === 0 ? { ...viewport, paperBounds: { x: margins.left, y: margins.top, width: Math.max(1, width - margins.left - margins.right), height: Math.max(1, height - margins.top - margins.bottom - 30) } } : viewport),
       };
+      return { ...nextSpace, viewports: (space.viewports ?? []).map((viewport) => ({ ...viewport, paperBounds: normalizeCadViewportPaperBounds(nextSpace, viewport.paperBounds) })) };
     }, `Cambiar orientación a ${orientation}`);
   }, [updateActivePaperSpace]);
 
-  const updatePrimaryViewport = useCallback((update: (viewport: NonNullable<CadPaperSpace['viewports']>[number]) => NonNullable<CadPaperSpace['viewports']>[number], label: string) => {
-    updateActivePaperSpace((space) => ({ ...space, viewports: (space.viewports ?? []).map((viewport, index) => index === 0 ? update(viewport) : viewport) }), label);
+  const updateActivePageMargin = useCallback((edge: 'top' | 'right' | 'bottom' | 'left', value: number) => {
+    if (!Number.isFinite(value) || value < 0) return;
+    updateActivePaperSpace((space) => {
+      const margins = { ...(space.pageSetup?.margins ?? { top: 10, right: 10, bottom: 10, left: 10 }), [edge]: value };
+      const nextSpace: CadPaperSpace = {
+        ...space,
+        pageSetup: {
+          paper: space.pageSetup?.paper ?? 'custom',
+          margins,
+          colorMode: space.pageSetup?.colorMode ?? 'monochrome',
+          lineweightScale: space.pageSetup?.lineweightScale ?? 1,
+        },
+      };
+      return { ...nextSpace, viewports: (space.viewports ?? []).map((viewport) => ({ ...viewport, paperBounds: normalizeCadViewportPaperBounds(nextSpace, viewport.paperBounds) })) };
+    }, `Actualizar margen ${edge}`);
   }, [updateActivePaperSpace]);
+
+  const addPaperViewport = useCallback(() => {
+    if (!data || !activePaperSpaceId) return;
+    const id = newId('viewport');
+    updateActivePaperSpace((space) => ({
+      ...space,
+      viewports: [...(space.viewports ?? []), createCadPaperViewport({
+        space,
+        id,
+        modelBounds: space.viewports?.[0]?.modelBounds ?? { x: 0, y: 0, width: data.footprint.footprintW, height: data.footprint.footprintH },
+        unit: data.footprint.unit,
+      })],
+    }), 'Agregar viewport');
+    setActivePaperViewportId(id);
+  }, [activePaperSpaceId, data, updateActivePaperSpace]);
+
+  const changePaperViewport = useCallback((id: string, update: (viewport: NonNullable<CadPaperSpace['viewports']>[number]) => NonNullable<CadPaperSpace['viewports']>[number], label: string) => {
+    updateActivePaperSpace((space) => updateCadPaperViewport(space, id, update), label);
+  }, [updateActivePaperSpace]);
+
+  const duplicatePaperViewport = useCallback((id: string) => {
+    const duplicateId = newId('viewport');
+    updateActivePaperSpace((space) => duplicateCadPaperViewport(space, id, duplicateId), 'Duplicar viewport');
+    setActivePaperViewportId(duplicateId);
+  }, [updateActivePaperSpace]);
+
+  const removePaperViewport = useCallback((id: string) => {
+    const activeSpace = paperSpaces.find((space) => space.id === activePaperSpaceId);
+    const nextViewport = activeSpace?.viewports?.find((viewport) => viewport.id !== id)?.id ?? null;
+    updateActivePaperSpace((space) => deleteCadPaperViewport(space, id), 'Eliminar viewport');
+    setActivePaperViewportId(nextViewport);
+  }, [activePaperSpaceId, paperSpaces, updateActivePaperSpace]);
+
+  const changePaperViewportLayerVisibility = useCallback((id: string, layerId: string, visible: boolean) => {
+    updateActivePaperSpace((space) => setCadViewportLayerVisibility(space, id, layerId, visible), visible ? 'Descongelar capa en viewport' : 'Congelar capa en viewport');
+  }, [updateActivePaperSpace]);
+
+  const changePaperViewportLayerOverride = useCallback((id: string, layerId: string, override: { color?: string; linetype?: string; lineweight?: number } | null) => {
+    updateActivePaperSpace((space) => setCadViewportLayerOverride(space, id, layerId, override), override ? 'Actualizar override de capa' : 'Restablecer override de capa');
+  }, [updateActivePaperSpace]);
+
+  const requestLayoutPreview = useCallback(() => {
+    if (!activePaperSpaceId) return;
+    const document = snapshotDocument();
+    const plan = buildCadPublishPlan({
+      ...document,
+      paperSpaces: paperSpaces.map((space) => space.id === activePaperSpaceId ? { ...space, includeInPublish: true } : space),
+    });
+    setLayoutPreviewSheet(plan.sheets.find((sheet) => sheet.id === activePaperSpaceId) ?? null);
+  }, [activePaperSpaceId, paperSpaces, snapshotDocument]);
+
+  const movePaperSpace = useCallback((sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return;
+    const ordered = [...paperSpaces].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id.localeCompare(b.id));
+    const sourceIndex = ordered.findIndex((space) => space.id === sourceId);
+    const targetIndex = ordered.findIndex((space) => space.id === targetId);
+    if (sourceIndex < 0 || targetIndex < 0) return;
+    const [source] = ordered.splice(sourceIndex, 1);
+    ordered.splice(targetIndex, 0, source);
+    commitPaperSpaces(ordered, 'Reordenar hojas por arrastre');
+  }, [commitPaperSpaces, paperSpaces]);
 
   const commitNativeCommands = useCallback((
     commands: Parameters<typeof executeCadEntityCommand>[1][],
     nextSelection?: string[],
   ) => {
-    if (!commands.length) return;
+    if (!commands.length) return false;
     const checkpoint = snapshotDocument();
     try {
       let document = checkpoint;
-      for (const command of commands)
-        document = executeCadEntityCommand(document, command).document;
+      const touchedIds = new Set<string>();
+      for (const command of commands) {
+        const source = document.entities.find((entity) => entity.id === command.entityId);
+        const lockedLayer = source && document.layers.find((layer) => layer.id === source.layer)?.locked;
+        if (lockedLayer) throw new Error(`Layer ${source.layer} is locked. Unlock it before editing ${source.id}.`);
+        const result = executeCadEntityCommand(document, command);
+        document = result.document;
+        result.affectedEntityIds.forEach((id) => touchedIds.add(id));
+        result.createdEntityIds.forEach((id) => touchedIds.add(id));
+        result.deletedEntityIds.forEach((id) => touchedIds.add(id));
+      }
       undoStackRef.current.push(checkpoint);
       if (undoStackRef.current.length > 80) undoStackRef.current.shift();
       redoStackRef.current = [];
@@ -2115,13 +2885,6 @@ export default function Layout3DEditor({
       );
       setNativeDocumentRevision((value) => value + 1);
       setDirty(true);
-      const touchedIds = new Set(
-        commands.flatMap((command) =>
-          command.type === 'copy'
-            ? [command.entityId, command.newEntityId]
-            : [command.entityId],
-        ),
-      );
       const upsert = document.entities.filter(
         (entity): entity is CadNativeEntity =>
           touchedIds.has(entity.id) && CAD_ENTITY_REGISTRY.supports(entity),
@@ -2134,8 +2897,10 @@ export default function Layout3DEditor({
         )
         .map((entity) => entity.id);
       syncNativeScene(document, { upsert, remove });
+      return true;
     } catch (cause) {
       toast.error(cause instanceof Error ? cause.message : 'No se pudo editar la entidad.', 'Entidad CAD');
+      return false;
     }
   }, [snapshotDocument, syncNativeScene, toast]);
   const updateNativeProperties = useCallback((entityId: string, patch: Partial<CadPropertyBag>) => {
@@ -2157,6 +2922,402 @@ export default function Layout3DEditor({
   const removeNativeSelection = useCallback(() => {
     commitNativeCommands(nativeSelectionIdsRef.current.map((entityId) => ({ type: 'delete' as const, entityId })), []);
   }, [commitNativeCommands]);
+  const commitBlockMutation = useCallback((mutate: (document: CadDocument) => CadDocument, selection: string[], success: string, notificationTitle = 'BLOCK', rethrow = false): boolean => {
+    const checkpoint = snapshotDocument();
+    try {
+      const document = mutate(checkpoint);
+      if (document === checkpoint) { toast.success('No había cambios que aplicar.', notificationTitle); return false; }
+      undoStackRef.current.push(checkpoint);
+      if (undoStackRef.current.length > 80) undoStackRef.current.shift();
+      redoStackRef.current = [];
+      setHist({ undo: undoStackRef.current.length, redo: 0 });
+      loadedCadDocumentRef.current = document;
+      syncCadLayerState(document);
+      setCadXrefs(document.externalReferences.map((reference) => ({ ...reference })));
+      const selectable = new Set(document.entities.filter((entity) => CAD_ENTITY_REGISTRY.supports(entity)).map((entity) => entity.id));
+      nativeSelectionIdsRef.current = selection.filter((id) => selectable.has(id));
+      setNativeSelectionIds(nativeSelectionIdsRef.current);
+      setNativeEntities(document.entities.filter((entity): entity is CadNativeEntity => CAD_ENTITY_REGISTRY.supports(entity)));
+      setNativeDocumentRevision((value) => value + 1);
+      setDirty(true);
+      restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
+      syncNativeScene(document);
+      toast.success(success, notificationTitle);
+      return true;
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : `No se pudo completar la operación ${notificationTitle}.`, notificationTitle);
+      if (rethrow) throw cause;
+      return false;
+    }
+  }, [restore, snapshotDocument, syncCadLayerState, syncNativeScene, toast]);
+  const filletNativeLines = useCallback((lineIds: [string, string]) => {
+    const arcId = newId('fillet');
+    commitBlockMutation(
+      (document) => applyCadLineFillet(document, { lineAId: lineIds[0], lineBId: lineIds[1], radius: filletRadius, arcId }),
+      [arcId],
+      `FILLET R${filletRadius} aplicado como ARC tangente.`,
+      'FILLET',
+    );
+  }, [commitBlockMutation, filletRadius]);
+  const editNativeLines = useCallback((lineIds: [string, string]) => {
+    const targetId = lineIds.includes(lineEditTargetId) ? lineEditTargetId : lineIds[0];
+    const boundaryId = lineIds.find((id) => id !== targetId)!;
+    commitBlockMutation(
+      (document) => applyCadLineEdit(document, { operation: lineEditOperation, targetId, boundaryId, endpoint: lineEditEndpoint }),
+      [targetId],
+      `${lineEditOperation.toUpperCase()} aplicado a ${targetId}.`,
+      lineEditOperation.toUpperCase(),
+    );
+  }, [commitBlockMutation, lineEditEndpoint, lineEditOperation, lineEditTargetId]);
+  const defineProfessionalBlock = useCallback((draft: CadBlockDefinitionDraft) => {
+    const entityIds = [...new Set([...selRef.current.map((item) => item.id), ...nativeSelectionIdsRef.current])];
+    const source = snapshotDocument();
+    const selectedEntities = source.entities.filter((entity) => entityIds.includes(entity.id));
+    const bounds = selectedEntities.reduce<CadBounds | null>((current, entity) => {
+      const next = CAD_ENTITY_REGISTRY.supports(entity)
+        ? CAD_ENTITY_REGISTRY.adapter(entity).bounds.bounds(entity, source)
+        : entity.type === 'box' || entity.type === 'station'
+          ? { minX: entity.x, minY: entity.y, maxX: entity.x + entity.w, maxY: entity.y + entity.h }
+          : null;
+      return !next ? current : !current ? next : { minX: Math.min(current.minX, next.minX), minY: Math.min(current.minY, next.minY), maxX: Math.max(current.maxX, next.maxX), maxY: Math.max(current.maxY, next.maxY) };
+    }, null);
+    if (!entityIds.length || !bounds) { toast.error('Selecciona al menos una entidad geométrica para crear el bloque.', 'BLOCK'); return; }
+    const blockId = newId('block');
+    const insertId = newId('insert');
+    const basePoint = { x: bounds.minX, y: bounds.minY, z: 0 };
+    let libraryDefinition: CadBlockDefinition | undefined;
+    commitBlockMutation((document) => {
+      const next = defineCadBlock(document, {
+        id: blockId, name: draft.name, entityIds, basePoint, insertId,
+        description: draft.description, keywords: draft.keywords,
+        library: { scope: draft.tenantLibrary ? 'tenant' : 'document', ...(draft.tenantLibrary && tenantId ? { tenantId } : {}) },
+        ...(draft.attributeTag ? { attributes: { [draft.attributeTag]: { defaultValue: draft.attributeDefault ?? '', prompt: draft.attributeTag, position: { x: basePoint.x, y: basePoint.y + Math.max(1, data?.footprint.gridSize ?? 100), z: 0 } } } } : {}),
+        ...(draft.businessEntityType && draft.businessEntityId ? { businessLink: { ...(tenantId ? { tenantId } : {}), entityType: draft.businessEntityType, entityId: draft.businessEntityId } } : {}),
+      });
+      libraryDefinition = next.blocks.find((block) => block.id === blockId);
+      return next;
+    }, [insertId], `BLOCK ${draft.name} creado como una definición y una instancia viva.`);
+    if (draft.tenantLibrary && libraryDefinition) void apiFetch(`${API_BASE}/line-engineering/cad-blocks`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: draft.name, definition: libraryDefinition }),
+    }).then((response) => response.ok ? loadCadBlocks() : toast.error('El BLOCK quedó en el dibujo, pero no se pudo publicar en la biblioteca tenant.', 'BLOCK')).catch(() => toast.error('El BLOCK quedó en el dibujo, pero falló la biblioteca tenant.', 'BLOCK'));
+  }, [commitBlockMutation, data?.footprint.gridSize, snapshotDocument, tenantId, toast]);
+  const insertProfessionalBlock = useCallback((blockId: string, draft: CadBlockInsertDraft) => {
+    const insertId = newId('insert');
+    commitBlockMutation((document) => {
+      const libraryRow = cadBlocks.find((row) => row.definition?.id === blockId);
+      const libraryDefinition = libraryRow?.definition;
+      const source = libraryDefinition && !document.blocks.some((block) => block.id === blockId)
+        ? { ...document, blocks: [...document.blocks, { ...structuredClone(libraryDefinition), version: libraryRow?.version ?? libraryDefinition.version ?? 1, library: { ...libraryDefinition.library, scope: 'tenant' as const, sourceId: libraryRow?.id } }].sort((a, b) => a.id.localeCompare(b.id)) }
+        : document;
+      return insertCanonicalCadBlock(source, {
+      id: insertId, block: blockId, insertion: { x: draft.x, y: draft.y, z: 0 },
+      scale: { x: draft.scaleX, y: draft.scaleY, z: 1 }, rotation: draft.rotation,
+      layer: activeCadLayer, attributes: draft.attributes,
+      });
+    }, [insertId], 'INSERT creado sin explotar su definición.');
+  }, [activeCadLayer, cadBlocks, commitBlockMutation]);
+  const redefineProfessionalBlock = useCallback((blockId: string) => {
+    const entityIds = [...new Set([...selRef.current.map((item) => item.id), ...nativeSelectionIdsRef.current])];
+    commitBlockMutation((document) => {
+      const entities = entityIds.map((id) => document.entities.find((entity) => entity.id === id)).filter((entity): entity is CadEntity => !!entity);
+      return redefineCadBlock(document, blockId, entities);
+    }, nativeSelectionIdsRef.current, 'Definición actualizada; todas sus instancias se regeneraron.');
+    const updatedDefinition = loadedCadDocumentRef.current?.blocks.find((block) => block.id === blockId);
+    const libraryRow = cadBlocks.find((candidate) => candidate.definition?.id === blockId);
+    if (updatedDefinition && libraryRow) void apiFetch(`${API_BASE}/line-engineering/cad-blocks/${libraryRow.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ definition: updatedDefinition }),
+    }).then((response) => response.ok ? loadCadBlocks() : toast.error('Redefinición local guardada; la biblioteca tenant no pudo versionarse.', 'BLOCK')).catch(() => toast.error('Redefinición local guardada; falló la biblioteca tenant.', 'BLOCK'));
+  }, [cadBlocks, commitBlockMutation, toast]);
+  const replaceProfessionalBlock = useCallback((sourceBlock: string, targetBlock: string) => {
+    commitBlockMutation((document) => replaceCadBlock(document, sourceBlock, targetBlock), nativeSelectionIdsRef.current, 'Instancias reemplazadas conservando transformaciones y atributos compatibles.');
+  }, [commitBlockMutation]);
+  const explodeProfessionalInsert = useCallback((insertId: string) => {
+    commitBlockMutation((document) => explodeCadInsert(document, insertId), [], 'INSERT explotado en geometría editable independiente.');
+  }, [commitBlockMutation]);
+  const purgeProfessionalBlocks = useCallback(() => {
+    commitBlockMutation((document) => purgeUnusedCadBlocks(document).document, nativeSelectionIdsRef.current, 'Definiciones no usadas purgadas.');
+  }, [commitBlockMutation]);
+
+  const fetchCadXrefSnapshot = useCallback(async (assetId: string, sourceRevision: string, displayName = assetId): Promise<CadXrefAssetSnapshot> => {
+    const response = await apiFetch(`${API_BASE}/line-engineering/layout?model=${encodeURIComponent(assetId)}&revision=${encodeURIComponent(sourceRevision)}`);
+    if (response.status === 401 || response.status === 403) throw new Error('Permission denied for this tenant CAD asset.');
+    if (response.status === 404) throw new Error('Referenced tenant CAD asset is missing.');
+    if (!response.ok) throw new Error('The tenant CAD asset could not be resolved.');
+    const source = await response.json() as Layout;
+    if (!source.cadDocument) throw new Error('Referenced tenant CAD asset has no canonical CAD document.');
+    const document = migrateCadDocument(source.cadDocument);
+    return {
+      tenantId: tenantId ?? 'tenant-context',
+      assetId,
+      name: displayName,
+      revision: sourceRevision,
+      version: source.cadDocumentVersion ?? document.meta.version,
+      contentHash: await hashCadXrefDocument(document),
+      document,
+      fetchedAt: new Date().toISOString(),
+    };
+  }, [tenantId]);
+
+  const attachProfessionalXref = useCallback(async (draft: CadXrefAttachDraft) => {
+    const source = await fetchCadXrefSnapshot(draft.assetId, draft.revision, draft.name);
+    const id = newId('xref');
+    commitBlockMutation((document) => attachCadXref(document, {
+      id,
+      snapshot: source,
+      mode: draft.mode,
+      hostAssetId: `${model}@${revision}`,
+      insertion: { x: draft.x, y: draft.y, z: 0 },
+      scale: draft.scale,
+      rotation: draft.rotation,
+    }), [`xref:${id}:insert`], `${draft.mode === 'overlay' ? 'Overlay' : 'Attachment'} ${draft.assetId}@${draft.revision} vinculado.`, 'XREF', true);
+  }, [commitBlockMutation, fetchCadXrefSnapshot, model, revision]);
+
+  const compareProfessionalXref = useCallback(async (reference: CadExternalReference): Promise<CadXrefVersionComparison | null> => {
+    try {
+      const source = await fetchCadXrefSnapshot(reference.assetId ?? reference.name, reference.revision ?? 'UNIVERSAL', reference.name);
+      const comparison = compareCadXrefVersion(snapshotDocument(), reference.id, source);
+      commitBlockMutation((current) => markCadXrefStatus(current, reference.id, comparison.changed ? 'stale' : 'loaded'), nativeSelectionIdsRef.current, comparison.changed ? 'La referencia tiene una versión más reciente.' : 'La referencia está actualizada.', 'XREF');
+      return comparison;
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : 'Xref compare failed.';
+      const status = /permission/i.test(message) ? 'denied' : 'missing';
+      commitBlockMutation((current) => markCadXrefStatus(current, reference.id, status, message), nativeSelectionIdsRef.current, message, 'XREF');
+      throw cause;
+    }
+  }, [commitBlockMutation, fetchCadXrefSnapshot, snapshotDocument]);
+
+  const reloadProfessionalXref = useCallback(async (reference: CadExternalReference) => {
+    try {
+      const source = await fetchCadXrefSnapshot(reference.assetId ?? reference.name, reference.revision ?? 'UNIVERSAL', reference.name);
+      commitBlockMutation((document) => reloadCadXref(document, reference.id, source, `${model}@${revision}`), [reference.insertId ?? `xref:${reference.id}:insert`], `${reference.name} recargada a v${source.version}.`, 'XREF', true);
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : 'Xref reload failed.';
+      const status = /permission/i.test(message) ? 'denied' : 'missing';
+      commitBlockMutation((current) => markCadXrefStatus(current, reference.id, status, message), nativeSelectionIdsRef.current, message, 'XREF');
+      throw cause;
+    }
+  }, [commitBlockMutation, fetchCadXrefSnapshot, model, revision]);
+
+  const unloadProfessionalXref = useCallback((id: string) => {
+    commitBlockMutation((document) => unloadCadXref(document, id), [], 'Referencia descargada; vínculo y caché conservados.', 'XREF');
+  }, [commitBlockMutation]);
+
+  const detachProfessionalXref = useCallback((id: string) => {
+    commitBlockMutation((document) => detachCadXref(document, id), [], 'Referencia y proyección eliminadas del dibujo.', 'XREF');
+  }, [commitBlockMutation]);
+
+  const bindProfessionalXref = useCallback((id: string) => {
+    commitBlockMutation((document) => bindCadXref(document, id), [], 'Referencia ligada como geometría local editable.', 'XREF');
+  }, [commitBlockMutation]);
+  const insertNativeEntities = useCallback((incoming: CadNativeEntity[], label: string) => {
+    if (!incoming.length) return false;
+    const checkpoint = snapshotDocument();
+    const existingIds = new Set(checkpoint.entities.map((entity) => entity.id));
+    if (incoming.some((entity) => existingIds.has(entity.id))) {
+      toast.error('Una entidad nativa ya existe en el documento.', 'Entidad CAD');
+      return false;
+    }
+    const entities = [...checkpoint.entities, ...incoming].sort((a, b) => a.id.localeCompare(b.id));
+    const document = commitChange({
+      ...checkpoint,
+      entities,
+      modelSpace: {
+        entityIds: [...new Set([...checkpoint.modelSpace.entityIds, ...incoming.map((entity) => entity.id)])].sort(),
+      },
+    }, label);
+    undoStackRef.current.push(checkpoint);
+    if (undoStackRef.current.length > 80) undoStackRef.current.shift();
+    redoStackRef.current = [];
+    setHist({ undo: undoStackRef.current.length, redo: 0 });
+    loadedCadDocumentRef.current = document;
+    nativeSelectionIdsRef.current = incoming.map((entity) => entity.id);
+    setNativeSelectionIds(nativeSelectionIdsRef.current);
+    setNativeEntities(document.entities.filter((entity): entity is CadNativeEntity => CAD_ENTITY_REGISTRY.supports(entity)));
+    setNativeDocumentRevision((value) => value + 1);
+    setDirty(true);
+    syncNativeScene(document, { upsert: incoming, remove: [] });
+    return true;
+  }, [snapshotDocument, syncNativeScene, toast]);
+  const openMTextEditor = useCallback((entityId: string | null = null) => {
+    setEditingMTextId(entityId);
+    setMTextEditorOpen(true);
+  }, []);
+  const saveMTextDraft = useCallback((draft: CadMTextDraft) => {
+    const patch: Partial<CadPropertyBag> = {
+      text: draft.text.trim(),
+      insertionX: draft.insertionX,
+      insertionY: draft.insertionY,
+      width: draft.width,
+      height: draft.height,
+      rotation: draft.rotation,
+      alignment: draft.alignment,
+      paragraphAlignment: draft.paragraphAlignment,
+      style: draft.style,
+      fontFamily: draft.fontFamily,
+      lineSpacing: draft.lineSpacing,
+      bold: draft.bold,
+      italic: draft.italic,
+      underline: draft.underline,
+      backgroundMask: draft.backgroundMask,
+      backgroundColor: draft.backgroundColor,
+      backgroundPadding: draft.backgroundPadding,
+      columns: draft.columns,
+      layer: draft.layer,
+    };
+    if (editingMTextId) commitNativeCommands([{ type: 'properties', entityId: editingMTextId, patch }]);
+    else {
+      const entity: CadNativeEntity = {
+        id: newId('mtext'),
+        type: 'mtext',
+        insertion: { x: draft.insertionX, y: draft.insertionY, z: 0 },
+        text: draft.text.trim(),
+        width: draft.width,
+        height: draft.height,
+        rotation: draft.rotation,
+        alignment: draft.alignment,
+        paragraphAlignment: draft.paragraphAlignment,
+        style: draft.style,
+        fontFamily: draft.fontFamily,
+        lineSpacing: draft.lineSpacing,
+        bold: draft.bold,
+        italic: draft.italic,
+        underline: draft.underline,
+        backgroundMask: draft.backgroundMask,
+        backgroundColor: draft.backgroundColor,
+        backgroundPadding: draft.backgroundPadding,
+        columns: draft.columns,
+        layer: draft.layer,
+        context: { provenance: { provider: 'cad-editor' }, metadata: { sourceType: 'MTEXT' } },
+      };
+      insertNativeEntities([entity], 'create:mtext');
+    }
+    setEditingMTextId(null);
+    setMTextEditorOpen(false);
+  }, [commitNativeCommands, editingMTextId, insertNativeEntities]);
+  const createAssociativeDimension = useCallback((draft: CadDimensionDraft) => {
+    const document = loadedCadDocumentRef.current;
+    if (!document) return;
+    const selectedSources = nativeSelectionIdsRef.current
+      .map((id) => document.entities.find((entity) => entity.id === id))
+      .filter((entity): entity is CadEntity => !!entity && entity.type !== 'dimension' && entity.type !== 'hatch' && entity.type !== 'mtext');
+    const primary = selectedSources[0];
+    type DimensionReference = NonNullable<Extract<CadEntity, { type: 'dimension' }>['references']>[number];
+    let references: DimensionReference[] = [];
+    if (primary?.type === 'line' && (draft.kind === 'linear' || draft.kind === 'aligned' || draft.kind === 'ordinate'))
+      references = [{ entityId: primary.id, anchor: 'start' }, { entityId: primary.id, anchor: 'end' }];
+    else if ((primary?.type === 'arc' || primary?.type === 'circle') && (draft.kind === 'radius' || draft.kind === 'diameter'))
+      references = [{ entityId: primary.id, anchor: 'center' }, { entityId: primary.id, anchor: 'arc-start' }];
+    else if (primary?.type === 'arc' && (draft.kind === 'angular' || draft.kind === 'arc-length'))
+      references = [{ entityId: primary.id, anchor: 'center' }, { entityId: primary.id, anchor: 'arc-start' }, { entityId: primary.id, anchor: 'arc-end' }];
+    else if (selectedSources.length >= 2 && (draft.kind === 'linear' || draft.kind === 'aligned' || draft.kind === 'ordinate')) {
+      const referenceFor = (entity: CadEntity): DimensionReference | null => {
+        if (entity.type === 'line' || entity.type === 'spline') return { entityId: entity.id, anchor: 'start' };
+        if (entity.type === 'circle' || entity.type === 'arc' || entity.type === 'ellipse') return { entityId: entity.id, anchor: 'center' };
+        return null;
+      };
+      const first = referenceFor(selectedSources[0]);
+      const second = referenceFor(selectedSources[1]);
+      if (first && second) references = [first, second];
+    }
+    const definitionPoints = references.map((reference) => {
+      const source = document.entities.find((entity) => entity.id === reference.entityId);
+      return source ? cadEntityAssociationAnchor(source, reference) : null;
+    });
+    const required = draft.kind === 'angular' || draft.kind === 'arc-length' ? 3 : 2;
+    if (definitionPoints.length < required || definitionPoints.some((point) => !point)) {
+      toast.error('La selección no aporta referencias compatibles con ese tipo de cota.', 'Dimensión');
+      return;
+    }
+    const style = document.styles.dimension[draft.style] ?? {};
+    const entity: CadNativeEntity = {
+      id: newId('dim'),
+      type: 'dimension',
+      dimensionKind: draft.kind,
+      a: definitionPoints[0]!,
+      b: definitionPoints[1]!,
+      ...(definitionPoints[2] ? { c: definitionPoints[2]! } : {}),
+      axis: draft.axis,
+      offset: draft.offset,
+      ...(draft.kind === 'radius' || draft.kind === 'diameter' ? { radius: Math.hypot(definitionPoints[1]!.x - definitionPoints[0]!.x, definitionPoints[1]!.y - definitionPoints[0]!.y) } : {}),
+      style: draft.style,
+      precision: style.precision ?? draft.precision,
+      sourceUnit: data?.footprint.unit === 'm' ? 'm' : 'mm',
+      units: draft.units,
+      ...(draft.alternateUnits ? { alternateUnits: draft.alternateUnits } : {}),
+      prefix: draft.prefix,
+      suffix: draft.suffix,
+      extensionLines: draft.extensionLines,
+      arrowhead: draft.arrowhead,
+      arrowSize: style.arrowSize ?? Math.max(1, (data?.footprint.gridSize ?? 100) * 1.8),
+      associative: true,
+      references,
+      associationStatus: 'associated',
+      layer: activeCadLayer,
+      context: { provenance: { provider: 'cad-editor' }, metadata: { sourceType: 'ASSOCIATIVE_DIMENSION' } },
+    };
+    if (insertNativeEntities([entity], `create:dimension:${draft.kind}`)) {
+      setShowDimensionPalette(false);
+      toast.success(`Cota ${draft.kind} asociada a ${new Set(references.map((reference) => reference.entityId)).size} fuente(s).`, 'Dimensión');
+    }
+  }, [activeCadLayer, data?.footprint.gridSize, data?.footprint.unit, insertNativeEntities, toast]);
+  const createAssociativeMleader = useCallback((draft: CadMLeaderDraft) => {
+    const document = loadedCadDocumentRef.current;
+    if (!document || !draft.text.trim()) return;
+    const selectedIds = [...new Set([...nativeSelectionIdsRef.current, ...selRef.current.map((item) => item.id)])];
+    const sources = selectedIds.map((id) => document.entities.find((entity) => entity.id === id)).filter((entity): entity is CadEntity => !!entity && entity.type !== 'mleader');
+    const referenceFor = (entity: CadEntity): CadMleaderReference | null => {
+      if (entity.type === 'box' || entity.type === 'station') return { entityId: entity.id, anchor: 'corner-ne' };
+      if (entity.type === 'line' || entity.type === 'circle' || entity.type === 'arc' || entity.type === 'ellipse' || entity.type === 'hatch' || entity.type === 'dimension') return { entityId: entity.id, anchor: 'center' };
+      if (entity.type === 'polyline') return { entityId: entity.id, anchor: 'start' };
+      if (entity.type === 'spline') return { entityId: entity.id, anchor: 'control', index: 0 };
+      if (entity.type === 'mtext' || entity.type === 'insert' || entity.type === 'text') return { entityId: entity.id, anchor: 'insertion' };
+      return null;
+    };
+    const resolved = sources.flatMap((source) => {
+      const reference = referenceFor(source);
+      const point = reference ? cadMleaderAssociationAnchor(source, reference) : null;
+      return reference && point ? [{ reference, point }] : [];
+    });
+    if (!resolved.length) { toast.error('La selección no aporta destinos compatibles.', 'MLEADER'); return; }
+    const base = Math.max(1, data?.footprint.gridSize ?? 100);
+    const center = resolved.reduce((sum, item) => ({ x: sum.x + item.point.x / resolved.length, y: sum.y + item.point.y / resolved.length }), { x: 0, y: 0 });
+    const style = document.styles.mleader?.[draft.style] ?? {};
+    const doglegLength = style.doglegLength ?? draft.doglegLength;
+    const elbow = { x: center.x + base * 5, y: center.y - base * 4, z: 0 };
+    const leaderLines = resolved.map((item) => [{ ...item.point, z: 0 }, { ...elbow }]);
+    const entity: CadNativeEntity = {
+      id: newId('mleader'),
+      type: 'mleader',
+      vertices: leaderLines[0],
+      leaderLines,
+      text: draft.text.trim(),
+      textPosition: { x: elbow.x + doglegLength, y: elbow.y, z: 0 },
+      contentType: draft.contentType,
+      style: draft.style,
+      landing: style.landing ?? draft.landing,
+      doglegLength,
+      arrowhead: draft.arrowhead,
+      arrowSize: style.arrowSize ?? draft.arrowSize,
+      textWidth: draft.textWidth,
+      textHeight: draft.textHeight,
+      textAlignment: draft.textAlignment,
+      fontFamily: 'Arial',
+      lineSpacing: 1.2,
+      backgroundMask: draft.backgroundMask,
+      backgroundColor: '#111827',
+      backgroundPadding: 0.15,
+      associative: true,
+      references: resolved.map((item) => item.reference),
+      associationStatus: 'associated',
+      layer: activeCadLayer,
+      context: { provenance: { provider: 'cad-editor' }, metadata: { sourceType: 'MLEADER' } },
+    };
+    if (insertNativeEntities([entity], 'create:mleader')) {
+      setShowMleaderPalette(false);
+      toast.success(`MLEADER asociado con ${leaderLines.length} línea(s).`, 'MLEADER');
+    }
+  }, [activeCadLayer, data?.footprint.gridSize, insertNativeEntities, toast]);
 
   // ---- scene lifecycle ----
   useEffect(() => {
@@ -2169,6 +3330,7 @@ export default function Layout3DEditor({
     const W = fp.footprintW || 1; const H = fp.footprintH || 1;
     const s = 30 / Math.max(W, H);
     ctxRef.current = { s, W, H };
+    nativeViewportBoundsRef.current = { minX: 0, minY: 0, maxX: W, maxY: H };
     nativeSceneSyncRef.current?.clear({
       remove: (_id, projection) => disposeCadNativeObject(projection),
     });
@@ -2185,6 +3347,7 @@ export default function Layout3DEditor({
     const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(width, height);
+    renderer.domElement.style.cursor = 'none';
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     rendererRef.current = renderer;
@@ -2263,6 +3426,18 @@ export default function Layout3DEditor({
     controls.maxPolarAngle = Math.PI / 2.05;
     controls.target.set(0, 0, 0); controls.update();
     controlsRef.current = controls;
+    let viewportSyncTimer: ReturnType<typeof setTimeout> | null = null;
+    const queueNativeViewportSync = () => {
+      if (viewportSyncTimer) clearTimeout(viewportSyncTimer);
+      viewportSyncTimer = setTimeout(() => {
+        const bounds = cadViewportBoundsFromCamera(camera, { scale: s, width: W, height: H });
+        if (!bounds || !cadViewportBoundsChanged(nativeViewportBoundsRef.current, bounds)) return;
+        nativeViewportBoundsRef.current = bounds;
+        syncNativeScene();
+      }, 80);
+    };
+    controls.addEventListener('change', queueNativeViewportSync);
+    queueNativeViewportSync();
 
     // ---- drag a station block or an asset on the floor ----
     const raycaster = new THREE.Raycaster();
@@ -2302,11 +3477,34 @@ export default function Layout3DEditor({
     let dragMoved = false;
     let dragSnap: Snapshot | null = null;
     let marquee: { x0: number; y0: number; x1: number; y1: number } | null = null;
+    let selectionPath: { x: number; y: number }[] | null = null;
+    const updateMarqueeGeometry = (points: readonly THREE.Vector3[]) => {
+      const geometry = marqueeLine.geometry as THREE.BufferGeometry;
+      let position = geometry.getAttribute('position') as THREE.BufferAttribute | undefined;
+      if (!position || position.count < points.length) {
+        const capacity = 2 ** Math.ceil(Math.log2(Math.max(4, points.length)));
+        position = new THREE.BufferAttribute(new Float32Array(capacity * 3), 3);
+        geometry.setAttribute('position', position);
+      }
+      points.forEach((point, index) => position!.setXYZ(index, point.x, point.y, point.z));
+      position.needsUpdate = true;
+      geometry.setDrawRange(0, points.length);
+      geometry.computeBoundingSphere();
+    };
     const drawMarquee = (m: { x0: number; y0: number; x1: number; y1: number }) => {
       const ctx = ctxRef.current!;
       const toWorld = (x: number, y: number) => new THREE.Vector3((x - ctx.W / 2) * ctx.s, 0.05, (y - ctx.H / 2) * ctx.s);
-      (marqueeLine.geometry as THREE.BufferGeometry).setFromPoints([toWorld(m.x0, m.y0), toWorld(m.x1, m.y0), toWorld(m.x1, m.y1), toWorld(m.x0, m.y1)]);
+      updateMarqueeGeometry([toWorld(m.x0, m.y0), toWorld(m.x1, m.y0), toWorld(m.x1, m.y1), toWorld(m.x0, m.y1)]);
       (marqueeLine.material as THREE.LineBasicMaterial).color.set(m.x1 >= m.x0 ? 0x22d3ee : 0x34d399);
+      marqueeLine.visible = true;
+    };
+    const drawSelectionPath = (points: readonly { x: number; y: number }[]) => {
+      const ctx = ctxRef.current!;
+      updateMarqueeGeometry(points.map((point) =>
+        new THREE.Vector3((point.x - ctx.W / 2) * ctx.s, 0.05, (point.y - ctx.H / 2) * ctx.s)));
+      (marqueeLine.material as THREE.LineBasicMaterial).color.set(
+        selectionGeometryModeRef.current === 'fence' ? 0xf59e0b : 0xa78bfa,
+      );
       marqueeLine.visible = true;
     };
     const unit = data.footprint.unit || 'mm';
@@ -2354,42 +3552,114 @@ export default function Layout3DEditor({
      * Solo los ~48 objetos más cercanos alimentan el motor (plantas grandes no
      * degradan el pointermove). Sin candidato dentro de tolerancia → grid-snap.
      */
-    const snapFloor = (wx: number, wy: number): { wx: number; wy: number; onDxf: boolean; snapType?: SnapType } => {
+    const pointerWorldTolerance = (pixels: number) => {
       const ctx = ctxRef.current!;
+      return cadWorldToleranceFromView({
+        cameraDistance: camera.position.distanceTo(controls.target),
+        verticalFovDeg: camera.fov,
+        viewportHeightPx: renderer.domElement.clientHeight,
+        drawingToSceneScale: ctx.s,
+        aperturePx: pixels,
+        min: Math.max(0.01, Math.min(ctx.W, ctx.H) * 0.00001),
+        max: Math.max(ctx.W, ctx.H) * 0.02,
+      });
+    };
+    const snapFloor = (wx: number, wy: number, acquire = false): { wx: number; wy: number; onDxf: boolean; snapType?: SnapType; tracking?: 'object' | 'polar' | 'ortho'; trackingAngle?: number } => {
+      const ctx = ctxRef.current!;
+      const tol = pointerWorldTolerance(workspacePreferencesRef.current.aperturePx);
       if (osnapRef.current) {
-        const tol = Math.max(ctx.W, ctx.H) * 0.012;
         const boxes: { x: number; y: number; w: number; h: number; rotation?: number; d: number }[] = [];
         placementsRef.current.forEach((p) => boxes.push({ x: p.x, y: p.y, w: p.w, h: p.h, rotation: p.rotation, d: Math.hypot(p.x + p.w / 2 - wx, p.y + p.h / 2 - wy) }));
         assetsRef.current.forEach((a) => boxes.push({ x: a.x, y: a.y, w: a.w, h: a.h, rotation: a.rotation, d: Math.hypot(a.x + a.w / 2 - wx, a.y + a.h / 2 - wy) }));
         boxes.sort((a, b) => a.d - b.d);
-        const scene: SnapScene = { segments: [], endpoints: [], centers: [], nodes: dxfSnapRef.current };
+        const scene: SnapScene = {
+          segments: [], midpoints: [], perpendicularSegments: [], endpoints: [], centers: [], quadrants: [], geometricCenters: [],
+          insertions: [], tangents: [], nodes: dxfSnapRef.current,
+        };
         for (const b of boxes.slice(0, 48)) {
           const g = rectGeometry(b);
-          scene.segments!.push(...g.edges); scene.endpoints!.push(...g.corners); scene.centers!.push(g.center);
+          scene.segments!.push(...g.edges);
+          scene.perpendicularSegments!.push(...g.edges);
+          scene.midpoints!.push(...g.edges.map((edge) => ({ x: (edge.a.x + edge.b.x) / 2, y: (edge.a.y + edge.b.y) / 2 })));
+          scene.endpoints!.push(...g.corners);
+          scene.centers!.push(g.center);
+          scene.geometricCenters!.push(g.center);
+          scene.insertions!.push(g.center);
         }
-        const document = loadedCadDocumentRef.current;
-        const nativeIds = nativeSceneSyncRef.current?.spatialIndex.search({
+        const anchor = drawCommandRef.current?.points.at(-1)
+          ?? (wallChainRef.current ? { x: wallChainRef.current.wx, y: wallChainRef.current.wy } : null);
+        const nativeCandidates = nativeSelectionIndexRef.current?.search({
           minX: wx - tol * 4,
           minY: wy - tol * 4,
           maxX: wx + tol * 4,
           maxY: wy + tol * 4,
-        }) ?? [];
-        for (const id of nativeIds.slice(0, 48)) {
-          const entity = document?.entities.find((candidate) => candidate.id === id);
-          if (!entity || !CAD_ENTITY_REGISTRY.supports(entity)) continue;
-          for (const snap of CAD_ENTITY_REGISTRY.adapter(entity).snaps.snaps(entity, { x: wx, y: wy })) {
+        }, 48) ?? [];
+        for (const entity of nativeCandidates) {
+          for (const [pathIndex, path] of CAD_ENTITY_REGISTRY.adapter(entity).renderer.paths(entity, 24).entries()) {
+            const segmentCount = Math.max(0, path.points.length - 1) + (path.closed && path.points.length > 2 ? 1 : 0);
+            const pathId = `${entity.id}:${pathIndex}`;
+            for (let index = 1; index < path.points.length; index++)
+              scene.segments!.push({ a: path.points[index - 1], b: path.points[index], pathId, ordinal: index - 1, pathLength: segmentCount, closed: path.closed });
+            if (path.closed && path.points.length > 2)
+              scene.segments!.push({ a: path.points.at(-1)!, b: path.points[0], pathId, ordinal: segmentCount - 1, pathLength: segmentCount, closed: true });
+            if (entity.type === 'line' && path.points.length === 2)
+              {
+                scene.midpoints!.push({ x: (path.points[0].x + path.points[1].x) / 2, y: (path.points[0].y + path.points[1].y) / 2 });
+                scene.perpendicularSegments!.push({ a: path.points[0], b: path.points[1] });
+              }
+          }
+          for (const snap of CAD_ENTITY_REGISTRY.adapter(entity).snaps.snaps(entity, anchor ?? { x: wx, y: wy })) {
             if (snap.kind === 'center') scene.centers!.push(snap.point);
             else if (snap.kind === 'control') scene.nodes!.push(snap.point);
+            else if (snap.kind === 'quadrant') scene.quadrants!.push(snap.point);
+            else if (snap.kind === 'tangent') scene.tangents!.push(snap.point);
             else scene.endpoints!.push(snap.point);
           }
         }
         const hit = resolveOsnap({ x: wx, y: wy }, scene, {
           tolerance: tol,
+          from: anchor,
+          maxSegments: 96,
           // intersección/perp/cercano quedan fuera: costosos u over-greedy para
           // el pointermove; grid lo cubre el fallback snapWorld de siempre.
-          modes: { intersection: false, perpendicular: false, nearest: false, grid: false },
+          modes: { grid: false },
         });
-        if (hit) return { wx: Math.round(hit.point.x), wy: Math.round(hit.point.y), onDxf: true, snapType: hit.type };
+        if (hit) {
+          if (acquire && objectSnapTrackingRef.current) {
+            acquiredTrackingPointsRef.current = acquireCadTrackingPoint(
+              acquiredTrackingPointsRef.current,
+              hit.point,
+              tol * 0.25,
+            );
+            setAcquiredTrackingPointCount(acquiredTrackingPointsRef.current.length);
+          }
+          setGuides(null, null);
+          return { wx: hit.point.x, wy: hit.point.y, onDxf: true, snapType: hit.type };
+        }
+      }
+      const anchor = drawCommandRef.current?.points.at(-1)
+        ?? (wallChainRef.current ? { x: wallChainRef.current.wx, y: wallChainRef.current.wy } : null);
+      if (objectSnapTrackingRef.current && acquiredTrackingPointsRef.current.length) {
+        const tracked = trackFromAcquiredPoints({ x: wx, y: wy }, acquiredTrackingPointsRef.current, tol);
+        if (tracked.snapped) {
+          setGuides(
+            tracked.guides.find((guide) => guide.axis === 'x')?.value ?? null,
+            tracked.guides.find((guide) => guide.axis === 'y')?.value ?? null,
+          );
+          return { wx: tracked.point.x, wy: tracked.point.y, onDxf: false, tracking: 'object' };
+        }
+      }
+      setGuides(null, null);
+      if (anchor && (orthoLockRef.current || polarTrackingRef.current)) {
+        const increment = orthoLockRef.current ? 90 : polarIncrementRef.current;
+        const tracked = resolveCadPolarTracking(anchor, { x: wx, y: wy }, increment, orthoLockRef.current ? 45 : Math.min(6, increment / 4));
+        if (tracked.snapped) return {
+          wx: tracked.point.x,
+          wy: tracked.point.y,
+          onDxf: false,
+          tracking: orthoLockRef.current ? 'ortho' : 'polar',
+          trackingAngle: tracked.angle,
+        };
       }
       return { wx: snapWorld(wx), wy: snapWorld(wy), onDxf: false };
     };
@@ -2403,6 +3673,30 @@ export default function Layout3DEditor({
       downX = e.clientX; downY = e.clientY;
       if (walkRef.current) { walkLook = true; lookX = e.clientX; lookY = e.clientY; renderer.domElement.setPointerCapture(e.pointerId); return; }
       if (toolRef.current !== 'select') return; // measure/wall resolve on click (pointerup); drag still orbits
+      if (e.button === 0 && hatchPickModeRef.current) {
+        const world = floorWorld(e);
+        if (world) hatchPickCallbackRef.current({ x: world.wx, y: world.wy });
+        return;
+      }
+      const selectionMode = selectionGeometryModeRef.current;
+      if (e.button === 0 && (selectionMode === 'window' || selectionMode === 'crossing')) {
+        const world = floorWorld(e);
+        if (world) {
+          marquee = { x0: world.wx, y0: world.wy, x1: world.wx, y1: world.wy };
+          controls.enabled = false;
+          renderer.domElement.setPointerCapture(e.pointerId);
+        }
+        return;
+      }
+      if (e.button === 0 && (selectionMode === 'polygon' || selectionMode === 'fence' || selectionMode === 'lasso')) {
+        const world = floorWorld(e);
+        if (world) {
+          selectionPath = [{ x: world.wx, y: world.wy }];
+          controls.enabled = false;
+          renderer.domElement.setPointerCapture(e.pointerId);
+        }
+        return;
+      }
       setPtr(e); raycaster.setFromCamera(ptr, camera);
       // clicking a dimension label removes that cota
       const dimHit = raycaster.intersectObjects(dimsGroup.children, false).find((h) => (h.object as THREE.Sprite).userData?.dimId);
@@ -2430,10 +3724,32 @@ export default function Layout3DEditor({
         .map((h) => ({ d: h.distance, id: resolveAssetId(h.object) }))
         .filter((h) => h.id)
         .map((h) => ({ d: h.d, type: 'asset' as const, id: h.id as string, obj: groupByAssetRef.current.get(h.id as string)! }));
-      const nativeHits = raycaster.intersectObjects(nativeGroup.children, true)
+      const nativeHits = raycaster.intersectObjects(
+        nativeGroup.children.filter((child) => child.userData.nativeOverview !== true),
+        true,
+      )
         .map((h) => ({ d: h.distance, id: resolveNativeEntityId(h.object), gripId: h.object.userData?.nativeGripId as string | undefined }))
         .filter((h) => h.id)
         .map((h) => ({ d: h.d, type: 'native' as const, id: h.id as string, obj: h, gripId: h.gripId }));
+      if (!stationHits.length && !assetHits.length && !nativeHits.length) {
+        const world = floorWorld(e);
+        const context = ctxRef.current;
+        if (world && context) {
+          const tolerance = pointerWorldTolerance(workspacePreferencesRef.current.pickBoxPx);
+          const canonicalHit = nativeSelectionIndexRef.current?.hitTest(
+            { x: world.wx, y: world.wy },
+            tolerance,
+            1,
+          )[0];
+          if (canonicalHit) nativeHits.push({
+            d: 0,
+            type: 'native',
+            id: canonicalHit.id,
+            obj: { d: 0, id: canonicalHit.id, gripId: undefined },
+            gripId: undefined,
+          });
+        }
+      }
       const all = [...stationHits, ...assetHits, ...nativeHits].sort((a, b) => a.d - b.d);
       if (all.length) {
         const top = all[0];
@@ -2450,33 +3766,51 @@ export default function Layout3DEditor({
             renderer.domElement.setPointerCapture(e.pointerId);
             return;
           }
-          const current = nativeSelectionIdsRef.current;
-          const next = e.shiftKey
-            ? current.includes(top.id)
-              ? current.filter((id) => id !== top.id)
-              : [...current, top.id]
-            : [top.id];
-          selectNative(next);
+          const world = floorWorld(e);
+          const context = ctxRef.current;
+          const canonicalCandidates = world && context
+            ? nativeSelectionIndexRef.current?.hitTest(
+              { x: world.wx, y: world.wy },
+              pointerWorldTolerance(workspacePreferencesRef.current.pickBoxPx),
+              16,
+            ).map((entity) => `native:${entity.id}`) ?? []
+            : [];
+          const operation = e.ctrlKey || e.metaKey
+            ? 'remove'
+            : e.shiftKey
+              ? 'toggle'
+              : selectionOperationRef.current;
+          applyProfessionalSelection(canonicalCandidates.length > 1
+            ? { type: 'cycle', candidates: canonicalCandidates, operation }
+            : { type: 'apply', keys: [`native:${top.id}`], operation });
           rebuildAll();
           return;
         }
-        clearNativeSelection();
         const item: SelItem = { type: top.type, id: top.id };
         // Grupos (ADR §223): clic selecciona el grupo completo; Alt+clic entra
         // al objeto individual sin disolver nada.
         const groupItems = e.altKey ? [item] : expandGroupMembers(item);
-        // Shift+click toggles membership without starting a drag
-        if (e.shiftKey) {
-          const exists = selRef.current.some((s) => sameSel(s, item));
-          select(exists
-            ? selRef.current.filter((s) => !groupItems.some((g) => sameSel(g, s)))
-            : [...selRef.current, ...groupItems.filter((g) => !selRef.current.some((s) => sameSel(s, g)))]);
+        const operation = e.ctrlKey || e.metaKey
+          ? 'remove'
+          : e.shiftKey
+            ? 'toggle'
+            : selectionOperationRef.current;
+        // Membership operations never start a move; they only mutate the set.
+        if (operation !== 'replace') {
+          applyProfessionalSelection({
+            type: 'apply',
+            keys: groupItems.map((candidate) => `${candidate.type}:${candidate.id}`),
+            operation,
+          });
           rebuildAll();
           return;
         }
         const inSel = selRef.current.some((s) => sameSel(s, item));
         const items = inSel && selRef.current.length > 1 ? [...selRef.current] : groupItems;
-        if (!inSel) select(groupItems);
+        if (!inSel) applyProfessionalSelection({
+          type: 'apply',
+          keys: groupItems.map((candidate) => `${candidate.type}:${candidate.id}`),
+        });
         if (isObjectLayerLocked(cadLayersRef.current, layerAssignmentsRef.current, item.id, item.type === 'station' ? 'layout' : defaultLayerForAsset(item.id))) {
           toast.error('El objeto está en una capa bloqueada. Desbloquea la capa para moverlo.', 'Capas');
           rebuildAll();
@@ -2515,10 +3849,27 @@ export default function Layout3DEditor({
           renderer.domElement.setPointerCapture(e.pointerId);
         }
       } else if (e.button === 0 && !e.shiftKey) {
-        select([]); clearNativeSelection(); rebuildAll();
+        if (selectionOperationRef.current === 'replace') {
+          applyProfessionalSelection({ type: 'clear' });
+          rebuildAll();
+        }
       }
     };
     const onMove = (e: PointerEvent) => {
+      const overlay = crosshairOverlayRef.current;
+      if (overlay) {
+        const rect = renderer.domElement.getBoundingClientRect();
+        overlay.style.display = 'block';
+        overlay.style.transform = `translate(${e.clientX - rect.left}px, ${e.clientY - rect.top}px)`;
+      }
+      const cursorWorld = floorWorld(e);
+      if (cursorCoordinateRef.current) {
+        cursorCoordinateRef.current.dataset.x = cursorWorld ? String(cursorWorld.wx) : '';
+        cursorCoordinateRef.current.dataset.y = cursorWorld ? String(cursorWorld.wy) : '';
+        cursorCoordinateRef.current.textContent = cursorWorld
+          ? `X ${cursorWorld.wx.toFixed(2)} · Y ${cursorWorld.wy.toFixed(2)}`
+          : 'X — · Y —';
+      }
       if (walkRef.current) {
         if (!walkLook) return;
         walkYawRef.current -= (e.clientX - lookX) * 0.005;
@@ -2529,6 +3880,15 @@ export default function Layout3DEditor({
       if (marquee) {
         const w = floorWorld(e);
         if (w) { marquee.x1 = w.wx; marquee.y1 = w.wy; drawMarquee(marquee); }
+        return;
+      }
+      if (selectionPath) {
+        const world = floorWorld(e);
+        const previous = selectionPath.at(-1);
+        if (world && previous && Math.hypot(world.wx - previous.x, world.wy - previous.y) >= 2) {
+          selectionPath.push({ x: world.wx, y: world.wy });
+          drawSelectionPath(selectionPath);
+        }
         return;
       }
       if (nativeGripDrag) {
@@ -2561,7 +3921,7 @@ export default function Layout3DEditor({
       if (toolRef.current === 'measure' || toolRef.current === 'wall' || isCadDrawTool(toolRef.current)) {
         const w = floorWorld(e); if (!w) { showSnapMarker(null); return; }
         const s = snapFloor(w.wx, w.wy); // snap the live endpoint to the underlay
-        showSnapMarker(s.onDxf ? s.wx : null, s.wy);
+        showSnapMarker(s.onDxf || s.tracking ? s.wx : null, s.wy);
         const a = toolRef.current === 'measure' ? measureARef.current : toolRef.current === 'wall' ? wallChainRef.current : drawCommandRef.current?.points.at(-1) ? { wx: drawCommandRef.current.points.at(-1)!.x, wy: drawCommandRef.current.points.at(-1)!.y } : null;
         if (!a) return; // marker shown for the first point; wait for the anchor to draw a segment
         const ctx = ctxRef.current!;
@@ -2615,12 +3975,49 @@ export default function Layout3DEditor({
     };
     const onUp = (e: PointerEvent) => {
       if (walkRef.current) { walkLook = false; try { renderer.domElement.releasePointerCapture(e.pointerId); } catch { /* ignore */ } return; }
+      if (selectionPath) {
+        const points = selectionPath;
+        selectionPath = null;
+        marqueeLine.visible = false;
+        controls.enabled = true;
+        try { renderer.domElement.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+        const mode = selectionGeometryModeRef.current;
+        const pathMode = mode === 'polygon' || mode === 'fence' || mode === 'lasso' ? mode : 'lasso';
+        const minimum = pathMode === 'fence' ? 2 : 3;
+        if (points.length < minimum) return;
+        const legacyKeys: string[] = [];
+        placementsRef.current.forEach((placement, id) => {
+          if (cadSelectionPathMatchesPolygon(points, rectGeometry(placement).corners, pathMode, pathMode !== 'polygon'))
+            legacyKeys.push(`station:${id}`);
+        });
+        assetsRef.current.forEach((asset, id) => {
+          if (cadSelectionPathMatchesPolygon(points, rectGeometry(asset).corners, pathMode, pathMode !== 'polygon'))
+            legacyKeys.push(`asset:${id}`);
+        });
+        const nativeKeys = (nativeSelectionIndexRef.current?.path(points, pathMode, pathMode !== 'polygon', 300) ?? [])
+          .map((entity) => `native:${entity.id}`);
+        applyProfessionalSelection({
+          type: 'apply',
+          keys: [...legacyKeys, ...nativeKeys],
+          operation: selectionOperationRef.current,
+        });
+        toast.success(`${legacyKeys.length + nativeKeys.length} objeto(s) por ${pathMode}.`, 'Selección');
+        return;
+      }
       if (nativeGripDrag) {
         if (nativeGripDrag.moved && loadedCadDocumentRef.current) {
           undoStackRef.current.push(nativeGripDrag.checkpoint);
           if (undoStackRef.current.length > 80) undoStackRef.current.shift();
           redoStackRef.current = [];
-          loadedCadDocumentRef.current = commitChange(loadedCadDocumentRef.current, `grip:${nativeGripDrag.entityId}:${nativeGripDrag.gripId}`);
+          const regenerated = regenerateAssociativeHatches(
+            loadedCadDocumentRef.current.entities,
+            [nativeGripDrag.entityId],
+            (entity) => cadEntityBoundaryPaths(entity),
+          );
+          loadedCadDocumentRef.current = commitChange({
+            ...loadedCadDocumentRef.current,
+            entities: regenerated.entities,
+          }, `grip:${nativeGripDrag.entityId}:${nativeGripDrag.gripId}`);
           setHist({ undo: undoStackRef.current.length, redo: 0 });
           setNativeEntities(
             loadedCadDocumentRef.current.entities.filter(
@@ -2644,7 +4041,8 @@ export default function Layout3DEditor({
         const minX = Math.min(m.x0, m.x1), maxX = Math.max(m.x0, m.x1);
         const minY = Math.min(m.y0, m.y1), maxY = Math.max(m.y0, m.y1);
         if (maxX - minX < 5 && maxY - minY < 5) return; // fue un shift+clic, no un arrastre
-        const crossing = m.x1 < m.x0; // der→izq = cruce (semántica AutoCAD)
+        const explicitMode = selectionGeometryModeRef.current;
+        const crossing = explicitMode === 'crossing' || (explicitMode === 'pick' && m.x1 < m.x0); // der→izq = cruce (semántica AutoCAD)
         const inWindow = (box: { x: number; y: number; w: number; h: number; rotation?: number }) => {
           const g = rectGeometry(box);
           const contained = g.corners.every((c) => c.x >= minX && c.x <= maxX && c.y >= minY && c.y <= maxY);
@@ -2656,18 +4054,16 @@ export default function Layout3DEditor({
         placementsRef.current.forEach((p, id) => { if (inWindow(p)) found.push({ type: 'station', id }); });
         assetsRef.current.forEach((a) => { if (inWindow(a)) found.push({ type: 'asset', id: a.id }); });
         const nativeWindow = { minX, minY, maxX, maxY };
-        const document = loadedCadDocumentRef.current;
-        const nativeFound = (nativeSceneSyncRef.current?.spatialIndex.search(nativeWindow) ?? [])
-          .filter((id) => {
-            const entity = document?.entities.find((candidate) => candidate.id === id);
-            return !!entity && CAD_ENTITY_REGISTRY.supports(entity)
-              && CAD_ENTITY_REGISTRY.adapter(entity).hitTester.intersectsWindow(entity, nativeWindow, crossing);
-          });
-        const merged = [...selRef.current];
-        found.forEach((it) => { if (!merged.some((s) => sameSel(s, it))) merged.push(it); });
-        select(merged.slice(0, 300));
-        const mergedNative = [...new Set([...nativeSelectionIdsRef.current, ...nativeFound])].slice(0, 300);
-        nativeSelectionIdsRef.current = mergedNative; setNativeSelectionIds(mergedNative);
+        const nativeFound = (nativeSelectionIndexRef.current?.intersecting(nativeWindow, crossing, 300) ?? [])
+          .map((entity) => entity.id);
+        applyProfessionalSelection({
+          type: 'apply',
+          keys: [
+            ...found.map((item) => `${item.type}:${item.id}`),
+            ...nativeFound.map((id) => `native:${id}`),
+          ],
+          operation: explicitMode === 'pick' ? 'add' : selectionOperationRef.current,
+        });
         rebuildAll();
         if (found.length + nativeFound.length) toast.success(`${found.length + nativeFound.length} objeto(s) seleccionados por ${crossing ? 'cruce' : 'ventana'}.`, 'Selección');
         return;
@@ -2677,7 +4073,7 @@ export default function Layout3DEditor({
         if (isClick) {
           const w = floorWorld(e);
           if (w) {
-            const sp = snapFloor(w.wx, w.wy);
+            const sp = snapFloor(w.wx, w.wy, true);
             const pt = { wx: sp.wx, wy: sp.wy };
             if (!measureARef.current) { measureARef.current = pt; setMeasureLive(fmtDist(0, unit)); }
             else {
@@ -2701,7 +4097,7 @@ export default function Layout3DEditor({
         if (isClick) {
           const w = floorWorld(e);
           if (w) {
-            const sp = snapFloor(w.wx, w.wy);
+            const sp = snapFloor(w.wx, w.wy, true);
             let pt = { wx: sp.wx, wy: sp.wy };
             const prev = drawCommandRef.current?.points.at(-1);
             if (prev && (e.shiftKey || orthoLockRef.current) && !sp.onDxf) {
@@ -2719,7 +4115,7 @@ export default function Layout3DEditor({
         if (isClick) {
           const w = floorWorld(e);
           if (w) {
-            const sp = snapFloor(w.wx, w.wy);
+            const sp = snapFloor(w.wx, w.wy, true);
             let pt = { wx: sp.wx, wy: sp.wy };
             const prev = wallChainRef.current;
             // Shift = incrementos de 45°; ORTO (toggle) = ejes 0/90/180/270 — pero
@@ -2778,8 +4174,12 @@ export default function Layout3DEditor({
       }
       try { renderer.domElement.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
     };
+    const onPointerLeave = () => {
+      if (crosshairOverlayRef.current) crosshairOverlayRef.current.style.display = 'none';
+    };
     renderer.domElement.addEventListener('pointerdown', onDown);
     renderer.domElement.addEventListener('pointermove', onMove);
+    renderer.domElement.addEventListener('pointerleave', onPointerLeave);
     window.addEventListener('pointerup', onUp);
 
     // WASD movement while walking
@@ -2796,6 +4196,7 @@ export default function Layout3DEditor({
     const onResize = () => {
       const w = mount.clientWidth || width; const hh = mount.clientHeight || height;
       renderer.setSize(w, hh); camera.aspect = w / hh; camera.updateProjectionMatrix();
+      queueNativeViewportSync();
     };
     const ro = new ResizeObserver(onResize); ro.observe(mount);
 
@@ -2815,6 +4216,7 @@ export default function Layout3DEditor({
         camera.position.z = Math.max(-lim, Math.min(lim, camera.position.z));
         camera.position.y = eyeY;
         camera.lookAt(camera.position.x + Math.sin(yaw) * Math.cos(pitch), camera.position.y + Math.sin(pitch), camera.position.z - Math.cos(yaw) * Math.cos(pitch));
+        if (k.f || k.b || k.l || k.r) queueNativeViewportSync();
       } else {
         controls.update();
       }
@@ -2825,15 +4227,22 @@ export default function Layout3DEditor({
 
     return () => {
       disposed = true; cancelAnimationFrame(raf);
+      if (viewportSyncTimer) clearTimeout(viewportSyncTimer);
       ro.disconnect();
       renderer.domElement.removeEventListener('pointerdown', onDown);
       renderer.domElement.removeEventListener('pointermove', onMove);
+      renderer.domElement.removeEventListener('pointerleave', onPointerLeave);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('keydown', walkKd);
       window.removeEventListener('keyup', walkKu);
+      controls.removeEventListener('change', queueNativeViewportSync);
       controls.dispose();
       disposeObject(scene);
       nativeSceneSyncRef.current?.clear({ remove: () => {} });
+      nativeInsertBatchRef.current = null;
+      nativeOverviewRef.current = null;
+      nativeOverviewDocumentRef.current = null;
+      nativeViewportBoundsRef.current = null;
       renderer.dispose();
       if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
       sceneRef.current = null; rendererRef.current = null; cameraRef.current = null;
@@ -2853,8 +4262,8 @@ export default function Layout3DEditor({
 
   // cancels any half-drawn cota or wall chain (called when leaving a draw tool)
   const endDraw = useCallback(() => {
-    measureARef.current = null; wallChainRef.current = null; drawCommandRef.current = null; setMeasureLive(null); setDrawPrompt(null);
-    lastWallAngleRef.current = null; setPrecisionText('');
+    measureARef.current = null; wallChainRef.current = null; drawCommandRef.current = null; setMeasureLive(null); setDrawPrompt(null); setCanCloseDraftPolyline(false);
+    lastWallAngleRef.current = null;
     if (previewLineRef.current) previewLineRef.current.visible = false;
     if (snapMarkerRef.current) snapMarkerRef.current.visible = false;
   }, []);
@@ -2863,7 +4272,11 @@ export default function Layout3DEditor({
       const t = prev === next && next !== 'select' ? 'select' : next;
       toolRef.current = t;
       if (t === 'select') endDraw();
-      else { endDraw(); select([]); clearNativeSelection(); }
+      else {
+        endDraw();
+        // Modification commands need the picked source to survive tool entry.
+        if (t !== 'move' && t !== 'copy' && t !== 'offset') { select([]); clearNativeSelection(); }
+      }
       if (isCadDrawTool(t)) { const cmd = startCommand(t); drawCommandRef.current = cmd; setDrawPrompt(cmd.prompt); setMeasureLive(cmd.prompt); }
       return t;
     });
@@ -2908,7 +4321,10 @@ export default function Layout3DEditor({
   };
   const applyDrawAction = (action: DrawAction) => {
     if (action.type === 'addSegment') return createWallAssetFromPoints(action.a, action.b, 'Muro CAD');
-    if (action.type === 'addPolyline') return action.points.slice(0, -1).map((point, idx) => createWallAssetFromPoints(point, action.points[idx + 1], `Pline ${idx + 1}`)).some(Boolean);
+    if (action.type === 'addPolyline') {
+      const points = action.closed && action.points.length > 2 ? [...action.points, action.points[0]] : action.points;
+      return points.slice(0, -1).map((point, idx) => createWallAssetFromPoints(point, points[idx + 1], `Pline ${idx + 1}`)).some(Boolean);
+    }
     if (action.type === 'addRect') return createRectAssetFromBox(action.x, action.y, action.w, action.h, 'zone', 'Zona CAD');
     if (action.type === 'addCircle') return createRectAssetFromBox(action.cx - action.r, action.cy - action.r, action.r * 2, action.r * 2, 'zone', `Círculo CAD Ø${Math.round(action.r * 2)}`, 'circle');
     if (action.type === 'moveBy' || action.type === 'copyBy') {
@@ -2949,6 +4365,7 @@ export default function Layout3DEditor({
     const active = drawCommandRef.current; if (!active) return false;
     const next = feedPoint(active, { x, y });
     drawCommandRef.current = next.done ? null : next;
+    setCanCloseDraftPolyline(!next.done && next.id === 'polyline' && next.points.length >= 3);
     setDrawPrompt(next.done ? null : next.prompt); setMeasureLive(next.done ? null : next.prompt);
     applyDrawState(next);
     if (next.done) { setTool('select'); toolRef.current = 'select'; }
@@ -2957,7 +4374,16 @@ export default function Layout3DEditor({
   function commitActiveDraftCommand() {
     const active = drawCommandRef.current; if (!active) return false;
     const next = commitDrawCommand(active);
-    drawCommandRef.current = null; setDrawPrompt(null); setMeasureLive(null);
+    drawCommandRef.current = null; setDrawPrompt(null); setMeasureLive(null); setCanCloseDraftPolyline(false);
+    applyDrawState(next);
+    setTool('select'); toolRef.current = 'select';
+    return true;
+  }
+  function closeActiveDraftPolyline() {
+    const active = drawCommandRef.current; if (!active) return false;
+    const next = closeDrawPolyline(active);
+    if (next === active) return false;
+    drawCommandRef.current = null; setDrawPrompt(null); setMeasureLive(null); setCanCloseDraftPolyline(false);
     applyDrawState(next);
     setTool('select'); toolRef.current = 'select';
     return true;
@@ -3000,6 +4426,7 @@ export default function Layout3DEditor({
         if (Number.isFinite(d)) {
           const next = feedDistance(drawCommandRef.current, d);
           drawCommandRef.current = next.done ? null : next;
+          setCanCloseDraftPolyline(!next.done && next.id === 'polyline' && next.points.length >= 3);
           applyDrawState(next);
           if (next.done) { setTool('select'); toolRef.current = 'select'; setDrawPrompt(null); setMeasureLive(null); }
           setPrecisionText(''); return;
@@ -3012,6 +4439,24 @@ export default function Layout3DEditor({
     const parsed = parseCoordinate(raw, { last: chain ? { x: chain.wx, y: chain.wy } : null, lockedAngleDeg: lastWallAngleRef.current });
     if (!parsed.ok) { toast.error(parsed.error, 'Precisión'); return; }
     appendWallTo(parsed.point.x, parsed.point.y);
+    setPrecisionText('');
+  };
+  const commitDynamicInput = (result: Extract<CadDynamicInputResult, { ok: true }>) => {
+    if ('point' in result) {
+      if (drawCommandRef.current) feedDraftPoint(result.point.x, result.point.y);
+      else if (toolRef.current === 'wall') appendWallTo(result.point.x, result.point.y);
+      setPrecisionText('');
+      return;
+    }
+    const active = drawCommandRef.current;
+    if (!active) return;
+    const next = feedDistance(active, result.scalar);
+    drawCommandRef.current = next.done ? null : next;
+    setCanCloseDraftPolyline(!next.done && next.id === 'polyline' && next.points.length >= 3);
+    applyDrawState(next);
+    setDrawPrompt(next.done ? null : next.prompt);
+    setMeasureLive(next.done ? null : next.prompt);
+    if (next.done) { setTool('select'); toolRef.current = 'select'; }
     setPrecisionText('');
   };
   // Live quantity take-off from the current (possibly unsaved) editor state.
@@ -3540,31 +4985,187 @@ export default function Layout3DEditor({
     setDirty(true); rebuildNotes();
   };
 
-  // Directriz con nota (MLEADER · CAD-NEXT-111): flecha con texto que apunta al
-  // objeto seleccionado — "NOTA: muro cortafuego 2 h", "ver detalle 3". Se
-  // compone honestamente de las primitivas de anotación que el editor ya
-  // renderiza y exporta a DXF (dos 'dim' para la directriz + codo y un 'text'
-  // para la nota); la geometría del codo y del ancla la calcula buildMleader.
+  // La composición histórica de dos DIM + TEXT deja de crearse: el editor abre
+  // la paleta de una entidad MLEADER canónica, seleccionable y persistente.
   const createLeaderForSelection = () => {
-    if (!selSnap) { toast.error('Selecciona un objeto para anotarlo.', 'Directriz'); return; }
-    const text = (typeof window !== 'undefined' ? window.prompt('Nota de la directriz:') : '')?.trim();
-    if (!text) return;
-    // Punta en la esquina superior derecha del objeto; codo desplazado hacia
-    // arriba-derecha para que la directriz salga del objeto sin pisarlo.
-    const tip = { x: selSnap.x + selSnap.w, y: selSnap.y };
-    const elbow = { x: tip.x + 900, y: tip.y - 900 };
-    const g = buildMleader(tip, elbow);
-    pushHistory();
-    const leaderId = newId('ld');
-    annotationsRef.current.set(leaderId, { id: leaderId, type: 'dim', x: g.leaderLine[0].x, y: g.leaderLine[0].y, x2: g.leaderLine[1].x, y2: g.leaderLine[1].y });
-    const doglegId = newId('ld');
-    annotationsRef.current.set(doglegId, { id: doglegId, type: 'dim', x: g.dogleg[0].x, y: g.dogleg[0].y, x2: g.dogleg[1].x, y2: g.dogleg[1].y });
-    const textId = newId('nt');
-    annotationsRef.current.set(textId, { id: textId, type: 'text', text: text.slice(0, 240), x: g.textAnchor.x, y: g.textAnchor.y });
-    setDimCount([...annotationsRef.current.values()].filter((ann) => ann.type === 'dim').length);
-    setDirty(true); rebuildDims(); rebuildNotes();
-    toast.success('Directriz creada.', 'Anotación');
+    if (!selSnap && !nativeSelectionIdsRef.current.length) { toast.error('Selecciona uno o más destinos para anotarlos.', 'MLEADER'); return; }
+    setShowMleaderPalette(true);
   };
+
+  const createHatchForSelection = (solid: boolean) => {
+    const document = loadedCadDocumentRef.current;
+    const selectedNativeSources = (document?.entities ?? [])
+      .filter((entity) => nativeSelectionIdsRef.current.includes(entity.id))
+      .filter((entity) => entity.type !== 'hatch');
+    const nativeBoundaries = stitchCadBoundaryPaths(selectedNativeSources.flatMap((entity) => cadEntityBoundaryPaths(entity)));
+    const assets = selRef.current
+      .filter((item): item is SelItem & { type: 'asset' } => item.type === 'asset')
+      .map((item) => assetsRef.current.get(item.id))
+      .filter((asset): asset is Asset => !!asset)
+      .filter((asset) => !isObjectLayerLocked(
+        cadLayersRef.current,
+        layerAssignmentsRef.current,
+        asset.id,
+        defaultCadLayerForAssetKind(asset.kind, objectTagsRef.current[asset.id]),
+      ));
+    if (!assets.length && !nativeBoundaries.loops.length) {
+      toast.error(nativeBoundaries.openSourceIds.length
+        ? `Boundary abierto: ${nativeBoundaries.openSourceIds.join(', ')}.`
+        : 'Selecciona assets o curvas que formen al menos un boundary cerrado.', 'HATCH');
+      return;
+    }
+    const assetHatches: CadNativeEntity[] = assets.map((asset) => {
+      const center = { x: asset.x + asset.w / 2, y: asset.y + asset.h / 2 };
+      const angle = ((asset.rotation ?? 0) * Math.PI) / 180;
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      const local = asset.shape === 'circle'
+        ? Array.from({ length: 48 }, (_, index) => {
+            const theta = (index / 48) * Math.PI * 2;
+            return { x: Math.cos(theta) * asset.w / 2, y: Math.sin(theta) * asset.h / 2 };
+          })
+        : [
+            { x: -asset.w / 2, y: -asset.h / 2 },
+            { x: asset.w / 2, y: -asset.h / 2 },
+            { x: asset.w / 2, y: asset.h / 2 },
+            { x: -asset.w / 2, y: asset.h / 2 },
+          ];
+      return {
+        id: newId('hatch'),
+        type: 'hatch',
+        pattern: solid ? 'SOLID' : 'ANSI31',
+        solid,
+        boundaries: [local.map((point) => ({
+          x: center.x + point.x * cos - point.y * sin,
+          y: center.y + point.x * sin + point.y * cos,
+          z: 0,
+        }))],
+        scale: Math.max(1, data?.footprint.gridSize ?? 100),
+        angle: 45,
+        origin: { x: center.x, y: center.y, z: 0 },
+        islandStyle: 'normal',
+        associative: false,
+        associationStatus: 'detached',
+        layer: layerAssignmentsRef.current[asset.id] ?? defaultCadLayerForAssetKind(asset.kind, objectTagsRef.current[asset.id]),
+        context: {
+          provenance: { provider: 'cad-editor' },
+          metadata: { sourceAssetId: asset.id, sourceType: 'CLOSED_ASSET_BOUNDARY' },
+        },
+      };
+    });
+    const nativeHatches: CadNativeEntity[] = nativeBoundaries.loops.map((boundary, boundaryIndex) => ({
+      id: newId('hatch'),
+      type: 'hatch',
+      pattern: solid ? 'SOLID' : 'ANSI31',
+      solid,
+      boundaries: [boundary.map((point) => ({ ...point, z: 0 }))],
+      scale: Math.max(1, data?.footprint.gridSize ?? 100),
+      angle: 45,
+      origin: { ...boundary[0], z: 0 },
+      islandStyle: 'normal',
+      associative: true,
+      boundaryRefs: [...(nativeBoundaries.loopSourceIds[boundaryIndex] ?? nativeBoundaries.sourceIds)],
+      associationStatus: 'associated',
+      layer: selectedNativeSources[0]?.layer ?? activeCadLayer,
+      context: {
+        provenance: { provider: 'cad-editor' },
+        metadata: { sourceType: 'ASSOCIATIVE_CLOSED_BOUNDARY' },
+      },
+    }));
+    const entities = [...assetHatches, ...nativeHatches];
+    if (insertNativeEntities(entities, `create:hatch:${solid ? 'solid' : 'ANSI31'}`))
+      toast.success(`${entities.length} HATCH ${solid ? 'SOLID' : 'ANSI31'} creado(s).`, 'HATCH');
+  };
+
+  const createHatchAtPoint = useCallback((point: { x: number; y: number }) => {
+    const legacyEntities = new Map<string, CadEntity>();
+    assetsRef.current.forEach((asset, id) => {
+      legacyEntities.set(id, {
+        id,
+        type: 'box',
+        kind: asset.kind,
+        x: asset.x,
+        y: asset.y,
+        w: asset.w,
+        h: asset.h,
+        rotation: asset.rotation,
+        layer: layerAssignmentsRef.current[id] ?? defaultCadLayerForAssetKind(asset.kind, objectTagsRef.current[id]),
+        shape: asset.shape ?? 'rect',
+      });
+    });
+    placementsRef.current.forEach((placement, id) => {
+      if (legacyEntities.has(id)) return;
+      legacyEntities.set(id, {
+        id,
+        type: 'station',
+        x: placement.x,
+        y: placement.y,
+        w: placement.w,
+        h: placement.h,
+        rotation: placement.rotation,
+        layer: layerAssignmentsRef.current[id] ?? 'layout',
+      });
+    });
+
+    const closedPaths = (entities: readonly CadEntity[]) => entities
+      .flatMap((entity) => cadEntityBoundaryPaths(entity))
+      .filter((path) => path.closed && path.points.length >= 3);
+    const pointBounds = { minX: point.x, minY: point.y, maxX: point.x, maxY: point.y };
+    const pointNative = (nativeSelectionIndexRef.current?.search(pointBounds, 256) ?? [])
+      .filter((entity) => entity.type !== 'hatch');
+    const pointLegacy = [...legacyEntities.values()].filter((entity) =>
+      closedPaths([entity]).some((path) => cadPointInBoundary(point, path.points)));
+    const preliminary = stitchCadBoundaryPaths(closedPaths([...pointNative, ...pointLegacy]));
+    const preliminaryRegion = resolveCadHatchRegionWithSources(preliminary, point, 'ignore');
+    const outer = preliminaryRegion.boundaries[0];
+    if (!outer) {
+      toast.error('No se encontrÃ³ una regiÃ³n cerrada bajo el punto. Revisa gaps del boundary.', 'HATCH');
+      return;
+    }
+    const regionBounds = outer.reduce((bounds, vertex) => ({
+      minX: Math.min(bounds.minX, vertex.x),
+      minY: Math.min(bounds.minY, vertex.y),
+      maxX: Math.max(bounds.maxX, vertex.x),
+      maxY: Math.max(bounds.maxY, vertex.y),
+    }), { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity });
+    const nativeRegion = (nativeSelectionIndexRef.current?.search(regionBounds, 4_096) ?? [])
+      .filter((entity) => entity.type !== 'hatch');
+    const legacyRegion = [...legacyEntities.values()].filter((entity) =>
+      closedPaths([entity]).some((path) => path.points.some((vertex) =>
+        vertex.x >= regionBounds.minX && vertex.x <= regionBounds.maxX
+        && vertex.y >= regionBounds.minY && vertex.y <= regionBounds.maxY)));
+    const built = stitchCadBoundaryPaths(closedPaths([...nativeRegion, ...legacyRegion]));
+    const region = resolveCadHatchRegionWithSources(built, point, hatchIslandStyle);
+    if (!region.boundaries.length) {
+      toast.error('No se encontró una región cerrada bajo el punto. Revisa gaps del boundary.', 'HATCH');
+      return;
+    }
+    const hatch: CadNativeEntity = {
+      id: newId('hatch'),
+      type: 'hatch',
+      pattern: hatchPickSolid ? 'SOLID' : 'ANSI31',
+      solid: hatchPickSolid,
+      boundaries: region.boundaries.map((boundary) => boundary.map((vertex) => ({ ...vertex, z: 0 }))),
+      scale: Math.max(1, data?.footprint.gridSize ?? 100),
+      angle: 45,
+      origin: { ...point, z: 0 },
+      islandStyle: hatchIslandStyle,
+      associative: true,
+      boundaryRefs: region.sourceIds,
+      associationStatus: 'associated',
+      layer: activeCadLayer,
+      context: {
+        provenance: { provider: 'cad-editor' },
+        metadata: { sourceType: 'HATCH_PICK_POINT', sourceCount: region.sourceIds.length },
+      },
+    };
+    if (insertNativeEntities([hatch], `create:hatch:pick:${hatchPickSolid ? 'solid' : 'ANSI31'}`)) {
+      setHatchPickMode(false);
+      hatchPickModeRef.current = false;
+      toast.success(`HATCH por punto creado con ${region.boundaries.length} loop(s).`, 'HATCH');
+    }
+  }, [activeCadLayer, data?.footprint.gridSize, hatchIslandStyle, hatchPickSolid, insertNativeEntities, toast]);
+  useEffect(() => { hatchPickCallbackRef.current = createHatchAtPoint; }, [createHatchAtPoint]);
 
   const clearDims = useCallback(() => {
     const hasDim = [...annotationsRef.current.values()].some((a) => a.type === 'dim');
@@ -3981,12 +5582,6 @@ export default function Layout3DEditor({
   };
   // Bloques CAD reutilizables (ADR §224): celdas estándar guardadas UNA vez e
   // insertables en cualquier layout del tenant. La inserción llega agrupada.
-  const loadCadBlocks = async () => {
-    try {
-      const r = await apiFetch(`${API_BASE}/line-engineering/cad-blocks`);
-      if (r.ok) setCadBlocks(await r.json() as CadBlockRow[]);
-    } catch { /* transitorio — la sección muestra "sin bloques" */ }
-  };
   const saveSelectionAsBlock = async () => {
     const assets = selRef.current.filter((s) => s.type === 'asset');
     if (!assets.length) { toast.error('Selecciona los equipos/activos que forman el bloque.', 'Bloques'); return; }
@@ -4044,7 +5639,7 @@ export default function Layout3DEditor({
   };
   // La biblioteca se refresca al abrir el editor (no por layout: es del tenant).
    
-  useEffect(() => { if (open) void loadCadBlocks(); }, [open]);
+  useEffect(() => { if (open) void loadCadBlocks(); }, [loadCadBlocks, open]);
   // Grupos CAD (Ctrl+G, ADR §223): los miembros se seleccionan/mueven/copian
   // como unidad; Alt+clic entra al objeto individual. Solo assets — las
   // estaciones se agrupan con Celdas (concepto de manufactura, no de dibujo).
@@ -4220,18 +5815,53 @@ export default function Layout3DEditor({
   const convertDxfPrimitivesToEditable = () => {
     const preview = dxfImportPreview; const dm = dxfModelRef.current; const meta = dxfMetaRef.current;
     if (!preview || !dm || !meta) { toast.error('Carga un DXF antes de convertir entidades.', 'DXF'); return; }
-    const bounds = dxfPrimitiveBounds(preview.primitives);
+    const hatchBoundaryPrimitives: CadDxfPrimitive[] = preview.hatches.flatMap((hatch) =>
+      hatch.boundaries.map((points) => ({ kind: 'polyline' as const, layer: hatch.layer, points })),
+    );
+    const mtextAnchorPrimitives: CadDxfPrimitive[] = preview.mtexts.map((mtext) => ({ kind: 'text', layer: mtext.layer, points: [mtext.insertion], text: mtext.text }));
+    const dimensionPointPrimitives: CadDxfPrimitive[] = preview.semanticDimensions.map((dimension) => ({ kind: 'polyline', layer: dimension.layer, points: [dimension.a, dimension.b, ...(dimension.c ? [dimension.c] : [])] }));
+    const mleaderPointPrimitives: CadDxfPrimitive[] = preview.mleaders.flatMap((mleader) => [
+      ...(mleader.leaderLines ?? [mleader.vertices]).map((points) => ({ kind: 'polyline' as const, layer: mleader.layer, points })),
+      { kind: 'text' as const, layer: mleader.layer, points: [mleader.textPosition], text: mleader.text },
+    ]);
+    const bounds = dxfPrimitiveBounds([...preview.primitives, ...hatchBoundaryPrimitives, ...mtextAnchorPrimitives, ...dimensionPointPrimitives, ...mleaderPointPrimitives]);
     if (!bounds) { toast.error('El DXF no tiene entidades soportadas para convertir.', 'DXF'); return; }
     recordLocalSnapshot('Auto · antes de convertir DXF', 'import');
     pushHistory();
     const created: SelItem[] = [];
-    const nativeCreated: CadNativeEntity[] = [];
+    const nativeHatches = cadDxfHatchesToNativeEntities(preview.hatches, {
+      idPrefix: newId('cad'),
+      projection: { point: (point) => projectDxfPoint(point, bounds, dm, meta) },
+      provider: 'dxf',
+    }).slice(0, 850);
+    const nativeMTexts = cadDxfMTextsToNativeEntities(preview.mtexts, {
+      idPrefix: newId('cad'),
+      projection: { point: (point) => projectDxfPoint(point, bounds, dm, meta) },
+      provider: 'dxf',
+    }).slice(0, Math.max(0, 850 - nativeHatches.length));
+    const nativeDimensions = cadDxfSemanticDimensionsToNativeEntities(preview.semanticDimensions, {
+      idPrefix: newId('cad'),
+      projection: { point: (point) => projectDxfPoint(point, bounds, dm, meta) },
+      provider: 'dxf',
+    }).slice(0, Math.max(0, 850 - nativeHatches.length - nativeMTexts.length));
+    const nativeMleaders = cadDxfMleadersToNativeEntities(preview.mleaders, {
+      idPrefix: newId('cad'),
+      projection: { point: (point) => projectDxfPoint(point, bounds, dm, meta) },
+      provider: 'dxf',
+    }).slice(0, Math.max(0, 850 - nativeHatches.length - nativeMTexts.length - nativeDimensions.length));
+    const importedBlockParts = cadDxfBlocksToCadDocumentParts(preview.blocks, preview.inserts, {
+      idPrefix: newId('cad'),
+      projection: { point: (point) => projectDxfPoint(point, bounds, dm, meta) },
+      provider: 'dxf',
+    });
+    const nativeCreated: CadNativeEntity[] = [...nativeHatches, ...nativeMTexts, ...nativeDimensions, ...nativeMleaders, ...importedBlockParts.inserts];
     const layerUpdates: Record<string, CadLayerId> = {};
     const tagUpdates: Record<string, string> = {};
     let notes = 0;
-    let truncated = false;
+    let truncated = preview.hatches.length + preview.mtexts.length + preview.semanticDimensions.length + preview.mleaders.length > nativeCreated.length;
     const cap = 850;
-    for (const primitive of preview.primitives) {
+    for (const [primitiveIndex, primitive] of preview.primitives.entries()) {
+      if (preview.inserts.length && preview.primitiveSources[primitiveIndex] === 'insert') continue;
       if (created.length + nativeCreated.length >= cap) { truncated = true; break; }
       const points = primitive.points.map((point) => projectDxfPoint(point, bounds, dm, meta));
       if (primitive.kind === 'text' && points[0] && primitive.text) {
@@ -4286,7 +5916,19 @@ export default function Layout3DEditor({
     setLayerAssignments((cur) => ({ ...cur, ...layerUpdates }));
     setObjectTags((cur) => ({ ...cur, ...tagUpdates }));
     if (notes) { setDimCount([...annotationsRef.current.values()].filter((ann) => ann.type === 'dim').length); rebuildDims(); }
-    if (nativeCreated.length) {
+    const importLossManifest = preview.warnings.map((warning) => ({
+      code: `dxf_import:${warning.code}`,
+      sourceType: warning.entityType ?? 'DXF',
+      detail: warning.layer ? `${warning.message} · layer ${warning.layer}` : warning.message,
+      severity: 'warning' as const,
+    }));
+    if (truncated) importLossManifest.push({
+      code: 'dxf_import:conversion_truncated',
+      sourceType: 'DXF',
+      detail: `La conversión editable se limitó a ${cap} entidades por seguridad.`,
+      severity: 'warning',
+    });
+    if (nativeCreated.length || importLossManifest.length) {
       const current = snapshotDocument();
       const nativeIds = new Set(nativeCreated.map((entity) => entity.id));
       const entities = [...current.entities.filter((entity) => !nativeIds.has(entity.id)), ...nativeCreated]
@@ -4294,8 +5936,10 @@ export default function Layout3DEditor({
       const document = commitChange({
         ...current,
         entities,
+        blocks: [...current.blocks, ...importedBlockParts.blocks].sort((a, b) => a.id.localeCompare(b.id)),
         modelSpace: { entityIds: entities.map((entity) => entity.id) },
-      }, 'import:dxf-native-curves');
+        lossManifest: [...current.lossManifest, ...importLossManifest],
+      }, 'import:dxf-native-entities');
       loadedCadDocumentRef.current = document;
       nativeSelectionIdsRef.current = nativeCreated.map((entity) => entity.id).slice(0, 80);
       setNativeSelectionIds(nativeSelectionIdsRef.current);
@@ -4307,9 +5951,10 @@ export default function Layout3DEditor({
       );
       setNativeDocumentRevision((value) => value + 1);
       syncNativeScene(document);
-    } else if (created.length) select(created.slice(0, 80));
+    }
+    if (!nativeCreated.length && created.length) select(created.slice(0, 80));
     setDirty(true); rebuildAll();
-    toast.success(`${created.length} objeto(s), ${nativeCreated.length} curva(s) nativa(s) y ${notes} nota(s) convertidos${truncated ? ' (recortado por seguridad)' : ''}.`, 'DXF editable');
+    toast.success(`${created.length} objeto(s), ${nativeCreated.length} entidad(es) nativa(s), ${importedBlockParts.blocks.length} bloque(s) y ${notes} nota(s) convertidos${truncated ? ' (recortado por seguridad)' : ''}.`, 'DXF editable');
   };
   // ---- auto-dimension the layout into a measured drawing (Fase 59) ----
   // Acota lo seleccionado (o todo el layout): medidas generales + cotas
@@ -4550,7 +6195,7 @@ export default function Layout3DEditor({
     }));
   };
   const saveVersion = async () => {
-    if (!model) return;
+    if (!model || cadReviewReadOnly) return;
     setVersBusy(true);
     try {
       const r = await apiFetch(`${API_BASE}/line-engineering/layout/snapshots`, {
@@ -4562,7 +6207,7 @@ export default function Layout3DEditor({
     } catch { toast.error('Error de red.', '3D'); } finally { setVersBusy(false); }
   };
   const restoreVersion = async (id: string) => {
-    if (!model) return;
+    if (!model || cadReviewReadOnly) return;
     setVersBusy(true);
     try {
       const r = await apiFetch(`${API_BASE}/line-engineering/layout/snapshots/${id}/restore?${scopeQs}`, { method: 'POST' });
@@ -4572,7 +6217,7 @@ export default function Layout3DEditor({
     } catch { toast.error('Error de red.', '3D'); } finally { setVersBusy(false); }
   };
   const deleteVersion = async (id: string) => {
-    if (!model) return;
+    if (!model || cadReviewReadOnly) return;
     try {
       const r = await apiFetch(`${API_BASE}/line-engineering/layout/snapshots/${id}?${scopeQs}`, { method: 'DELETE' });
       if (r.ok) setVersions((await r.json()) as typeof versions);
@@ -4580,7 +6225,7 @@ export default function Layout3DEditor({
   };
   // ---- clone from another model's layout as a template (ported from 2D, unify) ----
   const cloneFrom = async () => {
-    if (!cloneSrc || !model) return;
+    if (!cloneSrc || !model || cadReviewReadOnly) return;
     const [fromModel, fromRevision] = cloneSrc.split('|');
     setCloneBusy(true);
     try {
@@ -4595,7 +6240,7 @@ export default function Layout3DEditor({
   };
   // ---- approval / sign-off (ported from 2D, unify) ----
   const setApprovalStatus = async (status: ApprovalStatus) => {
-    if (!model) return;
+    if (!model || cadReviewReadOnly) return;
     setApprovalBusy(true);
     try {
       const r = await apiFetch(`${API_BASE}/line-engineering/layout/approval`, {
@@ -4929,8 +6574,8 @@ export default function Layout3DEditor({
         inputs.push(parsedPart.input);
       }
       const preview = previewCadCommand(inputs[0], buildCommandContext());
-      setCommandPreview({ input: inputs[0], preview, chain: inputs });
-      setCommandLog((items) => [createCadHistoryItem(inputs[0], 'previewed', `${preview.summary} (+${inputs.length - 1} paso(s) más)`, preview), ...items].slice(0, 12));
+      setCommandPreview({ input: inputs[0], preview, chain: inputs, rawInput: raw });
+      setCommandLog((items) => prependCadCommandHistory(items, createCadHistoryItem(inputs[0], 'previewed', `${preview.summary} (+${inputs.length - 1} paso(s) más)`, preview, undefined, { rawInput: raw, affectedObjectIds: preview.affectedObjectIds })));
       return true;
     }
     const parsed = parseCadCommand(raw);
@@ -4940,12 +6585,30 @@ export default function Layout3DEditor({
       return false;
     }
     const preview = previewCadCommand(parsed.input, buildCommandContext());
-    setCommandPreview({ input: parsed.input, preview });
-    setCommandLog((items) => [createCadHistoryItem(parsed.input!, 'previewed', preview.summary, preview), ...items].slice(0, 12));
+    setCommandPreview({ input: parsed.input, preview, rawInput: raw });
+    setCommandLog((items) => prependCadCommandHistory(items, createCadHistoryItem(parsed.input!, 'previewed', preview.summary, preview, undefined, { rawInput: raw, affectedObjectIds: preview.affectedObjectIds })));
     return true;
   };
+  const repeatLastCommand = () => {
+    const raw = repeatableCadCommand(commandLog);
+    if (!raw) {
+      toast.error('No hay un comando aplicado para repetir.', 'Comando CAD');
+      return false;
+    }
+    setCommandText(raw);
+    setCommandHistoryCursor(-1);
+    return previewCommandText(raw);
+  };
   const interpretCommand = () => {
-    previewCommandText(commandText);
+    setCommandHistoryCursor(-1);
+    if (!commandText.trim()) repeatLastCommand();
+    else previewCommandText(commandText);
+  };
+  const navigateCommandLineHistory = (direction: 'older' | 'newer') => {
+    const next = navigateCadCommandHistory(commandLog, commandHistoryCursor, direction);
+    setCommandHistoryCursor(next.cursor);
+    setCommandText(next.value);
+    setCommandPreview(null);
   };
   const applyCommandSuggestion = (suggestion: CadCommandSuggestion) => {
     setCommandText(suggestion.example);
@@ -5120,12 +6783,19 @@ export default function Layout3DEditor({
       setDirty(transactionWasDirty);
     };
     for (const input of inputs) {
+      const commandStartedAt = Date.now();
       const result = executeCadCommand(input, buildCommandContext());
+      const audit = () => ({
+        rawInput: commandPreview.rawInput,
+        durationMs: Date.now() - commandStartedAt,
+        affectedObjectIds: result.affectedObjectIds,
+        completedAt: new Date().toISOString(),
+      });
       if (!result.applied) {
         if (snapshotTaken) rollbackCommandTransaction();
         anyChanged = false;
         toast.error(result.issues.find((i) => i.level === 'error')?.message || 'El comando no es válido.', 'Comando CAD');
-        setCommandLog((items) => [createCadHistoryItem(input, 'failed', result.historyLabel, commandPreview.preview, result), ...items].slice(0, 12));
+        setCommandLog((items) => prependCadCommandHistory(items, createCadHistoryItem(input, 'failed', result.historyLabel, commandPreview.preview, result, audit())));
         break;
       }
       const mutatingOperations = result.operations.filter(isMutatingCommandOperation);
@@ -5133,7 +6803,7 @@ export default function Layout3DEditor({
       if (blockedOperation) {
         if (snapshotTaken) rollbackCommandTransaction();
         anyChanged = false;
-        setCommandLog((items) => [createCadHistoryItem(input, 'failed', `Transacción cancelada: ${result.historyLabel}`, commandPreview.preview, result), ...items].slice(0, 12));
+        setCommandLog((items) => prependCadCommandHistory(items, createCadHistoryItem(input, 'failed', `Transacción cancelada: ${result.historyLabel}`, commandPreview.preview, result, audit())));
         toast.error('No se aplicó ningún cambio: una operación no pudo validarse.', 'Comando CAD');
         break;
       }
@@ -5149,7 +6819,7 @@ export default function Layout3DEditor({
       });
       if (partialFailure) {
         rollbackCommandTransaction();
-        setCommandLog((items) => [createCadHistoryItem(input, 'failed', `Rollback: ${result.historyLabel}`, commandPreview.preview, result), ...items].slice(0, 12));
+        setCommandLog((items) => prependCadCommandHistory(items, createCadHistoryItem(input, 'failed', `Rollback: ${result.historyLabel}`, commandPreview.preview, result, audit())));
         toast.error('La operación falló y la transacción completa fue revertida.', 'Comando CAD');
         anyChanged = false;
         break;
@@ -5158,7 +6828,7 @@ export default function Layout3DEditor({
         const solved = solveCadConstraints(snapshotDocument(), result.affectedObjectIds);
         if (!solved.converged) {
           rollbackCommandTransaction();
-          setCommandLog((items) => [createCadHistoryItem(input, 'failed', `Restricción incompatible: ${result.historyLabel}`, commandPreview.preview, result), ...items].slice(0, 12));
+          setCommandLog((items) => prependCadCommandHistory(items, createCadHistoryItem(input, 'failed', `Restricción incompatible: ${result.historyLabel}`, commandPreview.preview, result, audit())));
           toast.error(solved.issues[0]?.message || 'Las restricciones no pudieron resolverse; se revirtió la transacción.', 'Restricciones');
           anyChanged = false;
           break;
@@ -5167,7 +6837,7 @@ export default function Layout3DEditor({
         restore(cadDocumentToEditorSnapshot(solved.document));
       }
       anyChanged = anyChanged || changed;
-      setCommandLog((items) => [createCadHistoryItem(input, 'applied', result.historyLabel, commandPreview.preview, result), ...items].slice(0, 12));
+      setCommandLog((items) => prependCadCommandHistory(items, createCadHistoryItem(input, 'applied', result.historyLabel, commandPreview.preview, result, audit())));
       if (changed) { refreshSnap(); }
       toast.success(result.historyLabel, 'Comando CAD');
     }
@@ -5317,28 +6987,85 @@ export default function Layout3DEditor({
     setAiProposal(null);
   };
   const toggleCadLayerVisibility = (id: CadLayerId) => {
-    setCadLayers((cur) => toggleCadLayerVisible(cur, id));
+    const layer = cadLayers.find((candidate) => candidate.id === id);
+    if (!layer) return;
+    commitBlockMutation(
+      (document) => updateCadDocumentLayer(document, id, { visible: !layer.visible }),
+      nativeSelectionIdsRef.current,
+      `Capa ${layer.label} ${layer.visible ? 'oculta' : 'visible'}.`,
+      'Capas',
+    );
   };
-  const updateCadLayerLabel = (id: CadLayerId, label: string) => setCadLayers((cur) => cur.map((layer) => layer.id === id ? { ...layer, label } : layer));
-  const updateCadLayerColor = (id: CadLayerId, color: string) => setCadLayers((cur) => cur.map((layer) => layer.id === id ? { ...layer, color } : layer));
+  const updateCadLayerLabel = (id: CadLayerId, label: string) => {
+    if (cadLayers.find((layer) => layer.id === id)?.label === label.trim()) return;
+    commitBlockMutation((document) => updateCadDocumentLayer(document, id, { name: label }), nativeSelectionIdsRef.current, `Capa ${id} renombrada.`, 'Capas');
+  };
+  const updateCadLayerColor = (id: CadLayerId, color: string) => {
+    if (cadLayers.find((layer) => layer.id === id)?.color === color) return;
+    commitBlockMutation((document) => updateCadDocumentLayer(document, id, { color }), nativeSelectionIdsRef.current, `Color de ${id} actualizado.`, 'Capas');
+  };
+  const toggleCadLayerLock = (id: CadLayerId) => {
+    const layer = cadLayers.find((candidate) => candidate.id === id);
+    if (!layer) return;
+    commitBlockMutation((document) => updateCadDocumentLayer(document, id, { locked: !layer.locked }), nativeSelectionIdsRef.current, `Capa ${layer.label} ${layer.locked ? 'desbloqueada' : 'bloqueada'}.`, 'Capas');
+  };
+  const createCanonicalCadLayer = () => {
+    try {
+      const id = cadLayerIdFromName(newCadLayerName);
+      const created = commitBlockMutation(
+        (document) => createCadDocumentLayer(document, { name: newCadLayerName, color: newCadLayerColor }),
+        nativeSelectionIdsRef.current,
+        `Capa ${newCadLayerName.trim()} creada.`,
+        'Capas',
+      );
+      if (created) {
+        setActiveCadLayer(id);
+        setNewCadLayerName('');
+      }
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : 'No se pudo crear la capa.', 'Capas');
+    }
+  };
+  const deleteCanonicalCadLayer = (id: CadLayerId) => {
+    const target = cadLayers.find((layer) => layer.id === '0' && layer.id !== id)?.id
+      ?? cadLayers.find((layer) => layer.id !== id)?.id;
+    if (!target) { toast.error('Debe existir otra capa para reasignar el contenido.', 'Capas'); return; }
+    commitBlockMutation(
+      (document) => deleteCadDocumentLayer(document, id, target),
+      nativeSelectionIdsRef.current,
+      `Capa ${id} eliminada; contenido reasignado a ${target}.`,
+      'Capas',
+    );
+  };
   const resetCadLayerPresentation = () => {
     setLayers((cur) => ({ ...cur, stations: true, equipment: true, connectors: true, dims: true }));
-    setCadLayers(DEFAULT_CAD_LAYERS.map((layer) => ({ ...layer })));
-    toast.success('Capas CAD restauradas a la presentación estándar.', 'Capas');
+    const document = loadedCadDocumentRef.current;
+    if (document?.layers.length) {
+      commitBlockMutation(
+        (current) => commitChange({ ...current, layers: current.layers.map((layer) => ({ ...layer, visible: true, locked: false })) }, 'layer:reset-presentation'),
+        nativeSelectionIdsRef.current,
+        'Capas visibles y desbloqueadas.',
+        'Capas',
+      );
+    } else setCadLayers(DEFAULT_CAD_LAYERS.map((layer) => ({ ...layer })));
   };
   const assignSelectionToCadLayer = (id: CadLayerId) => {
     const ids = selRef.current.map((it) => it.id);
-    if (!ids.length) { toast.error('Selecciona objetos para asignarlos a una capa.', 'Capas'); return; }
-    setLayerAssignments((cur) => assignObjectsToLayer(cur, ids, id));
-    toast.success(`${ids.length} objeto(s) asignados a ${cadLayers.find((l) => l.id === id)?.label ?? id}.`, 'Capas');
+    const nativeIds = [...nativeSelectionIdsRef.current];
+    if (!ids.length && !nativeIds.length) { toast.error('Selecciona objetos para asignarlos a una capa.', 'Capas'); return; }
+    if (ids.length) setLayerAssignments((cur) => assignObjectsToLayer(cur, ids, id));
+    if (nativeIds.length) commitNativeCommands(nativeIds.map((entityId) => ({ type: 'properties' as const, entityId, patch: { layer: id } })));
+    toast.success(`${ids.length + nativeIds.length} objeto(s) asignados a ${cadLayers.find((l) => l.id === id)?.label ?? id}.`, 'Capas');
   };
   const selectCadLayerObjects = (id: CadLayerId) => {
     const items: SelItem[] = [];
     placementsRef.current.forEach((_, objectId) => { if ((layerAssignmentsRef.current[objectId] ?? 'layout') === id) items.push({ type: 'station', id: objectId }); });
     assetsRef.current.forEach((_, objectId) => { if ((layerAssignmentsRef.current[objectId] ?? defaultLayerForAsset(objectId)) === id) items.push({ type: 'asset', id: objectId }); });
-    if (!items.length) { toast.error('No hay objetos visibles en esa capa.', 'Capas'); return; }
-    select(items.slice(0, 200));
-    toast.success(`${items.length} objeto(s) seleccionados en la capa.`, 'Capas');
+    const nativeIds = nativeEntities.filter((entity) => entity.layer === id).map((entity) => entity.id);
+    if (!items.length && !nativeIds.length) { toast.error('No hay objetos visibles en esa capa.', 'Capas'); return; }
+    if (nativeIds.length) selectNative(nativeIds.slice(0, 200));
+    else select(items.slice(0, 200));
+    toast.success(`${items.length + nativeIds.length} objeto(s) seleccionados en la capa.`, 'Capas');
   };
   const isolateCadLayer = (id: CadLayerId) => {
     setLayers((cur) => ({
@@ -5348,8 +7075,12 @@ export default function Layout3DEditor({
       connectors: id === 'flow',
       dims: id === 'measurements',
     }));
-    setCadLayers((cur) => isolateCadLayerVisibility(cur, id));
-    toast.success(`Capa ${cadLayers.find((layer) => layer.id === id)?.label ?? id} aislada.`, 'Capas');
+    commitBlockMutation(
+      (document) => commitChange({ ...document, layers: document.layers.map((layer) => ({ ...layer, visible: layer.id === id })) }, `layer:isolate:${id}`),
+      nativeSelectionIdsRef.current,
+      `Capa ${cadLayers.find((layer) => layer.id === id)?.label ?? id} aislada.`,
+      'Capas',
+    );
   };
   const showAllCadLayerVisibility = () => {
     setLayers((cur) => ({
@@ -5359,12 +7090,20 @@ export default function Layout3DEditor({
       connectors: true,
       dims: true,
     }));
-    setCadLayers((cur) => showAllCadLayers(cur));
-    toast.success('Todas las capas CAD visibles.', 'Capas');
+    commitBlockMutation(
+      (document) => commitChange({ ...document, layers: document.layers.map((layer) => ({ ...layer, visible: true })) }, 'layer:show-all'),
+      nativeSelectionIdsRef.current,
+      'Todas las capas CAD visibles.',
+      'Capas',
+    );
   };
   const unlockAllCadLayerVisibility = () => {
-    setCadLayers((cur) => unlockAllCadLayers(cur));
-    toast.success('Todas las capas CAD desbloqueadas.', 'Capas');
+    commitBlockMutation(
+      (document) => commitChange({ ...document, layers: document.layers.map((layer) => ({ ...layer, locked: false })) }, 'layer:unlock-all'),
+      nativeSelectionIdsRef.current,
+      'Todas las capas CAD desbloqueadas.',
+      'Capas',
+    );
   };
   const defaultLayerFor = (item: SelItem): CadLayerId => {
     if (item.type === 'station') return 'layout';
@@ -5376,7 +7115,7 @@ export default function Layout3DEditor({
   const runToolbarAction = (id: CadToolbarActionId) => {
     if (id === 'select' || id === 'pan') setToolMode('select');
     else if (id === 'measure') setToolMode('measure');
-    else if (id === 'line' || id === 'polyline' || id === 'rect') startCadDrawTool(id);
+    else if (id === 'line' || id === 'polyline' || id === 'rect' || id === 'circle' || id === 'offset') startCadDrawTool(id);
     else if (id === 'aisle') { setShowCommand(true); setCommandText('haz un pasillo de 1.2m entre '); }
     else if (id === 'connector') connectLineLayout();
     else if (id === 'zone') { setTab('equipment'); addAsset('zone'); }
@@ -5398,8 +7137,8 @@ export default function Layout3DEditor({
       setShowCommand(true); setCommandText(example);
       if (parsed.ok && parsed.input) {
         const preview = previewCadCommand(parsed.input, buildCommandContext());
-        setCommandPreview({ input: parsed.input, preview });
-        setCommandLog((items) => [createCadHistoryItem(parsed.input!, 'previewed', preview.summary, preview), ...items].slice(0, 12));
+        setCommandPreview({ input: parsed.input, preview, rawInput: example });
+        setCommandLog((items) => prependCadCommandHistory(items, createCadHistoryItem(parsed.input!, 'previewed', preview.summary, preview, undefined, { rawInput: example, affectedObjectIds: preview.affectedObjectIds })));
         toast.success('Preview listo en el Copiloto CAD.', 'Cmd-K CAD');
       } else {
         setCommandPreview(null);
@@ -5412,15 +7151,7 @@ export default function Layout3DEditor({
     toast.success(`${entry.label} insertado desde Cmd-K.`, 'Cmd-K CAD');
   };
   const selectAll = () => {
-    const items: SelItem[] = [
-      ...[...placementsRef.current.keys()].map((id) => ({ type: 'station' as const, id })),
-      ...[...assetsRef.current.keys()].map((id) => ({ type: 'asset' as const, id })),
-    ];
-    select(items);
-    const nativeIds = (loadedCadDocumentRef.current?.entities ?? [])
-      .filter((entity) => CAD_ENTITY_REGISTRY.supports(entity))
-      .map((entity) => entity.id);
-    nativeSelectionIdsRef.current = nativeIds; setNativeSelectionIds(nativeIds);
+    applyProfessionalSelection({ type: 'all', universe: buildSelectionUniverse() });
     rebuildAll();
   };
   const viewPreset = (preset: 'top' | 'iso' | 'front') => {
@@ -5449,7 +7180,7 @@ export default function Layout3DEditor({
     const selectedNative = new Set(nativeSelectionIdsRef.current);
     for (const entity of loadedCadDocumentRef.current?.entities ?? []) {
       if (!CAD_ENTITY_REGISTRY.supports(entity) || (scope === 'selection' && !selectedNative.has(entity.id))) continue;
-      const bounds = CAD_ENTITY_REGISTRY.adapter(entity).bounds.bounds(entity);
+      const bounds = CAD_ENTITY_REGISTRY.adapter(entity).bounds.bounds(entity, loadedCadDocumentRef.current ?? undefined);
       add(bounds.minX, bounds.minY, bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
     }
     if (!Number.isFinite(minX)) return null;
@@ -5525,6 +7256,11 @@ export default function Layout3DEditor({
   const toggleViewMenu = () => {
     const next = !showView;
     if (next) {
+      const bounds = viewMenuRef.current?.getBoundingClientRect();
+      if (bounds) setViewMenuPosition({
+        left: Math.max(8, Math.min(bounds.left, window.innerWidth - 304)),
+        top: bounds.bottom + 6,
+      });
       setViewportBookmarks(readViewportBookmarks());
       if (data) setFpDraft({ w: data.footprint.footprintW, h: data.footprint.footprintH, g: data.footprint.gridSize });
     }
@@ -5924,13 +7660,40 @@ export default function Layout3DEditor({
       }).filter((conn): conn is { from: { x: number; y: number }; to: { x: number; y: number }; layer: string } => !!conn);
       const labels = options.includeLabels && (options.includeHidden || layersRef.current.notes) ? [...annotationsRef.current.values()].filter((ann) => ann.type === 'text').map((ann) => ({ text: ann.text || 'Nota', x: ann.x, y: ann.y, layer: 'Text' })) : [];
       const measurements = options.includeMeasurements && includeLayer('measurements') ? [...annotationsRef.current.values()].filter((ann) => ann.type === 'dim' && ann.x2 != null && ann.y2 != null).map((ann) => ({ from: { x: ann.x, y: ann.y }, to: { x: ann.x2!, y: ann.y2! }, label: ann.text, layer: layerLabel('measurements') })) : [];
-      const primitives = cadDocumentNativeDxfPrimitives(snapshotDocument(), (entity) => {
+      const dxfDocument = snapshotDocument();
+      const primitives = cadDocumentNativeDxfPrimitives(dxfDocument, (entity) => {
         if (!CAD_ENTITY_REGISTRY.supports(entity)) return false;
         if (options.scope === 'selection' && !selectedNativeIds.has(entity.id)) return false;
         const layer = loadedCadDocumentRef.current?.layers.find((candidate) => candidate.id === entity.layer);
         return options.includeHidden || layer?.visible !== false;
       });
-      const exported = exportCadLayoutDxf({ boxes, connectors, labels, measurements, primitives }, { units: options.units, fileComment: `${PRODUCT_LABEL.design} ${model} ${revision}` });
+      const hatches = cadDocumentNativeDxfHatches(dxfDocument, (entity) => {
+        if (options.scope === 'selection' && !selectedNativeIds.has(entity.id)) return false;
+        const layer = loadedCadDocumentRef.current?.layers.find((candidate) => candidate.id === entity.layer);
+        return options.includeHidden || layer?.visible !== false;
+      });
+      const mtexts = options.includeLabels ? cadDocumentNativeDxfMTexts(dxfDocument, (entity) => {
+        if (options.scope === 'selection' && !selectedNativeIds.has(entity.id)) return false;
+        const layer = loadedCadDocumentRef.current?.layers.find((candidate) => candidate.id === entity.layer);
+        return options.includeHidden || layer?.visible !== false;
+      }) : [];
+      const semanticDimensions = options.includeMeasurements ? cadDocumentNativeDxfSemanticDimensions(dxfDocument, (entity) => {
+        if (options.scope === 'selection' && !selectedNativeIds.has(entity.id)) return false;
+        const layer = loadedCadDocumentRef.current?.layers.find((candidate) => candidate.id === entity.layer);
+        return options.includeHidden || layer?.visible !== false;
+      }) : [];
+      const mleaders = options.includeLabels ? cadDocumentNativeDxfMleaders(dxfDocument, (entity) => {
+        if (options.scope === 'selection' && !selectedNativeIds.has(entity.id)) return false;
+        const layer = loadedCadDocumentRef.current?.layers.find((candidate) => candidate.id === entity.layer);
+        return options.includeHidden || layer?.visible !== false;
+      }) : [];
+      const blocks = cadDocumentDxfBlocks(dxfDocument);
+      const inserts = cadDocumentDxfInserts(dxfDocument, (entity) => {
+        if (options.scope === 'selection' && !selectedNativeIds.has(entity.id)) return false;
+        const layer = dxfDocument.layers.find((candidate) => candidate.id === entity.layer);
+        return options.includeHidden || layer?.visible !== false;
+      });
+      const exported = exportCadLayoutDxf({ boxes, connectors, labels, measurements, primitives, hatches, mtexts, semanticDimensions, mleaders, blocks, inserts }, { units: options.units, fileComment: `${PRODUCT_LABEL.design} ${model} ${revision}` });
       const blob = new Blob([exported.content], { type: 'application/dxf' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -5944,6 +7707,10 @@ export default function Layout3DEditor({
   };
   const save = async (): Promise<Layout | null> => {
     if (!model || !data) return null;
+    if (cadReviewReadOnly) {
+      toast.error('Este enlace de revisión no puede guardar ni publicar cambios.', 'Review');
+      return null;
+    }
     setSaving(true);
     try {
       const positions = [...placementsRef.current.entries()].map(([id, p]) => ({ id, ...p }));
@@ -5958,23 +7725,38 @@ export default function Layout3DEditor({
       }));
       const annotations = [...annotationsRef.current.values()];
       const cadDocument = commitChange(snapshotDocument(), 'save');
-      const r = await apiFetch(`${API_BASE}/line-engineering/layout`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model, revision, footprint: data.footprint, positions, cleared,
-          connectors: connectorsRef.current, assets,
-          annotations, cells: cellsRef.current,
-          cadDocument,
-          expectedCadDocumentVersion: data.cadDocumentVersion ?? 0,
-          // persist the DXF backdrop placement so saving from the CAD never drops it (unify fix)
-          ...(dxfMetaRef.current ? { dxf: dxfMetaRef.current } : {}),
-        }),
-      });
+      const layoutPayload = {
+        model, revision, footprint: data.footprint, positions, cleared,
+        connectors: connectorsRef.current, assets,
+        annotations, cells: cellsRef.current,
+        expectedCadDocumentVersion: data.cadDocumentVersion ?? 0,
+        // persist the DXF backdrop placement so saving from the CAD never drops it (unify fix)
+        ...(dxfMetaRef.current ? { dxf: dxfMetaRef.current } : {}),
+      };
+      const serializedCadDocument = serializeCadDocumentForTransport(cadDocument);
+      let r: Response;
+      if (serializedCadDocument.useArchive) {
+        const archive = await gzipCadDocumentJson(serializedCadDocument.json);
+        const form = new FormData();
+        form.append('layout', JSON.stringify(layoutPayload));
+        form.append('file', archive, 'cad-document.json.gz');
+        r = await apiFetch(`${API_BASE}/line-engineering/layout/cad-archive`, {
+          method: 'PUT', body: form,
+        });
+      } else {
+        r = await apiFetch(`${API_BASE}/line-engineering/layout`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...layoutPayload, cadDocument }),
+        });
+      }
+      setConnectionState('online');
       if (!r.ok) { const d = await r.json().catch(() => ({})); toast.error(d?.message || 'No se pudo guardar.', '3D'); return null; }
       const saved = await r.json() as Layout;
       if (saved.cadDocument) {
         const document = migrateCadDocument(saved.cadDocument);
         loadedCadDocumentRef.current = document;
+        syncCadLayerState(document);
+        setCadXrefs(document.externalReferences.map((reference) => ({ ...reference })));
         setPublicationRecords([...document.publications]);
         setNativeEntities(
           document.entities.filter(
@@ -5985,12 +7767,23 @@ export default function Layout3DEditor({
         setNativeDocumentRevision((value) => value + 1);
       }
       setData(saved);
-      toast.success('Layout 3D guardado.', '3D');
+      toast.success(serializedCadDocument.useArchive
+        ? `Dibujo grande guardado (${(serializedCadDocument.bytes / 1_000_000).toFixed(1)} MB).`
+        : 'Layout 3D guardado.', '3D');
       loadedPlacedRef.current = new Set(placementsRef.current.keys());
       setDirty(false);
+      setRecoveryCandidate(null);
+      setRecoverySavedAt(null);
+      setRecoveryWarning(null);
+      if (recoveryScope) void clearCadRecovery(recoveryScope).catch(() => undefined);
       onSaved?.();
       return saved;
-    } catch { toast.error('Error de red.', '3D'); return null; } finally { setSaving(false); }
+    } catch (saveError) {
+      const message = saveError instanceof Error ? saveError.message : 'Error de red.';
+      if (message === 'Error de red.') setConnectionState('offline');
+      toast.error(message, '3D');
+      return null;
+    } finally { setSaving(false); }
   };
 
   const publishSheetSetPdf = async () => {
@@ -6033,8 +7826,26 @@ export default function Layout3DEditor({
               pdf.lines(deltas, origin.x, origin.y, [1, 1], style, command.closed);
             } else {
               const [r, g, b] = color(command.color);
-              pdf.setTextColor(r, g, b); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(command.size);
-              pdf.text(command.text, command.point.x, command.point.y, { align: command.align ?? 'left', angle: command.rotation, maxWidth: Math.max(10, viewport.clip.width) });
+              const maxWidth = Math.max(1, Math.min(command.maxWidth ?? viewport.clip.width, viewport.clip.width));
+              const lines = command.text.replace(/\r\n?/g, '\n').split('\n');
+              const lineHeight = command.size * 0.4;
+              const alignOffset = command.align === 'center' ? maxWidth / 2 : command.align === 'right' ? maxWidth : 0;
+              if (command.backgroundMask) {
+                const [mr, mg, mb] = color(command.backgroundColor ?? '#ffffff');
+                pdf.setFillColor(mr, mg, mb);
+                pdf.rect(command.point.x - alignOffset - 0.8, command.point.y - command.size * 0.32, maxWidth + 1.6, Math.max(lineHeight, lines.length * lineHeight) + 1.2, 'F');
+              }
+              pdf.setTextColor(r, g, b); pdf.setFont('helvetica', command.bold && command.italic ? 'bolditalic' : command.bold ? 'bold' : command.italic ? 'italic' : 'normal'); pdf.setFontSize(command.size);
+              pdf.text(command.text, command.point.x, command.point.y, { align: command.align ?? 'left', angle: command.rotation, maxWidth });
+              if (command.underline && Math.abs(command.rotation) < 1e-9) {
+                pdf.setDrawColor(r, g, b); pdf.setLineWidth(Math.max(0.08, command.size * 0.015));
+                lines.forEach((line, index) => {
+                  const width = Math.min(maxWidth, pdf.getTextWidth(line));
+                  const x = command.point.x - (command.align === 'center' ? width / 2 : command.align === 'right' ? width : 0);
+                  const y = command.point.y + index * lineHeight + 0.5;
+                  pdf.line(x, y, x + width, y);
+                });
+              }
             }
           });
           pdf.restoreGraphicsState(); pdf.setLineDashPattern([], 0); pdf.setDrawColor(100, 116, 139); pdf.setLineWidth(0.15);
@@ -6094,13 +7905,18 @@ export default function Layout3DEditor({
     const onKey = (e: KeyboardEvent) => {
       const tgt = e.target as HTMLElement | null;
       if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return;
-      const cadShortcut = matchCadShortcut(e);
+      const cadShortcut = matchCadShortcut(e, workspaceShortcutsRef.current);
       if (cadShortcut?.id === 'palette') { e.preventDefault(); setShowPalette(true); return; }
       // in walkthrough mode WASD/look take over; only Esc (exit) reaches here
       if (walkRef.current) { if (e.key === 'Escape') { e.preventDefault(); toggleWalk(); } return; }
       if (cadShortcut && TOOLBAR_SHORTCUT_IDS.has(cadShortcut.id as CadToolbarActionId)) {
         e.preventDefault();
         runToolbarAction(cadShortcut.id as CadToolbarActionId);
+        return;
+      }
+      if (cadShortcut?.id === 'save') {
+        e.preventDefault();
+        void save();
         return;
       }
       if (cadShortcut?.id === 'grid_toggle') {
@@ -6111,6 +7927,21 @@ export default function Layout3DEditor({
       if (cadShortcut?.id === 'object_snap_toggle') {
         e.preventDefault();
         setOsnap((cur) => !cur);
+        return;
+      }
+      if (cadShortcut?.id === 'ortho_toggle') {
+        e.preventDefault();
+        setOrthoLock((cur) => !cur);
+        return;
+      }
+      if (cadShortcut?.id === 'polar_tracking_toggle') {
+        e.preventDefault();
+        setPolarTracking((cur) => !cur);
+        return;
+      }
+      if (cadShortcut?.id === 'object_tracking_toggle') {
+        e.preventDefault();
+        setObjectSnapTracking((cur) => !cur);
         return;
       }
       if (cadShortcut?.id === 'validate_layout') {
@@ -6128,11 +7959,14 @@ export default function Layout3DEditor({
       const hasNativeSelection = nativeSelectionIdsRef.current.length > 0;
       const hasSel = selRef.current.length > 0 || hasNativeSelection;
       if (e.key === 'Escape') {
-        if (paletteOpenRef.current) { setShowPalette(false); setPaletteQuery(''); }
-        else if (drawCommandRef.current) { const cancelled = cancelDrawCommand(drawCommandRef.current); drawCommandRef.current = null; setDrawPrompt(null); setMeasureLive(null); setPrecisionText(''); if (!cancelled.emitted.length) toast.success('Comando de dibujo cancelado.', 'CAD'); setTool('select'); toolRef.current = 'select'; }
+        e.preventDefault();
+        if (hatchPickModeRef.current) { hatchPickModeRef.current = false; setHatchPickMode(false); }
+        else if (paletteOpenRef.current) { setShowPalette(false); setPaletteQuery(''); }
+        else if (commandPreviewRef.current) { setCommandPreview(null); }
+        else if (commandTextRef.current.trim()) { setCommandText(''); setCommandHistoryCursor(-1); }
+        else if (drawCommandRef.current) { const cancelled = cancelDrawCommand(drawCommandRef.current); drawCommandRef.current = null; setDrawPrompt(null); setMeasureLive(null); setCanCloseDraftPolyline(false); setPrecisionText(''); if (!cancelled.emitted.length) toast.success('Comando de dibujo cancelado.', 'CAD'); setTool('select'); toolRef.current = 'select'; }
         else if (toolRef.current !== 'select') { endDraw(); setTool('select'); toolRef.current = 'select'; }
         else if (hasSel) { select([]); clearNativeSelection(); rebuildAll(); }
-        else onClose();
       }
       else if (e.key === '?' || (e.key === '/' && e.shiftKey)) { e.preventDefault(); setShowHelp((v) => !v); }
       else if ((e.key === 'a' || e.key === 'A') && (e.ctrlKey || e.metaKey)) { e.preventDefault(); selectAll(); }
@@ -6168,17 +8002,107 @@ export default function Layout3DEditor({
   const nativeSelectedEntities = nativeSelectionIds
     .map((id) => nativeById.get(id))
     .filter((entity): entity is CadNativeEntity => !!entity);
+  const selectedNativeLineIds = nativeSelectedEntities.length === 2 && nativeSelectedEntities.every((entity) => entity.type === 'line')
+    ? nativeSelectedEntities.map((entity) => entity.id) as [string, string]
+    : null;
   const primaryNativeEntity = nativeSelectedEntities.length === 1 ? nativeSelectedEntities[0] : null;
   const primaryNativeAdapter = primaryNativeEntity ? CAD_ENTITY_REGISTRY.adapter(primaryNativeEntity) : null;
   const primaryNativeProperties = primaryNativeEntity && primaryNativeAdapter
     ? primaryNativeAdapter.properties.read(primaryNativeEntity)
     : null;
   const primaryNativeBounds = primaryNativeEntity && primaryNativeAdapter
-    ? primaryNativeAdapter.bounds.bounds(primaryNativeEntity)
+    ? primaryNativeAdapter.bounds.bounds(primaryNativeEntity, loadedCadDocumentRef.current ?? undefined)
     : null;
   const primaryNativeGrips = primaryNativeEntity && primaryNativeAdapter
     ? primaryNativeAdapter.grips.grips(primaryNativeEntity)
     : [];
+  const professionalBlockDefinitions = [...(loadedCadDocumentRef.current?.blocks ?? [])].filter((block) => !block.id.startsWith('xref:'));
+  for (const row of cadBlocks) {
+    if (row.definition && !professionalBlockDefinitions.some((block) => block.id === row.definition!.id))
+      professionalBlockDefinitions.push({ ...row.definition, version: row.version ?? row.definition.version ?? 1, library: { ...row.definition.library, scope: 'tenant', sourceId: row.id } });
+  }
+  const editingMTextEntity = editingMTextId
+    ? nativeById.get(editingMTextId)
+    : null;
+  const editingMText = editingMTextEntity?.type === 'mtext' ? editingMTextEntity : null;
+  const mtextContext = ctxRef.current;
+  const mtextControl = controlsRef.current;
+  const mtextDefaultInsertion = mtextContext ? {
+    x: Math.max(0, Math.min(mtextContext.W, snapWorld(mtextControl ? mtextControl.target.x / mtextContext.s + mtextContext.W / 2 : mtextContext.W / 2))),
+    y: Math.max(0, Math.min(mtextContext.H, snapWorld(mtextControl ? mtextControl.target.z / mtextContext.s + mtextContext.H / 2 : mtextContext.H / 2))),
+  } : { x: 0, y: 0 };
+  const professionalSelectionUniverse = showSelectionPalette ? buildSelectionUniverse() : [];
+  const professionalSelectionTypes = [...new Set(professionalSelectionUniverse.map((item) => item.type))].sort();
+  const professionalSelectionLayers = [...new Set(professionalSelectionUniverse.map((item) => item.layer).filter((layer): layer is string => !!layer))].sort();
+  const activeProfessionalDock = showSelectionPalette ? 'selection'
+    : showHatchPalette ? 'hatch'
+      : showDimensionPalette ? 'dimension'
+        : showMleaderPalette ? 'mleader'
+          : showBlockPalette ? 'blocks'
+            : showCollaborationDock ? 'collaboration'
+              : showWorkspaceDock ? 'workspace'
+                : null;
+  const closeProfessionalDocks = () => {
+    setShowSelectionPalette(false);
+    setShowHatchPalette(false);
+    setShowDimensionPalette(false);
+    setShowMleaderPalette(false);
+    setShowBlockPalette(false);
+    setShowCollaborationDock(false);
+    setShowWorkspaceDock(false);
+  };
+  const toggleProfessionalDock = (dock: NonNullable<typeof activeProfessionalDock>) => {
+    const wasOpen = activeProfessionalDock === dock;
+    closeProfessionalDocks();
+    if (wasOpen) return;
+    setFocusMode(false);
+    if (!workspacePreferencesRef.current.rightDock) {
+      updateWorkspacePreferences({ ...workspacePreferencesRef.current, rightDock: true });
+    }
+    if (dock === 'selection') { setToolMode('select'); setShowSelectionPalette(true); }
+    else if (dock === 'hatch') setShowHatchPalette(true);
+    else if (dock === 'dimension') setShowDimensionPalette(true);
+    else if (dock === 'mleader') setShowMleaderPalette(true);
+    else if (dock === 'blocks') setShowBlockPalette(true);
+    else if (dock === 'collaboration') setShowCollaborationDock(true);
+    else setShowWorkspaceDock(true);
+  };
+  const handleCadContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const action = workspacePreferencesRef.current.rightClickAction;
+    if (action === 'repeat') { repeatLastCommand(); return; }
+    if (action === 'enter') {
+      if (drawCommandRef.current) commitActiveDraftCommand();
+      else repeatLastCommand();
+      return;
+    }
+    const rect = event.currentTarget.getBoundingClientRect();
+    setCadContextMenu({
+      x: Math.max(8, Math.min(rect.width - 180, event.clientX - rect.left)),
+      y: Math.max(8, Math.min(rect.height - 176, event.clientY - rect.top)),
+    });
+  };
+  const activeDynamicCommand = drawCommandRef.current;
+  const dynamicInputKind: 'point' | 'radius' | 'offset' = activeDynamicCommand?.id === 'offset'
+    ? 'offset'
+    : activeDynamicCommand?.id === 'circle' && activeDynamicCommand.awaitingRadius
+      ? 'radius'
+      : 'point';
+  const dynamicAnchor = activeDynamicCommand?.points.at(-1)
+    ?? (wallChainRef.current ? { x: wallChainRef.current.wx, y: wallChainRef.current.wy } : null);
+  const dynamicGridDefault = data?.footprint.gridSize || 1;
+  const dynamicInputDefaults = {
+    ...defaultCadDynamicValues(
+      dynamicAnchor,
+      dynamicAnchor
+        ? { x: dynamicAnchor.x + dynamicGridDefault, y: dynamicAnchor.y }
+        : { x: 0, y: 0 },
+    ),
+    angle: lastWallAngleRef.current ?? polarIncrement,
+    radius: dynamicGridDefault,
+    diameter: dynamicGridDefault * 2,
+    offset: dynamicGridDefault,
+  };
   const paletteResults = searchCadPalette(paletteQuery).slice(0, 9);
   const commandAssistLabels = selList.map((item) => {
     if (item.type === 'station') return data?.stations.find((station) => station.id === item.id)?.station ?? item.id;
@@ -6198,13 +8122,23 @@ export default function Layout3DEditor({
     : 'Workbench CAD conectado al gemelo industrial y al balanceo de línea.');
   const placedCount = placedIds.size;
   const assetCount = assetIds.size;
+  const mleaderSelectedCount = new Set([...nativeSelectionIds, ...selList.map((item) => item.id)]).size;
   const dxfWarningSummary = summarizeDxfImportWarnings(dxfWarnings).slice(0, 6);
   const dxfPrimitiveSummary = dxfImportPreview
-    ? dxfImportPreview.primitives.reduce<Record<string, number>>((acc, primitive) => { acc[primitive.kind] = (acc[primitive.kind] ?? 0) + 1; return acc; }, {})
+    ? dxfImportPreview.primitives.reduce<Record<string, number>>((acc, primitive) => { acc[primitive.kind] = (acc[primitive.kind] ?? 0) + 1; return acc; }, {
+        ...(dxfImportPreview.hatches.length ? { hatch: dxfImportPreview.hatches.length } : {}),
+        ...(dxfImportPreview.mtexts.length ? { mtext: dxfImportPreview.mtexts.length } : {}),
+        ...(dxfImportPreview.semanticDimensions.length ? { dimension: dxfImportPreview.semanticDimensions.length } : {}),
+        ...(dxfImportPreview.mleaders.length ? { mleader: dxfImportPreview.mleaders.length } : {}),
+      })
     : null;
   const orderedPaperSpaces = [...paperSpaces].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id.localeCompare(b.id));
   const activePaperSpace = orderedPaperSpaces.find((space) => space.id === activePaperSpaceId) ?? orderedPaperSpaces[0] ?? null;
-  const activePaperViewport = activePaperSpace?.viewports?.[0] ?? null;
+  const activeLayoutLayers = paperSpaceLayers.length
+    ? paperSpaceLayers
+    : cadLayers.map((layer) => ({ id: layer.id, name: layer.label, color: layer.color, visible: layer.visible, locked: layer.locked }));
+  const activeLayoutPreflight = activePaperSpace ? preflightCadPaperSpace(activePaperSpace, activeLayoutLayers.map((layer) => layer.id)) : [];
+  const cadXrefGraph = analyzeCadXrefGraph({ externalReferences: cadXrefs }, `${model}@${revision}`);
   const sheetPackageChecks = [
     { label: 'Title block', ok: !!sheetPackageDraft.project.trim() && !!sheetPackageDraft.drawingNo.trim() && !!sheetPackageDraft.sheet.trim() && !!sheetPackageDraft.revision.trim(), detail: `${sheetPackageDraft.drawingNo || 'sin plano'} · ${sheetPackageDraft.sheet || 'sin hoja'} · rev ${sheetPackageDraft.revision || '—'}` },
     { label: 'Conjunto de hojas', ok: paperSpaces.some((space) => space.includeInPublish !== false && (space.viewports?.length ?? 0) > 0), detail: `${paperSpaces.filter((space) => space.includeInPublish !== false).length} publicables · ${paperSpaces.reduce((total, space) => total + (space.viewports?.length ?? 0), 0)} viewports` },
@@ -6225,6 +8159,7 @@ export default function Layout3DEditor({
     footprint: data?.footprint ?? null, counts: { stations: placedCount, assets: assetCount, annotations: annotationsRef.current.size, connectors: connectorsRef.current.length, cadLayers: cadLayers.length },
     validation: cadValidationReport ? { severity: cadValidationReport.severity, issues: cadValidationReport.issues.length, collisions: cadValidationReport.collisions.length, clearances: cadValidationReport.clearances.length, safety: cadValidationReport.safety.length, architecture: cadValidationReport.architecture.length, document: cadValidationReport.document.length } : null,
     dxf: { canExport: dxfExportSummary.canExport, objects: dxfExportSummary.objects, layers: dxfExportSummary.layers, issues: dxfExportSummary.issues.length },
+    lossManifest: { count: loadedCadDocumentRef.current?.lossManifest.length ?? 0, entries: loadedCadDocumentRef.current?.lossManifest ?? [] },
     sheets: orderedPaperSpaces.map((space, index) => ({ id: space.id, order: index, name: space.name, includeInPublish: space.includeInPublish !== false, paper: space.pageSetup?.paper ?? 'custom', orientation: space.page.orientation, viewports: (space.viewports ?? []).map((viewport) => ({ id: viewport.id, scale: viewport.scale, locked: viewport.locked })) })),
     publications: publicationRecords.map((publication) => ({ id: publication.id, fileName: publication.fileName, sha256: publication.sha256, publishedAt: publication.publishedAt, publishedBy: publication.publishedBy })),
     notes: sheetPackageDraft.notes,
@@ -6237,8 +8172,10 @@ export default function Layout3DEditor({
     return matchesCategory && matchesSearch;
   });
   const cadLayerCounts = cadLayers.reduce<Record<CadLayerId, number>>((acc, layer) => ({ ...acc, [layer.id]: 0 }), {} as Record<CadLayerId, number>);
-  placedIds.forEach((id) => { cadLayerCounts[layerAssignments[id] ?? 'layout'] += 1; });
-  assetIds.forEach((id) => { cadLayerCounts[layerAssignments[id] ?? 'equipment'] += 1; });
+  const incrementCadLayerCount = (id: CadLayerId) => { cadLayerCounts[id] = (cadLayerCounts[id] ?? 0) + 1; };
+  placedIds.forEach((id) => incrementCadLayerCount(layerAssignments[id] ?? 'layout'));
+  assetIds.forEach((id) => incrementCadLayerCount(layerAssignments[id] ?? 'equipment'));
+  nativeEntities.forEach((entity) => incrementCadLayerCount(entity.layer));
   const cadLayerSummary = summarizeCadLayers(cadLayers, cadLayerCounts);
   // Plant-scale safety: flag objects that sit outside the saved factory footprint (EPIC 0).
   const plantBoundsW = data?.footprint.footprintW ?? 0;
@@ -6312,15 +8249,129 @@ export default function Layout3DEditor({
   const flowReorderMoveRows = flowReorderPreview?.moves.filter((move) => move.from.x !== move.to.x || move.from.y !== move.to.y).slice(0, 5) ?? [];
   const dxfExportLayerRows = dxfExportSummary.layerSummary.filter((layer) => layer.included > 0 || layer.hidden > 0).slice(0, 5);
   const dxfExportIssueRows = dxfExportSummary.issues.slice(0, 5);
+  const professionalDockTitle = activeProfessionalDock === 'selection' ? 'Selección'
+    : activeProfessionalDock === 'hatch' ? 'Hatch'
+      : activeProfessionalDock === 'dimension' ? 'Dimensiones'
+        : activeProfessionalDock === 'mleader' ? 'MLeader'
+          : activeProfessionalDock === 'blocks' ? 'Bloques / Xrefs'
+            : activeProfessionalDock === 'collaboration' ? 'Compare / Merge / Review'
+              : 'Workspace';
+  const professionalDockContent = activeProfessionalDock === 'selection' ? (
+    <CadSelectionPalette
+      docked
+      selectedCount={professionalSelection.current.length}
+      previousCount={professionalSelection.previous.length}
+      mode={selectionGeometryMode}
+      operation={selectionOperation}
+      quickType={quickSelectionType}
+      quickLayer={quickSelectionLayer}
+      quickText={quickSelectionText}
+      entityTypes={professionalSelectionTypes}
+      layers={professionalSelectionLayers}
+      onModeChange={(mode) => { selectionGeometryModeRef.current = mode; setSelectionGeometryMode(mode); }}
+      onOperationChange={(operation) => { selectionOperationRef.current = operation; setSelectionOperation(operation); }}
+      onQuickTypeChange={setQuickSelectionType}
+      onQuickLayerChange={setQuickSelectionLayer}
+      onQuickTextChange={setQuickSelectionText}
+      onPrevious={() => applyProfessionalSelection({ type: 'previous' })}
+      onLast={() => applyProfessionalSelection({ type: 'last', operation: selectionOperation })}
+      onAll={() => applyProfessionalSelection({ type: 'all', universe: professionalSelectionUniverse })}
+      onInvert={() => applyProfessionalSelection({ type: 'invert', universe: professionalSelectionUniverse })}
+      onQuick={runQuickSelection}
+      onClear={() => applyProfessionalSelection({ type: 'clear' })}
+    />
+  ) : activeProfessionalDock === 'hatch' ? (
+    <CadHatchPalette
+      docked
+      pickMode={hatchPickMode}
+      solid={hatchPickSolid}
+      islandStyle={hatchIslandStyle}
+      onSolidChange={setHatchPickSolid}
+      onIslandStyleChange={setHatchIslandStyle}
+      onPickModeChange={(active) => { hatchPickModeRef.current = active; setHatchPickMode(active); if (active) setShowHatchPalette(false); }}
+      onCreateAtPoint={(point) => { createHatchAtPoint(point); setShowHatchPalette(false); }}
+      onCreateFromSelection={(solid) => { createHatchForSelection(solid); setShowHatchPalette(false); }}
+    />
+  ) : activeProfessionalDock === 'dimension' ? (
+    <CadDimensionPalette
+      docked
+      selectedCount={nativeSelectionIds.length}
+      defaultOffset={Math.max(1, (data?.footprint.gridSize ?? 100) * 2)}
+      styles={Object.keys(loadedCadDocumentRef.current?.styles.dimension ?? {})}
+      onCreate={createAssociativeDimension}
+    />
+  ) : activeProfessionalDock === 'mleader' ? (
+    <CadMLeaderPalette
+      docked
+      selectedCount={mleaderSelectedCount}
+      defaultSize={Math.max(1, (data?.footprint.gridSize ?? 100) * 1.8)}
+      styles={Object.keys(loadedCadDocumentRef.current?.styles.mleader ?? { Standard: {} })}
+      onCreate={createAssociativeMleader}
+    />
+  ) : activeProfessionalDock === 'blocks' ? (
+    <div data-testid="cad-library-dock" className="flex h-full min-h-0 flex-col">
+      <div className="grid grid-cols-2 border-b border-white/10 p-1.5">
+        <button data-testid="cad-library-tab-blocks" onClick={() => setCadLibraryTab('blocks')} className={`rounded-lg px-2 py-1 text-[10.5px] font-semibold ${cadLibraryTab === 'blocks' ? 'bg-cyan-400/15 text-cyan-100' : 'text-gray-500 hover:bg-white/[0.05]'}`}>BLOCK / INSERT</button>
+        <button data-testid="cad-library-tab-xrefs" onClick={() => setCadLibraryTab('xrefs')} className={`rounded-lg px-2 py-1 text-[10.5px] font-semibold ${cadLibraryTab === 'xrefs' ? 'bg-cyan-400/15 text-cyan-100' : 'text-gray-500 hover:bg-white/[0.05]'}`}>XREF ({cadXrefs.length})</button>
+      </div>
+      <div className="min-h-0 flex-1 overflow-hidden">
+        {cadLibraryTab === 'blocks' ? <CadBlockPalette
+          docked
+          blocks={professionalBlockDefinitions}
+          selectedEntityCount={new Set([...selList.map((item) => item.id), ...nativeSelectionIds]).size}
+          selectedInsert={primaryNativeEntity?.type === 'insert' ? { id: primaryNativeEntity.id, block: primaryNativeEntity.block } : null}
+          defaultPoint={{
+            x: Math.max(0, Math.min(ctxRef.current?.W ?? 0, controlsRef.current && ctxRef.current ? controlsRef.current.target.x / ctxRef.current.s + ctxRef.current.W / 2 : (ctxRef.current?.W ?? 0) / 2)),
+            y: Math.max(0, Math.min(ctxRef.current?.H ?? 0, controlsRef.current && ctxRef.current ? controlsRef.current.target.z / ctxRef.current.s + ctxRef.current.H / 2 : (ctxRef.current?.H ?? 0) / 2)),
+          }}
+          onDefine={defineProfessionalBlock}
+          onInsert={insertProfessionalBlock}
+          onRedefine={redefineProfessionalBlock}
+          onReplace={replaceProfessionalBlock}
+          onExplode={explodeProfessionalInsert}
+          onPurge={purgeProfessionalBlocks}
+        /> : <CadXrefPalette
+          references={cadXrefs}
+          graph={cadXrefGraph}
+          defaultPoint={{
+            x: Math.max(0, Math.min(ctxRef.current?.W ?? 0, controlsRef.current && ctxRef.current ? controlsRef.current.target.x / ctxRef.current.s + ctxRef.current.W / 2 : (ctxRef.current?.W ?? 0) / 2)),
+            y: Math.max(0, Math.min(ctxRef.current?.H ?? 0, controlsRef.current && ctxRef.current ? controlsRef.current.target.z / ctxRef.current.s + ctxRef.current.H / 2 : (ctxRef.current?.H ?? 0) / 2)),
+          }}
+          onAttach={attachProfessionalXref}
+          onCompare={compareProfessionalXref}
+          onReload={reloadProfessionalXref}
+          onUnload={unloadProfessionalXref}
+          onDetach={detachProfessionalXref}
+          onBind={bindProfessionalXref}
+        />}
+      </div>
+    </div>
+  ) : activeProfessionalDock === 'collaboration' && loadedCadDocumentRef.current ? (
+    <CadCollaborationPalette
+      document={snapshotDocument()}
+      actor={user?.id ?? 'authenticated-user'}
+      reviewReadOnly={cadReviewReadOnly}
+      onDocumentChange={applyCollaborationDocument}
+      onVisualize={visualizeCollaborationDiff}
+      onNavigate={navigateCollaborationDiff}
+    />
+  ) : activeProfessionalDock === 'workspace' ? (
+    <CadWorkspaceDock
+      preferences={workspacePreferences}
+      onChange={updateWorkspacePreferences}
+      onProfile={applyWorkspaceProfile}
+      onReset={resetWorkspacePreferences}
+    />
+  ) : null;
 
   // Portal to <body> so the full-screen overlay escapes the editor's glass
   // container (backdrop-filter would otherwise be the containing block for our
   // position:fixed and trap it inside the box instead of the viewport).
   return createPortal(
-    <div className="fixed inset-0 z-[70] flex flex-col bg-gray-950 text-white">
+    <div data-color-scheme={resolvedScheme} className={`fixed inset-0 z-[70] flex flex-col ${resolvedScheme === 'light' ? 'bg-slate-100 text-slate-950' : 'bg-gray-950 text-white'}`}>
       {/* top bar (relative z-30 so dropdown popovers paint above the 3D content,
           which would otherwise stack over the backdrop-blur'd bar) */}
-      <div className="relative z-30 flex flex-wrap items-center gap-2 px-4 py-2.5 border-b border-white/10 shrink-0 bg-gray-900/80 backdrop-blur">
+      <div data-testid="cad-top-toolbar" className={`relative z-30 flex flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap border-b px-4 backdrop-blur [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0 ${resolvedScheme === 'light' ? 'border-slate-300 bg-white/90' : 'border-white/10 bg-gray-900/80'} ${workspacePreferences.toolbarDensity === 'compact' ? 'h-12 py-1.5' : 'h-14 py-2.5'}`}>
         {/* Cierre persistente y SIEMPRE visible (X clara) anclado al inicio de la
             barra. La barra usa flex-wrap para que las herramientas NUNCA recorten
             ni choquen. Regla: ninguna pantalla a foco total puede atrapar. */}
@@ -6328,24 +8379,56 @@ export default function Layout3DEditor({
           onClick={onClose}
           title="Cerrar el CAD — volver al dashboard (Esc)"
           aria-label="Cerrar el CAD"
-          className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-rose-500/90 px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-rose-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+          className="sticky left-0 z-20 inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-rose-500/95 px-3 py-1.5 text-[13px] font-semibold text-white shadow-xl hover:bg-rose-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
         >
           <X className="w-4 h-4" /> Cerrar
         </button>
         <div className="w-px h-5 bg-white/10" />
         <BoxIcon className="w-4 h-4" style={{ color: '#f43f5e' }} />
         <span className="font-semibold text-sm">{cadTitle}</span>
+        {cadReviewReadOnly && <span data-testid="cad-review-banner" className="rounded-full border border-amber-300/25 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold text-amber-200">REVIEW · SOLO LECTURA</span>}
         <span className="hidden xl:inline text-[11px] text-gray-500 dark:text-gray-400 max-w-[520px] truncate">{cadSubtitle}</span>
         <span className="text-[11px] text-gray-500 dark:text-gray-400 ml-1">{placedCount} estaciones · {assetCount} equipos</span>
         <div className="inline-flex items-center rounded-lg bg-white/[0.06] p-0.5 text-[12px] font-semibold ml-1">
           <button onClick={() => { if (viewMode !== '2d') toggleViewMode(); }} className={`px-2.5 py-1 rounded-md transition-colors ${viewMode === '2d' ? 'bg-white/15 text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-200'}`} title="Vista de plano 2D (superior, solo paneo y zoom)">2D</button>
           <button onClick={() => { if (viewMode !== '3d') toggleViewMode(); }} className={`px-2.5 py-1 rounded-md transition-colors ${viewMode === '3d' ? 'bg-white/15 text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-200'}`} title="Vista 3D (órbita libre)">3D</button>
         </div>
+        <div data-testid="cad-space-tabs" className="inline-flex items-center overflow-hidden rounded-lg border border-white/10 bg-white/[0.04] text-[10.5px] font-semibold">
+          <button onClick={() => setShowSheetPackage(false)} className={`px-2 py-1 ${!showSheetPackage ? 'bg-cyan-500/20 text-cyan-100' : 'text-gray-400 hover:bg-white/10 hover:text-white'}`}>Model</button>
+          {orderedPaperSpaces.slice(0, 3).map((space) => (
+            <button key={space.id} onClick={() => { selectPaperSpace(space); setShowSheetPackage(true); }} className={`border-l border-white/10 px-2 py-1 ${showSheetPackage && space.id === activePaperSpace?.id ? 'bg-cyan-500/20 text-cyan-100' : 'text-gray-400 hover:bg-white/10 hover:text-white'}`}>{space.name}</button>
+          ))}
+          <button onClick={() => setShowSheetPackage(true)} className="border-l border-white/10 px-2 py-1 text-gray-400 hover:bg-white/10 hover:text-white" title="Administrar layouts, viewports y publicación">Layout{orderedPaperSpaces.length ? ` · ${orderedPaperSpaces.length}` : ' +'}</button>
+        </div>
         <div className="w-px h-5 bg-white/10 mx-1" />
         <T3Btn active={tool === 'select'} onClick={() => setToolMode('select')} title="Seleccionar / mover (V)"><MousePointer2 className="w-4 h-4" /></T3Btn>
+        <div className="relative">
+          <T3Btn
+            active={showSelectionPalette || selectionGeometryMode !== 'pick' || selectionOperation !== 'replace'}
+            onClick={() => toggleProfessionalDock('selection')}
+            title="Selección profesional: ventana, cruce, polígono, fence, lasso, filtros y cycling"
+          >
+            <ScanEye className="h-4 w-4" />
+          </T3Btn>
+        </div>
         <T3Btn active={tool === 'measure'} onClick={toggleMeasure} title="Medir / acotar (M)"><Ruler className="w-4 h-4" /></T3Btn>
         <T3Btn active={tool === 'wall'} onClick={toggleWall} title="Dibujar muros (W) — clic en puntos, Esc termina"><Spline className="w-4 h-4" /></T3Btn>
-        <T3Btn onClick={addNote} title="Agregar nota de texto (T)"><StickyNote className="w-4 h-4" /></T3Btn>
+        <T3Btn onClick={() => openMTextEditor()} title="MTEXT: texto multilÃ­nea semÃ¡ntico, estilos y mÃ¡scara"><StickyNote className="w-4 h-4" /></T3Btn>
+        <div className="relative">
+          <T3Btn active={showHatchPalette || hatchPickMode} onClick={() => toggleProfessionalDock('hatch')} title="HATCH: selección, pick point, islands y asociatividad"><BrickWall className="h-4 w-4" /></T3Btn>
+        </div>
+        <div className="relative">
+          <T3Btn active={showDimensionPalette} onClick={() => toggleProfessionalDock('dimension')} title="Dimensiones asociativas: linear, aligned, angular, radius, diameter, ordinate y arc length"><RulerDimensionLine className="w-4 h-4" /></T3Btn>
+        </div>
+        <div className="relative">
+          <T3Btn active={showMleaderPalette} onClick={() => toggleProfessionalDock('mleader')} title="MLEADER: directriz semántica asociativa con una o múltiples líneas"><Waypoints className="h-4 w-4" /></T3Btn>
+        </div>
+        <div className="relative">
+          <T3Btn active={showBlockPalette} onClick={() => toggleProfessionalDock('blocks')} title="BLOCK/INSERT: definiciones vivas, atributos, biblioteca y XREF, redefine, replace, explode y purge"><Boxes className="h-4 w-4" /></T3Btn>
+        </div>
+        <div className="relative">
+          <T3Btn active={showCollaborationDock} onClick={() => toggleProfessionalDock('collaboration')} title="Compare / Merge / Review: base, mine, theirs, conflictos, comentarios, markups y links de revisión"><GitMerge className="h-4 w-4" /></T3Btn>
+        </div>
         <T3Btn onClick={autoDimension} title="Acotar automáticamente — medidas generales y pasos del layout (o de la selección)"><RulerDimensionLine className="w-4 h-4" /></T3Btn>
         {dimCount > 0 && (
           <button onClick={clearDims} title="Quitar todas las cotas" className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] text-gray-300 hover:bg-white/10">
@@ -6370,7 +8453,8 @@ export default function Layout3DEditor({
         <T3Btn onClick={() => fitView('plant')} title="Ajustar a la planta — encuadra toda la huella (Shift+F)"><Frame className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={() => fitView('selection')} disabled={selList.length === 0} title="Ajustar a la selección — encuadra los objetos seleccionados"><Focus className="w-4 h-4" /></T3Btn>
         <T3Btn active={focusMode} onClick={() => setFocusMode((v) => !v)} title="Modo foco — oculta los paneles laterales (\\)">{focusMode ? <PanelLeft className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}</T3Btn>
-        <T3Btn active={showMinimap} onClick={() => setShowMinimap((v) => !v)} title="Minimapa de la planta — vista general y navegación"><MapPin className="w-4 h-4" /></T3Btn>
+        <T3Btn active={showWorkspaceDock} onClick={() => toggleProfessionalDock('workspace')} title="Workspace profesional: docks, tema, idioma, puntero, clic derecho y atajos"><Settings2 className="w-4 h-4" /></T3Btn>
+        <T3Btn active={showMinimap} onClick={() => updateWorkspacePreferences({ ...workspacePreferencesRef.current, minimap: !workspacePreferencesRef.current.minimap })} title="Minimapa de la planta — vista general y navegación"><MapPin className="w-4 h-4" /></T3Btn>
         <div className="w-px h-5 bg-white/10 mx-1" />
         <T3Btn active={showHeat} onClick={() => setShowHeat((v) => !v)} title="Mapa de calor de ocupación en el piso"><Grid2x2 className="w-4 h-4" /></T3Btn>
         <T3Btn active={showGaps} onClick={() => setShowGaps((v) => !v)} title="Holguras de seguridad — marca los objetos demasiado juntos (ámbar) o traslapados (rojo)"><ShieldAlert className="w-4 h-4" /></T3Btn>
@@ -6388,8 +8472,8 @@ export default function Layout3DEditor({
         </div>
         <div className="relative" ref={viewMenuRef}>
           <T3Btn active={showView} onClick={toggleViewMenu} title="Vista, capas y plano"><SlidersHorizontal className="w-4 h-4" /></T3Btn>
-          {showView && (
-            <div className="absolute left-0 top-full mt-1.5 w-72 max-h-[78vh] overflow-y-auto rounded-xl border border-white/10 bg-gray-900 shadow-2xl p-3 z-10 text-[12px]">
+          {showView && typeof document !== 'undefined' && createPortal(
+            <div ref={viewMenuPanelRef} data-testid="cad-layer-manager" style={viewMenuPosition} className="fixed z-[90] w-72 max-h-[78vh] overflow-y-auto rounded-xl border border-white/10 bg-gray-900 shadow-2xl p-3 text-[12px]">
               <div className="text-[10px] uppercase tracking-wide text-gray-500 mb-1.5">Capas</div>
               {([['stations', standalone ? 'Puntos' : 'Estaciones'], ['equipment', 'Biblioteca'], ['connectors', 'Conexiones'], ['dims', 'Cotas'], ['notes', 'Notas'], ['labels', 'Etiquetas'], ['dxf', 'Plano DXF'], ['grid', 'Grilla']] as const).map(([k, lbl]) => (
                 <label key={k} className="flex items-center gap-2 py-1 cursor-pointer text-gray-300 hover:text-white">
@@ -6403,23 +8487,37 @@ export default function Layout3DEditor({
                   {cadLayerSummary.visible}/{cadLayerSummary.total} visibles
                 </div>
               </div>
+              <div className="mb-2 grid grid-cols-[1fr_auto_auto] gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] p-1.5">
+                <input
+                  data-testid="cad-layer-new-name"
+                  value={newCadLayerName}
+                  onChange={(event) => setNewCadLayerName(event.target.value)}
+                  onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); createCanonicalCadLayer(); } }}
+                  disabled={cadReviewReadOnly}
+                  placeholder="Nueva capa"
+                  className="min-w-0 rounded-md border border-white/10 bg-gray-950/70 px-2 py-1 text-[10.5px] text-gray-200 outline-none focus:ring-1 focus:ring-cyan-500/40 disabled:opacity-50"
+                />
+                <input data-testid="cad-layer-new-color" type="color" value={newCadLayerColor} onChange={(event) => setNewCadLayerColor(event.target.value)} disabled={cadReviewReadOnly} className="h-7 w-8 rounded border border-white/10 bg-transparent p-0 disabled:opacity-50" title="Color de la nueva capa" />
+                <button data-testid="cad-layer-create" onClick={createCanonicalCadLayer} disabled={cadReviewReadOnly || !newCadLayerName.trim()} className="rounded-md bg-cyan-500/15 px-2 text-[10px] font-semibold text-cyan-200 hover:bg-cyan-500/25 disabled:opacity-40">Crear</button>
+              </div>
               <div className="space-y-1">
                 {cadLayers.map((layer) => (
-                  <div key={layer.id} className={`rounded-lg px-2 py-1 ${activeCadLayer === layer.id ? 'bg-cyan-400/[0.10] ring-1 ring-cyan-400/20' : 'bg-white/[0.04]'}`}>
+                  <div key={layer.id} data-testid={`cad-layer-row-${layer.id}`} className={`rounded-lg px-2 py-1 ${activeCadLayer === layer.id ? 'bg-cyan-400/[0.10] ring-1 ring-cyan-400/20' : 'bg-white/[0.04]'}`}>
                     <div className="flex items-center gap-1.5">
-                      <button onClick={() => toggleCadLayerVisibility(layer.id)} className={`h-2.5 w-2.5 rounded-full ${layer.visible ? '' : 'opacity-30'}`} style={{ background: layer.color }} title={layer.visible ? 'Ocultar capa' : 'Mostrar capa'} />
-                      <button onClick={() => setActiveCadLayer(layer.id)} className={`min-w-0 flex-1 truncate text-left ${layer.visible ? 'text-gray-200' : 'text-gray-500'}`} title="Definir como capa activa">{layer.label}</button>
+                      <button data-testid={`cad-layer-visible-${layer.id}`} onClick={() => toggleCadLayerVisibility(layer.id)} disabled={cadReviewReadOnly} className={`h-2.5 w-2.5 rounded-full ${layer.visible ? '' : 'opacity-30'} disabled:cursor-not-allowed`} style={{ background: layer.color }} title={layer.visible ? 'Ocultar capa' : 'Mostrar capa'} />
+                      <button data-testid={`cad-layer-active-${layer.id}`} onClick={() => setActiveCadLayer(layer.id)} className={`min-w-0 flex-1 truncate text-left ${layer.visible ? 'text-gray-200' : 'text-gray-500'}`} title="Definir como capa activa">{layer.label}</button>
                       <span className="rounded bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-gray-500 dark:text-gray-400">{cadLayerCounts[layer.id]}</span>
-                      <button onClick={() => setCadLayers((cur) => toggleCadLayerLocked(cur, layer.id))} className={`text-[10px] ${layer.locked ? 'text-amber-300' : 'text-gray-500'}`}>{layer.locked ? 'Lock' : 'Open'}</button>
+                      <button data-testid={`cad-layer-lock-${layer.id}`} onClick={() => toggleCadLayerLock(layer.id)} disabled={cadReviewReadOnly} className={`text-[10px] ${layer.locked ? 'text-amber-300' : 'text-gray-500'} disabled:opacity-40`}>{layer.locked ? 'Lock' : 'Open'}</button>
                     </div>
                     <div className="mt-1 grid grid-cols-[1fr_auto] gap-1.5">
-                      <input value={layer.label} onChange={(e) => updateCadLayerLabel(layer.id, e.target.value)} className="min-w-0 rounded-md border border-white/10 bg-gray-950/70 px-1.5 py-0.5 text-[10.5px] text-gray-200 outline-none focus:ring-1 focus:ring-cyan-500/40" title="Renombrar capa local" />
-                      <input type="color" value={layer.color} onChange={(e) => updateCadLayerColor(layer.id, e.target.value)} className="h-6 w-7 rounded border border-white/10 bg-transparent p-0" title="Color local de capa" />
+                      <input key={`${layer.id}:${layer.label}`} data-testid={`cad-layer-name-${layer.id}`} defaultValue={layer.label} onBlur={(event) => updateCadLayerLabel(layer.id, event.target.value)} disabled={cadReviewReadOnly} className="min-w-0 rounded-md border border-white/10 bg-gray-950/70 px-1.5 py-0.5 text-[10.5px] text-gray-200 outline-none focus:ring-1 focus:ring-cyan-500/40 disabled:opacity-50" title="Renombrar capa del documento" />
+                      <input data-testid={`cad-layer-color-${layer.id}`} type="color" value={layer.color} onChange={(event) => updateCadLayerColor(layer.id, event.target.value)} disabled={cadReviewReadOnly} className="h-6 w-7 rounded border border-white/10 bg-transparent p-0 disabled:opacity-50" title="Color de capa" />
                     </div>
                     <div className="mt-1 flex items-center justify-end gap-2 text-[10px]">
                       <button onClick={() => selectCadLayerObjects(layer.id)} className="text-gray-500 dark:text-gray-400 hover:text-white">Sel</button>
-                      <button onClick={() => isolateCadLayer(layer.id)} className="text-gray-500 dark:text-gray-400 hover:text-white">Solo</button>
-                      <button onClick={() => assignSelectionToCadLayer(layer.id)} className="text-cyan-300 hover:text-cyan-100">Asignar</button>
+                      <button onClick={() => isolateCadLayer(layer.id)} disabled={cadReviewReadOnly} className="text-gray-500 dark:text-gray-400 hover:text-white disabled:opacity-40">Solo</button>
+                      <button onClick={() => assignSelectionToCadLayer(layer.id)} disabled={cadReviewReadOnly} className="text-cyan-300 hover:text-cyan-100 disabled:opacity-40">Asignar</button>
+                      {layer.id !== '0' && <button data-testid={`cad-layer-delete-${layer.id}`} onClick={() => deleteCanonicalCadLayer(layer.id)} disabled={cadReviewReadOnly || cadLayers.length < 2} className="text-rose-300/80 hover:text-rose-200 disabled:opacity-40">Borrar</button>}
                     </div>
                   </div>
                 ))}
@@ -6428,7 +8526,12 @@ export default function Layout3DEditor({
                 <span>{Object.keys(layerAssignments).length} asignados · {cadLayerSummary.hiddenObjectCount} ocultos · {cadLayerSummary.lockedObjectCount} bloqueados</span>
                 <div className="inline-flex items-center gap-2">
                   <button onClick={showAllCadLayerVisibility} className="text-gray-500 dark:text-gray-400 hover:text-white">All</button>
-                  <button onClick={() => { setCadLayers((cur) => hideEmptyCadLayers(cur, cadLayerCounts)); toast.success('Capas CAD vacías ocultas.', 'Capas'); }} className="text-gray-500 dark:text-gray-400 hover:text-white" title="Ocultar capas sin objetos">Ocultar 0</button>
+                  <button onClick={() => commitBlockMutation(
+                    (document) => commitChange({ ...document, layers: document.layers.map((layer) => ({ ...layer, visible: (cadLayerCounts[layer.id] ?? 0) > 0 })) }, 'layer:hide-empty'),
+                    nativeSelectionIdsRef.current,
+                    'Capas CAD vacías ocultas.',
+                    'Capas',
+                  )} disabled={cadReviewReadOnly} className="text-gray-500 dark:text-gray-400 hover:text-white disabled:opacity-40" title="Ocultar capas sin objetos">Ocultar 0</button>
                   <button onClick={unlockAllCadLayerVisibility} className="text-gray-500 dark:text-gray-400 hover:text-white" title="Desbloquear todas las capas">Unlock</button>
                   <button onClick={resetCadLayerPresentation} className="text-gray-500 dark:text-gray-400 hover:text-white">Reset</button>
                 </div>
@@ -6513,14 +8616,15 @@ export default function Layout3DEditor({
                 <span className="flex justify-between text-[10px] text-gray-500 dark:text-gray-400"><span>Altura</span><span>{sun.el}°</span></span>
                 <input type="range" min={12} max={88} value={sun.el} onChange={(e) => setSun((s) => ({ ...s, el: Number(e.target.value) }))} className="w-full accent-amber-400" />
               </label>
-            </div>
+            </div>,
+            document.body,
           )}
         </div>
         <div className="w-px h-5 bg-white/10 mx-1" />
         {!standalone && <T3Btn onClick={arrangeLineLayout} title="Acomodar la línea — ordena las estaciones por secuencia en filas equiespaciadas"><Rows3 className="w-4 h-4" /></T3Btn>}
         {!standalone && <T3Btn onClick={connectLineLayout} title="Conectar la línea — enlaza cada estación con la siguiente en secuencia (flujo)"><Waypoints className="w-4 h-4" /></T3Btn>}
         <T3Btn onClick={runOptimize} disabled={serverBusy} title="Optimizar flujo — reordena para minimizar el recorrido (servidor)"><WandSparkles className="w-4 h-4" /></T3Btn>
-        <T3Btn active={showCommand} onClick={() => setShowCommand((v) => !v)} title="Comandos en lenguaje natural — scaffold local para function calling"><ChevronRight className="w-4 h-4" /></T3Btn>
+        <T3Btn active={showCommand && workspacePreferences.commandDock} onClick={() => { setFocusMode(false); updateWorkspacePreferences({ ...workspacePreferencesRef.current, commandDock: true }); window.requestAnimationFrame(() => commandInputRef.current?.focus()); }} title="Línea de comandos determinística — historial, preview y repetición"><ChevronRight className="w-4 h-4" /></T3Btn>
         <T3Btn active={showPalette} onClick={() => setShowPalette((v) => !v)} title="Paleta de comandos (⌘K / Ctrl K) — busca comandos, herramientas y símbolos"><Search className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={openChecks} title="Revisión de diseño — valida colocación, límites, traslapes y flujo"><ShieldCheck className="w-4 h-4" /></T3Btn>
         <T3Btn active={!!flowHealth} onClick={analyzeFlowHealth} title="Flow Health — score, cruces y backtracking"><ChartLine className="w-4 h-4" /></T3Btn>
@@ -6542,7 +8646,7 @@ export default function Layout3DEditor({
             <option key={id} value={id} className="bg-gray-900">{CAD_PAPER_SIZES[id].label}</option>
           ))}
         </select>
-        <T3Btn onClick={() => void publishSheetSetPdf()} title="Publicar conjunto PDF vectorial — hojas, viewports y cajetines"><Printer className="w-4 h-4" /></T3Btn>
+        <T3Btn disabled={cadReviewReadOnly} onClick={() => void publishSheetSetPdf()} title="Publicar conjunto PDF vectorial — hojas, viewports y cajetines"><Printer className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={exportPng} title="Exportar imagen (PNG)"><Download className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={exportGltf} title="Exportar modelo 3D (.glb) — Blender, otros CAD"><Package className="w-4 h-4" /></T3Btn>
         <input ref={dxfInputRef} type="file" accept=".dxf,.dwg" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onDxfFile(f); e.target.value = ''; }} />
@@ -6567,17 +8671,17 @@ export default function Layout3DEditor({
         {approval && (
           <div className="inline-flex items-center gap-1.5 mr-1.5" title="Estado de aprobación del layout">
             <Stamp className="w-3.5 h-3.5" style={{ color: APPROVAL_META[approval.status].color }} />
-            <select value={approval.status} disabled={approvalBusy} onChange={(e) => setApprovalStatus(e.target.value as ApprovalStatus)} className="text-[12px] rounded-md px-1.5 py-1 bg-white/[0.06] border border-white/10 outline-none" style={{ color: APPROVAL_META[approval.status].color }}>
+            <select value={approval.status} disabled={approvalBusy || cadReviewReadOnly} onChange={(e) => setApprovalStatus(e.target.value as ApprovalStatus)} className="text-[12px] rounded-md px-1.5 py-1 bg-white/[0.06] border border-white/10 outline-none" style={{ color: APPROVAL_META[approval.status].color }}>
               <option value="draft" className="text-gray-900">Borrador</option>
               <option value="in_review" className="text-gray-900">En revisión</option>
               <option value="approved" className="text-gray-900">Aprobado</option>
             </select>
           </div>
         )}
-        <button onClick={save} disabled={saving || !dirty} className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-sm font-medium text-white disabled:opacity-50" style={{ background: '#e11d48' }}>
+        <button data-testid="cad-save" onClick={save} disabled={saving || !dirty || cadReviewReadOnly} className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-sm font-medium text-white disabled:opacity-50" style={{ background: '#e11d48' }}>
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Guardar
         </button>
-        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 ml-1" title="Cerrar (Esc)"><X className="w-5 h-5" /></button>
+        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 ml-1" title="Cerrar editor"><X className="w-5 h-5" /></button>
       </div>
 
       {error ? (
@@ -6587,106 +8691,35 @@ export default function Layout3DEditor({
       ) : (
         <div className="flex flex-1 min-h-0">
           {/* left: stations tray + equipment palette */}
-          <div className={`w-60 shrink-0 border-r border-white/10 bg-gray-900/60 flex-col ${focusMode ? 'hidden' : 'flex'}`}>
-            {showCommand && (
-              <div className="border-b border-cyan-400/20 bg-cyan-400/[0.06] p-3">
-                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-cyan-200">
-                  <WandSparkles className="w-3.5 h-3.5" /> Copiloto CAD
-                </div>
-                <p className="mt-1 text-[11px] leading-snug text-gray-500 dark:text-gray-400">
-                  Comandos determinísticos locales (Preview) o interpretación con IA (CIDE) — la IA solo propone; tú apruebas.
-                </p>
-                <form className="mt-2 flex gap-1.5" onSubmit={(e) => { e.preventDefault(); interpretCommand(); }}>
-                  <input
-                    value={commandText}
-                    onChange={(e) => setCommandText(e.target.value)}
-                    placeholder="pasillo 1.2 entre SMT e inspección"
-                    className="min-w-0 flex-1 rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white placeholder:text-gray-600 outline-none focus:border-cyan-400/60"
-                  />
-                  <button type="submit" className="rounded-lg bg-cyan-500 px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-cyan-400">Preview</button>
-                  <button type="button" onClick={() => void requestAiProposal('intent')} disabled={aiBusy !== null} title="Interpreta la instrucción con el motor de IA (CIDE)" className="rounded-lg bg-violet-600 px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-violet-500 disabled:opacity-50">{aiBusy === 'intent' ? '…' : 'IA'}</button>
-                </form>
-                <button type="button" onClick={() => void requestAiProposal('optimize')} disabled={aiBusy !== null} className="mt-1.5 w-full rounded-lg border border-violet-400/30 bg-violet-400/[0.08] px-2 py-1.5 text-[11px] font-semibold text-violet-200 hover:bg-violet-400/[0.14] disabled:opacity-50">
-                  {aiBusy === 'optimize' ? 'Analizando layout…' : 'Optimizar recorrido con IA'}
-                </button>
-                {aiProposal && (
-                  <div className="mt-2 rounded-xl border border-violet-400/25 bg-gray-950/70 p-2">
-                    <div className="text-[11px] font-semibold text-violet-200">Propuesta IA · {aiProposal.source === 'intent' ? 'instrucción' : 'optimización'}</div>
-                    {aiProposal.message && <div className="mt-1 text-[10.5px] text-amber-200">{aiProposal.message}</div>}
-                    {aiProposal.intents.slice(0, 6).map((intent, idx) => (
-                      <div key={`ai-${idx}`} className="mt-1 rounded-md bg-white/[0.04] px-1.5 py-1 text-[10.5px] text-gray-300">{aiProposal.descriptions?.[idx] ?? describeCadIntent(intent)}</div>
-                    ))}
-                    {aiProposal.intents.length > 6 && <div className="mt-1 text-[10px] text-gray-500">…y {aiProposal.intents.length - 6} acción(es) más.</div>}
-                    {aiProposal.errors.slice(0, 2).map((err) => (
-                      <div key={err} className="mt-1 text-[10.5px] text-rose-300">Descartada: {err}</div>
-                    ))}
-                    <div className="mt-2 flex gap-1.5">
-                      {aiProposal.intents.length > 0 && <button onClick={applyAiProposal} className="rounded-lg bg-emerald-700 px-2 py-1 text-[11px] font-semibold text-white hover:bg-emerald-600">Aplicar {aiProposal.intents.length}</button>}
-                      <button onClick={() => setAiProposal(null)} className="rounded-lg border border-white/10 px-2 py-1 text-[11px] text-gray-300 hover:bg-white/10">Descartar</button>
-                    </div>
-                  </div>
-                )}
-                {commandPreview && (
-                  <div className="mt-2 rounded-xl border border-white/10 bg-gray-950/70 p-2">
-                    <div className="text-[11px] font-semibold text-white">{commandPreview.preview.summary}</div>
-                    <div className="mt-1 text-[10.5px] text-gray-500 dark:text-gray-400">{commandPreview.preview.affectedObjectIds.length} objeto(s) · {commandPreview.preview.operations.length} operación(es)</div>
-                    {commandPreview.preview.operations.slice(0, 3).map((op, idx) => (
-                      <div key={`${op.type}-${idx}`} className="mt-1 rounded-md bg-white/[0.04] px-1.5 py-1 text-[10.5px] text-gray-300">
-                        {op.type === 'report' ? (
-                          <div>
-                            <div className="font-semibold text-cyan-100">{op.title}</div>
-                            {op.rows.slice(0, 3).map((row) => <div key={`${row.label}-${row.value}`} className="mt-0.5 flex justify-between gap-2 text-gray-500 dark:text-gray-400"><span className="truncate">{row.label}</span><span className="shrink-0 text-gray-200">{row.value}</span></div>)}
-                          </div>
-                        ) : op.type === 'move' ? `Mover ${op.objectId} → (${Math.round(op.after.x)}, ${Math.round(op.after.y)})` : op.type === 'create' ? `Crear ${op.object.label} en (${Math.round(op.object.x)}, ${Math.round(op.object.y)})` : op.type === 'delete' ? `Borrar ${op.objectId}` : op.type === 'rename' ? `Renombrar a "${op.label}"` : op.type === 'clear_annotations' ? `Quitar ${op.kind === 'dims' ? 'cotas' : op.kind === 'notes' ? 'notas' : 'anotaciones'}` : op.type === 'annotate' ? (op.annotation.kind === 'text' ? `Texto "${op.annotation.text}"` : `Cota ${op.annotation.text}`) : op.type === 'connect' ? `Conectar ${op.from} → ${op.to}` : op.type === 'measure' ? `Medir ${Math.round(op.distance)} ${op.unit}` : op.type === 'focus' ? `Enfocar ${op.objectIds.length || 'todo'}` : ''}
-                      </div>
-                    ))}
-                    {commandPreview.preview.issues.slice(0, 2).map((issue) => (
-                      <div key={`${issue.code}-${issue.message}`} className={`mt-1 text-[10.5px] ${issue.level === 'error' ? 'text-rose-300' : issue.level === 'warning' ? 'text-amber-300' : 'text-cyan-200'}`}>{issue.message}</div>
-                    ))}
-                    <div className="mt-2 flex gap-1.5">
-                      <button onClick={applyCommand} className="rounded-lg bg-emerald-700 px-2 py-1 text-[11px] font-semibold text-white hover:bg-emerald-600">Aplicar</button>
-                      <button onClick={() => setCommandPreview(null)} className="rounded-lg border border-white/10 px-2 py-1 text-[11px] text-gray-300 hover:bg-white/10">Cancelar</button>
-                      <button onClick={() => setCommandPreview(null)} className="rounded-lg border border-white/10 px-2 py-1 text-[11px] text-gray-300 hover:bg-white/10">Editar</button>
-                    </div>
-                  </div>
-                )}
-                {commandAssistSuggestions.length > 0 && (
-                  <div className="mt-2 space-y-1.5">
-                    <div className="flex items-center justify-between text-[10px] uppercase tracking-wide text-gray-500">
-                      <span>Sugerencias</span>
-                      <span>{selList.length} sel</span>
-                    </div>
-                    {commandAssistSuggestions.map((hint) => (
-                      <button key={hint.id} onClick={() => applyCommandSuggestion(hint)} title={hint.example} className={`w-full rounded-lg border px-2 py-1.5 text-left hover:bg-white/[0.08] ${hint.ready ? 'border-cyan-400/20 bg-cyan-400/[0.05]' : 'border-amber-400/20 bg-amber-400/[0.05]'}`}>
-                        <span className="flex items-center justify-between gap-2">
-                          <span className="truncate text-[11px] font-semibold text-gray-100">{hint.label}</span>
-                          <span className={`shrink-0 text-[9.5px] uppercase tracking-wide ${hint.ready ? 'text-cyan-200' : 'text-amber-200'}`}>{hint.ready ? 'Preview' : 'Pendiente'}</span>
-                        </span>
-                        <span className="mt-0.5 block truncate text-[10.5px] text-gray-400">{hint.example}</span>
-                        <span className={`mt-0.5 block truncate text-[10px] ${hint.ready ? 'text-cyan-200/70' : 'text-amber-200/80'}`}>{hint.reason}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {commandLog.length > 0 && (
-                  <div className="mt-2 space-y-1">
-                    <div className="flex items-center justify-between text-[10px] uppercase tracking-wide text-gray-500">
-                      <span>Historial</span>
-                      <span>{commandLog.length}</span>
-                    </div>
-                    <div className="flex gap-1.5">
-                      <button onClick={undoLastCommand} disabled={!commandLog.some((c) => c.status === 'applied') || hist.undo === 0} className="flex-1 rounded-lg border border-white/10 px-2 py-1 text-[10.5px] text-gray-300 disabled:opacity-40 hover:bg-white/10">Deshacer cmd</button>
-                      <button onClick={redoLastCommand} disabled={!commandLog.some((c) => c.status === 'undone') || hist.redo === 0} className="flex-1 rounded-lg border border-white/10 px-2 py-1 text-[10.5px] text-gray-300 disabled:opacity-40 hover:bg-white/10">Rehacer cmd</button>
-                    </div>
-                    {commandLog.slice(0, 3).map((item) => (
-                      <div key={item.id} className="rounded-lg bg-white/[0.04] px-2 py-1 text-[10.5px] text-gray-300">
-                        <span className={item.status === 'failed' ? 'text-rose-300' : item.status === 'applied' ? 'text-emerald-300' : 'text-cyan-200'}>{item.status}</span> · {item.label}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+          <div data-testid="cad-left-dock" className={`w-60 shrink-0 border-r border-white/10 bg-gray-900/95 text-white flex-col ${focusMode || (!workspacePreferences.leftDock && !workspacePreferences.commandDock) ? 'hidden' : 'flex'}`}>
+            {showCommand && workspacePreferences.commandDock && (
+              <CadCommandDock
+                inputRef={commandInputRef}
+                value={commandText}
+                preview={commandPreview}
+                log={commandLog}
+                suggestions={commandAssistSuggestions}
+                selectionCount={selList.length}
+                aiBusy={aiBusy}
+                aiProposal={aiProposal}
+                canUndo={commandLog.some((command) => command.status === 'applied') && hist.undo > 0}
+                canRedo={commandLog.some((command) => command.status === 'undone') && hist.redo > 0}
+                onValueChange={(value) => { setCommandText(value); setCommandHistoryCursor(-1); }}
+                onSubmit={interpretCommand}
+                onHistory={navigateCommandLineHistory}
+                onRepeat={repeatLastCommand}
+                onClearInput={() => { setCommandText(''); setCommandHistoryCursor(-1); }}
+                onDismissPreview={() => setCommandPreview(null)}
+                onRequestAi={(source) => void requestAiProposal(source)}
+                onApplyAi={applyAiProposal}
+                onDiscardAi={() => setAiProposal(null)}
+                onApplyPreview={applyCommand}
+                onSuggestion={applyCommandSuggestion}
+                onUndo={undoLastCommand}
+                onRedo={redoLastCommand}
+              />
             )}
+            {workspacePreferences.leftDock && (<>
             <div className="flex shrink-0 text-[12px] font-medium border-b border-white/10">
               <button onClick={() => setTab('stations')} className={`flex-1 px-3 py-2 inline-flex items-center justify-center gap-1.5 ${tab === 'stations' ? 'text-white bg-white/[0.06]' : 'text-gray-500 dark:text-gray-400 hover:text-gray-200'}`}><MapPin className="w-3.5 h-3.5" /> {standalone ? 'Puntos' : 'Estaciones'}</button>
               <button onClick={() => setTab('equipment')} className={`flex-1 px-3 py-2 inline-flex items-center justify-center gap-1.5 ${tab === 'equipment' ? 'text-white bg-white/[0.06]' : 'text-gray-500 dark:text-gray-400 hover:text-gray-200'}`}><Boxes className="w-3.5 h-3.5" /> Biblioteca</button>
@@ -6897,12 +8930,57 @@ export default function Layout3DEditor({
                 </>
               )}
             </div>
+            </>)}
           </div>
 
           {/* 3D viewport */}
-          <div className="relative flex-1 min-w-0">
+          <div
+            data-testid="cad-canvas"
+            className="relative min-w-0 flex-1 overflow-hidden"
+            onContextMenu={handleCadContextMenu}
+            onPointerDown={() => setCadContextMenu(null)}
+          >
             <div ref={mountRef} className="absolute inset-0" />
-            {showMinimap && (
+            <div ref={crosshairOverlayRef} data-testid="cad-crosshair" aria-hidden="true" className="pointer-events-none absolute left-0 top-0 z-20 hidden size-0">
+              <span className="absolute left-1/2 top-1/2 h-px -translate-x-1/2 -translate-y-1/2 bg-cyan-100/90 mix-blend-difference" style={{ width: `${workspacePreferences.crosshairPercent}%` }} />
+              <span className="absolute left-1/2 top-1/2 w-px -translate-x-1/2 -translate-y-1/2 bg-cyan-100/90 mix-blend-difference" style={{ height: `${workspacePreferences.crosshairPercent}%` }} />
+              <span data-testid="cad-pick-box" className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 border border-cyan-100/90 mix-blend-difference" style={{ width: workspacePreferences.pickBoxPx, height: workspacePreferences.pickBoxPx }} />
+              <span data-testid="cad-snap-aperture" className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-amber-300/60" style={{ width: workspacePreferences.aperturePx * 2, height: workspacePreferences.aperturePx * 2 }} />
+            </div>
+            {cadContextMenu && (
+              <div
+                data-testid="cad-context-menu"
+                role="menu"
+                className="absolute z-50 w-44 overflow-hidden rounded-xl border border-white/15 bg-gray-950/95 p-1.5 text-[11px] text-gray-200 shadow-2xl backdrop-blur"
+                style={{ left: cadContextMenu.x, top: cadContextMenu.y }}
+                onPointerDown={(event) => event.stopPropagation()}
+              >
+                <button role="menuitem" onClick={() => { repeatLastCommand(); setCadContextMenu(null); }} className="w-full rounded-lg px-2 py-1.5 text-left hover:bg-white/10">Repetir último comando</button>
+                <button role="menuitem" onClick={() => { if (drawCommandRef.current) commitActiveDraftCommand(); setCadContextMenu(null); }} className="w-full rounded-lg px-2 py-1.5 text-left hover:bg-white/10">Enter / terminar</button>
+                <button role="menuitem" onClick={() => { selectAll(); setCadContextMenu(null); }} className="w-full rounded-lg px-2 py-1.5 text-left hover:bg-white/10">Seleccionar todo</button>
+                <button role="menuitem" disabled={selList.length === 0 && nativeSelectionIds.length === 0} onClick={() => { if (nativeSelectionIds.length) removeNativeSelection(); else removeSelected(); setCadContextMenu(null); }} className="w-full rounded-lg px-2 py-1.5 text-left text-rose-200 hover:bg-rose-400/10 disabled:opacity-40">Eliminar selección</button>
+                <button role="menuitem" onClick={() => { closeProfessionalDocks(); updateWorkspacePreferences({ ...workspacePreferencesRef.current, rightDock: true }); setCadContextMenu(null); }} className="w-full rounded-lg px-2 py-1.5 text-left hover:bg-white/10">Mostrar propiedades</button>
+              </div>
+            )}
+            {recoveryCandidate && (
+              <div className="absolute left-3 top-16 z-30 w-80 rounded-2xl border border-amber-300/30 bg-gray-950/95 p-3 shadow-2xl backdrop-blur">
+                <div className="flex items-start gap-2">
+                  <History className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[12px] font-semibold text-amber-100">Borrador local recuperable</div>
+                    <div className="mt-1 text-[10.5px] leading-snug text-gray-400">Guardado automáticamente {new Date(recoveryCandidate.savedAt).toLocaleString()} en este tenant, usuario y workspace.</div>
+                    {recoveryCandidate.format !== 'legacy-object' && (
+                      <div className="mt-1 text-[10px] text-sky-200/80">Journal #{recoveryCandidate.journalSequence} · {(recoveryCandidate.storedBytes / 1_000_000).toFixed(2)} MB local · {recoveryCandidate.format} · {recoveryCandidate.encoder ?? 'legacy'}</div>
+                    )}
+                    <div className="mt-2 flex gap-2">
+                      <button onClick={restoreRecoveryCandidate} className="rounded-lg bg-amber-400 px-2.5 py-1.5 text-[11px] font-semibold text-gray-950 hover:bg-amber-300">Restaurar</button>
+                      <button onClick={discardRecoveryCandidate} className="rounded-lg border border-white/10 px-2.5 py-1.5 text-[11px] text-gray-300 hover:bg-white/10">Descartar</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            {showMinimap && workspacePreferences.minimap && (
               <PlantMinimap
                 ctxRef={ctxRef}
                 placementsRef={placementsRef}
@@ -6945,7 +9023,7 @@ export default function Layout3DEditor({
                   <div className="mb-2 rounded-xl border border-cyan-400/15 bg-cyan-400/[0.06] p-2 text-[11px] text-cyan-100">
                     {/* Soporte honesto de formatos (contrato D5): DXF nativo; DWG sólo con proveedor licenciado. */}
                     <div className="mb-1 text-[10px] text-cyan-200/70" title={DWG_UNAVAILABLE_REASON}>Formatos: DXF ✓ nativo · DWG ✕ requiere proveedor licenciado</div>
-                    <div className="font-semibold">{dxfImportPreview.primitives.length} entidades soportadas · {dxfImportPreview.layers.length || 1} capa(s)</div>
+                    <div className="font-semibold">{dxfImportPreview.primitives.length + dxfImportPreview.hatches.length + dxfImportPreview.mtexts.length + dxfImportPreview.semanticDimensions.length + dxfImportPreview.mleaders.length} entidades soportadas · {dxfImportPreview.layers.length || 1} capa(s)</div>
                     <div className="mt-1 text-cyan-100/75">{Object.entries(dxfPrimitiveSummary).map(([kind, count]) => `${kind}: ${count}`).join(' · ')}</div>
                     <button onClick={convertDxfPrimitivesToEditable} className="mt-2 w-full rounded-lg bg-cyan-600 px-2 py-1.5 text-[11px] font-semibold text-white hover:bg-cyan-500">Convertir entidades soportadas</button>
                   </div>
@@ -6967,12 +9045,45 @@ export default function Layout3DEditor({
             )}
             <div className="absolute bottom-3 right-3 z-20 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-gray-950/85 px-3 py-1.5 text-[11px] text-gray-300 shadow-xl backdrop-blur">
               <span className="text-cyan-200">Tool: {tool}</span>
-              <span>{selList.length} sel</span>
+              <span data-testid="cad-selection-status-count">{professionalSelection.current.length} sel</span>
+              <span data-testid="cad-native-document-count" title="Entidades nativas en el documento canónico">Native {nativeEntities.length}</span>
+              {nativeRenderStats.omitted > 0 && (
+                <span
+                  data-testid="cad-native-render-stats"
+                  data-total={nativeRenderStats.total}
+                  data-visible={nativeRenderStats.visible}
+                  data-rendered={nativeRenderStats.rendered}
+                  data-batching={nativeRenderStats.batching ? 'true' : 'false'}
+                  className="text-amber-300"
+                  title={`${nativeRenderStats.visible.toLocaleString()} entidades en bounds visibles; ${nativeRenderStats.omitted.toLocaleString()} permanecen sólo en overview/canónico`}
+                >
+                  Viewport {nativeRenderStats.rendered.toLocaleString()}/{nativeRenderStats.visible.toLocaleString()} visibles · {nativeRenderStats.total.toLocaleString()} total{nativeRenderStats.batching ? ' · cargando…' : ''}
+                </span>
+              )}
               <span>{data?.footprint.unit ?? 'mm'}</span>
+              <span ref={cursorCoordinateRef} data-testid="cad-cursor-coordinate" data-x="" data-y="" className="font-mono tabular-nums" title="Coordenadas del cursor en el dibujo">X — · Y —</span>
+              <span title="Modelo, revisión funcional y versión CAS">{model} · {revision} · v{data?.cadDocumentVersion ?? 0}</span>
+              <span className={saving ? 'text-cyan-200' : dirty ? 'text-amber-300' : 'text-emerald-300'}>{saving ? 'Guardando…' : dirty ? 'Modificado' : 'Guardado'}</span>
+              {dirty && recoverySavedAt && <span className="text-sky-300" title={recoverySavedAt}>Recovery local activo</span>}
+              {dirty && recoveryWarning && <span className="text-rose-300" title={recoveryWarning}>Recovery local en riesgo</span>}
+              <span className={connectionState === 'online' ? 'text-emerald-300' : connectionState === 'offline' ? 'text-rose-300' : 'text-gray-400'}>{connectionState === 'online' ? 'API online' : connectionState === 'offline' ? 'API offline' : 'API…'}</span>
               <span>Layer {cadLayers.find((layer) => layer.id === activeCadLayer)?.label ?? activeCadLayer}</span>
               {cadLayerSummary.hiddenObjectCount > 0 && <span className="text-amber-300">Hidden layer objs {cadLayerSummary.hiddenObjectCount}</span>}
               {cadLayerSummary.lockedObjectCount > 0 && <span className="text-amber-300">Locked layer objs {cadLayerSummary.lockedObjectCount}</span>}
-              <span>Grilla {layers.grid ? 'on' : 'off'} / Snap {snap ? 'grid' : 'free'} / {osnap ? 'obj' : 'obj off'}</span>
+              <span>Grilla {layers.grid ? 'on' : 'off'} / Snap {snap ? 'grid' : 'free'}</span>
+              <button onClick={() => setOsnap((value) => !value)} className={osnap ? 'text-cyan-200 hover:text-white' : 'text-gray-500 hover:text-white'}>OSNAP {osnap ? 'on' : 'off'} · F3</button>
+              <button onClick={() => setOrthoLock((value) => !value)} className={orthoLock ? 'text-amber-300 hover:text-white' : 'text-gray-500 hover:text-white'}>ORTHO {orthoLock ? 'on' : 'off'} · F8</button>
+              <button onClick={() => setPolarTracking((value) => !value)} className={polarTracking ? 'text-violet-300 hover:text-white' : 'text-gray-500 hover:text-white'}>POLAR {polarTracking ? `${polarIncrement}°` : 'off'} · F10</button>
+              <select
+                aria-label="Incremento polar"
+                value={polarIncrement}
+                onChange={(event) => setPolarIncrement(Number(event.target.value))}
+                className="rounded bg-white/[0.06] px-1 py-0.5 text-[10px] text-gray-200 outline-none"
+              >
+                {[15, 30, 45, 90].map((value) => <option key={value} value={value} className="text-gray-900">{value}°</option>)}
+              </select>
+              <button onClick={() => setObjectSnapTracking((value) => !value)} className={objectSnapTracking ? 'text-fuchsia-300 hover:text-white' : 'text-gray-500 hover:text-white'}>OTRACK {objectSnapTracking ? `on · ${acquiredTrackingPointCount}` : 'off'} · F11</button>
+              {acquiredTrackingPointCount > 0 && <button onClick={() => { acquiredTrackingPointsRef.current = []; setAcquiredTrackingPointCount(0); }} className="text-gray-500 hover:text-white">Limpiar tracking</button>}
               <button onClick={openChecks} className={`${releaseTone} hover:text-white`}>Release {releaseState}</button>
               {report && <span className={report.score === 'error' ? 'text-rose-300' : report.score === 'warn' ? 'text-amber-300' : 'text-emerald-300'}>Validación {report.score}</span>}
               {cadValidationReport && <span className={cadValidationReport.severity === 'critical' ? 'text-rose-300' : cadValidationReport.severity === 'warning' ? 'text-amber-300' : 'text-emerald-300'}>CAD {cadValidationReport.severity}</span>}
@@ -6983,13 +9094,18 @@ export default function Layout3DEditor({
               {dxfWarnings.length > 0 && <span className="text-amber-300">DXF {dxfWarnings.length}</span>}
               {localSnapshots.snapshots.length > 0 && <span>Snapshots {localSnapshots.snapshots.length}</span>}
             </div>
+            {hatchPickMode && (
+              <div className="pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-full bg-violet-600/95 px-3 py-1.5 text-[12px] font-semibold text-white">
+                HATCH {hatchPickSolid ? 'SOLID' : 'ANSI31'} · clic dentro de una región cerrada · islands {hatchIslandStyle}
+              </div>
+            )}
             {walk && (
               <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-emerald-700/95 text-white text-[12px] font-semibold inline-flex items-center gap-1.5 pointer-events-none">
                 <PersonStanding className="w-3.5 h-3.5" /> Recorrido · arrastra para mirar · WASD para caminar · Esc para salir
               </div>
             )}
             {!walk && (tool === 'measure' || tool === 'wall' || isCadDrawTool(tool)) && (
-              <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-amber-400/95 text-gray-900 text-[12px] font-semibold inline-flex items-center gap-1.5 pointer-events-none">
+              <div data-testid="cad-live-prompt" className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-amber-400/95 text-gray-900 text-[12px] font-semibold inline-flex items-center gap-1.5 pointer-events-none">
                 {tool === 'measure' ? <Ruler className="w-3.5 h-3.5" /> : <Spline className="w-3.5 h-3.5" />}
                 {measureLive || drawPrompt ? (measureLive || drawPrompt) : (tool === 'measure' ? 'Clic en dos puntos para medir' : isCadDrawTool(tool) ? 'Dibujo CAD activo · clic o coordenada · Enter termina' : 'Clic para trazar muros · Esc termina')}
               </div>
@@ -6997,17 +9113,34 @@ export default function Layout3DEditor({
             {!walk && (tool === 'wall' || isCadDrawTool(tool)) && (
               <div className="absolute top-12 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 rounded-full border border-white/10 bg-gray-900/90 px-2 py-1.5 backdrop-blur">
                 <button onClick={() => setOrthoLock((v) => !v)} title="Orto: restringe los muros a 0/90/180/270 (como F8 de AutoCAD)" className={`rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${orthoLock ? 'bg-amber-400 text-gray-900' : 'bg-white/[0.08] text-gray-300 hover:bg-white/[0.15]'}`}>ORTO</button>
-                <form onSubmit={(e) => { e.preventDefault(); submitPrecisionPoint(); }} className="flex items-center gap-1">
-                  <input
-                    value={precisionText}
-                    onChange={(e) => setPrecisionText(e.target.value)}
-                    placeholder={drawPrompt ? `${drawPrompt} · x,y / @dx,dy / Enter` : 'x,y · @dx,dy · @30<45 · 100'}
-                    title="Coordenada absoluta x,y · relativa @dx,dy · polar @dist<ángulo · Enter vacío termina LINE/PLINE"
-                    className="w-44 rounded-lg border border-white/10 bg-gray-950/80 px-2 py-1 text-[11px] text-white placeholder:text-gray-600 outline-none focus:border-amber-400/60"
-                  />
-                  <button type="submit" className="rounded-lg bg-amber-400 px-2 py-1 text-[10.5px] font-semibold text-gray-900 hover:bg-amber-300">{drawPrompt && !precisionText.trim() ? 'Enter' : 'Ir'}</button>
-                </form>
+                <CadDynamicInput
+                  key={`${dynamicInputKind}:${dynamicAnchor ? 'anchored' : 'origin'}`}
+                  kind={dynamicInputKind}
+                  anchor={dynamicAnchor}
+                  documentUnit={data?.footprint.unit === 'm' ? 'm' : 'mm'}
+                  locale="es-MX"
+                  defaults={dynamicInputDefaults}
+                  onCommit={commitDynamicInput}
+                  onCancel={() => { setPrecisionText(''); endDraw(); setTool('select'); toolRef.current = 'select'; }}
+                />
+                {activeDynamicCommand && (activeDynamicCommand.id === 'line' || activeDynamicCommand.id === 'polyline') && (
+                  <button onClick={commitActiveDraftCommand} className="rounded-lg border border-white/10 px-2 py-1 text-[10px] text-gray-300 hover:bg-white/10">Terminar</button>
+                )}
+                {activeDynamicCommand?.id === 'polyline' && canCloseDraftPolyline && (
+                  <button data-testid="cad-polyline-close" onClick={closeActiveDraftPolyline} className="rounded-lg border border-cyan-400/20 bg-cyan-400/10 px-2 py-1 text-[10px] font-semibold text-cyan-100 hover:bg-cyan-400/20">Cerrar</button>
+                )}
               </div>
+            )}
+            {mtextEditorOpen && (
+              <CadMTextEditor
+                initial={editingMText}
+                defaultInsertion={mtextDefaultInsertion}
+                defaultLayer={activeCadLayer}
+                defaultHeight={Math.max(1, data.footprint.gridSize || 100)}
+                textStyles={loadedCadDocumentRef.current?.styles.text ?? { Standard: { fontFamily: 'Arial', height: 120 } }}
+                onSave={saveMTextDraft}
+                onCancel={() => { setEditingMTextId(null); setMTextEditorOpen(false); }}
+              />
             )}
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-gray-900/80 backdrop-blur border border-white/10 text-[11px] text-gray-300 inline-flex items-center gap-2 pointer-events-none">
               <Move3d className="w-3.5 h-3.5" />
@@ -7089,7 +9222,19 @@ export default function Layout3DEditor({
           </div>
 
           {/* right: properties */}
-          <div className={`w-64 shrink-0 border-l border-white/10 bg-gray-900/60 overflow-y-auto ${focusMode ? 'hidden' : ''}`}>
+          <div
+            data-testid="cad-right-dock"
+            className={`${activeProfessionalDock ? 'w-[min(560px,42vw)] overflow-hidden' : 'w-64 overflow-y-auto'} shrink-0 border-l border-white/10 bg-gray-900/95 text-white ${focusMode || (!workspacePreferences.rightDock && !activeProfessionalDock) ? 'hidden' : ''}`}
+          >
+            {activeProfessionalDock ? (
+              <div className="flex h-full min-h-0 flex-col">
+                <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-3 py-2">
+                  <div className="inline-flex items-center gap-2 text-[12px] font-semibold text-cyan-100"><Settings2 className="h-3.5 w-3.5" />{professionalDockTitle}</div>
+                  <button aria-label="Cerrar panel profesional" onClick={closeProfessionalDocks} className="rounded-lg p-1 text-gray-400 hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-cyan-300/60"><X className="h-4 w-4" /></button>
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto">{professionalDockContent}</div>
+              </div>
+            ) : (<>
             {nativeSelectedEntities.length > 0 ? (
               <div className="p-3.5" data-testid="cad-native-properties">
                 <div className="mb-1 flex items-center gap-2">
@@ -7101,7 +9246,33 @@ export default function Layout3DEditor({
                 <div className="mb-3 text-[11px] text-gray-500 dark:text-gray-400">
                   Geometría canónica · selección, grips, snaps y DXF sin aproximación persistida.
                 </div>
-                {primaryNativeEntity && primaryNativeProperties && primaryNativeBounds ? (
+                {selectedNativeLineIds ? (
+                  <div className="space-y-2">
+                  <div data-testid="cad-line-edit-control" className="rounded-xl border border-cyan-400/20 bg-cyan-400/[0.06] p-3">
+                    <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-cyan-200">TRIM / EXTEND · 2 LINE</div>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      <select data-testid="cad-line-edit-operation" value={lineEditOperation} onChange={(event) => setLineEditOperation(event.target.value as 'trim' | 'extend')} className="rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[11px] text-white">
+                        <option value="trim">TRIM</option><option value="extend">EXTEND</option>
+                      </select>
+                      <select data-testid="cad-line-edit-target" value={selectedNativeLineIds.includes(lineEditTargetId) ? lineEditTargetId : selectedNativeLineIds[0]} onChange={(event) => setLineEditTargetId(event.target.value)} className="rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[11px] text-white">
+                        {selectedNativeLineIds.map((id) => <option key={id} value={id}>{id}</option>)}
+                      </select>
+                      <select data-testid="cad-line-edit-endpoint" value={lineEditEndpoint} onChange={(event) => setLineEditEndpoint(event.target.value as CadLineEndpoint)} className="rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[11px] text-white">
+                        <option value="start">Start</option><option value="end">End</option>
+                      </select>
+                    </div>
+                    <button data-testid="cad-line-edit-apply" disabled={cadReviewReadOnly} onClick={() => editNativeLines(selectedNativeLineIds)} className="mt-2 w-full rounded-lg bg-cyan-500 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-cyan-400 disabled:opacity-40">Aplicar {lineEditOperation.toUpperCase()}</button>
+                  </div>
+                  <div data-testid="cad-fillet-control" className="rounded-xl border border-violet-400/20 bg-violet-400/[0.07] p-3">
+                    <div className="text-[10px] uppercase tracking-wide text-violet-200">FILLET · 2 LINE</div>
+                    <p className="mt-1 text-[10.5px] text-gray-400">Recorta ambas líneas y crea un ARC tangente en una sola operación reversible.</p>
+                    <div className="mt-2 grid grid-cols-[1fr_auto] gap-2">
+                      <label className="text-[10px] text-gray-500">Radio<input data-testid="cad-fillet-radius" type="number" min="0.000001" value={filletRadius} onChange={(event) => setFilletRadius(Math.max(0.000001, Number(event.target.value) || 0.000001))} className="mt-1 w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white outline-none focus:ring-1 focus:ring-violet-400/50" /></label>
+                      <button data-testid="cad-fillet-apply" disabled={cadReviewReadOnly} onClick={() => filletNativeLines(selectedNativeLineIds)} className="self-end rounded-lg bg-violet-500 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-violet-400 disabled:opacity-40">Aplicar FILLET</button>
+                    </div>
+                  </div>
+                  </div>
+                ) : primaryNativeEntity && primaryNativeProperties && primaryNativeBounds ? (
                   <>
                     <div className="mb-3 grid grid-cols-2 gap-2 rounded-xl border border-cyan-400/15 bg-cyan-400/[0.04] p-2.5">
                       <ReadField label="ID" value={primaryNativeEntity.id} />
@@ -7111,8 +9282,29 @@ export default function Layout3DEditor({
                     </div>
                     <div className="mb-3 grid grid-cols-2 gap-2">
                       {Object.entries(primaryNativeProperties).map(([key, value]) => {
+                        if ((primaryNativeEntity.type === 'mtext' || primaryNativeEntity.type === 'mleader') && key === 'text')
+                          return (
+                            <label key={`${primaryNativeEntity.id}-${key}-${nativeDocumentRevision}`} className="col-span-2 text-[10.5px] text-gray-500 dark:text-gray-400">
+                              text
+                              <textarea
+                                data-testid="cad-native-property-text"
+                                defaultValue={String(value)}
+                                rows={4}
+                                onBlur={(event) => {
+                                  if (event.target.value !== value) updateNativeProperties(primaryNativeEntity.id, { text: event.target.value });
+                                }}
+                                className="mt-1 w-full resize-y rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white outline-none focus:ring-1 focus:ring-cyan-500/40"
+                              />
+                            </label>
+                          );
                         if (typeof value === 'boolean')
-                          return <ReadField key={key} label={key} value={value ? 'Sí' : 'No'} />;
+                          return (
+                            <label key={`${primaryNativeEntity.id}-${key}-${nativeDocumentRevision}`} className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-gray-950/50 px-2 py-1.5 text-[10.5px] text-gray-400">
+                              {key}
+                              <input type="checkbox" checked={value} onChange={(event) => updateNativeProperties(primaryNativeEntity.id, { [key]: event.target.checked })} className="accent-cyan-500" />
+                            </label>
+                          );
+                        if (key.endsWith('Count')) return <ReadField key={key} label={key} value={String(value)} />;
                         return (
                           <label key={`${primaryNativeEntity.id}-${key}-${nativeDocumentRevision}`} className="text-[10.5px] text-gray-500 dark:text-gray-400">
                             {key}
@@ -7156,6 +9348,47 @@ export default function Layout3DEditor({
                   <button data-testid="cad-native-delete" onClick={removeNativeSelection} className="inline-flex items-center gap-1 rounded-md bg-rose-500/20 px-2 py-1 text-[12px] text-rose-300 hover:bg-rose-500/30"><Trash2 className="h-3.5 w-3.5" /> Quitar</button>
                   <button onClick={clearNativeSelection} className="rounded-md bg-white/[0.06] px-2 py-1 text-[12px] hover:bg-white/[0.12]">Deseleccionar</button>
                 </div>
+                {primaryNativeEntity?.type === 'hatch' && (
+                  <div className="mt-2 flex items-center gap-1.5 rounded-lg border border-violet-400/15 bg-violet-400/[0.05] p-2 text-[10.5px]">
+                    <span className={primaryNativeEntity.associationStatus === 'broken' ? 'text-rose-300' : 'text-violet-200'}>
+                      {primaryNativeEntity.associationStatus ?? (primaryNativeEntity.associative ? 'associated' : 'detached')}
+                    </span>
+                    <span className="text-gray-500">{primaryNativeEntity.boundaryRefs?.length ?? 0} refs</span>
+                    <button
+                      data-testid="cad-hatch-reassociate"
+                      onClick={() => commitNativeCommands([{ type: 'hatch-association', entityId: primaryNativeEntity.id, associative: true }])}
+                      className="ml-auto rounded bg-violet-500/20 px-2 py-1 text-violet-100 hover:bg-violet-500/30"
+                    >Reasociar</button>
+                    <button
+                      data-testid="cad-hatch-detach"
+                      onClick={() => commitNativeCommands([{ type: 'hatch-association', entityId: primaryNativeEntity.id, associative: false }])}
+                      className="rounded bg-white/[0.06] px-2 py-1 text-gray-300 hover:bg-white/[0.12]"
+                    >Desasociar</button>
+                  </div>
+                )}
+                {primaryNativeEntity?.type === 'mtext' && (
+                  <button
+                    data-testid="cad-mtext-edit"
+                    onClick={() => openMTextEditor(primaryNativeEntity.id)}
+                    className="mt-2 w-full rounded-lg border border-cyan-400/20 bg-cyan-400/[0.08] px-3 py-1.5 text-[11px] font-semibold text-cyan-100 hover:bg-cyan-400/[0.14]"
+                  >Editar contenido y formato MTEXT</button>
+                )}
+                {primaryNativeEntity?.type === 'dimension' && primaryNativeEntity.dimensionKind && (
+                  <div className="mt-2 flex items-center gap-1.5 rounded-lg border border-emerald-400/15 bg-emerald-400/[0.05] p-2 text-[10.5px]">
+                    <span className={primaryNativeEntity.associationStatus === 'broken' ? 'text-rose-300' : 'text-emerald-200'}>{primaryNativeEntity.associationStatus ?? (primaryNativeEntity.associative ? 'associated' : 'detached')}</span>
+                    <span className="text-gray-500">{primaryNativeEntity.references?.length ?? 0} refs</span>
+                    <button data-testid="cad-dimension-reassociate" onClick={() => commitNativeCommands([{ type: 'dimension-association', entityId: primaryNativeEntity.id, associative: true }])} className="ml-auto rounded bg-emerald-500/20 px-2 py-1 text-emerald-100 hover:bg-emerald-500/30">Reasociar</button>
+                    <button data-testid="cad-dimension-detach" onClick={() => commitNativeCommands([{ type: 'dimension-association', entityId: primaryNativeEntity.id, associative: false }])} className="rounded bg-white/[0.06] px-2 py-1 text-gray-300 hover:bg-white/[0.12]">Desasociar</button>
+                  </div>
+                )}
+                {primaryNativeEntity?.type === 'mleader' && (
+                  <div className="mt-2 flex items-center gap-1.5 rounded-lg border border-sky-400/15 bg-sky-400/[0.05] p-2 text-[10.5px]">
+                    <span className={primaryNativeEntity.associationStatus === 'broken' ? 'text-rose-300' : 'text-sky-200'}>{primaryNativeEntity.associationStatus ?? (primaryNativeEntity.associative ? 'associated' : 'detached')}</span>
+                    <span className="text-gray-500">{primaryNativeEntity.references?.length ?? 0} refs · {primaryNativeEntity.leaderLines?.length ?? 1} leaders</span>
+                    <button data-testid="cad-mleader-reassociate" onClick={() => commitNativeCommands([{ type: 'mleader-association', entityId: primaryNativeEntity.id, associative: true }])} className="ml-auto rounded bg-sky-500/20 px-2 py-1 text-sky-100 hover:bg-sky-500/30">Reasociar</button>
+                    <button data-testid="cad-mleader-detach" onClick={() => commitNativeCommands([{ type: 'mleader-association', entityId: primaryNativeEntity.id, associative: false }])} className="rounded bg-white/[0.06] px-2 py-1 text-gray-300 hover:bg-white/[0.12]">Desasociar</button>
+                  </div>
+                )}
               </div>
             ) : selList.length === 0 ? (
               <div className="p-4 text-[12px] text-gray-500 flex flex-col gap-3">
@@ -7174,7 +9407,10 @@ export default function Layout3DEditor({
                         <button
                           key={entity.id}
                           data-testid={`cad-native-entity-${entity.id}`}
-                          onClick={() => selectNative([entity.id])}
+                          onClick={() => {
+                            selectNative([entity.id]);
+                            syncNativeScene();
+                          }}
                           className="flex w-full items-center justify-between gap-2 rounded-lg bg-gray-950/45 px-2 py-1.5 text-left text-[11px] text-gray-200 hover:bg-white/[0.08]"
                         >
                           <span className="truncate">{entity.id}</span>
@@ -7304,6 +9540,8 @@ export default function Layout3DEditor({
                   </>
                 )}
                 <div className="flex flex-wrap gap-1.5">
+                  <button data-testid="cad-create-hatch-pattern" onClick={() => createHatchForSelection(false)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-cyan-500/15 text-cyan-100 hover:bg-cyan-500/25 text-[12px]"><BrickWall className="w-3.5 h-3.5" /> HATCH ANSI31</button>
+                  <button data-testid="cad-create-hatch-solid" onClick={() => createHatchForSelection(true)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-cyan-500/15 text-cyan-100 hover:bg-cyan-500/25 text-[12px]"><BrickWall className="w-3.5 h-3.5" /> Relleno SOLID</button>
                   <button onClick={() => rotateSelected(15)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><RotateCw className="w-3.5 h-3.5" /> +15°</button>
                   <button onClick={() => rotateSelected(-15)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><RotateCcw className="w-3.5 h-3.5" /> −15°</button>
                   <button onClick={duplicateSelected} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"><Copy className="w-3.5 h-3.5" /> Duplicar</button>
@@ -7323,6 +9561,12 @@ export default function Layout3DEditor({
                 </div>
                 <div className="text-[11px] text-gray-500 dark:text-gray-400 mb-3">{selSnap.subtitle}</div>
                 <button onClick={createLeaderForSelection} title="Crea una directriz con nota que apunta a este objeto (flecha + texto), como MLEADER en AutoCAD" className="mb-3 w-full rounded-lg border border-sky-400/25 bg-sky-400/[0.08] px-2 py-1.5 text-[11px] font-semibold text-sky-100 hover:bg-sky-400/[0.14]">＋ Directriz / Nota</button>
+                {selSnap.type === 'asset' && (
+                  <div className="mb-3 grid grid-cols-2 gap-1.5">
+                    <button data-testid="cad-create-hatch-pattern" onClick={() => createHatchForSelection(false)} className="rounded-lg border border-cyan-400/25 bg-cyan-400/[0.08] px-2 py-1.5 text-[11px] font-semibold text-cyan-100 hover:bg-cyan-400/[0.14]">HATCH ANSI31</button>
+                    <button data-testid="cad-create-hatch-solid" onClick={() => createHatchForSelection(true)} className="rounded-lg border border-cyan-400/25 bg-cyan-400/[0.08] px-2 py-1.5 text-[11px] font-semibold text-cyan-100 hover:bg-cyan-400/[0.14]">Relleno SOLID</button>
+                  </div>
+                )}
                 {selSnap.type === 'asset' && selSnap.kind === 'wall' && (
                   <div className="mb-3 rounded-xl border border-emerald-400/15 bg-emerald-400/[0.04] p-2.5">
                     <div className="mb-1.5 text-[10px] uppercase tracking-wide text-emerald-200">Dimensiones exactas</div>
@@ -7491,13 +9735,14 @@ export default function Layout3DEditor({
                 </p>
               </div>
             )}
+            </>)}
           </div>
         </div>
       )}
 
 
       {showSheetPackage && (
-        <div className="absolute inset-0 z-[82] grid place-items-center bg-black/55 p-4" onClick={() => setShowSheetPackage(false)}>
+        <div data-testid="cad-sheet-package" className="absolute inset-0 z-[82] grid place-items-center bg-black/55 p-4" onClick={() => setShowSheetPackage(false)}>
           <div className="w-[760px] max-w-full max-h-[84vh] overflow-y-auto rounded-2xl border border-white/10 bg-gray-900 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
               <Stamp className="h-4 w-4 text-cyan-300" />
@@ -7506,13 +9751,13 @@ export default function Layout3DEditor({
                 <div className="text-[11px] text-gray-500">Cajetín, revisión, validación, DXF, manifiesto y checklist de emisión.</div>
               </div>
               <div className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1 text-[12px] font-semibold text-cyan-100">{sheetPackageReadyPct}% listo</div>
-              <button onClick={() => setShowSheetPackage(false)} className="rounded-lg p-1 hover:bg-white/10"><X className="h-4 w-4" /></button>
+              <button aria-label="Cerrar paquete de entrega" onClick={() => setShowSheetPackage(false)} className="rounded-lg p-1 hover:bg-white/10"><X className="h-4 w-4" /></button>
             </div>
             <div className="border-b border-white/10 bg-gray-950/35 px-4 py-3">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="mr-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-500">Layouts</span>
                 {orderedPaperSpaces.map((space) => (
-                  <button key={space.id} onClick={() => selectPaperSpace(space)} className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold ${space.id === activePaperSpace?.id ? 'border-cyan-300/50 bg-cyan-400/15 text-cyan-100' : 'border-white/10 bg-white/[0.04] text-gray-400 hover:bg-white/[0.08]'}`}>
+                  <button key={space.id} data-testid={`cad-layout-tab-${space.id}`} draggable onDragStart={(event) => event.dataTransfer.setData('text/plain', space.id)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); movePaperSpace(event.dataTransfer.getData('text/plain'), space.id); }} onClick={() => selectPaperSpace(space)} className={`cursor-grab rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold active:cursor-grabbing ${space.id === activePaperSpace?.id ? 'border-cyan-300/50 bg-cyan-400/15 text-cyan-100' : 'border-white/10 bg-white/[0.04] text-gray-400 hover:bg-white/[0.08]'}`}>
                     {space.name}{space.includeInPublish === false ? ' · excluida' : ''}
                   </button>
                 ))}
@@ -7533,17 +9778,25 @@ export default function Layout3DEditor({
                     <select value={activePaperSpace.page.orientation} onChange={(event) => changeActiveOrientation(event.target.value as 'portrait' | 'landscape')} className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white"><option value="landscape">Horizontal</option><option value="portrait">Vertical</option></select>
                   </label>
                   <label className="flex items-end gap-2 pb-1.5 text-[11px] text-gray-300"><input type="checkbox" checked={activePaperSpace.includeInPublish !== false} onChange={(event) => updateActivePaperSpace((space) => ({ ...space, includeInPublish: event.target.checked }), event.target.checked ? 'Incluir hoja' : 'Excluir hoja')} /> Publicar</label>
-                  {activePaperViewport && (<>
-                    <label className="block"><span className="mb-1 block text-[10px] uppercase tracking-wide text-gray-500">Escala viewport</span>
-                      <select value={activePaperViewport.scale} disabled={activePaperViewport.locked} onChange={(event) => updatePrimaryViewport((viewport) => ({ ...viewport, scale: Number(event.target.value) }), 'Cambiar escala de viewport')} className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white disabled:cursor-not-allowed disabled:opacity-45">{CAD_SHEET_SCALES.map((scale) => <option key={scale} value={scale}>1:{scale}</option>)}</select>
-                    </label>
-                    {(['x', 'y', 'width', 'height'] as const).map((field) => (
-                      <label key={field} className="block"><span className="mb-1 block text-[10px] uppercase tracking-wide text-gray-500">Modelo {field}</span>
-                        <input type="number" key={`${activePaperViewport.id}:${field}`} defaultValue={activePaperViewport.modelBounds[field]} disabled={activePaperViewport.locked} onBlur={(event) => { const value = Number(event.target.value); if (Number.isFinite(value) && ((field === 'x' || field === 'y') || value > 0)) updatePrimaryViewport((viewport) => ({ ...viewport, modelBounds: { ...viewport.modelBounds, [field]: value } }), `Actualizar viewport ${field}`); }} className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white disabled:cursor-not-allowed disabled:opacity-45" />
-                      </label>
-                    ))}
-                    <button onClick={() => updatePrimaryViewport((viewport) => ({ ...viewport, locked: !viewport.locked }), activePaperViewport.locked ? 'Desbloquear viewport' : 'Bloquear viewport')} className={`self-end rounded-lg border px-2 py-1.5 text-[11px] font-semibold ${activePaperViewport.locked ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-200' : 'border-amber-300/25 bg-amber-400/10 text-amber-200'}`}>{activePaperViewport.locked ? 'Viewport bloqueado' : 'Viewport editable'}</button>
-                  </>)}
+                  {(['top', 'right', 'bottom', 'left'] as const).map((edge) => <label key={edge} className="block"><span className="mb-1 block text-[10px] uppercase tracking-wide text-gray-500">Margen {edge}</span><input data-testid={`cad-page-margin-${edge}`} type="number" min="0" value={activePaperSpace.pageSetup?.margins?.[edge] ?? 10} onChange={(event) => updateActivePageMargin(edge, Number(event.target.value))} className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white" /></label>)}
+                  <label className="block"><span className="mb-1 block text-[10px] uppercase tracking-wide text-gray-500">Color</span><select value={activePaperSpace.pageSetup?.colorMode ?? 'monochrome'} onChange={(event) => updateActivePaperSpace((space) => ({ ...space, pageSetup: { paper: space.pageSetup?.paper ?? 'custom', margins: space.pageSetup?.margins ?? { top: 10, right: 10, bottom: 10, left: 10 }, colorMode: event.target.value as 'color' | 'monochrome', lineweightScale: space.pageSetup?.lineweightScale ?? 1 } }), 'Cambiar modo de color')} className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white"><option value="monochrome">Monochrome</option><option value="color">Color</option></select></label>
+                  <label className="block"><span className="mb-1 block text-[10px] uppercase tracking-wide text-gray-500">Lineweight</span><input type="number" min="0.01" step="0.1" value={activePaperSpace.pageSetup?.lineweightScale ?? 1} onChange={(event) => Number(event.target.value) > 0 && updateActivePaperSpace((space) => ({ ...space, pageSetup: { paper: space.pageSetup?.paper ?? 'custom', margins: space.pageSetup?.margins ?? { top: 10, right: 10, bottom: 10, left: 10 }, colorMode: space.pageSetup?.colorMode ?? 'monochrome', lineweightScale: Number(event.target.value) } }), 'Cambiar escala de lineweight')} className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white" /></label>
+                  <label className="col-span-2 block"><span className="mb-1 block text-[10px] uppercase tracking-wide text-gray-500">Biblioteca de cajetines</span><select data-testid="cad-title-block-library" value={activePaperSpace.titleBlock?.block ?? ''} onChange={(event) => updateActivePaperSpace((space) => ({ ...space, titleBlock: { ...space.titleBlock, block: event.target.value || undefined, attributes: { ...(space.titleBlock?.attributes ?? {}) } } }), 'Cambiar biblioteca de cajetín')} className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white"><option value="">Cajetín vectorial estándar</option>{professionalBlockDefinitions.map((block) => <option key={block.id} value={block.id}>{block.name}</option>)}</select></label>
+                  <CadLayoutManager
+                    space={activePaperSpace}
+                    activeViewportId={activePaperViewportId}
+                    layers={activeLayoutLayers}
+                    preflight={activeLayoutPreflight}
+                    preview={layoutPreviewSheet?.id === activePaperSpace.id ? layoutPreviewSheet : null}
+                    onActivate={setActivePaperViewportId}
+                    onAdd={addPaperViewport}
+                    onDuplicate={duplicatePaperViewport}
+                    onDelete={removePaperViewport}
+                    onChange={changePaperViewport}
+                    onLayerVisibility={changePaperViewportLayerVisibility}
+                    onLayerOverride={changePaperViewportLayerOverride}
+                    onRequestPreview={requestLayoutPreview}
+                  />
                   <div className="col-span-full flex justify-end gap-2 border-t border-white/10 pt-2">
                     <button onClick={() => commitPaperSpaces(reorderCadPaperSpaces(paperSpaces, activePaperSpace.id, -1), 'Reordenar hoja')} disabled={(activePaperSpace.order ?? 0) <= 0} className="rounded-md border border-white/10 px-2 py-1 text-[11px] disabled:opacity-30">← Subir</button>
                     <button onClick={() => commitPaperSpaces(reorderCadPaperSpaces(paperSpaces, activePaperSpace.id, 1), 'Reordenar hoja')} disabled={(activePaperSpace.order ?? 0) >= paperSpaces.length - 1} className="rounded-md border border-white/10 px-2 py-1 text-[11px] disabled:opacity-30">Bajar →</button>
@@ -7591,10 +9844,10 @@ export default function Layout3DEditor({
                     <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Manifest JSON</span>
                     <button onClick={() => navigator.clipboard?.writeText(JSON.stringify(sheetPackageManifest, null, 2))} className="rounded-md bg-cyan-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-cyan-500">Copiar</button>
                   </div>
-                  <pre className="max-h-52 overflow-auto whitespace-pre-wrap rounded-lg bg-black/30 p-2 text-[10.5px] leading-relaxed text-cyan-50/80">{JSON.stringify(sheetPackageManifest, null, 2)}</pre>
+                  <pre data-testid="cad-sheet-package-manifest" className="max-h-52 overflow-auto whitespace-pre-wrap rounded-lg bg-black/30 p-2 text-[10.5px] leading-relaxed text-cyan-50/80">{JSON.stringify(sheetPackageManifest, null, 2)}</pre>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <button onClick={() => void publishSheetSetPdf()} disabled={publishingSheetSet || !paperSpaces.some((space) => space.includeInPublish !== false)} className="rounded-xl bg-white px-3 py-2 text-[12px] font-semibold text-gray-900 hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-50">{publishingSheetSet ? 'Publicando…' : `Publicar PDF (${paperSpaces.filter((space) => space.includeInPublish !== false).length})`}</button>
+                  <button onClick={() => void publishSheetSetPdf()} disabled={cadReviewReadOnly || publishingSheetSet || !paperSpaces.some((space) => space.includeInPublish !== false)} className="rounded-xl bg-white px-3 py-2 text-[12px] font-semibold text-gray-900 hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-50">{publishingSheetSet ? 'Publicando…' : `Publicar PDF (${paperSpaces.filter((space) => space.includeInPublish !== false).length})`}</button>
                   <button onClick={openDxfExport} className="rounded-xl bg-cyan-600 px-3 py-2 text-[12px] font-semibold text-white hover:bg-cyan-500">Preparar DXF</button>
                 </div>
                 {publicationWarnings.length > 0 && (
@@ -8085,7 +10338,7 @@ export default function Layout3DEditor({
             <div className="p-4">
               <div className="flex items-center gap-2 mb-3">
                 <input value={versName} onChange={(e) => setVersName(e.target.value)} placeholder="Nombre de la versión/snapshot (opcional)" className="flex-1 bg-white/[0.06] rounded-lg px-2.5 py-1.5 text-[13px] outline-none focus:ring-1 ring-cyan-500/40" />
-                <button onClick={saveVersion} disabled={versBusy} className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-[12px] font-medium disabled:opacity-50">Guardar versión</button>
+                <button onClick={saveVersion} disabled={cadReviewReadOnly || versBusy} className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-[12px] font-medium disabled:opacity-50">Guardar versión</button>
                 <button onClick={() => saveLocalSnapshot('manual')} className="px-3 py-1.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.14] text-white text-[12px] font-medium">Snapshot local</button>
               </div>
               <div className="mb-4 rounded-xl border border-cyan-400/15 bg-cyan-400/[0.04] p-3">

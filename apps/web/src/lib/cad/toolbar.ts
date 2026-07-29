@@ -5,6 +5,8 @@ export type CadToolbarActionId =
   | "line"
   | "polyline"
   | "rect"
+  | "circle"
+  | "offset"
   | "aisle"
   | "connector"
   | "zone"
@@ -64,6 +66,20 @@ export const CAD_TOOLBAR_ACTIONS: CadToolbarAction[] = [
     shortcut: "B",
     group: "draw",
     description: "Dibujar una zona/room rectangular desde dos esquinas.",
+  },
+  {
+    id: "circle",
+    label: "Circle",
+    shortcut: "C",
+    group: "draw",
+    description: "Dibujar un círculo por centro y radio o diámetro.",
+  },
+  {
+    id: "offset",
+    label: "Offset",
+    shortcut: "Shift+O",
+    group: "draw",
+    description: "Desfasar la selección por una distancia exacta.",
   },
   {
     id: "aisle",

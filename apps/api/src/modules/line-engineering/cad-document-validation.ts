@@ -2,13 +2,18 @@ import { BadRequestException } from '@nestjs/common';
 
 export type PersistedCadDocument = Record<string, unknown>;
 
-const MAX_BYTES = 8_000_000;
+export const CAD_DOCUMENT_MAX_INLINE_BYTES = 8_000_000;
+export const CAD_DOCUMENT_MAX_ARCHIVE_BYTES = 128 * 1024 * 1024;
 const MAX_ENTITIES = 100_000;
 const MAX_BLOCKS = 2_000;
 const MAX_CONSTRAINTS = 250_000;
 const MAX_PAPER_SPACES = 500;
 const MAX_VIEWPORTS_PER_PAPER_SPACE = 32;
 const MAX_PUBLICATIONS = 1_000;
+const MAX_CAD_VERSIONS = 12;
+const MAX_REVIEW_THREADS = 500;
+const MAX_REVIEW_LINKS = 20;
+const MAX_COLLABORATION_AUDIT_EVENTS = 500;
 const MAX_DEPTH = 64;
 
 function objectValue(value: unknown): Record<string, unknown> | null {
@@ -21,7 +26,7 @@ function finitePositive(value: unknown): boolean {
   return typeof value === 'number' && Number.isFinite(value) && value > 0;
 }
 
-function inspect(value: unknown, depth = 0): void {
+function inspect(value: unknown, maxBytes: number, depth = 0): void {
   if (depth > MAX_DEPTH) {
     throw new BadRequestException(
       'CadDocument excede la profundidad permitida.',
@@ -30,31 +35,40 @@ function inspect(value: unknown, depth = 0): void {
   if (typeof value === 'number' && !Number.isFinite(value)) {
     throw new BadRequestException('CadDocument contiene números no finitos.');
   }
-  if (typeof value === 'string' && value.length > MAX_BYTES) {
+  if (typeof value === 'string' && value.length > maxBytes) {
     throw new BadRequestException(
       'CadDocument contiene una cadena demasiado grande.',
     );
   }
   if (Array.isArray(value)) {
-    for (const item of value) inspect(item, depth + 1);
+    for (const item of value) inspect(item, maxBytes, depth + 1);
   } else if (value && typeof value === 'object') {
     for (const [key, nested] of Object.entries(value)) {
       if (key.length > 128)
         throw new BadRequestException(
           'CadDocument contiene una clave demasiado larga.',
         );
-      inspect(nested, depth + 1);
+      inspect(nested, maxBytes, depth + 1);
     }
   }
 }
 
 export function validateCadDocumentPayload(
   value: unknown,
+  options: { maxBytes?: number } = {},
 ): PersistedCadDocument {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new BadRequestException('cadDocument debe ser un objeto.');
   }
-  inspect(value);
+  const maxBytes = options.maxBytes ?? CAD_DOCUMENT_MAX_INLINE_BYTES;
+  if (
+    !Number.isSafeInteger(maxBytes) ||
+    maxBytes < CAD_DOCUMENT_MAX_INLINE_BYTES ||
+    maxBytes > CAD_DOCUMENT_MAX_ARCHIVE_BYTES
+  ) {
+    throw new BadRequestException('Límite de CadDocument inválido.');
+  }
+  inspect(value, maxBytes);
   const document = value as PersistedCadDocument;
   const meta = document.meta as Record<string, unknown> | undefined;
   const schema = Number(meta?.schema);
@@ -197,9 +211,63 @@ export function validateCadDocumentPayload(
       }
     }
   }
+  const collaboration = document.collaboration;
+  if (collaboration !== undefined) {
+    const state = objectValue(collaboration);
+    if (!state) {
+      throw new BadRequestException(
+        'CadDocument collaboration debe ser un objeto.',
+      );
+    }
+    const boundedArrays: Array<[string, unknown, number]> = [
+      ['versions', state.versions, MAX_CAD_VERSIONS],
+      ['threads', state.threads, MAX_REVIEW_THREADS],
+      ['reviewLinks', state.reviewLinks, MAX_REVIEW_LINKS],
+      ['audit', state.audit, MAX_COLLABORATION_AUDIT_EVENTS],
+    ];
+    for (const [name, value, limit] of boundedArrays) {
+      if (!Array.isArray(value) || value.length > limit) {
+        throw new BadRequestException(
+          `CadDocument collaboration.${name} admite mÃ¡ximo ${limit} registros.`,
+        );
+      }
+    }
+    for (const rawLink of state.reviewLinks as unknown[]) {
+      const link = objectValue(rawLink);
+      if (
+        typeof link?.id !== 'string' ||
+        !link.id ||
+        link.id.length > 128 ||
+        typeof link?.token !== 'string' ||
+        link.token.length < 16 ||
+        link.token.length > 256 ||
+        link.readOnly !== true
+      ) {
+        throw new BadRequestException(
+          'CadDocument contiene un enlace de revisiÃ³n invÃ¡lido.',
+        );
+      }
+    }
+    for (const rawThread of state.threads as unknown[]) {
+      const thread = objectValue(rawThread);
+      if (
+        typeof thread?.id !== 'string' ||
+        !thread.id ||
+        thread.id.length > 128 ||
+        typeof thread?.body !== 'string' ||
+        !thread.body.trim() ||
+        thread.body.length > 1_000 ||
+        !['open', 'resolved'].includes(String(thread.status))
+      ) {
+        throw new BadRequestException(
+          'CadDocument contiene un comentario de revisiÃ³n invÃ¡lido.',
+        );
+      }
+    }
+  }
   const text = JSON.stringify(document);
-  if (Buffer.byteLength(text, 'utf8') > MAX_BYTES) {
-    throw new BadRequestException(`CadDocument excede ${MAX_BYTES} bytes.`);
+  if (Buffer.byteLength(text, 'utf8') > maxBytes) {
+    throw new BadRequestException(`CadDocument excede ${maxBytes} bytes.`);
   }
   return JSON.parse(text) as PersistedCadDocument;
 }

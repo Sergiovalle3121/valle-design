@@ -5,6 +5,8 @@ export type CadKeyboardShortcutId =
   | "line"
   | "polyline"
   | "rect"
+  | "circle"
+  | "offset"
   | "aisle"
   | "connector"
   | "zone"
@@ -13,9 +15,13 @@ export type CadKeyboardShortcutId =
   | "fit_view"
   | "undo"
   | "redo"
+  | "save"
   | "cancel"
   | "grid_toggle"
   | "object_snap_toggle"
+  | "ortho_toggle"
+  | "polar_tracking_toggle"
+  | "object_tracking_toggle"
   | "validate_layout"
   | "export_dxf"
   // Kit diario (AXOS-CAD-XFORM-001/MIRROR-001): transformaciones directas.
@@ -74,6 +80,19 @@ export const CAD_KEYBOARD_SHORTCUTS: CadKeyboardShortcut[] = [
     description: "Dibujar zona rectangular desde dos esquinas.",
   },
   {
+    id: "circle",
+    label: "Circle",
+    key: "c",
+    description: "Dibujar círculo por centro y radio o diámetro.",
+  },
+  {
+    id: "offset",
+    label: "Offset",
+    key: "o",
+    shift: true,
+    description: "Desfasar la selección por distancia exacta.",
+  },
+  {
     id: "aisle",
     label: "Aisle",
     key: "a",
@@ -120,6 +139,13 @@ export const CAD_KEYBOARD_SHORTCUTS: CadKeyboardShortcut[] = [
     description: "Rehacer.",
   },
   {
+    id: "save",
+    label: "Save",
+    key: "s",
+    ctrl: true,
+    description: "Guardar el documento canónico.",
+  },
+  {
     id: "redo",
     label: "Redo",
     key: "y",
@@ -143,6 +169,30 @@ export const CAD_KEYBOARD_SHORTCUTS: CadKeyboardShortcut[] = [
     label: "Object snap",
     key: "o",
     description: "Activar o desactivar snaps a objetos/DXF.",
+  },
+  {
+    id: "object_snap_toggle",
+    label: "Object snap",
+    key: "f3",
+    description: "Activar o desactivar snaps a objetos/DXF.",
+  },
+  {
+    id: "ortho_toggle",
+    label: "Ortho",
+    key: "f8",
+    description: "Restringir el dibujo a ejes ortogonales.",
+  },
+  {
+    id: "polar_tracking_toggle",
+    label: "Polar tracking",
+    key: "f10",
+    description: "Activar o desactivar el rastreo polar incremental.",
+  },
+  {
+    id: "object_tracking_toggle",
+    label: "Object snap tracking",
+    key: "f11",
+    description: "Rastrear ejes desde puntos OSNAP adquiridos.",
   },
   {
     id: "validate_layout",

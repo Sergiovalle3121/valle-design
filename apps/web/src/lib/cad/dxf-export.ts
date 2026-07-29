@@ -4,6 +4,9 @@ import {
   DEFAULT_DIMENSION_STYLE,
   type DimensionGeometry,
 } from "./dimension";
+import { buildCadDimensionGeometry, type CadDimensionEntity, type CadDimensionGeometry } from "./associative-dimension";
+import { buildCadMleaderGeometry, type CadMleaderEntity } from "./associative-mleader";
+import { DEFAULT_MLEADER_STYLE } from "./mleader";
 
 export type CadDxfExportUnit = "mm" | "m";
 export interface CadDxfExportOptions {
@@ -20,6 +23,34 @@ export interface CadDxfExportText {
   text: string;
   height?: number;
 }
+export interface CadDxfExportMText {
+  layer?: string;
+  insertion: CadDxfPoint;
+  text: string;
+  width?: number;
+  height?: number;
+  rotation?: number;
+  alignment?: "top-left" | "top-center" | "top-right" | "middle-left" | "middle-center" | "middle-right" | "bottom-left" | "bottom-center" | "bottom-right";
+  paragraphAlignment?: "left" | "center" | "right" | "justify";
+  style?: string;
+  fontFamily?: string;
+  lineSpacing?: number;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  backgroundMask?: boolean;
+  backgroundColor?: string;
+  backgroundPadding?: number;
+  columns?: number;
+}
+export type CadDxfExportSemanticDimension = Omit<
+  CadDimensionEntity,
+  "id" | "type" | "context" | "references" | "associative" | "associationStatus"
+>;
+export type CadDxfExportMleader = Omit<
+  CadMleaderEntity,
+  "id" | "type" | "context" | "references" | "associative" | "associationStatus"
+>;
 export interface CadDxfExportMeasurement {
   layer?: string;
   from: CadDxfPoint;
@@ -31,13 +62,40 @@ export interface CadDxfExportMeasurement {
 /** Área rellena (HATCH SOLID) delimitada por un contorno cerrado (CAD-NEXT-067). */
 export interface CadDxfExportHatch {
   layer?: string;
-  /** Vértices del contorno; se cierra solo (no repetir el primero). */
-  points: CadDxfPoint[];
+  /** Vértices del contorno único; compatibilidad con el adaptador de cajas. */
+  points?: CadDxfPoint[];
+  /** Primer contorno exterior y, opcionalmente, contornos interiores. */
+  boundaries?: CadDxfPoint[][];
+  pattern?: string;
+  solid?: boolean;
+  scale?: number;
+  angle?: number;
+  /** Origen del patrón/seed point. */
+  origin?: CadDxfPoint;
+  /** Regla de detección de islas DXF: normal=0, outer=1, ignore=2. */
+  islandStyle?: "normal" | "outer" | "ignore";
 }
 /** Definición de bloque reutilizable (sección BLOCKS — CAD-NEXT-064). */
 export interface CadDxfExportBlock {
   name: string;
   primitives: CadDxfPrimitive[];
+  inserts?: CadDxfExportInsert[];
+  basePoint?: CadDxfPoint;
+  attributes?: Record<string, {
+    defaultValue?: string;
+    prompt?: string;
+    position?: CadDxfPoint;
+    height?: number;
+    invisible?: boolean;
+    constant?: boolean;
+  }>;
+  version?: number;
+  description?: string;
+  keywords?: string[];
+  libraryScope?: "document" | "tenant";
+  libraryTenantId?: string;
+  businessEntityType?: string;
+  businessEntityId?: string;
 }
 /** Referencia INSERT a un bloque, con su transformación. */
 export interface CadDxfExportInsert {
@@ -49,12 +107,16 @@ export interface CadDxfExportInsert {
   scaleX?: number;
   scaleY?: number;
   layer?: string;
+  attributes?: Record<string, string>;
 }
 export interface CadDxfExportModel {
   primitives?: CadDxfPrimitive[];
   layers?: CadDxfExportLayer[];
   texts?: CadDxfExportText[];
+  mtexts?: CadDxfExportMText[];
   measurements?: CadDxfExportMeasurement[];
+  semanticDimensions?: CadDxfExportSemanticDimension[];
+  mleaders?: CadDxfExportMleader[];
   blocks?: CadDxfExportBlock[];
   inserts?: CadDxfExportInsert[];
   hatches?: CadDxfExportHatch[];
@@ -78,6 +140,9 @@ function safeLayerName(name: string | undefined): string {
 function safeText(value: string): string {
   return value.replace(/[\r\n]/g, " ").trim();
 }
+function safeStyleName(value: string | undefined): string {
+  return safeText(value ?? "Standard").replace(/[<>/\\"':;?*|=`,]/g, "_").slice(0, 64) || "Standard";
+}
 function fmt(value: number): string {
   if (!Number.isFinite(value)) return "0";
   return Number(value.toFixed(6)).toString();
@@ -99,17 +164,23 @@ function uniqueLayers(model: CadDxfExportModel): string[] {
   for (const layer of model.layers ?? []) names.add(safeLayerName(layer.name));
   for (const primitive of model.primitives ?? [])
     names.add(safeLayerName(primitive.layer));
-  for (const block of model.blocks ?? [])
-    for (const primitive of block.primitives)
-      names.add(safeLayerName(primitive.layer));
+  for (const block of model.blocks ?? []) {
+    for (const primitive of block.primitives) names.add(safeLayerName(primitive.layer));
+    for (const insert of block.inserts ?? []) names.add(safeLayerName(insert.layer));
+  }
   for (const insert of model.inserts ?? [])
     names.add(safeLayerName(insert.layer));
   for (const hatch of model.hatches ?? [])
     names.add(safeLayerName(hatch.layer));
   for (const text of model.texts ?? [])
     names.add(safeLayerName(text.layer ?? TEXT_LAYER));
+  for (const text of model.mtexts ?? [])
+    names.add(safeLayerName(text.layer ?? TEXT_LAYER));
   for (const measurement of model.measurements ?? [])
     names.add(safeLayerName(measurement.layer ?? MEASUREMENT_LAYER));
+  for (const dimension of model.semanticDimensions ?? [])
+    names.add(safeLayerName(dimension.layer ?? MEASUREMENT_LAYER));
+  for (const mleader of model.mleaders ?? []) names.add(safeLayerName(mleader.layer ?? TEXT_LAYER));
   return [...names].sort((a, b) => a.localeCompare(b));
 }
 function layerColor(model: CadDxfExportModel, name: string): number {
@@ -135,6 +206,41 @@ function pushLayerTable(
     pushPair(lines, 62, layerColor(model, layer));
     pushPair(lines, 6, "CONTINUOUS");
   }
+  pushPair(lines, 0, "ENDTAB");
+  const textStyles = new Map<string, string>([["Standard", "arial.ttf"]]);
+  for (const mtext of model.mtexts ?? []) {
+    const name = safeStyleName(mtext.style);
+    const family = safeText(mtext.fontFamily ?? "Arial").replace(/[^\w.-]+/g, "").toLowerCase() || "arial";
+    textStyles.set(name, family.endsWith(".ttf") || family.endsWith(".shx") ? family : `${family}.ttf`);
+  }
+  pushPair(lines, 0, "TABLE");
+  pushPair(lines, 2, "STYLE");
+  pushPair(lines, 70, textStyles.size);
+  for (const [name, font] of textStyles) {
+    pushPair(lines, 0, "STYLE");
+    pushPair(lines, 2, name);
+    pushPair(lines, 70, 0);
+    pushPair(lines, 40, 0);
+    pushPair(lines, 41, 1);
+    pushPair(lines, 50, 0);
+    pushPair(lines, 71, 0);
+    pushPair(lines, 42, 2.5);
+    pushPair(lines, 3, font);
+    pushPair(lines, 4, "");
+  }
+  pushPair(lines, 0, "ENDTAB");
+  pushPair(lines, 0, "TABLE");
+  pushPair(lines, 2, "APPID");
+  pushPair(lines, 70, 3);
+  pushPair(lines, 0, "APPID");
+  pushPair(lines, 2, "AXOS_DIM");
+  pushPair(lines, 70, 0);
+  pushPair(lines, 0, "APPID");
+  pushPair(lines, 2, "AXOS_MLEADER");
+  pushPair(lines, 70, 0);
+  pushPair(lines, 0, "APPID");
+  pushPair(lines, 2, "AXOS_BLOCK");
+  pushPair(lines, 70, 0);
   pushPair(lines, 0, "ENDTAB");
   pushPair(lines, 0, "ENDSEC");
 }
@@ -273,6 +379,59 @@ function pushText(
   pushPoint(lines, position);
   pushPair(lines, 40, fmt(height));
   pushPair(lines, 1, content);
+  return true;
+}
+
+function mtextAttachment(alignment: CadDxfExportMText["alignment"]): number {
+  return {
+    "top-left": 1, "top-center": 2, "top-right": 3,
+    "middle-left": 4, "middle-center": 5, "middle-right": 6,
+    "bottom-left": 7, "bottom-center": 8, "bottom-right": 9,
+  }[alignment ?? "top-left"];
+}
+
+function pushMText(lines: string[], layer: string, text: CadDxfExportMText): boolean {
+  const plain = text.text.replace(/\r\n?/g, "\n").trim();
+  if (!plain) return false;
+  const family = safeText(text.fontFamily ?? "Arial").replace(/[;|{}\\]/g, "") || "Arial";
+  let content = plain.replace(/\\/g, "\\\\").replace(/\n/g, "\\P");
+  if (text.underline) content = `\\L${content}\\l`;
+  content = `{\\f${family}|b${text.bold ? 1 : 0}|i${text.italic ? 1 : 0};${content}}`;
+  if (text.paragraphAlignment && text.paragraphAlignment !== "left") {
+    const code = text.paragraphAlignment === "center" ? "c" : text.paragraphAlignment === "right" ? "r" : "j";
+    content = `\\p${code};${content}`;
+  }
+  pushPair(lines, 0, "MTEXT");
+  pushPair(lines, 8, layer);
+  pushPoint(lines, text.insertion);
+  pushPair(lines, 40, fmt(text.height ?? 120));
+  pushPair(lines, 41, fmt(text.width ?? (text.height ?? 120) * 20));
+  pushPair(lines, 71, mtextAttachment(text.alignment));
+  pushPair(lines, 72, 1);
+  while (content.length > 240) {
+    pushPair(lines, 3, content.slice(0, 240));
+    content = content.slice(240);
+  }
+  pushPair(lines, 1, content);
+  pushPair(lines, 7, safeStyleName(text.style));
+  pushPair(lines, 50, fmt(text.rotation ?? 0));
+  pushPair(lines, 73, 2);
+  pushPair(lines, 44, fmt(text.lineSpacing ?? 1.2));
+  if (text.backgroundMask) {
+    pushPair(lines, 90, 1);
+    pushPair(lines, 45, fmt(1 + Math.max(0, text.backgroundPadding ?? 0.15)));
+    if (/^#[0-9a-f]{6}$/i.test(text.backgroundColor ?? ""))
+      pushPair(lines, 420, Number.parseInt(text.backgroundColor!.slice(1), 16));
+  }
+  const columns = Math.max(1, Math.min(8, Math.floor(text.columns ?? 1)));
+  pushPair(lines, 75, columns > 1 ? 1 : 0);
+  if (columns > 1) {
+    pushPair(lines, 76, columns);
+    pushPair(lines, 78, 0);
+    pushPair(lines, 79, 0);
+    pushPair(lines, 48, fmt((text.width ?? (text.height ?? 120) * 20) / columns));
+    pushPair(lines, 49, fmt(text.height ?? 120));
+  }
   return true;
 }
 function rectToClosedPoints(points: CadDxfPoint[]): CadDxfPoint[] {
@@ -486,32 +645,216 @@ function pushDimension(lines: string[], layer: string, dim: PreparedDimension) {
  * cerrado). dxf-parser lo DESCARTA al leer (el import lo avisa honesto); los
  * CAD reales lo pintan como área rellena.
  */
+function hatchLoops(hatch: CadDxfExportHatch): CadDxfPoint[][] {
+  return (hatch.boundaries?.length ? hatch.boundaries : hatch.points ? [hatch.points] : [])
+    .map((boundary) => {
+      if (boundary.length > 3) {
+        const first = boundary[0];
+        const last = boundary.at(-1)!;
+        if (first.x === last.x && first.y === last.y) return boundary.slice(0, -1);
+      }
+      return boundary;
+    })
+    .filter((boundary) => boundary.length >= 3);
+}
+
 function pushHatch(lines: string[], layer: string, hatch: CadDxfExportHatch) {
+  const boundaries = hatchLoops(hatch);
+  const requestedPattern = safeText(hatch.pattern || (hatch.solid === false ? "ANSI31" : "SOLID")) || "SOLID";
+  const solid = hatch.solid ?? requestedPattern.toUpperCase() === "SOLID";
+  const pattern = solid ? "SOLID" : requestedPattern.toUpperCase() === "SOLID" ? "ANSI31" : requestedPattern;
+  const angle = Number.isFinite(hatch.angle) ? hatch.angle! : 45;
+  const scale = Number.isFinite(hatch.scale) && hatch.scale! > 0 ? hatch.scale! : 1;
+  const origin = hatch.origin ?? boundaries[0]?.[0] ?? { x: 0, y: 0 };
+  const islandStyle = hatch.islandStyle === "outer" ? 1 : hatch.islandStyle === "ignore" ? 2 : 0;
   pushPair(lines, 0, "HATCH");
   pushPair(lines, 8, layer);
   pushPoint(lines, { x: 0, y: 0 }); // punto de elevación (siempre 0 en 2D)
   pushPair(lines, 210, "0");
   pushPair(lines, 220, "0");
   pushPair(lines, 230, "1");
-  pushPair(lines, 2, "SOLID");
-  pushPair(lines, 70, 1); // relleno sólido
+  pushPair(lines, 2, pattern);
+  pushPair(lines, 70, solid ? 1 : 0);
   pushPair(lines, 71, 0); // no asociativo
-  pushPair(lines, 91, 1); // 1 camino de contorno
-  pushPair(lines, 92, 2); // camino = polilínea
-  pushPair(lines, 72, 0); // sin bulge
-  pushPair(lines, 73, 1); // cerrado
-  pushPair(lines, 93, hatch.points.length);
-  for (const point of hatch.points) {
-    pushPair(lines, 10, fmt(point.x));
-    pushPair(lines, 20, fmt(point.y));
+  pushPair(lines, 91, boundaries.length);
+  for (const boundary of boundaries) {
+    pushPair(lines, 92, 2); // camino = polilínea
+    pushPair(lines, 72, 0); // sin bulge
+    pushPair(lines, 73, 1); // cerrado
+    pushPair(lines, 93, boundary.length);
+    for (const point of boundary) {
+      pushPair(lines, 10, fmt(point.x));
+      pushPair(lines, 20, fmt(point.y));
+    }
+    pushPair(lines, 97, 0); // sin objetos fuente
   }
-  pushPair(lines, 97, 0); // sin objetos fuente
-  pushPair(lines, 75, 0); // estilo normal
+  pushPair(lines, 75, islandStyle);
   pushPair(lines, 76, 1); // patrón predefinido
-  pushPair(lines, 98, 0); // sin puntos semilla
+  if (!solid) {
+    const definitionAngles = pattern.toUpperCase() === "CROSS" ? [angle, angle + 90] : [angle];
+    pushPair(lines, 52, fmt(angle));
+    pushPair(lines, 41, fmt(scale));
+    pushPair(lines, 77, 0);
+    pushPair(lines, 78, definitionAngles.length);
+    for (const definitionAngle of definitionAngles) {
+      pushPair(lines, 53, fmt(definitionAngle));
+      pushPair(lines, 43, fmt(origin.x));
+      pushPair(lines, 44, fmt(origin.y));
+      pushPair(lines, 45, 0);
+      pushPair(lines, 46, fmt(scale));
+      pushPair(lines, 79, 0);
+    }
+  }
+  pushPair(lines, 98, 1);
+  pushPoint(lines, origin);
+}
+
+interface PreparedSemanticDimension {
+  entity: CadDxfExportSemanticDimension;
+  geometry: CadDimensionGeometry;
+  blockName: string;
+}
+
+function semanticDimensionBlockPrimitives(dimension: PreparedSemanticDimension): CadDxfPrimitive[] {
+  const layer = safeLayerName(dimension.entity.layer ?? MEASUREMENT_LAYER);
+  return [
+    ...dimension.geometry.paths.map((path): CadDxfPrimitive => ({
+      kind: path.closed ? "rect" : path.points.length === 2 ? "line" : "polyline",
+      layer,
+      points: path.closed ? [...path.points, path.points[0]] : path.points,
+    })),
+    { kind: "text", layer, points: [dimension.geometry.textAnchor], text: dimension.geometry.label },
+  ];
+}
+
+function prepareSemanticDimensions(
+  dimensions: CadDxfExportSemanticDimension[],
+  blockOffset: number,
+): PreparedSemanticDimension[] {
+  return dimensions.flatMap((entity, index) => {
+    const canonical: CadDimensionEntity = { id: `dxf-dimension:${index}`, type: "dimension", ...entity };
+    const geometry = buildCadDimensionGeometry(canonical);
+    return geometry ? [{ entity, geometry, blockName: `*D${blockOffset + index + 1}` }] : [];
+  });
+}
+
+function semanticDimensionType(kind: CadDxfExportSemanticDimension["dimensionKind"]): number {
+  return ({ linear: 0, aligned: 1, angular: 5, radius: 4, diameter: 3, ordinate: 6, "arc-length": 8 } as const)[kind ?? "aligned"] + 32;
+}
+
+function pushSemanticDimension(lines: string[], dimension: PreparedSemanticDimension) {
+  const entity = dimension.entity;
+  const pointPair = (xCode: number, yCode: number, point: CadDxfPoint) => {
+    pushPair(lines, xCode, fmt(point.x));
+    pushPair(lines, yCode, fmt(point.y));
+    pushPair(lines, xCode + 20, "0");
+  };
+  pushPair(lines, 0, "DIMENSION");
+  pushPair(lines, 8, safeLayerName(entity.layer ?? MEASUREMENT_LAYER));
+  pushPair(lines, 2, dimension.blockName);
+  pushPoint(lines, entity.b);
+  pointPair(11, 21, dimension.geometry.textAnchor);
+  pushPair(lines, 70, semanticDimensionType(entity.dimensionKind));
+  pushPair(lines, 1, safeText(dimension.geometry.label));
+  pushPair(lines, 3, safeStyleName(entity.style));
+  pushPair(lines, 42, fmt(dimension.geometry.measurement));
+  pointPair(13, 23, entity.a);
+  pointPair(14, 24, entity.b);
+  if (entity.c) pointPair(15, 25, entity.c);
+  pushPair(lines, 40, fmt(entity.offset ?? entity.radius ?? 0));
+  pushPair(lines, 271, Math.max(0, Math.min(8, Math.floor(entity.precision ?? 2))));
+  pushPair(lines, 1001, "AXOS_DIM");
+  const metadata = [
+    `kind=${entity.dimensionKind ?? "aligned"}`, `axis=${entity.axis ?? "x"}`,
+    `units=${entity.units ?? entity.sourceUnit ?? "mm"}`, `sourceUnit=${entity.sourceUnit ?? "mm"}`,
+    `alternateUnits=${entity.alternateUnits ?? ""}`, `prefix=${entity.prefix ?? ""}`, `suffix=${entity.suffix ?? ""}`,
+    `arrowhead=${entity.arrowhead ?? "closed-filled"}`, `extensionLines=${entity.extensionLines === false ? 0 : 1}`,
+    `arrowSize=${fmt(entity.arrowSize ?? DEFAULT_DIMENSION_STYLE.arrowSize)}`, `offset=${fmt(entity.offset ?? 0)}`,
+    `radius=${fmt(entity.radius ?? 0)}`, `extensionGap=${fmt(entity.extensionGap ?? DEFAULT_DIMENSION_STYLE.extensionGap)}`,
+    `extensionOvershoot=${fmt(entity.extensionOvershoot ?? DEFAULT_DIMENSION_STYLE.extensionOvershoot)}`,
+    `textGap=${fmt(entity.textGap ?? DEFAULT_DIMENSION_STYLE.textGap)}`, `textOverride=${entity.text ?? ""}`,
+  ];
+  metadata.forEach((value) => pushPair(lines, 1000, safeText(value).slice(0, 240)));
+}
+
+function pushMleader(lines: string[], entity: CadDxfExportMleader): boolean {
+  const geometry = buildCadMleaderGeometry({ id: "dxf-mleader", type: "mleader", ...entity });
+  if (!geometry) return false;
+  const layer = safeLayerName(entity.layer ?? TEXT_LAYER);
+  pushPair(lines, 0, "MLEADER");
+  pushPair(lines, 8, layer);
+  pushPair(lines, 100, "AcDbMLeader");
+  pushPair(lines, 270, 2);
+  pushPair(lines, 300, "CONTEXT_DATA{");
+  pushPair(lines, 40, 1);
+  pushPair(lines, 10, fmt(entity.textPosition.x));
+  pushPair(lines, 20, fmt(entity.textPosition.y));
+  pushPair(lines, 30, 0);
+  pushPair(lines, 304, safeText(entity.text));
+  for (const leader of geometry.leaderLines) {
+    pushPair(lines, 302, "LEADER{");
+    pushPair(lines, 304, "LEADER_LINE{");
+    leader.forEach((point) => pushPoint(lines, point));
+    pushPair(lines, 305, "}");
+    pushPair(lines, 303, "}");
+  }
+  pushPair(lines, 301, "}");
+  pushPair(lines, 170, 1);
+  pushPair(lines, 171, entity.contentType === "text" ? 1 : 2);
+  pushPair(lines, 1001, "AXOS_MLEADER");
+  const encodedText = encodeURIComponent(entity.text);
+  const metadata = [
+    `contentType=${entity.contentType ?? "mtext"}`, `style=${encodeURIComponent(entity.style ?? "Standard")}`,
+    `textX=${fmt(entity.textPosition.x)}`, `textY=${fmt(entity.textPosition.y)}`,
+    `textWidth=${fmt(entity.textWidth ?? 1800)}`, `textHeight=${fmt(entity.textHeight ?? 120)}`,
+    `textRotation=${fmt(entity.textRotation ?? 0)}`, `textAlignment=${entity.textAlignment ?? "left"}`,
+    `fontFamily=${encodeURIComponent(entity.fontFamily ?? "Arial")}`, `lineSpacing=${fmt(entity.lineSpacing ?? 1.2)}`,
+    `bold=${entity.bold ? 1 : 0}`, `italic=${entity.italic ? 1 : 0}`, `underline=${entity.underline ? 1 : 0}`,
+    `backgroundMask=${entity.backgroundMask ? 1 : 0}`, `backgroundColor=${entity.backgroundColor ?? ""}`,
+    `backgroundPadding=${fmt(entity.backgroundPadding ?? 0.15)}`, `landing=${entity.landing === false ? 0 : 1}`,
+    `doglegLength=${fmt(entity.doglegLength ?? DEFAULT_MLEADER_STYLE.doglegLength)}`,
+    `arrowhead=${entity.arrowhead ?? "closed-filled"}`, `arrowSize=${fmt(entity.arrowSize ?? DEFAULT_MLEADER_STYLE.arrowSize)}`,
+  ];
+  geometry.leaderLines.forEach((leader, lineIndex) => leader.forEach((point, pointIndex) => metadata.push(`line=${lineIndex},${pointIndex},${fmt(point.x)},${fmt(point.y)}`)));
+  for (let index = 0; index * 200 < encodedText.length; index += 1) metadata.push(`text${index}=${encodedText.slice(index * 200, (index + 1) * 200)}`);
+  metadata.forEach((value) => pushPair(lines, 1000, value));
+  return true;
 }
 
 /** Sección BLOCKS: definiciones reutilizables (mismos códigos que lee el parser). */
+function pushInsert(lines: string[], insert: CadDxfExportInsert, definition?: CadDxfExportBlock) {
+  const attributes = Object.entries(insert.attributes ?? {}).filter(([tag]) => !!definition?.attributes?.[tag]);
+  pushPair(lines, 0, "INSERT");
+  pushPair(lines, 8, safeLayerName(insert.layer));
+  pushPair(lines, 2, safeText(insert.block));
+  if (attributes.length) pushPair(lines, 66, 1);
+  pushPoint(lines, { x: insert.x, y: insert.y });
+  if (insert.rotation) pushPair(lines, 50, fmt(insert.rotation));
+  if (insert.scaleX !== undefined && insert.scaleX !== 1) pushPair(lines, 41, fmt(insert.scaleX));
+  if (insert.scaleY !== undefined && insert.scaleY !== 1) pushPair(lines, 42, fmt(insert.scaleY));
+  pushPair(lines, 1001, "AXOS_BLOCK");
+  pushPair(lines, 1000, "kind=insert");
+  for (const [tag, value] of Object.entries(insert.attributes ?? {}))
+    pushPair(lines, 1000, `attribute=${encodeURIComponent(tag)},${encodeURIComponent(value)}`);
+  for (const [tag, value] of attributes) {
+    const attribute = definition?.attributes?.[tag];
+    const base = definition?.basePoint ?? { x: 0, y: 0 };
+    const local = attribute?.position ?? base;
+    const x = (local.x - base.x) * (insert.scaleX ?? 1);
+    const y = (local.y - base.y) * (insert.scaleY ?? 1);
+    const radians = (insert.rotation ?? 0) * Math.PI / 180;
+    pushPair(lines, 0, "ATTRIB");
+    pushPair(lines, 8, safeLayerName(insert.layer));
+    pushPoint(lines, { x: insert.x + x * Math.cos(radians) - y * Math.sin(radians), y: insert.y + x * Math.sin(radians) + y * Math.cos(radians) });
+    pushPair(lines, 40, fmt(Math.max(1e-9, (attribute?.height ?? 120) * Math.abs(insert.scaleY ?? 1))));
+    pushPair(lines, 1, safeText(value));
+    pushPair(lines, 2, safeText(tag));
+    pushPair(lines, 70, (attribute?.invisible ? 1 : 0) | (attribute?.constant ? 2 : 0));
+    if (insert.rotation) pushPair(lines, 50, fmt(insert.rotation));
+  }
+  if (attributes.length) { pushPair(lines, 0, "SEQEND"); pushPair(lines, 8, safeLayerName(insert.layer)); }
+}
+
 function pushBlocks(lines: string[], blocks: CadDxfExportBlock[]) {
   pushPair(lines, 0, "SECTION");
   pushPair(lines, 2, "BLOCKS");
@@ -521,9 +864,32 @@ function pushBlocks(lines: string[], blocks: CadDxfExportBlock[]) {
     pushPair(lines, 2, safeText(block.name) || "BLOQUE");
     // Flag 1: bloque anónimo (los *D de las cotas), 0: bloque con nombre.
     pushPair(lines, 70, block.name.startsWith("*") ? 1 : 0);
-    pushPoint(lines, { x: 0, y: 0 });
+    pushPoint(lines, block.basePoint ?? { x: 0, y: 0 });
+    if (!block.name.startsWith("*")) {
+      pushPair(lines, 1001, "AXOS_BLOCK");
+      pushPair(lines, 1000, "kind=definition");
+      pushPair(lines, 1000, `version=${Math.max(1, Math.floor(block.version ?? 1))}`);
+      pushPair(lines, 1000, `description=${encodeURIComponent(block.description ?? "")}`);
+      pushPair(lines, 1000, `keywords=${encodeURIComponent((block.keywords ?? []).join("\n"))}`);
+      pushPair(lines, 1000, `libraryScope=${block.libraryScope ?? "document"}`);
+      pushPair(lines, 1000, `libraryTenantId=${encodeURIComponent(block.libraryTenantId ?? "")}`);
+      pushPair(lines, 1000, `businessEntityType=${encodeURIComponent(block.businessEntityType ?? "")}`);
+      pushPair(lines, 1000, `businessEntityId=${encodeURIComponent(block.businessEntityId ?? "")}`);
+    }
     for (const primitive of block.primitives)
       writePrimitiveGeometry(lines, safeLayerName(primitive.layer), primitive);
+    for (const insert of block.inserts ?? [])
+      pushInsert(lines, insert, blocks.find((candidate) => candidate.name === insert.block));
+    for (const [tag, attribute] of Object.entries(block.attributes ?? {})) {
+      pushPair(lines, 0, "ATTDEF");
+      pushPair(lines, 8, DEFAULT_LAYER);
+      pushPoint(lines, attribute.position ?? block.basePoint ?? { x: 0, y: 0 });
+      pushPair(lines, 40, fmt(Math.max(1e-9, attribute.height ?? 120)));
+      pushPair(lines, 1, safeText(attribute.defaultValue ?? ""));
+      pushPair(lines, 3, safeText(attribute.prompt ?? tag));
+      pushPair(lines, 2, safeText(tag));
+      pushPair(lines, 70, (attribute.invisible ? 1 : 0) | (attribute.constant ? 2 : 0));
+    }
     pushPair(lines, 0, "ENDBLK");
   }
   pushPair(lines, 0, "ENDSEC");
@@ -539,6 +905,7 @@ export function exportCadDxf(
   // Cotas nativas (CAD-NEXT-066): cada medición se materializa como entidad
   // DIMENSION + bloque anónimo *D{n} con su geometría renderizada.
   const dimensions = prepareDimensions(model.measurements ?? []);
+  const semanticDimensions = prepareSemanticDimensions(model.semanticDimensions ?? [], dimensions.length);
   const dimensionBlocks: CadDxfExportBlock[] = dimensions.map((dim) => ({
     name: dim.blockName,
     primitives: dimensionBlockPrimitives(
@@ -547,7 +914,11 @@ export function exportCadDxf(
       dim.label,
     ),
   }));
-  const allBlocks = [...(model.blocks ?? []), ...dimensionBlocks];
+  const semanticDimensionBlocks: CadDxfExportBlock[] = semanticDimensions.map((dimension) => ({
+    name: dimension.blockName,
+    primitives: semanticDimensionBlockPrimitives(dimension),
+  }));
+  const allBlocks = [...(model.blocks ?? []), ...dimensionBlocks, ...semanticDimensionBlocks];
   pushHeader(lines, options);
   pushLayerTable(lines, model, layers);
   if (allBlocks.length) pushBlocks(lines, allBlocks);
@@ -562,19 +933,12 @@ export function exportCadDxf(
       entityCount += 1;
   }
   for (const insert of model.inserts ?? []) {
-    pushPair(lines, 0, "INSERT");
-    pushPair(lines, 8, safeLayerName(insert.layer));
-    pushPair(lines, 2, safeText(insert.block));
-    pushPoint(lines, { x: insert.x, y: insert.y });
-    if (insert.rotation) pushPair(lines, 50, fmt(insert.rotation));
-    if (insert.scaleX !== undefined && insert.scaleX !== 1)
-      pushPair(lines, 41, fmt(insert.scaleX));
-    if (insert.scaleY !== undefined && insert.scaleY !== 1)
-      pushPair(lines, 42, fmt(insert.scaleY));
+    const definition = allBlocks.find((block) => block.name === insert.block);
+    pushInsert(lines, insert, definition);
     entityCount += 1;
   }
   for (const hatch of model.hatches ?? []) {
-    if (hatch.points.length < 3) continue; // un relleno necesita área real
+    if (!hatchLoops(hatch).length) continue; // un relleno necesita área real
     pushHatch(lines, safeLayerName(hatch.layer), hatch);
     entityCount += 1;
   }
@@ -590,12 +954,20 @@ export function exportCadDxf(
     )
       entityCount += 1;
   }
+  for (const text of model.mtexts ?? [])
+    if (pushMText(lines, safeLayerName(text.layer ?? TEXT_LAYER), text)) entityCount += 1;
+  for (const mleader of model.mleaders ?? [])
+    if (pushMleader(lines, mleader)) entityCount += 1;
   for (const dim of dimensions) {
     pushDimension(
       lines,
       safeLayerName(dim.measurement.layer ?? MEASUREMENT_LAYER),
       dim,
     );
+    entityCount += 1;
+  }
+  for (const dimension of semanticDimensions) {
+    pushSemanticDimension(lines, dimension);
     entityCount += 1;
   }
 

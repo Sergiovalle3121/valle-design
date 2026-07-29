@@ -126,6 +126,12 @@ export function commit(state: CommandState): CommandState {
   return { ...state, done: true, emitted: [] };
 }
 
+/** Close a polyline by connecting its final vertex back to the first. */
+export function closePolyline(state: CommandState): CommandState {
+  if (state.id !== 'polyline' || state.points.length < 3) return state;
+  return { ...state, done: true, emitted: [{ type: 'addPolyline', points: state.points, closed: true }] };
+}
+
 /** Esc: cancela sin emitir nada. */
 export function cancel(state: CommandState): CommandState {
   return { ...state, done: true, emitted: [], points: [] };
