@@ -558,6 +558,44 @@ No se editan ramas comerciales, ERP o PDF durante la construcción CAD.
   monolito. `Layout3DEditor.tsx` queda en 10,562 líneas. Sigue P3-E, gates
   amplios y auditoría final antes de integrar.
 
+### 2026-07-28 18:39–19:53 — P3-E / Gates amplios, supply chain y CI
+
+- La regresión completa web queda en 134/134 specs. El build de producción
+  genera las 148 rutas con Next 16.2.12; TypeScript web, TypeScript API y build
+  Nest terminan sin errores. La matriz Chromium CAD #10–#28 vuelve a cerrar
+  23/23 en 11.8 min después de actualizar el lockfile; el checker conserva
+  exactamente 50/50 pasos, 45 `browser-proven` y cinco `performance`.
+- La suite Jest completa del backend agotó primero el heap predeterminado tras
+  13.5 min sin reportar aserciones fallidas. El script `test` ahora reserva
+  4 GiB, igual que el build; la repetición completa terminó con código 0 en
+  13 min 18 s. Esto convierte un falso negativo operativo reproducible en un
+  gate ejecutable sin alterar el comportamiento del backend.
+- El fallo de GitHub Actions 30411960782 quedó aislado a cuatro errores
+  `prettier/prettier` en los DTO/controller de la biblioteca de bloques, frente
+  a 1,900 warnings históricos no bloqueantes. Prettier se aplicó sólo a esos
+  dos archivos y ESLint focal quedó con código 0.
+- `npm audit fix` sin `--force` actualiza únicamente parches compatibles del
+  lockfile, entre ellos Next 16.2.10→16.2.12, DOMPurify 3.4.11→3.4.12 e
+  Immutable 5.1.5→5.1.9; build, specs y navegador pasan después del cambio.
+  No se aplican los majors sugeridos para SQLite, Sharp o ExcelJS sin una
+  migración dedicada. El inventario residual se registra como deuda: 23
+  hallazgos de producción (2 low, 2 moderate, 18 high y 1 critical), dominados
+  por cadenas transitivas antiguas de SQLite/ExcelJS y avisos aún abiertos de
+  Next/Sharp.
+- Supply chain: SBOM CycloneDX válido con 493 componentes; 483 licencias
+  permitidas, cuatro en revisión legal, cero bloqueadas y cero desconocidas.
+  Brand gate verde; inventario de tenant safety 987/987 y 40/40 pruebas verdes.
+  `git diff --check` no encuentra errores.
+- Límite explícito de entorno: este host Windows no tiene Docker, `psql` ni un
+  servicio PostgreSQL instalado. La CI sí levanta PostgreSQL 16.14 y el run
+  verde 30384590435 ya probó bootstrap y ambos golden flows; el run actual se
+  detuvo en lint antes de repetir las etapas de base de datos. No se reclama
+  aquí un ciclo local migration up/down/up inexistente.
+- La rúbrica permanece deliberadamente en 90. Se cerraron ejecución, precisión,
+  persistencia y gates amplios con evidencia, pero siguen fuera de alcance DWG
+  nativo, 60 FPS sostenidos, estabilización de memoria, delta journal y la
+  extracción del monolito.
+
 ## Claims
 
 Permitido inicialmente: capacidades exactas demostradas en #1416 y documentos
