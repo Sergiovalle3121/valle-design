@@ -1,6 +1,6 @@
 /** Tests de cad-command (Fase 66/67). npx tsx src/components/line-engineering/cad-command.spec.ts */
 import {
-  startCommand, feedPoint, feedDistance, commit, cancel, previewGeometry, DrawAction,
+  startCommand, feedPoint, feedDistance, commit, closePolyline, cancel, previewGeometry, DrawAction,
 } from './cad-command';
 
 let passed = 0; const fails: string[] = [];
@@ -53,6 +53,15 @@ const first = (e: DrawAction[]) => e[0] as DrawAction;
   s = commit(s);
   const a = first(s.emitted);
   ok(s.done && a.type === 'addPolyline' && a.points.length === 3 && a.closed === false, 'polyline emite 3 puntos en commit'); }
+
+// ── polyline: Close conecta el último vértice con el primero ──
+{ let s = startCommand('polyline');
+  s = feedPoint(s, { x: 0, y: 0 });
+  s = feedPoint(s, { x: 5, y: 0 });
+  s = feedPoint(s, { x: 5, y: 5 });
+  s = closePolyline(s);
+  const a = first(s.emitted);
+  ok(s.done && a.type === 'addPolyline' && a.closed === true, 'polyline cierra explícitamente'); }
 
 // ── move: base + destino → delta ──
 { let s = startCommand('move');

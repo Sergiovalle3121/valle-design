@@ -475,6 +475,34 @@ No se editan ramas comerciales, ERP o PDF durante la construcción CAD.
   nuevo está aislado, pero el wiring incrementa la deuda de extracción. Sigue
   P3-B, el acceptance journey completo y los gates finales; no es cierre.
 
+### 2026-07-28 17:39–18:04 — P3-B / Edición LINE y precisión neutral
+
+- El kernel `cad-line-edit` añade TRIM y EXTEND deterministas sobre LINE
+  canónicas. TRIM mueve sólo el extremo elegido hasta la intersección con el
+  segmento cortante; EXTEND exige que la frontera alcance la recta en la
+  dirección exterior correcta. Paralelas, ids repetidos, intersecciones
+  interiores y fronteras que no alcanzan se rechazan sin mutar.
+- Ambas operaciones recorren `executeCadEntityCommand` para regenerar HATCH,
+  DIMENSION y MLEADER asociativos, y consolidan la edición completa en una sola
+  versión/entrada de historial. La paleta de propiedades aparece únicamente al
+  seleccionar dos LINE y deja explícitos operación, objetivo y extremo.
+- POLYLINE incorpora cierre explícito desde el comando activo; la entidad
+  emitida añade el tramo último→primero. El flujo de precisión confirma cambio
+  de unidad visible a milímetros, capa canónica, coordenadas absolutas,
+  relativas y polares, cierre de tres vértices y OFFSET persistido. Además se
+  corrigió una regresión real: MOVE/COPY/OFFSET ya no pierden la selección al
+  entrar a la herramienta de modificación.
+- Evidencia: `cad-command` 19/19 y `cad-line-edit` verdes; TypeScript verde;
+  ESLint focal 0 errores y 135 advertencias heredadas. Chromium #25 valida
+  TRIM+EXTEND, propiedades, historial, guardado y reload; #26 valida pasos
+  2–7, 13 y 14 del journey con seis entidades persistidas. Regresión conjunta
+  #23–#26: 4/4 verde en 2.2 min; diff-check sin errores.
+- La rúbrica se mantiene prudentemente en 90: este corte cierra edición base y
+  precisión demostrable, pero el acceptance journey aún no es 50/50 y no se
+  reclama paridad general. `Layout3DEditor.tsx` queda en 10,514 líneas. Sigue
+  P3-C: selección espacial explícita, HATCH por punto interior y matriz de
+  evidencia antes de los gates finales.
+
 ## Claims
 
 Permitido inicialmente: capacidades exactas demostradas en #1416 y documentos

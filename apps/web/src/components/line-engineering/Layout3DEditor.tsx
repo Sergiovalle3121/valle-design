@@ -33,7 +33,7 @@ import { flowMetrics, type FlowCenter } from './flow-metrics';
 import { plotSheetModel } from './plot-sheet';
 import { describeCadIntent, normalizeToolCalls, type CadIntent } from './cad-intent';
 import { parseCoordinate, constrainPoint } from './precision-input';
-import { startCommand, feedPoint, feedDistance, commit as commitDrawCommand, cancel as cancelDrawCommand, type CommandId as CadDrawCommandId, type CommandState as CadDrawCommandState, type DrawAction } from './cad-command';
+import { startCommand, feedPoint, feedDistance, commit as commitDrawCommand, closePolyline as closeDrawPolyline, cancel as cancelDrawCommand, type CommandId as CadDrawCommandId, type CommandState as CadDrawCommandState, type DrawAction } from './cad-command';
 import { snap as resolveOsnap, rectGeometry, type SnapScene, type SnapType } from './snap-engine';
 import { normalizeVision, type VisionResult } from './cad-vision';
 import { detectCadFormat } from './cad-format-detect';
@@ -165,6 +165,7 @@ import {
   type CadEntityDiffRow,
 } from '@/lib/cad/cad-collaboration';
 import { applyCadLineFillet } from '@/lib/cad/cad-fillet';
+import { applyCadLineEdit, type CadLineEndpoint } from '@/lib/cad/cad-line-edit';
 import {
   cadLayerIdFromName,
   createCadDocumentLayer,
@@ -1034,6 +1035,9 @@ export default function Layout3DEditor({
   const [showCollaborationDock, setShowCollaborationDock] = useState(false);
   const [cadReviewReadOnly, setCadReviewReadOnly] = useState(false);
   const [filletRadius, setFilletRadius] = useState(100);
+  const [lineEditOperation, setLineEditOperation] = useState<'trim' | 'extend'>('trim');
+  const [lineEditEndpoint, setLineEditEndpoint] = useState<CadLineEndpoint>('start');
+  const [lineEditTargetId, setLineEditTargetId] = useState('');
   const [publishingSheetSet, setPublishingSheetSet] = useState(false);
   const [publicationWarnings, setPublicationWarnings] = useState<CadPublishWarning[]>([]);
   const [dxfExportOptions, setDxfExportOptions] = useState<DxfExportOptions>({ scope: 'all', includeHidden: true, includeMeasurements: true, includeLabels: true, units: 'mm', fileName: '' });
@@ -1376,6 +1380,7 @@ export default function Layout3DEditor({
   const lastWallAngleRef = useRef<number | null>(null); // ángulo del último tramo → entrada directa de distancia
   const [precisionText, setPrecisionText] = useState('');
   const [drawPrompt, setDrawPrompt] = useState<string | null>(null);
+  const [canCloseDraftPolyline, setCanCloseDraftPolyline] = useState(false);
   const drawCommandRef = useRef<CadDrawCommandState | null>(null);
   useEffect(() => { themeRef.current = theme; }, [theme]);
   useEffect(() => { setTheme(resolvedScheme === 'light' ? 'light' : 'dark'); }, [resolvedScheme]);
@@ -2953,6 +2958,16 @@ export default function Layout3DEditor({
       'FILLET',
     );
   }, [commitBlockMutation, filletRadius]);
+  const editNativeLines = useCallback((lineIds: [string, string]) => {
+    const targetId = lineIds.includes(lineEditTargetId) ? lineEditTargetId : lineIds[0];
+    const boundaryId = lineIds.find((id) => id !== targetId)!;
+    commitBlockMutation(
+      (document) => applyCadLineEdit(document, { operation: lineEditOperation, targetId, boundaryId, endpoint: lineEditEndpoint }),
+      [targetId],
+      `${lineEditOperation.toUpperCase()} aplicado a ${targetId}.`,
+      lineEditOperation.toUpperCase(),
+    );
+  }, [commitBlockMutation, lineEditEndpoint, lineEditOperation, lineEditTargetId]);
   const defineProfessionalBlock = useCallback((draft: CadBlockDefinitionDraft) => {
     const entityIds = [...new Set([...selRef.current.map((item) => item.id), ...nativeSelectionIdsRef.current])];
     const source = snapshotDocument();
@@ -4216,7 +4231,7 @@ export default function Layout3DEditor({
 
   // cancels any half-drawn cota or wall chain (called when leaving a draw tool)
   const endDraw = useCallback(() => {
-    measureARef.current = null; wallChainRef.current = null; drawCommandRef.current = null; setMeasureLive(null); setDrawPrompt(null);
+    measureARef.current = null; wallChainRef.current = null; drawCommandRef.current = null; setMeasureLive(null); setDrawPrompt(null); setCanCloseDraftPolyline(false);
     lastWallAngleRef.current = null;
     if (previewLineRef.current) previewLineRef.current.visible = false;
     if (snapMarkerRef.current) snapMarkerRef.current.visible = false;
@@ -4226,7 +4241,11 @@ export default function Layout3DEditor({
       const t = prev === next && next !== 'select' ? 'select' : next;
       toolRef.current = t;
       if (t === 'select') endDraw();
-      else { endDraw(); select([]); clearNativeSelection(); }
+      else {
+        endDraw();
+        // Modification commands need the picked source to survive tool entry.
+        if (t !== 'move' && t !== 'copy' && t !== 'offset') { select([]); clearNativeSelection(); }
+      }
       if (isCadDrawTool(t)) { const cmd = startCommand(t); drawCommandRef.current = cmd; setDrawPrompt(cmd.prompt); setMeasureLive(cmd.prompt); }
       return t;
     });
@@ -4271,7 +4290,10 @@ export default function Layout3DEditor({
   };
   const applyDrawAction = (action: DrawAction) => {
     if (action.type === 'addSegment') return createWallAssetFromPoints(action.a, action.b, 'Muro CAD');
-    if (action.type === 'addPolyline') return action.points.slice(0, -1).map((point, idx) => createWallAssetFromPoints(point, action.points[idx + 1], `Pline ${idx + 1}`)).some(Boolean);
+    if (action.type === 'addPolyline') {
+      const points = action.closed && action.points.length > 2 ? [...action.points, action.points[0]] : action.points;
+      return points.slice(0, -1).map((point, idx) => createWallAssetFromPoints(point, points[idx + 1], `Pline ${idx + 1}`)).some(Boolean);
+    }
     if (action.type === 'addRect') return createRectAssetFromBox(action.x, action.y, action.w, action.h, 'zone', 'Zona CAD');
     if (action.type === 'addCircle') return createRectAssetFromBox(action.cx - action.r, action.cy - action.r, action.r * 2, action.r * 2, 'zone', `Círculo CAD Ø${Math.round(action.r * 2)}`, 'circle');
     if (action.type === 'moveBy' || action.type === 'copyBy') {
@@ -4312,6 +4334,7 @@ export default function Layout3DEditor({
     const active = drawCommandRef.current; if (!active) return false;
     const next = feedPoint(active, { x, y });
     drawCommandRef.current = next.done ? null : next;
+    setCanCloseDraftPolyline(!next.done && next.id === 'polyline' && next.points.length >= 3);
     setDrawPrompt(next.done ? null : next.prompt); setMeasureLive(next.done ? null : next.prompt);
     applyDrawState(next);
     if (next.done) { setTool('select'); toolRef.current = 'select'; }
@@ -4320,7 +4343,16 @@ export default function Layout3DEditor({
   function commitActiveDraftCommand() {
     const active = drawCommandRef.current; if (!active) return false;
     const next = commitDrawCommand(active);
-    drawCommandRef.current = null; setDrawPrompt(null); setMeasureLive(null);
+    drawCommandRef.current = null; setDrawPrompt(null); setMeasureLive(null); setCanCloseDraftPolyline(false);
+    applyDrawState(next);
+    setTool('select'); toolRef.current = 'select';
+    return true;
+  }
+  function closeActiveDraftPolyline() {
+    const active = drawCommandRef.current; if (!active) return false;
+    const next = closeDrawPolyline(active);
+    if (next === active) return false;
+    drawCommandRef.current = null; setDrawPrompt(null); setMeasureLive(null); setCanCloseDraftPolyline(false);
     applyDrawState(next);
     setTool('select'); toolRef.current = 'select';
     return true;
@@ -4363,6 +4395,7 @@ export default function Layout3DEditor({
         if (Number.isFinite(d)) {
           const next = feedDistance(drawCommandRef.current, d);
           drawCommandRef.current = next.done ? null : next;
+          setCanCloseDraftPolyline(!next.done && next.id === 'polyline' && next.points.length >= 3);
           applyDrawState(next);
           if (next.done) { setTool('select'); toolRef.current = 'select'; setDrawPrompt(null); setMeasureLive(null); }
           setPrecisionText(''); return;
@@ -4388,6 +4421,7 @@ export default function Layout3DEditor({
     if (!active) return;
     const next = feedDistance(active, result.scalar);
     drawCommandRef.current = next.done ? null : next;
+    setCanCloseDraftPolyline(!next.done && next.id === 'polyline' && next.points.length >= 3);
     applyDrawState(next);
     setDrawPrompt(next.done ? null : next.prompt);
     setMeasureLive(next.done ? null : next.prompt);
@@ -7885,7 +7919,7 @@ export default function Layout3DEditor({
         else if (paletteOpenRef.current) { setShowPalette(false); setPaletteQuery(''); }
         else if (commandPreviewRef.current) { setCommandPreview(null); }
         else if (commandTextRef.current.trim()) { setCommandText(''); setCommandHistoryCursor(-1); }
-        else if (drawCommandRef.current) { const cancelled = cancelDrawCommand(drawCommandRef.current); drawCommandRef.current = null; setDrawPrompt(null); setMeasureLive(null); setPrecisionText(''); if (!cancelled.emitted.length) toast.success('Comando de dibujo cancelado.', 'CAD'); setTool('select'); toolRef.current = 'select'; }
+        else if (drawCommandRef.current) { const cancelled = cancelDrawCommand(drawCommandRef.current); drawCommandRef.current = null; setDrawPrompt(null); setMeasureLive(null); setCanCloseDraftPolyline(false); setPrecisionText(''); if (!cancelled.emitted.length) toast.success('Comando de dibujo cancelado.', 'CAD'); setTool('select'); toolRef.current = 'select'; }
         else if (toolRef.current !== 'select') { endDraw(); setTool('select'); toolRef.current = 'select'; }
         else if (hasSel) { select([]); clearNativeSelection(); rebuildAll(); }
       }
@@ -9044,6 +9078,9 @@ export default function Layout3DEditor({
                 {activeDynamicCommand && (activeDynamicCommand.id === 'line' || activeDynamicCommand.id === 'polyline') && (
                   <button onClick={commitActiveDraftCommand} className="rounded-lg border border-white/10 px-2 py-1 text-[10px] text-gray-300 hover:bg-white/10">Terminar</button>
                 )}
+                {activeDynamicCommand?.id === 'polyline' && canCloseDraftPolyline && (
+                  <button data-testid="cad-polyline-close" onClick={closeActiveDraftPolyline} className="rounded-lg border border-cyan-400/20 bg-cyan-400/10 px-2 py-1 text-[10px] font-semibold text-cyan-100 hover:bg-cyan-400/20">Cerrar</button>
+                )}
               </div>
             )}
             {mtextEditorOpen && (
@@ -9162,6 +9199,22 @@ export default function Layout3DEditor({
                   Geometría canónica · selección, grips, snaps y DXF sin aproximación persistida.
                 </div>
                 {selectedNativeLineIds ? (
+                  <div className="space-y-2">
+                  <div data-testid="cad-line-edit-control" className="rounded-xl border border-cyan-400/20 bg-cyan-400/[0.06] p-3">
+                    <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-cyan-200">TRIM / EXTEND · 2 LINE</div>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      <select data-testid="cad-line-edit-operation" value={lineEditOperation} onChange={(event) => setLineEditOperation(event.target.value as 'trim' | 'extend')} className="rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[11px] text-white">
+                        <option value="trim">TRIM</option><option value="extend">EXTEND</option>
+                      </select>
+                      <select data-testid="cad-line-edit-target" value={selectedNativeLineIds.includes(lineEditTargetId) ? lineEditTargetId : selectedNativeLineIds[0]} onChange={(event) => setLineEditTargetId(event.target.value)} className="rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[11px] text-white">
+                        {selectedNativeLineIds.map((id) => <option key={id} value={id}>{id}</option>)}
+                      </select>
+                      <select data-testid="cad-line-edit-endpoint" value={lineEditEndpoint} onChange={(event) => setLineEditEndpoint(event.target.value as CadLineEndpoint)} className="rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[11px] text-white">
+                        <option value="start">Start</option><option value="end">End</option>
+                      </select>
+                    </div>
+                    <button data-testid="cad-line-edit-apply" disabled={cadReviewReadOnly} onClick={() => editNativeLines(selectedNativeLineIds)} className="mt-2 w-full rounded-lg bg-cyan-500 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-cyan-400 disabled:opacity-40">Aplicar {lineEditOperation.toUpperCase()}</button>
+                  </div>
                   <div data-testid="cad-fillet-control" className="rounded-xl border border-violet-400/20 bg-violet-400/[0.07] p-3">
                     <div className="text-[10px] uppercase tracking-wide text-violet-200">FILLET · 2 LINE</div>
                     <p className="mt-1 text-[10.5px] text-gray-400">Recorta ambas líneas y crea un ARC tangente en una sola operación reversible.</p>
@@ -9169,6 +9222,7 @@ export default function Layout3DEditor({
                       <label className="text-[10px] text-gray-500">Radio<input data-testid="cad-fillet-radius" type="number" min="0.000001" value={filletRadius} onChange={(event) => setFilletRadius(Math.max(0.000001, Number(event.target.value) || 0.000001))} className="mt-1 w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white outline-none focus:ring-1 focus:ring-violet-400/50" /></label>
                       <button data-testid="cad-fillet-apply" disabled={cadReviewReadOnly} onClick={() => filletNativeLines(selectedNativeLineIds)} className="self-end rounded-lg bg-violet-500 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-violet-400 disabled:opacity-40">Aplicar FILLET</button>
                     </div>
+                  </div>
                   </div>
                 ) : primaryNativeEntity && primaryNativeProperties && primaryNativeBounds ? (
                   <>
