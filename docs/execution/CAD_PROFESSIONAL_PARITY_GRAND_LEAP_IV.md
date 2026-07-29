@@ -8,7 +8,7 @@
 | `MISSION_TARGET_END` | 2026-07-28 22:08:49 -06:00 |
 | `MISSION_CURRENT_PHASE` | P3 — Acceptance journey y hardening final |
 | `MISSION_COMPLETED_GATES` | viewport 100k; recovery worker/journal; blob GC bifásico y tenant-safe; selección profesional espacial; precisión dinámica y tracking; HATCH asociativo por selección/punto; MTEXT nativo; DIMENSION asociativa; MLEADER canónico; BLOCK/INSERT profesional; workbench profesional; layouts/publicación multi-viewport; Xrefs tenant-safe; compare/merge/review tenant-safe; FILLET/TRIM/EXTEND y capas canónicas browser-proven |
-| `MISSION_NEXT_ACTION` | consolidar la matriz neutral de 50 pasos, ejecutar gates amplios/performance, revisar arquitectura y preparar integración final sin claims inflados |
+| `MISSION_NEXT_ACTION` | ejecutar matriz CAD amplia, gates web/API/DB/migraciones y CI; revisar arquitectura y preparar integración final sin claims inflados |
 | Repositorio | `Sergiovalle3121/axos-os` |
 | Base | `1625ba26a07876943b821586c46b02c9f47f6bac` (`origin/main`) |
 | Rama / PR | `codex/cad-professional-grand-leap-iii` / #1416 |
@@ -528,6 +528,35 @@ No se editan ramas comerciales, ERP o PDF durante la construcción CAD.
   pero no se concede el punto faltante sin estrés de trazos sobre 100k y gates
   finales. `Layout3DEditor.tsx` queda en 10,538 líneas. Sigue P3-D, matriz
   trazable 1–50 y ejecución amplia de aceptación/performance.
+
+### 2026-07-28 18:17–18:39 — P3-D / Journey 50/50, OSNAP y loss manifest
+
+- `cad-acceptance-journey.ts` enumera exactamente los 50 pasos obligatorios y
+  enlaza evidencia existente; su checker falla ante números/rutas/acciones
+  faltantes o duplicados. Resultado actual: 45 `browser-proven` y cinco gates
+  `performance`; no queda ningún paso clasificado sólo por una unidad.
+- Chromium #28 inicia LINE cinco veces y exige en el HUD productivo endpoint,
+  midpoint, intersection, perpendicular y tangent. El test reveló que cada
+  cuerda tessellada de ARC fabricaba midpoints, intersections y perpendiculares.
+  `SnapScene` ahora separa candidatos semánticos, marca paths/ordinales y omite
+  sólo vecinos del mismo path; intersecciones entre paths y auto-cruces no
+  adyacentes permanecen disponibles. Núcleo 15/15 y navegador 1/1 verdes.
+- El journey espacial añadió drag de un grip real por puntero. La tolerancia
+  verifica destino en ambos ejes sin fingir que una cámara perspective produce
+  una transformación afín perfecta; #12 queda verde en 52.9 s.
+- Chromium #27 sube DXF con ARC soportado + POINT no soportado, convierte,
+  edita y guarda el ARC, persiste `dxf_import:unsupported_entity` en el
+  `CadDocument.lossManifest`, lo expone en el manifiesto de entrega y vuelve a
+  exportar/reimportar ARC. El warning dejó de ser un toast efímero.
+- Gate explícito 10k/100k: 10k canónico 6,861 ms, frame 105.9 ms; 100k canónico
+  11,741 ms, detalle 28,565 ms, frame 58.6 ms, zoom 26,403 ms, heap observado
+  364 MB. Tras zoom se seleccionó `perf-arc-099999`, inicialmente fuera del
+  detalle, y se materializó desde el índice; 2/2 verde con artefactos JSON.
+- La matriz y cifras completas quedan en `CAD_ACCEPTANCE_JOURNEY_IV.md`. La
+  rúbrica se mantiene en 90: el journey está demostrado, pero no se inventan
+  60 FPS, memoria estabilizada, DWG, delta journal ni descomposición del
+  monolito. `Layout3DEditor.tsx` queda en 10,562 líneas. Sigue P3-E, gates
+  amplios y auditoría final antes de integrar.
 
 ## Claims
 

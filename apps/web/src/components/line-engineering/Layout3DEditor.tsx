@@ -3573,12 +3573,14 @@ export default function Layout3DEditor({
         assetsRef.current.forEach((a) => boxes.push({ x: a.x, y: a.y, w: a.w, h: a.h, rotation: a.rotation, d: Math.hypot(a.x + a.w / 2 - wx, a.y + a.h / 2 - wy) }));
         boxes.sort((a, b) => a.d - b.d);
         const scene: SnapScene = {
-          segments: [], endpoints: [], centers: [], quadrants: [], geometricCenters: [],
+          segments: [], midpoints: [], perpendicularSegments: [], endpoints: [], centers: [], quadrants: [], geometricCenters: [],
           insertions: [], tangents: [], nodes: dxfSnapRef.current,
         };
         for (const b of boxes.slice(0, 48)) {
           const g = rectGeometry(b);
           scene.segments!.push(...g.edges);
+          scene.perpendicularSegments!.push(...g.edges);
+          scene.midpoints!.push(...g.edges.map((edge) => ({ x: (edge.a.x + edge.b.x) / 2, y: (edge.a.y + edge.b.y) / 2 })));
           scene.endpoints!.push(...g.corners);
           scene.centers!.push(g.center);
           scene.geometricCenters!.push(g.center);
@@ -3593,11 +3595,18 @@ export default function Layout3DEditor({
           maxY: wy + tol * 4,
         }, 48) ?? [];
         for (const entity of nativeCandidates) {
-          for (const path of CAD_ENTITY_REGISTRY.adapter(entity).renderer.paths(entity, 24)) {
+          for (const [pathIndex, path] of CAD_ENTITY_REGISTRY.adapter(entity).renderer.paths(entity, 24).entries()) {
+            const segmentCount = Math.max(0, path.points.length - 1) + (path.closed && path.points.length > 2 ? 1 : 0);
+            const pathId = `${entity.id}:${pathIndex}`;
             for (let index = 1; index < path.points.length; index++)
-              scene.segments!.push({ a: path.points[index - 1], b: path.points[index] });
+              scene.segments!.push({ a: path.points[index - 1], b: path.points[index], pathId, ordinal: index - 1, pathLength: segmentCount, closed: path.closed });
             if (path.closed && path.points.length > 2)
-              scene.segments!.push({ a: path.points.at(-1)!, b: path.points[0] });
+              scene.segments!.push({ a: path.points.at(-1)!, b: path.points[0], pathId, ordinal: segmentCount - 1, pathLength: segmentCount, closed: true });
+            if (entity.type === 'line' && path.points.length === 2)
+              {
+                scene.midpoints!.push({ x: (path.points[0].x + path.points[1].x) / 2, y: (path.points[0].y + path.points[1].y) / 2 });
+                scene.perpendicularSegments!.push({ a: path.points[0], b: path.points[1] });
+              }
           }
           for (const snap of CAD_ENTITY_REGISTRY.adapter(entity).snaps.snaps(entity, anchor ?? { x: wx, y: wy })) {
             if (snap.kind === 'center') scene.centers!.push(snap.point);
@@ -5907,7 +5916,19 @@ export default function Layout3DEditor({
     setLayerAssignments((cur) => ({ ...cur, ...layerUpdates }));
     setObjectTags((cur) => ({ ...cur, ...tagUpdates }));
     if (notes) { setDimCount([...annotationsRef.current.values()].filter((ann) => ann.type === 'dim').length); rebuildDims(); }
-    if (nativeCreated.length) {
+    const importLossManifest = preview.warnings.map((warning) => ({
+      code: `dxf_import:${warning.code}`,
+      sourceType: warning.entityType ?? 'DXF',
+      detail: warning.layer ? `${warning.message} · layer ${warning.layer}` : warning.message,
+      severity: 'warning' as const,
+    }));
+    if (truncated) importLossManifest.push({
+      code: 'dxf_import:conversion_truncated',
+      sourceType: 'DXF',
+      detail: `La conversión editable se limitó a ${cap} entidades por seguridad.`,
+      severity: 'warning',
+    });
+    if (nativeCreated.length || importLossManifest.length) {
       const current = snapshotDocument();
       const nativeIds = new Set(nativeCreated.map((entity) => entity.id));
       const entities = [...current.entities.filter((entity) => !nativeIds.has(entity.id)), ...nativeCreated]
@@ -5917,6 +5938,7 @@ export default function Layout3DEditor({
         entities,
         blocks: [...current.blocks, ...importedBlockParts.blocks].sort((a, b) => a.id.localeCompare(b.id)),
         modelSpace: { entityIds: entities.map((entity) => entity.id) },
+        lossManifest: [...current.lossManifest, ...importLossManifest],
       }, 'import:dxf-native-entities');
       loadedCadDocumentRef.current = document;
       nativeSelectionIdsRef.current = nativeCreated.map((entity) => entity.id).slice(0, 80);
@@ -5929,7 +5951,8 @@ export default function Layout3DEditor({
       );
       setNativeDocumentRevision((value) => value + 1);
       syncNativeScene(document);
-    } else if (created.length) select(created.slice(0, 80));
+    }
+    if (!nativeCreated.length && created.length) select(created.slice(0, 80));
     setDirty(true); rebuildAll();
     toast.success(`${created.length} objeto(s), ${nativeCreated.length} entidad(es) nativa(s), ${importedBlockParts.blocks.length} bloque(s) y ${notes} nota(s) convertidos${truncated ? ' (recortado por seguridad)' : ''}.`, 'DXF editable');
   };
@@ -8136,6 +8159,7 @@ export default function Layout3DEditor({
     footprint: data?.footprint ?? null, counts: { stations: placedCount, assets: assetCount, annotations: annotationsRef.current.size, connectors: connectorsRef.current.length, cadLayers: cadLayers.length },
     validation: cadValidationReport ? { severity: cadValidationReport.severity, issues: cadValidationReport.issues.length, collisions: cadValidationReport.collisions.length, clearances: cadValidationReport.clearances.length, safety: cadValidationReport.safety.length, architecture: cadValidationReport.architecture.length, document: cadValidationReport.document.length } : null,
     dxf: { canExport: dxfExportSummary.canExport, objects: dxfExportSummary.objects, layers: dxfExportSummary.layers, issues: dxfExportSummary.issues.length },
+    lossManifest: { count: loadedCadDocumentRef.current?.lossManifest.length ?? 0, entries: loadedCadDocumentRef.current?.lossManifest ?? [] },
     sheets: orderedPaperSpaces.map((space, index) => ({ id: space.id, order: index, name: space.name, includeInPublish: space.includeInPublish !== false, paper: space.pageSetup?.paper ?? 'custom', orientation: space.page.orientation, viewports: (space.viewports ?? []).map((viewport) => ({ id: viewport.id, scale: viewport.scale, locked: viewport.locked })) })),
     publications: publicationRecords.map((publication) => ({ id: publication.id, fileName: publication.fileName, sha256: publication.sha256, publishedAt: publication.publishedAt, publishedBy: publication.publishedBy })),
     notes: sheetPackageDraft.notes,
@@ -9022,7 +9046,7 @@ export default function Layout3DEditor({
             <div className="absolute bottom-3 right-3 z-20 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-gray-950/85 px-3 py-1.5 text-[11px] text-gray-300 shadow-xl backdrop-blur">
               <span className="text-cyan-200">Tool: {tool}</span>
               <span data-testid="cad-selection-status-count">{professionalSelection.current.length} sel</span>
-              <span title="Entidades nativas en el documento canónico">Native {nativeEntities.length}</span>
+              <span data-testid="cad-native-document-count" title="Entidades nativas en el documento canónico">Native {nativeEntities.length}</span>
               {nativeRenderStats.omitted > 0 && (
                 <span
                   data-testid="cad-native-render-stats"
@@ -9081,7 +9105,7 @@ export default function Layout3DEditor({
               </div>
             )}
             {!walk && (tool === 'measure' || tool === 'wall' || isCadDrawTool(tool)) && (
-              <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-amber-400/95 text-gray-900 text-[12px] font-semibold inline-flex items-center gap-1.5 pointer-events-none">
+              <div data-testid="cad-live-prompt" className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-amber-400/95 text-gray-900 text-[12px] font-semibold inline-flex items-center gap-1.5 pointer-events-none">
                 {tool === 'measure' ? <Ruler className="w-3.5 h-3.5" /> : <Spline className="w-3.5 h-3.5" />}
                 {measureLive || drawPrompt ? (measureLive || drawPrompt) : (tool === 'measure' ? 'Clic en dos puntos para medir' : isCadDrawTool(tool) ? 'Dibujo CAD activo · clic o coordenada · Enter termina' : 'Clic para trazar muros · Esc termina')}
               </div>
@@ -9820,7 +9844,7 @@ export default function Layout3DEditor({
                     <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Manifest JSON</span>
                     <button onClick={() => navigator.clipboard?.writeText(JSON.stringify(sheetPackageManifest, null, 2))} className="rounded-md bg-cyan-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-cyan-500">Copiar</button>
                   </div>
-                  <pre className="max-h-52 overflow-auto whitespace-pre-wrap rounded-lg bg-black/30 p-2 text-[10.5px] leading-relaxed text-cyan-50/80">{JSON.stringify(sheetPackageManifest, null, 2)}</pre>
+                  <pre data-testid="cad-sheet-package-manifest" className="max-h-52 overflow-auto whitespace-pre-wrap rounded-lg bg-black/30 p-2 text-[10.5px] leading-relaxed text-cyan-50/80">{JSON.stringify(sheetPackageManifest, null, 2)}</pre>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <button onClick={() => void publishSheetSetPdf()} disabled={cadReviewReadOnly || publishingSheetSet || !paperSpaces.some((space) => space.includeInPublish !== false)} className="rounded-xl bg-white px-3 py-2 text-[12px] font-semibold text-gray-900 hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-50">{publishingSheetSet ? 'Publicando…' : `Publicar PDF (${paperSpaces.filter((space) => space.includeInPublish !== false).length})`}</button>

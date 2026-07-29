@@ -125,6 +125,7 @@ test('professional selection composes quick, add, previous, last, all and invert
 });
 
 test('professional selection executes window, crossing, lasso and overlap cycling on the canvas', async ({ context, page }) => {
+  test.setTimeout(90_000);
   await installMockBackend(context);
   await loginAsMaster(context);
   await installCadBackend(context, spatialCadDocument);
@@ -177,4 +178,15 @@ test('professional selection executes window, crossing, lasso and overlap cyclin
   expect(first).not.toBe(second);
   expect(`${first} ${second}`).toContain('overlap-a');
   expect(`${first} ${second}`).toContain('overlap-b');
+
+  const gripStart = await worldPoint(page, { x: 9_000, y: 2_000 });
+  const gripDestination = await worldPoint(page, { x: 8_800, y: 1_800 });
+  await page.mouse.move(gripStart.x, gripStart.y);
+  await page.mouse.down();
+  await page.mouse.move(gripDestination.x, gripDestination.y, { steps: 8 });
+  await page.mouse.up();
+  const movedX = Number(await page.getByTestId('cad-native-property-startX').inputValue());
+  const movedY = Number(await page.getByTestId('cad-native-property-startY').inputValue());
+  expect(Math.abs(movedX - 8_800)).toBeLessThan(50);
+  expect(Math.abs(movedY - 1_800)).toBeLessThan(50);
 });
