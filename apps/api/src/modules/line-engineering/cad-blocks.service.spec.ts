@@ -42,7 +42,7 @@ describe('CadBlocksService professional tenant library', () => {
 
   beforeEach(async () => {
     source = new DataSource({
-      type: 'sqlite',
+      type: 'better-sqlite3',
       database: ':memory:',
       dropSchema: true,
       synchronize: true,
