@@ -21,3 +21,4 @@ export * from "./migration";
 export * from "./licence";
 export * from "./brand";
 export * from "./legal";
+export * from "./costing-rates";
