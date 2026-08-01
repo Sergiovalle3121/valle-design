@@ -9,6 +9,7 @@ export * from "./presentations";
 export * from "./document-authoring";
 export * from "./product-catalog";
 export * from "./money";
+export * from "./money-rounding";
 export * from "./pricing";
 export * from "./price-book-mx";
 export * from "./bundles";
