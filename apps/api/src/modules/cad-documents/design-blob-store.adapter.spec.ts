@@ -1,7 +1,7 @@
-import { EnterpriseBlobStoreAdapter } from './enterprise-blob-store.adapter';
+import { DesignBlobStoreAdapter } from './design-blob-store.adapter';
 
-describe('EnterpriseBlobStoreAdapter (puerto CadBlobStore, WP2c)', () => {
-  it('delegates put/get 1:1 al blob store de documents subyacente', async () => {
+describe('DesignBlobStoreAdapter (puerto CadBlobStore)', () => {
+  it('delegates put/get 1:1 al DatabaseBlobStore subyacente', async () => {
     const put = jest.fn(async (data: Buffer, sha256: string) => ({
       blobKey: 'blob-1',
       sha256,
@@ -9,7 +9,7 @@ describe('EnterpriseBlobStoreAdapter (puerto CadBlobStore, WP2c)', () => {
       created: true,
     }));
     const get = jest.fn(async () => Buffer.from('bytes'));
-    const adapter = new EnterpriseBlobStoreAdapter({ put, get });
+    const adapter = new DesignBlobStoreAdapter({ put, get });
 
     const sha = 'a'.repeat(64);
     await expect(adapter.put(Buffer.from('data'), sha)).resolves.toMatchObject({
@@ -24,7 +24,7 @@ describe('EnterpriseBlobStoreAdapter (puerto CadBlobStore, WP2c)', () => {
   });
 
   it('propaga los fallos del almacenamiento subyacente sin tragarlos', async () => {
-    const adapter = new EnterpriseBlobStoreAdapter({
+    const adapter = new DesignBlobStoreAdapter({
       put: jest.fn(async () => {
         throw new Error('sin espacio');
       }),

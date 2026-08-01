@@ -91,6 +91,38 @@ CI falló en 8169d66e (campo warnings faltante en contrato); corregido en 060576
   fusión → filter-repo con FILTER-REPO-PATHS.txt → gitleaks historial completo → verificar
   valle-design vacío → push como main de valle-design.
 
+## R1 — apps/api de valle-design ARRANCA (hecho en esta rama)
+
+- [x] Raíz: package.json (workspaces + turbo), turbo.json, .nvmrc, .gitignore,
+  .gitattributes, README, LICENSE, .env.example, docker-compose (PostgreSQL 16 + MinIO;
+  MinIO reservado para blobs S3 futuros — hoy los blobs viven en BD), .gitleaks.toml con
+  allowlist EXACTA del fixture `0123456789abcdef` (FP documentado en PHASE3-EXTRACTION.md;
+  gitleaks historial completo = 0 hallazgos con la config, 1 FP sin ella).
+- [x] apps/api NestJS real: common/ (tenant, database, entities, testing, filters, config)
+  copiado/adaptado del origen; scaffolding (tsconfig, nest-cli, jest + harness, scripts
+  build/bootstrap-smoke/jest-postgres) del origen.
+- [x] Adaptadores enterprise SUSTITUIDOS: `design_blobs` (DatabaseBlobStore content-addressed,
+  dedup sha256, GC dos barridos) ← CAD_BLOB_STORE; `design_audit_log` (DesignAuditLog)
+  ← CAD_AUDIT_PUBLISHER; ConfigEntitlementClient (ENTITLEMENTS_MODE=allow-all|platform-api,
+  allow-all default en dev, platform-api default fail-closed en prod) ← ENTITLEMENT_CLIENT.
+- [x] Auth server-side real: CadAuthGuard valida JWT de Platform (secreto compartido
+  JWT_SECRET/SESSION_SECRET) + PermissionsGuard cad:* (mapeo engineering:*→cad:* de
+  @axos/contracts) + entitlement design.cad; TenantInterceptor → TenantContextService.
+- [x] Superficie /v1/cad/*: projects CRUD, documents (open/meta/archive suave), content CAS
+  inline + archive gzip multipart, versions, publications, dxf get/put/delete/export,
+  blocks CRUD, intent/vision. 2 migraciones nuevas (design_blobs; design_audit_log +
+  columnas dxf_* en cad_documents). Seed demo real e idempotente.
+- [x] Verificación: typecheck limpio; `npm test` 19 suites/101 tests verdes (+1 suite pg
+  aparte: 4 tests verdes con TEST_DATABASE_URL); migraciones limpias en BD virgen
+  (4 CAD + 2 nuevas); bootstrap-smoke OK; boot real + smoke HTTP autenticado OK.
+- **TODO-R3 (imposición comercial real)**: sustituir ConfigEntitlementClient por el cliente
+  HTTP de la API de Platform (`specs/platform-api.v1.yaml`). El modo `platform-api` HOY
+  niega fail-closed con warn; el TODO está anotado en
+  `apps/api/src/modules/cad-documents/platform-client.adapter.ts`.
+- Pendiente R2: web re-scaffolding (apps/web sin package.json aún), SDK generado desde los
+  YAML, alias 1:1 de rutas del YAML (/v1/projects…) vs prefijo actual /v1/cad/*, endpoints
+  de review-sessions/comments, publicador real de eventos design.* y optimize NL→CAD.
+
 ## Pendiente (orden)
 
 1. Fase 3 reestructura en valle-design (apps/packages, arranque limpio, CI propio).

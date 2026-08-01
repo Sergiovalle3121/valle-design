@@ -12,12 +12,13 @@ import { CadDocumentsService } from './cad-documents.service';
 import { CadIntentService } from './cad-intent.service';
 import { CadVisionService } from './cad-vision.service';
 import { CadLegacyProjectionService } from './cad-legacy-projection.service';
-import { DocumentsModule } from '../documents/documents.module';
-import { EventLedgerModule } from '../event-ledger/event-ledger.module';
-import { EntitlementsModule } from '../entitlements/entitlements.module';
-import { DOCUMENT_BLOB_STORE } from '../documents/blob/document-blob-store';
-import type { DocumentBlobStore } from '../documents/blob/document-blob-store';
-import { provideTenantScopedRepository } from '../../common/tenant/tenant-scoped.repository';
+import { BlobStoreModule } from '../blob-store/blob-store.module';
+import { DatabaseBlobStore } from '../blob-store/design-blob.store';
+import { AuditLogModule } from '../audit-log/audit-log.module';
+import {
+  getTenantRepositoryToken,
+  provideTenantScopedRepository,
+} from '../../common/tenant/tenant-scoped.repository';
 import { CAD_BLOB_STORE } from './ports/cad-blob-store.port';
 import { CAD_AI_PROVIDER } from './ports/cad-ai-provider.port';
 import { CAD_AUDIT_PUBLISHER } from './ports/cad-audit-publisher.port';
@@ -27,34 +28,33 @@ import {
   PLATFORM_IDENTITY_CLIENT,
   USAGE_METER,
 } from './ports/platform-client.ports';
-import { EnterpriseBlobStoreAdapter } from './enterprise-blob-store.adapter';
+import { DesignBlobStoreAdapter } from './design-blob-store.adapter';
 import { CideAiProviderAdapter } from './cide-ai-provider.adapter';
-import { EnterpriseCadAuditPublisher } from './enterprise-audit-publisher.adapter';
+import { DesignCadAuditPublisher } from './design-audit-publisher.adapter';
 import { NoopCadEventPublisher } from './noop-event-publisher.adapter';
 import {
-  EnterpriseEntitlementClient,
+  ConfigEntitlementClient,
   NoopUsageMeter,
   TenantContextIdentityClient,
 } from './platform-client.adapter';
 
 /**
- * CAD Documents (WP2a/WP2b/WP2c/WP3) — kernel CAD puro, futuro corazón del
- * producto Design. Agrupa la biblioteca de bloques, la validación/
- * almacenamiento del CadDocument, la lógica de dominio del documento canónico
- * (CadDocumentsService), el puente NL→CAD y Vision→CAD, sin conocer nada del
- * dominio industrial (line-engineering lo importa, nunca al revés). En Fase 3
- * este módulo se extrae entero como producto independiente.
+ * CAD Documents — kernel CAD puro, corazón del producto Design. Agrupa la
+ * biblioteca de bloques, la validación/almacenamiento del CadDocument, la
+ * lógica de dominio del documento canónico (CadDocumentsService), el puente
+ * NL→CAD y Vision→CAD, y el modelo de datos CAD propio (tablas cad_*).
  *
- * WP3 añade el modelo de datos CAD PROPIO (tablas cad_*: proyectos, documentos,
- * versiones, publicaciones, sesiones de revisión y comentarios) y la proyección
- * de compatibilidad desde la tabla legacy (CadLegacyProjectionService), sin
- * tocar `sf_line_layouts`.
- *
- * WP2c invierte las dependencias de infraestructura: el dominio CAD sólo
- * conoce los PUERTOS neutrales de `./ports/`, y este módulo los satisface con
- * adaptadores enterprise (`*.adapter.ts`). Los símbolos de `../documents` y
- * `../ai` viven ÚNICAMENTE en los adaptadores y en este wiring; en Fase 3 el
- * repo Design provee sus propias implementaciones sin tocar el dominio.
+ * El dominio sólo conoce los PUERTOS neutrales de `./ports/`; en este repo
+ * (Fase 3 de la separación) los adaptadores enterprise quedaron SUSTITUIDOS
+ * por implementaciones propias de Design:
+ * - CAD_BLOB_STORE  → DesignBlobStoreAdapter sobre DatabaseBlobStore
+ *   (`design_blobs`, content-addressed en la base).
+ * - CAD_AUDIT_PUBLISHER → DesignCadAuditPublisher sobre la bitácora propia
+ *   `design_audit_log`.
+ * - ENTITLEMENT_CLIENT → ConfigEntitlementClient (ENTITLEMENTS_MODE;
+ *   TODO-R3: cliente HTTP real de la API de Platform).
+ * - PLATFORM_IDENTITY_CLIENT → TenantContextIdentityClient (contexto
+ *   autenticado propio poblado por CadAuthGuard + TenantInterceptor).
  */
 @Module({
   imports: [
@@ -67,12 +67,10 @@ import {
       CadReviewSession,
       CadComment,
     ]),
-    // Aporta DOCUMENT_BLOB_STORE, que el adaptador envuelve como CAD_BLOB_STORE.
-    DocumentsModule,
-    // Aporta EventLedgerService para el adaptador de auditoría CAD.
-    EventLedgerModule,
-    // Aporta EntitlementsService (autoridad comercial) para ENTITLEMENT_CLIENT.
-    EntitlementsModule,
+    // Aporta DatabaseBlobStore, que el adaptador envuelve como CAD_BLOB_STORE.
+    BlobStoreModule,
+    // Aporta DesignAuditLog para el adaptador de auditoría CAD.
+    AuditLogModule,
   ],
   providers: [
     CadBlocksService,
@@ -87,24 +85,23 @@ import {
     provideTenantScopedRepository(CadPublication, { strict: true }),
     provideTenantScopedRepository(CadReviewSession, { strict: true }),
     provideTenantScopedRepository(CadComment, { strict: true }),
-    // ── Puertos WP2c: cada token se satisface con su adaptador enterprise ──
+    // ── Puertos: cada token se satisface con su adaptador Design ──
     {
       provide: CAD_BLOB_STORE,
-      // Sin blob store subyacente el puerto queda ausente (undefined) para que
-      // CadDocumentsService conserve su 503 explícito al exigirlo.
-      inject: [{ token: DOCUMENT_BLOB_STORE, optional: true }],
-      useFactory: (inner?: DocumentBlobStore) =>
-        inner ? new EnterpriseBlobStoreAdapter(inner) : undefined,
+      inject: [DatabaseBlobStore],
+      useFactory: (inner: DatabaseBlobStore) =>
+        new DesignBlobStoreAdapter(inner),
     },
     { provide: CAD_AI_PROVIDER, useClass: CideAiProviderAdapter },
-    { provide: CAD_AUDIT_PUBLISHER, useClass: EnterpriseCadAuditPublisher },
-    // Fase 2 sustituye el no-op por el publicador real de eventos design.*.
+    { provide: CAD_AUDIT_PUBLISHER, useClass: DesignCadAuditPublisher },
+    // El publicador real de eventos design.* llega con la integración por
+    // contratos (design-events.v1.yaml); hasta entonces, no-op explícito.
     { provide: CAD_EVENT_PUBLISHER, useClass: NoopCadEventPublisher },
     {
       provide: PLATFORM_IDENTITY_CLIENT,
       useClass: TenantContextIdentityClient,
     },
-    { provide: ENTITLEMENT_CLIENT, useClass: EnterpriseEntitlementClient },
+    { provide: ENTITLEMENT_CLIENT, useClass: ConfigEntitlementClient },
     { provide: USAGE_METER, useClass: NoopUsageMeter },
   ],
   exports: [
@@ -113,6 +110,15 @@ import {
     CadIntentService,
     CadVisionService,
     CadLegacyProjectionService,
+    // Repositorios scoped de las entidades cad_* para la capa HTTP (CadModule:
+    // CadDocumentsRepository lleva el ciclo de vida + CAS sobre estas filas).
+    getTenantRepositoryToken(CadProject),
+    getTenantRepositoryToken(CadDocument),
+    getTenantRepositoryToken(CadDocumentVersion),
+    getTenantRepositoryToken(CadPublication),
+    getTenantRepositoryToken(CadReviewSession),
+    getTenantRepositoryToken(CadComment),
+    getTenantRepositoryToken(SfCadBlock),
     CAD_BLOB_STORE,
     CAD_AI_PROVIDER,
     CAD_AUDIT_PUBLISHER,

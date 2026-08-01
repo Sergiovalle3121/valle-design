@@ -1,0 +1,48 @@
+# Infraestructura local de Valle Design.
+#
+#   docker compose up -d
+#
+# - PostgreSQL 16: la base del API (DATABASE_URL en .env.example apunta aquí).
+# - MinIO: object storage S3-compatible reservado para los blobs CAD FUTUROS.
+#   HOY los blobs (archivos gzip del documento canónico) viven EN LA BASE
+#   (tabla `design_blobs`, adaptador DatabaseBlobStore); MinIO se levanta ya
+#   para que el adaptador S3 de una fase posterior no exija cambiar la infra.
+services:
+  postgres:
+    image: postgres:16
+    container_name: valle-design-postgres
+    environment:
+      POSTGRES_USER: valle
+      POSTGRES_PASSWORD: valle
+      POSTGRES_DB: valle_design_dev
+    ports:
+      - '5432:5432'
+    volumes:
+      - valle_design_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U valle -d valle_design_dev']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: valle-design-minio
+    command: server /data --console-address ':9001'
+    environment:
+      MINIO_ROOT_USER: valle
+      MINIO_ROOT_PASSWORD: valle-minio
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - valle_design_minio:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  valle_design_pgdata:
+  valle_design_minio:

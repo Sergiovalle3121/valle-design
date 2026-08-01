@@ -2,11 +2,11 @@ import {
   TenantContextService,
   type TenantContext,
 } from '../../common/tenant/tenant-context.service';
-import type { EntitlementsService } from '../entitlements/entitlements.service';
 import {
-  EnterpriseEntitlementClient,
+  ConfigEntitlementClient,
   NoopUsageMeter,
   TenantContextIdentityClient,
+  resolveEntitlementsMode,
 } from './platform-client.adapter';
 import type { UsageMeter } from './ports/platform-client.ports';
 
@@ -20,7 +20,17 @@ const context: TenantContext = {
   scopes: null,
 };
 
-describe('platform-client adapters (WP2c)', () => {
+describe('platform-client adapters (Design)', () => {
+  const originalMode = process.env.ENTITLEMENTS_MODE;
+  const originalNodeEnv = process.env.NODE_ENV;
+
+  afterEach(() => {
+    if (originalMode === undefined) delete process.env.ENTITLEMENTS_MODE;
+    else process.env.ENTITLEMENTS_MODE = originalMode;
+    if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalNodeEnv;
+  });
+
   it('la identidad refleja el contexto autenticado y queda vacía fuera de él', () => {
     const ctx = new TenantContextService();
     const identity = new TenantContextIdentityClient(ctx);
@@ -36,33 +46,29 @@ describe('platform-client adapters (WP2c)', () => {
     });
   });
 
-  it('entitlements delega en la autoridad comercial y es fail-closed', async () => {
-    const ctx = new TenantContextService();
-    const hasCapability = jest.fn().mockResolvedValue(true);
-    const client = new EnterpriseEntitlementClient(ctx, {
-      hasCapability,
-    } as unknown as EntitlementsService);
+  it('el modo por defecto es allow-all en dev y platform-api (fail-closed) en prod', () => {
+    delete process.env.ENTITLEMENTS_MODE;
+    process.env.NODE_ENV = 'test';
+    expect(resolveEntitlementsMode()).toBe('allow-all');
 
-    // Sin tenant en contexto → false sin consultar (fail-closed).
-    await expect(client.hasEntitlement('design.editor')).resolves.toBe(false);
-    expect(hasCapability).not.toHaveBeenCalled();
+    process.env.NODE_ENV = 'production';
+    expect(resolveEntitlementsMode()).toBe('platform-api');
 
-    // Con tenant → delega en EntitlementsService.hasCapability.
-    await ctx.run(context, async () => {
-      await expect(client.hasEntitlement('design.editor')).resolves.toBe(true);
-    });
-    expect(hasCapability).toHaveBeenCalledWith('tenant-a', 'design.editor');
-
-    // Sin EntitlementsService disponible → false (nunca fail-open).
-    const without = new EnterpriseEntitlementClient(ctx);
-    await ctx.run(context, async () => {
-      await expect(without.hasEntitlement('design.editor')).resolves.toBe(
-        false,
-      );
-    });
+    process.env.ENTITLEMENTS_MODE = 'allow-all';
+    expect(resolveEntitlementsMode()).toBe('allow-all');
   });
 
-  it('el medidor de uso no-op no truena (Fase 2 lo sustituye por metering real)', () => {
+  it('allow-all concede; platform-api niega fail-closed hasta el cliente real (TODO-R3)', async () => {
+    const client = new ConfigEntitlementClient();
+
+    process.env.ENTITLEMENTS_MODE = 'allow-all';
+    await expect(client.hasEntitlement('design.cad')).resolves.toBe(true);
+
+    process.env.ENTITLEMENTS_MODE = 'platform-api';
+    await expect(client.hasEntitlement('design.cad')).resolves.toBe(false);
+  });
+
+  it('el medidor de uso no-op no truena (metering design.* llega después)', () => {
     const meter: UsageMeter = new NoopUsageMeter();
     expect(() => meter.track('design.document.saved', 1)).not.toThrow();
     expect(() => meter.track('design.document.opened')).not.toThrow();

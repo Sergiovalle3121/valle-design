@@ -1,15 +1,15 @@
 /**
- * Adaptadores in-proc de los puertos de plataforma (WP2c).
+ * Adaptadores in-proc de los puertos de plataforma (adaptación Design del
+ * WP2c del origen).
  *
  * Identidad sobre TenantContextService (ALS del request autenticado),
- * entitlements sobre EntitlementsService (autoridad única del acceso pagado) y
- * un medidor de uso no-op. En Fase 3 el repo Design los sustituye por clientes
- * de la API de plataforma sin tocar el dominio.
+ * entitlements por CONFIGURACIÓN (ENTITLEMENTS_MODE) y un medidor de uso
+ * no-op. El adaptador enterprise que consultaba EntitlementsService in-proc
+ * se sustituye aquí: Design no tiene autoridad comercial propia — la
+ * autoridad es Platform, y su cliente HTTP llega en R-seguridad.
  */
-import { Injectable, Logger, Optional } from '@nestjs/common';
-import type { ProductCapabilityId } from '@axos/contracts';
+import { Injectable, Logger } from '@nestjs/common';
 import { TenantContextService } from '../../common/tenant/tenant-context.service';
-import { EntitlementsService } from '../entitlements/entitlements.service';
 import type {
   EntitlementClient,
   PlatformIdentityClient,
@@ -35,35 +35,53 @@ export class TenantContextIdentityClient implements PlatformIdentityClient {
   }
 }
 
+export type EntitlementsMode = 'allow-all' | 'platform-api';
+
 /**
- * Entitlements sobre la autoridad comercial real (EntitlementsService.
- * hasCapability). FAIL-CLOSED como manda ese módulo: sin tenant en contexto o
- * sin servicio disponible, la respuesta es false — nunca se regala acceso por
- * ausencia de dato.
+ * Modo de imposición de entitlements, por entorno:
+ * - `allow-all`  → todo tenant autenticado tiene design.cad (DEFAULT en
+ *   desarrollo; documentado en .env.example). Pensado para dev/demo local.
+ * - `platform-api` → la autoridad es la API de Platform. TODO-R3: implementar
+ *   el cliente HTTP real contra specs/platform-api.v1.yaml; hasta entonces
+ *   este modo NIEGA (fail-closed) con un warn — nunca se regala acceso por
+ *   ausencia de cliente.
+ *
+ * En PRODUCCIÓN el default es `platform-api` (fail-closed): dejar allow-all
+ * por omisión en prod sería regalar el producto a cualquier token válido.
+ */
+export function resolveEntitlementsMode(): EntitlementsMode {
+  const raw = (process.env.ENTITLEMENTS_MODE ?? '').trim().toLowerCase();
+  if (raw === 'allow-all') return 'allow-all';
+  if (raw === 'platform-api') return 'platform-api';
+  return process.env.NODE_ENV === 'production' ? 'platform-api' : 'allow-all';
+}
+
+/**
+ * Entitlements por configuración (sustituto del EnterpriseEntitlementClient).
+ * Ver resolveEntitlementsMode(); la imposición real server-side llega en
+ * R-seguridad con el cliente platform-api (TODO-R3).
  */
 @Injectable()
-export class EnterpriseEntitlementClient implements EntitlementClient {
-  private readonly logger = new Logger(EnterpriseEntitlementClient.name);
-
-  constructor(
-    private readonly tenantCtx: TenantContextService,
-    @Optional() private readonly entitlements?: EntitlementsService,
-  ) {}
+export class ConfigEntitlementClient implements EntitlementClient {
+  private readonly logger = new Logger(ConfigEntitlementClient.name);
+  private warned = false;
 
   async hasEntitlement(code: string): Promise<boolean> {
-    const tenant = this.tenantCtx.getTenantId();
-    if (!tenant) return false;
-    if (!this.entitlements) {
+    if (resolveEntitlementsMode() === 'allow-all') return true;
+    // TODO-R3: cliente HTTP real contra la API de Platform
+    // (packages/contracts/specs/platform-api.v1.yaml). Hasta entonces,
+    // fail-closed: platform-api sin cliente niega SIEMPRE.
+    if (!this.warned) {
+      this.warned = true;
       this.logger.warn(
-        `EntitlementsService no disponible; se niega '${code}' (fail-closed).`,
+        `ENTITLEMENTS_MODE=platform-api sin cliente implementado; se niega '${code}' (fail-closed). Llega en R-seguridad.`,
       );
-      return false;
     }
-    return this.entitlements.hasCapability(tenant, code as ProductCapabilityId);
+    return false;
   }
 }
 
-/** Medidor de uso no-op; Fase 2 lo sustituye por metering real design.*. */
+/** Medidor de uso no-op; una fase posterior lo sustituye por metering design.*. */
 @Injectable()
 export class NoopUsageMeter implements UsageMeter {
   track(): void {

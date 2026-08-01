@@ -1,0 +1,18 @@
+# Configuración de gitleaks del repo valle-design.
+#
+# Único hallazgo histórico del escaneo de extracción (Fase 3, Regla 10):
+# `cad-document-validation.spec.ts:117` — `token: '0123456789abcdef'`.
+# Es un FALSO POSITIVO documentado en docs/product-split/PHASE3-EXTRACTION.md
+# (repo valle-enterprise): hex secuencial SINTÉTICO, fixture del test de
+# validación de review links (regla generic-api-key). No es una credencial y
+# no hay nada que rotar. Esta allowlist es EXACTA a ese fixture para que los
+# escaneos de CI queden en 0 sin taparse ningún secreto real.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Fixture sintético de review link en el spec de validación CAD (falso positivo documentado en docs/product-split/PHASE3-EXTRACTION.md)"
+regexTarget = "match"
+regexes = ['''0123456789abcdef''']
+paths = ['''apps/api/src/modules/cad-documents/cad-document-validation\.spec\.ts''']
