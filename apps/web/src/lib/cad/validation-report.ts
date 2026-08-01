@@ -10,8 +10,11 @@ import {
   roomUseTypeFromTags,
   type CadArchitectureObjectInput,
 } from "./architecture";
-import type { CadFlowNode, CadFlowScore } from "./flow-optimization";
-import { scoreFlowLayout } from "./flow-optimization";
+import {
+  getCadAnalysisExtensions,
+  type CadFlowNode,
+  type CadFlowScore,
+} from "./analysis-extensions";
 import type { CadSafetyIssue, CadSafetyZone } from "./safety-zones";
 import { evaluateSafetyZones } from "./safety-zones";
 import type { CadDocument } from "./cad-document";
@@ -544,7 +547,10 @@ export function buildCadValidationReport(input: {
   const safety = input.zones
     ? evaluateSafetyZones(input.boxes, input.zones)
     : [];
-  const flow = input.flowNodes ? scoreFlowLayout(input.flowNodes) : undefined;
+  // Sección de flujo solo si el host inyectó la analítica industrial.
+  const flow = input.flowNodes
+    ? getCadAnalysisExtensions()?.scoreFlowLayout(input.flowNodes)
+    : undefined;
   const architecture = buildArchitectureValidationIssues(
     input.architectureObjects
       ? {

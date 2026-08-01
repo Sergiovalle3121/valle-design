@@ -11,12 +11,12 @@ import {
   polygonArea,
   polygonCentroid,
   polygonPerimeter,
-} from "../../../components/line-engineering/geom-measure";
+} from "../geom-measure";
 import {
   formatArea,
   formatLength,
-} from "../../../components/line-engineering/dimension-format";
-import { rectGeometry } from "../../../components/line-engineering/snap-engine";
+} from "../dimension-format";
+import { rectGeometry } from "../snap-engine";
 import type {
   CadBox,
   CadCommandContext,

@@ -1,0 +1,1928 @@
+openapi: 3.1.0
+info:
+  title: Valle Design — API del producto CAD (v1)
+  version: 1.0.0
+  summary: Contrato v1 de la API HTTP del producto Design (CAD).
+  description: |
+    Contrato FUENTE (SHARED_PROTOCOL) de la API que el producto **Design**
+    (repo futuro `valle-design`) expone bajo el prefijo `/v1`. Es el contrato
+    de Fase 2 de la separación de productos: describe la semántica REAL que hoy
+    implementa Enterprise bajo `/line-engineering/*`, reorganizada como API
+    orientada a recursos del dominio CAD (`cad_projects`, `cad_documents`,
+    `cad_document_versions`, `cad_publications`, `cad_review_sessions`,
+    `cad_comments`, biblioteca de bloques).
+
+    ## Seguridad (requisito de servidor en TODOS los endpoints)
+    * Autenticación: **Bearer JWT** (`bearerAuth`). Sin token ⇒ `401`.
+    * Autorización comercial: el tenant necesita el entitlement
+      **`design.cad`** vigente (ver `PRODUCT_CAPABILITY_IDS` en
+      `@axos/contracts`). El servidor lo verifica en **todos** los endpoints;
+      si falta, responde el `403` estándar con `code: entitlement_required`
+      (respuesta reutilizable `EntitlementRequired`). Cada operación lo declara
+      además con la extensión `x-required-entitlement`.
+    * Autorización funcional (RBAC): permisos granulares del producto
+      `cad:view | cad:edit | cad:review | cad:publish | cad:admin`,
+      declarados por operación con `x-required-permission`. DIFERENCIA
+      DELIBERADA respecto al legacy: `/line-engineering/*` usa
+      `engineering:read|write` (permisos del producto industrial); el producto
+      Design define su propio espacio `cad:*` para no arrastrar el RBAC de
+      Enterprise. El mapeo de transición vive en `src/design-contracts.ts`.
+
+    ## Identificadores LEGADOS persistidos (NO renombrar)
+    Los documentos del CAD Studio "universal" se persistieron históricamente
+    con el modelo centinela **`AXOS-CAD-STUDIO`** y la revisión
+    **`UNIVERSAL`** (hoy en `sf_line_layouts.model/revision`, mañana en
+    `cad_documents.model/revision`). Este contrato los trata como VALORES
+    LEGADOS OPACOS: se siguen leyendo y escribiendo tal cual en los campos
+    `model`/`revision` del recurso documento. Renombrarlos exigiría migración
+    de datos y un bump de versión del formato del documento; queda fuera de v1
+    (candidato a Fase posterior con `meta.schema` nuevo).
+
+    ## Concurrencia (CAS)
+    El documento canónico usa concurrencia optimista con un token ENTERO
+    monótono: `cadDocumentVersion` (0 = nunca guardado). Toda escritura del
+    contenido declara `expectedCadDocumentVersion`; si no coincide con la
+    versión persistida el servidor responde `409` con
+    `code: cad_document_version_conflict` (y `expected`/`current`). Omitir el
+    token es `400 cad_document_version_required`. Los recibos de publicación
+    embebidos (`publications`) son server-managed: un escritor debe hacer eco
+    EXACTO de lo que leyó o recibe `400 cad_publications_server_managed`.
+
+    ## Transporte
+    La implementación envuelve toda respuesta en el sobre estándar de
+    `@axos/contracts` (`ApiSuccessEnvelope` / `ApiErrorEnvelope`): los cuerpos
+    de éxito descritos aquí viajan en `data`; los errores se describen ya con
+    la forma del sobre (`success:false`, `statusCode`, `message`, `code`,
+    `details`). El SDK de Fase 3 des-envuelve `data` automáticamente.
+
+    Estado: **borrador validable de Fase 2**. Se congela al cerrar Fase 3
+    (generación del SDK en el repo `valle-design`); a partir de ahí cualquier
+    cambio incompatible es `v2`.
+  contact:
+    name: Plataforma Valle — separación de productos (Fase 2)
+    email: sergiovallezarate@gmail.com
+  license:
+    name: UNLICENSED
+    identifier: UNLICENSED
+servers:
+  - url: https://design.api.interno
+    description: >-
+      Marcador de posición: el host real del producto Design se define al
+      desplegar el repo valle-design. Las rutas ya incluyen el prefijo /v1.
+security:
+  - bearerAuth: []
+tags:
+  - name: projects
+    description: Proyectos CAD (`cad_projects`) — contenedor organizativo de documentos.
+  - name: documents
+    description: >-
+      Documentos CAD (`cad_documents`) — ciclo crear/abrir/guardar con CAS
+      optimista sobre el documento canónico (inline o archivo gzip).
+  - name: versions
+    description: Historial inmutable de versiones CAS (`cad_document_versions`).
+  - name: publications
+    description: Recibos inmutables de publicación PDF (`cad_publications`).
+  - name: reviews
+    description: >-
+      Sesiones de revisión (`cad_review_sessions`) y comentarios
+      (`cad_comments`). Los tokens de review link son server-owned: se
+      almacena solo su hash y el token en claro viaja ÚNICAMENTE en la
+      respuesta de creación.
+  - name: dxf
+    description: Plano DXF de fondo (importar/quitar) y exportación DXF R12 del documento.
+  - name: blocks
+    description: Biblioteca de bloques CAD reutilizables del tenant (CRUD).
+paths:
+  /v1/projects:
+    get:
+      operationId: listCadProjects
+      tags: [projects]
+      summary: Lista proyectos CAD del tenant.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:view
+      parameters:
+        - name: status
+          in: query
+          description: Filtra por ciclo de vida del proyecto.
+          schema:
+            type: string
+            enum: [active, archived]
+        - $ref: '#/components/parameters/searchQuery'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: Página de proyectos.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CadProject'
+                  total:
+                    type: integer
+                    minimum: 0
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/EntitlementRequired' }
+    post:
+      operationId: createCadProject
+      tags: [projects]
+      summary: Crea un proyecto CAD.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CadProjectCreate'
+      responses:
+        '201':
+          description: Proyecto creado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CadProject'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/EntitlementRequired' }
+  /v1/projects/{projectId}:
+    parameters:
+      - $ref: '#/components/parameters/projectId'
+    get:
+      operationId: getCadProject
+      tags: [projects]
+      summary: Detalle de un proyecto CAD.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:view
+      responses:
+        '200':
+          description: Proyecto.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CadProject'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/EntitlementRequired' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      operationId: updateCadProject
+      tags: [projects]
+      summary: Actualiza nombre/descripción/estado de un proyecto CAD.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CadProjectUpdate'
+      responses:
+        '200':
+          description: Proyecto actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CadProject'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/EntitlementRequired' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: archiveCadProject
+      tags: [projects]
+      summary: Archiva un proyecto CAD (borrado suave).
+      description: >-
+        v1 NO ofrece borrado físico: `DELETE` lleva el proyecto a
+        `status: archived` conservando documentos e historial. Decisión
+        deliberada: los documentos CAD son registro de ingeniería.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:admin
+      responses:
+        '200':
+          description: Proyecto archivado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CadProject'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/EntitlementRequired' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/documents:
+    get:
+      operationId: listCadDocuments
+      tags: [documents]
+      summary: Lista documentos CAD del tenant.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:view
+      parameters:
+        - name: projectId
+          in: query
+          description: Filtra por proyecto contenedor.
+          schema:
+            $ref: '#/components/schemas/CadProjectId'
+        - $ref: '#/components/parameters/searchQuery'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: Página de documentos (metadatos, SIN el documento canónico).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CadDocumentSummary'
+                  total:
+                    type: integer
+                    minimum: 0
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/EntitlementRequired' }
+    post:
+      operationId: createCadDocument
+      tags: [documents]
+      summary: Crea un documento CAD (metadatos; contenido con versión CAS 0).
+      description: >-
+        Crea la fila contenedora con `cadDocumentVersion: 0`. El contenido se
+        guarda después con `PUT /v1/documents/{documentId}/content` (o
+        `/archive`) declarando `expectedCadDocumentVersion: 0` en la primera
+        escritura. Emite el evento `design.document.created.v1`.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CadDocumentCreate'
+      responses:
+        '201':
+          description: Documento creado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CadDocumentSummary'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/EntitlementRequired' }
+  /v1/documents/{documentId}:
+    parameters:
+      - $ref: '#/components/parameters/documentId'
+    get:
+      operationId: openCadDocument
+      tags: [documents]
+      summary: Abre un documento CAD (metadatos + documento canónico + token CAS).
+      description: >-
+        Devuelve el documento canónico como `CadDocumentEnvelope` (JSON inline
+        o puntero a blob `_storage`) junto con `cadDocumentVersion`, el token
+        de concurrencia que el cliente debe declarar en el siguiente guardado.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:view
+      responses:
+        '200':
+          description: Documento abierto.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CadDocumentResource'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/EntitlementRequired' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      operationId: updateCadDocumentMeta
+      tags: [documents]
+      summary: Actualiza metadatos del documento (nombre, proyecto, capas).
+      description: >-
+        NO toca el documento canónico ni su token CAS. `model`/`revision` son
+        de solo lectura en v1 (alias legados persistidos).
+      x-required-entitlement: design.cad
+      x-required-permission: cad:edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CadDocumentMetaUpdate'
+      responses:
+        '200':
+          description: Metadatos actualizados.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CadDocumentSummary'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/EntitlementRequired' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: archiveCadDocument
+      tags: [documents]
+      summary: Archiva un documento CAD (borrado suave).
+      description: >-
+        Conserva historial, publicaciones y comentarios. Emite el evento
+        `design.document.archived.v1`. Sin borrado físico en v1.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:admin
+      responses:
+        '204':
+          description: Documento archivado.
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/EntitlementRequired' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/documents/{documentId}/content:
+    put:
+      operationId: saveCadDocumentContent
+      tags: [documents]
+      summary: Guarda el documento canónico (JSON inline) mediante CAS optimista.
+      description: |
+        Rama inline del guardado: el documento viaja como JSON en el cuerpo
+        (límite **8 000 000 bytes** serializado). Para documentos mayores usar
+        `PUT /v1/documents/{documentId}/archive` (gzip multipart).
+
+        Reglas CAS (semántica real del backend):
+        * `expectedCadDocumentVersion` es OBLIGATORIO; omitirlo ⇒
+          `400 cad_document_version_required`.
+        * Si no coincide con la versión persistida ⇒
+          `409 cad_document_version_conflict` con `expected`/`current`.
+        * Primera escritura sobre un documento recién creado ⇒
+          `expectedCadDocumentVersion: 0`.
+        * `publications` es server-managed: eco exacto de lo leído o
+          `400 cad_publications_server_managed`.
+
+        Al persistir, el servidor decide el almacenamiento: inline si el JSON
+        es compacto (≤ 1 000 000 bytes) o archivo gzip en blob store con
+        puntero `_storage` si no. Cada guardado exitoso incrementa
+        `cadDocumentVersion` en 1 y agrega la fila correspondiente al
+        historial (`cad_document_versions`).
+      x-required-entitlement: design.cad
+      x-required-permission: cad:edit
+      parameters:
+        - $ref: '#/components/parameters/documentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cadDocument, expectedCadDocumentVersion]
+              properties:
+                cadDocument:
+                  $ref: '#/components/schemas/CadDocumentInline'
+                expectedCadDocumentVersion:
+                  $ref: '#/components/schemas/CadDocumentVersionToken'
+      responses:
+        '200':
+          description: Documento guardado; nueva versión CAS.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CadDocumentSaveResult'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/EntitlementRequired' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/VersionConflict' }
+  /v1/documents/{documentId}/archive:
+    put:
+      operationId: saveCadDocumentArchive
+      tags: [documents]
+      summary: Guarda el documento canónico grande como archivo gzip (multipart) mediante CAS.
+      description: |
+        Rama de archivo del guardado — espejo del actual
+        `PUT /line-engineering/layout/cad-archive`:
+        * `multipart/form-data` con **exactamente un archivo** en el campo
+          `file`: el documento canónico serializado JSON y comprimido gzip.
+        * Límites reales: gzip ≤ **20 MiB** (20 971 520 bytes); JSON
+          descomprimido ≤ **128 MiB**; máximo 4 campos de formulario; cada
+          campo de texto ≤ 8 000 000 bytes.
+        * El campo `payload` es un string JSON con el token CAS
+          (`expectedCadDocumentVersion`). DIFERENCIA DELIBERADA con el legacy:
+          allí el campo se llama `layout` y arrastra el DTO industrial
+          completo (model/revision/posiciones); en v1 el documento es el
+          recurso y solo viaja el token.
+
+        Mismas reglas CAS y de `publications` que la rama inline.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:edit
+      parameters:
+        - $ref: '#/components/parameters/documentId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, payload]
+              properties:
+                file:
+                  type: string
+                  contentMediaType: application/gzip
+                  description: >-
+                    Documento canónico JSON comprimido con gzip. Máximo
+                    20 971 520 bytes comprimidos; 134 217 728 bytes al
+                    descomprimir.
+                payload:
+                  type: string
+                  description: >-
+                    String JSON `{"expectedCadDocumentVersion": <entero>=0>}`.
+                    Obligatorio; sin él ⇒ 400 cad_document_version_required.
+            encoding:
+              file:
+                contentType: application/gzip
+      responses:
+        '200':
+          description: Documento guardado; nueva versión CAS.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CadDocumentSaveResult'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/EntitlementRequired' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/VersionConflict' }
+        '413':
+          description: El archivo gzip excede 20 MiB (o el JSON descomprimido excede 128 MiB).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /v1/documents/{documentId}/versions:
+    get:
+      operationId: listCadDocumentVersions
+      tags: [versions]
+      summary: Lista el historial de versiones CAS del documento (más reciente primero).
+      description: >-
+        Una fila por versión CAS persistida (`cad_document_versions`), sin el
+        payload: solo versión, hash y auditoría. El payload se obtiene por
+        versión individual.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:view
+      parameters:
+        - $ref: '#/components/parameters/documentId'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: Historial de versiones.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CadDocumentVersionSummary'
+                  total:
+                    type: integer
+                    minimum: 0
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/EntitlementRequired' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/documents/{documentId}/versions/{version}:
+    get:
+      operationId: getCadDocumentVersion
+      tags: [versions]
+      summary: Obtiene una versión CAS concreta con su documento canónico.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:view
+      parameters:
+        - $ref: '#/components/parameters/documentId'
+        - name: version
+          in: path
+          required: true
+          description: Versión CAS entera (≥ 1).
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Versión con su payload tal como vivía (inline o puntero a blob).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CadDocumentVersionDetail'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/EntitlementRequired' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/documents/{documentId}/publications:
+    get:
+      operationId: listCadPublications
+      tags: [publications]
+      summary: Lista los recibos de publicación del documento.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:view
+      parameters:
+        - $ref: '#/components/parameters/documentId'
+      responses:
+        '200':
+          description: Recibos de publicación (inmutables), más reciente primero.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    maxItems: 1000
+                    items:
+                      $ref: '#/components/schemas/CadPublicationReceipt'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/EntitlementRequired' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      operationId: recordCadPublication
+      tags: [publications]
+      summary: Registra el recibo de una publicación PDF generada por el cliente (CAS).
+      description: |
+        El PDF multi-hoja se genera en el cliente; el servidor registra el
+        RECIBO auditable: nombre de archivo, `sha256`, tamaño en bytes y las
+        hojas (`paperSpaceIds`) incluidas. Semántica real:
+        * CAS: `expectedCadDocumentVersion` obligatorio; desfasado ⇒ `409`.
+        * Las hojas deben existir en el documento, sin duplicados y sin
+          incluir hojas con `includeInPublish: false` ⇒ si no, `400`.
+        * Efecto: incrementa `meta.version` del contenido, anexa entrada de
+          historial y el recibo a `publications` (embebido, server-managed) y
+          crea la fila `cad_publications`. Emite
+          `design.document.published.v1`.
+        * Este endpoint es la ÚNICA vía para crear recibos; un guardado normal
+          que intente mutarlos recibe `400 cad_publications_server_managed`.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:publish
+      parameters:
+        - $ref: '#/components/parameters/documentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CadPublicationCreate'
+      responses:
+        '201':
+          description: Recibo registrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CadPublicationReceipt'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/EntitlementRequired' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/VersionConflict' }
+  /v1/documents/{documentId}/review-sessions:
+    get:
+      operationId: listCadReviewSessions
+      tags: [reviews]
+      summary: Lista sesiones de revisión del documento.
+      description: >-
+        NUNCA expone tokens ni hashes de review link: solo el booleano
+        `hasShareLink`.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:review
+      parameters:
+        - $ref: '#/components/parameters/documentId'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [open, closed]
+      responses:
+        '200':
+          description: Sesiones de revisión.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CadReviewSession'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/EntitlementRequired' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      operationId: createCadReviewSession
+      tags: [reviews]
+      summary: Abre una sesión de revisión (opcionalmente con review link de solo lectura).
+      description: |
+        Tokens server-owned: si `shareLink: true`, el servidor GENERA el token
+        (16–256 caracteres, aleatorio), persiste únicamente su hash
+        (`token_hash`) y devuelve el token en claro **solo en esta
+        respuesta** (`shareToken`). No existe ningún otro endpoint que lo
+        devuelva; perderlo obliga a abrir otra sesión o rotar el link. Los
+        review links son SIEMPRE de solo lectura (`readOnly: true`).
+      x-required-entitlement: design.cad
+      x-required-permission: cad:review
+      parameters:
+        - $ref: '#/components/parameters/documentId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                shareLink:
+                  type: boolean
+                  default: false
+                  description: Genera un review link de solo lectura para la sesión.
+      responses:
+        '201':
+          description: Sesión creada (única aparición del token en claro).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CadReviewSessionCreated'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/EntitlementRequired' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/review-sessions/{sessionId}/close:
+    post:
+      operationId: closeCadReviewSession
+      tags: [reviews]
+      summary: Cierra una sesión de revisión (invalida su review link).
+      x-required-entitlement: design.cad
+      x-required-permission: cad:review
+      parameters:
+        - $ref: '#/components/parameters/sessionId'
+      responses:
+        '200':
+          description: Sesión cerrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CadReviewSession'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/EntitlementRequired' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: La sesión ya estaba cerrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /v1/documents/{documentId}/comments:
+    get:
+      operationId: listCadComments
+      tags: [reviews]
+      summary: Lista comentarios del documento (directos o de una sesión).
+      x-required-entitlement: design.cad
+      x-required-permission: cad:review
+      parameters:
+        - $ref: '#/components/parameters/documentId'
+        - name: reviewSessionId
+          in: query
+          description: Filtra por sesión de revisión.
+          schema:
+            $ref: '#/components/schemas/CadReviewSessionId'
+        - name: resolved
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Comentarios.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    maxItems: 500
+                    items:
+                      $ref: '#/components/schemas/CadComment'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/EntitlementRequired' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      operationId: createCadComment
+      tags: [reviews]
+      summary: Crea un comentario sobre el documento (con ancla opcional en el dibujo).
+      description: >-
+        `reviewSessionId` nulo/omitido = comentario directo sobre el
+        documento. Límite real del cuerpo: 1–1000 caracteres, no vacío.
+        Máximo 500 hilos de revisión por documento.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:review
+      parameters:
+        - $ref: '#/components/parameters/documentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CadCommentCreate'
+      responses:
+        '201':
+          description: Comentario creado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CadComment'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/EntitlementRequired' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/comments/{commentId}/resolve:
+    post:
+      operationId: resolveCadComment
+      tags: [reviews]
+      summary: Marca un comentario como resuelto.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:review
+      parameters:
+        - $ref: '#/components/parameters/commentId'
+      responses:
+        '200':
+          description: Comentario resuelto.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CadComment'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/EntitlementRequired' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/documents/{documentId}/dxf:
+    parameters:
+      - $ref: '#/components/parameters/documentId'
+    get:
+      operationId: getCadDxfBackground
+      tags: [dxf]
+      summary: Obtiene el plano DXF de fondo del documento.
+      description: >-
+        DIFERENCIA DELIBERADA con el legacy: `/line-engineering/layout/dxf`
+        devuelve `null` cuando no hay plano; v1 responde `404` (subrecurso
+        inexistente).
+      x-required-entitlement: design.cad
+      x-required-permission: cad:view
+      responses:
+        '200':
+          description: Plano de fondo (nombre, contenido crudo y colocación).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DxfBackground'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/EntitlementRequired' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: importCadDxfBackground
+      tags: [dxf]
+      summary: Importa (carga/reemplaza) el plano DXF de fondo.
+      description: >-
+        El DXF es un fondo de SOLO LECTURA para calcar; nunca se fusiona con
+        las entidades del documento. Límite real del contenido: 12 000 000
+        caracteres de texto DXF.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DxfBackgroundUpload'
+      responses:
+        '200':
+          description: Plano importado/actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DxfBackground'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/EntitlementRequired' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: removeCadDxfBackground
+      tags: [dxf]
+      summary: Quita el plano DXF de fondo del documento.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:edit
+      responses:
+        '204':
+          description: Plano eliminado.
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/EntitlementRequired' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/documents/{documentId}/export/dxf:
+    get:
+      operationId: exportCadDocumentDxf
+      tags: [dxf]
+      summary: Exporta el documento como DXF AutoCAD R12 (capas nombradas).
+      description: >-
+        Serializa el contenido del documento como DXF R12 con cada tipo en su
+        capa (ESTACIONES, EQUIPO, MUROS, ZONAS, FLUJO, COTAS, TEXTO). Igual
+        que el legacy, la respuesta es JSON con el texto DXF y el nombre de
+        archivo sugerido; el cliente materializa la descarga.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:view
+      parameters:
+        - $ref: '#/components/parameters/documentId'
+      responses:
+        '200':
+          description: Exportación DXF.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DxfExport'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/EntitlementRequired' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/blocks:
+    get:
+      operationId: listCadBlocks
+      tags: [blocks]
+      summary: Lista la biblioteca de bloques CAD del tenant.
+      description: >-
+        Búsqueda por términos (`q`) sobre nombre, descripción, keywords y
+        businessLink de la definición canónica. Límite real: 200 bloques por
+        tenant.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:view
+      parameters:
+        - name: q
+          in: query
+          description: Términos de búsqueda separados por espacios (AND).
+          schema:
+            type: string
+            maxLength: 200
+      responses:
+        '200':
+          description: Bloques ordenados por nombre.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    maxItems: 200
+                    items:
+                      $ref: '#/components/schemas/CadBlock'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/EntitlementRequired' }
+    post:
+      operationId: createCadBlock
+      tags: [blocks]
+      summary: Guarda un bloque reutilizable (assets relativos al origen y/o definición canónica).
+      description: >-
+        Límites reales: 200 bloques por tenant; 200 assets por bloque; la
+        definición canónica admite máximo 500 entidades y 1 000 000 bytes, y
+        exige `id`, `name`, `basePoint` y al menos una entidad. Se requiere
+        al menos uno de `assets` o `definition`.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CadBlockCreate'
+      responses:
+        '201':
+          description: Bloque creado (versión 1).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CadBlock'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/EntitlementRequired' }
+  /v1/blocks/{blockId}:
+    parameters:
+      - $ref: '#/components/parameters/blockId'
+    get:
+      operationId: getCadBlock
+      tags: [blocks]
+      summary: Detalle de un bloque CAD.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:view
+      responses:
+        '200':
+          description: Bloque.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CadBlock'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/EntitlementRequired' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      operationId: updateCadBlock
+      tags: [blocks]
+      summary: Redefine un bloque (renombra y/o nueva definición canónica; incrementa versión).
+      description: >-
+        Redefinir `definition` incrementa `version` en 1 (versión de
+        biblioteca, monótona). Cambiar solo `name` no la incrementa.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CadBlockUpdate'
+      responses:
+        '200':
+          description: Bloque actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CadBlock'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/EntitlementRequired' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: removeCadBlock
+      tags: [blocks]
+      summary: Elimina un bloque CAD de la biblioteca.
+      description: >-
+        Las inserciones previas en documentos NO se ven afectadas: la
+        inserción copia la geometría, no referencia al bloque.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:edit
+      responses:
+        '204':
+          description: Bloque eliminado.
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/EntitlementRequired' }
+        '404': { $ref: '#/components/responses/NotFound' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >-
+        Token de identidad emitido por Platform (ver
+        `specs/platform-api.v1.yaml`). El servidor resuelve tenant, usuario,
+        permisos `cad:*` y el entitlement `design.cad` a partir de él; ningún
+        parámetro del cliente concede acceso.
+  parameters:
+    projectId:
+      name: projectId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/CadProjectId'
+    documentId:
+      name: documentId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/CadDocumentId'
+    sessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/CadReviewSessionId'
+    commentId:
+      name: commentId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/CadCommentId'
+    blockId:
+      name: blockId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/CadBlockId'
+    searchQuery:
+      name: q
+      in: query
+      description: Búsqueda por nombre (contains, case-insensitive).
+      schema:
+        type: string
+        maxLength: 200
+    limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+    offset:
+      name: offset
+      in: query
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+  responses:
+    BadRequest:
+      description: >-
+        Solicitud inválida (validación del payload, límites del documento,
+        hojas de publicación inválidas, `cad_document_version_required`,
+        `cad_publications_server_managed`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Unauthorized:
+      description: Falta el bearer token o es inválido/expirado.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    EntitlementRequired:
+      description: >-
+        Respuesta 403 ESTÁNDAR de todos los endpoints: el tenant no tiene el
+        entitlement `design.cad` vigente (o el usuario carece del permiso
+        `cad:*` requerido — ver `details.reason`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/EntitlementRequiredError'
+    NotFound:
+      description: El recurso no existe o no pertenece al tenant.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    VersionConflict:
+      description: >-
+        CAS fallido: `expectedCadDocumentVersion` no coincide con la versión
+        persistida. El cliente debe recargar (`GET` del documento), comparar
+        y reintentar.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CadDocumentVersionConflictError'
+  schemas:
+    CadProjectId:
+      type: string
+      format: uuid
+      description: Identificador de `cad_projects`.
+    CadDocumentId:
+      type: string
+      format: uuid
+      description: Identificador de `cad_documents`.
+    CadPublicationId:
+      type: string
+      format: uuid
+      description: Identificador de `cad_publications`.
+    CadReviewSessionId:
+      type: string
+      format: uuid
+      description: Identificador de `cad_review_sessions`.
+    CadCommentId:
+      type: string
+      format: uuid
+      description: Identificador de `cad_comments`.
+    CadBlockId:
+      type: string
+      format: uuid
+      description: Identificador de un bloque de la biblioteca.
+    CadDocumentVersionToken:
+      type: integer
+      minimum: 0
+      description: >-
+        Token CAS de concurrencia optimista: entero monótono devuelto por la
+        última lectura. 0 = documento nunca guardado (primera escritura).
+    LegacyModelAlias:
+      type: string
+      maxLength: 64
+      description: >-
+        Alias LEGADO persistido del origen del documento. El CAD Studio
+        universal usa el centinela `AXOS-CAD-STUDIO`. Valor opaco: se lee y
+        escribe tal cual; NO renombrar en v1 (renombre futuro = bump de
+        versión de formato).
+      examples: [AXOS-CAD-STUDIO, AX-1000]
+    LegacyRevisionAlias:
+      type: string
+      maxLength: 16
+      description: >-
+        Alias LEGADO de revisión. El CAD Studio universal usa `UNIVERSAL`.
+        Mismo tratamiento opaco que `model`.
+      examples: [UNIVERSAL, A]
+    Actor:
+      type: string
+      maxLength: 255
+      description: Identidad auditada del actor (email del usuario autenticado).
+    Timestamp:
+      type: string
+      format: date-time
+      description: Fecha-hora ISO 8601 en UTC.
+    Sha256:
+      type: string
+      pattern: '^[A-Fa-f0-9]{64}$'
+      description: Hash SHA-256 en hexadecimal (el servidor lo normaliza a minúsculas).
+    ApiError:
+      type: object
+      description: >-
+        Sobre estándar de error de la plataforma (`ApiErrorEnvelope` de
+        `@axos/contracts`).
+      required: [success, statusCode, message, timestamp]
+      properties:
+        success:
+          type: boolean
+          const: false
+        statusCode:
+          type: integer
+        message:
+          type: string
+        timestamp:
+          $ref: '#/components/schemas/Timestamp'
+        code:
+          type: string
+          description: >-
+            Código de error estable y contractual. Catálogo v1:
+            `cad_document_version_required`, `cad_document_version_conflict`,
+            `cad_publications_server_managed`, `entitlement_required`.
+        details: {}
+    EntitlementRequiredError:
+      allOf:
+        - $ref: '#/components/schemas/ApiError'
+        - type: object
+          required: [code]
+          properties:
+            code:
+              type: string
+              const: entitlement_required
+            details:
+              type: object
+              properties:
+                entitlement:
+                  type: string
+                  const: design.cad
+                reason:
+                  type: string
+                  enum: [not_entitled, payment_required, permission_denied]
+                  description: >-
+                    `not_entitled`: el tenant no contrató Design;
+                    `payment_required`: grant en `past_due` (ofrecer portal de
+                    pago); `permission_denied`: entitlement OK pero el usuario
+                    no tiene el permiso `cad:*` requerido.
+                requiredPermission:
+                  type: string
+                  enum: ['cad:view', 'cad:edit', 'cad:review', 'cad:publish', 'cad:admin']
+    CadDocumentVersionConflictError:
+      allOf:
+        - $ref: '#/components/schemas/ApiError'
+        - type: object
+          required: [code]
+          properties:
+            code:
+              type: string
+              const: cad_document_version_conflict
+            details:
+              type: object
+              required: [expected, current]
+              properties:
+                expected:
+                  type: integer
+                  minimum: 0
+                  description: Versión que el escritor declaró haber leído.
+                current:
+                  type: integer
+                  minimum: 0
+                  description: Versión realmente persistida.
+    CadProject:
+      type: object
+      required: [id, name, status, createdAt]
+      properties:
+        id:
+          $ref: '#/components/schemas/CadProjectId'
+        name:
+          type: string
+          maxLength: 160
+        description:
+          type: ['string', 'null']
+          maxLength: 500
+        status:
+          type: string
+          enum: [active, archived]
+        legacySourceId:
+          type: ['string', 'null']
+          maxLength: 64
+          description: Id del origen legacy (copia de Fase 4). Null = proyecto nativo.
+        createdAt:
+          $ref: '#/components/schemas/Timestamp'
+        updatedAt:
+          $ref: '#/components/schemas/Timestamp'
+        createdBy:
+          $ref: '#/components/schemas/Actor'
+    CadProjectCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 160
+        description:
+          type: string
+          maxLength: 500
+    CadProjectUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 160
+        description:
+          type: ['string', 'null']
+          maxLength: 500
+        status:
+          type: string
+          enum: [active, archived]
+    CadDocumentSummary:
+      type: object
+      description: Metadatos del documento SIN el documento canónico.
+      required: [id, name, cadDocumentVersion, createdAt]
+      properties:
+        id:
+          $ref: '#/components/schemas/CadDocumentId'
+        projectId:
+          oneOf:
+            - $ref: '#/components/schemas/CadProjectId'
+            - type: 'null'
+        name:
+          type: string
+          maxLength: 160
+        model:
+          oneOf:
+            - $ref: '#/components/schemas/LegacyModelAlias'
+            - type: 'null'
+        revision:
+          oneOf:
+            - $ref: '#/components/schemas/LegacyRevisionAlias'
+            - type: 'null'
+        cadDocumentVersion:
+          $ref: '#/components/schemas/CadDocumentVersionToken'
+        layers:
+          type: ['array', 'null']
+          description: Capas CAD (id/nombre/color/visible/locked). Null = capa implícita.
+          items:
+            type: object
+        legacySourceId:
+          type: ['string', 'null']
+          maxLength: 36
+          description: Id de `sf_line_layouts` de origen. Null = documento nativo.
+        createdAt:
+          $ref: '#/components/schemas/Timestamp'
+        updatedAt:
+          $ref: '#/components/schemas/Timestamp'
+        createdBy:
+          $ref: '#/components/schemas/Actor'
+    CadDocumentCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 160
+        projectId:
+          $ref: '#/components/schemas/CadProjectId'
+        model:
+          $ref: '#/components/schemas/LegacyModelAlias'
+        revision:
+          $ref: '#/components/schemas/LegacyRevisionAlias'
+    CadDocumentMetaUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 160
+        projectId:
+          oneOf:
+            - $ref: '#/components/schemas/CadProjectId'
+            - type: 'null'
+        layers:
+          type: ['array', 'null']
+          items:
+            type: object
+    CadDocumentResource:
+      allOf:
+        - $ref: '#/components/schemas/CadDocumentSummary'
+        - type: object
+          required: [cadDocument]
+          properties:
+            cadDocument:
+              oneOf:
+                - $ref: '#/components/schemas/CadDocumentEnvelope'
+                - type: 'null'
+              description: Null = documento creado pero nunca guardado (versión 0).
+    CadDocumentEnvelope:
+      description: >-
+        Valor persistido del documento canónico: JSON inline cuando es
+        compacto (≤ 1 000 000 bytes serializado) o puntero a blob `_storage`
+        cuando vive como archivo gzip en el blob store. El cliente distingue
+        por la presencia de `_storage.kind === 'document_blob'`.
+      oneOf:
+        - $ref: '#/components/schemas/CadDocumentInline'
+        - $ref: '#/components/schemas/CadDocumentBlobPointer'
+    CadDocumentInline:
+      type: object
+      description: |
+        Documento CAD canónico (formato `meta.schema` v1–v3), MISMO formato
+        que persiste el backend actual. Límites de validación REALES
+        (aplicados server-side en `cad-document-validation.ts`; se documentan
+        aquí como contrato — el JSON Schema declara los estructurales):
+        * `entities`: máx. 100 000; ids únicos, no vacíos, ≤ 128 chars.
+        * `blocks`: máx. 2 000.
+        * `constraints`: máx. 250 000.
+        * `paperSpaces`: máx. 500; ids únicos; `page.width/height` finitos > 0;
+          máx. 32 viewports por hoja (ids únicos, `scale` > 0, `paperBounds` y
+          `modelBounds` con `width/height` > 0).
+        * `publications`: máx. 1 000 recibos (server-managed: eco exacto).
+        * `collaboration`: `versions` ≤ 12, `threads` ≤ 500 (body 1–1000
+          chars, status open|resolved), `reviewLinks` ≤ 20 (token 16–256
+          chars, `readOnly: true` obligatorio), `audit` ≤ 500.
+        * Profundidad máxima de anidamiento: 64; claves ≤ 128 chars; números
+          finitos; serializado ≤ 8 000 000 bytes inline o ≤ 134 217 728 bytes
+          vía archivo gzip.
+      required: [meta, entities]
+      additionalProperties: true
+      properties:
+        meta:
+          type: object
+          required: [schema]
+          properties:
+            schema:
+              type: integer
+              minimum: 1
+              maximum: 3
+              description: Versión del FORMATO del documento (v1–v3 soportadas).
+            version:
+              type: integer
+              minimum: 0
+              description: Versión de CONTENIDO (la incrementa el editor y la publicación).
+        entities:
+          type: array
+          maxItems: 100000
+          items:
+            type: object
+            required: [id]
+            properties:
+              id:
+                type: string
+                minLength: 1
+                maxLength: 128
+            additionalProperties: true
+        blocks:
+          type: array
+          maxItems: 2000
+          items:
+            type: object
+        constraints:
+          type: array
+          maxItems: 250000
+          items:
+            type: object
+        paperSpaces:
+          type: array
+          maxItems: 500
+          items:
+            $ref: '#/components/schemas/PaperSpace'
+        publications:
+          type: array
+          maxItems: 1000
+          description: >-
+            Recibos embebidos de publicación. SERVER-MANAGED: solo el endpoint
+            de publicación los crea; un guardado normal debe hacer eco exacto.
+          items:
+            $ref: '#/components/schemas/CadPublicationReceiptEmbedded'
+        collaboration:
+          type: object
+          properties:
+            versions:
+              type: array
+              maxItems: 12
+              items:
+                type: object
+            threads:
+              type: array
+              maxItems: 500
+              items:
+                type: object
+            reviewLinks:
+              type: array
+              maxItems: 20
+              items:
+                type: object
+            audit:
+              type: array
+              maxItems: 500
+              items:
+                type: object
+        history:
+          type: array
+          items:
+            type: object
+    PaperSpace:
+      type: object
+      required: [id, page]
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 128
+        page:
+          type: object
+          required: [width, height]
+          properties:
+            width:
+              type: number
+              exclusiveMinimum: 0
+            height:
+              type: number
+              exclusiveMinimum: 0
+        includeInPublish:
+          type: boolean
+          default: true
+          description: Si es false, la hoja no puede incluirse en publicaciones.
+        viewports:
+          type: array
+          maxItems: 32
+          items:
+            type: object
+            required: [id, scale, paperBounds, modelBounds]
+            additionalProperties: true
+            properties:
+              id:
+                type: string
+                minLength: 1
+                maxLength: 128
+              scale:
+                type: number
+                exclusiveMinimum: 0
+              paperBounds:
+                $ref: '#/components/schemas/Bounds'
+              modelBounds:
+                $ref: '#/components/schemas/Bounds'
+    Bounds:
+      type: object
+      required: [width, height]
+      additionalProperties: true
+      properties:
+        width:
+          type: number
+          exclusiveMinimum: 0
+        height:
+          type: number
+          exclusiveMinimum: 0
+    CadDocumentBlobPointer:
+      type: object
+      description: >-
+        Puntero a blob del documento canónico grande: el JSON vive comprimido
+        (gzip) en el blob store y la fila solo guarda este manifiesto. La
+        referencia es por `blobKey` string — nunca una FK.
+      required: [_storage, summary]
+      properties:
+        _storage:
+          type: object
+          required: [kind, version, blobKey, sha256, encoding, compressedBytes, uncompressedBytes]
+          properties:
+            kind:
+              type: string
+              const: document_blob
+            version:
+              type: integer
+              const: 1
+            blobKey:
+              type: string
+              minLength: 1
+            sha256:
+              $ref: '#/components/schemas/Sha256'
+            encoding:
+              type: string
+              const: gzip
+            compressedBytes:
+              type: integer
+              minimum: 1
+              maximum: 20971520
+              description: Tamaño gzip; límite 20 MiB.
+            uncompressedBytes:
+              type: integer
+              minimum: 1
+              maximum: 134217728
+              description: Tamaño del JSON descomprimido; límite 128 MiB.
+        summary:
+          type: object
+          required: [schema, contentVersion, entityCount]
+          properties:
+            schema:
+              type: integer
+              minimum: 1
+              maximum: 3
+            contentVersion:
+              type: integer
+              minimum: 0
+            entityCount:
+              type: integer
+              minimum: 0
+              maximum: 100000
+    CadDocumentSaveResult:
+      type: object
+      required: [cadDocumentId, cadDocumentVersion, entityCount]
+      properties:
+        cadDocumentId:
+          $ref: '#/components/schemas/CadDocumentId'
+        cadDocumentVersion:
+          type: integer
+          minimum: 1
+          description: Nueva versión CAS; declararla como `expectedCadDocumentVersion` en el siguiente guardado.
+        entityCount:
+          type: integer
+          minimum: 0
+        storedAsBlobPointer:
+          type: boolean
+          description: true si el documento quedó persistido como puntero a blob gzip.
+    CadDocumentVersionSummary:
+      type: object
+      required: [documentId, version, createdAt]
+      properties:
+        documentId:
+          $ref: '#/components/schemas/CadDocumentId'
+        version:
+          type: integer
+          minimum: 1
+          description: Versión CAS que esta fila representa (única por documento).
+        sha256:
+          oneOf:
+            - $ref: '#/components/schemas/Sha256'
+            - type: 'null'
+          description: Hash del archivo comprimido (puntero) o del JSON inline; null si n/d.
+        createdAt:
+          $ref: '#/components/schemas/Timestamp'
+        createdBy:
+          $ref: '#/components/schemas/Actor'
+    CadDocumentVersionDetail:
+      allOf:
+        - $ref: '#/components/schemas/CadDocumentVersionSummary'
+        - type: object
+          required: [cadDocument]
+          properties:
+            cadDocument:
+              $ref: '#/components/schemas/CadDocumentEnvelope'
+    CadPublicationCreate:
+      type: object
+      required: [expectedCadDocumentVersion, paperSpaceIds, fileName, sha256, bytes]
+      properties:
+        expectedCadDocumentVersion:
+          $ref: '#/components/schemas/CadDocumentVersionToken'
+        paperSpaceIds:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            type: string
+            minLength: 1
+            maxLength: 128
+          description: >-
+            Hojas incluidas: deben existir en el documento, sin duplicados y
+            publicables (`includeInPublish` distinto de false).
+        fileName:
+          type: string
+          minLength: 1
+          maxLength: 255
+        sha256:
+          $ref: '#/components/schemas/Sha256'
+        bytes:
+          type: integer
+          minimum: 1
+          maximum: 100000000
+    CadPublicationReceipt:
+      type: object
+      description: Recibo inmutable de publicación (fila `cad_publications`).
+      required: [id, documentId, paperSpaceIds, fileName, sha256, bytes, publishedAt, publishedBy]
+      properties:
+        id:
+          $ref: '#/components/schemas/CadPublicationId'
+        documentId:
+          $ref: '#/components/schemas/CadDocumentId'
+        paperSpaceIds:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            type: string
+        fileName:
+          type: string
+          maxLength: 255
+        sha256:
+          $ref: '#/components/schemas/Sha256'
+        bytes:
+          type: integer
+          minimum: 1
+        publishedAt:
+          $ref: '#/components/schemas/Timestamp'
+        publishedBy:
+          $ref: '#/components/schemas/Actor'
+        legacySourceId:
+          type: ['string', 'null']
+          maxLength: 64
+          description: Id del recibo embebido de origen (Fase 4). Null = nativa.
+    CadPublicationReceiptEmbedded:
+      type: object
+      description: Recibo tal como viaja EMBEBIDO dentro del documento canónico.
+      required: [id, paperSpaceIds, fileName, sha256, bytes, publishedAt, publishedBy]
+      properties:
+        id:
+          type: string
+        paperSpaceIds:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        fileName:
+          type: string
+        sha256:
+          $ref: '#/components/schemas/Sha256'
+        bytes:
+          type: number
+          exclusiveMinimum: 0
+        publishedAt:
+          $ref: '#/components/schemas/Timestamp'
+        publishedBy:
+          $ref: '#/components/schemas/Actor'
+    CadReviewSession:
+      type: object
+      required: [id, documentId, status, hasShareLink, createdAt]
+      properties:
+        id:
+          $ref: '#/components/schemas/CadReviewSessionId'
+        documentId:
+          $ref: '#/components/schemas/CadDocumentId'
+        status:
+          type: string
+          enum: [open, closed]
+        hasShareLink:
+          type: boolean
+          description: >-
+            true si la sesión tiene review link. El token NUNCA se expone
+            aquí: solo se persiste su hash (`token_hash`).
+        closedAt:
+          oneOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+        createdAt:
+          $ref: '#/components/schemas/Timestamp'
+        createdBy:
+          $ref: '#/components/schemas/Actor'
+    CadReviewSessionCreated:
+      type: object
+      required: [session]
+      properties:
+        session:
+          $ref: '#/components/schemas/CadReviewSession'
+        shareToken:
+          type: string
+          minLength: 16
+          maxLength: 256
+          description: >-
+            ÚNICA aparición del token en claro en toda la API. Presente solo
+            si se pidió `shareLink: true`. El servidor persiste únicamente su
+            hash; este valor no puede recuperarse después.
+    CadCommentCreate:
+      type: object
+      required: [body]
+      properties:
+        body:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: Texto del comentario (no vacío tras trim).
+        anchor:
+          type: ['object', 'null']
+          description: >-
+            Posición del comentario en el dibujo (coordenadas / entidad
+            ancla), JSON libre. Null = sin ancla.
+        reviewSessionId:
+          oneOf:
+            - $ref: '#/components/schemas/CadReviewSessionId'
+            - type: 'null'
+          description: Sesión a la que pertenece; null = comentario directo.
+    CadComment:
+      type: object
+      required: [id, documentId, author, body, resolved, createdAt]
+      properties:
+        id:
+          $ref: '#/components/schemas/CadCommentId'
+        documentId:
+          $ref: '#/components/schemas/CadDocumentId'
+        reviewSessionId:
+          oneOf:
+            - $ref: '#/components/schemas/CadReviewSessionId'
+            - type: 'null'
+        author:
+          $ref: '#/components/schemas/Actor'
+        body:
+          type: string
+          maxLength: 1000
+        anchor:
+          type: ['object', 'null']
+        resolved:
+          type: boolean
+        createdAt:
+          $ref: '#/components/schemas/Timestamp'
+        updatedAt:
+          $ref: '#/components/schemas/Timestamp'
+    DxfBackground:
+      type: object
+      description: Plano DXF de fondo (solo lectura sobre el dibujo).
+      required: [name, data, placement]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        data:
+          type: string
+          maxLength: 12000000
+          description: Contenido DXF crudo (texto). Límite real 12 000 000 caracteres.
+        placement:
+          $ref: '#/components/schemas/DxfPlacement'
+    DxfPlacement:
+      type: object
+      description: Colocación del plano de fondo sobre el documento.
+      properties:
+        offsetX:
+          type: number
+          default: 0
+        offsetY:
+          type: number
+          default: 0
+        scale:
+          type: number
+          exclusiveMinimum: 0
+          default: 1
+        rotation:
+          type: number
+          default: 0
+        visible:
+          type: boolean
+          default: true
+        opacity:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 0.5
+    DxfBackgroundUpload:
+      type: object
+      required: [name, data]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        data:
+          type: string
+          minLength: 1
+          maxLength: 12000000
+        placement:
+          $ref: '#/components/schemas/DxfPlacement'
+    DxfExport:
+      type: object
+      required: [fileName, unit, dxf]
+      properties:
+        fileName:
+          type: string
+          description: Nombre de archivo sugerido (`*.dxf`).
+        unit:
+          type: string
+          description: Unidad de dibujo (p. ej. mm).
+        dxf:
+          type: string
+          description: Contenido DXF R12 completo como texto.
+    CadBlockAsset:
+      type: object
+      description: Asset del bloque con coordenadas RELATIVAS al origen (0,0) del bloque.
+      required: [id, kind, x, y, w, h]
+      properties:
+        id:
+          type: string
+          maxLength: 64
+        kind:
+          type: string
+          maxLength: 24
+        x:
+          type: number
+        y:
+          type: number
+        w:
+          type: number
+          exclusiveMinimum: 0
+        h:
+          type: number
+          exclusiveMinimum: 0
+        rotation:
+          type: number
+          default: 0
+        label:
+          type: string
+          maxLength: 64
+        layer:
+          type: string
+          maxLength: 64
+    CadBlockDefinition:
+      type: object
+      description: >-
+        Definición canónica del bloque (estilo "block definition" de
+        AutoCAD). Límites reales: serializada ≤ 1 000 000 bytes; 1–500
+        entidades; `id`, `name` y `basePoint` obligatorios.
+      required: [id, name, basePoint, entities]
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        basePoint:
+          type: object
+        entities:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            type: object
+        description:
+          type: string
+        keywords:
+          type: array
+          items:
+            type: string
+    CadBlock:
+      type: object
+      required: [id, name, assets, version, createdAt]
+      properties:
+        id:
+          $ref: '#/components/schemas/CadBlockId'
+        name:
+          type: string
+          maxLength: 80
+        assets:
+          type: array
+          maxItems: 200
+          items:
+            $ref: '#/components/schemas/CadBlockAsset'
+        definition:
+          oneOf:
+            - $ref: '#/components/schemas/CadBlockDefinition'
+            - type: 'null'
+          description: Null en filas legacy solo-assets.
+        version:
+          type: integer
+          minimum: 1
+          description: Versión de biblioteca; se incrementa al redefinir `definition`.
+        createdAt:
+          $ref: '#/components/schemas/Timestamp'
+        createdBy:
+          $ref: '#/components/schemas/Actor'
+    CadBlockCreate:
+      type: object
+      required: [name]
+      description: Debe incluir al menos uno de `assets` (1–200) o `definition`.
+      anyOf:
+        - required: [assets]
+        - required: [definition]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        assets:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items:
+            $ref: '#/components/schemas/CadBlockAsset'
+        definition:
+          $ref: '#/components/schemas/CadBlockDefinition'
+    CadBlockUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        definition:
+          $ref: '#/components/schemas/CadBlockDefinition'

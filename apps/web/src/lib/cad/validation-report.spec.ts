@@ -1,5 +1,10 @@
 import { buildCadValidationReport } from "./validation-report";
 import { layoutToCadDocument } from "./cad-document";
+// Dependencia SOLO-DE-TEST: la sección de flujo del reporte usa la analítica
+// industrial que en producción inyecta el host enterprise.
+import { installLineEngineeringCadAnalysis } from "../line-engineering/register-cad-analysis";
+
+installLineEngineeringCadAnalysis();
 
 function assertEqual<T>(actual: T, expected: T, message: string) {
   if (actual !== expected)

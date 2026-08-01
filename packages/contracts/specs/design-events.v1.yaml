@@ -1,0 +1,224 @@
+asyncapi: 2.6.0
+id: 'urn:valle:design:events:v1'
+info:
+  title: Valle Design — Eventos de dominio (v1)
+  version: 1.0.0
+  description: |
+    Contrato FUENTE (SHARED_PROTOCOL, Fase 2) de los eventos que el producto
+    **Design** (repo futuro `valle-design`) EMITE hacia la plataforma y hacia
+    los productos consumidores (Enterprise ERP/MES). Este documento describe
+    al productor: los canales están declarados como `subscribe` — los
+    consumidores se suscriben a lo que Design publica.
+
+    Reglas del contrato:
+    * Los nombres de evento están VERSIONADOS en el propio código
+      (`design.*.v1`). Un cambio incompatible de payload es un evento `.v2`
+      nuevo, nunca una mutación del `.v1`.
+    * Payloads mínimos por diseño: identificadores (`cadProjectId`,
+      `cadDocumentId`, `cadPublicationId`), tenant, timestamps, actor y
+      `deepLink`. El consumidor que necesite más datos debe seguir el deep
+      link o llamar a la API de Design — los eventos NO transportan el
+      documento canónico.
+    * Regla de frontera (ver `specs/README.md`): Enterprise solo puede
+      ALMACENAR del CAD `cadProjectId`, `cadDocumentId`, `cadPublicationId`,
+      el deep link y un snapshot de solo lectura. Estos payloads contienen
+      exactamente eso y nada más.
+    * `deepLink` es una URL ABSOLUTA y OPACA hacia la UI del producto Design.
+      El consumidor la guarda y la abre; no la parsea ni la reconstruye.
+    * Entrega al menos una vez (at-least-once): `eventId` es la clave de
+      deduplicación del consumidor.
+
+    Estado: borrador validable de Fase 2. Se congela al cerrar Fase 3;
+    cambios incompatibles = canal `.v2`.
+  license:
+    name: UNLICENSED
+  contact:
+    name: Plataforma Valle — separación de productos (Fase 2)
+    email: sergiovallezarate@gmail.com
+    url: https://valle.interno/docs/product-split
+tags:
+  - name: design
+    description: Eventos de dominio del producto Design (CAD).
+servers:
+  interno:
+    url: design.eventos.interno
+    protocol: http
+    description: >-
+      Marcador de posición: el TRANSPORTE real (webhook firmado, broker o
+      ledger de plataforma) se decide en Fase 3. El contrato de este
+      documento son los canales y payloads, no el transporte.
+defaultContentType: application/json
+channels:
+  design.document.created.v1:
+    description: Se creó un documento CAD nuevo en el producto Design.
+    subscribe:
+      operationId: onDesignDocumentCreated
+      summary: Documento CAD creado.
+      message:
+        $ref: '#/components/messages/DesignDocumentCreated'
+  design.document.published.v1:
+    description: >-
+      Se registró el recibo de una publicación PDF del documento (hojas +
+      sha256 + tamaño). Es el evento que Enterprise usa para enlazar el
+      artefacto publicado.
+    subscribe:
+      operationId: onDesignDocumentPublished
+      summary: Publicación PDF registrada.
+      message:
+        $ref: '#/components/messages/DesignDocumentPublished'
+  design.layout.released.v1:
+    description: >-
+      Un layout/documento CAD quedó LIBERADO para consumo aguas abajo
+      (equivalente v1 de la aprobación `approved` del flujo legacy de
+      line-engineering). Incluye un snapshot de solo lectura mínimo para que
+      el consumidor no tenga que llamar a la API en caliente.
+    subscribe:
+      operationId: onDesignLayoutReleased
+      summary: Layout liberado para consumo.
+      message:
+        $ref: '#/components/messages/DesignLayoutReleased'
+  design.document.archived.v1:
+    description: El documento CAD fue archivado (borrado suave) en Design.
+    subscribe:
+      operationId: onDesignDocumentArchived
+      summary: Documento CAD archivado.
+      message:
+        $ref: '#/components/messages/DesignDocumentArchived'
+components:
+  messages:
+    DesignDocumentCreated:
+      messageId: designDocumentCreatedV1
+      name: design.document.created.v1
+      title: Documento CAD creado
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/DesignDocumentCreatedPayload'
+    DesignDocumentPublished:
+      messageId: designDocumentPublishedV1
+      name: design.document.published.v1
+      title: Publicación PDF registrada
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/DesignDocumentPublishedPayload'
+    DesignLayoutReleased:
+      messageId: designLayoutReleasedV1
+      name: design.layout.released.v1
+      title: Layout liberado
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/DesignLayoutReleasedPayload'
+    DesignDocumentArchived:
+      messageId: designDocumentArchivedV1
+      name: design.document.archived.v1
+      title: Documento CAD archivado
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/DesignDocumentArchivedPayload'
+  schemas:
+    DesignEventBase:
+      type: object
+      description: Campos comunes de todo evento design.*.v1.
+      required: [eventId, eventCode, occurredAt, tenantId, actor, cadDocumentId, deepLink]
+      properties:
+        eventId:
+          type: string
+          format: uuid
+          description: Identificador único del evento; clave de deduplicación (at-least-once).
+        eventCode:
+          type: string
+          enum:
+            - design.document.created.v1
+            - design.document.published.v1
+            - design.layout.released.v1
+            - design.document.archived.v1
+          description: Código versionado del evento (coincide con el canal).
+        occurredAt:
+          type: string
+          format: date-time
+          description: Momento del hecho de dominio (UTC, ISO 8601).
+        tenantId:
+          type: string
+          description: Tenant dueño del documento. Los consumidores DEBEN filtrar por él.
+        actor:
+          type: string
+          maxLength: 255
+          description: Identidad auditada que causó el hecho (email del usuario).
+        cadProjectId:
+          type: ['string', 'null']
+          description: Proyecto contenedor (`cad_projects`); null = documento sin proyecto.
+        cadDocumentId:
+          type: string
+          description: Documento CAD (`cad_documents`).
+        deepLink:
+          type: string
+          format: uri
+          description: >-
+            URL absoluta y OPACA hacia el documento en la UI de Design. Se
+            almacena y se abre tal cual; no se parsea.
+    DesignDocumentCreatedPayload:
+      allOf:
+        - $ref: '#/components/schemas/DesignEventBase'
+        - type: object
+          required: [name]
+          properties:
+            name:
+              type: string
+              maxLength: 160
+              description: Nombre del documento al crearse.
+    DesignDocumentPublishedPayload:
+      allOf:
+        - $ref: '#/components/schemas/DesignEventBase'
+        - type: object
+          required: [cadPublicationId, fileName, sha256, bytes, paperSpaceIds]
+          properties:
+            cadPublicationId:
+              type: string
+              description: Recibo de publicación (`cad_publications`).
+            fileName:
+              type: string
+              maxLength: 255
+            sha256:
+              type: string
+              pattern: '^[a-f0-9]{64}$'
+              description: Hash del PDF publicado (integridad del artefacto).
+            bytes:
+              type: integer
+              minimum: 1
+            paperSpaceIds:
+              type: array
+              minItems: 1
+              maxItems: 500
+              items:
+                type: string
+              description: Hojas (paper spaces) incluidas en la publicación.
+    DesignLayoutReleasedPayload:
+      allOf:
+        - $ref: '#/components/schemas/DesignEventBase'
+        - type: object
+          required: [cadDocumentVersion, snapshot]
+          properties:
+            cadDocumentVersion:
+              type: integer
+              minimum: 1
+              description: Versión CAS liberada.
+            snapshot:
+              type: object
+              description: >-
+                Snapshot de SOLO LECTURA — lo único (junto con los ids y el
+                deep link) que Enterprise puede almacenar del CAD.
+              required: [name, contentVersion, entityCount]
+              properties:
+                name:
+                  type: string
+                  maxLength: 160
+                contentVersion:
+                  type: integer
+                  minimum: 0
+                  description: '`meta.version` del contenido liberado.'
+                entityCount:
+                  type: integer
+                  minimum: 0
+                  maximum: 100000
+    DesignDocumentArchivedPayload:
+      allOf:
+        - $ref: '#/components/schemas/DesignEventBase'

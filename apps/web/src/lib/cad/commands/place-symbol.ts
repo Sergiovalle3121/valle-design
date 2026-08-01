@@ -4,7 +4,7 @@
  * emite el create con las medidas reales del símbolo. Sin coordenadas, lo
  * centra en el footprint para que el usuario lo arrastre a su sitio.
  */
-import { normalizeDeg } from "../../../components/line-engineering/precision-input";
+import { normalizeDeg } from "../precision-input";
 import { searchCadSymbols } from "../symbols";
 import { matchObjectsByName } from "./targets";
 import type {

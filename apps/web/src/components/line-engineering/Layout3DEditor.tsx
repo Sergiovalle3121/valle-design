@@ -16,11 +16,7 @@ import {
   Expand, Frame, Focus, PanelLeft, PanelLeftClose, ScanEye, GitMerge,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/apiFetch';
-import { useToast } from '@/contexts/ToastContext';
-import { useAuth } from '@/contexts/AuthContext';
-import { useTheme } from '@/contexts/ThemeContext';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { setWorkbenchChrome } from '@/lib/operatorChrome';
+import { installLineEngineeringCadAnalysis } from '@/lib/line-engineering/register-cad-analysis';
 import { ASSET_CATEGORIES, assetMeta, type AssetArchetype } from './asset-catalog';
 import { parseDxf, type DxfModel } from './dxf';
 import { dxfPointToFootprint, dxfToWalls } from './dxf-walls';
@@ -123,7 +119,6 @@ import { tessellateDxfPrimitive } from '@/lib/cad/curve-tessellate';
 import { DWG_UNAVAILABLE_REASON } from '@/lib/cad/interop-provider';
 import { mapDxfLayerToCadLayer } from '@/lib/cad/dxf-layer-map';
 import { solveCadConstraints, upsertCadConstraint } from '@/lib/cad/live-constraints';
-import { BRAND, PRODUCT_LABEL } from '@/config/brand';
 import { cadMleaderAssociationAnchor, type CadMleaderReference } from '@/lib/cad/associative-mleader';
 import {
   defineCadBlock,
@@ -143,7 +138,7 @@ import {
   type CadSupermarketGeneratorInput,
 } from '@/lib/cad/warehouse-generators';
 import { type CadClearanceIssue, type CadCollisionHit } from '@/lib/cad/collisions';
-import { buildFlowSegments, scoreFlowLayout, type CadFlowNode, type CadFlowScore, type CadFlowSegment } from '@/lib/cad/flow-optimization';
+import { buildFlowSegments, scoreFlowLayout, type CadFlowNode, type CadFlowScore, type CadFlowSegment } from '@/lib/line-engineering/flow-optimization';
 import type { CadSafetyIssue, CadSafetyZone, CadSafetyZoneKind } from '@/lib/cad/safety-zones';
 import { createCadSnapshot, diffCadSnapshots, pushCadSnapshot, restoreCadSnapshot, type CadSnapshotDiff, type CadSnapshotHistory } from '@/lib/cad/snapshots';
 import { cadDocumentToEditorSnapshot, editorSnapshotToCadDocument } from '@/lib/cad/editor-snapshot';
@@ -295,52 +290,49 @@ import {
   upsertCadViewportBookmark,
   type CadViewportBookmark,
 } from '@/lib/cad/viewport-bookmarks';
-import dynamic from 'next/dynamic';
+// El workbench enterprise inyecta la analítica industrial (flujo, balanceo,
+// ruta material) a los comandos del kernel CAD al cargar este chunk.
+installLineEngineeringCadAnalysis();
 
-// Analysis panels — the same modal components the 2D host shipped, lazy-loaded so
-// they don't bloat the CAD chunk. Unified here so the 3D CAD has every 2D tool.
-const WhatIfSimulator = dynamic(() => import('./WhatIfSimulator'), { ssr: false });
-const YamazumiChart = dynamic(() => import('./YamazumiChart'), { ssr: false });
-const LayoutHistory = dynamic(() => import('./LayoutHistory'), { ssr: false });
-const BufferPlanner = dynamic(() => import('./BufferPlanner'), { ssr: false });
-const OperatorLoops = dynamic(() => import('./OperatorLoops'), { ssr: false });
-const ClearanceAnalysis = dynamic(() => import('./ClearanceAnalysis'), { ssr: false });
-const LayoutScorecard = dynamic(() => import('./LayoutScorecard'), { ssr: false });
-const LineContinuity = dynamic(() => import('./LineContinuity'), { ssr: false });
-const LineCohesion = dynamic(() => import('./LineCohesion'), { ssr: false });
-const LineDensity = dynamic(() => import('./LineDensity'), { ssr: false });
-const CostEstimator = dynamic(() => import('./CostEstimator'), { ssr: false });
-const SensitivityChart = dynamic(() => import('./SensitivityChart'), { ssr: false });
-const ScenarioCompare = dynamic(() => import('./ScenarioCompare'), { ssr: false });
-const StandardWork = dynamic(() => import('./StandardWork'), { ssr: false });
-const DossierExport = dynamic(() => import('./DossierExport'), { ssr: false });
-const FlexLine = dynamic(() => import('./FlexLine'), { ssr: false });
-// Local, deterministic line-balance surface for the existing buildCadLineBalanceReport
-// helper (no server call) — reads the stations on the plan. Distinct from the
-// server-backed Yamazumi panel above.
-const LineBalancePanel = dynamic(() => import('./LineBalancePanel'), { ssr: false });
+/**
+ * Contrato de EXTENSIÓN de paneles de análisis (WP6 — inversión de dependencias).
+ *
+ * Los paneles industriales (balanceo, costos, escenarios, expediente…) son
+ * ENTERPRISE_OWNED: el editor CAD ya no los importa. El anfitrión los
+ * inyecta como descriptores por la prop `analysisPanels`; el editor sólo
+ * construye el menú "Análisis" con ellos y monta el activo bajo demanda con el
+ * contexto mínimo que los paneles siempre usaron (modelo/revisión, estaciones
+ * colocadas y unidad del plano, y el cierre del panel). Sin descriptores el
+ * menú de análisis industrial no se renderiza.
+ */
+export interface CadAnalysisPanelContext {
+  /** Modelo y revisión activos en el editor. */
+  model: string;
+  /** Revisión activa en el editor. */
+  revision: string;
+  /** Estaciones COLOCADAS en el plano (id + etiqueta), en el orden del plan.
+   *  Es lo que el panel local de balance de línea lee en lugar de ir al server. */
+  placedStations: { id: string; label: string }[];
+  /** Unidad del footprint del layout activo ('mm' mientras no haya datos). */
+  unit: string;
+  /** Cierra el panel activo (el editor lo desmonta). */
+  onClose: () => void;
+}
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-const ANALYSIS_PANELS: { key: string; label: string; Comp: React.ComponentType<any> }[] = [
-  { key: 'scorecard', label: 'Tarjeta de salud del layout', Comp: LayoutScorecard },
-  { key: 'yamazumi', label: 'Yamazumi (balanceo)', Comp: YamazumiChart },
-  { key: 'linebalance', label: 'Balance de línea (local)', Comp: LineBalancePanel },
-  { key: 'sim', label: 'Simulador de capacidad', Comp: WhatIfSimulator },
-  { key: 'buffers', label: 'Inventario de desacople (WIP)', Comp: BufferPlanner },
-  { key: 'loops', label: 'Bucles de operador', Comp: OperatorLoops },
-  { key: 'clearance', label: 'Holguras y pasillos', Comp: ClearanceAnalysis },
-  { key: 'continuity', label: 'Continuidad de línea', Comp: LineContinuity },
-  { key: 'cohesion', label: 'Cohesión de líneas', Comp: LineCohesion },
-  { key: 'density', label: 'Mapa de ocupación / densidad', Comp: LineDensity },
-  { key: 'cost', label: 'Costo por unidad', Comp: CostEstimator },
-  { key: 'sensitivity', label: 'Sensibilidad a la demanda', Comp: SensitivityChart },
-  { key: 'compare', label: 'Comparar escenarios A/B', Comp: ScenarioCompare },
-  { key: 'stdwork', label: 'Trabajo estándar', Comp: StandardWork },
-  { key: 'flex', label: 'Línea flexible', Comp: FlexLine },
-  { key: 'dossier', label: 'Expediente analítico (JSON/CSV)', Comp: DossierExport },
-  { key: 'history', label: 'Bitácora de auditoría', Comp: LayoutHistory },
-];
-/* eslint-enable @typescript-eslint/no-explicit-any */
+export interface CadAnalysisPanelDescriptor {
+  /** Clave estable del panel — identifica el panel activo en el estado del editor. */
+  key: string;
+  /** Etiqueta visible en el menú "Análisis". */
+  label: string;
+  /** Render del panel. El editor lo invoca sólo mientras el panel está activo,
+   *  con el contexto mínimo de arriba; el descriptor decide qué props recibe
+   *  su componente (los paneles hoy toman model/revision u estaciones+unidad,
+   *  más open/onClose). */
+  render: (ctx: CadAnalysisPanelContext) => React.ReactNode;
+}
+
+/** Sin inyección no hay análisis industrial (referencia estable). */
+const NO_ANALYSIS_PANELS: CadAnalysisPanelDescriptor[] = [];
 
 /**
  * Full-screen interactive 3D layout editor — the "CAD" view of the plant floor.
@@ -968,9 +960,43 @@ function buildDim(a: Ann, s: number, W: number, H: number, unit: string): THREE.
   return out;
 }
 
-export default function Layout3DEditor({
-  model, revision, open, onClose, onSaved, models = [], standalone = false, title, subtitle,
-}: {
+/**
+ * Props de PLATAFORMA del editor CAD (WP5 — inversión de dependencias).
+ *
+ * El editor ya NO lee los contextos enterprise (Auth/Workspace/Theme/Toast),
+ * ni el chrome global (`operatorChrome`), ni la marca (`config/brand`): todo
+ * llega por estas props opcionales. En el despliegue enterprise las inyecta
+ * `Layout3DEditorHost` (el adaptador que lee los contextos reales); el repo
+ * Design montará el editor con su propia plataforma. Si una prop falta se
+ * aplica un fallback inofensivo — los fallbacks nunca se ejercitan en
+ * enterprise porque el Host siempre inyecta.
+ */
+export interface Layout3DEditorPlatformProps {
+  /** Identidad plataforma: claves de storage del workspace CAD, historial de
+   *  comandos, recovery local y scoping de la biblioteca de bloques tenant.
+   *  Campos ausentes se comportan como la sesión sin autenticar de enterprise
+   *  (los helpers de storage aplican sus propias claves neutras). */
+  identity?: { userId?: string; tenantId?: string };
+  /** Alcance de trabajo (edificio/proyecto): scoping de snapshots de
+   *  recuperación e historial de comandos. */
+  scope?: { buildingId?: string; projectId?: string };
+  /** Esquema visual resuelto por la plataforma anfitriona. Fallback: 'light'. */
+  theme?: 'light' | 'dark';
+  /** Canal de notificaciones. Mapea 1:1 el toast enterprise real
+   *  (success/error/info + mensaje + título opcional). Fallback: no-op. */
+  onNotify?: (level: 'success' | 'error' | 'info', message: string, title?: string) => void;
+  /** Aviso de apertura/cierre a pantalla completa, para que el shell anfitrión
+   *  oculte su chrome (dock, widgets flotantes). Fallback: no-op. */
+  onFullscreenChange?: (open: boolean) => void;
+  /** Marca del cajetín PDF (brandName/legalEntityName), del comentario DXF y
+   *  de los títulos/pies de sheets (productLabel). */
+  branding?: { brandName: string; legalEntityName: string; productLabel: string };
+  /** Paneles de análisis industrial inyectados por el anfitrión (WP6). El menú
+   *  "Análisis" se construye desde aquí; ausente o vacío, el menú no aparece. */
+  analysisPanels?: CadAnalysisPanelDescriptor[];
+}
+
+export interface Layout3DEditorProps extends Layout3DEditorPlatformProps {
   model: string;
   revision: string;
   open: boolean;
@@ -980,24 +1006,48 @@ export default function Layout3DEditor({
   standalone?: boolean;
   title?: string;
   subtitle?: string;
-}) {
-  const toast = useToast();
-  const { user, tenantId } = useAuth();
-  const { resolvedScheme } = useTheme();
-  const { buildingId, projectId } = useWorkspace();
+}
+
+/** Marca por defecto cuando el editor se monta sin plataforma (nunca en enterprise). */
+const DEFAULT_BRANDING: NonNullable<Layout3DEditorPlatformProps['branding']> = {
+  brandName: 'Valle Design',
+  legalEntityName: '',
+  productLabel: 'Valle Design',
+};
+
+export default function Layout3DEditor({
+  model, revision, open, onClose, onSaved, models = [], standalone = false, title, subtitle,
+  identity, scope: platformScope, theme: resolvedScheme = 'light', onNotify, onFullscreenChange, branding = DEFAULT_BRANDING,
+  analysisPanels = NO_ANALYSIS_PANELS,
+}: Layout3DEditorProps) {
+  // Plataforma invertida (WP5): identidad, alcance y notificaciones llegan por
+  // props. Los nombres locales conservan los del código enterprise original
+  // para que el resto del editor no cambie.
+  const toast = useMemo(
+    () => ({
+      success: (message: string, title?: string) => onNotify?.('success', message, title),
+      error: (message: string, title?: string) => onNotify?.('error', message, title),
+      info: (message: string, title?: string) => onNotify?.('info', message, title),
+    }),
+    [onNotify],
+  );
+  const userId = identity?.userId;
+  const tenantId = identity?.tenantId;
+  const buildingId = platformScope?.buildingId;
+  const projectId = platformScope?.projectId;
   const recoveryScope = useMemo(
     () =>
-      tenantId && user?.id
+      tenantId && userId
         ? {
             tenantId,
-            userId: user.id,
+            userId,
             buildingId,
             projectId,
             model,
             revision,
           }
         : null,
-    [buildingId, model, projectId, revision, tenantId, user?.id],
+    [buildingId, model, projectId, revision, tenantId, userId],
   );
   const mountRef = useRef<HTMLDivElement | null>(null);
   const viewMenuRef = useRef<HTMLDivElement | null>(null);
@@ -1042,7 +1092,7 @@ export default function Layout3DEditor({
   const [publicationWarnings, setPublicationWarnings] = useState<CadPublishWarning[]>([]);
   const [dxfExportOptions, setDxfExportOptions] = useState<DxfExportOptions>({ scope: 'all', includeHidden: true, includeMeasurements: true, includeLabels: true, units: 'mm', fileName: '' });
   const [dxfExportSummary, setDxfExportSummary] = useState<DxfExportSummary>({ objects: 0, connectors: 0, measurements: 0, labels: 0, layers: 0, canExport: false, includedLayers: [], layerSummary: [], issues: [] });
-  const [sheetPackageDraft, setSheetPackageDraft] = useState<CadSheetPackageDraft>({ project: PRODUCT_LABEL.design, drawingNo: 'A-0001', discipline: 'Architecture / Engineering', sheet: 'S-001', revision: 'P01', scale: 'Fit to sheet', preparedBy: '', checkedBy: '', approvedBy: '', notes: '' });
+  const [sheetPackageDraft, setSheetPackageDraft] = useState<CadSheetPackageDraft>({ project: branding.productLabel, drawingNo: 'A-0001', discipline: 'Architecture / Engineering', sheet: 'S-001', revision: 'P01', scale: 'Fit to sheet', preparedBy: '', checkedBy: '', approvedBy: '', notes: '' });
   const dxfInputRef = useRef<HTMLInputElement | null>(null);
   // Visión plano→muros (Fase 71 cableada, ADR §217): imagen → CIDE multimodal
   // → normalizeVision → muros/zonas editables. El humano revisa antes de insertar.
@@ -1221,7 +1271,7 @@ export default function Layout3DEditor({
   useEffect(() => { commandTextRef.current = commandText; }, [commandText]);
   const commandHistoryStorageKey = cadCommandHistoryStorageKey({
     tenantId,
-    userId: user?.id,
+    userId,
     buildingId,
     projectId,
     model,
@@ -1387,8 +1437,8 @@ export default function Layout3DEditor({
   useEffect(() => { setTheme(resolvedScheme === 'light' ? 'light' : 'dark'); }, [resolvedScheme]);
 
   const workspacePreferenceKey = useMemo(
-    () => cadWorkspaceStorageKey({ tenantId, userId: user?.id }),
-    [tenantId, user?.id],
+    () => cadWorkspaceStorageKey({ tenantId, userId }),
+    [tenantId, userId],
   );
   useEffect(() => {
     if (!open) {
@@ -1436,13 +1486,14 @@ export default function Layout3DEditor({
   }, [updateWorkspacePreferences]);
 
   // Workbench full-screen: el CAD (`fixed inset-0`) se monta DENTRO de una ruta
-  // standard (pestaña CAD de line-engineering). Mientras está abierto se declara
-  // workbench para que el shell oculte el dock y los widgets flotantes (que si no
-  // quedan ENCIMA del lienzo). Se restablece al cerrarse/desmontarse.
+  // standard (pestaña CAD de line-engineering). Mientras está abierto se avisa a
+  // la plataforma (en enterprise, `setWorkbenchChrome`) para que el shell oculte
+  // el dock y los widgets flotantes (que si no quedan ENCIMA del lienzo). Se
+  // restablece al cerrarse/desmontarse.
   useEffect(() => {
-    setWorkbenchChrome(open);
-    return () => setWorkbenchChrome(false);
-  }, [open]);
+    onFullscreenChange?.(open);
+    return () => onFullscreenChange?.(false);
+  }, [open, onFullscreenChange]);
 
   // ---- sun position (azimuth/elevation) → directional light + shadows ----
   const applySun = useCallback(() => {
@@ -7335,7 +7386,7 @@ export default function Layout3DEditor({
         paper: paperOverride ?? plotPaper,
         orientation: wMm >= hMm ? 'landscape' : 'portrait',
         project: `Layout ${model}`,
-        drawnBy: BRAND.legalEntityName,
+        drawnBy: branding.legalEntityName,
         date: new Date().toLocaleDateString('es-MX'),
         revision,
         sheetNumber: '1/2',
@@ -7371,7 +7422,7 @@ export default function Layout3DEditor({
       const drawHeader = () => {
         doc.setFillColor(17, 24, 39); doc.rect(0, 0, pageW, 16, 'F');
         doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
-        doc.text(`${BRAND.brandName} · ${sheet.title}`, margin, 11);
+        doc.text(`${branding.brandName} · ${sheet.title}`, margin, 11);
         doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
         doc.text(sheet.subtitle, pageW - margin, 11, { align: 'right' });
       };
@@ -7440,7 +7491,7 @@ export default function Layout3DEditor({
       const brandW = Math.min(60, tb.w * 0.22);
       doc.line(tb.x + brandW, tb.y, tb.x + brandW, tb.y + tb.h);
       doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(20, 24, 32);
-      doc.text(BRAND.brandName, tb.x + brandW / 2, tb.y + 13, { align: 'center' });
+      doc.text(branding.brandName, tb.x + brandW / 2, tb.y + 13, { align: 'center' });
       doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(110, 116, 128);
       doc.text(sheet.title, tb.x + brandW / 2, tb.y + 19, { align: 'center' });
       const tbFields = [
@@ -7693,7 +7744,7 @@ export default function Layout3DEditor({
         const layer = dxfDocument.layers.find((candidate) => candidate.id === entity.layer);
         return options.includeHidden || layer?.visible !== false;
       });
-      const exported = exportCadLayoutDxf({ boxes, connectors, labels, measurements, primitives, hatches, mtexts, semanticDimensions, mleaders, blocks, inserts }, { units: options.units, fileComment: `${PRODUCT_LABEL.design} ${model} ${revision}` });
+      const exported = exportCadLayoutDxf({ boxes, connectors, labels, measurements, primitives, hatches, mtexts, semanticDimensions, mleaders, blocks, inserts }, { units: options.units, fileComment: `${branding.productLabel} ${model} ${revision}` });
       const blob = new Blob([exported.content], { type: 'application/dxf' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -7866,7 +7917,7 @@ export default function Layout3DEditor({
           pdf.rect(x, y, cellW, cellH); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(5.5); pdf.setTextColor(100, 116, 139); pdf.text(label, x + 2, y + 4);
           pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8); pdf.setTextColor(17, 24, 39); pdf.text(String(value).slice(0, 42), x + 2, y + 9.5, { maxWidth: cellW - 4 });
         });
-        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7); pdf.text(`${PRODUCT_LABEL.design} · ${sheetIndex + 1}/${plan.sheets.length}`, sheet.width - 8, 5, { align: 'right' });
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7); pdf.text(`${branding.productLabel} · ${sheetIndex + 1}/${plan.sheets.length}`, sheet.width - 8, 5, { align: 'right' });
       });
       const buffer = pdf.output('arraybuffer');
       const digest = await crypto.subtle.digest('SHA-256', buffer);
@@ -8116,7 +8167,7 @@ export default function Layout3DEditor({
     maxItems: commandText.trim() ? 4 : 3,
   }) : [];
   const tray = (data?.stations ?? []).filter((s) => !placedIds.has(s.id));
-  const cadTitle = title?.trim() || (standalone ? PRODUCT_LABEL.design : `CAD · ${model} · ${revision}`);
+  const cadTitle = title?.trim() || (standalone ? branding.productLabel : `CAD · ${model} · ${revision}`);
   const cadSubtitle = subtitle?.trim() || (standalone
     ? 'Diseño universal 2D/3D para arquitectura, ingeniería, almacenes, plantas y layouts técnicos.'
     : 'Workbench CAD conectado al gemelo industrial y al balanceo de línea.');
@@ -8349,7 +8400,7 @@ export default function Layout3DEditor({
   ) : activeProfessionalDock === 'collaboration' && loadedCadDocumentRef.current ? (
     <CadCollaborationPalette
       document={snapshotDocument()}
-      actor={user?.id ?? 'authenticated-user'}
+      actor={userId ?? 'authenticated-user'}
       reviewReadOnly={cadReviewReadOnly}
       onDocumentChange={applyCollaborationDocument}
       onVisualize={visualizeCollaborationDiff}
@@ -8629,17 +8680,19 @@ export default function Layout3DEditor({
         <T3Btn onClick={openChecks} title="Revisión de diseño — valida colocación, límites, traslapes y flujo"><ShieldCheck className="w-4 h-4" /></T3Btn>
         <T3Btn active={!!flowHealth} onClick={analyzeFlowHealth} title="Flow Health — score, cruces y backtracking"><ChartLine className="w-4 h-4" /></T3Btn>
         <T3Btn onClick={openTakeoff} title="Cantidades / lista de materiales"><ClipboardList className="w-4 h-4" /></T3Btn>
-        <div className="relative" ref={analysisMenuRef}>
-          <T3Btn active={showAnalysis || !!analysisPanel} onClick={() => setShowAnalysis((v) => !v)} title="Análisis del layout — balanceo, costos, flujo, escenarios, salud…"><ChartLine className="w-4 h-4" /></T3Btn>
-          {showAnalysis && (
-            <div className="absolute top-full mt-1 left-0 z-50 w-64 max-h-[62vh] overflow-y-auto rounded-xl border border-white/10 bg-gray-900 shadow-2xl py-1">
-              <div className="px-3 py-1.5 text-[10px] uppercase tracking-wide text-gray-500">Análisis del layout</div>
-              {ANALYSIS_PANELS.map((p) => (
-                <button key={p.key} onClick={() => { setAnalysisPanel(p.key); setShowAnalysis(false); }} className="w-full text-left px-3 py-1.5 text-[12.5px] text-gray-200 hover:bg-white/[0.08] transition-colors">{p.label}</button>
-              ))}
-            </div>
-          )}
-        </div>
+        {analysisPanels.length > 0 && (
+          <div className="relative" ref={analysisMenuRef}>
+            <T3Btn active={showAnalysis || !!analysisPanel} onClick={() => setShowAnalysis((v) => !v)} title="Análisis del layout — balanceo, costos, flujo, escenarios, salud…"><ChartLine className="w-4 h-4" /></T3Btn>
+            {showAnalysis && (
+              <div className="absolute top-full mt-1 left-0 z-50 w-64 max-h-[62vh] overflow-y-auto rounded-xl border border-white/10 bg-gray-900 shadow-2xl py-1">
+                <div className="px-3 py-1.5 text-[10px] uppercase tracking-wide text-gray-500">Análisis del layout</div>
+                {analysisPanels.map((p) => (
+                  <button key={p.key} onClick={() => { setAnalysisPanel(p.key); setShowAnalysis(false); }} className="w-full text-left px-3 py-1.5 text-[12.5px] text-gray-200 hover:bg-white/[0.08] transition-colors">{p.label}</button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         <T3Btn active={showSheetPackage} onClick={() => setShowSheetPackage(true)} title="Paquete de entrega — cajetín, checklist, manifiesto y readiness"><Stamp className="w-4 h-4" /></T3Btn>
         <select value={plotPaper} onChange={(e) => setPlotPaper(e.target.value as CadPaperId)} title="Papel del plano (A4–A0, carta, tabloide) — la escala estándar se elige sola" className="h-7 self-center rounded-lg border border-white/10 bg-white/[0.06] px-1 text-[11px] text-gray-300 focus:outline-none">
           {(Object.keys(CAD_PAPER_SIZES) as CadPaperId[]).map((id) => (
@@ -10448,20 +10501,21 @@ export default function Layout3DEditor({
         </div>
       )}
 
-      {/* Analysis panels — mounted on demand from the Análisis menu (unify) */}
+      {/* Analysis panels — mounted on demand from the Análisis menu. The panels
+          themselves are host-injected descriptors (WP6): the editor only builds
+          the minimal context they consume and lets each descriptor render. */}
       {analysisPanel && (() => {
-        const it = ANALYSIS_PANELS.find((a) => a.key === analysisPanel);
+        const it = analysisPanels.find((a) => a.key === analysisPanel);
         if (!it) return null;
-        const C = it.Comp;
-        // Local line-balance panel runs on the on-screen stations (no server call),
-        // so it takes the placed stations in sequence order instead of model/revision.
-        if (analysisPanel === 'linebalance') {
-          const lbStations = (data?.stations ?? [])
+        return it.render({
+          model,
+          revision,
+          placedStations: (data?.stations ?? [])
             .filter((s) => placementsRef.current.has(s.id))
-            .map((s) => ({ id: s.id, label: s.station }));
-          return <C stations={lbStations} unit={data?.footprint.unit || 'mm'} open onClose={() => setAnalysisPanel(null)} />;
-        }
-        return <C model={model} revision={revision} open onClose={() => setAnalysisPanel(null)} />;
+            .map((s) => ({ id: s.id, label: s.station })),
+          unit: data?.footprint.unit || 'mm',
+          onClose: () => setAnalysisPanel(null),
+        });
       })()}
 
       {/* Keyboard shortcuts / help overlay */}

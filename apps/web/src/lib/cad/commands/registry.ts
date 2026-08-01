@@ -9,9 +9,10 @@ import type {
 } from "./types";
 import { measureBoxes, measurementLabel } from "../measurements";
 import { detectCadCollisions } from "../collisions";
-import { scoreFlowLayout } from "../flow-optimization";
-import { buildCadLineBalanceReport } from "../line-balance";
-import { buildCadMaterialRouteReport } from "../material-flow-route";
+import {
+  getCadAnalysisExtensions,
+  type CadFlowScore,
+} from "../analysis-extensions";
 import { buildCadValidationReport } from "../validation-report";
 import {
   error,
@@ -287,14 +288,11 @@ function flowObjects(
 }
 
 function flowScoreRows(objects: CadBox[]): { label: string; value: string }[] {
-  const score = scoreFlowLayout(
-    objects.map((object) => ({
-      id: object.id,
-      label: object.label,
-      x: object.x + object.w / 2,
-      y: object.y + object.h / 2,
-    })),
-  );
+  const score = flowScore(objects);
+  if (!score)
+    return [
+      { label: "Flujo", value: "Análisis no disponible en esta edición" },
+    ];
   return [
     { label: "Score", value: `${score.score}/100` },
     {
@@ -310,8 +308,10 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
-function flowScore(objects: CadBox[]) {
-  return scoreFlowLayout(
+function flowScore(objects: CadBox[]): CadFlowScore | undefined {
+  // Analítica industrial inyectada por el host; sin ella el comando sigue
+  // funcionando y solo omite las métricas de flujo.
+  return getCadAnalysisExtensions()?.scoreFlowLayout(
     objects.map((object) => ({
       id: object.id,
       label: object.label,
@@ -397,6 +397,17 @@ function arrangeFlowLinePreview(
       to: objects[idx + 1].id,
       kind: "flow",
     }));
+  const scoreRows =
+    before && after
+      ? [
+          { label: "Score antes", value: `${before.score}/100` },
+          { label: "Score despues", value: `${after.score}/100` },
+          {
+            label: "Distancia despues",
+            value: `${Math.round(after.totalDistance)} mm`,
+          },
+        ]
+      : [{ label: "Flujo", value: "Análisis no disponible en esta edición" }];
   const report: CadOperation = {
     type: "report",
     title: "Linea de flujo",
@@ -407,12 +418,7 @@ function arrangeFlowLinePreview(
         value: direction === "top_to_bottom" ? "Vertical" : "Horizontal",
       },
       { label: "Separacion", value: `${Math.round(gap)} mm` },
-      { label: "Score antes", value: `${before.score}/100` },
-      { label: "Score despues", value: `${after.score}/100` },
-      {
-        label: "Distancia despues",
-        value: `${Math.round(after.totalDistance)} mm`,
-      },
+      ...scoreRows,
     ],
   };
 
@@ -633,7 +639,21 @@ function analyzeLineBalancePreview(
             "Selecciona al menos 2 estaciones para analizar balanceo.",
           ),
         ];
-  const report = buildCadLineBalanceReport({
+  const analysis = getCadAnalysisExtensions();
+  if (!analysis)
+    return {
+      summary: "Analizar balanceo de línea",
+      affectedObjectIds: objects.map((object) => object.id),
+      operations: [],
+      issues: [
+        ...issues,
+        error(
+          "analysis_pack_missing",
+          "El análisis de balanceo no está disponible en esta edición.",
+        ),
+      ],
+    };
+  const report = analysis.buildLineBalanceReport({
     taktTimeSec: input.taktTimeSec,
     stations: objects.map((object) => ({
       id: object.id,
@@ -774,7 +794,21 @@ function traceMaterialRoutePreview(
     : context.selectedIds.length
       ? context.selectedIds
       : undefined;
-  const report = buildCadMaterialRouteReport({
+  const analysis = getCadAnalysisExtensions();
+  if (!analysis)
+    return {
+      summary: "Trazar ruta material",
+      affectedObjectIds: objects.map((object) => object.id),
+      operations: [],
+      issues: [
+        ...issues,
+        error(
+          "analysis_pack_missing",
+          "El análisis de ruta de material no está disponible en esta edición.",
+        ),
+      ],
+    };
+  const report = analysis.buildMaterialRouteReport({
     selectedIds,
     connectors: context.connectors,
     nodes: objects.map((object) => ({

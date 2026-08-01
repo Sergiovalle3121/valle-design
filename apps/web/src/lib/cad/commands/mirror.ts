@@ -6,7 +6,7 @@
  * el flujo típico de MIRROR) emite creates "(espejo)" conservando los
  * originales; con copy:false mueve los objetos en sitio.
  */
-import { normalizeDeg } from "../../../components/line-engineering/precision-input";
+import { normalizeDeg } from "../precision-input";
 import { resolveCommandTargets } from "./targets";
 import type {
   CadCommandContext,

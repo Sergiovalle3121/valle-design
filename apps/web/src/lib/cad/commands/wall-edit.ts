@@ -9,9 +9,9 @@ import {
   extendToLine,
   lineLineIntersection,
   trimAtCutter,
-} from "../../../components/line-engineering/geom-edit";
-import { normalizeDeg } from "../../../components/line-engineering/precision-input";
-import type { Segment } from "../../../components/line-engineering/snap-engine";
+} from "../geom-edit";
+import { normalizeDeg } from "../precision-input";
+import type { Segment } from "../snap-engine";
 import type {
   CadBox,
   CadCommandContext,

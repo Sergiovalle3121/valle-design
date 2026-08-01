@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
-import { snap, type SnapScene } from '../../components/line-engineering/snap-engine';
+import { snap, type SnapScene } from './snap-engine';
 import { CAD_ENTITY_REGISTRY, type CadNativeEntity } from './entity-runtime';
 import { CadNativeSelectionIndex } from './native-selection-index';
 

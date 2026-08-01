@@ -13,6 +13,11 @@ import {
 } from "./index";
 import type { CadBox, CadCommandContext } from "./types";
 import type { CadCommandHistoryState } from "./history";
+// Dependencia SOLO-DE-TEST: este spec ejercita también los comandos de
+// análisis industrial, que en producción inyecta el host enterprise.
+import { installLineEngineeringCadAnalysis } from "../../line-engineering/register-cad-analysis";
+
+installLineEngineeringCadAnalysis();
 
 const ctx: CadCommandContext = {
   unit: "mm",

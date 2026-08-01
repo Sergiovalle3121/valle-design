@@ -1,0 +1,106 @@
+# FILTER-REPO-PATHS — Lista de rutas DESIGN_OWNED para git filter-repo (Fase 3)
+# Estado: CONGELADA al cierre de Fase 1 (tras WP7 verde), tree = rama de trabajo post-refactor.
+# Uso (Fase 3, sobre un CLON FRESCO del SHA de fusión de Fases 1-2):
+#   git filter-repo $(grep -v '^#' FILTER-REPO-PATHS.txt | grep -v '^$' | sed 's/^/--path /')
+# Nota: filter-repo conserva la historia completa de cada ruta (incl. renames previos al
+# split gracias a que los moves de Fase 1 fueron git mv). Los adaptadores *.adapter.ts de
+# cad-documents viajan y se SUSTITUYEN en los commits de reestructura del repo design.
+
+# ── Backend: módulo CAD completo ────────────────────────────────────────────
+apps/api/src/modules/cad-documents/
+
+# ── Backend: migraciones exclusivamente CAD (D-005: las mixtas quedan) ─────
+apps/api/src/migrations/20260801090000-CreateCadDocumentsFoundation.ts
+apps/api/src/migrations/20260801090000-CreateCadDocumentsFoundation.spec.ts
+apps/api/src/migrations/20260724010000-AddCanonicalCadDocument.ts
+apps/api/src/migrations/20260706180000-AddCadBlocks.ts
+apps/api/src/migrations/20260728110000-ProfessionalCadBlockLibrary.ts
+
+# ── Frontend: kernel CAD (100% puro tras WP4/WP4b) ─────────────────────────
+apps/web/src/lib/cad/
+
+# ── Frontend: página del producto (CAD Studio standalone) ──────────────────
+apps/web/src/app/dashboard/cad/
+
+# ── Frontend: editor y UI CAD en components/line-engineering ───────────────
+# (el directorio NO viaja entero: los 18 paneles industriales,
+#  industrial-analysis-panels.tsx, Layout3DEditorHost.tsx, arrange-line,
+#  connect-line, design-checks, flow-metrics y el código muerto
+#  Layout3D/LayoutEditor/Minimap se QUEDAN en enterprise)
+apps/web/src/components/line-engineering/Layout3DEditor.tsx
+apps/web/src/components/line-engineering/PlantMinimap.tsx
+apps/web/src/components/line-engineering/ScaleBar.tsx
+apps/web/src/components/line-engineering/cad-workbench/
+apps/web/src/components/line-engineering/asset-catalog.ts
+apps/web/src/components/line-engineering/asset-catalog.spec.ts
+apps/web/src/components/line-engineering/auto-dimensions.ts
+apps/web/src/components/line-engineering/cad-command.ts
+apps/web/src/components/line-engineering/cad-command.spec.ts
+apps/web/src/components/line-engineering/cad-format-detect.ts
+apps/web/src/components/line-engineering/cad-format-detect.spec.ts
+apps/web/src/components/line-engineering/cad-intent.ts
+apps/web/src/components/line-engineering/cad-intent.spec.ts
+apps/web/src/components/line-engineering/cad-vision.ts
+apps/web/src/components/line-engineering/cad-vision.spec.ts
+apps/web/src/components/line-engineering/dxf.ts
+apps/web/src/components/line-engineering/dxf-snap.ts
+apps/web/src/components/line-engineering/dxf-walls.ts
+apps/web/src/components/line-engineering/plot-scale.ts
+apps/web/src/components/line-engineering/plot-scale.spec.ts
+apps/web/src/components/line-engineering/plot-sheet.ts
+apps/web/src/components/line-engineering/plot-sheet.spec.ts
+apps/web/src/components/line-engineering/professional-snapping.spec.ts
+# Wrappers de compatibilidad (re-export de lib/cad): viajan para que el editor
+# compile sin tocar imports en el commit de extracción; la reestructura los poda.
+apps/web/src/components/line-engineering/cad-array.ts
+apps/web/src/components/line-engineering/dimension-format.ts
+apps/web/src/components/line-engineering/geom-edit.ts
+apps/web/src/components/line-engineering/geom-measure.ts
+apps/web/src/components/line-engineering/precision-input.ts
+apps/web/src/components/line-engineering/precision-input.spec.ts
+apps/web/src/components/line-engineering/snap-engine.ts
+
+# ── E2E: corpus dorado CAD 10-28 + acceptance journey + benchmark ──────────
+apps/web/e2e/golden/10-cad-native-entities.spec.ts
+apps/web/e2e/golden/11-cad-recovery-journal.spec.ts
+apps/web/e2e/golden/12-cad-professional-selection.spec.ts
+apps/web/e2e/golden/13-cad-dynamic-input.spec.ts
+apps/web/e2e/golden/14-cad-associative-hatch.spec.ts
+apps/web/e2e/golden/15-cad-native-mtext.spec.ts
+apps/web/e2e/golden/16-cad-associative-dimensions.spec.ts
+apps/web/e2e/golden/17-cad-native-mleader.spec.ts
+apps/web/e2e/golden/18-cad-professional-blocks.spec.ts
+apps/web/e2e/golden/19-cad-professional-workbench.spec.ts
+apps/web/e2e/golden/20-cad-multiple-viewports.spec.ts
+apps/web/e2e/golden/21-cad-xrefs.spec.ts
+apps/web/e2e/golden/22-cad-compare-collaboration.spec.ts
+apps/web/e2e/golden/23-cad-native-fillet.spec.ts
+apps/web/e2e/golden/24-cad-canonical-layers.spec.ts
+apps/web/e2e/golden/25-cad-trim-extend.spec.ts
+apps/web/e2e/golden/26-cad-precision-polyline.spec.ts
+apps/web/e2e/golden/27-cad-dxf-loss-manifest.spec.ts
+apps/web/e2e/golden/28-cad-osnap-pointer.spec.ts
+apps/web/e2e/golden/cad-acceptance-journey.ts
+apps/web/e2e/golden/cad-acceptance-journey.check.ts
+apps/web/e2e/performance/cad-viewport-100k.spec.ts
+# Infra de test compartida (D-006: se DUPLICA — viaja Y se queda)
+apps/web/e2e/fixtures/
+
+# ── Scripts CAD ─────────────────────────────────────────────────────────────
+apps/web/scripts/cad-perf-scale.mts
+
+# ── Contratos (SHARED_PROTOCOL: viajan Y se quedan) ────────────────────────
+packages/contracts/
+
+# ── Documentación CAD ──────────────────────────────────────────────────────
+docs/cad/
+docs/cad-contracts-catalog.md
+docs/cad-copilot-command-contract.md
+docs/execution/AXOS_CAD_NEXT_EXECUTION.md
+docs/execution/AXOS_CAD_GRAND_LEAP_EXECUTION.md
+docs/execution/AXOS_CAD_NATIVE_CORE_EXECUTION.md
+docs/execution/AXOS_CAD_PROFESSIONAL_DAILY_DRIVER.md
+docs/execution/CAD_PROFESSIONAL_PARITY_GRAND_LEAP_IV.md
+docs/execution/CAD_PROFESSIONAL_EXPERIENCE_SCALE_GRAND_LEAP_III.md
+docs/execution/CAD_ACCEPTANCE_JOURNEY_IV.md
+docs/product-split/

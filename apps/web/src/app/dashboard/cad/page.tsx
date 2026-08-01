@@ -7,8 +7,10 @@ import { ChevronLeft, DraftingCompass, Layers3, Ruler, Sparkles } from 'lucide-r
 import { glass } from '@/lib/glass';
 import { PRODUCT_LABEL } from "@/config/brand";
 
-const Layout3DEditor = dynamic(
-  () => import('@/components/line-engineering/Layout3DEditor'),
+// Host = adaptador enterprise: inyecta contextos (auth/workspace/tema/toast),
+// chrome y marca al editor CAD agnóstico de plataforma (WP5).
+const Layout3DEditorHost = dynamic(
+  () => import('@/components/line-engineering/Layout3DEditorHost'),
   { ssr: false },
 );
 
@@ -40,7 +42,7 @@ export default function CadStudioPage() {
         </div>
       </div>
 
-      <Layout3DEditor
+      <Layout3DEditorHost
         model={UNIVERSAL_CAD_MODEL}
         revision={UNIVERSAL_CAD_REVISION}
         models={[{ model: UNIVERSAL_CAD_MODEL, revision: UNIVERSAL_CAD_REVISION }]}

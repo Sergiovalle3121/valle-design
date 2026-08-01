@@ -11,9 +11,9 @@ import {
   pathArray,
   polarArray,
   rectangularArray,
-} from "../../../components/line-engineering/cad-array";
-import { offsetSegment } from "../../../components/line-engineering/geom-edit";
-import { normalizeDeg } from "../../../components/line-engineering/precision-input";
+} from "../cad-array";
+import { offsetSegment } from "../geom-edit";
+import { normalizeDeg } from "../precision-input";
 import { matchObjectsByName } from "./targets";
 import type {
   CadBox,

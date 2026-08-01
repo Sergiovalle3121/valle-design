@@ -5,7 +5,7 @@
  * objeto; escalar multiplica tamaños y distancias al pivote por el factor.
  * Ambos emiten moves con preview/undo del historial.
  */
-import { normalizeDeg } from "../../../components/line-engineering/precision-input";
+import { normalizeDeg } from "../precision-input";
 import { resolveCommandTargets } from "./targets";
 import type {
   CadBox,
