@@ -85,6 +85,66 @@ export function masterJwt(maxAgeSeconds = 60 * 60 * 24): string {
 }
 
 /**
+ * Bearer REAL para la suite full-stack (R3): mismo payload que masterJwt pero
+ * FIRMADO HS256 con el secreto de verificación de la API de Design
+ * (JWT_SECRET/SESSION_SECRET; default = DEV_JWT_SECRET de
+ * apps/api/src/common/config/jwt-secret.ts). CadAuthGuard verifica la firma,
+ * así que el token decode-only de masterJwt no sirve contra la API real.
+ */
+export function signedPlatformJwt(
+  secret = process.env.E2E_API_JWT_SECRET || 'valle-design-dev-only-insecure-secret',
+  maxAgeSeconds = 60 * 60 * 24,
+): string {
+  const now = Math.floor(Date.now() / 1000);
+  const header = b64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const payload = b64url(
+    JSON.stringify({
+      sub: 'e2e-real',
+      email: OWNER_EMAIL,
+      role: 'admin',
+      tenant_id: 'e2e-real-tenant',
+      permissions: ['cad:view', 'cad:edit', 'cad:review', 'cad:publish', 'cad:admin'],
+      iat: now,
+      exp: now + maxAgeSeconds,
+    }),
+  );
+  const signature = crypto
+    .createHmac('sha256', secret)
+    .update(`${header}.${payload}`)
+    .digest('base64url');
+  return `${header}.${payload}.${signature}`;
+}
+
+/**
+ * Sesión para specs FULL-STACK: siembra el mismo par cookie+token que
+ * loginAsMaster pero con un JWT FIRMADO que la API real acepta.
+ */
+export async function loginAsMasterReal(context: BrowserContext): Promise<string> {
+  const jwt = signedPlatformJwt();
+  await context.addCookies([
+    {
+      name: SESSION_COOKIE,
+      value: masterSessionCookieValue(),
+      domain: 'localhost',
+      path: '/',
+      httpOnly: true,
+      sameSite: 'Lax',
+    },
+  ]);
+  await context.addInitScript(
+    ([key, token]) => {
+      try {
+        window.localStorage.setItem(key, token);
+      } catch {
+        /* ignore storage errors */
+      }
+    },
+    [TOKEN_STORAGE_KEY, jwt] as const,
+  );
+  return jwt;
+}
+
+/**
  * Seeds the browser context so it is already logged in as the Master owner:
  *  - the signed `axos_session` cookie (server-side gate),
  *  - the `axos_access_token` JWT in localStorage (client AuthContext).

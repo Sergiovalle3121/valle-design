@@ -126,13 +126,33 @@ export class CadController {
     return documentSummary(await this.repository.createDocument(dto));
   }
 
+  /**
+   * HIDRATACIÓN R3 (cierra el hueco anotado por R2): el editor espera SIEMPRE
+   * el documento canónico completo — igual que el `getLayout` del origen, que
+   * llamaba `hydrateCadDocument` con `includeCadDocument=true` en cada
+   * apertura. Un documento >1 MB se persiste como puntero a blob
+   * (`_storage.kind === 'document_blob'`); antes de R3 este GET devolvía el
+   * puntero crudo y el adaptador web respondía 502 para no pisar el dibujo.
+   * Ahora el servidor rehidrata el puntero desde el blob store y responde el
+   * JSON inline. Cambio ADITIVO del contrato: `CadDocumentEnvelope` ya admite
+   * la rama inline; el puntero deja de aparecer en respuestas de apertura
+   * (sigue siendo el formato PERSISTIDO y el que reportan los save results
+   * vía `storedAsBlobPointer`).
+   */
   @Get('documents/:documentId')
   @RequirePermissions('cad:view')
   async openDocument(@Param('documentId', ParseUUIDPipe) documentId: string) {
     const row = await this.repository.getDocument(documentId);
     return {
       ...documentSummary(row),
-      cadDocument: row.cadDocument ?? null,
+      cadDocument: row.cadDocument
+        ? await this.cadDocuments.hydrateCadDocument(row.cadDocument)
+        : null,
+      // ADITIVO R3 (paridad con el layout legacy, que incluía la colocación
+      // del plano DXF en la apertura): la COLOCACIÓN viaja aquí; los datos
+      // del plano se piden aparte a GET :id/dxf sólo cuando existe — así el
+      // cliente no sondea el subrecurso a ciegas (y sin 404 de ruido).
+      dxf: this.cadDocuments.toDxfPlacement(row),
     };
   }
 
@@ -228,7 +248,14 @@ export class CadController {
       throw new NotFoundException('Versión CAS no encontrada.');
     }
     const row = await this.repository.getVersion(documentId, version);
-    return { ...versionSummary(row), cadDocument: row.cadDocument };
+    // Misma hidratación R3 que la apertura: quien restaura una versión
+    // histórica necesita el documento completo, no el puntero a blob.
+    return {
+      ...versionSummary(row),
+      cadDocument: row.cadDocument
+        ? await this.cadDocuments.hydrateCadDocument(row.cadDocument)
+        : row.cadDocument,
+    };
   }
 
   /* ──────────────────────────── Publicaciones ───────────────────────────── */

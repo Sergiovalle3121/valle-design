@@ -1,7 +1,7 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
+import { installCadV1Backend } from '../fixtures/cad-v1-backend';
 import { loginAsMaster } from '../fixtures/session';
-import { API_ORIGIN } from '../fixtures/constants';
 
 const cadDocument = {
   meta: { version: 1, schema: 3, unit: 'mm' },
@@ -19,17 +19,11 @@ const cadDocument = {
   externalReferences: [], unsupportedEntities: [], lossManifest: [], publications: [],
 };
 
+// MIGRACIÓN R3: mock en la superficie v1 real (mismo documento y huella).
 async function installCadBackend(context: BrowserContext) {
-  await context.route(`${API_ORIGIN}/line-engineering/layout**`, async (route) => {
-    const url = new URL(route.request().url());
-    if (url.pathname !== '/line-engineering/layout' || route.request().method() !== 'GET') return route.fallback();
-    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
-      model: 'AXOS-CAD-STUDIO', revision: 'UNIVERSAL',
-      footprint: { footprintW: 12_000, footprintH: 10_000, unit: 'mm', gridSize: 100 },
-      stations: [], dxf: null, connectors: [], assets: [], annotations: [], cells: [], layers: [],
-      cadDocument, cadDocumentVersion: 0,
-      approval: { status: 'draft', by: null, at: null, note: null },
-    }) });
+  await installCadV1Backend(context, {
+    document: cadDocument,
+    footprint: { footprintW: 12_000, footprintH: 10_000, unit: 'mm', gridSize: 100 },
   });
 }
 
@@ -59,7 +53,7 @@ test('LINE pointer HUD proves endpoint, midpoint, intersection, perpendicular an
   await installMockBackend(context);
   await loginAsMaster(context);
   await installCadBackend(context);
-  await page.goto('/dashboard/cad');
+  await page.goto('/studio');
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
   await page.getByTitle(/Vista superior/).click();
   await page.getByTitle(/Ajustar a la planta/).click();

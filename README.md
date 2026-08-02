@@ -14,11 +14,14 @@ vive en `docs/product-split/`.
 
 ```
 apps/
-  api/        API NestJS del producto (dominio cad-documents + superficie /v1/cad)
-  web/        Frontend Next.js (lib/cad, componentes CAD, dashboard) — R2 lo re-scaffoldea
+  api/         API NestJS del producto (dominio cad-documents + superficie /v1/cad)
+  web/         Frontend Next.js: el estudio CAD en /studio + suite E2E (goldens
+               10-28, performance 10k/100k y full-stack real en e2e/real)
 packages/
-  contracts/  @axos/contracts: tipos compartidos + specs OpenAPI/AsyncAPI v1
-docs/         Arquitectura CAD, bitácoras de ejecución y del product split
+  contracts/   @axos/contracts: tipos compartidos + specs OpenAPI/AsyncAPI v1
+  design-sdk/  @valle/design-sdk: tipos generados del spec + cliente fetch tipado
+docs/          Arquitectura CAD, bitácoras de ejecución y del product split
+.github/       CI propio (quality-gates, e2e full-stack, gitleaks, sbom)
 ```
 
 ## Arranque rápido
@@ -92,8 +95,9 @@ Design consume Platform exclusivamente por CONTRATO:
 - **Eventos**: `specs/design-events.v1.yaml` define los `design.*.v1` que
   Design emitirá (publicador no-op hasta esa integración).
 
-Los YAML de `packages/contracts/specs/` son la fuente; el SDK generado llega
-en R2.
+Los YAML de `packages/contracts/specs/` son la fuente; el SDK generado vive en
+`packages/design-sdk` (R3) con un test de compatibilidad de contrato que rompe
+si el YAML y `@axos/contracts` divergen.
 
 ## Licencia
 

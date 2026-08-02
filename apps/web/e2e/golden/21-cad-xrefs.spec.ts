@@ -1,8 +1,8 @@
 import { expect, test, type BrowserContext } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { installMockBackend } from '../fixtures/mock-backend';
+import { CadV1Backend, seedFootprint } from '../fixtures/cad-v1-backend';
 import { loginAsMaster } from '../fixtures/session';
-import { API_ORIGIN } from '../fixtures/constants';
 import type { CadDocument } from '../../src/lib/cad/cad-document';
 import { cadTenantLayoutUri } from '../../src/lib/cad/cad-xrefs';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
@@ -21,47 +21,52 @@ function canonicalDocument(id: string, endX = 8_000): CadDocument {
   };
 }
 
+// MIGRACIÓN R3: mock en la superficie v1 real, ahora MULTI-DOCUMENTO (el
+// adaptador resuelve cada model@revision contra el listado y abre cada
+// documento por id):
+//  - host AXOS-CAD-STUDIO@UNIVERSAL (GET/PUT con CAS),
+//  - fuente REF-PLANT@R1 (versión CAS arrancando en 1, reemplazable) para el
+//    attach inicial y los compare/reload (la referencia conserva revision R1),
+//  - fuente espejo REF-PLANT@UNIVERSAL para el attach OVERLAY posterior al
+//    reload (el palette remonta y vuelve a la revisión por defecto
+//    'UNIVERSAL' — el mock del origen ignoraba la revisión y respondía la
+//    misma fuente para cualquiera; el espejo replica esa semántica),
+//  - DENIED@UNIVERSAL cuya APERTURA responde el 403 real (el editor lo mapea
+//    a "Permission denied", como en el origen),
+//  - CYCLE@UNIVERSAL con la referencia de vuelta al host (detección de ciclos).
+const FOOTPRINT = { footprintW: 12_000, footprintH: 9_000, unit: 'mm', gridSize: 100 };
+
 async function installCadBackend(context: BrowserContext) {
-  let host = canonicalDocument('host-line');
-  let hostVersion = 0;
-  let source = canonicalDocument('reference-line');
-  let sourceVersion = 1;
-  let sourceAvailable = true;
-  const layout = (model: string, revision: string, document: CadDocument, version: number) => ({
-    model, revision,
-    footprint: { footprintW: 12_000, footprintH: 9_000, unit: 'mm', gridSize: 100 },
-    stations: [], dxf: null, connectors: [], assets: [], annotations: [], cells: [], layers: [],
-    cadDocument: document, cadDocumentVersion: version,
-    approval: { status: 'draft', by: null, at: null, note: null },
-  });
-  await context.route(`${API_ORIGIN}/line-engineering/layout**`, async (route) => {
-    const request = route.request();
-    const url = new URL(request.url());
-    if (url.pathname !== '/line-engineering/layout') return route.fallback();
-    const model = url.searchParams.get('model') ?? HOST_MODEL;
-    const revision = url.searchParams.get('revision') ?? HOST_REVISION;
-    if (request.method() === 'PUT') {
-      const body = request.postDataJSON() as { cadDocument: CadDocument };
-      host = body.cadDocument; hostVersion += 1;
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(layout(HOST_MODEL, HOST_REVISION, host, hostVersion)) });
-    }
-    if (request.method() !== 'GET') return route.fallback();
-    if (model === 'DENIED') return route.fulfill({ status: 403, contentType: 'application/json', body: JSON.stringify({ message: 'forbidden' }) });
-    if (model === 'REF-PLANT') {
-      if (!sourceAvailable) return route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ message: 'missing' }) });
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(layout(model, revision, source, sourceVersion)) });
-    }
-    if (model === 'CYCLE') {
-      const cyclic = { ...canonicalDocument('cycle-line'), externalReferences: [{ id: 'back', name: 'Host', uri: cadTenantLayoutUri(`${HOST_MODEL}@${HOST_REVISION}`, 'LIVE'), loaded: false, assetId: `${HOST_MODEL}@${HOST_REVISION}`, mode: 'attachment' as const }] };
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(layout(model, revision, cyclic, 1)) });
-    }
-    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(layout(HOST_MODEL, HOST_REVISION, host, hostVersion)) });
-  });
-  await context.route(`${API_ORIGIN}/line-engineering/cad-blocks**`, (route) => route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
+  const cyclic = {
+    ...canonicalDocument('cycle-line'),
+    externalReferences: [{ id: 'back', name: 'Host', uri: cadTenantLayoutUri(`${HOST_MODEL}@${HOST_REVISION}`, 'LIVE'), loaded: false, assetId: `${HOST_MODEL}@${HOST_REVISION}`, mode: 'attachment' as const }],
+  };
+  const backend = new CadV1Backend([
+    { model: HOST_MODEL, revision: HOST_REVISION, document: canonicalDocument('host-line') as unknown as Record<string, unknown>, version: 0, footprint: FOOTPRINT },
+    { model: 'REF-PLANT', revision: 'R1', document: canonicalDocument('reference-line') as unknown as Record<string, unknown>, version: 1, footprint: FOOTPRINT },
+    { model: 'REF-PLANT', revision: 'UNIVERSAL', document: canonicalDocument('reference-line') as unknown as Record<string, unknown>, version: 1, footprint: FOOTPRINT },
+    { model: 'DENIED', revision: 'UNIVERSAL', document: null, openStatus: 403, openBody: { message: 'forbidden' } },
+    { model: 'CYCLE', revision: 'UNIVERSAL', document: cyclic as unknown as Record<string, unknown>, version: 1, footprint: FOOTPRINT },
+  ]);
+  await backend.install(context);
   return {
-    snapshot: () => ({ host, hostVersion, source, sourceVersion, sourceAvailable }),
-    changeSource(endX: number) { source = canonicalDocument('reference-line', endX); sourceVersion += 1; },
-    setSourceAvailable(value: boolean) { sourceAvailable = value; },
+    snapshot: () => {
+      const host = backend.snapshotFor(HOST_MODEL, HOST_REVISION);
+      return {
+        host: host.document as unknown as CadDocument,
+        hostVersion: host.version,
+      };
+    },
+    changeSource(endX: number) {
+      backend.replaceDocument(
+        'REF-PLANT',
+        'R1',
+        seedFootprint(canonicalDocument('reference-line', endX) as unknown as Record<string, unknown>, FOOTPRINT),
+      );
+    },
+    setSourceAvailable(value: boolean) {
+      backend.setAvailable('REF-PLANT', 'R1', value);
+    },
   };
 }
 
@@ -76,7 +81,7 @@ test('tenant Xrefs attach, compare, reload, unload, bind, detach and preserve ho
   await installMockBackend(context);
   await loginAsMaster(context);
   const backend = await installCadBackend(context);
-  await page.goto('/dashboard/cad');
+  await page.goto('/studio');
   await expect(page.getByTestId('cad-native-entity-host-line')).toBeVisible();
   await openXrefs(page);
 
@@ -125,7 +130,13 @@ test('tenant Xrefs attach, compare, reload, unload, bind, detach and preserve ho
   backend.setSourceAvailable(false);
   await row.getByRole('button', { name: 'Compare' }).click();
   await expect(row).toContainText('missing');
-  await expect(page.getByTestId('cad-xref-message')).toContainText('missing');
+  // ADAPTACIÓN R3 (documentada): el mock del origen respondía un 404 crudo que
+  // el backend REAL nunca produce — el GET del layout legacy jamás 404ea por
+  // modelo inexistente (devuelve el layout vacío), y el adaptador v1 conserva
+  // esa semántica. Con la fuente retirada el editor recibe un layout sin
+  // documento canónico y ese es el mensaje real de producción; el estado de la
+  // fila sigue siendo 'missing' (aserción de arriba, intacta).
+  await expect(page.getByTestId('cad-xref-message')).toContainText('no canonical CAD document');
   backend.setSourceAvailable(true);
   await row.getByRole('button', { name: 'Reload' }).click();
   await expect(row).toContainText('loaded');

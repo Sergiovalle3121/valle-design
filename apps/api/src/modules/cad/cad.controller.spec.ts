@@ -1,6 +1,7 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { gzipSync } from 'node:zlib';
@@ -26,7 +27,7 @@ import { CadModule } from './cad.module';
 describe('CadController (/v1/cad, stack completo)', () => {
   jest.setTimeout(30_000);
 
-  let app: INestApplication;
+  let app: NestExpressApplication;
   let jwt: JwtService;
 
   const token = (permissions: string[] | null, role = '') =>
@@ -69,7 +70,10 @@ describe('CadController (/v1/cad, stack completo)', () => {
       ],
     }).compile();
 
-    app = moduleRef.createNestApplication();
+    app = moduleRef.createNestApplication<NestExpressApplication>();
+    // Mismo límite de cuerpo JSON que main.ts: el contrato admite documentos
+    // inline de hasta 8 MB serializados (el spec >1MB lo necesita).
+    app.useBodyParser('json', { limit: '16mb' });
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -185,13 +189,14 @@ describe('CadController (/v1/cad, stack completo)', () => {
       current: 1,
     });
 
-    // Abrir devuelve el documento + token CAS.
+    // Abrir devuelve el documento + token CAS (+ dxf: null — sin plano).
     const opened = await request(server)
       .get(`/v1/cad/documents/${document.body.id}`)
       .set('Authorization', auth)
       .expect(200);
     expect(opened.body.cadDocumentVersion).toBe(1);
     expect(opened.body.cadDocument.entities).toHaveLength(1);
+    expect(opened.body.dxf).toBeNull();
 
     // Historial.
     const versions = await request(server)
@@ -287,14 +292,89 @@ describe('CadController (/v1/cad, stack completo)', () => {
       storedAsBlobPointer: true,
     });
 
-    // El documento rehidratable: abrir expone el puntero _storage.
+    // HIDRATACIÓN R3: aunque el documento quedó persistido como puntero a
+    // blob (storedAsBlobPointer arriba), abrir devuelve el documento COMPLETO
+    // rehidratado — nunca el puntero _storage (semántica del getLayout del
+    // origen con includeCadDocument=true).
     const opened = await request(server)
       .get(`/v1/cad/documents/${document.body.id}`)
       .set('Authorization', auth)
       .expect(200);
-    expect(opened.body.cadDocument._storage).toMatchObject({
-      kind: 'document_blob',
-      encoding: 'gzip',
+    expect(opened.body.cadDocument._storage).toBeUndefined();
+    expect(opened.body.cadDocument).toEqual(cadDocument);
+
+    // El historial CAS también rehidrata la versión archivada.
+    const version = await request(server)
+      .get(`/v1/cad/documents/${document.body.id}/versions/1`)
+      .set('Authorization', auth)
+      .expect(200);
+    expect(version.body.cadDocument).toEqual(cadDocument);
+  });
+
+  it('round-trip real >1MB: el contenido inline se persiste como blob y se abre hidratado', async () => {
+    const auth = `Bearer ${full()}`;
+    const server = app.getHttpServer();
+
+    const document = await request(server)
+      .post('/v1/cad/documents')
+      .set('Authorization', auth)
+      .send({ name: 'Plano gigante', model: 'PERF-1MB', revision: 'A' })
+      .expect(201);
+
+    // Documento REAL >1 MB serializado (~1.9 MB): 12k entidades con payload
+    // textual. Supera CAD_DOCUMENT_BLOB_THRESHOLD_BYTES (1 MB) y queda por
+    // debajo del límite inline del contrato (8 MB).
+    const entities = Array.from({ length: 12_000 }, (_, index) => ({
+      id: `bulk-${index}`,
+      type: 'line',
+      start: { x: index % 1000, y: Math.floor(index / 1000), z: 0 },
+      end: { x: (index % 1000) + 50, y: Math.floor(index / 1000) + 25, z: 0 },
+      layer: '0',
+      note: `entidad-de-relleno-${'x'.repeat(96)}-${index}`,
+    }));
+    const cadDocument = {
+      meta: { schema: 3, version: 1, unit: 'mm' },
+      entities,
+    };
+    expect(
+      Buffer.byteLength(JSON.stringify(cadDocument), 'utf8'),
+    ).toBeGreaterThan(1_000_000);
+
+    const saved = await request(server)
+      .put(`/v1/cad/documents/${document.body.id}/content`)
+      .set('Authorization', auth)
+      .send({ cadDocument, expectedCadDocumentVersion: 0 })
+      .expect(200);
+    expect(saved.body).toMatchObject({
+      cadDocumentVersion: 1,
+      entityCount: 12_000,
+      // El servidor decidió blob store por tamaño (dedup sha256 en design_blobs).
+      storedAsBlobPointer: true,
+    });
+
+    // Apertura hidratada: el documento vuelve COMPLETO e idéntico (round-trip
+    // por blob real, sin puntero expuesto al cliente).
+    const opened = await request(server)
+      .get(`/v1/cad/documents/${document.body.id}`)
+      .set('Authorization', auth)
+      .expect(200);
+    expect(opened.body.cadDocumentVersion).toBe(1);
+    expect(opened.body.cadDocument._storage).toBeUndefined();
+    expect(opened.body.cadDocument.entities).toHaveLength(12_000);
+    expect(opened.body.cadDocument).toEqual(cadDocument);
+
+    // El CAS sigue operando sobre el documento hidratado: eco + guardado.
+    const again = await request(server)
+      .put(`/v1/cad/documents/${document.body.id}/content`)
+      .set('Authorization', auth)
+      .send({
+        cadDocument: opened.body.cadDocument,
+        expectedCadDocumentVersion: 1,
+      })
+      .expect(200);
+    expect(again.body).toMatchObject({
+      cadDocumentVersion: 2,
+      storedAsBlobPointer: true,
     });
   });
 
@@ -323,6 +403,18 @@ describe('CadController (/v1/cad, stack completo)', () => {
       name: 'fondo.dxf',
       placement: { scale: 2, visible: true },
     });
+
+    // ADITIVO R3: la apertura expone la colocación del plano (sin los datos).
+    const openedWithDxf = await request(server)
+      .get(`/v1/cad/documents/${document.body.id}`)
+      .set('Authorization', auth)
+      .expect(200);
+    expect(openedWithDxf.body.dxf).toMatchObject({
+      name: 'fondo.dxf',
+      scale: 2,
+      visible: true,
+    });
+    expect(openedWithDxf.body.dxf.data).toBeUndefined();
 
     await request(server)
       .delete(`/v1/cad/documents/${document.body.id}/dxf`)

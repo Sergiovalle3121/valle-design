@@ -1,7 +1,7 @@
 import { expect, test, type BrowserContext } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
+import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
 import { loginAsMaster } from '../fixtures/session';
-import { API_ORIGIN } from '../fixtures/constants';
 import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
 
 type CadHatch = Extract<CadEntity, { type: 'hatch' }>;
@@ -32,41 +32,19 @@ function canonicalDocument(): CadDocument {
   };
 }
 
+// MIGRACIÓN R3: mock en la superficie v1 real (mismo documento, misma huella,
+// mismo CAS del contrato). Interfaz snapshot() intacta.
 async function installCadBackend(context: BrowserContext) {
-  let document = canonicalDocument();
-  let version = 0;
-  const layout = () => ({
-    model: 'AXOS-CAD-STUDIO', revision: 'UNIVERSAL',
-    footprint: { footprintW: 12_000, footprintH: 10_000, unit: 'mm', gridSize: 100 },
-    stations: [], dxf: null, connectors: [], assets: [], annotations: [], cells: [], layers: [],
-    cadDocument: document, cadDocumentVersion: version,
-    approval: { status: 'draft', by: null, at: null, note: null },
+  return installCadStudioBackend<CadDocument>(context, canonicalDocument(), {
+    footprintW: 12_000, footprintH: 10_000, unit: 'mm', gridSize: 100,
   });
-  await context.route(`${API_ORIGIN}/line-engineering/layout**`, async (route) => {
-    const request = route.request();
-    const url = new URL(request.url());
-    if (url.pathname !== '/line-engineering/layout') return route.fallback();
-    if (request.method() === 'GET') return route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(layout()),
-    });
-    if (request.method() === 'PUT') {
-      const body = request.postDataJSON() as { cadDocument: CadDocument };
-      document = body.cadDocument;
-      version += 1;
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(layout()) });
-    }
-    return route.fallback();
-  });
-  return { snapshot: () => ({ document, version }) };
 }
 
 test('HATCH remains associated, regenerates with its source and reports a broken reference', async ({ context, page }) => {
   await installMockBackend(context);
   await loginAsMaster(context);
   const backend = await installCadBackend(context);
-  await page.goto('/dashboard/cad');
+  await page.goto('/studio');
 
   await page.getByTestId('cad-native-entity-hatch-source-ellipse').click();
   await page.getByTitle(/^HATCH:/).click();
@@ -107,7 +85,7 @@ test('HATCH resolves an exact interior point through the production boundary pic
   await installMockBackend(context);
   await loginAsMaster(context);
   const backend = await installCadBackend(context);
-  await page.goto('/dashboard/cad');
+  await page.goto('/studio');
 
   await page.getByTitle(/^HATCH:/).click();
   const palette = page.getByTestId('cad-hatch-palette');

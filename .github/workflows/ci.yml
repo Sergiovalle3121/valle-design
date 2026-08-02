@@ -1,0 +1,239 @@
+name: CI
+
+# Red de seguridad de valle-design (modelada sobre el ci.yml del monorepo
+# origen, recortada a lo que EXISTE en este repo):
+#   quality-gates → contrato + licencias + build turbo + typecheck + unit +
+#                   Postgres real + lint + specs web + smoke de bootstrap
+#   e2e           → full-stack real: next build (prod) + API NestJS real +
+#                   next start + Playwright (goldens moqueados en la frontera
+#                   de red — así operan en el origen — y e2e/real SIN mocks
+#                   contra la API v1 real, incl. hidratación >1MB)
+#   gitleaks      → escaneo de secretos del historial completo (.gitleaks.toml)
+#   sbom          → CycloneDX + gate de licencias (evidencia de cadena de
+#                   suministro; el gate de licencias también corre en
+#                   quality-gates porque ahí bloquea el merge)
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality-gates:
+    name: Contrato · Build · Test · Lint · Smoke
+    runs-on: ubuntu-latest
+
+    # Postgres efímero: las suites *.pg.spec.ts y el smoke de bootstrap deben
+    # correr contra Postgres real (tipos jsonb/enum), no SQLite.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: valle_design_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # La versión de Node sale de .nvmrc (única fuente de verdad).
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies (npm ci reproducible)
+        run: npm ci
+
+      # Puerta de CONTRATO: los YAML de packages/contracts/specs validan
+      # (el SDK se genera de ahí; un spec roto es un SDK roto).
+      - name: Contract lint (Redocly)
+        run: npx -y @redocly/cli@1.34.3 lint packages/contracts/specs/design-api.v1.yaml
+
+      # Puerta de LICENCIAS (misma política del origen): el producto es
+      # UNLICENSED; toda dependencia de producción debe ser permisiva.
+      - name: Dependency licenses gate
+        run: npm run sbom && npm run check:licenses
+
+      # Build turbo del monorepo: contracts → design-sdk → api → web.
+      - name: Build (turbo)
+        run: npx turbo run build
+
+      - name: Typecheck (API)
+        working-directory: apps/api
+        run: npm run typecheck
+
+      - name: Typecheck (web, incluye specs y e2e)
+        working-directory: apps/web
+        run: npm run typecheck
+
+      - name: Unit tests (API)
+        working-directory: apps/api
+        run: npm test
+
+      # Suites *.pg.spec.ts contra PostgreSQL REAL (REQUIRE_POSTGRES_TESTS:
+      # sin base es FALLO, no salto silencioso).
+      - name: Postgres tests (API)
+        working-directory: apps/api
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/valle_design_ci
+        run: npm run test:pg
+
+      - name: Lint API (bloqueante, sin --fix)
+        working-directory: apps/api
+        run: npm run lint:check
+
+      - name: Lint web
+        working-directory: apps/web
+        run: npm run lint
+
+      # Suites script-style del kernel CAD y la plataforma web (tsx).
+      - name: Web specs (tsx)
+        working-directory: apps/web
+        run: npm run test:specs
+
+      # Test de compatibilidad de contrato del SDK generado vs @axos/contracts.
+      - name: SDK contract-compat test
+        working-directory: packages/design-sdk
+        run: npm test
+
+      # El mapa de evidencia del viaje de aceptación CAD (50 pasos) debe
+      # apuntar a specs que EXISTEN (mismo checker del origen).
+      - name: CAD acceptance journey check
+        working-directory: apps/web
+        run: npx tsx e2e/golden/cad-acceptance-journey.check.ts
+
+      # Puerta crítica: arranca el grafo DI completo del dist compilado contra
+      # Postgres (migraciones + esquema materializado).
+      - name: Bootstrap smoke (compilado vs Postgres)
+        working-directory: apps/api
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/valle_design_ci
+        run: npm run smoke:bootstrap
+
+  e2e:
+    name: E2E Playwright (full-stack real)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium
+
+      # El build de producción INLINEA NEXT_PUBLIC_API_URL: debe apuntar al
+      # origen de la API real que este job arranca (localhost:4000). Los
+      # goldens interceptan ese origen en la frontera de red (herméticos);
+      # e2e/real NO intercepta nada.
+      - name: Build (turbo, web en modo E2E real)
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:4000
+        run: npx turbo run build
+
+      # API real (R1) en SQLite local del job: cero servicios, mismas rutas
+      # v1, mismo dominio CAD + blob store + hidratación que producción.
+      - name: Start API (NestJS real, SQLite)
+        working-directory: apps/api
+        run: |
+          nohup node dist/main.js > /tmp/design-api.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:4000/health > /dev/null; then
+              echo "API arriba tras ${i}s"; exit 0
+            fi
+            sleep 1
+          done
+          echo "La API no arrancó; log:"; cat /tmp/design-api.log; exit 1
+        env:
+          PORT: "4000"
+          AI_MOCK: "1"
+
+      - name: Playwright E2E (goldens + performance + full-stack real)
+        working-directory: apps/web
+        env:
+          E2E_PROD: "1"
+          E2E_API_ORIGIN: http://localhost:4000
+          E2E_REAL_API: "1"
+          CAD_PERF_E2E: "1"
+        run: npx playwright test
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.sha }}
+          path: apps/web/e2e/.report
+          retention-days: 14
+
+      - name: API log (diagnóstico)
+        if: failure()
+        run: cat /tmp/design-api.log || true
+
+  gitleaks:
+    name: Gitleaks (historial completo)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (historial completo)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Binario pineado (sin GITLEAKS_LICENSE): escanea TODO el historial con
+      # la config del repo (.gitleaks.toml — allowlist EXACTA del fixture
+      # documentado; cualquier hallazgo nuevo rompe el gate).
+      - name: Run gitleaks
+        run: |
+          GITLEAKS_VERSION=8.24.3
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" -o /tmp/gitleaks.tgz
+          tar -xzf /tmp/gitleaks.tgz -C /tmp gitleaks
+          /tmp/gitleaks version
+          /tmp/gitleaks detect --source . --config .gitleaks.toml --redact --no-banner
+
+  sbom:
+    name: SBOM CycloneDX (evidencia)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate SBOM (production dependencies)
+        run: npm run sbom
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: valle-design-sbom-${{ github.sha }}
+          path: sbom.cdx.json
+          retention-days: 90

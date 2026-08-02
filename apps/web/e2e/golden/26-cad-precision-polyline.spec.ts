@@ -1,32 +1,32 @@
 import { expect, test, type BrowserContext } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
+import { installCadV1Backend } from '../fixtures/cad-v1-backend';
 import { loginAsMaster } from '../fixtures/session';
-import { API_ORIGIN } from '../fixtures/constants';
-import type { CadDocument } from '../../src/lib/cad/cad-document';
+import { migrateCadDocument, type CadDocument } from '../../src/lib/cad/cad-document';
+import { cadDocumentToEditorSnapshot } from '../../src/lib/cad/editor-snapshot';
 
+// MIGRACIÓN R3: mock en la superficie v1 real. DIFERENCIA de transporte
+// documentada: el PUT legacy arrastraba el array `assets` junto al documento;
+// en v1 SOLO viaja el documento canónico — los assets son su PROYECCIÓN
+// (cadDocumentToEditorSnapshot, las mismas reglas del editor/adaptador), así
+// que el snapshot los deriva del documento persistido. Mismos conteos.
 async function installCadBackend(context: BrowserContext) {
-  let document: CadDocument | null = null;
-  let assets: Array<{ id: string; label?: string; x: number; y: number; w: number; h: number }> = [];
-  let version = 0;
-  const layout = () => ({
-    model: 'AXOS-CAD-STUDIO', revision: 'UNIVERSAL', footprint: { footprintW: 12_000, footprintH: 8_000, unit: 'mm', gridSize: 100 },
-    stations: [], dxf: null, connectors: [], assets, annotations: [], cells: [], layers: [], cadDocument: document, cadDocumentVersion: version,
-    approval: { status: 'draft', by: null, at: null, note: null },
+  const { snapshot } = await installCadV1Backend(context, {
+    document: null,
+    footprint: { footprintW: 12_000, footprintH: 8_000, unit: 'mm', gridSize: 100 },
   });
-  await context.route(`${API_ORIGIN}/line-engineering/layout**`, async (route) => {
-    const request = route.request();
-    if (new URL(request.url()).pathname !== '/line-engineering/layout') return route.fallback();
-    if (request.method() === 'GET') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(layout()) });
-    if (request.method() === 'PUT') {
-      const body = request.postDataJSON() as { cadDocument: CadDocument; assets: typeof assets };
-      document = body.cadDocument;
-      assets = body.assets;
-      version += 1;
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(layout()) });
-    }
-    return route.fallback();
-  });
-  return { snapshot: () => ({ document, assets, version }) };
+  return {
+    snapshot: () => {
+      const current = snapshot();
+      const document = current.document
+        ? (current.document as unknown as CadDocument)
+        : null;
+      const assets = document
+        ? cadDocumentToEditorSnapshot(migrateCadDocument(document)).assets
+        : [];
+      return { document, assets, version: current.version };
+    },
+  };
 }
 
 async function fillPoint(page: import('@playwright/test').Page, x: string, y: string) {
@@ -42,7 +42,7 @@ test('neutral drawing uses units, layers, ABS/REL/POLAR, closed polyline and OFF
   const backend = await installCadBackend(context);
 
   await test.step('1. Abrir dibujo', async () => {
-    await page.goto('/dashboard/cad');
+    await page.goto('/studio');
     await expect(page.getByTestId('cad-canvas')).toBeVisible();
   });
   await test.step('2. Elegir unidades', async () => {

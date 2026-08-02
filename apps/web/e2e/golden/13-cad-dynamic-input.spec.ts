@@ -1,32 +1,21 @@
 import { expect, test, type BrowserContext } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
+import { installCadV1Backend } from '../fixtures/cad-v1-backend';
 import { loginAsMaster } from '../fixtures/session';
-import { API_ORIGIN } from '../fixtures/constants';
 
+// MIGRACIÓN R3: mock en la superficie v1 real. Documento nunca guardado
+// (cadDocument null, versión 0): el editor arranca en el lienzo por defecto —
+// misma semántica que el layout vacío del origen (la huella de un documento
+// null es la DEFAULT del dominio; este spec no depende de ella).
 async function installCadBackend(context: BrowserContext) {
-  await context.route(`${API_ORIGIN}/line-engineering/layout**`, async (route) => {
-    const url = new URL(route.request().url());
-    if (url.pathname !== '/line-engineering/layout' || route.request().method() !== 'GET')
-      return route.fallback();
-    return route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        model: 'AXOS-CAD-STUDIO', revision: 'UNIVERSAL',
-        footprint: { footprintW: 12_000, footprintH: 10_000, unit: 'mm', gridSize: 100 },
-        stations: [], dxf: null, connectors: [], assets: [], annotations: [], cells: [], layers: [],
-        cadDocument: null, cadDocumentVersion: 0,
-        approval: { status: 'draft', by: null, at: null, note: null },
-      }),
-    });
-  });
+  await installCadV1Backend(context, { document: null });
 }
 
 test('dynamic input creates a circle by absolute center and locked diameter', async ({ context, page }) => {
   await installMockBackend(context);
   await loginAsMaster(context);
   await installCadBackend(context);
-  await page.goto('/dashboard/cad');
+  await page.goto('/studio');
 
   await page.getByRole('button', { name: 'Circle', exact: true }).click();
   const dynamic = page.getByTestId('cad-dynamic-input');

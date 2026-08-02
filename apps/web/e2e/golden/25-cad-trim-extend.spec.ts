@@ -1,7 +1,7 @@
 import { expect, test, type BrowserContext } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
+import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
 import { loginAsMaster } from '../fixtures/session';
-import { API_ORIGIN } from '../fixtures/constants';
 import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
 
 type CadLine = Extract<CadEntity, { type: 'line' }>;
@@ -21,26 +21,13 @@ function canonicalDocument(): CadDocument {
   };
 }
 
+// MIGRACIÓN R3: mock en la superficie v1 real (el adaptador R2 reescribe las
+// rutas legacy antes de tocar la red). Mismo documento, misma huella y mismo
+// CAS contractual. Interfaz snapshot() intacta.
 async function installCadBackend(context: BrowserContext) {
-  let document = canonicalDocument();
-  let version = 0;
-  const layout = () => ({
-    model: 'AXOS-CAD-STUDIO', revision: 'UNIVERSAL', footprint: { footprintW: 12_000, footprintH: 8_000, unit: 'mm', gridSize: 100 },
-    stations: [], dxf: null, connectors: [], assets: [], annotations: [], cells: [], layers: [], cadDocument: document, cadDocumentVersion: version,
-    approval: { status: 'draft', by: null, at: null, note: null },
+  return installCadStudioBackend<CadDocument>(context, canonicalDocument(), {
+    footprintW: 12_000, footprintH: 8_000, unit: 'mm', gridSize: 100,
   });
-  await context.route(`${API_ORIGIN}/line-engineering/layout**`, async (route) => {
-    const request = route.request();
-    if (new URL(request.url()).pathname !== '/line-engineering/layout') return route.fallback();
-    if (request.method() === 'GET') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(layout()) });
-    if (request.method() === 'PUT') {
-      document = (request.postDataJSON() as { cadDocument: CadDocument }).cadDocument;
-      version += 1;
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(layout()) });
-    }
-    return route.fallback();
-  });
-  return { snapshot: () => ({ document, version }) };
 }
 
 async function selectPair(page: import('@playwright/test').Page, first: string, second: string) {
@@ -61,7 +48,7 @@ test('native TRIM and EXTEND edit LINE endpoints atomically and persist', async 
   await installMockBackend(context);
   await loginAsMaster(context);
   const backend = await installCadBackend(context);
-  await page.goto('/dashboard/cad');
+  await page.goto('/studio');
 
   await test.step('15. TRIM', async () => {
     await selectPair(page, 'trim-target', 'trim-cutter');

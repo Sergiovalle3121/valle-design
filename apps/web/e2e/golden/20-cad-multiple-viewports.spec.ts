@@ -1,9 +1,9 @@
 import { expect, test, type BrowserContext } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { installMockBackend } from '../fixtures/mock-backend';
+import { installCadV1Backend } from '../fixtures/cad-v1-backend';
 import { loginAsMaster } from '../fixtures/session';
-import { API_ORIGIN } from '../fixtures/constants';
-import type { CadDocument, CadPublicationRecord } from '../../src/lib/cad/cad-document';
+import type { CadDocument } from '../../src/lib/cad/cad-document';
 
 function canonicalDocument(): CadDocument {
   return {
@@ -22,48 +22,25 @@ function canonicalDocument(): CadDocument {
   };
 }
 
+// MIGRACIÓN R3: mock en la superficie v1 real. Las publicaciones llegan como
+// POST /v1/cad/documents/:id/publications (recibo plano v1 + CAS + recibo
+// embebido server-managed, igual que la API real); el fixture captura los
+// cuerpos en publicationRequests. Interfaz snapshot() intacta.
 async function installCadBackend(context: BrowserContext) {
-  let document = canonicalDocument();
-  let version = 0;
-  const publicationRequests: Array<{ paperSpaceIds: string[]; fileName: string; sha256: string; bytes: number }> = [];
-  const layout = () => ({
-    model: 'AXOS-CAD-STUDIO', revision: 'UNIVERSAL',
+  const { backend, snapshot } = await installCadV1Backend(context, {
+    document: canonicalDocument() as unknown as Record<string, unknown>,
     footprint: { footprintW: 12_000, footprintH: 9_000, unit: 'mm', gridSize: 100 },
-    stations: [], dxf: null, connectors: [], assets: [], annotations: [], cells: [], layers: [],
-    cadDocument: document, cadDocumentVersion: version,
-    approval: { status: 'draft', by: null, at: null, note: null },
   });
-  await context.route(`${API_ORIGIN}/line-engineering/layout**`, async (route) => {
-    const request = route.request();
-    const url = new URL(request.url());
-    if (url.pathname === '/line-engineering/layout/publications' && request.method() === 'POST') {
-      const body = request.postDataJSON() as typeof publicationRequests[number];
-      publicationRequests.push(body);
-      version += 1;
-      const publication: CadPublicationRecord = {
-        id: `publication-${publicationRequests.length}`,
-        paperSpaceIds: body.paperSpaceIds,
-        fileName: body.fileName,
-        sha256: body.sha256,
-        bytes: body.bytes,
-        publishedAt: new Date(0).toISOString(),
-        publishedBy: 'e2e-user',
+  return {
+    snapshot: () => {
+      const current = snapshot();
+      return {
+        document: current.document as unknown as CadDocument,
+        version: current.version,
+        publicationRequests: structuredClone(backend.publicationRequests),
       };
-      return route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ publication, cadDocumentVersion: version }) });
-    }
-    if (url.pathname !== '/line-engineering/layout') return route.fallback();
-    if (request.method() === 'GET') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(layout()) });
-    if (request.method() === 'PUT') {
-      const body = request.postDataJSON() as { cadDocument: CadDocument; expectedCadDocumentVersion: number };
-      expect(body.expectedCadDocumentVersion).toBe(version);
-      document = body.cadDocument;
-      version += 1;
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(layout()) });
-    }
-    return route.fallback();
-  });
-  await context.route(`${API_ORIGIN}/line-engineering/cad-blocks**`, (route) => route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
-  return { snapshot: () => ({ document, version, publicationRequests: structuredClone(publicationRequests) }) };
+    },
+  };
 }
 
 test('multiple paper viewports persist, preflight and publish as one audited vector sheet set', async ({ context, page }, testInfo) => {
@@ -71,7 +48,7 @@ test('multiple paper viewports persist, preflight and publish as one audited vec
   await installMockBackend(context);
   await loginAsMaster(context);
   const backend = await installCadBackend(context);
-  await page.goto('/dashboard/cad');
+  await page.goto('/studio');
   await expect(page.getByTestId('cad-native-entity-layout-line')).toBeVisible();
 
   await page.getByTitle(/Paquete de entrega/).click();

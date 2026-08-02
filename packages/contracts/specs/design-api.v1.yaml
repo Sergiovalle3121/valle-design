@@ -49,15 +49,21 @@ info:
     EXACTO de lo que leyó o recibe `400 cad_publications_server_managed`.
 
     ## Transporte
-    La implementación envuelve toda respuesta en el sobre estándar de
-    `@axos/contracts` (`ApiSuccessEnvelope` / `ApiErrorEnvelope`): los cuerpos
-    de éxito descritos aquí viajan en `data`; los errores se describen ya con
-    la forma del sobre (`success:false`, `statusCode`, `message`, `code`,
-    `details`). El SDK de Fase 3 des-envuelve `data` automáticamente.
+    CORRECCIÓN R3 (decisión de implementación R1, alineada aquí): la API de
+    Valle Design responde los cuerpos de éxito TAL CUAL se describen en cada
+    operación — SIN el sobre `ApiSuccessEnvelope` de `@axos/contracts` (ese
+    sobre es del monolito enterprise; el adaptador del editor y el SDK
+    consumen los cuerpos directos). Los errores conservan la forma del cuerpo
+    estándar de NestJS enriquecido (`statusCode`/`message` + `code`/`details`
+    contractuales cuando aplican, más `requestId` de correlación); el catálogo
+    de códigos (`cad_document_version_required`,
+    `cad_document_version_conflict`, `cad_publications_server_managed`,
+    `entitlement_required`) es contractual. En el 409 CAS, `expected` y
+    `current` viajan en el nivel superior del cuerpo (eco del backend real).
 
-    Estado: **borrador validable de Fase 2**. Se congela al cerrar Fase 3
-    (generación del SDK en el repo `valle-design`); a partir de ahí cualquier
-    cambio incompatible es `v2`.
+    Estado: **contrato v1 en vigor** — implementado por `apps/api` (R1),
+    consumido por el editor (R2) y por el SDK generado
+    `packages/design-sdk` (R3); cualquier cambio incompatible es `v2`.
   contact:
     name: Plataforma Valle — separación de productos (Fase 2)
     email: sergiovallezarate@gmail.com
@@ -279,11 +285,24 @@ paths:
     get:
       operationId: openCadDocument
       tags: [documents]
-      summary: Abre un documento CAD (metadatos + documento canónico + token CAS).
+      summary: Abre un documento CAD (metadatos + documento canónico HIDRATADO + token CAS).
       description: >-
-        Devuelve el documento canónico como `CadDocumentEnvelope` (JSON inline
-        o puntero a blob `_storage`) junto con `cadDocumentVersion`, el token
-        de concurrencia que el cliente debe declarar en el siguiente guardado.
+        Devuelve el documento canónico junto con `cadDocumentVersion`, el
+        token de concurrencia que el cliente debe declarar en el siguiente
+        guardado.
+
+
+        HIDRATACIÓN (aditivo, R3): el servidor SIEMPRE responde el documento
+        completo (`CadDocumentInline`). Un documento grande (>1 000 000 bytes)
+        se PERSISTE como archivo gzip en el blob store con puntero `_storage`
+        (`CadDocumentBlobPointer`), pero ese puntero es un detalle de
+        almacenamiento: al abrir, el servidor lo rehidrata desde el blob y
+        entrega el JSON inline — la misma semántica del flujo legacy
+        (`getLayout` con `includeCadDocument=true`), que es la que el editor
+        espera. El puntero solo es observable de forma indirecta vía
+        `storedAsBlobPointer` en `CadDocumentSaveResult`. Si el blob no puede
+        recuperarse, el servidor responde `503` (nunca un documento parcial ni
+        el puntero crudo).
       x-required-entitlement: design.cad
       x-required-permission: cad:view
       responses:
@@ -1131,19 +1150,26 @@ components:
     ApiError:
       type: object
       description: >-
-        Sobre estándar de error de la plataforma (`ApiErrorEnvelope` de
-        `@axos/contracts`).
-      required: [success, statusCode, message, timestamp]
+        Cuerpo de error REAL de la API de Design (corrección R3, alineada con
+        la implementación R1): el cuerpo estándar de NestJS conservado por el
+        filtro global, enriquecido con `requestId` de correlación. Los campos
+        contractuales son `code` (catálogo v1) y, según el código, campos
+        adicionales de detalle. NO viaja el sobre `ApiErrorEnvelope`
+        enterprise (sin `success`/`timestamp`).
+      required: [message]
+      additionalProperties: true
       properties:
-        success:
-          type: boolean
-          const: false
         statusCode:
           type: integer
+          description: Presente en los errores con cuerpo estándar de Nest.
         message:
-          type: string
-        timestamp:
-          $ref: '#/components/schemas/Timestamp'
+          oneOf:
+            - type: string
+            - type: array
+              items: { type: string }
+          description: >-
+            Mensaje humano; la validación de payload (class-validator) puede
+            responder un array de mensajes.
         code:
           type: string
           description: >-
@@ -1151,6 +1177,9 @@ components:
             `cad_document_version_required`, `cad_document_version_conflict`,
             `cad_publications_server_managed`, `entitlement_required`.
         details: {}
+        requestId:
+          type: string
+          description: Correlación con los logs del servidor (`x-request-id`).
     EntitlementRequiredError:
       allOf:
         - $ref: '#/components/schemas/ApiError'
@@ -1181,23 +1210,24 @@ components:
       allOf:
         - $ref: '#/components/schemas/ApiError'
         - type: object
-          required: [code]
+          required: [code, expected, current]
+          description: >-
+            CORRECCIÓN R3 (forma real del backend): `expected` y `current`
+            viajan en el NIVEL SUPERIOR del cuerpo del 409, no bajo
+            `details` — es el eco exacto del `ConflictException` del CAS que
+            el editor ya consume.
           properties:
             code:
               type: string
               const: cad_document_version_conflict
-            details:
-              type: object
-              required: [expected, current]
-              properties:
-                expected:
-                  type: integer
-                  minimum: 0
-                  description: Versión que el escritor declaró haber leído.
-                current:
-                  type: integer
-                  minimum: 0
-                  description: Versión realmente persistida.
+            expected:
+              type: integer
+              minimum: 0
+              description: Versión que el escritor declaró haber leído.
+            current:
+              type: integer
+              minimum: 0
+              description: Versión realmente persistida.
     CadProject:
       type: object
       required: [id, name, status, createdAt]
@@ -1327,7 +1357,23 @@ components:
               oneOf:
                 - $ref: '#/components/schemas/CadDocumentEnvelope'
                 - type: 'null'
-              description: Null = documento creado pero nunca guardado (versión 0).
+              description: >-
+                Null = documento creado pero nunca guardado (versión 0).
+                Desde R3 el servidor HIDRATA la respuesta: en la práctica este
+                campo siempre es `CadDocumentInline` o null — la rama
+                `CadDocumentBlobPointer` del envelope describe el valor
+                PERSISTIDO, no lo que responde este GET (cambio aditivo:
+                cualquier lector del envelope sigue siendo válido).
+            dxf:
+              oneOf:
+                - $ref: '#/components/schemas/DxfPlacement'
+                - type: 'null'
+              description: >-
+                ADITIVO R3 (paridad con el layout legacy): COLOCACIÓN del
+                plano DXF de fondo, incluida en la apertura para que el
+                cliente sepa si existe sin sondear `GET .../dxf` (los DATOS
+                del plano siguen viviendo en ese subrecurso). Null u omitido =
+                sin plano de fondo.
     CadDocumentEnvelope:
       description: >-
         Valor persistido del documento canónico: JSON inline cuando es
@@ -1582,6 +1628,10 @@ components:
           properties:
             cadDocument:
               $ref: '#/components/schemas/CadDocumentEnvelope'
+              description: >-
+                Igual que la apertura del documento, desde R3 la versión
+                histórica se entrega HIDRATADA (`CadDocumentInline`), aunque
+                se haya persistido como puntero a blob.
     CadPublicationCreate:
       type: object
       required: [expectedCadDocumentVersion, paperSpaceIds, fileName, sha256, bytes]

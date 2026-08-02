@@ -1,7 +1,7 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
+import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
 import { loginAsMaster } from '../fixtures/session';
-import { API_ORIGIN } from '../fixtures/constants';
 import type { CadDocument } from '../../src/lib/cad/cad-document';
 
 function canonicalDocument(): CadDocument {
@@ -18,32 +18,12 @@ function canonicalDocument(): CadDocument {
   };
 }
 
+// MIGRACIÓN R3: mock en la superficie v1 real (biblioteca de bloques vacía
+// incluida en el fixture). Interfaz snapshot() intacta.
 async function installCadBackend(context: BrowserContext) {
-  let document = canonicalDocument();
-  let version = 0;
-  const layout = () => ({
-    model: 'AXOS-CAD-STUDIO', revision: 'UNIVERSAL',
-    footprint: { footprintW: 12_000, footprintH: 9_000, unit: 'mm', gridSize: 100 },
-    stations: [], dxf: null, connectors: [], assets: [], annotations: [], cells: [], layers: [],
-    cadDocument: document, cadDocumentVersion: version,
-    approval: { status: 'draft', by: null, at: null, note: null },
+  return installCadStudioBackend<CadDocument>(context, canonicalDocument(), {
+    footprintW: 12_000, footprintH: 9_000, unit: 'mm', gridSize: 100,
   });
-  await context.route(`${API_ORIGIN}/line-engineering/layout**`, async (route) => {
-    const request = route.request();
-    const url = new URL(request.url());
-    if (url.pathname !== '/line-engineering/layout') return route.fallback();
-    if (request.method() === 'GET') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(layout()) });
-    if (request.method() === 'PUT') {
-      const body = request.postDataJSON() as { cadDocument: CadDocument; expectedCadDocumentVersion: number };
-      expect(body.expectedCadDocumentVersion).toBe(version);
-      document = body.cadDocument;
-      version += 1;
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(layout()) });
-    }
-    return route.fallback();
-  });
-  await context.route(`${API_ORIGIN}/line-engineering/cad-blocks**`, (route) => route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
-  return { snapshot: () => ({ document, version }) };
 }
 
 async function openCollaboration(page: Page) {
@@ -94,7 +74,7 @@ test('canonical Base/Mine/Theirs compare, collision review, comments, links and 
   await installMockBackend(context);
   await loginAsMaster(context);
   const backend = await installCadBackend(context);
-  await page.goto('/dashboard/cad');
+  await page.goto('/studio');
   await expect(page.getByRole('button', { name: /^arc-a\s+ARC$/i })).toBeVisible();
 
   await openCollaboration(page);
@@ -170,7 +150,7 @@ test('canonical Base/Mine/Theirs compare, collision review, comments, links and 
   const reviewLink = stored.collaboration?.reviewLinks[0];
   expect(reviewLink?.readOnly).toBe(true);
 
-  await page.goto(`/dashboard/cad?cadReview=${encodeURIComponent(reviewLink!.token)}`);
+  await page.goto(`/studio?cadReview=${encodeURIComponent(reviewLink!.token)}`);
   await expect(page.getByTestId('cad-review-banner')).toBeVisible();
   await expect(page.getByTestId('cad-review-readonly')).toBeVisible();
   await expect(page.getByTestId('cad-save')).toBeDisabled();

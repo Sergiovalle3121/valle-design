@@ -6,16 +6,22 @@ const webServerPort =
 
 /**
  * Playwright config de la suite E2E CAD de Valle Design (specs dorados
- * 10-28 + performance, heredados del origen).
+ * 10-28 + performance + full-stack real, heredados/portados del origen).
  *
- * La suite corre contra el dev server real de Next y stubbea el backend en la
- * frontera de red (NEXT_PUBLIC_API_URL → API_ORIGIN, interceptado por los
- * fixtures de e2e/). Hermético: sin NestJS ni base de datos.
+ * R3 — dos modos:
  *
- * NOTA R3: los specs dorados interceptan las rutas LEGACY
- * `/line-engineering/*`; desde R2 el adaptador `src/lib/cad-api.ts` reescribe
- * esas llamadas a `/v1/cad/*` ANTES de tocar la red, así que en R3 los
- * intercepts/fixtures deben moverse a la superficie v1.
+ *  · GOLDENS (default): el navegador pide la superficie REAL `/v1/cad/*`
+ *    (el adaptador R2 reescribe las rutas legacy del editor) y los fixtures
+ *    de `e2e/fixtures/cad-v1-backend.ts` la stubbean en la frontera de red.
+ *    Hermético: sin NestJS ni base de datos (así operan en el origen).
+ *
+ *  · FULL-STACK REAL (`E2E_REAL_API=1` + `e2e/real/`): NINGÚN intercept — el
+ *    navegador habla con la API NestJS real. Requiere la API arrancada en
+ *    E2E_API_ORIGIN y el web apuntando NEXT_PUBLIC_API_URL a ese origen.
+ *
+ * Servidor web: `npm run dev` por defecto; con `E2E_PROD=1` usa `next start`
+ * (exige un `next build` previo hecho con el MISMO NEXT_PUBLIC_API_URL —
+ * Next lo inlinea en build time). CI corre en modo prod.
  */
 export default defineConfig({
   testDir: "./e2e",
@@ -43,12 +49,14 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: "npm run dev",
+    command: process.env.E2E_PROD === "1" ? "npm run start" : "npm run dev",
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
     env: {
-      // Apunta la capa de datos del cliente al origen del fake backend.
+      // Apunta la capa de datos del cliente al origen del backend (fake en
+      // los goldens; API real en modo full-stack). En modo prod esto sólo
+      // afecta al server de Next — el bundle ya lleva el valor del build.
       NEXT_PUBLIC_API_URL: API_ORIGIN,
       // Firma de cookies de sesión con el mismo secreto del proceso de test.
       AXOS_SESSION_SECRET: SESSION_SECRET,

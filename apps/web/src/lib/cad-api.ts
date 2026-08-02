@@ -18,7 +18,9 @@
  *  GET    /line-engineering/layout                → GET    /v1/cad/documents/:id (+ /dxf) — model+revision
  *                                                   se resuelven contra GET /v1/cad/documents; sin fila se
  *                                                   responde el layout por defecto (semántica legacy: el GET
- *                                                   nunca 404ea por modelo inexistente).
+ *                                                   nunca 404ea por modelo inexistente). Desde R3 la API
+ *                                                   devuelve el documento HIDRATADO (los >1MB vuelven del
+ *                                                   blob store como JSON completo).
  *  PUT    /line-engineering/layout                → PUT    /v1/cad/documents/:id/content (upsert: crea el
  *                                                   documento si no existe; sólo viaja {cadDocument,
  *                                                   expectedCadDocumentVersion} — CAS idéntico).
@@ -104,22 +106,26 @@ interface DocumentSummary {
   cadDocumentVersion: number;
 }
 
+interface DxfPlacement {
+  name: string;
+  offsetX: number;
+  offsetY: number;
+  scale: number;
+  rotation: number;
+  visible: boolean;
+  opacity: number;
+}
+
 interface OpenedDocument extends DocumentSummary {
   cadDocument: Record<string, unknown> | null;
+  /** Colocación del plano DXF de fondo (aditivo R3); null = sin plano. */
+  dxf?: DxfPlacement | null;
 }
 
 interface DxfResource {
   name: string;
   data: string;
-  placement: {
-    name: string;
-    offsetX: number;
-    offsetY: number;
-    scale: number;
-    rotation: number;
-    visible: boolean;
-    opacity: number;
-  };
+  placement: DxfPlacement;
 }
 
 /** ¿Es esta URL una ruta legacy del editor CAD? */
@@ -396,12 +402,12 @@ function layoutFromDocument(
   model: string,
   revision: string,
   row: OpenedDocument,
-  dxf: DxfResource | null,
+  dxf: DxfPlacement | null,
 ) {
   const base = emptyLayout(model, revision);
   base.cadDocumentVersion = row.cadDocumentVersion ?? 0;
   if (!row.cadDocument) {
-    return { ...base, dxf: dxf ? placementMeta(dxf) : null };
+    return { ...base, dxf: dxf ? placementFields(dxf) : null };
   }
   const doc = migrateCadDocument(row.cadDocument);
   const snap = cadDocumentToEditorSnapshot(doc);
@@ -430,7 +436,7 @@ function layoutFromDocument(
     assets,
     annotations: snap.annotations,
     connectors: snap.connectors,
-    dxf: dxf ? placementMeta(dxf) : null,
+    dxf: dxf ? placementFields(dxf) : null,
     cadDocument: row.cadDocument,
   };
 }
@@ -453,20 +459,24 @@ async function openLayout(scope: {
   if (!res.ok) return res;
   const row = (await res.json()) as OpenedDocument;
   if (isBlobPointer(row.cadDocument)) {
-    // Limitación v1 conocida: los documentos >1 MB viajan como puntero a blob
-    // y el contrato aún no expone su descarga. Preferimos un error de carga
-    // explícito a abrir un lienzo vacío que podría PISAR el dibujo real al
-    // guardar (el CAS lo permitiría). Se resuelve al cerrar el hueco en R3.
+    // HIDRATACIÓN R3: desde R3 el GET de la API devuelve el documento
+    // COMPLETO rehidratado — este puntero ya no debe llegar aquí. El guard se
+    // conserva como red de seguridad contra una API anterior a R3: abrir un
+    // lienzo vacío podría PISAR el dibujo real al guardar (el CAS lo
+    // permitiría), así que preferimos un error de carga explícito.
     return json(
       {
         message:
-          "El documento CAD vive en el almacén de blobs y el contrato v1 aún no expone su descarga.",
+          "La API respondió un puntero a blob sin hidratar (¿API anterior a R3?). Actualiza la API de Design.",
       },
       502,
     );
   }
-  const dxf = await fetchDxf(id);
-  return json(layoutFromDocument(model, revision, row, dxf));
+  // ADITIVO R3: la apertura v1 incluye la COLOCACIÓN del DXF de fondo — igual
+  // que el layout legacy. Ya no se sondea GET :id/dxf a ciegas en cada
+  // apertura (el probe 404eaba sin plano: ruido de consola y un round-trip
+  // inútil); los DATOS del plano se piden sólo cuando el editor los necesita.
+  return json(layoutFromDocument(model, revision, row, row.dxf ?? null));
 }
 
 /**
@@ -701,10 +711,12 @@ async function cloneRoute(payload: Record<string, unknown>): Promise<Response> {
     );
   }
   if (isBlobPointer(source.cadDocument)) {
+    // Red de seguridad pre-R3 (ver openLayout): con la hidratación de R3 el
+    // origen llega completo y el clone de documentos grandes funciona.
     return json(
       {
         message:
-          "El layout origen vive en el almacén de blobs; el contrato v1 aún no permite clonarlo desde el navegador.",
+          "La API respondió un puntero a blob sin hidratar (¿API anterior a R3?). Actualiza la API de Design.",
       },
       502,
     );
@@ -731,13 +743,14 @@ async function cloneRoute(payload: Record<string, unknown>): Promise<Response> {
 
 /* ══════════════════════════ Plano DXF de fondo ═══════════════════════════ */
 
-/** Caché corta: el flujo de apertura pide meta (layout) y datos (layout/dxf)
- *  seguidos — así el DXF se descarga UNA vez, no dos. */
+/** Caché corta: el guardado puede pedir el DXF (propagar colocación) justo
+ *  después de que el editor lo descargó — así el plano viaja UNA vez, no dos. */
 const dxfCache = new Map<string, { at: number; body: DxfResource }>();
 const DXF_CACHE_TTL_MS = 30_000;
 
-function placementMeta(dxf: DxfResource) {
-  const { offsetX, offsetY, scale, rotation, visible, opacity } = dxf.placement;
+/** Colocación → forma del campo `dxf` del layout legacy (sin `name`). */
+function placementFields(placement: DxfPlacement) {
+  const { offsetX, offsetY, scale, rotation, visible, opacity } = placement;
   return { offsetX, offsetY, scale, rotation, visible, opacity };
 }
 
@@ -814,7 +827,7 @@ async function propagateDxfPlacement(
     const changed = fields.some(
       (field) =>
         next[field] !== undefined &&
-        next[field] !== (current.placement as Record<string, unknown>)[field],
+        next[field] !== (current.placement as unknown as Record<string, unknown>)[field],
     );
     if (!changed) return;
     dxfCache.delete(documentId);
