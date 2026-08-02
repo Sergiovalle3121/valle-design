@@ -1,8 +1,89 @@
 "use client";
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { readSession, type DesignSession } from "@/lib/session";
-import { exchangeLegacyPlatformToken } from "@/lib/legacy/platform-auth";
-interface DesignAuthValue { session: DesignSession | null; user: {id:string;email:string}|null; tenantId:string|null; role:string|null; permissions:string[]; isLoading:boolean; isAuthenticated:boolean; login:()=>boolean; logout:()=>Promise<void>; }
-const DesignAuthContext=createContext<DesignAuthValue|null>(null);
-export function DesignAuthProvider({children}:{children:React.ReactNode}) { const [session,setSession]=useState<DesignSession|null>(null); const [isLoading,setLoading]=useState(true); useEffect(()=>{ void (async()=>{ await exchangeLegacyPlatformToken(); setSession(await readSession()); setLoading(false); })(); },[]); const login=useCallback(()=>{ window.location.assign("/login"); return true; },[]); const logout=useCallback(async()=>{ const csrf=document.cookie.split(";").map(v=>v.trim()).find(v=>v.startsWith("valle_csrf="))?.split("=")[1]; await fetch(`${process.env.NEXT_PUBLIC_API_BASE||"http://localhost:4000"}/v1/auth/logout`,{method:"POST",credentials:"include",headers:csrf?{"X-CSRF-Token":decodeURIComponent(csrf)}:{}}); setSession(null); },[]); const value=useMemo(()=>({session,user:session?{id:session.userId,email:session.email}:null,tenantId:session?.tenantId??null,role:session?.role??null,permissions:session?.permissions??[],isLoading,isAuthenticated:!!session,login,logout}),[session,isLoading,login,logout]); return <DesignAuthContext.Provider value={value}>{children}</DesignAuthContext.Provider>; }
-export function useDesignAuth(){const value=useContext(DesignAuthContext);if(!value)throw new Error("useDesignAuth must be used inside DesignAuthProvider");return value;}
+
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { API_BASE, rawApiFetch } from "@/lib/apiFetch";
+import { loginUrl, readSession, type DesignSession } from "@/lib/session";
+
+interface DesignAuthValue {
+  session: DesignSession | null;
+  user: { id: string; email: string } | null;
+  tenantId: string | null;
+  organizationId: string | null;
+  role: string | null;
+  permissions: string[];
+  isLoading: boolean;
+  isAuthenticated: boolean;
+  login: () => boolean;
+  logout: () => Promise<void>;
+  refresh: () => Promise<void>;
+}
+
+const DesignAuthContext = createContext<DesignAuthValue | null>(null);
+
+export function DesignAuthProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [session, setSession] = useState<DesignSession | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    setSession(await readSession());
+  }, []);
+
+  useEffect(() => {
+    void refresh().finally(() => setIsLoading(false));
+  }, [refresh]);
+
+  const login = useCallback((): boolean => {
+    window.location.assign(loginUrl());
+    return true;
+  }, []);
+
+  const logout = useCallback(async () => {
+    try {
+      await rawApiFetch(`${API_BASE}/v1/auth/logout`, { method: "POST" });
+    } finally {
+      setSession(null);
+    }
+  }, []);
+
+  const value = useMemo<DesignAuthValue>(
+    () => ({
+      session,
+      user: session ? { id: session.userId, email: session.email } : null,
+      tenantId: session?.tenantId ?? null,
+      organizationId: session?.organizationId ?? null,
+      role: session?.role ?? null,
+      permissions: session?.permissions ?? [],
+      isLoading,
+      isAuthenticated: !!session,
+      login,
+      logout,
+      refresh,
+    }),
+    [session, isLoading, login, logout, refresh],
+  );
+
+  return (
+    <DesignAuthContext.Provider value={value}>
+      {children}
+    </DesignAuthContext.Provider>
+  );
+}
+
+export function useDesignAuth(): DesignAuthValue {
+  const context = useContext(DesignAuthContext);
+  if (!context) {
+    throw new Error("useDesignAuth must be used inside DesignAuthProvider");
+  }
+  return context;
+}
