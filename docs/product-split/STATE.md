@@ -1,14 +1,68 @@
-# STATE — Migración CAD: valle-enterprise → valle-design
+# STATE — valle-design (producto CAD independiente)
 
-> **Documento vivo.** Toda sesión que trabaje en la migración DEBE leer este archivo primero
-> y actualizarlo antes de pausar. El prompt canónico de la misión vive en el historial de la
-> sesión; este archivo es el puente entre sesiones.
+> Espejo del `STATE.md` de valle-enterprise, desde la orilla de Design. La bitácora completa
+> de la migración vive en ambos repos (`docs/product-split/`).
+
+## Estado
+
+**MIGRACIÓN COMPLETA (2026-08-02).** `main = d71cc3a5`.
+
+valle-design es un producto CAD independiente: nació de `git filter-repo` sobre el monorepo
+(427 commits con autoría y fechas intactas) y hoy tiene API, editor, SDK, CI, migración de
+datos y seguridad propios. **No depende de valle-enterprise** — ni por código, ni por rutas,
+ni por base de datos. Consume Platform (identidad/entitlements) exclusivamente por contratos
+versionados (`packages/contracts/specs/platform-api.v1.yaml`).
+
+### Lo que funciona hoy (con evidencia)
+
+- **API** `/v1/cad`: proyectos, documentos con CAS optimista, versiones, publicaciones
+  server-managed, DXF (import/export R12), bloques, review sessions y comments, intent/vision
+  con degradación limpia sin IA configurada. Blob store propio content-addressed con
+  hidratación de documentos >1MB.
+- **Editor** standalone en `/studio` (identificadores persistidos `AXOS-CAD-STUDIO`/`UNIVERSAL`
+  intactos por mandato).
+- **Pruebas**: api 27 suites/165 tests + 8 en PostgreSQL real; web 119/119 specs (107 del
+  kernel CAD; +1 tras #4); **E2E 27/27 en CI** (goldens 10–28, performance, y 2 contra la API
+  real sin mocks); acceptance journey 50/50; SDK compat 7/7.
+  Matiz: 4 de esos 27 (2 de performance, 2 contra la API real) están tras `test.skip` y sólo
+  corren con `CAD_PERF_E2E=1` / `E2E_REAL_API=1`. **El workflow de CI fija ambos**, así que en
+  CI el 27/27 es real; una corrida local sin esas variables da 23 pasados y 4 saltados.
+- **CI propio**: 4 jobs verdes (quality-gates con PostgreSQL, E2E full-stack, gitleaks de
+  historial completo, SBOM).
+- **Migración de datos**: CLI `export/import/verify/rollback` validada punta a punta contra
+  una BD enterprise real (`DATA-MIGRATION.md`).
+- **Seguridad**: review links propiedad del servidor (revocación y read-only impuestos por
+  backend), entitlements fail-closed, aislamiento entre tenants probado en PostgreSQL real.
+  **Corrección**: la redacción anterior decía "solo hash persistido" y era falsa — el hash era
+  lo único en la tabla `cad_review_link`, pero el token EN CLARO se escribía además dentro del
+  JSON del documento CAD (`reviewLinks[].token`), donde lo leía cualquiera con acceso de
+  lectura al documento. Corregido en #4 (`303b917`): redacción en el único borde de salida,
+  `token` opcional en el esquema y migración de purga idempotente con conteos antes/después.
+  Los documentos guardados como blob quedan fuera del alcance de SQL y se reportan como tales.
+
+### Pendientes reales
+
+1. Endurecimiento de los enlaces de revisión (B3 de la purificación): canjear el token por una
+   sesión de revisión acotada, alcances y auditoría. El modo invitado ya no depende de que el
+   dibujo cargue — ese fallo (`redeemReviewLink()` colgaba de la rama de carga del documento,
+   y un enlace pegado en la misma pestaña sólo cambia el fragmento) se corrigió en #4 con un
+   efecto de montaje dedicado y un listener de `hashchange`; el E2E lo ejerce abriendo una
+   pestaña nueva, que es el flujo real del invitado.
+2. Publicador real de eventos `design.*` (hoy no-op; contratos AsyncAPI listos).
+3. Entitlements en producción: apuntar `PLATFORM_API_URL` cuando Platform sirva
+   `/v1/entitlements` — cierra el criterio 10 de la matriz.
+4. `optimize` NL→CAD y alias 1:1 de rutas del contrato (v1.1).
+5. Ver `ACCEPTANCE-MATRIX.md` §18 para el trabajo posterior priorizado del programa completo.
 
 ## Fase actual
 
-**FASES 1-5 COMPLETAS (2026-08-02)** — Fase 3 (R1-R3, reestructura), Fase 4 (datos,
-002892e) y Fase 5 (seguridad/comercialización — sección «Fase 5» abajo) hechas en este
-repo → siguiente: FASE 6 (retiro del CAD de enterprise).
+**MIGRACIÓN CERRADA — Fases 0 a 7 ejecutadas (2026-08-02).** La Fase 6 (retiro del CAD de
+enterprise) se fusionó como `f123aad0` en aquel repo; este documento la daba como "siguiente"
+y ya está hecha.
+
+El trabajo vivo es la **fase de purificación**, cuyo estado se lleva en `docs/cleanup/`. Todo
+lo que sigue en este archivo es bitácora histórica: explica por qué el repo quedó así, no qué
+hacer a continuación.
 
 Contexto del cierre de Fases 1-2 en enterprise (histórico):
 
