@@ -93,6 +93,7 @@ export default function CadStudioHost({
   return (
     <Layout3DEditor
       {...props}
+      documentId={documentId}
       model={documentId ?? props.model}
       identity={identity}
       scope={scope}

@@ -121,7 +121,7 @@ interface DxfPlacement {
   opacity: number;
 }
 
-interface OpenedDocument extends DocumentSummary {
+export interface OpenedDocument extends DocumentSummary {
   cadDocument: Record<string, unknown> | null;
   /** Colocación del plano DXF de fondo (aditivo R3); null = sin plano. */
   dxf?: DxfPlacement | null;
@@ -451,7 +451,7 @@ function emptyLayout(model: string, revision: string) {
  * profesionales (cotas asociativas, polilíneas, hatch, …) NO se proyectan —
  * viajan dentro de `cadDocument` y el editor las preserva.
  */
-function layoutFromDocument(
+export function layoutFromDocument(
   model: string,
   revision: string,
   row: OpenedDocument,
