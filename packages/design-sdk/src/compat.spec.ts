@@ -195,6 +195,35 @@ void test("los códigos de evento design.* casan con design-events.v1.yaml", () 
   }
 });
 
+void test("review links server-owned: la sesión expone hasShareLink y jamás el token", () => {
+  // Nivel de tipos: CadReviewSession NO tiene campos de token/hash; el token
+  // en claro vive SOLO en la respuesta de creación (shareToken).
+  type SessionKeys = keyof Schemas["CadReviewSession"];
+  type _noTokenInSession = Expect<
+    Equal<Extract<SessionKeys, "shareToken" | "token" | "tokenHash">, never>
+  >;
+  type _hasShareLink = Expect<
+    Extends<Schemas["CadReviewSession"]["hasShareLink"], boolean>
+  >;
+  type _created = Expect<
+    Extends<
+      NonNullable<Schemas["CadReviewSessionCreated"]["shareToken"]>,
+      string
+    >
+  >;
+  // El canje responde readOnly: true CONSTANTE (el read-only es del backend).
+  type _readOnly = Expect<
+    Equal<Schemas["ReviewLinkContext"]["readOnly"], true>
+  >;
+
+  // Runtime: los códigos de error de review del catálogo viven en el spec
+  // (los cubre también el test general del catálogo) y el canje viaja por
+  // header, nunca por URL.
+  assert.ok(apiYaml.includes("X-Review-Token"));
+  assert.ok(apiYaml.includes("/v1/review/context"));
+  assert.ok(!/\/v1\/review\/\{token\}/.test(apiYaml), "el token no va en el path");
+});
+
 void test("el SDK generado está al día respecto de los tipos clave", () => {
   const generated = readFileSync(
     join(__dirname, "..", "src", "generated", "design-api.ts"),
@@ -205,6 +234,8 @@ void test("el SDK generado está al día respecto de los tipos clave", () => {
     'code: "cad_document_version_conflict"',
     'code: "entitlement_required"',
     '"cad:view" | "cad:edit" | "cad:review" | "cad:publish" | "cad:admin"',
+    "ReviewLinkContext",
+    "hasShareLink",
   ]) {
     assert.ok(
       generated.includes(marker),

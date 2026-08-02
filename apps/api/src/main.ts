@@ -104,7 +104,9 @@ async function bootstrap() {
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    // X-Review-Token: header del review link (Fase 5) — el invitado no tiene
+    // Authorization; sin listarlo aquí el preflight CORS mataría el canje.
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Review-Token'],
   });
 
   // ── Arranque ──────────────────────────────────────────────────────────────

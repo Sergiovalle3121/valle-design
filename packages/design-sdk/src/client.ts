@@ -41,6 +41,10 @@ export type DxfExport = Schemas["DxfExport"];
 export type CadBlock = Schemas["CadBlock"];
 export type CadBlockCreate = Schemas["CadBlockCreate"];
 export type CadBlockUpdate = Schemas["CadBlockUpdate"];
+export type CadReviewSession = Schemas["CadReviewSession"];
+export type CadComment = Schemas["CadComment"];
+export type CadCommentCreate = Schemas["CadCommentCreate"];
+export type ReviewLinkContext = Schemas["ReviewLinkContext"];
 export type ApiError = Schemas["ApiError"];
 export type EntitlementRequiredError = Schemas["EntitlementRequiredError"];
 export type CadDocumentVersionConflictError =
@@ -134,6 +138,7 @@ export function createDesignClient(options: DesignClientOptions) {
     method: string,
     url: string,
     body?: unknown,
+    headers?: Record<string, string>,
   ): Promise<T> {
     const isForm = typeof FormData !== "undefined" && body instanceof FormData;
     const res = await fetchImpl(url, {
@@ -142,7 +147,8 @@ export function createDesignClient(options: DesignClientOptions) {
         ...(body !== undefined && !isForm
           ? { "Content-Type": "application/json" }
           : {}),
-        ...authHeader(),
+        // El review link sustituye al bearer: headers explícitos ganan.
+        ...(headers ?? authHeader()),
       },
       body:
         body === undefined ? undefined : isForm ? (body as FormData) : JSON.stringify(body),
@@ -244,6 +250,109 @@ export function createDesignClient(options: DesignClientOptions) {
         export: (documentId: string) =>
           call<DxfExport>("GET", resource(`/v1/documents/${documentId}/export/dxf`)),
       },
+    },
+
+    /**
+     * Review sessions y comentarios del AUTOR (Fase 5). Tokens server-owned:
+     * `create` con `shareLink: true` devuelve `shareToken` UNA sola vez;
+     * las listas solo exponen `hasShareLink`; `close` revoca el link de
+     * inmediato (`revokedAt`).
+     */
+    reviews: {
+      list: (documentId: string, query?: { status?: "open" | "closed" }) => {
+        const url = new URL(
+          resource(`/v1/documents/${documentId}/review-sessions`),
+        );
+        if (query?.status) url.searchParams.set("status", query.status);
+        return call<{ items: CadReviewSession[] }>("GET", url.toString());
+      },
+      create: (
+        documentId: string,
+        input?: {
+          shareLink?: boolean;
+          allowComments?: boolean;
+          shareLinkTtlMinutes?: number;
+        },
+      ) =>
+        call<{ session: CadReviewSession; shareToken?: string }>(
+          "POST",
+          resource(`/v1/documents/${documentId}/review-sessions`),
+          input ?? {},
+        ),
+      close: (sessionId: string) =>
+        call<CadReviewSession>(
+          "POST",
+          resource(`/v1/review-sessions/${sessionId}/close`),
+        ),
+      comments: {
+        list: (
+          documentId: string,
+          query?: { reviewSessionId?: string; resolved?: boolean },
+        ) => {
+          const url = new URL(resource(`/v1/documents/${documentId}/comments`));
+          if (query?.reviewSessionId)
+            url.searchParams.set("reviewSessionId", query.reviewSessionId);
+          if (query?.resolved !== undefined)
+            url.searchParams.set("resolved", String(query.resolved));
+          return call<{ items: CadComment[] }>("GET", url.toString());
+        },
+        create: (documentId: string, input: CadCommentCreate) =>
+          call<CadComment>(
+            "POST",
+            resource(`/v1/documents/${documentId}/comments`),
+            input,
+          ),
+        resolve: (commentId: string) =>
+          call<CadComment>(
+            "POST",
+            resource(`/v1/comments/${commentId}/resolve`),
+          ),
+      },
+    },
+
+    /**
+     * Superficie del REVIEW LINK (invitado, sin JWT): autenticada por el
+     * token server-owned en el header `X-Review-Token`. Contexto de SOLO
+     * LECTURA limitado al documento de la sesión — cualquier otra ruta con
+     * ese contexto responde `403 review_read_only` (impuesto por backend).
+     */
+    reviewLink: (shareToken: string) => {
+      const headers = { "X-Review-Token": shareToken };
+      return {
+        context: () =>
+          call<ReviewLinkContext>(
+            "GET",
+            resource("/v1/review/context"),
+            undefined,
+            headers,
+          ),
+        comments: {
+          list: () =>
+            call<{ items: CadComment[] }>(
+              "GET",
+              resource("/v1/review/comments"),
+              undefined,
+              headers,
+            ),
+          create: (input: {
+            body: string;
+            anchor?: Record<string, unknown> | null;
+          }) =>
+            call<CadComment>(
+              "POST",
+              resource("/v1/review/comments"),
+              input,
+              headers,
+            ),
+          resolve: (commentId: string) =>
+            call<CadComment>(
+              "POST",
+              resource(`/v1/review/comments/${commentId}/resolve`),
+              undefined,
+              headers,
+            ),
+        },
+      };
     },
 
     blocks: {

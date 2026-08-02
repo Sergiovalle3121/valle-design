@@ -258,11 +258,17 @@ export interface paths {
         /**
          * Abre una sesión de revisión (opcionalmente con review link de solo lectura).
          * @description Tokens server-owned: si `shareLink: true`, el servidor GENERA el token
-         *     (16–256 caracteres, aleatorio), persiste únicamente su hash
-         *     (`token_hash`) y devuelve el token en claro **solo en esta
-         *     respuesta** (`shareToken`). No existe ningún otro endpoint que lo
+         *     (16–256 caracteres, aleatoriedad criptográfica), persiste únicamente
+         *     su hash sha256 (`token_hash`) y devuelve el token en claro **solo en
+         *     esta respuesta** (`shareToken`). No existe ningún otro endpoint que lo
          *     devuelva; perderlo obliga a abrir otra sesión o rotar el link. Los
-         *     review links son SIEMPRE de solo lectura (`readOnly: true`).
+         *     review links son SIEMPRE de solo lectura (`readOnly: true`); si la
+         *     sesión lo permite (`allowComments`, default true), el contexto de
+         *     review puede además crear/listar/resolver comentarios del hilo de SU
+         *     sesión. La expiración (`expiresAt`) la calcula el SERVIDOR: TTL
+         *     pedido (`shareLinkTtlMinutes`, acotado 5 min–90 días) o el default
+         *     del despliegue (7 días), y se comprueba server-side en cada canje.
+         *     Máximo 20 sesiones abiertas por documento.
          *
          */
         post: operations["createCadReviewSession"];
@@ -281,7 +287,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Cierra una sesión de revisión (invalida su review link). */
+        /**
+         * Cierra una sesión de revisión (revoca su review link de inmediato).
+         * @description Estampa `closedAt` y, si la sesión tenía link, `revokedAt`: el token muere DE INMEDIATO — el canje re-valida contra la fila en cada request, no existe credencial derivada que sobreviva a la revocación.
+         */
         post: operations["closeCadReviewSession"];
         delete?: never;
         options?: never;
@@ -301,7 +310,7 @@ export interface paths {
         put?: never;
         /**
          * Crea un comentario sobre el documento (con ancla opcional en el dibujo).
-         * @description `reviewSessionId` nulo/omitido = comentario directo sobre el documento. Límite real del cuerpo: 1–1000 caracteres, no vacío. Máximo 500 hilos de revisión por documento.
+         * @description `reviewSessionId` nulo/omitido = comentario directo sobre el documento. Límite real del cuerpo: 1–1000 caracteres, no vacío tras trim. Máximo 500 hilos de revisión por documento. Comentar en una sesión CERRADA es `400` con `code: review_session_closed`.
          */
         post: operations["createCadComment"];
         delete?: never;
@@ -321,6 +330,82 @@ export interface paths {
         put?: never;
         /** Marca un comentario como resuelto. */
         post: operations["resolveCadComment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/review/context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Canje del review link: contexto de solo lectura limitado al documento.
+         * @description ÚNICA superficie alcanzable con el token del review link (header
+         *     `X-Review-Token`; sin JWT). El servidor valida hash + expiración +
+         *     revocación EN CADA request y responde el documento canónico HIDRATADO
+         *     de la sesión (misma semántica de apertura del autor, proyección
+         *     REDUCIDA — sin metadatos internos), la colocación del DXF de fondo y
+         *     la sesión (jamás el token ni su hash). El canje queda AUDITADO
+         *     server-side sin registrar el token. Con este contexto, cualquier otra
+         *     ruta de la API — mutación o lectura — responde `403` con
+         *     `code: review_read_only`: el read-only lo impone el backend.
+         *     Token desconocido/malformado ⇒ `401 review_token_invalid`; expirado ⇒
+         *     `401 review_token_expired`; revocado o sesión cerrada ⇒
+         *     `401 review_token_revoked`.
+         *
+         */
+        get: operations["redeemReviewLinkContext"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/review/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Hilo de comentarios de la sesión del review link.
+         * @description Solo el hilo de LA sesión canjeada: los comentarios internos del documento (directos o de otras sesiones) no se exponen al invitado.
+         */
+        get: operations["listReviewLinkComments"];
+        put?: never;
+        /**
+         * Crea un comentario en la sesión del review link (si lo permite).
+         * @description Disponible solo si la sesión se creó con `allowComments` (default true); si no, `403` con `code: review_comments_disabled`. La sesión y el documento los fija el TOKEN (el cliente no elige ids). El autor del asiento es la identidad sintética `review-link:<sessionId>`.
+         */
+        post: operations["createReviewLinkComment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/review/comments/{commentId}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resuelve un comentario del hilo de la sesión del review link.
+         * @description Solo comentarios del hilo de LA sesión canjeada (cualquier otro id es `404`). Requiere `allowComments`; resolver dos veces es idempotente.
+         */
+        post: operations["resolveReviewLinkComment"];
         delete?: never;
         options?: never;
         head?: never;
@@ -488,7 +573,7 @@ export interface components {
             statusCode?: number;
             /** @description Mensaje humano; la validación de payload (class-validator) puede responder un array de mensajes. */
             message: string | string[];
-            /** @description Código de error estable y contractual. Catálogo v1: `cad_document_version_required`, `cad_document_version_conflict`, `cad_publications_server_managed`, `entitlement_required`. */
+            /** @description Código de error estable y contractual. Catálogo v1: `cad_document_version_required`, `cad_document_version_conflict`, `cad_publications_server_managed`, `entitlement_required`, `review_token_invalid`, `review_token_expired`, `review_token_revoked`, `review_session_closed`, `review_read_only`, `review_comments_disabled`. */
             code?: string;
             details?: unknown;
             /** @description Correlación con los logs del servidor (`x-request-id`). */
@@ -730,6 +815,12 @@ export interface components {
             status: "open" | "closed";
             /** @description true si la sesión tiene review link. El token NUNCA se expone aquí: solo se persiste su hash (`token_hash`). */
             hasShareLink: boolean;
+            /** @description ¿El contexto de review link puede crear/resolver comentarios? (El dibujo es de solo lectura en cualquier caso.) */
+            allowComments: boolean;
+            /** @description Expiración del review link, FIJADA POR EL SERVIDOR al crear y comprobada server-side en cada canje. Null = sesión sin link. */
+            expiresAt?: components["schemas"]["Timestamp"] | null;
+            /** @description Revocación del link (cerrar la sesión la estampa): desde ese instante el token muere — el canje re-valida en cada request. */
+            revokedAt?: components["schemas"]["Timestamp"] | null;
             closedAt?: components["schemas"]["Timestamp"] | null;
             createdAt: components["schemas"]["Timestamp"];
             createdBy?: components["schemas"]["Actor"];
@@ -738,6 +829,26 @@ export interface components {
             session: components["schemas"]["CadReviewSession"];
             /** @description ÚNICA aparición del token en claro en toda la API. Presente solo si se pidió `shareLink: true`. El servidor persiste únicamente su hash; este valor no puede recuperarse después. */
             shareToken?: string;
+        };
+        /** @description Respuesta del canje del review link: contexto de SOLO LECTURA limitado al documento de la sesión. La proyección del documento es REDUCIDA a propósito (sin projectId, legacySourceId ni metadatos de auditoría del autor): el invitado ve el dibujo, no la organización interna. */
+        ReviewLinkContext: {
+            session: components["schemas"]["CadReviewSession"];
+            /**
+             * @description Siempre true — informativo para la UI. La imposición REAL es del backend (403 `review_read_only` fuera de `/v1/review/*`).
+             * @constant
+             */
+            readOnly: true;
+            document: {
+                id: components["schemas"]["CadDocumentId"];
+                name: string;
+                model?: components["schemas"]["LegacyModelAlias"] | null;
+                revision?: components["schemas"]["LegacyRevisionAlias"] | null;
+                cadDocumentVersion: components["schemas"]["CadDocumentVersionToken"];
+                layers?: Record<string, never>[] | null;
+                /** @description Documento canónico HIDRATADO (en la práctica inline o null), misma semántica que la apertura del autor. */
+                cadDocument: components["schemas"]["CadDocumentEnvelope"] | null;
+                dxf?: components["schemas"]["DxfPlacement"] | null;
+            };
         };
         CadCommentCreate: {
             /** @description Texto del comentario (no vacío tras trim). */
@@ -883,6 +994,15 @@ export interface components {
             };
             content: {
                 "application/json": components["schemas"]["CadDocumentVersionConflictError"];
+            };
+        };
+        /** @description Review link rechazado: token desconocido/malformado (`review_token_invalid`), expirado (`review_token_expired`) o revocado/sesión cerrada (`review_token_revoked`). Las denegaciones atribuibles quedan auditadas server-side; el token jamás se registra. */
+        ReviewTokenRejected: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ApiError"];
             };
         };
     };
@@ -1420,6 +1540,13 @@ export interface operations {
                      * @default false
                      */
                     shareLink?: boolean;
+                    /**
+                     * @description ¿El contexto de review puede crear/resolver comentarios? El dibujo es de solo lectura en cualquier caso.
+                     * @default true
+                     */
+                    allowComments?: boolean;
+                    /** @description Vigencia del link en minutos (solo con `shareLink: true`). Omitido = default del despliegue (7 días). El servidor acota el valor y siempre fija `expiresAt` él mismo. */
+                    shareLinkTtlMinutes?: number;
                 };
             };
         };
@@ -1462,7 +1589,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["EntitlementRequired"];
             404: components["responses"]["NotFound"];
-            /** @description La sesión ya estaba cerrada. */
+            /** @description La sesión ya estaba cerrada (`code: review_session_closed`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1556,6 +1683,123 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["EntitlementRequired"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    redeemReviewLinkContext: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Contexto de solo lectura del review link. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewLinkContext"];
+                };
+            };
+            401: components["responses"]["ReviewTokenRejected"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listReviewLinkComments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Comentarios de la sesión. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["CadComment"][];
+                    };
+                };
+            };
+            401: components["responses"]["ReviewTokenRejected"];
+        };
+    };
+    createReviewLinkComment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    body: string;
+                    /** @description Ancla en el dibujo (JSON libre). Null = sin ancla. */
+                    anchor?: Record<string, never> | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Comentario creado. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CadComment"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["ReviewTokenRejected"];
+            /** @description La sesión no admite comentarios (`code: review_comments_disabled`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    resolveReviewLinkComment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                commentId: components["parameters"]["commentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Comentario resuelto. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CadComment"];
+                };
+            };
+            401: components["responses"]["ReviewTokenRejected"];
+            /** @description La sesión no admite comentarios (`code: review_comments_disabled`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
             404: components["responses"]["NotFound"];
         };
     };

@@ -179,6 +179,83 @@ export class RecordCadPublicationDto {
   bytes: number;
 }
 
+/* ─────────────────────── Review sessions y comentarios ─────────────────── */
+
+export class ListReviewSessionsQueryDto {
+  @IsOptional()
+  @IsIn(['open', 'closed'])
+  status?: 'open' | 'closed';
+}
+
+export class CreateReviewSessionDto {
+  /** Genera un review link de solo lectura (token server-owned). */
+  @IsOptional()
+  @IsBoolean()
+  shareLink?: boolean;
+
+  /** ¿El contexto de review puede crear/resolver comentarios? Default true. */
+  @IsOptional()
+  @IsBoolean()
+  allowComments?: boolean;
+
+  /**
+   * Vigencia del link en minutos (5 min – 90 días). Default: 7 días (o el
+   * REVIEW_LINK_TTL_MINUTES del despliegue). Solo aplica con shareLink.
+   */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(5)
+  @Max(129_600)
+  shareLinkTtlMinutes?: number;
+}
+
+export class ListCommentsQueryDto {
+  @IsOptional()
+  @IsUUID()
+  reviewSessionId?: string;
+
+  /**
+   * Query param booleano COMO STRING a propósito: la conversión implícita de
+   * class-transformer trata cualquier string no vacío como true ('false' →
+   * true) incluso con @Transform delante, así que el DTO acota a
+   * 'true'|'false' y el controller lo mapea a boolean.
+   */
+  @IsOptional()
+  @IsIn(['true', 'false'])
+  resolved?: 'true' | 'false';
+}
+
+export class CreateCadCommentDto {
+  /** Texto del comentario (1–1000 chars; no vacío tras trim — lo valida el servicio). */
+  @IsString()
+  @MinLength(1)
+  @MaxLength(1000)
+  body: string;
+
+  /** Ancla en el dibujo (JSON libre). Null/omitido = sin ancla. */
+  @IsOptional()
+  @IsObject()
+  anchor?: Record<string, unknown> | null;
+
+  /** Sesión a la que pertenece; null/omitido = comentario directo. */
+  @IsOptional()
+  @IsUUID()
+  reviewSessionId?: string | null;
+}
+
+/** Comentario desde el contexto de review link: la sesión la fija el token. */
+export class CreateReviewLinkCommentDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(1000)
+  body: string;
+
+  @IsOptional()
+  @IsObject()
+  anchor?: Record<string, unknown> | null;
+}
+
 /* ─────────────────────────────── Plano DXF ─────────────────────────────── */
 
 export class DxfPlacementDto {

@@ -33,10 +33,11 @@ import { CideAiProviderAdapter } from './cide-ai-provider.adapter';
 import { DesignCadAuditPublisher } from './design-audit-publisher.adapter';
 import { NoopCadEventPublisher } from './noop-event-publisher.adapter';
 import {
-  ConfigEntitlementClient,
   NoopUsageMeter,
   TenantContextIdentityClient,
 } from './platform-client.adapter';
+import { PlatformEntitlementClient } from './platform-entitlement.client';
+import { ReviewLinkService } from './review-link.service';
 
 /**
  * CAD Documents — kernel CAD puro, corazón del producto Design. Agrupa la
@@ -51,8 +52,9 @@ import {
  *   (`design_blobs`, content-addressed en la base).
  * - CAD_AUDIT_PUBLISHER → DesignCadAuditPublisher sobre la bitácora propia
  *   `design_audit_log`.
- * - ENTITLEMENT_CLIENT → ConfigEntitlementClient (ENTITLEMENTS_MODE;
- *   TODO-R3: cliente HTTP real de la API de Platform).
+ * - ENTITLEMENT_CLIENT → PlatformEntitlementClient (ENTITLEMENTS_MODE;
+ *   cliente HTTP REAL del contrato platform-api.v1.yaml — Fase 5, cierra el
+ *   TODO-R3 — con caché breve por tenant y fail-closed).
  * - PLATFORM_IDENTITY_CLIENT → TenantContextIdentityClient (contexto
  *   autenticado propio poblado por CadAuthGuard + TenantInterceptor).
  */
@@ -78,6 +80,9 @@ import {
     CadIntentService,
     CadVisionService,
     CadLegacyProjectionService,
+    // Canje server-owned de review links (Fase 5): lookup GLOBAL por
+    // token_hash — el tenant sale de la fila de la sesión, nunca del cliente.
+    ReviewLinkService,
     provideTenantScopedRepository(SfCadBlock, { strict: true }),
     provideTenantScopedRepository(CadProject, { strict: true }),
     provideTenantScopedRepository(CadDocument, { strict: true }),
@@ -101,7 +106,7 @@ import {
       provide: PLATFORM_IDENTITY_CLIENT,
       useClass: TenantContextIdentityClient,
     },
-    { provide: ENTITLEMENT_CLIENT, useClass: ConfigEntitlementClient },
+    { provide: ENTITLEMENT_CLIENT, useClass: PlatformEntitlementClient },
     { provide: USAGE_METER, useClass: NoopUsageMeter },
   ],
   exports: [
@@ -110,6 +115,7 @@ import {
     CadIntentService,
     CadVisionService,
     CadLegacyProjectionService,
+    ReviewLinkService,
     // Repositorios scoped de las entidades cad_* para la capa HTTP (CadModule:
     // CadDocumentsRepository lleva el ciclo de vida + CAS sobre estas filas).
     getTenantRepositoryToken(CadProject),

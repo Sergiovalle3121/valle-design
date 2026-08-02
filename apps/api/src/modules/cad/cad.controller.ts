@@ -321,6 +321,9 @@ export class CadController {
       row.revision,
     );
     const exported = this.cadDocuments.buildLayoutDxf(input);
+    // Fase 5: exportar el DXF entrega el dibujo completo — se audita como
+    // acción sensible (actor/tenant/acción/referencia, igual que los saves).
+    await this.repository.recordDxfExported(documentId, exported.filename);
     return {
       fileName: exported.filename,
       unit: exported.unit,

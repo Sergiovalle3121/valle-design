@@ -110,7 +110,7 @@ describe('CadController (/v1/cad, stack completo)', () => {
     });
   });
 
-  it('en modo platform-api (sin cliente aún) el 403 es not_entitled fail-closed', async () => {
+  it('en modo platform-api sin PLATFORM_API_URL el 403 es not_entitled fail-closed', async () => {
     process.env.ENTITLEMENTS_MODE = 'platform-api';
     try {
       const res = await request(app.getHttpServer())

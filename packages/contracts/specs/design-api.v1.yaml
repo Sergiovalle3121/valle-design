@@ -14,6 +14,12 @@ info:
 
     ## Seguridad (requisito de servidor en TODOS los endpoints)
     * Autenticación: **Bearer JWT** (`bearerAuth`). Sin token ⇒ `401`.
+      EXCEPCIÓN ÚNICA (Fase 5): la superficie del review link
+      (`/v1/review/*`) se autentica con el token server-owned del link
+      (`reviewToken`, header `X-Review-Token`) — contexto de SOLO LECTURA
+      limitado al documento de la sesión; cualquier otra ruta con ese
+      contexto responde `403` con `code: review_read_only` (el read-only lo
+      impone el backend, no el frontend).
     * Autorización comercial: el tenant necesita el entitlement
       **`design.cad`** vigente (ver `PRODUCT_CAPABILITY_IDS` en
       `@axos/contracts`). El servidor lo verifica en **todos** los endpoints;
@@ -58,7 +64,10 @@ info:
     contractuales cuando aplican, más `requestId` de correlación); el catálogo
     de códigos (`cad_document_version_required`,
     `cad_document_version_conflict`, `cad_publications_server_managed`,
-    `entitlement_required`) es contractual. En el 409 CAS, `expected` y
+    `entitlement_required`, y los de review de Fase 5:
+    `review_token_invalid`, `review_token_expired`, `review_token_revoked`,
+    `review_session_closed`, `review_read_only`,
+    `review_comments_disabled`) es contractual. En el 409 CAS, `expected` y
     `current` viajan en el nivel superior del cuerpo (eco del backend real).
 
     Estado: **contrato v1 en vigor** — implementado por `apps/api` (R1),
@@ -92,8 +101,11 @@ tags:
     description: >-
       Sesiones de revisión (`cad_review_sessions`) y comentarios
       (`cad_comments`). Los tokens de review link son server-owned: se
-      almacena solo su hash y el token en claro viaja ÚNICAMENTE en la
-      respuesta de creación.
+      almacena solo su hash sha256 y el token en claro viaja ÚNICAMENTE en la
+      respuesta de creación. Incluye la superficie del canje
+      (`/v1/review/*`): contexto de solo lectura autenticado por
+      `X-Review-Token`, con expiración y revocación comprobadas server-side
+      en cada request.
   - name: dxf
     description: Plano DXF de fondo (importar/quitar) y exportación DXF R12 del documento.
   - name: blocks
@@ -638,11 +650,17 @@ paths:
       summary: Abre una sesión de revisión (opcionalmente con review link de solo lectura).
       description: |
         Tokens server-owned: si `shareLink: true`, el servidor GENERA el token
-        (16–256 caracteres, aleatorio), persiste únicamente su hash
-        (`token_hash`) y devuelve el token en claro **solo en esta
-        respuesta** (`shareToken`). No existe ningún otro endpoint que lo
+        (16–256 caracteres, aleatoriedad criptográfica), persiste únicamente
+        su hash sha256 (`token_hash`) y devuelve el token en claro **solo en
+        esta respuesta** (`shareToken`). No existe ningún otro endpoint que lo
         devuelva; perderlo obliga a abrir otra sesión o rotar el link. Los
-        review links son SIEMPRE de solo lectura (`readOnly: true`).
+        review links son SIEMPRE de solo lectura (`readOnly: true`); si la
+        sesión lo permite (`allowComments`, default true), el contexto de
+        review puede además crear/listar/resolver comentarios del hilo de SU
+        sesión. La expiración (`expiresAt`) la calcula el SERVIDOR: TTL
+        pedido (`shareLinkTtlMinutes`, acotado 5 min–90 días) o el default
+        del despliegue (7 días), y se comprueba server-side en cada canje.
+        Máximo 20 sesiones abiertas por documento.
       x-required-entitlement: design.cad
       x-required-permission: cad:review
       parameters:
@@ -658,6 +676,20 @@ paths:
                   type: boolean
                   default: false
                   description: Genera un review link de solo lectura para la sesión.
+                allowComments:
+                  type: boolean
+                  default: true
+                  description: >-
+                    ¿El contexto de review puede crear/resolver comentarios?
+                    El dibujo es de solo lectura en cualquier caso.
+                shareLinkTtlMinutes:
+                  type: integer
+                  minimum: 5
+                  maximum: 129600
+                  description: >-
+                    Vigencia del link en minutos (solo con `shareLink: true`).
+                    Omitido = default del despliegue (7 días). El servidor
+                    acota el valor y siempre fija `expiresAt` él mismo.
       responses:
         '201':
           description: Sesión creada (única aparición del token en claro).
@@ -673,7 +705,11 @@ paths:
     post:
       operationId: closeCadReviewSession
       tags: [reviews]
-      summary: Cierra una sesión de revisión (invalida su review link).
+      summary: Cierra una sesión de revisión (revoca su review link de inmediato).
+      description: >-
+        Estampa `closedAt` y, si la sesión tenía link, `revokedAt`: el token
+        muere DE INMEDIATO — el canje re-valida contra la fila en cada
+        request, no existe credencial derivada que sobreviva a la revocación.
       x-required-entitlement: design.cad
       x-required-permission: cad:review
       parameters:
@@ -689,7 +725,7 @@ paths:
         '403': { $ref: '#/components/responses/EntitlementRequired' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409':
-          description: La sesión ya estaba cerrada.
+          description: 'La sesión ya estaba cerrada (`code: review_session_closed`).'
           content:
             application/json:
               schema:
@@ -735,8 +771,9 @@ paths:
       summary: Crea un comentario sobre el documento (con ancla opcional en el dibujo).
       description: >-
         `reviewSessionId` nulo/omitido = comentario directo sobre el
-        documento. Límite real del cuerpo: 1–1000 caracteres, no vacío.
-        Máximo 500 hilos de revisión por documento.
+        documento. Límite real del cuerpo: 1–1000 caracteres, no vacío tras
+        trim. Máximo 500 hilos de revisión por documento. Comentar en una
+        sesión CERRADA es `400` con `code: review_session_closed`.
       x-required-entitlement: design.cad
       x-required-permission: cad:review
       parameters:
@@ -776,6 +813,128 @@ paths:
                 $ref: '#/components/schemas/CadComment'
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/EntitlementRequired' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/review/context:
+    get:
+      operationId: redeemReviewLinkContext
+      tags: [reviews]
+      summary: 'Canje del review link: contexto de solo lectura limitado al documento.'
+      description: |
+        ÚNICA superficie alcanzable con el token del review link (header
+        `X-Review-Token`; sin JWT). El servidor valida hash + expiración +
+        revocación EN CADA request y responde el documento canónico HIDRATADO
+        de la sesión (misma semántica de apertura del autor, proyección
+        REDUCIDA — sin metadatos internos), la colocación del DXF de fondo y
+        la sesión (jamás el token ni su hash). El canje queda AUDITADO
+        server-side sin registrar el token. Con este contexto, cualquier otra
+        ruta de la API — mutación o lectura — responde `403` con
+        `code: review_read_only`: el read-only lo impone el backend.
+        Token desconocido/malformado ⇒ `401 review_token_invalid`; expirado ⇒
+        `401 review_token_expired`; revocado o sesión cerrada ⇒
+        `401 review_token_revoked`.
+      security:
+        - reviewToken: []
+      responses:
+        '200':
+          description: Contexto de solo lectura del review link.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewLinkContext'
+        '401': { $ref: '#/components/responses/ReviewTokenRejected' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/review/comments:
+    get:
+      operationId: listReviewLinkComments
+      tags: [reviews]
+      summary: Hilo de comentarios de la sesión del review link.
+      description: >-
+        Solo el hilo de LA sesión canjeada: los comentarios internos del
+        documento (directos o de otras sesiones) no se exponen al invitado.
+      security:
+        - reviewToken: []
+      responses:
+        '200':
+          description: Comentarios de la sesión.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    maxItems: 500
+                    items:
+                      $ref: '#/components/schemas/CadComment'
+        '401': { $ref: '#/components/responses/ReviewTokenRejected' }
+    post:
+      operationId: createReviewLinkComment
+      tags: [reviews]
+      summary: Crea un comentario en la sesión del review link (si lo permite).
+      description: >-
+        Disponible solo si la sesión se creó con `allowComments` (default
+        true); si no, `403` con `code: review_comments_disabled`. La sesión y
+        el documento los fija el TOKEN (el cliente no elige ids). El autor
+        del asiento es la identidad sintética `review-link:<sessionId>`.
+      security:
+        - reviewToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+                anchor:
+                  type: ['object', 'null']
+                  description: Ancla en el dibujo (JSON libre). Null = sin ancla.
+      responses:
+        '201':
+          description: Comentario creado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CadComment'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/ReviewTokenRejected' }
+        '403':
+          description: 'La sesión no admite comentarios (`code: review_comments_disabled`).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /v1/review/comments/{commentId}/resolve:
+    post:
+      operationId: resolveReviewLinkComment
+      tags: [reviews]
+      summary: Resuelve un comentario del hilo de la sesión del review link.
+      description: >-
+        Solo comentarios del hilo de LA sesión canjeada (cualquier otro id es
+        `404`). Requiere `allowComments`; resolver dos veces es idempotente.
+      security:
+        - reviewToken: []
+      parameters:
+        - $ref: '#/components/parameters/commentId'
+      responses:
+        '200':
+          description: Comentario resuelto.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CadComment'
+        '401': { $ref: '#/components/responses/ReviewTokenRejected' }
+        '403':
+          description: 'La sesión no admite comentarios (`code: review_comments_disabled`).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
         '404': { $ref: '#/components/responses/NotFound' }
   /v1/documents/{documentId}/dxf:
     parameters:
@@ -995,6 +1154,20 @@ components:
         `specs/platform-api.v1.yaml`). El servidor resuelve tenant, usuario,
         permisos `cad:*` y el entitlement `design.cad` a partir de él; ningún
         parámetro del cliente concede acceso.
+    reviewToken:
+      type: apiKey
+      in: header
+      name: X-Review-Token
+      description: >-
+        Token SERVER-OWNED de un review link (Fase 5), generado al crear la
+        sesión con `shareLink: true` (única aparición en claro). Viaja en
+        header — nunca en la URL (los paths acaban en logs). El servidor lo
+        canjea en CADA request: re-hashea (sha256), busca la sesión por
+        `token_hash`, y valida expiración (`expiresAt`) y revocación
+        (`revokedAt` — cerrar la sesión mata el token de inmediato). El
+        tenant y el documento salen de la FILA de la sesión, jamás del
+        cliente. Solo autentica la superficie `/v1/review/*`; con este
+        contexto cualquier otra ruta es `403 review_read_only`.
   parameters:
     projectId:
       name: projectId
@@ -1088,6 +1261,16 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/CadDocumentVersionConflictError'
+    ReviewTokenRejected:
+      description: >-
+        Review link rechazado: token desconocido/malformado
+        (`review_token_invalid`), expirado (`review_token_expired`) o
+        revocado/sesión cerrada (`review_token_revoked`). Las denegaciones
+        atribuibles quedan auditadas server-side; el token jamás se registra.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
   schemas:
     CadProjectId:
       type: string
@@ -1175,7 +1358,10 @@ components:
           description: >-
             Código de error estable y contractual. Catálogo v1:
             `cad_document_version_required`, `cad_document_version_conflict`,
-            `cad_publications_server_managed`, `entitlement_required`.
+            `cad_publications_server_managed`, `entitlement_required`,
+            `review_token_invalid`, `review_token_expired`,
+            `review_token_revoked`, `review_session_closed`,
+            `review_read_only`, `review_comments_disabled`.
         details: {}
         requestId:
           type: string
@@ -1715,7 +1901,7 @@ components:
           $ref: '#/components/schemas/Actor'
     CadReviewSession:
       type: object
-      required: [id, documentId, status, hasShareLink, createdAt]
+      required: [id, documentId, status, hasShareLink, allowComments, createdAt]
       properties:
         id:
           $ref: '#/components/schemas/CadReviewSessionId'
@@ -1729,6 +1915,25 @@ components:
           description: >-
             true si la sesión tiene review link. El token NUNCA se expone
             aquí: solo se persiste su hash (`token_hash`).
+        allowComments:
+          type: boolean
+          description: >-
+            ¿El contexto de review link puede crear/resolver comentarios?
+            (El dibujo es de solo lectura en cualquier caso.)
+        expiresAt:
+          oneOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+          description: >-
+            Expiración del review link, FIJADA POR EL SERVIDOR al crear y
+            comprobada server-side en cada canje. Null = sesión sin link.
+        revokedAt:
+          oneOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+          description: >-
+            Revocación del link (cerrar la sesión la estampa): desde ese
+            instante el token muere — el canje re-valida en cada request.
         closedAt:
           oneOf:
             - $ref: '#/components/schemas/Timestamp'
@@ -1751,6 +1956,57 @@ components:
             ÚNICA aparición del token en claro en toda la API. Presente solo
             si se pidió `shareLink: true`. El servidor persiste únicamente su
             hash; este valor no puede recuperarse después.
+    ReviewLinkContext:
+      type: object
+      description: >-
+        Respuesta del canje del review link: contexto de SOLO LECTURA limitado
+        al documento de la sesión. La proyección del documento es REDUCIDA a
+        propósito (sin projectId, legacySourceId ni metadatos de auditoría del
+        autor): el invitado ve el dibujo, no la organización interna.
+      required: [session, readOnly, document]
+      properties:
+        session:
+          $ref: '#/components/schemas/CadReviewSession'
+        readOnly:
+          type: boolean
+          const: true
+          description: >-
+            Siempre true — informativo para la UI. La imposición REAL es del
+            backend (403 `review_read_only` fuera de `/v1/review/*`).
+        document:
+          type: object
+          required: [id, name, cadDocumentVersion, cadDocument]
+          properties:
+            id:
+              $ref: '#/components/schemas/CadDocumentId'
+            name:
+              type: string
+              maxLength: 160
+            model:
+              oneOf:
+                - $ref: '#/components/schemas/LegacyModelAlias'
+                - type: 'null'
+            revision:
+              oneOf:
+                - $ref: '#/components/schemas/LegacyRevisionAlias'
+                - type: 'null'
+            cadDocumentVersion:
+              $ref: '#/components/schemas/CadDocumentVersionToken'
+            layers:
+              type: ['array', 'null']
+              items:
+                type: object
+            cadDocument:
+              oneOf:
+                - $ref: '#/components/schemas/CadDocumentEnvelope'
+                - type: 'null'
+              description: >-
+                Documento canónico HIDRATADO (en la práctica inline o null),
+                misma semántica que la apertura del autor.
+            dxf:
+              oneOf:
+                - $ref: '#/components/schemas/DxfPlacement'
+                - type: 'null'
     CadCommentCreate:
       type: object
       required: [body]

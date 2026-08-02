@@ -6,7 +6,11 @@
 
 ## Fase actual
 
-**FASE 1 y FASE 2 (contratos) — COMPLETAS (2026-08-01)** → siguiente: FASE 3 (extracción).
+**FASES 1-5 COMPLETAS (2026-08-02)** — Fase 3 (R1-R3, reestructura), Fase 4 (datos,
+002892e) y Fase 5 (seguridad/comercialización — sección «Fase 5» abajo) hechas en este
+repo → siguiente: FASE 6 (retiro del CAD de enterprise).
+
+Contexto del cierre de Fases 1-2 en enterprise (histórico):
 
 Cierre WP7 con 14/14 gates verdes: build, typecheck, lint api/web, specs web **137/137**
 (baseline 136 +1 del seam; 107 en lib/cad), api unit **374 suites/2,509 tests** (baseline
@@ -218,24 +222,154 @@ completo en `/studio` (standalone, degradación industrial limpia), SDK tipado, 
 dorada + full-stack real, CI declarado.
 
 **Falta (por fase)**:
-- **Fase 4 — datos**: exportador/importador enterprise→design (los documentos
-  AXOS-CAD-STUDIO reales viven en `sf_line_layouts` del origen; el `legacySourceId` de
-  las tablas cad_* ya está previsto). Sin datos migrados, Design nace vacío.
-- **Fase 5 — seguridad/comercialización total**: cliente HTTP real de entitlements
-  contra platform-api (`platform-client.adapter.ts` sigue config-only, fail-closed en
-  modo platform-api); endpoints review-sessions/comments del contrato (la API aún no los
-  sirve) + UI de review links; publicador real de eventos `design.*` (hoy noop);
-  optimize NL→CAD (fuera del contrato v1; candidato v1.1); rate limiting/hardening de
-  prod; alias 1:1 opcional de rutas del YAML.
+- **Fase 4 — datos**: ✅ HECHA (commit 002892e): CLI export/import/verify/rollback
+  validada punta a punta contra BD enterprise fixture real; runbook en
+  `docs/product-split/DATA-MIGRATION.md`. (Esta lista quedó stale una sesión —
+  corregida aquí.)
+- **Fase 5 — seguridad/comercialización**: ✅ NÚCLEO HECHO en esta rama (ver la
+  sección «Fase 5» abajo). Queda de la lista original: UI de review links en apps/web,
+  publicador real de eventos `design.*` (hoy noop), optimize NL→CAD (candidato v1.1),
+  rate limiting/hardening extra de prod y el alias 1:1 opcional de rutas del YAML.
 - **Fase 6-7**: retiro del CAD de enterprise (gates 1-8) y CI/CD final con la matriz de
   criterios — sin cambios respecto del plan.
 
+## Fase 5 — seguridad y comercialización (esta rama, 2026-08-02)
+
+### Review links PROPIEDAD DEL SERVIDOR (API completa)
+
+- **Superficie del autor** (`/v1/cad/*`, JWT + `cad:review` + entitlement; contrato
+  design-api.v1.yaml, tag `reviews`): listar/crear review sessions por documento,
+  cerrar sesión, y comentarios (crear directo o por sesión, listar con filtros
+  `reviewSessionId`/`resolved`, resolver idempotente). Topes: 20 sesiones abiertas y
+  500 comentarios por documento; comentar en sesión cerrada = 400
+  `review_session_closed`; cerrar dos veces = 409.
+- **Semántica de tokens** (`review-link-token.ts` + `CadReviewRepository`): con
+  `shareLink: true` el SERVIDOR genera el token (32 bytes crypto random, base64url,
+  prefijo `vdrl_`, 48 chars); se persiste SOLO su sha256 hex en
+  `cad_review_sessions.token_hash` (sha256 sin sal es correcto: 256 bits de entropía
+  real, no hay diccionario — mismo patrón content-addressed del blob store; índice
+  ÚNICO parcial para canje O(log n)). El claro aparece ÚNICAMENTE en la respuesta de
+  creación (`shareToken`). `expiresAt` la fija el servidor: TTL pedido
+  (`shareLinkTtlMinutes`, acotado 5 min–90 días) o `REVIEW_LINK_TTL_MINUTES`
+  (default 7 días). Cerrar la sesión estampa `closed_at` + `revoked_at` y el token
+  MUERE de inmediato (no existe credencial derivada: cada request re-valida la fila).
+  Migración aditiva `ReviewLinkOwnership` (expires_at, revoked_at, allow_comments,
+  índice único del hash) — verificada en BD virgen.
+- **Canje y contexto read-only IMPUESTO POR BACKEND**: el token viaja por header
+  `X-Review-Token` (nunca en URL — los paths acaban en logs; CORS actualizado).
+  `CadAuthGuard` (sin Bearer) canjea vía `ReviewLinkService`: hash → lookup GLOBAL por
+  `token_hash` (el tenant sale de la FILA, jamás del cliente) → expiración/revocación →
+  identidad sintética `review-link:<sessionId>` sin permisos + `req.reviewAccess`.
+  `PermissionsGuard`: con `reviewAccess`, SOLO los handlers `@ReviewLinkSurface()`
+  pasan; cualquier otra ruta — mutación o lectura — es `403 review_read_only`
+  (auditado). La superficie del invitado (`/v1/cad/review/*`): `GET context`
+  (documento HIDRATADO en proyección reducida + colocación DXF + sesión),
+  `GET/POST comments` y `POST comments/:id/resolve` — solo el hilo de SU sesión, y
+  solo si `allowComments` (si no, `403 review_comments_disabled`). Un JWT jamás abre
+  esa superficie (401). Códigos 401 del canje: `review_token_invalid` /
+  `review_token_expired` / `review_token_revoked`.
+- **Auditoría server-owned** en `design_audit_log`: `cad_review_session_created` (sin
+  token, con ventana de vigencia), `cad_review_session_closed`,
+  `cad_review_link_redeemed` (canje; nunca el token), `cad_review_link_denied`
+  (expirado/revocado, con tenant de la sesión; hash desconocido NO escribe — sin
+  tenant atribuible sería amplificación de escritura anónima), `cad_comment_created`/
+  `cad_comment_resolved`, `REVIEW_ACCESS_DENIED` (403 read-only). FIX Fase 5: las
+  denegaciones de `PermissionsGuard` (ENTITLEMENT_DENIED/PERMISSION_DENIED) ahora se
+  asientan CON el tenant estampado — el guard corre ANTES del TenantInterceptor, así
+  que el ALS se abre a mano; antes quedaban con tenant NULL. Extra: la exportación DXF
+  (dibujo completo) se audita (`cad_dxf_exported`). Los bloques (CRUD) siguen sin
+  auditar (fuera del mandato; anotado como consciente).
+
+### Entitlements platform-api REALES (cierra TODO-R3)
+
+- `PlatformEntitlementClient` (`platform-entitlement.client.ts`) sustituye a
+  ConfigEntitlementClient en el puerto ENTITLEMENT_CLIENT: en modo `platform-api` hace
+  `GET {PLATFORM_API_URL}/v1/entitlements/design.cad` (contrato
+  specs/platform-api.v1.yaml) reenviando el BEARER DEL REQUEST (el guard corre antes
+  del interceptor: tenant+bearer viajan explícitos vía `EntitlementCheckContext` del
+  puerto). Timeout corto (`ENTITLEMENTS_TIMEOUT_MS`, default 1 500 ms) + caché breve
+  POR TENANT (`ENTITLEMENTS_CACHE_TTL_MS`, default 30 s; solo respuestas resueltas —
+  los errores de transporte NO se cachean). FAIL-CLOSED total: sin URL, sin bearer,
+  timeout, red caída, no-200 o cuerpo sin `active:true` con eco del código ⇒ niega.
+  `ENTITLEMENTS_MODE` sigue: allow-all (default dev, sin red) | platform-api (default
+  prod). **Platform aún no implementa el API: las pruebas levantan un servidor HTTP
+  REAL del contrato (no un mock del cliente) — el switch a la Platform productiva es
+  SOLO apuntar `PLATFORM_API_URL` al host real.**
+
+### Contratos y SDK
+
+- design-api.v1.yaml ADITIVO (redocly 0 errores/0 warnings): securityScheme
+  `reviewToken` (apiKey header), paths `/v1/review/context|comments|comments/{id}/resolve`,
+  campos `allowComments`/`expiresAt`/`revokedAt` en CadReviewSession,
+  `allowComments`/`shareLinkTtlMinutes` en la creación, schema `ReviewLinkContext`
+  (proyección reducida deliberada: el invitado ve el dibujo, no la organización),
+  respuesta `ReviewTokenRejected` y el catálogo de códigos ampliado. 6 códigos nuevos
+  en `DESIGN_API_ERROR_CODES` (@axos/contracts): review_token_invalid/expired/revoked,
+  review_session_closed, review_read_only, review_comments_disabled. SDK regenerado
+  (openapi-typescript 7.9.1) + cliente con `reviews.*` (autor) y
+  `reviewLink(token).*` (invitado, header) — compat-tests 7/7 (6 baseline + 1 nuevo:
+  la sesión jamás expone token/hash a nivel de tipos y el canje va por header).
+
+### Pruebas de aislamiento y escenarios (matriz barrida)
+
+- **`cad-tenant-isolation.pg.spec.ts` (PostgreSQL real, stack completo, modo
+  platform-api con servidor del contrato)**: (1) dos tenants sembrados por la API real
+  (proyecto, documento+contenido, publicación, bloque, sesión con link, comentario);
+  (2) B contra TODO lo de A → 404 en 26 rutas (proyectos get/patch/delete, documentos
+  get/patch/delete/content, versiones lista+detalle, publicaciones lista+creación, DXF
+  get/put/delete/export, bloques get/patch/delete, review sessions lista/creación/
+  cierre, comments lista/creación/resolve, intent) y las listas de B sin ids de A;
+  (3) el token de review de A abre SOLO el documento de A; contra documentos de B =
+  403 review_read_only; comentario de B no resoluble desde el hilo de A (404); token
+  inventado = 401; (4) BARRIDO PROGRAMÁTICO del router Express real (≥30 rutas
+  /v1/cad, con guard anti-barrido-vacío): un JWT válido SIN entitlement (Platform de
+  prueba niega) recibe `403 entitlement_required` `not_entitled` en TODAS (la
+  superficie del review link responde 401 a JWTs, con o sin entitlement), y las
+  denegaciones quedan auditadas con tenant.
+- **`cad-review.controller.spec.ts` (stack completo, SQLite)**: semántica de tokens
+  (única aparición, hash-only persistido, sin token/hash en listas ni bitácora),
+  comentarios del autor con filtros, expiración server-side (vencida en BD = 401
+  auditado), allowComments:false, tokens malformados/desconocidos, y el ESCENARIO E2E
+  DEL MANDATO como spec de integración API: crear → canjear en contexto limpio (solo
+  X-Review-Token) → read-only impuesto (10 rutas → 403 review_read_only, documento
+  intacto) → comentar/listar/resolver → revocar → el canje muere (401
+  review_token_revoked). DECISIÓN: se implementó como integración API y no como
+  Playwright nuevo porque apps/web AÚN NO tiene UI de review links — un e2e de
+  navegador sin UI solo repetiría llamadas HTTP; cuando la UI llegue, el golden de
+  navegador se añade sobre este mismo backend.
+- **Escenarios ERP-only y bundle** (UI/API de enterprise+platform): NO se prueban en
+  este repo — pertenecen a Fase 6/7 sobre valle-enterprise/platform. Evidencia
+  existente: CI de enterprise verde en la rama del split (WP7: 14/14 gates, api
+  374 suites/2,509 tests, tenant-safety 879/879) = ERP-only funcional con el CAD
+  intacto; el escenario bundle (ERP+Design con entitlements combinados) se probará en
+  Fase 6/7 cuando Platform sirva `/v1/entitlements` real — Design ya está listo del
+  lado cliente (apuntar URL).
+
+### Verificación Fase 5 (números exactos, esta máquina)
+
+- typecheck: turbo 4/4 workspaces, 0 errores; lint api: 0 errores (82 warnings
+  `no-unsafe-*` solo en specs supertest, mismo perfil del baseline).
+- `npm test` api: **27 suites/165 tests verdes** (+2 suites pg saltadas sin
+  TEST_DATABASE_URL = 29/173 totales). Baseline 24/149: −2 tests migrados del adapter
+  spec al cliente HTTP real, +18 nuevos (token 4, entitlements HTTP 7, review 7).
+- `test:pg`: **2 suites/8 tests** (4 baseline proyección + 4 nuevos de aislamiento)
+  contra PostgreSQL 16 real.
+- Suite completa turbo: api + **web 118/118** + sdk compat **7/7** + contracts, 4/4
+  tareas verdes (nada roto por los cambios de contrato).
+- redocly design-api.v1.yaml: válido, 0 errores/0 warnings. Migraciones sobre BD
+  virgen (7 migraciones → OK, ReviewLinkOwnership incluida) + bootstrap-smoke OK.
+- gitleaks: historial completo 407 commits → 0 hallazgos; filesystem de las áreas
+  tocadas (apps/api/src, packages/contracts, packages/design-sdk/src, .env.example)
+  → 0 hallazgos.
+
 ## Pendiente (orden)
 
-1. Fase 3 reestructura en valle-design (apps/packages, arranque limpio, CI propio).
-2. Fase 4 exportador/importador de datos. Fase 5 seguridad/comercialización.
-3. Fase 6 retiro del CAD de enterprise (SOLO con gates 1-8 demostrados).
-4. Fase 7 CI/CD y evidencia final (matriz 18 criterios).
+1. ~~Fase 3 reestructura en valle-design~~ ✅ (R1-R3). ~~Fase 4 datos~~ ✅ (002892e).
+   ~~Fase 5 seguridad/comercialización (núcleo)~~ ✅ (esta rama; restos: UI de review
+   links, eventos design.*, optimize v1.1, rate limiting extra, alias 1:1).
+2. Fase 6 retiro del CAD de enterprise (SOLO con gates 1-8 demostrados) + escenario
+   bundle ERP+Design con Platform sirviendo entitlements reales.
+3. Fase 7 CI/CD y evidencia final (matriz 18 criterios).
 
 ## Decisiones tomadas (resumen; detalle en DECISIONS.md)
 

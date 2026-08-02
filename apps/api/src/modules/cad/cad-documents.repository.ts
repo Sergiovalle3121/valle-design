@@ -423,6 +423,17 @@ export class CadDocumentsRepository {
     return this.getDxf(documentId);
   }
 
+  /**
+   * Asiento de auditoría de la exportación DXF (Fase 5 — la exportación
+   * entrega el dibujo COMPLETO como archivo: acción sensible, se audita como
+   * los saves/publicaciones). El controller la invoca tras armar el export.
+   */
+  async recordDxfExported(documentId: string, fileName: string): Promise<void> {
+    await this.recordAudit('cad_dxf_exported', 'CAD_DOCUMENT', documentId, {
+      afterState: { fileName },
+    });
+  }
+
   async clearDxf(documentId: string): Promise<void> {
     const row = await this.getDocument(documentId);
     if (!row.dxfData) return;
