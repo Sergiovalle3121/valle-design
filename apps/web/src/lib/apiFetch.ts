@@ -1,30 +1,15 @@
 "use client";
 
-/**
- * Cliente HTTP de Valle Design hacia la API de R1 (adaptación del
- * `apiFetch.ts` del origen).
- *
- * - Añade `Authorization: Bearer <jwt>` desde la sesión de Platform
- *   (localStorage, misma clave del origen — ver `src/lib/session.ts`).
- * - `credentials: 'include'`: si Platform comparte dominio y entrega cookie,
- *   viaja también; la API de R1 sólo exige el bearer.
- * - Los consumidores nuevos usan facades tipados; el adaptador histórico se mantiene aislado en `cad/legacy` hasta migrar el último call site.
- *
- * DIFERENCIA DELIBERADA con el origen: no hay bridge `/api/backend/token` ni
- * re-exchange en 401 — Design no emite tokens; una sesión rechazada se
- * resuelve volviendo a Platform (login real), no auto-horneando otro JWT.
- */
-
-import { readStoredToken } from "@/lib/session";
+import { csrfToken } from "@/lib/session";
 import {
-  isLegacyCadRequest,
   handleLegacyCadRequest,
+  isLegacyCadRequest,
 } from "@/lib/cad/legacy/layout-http-adapter";
 
 /**
- * Origen de la API de R1. `NEXT_PUBLIC_API_URL` es la variable que el editor
- * CAD del origen ya lee para construir sus URLs; `NEXT_PUBLIC_API_BASE` se
- * acepta como alias para despliegues que usen la nomenclatura nueva.
+ * Browser-facing API origin. Production should expose this same-origin through
+ * the web proxy so first-party cookies and the readable CSRF cookie share a
+ * host with the application.
  */
 export const API_BASE = (
   process.env.NEXT_PUBLIC_API_BASE ||
@@ -32,22 +17,20 @@ export const API_BASE = (
   "http://localhost:4000"
 ).replace(/\/$/, "");
 
-/** Añade el bearer de la sesión (si existe) sin pisar un Authorization explícito. */
 export function withAuthHeaders(init?: RequestInit): RequestInit {
-  const next: RequestInit = { ...(init || {}) };
+  const next: RequestInit = { ...(init ?? {}) };
   const headers = new Headers(init?.headers);
-  if (typeof window !== "undefined") {
-    const token = readStoredToken();
-    if (token && !headers.has("Authorization")) {
-      headers.set("Authorization", `Bearer ${token}`);
-    }
+  const method = (init?.method ?? "GET").toUpperCase();
+  if (!["GET", "HEAD", "OPTIONS"].includes(method)) {
+    const csrf = csrfToken();
+    if (csrf) headers.set("X-CSRF-Token", csrf);
   }
   next.headers = headers;
-  if (next.credentials === undefined) next.credentials = "include";
+  next.credentials ??= "include";
   return next;
 }
 
-/** Fetch autenticado SIN reescritura (lo usa también el adaptador cad-api). */
+/** First-party authenticated fetch without legacy URL translation. */
 export function rawApiFetch(
   input: RequestInfo | URL,
   init?: RequestInit,
@@ -55,7 +38,7 @@ export function rawApiFetch(
   return fetch(input, withAuthHeaders(init));
 }
 
-/** Fetch autenticado; mantiene temporalmente el adaptador histórico mientras migran consumidores. */
+/** First-party fetch with the temporary editor-only legacy adapter. */
 export function apiFetch(
   input: RequestInfo | URL,
   init?: RequestInit,

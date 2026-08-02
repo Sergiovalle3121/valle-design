@@ -12,6 +12,9 @@ import { AuditLogModule } from './modules/audit-log/audit-log.module';
 import { BlobStoreModule } from './modules/blob-store/blob-store.module';
 import { CadDocumentsModule } from './modules/cad-documents/cad-documents.module';
 import { CadModule } from './modules/cad/cad.module';
+import { IdentityModule } from './modules/identity/identity.module';
+import { OrganizationsModule } from './modules/organizations/organizations.module';
+import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 
 /**
  * Aplicación del producto Valle Design (CAD).
@@ -26,6 +29,9 @@ import { CadModule } from './modules/cad/cad.module';
   imports: [
     TypeOrmModule.forRoot(ormOptions()),
     TenantModule,
+    IdentityModule,
+    OrganizationsModule,
+    SubscriptionsModule,
     AuthModule,
     AuditLogModule,
     BlobStoreModule,

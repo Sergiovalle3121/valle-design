@@ -70,7 +70,10 @@ export class DesignApiError extends Error {
 
   constructor(status: number, body: ApiError | null) {
     const message =
-      (body && (Array.isArray(body.message) ? body.message.join('; ') : body.message)) ||
+      (body &&
+        (Array.isArray(body.message)
+          ? body.message.join("; ")
+          : body.message)) ||
       `Design API respondió ${status}`;
     super(message);
     this.name = "DesignApiError";
@@ -90,8 +93,10 @@ export class DesignApiError extends Error {
 export interface DesignClientOptions {
   /** Origen de la API, p.ej. `https://design.api.example.com` (sin ruta). */
   baseUrl: string;
-  /** Bearer JWT de Platform (o proveedor por llamada). */
-  token?: string | (() => string | null | undefined);
+  /** CSRF token de doble envío para mutaciones first-party. */
+  csrfToken?: string | (() => string | null | undefined);
+  /** Política de cookies. Default: `include`. */
+  credentials?: RequestCredentials;
   /** fetch alternativo (tests, polyfills). Default: globalThis.fetch. */
   fetch?: typeof fetch;
   /**
@@ -116,20 +121,16 @@ export function createDesignClient(options: DesignClientOptions) {
   const mountPrefix = (options.mountPrefix ?? "/v1/cad").replace(/\/+$/, "");
   const fetchImpl = options.fetch ?? globalThis.fetch;
 
-  const authHeader = (): Record<string, string> => {
-    const token =
-      typeof options.token === "function" ? options.token() : options.token;
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  };
-
   /** `/v1/documents/{id}` del YAML → `${baseUrl}${mountPrefix}/documents/{id}`. */
   const resource = (yamlPath: string, query?: PageQuery): string => {
     const mounted = yamlPath.replace(/^\/v1/, mountPrefix);
     const url = new URL(`${baseUrl}${mounted}`);
     if (query) {
       if (query.q !== undefined) url.searchParams.set("q", query.q);
-      if (query.limit !== undefined) url.searchParams.set("limit", String(query.limit));
-      if (query.offset !== undefined) url.searchParams.set("offset", String(query.offset));
+      if (query.limit !== undefined)
+        url.searchParams.set("limit", String(query.limit));
+      if (query.offset !== undefined)
+        url.searchParams.set("offset", String(query.offset));
     }
     return url.toString();
   };
@@ -141,17 +142,30 @@ export function createDesignClient(options: DesignClientOptions) {
     headers?: Record<string, string>,
   ): Promise<T> {
     const isForm = typeof FormData !== "undefined" && body instanceof FormData;
+    const requestHeaders = new Headers(headers);
+    if (body !== undefined && !isForm) {
+      requestHeaders.set("Content-Type", "application/json");
+    }
+    if (
+      !["GET", "HEAD", "OPTIONS"].includes(method) &&
+      !requestHeaders.has("X-Review-Token")
+    ) {
+      const csrf =
+        typeof options.csrfToken === "function"
+          ? options.csrfToken()
+          : options.csrfToken;
+      if (csrf) requestHeaders.set("X-CSRF-Token", csrf);
+    }
     const res = await fetchImpl(url, {
       method,
-      headers: {
-        ...(body !== undefined && !isForm
-          ? { "Content-Type": "application/json" }
-          : {}),
-        // El review link sustituye al bearer: headers explícitos ganan.
-        ...(headers ?? authHeader()),
-      },
+      headers: requestHeaders,
+      credentials: options.credentials ?? "include",
       body:
-        body === undefined ? undefined : isForm ? (body as FormData) : JSON.stringify(body),
+        body === undefined
+          ? undefined
+          : isForm
+            ? (body as FormData)
+            : JSON.stringify(body),
     });
     if (!res.ok) throw await parseError(res);
     if (res.status === 204) return undefined as T;
@@ -183,9 +197,16 @@ export function createDesignClient(options: DesignClientOptions) {
        * colocación del DXF de fondo (`dxf`) o null.
        */
       open: (documentId: string) =>
-        call<CadDocumentResource>("GET", resource(`/v1/documents/${documentId}`)),
+        call<CadDocumentResource>(
+          "GET",
+          resource(`/v1/documents/${documentId}`),
+        ),
       updateMeta: (documentId: string, patch: CadDocumentMetaUpdate) =>
-        call<CadDocumentSummary>("PATCH", resource(`/v1/documents/${documentId}`), patch),
+        call<CadDocumentSummary>(
+          "PATCH",
+          resource(`/v1/documents/${documentId}`),
+          patch,
+        ),
       archive: (documentId: string) =>
         call<void>("DELETE", resource(`/v1/documents/${documentId}`)),
       /** Guardado inline con CAS optimista (409 tipado vía DesignApiError). */
@@ -242,13 +263,23 @@ export function createDesignClient(options: DesignClientOptions) {
       },
       dxf: {
         get: (documentId: string) =>
-          call<DxfBackground>("GET", resource(`/v1/documents/${documentId}/dxf`)),
+          call<DxfBackground>(
+            "GET",
+            resource(`/v1/documents/${documentId}/dxf`),
+          ),
         put: (documentId: string, input: DxfBackgroundUpload) =>
-          call<DxfBackground>("PUT", resource(`/v1/documents/${documentId}/dxf`), input),
+          call<DxfBackground>(
+            "PUT",
+            resource(`/v1/documents/${documentId}/dxf`),
+            input,
+          ),
         remove: (documentId: string) =>
           call<void>("DELETE", resource(`/v1/documents/${documentId}/dxf`)),
         export: (documentId: string) =>
-          call<DxfExport>("GET", resource(`/v1/documents/${documentId}/export/dxf`)),
+          call<DxfExport>(
+            "GET",
+            resource(`/v1/documents/${documentId}/export/dxf`),
+          ),
       },
     },
 
@@ -360,7 +391,8 @@ export function createDesignClient(options: DesignClientOptions) {
         call<Page<CadBlock>>("GET", resource("/v1/blocks", query)),
       create: (input: CadBlockCreate) =>
         call<CadBlock>("POST", resource("/v1/blocks"), input),
-      get: (blockId: string) => call<CadBlock>("GET", resource(`/v1/blocks/${blockId}`)),
+      get: (blockId: string) =>
+        call<CadBlock>("GET", resource(`/v1/blocks/${blockId}`)),
       update: (blockId: string, patch: CadBlockUpdate) =>
         call<CadBlock>("PATCH", resource(`/v1/blocks/${blockId}`), patch),
       remove: (blockId: string) =>

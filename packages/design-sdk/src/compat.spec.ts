@@ -33,6 +33,7 @@ import {
   type CadDocumentVersionToken,
 } from "@valle-design/contracts";
 import type { components } from "./generated/design-api";
+import { createDesignClient } from "./client";
 
 type Schemas = components["schemas"];
 
@@ -64,7 +65,9 @@ type _conflictCodeInCatalog = Expect<
 
 // Permisos: el enum generado (requiredPermission del 403) == CAD_PERMISSIONS.
 type GeneratedPermission = NonNullable<
-  NonNullable<Schemas["EntitlementRequiredError"]["details"]>["requiredPermission"]
+  NonNullable<
+    Schemas["EntitlementRequiredError"]["details"]
+  >["requiredPermission"]
 >;
 type _permissionsMatch = Expect<Equal<GeneratedPermission, CadPermission>>;
 
@@ -115,7 +118,10 @@ type _versionToken = Expect<
 
 const specsDir = join(__dirname, "..", "..", "contracts", "specs");
 const apiYaml = readFileSync(join(specsDir, "design-api.v1.yaml"), "utf8");
-const eventsYaml = readFileSync(join(specsDir, "design-events.v1.yaml"), "utf8");
+const eventsYaml = readFileSync(
+  join(specsDir, "design-events.v1.yaml"),
+  "utf8",
+);
 
 void test("todo código de error contractual aparece en design-api.v1.yaml", () => {
   for (const code of DESIGN_API_ERROR_CODES) {
@@ -127,9 +133,9 @@ void test("todo código de error contractual aparece en design-api.v1.yaml", () 
 });
 
 void test("los permisos cad:* del spec casan con CAD_PERMISSIONS", () => {
-  const required = [...apiYaml.matchAll(/x-required-permission:\s*'?([\w:]+)'?/g)].map(
-    (match) => match[1],
-  );
+  const required = [
+    ...apiYaml.matchAll(/x-required-permission:\s*'?([\w:]+)'?/g),
+  ].map((match) => match[1]);
   assert.ok(required.length > 0, "el spec no declara x-required-permission");
   for (const permission of required) {
     assert.ok(
@@ -160,7 +166,10 @@ void test("los límites del documento canónico casan con CAD_DOCUMENT_LIMITS", 
     ["maxBlocks", /blocks:\s*\n\s*type: array\s*\n\s*maxItems: 2000/],
     ["maxConstraints", /maxItems: 250000/],
     ["maxPaperSpaces", /paperSpaces:\s*\n\s*type: array\s*\n\s*maxItems: 500/],
-    ["maxEmbeddedPublications", /publications:\s*\n\s*type: array\s*\n\s*maxItems: 1000\b/],
+    [
+      "maxEmbeddedPublications",
+      /publications:\s*\n\s*type: array\s*\n\s*maxItems: 1000\b/,
+    ],
     ["maxCompressedUploadBytes", /maximum: 20971520/],
     ["maxArchiveBytes", /maximum: 134217728/],
   ];
@@ -221,7 +230,10 @@ void test("review links server-owned: la sesión expone hasShareLink y jamás el
   // header, nunca por URL.
   assert.ok(apiYaml.includes("X-Review-Token"));
   assert.ok(apiYaml.includes("/v1/review/context"));
-  assert.ok(!/\/v1\/review\/\{token\}/.test(apiYaml), "el token no va en el path");
+  assert.ok(
+    !/\/v1\/review\/\{token\}/.test(apiYaml),
+    "el token no va en el path",
+  );
 });
 
 void test("el SDK generado está al día respecto de los tipos clave", () => {
@@ -242,4 +254,32 @@ void test("el SDK generado está al día respecto de los tipos clave", () => {
       `El generado perdió el marcador estructural: ${marker} — corre npm run generate`,
     );
   }
+});
+
+void test("el SDK usa cookies first-party y CSRF en mutaciones", async () => {
+  const calls: Array<{ input: RequestInfo | URL; init?: RequestInit }> = [];
+  const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    calls.push({ input, init });
+    return new Response(JSON.stringify({ id: "project-1" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }) as typeof fetch;
+  const client = createDesignClient({
+    baseUrl: "https://design.example.test",
+    csrfToken: () => "csrf-test-token",
+    fetch: fetchImpl,
+  });
+
+  await client.projects.list();
+  await client.projects.create({ name: "Proyecto" });
+
+  assert.equal(calls[0].init?.credentials, "include");
+  assert.equal(new Headers(calls[0].init?.headers).get("X-CSRF-Token"), null);
+  assert.equal(calls[1].init?.credentials, "include");
+  assert.equal(
+    new Headers(calls[1].init?.headers).get("X-CSRF-Token"),
+    "csrf-test-token",
+  );
+  assert.equal(new Headers(calls[1].init?.headers).get("Authorization"), null);
 });
