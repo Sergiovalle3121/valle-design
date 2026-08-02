@@ -1163,6 +1163,31 @@ export default function Layout3DEditor({
   const [cadLibraryTab, setCadLibraryTab] = useState<'blocks' | 'xrefs'>('blocks');
   const [showCollaborationDock, setShowCollaborationDock] = useState(false);
   const [cadReviewReadOnly, setCadReviewReadOnly] = useState(false);
+
+  // CANJE DEL REVIEW LINK — efecto de montaje, deliberadamente independiente
+  // de la carga del documento. El invitado que llega con `#cadReview=` no debe
+  // depender de que la rama del documento canónico se ejecute: su modo de sólo
+  // lectura lo decide el SERVIDOR (`GET /v1/cad/review/context` revalida hash,
+  // expiración y revocación) y debe aplicarse aunque el dibujo tarde o falle.
+  useEffect(() => {
+    let cancelled = false;
+    const redeem = async () => {
+      const readOnlyReview = await redeemReviewLink();
+      if (cancelled || !readOnlyReview) return;
+      setCadReviewReadOnly(true);
+      setShowCollaborationDock(true);
+    };
+    void redeem();
+    // Un enlace pegado en la MISMA pestaña sólo cambia el fragmento: no hay
+    // recarga ni remonte, así que sin esto el invitado se quedaría en modo
+    // edición con un token válido en la barra.
+    const onHashChange = () => void redeem();
+    window.addEventListener('hashchange', onHashChange);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('hashchange', onHashChange);
+    };
+  }, []);
   const [filletRadius, setFilletRadius] = useState(100);
   const [lineEditOperation, setLineEditOperation] = useState<'trim' | 'extend'>('trim');
   const [lineEditEndpoint, setLineEditEndpoint] = useState<CadLineEndpoint>('start');
@@ -1919,11 +1944,10 @@ export default function Layout3DEditor({
         syncCadLayerState(loadedCadDocumentRef.current);
         setCadXrefs(loadedCadDocumentRef.current.externalReferences.map((reference) => ({ ...reference })));
         setPublicationRecords([...loadedCadDocumentRef.current.publications]);
-        // El modo revisión lo decide el SERVIDOR (canje del token contra
-        // cad_review_sessions), no el documento: ver `redeemReviewLink`.
-        const readOnlyReview = await redeemReviewLink();
-        setCadReviewReadOnly(readOnlyReview);
-        if (readOnlyReview) setShowCollaborationDock(true);
+        // El canje del review link NO vive aquí: ver el efecto de montaje
+        // `redeemReviewLink`. Colgarlo de esta rama lo ataba a que el
+        // documento canónico cargara, y un invitado que llega con un enlace
+        // necesita su modo de sólo lectura ANTES e INDEPENDIENTEMENTE de eso.
         setActivePaperSpaceId(restoredPaperSpaces[0]?.id ?? null);
         setActivePaperViewportId(restoredPaperSpaces[0]?.viewports?.[0]?.id ?? null);
         setLayoutPreviewSheet(null);
