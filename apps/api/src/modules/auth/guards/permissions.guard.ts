@@ -130,6 +130,7 @@ export class PermissionsGuard implements CanActivate {
     const entitled = this.entitlements
       ? await this.entitlements.hasEntitlement(DESIGN_CAD_ENTITLEMENT, {
           tenantId: user.tenant_id,
+          organizationId: user.organization_id,
           bearerToken: extractBearerToken(request),
         })
       : false;

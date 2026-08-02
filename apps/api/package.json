@@ -27,7 +27,8 @@
     "migration:run": "npm run typeorm -- migration:run",
     "migrate:from-enterprise": "ts-node -r tsconfig-paths/register src/migration-cli/main.ts",
     "migrate:fixture:seed": "ts-node -r tsconfig-paths/register src/migration-cli/fixtures/seed-enterprise-fixture.ts",
-    "smoke:migration": "node scripts/migration-smoke.js"
+    "smoke:migration": "node scripts/migration-smoke.js",
+    "check:no-platform-entitlement": "node scripts/check-no-platform-entitlement-registration.js"
   },
   "dependencies": {
     "@valle-design/contracts": "*",

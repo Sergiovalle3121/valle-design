@@ -15,12 +15,13 @@ import { CadModule } from './modules/cad/cad.module';
 import { IdentityModule } from './modules/identity/identity.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
+import { CommercialModule } from './modules/commercial/commercial.module';
 
 /**
  * Aplicación del producto Valle Design (CAD).
  *
- * Guards globales (en orden): CadAuthGuard valida el Bearer JWT emitido por
- * Platform (secreto compartido vía entorno) y puebla `req.user`;
+ * Guards globales (en orden): CadAuthGuard valida la sesión first-party y
+ * puebla `req.user` desde datos verificados por el servidor;
  * PermissionsGuard impone el entitlement `design.cad` + RBAC `cad:*` sobre
  * las rutas anotadas. El TenantInterceptor (TenantModule, global) vierte la
  * identidad en TenantContextService para el scoping por tenant de TypeORM.
@@ -35,6 +36,7 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
     AuthModule,
     AuditLogModule,
     BlobStoreModule,
+    CommercialModule,
     CadDocumentsModule,
     CadModule,
   ],

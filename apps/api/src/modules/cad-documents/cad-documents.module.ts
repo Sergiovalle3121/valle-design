@@ -22,21 +22,12 @@ import {
 import { CAD_BLOB_STORE } from './ports/cad-blob-store.port';
 import { CAD_AI_PROVIDER } from './ports/cad-ai-provider.port';
 import { CAD_AUDIT_PUBLISHER } from './ports/cad-audit-publisher.port';
-import { CAD_EVENT_PUBLISHER } from './ports/cad-event-publisher.port';
-import {
-  ENTITLEMENT_CLIENT,
-  PLATFORM_IDENTITY_CLIENT,
-  USAGE_METER,
-} from './ports/platform-client.ports';
+import { CommercialModule } from '../commercial/commercial.module';
+import { PLATFORM_IDENTITY_CLIENT } from './ports/platform-client.ports';
 import { DesignBlobStoreAdapter } from './design-blob-store.adapter';
 import { CideAiProviderAdapter } from './cide-ai-provider.adapter';
 import { DesignCadAuditPublisher } from './design-audit-publisher.adapter';
-import { NoopCadEventPublisher } from './noop-event-publisher.adapter';
-import {
-  NoopUsageMeter,
-  TenantContextIdentityClient,
-} from './platform-client.adapter';
-import { PlatformEntitlementClient } from './platform-entitlement.client';
+import { TenantContextIdentityClient } from './platform-client.adapter';
 import { ReviewLinkService } from './review-link.service';
 
 /**
@@ -52,7 +43,7 @@ import { ReviewLinkService } from './review-link.service';
  *   (`design_blobs`, content-addressed en la base).
  * - CAD_AUDIT_PUBLISHER → DesignCadAuditPublisher sobre la bitácora propia
  *   `design_audit_log`.
- * - ENTITLEMENT_CLIENT → PlatformEntitlementClient (ENTITLEMENTS_MODE;
+ * - ENTITLEMENT_SERVICE → adaptador PostgreSQL local;
  *   cliente HTTP REAL del contrato platform-api.v1.yaml — Fase 5, cierra el
  *   TODO-R3 — con caché breve por tenant y fail-closed).
  * - PLATFORM_IDENTITY_CLIENT → TenantContextIdentityClient (contexto
@@ -73,6 +64,7 @@ import { ReviewLinkService } from './review-link.service';
     BlobStoreModule,
     // Aporta DesignAuditLog para el adaptador de auditoría CAD.
     AuditLogModule,
+    CommercialModule,
   ],
   providers: [
     CadBlocksService,
@@ -101,13 +93,10 @@ import { ReviewLinkService } from './review-link.service';
     { provide: CAD_AUDIT_PUBLISHER, useClass: DesignCadAuditPublisher },
     // El publicador real de eventos design.* llega con la integración por
     // contratos (design-events.v1.yaml); hasta entonces, no-op explícito.
-    { provide: CAD_EVENT_PUBLISHER, useClass: NoopCadEventPublisher },
     {
       provide: PLATFORM_IDENTITY_CLIENT,
       useClass: TenantContextIdentityClient,
     },
-    { provide: ENTITLEMENT_CLIENT, useClass: PlatformEntitlementClient },
-    { provide: USAGE_METER, useClass: NoopUsageMeter },
   ],
   exports: [
     CadBlocksService,
@@ -128,10 +117,8 @@ import { ReviewLinkService } from './review-link.service';
     CAD_BLOB_STORE,
     CAD_AI_PROVIDER,
     CAD_AUDIT_PUBLISHER,
-    CAD_EVENT_PUBLISHER,
     PLATFORM_IDENTITY_CLIENT,
-    ENTITLEMENT_CLIENT,
-    USAGE_METER,
+    CommercialModule,
   ],
 })
 export class CadDocumentsModule {}

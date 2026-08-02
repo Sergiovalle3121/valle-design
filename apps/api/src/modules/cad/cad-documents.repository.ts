@@ -7,7 +7,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import { FindOptionsWhere, IsNull } from 'typeorm';
+import { DataSource, EntityManager, FindOptionsWhere, IsNull } from 'typeorm';
 import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import {
   TenantScopedRepository,
@@ -28,6 +28,14 @@ import { isStoredCadDocumentBlobPointer } from '../cad-documents/cad-document-st
 import type { PersistedCadDocument } from '../cad-documents/cad-document-validation';
 import { CAD_AUDIT_PUBLISHER } from '../cad-documents/ports/cad-audit-publisher.port';
 import type { CadAuditPublisher } from '../cad-documents/ports/cad-audit-publisher.port';
+import {
+  CAD_EVENT_PUBLISHER,
+  USAGE_METER,
+} from '../commercial/ports/commercial.ports';
+import type {
+  CadEventPublisher,
+  UsageMeter,
+} from '../commercial/ports/commercial.ports';
 
 export interface PageQuery {
   q?: string;
@@ -78,6 +86,11 @@ export class CadDocumentsRepository {
     @Optional()
     @Inject(CAD_AUDIT_PUBLISHER)
     private readonly audit?: CadAuditPublisher,
+    @Optional()
+    @Inject(CAD_EVENT_PUBLISHER)
+    private readonly events?: CadEventPublisher,
+    @Optional() @Inject(USAGE_METER) private readonly usage?: UsageMeter,
+    @Optional() private readonly dataSource?: DataSource,
   ) {}
 
   /* ─────────────────────────────── Proyectos ─────────────────────────────── */
@@ -254,12 +267,52 @@ export class CadDocumentsRepository {
       plan.document,
       input.forceArchive === true || plan.storedAsBlobPointer,
     );
-    const nextVersion = await this.compareAndSwapCadDocument(
-      row.id,
-      plan.expectedVersion,
-      stored,
-    );
-    await this.recordVersion(row, nextVersion, stored);
+    const persist = async (manager?: EntityManager) => {
+      const next = await this.compareAndSwapCadDocument(
+        row.id,
+        plan.expectedVersion,
+        stored,
+        manager,
+      );
+      await this.recordVersion(row, next, stored, manager);
+      const tenantId = row.tenant_id;
+      const organizationId = row.organization_id ?? tenantId;
+      if (this.events || this.usage) {
+        if (!tenantId || !organizationId)
+          throw new Error('La mutación CAD requiere tenant y organización.');
+        if (!manager)
+          throw new Error(
+            'Los adaptadores comerciales requieren una transacción activa.',
+          );
+        const tx = { native: manager };
+        const key = `cad-document:${row.id}:version:${next}`;
+        await this.usage?.record(
+          {
+            organizationId,
+            tenantId,
+            metric: 'design.document.saved',
+            quantity: 1,
+            idempotencyKey: key,
+          },
+          tx,
+        );
+        await this.events?.publish(
+          {
+            organizationId,
+            tenantId,
+            type: 'design.document.saved',
+            aggregateId: row.id,
+            payload: { version: next, entityCount: plan.entityCount },
+            idempotencyKey: key,
+          },
+          tx,
+        );
+      }
+      return next;
+    };
+    const nextVersion = this.dataSource
+      ? await this.dataSource.transaction((manager) => persist(manager))
+      : await persist();
     await this.recordAudit('cad_document_saved', 'CAD_DOCUMENT', row.id, {
       afterState: {
         baseRevision: plan.expectedVersion,
@@ -477,8 +530,10 @@ export class CadDocumentsRepository {
     documentId: string,
     expected: number,
     cadDocument: Record<string, unknown>,
+    manager?: EntityManager,
   ): Promise<number> {
-    const result = await this.documents.update(
+    const documents = this.documents.withManager(manager);
+    const result = await documents.update(
       {
         ...this.mutationScope(documentId),
         cadDocumentVersion: expected,
@@ -491,7 +546,7 @@ export class CadDocumentsRepository {
     if (result.affected !== 1) {
       const current =
         (
-          await this.documents.findOne({
+          await documents.findOne({
             where: { id: documentId },
           })
         )?.cadDocumentVersion ?? expected;
@@ -511,8 +566,10 @@ export class CadDocumentsRepository {
     row: CadDocument,
     version: number,
     stored: Record<string, unknown>,
+    manager?: EntityManager,
   ): Promise<void> {
-    const entry = this.versions.create({
+    const versions = this.versions.withManager(manager);
+    const entry = versions.create({
       documentId: row.id,
       version,
       cadDocument: stored,
@@ -522,7 +579,7 @@ export class CadDocumentsRepository {
     entry.plant_id = row.plant_id;
     entry.organization_id = row.organization_id;
     try {
-      await this.versions.save(entry);
+      await versions.save(entry);
     } catch (err) {
       // Otra escritura concurrente ya registró esa versión — mismo resultado.
       if (!isUniqueViolation(err)) throw err;
