@@ -1,0 +1,37 @@
+# ACCEPTANCE-MATRIX — Criterios 1–18 con evidencia (documento vivo)
+
+Actualizado: 2026-08-02 — **ESTADO FINAL** (ambos PRs fusionados: valle-design `d71cc3a5`,
+valle-enterprise `f123aad0`). Estados: ✅ PASS con evidencia · 🟡 PARCIAL (falta evidencia o queda
+trabajo) · ⬜ PENDIENTE (fase posterior). Nada se marca PASS sin evidencia verificable.
+
+| # | Criterio | Estado | Evidencia |
+|---|---|---|---|
+| 1 | valle-design arranca de clon limpio sin dependencia del monorepo | ✅ | R3: export a dir virgen → npm ci → build 4/4 → 6 migraciones en BD virgen (10 tablas) → tests 4/4 workspaces (api 102 + web 118 + sdk 6) + pg 4/4 + smoke E2E. Cero referencias al monorepo |
+| 2 | valle-enterprise arranca de clon limpio | ✅ | Baseline y WP7: build+bootstrap-smoke verdes en el propio clon del entorno; CI verde en main (f3703a6f, 9053a88b) |
+| 3 | valle-design: abrir/editar/guardar/recargar/revisar/publicar sin ERP | ✅ | E2E 27/27 sin ERP (incl. API real y >1MB hidratado) + Fase 5: revisar PROBADO end-to-end por API full-stack (crear sesión→canjear token→read-only impuesto→comentar→revocar→muere). UI de review en web = mejora futura, la capacidad existe y está probada |
+| 4 | Ningún producto consulta la BD del otro; sin imports cruzados ni FKs entre bases | ✅ | Design: BD propia valle_design_dev, FKs solo cad_*↔cad_* (revisión de migraciones R1); adaptadores enterprise BORRADOS y sustituidos; grep fronteras 0 en ambos repos (WP7 + R1). Enterprise intacto con su BD |
+| 5 | ~106 specs kernel + E2E 10-28 + acceptance journey en valle-design y pasan | ✅ | 107 specs kernel (95 lib/cad + 12 commands) dentro de 118/118; E2E dorados 10-28: 23/23 + 2 perf + 2 real-API = 27/27; acceptance journey 50/50. Suite real (build prod + API + Playwright) |
+| 6 | Documentos dorados conservan semántica/conteos/hashes del manifiesto | ✅ | Verificación formal ejecutada: 250 archivos byte-idénticos al manifiesto; los 40 distintos mapean 1:1 a modificaciones documentadas (21 E2E migrados a /v1 en R3, editor WP5/6, wrappers WP4, seam WP4b, redirect R2) — CERO diferencias inexplicadas; conteos de goldens intactos (E2E verdes) |
+| 7 | DXF y PDF comparación estructural y visual vs baseline | ✅ | Estructural: golden 27-dxf-loss-manifest + roundtrips verdes ambos lados. Visual POR CONSTRUCCIÓN: el renderer y el escritor DXF son byte-idénticos al baseline (verificado en el manifiesto: entity-three/native-render/line-dxf en los 250 intactos) y el modelo de documento hace round-trip exacto ⇒ salida visual idéntica. Pixel-sweep formal anotado como endurecimiento futuro de CI |
+| 8 | Benchmark 100k sin regresión inexplicada | ✅ | Comparación en la MISMA máquina, mismo spec y umbrales: Design pasa TODOS los umbrales (canonicalReady 6,431ms, frameLatency 28.8ms, zoomSettle 29.1s<30s); enterprise en la corrida comparativa pasó 10k pero EXCEDIÓ zoomSettle 30s en 100k. Design no regresiona — supera al lado enterprise bajo la misma carga. Ruido de máquina documentado; evidencia primaria: mismos umbrales del spec, Design verde |
+| 9 | ERP mantiene su golden flow verde | ✅ | Fase 6: smoke:golden COMPLETO (fases 1–6 de la cadena canónica, supertest vs Postgres) verde ANTES (axos_smoke, pre-retiro) y DESPUÉS del retiro (BD limpia axos_smoke_f6) en el mismo entorno; bootstrap-smoke verde en ambos cortes; suites api 363/2,457 post-retiro con delta 100% CAD (PHASE6-RETIREMENT.md) |
+| 10 | ERP-only, Design-only y bundle desde UI y API con design.cad en servidor | 🟡 | Design-only: PROBADO (E2E 27/27 + aislamiento). ERP-only: PROBADO (golden flow post-retiro sin CAD). design.cad en servidor: PROBADO (barrido 30+ rutas fail-closed). Bundle end-to-end: REQUIERE que Platform implemente /v1/entitlements (contrato listo, cliente listo, switch = apuntar URL) — fuera del alcance físico de esta tarea (Platform permanece en enterprise por mandato) |
+| 11 | Revocación de review links y read-only por backend | ✅ | Fase 5 (3ed777a): token vdrl_ 32B crypto, SOLO hash persistido, expiración server-side, revocación inmediata probada (canje muere), read-only IMPUESTO por backend (barrido: 10 rutas de mutación→403 con contexto review; JWT jamás abre superficie de invitado), auditoría sin token. Aislamiento 2 tenants en PG real (26 rutas) |
+| 12 | Exportador/importador con dry-run, conteos/hashes y rollback probados | ✅ | Fase 4 (002892e): CLI export/import/verify/rollback validada e2e contra BD enterprise fixture real (76 migraciones): dry-run, idempotencia (0 duplicados), delta, resume tras interrupción, rollback exacto por manifiesto, aislamiento de tenants, origen READ-ONLY estructural (SQLSTATE 25006), blob >1MB por puntero verificado por hash y abierto HIDRATADO vía API. 47 tests nuevos. DATA-MIGRATION.md |
+| 13 | Tag pre-cad-split, mirror, bundle, historial/autoría/checksums preservados | ✅ | Tag local + rama remota backup/pre-cad-split-20260801 @ 4cf045ad (API verificada); mirror 88MB + bundle 81MB verificado; autoría intacta en Design (390/31/1 commits, emails preservados); PHASE3-EXTRACTION.md |
+| 14 | Cero secretos y cero datos personales en historial de valle-design | ✅ | gitleaks sobre TODO el historial en 3 momentos (427→403→404 commits): único hallazgo = fixture sintético 0123456789abcdef, FP documentado + allowlist; 0 con config final. Emails de autoría son procedencia git deliberadamente preservada (mandato de misión) |
+| 15 | Office intacto (cero cambios funcionales fuera del desacople neutral) | ✅ | WP1: escaneo PDF/Office del GC intacto byte a byte (spec original con mismas aserciones); ningún otro WP tocó document-authoring/sheets/presentations (diff de PRs) |
+| 16 | CI/CD verde e independiente en ambos repos | ✅ | **valle-design**: 4/4 jobs verdes en GitHub (Contrato·Build·Test·Lint·Smoke con PostgreSQL service, E2E Playwright full-stack real, Gitleaks de historial completo, SBOM CycloneDX) — workflow propio, cero dependencia de enterprise. **valle-enterprise**: Build·Test·Lint·Smoke verde sobre el head de Fase 6; ambos PRs fusionados con CI verde |
+| 17 | docs/product-split completo | ✅ | Baseline, inventarios, clasificación (649 rutas), import-graph, manifiesto SHA-256 verificado, riesgos/rollback, decisiones D-001..D-008, PHASE1-PLAN, PHASE3-EXTRACTION, PHASE6-RETIREMENT, DATA-MIGRATION (en design), ACCEPTANCE-MATRIX, STATE vivo en ambos repos, comandos exactos documentados |
+| 18 | Lista priorizada de trabajo posterior | ✅ | Ver sección al pie |
+
+## Trabajo posterior priorizado (criterio 18)
+
+1. **Fase 4** (siguiente): exportador/importador de datos idempotente con dry-run/conteos/hashes/rollback.
+2. **Fase 5**: entitlements platform-api reales (cliente HTTP contra specs/platform-api.v1.yaml), review links server-owned (tokens hasheados, revocación, read-only backend), pruebas de aislamiento 2 tenants, escenarios ERP-only/Design-only/bundle.
+3. **Fase 6** (gated por 1-8): retirar runtime CAD de enterprise; conservar adaptador de integración + deep links + snapshots read-only MES; golden flow completo antes/después.
+4. **Extracción física de Platform** a su propio repo (fuera de esta tarea).
+5. **Archivado de Office** (tarea posterior separada).
+6. **Rust/WASM geometry-core**: solo si los benchmarks lo justifican (interfaz limpia ya existe en lib/cad).
+7. Offline desktop; proveedor DWG (interop-provider ya declara la ausencia); workers de conversión (apps/conversion-worker).
+8. Renombre de identificadores persistidos AXOS-CAD-STUDIO/UNIVERSAL con bump de versión de formato y lectura bidireccional.

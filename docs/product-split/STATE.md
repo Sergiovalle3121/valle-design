@@ -1,8 +1,45 @@
-# STATE — Migración CAD: valle-enterprise → valle-design
+# STATE — valle-design (producto CAD independiente)
 
-> **Documento vivo.** Toda sesión que trabaje en la migración DEBE leer este archivo primero
-> y actualizarlo antes de pausar. El prompt canónico de la misión vive en el historial de la
-> sesión; este archivo es el puente entre sesiones.
+> Espejo del `STATE.md` de valle-enterprise, desde la orilla de Design. La bitácora completa
+> de la migración vive en ambos repos (`docs/product-split/`).
+
+## Estado
+
+**MIGRACIÓN COMPLETA (2026-08-02).** `main = d71cc3a5`.
+
+valle-design es un producto CAD independiente: nació de `git filter-repo` sobre el monorepo
+(427 commits con autoría y fechas intactas) y hoy tiene API, editor, SDK, CI, migración de
+datos y seguridad propios. **No depende de valle-enterprise** — ni por código, ni por rutas,
+ni por base de datos. Consume Platform (identidad/entitlements) exclusivamente por contratos
+versionados (`packages/contracts/specs/platform-api.v1.yaml`).
+
+### Lo que funciona hoy (con evidencia)
+
+- **API** `/v1/cad`: proyectos, documentos con CAS optimista, versiones, publicaciones
+  server-managed, DXF (import/export R12), bloques, review sessions y comments, intent/vision
+  con degradación limpia sin IA configurada. Blob store propio content-addressed con
+  hidratación de documentos >1MB.
+- **Editor** standalone en `/studio` (identificadores persistidos `AXOS-CAD-STUDIO`/`UNIVERSAL`
+  intactos por mandato).
+- **Pruebas**: api 27 suites/165 tests + 8 en PostgreSQL real; web 118/118 specs (107 del
+  kernel CAD); **E2E 27/27** (goldens 10–28, performance, y 2 contra la API real sin mocks);
+  acceptance journey 50/50; SDK compat 7/7.
+- **CI propio**: 4 jobs verdes (quality-gates con PostgreSQL, E2E full-stack, gitleaks de
+  historial completo, SBOM).
+- **Migración de datos**: CLI `export/import/verify/rollback` validada punta a punta contra
+  una BD enterprise real (`DATA-MIGRATION.md`).
+- **Seguridad**: review links propiedad del servidor (solo hash persistido, revocación y
+  read-only impuestos por backend), entitlements fail-closed, aislamiento entre tenants
+  probado en PostgreSQL real.
+
+### Pendientes reales
+
+1. UI de review links en `apps/web` (el backend está completo y probado).
+2. Publicador real de eventos `design.*` (hoy no-op; contratos AsyncAPI listos).
+3. Entitlements en producción: apuntar `PLATFORM_API_URL` cuando Platform sirva
+   `/v1/entitlements` — cierra el criterio 10 de la matriz.
+4. `optimize` NL→CAD y alias 1:1 de rutas del contrato (v1.1).
+5. Ver `ACCEPTANCE-MATRIX.md` §18 para el trabajo posterior priorizado del programa completo.
 
 ## Fase actual
 
