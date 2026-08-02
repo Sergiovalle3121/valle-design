@@ -15,7 +15,9 @@ import {
   ShieldCheck, CircleCheck, CircleAlert, Printer, ChartLine, FileText, WandSparkles, Stamp, Upload, ImageOff, Activity, History, Group, Search,
   Expand, Frame, Focus, PanelLeft, PanelLeftClose, ScanEye, GitMerge,
 } from 'lucide-react';
-import { apiFetch } from '@/lib/apiFetch';
+import { apiFetch, rawApiFetch } from '@/lib/apiFetch';
+import { layoutFromDocument, type OpenedDocument } from '@/lib/cad-api';
+import { CadCasConflictError, DocumentLifecycleController } from '@/components/cad/document-lifecycle/controller';
 import { ASSET_CATEGORIES, assetMeta, type AssetArchetype } from './asset-catalog';
 import { parseDxf, type DxfModel } from './dxf';
 import { dxfPointToFootprint, dxfToWalls } from './dxf-walls';
@@ -1076,6 +1078,8 @@ export interface Layout3DEditorPlatformProps {
 }
 
 export interface Layout3DEditorProps extends Layout3DEditorPlatformProps {
+  /** Identificador estable del contrato standalone. Evita resolver por model+revision. */
+  documentId?: string;
   model: string;
   revision: string;
   open: boolean;
@@ -1095,10 +1099,16 @@ const DEFAULT_BRANDING: NonNullable<Layout3DEditorPlatformProps['branding']> = {
 };
 
 export default function Layout3DEditor({
-  model, revision, open, onClose, onSaved, models = [], standalone = false, title, subtitle,
+  documentId, model, revision, open, onClose, onSaved, models = [], standalone = false, title, subtitle,
   identity, scope: platformScope, theme: resolvedScheme = 'light', onNotify, onFullscreenChange, branding = DEFAULT_BRANDING,
   analysisPanels = NO_ANALYSIS_PANELS,
 }: Layout3DEditorProps) {
+  const documentLifecycle = useMemo(() => new DocumentLifecycleController(
+    { request: (path, init) => rawApiFetch(`${API_BASE}${path}`, init) },
+    { record: (name, durationMs, detail) => {
+      if (typeof performance !== 'undefined') performance.measure(`cad.document.${name}`, { start: performance.now() - durationMs, duration: durationMs, detail });
+    } },
+  ), []);
   // Plataforma invertida (WP5): identidad, alcance y notificaciones llegan por
   // props. Los nombres locales conservan los del código enterprise original
   // para que el resto del editor no cambie.
@@ -1865,11 +1875,18 @@ export default function Layout3DEditor({
     walkRef.current = false; savedCamRef.current = null; undoStackRef.current = []; redoStackRef.current = []; loadedCadDocumentRef.current = null;
     (async () => {
       try {
-        const r = await apiFetch(`${API_BASE}/line-engineering/layout?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`);
+        let d: Layout;
+        if (documentId) {
+          const opened = await documentLifecycle.open(documentId);
+          const row = { ...opened.metadata, cadDocument: opened.document, cadDocumentVersion: opened.version } as unknown as OpenedDocument;
+          d = layoutFromDocument(model, revision, row, (opened.metadata.dxf ?? null) as Parameters<typeof layoutFromDocument>[3]) as Layout;
+        } else {
+          const r = await apiFetch(`${API_BASE}/line-engineering/layout?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`);
+          if (!r.ok) { setError('No se pudo cargar el layout.'); return; }
+          d = (await r.json()) as Layout;
+        }
         if (!alive) return;
         setConnectionState('online');
-        if (!r.ok) { setError('No se pudo cargar el layout.'); return; }
-        const d = (await r.json()) as Layout;
         const pl = new Map<string, Placement>();
         d.stations.forEach((s) => {
           if (s.x !== null && s.y !== null) {
@@ -1982,7 +1999,7 @@ export default function Layout3DEditor({
     return () => { alive = false; };
   // `toast` intentionally stays out: the provider object is not referentially
   // stable and would reload the complete drawing after every notification.
-  }, [open, model, revision, reloadTick, syncCadLayerState]);
+  }, [open, model, revision, documentId, documentLifecycle, reloadTick, syncCadLayerState]);
 
   const snapWorld = useCallback((v: number) => {
     const g = data?.footprint.gridSize || 1;
@@ -7924,7 +7941,10 @@ export default function Layout3DEditor({
       };
       const serializedCadDocument = serializeCadDocumentForTransport(cadDocument);
       let r: Response;
-      if (serializedCadDocument.useArchive) {
+      if (documentId) {
+        const result = await documentLifecycle.save(documentId, cadDocument, data.cadDocumentVersion ?? 0);
+        r = new Response(JSON.stringify({ ...data, cadDocument, cadDocumentVersion: result.version }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      } else if (serializedCadDocument.useArchive) {
         const archive = await gzipCadDocumentJson(serializedCadDocument.json);
         const form = new FormData();
         form.append('layout', JSON.stringify(layoutPayload));
@@ -7968,6 +7988,10 @@ export default function Layout3DEditor({
       onSaved?.();
       return saved;
     } catch (saveError) {
+      if (saveError instanceof CadCasConflictError) {
+        toast.error(saveError.message, 'Conflicto CAS');
+        return null;
+      }
       const message = saveError instanceof Error ? saveError.message : 'Error de red.';
       if (message === 'Error de red.') setConnectionState('offline');
       toast.error(message, '3D');
