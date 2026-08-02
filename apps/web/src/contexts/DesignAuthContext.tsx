@@ -7,8 +7,7 @@
  * La identidad ES el bearer JWT de Platform (ver `src/lib/session.ts`):
  * - Al montar, adopta el handoff de Platform si viene en la URL
  *   (`#access_token=…`) y, si no, lee/valida el token almacenado.
- * - `login()` redirige a Platform (`NEXT_PUBLIC_PLATFORM_LOGIN_URL`) — Design
- *   NO tiene pantalla de login propia con contraseñas.
+ * - `login()` abre la ruta de acceso de Design.
  * - `logout()` borra la sesión local.
  *
  * Sin WorkspaceContext enterprise: el alcance de trabajo en Design es el
@@ -39,7 +38,7 @@ interface DesignAuthValue {
   permissions: string[];
   isLoading: boolean;
   isAuthenticated: boolean;
-  /** Redirige a Platform para autenticar. false si la URL no está configurada. */
+  /** Abre la ruta de acceso. */
   login: () => boolean;
   logout: () => void;
 }

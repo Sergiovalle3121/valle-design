@@ -16,7 +16,7 @@
  * (`axos_access_token`): así el arnés E2E (e2e/fixtures/session.ts) y
  * cualquier despliegue junto a Platform siguen funcionando sin cambios.
  *
- * Login REAL: redirige a Platform (`NEXT_PUBLIC_PLATFORM_LOGIN_URL`) con
+ * La pantalla de acceso local puede adoptar un token entregado en el fragmento con
  * `returnTo`; Platform devuelve al usuario con el token en el fragmento
  * (`#access_token=…`, nunca en query para no filtrarlo a logs de servidor) y
  * `adoptSessionFromUrl()` lo persiste y limpia la URL.
@@ -155,12 +155,10 @@ export function adoptSessionFromUrl(): DesignSession | null {
 }
 
 /**
- * URL de login de Platform con retorno a esta app. Sin la variable de entorno
- * no hay pantalla alternativa: el producto exige Platform para autenticar.
+ * Ruta de acceso de la aplicación con retorno opcional.
  */
 export function platformLoginUrl(returnTo?: string): string | null {
-  const base = process.env.NEXT_PUBLIC_PLATFORM_LOGIN_URL;
-  if (!base) return null;
+  const base = "/login";
   const target =
     returnTo ??
     (typeof window !== "undefined" ? window.location.href : undefined);
