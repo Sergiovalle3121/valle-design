@@ -547,15 +547,26 @@ export interface CadReviewThread {
   };
 }
 
+/**
+ * Metadato NO SENSIBLE de un review link. El token NUNCA vive aquí: lo genera
+ * el servidor al crear la sesión de revisión (`POST /v1/cad/documents/:id/
+ * review-sessions`), sólo se persiste su sha256 en `cad_review_sessions.
+ * token_hash` y su valor en claro aparece UNA vez, en esa respuesta.
+ *
+ * `id` es el id de la sesión de revisión server-owned — la misma referencia
+ * que usan revocación (`/v1/cad/review-sessions/:id/close`) y auditoría.
+ * `hasToken` lo escribe la API al redactar documentos heredados que todavía
+ * traían el token en claro dentro del JSON.
+ */
 export interface CadReviewLink {
   id: string;
-  token: string;
   label: string;
   readOnly: true;
   createdAt: string;
   createdBy: string;
   expiresAt?: string;
   revokedAt?: string;
+  hasToken?: boolean;
 }
 
 export interface CadCollaborationAuditEvent {

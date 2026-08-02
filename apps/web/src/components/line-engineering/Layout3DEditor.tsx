@@ -155,7 +155,6 @@ import {
   type CadPublicationRecord,
 } from '@/lib/cad/cad-document';
 import {
-  cadReviewLinkIsActive,
   type CadEntityDiffRow,
 } from '@/lib/cad/cad-collaboration';
 import { applyCadLineFillet } from '@/lib/cad/cad-fillet';
@@ -353,6 +352,83 @@ const NO_ANALYSIS_PANELS: CadAnalysisPanelDescriptor[] = [];
  */
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000').replace(/\/$/, '');
+
+/* ──────────────────────── Review links (server-owned) ────────────────────── */
+
+/** Clave de sesión donde vive el token canjeado (nunca localStorage). */
+const REVIEW_TOKEN_SESSION_KEY = 'cad.reviewToken';
+
+/**
+ * Extrae el token de review de la URL y lo SACA de ella de inmediato.
+ *
+ * El enlace compartible lo lleva en el FRAGMENTO (`#cadReview=…`): un
+ * fragmento no se envía al servidor, no aparece en los logs ni en la cabecera
+ * `Referer` hacia terceros. Aun así se borra de la barra de direcciones nada
+ * más leerlo (`history.replaceState`) y se guarda en `sessionStorage`, que
+ * muere con la pestaña — así una recarga mantiene la sesión de revisión sin
+ * volver a exponer la credencial.
+ *
+ * Se acepta también el `?cadReview=` HEREDADO con un único propósito: borrarlo
+ * de la URL. Aquellos tokens los generaba el navegador y no existen en
+ * `cad_review_sessions`, así que su canje falla — como debe.
+ */
+function takeReviewTokenFromLocation(): string | null {
+  if (typeof window === 'undefined') return null;
+  const url = new URL(window.location.href);
+  const fromHash = new URLSearchParams(url.hash.replace(/^#/, '')).get('cadReview');
+  const fromQuery = url.searchParams.get('cadReview');
+  const token = (fromHash || fromQuery || '').trim();
+  if (fromHash || fromQuery) {
+    url.searchParams.delete('cadReview');
+    const hash = new URLSearchParams(url.hash.replace(/^#/, ''));
+    hash.delete('cadReview');
+    url.hash = hash.toString();
+    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash ? `#${url.hash}` : ''}`);
+  }
+  if (!token) return null;
+  try {
+    window.sessionStorage.setItem(REVIEW_TOKEN_SESSION_KEY, token);
+  } catch {
+    /* sessionStorage bloqueado: el token vive sólo en esta navegación */
+  }
+  return token;
+}
+
+/**
+ * CANJE del review link contra el servidor. Antes esto lo decidía el
+ * navegador comparando el token de la query string con los tokens que el
+ * propio documento traía EN CLARO — autorización cosmética sobre una fuente de
+ * verdad insegura. Ahora `GET /v1/cad/review/context` revalida hash,
+ * expiración y revocación en `cad_review_sessions` y es su respuesta la que
+ * pone el editor en solo lectura (que además el backend impone por su cuenta:
+ * fuera de `@ReviewLinkSurface` todo es 403 `review_read_only`).
+ */
+async function redeemReviewLink(): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
+  let token = takeReviewTokenFromLocation();
+  if (!token) {
+    try {
+      token = window.sessionStorage.getItem(REVIEW_TOKEN_SESSION_KEY);
+    } catch {
+      token = null;
+    }
+  }
+  if (!token) return false;
+  try {
+    const res = await apiFetch(`${API_BASE}/line-engineering/layout/review-context`, {
+      headers: { 'X-Review-Token': token },
+    });
+    if (!res.ok) {
+      // Enlace vencido, revocado o desconocido: se olvida el token.
+      try { window.sessionStorage.removeItem(REVIEW_TOKEN_SESSION_KEY); } catch { /* noop */ }
+      return false;
+    }
+    const body = (await res.json()) as { readOnly?: boolean } | null;
+    return body?.readOnly === true;
+  } catch {
+    return false;
+  }
+}
 
 // Etiquetas del glifo OSNAP (Fase 66 cableada, ADR §216) — se muestran en el HUD.
 const OSNAP_LABELS: Record<SnapType, string> = {
@@ -1087,6 +1163,31 @@ export default function Layout3DEditor({
   const [cadLibraryTab, setCadLibraryTab] = useState<'blocks' | 'xrefs'>('blocks');
   const [showCollaborationDock, setShowCollaborationDock] = useState(false);
   const [cadReviewReadOnly, setCadReviewReadOnly] = useState(false);
+
+  // CANJE DEL REVIEW LINK — efecto de montaje, deliberadamente independiente
+  // de la carga del documento. El invitado que llega con `#cadReview=` no debe
+  // depender de que la rama del documento canónico se ejecute: su modo de sólo
+  // lectura lo decide el SERVIDOR (`GET /v1/cad/review/context` revalida hash,
+  // expiración y revocación) y debe aplicarse aunque el dibujo tarde o falle.
+  useEffect(() => {
+    let cancelled = false;
+    const redeem = async () => {
+      const readOnlyReview = await redeemReviewLink();
+      if (cancelled || !readOnlyReview) return;
+      setCadReviewReadOnly(true);
+      setShowCollaborationDock(true);
+    };
+    void redeem();
+    // Un enlace pegado en la MISMA pestaña sólo cambia el fragmento: no hay
+    // recarga ni remonte, así que sin esto el invitado se quedaría en modo
+    // edición con un token válido en la barra.
+    const onHashChange = () => void redeem();
+    window.addEventListener('hashchange', onHashChange);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('hashchange', onHashChange);
+    };
+  }, []);
   const [filletRadius, setFilletRadius] = useState(100);
   const [lineEditOperation, setLineEditOperation] = useState<'trim' | 'extend'>('trim');
   const [lineEditEndpoint, setLineEditEndpoint] = useState<CadLineEndpoint>('start');
@@ -1843,10 +1944,10 @@ export default function Layout3DEditor({
         syncCadLayerState(loadedCadDocumentRef.current);
         setCadXrefs(loadedCadDocumentRef.current.externalReferences.map((reference) => ({ ...reference })));
         setPublicationRecords([...loadedCadDocumentRef.current.publications]);
-        const reviewToken = new URLSearchParams(window.location.search).get('cadReview');
-        const readOnlyReview = !!reviewToken && cadReviewLinkIsActive(loadedCadDocumentRef.current, reviewToken);
-        setCadReviewReadOnly(readOnlyReview);
-        if (readOnlyReview) setShowCollaborationDock(true);
+        // El canje del review link NO vive aquí: ver el efecto de montaje
+        // `redeemReviewLink`. Colgarlo de esta rama lo ataba a que el
+        // documento canónico cargara, y un invitado que llega con un enlace
+        // necesita su modo de sólo lectura ANTES e INDEPENDIENTEMENTE de eso.
         setActivePaperSpaceId(restoredPaperSpaces[0]?.id ?? null);
         setActivePaperViewportId(restoredPaperSpaces[0]?.viewports?.[0]?.id ?? null);
         setLayoutPreviewSheet(null);
@@ -2572,6 +2673,40 @@ export default function Layout3DEditor({
     restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
     toast.success(label, 'Compare / Merge');
   }, [cadReviewReadOnly, pushHistory, restore, syncCadLayerState, toast]);
+  /**
+   * Alta del review link en el SERVIDOR (`POST /v1/cad/documents/:id/
+   * review-sessions` vía el adaptador legacy→v1). El navegador ya no fabrica
+   * tokens: recibe el que emite el servidor, lo entrega al panel para copiarlo
+   * UNA vez y no lo persiste en el documento ni en la URL.
+   */
+  const createServerReviewLink = useCallback(async () => {
+    const res = await apiFetch(
+      `${API_BASE}/line-engineering/layout/review-sessions?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ allowComments: true }) },
+    );
+    const body = (await res.json().catch(() => null)) as
+      | { session?: { id?: string; expiresAt?: string | null }; shareToken?: string; message?: string }
+      | null;
+    if (!res.ok || !body?.session?.id) {
+      throw new Error(body?.message ?? 'El servidor rechazó crear el enlace de revisión.');
+    }
+    return {
+      id: body.session.id,
+      expiresAt: body.session.expiresAt ?? null,
+      shareToken: body.shareToken,
+    };
+  }, [model, revision]);
+  /** Revocación server-side: cerrar la sesión mata el token de inmediato. */
+  const revokeServerReviewLink = useCallback(async (sessionId: string) => {
+    const res = await apiFetch(
+      `${API_BASE}/line-engineering/layout/review-sessions/${encodeURIComponent(sessionId)}/close`,
+      { method: 'POST' },
+    );
+    if (!res.ok && res.status !== 409) {
+      const body = (await res.json().catch(() => null)) as { message?: string } | null;
+      throw new Error(body?.message ?? 'El servidor rechazó revocar el enlace de revisión.');
+    }
+  }, []);
   const visualizeCollaborationDiff = useCallback((rows: CadEntityDiffRow[]) => {
     const ids = new Set(rows.map((row) => row.entityId));
     validationHighlightRef.current = ids;
@@ -8408,6 +8543,8 @@ export default function Layout3DEditor({
       onDocumentChange={applyCollaborationDocument}
       onVisualize={visualizeCollaborationDiff}
       onNavigate={navigateCollaborationDiff}
+      onCreateReviewLink={createServerReviewLink}
+      onRevokeReviewLink={revokeServerReviewLink}
     />
   ) : activeProfessionalDock === 'workspace' ? (
     <CadWorkspaceDock

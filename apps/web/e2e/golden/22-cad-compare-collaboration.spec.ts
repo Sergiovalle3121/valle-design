@@ -134,6 +134,12 @@ test('canonical Base/Mine/Theirs compare, collision review, comments, links and 
   await page.getByRole('button', { name: 'Resolve' }).click();
   await page.getByTestId('cad-review-link-create').click();
   await expect(page.getByTestId('cad-collaboration-message')).toContainText('Read-only review link created');
+  // El token lo emite el SERVIDOR y sólo aparece una vez, en la UI.
+  await expect(page.getByTestId('cad-review-token-once')).toBeVisible();
+  const shareToken = (await page.getByTestId('cad-review-token-value').textContent())?.trim() ?? '';
+  expect(shareToken).toMatch(/^vdrl_/);
+  expect(backend.backend.reviewSessions).toHaveLength(1);
+  expect(backend.backend.reviewSessions[0].token).toBe(shareToken);
   await page.waitForTimeout(4_000);
   await page.screenshot({ path: testInfo.outputPath('compare-collision-review.png'), fullPage: true, scale: 'css' });
 
@@ -149,11 +155,37 @@ test('canonical Base/Mine/Theirs compare, collision review, comments, links and 
   expect(stored.collaboration?.audit.some((entry) => entry.action === 'merge_applied')).toBe(true);
   const reviewLink = stored.collaboration?.reviewLinks[0];
   expect(reviewLink?.readOnly).toBe(true);
+  // El documento GUARDADO referencia la sesión server-owned y NO contiene
+  // credencial alguna: ni el token emitido ni ninguna clave `token`.
+  expect(reviewLink?.id).toBe(backend.backend.reviewSessions[0].id);
+  expect(reviewLink && 'token' in reviewLink).toBe(false);
+  expect(JSON.stringify(stored)).not.toContain(shareToken);
+  expect(JSON.stringify(stored)).not.toContain('"token"');
 
-  await page.goto(`/studio?cadReview=${encodeURIComponent(reviewLink!.token)}`);
-  await expect(page.getByTestId('cad-review-banner')).toBeVisible();
-  await expect(page.getByTestId('cad-review-readonly')).toBeVisible();
-  await expect(page.getByTestId('cad-save')).toBeDisabled();
-  await expect(page.getByTestId('cad-merge-apply')).toBeDisabled();
-  await expect(page.getByTestId('cad-review-add')).toBeDisabled();
+  // El enlace compartible lleva el token en el FRAGMENTO (jamás en la query:
+  // no viaja al servidor ni queda en Referer/logs) y el editor lo canjea
+  // contra `/v1/cad/review/context` con la cabecera `X-Review-Token`.
+  // El invitado abre el enlace en una PESTAÑA NUEVA, que es el flujo real:
+  // navegar por fragmento dentro de la misma página no recarga la aplicación.
+  const guest = await context.newPage();
+  await guest.goto(`/studio#cadReview=${encodeURIComponent(shareToken)}`);
+  await expect(guest.getByTestId('cad-review-banner')).toBeVisible();
+  await expect(guest.getByTestId('cad-review-readonly')).toBeVisible();
+  await expect(guest.getByTestId('cad-save')).toBeDisabled();
+  await expect(guest.getByTestId('cad-merge-apply')).toBeDisabled();
+  await expect(guest.getByTestId('cad-review-add')).toBeDisabled();
+  // El token no sobrevive en la barra de direcciones.
+  expect(guest.url()).not.toContain(shareToken);
+  expect(page.url()).not.toContain('cadReview');
+  await guest.close();
+
+  // Revocar en el servidor mata el enlace: el mismo token ya no abre nada,
+  // ni siquiera en una pestaña limpia.
+  backend.backend.reviewSessions[0].status = 'closed';
+  backend.backend.reviewSessions[0].revokedAt = new Date().toISOString();
+  const revoked = await context.newPage();
+  await revoked.goto(`/studio#cadReview=${encodeURIComponent(shareToken)}`);
+  await expect(revoked.getByRole('button', { name: /^arc-a\s+ARC$/i })).toBeVisible();
+  await expect(revoked.getByTestId('cad-review-banner')).toHaveCount(0);
+  await revoked.close();
 });

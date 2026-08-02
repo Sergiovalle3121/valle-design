@@ -17,6 +17,7 @@ import { DesignAuditLog } from '../audit-log/design-audit-log.service';
 import { BlobStoreModule } from '../blob-store/blob-store.module';
 import { CadDocumentsModule } from '../cad-documents/cad-documents.module';
 import { CadReviewSession } from '../cad-documents/entities/cad-review-session.entity';
+import { hashReviewLinkToken } from '../cad-documents/review-link-token';
 import { CadModule } from './cad.module';
 
 /**
@@ -364,6 +365,42 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
     expect(context.body.document).not.toHaveProperty('createdBy');
     expect(JSON.stringify(context.body)).not.toContain('tokenHash');
 
+    // 2 bis) El INVITADO no se lleva los review link tokens heredados que aún
+    // vivan dentro del JSON del documento: el que entra por UN link no puede
+    // cosechar los demás. Se envenena la fila con el esquema viejo a propósito.
+    const legacySecret = 'vdrl_token_heredado_de_otro_enlace';
+    const source = app.get(DataSource);
+    const [row] = await source.query(
+      'SELECT cad_document FROM cad_documents WHERE id = ?',
+      [documentId],
+    );
+    const poisoned = JSON.parse(String(row.cad_document)) as Record<
+      string,
+      unknown
+    >;
+    poisoned.collaboration = {
+      versions: [],
+      threads: [],
+      audit: [],
+      reviewLinks: [{ id: 'otro-enlace', token: legacySecret, readOnly: true }],
+    };
+    await source.query(
+      'UPDATE cad_documents SET cad_document = ? WHERE id = ?',
+      [JSON.stringify(poisoned), documentId],
+    );
+    const poisonedContext = await request(server)
+      .get('/v1/cad/review/context')
+      .set('X-Review-Token', shareToken)
+      .expect(200);
+    expect(JSON.stringify(poisonedContext.body)).not.toContain(legacySecret);
+    expect(
+      poisonedContext.body.document.cadDocument.collaboration.reviewLinks[0],
+    ).toEqual({ id: 'otro-enlace', readOnly: true, hasToken: true });
+    await source.query(
+      'UPDATE cad_documents SET cad_document = ? WHERE id = ?',
+      [String(row.cad_document), documentId],
+    );
+
     // 3) READ-ONLY IMPUESTO POR BACKEND: cualquier ruta fuera de la
     //    superficie del link — mutación O lectura — es 403 review_read_only,
     //    aunque "el frontend" lo intente.
@@ -494,6 +531,9 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
     }
     const serialized = JSON.stringify(entries);
     expect(serialized).not.toContain(shareToken);
+    // Ni el token ni su HASH: la bitácora referencia la sesión, nunca la
+    // credencial (el hash sólo vive en cad_review_sessions.token_hash).
+    expect(serialized).not.toContain(hashReviewLinkToken(shareToken));
     const denied = entries.find((e) => e.action === 'cad_review_link_denied');
     expect(denied!.tenantId).toBe('tenant-a');
     expect(denied!.payload).toMatchObject({ reason: 'review_token_revoked' });

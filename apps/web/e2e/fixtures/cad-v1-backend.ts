@@ -119,10 +119,27 @@ export function seedFootprint(
   return { ...document, meta };
 }
 
+/**
+ * Sesión de revisión SERVER-OWNED (espejo de `cad_review_sessions`): el
+ * fixture emite el token, guarda sólo su referencia interna y lo entrega UNA
+ * vez, igual que la API real. Ningún token llega al documento.
+ */
+interface ReviewSessionRow {
+  id: string;
+  documentId: string;
+  token: string;
+  status: 'open' | 'closed';
+  allowComments: boolean;
+  expiresAt: string;
+  revokedAt: string | null;
+  closedAt: string | null;
+}
+
 export class CadV1Backend {
   private readonly rows: DocRow[] = [];
   private readonly library: LibraryBlockRow[] = [];
   readonly publicationRequests: PublicationRequest[] = [];
+  readonly reviewSessions: ReviewSessionRow[] = [];
   private seq = 0;
 
   constructor(seeds: CadV1DocumentSeed[]) {
@@ -236,6 +253,66 @@ export class CadV1Backend {
       return json(summaryOf(row), 201);
     }
 
+    const sessionResource = (session: ReviewSessionRow) => ({
+      id: session.id,
+      documentId: session.documentId,
+      status: session.status,
+      hasShareLink: true,
+      allowComments: session.allowComments,
+      expiresAt: session.expiresAt,
+      revokedAt: session.revokedAt,
+      closedAt: session.closedAt,
+      createdAt: NOW0,
+      createdBy: 'e2e@valle',
+    });
+
+    // ── CANJE del review link: SOLO por cabecera, nunca por query string ──
+    if (path === '/v1/cad/review/context' && method === 'GET') {
+      const token = request.headers()['x-review-token'] ?? '';
+      const session = this.reviewSessions.find(
+        (candidate) => candidate.token === token,
+      );
+      if (!token || !session) {
+        return json({ code: 'review_token_invalid', message: 'El review link no es válido.' }, 401);
+      }
+      if (session.revokedAt || session.status !== 'open') {
+        return json({ code: 'review_token_revoked', message: 'El review link fue revocado.' }, 401);
+      }
+      if (Date.parse(session.expiresAt) <= Date.now()) {
+        return json({ code: 'review_token_expired', message: 'El review link expiró.' }, 401);
+      }
+      const target = this.rows.find((candidate) => candidate.id === session.documentId);
+      if (!target) return notFound('Documento CAD no encontrado.');
+      return json({
+        session: sessionResource(session),
+        readOnly: true,
+        document: {
+          id: target.id,
+          name: target.name,
+          model: target.model,
+          revision: target.revision,
+          cadDocumentVersion: target.version,
+          layers: null,
+          cadDocument: structuredClone(target.document),
+          dxf: target.dxf ? { ...target.dxf.placement } : null,
+        },
+      });
+    }
+
+    // ── Revocación de la sesión (cierra el link de inmediato) ──
+    const closeMatch = path.match(/^\/v1\/cad\/review-sessions\/([^/]+)\/close$/);
+    if (closeMatch && method === 'POST') {
+      const session = this.reviewSessions.find((candidate) => candidate.id === closeMatch[1]);
+      if (!session) return notFound('Sesión de revisión no encontrada.');
+      if (session.status === 'closed') {
+        return json({ code: 'review_session_closed', message: 'Ya estaba cerrada.' }, 409);
+      }
+      session.status = 'closed';
+      session.closedAt = NOW0;
+      session.revokedAt = NOW0;
+      return json(sessionResource(session));
+    }
+
     const byId = (id: string) => this.rows.find((row) => row.id === id);
     const docMatch = path.match(/^\/v1\/cad\/documents\/([^/]+)(?:\/(.+))?$/);
     if (docMatch) {
@@ -282,6 +359,25 @@ export class CadV1Backend {
           entityCount: Array.isArray(entities) ? entities.length : 0,
           storedAsBlobPointer: false,
         });
+      }
+
+      // ── Review link SERVER-OWNED: el token se emite AQUÍ y sólo aquí ──
+      if (rest === 'review-sessions' && method === 'POST') {
+        const dto = body();
+        const session: ReviewSessionRow = {
+          id: `00000000-0000-4000-9000-${String(this.reviewSessions.length + 1).padStart(12, '0')}`,
+          documentId: row.id,
+          // Forma del token real (`vdrl_` + 256 bits): el fixture no lo
+          // persiste en ningún documento, igual que la API.
+          token: `vdrl_e2e_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`,
+          status: 'open',
+          allowComments: dto.allowComments !== false,
+          expiresAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+          revokedAt: null,
+          closedAt: null,
+        };
+        this.reviewSessions.push(session);
+        return json({ session: sessionResource(session), shareToken: session.token }, 201);
       }
 
       // ── Plano DXF de fondo (subrecurso 404 cuando no existe) ──
