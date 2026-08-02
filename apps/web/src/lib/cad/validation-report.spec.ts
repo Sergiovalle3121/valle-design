@@ -1,10 +1,10 @@
 import { buildCadValidationReport } from "./validation-report";
 import { layoutToCadDocument } from "./cad-document";
-// Dependencia SOLO-DE-TEST: la sección de flujo del reporte usa la analítica
-// industrial que en producción inyecta el host enterprise.
-import { installLineEngineeringCadAnalysis } from "../line-engineering/register-cad-analysis";
-
-installLineEngineeringCadAnalysis();
+// EDICIÓN DESIGN: la analítica industrial que la sección de flujo del reporte
+// consumía es ENTERPRISE_OWNED y no existe en este repo — este spec ya no la
+// registra. El reporte degrada omitiendo `flow` (comportamiento contractual
+// cubierto también por analysis-extensions.spec.ts); el resto de las
+// aserciones (colisiones, holguras, seguridad) queda intacto.
 
 function assertEqual<T>(actual: T, expected: T, message: string) {
   if (actual !== expected)
@@ -27,7 +27,14 @@ const report = buildCadValidationReport({
 });
 assertEqual(report.collisions.length, 1, "includes collision findings");
 assertEqual(report.severity, "critical", "collisions mark report critical");
-assertOk(report.flow, "includes flow score when flow nodes are provided");
+// EDICIÓN DESIGN: sin analítica industrial registrada el reporte omite la
+// sección de flujo (degradación contractual) — la aserción con score real
+// vive en el workbench enterprise.
+assertEqual(
+  report.flow,
+  undefined,
+  "omits the flow score in the Design edition (no analysis pack)",
+);
 assertEqual(report.issues.length, 1, "normalizes collisions into issue rows");
 assertEqual(
   report.issues[0]?.severity,

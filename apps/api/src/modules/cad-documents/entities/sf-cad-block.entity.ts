@@ -17,6 +17,14 @@ import { LayoutAsset } from '../cad-drawing-shapes';
  */
 @Entity('sf_cad_blocks')
 @Index('idx_sf_cad_block_scope', ['tenant_id', 'plant_id'])
+@Index('uq_sf_cad_block_tenant_legacy', ['tenant_id', 'legacySourceId'], {
+  unique: true,
+  where: '"legacy_source_id" IS NOT NULL',
+})
+@Index('uq_sf_cad_block_legacy_lane', ['legacySourceId'], {
+  unique: true,
+  where: '"tenant_id" IS NULL AND "legacy_source_id" IS NOT NULL',
+})
 export class SfCadBlock extends TenantBaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -35,4 +43,13 @@ export class SfCadBlock extends TenantBaseEntity {
   /** Optimistic, monotonic library version incremented on redefine. */
   @Column({ type: 'integer', default: 1 })
   version: number;
+
+  /** Id del bloque `sf_cad_blocks` de origen (Fase 4). NULL = bloque nativo. */
+  @Column({
+    type: 'varchar',
+    length: 64,
+    nullable: true,
+    name: 'legacy_source_id',
+  })
+  legacySourceId: string | null;
 }

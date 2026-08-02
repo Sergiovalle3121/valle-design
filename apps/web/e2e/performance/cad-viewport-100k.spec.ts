@@ -1,7 +1,7 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
+import { installCadV1Backend, seedFootprint } from '../fixtures/cad-v1-backend';
 import { loginAsMaster } from '../fixtures/session';
-import { API_ORIGIN } from '../fixtures/constants';
 
 const MEDIUM_ENTITY_COUNT = 10_000;
 const LARGE_ENTITY_COUNT = 100_000;
@@ -39,30 +39,19 @@ function cadDocumentOfSize(entityCount: number) {
   };
 }
 
+// MIGRACIÓN R3: el corpus 10k/100k se sirve por la superficie v1. NOTA de
+// direccionamiento: el mock legacy respondía el corpus a CUALQUIER GET del
+// layout con la etiqueta cosmética AXOS-CAD-PERF; en v1 el adaptador resuelve
+// model+revision reales del estudio, así que el corpus se siembra bajo
+// AXOS-CAD-STUDIO@UNIVERSAL (misma huella 20 000×2 000, grid 20).
+// payloadBytes conserva su significado: bytes del cuerpo de la APERTURA v1
+// (documento hidratado incluido) que viaja al navegador.
 async function installLargeCadBackend(context: BrowserContext, entityCount = LARGE_ENTITY_COUNT) {
-  const cadDocument = cadDocumentOfSize(entityCount);
-  const response = JSON.stringify({
-    model: 'AXOS-CAD-PERF',
-    revision: entityCount === LARGE_ENTITY_COUNT ? '100K' : '10K',
-    footprint: { footprintW: 20_000, footprintH: 2_000, unit: 'mm', gridSize: 20 },
-    stations: [],
-    dxf: null,
-    connectors: [],
-    assets: [],
-    annotations: [],
-    cells: [],
-    layers: [],
-    cadDocument,
-    cadDocumentVersion: 0,
-    approval: { status: 'draft', by: null, at: null, note: null },
-  });
-  await context.route(`${API_ORIGIN}/line-engineering/layout**`, async (route) => {
-    const url = new URL(route.request().url());
-    if (url.pathname !== '/line-engineering/layout' || route.request().method() !== 'GET')
-      return route.fallback();
-    return route.fulfill({ status: 200, contentType: 'application/json', body: response });
-  });
-  return Buffer.byteLength(response);
+  const footprint = { footprintW: 20_000, footprintH: 2_000, unit: 'mm', gridSize: 20 };
+  const cadDocument = seedFootprint(cadDocumentOfSize(entityCount), footprint);
+  await installCadV1Backend(context, { document: cadDocument, footprint });
+  const openResponseBody = JSON.stringify({ cadDocument, cadDocumentVersion: 0, dxf: null });
+  return Buffer.byteLength(openResponseBody);
 }
 
 function collectBrowserErrors(page: Page): string[] {
@@ -85,7 +74,7 @@ test.describe('CAD viewport performance · 10k/100k', () => {
     const browserErrors = collectBrowserErrors(page);
     const startedAt = Date.now();
 
-    await page.goto('/dashboard/cad');
+    await page.goto('/studio');
     await expect(page.getByTestId('cad-native-document-count')).toHaveText(`Native ${MEDIUM_ENTITY_COUNT}`, { timeout: 60_000 });
     const canonicalReadyMs = Date.now() - startedAt;
     const frameLatencyMs = await page.evaluate(() => new Promise<number>((resolve) => {
@@ -114,7 +103,7 @@ test.describe('CAD viewport performance · 10k/100k', () => {
     const browserErrors = collectBrowserErrors(page);
     const startedAt = Date.now();
 
-    await page.goto('/dashboard/cad');
+    await page.goto('/studio');
     const stats = page.getByTestId('cad-native-render-stats');
     await expect(stats).toHaveAttribute('data-total', String(LARGE_ENTITY_COUNT), { timeout: 120_000 });
     const canonicalReadyMs = Date.now() - startedAt;

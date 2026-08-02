@@ -1,0 +1,29 @@
+AXOS OS — Proprietary Software License
+Copyright (c) 2026 Sergio Valle Zárate. All Rights Reserved.
+
+This software, its source code, documentation, and associated assets (the
+"Software") are the proprietary and confidential property of Sergio Valle Zárate
+(the "Owner"). The Software is licensed, not sold.
+
+No part of the Software may be copied, reproduced, modified, merged, published,
+distributed, sublicensed, sold, or used to create derivative works, in whole or
+in part, by any person or entity without the prior express written permission of
+the Owner.
+
+Access to this repository does not grant any license or right to use the
+Software beyond what has been expressly agreed in writing with the Owner.
+Any evaluation, pilot, or commercial use requires a separate written agreement.
+
+Unauthorized use, reproduction, or distribution of the Software, or any portion
+of it, may result in civil and criminal penalties, and will be prosecuted to the
+maximum extent permitted by law.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE OWNER BE
+LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Third-party open-source components incorporated by the Software are licensed
+under their own respective terms; see THIRD_PARTY_NOTICES.md.

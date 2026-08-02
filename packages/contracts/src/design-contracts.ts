@@ -100,6 +100,18 @@ export const DESIGN_API_ERROR_CODES = [
   "cad_publications_server_managed",
   /** El tenant no tiene `design.cad` vigente o falta el permiso `cad:*` (403). */
   "entitlement_required",
+  /** Review link desconocido o malformado (401). */
+  "review_token_invalid",
+  /** Review link expirado — `expiresAt` server-side vencida (401). */
+  "review_token_expired",
+  /** Review link revocado o sesión cerrada (401). */
+  "review_token_revoked",
+  /** La sesión de revisión ya estaba cerrada (409 al cerrar; 400 al comentar). */
+  "review_session_closed",
+  /** Contexto de review link fuera de su superficie de solo lectura (403). */
+  "review_read_only",
+  /** La sesión de revisión no admite comentarios (403). */
+  "review_comments_disabled",
 ] as const;
 
 export type DesignApiErrorCode = (typeof DESIGN_API_ERROR_CODES)[number];

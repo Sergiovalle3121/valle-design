@@ -1,17 +1,17 @@
 /**
- * Adaptadores in-proc de los puertos de plataforma (WP2c).
+ * Adaptadores in-proc de los puertos de plataforma (adaptación Design del
+ * WP2c del origen).
  *
- * Identidad sobre TenantContextService (ALS del request autenticado),
- * entitlements sobre EntitlementsService (autoridad única del acceso pagado) y
- * un medidor de uso no-op. En Fase 3 el repo Design los sustituye por clientes
- * de la API de plataforma sin tocar el dominio.
+ * Identidad sobre TenantContextService (ALS del request autenticado) y un
+ * medidor de uso no-op. El puerto de ENTITLEMENTS ya NO vive aquí: desde
+ * Fase 5 lo satisface `PlatformEntitlementClient`
+ * (platform-entitlement.client.ts) — cliente HTTP real del contrato
+ * `specs/platform-api.v1.yaml` con caché breve por tenant y fail-closed
+ * (cierra el TODO-R3 del ConfigEntitlementClient que vivía en este archivo).
  */
-import { Injectable, Logger, Optional } from '@nestjs/common';
-import type { ProductCapabilityId } from '@axos/contracts';
+import { Injectable } from '@nestjs/common';
 import { TenantContextService } from '../../common/tenant/tenant-context.service';
-import { EntitlementsService } from '../entitlements/entitlements.service';
 import type {
-  EntitlementClient,
   PlatformIdentityClient,
   UsageMeter,
 } from './ports/platform-client.ports';
@@ -35,35 +35,7 @@ export class TenantContextIdentityClient implements PlatformIdentityClient {
   }
 }
 
-/**
- * Entitlements sobre la autoridad comercial real (EntitlementsService.
- * hasCapability). FAIL-CLOSED como manda ese módulo: sin tenant en contexto o
- * sin servicio disponible, la respuesta es false — nunca se regala acceso por
- * ausencia de dato.
- */
-@Injectable()
-export class EnterpriseEntitlementClient implements EntitlementClient {
-  private readonly logger = new Logger(EnterpriseEntitlementClient.name);
-
-  constructor(
-    private readonly tenantCtx: TenantContextService,
-    @Optional() private readonly entitlements?: EntitlementsService,
-  ) {}
-
-  async hasEntitlement(code: string): Promise<boolean> {
-    const tenant = this.tenantCtx.getTenantId();
-    if (!tenant) return false;
-    if (!this.entitlements) {
-      this.logger.warn(
-        `EntitlementsService no disponible; se niega '${code}' (fail-closed).`,
-      );
-      return false;
-    }
-    return this.entitlements.hasCapability(tenant, code as ProductCapabilityId);
-  }
-}
-
-/** Medidor de uso no-op; Fase 2 lo sustituye por metering real design.*. */
+/** Medidor de uso no-op; una fase posterior lo sustituye por metering design.*. */
 @Injectable()
 export class NoopUsageMeter implements UsageMeter {
   track(): void {

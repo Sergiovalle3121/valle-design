@@ -1,8 +1,8 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { installMockBackend } from '../fixtures/mock-backend';
+import { installCadV1Backend } from '../fixtures/cad-v1-backend';
 import { loginAsMaster } from '../fixtures/session';
-import { API_ORIGIN } from '../fixtures/constants';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
 
 const MODEL = 'AXOS-CAD-STUDIO';
@@ -67,67 +67,24 @@ function canonicalDocument(radius = 120) {
   };
 }
 
-function layout(cadDocument: ReturnType<typeof canonicalDocument>, version: number) {
-  return {
+// MIGRACIÓN R3: el mock vive ahora en la superficie v1 (`/v1/cad/*`) — es lo
+// que el navegador pide desde que el adaptador R2 reescribe las rutas legacy.
+// Mismo documento, misma huella, mismo CAS (409 contractual incluido).
+async function installCadBackend(context: BrowserContext) {
+  const { snapshot } = await installCadV1Backend(context, {
+    document: canonicalDocument(),
     model: MODEL,
     revision: REVISION,
     footprint: { footprintW: 12_000, footprintH: 10_000, unit: 'mm', gridSize: 100 },
-    stations: [],
-    dxf: null,
-    connectors: [],
-    assets: [],
-    annotations: [],
-    cells: [],
-    layers: [],
-    cadDocument,
-    cadDocumentVersion: version,
-    approval: { status: 'draft', by: null, at: null, note: null },
-  };
-}
-
-async function installCadBackend(context: BrowserContext) {
-  let currentDocument = canonicalDocument();
-  let currentVersion = 0;
-  await context.route(`${API_ORIGIN}/line-engineering/layout**`, async (route) => {
-    const request = route.request();
-    const url = new URL(request.url());
-    if (url.pathname !== '/line-engineering/layout') return route.fallback();
-    if (request.method() === 'GET') {
-      return route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(layout(currentDocument, currentVersion)),
-      });
-    }
-    if (request.method() === 'PUT') {
-      const body = request.postDataJSON() as {
-        cadDocument: ReturnType<typeof canonicalDocument>;
-        expectedCadDocumentVersion: number;
-      };
-      if (body.expectedCadDocumentVersion !== currentVersion) {
-        return route.fulfill({
-          status: 409,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            code: 'cad_document_version_conflict',
-            message: 'El dibujo cambió desde la última carga. Recarga y compara antes de guardar.',
-            expected: body.expectedCadDocumentVersion,
-            current: currentVersion,
-          }),
-        });
-      }
-      currentDocument = body.cadDocument;
-      currentVersion += 1;
-      return route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(layout(currentDocument, currentVersion)),
-      });
-    }
-    return route.fallback();
   });
   return {
-    snapshot: () => ({ document: currentDocument, version: currentVersion }),
+    snapshot: () => {
+      const current = snapshot();
+      return {
+        document: current.document as unknown as ReturnType<typeof canonicalDocument>,
+        version: current.version,
+      };
+    },
   };
 }
 
@@ -149,7 +106,7 @@ test.describe('Golden path · CAD native entities', () => {
   test('edits ARC, undo/redo, saves, reloads and round-trips native DXF', async ({ context, page }) => {
     const backend = await installCadBackend(context);
     const browserErrors = collectBrowserErrors(page);
-    await page.goto('/dashboard/cad');
+    await page.goto('/studio');
 
     await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
     await expect(page.getByTestId('cad-native-entity-list')).toContainText('3');
@@ -199,7 +156,7 @@ test.describe('Golden path · CAD native entities', () => {
   test('two browser sessions receive one typed revision conflict', async ({ context, page }) => {
     const backend = await installCadBackend(context);
     const second = await context.newPage();
-    await Promise.all([page.goto('/dashboard/cad'), second.goto('/dashboard/cad')]);
+    await Promise.all([page.goto('/studio'), second.goto('/studio')]);
     await Promise.all([
       page.getByTestId('cad-native-entity-arc-e2e').click(),
       second.getByTestId('cad-native-entity-arc-e2e').click(),

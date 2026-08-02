@@ -1,7 +1,8 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
+import { installCadV1Backend } from '../fixtures/cad-v1-backend';
 import { loginAsMaster } from '../fixtures/session';
-import { API_ORIGIN, BASE_URL } from '../fixtures/constants';
+import { BASE_URL } from '../fixtures/constants';
 
 function layoutResponse() {
   const cadDocument = {
@@ -29,23 +30,15 @@ function layoutResponse() {
     unsupportedEntities: [],
     lossManifest: [],
   };
-  return {
-    model: 'AXOS-CAD-STUDIO',
-    revision: 'UNIVERSAL',
-    footprint: { footprintW: 12_000, footprintH: 10_000, unit: 'mm', gridSize: 100 },
-    stations: [], dxf: null, connectors: [], assets: [], annotations: [], cells: [], layers: [],
-    cadDocument, cadDocumentVersion: 0,
-    approval: { status: 'draft', by: null, at: null, note: null },
-  };
+  return cadDocument;
 }
 
+// MIGRACIÓN R3: mock en la superficie v1 real (el adaptador R2 reescribe las
+// rutas legacy antes de tocar la red). Mismo documento y huella del origen.
 async function installCadBackend(context: BrowserContext) {
-  const response = JSON.stringify(layoutResponse());
-  await context.route(`${API_ORIGIN}/line-engineering/layout**`, async (route) => {
-    const url = new URL(route.request().url());
-    if (url.pathname === '/line-engineering/layout' && route.request().method() === 'GET')
-      return route.fulfill({ status: 200, contentType: 'application/json', body: response });
-    return route.fallback();
+  await installCadV1Backend(context, {
+    document: layoutResponse(),
+    footprint: { footprintW: 12_000, footprintH: 10_000, unit: 'mm', gridSize: 100 },
   });
 }
 
@@ -110,7 +103,7 @@ test('CAD recovery uses compressed IndexedDB journal and restores the newest che
   await installMockBackend(context);
   await loginAsMaster(context);
   await installCadBackend(context);
-  await page.goto('/dashboard/cad');
+  await page.goto('/studio');
   await page.getByTestId('cad-native-entity-recovery-arc').click();
   const radius = page.getByTestId('cad-native-property-radius');
   await radius.fill('141');
@@ -153,7 +146,7 @@ test('CAD recovery surfaces exhausted browser quota', async ({ context, page }) 
     origin: new URL(BASE_URL).origin,
     quotaSize: 1,
   });
-  await page.goto('/dashboard/cad');
+  await page.goto('/studio');
   await page.getByTestId('cad-native-entity-recovery-arc').click();
   const radius = page.getByTestId('cad-native-property-radius');
   await radius.fill('155');

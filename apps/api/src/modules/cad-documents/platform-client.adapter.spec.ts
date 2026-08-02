@@ -2,9 +2,7 @@ import {
   TenantContextService,
   type TenantContext,
 } from '../../common/tenant/tenant-context.service';
-import type { EntitlementsService } from '../entitlements/entitlements.service';
 import {
-  EnterpriseEntitlementClient,
   NoopUsageMeter,
   TenantContextIdentityClient,
 } from './platform-client.adapter';
@@ -20,7 +18,12 @@ const context: TenantContext = {
   scopes: null,
 };
 
-describe('platform-client adapters (WP2c)', () => {
+/**
+ * Adaptadores in-proc restantes (identidad + usage). El puerto de
+ * entitlements se prueba en platform-entitlement.client.spec.ts contra un
+ * servidor HTTP REAL del contrato platform-api.v1.yaml (Fase 5).
+ */
+describe('platform-client adapters (Design)', () => {
   it('la identidad refleja el contexto autenticado y queda vacía fuera de él', () => {
     const ctx = new TenantContextService();
     const identity = new TenantContextIdentityClient(ctx);
@@ -36,33 +39,7 @@ describe('platform-client adapters (WP2c)', () => {
     });
   });
 
-  it('entitlements delega en la autoridad comercial y es fail-closed', async () => {
-    const ctx = new TenantContextService();
-    const hasCapability = jest.fn().mockResolvedValue(true);
-    const client = new EnterpriseEntitlementClient(ctx, {
-      hasCapability,
-    } as unknown as EntitlementsService);
-
-    // Sin tenant en contexto → false sin consultar (fail-closed).
-    await expect(client.hasEntitlement('design.editor')).resolves.toBe(false);
-    expect(hasCapability).not.toHaveBeenCalled();
-
-    // Con tenant → delega en EntitlementsService.hasCapability.
-    await ctx.run(context, async () => {
-      await expect(client.hasEntitlement('design.editor')).resolves.toBe(true);
-    });
-    expect(hasCapability).toHaveBeenCalledWith('tenant-a', 'design.editor');
-
-    // Sin EntitlementsService disponible → false (nunca fail-open).
-    const without = new EnterpriseEntitlementClient(ctx);
-    await ctx.run(context, async () => {
-      await expect(without.hasEntitlement('design.editor')).resolves.toBe(
-        false,
-      );
-    });
-  });
-
-  it('el medidor de uso no-op no truena (Fase 2 lo sustituye por metering real)', () => {
+  it('el medidor de uso no-op no truena (metering design.* llega después)', () => {
     const meter: UsageMeter = new NoopUsageMeter();
     expect(() => meter.track('design.document.saved', 1)).not.toThrow();
     expect(() => meter.track('design.document.opened')).not.toThrow();

@@ -13,11 +13,12 @@ import {
 } from "./index";
 import type { CadBox, CadCommandContext } from "./types";
 import type { CadCommandHistoryState } from "./history";
-// Dependencia SOLO-DE-TEST: este spec ejercita también los comandos de
-// análisis industrial, que en producción inyecta el host enterprise.
-import { installLineEngineeringCadAnalysis } from "../../line-engineering/register-cad-analysis";
-
-installLineEngineeringCadAnalysis();
+// EDICIÓN DESIGN: la analítica industrial (balanceo/ruta material) es
+// ENTERPRISE_OWNED y no existe en este repo, así que este spec ya NO la
+// registra. Los comandos CAD puros se prueban idénticos al origen; los dos
+// comandos de análisis se prueban en su modo degradado contractual
+// (`analysis_pack_missing`), igual que en producción Design
+// (ver analysis-extensions.spec.ts).
 
 const ctx: CadCommandContext = {
   unit: "mm",
@@ -420,6 +421,10 @@ const rackCtx: CadCommandContext = {
   ],
 };
 
+// EDICIÓN DESIGN: sin paquete industrial, `analyze_line_balance` degrada con
+// el aviso contractual en lugar de emitir el reporte de balanceo (las
+// aserciones con analítica real viven en el workbench enterprise). El parser
+// —CAD puro— se conserva idéntico.
 const lineBalancePreview = previewCadCommand(
   {
     id: "analyze_line_balance",
@@ -429,18 +434,16 @@ const lineBalancePreview = previewCadCommand(
   ctx,
 );
 assert.equal(
-  lineBalancePreview.operations.some(
-    (op) => op.type === "report" && op.title === "Balanceo de linea",
-  ),
-  true,
-  "line balance emits a balance report",
+  lineBalancePreview.operations.length,
+  0,
+  "line balance degrades without operations in the Design edition",
 );
 assert.equal(
   lineBalancePreview.issues.some(
-    (issue) => issue.code === "line_balance_over_takt",
+    (issue) => issue.code === "analysis_pack_missing",
   ),
   true,
-  "line balance warns when a station is over takt",
+  "line balance warns that the analysis pack is missing",
 );
 assert.equal(
   parseCadCommand("analiza balanceo de linea takt 45s").input?.id,
@@ -448,6 +451,8 @@ assert.equal(
   "parser recognizes line balance intent",
 );
 
+// EDICIÓN DESIGN: ídem para `trace_material_route` — degradación contractual
+// en lugar del reporte de ruta con analítica real.
 const materialRoutePreview = previewCadCommand(
   { id: "trace_material_route" },
   {
@@ -459,16 +464,16 @@ const materialRoutePreview = previewCadCommand(
   },
 );
 assert.equal(
-  materialRoutePreview.operations.some(
-    (op) => op.type === "report" && op.title === "Ruta material",
-  ),
-  true,
-  "material route emits a from-to route report",
+  materialRoutePreview.operations.length,
+  0,
+  "material route degrades without operations in the Design edition",
 );
 assert.equal(
-  materialRoutePreview.affectedObjectIds.join(","),
-  "smt,aoi,pack",
-  "material route follows connector order",
+  materialRoutePreview.issues.some(
+    (issue) => issue.code === "analysis_pack_missing",
+  ),
+  true,
+  "material route warns that the analysis pack is missing",
 );
 assert.equal(
   parseCadCommand("traza ruta material").input?.id,

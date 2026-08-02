@@ -1,7 +1,7 @@
 import { expect, test, type BrowserContext, type Page, type TestInfo } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
+import { installCadV1Backend } from '../fixtures/cad-v1-backend';
 import { loginAsMaster } from '../fixtures/session';
-import { API_ORIGIN } from '../fixtures/constants';
 
 const cadDocument = {
   meta: { version: 1, schema: 3, unit: 'mm' },
@@ -12,24 +12,13 @@ const cadDocument = {
   blocks: [], constraints: [], externalReferences: [], unsupportedEntities: [], lossManifest: [], publications: [],
 };
 
+// MIGRACIÓN R3: mock en la superficie v1 real; la biblioteca de bloques vacía
+// la sirve el propio fixture (GET /v1/cad/blocks → {items: []}).
 async function installCadBackend(context: BrowserContext) {
-  await context.route(`${API_ORIGIN}/line-engineering/layout**`, async (route) => {
-    const url = new URL(route.request().url());
-    if (url.pathname !== '/line-engineering/layout' || route.request().method() !== 'GET') return route.fallback();
-    return route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        model: 'AXOS-CAD-STUDIO', revision: 'UNIVERSAL',
-        footprint: { footprintW: 12_000, footprintH: 10_000, unit: 'mm', gridSize: 100 },
-        stations: [], dxf: null, connectors: [], assets: [], annotations: [], cells: [], layers: [],
-        cadDocument, cadDocumentVersion: 0,
-        approval: { status: 'draft', by: null, at: null, note: null },
-      }),
-    });
+  await installCadV1Backend(context, {
+    document: cadDocument,
+    footprint: { footprintW: 12_000, footprintH: 10_000, unit: 'mm', gridSize: 100 },
   });
-  await context.route(`${API_ORIGIN}/line-engineering/cad-blocks**`, (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
 }
 
 async function assertDockedGeometry(page: Page) {
@@ -56,7 +45,7 @@ test('professional workbench persists, scales and keeps every palette outside th
   await installMockBackend(context);
   await loginAsMaster(context);
   await installCadBackend(context);
-  await page.goto('/dashboard/cad');
+  await page.goto('/studio');
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
 
   await page.getByTitle(/Workspace profesional/).click();

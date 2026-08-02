@@ -1,0 +1,4 @@
+# Bitácoras append-only del split de productos: merge de unión para que dos
+# PRs que agregan entradas concurrentes no colisionen (conserva ambos lados).
+docs/product-split/DECISIONS.md   merge=union
+docs/product-split/STATE.md       merge=union

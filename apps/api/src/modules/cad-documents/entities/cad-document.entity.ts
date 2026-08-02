@@ -68,4 +68,43 @@ export class CadDocument extends TenantBaseEntity {
     name: 'legacy_source_id',
   })
   legacySourceId: string | null;
+
+  /**
+   * Metadata industrial de la fila legacy de origen (Fase 4): connectors /
+   * assets / annotations / cells, aprobación, footprint y resumen de
+   * snapshots. Evidencia de la copia — NULL en documentos nativos; el editor
+   * no la consume.
+   */
+  @Column({ type: JSON_COLUMN_TYPE, nullable: true, name: 'legacy_metadata' })
+  legacyMetadata: Record<string, unknown> | null;
+
+  // ── Plano DXF de fondo (contrato /v1 dxf) ─────────────────────────────────
+  // Mismo modelo que `sf_line_layouts` en el origen: NULL en `dxf_data` = sin
+  // plano; las columnas de colocación posicionan el fondo de SOLO LECTURA
+  // sobre el dibujo (CadDocumentsService.toDxfPlacement/applyDxfMeta operan
+  // sobre este registro). Columnas añadidas por la migración DesignFoundation.
+
+  @Column({ type: 'text', nullable: true, name: 'dxf_data' })
+  dxfData: string | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'dxf_name' })
+  dxfName: string | null;
+
+  @Column({ type: 'float', default: 0, name: 'dxf_offset_x' })
+  dxfOffsetX: number;
+
+  @Column({ type: 'float', default: 0, name: 'dxf_offset_y' })
+  dxfOffsetY: number;
+
+  @Column({ type: 'float', default: 1, name: 'dxf_scale' })
+  dxfScale: number;
+
+  @Column({ type: 'float', default: 0, name: 'dxf_rotation' })
+  dxfRotation: number;
+
+  @Column({ type: 'boolean', default: true, name: 'dxf_visible' })
+  dxfVisible: boolean;
+
+  @Column({ type: 'float', default: 0.5, name: 'dxf_opacity' })
+  dxfOpacity: number;
 }

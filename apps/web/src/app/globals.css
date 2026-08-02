@@ -1,0 +1,746 @@
+@import "tailwindcss";
+
+/* ===========================================================================
+   AXOS OS — SISTEMA DE DISEÑO · CLARO / OSCURO (una sola fuente de verdad)
+   ---------------------------------------------------------------------------
+   El modo OSCURO es el INVERSO FIEL del claro: mismos componentes, misma
+   jerarquía y los MISMOS acentos de marca (índigo) — sólo cambian fondo y
+   texto. CERO neón, cero gradientes llamativos.
+   El toggle (ThemeContext) añade/quita la clase `.dark` en <html>; este
+   `@custom-variant` hace que TODA utilidad `dark:` siga esa clase (en vez de
+   `prefers-color-scheme`), de modo que un único switch gobierna toda la app.
+   La preferencia del sistema se respeta en el primer render (script en
+   layout.tsx fija la clase desde `prefers-color-scheme` si no hay elección).
+   =========================================================================== */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    /* === Paleta semántica (canales HSL → usar con hsl(var(--token))) ======
+       CLARO: sobrio estilo banca — blancos, gris pizarra, acento índigo. */
+    /* Confort de lectura prolongada: fondo off-white calmado (menos glare que el
+       blanco puro) y texto slate algo más suave que el casi-negro. Las tarjetas
+       siguen casi blancas, así "flotan" con suavidad sobre el fondo. */
+    --background: 220 24% 96.5%;
+    --foreground: 222 40% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 40% 15%;
+    --surface: 0 0% 100%;
+    --surface-foreground: 222 40% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 40% 15%;
+    --muted: 220 16% 93%;
+    --muted-foreground: 220 10% 40%;
+    --border: 220 13% 89%;
+    --input: 220 13% 91%;
+
+    /* Acento de marca (índigo) — IDÉNTICO en claro y oscuro. Nada de cyan. */
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 239 84% 67%;
+
+    /* Estados semánticos */
+    --success: 160 84% 36%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 222 47% 11%;
+    --danger: 0 84% 60%;
+    --danger-foreground: 0 0% 100%;
+
+    /* Alias de compatibilidad (shadcn/ui) — apuntan al mismo sistema. */
+    --secondary: 220 16% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --accent: 239 84% 67%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* === Marca white-label (el tenant la sobrescribe vía ThemeContext) ====
+       El default = acento índigo de la app (NO cyan). */
+    --axos-primary: #1a1a1a;
+    --axos-accent: #6366f1;
+    --axos-warning: #f59e0b;
+    --axos-danger: #ef4444;
+    --brand-primary: var(--axos-accent);
+    /* Variante oscurecida del acento para fondos con TEXTO PEQUEÑO en blanco:
+       el acento base da 4.46:1, por debajo del 4.5 que exige WCAG AA. Se define
+       como token para que la corrección sea reutilizable y no un valor suelto
+       escondido en un componente. */
+    --brand-primary-strong: #4f46e5;
+    --brand-logo: none;
+    --border-radius-custom: 1rem;
+    --glass-opacity: 0.34;
+    --radius: var(--border-radius-custom);
+
+    /* Acento "vivo" + easings (compat con utilidades previas). */
+    --accent-strong: #4f46e5; /* indigo-600 */
+    --accent-soft: #a5b4fc; /* indigo-300 */
+    --accent-glow: rgba(99, 102, 241, 0.18);
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    /* === Tipografía ========================================================
+       Inter variable (servida por next/font, sin petición a terceros en
+       runtime) con el stack de sistema sólo como red de seguridad mientras
+       carga. El stack de sistema SOLO no bastaba: la misma pantalla salía con
+       tres tipos distintos según el equipo, y sin un tipo fijo no se puede
+       afinar interletraje ni jerarquía — que es justo lo que separa un titular
+       caro de uno suelto.
+
+       Mono para cifras, códigos y etiquetas técnicas. */
+    --font-sans:
+      var(--font-inter), ui-sans-serif, system-ui, -apple-system,
+      BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+      sans-serif;
+    --font-mono:
+      var(--font-jetbrains), ui-monospace, SFMono-Regular, "SF Mono", Menlo,
+      Consolas, monospace;
+
+    /* === Escala tipográfica ================================================
+       Interletraje NEGATIVO que crece con el tamaño. Una grotesca compuesta a
+       76px con el tracking de 16px se ve desarmada; ésta es la corrección que
+       más cambia la percepción de calidad y la que casi nunca se hace. */
+    --tracking-display: -0.038em;
+    --tracking-title: -0.024em;
+    --tracking-body: -0.011em;
+    --tracking-label: 0.04em;
+
+    /* === Elevación NEUTRA (materialidad, no glow) =========================
+       Tres niveles tokenizados; sombra de negro a baja opacidad, jamás teñida
+       de color. Reposo → elevado → flotante (dock/menús/paleta/modal). */
+    --shadow-sm:
+      0 1px 2px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.04);
+    --shadow-md:
+      0 4px 12px -2px rgba(15, 23, 42, 0.08),
+      0 2px 6px -2px rgba(15, 23, 42, 0.05);
+    --shadow-lg:
+      0 18px 40px -16px rgba(15, 23, 42, 0.22),
+      0 4px 12px -4px rgba(15, 23, 42, 0.08);
+
+    /* Apple White Premium (compat) */
+    --apple-bg: #f5f5f7;
+    --apple-card: rgba(255, 255, 255, 0.72);
+    --apple-text: #1d1d1f;
+    --apple-text-secondary: #86868b;
+    --apple-border: rgba(0, 0, 0, 0.08);
+    --apple-blue: #0071e3;
+    --apple-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.04);
+  }
+
+  /* INVERSO FIEL: oscuro sobrio (deep slate), MISMOS acentos índigo. */
+  .dark {
+    --background: 222 30% 7%;
+    --foreground: 210 20% 96%;
+    --card: 222 24% 10%;
+    --card-foreground: 210 20% 96%;
+    --surface: 222 24% 10%;
+    --surface-foreground: 210 20% 96%;
+    --popover: 222 26% 9%;
+    --popover-foreground: 210 20% 96%;
+    --muted: 220 18% 15%;
+    --muted-foreground: 218 14% 68%;
+    --border: 220 16% 22%;
+    --input: 220 16% 22%;
+
+    /* Acento índigo: en oscuro se baja la saturación para atenuar el "neón"
+       sobre el fondo profundo — mismo tono índigo, brillo casi idéntico. */
+    --primary: 239 72% 60%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 239 72% 70%;
+
+    --success: 158 64% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 55%;
+    --warning-foreground: 222 47% 11%;
+    --danger: 0 84% 65%;
+    --danger-foreground: 0 0% 100%;
+
+    --secondary: 220 18% 15%;
+    --secondary-foreground: 210 20% 96%;
+    --accent: 239 72% 70%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 65%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Apple-compat en oscuro */
+    --apple-bg: #0b0b0f;
+    --apple-card: rgba(255, 255, 255, 0.06);
+    --apple-text: #f5f5f7;
+    --apple-text-secondary: #9aa6b8;
+    --apple-border: rgba(255, 255, 255, 0.1);
+    --apple-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.36);
+
+    /* Elevación neutra en oscuro: negro más profundo, misma intención. */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.28);
+    --shadow-md:
+      0 4px 14px -2px rgba(0, 0, 0, 0.42), 0 2px 6px -2px rgba(0, 0, 0, 0.32);
+    --shadow-lg:
+      0 20px 44px -16px rgba(0, 0, 0, 0.6), 0 4px 12px -4px rgba(0, 0, 0, 0.4);
+  }
+
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  /* Fondo base = token semántico (claro u oscuro según `.dark`). Sin neón
+     hardcodeado: el <AuroraBackground/> del dashboard pinta su gradiente sutil
+     encima, y landing/login traen el suyo. */
+  html {
+    min-height: 100%;
+    background: hsl(var(--background));
+    scroll-behavior: smooth;
+  }
+
+  body {
+    min-height: 100%;
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: var(--font-sans);
+    /* `cv11` da la «a» y la «g» de una sola planta: menos caligráfico, más
+       instrumento. `ss01` afina la puntuación. `calt` mantiene las ligaduras
+       contextuales; `tnum` NO se activa globalmente porque el texto corrido con
+       cifras tabulares se ve espaciado — se aplica sólo donde hay columnas. */
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1,
+      "cv11" 1,
+      "ss01" 1;
+    letter-spacing: var(--tracking-body);
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* ── Jerarquía de titulares ───────────────────────────────────────────────
+     El interletraje se cierra a medida que crece el cuerpo. Sin esto, un H1 de
+     76px hereda el tracking pensado para 16px y se ve suelto, que es la señal
+     de amateurismo tipográfico más común en la web. */
+  h1,
+  h2,
+  h3 {
+    letter-spacing: var(--tracking-title);
+    text-wrap: balance;
+  }
+
+  h1 {
+    letter-spacing: var(--tracking-display);
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--brand-primary) 28%, transparent);
+    color: hsl(var(--foreground));
+  }
+
+  /* Foco accesible con el acento de marca (sólo teclado). */
+  :focus-visible {
+    outline: 2px solid color-mix(in srgb, hsl(var(--primary)) 70%, transparent);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+}
+
+/* ===========================================================================
+   Mapeo de tokens → utilidades Tailwind v4 (bg-background, text-foreground,
+   bg-card, text-muted-foreground, border-border, bg-primary, text-primary,
+   bg-success / -warning / -danger, …). `inline` ⇒ la utilidad referencia la
+   variable en el elemento, así que el cambio a `.dark` se refleja en vivo.
+   =========================================================================== */
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-surface: hsl(var(--surface));
+  --color-surface-foreground: hsl(var(--surface-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-success: hsl(var(--success));
+  --color-success-foreground: hsl(var(--success-foreground));
+  --color-warning: hsl(var(--warning));
+  --color-warning-foreground: hsl(var(--warning-foreground));
+  --color-danger: hsl(var(--danger));
+  --color-danger-foreground: hsl(var(--danger-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+}
+
+/* Respeta prefers-reduced-motion en TODA animación (CSS + scroll). Framer Motion
+   se desactiva aparte vía useReducedMotion en los componentes. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+@layer utilities {
+  .premium-glass {
+    position: relative;
+    background:
+      linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.1),
+        rgba(255, 255, 255, 0.035)
+      ),
+      rgba(0, 0, 0, var(--glass-opacity));
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 28px 90px rgba(0, 0, 0, 0.32);
+    backdrop-filter: blur(64px);
+    -webkit-backdrop-filter: blur(64px);
+  }
+
+  .premium-glass::before {
+    pointer-events: none;
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.14),
+      transparent 42%
+    );
+    opacity: 0.38;
+  }
+
+  .premium-glass > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .mission-grid {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+    background-size: 42px 42px;
+  }
+
+  .apple-card {
+    background: var(--apple-card);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid var(--apple-border);
+    box-shadow: var(--apple-shadow);
+  }
+}
+
+/* --- Material translúcido (glassmorphism) --- */
+/* La variante oscura sigue la clase `.dark` (toggle del ThemeContext), igual
+   que todas las utilidades dark: de la app. */
+.glass {
+  background: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: blur(22px) saturate(130%);
+  backdrop-filter: blur(22px) saturate(130%);
+  /* Borde hairline neutro (no blanco duro) + highlight superior tenue. */
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  /* Sombra NEUTRA y suave (materialidad, no glow índigo) — descansa la vista. */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 10px 28px -16px rgba(15, 23, 42, 0.16),
+    0 2px 6px -2px rgba(15, 23, 42, 0.05);
+  transition:
+    box-shadow 0.35s var(--ease-out-expo),
+    transform 0.35s var(--ease-out-expo);
+}
+
+.dark .glass {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
+  /* Sombra neutra profunda: conserva la elevación, cero tinte de color. */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 18px 40px -18px rgba(0, 0, 0, 0.55),
+    0 2px 8px rgba(0, 0, 0, 0.28);
+}
+
+/* Fallback para navegadores sin backdrop-filter: superficie sólida legible. */
+@supports not (
+  (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+) {
+  .glass {
+    background: rgba(255, 255, 255, 0.9);
+  }
+  .dark .glass {
+    background: rgba(28, 28, 30, 0.9);
+  }
+}
+
+/* --- Fondo "aurora" (estilo Apple) --- */
+/* Tintes pastel muy tenues en las esquinas sobre el fondo base del tema; en
+   oscuro, misma idea a ~.07 de alfa. Base anclada a `--background` (una sola
+   fuente de verdad). Usado por <AuroraBackground/> (fixed -z-10); sigue `.dark`. */
+.aurora-bg {
+  background:
+    radial-gradient(
+      1100px 620px at 12% -8%,
+      rgba(99, 102, 241, 0.07),
+      transparent 62%
+    ),
+    radial-gradient(
+      1000px 560px at 100% 0%,
+      rgba(79, 70, 229, 0.05),
+      transparent 58%
+    ),
+    radial-gradient(
+      900px 600px at 50% 120%,
+      rgba(99, 102, 241, 0.04),
+      transparent 58%
+    ),
+    hsl(var(--background));
+}
+
+.dark .aurora-bg {
+  background:
+    radial-gradient(
+      1100px 620px at 12% -8%,
+      rgba(99, 102, 241, 0.05),
+      transparent 62%
+    ),
+    radial-gradient(
+      1000px 560px at 100% 0%,
+      rgba(79, 70, 229, 0.04),
+      transparent 58%
+    ),
+    radial-gradient(
+      900px 600px at 50% 120%,
+      rgba(99, 102, 241, 0.03),
+      transparent 58%
+    ),
+    hsl(var(--background));
+}
+
+/* --- Degradado de texto sutil (palabra "gris" del título de la landing) --- */
+/* Slate -> índigo suave: añade vida sin saturar. */
+.text-gradient-title {
+  background: linear-gradient(110deg, #94a3b8 0%, #818cf8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* Transición suave reutilizable con el easing global. */
+.transition-smooth {
+  transition: all 0.35s var(--ease-out-expo);
+}
+
+/* --- Fondo ambiental: deriva (drift) lenta de los blobs de aurora --- */
+@keyframes axos-drift-a {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(48px, -36px, 0) scale(1.08);
+  }
+}
+@keyframes axos-drift-b {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-52px, 30px, 0) scale(1.1);
+  }
+}
+@keyframes axos-drift-c {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(34px, 44px, 0) scale(1.06);
+  }
+}
+
+.axos-blob {
+  will-change: transform;
+}
+.axos-blob-a {
+  animation: axos-drift-a 24s ease-in-out infinite;
+}
+.axos-blob-b {
+  animation: axos-drift-b 30s ease-in-out infinite;
+}
+.axos-blob-c {
+  animation: axos-drift-c 27s ease-in-out infinite;
+}
+
+/* Capa de ruido (noise) muy sutil para textura "cristalina". */
+.axos-noise {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+}
+
+/* ===========================================================================
+   LANDING PREMIUM — aurora viva + producto flotante
+   Movimiento traslúcido y continuo (estilo OpenAI / Google) para que la primera
+   impresión se sienta "viva" y de altísimo valor, sin saturar.
+   =========================================================================== */
+
+/* Orbes de aurora del hero: manchas de color difusas que derivan en bucle. */
+.hero-orb {
+  position: absolute;
+  border-radius: 9999px;
+  will-change: transform;
+  filter: blur(72px);
+  opacity: 0.65;
+}
+.dark .hero-orb {
+  opacity: 0.5;
+  filter: blur(80px);
+}
+@keyframes hero-orb-1 {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  33% {
+    transform: translate3d(6%, -7%, 0) scale(1.18);
+  }
+  66% {
+    transform: translate3d(-7%, 5%, 0) scale(1.06);
+  }
+}
+@keyframes hero-orb-2 {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1.05);
+  }
+  50% {
+    transform: translate3d(-9%, 8%, 0) scale(1.22);
+  }
+}
+@keyframes hero-orb-3 {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(11%, 9%, 0) scale(1.14);
+  }
+}
+.hero-orb-1 {
+  animation: hero-orb-1 26s ease-in-out infinite;
+}
+.hero-orb-2 {
+  animation: hero-orb-2 32s ease-in-out infinite;
+}
+.hero-orb-3 {
+  animation: hero-orb-3 29s ease-in-out infinite;
+}
+
+/* Malla cónica que gira lentísimo bajo el hero (el "shimmer" traslúcido). */
+@keyframes hero-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+.hero-conic {
+  position: absolute;
+  inset: -40%;
+  border-radius: 9999px;
+  will-change: transform;
+  animation: hero-spin 48s linear infinite;
+  background: conic-gradient(
+    from 0deg,
+    rgba(99, 102, 241, 0.16),
+    rgba(168, 85, 247, 0.12),
+    rgba(56, 189, 248, 0.14),
+    rgba(16, 185, 129, 0.1),
+    rgba(99, 102, 241, 0.16)
+  );
+  filter: blur(70px);
+  opacity: 0.55;
+}
+.dark .hero-conic {
+  opacity: 0.4;
+}
+
+/* Flotación suave para el mockup de producto (parallax sutil). */
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-14px);
+  }
+}
+.float-slow {
+  animation: float-slow 8s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Brillo bajo el mockup (halo de producto). */
+.product-halo {
+  background: radial-gradient(
+    60% 60% at 50% 40%,
+    rgba(99, 102, 241, 0.35),
+    transparent 70%
+  );
+  filter: blur(60px);
+}
+
+/* Línea de "scan" que recorre tarjetas premium al hover (vida sutil). */
+@keyframes sheen {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+/* Marquesina de logos/keywords que se desliza en bucle. */
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.marquee-track {
+  animation: marquee 32s linear infinite;
+  will-change: transform;
+}
+.marquee-mask {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 12%,
+    #000 88%,
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 12%,
+    #000 88%,
+    transparent
+  );
+}
+
+/* Respeta prefers-reduced-motion: nada se mueve. */
+@media (prefers-reduced-motion: reduce) {
+  .hero-orb-1,
+  .hero-orb-2,
+  .hero-orb-3,
+  .hero-conic,
+  .float-slow,
+  .marquee-track {
+    animation: none !important;
+  }
+}
+
+/* Recharts: su tooltip por defecto trae un fondo claro embebido (estilo inline)
+   que en modo oscuro queda como una caja blanca ilegible sobre el tablero. Lo
+   alineamos al tema oscuro del sistema. El modo oscuro de la app se rige por
+   prefers-color-scheme (igual que el resto de este archivo) y el !important es
+   necesario para ganarle al estilo inline que recharts aplica al tooltip. */
+@media (prefers-color-scheme: dark) {
+  .recharts-default-tooltip {
+    background: rgba(20, 20, 22, 0.96) !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    border-radius: 12px !important;
+  }
+  .recharts-default-tooltip .recharts-tooltip-label {
+    color: #e5e7eb !important;
+  }
+}
+
+/* ===========================================================================
+   TIPOGRAFÍA DE MARCA — utilidades de display
+   ---------------------------------------------------------------------------
+   Tres tamaños de titular con su interletraje ya resuelto, para que ninguna
+   pantalla vuelva a componer un H1 con `tracking-tight` a ojo. `clamp()` hace
+   el escalado fluido: el titular respira en 1440 y sigue siendo legible en 390
+   sin un salto brusco en el breakpoint.
+   =========================================================================== */
+/**
+ * El término medio de cada clamp lleva una parte fija además de la parte en
+ * vw. Con `5.6vw` a secas, un teléfono de 390 px caía siempre en el mínimo:
+ * el H1 se componía a 40 px y ocupaba seis renglones. La constante levanta el
+ * extremo estrecho sin tocar el ancho, que es donde la escala ya funcionaba.
+ */
+.type-display {
+  font-size: clamp(2.0625rem, 4.4vw + 0.75rem, 4.25rem);
+  line-height: 1.04;
+  letter-spacing: var(--tracking-display);
+  font-weight: 700;
+}
+
+.type-title {
+  font-size: clamp(1.75rem, 2.4vw + 0.5rem, 2.75rem);
+  line-height: 1.1;
+  letter-spacing: var(--tracking-title);
+  font-weight: 650;
+}
+
+.type-lead {
+  font-size: clamp(1rem, 0.6vw + 0.875rem, 1.1875rem);
+  line-height: 1.6;
+  letter-spacing: -0.008em;
+}
+
+/**
+ * El interletraje negativo de un titular grande es veneno en pantalla
+ * estrecha: a 33 px las letras ya se tocan. Se afloja por debajo de 640 px.
+ */
+@media (max-width: 639px) {
+  .type-display {
+    letter-spacing: -0.026em;
+  }
+  .type-title {
+    letter-spacing: -0.018em;
+  }
+}
+
+/**
+ * Etiqueta técnica: mayúsculas, monoespaciada y con tracking POSITIVO.
+ * Las mayúsculas necesitan lo contrario que los titulares — apretarlas las
+ * vuelve ilegibles.
+ */
+.type-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+/** Cifras que se comparan o se apilan: ancho fijo para que las columnas cuadren. */
+.type-numeric {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings:
+    "tnum" 1,
+    "cv11" 1;
+}

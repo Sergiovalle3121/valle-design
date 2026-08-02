@@ -1,0 +1,35 @@
+{
+  "name": "@valle/design-sdk",
+  "version": "1.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "description": "SDK TypeScript oficial de la API v1 de Valle Design (CAD): tipos generados desde packages/contracts/specs/design-api.v1.yaml + cliente fetch fino tipado.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "generate": "openapi-typescript ../contracts/specs/design-api.v1.yaml -o src/generated/design-api.ts",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "pretest": "tsc -p tsconfig.json",
+    "test": "node --test dist/compat.spec.js"
+  },
+  "dependencies": {
+    "@axos/contracts": "*"
+  },
+  "devDependencies": {
+    "openapi-typescript": "7.9.1",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  }
+}

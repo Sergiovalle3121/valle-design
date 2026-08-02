@@ -1,8 +1,8 @@
 import { expect, test, type BrowserContext } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { installMockBackend } from '../fixtures/mock-backend';
+import { installCadV1Backend } from '../fixtures/cad-v1-backend';
 import { loginAsMaster } from '../fixtures/session';
-import { API_ORIGIN } from '../fixtures/constants';
 import type { CadBlockDefinition, CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
 
@@ -32,66 +32,32 @@ function canonicalDocument(): CadDocument {
   };
 }
 
+// MIGRACIÓN R3: mock en la superficie v1 real. La biblioteca del tenant vive
+// ahora en /v1/cad/blocks dentro del fixture (mismas formas que
+// CadBlocksService: {items} en el listado, filtro q por nombre/keywords/
+// descripción, POST/PATCH con fila completa). Interfaz snapshot() intacta.
 async function installCadBackend(context: BrowserContext) {
-  let document = canonicalDocument();
-  let version = 0;
-  const library: LibraryRow[] = [];
-  const layout = () => ({
-    model: 'AXOS-CAD-STUDIO', revision: 'UNIVERSAL',
+  const { backend, snapshot } = await installCadV1Backend(context, {
+    document: canonicalDocument() as unknown as Record<string, unknown>,
     footprint: { footprintW: 12_000, footprintH: 10_000, unit: 'mm', gridSize: 100 },
-    stations: [], dxf: null, connectors: [], assets: [], annotations: [], cells: [], layers: [],
-    cadDocument: document, cadDocumentVersion: version,
-    approval: { status: 'draft', by: null, at: null, note: null },
   });
-  await context.route(`${API_ORIGIN}/line-engineering/layout**`, async (route) => {
-    const request = route.request();
-    const url = new URL(request.url());
-    if (url.pathname !== '/line-engineering/layout') return route.fallback();
-    if (request.method() === 'GET') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(layout()) });
-    if (request.method() === 'PUT') {
-      document = (request.postDataJSON() as { cadDocument: CadDocument }).cadDocument;
-      version += 1;
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(layout()) });
-    }
-    return route.fallback();
-  });
-  await context.route(`${API_ORIGIN}/line-engineering/cad-blocks**`, async (route) => {
-    const request = route.request();
-    const url = new URL(request.url());
-    const match = url.pathname.match(/^\/line-engineering\/cad-blocks(?:\/([^/]+))?$/);
-    if (!match) return route.fallback();
-    if (request.method() === 'GET') {
-      const query = (url.searchParams.get('q') ?? '').toLowerCase();
-      const rows = query
-        ? library.filter((row) => `${row.name} ${row.definition.description ?? ''} ${(row.definition.keywords ?? []).join(' ')}`.toLowerCase().includes(query))
-        : library;
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(rows) });
-    }
-    if (request.method() === 'POST') {
-      const body = request.postDataJSON() as { name: string; definition: CadBlockDefinition };
-      const row: LibraryRow = { id: `library-${library.length + 1}`, name: body.name, assets: [], definition: body.definition, version: 1, createdAt: new Date(0).toISOString() };
-      library.push(row);
-      return route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify(row) });
-    }
-    if (request.method() === 'PATCH' && match[1]) {
-      const row = library.find((candidate) => candidate.id === match[1]);
-      if (!row) return route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ message: 'not found' }) });
-      const body = request.postDataJSON() as { name?: string; definition?: CadBlockDefinition };
-      if (body.name) row.name = body.name;
-      if (body.definition) row.definition = body.definition;
-      row.version += 1;
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(row) });
-    }
-    return route.fallback();
-  });
-  return { snapshot: () => ({ document, version, library: structuredClone(library) }) };
+  return {
+    snapshot: () => {
+      const current = snapshot();
+      return {
+        document: current.document as unknown as CadDocument,
+        version: current.version,
+        library: backend.libraryRows as unknown as LibraryRow[],
+      };
+    },
+  };
 }
 
 test('BLOCK/INSERT stays native through tenant library, attributes, persistence, DXF and explode', async ({ context, page }) => {
   await installMockBackend(context);
   await loginAsMaster(context);
   const backend = await installCadBackend(context);
-  await page.goto('/dashboard/cad');
+  await page.goto('/studio');
 
   await page.getByTestId('cad-native-entity-block-source-line').click();
   await page.getByTitle(/^BLOCK\/INSERT:/).click();

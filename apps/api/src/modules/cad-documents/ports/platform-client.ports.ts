@@ -21,9 +21,23 @@ export interface PlatformIdentityClient {
   currentPlantId(): string | undefined;
 }
 
+/**
+ * Contexto explícito de una verificación de entitlement. Existe porque el
+ * guard de permisos corre ANTES del TenantInterceptor: en ese punto el ALS
+ * está vacío, así que tenant y bearer viajan explícitos. El bearer es el del
+ * REQUEST y se reenvía tal cual a Platform (contrato platform-api.v1.yaml).
+ */
+export interface EntitlementCheckContext {
+  tenantId?: string | null;
+  bearerToken?: string | null;
+}
+
 /** Acceso comercial: ¿el tenant vigente tiene contratada esta capacidad? */
 export interface EntitlementClient {
-  hasEntitlement(code: string): Promise<boolean>;
+  hasEntitlement(
+    code: string,
+    context?: EntitlementCheckContext,
+  ): Promise<boolean>;
 }
 
 /** Medición de uso de producto (metering). Fase 2 define las métricas design.*. */
