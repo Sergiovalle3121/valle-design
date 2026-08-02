@@ -8,11 +8,7 @@
  *   (localStorage, misma clave del origen — ver `src/lib/session.ts`).
  * - `credentials: 'include'`: si Platform comparte dominio y entrega cookie,
  *   viaja también; la API de R1 sólo exige el bearer.
- * - REESCRITURA LEGACY→v1: el editor CAD extraído del origen llama
- *   `${API_BASE}/line-engineering/*` (~21 call sites intactos). Aquí se
- *   detectan esas rutas y `src/lib/cad-api.ts` las traduce al contrato REAL
- *   `/v1/cad/*` de la API de R1 (mapa documentado en ese módulo). El resto de
- *   URLs pasa tal cual.
+ * - Los consumidores nuevos usan facades tipados; el adaptador histórico se mantiene aislado en `cad/legacy` hasta migrar el último call site.
  *
  * DIFERENCIA DELIBERADA con el origen: no hay bridge `/api/backend/token` ni
  * re-exchange en 401 — Design no emite tokens; una sesión rechazada se
@@ -20,7 +16,10 @@
  */
 
 import { readStoredToken } from "@/lib/session";
-import { isLegacyCadRequest, handleLegacyCadRequest } from "@/lib/cad-api";
+import {
+  isLegacyCadRequest,
+  handleLegacyCadRequest,
+} from "@/lib/cad/legacy/layout-http-adapter";
 
 /**
  * Origen de la API de R1. `NEXT_PUBLIC_API_URL` es la variable que el editor
@@ -56,13 +55,11 @@ export function rawApiFetch(
   return fetch(input, withAuthHeaders(init));
 }
 
-/** Fetch autenticado con la reescritura legacy→v1 del editor CAD. */
+/** Fetch autenticado; mantiene temporalmente el adaptador histórico mientras migran consumidores. */
 export function apiFetch(
   input: RequestInfo | URL,
   init?: RequestInit,
 ): Promise<Response> {
-  if (isLegacyCadRequest(input)) {
-    return handleLegacyCadRequest(input, init);
-  }
+  if (isLegacyCadRequest(input)) return handleLegacyCadRequest(input, init);
   return rawApiFetch(input, init);
 }

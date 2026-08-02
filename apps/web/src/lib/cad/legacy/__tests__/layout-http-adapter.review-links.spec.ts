@@ -8,7 +8,10 @@
  * el `Referer` hacia terceros y en los logs de cualquier proxy.
  */
 import { strict as assert } from "node:assert";
-import { handleLegacyCadRequest, isLegacyCadRequest } from "@/lib/cad-api";
+import {
+  handleLegacyCadRequest,
+  isLegacyCadRequest,
+} from "@/lib/cad/legacy/layout-http-adapter";
 
 interface Call {
   url: string;
@@ -103,14 +106,38 @@ async function main(): Promise<void> {
   // ── CREAR: el servidor emite el token; el cliente no lo genera ──────────────
   const created = await handleLegacyCadRequest(
     `${BASE}/line-engineering/layout/review-sessions?${scope}`,
-    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ allowComments: true }) },
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ allowComments: true }),
+    },
   );
-  assert.equal(created.status, 201, "creating a review link proxies the v1 status");
-  const createdBody = (await created.json()) as { shareToken?: string; session?: { id?: string } };
-  assert.equal(createdBody.shareToken, SHARE_TOKEN, "the plaintext token comes from the server response");
-  assert.equal(createdBody.session?.id, "session-1", "the caller gets the server session id");
-  const createCall = calls.find((call) => call.url.includes("/review-sessions") && call.method === "POST");
-  assert.ok(createCall, "the adapter hits POST /v1/cad/documents/:id/review-sessions");
+  assert.equal(
+    created.status,
+    201,
+    "creating a review link proxies the v1 status",
+  );
+  const createdBody = (await created.json()) as {
+    shareToken?: string;
+    session?: { id?: string };
+  };
+  assert.equal(
+    createdBody.shareToken,
+    SHARE_TOKEN,
+    "the plaintext token comes from the server response",
+  );
+  assert.equal(
+    createdBody.session?.id,
+    "session-1",
+    "the caller gets the server session id",
+  );
+  const createCall = calls.find(
+    (call) => call.url.includes("/review-sessions") && call.method === "POST",
+  );
+  assert.ok(
+    createCall,
+    "the adapter hits POST /v1/cad/documents/:id/review-sessions",
+  );
   assert.equal(
     JSON.parse(createCall!.body ?? "{}").shareLink,
     true,
@@ -123,44 +150,96 @@ async function main(): Promise<void> {
   );
 
   // ── CANJEAR: cabecera sí, query string jamás ───────────────────────────────
-  const context = await handleLegacyCadRequest(`${BASE}/line-engineering/layout/review-context`, {
-    headers: { "X-Review-Token": SHARE_TOKEN },
-  });
-  assert.equal(context.status, 200, "a live token redeems into the read-only context");
-  assert.equal(((await context.json()) as { readOnly?: boolean }).readOnly, true, "the SERVER decides read-only");
-  const redeemCall = calls.find((call) => call.url.includes("/v1/cad/review/context"));
+  const context = await handleLegacyCadRequest(
+    `${BASE}/line-engineering/layout/review-context`,
+    {
+      headers: { "X-Review-Token": SHARE_TOKEN },
+    },
+  );
+  assert.equal(
+    context.status,
+    200,
+    "a live token redeems into the read-only context",
+  );
+  assert.equal(
+    ((await context.json()) as { readOnly?: boolean }).readOnly,
+    true,
+    "the SERVER decides read-only",
+  );
+  const redeemCall = calls.find((call) =>
+    call.url.includes("/v1/cad/review/context"),
+  );
   assert.ok(redeemCall, "the adapter hits GET /v1/cad/review/context");
-  assert.equal(redeemCall!.headers["x-review-token"], SHARE_TOKEN, "the token travels in X-Review-Token");
-  assert.equal(redeemCall!.url.includes(SHARE_TOKEN), false, "the token NEVER appears in the redemption URL");
-  assert.equal(new URL(redeemCall!.url).search, "", "the redemption URL carries no query string at all");
+  assert.equal(
+    redeemCall!.headers["x-review-token"],
+    SHARE_TOKEN,
+    "the token travels in X-Review-Token",
+  );
+  assert.equal(
+    redeemCall!.url.includes(SHARE_TOKEN),
+    false,
+    "the token NEVER appears in the redemption URL",
+  );
+  assert.equal(
+    new URL(redeemCall!.url).search,
+    "",
+    "the redemption URL carries no query string at all",
+  );
 
   // Sin token no se llama a la red siquiera: 401 local.
   const beforeUnauthorized = calls.length;
-  const unauthorized = await handleLegacyCadRequest(`${BASE}/line-engineering/layout/review-context`);
+  const unauthorized = await handleLegacyCadRequest(
+    `${BASE}/line-engineering/layout/review-context`,
+  );
   assert.equal(unauthorized.status, 401, "no token is an immediate 401");
-  assert.equal(calls.length, beforeUnauthorized, "a missing token never reaches the network");
+  assert.equal(
+    calls.length,
+    beforeUnauthorized,
+    "a missing token never reaches the network",
+  );
 
   // Un token desconocido muere en el SERVIDOR (401 propagado tal cual).
-  const rejected = await handleLegacyCadRequest(`${BASE}/line-engineering/layout/review-context`, {
-    headers: { "X-Review-Token": "vdrl_token_que_el_navegador_se_inventa" },
-  });
-  assert.equal(rejected.status, 401, "a browser-minted token authorizes nothing");
+  const rejected = await handleLegacyCadRequest(
+    `${BASE}/line-engineering/layout/review-context`,
+    {
+      headers: { "X-Review-Token": "vdrl_token_que_el_navegador_se_inventa" },
+    },
+  );
+  assert.equal(
+    rejected.status,
+    401,
+    "a browser-minted token authorizes nothing",
+  );
 
   // ── REVOCAR: cerrar la sesión en el servidor ───────────────────────────────
   const closed = await handleLegacyCadRequest(
     `${BASE}/line-engineering/layout/review-sessions/session-1/close`,
     { method: "POST" },
   );
-  assert.equal(closed.status, 200, "revocation proxies to /v1/cad/review-sessions/:id/close");
+  assert.equal(
+    closed.status,
+    200,
+    "revocation proxies to /v1/cad/review-sessions/:id/close",
+  );
   assert.ok(
-    calls.some((call) => call.url.endsWith("/v1/cad/review-sessions/session-1/close")),
+    calls.some((call) =>
+      call.url.endsWith("/v1/cad/review-sessions/session-1/close"),
+    ),
     "revocation is server-side (closing the session kills the token immediately)",
   );
 
   // ── Ninguna URL emitida en todo el flujo contiene la credencial ────────────
   for (const call of calls) {
-    assert.equal(call.url.includes(SHARE_TOKEN), false, `the token leaked into a URL: ${call.url}`);
-    assert.equal(call.url.includes("cadReview"), false, `the legacy query param resurfaced: ${call.url}`);
+    assert.equal(
+      call.url.includes(SHARE_TOKEN),
+      false,
+      `the token leaked into a URL: ${call.url}`,
+    );
+    assert.equal(
+      call.url.includes("cadReview"),
+      false,
+      `the legacy query param resurfaced: ${call.url}`,
+    );
   }
 
   console.log("cad review link (server-owned) specs passed");
