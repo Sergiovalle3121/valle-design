@@ -29,6 +29,7 @@ export interface PlatformIdentityClient {
  */
 export interface EntitlementCheckContext {
   tenantId?: string | null;
+  organizationId?: string | null;
   bearerToken?: string | null;
 }
 
@@ -47,5 +48,7 @@ export interface UsageMeter {
 
 /** Tokens de inyección de los puertos de plataforma. */
 export const PLATFORM_IDENTITY_CLIENT = Symbol('PLATFORM_IDENTITY_CLIENT');
-export const ENTITLEMENT_CLIENT = Symbol('ENTITLEMENT_CLIENT');
-export const USAGE_METER = Symbol('USAGE_METER');
+export {
+  ENTITLEMENT_SERVICE as ENTITLEMENT_CLIENT,
+  USAGE_METER,
+} from '../../commercial/ports/commercial.ports';

@@ -1,0 +1,53 @@
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import {
+  DomainOutbox,
+  EmailOutbox,
+  PlanCatalog,
+  PlanEntitlement,
+  Subscription,
+  UsageLedger,
+} from './entities/commercial.entities';
+import {
+  CAD_EVENT_PUBLISHER,
+  EMAIL_SERVICE,
+  ENTITLEMENT_SERVICE,
+  SUBSCRIPTION_PROVIDER,
+  USAGE_METER,
+} from './ports/commercial.ports';
+import {
+  PostgresCadEventPublisher,
+  PostgresEmailService,
+  PostgresEntitlementService,
+  PostgresSubscriptionProvider,
+  PostgresUsageMeter,
+} from './adapters/postgres.adapters';
+import { EmailOutboxController } from './controllers/email-outbox.controller';
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([
+      PlanCatalog,
+      PlanEntitlement,
+      Subscription,
+      UsageLedger,
+      DomainOutbox,
+      EmailOutbox,
+    ]),
+  ],
+  controllers: [EmailOutboxController],
+  providers: [
+    { provide: ENTITLEMENT_SERVICE, useClass: PostgresEntitlementService },
+    { provide: SUBSCRIPTION_PROVIDER, useClass: PostgresSubscriptionProvider },
+    { provide: USAGE_METER, useClass: PostgresUsageMeter },
+    { provide: CAD_EVENT_PUBLISHER, useClass: PostgresCadEventPublisher },
+    { provide: EMAIL_SERVICE, useClass: PostgresEmailService },
+  ],
+  exports: [
+    ENTITLEMENT_SERVICE,
+    SUBSCRIPTION_PROVIDER,
+    USAGE_METER,
+    CAD_EVENT_PUBLISHER,
+    EMAIL_SERVICE,
+  ],
+})
+export class CommercialModule {}

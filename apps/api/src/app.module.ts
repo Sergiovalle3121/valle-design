@@ -12,6 +12,7 @@ import { AuditLogModule } from './modules/audit-log/audit-log.module';
 import { BlobStoreModule } from './modules/blob-store/blob-store.module';
 import { CadDocumentsModule } from './modules/cad-documents/cad-documents.module';
 import { CadModule } from './modules/cad/cad.module';
+import { CommercialModule } from './modules/commercial/commercial.module';
 
 /**
  * Aplicación del producto Valle Design (CAD).
@@ -29,6 +30,7 @@ import { CadModule } from './modules/cad/cad.module';
     AuthModule,
     AuditLogModule,
     BlobStoreModule,
+    CommercialModule,
     CadDocumentsModule,
     CadModule,
   ],
