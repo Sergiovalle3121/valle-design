@@ -35,4 +35,23 @@ export class CadDocumentVersion extends TenantBaseEntity {
   /** sha256 del archivo comprimido (puntero) o del JSON inline; NULL si n/d. */
   @Column({ type: 'varchar', length: 64, nullable: true })
   sha256: string | null;
+
+  /**
+   * Etiqueta humana de la versión (Fase 4): nombre del snapshot legacy del que
+   * proviene. NULL en versiones nativas (guardados CAS normales).
+   */
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  label: string | null;
+
+  /**
+   * Id de origen de la versión importada (Fase 4): `<layoutId>:v<version>`
+   * para la canónica o el id del snapshot legacy. NULL = versión nativa.
+   */
+  @Column({
+    type: 'varchar',
+    length: 96,
+    nullable: true,
+    name: 'legacy_source_id',
+  })
+  legacySourceId: string | null;
 }

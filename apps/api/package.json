@@ -24,7 +24,10 @@
     "seed:dist": "node dist/seed.js",
     "typeorm": "typeorm-ts-node-commonjs -d src/typeorm-cli.datasource.ts",
     "migration:generate": "npm run typeorm -- migration:generate",
-    "migration:run": "npm run typeorm -- migration:run"
+    "migration:run": "npm run typeorm -- migration:run",
+    "migrate:from-enterprise": "ts-node -r tsconfig-paths/register src/migration-cli/main.ts",
+    "migrate:fixture:seed": "ts-node -r tsconfig-paths/register src/migration-cli/fixtures/seed-enterprise-fixture.ts",
+    "smoke:migration": "node scripts/migration-smoke.js"
   },
   "dependencies": {
     "@axos/contracts": "*",

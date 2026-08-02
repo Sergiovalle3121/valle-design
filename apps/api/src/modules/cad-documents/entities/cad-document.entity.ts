@@ -69,6 +69,15 @@ export class CadDocument extends TenantBaseEntity {
   })
   legacySourceId: string | null;
 
+  /**
+   * Metadata industrial de la fila legacy de origen (Fase 4): connectors /
+   * assets / annotations / cells, aprobación, footprint y resumen de
+   * snapshots. Evidencia de la copia — NULL en documentos nativos; el editor
+   * no la consume.
+   */
+  @Column({ type: JSON_COLUMN_TYPE, nullable: true, name: 'legacy_metadata' })
+  legacyMetadata: Record<string, unknown> | null;
+
   // ── Plano DXF de fondo (contrato /v1 dxf) ─────────────────────────────────
   // Mismo modelo que `sf_line_layouts` en el origen: NULL en `dxf_data` = sin
   // plano; las columnas de colocación posicionan el fondo de SOLO LECTURA
