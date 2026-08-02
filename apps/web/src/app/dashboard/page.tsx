@@ -1,218 +1,289 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import {
-  DraftingCompass,
-  FilePlus2,
-  FolderPlus,
-  LogIn,
-  RefreshCw,
-} from "lucide-react";
-import { rawApiFetch, API_BASE } from "@/lib/apiFetch";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { FilePlus2, FolderPlus, LogIn, LogOut, Upload } from "lucide-react";
+import { API_BASE, rawApiFetch } from "@/lib/apiFetch";
 import { useDesignAuth } from "@/contexts/DesignAuthContext";
 
-type Project = { id: string; name: string };
+type Project = {
+  id: string;
+  name: string;
+  description?: string | null;
+  status: string;
+};
 type Document = {
   id: string;
   projectId: string | null;
   name: string;
-  updatedAt?: string;
+  cadDocumentVersion: number;
 };
+type ViewState =
+  | "loading"
+  | "ready"
+  | "empty"
+  | "offline"
+  | "forbidden"
+  | "expired"
+  | "error";
 
-async function api<T>(path: string, init?: RequestInit): Promise<T> {
+async function jsonRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await rawApiFetch(`${API_BASE}/v1/cad${path}`, init);
   if (!response.ok)
-    throw new Error(
-      response.status === 401
-        ? "Tu sesión expiró. Inicia sesión nuevamente."
-        : "No se pudo completar la operación.",
-    );
+    throw Object.assign(new Error("request failed"), {
+      status: response.status,
+    });
   return response.json() as Promise<T>;
 }
 
 export default function DashboardPage() {
   const auth = useDesignAuth();
+  const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [state, setState] = useState<ViewState>("loading");
   const [projectName, setProjectName] = useState("");
   const [documentName, setDocumentName] = useState("");
-  const [projectId, setProjectId] = useState("");
+  const [selectedProject, setSelectedProject] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    if (auth.isLoading) return;
+    if (!auth.isAuthenticated) return setState("expired");
+    setState("loading");
     try {
-      const [p, d] = await Promise.all([
-        api<{ items: Project[] }>("/projects"),
-        api<{ items: Document[] }>("/documents"),
+      const [projectPage, documentPage] = await Promise.all([
+        jsonRequest<{ items: Project[] }>("/projects?limit=200"),
+        jsonRequest<{ items: Document[] }>("/documents?limit=200"),
       ]);
-      setProjects(p.items);
-      setDocuments(d.items);
-      setProjectId((current) => current || p.items[0]?.id || "");
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Error inesperado.");
-    } finally {
-      setLoading(false);
+      setProjects(projectPage.items);
+      setDocuments(documentPage.items);
+      setSelectedProject(
+        (current) => current || projectPage.items[0]?.id || "",
+      );
+      setState(
+        projectPage.items.length || documentPage.items.length
+          ? "ready"
+          : "empty",
+      );
+    } catch (error) {
+      const status = (error as { status?: number }).status;
+      setState(
+        status === 401
+          ? "expired"
+          : status === 403
+            ? "forbidden"
+            : navigator.onLine
+              ? "error"
+              : "offline",
+      );
     }
-  }, []);
+  }, [auth.isAuthenticated, auth.isLoading]);
 
-  useEffect(() => {
-    if (auth.isAuthenticated) void load();
-  }, [auth.isAuthenticated, load]);
+  useEffect(() => void load(), [load]);
 
-  async function createProject(event: FormEvent) {
+  const createProject = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!projectName.trim()) return;
-    const created = await api<Project>("/projects", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: projectName.trim() }),
-    });
-    setProjects((items) => [created, ...items]);
-    setProjectId(created.id);
-    setProjectName("");
-  }
+    setBusy(true);
+    try {
+      const project = await jsonRequest<Project>("/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: projectName.trim() }),
+      });
+      setProjects((items) => [...items, project]);
+      setSelectedProject(project.id);
+      setProjectName("");
+      setState("ready");
+    } catch (error) {
+      setState(
+        (error as { status?: number }).status === 403 ? "forbidden" : "error",
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
 
-  async function createDocument(event: FormEvent) {
-    event.preventDefault();
-    if (!documentName.trim() || !projectId) return;
-    const created = await api<Document>("/documents", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ projectId, name: documentName.trim() }),
-    });
-    window.location.href = `/studio/${created.id}?projectId=${encodeURIComponent(projectId)}`;
-  }
+  const createDocument = async (name: string) => {
+    if (!name.trim() || !selectedProject) return;
+    setBusy(true);
+    try {
+      // model/revision se omiten deliberadamente: son alias exclusivos de migración.
+      const document = await jsonRequest<Document>("/documents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), projectId: selectedProject }),
+      });
+      router.push(`/studio/${document.id}`);
+    } catch (error) {
+      setState(
+        (error as { status?: number }).status === 403 ? "forbidden" : "error",
+      );
+      setBusy(false);
+    }
+  };
 
-  if (!auth.isLoading && !auth.isAuthenticated)
+  if (state === "loading")
+    return <Status text="Cargando proyectos y documentos…" />;
+  if (state !== "ready" && state !== "empty") {
+    const message = {
+      offline:
+        "Estás sin conexión. Tus proyectos estarán disponibles al reconectar.",
+      forbidden: "Permiso insuficiente: necesitas cad:view y cad:edit.",
+      expired: "Tu sesión ha expirado. Inicia sesión de nuevo.",
+      error: "No pudimos cargar tus proyectos.",
+    }[state];
     return (
-      <main className="grid min-h-screen place-items-center p-6">
-        <section className="max-w-md rounded-3xl border border-black/10 bg-white/80 p-8 text-center dark:border-white/10 dark:bg-white/5">
-          <LogIn className="mx-auto mb-4 h-8 w-8 text-cyan-500" />
-          <h1 className="text-2xl font-semibold">Accede a tus dibujos</h1>
-          <p className="mt-2 text-sm text-gray-500">
-            Inicia sesión para abrir proyectos y documentos de tu organización.
-          </p>
-          <Link
-            href="/"
-            className="mt-6 inline-block rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white"
-          >
-            Ir al inicio
-          </Link>
-        </section>
-      </main>
+      <Status
+        text={message}
+        action={state === "expired" ? () => auth.login() : load}
+      />
     );
+  }
 
   return (
-    <main className="mx-auto min-h-screen max-w-7xl px-6 py-10">
+    <main className="mx-auto min-h-screen w-full max-w-6xl p-6 md:p-10">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-cyan-600">Valle Design</p>
-          <h1 className="text-3xl font-semibold">Proyectos y documentos</h1>
-          <p className="mt-1 text-gray-500">
-            Continúa tu trabajo o inicia un dibujo con un ID independiente.
+          <p className="text-xs font-semibold uppercase tracking-wider text-indigo-500">
+            Organización
           </p>
+          <h1 className="text-3xl font-semibold">{auth.tenantId}</h1>
+          <p className="text-sm text-gray-500">Proyectos y documentos CAD</p>
         </div>
         <button
-          onClick={() => void load()}
-          aria-label="Actualizar"
-          className="rounded-xl border p-3"
+          onClick={auth.logout}
+          className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm"
         >
-          <RefreshCw className="h-4 w-4" />
+          <LogOut className="h-4 w-4" /> Cerrar sesión
         </button>
       </header>
-      {error && (
-        <div
-          role="alert"
-          className="mt-6 rounded-xl border border-red-300 bg-red-50 p-4 text-red-800"
-        >
-          {error}
-        </div>
-      )}
-      <section className="mt-8 grid gap-5 lg:grid-cols-2">
+
+      <section className="mt-8 grid gap-6 md:grid-cols-2">
         <form
           onSubmit={createProject}
           className="rounded-2xl border border-black/10 p-5 dark:border-white/10"
         >
-          <h2 className="flex items-center gap-2 font-semibold">
-            <FolderPlus className="h-5 w-5" /> Nuevo proyecto
-          </h2>
-          <div className="mt-4 flex gap-2">
+          <h2 className="font-semibold">Nuevo proyecto</h2>
+          <div className="mt-3 flex gap-2">
             <input
               aria-label="Nombre del proyecto"
               value={projectName}
               onChange={(e) => setProjectName(e.target.value)}
-              placeholder="Nombre del proyecto"
-              className="min-w-0 flex-1 rounded-xl border bg-transparent px-4 py-3"
+              className="min-w-0 flex-1 rounded-xl border bg-transparent px-3 py-2"
+              placeholder="Ej. Reforma planta norte"
             />
-            <button className="rounded-xl bg-indigo-600 px-4 font-semibold text-white">
-              Crear
+            <button
+              disabled={busy}
+              className="rounded-xl bg-indigo-600 px-4 text-white"
+              aria-label="Crear proyecto"
+            >
+              <FolderPlus />
             </button>
           </div>
         </form>
         <form
-          onSubmit={createDocument}
+          onSubmit={(event) => {
+            event.preventDefault();
+            void createDocument(documentName);
+          }}
           className="rounded-2xl border border-black/10 p-5 dark:border-white/10"
         >
-          <h2 className="flex items-center gap-2 font-semibold">
-            <FilePlus2 className="h-5 w-5" /> Nuevo documento
-          </h2>
-          <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+          <h2 className="font-semibold">Nuevo documento</h2>
+          <select
+            aria-label="Proyecto"
+            value={selectedProject}
+            onChange={(e) => setSelectedProject(e.target.value)}
+            className="mt-3 w-full rounded-xl border bg-transparent px-3 py-2"
+          >
+            <option value="">Selecciona un proyecto</option>
+            {projects.map((project) => (
+              <option key={project.id} value={project.id}>
+                {project.name}
+              </option>
+            ))}
+          </select>
+          <div className="mt-2 flex gap-2">
             <input
               aria-label="Nombre del documento"
               value={documentName}
               onChange={(e) => setDocumentName(e.target.value)}
-              placeholder="Nombre del dibujo"
-              className="rounded-xl border bg-transparent px-4 py-3"
+              className="min-w-0 flex-1 rounded-xl border bg-transparent px-3 py-2"
+              placeholder="Plano general"
             />
-            <select
-              aria-label="Proyecto"
-              value={projectId}
-              onChange={(e) => setProjectId(e.target.value)}
-              className="rounded-xl border bg-transparent px-3"
-            >
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
             <button
-              disabled={!projectId}
-              className="rounded-xl bg-cyan-600 px-4 font-semibold text-white disabled:opacity-40"
+              disabled={busy || !selectedProject}
+              className="rounded-xl bg-indigo-600 px-4 text-white"
+              aria-label="Crear documento"
             >
-              Crear y abrir
+              <FilePlus2 />
             </button>
           </div>
+          <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-indigo-500">
+            <Upload className="h-4 w-4" /> Importar como documento
+            <input
+              type="file"
+              className="sr-only"
+              accept=".dxf,.json"
+              disabled={!selectedProject || busy}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file)
+                  void createDocument(file.name.replace(/\.[^.]+$/, ""));
+              }}
+            />
+          </label>
         </form>
       </section>
-      <section className="mt-10">
-        <h2 className="text-xl font-semibold">Documentos recientes</h2>
-        {loading ? (
-          <div className="mt-4 h-28 animate-pulse rounded-2xl bg-black/5 dark:bg-white/5" />
-        ) : documents.length === 0 ? (
-          <div className="mt-4 rounded-2xl border border-dashed p-10 text-center text-gray-500">
-            <DraftingCompass className="mx-auto mb-3 h-8 w-8" />
-            Todavía no hay documentos. Crea un proyecto y tu primer dibujo.
-          </div>
-        ) : (
-          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {documents.map((doc) => (
-              <Link
-                key={doc.id}
-                href={`/studio/${doc.id}${doc.projectId ? `?projectId=${encodeURIComponent(doc.projectId)}` : ""}`}
-                className="rounded-2xl border border-black/10 p-5 transition hover:border-cyan-500 dark:border-white/10"
+
+      {state === "empty" ? (
+        <p className="mt-10 rounded-2xl border border-dashed p-10 text-center text-gray-500">
+          Aún no hay proyectos ni documentos. Crea tu primer proyecto para
+          comenzar.
+        </p>
+      ) : (
+        <section className="mt-10">
+          <h2 className="text-xl font-semibold">Documentos</h2>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {documents.map((document) => (
+              <button
+                key={document.id}
+                onClick={() => router.push(`/studio/${document.id}`)}
+                className="rounded-2xl border border-black/10 p-4 text-left hover:border-indigo-400 dark:border-white/10"
               >
-                <h3 className="font-semibold">{doc.name}</h3>
-                <p className="mt-2 font-mono text-xs text-gray-500">{doc.id}</p>
-              </Link>
+                <strong>{document.name}</strong>
+                <span className="mt-2 block truncate text-xs text-gray-500">
+                  {document.id}
+                </span>
+              </button>
             ))}
           </div>
+          {documents.length === 0 && (
+            <p className="mt-4 text-sm text-gray-500">
+              Este espacio todavía no contiene documentos.
+            </p>
+          )}
+        </section>
+      )}
+    </main>
+  );
+}
+
+function Status({ text, action }: { text: string; action?: () => void }) {
+  return (
+    <main className="grid min-h-screen place-items-center p-6">
+      <div className="text-center">
+        <p role="status">{text}</p>
+        {action && (
+          <button
+            onClick={action}
+            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-white"
+          >
+            <LogIn className="h-4 w-4" /> Continuar
+          </button>
         )}
-      </section>
+      </div>
     </main>
   );
 }

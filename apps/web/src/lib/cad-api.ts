@@ -63,10 +63,7 @@
  * assets en las entidades correspondientes; al abrir, los recupera de ahí.
  */
 
-import {
-  migrateCadDocument,
-  type CadDocument,
-} from "@/lib/cad/cad-document";
+import { migrateCadDocument, type CadDocument } from "@/lib/cad/cad-document";
 import {
   cadDocumentToEditorSnapshot,
   splitTags,
@@ -295,7 +292,11 @@ async function v1<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
-function v1Json(method: string, path: string, body: unknown): Promise<Response> {
+function v1Json(
+  method: string,
+  path: string,
+  body: unknown,
+): Promise<Response> {
   return rawApiFetch(`${API_BASE}${path}`, {
     method,
     headers: { "Content-Type": "application/json" },
@@ -312,6 +313,10 @@ async function resolveDocumentId(
   model: string,
   revision: string,
 ): Promise<string | null> {
+  // Las rutas productivas pasan el UUID como modelo interno. Así el editor
+  // heredado conserva su interfaz mientras toda E/S queda dirigida por ID,
+  // sin fabricar ni consultar los sentinels históricos.
+  if (revision === "DOCUMENT" && isDocumentId(model)) return model;
   const key = `${model}|${revision}`;
   const cached = documentIdCache.get(key);
   if (cached) return cached;
@@ -337,6 +342,12 @@ async function resolveDocumentId(
   if (!row) return null;
   documentIdCache.set(key, row.id);
   return row.id;
+}
+
+export function isDocumentId(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
 }
 
 /** Upsert legacy: los PUT creaban la fila si no existía. */
@@ -381,7 +392,9 @@ function positiveNumber(value: unknown): number | null {
     : null;
 }
 
-function footprintFromMeta(raw: Record<string, unknown> | null): LegacyFootprint {
+function footprintFromMeta(
+  raw: Record<string, unknown> | null,
+): LegacyFootprint {
   const meta =
     raw && typeof raw.meta === "object" && raw.meta && !Array.isArray(raw.meta)
       ? (raw.meta as Record<string, unknown>)
@@ -390,7 +403,9 @@ function footprintFromMeta(raw: Record<string, unknown> | null): LegacyFootprint
     footprintW: positiveNumber(meta.footprintW) ?? DEFAULT_FOOTPRINT.footprintW,
     footprintH: positiveNumber(meta.footprintH) ?? DEFAULT_FOOTPRINT.footprintH,
     unit:
-      typeof meta.unit === "string" && meta.unit ? meta.unit : DEFAULT_FOOTPRINT.unit,
+      typeof meta.unit === "string" && meta.unit
+        ? meta.unit
+        : DEFAULT_FOOTPRINT.unit,
     gridSize: positiveNumber(meta.gridSize) ?? DEFAULT_FOOTPRINT.gridSize,
   };
 }
@@ -399,7 +414,8 @@ function footprintFromMeta(raw: Record<string, unknown> | null): LegacyFootprint
 function groupsFromEntities(doc: CadDocument): Map<string, string> {
   const groups = new Map<string, string>();
   for (const entity of doc.entities) {
-    if (entity.type === "box" && entity.group) groups.set(entity.id, entity.group);
+    if (entity.type === "box" && entity.group)
+      groups.set(entity.id, entity.group);
     else if (entity.type === "circle" && entity.legacy?.group)
       groups.set(entity.id, entity.legacy.group);
   }
@@ -665,7 +681,10 @@ async function saveLayoutArchive(init?: RequestInit): Promise<Response> {
   const file = form.get("file");
   if (typeof layoutRaw !== "string" || !(file instanceof Blob)) {
     return json(
-      { message: "El archivo CAD gzip y el payload del layout son obligatorios." },
+      {
+        message:
+          "El archivo CAD gzip y el payload del layout son obligatorios.",
+      },
       400,
     );
   }
@@ -794,7 +813,9 @@ function placementFields(placement: DxfPlacement) {
 async function fetchDxf(documentId: string): Promise<DxfResource | null> {
   const cached = dxfCache.get(documentId);
   if (cached && Date.now() - cached.at < DXF_CACHE_TTL_MS) return cached.body;
-  const res = await rawApiFetch(`${API_BASE}/v1/cad/documents/${documentId}/dxf`);
+  const res = await rawApiFetch(
+    `${API_BASE}/v1/cad/documents/${documentId}/dxf`,
+  );
   if (res.status === 404) {
     dxfCache.delete(documentId);
     return null;
@@ -816,7 +837,9 @@ async function getDxfRoute(scope: {
   return json(dxf);
 }
 
-async function putDxfRoute(payload: Record<string, unknown>): Promise<Response> {
+async function putDxfRoute(
+  payload: Record<string, unknown>,
+): Promise<Response> {
   const model = String(payload.model ?? "").trim();
   const revision = String(payload.revision ?? "A").trim() || "A";
   if (!model) return json({ message: "model es obligatorio." }, 400);
@@ -864,7 +887,8 @@ async function propagateDxfPlacement(
     const changed = fields.some(
       (field) =>
         next[field] !== undefined &&
-        next[field] !== (current.placement as unknown as Record<string, unknown>)[field],
+        next[field] !==
+          (current.placement as unknown as Record<string, unknown>)[field],
     );
     if (!changed) return;
     dxfCache.delete(documentId);
@@ -887,7 +911,9 @@ async function propagateDxfPlacement(
 
 /* ═════════════════════ IA (intent/visión) y publicaciones ════════════════ */
 
-async function intentRoute(payload: Record<string, unknown>): Promise<Response> {
+async function intentRoute(
+  payload: Record<string, unknown>,
+): Promise<Response> {
   const model = String(payload.model ?? "").trim();
   const revision = String(payload.revision ?? "A").trim() || "A";
   if (!model) return json({ message: "model es obligatorio." }, 400);

@@ -52,10 +52,10 @@ export default function LandingPage() {
 
         <div className="mt-8 flex flex-wrap items-center gap-3">
           <Link
-            href="/studio"
+            href="/dashboard"
             className="inline-flex items-center gap-2 rounded-xl bg-[var(--brand-primary-strong,#4f46e5)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 focus-visible:ring-2 focus-visible:ring-indigo-400"
           >
-            Abrir el estudio CAD <ArrowRight className="h-4 w-4" />
+            Abrir mis proyectos <ArrowRight className="h-4 w-4" />
           </Link>
           {!isLoading && !isAuthenticated && (
             <button
