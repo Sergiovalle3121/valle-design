@@ -4,7 +4,7 @@
  * Design: aquí no hay ERP/MES ni catálogos comerciales).
  *
  * Ninguna página o PDF escribe el nombre comercial a mano: se resuelve el
- * manifiesto compartido (`@axos/contracts` → `brand.ts`) con las variables
+ * manifiesto compartido (`@valle-design/contracts` → `brand.ts`) con las variables
  * `NEXT_PUBLIC_BRAND_*` — las únicas visibles en el navegador. Un rebranding
  * es un cambio de configuración, no de componentes.
  */
@@ -14,7 +14,7 @@ import {
   resolveBrandManifest,
   type BrandManifest,
   type ProductCode,
-} from "@axos/contracts";
+} from "@valle-design/contracts";
 
 /**
  * Next sólo expone al navegador las variables con prefijo `NEXT_PUBLIC_`. Se

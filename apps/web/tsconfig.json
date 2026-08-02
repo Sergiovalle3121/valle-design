@@ -20,8 +20,8 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
-      "@axos/contracts": ["../../packages/contracts/src/index.ts"],
-      "@axos/contracts/*": ["../../packages/contracts/src/*"]
+      "@valle-design/contracts": ["../../packages/contracts/src/index.ts"],
+      "@valle-design/contracts/*": ["../../packages/contracts/src/*"]
     }
   },
   "include": [

@@ -106,7 +106,7 @@ jobs:
         working-directory: apps/web
         run: npm run test:specs
 
-      # Test de compatibilidad de contrato del SDK generado vs @axos/contracts.
+      # Test de compatibilidad de contrato del SDK generado vs @valle-design/contracts.
       - name: SDK contract-compat test
         working-directory: packages/design-sdk
         run: npm test

@@ -12,7 +12,7 @@ SDK TypeScript oficial de la **API v1 de Valle Design (CAD)**.
   `DesignApiError` (con `code`, `details`, `requestId` y, en el 409 CAS,
   `expected`/`current` al nivel superior — la forma REAL del backend).
 - **Test de compatibilidad de contrato** (`src/compat.spec.ts`): igualdad
-  estructural entre los tipos generados y `@axos/contracts`
+  estructural entre los tipos generados y `@valle-design/contracts`
   (design-contracts.ts) — códigos de error, permisos `cad:*`, entitlement
   `design.cad`, puntero a blob del `CadDocumentEnvelope`, límites del
   documento y códigos de evento `design.*`. Corre con `npm test`
