@@ -327,6 +327,13 @@ export function resolveCadReviewThread(
   };
 }
 
+/**
+ * Registra en el documento el METADATO de un review link creado en el
+ * SERVIDOR. `link` no lleva —ni puede llevar— token: el navegador ya no genera
+ * credenciales de compartición (lo hacía y las persistía aquí en claro, en
+ * paralelo a `cad_review_sessions.token_hash`; ver
+ * `cad-document-validation.ts` y la migración de purga).
+ */
 export function createCadReviewLink(document: CadDocument, link: CadReviewLink): CadDocument {
   const state = collaboration(document);
   return {
@@ -373,8 +380,14 @@ export function auditCadMerge(
   };
 }
 
-export function cadReviewLinkIsActive(document: CadDocument, token: string, now = new Date()): boolean {
-  const link = document.collaboration?.reviewLinks.find((candidate) => candidate.token === token);
-  if (!link || link.revokedAt || !link.readOnly) return false;
-  return !link.expiresAt || Date.parse(link.expiresAt) > now.getTime();
-}
+/**
+ * ELIMINADO a propósito: `cadReviewLinkIsActive(document, token)`.
+ *
+ * Decidía en el NAVEGADOR si un token de review era válido comparándolo con
+ * los tokens que el propio documento traía en claro. Eso exigía persistir el
+ * secreto en el JSON (fuente de verdad paralela e insegura) y además la
+ * "autorización" era cosmética: el servidor no participaba. La vigencia de un
+ * review link —hash, expiración y revocación— la resuelve HOY el backend en
+ * CADA request (`GET /v1/cad/review/context` con `X-Review-Token`), que es el
+ * único que conoce `cad_review_sessions`.
+ */

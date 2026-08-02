@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import {
   CAD_DOCUMENT_MAX_ARCHIVE_BYTES,
+  redactCadDocumentSecrets,
   validateCadDocumentPayload,
 } from './cad-document-validation';
 
@@ -118,9 +119,41 @@ describe('validateCadDocumentPayload', () => {
       ],
       audit: [],
     };
-    expect(validateCadDocumentPayload({ ...valid, collaboration })).toEqual({
+    // El documento heredado SIGUE validando (no se rompe su lectura), pero el
+    // token en claro no sobrevive al cruce de frontera: se sustituye por el
+    // metadato no sensible `hasToken`.
+    const redacted = validateCadDocumentPayload({ ...valid, collaboration });
+    expect(redacted).toEqual({
       ...valid,
-      collaboration,
+      collaboration: {
+        ...collaboration,
+        reviewLinks: [{ id: 'link-1', readOnly: true, hasToken: true }],
+      },
+    });
+    expect(JSON.stringify(redacted)).not.toContain('0123456789abcdef');
+    expect(
+      (
+        redacted.collaboration as { reviewLinks: Record<string, unknown>[] }
+      ).reviewLinks.every((link) => !('token' in link)),
+    ).toBe(true);
+    // La entrada del llamador NO se muta: la redacción actúa sobre el clon.
+    expect(collaboration.reviewLinks[0].token).toBe('0123456789abcdef');
+    // Un enlace SIN token es válido (flujo server-owned: el token vive en
+    // cad_review_sessions.token_hash, jamás en el documento).
+    expect(
+      validateCadDocumentPayload({
+        ...valid,
+        collaboration: {
+          ...collaboration,
+          reviewLinks: [{ id: 'link-1', readOnly: true }],
+        },
+      }),
+    ).toEqual({
+      ...valid,
+      collaboration: {
+        ...collaboration,
+        reviewLinks: [{ id: 'link-1', readOnly: true }],
+      },
     });
     expect(() =>
       validateCadDocumentPayload({
@@ -136,9 +169,51 @@ describe('validateCadDocumentPayload', () => {
         ...valid,
         collaboration: {
           ...collaboration,
+          reviewLinks: [{ id: 'link-1', readOnly: false }],
+        },
+      }),
+    ).toThrow('enlace de revisiÃ³n invÃ¡lido');
+    expect(() =>
+      validateCadDocumentPayload({
+        ...valid,
+        collaboration: {
+          ...collaboration,
           versions: Array.from({ length: 13 }, () => ({})),
         },
       }),
     ).toThrow('collaboration.versions admite mÃ¡ximo 12');
+  });
+
+  it('redacts review link tokens nested inside version snapshots too', () => {
+    const secret = 'vdrl_legacy_browser_token_value';
+    const document = {
+      collaboration: {
+        reviewLinks: [{ id: 'live', token: secret, readOnly: true }],
+        versions: [
+          {
+            id: 'v1',
+            document: {
+              collaboration: {
+                reviewLinks: [{ id: 'old', token: secret, readOnly: true }],
+              },
+            },
+          },
+        ],
+      },
+    };
+
+    const redacted = redactCadDocumentSecrets(
+      JSON.parse(JSON.stringify(document)) as typeof document,
+    );
+
+    expect(JSON.stringify(redacted)).not.toContain(secret);
+    expect(redacted.collaboration.reviewLinks[0]).toEqual({
+      id: 'live',
+      readOnly: true,
+      hasToken: true,
+    });
+    expect(
+      redacted.collaboration.versions[0].document.collaboration.reviewLinks[0],
+    ).toEqual({ id: 'old', readOnly: true, hasToken: true });
   });
 });

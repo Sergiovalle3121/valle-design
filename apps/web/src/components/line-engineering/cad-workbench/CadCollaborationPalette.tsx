@@ -16,6 +16,14 @@ import {
   type CadMergeResolution,
 } from "@/lib/cad/cad-collaboration";
 
+/** Sesión de revisión creada en el SERVIDOR (proyección de la respuesta v1). */
+export interface CreatedReviewSession {
+  id: string;
+  expiresAt?: string | null;
+  /** Token en claro: única aparición, para copiar UNA vez. No se persiste. */
+  shareToken?: string;
+}
+
 interface CadCollaborationPaletteProps {
   document: CadDocument;
   actor: string;
@@ -23,6 +31,14 @@ interface CadCollaborationPaletteProps {
   onDocumentChange(document: CadDocument, label: string): void;
   onVisualize(rows: CadEntityDiffRow[]): void;
   onNavigate(entityId: string): void;
+  /**
+   * Pide al SERVIDOR una sesión de revisión con enlace. El navegador ya no
+   * genera tokens (lo hacía con `crypto.randomUUID()` y los persistía en claro
+   * dentro del documento, en paralelo a `cad_review_sessions.token_hash`).
+   */
+  onCreateReviewLink?(label: string): Promise<CreatedReviewSession>;
+  /** Revoca la sesión en el servidor (`/v1/cad/review-sessions/:id/close`). */
+  onRevokeReviewLink?(sessionId: string): Promise<void>;
 }
 
 type DiffFilter = "all" | "added" | "modified" | "deleted";
@@ -37,12 +53,13 @@ function id(prefix: string) {
   return `${prefix}-${value}`;
 }
 
-function reviewUrl(link: CadReviewLink): string {
-  if (typeof window === "undefined") return `?cadReview=${encodeURIComponent(link.token)}`;
-  const url = new URL(window.location.href);
-  url.searchParams.set("cadReview", link.token);
-  return url.toString();
-}
+/**
+ * ELIMINADO: `reviewUrl(link)`, que construía `?cadReview=<token>` con el
+ * token EN LA URL. Una URL con credencial queda en el historial del navegador,
+ * en el `Referer` hacia terceros y en los logs de cualquier proxy. El token
+ * server-owned se copia SOLO, se canjea por la cabecera `X-Review-Token` y
+ * caduca (TTL por defecto 7 días, revocable al instante).
+ */
 
 function versionOptions(document: CadDocument) {
   return [
@@ -58,6 +75,8 @@ export function CadCollaborationPalette({
   onDocumentChange,
   onVisualize,
   onNavigate,
+  onCreateReviewLink,
+  onRevokeReviewLink,
 }: CadCollaborationPaletteProps) {
   const versions = versionOptions(document);
   const [checkpointLabel, setCheckpointLabel] = useState("");
@@ -73,6 +92,10 @@ export function CadCollaborationPalette({
   const [assignee, setAssignee] = useState("");
   const [markup, setMarkup] = useState<"note" | "arrow" | "cloud">("cloud");
   const [linkLabel, setLinkLabel] = useState("Authenticated design review");
+  // Token en claro devuelto por el servidor: vive SOLO en memoria de este
+  // componente, se muestra una vez para copiarlo y desaparece al cerrarlo.
+  const [issuedToken, setIssuedToken] = useState<string | null>(null);
+  const [linkBusy, setLinkBusy] = useState(false);
 
   const base = cadVersionDocument(document, baseId) ?? document;
   const mine = cadVersionDocument(document, mineId) ?? document;
@@ -135,25 +158,60 @@ export function CadCollaborationPalette({
     mutate(addCadReviewThread(document, thread), `Review comment added${thread.entityId ? ` · ${thread.entityId}` : ""}`);
     setCommentBody("");
   };
-  const createLink = () => {
-    const at = new Date().toISOString();
-    const link: CadReviewLink = {
-      id: id("review"),
-      token: id("token"),
-      label: linkLabel.trim().slice(0, 100) || "Authenticated design review",
-      readOnly: true,
-      createdAt: at,
-      createdBy: actor,
-      expiresAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
-    };
-    mutate(createCadReviewLink(document, link), `Read-only review link created · ${link.label}`);
-  };
-  const copyLink = async (link: CadReviewLink) => {
+  /**
+   * Crea el review link CONTRA EL SERVIDOR. El documento sólo recibe metadato
+   * (id de sesión, etiqueta, vigencia): el token en claro llega en la
+   * respuesta, se enseña una vez para copiarlo y no se guarda en ninguna
+   * parte — ni en el documento, ni en la URL, ni en almacenamiento local.
+   */
+  const createLink = async () => {
+    if (!onCreateReviewLink || linkBusy) return;
+    const label = linkLabel.trim().slice(0, 100) || "Authenticated design review";
+    setLinkBusy(true);
     try {
-      await navigator.clipboard.writeText(reviewUrl(link));
-      setMessage("Authenticated, tenant-scoped review URL copied.");
+      const session = await onCreateReviewLink(label);
+      const at = new Date().toISOString();
+      const link: CadReviewLink = {
+        id: session.id,
+        label,
+        readOnly: true,
+        createdAt: at,
+        createdBy: actor,
+        ...(session.expiresAt ? { expiresAt: session.expiresAt } : {}),
+      };
+      setIssuedToken(session.shareToken ?? null);
+      mutate(createCadReviewLink(document, link), `Read-only review link created · ${label}`);
+    } catch (cause) {
+      setMessage(cause instanceof Error ? cause.message : "The server refused to create the review link.");
+    } finally {
+      setLinkBusy(false);
+    }
+  };
+  /** Copia el TOKEN (nunca una URL con la credencial dentro). */
+  const copyIssuedToken = async () => {
+    if (!issuedToken) return;
+    try {
+      await navigator.clipboard.writeText(issuedToken);
+      setMessage("Review token copied. Share it once — it is not shown again.");
     } catch {
-      setMessage(reviewUrl(link));
+      setMessage("Copy the token manually: it is shown only this once.");
+    }
+  };
+  /** Revoca en el SERVIDOR y refleja la revocación en el documento. */
+  const revokeLink = async (link: CadReviewLink) => {
+    if (linkBusy) return;
+    setLinkBusy(true);
+    try {
+      if (onRevokeReviewLink) await onRevokeReviewLink(link.id);
+      setIssuedToken(null);
+      mutate(
+        revokeCadReviewLink(document, link.id, actor, new Date().toISOString()),
+        `Review link revoked · ${link.label}`,
+      );
+    } catch (cause) {
+      setMessage(cause instanceof Error ? cause.message : "The server refused to revoke the review link.");
+    } finally {
+      setLinkBusy(false);
     }
   };
   const moveCursor = (delta: number) => {
@@ -210,9 +268,15 @@ export function CadCollaborationPalette({
       </section>
 
       <section className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
-        <div className="flex justify-between"><strong className="text-gray-100">Read-only review links</strong><span className="text-gray-500">tenant-authenticated · 7 days</span></div>
-        <div className="mt-2 flex gap-1"><input disabled={reviewReadOnly} value={linkLabel} onChange={(event) => setLinkLabel(event.target.value)} className={input} /><button data-testid="cad-review-link-create" disabled={reviewReadOnly} onClick={createLink} className={`${button} shrink-0`}>Create</button></div>
-        <div className="mt-2 space-y-1">{[...(collaboration?.reviewLinks ?? [])].reverse().map((link) => <div key={link.id} className="flex items-center gap-1 rounded-lg border border-white/10 p-1.5"><span className={`min-w-0 flex-1 truncate ${link.revokedAt ? 'text-gray-600 line-through' : 'text-gray-300'}`}>{link.label}</span><button disabled={!!link.revokedAt} onClick={() => void copyLink(link)} className={button}>Copy</button><button disabled={reviewReadOnly || !!link.revokedAt} onClick={() => mutate(revokeCadReviewLink(document, link.id, actor, new Date().toISOString()), `Review link revoked · ${link.label}`)} className={`${button} text-rose-200`}>Revoke</button></div>)}</div>
+        <div className="flex justify-between"><strong className="text-gray-100">Read-only review links</strong><span className="text-gray-500">server-issued · revocable</span></div>
+        <p className="mt-1 text-[9px] text-gray-500">The server issues and owns the token (only its hash is stored). It is shown once, travels in the <code className="text-gray-400">X-Review-Token</code> header — never in a URL — and dies on revoke or expiry.</p>
+        <div className="mt-2 flex gap-1"><input disabled={reviewReadOnly} value={linkLabel} onChange={(event) => setLinkLabel(event.target.value)} className={input} /><button data-testid="cad-review-link-create" disabled={reviewReadOnly || linkBusy || !onCreateReviewLink} onClick={() => void createLink()} className={`${button} shrink-0`}>{linkBusy ? 'Working…' : 'Create'}</button></div>
+        {issuedToken && <div data-testid="cad-review-token-once" className="mt-2 rounded-lg border border-amber-300/25 bg-amber-400/[0.07] p-2">
+          <div className="flex items-center justify-between gap-2"><strong className="text-amber-100">Share token — shown once</strong><button data-testid="cad-review-token-copy" onClick={() => void copyIssuedToken()} className={button}>Copy</button></div>
+          <code data-testid="cad-review-token-value" className="mt-1 block break-all font-mono text-[9px] text-amber-50/90">{issuedToken}</code>
+          <button data-testid="cad-review-token-dismiss" onClick={() => setIssuedToken(null)} className={`${button} mt-1 w-full`}>I copied it — hide</button>
+        </div>}
+        <div className="mt-2 space-y-1">{[...(collaboration?.reviewLinks ?? [])].reverse().map((link) => <div key={link.id} className="flex items-center gap-1 rounded-lg border border-white/10 p-1.5"><span className={`min-w-0 flex-1 truncate ${link.revokedAt ? 'text-gray-600 line-through' : 'text-gray-300'}`}>{link.label}</span><span className="shrink-0 text-[9px] text-gray-500">{link.revokedAt ? 'revoked' : link.expiresAt ? `until ${link.expiresAt.slice(0, 10)}` : 'active'}</span><button data-testid={`cad-review-link-revoke-${link.id}`} disabled={reviewReadOnly || linkBusy || !!link.revokedAt} onClick={() => void revokeLink(link)} className={`${button} text-rose-200`}>Revoke</button></div>)}</div>
       </section>
 
       <section className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5"><div className="flex justify-between"><strong className="text-gray-100">Audit</strong><span className="text-gray-500">{collaboration?.audit.length ?? 0} event(s)</span></div><div className="mt-2 space-y-1">{[...(collaboration?.audit ?? [])].reverse().slice(0, 12).map((entry) => <div key={entry.id} className="border-l border-cyan-300/20 pl-2 text-[9px]"><div className="text-gray-300">{entry.action} · {entry.actor}</div><div className="truncate text-gray-500">{entry.detail}</div></div>)}</div></section>
