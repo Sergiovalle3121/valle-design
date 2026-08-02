@@ -73,7 +73,7 @@ paths:
       summary: ¿El tenant del token tiene este entitlement vigente?
       description: |
         Consulta puntual de un entitlement (capacidad comercial) del catálogo
-        `PRODUCT_CAPABILITY_IDS` de `@axos/contracts` — Design consulta
+        `PRODUCT_CAPABILITY_IDS` de `@valle-design/contracts` — Design consulta
         `design.cad`. Semántica fail-closed: `active` solo es `true` con un
         grant en estado que concede acceso (`active`/`trialing` vigente);
         cualquier otro estado, error o desconocimiento ⇒ `false`.
@@ -152,7 +152,7 @@ components:
   schemas:
     ApiError:
       type: object
-      description: Sobre estándar de error (`ApiErrorEnvelope` de `@axos/contracts`).
+      description: Sobre estándar de error (`ApiErrorEnvelope` de `@valle-design/contracts`).
       required: [success, statusCode, message, timestamp]
       properties:
         success:

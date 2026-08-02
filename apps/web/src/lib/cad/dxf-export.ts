@@ -7,6 +7,11 @@ import {
 import { buildCadDimensionGeometry, type CadDimensionEntity, type CadDimensionGeometry } from "./associative-dimension";
 import { buildCadMleaderGeometry, type CadMleaderEntity } from "./associative-mleader";
 import { DEFAULT_MLEADER_STYLE } from "./mleader";
+import {
+  LEGACY_DXF_XDATA_APP_BLOCK,
+  LEGACY_DXF_XDATA_APP_DIMENSION,
+  LEGACY_DXF_XDATA_APP_MLEADER,
+} from "@valle-design/contracts";
 
 export type CadDxfExportUnit = "mm" | "m";
 export interface CadDxfExportOptions {
@@ -233,13 +238,13 @@ function pushLayerTable(
   pushPair(lines, 2, "APPID");
   pushPair(lines, 70, 3);
   pushPair(lines, 0, "APPID");
-  pushPair(lines, 2, "AXOS_DIM");
+  pushPair(lines, 2, LEGACY_DXF_XDATA_APP_DIMENSION);
   pushPair(lines, 70, 0);
   pushPair(lines, 0, "APPID");
-  pushPair(lines, 2, "AXOS_MLEADER");
+  pushPair(lines, 2, LEGACY_DXF_XDATA_APP_MLEADER);
   pushPair(lines, 70, 0);
   pushPair(lines, 0, "APPID");
-  pushPair(lines, 2, "AXOS_BLOCK");
+  pushPair(lines, 2, LEGACY_DXF_XDATA_APP_BLOCK);
   pushPair(lines, 70, 0);
   pushPair(lines, 0, "ENDTAB");
   pushPair(lines, 0, "ENDSEC");
@@ -763,7 +768,7 @@ function pushSemanticDimension(lines: string[], dimension: PreparedSemanticDimen
   if (entity.c) pointPair(15, 25, entity.c);
   pushPair(lines, 40, fmt(entity.offset ?? entity.radius ?? 0));
   pushPair(lines, 271, Math.max(0, Math.min(8, Math.floor(entity.precision ?? 2))));
-  pushPair(lines, 1001, "AXOS_DIM");
+  pushPair(lines, 1001, LEGACY_DXF_XDATA_APP_DIMENSION);
   const metadata = [
     `kind=${entity.dimensionKind ?? "aligned"}`, `axis=${entity.axis ?? "x"}`,
     `units=${entity.units ?? entity.sourceUnit ?? "mm"}`, `sourceUnit=${entity.sourceUnit ?? "mm"}`,
@@ -801,7 +806,7 @@ function pushMleader(lines: string[], entity: CadDxfExportMleader): boolean {
   pushPair(lines, 301, "}");
   pushPair(lines, 170, 1);
   pushPair(lines, 171, entity.contentType === "text" ? 1 : 2);
-  pushPair(lines, 1001, "AXOS_MLEADER");
+  pushPair(lines, 1001, LEGACY_DXF_XDATA_APP_MLEADER);
   const encodedText = encodeURIComponent(entity.text);
   const metadata = [
     `contentType=${entity.contentType ?? "mtext"}`, `style=${encodeURIComponent(entity.style ?? "Standard")}`,
@@ -832,7 +837,7 @@ function pushInsert(lines: string[], insert: CadDxfExportInsert, definition?: Ca
   if (insert.rotation) pushPair(lines, 50, fmt(insert.rotation));
   if (insert.scaleX !== undefined && insert.scaleX !== 1) pushPair(lines, 41, fmt(insert.scaleX));
   if (insert.scaleY !== undefined && insert.scaleY !== 1) pushPair(lines, 42, fmt(insert.scaleY));
-  pushPair(lines, 1001, "AXOS_BLOCK");
+  pushPair(lines, 1001, LEGACY_DXF_XDATA_APP_BLOCK);
   pushPair(lines, 1000, "kind=insert");
   for (const [tag, value] of Object.entries(insert.attributes ?? {}))
     pushPair(lines, 1000, `attribute=${encodeURIComponent(tag)},${encodeURIComponent(value)}`);
@@ -866,7 +871,7 @@ function pushBlocks(lines: string[], blocks: CadDxfExportBlock[]) {
     pushPair(lines, 70, block.name.startsWith("*") ? 1 : 0);
     pushPoint(lines, block.basePoint ?? { x: 0, y: 0 });
     if (!block.name.startsWith("*")) {
-      pushPair(lines, 1001, "AXOS_BLOCK");
+      pushPair(lines, 1001, LEGACY_DXF_XDATA_APP_BLOCK);
       pushPair(lines, 1000, "kind=definition");
       pushPair(lines, 1000, `version=${Math.max(1, Math.floor(block.version ?? 1))}`);
       pushPair(lines, 1000, `description=${encodeURIComponent(block.description ?? "")}`);

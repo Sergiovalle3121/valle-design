@@ -96,7 +96,7 @@ if (FIRST_PARTY.size < 2) {
   process.exit(1);
 }
 
-/** `pkg:npm/%40axos%2Fcontracts@1.0.0` → `@axos/contracts`. */
+/** `pkg:npm/%40valle-design%2Fcontracts@1.0.0` → `@valle-design/contracts`. */
 function purlName(purl) {
   const match = /^pkg:npm\/(.+)@[^@]*$/.exec(purl ?? '');
   return match ? decodeURIComponent(match[1]) : '';

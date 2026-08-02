@@ -1,15 +1,19 @@
 {
-  "name": "@axos/contracts",
+  "name": "@valle-design/contracts",
   "version": "1.0.0",
   "private": true,
   "license": "UNLICENSED",
-  "description": "Shared, side-effect-free contracts (types + pure derivations) for AXOS OS workspaces.",
+  "description": "Contratos sin efectos secundarios del producto Valle Design (CAD): tipos, identificadores de frontera con Platform y alias legados persistidos.",
   "main": "./dist/index.js",
   "types": "./src/index.ts",
   "exports": {
     ".": {
       "types": "./src/index.ts",
       "default": "./dist/index.js"
+    },
+    "./legacy": {
+      "types": "./src/legacy/index.ts",
+      "default": "./dist/legacy/index.js"
     }
   },
   "files": [

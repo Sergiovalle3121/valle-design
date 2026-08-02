@@ -79,14 +79,7 @@ export interface BrandManifest {
  */
 const DEFAULT_PRODUCT_NAMES: Record<ProductCode, string> = {
   "platform-core": "VALLE Platform",
-  erp: "VALLE ERP",
-  mes: "VALLE MES",
   design: "VALLE Design",
-  documents: "VALLE Documents",
-  spreadsheets: "VALLE Spreadsheets",
-  presentations: "VALLE Presentations",
-  intelligence: "VALLE Intelligence",
-  integrations: "VALLE Integrations",
 };
 
 /** Año base del copyright; el resolvedor lo puede sobrescribir por entorno. */

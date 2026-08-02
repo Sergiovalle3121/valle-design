@@ -22,7 +22,7 @@ info:
       impone el backend, no el frontend).
     * Autorización comercial: el tenant necesita el entitlement
       **`design.cad`** vigente (ver `PRODUCT_CAPABILITY_IDS` en
-      `@axos/contracts`). El servidor lo verifica en **todos** los endpoints;
+      `@valle-design/contracts`). El servidor lo verifica en **todos** los endpoints;
       si falta, responde el `403` estándar con `code: entitlement_required`
       (respuesta reutilizable `EntitlementRequired`). Cada operación lo declara
       además con la extensión `x-required-entitlement`.
@@ -57,7 +57,7 @@ info:
     ## Transporte
     CORRECCIÓN R3 (decisión de implementación R1, alineada aquí): la API de
     Valle Design responde los cuerpos de éxito TAL CUAL se describen en cada
-    operación — SIN el sobre `ApiSuccessEnvelope` de `@axos/contracts` (ese
+    operación — SIN el sobre `ApiSuccessEnvelope` de `@valle-design/contracts` (ese
     sobre es del monolito enterprise; el adaptador del editor y el SDK
     consumen los cuerpos directos). Los errores conservan la forma del cuerpo
     estándar de NestJS enriquecido (`statusCode`/`message` + `code`/`details`

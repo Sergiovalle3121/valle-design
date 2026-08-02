@@ -9,7 +9,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { DESIGN_CAD_ENTITLEMENT } from '@axos/contracts';
+import { DESIGN_CAD_ENTITLEMENT } from '@valle-design/contracts';
 import type { Request } from 'express';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { REVIEW_LINK_SURFACE_KEY } from '../decorators/review-link-surface.decorator';
@@ -45,7 +45,7 @@ import type { AuthenticatedUser } from '../../../common/types/jwt.types';
  *    explícitos en el contexto de la consulta.
  *    Si falta → `403 entitlement_required` con `details.reason: not_entitled`.
  * 2. RBAC funcional: los permisos del claim se expanden con el mapeo de
- *    transición engineering:* → cad:* (@axos/contracts) y deben cubrir TODOS
+ *    transición engineering:* → cad:* (@valle-design/contracts) y deben cubrir TODOS
  *    los requeridos. Si no → `403 entitlement_required` con
  *    `details.reason: permission_denied` y `requiredPermission`.
  * 3. Rol Admin pasa el RBAC (case-insensitive, como el origen). DIFERENCIA
