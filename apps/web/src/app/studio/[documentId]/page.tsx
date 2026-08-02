@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import { API_BASE, rawApiFetch } from "@/lib/apiFetch";
-import { isDocumentId } from "@/lib/cad-api";
+import { isDocumentId } from "@/lib/cad/document-identity";
 import { useDesignAuth } from "@/contexts/DesignAuthContext";
 
 const CadStudioHost = dynamic(() => import("@/components/cad/CadStudioHost"), {
@@ -22,12 +22,7 @@ type State =
   | { kind: "ready"; document: OpenDocument }
   | {
       kind:
-        | "invalid"
-        | "deleted"
-        | "forbidden"
-        | "expired"
-        | "offline"
-        | "error";
+        "invalid" | "deleted" | "forbidden" | "expired" | "offline" | "error";
     };
 
 export default function DocumentStudioPage({

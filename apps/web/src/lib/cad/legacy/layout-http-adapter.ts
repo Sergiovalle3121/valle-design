@@ -63,69 +63,21 @@
  * assets en las entidades correspondientes; al abrir, los recupera de ahí.
  */
 
-import { migrateCadDocument, type CadDocument } from "@/lib/cad/cad-document";
 import {
-  cadDocumentToEditorSnapshot,
-  splitTags,
-} from "@/lib/cad/editor-snapshot";
+  DEFAULT_FOOTPRINT,
+  defaultApproval,
+  emptyLayout,
+  layoutFromDocument,
+  type DocumentSummary,
+  type DxfPlacement,
+  type LegacyAsset,
+  type LegacyFootprint,
+  type OpenedDocument,
+} from "@/lib/cad/legacy/layout-mapper";
+import { isDocumentId } from "@/lib/cad/document-identity";
 import { API_BASE, rawApiFetch } from "@/lib/apiFetch";
 
 const LEGACY_PREFIX = "/line-engineering/";
-
-/** Huella por defecto del origen (LineEngineeringService.DEFAULT_FOOTPRINT). */
-const DEFAULT_FOOTPRINT = {
-  footprintW: 20_000,
-  footprintH: 10_000,
-  unit: "mm",
-  gridSize: 500,
-} as const;
-
-interface LegacyFootprint {
-  footprintW: number;
-  footprintH: number;
-  unit: string;
-  gridSize: number;
-}
-
-interface LegacyAsset {
-  id: string;
-  kind: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  rotation: number;
-  label?: string;
-  shape?: "rect" | "circle";
-  layer?: string;
-  group?: string;
-  tags?: string[];
-}
-
-interface DocumentSummary {
-  id: string;
-  projectId: string | null;
-  name: string;
-  model: string | null;
-  revision: string | null;
-  cadDocumentVersion: number;
-}
-
-interface DxfPlacement {
-  name: string;
-  offsetX: number;
-  offsetY: number;
-  scale: number;
-  rotation: number;
-  visible: boolean;
-  opacity: number;
-}
-
-export interface OpenedDocument extends DocumentSummary {
-  cadDocument: Record<string, unknown> | null;
-  /** Colocación del plano DXF de fondo (aditivo R3); null = sin plano. */
-  dxf?: DxfPlacement | null;
-}
 
 interface DxfResource {
   name: string;
@@ -322,8 +274,14 @@ async function resolveDocumentId(
   if (cached) return cached;
   // `/studio/[documentId]` pasa el UUID como alcance. Abrirlo directamente
   // evita persistir un alias model/revision en documentos nuevos.
-  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(model)) {
-    const response = await rawApiFetch(`${API_BASE}/v1/cad/documents/${encodeURIComponent(model)}`);
+  if (
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      model,
+    )
+  ) {
+    const response = await rawApiFetch(
+      `${API_BASE}/v1/cad/documents/${encodeURIComponent(model)}`,
+    );
     if (response.ok) {
       documentIdCache.set(key, model);
       return model;
@@ -342,12 +300,6 @@ async function resolveDocumentId(
   if (!row) return null;
   documentIdCache.set(key, row.id);
   return row.id;
-}
-
-export function isDocumentId(value: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    value,
-  );
 }
 
 /** Upsert legacy: los PUT creaban la fila si no existía. */
@@ -384,114 +336,6 @@ function isBlobPointer(value: unknown): boolean {
       ? (value as { _storage?: { kind?: unknown } })._storage
       : null;
   return !!storage && storage.kind === "document_blob";
-}
-
-function positiveNumber(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) && value > 0
-    ? value
-    : null;
-}
-
-function footprintFromMeta(
-  raw: Record<string, unknown> | null,
-): LegacyFootprint {
-  const meta =
-    raw && typeof raw.meta === "object" && raw.meta && !Array.isArray(raw.meta)
-      ? (raw.meta as Record<string, unknown>)
-      : {};
-  return {
-    footprintW: positiveNumber(meta.footprintW) ?? DEFAULT_FOOTPRINT.footprintW,
-    footprintH: positiveNumber(meta.footprintH) ?? DEFAULT_FOOTPRINT.footprintH,
-    unit:
-      typeof meta.unit === "string" && meta.unit
-        ? meta.unit
-        : DEFAULT_FOOTPRINT.unit,
-    gridSize: positiveNumber(meta.gridSize) ?? DEFAULT_FOOTPRINT.gridSize,
-  };
-}
-
-/** Grupos por id de asset guardados en las entidades del documento. */
-function groupsFromEntities(doc: CadDocument): Map<string, string> {
-  const groups = new Map<string, string>();
-  for (const entity of doc.entities) {
-    if (entity.type === "box" && entity.group)
-      groups.set(entity.id, entity.group);
-    else if (entity.type === "circle" && entity.legacy?.group)
-      groups.set(entity.id, entity.legacy.group);
-  }
-  return groups;
-}
-
-function defaultApproval() {
-  return { status: "draft", by: null, at: null, note: null };
-}
-
-function emptyLayout(model: string, revision: string) {
-  return {
-    model,
-    revision,
-    footprint: { ...DEFAULT_FOOTPRINT },
-    stations: [],
-    dxf: null,
-    connectors: [],
-    assets: [],
-    annotations: [],
-    cells: [],
-    layers: [],
-    cadDocument: null,
-    cadDocumentVersion: 0,
-    approval: defaultApproval(),
-  };
-}
-
-/**
- * Documento canónico → respuesta Layout legacy. Las colecciones del editor
- * (assets/anotaciones/conectores/colocaciones) se extraen con las MISMAS
- * reglas del editor (`cadDocumentToEditorSnapshot`): las entidades nativas
- * profesionales (cotas asociativas, polilíneas, hatch, …) NO se proyectan —
- * viajan dentro de `cadDocument` y el editor las preserva.
- */
-export function layoutFromDocument(
-  model: string,
-  revision: string,
-  row: OpenedDocument,
-  dxf: DxfPlacement | null,
-) {
-  const base = emptyLayout(model, revision);
-  base.cadDocumentVersion = row.cadDocumentVersion ?? 0;
-  if (!row.cadDocument) {
-    return { ...base, dxf: dxf ? placementFields(dxf) : null };
-  }
-  const doc = migrateCadDocument(row.cadDocument);
-  const snap = cadDocumentToEditorSnapshot(doc);
-  const groups = groupsFromEntities(doc);
-  const assets: LegacyAsset[] = snap.assets.map((asset) => ({
-    ...asset,
-    ...(snap.layers[asset.id] ? { layer: snap.layers[asset.id] } : {}),
-    ...(groups.has(asset.id) ? { group: groups.get(asset.id) } : {}),
-    ...(snap.tags[asset.id] ? { tags: splitTags(snap.tags[asset.id]) } : {}),
-  }));
-  const stations = snap.placements.map(([id, placement]) => ({
-    id,
-    station: id,
-    line: "",
-    ctq: false,
-    x: placement.x,
-    y: placement.y,
-    w: placement.w,
-    h: placement.h,
-    rotation: placement.rotation,
-  }));
-  return {
-    ...base,
-    footprint: footprintFromMeta(row.cadDocument),
-    stations,
-    assets,
-    annotations: snap.annotations,
-    connectors: snap.connectors,
-    dxf: dxf ? placementFields(dxf) : null,
-    cadDocument: row.cadDocument,
-  };
 }
 
 async function openLayout(scope: {
@@ -803,12 +647,6 @@ async function cloneRoute(payload: Record<string, unknown>): Promise<Response> {
  *  después de que el editor lo descargó — así el plano viaja UNA vez, no dos. */
 const dxfCache = new Map<string, { at: number; body: DxfResource }>();
 const DXF_CACHE_TTL_MS = 30_000;
-
-/** Colocación → forma del campo `dxf` del layout legacy (sin `name`). */
-function placementFields(placement: DxfPlacement) {
-  const { offsetX, offsetY, scale, rotation, visible, opacity } = placement;
-  return { offsetX, offsetY, scale, rotation, visible, opacity };
-}
 
 async function fetchDxf(documentId: string): Promise<DxfResource | null> {
   const cached = dxfCache.get(documentId);

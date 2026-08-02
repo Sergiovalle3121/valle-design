@@ -16,7 +16,10 @@
     "typecheck": "npx turbo run typecheck",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "sbom": "npm sbom --sbom-format cyclonedx --omit dev > sbom.cdx.json && node -e \"const b=require('./sbom.cdx.json');console.log('SBOM OK:',b.components.length,'componentes')\"",
-    "check:licenses": "node scripts/check-dependency-licenses.mjs"
+    "check:licenses": "node scripts/check-dependency-licenses.mjs",
+    "check:cad-contract": "node scripts/cad/check-design-contract.mjs",
+    "check:no-line-engineering": "node scripts/cad/check-no-line-engineering.mjs",
+    "check:cad": "node scripts/cad/check-design-contract.mjs && node scripts/cad/check-no-line-engineering.mjs"
   },
   "devDependencies": {
     "prettier": "^3.0.0",
