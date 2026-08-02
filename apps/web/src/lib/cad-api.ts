@@ -315,6 +315,17 @@ async function resolveDocumentId(
   const key = `${model}|${revision}`;
   const cached = documentIdCache.get(key);
   if (cached) return cached;
+  // `/studio/[documentId]` pasa el UUID como alcance. Abrirlo directamente
+  // evita persistir un alias model/revision en documentos nuevos.
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(model)) {
+    const response = await rawApiFetch(`${API_BASE}/v1/cad/documents/${encodeURIComponent(model)}`);
+    if (response.ok) {
+      documentIdCache.set(key, model);
+      return model;
+    }
+    if (response.status !== 404) throw new UpstreamFailure(response);
+    return null;
+  }
   // El contrato v1 no filtra por alias legacy: se listan los documentos del
   // tenant (tope de listado v1: 200) y se aparea model+revision aquí.
   const page = await v1<{ items: DocumentSummary[] }>(
