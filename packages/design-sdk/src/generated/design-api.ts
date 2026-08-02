@@ -673,8 +673,12 @@ export interface components {
          *       `modelBounds` con `width/height` > 0).
          *     * `publications`: máx. 1 000 recibos (server-managed: eco exacto).
          *     * `collaboration`: `versions` ≤ 12, `threads` ≤ 500 (body 1–1000
-         *       chars, status open|resolved), `reviewLinks` ≤ 20 (token 16–256
-         *       chars, `readOnly: true` obligatorio), `audit` ≤ 500.
+         *       chars, status open|resolved), `reviewLinks` ≤ 20 (`readOnly: true`
+         *       obligatorio; SOLO metadato — el servidor REDACTA cualquier `token`
+         *       que llegue o que traigan documentos heredados, sustituyéndolo por
+         *       `hasToken: true`: la credencial del review link es server-owned y
+         *       sólo existe hasheada en `cad_review_sessions.token_hash`),
+         *       `audit` ≤ 500.
          *     * Profundidad máxima de anidamiento: 64; claves ≤ 128 chars; números
          *       finitos; serializado ≤ 8 000 000 bytes inline o ≤ 134 217 728 bytes
          *       vía archivo gzip.

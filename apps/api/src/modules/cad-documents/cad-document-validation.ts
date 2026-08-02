@@ -234,14 +234,21 @@ export function validateCadDocumentPayload(
     }
     for (const rawLink of state.reviewLinks as unknown[]) {
       const link = objectValue(rawLink);
+      // FASE DE TRANSICIÓN: `token` YA NO es obligatorio ni admisible como
+      // fuente de verdad. Los documentos heredados que aún lo traen siguen
+      // VALIDANDO (no se rompe la lectura de nada persistido), pero el valor
+      // se redacta antes de devolver o volver a persistir el documento —
+      // ver `redactCadDocumentSecrets`. La autoridad del review link vive en
+      // `cad_review_sessions.token_hash`, no en este JSON.
       if (
         typeof link?.id !== 'string' ||
         !link.id ||
         link.id.length > 128 ||
-        typeof link?.token !== 'string' ||
-        link.token.length < 16 ||
-        link.token.length > 256 ||
-        link.readOnly !== true
+        link.readOnly !== true ||
+        (link.token !== undefined &&
+          (typeof link.token !== 'string' ||
+            link.token.length < 16 ||
+            link.token.length > 256))
       ) {
         throw new BadRequestException(
           'CadDocument contiene un enlace de revisiÃ³n invÃ¡lido.',
@@ -269,5 +276,51 @@ export function validateCadDocumentPayload(
   if (Buffer.byteLength(text, 'utf8') > maxBytes) {
     throw new BadRequestException(`CadDocument excede ${maxBytes} bytes.`);
   }
-  return JSON.parse(text) as PersistedCadDocument;
+  // La redacción se aplica sobre el CLON (nunca sobre la entrada del llamador)
+  // y por eso vive en el único punto por el que TODO documento canónico cruza
+  // la frontera: entrada (guardado / archivo gzip / proyección legacy) y
+  // salida (`hydrateCadDocument`, que valida ambas ramas — inline y blob).
+  return redactCadDocumentSecrets(JSON.parse(text) as PersistedCadDocument);
+}
+
+/**
+ * REDACCIÓN DE SECRETOS del documento canónico.
+ *
+ * `collaboration.reviewLinks[].token` fue durante una fase un token en CLARO
+ * generado por el navegador y persistido dentro del JSON del documento: una
+ * segunda fuente de verdad, insegura, paralela a la real
+ * (`cad_review_sessions.token_hash`, server-owned). Quien tuviera permiso de
+ * LECTURA sobre el documento se llevaba los tokens de compartición de todos
+ * los enlaces — incluido el invitado que entra por `/v1/cad/review/context`.
+ *
+ * Aquí se elimina el valor y se conserva SOLO metadato no sensible
+ * (`id`, `label`, `readOnly`, `createdAt/By`, `expiresAt`, `revokedAt`) más
+ * `hasToken: true` cuando el documento heredado traía uno. Se recorre el árbol
+ * completo porque `collaboration.versions[].document` puede anidar estado de
+ * colaboración de snapshots antiguos.
+ *
+ * Mutación IN SITU deliberada: el llamador entrega un clon recién creado.
+ */
+export function redactCadDocumentSecrets<T>(document: T): T {
+  redactNode(document, 0);
+  return document;
+}
+
+function redactNode(value: unknown, depth: number): void {
+  if (depth > MAX_DEPTH || !value || typeof value !== 'object') return;
+  if (Array.isArray(value)) {
+    for (const item of value) redactNode(item, depth + 1);
+    return;
+  }
+  const node = value as Record<string, unknown>;
+  const links = node.reviewLinks;
+  if (Array.isArray(links)) {
+    for (const rawLink of links) {
+      const link = objectValue(rawLink);
+      if (!link || !('token' in link)) continue;
+      delete link.token;
+      link.hasToken = true;
+    }
+  }
+  for (const nested of Object.values(node)) redactNode(nested, depth + 1);
 }

@@ -40,16 +40,26 @@ export type CadDocumentVersionToken = number;
 /* ──────────────────── Identificadores LEGADOS persistidos ─────────────────── */
 
 /**
- * Modelo centinela con el que el CAD Studio "universal" persiste sus
- * documentos (hoy en `sf_line_layouts.model`, mañana en
- * `cad_documents.model`). VALOR LEGADO OPACO: se lee y escribe tal cual.
- * NO renombrar en v1 — renombrarlo exige migración de datos y bump de la
- * versión de formato del documento (`meta.schema`).
+ * Los centinelas del CAD Studio universal (`AXOS-CAD-STUDIO` / `UNIVERSAL`)
+ * ya NO se declaran aquí: viven en `./legacy/cad-studio-identifiers`, junto a
+ * los demás identificadores que no pueden renombrarse sin migrar datos, y
+ * documentados en `./legacy/README.md`.
+ *
+ * Se re-exportan sin cambiar un solo literal para no romper a los
+ * consumidores existentes.
+ *
+ * @deprecated Importar desde `./legacy` (o desde el subcamino `legacy` del
+ * paquete). Esta re-exportación se retira cuando se retire el propio alias,
+ * es decir cuando la migración de datos descrita en `legacy/README.md` §1 se
+ * haya ejecutado y el conteo de filas con el valor viejo sea cero en todos
+ * los entornos. No hay fecha: la condición es el conteo, no el calendario.
  */
-export const LEGACY_CAD_STUDIO_MODEL = "AXOS-CAD-STUDIO" as const;
-
-/** Revisión centinela del CAD Studio universal. Mismo tratamiento legado. */
-export const LEGACY_CAD_STUDIO_REVISION = "UNIVERSAL" as const;
+export {
+  /** @deprecated Usar `legacy/cad-studio-identifiers`. */
+  LEGACY_CAD_STUDIO_MODEL,
+  /** @deprecated Usar `legacy/cad-studio-identifiers`. */
+  LEGACY_CAD_STUDIO_REVISION,
+} from "./legacy/cad-studio-identifiers";
 
 /* ─────────────────────── Entitlement y permisos cad:* ─────────────────────── */
 

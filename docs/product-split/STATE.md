@@ -281,8 +281,9 @@ dorada + full-stack real, CI declarado.
   `docs/product-split/DATA-MIGRATION.md`. (Esta lista quedó stale una sesión —
   corregida aquí.)
 - **Fase 5 — seguridad/comercialización**: ✅ NÚCLEO HECHO en esta rama (ver la
-  sección «Fase 5» abajo). Queda de la lista original: UI de review links en apps/web,
-  publicador real de eventos `design.*` (hoy noop), optimize NL→CAD (candidato v1.1),
+  sección «Fase 5» abajo). La UI de review links de apps/web ya usa el flujo
+  server-owned (ver «Limpieza B3» abajo). Queda de la lista original: publicador real
+  de eventos `design.*` (hoy noop), optimize NL→CAD (candidato v1.1),
   rate limiting/hardening extra de prod y el alias 1:1 opcional de rutas del YAML.
 - **Fase 6-7**: retiro del CAD de enterprise (gates 1-8) y CI/CD final con la matriz de
   criterios — sin cambios respecto del plan.
@@ -387,10 +388,40 @@ dorada + full-stack real, CI declarado.
   DEL MANDATO como spec de integración API: crear → canjear en contexto limpio (solo
   X-Review-Token) → read-only impuesto (10 rutas → 403 review_read_only, documento
   intacto) → comentar/listar/resolver → revocar → el canje muere (401
-  review_token_revoked). DECISIÓN: se implementó como integración API y no como
-  Playwright nuevo porque apps/web AÚN NO tiene UI de review links — un e2e de
-  navegador sin UI solo repetiría llamadas HTTP; cuando la UI llegue, el golden de
-  navegador se añade sobre este mismo backend.
+  review_token_revoked). Se implementó como integración API; el golden de navegador
+  (`22-cad-compare-collaboration`) cubre desde la «Limpieza B3» el lado cliente:
+  emisión server-owned, token mostrado una sola vez, ausencia total de token en el
+  documento guardado y canje por fragmento→cabecera con revocación efectiva.
+
+### Limpieza B3 — se elimina el review link INSEGURO del cliente
+
+Convivían DOS esquemas de review link. El bueno (server-owned) ya estaba: token
+generado en el servidor, sólo `sha256` en `cad_review_sessions.token_hash`,
+expiración/revocación revalidadas en cada request, `X-Review-Token`, superficie
+`@ReviewLinkSurface` con read-only impuesto. El malo seguía vivo en el cliente y en
+el modelo de documento:
+
+- `cad-document-validation.ts` EXIGÍA `collaboration.reviewLinks[].token` (16–256
+  chars) — un secreto obligatorio dentro del JSON del documento.
+- `CadCollaborationPalette` generaba el token con `crypto.randomUUID()` y construía
+  `?cadReview=<token>`; `Layout3DEditor` decidía el modo revisión comparando ese
+  token con los del propio documento (autorización cosmética, sin servidor).
+- La API devolvía esos tokens en `GET /v1/cad/documents/:id`, en `/versions/:v` y en
+  `GET /v1/cad/review/context` — cualquiera con permiso de LECTURA, incluido un
+  invitado, cosechaba los tokens de compartición de todos los enlaces.
+
+Qué cambia: (1) `redactCadDocumentSecrets` en `cad-document-validation.ts` borra
+`token` y deja `hasToken: true` en el ÚNICO punto por el que todo documento cruza la
+frontera (entrada y salida, inline y blob); (2) `token` deja de ser obligatorio —
+los documentos heredados siguen leyéndose; (3) el editor pide el enlace a
+`POST /v1/cad/documents/:id/review-sessions`, muestra el token UNA vez para copiarlo
+y revoca por `/v1/cad/review-sessions/:id/close`; el modo revisión lo decide el canje
+server-side; (4) la migración `20260802140000-PurgeReviewLinkTokens` borra el token
+del JSON de `cad_documents` y `cad_document_versions` (idempotente, con conteos,
+`down` no-op deliberado). LIMITACIÓN honesta: los documentos persistidos como puntero
+a blob quedan fuera del alcance de SQL — se cuentan y se reportan; la redacción de la
+frontera impide que salgan por la API y los reescribe redactados al volver a
+guardarse.
 - **Escenarios ERP-only y bundle** (UI/API de enterprise+platform): NO se prueban en
   este repo — pertenecen a Fase 6/7 sobre valle-enterprise/platform. Evidencia
   existente: CI de enterprise verde en la rama del split (WP7: 14/14 gates, api

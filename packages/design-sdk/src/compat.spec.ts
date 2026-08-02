@@ -2,7 +2,7 @@
  * TEST DE COMPATIBILIDAD DE CONTRATO (R3).
  *
  * Garantiza que el SDK generado desde `design-api.v1.yaml` y los contratos
- * tipados a mano de `@axos/contracts` (design-contracts.ts) describen el
+ * tipados a mano de `@valle-design/contracts` (design-contracts.ts) describen el
  * MISMO producto:
  *
  *  1. NIVEL DE TIPOS (falla en `tsc`, antes de ejecutar nada): igualdad
@@ -31,7 +31,7 @@ import {
   type CadDocumentVersionConflictDetails,
   type CadPermission,
   type CadDocumentVersionToken,
-} from "@axos/contracts";
+} from "@valle-design/contracts";
 import type { components } from "./generated/design-api";
 
 type Schemas = components["schemas"];
@@ -45,7 +45,7 @@ type Equal<A, B> =
 type Expect<T extends true> = T;
 type Extends<A, B> = A extends B ? true : false;
 
-// Códigos constantes de error generados ∈ catálogo de @axos/contracts.
+// Códigos constantes de error generados ∈ catálogo de @valle-design/contracts.
 type GeneratedEntitlementCode = Schemas["EntitlementRequiredError"]["code"];
 type GeneratedConflictCode = Schemas["CadDocumentVersionConflictError"]["code"];
 type ContractsErrorCode = (typeof DESIGN_API_ERROR_CODES)[number];
@@ -121,7 +121,7 @@ void test("todo código de error contractual aparece en design-api.v1.yaml", () 
   for (const code of DESIGN_API_ERROR_CODES) {
     assert.ok(
       apiYaml.includes(code),
-      `El código '${code}' de @axos/contracts no aparece en el spec v1`,
+      `El código '${code}' de @valle-design/contracts no aparece en el spec v1`,
     );
   }
 });

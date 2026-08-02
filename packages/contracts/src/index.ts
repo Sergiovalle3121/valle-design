@@ -1,26 +1,13 @@
-export * from "./api-response";
-export * from "./readiness";
-export * from "./sheets";
-export * from "./industries";
-export * from "./plan-tiers";
-export * from "./documents";
-export * from "./pdf-coordinates";
-export * from "./presentations";
-export * from "./document-authoring";
+/**
+ * Contratos EXCLUSIVOS del producto Valle Design (CAD).
+ *
+ * El paquete arrastraba el catálogo comercial completo del monorepo de origen
+ * (precios, ofertas, entitlements, contratos de Office…). Nada de eso lo
+ * consume Design: se retiró. Lo que queda es lo que este producto usa de
+ * verdad, más el módulo `legacy/` con los identificadores que no pueden
+ * renombrarse todavía (ver `legacy/README.md`).
+ */
 export * from "./product-catalog";
-export * from "./money";
-export * from "./money-rounding";
-export * from "./pricing";
-export * from "./price-book-mx";
-export * from "./bundles";
-export * from "./public-catalog";
-export * from "./intelligence-consumption";
-export * from "./founding-partners";
-export * from "./entitlements";
-export * from "./onboarding";
-export * from "./migration";
-export * from "./licence";
 export * from "./brand";
-export * from "./legal";
-export * from "./costing-rates";
 export * from "./design-contracts";
+export * from "./legacy";

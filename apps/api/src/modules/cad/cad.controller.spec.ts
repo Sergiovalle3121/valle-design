@@ -6,6 +6,7 @@ import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { gzipSync } from 'node:zlib';
 import request from 'supertest';
+import { DataSource } from 'typeorm';
 import { AllExceptionsFilter } from '../../common/filters/all-exceptions.filter';
 import { TenantModule } from '../../common/tenant/tenant.module';
 import { AuthModule } from '../auth/auth.module';
@@ -249,6 +250,93 @@ describe('CadController (/v1/cad, stack completo)', () => {
     expect(entries.some((e) => e.action === 'cad_sheet_set_published')).toBe(
       true,
     );
+  });
+
+  it('los review link tokens heredados NUNCA salen en la respuesta (documento ni versiones)', async () => {
+    const auth = `Bearer ${full()}`;
+    const server = app.getHttpServer();
+    const SECRET = 'vdrl_token_heredado_del_navegador';
+
+    const document = await request(server)
+      .post('/v1/cad/documents')
+      .set('Authorization', auth)
+      .send({ name: 'Plano con review link' })
+      .expect(201);
+    const documentId = document.body.id as string;
+
+    // 1) INGRESO: el cliente aún manda el token en claro dentro del JSON.
+    //    Se acepta (no se rompe el guardado) pero NO se persiste.
+    const cadDocument = {
+      meta: { schema: 3, version: 1, unit: 'mm' },
+      entities: [{ id: 'line-1', type: 'line' }],
+      collaboration: {
+        versions: [],
+        threads: [],
+        reviewLinks: [
+          { id: 'link-1', token: SECRET, readOnly: true, label: 'Cliente' },
+        ],
+        audit: [],
+      },
+    };
+    await request(server)
+      .put(`/v1/cad/documents/${documentId}/content`)
+      .set('Authorization', auth)
+      .send({ cadDocument, expectedCadDocumentVersion: 0 })
+      .expect(200);
+
+    const source = app.get(DataSource);
+    const persisted = await source.query(
+      'SELECT cad_document FROM cad_documents WHERE id = ?',
+      [documentId],
+    );
+    expect(String(persisted[0].cad_document)).not.toContain(SECRET);
+    const persistedVersions = await source.query(
+      'SELECT cad_document FROM cad_document_versions WHERE document_id = ?',
+      [documentId],
+    );
+    expect(persistedVersions).toHaveLength(1);
+    expect(String(persistedVersions[0].cad_document)).not.toContain(SECRET);
+
+    // 2) SALIDA: una fila HEREDADA (escrita antes de esta limpieza, con el
+    //    token en claro en el JSON) tampoco lo filtra al servirse.
+    const legacy = JSON.stringify({
+      ...cadDocument,
+      collaboration: {
+        ...cadDocument.collaboration,
+        reviewLinks: [
+          { id: 'link-1', token: SECRET, readOnly: true, label: 'Cliente' },
+        ],
+      },
+    });
+    await source.query(
+      'UPDATE cad_documents SET cad_document = ? WHERE id = ?',
+      [legacy, documentId],
+    );
+    await source.query(
+      'UPDATE cad_document_versions SET cad_document = ? WHERE document_id = ?',
+      [legacy, documentId],
+    );
+
+    const opened = await request(server)
+      .get(`/v1/cad/documents/${documentId}`)
+      .set('Authorization', auth)
+      .expect(200);
+    expect(JSON.stringify(opened.body)).not.toContain(SECRET);
+    expect(opened.body.cadDocument.collaboration.reviewLinks[0]).toEqual({
+      id: 'link-1',
+      readOnly: true,
+      label: 'Cliente',
+      hasToken: true,
+    });
+
+    const version = await request(server)
+      .get(`/v1/cad/documents/${documentId}/versions/1`)
+      .set('Authorization', auth)
+      .expect(200);
+    expect(JSON.stringify(version.body)).not.toContain(SECRET);
+    expect(
+      'token' in version.body.cadDocument.collaboration.reviewLinks[0],
+    ).toBe(false);
   });
 
   it('guarda el archivo gzip multipart mediante CAS (rama /archive)', async () => {

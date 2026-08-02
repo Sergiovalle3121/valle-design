@@ -18,7 +18,7 @@ apps/
   web/         Frontend Next.js: el estudio CAD en /studio + suite E2E (goldens
                10-28, performance 10k/100k y full-stack real en e2e/real)
 packages/
-  contracts/   @axos/contracts: tipos compartidos + specs OpenAPI/AsyncAPI v1
+  contracts/   @valle-design/contracts: tipos compartidos + specs OpenAPI/AsyncAPI v1
   design-sdk/  @valle/design-sdk: tipos generados del spec + cliente fetch tipado
 docs/          Arquitectura CAD, bitácoras de ejecución y del product split
 .github/       CI propio (quality-gates, e2e full-stack, gitleaks, sbom)
@@ -88,7 +88,7 @@ Design consume Platform exclusivamente por CONTRATO:
 
 - **Identidad**: valida los JWT de sesión emitidos por Platform con secreto
   compartido vía entorno (`JWT_SECRET`/`SESSION_SECRET`); permisos `cad:*`
-  (con mapeo de transición `engineering:*` → `cad:*` de `@axos/contracts`).
+  (con mapeo de transición `engineering:*` → `cad:*` de `@valle-design/contracts`).
 - **Acceso comercial**: entitlement `design.cad`
   (`specs/platform-api.v1.yaml`); hoy impuesto por configuración, en
   R-seguridad por el cliente platform-api.
@@ -97,7 +97,7 @@ Design consume Platform exclusivamente por CONTRATO:
 
 Los YAML de `packages/contracts/specs/` son la fuente; el SDK generado vive en
 `packages/design-sdk` (R3) con un test de compatibilidad de contrato que rompe
-si el YAML y `@axos/contracts` divergen.
+si el YAML y `@valle-design/contracts` divergen.
 
 ## Licencia
 

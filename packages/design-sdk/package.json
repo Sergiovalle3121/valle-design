@@ -23,7 +23,7 @@
     "test": "node --test dist/compat.spec.js"
   },
   "dependencies": {
-    "@axos/contracts": "*"
+    "@valle-design/contracts": "*"
   },
   "devDependencies": {
     "openapi-typescript": "7.9.1",

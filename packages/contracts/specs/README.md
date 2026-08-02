@@ -3,7 +3,7 @@
 Contratos FUENTE (SHARED_PROTOCOL) entre el producto **Design** (CAD, futuro
 repo `valle-design`) y el resto de la plataforma (Enterprise ERP/MES +
 platform-core). Los tipos TypeScript mínimos derivados a mano viven en
-`../src/design-contracts.ts` y se exportan desde `@axos/contracts`.
+`../src/design-contracts.ts` y se exportan desde `@valle-design/contracts`.
 
 ## Qué es cada spec
 

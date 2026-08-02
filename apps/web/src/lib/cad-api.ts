@@ -36,6 +36,14 @@
  *                                                   (respuesta plana v1 → {publication, cadDocumentVersion})
  *  POST   /line-engineering/layout/clone          → composición v1: GET documento origen + PUT content destino
  *                                                   (mismo CAS del destino; misma semántica del clone legacy).
+ *  POST   /line-engineering/layout/review-sessions        → POST /v1/cad/documents/:id/review-sessions
+ *                                                   (review link SERVER-OWNED: el token en claro sólo existe
+ *                                                   en esta respuesta; nunca se persiste ni se pone en la URL).
+ *  POST   /line-engineering/layout/review-sessions/:id/close
+ *                                                 → POST /v1/cad/review-sessions/:id/close (revocación).
+ *  GET    /line-engineering/layout/review-context → GET  /v1/cad/review/context (canje del token por el
+ *                                                   contexto de SOLO LECTURA; el token viaja en la cabecera
+ *                                                   `X-Review-Token`, jamás en la query string).
  *
  * ── SIN EQUIVALENTE EN /v1/cad → 404 limpio (el editor ya lo maneja) ───────
  *  layout/snapshots[...]: versiones de servidor con nombre — no forman parte
@@ -184,6 +192,24 @@ export async function handleLegacyCadRequest(
     }
     if (route === "layout/clone" && method === "POST") {
       return cloneRoute(parseJsonBody(init));
+    }
+
+    // ── Review links SERVER-OWNED ─────────────────────────────────────────
+    // El navegador ya no genera tokens: los pide, los muestra una vez y los
+    // olvida. Ver `createReviewSessionRoute`.
+    if (route === "layout/review-sessions" && method === "POST") {
+      return createReviewSessionRoute(scopeOf(url), parseJsonBody(init));
+    }
+    const closeMatch = route.match(/^layout\/review-sessions\/([^/]+)\/close$/);
+    if (closeMatch && method === "POST") {
+      return v1Json(
+        "POST",
+        `/v1/cad/review-sessions/${encodeURIComponent(closeMatch[1])}/close`,
+        {},
+      );
+    }
+    if (route === "layout/review-context" && method === "GET") {
+      return reviewContextRoute(init);
     }
 
     // ── Endpoints sin equivalente en /v1/cad: 404 limpio y documentado ────
@@ -889,4 +915,55 @@ async function publicationsRoute(
   };
   const { cadDocumentVersion, ...publication } = body;
   return json({ publication, cadDocumentVersion });
+}
+
+/* ══════════════════════ Review links (server-owned) ══════════════════════ */
+
+/**
+ * Crea la sesión de revisión con enlace compartible. TODO el ciclo de vida del
+ * token vive en el servidor: aquí sólo se reenvía la petición y se devuelve la
+ * respuesta tal cual, incluido `shareToken` — su ÚNICA aparición en claro en
+ * toda la API. El editor lo enseña una vez para copiarlo y no lo guarda en
+ * ningún sitio (ni en el documento, ni en la URL, ni en localStorage).
+ */
+async function createReviewSessionRoute(
+  scope: { model: string; revision: string },
+  payload: Record<string, unknown>,
+): Promise<Response> {
+  if (!scope.model) return json({ message: "model es obligatorio." }, 400);
+  const id = await resolveDocumentId(scope.model, scope.revision);
+  if (!id) {
+    return json(
+      { message: "Guarda el dibujo antes de compartir un enlace de revisión." },
+      404,
+    );
+  }
+  return v1Json("POST", `/v1/cad/documents/${id}/review-sessions`, {
+    shareLink: true,
+    allowComments: payload.allowComments !== false,
+    ...(typeof payload.shareLinkTtlMinutes === "number"
+      ? { shareLinkTtlMinutes: payload.shareLinkTtlMinutes }
+      : {}),
+  });
+}
+
+/**
+ * CANJE del review link: el token viaja en la cabecera `X-Review-Token` que
+ * puso el llamador — nunca en la URL (una query string queda en el historial
+ * del navegador, en el Referer y en los logs del servidor). El servidor
+ * revalida hash + expiración + revocación y responde el contexto de SOLO
+ * LECTURA; si el enlace ya no vale, responde 401 y aquí se propaga tal cual.
+ */
+function reviewContextRoute(init?: RequestInit): Promise<Response> {
+  const headers = new Headers(init?.headers);
+  const token = headers.get("X-Review-Token") ?? "";
+  if (!token) {
+    return Promise.resolve(
+      json({ code: "review_token_invalid", message: "Falta el token." }, 401),
+    );
+  }
+  return rawApiFetch(`${API_BASE}/v1/cad/review/context`, {
+    method: "GET",
+    headers: { "X-Review-Token": token },
+  });
 }

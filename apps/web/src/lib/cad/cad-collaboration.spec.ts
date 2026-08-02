@@ -3,7 +3,6 @@ import { layoutToCadDocument, type CadDocument, type CadEntity } from "./cad-doc
 import {
   addCadReviewThread,
   auditCadMerge,
-  cadReviewLinkIsActive,
   cadVersionDocument,
   createCadReviewLink,
   createCadVersion,
@@ -70,10 +69,20 @@ reviewed = addCadReviewThread(reviewed, {
 assert.equal(reviewed.collaboration?.threads[0].assignedTo, "ana", "comments support assignment and markup");
 reviewed = resolveCadReviewThread(reviewed, "thread-1", "ana", "2026-07-28T20:03:00.000Z");
 assert.equal(reviewed.collaboration?.threads[0].status, "resolved", "threads resolve with audit identity");
-reviewed = createCadReviewLink(reviewed, { id: "link-1", token: "tenant-token", label: "Client review", readOnly: true, createdAt: "2026-07-28T20:04:00.000Z", createdBy: "ana", expiresAt: "2027-07-28T20:04:00.000Z" });
-assert.equal(cadReviewLinkIsActive(reviewed, "tenant-token", new Date("2026-07-28T20:05:00.000Z")), true, "tenant review token is active before expiry");
+// SESIÓN DE REVISIÓN SERVER-OWNED: el documento guarda METADATO, nunca la
+// credencial. `id` es el id de la sesión (`cad_review_sessions`), cuyo token
+// sólo existe hasheado en el servidor y viaja por `X-Review-Token`.
+reviewed = createCadReviewLink(reviewed, { id: "review-session-1", label: "Client review", readOnly: true, createdAt: "2026-07-28T20:04:00.000Z", createdBy: "ana", expiresAt: "2027-07-28T20:04:00.000Z" });
+const issuedLink = reviewed.collaboration!.reviewLinks[0] as unknown as Record<string, unknown>;
+assert.equal(issuedLink.id, "review-session-1", "the document references the server review session");
+assert.equal("token" in issuedLink, false, "no review link token is ever written into the document");
+assert.equal(JSON.stringify(reviewed).includes("tenant-token"), false, "no browser-minted secret survives anywhere in the document");
 reviewed = revokeCadReviewLink(reviewed, "link-1", "ana", "2026-07-28T20:06:00.000Z");
-assert.equal(cadReviewLinkIsActive(reviewed, "tenant-token", new Date("2026-07-28T20:07:00.000Z")), false, "revoked review links stop authorizing review mode");
+assert.equal(reviewed.collaboration?.reviewLinks[0].revokedAt, undefined, "revoking an unknown link id is a no-op");
+reviewed = revokeCadReviewLink(reviewed, "review-session-1", "ana", "2026-07-28T20:06:00.000Z");
+assert.equal(reviewed.collaboration?.reviewLinks[0].revokedAt, "2026-07-28T20:06:00.000Z", "revocation is mirrored as metadata (the server owns the real revocation)");
+assert.ok(reviewed.collaboration?.audit.some((entry) => entry.action === "review_link_revoked"), "revocation is audited");
+assert.equal("token" in (reviewed.collaboration!.reviewLinks[0] as unknown as Record<string, unknown>), false, "revocation does not reintroduce a token");
 reviewed = auditCadMerge(reviewed, "ana", "2026-07-28T20:08:00.000Z", keepMine);
 assert.ok(reviewed.collaboration?.audit.some((entry) => entry.action === "merge_applied"), "merge, comments, links and versions share one audit trail");
 
