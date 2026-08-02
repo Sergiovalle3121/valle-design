@@ -38,6 +38,8 @@ export type CadStudioHostProps = Omit<
   Layout3DEditorProps,
   keyof Layout3DEditorPlatformProps
 > & {
+  /** ID canónico del documento. En rutas nuevas sustituye cualquier alias legacy. */
+  documentId?: string;
   /** Proyecto CAD activo (alcance de recovery/historial). */
   projectId?: string;
 };
@@ -47,6 +49,7 @@ const noopFullscreenChange: NonNullable<
 > = () => undefined;
 
 export default function CadStudioHost({
+  documentId,
   projectId,
   ...props
 }: CadStudioHostProps) {
@@ -90,6 +93,7 @@ export default function CadStudioHost({
   return (
     <Layout3DEditor
       {...props}
+      model={documentId ?? props.model}
       identity={identity}
       scope={scope}
       theme={resolvedScheme}
