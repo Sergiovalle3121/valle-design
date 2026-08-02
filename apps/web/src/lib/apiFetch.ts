@@ -19,7 +19,7 @@
  * resuelve volviendo a Platform (login real), no auto-horneando otro JWT.
  */
 
-import { readStoredToken } from "@/lib/session";
+import { csrfToken } from "@/lib/session";
 import { isLegacyCadRequest, handleLegacyCadRequest } from "@/lib/cad-api";
 
 /**
@@ -37,12 +37,8 @@ export const API_BASE = (
 export function withAuthHeaders(init?: RequestInit): RequestInit {
   const next: RequestInit = { ...(init || {}) };
   const headers = new Headers(init?.headers);
-  if (typeof window !== "undefined") {
-    const token = readStoredToken();
-    if (token && !headers.has("Authorization")) {
-      headers.set("Authorization", `Bearer ${token}`);
-    }
-  }
+  const method = (init?.method || "GET").toUpperCase();
+  if (!["GET", "HEAD", "OPTIONS"].includes(method)) { const csrf = csrfToken(); if (csrf) headers.set("X-CSRF-Token", csrf); }
   next.headers = headers;
   if (next.credentials === undefined) next.credentials = "include";
   return next;

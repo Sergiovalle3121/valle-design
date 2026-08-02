@@ -4,7 +4,6 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import compression from 'compression';
 import { AppModule } from './app.module';
-import { getJwtSecret } from './common/config/jwt-secret';
 
 function parseAllowedOrigins(raw: string): string[] {
   const value = (raw || '').trim();
@@ -35,7 +34,6 @@ async function bootstrap() {
   // Fail-closed ANTES de construir el grafo DI: en producción, sin secreto de
   // verificación de tokens (JWT_SECRET/SESSION_SECRET) el arranque debe caer
   // ruidosamente, no servir 401 a toda sesión válida.
-  getJwtSecret();
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     cors: false,
@@ -106,7 +104,7 @@ async function bootstrap() {
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     // X-Review-Token: header del review link (Fase 5) — el invitado no tiene
     // Authorization; sin listarlo aquí el preflight CORS mataría el canje.
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Review-Token'],
+    allowedHeaders: ['Content-Type', 'X-CSRF-Token', 'X-Review-Token'],
   });
 
   // ── Arranque ──────────────────────────────────────────────────────────────

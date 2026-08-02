@@ -4,9 +4,9 @@ import {
   Injectable,
   Optional,
   UnauthorizedException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import {
@@ -14,10 +14,8 @@ import {
   ReviewLinkService,
 } from '../../cad-documents/review-link.service';
 import type { ReviewAccessContext } from '../../cad-documents/review-link.service';
-import type {
-  AuthenticatedUser,
-  JwtPayload,
-} from '../../../common/types/jwt.types';
+import type { AuthenticatedUser } from '../../../common/types/jwt.types';
+import { IdentityService, SESSION_COOKIE } from '../../identity/identity.service';
 
 /**
  * Autenticación server-side de Design (adaptación del JwtAuthGuard+JwtStrategy
@@ -44,7 +42,7 @@ import type {
 export class CadAuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
-    private readonly jwtService: JwtService,
+    private readonly identity: IdentityService,
     @Optional() private readonly reviewLinks?: ReviewLinkService,
   ) {}
 
@@ -56,39 +54,27 @@ export class CadAuthGuard implements CanActivate {
     if (isPublic) return true;
 
     const request = context.switchToHttp().getRequest<Request>();
-    const token = this.extractBearerToken(request);
-    if (!token) {
+    const cookieHeader = request.headers.cookie || '';
+    const rawCookie = cookieHeader.split(';').map(v => v.trim()).find(v => v.startsWith(`${SESSION_COOKIE}=`));
+    const sessionCookie = rawCookie ? decodeURIComponent(rawCookie.slice(SESSION_COOKIE.length + 1)) : undefined;
+    const auth = await this.identity.authenticate(sessionCookie);
+    if (!auth) {
       const reviewToken = request.headers?.[REVIEW_TOKEN_HEADER];
       if (reviewToken !== undefined && this.reviewLinks) {
         return this.activateReviewAccess(request, reviewToken);
       }
-      throw new UnauthorizedException('Falta el bearer token.');
+      throw new UnauthorizedException('Falta una sesión válida.');
     }
-
-    let payload: JwtPayload & { [claim: string]: unknown };
-    try {
-      payload = await this.jwtService.verifyAsync(token);
-    } catch {
-      throw new UnauthorizedException('El token es inválido o expiró.');
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method.toUpperCase())) {
+      const csrfCookie = cookieHeader.split(';').map(v => v.trim()).find(v => v.startsWith('valle_csrf='));
+      const csrf = csrfCookie ? decodeURIComponent(csrfCookie.slice('valle_csrf='.length)) : '';
+      if (!csrf || request.header('x-csrf-token') !== csrf || this.identity.hashToken(csrf) !== auth.session.csrfHash) {
+        throw new ForbiddenException({ code: 'csrf_invalid', message: 'Token CSRF inválido.' });
+      }
     }
-    if (!payload?.sub || !payload.email) {
-      throw new UnauthorizedException('El token no contiene una identidad.');
-    }
-
     const user: AuthenticatedUser = {
-      userId: String(payload.sub),
-      email: String(payload.email),
-      role: typeof payload.role === 'string' ? payload.role : '',
-      tenant_id: payload.tenant_id ?? null,
-      organization_id: payload.organization_id ?? null,
-      plant_id: payload.plant_id ?? null,
-      permissions: Array.isArray(payload.permissions)
-        ? payload.permissions.map(String)
-        : null,
-      scopes:
-        payload.scopes && typeof payload.scopes === 'object'
-          ? payload.scopes
-          : null,
+      userId: auth.user.id, email: auth.user.email, role: '', tenant_id: null,
+      organization_id: null, plant_id: null, permissions: null, scopes: null,
     };
     (request as Request & { user: AuthenticatedUser }).user = user;
     return true;
@@ -126,10 +112,4 @@ export class CadAuthGuard implements CanActivate {
     return true;
   }
 
-  private extractBearerToken(request: Request): string | null {
-    const header = request.headers?.authorization;
-    if (typeof header !== 'string') return null;
-    const [scheme, token] = header.split(' ');
-    return scheme?.toLowerCase() === 'bearer' && token ? token : null;
-  }
 }
