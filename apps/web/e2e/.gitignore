@@ -1,0 +1,4 @@
+# Playwright artifacts (kept out of git without touching the repo-root .gitignore)
+.test-results/
+.report/
+.cache/

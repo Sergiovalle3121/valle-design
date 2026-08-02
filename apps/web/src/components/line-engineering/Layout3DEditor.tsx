@@ -16,7 +16,6 @@ import {
   Expand, Frame, Focus, PanelLeft, PanelLeftClose, ScanEye, GitMerge,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/apiFetch';
-import { installLineEngineeringCadAnalysis } from '@/lib/line-engineering/register-cad-analysis';
 import { ASSET_CATEGORIES, assetMeta, type AssetArchetype } from './asset-catalog';
 import { parseDxf, type DxfModel } from './dxf';
 import { dxfPointToFootprint, dxfToWalls } from './dxf-walls';
@@ -290,9 +289,13 @@ import {
   upsertCadViewportBookmark,
   type CadViewportBookmark,
 } from '@/lib/cad/viewport-bookmarks';
-// El workbench enterprise inyecta la analítica industrial (flujo, balanceo,
-// ruta material) a los comandos del kernel CAD al cargar este chunk.
-installLineEngineeringCadAnalysis();
+// EDICIÓN DESIGN: aquí NO se instala la analítica industrial (flujo, balanceo,
+// ruta material) que el workbench enterprise registraba al cargar este chunk —
+// ese paquete es ENTERPRISE_OWNED y no existe en este repo. Sin registro, los
+// comandos de análisis del kernel degradan con su aviso contractual
+// (`analysis_pack_missing`) — comportamiento probado en analysis-extensions.spec.
+// El overlay de flujo del propio editor sigue vivo: usa
+// `@/lib/line-engineering/flow-optimization` por import directo (línea ~140).
 
 /**
  * Contrato de EXTENSIÓN de paneles de análisis (WP6 — inversión de dependencias).
