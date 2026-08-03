@@ -1,67 +1,48 @@
 import Link from "next/link";
 import {
   ArrowRight,
-  Bot,
-  Check,
+  CircleAlert,
   DraftingCompass,
-  FileCheck2,
-  GitCompareArrows,
-  LockKeyhole,
-  MessageSquareCheck,
-  ShieldCheck,
+  FileText,
+  FolderPlus,
 } from "lucide-react";
 import { BRAND, PRODUCT_LABEL } from "@/config/brand";
-import { COMMERCIAL_LINKS, COMMERCIAL_PLANS } from "@/config/commercial";
+import { COMMERCIAL_LINKS } from "@/config/commercial";
 
-const features = [
+const capabilities = [
+  {
+    icon: FolderPlus,
+    title: "Proyectos y documentos",
+    text: "Crea proyectos, asocia documentos y vuelve a abrirlos desde un panel conectado a la API del producto.",
+  },
   {
     icon: DraftingCompass,
-    title: "Precisión 2D",
-    text: "Dibuja con coordenadas, referencias a objetos, capas, bloques y cotas asociativas sin perder intención técnica.",
+    title: "Estudio CAD 2D",
+    text: "Abre cada documento por su identificador y trabaja con las herramientas de geometría, capas y dibujo disponibles en el estudio.",
   },
   {
-    icon: GitCompareArrows,
-    title: "Interoperabilidad demostrada",
-    text: "Importa, inspecciona y entrega DXF; el manifiesto de conversión hace visibles las simplificaciones antes de publicar.",
+    icon: CircleAlert,
+    title: "Estados comprensibles",
+    text: "La interfaz distingue una sesión expirada, falta de permisos, ausencia de conexión y documentos que ya no existen.",
   },
-  {
-    icon: MessageSquareCheck,
-    title: "Versiones y reviews",
-    text: "Compara revisiones, conserva comentarios y recupera el contexto de cada cambio en un historial trazable.",
-  },
-  {
-    icon: Bot,
-    title: "IA con confirmación humana",
-    text: "La IA propone geometría y comprobaciones. Tú revisas, corriges y confirmas antes de incorporar cualquier resultado.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Seguridad desde el diseño",
-    text: "Controles de acceso, aislamiento de espacios y trazabilidad para proteger el trabajo durante todo su ciclo de vida.",
-  },
-  {
-    icon: LockKeyhole,
-    title: "Tus datos siguen siendo tuyos",
-    text: "Conservas la propiedad de tus archivos y entregables. Puedes exportarlos en formatos documentados cuando los necesites.",
-  },
-];
+] as const;
 
 const faq = [
   [
-    "¿Puedo trabajar con archivos existentes?",
-    "Sí. Puedes importar DXF, revisar el resultado de la conversión y exportar entregables sin ocultar posibles simplificaciones.",
+    "¿Qué necesito para empezar?",
+    "Una cuenta activa y acceso a una organización con permisos para usar el CAD. Después puedes crear un proyecto y un documento desde el panel.",
   ],
   [
-    "¿La IA modifica mis planos automáticamente?",
-    "No. Sus resultados son propuestas: una persona debe revisarlas y confirmarlas antes de aplicarlas.",
+    "¿Puedo crear un documento importando un archivo?",
+    "Sí. El panel convierte archivos DXF y documentos JSON canónicos mediante un pipeline real con validación, progreso y reporte de pérdidas. Valle Design no anuncia compatibilidad DWG nativa.",
   ],
   [
-    "¿Cómo funcionan las revisiones?",
-    "Cada versión mantiene su contexto para comparar cambios, solicitar una revisión y documentar decisiones.",
+    "¿Dónde consulto la disponibilidad del servicio?",
+    "La página de estado indica si este despliegue tiene una fuente pública de telemetría configurada. No muestra un estado operativo inventado.",
   ],
   [
-    "¿Qué ocurre con mis datos?",
-    "Tus archivos y entregables siguen siendo tuyos. Los controles de acceso delimitan quién puede consultarlos o modificarlos.",
+    "¿Cuánto cuesta?",
+    "Esta web no publica tarifas ni ofrece un proceso de compra. La disponibilidad comercial se consulta mediante el canal de contacto configurado.",
   ],
 ] as const;
 
@@ -78,13 +59,13 @@ export default function LandingPage() {
         <Link href="/" className="flex items-center gap-2 font-semibold">
           <DraftingCompass
             aria-hidden="true"
-            className="h-6 w-6 text-cyan-500"
+            className="h-6 w-6 text-indigo-500"
           />
           {PRODUCT_LABEL.design}
         </Link>
         <div className="flex items-center gap-2 sm:gap-4">
           <Link
-            className="rounded-lg px-3 py-2 text-sm font-medium hover:bg-black/5 focus-visible:outline-2 focus-visible:outline-offset-2"
+            className="rounded-lg px-3 py-2 text-sm font-medium hover:bg-black/5 focus-visible:outline-2 focus-visible:outline-offset-2 dark:hover:bg-white/5"
             href="/login"
           >
             Iniciar sesión
@@ -103,55 +84,55 @@ export default function LandingPage() {
         className="mx-auto grid max-w-7xl gap-12 px-5 pb-20 pt-16 sm:px-8 lg:grid-cols-[1.1fr_.9fr] lg:py-28"
       >
         <div>
-          <p className="mb-4 text-sm font-semibold uppercase tracking-[.2em] text-cyan-600">
-            Diseño técnico, sin cajas negras
+          <p className="mb-4 text-sm font-semibold uppercase tracking-[.2em] text-indigo-600 dark:text-indigo-300">
+            CAD 2D para proyectos técnicos
           </p>
           <h1
             id="hero-title"
             className="max-w-4xl text-4xl font-bold tracking-tight sm:text-6xl"
           >
-            Del primer trazo a la revisión aprobada, con precisión y control.
+            Organiza tus planos y abre cada documento en un estudio CAD web.
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-gray-600 dark:text-gray-300">
-            {PRODUCT_LABEL.design} reúne dibujo 2D, interoperabilidad
-            verificable, revisiones e IA supervisada para que tu equipo entregue
-            con confianza.
+            {PRODUCT_LABEL.design} conecta cuentas, proyectos y documentos con
+            un editor 2D. Las funciones disponibles dependen de los permisos y
+            de la configuración de cada despliegue.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link
               href="/register"
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white hover:bg-indigo-500"
             >
-              Empezar ahora{" "}
+              Empezar ahora
               <ArrowRight aria-hidden="true" className="h-4 w-4" />
             </Link>
             <a
-              href={COMMERCIAL_LINKS.sales}
-              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-black/15 px-5 py-3 font-semibold dark:border-white/20"
+              href={COMMERCIAL_LINKS.documentation}
+              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-black/15 px-5 py-3 font-semibold hover:bg-black/[.025] dark:border-white/20 dark:hover:bg-white/[.025]"
             >
-              Solicitar demostración
+              Consultar documentación
             </a>
           </div>
         </div>
         <div
-          aria-label="Flujo de entrega verificable"
-          className="rounded-3xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/10 to-indigo-500/10 p-6 sm:p-9"
+          aria-label="Flujo disponible en Valle Design"
+          className="rounded-3xl border border-indigo-500/20 bg-gradient-to-br from-indigo-500/10 to-slate-500/5 p-6 sm:p-9"
         >
-          <FileCheck2 aria-hidden="true" className="h-10 w-10 text-cyan-500" />
+          <FileText aria-hidden="true" className="h-10 w-10 text-indigo-500" />
           <h2 className="mt-8 text-2xl font-semibold">
-            Cada entrega deja evidencia
+            Del panel al documento
           </h2>
           <ol className="mt-6 space-y-4">
             {[
-              "Dibuja con ayudas de precisión",
-              "Comprueba la conversión y los cambios",
-              "Solicita revisión y registra la aprobación",
-              "Publica un archivo listo para entregar",
+              "Crea una cuenta o inicia sesión",
+              "Crea un proyecto en tu organización",
+              "Añade un documento al proyecto",
+              "Ábrelo en el estudio CAD",
             ].map((item, index) => (
               <li key={item} className="flex gap-3">
                 <span
                   aria-hidden="true"
-                  className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-cyan-500/15 text-sm font-bold text-cyan-600"
+                  className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-indigo-500/15 text-sm font-bold text-indigo-700 dark:text-indigo-200"
                 >
                   {index + 1}
                 </span>
@@ -168,18 +149,21 @@ export default function LandingPage() {
       >
         <div className="mx-auto max-w-7xl">
           <h2 id="capabilities" className="text-3xl font-bold sm:text-4xl">
-            Control técnico de principio a fin
+            Capacidades que puedes comprobar
           </h2>
           <p className="mt-3 max-w-2xl text-gray-600 dark:text-gray-300">
-            Herramientas claras para crear, comprobar, colaborar y decidir.
+            La superficie pública describe sólo flujos presentes en el producto.
           </p>
-          <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {features.map(({ icon: Icon, title, text }) => (
+          <div className="mt-10 grid gap-5 md:grid-cols-3">
+            {capabilities.map(({ icon: Icon, title, text }) => (
               <article
                 key={title}
                 className="rounded-2xl border border-black/10 bg-white/60 p-6 dark:border-white/10 dark:bg-white/5"
               >
-                <Icon aria-hidden="true" className="h-7 w-7 text-cyan-600" />
+                <Icon
+                  aria-hidden="true"
+                  className="h-7 w-7 text-indigo-600 dark:text-indigo-300"
+                />
                 <h3 className="mt-5 text-xl font-semibold">{title}</h3>
                 <p className="mt-3 leading-7 text-gray-600 dark:text-gray-300">
                   {text}
@@ -191,49 +175,30 @@ export default function LandingPage() {
       </section>
 
       <section
-        aria-labelledby="plans"
+        aria-labelledby="commercial-availability"
         className="mx-auto max-w-7xl px-5 py-20 sm:px-8"
       >
-        <h2 id="plans" className="text-3xl font-bold sm:text-4xl">
-          Planes para cada forma de trabajar
-        </h2>
-        <div className="mt-10 grid gap-5 lg:grid-cols-3">
-          {COMMERCIAL_PLANS.map((plan) => (
-            <article
-              key={plan.name}
-              className="flex rounded-2xl border border-black/10 p-6 dark:border-white/10"
-            >
-              <div className="flex w-full flex-col">
-                <h3 className="text-xl font-semibold">{plan.name}</h3>
-                <p className="mt-3 min-h-12 text-gray-600 dark:text-gray-300">
-                  {plan.description}
-                </p>
-                <p className="mt-6 text-lg font-semibold">
-                  {plan.approvedPrice ??
-                    (plan.salesOnly
-                      ? "Contactar ventas"
-                      : "Precio no publicado")}
-                </p>
-                <ul className="mt-5 space-y-3">
-                  {plan.features.map((feature) => (
-                    <li key={feature} className="flex gap-2">
-                      <Check
-                        aria-hidden="true"
-                        className="mt-1 h-4 w-4 shrink-0 text-emerald-600"
-                      />
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-                <a
-                  href={plan.salesOnly ? COMMERCIAL_LINKS.sales : "/register"}
-                  className="mt-8 inline-flex min-h-11 items-center justify-center rounded-xl border border-indigo-500 px-4 py-2 font-semibold text-indigo-600 dark:text-indigo-300"
-                >
-                  {plan.salesOnly ? "Contactar ventas" : "Crear cuenta"}
-                </a>
-              </div>
-            </article>
-          ))}
+        <div className="rounded-3xl border border-black/10 p-6 sm:p-10 dark:border-white/10">
+          <p className="text-sm font-semibold uppercase tracking-[.16em] text-indigo-600 dark:text-indigo-300">
+            Precio no publicado
+          </p>
+          <h2
+            id="commercial-availability"
+            className="mt-3 text-3xl font-bold sm:text-4xl"
+          >
+            Consulta la disponibilidad comercial
+          </h2>
+          <p className="mt-4 max-w-3xl leading-7 text-gray-600 dark:text-gray-300">
+            No hay tarifas, planes de pago ni compra automática publicados en
+            esta web. Una evaluación o un acuerdo comercial requiere confirmar
+            alcance y condiciones por escrito.
+          </p>
+          <a
+            href={COMMERCIAL_LINKS.sales}
+            className="mt-7 inline-flex min-h-11 items-center justify-center rounded-xl border border-indigo-500 px-5 py-3 font-semibold text-indigo-700 hover:bg-indigo-500/5 dark:text-indigo-200"
+          >
+            Contactar ventas
+          </a>
         </div>
       </section>
 

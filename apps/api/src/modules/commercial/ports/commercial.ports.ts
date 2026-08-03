@@ -8,9 +8,7 @@ export interface EntitlementService {
   hasEntitlement(code: string, context?: EntitlementContext): Promise<boolean>;
 }
 export interface SubscriptionProvider {
-  currentSubscription(
-    context: EntitlementContext,
-  ): Promise<{
+  currentSubscription(context: EntitlementContext): Promise<{
     planCode: string;
     status: string;
     trialEndsAt: Date | null;
@@ -47,8 +45,8 @@ export interface CadEventPublisher {
 export interface EmailService {
   enqueue(
     input: {
-      organizationId: string;
-      tenantId: string;
+      organizationId: string | null;
+      tenantId: string | null;
       to: string;
       template: string;
       payload: unknown;

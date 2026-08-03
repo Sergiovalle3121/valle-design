@@ -1,7 +1,7 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadV1Backend } from '../fixtures/cad-v1-backend';
-import { loginAsMaster } from '../fixtures/session';
+import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 
 const cadDocument = {
   meta: { version: 1, schema: 3, unit: 'mm' },
@@ -83,9 +83,9 @@ async function dragWorld(page: Page, points: Array<{ x: number; y: number }>) {
 
 test('professional selection composes quick, add, previous, last, all and invert', async ({ context, page }) => {
   await installMockBackend(context);
-  await loginAsMaster(context);
+  await loginAsStandaloneOwner(context);
   await installCadBackend(context);
-  await page.goto('/studio');
+  await page.goto('/legacy/studio');
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
 
   await page.getByTitle(/Selección profesional/).click();
@@ -117,9 +117,9 @@ test('professional selection composes quick, add, previous, last, all and invert
 test('professional selection executes window, crossing, lasso and overlap cycling on the canvas', async ({ context, page }) => {
   test.setTimeout(90_000);
   await installMockBackend(context);
-  await loginAsMaster(context);
+  await loginAsStandaloneOwner(context);
   await installCadBackend(context, spatialCadDocument);
-  await page.goto('/studio');
+  await page.goto('/legacy/studio');
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
 
   const selectionTool = page.getByTitle(/Selecci.n profesional/);

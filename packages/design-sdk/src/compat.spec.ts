@@ -114,6 +114,21 @@ type _versionToken = Expect<
   Equal<Schemas["CadDocumentVersionToken"], CadDocumentVersionToken>
 >;
 
+// Standalone: invitation secrets are write-only and never appear in the
+// normal create response; tenant and permissions come from session context.
+type _invitationResponseHasNoToken = Expect<
+  Equal<Extract<keyof Schemas["OrganizationInvitationCreated"], "token">, never>
+>;
+type _sessionOrganizationIsNullable = Expect<
+  Extends<null, Schemas["AuthSessionResponse"]["organization"]>
+>;
+type _commercialOrganizationIsServerDerived = Expect<
+  Equal<
+    Schemas["CommercialSubscriptionResponse"]["organizationId"],
+    string | null
+  >
+>;
+
 /* ═══════════════════════ 2) Aserciones de runtime ═════════════════════════ */
 
 const specsDir = join(__dirname, "..", "..", "contracts", "specs");
@@ -151,7 +166,7 @@ void test("los permisos cad:* del spec casan con CAD_PERMISSIONS", () => {
   }
 });
 
-void test("todos los endpoints exigen el entitlement design.cad", () => {
+void test("todos los endpoints CAD exigen el entitlement design.cad", () => {
   const entitlements = new Set(
     [...apiYaml.matchAll(/x-required-entitlement:\s*'?([\w.]+)'?/g)].map(
       (match) => match[1],
@@ -229,9 +244,9 @@ void test("review links server-owned: la sesión expone hasShareLink y jamás el
   // (los cubre también el test general del catálogo) y el canje viaja por
   // header, nunca por URL.
   assert.ok(apiYaml.includes("X-Review-Token"));
-  assert.ok(apiYaml.includes("/v1/review/context"));
+  assert.ok(apiYaml.includes("/v1/cad/review/context"));
   assert.ok(
-    !/\/v1\/review\/\{token\}/.test(apiYaml),
+    !/\/v1\/cad\/review\/\{token\}/.test(apiYaml),
     "el token no va en el path",
   );
 });
@@ -248,6 +263,14 @@ void test("el SDK generado está al día respecto de los tipos clave", () => {
     '"cad:view" | "cad:edit" | "cad:review" | "cad:publish" | "cad:admin"',
     "ReviewLinkContext",
     "hasShareLink",
+    '"/v1/auth/session"',
+    '"/v1/organizations/{organizationId}/memberships"',
+    '"/v1/commercial/entitlements"',
+    "OrganizationInvitationCreated",
+    '"/v1/cad/documents"',
+    '"/v1/cad/documents/{documentId}/provisional"',
+    "interpretCadIntent",
+    "vectorizeCadImage",
   ]) {
     assert.ok(
       generated.includes(marker),
@@ -273,7 +296,23 @@ void test("el SDK usa cookies first-party y CSRF en mutaciones", async () => {
 
   await client.projects.list();
   await client.projects.create({ name: "Proyecto" });
+  await client.documents.list({
+    model: "AXOS-CAD-STUDIO",
+    revision: "UNIVERSAL",
+    limit: 1,
+  });
+  await client.identity.currentSession();
+  await client.organizations.create({ name: "Design Norte", slug: "norte" });
+  await client.commercial.entitlements();
+  await client.organizations.invitations.create(
+    "00000000-0000-4000-8000-000000000001",
+    { email: "member@example.test", role: "viewer" },
+  );
+  await client.documents.discardProvisional(
+    "00000000-0000-4000-8000-000000000002",
+  );
 
+  assert.equal(new URL(String(calls[0].input)).pathname, "/v1/cad/projects");
   assert.equal(calls[0].init?.credentials, "include");
   assert.equal(new Headers(calls[0].init?.headers).get("X-CSRF-Token"), null);
   assert.equal(calls[1].init?.credentials, "include");
@@ -282,4 +321,61 @@ void test("el SDK usa cookies first-party y CSRF en mutaciones", async () => {
     "csrf-test-token",
   );
   assert.equal(new Headers(calls[1].init?.headers).get("Authorization"), null);
+  const documentListUrl = new URL(String(calls[2].input));
+  assert.equal(documentListUrl.pathname, "/v1/cad/documents");
+  assert.equal(documentListUrl.searchParams.get("model"), "AXOS-CAD-STUDIO");
+  assert.equal(documentListUrl.searchParams.get("revision"), "UNIVERSAL");
+  assert.equal(documentListUrl.searchParams.get("limit"), "1");
+  assert.equal(new URL(String(calls[3].input)).pathname, "/v1/auth/session");
+  assert.equal(new Headers(calls[3].init?.headers).get("X-CSRF-Token"), null);
+  assert.equal(new URL(String(calls[4].input)).pathname, "/v1/organizations");
+  assert.equal(
+    new Headers(calls[4].init?.headers).get("X-CSRF-Token"),
+    "csrf-test-token",
+  );
+  assert.equal(
+    new URL(String(calls[5].input)).pathname,
+    "/v1/commercial/entitlements",
+  );
+  assert.equal(
+    new URL(String(calls[6].input)).pathname,
+    "/v1/organizations/00000000-0000-4000-8000-000000000001/invitations",
+  );
+  assert.equal(new Headers(calls[6].init?.headers).get("Authorization"), null);
+  assert.equal(
+    new URL(String(calls[7].input)).pathname,
+    "/v1/cad/documents/00000000-0000-4000-8000-000000000002/provisional",
+  );
+  assert.equal(calls[7].init?.method, "DELETE");
+  assert.equal(
+    new Headers(calls[7].init?.headers).get("X-CSRF-Token"),
+    "csrf-test-token",
+  );
+});
+
+void test("el SDK lee valle_csrf automaticamente en navegador", async () => {
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "document");
+  Object.defineProperty(globalThis, "document", {
+    configurable: true,
+    value: { cookie: `valle_csrf=${"c".repeat(43)}` },
+  });
+  let captured: RequestInit | undefined;
+  try {
+    const client = createDesignClient({
+      baseUrl: "https://design.example.test",
+      fetch: (async (_input: RequestInfo | URL, init?: RequestInit) => {
+        captured = init;
+        return new Response(null, { status: 204 });
+      }) as typeof fetch,
+    });
+    await client.identity.logout();
+    assert.equal(
+      new Headers(captured?.headers).get("X-CSRF-Token"),
+      "c".repeat(43),
+    );
+    assert.equal(captured?.credentials, "include");
+  } finally {
+    if (previous) Object.defineProperty(globalThis, "document", previous);
+    else delete (globalThis as { document?: Document }).document;
+  }
 });

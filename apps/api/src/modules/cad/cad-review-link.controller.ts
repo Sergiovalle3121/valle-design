@@ -23,7 +23,7 @@ import { CreateReviewLinkCommentDto } from './dto/cad.dto';
 /**
  * Superficie del REVIEW LINK (`/v1/cad/review/*`): la única parte de la API
  * alcanzable con un token de review canjeado (header `X-Review-Token`, sin
- * JWT). El read-only lo impone el BACKEND, no el frontend:
+ * sesión). El read-only lo impone el BACKEND, no el frontend:
  *
  * - CadAuthGuard canjea el token en CADA request (hash + expiración +
  *   revocación — cerrar la sesión mata el link de inmediato) y cuelga
@@ -113,7 +113,7 @@ export class CadReviewLinkController {
 }
 
 /**
- * El contexto de review lo puso CadAuthGuard al canjear el token. Un JWT
+ * El contexto de review lo puso CadAuthGuard al canjear el token. Una sesión
  * válido NO lo produce: esta superficie exige el token del link (los autores
  * tienen su propia superficie con RBAC real).
  */

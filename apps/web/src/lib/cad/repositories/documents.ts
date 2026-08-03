@@ -19,4 +19,6 @@ export const documentsRepository = {
   saveArchive: (documentId: string, archive: Blob, expectedVersion: number) =>
     designClient.documents.saveArchive(documentId, archive, expectedVersion),
   archive: (documentId: string) => designClient.documents.archive(documentId),
+  discardProvisional: (documentId: string) =>
+    designClient.documents.discardProvisional(documentId),
 };

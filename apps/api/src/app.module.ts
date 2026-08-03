@@ -14,7 +14,6 @@ import { CadDocumentsModule } from './modules/cad-documents/cad-documents.module
 import { CadModule } from './modules/cad/cad.module';
 import { IdentityModule } from './modules/identity/identity.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
-import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 import { CommercialModule } from './modules/commercial/commercial.module';
 
 /**
@@ -32,7 +31,6 @@ import { CommercialModule } from './modules/commercial/commercial.module';
     TenantModule,
     IdentityModule,
     OrganizationsModule,
-    SubscriptionsModule,
     AuthModule,
     AuditLogModule,
     BlobStoreModule,

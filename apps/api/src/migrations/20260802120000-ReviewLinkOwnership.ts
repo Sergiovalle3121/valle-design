@@ -8,7 +8,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  *    server-side en cada canje. NULL = sesión sin link.
  * 2. `revoked_at` (timestamp NULL) — revocación explícita: cerrar la sesión
  *    la estampa y el token muere de inmediato (el canje la verifica en cada
- *    request, no hay JWT derivado que sobreviva).
+ *    request, no hay sesión derivada que sobreviva).
  * 3. `allow_comments` (boolean NOT NULL default true) — si el contexto de
  *    review (siempre read-only sobre el dibujo) puede crear/resolver
  *    comentarios.

@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { BASE_URL, API_ORIGIN, SESSION_SECRET } from "./e2e/fixtures/constants";
+import { BASE_URL, API_ORIGIN } from "./e2e/fixtures/constants";
 
 const webServerPort =
   new URL(BASE_URL).port || (BASE_URL.startsWith("https:") ? "443" : "80");
@@ -46,6 +46,10 @@ export default defineConfig({
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
     },
+    {
+      name: "firefox",
+      use: { ...devices["Desktop Firefox"] },
+    },
   ],
 
   webServer: {
@@ -58,8 +62,6 @@ export default defineConfig({
       // los goldens; API real en modo full-stack). En modo prod esto sólo
       // afecta al server de Next — el bundle ya lleva el valor del build.
       NEXT_PUBLIC_API_URL: API_ORIGIN,
-      // Firma de cookies de sesión con el mismo secreto del proceso de test.
-      AXOS_SESSION_SECRET: SESSION_SECRET,
       PORT: webServerPort,
       BROWSER: "none",
     },

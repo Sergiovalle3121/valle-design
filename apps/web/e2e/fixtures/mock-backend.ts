@@ -1,5 +1,5 @@
 /**
- * In-memory fake of the AXOS backend, served to the browser via Playwright
+ * In-memory fake of the non-CAD reference endpoints, served via Playwright
  * route interception. The real data layer (apps/web/src/hooks/useApi.ts +
  * lib/apiFetch.ts) sends every call to NEXT_PUBLIC_API_URL (= API_ORIGIN in
  * tests). We intercept that origin and answer with deterministic fixtures,
@@ -17,7 +17,7 @@
 
 import type { BrowserContext, Route } from '@playwright/test';
 import { API_ORIGIN } from './constants';
-import { masterJwt } from './session';
+import { firstPartyRequestFailure } from './standalone-identity';
 
 type Status = 'DRAFT' | 'ACTIVE' | 'OBSOLETE';
 
@@ -362,15 +362,6 @@ export class MockBackend {
   /** Register all route handlers on the given browser context. */
   async install(context: BrowserContext): Promise<void> {
     await context.route(`${API_ORIGIN}/**`, (route) => this.handleApi(route));
-    // The same-origin bridge: hand back a decode-only admin JWT so the client
-    // AuthContext never has to reach a real backend.
-    await context.route('**/api/backend/token', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ access_token: masterJwt() }),
-      }),
-    );
   }
 
   private async handleApi(route: Route): Promise<void> {
@@ -385,8 +376,10 @@ export class MockBackend {
     const json = (data: unknown, status = 200) =>
       route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(data) });
 
+    const authFailure = firstPartyRequestFailure(req);
+    if (authFailure) return json(authFailure.body, authFailure.status);
+
     // ── Static / auth ──────────────────────────────────────────────────────
-    if (path === '/auth/me') return json({ id: 'e2e-master', email: 'master', role: 'Admin' });
     if (path === '/enterprise/buildings' || path === '/enterprise/programs') return json([]);
     if (path.startsWith('/visual-aids/file/')) {
       return route.fulfill({ status: 200, contentType: 'image/png', body: PNG_1x1 });

@@ -3,15 +3,13 @@
  * productos.
  *
  * Tipos MÍNIMOS derivados A MANO de los contratos fuente en
- * `packages/contracts/specs/` (`design-api.v1.yaml`, `design-events.v1.yaml`,
- * `platform-api.v1.yaml`): identificadores tipados, códigos de evento,
+ * `packages/contracts/specs/` (`design-api.v1.yaml` y
+ * `design-events.v1.yaml`): identificadores tipados, códigos de evento,
  * permisos `cad:*`, entitlement `design.cad`, códigos de error y límites del
  * documento canónico. Nada de clientes HTTP ni lógica.
  *
- * NOTA FASE 3: el SDK COMPLETO (tipos exhaustivos + cliente) se GENERA desde
- * los YAML de `specs/` en el repo `valle-design`, no aquí. Este módulo es el
- * subconjunto estable que Enterprise necesita tipado hoy; cuando el SDK
- * generado exista, un test de igualdad estructural debe mantenerlo alineado.
+ * El SDK completo se genera desde OpenAPI. Este módulo conserva únicamente el
+ * subconjunto estable que comparten API, SDK y gates de contrato.
  */
 
 import type { ProductCapabilityId } from "./product-catalog";
@@ -71,11 +69,9 @@ export {
 export const DESIGN_CAD_ENTITLEMENT: ProductCapabilityId = "design.cad";
 
 /**
- * Permisos RBAC granulares del producto Design (v1). DIFERENCIA DELIBERADA
- * con el legacy `/line-engineering/*`, que usa `engineering:read|write` del
- * producto industrial: Design define su propio espacio para no arrastrar el
- * RBAC de Enterprise. Mapeo de transición: `engineering:read → cad:view` y
- * `engineering:write → cad:edit + cad:review + cad:publish`.
+ * Permisos RBAC granulares del producto Design (v1), derivados de una
+ * membresía verificada. No existe traducción de permisos externos o enviados
+ * por el cliente.
  */
 export const CAD_PERMISSIONS = [
   "cad:view",

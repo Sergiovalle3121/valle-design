@@ -1,4 +1,8 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { DataSource } from 'typeorm';
 import {
@@ -76,6 +80,35 @@ describe('DatabaseBlobStore (design_blobs)', () => {
         store.put(Buffer.from('otra-cosa-mas-larga'), digest),
       ),
     ).rejects.toThrow(ConflictException);
+  });
+
+  it('rechaza un hash declarado que no corresponde a los bytes', async () => {
+    const data = Buffer.from('contenido-real');
+    await expect(
+      tenant.run(context('tenant-a'), () => store.put(data, 'a'.repeat(64))),
+    ).rejects.toThrow(ConflictException);
+    expect(await source.getRepository(DesignBlob).count()).toBe(0);
+  });
+
+  it('detecta corrupción de bytes antes de devolver o deduplicar un blob', async () => {
+    const data = Buffer.from('contenido-verificado');
+    const stored = await tenant.run(context('tenant-a'), () =>
+      store.put(data, sha(data)),
+    );
+    await source
+      .getRepository(DesignBlob)
+      .createQueryBuilder()
+      .update()
+      .set({ data: Buffer.from('contenido-corrupto!!') })
+      .where('blob_key = :blobKey', { blobKey: stored.blobKey })
+      .execute();
+
+    await expect(
+      tenant.run(context('tenant-a'), () => store.get(stored.blobKey)),
+    ).rejects.toThrow(ServiceUnavailableException);
+    await expect(
+      tenant.run(context('tenant-a'), () => store.put(data, sha(data))),
+    ).rejects.toThrow(ServiceUnavailableException);
   });
 
   it('el mismo contenido en OTRO tenant es OTRO blob (aislamiento)', async () => {

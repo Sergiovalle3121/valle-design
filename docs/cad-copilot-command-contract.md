@@ -2,7 +2,10 @@
 
 ## Scope
 
-This contract defines the local, deterministic command surface for the AXOS CAD Copilot. It is intentionally UI/backend/model agnostic: React, three.js, NestJS, OpenAI, and CIDE integrations must call this layer rather than embedding command behavior directly in the prompt or UI.
+This contract defines the local, deterministic command surface for the Valle
+Design CAD assistant. It is intentionally UI/backend/model agnostic: React,
+three.js, NestJS, OpenAI-compatible providers, and CIDE integrations call this
+layer rather than embedding command behavior directly in a prompt or UI.
 
 ## Current registry
 

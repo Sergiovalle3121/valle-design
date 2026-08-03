@@ -1,10 +1,9 @@
 import { Global, Module } from '@nestjs/common';
 
 /**
- * Autenticación de Design: verificación de los tokens emitidos por Platform
- * (secreto compartido vía entorno). Global para que los guards registrados
- * como APP_GUARD (CadAuthGuard + PermissionsGuard, en AppModule) resuelvan
- * JwtService desde el injector raíz.
+ * Frontera de autorización de Valle Design. La identidad first-party vive en
+ * IdentityModule; los guards globales derivan organización, tenant, rol y
+ * permisos únicamente de la sesión y membresía persistidas por el servidor.
  */
 @Global()
 @Module({

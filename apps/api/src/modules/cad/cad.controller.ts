@@ -54,10 +54,8 @@ import {
  * permisos cad:* y entitlement design.cad — impuestos por CadAuthGuard +
  * PermissionsGuard globales).
  *
- * NOTA de prefijo: el YAML v1 describe rutas `/v1/projects|documents|blocks`;
- * este controller las monta bajo el prefijo de producto `/v1/cad/*` (decisión
- * R1 — el alias 1:1 del YAML/SDK se resuelve en R2 junto con el SDK
- * generado).
+ * El YAML, este router y el SDK comparten las rutas literales `/v1/cad/*`;
+ * no existe un alias `/v1/*` ni una capa de remapeo de prefijos.
  *
  * Todo delega en los servicios REALES del dominio (CadDocumentsService,
  * CadBlocksService, CadIntentService, CadVisionService) a través del
@@ -175,6 +173,15 @@ export class CadController {
     @Param('documentId', ParseUUIDPipe) documentId: string,
   ) {
     await this.repository.archiveDocument(documentId);
+  }
+
+  @Delete('documents/:documentId/provisional')
+  @RequirePermissions('cad:edit')
+  @HttpCode(204)
+  async discardProvisionalDocument(
+    @Param('documentId', ParseUUIDPipe) documentId: string,
+  ) {
+    await this.repository.discardProvisionalDocument(documentId);
   }
 
   /* ─────────────────── Contenido canónico (CAS optimista) ───────────────── */

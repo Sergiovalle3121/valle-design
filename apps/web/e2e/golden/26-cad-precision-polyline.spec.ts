@@ -1,7 +1,7 @@
 import { expect, test, type BrowserContext } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadV1Backend } from '../fixtures/cad-v1-backend';
-import { loginAsMaster } from '../fixtures/session';
+import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { migrateCadDocument, type CadDocument } from '../../src/lib/cad/cad-document';
 import { cadDocumentToEditorSnapshot } from '../../src/lib/cad/editor-snapshot';
 
@@ -38,11 +38,11 @@ async function fillPoint(page: import('@playwright/test').Page, x: string, y: st
 test('neutral drawing uses units, layers, ABS/REL/POLAR, closed polyline and OFFSET', async ({ context, page }, testInfo) => {
   test.setTimeout(180_000);
   await installMockBackend(context);
-  await loginAsMaster(context);
+  await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
 
   await test.step('1. Abrir dibujo', async () => {
-    await page.goto('/studio');
+    await page.goto('/legacy/studio');
     await expect(page.getByTestId('cad-canvas')).toBeVisible();
   });
   await test.step('2. Elegir unidades', async () => {

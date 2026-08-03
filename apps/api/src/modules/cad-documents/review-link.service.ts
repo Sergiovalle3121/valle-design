@@ -20,7 +20,7 @@ export const REVIEW_TOKEN_HEADER = 'x-review-token';
 
 /**
  * Contexto de acceso por review link que CadAuthGuard cuelga del request
- * cuando la autenticación fue por token (no por JWT). PermissionsGuard lo usa
+ * cuando la autenticación fue por token (no por sesión). PermissionsGuard lo usa
  * para imponer el read-only server-side: SOLO los endpoints marcados
  * @ReviewLinkSurface() son alcanzables; todo lo demás — cualquier mutación o
  * lectura fuera del documento de la sesión — es un 403 `review_read_only`.

@@ -64,6 +64,9 @@ jobs:
       - name: Contract lint (Redocly)
         run: npx -y @redocly/cli@1.34.3 lint packages/contracts/specs/design-api.v1.yaml
 
+      - name: CAD contract and legacy-route gates
+        run: npm run check:cad
+
       # Puerta de LICENCIAS (misma política del origen): el producto es
       # UNLICENSED; toda dependencia de producción debe ser permisiva.
       - name: Dependency licenses gate
@@ -106,6 +109,23 @@ jobs:
         working-directory: apps/web
         run: npm run test:specs
 
+      - name: CAD deterministic corpus benchmark (10k + 100k, blocking)
+        working-directory: apps/web
+        run: npm run benchmark:cad:smoke -- --output ../../cad-benchmark-smoke.json
+
+      - name: CAD scale capability report (500k + 1M, hardware guarded)
+        working-directory: apps/web
+        run: npm run benchmark:cad:scale -- --output ../../cad-benchmark-scale.json
+
+      - name: Upload CAD benchmark evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: cad-benchmark-${{ github.sha }}
+          path: |
+            cad-benchmark-smoke.json
+            cad-benchmark-scale.json
+          retention-days: 90
+
       # Test de compatibilidad de contrato del SDK generado vs @valle-design/contracts.
       - name: SDK contract-compat test
         working-directory: packages/design-sdk
@@ -122,12 +142,30 @@ jobs:
       - name: Bootstrap smoke (compilado vs Postgres)
         working-directory: apps/api
         env:
+          NODE_ENV: test
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/valle_design_ci
+          SYNCHRONIZE: "false"
+          MIGRATIONS_RUN: "true"
+          IDENTITY_RATE_LIMIT_KEY_SECRET: valle-design-ci-rate-limit-key-32chars
         run: npm run smoke:bootstrap
 
   e2e:
-    name: E2E Playwright (full-stack real)
+    name: E2E Playwright (PostgreSQL · Chromium + Firefox)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: valle_design_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -141,9 +179,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Playwright Chromium
+      - name: Install Playwright Chromium and Firefox
         working-directory: apps/web
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium firefox
 
       # El build de producción INLINEA NEXT_PUBLIC_API_URL: debe apuntar al
       # origen de la API real que este job arranca (localhost:4000). Los
@@ -154,9 +192,9 @@ jobs:
           NEXT_PUBLIC_API_URL: http://localhost:4000
         run: npx turbo run build
 
-      # API real (R1) en SQLite local del job: cero servicios, mismas rutas
+      # API real (R1) contra PostgreSQL 16: mismas migraciones y rutas
       # v1, mismo dominio CAD + blob store + hidratación que producción.
-      - name: Start API (NestJS real, SQLite)
+      - name: Start API (NestJS real, PostgreSQL 16 + migrations)
         working-directory: apps/api
         run: |
           nohup node dist/main.js > /tmp/design-api.log 2>&1 &
@@ -169,6 +207,14 @@ jobs:
           echo "La API no arrancó; log:"; cat /tmp/design-api.log; exit 1
         env:
           PORT: "4000"
+          NODE_ENV: test
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/valle_design_e2e
+          SYNCHRONIZE: "false"
+          MIGRATIONS_RUN: "true"
+          ALLOWED_ORIGIN: http://localhost:3000
+          IDENTITY_TEST_HARNESS: "true"
+          IDENTITY_TEST_HARNESS_KEY: valle-design-e2e-harness-key-32-characters-minimum
+          IDENTITY_RATE_LIMIT_KEY_SECRET: valle-design-e2e-rate-limit-key-32chars
           AI_MOCK: "1"
 
       - name: Playwright E2E (goldens + performance + full-stack real)
@@ -177,6 +223,7 @@ jobs:
           E2E_PROD: "1"
           E2E_API_ORIGIN: http://localhost:4000
           E2E_REAL_API: "1"
+          E2E_IDENTITY_HARNESS_KEY: valle-design-e2e-harness-key-32-characters-minimum
           CAD_PERF_E2E: "1"
         run: npx playwright test
 

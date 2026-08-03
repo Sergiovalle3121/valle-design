@@ -31,10 +31,6 @@ function parseAllowedOrigins(raw: string): string[] {
 }
 
 async function bootstrap() {
-  // Fail-closed ANTES de construir el grafo DI: en producción, sin secreto de
-  // verificación de tokens (JWT_SECRET/SESSION_SECRET) el arranque debe caer
-  // ruidosamente, no servir 401 a toda sesión válida.
-
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     cors: false,
   });

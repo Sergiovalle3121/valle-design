@@ -1,6 +1,10 @@
-# Catálogo de contratos CAD (Fases 66–73) — referencia para Codex
+# Catálogo histórico de contratos CAD (Fases 66–73)
 
-Índice único de todo lo que el carril de **Claude** entregó a `main` para el CAD.
+> Archivo de trazabilidad anterior a la consolidación. Sus frases sobre
+> cableado pendiente, rutas `/line-engineering/*` y fases no describen el
+> runtime actual. Consulta `ARCHITECTURE.md`, el OpenAPI y los tests vigentes.
+
+Índice del trabajo entregado en ese corte histórico para el CAD.
 Cada entrada: qué da, firma/endpoint, archivo, cómo lo cablea **Codex** en el editor,
 y cómo correr sus tests. Todo es **puro/aditivo**; nada está aún importado por
 `Layout3DEditor.tsx` — ese cableado es el trabajo de Codex.

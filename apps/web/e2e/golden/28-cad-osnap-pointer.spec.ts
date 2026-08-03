@@ -1,7 +1,7 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadV1Backend } from '../fixtures/cad-v1-backend';
-import { loginAsMaster } from '../fixtures/session';
+import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 
 const cadDocument = {
   meta: { version: 1, schema: 3, unit: 'mm' },
@@ -51,9 +51,9 @@ async function worldPoint(page: Page, target: { x: number; y: number }) {
 test('LINE pointer HUD proves endpoint, midpoint, intersection, perpendicular and tangent OSNAP', async ({ context, page }) => {
   test.setTimeout(90_000);
   await installMockBackend(context);
-  await loginAsMaster(context);
+  await loginAsStandaloneOwner(context);
   await installCadBackend(context);
-  await page.goto('/studio');
+  await page.goto('/legacy/studio');
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
   await page.getByTitle(/Vista superior/).click();
   await page.getByTitle(/Ajustar a la planta/).click();

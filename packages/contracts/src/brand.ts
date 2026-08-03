@@ -7,8 +7,8 @@
  * cambiando UNA configuración, no cientos de componentes.
  *
  * Separación deliberada:
- *   • Los CÓDIGOS INTERNOS (`productCode`, `offerCode`, columnas de BD,
- *     metadata del proveedor de pagos) son neutrales y NO contienen la marca —
+ *   • Los CÓDIGOS INTERNOS (`productCode`, columnas de BD y eventos) son
+ *     neutrales y NO contienen la marca —
  *     ver `product-catalog.ts`. Sobreviven a cualquier cambio de nombre.
  *   • Los NOMBRES VISIBLES viven aquí y son provisionales hasta que exista
  *     registro marcario.
@@ -78,7 +78,6 @@ export interface BrandManifest {
  * permite renombrar sin tocar base de datos ni APIs.
  */
 const DEFAULT_PRODUCT_NAMES: Record<ProductCode, string> = {
-  "platform-core": "VALLE Platform",
   design: "VALLE Design",
 };
 
@@ -206,7 +205,7 @@ export function resolveBrandManifest(env: BrandEnv = {}): BrandManifest {
   };
 }
 
-/** `platform-core` → `PLATFORM_CORE` (clave de entorno por producto). */
+/** `design` → `DESIGN` (clave de entorno por producto). */
 function envKeyFor(code: ProductCode): string {
   return code.replace(/-/g, "_").toUpperCase();
 }

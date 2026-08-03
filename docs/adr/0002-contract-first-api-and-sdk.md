@@ -1,28 +1,45 @@
-# ADR-0002: API y SDK contract-first
+# ADR-0002: API `/v1` y SDK contract-first
 
 - Estado: aceptado
 - Fecha: 2026-08-02
 
 ## Contexto
 
-La API NestJS, los tipos compartidos y `@valle/design-sdk` pueden divergir. CI
-ya valida OpenAPI y un test compara SDK/contratos.
+La API NestJS, el frontend, los tipos compartidos y `@valle/design-sdk` pueden
+divergirse si cada capa mantiene rutas o shapes manualmente. El producto expone
+identidad, organizaciones, comercial y CAD; verificar sólo que el YAML sea
+válido no demuestra que el router real implemente el contrato.
 
 ## Decisión
 
-Los YAML versionados en `packages/contracts/specs/` son la fuente pública. Un
-cambio se hace de forma aditiva o con nueva versión, se valida con Redocly,
-regenera `packages/design-sdk/src/generated/design-api.ts` y pasa su test de
-compatibilidad. El frontend debe usar `/v1/cad/*`; adaptadores legacy son una
-transición, no una API alternativa. AsyncAPI describe intención contractual;
-un publicador no-op no demuestra entrega de eventos.
+`packages/contracts/specs/design-api.v1.yaml` es la fuente pública autoritativa.
+Todas las rutas standalone viven literalmente bajo `/v1`; CAD usa
+`/v1/cad/*`. Un cambio contractual debe:
+
+1. ser aditivo o introducir una versión/deprecación explícita;
+2. pasar lint OpenAPI;
+3. regenerar `packages/design-sdk/src/generated/design-api.ts`;
+4. mantener igualdad byte-for-byte con la salida del generador;
+5. pasar tests de compatibilidad de tipos y cliente; y
+6. demostrar que el router Nest ofrece cada operación, método y path.
+
+El SDK usa cookies first-party con `credentials: "include"` y CSRF para
+mutaciones. No acepta tenant u organización para lecturas comerciales porque el
+servidor los deriva de la sesión activa. Adaptadores de rutas históricas quedan
+encapsulados en `legacy/` y no son una segunda API pública.
+
+AsyncAPI expresa el shape de eventos, pero sólo una escritura outbox y una
+entrega verificada demuestran que un evento se produjo.
 
 ## Consecuencias
 
-Un endpoint sin spec o un spec sin implementación se marca parcial. Cambios
-rompientes exigen migración/deprecación. El SDK no contiene reglas de dominio.
+Un endpoint sin spec, un spec sin router o un SDK editado a mano rompe el gate.
+Los consumidores tienen una superficie estable y errores CAS/CSRF tipados. Los
+cambios rompientes requieren migración de cliente y ventana de compatibilidad.
 
 ## Alternativas rechazadas
 
-Generar spec desde decoradores (no es el flujo existente); clientes manuales
-como fuente; importar módulos internos del API.
+- Clientes fetch manuales como fuente de verdad.
+- Validar sólo el YAML sin comparar el router.
+- Generar el contrato desde decoradores como flujo paralelo.
+- Reutilizar rutas históricas como API pública permanente.

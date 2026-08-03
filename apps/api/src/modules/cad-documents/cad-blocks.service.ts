@@ -36,10 +36,8 @@ const MAX_CANONICAL_DEFINITION_BYTES = 1_000_000;
  * scoped; la normalización de coordenadas (posiciones relativas al origen del
  * bloque) es responsabilidad del editor al guardar — aquí solo se sanea con el
  * mismo criterio de campos que los assets del layout. El binding de tenant
- * para persistencia viene de TenantContextService (contexto autenticado que
- * el auditor de tenant-safety reconoce); el puerto PlatformIdentityClient
- * queda para identidad no-persistente. En el repo Design (Fase 3) este
- * binding lo dará el contexto autenticado propio de Design.
+ * para persistencia viene de TenantContextService, poblado exclusivamente con
+ * la sesión y membresía first-party verificadas por el servidor.
  */
 @Injectable()
 export class CadBlocksService {

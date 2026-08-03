@@ -2,7 +2,7 @@ import { expect, test, type BrowserContext } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
-import { loginAsMaster } from '../fixtures/session';
+import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
 import type { CadDocument } from '../../src/lib/cad/cad-document';
 
@@ -72,9 +72,9 @@ async function installCadBackend(context: BrowserContext) {
 
 test('DXF import remains editable/exportable and persists an explicit loss manifest', async ({ context, page }) => {
   await installMockBackend(context);
-  await loginAsMaster(context);
+  await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
-  await page.goto('/studio');
+  await page.goto('/legacy/studio');
 
   await test.step('42. Importar DXF', async () => {
     await page.locator('input[accept=".dxf,.dwg"]').setInputFiles({

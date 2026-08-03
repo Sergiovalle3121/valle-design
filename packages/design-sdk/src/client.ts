@@ -8,17 +8,36 @@
  *   HTTP se convierte en `DesignApiError` con el cuerpo contractual
  *   (`code`/`details`/`requestId`; en el 409 CAS, `expected`/`current` al
  *   nivel superior).
- * - MONTAJE DE RUTAS (decisión R1, documentada en el spec): el YAML describe
- *   los recursos como `/v1/<recurso>`; la implementación los monta bajo el
- *   prefijo de producto `/v1/cad/<recurso>`. Este cliente aplica ese mapeo en
- *   UN solo lugar (`resource()`); si el alias 1:1 se despliega algún día,
- *   basta con cambiar `mountPrefix` a `/v1`.
+ * - Las rutas externas reales usan `/v1/auth/*`, `/v1/organizations*`,
+ *   `/v1/commercial/*` y `/v1/cad/*`; el cliente no remapea prefijos ni
+ *   mantiene aliases implícitos.
  */
 
 import type { components } from "./generated/design-api";
 
 type Schemas = components["schemas"];
 
+export type RegisterRequest = Schemas["RegisterRequest"];
+export type LoginRequest = Schemas["LoginRequest"];
+export type LoginResponse = Schemas["LoginResponse"];
+export type AuthSessionResponse = Schemas["AuthSessionResponse"];
+export type IdentitySession = Schemas["IdentitySession"];
+export type IdentitySessionList = Schemas["IdentitySessionList"];
+export type OrganizationCreate = Schemas["OrganizationCreate"];
+export type OrganizationCreated = Schemas["OrganizationCreated"];
+export type OrganizationList = Schemas["OrganizationList"];
+export type OrganizationContext = Schemas["OrganizationContext"];
+export type OrganizationMembership = Schemas["OrganizationMembership"];
+export type OrganizationMembershipList = Schemas["OrganizationMembershipList"];
+export type OrganizationInvitationCreate =
+  Schemas["OrganizationInvitationCreate"];
+export type OrganizationInvitationCreated =
+  Schemas["OrganizationInvitationCreated"];
+export type OrganizationInvitationAccepted =
+  Schemas["OrganizationInvitationAccepted"];
+export type CommercialSubscriptionResponse =
+  Schemas["CommercialSubscriptionResponse"];
+export type EffectiveEntitlementList = Schemas["EffectiveEntitlementList"];
 export type CadProject = Schemas["CadProject"];
 export type CadProjectCreate = Schemas["CadProjectCreate"];
 export type CadProjectUpdate = Schemas["CadProjectUpdate"];
@@ -49,6 +68,10 @@ export type ApiError = Schemas["ApiError"];
 export type EntitlementRequiredError = Schemas["EntitlementRequiredError"];
 export type CadDocumentVersionConflictError =
   Schemas["CadDocumentVersionConflictError"];
+export type CadIntentRequest = Schemas["CadIntentRequest"];
+export type CadIntentResponse = Schemas["CadIntentResponse"];
+export type CadVisionRequest = Schemas["CadVisionRequest"];
+export type CadVisionResponse = Schemas["CadVisionResponse"];
 
 export interface Page<T> {
   items: T[];
@@ -59,6 +82,13 @@ export interface PageQuery {
   q?: string;
   limit?: number;
   offset?: number;
+}
+
+interface ResourceQuery extends PageQuery {
+  status?: string;
+  projectId?: string;
+  model?: string;
+  revision?: string;
 }
 
 /** Error HTTP de la API con el cuerpo contractual adjunto. */
@@ -99,11 +129,6 @@ export interface DesignClientOptions {
   credentials?: RequestCredentials;
   /** fetch alternativo (tests, polyfills). Default: globalThis.fetch. */
   fetch?: typeof fetch;
-  /**
-   * Prefijo real de montaje de los recursos del YAML. Default `/v1/cad`
-   * (decisión R1). El alias 1:1 del spec sería `/v1`.
-   */
-  mountPrefix?: string;
 }
 
 async function parseError(res: Response): Promise<DesignApiError> {
@@ -118,19 +143,32 @@ async function parseError(res: Response): Promise<DesignApiError> {
 
 export function createDesignClient(options: DesignClientOptions) {
   const baseUrl = options.baseUrl.replace(/\/+$/, "");
-  const mountPrefix = (options.mountPrefix ?? "/v1/cad").replace(/\/+$/, "");
   const fetchImpl = options.fetch ?? globalThis.fetch;
 
-  /** `/v1/documents/{id}` del YAML → `${baseUrl}${mountPrefix}/documents/{id}`. */
-  const resource = (yamlPath: string, query?: PageQuery): string => {
-    const mounted = yamlPath.replace(/^\/v1/, mountPrefix);
-    const url = new URL(`${baseUrl}${mounted}`);
+  /** Construye una URL desde la ruta canónica literal del contrato. */
+  const resource = (apiPath: string, query?: ResourceQuery): string => {
+    const declaredPrefix =
+      apiPath === "/v1/organizations" ||
+      ["/v1/auth/", "/v1/organizations/", "/v1/commercial/", "/v1/cad/"].some(
+        (prefix) => apiPath.startsWith(prefix),
+      );
+    if (!declaredPrefix) {
+      throw new TypeError(`Ruta Design v1 no declarada: ${apiPath}`);
+    }
+    const url = new URL(`${baseUrl}${apiPath}`);
     if (query) {
       if (query.q !== undefined) url.searchParams.set("q", query.q);
       if (query.limit !== undefined)
         url.searchParams.set("limit", String(query.limit));
       if (query.offset !== undefined)
         url.searchParams.set("offset", String(query.offset));
+      if (query.status !== undefined)
+        url.searchParams.set("status", query.status);
+      if (query.projectId !== undefined)
+        url.searchParams.set("projectId", query.projectId);
+      if (query.model !== undefined) url.searchParams.set("model", query.model);
+      if (query.revision !== undefined)
+        url.searchParams.set("revision", query.revision);
     }
     return url.toString();
   };
@@ -150,10 +188,11 @@ export function createDesignClient(options: DesignClientOptions) {
       !["GET", "HEAD", "OPTIONS"].includes(method) &&
       !requestHeaders.has("X-Review-Token")
     ) {
-      const csrf =
+      const configuredCsrf =
         typeof options.csrfToken === "function"
           ? options.csrfToken()
           : options.csrfToken;
+      const csrf = configuredCsrf ?? browserCsrfToken();
       if (csrf) requestHeaders.set("X-CSRF-Token", csrf);
     }
     const res = await fetchImpl(url, {
@@ -173,24 +212,132 @@ export function createDesignClient(options: DesignClientOptions) {
   }
 
   return {
+    identity: {
+      register: (input: RegisterRequest) =>
+        call<Schemas["AcceptedResponse"]>(
+          "POST",
+          resource("/v1/auth/register"),
+          input,
+        ),
+      login: (input: LoginRequest) =>
+        call<LoginResponse>("POST", resource("/v1/auth/login"), input),
+      currentSession: () =>
+        call<AuthSessionResponse>("GET", resource("/v1/auth/session")),
+      logout: () => call<void>("POST", resource("/v1/auth/logout")),
+      verifyEmail: (token: string) =>
+        call<Schemas["EmailVerificationResponse"]>(
+          "POST",
+          resource("/v1/auth/verify-email"),
+          { token },
+        ),
+      resendVerification: (email: string) =>
+        call<Schemas["AcceptedResponse"]>(
+          "POST",
+          resource("/v1/auth/verify-email/resend"),
+          { email },
+        ),
+      requestPasswordReset: (email: string) =>
+        call<Schemas["AcceptedResponse"]>(
+          "POST",
+          resource("/v1/auth/password/forgot"),
+          { email },
+        ),
+      resetPassword: (input: Schemas["PasswordResetRequest"]) =>
+        call<Schemas["PasswordResetResponse"]>(
+          "POST",
+          resource("/v1/auth/password/reset"),
+          input,
+        ),
+      sessions: {
+        list: () =>
+          call<IdentitySessionList>("GET", resource("/v1/auth/sessions")),
+        rotate: () =>
+          call<Schemas["SessionRotationResponse"]>(
+            "POST",
+            resource("/v1/auth/sessions/rotate"),
+          ),
+        revoke: (sessionId: string) =>
+          call<void>("DELETE", resource(`/v1/auth/sessions/${sessionId}`)),
+        revokeOthers: () =>
+          call<void>("POST", resource("/v1/auth/sessions/revoke-all")),
+      },
+    },
+
+    organizations: {
+      list: () => call<OrganizationList>("GET", resource("/v1/organizations")),
+      create: (input: OrganizationCreate) =>
+        call<OrganizationCreated>("POST", resource("/v1/organizations"), input),
+      activate: (organizationId: string) =>
+        call<OrganizationContext>(
+          "POST",
+          resource("/v1/organizations/active"),
+          { organizationId },
+        ),
+      memberships: (organizationId: string) =>
+        call<OrganizationMembershipList>(
+          "GET",
+          resource(`/v1/organizations/${organizationId}/memberships`),
+        ),
+      invitations: {
+        create: (organizationId: string, input: OrganizationInvitationCreate) =>
+          call<OrganizationInvitationCreated>(
+            "POST",
+            resource(`/v1/organizations/${organizationId}/invitations`),
+            input,
+          ),
+        accept: (token: string) =>
+          call<OrganizationInvitationAccepted>(
+            "POST",
+            resource("/v1/organizations/invitations/accept"),
+            { token },
+          ),
+      },
+    },
+
+    commercial: {
+      subscription: () =>
+        call<CommercialSubscriptionResponse>(
+          "GET",
+          resource("/v1/commercial/subscription"),
+        ),
+      entitlements: () =>
+        call<EffectiveEntitlementList>(
+          "GET",
+          resource("/v1/commercial/entitlements"),
+        ),
+    },
+
     projects: {
       list: (query?: PageQuery & { status?: string }) =>
-        call<Page<CadProject>>("GET", resource("/v1/projects", query)),
+        call<Page<CadProject>>("GET", resource("/v1/cad/projects", query)),
       create: (input: CadProjectCreate) =>
-        call<CadProject>("POST", resource("/v1/projects"), input),
+        call<CadProject>("POST", resource("/v1/cad/projects"), input),
       get: (projectId: string) =>
-        call<CadProject>("GET", resource(`/v1/projects/${projectId}`)),
+        call<CadProject>("GET", resource(`/v1/cad/projects/${projectId}`)),
       update: (projectId: string, patch: CadProjectUpdate) =>
-        call<CadProject>("PATCH", resource(`/v1/projects/${projectId}`), patch),
+        call<CadProject>(
+          "PATCH",
+          resource(`/v1/cad/projects/${projectId}`),
+          patch,
+        ),
       archive: (projectId: string) =>
-        call<CadProject>("DELETE", resource(`/v1/projects/${projectId}`)),
+        call<CadProject>("DELETE", resource(`/v1/cad/projects/${projectId}`)),
     },
 
     documents: {
-      list: (query?: PageQuery & { projectId?: string }) =>
-        call<Page<CadDocumentSummary>>("GET", resource("/v1/documents", query)),
+      list: (
+        query?: PageQuery & {
+          projectId?: string;
+          model?: string;
+          revision?: string;
+        },
+      ) =>
+        call<Page<CadDocumentSummary>>(
+          "GET",
+          resource("/v1/cad/documents", query),
+        ),
       create: (input: CadDocumentCreate) =>
-        call<CadDocumentSummary>("POST", resource("/v1/documents"), input),
+        call<CadDocumentSummary>("POST", resource("/v1/cad/documents"), input),
       /**
        * Apertura HIDRATADA (R3): `cadDocument` llega SIEMPRE completo
        * (inline) aunque se persista como puntero a blob; incluye además la
@@ -199,16 +346,25 @@ export function createDesignClient(options: DesignClientOptions) {
       open: (documentId: string) =>
         call<CadDocumentResource>(
           "GET",
-          resource(`/v1/documents/${documentId}`),
+          resource(`/v1/cad/documents/${documentId}`),
         ),
       updateMeta: (documentId: string, patch: CadDocumentMetaUpdate) =>
         call<CadDocumentSummary>(
           "PATCH",
-          resource(`/v1/documents/${documentId}`),
+          resource(`/v1/cad/documents/${documentId}`),
           patch,
         ),
       archive: (documentId: string) =>
-        call<void>("DELETE", resource(`/v1/documents/${documentId}`)),
+        call<void>("DELETE", resource(`/v1/cad/documents/${documentId}`)),
+      /**
+       * Rollback de importación: sólo el actor creador puede descartar su
+       * fila todavía vacía (versión 0). No requiere ni reemplaza cad:admin.
+       */
+      discardProvisional: (documentId: string) =>
+        call<void>(
+          "DELETE",
+          resource(`/v1/cad/documents/${documentId}/provisional`),
+        ),
       /** Guardado inline con CAS optimista (409 tipado vía DesignApiError). */
       saveContent: (
         documentId: string,
@@ -217,7 +373,7 @@ export function createDesignClient(options: DesignClientOptions) {
       ) =>
         call<CadDocumentSaveResult>(
           "PUT",
-          resource(`/v1/documents/${documentId}/content`),
+          resource(`/v1/cad/documents/${documentId}/content`),
           { cadDocument, expectedCadDocumentVersion },
         ),
       /** Guardado de documento grande: gzip multipart (campo `file` + `payload`). */
@@ -231,7 +387,7 @@ export function createDesignClient(options: DesignClientOptions) {
         form.append("file", gzippedDocument, "cad-document.json.gz");
         return call<CadDocumentSaveResult>(
           "PUT",
-          resource(`/v1/documents/${documentId}/archive`),
+          resource(`/v1/cad/documents/${documentId}/archive`),
           form,
         );
       },
@@ -239,25 +395,25 @@ export function createDesignClient(options: DesignClientOptions) {
         list: (documentId: string, query?: PageQuery) =>
           call<Page<CadDocumentVersionSummary>>(
             "GET",
-            resource(`/v1/documents/${documentId}/versions`, query),
+            resource(`/v1/cad/documents/${documentId}/versions`, query),
           ),
         get: (documentId: string, version: number) =>
           call<CadDocumentVersionDetail>(
             "GET",
-            resource(`/v1/documents/${documentId}/versions/${version}`),
+            resource(`/v1/cad/documents/${documentId}/versions/${version}`),
           ),
       },
       publications: {
         list: (documentId: string) =>
           call<Page<CadPublicationReceipt>>(
             "GET",
-            resource(`/v1/documents/${documentId}/publications`),
+            resource(`/v1/cad/documents/${documentId}/publications`),
           ),
         /** El recibo contractual + el nuevo token CAS (declararlo al guardar). */
         record: (documentId: string, input: CadPublicationCreate) =>
           call<CadPublicationReceipt & { cadDocumentVersion: number }>(
             "POST",
-            resource(`/v1/documents/${documentId}/publications`),
+            resource(`/v1/cad/documents/${documentId}/publications`),
             input,
           ),
       },
@@ -265,20 +421,20 @@ export function createDesignClient(options: DesignClientOptions) {
         get: (documentId: string) =>
           call<DxfBackground>(
             "GET",
-            resource(`/v1/documents/${documentId}/dxf`),
+            resource(`/v1/cad/documents/${documentId}/dxf`),
           ),
         put: (documentId: string, input: DxfBackgroundUpload) =>
           call<DxfBackground>(
             "PUT",
-            resource(`/v1/documents/${documentId}/dxf`),
+            resource(`/v1/cad/documents/${documentId}/dxf`),
             input,
           ),
         remove: (documentId: string) =>
-          call<void>("DELETE", resource(`/v1/documents/${documentId}/dxf`)),
+          call<void>("DELETE", resource(`/v1/cad/documents/${documentId}/dxf`)),
         export: (documentId: string) =>
           call<DxfExport>(
             "GET",
-            resource(`/v1/documents/${documentId}/export/dxf`),
+            resource(`/v1/cad/documents/${documentId}/export/dxf`),
           ),
       },
     },
@@ -292,7 +448,7 @@ export function createDesignClient(options: DesignClientOptions) {
     reviews: {
       list: (documentId: string, query?: { status?: "open" | "closed" }) => {
         const url = new URL(
-          resource(`/v1/documents/${documentId}/review-sessions`),
+          resource(`/v1/cad/documents/${documentId}/review-sessions`),
         );
         if (query?.status) url.searchParams.set("status", query.status);
         return call<{ items: CadReviewSession[] }>("GET", url.toString());
@@ -307,20 +463,22 @@ export function createDesignClient(options: DesignClientOptions) {
       ) =>
         call<{ session: CadReviewSession; shareToken?: string }>(
           "POST",
-          resource(`/v1/documents/${documentId}/review-sessions`),
+          resource(`/v1/cad/documents/${documentId}/review-sessions`),
           input ?? {},
         ),
       close: (sessionId: string) =>
         call<CadReviewSession>(
           "POST",
-          resource(`/v1/review-sessions/${sessionId}/close`),
+          resource(`/v1/cad/review-sessions/${sessionId}/close`),
         ),
       comments: {
         list: (
           documentId: string,
           query?: { reviewSessionId?: string; resolved?: boolean },
         ) => {
-          const url = new URL(resource(`/v1/documents/${documentId}/comments`));
+          const url = new URL(
+            resource(`/v1/cad/documents/${documentId}/comments`),
+          );
           if (query?.reviewSessionId)
             url.searchParams.set("reviewSessionId", query.reviewSessionId);
           if (query?.resolved !== undefined)
@@ -330,19 +488,19 @@ export function createDesignClient(options: DesignClientOptions) {
         create: (documentId: string, input: CadCommentCreate) =>
           call<CadComment>(
             "POST",
-            resource(`/v1/documents/${documentId}/comments`),
+            resource(`/v1/cad/documents/${documentId}/comments`),
             input,
           ),
         resolve: (commentId: string) =>
           call<CadComment>(
             "POST",
-            resource(`/v1/comments/${commentId}/resolve`),
+            resource(`/v1/cad/comments/${commentId}/resolve`),
           ),
       },
     },
 
     /**
-     * Superficie del REVIEW LINK (invitado, sin JWT): autenticada por el
+     * Superficie del REVIEW LINK (invitado, sin cookie de sesión): autenticada por el
      * token server-owned en el header `X-Review-Token`. Contexto de SOLO
      * LECTURA limitado al documento de la sesión — cualquier otra ruta con
      * ese contexto responde `403 review_read_only` (impuesto por backend).
@@ -353,7 +511,7 @@ export function createDesignClient(options: DesignClientOptions) {
         context: () =>
           call<ReviewLinkContext>(
             "GET",
-            resource("/v1/review/context"),
+            resource("/v1/cad/review/context"),
             undefined,
             headers,
           ),
@@ -361,7 +519,7 @@ export function createDesignClient(options: DesignClientOptions) {
           list: () =>
             call<{ items: CadComment[] }>(
               "GET",
-              resource("/v1/review/comments"),
+              resource("/v1/cad/review/comments"),
               undefined,
               headers,
             ),
@@ -371,14 +529,14 @@ export function createDesignClient(options: DesignClientOptions) {
           }) =>
             call<CadComment>(
               "POST",
-              resource("/v1/review/comments"),
+              resource("/v1/cad/review/comments"),
               input,
               headers,
             ),
           resolve: (commentId: string) =>
             call<CadComment>(
               "POST",
-              resource(`/v1/review/comments/${commentId}/resolve`),
+              resource(`/v1/cad/review/comments/${commentId}/resolve`),
               undefined,
               headers,
             ),
@@ -386,19 +544,45 @@ export function createDesignClient(options: DesignClientOptions) {
       };
     },
 
+    assistance: {
+      interpretIntent: (documentId: string, input: CadIntentRequest) =>
+        call<CadIntentResponse>(
+          "POST",
+          resource(`/v1/cad/documents/${documentId}/intent`),
+          input,
+        ),
+      vectorizeImage: (input: CadVisionRequest) =>
+        call<CadVisionResponse>("POST", resource("/v1/cad/vision"), input),
+    },
+
     blocks: {
       list: (query?: PageQuery) =>
-        call<Page<CadBlock>>("GET", resource("/v1/blocks", query)),
+        call<Page<CadBlock>>("GET", resource("/v1/cad/blocks", query)),
       create: (input: CadBlockCreate) =>
-        call<CadBlock>("POST", resource("/v1/blocks"), input),
+        call<CadBlock>("POST", resource("/v1/cad/blocks"), input),
       get: (blockId: string) =>
-        call<CadBlock>("GET", resource(`/v1/blocks/${blockId}`)),
+        call<CadBlock>("GET", resource(`/v1/cad/blocks/${blockId}`)),
       update: (blockId: string, patch: CadBlockUpdate) =>
-        call<CadBlock>("PATCH", resource(`/v1/blocks/${blockId}`), patch),
+        call<CadBlock>("PATCH", resource(`/v1/cad/blocks/${blockId}`), patch),
       remove: (blockId: string) =>
-        call<void>("DELETE", resource(`/v1/blocks/${blockId}`)),
+        call<void>("DELETE", resource(`/v1/cad/blocks/${blockId}`)),
     },
   };
+}
+
+function browserCsrfToken(): string | null {
+  if (typeof document === "undefined") return null;
+  const matches = document.cookie
+    .split(";")
+    .map((pair) => pair.trim())
+    .filter((pair) => pair.startsWith("valle_csrf="));
+  if (matches.length !== 1) return null;
+  try {
+    const value = decodeURIComponent(matches[0].slice("valle_csrf=".length));
+    return value.length >= 32 && value.length <= 256 ? value : null;
+  } catch {
+    return null;
+  }
 }
 
 export type DesignClient = ReturnType<typeof createDesignClient>;

@@ -2,7 +2,7 @@ import { expect, test, type BrowserContext } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
-import { loginAsMaster } from '../fixtures/session';
+import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
 
@@ -33,9 +33,9 @@ async function installCadBackend(context: BrowserContext) {
 test('FILLET trims two LINE entities and persists a tangent semantic ARC atomically', async ({ context, page }, testInfo) => {
   test.setTimeout(180_000);
   await installMockBackend(context);
-  await loginAsMaster(context);
+  await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
-  await page.goto('/studio');
+  await page.goto('/legacy/studio');
   await expect(page.getByTestId('cad-native-entity-fillet-horizontal')).toBeVisible();
 
   await page.getByTitle(/Selección profesional/).click();

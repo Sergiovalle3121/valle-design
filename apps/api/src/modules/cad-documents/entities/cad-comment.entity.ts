@@ -19,15 +19,14 @@ export class CadComment extends TenantBaseEntity {
 
   /** FK a `cad_review_sessions`. NULL = comentario directo sobre el documento. */
   @Column({
-    type: 'varchar',
-    length: 36,
+    type: 'uuid',
     nullable: true,
     name: 'review_session_id',
   })
   reviewSessionId: string | null;
 
   /** FK a `cad_documents`. */
-  @Column({ type: 'varchar', length: 36, name: 'document_id' })
+  @Column({ type: 'uuid', name: 'document_id' })
   documentId: string;
 
   @Column({ type: 'varchar', length: 255 })
@@ -42,4 +41,13 @@ export class CadComment extends TenantBaseEntity {
 
   @Column({ type: 'boolean', default: false })
   resolved: boolean;
+
+  /** Id anterior a la normalización UUID. NULL en comentarios nativos. */
+  @Column({
+    type: 'varchar',
+    length: 64,
+    nullable: true,
+    name: 'legacy_source_id',
+  })
+  legacySourceId: string | null;
 }

@@ -2,9 +2,9 @@
  * Shared constants for the E2E harness.
  *
  * These are imported by BOTH the Playwright config (to launch the dev server
- * with the right env) and the test fixtures (to forge sessions / route the
- * mocked backend). Keeping them in one module guarantees the signing secret and
- * the API origin stay in sync between the server process and the test process.
+ * with the right env) and the test fixtures (to route the mocked backend).
+ * Keeping them in one module guarantees the API origin and deterministic
+ * standalone identity stay in sync.
  */
 
 /** Where the Next.js dev server is served (the app under test). */
@@ -19,19 +19,18 @@ export const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:3000';
 export const API_ORIGIN = process.env.E2E_API_ORIGIN || 'http://localhost:4010';
 
 /**
- * HMAC secret used to sign the `axos_session` cookie. Must match the value the
- * dev server runs with — the Playwright config passes this same constant into
- * the webServer env as AXOS_SESSION_SECRET.
- */
-export const SESSION_SECRET = process.env.AXOS_SESSION_SECRET || 'axos-e2e-session-secret';
-
-/**
- * The Master / owner identity. The app derives full-admin access from this
- * email (see apps/web/src/lib/owner.ts), so logging in as this user lands in the
- * hub with every area visible and write access — never read-only.
+ * Deterministic first-party identity used by the hermetic browser suites.
+ * UUIDs deliberately follow the public contract, and organization.id is the
+ * tenant identifier just like it is in the standalone product.
  */
 export const OWNER_EMAIL = process.env.E2E_OWNER_EMAIL || 'sergiovallezarate@gmail.com';
-export const OWNER_NAME = 'Master';
+export const OWNER_USER_ID = '10000000-0000-4000-8000-000000000001';
+export const OWNER_SESSION_ID = '10000000-0000-4000-8000-000000000002';
+export const ORGANIZATION_ID = '10000000-0000-4000-8000-000000000003';
+export const ORGANIZATION_NAME = 'Valle Design E2E';
+export const ORGANIZATION_SLUG = 'valle-design-e2e';
 
-export const SESSION_COOKIE = 'axos_session';
-export const TOKEN_STORAGE_KEY = 'axos_access_token';
+export const SESSION_COOKIE = 'valle_session';
+export const CSRF_COOKIE = 'valle_csrf';
+export const SESSION_COOKIE_VALUE = `${OWNER_SESSION_ID}.${'s'.repeat(43)}`;
+export const CSRF_COOKIE_VALUE = 'c'.repeat(43);

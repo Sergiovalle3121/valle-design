@@ -28,8 +28,9 @@
  * para que el editor arranque con el MISMO lienzo que en el origen.
  */
 
-import type { BrowserContext, Route } from '@playwright/test';
-import { API_ORIGIN } from './constants';
+import type { BrowserContext, Route } from "@playwright/test";
+import { API_ORIGIN } from "./constants";
+import { firstPartyRequestFailure } from "./standalone-identity";
 
 export interface LegacyFootprint {
   footprintW: number;
@@ -109,7 +110,9 @@ export function seedFootprint(
   footprint: LegacyFootprint,
 ): Record<string, unknown> {
   const meta =
-    document.meta && typeof document.meta === 'object' && !Array.isArray(document.meta)
+    document.meta &&
+    typeof document.meta === "object" &&
+    !Array.isArray(document.meta)
       ? { ...(document.meta as Record<string, unknown>) }
       : {};
   meta.footprintW = footprint.footprintW;
@@ -128,7 +131,7 @@ interface ReviewSessionRow {
   id: string;
   documentId: string;
   token: string;
-  status: 'open' | 'closed';
+  status: "open" | "closed";
   allowComments: boolean;
   expiresAt: string;
   revokedAt: string | null;
@@ -152,11 +155,11 @@ export class CadV1Backend {
         ? seedFootprint(seed.document, seed.footprint)
         : (seed.document ?? null);
     const row: DocRow = {
-      id: `00000000-0000-4000-8000-${String(++this.seq).padStart(12, '0')}`,
+      id: `00000000-0000-4000-8000-${String(++this.seq).padStart(12, "0")}`,
       name: seed.model,
       projectId: null,
       model: seed.model,
-      revision: seed.revision ?? 'UNIVERSAL',
+      revision: seed.revision ?? "UNIVERSAL",
       document: document ? structuredClone(document) : null,
       version: seed.version ?? 0,
       dxf: null,
@@ -170,7 +173,9 @@ export class CadV1Backend {
 
   /** Registra los handlers v1 en el contexto (tras installMockBackend). */
   async install(context: BrowserContext): Promise<void> {
-    await context.route(`${API_ORIGIN}/v1/cad/**`, (route) => this.handle(route));
+    await context.route(`${API_ORIGIN}/v1/cad/**`, (route) =>
+      this.handle(route),
+    );
   }
 
   /* ── Acceso de los specs (misma interfaz snapshot() de los goldens) ── */
@@ -181,11 +186,15 @@ export class CadV1Backend {
         candidate.model === model &&
         (revision === undefined || candidate.revision === revision),
     );
-    if (!found) throw new Error(`Documento no sembrado: ${model}@${revision ?? '*'}`);
+    if (!found)
+      throw new Error(`Documento no sembrado: ${model}@${revision ?? "*"}`);
     return found;
   }
 
-  snapshotFor(model: string, revision?: string): {
+  snapshotFor(
+    model: string,
+    revision?: string,
+  ): {
     document: Record<string, unknown>;
     version: number;
   } {
@@ -209,7 +218,11 @@ export class CadV1Backend {
   }
 
   /** Disponibilidad de la fila: false = el GET responde 404 (fuente retirada). */
-  setAvailable(model: string, revision: string | undefined, value: boolean): void {
+  setAvailable(
+    model: string,
+    revision: string | undefined,
+    value: boolean,
+  ): void {
     this.row(model, revision).available = value;
   }
 
@@ -225,31 +238,43 @@ export class CadV1Backend {
     const url = new URL(request.url());
     const path = url.pathname;
     const json = (body: unknown, status = 200) =>
-      route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
-    const notFound = (message: string) => json({ message, requestId: 'e2e' }, 404);
+      route.fulfill({
+        status,
+        contentType: "application/json",
+        body: JSON.stringify(body),
+      });
+    const notFound = (message: string) =>
+      json({ message, requestId: "e2e" }, 404);
     const body = (): Record<string, unknown> => {
       try {
         const parsed = request.postDataJSON() as unknown;
-        return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {};
+        return parsed && typeof parsed === "object"
+          ? (parsed as Record<string, unknown>)
+          : {};
       } catch {
         return {};
       }
     };
 
+    const authFailure = firstPartyRequestFailure(request);
+    if (authFailure && path !== "/v1/cad/review/context") {
+      return json(authFailure.body, authFailure.status);
+    }
+
     // ── Documentos: listado (resolución model+revision del adaptador) ──
-    if (path === '/v1/cad/documents' && method === 'GET') {
+    if (path === "/v1/cad/documents" && method === "GET") {
       const items = this.rows.filter((row) => row.available).map(summaryOf);
       return json({ items, total: items.length });
     }
-    if (path === '/v1/cad/documents' && method === 'POST') {
+    if (path === "/v1/cad/documents" && method === "POST") {
       const dto = body();
       const row = this.register({
         model: String(dto.model ?? dto.name ?? `doc-${this.seq + 1}`),
-        revision: typeof dto.revision === 'string' ? dto.revision : undefined,
+        revision: typeof dto.revision === "string" ? dto.revision : undefined,
         document: null,
         version: 0,
       });
-      row.name = String(dto.name ?? row.model ?? 'Documento');
+      row.name = String(dto.name ?? row.model ?? "Documento");
       return json(summaryOf(row), 201);
     }
 
@@ -263,26 +288,43 @@ export class CadV1Backend {
       revokedAt: session.revokedAt,
       closedAt: session.closedAt,
       createdAt: NOW0,
-      createdBy: 'e2e@valle',
+      createdBy: "e2e@valle",
     });
 
     // ── CANJE del review link: SOLO por cabecera, nunca por query string ──
-    if (path === '/v1/cad/review/context' && method === 'GET') {
-      const token = request.headers()['x-review-token'] ?? '';
+    if (path === "/v1/cad/review/context" && method === "GET") {
+      const token = request.headers()["x-review-token"] ?? "";
       const session = this.reviewSessions.find(
         (candidate) => candidate.token === token,
       );
       if (!token || !session) {
-        return json({ code: 'review_token_invalid', message: 'El review link no es válido.' }, 401);
+        return json(
+          {
+            code: "review_token_invalid",
+            message: "El review link no es válido.",
+          },
+          401,
+        );
       }
-      if (session.revokedAt || session.status !== 'open') {
-        return json({ code: 'review_token_revoked', message: 'El review link fue revocado.' }, 401);
+      if (session.revokedAt || session.status !== "open") {
+        return json(
+          {
+            code: "review_token_revoked",
+            message: "El review link fue revocado.",
+          },
+          401,
+        );
       }
       if (Date.parse(session.expiresAt) <= Date.now()) {
-        return json({ code: 'review_token_expired', message: 'El review link expiró.' }, 401);
+        return json(
+          { code: "review_token_expired", message: "El review link expiró." },
+          401,
+        );
       }
-      const target = this.rows.find((candidate) => candidate.id === session.documentId);
-      if (!target) return notFound('Documento CAD no encontrado.');
+      const target = this.rows.find(
+        (candidate) => candidate.id === session.documentId,
+      );
+      if (!target) return notFound("Documento CAD no encontrado.");
       return json({
         session: sessionResource(session),
         readOnly: true,
@@ -300,14 +342,21 @@ export class CadV1Backend {
     }
 
     // ── Revocación de la sesión (cierra el link de inmediato) ──
-    const closeMatch = path.match(/^\/v1\/cad\/review-sessions\/([^/]+)\/close$/);
-    if (closeMatch && method === 'POST') {
-      const session = this.reviewSessions.find((candidate) => candidate.id === closeMatch[1]);
-      if (!session) return notFound('Sesión de revisión no encontrada.');
-      if (session.status === 'closed') {
-        return json({ code: 'review_session_closed', message: 'Ya estaba cerrada.' }, 409);
+    const closeMatch = path.match(
+      /^\/v1\/cad\/review-sessions\/([^/]+)\/close$/,
+    );
+    if (closeMatch && method === "POST") {
+      const session = this.reviewSessions.find(
+        (candidate) => candidate.id === closeMatch[1],
+      );
+      if (!session) return notFound("Sesión de revisión no encontrada.");
+      if (session.status === "closed") {
+        return json(
+          { code: "review_session_closed", message: "Ya estaba cerrada." },
+          409,
+        );
       }
-      session.status = 'closed';
+      session.status = "closed";
       session.closedAt = NOW0;
       session.revokedAt = NOW0;
       return json(sessionResource(session));
@@ -317,14 +366,15 @@ export class CadV1Backend {
     const docMatch = path.match(/^\/v1\/cad\/documents\/([^/]+)(?:\/(.+))?$/);
     if (docMatch) {
       const row = byId(docMatch[1]);
-      const rest = docMatch[2] ?? '';
+      const rest = docMatch[2] ?? "";
 
       // ── Apertura HIDRATADA (semántica R3: nunca un puntero a blob) ──
-      if (!rest && method === 'GET') {
+      if (!rest && method === "GET") {
         if (row?.openStatus) {
-          return json(row.openBody ?? { message: 'forbidden' }, row.openStatus);
+          return json(row.openBody ?? { message: "forbidden" }, row.openStatus);
         }
-        if (!row || !row.available) return notFound('Documento CAD no encontrado.');
+        if (!row || !row.available)
+          return notFound("Documento CAD no encontrado.");
         return json({
           ...summaryOf(row),
           cadDocument: structuredClone(row.document),
@@ -332,25 +382,47 @@ export class CadV1Backend {
           dxf: row.dxf ? { ...row.dxf.placement } : null,
         });
       }
-      if (!row || !row.available) return notFound('Documento CAD no encontrado.');
+      if (!row || !row.available)
+        return notFound("Documento CAD no encontrado.");
 
-      // ── Contenido canónico (CAS contractual) ──
-      if (rest === 'content' && method === 'PUT') {
-        const dto = body();
-        const expected = dto.expectedCadDocumentVersion;
-        if (typeof expected !== 'number') {
+      // Rollback acotado de importación. La autorización first-party/CSRF
+      // ya se comprobó arriba; este fixture conserva la misma precondición
+      // observable que la API real (vacío, versión 0, sin DXF).
+      if (rest === "provisional" && method === "DELETE") {
+        if (row.version !== 0 || row.document !== null || row.dxf !== null) {
           return json(
             {
-              code: 'cad_document_version_required',
+              message: "El documento ya no es provisional.",
+              requestId: "e2e",
+            },
+            409,
+          );
+        }
+        row.available = false;
+        return route.fulfill({ status: 204, body: "" });
+      }
+
+      // ── Contenido canónico (CAS contractual) ──
+      if (rest === "content" && method === "PUT") {
+        const dto = body();
+        const expected = dto.expectedCadDocumentVersion;
+        if (typeof expected !== "number") {
+          return json(
+            {
+              code: "cad_document_version_required",
               message:
-                'expectedCadDocumentVersion es obligatorio al guardar el documento CAD.',
-              requestId: 'e2e',
+                "expectedCadDocumentVersion es obligatorio al guardar el documento CAD.",
+              requestId: "e2e",
             },
             400,
           );
         }
-        if (expected !== row.version) return this.conflict(json, expected, row.version);
-        row.document = structuredClone(dto.cadDocument) as Record<string, unknown>;
+        if (expected !== row.version)
+          return this.conflict(json, expected, row.version);
+        row.document = structuredClone(dto.cadDocument) as Record<
+          string,
+          unknown
+        >;
         row.version += 1;
         const entities = (row.document as { entities?: unknown[] }).entities;
         return json({
@@ -362,39 +434,44 @@ export class CadV1Backend {
       }
 
       // ── Review link SERVER-OWNED: el token se emite AQUÍ y sólo aquí ──
-      if (rest === 'review-sessions' && method === 'POST') {
+      if (rest === "review-sessions" && method === "POST") {
         const dto = body();
         const session: ReviewSessionRow = {
-          id: `00000000-0000-4000-9000-${String(this.reviewSessions.length + 1).padStart(12, '0')}`,
+          id: `00000000-0000-4000-9000-${String(this.reviewSessions.length + 1).padStart(12, "0")}`,
           documentId: row.id,
           // Forma del token real (`vdrl_` + 256 bits): el fixture no lo
           // persiste en ningún documento, igual que la API.
           token: `vdrl_e2e_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`,
-          status: 'open',
+          status: "open",
           allowComments: dto.allowComments !== false,
           expiresAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
           revokedAt: null,
           closedAt: null,
         };
         this.reviewSessions.push(session);
-        return json({ session: sessionResource(session), shareToken: session.token }, 201);
+        return json(
+          { session: sessionResource(session), shareToken: session.token },
+          201,
+        );
       }
 
       // ── Plano DXF de fondo (subrecurso 404 cuando no existe) ──
-      if (rest === 'dxf') {
-        if (method === 'GET') {
-          return row.dxf ? json(row.dxf) : notFound('El documento no tiene plano DXF de fondo.');
+      if (rest === "dxf") {
+        if (method === "GET") {
+          return row.dxf
+            ? json(row.dxf)
+            : notFound("El documento no tiene plano DXF de fondo.");
         }
-        if (method === 'PUT') {
+        if (method === "PUT") {
           const dto = body();
           const placementInput =
-            dto.placement && typeof dto.placement === 'object'
-              ? (dto.placement as Partial<DxfResource['placement']>)
+            dto.placement && typeof dto.placement === "object"
+              ? (dto.placement as Partial<DxfResource["placement"]>)
               : {};
-          const name = String(dto.name ?? 'plano.dxf');
+          const name = String(dto.name ?? "plano.dxf");
           row.dxf = {
             name,
-            data: String(dto.data ?? ''),
+            data: String(dto.data ?? ""),
             placement: {
               name,
               offsetX: Number(placementInput.offsetX ?? 0) || 0,
@@ -407,17 +484,21 @@ export class CadV1Backend {
           };
           return json(row.dxf);
         }
-        if (method === 'DELETE') {
+        if (method === "DELETE") {
           row.dxf = null;
-          return route.fulfill({ status: 204, body: '' });
+          return route.fulfill({ status: 204, body: "" });
         }
       }
 
       // ── Publicaciones (recibo plano v1 + CAS + recibo embebido) ──
-      if (rest === 'publications' && method === 'POST') {
+      if (rest === "publications" && method === "POST") {
         const dto = body() as unknown as PublicationRequest;
         if (dto.expectedCadDocumentVersion !== row.version) {
-          return this.conflict(json, dto.expectedCadDocumentVersion, row.version);
+          return this.conflict(
+            json,
+            dto.expectedCadDocumentVersion,
+            row.version,
+          );
         }
         this.publicationRequests.push(structuredClone(dto));
         row.version += 1;
@@ -429,7 +510,7 @@ export class CadV1Backend {
           sha256: dto.sha256,
           bytes: dto.bytes,
           publishedAt: NOW0,
-          publishedBy: 'e2e-user',
+          publishedBy: "e2e-user",
         };
         // Server-managed: la API real también anexa el recibo embebido.
         if (row.document) {
@@ -444,42 +525,46 @@ export class CadV1Backend {
       }
 
       // ── IA: degradación determinista (AI_MOCK de la API real) ──
-      if (rest === 'intent' && method === 'POST') {
+      if (rest === "intent" && method === "POST") {
         return json({ available: false, toolCalls: [] }, 201);
       }
     }
 
     // ── Biblioteca de bloques del tenant ──
-    if (path === '/v1/cad/blocks' && method === 'GET') {
-      const query = (url.searchParams.get('q') ?? '').toLocaleLowerCase().trim();
+    if (path === "/v1/cad/blocks" && method === "GET") {
+      const query = (url.searchParams.get("q") ?? "")
+        .toLocaleLowerCase()
+        .trim();
       const terms = query.split(/\s+/).filter(Boolean);
       const items = this.library.filter((rowEntry) => {
         if (!terms.length) return true;
         const definition = rowEntry.definition ?? {};
         const haystack = [
           rowEntry.name,
-          (definition as { description?: string }).description ?? '',
+          (definition as { description?: string }).description ?? "",
           ...((definition as { keywords?: unknown }).keywords instanceof Array
-            ? ((definition as { keywords: unknown[] }).keywords.filter(
-                (value): value is string => typeof value === 'string',
-              ))
+            ? (definition as { keywords: unknown[] }).keywords.filter(
+                (value): value is string => typeof value === "string",
+              )
             : []),
-          JSON.stringify((definition as { businessLink?: unknown }).businessLink ?? {}),
+          JSON.stringify(
+            (definition as { businessLink?: unknown }).businessLink ?? {},
+          ),
         ]
-          .join(' ')
+          .join(" ")
           .toLocaleLowerCase();
         return terms.every((term) => haystack.includes(term));
       });
       return json({ items });
     }
-    if (path === '/v1/cad/blocks' && method === 'POST') {
+    if (path === "/v1/cad/blocks" && method === "POST") {
       const dto = body();
       const rowEntry: LibraryBlockRow = {
         id: `library-${this.library.length + 1}`,
-        name: String(dto.name ?? 'BLOQUE'),
+        name: String(dto.name ?? "BLOQUE"),
         assets: Array.isArray(dto.assets) ? (dto.assets as unknown[]) : [],
         definition:
-          dto.definition && typeof dto.definition === 'object'
+          dto.definition && typeof dto.definition === "object"
             ? (dto.definition as Record<string, unknown>)
             : null,
         version: 1,
@@ -490,25 +575,27 @@ export class CadV1Backend {
     }
     const blockMatch = path.match(/^\/v1\/cad\/blocks\/([^/]+)$/);
     if (blockMatch) {
-      const rowEntry = this.library.find((candidate) => candidate.id === blockMatch[1]);
-      if (!rowEntry) return notFound('Bloque no encontrado.');
-      if (method === 'PATCH') {
+      const rowEntry = this.library.find(
+        (candidate) => candidate.id === blockMatch[1],
+      );
+      if (!rowEntry) return notFound("Bloque no encontrado.");
+      if (method === "PATCH") {
         const dto = body();
-        if (typeof dto.name === 'string') rowEntry.name = dto.name;
-        if (dto.definition && typeof dto.definition === 'object') {
+        if (typeof dto.name === "string") rowEntry.name = dto.name;
+        if (dto.definition && typeof dto.definition === "object") {
           rowEntry.definition = dto.definition as Record<string, unknown>;
           rowEntry.version += 1;
         }
         return json(rowEntry);
       }
-      if (method === 'DELETE') {
+      if (method === "DELETE") {
         this.library.splice(this.library.indexOf(rowEntry), 1);
-        return route.fulfill({ status: 204, body: '' });
+        return route.fulfill({ status: 204, body: "" });
       }
     }
 
     // ── Visión: degradación determinista ──
-    if (path === '/v1/cad/vision' && method === 'POST') {
+    if (path === "/v1/cad/vision" && method === "POST") {
       return json({ available: false, walls: [], assets: [] }, 201);
     }
 
@@ -522,12 +609,12 @@ export class CadV1Backend {
   ): Promise<void> {
     return json(
       {
-        code: 'cad_document_version_conflict',
+        code: "cad_document_version_conflict",
         message:
-          'El dibujo cambió desde la última carga. Recarga y compara antes de guardar.',
+          "El dibujo cambió desde la última carga. Recarga y compara antes de guardar.",
         expected,
         current,
-        requestId: 'e2e',
+        requestId: "e2e",
       },
       409,
     );
@@ -546,7 +633,7 @@ function summaryOf(row: DocRow) {
     legacySourceId: null,
     createdAt: NOW0,
     updatedAt: NOW0,
-    createdBy: 'e2e-user',
+    createdBy: "e2e-user",
   };
 }
 
@@ -568,8 +655,8 @@ export async function installCadV1Backend(
   backend: CadV1Backend;
   snapshot: () => { document: Record<string, unknown>; version: number };
 }> {
-  const model = seed.model ?? 'AXOS-CAD-STUDIO';
-  const revision = seed.revision ?? 'UNIVERSAL';
+  const model = seed.model ?? "AXOS-CAD-STUDIO";
+  const revision = seed.revision ?? "UNIVERSAL";
   const backend = new CadV1Backend([
     {
       model,
@@ -606,7 +693,10 @@ export async function installCadStudioBackend<TDoc>(
     backend,
     snapshot: () => {
       const current = snapshot();
-      return { document: current.document as unknown as TDoc, version: current.version };
+      return {
+        document: current.document as unknown as TDoc,
+        version: current.version,
+      };
     },
   };
 }

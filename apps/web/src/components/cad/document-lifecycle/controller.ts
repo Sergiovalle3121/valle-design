@@ -4,10 +4,17 @@ import {
   serializeCadDocument,
   type CadDocument,
 } from "@/lib/cad/cad-document";
+import { gzipCadDocumentJson } from "@/lib/cad/large-document-transport";
+
+/**
+ * The API stores documents above this boundary in the blob store. Sending the
+ * same payload through the archive route avoids first materialising a second,
+ * very large JSON request body in Nest.
+ */
+export const CAD_DOCUMENT_ARCHIVE_THRESHOLD_BYTES = 1_000_000;
 
 export type DocumentLifecycleMetric =
-  | "download"
-  | "parse"
+  | "transport"
   | "migration"
   | "indexing"
   | "scene-sync"
@@ -21,8 +28,30 @@ export interface DocumentMetricSink {
     detail?: { documentId?: string; bytes?: number },
   ): void;
 }
-export interface DocumentLifecycleTransport {
-  request(path: string, init?: RequestInit): Promise<Response>;
+
+export interface DocumentLifecycleResource {
+  cadDocument?: unknown;
+  cadDocumentVersion?: number;
+}
+
+export interface DocumentLifecycleSaveReceipt {
+  cadDocumentVersion: number;
+}
+
+/** Typed document operations supplied by the generated Design client. */
+export interface DocumentLifecyclePort {
+  open(documentId: string): Promise<DocumentLifecycleResource>;
+  saveContent(
+    documentId: string,
+    document: CadDocument,
+    expectedVersion: number,
+  ): Promise<DocumentLifecycleSaveReceipt>;
+  saveArchive(
+    documentId: string,
+    archive: Blob,
+    expectedVersion: number,
+  ): Promise<DocumentLifecycleSaveReceipt>;
+  versionConflict(error: unknown): { current?: number } | null;
 }
 
 export interface OpenDocumentResult {
@@ -50,6 +79,8 @@ export class CadCasConflictError extends Error {
   }
 }
 
+export type CadDocumentArchiveEncoder = (json: string) => Promise<Blob>;
+
 const clock = () =>
   typeof performance === "undefined" ? Date.now() : performance.now();
 
@@ -59,8 +90,9 @@ const clock = () =>
  */
 export class DocumentLifecycleController {
   constructor(
-    private readonly transport: DocumentLifecycleTransport,
+    private readonly port: DocumentLifecyclePort,
     private readonly metrics?: DocumentMetricSink,
+    private readonly encodeArchive: CadDocumentArchiveEncoder = gzipCadDocumentJson,
   ) {}
 
   async open(
@@ -72,19 +104,10 @@ export class DocumentLifecycleController {
     } = {},
   ): Promise<OpenDocumentResult> {
     let started = clock();
-    const response = await this.transport.request(
-      `/v1/cad/documents/${encodeURIComponent(documentId)}`,
-    );
-    this.metrics?.record("download", clock() - started, { documentId });
-    if (!response.ok)
-      throw new Error(`No se pudo abrir el documento (${response.status}).`);
-    started = clock();
-    const text = await response.text();
-    const envelope = JSON.parse(text) as Record<string, unknown>;
-    this.metrics?.record("parse", clock() - started, {
-      documentId,
-      bytes: new TextEncoder().encode(text).byteLength,
-    });
+    const envelope = await this.port.open(documentId);
+    // The generated client owns fetch + JSON decoding, so this is deliberately
+    // one transport metric rather than fictitious download/parse sub-phases.
+    this.metrics?.record("transport", clock() - started, { documentId });
     started = clock();
     const document =
       envelope.cadDocument == null
@@ -110,7 +133,7 @@ export class DocumentLifecycleController {
       documentId,
       document,
       version: Number(envelope.cadDocumentVersion ?? 0),
-      metadata: envelope,
+      metadata: { ...envelope },
     };
   }
 
@@ -127,31 +150,31 @@ export class DocumentLifecycleController {
       documentId,
       bytes: new TextEncoder().encode(serialized).byteLength,
     });
-    const response = await this.transport.request(
-      `/v1/cad/documents/${encodeURIComponent(documentId)}/content`,
-      {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cadDocument: JSON.parse(serialized),
-          expectedCadDocumentVersion: expectedVersion,
-        }),
-      },
-    );
-    if (response.status === 409) {
-      const body = (await response.json().catch(() => ({}))) as {
-        cadDocumentVersion?: number;
+    const bytes = new TextEncoder().encode(serialized).byteLength;
+    try {
+      const receipt =
+        bytes > CAD_DOCUMENT_ARCHIVE_THRESHOLD_BYTES
+          ? await this.port.saveArchive(
+              documentId,
+              await this.gzip(serialized),
+              expectedVersion,
+            )
+          : await this.port.saveContent(
+              documentId,
+              JSON.parse(serialized) as CadDocument,
+              expectedVersion,
+            );
+      return {
+        documentId,
+        document,
+        version: receipt.cadDocumentVersion,
       };
-      throw new CadCasConflictError(expectedVersion, body.cadDocumentVersion);
+    } catch (error) {
+      const conflict = this.port.versionConflict(error);
+      if (conflict)
+        throw new CadCasConflictError(expectedVersion, conflict.current);
+      throw error;
     }
-    if (!response.ok)
-      throw new Error(`No se pudo guardar el documento (${response.status}).`);
-    const body = (await response.json()) as Record<string, unknown>;
-    return {
-      documentId,
-      document,
-      version: Number(body.cadDocumentVersion ?? expectedVersion + 1),
-    };
   }
 
   async createVersion(
@@ -162,5 +185,12 @@ export class DocumentLifecycleController {
     // El backend crea una versión inmutable en el mismo CAS; no existe un
     // segundo endpoint/modelo de snapshots que pueda divergir del canónico.
     return this.save(documentId, document, expectedVersion);
+  }
+
+  private async gzip(serialized: string) {
+    const encodedArchive = await this.encodeArchive(serialized);
+    return encodedArchive.type === "application/gzip"
+      ? encodedArchive
+      : new Blob([encodedArchive], { type: "application/gzip" });
   }
 }

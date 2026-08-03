@@ -1,7 +1,7 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
-import { loginAsMaster } from '../fixtures/session';
+import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import type { CadDocument } from '../../src/lib/cad/cad-document';
 
 function canonicalDocument(): CadDocument {
@@ -72,9 +72,9 @@ async function selectVersion(page: Page, testId: string, label: string) {
 test('canonical Base/Mine/Theirs compare, collision review, comments, links and audit persist atomically', async ({ context, page }, testInfo) => {
   test.setTimeout(180_000);
   await installMockBackend(context);
-  await loginAsMaster(context);
+  await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
-  await page.goto('/studio');
+  await page.goto('/legacy/studio');
   await expect(page.getByRole('button', { name: /^arc-a\s+ARC$/i })).toBeVisible();
 
   await openCollaboration(page);

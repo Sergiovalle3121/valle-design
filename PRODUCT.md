@@ -1,20 +1,67 @@
 # Producto
 
-Valle Design permite crear y editar dibujos CAD, organizar capas/bloques,
-guardar un documento versionado, colaborar mediante comentarios/review links,
-publicar hojas PDF e intercambiar un subconjunto DXF. El editor ofrece
-precisión, selección profesional, entidades 2D/3D y asistencia NL/Vision cuando
-CIDE está configurado.
+Valle Design permite que un equipo cree, edite, versione y revise dibujos CAD
+desde el navegador sin depender de otro producto para identidad o acceso. La
+unidad de colaboración y aislamiento es la organización; cada organización
+opera como un tenant independiente.
 
-## Usuarios y resultados
+## Recorridos disponibles
 
-- Autor CAD: modela, guarda y exporta.
-- Revisor invitado: accede por vínculo revocable y superficie de solo lectura.
-- Administrador de tenant: gobierna acceso mediante permisos/entitlement.
+- Registrar una cuenta, verificar el correo, iniciar/cerrar sesión, recuperar
+  contraseña y listar, rotar o revocar sesiones.
+- Crear y activar organizaciones, consultar membresías, invitar por email y
+  aceptar invitaciones con roles `owner`, `admin`, `member` o `viewer`.
+- Iniciar un trial al crear la organización y consultar la suscripción y los
+  entitlements efectivos. El producto no publica precios ni captura pagos.
+- Crear proyectos y documentos, abrirlos por UUID en
+  `/studio/[documentId]`, editar con herramientas CAD, autosave, undo/redo,
+  guardado CAS y consulta de versiones.
+- Importar DXF de texto o JSON canónico desde el dashboard, incluidos archivos
+  grandes mediante gzip/blob; el flujo muestra progreso, cancelación y
+  advertencias.
+- Exportar el subconjunto DXF implementado y publicar hojas PDF.
+- Crear review links revocables, comentar y resolver comentarios dentro de la
+  superficie de revisión acotada.
+- Usar asistencia NL→CAD o Vision→CAD cuando CIDE está configurado; los cambios
+  requieren el flujo de confirmación del documento.
+
+## Personas y permisos
+
+- `owner` y `admin`: administran la organización y tienen todos los permisos
+  CAD del release.
+- `member`: ve, edita, revisa y publica.
+- `viewer`: ve y revisa; no edita ni publica.
+- Revisor por enlace: acceso de solo lectura y comentarios al documento
+  compartido, sin una membresía general.
+
+El servidor deriva rol, permisos, organización y tenant a partir de la sesión y
+la membresía persistida. Además se requiere un `design.cad` vigente; un trial
+expirado o una suscripción inactiva niega el acceso.
+
+## Qué significa “guardado”
+
+El documento canónico es la fuente de verdad. Guardado manual y autosave se
+serializan en una cola y usan la versión CAS conocida. Un `409` no se resuelve
+silenciosamente: el estado permanece pendiente hasta recargar, comparar o
+resolver el conflicto. Las versiones del servidor son inmutables; undo/redo es
+historia local acotada y no sustituye el versionado persistido.
 
 ## Promesas que no se hacen
 
-No es AutoCAD 2027 ni declara paridad. No abre/escribe DWG, no contiene IAM
-standalone ni facturación, y no demuestra todavía cada función mediante un
-recorrido real completo. “Native” significa semántica propia de Valle Design,
-no compatibilidad universal con formatos propietarios. Véase la matriz de gaps.
+- Valle Design no es AutoCAD 2027 ni declara paridad funcional, de formato o
+  rendimiento.
+- DWG no se abre ni se escribe. DXF es un subconjunto de texto con pérdidas
+  explícitas; no se promete fidelidad universal.
+- No existe un modelador sólido B-rep, compatibilidad AutoLISP/.NET/VBA, GIS,
+  nubes de puntos, STEP/IGES/IFC ni object storage S3 conectado.
+- El corpus de 100k usa LOD. Los números actuales no demuestran 60 FPS, tiempo
+  real, memoria estabilizada ni detalle completo de 100k entidades.
+- “Standalone” describe la identidad, autorización, datos y despliegue del
+  producto. No implica que el repositorio incluya un proveedor de correo, un
+  procesador de pagos o el servicio CIDE.
+- Un test unitario, un golden con red simulada o una ruta visible no bastan para
+  anunciar una capacidad completa. La matriz competitiva exige evidencia del
+  límite relevante y mantiene los gaps abiertos.
+
+Consulta `docs/competitive/autocad-2027-gap-matrix.md` para el estado y los
+criterios de promoción de cada categoría.

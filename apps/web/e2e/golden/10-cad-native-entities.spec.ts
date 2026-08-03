@@ -2,7 +2,7 @@ import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadV1Backend } from '../fixtures/cad-v1-backend';
-import { loginAsMaster } from '../fixtures/session';
+import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
 
 const MODEL = 'AXOS-CAD-STUDIO';
@@ -100,13 +100,13 @@ function collectBrowserErrors(page: Page): string[] {
 test.describe('Golden path · CAD native entities', () => {
   test.beforeEach(async ({ context }) => {
     await installMockBackend(context);
-    await loginAsMaster(context);
+    await loginAsStandaloneOwner(context);
   });
 
   test('edits ARC, undo/redo, saves, reloads and round-trips native DXF', async ({ context, page }) => {
     const backend = await installCadBackend(context);
     const browserErrors = collectBrowserErrors(page);
-    await page.goto('/studio');
+    await page.goto('/legacy/studio');
 
     await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
     await expect(page.getByTestId('cad-native-entity-list')).toContainText('3');
@@ -156,7 +156,7 @@ test.describe('Golden path · CAD native entities', () => {
   test('two browser sessions receive one typed revision conflict', async ({ context, page }) => {
     const backend = await installCadBackend(context);
     const second = await context.newPage();
-    await Promise.all([page.goto('/studio'), second.goto('/studio')]);
+    await Promise.all([page.goto('/legacy/studio'), second.goto('/legacy/studio')]);
     await Promise.all([
       page.getByTestId('cad-native-entity-arc-e2e').click(),
       second.getByTestId('cad-native-entity-arc-e2e').click(),

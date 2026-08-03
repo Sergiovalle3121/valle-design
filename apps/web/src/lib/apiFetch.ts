@@ -1,10 +1,6 @@
 "use client";
 
 import { csrfToken } from "@/lib/session";
-import {
-  handleLegacyCadRequest,
-  isLegacyCadRequest,
-} from "@/lib/cad/legacy/layout-http-adapter";
 
 /**
  * Browser-facing API origin. Production should expose this same-origin through
@@ -36,13 +32,4 @@ export function rawApiFetch(
   init?: RequestInit,
 ): Promise<Response> {
   return fetch(input, withAuthHeaders(init));
-}
-
-/** First-party fetch with the temporary editor-only legacy adapter. */
-export function apiFetch(
-  input: RequestInfo | URL,
-  init?: RequestInit,
-): Promise<Response> {
-  if (isLegacyCadRequest(input)) return handleLegacyCadRequest(input, init);
-  return rawApiFetch(input, init);
 }

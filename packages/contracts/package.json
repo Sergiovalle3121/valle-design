@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "license": "UNLICENSED",
-  "description": "Contratos sin efectos secundarios del producto Valle Design (CAD): tipos, identificadores de frontera con Platform y alias legados persistidos.",
+  "description": "Contratos sin efectos secundarios del producto standalone Valle Design: API CAD, permisos, marca y alias persistidos.",
   "main": "./dist/index.js",
   "types": "./src/index.ts",
   "exports": {

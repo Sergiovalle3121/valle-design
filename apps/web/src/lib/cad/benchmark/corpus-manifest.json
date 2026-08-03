@@ -1,0 +1,114 @@
+{
+  "$schema": "./corpus-manifest.schema.json",
+  "schemaVersion": 1,
+  "benchmarkId": "valle-design-cad-corpus-v1",
+  "generator": {
+    "id": "native-grid-lcg32-v1",
+    "seed": 1592594996,
+    "rng": "LCG32(a=1664525,c=1013904223)",
+    "cellSize": 64,
+    "entityMix": {
+      "line": 0.5,
+      "circle": 0.25,
+      "arc": 0.25
+    }
+  },
+  "determinismFixture": {
+    "entities": 256,
+    "sha256": "43a8f277bad721ee271256364ce29fbda49e08f3d219b36b198f6b978d004757"
+  },
+  "profiles": [
+    {
+      "id": "smoke-10k",
+      "tier": "smoke",
+      "entities": 10000,
+      "queries": 128,
+      "dxfSampleEntities": 10000,
+      "budgetEnforcement": "blocking",
+      "nodeOldSpaceMb": 2048,
+      "hardware": {
+        "minimumTotalMemoryBytes": 2147483648,
+        "minimumFreeMemoryBytes": 0
+      },
+      "budgets": {
+        "totalMs": 45000,
+        "generateMs": 3000,
+        "spatialIndexBuildMs": 5000,
+        "selectionIndexBuildMs": 10000,
+        "selectionQueryP95Ms": 25,
+        "serializeMs": 10000,
+        "dxfRoundTripMs": 15000,
+        "peakRssBytes": 1610612736
+      }
+    },
+    {
+      "id": "smoke-100k",
+      "tier": "smoke",
+      "entities": 100000,
+      "queries": 128,
+      "dxfSampleEntities": 10000,
+      "budgetEnforcement": "blocking",
+      "nodeOldSpaceMb": 4096,
+      "hardware": {
+        "minimumTotalMemoryBytes": 4294967296,
+        "minimumFreeMemoryBytes": 0
+      },
+      "budgets": {
+        "totalMs": 180000,
+        "generateMs": 20000,
+        "spatialIndexBuildMs": 30000,
+        "selectionIndexBuildMs": 60000,
+        "selectionQueryP95Ms": 50,
+        "serializeMs": 60000,
+        "dxfRoundTripMs": 30000,
+        "peakRssBytes": 3221225472
+      }
+    },
+    {
+      "id": "scale-500k",
+      "tier": "scale",
+      "entities": 500000,
+      "queries": 128,
+      "dxfSampleEntities": 10000,
+      "budgetEnforcement": "report-only",
+      "nodeOldSpaceMb": 8192,
+      "hardware": {
+        "minimumTotalMemoryBytes": 12884901888,
+        "minimumFreeMemoryBytes": 8589934592
+      },
+      "budgets": {
+        "totalMs": 600000,
+        "generateMs": 60000,
+        "spatialIndexBuildMs": 120000,
+        "selectionIndexBuildMs": 240000,
+        "selectionQueryP95Ms": 100,
+        "serializeMs": 240000,
+        "dxfRoundTripMs": 30000,
+        "peakRssBytes": 6442450944
+      }
+    },
+    {
+      "id": "scale-1m",
+      "tier": "scale",
+      "entities": 1000000,
+      "queries": 128,
+      "dxfSampleEntities": 10000,
+      "budgetEnforcement": "report-only",
+      "nodeOldSpaceMb": 12288,
+      "hardware": {
+        "minimumTotalMemoryBytes": 25769803776,
+        "minimumFreeMemoryBytes": 17179869184
+      },
+      "budgets": {
+        "totalMs": 1200000,
+        "generateMs": 120000,
+        "spatialIndexBuildMs": 240000,
+        "selectionIndexBuildMs": 480000,
+        "selectionQueryP95Ms": 150,
+        "serializeMs": 480000,
+        "dxfRoundTripMs": 30000,
+        "peakRssBytes": 10737418240
+      }
+    }
+  ]
+}

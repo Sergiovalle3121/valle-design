@@ -8,14 +8,15 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { API_BASE, rawApiFetch } from "@/lib/apiFetch";
-import { loginUrl, readSession, type DesignSession } from "@/lib/session";
+import { designClient } from "@/lib/cad/repositories/client";
+import { loginUrl, type DesignSession } from "@/lib/session";
 
 interface DesignAuthValue {
   session: DesignSession | null;
   user: { id: string; email: string } | null;
   tenantId: string | null;
   organizationId: string | null;
+  organizationName: string | null;
   role: string | null;
   permissions: string[];
   isLoading: boolean;
@@ -36,7 +37,22 @@ export function DesignAuthProvider({
   const [isLoading, setIsLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    setSession(await readSession());
+    try {
+      const data = await designClient.identity.currentSession();
+      setSession({
+        userId: data.user.id,
+        email: data.user.email,
+        role: data.organization?.role ?? null,
+        tenantId: data.organization?.tenantId ?? null,
+        organizationId: data.organization?.id ?? null,
+        organizationName: data.organization?.name ?? null,
+        organizationSlug: data.organization?.slug ?? null,
+        permissions: data.organization?.permissions ?? [],
+        expiresAt: new Date(data.session.expiresAt).getTime() / 1_000,
+      });
+    } catch {
+      setSession(null);
+    }
   }, []);
 
   useEffect(() => {
@@ -50,7 +66,7 @@ export function DesignAuthProvider({
 
   const logout = useCallback(async () => {
     try {
-      await rawApiFetch(`${API_BASE}/v1/auth/logout`, { method: "POST" });
+      await designClient.identity.logout();
     } finally {
       setSession(null);
     }
@@ -62,6 +78,7 @@ export function DesignAuthProvider({
       user: session ? { id: session.userId, email: session.email } : null,
       tenantId: session?.tenantId ?? null,
       organizationId: session?.organizationId ?? null,
+      organizationName: session?.organizationName ?? null,
       role: session?.role ?? null,
       permissions: session?.permissions ?? [],
       isLoading,

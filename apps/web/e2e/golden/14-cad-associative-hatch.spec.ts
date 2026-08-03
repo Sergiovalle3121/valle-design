@@ -1,7 +1,7 @@
 import { expect, test, type BrowserContext } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
-import { loginAsMaster } from '../fixtures/session';
+import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
 
 type CadHatch = Extract<CadEntity, { type: 'hatch' }>;
@@ -42,9 +42,9 @@ async function installCadBackend(context: BrowserContext) {
 
 test('HATCH remains associated, regenerates with its source and reports a broken reference', async ({ context, page }) => {
   await installMockBackend(context);
-  await loginAsMaster(context);
+  await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
-  await page.goto('/studio');
+  await page.goto('/legacy/studio');
 
   await page.getByTestId('cad-native-entity-hatch-source-ellipse').click();
   await page.getByTitle(/^HATCH:/).click();
@@ -83,9 +83,9 @@ test('HATCH remains associated, regenerates with its source and reports a broken
 
 test('HATCH resolves an exact interior point through the production boundary picker', async ({ context, page }) => {
   await installMockBackend(context);
-  await loginAsMaster(context);
+  await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
-  await page.goto('/studio');
+  await page.goto('/legacy/studio');
 
   await page.getByTitle(/^HATCH:/).click();
   const palette = page.getByTestId('cad-hatch-palette');

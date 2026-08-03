@@ -6,45 +6,10 @@ export interface DesignSession {
   role: string | null;
   tenantId: string | null;
   organizationId: string | null;
+  organizationName: string | null;
+  organizationSlug: string | null;
   permissions: string[];
   expiresAt: number;
-}
-
-const SESSION_API_BASE = (
-  process.env.NEXT_PUBLIC_API_BASE ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  "http://localhost:4000"
-).replace(/\/$/, "");
-
-export async function readSession(): Promise<DesignSession | null> {
-  try {
-    const response = await fetch(`${SESSION_API_BASE}/v1/auth/session`, {
-      credentials: "include",
-      cache: "no-store",
-    });
-    if (!response.ok) return null;
-    const data = (await response.json()) as {
-      user: { id: string; email: string };
-      session: { expiresAt: string };
-      organization?: {
-        id?: string | null;
-        tenantId?: string | null;
-        role?: string | null;
-        permissions?: string[];
-      } | null;
-    };
-    return {
-      userId: data.user.id,
-      email: data.user.email,
-      role: data.organization?.role ?? null,
-      tenantId: data.organization?.tenantId ?? null,
-      organizationId: data.organization?.id ?? null,
-      permissions: data.organization?.permissions ?? [],
-      expiresAt: new Date(data.session.expiresAt).getTime() / 1000,
-    };
-  } catch {
-    return null;
-  }
 }
 
 export function csrfToken(): string | null {

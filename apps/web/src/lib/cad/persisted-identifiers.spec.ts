@@ -4,7 +4,6 @@ import {
   LEGACY_CAD_STUDIO_MODEL,
   LEGACY_CAD_STUDIO_REVISION,
   LEGACY_DXF_XDATA_APPS,
-  LEGACY_ENGINEERING_PERMISSION_MAP,
 } from "@valle-design/contracts";
 import { cadCommandHistoryStorageKey } from "./command-session";
 import { cadWorkspaceStorageKey } from "./cad-workspace";
@@ -15,6 +14,19 @@ assert.equal(LEGACY_CAD_STUDIO_REVISION, "UNIVERSAL");
 const legacyStudioPage = readFileSync("src/app/legacy/studio/page.tsx", "utf8");
 assert.ok(legacyStudioPage.includes(LEGACY_CAD_STUDIO_MODEL));
 assert.ok(legacyStudioPage.includes(LEGACY_CAD_STUDIO_REVISION));
+assert.match(
+  legacyStudioPage,
+  /designClient\.documents\s*\.list\(\{ model, revision, limit: 1 \}\)/,
+);
+assert.match(
+  legacyStudioPage,
+  /item\.model === model && item\.revision === revision/,
+);
+assert.doesNotMatch(
+  legacyStudioPage,
+  /rawApiFetch|URLSearchParams|limit:\s*(?:[2-9]|\d{2,})|\.create\(/,
+);
+assert.doesNotMatch(legacyStudioPage, /method:\s*["']POST["']/);
 
 const studioIndex = readFileSync("src/app/studio/page.tsx", "utf8");
 assert.match(studioIndex, /redirect\(["']\/dashboard["']\)/);
@@ -71,15 +83,6 @@ const xdataGolden = readFileSync(
 for (const application of LEGACY_DXF_XDATA_APPS) {
   assert.ok(xdataGolden.includes(application));
 }
-assert.deepEqual(LEGACY_ENGINEERING_PERMISSION_MAP["engineering:read"], [
-  "cad:view",
-]);
-assert.deepEqual(LEGACY_ENGINEERING_PERMISSION_MAP["engineering:write"], [
-  "cad:edit",
-  "cad:review",
-  "cad:publish",
-]);
-
 const editorSource = readFileSync(
   "src/components/line-engineering/Layout3DEditor.tsx",
   "utf8",

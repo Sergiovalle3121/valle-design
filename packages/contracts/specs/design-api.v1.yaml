@@ -1,38 +1,39 @@
 openapi: 3.1.0
 info:
-  title: Valle Design — API del producto CAD (v1)
+  title: Valle Design — API standalone (v1)
   version: 1.0.0
-  summary: Contrato v1 de la API HTTP del producto Design (CAD).
+  summary: Contrato v1 de identidad, organizaciones, comercial y CAD de Valle Design.
   description: |
-    Contrato FUENTE (SHARED_PROTOCOL) de la API que el producto **Design**
-    (repo futuro `valle-design`) expone bajo el prefijo `/v1`. Es el contrato
-    de Fase 2 de la separación de productos: describe la semántica REAL que hoy
-    implementa Enterprise bajo `/line-engineering/*`, reorganizada como API
-    orientada a recursos del dominio CAD (`cad_projects`, `cad_documents`,
+    Contrato FUENTE (SHARED_PROTOCOL) de la API que el producto standalone
+    **Valle Design** expone desde el repo `valle-design`. Identidad first-party,
+    organizaciones y estado comercial usan `/v1/auth`, `/v1/organizations` y
+    `/v1/commercial`; CAD conserva su prefijo canónico `/v1/cad`. La superficie
+    CAD reorganiza como recursos de dominio (`cad_projects`, `cad_documents`,
     `cad_document_versions`, `cad_publications`, `cad_review_sessions`,
     `cad_comments`, biblioteca de bloques).
 
-    ## Seguridad (requisito de servidor en TODOS los endpoints)
-    * Autenticación: **Bearer JWT** (`bearerAuth`). Sin token ⇒ `401`.
-      EXCEPCIÓN ÚNICA (Fase 5): la superficie del review link
-      (`/v1/review/*`) se autentica con el token server-owned del link
+    ## Seguridad
+    * Autenticación: cookie de sesión opaca first-party (`sessionCookie`).
+      Sin sesión válida ⇒ `401`. Las mutaciones también exigen
+      `X-CSRF-Token`, validado contra la cookie legible `valle_csrf`.
+      Registro, login, verificación y recuperación declaran `security: []` y
+      responden sin enumerar cuentas; los tokens de un solo uso nunca aparecen
+      en respuestas normales. La superficie del review link
+      (`/v1/cad/review/*`) se autentica con el token server-owned del link
       (`reviewToken`, header `X-Review-Token`) — contexto de SOLO LECTURA
       limitado al documento de la sesión; cualquier otra ruta con ese
       contexto responde `403` con `code: review_read_only` (el read-only lo
       impone el backend, no el frontend).
-    * Autorización comercial: el tenant necesita el entitlement
+    * Autorización comercial CAD: el tenant necesita el entitlement
       **`design.cad`** vigente (ver `PRODUCT_CAPABILITY_IDS` en
-      `@valle-design/contracts`). El servidor lo verifica en **todos** los endpoints;
+      `@valle-design/contracts`). El servidor lo verifica en cada endpoint CAD;
       si falta, responde el `403` estándar con `code: entitlement_required`
       (respuesta reutilizable `EntitlementRequired`). Cada operación lo declara
       además con la extensión `x-required-entitlement`.
     * Autorización funcional (RBAC): permisos granulares del producto
-      `cad:view | cad:edit | cad:review | cad:publish | cad:admin`,
-      declarados por operación con `x-required-permission`. DIFERENCIA
-      DELIBERADA respecto al legacy: `/line-engineering/*` usa
-      `engineering:read|write` (permisos del producto industrial); el producto
-      Design define su propio espacio `cad:*` para no arrastrar el RBAC de
-      Enterprise. El mapeo de transición vive en `src/design-contracts.ts`.
+      `cad:view | cad:edit | cad:review | cad:publish | cad:admin`, derivados
+      server-side de la membresía activa y declarados por operación con
+      `x-required-permission`. No se aceptan permisos enviados por el cliente.
 
     ## Identificadores LEGADOS persistidos (NO renombrar)
     Los documentos del CAD Studio "universal" se persistieron históricamente
@@ -83,10 +84,16 @@ servers:
   - url: https://design.api.interno
     description: >-
       Marcador de posición: el host real del producto Design se define al
-      desplegar el repo valle-design. Las rutas ya incluyen el prefijo /v1.
+      desplegar el repo valle-design. Las rutas ya incluyen su prefijo /v1.
 security:
-  - bearerAuth: []
+  - sessionCookie: []
 tags:
+  - name: identity
+    description: Identidad first-party, verificacion, recuperacion y sesiones opacas.
+  - name: organizations
+    description: Organizaciones, membresias e invitaciones del producto standalone.
+  - name: commercial
+    description: Estado de suscripcion y entitlements efectivos, sin precios ni secretos.
   - name: projects
     description: Proyectos CAD (`cad_projects`) — contenedor organizativo de documentos.
   - name: documents
@@ -103,15 +110,354 @@ tags:
       (`cad_comments`). Los tokens de review link son server-owned: se
       almacena solo su hash sha256 y el token en claro viaja ÚNICAMENTE en la
       respuesta de creación. Incluye la superficie del canje
-      (`/v1/review/*`): contexto de solo lectura autenticado por
+      (`/v1/cad/review/*`): contexto de solo lectura autenticado por
       `X-Review-Token`, con expiración y revocación comprobadas server-side
       en cada request.
   - name: dxf
     description: Plano DXF de fondo (importar/quitar) y exportación DXF R12 del documento.
   - name: blocks
     description: Biblioteca de bloques CAD reutilizables del tenant (CRUD).
+  - name: assistance
+    description: Asistencia opcional de lenguaje natural y visión; degrada de forma explícita si el motor no está disponible.
 paths:
-  /v1/projects:
+  /v1/auth/register:
+    post:
+      operationId: registerIdentity
+      tags: [identity]
+      summary: Registra una cuenta sin revelar si ya existia.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RegisterRequest" }
+      responses:
+        "202":
+          description: Solicitud aceptada; la verificacion viaja solo por correo.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AcceptedResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+  /v1/auth/login:
+    post:
+      operationId: loginIdentity
+      tags: [identity]
+      summary: Inicia una sesion mediante cookies first-party.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+      responses:
+        "200":
+          description: Sesion creada; el secreto viaja solo en Set-Cookie HttpOnly.
+          headers:
+            Set-Cookie:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LoginResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+  /v1/auth/session:
+    get:
+      operationId: getIdentitySession
+      tags: [identity]
+      summary: Lee la sesion y organizacion activa derivada server-side.
+      responses:
+        "200":
+          description: Contexto first-party vigente.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthSessionResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /v1/auth/logout:
+    post:
+      operationId: logoutIdentity
+      tags: [identity]
+      summary: Revoca la sesion actual y limpia sus cookies.
+      parameters:
+        - $ref: "#/components/parameters/csrfToken"
+      responses:
+        "204": { description: Sesion revocada. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /v1/auth/sessions:
+    get:
+      operationId: listIdentitySessions
+      tags: [identity]
+      summary: Lista como maximo 100 sesiones propias, incluidas las revocadas.
+      responses:
+        "200":
+          description: Sesiones del usuario autenticado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IdentitySessionList" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /v1/auth/sessions/rotate:
+    post:
+      operationId: rotateIdentitySession
+      tags: [identity]
+      summary: Revoca la sesion actual y emite una nueva.
+      parameters:
+        - $ref: "#/components/parameters/csrfToken"
+      responses:
+        "201":
+          description: Sesion rotada; el secreto nuevo viaja en Set-Cookie.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionRotationResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /v1/auth/sessions/revoke-all:
+    post:
+      operationId: revokeOtherIdentitySessions
+      tags: [identity]
+      summary: Revoca todas las demas sesiones propias.
+      parameters:
+        - $ref: "#/components/parameters/csrfToken"
+      responses:
+        "204": { description: Las demas sesiones quedaron revocadas. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /v1/auth/sessions/{sessionId}:
+    parameters:
+      - $ref: "#/components/parameters/identitySessionId"
+    delete:
+      operationId: revokeIdentitySession
+      tags: [identity]
+      summary: Revoca una sesion propia por UUID.
+      parameters:
+        - $ref: "#/components/parameters/csrfToken"
+      responses:
+        "204": { description: Sesion revocada o ya inactiva. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /v1/auth/verify-email:
+    post:
+      operationId: verifyIdentityEmail
+      tags: [identity]
+      summary: Consume una vez un token opaco de verificacion.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OneTimeTokenRequest" }
+      responses:
+        "201":
+          description: Correo verificado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EmailVerificationResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+  /v1/auth/verify-email/resend:
+    post:
+      operationId: resendIdentityVerification
+      tags: [identity]
+      summary: Solicita verificacion con respuesta no enumerable.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmailRequest" }
+      responses:
+        "202":
+          description: Solicitud aceptada exista o no la cuenta.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AcceptedResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+  /v1/auth/password/forgot:
+    post:
+      operationId: requestIdentityPasswordReset
+      tags: [identity]
+      summary: Solicita recuperacion con respuesta no enumerable.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmailRequest" }
+      responses:
+        "202":
+          description: Solicitud aceptada exista o no la cuenta.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AcceptedResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+  /v1/auth/password/reset:
+    post:
+      operationId: resetIdentityPassword
+      tags: [identity]
+      summary: Cambia la contrasena y revoca las sesiones anteriores.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PasswordResetRequest" }
+      responses:
+        "201":
+          description: Contrasena actualizada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PasswordResetResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+  /v1/organizations:
+    get:
+      operationId: listOrganizations
+      tags: [organizations]
+      summary: Lista organizaciones donde el usuario tiene membresia.
+      responses:
+        "200":
+          description: Organizaciones visibles para la sesion.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrganizationList" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      operationId: createOrganization
+      tags: [organizations]
+      summary: Crea organizacion, membresia owner y trial standalone.
+      parameters:
+        - $ref: "#/components/parameters/csrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OrganizationCreate" }
+      responses:
+        "201":
+          description: Organizacion creada y activada en la sesion.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrganizationCreated" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/organizations/active:
+    post:
+      operationId: activateOrganization
+      tags: [organizations]
+      summary: Activa una organizacion tras verificar membresia server-side.
+      parameters:
+        - $ref: "#/components/parameters/csrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ActiveOrganizationRequest" }
+      responses:
+        "201":
+          description: Contexto activo derivado server-side.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrganizationContext" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/organizations/{organizationId}/memberships:
+    parameters:
+      - $ref: "#/components/parameters/organizationId"
+    get:
+      operationId: listOrganizationMemberships
+      tags: [organizations]
+      summary: Lista hasta 200 miembros de una organizacion visible.
+      responses:
+        "200":
+          description: Membresias y perfiles minimos de colaboracion.
+          content:
+            application/json:
+              schema:
+                { $ref: "#/components/schemas/OrganizationMembershipList" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/organizations/{organizationId}/invitations:
+    parameters:
+      - $ref: "#/components/parameters/organizationId"
+    post:
+      operationId: createOrganizationInvitation
+      tags: [organizations]
+      summary: Invita por email sin devolver el token en la respuesta HTTP.
+      parameters:
+        - $ref: "#/components/parameters/csrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              { $ref: "#/components/schemas/OrganizationInvitationCreate" }
+      responses:
+        "201":
+          description: Invitacion encolada; el secreto solo viaja por correo.
+          content:
+            application/json:
+              schema:
+                { $ref: "#/components/schemas/OrganizationInvitationCreated" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/organizations/invitations/accept:
+    post:
+      operationId: acceptOrganizationInvitation
+      tags: [organizations]
+      summary: Consume una invitacion destinada al correo autenticado.
+      parameters:
+        - $ref: "#/components/parameters/csrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              { $ref: "#/components/schemas/OrganizationInvitationAccept" }
+      responses:
+        "201":
+          description: Membresia creada o actualizada.
+          content:
+            application/json:
+              schema:
+                { $ref: "#/components/schemas/OrganizationInvitationAccepted" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/commercial/subscription:
+    get:
+      operationId: getActiveSubscription
+      tags: [commercial]
+      summary: Lee la suscripcion de la organizacion activa server-side.
+      responses:
+        "200":
+          description: Estado sin precios, datos de pago ni secretos.
+          content:
+            application/json:
+              schema:
+                { $ref: "#/components/schemas/CommercialSubscriptionResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /v1/commercial/entitlements:
+    get:
+      operationId: listEffectiveEntitlements
+      tags: [commercial]
+      summary: Lista entitlements efectivos de la organizacion activa.
+      responses:
+        "200":
+          description: Lista vacia cuando no hay plan vigente.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EffectiveEntitlementList" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /v1/cad/projects:
     get:
       operationId: listCadProjects
       tags: [projects]
@@ -125,11 +471,11 @@ paths:
           schema:
             type: string
             enum: [active, archived]
-        - $ref: '#/components/parameters/searchQuery'
-        - $ref: '#/components/parameters/limit'
-        - $ref: '#/components/parameters/offset'
+        - $ref: "#/components/parameters/searchQuery"
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/offset"
       responses:
-        '200':
+        "200":
           description: Página de proyectos.
           content:
             application/json:
@@ -140,12 +486,12 @@ paths:
                   items:
                     type: array
                     items:
-                      $ref: '#/components/schemas/CadProject'
+                      $ref: "#/components/schemas/CadProject"
                   total:
                     type: integer
                     minimum: 0
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/EntitlementRequired' }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
     post:
       operationId: createCadProject
       tags: [projects]
@@ -157,20 +503,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CadProjectCreate'
+              $ref: "#/components/schemas/CadProjectCreate"
       responses:
-        '201':
+        "201":
           description: Proyecto creado.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CadProject'
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/EntitlementRequired' }
-  /v1/projects/{projectId}:
+                $ref: "#/components/schemas/CadProject"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+  /v1/cad/projects/{projectId}:
     parameters:
-      - $ref: '#/components/parameters/projectId'
+      - $ref: "#/components/parameters/projectId"
     get:
       operationId: getCadProject
       tags: [projects]
@@ -178,15 +524,15 @@ paths:
       x-required-entitlement: design.cad
       x-required-permission: cad:view
       responses:
-        '200':
+        "200":
           description: Proyecto.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CadProject'
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/EntitlementRequired' }
-        '404': { $ref: '#/components/responses/NotFound' }
+                $ref: "#/components/schemas/CadProject"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
     patch:
       operationId: updateCadProject
       tags: [projects]
@@ -198,18 +544,18 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CadProjectUpdate'
+              $ref: "#/components/schemas/CadProjectUpdate"
       responses:
-        '200':
+        "200":
           description: Proyecto actualizado.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CadProject'
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/EntitlementRequired' }
-        '404': { $ref: '#/components/responses/NotFound' }
+                $ref: "#/components/schemas/CadProject"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
     delete:
       operationId: archiveCadProject
       tags: [projects]
@@ -221,16 +567,16 @@ paths:
       x-required-entitlement: design.cad
       x-required-permission: cad:admin
       responses:
-        '200':
+        "200":
           description: Proyecto archivado.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CadProject'
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/EntitlementRequired' }
-        '404': { $ref: '#/components/responses/NotFound' }
-  /v1/documents:
+                $ref: "#/components/schemas/CadProject"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/cad/documents:
     get:
       operationId: listCadDocuments
       tags: [documents]
@@ -242,12 +588,22 @@ paths:
           in: query
           description: Filtra por proyecto contenedor.
           schema:
-            $ref: '#/components/schemas/CadProjectId'
-        - $ref: '#/components/parameters/searchQuery'
-        - $ref: '#/components/parameters/limit'
-        - $ref: '#/components/parameters/offset'
+            $ref: "#/components/schemas/CadProjectId"
+        - name: model
+          in: query
+          description: Coincidencia exacta del alias legacy persistido.
+          schema:
+            $ref: "#/components/schemas/LegacyModelAlias"
+        - name: revision
+          in: query
+          description: Coincidencia exacta de la revisión legacy persistida.
+          schema:
+            $ref: "#/components/schemas/LegacyRevisionAlias"
+        - $ref: "#/components/parameters/searchQuery"
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/offset"
       responses:
-        '200':
+        "200":
           description: Página de documentos (metadatos, SIN el documento canónico).
           content:
             application/json:
@@ -258,19 +614,19 @@ paths:
                   items:
                     type: array
                     items:
-                      $ref: '#/components/schemas/CadDocumentSummary'
+                      $ref: "#/components/schemas/CadDocumentSummary"
                   total:
                     type: integer
                     minimum: 0
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/EntitlementRequired' }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
     post:
       operationId: createCadDocument
       tags: [documents]
       summary: Crea un documento CAD (metadatos; contenido con versión CAS 0).
       description: >-
         Crea la fila contenedora con `cadDocumentVersion: 0`. El contenido se
-        guarda después con `PUT /v1/documents/{documentId}/content` (o
+        guarda después con `PUT /v1/cad/documents/{documentId}/content` (o
         `/archive`) declarando `expectedCadDocumentVersion: 0` en la primera
         escritura. Emite el evento `design.document.created.v1`.
       x-required-entitlement: design.cad
@@ -280,20 +636,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CadDocumentCreate'
+              $ref: "#/components/schemas/CadDocumentCreate"
       responses:
-        '201':
+        "201":
           description: Documento creado.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CadDocumentSummary'
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/EntitlementRequired' }
-  /v1/documents/{documentId}:
+                $ref: "#/components/schemas/CadDocumentSummary"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+  /v1/cad/documents/{documentId}:
     parameters:
-      - $ref: '#/components/parameters/documentId'
+      - $ref: "#/components/parameters/documentId"
     get:
       operationId: openCadDocument
       tags: [documents]
@@ -318,15 +674,15 @@ paths:
       x-required-entitlement: design.cad
       x-required-permission: cad:view
       responses:
-        '200':
+        "200":
           description: Documento abierto.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CadDocumentResource'
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/EntitlementRequired' }
-        '404': { $ref: '#/components/responses/NotFound' }
+                $ref: "#/components/schemas/CadDocumentResource"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
     patch:
       operationId: updateCadDocumentMeta
       tags: [documents]
@@ -341,18 +697,18 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CadDocumentMetaUpdate'
+              $ref: "#/components/schemas/CadDocumentMetaUpdate"
       responses:
-        '200':
+        "200":
           description: Metadatos actualizados.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CadDocumentSummary'
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/EntitlementRequired' }
-        '404': { $ref: '#/components/responses/NotFound' }
+                $ref: "#/components/schemas/CadDocumentSummary"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
     delete:
       operationId: archiveCadDocument
       tags: [documents]
@@ -363,12 +719,40 @@ paths:
       x-required-entitlement: design.cad
       x-required-permission: cad:admin
       responses:
-        '204':
+        "204":
           description: Documento archivado.
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/EntitlementRequired' }
-        '404': { $ref: '#/components/responses/NotFound' }
-  /v1/documents/{documentId}/content:
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/cad/documents/{documentId}/provisional:
+    delete:
+      operationId: discardProvisionalCadDocument
+      tags: [documents]
+      summary: Descarta un documento provisional propio tras fallar una importación.
+      description: >-
+        Rollback acotado para editores: sólo archiva la fila vacía creada por
+        el mismo actor dentro del tenant activo, con
+        `cadDocumentVersion = 0`, documento canónico nulo y sin fondo DXF. El
+        predicado se valida de forma atómica para no descartar contenido que se
+        guarde concurrentemente. No concede ni sustituye el borrado
+        administrativo general de `DELETE /v1/cad/documents/{documentId}`.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:edit
+      parameters:
+        - $ref: "#/components/parameters/documentId"
+      responses:
+        "204":
+          description: Documento provisional descartado.
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: El documento ya contiene información o dejó de ser provisional.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /v1/cad/documents/{documentId}/content:
     put:
       operationId: saveCadDocumentContent
       tags: [documents]
@@ -376,7 +760,7 @@ paths:
       description: |
         Rama inline del guardado: el documento viaja como JSON en el cuerpo
         (límite **8 000 000 bytes** serializado). Para documentos mayores usar
-        `PUT /v1/documents/{documentId}/archive` (gzip multipart).
+        `PUT /v1/cad/documents/{documentId}/archive` (gzip multipart).
 
         Reglas CAS (semántica real del backend):
         * `expectedCadDocumentVersion` es OBLIGATORIO; omitirlo ⇒
@@ -396,7 +780,7 @@ paths:
       x-required-entitlement: design.cad
       x-required-permission: cad:edit
       parameters:
-        - $ref: '#/components/parameters/documentId'
+        - $ref: "#/components/parameters/documentId"
       requestBody:
         required: true
         content:
@@ -406,22 +790,22 @@ paths:
               required: [cadDocument, expectedCadDocumentVersion]
               properties:
                 cadDocument:
-                  $ref: '#/components/schemas/CadDocumentInline'
+                  $ref: "#/components/schemas/CadDocumentInline"
                 expectedCadDocumentVersion:
-                  $ref: '#/components/schemas/CadDocumentVersionToken'
+                  $ref: "#/components/schemas/CadDocumentVersionToken"
       responses:
-        '200':
+        "200":
           description: Documento guardado; nueva versión CAS.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CadDocumentSaveResult'
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/EntitlementRequired' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/VersionConflict' }
-  /v1/documents/{documentId}/archive:
+                $ref: "#/components/schemas/CadDocumentSaveResult"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/VersionConflict" }
+  /v1/cad/documents/{documentId}/archive:
     put:
       operationId: saveCadDocumentArchive
       tags: [documents]
@@ -444,7 +828,7 @@ paths:
       x-required-entitlement: design.cad
       x-required-permission: cad:edit
       parameters:
-        - $ref: '#/components/parameters/documentId'
+        - $ref: "#/components/parameters/documentId"
       requestBody:
         required: true
         content:
@@ -469,24 +853,24 @@ paths:
               file:
                 contentType: application/gzip
       responses:
-        '200':
+        "200":
           description: Documento guardado; nueva versión CAS.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CadDocumentSaveResult'
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/EntitlementRequired' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/VersionConflict' }
-        '413':
+                $ref: "#/components/schemas/CadDocumentSaveResult"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/VersionConflict" }
+        "413":
           description: El archivo gzip excede 20 MiB (o el JSON descomprimido excede 128 MiB).
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiError'
-  /v1/documents/{documentId}/versions:
+                $ref: "#/components/schemas/ApiError"
+  /v1/cad/documents/{documentId}/versions:
     get:
       operationId: listCadDocumentVersions
       tags: [versions]
@@ -498,11 +882,11 @@ paths:
       x-required-entitlement: design.cad
       x-required-permission: cad:view
       parameters:
-        - $ref: '#/components/parameters/documentId'
-        - $ref: '#/components/parameters/limit'
-        - $ref: '#/components/parameters/offset'
+        - $ref: "#/components/parameters/documentId"
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/offset"
       responses:
-        '200':
+        "200":
           description: Historial de versiones.
           content:
             application/json:
@@ -513,14 +897,14 @@ paths:
                   items:
                     type: array
                     items:
-                      $ref: '#/components/schemas/CadDocumentVersionSummary'
+                      $ref: "#/components/schemas/CadDocumentVersionSummary"
                   total:
                     type: integer
                     minimum: 0
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/EntitlementRequired' }
-        '404': { $ref: '#/components/responses/NotFound' }
-  /v1/documents/{documentId}/versions/{version}:
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/cad/documents/{documentId}/versions/{version}:
     get:
       operationId: getCadDocumentVersion
       tags: [versions]
@@ -528,7 +912,7 @@ paths:
       x-required-entitlement: design.cad
       x-required-permission: cad:view
       parameters:
-        - $ref: '#/components/parameters/documentId'
+        - $ref: "#/components/parameters/documentId"
         - name: version
           in: path
           required: true
@@ -537,16 +921,16 @@ paths:
             type: integer
             minimum: 1
       responses:
-        '200':
+        "200":
           description: Versión con su payload tal como vivía (inline o puntero a blob).
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CadDocumentVersionDetail'
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/EntitlementRequired' }
-        '404': { $ref: '#/components/responses/NotFound' }
-  /v1/documents/{documentId}/publications:
+                $ref: "#/components/schemas/CadDocumentVersionDetail"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/cad/documents/{documentId}/publications:
     get:
       operationId: listCadPublications
       tags: [publications]
@@ -554,9 +938,9 @@ paths:
       x-required-entitlement: design.cad
       x-required-permission: cad:view
       parameters:
-        - $ref: '#/components/parameters/documentId'
+        - $ref: "#/components/parameters/documentId"
       responses:
-        '200':
+        "200":
           description: Recibos de publicación (inmutables), más reciente primero.
           content:
             application/json:
@@ -568,10 +952,10 @@ paths:
                     type: array
                     maxItems: 1000
                     items:
-                      $ref: '#/components/schemas/CadPublicationReceipt'
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/EntitlementRequired' }
-        '404': { $ref: '#/components/responses/NotFound' }
+                      $ref: "#/components/schemas/CadPublicationReceipt"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
     post:
       operationId: recordCadPublication
       tags: [publications]
@@ -592,26 +976,26 @@ paths:
       x-required-entitlement: design.cad
       x-required-permission: cad:publish
       parameters:
-        - $ref: '#/components/parameters/documentId'
+        - $ref: "#/components/parameters/documentId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CadPublicationCreate'
+              $ref: "#/components/schemas/CadPublicationCreate"
       responses:
-        '201':
+        "201":
           description: Recibo registrado.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CadPublicationReceipt'
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/EntitlementRequired' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/VersionConflict' }
-  /v1/documents/{documentId}/review-sessions:
+                $ref: "#/components/schemas/CadPublicationReceipt"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/VersionConflict" }
+  /v1/cad/documents/{documentId}/review-sessions:
     get:
       operationId: listCadReviewSessions
       tags: [reviews]
@@ -622,14 +1006,14 @@ paths:
       x-required-entitlement: design.cad
       x-required-permission: cad:review
       parameters:
-        - $ref: '#/components/parameters/documentId'
+        - $ref: "#/components/parameters/documentId"
         - name: status
           in: query
           schema:
             type: string
             enum: [open, closed]
       responses:
-        '200':
+        "200":
           description: Sesiones de revisión.
           content:
             application/json:
@@ -640,10 +1024,10 @@ paths:
                   items:
                     type: array
                     items:
-                      $ref: '#/components/schemas/CadReviewSession'
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/EntitlementRequired' }
-        '404': { $ref: '#/components/responses/NotFound' }
+                      $ref: "#/components/schemas/CadReviewSession"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
     post:
       operationId: createCadReviewSession
       tags: [reviews]
@@ -664,7 +1048,7 @@ paths:
       x-required-entitlement: design.cad
       x-required-permission: cad:review
       parameters:
-        - $ref: '#/components/parameters/documentId'
+        - $ref: "#/components/parameters/documentId"
       requestBody:
         required: false
         content:
@@ -691,17 +1075,17 @@ paths:
                     Omitido = default del despliegue (7 días). El servidor
                     acota el valor y siempre fija `expiresAt` él mismo.
       responses:
-        '201':
+        "201":
           description: Sesión creada (única aparición del token en claro).
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CadReviewSessionCreated'
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/EntitlementRequired' }
-        '404': { $ref: '#/components/responses/NotFound' }
-  /v1/review-sessions/{sessionId}/close:
+                $ref: "#/components/schemas/CadReviewSessionCreated"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/cad/review-sessions/{sessionId}/close:
     post:
       operationId: closeCadReviewSession
       tags: [reviews]
@@ -713,24 +1097,24 @@ paths:
       x-required-entitlement: design.cad
       x-required-permission: cad:review
       parameters:
-        - $ref: '#/components/parameters/sessionId'
+        - $ref: "#/components/parameters/sessionId"
       responses:
-        '200':
+        "200":
           description: Sesión cerrada.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CadReviewSession'
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/EntitlementRequired' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409':
-          description: 'La sesión ya estaba cerrada (`code: review_session_closed`).'
+                $ref: "#/components/schemas/CadReviewSession"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: "La sesión ya estaba cerrada (`code: review_session_closed`)."
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiError'
-  /v1/documents/{documentId}/comments:
+                $ref: "#/components/schemas/ApiError"
+  /v1/cad/documents/{documentId}/comments:
     get:
       operationId: listCadComments
       tags: [reviews]
@@ -738,18 +1122,18 @@ paths:
       x-required-entitlement: design.cad
       x-required-permission: cad:review
       parameters:
-        - $ref: '#/components/parameters/documentId'
+        - $ref: "#/components/parameters/documentId"
         - name: reviewSessionId
           in: query
           description: Filtra por sesión de revisión.
           schema:
-            $ref: '#/components/schemas/CadReviewSessionId'
+            $ref: "#/components/schemas/CadReviewSessionId"
         - name: resolved
           in: query
           schema:
             type: boolean
       responses:
-        '200':
+        "200":
           description: Comentarios.
           content:
             application/json:
@@ -761,10 +1145,10 @@ paths:
                     type: array
                     maxItems: 500
                     items:
-                      $ref: '#/components/schemas/CadComment'
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/EntitlementRequired' }
-        '404': { $ref: '#/components/responses/NotFound' }
+                      $ref: "#/components/schemas/CadComment"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
     post:
       operationId: createCadComment
       tags: [reviews]
@@ -777,25 +1161,25 @@ paths:
       x-required-entitlement: design.cad
       x-required-permission: cad:review
       parameters:
-        - $ref: '#/components/parameters/documentId'
+        - $ref: "#/components/parameters/documentId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CadCommentCreate'
+              $ref: "#/components/schemas/CadCommentCreate"
       responses:
-        '201':
+        "201":
           description: Comentario creado.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CadComment'
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/EntitlementRequired' }
-        '404': { $ref: '#/components/responses/NotFound' }
-  /v1/comments/{commentId}/resolve:
+                $ref: "#/components/schemas/CadComment"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/cad/comments/{commentId}/resolve:
     post:
       operationId: resolveCadComment
       tags: [reviews]
@@ -803,25 +1187,25 @@ paths:
       x-required-entitlement: design.cad
       x-required-permission: cad:review
       parameters:
-        - $ref: '#/components/parameters/commentId'
+        - $ref: "#/components/parameters/commentId"
       responses:
-        '200':
+        "200":
           description: Comentario resuelto.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CadComment'
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/EntitlementRequired' }
-        '404': { $ref: '#/components/responses/NotFound' }
-  /v1/review/context:
+                $ref: "#/components/schemas/CadComment"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/cad/review/context:
     get:
       operationId: redeemReviewLinkContext
       tags: [reviews]
-      summary: 'Canje del review link: contexto de solo lectura limitado al documento.'
+      summary: "Canje del review link: contexto de solo lectura limitado al documento."
       description: |
         ÚNICA superficie alcanzable con el token del review link (header
-        `X-Review-Token`; sin JWT). El servidor valida hash + expiración +
+        `X-Review-Token`; sin cookie de sesión). El servidor valida hash + expiración +
         revocación EN CADA request y responde el documento canónico HIDRATADO
         de la sesión (misma semántica de apertura del autor, proyección
         REDUCIDA — sin metadatos internos), la colocación del DXF de fondo y
@@ -835,15 +1219,15 @@ paths:
       security:
         - reviewToken: []
       responses:
-        '200':
+        "200":
           description: Contexto de solo lectura del review link.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ReviewLinkContext'
-        '401': { $ref: '#/components/responses/ReviewTokenRejected' }
-        '404': { $ref: '#/components/responses/NotFound' }
-  /v1/review/comments:
+                $ref: "#/components/schemas/ReviewLinkContext"
+        "401": { $ref: "#/components/responses/ReviewTokenRejected" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/cad/review/comments:
     get:
       operationId: listReviewLinkComments
       tags: [reviews]
@@ -854,7 +1238,7 @@ paths:
       security:
         - reviewToken: []
       responses:
-        '200':
+        "200":
           description: Comentarios de la sesión.
           content:
             application/json:
@@ -866,8 +1250,8 @@ paths:
                     type: array
                     maxItems: 500
                     items:
-                      $ref: '#/components/schemas/CadComment'
-        '401': { $ref: '#/components/responses/ReviewTokenRejected' }
+                      $ref: "#/components/schemas/CadComment"
+        "401": { $ref: "#/components/responses/ReviewTokenRejected" }
     post:
       operationId: createReviewLinkComment
       tags: [reviews]
@@ -892,24 +1276,24 @@ paths:
                   minLength: 1
                   maxLength: 1000
                 anchor:
-                  type: ['object', 'null']
+                  type: ["object", "null"]
                   description: Ancla en el dibujo (JSON libre). Null = sin ancla.
       responses:
-        '201':
+        "201":
           description: Comentario creado.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CadComment'
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/ReviewTokenRejected' }
-        '403':
-          description: 'La sesión no admite comentarios (`code: review_comments_disabled`).'
+                $ref: "#/components/schemas/CadComment"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/ReviewTokenRejected" }
+        "403":
+          description: "La sesión no admite comentarios (`code: review_comments_disabled`)."
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiError'
-  /v1/review/comments/{commentId}/resolve:
+                $ref: "#/components/schemas/ApiError"
+  /v1/cad/review/comments/{commentId}/resolve:
     post:
       operationId: resolveReviewLinkComment
       tags: [reviews]
@@ -920,25 +1304,25 @@ paths:
       security:
         - reviewToken: []
       parameters:
-        - $ref: '#/components/parameters/commentId'
+        - $ref: "#/components/parameters/commentId"
       responses:
-        '200':
+        "200":
           description: Comentario resuelto.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CadComment'
-        '401': { $ref: '#/components/responses/ReviewTokenRejected' }
-        '403':
-          description: 'La sesión no admite comentarios (`code: review_comments_disabled`).'
+                $ref: "#/components/schemas/CadComment"
+        "401": { $ref: "#/components/responses/ReviewTokenRejected" }
+        "403":
+          description: "La sesión no admite comentarios (`code: review_comments_disabled`)."
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiError'
-        '404': { $ref: '#/components/responses/NotFound' }
-  /v1/documents/{documentId}/dxf:
+                $ref: "#/components/schemas/ApiError"
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/cad/documents/{documentId}/dxf:
     parameters:
-      - $ref: '#/components/parameters/documentId'
+      - $ref: "#/components/parameters/documentId"
     get:
       operationId: getCadDxfBackground
       tags: [dxf]
@@ -950,15 +1334,15 @@ paths:
       x-required-entitlement: design.cad
       x-required-permission: cad:view
       responses:
-        '200':
+        "200":
           description: Plano de fondo (nombre, contenido crudo y colocación).
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DxfBackground'
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/EntitlementRequired' }
-        '404': { $ref: '#/components/responses/NotFound' }
+                $ref: "#/components/schemas/DxfBackground"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
     put:
       operationId: importCadDxfBackground
       tags: [dxf]
@@ -974,18 +1358,18 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/DxfBackgroundUpload'
+              $ref: "#/components/schemas/DxfBackgroundUpload"
       responses:
-        '200':
+        "200":
           description: Plano importado/actualizado.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DxfBackground'
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/EntitlementRequired' }
-        '404': { $ref: '#/components/responses/NotFound' }
+                $ref: "#/components/schemas/DxfBackground"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
     delete:
       operationId: removeCadDxfBackground
       tags: [dxf]
@@ -993,12 +1377,12 @@ paths:
       x-required-entitlement: design.cad
       x-required-permission: cad:edit
       responses:
-        '204':
+        "204":
           description: Plano eliminado.
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/EntitlementRequired' }
-        '404': { $ref: '#/components/responses/NotFound' }
-  /v1/documents/{documentId}/export/dxf:
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/cad/documents/{documentId}/export/dxf:
     get:
       operationId: exportCadDocumentDxf
       tags: [dxf]
@@ -1011,18 +1395,18 @@ paths:
       x-required-entitlement: design.cad
       x-required-permission: cad:view
       parameters:
-        - $ref: '#/components/parameters/documentId'
+        - $ref: "#/components/parameters/documentId"
       responses:
-        '200':
+        "200":
           description: Exportación DXF.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DxfExport'
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/EntitlementRequired' }
-        '404': { $ref: '#/components/responses/NotFound' }
-  /v1/blocks:
+                $ref: "#/components/schemas/DxfExport"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/cad/blocks:
     get:
       operationId: listCadBlocks
       tags: [blocks]
@@ -1041,7 +1425,7 @@ paths:
             type: string
             maxLength: 200
       responses:
-        '200':
+        "200":
           description: Bloques ordenados por nombre.
           content:
             application/json:
@@ -1053,9 +1437,9 @@ paths:
                     type: array
                     maxItems: 200
                     items:
-                      $ref: '#/components/schemas/CadBlock'
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/EntitlementRequired' }
+                      $ref: "#/components/schemas/CadBlock"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
     post:
       operationId: createCadBlock
       tags: [blocks]
@@ -1072,20 +1456,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CadBlockCreate'
+              $ref: "#/components/schemas/CadBlockCreate"
       responses:
-        '201':
+        "201":
           description: Bloque creado (versión 1).
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CadBlock'
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/EntitlementRequired' }
-  /v1/blocks/{blockId}:
+                $ref: "#/components/schemas/CadBlock"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+  /v1/cad/blocks/{blockId}:
     parameters:
-      - $ref: '#/components/parameters/blockId'
+      - $ref: "#/components/parameters/blockId"
     get:
       operationId: getCadBlock
       tags: [blocks]
@@ -1093,15 +1477,15 @@ paths:
       x-required-entitlement: design.cad
       x-required-permission: cad:view
       responses:
-        '200':
+        "200":
           description: Bloque.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CadBlock'
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/EntitlementRequired' }
-        '404': { $ref: '#/components/responses/NotFound' }
+                $ref: "#/components/schemas/CadBlock"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
     patch:
       operationId: updateCadBlock
       tags: [blocks]
@@ -1116,18 +1500,18 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CadBlockUpdate'
+              $ref: "#/components/schemas/CadBlockUpdate"
       responses:
-        '200':
+        "200":
           description: Bloque actualizado.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CadBlock'
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/EntitlementRequired' }
-        '404': { $ref: '#/components/responses/NotFound' }
+                $ref: "#/components/schemas/CadBlock"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
     delete:
       operationId: removeCadBlock
       tags: [blocks]
@@ -1138,22 +1522,80 @@ paths:
       x-required-entitlement: design.cad
       x-required-permission: cad:edit
       responses:
-        '204':
+        "204":
           description: Bloque eliminado.
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/EntitlementRequired' }
-        '404': { $ref: '#/components/responses/NotFound' }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/cad/documents/{documentId}/intent:
+    parameters:
+      - $ref: "#/components/parameters/documentId"
+    post:
+      operationId: interpretCadIntent
+      tags: [assistance]
+      summary: Interpreta una instrucción de lenguaje natural para un documento.
+      description: >-
+        Devuelve propuestas de herramientas; nunca aplica cambios al documento.
+        Si el motor no está configurado, responde `available: false` de forma
+        determinista.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CadIntentRequest"
+      responses:
+        "201":
+          description: Resultado de interpretación, disponible o degradado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CadIntentResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/cad/vision:
+    post:
+      operationId: vectorizeCadImage
+      tags: [assistance]
+      summary: Propone geometría CAD a partir de una imagen embebida.
+      description: >-
+        Devuelve la salida cruda del motor para validación en el cliente. Si
+        el motor no está configurado, responde `available: false`.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CadVisionRequest"
+      responses:
+        "201":
+          description: Resultado de visión, disponible o degradado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CadVisionResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
 components:
   securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: __Host-valle_session
       description: >-
-        Token de identidad emitido por Platform (ver
-        `specs/platform-api.v1.yaml`). El servidor resuelve tenant, usuario,
-        permisos `cad:*` y el entitlement `design.cad` a partir de él; ningún
-        parámetro del cliente concede acceso.
+        Cookie opaca HttpOnly y first-party. Producción usa
+        `__Host-valle_session` con Secure; desarrollo local usa
+        `valle_session` sin el prefijo reservado. El servidor resuelve usuario,
+        organización activa, tenant y permisos desde la sesión y la membresía;
+        ningún parámetro del cliente concede acceso. Toda mutación normal
+        exige además `X-CSRF-Token`, igual a la cookie `valle_csrf`.
     reviewToken:
       type: apiKey
       in: header
@@ -1166,39 +1608,62 @@ components:
         `token_hash`, y valida expiración (`expiresAt`) y revocación
         (`revokedAt` — cerrar la sesión mata el token de inmediato). El
         tenant y el documento salen de la FILA de la sesión, jamás del
-        cliente. Solo autentica la superficie `/v1/review/*`; con este
+        cliente. Solo autentica la superficie `/v1/cad/review/*`; con este
         contexto cualquier otra ruta es `403 review_read_only`.
   parameters:
+    csrfToken:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      description: Token de doble envio igual a la cookie legible valle_csrf.
+      schema:
+        type: string
+        minLength: 32
+        maxLength: 256
+    identitySessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    organizationId:
+      name: organizationId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     projectId:
       name: projectId
       in: path
       required: true
       schema:
-        $ref: '#/components/schemas/CadProjectId'
+        $ref: "#/components/schemas/CadProjectId"
     documentId:
       name: documentId
       in: path
       required: true
       schema:
-        $ref: '#/components/schemas/CadDocumentId'
+        $ref: "#/components/schemas/CadDocumentId"
     sessionId:
       name: sessionId
       in: path
       required: true
       schema:
-        $ref: '#/components/schemas/CadReviewSessionId'
+        $ref: "#/components/schemas/CadReviewSessionId"
     commentId:
       name: commentId
       in: path
       required: true
       schema:
-        $ref: '#/components/schemas/CadCommentId'
+        $ref: "#/components/schemas/CadCommentId"
     blockId:
       name: blockId
       in: path
       required: true
       schema:
-        $ref: '#/components/schemas/CadBlockId'
+        $ref: "#/components/schemas/CadBlockId"
     searchQuery:
       name: q
       in: query
@@ -1230,28 +1695,40 @@ components:
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ApiError'
+            $ref: "#/components/schemas/ApiError"
     Unauthorized:
-      description: Falta el bearer token o es inválido/expirado.
+      description: Falta la sesión first-party o es inválida/expirada.
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ApiError'
+            $ref: "#/components/schemas/ApiError"
+    TooManyRequests:
+      description: Limite de solicitudes excedido sin revelar existencia de cuentas.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    Forbidden:
+      description: Sesión sin CSRF válido o sin autoridad para la operación.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
     EntitlementRequired:
       description: >-
-        Respuesta 403 ESTÁNDAR de todos los endpoints: el tenant no tiene el
+        Respuesta 403 ESTÁNDAR de los endpoints CAD: el tenant no tiene el
         entitlement `design.cad` vigente (o el usuario carece del permiso
         `cad:*` requerido — ver `details.reason`).
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/EntitlementRequiredError'
+            $ref: "#/components/schemas/EntitlementRequiredError"
     NotFound:
       description: El recurso no existe o no pertenece al tenant.
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ApiError'
+            $ref: "#/components/schemas/ApiError"
     VersionConflict:
       description: >-
         CAS fallido: `expectedCadDocumentVersion` no coincide con la versión
@@ -1260,7 +1737,7 @@ components:
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/CadDocumentVersionConflictError'
+            $ref: "#/components/schemas/CadDocumentVersionConflictError"
     ReviewTokenRejected:
       description: >-
         Review link rechazado: token desconocido/malformado
@@ -1270,8 +1747,331 @@ components:
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ApiError'
+            $ref: "#/components/schemas/ApiError"
   schemas:
+    EmailAddress:
+      type: string
+      format: email
+      maxLength: 254
+    Password:
+      type: string
+      format: password
+      minLength: 12
+      maxLength: 128
+      writeOnly: true
+    OpaqueOneTimeToken:
+      type: string
+      minLength: 32
+      maxLength: 256
+      writeOnly: true
+    EmailRequest:
+      type: object
+      additionalProperties: false
+      required: [email]
+      properties:
+        email: { $ref: "#/components/schemas/EmailAddress" }
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email: { $ref: "#/components/schemas/EmailAddress" }
+        password: { $ref: "#/components/schemas/Password" }
+    RegisterRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email: { $ref: "#/components/schemas/EmailAddress" }
+        password: { $ref: "#/components/schemas/Password" }
+        displayName:
+          type: string
+          maxLength: 160
+    OneTimeTokenRequest:
+      type: object
+      additionalProperties: false
+      required: [token]
+      properties:
+        token: { $ref: "#/components/schemas/OpaqueOneTimeToken" }
+    PasswordResetRequest:
+      type: object
+      additionalProperties: false
+      required: [token, password]
+      properties:
+        token: { $ref: "#/components/schemas/OpaqueOneTimeToken" }
+        password: { $ref: "#/components/schemas/Password" }
+    AcceptedResponse:
+      type: object
+      additionalProperties: false
+      required: [accepted]
+      properties:
+        accepted: { type: boolean, const: true }
+    LoginResponse:
+      type: object
+      additionalProperties: false
+      required: [user, expiresAt]
+      properties:
+        user:
+          type: object
+          additionalProperties: false
+          required: [id, email]
+          properties:
+            id: { type: string, format: uuid }
+            email: { $ref: "#/components/schemas/EmailAddress" }
+        expiresAt: { $ref: "#/components/schemas/Timestamp" }
+    AuthSessionResponse:
+      type: object
+      additionalProperties: false
+      required: [user, session, organization]
+      properties:
+        user:
+          type: object
+          additionalProperties: false
+          required: [id, email, emailVerified]
+          properties:
+            id: { type: string, format: uuid }
+            email: { $ref: "#/components/schemas/EmailAddress" }
+            emailVerified: { type: boolean }
+        session:
+          type: object
+          additionalProperties: false
+          required: [id, expiresAt]
+          properties:
+            id: { type: string, format: uuid }
+            expiresAt: { $ref: "#/components/schemas/Timestamp" }
+        organization:
+          oneOf:
+            - $ref: "#/components/schemas/OrganizationSessionContext"
+            - type: "null"
+    IdentitySession:
+      type: object
+      additionalProperties: false
+      required: [id, current, createdAt, expiresAt, revokedAt, userAgent]
+      properties:
+        id: { type: string, format: uuid }
+        current: { type: boolean }
+        createdAt: { $ref: "#/components/schemas/Timestamp" }
+        expiresAt: { $ref: "#/components/schemas/Timestamp" }
+        revokedAt:
+          oneOf:
+            - $ref: "#/components/schemas/Timestamp"
+            - type: "null"
+        userAgent:
+          type: [string, "null"]
+          maxLength: 500
+    IdentitySessionList:
+      type: object
+      additionalProperties: false
+      required: [sessions]
+      properties:
+        sessions:
+          type: array
+          maxItems: 100
+          items: { $ref: "#/components/schemas/IdentitySession" }
+    SessionRotationResponse:
+      type: object
+      additionalProperties: false
+      required: [expiresAt]
+      properties:
+        expiresAt: { $ref: "#/components/schemas/Timestamp" }
+    EmailVerificationResponse:
+      type: object
+      additionalProperties: false
+      required: [verified]
+      properties:
+        verified: { type: boolean, const: true }
+    PasswordResetResponse:
+      type: object
+      additionalProperties: false
+      required: [reset]
+      properties:
+        reset: { type: boolean, const: true }
+    OrganizationRole:
+      type: string
+      enum: [owner, admin, member, viewer]
+    OrganizationInvitationRole:
+      type: string
+      enum: [admin, member, viewer]
+    CadPermission:
+      type: string
+      enum: ["cad:view", "cad:edit", "cad:review", "cad:publish", "cad:admin"]
+    OrganizationCreate:
+      type: object
+      additionalProperties: false
+      required: [name, slug]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 160 }
+        slug:
+          type: string
+          minLength: 2
+          maxLength: 80
+          pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    OrganizationListItem:
+      type: object
+      additionalProperties: false
+      required: [id, name, slug, role, active]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        role: { $ref: "#/components/schemas/OrganizationRole" }
+        active: { type: boolean }
+    OrganizationList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/OrganizationListItem" }
+    SubscriptionStatus:
+      type: string
+      enum: [trialing, active, past_due, suspended, cancelled]
+    SubscriptionView:
+      type: object
+      additionalProperties: false
+      required: [planCode, status, trialEndsAt]
+      properties:
+        planCode: { type: string, maxLength: 80 }
+        status: { $ref: "#/components/schemas/SubscriptionStatus" }
+        trialEndsAt:
+          oneOf:
+            - $ref: "#/components/schemas/Timestamp"
+            - type: "null"
+    OrganizationCreated:
+      type: object
+      additionalProperties: false
+      required: [id, name, slug, ownerUserId, createdAt, tenantId, subscription]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        ownerUserId: { type: string, format: uuid }
+        createdAt: { $ref: "#/components/schemas/Timestamp" }
+        tenantId: { type: string, format: uuid }
+        subscription: { $ref: "#/components/schemas/SubscriptionView" }
+    ActiveOrganizationRequest:
+      type: object
+      additionalProperties: false
+      required: [organizationId]
+      properties:
+        organizationId: { type: string, format: uuid }
+    OrganizationSessionContext:
+      type: object
+      additionalProperties: false
+      required: [id, name, slug, tenantId, role, permissions]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        tenantId: { type: string, format: uuid }
+        role: { $ref: "#/components/schemas/OrganizationRole" }
+        permissions:
+          type: array
+          uniqueItems: true
+          items: { $ref: "#/components/schemas/CadPermission" }
+    OrganizationContext:
+      type: object
+      additionalProperties: false
+      required: [organization, tenantId, role, permissions]
+      properties:
+        organization:
+          type: object
+          additionalProperties: false
+          required: [id, name, slug]
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string }
+            slug: { type: string }
+        tenantId: { type: string, format: uuid }
+        role: { $ref: "#/components/schemas/OrganizationRole" }
+        permissions:
+          type: array
+          uniqueItems: true
+          items: { $ref: "#/components/schemas/CadPermission" }
+    OrganizationMembership:
+      type: object
+      additionalProperties: false
+      required: [id, userId, email, displayName, role, currentUser, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        email: { $ref: "#/components/schemas/EmailAddress" }
+        displayName:
+          type: [string, "null"]
+          maxLength: 160
+        role: { $ref: "#/components/schemas/OrganizationRole" }
+        currentUser: { type: boolean }
+        createdAt: { $ref: "#/components/schemas/Timestamp" }
+    OrganizationMembershipList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          maxItems: 200
+          items: { $ref: "#/components/schemas/OrganizationMembership" }
+    OrganizationInvitationCreate:
+      type: object
+      additionalProperties: false
+      required: [email, role]
+      properties:
+        email: { $ref: "#/components/schemas/EmailAddress" }
+        role: { $ref: "#/components/schemas/OrganizationInvitationRole" }
+    OrganizationInvitationCreated:
+      type: object
+      additionalProperties: false
+      required: [accepted, invitationId]
+      properties:
+        accepted: { type: boolean, const: true }
+        invitationId: { type: string, format: uuid }
+    OrganizationInvitationAccept:
+      type: object
+      additionalProperties: false
+      required: [token]
+      properties:
+        token: { $ref: "#/components/schemas/OpaqueOneTimeToken" }
+    OrganizationInvitationAccepted:
+      type: object
+      additionalProperties: false
+      required: [accepted, organizationId, role]
+      properties:
+        accepted: { type: boolean, const: true }
+        organizationId: { type: string, format: uuid }
+        role: { $ref: "#/components/schemas/OrganizationInvitationRole" }
+    EffectiveSubscriptionView:
+      allOf:
+        - $ref: "#/components/schemas/SubscriptionView"
+        - type: object
+          required: [effective]
+          properties:
+            effective: { type: boolean }
+    CommercialSubscriptionResponse:
+      type: object
+      additionalProperties: false
+      required: [organizationId, subscription]
+      properties:
+        organizationId:
+          type: [string, "null"]
+          format: uuid
+        subscription:
+          oneOf:
+            - $ref: "#/components/schemas/EffectiveSubscriptionView"
+            - type: "null"
+    EffectiveEntitlementList:
+      type: object
+      additionalProperties: false
+      required: [organizationId, items]
+      properties:
+        organizationId:
+          type: [string, "null"]
+          format: uuid
+        items:
+          type: array
+          maxItems: 200
+          uniqueItems: true
+          items: { type: string, maxLength: 120 }
     CadProjectId:
       type: string
       format: uuid
@@ -1328,7 +2128,7 @@ components:
       description: Fecha-hora ISO 8601 en UTC.
     Sha256:
       type: string
-      pattern: '^[A-Fa-f0-9]{64}$'
+      pattern: "^[A-Fa-f0-9]{64}$"
       description: Hash SHA-256 en hexadecimal (el servidor lo normaliza a minúsculas).
     ApiError:
       type: object
@@ -1368,7 +2168,7 @@ components:
           description: Correlación con los logs del servidor (`x-request-id`).
     EntitlementRequiredError:
       allOf:
-        - $ref: '#/components/schemas/ApiError'
+        - $ref: "#/components/schemas/ApiError"
         - type: object
           required: [code]
           properties:
@@ -1391,10 +2191,17 @@ components:
                     no tiene el permiso `cad:*` requerido.
                 requiredPermission:
                   type: string
-                  enum: ['cad:view', 'cad:edit', 'cad:review', 'cad:publish', 'cad:admin']
+                  enum:
+                    [
+                      "cad:view",
+                      "cad:edit",
+                      "cad:review",
+                      "cad:publish",
+                      "cad:admin",
+                    ]
     CadDocumentVersionConflictError:
       allOf:
-        - $ref: '#/components/schemas/ApiError'
+        - $ref: "#/components/schemas/ApiError"
         - type: object
           required: [code, expected, current]
           description: >-
@@ -1419,26 +2226,26 @@ components:
       required: [id, name, status, createdAt]
       properties:
         id:
-          $ref: '#/components/schemas/CadProjectId'
+          $ref: "#/components/schemas/CadProjectId"
         name:
           type: string
           maxLength: 160
         description:
-          type: ['string', 'null']
+          type: ["string", "null"]
           maxLength: 500
         status:
           type: string
           enum: [active, archived]
         legacySourceId:
-          type: ['string', 'null']
+          type: ["string", "null"]
           maxLength: 64
           description: Id del origen legacy (copia de Fase 4). Null = proyecto nativo.
         createdAt:
-          $ref: '#/components/schemas/Timestamp'
+          $ref: "#/components/schemas/Timestamp"
         updatedAt:
-          $ref: '#/components/schemas/Timestamp'
+          $ref: "#/components/schemas/Timestamp"
         createdBy:
-          $ref: '#/components/schemas/Actor'
+          $ref: "#/components/schemas/Actor"
     CadProjectCreate:
       type: object
       required: [name]
@@ -1459,7 +2266,7 @@ components:
           minLength: 1
           maxLength: 160
         description:
-          type: ['string', 'null']
+          type: ["string", "null"]
           maxLength: 500
         status:
           type: string
@@ -1470,39 +2277,39 @@ components:
       required: [id, name, cadDocumentVersion, createdAt]
       properties:
         id:
-          $ref: '#/components/schemas/CadDocumentId'
+          $ref: "#/components/schemas/CadDocumentId"
         projectId:
           oneOf:
-            - $ref: '#/components/schemas/CadProjectId'
-            - type: 'null'
+            - $ref: "#/components/schemas/CadProjectId"
+            - type: "null"
         name:
           type: string
           maxLength: 160
         model:
           oneOf:
-            - $ref: '#/components/schemas/LegacyModelAlias'
-            - type: 'null'
+            - $ref: "#/components/schemas/LegacyModelAlias"
+            - type: "null"
         revision:
           oneOf:
-            - $ref: '#/components/schemas/LegacyRevisionAlias'
-            - type: 'null'
+            - $ref: "#/components/schemas/LegacyRevisionAlias"
+            - type: "null"
         cadDocumentVersion:
-          $ref: '#/components/schemas/CadDocumentVersionToken'
+          $ref: "#/components/schemas/CadDocumentVersionToken"
         layers:
-          type: ['array', 'null']
+          type: ["array", "null"]
           description: Capas CAD (id/nombre/color/visible/locked). Null = capa implícita.
           items:
             type: object
         legacySourceId:
-          type: ['string', 'null']
+          type: ["string", "null"]
           maxLength: 36
           description: Id de `sf_line_layouts` de origen. Null = documento nativo.
         createdAt:
-          $ref: '#/components/schemas/Timestamp'
+          $ref: "#/components/schemas/Timestamp"
         updatedAt:
-          $ref: '#/components/schemas/Timestamp'
+          $ref: "#/components/schemas/Timestamp"
         createdBy:
-          $ref: '#/components/schemas/Actor'
+          $ref: "#/components/schemas/Actor"
     CadDocumentCreate:
       type: object
       required: [name]
@@ -1512,11 +2319,11 @@ components:
           minLength: 1
           maxLength: 160
         projectId:
-          $ref: '#/components/schemas/CadProjectId'
+          $ref: "#/components/schemas/CadProjectId"
         model:
-          $ref: '#/components/schemas/LegacyModelAlias'
+          $ref: "#/components/schemas/LegacyModelAlias"
         revision:
-          $ref: '#/components/schemas/LegacyRevisionAlias'
+          $ref: "#/components/schemas/LegacyRevisionAlias"
     CadDocumentMetaUpdate:
       type: object
       minProperties: 1
@@ -1527,22 +2334,22 @@ components:
           maxLength: 160
         projectId:
           oneOf:
-            - $ref: '#/components/schemas/CadProjectId'
-            - type: 'null'
+            - $ref: "#/components/schemas/CadProjectId"
+            - type: "null"
         layers:
-          type: ['array', 'null']
+          type: ["array", "null"]
           items:
             type: object
     CadDocumentResource:
       allOf:
-        - $ref: '#/components/schemas/CadDocumentSummary'
+        - $ref: "#/components/schemas/CadDocumentSummary"
         - type: object
           required: [cadDocument]
           properties:
             cadDocument:
               oneOf:
-                - $ref: '#/components/schemas/CadDocumentEnvelope'
-                - type: 'null'
+                - $ref: "#/components/schemas/CadDocumentEnvelope"
+                - type: "null"
               description: >-
                 Null = documento creado pero nunca guardado (versión 0).
                 Desde R3 el servidor HIDRATA la respuesta: en la práctica este
@@ -1552,8 +2359,8 @@ components:
                 cualquier lector del envelope sigue siendo válido).
             dxf:
               oneOf:
-                - $ref: '#/components/schemas/DxfPlacement'
-                - type: 'null'
+                - $ref: "#/components/schemas/DxfPlacement"
+                - type: "null"
               description: >-
                 ADITIVO R3 (paridad con el layout legacy): COLOCACIÓN del
                 plano DXF de fondo, incluida en la apertura para que el
@@ -1567,8 +2374,8 @@ components:
         cuando vive como archivo gzip en el blob store. El cliente distingue
         por la presencia de `_storage.kind === 'document_blob'`.
       oneOf:
-        - $ref: '#/components/schemas/CadDocumentInline'
-        - $ref: '#/components/schemas/CadDocumentBlobPointer'
+        - $ref: "#/components/schemas/CadDocumentInline"
+        - $ref: "#/components/schemas/CadDocumentBlobPointer"
     CadDocumentInline:
       type: object
       description: |
@@ -1635,7 +2442,7 @@ components:
           type: array
           maxItems: 500
           items:
-            $ref: '#/components/schemas/PaperSpace'
+            $ref: "#/components/schemas/PaperSpace"
         publications:
           type: array
           maxItems: 1000
@@ -1643,7 +2450,7 @@ components:
             Recibos embebidos de publicación. SERVER-MANAGED: solo el endpoint
             de publicación los crea; un guardado normal debe hacer eco exacto.
           items:
-            $ref: '#/components/schemas/CadPublicationReceiptEmbedded'
+            $ref: "#/components/schemas/CadPublicationReceiptEmbedded"
         collaboration:
           type: object
           properties:
@@ -1710,9 +2517,9 @@ components:
                 type: number
                 exclusiveMinimum: 0
               paperBounds:
-                $ref: '#/components/schemas/Bounds'
+                $ref: "#/components/schemas/Bounds"
               modelBounds:
-                $ref: '#/components/schemas/Bounds'
+                $ref: "#/components/schemas/Bounds"
     Bounds:
       type: object
       required: [width, height]
@@ -1734,7 +2541,16 @@ components:
       properties:
         _storage:
           type: object
-          required: [kind, version, blobKey, sha256, encoding, compressedBytes, uncompressedBytes]
+          required:
+            [
+              kind,
+              version,
+              blobKey,
+              sha256,
+              encoding,
+              compressedBytes,
+              uncompressedBytes,
+            ]
           properties:
             kind:
               type: string
@@ -1746,7 +2562,7 @@ components:
               type: string
               minLength: 1
             sha256:
-              $ref: '#/components/schemas/Sha256'
+              $ref: "#/components/schemas/Sha256"
             encoding:
               type: string
               const: gzip
@@ -1780,7 +2596,7 @@ components:
       required: [cadDocumentId, cadDocumentVersion, entityCount]
       properties:
         cadDocumentId:
-          $ref: '#/components/schemas/CadDocumentId'
+          $ref: "#/components/schemas/CadDocumentId"
         cadDocumentVersion:
           type: integer
           minimum: 1
@@ -1796,38 +2612,39 @@ components:
       required: [documentId, version, createdAt]
       properties:
         documentId:
-          $ref: '#/components/schemas/CadDocumentId'
+          $ref: "#/components/schemas/CadDocumentId"
         version:
           type: integer
           minimum: 1
           description: Versión CAS que esta fila representa (única por documento).
         sha256:
           oneOf:
-            - $ref: '#/components/schemas/Sha256'
-            - type: 'null'
+            - $ref: "#/components/schemas/Sha256"
+            - type: "null"
           description: Hash del archivo comprimido (puntero) o del JSON inline; null si n/d.
         createdAt:
-          $ref: '#/components/schemas/Timestamp'
+          $ref: "#/components/schemas/Timestamp"
         createdBy:
-          $ref: '#/components/schemas/Actor'
+          $ref: "#/components/schemas/Actor"
     CadDocumentVersionDetail:
       allOf:
-        - $ref: '#/components/schemas/CadDocumentVersionSummary'
+        - $ref: "#/components/schemas/CadDocumentVersionSummary"
         - type: object
           required: [cadDocument]
           properties:
             cadDocument:
-              $ref: '#/components/schemas/CadDocumentEnvelope'
+              $ref: "#/components/schemas/CadDocumentEnvelope"
               description: >-
                 Igual que la apertura del documento, desde R3 la versión
                 histórica se entrega HIDRATADA (`CadDocumentInline`), aunque
                 se haya persistido como puntero a blob.
     CadPublicationCreate:
       type: object
-      required: [expectedCadDocumentVersion, paperSpaceIds, fileName, sha256, bytes]
+      required:
+        [expectedCadDocumentVersion, paperSpaceIds, fileName, sha256, bytes]
       properties:
         expectedCadDocumentVersion:
-          $ref: '#/components/schemas/CadDocumentVersionToken'
+          $ref: "#/components/schemas/CadDocumentVersionToken"
         paperSpaceIds:
           type: array
           minItems: 1
@@ -1844,7 +2661,7 @@ components:
           minLength: 1
           maxLength: 255
         sha256:
-          $ref: '#/components/schemas/Sha256'
+          $ref: "#/components/schemas/Sha256"
         bytes:
           type: integer
           minimum: 1
@@ -1852,12 +2669,22 @@ components:
     CadPublicationReceipt:
       type: object
       description: Recibo inmutable de publicación (fila `cad_publications`).
-      required: [id, documentId, paperSpaceIds, fileName, sha256, bytes, publishedAt, publishedBy]
+      required:
+        [
+          id,
+          documentId,
+          paperSpaceIds,
+          fileName,
+          sha256,
+          bytes,
+          publishedAt,
+          publishedBy,
+        ]
       properties:
         id:
-          $ref: '#/components/schemas/CadPublicationId'
+          $ref: "#/components/schemas/CadPublicationId"
         documentId:
-          $ref: '#/components/schemas/CadDocumentId'
+          $ref: "#/components/schemas/CadDocumentId"
         paperSpaceIds:
           type: array
           minItems: 1
@@ -1868,22 +2695,23 @@ components:
           type: string
           maxLength: 255
         sha256:
-          $ref: '#/components/schemas/Sha256'
+          $ref: "#/components/schemas/Sha256"
         bytes:
           type: integer
           minimum: 1
         publishedAt:
-          $ref: '#/components/schemas/Timestamp'
+          $ref: "#/components/schemas/Timestamp"
         publishedBy:
-          $ref: '#/components/schemas/Actor'
+          $ref: "#/components/schemas/Actor"
         legacySourceId:
-          type: ['string', 'null']
+          type: ["string", "null"]
           maxLength: 64
           description: Id del recibo embebido de origen (Fase 4). Null = nativa.
     CadPublicationReceiptEmbedded:
       type: object
       description: Recibo tal como viaja EMBEBIDO dentro del documento canónico.
-      required: [id, paperSpaceIds, fileName, sha256, bytes, publishedAt, publishedBy]
+      required:
+        [id, paperSpaceIds, fileName, sha256, bytes, publishedAt, publishedBy]
       properties:
         id:
           type: string
@@ -1895,22 +2723,22 @@ components:
         fileName:
           type: string
         sha256:
-          $ref: '#/components/schemas/Sha256'
+          $ref: "#/components/schemas/Sha256"
         bytes:
           type: number
           exclusiveMinimum: 0
         publishedAt:
-          $ref: '#/components/schemas/Timestamp'
+          $ref: "#/components/schemas/Timestamp"
         publishedBy:
-          $ref: '#/components/schemas/Actor'
+          $ref: "#/components/schemas/Actor"
     CadReviewSession:
       type: object
       required: [id, documentId, status, hasShareLink, allowComments, createdAt]
       properties:
         id:
-          $ref: '#/components/schemas/CadReviewSessionId'
+          $ref: "#/components/schemas/CadReviewSessionId"
         documentId:
-          $ref: '#/components/schemas/CadDocumentId'
+          $ref: "#/components/schemas/CadDocumentId"
         status:
           type: string
           enum: [open, closed]
@@ -1926,32 +2754,32 @@ components:
             (El dibujo es de solo lectura en cualquier caso.)
         expiresAt:
           oneOf:
-            - $ref: '#/components/schemas/Timestamp'
-            - type: 'null'
+            - $ref: "#/components/schemas/Timestamp"
+            - type: "null"
           description: >-
             Expiración del review link, FIJADA POR EL SERVIDOR al crear y
             comprobada server-side en cada canje. Null = sesión sin link.
         revokedAt:
           oneOf:
-            - $ref: '#/components/schemas/Timestamp'
-            - type: 'null'
+            - $ref: "#/components/schemas/Timestamp"
+            - type: "null"
           description: >-
             Revocación del link (cerrar la sesión la estampa): desde ese
             instante el token muere — el canje re-valida en cada request.
         closedAt:
           oneOf:
-            - $ref: '#/components/schemas/Timestamp'
-            - type: 'null'
+            - $ref: "#/components/schemas/Timestamp"
+            - type: "null"
         createdAt:
-          $ref: '#/components/schemas/Timestamp'
+          $ref: "#/components/schemas/Timestamp"
         createdBy:
-          $ref: '#/components/schemas/Actor'
+          $ref: "#/components/schemas/Actor"
     CadReviewSessionCreated:
       type: object
       required: [session]
       properties:
         session:
-          $ref: '#/components/schemas/CadReviewSession'
+          $ref: "#/components/schemas/CadReviewSession"
         shareToken:
           type: string
           minLength: 16
@@ -1970,47 +2798,47 @@ components:
       required: [session, readOnly, document]
       properties:
         session:
-          $ref: '#/components/schemas/CadReviewSession'
+          $ref: "#/components/schemas/CadReviewSession"
         readOnly:
           type: boolean
           const: true
           description: >-
             Siempre true — informativo para la UI. La imposición REAL es del
-            backend (403 `review_read_only` fuera de `/v1/review/*`).
+            backend (403 `review_read_only` fuera de `/v1/cad/review/*`).
         document:
           type: object
           required: [id, name, cadDocumentVersion, cadDocument]
           properties:
             id:
-              $ref: '#/components/schemas/CadDocumentId'
+              $ref: "#/components/schemas/CadDocumentId"
             name:
               type: string
               maxLength: 160
             model:
               oneOf:
-                - $ref: '#/components/schemas/LegacyModelAlias'
-                - type: 'null'
+                - $ref: "#/components/schemas/LegacyModelAlias"
+                - type: "null"
             revision:
               oneOf:
-                - $ref: '#/components/schemas/LegacyRevisionAlias'
-                - type: 'null'
+                - $ref: "#/components/schemas/LegacyRevisionAlias"
+                - type: "null"
             cadDocumentVersion:
-              $ref: '#/components/schemas/CadDocumentVersionToken'
+              $ref: "#/components/schemas/CadDocumentVersionToken"
             layers:
-              type: ['array', 'null']
+              type: ["array", "null"]
               items:
                 type: object
             cadDocument:
               oneOf:
-                - $ref: '#/components/schemas/CadDocumentEnvelope'
-                - type: 'null'
+                - $ref: "#/components/schemas/CadDocumentEnvelope"
+                - type: "null"
               description: >-
                 Documento canónico HIDRATADO (en la práctica inline o null),
                 misma semántica que la apertura del autor.
             dxf:
               oneOf:
-                - $ref: '#/components/schemas/DxfPlacement'
-                - type: 'null'
+                - $ref: "#/components/schemas/DxfPlacement"
+                - type: "null"
     CadCommentCreate:
       type: object
       required: [body]
@@ -2021,40 +2849,40 @@ components:
           maxLength: 1000
           description: Texto del comentario (no vacío tras trim).
         anchor:
-          type: ['object', 'null']
+          type: ["object", "null"]
           description: >-
             Posición del comentario en el dibujo (coordenadas / entidad
             ancla), JSON libre. Null = sin ancla.
         reviewSessionId:
           oneOf:
-            - $ref: '#/components/schemas/CadReviewSessionId'
-            - type: 'null'
+            - $ref: "#/components/schemas/CadReviewSessionId"
+            - type: "null"
           description: Sesión a la que pertenece; null = comentario directo.
     CadComment:
       type: object
       required: [id, documentId, author, body, resolved, createdAt]
       properties:
         id:
-          $ref: '#/components/schemas/CadCommentId'
+          $ref: "#/components/schemas/CadCommentId"
         documentId:
-          $ref: '#/components/schemas/CadDocumentId'
+          $ref: "#/components/schemas/CadDocumentId"
         reviewSessionId:
           oneOf:
-            - $ref: '#/components/schemas/CadReviewSessionId'
-            - type: 'null'
+            - $ref: "#/components/schemas/CadReviewSessionId"
+            - type: "null"
         author:
-          $ref: '#/components/schemas/Actor'
+          $ref: "#/components/schemas/Actor"
         body:
           type: string
           maxLength: 1000
         anchor:
-          type: ['object', 'null']
+          type: ["object", "null"]
         resolved:
           type: boolean
         createdAt:
-          $ref: '#/components/schemas/Timestamp'
+          $ref: "#/components/schemas/Timestamp"
         updatedAt:
-          $ref: '#/components/schemas/Timestamp'
+          $ref: "#/components/schemas/Timestamp"
     DxfBackground:
       type: object
       description: Plano DXF de fondo (solo lectura sobre el dibujo).
@@ -2069,7 +2897,7 @@ components:
           maxLength: 12000000
           description: Contenido DXF crudo (texto). Límite real 12 000 000 caracteres.
         placement:
-          $ref: '#/components/schemas/DxfPlacement'
+          $ref: "#/components/schemas/DxfPlacement"
     DxfPlacement:
       type: object
       description: Colocación del plano de fondo sobre el documento.
@@ -2108,7 +2936,7 @@ components:
           minLength: 1
           maxLength: 12000000
         placement:
-          $ref: '#/components/schemas/DxfPlacement'
+          $ref: "#/components/schemas/DxfPlacement"
     DxfExport:
       type: object
       required: [fileName, unit, dxf]
@@ -2184,7 +3012,7 @@ components:
       required: [id, name, assets, version, createdAt]
       properties:
         id:
-          $ref: '#/components/schemas/CadBlockId'
+          $ref: "#/components/schemas/CadBlockId"
         name:
           type: string
           maxLength: 80
@@ -2192,20 +3020,20 @@ components:
           type: array
           maxItems: 200
           items:
-            $ref: '#/components/schemas/CadBlockAsset'
+            $ref: "#/components/schemas/CadBlockAsset"
         definition:
           oneOf:
-            - $ref: '#/components/schemas/CadBlockDefinition'
-            - type: 'null'
+            - $ref: "#/components/schemas/CadBlockDefinition"
+            - type: "null"
           description: Null en filas legacy solo-assets.
         version:
           type: integer
           minimum: 1
           description: Versión de biblioteca; se incrementa al redefinir `definition`.
         createdAt:
-          $ref: '#/components/schemas/Timestamp'
+          $ref: "#/components/schemas/Timestamp"
         createdBy:
-          $ref: '#/components/schemas/Actor'
+          $ref: "#/components/schemas/Actor"
     CadBlockCreate:
       type: object
       required: [name]
@@ -2223,9 +3051,9 @@ components:
           minItems: 1
           maxItems: 200
           items:
-            $ref: '#/components/schemas/CadBlockAsset'
+            $ref: "#/components/schemas/CadBlockAsset"
         definition:
-          $ref: '#/components/schemas/CadBlockDefinition'
+          $ref: "#/components/schemas/CadBlockDefinition"
     CadBlockUpdate:
       type: object
       minProperties: 1
@@ -2235,4 +3063,101 @@ components:
           minLength: 1
           maxLength: 80
         definition:
-          $ref: '#/components/schemas/CadBlockDefinition'
+          $ref: "#/components/schemas/CadBlockDefinition"
+    CadIntentRequest:
+      type: object
+      required: [prompt]
+      additionalProperties: false
+      properties:
+        prompt:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        context:
+          $ref: "#/components/schemas/CadIntentContext"
+    CadIntentContext:
+      type: object
+      required: [footprint, stations, connectors]
+      additionalProperties: false
+      properties:
+        footprint:
+          type: object
+          required: [unit, footprintW, footprintH]
+          additionalProperties: false
+          properties:
+            unit:
+              type: string
+              maxLength: 16
+            footprintW:
+              type: number
+              exclusiveMinimum: 0
+            footprintH:
+              type: number
+              exclusiveMinimum: 0
+        stations:
+          type: array
+          maxItems: 500
+          items:
+            type: object
+            required: [id, station]
+            additionalProperties: false
+            properties:
+              id: { type: string, maxLength: 64 }
+              station: { type: string, maxLength: 120 }
+              x: { type: [number, "null"] }
+              y: { type: [number, "null"] }
+              w: { type: [number, "null"] }
+              h: { type: [number, "null"] }
+        connectors:
+          type: array
+          maxItems: 1000
+          items:
+            type: object
+            required: [from, to]
+            additionalProperties: false
+            properties:
+              from: { type: string, maxLength: 64 }
+              to: { type: string, maxLength: 64 }
+    CadIntentResponse:
+      type: object
+      required: [available, toolCalls]
+      additionalProperties: false
+      properties:
+        available:
+          type: boolean
+        toolCalls:
+          type: array
+          items:
+            type: object
+            required: [name, arguments]
+            additionalProperties: false
+            properties:
+              name:
+                type: string
+              arguments:
+                type: object
+                additionalProperties: true
+        message:
+          type: string
+          maxLength: 300
+    CadVisionRequest:
+      type: object
+      required: [image]
+      additionalProperties: false
+      properties:
+        image:
+          type: string
+          minLength: 1
+          maxLength: 15000000
+          description: Data URL `data:image/*;base64,...` embebida.
+    CadVisionResponse:
+      type: object
+      required: [available, raw]
+      additionalProperties: false
+      properties:
+        available:
+          type: boolean
+        raw:
+          type: string
+        message:
+          type: string

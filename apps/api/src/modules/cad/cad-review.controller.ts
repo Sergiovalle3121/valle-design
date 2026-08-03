@@ -20,7 +20,7 @@ import {
 
 /**
  * Superficie de REVIEW del autor (`/v1/cad/*`, contrato design-api.v1.yaml,
- * tag `reviews`): sesiones de revisión y comentarios, con JWT + permiso
+ * tag `reviews`): sesiones de revisión y comentarios, con sesión + permiso
  * `cad:review` + entitlement design.cad (guards globales).
  *
  * Tokens SERVER-OWNED: la creación con `shareLink: true` genera el token, la

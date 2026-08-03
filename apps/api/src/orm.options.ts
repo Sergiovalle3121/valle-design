@@ -2,22 +2,15 @@ import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { join } from 'path';
 
 /**
- * Estrategia de base de datos (copiada del monorepo origen):
+ * Estrategia de base de datos:
  *
- *  PRODUCCIÓN (DATABASE_URL definido)
- *    → PostgreSQL vía URL de conexión
- *    → SYNCHRONIZE debe declararse "false" explícitamente; el arranque aplica
- *      la cadena de migraciones (migrationsRun)
- *    → SSL habilitado con sslmode=require o NODE_ENV=production
- *
- *  DESARROLLO con credenciales PG explícitas (DB_HOST definido)
- *    → PostgreSQL vía host/puerto/usuario/clave
- *    → synchronize: true por defecto (override con SYNCHRONIZE=false)
- *
- *  LOCAL / sin variables de BD
- *    → SQLite en apps/api/dev.sqlite (esquema auto-creado al arrancar; cero
- *      setup; el archivo está git-ignored). `better-sqlite3` es devDependency:
- *      este camino NO existe en producción (ver abajo).
+ * - DATABASE_URL usa PostgreSQL con synchronize desactivado y migraciones
+ *   activadas por defecto. MIGRATIONS_RUN=false sólo sirve para herramientas
+ *   administrativas que controlan la cadena de forma explícita.
+ * - DB_HOST conserva el modo PostgreSQL de desarrollo; puede habilitarse
+ *   synchronize explícitamente fuera de producción.
+ * - Sin configuración de BD, desarrollo local usa SQLite auto-creado.
+ * - Producción nunca permite SQLite ni synchronize.
  */
 export function ormOptions(): TypeOrmModuleOptions {
   const isProd = process.env.NODE_ENV === 'production';
@@ -70,10 +63,10 @@ export function ormOptions(): TypeOrmModuleOptions {
   const synchronize =
     syncOverride === 'true'
       ? true
-      : syncOverride === 'false'
+        : syncOverride === 'false'
         ? false
         : url
-          ? true
+          ? false
           : !isProd;
 
   const pgBase: Partial<TypeOrmModuleOptions> = {
@@ -81,7 +74,10 @@ export function ormOptions(): TypeOrmModuleOptions {
     autoLoadEntities: true,
     synchronize,
     migrationsRun:
-      !synchronize && (isProd || process.env.MIGRATIONS_RUN === 'true'),
+      !synchronize &&
+      (url
+        ? process.env.MIGRATIONS_RUN !== 'false'
+        : isProd || process.env.MIGRATIONS_RUN === 'true'),
     migrations: [join(__dirname, 'migrations', '!(*.spec).{ts,js}')],
     // SSL relajado por defecto (PaaS con certs internos/self-signed). Endurecer
     // con DB_SSL_STRICT=true SOLO con un CA verificable, o romperá la conexión.

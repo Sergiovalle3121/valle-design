@@ -21,7 +21,7 @@ export class CadDocumentVersion extends TenantBaseEntity {
   id: string;
 
   /** FK a `cad_documents`. */
-  @Column({ type: 'varchar', length: 36, name: 'document_id' })
+  @Column({ type: 'uuid', name: 'document_id' })
   documentId: string;
 
   /** Versión CAS (entera, monótona) que este payload representa. */

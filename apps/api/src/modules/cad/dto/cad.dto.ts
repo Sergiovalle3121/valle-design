@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   ArrayMinSize,
@@ -19,6 +19,7 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
+import { IsCadCommentAnchor } from '../cad-comment-anchor';
 
 /**
  * DTOs de la superficie /v1/cad/* (contrato design-api.v1.yaml). La pipe
@@ -59,6 +60,7 @@ export class ListProjectsQueryDto extends PageQueryDto {
 }
 
 export class CreateCadProjectDto {
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @MinLength(1)
   @MaxLength(160)
@@ -72,6 +74,7 @@ export class CreateCadProjectDto {
 
 export class UpdateCadProjectDto {
   @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @MinLength(1)
   @MaxLength(160)
@@ -93,9 +96,24 @@ export class ListDocumentsQueryDto extends PageQueryDto {
   @IsOptional()
   @IsUUID()
   projectId?: string;
+
+  /** Coincidencia exacta del modelo persistido (frontera de compatibilidad). */
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
+  model?: string;
+
+  /** Coincidencia exacta de la revisión persistida. */
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(16)
+  revision?: string;
 }
 
 export class CreateCadDocumentDto {
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @MinLength(1)
   @MaxLength(160)
@@ -119,6 +137,7 @@ export class CreateCadDocumentDto {
 
 export class UpdateCadDocumentMetaDto {
   @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @MinLength(1)
   @MaxLength(160)
@@ -236,6 +255,7 @@ export class CreateCadCommentDto {
   /** Ancla en el dibujo (JSON libre). Null/omitido = sin ancla. */
   @IsOptional()
   @IsObject()
+  @IsCadCommentAnchor()
   anchor?: Record<string, unknown> | null;
 
   /** Sesión a la que pertenece; null/omitido = comentario directo. */
@@ -253,6 +273,7 @@ export class CreateReviewLinkCommentDto {
 
   @IsOptional()
   @IsObject()
+  @IsCadCommentAnchor()
   anchor?: Record<string, unknown> | null;
 }
 

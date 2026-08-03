@@ -9,7 +9,7 @@
  * (`Layout3DEditorPlatformProps`). Este Host lee los providers de la
  * plataforma Design (DesignAuth/Theme/Toast) y los inyecta:
  *
- * - identity: userId/tenantId del JWT de Platform (claves de storage del
+ * - identity: userId/tenantId de la sesión y membresía first-party (claves de storage del
  *   workspace CAD, recovery local y scoping de la biblioteca de bloques).
  * - scope: el proyecto CAD lo pasa la página (en Design no hay
  *   building/project enterprise; el alcance ES el proyecto de dibujo).
@@ -51,11 +51,13 @@ const noopFullscreenChange: NonNullable<
 export default function CadStudioHost({
   documentId,
   projectId,
+  readOnly,
   ...props
 }: CadStudioHostProps) {
   const toast = useToast();
-  const { user, tenantId } = useDesignAuth();
+  const { user, tenantId, permissions } = useDesignAuth();
   const { resolvedScheme } = useTheme();
+  const effectiveReadOnly = readOnly ?? !permissions.includes("cad:edit");
 
   const identity = useMemo<
     NonNullable<Layout3DEditorPlatformProps["identity"]>
@@ -94,6 +96,7 @@ export default function CadStudioHost({
     <Layout3DEditor
       {...props}
       documentId={documentId}
+      readOnly={effectiveReadOnly}
       model={documentId ?? props.model}
       identity={identity}
       scope={scope}

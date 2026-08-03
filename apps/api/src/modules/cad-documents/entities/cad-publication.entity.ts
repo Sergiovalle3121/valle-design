@@ -19,7 +19,7 @@ export class CadPublication extends TenantBaseEntity {
   id: string;
 
   /** FK a `cad_documents`. */
-  @Column({ type: 'varchar', length: 36, name: 'document_id' })
+  @Column({ type: 'uuid', name: 'document_id' })
   documentId: string;
 
   @Column({ type: 'varchar', length: 255, name: 'file_name' })

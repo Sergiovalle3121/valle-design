@@ -7,7 +7,7 @@ import {
   NotFoundException,
   Optional,
 } from '@nestjs/common';
-import type { FindOptionsWhere } from 'typeorm';
+import { DataSource, type EntityManager, type FindOptionsWhere } from 'typeorm';
 import {
   TenantScopedRepository,
   getTenantRepositoryToken,
@@ -23,11 +23,12 @@ import {
 import type { ReviewAccessContext } from '../cad-documents/review-link.service';
 import { CAD_AUDIT_PUBLISHER } from '../cad-documents/ports/cad-audit-publisher.port';
 import type { CadAuditPublisher } from '../cad-documents/ports/cad-audit-publisher.port';
+import { assertCadCommentAnchor } from './cad-comment-anchor';
 
 /** Tope de sesiones ABIERTAS por documento (espejo de reviewLinks ≤ 20). */
-const MAX_OPEN_SESSIONS_PER_DOCUMENT = 20;
+export const MAX_OPEN_SESSIONS_PER_DOCUMENT = 20;
 /** Tope de hilos de revisión por documento (contrato: máx. 500). */
-const MAX_COMMENTS_PER_DOCUMENT = 500;
+export const MAX_COMMENTS_PER_DOCUMENT = 500;
 
 export interface CreateReviewSessionInput {
   shareLink?: boolean;
@@ -50,7 +51,7 @@ export interface CreatedReviewSession {
 /**
  * Ciclo de vida de las review sessions y comentarios del contrato
  * design-api.v1 (Fase 5). Todas las lecturas/escrituras van por repositorios
- * TENANT-SCOPED (el tenant sale del contexto autenticado — JWT o sesión de
+ * TENANT-SCOPED (el tenant sale del contexto autenticado — sesión o token de
  * review canjeada — nunca del cliente).
  *
  * Semántica de tokens (server-owned):
@@ -76,6 +77,7 @@ export class CadReviewRepository {
     @Optional()
     @Inject(CAD_AUDIT_PUBLISHER)
     private readonly audit?: CadAuditPublisher,
+    @Optional() private readonly dataSource?: DataSource,
   ) {}
 
   /* ─────────────────────────── Review sessions ───────────────────────────── */
@@ -98,16 +100,6 @@ export class CadReviewRepository {
     documentId: string,
     input: CreateReviewSessionInput,
   ): Promise<CreatedReviewSession> {
-    const document = await this.getDocument(documentId);
-    const openCount = await this.sessions.count({
-      where: { documentId, status: 'open' },
-    });
-    if (openCount >= MAX_OPEN_SESSIONS_PER_DOCUMENT) {
-      throw new BadRequestException(
-        `Máximo ${MAX_OPEN_SESSIONS_PER_DOCUMENT} sesiones de revisión abiertas por documento. Cierra alguna antes de abrir otra.`,
-      );
-    }
-
     const wantsLink = input.shareLink === true;
     const generated = wantsLink ? generateReviewLinkToken() : null;
     const expiresAt = wantsLink
@@ -117,19 +109,35 @@ export class CadReviewRepository {
         )
       : null;
 
-    const row = this.sessions.create({
+    const saved = await this.withDocumentWriteLock(
       documentId,
-      status: 'open',
-      closedAt: null,
-      tokenHash: generated?.tokenHash ?? null,
-      expiresAt,
-      revokedAt: null,
-      allowComments: input.allowComments !== false,
-      created_by: this.actor(),
-    });
-    row.plant_id = document.plant_id;
-    row.organization_id = document.organization_id;
-    const saved = await this.sessions.save(row);
+      async (manager) => {
+        const document = await this.getDocument(documentId, manager);
+        const sessions = this.sessions.withManager(manager);
+        const openCount = await sessions.count({
+          where: { documentId, status: 'open' },
+        });
+        if (openCount >= MAX_OPEN_SESSIONS_PER_DOCUMENT) {
+          throw new BadRequestException(
+            `Máximo ${MAX_OPEN_SESSIONS_PER_DOCUMENT} sesiones de revisión abiertas por documento. Cierra alguna antes de abrir otra.`,
+          );
+        }
+
+        const row = sessions.create({
+          documentId,
+          status: 'open',
+          closedAt: null,
+          tokenHash: generated?.tokenHash ?? null,
+          expiresAt,
+          revokedAt: null,
+          allowComments: input.allowComments !== false,
+          created_by: this.actor(),
+        });
+        row.plant_id = document.plant_id;
+        row.organization_id = document.organization_id;
+        return sessions.save(row);
+      },
+    );
 
     // Auditoría server-owned: la CREACIÓN del link queda asentada SIN el
     // token (ni claro ni hash) — solo el hecho y su ventana de vigencia.
@@ -204,23 +212,6 @@ export class CadReviewRepository {
     documentId: string,
     input: CreateCommentInput,
   ): Promise<CadComment> {
-    await this.getDocument(documentId);
-    if (input.reviewSessionId) {
-      const session = await this.sessions.findOne({
-        where: { id: input.reviewSessionId },
-      });
-      if (!session || session.documentId !== documentId) {
-        throw new NotFoundException(
-          'La sesión de revisión no existe para este documento.',
-        );
-      }
-      if (session.status !== 'open') {
-        throw new BadRequestException({
-          code: 'review_session_closed',
-          message: 'La sesión de revisión está cerrada; no admite comentarios.',
-        });
-      }
-    }
     return this.insertComment(documentId, input.reviewSessionId ?? null, input);
   }
 
@@ -298,26 +289,50 @@ export class CadReviewRepository {
     if (!body) {
       throw new BadRequestException('El comentario no puede estar vacío.');
     }
-    const count = await this.comments.count({ where: { documentId } });
-    if (count >= MAX_COMMENTS_PER_DOCUMENT) {
-      throw new BadRequestException(
-        `Máximo ${MAX_COMMENTS_PER_DOCUMENT} comentarios por documento.`,
-      );
-    }
-    const document = await this.getDocument(documentId);
-    const row = this.comments.create({
+    const anchor = assertCadCommentAnchor(input.anchor);
+    const saved = await this.withDocumentWriteLock(
       documentId,
-      reviewSessionId,
-      author: this.actor() ?? 'anonymous',
-      body: body.slice(0, 1000),
-      anchor:
-        input.anchor && typeof input.anchor === 'object' ? input.anchor : null,
-      resolved: false,
-      created_by: this.actor(),
-    });
-    row.plant_id = document.plant_id;
-    row.organization_id = document.organization_id;
-    const saved = await this.comments.save(row);
+      async (manager) => {
+        const document = await this.getDocument(documentId, manager);
+        const sessions = this.sessions.withManager(manager);
+        const comments = this.comments.withManager(manager);
+        if (reviewSessionId) {
+          const session = await sessions.findOne({
+            where: { id: reviewSessionId },
+          });
+          if (!session || session.documentId !== documentId) {
+            throw new NotFoundException(
+              'La sesión de revisión no existe para este documento.',
+            );
+          }
+          if (session.status !== 'open') {
+            throw new BadRequestException({
+              code: 'review_session_closed',
+              message:
+                'La sesión de revisión está cerrada; no admite comentarios.',
+            });
+          }
+        }
+        const count = await comments.count({ where: { documentId } });
+        if (count >= MAX_COMMENTS_PER_DOCUMENT) {
+          throw new BadRequestException(
+            `Máximo ${MAX_COMMENTS_PER_DOCUMENT} comentarios por documento.`,
+          );
+        }
+        const row = comments.create({
+          documentId,
+          reviewSessionId,
+          author: this.actor() ?? 'anonymous',
+          body: body.slice(0, 1000),
+          anchor,
+          resolved: false,
+          created_by: this.actor(),
+        });
+        row.plant_id = document.plant_id;
+        row.organization_id = document.organization_id;
+        return comments.save(row);
+      },
+    );
     await this.recordAudit('cad_comment_created', 'CAD_COMMENT', saved.id, {
       documentId,
       reviewSessionId,
@@ -337,10 +352,41 @@ export class CadReviewRepository {
     return saved;
   }
 
-  private async getDocument(documentId: string): Promise<CadDocument> {
-    const row = await this.documents.findOne({ where: { id: documentId } });
+  private async getDocument(
+    documentId: string,
+    manager?: EntityManager,
+  ): Promise<CadDocument> {
+    const row = await this.documents
+      .withManager(manager)
+      .findOne({ where: { id: documentId } });
     if (!row) throw new NotFoundException('Documento CAD no encontrado.');
     return row;
+  }
+
+  /**
+   * Serializa exclusivamente las altas de review del mismo tenant/documento.
+   * El lock dura la transacción; count + insert forman así una sola decisión
+   * atómica en PostgreSQL. En SQLite la transacción conserva la semántica
+   * funcional; el advisory lock se omite porque ese motor serializa escrituras.
+   */
+  private async withDocumentWriteLock<T>(
+    documentId: string,
+    operation: (manager?: EntityManager) => Promise<T>,
+  ): Promise<T> {
+    const tenantId = this.tenantCtx.requireTenantId(
+      'crear una sesión o comentario CAD',
+    );
+    if (!this.dataSource) return operation();
+
+    return this.dataSource.transaction(async (manager) => {
+      if (this.dataSource?.options.type === 'postgres') {
+        await manager.query(
+          'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
+          [`cad-review-capacity:${tenantId}:${documentId}`],
+        );
+      }
+      return operation(manager);
+    });
   }
 
   private actor(): string | null {

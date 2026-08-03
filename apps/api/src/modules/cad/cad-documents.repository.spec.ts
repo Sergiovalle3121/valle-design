@@ -16,13 +16,16 @@ import { CadDocumentVersion } from '../cad-documents/entities/cad-document-versi
 import { CadPublication } from '../cad-documents/entities/cad-publication.entity';
 import { CadReviewSession } from '../cad-documents/entities/cad-review-session.entity';
 import { CadComment } from '../cad-documents/entities/cad-comment.entity';
+import { DesignBlob } from '../blob-store/entities/design-blob.entity';
+import { DatabaseBlobStore } from '../blob-store/design-blob.store';
+import { DesignBlobStoreAdapter } from '../cad-documents/design-blob-store.adapter';
 import { CadDocumentsRepository } from './cad-documents.repository';
 
-const context = (tenant: string): TenantContext => ({
+const context = (tenant: string, email = 'cad@test'): TenantContext => ({
   tenant_id: tenant,
   organization_id: null,
   plant_id: null,
-  user_email: 'cad@test',
+  user_email: email,
   role: null,
   permissions: null,
   scopes: null,
@@ -60,6 +63,7 @@ describe('CadDocumentsRepository — ciclo de vida + CAS sobre tablas cad_*', ()
         CadPublication,
         CadReviewSession,
         CadComment,
+        DesignBlob,
       ],
     });
     await source.initialize();
@@ -68,17 +72,56 @@ describe('CadDocumentsRepository — ciclo de vida + CAS sobre tablas cad_*', ()
       createTenantScopedRepository(entity, source.manager, tenant, {
         strict: true,
       });
+    const blobStore = new DatabaseBlobStore(scoped(DesignBlob), tenant);
     repository = new CadDocumentsRepository(
       scoped(CadProject),
       scoped(CadDocument),
       scoped(CadDocumentVersion),
       scoped(CadPublication),
       tenant,
-      new CadDocumentsService(),
+      new CadDocumentsService(new DesignBlobStoreAdapter(blobStore)),
+      undefined,
+      undefined,
+      undefined,
+      source,
     );
   });
 
   afterEach(async () => source.destroy());
+
+  it('normaliza nombres y rechaza whitespace-only también en llamadas internas', async () => {
+    await tenant.run(context('tenant-a'), async () => {
+      await expect(
+        repository.createProject({ name: ' \t\r\n ' }),
+      ).rejects.toThrow(BadRequestException);
+      await expect(repository.createDocument({ name: '   ' })).rejects.toThrow(
+        BadRequestException,
+      );
+
+      const project = await repository.createProject({
+        name: '  Proyecto norte  ',
+      });
+      const document = await repository.createDocument({
+        name: '  Plano uno  ',
+        projectId: project.id,
+      });
+      expect(project.name).toBe('Proyecto norte');
+      expect(document.name).toBe('Plano uno');
+
+      await expect(
+        repository.updateProject(project.id, { name: '  ' }),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        repository.updateDocumentMeta(document.id, { name: '\t' }),
+      ).rejects.toThrow(BadRequestException);
+      expect((await repository.getProject(project.id)).name).toBe(
+        'Proyecto norte',
+      );
+      expect((await repository.getDocument(document.id)).name).toBe(
+        'Plano uno',
+      );
+    });
+  });
 
   it('guarda con CAS: versión 0→1→2 y una fila de historial por versión', async () => {
     await tenant.run(context('tenant-a'), async () => {
@@ -126,6 +169,27 @@ describe('CadDocumentsRepository — ciclo de vida + CAS sobre tablas cad_*', ()
         expected: 0,
         current: 1,
       });
+    });
+  });
+
+  it('revierte el blob comprimido cuando el CAS pierde', async () => {
+    await tenant.run(context('tenant-a'), async () => {
+      const document = await repository.createDocument({ name: 'Grande' });
+      await repository.saveContent(document.id, {
+        document: doc(1, { marker: 'winner' }),
+        expectedVersion: 0,
+        forceArchive: true,
+      });
+      expect(await source.getRepository(DesignBlob).count()).toBe(1);
+
+      await expect(
+        repository.saveContent(document.id, {
+          document: doc(2, { marker: 'stale-and-different' }),
+          expectedVersion: 0,
+          forceArchive: true,
+        }),
+      ).rejects.toThrow(ConflictException);
+      expect(await source.getRepository(DesignBlob).count()).toBe(1);
     });
   });
 
@@ -202,6 +266,130 @@ describe('CadDocumentsRepository — ciclo de vida + CAS sobre tablas cad_*', ()
         repository.saveContent(id, { document: doc(1), expectedVersion: 0 }),
       ),
     ).rejects.toThrow(NotFoundException);
+  });
+
+  it('descarta sólo el provisional vacío del mismo tenant y actor', async () => {
+    const documentId = await tenant.run(
+      context('tenant-a', 'creator@test.invalid'),
+      async () =>
+        (
+          await repository.createDocument({
+            name: 'Importación provisional',
+          })
+        ).id,
+    );
+
+    await expect(
+      tenant.run(context('tenant-a', 'other@test.invalid'), () =>
+        repository.discardProvisionalDocument(documentId),
+      ),
+    ).rejects.toThrow('Sólo quien creó');
+    await expect(
+      tenant.run(context('tenant-b', 'creator@test.invalid'), () =>
+        repository.discardProvisionalDocument(documentId),
+      ),
+    ).rejects.toThrow(NotFoundException);
+
+    await tenant.run(context('tenant-a', 'creator@test.invalid'), () =>
+      repository.discardProvisionalDocument(documentId),
+    );
+    await expect(
+      tenant.run(context('tenant-a', 'creator@test.invalid'), () =>
+        repository.getDocument(documentId),
+      ),
+    ).rejects.toThrow(NotFoundException);
+
+    const discarded = await source
+      .getRepository(CadDocument)
+      .findOne({ where: { id: documentId }, withDeleted: true });
+    expect(discarded?.deleted_at).toBeInstanceOf(Date);
+  });
+
+  it('rechaza el descarte provisional después del primer guardado', async () => {
+    await tenant.run(context('tenant-a'), async () => {
+      const document = await repository.createDocument({ name: 'Persistido' });
+      await repository.saveContent(document.id, {
+        document: doc(1),
+        expectedVersion: 0,
+      });
+
+      await expect(
+        repository.discardProvisionalDocument(document.id),
+      ).rejects.toThrow(ConflictException);
+      expect((await repository.getDocument(document.id)).deleted_at).toBeNull();
+    });
+  });
+
+  it('resuelve model+revision exactos después de >200 filas y mantiene el aislamiento por tenant', async () => {
+    let tenantATargetId = '';
+    await tenant.run(context('tenant-a'), async () => {
+      const target = await repository.createDocument({
+        name: 'Documento histórico',
+        model: 'AXOS-CAD-STUDIO',
+        revision: 'UNIVERSAL',
+      });
+      tenantATargetId = target.id;
+
+      // Fuerza que el documento histórico quede fuera de la primera página.
+      await source.getRepository(CadDocument).update(target.id, {
+        created_at: new Date('2000-01-01T00:00:00.000Z'),
+      });
+      for (let index = 0; index < 205; index += 1) {
+        await repository.createDocument({
+          name: `Documento reciente ${index}`,
+          model:
+            index % 2 === 0 ? 'AXOS-CAD-STUDIO-ARCHIVE' : 'AXOS-CAD-STUDIO',
+          revision: index % 2 === 0 ? 'UNIVERSAL' : 'UNIVERSAL-OLD',
+        });
+      }
+
+      const firstPage = await repository.listDocuments({ limit: 200 });
+      expect(firstPage.total).toBe(206);
+      expect(firstPage.items).toHaveLength(200);
+      expect(firstPage.items.map((item) => item.id)).not.toContain(target.id);
+      const secondPage = await repository.listDocuments({
+        limit: 200,
+        offset: 200,
+      });
+      expect(secondPage.total).toBe(206);
+      expect(secondPage.items.map((item) => item.id)).toContain(target.id);
+
+      const exact = await repository.listDocuments({
+        model: 'AXOS-CAD-STUDIO',
+        revision: 'UNIVERSAL',
+        limit: 1,
+      });
+      expect(exact.total).toBe(1);
+      expect(exact.items.map((item) => item.id)).toEqual([target.id]);
+    });
+
+    let tenantBTargetId = '';
+    await tenant.run(context('tenant-b'), async () => {
+      const target = await repository.createDocument({
+        name: 'Documento histórico B',
+        model: 'AXOS-CAD-STUDIO',
+        revision: 'UNIVERSAL',
+      });
+      tenantBTargetId = target.id;
+      const exact = await repository.listDocuments({
+        model: 'AXOS-CAD-STUDIO',
+        revision: 'UNIVERSAL',
+        limit: 1,
+      });
+      expect(exact.total).toBe(1);
+      expect(exact.items.map((item) => item.id)).toEqual([target.id]);
+    });
+
+    expect(tenantBTargetId).not.toBe(tenantATargetId);
+    await tenant.run(context('tenant-a'), async () => {
+      const exact = await repository.listDocuments({
+        model: 'AXOS-CAD-STUDIO',
+        revision: 'UNIVERSAL',
+        limit: 1,
+      });
+      expect(exact.items.map((item) => item.id)).toEqual([tenantATargetId]);
+      expect(exact.items.map((item) => item.id)).not.toContain(tenantBTargetId);
+    });
   });
 
   it('el plano DXF de fondo vive junto al documento: put/get/clear', async () => {

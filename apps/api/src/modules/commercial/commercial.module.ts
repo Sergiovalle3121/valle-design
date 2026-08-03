@@ -23,6 +23,15 @@ import {
   PostgresUsageMeter,
 } from './adapters/postgres.adapters';
 import { EmailOutboxController } from './controllers/email-outbox.controller';
+import { CommercialController } from './controllers/commercial.controller';
+import {
+  COMMERCIAL_OUTBOX_TRANSPORT,
+  CommercialOutboxDispatcher,
+} from './outbox-dispatcher.service';
+import { CommercialOutboxWorker } from './outbox-worker.service';
+import { WebhookCommercialOutboxTransport } from './webhook-outbox.transport';
+import { CommercialCatalogBootstrap } from './commercial-catalog.bootstrap';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -34,13 +43,21 @@ import { EmailOutboxController } from './controllers/email-outbox.controller';
       EmailOutbox,
     ]),
   ],
-  controllers: [EmailOutboxController],
+  controllers: [CommercialController, EmailOutboxController],
   providers: [
     { provide: ENTITLEMENT_SERVICE, useClass: PostgresEntitlementService },
     { provide: SUBSCRIPTION_PROVIDER, useClass: PostgresSubscriptionProvider },
     { provide: USAGE_METER, useClass: PostgresUsageMeter },
     { provide: CAD_EVENT_PUBLISHER, useClass: PostgresCadEventPublisher },
     { provide: EMAIL_SERVICE, useClass: PostgresEmailService },
+    WebhookCommercialOutboxTransport,
+    {
+      provide: COMMERCIAL_OUTBOX_TRANSPORT,
+      useExisting: WebhookCommercialOutboxTransport,
+    },
+    CommercialOutboxDispatcher,
+    CommercialOutboxWorker,
+    CommercialCatalogBootstrap,
   ],
   exports: [
     ENTITLEMENT_SERVICE,
@@ -48,6 +65,7 @@ import { EmailOutboxController } from './controllers/email-outbox.controller';
     USAGE_METER,
     CAD_EVENT_PUBLISHER,
     EMAIL_SERVICE,
+    CommercialOutboxDispatcher,
   ],
 })
 export class CommercialModule {}

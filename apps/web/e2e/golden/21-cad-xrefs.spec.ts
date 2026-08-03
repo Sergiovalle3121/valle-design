@@ -2,7 +2,7 @@ import { expect, test, type BrowserContext } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { CadV1Backend, seedFootprint } from '../fixtures/cad-v1-backend';
-import { loginAsMaster } from '../fixtures/session';
+import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import type { CadDocument } from '../../src/lib/cad/cad-document';
 import { cadTenantLayoutUri } from '../../src/lib/cad/cad-xrefs';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
@@ -79,9 +79,9 @@ async function openXrefs(page: import('@playwright/test').Page) {
 test('tenant Xrefs attach, compare, reload, unload, bind, detach and preserve honest DXF behavior', async ({ context, page }, testInfo) => {
   test.setTimeout(180_000);
   await installMockBackend(context);
-  await loginAsMaster(context);
+  await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
-  await page.goto('/studio');
+  await page.goto('/legacy/studio');
   await expect(page.getByTestId('cad-native-entity-host-line')).toBeVisible();
   await openXrefs(page);
 

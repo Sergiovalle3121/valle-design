@@ -4,7 +4,337 @@
  */
 
 export interface paths {
-    "/v1/projects": {
+    "/v1/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Registra una cuenta sin revelar si ya existia. */
+        post: operations["registerIdentity"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Inicia una sesion mediante cookies first-party. */
+        post: operations["loginIdentity"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lee la sesion y organizacion activa derivada server-side. */
+        get: operations["getIdentitySession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoca la sesion actual y limpia sus cookies. */
+        post: operations["logoutIdentity"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista como maximo 100 sesiones propias, incluidas las revocadas. */
+        get: operations["listIdentitySessions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/sessions/rotate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoca la sesion actual y emite una nueva. */
+        post: operations["rotateIdentitySession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/sessions/revoke-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoca todas las demas sesiones propias. */
+        post: operations["revokeOtherIdentitySessions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/sessions/{sessionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: components["parameters"]["identitySessionId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoca una sesion propia por UUID. */
+        delete: operations["revokeIdentitySession"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/verify-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Consume una vez un token opaco de verificacion. */
+        post: operations["verifyIdentityEmail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/verify-email/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Solicita verificacion con respuesta no enumerable. */
+        post: operations["resendIdentityVerification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/password/forgot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Solicita recuperacion con respuesta no enumerable. */
+        post: operations["requestIdentityPasswordReset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/password/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cambia la contrasena y revoca las sesiones anteriores. */
+        post: operations["resetIdentityPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista organizaciones donde el usuario tiene membresia. */
+        get: operations["listOrganizations"];
+        put?: never;
+        /** Crea organizacion, membresia owner y trial standalone. */
+        post: operations["createOrganization"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/active": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Activa una organizacion tras verificar membresia server-side. */
+        post: operations["activateOrganization"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/memberships": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["organizationId"];
+            };
+            cookie?: never;
+        };
+        /** Lista hasta 200 miembros de una organizacion visible. */
+        get: operations["listOrganizationMemberships"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["organizationId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Invita por email sin devolver el token en la respuesta HTTP. */
+        post: operations["createOrganizationInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/invitations/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Consume una invitacion destinada al correo autenticado. */
+        post: operations["acceptOrganizationInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commercial/subscription": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lee la suscripcion de la organizacion activa server-side. */
+        get: operations["getActiveSubscription"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commercial/entitlements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista entitlements efectivos de la organizacion activa. */
+        get: operations["listEffectiveEntitlements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/cad/projects": {
         parameters: {
             query?: never;
             header?: never;
@@ -22,7 +352,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/projects/{projectId}": {
+    "/v1/cad/projects/{projectId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -46,7 +376,7 @@ export interface paths {
         patch: operations["updateCadProject"];
         trace?: never;
     };
-    "/v1/documents": {
+    "/v1/cad/documents": {
         parameters: {
             query?: never;
             header?: never;
@@ -58,7 +388,7 @@ export interface paths {
         put?: never;
         /**
          * Crea un documento CAD (metadatos; contenido con versión CAS 0).
-         * @description Crea la fila contenedora con `cadDocumentVersion: 0`. El contenido se guarda después con `PUT /v1/documents/{documentId}/content` (o `/archive`) declarando `expectedCadDocumentVersion: 0` en la primera escritura. Emite el evento `design.document.created.v1`.
+         * @description Crea la fila contenedora con `cadDocumentVersion: 0`. El contenido se guarda después con `PUT /v1/cad/documents/{documentId}/content` (o `/archive`) declarando `expectedCadDocumentVersion: 0` en la primera escritura. Emite el evento `design.document.created.v1`.
          */
         post: operations["createCadDocument"];
         delete?: never;
@@ -67,7 +397,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/documents/{documentId}": {
+    "/v1/cad/documents/{documentId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -99,7 +429,27 @@ export interface paths {
         patch: operations["updateCadDocumentMeta"];
         trace?: never;
     };
-    "/v1/documents/{documentId}/content": {
+    "/v1/cad/documents/{documentId}/provisional": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Descarta un documento provisional propio tras fallar una importación.
+         * @description Rollback acotado para editores: sólo archiva la fila vacía creada por el mismo actor dentro del tenant activo, con `cadDocumentVersion = 0`, documento canónico nulo y sin fondo DXF. El predicado se valida de forma atómica para no descartar contenido que se guarde concurrentemente. No concede ni sustituye el borrado administrativo general de `DELETE /v1/cad/documents/{documentId}`.
+         */
+        delete: operations["discardProvisionalCadDocument"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/cad/documents/{documentId}/content": {
         parameters: {
             query?: never;
             header?: never;
@@ -111,7 +461,7 @@ export interface paths {
          * Guarda el documento canónico (JSON inline) mediante CAS optimista.
          * @description Rama inline del guardado: el documento viaja como JSON en el cuerpo
          *     (límite **8 000 000 bytes** serializado). Para documentos mayores usar
-         *     `PUT /v1/documents/{documentId}/archive` (gzip multipart).
+         *     `PUT /v1/cad/documents/{documentId}/archive` (gzip multipart).
          *
          *     Reglas CAS (semántica real del backend):
          *     * `expectedCadDocumentVersion` es OBLIGATORIO; omitirlo ⇒
@@ -138,7 +488,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/documents/{documentId}/archive": {
+    "/v1/cad/documents/{documentId}/archive": {
         parameters: {
             query?: never;
             header?: never;
@@ -172,7 +522,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/documents/{documentId}/versions": {
+    "/v1/cad/documents/{documentId}/versions": {
         parameters: {
             query?: never;
             header?: never;
@@ -192,7 +542,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/documents/{documentId}/versions/{version}": {
+    "/v1/cad/documents/{documentId}/versions/{version}": {
         parameters: {
             query?: never;
             header?: never;
@@ -209,7 +559,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/documents/{documentId}/publications": {
+    "/v1/cad/documents/{documentId}/publications": {
         parameters: {
             query?: never;
             header?: never;
@@ -242,7 +592,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/documents/{documentId}/review-sessions": {
+    "/v1/cad/documents/{documentId}/review-sessions": {
         parameters: {
             query?: never;
             header?: never;
@@ -278,7 +628,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/review-sessions/{sessionId}/close": {
+    "/v1/cad/review-sessions/{sessionId}/close": {
         parameters: {
             query?: never;
             header?: never;
@@ -298,7 +648,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/documents/{documentId}/comments": {
+    "/v1/cad/documents/{documentId}/comments": {
         parameters: {
             query?: never;
             header?: never;
@@ -319,7 +669,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/comments/{commentId}/resolve": {
+    "/v1/cad/comments/{commentId}/resolve": {
         parameters: {
             query?: never;
             header?: never;
@@ -336,7 +686,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/review/context": {
+    "/v1/cad/review/context": {
         parameters: {
             query?: never;
             header?: never;
@@ -346,7 +696,7 @@ export interface paths {
         /**
          * Canje del review link: contexto de solo lectura limitado al documento.
          * @description ÚNICA superficie alcanzable con el token del review link (header
-         *     `X-Review-Token`; sin JWT). El servidor valida hash + expiración +
+         *     `X-Review-Token`; sin cookie de sesión). El servidor valida hash + expiración +
          *     revocación EN CADA request y responde el documento canónico HIDRATADO
          *     de la sesión (misma semántica de apertura del autor, proyección
          *     REDUCIDA — sin metadatos internos), la colocación del DXF de fondo y
@@ -368,7 +718,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/review/comments": {
+    "/v1/cad/review/comments": {
         parameters: {
             query?: never;
             header?: never;
@@ -392,7 +742,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/review/comments/{commentId}/resolve": {
+    "/v1/cad/review/comments/{commentId}/resolve": {
         parameters: {
             query?: never;
             header?: never;
@@ -412,7 +762,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/documents/{documentId}/dxf": {
+    "/v1/cad/documents/{documentId}/dxf": {
         parameters: {
             query?: never;
             header?: never;
@@ -439,7 +789,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/documents/{documentId}/export/dxf": {
+    "/v1/cad/documents/{documentId}/export/dxf": {
         parameters: {
             query?: never;
             header?: never;
@@ -459,7 +809,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/blocks": {
+    "/v1/cad/blocks": {
         parameters: {
             query?: never;
             header?: never;
@@ -483,7 +833,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/blocks/{blockId}": {
+    "/v1/cad/blocks/{blockId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -510,10 +860,238 @@ export interface paths {
         patch: operations["updateCadBlock"];
         trace?: never;
     };
+    "/v1/cad/documents/{documentId}/intent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: components["parameters"]["documentId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Interpreta una instrucción de lenguaje natural para un documento.
+         * @description Devuelve propuestas de herramientas; nunca aplica cambios al documento. Si el motor no está configurado, responde `available: false` de forma determinista.
+         */
+        post: operations["interpretCadIntent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/cad/vision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Propone geometría CAD a partir de una imagen embebida.
+         * @description Devuelve la salida cruda del motor para validación en el cliente. Si el motor no está configurado, responde `available: false`.
+         */
+        post: operations["vectorizeCadImage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** Format: email */
+        EmailAddress: string;
+        /** Format: password */
+        Password: string;
+        OpaqueOneTimeToken: string;
+        EmailRequest: {
+            email: components["schemas"]["EmailAddress"];
+        };
+        LoginRequest: {
+            email: components["schemas"]["EmailAddress"];
+            password: components["schemas"]["Password"];
+        };
+        RegisterRequest: {
+            email: components["schemas"]["EmailAddress"];
+            password: components["schemas"]["Password"];
+            displayName?: string;
+        };
+        OneTimeTokenRequest: {
+            token: components["schemas"]["OpaqueOneTimeToken"];
+        };
+        PasswordResetRequest: {
+            token: components["schemas"]["OpaqueOneTimeToken"];
+            password: components["schemas"]["Password"];
+        };
+        AcceptedResponse: {
+            /** @constant */
+            accepted: true;
+        };
+        LoginResponse: {
+            user: {
+                /** Format: uuid */
+                id: string;
+                email: components["schemas"]["EmailAddress"];
+            };
+            expiresAt: components["schemas"]["Timestamp"];
+        };
+        AuthSessionResponse: {
+            user: {
+                /** Format: uuid */
+                id: string;
+                email: components["schemas"]["EmailAddress"];
+                emailVerified: boolean;
+            };
+            session: {
+                /** Format: uuid */
+                id: string;
+                expiresAt: components["schemas"]["Timestamp"];
+            };
+            organization: components["schemas"]["OrganizationSessionContext"] | null;
+        };
+        IdentitySession: {
+            /** Format: uuid */
+            id: string;
+            current: boolean;
+            createdAt: components["schemas"]["Timestamp"];
+            expiresAt: components["schemas"]["Timestamp"];
+            revokedAt: components["schemas"]["Timestamp"] | null;
+            userAgent: string | null;
+        };
+        IdentitySessionList: {
+            sessions: components["schemas"]["IdentitySession"][];
+        };
+        SessionRotationResponse: {
+            expiresAt: components["schemas"]["Timestamp"];
+        };
+        EmailVerificationResponse: {
+            /** @constant */
+            verified: true;
+        };
+        PasswordResetResponse: {
+            /** @constant */
+            reset: true;
+        };
+        /** @enum {string} */
+        OrganizationRole: "owner" | "admin" | "member" | "viewer";
+        /** @enum {string} */
+        OrganizationInvitationRole: "admin" | "member" | "viewer";
+        /** @enum {string} */
+        CadPermission: "cad:view" | "cad:edit" | "cad:review" | "cad:publish" | "cad:admin";
+        OrganizationCreate: {
+            name: string;
+            slug: string;
+        };
+        OrganizationListItem: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            slug: string;
+            role: components["schemas"]["OrganizationRole"];
+            active: boolean;
+        };
+        OrganizationList: {
+            items: components["schemas"]["OrganizationListItem"][];
+        };
+        /** @enum {string} */
+        SubscriptionStatus: "trialing" | "active" | "past_due" | "suspended" | "cancelled";
+        SubscriptionView: {
+            planCode: string;
+            status: components["schemas"]["SubscriptionStatus"];
+            trialEndsAt: components["schemas"]["Timestamp"] | null;
+        };
+        OrganizationCreated: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            slug: string;
+            /** Format: uuid */
+            ownerUserId: string;
+            createdAt: components["schemas"]["Timestamp"];
+            /** Format: uuid */
+            tenantId: string;
+            subscription: components["schemas"]["SubscriptionView"];
+        };
+        ActiveOrganizationRequest: {
+            /** Format: uuid */
+            organizationId: string;
+        };
+        OrganizationSessionContext: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            slug: string;
+            /** Format: uuid */
+            tenantId: string;
+            role: components["schemas"]["OrganizationRole"];
+            permissions: components["schemas"]["CadPermission"][];
+        };
+        OrganizationContext: {
+            organization: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+                slug: string;
+            };
+            /** Format: uuid */
+            tenantId: string;
+            role: components["schemas"]["OrganizationRole"];
+            permissions: components["schemas"]["CadPermission"][];
+        };
+        OrganizationMembership: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            userId: string;
+            email: components["schemas"]["EmailAddress"];
+            displayName: string | null;
+            role: components["schemas"]["OrganizationRole"];
+            currentUser: boolean;
+            createdAt: components["schemas"]["Timestamp"];
+        };
+        OrganizationMembershipList: {
+            items: components["schemas"]["OrganizationMembership"][];
+        };
+        OrganizationInvitationCreate: {
+            email: components["schemas"]["EmailAddress"];
+            role: components["schemas"]["OrganizationInvitationRole"];
+        };
+        OrganizationInvitationCreated: {
+            /** @constant */
+            accepted: true;
+            /** Format: uuid */
+            invitationId: string;
+        };
+        OrganizationInvitationAccept: {
+            token: components["schemas"]["OpaqueOneTimeToken"];
+        };
+        OrganizationInvitationAccepted: {
+            /** @constant */
+            accepted: true;
+            /** Format: uuid */
+            organizationId: string;
+            role: components["schemas"]["OrganizationInvitationRole"];
+        };
+        EffectiveSubscriptionView: components["schemas"]["SubscriptionView"] & {
+            effective: boolean;
+        };
+        CommercialSubscriptionResponse: {
+            /** Format: uuid */
+            organizationId: string | null;
+            subscription: components["schemas"]["EffectiveSubscriptionView"] | null;
+        };
+        EffectiveEntitlementList: {
+            /** Format: uuid */
+            organizationId: string | null;
+            items: string[];
+        };
         /**
          * Format: uuid
          * @description Identificador de `cad_projects`.
@@ -838,7 +1416,7 @@ export interface components {
         ReviewLinkContext: {
             session: components["schemas"]["CadReviewSession"];
             /**
-             * @description Siempre true — informativo para la UI. La imposición REAL es del backend (403 `review_read_only` fuera de `/v1/review/*`).
+             * @description Siempre true — informativo para la UI. La imposición REAL es del backend (403 `review_read_only` fuera de `/v1/cad/review/*`).
              * @constant
              */
             readOnly: true;
@@ -953,6 +1531,48 @@ export interface components {
             name?: string;
             definition?: components["schemas"]["CadBlockDefinition"];
         };
+        CadIntentRequest: {
+            prompt: string;
+            context?: components["schemas"]["CadIntentContext"];
+        };
+        CadIntentContext: {
+            footprint: {
+                unit: string;
+                footprintW: number;
+                footprintH: number;
+            };
+            stations: {
+                id: string;
+                station: string;
+                x?: number | null;
+                y?: number | null;
+                w?: number | null;
+                h?: number | null;
+            }[];
+            connectors: {
+                from: string;
+                to: string;
+            }[];
+        };
+        CadIntentResponse: {
+            available: boolean;
+            toolCalls: {
+                name: string;
+                arguments: {
+                    [key: string]: unknown;
+                };
+            }[];
+            message?: string;
+        };
+        CadVisionRequest: {
+            /** @description Data URL `data:image/*;base64,...` embebida. */
+            image: string;
+        };
+        CadVisionResponse: {
+            available: boolean;
+            raw: string;
+            message?: string;
+        };
     };
     responses: {
         /** @description Solicitud inválida (validación del payload, límites del documento, hojas de publicación inválidas, `cad_document_version_required`, `cad_publications_server_managed`). */
@@ -964,7 +1584,7 @@ export interface components {
                 "application/json": components["schemas"]["ApiError"];
             };
         };
-        /** @description Falta el bearer token o es inválido/expirado. */
+        /** @description Falta la sesión first-party o es inválida/expirada. */
         Unauthorized: {
             headers: {
                 [name: string]: unknown;
@@ -973,7 +1593,25 @@ export interface components {
                 "application/json": components["schemas"]["ApiError"];
             };
         };
-        /** @description Respuesta 403 ESTÁNDAR de todos los endpoints: el tenant no tiene el entitlement `design.cad` vigente (o el usuario carece del permiso `cad:*` requerido — ver `details.reason`). */
+        /** @description Limite de solicitudes excedido sin revelar existencia de cuentas. */
+        TooManyRequests: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ApiError"];
+            };
+        };
+        /** @description Sesión sin CSRF válido o sin autoridad para la operación. */
+        Forbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ApiError"];
+            };
+        };
+        /** @description Respuesta 403 ESTÁNDAR de los endpoints CAD: el tenant no tiene el entitlement `design.cad` vigente (o el usuario carece del permiso `cad:*` requerido — ver `details.reason`). */
         EntitlementRequired: {
             headers: {
                 [name: string]: unknown;
@@ -1011,6 +1649,10 @@ export interface components {
         };
     };
     parameters: {
+        /** @description Token de doble envio igual a la cookie legible valle_csrf. */
+        csrfToken: string;
+        identitySessionId: string;
+        organizationId: string;
         projectId: components["schemas"]["CadProjectId"];
         documentId: components["schemas"]["CadDocumentId"];
         sessionId: components["schemas"]["CadReviewSessionId"];
@@ -1027,6 +1669,514 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    registerIdentity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterRequest"];
+            };
+        };
+        responses: {
+            /** @description Solicitud aceptada; la verificacion viaja solo por correo. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcceptedResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    loginIdentity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Sesion creada; el secreto viaja solo en Set-Cookie HttpOnly. */
+            200: {
+                headers: {
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    getIdentitySession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Contexto first-party vigente. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthSessionResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    logoutIdentity: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Token de doble envio igual a la cookie legible valle_csrf. */
+                "X-CSRF-Token": components["parameters"]["csrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sesion revocada. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    listIdentitySessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sesiones del usuario autenticado. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdentitySessionList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    rotateIdentitySession: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Token de doble envio igual a la cookie legible valle_csrf. */
+                "X-CSRF-Token": components["parameters"]["csrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sesion rotada; el secreto nuevo viaja en Set-Cookie. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionRotationResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    revokeOtherIdentitySessions: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Token de doble envio igual a la cookie legible valle_csrf. */
+                "X-CSRF-Token": components["parameters"]["csrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Las demas sesiones quedaron revocadas. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    revokeIdentitySession: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Token de doble envio igual a la cookie legible valle_csrf. */
+                "X-CSRF-Token": components["parameters"]["csrfToken"];
+            };
+            path: {
+                sessionId: components["parameters"]["identitySessionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sesion revocada o ya inactiva. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    verifyIdentityEmail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OneTimeTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description Correo verificado. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailVerificationResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    resendIdentityVerification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailRequest"];
+            };
+        };
+        responses: {
+            /** @description Solicitud aceptada exista o no la cuenta. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcceptedResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    requestIdentityPasswordReset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailRequest"];
+            };
+        };
+        responses: {
+            /** @description Solicitud aceptada exista o no la cuenta. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcceptedResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    resetIdentityPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetRequest"];
+            };
+        };
+        responses: {
+            /** @description Contrasena actualizada. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PasswordResetResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    listOrganizations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Organizaciones visibles para la sesion. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    createOrganization: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Token de doble envio igual a la cookie legible valle_csrf. */
+                "X-CSRF-Token": components["parameters"]["csrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrganizationCreate"];
+            };
+        };
+        responses: {
+            /** @description Organizacion creada y activada en la sesion. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationCreated"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    activateOrganization: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Token de doble envio igual a la cookie legible valle_csrf. */
+                "X-CSRF-Token": components["parameters"]["csrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActiveOrganizationRequest"];
+            };
+        };
+        responses: {
+            /** @description Contexto activo derivado server-side. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationContext"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listOrganizationMemberships: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["organizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Membresias y perfiles minimos de colaboracion. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationMembershipList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createOrganizationInvitation: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Token de doble envio igual a la cookie legible valle_csrf. */
+                "X-CSRF-Token": components["parameters"]["csrfToken"];
+            };
+            path: {
+                organizationId: components["parameters"]["organizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrganizationInvitationCreate"];
+            };
+        };
+        responses: {
+            /** @description Invitacion encolada; el secreto solo viaja por correo. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationInvitationCreated"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    acceptOrganizationInvitation: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Token de doble envio igual a la cookie legible valle_csrf. */
+                "X-CSRF-Token": components["parameters"]["csrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrganizationInvitationAccept"];
+            };
+        };
+        responses: {
+            /** @description Membresia creada o actualizada. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationInvitationAccepted"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getActiveSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Estado sin precios, datos de pago ni secretos. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommercialSubscriptionResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    listEffectiveEntitlements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Lista vacia cuando no hay plan vigente. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EffectiveEntitlementList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
     listCadProjects: {
         parameters: {
             query?: {
@@ -1171,6 +2321,10 @@ export interface operations {
             query?: {
                 /** @description Filtra por proyecto contenedor. */
                 projectId?: components["schemas"]["CadProjectId"];
+                /** @description Coincidencia exacta del alias legacy persistido. */
+                model?: components["schemas"]["LegacyModelAlias"];
+                /** @description Coincidencia exacta de la revisión legacy persistida. */
+                revision?: components["schemas"]["LegacyRevisionAlias"];
                 /** @description Búsqueda por nombre (contains, case-insensitive). */
                 q?: components["parameters"]["searchQuery"];
                 limit?: components["parameters"]["limit"];
@@ -1301,6 +2455,38 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["EntitlementRequired"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    discardProvisionalCadDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: components["parameters"]["documentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Documento provisional descartado. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description El documento ya contiene información o dejó de ser provisional. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
         };
     };
     saveCadDocumentContent: {
@@ -2040,6 +3226,63 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["EntitlementRequired"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    interpretCadIntent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: components["parameters"]["documentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CadIntentRequest"];
+            };
+        };
+        responses: {
+            /** @description Resultado de interpretación, disponible o degradado. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CadIntentResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["EntitlementRequired"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    vectorizeCadImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CadVisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Resultado de visión, disponible o degradado. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CadVisionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["EntitlementRequired"];
         };
     };
 }

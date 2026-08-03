@@ -25,7 +25,6 @@ registrado por ese manifiesto y blobs huérfanos resultantes.
 | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
 | `AXOS-CAD-STUDIO` + `UNIVERSAL`          | hay lector bidireccional; migración/backfill y rollback probados; conteos por valor cuadran; quedan cero filas viejas en **todos** los entornos        | `persisted-identifiers.spec.ts` hasta conteo cero confirmado            |
 | `AXOS_DIM`, `AXOS_MLEADER`, `AXOS_BLOCK` | importador lee viejo+nuevo durante ciclo largo; se versionó `meta.schema` y migraron documentos; Producto aprobó romper/retirar compatibilidad antigua | `dxf-xdata-golden.spec.ts` sin regenerarlo mientras exista lector viejo |
-| mapa `engineering:*` → `cad:*`           | Platform solo emite `cad:*`; expiró la vida máxima de tokens previos; métrica de autorizaciones legacy es cero durante esa ventana                     | `cad-permission-map.spec.ts` hasta completar ventana                    |
 
 Un golden que falla demuestra incompatibilidad; **no** se actualiza para hacer
 verde el cambio. Añadir primero fixture nuevo, lector dual y test de archivo

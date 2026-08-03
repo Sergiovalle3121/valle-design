@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "license": "UNLICENSED",
-  "description": "SDK TypeScript oficial de la API v1 de Valle Design (CAD): tipos generados desde packages/contracts/specs/design-api.v1.yaml + cliente fetch fino tipado.",
+  "description": "SDK TypeScript oficial de la API v1 standalone de Valle Design: identidad, organizaciones, comercial y CAD.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

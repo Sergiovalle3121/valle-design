@@ -1,7 +1,7 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadV1Backend } from '../fixtures/cad-v1-backend';
-import { loginAsMaster } from '../fixtures/session';
+import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { BASE_URL } from '../fixtures/constants';
 
 function layoutResponse() {
@@ -101,9 +101,9 @@ async function forceVisibilityCheckpoint(page: Page) {
 test('CAD recovery uses compressed IndexedDB journal and restores the newest checkpoint', async ({ context, page }) => {
   test.setTimeout(90_000);
   await installMockBackend(context);
-  await loginAsMaster(context);
+  await loginAsStandaloneOwner(context);
   await installCadBackend(context);
-  await page.goto('/studio');
+  await page.goto('/legacy/studio');
   await page.getByTestId('cad-native-entity-recovery-arc').click();
   const radius = page.getByTestId('cad-native-property-radius');
   await radius.fill('141');
@@ -139,14 +139,14 @@ test('CAD recovery uses compressed IndexedDB journal and restores the newest che
 
 test('CAD recovery surfaces exhausted browser quota', async ({ context, page }) => {
   await installMockBackend(context);
-  await loginAsMaster(context);
+  await loginAsStandaloneOwner(context);
   await installCadBackend(context);
   const cdp = await context.newCDPSession(page);
   await cdp.send('Storage.overrideQuotaForOrigin', {
     origin: new URL(BASE_URL).origin,
     quotaSize: 1,
   });
-  await page.goto('/studio');
+  await page.goto('/legacy/studio');
   await page.getByTestId('cad-native-entity-recovery-arc').click();
   const radius = page.getByTestId('cad-native-property-radius');
   await radius.fill('155');

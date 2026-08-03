@@ -1,48 +1,18 @@
-export type CommercialPlan = {
-  name: string;
-  description: string;
-  features: readonly string[];
-  approvedPrice?: string;
-  salesOnly?: boolean;
-};
+import { BRAND } from "@/config/brand";
 
 const configuredUrl = (value: string | undefined, fallback: string) =>
   value?.trim() || fallback;
 
-/** Contenido comercial local. Un precio sólo se publica tras aprobarlo aquí. */
-export const COMMERCIAL_PLANS: readonly CommercialPlan[] = [
-  {
-    name: "Individual",
-    description:
-      "Para profesionales que crean y publican documentación técnica.",
-    features: [
-      "Edición 2D de precisión",
-      "Importación y exportación DXF",
-      "Historial de versiones",
-    ],
-  },
-  {
-    name: "Equipo",
-    description: "Para equipos que revisan, comparan y entregan planos juntos.",
-    features: [
-      "Todo lo incluido en Individual",
-      "Reviews y trazabilidad",
-      "Controles de acceso",
-    ],
-  },
-  {
-    name: "Organización",
-    description:
-      "Para despliegues con requisitos avanzados de control y soporte.",
-    features: [
-      "Todo lo incluido en Equipo",
-      "Acompañamiento de adopción",
-      "Gobierno y seguridad ampliados",
-    ],
-    salesOnly: true,
-  },
-];
+const configuredEmail = (value: string): string | undefined => {
+  const email = value.trim();
+  if (!email || email.toLowerCase().endsWith(".invalid")) return undefined;
+  return email;
+};
 
+/**
+ * Enlaces configurables de la superficie pública. Cada fallback local tiene
+ * una página real; un despliegue puede sustituirlo por su recurso externo.
+ */
 export const COMMERCIAL_LINKS = {
   sales: configuredUrl(
     process.env.NEXT_PUBLIC_SALES_URL,
@@ -58,4 +28,14 @@ export const COMMERCIAL_LINKS = {
   privacy: configuredUrl(process.env.NEXT_PUBLIC_PRIVACY_URL, "/privacy"),
   terms: configuredUrl(process.env.NEXT_PUBLIC_TERMS_URL, "/terms"),
   licenses: configuredUrl(process.env.NEXT_PUBLIC_LICENSES_URL, "/licenses"),
+} as const;
+
+/**
+ * Los correos `.invalid` del manifiesto de desarrollo nunca se presentan como
+ * canales reales. Producción los configura mediante NEXT_PUBLIC_BRAND_*.
+ */
+export const COMMERCIAL_CONTACTS = {
+  sales: configuredEmail(BRAND.salesEmail),
+  support: configuredEmail(BRAND.supportEmail),
+  privacy: configuredEmail(BRAND.privacyEmail),
 } as const;

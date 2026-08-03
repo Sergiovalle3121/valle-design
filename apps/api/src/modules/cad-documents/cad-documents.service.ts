@@ -192,6 +192,7 @@ export class CadDocumentsService {
   async storeCadDocument(
     document: PersistedCadDocument,
     forceArchive = false,
+    transaction?: unknown,
   ): Promise<Record<string, unknown>> {
     const bytes = Buffer.byteLength(JSON.stringify(document), 'utf8');
     if (!forceArchive && bytes <= CAD_DOCUMENT_BLOB_THRESHOLD_BYTES) {
@@ -201,6 +202,7 @@ export class CadDocumentsService {
     const put = await this.requireCadBlobs().put(
       archive.compressed,
       archive.compressedSha256,
+      transaction,
     );
     if (
       put.sha256 !== archive.compressedSha256 ||
@@ -336,6 +338,7 @@ export class CadDocumentsService {
   async appendCadPublication(
     storedCadDocument: Record<string, unknown>,
     input: CadPublicationInput,
+    transaction?: unknown,
   ): Promise<CadPublicationPlan> {
     const current = await this.hydrateCadDocument(storedCadDocument);
     const paperSpaces: unknown[] = Array.isArray(current.paperSpaces)
@@ -402,6 +405,7 @@ export class CadDocumentsService {
     const storedDocument = await this.storeCadDocument(
       nextDocument,
       isStoredCadDocumentBlobPointer(storedCadDocument),
+      transaction,
     );
     return { publication, storedDocument };
   }

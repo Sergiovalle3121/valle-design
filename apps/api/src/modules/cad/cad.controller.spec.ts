@@ -1,6 +1,5 @@
 import { ValidationPipe } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
-import { JwtService } from '@nestjs/jwt';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -8,8 +7,12 @@ import { gzipSync } from 'node:zlib';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AllExceptionsFilter } from '../../common/filters/all-exceptions.filter';
+import {
+  FIRST_PARTY_AUTH_ENTITY_GRAPH,
+  type FirstPartyCadActor,
+  seedFirstPartyCadActor,
+} from '../../common/testing/first-party-cad-auth';
 import { TenantModule } from '../../common/tenant/tenant.module';
-import { AuthModule } from '../auth/auth.module';
 import { CadAuthGuard } from '../auth/guards/cad-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { AuditLogModule } from '../audit-log/audit-log.module';
@@ -17,34 +20,25 @@ import { DesignAuditLog } from '../audit-log/design-audit-log.service';
 import { TenantContextService } from '../../common/tenant/tenant-context.service';
 import { BlobStoreModule } from '../blob-store/blob-store.module';
 import { CadDocumentsModule } from '../cad-documents/cad-documents.module';
+import { IdentityModule } from '../identity/identity.module';
+import { OrganizationsModule } from '../organizations/organizations.module';
 import { CadModule } from './cad.module';
 
 /**
  * Prueba de la superficie /v1/cad/* con el stack REAL: guards globales
  * (CadAuthGuard + PermissionsGuard), TenantInterceptor, pipe de validación y
- * SQLite en memoria. Los tokens se firman con el MISMO secreto de dev que
- * verifica el guard (contrato Platform→Design).
+ * SQLite en memoria. La cookie opaca, organización activa, membresía, rol y
+ * entitlement se resuelven desde las tablas first-party reales.
  */
 describe('CadController (/v1/cad, stack completo)', () => {
   jest.setTimeout(30_000);
 
   let app: NestExpressApplication;
-  let jwt: JwtService;
-
-  const token = (permissions: string[] | null, role = '') =>
-    jwt.sign({
-      sub: 'user-1',
-      email: 'cad@test',
-      role,
-      tenant_id: 'tenant-a',
-      organization_id: null,
-      plant_id: null,
-      permissions,
-      scopes: null,
-    });
-
-  const full = () =>
-    token(['cad:view', 'cad:edit', 'cad:review', 'cad:publish', 'cad:admin']);
+  let owner: FirstPartyCadActor;
+  let member: FirstPartyCadActor;
+  let viewer: FirstPartyCadActor;
+  let withoutOrganization: FirstPartyCadActor;
+  let withoutEntitlement: FirstPartyCadActor;
 
   beforeAll(async () => {
     process.env.AI_MOCK = '1';
@@ -56,9 +50,11 @@ describe('CadController (/v1/cad, stack completo)', () => {
           dropSchema: true,
           synchronize: true,
           autoLoadEntities: true,
+          entities: [...FIRST_PARTY_AUTH_ENTITY_GRAPH],
         }),
         TenantModule,
-        AuthModule,
+        IdentityModule,
+        OrganizationsModule,
         AuditLogModule,
         BlobStoreModule,
         CadDocumentsModule,
@@ -84,7 +80,27 @@ describe('CadController (/v1/cad, stack completo)', () => {
       }),
     );
     await app.init();
-    jwt = app.get(JwtService);
+    const dataSource = app.get(DataSource);
+    owner = await seedFirstPartyCadActor(dataSource, {
+      email: 'cad-owner@test.invalid',
+      role: 'owner',
+    });
+    member = await seedFirstPartyCadActor(dataSource, {
+      email: 'cad-member@test.invalid',
+      role: 'member',
+    });
+    viewer = await seedFirstPartyCadActor(dataSource, {
+      email: 'cad-viewer@test.invalid',
+      role: 'viewer',
+    });
+    withoutOrganization = await seedFirstPartyCadActor(dataSource, {
+      email: 'cad-no-org@test.invalid',
+      withOrganization: false,
+    });
+    withoutEntitlement = await seedFirstPartyCadActor(dataSource, {
+      email: 'cad-no-entitlement@test.invalid',
+      entitled: false,
+    });
   });
 
   afterAll(async () => {
@@ -92,14 +108,16 @@ describe('CadController (/v1/cad, stack completo)', () => {
     await app.close();
   });
 
-  it('sin bearer token la superficie responde 401', async () => {
+  it('sin cookie de sesión la superficie responde 401', async () => {
     await request(app.getHttpServer()).get('/v1/cad/projects').expect(401);
   });
 
-  it('sin el permiso cad:* requerido responde el 403 contractual', async () => {
+  it('un viewer no puede escribir aunque falsifique headers de tenant o permisos', async () => {
     const res = await request(app.getHttpServer())
       .post('/v1/cad/projects')
-      .set('Authorization', `Bearer ${token(['cad:view'])}`)
+      .set(viewer.headers)
+      .set('X-Tenant-Id', owner.organizationId!)
+      .set('X-Permissions', 'cad:admin,cad:edit')
       .send({ name: 'Planta' })
       .expect(403);
     expect(res.body).toMatchObject({
@@ -111,36 +129,114 @@ describe('CadController (/v1/cad, stack completo)', () => {
     });
   });
 
-  it('en modo platform-api sin PLATFORM_API_URL el 403 es not_entitled fail-closed', async () => {
-    process.env.ENTITLEMENTS_MODE = 'platform-api';
-    try {
-      const res = await request(app.getHttpServer())
-        .get('/v1/cad/projects')
-        .set('Authorization', `Bearer ${full()}`)
-        .expect(403);
-      expect(res.body).toMatchObject({
-        code: 'entitlement_required',
-        details: { reason: 'not_entitled' },
-      });
-    } finally {
-      delete process.env.ENTITLEMENTS_MODE;
-    }
+  it('un editor descarta su provisional sin recibir cad:admin para el borrado general', async () => {
+    const server = app.getHttpServer();
+    const provisional = await request(server)
+      .post('/v1/cad/documents')
+      .set(member.headers)
+      .send({ name: 'Rollback de importación' })
+      .expect(201);
+    const provisionalId = (provisional.body as { id: string }).id;
+
+    await request(server)
+      .delete(`/v1/cad/documents/${provisionalId}`)
+      .set(member.headers)
+      .expect(403);
+    await request(server)
+      .delete(`/v1/cad/documents/${provisionalId}/provisional`)
+      .set(member.headers)
+      .expect(204);
+    await request(server)
+      .get(`/v1/cad/documents/${provisionalId}`)
+      .set(member.headers)
+      .expect(404);
   });
 
-  it('el mapeo de transición engineering:read → cad:view permite leer', async () => {
+  it('una sesión sin organización activa falla cerrada con 403', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/v1/cad/projects')
+      .set(withoutOrganization.headers)
+      .expect(403);
+    expect(res.body).toMatchObject({
+      code: 'entitlement_required',
+      details: { reason: 'not_entitled' },
+    });
+  });
+
+  it('una organización sin suscripción design.cad falla cerrada con 403', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/v1/cad/projects')
+      .set(withoutEntitlement.headers)
+      .expect(403);
+    expect(res.body).toMatchObject({
+      code: 'entitlement_required',
+      details: { reason: 'not_entitled' },
+    });
+  });
+
+  it('un viewer puede leer con permisos derivados server-side', async () => {
     await request(app.getHttpServer())
       .get('/v1/cad/projects')
-      .set('Authorization', `Bearer ${token(['engineering:read'])}`)
+      .set(viewer.headers)
       .expect(200);
   });
 
+  it('acepta model+revision como filtros exactos del listado de documentos', async () => {
+    const auth = owner.headers;
+    const server = app.getHttpServer();
+    const target = await request(server)
+      .post('/v1/cad/documents')
+      .set(auth)
+      .send({
+        name: 'Documento histórico',
+        model: 'AXOS-CAD-STUDIO',
+        revision: 'UNIVERSAL',
+      })
+      .expect(201);
+    await request(server)
+      .post('/v1/cad/documents')
+      .set(auth)
+      .send({
+        name: 'Modelo parecido',
+        model: 'AXOS-CAD-STUDIO-ARCHIVE',
+        revision: 'UNIVERSAL',
+      })
+      .expect(201);
+    await request(server)
+      .post('/v1/cad/documents')
+      .set(auth)
+      .send({
+        name: 'Revisión parecida',
+        model: 'AXOS-CAD-STUDIO',
+        revision: 'UNIVERSAL-OLD',
+      })
+      .expect(201);
+
+    const exact = await request(server)
+      .get('/v1/cad/documents?model=AXOS-CAD-STUDIO&revision=UNIVERSAL&limit=1')
+      .set(auth)
+      .expect(200);
+    const exactBody = exact.body as {
+      total: number;
+      items: Array<{ id: string }>;
+    };
+    const targetBody = target.body as { id: string };
+    expect(exactBody.total).toBe(1);
+    expect(exactBody.items.map((item) => item.id)).toEqual([targetBody.id]);
+
+    await request(server)
+      .get(`/v1/cad/documents?model=${'x'.repeat(65)}`)
+      .set(auth)
+      .expect(400);
+  });
+
   it('ciclo completo: proyecto → documento → CAS → 409 stale → versiones → publicación', async () => {
-    const auth = `Bearer ${full()}`;
+    const auth = owner.headers;
     const server = app.getHttpServer();
 
     const project = await request(server)
       .post('/v1/cad/projects')
-      .set('Authorization', auth)
+      .set(auth)
       .send({ name: 'Planta demo', description: 'Nave 1' })
       .expect(201);
     expect(project.body).toMatchObject({
@@ -150,7 +246,7 @@ describe('CadController (/v1/cad, stack completo)', () => {
 
     const document = await request(server)
       .post('/v1/cad/documents')
-      .set('Authorization', auth)
+      .set(auth)
       .send({ name: 'Plano', projectId: project.body.id })
       .expect(201);
     expect(document.body.cadDocumentVersion).toBe(0);
@@ -169,7 +265,7 @@ describe('CadController (/v1/cad, stack completo)', () => {
     };
     const saved = await request(server)
       .put(`/v1/cad/documents/${document.body.id}/content`)
-      .set('Authorization', auth)
+      .set(auth)
       .send({ cadDocument, expectedCadDocumentVersion: 0 })
       .expect(200);
     expect(saved.body).toMatchObject({
@@ -181,7 +277,7 @@ describe('CadController (/v1/cad, stack completo)', () => {
     // Escritor desfasado → 409 contractual.
     const conflict = await request(server)
       .put(`/v1/cad/documents/${document.body.id}/content`)
-      .set('Authorization', auth)
+      .set(auth)
       .send({ cadDocument, expectedCadDocumentVersion: 0 })
       .expect(409);
     expect(conflict.body).toMatchObject({
@@ -193,7 +289,7 @@ describe('CadController (/v1/cad, stack completo)', () => {
     // Abrir devuelve el documento + token CAS (+ dxf: null — sin plano).
     const opened = await request(server)
       .get(`/v1/cad/documents/${document.body.id}`)
-      .set('Authorization', auth)
+      .set(auth)
       .expect(200);
     expect(opened.body.cadDocumentVersion).toBe(1);
     expect(opened.body.cadDocument.entities).toHaveLength(1);
@@ -202,7 +298,7 @@ describe('CadController (/v1/cad, stack completo)', () => {
     // Historial.
     const versions = await request(server)
       .get(`/v1/cad/documents/${document.body.id}/versions`)
-      .set('Authorization', auth)
+      .set(auth)
       .expect(200);
     expect(versions.body.total).toBe(1);
     expect(versions.body.items[0]).toMatchObject({ version: 1 });
@@ -210,7 +306,7 @@ describe('CadController (/v1/cad, stack completo)', () => {
     // Publicación (CAS + recibo inmutable).
     const publication = await request(server)
       .post(`/v1/cad/documents/${document.body.id}/publications`)
-      .set('Authorization', auth)
+      .set(auth)
       .send({
         expectedCadDocumentVersion: 1,
         paperSpaceIds: ['sheet-1'],
@@ -221,13 +317,13 @@ describe('CadController (/v1/cad, stack completo)', () => {
       .expect(201);
     expect(publication.body).toMatchObject({
       fileName: 'plano.pdf',
-      publishedBy: 'cad@test',
+      publishedBy: owner.email,
       cadDocumentVersion: 2,
     });
 
     const publications = await request(server)
       .get(`/v1/cad/documents/${document.body.id}/publications`)
-      .set('Authorization', auth)
+      .set(auth)
       .expect(200);
     expect(publications.body.items).toHaveLength(1);
 
@@ -236,10 +332,10 @@ describe('CadController (/v1/cad, stack completo)', () => {
     const tenantCtx = app.get(TenantContextService);
     const entries = await tenantCtx.run(
       {
-        tenant_id: 'tenant-a',
-        organization_id: null,
+        tenant_id: owner.organizationId,
+        organization_id: owner.organizationId,
         plant_id: null,
-        user_email: 'spec@test',
+        user_email: owner.email,
         role: null,
         permissions: null,
         scopes: null,
@@ -253,13 +349,13 @@ describe('CadController (/v1/cad, stack completo)', () => {
   });
 
   it('los review link tokens heredados NUNCA salen en la respuesta (documento ni versiones)', async () => {
-    const auth = `Bearer ${full()}`;
+    const auth = owner.headers;
     const server = app.getHttpServer();
     const SECRET = 'vdrl_token_heredado_del_navegador';
 
     const document = await request(server)
       .post('/v1/cad/documents')
-      .set('Authorization', auth)
+      .set(auth)
       .send({ name: 'Plano con review link' })
       .expect(201);
     const documentId = document.body.id as string;
@@ -280,7 +376,7 @@ describe('CadController (/v1/cad, stack completo)', () => {
     };
     await request(server)
       .put(`/v1/cad/documents/${documentId}/content`)
-      .set('Authorization', auth)
+      .set(auth)
       .send({ cadDocument, expectedCadDocumentVersion: 0 })
       .expect(200);
 
@@ -319,7 +415,7 @@ describe('CadController (/v1/cad, stack completo)', () => {
 
     const opened = await request(server)
       .get(`/v1/cad/documents/${documentId}`)
-      .set('Authorization', auth)
+      .set(auth)
       .expect(200);
     expect(JSON.stringify(opened.body)).not.toContain(SECRET);
     expect(opened.body.cadDocument.collaboration.reviewLinks[0]).toEqual({
@@ -331,7 +427,7 @@ describe('CadController (/v1/cad, stack completo)', () => {
 
     const version = await request(server)
       .get(`/v1/cad/documents/${documentId}/versions/1`)
-      .set('Authorization', auth)
+      .set(auth)
       .expect(200);
     expect(JSON.stringify(version.body)).not.toContain(SECRET);
     expect(
@@ -340,12 +436,12 @@ describe('CadController (/v1/cad, stack completo)', () => {
   });
 
   it('guarda el archivo gzip multipart mediante CAS (rama /archive)', async () => {
-    const auth = `Bearer ${full()}`;
+    const auth = owner.headers;
     const server = app.getHttpServer();
 
     const document = await request(server)
       .post('/v1/cad/documents')
-      .set('Authorization', auth)
+      .set(auth)
       .send({ name: 'Plano grande' })
       .expect(201);
 
@@ -361,7 +457,7 @@ describe('CadController (/v1/cad, stack completo)', () => {
     // Sin payload → 400 contractual cad_document_version_required.
     const missing = await request(server)
       .put(`/v1/cad/documents/${document.body.id}/archive`)
-      .set('Authorization', auth)
+      .set(auth)
       .attach('file', gz, 'documento.json.gz')
       .expect(400);
     expect(missing.body).toMatchObject({
@@ -370,7 +466,7 @@ describe('CadController (/v1/cad, stack completo)', () => {
 
     const saved = await request(server)
       .put(`/v1/cad/documents/${document.body.id}/archive`)
-      .set('Authorization', auth)
+      .set(auth)
       .field('payload', JSON.stringify({ expectedCadDocumentVersion: 0 }))
       .attach('file', gz, 'documento.json.gz')
       .expect(200);
@@ -386,7 +482,7 @@ describe('CadController (/v1/cad, stack completo)', () => {
     // origen con includeCadDocument=true).
     const opened = await request(server)
       .get(`/v1/cad/documents/${document.body.id}`)
-      .set('Authorization', auth)
+      .set(auth)
       .expect(200);
     expect(opened.body.cadDocument._storage).toBeUndefined();
     expect(opened.body.cadDocument).toEqual(cadDocument);
@@ -394,18 +490,18 @@ describe('CadController (/v1/cad, stack completo)', () => {
     // El historial CAS también rehidrata la versión archivada.
     const version = await request(server)
       .get(`/v1/cad/documents/${document.body.id}/versions/1`)
-      .set('Authorization', auth)
+      .set(auth)
       .expect(200);
     expect(version.body.cadDocument).toEqual(cadDocument);
   });
 
   it('round-trip real >1MB: el contenido inline se persiste como blob y se abre hidratado', async () => {
-    const auth = `Bearer ${full()}`;
+    const auth = owner.headers;
     const server = app.getHttpServer();
 
     const document = await request(server)
       .post('/v1/cad/documents')
-      .set('Authorization', auth)
+      .set(auth)
       .send({ name: 'Plano gigante', model: 'PERF-1MB', revision: 'A' })
       .expect(201);
 
@@ -430,7 +526,7 @@ describe('CadController (/v1/cad, stack completo)', () => {
 
     const saved = await request(server)
       .put(`/v1/cad/documents/${document.body.id}/content`)
-      .set('Authorization', auth)
+      .set(auth)
       .send({ cadDocument, expectedCadDocumentVersion: 0 })
       .expect(200);
     expect(saved.body).toMatchObject({
@@ -444,7 +540,7 @@ describe('CadController (/v1/cad, stack completo)', () => {
     // por blob real, sin puntero expuesto al cliente).
     const opened = await request(server)
       .get(`/v1/cad/documents/${document.body.id}`)
-      .set('Authorization', auth)
+      .set(auth)
       .expect(200);
     expect(opened.body.cadDocumentVersion).toBe(1);
     expect(opened.body.cadDocument._storage).toBeUndefined();
@@ -454,7 +550,7 @@ describe('CadController (/v1/cad, stack completo)', () => {
     // El CAS sigue operando sobre el documento hidratado: eco + guardado.
     const again = await request(server)
       .put(`/v1/cad/documents/${document.body.id}/content`)
-      .set('Authorization', auth)
+      .set(auth)
       .send({
         cadDocument: opened.body.cadDocument,
         expectedCadDocumentVersion: 1,
@@ -467,24 +563,24 @@ describe('CadController (/v1/cad, stack completo)', () => {
   });
 
   it('plano DXF de fondo: put/get/delete y exportación DXF R12', async () => {
-    const auth = `Bearer ${full()}`;
+    const auth = owner.headers;
     const server = app.getHttpServer();
 
     const document = await request(server)
       .post('/v1/cad/documents')
-      .set('Authorization', auth)
+      .set(auth)
       .send({ name: 'Con fondo' })
       .expect(201);
 
     await request(server)
       .get(`/v1/cad/documents/${document.body.id}/dxf`)
-      .set('Authorization', auth)
+      .set(auth)
       .expect(404);
 
     const dxfText = '0\nSECTION\n2\nENTITIES\n0\nENDSEC\n0\nEOF\n';
     const uploaded = await request(server)
       .put(`/v1/cad/documents/${document.body.id}/dxf`)
-      .set('Authorization', auth)
+      .set(auth)
       .send({ name: 'fondo.dxf', data: dxfText, placement: { scale: 2 } })
       .expect(200);
     expect(uploaded.body).toMatchObject({
@@ -495,7 +591,7 @@ describe('CadController (/v1/cad, stack completo)', () => {
     // ADITIVO R3: la apertura expone la colocación del plano (sin los datos).
     const openedWithDxf = await request(server)
       .get(`/v1/cad/documents/${document.body.id}`)
-      .set('Authorization', auth)
+      .set(auth)
       .expect(200);
     expect(openedWithDxf.body.dxf).toMatchObject({
       name: 'fondo.dxf',
@@ -506,17 +602,17 @@ describe('CadController (/v1/cad, stack completo)', () => {
 
     await request(server)
       .delete(`/v1/cad/documents/${document.body.id}/dxf`)
-      .set('Authorization', auth)
+      .set(auth)
       .expect(204);
 
     await request(server)
       .get(`/v1/cad/documents/${document.body.id}/dxf`)
-      .set('Authorization', auth)
+      .set(auth)
       .expect(404);
 
     const exported = await request(server)
       .get(`/v1/cad/documents/${document.body.id}/export/dxf`)
-      .set('Authorization', auth)
+      .set(auth)
       .expect(200);
     expect(exported.body.fileName).toMatch(/\.dxf$/);
     expect(exported.body.dxf).toContain('SECTION');
@@ -524,12 +620,12 @@ describe('CadController (/v1/cad, stack completo)', () => {
   });
 
   it('biblioteca de bloques: crear, listar, obtener, redefinir y borrar', async () => {
-    const auth = `Bearer ${full()}`;
+    const auth = owner.headers;
     const server = app.getHttpServer();
 
     const created = await request(server)
       .post('/v1/cad/blocks')
-      .set('Authorization', auth)
+      .set(auth)
       .send({
         name: 'Conveyor',
         assets: [{ id: 'a1', kind: 'box', x: 0, y: 0, w: 100, h: 40 }],
@@ -539,40 +635,40 @@ describe('CadController (/v1/cad, stack completo)', () => {
 
     const listed = await request(server)
       .get('/v1/cad/blocks?q=conveyor')
-      .set('Authorization', auth)
+      .set(auth)
       .expect(200);
     expect(listed.body.items).toHaveLength(1);
 
     await request(server)
       .get(`/v1/cad/blocks/${created.body.id}`)
-      .set('Authorization', auth)
+      .set(auth)
       .expect(200);
 
     const renamed = await request(server)
       .patch(`/v1/cad/blocks/${created.body.id}`)
-      .set('Authorization', auth)
+      .set(auth)
       .send({ name: 'Conveyor v2' })
       .expect(200);
     expect(renamed.body.name).toBe('Conveyor v2');
 
     await request(server)
       .delete(`/v1/cad/blocks/${created.body.id}`)
-      .set('Authorization', auth)
+      .set(auth)
       .expect(204);
   });
 
   it('intent degrada determinista en AI_MOCK (sin red, sin 500)', async () => {
-    const auth = `Bearer ${full()}`;
+    const auth = owner.headers;
     const server = app.getHttpServer();
     const document = await request(server)
       .post('/v1/cad/documents')
-      .set('Authorization', auth)
+      .set(auth)
       .send({ name: 'Con copiloto' })
       .expect(201);
 
     const intent = await request(server)
       .post(`/v1/cad/documents/${document.body.id}/intent`)
-      .set('Authorization', auth)
+      .set(auth)
       .send({ prompt: 'Alinea las estaciones en L' })
       .expect(201);
     expect(intent.body).toMatchObject({ available: false, toolCalls: [] });

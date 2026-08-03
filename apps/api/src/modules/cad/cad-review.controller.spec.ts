@@ -1,15 +1,18 @@
 import { ValidationPipe } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
-import { JwtService } from '@nestjs/jwt';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import request from 'supertest';
 import { AllExceptionsFilter } from '../../common/filters/all-exceptions.filter';
+import {
+  FIRST_PARTY_AUTH_ENTITY_GRAPH,
+  type FirstPartyCadActor,
+  seedFirstPartyCadActor,
+} from '../../common/testing/first-party-cad-auth';
 import { TenantModule } from '../../common/tenant/tenant.module';
 import { TenantContextService } from '../../common/tenant/tenant-context.service';
-import { AuthModule } from '../auth/auth.module';
 import { CadAuthGuard } from '../auth/guards/cad-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { AuditLogModule } from '../audit-log/audit-log.module';
@@ -18,6 +21,8 @@ import { BlobStoreModule } from '../blob-store/blob-store.module';
 import { CadDocumentsModule } from '../cad-documents/cad-documents.module';
 import { CadReviewSession } from '../cad-documents/entities/cad-review-session.entity';
 import { hashReviewLinkToken } from '../cad-documents/review-link-token';
+import { IdentityModule } from '../identity/identity.module';
+import { OrganizationsModule } from '../organizations/organizations.module';
 import { CadModule } from './cad.module';
 
 /**
@@ -34,32 +39,14 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
   jest.setTimeout(30_000);
 
   let app: NestExpressApplication;
-  let jwt: JwtService;
   let dataSource: DataSource;
-
-  const token = (
-    permissions: string[] | null,
-    role = '',
-    tenant = 'tenant-a',
-  ) =>
-    jwt.sign({
-      sub: 'user-1',
-      email: 'autor@test',
-      role,
-      tenant_id: tenant,
-      organization_id: null,
-      plant_id: null,
-      permissions,
-      scopes: null,
-    });
-
-  const full = () =>
-    token(['cad:view', 'cad:edit', 'cad:review', 'cad:publish', 'cad:admin']);
+  let author: FirstPartyCadActor;
+  let withoutEntitlement: FirstPartyCadActor;
 
   const createDocument = async (name = 'Plano review') => {
     const res = await request(app.getHttpServer())
       .post('/v1/cad/documents')
-      .set('Authorization', `Bearer ${full()}`)
+      .set(author.headers)
       .send({ name })
       .expect(201);
     return res.body.id as string;
@@ -68,7 +55,7 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
   const saveContent = async (documentId: string) => {
     await request(app.getHttpServer())
       .put(`/v1/cad/documents/${documentId}/content`)
-      .set('Authorization', `Bearer ${full()}`)
+      .set(author.headers)
       .send({
         cadDocument: {
           meta: { schema: 3, version: 1, unit: 'mm' },
@@ -86,13 +73,13 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
       .expect(200);
   };
 
-  const auditEntries = async (tenant = 'tenant-a') => {
+  const auditEntries = async (tenant = author.organizationId!) => {
     const audit = app.get(DesignAuditLog);
     const tenantCtx = app.get(TenantContextService);
     return tenantCtx.run(
       {
         tenant_id: tenant,
-        organization_id: null,
+        organization_id: tenant,
         plant_id: null,
         user_email: 'spec@test',
         role: null,
@@ -112,9 +99,11 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
           dropSchema: true,
           synchronize: true,
           autoLoadEntities: true,
+          entities: [...FIRST_PARTY_AUTH_ENTITY_GRAPH],
         }),
         TenantModule,
-        AuthModule,
+        IdentityModule,
+        OrganizationsModule,
         AuditLogModule,
         BlobStoreModule,
         CadDocumentsModule,
@@ -137,8 +126,15 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
       }),
     );
     await app.init();
-    jwt = app.get(JwtService);
     dataSource = app.get(DataSource);
+    author = await seedFirstPartyCadActor(dataSource, {
+      email: 'autor@test',
+      role: 'owner',
+    });
+    withoutEntitlement = await seedFirstPartyCadActor(dataSource, {
+      email: 'autor-sin-entitlement@test.invalid',
+      entitled: false,
+    });
   });
 
   afterAll(async () => {
@@ -149,12 +145,12 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
 
   it('crea sesiones: sin link no hay token; con link el token aparece UNA sola vez y solo se persiste su hash', async () => {
     const documentId = await createDocument();
-    const auth = `Bearer ${full()}`;
+    const auth = author.headers;
     const server = app.getHttpServer();
 
     const plain = await request(server)
       .post(`/v1/cad/documents/${documentId}/review-sessions`)
-      .set('Authorization', auth)
+      .set(auth)
       .send({})
       .expect(201);
     expect(plain.body.session).toMatchObject({
@@ -168,7 +164,7 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
 
     const withLink = await request(server)
       .post(`/v1/cad/documents/${documentId}/review-sessions`)
-      .set('Authorization', auth)
+      .set(auth)
       .send({ shareLink: true, shareLinkTtlMinutes: 60 })
       .expect(201);
     const shareToken = withLink.body.shareToken as string;
@@ -191,7 +187,7 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
     // Listar expone hasShareLink y NUNCA token ni hash.
     const listed = await request(server)
       .get(`/v1/cad/documents/${documentId}/review-sessions`)
-      .set('Authorization', auth)
+      .set(auth)
       .expect(200);
     expect(listed.body.items).toHaveLength(2);
     const serialized = JSON.stringify(listed.body);
@@ -210,12 +206,12 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
 
   it('comentarios del autor: directos y por sesión, filtros, resolve idempotente y sesión cerrada = 400', async () => {
     const documentId = await createDocument();
-    const auth = `Bearer ${full()}`;
+    const auth = author.headers;
     const server = app.getHttpServer();
 
     const session = await request(server)
       .post(`/v1/cad/documents/${documentId}/review-sessions`)
-      .set('Authorization', auth)
+      .set(auth)
       .send({})
       .expect(201);
     const sessionId = session.body.session.id as string;
@@ -223,7 +219,7 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
     // Directo (sin sesión) + anclado a la sesión.
     const direct = await request(server)
       .post(`/v1/cad/documents/${documentId}/comments`)
-      .set('Authorization', auth)
+      .set(auth)
       .send({ body: 'Comentario directo' })
       .expect(201);
     expect(direct.body).toMatchObject({
@@ -235,7 +231,7 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
 
     const anchored = await request(server)
       .post(`/v1/cad/documents/${documentId}/comments`)
-      .set('Authorization', auth)
+      .set(auth)
       .send({
         body: 'Revisar cota',
         anchor: { x: 120, y: 40, entityId: 'line-1' },
@@ -247,7 +243,7 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
     // Cuerpo vacío tras trim → 400.
     await request(server)
       .post(`/v1/cad/documents/${documentId}/comments`)
-      .set('Authorization', auth)
+      .set(auth)
       .send({ body: '   ' })
       .expect(400);
 
@@ -255,7 +251,7 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
     const otherDoc = await createDocument('Otro plano');
     await request(server)
       .post(`/v1/cad/documents/${otherDoc}/comments`)
-      .set('Authorization', auth)
+      .set(auth)
       .send({ body: 'cruzado', reviewSessionId: sessionId })
       .expect(404);
 
@@ -263,25 +259,25 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
     const bySession = await request(server)
       .get(`/v1/cad/documents/${documentId}/comments`)
       .query({ reviewSessionId: sessionId })
-      .set('Authorization', auth)
+      .set(auth)
       .expect(200);
     expect(bySession.body.items).toHaveLength(1);
 
     const resolved = await request(server)
       .post(`/v1/cad/comments/${anchored.body.id}/resolve`)
-      .set('Authorization', auth)
+      .set(auth)
       .expect(201);
     expect(resolved.body.resolved).toBe(true);
     // Idempotente.
     await request(server)
       .post(`/v1/cad/comments/${anchored.body.id}/resolve`)
-      .set('Authorization', auth)
+      .set(auth)
       .expect(201);
 
     const unresolved = await request(server)
       .get(`/v1/cad/documents/${documentId}/comments`)
       .query({ resolved: 'false' })
-      .set('Authorization', auth)
+      .set(auth)
       .expect(200);
     expect(unresolved.body.items).toHaveLength(1);
     expect(unresolved.body.items[0].id).toBe(direct.body.id);
@@ -289,11 +285,11 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
     // Cerrar la sesión: comentar en ella pasa a ser 400 contractual.
     await request(server)
       .post(`/v1/cad/review-sessions/${sessionId}/close`)
-      .set('Authorization', auth)
+      .set(auth)
       .expect(201);
     const closedComment = await request(server)
       .post(`/v1/cad/documents/${documentId}/comments`)
-      .set('Authorization', auth)
+      .set(auth)
       .send({ body: 'tarde', reviewSessionId: sessionId })
       .expect(400);
     expect(closedComment.body.code).toBe('review_session_closed');
@@ -301,32 +297,31 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
     // Cerrar dos veces → 409 contractual.
     const reclose = await request(server)
       .post(`/v1/cad/review-sessions/${sessionId}/close`)
-      .set('Authorization', auth)
+      .set(auth)
       .expect(409);
     expect(reclose.body.code).toBe('review_session_closed');
   });
 
-  it('la superficie de review exige cad:review (y audita la denegación CON tenant)', async () => {
+  it('la superficie de review falla cerrada sin entitlement y audita el tenant', async () => {
     const documentId = await createDocument();
     const res = await request(app.getHttpServer())
       .get(`/v1/cad/documents/${documentId}/review-sessions`)
-      .set('Authorization', `Bearer ${token(['cad:view'])}`)
+      .set(withoutEntitlement.headers)
       .expect(403);
     expect(res.body).toMatchObject({
       code: 'entitlement_required',
       details: {
-        reason: 'permission_denied',
-        requiredPermission: 'cad:review',
+        reason: 'not_entitled',
       },
     });
     // El asiento de la denegación quedó estampado con el tenant del actor
     // (el guard corre antes del TenantInterceptor: sin el fix de Fase 5 el
     // tenant quedaba NULL y recent() del tenant no lo veía).
-    const entries = await auditEntries('tenant-a');
-    const denial = entries.find((e) => e.action === 'PERMISSION_DENIED');
+    const entries = await auditEntries(withoutEntitlement.organizationId!);
+    const denial = entries.find((e) => e.action === 'ENTITLEMENT_DENIED');
     expect(denial).toBeDefined();
-    expect(denial!.tenantId).toBe('tenant-a');
-    expect(denial!.actor).toBe('autor@test');
+    expect(denial!.tenantId).toBe(withoutEntitlement.organizationId);
+    expect(denial!.actor).toBe(withoutEntitlement.email);
   });
 
   /* ─────────────── Escenario e2e del mandato (review link) ──────────────── */
@@ -334,13 +329,13 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
   it('e2e review-link: crear → canjear en contexto limpio → read-only impuesto → comentar → revocar → el canje muere', async () => {
     const documentId = await createDocument('Plano compartido');
     await saveContent(documentId);
-    const auth = `Bearer ${full()}`;
+    const auth = author.headers;
     const server = app.getHttpServer();
 
     // 1) CREAR la sesión con link (token server-owned, única aparición).
     const created = await request(server)
       .post(`/v1/cad/documents/${documentId}/review-sessions`)
-      .set('Authorization', auth)
+      .set(auth)
       .send({ shareLink: true })
       .expect(201);
     const shareToken = created.body.shareToken as string;
@@ -358,6 +353,21 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
       documentId,
       hasShareLink: true,
     });
+
+    // Un navegador ya autenticado también envía su cookie first-party al
+    // abrir el enlace. En la superficie explícita de review, el token debe
+    // seleccionar el contexto document-scoped en vez de quedar eclipsado por
+    // la sesión existente.
+    const contextWithSessionCookie = await request(server)
+      .get('/v1/cad/review/context')
+      .set(author.headers)
+      .set('X-Review-Token', shareToken)
+      .expect(200);
+    expect(contextWithSessionCookie.body.session).toMatchObject({
+      id: sessionId,
+      documentId,
+    });
+    expect(contextWithSessionCookie.body.readOnly).toBe(true);
     // El documento llega HIDRATADO y en proyección reducida (sin metadatos
     // internos del autor).
     expect(context.body.document.id).toBe(documentId);
@@ -456,7 +466,7 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
     // El documento NO cambió (la versión CAS sigue en 1).
     const untouched = await request(server)
       .get(`/v1/cad/documents/${documentId}`)
-      .set('Authorization', auth)
+      .set(auth)
       .expect(200);
     expect(untouched.body.cadDocumentVersion).toBe(1);
     expect(untouched.body.name).toBe('Plano compartido');
@@ -488,7 +498,7 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
     const authorView = await request(server)
       .get(`/v1/cad/documents/${documentId}/comments`)
       .query({ reviewSessionId: sessionId })
-      .set('Authorization', auth)
+      .set(auth)
       .expect(200);
     expect(authorView.body.items).toHaveLength(1);
     expect(authorView.body.items[0].author).toBe(`review-link:${sessionId}`);
@@ -496,7 +506,7 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
     // 5) REVOCAR: cerrar la sesión estampa revokedAt…
     const closed = await request(server)
       .post(`/v1/cad/review-sessions/${sessionId}/close`)
-      .set('Authorization', auth)
+      .set(auth)
       .expect(201);
     expect(closed.body.status).toBe('closed');
     expect(closed.body.revokedAt).not.toBeNull();
@@ -535,12 +545,12 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
     // credencial (el hash sólo vive en cad_review_sessions.token_hash).
     expect(serialized).not.toContain(hashReviewLinkToken(shareToken));
     const denied = entries.find((e) => e.action === 'cad_review_link_denied');
-    expect(denied!.tenantId).toBe('tenant-a');
+    expect(denied!.tenantId).toBe(author.organizationId);
     expect(denied!.payload).toMatchObject({ reason: 'review_token_revoked' });
     const readOnlyDenial = entries.find(
       (e) => e.action === 'REVIEW_ACCESS_DENIED',
     );
-    expect(readOnlyDenial!.tenantId).toBe('tenant-a');
+    expect(readOnlyDenial!.tenantId).toBe(author.organizationId);
   });
 
   /* ───────────── Expiración, tokens inválidos y allowComments ───────────── */
@@ -549,7 +559,7 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
     const documentId = await createDocument('Plano expirable');
     const created = await request(app.getHttpServer())
       .post(`/v1/cad/documents/${documentId}/review-sessions`)
-      .set('Authorization', `Bearer ${full()}`)
+      .set(author.headers)
       .send({ shareLink: true, shareLinkTtlMinutes: 5 })
       .expect(201);
     const shareToken = created.body.shareToken as string;
@@ -584,7 +594,7 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
     ).toBe(true);
   });
 
-  it('tokens malformados o desconocidos → 401 review_token_invalid; un JWT no abre la superficie del invitado', async () => {
+  it('tokens malformados o desconocidos → 401; una sesión normal no abre la superficie del invitado', async () => {
     const server = app.getHttpServer();
     // Desconocido con forma plausible.
     const unknown = await request(server)
@@ -599,19 +609,19 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
       .expect(401);
     // Sin credencial alguna.
     await request(server).get('/v1/cad/review/context').expect(401);
-    // Un JWT válido NO produce contexto de review (el Bearer siempre gana).
-    const jwtRes = await request(server)
+    // Una sesión first-party normal no produce contexto de review.
+    const sessionRes = await request(server)
       .get('/v1/cad/review/context')
-      .set('Authorization', `Bearer ${full()}`)
+      .set(author.headers)
       .expect(401);
-    expect(jwtRes.body.code).toBe('review_token_invalid');
+    expect(sessionRes.body.code).toBe('review_token_invalid');
   });
 
   it('allowComments: false deja el link en solo-vista — comentar/resolver = 403 review_comments_disabled', async () => {
     const documentId = await createDocument('Plano solo vista');
     const created = await request(app.getHttpServer())
       .post(`/v1/cad/documents/${documentId}/review-sessions`)
-      .set('Authorization', `Bearer ${full()}`)
+      .set(author.headers)
       .send({ shareLink: true, allowComments: false })
       .expect(201);
     const shareToken = created.body.shareToken as string;

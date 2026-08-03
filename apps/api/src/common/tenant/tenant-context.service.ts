@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { AsyncLocalStorage } from 'async_hooks';
-import { UserScopes } from '../types/jwt.types';
+import { UserScopes } from '../types/authenticated-user.types';
 
 /**
  * Lanzada cuando una operación sobre datos tenant-owned se ejecuta sin tenant
@@ -12,7 +12,7 @@ export class MissingTenantContextError extends ForbiddenException {
     super(
       `Operación tenant-owned sin tenant en el contexto autenticado${
         operation ? `: ${operation}` : ''
-      }. El tenant debe venir del JWT (nunca del body/query) y estar presente antes de tocar datos de negocio.`,
+      }. El tenant debe venir de la sesión y membresía verificadas (nunca del body/query) y estar presente antes de tocar datos de negocio.`,
     );
   }
 }
@@ -28,11 +28,9 @@ export interface TenantContext {
 }
 
 /**
- * Contexto autenticado del request/job en curso (AsyncLocalStorage), copiado
- * del monorepo origen. ADAPTACIÓN valle-design: se retira el "modo dedicado"
- * (instalación single-tenant de Enterprise) — Design nace multi-tenant y esa
- * frontera vive en Platform; si un despliegue dedicado llega a necesitarse,
- * se re-porta el bootstrap correspondiente.
+ * Contexto autenticado del request/job en curso (AsyncLocalStorage).
+ * Valle Design es multi-tenant: `organization.id` es el tenant (ADR-0005) y
+ * el contexto sólo se abre después de validar la membresía server-side.
  */
 @Injectable()
 export class TenantContextService {

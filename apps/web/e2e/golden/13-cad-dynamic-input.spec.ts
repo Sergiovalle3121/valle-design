@@ -1,7 +1,7 @@
 import { expect, test, type BrowserContext } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadV1Backend } from '../fixtures/cad-v1-backend';
-import { loginAsMaster } from '../fixtures/session';
+import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 
 // MIGRACIÓN R3: mock en la superficie v1 real. Documento nunca guardado
 // (cadDocument null, versión 0): el editor arranca en el lienzo por defecto —
@@ -13,9 +13,9 @@ async function installCadBackend(context: BrowserContext) {
 
 test('dynamic input creates a circle by absolute center and locked diameter', async ({ context, page }) => {
   await installMockBackend(context);
-  await loginAsMaster(context);
+  await loginAsStandaloneOwner(context);
   await installCadBackend(context);
-  await page.goto('/studio');
+  await page.goto('/legacy/studio');
 
   await page.getByRole('button', { name: 'Circle', exact: true }).click();
   const dynamic = page.getByTestId('cad-dynamic-input');

@@ -2,7 +2,7 @@ import { expect, test, type BrowserContext } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadV1Backend } from '../fixtures/cad-v1-backend';
-import { loginAsMaster } from '../fixtures/session';
+import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import type { CadDocument } from '../../src/lib/cad/cad-document';
 
 function canonicalDocument(): CadDocument {
@@ -46,9 +46,9 @@ async function installCadBackend(context: BrowserContext) {
 test('multiple paper viewports persist, preflight and publish as one audited vector sheet set', async ({ context, page }, testInfo) => {
   test.setTimeout(180_000);
   await installMockBackend(context);
-  await loginAsMaster(context);
+  await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
-  await page.goto('/studio');
+  await page.goto('/legacy/studio');
   await expect(page.getByTestId('cad-native-entity-layout-line')).toBeVisible();
 
   await page.getByTitle(/Paquete de entrega/).click();

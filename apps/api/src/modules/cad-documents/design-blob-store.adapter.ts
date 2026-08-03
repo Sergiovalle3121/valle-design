@@ -7,6 +7,7 @@
  * El dominio CAD sigue hablando únicamente con el puerto neutral.
  */
 import type { DatabaseBlobStore } from '../blob-store/design-blob.store';
+import type { EntityManager } from 'typeorm';
 import type {
   CadBlobPutResult,
   CadBlobStore,
@@ -16,8 +17,14 @@ export class DesignBlobStoreAdapter implements CadBlobStore {
   /** Sólo se exige el subconjunto que el puerto delega (put/get). */
   constructor(private readonly inner: Pick<DatabaseBlobStore, 'put' | 'get'>) {}
 
-  put(data: Buffer, sha256: string): Promise<CadBlobPutResult> {
-    return this.inner.put(data, sha256);
+  put(
+    data: Buffer,
+    sha256: string,
+    transaction?: unknown,
+  ): Promise<CadBlobPutResult> {
+    return transaction === undefined
+      ? this.inner.put(data, sha256)
+      : this.inner.put(data, sha256, transaction as EntityManager);
   }
 
   get(blobKey: string): Promise<Buffer> {

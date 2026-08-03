@@ -1,7 +1,7 @@
 import { expect, test, type BrowserContext } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
-import { loginAsMaster } from '../fixtures/session';
+import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
 
 type CadLine = Extract<CadEntity, { type: 'line' }>;
@@ -46,9 +46,9 @@ async function selectPair(page: import('@playwright/test').Page, first: string, 
 test('native TRIM and EXTEND edit LINE endpoints atomically and persist', async ({ context, page }, testInfo) => {
   test.setTimeout(180_000);
   await installMockBackend(context);
-  await loginAsMaster(context);
+  await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
-  await page.goto('/studio');
+  await page.goto('/legacy/studio');
 
   await test.step('15. TRIM', async () => {
     await selectPair(page, 'trim-target', 'trim-cutter');

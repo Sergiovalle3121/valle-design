@@ -27,7 +27,7 @@ export class CadReviewSession extends TenantBaseEntity {
   id: string;
 
   /** FK a `cad_documents`. */
-  @Column({ type: 'varchar', length: 36, name: 'document_id' })
+  @Column({ type: 'uuid', name: 'document_id' })
   documentId: string;
 
   /** Ciclo de vida: 'open' | 'closed' (extensible). */
@@ -56,4 +56,13 @@ export class CadReviewSession extends TenantBaseEntity {
   /** ¿El contexto de review puede crear/resolver comentarios? */
   @Column({ type: 'boolean', default: true, name: 'allow_comments' })
   allowComments: boolean;
+
+  /** Id anterior a la normalización UUID. NULL en sesiones nativas. */
+  @Column({
+    type: 'varchar',
+    length: 64,
+    nullable: true,
+    name: 'legacy_source_id',
+  })
+  legacySourceId: string | null;
 }

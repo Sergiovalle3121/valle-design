@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:valle-design:schema:cad-benchmark-corpus-manifest:v1",
+  "title": "Valle Design CAD benchmark corpus manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "benchmarkId",
+    "generator",
+    "determinismFixture",
+    "profiles"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "benchmarkId": { "type": "string", "minLength": 1 },
+    "generator": {
+      "type": "object",
+      "required": ["id", "seed", "rng", "cellSize", "entityMix"],
+      "properties": {
+        "id": { "type": "string" },
+        "seed": { "type": "integer", "minimum": 0, "maximum": 4294967295 },
+        "rng": { "type": "string" },
+        "cellSize": { "type": "number", "exclusiveMinimum": 0 },
+        "entityMix": {
+          "type": "object",
+          "required": ["line", "circle", "arc"],
+          "properties": {
+            "line": { "type": "number", "minimum": 0, "maximum": 1 },
+            "circle": { "type": "number", "minimum": 0, "maximum": 1 },
+            "arc": { "type": "number", "minimum": 0, "maximum": 1 }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "determinismFixture": {
+      "type": "object",
+      "required": ["entities", "sha256"],
+      "properties": {
+        "entities": { "type": "integer", "minimum": 1 },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      },
+      "additionalProperties": false
+    },
+    "profiles": {
+      "type": "array",
+      "minItems": 4,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "tier",
+          "entities",
+          "queries",
+          "dxfSampleEntities",
+          "budgetEnforcement",
+          "nodeOldSpaceMb",
+          "hardware",
+          "budgets"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "tier": { "enum": ["smoke", "scale"] },
+          "entities": { "enum": [10000, 100000, 500000, 1000000] },
+          "queries": { "type": "integer", "minimum": 1 },
+          "dxfSampleEntities": { "type": "integer", "minimum": 1 },
+          "budgetEnforcement": { "enum": ["blocking", "report-only"] },
+          "nodeOldSpaceMb": { "type": "integer", "minimum": 512 },
+          "hardware": {
+            "type": "object",
+            "required": ["minimumTotalMemoryBytes", "minimumFreeMemoryBytes"],
+            "properties": {
+              "minimumTotalMemoryBytes": { "type": "integer", "minimum": 0 },
+              "minimumFreeMemoryBytes": { "type": "integer", "minimum": 0 }
+            },
+            "additionalProperties": false
+          },
+          "budgets": {
+            "type": "object",
+            "required": [
+              "totalMs",
+              "generateMs",
+              "spatialIndexBuildMs",
+              "selectionIndexBuildMs",
+              "selectionQueryP95Ms",
+              "serializeMs",
+              "dxfRoundTripMs",
+              "peakRssBytes"
+            ],
+            "additionalProperties": { "type": "number", "exclusiveMinimum": 0 }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

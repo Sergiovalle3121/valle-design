@@ -17,7 +17,7 @@ export class AddCadBlocks20260706180000 implements MigrationInterface {
     if (!(await queryRunner.hasTable('sf_cad_blocks'))) {
       await queryRunner.query(`
         CREATE TABLE "sf_cad_blocks" (
-          "id"              uuid NOT NULL DEFAULT uuid_generate_v4(),
+          "id"              uuid NOT NULL DEFAULT gen_random_uuid(),
           "tenant_id"       character varying(36),
           "organization_id" character varying(36),
           "plant_id"        character varying(36),

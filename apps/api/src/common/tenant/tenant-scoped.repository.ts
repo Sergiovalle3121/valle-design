@@ -19,7 +19,8 @@ import { TenantContextService } from './tenant-context.service';
  * `findAndCount` / `exist`), reading the active tenant from TenantContextService.
  *
  * Isolation no longer depends on each service remembering to filter. Notes:
- * - The tenant comes from the JWT (via TenantInterceptor → context), never the
+ * - The tenant comes from the verified first-party session and membership
+ *   (via TenantInterceptor → context), never the
  *   request body.
  * - DEFAULT (legacy) mode: if there is no tenant in context (e.g. system/seed)
  *   OR the entity has no `tenant_id` column, no filter is added — so existing

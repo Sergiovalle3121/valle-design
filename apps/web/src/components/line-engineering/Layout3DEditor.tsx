@@ -81,15 +81,23 @@ import {
   ScanEye,
   GitMerge,
 } from "lucide-react";
-import { apiFetch, rawApiFetch } from "@/lib/apiFetch";
+import type { CadDocumentInline } from "@valle/design-sdk";
+import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
+import { legacyCadFetch } from "@/lib/cad/legacy/layout-http-adapter";
 import {
   layoutFromDocument,
   type OpenedDocument,
 } from "@/lib/cad/legacy/layout-mapper";
 import {
+  CAD_DOCUMENT_ARCHIVE_THRESHOLD_BYTES,
   CadCasConflictError,
   DocumentLifecycleController,
 } from "@/components/cad/document-lifecycle/controller";
+import {
+  createDebouncedAutosave,
+  type AutosaveStatus,
+} from "@/components/cad/document-lifecycle/autosave";
+import { CanonicalHistory } from "@/components/cad/document-lifecycle/history-controller";
 import {
   ASSET_CATEGORIES,
   assetMeta,
@@ -556,10 +564,6 @@ const NO_ANALYSIS_PANELS: CadAnalysisPanelDescriptor[] = [];
  * three.js + OrbitControls, lazy-loaded so the engine only ships when opened.
  */
 
-const API_BASE = (
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
-).replace(/\/$/, "");
-
 /* ──────────────────────── Review links (server-owned) ────────────────────── */
 
 /** Clave de sesión donde vive el token canjeado (nunca localStorage). */
@@ -628,12 +632,9 @@ async function redeemReviewLink(): Promise<boolean> {
   }
   if (!token) return false;
   try {
-    const res = await apiFetch(
-      `${API_BASE}/line-engineering/layout/review-context`,
-      {
-        headers: { "X-Review-Token": token },
-      },
-    );
+    const res = await legacyCadFetch("layout/review-context", {
+      headers: { "X-Review-Token": token },
+    });
     if (!res.ok) {
       // Enlace vencido, revocado o desconocido: se olvida el token.
       try {
@@ -900,6 +901,12 @@ interface Layout {
   dxf?: DxfMeta | null;
   cadDocument?: Record<string, unknown> | null;
   cadDocumentVersion?: number;
+}
+interface CanonicalSaveRequest {
+  documentId: string;
+  document: CadDocument;
+  generation: number;
+  base: Layout;
 }
 interface Placement {
   x: number;
@@ -1193,6 +1200,44 @@ const TOOLBAR_SHORTCUT_IDS = new Set<CadToolbarActionId>([
   "undo",
   "redo",
 ]);
+
+const READ_ONLY_TOOLBAR_ACTION_IDS = new Set<CadToolbarActionId>([
+  "select",
+  "pan",
+  "fit_view",
+]);
+const READ_ONLY_SHORTCUT_IDS = new Set([
+  "grid_toggle",
+  "object_snap_toggle",
+  "ortho_toggle",
+  "polar_tracking_toggle",
+  "object_tracking_toggle",
+  "validate_layout",
+  "export_dxf",
+  ...READ_ONLY_TOOLBAR_ACTION_IDS,
+]);
+
+function isReadOnlyMutationKey(
+  event: KeyboardEvent,
+  shortcutId?: string,
+): boolean {
+  if (shortcutId) return !READ_ONLY_SHORTCUT_IDS.has(shortcutId);
+  const key = event.key.toLowerCase();
+  if (event.ctrlKey || event.metaKey)
+    return ["s", "z", "y", "d", "c", "v", "g"].includes(key);
+  return [
+    "backspace",
+    "delete",
+    "enter",
+    "arrowleft",
+    "arrowright",
+    "arrowup",
+    "arrowdown",
+    "m",
+    "r",
+    "w",
+  ].includes(key);
+}
 
 type EditorTool = "select" | "measure" | "wall" | CadDrawCommandId;
 const CAD_DRAW_TOOLS = new Set<EditorTool>([
@@ -2179,6 +2224,12 @@ export interface Layout3DEditorProps extends Layout3DEditorPlatformProps {
   standalone?: boolean;
   title?: string;
   subtitle?: string;
+  /**
+   * Read-only product role. This is independent from review-link auth: both
+   * lanes share the same drawing-mutation gate, while review surfaces may
+   * still expose their explicitly scoped collaboration controls.
+   */
+  readOnly?: boolean;
 }
 
 /** Marca por defecto cuando el editor se monta sin plataforma (nunca en enterprise). */
@@ -2199,6 +2250,7 @@ export default function Layout3DEditor({
   standalone = false,
   title,
   subtitle,
+  readOnly = false,
   identity,
   scope: platformScope,
   theme: resolvedScheme = "light",
@@ -2210,7 +2262,21 @@ export default function Layout3DEditor({
   const documentLifecycle = useMemo(
     () =>
       new DocumentLifecycleController(
-        { request: (path, init) => rawApiFetch(`${API_BASE}${path}`, init) },
+        {
+          open: (id) => designClient.documents.open(id),
+          saveContent: (id, document, expectedVersion) =>
+            designClient.documents.saveContent(
+              id,
+              document as unknown as CadDocumentInline,
+              expectedVersion,
+            ),
+          saveArchive: (id, archive, expectedVersion) =>
+            designClient.documents.saveArchive(id, archive, expectedVersion),
+          versionConflict: (error) =>
+            error instanceof DesignApiError && error.isVersionConflict()
+              ? { current: error.body.current }
+              : null,
+        },
         {
           record: (name, durationMs, detail) => {
             if (typeof performance !== "undefined")
@@ -2260,6 +2326,21 @@ export default function Layout3DEditor({
   const viewMenuRef = useRef<HTMLDivElement | null>(null);
   const viewMenuPanelRef = useRef<HTMLDivElement | null>(null);
   const [data, setData] = useState<Layout | null>(null);
+  const dataRef = useRef<Layout | null>(null);
+  const currentDocumentIdRef = useRef(documentId);
+  const editorOpenRef = useRef(open);
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
+  useEffect(() => {
+    currentDocumentIdRef.current = documentId;
+  }, [documentId]);
+  useEffect(() => {
+    editorOpenRef.current = open;
+    return () => {
+      editorOpenRef.current = false;
+    };
+  }, [open]);
   const [error, setError] = useState<string | null>(null);
   const [connectionState, setConnectionState] = useState<
     "checking" | "online" | "offline"
@@ -2267,12 +2348,95 @@ export default function Layout3DEditor({
   const [snap, setSnap] = useState(true);
   const [osnap, setOsnap] = useState(true); // object snap: align to other objects' edges/centers (Fase 54)
   const [dirty, setDirty] = useState(false);
+  const dirtyRef = useRef(false);
+  const editGenerationRef = useRef(0);
+  const scheduleAutosaveRef = useRef<() => void>(() => undefined);
+  const [cadReviewReadOnly, setCadReviewReadOnly] = useState(false);
+  const drawingReadOnly = readOnly || cadReviewReadOnly;
+  const drawingReadOnlyRef = useRef(drawingReadOnly);
+  drawingReadOnlyRef.current = drawingReadOnly;
+  const readOnlyNoticeAtRef = useRef(0);
+  const notifyReadOnly = useCallback(() => {
+    const now = Date.now();
+    if (now - readOnlyNoticeAtRef.current < 1_000) return;
+    readOnlyNoticeAtRef.current = now;
+    toast.info(
+      cadReviewReadOnly
+        ? "El enlace permite revisar el dibujo, no modificarlo."
+        : "Tu rol permite consultar el dibujo, no modificarlo.",
+      "Solo lectura",
+    );
+  }, [cadReviewReadOnly, toast]);
+  const guardReadOnlyUi = useCallback(
+    (event: React.SyntheticEvent<HTMLElement>) => {
+      if (!drawingReadOnly) return;
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest("[data-cad-readonly-allowed]")) return;
+      if (cadReviewReadOnly && target.closest("[data-cad-review-allowed]"))
+        return;
+      if (
+        !target.closest(
+          'button, input, textarea, select, form, [contenteditable="true"]',
+        )
+      )
+        return;
+      event.preventDefault();
+      event.stopPropagation();
+      notifyReadOnly();
+    },
+    [cadReviewReadOnly, drawingReadOnly, notifyReadOnly],
+  );
+  const markDirty = useCallback(() => {
+    if (drawingReadOnlyRef.current) return;
+    editGenerationRef.current += 1;
+    dirtyRef.current = true;
+    setDirty(true);
+    // Some editor commands mutate several refs in one synchronous turn. Capture
+    // the immutable save request after that turn, never halfway through it.
+    queueMicrotask(() => scheduleAutosaveRef.current());
+  }, []);
   const [recoveryCandidate, setRecoveryCandidate] =
     useState<CadRecoveryRecord | null>(null);
   const [recoverySavedAt, setRecoverySavedAt] = useState<string | null>(null);
   const [recoveryWarning, setRecoveryWarning] = useState<string | null>(null);
   const recoveryWriteInFlightRef = useRef(false);
   const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<AutosaveStatus>("idle");
+  const [saveIssue, setSaveIssue] = useState<{
+    kind: "conflict" | "offline" | "server";
+    message: string;
+    serverVersion?: number;
+  } | null>(null);
+  const versionByDocumentRef = useRef(new Map<string, number>());
+  const savedGenerationByDocumentRef = useRef(new Map<string, number>());
+  const autosaveSchedulerRef = useRef<ReturnType<
+    typeof createDebouncedAutosave
+  > | null>(null);
+  const captureCanonicalSaveRequestRef = useRef<
+    () => CanonicalSaveRequest | null
+  >(() => null);
+  const persistCanonicalSaveRef = useRef<
+    (
+      request: CanonicalSaveRequest,
+      origin: "manual" | "autosave",
+    ) => Promise<Layout | null>
+  >(async () => null);
+  if (autosaveSchedulerRef.current === null)
+    autosaveSchedulerRef.current = createDebouncedAutosave(2_000, {
+      onStateChange: (state) => {
+        setSaveStatus(state.status);
+        setSaving(state.status === "saving");
+      },
+    });
+  useEffect(() => {
+    if (!drawingReadOnly) return;
+    // Revoking edit permission must also revoke already scheduled client work.
+    // The API remains authoritative for an in-flight request.
+    autosaveSchedulerRef.current?.cancel();
+    dirtyRef.current = false;
+    setDirty(false);
+  }, [drawingReadOnly]);
   const [serverBusy, setServerBusy] = useState(false); // server auto-arrange/optimize in flight (unify)
   const [approval, setApproval] = useState<LayoutApproval | null>(null); // sign-off status (unify)
   const [approvalBusy, setApprovalBusy] = useState(false);
@@ -2303,8 +2467,6 @@ export default function Layout3DEditor({
     "blocks",
   );
   const [showCollaborationDock, setShowCollaborationDock] = useState(false);
-  const [cadReviewReadOnly, setCadReviewReadOnly] = useState(false);
-
   // CANJE DEL REVIEW LINK — efecto de montaje, deliberadamente independiente
   // de la carga del documento. El invitado que llega con `#cadReview=` no debe
   // depender de que la rama del documento canónico se ejecute: su modo de sólo
@@ -2563,9 +2725,7 @@ export default function Layout3DEditor({
   const [cadBlocks, setCadBlocks] = useState<CadBlockRow[]>([]);
   const loadCadBlocks = useCallback(async () => {
     try {
-      const response = await apiFetch(
-        `${API_BASE}/line-engineering/cad-blocks`,
-      );
+      const response = await legacyCadFetch("cad-blocks");
       if (response.ok) setCadBlocks((await response.json()) as CadBlockRow[]);
     } catch {
       /* transitorio — la sección muestra "sin bloques" */
@@ -2765,11 +2925,12 @@ export default function Layout3DEditor({
   const groupByAssetRef = useRef<Map<string, THREE.Group>>(new Map());
   const layersRef = useRef(layers);
   const applyLayersRef = useRef<() => void>(() => {});
-  // Las pilas de undo/redo almacenan el DOCUMENTO CANÓNICO (CAD-NEXT-011):
-  // cada nivel de deshacer es un CadDocument completo y la restauración pasa
-  // por el adaptador sin pérdida (capas asignadas y tags incluidos).
-  const undoStackRef = useRef<CadDocument[]>([]);
-  const redoStackRef = useRef<CadDocument[]>([]);
+  // El historial retiene estados canónicos inmutables mediante referencias y
+  // structural sharing; aplica presupuesto estricto en vez de clonar hasta 80
+  // documentos completos por gesto.
+  const canonicalHistoryRef = useRef<CanonicalHistory<CadDocument> | null>(
+    null,
+  );
   const loadedCadDocumentRef = useRef<CadDocument | null>(null);
   const nativeSelectionIdsRef = useRef<string[]>([]);
   const professionalSelectionRef =
@@ -3367,6 +3528,7 @@ export default function Layout3DEditor({
     queueMicrotask(() => {
       if (!alive) return;
       setData(null);
+      dataRef.current = null;
       setError(null);
       setConnectionState("checking");
       setSelList([]);
@@ -3374,6 +3536,10 @@ export default function Layout3DEditor({
       setNativeSelectionIds([]);
       setNativeEntities([]);
       setDirty(false);
+      dirtyRef.current = false;
+      editGenerationRef.current = 0;
+      setSaveIssue(null);
+      setSaveStatus("idle");
       setRecoveryCandidate(null);
       setRecoverySavedAt(null);
       setTab("stations");
@@ -3414,8 +3580,7 @@ export default function Layout3DEditor({
     wallChainRef.current = null;
     walkRef.current = false;
     savedCamRef.current = null;
-    undoStackRef.current = [];
-    redoStackRef.current = [];
+    canonicalHistoryRef.current = null;
     loadedCadDocumentRef.current = null;
     (async () => {
       try {
@@ -3436,8 +3601,8 @@ export default function Layout3DEditor({
             >[3],
           ) as Layout;
         } else {
-          const r = await apiFetch(
-            `${API_BASE}/line-engineering/layout?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`,
+          const r = await legacyCadFetch(
+            `layout?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`,
           );
           if (!r.ok) {
             setError("No se pudo cargar el layout.");
@@ -3577,6 +3742,30 @@ export default function Layout3DEditor({
           ),
         );
         setNativeDocumentRevision((value) => value + 1);
+        canonicalHistoryRef.current = new CanonicalHistory(
+          loadedCadDocumentRef.current!,
+          {
+            maxEntries: 80,
+            maxRetainedBytes: 32 * 1024 * 1024,
+            groupWindowMs: 400,
+            onMetric: (metric) => {
+              if (typeof performance === "undefined") return;
+              performance.measure(`cad.history.${metric.event}`, {
+                start: performance.now(),
+                duration: 0,
+                detail: metric,
+              });
+            },
+          },
+        );
+        if (documentId) {
+          versionByDocumentRef.current.set(
+            documentId,
+            d.cadDocumentVersion ?? 0,
+          );
+          savedGenerationByDocumentRef.current.set(documentId, 0);
+        }
+        dataRef.current = d;
         setData(d);
         // fetch + parse the read-only DXF backdrop (the endpoint already serves
         // the raw drawing); render it on the floor once ready.
@@ -3588,8 +3777,8 @@ export default function Layout3DEditor({
         setDxfImportPreview(null);
         if (d.dxf) {
           try {
-            const rd = await apiFetch(
-              `${API_BASE}/line-engineering/layout/dxf?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`,
+            const rd = await legacyCadFetch(
+              `layout/dxf?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`,
             );
             if (alive && rd.ok) {
               const raw = (await rd.json()) as { data?: string } | null;
@@ -3615,6 +3804,19 @@ export default function Layout3DEditor({
     })();
     return () => {
       alive = false;
+      if (documentId && dirtyRef.current && !drawingReadOnlyRef.current) {
+        const request = captureCanonicalSaveRequestRef.current();
+        if (request?.documentId === documentId)
+          void autosaveSchedulerRef
+            .current!.run(async () => {
+              const saved = await persistCanonicalSaveRef.current(
+                request,
+                "autosave",
+              );
+              if (!saved) throw new Error("cad_document_change_flush_failed");
+            })
+            .catch(() => undefined);
+      }
     };
     // `toast` intentionally stays out: the provider object is not referentially
     // stable and would reload the complete drawing after every notification.
@@ -4129,8 +4331,8 @@ export default function Layout3DEditor({
 
   const loadHeat = useCallback(async () => {
     try {
-      const r = await apiFetch(
-        `${API_BASE}/line-engineering/layout/density?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`,
+      const r = await legacyCadFetch(
+        `layout/density?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`,
       );
       if (!r.ok) return;
       const d = (await r.json()) as { grid?: number[][] };
@@ -4223,8 +4425,8 @@ export default function Layout3DEditor({
 
   const loadGaps = useCallback(async () => {
     try {
-      const r = await apiFetch(
-        `${API_BASE}/line-engineering/layout/clearance?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`,
+      const r = await legacyCadFetch(
+        `layout/clearance?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`,
       );
       if (!r.ok) return;
       const d = (await r.json()) as {
@@ -4363,8 +4565,8 @@ export default function Layout3DEditor({
       const def = OVERLAY_DEFS.find((o) => o.key === kind);
       if (!def) return;
       try {
-        const r = await apiFetch(
-          `${API_BASE}/line-engineering/layout/${def.endpoint}?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`,
+        const r = await legacyCadFetch(
+          `layout/${def.endpoint}?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`,
         );
         if (!r.ok) {
           toast.error("No se pudo cargar la capa de estado.", "3D");
@@ -4466,7 +4668,7 @@ export default function Layout3DEditor({
     setCellsView(
       cellsRef.current.map((c) => ({ ...c, stationIds: [...c.stationIds] })),
     );
-    setDirty(true);
+    markDirty();
     rebuildCells();
     toast.success("Celda creada.", "3D");
   };
@@ -4475,7 +4677,7 @@ export default function Layout3DEditor({
     setCellsView(
       cellsRef.current.map((c) => ({ ...c, stationIds: [...c.stationIds] })),
     );
-    setDirty(true);
+    markDirty();
     rebuildCells();
   };
 
@@ -4521,12 +4723,36 @@ export default function Layout3DEditor({
     },
     [data?.footprint.unit, snapshot],
   );
-  const pushHistory = useCallback(() => {
-    undoStackRef.current.push(snapshotDocument());
-    if (undoStackRef.current.length > 80) undoStackRef.current.shift();
-    redoStackRef.current = [];
-    setHist({ undo: undoStackRef.current.length, redo: 0 });
-  }, [snapshotDocument]);
+  const recordHistoryDocument = useCallback(
+    (document: CadDocument, groupKey?: string) => {
+      const history = canonicalHistoryRef.current;
+      if (!history) {
+        canonicalHistoryRef.current = new CanonicalHistory(document, {
+          maxEntries: 80,
+          maxRetainedBytes: 32 * 1024 * 1024,
+          groupWindowMs: 400,
+        });
+        setHist({ undo: 0, redo: 0 });
+        return;
+      }
+      history.recordCurrent(document, { groupKey });
+      setHist(history.depths());
+    },
+    [],
+  );
+  const pushHistory = useCallback(
+    (groupKey?: string) => {
+      if (drawingReadOnlyRef.current) return;
+      recordHistoryDocument(snapshotDocument(), groupKey);
+    },
+    [recordHistoryDocument, snapshotDocument],
+  );
+  const cancelHistoryCheckpoint = useCallback(() => {
+    const history = canonicalHistoryRef.current;
+    if (!history) return;
+    history.cancelLastCheckpoint();
+    setHist(history.depths());
+  }, []);
   const restore = useCallback(
     (s: Snapshot) => {
       placementsRef.current = new Map(
@@ -4571,15 +4797,19 @@ export default function Layout3DEditor({
       );
       nativeSelectionIdsRef.current = keptNative;
       setNativeSelectionIds(keptNative);
-      setDirty(true);
+      markDirty();
       rebuildAll();
     },
-    [computeSnap, rebuildAll],
+    [computeSnap, markDirty, rebuildAll],
   );
   const undo = useCallback(() => {
-    if (!undoStackRef.current.length) return;
-    redoStackRef.current.push(snapshotDocument());
-    const document = undoStackRef.current.pop()!;
+    if (drawingReadOnlyRef.current) {
+      notifyReadOnly();
+      return;
+    }
+    const history = canonicalHistoryRef.current;
+    if (!history || history.depths().undo === 0) return;
+    const document = history.undo(snapshotDocument());
     loadedCadDocumentRef.current = document;
     setPaperSpaces(document.paperSpaces.map((space) => ({ ...space })));
     syncCadLayerState(document);
@@ -4607,15 +4837,16 @@ export default function Layout3DEditor({
     );
     setNativeDocumentRevision((value) => value + 1);
     restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
-    setHist({
-      undo: undoStackRef.current.length,
-      redo: redoStackRef.current.length,
-    });
-  }, [restore, snapshotDocument, syncCadLayerState]);
+    setHist(history.depths());
+  }, [notifyReadOnly, restore, snapshotDocument, syncCadLayerState]);
   const redo = useCallback(() => {
-    if (!redoStackRef.current.length) return;
-    undoStackRef.current.push(snapshotDocument());
-    const document = redoStackRef.current.pop()!;
+    if (drawingReadOnlyRef.current) {
+      notifyReadOnly();
+      return;
+    }
+    const history = canonicalHistoryRef.current;
+    if (!history || history.depths().redo === 0) return;
+    const document = history.redo(snapshotDocument());
     loadedCadDocumentRef.current = document;
     setPaperSpaces(document.paperSpaces.map((space) => ({ ...space })));
     syncCadLayerState(document);
@@ -4643,16 +4874,13 @@ export default function Layout3DEditor({
     );
     setNativeDocumentRevision((value) => value + 1);
     restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
-    setHist({
-      undo: undoStackRef.current.length,
-      redo: redoStackRef.current.length,
-    });
-  }, [restore, snapshotDocument, syncCadLayerState]);
+    setHist(history.depths());
+  }, [notifyReadOnly, restore, snapshotDocument, syncCadLayerState]);
 
   const applyCollaborationDocument = useCallback(
     (next: CadDocument, label: string) => {
-      if (cadReviewReadOnly) {
-        toast.error("Este enlace de revisión es de solo lectura.", "Review");
+      if (drawingReadOnly) {
+        notifyReadOnly();
         return;
       }
       pushHistory();
@@ -4673,7 +4901,14 @@ export default function Layout3DEditor({
       restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
       toast.success(label, "Compare / Merge");
     },
-    [cadReviewReadOnly, pushHistory, restore, syncCadLayerState, toast],
+    [
+      drawingReadOnly,
+      notifyReadOnly,
+      pushHistory,
+      restore,
+      syncCadLayerState,
+      toast,
+    ],
   );
   /**
    * Alta del review link en el SERVIDOR (`POST /v1/cad/documents/:id/
@@ -4682,8 +4917,8 @@ export default function Layout3DEditor({
    * UNA vez y no lo persiste en el documento ni en la URL.
    */
   const createServerReviewLink = useCallback(async () => {
-    const res = await apiFetch(
-      `${API_BASE}/line-engineering/layout/review-sessions?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`,
+    const res = await legacyCadFetch(
+      `layout/review-sessions?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -4708,8 +4943,8 @@ export default function Layout3DEditor({
   }, [model, revision]);
   /** Revocación server-side: cerrar la sesión mata el token de inmediato. */
   const revokeServerReviewLink = useCallback(async (sessionId: string) => {
-    const res = await apiFetch(
-      `${API_BASE}/line-engineering/layout/review-sessions/${encodeURIComponent(sessionId)}/close`,
+    const res = await legacyCadFetch(
+      `layout/review-sessions/${encodeURIComponent(sessionId)}/close`,
       { method: "POST" },
     );
     if (!res.ok && res.status !== 409) {
@@ -4776,7 +5011,7 @@ export default function Layout3DEditor({
   }, [data, dirty, open, recoveryScope]);
 
   useEffect(() => {
-    if (!open || !dirty || !data || !recoveryScope) return;
+    if (!open || !dirty || !data || !recoveryScope || drawingReadOnly) return;
     let active = true;
     const checkpoint = () => {
       if (recoveryWriteInFlightRef.current) return;
@@ -4818,9 +5053,13 @@ export default function Layout3DEditor({
       window.removeEventListener("beforeunload", checkpoint);
       document.removeEventListener("visibilitychange", checkpointWhenHidden);
     };
-  }, [data, dirty, open, recoveryScope, snapshotDocument]);
+  }, [data, dirty, drawingReadOnly, open, recoveryScope, snapshotDocument]);
 
   const restoreRecoveryCandidate = useCallback(() => {
+    if (drawingReadOnlyRef.current) {
+      notifyReadOnly();
+      return;
+    }
     if (!recoveryCandidate) return;
     try {
       const document = migrateCadDocument(recoveryCandidate.document);
@@ -4851,7 +5090,7 @@ export default function Layout3DEditor({
     } catch {
       toast.error("El borrador local no pudo restaurarse.", "CAD");
     }
-  }, [recoveryCandidate, restore, syncCadLayerState, toast]);
+  }, [notifyReadOnly, recoveryCandidate, restore, syncCadLayerState, toast]);
 
   const discardRecoveryCandidate = useCallback(() => {
     setRecoveryCandidate(null);
@@ -4862,10 +5101,12 @@ export default function Layout3DEditor({
 
   const commitPaperSpaces = useCallback(
     (next: CadPaperSpace[], label: string) => {
+      if (drawingReadOnlyRef.current) {
+        notifyReadOnly();
+        return;
+      }
       const checkpoint = snapshotDocument();
-      undoStackRef.current.push(checkpoint);
-      if (undoStackRef.current.length > 80) undoStackRef.current.shift();
-      redoStackRef.current = [];
+      recordHistoryDocument(checkpoint);
       const normalized = next
         .map((space, order) => ({ ...space, order }))
         .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -4892,10 +5133,15 @@ export default function Layout3DEditor({
         return selected?.viewports?.[0]?.id ?? null;
       });
       setLayoutPreviewSheet(null);
-      setHist({ undo: undoStackRef.current.length, redo: 0 });
-      setDirty(true);
+      markDirty();
     },
-    [activePaperSpaceId, snapshotDocument],
+    [
+      activePaperSpaceId,
+      markDirty,
+      notifyReadOnly,
+      recordHistoryDocument,
+      snapshotDocument,
+    ],
   );
 
   const seedThreeSheetSet = useCallback(() => {
@@ -5258,6 +5504,10 @@ export default function Layout3DEditor({
       commands: Parameters<typeof executeCadEntityCommand>[1][],
       nextSelection?: string[],
     ) => {
+      if (drawingReadOnlyRef.current) {
+        notifyReadOnly();
+        return false;
+      }
       if (!commands.length) return false;
       const checkpoint = snapshotDocument();
       try {
@@ -5280,10 +5530,7 @@ export default function Layout3DEditor({
           result.createdEntityIds.forEach((id) => touchedIds.add(id));
           result.deletedEntityIds.forEach((id) => touchedIds.add(id));
         }
-        undoStackRef.current.push(checkpoint);
-        if (undoStackRef.current.length > 80) undoStackRef.current.shift();
-        redoStackRef.current = [];
-        setHist({ undo: undoStackRef.current.length, redo: 0 });
+        recordHistoryDocument(checkpoint);
         loadedCadDocumentRef.current = document;
         const existing = new Set(document.entities.map((entity) => entity.id));
         const selected = (
@@ -5297,7 +5544,7 @@ export default function Layout3DEditor({
           ),
         );
         setNativeDocumentRevision((value) => value + 1);
-        setDirty(true);
+        markDirty();
         const upsert = document.entities.filter(
           (entity): entity is CadNativeEntity =>
             touchedIds.has(entity.id) && CAD_ENTITY_REGISTRY.supports(entity),
@@ -5323,7 +5570,14 @@ export default function Layout3DEditor({
         return false;
       }
     },
-    [snapshotDocument, syncNativeScene, toast],
+    [
+      markDirty,
+      notifyReadOnly,
+      recordHistoryDocument,
+      snapshotDocument,
+      syncNativeScene,
+      toast,
+    ],
   );
   const updateNativeProperties = useCallback(
     (entityId: string, patch: Partial<CadPropertyBag>) => {
@@ -5378,6 +5632,10 @@ export default function Layout3DEditor({
       notificationTitle = "BLOCK",
       rethrow = false,
     ): boolean => {
+      if (drawingReadOnlyRef.current) {
+        notifyReadOnly();
+        return false;
+      }
       const checkpoint = snapshotDocument();
       try {
         const document = mutate(checkpoint);
@@ -5385,10 +5643,7 @@ export default function Layout3DEditor({
           toast.success("No había cambios que aplicar.", notificationTitle);
           return false;
         }
-        undoStackRef.current.push(checkpoint);
-        if (undoStackRef.current.length > 80) undoStackRef.current.shift();
-        redoStackRef.current = [];
-        setHist({ undo: undoStackRef.current.length, redo: 0 });
+        recordHistoryDocument(checkpoint);
         loadedCadDocumentRef.current = document;
         syncCadLayerState(document);
         setCadXrefs(
@@ -5409,7 +5664,7 @@ export default function Layout3DEditor({
           ),
         );
         setNativeDocumentRevision((value) => value + 1);
-        setDirty(true);
+        markDirty();
         restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
         syncNativeScene(document);
         toast.success(success, notificationTitle);
@@ -5425,7 +5680,16 @@ export default function Layout3DEditor({
         return false;
       }
     },
-    [restore, snapshotDocument, syncCadLayerState, syncNativeScene, toast],
+    [
+      markDirty,
+      notifyReadOnly,
+      recordHistoryDocument,
+      restore,
+      snapshotDocument,
+      syncCadLayerState,
+      syncNativeScene,
+      toast,
+    ],
   );
   const filletNativeLines = useCallback(
     (lineIds: [string, string]) => {
@@ -5567,7 +5831,7 @@ export default function Layout3DEditor({
         `BLOCK ${draft.name} creado como una definición y una instancia viva.`,
       );
       if (draft.tenantLibrary && libraryDefinition)
-        void apiFetch(`${API_BASE}/line-engineering/cad-blocks`, {
+        void legacyCadFetch("cad-blocks", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -5668,14 +5932,11 @@ export default function Layout3DEditor({
         (candidate) => candidate.definition?.id === blockId,
       );
       if (updatedDefinition && libraryRow)
-        void apiFetch(
-          `${API_BASE}/line-engineering/cad-blocks/${libraryRow.id}`,
-          {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ definition: updatedDefinition }),
-          },
-        )
+        void legacyCadFetch(`cad-blocks/${libraryRow.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ definition: updatedDefinition }),
+        })
           .then((response) =>
             response.ok
               ? loadCadBlocks()
@@ -5727,8 +5988,8 @@ export default function Layout3DEditor({
       sourceRevision: string,
       displayName = assetId,
     ): Promise<CadXrefAssetSnapshot> => {
-      const response = await apiFetch(
-        `${API_BASE}/line-engineering/layout?model=${encodeURIComponent(assetId)}&revision=${encodeURIComponent(sourceRevision)}`,
+      const response = await legacyCadFetch(
+        `layout?model=${encodeURIComponent(assetId)}&revision=${encodeURIComponent(sourceRevision)}`,
       );
       if (response.status === 401 || response.status === 403)
         throw new Error("Permission denied for this tenant CAD asset.");
@@ -5935,10 +6196,7 @@ export default function Layout3DEditor({
         },
         label,
       );
-      undoStackRef.current.push(checkpoint);
-      if (undoStackRef.current.length > 80) undoStackRef.current.shift();
-      redoStackRef.current = [];
-      setHist({ undo: undoStackRef.current.length, redo: 0 });
+      recordHistoryDocument(checkpoint);
       loadedCadDocumentRef.current = document;
       nativeSelectionIdsRef.current = incoming.map((entity) => entity.id);
       setNativeSelectionIds(nativeSelectionIdsRef.current);
@@ -5948,11 +6206,17 @@ export default function Layout3DEditor({
         ),
       );
       setNativeDocumentRevision((value) => value + 1);
-      setDirty(true);
+      markDirty();
       syncNativeScene(document, { upsert: incoming, remove: [] });
       return true;
     },
-    [snapshotDocument, syncNativeScene, toast],
+    [
+      markDirty,
+      recordHistoryDocument,
+      snapshotDocument,
+      syncNativeScene,
+      toast,
+    ],
   );
   const openMTextEditor = useCallback((entityId: string | null = null) => {
     setEditingMTextId(entityId);
@@ -6935,6 +7199,7 @@ export default function Layout3DEditor({
         renderer.domElement.setPointerCapture(e.pointerId);
         return;
       }
+      if (drawingReadOnlyRef.current && toolRef.current !== "select") return;
       if (toolRef.current !== "select") return; // measure/wall resolve on click (pointerup); drag still orbits
       if (e.button === 0 && hatchPickModeRef.current) {
         const world = floorWorld(e);
@@ -6974,7 +7239,7 @@ export default function Layout3DEditor({
       const dimHit = raycaster
         .intersectObjects(dimsGroup.children, false)
         .find((h) => (h.object as THREE.Sprite).userData?.dimId);
-      if (dimHit) {
+      if (dimHit && !drawingReadOnlyRef.current) {
         const id = (dimHit.object as THREE.Sprite).userData.dimId as string;
         pushHistory();
         annotationsRef.current.delete(id);
@@ -6982,7 +7247,7 @@ export default function Layout3DEditor({
           [...annotationsRef.current.values()].filter((x) => x.type === "dim")
             .length,
         );
-        setDirty(true);
+        markDirty();
         rebuildDims();
         toast.success("Cota eliminada.", "3D");
         return;
@@ -6991,11 +7256,11 @@ export default function Layout3DEditor({
       const noteHit = raycaster
         .intersectObjects(notesGroup.children, false)
         .find((h) => (h.object as THREE.Sprite).userData?.noteId);
-      if (noteHit) {
+      if (noteHit && !drawingReadOnlyRef.current) {
         const id = (noteHit.object as THREE.Sprite).userData.noteId as string;
         pushHistory();
         annotationsRef.current.delete(id);
-        setDirty(true);
+        markDirty();
         rebuildNotes();
         toast.success("Nota eliminada.", "3D");
         return;
@@ -7067,7 +7332,7 @@ export default function Layout3DEditor({
       if (all.length) {
         const top = all[0];
         if (top.type === "native") {
-          if (top.gripId) {
+          if (top.gripId && !drawingReadOnlyRef.current) {
             selectNative([top.id]);
             nativeGripDrag = {
               entityId: top.id,
@@ -7139,6 +7404,10 @@ export default function Layout3DEditor({
               (candidate) => `${candidate.type}:${candidate.id}`,
             ),
           });
+        if (drawingReadOnlyRef.current) {
+          rebuildAll();
+          return;
+        }
         if (
           isObjectLayerLocked(
             cadLayersRef.current,
@@ -7485,9 +7754,7 @@ export default function Layout3DEditor({
       }
       if (nativeGripDrag) {
         if (nativeGripDrag.moved && loadedCadDocumentRef.current) {
-          undoStackRef.current.push(nativeGripDrag.checkpoint);
-          if (undoStackRef.current.length > 80) undoStackRef.current.shift();
-          redoStackRef.current = [];
+          recordHistoryDocument(nativeGripDrag.checkpoint);
           const regenerated = regenerateAssociativeHatches(
             loadedCadDocumentRef.current.entities,
             [nativeGripDrag.entityId],
@@ -7500,7 +7767,6 @@ export default function Layout3DEditor({
             },
             `grip:${nativeGripDrag.entityId}:${nativeGripDrag.gripId}`,
           );
-          setHist({ undo: undoStackRef.current.length, redo: 0 });
           setNativeEntities(
             loadedCadDocumentRef.current.entities.filter(
               (entity): entity is CadNativeEntity =>
@@ -7508,7 +7774,7 @@ export default function Layout3DEditor({
             ),
           );
           setNativeDocumentRevision((value) => value + 1);
-          setDirty(true);
+          markDirty();
           syncNativeScene(loadedCadDocumentRef.current);
         }
         nativeGripDrag = null;
@@ -7593,6 +7859,12 @@ export default function Layout3DEditor({
         return;
       }
       const isClick = Math.hypot(e.clientX - downX, e.clientY - downY) < 5;
+      if (drawingReadOnlyRef.current) {
+        drag = null;
+        dragSnap = null;
+        controls.enabled = true;
+        return;
+      }
       if (toolRef.current === "measure") {
         if (isClick) {
           const w = floorWorld(e);
@@ -7620,7 +7892,7 @@ export default function Layout3DEditor({
                     (x) => x.type === "dim",
                   ).length,
                 );
-                setDirty(true);
+                markDirty();
                 rebuildDims();
               }
               measureARef.current = null;
@@ -7708,7 +7980,7 @@ export default function Layout3DEditor({
               );
               setObjectTags((cur) => ({ ...cur, [id]: "wall, architecture" }));
               lastWallAngleRef.current = angle;
-              setDirty(true);
+              markDirty();
               rebuildAssets();
             }
             wallChainRef.current = pt;
@@ -7724,10 +7996,7 @@ export default function Layout3DEditor({
       }
       if (drag) {
         if (dragMoved && dragSnap) {
-          undoStackRef.current.push(snapshotDocument(dragSnap));
-          if (undoStackRef.current.length > 80) undoStackRef.current.shift();
-          redoStackRef.current = [];
-          setHist({ undo: undoStackRef.current.length, redo: 0 });
+          recordHistoryDocument(snapshotDocument(dragSnap));
           const changedIds = selRef.current.map((item) => item.id);
           const currentDocument = snapshotDocument();
           if (currentDocument.constraints.length) {
@@ -7735,13 +8004,12 @@ export default function Layout3DEditor({
             if (solved.converged) {
               loadedCadDocumentRef.current = solved.document;
               restore(cadDocumentToEditorSnapshot(solved.document));
-              setDirty(true);
+              markDirty();
             } else {
               const beforeDrag = snapshotDocument(dragSnap);
               loadedCadDocumentRef.current = beforeDrag;
               restore(cadDocumentToEditorSnapshot(beforeDrag));
-              undoStackRef.current.pop();
-              setHist({ undo: undoStackRef.current.length, redo: 0 });
+              cancelHistoryCheckpoint();
               toast.error(
                 solved.issues[0]?.message ||
                   "El movimiento contradice una restricción y fue revertido.",
@@ -7749,7 +8017,7 @@ export default function Layout3DEditor({
               );
             }
           } else {
-            setDirty(true);
+            markDirty();
           }
         }
         drag = null;
@@ -8123,7 +8391,7 @@ export default function Layout3DEditor({
     pushHistory();
     const changed = state.emitted.map(applyDrawAction).some(Boolean);
     if (changed) {
-      setDirty(true);
+      markDirty();
       rebuildAssets();
       rebuildBlocks();
       refreshSnap();
@@ -8206,7 +8474,7 @@ export default function Layout3DEditor({
       );
       setObjectTags((cur) => ({ ...cur, [id]: "wall, architecture" }));
       lastWallAngleRef.current = angle;
-      setDirty(true);
+      markDirty();
       rebuildAssets();
       setMeasureLive(`Muro hasta (${nx}, ${ny})`);
     } else if (!prev) {
@@ -8884,7 +9152,8 @@ export default function Layout3DEditor({
       toast.error("Selecciona uno o más muros.", "Restricciones");
       return;
     }
-    const redoBefore = [...redoStackRef.current];
+    const historyBefore =
+      canonicalHistoryRef.current?.createRecoveryPoint() ?? null;
     pushHistory();
     const targets = needsRef ? walls.slice(1) : walls;
     const constraintKind: CadConstraintKind =
@@ -8900,15 +9169,13 @@ export default function Layout3DEditor({
       });
     }
     if (!solveAndRestoreConstraints(document, [walls[0].id])) {
-      undoStackRef.current.pop();
-      redoStackRef.current = redoBefore;
-      setHist({
-        undo: undoStackRef.current.length,
-        redo: redoStackRef.current.length,
-      });
+      if (historyBefore && canonicalHistoryRef.current) {
+        canonicalHistoryRef.current.restoreRecoveryPoint(historyBefore);
+        setHist(canonicalHistoryRef.current.depths());
+      } else cancelHistoryCheckpoint();
       return;
     }
-    setDirty(true);
+    markDirty();
     refreshSnap();
     toast.success(
       `Restricción aplicada a ${targets.length} muro(s).`,
@@ -8930,7 +9197,8 @@ export default function Layout3DEditor({
       toast.error("La longitud debe ser mayor que cero.", "Dimensiones");
       return;
     }
-    const redoBefore = [...redoStackRef.current];
+    const historyBefore =
+      canonicalHistoryRef.current?.createRecoveryPoint() ?? null;
     pushHistory();
     const constraintKind: CadConstraintKind =
       kind === "length" ? "distance" : "angle";
@@ -8942,15 +9210,13 @@ export default function Layout3DEditor({
       enabled: true,
     });
     if (!solveAndRestoreConstraints(document, [wall.id])) {
-      undoStackRef.current.pop();
-      redoStackRef.current = redoBefore;
-      setHist({
-        undo: undoStackRef.current.length,
-        redo: redoStackRef.current.length,
-      });
+      if (historyBefore && canonicalHistoryRef.current) {
+        canonicalHistoryRef.current.restoreRecoveryPoint(historyBefore);
+        setHist(canonicalHistoryRef.current.depths());
+      } else cancelHistoryCheckpoint();
       return;
     }
-    setDirty(true);
+    markDirty();
     refreshSnap();
     toast.success(
       kind === "length"
@@ -9059,7 +9325,7 @@ export default function Layout3DEditor({
     setFlowSegments(buildFlowSegments(nextNodes));
     setFlowHealth(scoreFlowLayout(nextNodes));
     select(moves.map((move) => ({ type: "station", id: move.id })));
-    setDirty(true);
+    markDirty();
     refreshSnap();
     rebuildAll();
     toast.success(
@@ -9096,9 +9362,9 @@ export default function Layout3DEditor({
         },
       };
     });
-    setDirty(true);
+    markDirty();
     setShowView(false);
-  }, [fpDraft]);
+  }, [fpDraft, markDirty]);
 
   // One-click factory-scale presets — set the plant to a workcell … full nave
   // size in real metres regardless of the layout's stored unit (EPIC 0). The
@@ -9121,10 +9387,10 @@ export default function Layout3DEditor({
           : d,
       );
       setFpDraft({ w: u.width, h: u.height, g: u.grid });
-      setDirty(true);
+      markDirty();
       setShowView(false);
     },
-    [data],
+    [data, markDirty],
   );
 
   // Add a free-text note at the point the camera is looking at (round-trips 2D).
@@ -9147,7 +9413,7 @@ export default function Layout3DEditor({
       x: Math.max(0, Math.min(ctx.W, snapWorld(tx))),
       y: Math.max(0, Math.min(ctx.H, snapWorld(ty))),
     });
-    setDirty(true);
+    markDirty();
     rebuildNotes();
   };
 
@@ -9452,9 +9718,9 @@ export default function Layout3DEditor({
       if (a.type === "dim") annotationsRef.current.delete(id);
     });
     setDimCount(0);
-    setDirty(true);
+    markDirty();
     rebuildDims();
-  }, [rebuildDims, pushHistory]);
+  }, [markDirty, rebuildDims, pushHistory]);
 
   // ---- actions ----
   const placeStation = (st: St) => {
@@ -9468,7 +9734,7 @@ export default function Layout3DEditor({
     placementsRef.current.set(st.id, { x, y, w, h, rotation: 0 });
     setPlacedIds((prev) => new Set(prev).add(st.id));
     select([{ type: "station", id: st.id }]);
-    setDirty(true);
+    markDirty();
     rebuildAll();
   };
   const addAsset = (
@@ -9510,7 +9776,7 @@ export default function Layout3DEditor({
       ),
     );
     select([{ type: "asset", id }]);
-    setDirty(true);
+    markDirty();
     rebuildAll();
     return id;
   };
@@ -9629,7 +9895,7 @@ export default function Layout3DEditor({
     );
     setObjectTags((cur) => ({ ...cur, ...tagUpdates }));
     select(created);
-    setDirty(true);
+    markDirty();
     rebuildAll();
     const calc = def.calculate?.(instance) ?? {};
     const summary = Object.entries(calc)
@@ -9733,7 +9999,7 @@ export default function Layout3DEditor({
     setLayerAssignments((cur) => ({ ...cur, ...layerUpdates }));
     setObjectTags((cur) => ({ ...cur, ...tagUpdates }));
     if (created.length) select(created.slice(0, 80));
-    setDirty(true);
+    markDirty();
     rebuildAll();
     refreshSnap();
     const scaled =
@@ -9821,7 +10087,7 @@ export default function Layout3DEditor({
     setLayerAssignments((cur) => ({ ...cur, ...layerUpdates }));
     setObjectTags((cur) => ({ ...cur, ...tagUpdates }));
     if (created.length) select(created.slice(0, 120));
-    setDirty(true);
+    markDirty();
     rebuildAll();
     refreshSnap();
     const scaled =
@@ -9912,7 +10178,7 @@ export default function Layout3DEditor({
     setLayerAssignments((cur) => ({ ...cur, ...layerUpdates }));
     setObjectTags((cur) => ({ ...cur, ...tagUpdates }));
     if (created.length) select(created.slice(0, 140));
-    setDirty(true);
+    markDirty();
     rebuildAll();
     refreshSnap();
     const scaled =
@@ -10025,7 +10291,7 @@ export default function Layout3DEditor({
     setLayerAssignments((cur) => ({ ...cur, ...layerUpdates }));
     setObjectTags((cur) => ({ ...cur, ...tagUpdates }));
     if (created.length) select(created.slice(0, 120));
-    setDirty(true);
+    markDirty();
     rebuildAll();
     refreshSnap();
     const scaled =
@@ -10049,6 +10315,10 @@ export default function Layout3DEditor({
       fallbackLayerForItem(item),
     );
   const editableItems = (items: SelItem[], action: string) => {
+    if (drawingReadOnlyRef.current) {
+      notifyReadOnly();
+      return [];
+    }
     const locked = items.filter(isItemLayerLocked);
     if (locked.length)
       toast.error(
@@ -10076,7 +10346,7 @@ export default function Layout3DEditor({
     if (delSt) setPlacedIds(new Set(placementsRef.current.keys()));
     if (delAs) setAssetIds(new Set(assetsRef.current.keys()));
     select([]);
-    setDirty(true);
+    markDirty();
     rebuildAll();
   };
   const rotateSelected = (deg: number) => {
@@ -10115,7 +10385,7 @@ export default function Layout3DEditor({
         if (p) p.rotation = (((p.rotation + deg) % 360) + 360) % 360;
       });
     }
-    setDirty(true);
+    markDirty();
     refreshSnap();
     rebuildAll();
   };
@@ -10150,7 +10420,7 @@ export default function Layout3DEditor({
         : {}),
     }));
     try {
-      const r = await apiFetch(`${API_BASE}/line-engineering/cad-blocks`, {
+      const r = await legacyCadFetch("cad-blocks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, assets: payload }),
@@ -10206,7 +10476,7 @@ export default function Layout3DEditor({
     setObjectGroups((cur) => ({ ...cur, ...groupUpdates }));
     setAssetIds(new Set(assetsRef.current.keys()));
     select(created);
-    setDirty(true);
+    markDirty();
     rebuildAll();
     toast.success(
       `Bloque "${block.name}" insertado como grupo (${created.length} objetos).`,
@@ -10222,10 +10492,9 @@ export default function Layout3DEditor({
     )
       return;
     try {
-      const r = await apiFetch(
-        `${API_BASE}/line-engineering/cad-blocks/${block.id}`,
-        { method: "DELETE" },
-      );
+      const r = await legacyCadFetch(`cad-blocks/${block.id}`, {
+        method: "DELETE",
+      });
       if (!r.ok) {
         toast.error("No se pudo borrar el bloque.", "Bloques");
         return;
@@ -10262,7 +10531,7 @@ export default function Layout3DEditor({
       });
       return next;
     });
-    setDirty(true);
+    markDirty();
     toast.success(
       `Grupo creado con ${assets.length} objeto(s)${stations ? ` (${stations} estación(es) fuera — usa Celdas)` : ""}. Alt+clic selecciona individual.`,
       "Grupos",
@@ -10283,7 +10552,7 @@ export default function Layout3DEditor({
         Object.entries(cur).filter(([, gid]) => !gids.has(gid)),
       ),
     );
-    setDirty(true);
+    markDirty();
     toast.success(`${gids.size} grupo(s) disueltos.`, "Grupos");
   };
   /** Expande un item a su grupo completo (v1: grupos solo de assets). */
@@ -10380,7 +10649,7 @@ export default function Layout3DEditor({
       setObjectGroups((cur) => ({ ...cur, ...groupUpdates }));
     setAssetIds(new Set(assetsRef.current.keys()));
     select(created);
-    setDirty(true);
+    markDirty();
     rebuildAll();
     toast.success(`${created.length} objeto(s) pegados.`, "Portapapeles");
   };
@@ -10419,7 +10688,7 @@ export default function Layout3DEditor({
       setObjectGroups((cur) => ({ ...cur, ...groupUpdates }));
     setAssetIds(new Set(assetsRef.current.keys()));
     if (created.length) select(created);
-    setDirty(true);
+    markDirty();
     rebuildAll();
   };
   // ---- array / mirror / offset of the selected equipment (Fase 55) ----
@@ -10428,7 +10697,7 @@ export default function Layout3DEditor({
     setAssetIds(new Set(assetsRef.current.keys()));
     if (created.length) {
       select(created);
-      setDirty(true);
+      markDirty();
       rebuildAll();
       toast.success(`${created.length} ${msg}`, "3D");
     }
@@ -10854,7 +11123,7 @@ export default function Layout3DEditor({
       syncNativeScene(document);
     }
     if (!nativeCreated.length && created.length) select(created.slice(0, 80));
-    setDirty(true);
+    markDirty();
     rebuildAll();
     toast.success(
       `${created.length} objeto(s), ${nativeCreated.length} entidad(es) nativa(s), ${importedBlockParts.blocks.length} bloque(s) y ${notes} nota(s) convertidos${truncated ? " (recortado por seguridad)" : ""}.`,
@@ -10916,7 +11185,7 @@ export default function Layout3DEditor({
       [...annotationsRef.current.values()].filter((a) => a.type === "dim")
         .length,
     );
-    setDirty(true);
+    markDirty();
     rebuildDims();
     toast.success(
       `${dims.length} ${dims.length === 1 ? "cota generada" : "cotas generadas"}${sel.length ? " (selección)" : ""}`,
@@ -10958,7 +11227,7 @@ export default function Layout3DEditor({
         moved++;
       }
     }
-    setDirty(true);
+    markDirty();
     rebuildBlocks();
     refreshSnap();
     toast.success(
@@ -10987,7 +11256,7 @@ export default function Layout3DEditor({
     const added = next.length - connectorsRef.current.length;
     pushHistory();
     connectorsRef.current = next;
-    setDirty(true);
+    markDirty();
     rebuildBlocks();
     toast.success(
       `Línea conectada — ${added} ${added === 1 ? "enlace nuevo" : "enlaces nuevos"}`,
@@ -10999,8 +11268,8 @@ export default function Layout3DEditor({
     if (!model) return;
     setServerBusy(true);
     try {
-      const r = await apiFetch(
-        `${API_BASE}/line-engineering/layout/optimize?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`,
+      const r = await legacyCadFetch(
+        `layout/optimize?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`,
       );
       if (!r.ok) {
         toast.error("No se pudo optimizar.", "3D");
@@ -11033,7 +11302,7 @@ export default function Layout3DEditor({
         }),
       );
       setPlacedIds(new Set(placementsRef.current.keys()));
-      setDirty(true);
+      markDirty();
       rebuildBlocks();
       refreshSnap();
       toast.success(
@@ -11082,7 +11351,7 @@ export default function Layout3DEditor({
         toast.error("No se reconocieron líneas en el DXF.", "3D");
         return;
       }
-      const res = await apiFetch(`${API_BASE}/line-engineering/layout/dxf`, {
+      const res = await legacyCadFetch("layout/dxf", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ model, revision, name: file.name, data: text }),
@@ -11110,7 +11379,7 @@ export default function Layout3DEditor({
       setHasDxf(true);
       dxfSnapRef.current = dxfSnapPoints(dxfModel, meta);
       rebuildDxfRef.current();
-      setDirty(true);
+      markDirty();
       toast.success("Plano DXF cargado de fondo.", "3D");
     } catch {
       toast.error("No se pudo leer el archivo DXF.", "3D");
@@ -11121,8 +11390,8 @@ export default function Layout3DEditor({
   const removeDxf = async () => {
     setDxfBusy(true);
     try {
-      const res = await apiFetch(
-        `${API_BASE}/line-engineering/layout/dxf?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`,
+      const res = await legacyCadFetch(
+        `layout/dxf?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`,
         { method: "DELETE" },
       );
       if (!res.ok) {
@@ -11136,7 +11405,7 @@ export default function Layout3DEditor({
       setDxfWarnings([]);
       setDxfImportPreview(null);
       rebuildDxfRef.current();
-      setDirty(true);
+      markDirty();
       toast.success("Plano DXF quitado.", "3D");
     } catch {
       toast.error("Error de red.", "3D");
@@ -11160,7 +11429,7 @@ export default function Layout3DEditor({
         reader.onerror = () => reject(new Error("read"));
         reader.readAsDataURL(file);
       });
-      const r = await apiFetch(`${API_BASE}/line-engineering/layout/vision`, {
+      const r = await legacyCadFetch("layout/vision", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ model, revision, imageDataUrl }),
@@ -11266,7 +11535,7 @@ export default function Layout3DEditor({
       return next;
     });
     setVisionPreview(null);
-    setDirty(true);
+    markDirty();
     rebuildAll();
     toast.success(
       `Visión: ${created.length} muro(s) y ${zoneIds.length} zona(s) insertados como objetos editables.`,
@@ -11278,9 +11547,7 @@ export default function Layout3DEditor({
   const loadVersions = async () => {
     if (!model) return;
     try {
-      const r = await apiFetch(
-        `${API_BASE}/line-engineering/layout/snapshots?${scopeQs}`,
-      );
+      const r = await legacyCadFetch(`layout/snapshots?${scopeQs}`);
       if (r.ok) setVersions((await r.json()) as typeof versions);
     } catch {
       /* transient */
@@ -11340,21 +11607,18 @@ export default function Layout3DEditor({
     }));
   };
   const saveVersion = async () => {
-    if (!model || cadReviewReadOnly) return;
+    if (!model || drawingReadOnly) return;
     setVersBusy(true);
     try {
-      const r = await apiFetch(
-        `${API_BASE}/line-engineering/layout/snapshots`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model,
-            revision,
-            name: versName.trim() || undefined,
-          }),
-        },
-      );
+      const r = await legacyCadFetch("layout/snapshots", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model,
+          revision,
+          name: versName.trim() || undefined,
+        }),
+      });
       if (!r.ok) {
         toast.error("No se pudo guardar la versión.", "3D");
         return;
@@ -11369,11 +11633,11 @@ export default function Layout3DEditor({
     }
   };
   const restoreVersion = async (id: string) => {
-    if (!model || cadReviewReadOnly) return;
+    if (!model || drawingReadOnly) return;
     setVersBusy(true);
     try {
-      const r = await apiFetch(
-        `${API_BASE}/line-engineering/layout/snapshots/${id}/restore?${scopeQs}`,
+      const r = await legacyCadFetch(
+        `layout/snapshots/${id}/restore?${scopeQs}`,
         { method: "POST" },
       );
       if (!r.ok) {
@@ -11390,12 +11654,11 @@ export default function Layout3DEditor({
     }
   };
   const deleteVersion = async (id: string) => {
-    if (!model || cadReviewReadOnly) return;
+    if (!model || drawingReadOnly) return;
     try {
-      const r = await apiFetch(
-        `${API_BASE}/line-engineering/layout/snapshots/${id}?${scopeQs}`,
-        { method: "DELETE" },
-      );
+      const r = await legacyCadFetch(`layout/snapshots/${id}?${scopeQs}`, {
+        method: "DELETE",
+      });
       if (r.ok) setVersions((await r.json()) as typeof versions);
     } catch {
       /* transient */
@@ -11403,11 +11666,11 @@ export default function Layout3DEditor({
   };
   // ---- clone from another model's layout as a template (ported from 2D, unify) ----
   const cloneFrom = async () => {
-    if (!cloneSrc || !model || cadReviewReadOnly) return;
+    if (!cloneSrc || !model || drawingReadOnly) return;
     const [fromModel, fromRevision] = cloneSrc.split("|");
     setCloneBusy(true);
     try {
-      const r = await apiFetch(`${API_BASE}/line-engineering/layout/clone`, {
+      const r = await legacyCadFetch("layout/clone", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -11433,10 +11696,10 @@ export default function Layout3DEditor({
   };
   // ---- approval / sign-off (ported from 2D, unify) ----
   const setApprovalStatus = async (status: ApprovalStatus) => {
-    if (!model || cadReviewReadOnly) return;
+    if (!model || drawingReadOnly) return;
     setApprovalBusy(true);
     try {
-      const r = await apiFetch(`${API_BASE}/line-engineering/layout/approval`, {
+      const r = await legacyCadFetch("layout/approval", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ model, revision, status }),
@@ -11586,7 +11849,12 @@ export default function Layout3DEditor({
     const items = editableItems(selRef.current, "mover");
     const ctx = ctxRef.current;
     if (!items.length || !ctx) return;
-    pushHistory();
+    pushHistory(
+      `nudge:${items
+        .map((item) => `${item.type}:${item.id}`)
+        .sort()
+        .join(",")}`,
+    );
     // clamp the group delta so everything stays in bounds
     let dxLo = -Infinity,
       dxHi = Infinity,
@@ -11609,7 +11877,7 @@ export default function Layout3DEditor({
         p.y += ndy;
       }
     });
-    setDirty(true);
+    markDirty();
     refreshSnap();
     rebuildAll();
   };
@@ -11664,7 +11932,7 @@ export default function Layout3DEditor({
       [...annotationsRef.current.values()].filter((ann) => ann.type === "dim")
         .length,
     );
-    setDirty(true);
+    markDirty();
     rebuildDims();
     refreshMeasurementRows();
     toast.success(`Cota creada: ${measurement.label}`, "Medición");
@@ -11673,7 +11941,7 @@ export default function Layout3DEditor({
     const ann = annotationsRef.current.get(id);
     if (!ann || ann.type !== "dim") return;
     ann.text = text;
-    setDirty(true);
+    markDirty();
     rebuildDims();
     refreshMeasurementRows();
   };
@@ -11686,7 +11954,7 @@ export default function Layout3DEditor({
       [...annotationsRef.current.values()].filter((item) => item.type === "dim")
         .length,
     );
-    setDirty(true);
+    markDirty();
     rebuildDims();
     refreshMeasurementRows();
     toast.success("Cota eliminada.", "Medición");
@@ -11763,7 +12031,7 @@ export default function Layout3DEditor({
       [id]: "aisle, clearance, material-flow",
     }));
     select([{ type: "asset", id }]);
-    setDirty(true);
+    markDirty();
     rebuildAll();
     toast.success("Pasillo editable creado entre la selección.", "Pasillos");
   };
@@ -11803,7 +12071,7 @@ export default function Layout3DEditor({
           : `${kind}, safety, controlled-area`,
     }));
     select([{ type: "asset", id }]);
-    setDirty(true);
+    markDirty();
     rebuildAll();
     toast.success(`${label} creada.`, "Safety");
   };
@@ -11839,7 +12107,7 @@ export default function Layout3DEditor({
           : "emergency, exit, safety, keep-clear",
     }));
     select([{ type: "asset", id }]);
-    setDirty(true);
+    markDirty();
     rebuildAll();
     toast.success(`${label} creado.`, "Safety");
   };
@@ -11871,7 +12139,7 @@ export default function Layout3DEditor({
       p.x = Math.max(0, Math.min(ctx.W - p.w, Math.round(v)));
     else if (field === "y")
       p.y = Math.max(0, Math.min(ctx.H - p.h, Math.round(v)));
-    setDirty(true);
+    markDirty();
     refreshSnap();
     rebuildAll();
   };
@@ -11888,7 +12156,7 @@ export default function Layout3DEditor({
     const asset = assetsRef.current.get(cur.id);
     if (!asset) return;
     asset.label = value.trim() || undefined;
-    setDirty(true);
+    markDirty();
     refreshSnap();
     rebuildAll();
   };
@@ -11908,7 +12176,7 @@ export default function Layout3DEditor({
       return next;
     });
     refreshSnap();
-    setDirty(true);
+    markDirty();
   };
   const updateSelectedNotes = (value: string) => {
     const cur = selList[0];
@@ -11926,7 +12194,7 @@ export default function Layout3DEditor({
       return next;
     });
     refreshSnap();
-    setDirty(true);
+    markDirty();
   };
   const assignSelectedToActiveLayer = () => {
     const cur = selList[0];
@@ -11960,7 +12228,7 @@ export default function Layout3DEditor({
     if (!p) return;
     pushHistory();
     p.rotation = 0;
-    setDirty(true);
+    markDirty();
     refreshSnap();
     rebuildAll();
   };
@@ -11980,7 +12248,7 @@ export default function Layout3DEditor({
     pushHistory();
     p.x = Math.max(0, Math.min(ctx.W - p.w, Math.round(ctx.W / 2 - p.w / 2)));
     p.y = Math.max(0, Math.min(ctx.H - p.h, Math.round(ctx.H / 2 - p.h / 2)));
-    setDirty(true);
+    markDirty();
     refreshSnap();
     rebuildAll();
   };
@@ -12007,7 +12275,7 @@ export default function Layout3DEditor({
       else if (mode === "bottom") p.y = maxY - p.h;
       else if (mode === "cy") p.y = Math.round(cy - p.h / 2);
     });
-    setDirty(true);
+    markDirty();
     refreshSnap();
     rebuildAll();
   };
@@ -12040,7 +12308,7 @@ export default function Layout3DEditor({
       else p.y = Math.max(0, Math.min(ctx.H - p.h, pos));
       cursor += size(p) + gap;
     });
-    setDirty(true);
+    markDirty();
     refreshSnap();
     rebuildAll();
   };
@@ -12444,6 +12712,10 @@ export default function Layout3DEditor({
   };
   const applyCommand = () => {
     if (!commandPreview) return;
+    if (drawingReadOnlyRef.current) {
+      notifyReadOnly();
+      return;
+    }
     // Cadena o comando suelto (AXOS-CAD-CHAIN-001): cada paso se ejecuta
     // contra el contexto YA mutado por el anterior ('pon una puerta y luego
     // céntrala' centra la puerta recién creada); un solo snapshot → un undo.
@@ -12453,14 +12725,20 @@ export default function Layout3DEditor({
         : [commandPreview.input];
     const transactionCheckpoint = snapshotDocument();
     const transactionWasDirty = dirty;
+    const transactionHistory =
+      canonicalHistoryRef.current?.createRecoveryPoint() ?? null;
     let snapshotTaken = false;
     let anyChanged = false;
     const rollbackCommandTransaction = () => {
       loadedCadDocumentRef.current = transactionCheckpoint;
       restore(cadDocumentToEditorSnapshot(transactionCheckpoint));
-      if (snapshotTaken) undoStackRef.current.pop();
-      redoStackRef.current = [];
-      setHist({ undo: undoStackRef.current.length, redo: 0 });
+      if (snapshotTaken) {
+        if (transactionHistory && canonicalHistoryRef.current) {
+          canonicalHistoryRef.current.restoreRecoveryPoint(transactionHistory);
+          setHist(canonicalHistoryRef.current.depths());
+        } else cancelHistoryCheckpoint();
+      }
+      dirtyRef.current = transactionWasDirty;
       setDirty(transactionWasDirty);
     };
     for (const input of inputs) {
@@ -12613,7 +12891,7 @@ export default function Layout3DEditor({
       toast.success(result.historyLabel, "Comando CAD");
     }
     if (anyChanged) {
-      setDirty(true);
+      markDirty();
       refreshSnap();
       rebuildAll();
     }
@@ -12668,13 +12946,13 @@ export default function Layout3DEditor({
     try {
       const r =
         source === "intent"
-          ? await apiFetch(`${API_BASE}/line-engineering/layout/cad-intent`, {
+          ? await legacyCadFetch("layout/cad-intent", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ model, revision, prompt }),
             })
-          : await apiFetch(
-              `${API_BASE}/line-engineering/layout/optimize-copilot?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`,
+          : await legacyCadFetch(
+              `layout/optimize-copilot?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`,
             );
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const body = (await r.json()) as {
@@ -12850,9 +13128,15 @@ export default function Layout3DEditor({
   };
   const applyAiProposal = () => {
     if (!aiProposal || !aiProposal.intents.length) return;
+    if (drawingReadOnlyRef.current) {
+      notifyReadOnly();
+      return;
+    }
     const checkpoint = snapshotDocument();
     const footprintBefore = data?.footprint ? { ...data.footprint } : null;
     const wasDirty = dirty;
+    const proposalHistory =
+      canonicalHistoryRef.current?.createRecoveryPoint() ?? null;
     recordLocalSnapshot(
       `Auto · Copiloto IA (${aiProposal.source === "intent" ? "instrucción" : "optimización"})`,
       "command",
@@ -12868,9 +13152,11 @@ export default function Layout3DEditor({
         setData((current) =>
           current ? { ...current, footprint: footprintBefore } : current,
         );
-      undoStackRef.current.pop();
-      redoStackRef.current = [];
-      setHist({ undo: undoStackRef.current.length, redo: 0 });
+      if (proposalHistory && canonicalHistoryRef.current) {
+        canonicalHistoryRef.current.restoreRecoveryPoint(proposalHistory);
+        setHist(canonicalHistoryRef.current.depths());
+      } else cancelHistoryCheckpoint();
+      dirtyRef.current = wasDirty;
       setDirty(wasDirty);
       toast.error(message, "Copiloto IA");
     };
@@ -12890,7 +13176,7 @@ export default function Layout3DEditor({
     }
     loadedCadDocumentRef.current = constrained.document;
     restore(cadDocumentToEditorSnapshot(constrained.document));
-    setDirty(true);
+    markDirty();
     refreshSnap();
     rebuildAll();
     toast.success(
@@ -13147,6 +13433,10 @@ export default function Layout3DEditor({
   const setSelectionLayer = (item: SelItem, layerId: CadLayerId) =>
     setLayerAssignments((cur) => assignObjectsToLayer(cur, [item.id], layerId));
   const runToolbarAction = (id: CadToolbarActionId) => {
+    if (drawingReadOnlyRef.current && !READ_ONLY_TOOLBAR_ACTION_IDS.has(id)) {
+      notifyReadOnly();
+      return;
+    }
     if (id === "select" || id === "pan") setToolMode("select");
     else if (id === "measure") setToolMode("measure");
     else if (
@@ -13179,6 +13469,10 @@ export default function Layout3DEditor({
     );
   };
   const runPaletteEntry = (entry: CadPaletteEntry) => {
+    if (drawingReadOnlyRef.current && entry.kind !== "tool") {
+      notifyReadOnly();
+      return;
+    }
     setShowPalette(false);
     setPaletteQuery("");
     rememberPaletteAction(entry);
@@ -14228,13 +14522,160 @@ export default function Layout3DEditor({
       toast.error("No se pudo exportar el DXF.", "DXF");
     }
   };
-  const save = async (): Promise<Layout | null> => {
-    if (!model || !data) return null;
-    if (cadReviewReadOnly) {
-      toast.error(
-        "Este enlace de revisión no puede guardar ni publicar cambios.",
-        "Review",
+  const captureCanonicalSaveRequest = (): CanonicalSaveRequest | null => {
+    if (drawingReadOnlyRef.current) return null;
+    const targetDocumentId = currentDocumentIdRef.current;
+    const base = dataRef.current;
+    if (!targetDocumentId || !base) return null;
+    return {
+      documentId: targetDocumentId,
+      document: commitChange(snapshotDocument(), "save"),
+      generation: editGenerationRef.current,
+      base,
+    };
+  };
+  const persistCanonicalSave = async (
+    request: CanonicalSaveRequest,
+    origin: "manual" | "autosave",
+  ): Promise<Layout | null> => {
+    if (drawingReadOnlyRef.current) return null;
+    const lastSavedGeneration =
+      savedGenerationByDocumentRef.current.get(request.documentId) ?? -1;
+    if (lastSavedGeneration >= request.generation) {
+      return currentDocumentIdRef.current === request.documentId
+        ? dataRef.current
+        : request.base;
+    }
+    try {
+      const expectedVersion =
+        versionByDocumentRef.current.get(request.documentId) ??
+        request.base.cadDocumentVersion ??
+        0;
+      const result = await documentLifecycle.save(
+        request.documentId,
+        request.document,
+        expectedVersion,
       );
+      versionByDocumentRef.current.set(request.documentId, result.version);
+      savedGenerationByDocumentRef.current.set(
+        request.documentId,
+        request.generation,
+      );
+      const saved: Layout = {
+        ...(editorOpenRef.current &&
+        currentDocumentIdRef.current === request.documentId
+          ? (dataRef.current ?? request.base)
+          : request.base),
+        cadDocument: request.document as unknown as Record<string, unknown>,
+        cadDocumentVersion: result.version,
+      };
+      const requestIsActive =
+        editorOpenRef.current &&
+        currentDocumentIdRef.current === request.documentId;
+      if (requestIsActive) {
+        loadedCadDocumentRef.current = request.document;
+        syncCadLayerState(request.document);
+        setCadXrefs(
+          request.document.externalReferences.map((reference) => ({
+            ...reference,
+          })),
+        );
+        setPublicationRecords([...request.document.publications]);
+        setNativeEntities(
+          request.document.entities.filter(
+            (entity): entity is CadNativeEntity =>
+              CAD_ENTITY_REGISTRY.supports(entity),
+          ),
+        );
+        setNativeDocumentRevision((value) => value + 1);
+        dataRef.current = saved;
+        setData((current) =>
+          current
+            ? {
+                ...current,
+                cadDocument: saved.cadDocument,
+                cadDocumentVersion: result.version,
+              }
+            : saved,
+        );
+        setConnectionState("online");
+        setSaveIssue(null);
+        loadedPlacedRef.current = new Set(placementsRef.current.keys());
+        if (editGenerationRef.current === request.generation) {
+          dirtyRef.current = false;
+          setDirty(false);
+          setRecoveryCandidate(null);
+          setRecoverySavedAt(null);
+          setRecoveryWarning(null);
+          if (recoveryScope)
+            void clearCadRecovery(recoveryScope).catch(() => undefined);
+        } else {
+          // A newer edit landed while the request was in flight. Preserve
+          // dirty and queue that generation against the new CAS version.
+          scheduleAutosaveRef.current();
+        }
+      }
+      if (origin === "manual" && requestIsActive) {
+        const bytes = serializeCadDocumentForTransport(request.document).bytes;
+        toast.success(
+          bytes > CAD_DOCUMENT_ARCHIVE_THRESHOLD_BYTES
+            ? `Dibujo grande guardado (${(bytes / 1_000_000).toFixed(1)} MB).`
+            : "Layout 3D guardado.",
+          "3D",
+        );
+      }
+      if (requestIsActive) onSaved?.();
+      return saved;
+    } catch (saveError) {
+      const requestIsActive =
+        editorOpenRef.current &&
+        currentDocumentIdRef.current === request.documentId;
+      if (saveError instanceof CadCasConflictError) {
+        if (requestIsActive) {
+          setSaveIssue({
+            kind: "conflict",
+            message: saveError.message,
+            serverVersion: saveError.serverVersion,
+          });
+          toast.error(saveError.message, "Conflicto CAS");
+        }
+        return null;
+      }
+      const message =
+        saveError instanceof Error ? saveError.message : "Error de red.";
+      const offline =
+        (typeof navigator !== "undefined" && !navigator.onLine) ||
+        saveError instanceof TypeError ||
+        /network|fetch|red\b/i.test(message);
+      if (requestIsActive) {
+        if (offline) setConnectionState("offline");
+        setSaveIssue({ kind: offline ? "offline" : "server", message });
+        toast.error(message, offline ? "Sin conexión" : "3D");
+      }
+      return null;
+    }
+  };
+  const runCanonicalSave = async (
+    request: CanonicalSaveRequest,
+    origin: "manual" | "autosave",
+  ): Promise<Layout | null> => {
+    const result: { value: Layout | null } = { value: null };
+    try {
+      await autosaveSchedulerRef.current!.run(async () => {
+        result.value = await persistCanonicalSave(request, origin);
+        if (!result.value) throw new Error("cad_save_failed");
+      });
+    } catch {
+      // persistCanonicalSave already exposes a recoverable conflict/offline
+      // state. Callers use null to abort publication or closing safely.
+    }
+    return result.value;
+  };
+  const saveLegacy = async (): Promise<Layout | null> => {
+    const currentData = dataRef.current;
+    if (!model || !currentData) return null;
+    if (drawingReadOnly) {
+      notifyReadOnly();
       return null;
     }
     setSaving(true);
@@ -14261,45 +14702,31 @@ export default function Layout3DEditor({
       const layoutPayload = {
         model,
         revision,
-        footprint: data.footprint,
+        footprint: currentData.footprint,
         positions,
         cleared,
         connectors: connectorsRef.current,
         assets,
         annotations,
         cells: cellsRef.current,
-        expectedCadDocumentVersion: data.cadDocumentVersion ?? 0,
+        expectedCadDocumentVersion: currentData.cadDocumentVersion ?? 0,
         // persist the DXF backdrop placement so saving from the CAD never drops it (unify fix)
         ...(dxfMetaRef.current ? { dxf: dxfMetaRef.current } : {}),
       };
       const serializedCadDocument =
         serializeCadDocumentForTransport(cadDocument);
       let r: Response;
-      if (documentId) {
-        const result = await documentLifecycle.save(
-          documentId,
-          cadDocument,
-          data.cadDocumentVersion ?? 0,
-        );
-        r = new Response(
-          JSON.stringify({
-            ...data,
-            cadDocument,
-            cadDocumentVersion: result.version,
-          }),
-          { status: 200, headers: { "Content-Type": "application/json" } },
-        );
-      } else if (serializedCadDocument.useArchive) {
+      if (serializedCadDocument.useArchive) {
         const archive = await gzipCadDocumentJson(serializedCadDocument.json);
         const form = new FormData();
         form.append("layout", JSON.stringify(layoutPayload));
         form.append("file", archive, "cad-document.json.gz");
-        r = await apiFetch(`${API_BASE}/line-engineering/layout/cad-archive`, {
+        r = await legacyCadFetch("layout/cad-archive", {
           method: "PUT",
           body: form,
         });
       } else {
-        r = await apiFetch(`${API_BASE}/line-engineering/layout`, {
+        r = await legacyCadFetch("layout", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ...layoutPayload, cadDocument }),
@@ -14327,6 +14754,7 @@ export default function Layout3DEditor({
         );
         setNativeDocumentRevision((value) => value + 1);
       }
+      dataRef.current = saved;
       setData(saved);
       toast.success(
         serializedCadDocument.useArchive
@@ -14335,6 +14763,7 @@ export default function Layout3DEditor({
         "3D",
       );
       loadedPlacedRef.current = new Set(placementsRef.current.keys());
+      dirtyRef.current = false;
       setDirty(false);
       setRecoveryCandidate(null);
       setRecoverySavedAt(null);
@@ -14356,6 +14785,82 @@ export default function Layout3DEditor({
     } finally {
       setSaving(false);
     }
+  };
+  const save = async (): Promise<Layout | null> => {
+    if (documentId) {
+      if (drawingReadOnly) {
+        notifyReadOnly();
+        return null;
+      }
+      const request = captureCanonicalSaveRequest();
+      return request ? runCanonicalSave(request, "manual") : null;
+    }
+    return saveLegacy();
+  };
+
+  useEffect(() => {
+    captureCanonicalSaveRequestRef.current = captureCanonicalSaveRequest;
+    persistCanonicalSaveRef.current = persistCanonicalSave;
+  });
+
+  useEffect(() => {
+    scheduleAutosaveRef.current = () => {
+      if (!open || !documentId || drawingReadOnly || !dirtyRef.current) return;
+      const scheduledDocumentId = documentId;
+      autosaveSchedulerRef.current!.schedule(async () => {
+        const request = captureCanonicalSaveRequestRef.current();
+        if (!request || request.documentId !== scheduledDocumentId) return;
+        const saved = await persistCanonicalSaveRef.current(
+          request,
+          "autosave",
+        );
+        if (!saved) throw new Error("cad_autosave_failed");
+      });
+    };
+  }, [documentId, drawingReadOnly, open]);
+
+  useEffect(() => {
+    if (!open || !documentId || drawingReadOnly) return;
+    const flushCurrent = () => {
+      if (dirtyRef.current) scheduleAutosaveRef.current();
+      void autosaveSchedulerRef.current!.flush().catch(() => undefined);
+    };
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!dirtyRef.current) return;
+      flushCurrent();
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    const onPageHide = () => flushCurrent();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") flushCurrent();
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    window.addEventListener("pagehide", onPageHide);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      window.removeEventListener("pagehide", onPageHide);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      // The pending closure belongs to the document being left, so flush it
+      // before the next document can replace the editor refs.
+      void autosaveSchedulerRef.current!.flush().catch(() => undefined);
+    };
+  }, [documentId, drawingReadOnly, open]);
+
+  const closeEditor = async () => {
+    if (documentId && dirtyRef.current && !drawingReadOnly) {
+      scheduleAutosaveRef.current();
+      await autosaveSchedulerRef.current!.flush().catch(() => undefined);
+      if (dirtyRef.current) {
+        toast.error(
+          "No se pudo confirmar el guardado. El borrador sigue abierto y conserva recovery local.",
+          "Cambios pendientes",
+        );
+        return;
+      }
+    }
+    onClose();
   };
 
   const publishSheetSetPdf = async () => {
@@ -14573,22 +15078,19 @@ export default function Layout3DEditor({
         /[^\w.\-]+/g,
         "_",
       );
-      const receiptResponse = await apiFetch(
-        `${API_BASE}/line-engineering/layout/publications`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model,
-            revision,
-            expectedCadDocumentVersion: saved.cadDocumentVersion ?? 0,
-            paperSpaceIds: plan.sheets.map((sheet) => sheet.id),
-            fileName,
-            sha256,
-            bytes: buffer.byteLength,
-          }),
-        },
-      );
+      const receiptResponse = await legacyCadFetch("layout/publications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model,
+          revision,
+          expectedCadDocumentVersion: saved.cadDocumentVersion ?? 0,
+          paperSpaceIds: plan.sheets.map((sheet) => sheet.id),
+          fileName,
+          sha256,
+          bytes: buffer.byteLength,
+        }),
+      });
       if (!receiptResponse.ok) {
         const failure = await receiptResponse.json().catch(() => ({}));
         toast.error(
@@ -14655,6 +15157,14 @@ export default function Layout3DEditor({
       )
         return;
       const cadShortcut = matchCadShortcut(e, workspaceShortcutsRef.current);
+      if (
+        drawingReadOnlyRef.current &&
+        isReadOnlyMutationKey(e, cadShortcut?.id)
+      ) {
+        e.preventDefault();
+        notifyReadOnly();
+        return;
+      }
       if (cadShortcut?.id === "palette") {
         e.preventDefault();
         setShowPalette(true);
@@ -15741,7 +16251,7 @@ export default function Layout3DEditor({
       <CadCollaborationPalette
         document={snapshotDocument()}
         actor={userId ?? "authenticated-user"}
-        reviewReadOnly={cadReviewReadOnly}
+        reviewReadOnly={drawingReadOnly}
         onDocumentChange={applyCollaborationDocument}
         onVisualize={visualizeCollaborationDiff}
         onNavigate={navigateCollaborationDiff}
@@ -15763,6 +16273,14 @@ export default function Layout3DEditor({
   return createPortal(
     <div
       data-color-scheme={resolvedScheme}
+      data-cad-drawing-read-only={drawingReadOnly ? "true" : "false"}
+      aria-readonly={drawingReadOnly}
+      onClickCapture={guardReadOnlyUi}
+      onChangeCapture={guardReadOnlyUi}
+      onInputCapture={guardReadOnlyUi}
+      onSubmitCapture={guardReadOnlyUi}
+      onPointerDownCapture={guardReadOnlyUi}
+      onKeyDownCapture={guardReadOnlyUi}
       className={`fixed inset-0 z-[70] flex flex-col ${resolvedScheme === "light" ? "bg-slate-100 text-slate-950" : "bg-gray-950 text-white"}`}
     >
       {/* top bar (relative z-30 so dropdown popovers paint above the 3D content,
@@ -15775,6 +16293,7 @@ export default function Layout3DEditor({
             barra. La barra usa flex-wrap para que las herramientas NUNCA recorten
             ni choquen. Regla: ninguna pantalla a foco total puede atrapar. */}
         <button
+          data-cad-readonly-allowed
           onClick={onClose}
           title="Cerrar el CAD — volver al dashboard (Esc)"
           aria-label="Cerrar el CAD"
@@ -15785,12 +16304,14 @@ export default function Layout3DEditor({
         <div className="w-px h-5 bg-white/10" />
         <BoxIcon className="w-4 h-4" style={{ color: "#f43f5e" }} />
         <span className="font-semibold text-sm">{cadTitle}</span>
-        {cadReviewReadOnly && (
+        {drawingReadOnly && (
           <span
-            data-testid="cad-review-banner"
+            data-testid={
+              cadReviewReadOnly ? "cad-review-banner" : "cad-readonly-banner"
+            }
             className="rounded-full border border-amber-300/25 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold text-amber-200"
           >
-            REVIEW · SOLO LECTURA
+            {cadReviewReadOnly ? "REVIEW" : "VIEWER"} · SOLO LECTURA
           </span>
         )}
         <span className="hidden xl:inline text-[11px] text-gray-500 dark:text-gray-400 max-w-[520px] truncate">
@@ -15801,6 +16322,7 @@ export default function Layout3DEditor({
         </span>
         <div className="inline-flex items-center rounded-lg bg-white/[0.06] p-0.5 text-[12px] font-semibold ml-1">
           <button
+            data-cad-readonly-allowed
             onClick={() => {
               if (viewMode !== "2d") toggleViewMode();
             }}
@@ -15810,6 +16332,7 @@ export default function Layout3DEditor({
             2D
           </button>
           <button
+            data-cad-readonly-allowed
             onClick={() => {
               if (viewMode !== "3d") toggleViewMode();
             }}
@@ -15820,6 +16343,7 @@ export default function Layout3DEditor({
           </button>
         </div>
         <div
+          data-cad-readonly-allowed
           data-testid="cad-space-tabs"
           className="inline-flex items-center overflow-hidden rounded-lg border border-white/10 bg-white/[0.04] text-[10.5px] font-semibold"
         >
@@ -16182,7 +16706,7 @@ export default function Layout3DEditor({
                         createCanonicalCadLayer();
                       }
                     }}
-                    disabled={cadReviewReadOnly}
+                    disabled={drawingReadOnly}
                     placeholder="Nueva capa"
                     className="min-w-0 rounded-md border border-white/10 bg-gray-950/70 px-2 py-1 text-[10.5px] text-gray-200 outline-none focus:ring-1 focus:ring-cyan-500/40 disabled:opacity-50"
                   />
@@ -16193,14 +16717,14 @@ export default function Layout3DEditor({
                     onChange={(event) =>
                       setNewCadLayerColor(event.target.value)
                     }
-                    disabled={cadReviewReadOnly}
+                    disabled={drawingReadOnly}
                     className="h-7 w-8 rounded border border-white/10 bg-transparent p-0 disabled:opacity-50"
                     title="Color de la nueva capa"
                   />
                   <button
                     data-testid="cad-layer-create"
                     onClick={createCanonicalCadLayer}
-                    disabled={cadReviewReadOnly || !newCadLayerName.trim()}
+                    disabled={drawingReadOnly || !newCadLayerName.trim()}
                     className="rounded-md bg-cyan-500/15 px-2 text-[10px] font-semibold text-cyan-200 hover:bg-cyan-500/25 disabled:opacity-40"
                   >
                     Crear
@@ -16217,7 +16741,7 @@ export default function Layout3DEditor({
                         <button
                           data-testid={`cad-layer-visible-${layer.id}`}
                           onClick={() => toggleCadLayerVisibility(layer.id)}
-                          disabled={cadReviewReadOnly}
+                          disabled={drawingReadOnly}
                           className={`h-2.5 w-2.5 rounded-full ${layer.visible ? "" : "opacity-30"} disabled:cursor-not-allowed`}
                           style={{ background: layer.color }}
                           title={
@@ -16238,7 +16762,7 @@ export default function Layout3DEditor({
                         <button
                           data-testid={`cad-layer-lock-${layer.id}`}
                           onClick={() => toggleCadLayerLock(layer.id)}
-                          disabled={cadReviewReadOnly}
+                          disabled={drawingReadOnly}
                           className={`text-[10px] ${layer.locked ? "text-amber-300" : "text-gray-500"} disabled:opacity-40`}
                         >
                           {layer.locked ? "Lock" : "Open"}
@@ -16252,7 +16776,7 @@ export default function Layout3DEditor({
                           onBlur={(event) =>
                             updateCadLayerLabel(layer.id, event.target.value)
                           }
-                          disabled={cadReviewReadOnly}
+                          disabled={drawingReadOnly}
                           className="min-w-0 rounded-md border border-white/10 bg-gray-950/70 px-1.5 py-0.5 text-[10.5px] text-gray-200 outline-none focus:ring-1 focus:ring-cyan-500/40 disabled:opacity-50"
                           title="Renombrar capa del documento"
                         />
@@ -16263,7 +16787,7 @@ export default function Layout3DEditor({
                           onChange={(event) =>
                             updateCadLayerColor(layer.id, event.target.value)
                           }
-                          disabled={cadReviewReadOnly}
+                          disabled={drawingReadOnly}
                           className="h-6 w-7 rounded border border-white/10 bg-transparent p-0 disabled:opacity-50"
                           title="Color de capa"
                         />
@@ -16277,14 +16801,14 @@ export default function Layout3DEditor({
                         </button>
                         <button
                           onClick={() => isolateCadLayer(layer.id)}
-                          disabled={cadReviewReadOnly}
+                          disabled={drawingReadOnly}
                           className="text-gray-500 dark:text-gray-400 hover:text-white disabled:opacity-40"
                         >
                           Solo
                         </button>
                         <button
                           onClick={() => assignSelectionToCadLayer(layer.id)}
-                          disabled={cadReviewReadOnly}
+                          disabled={drawingReadOnly}
                           className="text-cyan-300 hover:text-cyan-100 disabled:opacity-40"
                         >
                           Asignar
@@ -16293,7 +16817,7 @@ export default function Layout3DEditor({
                           <button
                             data-testid={`cad-layer-delete-${layer.id}`}
                             onClick={() => deleteCanonicalCadLayer(layer.id)}
-                            disabled={cadReviewReadOnly || cadLayers.length < 2}
+                            disabled={drawingReadOnly || cadLayers.length < 2}
                             className="text-rose-300/80 hover:text-rose-200 disabled:opacity-40"
                           >
                             Borrar
@@ -16335,7 +16859,7 @@ export default function Layout3DEditor({
                           "Capas",
                         )
                       }
-                      disabled={cadReviewReadOnly}
+                      disabled={drawingReadOnly}
                       className="text-gray-500 dark:text-gray-400 hover:text-white disabled:opacity-40"
                       title="Ocultar capas sin objetos"
                     >
@@ -16660,7 +17184,7 @@ export default function Layout3DEditor({
           ))}
         </select>
         <T3Btn
-          disabled={cadReviewReadOnly}
+          disabled={drawingReadOnly}
           onClick={() => void publishSheetSetPdf()}
           title="Publicar conjunto PDF vectorial — hojas, viewports y cajetines"
         >
@@ -16795,7 +17319,7 @@ export default function Layout3DEditor({
             />
             <select
               value={approval.status}
-              disabled={approvalBusy || cadReviewReadOnly}
+              disabled={approvalBusy || drawingReadOnly}
               onChange={(e) =>
                 setApprovalStatus(e.target.value as ApprovalStatus)
               }
@@ -16817,7 +17341,7 @@ export default function Layout3DEditor({
         <button
           data-testid="cad-save"
           onClick={save}
-          disabled={saving || !dirty || cadReviewReadOnly}
+          disabled={saving || !dirty || drawingReadOnly}
           className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-sm font-medium text-white disabled:opacity-50"
           style={{ background: "#e11d48" }}
         >
@@ -16829,7 +17353,7 @@ export default function Layout3DEditor({
           Guardar
         </button>
         <button
-          onClick={onClose}
+          onClick={() => void closeEditor()}
           className="p-1.5 rounded-lg hover:bg-white/10 ml-1"
           title="Cerrar editor"
         >
@@ -17877,15 +18401,29 @@ export default function Layout3DEditor({
                 {model} · {revision} · v{data?.cadDocumentVersion ?? 0}
               </span>
               <span
+                data-testid="cad-save-status"
                 className={
                   saving
                     ? "text-cyan-200"
-                    : dirty
-                      ? "text-amber-300"
-                      : "text-emerald-300"
+                    : saveIssue
+                      ? "text-rose-300"
+                      : dirty
+                        ? "text-amber-300"
+                        : "text-emerald-300"
                 }
+                title={saveIssue?.message}
               >
-                {saving ? "Guardando…" : dirty ? "Modificado" : "Guardado"}
+                {saving
+                  ? "Guardando…"
+                  : saveIssue?.kind === "conflict"
+                    ? `Conflicto CAS${saveIssue.serverVersion == null ? "" : ` · servidor v${saveIssue.serverVersion}`}`
+                    : saveIssue?.kind === "offline"
+                      ? "Sin conexión · cambios pendientes"
+                      : saveIssue
+                        ? "Error de guardado · cambios pendientes"
+                        : dirty || saveStatus === "scheduled"
+                          ? "Modificado · autosave pendiente"
+                          : "Guardado"}
               </span>
               {dirty && recoverySavedAt && (
                 <span className="text-sky-300" title={recoverySavedAt}>
@@ -18300,6 +18838,13 @@ export default function Layout3DEditor({
                 {CAD_TOOLBAR_ACTIONS.map((action) => (
                   <button
                     key={action.id}
+                    data-cad-readonly-allowed={
+                      READ_ONLY_TOOLBAR_ACTION_IDS.has(action.id) || undefined
+                    }
+                    disabled={
+                      drawingReadOnly &&
+                      !READ_ONLY_TOOLBAR_ACTION_IDS.has(action.id)
+                    }
                     onClick={() => runToolbarAction(action.id)}
                     title={`${action.label}${action.shortcut ? ` · ${action.shortcut}` : ""} — ${action.description}`}
                     className={`h-7 min-w-9 rounded-lg px-2 text-[10.5px] font-semibold transition-colors ${tool === action.id || (action.id === "select" && tool === "select") ? "bg-cyan-500 text-white" : "bg-white/[0.05] text-gray-300 hover:bg-white/[0.12] hover:text-white"}`}
@@ -18429,7 +18974,7 @@ export default function Layout3DEditor({
                           </div>
                           <button
                             data-testid="cad-line-edit-apply"
-                            disabled={cadReviewReadOnly}
+                            disabled={drawingReadOnly}
                             onClick={() =>
                               editNativeLines(selectedNativeLineIds)
                             }
@@ -18470,7 +19015,7 @@ export default function Layout3DEditor({
                             </label>
                             <button
                               data-testid="cad-fillet-apply"
-                              disabled={cadReviewReadOnly}
+                              disabled={drawingReadOnly}
                               onClick={() =>
                                 filletNativeLines(selectedNativeLineIds)
                               }
@@ -18927,7 +19472,7 @@ export default function Layout3DEditor({
                             >
                               <input
                                 value={measurement.label}
-                                onFocus={pushHistory}
+                                onFocus={() => pushHistory()}
                                 onChange={(e) =>
                                   updateMeasurementText(
                                     measurement.id,
@@ -20324,7 +20869,7 @@ export default function Layout3DEditor({
                   <button
                     onClick={() => void publishSheetSetPdf()}
                     disabled={
-                      cadReviewReadOnly ||
+                      drawingReadOnly ||
                       publishingSheetSet ||
                       !paperSpaces.some(
                         (space) => space.includeInPublish !== false,
@@ -21478,7 +22023,7 @@ export default function Layout3DEditor({
                 />
                 <button
                   onClick={saveVersion}
-                  disabled={cadReviewReadOnly || versBusy}
+                  disabled={drawingReadOnly || versBusy}
                   className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-[12px] font-medium disabled:opacity-50"
                 >
                   Guardar versión
@@ -21723,7 +22268,7 @@ export default function Layout3DEditor({
                                   stationIds: [...cell.stationIds],
                                 })),
                               );
-                              setDirty(true);
+                              markDirty();
                             }
                           }}
                           className="w-full bg-transparent text-[13px] font-medium outline-none focus:bg-white/[0.06] rounded px-1"

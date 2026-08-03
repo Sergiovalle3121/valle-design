@@ -1,5 +1,5 @@
 /**
- * @valle/design-sdk — SDK TypeScript de la API v1 de Valle Design (CAD).
+ * @valle/design-sdk — SDK TypeScript de la API v1 standalone de Valle Design.
  *
  * - `paths`/`components`/`operations`: tipos GENERADOS desde
  *   `packages/contracts/specs/design-api.v1.yaml` (openapi-typescript,

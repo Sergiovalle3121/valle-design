@@ -3,12 +3,12 @@
 /**
  * ADAPTADOR LEGACY→v1 DEL EDITOR CAD (R2).
  *
- * El editor (`Layout3DEditor`) llegó del origen con sus ~21 call sites
- * `${API_BASE}/line-engineering/*` INTACTOS. La API real de Valle Design (R1)
- * expone `/v1/cad/*` (contrato `packages/contracts/specs/design-api.v1.yaml`)
- * direccionado por documentId, no por model+revision. Este módulo traduce
- * cada ruta legacy a su equivalente v1 — sin tocar el editor y sin mocks: cada
- * respuesta sintetizada aquí proviene de llamadas REALES a la API.
+ * `Layout3DEditor` entra explícitamente por `legacyCadFetch()` con rutas
+ * relativas de compatibilidad. Ninguna URL `/line-engineering/*` sale a la
+ * red: este módulo la resuelve y llama a la API canónica `/v1/cad/*`
+ * (contrato `packages/contracts/specs/design-api.v1.yaml`), direccionada por
+ * documentId en vez de model+revision. Cada respuesta sintetizada aquí
+ * proviene de llamadas reales a esa API.
  *
  * ── MAPA DE RUTAS legacy → /v1/cad ─────────────────────────────────────────
  *  GET    /line-engineering/cad-blocks            → GET    /v1/cad/blocks               ({items}→array)
@@ -89,6 +89,25 @@ interface DxfResource {
 export function isLegacyCadRequest(input: RequestInfo | URL): boolean {
   if (typeof input !== "string" && !(input instanceof URL)) return false;
   return parseUrl(input).pathname.startsWith(LEGACY_PREFIX);
+}
+
+/**
+ * Entrada explícita al límite de compatibilidad del editor. La ruta se
+ * resuelve dentro de este módulo y se traduce directamente a `/v1/cad/*`;
+ * nunca se envía una petición HTTP a la superficie legacy.
+ */
+export function legacyCadFetch(
+  route: string,
+  init?: RequestInit,
+): Promise<Response> {
+  if (/^[a-z][a-z\d+.-]*:/i.test(route) || route.startsWith("//")) {
+    throw new TypeError("legacyCadFetch requiere una ruta relativa.");
+  }
+  const relative = route.replace(/^\/+/, "");
+  return handleLegacyCadRequest(
+    new URL(`${LEGACY_PREFIX}${relative}`, `${API_BASE}/`),
+    init,
+  );
 }
 
 /** Traduce y ejecuta una petición legacy contra la API v1 real. */

@@ -15,47 +15,21 @@ import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { REVIEW_LINK_SURFACE_KEY } from '../decorators/review-link-surface.decorator';
 import { expandCadPermissions } from '../cad-permission-map';
 import { DesignAuditLog } from '../../audit-log/design-audit-log.service';
-import { ENTITLEMENT_CLIENT } from '../../cad-documents/ports/platform-client.ports';
-import type { EntitlementClient } from '../../cad-documents/ports/platform-client.ports';
+import {
+  ENTITLEMENT_SERVICE,
+  type EntitlementService,
+} from '../../commercial/ports/commercial.ports';
 import type { ReviewAccessContext } from '../../cad-documents/review-link.service';
 import {
   TenantContextService,
   type TenantContext,
 } from '../../../common/tenant/tenant-context.service';
-import type { AuthenticatedUser } from '../../../common/types/jwt.types';
+import type { AuthenticatedUser } from '../../../common/types/authenticated-user.types';
 
 /**
- * Autorización del producto Design (adaptación del PermissionsGuard del
- * origen al espacio `cad:*` y al 403 contractual de design-api.v1.yaml):
- *
- * 0. Contexto de REVIEW LINK (Fase 5): un request autenticado por token de
- *    review solo alcanza la superficie @ReviewLinkSurface() (contexto
- *    read-only limitado al documento de la sesión). CUALQUIER otra ruta —
- *    mutación o lectura — responde `403 review_read_only`, lo intente quien
- *    lo intente: el read-only lo impone el backend. Sin verificación de
- *    entitlement aquí: el entitlement se verificó al CREAR la sesión (con el
- *    JWT del autor) y la vida del link está acotada por expiración/revocación
- *    — el invitado no tiene bearer que reenviar a Platform (mismo patrón que
- *    una URL prefirmada).
- * 1. Entitlement comercial: toda ruta con @RequirePermissions exige que el
- *    tenant tenga `design.cad` vigente (puerto ENTITLEMENT_CLIENT; desde
- *    Fase 5 lo satisface PlatformEntitlementClient — HTTP real contra
- *    platform-api con caché breve por tenant y fail-closed). El guard corre
- *    ANTES del TenantInterceptor, así que el bearer y el tenant viajan
- *    explícitos en el contexto de la consulta.
- *    Si falta → `403 entitlement_required` con `details.reason: not_entitled`.
- * 2. RBAC funcional: los permisos del claim se expanden con el mapeo de
- *    transición engineering:* → cad:* (@valle-design/contracts) y deben cubrir TODOS
- *    los requeridos. Si no → `403 entitlement_required` con
- *    `details.reason: permission_denied` y `requiredPermission`.
- * 3. Rol Admin pasa el RBAC (case-insensitive, como el origen). DIFERENCIA
- *    DELIBERADA: sin bypass por email de owner — Design no arrastra el rbac.ts
- *    de Enterprise.
- *
- * Las denegaciones se auditan en la bitácora propia CON EL TENANT DEL ACTOR
- * estampado (el guard corre antes del TenantInterceptor, así que el contexto
- * ALS se abre aquí a mano — sin esto los asientos de denegación quedaban con
- * tenant NULL). Fail-soft: una bitácora caída nunca convierte un 403 en 500.
+ * Applies the local `design.cad` subscription and server-derived CAD RBAC.
+ * Review links remain document-scoped and read-only. Denials are audited in
+ * the actor tenant without allowing an audit outage to change the response.
  */
 @Injectable()
 export class PermissionsGuard implements CanActivate {
@@ -64,9 +38,8 @@ export class PermissionsGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly tenantCtx: TenantContextService,
-    @Optional()
-    @Inject(ENTITLEMENT_CLIENT)
-    private readonly entitlements?: EntitlementClient,
+    @Inject(ENTITLEMENT_SERVICE)
+    private readonly entitlements: EntitlementService,
     @Optional() private readonly audit?: DesignAuditLog,
   ) {}
 
@@ -103,8 +76,7 @@ export class PermissionsGuard implements CanActivate {
       });
     }
     if (isReviewSurface) {
-      // La superficie del review link exige el token del link: un JWT — con
-      // o sin entitlement — jamás la abre (401 antes de pipes/handler).
+      // A normal first-party session never opens the review-token surface.
       throw new UnauthorizedException({
         code: 'review_token_invalid',
         message:
@@ -123,17 +95,14 @@ export class PermissionsGuard implements CanActivate {
       throw new ForbiddenException('User not authenticated');
     }
 
-    // 1) Entitlement comercial design.cad (fail-closed sin cliente). El
-    //    bearer del request se reenvía a Platform tal cual (contrato
-    //    platform-api.v1.yaml); el guard corre antes del interceptor, así que
-    //    tenant y token viajan explícitos.
-    const entitled = this.entitlements
-      ? await this.entitlements.hasEntitlement(DESIGN_CAD_ENTITLEMENT, {
-          tenantId: user.tenant_id,
-          organizationId: user.organization_id,
-          bearerToken: extractBearerToken(request),
-        })
-      : false;
+    // The local lookup fails closed for missing tenant/org and expired trials.
+    const entitled = await this.entitlements.hasEntitlement(
+      DESIGN_CAD_ENTITLEMENT,
+      {
+        tenantId: user.tenant_id,
+        organizationId: user.organization_id,
+      },
+    );
     if (!entitled) {
       await this.logDenial(user, 'ENTITLEMENT_DENIED', requiredPermissions);
       throw new ForbiddenException({
@@ -149,7 +118,7 @@ export class PermissionsGuard implements CanActivate {
     // 2) Admin pasa el RBAC funcional (el entitlement ya quedó verificado).
     if ((user.role || '').toLowerCase() === 'admin') return true;
 
-    // 3) RBAC cad:* con el mapeo de transición engineering:* → cad:*.
+    // 3) RBAC cad:* derivado de la membresía activa.
     const granted = expandCadPermissions(user.permissions);
     const missing = requiredPermissions.find(
       (permission) => !granted.has(permission),
@@ -239,11 +208,4 @@ export class PermissionsGuard implements CanActivate {
       );
     }
   }
-}
-
-function extractBearerToken(request: Request): string | null {
-  const header = request.headers?.authorization;
-  if (typeof header !== 'string') return null;
-  const [scheme, token] = header.split(' ');
-  return scheme?.toLowerCase() === 'bearer' && token ? token : null;
 }

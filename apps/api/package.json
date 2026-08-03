@@ -31,13 +31,13 @@
     "check:no-platform-entitlement": "node scripts/check-no-platform-entitlement-registration.js"
   },
   "dependencies": {
-    "@valle-design/contracts": "*",
     "@nestjs/common": "^11.0.1",
     "@nestjs/core": "^11.0.1",
-    "@nestjs/jwt": "^11.0.0",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/typeorm": "^11.0.0",
+    "@node-rs/argon2": "^2.0.2",
     "@types/multer": "^2.1.0",
+    "@valle-design/contracts": "*",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "compression": "^1.8.1",

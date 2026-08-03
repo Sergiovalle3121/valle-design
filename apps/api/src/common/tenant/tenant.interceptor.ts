@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { TenantContextService } from './tenant-context.service';
-import { AuthenticatedUser } from '../types/jwt.types';
+import { AuthenticatedUser } from '../types/authenticated-user.types';
 
 @Injectable()
 export class TenantInterceptor implements NestInterceptor {

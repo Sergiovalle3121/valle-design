@@ -19,7 +19,11 @@ export interface CadBlobPutResult {
 
 export interface CadBlobStore {
   /** Persiste los bytes y confirma el manifiesto (integridad verificable). */
-  put(data: Buffer, sha256: string): Promise<CadBlobPutResult>;
+  put(
+    data: Buffer,
+    sha256: string,
+    transaction?: unknown,
+  ): Promise<CadBlobPutResult>;
   /** Recupera los bytes por clave; lanza si el blob no existe. */
   get(blobKey: string): Promise<Buffer>;
 }

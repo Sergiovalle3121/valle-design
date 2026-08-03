@@ -1,3 +1,5 @@
-"use client";
-import { FormEvent, useState } from "react";
-export default function Page() { const [message,setMessage]=useState(""); async function submit(e:FormEvent<HTMLFormElement>){e.preventDefault();const form=new FormData(e.currentTarget);const body=Object.fromEntries(form.entries());const response=await fetch(`${process.env.NEXT_PUBLIC_API_BASE||"http://localhost:4000"}/v1/auth/password/forgot`,{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});setMessage(response.ok?"Solicitud aceptada.":"No se pudo completar la solicitud.");} return <main className="mx-auto flex min-h-[70vh] max-w-md items-center"><form onSubmit={submit} className="flex w-full flex-col gap-4 rounded-xl border p-8"><h1 className="text-2xl font-semibold">Recuperar contraseña</h1><input name="email" type="email" required placeholder="email" className="rounded border p-3" /><button className="rounded bg-indigo-600 p-3 text-white">Continuar</button><p aria-live="polite">{message}</p></form></main>; }
+import { IdentityActionForm } from "@/components/IdentityActionForm";
+
+export default function ForgotPasswordPage() {
+  return <IdentityActionForm action="forgot" />;
+}

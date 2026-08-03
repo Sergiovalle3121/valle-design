@@ -1,12 +1,15 @@
 import { expect, test } from "@playwright/test";
 import { API_ORIGIN } from "./fixtures/constants";
-import { loginAsMaster, masterJwt } from "./fixtures/session";
+import {
+  firstPartyRequestFailure,
+  loginAsStandaloneOwner,
+} from "./fixtures/standalone-identity";
 
 test("crea proyecto y documentos con IDs propios, guarda CAS y reabre tras una nueva sesión", async ({
   context,
   page,
 }) => {
-  await loginAsMaster(context);
+  await loginAsStandaloneOwner(context);
   const projects: Array<{ id: string; name: string; status: string }> = [];
   const documents: Array<{
     id: string;
@@ -29,6 +32,8 @@ test("crea proyecto y documentos con IDs propios, guarda CAS y reabre tras una n
         contentType: "application/json",
         body: JSON.stringify(body),
       });
+    const authFailure = firstPartyRequestFailure(request);
+    if (authFailure) return json(authFailure.body, authFailure.status);
     if (url.pathname === "/v1/cad/projects" && method === "GET")
       return json({ items: projects });
     if (url.pathname === "/v1/cad/projects" && method === "POST") {
@@ -88,7 +93,7 @@ test("crea proyecto y documentos con IDs propios, guarda CAS y reabre tras una n
   });
 
   await page.goto("/dashboard");
-  await expect(page.getByText("e2e-tenant")).toBeVisible();
+  await expect(page.getByText("Valle Design E2E")).toBeVisible();
   await page
     .getByLabel("Nombre del proyecto")
     .fill("Organización / Proyecto Alfa");
@@ -98,6 +103,16 @@ test("crea proyecto y documentos con IDs propios, guarda CAS y reabre tras una n
   await expect(page).toHaveURL(
     /\/studio\/20000000-0000-4000-8000-000000000001$/,
   );
+  await page.getByRole("button", { name: "Circle", exact: true }).click();
+  const dynamic = page.getByTestId("cad-dynamic-input");
+  await page.getByTestId("cad-dynamic-field-x").fill("4000");
+  await page.getByTestId("cad-dynamic-field-y").fill("3000");
+  await dynamic.getByRole("button", { name: "Aplicar" }).click();
+  await page.getByTestId("cad-dynamic-field-radius").fill("250");
+  await dynamic.getByRole("button", { name: "Aplicar" }).click();
+  await expect(
+    page.getByRole("button", { name: "Guardar", exact: true }),
+  ).toBeEnabled();
   await page.getByRole("button", { name: "Guardar", exact: true }).click();
   await expect.poll(() => documents[0]?.cadDocumentVersion).toBe(1);
 
@@ -111,10 +126,7 @@ test("crea proyecto y documentos con IDs propios, guarda CAS y reabre tras una n
 
   await page.goto("/dashboard");
   await page.getByRole("button", { name: /Cerrar sesión/ }).click();
-  await page.evaluate(
-    (token) => localStorage.setItem("axos_access_token", token),
-    masterJwt(),
-  );
+  await loginAsStandaloneOwner(context);
   await page.goto(`/studio/${documents[0].id}`);
   await expect(page).toHaveURL(new RegExp(`${documents[0].id}$`));
   await expect(

@@ -22,6 +22,11 @@ export class CreateCadDocumentsFoundation20260801090000 implements MigrationInte
     const postgres = queryRunner.connection.options.type === 'postgres';
     const json = postgres ? 'jsonb' : 'text';
     const date = postgres ? 'timestamp' : 'datetime';
+    // PostgreSQL usa UUID nativo y genera el id en la propia base. SQLite no
+    // tiene un tipo UUID real: PrimaryGeneratedColumn('uuid') de TypeORM lo
+    // representa como varchar y genera el valor en la aplicacion.
+    const cadId = postgres ? 'uuid' : 'varchar(36)';
+    const cadIdDefault = postgres ? ' DEFAULT gen_random_uuid()' : '';
     // Columnas comunes de TenantBaseEntity (tenant nullable durante la fase de
     // migración multi-tenant, igual que el resto de tablas sf_*/cad del repo).
     const tenantBase = `
@@ -35,7 +40,7 @@ export class CreateCadDocumentsFoundation20260801090000 implements MigrationInte
 
     await queryRunner.query(
       `CREATE TABLE IF NOT EXISTS "cad_projects" (
-        "id" varchar(36) PRIMARY KEY NOT NULL,${tenantBase},
+        "id" ${cadId} PRIMARY KEY NOT NULL${cadIdDefault},${tenantBase},
         "name" varchar(160) NOT NULL,
         "description" varchar(500) NULL,
         "status" varchar(24) NOT NULL DEFAULT 'active',
@@ -44,8 +49,8 @@ export class CreateCadDocumentsFoundation20260801090000 implements MigrationInte
     );
     await queryRunner.query(
       `CREATE TABLE IF NOT EXISTS "cad_documents" (
-        "id" varchar(36) PRIMARY KEY NOT NULL,${tenantBase},
-        "project_id" varchar(36) NULL,
+        "id" ${cadId} PRIMARY KEY NOT NULL${cadIdDefault},${tenantBase},
+        "project_id" ${cadId} NULL,
         "name" varchar(160) NOT NULL,
         "model" varchar(64) NULL,
         "revision" varchar(16) NULL,
@@ -60,8 +65,8 @@ export class CreateCadDocumentsFoundation20260801090000 implements MigrationInte
     );
     await queryRunner.query(
       `CREATE TABLE IF NOT EXISTS "cad_document_versions" (
-        "id" varchar(36) PRIMARY KEY NOT NULL,${tenantBase},
-        "document_id" varchar(36) NOT NULL,
+        "id" ${cadId} PRIMARY KEY NOT NULL${cadIdDefault},${tenantBase},
+        "document_id" ${cadId} NOT NULL,
         "version" integer NOT NULL,
         "cad_document" ${json} NOT NULL,
         "sha256" varchar(64) NULL,
@@ -72,8 +77,8 @@ export class CreateCadDocumentsFoundation20260801090000 implements MigrationInte
     );
     await queryRunner.query(
       `CREATE TABLE IF NOT EXISTS "cad_publications" (
-        "id" varchar(36) PRIMARY KEY NOT NULL,${tenantBase},
-        "document_id" varchar(36) NOT NULL,
+        "id" ${cadId} PRIMARY KEY NOT NULL${cadIdDefault},${tenantBase},
+        "document_id" ${cadId} NOT NULL,
         "file_name" varchar(255) NOT NULL,
         "sha256" varchar(64) NOT NULL,
         "bytes" integer NOT NULL,
@@ -88,11 +93,12 @@ export class CreateCadDocumentsFoundation20260801090000 implements MigrationInte
     );
     await queryRunner.query(
       `CREATE TABLE IF NOT EXISTS "cad_review_sessions" (
-        "id" varchar(36) PRIMARY KEY NOT NULL,${tenantBase},
-        "document_id" varchar(36) NOT NULL,
+        "id" ${cadId} PRIMARY KEY NOT NULL${cadIdDefault},${tenantBase},
+        "document_id" ${cadId} NOT NULL,
         "status" varchar(24) NOT NULL DEFAULT 'open',
         "closed_at" ${date} NULL,
         "token_hash" varchar(64) NULL,
+        "legacy_source_id" varchar(64) NULL,
         CONSTRAINT "fk_cad_review_session_document"
           FOREIGN KEY ("document_id") REFERENCES "cad_documents" ("id")
           ON DELETE CASCADE
@@ -100,13 +106,14 @@ export class CreateCadDocumentsFoundation20260801090000 implements MigrationInte
     );
     await queryRunner.query(
       `CREATE TABLE IF NOT EXISTS "cad_comments" (
-        "id" varchar(36) PRIMARY KEY NOT NULL,${tenantBase},
-        "review_session_id" varchar(36) NULL,
-        "document_id" varchar(36) NOT NULL,
+        "id" ${cadId} PRIMARY KEY NOT NULL${cadIdDefault},${tenantBase},
+        "review_session_id" ${cadId} NULL,
+        "document_id" ${cadId} NOT NULL,
         "author" varchar(255) NOT NULL,
         "body" text NOT NULL,
         "anchor" ${json} NULL,
         "resolved" boolean NOT NULL DEFAULT false,
+        "legacy_source_id" varchar(64) NULL,
         CONSTRAINT "fk_cad_comment_review_session"
           FOREIGN KEY ("review_session_id") REFERENCES "cad_review_sessions" ("id")
           ON DELETE SET NULL,

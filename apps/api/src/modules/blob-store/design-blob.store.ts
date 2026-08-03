@@ -3,8 +3,10 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import type { EntityManager } from 'typeorm';
 import { DesignBlob } from './entities/design-blob.entity';
 import {
   TenantScopedRepository,
@@ -52,16 +54,28 @@ export class DatabaseBlobStore {
     private readonly tenantCtx: TenantContextService,
   ) {}
 
-  async put(data: Buffer, sha256: string): Promise<DesignBlobPutResult> {
+  async put(
+    data: Buffer,
+    sha256: string,
+    manager?: EntityManager,
+  ): Promise<DesignBlobPutResult> {
     const tenantId = this.tenantCtx.requireTenantId('design blob put');
-    const existing = await this.repo.findOne({ where: { sha256 } });
+    const actualSha256 = digest(data);
+    if (
+      !/^[a-f0-9]{64}$/i.test(sha256) ||
+      actualSha256 !== sha256.toLowerCase()
+    ) {
+      throw new ConflictException(
+        'El sha256 declarado no coincide con los bytes del blob CAD.',
+      );
+    }
+    const repository = this.repo.withManager(manager);
+    const existing = await findBlobBySha(repository, actualSha256);
     if (existing) {
-      if (existing.size !== data.length) {
-        throw new ConflictException('Colisión de hash de blob detectada.');
-      }
+      assertBlobIntegrity(existing);
       if (existing.gcMarkedAt) {
         existing.gcMarkedAt = null;
-        await this.repo.save(existing);
+        await repository.save(existing);
       }
       return {
         blobKey: existing.blobKey,
@@ -71,20 +85,41 @@ export class DatabaseBlobStore {
       };
     }
 
-    const entity = this.repo.create({
-      blobKey: randomUUID(),
+    const blobKey = randomUUID();
+    const entity = repository.create({
+      blobKey,
       tenantId,
-      sha256,
+      sha256: actualSha256,
       size: data.length,
       data,
       gcMarkedAt: null,
     });
-    const saved = await this.repo.save(entity);
+    // El lookup anterior es sólo el camino rápido. Dos procesos pueden no ver
+    // fila y competir por (tenant_id, sha256); ON CONFLICT evita abortar la
+    // transacción PostgreSQL y permite que ambos resuelvan a la misma fila.
+    await repository
+      .createQueryBuilder()
+      .insert()
+      .into(DesignBlob)
+      .values(entity)
+      .orIgnore()
+      .execute();
+    const saved = await findBlobBySha(repository, actualSha256);
+    if (!saved) {
+      throw new ServiceUnavailableException(
+        'El almacenamiento CAD no pudo confirmar el blob persistido.',
+      );
+    }
+    assertBlobIntegrity(saved);
+    if (saved.gcMarkedAt) {
+      saved.gcMarkedAt = null;
+      await repository.save(saved);
+    }
     return {
       blobKey: saved.blobKey,
       sha256: saved.sha256,
       size: saved.size,
-      created: true,
+      created: saved.blobKey === blobKey,
     };
   }
 
@@ -101,6 +136,7 @@ export class DatabaseBlobStore {
       },
     });
     if (!row) throw new NotFoundException('El blob CAD no existe.');
+    assertBlobIntegrity(row);
     return row.data;
   }
 
@@ -135,5 +171,37 @@ export class DatabaseBlobStore {
       );
     }
     await this.repo.remove(row);
+  }
+}
+
+function digest(data: Buffer): string {
+  return createHash('sha256').update(data).digest('hex');
+}
+
+async function findBlobBySha(
+  repository: TenantScopedRepository<DesignBlob>,
+  sha256: string,
+): Promise<DesignBlob | null> {
+  return repository.findOne({
+    where: { sha256 },
+    // `data` usa select:false; se carga deliberadamente para comprobar que la
+    // fila content-addressed no está corrupta antes de deduplicarla o leerla.
+    select: {
+      blobKey: true,
+      tenantId: true,
+      sha256: true,
+      size: true,
+      data: true,
+      createdAt: true,
+      gcMarkedAt: true,
+    },
+  });
+}
+
+function assertBlobIntegrity(blob: DesignBlob): void {
+  if (blob.size !== blob.data.length || blob.sha256 !== digest(blob.data)) {
+    throw new ServiceUnavailableException(
+      'La integridad del blob CAD almacenado no pudo verificarse.',
+    );
   }
 }

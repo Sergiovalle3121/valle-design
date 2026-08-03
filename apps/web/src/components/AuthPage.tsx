@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import { DraftingCompass } from "lucide-react";
 import { PRODUCT_LABEL } from "@/config/brand";
 import { COMMERCIAL_LINKS } from "@/config/commercial";
-import { API_BASE, rawApiFetch } from "@/lib/apiFetch";
+import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
 import { localReturnTo } from "@/lib/session";
 
 type AuthMode = "login" | "register";
@@ -16,12 +16,14 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [busy, setBusy] = useState(false);
+  const submitting = useRef(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy) return;
+    if (submitting.current) return;
+    submitting.current = true;
     setBusy(true);
     setError(null);
     setMessage(null);
@@ -36,28 +38,8 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
     };
 
     try {
-      const response = await rawApiFetch(
-        `${API_BASE}/v1/auth/${register ? "register" : "login"}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        },
-      );
-      if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as {
-          message?: string | string[];
-        } | null;
-        const detail = Array.isArray(payload?.message)
-          ? payload.message.join(" ")
-          : payload?.message;
-        throw new Error(
-          detail ||
-            (response.status === 429
-              ? "Demasiados intentos. Espera un momento."
-              : "No se pudo completar la solicitud."),
-        );
-      }
+      if (register) await designClient.identity.register(body);
+      else await designClient.identity.login(body);
 
       if (register) {
         setMessage(
@@ -69,12 +51,22 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
         router.refresh();
       }
     } catch (cause) {
+      const detail =
+        cause instanceof DesignApiError
+          ? Array.isArray(cause.body?.message)
+            ? cause.body.message.join(" ")
+            : cause.body?.message
+          : undefined;
       setError(
-        cause instanceof Error
-          ? cause.message
-          : "No se pudo conectar con el servicio de identidad.",
+        detail ||
+          (cause instanceof DesignApiError && cause.status === 429
+            ? "Demasiados intentos. Espera un momento."
+            : cause instanceof Error
+              ? cause.message
+              : "No se pudo conectar con el servicio de identidad."),
       );
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   }

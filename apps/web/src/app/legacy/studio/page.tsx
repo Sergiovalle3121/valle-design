@@ -2,26 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { API_BASE, rawApiFetch } from "@/lib/apiFetch";
+import { designClient } from "@/lib/cad/repositories/client";
 
 /** Compatibilidad de marcadores antiguos: sólo resuelve, nunca crea. */
 export default function LegacyStudioLoader() {
   const router = useRouter();
   const [failed, setFailed] = useState(false);
   useEffect(() => {
-    rawApiFetch(`${API_BASE}/v1/cad/documents?limit=200`)
-      .then(async (response) => {
-        if (!response.ok) throw new Error("list failed");
-        const body = (await response.json()) as {
-          items: Array<{
-            id: string;
-            model: string | null;
-            revision: string | null;
-          }>;
-        };
+    const model = "AXOS-CAD-STUDIO";
+    const revision = "UNIVERSAL";
+    designClient.documents
+      .list({ model, revision, limit: 1 })
+      .then((body) => {
         const existing = body.items.find(
-          (item) =>
-            item.model === "AXOS-CAD-STUDIO" && item.revision === "UNIVERSAL",
+          (item) => item.model === model && item.revision === revision,
         );
         if (!existing) throw new Error("missing legacy document");
         router.replace(`/studio/${existing.id}`);

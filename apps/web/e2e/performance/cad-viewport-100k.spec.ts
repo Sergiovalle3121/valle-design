@@ -1,7 +1,7 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadV1Backend, seedFootprint } from '../fixtures/cad-v1-backend';
-import { loginAsMaster } from '../fixtures/session';
+import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 
 const MEDIUM_ENTITY_COUNT = 10_000;
 const LARGE_ENTITY_COUNT = 100_000;
@@ -69,12 +69,12 @@ test.describe('CAD viewport performance · 10k/100k', () => {
 
   test('opens and measures the 10k reference corpus', async ({ context, page }, testInfo) => {
     await installMockBackend(context);
-    await loginAsMaster(context);
+    await loginAsStandaloneOwner(context);
     const payloadBytes = await installLargeCadBackend(context, MEDIUM_ENTITY_COUNT);
     const browserErrors = collectBrowserErrors(page);
     const startedAt = Date.now();
 
-    await page.goto('/studio');
+    await page.goto('/legacy/studio');
     await expect(page.getByTestId('cad-native-document-count')).toHaveText(`Native ${MEDIUM_ENTITY_COUNT}`, { timeout: 60_000 });
     const canonicalReadyMs = Date.now() - startedAt;
     const frameLatencyMs = await page.evaluate(() => new Promise<number>((resolve) => {
@@ -98,12 +98,12 @@ test.describe('CAD viewport performance · 10k/100k', () => {
 
   test('loads progressively, remains responsive and replans after zoom', async ({ context, page }, testInfo) => {
     await installMockBackend(context);
-    await loginAsMaster(context);
+    await loginAsStandaloneOwner(context);
     const payloadBytes = await installLargeCadBackend(context);
     const browserErrors = collectBrowserErrors(page);
     const startedAt = Date.now();
 
-    await page.goto('/studio');
+    await page.goto('/legacy/studio');
     const stats = page.getByTestId('cad-native-render-stats');
     await expect(stats).toHaveAttribute('data-total', String(LARGE_ENTITY_COUNT), { timeout: 120_000 });
     const canonicalReadyMs = Date.now() - startedAt;

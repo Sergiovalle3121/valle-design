@@ -1,7 +1,7 @@
 import { expect, test, type BrowserContext, type Page, type TestInfo } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadV1Backend } from '../fixtures/cad-v1-backend';
-import { loginAsMaster } from '../fixtures/session';
+import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 
 const cadDocument = {
   meta: { version: 1, schema: 3, unit: 'mm' },
@@ -43,9 +43,9 @@ test.use({ deviceScaleFactor: 2 });
 test('professional workbench persists, scales and keeps every palette outside the drawing', async ({ context, page }, testInfo) => {
   test.setTimeout(180_000);
   await installMockBackend(context);
-  await loginAsMaster(context);
+  await loginAsStandaloneOwner(context);
   await installCadBackend(context);
-  await page.goto('/studio');
+  await page.goto('/legacy/studio');
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
 
   await page.getByTitle(/Workspace profesional/).click();

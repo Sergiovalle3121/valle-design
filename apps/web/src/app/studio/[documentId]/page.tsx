@@ -3,9 +3,9 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
-import { API_BASE, rawApiFetch } from "@/lib/apiFetch";
 import { isDocumentId } from "@/lib/cad/document-identity";
 import { useDesignAuth } from "@/contexts/DesignAuthContext";
+import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
 
 const CadStudioHost = dynamic(() => import("@/components/cad/CadStudioHost"), {
   ssr: false,
@@ -14,7 +14,7 @@ const CadStudioHost = dynamic(() => import("@/components/cad/CadStudioHost"), {
 type OpenDocument = {
   id: string;
   name: string;
-  projectId: string | null;
+  projectId?: string | null;
 };
 
 type State =
@@ -44,24 +44,32 @@ export default function DocumentStudioPage({
       setState({ kind: "expired" });
       return;
     }
-    const controller = new AbortController();
+    let active = true;
     setState({ kind: "loading" });
-    rawApiFetch(`${API_BASE}/v1/cad/documents/${documentId}`, {
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        if (response.status === 401) return setState({ kind: "expired" });
-        if (response.status === 403) return setState({ kind: "forbidden" });
-        if (response.status === 404) return setState({ kind: "deleted" });
-        if (!response.ok) return setState({ kind: "error" });
-        const document = (await response.json()) as OpenDocument;
-        setState({ kind: "ready", document });
+    void designClient.documents
+      .open(documentId)
+      .then((document) => {
+        if (active) setState({ kind: "ready", document });
       })
       .catch((error: unknown) => {
-        if ((error as { name?: string }).name === "AbortError") return;
-        setState({ kind: navigator.onLine ? "error" : "offline" });
+        if (!active) return;
+        const status = error instanceof DesignApiError ? error.status : 0;
+        setState({
+          kind:
+            status === 401
+              ? "expired"
+              : status === 403
+                ? "forbidden"
+                : status === 404
+                  ? "deleted"
+                  : navigator.onLine
+                    ? "error"
+                    : "offline",
+        });
       });
-    return () => controller.abort();
+    return () => {
+      active = false;
+    };
   }, [auth.isAuthenticated, auth.isLoading, documentId]);
 
   if (state.kind !== "ready") {
@@ -104,6 +112,7 @@ export default function DocumentStudioPage({
       models={[]}
       open
       standalone
+      readOnly={!auth.permissions.includes("cad:edit")}
       title={state.document.name}
       subtitle={`Documento ${documentId}`}
       onClose={() => window.location.assign("/dashboard")}

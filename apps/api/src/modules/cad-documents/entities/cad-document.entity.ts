@@ -35,7 +35,7 @@ export class CadDocument extends TenantBaseEntity {
   id: string;
 
   /** FK a `cad_projects` (nullable por ahora: documentos sin proyecto). */
-  @Column({ type: 'varchar', length: 36, nullable: true, name: 'project_id' })
+  @Column({ type: 'uuid', nullable: true, name: 'project_id' })
   projectId: string | null;
 
   @Column({ type: 'varchar', length: 160 })

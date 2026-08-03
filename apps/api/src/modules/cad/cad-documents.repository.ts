@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
@@ -15,6 +16,7 @@ import {
 } from '../../common/tenant/tenant-scoped.repository';
 import { TenantContextService } from '../../common/tenant/tenant-context.service';
 import { isUniqueViolation } from '../../common/database/unique-violation';
+import { normalizeRequiredName } from '../../common/validation/normalized-name';
 import { CadProject } from '../cad-documents/entities/cad-project.entity';
 import { CadDocument } from '../cad-documents/entities/cad-document.entity';
 import { CadDocumentVersion } from '../cad-documents/entities/cad-document-version.entity';
@@ -113,7 +115,10 @@ export class CadDocumentsRepository {
     description?: string;
   }): Promise<CadProject> {
     const row = this.projects.create({
-      name: input.name.trim().slice(0, 160),
+      name: normalizeRequiredName(input.name, {
+        resource: 'proyecto CAD',
+        maxLength: 160,
+      }),
       description: input.description?.trim().slice(0, 500) || null,
       status: 'active',
       created_by: this.actor(),
@@ -134,7 +139,12 @@ export class CadDocumentsRepository {
     patch: { name?: string; description?: string | null; status?: string },
   ): Promise<CadProject> {
     const row = await this.getProject(id);
-    if (patch.name !== undefined) row.name = patch.name.trim().slice(0, 160);
+    if (patch.name !== undefined) {
+      row.name = normalizeRequiredName(patch.name, {
+        resource: 'proyecto CAD',
+        maxLength: 160,
+      });
+    }
     if (patch.description !== undefined) {
       row.description = patch.description?.trim().slice(0, 500) || null;
     }
@@ -156,10 +166,32 @@ export class CadDocumentsRepository {
   /* ─────────────────────────────── Documentos ────────────────────────────── */
 
   async listDocuments(
-    query: PageQuery & { projectId?: string },
+    query: PageQuery & {
+      projectId?: string;
+      model?: string;
+      revision?: string;
+    },
   ): Promise<{ items: CadDocument[]; total: number }> {
     const where: FindOptionsWhere<CadDocument> = {};
     if (query.projectId) where.projectId = query.projectId;
+    if (query.model) where.model = query.model;
+    if (query.revision) where.revision = query.revision;
+
+    // Sin búsqueda libre por nombre, pagina y cuenta en SQL. En particular,
+    // model+revision se aplican ANTES del límite: un marcador histórico no
+    // desaparece por estar después de las primeras 200 filas del tenant.
+    if (!(query.q ?? '').trim()) {
+      const offset = Math.max(0, query.offset ?? 0);
+      const limit = Math.min(Math.max(1, query.limit ?? 50), 200);
+      const [items, total] = await this.documents.findAndCount({
+        where,
+        order: { created_at: 'DESC' },
+        skip: offset,
+        take: limit,
+      });
+      return { items, total };
+    }
+
     const rows = await this.documents.find({
       where,
       order: { created_at: 'DESC' },
@@ -179,7 +211,10 @@ export class CadDocumentsRepository {
       await this.getProject(input.projectId);
     }
     const row = this.documents.create({
-      name: input.name.trim().slice(0, 160),
+      name: normalizeRequiredName(input.name, {
+        resource: 'documento CAD',
+        maxLength: 160,
+      }),
       projectId: input.projectId ?? null,
       model: input.model?.trim().slice(0, 64) || null,
       revision: input.revision?.trim().slice(0, 16) || null,
@@ -212,7 +247,12 @@ export class CadDocumentsRepository {
     },
   ): Promise<CadDocument> {
     const row = await this.getDocument(id);
-    if (patch.name !== undefined) row.name = patch.name.trim().slice(0, 160);
+    if (patch.name !== undefined) {
+      row.name = normalizeRequiredName(patch.name, {
+        resource: 'documento CAD',
+        maxLength: 160,
+      });
+    }
     if (patch.projectId !== undefined) {
       if (patch.projectId) await this.getProject(patch.projectId);
       row.projectId = patch.projectId ?? null;
@@ -233,6 +273,64 @@ export class CadDocumentsRepository {
     const row = await this.getDocument(id);
     await this.documents.softRemove(row);
     await this.recordAudit('cad_document_archived', 'CAD_DOCUMENT', id);
+  }
+
+  /**
+   * Rollback acotado de una importación: un editor sólo puede descartar la
+   * fila vacía que él mismo acaba de crear. No es un alias del borrado
+   * administrativo: tenant, actor y estado provisional forman parte del
+   * predicado atómico para que un guardado concurrente nunca sea archivado.
+   */
+  async discardProvisionalDocument(id: string): Promise<void> {
+    const tenantId = this.tenantCtx.requireTenantId(
+      'descartar documento CAD provisional',
+    );
+    const actor = this.actor();
+    if (!actor) {
+      throw new ForbiddenException(
+        'No hay un actor autenticado para descartar el documento provisional.',
+      );
+    }
+
+    // Lectura scoped: otro tenant recibe 404 y no puede inferir la fila.
+    const row = await this.getDocument(id);
+    if (row.created_by !== actor) {
+      throw new ForbiddenException(
+        'Sólo quien creó el documento provisional puede descartarlo.',
+      );
+    }
+    if (
+      row.cadDocumentVersion !== 0 ||
+      row.cadDocument !== null ||
+      row.dxfData !== null
+    ) {
+      throw new ConflictException(
+        'El documento ya contiene información y no puede descartarse como provisional.',
+      );
+    }
+
+    const result = await this.documents.update(
+      {
+        id,
+        tenant_id: tenantId,
+        created_by: actor,
+        cadDocumentVersion: 0,
+        cadDocument: IsNull(),
+        dxfData: IsNull(),
+        deleted_at: IsNull(),
+      },
+      { deleted_at: new Date() },
+    );
+    if (result.affected !== 1) {
+      throw new ConflictException(
+        'El documento dejó de ser provisional antes de poder descartarlo.',
+      );
+    }
+    await this.recordAudit(
+      'cad_provisional_document_discarded',
+      'CAD_DOCUMENT',
+      id,
+    );
   }
 
   /* ─────────────────────── Contenido canónico (CAS) ──────────────────────── */
@@ -263,11 +361,12 @@ export class CadDocumentsRepository {
       // expresa con cadDocumentVersion 0 y el CAS con expected=0.
       isNewDocument: false,
     });
-    const stored = await this.cadDocuments.storeCadDocument(
-      plan.document,
-      input.forceArchive === true || plan.storedAsBlobPointer,
-    );
     const persist = async (manager?: EntityManager) => {
+      const stored = await this.cadDocuments.storeCadDocument(
+        plan.document,
+        input.forceArchive === true || plan.storedAsBlobPointer,
+        manager,
+      );
       const next = await this.compareAndSwapCadDocument(
         row.id,
         plan.expectedVersion,
@@ -308,23 +407,23 @@ export class CadDocumentsRepository {
           tx,
         );
       }
-      return next;
+      return { next, stored };
     };
-    const nextVersion = this.dataSource
+    const persisted = this.dataSource
       ? await this.dataSource.transaction((manager) => persist(manager))
       : await persist();
     await this.recordAudit('cad_document_saved', 'CAD_DOCUMENT', row.id, {
       afterState: {
         baseRevision: plan.expectedVersion,
-        resultingRevision: nextVersion,
+        resultingRevision: persisted.next,
         entityCount: plan.entityCount,
       },
     });
     return {
       cadDocumentId: row.id,
-      cadDocumentVersion: nextVersion,
+      cadDocumentVersion: persisted.next,
       entityCount: plan.entityCount,
-      storedAsBlobPointer: isStoredCadDocumentBlobPointer(stored),
+      storedAsBlobPointer: isStoredCadDocumentBlobPointer(persisted.stored),
     };
   }
 
@@ -386,34 +485,90 @@ export class CadDocumentsRepository {
     }
     // El dominio valida las hojas y construye el recibo + documento siguiente;
     // esta capa aporta el actor y conserva el CAS + la fila inmutable.
-    const { publication, storedDocument } =
-      await this.cadDocuments.appendCadPublication(row.cadDocument, {
-        paperSpaceIds: input.paperSpaceIds,
-        fileName: input.fileName,
-        sha256: input.sha256,
-        bytes: input.bytes,
-        publishedBy: this.tenantCtx.getUserEmail(),
+    const persist = async (manager?: EntityManager) => {
+      const { publication, storedDocument } =
+        await this.cadDocuments.appendCadPublication(
+          row.cadDocument!,
+          {
+            paperSpaceIds: input.paperSpaceIds,
+            fileName: input.fileName,
+            sha256: input.sha256,
+            bytes: input.bytes,
+            publishedBy: this.tenantCtx.getUserEmail(),
+          },
+          manager,
+        );
+      const cadDocumentVersion = await this.compareAndSwapCadDocument(
+        row.id,
+        input.expectedCadDocumentVersion,
+        storedDocument,
+        manager,
+      );
+      await this.recordVersion(
+        row,
+        cadDocumentVersion,
+        storedDocument,
+        manager,
+      );
+      const publications = this.publications.withManager(manager);
+      const receiptRow = publications.create({
+        id: publication.id,
+        documentId: row.id,
+        fileName: publication.fileName,
+        sha256: publication.sha256,
+        bytes: publication.bytes,
+        paperSpaceIds: publication.paperSpaceIds,
+        publishedBy: publication.publishedBy,
+        publishedAt: new Date(publication.publishedAt),
+        created_by: this.actor(),
       });
-    const cadDocumentVersion = await this.compareAndSwapCadDocument(
-      row.id,
-      input.expectedCadDocumentVersion,
-      storedDocument,
-    );
-    await this.recordVersion(row, cadDocumentVersion, storedDocument);
-    const receiptRow = this.publications.create({
-      id: publication.id,
-      documentId: row.id,
-      fileName: publication.fileName,
-      sha256: publication.sha256,
-      bytes: publication.bytes,
-      paperSpaceIds: publication.paperSpaceIds,
-      publishedBy: publication.publishedBy,
-      publishedAt: new Date(publication.publishedAt),
-      created_by: this.actor(),
-    });
-    receiptRow.plant_id = row.plant_id;
-    receiptRow.organization_id = row.organization_id;
-    await this.publications.save(receiptRow);
+      receiptRow.plant_id = row.plant_id;
+      receiptRow.organization_id = row.organization_id;
+      await publications.save(receiptRow);
+      const tenantId = row.tenant_id;
+      const organizationId = row.organization_id ?? tenantId;
+      if (this.events || this.usage) {
+        if (!tenantId || !organizationId)
+          throw new Error('La publicación CAD requiere tenant y organización.');
+        if (!manager)
+          throw new Error(
+            'Los adaptadores comerciales requieren una transacción activa.',
+          );
+        const tx = { native: manager };
+        const key = `cad-document:${row.id}:version:${cadDocumentVersion}:publication`;
+        await this.usage?.record(
+          {
+            organizationId,
+            tenantId,
+            metric: 'design.document.published',
+            quantity: 1,
+            idempotencyKey: key,
+          },
+          tx,
+        );
+        await this.events?.publish(
+          {
+            organizationId,
+            tenantId,
+            type: 'design.document.published',
+            aggregateId: row.id,
+            payload: {
+              version: cadDocumentVersion,
+              publicationId: publication.id,
+              paperSpaceIds: publication.paperSpaceIds,
+              sha256: publication.sha256,
+              bytes: publication.bytes,
+            },
+            idempotencyKey: key,
+          },
+          tx,
+        );
+      }
+      return { publication, cadDocumentVersion };
+    };
+    const { publication, cadDocumentVersion } = this.dataSource
+      ? await this.dataSource.transaction((manager) => persist(manager))
+      : await persist();
     await this.recordAudit('cad_sheet_set_published', 'CAD_DOCUMENT', row.id, {
       afterState: {
         publicationId: publication.id,
