@@ -27,7 +27,7 @@ import {
 
 export type CadNativeEntity = Extract<
   CadEntity,
-  { type: "line" | "circle" | "arc" | "ellipse" | "spline" | "hatch" | "mtext" | "dimension" | "mleader" | "insert" }
+  { type: "line" | "polyline" | "circle" | "arc" | "ellipse" | "spline" | "hatch" | "mtext" | "dimension" | "mleader" | "insert" }
 >;
 export type CadNativeEntityType = CadNativeEntity["type"];
 
@@ -791,6 +791,245 @@ const splineAdapter: CadEntityAdapter<
   },
 };
 
+type CadPolylineEntity = Extract<CadNativeEntity, { type: "polyline" }>;
+type CadPolylineVertex = CadPolylineEntity["vertices"][number];
+
+interface CadPolylineArc {
+  center: CadPoint2;
+  radius: number;
+  startAngle: number;
+  sweep: number;
+}
+
+/**
+ * Arco de un segmento con `bulge`, en la convención DXF: `bulge = tan(θ/4)`,
+ * positivo = sentido antihorario. Devuelve `null` cuando el segmento es recto
+ * o degenerado para que el llamador use la recta.
+ *
+ * El centro se sitúa a `R·cos(θ/2)` de la mitad de la cuerda, sobre la
+ * perpendicular girada +90°; con esa elección barrer `+θ` desde el vértice
+ * inicial aterriza exactamente en el final.
+ */
+function polylineArc(
+  start: CadPolylineVertex,
+  end: CadPoint3,
+): CadPolylineArc | null {
+  const bulge =
+    typeof start.bulge === "number" && Number.isFinite(start.bulge)
+      ? start.bulge
+      : 0;
+  if (Math.abs(bulge) < 1e-12) return null;
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const chord = Math.hypot(dx, dy);
+  if (chord < 1e-12) return null;
+  const theta = 4 * Math.atan(bulge);
+  const halfSin = Math.sin(theta / 2);
+  if (Math.abs(halfSin) < 1e-12) return null;
+  const radius = chord / (2 * halfSin);
+  const offset = radius * Math.cos(theta / 2);
+  const center = {
+    x: (start.x + end.x) / 2 + (-dy / chord) * offset,
+    y: (start.y + end.y) / 2 + (dx / chord) * offset,
+  };
+  return {
+    center,
+    radius: Math.abs(radius),
+    startAngle: Math.atan2(start.y - center.y, start.x - center.x),
+    sweep: theta,
+  };
+}
+
+/** Segmentos (inicio, fin) recorridos por la polilínea, cerrando si procede. */
+function polylineSegments(
+  entity: CadPolylineEntity,
+): { start: CadPolylineVertex; end: CadPolylineVertex }[] {
+  const vertices = entity.vertices;
+  if (vertices.length < 2) return [];
+  const count = entity.closed ? vertices.length : vertices.length - 1;
+  return Array.from({ length: count }, (_, index) => ({
+    start: vertices[index],
+    end: vertices[(index + 1) % vertices.length],
+  }));
+}
+
+function polylinePoints(
+  entity: CadPolylineEntity,
+  segments = 96,
+): CadPoint2[] {
+  const vertices = entity.vertices;
+  if (vertices.length === 0) return [];
+  if (vertices.length === 1) return [{ x: vertices[0].x, y: vertices[0].y }];
+  const perArc = Math.max(
+    2,
+    Math.ceil(segments / Math.max(1, vertices.length)),
+  );
+  const points: CadPoint2[] = [];
+  for (const { start, end } of polylineSegments(entity)) {
+    points.push({ x: start.x, y: start.y });
+    const arc = polylineArc(start, end);
+    if (!arc) continue;
+    for (let step = 1; step < perArc; step += 1) {
+      const angle = arc.startAngle + (arc.sweep * step) / perArc;
+      points.push({
+        x: arc.center.x + Math.cos(angle) * arc.radius,
+        y: arc.center.y + Math.sin(angle) * arc.radius,
+      });
+    }
+  }
+  if (!entity.closed) {
+    const tail = vertices[vertices.length - 1];
+    points.push({ x: tail.x, y: tail.y });
+  }
+  return points;
+}
+
+const polylineRenderer: CadEntityRenderer<CadPolylineEntity> = {
+  paths: (entity, segments = 96) => {
+    const points = polylinePoints(entity, segments);
+    if (points.length === 0) return [];
+    return [{ points, closed: entity.closed }];
+  },
+};
+
+/**
+ * Bounds EXACTOS: los vértices no bastan cuando un segmento tiene `bulge`,
+ * porque el arco puede sobresalir de la cuerda. Se añaden los puntos
+ * cardinales del arco que caen dentro del barrido.
+ */
+const polylineBounds: CadBoundsProvider<CadPolylineEntity> = {
+  bounds: (entity) => {
+    const vertices = entity.vertices;
+    if (vertices.length === 0)
+      return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    const include = (x: number, y: number) => {
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    };
+    for (const vertex of vertices) include(vertex.x, vertex.y);
+    const twoPi = Math.PI * 2;
+    for (const { start, end } of polylineSegments(entity)) {
+      const arc = polylineArc(start, end);
+      if (!arc) continue;
+      for (let quadrant = 0; quadrant < 4; quadrant += 1) {
+        const cardinal = (quadrant * Math.PI) / 2;
+        const raw = cardinal - arc.startAngle;
+        const delta = ((raw % twoPi) + twoPi) % twoPi;
+        const inSweep =
+          arc.sweep >= 0
+            ? delta <= arc.sweep + 1e-9
+            : delta - twoPi >= arc.sweep - 1e-9;
+        if (!inSweep) continue;
+        include(
+          arc.center.x + Math.cos(cardinal) * arc.radius,
+          arc.center.y + Math.sin(cardinal) * arc.radius,
+        );
+      }
+    }
+    if (minX === Infinity) return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+    return { minX, minY, maxX, maxY };
+  },
+};
+
+const polylineAdapter: CadEntityAdapter<CadPolylineEntity> = {
+  type: "polyline",
+  renderer: polylineRenderer,
+  bounds: polylineBounds,
+  hitTester: commonHitTester(polylineRenderer, polylineBounds),
+  grips: {
+    grips: (entity) =>
+      entity.vertices.map((vertex, index) => ({
+        id: `vertex:${index}`,
+        kind: "endpoint" as const,
+        point: { x: vertex.x, y: vertex.y },
+        label: `Vértice ${index + 1}`,
+      })),
+    moveGrip: (entity, gripId, point) => {
+      const index = Number(gripId.split(":")[1]);
+      if (!Number.isInteger(index) || !entity.vertices[index]) return entity;
+      return {
+        ...entity,
+        vertices: entity.vertices.map((vertex, current) =>
+          current === index
+            ? { ...vertex, x: point.x, y: point.y }
+            : { ...vertex },
+        ),
+      };
+    },
+  },
+  snaps: {
+    snaps: (entity) => {
+      const points: CadSnapPoint[] = entity.vertices.map((vertex, index) => ({
+        kind: "endpoint" as const,
+        point: { x: vertex.x, y: vertex.y },
+        label: `Vértice ${index + 1}`,
+      }));
+      polylineSegments(entity).forEach(({ start, end }, index) => {
+        const arc = polylineArc(start, end);
+        if (arc) {
+          points.push({
+            kind: "center",
+            point: arc.center,
+            label: `Centro del arco ${index + 1}`,
+          });
+          const mid = arc.startAngle + arc.sweep / 2;
+          points.push({
+            kind: "control",
+            point: {
+              x: arc.center.x + Math.cos(mid) * arc.radius,
+              y: arc.center.y + Math.sin(mid) * arc.radius,
+            },
+            label: `Punto medio del arco ${index + 1}`,
+          });
+          return;
+        }
+        points.push({
+          kind: "control",
+          point: { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 },
+          label: `Punto medio ${index + 1}`,
+        });
+      });
+      return points;
+    },
+  },
+  properties: {
+    read: (entity) => ({
+      vertexCount: entity.vertices.length,
+      segmentCount: polylineSegments(entity).length,
+      arcSegments: polylineSegments(entity).filter(
+        ({ start, end }) => polylineArc(start, end) !== null,
+      ).length,
+      closed: entity.closed,
+      layer: entity.layer,
+    }),
+    write: (entity, patch) => ({
+      ...entity,
+      closed: typeof patch.closed === "boolean" ? patch.closed : entity.closed,
+      layer: typeof patch.layer === "string" ? patch.layer : entity.layer,
+    }),
+  },
+  commands: {
+    // `bulge` es invariante bajo traslación, rotación y escala uniforme
+    // (es tan(θ/4), y θ no cambia). La reflexión SÍ lo invierte, pero
+    // CadEntityTransform no la expresa — professional-blocks la trata aparte.
+    transform: (entity, transform) => ({
+      ...entity,
+      vertices: entity.vertices.map((vertex) => ({
+        ...transformPoint(vertex, transform),
+        ...(vertex.bulge !== undefined ? { bulge: vertex.bulge } : {}),
+      })),
+      context: cloneContext(entity.context),
+    }),
+  },
+};
+
 type CadMTextEntity = Extract<CadNativeEntity, { type: "mtext" }>;
 
 const mtextRenderer: CadEntityRenderer<CadMTextEntity> = {
@@ -1118,7 +1357,9 @@ function blockChildPaths(entity: CadEntity, segments = 96): CadRenderPath[] {
   if (entity.type === "arc") return arcAdapter.renderer.paths(entity, segments);
   if (entity.type === "ellipse") return ellipseAdapter.renderer.paths(entity, segments);
   if (entity.type === "spline") return splineAdapter.renderer.paths(entity, segments);
-  if (entity.type === "polyline") return [{ points: entity.vertices, closed: entity.closed }];
+  // Antes esto ignoraba `bulge`: los arcos de una polilínea dentro de un
+  // bloque se dibujaban como cuerdas rectas. El adaptador los teselan bien.
+  if (entity.type === "polyline") return polylineAdapter.renderer.paths(entity, segments);
   if (entity.type === "hatch") return hatchAdapter.renderer.paths(entity, segments);
   if (entity.type === "mtext") return mtextAdapter.renderer.paths(entity, segments);
   if (entity.type === "dimension") return dimensionAdapter.renderer.paths(entity, segments);
@@ -1230,6 +1471,7 @@ export class CadEntityRegistry {
 
 export const CAD_ENTITY_REGISTRY = new CadEntityRegistry()
   .register(lineAdapter)
+  .register(polylineAdapter)
   .register(circleAdapter)
   .register(arcAdapter)
   .register(ellipseAdapter)

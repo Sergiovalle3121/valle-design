@@ -97,6 +97,10 @@ export function createCadBenchmarkCorpus(options: {
   const modelSpaceIds: string[] = new Array(count);
   const entityMix: Record<CadNativeEntity["type"], number> = {
     line: 0,
+    // POLYLINE ya es nativa, pero el generador determinista todavía no la
+    // emite: añadirla cambiaría el corpus y sus hashes, lo que exige
+    // actualizar el manifiesto del benchmark de forma explícita.
+    polyline: 0,
     circle: 0,
     arc: 0,
     ellipse: 0,

@@ -6592,7 +6592,6 @@ export default function Layout3DEditor({
       setWebglUnavailable(true);
       return;
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setWebglUnavailable(false);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(width, height);
