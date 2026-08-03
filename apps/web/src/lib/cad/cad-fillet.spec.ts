@@ -26,7 +26,11 @@ const applied = applyCadLineFillet(document, { lineAId: 'horizontal', lineBId: '
 assert.equal(applied.meta.version, 8);
 assert.equal(applied.history.length, 1);
 assert.equal(applied.entities.length, 3);
-assert.deepEqual(applied.modelSpace.entityIds, ['fillet-arc', 'horizontal', 'vertical']);
+// `entityIds` es el ORDEN DE DIBUJO, no un conjunto: el arco del fillet se
+// dibuja AL FRENTE (al final de la lista) y no altera el orden previo. Esta
+// aserción esperaba antes el orden alfabético, con lo que fijaba el defecto:
+// añadir un fillet reordenaba el z-order del plano entero.
+assert.deepEqual(applied.modelSpace.entityIds, ['horizontal', 'vertical', 'fillet-arc']);
 assert.deepEqual(horizontal.start, { x: 0, y: 0, z: 0 });
 
 assert.throws(() => computeCadLineFillet(horizontal, { ...vertical, start: { x: 0, y: 1, z: 0 }, end: { x: 10, y: 1, z: 0 } }, 2, 'parallel'), /non-parallel/);

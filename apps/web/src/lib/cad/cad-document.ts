@@ -860,6 +860,35 @@ export function cadDocumentToLayout(doc: CadDocument): Required<LayoutInput> {
  * Devuelve una copia del documento con la versión incrementada y un registro
  * añadido al historial. Inmutable: no muta el documento de entrada.
  */
+/**
+ * Sustituye un conjunto de ids del orden de dibujo por otros, **en la posición
+ * que ocupaban**, conservando el z-order del resto.
+ *
+ * Es lo que necesitan convertir geometría en bloque y explotar un bloque: si
+ * el resultado se añade al final, la operación cambia lo que tapa a qué. Con
+ * esto, definir un bloque y explotarlo vuelve a ser visualmente inocuo.
+ *
+ * La posición elegida es la del elemento sustituido MÁS ALTO (el índice mayor),
+ * porque es el que determinaba qué cubría el conjunto.
+ */
+export function replaceEntityIdsAt(
+  entityIds: string[],
+  removed: ReadonlySet<string>,
+  inserted: string[],
+): string[] {
+  const indices = entityIds
+    .map((id, index) => (removed.has(id) ? index : -1))
+    .filter((index) => index >= 0);
+  const kept = entityIds.filter((id) => !removed.has(id));
+  if (indices.length === 0) return [...kept, ...inserted];
+  // Cuántos elementos conservados quedaban por debajo del más alto retirado.
+  const anchor = indices[indices.length - 1];
+  const below = entityIds
+    .slice(0, anchor)
+    .filter((id) => !removed.has(id)).length;
+  return [...kept.slice(0, below), ...inserted, ...kept.slice(below)];
+}
+
 export function commitChange(doc: CadDocument, label: string): CadDocument {
   const version = doc.meta.version + 1;
   return {
@@ -963,7 +992,10 @@ function withV3Defaults(doc: Partial<CadDocument>): CadDocument {
     layers: Array.isArray(doc.layers) ? doc.layers : [],
     entities,
     history: Array.isArray(doc.history) ? doc.history : [],
-    modelSpace: doc.modelSpace ?? { entityIds: entities.map((entity) => entity.id).sort() },
+    // Documento heredado sin `modelSpace`: el orden del array `entities` es la
+    // mejor señal disponible del orden de dibujo. Ordenar por id imponía un
+    // z-order alfabético que nunca estuvo en los datos.
+    modelSpace: doc.modelSpace ?? { entityIds: entities.map((entity) => entity.id) },
     paperSpaces: Array.isArray(doc.paperSpaces) ? doc.paperSpaces : [],
     styles: doc.styles ?? emptyStyles(),
     blocks: Array.isArray(doc.blocks) ? doc.blocks : [],

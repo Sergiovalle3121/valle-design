@@ -145,6 +145,9 @@ export function applyCadLineFillet(
     meta: { ...changed.meta, version: document.meta.version },
     history: [...document.history],
     entities: [...changed.entities, geometry.arc].sort((a, b) => a.id.localeCompare(b.id)),
-    modelSpace: { entityIds: [...new Set([...changed.modelSpace.entityIds, geometry.arc.id])].sort() },
+    // El arco del fillet se dibuja AL FRENTE (final de la lista). Ordenar por
+    // id lo insertaba en un punto arbitrario del z-order y, de paso,
+    // reordenaba todo el espacio de modelo existente.
+    modelSpace: { entityIds: [...new Set([...changed.modelSpace.entityIds, geometry.arc.id])] },
   }, `fillet:${lineA.id}:${lineB.id}:r${input.radius}`);
 }

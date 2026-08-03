@@ -1,5 +1,6 @@
 import {
   commitChange,
+  replaceEntityIdsAt,
   type CadBlockDefinition,
   type CadDocument,
   type CadEntity,
@@ -330,8 +331,10 @@ export function defineCadBlock(
   const insert: CadInsert = { id: options.insertId ?? `${options.id}:insert:1`, type: 'insert', block: block.id, insertion: { ...options.basePoint }, scale: { x: 1, y: 1, z: 1 }, rotation: 0, attributes: Object.fromEntries(Object.entries(block.attributes ?? {}).map(([key, value]) => [key, value.defaultValue ?? ''])), layer: selected[0].layer };
   const removed = new Set(options.entityIds);
   const entities = replace ? [...document.entities.filter((entity) => !removed.has(entity.id)), insert] : [...document.entities];
+  // El INSERT hereda la POSICIÓN de la geometría que sustituye, no se va al
+  // frente: convertir geometría en bloque no debe cambiar qué cubre.
   const modelSpace = replace
-    ? [...document.modelSpace.entityIds.filter((id) => !removed.has(id)), insert.id].sort()
+    ? replaceEntityIdsAt(document.modelSpace.entityIds, removed, [insert.id])
     : [...document.modelSpace.entityIds];
   return commitChange({ ...document, blocks: [...document.blocks, block].sort((a, b) => a.id.localeCompare(b.id)), entities: entities.sort((a, b) => a.id.localeCompare(b.id)), modelSpace: { entityIds: modelSpace } }, `block:define:${name}`);
 }
@@ -350,7 +353,7 @@ export function insertCadBlock(document: CadDocument, options: { id: string; blo
   const diagnostics: CadBlockDiagnostic[] = [];
   resolvedAttributes(block, insert, diagnostics);
   if (diagnostics.some((item) => item.code === 'missing_attribute')) throw new Error(diagnostics.map((item) => item.detail).join(' '));
-  return commitChange({ ...document, entities: [...document.entities, insert].sort((a, b) => a.id.localeCompare(b.id)), modelSpace: { entityIds: [...document.modelSpace.entityIds, insert.id].sort() } }, `block:insert:${block.name}`);
+  return commitChange({ ...document, entities: [...document.entities, insert].sort((a, b) => a.id.localeCompare(b.id)), modelSpace: { entityIds: [...document.modelSpace.entityIds, insert.id] } }, `block:insert:${block.name}`);
 }
 
 export function redefineCadBlock(document: CadDocument, blockKey: string, entities: CadEntity[], basePoint?: CadPoint3): CadDocument {
@@ -392,10 +395,15 @@ export function explodeCadInsert(document: CadDocument, insertId: string): CadDo
   const resolved = resolveCadInsert(document, insert);
   if (resolved.diagnostics.some((item) => item.severity === 'error')) throw new Error(resolved.diagnostics.map((item) => item.detail).join(' '));
   const entities = [...document.entities.filter((entity) => entity.id !== insertId), ...resolved.entities].sort((a, b) => a.id.localeCompare(b.id));
-  const modelIds = new Set(document.modelSpace.entityIds);
-  modelIds.delete(insertId);
-  resolved.entities.forEach((entity) => modelIds.add(entity.id));
-  return commitChange({ ...document, entities, modelSpace: { entityIds: [...modelIds].sort() } }, `block:explode:${insert.block}`);
+  // Las entidades explotadas ocupan la POSICIÓN que tenía el INSERT: explotar
+  // un bloque debe ser visualmente inocuo. Antes se añadían al final y se
+  // reordenaba todo por id, así que explotar cambiaba qué tapaba a qué.
+  const modelSpace = replaceEntityIdsAt(
+    document.modelSpace.entityIds,
+    new Set([insertId]),
+    resolved.entities.map((entity) => entity.id),
+  );
+  return commitChange({ ...document, entities, modelSpace: { entityIds: modelSpace } }, `block:explode:${insert.block}`);
 }
 
 export function purgeUnusedCadBlocks(document: CadDocument): { document: CadDocument; purged: string[] } {

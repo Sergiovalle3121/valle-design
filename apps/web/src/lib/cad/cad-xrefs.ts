@@ -238,7 +238,9 @@ export function attachCadXref(document: CadDocument, input: {
     layers: [...document.layers, xrefLayer].sort((a, b) => a.id.localeCompare(b.id)),
     blocks: [...document.blocks, ...blocks].sort((a, b) => a.id.localeCompare(b.id)),
     entities: [...document.entities, insert].sort((a, b) => a.id.localeCompare(b.id)),
-    modelSpace: { entityIds: [...document.modelSpace.entityIds, insert.id].sort() },
+    // El xref adjuntado se dibuja AL FRENTE. Ordenar por id lo colocaba en un
+    // punto arbitrario del z-order y reordenaba todo el espacio de modelo.
+    modelSpace: { entityIds: [...document.modelSpace.entityIds, insert.id] },
     externalReferences: [...document.externalReferences, reference].sort((a, b) => a.id.localeCompare(b.id)),
   }, `xref:attach:${input.snapshot.assetId}`);
 }

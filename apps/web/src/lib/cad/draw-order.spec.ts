@@ -3,6 +3,7 @@ import {
   serializeCadDocument,
   migrateCadDocument,
   commitChange,
+  replaceEntityIdsAt,
   type CadDocument,
 } from "./cad-document";
 
@@ -97,6 +98,61 @@ assert.deepEqual(
   ).modelSpace.entityIds,
   ["medio", "alfa", "zeta"],
   "reordenar y guardar debe conservar el nuevo z-order",
+);
+
+// --- replaceEntityIdsAt: sustitución POSICIONAL -----------------------------
+//
+// Es lo que hace que definir un bloque y explotarlo sea visualmente inocuo.
+
+// Sustituir en el medio conserva lo de abajo y lo de arriba.
+assert.deepEqual(
+  replaceEntityIdsAt(["a", "b", "c", "d"], new Set(["b"]), ["nuevo"]),
+  ["a", "nuevo", "c", "d"],
+  "el reemplazo ocupa la posición del retirado",
+);
+
+// Varios retirados dispersos: el resultado va a la posición del MÁS ALTO,
+// porque es el que determinaba qué cubría el conjunto.
+assert.deepEqual(
+  replaceEntityIdsAt(["a", "b", "c", "d"], new Set(["a", "c"]), ["bloque"]),
+  ["b", "bloque", "d"],
+  "con varios retirados manda el índice mayor",
+);
+
+// Explotar devuelve varias entidades en su propio orden relativo.
+assert.deepEqual(
+  replaceEntityIdsAt(["fondo", "insert", "frente"], new Set(["insert"]), [
+    "p1",
+    "p2",
+  ]),
+  ["fondo", "p1", "p2", "frente"],
+  "las entidades explotadas entran donde estaba el INSERT",
+);
+
+// Retirar el elemento superior deja el reemplazo arriba.
+assert.deepEqual(
+  replaceEntityIdsAt(["a", "b"], new Set(["b"]), ["x"]),
+  ["a", "x"],
+  "sustituir el más alto mantiene el reemplazo al frente",
+);
+
+// Nada que retirar => se añade al frente (comportamiento de alta normal).
+assert.deepEqual(
+  replaceEntityIdsAt(["a", "b"], new Set(["ausente"]), ["x"]),
+  ["a", "b", "x"],
+  "sin coincidencias, el nuevo id va al final",
+);
+
+// Definir bloque y explotarlo debe ser un ROUND-TRIP del z-order.
+const original = ["fondo", "geo1", "geo2", "frente"];
+const defined = replaceEntityIdsAt(original, new Set(["geo1", "geo2"]), [
+  "insert",
+]);
+assert.deepEqual(defined, ["fondo", "insert", "frente"]);
+assert.deepEqual(
+  replaceEntityIdsAt(defined, new Set(["insert"]), ["geo1", "geo2"]),
+  original,
+  "definir un bloque y explotarlo devuelve el orden de dibujo original",
 );
 
 console.log("draw-order.spec.ts OK");
