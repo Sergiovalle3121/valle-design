@@ -63,7 +63,7 @@ export function ormOptions(): TypeOrmModuleOptions {
   const synchronize =
     syncOverride === 'true'
       ? true
-        : syncOverride === 'false'
+      : syncOverride === 'false'
         ? false
         : url
           ? false

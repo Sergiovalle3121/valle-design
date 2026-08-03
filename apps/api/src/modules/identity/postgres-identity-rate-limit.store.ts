@@ -11,9 +11,7 @@ interface CounterRow {
 }
 
 /** Atomic shared fixed-window limiter used by every PostgreSQL API replica. */
-export class PostgresIdentityRateLimitStore
-  implements IdentityRateLimitStore
-{
+export class PostgresIdentityRateLimitStore implements IdentityRateLimitStore {
   constructor(private readonly database: DataSource) {}
 
   async consume(
@@ -25,7 +23,7 @@ export class PostgresIdentityRateLimitStore
     const table = escapedTablePath(
       this.database.getMetadata(IdentityRateLimit).tablePath,
     );
-    const rows = (await this.database.query(
+    const rows = await this.database.query<CounterRow[]>(
       `WITH expired AS (
          SELECT ctid
            FROM ${table}
@@ -58,7 +56,7 @@ export class PostgresIdentityRateLimitStore
            EXTRACT(EPOCH FROM (reset_at - clock_timestamp())) * 1000
          )::bigint AS retry_after_ms`,
       [key, limit, windowMs],
-    )) as CounterRow[];
+    );
     const row = rows[0];
     if (!row) throw new Error('PostgreSQL rate limiter returned no counter.');
     const count = Number(row.count);

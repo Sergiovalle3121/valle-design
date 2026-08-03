@@ -1,7 +1,4 @@
-import {
-  CAD_PERMISSIONS,
-  type CadPermission,
-} from '@valle-design/contracts';
+import { CAD_PERMISSIONS, type CadPermission } from '@valle-design/contracts';
 
 /**
  * Copia defensiva de los permisos derivados server-side de una membresía.

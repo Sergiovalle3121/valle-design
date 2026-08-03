@@ -5,9 +5,7 @@ describe('cad-permission-map (first-party memberships)', () => {
   it('preserves server-derived values without legacy translation', () => {
     const granted = ['cad:view', 'cad:edit', 'unknown:diagnostic'];
     expect([...expandCadPermissions(granted)]).toEqual(granted);
-    expect(expandCadPermissions(['unknown:read']).has('cad:view')).toBe(
-      false,
-    );
+    expect(expandCadPermissions(['unknown:read']).has('cad:view')).toBe(false);
   });
 
   it('tolerates null/undefined without granting anything', () => {

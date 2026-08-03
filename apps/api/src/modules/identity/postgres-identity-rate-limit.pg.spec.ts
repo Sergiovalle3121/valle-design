@@ -32,7 +32,11 @@ describePostgres('PostgresIdentityRateLimitStore', () => {
     ];
     const decisions = await Promise.all(
       Array.from({ length: 40 }, (_, index) =>
-        replicas[index % replicas.length].consume('identity:test:opaque', 8, 60_000),
+        replicas[index % replicas.length].consume(
+          'identity:test:opaque',
+          8,
+          60_000,
+        ),
       ),
     );
 
