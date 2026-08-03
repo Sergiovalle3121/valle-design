@@ -17387,7 +17387,14 @@ export default function Layout3DEditor({
         <button
           data-testid="cad-save"
           onClick={save}
-          disabled={saving || !dirty || drawingReadOnly}
+          // Guardar sigue disponible siempre que el dibujo sea editable. Atarlo
+          // a `dirty` lo dejaba inerte en cuanto el autosave (debounce 2 s)
+          // limpiaba la marca, así que el usuario perdía el control explícito
+          // justo después de editar. La idempotencia la garantiza
+          // `persistCanonicalSave`: si la generación de edición vigente ya está
+          // persistida no emite escritura ni versión CAS nueva, y la cola de un
+          // solo escritor serializa el clic con cualquier autosave en vuelo.
+          disabled={drawingReadOnly}
           className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-sm font-medium text-white disabled:opacity-50"
           style={{ background: "#e11d48" }}
         >

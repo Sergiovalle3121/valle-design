@@ -65,14 +65,18 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               animate={reduce ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
               exit={reduce ? { opacity: 0 } : { opacity: 0, x: 24, scale: 0.96 }}
               transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-              className="pointer-events-auto flex items-start gap-3 rounded-2xl px-4 py-3 bg-white/85 dark:bg-neutral-900/85 backdrop-blur-xl border border-black/5 dark:border-white/10 shadow-[0_8px_30px_-8px_rgba(0,0,0,0.25)]"
+              // El contenedor flota sobre la barra de herramientas del CAD.
+              // Una notificación transitoria NUNCA debe robar un clic a un
+              // control real: la tarjeta no captura puntero y sólo el botón de
+              // cerrar vuelve a habilitarlo.
+              className="pointer-events-none flex items-start gap-3 rounded-2xl px-4 py-3 bg-white/85 dark:bg-neutral-900/85 backdrop-blur-xl border border-black/5 dark:border-white/10 shadow-[0_8px_30px_-8px_rgba(0,0,0,0.25)]"
             >
               <ToastIcon kind={t.kind} />
               <div className="min-w-0 flex-1">
                 {t.title && <p className="text-sm font-semibold leading-tight text-black dark:text-white">{t.title}</p>}
                 <p className="text-sm text-gray-600 dark:text-gray-300 leading-snug">{t.message}</p>
               </div>
-              <button onClick={() => remove(t.id)} className="text-gray-400 hover:text-black dark:hover:text-white p-0.5 -mr-1 -mt-0.5" aria-label="Cerrar">
+              <button onClick={() => remove(t.id)} className="pointer-events-auto text-gray-400 hover:text-black dark:hover:text-white p-0.5 -mr-1 -mt-0.5" aria-label="Cerrar">
                 <X className="w-3.5 h-3.5" />
               </button>
             </motion.div>
