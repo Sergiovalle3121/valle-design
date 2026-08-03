@@ -548,7 +548,14 @@ export function cadEntityToDxfPrimitive(
     };
   }
   if (entity.type === "polyline") {
-    const points = entity.vertices.map((point) => ({ x: point.x, y: point.y }));
+    // Se conserva el bulge: sin él la exportación aplanaba cada arco a cuerda.
+    const points = entity.vertices.map((point) => ({
+      x: point.x,
+      y: point.y,
+      ...(typeof point.bulge === "number" && point.bulge !== 0
+        ? { bulge: point.bulge }
+        : {}),
+    }));
     return {
       kind: "polyline",
       layer: entity.layer,
@@ -720,9 +727,13 @@ function dxfPrimitiveToBlockEntity(
     return {
       id,
       type: "polyline",
-      vertices: (closed ? source.slice(0, -1) : source).map((value) =>
-        point3(projection.point(value)),
-      ),
+      vertices: (closed ? source.slice(0, -1) : source).map((value) => ({
+        ...point3(projection.point(value)),
+        // El bulge es angular: sobrevive a la proyección de la unidad.
+        ...(typeof value.bulge === "number" && value.bulge !== 0
+          ? { bulge: value.bulge }
+          : {}),
+      })),
       closed,
       layer: primitive.layer,
       context,

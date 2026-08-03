@@ -290,6 +290,12 @@ function pushPolyline(
     pushPair(lines, 0, "VERTEX");
     pushPair(lines, 8, layer);
     pushPoint(lines, point);
+    // Código de grupo 42: abombamiento del segmento que arranca aquí. Sin
+    // emitirlo, cada arco de la polilínea salía como cuerda recta y la
+    // pérdida era además silenciosa.
+    if (typeof point.bulge === "number" && point.bulge !== 0) {
+      pushPair(lines, 42, fmt(point.bulge));
+    }
   }
   pushPair(lines, 0, "SEQEND");
 }
