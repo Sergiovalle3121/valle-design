@@ -838,7 +838,7 @@ const mtextAdapter: CadEntityAdapter<CadMTextEntity> = {
       };
       const rotationRadians = ((entity.rotation ?? 0) * Math.PI) / 180;
       return [
-        { id: "insertion", kind: "endpoint" as const, point: entity.insertion, label: "InserciÃ³n" },
+        { id: "insertion", kind: "endpoint" as const, point: entity.insertion, label: "Inserción" },
         { id: "width", kind: "control" as const, point: right, label: "Ancho de columna" },
         { id: "height", kind: "control" as const, point: bottom, label: "Altura de texto" },
         {
@@ -848,7 +848,7 @@ const mtextAdapter: CadEntityAdapter<CadMTextEntity> = {
             x: entity.insertion.x + Math.cos(rotationRadians) * Math.max(layout.width, layout.fontSize * 2),
             y: entity.insertion.y + Math.sin(rotationRadians) * Math.max(layout.width, layout.fontSize * 2),
           },
-          label: "RotaciÃ³n",
+          label: "Rotación",
         },
       ];
     },
@@ -869,7 +869,7 @@ const mtextAdapter: CadEntityAdapter<CadMTextEntity> = {
   },
   snaps: {
     snaps: (entity) => [
-      { kind: "endpoint" as const, point: entity.insertion, label: "InserciÃ³n MTEXT" },
+      { kind: "endpoint" as const, point: entity.insertion, label: "Inserción MTEXT" },
       ...layoutCadMText(entity).corners.map((point, index) => ({
         kind: "control" as const,
         point,

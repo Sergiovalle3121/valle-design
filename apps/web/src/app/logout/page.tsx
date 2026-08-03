@@ -12,7 +12,7 @@ export default function LogoutPage() {
 
   return (
     <main className="grid min-h-screen place-items-center p-8">
-      <p role="status">Cerrando sesiÃ³nâ€¦</p>
+      <p role="status">Cerrando sesión…</p>
     </main>
   );
 }

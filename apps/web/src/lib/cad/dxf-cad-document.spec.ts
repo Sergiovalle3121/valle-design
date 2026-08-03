@@ -72,7 +72,7 @@ const source = migrateCadDocument({
       id: "mtext-native",
       type: "mtext",
       insertion: { x: 250, y: 350, z: 0 },
-      text: "Nota multilÃ­nea\nSegunda lÃ­nea",
+      text: "Nota multilínea\nSegunda línea",
       width: 900,
       height: 80,
       rotation: 15,
@@ -218,7 +218,7 @@ const nativeMTexts = cadDxfMTextsToNativeEntities(reimportedMTexts.mtexts, { idP
 const mtext = nativeMTexts[0];
 assert.equal(mtext.type, "mtext");
 if (mtext.type === "mtext") {
-  assert.equal(mtext.text, "Nota multilÃ­nea\nSegunda lÃ­nea");
+  assert.equal(mtext.text, "Nota multilínea\nSegunda línea");
   assert.equal(mtext.width, 900);
   assert.equal(mtext.height, 80);
   assert.ok(Math.abs((mtext.rotation ?? 0) - 15) < 1e-9);

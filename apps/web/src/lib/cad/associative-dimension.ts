@@ -79,7 +79,7 @@ export function formatCadDimensionMeasurement(entity: CadDimensionEntity, measur
   if (entity.text?.trim()) return entity.text;
   const precision = Math.max(0, Math.min(8, Math.floor(entity.precision ?? 2)));
   const kind = entity.dimensionKind ?? 'aligned';
-  if (kind === 'angular') return `${entity.prefix ?? ''}${measurement.toFixed(precision)}Â°${entity.suffix ?? ''}`;
+  if (kind === 'angular') return `${entity.prefix ?? ''}${measurement.toFixed(precision)}°${entity.suffix ?? ''}`;
   const sourceUnit = entity.sourceUnit ?? 'mm';
   const unit = entity.units ?? sourceUnit;
   const converted = (measurement * UNIT_TO_MM[sourceUnit]) / UNIT_TO_MM[unit];
@@ -179,7 +179,7 @@ export function buildCadDimensionGeometry(entity: CadDimensionEntity): CadDimens
     if (kind === 'diameter') paths.push(...arrowPaths(entity, other, direction));
     return {
       measurement,
-      label: formatCadDimensionMeasurement({ ...entity, prefix: entity.prefix ?? (kind === 'diameter' ? 'Ã˜' : 'R') }, measurement),
+      label: formatCadDimensionMeasurement({ ...entity, prefix: entity.prefix ?? (kind === 'diameter' ? 'Ø' : 'R') }, measurement),
       textAnchor: entity.textPosition ?? add(midpoint(start, edge), scale({ x: -direction.y, y: direction.x }, style.textGap)),
       textAngle: readableAngle(direction),
       paths,

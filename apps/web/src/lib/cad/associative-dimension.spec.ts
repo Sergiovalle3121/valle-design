@@ -26,7 +26,7 @@ assert.equal(buildCadDimensionGeometry(dimension('ordinate', { b: { x: 125, y: 4
 assert.ok(Math.abs((buildCadDimensionGeometry(dimension('arc-length', { radius: 50 }))?.measurement ?? 0) - Math.PI * 50 / 2) < 1e-9);
 
 assert.equal(formatCadDimensionMeasurement(dimension('aligned', { units: 'in', alternateUnits: 'mm', prefix: '~', suffix: ' typ' }), 25.4), '~1.00 in typ [25.40 mm]');
-assert.equal(formatCadDimensionMeasurement(dimension('angular', { precision: 1 }), 90), '90.0Â°');
+assert.equal(formatCadDimensionMeasurement(dimension('angular', { precision: 1 }), 90), '90.0°');
 assert.equal(formatCadDimensionMeasurement(dimension('aligned', { text: 'EQ' }), 100), 'EQ');
 assert.ok(buildCadDimensionGeometry(dimension('aligned', { arrowhead: 'open', extensionLines: false }))!.paths.every((path) => path.role !== 'extension'));
 
