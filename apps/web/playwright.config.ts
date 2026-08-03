@@ -48,7 +48,23 @@ export default defineConfig({
     },
     {
       name: "firefox",
-      use: { ...devices["Desktop Firefox"] },
+      use: {
+        ...devices["Desktop Firefox"],
+        // El viewport CAD se dibuja con THREE.WebGLRenderer. Firefox headless
+        // NO habilita WebGL por defecto (Chromium sí, vía SwiftShader), así
+        // que sin estas prefs TODA la suite dorada fallaba en Firefox por el
+        // navegador, no por el producto. Se fuerza el backend software para
+        // que Firefox ejercite el mismo viewport real que Chromium.
+        launchOptions: {
+          firefoxUserPrefs: {
+            "webgl.disabled": false,
+            "webgl.force-enabled": true,
+            "webgl.forbid-software": false,
+            "gfx.webrender.software": true,
+            "layers.acceleration.force-enabled": true,
+          },
+        },
+      },
     },
   ],
 

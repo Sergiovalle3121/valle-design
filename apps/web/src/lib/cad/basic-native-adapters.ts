@@ -86,7 +86,7 @@ export const circleAdapter: CadEntityAdapter<CircleEntity> = {
   grips: {
     grips: (entity) => [
       { id: 'center', kind: 'center', point: entity.center, label: 'Centro' },
-      ...[0, 90, 180, 270].map((angle) => ({ id: `quadrant:${angle}`, kind: 'quadrant' as const, point: { x: entity.center.x + Math.cos(angle * Math.PI / 180) * entity.radius, y: entity.center.y + Math.sin(angle * Math.PI / 180) * entity.radius }, label: `Cuadrante ${angle}Â°` })),
+      ...[0, 90, 180, 270].map((angle) => ({ id: `quadrant:${angle}`, kind: 'quadrant' as const, point: { x: entity.center.x + Math.cos(angle * Math.PI / 180) * entity.radius, y: entity.center.y + Math.sin(angle * Math.PI / 180) * entity.radius }, label: `Cuadrante ${angle}°` })),
     ],
     moveGrip: (entity, gripId, point) => gripId === 'center'
       ? { ...entity, center: point3(point, entity.center.z) }
@@ -96,7 +96,7 @@ export const circleAdapter: CadEntityAdapter<CircleEntity> = {
   },
   snaps: { snaps: (entity) => [
     { kind: 'center', point: entity.center, label: 'Centro' },
-    ...[0, 90, 180, 270].map((angle) => ({ kind: 'quadrant' as const, point: { x: entity.center.x + Math.cos(angle * Math.PI / 180) * entity.radius, y: entity.center.y + Math.sin(angle * Math.PI / 180) * entity.radius }, label: `Cuadrante ${angle}Â°` })),
+    ...[0, 90, 180, 270].map((angle) => ({ kind: 'quadrant' as const, point: { x: entity.center.x + Math.cos(angle * Math.PI / 180) * entity.radius, y: entity.center.y + Math.sin(angle * Math.PI / 180) * entity.radius }, label: `Cuadrante ${angle}°` })),
   ] },
   properties: {
     read: (entity) => ({ centerX: entity.center.x, centerY: entity.center.y, radius: entity.radius, diameter: entity.radius * 2, layer: entity.layer }),

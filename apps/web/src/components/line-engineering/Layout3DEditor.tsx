@@ -418,6 +418,7 @@ import {
   cadDocumentDxfInserts,
   cadDocumentNativeDxfMTexts,
   cadDocumentNativeDxfMleaders,
+  cadDocumentDxfExportLosses,
   cadDocumentNativeDxfPrimitives,
   cadDocumentNativeDxfSemanticDimensions,
   cadDxfCurvesToNativeEntities,
@@ -2874,6 +2875,11 @@ export default function Layout3DEditor({
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  // El viewport 3D exige WebGL. Cuando el navegador no lo ofrece (WebGL
+  // deshabilitado, sin GPU, headless sin fallback software) NO se puede
+  // romper el editor completo: el documento, las paletas y las propiedades
+  // siguen siendo utilizables sin render. Este flag conmuta el aviso honesto.
+  const [webglUnavailable, setWebglUnavailable] = useState(false);
   const controlsRef = useRef<OrbitControls | null>(null);
   const blocksRef = useRef<THREE.Group | null>(null);
   const assetsGroupRef = useRef<THREE.Group | null>(null);
@@ -6566,10 +6572,28 @@ export default function Layout3DEditor({
     );
     cameraRef.current = camera;
 
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      preserveDrawingBuffer: true,
-    });
+    // THREE.WebGLRenderer LANZA si no consigue contexto. Sin este guard la
+    // excepción escapa del efecto, tumba el árbol React y el usuario pierde
+    // TODO el editor (no sólo el viewport) sin explicación.
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        preserveDrawingBuffer: true,
+      });
+    } catch (cause) {
+      console.error("Valle Design: WebGL no disponible en este navegador", cause);
+      sceneRef.current = null;
+      cameraRef.current = null;
+      rendererRef.current = null;
+      // La disponibilidad de WebGL sólo se conoce tras montar (depende del
+      // DOM real). Detectarla en render provocaría un desajuste de hidratación
+      // entre servidor y cliente, así que aquí el setState es deliberado.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setWebglUnavailable(true);
+      return;
+    }
+    setWebglUnavailable(false);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(width, height);
     renderer.domElement.style.cursor = "none";
@@ -9614,7 +9638,7 @@ export default function Layout3DEditor({
       const outer = preliminaryRegion.boundaries[0];
       if (!outer) {
         toast.error(
-          "No se encontrÃ³ una regiÃ³n cerrada bajo el punto. Revisa gaps del boundary.",
+          "No se encontró una región cerrada bajo el punto. Revisa gaps del boundary.",
           "HATCH",
         );
         return;
@@ -14416,20 +14440,20 @@ export default function Layout3DEditor({
               }))
           : [];
       const dxfDocument = snapshotDocument();
+      // Un único predicado: el informe de pérdidas DEBE mirar exactamente las
+      // mismas entidades que se exportan, o avisaría de cosas que no viajan.
+      const dxfExportEntityFilter = (entity: CadEntity) => {
+        if (!CAD_ENTITY_REGISTRY.supports(entity)) return false;
+        if (options.scope === "selection" && !selectedNativeIds.has(entity.id))
+          return false;
+        const layer = loadedCadDocumentRef.current?.layers.find(
+          (candidate) => candidate.id === entity.layer,
+        );
+        return options.includeHidden || layer?.visible !== false;
+      };
       const primitives = cadDocumentNativeDxfPrimitives(
         dxfDocument,
-        (entity) => {
-          if (!CAD_ENTITY_REGISTRY.supports(entity)) return false;
-          if (
-            options.scope === "selection" &&
-            !selectedNativeIds.has(entity.id)
-          )
-            return false;
-          const layer = loadedCadDocumentRef.current?.layers.find(
-            (candidate) => candidate.id === entity.layer,
-          );
-          return options.includeHidden || layer?.visible !== false;
-        },
+        dxfExportEntityFilter,
       );
       const hatches = cadDocumentNativeDxfHatches(dxfDocument, (entity) => {
         if (options.scope === "selection" && !selectedNativeIds.has(entity.id))
@@ -14518,6 +14542,24 @@ export default function Layout3DEditor({
         `Layout exportado a DXF (${exported.entityCount} entidades).`,
         "DXF",
       );
+      // El DXF exportado es PARCIAL por diseño. Callarse las degradaciones
+      // haría que el usuario confiara en un fichero que perdió geometría, así
+      // que se avisa con el MISMO filtro que se acaba de exportar.
+      const exportLosses = cadDocumentDxfExportLosses(
+        dxfDocument,
+        dxfExportEntityFilter,
+      );
+      if (exportLosses.length > 0) {
+        const dropped = exportLosses.filter(
+          (loss) => loss.severity === "error",
+        ).length;
+        toast.error(
+          dropped > 0
+            ? `El DXF no incluye ${dropped} entidad(es) sin representación y degrada otras ${exportLosses.length - dropped}. Conserva el documento de Valle Design como original.`
+            : `El DXF degrada ${exportLosses.length} entidad(es) (elevación Z o pesos de spline). Conserva el documento de Valle Design como original.`,
+          "DXF",
+        );
+      }
     } catch {
       toast.error("No se pudo exportar el DXF.", "DXF");
     }
@@ -16413,7 +16455,7 @@ export default function Layout3DEditor({
         </T3Btn>
         <T3Btn
           onClick={() => openMTextEditor()}
-          title="MTEXT: texto multilÃ­nea semÃ¡ntico, estilos y mÃ¡scara"
+          title="MTEXT: texto multilínea semántico, estilos y máscara"
         >
           <StickyNote className="w-4 h-4" />
         </T3Btn>
@@ -18085,6 +18127,25 @@ export default function Layout3DEditor({
             onPointerDown={() => setCadContextMenu(null)}
           >
             <div ref={mountRef} className="absolute inset-0" />
+            {webglUnavailable && (
+              <div
+                data-testid="cad-webgl-unavailable"
+                role="status"
+                className="absolute inset-0 z-30 flex items-center justify-center bg-[#0a0f1e] p-6 text-center"
+              >
+                <div className="max-w-md space-y-2">
+                  <p className="text-sm font-medium text-white">
+                    Este navegador no puede mostrar el viewport 3D
+                  </p>
+                  <p className="text-[12px] leading-relaxed text-white/70">
+                    Valle Design necesita WebGL para dibujar en pantalla. El
+                    documento, las capas, las propiedades y el guardado siguen
+                    funcionando, pero no verás la geometría hasta que actives
+                    WebGL o uses un navegador con aceleración disponible.
+                  </p>
+                </div>
+              </div>
+            )}
             <div
               ref={crosshairOverlayRef}
               data-testid="cad-crosshair"
@@ -21363,7 +21424,7 @@ export default function Layout3DEditor({
                     Paquete de capas
                   </div>
                   <span className="text-[10.5px] text-gray-500">
-                    {dxfExportSummary.includedLayers.join(" Â· ") ||
+                    {dxfExportSummary.includedLayers.join(" · ") ||
                       "Sin layers"}
                   </span>
                 </div>
@@ -21379,7 +21440,7 @@ export default function Layout3DEditor({
                         </span>
                         <span className="shrink-0 text-gray-500">
                           {layer.included}/{layer.total} incl.
-                          {layer.hidden ? ` Â· ${layer.hidden} ocultas` : ""}
+                          {layer.hidden ? ` · ${layer.hidden} ocultas` : ""}
                         </span>
                       </div>
                     ))}

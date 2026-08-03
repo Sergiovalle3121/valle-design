@@ -124,7 +124,7 @@ const mtext: Extract<CadNativeEntity, { type: "mtext" }> = {
   id: "mtext-1",
   type: "mtext",
   insertion: { x: 200, y: 300, z: 0 },
-  text: "Nota de proceso\nSegunda lÃ­nea",
+  text: "Nota de proceso\nSegunda línea",
   width: 500,
   height: 50,
   rotation: 0,

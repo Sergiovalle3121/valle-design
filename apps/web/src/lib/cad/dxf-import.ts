@@ -20,6 +20,12 @@ export type CadDxfPrimitiveKind =
 export interface CadDxfPoint {
   x: number;
   y: number;
+  /**
+   * Abombamiento del segmento que ARRANCA en este vértice (código de grupo 42
+   * de DXF): `bulge = tan(θ/4)`, positivo = antihorario. Sólo aplica a
+   * polilíneas; su ausencia significa segmento recto.
+   */
+  bulge?: number;
 }
 export interface CadDxfPrimitive {
   kind: CadDxfPrimitiveKind;
@@ -172,7 +178,11 @@ const num = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : null);
 const pt = (v: any): CadDxfPoint | null => {
   const x = num(v?.x);
   const y = num(v?.y);
-  return x == null || y == null ? null : { x, y };
+  if (x == null || y == null) return null;
+  // El bulge viaja en el vértice: descartarlo aplanaba a cuerda recta todos
+  // los arcos de polilínea del fichero importado, en silencio.
+  const bulge = num(v?.bulge);
+  return bulge == null || bulge === 0 ? { x, y } : { x, y, bulge };
 };
 
 function closeEnough(a: number, b: number, tol = 1e-6) {
@@ -236,7 +246,15 @@ export function mapDxfEntityToPrimitive(entity: any): {
         : points;
     return {
       primitive: {
-        kind: closed && isAxisAlignedRect(closedPoints) ? "rect" : "polyline",
+        // Una polilínea con arcos NUNCA es un rectángulo, aunque sus vértices
+        // caigan en las esquinas: degradarla a "rect" perdería los arcos.
+        kind:
+          closed &&
+          !closedPoints.some((point) => point.bulge)
+        &&
+          isAxisAlignedRect(closedPoints)
+            ? "rect"
+            : "polyline",
         layer,
         points: closedPoints,
       },

@@ -142,7 +142,9 @@ function importDxfDocument(content: string): DocumentImportReport {
     ...empty,
     layers: buildLayers(imported.layers),
     entities,
-    modelSpace: { entityIds: entities.map((entity) => entity.id).sort() },
+    // El orden en que el importador entrega las entidades ES el orden de
+    // dibujo del fichero de origen. Ordenarlo por id descartaba esa fidelidad.
+    modelSpace: { entityIds: entities.map((entity) => entity.id) },
     blocks: blockParts.blocks,
     lossManifest,
   });

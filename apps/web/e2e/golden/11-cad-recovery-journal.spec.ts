@@ -2,7 +2,6 @@ import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadV1Backend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
-import { BASE_URL } from '../fixtures/constants';
 
 function layoutResponse() {
   const cadDocument = {
@@ -90,6 +89,28 @@ async function readJournal(page: Page): Promise<JournalEvidence> {
   });
 }
 
+/**
+ * Los indicadores de recuperación ("Recovery local activo" / "en riesgo") sólo
+ * son ciertos MIENTRAS hay cambios sin guardar en el servidor: en cuanto el
+ * guardado remoto confirma, el journal local se purga y el aviso desaparece —
+ * esa semántica es la correcta y no debe volverse pegajosa.
+ *
+ * El backend hermético responde el PUT de forma instantánea, así que el estado
+ * `dirty` se apagaba antes de que el test pudiera observar el indicador. Esto
+ * retiene el guardado remoto en vuelo para reproducir de forma determinista la
+ * condición real (guardado lento) bajo la que el indicador existe.
+ */
+async function holdRemoteSaveInFlight(page: Page) {
+  await page.route('**/v1/cad/documents/*/content', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 30_000));
+    await route.fallback();
+  });
+  await page.route('**/v1/cad/documents/*/archive', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 30_000));
+    await route.fallback();
+  });
+}
+
 async function forceVisibilityCheckpoint(page: Page) {
   await page.evaluate(() => {
     Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
@@ -103,6 +124,7 @@ test('CAD recovery uses compressed IndexedDB journal and restores the newest che
   await installMockBackend(context);
   await loginAsStandaloneOwner(context);
   await installCadBackend(context);
+  await holdRemoteSaveInFlight(page);
   await page.goto('/legacy/studio');
   await page.getByTestId('cad-native-entity-recovery-arc').click();
   const radius = page.getByTestId('cad-native-property-radius');
@@ -141,11 +163,25 @@ test('CAD recovery surfaces exhausted browser quota', async ({ context, page }) 
   await installMockBackend(context);
   await loginAsStandaloneOwner(context);
   await installCadBackend(context);
-  const cdp = await context.newCDPSession(page);
-  await cdp.send('Storage.overrideQuotaForOrigin', {
-    origin: new URL(BASE_URL).origin,
-    quotaSize: 1,
+  // Antes esto usaba `context.newCDPSession` + `Storage.overrideQuotaForOrigin`,
+  // que sólo existe en Chromium: en Firefox el test fallaba SIEMPRE por el
+  // harness, no por el producto. Agotar la cuota de IndexedDB directamente
+  // ejercita EXACTAMENTE la misma ruta de producto (`isQuotaError` → prune
+  // agresivo → reintento → CadRecoveryQuotaError) y es determinista en todos
+  // los navegadores, sin depender de heurísticas de cuota del motor.
+  await page.addInitScript(() => {
+    const put = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function quotaExhausted(
+      this: IDBObjectStore,
+      ...args: unknown[]
+    ) {
+      if (this.transaction.db.name === 'cad-recovery') {
+        throw new DOMException('Simulated store quota', 'QuotaExceededError');
+      }
+      return (put as never as (...a: unknown[]) => IDBRequest).apply(this, args);
+    } as typeof IDBObjectStore.prototype.put;
   });
+  await holdRemoteSaveInFlight(page);
   await page.goto('/legacy/studio');
   await page.getByTestId('cad-native-entity-recovery-arc').click();
   const radius = page.getByTestId('cad-native-property-radius');

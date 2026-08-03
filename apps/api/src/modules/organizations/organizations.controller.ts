@@ -177,7 +177,7 @@ export class OrganizationsController {
         if (!trialPlan?.active || !trialEntitlement) {
           throw new ServiceUnavailableException({
             code: 'trial_catalog_unavailable',
-            message: 'El trial de Valle Design no estÃ¡ disponible.',
+            message: 'El trial de Valle Design no está disponible.',
           });
         }
         const existingTrial = await manager
@@ -248,7 +248,7 @@ export class OrganizationsController {
         isUniqueViolation(error) &&
         (await this.organizations.findOneBy({ slug: body.slug.toLowerCase() }))
       ) {
-        throw new BadRequestException('El slug ya estÃ¡ en uso.');
+        throw new BadRequestException('El slug ya está en uso.');
       }
       throw error;
     }

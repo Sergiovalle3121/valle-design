@@ -34,7 +34,7 @@ const shifted = hatchPolygon(square, { angle: 0, spacing: 2, origin: { x: 0, y: 
 assert.deepEqual(
   shifted.map((segment) => segment.a.y),
   [1, 3, 5, 7, 9],
-  "el origen desplaza la rejilla del patrÃ³n sin mover el boundary",
+  "el origen desplaza la rejilla del patrón sin mover el boundary",
 );
 
 const v = hatchPolygon(square, { angle: 90, spacing: 2 });
