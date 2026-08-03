@@ -53,6 +53,156 @@ function inspect(value: unknown, maxBytes: number, depth = 0): void {
   }
 }
 
+/** Toda coordenada numérica debe ser finita: un NaN envenena bounds e índices. */
+function assertFiniteNumbers(node: unknown, entityId: string, depth = 0): void {
+  if (depth > 12 || node === null || typeof node !== 'object') return;
+  for (const value of Object.values(node as Record<string, unknown>)) {
+    if (typeof value === 'number') {
+      if (!Number.isFinite(value)) {
+        throw new BadRequestException(
+          `CadDocument: la entidad ${entityId} contiene un número no finito.`,
+        );
+      }
+    } else if (typeof value === 'object') {
+      assertFiniteNumbers(value, entityId, depth + 1);
+    }
+  }
+}
+
+/**
+ * Invariantes discriminadas POR ENTIDAD.
+ *
+ * Los límites de tamaño, profundidad y conteo no impiden persistir geometría
+ * imposible: un radio negativo, un NaN o una polilínea de un solo vértice
+ * cruzaban la frontera y rompían render, índice espacial y exportación más
+ * tarde, lejos de su causa. Aquí se falla CERRADO y en el punto de entrada.
+ */
+function assertEntityInvariants(entities: unknown[]): void {
+  for (const raw of entities) {
+    const entity = raw as Record<string, unknown>;
+    const id = String(entity.id);
+    const type = entity.type;
+    assertFiniteNumbers(entity, id);
+
+    if (type === 'circle' || type === 'arc') {
+      const radius = entity.radius;
+      if (typeof radius !== 'number' || !(radius > 0)) {
+        throw new BadRequestException(
+          `CadDocument: ${String(type)} ${id} requiere un radio positivo.`,
+        );
+      }
+    }
+
+    if (type === 'polyline') {
+      const vertices = entity.vertices;
+      if (!Array.isArray(vertices) || vertices.length < 2) {
+        throw new BadRequestException(
+          `CadDocument: la polilínea ${id} requiere al menos 2 vértices.`,
+        );
+      }
+    }
+
+    if (type === 'spline') {
+      const controlPoints = entity.controlPoints;
+      const degree = entity.degree;
+      if (!Array.isArray(controlPoints) || controlPoints.length < 2) {
+        throw new BadRequestException(
+          `CadDocument: la spline ${id} requiere al menos 2 puntos de control.`,
+        );
+      }
+      if (
+        typeof degree !== 'number' ||
+        !Number.isInteger(degree) ||
+        degree < 1 ||
+        degree >= controlPoints.length
+      ) {
+        throw new BadRequestException(
+          `CadDocument: la spline ${id} tiene un grado incompatible con sus puntos de control.`,
+        );
+      }
+      const weights = entity.weights;
+      if (weights !== undefined) {
+        if (
+          !Array.isArray(weights) ||
+          weights.length !== controlPoints.length
+        ) {
+          throw new BadRequestException(
+            `CadDocument: la spline ${id} tiene pesos que no corresponden a sus puntos de control.`,
+          );
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Integridad REFERENCIAL.
+ *
+ * El orden de dibujo que apunta a entidades inexistentes, o un bloque que se
+ * contiene a sí mismo, no son documentos «raros»: son documentos corruptos que
+ * cuelgan el editor al renderizar o explotar. Se rechazan en la frontera.
+ */
+function assertReferentialIntegrity(
+  document: PersistedCadDocument,
+  entityIds: Set<string>,
+): void {
+  const modelSpace = (document as unknown as Record<string, unknown>)
+    .modelSpace as { entityIds?: unknown } | undefined;
+  const drawOrder = modelSpace?.entityIds;
+  if (drawOrder !== undefined) {
+    if (!Array.isArray(drawOrder)) {
+      throw new BadRequestException(
+        'CadDocument modelSpace.entityIds debe ser un arreglo.',
+      );
+    }
+    const seen = new Set<string>();
+    for (const rawId of drawOrder) {
+      const id = typeof rawId === 'string' ? rawId : '';
+      if (!entityIds.has(id)) {
+        throw new BadRequestException(
+          `CadDocument: el orden de dibujo referencia la entidad inexistente ${id || '(vacía)'}.`,
+        );
+      }
+      if (seen.has(id)) {
+        throw new BadRequestException(
+          `CadDocument: la entidad ${id} aparece dos veces en el orden de dibujo.`,
+        );
+      }
+      seen.add(id);
+    }
+  }
+
+  // Recursión de bloques: un ciclo cuelga render, explode y purge.
+  const blocks = (document as unknown as Record<string, unknown>).blocks;
+  if (!Array.isArray(blocks)) return;
+  const children = new Map<string, string[]>();
+  for (const rawBlock of blocks) {
+    const block = rawBlock as Record<string, unknown> | null;
+    const blockId = typeof block?.id === 'string' ? block.id : '';
+    if (!blockId) continue;
+    const nested = Array.isArray(block?.entities)
+      ? (block.entities as Record<string, unknown>[])
+          .filter((child) => child?.type === 'insert')
+          .map((child) => String(child.block))
+      : [];
+    children.set(blockId, nested);
+  }
+  const state = new Map<string, 'visiting' | 'done'>();
+  const walk = (blockId: string): void => {
+    const mark = state.get(blockId);
+    if (mark === 'done') return;
+    if (mark === 'visiting') {
+      throw new BadRequestException(
+        `CadDocument: el bloque ${blockId} se contiene a sí mismo (recursión ilegal).`,
+      );
+    }
+    state.set(blockId, 'visiting');
+    for (const child of children.get(blockId) ?? []) walk(child);
+    state.set(blockId, 'done');
+  };
+  for (const blockId of children.keys()) walk(blockId);
+}
+
 export function validateCadDocumentPayload(
   value: unknown,
   options: { maxBytes?: number } = {},
@@ -228,7 +378,7 @@ export function validateCadDocumentPayload(
     for (const [name, value, limit] of boundedArrays) {
       if (!Array.isArray(value) || value.length > limit) {
         throw new BadRequestException(
-          `CadDocument collaboration.${name} admite mÃ¡ximo ${limit} registros.`,
+          `CadDocument collaboration.${name} admite máximo ${limit} registros.`,
         );
       }
     }
@@ -251,7 +401,7 @@ export function validateCadDocumentPayload(
             link.token.length > 256))
       ) {
         throw new BadRequestException(
-          'CadDocument contiene un enlace de revisiÃ³n invÃ¡lido.',
+          'CadDocument contiene un enlace de revisión inválido.',
         );
       }
     }
@@ -267,11 +417,13 @@ export function validateCadDocumentPayload(
         !['open', 'resolved'].includes(String(thread.status))
       ) {
         throw new BadRequestException(
-          'CadDocument contiene un comentario de revisiÃ³n invÃ¡lido.',
+          'CadDocument contiene un comentario de revisión inválido.',
         );
       }
     }
   }
+  assertEntityInvariants(entities);
+  assertReferentialIntegrity(document, ids);
   const text = JSON.stringify(document);
   if (Buffer.byteLength(text, 'utf8') > maxBytes) {
     throw new BadRequestException(`CadDocument excede ${maxBytes} bytes.`);

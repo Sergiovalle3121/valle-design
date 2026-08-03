@@ -163,7 +163,7 @@ describe('validateCadDocumentPayload', () => {
           reviewLinks: [{ id: 'link-1', token: 'short', readOnly: true }],
         },
       }),
-    ).toThrow('enlace de revisiÃ³n invÃ¡lido');
+    ).toThrow('enlace de revisión inválido');
     expect(() =>
       validateCadDocumentPayload({
         ...valid,
@@ -172,7 +172,7 @@ describe('validateCadDocumentPayload', () => {
           reviewLinks: [{ id: 'link-1', readOnly: false }],
         },
       }),
-    ).toThrow('enlace de revisiÃ³n invÃ¡lido');
+    ).toThrow('enlace de revisión inválido');
     expect(() =>
       validateCadDocumentPayload({
         ...valid,
@@ -181,7 +181,7 @@ describe('validateCadDocumentPayload', () => {
           versions: Array.from({ length: 13 }, () => ({})),
         },
       }),
-    ).toThrow('collaboration.versions admite mÃ¡ximo 12');
+    ).toThrow('collaboration.versions admite máximo 12');
   });
 
   it('redacts review link tokens nested inside version snapshots too', () => {
