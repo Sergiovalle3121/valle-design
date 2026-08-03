@@ -4,6 +4,8 @@ import {
   migrateCadDocument,
   commitChange,
   replaceEntityIdsAt,
+  preserveDrawOrder,
+  replaceEditorProjection,
   type CadDocument,
 } from "./cad-document";
 
@@ -153,6 +155,58 @@ assert.deepEqual(
   replaceEntityIdsAt(defined, new Set(["insert"]), ["geo1", "geo2"]),
   original,
   "definir un bloque y explotarlo devuelve el orden de dibujo original",
+);
+
+// --- preserveDrawOrder ----------------------------------------------------
+
+assert.deepEqual(
+  preserveDrawOrder(["zeta", "alfa"], ["alfa", "zeta"]),
+  ["zeta", "alfa"],
+  "el orden previo manda sobre el orden en que lleguen las entidades",
+);
+assert.deepEqual(
+  preserveDrawOrder(["zeta", "alfa"], ["alfa", "nuevo", "zeta"]),
+  ["zeta", "alfa", "nuevo"],
+  "lo nuevo entra al frente sin tocar el orden previo",
+);
+assert.deepEqual(
+  preserveDrawOrder(["zeta", "medio", "alfa"], ["zeta", "alfa"]),
+  ["zeta", "alfa"],
+  "lo eliminado desaparece y el resto conserva su orden relativo",
+);
+assert.deepEqual(
+  preserveDrawOrder([], ["b", "a"]),
+  ["b", "a"],
+  "sin orden previo se respeta el orden de llegada, no el alfabético",
+);
+
+// --- REGRESIÓN ADVERSARIAL: reproyectar NO debe alfabetizar el z-order -----
+//
+// Éste es el defecto que sobrevivió a la primera corrección y que mis tests no
+// veían porque usaban IDs ya alfabéticos. `replaceEditorProjection` corre tras
+// editar una propiedad, transformar o mover un grip, y reconstruía el orden de
+// dibujo desde un array `entities` ordenado por id: `zeta, alfa` se convertía
+// en `alfa, zeta`. Los IDs de abajo son deliberadamente NO alfabéticos.
+
+const adversarial = documentWithOrder(["zeta", "alfa"]);
+assert.deepEqual(adversarial.modelSpace.entityIds, ["zeta", "alfa"]);
+
+const reprojected = replaceEditorProjection(adversarial, adversarial);
+assert.deepEqual(
+  reprojected.modelSpace.entityIds,
+  ["zeta", "alfa"],
+  "reproyectar el editor NO debe alfabetizar el orden de dibujo",
+);
+
+// Una entidad nueva aparecida en la proyección va al frente, sin reordenar.
+const grown = replaceEditorProjection(
+  adversarial,
+  documentWithOrder(["zeta", "alfa", "beta"]),
+);
+assert.deepEqual(
+  grown.modelSpace.entityIds,
+  ["zeta", "alfa", "beta"],
+  "la entidad nueva entra al frente y el orden previo sobrevive",
 );
 
 console.log("draw-order.spec.ts OK");

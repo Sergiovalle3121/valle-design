@@ -336,6 +336,7 @@ import {
 } from "@/lib/cad/editor-snapshot";
 import {
   commitChange,
+  preserveDrawOrder,
   migrateCadDocument,
   replaceEditorProjection,
   type CadConstraintKind,
@@ -6191,13 +6192,16 @@ export default function Layout3DEditor({
         {
           ...checkpoint,
           entities,
+          // Las entidades insertadas (MTEXT, DIMENSION, MLEADER…) se dibujan
+          // AL FRENTE. Ordenar alfabéticamente reordenaba el plano entero cada
+          // vez que el usuario añadía una anotación.
           modelSpace: {
-            entityIds: [
+            entityIds: preserveDrawOrder(checkpoint.modelSpace.entityIds, [
               ...new Set([
                 ...checkpoint.modelSpace.entityIds,
                 ...incoming.map((entity) => entity.id),
               ]),
-            ].sort(),
+            ]),
           },
         },
         label,
