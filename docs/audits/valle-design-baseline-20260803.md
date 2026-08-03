@@ -169,6 +169,36 @@ invertir `modelSpace.entityIds` produjera bytes idénticos.
 
 **Estado: CORREGIDO** (§4.7).
 
+### 3.5 P0 — Las herramientas de dibujo NO crean entidades canónicas
+
+Confirmado por lectura directa de `Layout3DEditor.tsx` · `applyDrawAction`
+(~línea 8316). Las cuatro herramientas básicas producen **assets heredados**,
+no geometría canónica:
+
+| Herramienta | Acción | Lo que crea realmente |
+| --- | --- | --- |
+| LINE | `addSegment` | `createWallAssetFromPoints` → un **muro** |
+| POLYLINE | `addPolyline` | **N muros sueltos** (`Pline 1`, `Pline 2`, …) |
+| RECT | `addRect` | `createRectAssetFromBox(…, "zone")` → una **zona** |
+| CIRCLE | `addCircle` | un box con `shape: "circle"` |
+
+**Consecuencias.** Lo que el usuario dibuja no entra en el registro de
+entidades nativas, así que queda fuera de selección nativa, propiedades,
+constraints, índice espacial y exportación DXF como geometría real. Dibujar
+una polilínea no produce **una** POLYLINE sino varios muros inconexos: el
+adaptador POLYLINE nativo añadido en §4.6 **ni siquiera se ejercita desde su
+propia herramienta**.
+
+Esto es la raíz de «dos modelos de autoría que compiten» y explica por qué el
+golden 26 afirma `assets.filter(a => a.label?.startsWith('Pline'))` con
+longitud 4: el test está describiendo el defecto, no la intención.
+
+**Estado: no corregido, y deliberadamente no empezado aquí.** Unificarlo
+cambia lo que producen las herramientas y **invalida varios goldens** que hoy
+fijan el comportamiento heredado. Es trabajo de un corte vertical propio, con
+migración de documentos existentes y reescritura de esos tests, no algo que
+deba colarse al final de una sesión larga con CI en vuelo.
+
 ### 3.3 Deuda de orden de dibujo — CERRADA
 
 Los otros seis caminos que ordenaban `entityIds` están corregidos según lo que
