@@ -71,18 +71,33 @@ assert.ok(
   ),
 );
 
-const reversed: CadDocument = {
+// `layers` y `entities` son CONJUNTOS: el orden en que lleguen no es
+// información, así que la serialización canónica debe absorberlo.
+const reordered: CadDocument = {
   ...first.document,
   layers: [...first.document.layers].reverse(),
   entities: [...first.document.entities].reverse(),
+};
+assert.equal(
+  serializeCadDocument(reordered),
+  firstSerialized,
+  "canonical serialization makes the corpus digest input-order independent",
+);
+
+// `modelSpace.entityIds` NO es un conjunto: es el orden de dibujo. Invertirlo
+// invierte el z-order del plano entero, así que DEBE cambiar el serializado.
+// Esta aserción antes exigía lo contrario y con ello fijaba la pérdida de
+// datos: cada guardado reescribía el orden de dibujo.
+const drawOrderReversed: CadDocument = {
+  ...first.document,
   modelSpace: {
     entityIds: [...first.document.modelSpace.entityIds].reverse(),
   },
 };
-assert.equal(
-  serializeCadDocument(reversed),
+assert.notEqual(
+  serializeCadDocument(drawOrderReversed),
   firstSerialized,
-  "canonical serialization makes the corpus digest input-order independent",
+  "reversing draw order is a semantic change and must not serialize identically",
 );
 
 console.log(

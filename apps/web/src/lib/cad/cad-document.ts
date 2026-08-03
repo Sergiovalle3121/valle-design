@@ -911,7 +911,13 @@ export function serializeCadDocument(doc: CadDocument): string {
     layers: [...doc.layers].sort(byId).map(stableValue),
     entities: [...doc.entities].sort(byId).map(orderedEntity),
     history: doc.history.map((h) => ({ version: h.version, label: h.label })),
-    modelSpace: { entityIds: [...doc.modelSpace.entityIds].sort() },
+    // NO ordenar: `entityIds` ES el orden de dibujo (draw order). Ordenarlo
+    // alfabéticamente destruía en cada guardado el z-order del dibujo, y con
+    // él Bring to front / Send to back, el apilado de hatches, wipeouts y
+    // anotaciones. El determinismo no se pierde: dos documentos con el mismo
+    // contenido siguen produciendo el mismo texto, porque el orden de dibujo
+    // ES contenido — si difiere, los documentos son legítimamente distintos.
+    modelSpace: { entityIds: [...doc.modelSpace.entityIds] },
     paperSpaces: [...doc.paperSpaces].sort(byId).map(stableValue),
     styles: stableValue(doc.styles),
     blocks: [...doc.blocks].sort(byId).map((block) => stableValue({
