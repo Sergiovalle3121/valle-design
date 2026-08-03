@@ -2,6 +2,7 @@ import type {
   CadBlockDefinition,
   CadDocument,
   CadEntity,
+  CadLossManifestEntry,
   CadPoint2,
   CadPoint3,
 } from "./cad-document";
@@ -574,6 +575,95 @@ export function cadEntityToDxfPrimitive(
     };
   }
   return null;
+}
+
+/** Tipos con su PROPIO camino de exportación, fuera de las primitivas. */
+const DXF_NON_PRIMITIVE_TYPES = new Set([
+  "hatch",
+  "mtext",
+  "dimension",
+  "mleader",
+  "insert",
+]);
+
+/** ¿Alguna coordenada de la entidad vive fuera del plano Z=0? */
+function entityElevations(entity: CadEntity): number[] {
+  const points: (CadPoint3 | undefined)[] = [];
+  const candidate = entity as unknown as Record<string, CadPoint3 | undefined>;
+  for (const key of ["start", "end", "center", "insertion", "position"]) {
+    points.push(candidate[key]);
+  }
+  const vertices = (entity as unknown as { vertices?: CadPoint3[] }).vertices;
+  if (Array.isArray(vertices)) points.push(...vertices);
+  const controls = (entity as unknown as { controlPoints?: CadPoint3[] })
+    .controlPoints;
+  if (Array.isArray(controls)) points.push(...controls);
+  return points
+    .map((point) => point?.z)
+    .filter((z): z is number => typeof z === "number" && Number.isFinite(z) && z !== 0);
+}
+
+/**
+ * Enumera lo que la exportación DXF va a degradar o descartar, ANTES de
+ * escribir el fichero.
+ *
+ * El problema real nunca fue que el soporte DXF sea parcial: es que las
+ * pérdidas eran SILENCIOSAS. Esta función no cambia el contrato de
+ * exportación — es aditiva — y permite mostrar al usuario qué se va a perder
+ * con entidad, campo, severidad y recomendación.
+ *
+ * NO cubre todavía OCS/extrusion ni widths, que no existen en el modelo
+ * canónico actual: cuando se añadan, deben registrarse aquí.
+ */
+export function cadDocumentDxfExportLosses(
+  document: CadDocument,
+): CadLossManifestEntry[] {
+  const losses: CadLossManifestEntry[] = [];
+  for (const entity of document.entities) {
+    // 1. Entidades que no se escriben en absoluto.
+    if (
+      !DXF_NON_PRIMITIVE_TYPES.has(entity.type) &&
+      cadEntityToDxfPrimitive(entity) === null
+    ) {
+      losses.push({
+        code: "dxf_export_entity_dropped",
+        entityId: entity.id,
+        sourceType: entity.type,
+        severity: "error",
+        detail: `La entidad ${entity.type} no tiene representación en la exportación DXF y se omitirá del fichero. Conserva el documento canónico como original.`,
+      });
+      continue;
+    }
+
+    // 2. Elevación: las primitivas DXF de este exportador son 2D.
+    const elevations = entityElevations(entity);
+    if (elevations.length > 0) {
+      losses.push({
+        code: "dxf_export_z_flattened",
+        entityId: entity.id,
+        sourceType: entity.type,
+        severity: "warning",
+        detail: `La elevación Z (${elevations[0]}) se aplanará a 0 al exportar a DXF. Si la cota importa, no uses este DXF como original.`,
+      });
+    }
+
+    // 3. Splines racionales: se exportan grado y knots, pero no los pesos, así
+    //    que una NURBS racional sale como no racional y la curva cambia.
+    if (entity.type === "spline") {
+      const weights = (entity as unknown as { weights?: number[] }).weights;
+      if (Array.isArray(weights) && weights.some((weight) => weight !== 1)) {
+        losses.push({
+          code: "dxf_export_spline_weights_dropped",
+          entityId: entity.id,
+          sourceType: "spline",
+          severity: "warning",
+          detail:
+            "Los pesos de la spline racional no se exportan: la curva resultante será una spline NO racional y su forma cambiará.",
+        });
+      }
+    }
+  }
+  return losses;
 }
 
 export function cadDocumentNativeDxfPrimitives(
