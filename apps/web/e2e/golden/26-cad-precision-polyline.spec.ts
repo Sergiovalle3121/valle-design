@@ -102,7 +102,20 @@ test('neutral drawing uses units, layers, ABS/REL/POLAR, closed polyline and OFF
   });
 
   await page.getByRole('button', { name: 'Guardar', exact: true }).click();
-  await expect.poll(() => backend.snapshot().version).toBe(1);
+  // Se espera al CONTENIDO persistido, no a un número exacto de versiones CAS.
+  //
+  // `version` cuenta PUT aceptados, y el autosave (debounce 2 s) dispara varias
+  // veces durante este recorrido de ~25 s: medido, 4 PUT a +7.9s, +12.2s,
+  // +19.4s y +23.3s. Exigir `version === 1` afirmaba en realidad «el autosave
+  // no disparó nunca» — una afirmación sobre el timing del test, no sobre el
+  // producto, imposible de satisfacer de forma determinista mientras exista
+  // autosave. Por eso el valor oscilaba entre 1, 3 y 4 según la máquina.
+  //
+  // Que el autosave versione el trabajo intermedio es DESEABLE en un CAD: es
+  // lo que evita perder el dibujo si la sesión se cae. El requisito real de
+  // este paso es que el guardado deje el dibujo completo en el servidor, y eso
+  // es lo que se espera y se afirma aquí.
+  await expect.poll(() => backend.snapshot().assets.length).toBe(6);
   expect(backend.snapshot().assets).toHaveLength(6);
   expect(backend.snapshot().assets.filter((asset) => asset.label?.startsWith('Pline'))).toHaveLength(4);
   expect(backend.snapshot().document?.layers.some((layer) => layer.id === 'Acceptance_Geometry')).toBe(true);
