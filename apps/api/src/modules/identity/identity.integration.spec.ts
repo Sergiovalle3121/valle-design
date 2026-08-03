@@ -353,19 +353,22 @@ describe('first-party identity HTTP integration', () => {
 
   it('does not enumerate accounts through forgot or verification resend', async () => {
     const server = app.getHttpServer();
-    const [knownForgot, unknownForgot, knownResend, unknownResend] =
-      await Promise.all([
-        request(server).post('/v1/auth/password/forgot').send({ email: EMAIL }),
-        request(server)
-          .post('/v1/auth/password/forgot')
-          .send({ email: UNKNOWN_EMAIL }),
-        request(server)
-          .post('/v1/auth/verify-email/resend')
-          .send({ email: EMAIL }),
-        request(server)
-          .post('/v1/auth/verify-email/resend')
-          .send({ email: UNKNOWN_EMAIL }),
-      ]);
+    // La propiedad de no-enumeración no requiere escrituras simultáneas.
+    // SQLite usa una única conexión en esta suite focal y no admite dos
+    // transacciones de rotación concurrentes; las carreras reales se prueban
+    // aparte contra PostgreSQL.
+    const knownForgot = await request(server)
+      .post('/v1/auth/password/forgot')
+      .send({ email: EMAIL });
+    const unknownForgot = await request(server)
+      .post('/v1/auth/password/forgot')
+      .send({ email: UNKNOWN_EMAIL });
+    const knownResend = await request(server)
+      .post('/v1/auth/verify-email/resend')
+      .send({ email: EMAIL });
+    const unknownResend = await request(server)
+      .post('/v1/auth/verify-email/resend')
+      .send({ email: UNKNOWN_EMAIL });
 
     for (const response of [
       knownForgot,

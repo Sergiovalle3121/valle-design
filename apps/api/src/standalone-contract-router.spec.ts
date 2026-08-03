@@ -21,6 +21,7 @@ import {
   Organization,
 } from './modules/organizations/entities/organization.entity';
 import { OrganizationAccessService } from './modules/organizations/organization-access.service';
+import { OrganizationCommercialConfiguration } from './modules/organizations/organization-commercial.configuration';
 import { OrganizationsController } from './modules/organizations/organizations.controller';
 
 interface ExpressRouteLayer {
@@ -58,6 +59,10 @@ describe('standalone OpenAPI contract against the real Nest router', () => {
       providers: [
         { provide: IdentityService, useValue: {} },
         { provide: OrganizationAccessService, useValue: {} },
+        {
+          provide: OrganizationCommercialConfiguration,
+          useValue: { trialDays: 14 },
+        },
         { provide: DataSource, useValue: {} },
         { provide: EMAIL_SERVICE, useValue: {} },
         { provide: IDENTITY_RATE_LIMIT_STORE, useValue: {} },
@@ -72,7 +77,7 @@ describe('standalone OpenAPI contract against the real Nest router', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) await app.close();
   });
 
   it('registers exactly the identity, organization and commercial operations', () => {

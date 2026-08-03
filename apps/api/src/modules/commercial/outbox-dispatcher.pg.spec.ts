@@ -264,11 +264,13 @@ describePostgres('CommercialOutboxDispatcher PostgreSQL leases', () => {
       }),
     );
     const sensitiveUuid = 'ba957ab8-e4bf-4148-8202-0a04c9913ae1';
+    const fakeCredential = 'redaction-fixture-'.repeat(3);
+    const fakePassword = 'password-fixture-'.repeat(3);
     const rejecting: CommercialOutboxTransport = {
       deliver: async () => {
         throw new Error(
           `provider rejected pii.person@example.test tenant=${sensitiveUuid} ` +
-            'token=abcdefghijklmnopqrstuvwxyz123456789 password=super-secret',
+            `token=${fakeCredential} password=${fakePassword}`,
         );
       },
     };

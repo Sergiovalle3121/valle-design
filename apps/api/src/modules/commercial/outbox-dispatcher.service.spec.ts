@@ -235,8 +235,9 @@ describe('CommercialOutboxDispatcher', () => {
   });
 
   it('persists a redacted diagnostic and schedules exponential retry', async () => {
+    const fakeCredential = 'redaction-fixture-'.repeat(3);
     const deliveryError = new Error(
-      'SMTP rejected person@example.test token=abcdefghijklmnopqrstuvwxyz123456789',
+      `SMTP rejected person@example.test token=${fakeCredential}`,
     );
     const test = harness({
       email: [emailClaim(3)],
@@ -264,7 +265,7 @@ describe('CommercialOutboxDispatcher', () => {
     expect(failureCall[1][2]).toContain('[redacted-email]');
     expect(failureCall[1][2]).toContain('token=[redacted]');
     expect(failureCall[1][2]).not.toContain('person@example.test');
-    expect(failureCall[1][2]).not.toContain('abcdefghijklmnopqrstuvwxyz');
+    expect(failureCall[1][2]).not.toContain(fakeCredential);
   });
 
   it('moves the final failed attempt to dead', async () => {

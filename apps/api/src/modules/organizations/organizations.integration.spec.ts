@@ -35,7 +35,14 @@ import {
 } from './entities/organization.entity';
 import { OrganizationsModule } from './organizations.module';
 
-const TEST_HARNESS_KEY = 'organization-harness-key-with-at-least-32-characters';
+const TEST_HARNESS_KEY = [
+  'organization',
+  'harness',
+  'fixture',
+  'with',
+  'sufficient',
+  'length',
+].join('-');
 const PASSWORD = 'Organization-flow-2026!';
 const USER_A_EMAIL = 'owner-a+organizations@example.test';
 const USER_B_EMAIL = 'invitee-b+organizations@example.test';
