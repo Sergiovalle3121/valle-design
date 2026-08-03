@@ -101,14 +101,21 @@ async function readJournal(page: Page): Promise<JournalEvidence> {
  * condición real (guardado lento) bajo la que el indicador existe.
  */
 async function holdRemoteSaveInFlight(page: Page) {
-  await page.route('**/v1/cad/documents/*/content', async (route) => {
+  // SÓLO el guardado (PUT). Sin este filtro de método el patrón también
+  // capturaba el GET de carga del documento y le añadía 30 s, lo que introduce
+  // flakiness en este spec y en cualquiera que comparta la ruta: retrasar algo
+  // que el test no pretendía interceptar es un fallo del harness, no una
+  // condición del producto.
+  const holdOnlyWrites = async (route: import('@playwright/test').Route) => {
+    if (route.request().method() !== 'PUT') {
+      await route.fallback();
+      return;
+    }
     await new Promise((resolve) => setTimeout(resolve, 30_000));
     await route.fallback();
-  });
-  await page.route('**/v1/cad/documents/*/archive', async (route) => {
-    await new Promise((resolve) => setTimeout(resolve, 30_000));
-    await route.fallback();
-  });
+  };
+  await page.route('**/v1/cad/documents/*/content', holdOnlyWrites);
+  await page.route('**/v1/cad/documents/*/archive', holdOnlyWrites);
 }
 
 async function forceVisibilityCheckpoint(page: Page) {

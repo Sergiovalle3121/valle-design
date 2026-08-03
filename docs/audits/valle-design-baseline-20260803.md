@@ -199,12 +199,23 @@ fijan el comportamiento heredado. Es trabajo de un corte vertical propio, con
 migración de documentos existentes y reescritura de esos tests, no algo que
 deba colarse al final de una sesión larga con CI en vuelo.
 
-### 3.3 Deuda de orden de dibujo — CERRADA
+### 3.3 Deuda de orden de dibujo — PARCIAL (reabierta)
 
-Los otros seis caminos que ordenaban `entityIds` están corregidos según lo que
-cada uno significa realmente (§4.8): geometría nueva al frente (fillet, xref,
-block insert), orden de origen preservado (import DXF y documentos heredados)
-y **sustitución posicional** para `block:define`/`block:explode`.
+Se corrigieron seis caminos (§4.8), pero **declararla cerrada fue un error mío**.
+La auditoría del 3 de agosto lo detectó y lo he verificado:
+
+Mi búsqueda fue de `.sort()` **sobre `entityIds`**, y no vio los sitios donde el
+orden se **deriva** de un array `entities` ya alfabetizado. Tres supervivientes,
+todos corregidos ahora en §4.10:
+
+- `cad-document.ts` · `replaceEditorProjection` — corre tras editar una
+  propiedad, transformar o mover un grip.
+- `cad-document.ts` · `migrateLegacyMleaderCompositions`.
+- `Layout3DEditor.tsx` · `insertNativeEntities` — MTEXT, DIMENSION, MLEADER.
+
+Agravante: **mis propios tests no lo veían** porque varios usaban IDs ya
+alfabéticos. Una regresión con IDs adversariales (`zeta, alfa`) reproduce el
+defecto exactamente como lo describió la auditoría.
 
 ### 3.4 P0 — DXF pierde `bulge` en AMBAS direcciones, en silencio
 
@@ -390,17 +401,44 @@ excluir el navegador.
 
 ## 6. Deuda por severidad
 
-### P0 — todos cerrados en esta sesión
-1. ~~Editor destruido sin WebGL~~ — *corregido.*
-2. ~~POLYLINE no nativa~~ — *corregido.*
-3. ~~Orden de dibujo destruido en cada guardado~~ — *corregido.*
-4. ~~Orden de dibujo reordenado al añadir una entidad~~ — *corregido.*
-5. ~~DXF pierde `bulge` en ambas direcciones~~ — *corregido.*
+### 4.10 Draw order: los tres caminos supervivientes — *producto*
 
-Queda **abierto** el manifiesto de pérdidas de exportación: `dxf-export.ts`
-sigue sin `lossManifest`, así que otras degradaciones (Z, OCS/extrusion,
-widths, hatch curvo) siguen sin registrarse. El `bulge` ya no se pierde, pero
-el mecanismo general de aviso no existe.
+`preserveDrawOrder(previousIds, presentIds)` en `cad-document.ts`: lo que ya
+tenía posición la conserva, lo nuevo entra al frente, lo eliminado se va. Se usa
+en `replaceEditorProjection`, `migrateLegacyMleaderCompositions` e
+`insertNativeEntities`.
+
+Verificado **no vacuo** con IDs deliberadamente no alfabéticos: reintroduciendo
+el defecto, `replaceEditorProjection` convierte `['zeta','alfa']` en
+`['alfa','zeta']` y la prueba falla.
+
+### 4.11 Mock de recovery acotado — *harness*
+
+`holdRemoteSaveInFlight` filtraba por ruta pero no por método, así que retrasaba
+30 s también el **GET** de carga. Retrasar algo que el test no pretendía
+interceptar es un fallo del harness, no una condición del producto: ahora sólo
+retiene `PUT`.
+
+### Estado de los P0 (completo / parcial / abierto)
+| # | P0 | Estado |
+| --- | --- | --- |
+| 1 | Editor destruido sin WebGL | **Completo** — falta demostrar en E2E editar y guardar sin viewport |
+| 2 | POLYLINE no nativa | **Completo** en el runtime; **no lo ejercita su herramienta** (§3.5) |
+| 3 | Draw order destruido al guardar | **Completo** |
+| 4 | Draw order reordenado al añadir/reproyectar | **Completo** tras §4.10 |
+| 5 | DXF pierde `bulge` | **Completo** para `bulge`; ver parciales |
+| 6 | Validación canónica | **Parcial** — acepta aún `line` sin `start`/`end` y `INSERT` a bloque inexistente |
+| 7 | Herramientas de dibujo no canónicas (§3.5) | **Abierto** |
+| 8 | **E2E verde** | **Abierto** — Firefox nunca verificado |
+
+**Parciales conocidos, no cerrados:**
+
+- `dxf-export.ts` sigue sin `lossManifest` general: Z, OCS/extrusion, widths y
+  hatch curvo siguen sin registrarse. El `bulge` ya no se pierde.
+- Una POLYLINE cerrada se exporta con **group 70 = 0**, apoyándose sólo en
+  duplicar el primer vértice: otro CAD puede verla abierta.
+- El aviso de pérdidas se calcula **después** de iniciar la descarga; no es
+  preflight y no permite cancelar.
 
 ### P1
 3. Fallos de Chromium #1, #2, #5–#19 sin diagnosticar (§2.5).

@@ -889,6 +889,31 @@ export function replaceEntityIdsAt(
   return [...kept.slice(0, below), ...inserted, ...kept.slice(below)];
 }
 
+/**
+ * Reconstruye el orden de dibujo CONSERVANDO el previo.
+ *
+ * Necesario cada vez que un camino recompone el documento a partir de una
+ * colección de entidades: esa colección puede estar ordenada por id para
+ * canonicalización, y derivar `entityIds` de ella **alfabetiza el z-order**.
+ * Ése era el defecto que sobrevivía en `replaceEditorProjection` y en la
+ * migración de MLEADER heredados: editar una propiedad convertía
+ * `zeta, alfa` en `alfa, zeta`.
+ *
+ * Contrato: las entidades que ya tenían posición la conservan, en su orden
+ * relativo; las nuevas se añaden AL FRENTE (final de la lista), en el orden en
+ * que llegan; las desaparecidas se quitan.
+ */
+export function preserveDrawOrder(
+  previousIds: readonly string[],
+  presentIds: readonly string[],
+): string[] {
+  const present = new Set(presentIds);
+  const kept = previousIds.filter((id) => present.has(id));
+  const seen = new Set(kept);
+  const appended = presentIds.filter((id) => !seen.has(id));
+  return [...kept, ...appended];
+}
+
 export function commitChange(doc: CadDocument, label: string): CadDocument {
   const version = doc.meta.version + 1;
   return {
@@ -1075,7 +1100,15 @@ export function migrateLegacyMleaderCompositions(document: CadDocument): CadDocu
   return {
     ...document,
     entities,
-    modelSpace: { entityIds: entities.map((entity) => entity.id) },
+    // Mismo defecto que en `replaceEditorProjection`: `entities` está ordenado
+    // por id y derivar de ahí el orden de dibujo lo alfabetizaba. Migrar
+    // MLEADER heredados no debe reordenar el plano del usuario.
+    modelSpace: {
+      entityIds: preserveDrawOrder(
+        document.modelSpace.entityIds,
+        entities.map((entity) => entity.id),
+      ),
+    },
     lossManifest: [...document.lossManifest, ...warnings],
   };
 }
@@ -1124,6 +1157,14 @@ export function replaceEditorProjection(
     meta: { ...current.meta, schema: CAD_DOCUMENT_SCHEMA, unit: projection.meta.unit },
     layers: projection.layers.length ? projection.layers : current.layers,
     entities,
-    modelSpace: { entityIds: entities.map((entity) => entity.id) },
+    // `entities` va ordenado por id para canonicalización; derivar el orden de
+    // dibujo de ahí lo alfabetizaba en CADA reproyección (tras editar una
+    // propiedad, transformar o mover un grip). Se conserva el z-order previo.
+    modelSpace: {
+      entityIds: preserveDrawOrder(
+        base?.modelSpace?.entityIds ?? [],
+        entities.map((entity) => entity.id),
+      ),
+    },
   };
 }
