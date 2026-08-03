@@ -617,9 +617,15 @@ function entityElevations(entity: CadEntity): number[] {
  */
 export function cadDocumentDxfExportLosses(
   document: CadDocument,
+  filter?: (entity: CadEntity) => boolean,
 ): CadLossManifestEntry[] {
   const losses: CadLossManifestEntry[] = [];
-  for (const entity of document.entities) {
+  // El informe debe usar EL MISMO filtro que la exportación (ámbito de
+  // selección, capas ocultas): avisar de pérdidas en entidades que no se van a
+  // exportar sería ruido y erosionaría la confianza en el aviso.
+  for (const entity of document.entities.filter((candidate) =>
+    filter ? filter(candidate) : true,
+  )) {
     // 1. Entidades que no se escriben en absoluto.
     if (
       !DXF_NON_PRIMITIVE_TYPES.has(entity.type) &&

@@ -418,6 +418,7 @@ import {
   cadDocumentDxfInserts,
   cadDocumentNativeDxfMTexts,
   cadDocumentNativeDxfMleaders,
+  cadDocumentDxfExportLosses,
   cadDocumentNativeDxfPrimitives,
   cadDocumentNativeDxfSemanticDimensions,
   cadDxfCurvesToNativeEntities,
@@ -14439,20 +14440,20 @@ export default function Layout3DEditor({
               }))
           : [];
       const dxfDocument = snapshotDocument();
+      // Un único predicado: el informe de pérdidas DEBE mirar exactamente las
+      // mismas entidades que se exportan, o avisaría de cosas que no viajan.
+      const dxfExportEntityFilter = (entity: CadEntity) => {
+        if (!CAD_ENTITY_REGISTRY.supports(entity)) return false;
+        if (options.scope === "selection" && !selectedNativeIds.has(entity.id))
+          return false;
+        const layer = loadedCadDocumentRef.current?.layers.find(
+          (candidate) => candidate.id === entity.layer,
+        );
+        return options.includeHidden || layer?.visible !== false;
+      };
       const primitives = cadDocumentNativeDxfPrimitives(
         dxfDocument,
-        (entity) => {
-          if (!CAD_ENTITY_REGISTRY.supports(entity)) return false;
-          if (
-            options.scope === "selection" &&
-            !selectedNativeIds.has(entity.id)
-          )
-            return false;
-          const layer = loadedCadDocumentRef.current?.layers.find(
-            (candidate) => candidate.id === entity.layer,
-          );
-          return options.includeHidden || layer?.visible !== false;
-        },
+        dxfExportEntityFilter,
       );
       const hatches = cadDocumentNativeDxfHatches(dxfDocument, (entity) => {
         if (options.scope === "selection" && !selectedNativeIds.has(entity.id))
@@ -14541,6 +14542,24 @@ export default function Layout3DEditor({
         `Layout exportado a DXF (${exported.entityCount} entidades).`,
         "DXF",
       );
+      // El DXF exportado es PARCIAL por diseño. Callarse las degradaciones
+      // haría que el usuario confiara en un fichero que perdió geometría, así
+      // que se avisa con el MISMO filtro que se acaba de exportar.
+      const exportLosses = cadDocumentDxfExportLosses(
+        dxfDocument,
+        dxfExportEntityFilter,
+      );
+      if (exportLosses.length > 0) {
+        const dropped = exportLosses.filter(
+          (loss) => loss.severity === "error",
+        ).length;
+        toast.error(
+          dropped > 0
+            ? `El DXF no incluye ${dropped} entidad(es) sin representación y degrada otras ${exportLosses.length - dropped}. Conserva el documento de Valle Design como original.`
+            : `El DXF degrada ${exportLosses.length} entidad(es) (elevación Z o pesos de spline). Conserva el documento de Valle Design como original.`,
+          "DXF",
+        );
+      }
     } catch {
       toast.error("No se pudo exportar el DXF.", "DXF");
     }

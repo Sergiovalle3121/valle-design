@@ -134,4 +134,30 @@ for (const type of ["hatch", "mtext", "dimension", "mleader", "insert"]) {
   );
 }
 
+// --- El informe respeta el MISMO filtro que la exportación ----------------
+//
+// Si divergieran, se avisaría de pérdidas en entidades que no viajan al
+// fichero, y ese ruido erosiona la confianza en el aviso.
+
+const mixed = documentWith([elevated, flat]);
+
+assert.equal(
+  cadDocumentDxfExportLosses(mixed).length,
+  1,
+  "sin filtro se evalúa todo el documento",
+);
+
+assert.deepEqual(
+  cadDocumentDxfExportLosses(mixed, (entity) => entity.id === "linea-plana"),
+  [],
+  "si la entidad elevada queda fuera del ámbito exportado, no debe avisarse",
+);
+
+assert.equal(
+  cadDocumentDxfExportLosses(mixed, (entity) => entity.id === "linea-elevada")
+    .length,
+  1,
+  "si la entidad elevada SÍ se exporta, el aviso debe aparecer",
+);
+
 console.log("dxf-export-losses.spec.ts OK");
