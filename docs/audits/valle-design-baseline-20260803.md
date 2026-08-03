@@ -147,12 +147,61 @@ Confirmado por lectura directa del código:
 Es pérdida funcional silenciosa. Confirma la conclusión de la auditoría de
 partida.
 
-**Estado:** **no corregido.** Es trabajo de Milestone 1 y no debe hacerse a
-medias: exige render, hit-test, bounds, grips por vértice y segmento, snaps,
-propiedades, transformaciones, índice espacial, uso como boundary de HATCH,
-serialización determinista, DXF con `bulge`/`width` y manifiesto de pérdidas,
-undo/redo, recovery y colaboración, con pruebas unitarias, property-based,
-golden y E2E.
+**Estado: CORREGIDO** (§4.6). `polyline` es ya una entidad nativa con
+adaptador completo. Queda abierto el `bulge` en DXF (§3.4).
+
+### 3.2 P0 — El orden de dibujo se destruía en cada guardado
+
+Confirmado por lectura directa y por prueba que falla sin la corrección:
+
+- `modelSpace.entityIds` **es** el z-order del dibujo.
+- `cad-document.ts` · `serializeCadDocument` lo ordenaba alfabéticamente.
+- El comentario del propio fichero reconoce que «el serializado **también es
+  un formato de reload**», así que no era una forma canónica sólo para hashes:
+  **cada guardado reescribía el orden de dibujo por id**.
+
+**Consecuencia:** Bring to front / Send to back, el apilado de hatches y
+wipeouts y la superposición de anotaciones no sobrevivían a un ciclo
+guardar→abrir. Un plano no se reabría como se dibujó.
+
+Agravante: `benchmark/corpus.spec.ts` **fijaba la pérdida**, exigiendo que
+invertir `modelSpace.entityIds` produjera bytes idénticos.
+
+**Estado: CORREGIDO** (§4.7).
+
+### 3.3 Deuda de orden de dibujo aún abierta
+
+`serializeCadDocument` ya conserva el orden, pero **siguen ordenando
+`entityIds`** otros caminos, y deben revisarse uno a uno:
+`document-import.ts:145`, `cad-fillet.ts:148`, `cad-xrefs.ts:241`,
+`professional-blocks.ts:334,353,398` y `cad-document.ts:960`.
+
+En varios de ellos el orden alfabético es sólo un valor por defecto al crear
+un documento (donde no hay z-order previo que preservar), pero en otros añade
+una entidad nueva y reordena **todo** el espacio de modelo. No se han tocado
+aquí porque cada caso exige decidir la posición correcta de inserción
+(normalmente «al frente»), no simplemente quitar el `.sort()`.
+
+### 3.4 P0 — DXF pierde `bulge` en AMBAS direcciones, en silencio
+
+Verificado por lectura directa:
+
+- **Exportación** — `dxf-export.ts` · `pushPolyline` escribe `POLYLINE` y
+  `VERTEX` con sólo coordenadas: **nunca emite el código de grupo 42**
+  (`bulge`). Cada segmento de arco sale como cuerda recta.
+- **Importación** — `dxf-cad-document.ts:712-735` construye `vertices` con
+  `point3(...)` y **descarta** el `bulge` de origen.
+- No hay `lossManifest` alguno en `dxf-export.ts`: la pérdida **no se
+  registra ni se avisa**.
+
+Esto importa más ahora que POLYLINE es nativa y soporta arcos de verdad: el
+runtime los dibuja bien, pero un round-trip por DXF los aplana.
+
+**Estado: no corregido, y deliberadamente no empezado.** La corrección
+correcta atraviesa la abstracción compartida `CadDxfPoint`/`CadDxfPrimitive`
+en los dos sentidos, más el manifiesto de pérdidas, que cambiaría el contrato
+de exportación cubierto por las puertas de OpenAPI/SDK. Es una unidad de
+trabajo propia; hacerla a medias sería peor que no empezarla.
 
 ### 3.2 Toolchain no reproducible
 
@@ -220,6 +269,37 @@ Chromium (antes fallaban ambos en CI).
 sus specs). Reparación acotada a secuencias que hacen *round-trip* limpio, para
 no tocar texto legítimo. Cero secuencias residuales.
 
+### 4.6 POLYLINE nativa de primera clase — *producto*
+
+`entity-runtime.ts`: `polyline` entra en `CadNativeEntity` y se registra un
+adaptador completo — render con teselado de arcos por `bulge`, bounds
+**exactos**, hit-test, selección window/crossing, grips por vértice, snaps
+(vértice, punto medio, centro y punto medio de arco), propiedades y
+transformaciones. Se corrige además `blockChildPaths`, que dibujaba los arcos
+de una polilínea dentro de un bloque como cuerdas rectas.
+
+Convención DXF: `bulge = tan(θ/4)`, positivo = antihorario.
+
+Verificado en `polyline-runtime.spec.ts` contra geometría calculada a mano:
+en un semicírculo de `bulge` 1 **todos** los puntos teselados caen sobre el
+círculo de radio 50 centrado en la mitad de la cuerda, los extremos aterrizan
+en sus vértices y un `bulge` negativo refleja el arco al otro lado.
+
+### 4.7 El orden de dibujo sobrevive al guardado — *producto*
+
+`serializeCadDocument` deja de ordenar `modelSpace.entityIds`. El determinismo
+no se pierde: el orden de dibujo **es** contenido, así que dos documentos que
+difieren en z-order deben serializar distinto. Capas, entidades y bloques
+siguen ordenándose por id porque son conjuntos.
+
+`benchmark/corpus.spec.ts` se separa en sus dos afirmaciones reales:
+reordenar capas/entidades sigue siendo absorbido por la canonicalización;
+invertir el orden de dibujo **debe** cambiar el serializado.
+
+Prueba verificada como no vacua: reintroduciendo el `.sort()`,
+`draw-order.spec.ts` falla con `['alfa','medio','zeta']` en lugar de
+`['zeta','medio','alfa']`.
+
 ### 4.5 Firefox con WebGL software — *harness*
 
 `apps/web/playwright.config.ts` fuerza las prefs de WebGL por software en
@@ -243,7 +323,9 @@ excluir el navegador.
 | Build monorepo | `npx turbo run build` | ✅ 4/4 |
 | Typecheck web | `npm run typecheck` | ✅ |
 | Lint web | `npm run lint` | ✅ 0 errores · 151 warnings (= baseline, sin regresión) |
-| Specs unitarios web | `npm run test:specs` | ✅ **127/127** |
+| Specs unitarios web | `npm run test:specs` | ✅ **129/129** (127 base + polyline + draw-order) |
+| Contrato CAD | `npm run check:cad` | ✅ |
+| Benchmark determinista | `npm run benchmark:cad:smoke` | ✅ hashes estables |
 | E2E recovery (Chromium) | `playwright test …11-cad-recovery-journal` | ✅ 2/2 |
 | E2E regresión WebGL (Chromium) | `playwright test …29-cad-webgl-unavailable` | ✅ 1/1 |
 | **E2E Firefox** | — | ⛔ **no ejecutable** (binarios bloqueados por red) |
@@ -254,8 +336,10 @@ excluir el navegador.
 ## 6. Deuda por severidad
 
 ### P0
-1. **POLYLINE no nativa** — pérdida funcional silenciosa (§3.1). *Abierto.*
-2. ~~Editor destruido sin WebGL~~ — *corregido en esta sesión.*
+1. **DXF pierde `bulge` en ambas direcciones, sin avisar** (§3.4). *Abierto.*
+2. ~~Editor destruido sin WebGL~~ — *corregido.*
+3. ~~POLYLINE no nativa~~ — *corregido.*
+4. ~~Orden de dibujo destruido en cada guardado~~ — *corregido.*
 
 ### P1
 3. Fallos de Chromium #1, #2, #5–#19 sin diagnosticar (§2.5).
@@ -295,8 +379,13 @@ Para evitar cualquier lectura optimista:
 - **No** se ha verificado que Firefox pase (imposible en este entorno).
 - **No** se ha ejecutado la suite full-stack real contra PostgreSQL.
 - **No** se han diagnosticado los ~17 fallos restantes de Chromium.
-- **No** se ha tocado POLYLINE, draw order, validación canónica, manifiesto de
-  pérdidas DXF ni colaboración semántica.
+- **No** se ha verificado en E2E el efecto de hacer POLYLINE nativa: ahora las
+  polilíneas aparecen en listas, selección e índices donde antes eran
+  invisibles. Es el comportamiento correcto, pero cualquier golden que contara
+  entidades nativas estaba contando el defecto. Sólo CI puede confirmarlo.
+- **No** se ha tocado la validación canónica discriminada, el manifiesto de
+  pérdidas DXF (§3.4), los `.sort()` restantes de draw order (§3.3) ni la
+  colaboración semántica.
 - **No** hay avance en DWG, 3D B-Rep, billing, correo transaccional, desktop,
   observabilidad ni despliegue.
 - La nota global del producto **no** ha cambiado de forma material: se ha
