@@ -169,18 +169,12 @@ invertir `modelSpace.entityIds` produjera bytes idénticos.
 
 **Estado: CORREGIDO** (§4.7).
 
-### 3.3 Deuda de orden de dibujo aún abierta
+### 3.3 Deuda de orden de dibujo — CERRADA
 
-`serializeCadDocument` ya conserva el orden, pero **siguen ordenando
-`entityIds`** otros caminos, y deben revisarse uno a uno:
-`document-import.ts:145`, `cad-fillet.ts:148`, `cad-xrefs.ts:241`,
-`professional-blocks.ts:334,353,398` y `cad-document.ts:960`.
-
-En varios de ellos el orden alfabético es sólo un valor por defecto al crear
-un documento (donde no hay z-order previo que preservar), pero en otros añade
-una entidad nueva y reordena **todo** el espacio de modelo. No se han tocado
-aquí porque cada caso exige decidir la posición correcta de inserción
-(normalmente «al frente»), no simplemente quitar el `.sort()`.
+Los otros seis caminos que ordenaban `entityIds` están corregidos según lo que
+cada uno significa realmente (§4.8): geometría nueva al frente (fillet, xref,
+block insert), orden de origen preservado (import DXF y documentos heredados)
+y **sustitución posicional** para `block:define`/`block:explode`.
 
 ### 3.4 P0 — DXF pierde `bulge` en AMBAS direcciones, en silencio
 
@@ -197,11 +191,14 @@ Verificado por lectura directa:
 Esto importa más ahora que POLYLINE es nativa y soporta arcos de verdad: el
 runtime los dibuja bien, pero un round-trip por DXF los aplana.
 
-**Estado: no corregido, y deliberadamente no empezado.** La corrección
-correcta atraviesa la abstracción compartida `CadDxfPoint`/`CadDxfPrimitive`
-en los dos sentidos, más el manifiesto de pérdidas, que cambiaría el contrato
-de exportación cubierto por las puertas de OpenAPI/SDK. Es una unidad de
-trabajo propia; hacerla a medias sería peor que no empezarla.
+**Estado: CORREGIDO** (§4.9).
+
+**Corrección a esta misma estimación:** dije que atravesaría la abstracción
+`CadDxfPoint`/`CadDxfPrimitive` y que cambiaría el contrato de exportación.
+Lo primero es cierto pero resultó trivial —`CadDxfPoint` es `{x, y}`, así que
+añadir un `bulge` opcional es retrocompatible y ningún productor existente se
+entera—. Lo segundo era **falso**: no hizo falta tocar el contrato, y las
+puertas de OpenAPI/SDK siguen intactas. La estimación era pesimista.
 
 ### 3.2 Toolchain no reproducible
 
@@ -300,6 +297,34 @@ Prueba verificada como no vacua: reintroduciendo el `.sort()`,
 `draw-order.spec.ts` falla con `['alfa','medio','zeta']` en lugar de
 `['zeta','medio','alfa']`.
 
+### 4.8 Añadir una entidad ya no reordena el plano — *producto*
+
+Los seis `.sort()` restantes sobre `entityIds`, resueltos por su semántica:
+
+- **Al frente**: arco de fillet, xref adjuntado, `block:insert`.
+- **Orden de origen**: el import DXF (el orden del fichero **es** el orden de
+  dibujo) y el fallback de documentos heredados sin `modelSpace`.
+- **Sustitución posicional** (`replaceEntityIdsAt` en `cad-document.ts`):
+  `block:define` con reemplazo hereda la posición de la geometría sustituida y
+  `block:explode` devuelve las entidades al índice que ocupaba el INSERT. Sin
+  esto, convertir en bloque y explotar cambiaba qué tapaba a qué. La prueba
+  fija el round-trip: definir y explotar restituye el orden exacto.
+
+`cad-fillet.spec.ts` esperaba el orden alfabético y por tanto **fijaba el
+defecto**, igual que `benchmark/corpus.spec.ts`. Corregido con un comentario
+que lo explica, no rodeado.
+
+### 4.9 El `bulge` sobrevive al round-trip DXF — *producto*
+
+Se propaga el `bulge` en los cuatro puntos donde se perdía: el helper de
+vértices del importador, primitiva→canónico, canónico→primitiva y el escritor
+DXF (código de grupo 42). Además, una polilínea cerrada **con arcos** deja de
+clasificarse como `rect`: el detector sólo miraba posiciones de vértices, así
+que degradaba a rectángulo recto una polilínea de lados curvos.
+
+Verificado extremo a extremo en `dxf-bulge-roundtrip.spec.ts` y confirmado
+**no vacuo**: quitando la emisión del grupo 42 la prueba falla.
+
 ### 4.5 Firefox con WebGL software — *harness*
 
 `apps/web/playwright.config.ts` fuerza las prefs de WebGL por software en
@@ -323,7 +348,7 @@ excluir el navegador.
 | Build monorepo | `npx turbo run build` | ✅ 4/4 |
 | Typecheck web | `npm run typecheck` | ✅ |
 | Lint web | `npm run lint` | ✅ 0 errores · 151 warnings (= baseline, sin regresión) |
-| Specs unitarios web | `npm run test:specs` | ✅ **129/129** (127 base + polyline + draw-order) |
+| Specs unitarios web | `npm run test:specs` | ✅ **130/130** (127 base + polyline + draw-order + dxf-bulge) |
 | Contrato CAD | `npm run check:cad` | ✅ |
 | Benchmark determinista | `npm run benchmark:cad:smoke` | ✅ hashes estables |
 | E2E recovery (Chromium) | `playwright test …11-cad-recovery-journal` | ✅ 2/2 |
@@ -335,11 +360,17 @@ excluir el navegador.
 
 ## 6. Deuda por severidad
 
-### P0
-1. **DXF pierde `bulge` en ambas direcciones, sin avisar** (§3.4). *Abierto.*
-2. ~~Editor destruido sin WebGL~~ — *corregido.*
-3. ~~POLYLINE no nativa~~ — *corregido.*
-4. ~~Orden de dibujo destruido en cada guardado~~ — *corregido.*
+### P0 — todos cerrados en esta sesión
+1. ~~Editor destruido sin WebGL~~ — *corregido.*
+2. ~~POLYLINE no nativa~~ — *corregido.*
+3. ~~Orden de dibujo destruido en cada guardado~~ — *corregido.*
+4. ~~Orden de dibujo reordenado al añadir una entidad~~ — *corregido.*
+5. ~~DXF pierde `bulge` en ambas direcciones~~ — *corregido.*
+
+Queda **abierto** el manifiesto de pérdidas de exportación: `dxf-export.ts`
+sigue sin `lossManifest`, así que otras degradaciones (Z, OCS/extrusion,
+widths, hatch curvo) siguen sin registrarse. El `bulge` ya no se pierde, pero
+el mecanismo general de aviso no existe.
 
 ### P1
 3. Fallos de Chromium #1, #2, #5–#19 sin diagnosticar (§2.5).
