@@ -49,12 +49,93 @@ describe('buildDxfExportInput — proyección documento canónico → DXF R12', 
         label: 'Celda',
       }),
     ]);
+    // Una LINE es geometría, no una cota. Antes se proyectaba como
+    // `{type:'dim'}` y salía del DXF en la capa COTAS; ahora viaja por el canal
+    // de geometría y se emite como entidad LINE en su propia capa.
     expect(input.annotations).toEqual([
-      expect.objectContaining({ type: 'dim', x2: 5000 }),
       expect.objectContaining({ type: 'text', text: 'LINEA 1' }),
+    ]);
+    expect(input.geometry?.lines).toEqual([
+      expect.objectContaining({ x1: 0, y1: 0, x2: 5000, y2: 0, layer: '0' }),
     ]);
     expect(input.stations).toEqual([]);
     expect(input.connectors).toEqual([]);
+  });
+
+  it('emite ARC, CIRCLE y todos los vértices de una POLYLINE en su capa real', () => {
+    const input = buildDxfExportInput(
+      {
+        meta: { schema: 3, version: 1, unit: 'mm' },
+        entities: [
+          {
+            id: 'a1',
+            type: 'arc',
+            center: { x: 4000, y: 3000 },
+            radius: 120,
+            startAngle: 0,
+            endAngle: 180,
+            layer: 'REAL',
+          },
+          {
+            id: 'c1',
+            type: 'circle',
+            center: { x: 1000, y: 1000 },
+            radius: 250,
+            layer: 'Capa con espacios',
+          },
+          {
+            id: 'p1',
+            type: 'polyline',
+            closed: true,
+            vertices: [
+              { x: 0, y: 0 },
+              { x: 1000, y: 0 },
+              { x: 1000, y: 900 },
+            ],
+            layer: 'MUROS',
+          },
+        ],
+      },
+      'Plano',
+      null,
+      null,
+    );
+
+    expect(input.geometry?.arcs).toEqual([
+      expect.objectContaining({
+        cx: 4000,
+        cy: 3000,
+        r: 120,
+        startAngle: 0,
+        endAngle: 180,
+        layer: 'REAL',
+      }),
+    ]);
+    // El nombre de capa se normaliza a lo que admite R12, sin inventar capas.
+    expect(input.geometry?.circles).toEqual([
+      expect.objectContaining({
+        cx: 1000,
+        cy: 1000,
+        r: 250,
+        layer: 'Capa_con_espacios',
+      }),
+    ]);
+    // Tres vértices cerrados ⇒ tres segmentos (incluido el de cierre). El
+    // mapeo anterior conservaba únicamente el primero y el último punto.
+    expect(input.geometry?.lines).toHaveLength(3);
+    expect(input.geometry?.lines).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          x1: 1000,
+          y1: 900,
+          x2: 0,
+          y2: 0,
+          layer: 'MUROS',
+        }),
+      ]),
+    );
+    // La huella cubre el arco completo, no sólo su centro.
+    expect(input.footprint.footprintW).toBeGreaterThanOrEqual(4120);
   });
 
   it('documento vacío/null produce una huella mínima estable (nunca 0×0)', () => {

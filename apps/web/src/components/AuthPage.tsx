@@ -8,6 +8,7 @@ import { PRODUCT_LABEL } from "@/config/brand";
 import { COMMERCIAL_LINKS } from "@/config/commercial";
 import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
 import { localReturnTo } from "@/lib/session";
+import { useDesignAuth } from "@/contexts/DesignAuthContext";
 
 type AuthMode = "login" | "register";
 
@@ -15,6 +16,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
   const register = mode === "register";
   const router = useRouter();
   const searchParams = useSearchParams();
+  const auth = useDesignAuth();
   const [busy, setBusy] = useState(false);
   const submitting = useRef(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -47,6 +49,15 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
         );
         event.currentTarget.reset();
       } else {
+        // `router.replace` navega en cliente y el proveedor de identidad vive
+        // en el layout raíz: no se remonta, así que su `refresh()` de montaje
+        // NO vuelve a correr y `router.refresh()` sólo revalida los server
+        // components. El contexto se quedaba con la sesión nula leída ANTES de
+        // iniciar sesión, y el destino — que sí depende de él — anunciaba
+        // "Tu sesión ha expirado" justo después de un login correcto.
+        // Se relee la sesión ANTES de navegar para que el destino monte ya
+        // autenticado; el servidor sigue siendo la autoridad.
+        await auth.refresh();
         router.replace(localReturnTo(searchParams.get("returnTo")));
         router.refresh();
       }
