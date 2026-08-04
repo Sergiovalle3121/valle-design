@@ -18142,7 +18142,13 @@ export default function Layout3DEditor({
               <div
                 data-testid="cad-webgl-unavailable"
                 role="status"
-                className="absolute inset-0 z-30 flex items-center justify-center bg-[#0a0f1e] p-6 text-center"
+                // El aviso es un TELÓN, no una capa modal: sólo rellena el
+                // viewport que no se puede pintar. A `z-30` quedaba por encima
+                // de la barra de dibujo (`z-20`) y se comía todos sus clics, así
+                // que sin WebGL el usuario veía las herramientas pero no podía
+                // usar ninguna. Va por debajo de los controles flotantes y no
+                // captura puntero: no tiene nada con lo que interactuar.
+                className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-[#0a0f1e] p-6 text-center"
               >
                 <div className="max-w-md space-y-2">
                   <p className="text-sm font-medium text-white">
