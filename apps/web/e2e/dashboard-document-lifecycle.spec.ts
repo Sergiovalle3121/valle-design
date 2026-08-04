@@ -119,6 +119,10 @@ test("crea proyecto y documentos con IDs propios, guarda CAS y reabre tras una n
   await page.goto("/dashboard");
   await page.getByLabel("Nombre del documento").fill("Plano B");
   await page.getByLabel("Crear documento").click();
+  // Crear un documento navega al estudio del nuevo id. Hay que dejar que esa
+  // navegación termine antes de pedir la siguiente: Firefox aborta la que está
+  // en vuelo y `page.goto` falla con NS_BINDING_ABORTED.
+  await page.waitForURL(/\/studio\/[0-9a-f-]{36}$/iu);
   expect(documents[0].id).not.toBe(documents[1].id);
   expect(
     documents.map(({ model, revision }) => [model, revision]),

@@ -183,6 +183,18 @@ jobs:
         working-directory: apps/web
         run: npx playwright install --with-deps chromium firefox
 
+      # WebGL por software para Firefox. El runner no tiene GPU: Chromium cae
+      # solo en SwiftShader, pero Firefox agota los drivers
+      # (FEATURE_FAILURE_WEBGL_EXHAUSTED_DRIVERS) y se queda SIN viewport, así
+      # que las pruebas que dependen de la escena real no medían el producto.
+      # La alternativa —excluir Firefox o saltarse esos specs— escondería el
+      # problema; darle a Mesa su driver software lo resuelve de verdad.
+      - name: Install Mesa software OpenGL (Firefox WebGL)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-dri libglx-mesa0
+          echo "Renderer disponible:"; (glxinfo -B 2>/dev/null || true)
+
       # El build de producción INLINEA NEXT_PUBLIC_API_URL: debe apuntar al
       # origen de la API real que este job arranca (localhost:4000). Los
       # goldens interceptan ese origen en la frontera de red (herméticos);
@@ -225,6 +237,11 @@ jobs:
           E2E_REAL_API: "1"
           E2E_IDENTITY_HARNESS_KEY: valle-design-e2e-harness-key-32-characters-minimum
           CAD_PERF_E2E: "1"
+          # Fuerza el rasterizador software de Mesa (llvmpipe) para que Firefox
+          # obtenga contexto WebGL sin GPU. Chromium no lo necesita y no le
+          # afecta: ya usa su propio SwiftShader.
+          LIBGL_ALWAYS_SOFTWARE: "1"
+          GALLIUM_DRIVER: llvmpipe
         run: npx playwright test
 
       - name: Upload Playwright report
