@@ -2,8 +2,9 @@ import { expect, test, type BrowserContext } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadV1Backend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
-import { migrateCadDocument, type CadDocument } from '../../src/lib/cad/cad-document';
+import { migrateCadDocument, type CadDocument, type CadEntity } from '../../src/lib/cad/cad-document';
 import { cadDocumentToEditorSnapshot } from '../../src/lib/cad/editor-snapshot';
+import { saveAndSettle } from '../fixtures/cad-save';
 
 // MIGRACIÓN R3: mock en la superficie v1 real. DIFERENCIA de transporte
 // documentada: el PUT legacy arrastraba el array `assets` junto al documento;
@@ -76,7 +77,10 @@ test('neutral drawing uses units, layers, ABS/REL/POLAR, closed polyline and OFF
     await page.getByTestId('cad-dynamic-field-angle').fill('90deg');
     await dynamic.getByRole('button', { name: 'Aplicar' }).click();
     await page.getByRole('button', { name: 'Terminar' }).click();
-    await expect(page.getByText(/2 equipos/)).toBeVisible();
+    // PRIORIDAD 2 — antes esto afirmaba `/2 equipos/`: LINE creaba MUROS
+    // heredados, uno por tramo. Hoy son dos entidades `line` canónicas y el
+    // contador de equipo no se mueve.
+    await expect(page.getByText(/0 equipos/)).toBeVisible();
   });
 
   await test.step('13. Crear polilínea cerrada', async () => {
@@ -86,38 +90,53 @@ test('neutral drawing uses units, layers, ABS/REL/POLAR, closed polyline and OFF
     await fillPoint(page, '2000', '0');
     await fillPoint(page, '0', '1500');
     await page.getByTestId('cad-polyline-close').click();
-    await expect(page.getByText(/5 equipos/)).toBeVisible();
+    // Antes: `/5 equipos/` — la polilínea se partía en un muro POR TRAMO. Hoy
+    // es UNA entidad `polyline` cerrada, así que el conteo heredado no cambia.
+    await expect(page.getByText(/0 equipos/)).toBeVisible();
+    await expect(page.getByTestId('cad-native-properties')).toContainText('POLYLINE');
   });
 
   await test.step('14. Aplicar offset', async () => {
-    await page.getByTitle(/Selección profesional/).click();
-    await page.getByTestId('cad-quick-select-text').fill('Pline 1');
-    await page.getByTestId('cad-quick-select-apply').click();
-    await expect(page.getByTestId('cad-selection-count')).toHaveText('1 seleccionados');
-    await page.getByLabel('Cerrar panel profesional').click();
+    // La polilínea recién cerrada queda seleccionada por la propia transacción
+    // canónica, así que ya no hace falta buscarla por la etiqueta heredada
+    // «Pline 1» — que además ya no existe.
     await page.getByRole('button', { name: 'Offset', exact: true }).click();
     await page.getByTestId('cad-dynamic-field-offset').fill('250mm');
     await page.getByTestId('cad-dynamic-input').getByRole('button', { name: 'Aplicar' }).click();
-    await expect(page.getByText(/6 equipos/)).toBeVisible();
+    await expect(page.getByTestId('cad-native-properties')).toContainText('POLYLINE');
   });
 
-  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
-  // Se espera al CONTENIDO persistido, no a un número exacto de versiones CAS.
-  //
-  // `version` cuenta PUT aceptados, y el autosave (debounce 2 s) dispara varias
-  // veces durante este recorrido de ~25 s: medido, 4 PUT a +7.9s, +12.2s,
-  // +19.4s y +23.3s. Exigir `version === 1` afirmaba en realidad «el autosave
-  // no disparó nunca» — una afirmación sobre el timing del test, no sobre el
-  // producto, imposible de satisfacer de forma determinista mientras exista
-  // autosave. Por eso el valor oscilaba entre 1, 3 y 4 según la máquina.
-  //
-  // Que el autosave versione el trabajo intermedio es DESEABLE en un CAD: es
-  // lo que evita perder el dibujo si la sesión se cae. El requisito real de
-  // este paso es que el guardado deje el dibujo completo en el servidor, y eso
-  // es lo que se espera y se afirma aquí.
-  await expect.poll(() => backend.snapshot().assets.length).toBe(6);
-  expect(backend.snapshot().assets).toHaveLength(6);
-  expect(backend.snapshot().assets.filter((asset) => asset.label?.startsWith('Pline'))).toHaveLength(4);
-  expect(backend.snapshot().document?.layers.some((layer) => layer.id === 'Acceptance_Geometry')).toBe(true);
+  await saveAndSettle(page, backend);
+
+  // El documento persistido contiene GEOMETRÍA CANÓNICA, no assets heredados.
+  // Antes esto exigía 6 assets, de los cuales 4 etiquetados «Pline» — es decir,
+  // fijaba el defecto: una polilínea troceada en un muro por tramo.
+  const stored = backend.snapshot().document!;
+  const byType = (type: CadEntity['type']) =>
+    stored.entities.filter((entity) => entity.type === type);
+
+  // LINE con tres puntos ⇒ dos segmentos ⇒ dos entidades `line`.
+  expect(byType('line')).toHaveLength(2);
+
+  // La polilínea cerrada y su desfase: DOS entidades, cada una completa.
+  const polylines = byType('polyline') as Extract<CadEntity, { type: 'polyline' }>[];
+  expect(polylines).toHaveLength(2);
+  for (const polyline of polylines) {
+    expect(polyline.closed).toBe(true);
+    expect(polyline.vertices).toHaveLength(3);
+    expect(polyline.vertices.every((vertex) => vertex.z === 0)).toBe(true);
+  }
+  // El desfase es geometría NUEVA, no la misma movida.
+  expect(new Set(polylines.map((polyline) => polyline.id)).size).toBe(2);
+
+  // Ningún asset heredado nació de dibujar geometría neutra.
+  expect(backend.snapshot().assets).toHaveLength(0);
+
+  // Todo lo dibujado está en el orden de dibujo, sin fantasmas ni omisiones.
+  expect([...stored.modelSpace.entityIds].sort()).toEqual(
+    stored.entities.map((entity) => entity.id).sort(),
+  );
+
+  expect(stored.layers.some((layer) => layer.id === 'Acceptance_Geometry')).toBe(true);
   await page.getByTestId('cad-canvas').screenshot({ path: testInfo.outputPath('neutral-precision-drawing.png'), scale: 'css' });
 });

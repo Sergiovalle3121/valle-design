@@ -1,4 +1,5 @@
 import type { CadEntity } from "./cad-document";
+import { offsetPolyline, offsetSegment } from "./geom-edit";
 
 /**
  * Traducción PURA de una acción de dibujo a UNA entidad canónica.
@@ -221,3 +222,61 @@ export const DRAW_ACTION_HISTORY_LABEL: Record<
   addRect: "create:rect",
   addCircle: "create:circle",
 };
+
+
+/**
+ * OFFSET de una entidad canónica.
+ *
+ * El OFFSET heredado no era un offset: copiaba el asset y le sumaba la
+ * distancia a `x`, es decir TRASLADABA la caja. Sobre geometría real la
+ * operación correcta es desplazar perpendicularmente cada tramo (unión miter en
+ * los vértices interiores), que es justo lo que `geom-edit` ya calcula.
+ *
+ * Devuelve `null` para lo que no admite un offset bien definido en este alcance.
+ */
+export function offsetCanonicalEntity(
+  entity: CadEntity,
+  distance: number,
+  newId: () => string,
+): CadEntity | null {
+  if (!Number.isFinite(distance) || distance === 0) return null;
+
+  if (entity.type === "line") {
+    const moved = offsetSegment(
+      { a: { x: entity.start.x, y: entity.start.y }, b: { x: entity.end.x, y: entity.end.y } },
+      distance,
+    );
+    return {
+      ...entity,
+      id: newId(),
+      start: { x: moved.a.x, y: moved.a.y, z: entity.start.z },
+      end: { x: moved.b.x, y: moved.b.y, z: entity.end.z },
+    };
+  }
+
+  if (entity.type === "polyline") {
+    // Una polilínea cerrada se desplaza sobre su recorrido COMPLETO (incluido
+    // el tramo de cierre) y vuelve a cerrarse; si no, el contorno resultante
+    // quedaría abierto por una esquina.
+    const source = entity.vertices.map((vertex) => ({ x: vertex.x, y: vertex.y }));
+    const path = entity.closed ? [...source, source[0]] : source;
+    const moved = offsetPolyline(path, distance);
+    const vertices = (entity.closed ? moved.slice(0, -1) : moved).map((point, index) => ({
+      x: point.x,
+      y: point.y,
+      z: entity.vertices[Math.min(index, entity.vertices.length - 1)]?.z ?? 0,
+    }));
+    if (vertices.length < (entity.closed ? 3 : 2)) return null;
+    return { ...entity, id: newId(), vertices };
+  }
+
+  if (entity.type === "circle") {
+    // Un círculo concéntrico: radio + distancia. Un radio no positivo no es un
+    // círculo, así que la operación no produce nada.
+    const radius = entity.radius + distance;
+    if (radius <= 0) return null;
+    return { ...entity, id: newId(), radius };
+  }
+
+  return null;
+}

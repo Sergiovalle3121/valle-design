@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadV1Backend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
+import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument } from '../../src/lib/cad/cad-document';
 
 function canonicalDocument(): CadDocument {
@@ -97,8 +98,13 @@ test('multiple paper viewports persist, preflight and publish as one audited vec
   const tabs = page.locator('[data-testid^="cad-layout-tab-"]');
   await tabs.nth(2).dragTo(tabs.nth(0));
   await page.getByLabel('Cerrar paquete de entrega').click();
-  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
-  await expect.poll(() => backend.snapshot().version).toBe(1);
+  // El recorrido hasta aquí abarca varios pasos de UI y supera los 2 s del
+  // debounce, así que el autosave persiste parte del lote de forma legítima:
+  // el número EXACTO de versiones dependía del tiempo del usuario, no del
+  // contrato. Se confirma que no queda trabajo pendiente y se afirma el
+  // CONTENIDO, que es la sustancia. El conteo exacto se sigue afirmando donde
+  // SÍ es el contrato (10-cad-native-entities, 30-cad-save-affordance).
+  await saveAndSettle(page, backend);
   const storedGeneral = backend.snapshot().document.paperSpaces.find((space) => space.id === 'sheet-general')!;
   const storedViewport = storedGeneral.viewports?.find((candidate) => candidate.name === 'Detail viewport');
   expect(storedGeneral.viewports).toHaveLength(2);

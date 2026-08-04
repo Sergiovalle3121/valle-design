@@ -137,6 +137,7 @@ import {
   canonicalEntityFromDrawAction,
   DRAW_ACTION_HISTORY_LABEL,
   DRAW_ACTION_REJECTION_MESSAGE,
+  offsetCanonicalEntity,
   type CanonicalDrawAction,
 } from "@/lib/cad/draw-action-entities";
 import {
@@ -8341,6 +8342,26 @@ export default function Layout3DEditor({
         .some(Boolean);
     }
     if (action.type === "offsetBy") {
+      // La geometría canónica seleccionada se desplaza de verdad (perpendicular,
+      // con unión miter), no trasladando su caja como hacía el camino heredado.
+      const nativeIds = new Set(nativeSelectionIdsRef.current);
+      if (nativeIds.size) {
+        const document = snapshotDocument();
+        const offsets = document.entities
+          .filter((entity) => nativeIds.has(entity.id))
+          .map((entity) =>
+            offsetCanonicalEntity(entity, action.distance, () => newId("ent")),
+          )
+          .filter((entity): entity is CadNativeEntity => !!entity);
+        if (!offsets.length) {
+          toast.error(
+            "La selección no admite un desfase con esta distancia.",
+            "OFFSET",
+          );
+          return false;
+        }
+        return insertNativeEntities(offsets, "offset");
+      }
       return selRef.current
         .filter((item) => item.type === "asset")
         .map((item) => {

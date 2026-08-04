@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   canonicalEntityFromDrawAction,
+  offsetCanonicalEntity,
   type CanonicalDrawAction,
 } from "./draw-action-entities";
 
@@ -168,5 +169,48 @@ assert.equal(
 const before = counter;
 ok({ type: "addCircle", cx: 0, cy: 0, r: 10 });
 assert.equal(counter, before + 1, "se consume exactamente un id por entidad");
+
+/* ── OFFSET real: perpendicular, no una traslación de la caja ── */
+
+// El OFFSET heredado hacía `x + distancia` sobre el asset. Sobre una línea
+// VERTICAL eso la movía a lo largo de su propio eje y no la desfasaba en
+// absoluto; el desfase correcto es perpendicular.
+const vertical = ok({
+  type: "addSegment",
+  a: { x: 1_000, y: 0 },
+  b: { x: 1_000, y: 2_000 },
+});
+const offsetLine = offsetCanonicalEntity(vertical, 250, () => "off-1");
+assert.ok(offsetLine && offsetLine.type === "line");
+if (!offsetLine || offsetLine.type !== "line") throw new Error("unreachable");
+assert.notEqual(offsetLine.id, vertical.id, "el desfase es una entidad nueva");
+assert.equal(Math.abs(offsetLine.start.x - 1_000), 250, "se desplaza en X, perpendicular");
+assert.equal(offsetLine.start.y, 0, "y NO a lo largo de su propio eje");
+assert.equal(offsetLine.end.y, 2_000);
+
+// Un círculo se desfasa concéntricamente.
+const baseCircle = ok({ type: "addCircle", cx: 0, cy: 0, r: 500 });
+const offsetCircle = offsetCanonicalEntity(baseCircle, 100, () => "off-2");
+if (!offsetCircle || offsetCircle.type !== "circle") throw new Error("unreachable");
+assert.equal(offsetCircle.radius, 600);
+assert.deepEqual(offsetCircle.center, { x: 0, y: 0, z: 0 });
+assert.equal(
+  offsetCanonicalEntity(baseCircle, -500, () => "off-3"),
+  null,
+  "un radio no positivo no es un círculo: la operación no produce nada",
+);
+
+// Una polilínea cerrada sigue cerrada y conserva su número de vértices.
+const closedSquare = ok({ type: "addRect", x: 0, y: 0, w: 1_000, h: 1_000 });
+const offsetSquare = offsetCanonicalEntity(closedSquare, 100, () => "off-4");
+if (!offsetSquare || offsetSquare.type !== "polyline") throw new Error("unreachable");
+assert.equal(offsetSquare.closed, true);
+assert.equal(offsetSquare.vertices.length, 4, "el contorno no se abre por una esquina");
+
+assert.equal(
+  offsetCanonicalEntity(vertical, 0, () => "off-5"),
+  null,
+  "un desfase de cero no crea geometría duplicada",
+);
 
 console.log("draw-action-entities.spec.ts OK");
