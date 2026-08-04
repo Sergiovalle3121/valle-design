@@ -99,7 +99,18 @@ test('the 2D editor stays fully operable when the browser denies WebGL', async (
   await saveAndSettle(page, backend);
   const stored = backend.snapshot().document;
   expect((stored.entities.find((entity) => entity.id === 'nogl-line') as CadLine).start.x).toBe(1_500);
-  expect(stored.entities.some((entity) => entity.type === 'circle')).toBe(true);
+  // La geometría dibujada sin viewport llega al documento y con sus medidas.
+  // OJO — esto NO afirma autoría canónica: hoy la herramienta CIRCLE sigue
+  // creando un asset heredado (`legacy.kind === 'zone'`) que se proyecta como
+  // entidad `circle`. Esa deuda es la PRIORIDAD 2 y este spec no la cubre; lo
+  // que fija aquí es que dibujar/guardar/reabrir funciona sin WebGL.
+  const drawnCircle = stored.entities.find(
+    (entity): entity is Extract<CadEntity, { type: 'circle' }> => entity.type === 'circle',
+  );
+  expect(drawnCircle).toBeDefined();
+  expect(drawnCircle!.radius).toBeCloseTo(250, 0);
+  expect(drawnCircle!.center.x).toBeCloseTo(4_000, 0);
+  expect(drawnCircle!.center.y).toBeCloseTo(3_000, 0);
 
   // 4. Reabrir sin WebGL conserva exactamente lo guardado.
   await page.reload();
