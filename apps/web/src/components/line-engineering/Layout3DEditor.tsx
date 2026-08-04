@@ -134,6 +134,12 @@ import {
   type DrawAction,
 } from "./cad-command";
 import {
+  canonicalEntityFromDrawAction,
+  DRAW_ACTION_HISTORY_LABEL,
+  DRAW_ACTION_REJECTION_MESSAGE,
+  type CanonicalDrawAction,
+} from "@/lib/cad/draw-action-entities";
+import {
   snap as resolveOsnap,
   rectGeometry,
   type SnapScene,
@@ -6178,7 +6184,15 @@ export default function Layout3DEditor({
       const existingIds = new Set(
         checkpoint.entities.map((entity) => entity.id),
       );
-      if (incoming.some((entity) => existingIds.has(entity.id))) {
+      // El lote debe ser consistente consigo mismo, no sólo contra el
+      // documento: dos entidades con el mismo id dentro de `incoming` se
+      // colaban y dejaban `modelSpace.entityIds` con un fantasma y una entidad
+      // inalcanzable.
+      const incomingIds = new Set(incoming.map((entity) => entity.id));
+      if (
+        incomingIds.size !== incoming.length ||
+        incoming.some((entity) => existingIds.has(entity.id))
+      ) {
         toast.error(
           "Una entidad nativa ya existe en el documento.",
           "Entidad CAD",
@@ -8242,115 +8256,56 @@ export default function Layout3DEditor({
     (id: CadDrawCommandId) => setToolMode(id),
     [setToolMode],
   );
-  const createWallAssetFromPoints = (
-    a: { x: number; y: number },
-    b: { x: number; y: number },
-    label?: string,
-  ) => {
-    const ctx = ctxRef.current;
-    if (!ctx) return false;
-    const ax = Math.max(0, Math.min(ctx.W, Math.round(a.x)));
-    const ay = Math.max(0, Math.min(ctx.H, Math.round(a.y)));
-    const bx = Math.max(0, Math.min(ctx.W, Math.round(b.x)));
-    const by = Math.max(0, Math.min(ctx.H, Math.round(b.y)));
-    const len = Math.hypot(bx - ax, by - ay);
-    if (len <= 1) return false;
-    const thick = assetMeta("wall").h;
-    const angle = (Math.atan2(by - ay, bx - ax) * 180) / Math.PI;
-    const id = newId("as");
-    assetsRef.current.set(id, {
-      id,
-      kind: "wall",
-      label,
-      x: (ax + bx) / 2 - len / 2,
-      y: (ay + by) / 2 - thick / 2,
-      w: len,
-      h: thick,
-      rotation: angle,
-    });
-    setAssetIds((set) => new Set(set).add(id));
-    setLayerAssignments((cur) =>
-      assignObjectsToLayer(cur, [id], "architecture"),
-    );
-    setObjectTags((cur) => ({ ...cur, [id]: "wall, architecture, drafted" }));
-    lastWallAngleRef.current = angle;
-    return true;
-  };
-  const createRectAssetFromBox = (
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    kind: "zone" | "room" = "zone",
-    label?: string,
-    shape: "rect" | "circle" = "rect",
-  ) => {
-    const ctx = ctxRef.current;
-    if (!ctx) return false;
-    const nx = Math.max(0, Math.min(ctx.W, Math.round(x)));
-    const ny = Math.max(0, Math.min(ctx.H, Math.round(y)));
-    let nw = Math.max(50, Math.min(ctx.W - nx, Math.round(w)));
-    let nh = Math.max(50, Math.min(ctx.H - ny, Math.round(h)));
-    // Un círculo se mantiene redondo: el recorte por bordes no debe deformarlo.
-    if (shape === "circle") {
-      const d = Math.min(nw, nh);
-      nw = d;
-      nh = d;
+  /**
+   * PRIORIDAD 2 — las herramientas neutras escriben el documento CANÓNICO.
+   *
+   * LINE creaba un muro, POLYLINE varios muros desconectados, RECT una zona y
+   * CIRCLE una zona con `shape: 'circle'`: el documento describía mobiliario
+   * industrial en vez de geometría, y propiedades, grips, OSNAP, DXF y el
+   * round-trip operaban sobre una proyección heredada.
+   *
+   * La conversión vive en `draw-action-entities.ts` (pura y probada aparte);
+   * aquí sólo queda el contexto que el kernel no puede conocer: permisos, capa
+   * activa e inserción en UNA transacción canónica — que además deja la entidad
+   * seleccionada y produce una sola entrada de undo.
+   *
+   * WALL y ZONE/ROOM NO pasan por aquí: siguen siendo comandos arquitectónicos
+   * explícitos con su propia semántica.
+   */
+  const createCanonicalDrawEntity = (action: CanonicalDrawAction): boolean => {
+    if (drawingReadOnlyRef.current) {
+      notifyReadOnly();
+      return false;
     }
-    const id = newId("as");
-    const asset: Asset = {
-      id,
-      kind,
-      label: label ?? (kind === "room" ? "Room CAD" : "Zona CAD"),
-      x: nx,
-      y: ny,
-      w: nw,
-      h: nh,
-      rotation: 0,
-    };
-    if (shape === "circle") asset.shape = "circle";
-    assetsRef.current.set(id, asset);
-    setAssetIds((set) => new Set(set).add(id));
-    setLayerAssignments((cur) =>
-      assignObjectsToLayer(cur, [id], defaultCadLayerForAssetKind(kind)),
+    const layerId = activeCadLayer;
+    if (cadLayersRef.current.find((layer) => layer.id === layerId)?.locked) {
+      toast.error(
+        `Layer ${layerId} is locked. Unlock it before drawing on it.`,
+        "Capa bloqueada",
+      );
+      return false;
+    }
+    const result = canonicalEntityFromDrawAction(action, {
+      layer: layerId,
+      newId: () => newId("ent"),
+    });
+    if (!result.ok) {
+      toast.error(DRAW_ACTION_REJECTION_MESSAGE[result.reason], "Dibujo");
+      return false;
+    }
+    return insertNativeEntities(
+      [result.entity as CadNativeEntity],
+      DRAW_ACTION_HISTORY_LABEL[action.type],
     );
-    setObjectTags((cur) => ({ ...cur, [id]: `${kind}, drafted` }));
-    return true;
   };
   const applyDrawAction = (action: DrawAction) => {
-    if (action.type === "addSegment")
-      return createWallAssetFromPoints(action.a, action.b, "Muro CAD");
-    if (action.type === "addPolyline") {
-      const points =
-        action.closed && action.points.length > 2
-          ? [...action.points, action.points[0]]
-          : action.points;
-      return points
-        .slice(0, -1)
-        .map((point, idx) =>
-          createWallAssetFromPoints(point, points[idx + 1], `Pline ${idx + 1}`),
-        )
-        .some(Boolean);
-    }
-    if (action.type === "addRect")
-      return createRectAssetFromBox(
-        action.x,
-        action.y,
-        action.w,
-        action.h,
-        "zone",
-        "Zona CAD",
-      );
-    if (action.type === "addCircle")
-      return createRectAssetFromBox(
-        action.cx - action.r,
-        action.cy - action.r,
-        action.r * 2,
-        action.r * 2,
-        "zone",
-        `Círculo CAD Ø${Math.round(action.r * 2)}`,
-        "circle",
-      );
+    if (
+      action.type === "addSegment" ||
+      action.type === "addPolyline" ||
+      action.type === "addRect" ||
+      action.type === "addCircle"
+    )
+      return createCanonicalDrawEntity(action);
     if (action.type === "moveBy" || action.type === "copyBy") {
       const isCopy = action.type === "copyBy";
       return selRef.current
