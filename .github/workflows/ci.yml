@@ -192,12 +192,13 @@ jobs:
       - name: Install Mesa software OpenGL (Firefox WebGL)
         run: |
           sudo apt-get update
-          # Firefox headless no usa GLX: necesita la ruta EGL *surfaceless*
-          # sobre llvmpipe. Los drivers DRI ya venían en la imagen — lo que
-          # faltaba era EGL/GBM.
-          sudo apt-get install -y libgl1-mesa-dri libglx-mesa0 libegl1 libegl-mesa0 libgbm1 mesa-utils
+          # `eglinfo` en este runner demuestra que llvmpipe está disponible
+          # (OpenGL 4.5, Mesa) pero SÓLO en la plataforma surfaceless: GBM,
+          # Wayland y X11 fallan `eglInitialize` por no haber servidor gráfico.
+          # De ahí Xvfb: con un display real Firefox usa llvmpipe por X11.
+          sudo apt-get install -y libgl1-mesa-dri libglx-mesa0 libegl1 libegl-mesa0 libgbm1 mesa-utils xvfb
           echo "Renderer disponible:"; (glxinfo -B 2>/dev/null || echo 'glxinfo no disponible')
-          (eglinfo -B 2>/dev/null | head -20 || echo 'eglinfo no disponible')
+          (eglinfo -B 2>/dev/null | head -24 || echo 'eglinfo no disponible')
 
       # El build de producción INLINEA NEXT_PUBLIC_API_URL: debe apuntar al
       # origen de la API real que este job arranca (localhost:4000). Los
@@ -247,9 +248,14 @@ jobs:
           LIBGL_ALWAYS_SOFTWARE: "1"
           GALLIUM_DRIVER: llvmpipe
           # Firefox headless obtiene su contexto por EGL sin superficie.
-          EGL_PLATFORM: surfaceless
           MOZ_ENABLE_WAYLAND: "0"
-        run: npx playwright test
+        # Bajo Xvfb. `eglinfo` en el runner demuestra que llvmpipe SÍ está
+        # disponible (OpenGL 4.5, Mesa) pero SÓLO en la plataforma surfaceless:
+        # GBM, Wayland y X11 fallan `eglInitialize` porque no hay servidor
+        # gráfico. Firefox no toma esa ruta surfaceless y por eso agota los
+        # drivers. Darle un display real es la forma canónica de que use
+        # llvmpipe por GLX/EGL-X11. Chromium no se ve afectado.
+        run: xvfb-run -a --server-args="-screen 0 1920x1080x24" npx playwright test
 
       - name: Upload Playwright report
         if: failure()
