@@ -57,6 +57,23 @@ async function point(page: Page, x: string, y: string) {
 
 const properties = (page: Page) => page.getByTestId('cad-native-properties');
 
+/**
+ * Arranca una herramienta y espera a que su entrada dinámica esté lista.
+ * Alimentar puntos antes de eso dejaba el primero en el vacío de vez en cuando
+ * y la figura no llegaba a crearse.
+ */
+async function startTool(page: Page, name: string) {
+  await page.getByRole('button', { name, exact: true }).click();
+  await expect(page.getByTestId('cad-dynamic-input')).toBeVisible();
+}
+
+/** Espera a que el EDITOR reconozca las entidades creadas hasta ahora. */
+async function expectNativeCount(page: Page, total: number) {
+  await expect(page.getByTestId('cad-native-document-count')).toHaveText(
+    `Native ${total}`,
+  );
+}
+
 test('LINE, PLINE, RECT and CIRCLE author canonical geometry end to end', async ({ context, page }) => {
   test.setTimeout(180_000);
   const pageErrors: string[] = [];
@@ -69,39 +86,45 @@ test('LINE, PLINE, RECT and CIRCLE author canonical geometry end to end', async 
   await expect(page.getByTestId('cad-canvas')).toBeVisible();
 
   await test.step('1. LINE crea UNA entidad `line`', async () => {
-    await page.getByRole('button', { name: 'Line', exact: true }).click();
+    await startTool(page, 'Line');
     await point(page, '1000', '1000');
     await point(page, '5000', '1000');
     await page.getByRole('button', { name: 'Terminar' }).click();
+    await expectNativeCount(page, 1);
   });
 
   await test.step('2. PLINE crea UNA `polyline`, no un muro por tramo', async () => {
-    await page.getByRole('button', { name: 'Pline', exact: true }).click();
+    await startTool(page, 'Pline');
     await point(page, '1000', '3000');
     await point(page, '4000', '3000');
     await point(page, '4000', '5000');
     await page.getByRole('button', { name: 'Terminar' }).click();
+    await expectNativeCount(page, 2);
   });
 
   await test.step('3. RECT crea una `polyline` CERRADA de cuatro vértices', async () => {
-    await page.getByRole('button', { name: 'Rect', exact: true }).click();
+    await startTool(page, 'Rect');
     await point(page, '6000', '1000');
     await point(page, '9000', '3000');
+    await expectNativeCount(page, 3);
   });
 
   await test.step('4. CIRCLE crea una entidad `circle`', async () => {
-    await page.getByRole('button', { name: 'Circle', exact: true }).click();
+    await startTool(page, 'Circle');
     await point(page, '8000', '6000');
-    await page.getByTestId('cad-dynamic-field-radius').fill('400');
+    const radius = page.getByTestId('cad-dynamic-field-radius');
+    await expect(radius).toBeVisible();
+    await radius.fill('400');
     await page.getByTestId('cad-dynamic-input').getByRole('button', { name: 'Aplicar' }).click();
+    await expectNativeCount(page, 4);
   });
 
   // ── 5. Nada heredado y tipos/geometría/capa correctos ──
-  // El DOCUMENTO es la autoridad, no el panel: qué queda seleccionado tras cada
-  // herramienta es detalle de UI, mientras que lo persistido es el contrato.
-  await expect
-    .poll(() => backend.snapshot().document.entities.length, { timeout: 20_000 })
-    .toBe(4);
+  // Primero se confirma en el EDITOR que las cuatro entidades existen, y sólo
+  // después se guarda y se afirma lo persistido. Sondear el documento del
+  // servidor antes de guardar hacía que la prueba compitiera con el debounce
+  // del autosave: bajo carga la cuarta entidad aún no había viajado y el fallo
+  // parecía del producto cuando era del propio spec.
   await saveAndSettle(page, backend);
   const drawn = backend.snapshot().document;
   const typeCount = (type: CadEntity['type']) =>
