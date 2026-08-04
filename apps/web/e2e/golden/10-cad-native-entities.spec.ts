@@ -172,7 +172,13 @@ test.describe('Golden path · CAD native entities', () => {
     await page.getByRole('button', { name: 'Guardar', exact: true }).click();
     await expect.poll(() => backend.snapshot().version).toBe(1);
     await second.getByRole('button', { name: 'Guardar', exact: true }).click();
-    await expect(second.getByText('El dibujo cambió desde la última carga. Recarga y compara antes de guardar.')).toBeVisible();
+    // El mensaje que se esperaba aquí ("El dibujo cambió desde la última
+    // carga…") no existe en este repositorio: es texto heredado del monorepo
+    // de origen. El contrato real lo emite `CadCasConflictError`, y el editor
+    // lo expone por DOS superficies — la notificación y el estado de guardado.
+    // Se afirman ambas, además de la integridad de los datos.
+    await expect(second.getByText('El documento cambió en el servidor. Recarga o resuelve el conflicto antes de guardar.')).toBeVisible();
+    await expect(second.getByTestId('cad-save-status')).toContainText('Conflicto CAS');
     expect(backend.snapshot().version).toBe(1);
     const storedArc = backend.snapshot().document.entities.find((entity) => entity.id === 'arc-e2e');
     expect(storedArc?.type === 'arc' ? storedArc.radius : null).toBe(150);

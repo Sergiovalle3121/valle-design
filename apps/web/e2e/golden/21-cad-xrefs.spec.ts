@@ -36,10 +36,21 @@ function canonicalDocument(id: string, endX = 8_000): CadDocument {
 //  - CYCLE@UNIVERSAL con la referencia de vuelta al host (detección de ciclos).
 const FOOTPRINT = { footprintW: 12_000, footprintH: 9_000, unit: 'mm', gridSize: 100 };
 
+// El estudio abre por documentId, así que el host se identifica ante el grafo
+// de xrefs como `<documentId>@DOCUMENT` — no por su model@revision heredado.
+// La referencia de vuelta del documento cíclico debe nombrarlo con ESA
+// identidad; si no, la detección de ciclos no tiene contra qué comparar.
+//
+// DEUDA (documentada en el PR): los assetId de xref viven en el espacio de
+// nombres `MODEL@REVISION` mientras el host vive en `documentId@DOCUMENT`. Un
+// ciclo declarado con la identidad heredada NO se detecta. Unificar ese espacio
+// de nombres es una decisión de diseño del propietario, no un arreglo de test.
+const HOST_ASSET_ID = '00000000-0000-4000-8000-000000000001@DOCUMENT';
+
 async function installCadBackend(context: BrowserContext) {
   const cyclic = {
     ...canonicalDocument('cycle-line'),
-    externalReferences: [{ id: 'back', name: 'Host', uri: cadTenantLayoutUri(`${HOST_MODEL}@${HOST_REVISION}`, 'LIVE'), loaded: false, assetId: `${HOST_MODEL}@${HOST_REVISION}`, mode: 'attachment' as const }],
+    externalReferences: [{ id: 'back', name: 'Host', uri: cadTenantLayoutUri(HOST_ASSET_ID, 'LIVE'), loaded: false, assetId: HOST_ASSET_ID, mode: 'attachment' as const }],
   };
   const backend = new CadV1Backend([
     { model: HOST_MODEL, revision: HOST_REVISION, document: canonicalDocument('host-line') as unknown as Record<string, unknown>, version: 0, footprint: FOOTPRINT },
@@ -100,7 +111,14 @@ test('tenant Xrefs attach, compare, reload, unload, bind, detach and preserve ho
   let row = page.getByTestId('cad-xref-row-REF-PLANT');
   await expect(row).toContainText('loaded');
   await expect(row).toContainText('REF-PLANT@R1');
-  await expect(page.getByTestId('cad-xref-graph')).toContainText(`${HOST_MODEL}@${HOST_REVISION} → REF-PLANT`);
+  // El grafo se afirma por su ARISTA, no por el rótulo del host. Esperar
+  // literalmente `AXOS-CAD-STUDIO@UNIVERSAL` ataba la UI a un sentinel de
+  // compatibilidad: AGENTS.md los confina a valores persistidos, nunca a marca
+  // visible. El estudio abre por documentId, así que el host se rotula por su
+  // identidad real. Lo que la prueba debe fijar es que la dependencia existe,
+  // apunta a REF-PLANT y declara su modo.
+  await expect(page.getByTestId('cad-xref-graph')).toContainText('→ REF-PLANT [attachment]');
+  await expect(page.getByTestId('cad-xref-graph')).toContainText('depth 1/8');
 
   await page.getByRole('button', { name: 'Guardar', exact: true }).click();
   await expect.poll(() => backend.snapshot().hostVersion).toBe(1);

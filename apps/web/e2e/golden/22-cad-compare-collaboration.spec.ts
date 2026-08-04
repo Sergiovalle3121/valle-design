@@ -2,6 +2,7 @@ import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
+import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument } from '../../src/lib/cad/cad-document';
 
 function canonicalDocument(): CadDocument {
@@ -143,8 +144,10 @@ test('canonical Base/Mine/Theirs compare, collision review, comments, links and 
   await page.waitForTimeout(4_000);
   await page.screenshot({ path: testInfo.outputPath('compare-collision-review.png'), fullPage: true, scale: 'css' });
 
-  await page.getByTestId('cad-save').click();
-  await expect.poll(() => backend.snapshot().version).toBe(1);
+  // El recorrido de comparación/revisión incluye esperas propias de varios
+  // segundos, así que el autosave persiste parte del lote de forma legítima.
+  // Se confirma que no queda trabajo pendiente y se afirma el CONTENIDO.
+  await saveAndSettle(page, backend);
   const stored = backend.snapshot().document;
   const storedArcA = stored.entities.find((entity) => entity.id === 'arc-a');
   const storedArcB = stored.entities.find((entity) => entity.id === 'arc-b');
@@ -167,8 +170,11 @@ test('canonical Base/Mine/Theirs compare, collision review, comments, links and 
   // contra `/v1/cad/review/context` con la cabecera `X-Review-Token`.
   // El invitado abre el enlace en una PESTAÑA NUEVA, que es el flujo real:
   // navegar por fragmento dentro de la misma página no recarga la aplicación.
+  // `/studio` a secas es un redirect a `/dashboard` desde que dejó de abrir el
+  // documento sentinel, así que el fragmento nunca llegaba a montar el editor.
+  // El invitado abre la MISMA superficie de edición que el propietario.
   const guest = await context.newPage();
-  await guest.goto(`/studio#cadReview=${encodeURIComponent(shareToken)}`);
+  await guest.goto(`/studio/00000000-0000-4000-8000-000000000001#cadReview=${encodeURIComponent(shareToken)}`);
   await expect(guest.getByTestId('cad-review-banner')).toBeVisible();
   await expect(guest.getByTestId('cad-review-readonly')).toBeVisible();
   await expect(guest.getByTestId('cad-save')).toBeDisabled();
@@ -183,8 +189,12 @@ test('canonical Base/Mine/Theirs compare, collision review, comments, links and 
   // ni siquiera en una pestaña limpia.
   backend.backend.reviewSessions[0].status = 'closed';
   backend.backend.reviewSessions[0].revokedAt = new Date().toISOString();
+  // Deliberadamente por el marcador legacy: comprueba de paso que la
+  // resolución `/legacy/studio` → `/studio/:id` REENVÍA el fragmento. Antes lo
+  // descartaba, así que este caso pasaba por accidente (sin token no hay canje
+  // posible); ahora el token llega de verdad y es la REVOCACIÓN la que lo tumba.
   const revoked = await context.newPage();
-  await revoked.goto(`/studio#cadReview=${encodeURIComponent(shareToken)}`);
+  await revoked.goto(`/legacy/studio#cadReview=${encodeURIComponent(shareToken)}`);
   await expect(revoked.getByRole('button', { name: /^arc-a\s+ARC$/i })).toBeVisible();
   await expect(revoked.getByTestId('cad-review-banner')).toHaveCount(0);
   await revoked.close();
