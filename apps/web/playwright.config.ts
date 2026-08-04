@@ -55,13 +55,20 @@ export default defineConfig({
         // que sin estas prefs TODA la suite dorada fallaba en Firefox por el
         // navegador, no por el producto. Se fuerza el backend software para
         // que Firefox ejercite el mismo viewport real que Chromium.
+        //
+        // `layers.acceleration.force-enabled` estaba aquí y se ha RETIRADO: en
+        // un runner sin GPU fuerza la ruta acelerada y es candidata a agotar la
+        // lista de drivers (FEATURE_FAILURE_WEBGL_EXHAUSTED_DRIVERS). Lo que
+        // Firefox headless necesita es la ruta EGL surfaceless sobre llvmpipe,
+        // que es lo que habilitan WebRender por software y `libegl1` en CI.
         launchOptions: {
           firefoxUserPrefs: {
             "webgl.disabled": false,
             "webgl.force-enabled": true,
             "webgl.forbid-software": false,
+            "webgl.out-of-process": false,
             "gfx.webrender.software": true,
-            "layers.acceleration.force-enabled": true,
+            "gfx.webrender.all": true,
           },
         },
       },

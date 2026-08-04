@@ -192,8 +192,12 @@ jobs:
       - name: Install Mesa software OpenGL (Firefox WebGL)
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgl1-mesa-dri libglx-mesa0
-          echo "Renderer disponible:"; (glxinfo -B 2>/dev/null || true)
+          # Firefox headless no usa GLX: necesita la ruta EGL *surfaceless*
+          # sobre llvmpipe. Los drivers DRI ya venían en la imagen — lo que
+          # faltaba era EGL/GBM.
+          sudo apt-get install -y libgl1-mesa-dri libglx-mesa0 libegl1 libegl-mesa0 libgbm1 mesa-utils
+          echo "Renderer disponible:"; (glxinfo -B 2>/dev/null || echo 'glxinfo no disponible')
+          (eglinfo -B 2>/dev/null | head -20 || echo 'eglinfo no disponible')
 
       # El build de producción INLINEA NEXT_PUBLIC_API_URL: debe apuntar al
       # origen de la API real que este job arranca (localhost:4000). Los
@@ -242,6 +246,9 @@ jobs:
           # afecta: ya usa su propio SwiftShader.
           LIBGL_ALWAYS_SOFTWARE: "1"
           GALLIUM_DRIVER: llvmpipe
+          # Firefox headless obtiene su contexto por EGL sin superficie.
+          EGL_PLATFORM: surfaceless
+          MOZ_ENABLE_WAYLAND: "0"
         run: npx playwright test
 
       - name: Upload Playwright report
