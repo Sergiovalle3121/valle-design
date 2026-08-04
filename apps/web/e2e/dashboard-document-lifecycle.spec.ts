@@ -125,7 +125,18 @@ test("crea proyecto y documentos con IDs propios, guarda CAS y reabre tras una n
   ).not.toContainEqual(["AXOS-CAD-STUDIO", "UNIVERSAL"]);
 
   await page.goto("/dashboard");
+  // Hay que esperar a que el logout TERMINE antes de volver a autenticar: su
+  // respuesta trae el `Set-Cookie` que borra la sesión, así que si llegaba
+  // después de que el fixture hubiese puesto las cookies nuevas, las barría y
+  // el estudio abría con "Tu sesión ha expirado". Era una carrera real del
+  // harness (2 de cada 3 ejecuciones pasaban), no del producto.
+  const loggedOut = page.waitForResponse(
+    (response) =>
+      response.url() === `${API_ORIGIN}/v1/auth/logout` &&
+      response.request().method() === "POST",
+  );
   await page.getByRole("button", { name: /Cerrar sesión/ }).click();
+  await loggedOut;
   await loginAsStandaloneOwner(context);
   await page.goto(`/studio/${documents[0].id}`);
   await expect(page).toHaveURL(new RegExp(`${documents[0].id}$`));
