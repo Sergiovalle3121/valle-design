@@ -2,6 +2,7 @@ import { expect, test, type BrowserContext } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
+import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
 
 type CadLine = Extract<CadEntity, { type: 'line' }>;
@@ -69,8 +70,11 @@ test('native TRIM and EXTEND edit LINE endpoints atomically and persist', async 
     await expect(page.getByTestId('cad-native-property-endX')).toHaveValue('6000');
   });
 
-  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
-  await expect.poll(() => backend.snapshot().version).toBe(1);
+  // TRIM y EXTEND son dos pasos de UI separados por más de los 2 s del
+  // debounce, así que el autosave persiste el primero de forma legítima. Lo
+  // que importa es que al confirmar no queda nada pendiente y que AMBAS
+  // ediciones están en el documento guardado.
+  await saveAndSettle(page, backend);
   const stored = backend.snapshot().document;
   expect((stored.entities.find((entity) => entity.id === 'trim-target') as CadLine).end.x).toBe(6_000);
   expect((stored.entities.find((entity) => entity.id === 'extend-target') as CadLine).end.x).toBe(6_000);

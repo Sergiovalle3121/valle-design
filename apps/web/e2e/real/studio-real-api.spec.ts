@@ -155,7 +155,11 @@ async function loginThroughUi(
   await page.getByLabel(/Correo electr.*nico/iu).fill(email);
   await page.getByLabel(/Contrase.*a/iu).fill(password);
   await Promise.all([
-    page.waitForURL(/\/dashboard$/u),
+    // NO usar /\/dashboard$/: la propia URL de partida es
+    // `/login?returnTo=/dashboard`, que TERMINA en "/dashboard", así que la
+    // espera se cumplía al instante y el helper regresaba antes de que el
+    // login hubiese ocurrido. El destino se identifica por su pathname.
+    page.waitForURL((url) => url.pathname === "/dashboard"),
     page.getByRole("button", { name: /Iniciar sesi.*n/iu }).click(),
   ]);
 }
@@ -352,7 +356,10 @@ test.describe("recorrido comercial CAD first-party contra PostgreSQL", () => {
       `/v1/cad/projects?q=${encodeURIComponent(projectName)}&limit=20`,
     );
     projectId = projectPage.body.items.find((item) => item.name === projectName)!.id;
-    await expect(page.getByLabel("Proyecto")).toHaveValue(projectId);
+    // `exact` es obligatorio: el nombre del proyecto de esta ejecución empieza
+    // por "Proyecto", así que la coincidencia por subcadena alcanzaba también a
+    // las opciones del propio combobox (violación de strict mode).
+    await expect(page.getByLabel("Proyecto", { exact: true })).toHaveValue(projectId);
 
     const blankName = `Documento nuevo ${runId}`;
     await page.getByLabel("Nombre del documento").fill(blankName);

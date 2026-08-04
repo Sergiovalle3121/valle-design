@@ -183,6 +183,23 @@ jobs:
         working-directory: apps/web
         run: npx playwright install --with-deps chromium firefox
 
+      # WebGL por software para Firefox. El runner no tiene GPU: Chromium cae
+      # solo en SwiftShader, pero Firefox agota los drivers
+      # (FEATURE_FAILURE_WEBGL_EXHAUSTED_DRIVERS) y se queda SIN viewport, así
+      # que las pruebas que dependen de la escena real no medían el producto.
+      # La alternativa —excluir Firefox o saltarse esos specs— escondería el
+      # problema; darle a Mesa su driver software lo resuelve de verdad.
+      - name: Install Mesa software OpenGL (Firefox WebGL)
+        run: |
+          sudo apt-get update
+          # `eglinfo` en este runner demuestra que llvmpipe está disponible
+          # (OpenGL 4.5, Mesa) pero SÓLO en la plataforma surfaceless: GBM,
+          # Wayland y X11 fallan `eglInitialize` por no haber servidor gráfico.
+          # De ahí Xvfb: con un display real Firefox usa llvmpipe por X11.
+          sudo apt-get install -y libgl1-mesa-dri libglx-mesa0 libegl1 libegl-mesa0 libgbm1 mesa-utils xvfb
+          echo "Renderer disponible:"; (glxinfo -B 2>/dev/null || echo 'glxinfo no disponible')
+          (eglinfo -B 2>/dev/null | head -24 || echo 'eglinfo no disponible')
+
       # El build de producción INLINEA NEXT_PUBLIC_API_URL: debe apuntar al
       # origen de la API real que este job arranca (localhost:4000). Los
       # goldens interceptan ese origen en la frontera de red (herméticos);
@@ -225,7 +242,20 @@ jobs:
           E2E_REAL_API: "1"
           E2E_IDENTITY_HARNESS_KEY: valle-design-e2e-harness-key-32-characters-minimum
           CAD_PERF_E2E: "1"
-        run: npx playwright test
+          # Fuerza el rasterizador software de Mesa (llvmpipe) para que Firefox
+          # obtenga contexto WebGL sin GPU. Chromium no lo necesita y no le
+          # afecta: ya usa su propio SwiftShader.
+          LIBGL_ALWAYS_SOFTWARE: "1"
+          GALLIUM_DRIVER: llvmpipe
+          # Firefox headless obtiene su contexto por EGL sin superficie.
+          MOZ_ENABLE_WAYLAND: "0"
+        # Bajo Xvfb. `eglinfo` en el runner demuestra que llvmpipe SÍ está
+        # disponible (OpenGL 4.5, Mesa) pero SÓLO en la plataforma surfaceless:
+        # GBM, Wayland y X11 fallan `eglInitialize` porque no hay servidor
+        # gráfico. Firefox no toma esa ruta surfaceless y por eso agota los
+        # drivers. Darle un display real es la forma canónica de que use
+        # llvmpipe por GLX/EGL-X11. Chromium no se ve afectado.
+        run: xvfb-run -a --server-args="-screen 0 1920x1080x24" npx playwright test
 
       - name: Upload Playwright report
         if: failure()

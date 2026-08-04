@@ -21,7 +21,14 @@ import {
 } from './cad-document-storage';
 import { CAD_BLOB_STORE } from './ports/cad-blob-store.port';
 import type { CadBlobStore } from './ports/cad-blob-store.port';
-import { buildDxf, DxfBox, DxfSegment, DxfText } from './line-dxf';
+import {
+  buildDxf,
+  DxfArc,
+  DxfBox,
+  DxfCircle,
+  DxfSegment,
+  DxfText,
+} from './line-dxf';
 
 /**
  * Registro con la colocación del plano DXF de fondo (metadatos, nunca el dibujo
@@ -143,6 +150,27 @@ export interface CadLayoutDxfInput {
     y2?: number;
     text?: string;
   }[];
+  /**
+   * Geometría 2D CANÓNICA del documento, con su capa real.
+   *
+   * El exportador heredado sólo entendía cajas, conectores y anotaciones: un
+   * ARC o un CIRCLE desaparecían del DXF del servidor y una POLYLINE se
+   * reducía a su primer y último vértice. Este canal existe para que el
+   * núcleo 2D declarado (LINE/POLYLINE/ARC/CIRCLE) salga como entidades DXF
+   * reales, no como cotas.
+   */
+  geometry?: {
+    lines: { x1: number; y1: number; x2: number; y2: number; layer: string }[];
+    arcs: {
+      cx: number;
+      cy: number;
+      r: number;
+      startAngle: number;
+      endAngle: number;
+      layer: string;
+    }[];
+    circles: { cx: number; cy: number; r: number; layer: string }[];
+  };
 }
 
 /**
@@ -511,6 +539,34 @@ export class CadDocumentsService {
       }
     }
 
+    // Geometría canónica: LINE y POLYLINE viajan como segmentos DXF reales en
+    // su propia capa (no como cotas), y ARC/CIRCLE usan las entidades nativas
+    // que el escritor ya sabe emitir.
+    const circles: DxfCircle[] = [];
+    const arcs: DxfArc[] = [];
+    for (const line of input.geometry?.lines ?? []) {
+      segments.push({
+        x1: line.x1,
+        y1: line.y1,
+        x2: line.x2,
+        y2: line.y2,
+        layer: line.layer,
+      });
+    }
+    for (const a of input.geometry?.arcs ?? []) {
+      arcs.push({
+        cx: a.cx,
+        cy: a.cy,
+        r: a.r,
+        startAngle: a.startAngle,
+        endAngle: a.endAngle,
+        layer: a.layer,
+      });
+    }
+    for (const c of input.geometry?.circles ?? []) {
+      circles.push({ cx: c.cx, cy: c.cy, r: c.r, layer: c.layer });
+    }
+
     const dxf = buildDxf({
       footprintW: fp.footprintW,
       footprintH: fp.footprintH,
@@ -518,6 +574,8 @@ export class CadDocumentsService {
       boxes,
       segments,
       texts,
+      ...(circles.length ? { circles } : {}),
+      ...(arcs.length ? { arcs } : {}),
     });
     const slug = `${input.model}_${input.revision}`.replace(
       /[^a-zA-Z0-9_-]+/g,

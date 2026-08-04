@@ -17387,7 +17387,14 @@ export default function Layout3DEditor({
         <button
           data-testid="cad-save"
           onClick={save}
-          disabled={saving || !dirty || drawingReadOnly}
+          // Guardar sigue disponible siempre que el dibujo sea editable. Atarlo
+          // a `dirty` lo dejaba inerte en cuanto el autosave (debounce 2 s)
+          // limpiaba la marca, así que el usuario perdía el control explícito
+          // justo después de editar. La idempotencia la garantiza
+          // `persistCanonicalSave`: si la generación de edición vigente ya está
+          // persistida no emite escritura ni versión CAS nueva, y la cola de un
+          // solo escritor serializa el clic con cualquier autosave en vuelo.
+          disabled={drawingReadOnly}
           className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-sm font-medium text-white disabled:opacity-50"
           style={{ background: "#e11d48" }}
         >
@@ -18135,7 +18142,13 @@ export default function Layout3DEditor({
               <div
                 data-testid="cad-webgl-unavailable"
                 role="status"
-                className="absolute inset-0 z-30 flex items-center justify-center bg-[#0a0f1e] p-6 text-center"
+                // El aviso es un TELÓN, no una capa modal: sólo rellena el
+                // viewport que no se puede pintar. A `z-30` quedaba por encima
+                // de la barra de dibujo (`z-20`) y se comía todos sus clics, así
+                // que sin WebGL el usuario veía las herramientas pero no podía
+                // usar ninguna. Va por debajo de los controles flotantes y no
+                // captura puntero: no tiene nada con lo que interactuar.
+                className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-[#0a0f1e] p-6 text-center"
               >
                 <div className="max-w-md space-y-2">
                   <p className="text-sm font-medium text-white">

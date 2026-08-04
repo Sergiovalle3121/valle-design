@@ -7,11 +7,18 @@ import type { PersistedCadDocument } from '../cad-documents/cad-document-validat
  *
  * El serializador del origen está modelado sobre el layout industrial
  * (estaciones/equipo/flujo); el documento canónico de Design es una lista de
- * entidades libres. Mapeo determinista v1:
+ * entidades libres. Mapeo determinista v2:
  * - entidad con caja finita (x,y,w,h)          → EQUIPO (asset `kind`/label)
- * - entidad `line`/`polyline` con start/end    → FLUJO (segmento)
+ * - `line`/`polyline`                          → LINE(s) DXF en SU capa
+ * - `arc`                                      → ARC DXF en su capa
+ * - `circle`                                   → CIRCLE DXF en su capa
  * - entidad `dim` con dos puntos               → COTAS
  * - entidad `text`/`mtext` con posición+texto  → TEXTO
+ *
+ * v1 degradaba `line`/`polyline` a cotas (perdiendo los vértices intermedios de
+ * la polilínea) y descartaba `arc` y `circle` sin dejar rastro: el DXF del
+ * servidor no contenía la geometría del dibujo. El escritor R12 ya sabía emitir
+ * LINE/ARC/CIRCLE; lo que faltaba era el canal para llegar hasta él.
  * La huella (footprint) sale de `meta` cuando existe; si no, del bounding box
  * de lo mapeado (mínimo 1000×1000 para que el plano nunca colapse a 0).
  */
@@ -31,6 +38,10 @@ export function buildDxfExportInput(
 
   const assets: CadLayoutDxfInput['assets'] = [];
   const annotations: CadLayoutDxfInput['annotations'] = [];
+  type Geometry = NonNullable<CadLayoutDxfInput['geometry']>;
+  const geometryLines: Geometry['lines'] = [];
+  const geometryArcs: Geometry['arcs'] = [];
+  const geometryCircles: Geometry['circles'] = [];
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
@@ -60,6 +71,76 @@ export function buildDxfExportInput(
       track(box.x, box.y);
       track(box.x + box.w, box.y + box.h);
       continue;
+    }
+    // Geometría 2D canónica ANTES del camino heredado: `segmentOf` capturaba
+    // LINE y POLYLINE y las degradaba a cotas en la capa COTAS (perdiendo
+    // además todo vértice intermedio de la polilínea), mientras que ARC y
+    // CIRCLE no encajaban en ningún caso y se caían del DXF en silencio.
+    const layer = layerOf(entity);
+    if (type === 'line' || type === 'polyline') {
+      const points = polylinePoints(entity);
+      if (points.length >= 2) {
+        for (let index = 0; index < points.length - 1; index += 1) {
+          const from = points[index];
+          const to = points[index + 1];
+          geometryLines.push({
+            x1: from.x,
+            y1: from.y,
+            x2: to.x,
+            y2: to.y,
+            layer,
+          });
+          track(from.x, from.y);
+          track(to.x, to.y);
+        }
+        // Una polilínea cerrada emite también el segmento de cierre.
+        if (
+          type === 'polyline' &&
+          entity.closed === true &&
+          points.length > 2
+        ) {
+          const last = points[points.length - 1];
+          const first = points[0];
+          geometryLines.push({
+            x1: last.x,
+            y1: last.y,
+            x2: first.x,
+            y2: first.y,
+            layer,
+          });
+        }
+        continue;
+      }
+    }
+    if (type === 'circle' || type === 'arc') {
+      const center = pointOf(entity.center);
+      const radius = Number(entity.radius);
+      if (center && Number.isFinite(radius) && radius > 0) {
+        if (type === 'circle') {
+          geometryCircles.push({
+            cx: center.x,
+            cy: center.y,
+            r: radius,
+            layer,
+          });
+        } else {
+          const startAngle = Number(entity.startAngle);
+          const endAngle = Number(entity.endAngle);
+          if (Number.isFinite(startAngle) && Number.isFinite(endAngle)) {
+            geometryArcs.push({
+              cx: center.x,
+              cy: center.y,
+              r: radius,
+              startAngle,
+              endAngle,
+              layer,
+            });
+          }
+        }
+        track(center.x - radius, center.y - radius);
+        track(center.x + radius, center.y + radius);
+        continue;
+      }
     }
     const segment = segmentOf(entity);
     if (segment) {
@@ -105,7 +186,47 @@ export function buildDxfExportInput(
     assets,
     connectors: [],
     annotations,
+    ...(geometryLines.length || geometryArcs.length || geometryCircles.length
+      ? {
+          geometry: {
+            lines: geometryLines,
+            arcs: geometryArcs,
+            circles: geometryCircles,
+          },
+        }
+      : {}),
   };
+}
+
+/**
+ * Capa DXF de la entidad. Los nombres de capa R12 no admiten espacios ni
+ * caracteres de control, así que se normalizan sin inventar una capa nueva:
+ * una entidad sin capa declarada cae en `0`, la capa por defecto del formato.
+ */
+function layerOf(entity: Record<string, unknown>): string {
+  const raw = typeof entity.layer === 'string' ? entity.layer.trim() : '';
+  if (!raw) return '0';
+  const safe = raw.replace(/[^A-Za-z0-9_$-]+/g, '_').slice(0, 31);
+  return safe || '0';
+}
+
+/** Vértices de una LINE (start/end) o de una POLYLINE (`vertices`/`points`). */
+function polylinePoints(
+  entity: Record<string, unknown>,
+): { x: number; y: number }[] {
+  const raw = Array.isArray(entity.vertices)
+    ? entity.vertices
+    : Array.isArray(entity.points)
+      ? entity.points
+      : null;
+  if (raw) {
+    return raw
+      .map((vertex) => pointOf(vertex))
+      .filter((point): point is { x: number; y: number } => !!point);
+  }
+  const start = pointOf(entity.start);
+  const end = pointOf(entity.end);
+  return start && end ? [start, end] : [];
 }
 
 function objectOf(value: unknown): Record<string, unknown> | null {

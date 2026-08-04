@@ -101,6 +101,16 @@ export interface CadDocumentMeta {
   /** Versión del esquema de este módulo (no del contenido). */
   schema: number;
   unit: string;
+  /**
+   * Huella del dibujo y paso de rejilla. Son CONTENIDO del documento, no una
+   * proyección desechable del editor: definen el lienzo que el usuario compuso
+   * y el incremento de las órdenes de movimiento. Se declaran opcionales
+   * porque un documento puede no fijarlos; cuando existen, deben sobrevivir al
+   * guardado y a la reapertura sin que nadie los sustituya por un default.
+   */
+  footprintW?: number;
+  footprintH?: number;
+  gridSize?: number;
 }
 
 export interface CadPoint2 {
@@ -961,7 +971,18 @@ function orderedEntity(e: CadEntity): Record<string, unknown> {
  */
 export function serializeCadDocument(doc: CadDocument): string {
   const payload = {
-    meta: { version: doc.meta.version, schema: doc.meta.schema, unit: doc.meta.unit },
+    // La huella y la rejilla viajan con el documento: reconstruir `meta` con
+    // sólo {version, schema, unit} las borraba en CADA guardado, y como este
+    // serializado es también el formato de recarga, el dibujo se reabría con
+    // el lienzo y el paso de rejilla del default legacy.
+    meta: {
+      version: doc.meta.version,
+      schema: doc.meta.schema,
+      unit: doc.meta.unit,
+      ...(doc.meta.footprintW === undefined ? {} : { footprintW: doc.meta.footprintW }),
+      ...(doc.meta.footprintH === undefined ? {} : { footprintH: doc.meta.footprintH }),
+      ...(doc.meta.gridSize === undefined ? {} : { gridSize: doc.meta.gridSize }),
+    },
     layers: [...doc.layers].sort(byId).map(stableValue),
     entities: [...doc.entities].sort(byId).map(orderedEntity),
     history: doc.history.map((h) => ({ version: h.version, label: h.label })),
@@ -972,11 +993,16 @@ export function serializeCadDocument(doc: CadDocument): string {
     // contenido siguen produciendo el mismo texto, porque el orden de dibujo
     // ES contenido — si difiere, los documentos son legítimamente distintos.
     modelSpace: { entityIds: [...doc.modelSpace.entityIds] },
-    paperSpaces: [...doc.paperSpaces].sort(byId).map(stableValue),
+    // NO ordenar: el orden de las láminas ES el orden del juego de planos que
+    // compuso el usuario, igual que `entityIds` es el z-order del modelo.
+    paperSpaces: doc.paperSpaces.map(stableValue),
     styles: stableValue(doc.styles),
+    // La TABLA de bloques sí es un índice de definiciones (se resuelve por
+    // nombre), así que ordenarla es canonicalización legítima. Las entidades
+    // DENTRO de un bloque no: ese array es su z-order interno.
     blocks: [...doc.blocks].sort(byId).map((block) => stableValue({
       ...block,
-      entities: [...block.entities].sort(byId),
+      entities: [...block.entities],
     })),
     constraints: [...doc.constraints].sort(byId).map(stableValue),
     externalReferences: [...doc.externalReferences].sort(byId).map(stableValue),
@@ -1013,6 +1039,11 @@ function withV3Defaults(doc: Partial<CadDocument>): CadDocument {
       version: Number(doc.meta?.version) || 1,
       schema: CAD_DOCUMENT_SCHEMA,
       unit: doc.meta?.unit || "mm",
+      // La huella declarada del documento se conserva tal cual. Normalizar el
+      // esquema no puede inventar un lienzo ni descartar el que ya existía.
+      ...(Number.isFinite(doc.meta?.footprintW) ? { footprintW: doc.meta!.footprintW } : {}),
+      ...(Number.isFinite(doc.meta?.footprintH) ? { footprintH: doc.meta!.footprintH } : {}),
+      ...(Number.isFinite(doc.meta?.gridSize) ? { gridSize: doc.meta!.gridSize } : {}),
     },
     layers: Array.isArray(doc.layers) ? doc.layers : [],
     entities,

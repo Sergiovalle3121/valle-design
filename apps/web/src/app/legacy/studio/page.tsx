@@ -18,7 +18,13 @@ export default function LegacyStudioLoader() {
           (item) => item.model === model && item.revision === revision,
         );
         if (!existing) throw new Error("missing legacy document");
-        router.replace(`/studio/${existing.id}`);
+        // El fragmento viaja con el marcador y puede llevar la credencial del
+        // enlace de revisión (`#cadReview=…`). Descartarlo aquí la destruía en
+        // silencio: el invitado aterrizaba en modo edición sin canjear nada.
+        // Nunca se envía al servidor; sólo se reenvía al destino interno.
+        const fragment =
+          typeof window === "undefined" ? "" : window.location.hash;
+        router.replace(`/studio/${existing.id}${fragment}`);
       })
       .catch(() => setFailed(true));
   }, [router]);
