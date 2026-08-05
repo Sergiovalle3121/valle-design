@@ -8436,6 +8436,21 @@ export default function Layout3DEditor({
     if (!offsets.length) return false;
     return insertNativeEntities(offsets, "offset");
   };
+  /**
+   * Una selección que mezcla geometría CANÓNICA con objetos HEREDADOS no tiene
+   * una sola mutación que la cubra: cada mundo tiene su propia transacción. Si
+   * se procesara la parte canónica y se ignorara el resto, el usuario vería
+   * moverse la mitad del dibujo sin ninguna explicación. Se rechaza entera.
+   */
+  const mixedSelectionRefused = (operation: string): boolean => {
+    if (!nativeSelectionIdsRef.current.length || !selRef.current.length)
+      return false;
+    toast.error(
+      `${operation} no puede aplicarse a la vez sobre geometría y objetos de layout. Selecciona sólo uno de los dos.`,
+      operation,
+    );
+    return true;
+  };
   const applyDrawAction = (action: DrawAction) => {
     if (
       action.type === "addSegment" ||
@@ -8445,6 +8460,7 @@ export default function Layout3DEditor({
     )
       return createCanonicalDrawEntity(action);
     if (action.type === "moveBy" || action.type === "copyBy") {
+      if (mixedSelectionRefused("MOVE/COPY")) return false;
       if (nativeSelectionIdsRef.current.length)
         return moveOrCopyCanonicalSelection(action);
       const isCopy = action.type === "copyBy";
@@ -8483,6 +8499,7 @@ export default function Layout3DEditor({
     if (action.type === "offsetBy") {
       // La geometría canónica seleccionada se desplaza de verdad (perpendicular,
       // con unión miter), no trasladando su caja como hacía el camino heredado.
+      if (mixedSelectionRefused("OFFSET")) return false;
       if (nativeSelectionIdsRef.current.length)
         return offsetCanonicalSelection(action.distance);
       return selRef.current
