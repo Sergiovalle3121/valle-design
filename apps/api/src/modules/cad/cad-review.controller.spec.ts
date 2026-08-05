@@ -65,6 +65,7 @@ describe('CadReview (/v1/cad review sessions + review links, stack completo)', (
               type: 'line',
               start: { x: 0, y: 0 },
               end: { x: 500, y: 0 },
+              layer: '0',
             },
           ],
         },
