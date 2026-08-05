@@ -1,9 +1,11 @@
+import { randomUUID } from 'node:crypto';
 import {
+  BeforeInsert,
   Column,
   CreateDateColumn,
   Entity,
   Index,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
 } from 'typeorm';
 import { DATE_COLUMN_TYPE } from '../../../common/database/date-column-type';
 import { JSON_COLUMN_TYPE } from '../../../common/database/json-column-type';
@@ -23,8 +25,28 @@ import { JSON_COLUMN_TYPE } from '../../../common/database/json-column-type';
   'referenceId',
 ])
 export class DesignAuditLogEntry {
-  @PrimaryGeneratedColumn('uuid')
+  /**
+   * Identidad generada por la APLICACIÓN.
+   *
+   * Declaraba `@PrimaryGeneratedColumn('uuid')`, que en PostgreSQL delega la
+   * generación a la base: TypeORM omitía el valor y emitía `DEFAULT`. La
+   * migración aplicada, en cambio, creó la columna como `varchar(36)` NOT NULL
+   * SIN default, así que cada asiento moría con `null value in column "id"` y
+   * el adaptador se lo tragaba: la auditoría CAD no registraba nada.
+   *
+   * Se genera aquí porque es la única estrategia idéntica en PostgreSQL y en
+   * el adaptador SQLite de desarrollo, y porque deja la entidad, el tipo de
+   * columna (`varchar(36)`) y la estrategia diciendo lo mismo. La migración
+   * `20260805120000-DesignAuditLogIdentity` añade además un `DEFAULT` en
+   * PostgreSQL como red para cualquier escritor que no pase por la entidad.
+   */
+  @PrimaryColumn({ type: 'varchar', length: 36 })
   id: string;
+
+  @BeforeInsert()
+  assignIdentity(): void {
+    if (!this.id) this.id = randomUUID();
+  }
 
   @Column({ name: 'tenant_id', type: 'varchar', length: 36, nullable: true })
   tenantId: string | null;

@@ -16,6 +16,7 @@ import { PurgeReviewLinkTokens20260802140000 } from './20260802140000-PurgeRevie
 import { FirstPartyIdentity20260802160000 } from './20260802160000-FirstPartyIdentity';
 import { CommercialFoundation20260802170000 } from './20260802170000-CommercialFoundation';
 import { NormalizeCadIdentifiers20260802180000 } from './20260802180000-NormalizeCadIdentifiers';
+import { DesignAuditLogIdentity20260805120000 } from './20260805120000-DesignAuditLogIdentity';
 
 const LEGACY_MIGRATIONS: Array<new () => MigrationInterface> = [
   AddCadBlocks20260706180000,
@@ -34,6 +35,7 @@ const ALL_MIGRATIONS: Array<new () => MigrationInterface> = [
   FirstPartyIdentity20260802160000,
   CommercialFoundation20260802170000,
   NormalizeCadIdentifiers20260802180000,
+  DesignAuditLogIdentity20260805120000,
 ];
 
 describePostgres('migration chain (previous main -> latest)', () => {
@@ -116,7 +118,7 @@ describePostgres('migration chain (previous main -> latest)', () => {
 
     dataSource = source(ALL_MIGRATIONS);
     await dataSource.initialize();
-    expect(await dataSource.runMigrations()).toHaveLength(3);
+    expect(await dataSource.runMigrations()).toHaveLength(4);
 
     expect(
       await dataSource.query(
@@ -160,6 +162,10 @@ describePostgres('migration chain (previous main -> latest)', () => {
       }),
     ]);
 
+    // Se deshace la ventana NUEVA COMPLETA: la prueba mide up/down/up de todo
+    // lo que esta rama añade sobre el main anterior, así que el número de
+    // `undo` acompaña al de migraciones nuevas.
+    await dataSource.undoLastMigration({ transaction: 'each' });
     await dataSource.undoLastMigration({ transaction: 'each' });
     await dataSource.undoLastMigration({ transaction: 'each' });
     await dataSource.undoLastMigration({ transaction: 'each' });
@@ -170,7 +176,7 @@ describePostgres('migration chain (previous main -> latest)', () => {
       ),
     ).toEqual([{ name: 'Plano anterior' }]);
 
-    expect(await dataSource.runMigrations()).toHaveLength(3);
+    expect(await dataSource.runMigrations()).toHaveLength(4);
     expect(
       await dataSource.query(
         `SELECT "entitlement_code" FROM "plan_entitlements"
