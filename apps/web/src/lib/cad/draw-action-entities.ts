@@ -1,5 +1,5 @@
 import type { CadEntity } from "./cad-document";
-import { offsetPolyline, offsetSegment } from "./geom-edit";
+import { offsetPath, offsetSegment } from "./geom-edit";
 
 /**
  * Traducción PURA de una acción de dibujo a UNA entidad canónica.
@@ -224,59 +224,138 @@ export const DRAW_ACTION_HISTORY_LABEL: Record<
 };
 
 
+export type OffsetRejection =
+  | "invalid-distance"
+  | "unsupported-entity"
+  | "bulge-unsupported"
+  | "degenerate-geometry"
+  | "impossible-result";
+
+export type OffsetEntityResult =
+  | { ok: true; entity: CadEntity }
+  | { ok: false; reason: OffsetRejection };
+
+/** Mensaje concreto por rechazo. El editor no inventa texto por su cuenta. */
+export const OFFSET_REJECTION_MESSAGE: Record<OffsetRejection, string> = {
+  "invalid-distance": "El desfase necesita una distancia finita distinta de cero.",
+  "unsupported-entity":
+    "OFFSET sólo admite líneas, polilíneas y círculos en esta versión.",
+  "bulge-unsupported":
+    "Esta polilínea tiene tramos en arco (bulge). OFFSET de arcos todavía no está implementado y convertirlos en rectas perdería el dibujo.",
+  "degenerate-geometry":
+    "La geometría no tiene un tramo real que desplazar.",
+  "impossible-result":
+    "Con esa distancia el contorno se colapsa o se invierte. Usa una distancia menor.",
+};
+
 /**
  * OFFSET de una entidad canónica.
  *
  * El OFFSET heredado no era un offset: copiaba el asset y le sumaba la
  * distancia a `x`, es decir TRASLADABA la caja. Sobre geometría real la
- * operación correcta es desplazar perpendicularmente cada tramo (unión miter en
- * los vértices interiores), que es justo lo que `geom-edit` ya calcula.
+ * operación correcta es desplazar perpendicularmente cada tramo y resolver cada
+ * esquina en la intersección de los tramos desplazados.
  *
- * Devuelve `null` para lo que no admite un offset bien definido en este alcance.
+ * Devuelve un resultado explícito, nunca geometría aproximada en silencio:
+ *
+ * - Un contorno CERRADO se recorre de forma cíclica, así que su primer vértice
+ *   también es una esquina ingletada. Tratarlo como abierto dejaba ese vértice
+ *   sobre el tramo desplazado inicial y abría una costura diagonal.
+ * - Una polilínea con `bulge` describe ARCOS. El offset de arcos no está
+ *   implementado, y reconstruir sólo `{x,y,z}` los convertía en cuerdas: el
+ *   dibujo cambiaba de forma sin avisar. Se rechaza en bloque (fail-closed).
+ * - Un desfase sin solución (colapso, inversión, tramo nulo) se rechaza en vez
+ *   de producir un polígono cruzado.
  */
 export function offsetCanonicalEntity(
   entity: CadEntity,
   distance: number,
   newId: () => string,
-): CadEntity | null {
-  if (!Number.isFinite(distance) || distance === 0) return null;
+  epsilon = DEFAULT_EPSILON,
+): OffsetEntityResult {
+  if (!Number.isFinite(distance) || distance === 0)
+    return { ok: false, reason: "invalid-distance" };
 
   if (entity.type === "line") {
+    if (
+      !finite(entity.start.x, entity.start.y, entity.end.x, entity.end.y)
+    )
+      return { ok: false, reason: "degenerate-geometry" };
+    // Sin dirección no hay perpendicular: `offsetSegment` normalizaría un
+    // vector nulo y devolvería el mismo punto duplicado.
+    if (samePoint(entity.start, entity.end, epsilon))
+      return { ok: false, reason: "degenerate-geometry" };
     const moved = offsetSegment(
-      { a: { x: entity.start.x, y: entity.start.y }, b: { x: entity.end.x, y: entity.end.y } },
+      {
+        a: { x: entity.start.x, y: entity.start.y },
+        b: { x: entity.end.x, y: entity.end.y },
+      },
       distance,
     );
     return {
-      ...entity,
-      id: newId(),
-      start: { x: moved.a.x, y: moved.a.y, z: entity.start.z },
-      end: { x: moved.b.x, y: moved.b.y, z: entity.end.z },
+      ok: true,
+      entity: {
+        ...entity,
+        id: newId(),
+        start: { x: moved.a.x, y: moved.a.y, z: entity.start.z },
+        end: { x: moved.b.x, y: moved.b.y, z: entity.end.z },
+      },
     };
   }
 
   if (entity.type === "polyline") {
-    // Una polilínea cerrada se desplaza sobre su recorrido COMPLETO (incluido
-    // el tramo de cierre) y vuelve a cerrarse; si no, el contorno resultante
-    // quedaría abierto por una esquina.
-    const source = entity.vertices.map((vertex) => ({ x: vertex.x, y: vertex.y }));
-    const path = entity.closed ? [...source, source[0]] : source;
-    const moved = offsetPolyline(path, distance);
-    const vertices = (entity.closed ? moved.slice(0, -1) : moved).map((point, index) => ({
-      x: point.x,
-      y: point.y,
-      z: entity.vertices[Math.min(index, entity.vertices.length - 1)]?.z ?? 0,
-    }));
-    if (vertices.length < (entity.closed ? 3 : 2)) return null;
-    return { ...entity, id: newId(), vertices };
+    if (entity.vertices.some((vertex) => (vertex.bulge ?? 0) !== 0))
+      return { ok: false, reason: "bulge-unsupported" };
+    if (!entity.vertices.every((vertex) => finite(vertex.x, vertex.y)))
+      return { ok: false, reason: "degenerate-geometry" };
+    // Se funden los vértices consecutivos repetidos ANTES de desplazar para
+    // que cada punto de salida corresponda 1:1 con un vértice de entrada y la
+    // cota z viaje con su vértice y no con una posición desplazada.
+    const source: (typeof entity.vertices)[number][] = [];
+    for (const vertex of entity.vertices) {
+      const previous = source[source.length - 1];
+      if (previous && samePoint(previous, vertex, epsilon)) continue;
+      source.push(vertex);
+    }
+    if (
+      entity.closed &&
+      source.length > 1 &&
+      samePoint(source[0], source[source.length - 1], epsilon)
+    )
+      source.pop();
+    if (source.length < (entity.closed ? 3 : 2))
+      return { ok: false, reason: "degenerate-geometry" };
+    const moved = offsetPath(
+      source.map((vertex) => ({ x: vertex.x, y: vertex.y })),
+      distance,
+      { closed: entity.closed },
+    );
+    if (!moved) return { ok: false, reason: "impossible-result" };
+    if (moved.length !== source.length)
+      return { ok: false, reason: "impossible-result" };
+    return {
+      ok: true,
+      entity: {
+        ...entity,
+        id: newId(),
+        vertices: moved.map((point, index) => ({
+          x: point.x,
+          y: point.y,
+          z: source[index].z,
+        })),
+      },
+    };
   }
 
   if (entity.type === "circle") {
     // Un círculo concéntrico: radio + distancia. Un radio no positivo no es un
     // círculo, así que la operación no produce nada.
+    if (!finite(entity.radius, entity.center.x, entity.center.y))
+      return { ok: false, reason: "degenerate-geometry" };
     const radius = entity.radius + distance;
-    if (radius <= 0) return null;
-    return { ...entity, id: newId(), radius };
+    if (radius <= epsilon) return { ok: false, reason: "impossible-result" };
+    return { ok: true, entity: { ...entity, id: newId(), radius } };
   }
 
-  return null;
+  return { ok: false, reason: "unsupported-entity" };
 }

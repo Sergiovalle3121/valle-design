@@ -6,6 +6,8 @@ export type CadToolbarActionId =
   | "polyline"
   | "rect"
   | "circle"
+  | "move"
+  | "copy"
   | "offset"
   | "aisle"
   | "connector"
@@ -73,6 +75,28 @@ export const CAD_TOOLBAR_ACTIONS: CadToolbarAction[] = [
     shortcut: "C",
     group: "draw",
     description: "Dibujar un círculo por centro y radio o diámetro.",
+  },
+  // MOVE y COPY existían en la máquina de comandos (`cad-command.ts`), en
+  // `CAD_DRAW_TOOLS` y en sus pruebas unitarias, pero NO tenían entrada de
+  // barra ni de paleta: el comando estaba implementado y era inalcanzable.
+  // Ahora se exponen, y su mutación es la canónica —la misma que los botones
+  // del panel—, así que heredan capa bloqueada, atomicidad y undo/redo.
+  // Sin `shortcut`: el registro de teclado (`keyboard-shortcuts.ts`) es otra
+  // lista, y anunciar una combinación que no está dada de alta sería una
+  // etiqueta falsa en la interfaz.
+  {
+    id: "move",
+    label: "Move",
+    group: "draw",
+    description:
+      "Desplazar la selección de un punto base a un punto destino.",
+  },
+  {
+    id: "copy",
+    label: "Copy",
+    group: "draw",
+    description:
+      "Duplicar la selección de un punto base a un punto destino.",
   },
   {
     id: "offset",

@@ -1,4 +1,5 @@
 import {
+  preserveDrawOrder,
   serializeCadDocument,
   type CadCollaborationAuditEvent,
   type CadCollaborationState,
@@ -222,7 +223,16 @@ export function mergeCadDocuments(
     document: {
       ...structuredClone(mineDocument),
       entities,
-      modelSpace: { entityIds: entities.map((entity) => entity.id) },
+      // El orden por id sirve para serializar de forma determinista, no para
+      // dibujar: derivar de él `modelSpace.entityIds` alfabetizaba el z-order
+      // del documento al resolver un conflicto. Se conserva el orden propio y
+      // lo que llega nuevo entra al frente.
+      modelSpace: {
+        entityIds: preserveDrawOrder(
+          mineDocument.modelSpace.entityIds,
+          entities.map((entity) => entity.id),
+        ),
+      },
     },
     autoMergedIds,
     collisions,

@@ -138,6 +138,7 @@ import {
   DRAW_ACTION_HISTORY_LABEL,
   DRAW_ACTION_REJECTION_MESSAGE,
   offsetCanonicalEntity,
+  OFFSET_REJECTION_MESSAGE,
   type CanonicalDrawAction,
 } from "@/lib/cad/draw-action-entities";
 import {
@@ -2741,6 +2742,18 @@ export default function Layout3DEditor({
     }
   }, []);
   const [activeCadLayer, setActiveCadLayer] = useState<CadLayerId>("equipment");
+  /**
+   * El efecto de la escena se monta con `[open, data]` y captura las funciones
+   * de dibujo de ese render. Leer `activeCadLayer` (estado) desde dentro de esa
+   * clausura devolvía la capa ACTIVA AL MONTAR: cambiar de capa y dibujar con
+   * el ratón seguía escribiendo en la anterior, y el usuario sólo lo descubría
+   * al recargar. El commit consulta el ref, así que ratón, entrada dinámica y
+   * entrada de precisión comparten una única frontera canónica.
+   */
+  const activeCadLayerRef = useRef<CadLayerId>(activeCadLayer);
+  useEffect(() => {
+    activeCadLayerRef.current = activeCadLayer;
+  }, [activeCadLayer]);
   const cadLayersRef = useRef<CadLayer[]>(DEFAULT_CAD_LAYERS);
   const syncCadLayerState = useCallback((document: CadDocument) => {
     const projected = document.layers.length
@@ -5513,6 +5526,53 @@ export default function Layout3DEditor({
     [commitPaperSpaces, paperSpaces],
   );
 
+  /**
+   * FRONTERA TRANSACCIONAL ÚNICA de la autoría canónica.
+   *
+   * Cada mutación canónica repetía la misma secuencia por su cuenta, y las que
+   * se llamaban entre sí la ejecutaban DOS veces: `applyDrawState` hacía
+   * `pushHistory()` + `markDirty()` alrededor de un `insertNativeEntities()`
+   * que ya registraba su propio checkpoint. El resultado eran dos entradas de
+   * historial por dibujo (el primer Undo no deshacía nada), dos generaciones
+   * sucias, dos autosaves programados y —cuando la acción se rechazaba— un
+   * checkpoint sin ninguna mutación detrás.
+   *
+   * A partir de aquí, una operación canónica correcta produce EXACTAMENTE:
+   * una mutación, una entrada de historial, una transición sucia, una
+   * selección coherente y una sincronización de escena. Una operación
+   * rechazada no llega hasta aquí y por tanto produce exactamente cero.
+   */
+  const commitCanonicalDocument = useCallback(
+    (
+      checkpoint: CadDocument,
+      document: CadDocument,
+      options: {
+        selection: string[];
+        upsert?: CadNativeEntity[];
+        remove?: string[];
+      },
+    ) => {
+      recordHistoryDocument(checkpoint);
+      loadedCadDocumentRef.current = document;
+      const existing = new Set(document.entities.map((entity) => entity.id));
+      const selected = options.selection.filter((id) => existing.has(id));
+      nativeSelectionIdsRef.current = selected;
+      setNativeSelectionIds(selected);
+      setNativeEntities(
+        document.entities.filter((entity): entity is CadNativeEntity =>
+          CAD_ENTITY_REGISTRY.supports(entity),
+        ),
+      );
+      setNativeDocumentRevision((value) => value + 1);
+      markDirty();
+      syncNativeScene(document, {
+        upsert: options.upsert ?? [],
+        remove: options.remove ?? [],
+      });
+    },
+    [markDirty, recordHistoryDocument, syncNativeScene],
+  );
+
   const commitNativeCommands = useCallback(
     (
       commands: Parameters<typeof executeCadEntityCommand>[1][],
@@ -5544,21 +5604,6 @@ export default function Layout3DEditor({
           result.createdEntityIds.forEach((id) => touchedIds.add(id));
           result.deletedEntityIds.forEach((id) => touchedIds.add(id));
         }
-        recordHistoryDocument(checkpoint);
-        loadedCadDocumentRef.current = document;
-        const existing = new Set(document.entities.map((entity) => entity.id));
-        const selected = (
-          nextSelection ?? nativeSelectionIdsRef.current
-        ).filter((id) => existing.has(id));
-        nativeSelectionIdsRef.current = selected;
-        setNativeSelectionIds(selected);
-        setNativeEntities(
-          document.entities.filter((entity): entity is CadNativeEntity =>
-            CAD_ENTITY_REGISTRY.supports(entity),
-          ),
-        );
-        setNativeDocumentRevision((value) => value + 1);
-        markDirty();
         const upsert = document.entities.filter(
           (entity): entity is CadNativeEntity =>
             touchedIds.has(entity.id) && CAD_ENTITY_REGISTRY.supports(entity),
@@ -5572,7 +5617,11 @@ export default function Layout3DEditor({
               ),
           )
           .map((entity) => entity.id);
-        syncNativeScene(document, { upsert, remove });
+        commitCanonicalDocument(checkpoint, document, {
+          selection: nextSelection ?? nativeSelectionIdsRef.current,
+          upsert,
+          remove,
+        });
         return true;
       } catch (cause) {
         toast.error(
@@ -5584,14 +5633,7 @@ export default function Layout3DEditor({
         return false;
       }
     },
-    [
-      markDirty,
-      notifyReadOnly,
-      recordHistoryDocument,
-      snapshotDocument,
-      syncNativeScene,
-      toast,
-    ],
+    [commitCanonicalDocument, notifyReadOnly, snapshotDocument, toast],
   );
   const updateNativeProperties = useCallback(
     (entityId: string, patch: Partial<CadPropertyBag>) => {
@@ -6181,7 +6223,26 @@ export default function Layout3DEditor({
   const insertNativeEntities = useCallback(
     (incoming: CadNativeEntity[], label: string) => {
       if (!incoming.length) return false;
+      if (drawingReadOnlyRef.current) {
+        notifyReadOnly();
+        return false;
+      }
       const checkpoint = snapshotDocument();
+      // Una capa bloqueada no recibe geometría. La comprobación vivía sólo en
+      // las herramientas de dibujo, así que todo lo que insertaba por otra vía
+      // —OFFSET sobre una entidad de una capa bloqueada, cotas, MLEADER—
+      // escribía igualmente sobre la capa bloqueada.
+      const lockedTarget = incoming.find(
+        (entity) =>
+          checkpoint.layers.find((layer) => layer.id === entity.layer)?.locked,
+      );
+      if (lockedTarget) {
+        toast.error(
+          `Layer ${lockedTarget.layer} is locked. Unlock it before writing to it.`,
+          "Capa bloqueada",
+        );
+        return false;
+      }
       const existingIds = new Set(
         checkpoint.entities.map((entity) => entity.id),
       );
@@ -6221,27 +6282,13 @@ export default function Layout3DEditor({
         },
         label,
       );
-      recordHistoryDocument(checkpoint);
-      loadedCadDocumentRef.current = document;
-      nativeSelectionIdsRef.current = incoming.map((entity) => entity.id);
-      setNativeSelectionIds(nativeSelectionIdsRef.current);
-      setNativeEntities(
-        document.entities.filter((entity): entity is CadNativeEntity =>
-          CAD_ENTITY_REGISTRY.supports(entity),
-        ),
-      );
-      setNativeDocumentRevision((value) => value + 1);
-      markDirty();
-      syncNativeScene(document, { upsert: incoming, remove: [] });
+      commitCanonicalDocument(checkpoint, document, {
+        selection: incoming.map((entity) => entity.id),
+        upsert: incoming,
+      });
       return true;
     },
-    [
-      markDirty,
-      recordHistoryDocument,
-      snapshotDocument,
-      syncNativeScene,
-      toast,
-    ],
+    [commitCanonicalDocument, notifyReadOnly, snapshotDocument, toast],
   );
   const openMTextEditor = useCallback((entityId: string | null = null) => {
     setEditingMTextId(entityId);
@@ -8278,7 +8325,9 @@ export default function Layout3DEditor({
       notifyReadOnly();
       return false;
     }
-    const layerId = activeCadLayer;
+    // La capa se lee del REF, no del estado: el efecto de la escena capturó
+    // esta función al montarse y el estado que ve es el de ese momento.
+    const layerId = activeCadLayerRef.current;
     if (cadLayersRef.current.find((layer) => layer.id === layerId)?.locked) {
       toast.error(
         `Layer ${layerId} is locked. Unlock it before drawing on it.`,
@@ -8299,6 +8348,94 @@ export default function Layout3DEditor({
       DRAW_ACTION_HISTORY_LABEL[action.type],
     );
   };
+  /**
+   * MOVE/COPY del flujo de comandos NORMAL sobre la selección CANÓNICA.
+   *
+   * `moveBy`/`copyBy` sólo recorrían `selRef` —la selección HEREDADA de
+   * assets/estaciones—, mientras la selección canónica vive en
+   * `nativeSelectionIdsRef`. Con una línea o una polilínea seleccionada, el
+   * comando MOVE del editor no hacía absolutamente nada: ni error, ni
+   * historial, ni movimiento. Los botones del panel nativo sí funcionaban, pero
+   * un botón aparte no sustituye al comando.
+   *
+   * Se enruta a la misma mutación canónica que ya usa el panel, así que hereda
+   * capa bloqueada, atomicidad del lote, orden de dibujo, una sola entrada de
+   * historial y undo/redo.
+   */
+  const moveOrCopyCanonicalSelection = (
+    action: Extract<DrawAction, { type: "moveBy" | "copyBy" }>,
+  ): boolean => {
+    const ids = nativeSelectionIdsRef.current;
+    if (!ids.length) return false;
+    if (!Number.isFinite(action.dx) || !Number.isFinite(action.dy)) {
+      toast.error("El desplazamiento indicado no es válido.", "Dibujo");
+      return false;
+    }
+    if (action.type === "copyBy") {
+      const created = ids.map(() => newId("ent"));
+      return commitNativeCommands(
+        ids.map((entityId, index) => ({
+          type: "copy" as const,
+          entityId,
+          newEntityId: created[index],
+          offset: { x: action.dx, y: action.dy },
+        })),
+        created,
+      );
+    }
+    return commitNativeCommands(
+      ids.map((entityId) => ({
+        type: "transform" as const,
+        entityId,
+        transform: { translation: { x: action.dx, y: action.dy } },
+      })),
+      ids,
+    );
+  };
+  /**
+   * OFFSET canónico de la selección — ATÓMICO.
+   *
+   * Antes se filtraba lo que no salía (`.filter(Boolean)`): con una selección
+   * mixta el usuario veía desfasarse una parte y desaparecer el resto sin
+   * ninguna explicación, y una polilínea con arcos perdía los arcos en
+   * silencio. Ahora, si un solo miembro no puede procesarse, no se modifica
+   * NINGUNO y se dice exactamente por qué.
+   */
+  const offsetCanonicalSelection = (distance: number): boolean => {
+    const ids = nativeSelectionIdsRef.current;
+    if (!ids.length) return false;
+    const document = snapshotDocument();
+    const selected = new Set(ids);
+    const sources = document.entities.filter((entity) =>
+      selected.has(entity.id),
+    );
+    const offsets: CadNativeEntity[] = [];
+    for (const source of sources) {
+      const locked = document.layers.find(
+        (layer) => layer.id === source.layer,
+      )?.locked;
+      if (locked) {
+        toast.error(
+          `Layer ${source.layer} is locked. Unlock it before offsetting ${source.id}.`,
+          "OFFSET",
+        );
+        return false;
+      }
+      const result = offsetCanonicalEntity(source, distance, () =>
+        newId("ent"),
+      );
+      if (!result.ok) {
+        toast.error(
+          `${source.id}: ${OFFSET_REJECTION_MESSAGE[result.reason]}`,
+          "OFFSET",
+        );
+        return false;
+      }
+      offsets.push(result.entity as CadNativeEntity);
+    }
+    if (!offsets.length) return false;
+    return insertNativeEntities(offsets, "offset");
+  };
   const applyDrawAction = (action: DrawAction) => {
     if (
       action.type === "addSegment" ||
@@ -8308,6 +8445,8 @@ export default function Layout3DEditor({
     )
       return createCanonicalDrawEntity(action);
     if (action.type === "moveBy" || action.type === "copyBy") {
+      if (nativeSelectionIdsRef.current.length)
+        return moveOrCopyCanonicalSelection(action);
       const isCopy = action.type === "copyBy";
       return selRef.current
         .map((item) => {
@@ -8344,24 +8483,8 @@ export default function Layout3DEditor({
     if (action.type === "offsetBy") {
       // La geometría canónica seleccionada se desplaza de verdad (perpendicular,
       // con unión miter), no trasladando su caja como hacía el camino heredado.
-      const nativeIds = new Set(nativeSelectionIdsRef.current);
-      if (nativeIds.size) {
-        const document = snapshotDocument();
-        const offsets = document.entities
-          .filter((entity) => nativeIds.has(entity.id))
-          .map((entity) =>
-            offsetCanonicalEntity(entity, action.distance, () => newId("ent")),
-          )
-          .filter((entity): entity is CadNativeEntity => !!entity);
-        if (!offsets.length) {
-          toast.error(
-            "La selección no admite un desfase con esta distancia.",
-            "OFFSET",
-          );
-          return false;
-        }
-        return insertNativeEntities(offsets, "offset");
-      }
+      if (nativeSelectionIdsRef.current.length)
+        return offsetCanonicalSelection(action.distance);
       return selRef.current
         .filter((item) => item.type === "asset")
         .map((item) => {
@@ -8390,12 +8513,45 @@ export default function Layout3DEditor({
     }
     return false;
   };
+  /**
+   * Quién es dueño de la transacción de esta acción.
+   *
+   * La vía CANÓNICA registra su propio checkpoint dentro de
+   * `commitCanonicalDocument`, y sólo si de verdad muta. La vía HEREDADA muta
+   * refs en el sitio, así que su checkpoint hay que tomarlo antes; si al final
+   * no cambia nada, se cancela para no dejar un Undo fantasma.
+   */
+  const drawActionOwner = (
+    action: DrawAction,
+  ): "canonical" | "legacy" | "none" => {
+    if (
+      action.type === "addSegment" ||
+      action.type === "addPolyline" ||
+      action.type === "addRect" ||
+      action.type === "addCircle"
+    )
+      return "canonical";
+    if (nativeSelectionIdsRef.current.length) return "canonical";
+    return selRef.current.length ? "legacy" : "none";
+  };
   const applyDrawState = (state: CadDrawCommandState) => {
     if (!state.emitted.length) return false;
-    pushHistory();
-    const changed = state.emitted.map(applyDrawAction).some(Boolean);
+    const owners = state.emitted.map(drawActionOwner);
+    const expectsLegacy = owners.includes("legacy");
+    if (expectsLegacy) pushHistory();
+    let legacyChanged = false;
+    let canonicalChanged = false;
+    state.emitted.forEach((action, index) => {
+      if (!applyDrawAction(action)) return;
+      if (owners[index] === "legacy") legacyChanged = true;
+      else canonicalChanged = true;
+    });
+    // Ni historial ni generación sucia por una acción que no mutó: una acción
+    // degenerada o rechazada deja el documento exactamente como estaba.
+    if (expectsLegacy && !legacyChanged) cancelHistoryCheckpoint();
+    if (legacyChanged) markDirty();
+    const changed = legacyChanged || canonicalChanged;
     if (changed) {
-      markDirty();
       rebuildAssets();
       rebuildBlocks();
       refreshSnap();
@@ -11108,7 +11264,19 @@ export default function Layout3DEditor({
           blocks: [...current.blocks, ...importedBlockParts.blocks].sort(
             (a, b) => a.id.localeCompare(b.id),
           ),
-          modelSpace: { entityIds: entities.map((entity) => entity.id) },
+          // `entities` va ordenado por id para serializar determinista, pero
+          // derivar de ahí el Z-ORDER alfabetizaba el plano ENTERO al importar
+          // un DXF: lo que ya estaba dibujado se reordenaba por id y la
+          // geometría importada se intercalaba en medio. Lo previo conserva su
+          // orden y lo importado entra al frente.
+          modelSpace: {
+            entityIds: preserveDrawOrder(current.modelSpace.entityIds, [
+              ...current.modelSpace.entityIds.filter(
+                (id) => !nativeIds.has(id),
+              ),
+              ...nativeCreated.map((entity) => entity.id),
+            ]),
+          },
           lossManifest: [...current.lossManifest, ...importLossManifest],
         },
         "import:dxf-native-entities",
@@ -13448,6 +13616,8 @@ export default function Layout3DEditor({
       id === "polyline" ||
       id === "rect" ||
       id === "circle" ||
+      id === "move" ||
+      id === "copy" ||
       id === "offset"
     )
       startCadDrawTool(id);
@@ -18424,6 +18594,18 @@ export default function Layout3DEditor({
               >
                 Native {nativeEntities.length}
               </span>
+              {/* La profundidad del historial es OBSERVABLE: una acción de
+                  dibujo tiene que dejar exactamente una entrada, y una acción
+                  rechazada ninguna. Sin esto, "el primer Undo no deshace nada"
+                  sólo se nota a mano. */}
+              <span
+                data-testid="cad-history-depth"
+                data-undo={hist.undo}
+                data-redo={hist.redo}
+                title="Profundidad de deshacer/rehacer"
+              >
+                U{hist.undo}/R{hist.redo}
+              </span>
               {nativeRenderStats.omitted > 0 && (
                 <span
                   data-testid="cad-native-render-stats"
@@ -18887,7 +19069,10 @@ export default function Layout3DEditor({
                 </div>
               </div>
             )}
-            <div className="absolute top-3 left-3 z-20 rounded-2xl border border-white/10 bg-gray-900/85 p-1.5 shadow-2xl backdrop-blur">
+            <div
+              data-testid="cad-toolbar"
+              className="absolute top-3 left-3 z-20 rounded-2xl border border-white/10 bg-gray-900/85 p-1.5 shadow-2xl backdrop-blur"
+            >
               <div className="grid grid-cols-1 gap-1">
                 {CAD_TOOLBAR_ACTIONS.map((action) => (
                   <button

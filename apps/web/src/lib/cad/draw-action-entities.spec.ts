@@ -4,6 +4,7 @@ import {
   offsetCanonicalEntity,
   type CanonicalDrawAction,
 } from "./draw-action-entities";
+import type { CadEntity } from "./cad-document";
 
 /**
  * PRIORIDAD 2 — las herramientas básicas producen entidades CANÓNICAS.
@@ -172,6 +173,25 @@ assert.equal(counter, before + 1, "se consume exactamente un id por entidad");
 
 /* ── OFFSET real: perpendicular, no una traslación de la caja ── */
 
+// La geometría EXACTA del desfase (contorno cerrado, bulge, orientación,
+// inglete, resultados imposibles) vive en `canonical-offset.spec.ts`. Aquí
+// sólo queda el contrato de este módulo: la operación devuelve un resultado
+// explícito, nunca `null` ambiguo ni geometría aproximada en silencio.
+
+function offsetOk(entity: CadEntity, distance: number, id: string) {
+  const result = offsetCanonicalEntity(entity, distance, () => id);
+  assert.equal(result.ok, true, "esperaba un desfase válido");
+  if (!result.ok) throw new Error("unreachable");
+  return result.entity;
+}
+
+function offsetRejected(entity: CadEntity, distance: number) {
+  const result = offsetCanonicalEntity(entity, distance, () => "unused");
+  assert.equal(result.ok, false, "esperaba rechazar el desfase");
+  if (result.ok) throw new Error("unreachable");
+  return result.reason;
+}
+
 // El OFFSET heredado hacía `x + distancia` sobre el asset. Sobre una línea
 // VERTICAL eso la movía a lo largo de su propio eje y no la desfasaba en
 // absoluto; el desfase correcto es perpendicular.
@@ -180,9 +200,8 @@ const vertical = ok({
   a: { x: 1_000, y: 0 },
   b: { x: 1_000, y: 2_000 },
 });
-const offsetLine = offsetCanonicalEntity(vertical, 250, () => "off-1");
-assert.ok(offsetLine && offsetLine.type === "line");
-if (!offsetLine || offsetLine.type !== "line") throw new Error("unreachable");
+const offsetLine = offsetOk(vertical, 250, "off-1");
+if (offsetLine.type !== "line") throw new Error("unreachable");
 assert.notEqual(offsetLine.id, vertical.id, "el desfase es una entidad nueva");
 assert.equal(Math.abs(offsetLine.start.x - 1_000), 250, "se desplaza en X, perpendicular");
 assert.equal(offsetLine.start.y, 0, "y NO a lo largo de su propio eje");
@@ -190,26 +209,38 @@ assert.equal(offsetLine.end.y, 2_000);
 
 // Un círculo se desfasa concéntricamente.
 const baseCircle = ok({ type: "addCircle", cx: 0, cy: 0, r: 500 });
-const offsetCircle = offsetCanonicalEntity(baseCircle, 100, () => "off-2");
-if (!offsetCircle || offsetCircle.type !== "circle") throw new Error("unreachable");
+const offsetCircle = offsetOk(baseCircle, 100, "off-2");
+if (offsetCircle.type !== "circle") throw new Error("unreachable");
 assert.equal(offsetCircle.radius, 600);
 assert.deepEqual(offsetCircle.center, { x: 0, y: 0, z: 0 });
 assert.equal(
-  offsetCanonicalEntity(baseCircle, -500, () => "off-3"),
-  null,
+  offsetRejected(baseCircle, -500),
+  "impossible-result",
   "un radio no positivo no es un círculo: la operación no produce nada",
 );
 
-// Una polilínea cerrada sigue cerrada y conserva su número de vértices.
+// Una polilínea cerrada sigue cerrada, conserva sus vértices y —lo que las
+// aserciones anteriores no comprobaban— la geometría correcta en TODAS las
+// esquinas, incluida la primera.
 const closedSquare = ok({ type: "addRect", x: 0, y: 0, w: 1_000, h: 1_000 });
-const offsetSquare = offsetCanonicalEntity(closedSquare, 100, () => "off-4");
-if (!offsetSquare || offsetSquare.type !== "polyline") throw new Error("unreachable");
+const offsetSquare = offsetOk(closedSquare, 100, "off-4");
+if (offsetSquare.type !== "polyline") throw new Error("unreachable");
 assert.equal(offsetSquare.closed, true);
 assert.equal(offsetSquare.vertices.length, 4, "el contorno no se abre por una esquina");
+assert.deepEqual(
+  offsetSquare.vertices.map((vertex) => [vertex.x, vertex.y]),
+  [
+    [100, 100],
+    [900, 100],
+    [900, 900],
+    [100, 900],
+  ],
+  "sin costura diagonal en el vértice de cierre",
+);
 
 assert.equal(
-  offsetCanonicalEntity(vertical, 0, () => "off-5"),
-  null,
+  offsetRejected(vertical, 0),
+  "invalid-distance",
   "un desfase de cero no crea geometría duplicada",
 );
 

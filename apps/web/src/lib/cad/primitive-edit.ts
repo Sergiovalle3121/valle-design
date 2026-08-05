@@ -8,6 +8,7 @@
  *
  * Convención de ángulos idéntica a primitives.ts: GRADOS, CCW desde +X.
  */
+import { offsetPath } from "./geom-edit";
 import {
   norm360,
   type CadPrimitive,
@@ -146,26 +147,14 @@ export function offsetSegment(
   return { a: add(a, shift), b: add(b, shift) };
 }
 
-/** Intersección de dos rectas infinitas (por dos puntos cada una). Null si son paralelas. */
-function lineIntersection(
-  p1: CadVec2,
-  p2: CadVec2,
-  p3: CadVec2,
-  p4: CadVec2,
-): CadVec2 | null {
-  const d1 = sub(p2, p1);
-  const d2 = sub(p4, p3);
-  const denom = cross(d1, d2);
-  if (Math.abs(denom) < 1e-12) return null;
-  const t = cross(sub(p3, p1), d2) / denom;
-  return add(p1, scale(d1, t));
-}
-
 /**
  * Desplaza una polilínea a distancia `distance` (mismo criterio de signo que
- * offsetSegment). Une los tramos desplazados con junta en inglete (miter):
- * intersecta las rectas desplazadas adyacentes. Con vértices consecutivos
- * casi paralelos usa el extremo desplazado para no disparar el inglete.
+ * offsetSegment).
+ *
+ * La matemática vive en `geom-edit.offsetPath`: había DOS motores de offset en
+ * el producto y sólo uno resolvía bien el vértice de cierre. Este módulo
+ * conserva su firma —devuelve el recorrido original cuando no hay desfase
+ * posible— y delega el cálculo para que exista una sola implementación.
  */
 export function offsetPolyline(
   points: CadVec2[],
@@ -173,44 +162,7 @@ export function offsetPolyline(
   closed = false,
 ): CadVec2[] {
   if (points.length < 2) return [...points];
-  const segments: { a: CadVec2; b: CadVec2 }[] = [];
-  for (let i = 0; i < points.length - 1; i += 1) {
-    const seg = offsetSegment(points[i], points[i + 1], distance);
-    if (seg) segments.push(seg);
-  }
-  if (closed) {
-    const seg = offsetSegment(
-      points[points.length - 1],
-      points[0],
-      distance,
-    );
-    if (seg) segments.push(seg);
-  }
-  if (segments.length === 0) return [...points];
-
-  const n = segments.length;
-  const result: CadVec2[] = [];
-  if (closed) {
-    // Vértice de salida i = esquina en el vértice de entrada i: intersección
-    // del segmento que llega (i-1) con el que sale (i). Así la indexación de
-    // salida queda alineada con la de entrada.
-    for (let i = 0; i < n; i += 1) {
-      const prevSeg = segments[(i - 1 + n) % n];
-      const curSeg = segments[i];
-      const hit = lineIntersection(prevSeg.a, prevSeg.b, curSeg.a, curSeg.b);
-      result.push(hit ?? curSeg.a);
-    }
-    return result;
-  }
-  result.push(segments[0].a);
-  for (let i = 0; i < n - 1; i += 1) {
-    const cur = segments[i];
-    const nxt = segments[i + 1];
-    const hit = lineIntersection(cur.a, cur.b, nxt.a, nxt.b);
-    result.push(hit ?? cur.b);
-  }
-  result.push(segments[n - 1].b);
-  return result;
+  return offsetPath(points, distance, { closed }) ?? [...points];
 }
 
 /**

@@ -1,5 +1,6 @@
 import {
   commitChange,
+  preserveDrawOrder,
   type CadDocument,
   type CadEntity,
   type CadEntityContext,
@@ -1606,16 +1607,27 @@ export function executeCadEntityCommand(
   const regeneratedDimensions = regenerateAssociativeDimensions(regenerated.entities, regenerationSourceIds);
   const regeneratedMleaders = regenerateAssociativeMleaders(regeneratedDimensions.entities, regenerationSourceIds);
   entities = regeneratedMleaders.entities;
+  // `entities` se ordena por id para que el serializado sea determinista y los
+  // hashes reproducibles. El Z-ORDER NO vive aquí: vive en
+  // `modelSpace.entityIds`, y ahí alfabetizar destruía el dibujo — editar,
+  // mover o soltar un grip reordenaba el plano entero por id, así que "traer al
+  // frente", el apilado de hatches y los wipeouts no sobrevivían a una edición.
   entities.sort((a, b) => a.id.localeCompare(b.id));
+  const deleted = new Set(deletedEntityIds);
   const nextDocument = commitChange(
     {
       ...document,
       entities,
       modelSpace: {
-        entityIds: document.modelSpace.entityIds
-          .filter((id) => !deletedEntityIds.includes(id))
-          .concat(createdEntityIds)
-          .sort(),
+        // Los supervivientes conservan su posición relativa exacta; lo creado
+        // (una copia) entra al frente. `preserveDrawOrder` además deduplica,
+        // así que no quedan fantasmas ni omisiones.
+        entityIds: preserveDrawOrder(
+          document.modelSpace.entityIds,
+          document.modelSpace.entityIds
+            .filter((id) => !deleted.has(id))
+            .concat(createdEntityIds),
+        ),
       },
     },
     label,
