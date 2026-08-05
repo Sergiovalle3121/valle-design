@@ -69,3 +69,5 @@ assert.equal(cadSelectionPathMatchesPolygon([
 assert.equal(cadSelectionPathMatchesPolygon([
   { x: 3, y: 3 }, { x: 8, y: 3 }, { x: 8, y: 8 },
 ], box, "lasso"), true);
+
+console.log("selection-controller: ventana, captura y lazo de selección");

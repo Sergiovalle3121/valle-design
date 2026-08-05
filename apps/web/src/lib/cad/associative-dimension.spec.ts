@@ -51,3 +51,5 @@ if (next?.type === 'dimension') {
 const broken = regenerateAssociativeDimensions([associated], ['line']);
 assert.deepEqual(broken.brokenIds, ['associated']);
 assert.equal(broken.entities[0].type === 'dimension' ? broken.entities[0].associationStatus : null, 'broken');
+
+console.log("associative-dimension: la cota sigue a su geometría y se marca broken al perderla");

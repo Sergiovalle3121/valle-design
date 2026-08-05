@@ -48,3 +48,5 @@ const second = measureCadMText('cache', 40, { fontFamily: 'Arial', bold: true })
 assert.equal(first, second);
 assert.equal(cacheAfterFirst, cacheBefore + 1);
 assert.equal(cadMTextMeasurementCacheSize(), cacheAfterFirst);
+
+console.log("mtext-layout: composición de párrafos y caché de medidas");

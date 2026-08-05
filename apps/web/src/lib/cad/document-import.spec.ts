@@ -71,3 +71,5 @@ assert.throws(
   () => validateImportFile("drawing.dxf", MAX_DXF_IMPORT_BYTES + 1),
   /límite/i,
 );
+
+console.log("document-import: extensión, tamaño y límites de importación");

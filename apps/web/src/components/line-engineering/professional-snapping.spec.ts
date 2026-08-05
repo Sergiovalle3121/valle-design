@@ -40,3 +40,5 @@ const derivedHit = snap({ x: 3.1, y: 0.1 }, derived, {
 assert.equal(derivedHit?.type, 'apparent-intersection');
 assert.deepEqual(derivedHit?.point, { x: 3, y: 0 });
 assert.ok(Math.abs((derivedHit?.distance ?? 0) - Math.hypot(0.1, 0.1)) < 1e-12);
+
+console.log("professional-snapping: referencias a objeto derivadas (intersección aparente incluida)");
