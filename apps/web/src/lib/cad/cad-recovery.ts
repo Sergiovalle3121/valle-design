@@ -251,7 +251,14 @@ export async function loadCadRecovery(
         continue;
       }
       try {
-        const document = await decodeCadRecoveryOffThread(record.format, await record.payload.arrayBuffer());
+        // El hash guardado se COMPRUEBA aquí. Si no cuadra, el registro se
+        // trata como dañado: se descarta y el bucle continúa con el checkpoint
+        // anterior, en vez de devolver al usuario un plano que no es el suyo.
+        const document = await decodeCadRecoveryOffThread(
+          record.format,
+          await record.payload.arrayBuffer(),
+          record.sha256,
+        );
         if (expiredKeys.length) await deleteJournalKeys(database, expiredKeys);
         return { ...record, document };
       } catch {

@@ -77,12 +77,20 @@ export async function encodeCadRecoveryOffThread(
 export async function decodeCadRecoveryOffThread(
   format: CadRecoveryPayloadFormat,
   buffer: ArrayBuffer,
+  expectedSha256?: string,
 ): Promise<CadDocument> {
   const fallbackBuffer = buffer.slice(0);
   try {
-    return await requestWorker<CadDocument>({ type: 'decode', format, buffer }, [buffer]);
+    return await requestWorker<CadDocument>(
+      { type: 'decode', format, buffer, expectedSha256 },
+      [buffer],
+    );
   } catch {
+    // El fallback existe para cuando el WORKER no está disponible, no para
+    // colarse cuando el payload está dañado: se vuelve a verificar en el hilo
+    // principal con el mismo hash, así que un checkpoint corrupto sigue
+    // fallando y `loadCadRecovery` cae al siguiente válido.
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
-    return decodeCadRecoveryPayload(format, fallbackBuffer);
+    return decodeCadRecoveryPayload(format, fallbackBuffer, expectedSha256);
   }
 }
