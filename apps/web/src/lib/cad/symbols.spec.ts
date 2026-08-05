@@ -19,7 +19,7 @@ assert.ok(
   searchCadSymbols("aoi").some((symbol) => symbol.id === "aoi"),
   "search finds AOI",
 );
-// CAD universal (AXOS-CAD-UNIVERSAL-001): el catálogo sirve a cualquiera
+// CAD universal (VD-CAD-UNIVERSAL-001): el catálogo sirve a cualquiera
 // diseñando cualquier cosa — búsquedas en español de casa/oficina/comercio.
 assert.ok(
   searchCadSymbols("puerta").some((symbol) => symbol.id === "door-90"),
@@ -88,7 +88,7 @@ assert.ok(
 );
 console.log("cad symbols specs passed");
 
-// Segunda tanda universal (AXOS-CAD-UNIVERSAL-004): escuela, gimnasio,
+// Segunda tanda universal (VD-CAD-UNIVERSAL-004): escuela, gimnasio,
 // exterior y baño público con búsqueda en español.
 assert.ok(
   searchCadSymbols("caminadora").some((symbol) => symbol.id === "treadmill"),
@@ -110,7 +110,7 @@ assert.equal(
   "cajón de estacionamiento a medida real (2.5 m)",
 );
 
-// Tercera tanda universal (AXOS-CAD-UNIVERSAL-009): taller mecánico con
+// Tercera tanda universal (VD-CAD-UNIVERSAL-009): taller mecánico con
 // búsqueda en español y medidas reales.
 assert.ok(
   searchCadSymbols("elevador").some((symbol) => symbol.id === "car-lift"),
@@ -132,7 +132,7 @@ assert.equal(
   "auto a medida real (4.5 m de largo)",
 );
 
-// Cuarta tanda universal (AXOS-CAD-UNIVERSAL-012): salón de belleza.
+// Cuarta tanda universal (VD-CAD-UNIVERSAL-012): salón de belleza.
 assert.ok(
   searchCadSymbols("estilista").some((symbol) => symbol.id === "styling-chair"),
   "search finds silla de estilista (salón)",
@@ -148,7 +148,7 @@ assert.ok(
   "search finds tocador con espejo (salón)",
 );
 
-// Quinta tanda universal (AXOS-CAD-UNIVERSAL-015): panadería.
+// Quinta tanda universal (VD-CAD-UNIVERSAL-015): panadería.
 assert.ok(
   searchCadSymbols("horno").some((symbol) => symbol.id === "oven"),
   "search finds horno (panadería)",
@@ -162,13 +162,13 @@ assert.ok(
   "search finds vitrina (panadería)",
 );
 
-// Sexta tanda universal (AXOS-CAD-UNIVERSAL-016): veterinaria.
+// Sexta tanda universal (VD-CAD-UNIVERSAL-016): veterinaria.
 assert.ok(
   searchCadSymbols("jaula").some((symbol) => symbol.id === "kennel-cage"),
   "search finds jaula para mascotas (veterinaria)",
 );
 
-// Séptima tanda universal (AXOS-CAD-UNIVERSAL-017): lavandería.
+// Séptima tanda universal (VD-CAD-UNIVERSAL-017): lavandería.
 assert.ok(
   searchCadSymbols("lavadora").some((symbol) => symbol.id === "washer"),
   "search finds lavadora (lavandería)",
@@ -178,13 +178,13 @@ assert.ok(
   "search finds secadora (lavandería)",
 );
 
-// Octava tanda universal (AXOS-CAD-UNIVERSAL-018): guardería.
+// Octava tanda universal (VD-CAD-UNIVERSAL-018): guardería.
 assert.ok(
   searchCadSymbols("cuna").some((symbol) => symbol.id === "crib"),
   "search finds cuna (guardería)",
 );
 
-// Novena tanda universal (AXOS-CAD-UNIVERSAL-020): hotel.
+// Novena tanda universal (VD-CAD-UNIVERSAL-020): hotel.
 assert.ok(
   searchCadSymbols("buró").some((symbol) => symbol.id === "nightstand"),
   "search finds buró (hotel)",
@@ -196,7 +196,7 @@ assert.ok(
   "search finds mesa de noche (hotel)",
 );
 
-// Décima tanda universal (AXOS-CAD-UNIVERSAL-021): consultorio dental.
+// Décima tanda universal (VD-CAD-UNIVERSAL-021): consultorio dental.
 assert.ok(
   searchCadSymbols("sillón dental").some(
     (symbol) => symbol.id === "dental-chair",
@@ -208,13 +208,13 @@ assert.ok(
   "search finds dentista → sillón dental",
 );
 
-// Undécima tanda universal (AXOS-CAD-UNIVERSAL-023): deportes.
+// Undécima tanda universal (VD-CAD-UNIVERSAL-023): deportes.
 assert.ok(
   searchCadSymbols("portería").some((symbol) => symbol.id === "goal"),
   "search finds portería (cancha)",
 );
 
-// Duodécima tanda universal (AXOS-CAD-UNIVERSAL-024): fiestas.
+// Duodécima tanda universal (VD-CAD-UNIVERSAL-024): fiestas.
 assert.ok(
   searchCadSymbols("brincolín").some((symbol) => symbol.id === "bounce-house"),
   "search finds brincolín (fiestas)",
@@ -224,7 +224,7 @@ assert.ok(
   "search finds inflable (fiestas)",
 );
 
-// Decimotercera tanda universal (AXOS-CAD-UNIVERSAL-025): iglesia.
+// Decimotercera tanda universal (VD-CAD-UNIVERSAL-025): iglesia.
 assert.ok(
   searchCadSymbols("banca de iglesia").some((symbol) => symbol.id === "pew"),
   "search finds banca de iglesia",
@@ -238,7 +238,7 @@ assert.ok(
   "search finds templo → banca de iglesia",
 );
 
-// Decimocuarta tanda universal (AXOS-CAD-UNIVERSAL-028): comercio.
+// Decimocuarta tanda universal (VD-CAD-UNIVERSAL-028): comercio.
 assert.ok(
   searchCadSymbols("congelador").some((symbol) => symbol.id === "freezer"),
   "search finds congelador",
@@ -258,7 +258,7 @@ assert.ok(
   "search finds carnicería → congelador",
 );
 
-// Decimoquinta tanda universal (AXOS-CAD-UNIVERSAL-030): frutería.
+// Decimoquinta tanda universal (VD-CAD-UNIVERSAL-030): frutería.
 assert.ok(
   searchCadSymbols("huacal").some((symbol) => symbol.id === "fruit-crate"),
   "search finds huacal (frutería)",
@@ -270,7 +270,7 @@ assert.ok(
   "search finds cajón de fruta",
 );
 
-// Decimosexta tanda universal (AXOS-CAD-UNIVERSAL-032): tortillería.
+// Decimosexta tanda universal (VD-CAD-UNIVERSAL-032): tortillería.
 assert.ok(
   searchCadSymbols("tortilladora").some(
     (symbol) => symbol.id === "tortilla-machine",
@@ -284,7 +284,7 @@ assert.ok(
   "search finds tortillería → máquina",
 );
 
-// Decimoséptima tanda universal (AXOS-CAD-UNIVERSAL-033): papelería.
+// Decimoséptima tanda universal (VD-CAD-UNIVERSAL-033): papelería.
 assert.ok(
   searchCadSymbols("copiadora").some((symbol) => symbol.id === "copier"),
   "search finds copiadora",
@@ -294,7 +294,7 @@ assert.ok(
   "search finds fotocopiadora",
 );
 
-// Decimoctava tanda universal (AXOS-CAD-UNIVERSAL-036): salud.
+// Decimoctava tanda universal (VD-CAD-UNIVERSAL-036): salud.
 assert.ok(
   searchCadSymbols("camilla").some((symbol) => symbol.id === "exam-table"),
   "search finds camilla",
@@ -306,7 +306,7 @@ assert.ok(
   "search finds fisioterapia → camilla",
 );
 
-// Decimonovena tanda universal (AXOS-CAD-UNIVERSAL-039): box.
+// Decimonovena tanda universal (VD-CAD-UNIVERSAL-039): box.
 assert.ok(
   searchCadSymbols("costal").some((symbol) => symbol.id === "punching-bag"),
   "search finds costal de box",
@@ -316,7 +316,7 @@ assert.ok(
   "search finds boxeo → costal",
 );
 
-// Vigésima tanda universal (AXOS-CAD-UNIVERSAL-041): detalles.
+// Vigésima tanda universal (VD-CAD-UNIVERSAL-041): detalles.
 assert.ok(
   searchCadSymbols("maceta").some((symbol) => symbol.id === "plant-pot"),
   "search finds maceta",
@@ -326,7 +326,7 @@ assert.ok(
   "search finds perchero",
 );
 
-// Vigesimoprimera tanda universal (AXOS-CAD-UNIVERSAL-043): mostrador.
+// Vigesimoprimera tanda universal (VD-CAD-UNIVERSAL-043): mostrador.
 assert.ok(
   searchCadSymbols("registradora").some(
     (symbol) => symbol.id === "cash-register",
@@ -344,7 +344,7 @@ assert.ok(
   "search finds garrafón",
 );
 
-// Vigesimosegunda tanda universal (AXOS-CAD-UNIVERSAL-046): eléctricos.
+// Vigesimosegunda tanda universal (VD-CAD-UNIVERSAL-046): eléctricos.
 assert.ok(
   searchCadSymbols("pantalla").some((symbol) => symbol.id === "tv-screen"),
   "search finds pantalla",
@@ -360,7 +360,7 @@ assert.ok(
   "search finds ventilador",
 );
 
-// Vigesimotercera tanda universal (AXOS-CAD-UNIVERSAL-049): cocina y barra.
+// Vigesimotercera tanda universal (VD-CAD-UNIVERSAL-049): cocina y barra.
 assert.ok(
   searchCadSymbols("fregadero").some((symbol) => symbol.id === "kitchen-sink"),
   "search finds fregadero",
@@ -378,7 +378,7 @@ assert.ok(
   "search finds campana",
 );
 
-// Vigesimocuarta tanda universal (AXOS-CAD-UNIVERSAL-051): recámara y patio.
+// Vigesimocuarta tanda universal (VD-CAD-UNIVERSAL-051): recámara y patio.
 assert.ok(
   searchCadSymbols("espejo de pared").some(
     (symbol) => symbol.id === "wall-mirror",
@@ -398,7 +398,7 @@ assert.ok(
   "search finds parrilla",
 );
 
-// Vigesimoquinta tanda universal (AXOS-CAD-UNIVERSAL-054): autolavado.
+// Vigesimoquinta tanda universal (VD-CAD-UNIVERSAL-054): autolavado.
 assert.ok(
   searchCadSymbols("aspiradora").some(
     (symbol) => symbol.id === "vacuum-cleaner",
@@ -416,7 +416,7 @@ assert.ok(
   "search finds cono de tráfico",
 );
 
-// Vigesimosexta tanda universal (AXOS-CAD-UNIVERSAL-057): patio.
+// Vigesimosexta tanda universal (VD-CAD-UNIVERSAL-057): patio.
 assert.ok(
   searchCadSymbols("tinaco").some((symbol) => symbol.id === "water-tank"),
   "search finds tinaco",
@@ -436,7 +436,7 @@ assert.ok(
   "search finds calentador",
 );
 
-// Vigesimoséptima tanda universal (AXOS-CAD-UNIVERSAL-060): patio de casa.
+// Vigesimoséptima tanda universal (VD-CAD-UNIVERSAL-060): patio de casa.
 assert.ok(
   searchCadSymbols("lavadero").some((symbol) => symbol.id === "laundry-sink"),
   "search finds lavadero",
@@ -456,7 +456,7 @@ assert.ok(
   "search finds resbaladilla",
 );
 
-// Vigesimoctava tanda universal (AXOS-CAD-UNIVERSAL-061): terraza.
+// Vigesimoctava tanda universal (VD-CAD-UNIVERSAL-061): terraza.
 assert.ok(
   searchCadSymbols("sombrilla").some(
     (symbol) => symbol.id === "patio-umbrella",
@@ -472,7 +472,7 @@ assert.ok(
   "search finds mesa de picnic",
 );
 
-// Vigesimonovena tanda universal (AXOS-CAD-UNIVERSAL-064): protección civil.
+// Vigesimonovena tanda universal (VD-CAD-UNIVERSAL-064): protección civil.
 assert.ok(
   searchCadSymbols("extintor").some(
     (symbol) => symbol.id === "fire-extinguisher",
@@ -496,7 +496,7 @@ assert.ok(
   "search finds protección civil → extintor",
 );
 
-// Trigésima tanda universal (AXOS-CAD-UNIVERSAL-066): masa y repostería.
+// Trigésima tanda universal (VD-CAD-UNIVERSAL-066): masa y repostería.
 assert.ok(
   searchCadSymbols("espiguero").some((symbol) => symbol.id === "bread-rack"),
   "search finds espiguero",
@@ -510,7 +510,7 @@ assert.ok(
   "search finds molino de nixtamal",
 );
 
-// Trigésima primera tanda universal (AXOS-CAD-UNIVERSAL-068): escenario.
+// Trigésima primera tanda universal (VD-CAD-UNIVERSAL-068): escenario.
 assert.ok(
   searchCadSymbols("bocina").some((symbol) => symbol.id === "speaker"),
   "search finds bocina",
@@ -524,7 +524,7 @@ assert.ok(
   "search finds barra de ballet",
 );
 
-// Trigésima segunda tanda universal (AXOS-CAD-UNIVERSAL-078): velación.
+// Trigésima segunda tanda universal (VD-CAD-UNIVERSAL-078): velación.
 assert.ok(
   searchCadSymbols("ataud").some((symbol) => symbol.id === "coffin"),
   "search finds ataúd",
@@ -540,7 +540,7 @@ assert.ok(
   "search finds corona fúnebre",
 );
 
-// Trigésima tercera tanda universal (AXOS-CAD-UNIVERSAL-080): templo.
+// Trigésima tercera tanda universal (VD-CAD-UNIVERSAL-080): templo.
 assert.ok(
   searchCadSymbols("altar mayor").some((symbol) => symbol.id === "church-altar"),
   "search finds altar mayor",
@@ -558,7 +558,7 @@ assert.ok(
   "search finds pila bautismal",
 );
 
-// Trigésima cuarta tanda universal (AXOS-CAD-UNIVERSAL-083): laboratorio.
+// Trigésima cuarta tanda universal (VD-CAD-UNIVERSAL-083): laboratorio.
 assert.ok(
   searchCadSymbols("centrifuga").some((symbol) => symbol.id === "centrifuge"),
   "search finds centrífuga",
@@ -574,7 +574,7 @@ assert.ok(
   "search finds sillón de flebotomía",
 );
 
-// Trigésima quinta tanda universal (AXOS-CAD-UNIVERSAL-085): bar y cantina.
+// Trigésima quinta tanda universal (VD-CAD-UNIVERSAL-085): bar y cantina.
 assert.ok(
   searchCadSymbols("billar").some((symbol) => symbol.id === "pool-table"),
   "search finds mesa de billar",
@@ -590,7 +590,7 @@ assert.ok(
   "search finds rocola",
 );
 
-// Trigésima sexta tanda universal (AXOS-CAD-UNIVERSAL-093): taller/oficios.
+// Trigésima sexta tanda universal (VD-CAD-UNIVERSAL-093): taller/oficios.
 assert.ok(
   searchCadSymbols("esmeril").some((symbol) => symbol.id === "pedestal-grinder"),
   "search finds esmeril de pedestal",
@@ -604,7 +604,7 @@ assert.ok(
   "search finds desmontadora de llantas",
 );
 
-// Trigésima séptima tanda universal (AXOS-CAD-UNIVERSAL-098): servicios.
+// Trigésima séptima tanda universal (VD-CAD-UNIVERSAL-098): servicios.
 assert.ok(
   searchCadSymbols("cajero automatico").some((symbol) => symbol.id === "atm"),
   "search finds cajero automático (ATM)",
@@ -620,7 +620,7 @@ assert.ok(
   "search finds casilleros",
 );
 
-// Tandas 38-43 (AXOS-CAD-UNIVERSAL-130..135): equipo de las plantillas a mano.
+// Tandas 38-43 (VD-CAD-UNIVERSAL-130..135): equipo de las plantillas a mano.
 for (const [query, id] of [
   ["bomba de gasolina", "fuel-dispenser"],
   ["automovil", "vehicle"],

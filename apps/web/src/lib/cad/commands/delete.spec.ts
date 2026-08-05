@@ -1,5 +1,5 @@
 /**
- * Borrar selección (AXOS-CAD-DELETE-001): una operación delete por objeto,
+ * Borrar selección (VD-CAD-DELETE-001): una operación delete por objeto,
  * error accionable sin selección y parser con los verbos naturales.
  */
 import { strict as assert } from "node:assert";
@@ -51,7 +51,7 @@ const ctx = {
   assert.equal(empty.operations.length, 0, "no emite operaciones");
 }
 
-// Objetivo por nombre (AXOS-CAD-NAME-001): 'borra el sofá' sin selección,
+// Objetivo por nombre (VD-CAD-NAME-001): 'borra el sofá' sin selección,
 // substring sin acentos sobre label/kind; sin match → error accionable.
 {
   const byName = deleteSelectionPreview(
@@ -68,7 +68,7 @@ const ctx = {
     missing.issues.some((i) => i.code === "delete_target_not_found"),
     "objetivo inexistente → error específico",
   );
-  // Plural plegado unificado (AXOS-CAD-NAME-003): 'borra los escritorios'.
+  // Plural plegado unificado (VD-CAD-NAME-003): 'borra los escritorios'.
   const plural = deleteSelectionPreview(
     { id: "delete_selection", target: "escritorios" },
     { ...ctx, selectedIds: [] } as unknown as CadCommandContext,
@@ -114,7 +114,7 @@ const ctx = {
 
 console.log("cad delete specs passed");
 
-// Objetivos compuestos (AXOS-CAD-NAME-006): 'borra el escritorio y el sofá'.
+// Objetivos compuestos (VD-CAD-NAME-006): 'borra el escritorio y el sofá'.
 {
   const out = deleteSelectionPreview(
     { id: "delete_selection", target: "escritorio y el sofá" },
@@ -144,7 +144,7 @@ console.log("cad delete specs passed");
   );
 }
 
-// Proximidad (AXOS-CAD-ZONE-002): 'borra lo que está cerca de la mesa'
+// Proximidad (VD-CAD-ZONE-002): 'borra lo que está cerca de la mesa'
 // borra los vecinos (separación ≤ 1000 mm), nunca al ancla ni lo lejano.
 {
   const vecindadCtx = {
@@ -188,7 +188,7 @@ console.log("cad delete specs passed");
   );
 }
 
-// Entre dos anclas (AXOS-CAD-ZONE-005): 'lo que está entre la mesa y la
+// Entre dos anclas (VD-CAD-ZONE-005): 'lo que está entre la mesa y la
 // puerta' borra lo del sobre, nunca las anclas ni lo de afuera.
 {
   const entreCtx = {

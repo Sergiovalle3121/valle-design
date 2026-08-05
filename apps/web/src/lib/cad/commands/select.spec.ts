@@ -1,5 +1,5 @@
 /**
- * Seleccionar por nombre (AXOS-CAD-SELECT-001): focus con plural plegado,
+ * Seleccionar por nombre (VD-CAD-SELECT-001): focus con plural plegado,
  * 'todo' selecciona el plano completo y errores accionables.
  */
 import { strict as assert } from "node:assert";
@@ -69,7 +69,7 @@ const ctx = {
 
 console.log("cad select specs passed");
 
-// Cardinales (AXOS-CAD-NAME-010): 'dos sillas' trae las primeras dos en
+// Cardinales (VD-CAD-NAME-010): 'dos sillas' trae las primeras dos en
 // orden del plano; pedir más de las que hay cae a no-encontrado.
 {
   const cardCtx = {

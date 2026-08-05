@@ -148,7 +148,7 @@ describe('TenantScopedRepository (anti-leak)', () => {
   });
 });
 
-// ── AXOS-TEN-001: modo estricto (fail-closed) ────────────────────────────────
+// ── VD-TEN-001: modo estricto (fail-closed) ────────────────────────────────
 describe('TenantScopedRepository strict mode (fail-closed)', () => {
   let dataSource: DataSource;
   let ctx: TenantContextService;

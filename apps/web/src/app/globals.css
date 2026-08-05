@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* ===========================================================================
-   AXOS OS — SISTEMA DE DISEÑO · CLARO / OSCURO (una sola fuente de verdad)
+   VALLE DESIGN — SISTEMA DE DISEÑO · CLARO / OSCURO (una sola fuente de verdad)
    ---------------------------------------------------------------------------
    El modo OSCURO es el INVERSO FIEL del claro: mismos componentes, misma
    jerarquía y los MISMOS acentos de marca (índigo) — sólo cambian fondo y
@@ -57,11 +57,11 @@
 
     /* === Marca white-label (el tenant la sobrescribe vía ThemeContext) ====
        El default = acento índigo de la app (NO cyan). */
-    --axos-primary: #1a1a1a;
-    --axos-accent: #6366f1;
-    --axos-warning: #f59e0b;
-    --axos-danger: #ef4444;
-    --brand-primary: var(--axos-accent);
+    --valle-primary: #1a1a1a;
+    --valle-accent: #6366f1;
+    --valle-warning: #f59e0b;
+    --valle-danger: #ef4444;
+    --brand-primary: var(--valle-accent);
     /* Variante oscurecida del acento para fondos con TEXTO PEQUEÑO en blanco:
        el acento base da 4.46:1, por debajo del 4.5 que exige WCAG AA. Se define
        como token para que la corrección sea reutilizable y no un valor suelto
@@ -449,7 +449,7 @@
 }
 
 /* --- Fondo ambiental: deriva (drift) lenta de los blobs de aurora --- */
-@keyframes axos-drift-a {
+@keyframes valle-drift-a {
   0%,
   100% {
     transform: translate3d(0, 0, 0) scale(1);
@@ -458,7 +458,7 @@
     transform: translate3d(48px, -36px, 0) scale(1.08);
   }
 }
-@keyframes axos-drift-b {
+@keyframes valle-drift-b {
   0%,
   100% {
     transform: translate3d(0, 0, 0) scale(1);
@@ -467,7 +467,7 @@
     transform: translate3d(-52px, 30px, 0) scale(1.1);
   }
 }
-@keyframes axos-drift-c {
+@keyframes valle-drift-c {
   0%,
   100% {
     transform: translate3d(0, 0, 0) scale(1);
@@ -477,21 +477,21 @@
   }
 }
 
-.axos-blob {
+.valle-blob {
   will-change: transform;
 }
-.axos-blob-a {
-  animation: axos-drift-a 24s ease-in-out infinite;
+.valle-blob-a {
+  animation: valle-drift-a 24s ease-in-out infinite;
 }
-.axos-blob-b {
-  animation: axos-drift-b 30s ease-in-out infinite;
+.valle-blob-b {
+  animation: valle-drift-b 30s ease-in-out infinite;
 }
-.axos-blob-c {
-  animation: axos-drift-c 27s ease-in-out infinite;
+.valle-blob-c {
+  animation: valle-drift-c 27s ease-in-out infinite;
 }
 
 /* Capa de ruido (noise) muy sutil para textura "cristalina". */
-.axos-noise {
+.valle-noise {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   background-repeat: repeat;
 }

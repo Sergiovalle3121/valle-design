@@ -1,4 +1,4 @@
-/** Recortar/extender/partir segmentos (AXOS-CAD-DEPTH-A8). */
+/** Recortar/extender/partir segmentos (VD-CAD-DEPTH-A8). */
 import { strict as assert } from "node:assert";
 import type { CadVec2 } from "./primitives";
 import {

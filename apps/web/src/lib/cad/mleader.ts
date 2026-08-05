@@ -3,7 +3,7 @@
  *
  * La flecha con texto que apunta a un detalle del plano: "NOTA: muro
  * cortafuego 2 h", "ver detalle 3", "pendiente 2%". Todo plano profesional las
- * lleva; AutoCAD las hace con MLEADER. AXOS tenía texto suelto y cotas, pero no
+ * lleva; AutoCAD las hace con MLEADER. Valle Design tenía texto suelto y cotas, pero no
  * la directriz (punta de flecha → línea directriz → codo horizontal → texto).
  *
  * Este módulo calcula la GEOMETRÍA pura de una directriz a partir de dos

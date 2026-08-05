@@ -1,4 +1,4 @@
-/** Pure CAD command contract for the AXOS CAD Copilot.
+/** Pure CAD command contract for the Valle Design CAD Copilot.
  * No React, three.js, API, or OpenAI dependency belongs in this layer.
  */
 export type CadCommandId =
@@ -412,7 +412,7 @@ export type CadCommandInput =
       dh?: number;
     }
   | {
-      /** Revisión de protección civil (AXOS-CAD-AUDIT-001): '¿qué le falta
+      /** Revisión de protección civil (VD-CAD-AUDIT-001): '¿qué le falta
        * al plano?' — checklist de extintor, botiquín, salida y puerta. */
       id: "audit_plan";
     }

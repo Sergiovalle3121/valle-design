@@ -1,4 +1,4 @@
-/** Tipos de línea / linetypes (AXOS-CAD-DEPTH-A5). */
+/** Tipos de línea / linetypes (VD-CAD-DEPTH-A5). */
 import { strict as assert } from "node:assert";
 import {
   applyLinetype,

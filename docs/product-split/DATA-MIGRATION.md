@@ -179,7 +179,7 @@ mecanismos complementarios):
 1. **Usuario de solo lectura para la migración** (recomendado SIEMPRE):
    ```sql
    CREATE ROLE valle_migracion LOGIN PASSWORD '…';
-   GRANT CONNECT ON DATABASE axos_os TO valle_migracion;
+   GRANT CONNECT ON DATABASE valle_design TO valle_migracion;
    GRANT USAGE ON SCHEMA public TO valle_migracion;
    GRANT SELECT ON sf_line_layouts, sf_cad_blocks, doc_blobs TO valle_migracion;
    ```

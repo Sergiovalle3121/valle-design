@@ -1,5 +1,5 @@
 /**
- * Contar objetos (AXOS-CAD-QUERY-001): plural plegado, desglose por
+ * Contar objetos (VD-CAD-QUERY-001): plural plegado, desglose por
  * etiqueta, cero como respuesta válida y parser con signos de pregunta.
  */
 import { strict as assert } from "node:assert";
@@ -67,7 +67,7 @@ const ctx = {
   }
 }
 
-// Conteo por cuarto (AXOS-CAD-QUERY-010): '¿cuántas mesas hay en cada
+// Conteo por cuarto (VD-CAD-QUERY-010): '¿cuántas mesas hay en cada
 // cuarto?' desglosa por el cuarto que contiene cada coincidencia.
 {
   const cuartosCtx = {

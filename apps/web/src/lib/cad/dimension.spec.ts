@@ -1,4 +1,4 @@
-/** Cotas asociativas (AXOS-CAD-DEPTH-A3). */
+/** Cotas asociativas (VD-CAD-DEPTH-A3). */
 import { strict as assert } from "node:assert";
 import type { CadVec2 } from "./primitives";
 import {

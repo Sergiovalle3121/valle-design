@@ -1,5 +1,5 @@
 /**
- * Configuración central de i18n para AXOS OS.
+ * Configuración central de i18n para Valle Design.
  *
  * Estrategia: next-intl SIN routing por segmento `[locale]`. La app tiene ~113
  * rutas ya consolidadas bajo `/dashboard/*`; reescribirlas a `/[locale]/...`
@@ -19,11 +19,18 @@ export type Locale = (typeof locales)[number];
 export const defaultLocale: Locale = "en";
 
 /**
- * Nombre de la cookie de preferencia de idioma. Sigue el patrón `axos_*` del
- * resto de preferencias (axos_theme, axos_workspace). NO usamos localStorage
+ * Nombre de la cookie de preferencia de idioma. Sigue el patrón `valle_*` del
+ * resto de preferencias (valle_theme, valle_cad_workspace). NO usamos localStorage
  * porque el servidor necesita leer el idioma para renderizar sin parpadeo.
  */
-export const LOCALE_COOKIE = "axos_locale";
+export const LOCALE_COOKIE = "valle_locale";
+
+/**
+ * Cookie del nombre de producto ANTERIOR. Sigue viva en el navegador de quien
+ * ya eligió idioma: se lee como respaldo y se reescribe en la clave nueva, para
+ * que el cambio de nombre no devuelva a nadie al inglés por sorpresa.
+ */
+export const LEGACY_LOCALE_COOKIE = "axos_locale";
 
 /** Etiquetas visibles del switch (nativas, no se traducen). */
 export const localeLabels: Record<Locale, string> = {

@@ -1,5 +1,5 @@
 /**
- * Contar objetos (AXOS-CAD-QUERY-001): el plano que responde. 'cuenta las
+ * Contar objetos (VD-CAD-QUERY-001): el plano que responde. 'cuenta las
  * mesas' o '¿cuántas sillas hay?' emite un reporte con el total y el
  * desglose por tipo. Cero es una respuesta válida (no un error), y el
  * plural se pliega ('mesas' encuentra 'Mesa 4 personas').
@@ -16,7 +16,7 @@ export function countObjectsPreview(
   context: CadCommandContext,
 ): CadCommandPreview {
   const raw = input.query?.trim() ?? "";
-  // CONTAR compuesto (AXOS-CAD-QUERY-006): 'las mesas y las sillas' une
+  // CONTAR compuesto (VD-CAD-QUERY-006): 'las mesas y las sillas' une
   // términos separados por ' y ' o comas, sin duplicar coincidencias.
   const terms = raw
     ? raw
@@ -35,7 +35,7 @@ export function countObjectsPreview(
     matched = raw ? matchObjectsByName(context, raw) : context.objects;
   }
 
-  // Conteo por cuarto (AXOS-CAD-QUERY-010): agrupa por el cuarto/zona MÁS
+  // Conteo por cuarto (VD-CAD-QUERY-010): agrupa por el cuarto/zona MÁS
   // PEQUEÑO que contiene el centro de cada coincidencia; los contenedores
   // mismos no cuentan como contenido.
   if (input.byRoom) {

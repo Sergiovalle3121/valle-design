@@ -1,5 +1,5 @@
 /**
- * Rastreo polar y ortogonal (POLAR / ORTHO) del CAD (AXOS-CAD-DEPTH-B7).
+ * Rastreo polar y ortogonal (POLAR / ORTHO) del CAD (VD-CAD-DEPTH-B7).
  *
  * Al dibujar, AutoCAD "engancha" el cursor a ángulos preferidos: ORTHO lo fuerza
  * a 0/90/180/270, y el rastreo POLAR a múltiplos de 15/30/45°. Es lo que permite

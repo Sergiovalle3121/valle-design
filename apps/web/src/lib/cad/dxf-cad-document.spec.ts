@@ -235,7 +235,7 @@ if (mtext.type === "mtext") {
 const semanticDimensions = cadDocumentNativeDxfSemanticDimensions(source);
 assert.equal(semanticDimensions.length, 1);
 const dimensionDxf = exportCadDxf({ semanticDimensions }, { units: "mm" });
-assert.match(dimensionDxf.content, /1001\r?\nAXOS_DIM/);
+assert.match(dimensionDxf.content, /1001\r?\nVALLE_DIM/);
 const reimportedDimensions = importDxfPrimitives(dimensionDxf.content);
 assert.equal(reimportedDimensions.semanticDimensions.length, 1);
 assert.equal(reimportedDimensions.primitives.length, 0, "own *D block is not duplicated as flattened geometry");
@@ -279,7 +279,7 @@ const mleaders = cadDocumentNativeDxfMleaders(source);
 assert.equal(mleaders.length, 1);
 const mleaderDxf = exportCadDxf({ mleaders }, { units: "mm" });
 assert.match(mleaderDxf.content, /0\r?\nMLEADER/);
-assert.match(mleaderDxf.content, /1001\r?\nAXOS_MLEADER/);
+assert.match(mleaderDxf.content, /1001\r?\nVALLE_MLEADER/);
 const reimportedMleaders = importDxfPrimitives(mleaderDxf.content);
 assert.equal(reimportedMleaders.mleaders.length, 1);
 const nativeMleaders = cadDxfMleadersToNativeEntities(reimportedMleaders.mleaders, { idPrefix: "roundtrip" });

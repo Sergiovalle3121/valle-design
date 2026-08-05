@@ -1,5 +1,5 @@
 /**
- * Operaciones de modificación de primitivas del CAD (AXOS-CAD-DEPTH-A2).
+ * Operaciones de modificación de primitivas del CAD (VD-CAD-DEPTH-A2).
  *
  * Fillet, chamfer y offset: las tres modificaciones icónicas que un CAD real
  * (AutoCAD) tiene y que el modelo de caja rectangular no podía expresar. El

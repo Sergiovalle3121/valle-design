@@ -1,4 +1,4 @@
-/** Achurado (hatch) de regiones cerradas (AXOS-CAD-DEPTH-A4). */
+/** Achurado (hatch) de regiones cerradas (VD-CAD-DEPTH-A4). */
 import { strict as assert } from "node:assert";
 import type { CadVec2 } from "./primitives";
 import { crossHatchPolygon, hatchPolygon, type HatchSegment } from "./hatch";

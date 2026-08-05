@@ -2,11 +2,7 @@
 import DxfParser from "dxf-parser";
 import type { CadDimensionEntity } from "./associative-dimension";
 import type { CadMleaderEntity } from "./associative-mleader";
-import {
-  LEGACY_DXF_XDATA_APP_BLOCK,
-  LEGACY_DXF_XDATA_APP_DIMENSION,
-  LEGACY_DXF_XDATA_APP_MLEADER,
-} from "@valle-design/contracts";
+import { isDxfXdataApp } from "@valle-design/contracts";
 
 export type CadDxfPrimitiveKind =
   | "line"
@@ -612,7 +608,7 @@ function parseRawBlockXdata(text: string): RawBlockXdata {
     let end = start + 1;
     while (end < pairs.length && pairs[end].code !== 0) end += 1;
     const entityPairs = pairs.slice(start + 1, end);
-    const application = entityPairs.findIndex((pair) => pair.code === 1001 && pair.value === LEGACY_DXF_XDATA_APP_BLOCK);
+    const application = entityPairs.findIndex((pair) => pair.code === 1001 && isDxfXdataApp('block', pair.value));
     if (application < 0) { start = end - 1; continue; }
     const first = (code: number) => entityPairs.find((pair) => pair.code === code)?.value;
     const metadata = entityPairs.slice(application + 1).filter((pair) => pair.code === 1000).map((pair) => pair.value);
@@ -777,9 +773,9 @@ const DIMENSION_ARROWS = new Set<NonNullable<CadDxfSemanticDimension["arrowhead"
 ]);
 
 /**
- * AXOS dimensions use ordinary DIMENSION entities plus registered XDATA. The
+ * Valle Design dimensions use ordinary DIMENSION entities plus registered XDATA. The
  * metadata retains semantic formatting while the anonymous *D block keeps the
- * drawing visible in CAD readers that do not understand AXOS_DIM.
+ * drawing visible in CAD readers that do not understand the XDATA.
  */
 export function parseRawDxfSemanticDimensions(text: string): CadDxfSemanticDimension[] {
   const pairs = rawDxfPairs(text);
@@ -789,7 +785,7 @@ export function parseRawDxfSemanticDimensions(text: string): CadDxfSemanticDimen
     let end = start + 1;
     while (end < pairs.length && pairs[end].code !== 0) end += 1;
     const entityPairs = pairs.slice(start + 1, end);
-    const applicationIndex = entityPairs.findIndex((pair) => pair.code === 1001 && pair.value === LEGACY_DXF_XDATA_APP_DIMENSION);
+    const applicationIndex = entityPairs.findIndex((pair) => pair.code === 1001 && isDxfXdataApp('dimension', pair.value));
     if (applicationIndex < 0) { start = end - 1; continue; }
     const first = (code: number) => entityPairs.find((pair) => pair.code === code)?.value;
     const point = (xCode: number, yCode: number): CadDxfPoint | null => {
@@ -867,7 +863,7 @@ export function parseRawDxfSemanticMleaders(text: string): CadDxfSemanticMleader
     let end = start + 1;
     while (end < pairs.length && pairs[end].code !== 0) end += 1;
     const entityPairs = pairs.slice(start + 1, end);
-    const applicationIndex = entityPairs.findIndex((pair) => pair.code === 1001 && pair.value === LEGACY_DXF_XDATA_APP_MLEADER);
+    const applicationIndex = entityPairs.findIndex((pair) => pair.code === 1001 && isDxfXdataApp('mleader', pair.value));
     if (applicationIndex < 0) { start = end - 1; continue; }
     const first = (code: number) => entityPairs.find((pair) => pair.code === code)?.value;
     const metadataPairs = entityPairs.slice(applicationIndex + 1).filter((pair) => pair.code === 1000);

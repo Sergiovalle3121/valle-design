@@ -64,7 +64,7 @@ assert.equal(
 );
 console.log("cad keyboard shortcuts specs passed");
 
-// Kit diario (AXOS-CAD-XFORM-001): R rota, S escala, X espeja.
+// Kit diario (VD-CAD-XFORM-001): R rota, S escala, X espeja.
 assert.equal(matchCadShortcut({ key: "r" })?.id, "rotate", "matches rotate");
 assert.equal(matchCadShortcut({ key: "s" })?.id, "scale", "matches scale");
 assert.equal(matchCadShortcut({ key: "x" })?.id, "mirror", "matches mirror");

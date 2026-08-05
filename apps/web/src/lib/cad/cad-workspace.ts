@@ -3,6 +3,7 @@ import {
   type CadKeyboardShortcut,
   type CadKeyboardShortcutId,
 } from './keyboard-shortcuts';
+import { readRenamedStorageKey, type RenamableStorage } from '../storage-rename';
 
 export type CadWorkspaceProfile = 'drafting' | 'review' | 'presentation' | 'focus';
 export type CadToolbarDensity = 'compact' | 'comfortable';
@@ -82,8 +83,44 @@ export function applyCadWorkspaceProfile(
   return normalizeCadWorkspacePreferences({ ...current, ...CAD_WORKSPACE_PROFILES[profile], profile });
 }
 
-export function cadWorkspaceStorageKey(scope: { tenantId?: string | null; userId?: string | null }): string {
+export interface CadWorkspaceScope {
+  tenantId?: string | null;
+  userId?: string | null;
+}
+
+export function cadWorkspaceStorageKey(scope: CadWorkspaceScope): string {
+  return `valle_cad_workspace:${scope.tenantId || 'tenant'}:${scope.userId || 'user'}`;
+}
+
+/**
+ * Clave del nombre de producto ANTERIOR. Sigue existiendo en el navegador de
+ * quien ya configuró su espacio de trabajo: renombrar sin leerla le devolvería
+ * los ajustes de fábrica sin explicación alguna.
+ */
+export function legacyCadWorkspaceStorageKey(scope: CadWorkspaceScope): string {
   return `axos_cad_workspace:${scope.tenantId || 'tenant'}:${scope.userId || 'user'}`;
+}
+
+/**
+ * Lee las preferencias del espacio de trabajo, migrando la clave del nombre
+ * anterior si es la única que existe. Cualquier fallo cae a los defaults: unas
+ * preferencias ilegibles no pueden impedir abrir un dibujo.
+ */
+export function loadCadWorkspacePreferences(
+  storage: RenamableStorage,
+  scope: CadWorkspaceScope,
+): CadWorkspacePreferences {
+  const serialized = readRenamedStorageKey(
+    storage,
+    cadWorkspaceStorageKey(scope),
+    legacyCadWorkspaceStorageKey(scope),
+  );
+  if (serialized === null) return CAD_WORKSPACE_DEFAULTS;
+  try {
+    return normalizeCadWorkspacePreferences(JSON.parse(serialized));
+  } catch {
+    return CAD_WORKSPACE_DEFAULTS;
+  }
 }
 
 export function parseCadShortcutBinding(

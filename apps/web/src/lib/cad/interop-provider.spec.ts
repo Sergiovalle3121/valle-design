@@ -37,7 +37,7 @@ assert.equal(dwgImport.error, DWG_UNAVAILABLE_REASON, "con la razón exacta");
 assert.equal(unlicensedDwgProvider.exportDrawing({}).ok, false, "exportar DWG también falla explícitamente");
 
 // --- resolución por formato --------------------------------------------------
-assert.equal(registry.resolve("dxf")?.id, "axos-dxf", "DXF resuelve al proveedor nativo");
+assert.equal(registry.resolve("dxf")?.id, "valle-dxf", "DXF resuelve al proveedor nativo");
 assert.equal(registry.resolve("dwg"), null, "DWG no resuelve a nada (sin fingir)");
 
 const support = registry.describeFormatSupport();

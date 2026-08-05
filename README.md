@@ -1,10 +1,17 @@
 # Valle Design
 
-Valle Design es un producto CAD web standalone. El repositorio contiene el
-frontend, la API, la identidad first-party, organizaciones y membresías, el
-control de acceso comercial local, los contratos OpenAPI y el SDK TypeScript.
-No necesita otro producto Valle para registrar usuarios, iniciar sesión o
-autorizar el uso de CAD.
+Valle Design es un **sistema de diseño arquitectónico 2D** que corre en el
+navegador. Es el dominio de AutoCAD (Autodesk): dibujo de precisión con capas,
+bloques, cotas asociativas, referencias a objeto, espacio papel e intercambio
+DXF. Ése es el producto con el que se compara y contra el que se mide su
+comportamiento; lo que este repositorio no implementa se dice explícitamente en
+vez de insinuarse.
+
+Es un producto standalone: el repositorio contiene el frontend, la API, la
+identidad first-party, organizaciones y membresías, el control de acceso
+comercial local, los contratos OpenAPI y el SDK TypeScript. No necesita otro
+producto Valle para registrar usuarios, iniciar sesión o autorizar el uso de
+CAD.
 
 El producto permite crear proyectos y documentos, editar un documento CAD
 canónico, guardar con control de concurrencia CAS, consultar versiones,

@@ -1,5 +1,5 @@
 /**
- * Formato de unidades (UNITS / DIMSTYLE) del CAD (AXOS-CAD-DEPTH-B5).
+ * Formato de unidades (UNITS / DIMSTYLE) del CAD (VD-CAD-DEPTH-B5).
  *
  * Cómo se ESCRIBE una medida en un plano: decimal (123.46 mm), arquitectónico
  * (1'-6 1/2"), de ingeniería (1'-6.50"), fraccionario (6 1/2) o científico. Es

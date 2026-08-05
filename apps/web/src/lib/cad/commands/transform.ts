@@ -1,5 +1,5 @@
 /**
- * Transformaciones de selección (AXOS-CAD-XFORM-001): ROTATE y SCALE de
+ * Transformaciones de selección (VD-CAD-XFORM-001): ROTATE y SCALE de
  * AutoCAD. Rotar gira los centros alrededor del pivote (centro del bounding
  * box del conjunto, o 'at' explícito) y suma el ángulo a la rotación de cada
  * objeto; escalar multiplica tamaños y distancias al pivote por el factor.

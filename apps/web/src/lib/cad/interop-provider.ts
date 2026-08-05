@@ -1,5 +1,5 @@
 /**
- * Contrato de interoperabilidad de AXOS CAD Next (CAD-NEXT-061).
+ * Contrato de interoperabilidad de Valle Design CAD (CAD-NEXT-061).
  *
  * Regla del programa (D5 — "DWG honesto"): NO se hace ingeniería inversa del
  * formato DWG y NUNCA se declara importación/exportación DWG funcionando sin un
@@ -75,7 +75,7 @@ const importFailure = (error: string): CadInteropImportResult => ({
 
 /** Proveedor DXF nativo: envuelve el kernel propio (round-trip testeado). */
 export const nativeDxfProvider: CadInteroperabilityProvider = {
-  id: "axos-dxf",
+  id: "valle-dxf",
   label: `${PRODUCT_LABEL.design} · DXF nativo`,
   format: "dxf",
   availability: () => ({ available: true }),

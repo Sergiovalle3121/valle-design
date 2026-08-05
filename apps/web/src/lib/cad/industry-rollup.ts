@@ -1,8 +1,8 @@
 /**
  * Resumen / BOM de objetos inteligentes de Industry Packs (CAD-NEXT-098).
  *
- * La ventaja de AXOS CAD sobre un CAD genérico es que sabe QUÉ es cada objeto:
- * un CAD normal ve rectángulos, AXOS ve racks de pallets, góndolas, camas. Por
+ * La ventaja de Valle Design CAD sobre un CAD genérico es que sabe QUÉ es cada objeto:
+ * un CAD normal ve rectángulos, Valle Design ve racks de pallets, góndolas, camas. Por
  * eso puede responder lo que AutoCAD no: "¿cuántas posiciones de pallet tiene
  * este almacén?", "¿cuántos facings de exhibición?", "¿cuántas camas?".
  *

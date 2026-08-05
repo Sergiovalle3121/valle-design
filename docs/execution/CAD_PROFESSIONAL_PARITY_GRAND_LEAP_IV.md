@@ -9,11 +9,11 @@
 | `MISSION_CURRENT_PHASE` | P3 — Acceptance journey y hardening final |
 | `MISSION_COMPLETED_GATES` | viewport 100k; recovery worker/journal; blob GC bifásico y tenant-safe; selección profesional espacial; precisión dinámica y tracking; HATCH asociativo por selección/punto; MTEXT nativo; DIMENSION asociativa; MLEADER canónico; BLOCK/INSERT profesional; workbench profesional; layouts/publicación multi-viewport; Xrefs tenant-safe; compare/merge/review tenant-safe; FILLET/TRIM/EXTEND y capas canónicas browser-proven |
 | `MISSION_NEXT_ACTION` | ejecutar matriz CAD amplia, gates web/API/DB/migraciones y CI; revisar arquitectura y preparar integración final sin claims inflados |
-| Repositorio | `Sergiovalle3121/axos-os` |
+| Repositorio | `Sergiovalle3121/valle-design` |
 | Base | `1625ba26a07876943b821586c46b02c9f47f6bac` (`origin/main`) |
 | Rama / PR | `codex/cad-professional-grand-leap-iii` / #1416 |
 | Head inicial | `8c840c92c529888de3e72e6cbcef41bff18d79a5` |
-| Worktree | `D:\Codex\Projects\axos-os-cad-grand-leap-iii` |
+| Worktree | `D:\Codex\Projects\valle-design-cad-grand-leap-iii` |
 
 La misión continúa desde el HEAD exacto de #1416 porque el PR sigue abierto. El
 worktree histórico de IA permanece intacto. La instrucción directa más reciente
@@ -255,7 +255,8 @@ No se editan ramas comerciales, ERP o PDF durante la construcción CAD.
   línea o círculo alimente el mismo ciclo asociativo. El sincronizador de escena
   recibe también todos los ids regenerados, evitando una vista obsoleta.
 - DXF emite DIMENSION real con bloque anónimo `*D` compatible y XDATA registrada
-  `AXOS_DIM`; el import reconoce esa semántica, evita duplicar la geometría del
+  (hoy `VALLE_DIM`; los archivos previos al cambio de nombre siguen leyéndose);
+  el import reconoce esa semántica, evita duplicar la geometría del
   bloque y transforma escala/reflexión antes de crear una cota `detached`. Los
   siete tipos completan round-trip. PDF conserva paths, texto y orientación.
 - Evidencia: geometría de siete tipos, asociación/broken, registry y round-trip
@@ -279,7 +280,8 @@ No se editan ramas comerciales, ERP o PDF durante la construcción CAD.
   los ids y la geometría la hacen inequívoca. Las composiciones ambiguas se
   conservan y reciben `legacy_mleader_ambiguous`, sin pérdida silenciosa.
 - PDF conserva paths y texto vectorial. DXF emite MLEADER real con context,
-  múltiples `LEADER_LINE` y XDATA `AXOS_MLEADER`; el import reconstruye líneas,
+  múltiples `LEADER_LINE` y XDATA registrada (hoy `VALLE_MLEADER`, con lectura
+  de los archivos anteriores); el import reconstruye líneas,
   contenido, formato y transformación como una entidad `detached` sin duplicar
   las primitivas internas.
 - Evidencia: migración, geometría, asociación/broken, registry, paper-space y
@@ -306,7 +308,7 @@ No se editan ramas comerciales, ERP o PDF durante la construcción CAD.
   1 MB y 500 entidades, incrementa versión al redefinir y aplica scope tenant;
   migración agrega `definition` y `version` sin destruir la biblioteca legacy.
 - DXF emite y recupera BLOCK/ENDBLK, INSERT, ATTDEF, ATTRIB/SEQEND y metadata
-  AXOS, incluidas definiciones anidadas y valores por instancia. PDF conserva
+  Valle Design, incluidas definiciones anidadas y valores por instancia. PDF conserva
   geometría/texto vectorial, posiciones/altura ATTDEF y herencia ByBlock bajo
   plot color o monocromo. La importación mantiene expansión compatible pero el
   editor omite duplicados cuando existe semántica INSERT.

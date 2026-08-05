@@ -1,4 +1,4 @@
-/** Cuartos poligonales (AXOS-CAD-DEPTH-A6). */
+/** Cuartos poligonales (VD-CAD-DEPTH-A6). */
 import { strict as assert } from "node:assert";
 import type { CadVec2 } from "./primitives";
 import {

@@ -100,7 +100,7 @@ assert.ok(
   "architecture layer area is reported",
 );
 
-// Capa por biblioteca de símbolos (AXOS-CAD-LAYER-001): los símbolos
+// Capa por biblioteca de símbolos (VD-CAD-LAYER-001): los símbolos
 // universales aterrizan en su capa real, no todos en Equipos.
 assert.equal(
   defaultCadLayerForAssetKind("door-90"),

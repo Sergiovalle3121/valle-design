@@ -1,5 +1,5 @@
 /**
- * Mover selección (AXOS-CAD-MOVE-001): destino absoluto por esquina del
+ * Mover selección (VD-CAD-MOVE-001): destino absoluto por esquina del
  * conjunto, desplazamiento relativo con dirección en español y objetivo
  * por nombre; el grupo viaja rígido con un solo delta.
  */
@@ -84,7 +84,7 @@ const ctx = {
   assert.equal(vague.ok, false, "sin destino pide clarificación");
 }
 
-// Centrar (AXOS-CAD-MOVE-002): bbox (1000,1000)-(2400,2300) de 1400×1300 al
+// Centrar (VD-CAD-MOVE-002): bbox (1000,1000)-(2400,2300) de 1400×1300 al
 // centro del footprint 10000×6000 → delta (+3300, +1350), rígido.
 {
   const out = moveSelectionPreview({ id: "move_selection", center: true }, ctx);
@@ -107,7 +107,7 @@ const ctx = {
   }
 }
 
-// Destino de zona (AXOS-CAD-MOVE-004): 'mete la mesa en la cocina' — el
+// Destino de zona (VD-CAD-MOVE-004): 'mete la mesa en la cocina' — el
 // conjunto aterriza centrado dentro del contenedor nombrado.
 {
   const casa = {

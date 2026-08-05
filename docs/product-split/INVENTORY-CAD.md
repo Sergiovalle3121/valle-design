@@ -74,7 +74,7 @@ La IA CAD frontend (`cad-intent.ts`, `cad-vision.ts`, `copilot-contract.ts` — 
 - **i18n**: no existe namespace CAD. Las cadenas del editor están **hardcodeadas en español dentro de los componentes**. En `apps/web/messages/` solo hay claves de marketing: `landing.json` (tarjeta de módulo `"cad"`, stack "ERP · MES · CAD · AI"), `products.json` (bloque `"design"`), `pricing.json` (SKU `"design"`, línea 115 en/es) — archivos compartidos, split a nivel de clave (MIXED). Los matches en auth/commercial son falsos positivos ("cada", "caducan").
 - **Estilos**: sin CSS CAD. `globals.css` no tiene reglas CAD; `styles/tiptap.css` es del editor Office (no tocar).
 - **Public assets**: `public/` solo tiene icon.svg, manifest, sw.js — nada CAD. **No hay ningún `.dxf` en apps/web** (el corpus DXF dorado vive en el backend).
-- **Pruebas e2e**: `e2e/golden/` tiene 19 specs CAD (`10-cad-native-entities` … `28-cad-osnap-pointer`) + `cad-acceptance-journey.ts/.check.ts` → DESIGN (21 archivos). `e2e/performance/cad-viewport-100k.spec.ts` → DESIGN. Golden 01–09 son enterprise; `10-axos-sheets-professional-core` es Office. `e2e/fixtures/` (constants, mock-backend, session) es arnés compartido sin contenido CAD (los specs CAD lo consumen — copiar al repo design). `e2e/visual-sweep/` incluye checks interactivos CAD ("Salir del CAD", botón Cerrar) dentro de barridos de toda la app → MIXED.
+- **Pruebas e2e**: `e2e/golden/` tiene 19 specs CAD (`10-cad-native-entities` … `28-cad-osnap-pointer`) + `cad-acceptance-journey.ts/.check.ts` → DESIGN (21 archivos). `e2e/performance/cad-viewport-100k.spec.ts` → DESIGN. Golden 01–09 son enterprise; `10-valle-sheets-professional-core` es Office. `e2e/fixtures/` (constants, mock-backend, session) es arnés compartido sin contenido CAD (los specs CAD lo consumen — copiar al repo design). `e2e/visual-sweep/` incluye checks interactivos CAD ("Salir del CAD", botón Cerrar) dentro de barridos de toda la app → MIXED.
 - **Scripts**: `scripts/cad-perf-scale.mts` → DESIGN; `check-nav.mjs` y `run-specs.mjs` son arnés compartido (run-specs ejecuta también los specs de lib/cad) → ENTERPRISE con ajuste.
 - **Config plataforma**: `lib/entitlementNav.ts` mapea `/dashboard/cad`, `/dashboard/line-engineering` y `/dashboard/bay-layout` (inexistente) al producto `design`; `config/brand.ts` define `productNames.design` / `%PRODUCT_DESIGN%` → PLATFORM_OWNED (design lo consumirá por API/config propia).
 
@@ -119,7 +119,7 @@ La IA CAD frontend (`cad-intent.ts`, `cad-vision.ts`, `copilot-contract.ts` — 
 | `entities/ie-balance.entities.ts` | 10 entidades IE: work elements, estudios de tiempos, observaciones, allowances, escenarios/asignaciones de balance, skills, recursos, constraints, templates de proceso |
 | `entities/sf-line-station.entity.ts` | `sf_line_stations`: ruteo, NP esperado, factor de uso, tiempo estándar, CTQ + columnas aditivas `layout_x/y/w/h/rotation` (colocación física — se queda: es el plano de planta industrial) |
 | `entities/sf-model-line.entity.ts` | `sf_model_lines`: calificación modelo↔línea, changeover SMED, takt objetivo |
-| `line-balance.ts/.spec.ts`, `line-balance-solver.ts/.spec.ts`, `line-time-study.ts/.spec.ts`, `line-process-templates.ts/.spec.ts` | Matemática de balanceo/takt, solver de asignación IE, tiempo estándar con IQR, templates EMS por industria (usa `IndustryId` de `@axos/contracts` → SHARED_PROTOCOL) |
+| `line-balance.ts/.spec.ts`, `line-balance-solver.ts/.spec.ts`, `line-time-study.ts/.spec.ts`, `line-process-templates.ts/.spec.ts` | Matemática de balanceo/takt, solver de asignación IE, tiempo estándar con IQR, templates EMS por industria (usa `IndustryId` de el paquete de contratos del monorepo de origen → SHARED_PROTOCOL) |
 | `line-staffing`, `line-buffer`, `line-loops`, `line-stdwork`, `line-cost`, `line-sensitivity`, `line-compare`, `line-flexline`, `line-changeover`, `line-capacity`(en service), `line-dossier`, `line-review`, `line-scorecard`, `line-approval` (todos `.ts`+`.spec.ts`) | Manning, WIP/ley de Little, bucles de operador, SWCT, costo unitario, sensibilidad a demanda, comparación A/B, línea flexible multi-modelo, matriz SMED, expediente CSV, revisión consolidada, scorecard de salud, formato de eventos de aprobación del layout industrial |
 | `line-flow`, `line-flowdir`, `line-cellflow`, `line-continuity`, `line-cohesion`, `line-collision`, `line-clearance`, `line-density`, `line-takeoff`, `line-autoarrange`, `line-optimize` (todos `.ts`+`.spec.ts`) + `line-completeness.spec.ts` | Análisis espaciales del layout de planta (spaghetti, retrocesos, flujo inter-celda, topología, cohesión, SAT/colisiones, pasillos, densidad, take-off de materiales, serpentina, 2-opt). Son geometría, pero su propósito es ingeniería de planta (facility layout), no el motor de documento CAD — se quedan |
 | `station-status.service.ts/.spec.ts` | Overlay MES en vivo: deriva luz por estación de `SfFloorEvent`/`SfQualityHold`/`SfReplenishCall`/`SfWorkOrder` (read-only sobre tablas de otros módulos) |
@@ -223,7 +223,7 @@ Repo: `/home/user/valle-enterprise` (solo lectura; nada modificado).
 |---|---|
 | ~106 specs en `apps/web/src/lib/cad` | **Exactamente 106** (94 en raíz + 12 en `commands/`) |
 | ~85 archivos backend en `modules/line-engineering` | **Exactamente 85** (de ellos **38 son specs**) |
-| "E2E CAD 10–28" | **Confirmado**: 19 specs `e2e/golden/10-cad-*.spec.ts` … `28-cad-*.spec.ts`. OJO: **no existe `04-*.spec.ts`** (hueco de numeración) y el prefijo `10-` está **duplicado** (`10-axos-sheets-professional-core` = Office, `10-cad-native-entities` = CAD) |
+| "E2E CAD 10–28" | **Confirmado**: 19 specs `e2e/golden/10-cad-*.spec.ts` … `28-cad-*.spec.ts`. OJO: **no existe `04-*.spec.ts`** (hueco de numeración) y el prefijo `10-` está **duplicado** (`10-valle-sheets-professional-core` = Office, `10-cad-native-entities` = CAD) |
 | Benchmark 100k entidades | **Confirmado**: `e2e/performance/cad-viewport-100k.spec.ts` (10.000 y 100.000 arcos **generados en memoria**, sin fixture en disco) |
 | Acceptance journey | **Confirmado**: `e2e/golden/cad-acceptance-journey.ts` (mapa canónico de 50 pasos → evidencia) + `cad-acceptance-journey.check.ts` (verifica 50/50, unicidad y **existencia física** de cada evidencia con rutas repo-relativas `apps/web/e2e/...`) |
 | Golden corpus DXF/PDF (archivos) | **NO EXISTE como archivos**: cero `.dxf`, `.dwg`, `.pdf` committeados fuera de `node_modules`. El corpus DXF vive **inline** en los specs (p.ej. `27-cad-dxf-loss-manifest.spec.ts` construye `neutral-loss.dxf` como string; los `dxf-*.spec.ts` del kernel usan objetos JS; `line-dxf.spec.ts` del backend asserta sobre el R12 generado). Los PDFs de test se generan en runtime con `pdf-lib` |
@@ -252,7 +252,7 @@ Todos DESIGN_OWNED (mismo estilo script + `tsx`): `asset-catalog.spec.ts` (catá
 | Grupo | Archivos | Clasificación |
 |---|---|---|
 | Golden enterprise | `golden/01-login-hub`, `02-npi-model`, `03-planning-muro`, `05-quality-ncr`, `06-materials-shortage`, `07-quality-hold-disposition`, `08-operator-station`, `09-flow-end-to-end` (8; no hay 04) | ENTERPRISE_OWNED (01 ejercita login/identidad de plataforma pero es del shell enterprise) |
-| Golden Office | `golden/10-axos-sheets-professional-core.spec.ts`, `document-authoring.spec.ts` | OFFICE_NO_TOCAR |
+| Golden Office | `golden/10-valle-sheets-professional-core.spec.ts`, `document-authoring.spec.ts` | OFFICE_NO_TOCAR |
 | **Golden CAD (10–28)** | 19 specs: `10-cad-native-entities`, `11-cad-recovery-journal`, `12-cad-professional-selection`, `13-cad-dynamic-input`, `14-cad-associative-hatch`, `15-cad-native-mtext`, `16-cad-associative-dimensions`, `17-cad-native-mleader`, `18-cad-professional-blocks`, `19-cad-professional-workbench`, `20-cad-multiple-viewports`, `21-cad-xrefs`, `22-cad-compare-collaboration`, `23-cad-native-fillet`, `24-cad-canonical-layers`, `25-cad-trim-extend`, `26-cad-precision-polyline`, `27-cad-dxf-loss-manifest`, `28-cad-osnap-pointer` | DESIGN_OWNED. Puramente CAD, pero: payload persistido usa el shape del layout de line-engineering (`stations: []`, `dxf`, `connectors`, `assets`, `cells`) y endpoints `/line-engineering/layout/*` — dependencia de esquema/namespace a resolver en Fase 1, no lógica industrial |
 | Acceptance journey | `golden/cad-acceptance-journey.ts` (50 pasos, 45 browser-proven + 5 performance) + `cad-acceptance-journey.check.ts` (checker con rutas hardcodeadas `apps/web/e2e/...`) | DESIGN_OWNED |
 | Benchmark | `performance/cad-viewport-100k.spec.ts` (10k/100k arcos en memoria) | DESIGN_OWNED |
@@ -305,9 +305,9 @@ El "corpus DXF dorado" real está **embebido como strings/objetos** en: `lib/cad
 | Comando | Config | Qué corre |
 |---|---|---|
 | `npm run test:specs -w web` | `apps/web/scripts/run-specs.mjs` | glob `src/**/*.spec.ts` (**136** archivos: 106 lib/cad + 15 UI CAD + 15 otros) uno a uno con `tsx`; exit≠0 = fallo. Gate de CI "Web specs (tsx)" |
-| `npm run e2e -w web` | `apps/web/playwright.config.ts` (`testDir: ./e2e`, chromium, `workers: 1`, `webServer: next dev` con `NEXT_PUBLIC_API_URL=http://localhost:4010`, `AXOS_SHEETS_ENABLED`) | toda la suite e2e (enterprise + CAD + Office). **No corre en ci.yml** — es local/nocturna (`NIGHT_LOG_E2E.md`). Pin `@playwright/test@1.56.0`/Chromium 141 por restricción de egress |
+| `npm run e2e -w web` | `apps/web/playwright.config.ts` (`testDir: ./e2e`, chromium, `workers: 1`, `webServer: next dev` con `NEXT_PUBLIC_API_URL=http://localhost:4010`, `VALLE_SHEETS_ENABLED`) | toda la suite e2e (enterprise + CAD + Office). **No corre en ci.yml** — es local/nocturna (`NIGHT_LOG_E2E.md`). Pin `@playwright/test@1.56.0`/Chromium 141 por restricción de egress |
 | `SWEEP=1 npx playwright test visual-sweep.spec.ts` | ídem | barrido visual opt-in |
-| `npm test` (workspace `axos-os-backend`) | `apps/api/scripts/jest.js` + bloque `jest` de `apps/api/package.json` (`testRegex .*\.spec\.ts$`, ts-jest, rootDir src) | 38 specs de line-engineering + resto del API; los `.pg.spec.ts` se saltan sin DB |
+| `npm test` (workspace `valle-design-backend`) | `apps/api/scripts/jest.js` + bloque `jest` de `apps/api/package.json` (`testRegex .*\.spec\.ts$`, ts-jest, rootDir src) | 38 specs de line-engineering + resto del API; los `.pg.spec.ts` se saltan sin DB |
 | `TEST_DATABASE_URL=... npm run test:pg` | `apps/api/scripts/jest-postgres.js` (`--testRegex .*\.pg\.spec\.ts$`, `REQUIRE_POSTGRES_TESTS=true`) | 7 pg-specs (ninguno CAD) |
 | `npm run test:e2e` (api) | `apps/api/test/jest-e2e.json` | 0 tests (config muerta) |
 | `turbo.json` | — | **no define tarea `test`**; los gates viven en `.github/workflows/ci.yml` (build API, `npm test`, `test:pg`, web `test:specs`, `check:nav`, smokes ERP vs Postgres, tenant-safety) |
@@ -467,7 +467,7 @@ Verificado en `/home/user/valle-enterprise` (solo lectura). Hechos confirmados: 
 
 ### Frontend CAD (`apps/web`)
 - `NEXT_PUBLIC_API_URL` — **20 usos directos** en `src/components/line-engineering/**` (todo el fetch del workbench CAD). `src/lib/cad/**` tiene **cero** `process.env` (motor puro, extracción limpia).
-- Plataforma heredada: `BACKEND_INTERNAL_URL`, `FRONTEND_SHARED_KEY`, `AXOS_SESSION_SECRET`, `BACKEND_SERVICE_EMAIL/PASSWORD`.
+- Plataforma heredada: `BACKEND_INTERNAL_URL`, `FRONTEND_SHARED_KEY`, `el secreto de sesión de la plataforma de origen`, `BACKEND_SERVICE_EMAIL/PASSWORD`.
 - gzip: navegador usa `CompressionStream` nativo (`lib/cad/cad-recovery-codec.ts`, `large-document-transport.ts`); backend usa `node:zlib` (`cad-document-storage.ts`) — **no hay dependencia pako**.
 
 ### Comerciales de design que SE QUEDAN en enterprise (PLATFORM_OWNED)
@@ -520,16 +520,16 @@ El backend CAD **no tiene** dependencia npm de DXF: `dxf_data` se guarda como te
 | `components/line-engineering/cad-workbench/CadXrefPalette.tsx:41` | `UNIVERSAL` | Default de revisión al adjuntar Xref (escritura) |
 | `components/line-engineering/Layout3DEditor.tsx:3078,3092` | `UNIVERSAL` | Fallback de revisión al resolver snapshots de Xref (lectura) |
 | `apps/web/e2e/golden/*cad*.spec.ts` (19 specs, 10–28) | ambos | Fixtures/flujo E2E |
-| `scripts/check-brand-surfaces.mjs:101,~112` | `AXOS-CAD-STUDIO`, `axos-dxf` | Allowlist del gate de marca (tokens legacy permitidos) |
-| `apps/web/src/lib/cad/interop-provider.ts` | `axos-dxf` | Id del proveedor de interop **persistido dentro de los dibujos** |
-| `docs/cad/AXOS_CAD_ARCHITECTURE_LAYER.md` | ambos | Documentación |
+| `scripts/check-brand-surfaces.mjs:101,~112` | `AXOS-CAD-STUDIO`, `valle-dxf` | Allowlist del gate de marca (tokens legacy permitidos) |
+| `apps/web/src/lib/cad/interop-provider.ts` | `valle-dxf` | Id del proveedor de interop **persistido dentro de los dibujos** |
+| `docs/cad/VALLE_CAD_ARCHITECTURE_LAYER.md` | ambos | Documentación |
 
-Los `AXOS-CAD-UNIVERSAL-###` en `lib/cad/symbols.ts`/`templates.ts` son IDs de journey en comentarios, no persistidos.
+Los `VD-CAD-UNIVERSAL-###` en `lib/cad/symbols.ts`/`templates.ts` son IDs de journey en comentarios, no persistidos.
 
 ## 6. infra/ y scripts/ (CI, deploy, verificación)
 
 - `infra/` contiene SOLO `infra/cide/` (ver §3). No hay docker-compose de la app.
-- `scripts/` (ENTERPRISE_OWNED; valle-design necesitará equivalentes): `check-brand-surfaces.mjs` (`check:brand`; allowlista AXOS-CAD-STUDIO/axos-dxf), `check-dependency-licenses.mjs` (`check:licenses`; política: MIT/Apache-2.0/BSD/ISC… permitidas; GPL/AGPL/SSPL/desconocidas bloqueadas; LGPL/MPL a revisión legal; fuente = SBOM CycloneDX de `npm run sbom`), `check-tenant-safety.mjs` + `audit-tenant-safety.mjs` + `scripts/tenant-safety/` (+fixtures), `validate-capability-registry.mjs` (`check:capabilities`, valida `docs/enterprise/capabilities.json` contra módulos y rutas reales), `check-canonical-posting.mjs`, `check-legacy-entitlement-adapter.mjs`, `commercial-deploy.mjs` (predeploy exige `COMMERCIAL_BACKUP_PATH`/`COMMERCIAL_BACKUP_MAX_AGE_H`), `licence.mjs`, `qa-commercial-surfaces.mjs`, `convergence-*.sh`, `cleanup-stale-branches.sh`.
+- `scripts/` (ENTERPRISE_OWNED; valle-design necesitará equivalentes): `check-brand-surfaces.mjs` (`check:brand`; allowlista AXOS-CAD-STUDIO/valle-dxf), `check-dependency-licenses.mjs` (`check:licenses`; política: MIT/Apache-2.0/BSD/ISC… permitidas; GPL/AGPL/SSPL/desconocidas bloqueadas; LGPL/MPL a revisión legal; fuente = SBOM CycloneDX de `npm run sbom`), `check-tenant-safety.mjs` + `audit-tenant-safety.mjs` + `scripts/tenant-safety/` (+fixtures), `validate-capability-registry.mjs` (`check:capabilities`, valida `docs/enterprise/capabilities.json` contra módulos y rutas reales), `check-canonical-posting.mjs`, `check-legacy-entitlement-adapter.mjs`, `commercial-deploy.mjs` (predeploy exige `COMMERCIAL_BACKUP_PATH`/`COMMERCIAL_BACKUP_MAX_AGE_H`), `licence.mjs`, `qa-commercial-surfaces.mjs`, `convergence-*.sh`, `cleanup-stale-branches.sh`.
 - `.github/workflows/ci.yml`: gates tenant-safety, brand, SBOM+licencias, lint, **"Web specs (tsx)" = `npm run test:specs` que corre las 47 suites script-style incluyendo el motor CAD (`lib/cad/*.spec.ts`)**, `check:nav`, build web, smoke de bootstrap y golden-flow contra Postgres (incl. SYNCHRONIZE=false solo-migraciones). `.github/workflows/sbom.yml`: SBOM CycloneDX en cada push a main.
 
 ## 7. Auth/RBAC/entitlements en endpoints CAD hoy (PLATFORM_OWNED)

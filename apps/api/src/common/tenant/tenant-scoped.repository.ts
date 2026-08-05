@@ -25,7 +25,7 @@ import { TenantContextService } from './tenant-context.service';
  * - DEFAULT (legacy) mode: if there is no tenant in context (e.g. system/seed)
  *   OR the entity has no `tenant_id` column, no filter is added — so existing
  *   single-tenant/admin flows are unaffected. This makes adoption additive.
- * - STRICT (fail-closed) mode, opt-in per provider (AXOS-TEN-001): when the
+ * - STRICT (fail-closed) mode, opt-in per provider (VD-TEN-001): when the
  *   entity HAS a tenant column and the context has NO tenant, reads are scoped
  *   to the system lane (`tenant IS NULL`) instead of running unscoped — a
  *   missing context can never read another tenant's rows. Mirrors the

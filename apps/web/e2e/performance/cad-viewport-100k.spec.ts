@@ -41,7 +41,7 @@ function cadDocumentOfSize(entityCount: number) {
 
 // MIGRACIÓN R3: el corpus 10k/100k se sirve por la superficie v1. NOTA de
 // direccionamiento: el mock legacy respondía el corpus a CUALQUIER GET del
-// layout con la etiqueta cosmética AXOS-CAD-PERF; en v1 el adaptador resuelve
+// layout con la etiqueta cosmética VD-CAD-PERF; en v1 el adaptador resuelve
 // model+revision reales del estudio, así que el corpus se siembra bajo
 // AXOS-CAD-STUDIO@UNIVERSAL (misma huella 20 000×2 000, grid 20).
 // payloadBytes conserva su significado: bytes del cuerpo de la APERTURA v1

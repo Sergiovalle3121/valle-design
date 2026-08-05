@@ -165,7 +165,7 @@ CI falló en 8169d66e (campo warnings faltante en contrato); corregido en 060576
   allow-all default en dev, platform-api default fail-closed en prod) ← ENTITLEMENT_CLIENT.
 - [x] Auth server-side real: CadAuthGuard valida JWT de Platform (secreto compartido
   JWT_SECRET/SESSION_SECRET) + PermissionsGuard cad:* (mapeo engineering:*→cad:* de
-  @axos/contracts) + entitlement design.cad; TenantInterceptor → TenantContextService.
+  el paquete de contratos del monorepo de origen) + entitlement design.cad; TenantInterceptor → TenantContextService.
 - [x] Superficie /v1/cad/*: projects CRUD, documents (open/meta/archive suave), content CAS
   inline + archive gzip multipart, versions, publications, dxf get/put/delete/export,
   blocks CRUD, intent/vision. 2 migraciones nuevas (design_blobs; design_audit_log +
@@ -186,7 +186,7 @@ CI falló en 8169d66e (campo warnings faltante en contrato); corregido en 060576
 
 - [x] Scaffolding Next.js real (tailwind v4, next-intl EN/ES, tsconfig estricto que
   typechequea también e2e/). Plataforma Design: sesión por token de Platform
-  (`axos_access_token`, handoff `#access_token`), providers DesignAuth/Theme/Toast,
+  (el token en localStorage de la plataforma de origen, handoff `#access_token`), providers DesignAuth/Theme/Toast,
   `CadStudioHost` (Host Design sin `analysisPanels` — los comandos de análisis degradan
   con `analysis_pack_missing`).
 - [x] `src/lib/cad-api.ts`: adaptador legacy→v1 con el mapa documentado de los 21 call
@@ -226,7 +226,7 @@ CI falló en 8169d66e (campo warnings faltante en contrato); corregido en 060576
   palette tras cada remount; (2) spec 26 — los `assets` ya no viajan por la red (v1 solo
   persiste el documento canónico): el snapshot los DERIVA con la misma proyección del
   editor (`cadDocumentToEditorSnapshot`), mismos conteos; (3) perf 100k — el corpus se
-  siembra bajo AXOS-CAD-STUDIO@UNIVERSAL (la etiqueta AXOS-CAD-PERF del mock legacy era
+  siembra bajo AXOS-CAD-STUDIO@UNIVERSAL (la etiqueta VD-CAD-PERF del mock legacy era
   cosmética). Ningún golden ejercitaba paneles industriales (WP6 los dejó en enterprise;
   la degradación `analysis_pack_missing` está cubierta por specs unitarios del seam).
 - [x] **E2E full-stack REAL nuevo** (`e2e/real/studio-real-api.spec.ts`, gate
@@ -238,7 +238,7 @@ CI falló en 8169d66e (campo warnings faltante en contrato); corregido en 060576
   openapi-typescript 7.9.1 (pineado, generado versionado — build sin red) + cliente fetch
   fino tipado (`createDesignClient`; mapeo de montaje `/v1/*`→`/v1/cad/*` en un solo
   lugar; `DesignApiError` con el 409 tipado) + README + compat-test de contrato
-  (tipos generados vs `@axos/contracts`: códigos de error, permisos cad:*, entitlement,
+  (tipos generados vs el paquete de contratos del monorepo de origen: códigos de error, permisos cad:*, entitlement,
   puntero a blob, límites y eventos — `node --test`, 6/6). Integrado al build turbo.
 - [x] **CI propio** `.github/workflows/ci.yml` (modelado en el del origen, recortado):
   quality-gates (npm ci → redocly → sbom+licencias → build turbo → typecheck api/web →
@@ -359,7 +359,7 @@ dorada + full-stack real, CI declarado.
   `allowComments`/`shareLinkTtlMinutes` en la creación, schema `ReviewLinkContext`
   (proyección reducida deliberada: el invitado ve el dibujo, no la organización),
   respuesta `ReviewTokenRejected` y el catálogo de códigos ampliado. 6 códigos nuevos
-  en `DESIGN_API_ERROR_CODES` (@axos/contracts): review_token_invalid/expired/revoked,
+  en `DESIGN_API_ERROR_CODES` (paquete de contratos del monorepo de origen): review_token_invalid/expired/revoked,
   review_session_closed, review_read_only, review_comments_disabled. SDK regenerado
   (openapi-typescript 7.9.1) + cliente con `reviews.*` (autor) y
   `reviewLink(token).*` (invitado, header) — compat-tests 7/7 (6 baseline + 1 nuevo:

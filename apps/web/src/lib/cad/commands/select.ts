@@ -1,5 +1,5 @@
 /**
- * Seleccionar por nombre (AXOS-CAD-SELECT-001): 'selecciona las mesas',
+ * Seleccionar por nombre (VD-CAD-SELECT-001): 'selecciona las mesas',
  * 'resalta la barra' o 'selecciona todo' emite la operación focus que el
  * estudio ya convierte en selección viva — y con ella cualquier comando
  * de selección (mover, rotar, borrar…) queda a una frase de distancia.
@@ -35,7 +35,7 @@ export function selectObjectsPreview(
     );
     return { summary: "", affectedObjectIds: [], operations: [], issues };
   }
-  // Exclusión (AXOS-CAD-SELECT-002): 'todo menos las mesas'.
+  // Exclusión (VD-CAD-SELECT-002): 'todo menos las mesas'.
   const excludeQuery = input.exclude?.trim();
   if (excludeQuery) {
     const excluded = new Set(

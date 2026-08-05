@@ -88,11 +88,16 @@ export const DEFAULT_BRAND_MANIFEST: BrandManifest = {
   brandName: "VALLE",
   legalEntityName: "Sergio Valle Enterprise Software",
   founderName: "Sergio Valle",
-  descriptor: "Enterprise Software",
+  descriptor: "Diseño arquitectónico",
   productNames: DEFAULT_PRODUCT_NAMES,
+  // La promesa describe SÓLO lo que el producto hace y está probado: dibujo
+  // arquitectónico 2D con capas, bloques, cotas e intercambio DXF. Nada de
+  // DWG, 3D ni interoperabilidad que no exista (ver `docs/` y el gate de
+  // marca): una promesa sin comportamiento detrás es una afirmación falsa,
+  // no un texto de marketing.
   tagline: {
-    en: "Enterprise software you can buy one product at a time.",
-    es: "Software empresarial que puedes contratar un producto a la vez.",
+    en: "2D architectural design in the browser: layers, blocks, dimensions and DXF exchange.",
+    es: "Diseño arquitectónico 2D en el navegador: capas, bloques, cotas e intercambio DXF.",
   },
   supportEmail: "support@example.invalid",
   salesEmail: "sales@example.invalid",

@@ -1,7 +1,7 @@
 /**
- * Framework de Industry Packs de AXOS CAD Next (CAD-NEXT-090).
+ * Framework de Industry Packs de Valle Design CAD (CAD-NEXT-090).
  *
- * La ventaja competitiva de AXOS CAD frente a un CAD genérico es que un objeto
+ * La ventaja competitiva de Valle Design CAD frente a un CAD genérico es que un objeto
  * no es sólo geometría: es un **objeto inteligente de un dominio** (una estación
  * de trabajo, un tanque de proceso, un cajón de estacionamiento) con parámetros,
  * cálculos de negocio y reglas. Un Industry Pack registra esos objetos para una

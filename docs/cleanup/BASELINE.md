@@ -61,7 +61,7 @@ estructural que el mandato de purificación exige corregir. Se listan aquí para
 "verde" no se lea como "limpio":
 
 1. **Contratos contaminados**: `packages/contracts` conserva superficie heredada de
-   ERP/MES/Office/pricing corporativo y se llama `@axos/contracts`.
+   ERP/MES/Office/pricing corporativo y se llama el paquete de contratos del monorepo de origen.
 2. **Adaptador de rutas legacy**: `apps/web/src/lib/cad-api.ts` traduce `/line-engineering/*`
    a `/v1/cad/*`, y varios controles de la UI terminan deliberadamente en 404.
 3. **Divergencia de ruta canónica**: la API monta `/v1/cad/*` mientras el OpenAPI declara

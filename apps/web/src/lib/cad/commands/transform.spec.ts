@@ -1,5 +1,5 @@
 /**
- * ROTAR y ESCALAR selección (AXOS-CAD-XFORM-001): rotación de centros
+ * ROTAR y ESCALAR selección (VD-CAD-XFORM-001): rotación de centros
  * alrededor del pivote con rotación por objeto acumulada, y escala de
  * tamaños + posiciones desde el centro; entradas inválidas → error.
  */
@@ -87,7 +87,7 @@ const ctx = (objects: CadBox[], selectedIds: string[]): CadCommandContext =>
   assert.ok(empty.issues.length > 0, "selección vacía rechazada");
 }
 
-// Objetivo por nombre (AXOS-CAD-NAME-002): 'rota la prensa 90' sin selección.
+// Objetivo por nombre (VD-CAD-NAME-002): 'rota la prensa 90' sin selección.
 {
   const c = ctx([box({ id: "p1" }), box({ id: "m1", label: "Mesa", x: 500 })], []);
   const out = rotateSelectionPreview(

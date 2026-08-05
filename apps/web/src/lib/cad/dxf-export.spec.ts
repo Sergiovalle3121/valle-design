@@ -29,7 +29,7 @@ const result = exportCadDxf(
       { from: { x: 0, y: 0 }, to: { x: 0, y: 12 }, label: "12 mm" },
     ],
   },
-  { units: "mm", fileComment: "AXOS CAD export" },
+  { units: "mm", fileComment: "Valle Design CAD export" },
 );
 
 assert.ok(result.content.includes("SECTION\n2\nHEADER"), "writes DXF header");
@@ -58,7 +58,7 @@ assert.ok(
 assert.equal(result.entityCount, 5, "counts exported entities");
 assert.ok(result.content.endsWith("0\nEOF\n"), "terminates DXF");
 
-// Geometría curva real (AXOS-CAD-DEPTH-A1): círculo y arco nativos.
+// Geometría curva real (VD-CAD-DEPTH-A1): círculo y arco nativos.
 const curved = exportCadDxf({
   primitives: [
     { kind: "circle", layer: "Holes", points: [{ x: 100, y: 50 }], radius: 12 },

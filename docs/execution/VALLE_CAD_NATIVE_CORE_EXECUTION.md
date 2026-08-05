@@ -1,4 +1,4 @@
-# AXOS CAD native core — ejecución y evidencia
+# Valle Design CAD native core — ejecución y evidencia
 
 > Corte P0 de entidades nativas y confiabilidad. Este documento registra lo
 > que está conectado al producto y distingue la evidencia de kernel de la
@@ -9,7 +9,7 @@
 | Campo | Valor |
 | --- | --- |
 | Base | `3529ce2ff2f31c78509f97ea7e361ea030dd90ce` (`origin/main`) |
-| Rama | `agent/axos-cad-native-core` |
+| Rama | `agent/valle-cad-native-core` |
 | Superficies | Next.js/Three.js, NestJS/TypeORM, DXF, Playwright |
 | Fuente de verdad | `CadDocument` v3 |
 | Entidades P0 | `ARC`, `ELLIPSE`, `SPLINE` |

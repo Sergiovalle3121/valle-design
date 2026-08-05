@@ -1,5 +1,5 @@
 /**
- * Matrices / arreglos (ARRAY) del CAD (AXOS-CAD-DEPTH-B3).
+ * Matrices / arreglos (ARRAY) del CAD (VD-CAD-DEPTH-B3).
  *
  * ARRAY es el multiplicador de AutoCAD: repetir una geometría en una rejilla
  * (rectangular), alrededor de un centro (polar) o a lo largo de un camino

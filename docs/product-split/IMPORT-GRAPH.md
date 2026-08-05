@@ -73,7 +73,7 @@ Cero imports de auth, tenant, apiFetch, i18n, CIDE, chat o componentes globales 
 | ~63 imports de `@/lib/cad/*` | prácticamente todo el núcleo |
 
 ### 2d. E2E CAD
-Los 19 specs dorados importan `apps/web/e2e/fixtures/session.ts` (forja la cookie de plataforma `axos_session` HMAC-SHA256 + JWT en localStorage, replicando `src/lib/session.ts`) y `fixtures/constants.ts` — dependencia de la identidad de plataforma en tests.
+Los 19 specs dorados importan `apps/web/e2e/fixtures/session.ts` (forja la cookie de plataforma `valle_session` HMAC-SHA256 + JWT en localStorage, replicando `src/lib/session.ts`) y `fixtures/constants.ts` — dependencia de la identidad de plataforma en tests.
 
 ### 2e. Lo que el CAD **NO** importa
 `lib/cide`, `lib/chatApi`, `components/ChatWidget`, `lib/entitlementNav`, `lib/session`, `hooks/*` — cero imports. `@/lib/glass` solo en el shell `dashboard/cad/page.tsx` (y en los paneles enterprise, no en el CAD).

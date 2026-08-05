@@ -2,10 +2,17 @@
 
 ## Scope
 
-This repository is the complete standalone Valle Design product: Next.js web
-app, NestJS API, first-party identity, organizations and memberships, local
-subscriptions and entitlements, CAD domain, OpenAPI contracts and generated
-SDK. Do not add a runtime dependency on another product or identity service.
+Valle Design is a **2D architectural design system** that runs in the browser.
+Its domain — and its competition — is AutoCAD by Autodesk: precision drafting
+with layers, blocks, associative dimensions, object snaps, paper space and DXF
+exchange. Judge behaviour against how a professional drafting tool actually
+behaves, not against a generic web app. What is not implemented is stated
+plainly; it is never implied.
+
+This repository is the complete standalone product: Next.js web app, NestJS
+API, first-party identity, organizations and memberships, local subscriptions
+and entitlements, CAD domain, OpenAPI contracts and generated SDK. Do not add a
+runtime dependency on another product or identity service.
 
 ## Canonical commands
 

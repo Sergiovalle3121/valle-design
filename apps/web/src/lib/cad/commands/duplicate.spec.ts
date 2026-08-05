@@ -1,5 +1,5 @@
 /**
- * Duplicar selección (AXOS-CAD-DUP-001): creates con sourceId y
+ * Duplicar selección (VD-CAD-DUP-001): creates con sourceId y
  * desplazamiento default +500,+500; parser con 'duplica/copia ... a dx,dy'.
  */
 import { strict as assert } from "node:assert";
@@ -88,7 +88,7 @@ const ctx = {
 
 console.log("cad duplicate specs passed");
 
-// Copia a una zona (AXOS-CAD-DUP-002): 'duplica la mesa en la bodega' —
+// Copia a una zona (VD-CAD-DUP-002): 'duplica la mesa en la bodega' —
 // la copia aterriza centrada dentro del contenedor.
 {
   const casaCtx = {

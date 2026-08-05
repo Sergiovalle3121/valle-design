@@ -1,5 +1,5 @@
 /**
- * DIVIDE y MEASURE del CAD (AXOS-CAD-DEPTH-B6).
+ * DIVIDE y MEASURE del CAD (VD-CAD-DEPTH-B6).
  *
  * Repartir puntos a lo largo de una curva: DIVIDE la parte en N tramos iguales;
  * MEASURE coloca una marca cada cierta distancia. Sirve para postes de una

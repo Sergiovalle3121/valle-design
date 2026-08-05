@@ -80,7 +80,7 @@ test('professional workbench persists, scales and keeps every palette outside th
   await page.getByLabel('Theme').selectOption('dark');
   await expect(page.locator('[data-color-scheme="dark"]')).toBeVisible();
 
-  await context.addCookies([{ name: 'axos_locale', value: 'es', domain: 'localhost', path: '/', sameSite: 'Lax' }]);
+  await context.addCookies([{ name: 'valle_locale', value: 'es', domain: 'localhost', path: '/', sameSite: 'Lax' }]);
   await page.reload();
   await page.getByTitle(/Workspace profesional/).click();
   await expect(page.getByTestId('cad-workspace-dock')).toContainText('Workspace profesional');

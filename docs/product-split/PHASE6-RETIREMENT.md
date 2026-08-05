@@ -92,7 +92,7 @@ Nuevo módulo `apps/api/src/modules/design-integration/` (registrado en AppModul
 exportado para consumo MES futuro):
 
 - **`DesignLinkService`** — config `VALLE_DESIGN_URL`; deep link `/studio` del contrato;
-  builder de `DesignDocumentReference` (@axos/contracts) que persiste EXACTAMENTE lo
+  builder de `DesignDocumentReference` (paquete de contratos del monorepo de origen) que persiste EXACTAMENTE lo
   permitido por la regla de frontera: `cadProjectId`/`cadDocumentId`/`cadPublicationId` +
   `deepLink` (opaco, se guarda tal cual) + snapshot read-only. Spec: 6 tests.
 - **`DesignSnapshotService`** — cliente HTTP fino contra `GET /v1/cad/documents/:id`
@@ -122,11 +122,11 @@ exportado para consumo MES futuro):
 
 | Gate | Resultado |
 |---|---|
-| `smoke:bootstrap` (axos_smoke) | OK — application graph initialized cleanly |
+| `smoke:bootstrap` (valle_smoke) | OK — application graph initialized cleanly |
 | `npm test` (api) | Suites **374 passed / 8 skipped / 382**; Tests **2509 passed / 21 skipped / 2530** |
 | `test:specs` (web) | **137/137** (95 lib/cad + 12 lib/cad/commands + 10 CAD en components/line-engineering + 20 no-CAD) |
 | `check:nav` | 86 áreas + 9 prefijos OK |
-| `smoke:golden` (axos_smoke, dist reconstruido) | **OK** — cadena canónica completa fases 1–6 |
+| `smoke:golden` (valle_smoke, dist reconstruido) | **OK** — cadena canónica completa fases 1–6 |
 
 ## Evidencia DESPUÉS (mismos comandos + suite completa)
 
@@ -140,8 +140,8 @@ exportado para consumo MES futuro):
 | `test:pg` | **7 suites / 17 tests** (antes 8/21) |
 | tenant-safety | 879/879 + 40/40 tests del analizador |
 | check:capabilities / canonical-posting / brand / nav | Todos verdes (nav: 86 áreas + 9 prefijos — `/dashboard/cad` sigue existiendo como traspaso) |
-| `smoke:bootstrap` (axos_smoke) | OK |
-| `smoke:golden` | **OK** en BD limpia `axos_smoke_f6` (cadena canónica completa fases 1–6). Nota: la re-corrida sobre la MISMA `axos_smoke` usada en ANTES falla por estado acumulado (la aserción "tenant B ve exactamente 1 entidad legal" encuentra la de la corrida anterior) — comportamiento pre-existente del smoke re-ejecutado, ajeno al retiro; en CI cada corrida usa BD fresca |
+| `smoke:bootstrap` (valle_smoke) | OK |
+| `smoke:golden` | **OK** en BD limpia `valle_smoke_f6` (cadena canónica completa fases 1–6). Nota: la re-corrida sobre la MISMA `valle_smoke` usada en ANTES falla por estado acumulado (la aserción "tenant B ve exactamente 1 entidad legal" encuentra la de la corrida anterior) — comportamiento pre-existente del smoke re-ejecutado, ajeno al retiro; en CI cada corrida usa BD fresca |
 
 ### Delta de tests — explicado al 100%
 

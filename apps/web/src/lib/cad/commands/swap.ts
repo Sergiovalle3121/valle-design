@@ -1,5 +1,5 @@
 /**
- * Intercambiar (AXOS-CAD-SWAP-001): 'intercambia la mesa y el escritorio'
+ * Intercambiar (VD-CAD-SWAP-001): 'intercambia la mesa y el escritorio'
  * — los dos objetos cambian de lugar con dos moves rígidos (cada uno
  * conserva su tamaño y rotación; solo viajan los orígenes). Por nombres
  * a/b o con exactamente 2 seleccionados.

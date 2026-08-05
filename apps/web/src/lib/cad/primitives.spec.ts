@@ -1,4 +1,4 @@
-/** Geometría de primitivas puras del CAD (AXOS-CAD-DEPTH-A1). */
+/** Geometría de primitivas puras del CAD (VD-CAD-DEPTH-A1). */
 import { strict as assert } from "node:assert";
 import {
   arcContainsAngle,

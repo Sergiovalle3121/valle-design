@@ -194,15 +194,17 @@ import {
   applyCadWorkspaceProfile,
   buildCadWorkspaceShortcuts,
   cadWorkspaceStorageKey,
+  loadCadWorkspacePreferences,
   normalizeCadWorkspacePreferences,
   type CadWorkspacePreferences,
   type CadWorkspaceProfile,
 } from "@/lib/cad/cad-workspace";
+import { readRenamedStorageKey } from "@/lib/storage-rename";
 import {
   cadCommandHistoryStorageKey,
   navigateCadCommandHistory,
-  parseCadCommandHistory,
   prependCadCommandHistory,
+  readCadCommandHistory,
   repeatableCadCommand,
   serializeCadCommandHistory,
 } from "@/lib/cad/command-session";
@@ -2841,7 +2843,10 @@ export default function Layout3DEditor({
     dy: 0,
   }); // array/offset params (Fase 55)
   const [showGaps, setShowGaps] = useState(false); // clearance/safety gap markers overlay (Fase 52)
-  const viewportBookmarkStorageKey = `axos:cad:viewport-bookmarks:${model}:${revision}`;
+  const viewportBookmarkStorageKey = `valle:cad:viewport-bookmarks:${model}:${revision}`;
+  // Las vistas guardadas se persistieron con el prefijo del nombre de
+  // producto anterior; se migran al leerlas (ver lib/storage-rename.ts).
+  const legacyViewportBookmarkStorageKey = `axos:cad:viewport-bookmarks:${model}:${revision}`;
   useEffect(() => {
     paletteOpenRef.current = showPalette;
   }, [showPalette]);
@@ -2862,14 +2867,15 @@ export default function Layout3DEditor({
   useEffect(() => {
     let active = true;
     let restoredHistory: CadCommandHistoryItem[] = [];
-    try {
-      if (open && commandHistoryStorageKey)
-        restoredHistory = parseCadCommandHistory(
-          window.localStorage.getItem(commandHistoryStorageKey),
-        );
-    } catch {
-      restoredHistory = [];
-    }
+    if (open && commandHistoryStorageKey)
+      restoredHistory = readCadCommandHistory(window.localStorage, {
+        tenantId,
+        userId,
+        buildingId,
+        projectId,
+        model,
+        revision,
+      });
     queueMicrotask(() => {
       if (!active) return;
       setCommandHistoryHydratedKey(open ? commandHistoryStorageKey : null);
@@ -2879,7 +2885,16 @@ export default function Layout3DEditor({
     return () => {
       active = false;
     };
-  }, [commandHistoryStorageKey, open]);
+  }, [
+    buildingId,
+    commandHistoryStorageKey,
+    model,
+    open,
+    projectId,
+    revision,
+    tenantId,
+    userId,
+  ]);
   useEffect(() => {
     if (
       !open ||
@@ -2898,7 +2913,11 @@ export default function Layout3DEditor({
   }, [commandHistoryHydratedKey, commandHistoryStorageKey, commandLog, open]);
   const readViewportBookmarks = () => {
     try {
-      const raw = window.localStorage.getItem(viewportBookmarkStorageKey);
+      const raw = readRenamedStorageKey(
+        window.localStorage,
+        viewportBookmarkStorageKey,
+        legacyViewportBookmarkStorageKey,
+      );
       return sanitizeCadViewportBookmarks(raw ? JSON.parse(raw) : []);
     } catch {
       return [];
@@ -3088,22 +3107,17 @@ export default function Layout3DEditor({
       setWorkspaceHydratedKey(null);
       return;
     }
-    let restored = CAD_WORKSPACE_DEFAULTS;
-    try {
-      const serialized = window.localStorage.getItem(workspacePreferenceKey);
-      restored = normalizeCadWorkspacePreferences(
-        serialized ? JSON.parse(serialized) : null,
-      );
-    } catch {
-      restored = CAD_WORKSPACE_DEFAULTS;
-    }
+    const restored = loadCadWorkspacePreferences(window.localStorage, {
+      tenantId,
+      userId,
+    });
     workspacePreferencesRef.current = restored;
     workspaceShortcutsRef.current = buildCadWorkspaceShortcuts(restored);
     setWorkspacePreferences(restored);
     setShowCommand(restored.commandDock);
     setShowMinimap(restored.minimap);
     setWorkspaceHydratedKey(workspacePreferenceKey);
-  }, [open, workspacePreferenceKey]);
+  }, [open, tenantId, userId, workspacePreferenceKey]);
   useEffect(() => {
     workspacePreferencesRef.current = workspacePreferences;
     workspaceShortcutsRef.current =
@@ -12561,7 +12575,7 @@ export default function Layout3DEditor({
   const previewCommandText = (rawText: string) => {
     const raw = rawText.trim();
     if (!raw) return;
-    // Cadenas (AXOS-CAD-CHAIN-001): 'pon una puerta y luego céntrala' —
+    // Cadenas (VD-CAD-CHAIN-001): 'pon una puerta y luego céntrala' —
     // todos los pasos deben parsear; el preview muestra el primero y el
     // apply los ejecuta en orden contra el contexto vivo.
     const parts = splitCadCommandChain(raw);
@@ -12741,7 +12755,7 @@ export default function Layout3DEditor({
       return true;
     } else if (op.type === "annotate") {
       if (op.annotation.kind === "text") {
-        // TEXT conversacional (AXOS-CAD-TEXT-001): misma nota que el botón de
+        // TEXT conversacional (VD-CAD-TEXT-001): misma nota que el botón de
         // notas — editable/arrastrable/borrable como cualquier otra.
         const id = newId("nt");
         annotationsRef.current.set(id, {
@@ -12773,17 +12787,17 @@ export default function Layout3DEditor({
       refreshMeasurementRows();
       return true;
     } else if (op.type === "history") {
-      // 'deshaz' / 'rehaz' (AXOS-CAD-UNDO-001): el mismo historial de Ctrl+Z.
+      // 'deshaz' / 'rehaz' (VD-CAD-UNDO-001): el mismo historial de Ctrl+Z.
       if (op.action === "undo") undo();
       else redo();
       return true;
     } else if (op.type === "studio_view") {
-      // 'vista 2d' / 'vista 3d' (AXOS-CAD-VIEW-001): el mismo toggle del toolbar.
+      // 'vista 2d' / 'vista 3d' (VD-CAD-VIEW-001): el mismo toggle del toolbar.
       setViewMode(op.mode);
       applyViewMode(op.mode);
       return true;
     } else if (op.type === "rename") {
-      // "renombra la mesa a 'Mesa VIP'" (AXOS-CAD-RENAME-001): solo assets —
+      // "renombra la mesa a 'Mesa VIP'" (VD-CAD-RENAME-001): solo assets —
       // las estaciones toman su nombre del routing.
       const asset = assetsRef.current.get(op.objectId);
       if (!asset) {
@@ -12796,11 +12810,11 @@ export default function Layout3DEditor({
       asset.label = op.label.slice(0, 80);
       return true;
     } else if (op.type === "studio_save") {
-      // 'guarda' (AXOS-CAD-SAVE-001): el mismo botón Guardar del estudio.
+      // 'guarda' (VD-CAD-SAVE-001): el mismo botón Guardar del estudio.
       void save();
       return true;
     } else if (op.type === "studio_export") {
-      // 'imprime en a3' (AXOS-CAD-PLOT-003): dispara el export real; el papel
+      // 'imprime en a3' (VD-CAD-PLOT-003): dispara el export real; el papel
       // pedido se sincroniza al selector y se pasa directo (el estado es async).
       if (op.format === "pdf") {
         const paper = op.paper as CadPaperId | undefined;
@@ -12815,7 +12829,7 @@ export default function Layout3DEditor({
       }
       return true;
     } else if (op.type === "clear_annotations") {
-      // Limpieza conversacional (AXOS-CAD-CLEAN-001): mismo contrato que el
+      // Limpieza conversacional (VD-CAD-CLEAN-001): mismo contrato que el
       // botón de limpiar cotas — si no había nada que quitar, no aplica.
       let cleared = false;
       annotationsRef.current.forEach((a, id) => {
@@ -12838,7 +12852,7 @@ export default function Layout3DEditor({
       rebuildNotes();
       return true;
     } else if (op.type === "delete") {
-      // ERASE conversacional (AXOS-CAD-DELETE-001): mismo contrato que Supr —
+      // ERASE conversacional (VD-CAD-DELETE-001): mismo contrato que Supr —
       // respeta capas bloqueadas y saca al objeto de la selección viva.
       const type = placementsRef.current.has(op.objectId)
         ? ("station" as const)
@@ -12874,7 +12888,7 @@ export default function Layout3DEditor({
         )
         .filter((it): it is SelItem => !!it);
       if (items.length) select(items);
-      // 'enfoca la cocina' (AXOS-CAD-ZOOM-001): fit_to_view manda zoom:true;
+      // 'enfoca la cocina' (VD-CAD-ZOOM-001): fit_to_view manda zoom:true;
       // seleccionar por nombre NO mueve la cámara (select_objects sin zoom).
       if (op.zoom) fitView(items.length ? "selection" : "all");
     }
@@ -12928,7 +12942,7 @@ export default function Layout3DEditor({
       notifyReadOnly();
       return;
     }
-    // Cadena o comando suelto (AXOS-CAD-CHAIN-001): cada paso se ejecuta
+    // Cadena o comando suelto (VD-CAD-CHAIN-001): cada paso se ejecuta
     // contra el contexto YA mutado por el anterior ('pon una puerta y luego
     // céntrala' centra la puerta recién creada); un solo snapshot → un undo.
     const inputs =

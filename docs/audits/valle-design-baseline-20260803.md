@@ -249,7 +249,9 @@ y npm 10.9.7 frente al `packageManager: npm@10.9.3` declarado. CI sí usa
 
 ### 3.3 Licencia y propiedad intelectual
 
-`LICENSE` sigue titulado **«AXOS OS — Proprietary Software License»** en un
+`LICENSE` estaba titulado con el nombre de producto ANTERIOR. Resuelto: hoy
+dice **«Valle Design — Proprietary Software License»**, sin tocar titular,
+términos ni garantía. El hallazgo original apuntaba a un
 repositorio público que declara software propietario.
 
 **BLOCKED-OWNER.** No es cosmético y no debe redactarse sin decisión del
@@ -461,7 +463,7 @@ retiene `PUT`.
 | # | Decisión | Por qué no puede delegarse |
 | --- | --- | --- |
 | 1 | Visibilidad del repositorio (público vs privado) | Propiedad intelectual |
-| 2 | Titular y texto de `LICENSE` (hoy «AXOS OS») | Requiere asesoría legal real |
+| 2 | Titular y texto de `LICENSE` — el NOMBRE ya es Valle Design; el resto del clausulado requiere asesoría legal real | Pendiente (legal) |
 | 3 | Estrategia DWG (ODA Drawings SDK vs RealDWG) | Licencia y coste recurrente |
 | 4 | Kernel B-Rep si se persigue 3D real | Licencia, distribución y coste |
 | 5 | Proveedor de correo transaccional y de pagos | Cuentas, secretos y fiscalidad |

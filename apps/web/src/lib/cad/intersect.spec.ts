@@ -1,4 +1,4 @@
-/** Intersecciones de geometría (AXOS-CAD-DEPTH-A7). */
+/** Intersecciones de geometría (VD-CAD-DEPTH-A7). */
 import { strict as assert } from "node:assert";
 import type { CadVec2 } from "./primitives";
 import {

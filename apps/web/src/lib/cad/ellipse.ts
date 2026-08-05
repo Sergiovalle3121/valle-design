@@ -1,5 +1,5 @@
 /**
- * Elipses y arcos elípticos del CAD (AXOS-CAD-DEPTH-B2).
+ * Elipses y arcos elípticos del CAD (VD-CAD-DEPTH-B2).
  *
  * La ELIPSE de AutoCAD (óvalos, bocas de tanque en perspectiva, arcos
  * rebajados) no existía en el modelo de caja. Este módulo la modela con centro,

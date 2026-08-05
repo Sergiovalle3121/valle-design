@@ -72,7 +72,7 @@ A model must not receive:
 
 ## Privacy rule
 
-The command engine is vendor-neutral. If the deployment points to self-hosted CIDE through an OpenAI-compatible `baseURL`, command metadata stays inside AXOS infrastructure. If an external OpenAI endpoint is used, only minimized command context may be sent and sensitive plant/customer data must be redacted first.
+The command engine is vendor-neutral. If the deployment points to self-hosted CIDE through an OpenAI-compatible `baseURL`, command metadata stays inside Valle Design infrastructure. If an external OpenAI endpoint is used, only minimized command context may be sent and sensitive plant/customer data must be redacted first.
 
 ## Current limitations
 

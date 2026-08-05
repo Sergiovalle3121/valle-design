@@ -16,15 +16,28 @@ durante la transición, conteo cero del valor anterior en todos los entornos y
 rollback probado. El gate está en
 `apps/web/src/lib/cad/persisted-identifiers.spec.ts`.
 
-## Nombres XDATA de DXF
+## Nombres XDATA de DXF — retirados de la ESCRITURA
 
 `AXOS_DIM`, `AXOS_MLEADER` y `AXOS_BLOCK` forman parte de archivos ya
-exportados. Cambiar exportador e importador a la vez produciría tests verdes,
-pero rompería silenciosamente los archivos históricos.
+exportados bajo el nombre de producto anterior.
 
-Para retirarlos se requiere un lector bidireccional, una nueva versión del
-formato canónico y un golden congelado del nombre anterior. El gate está en
-`apps/web/src/lib/cad/dxf-xdata-golden.spec.ts`.
+El exportador ya no los escribe: emite `VALLE_DIM`, `VALLE_MLEADER` y
+`VALLE_BLOCK` (`packages/contracts/src/dxf-xdata-apps.ts`). Estos tres
+literales sobreviven aquí como **lectura únicamente**, y ésa es la mitad del
+contrato que no puede retirarse todavía: un archivo guardado antes del cambio
+tiene que seguir abriéndose con la misma semántica.
+
+Dos gates lo sostienen:
+
+- `apps/web/src/lib/cad/dxf-xdata-golden.spec.ts` congela bytes reales con los
+  nombres anteriores y exige que el importador los lea.
+- `apps/web/src/lib/cad/dxf-xdata-app-names.spec.ts` exporta un dibujo,
+  reescribe sólo las marcas XDATA al nombre anterior y compara las dos
+  importaciones campo a campo; además prohíbe que el exportador reintroduzca
+  el nombre retirado.
+
+Retirar también la lectura exigiría una migración verificable de los archivos
+de los clientes, cosa que el producto no controla. Hasta entonces, se quedan.
 
 No hay compatibilidad de autenticación en este módulo. Valle Design usa
 sesiones first-party y permisos `cad:*` derivados de membresías verificadas.

@@ -1,5 +1,5 @@
 /**
- * Modelo de primitivas geométricas puras del CAD (AXOS-CAD-DEPTH-A1).
+ * Modelo de primitivas geométricas puras del CAD (VD-CAD-DEPTH-A1).
  *
  * El editor histórico modelaba TODO como una caja rectangular alineada a los
  * ejes: un círculo se guardaba como cuadrado, un arco no existía. Eso hacía que

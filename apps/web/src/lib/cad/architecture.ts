@@ -206,7 +206,7 @@ export function defaultCadLayerForAssetKind(
   if (UTILITY_KINDS.has(kind)) return "utilities";
   if (kind === "agvpath" || hasAnyTag(tags, ["aisle", "forklift", "pedestrian"])) return "aisles";
   if (SAFETY_KINDS.has(kind) || hasAnyTag(tags, ["safety", "no-go", "restricted", "emergency", "esd"])) return "safety";
-  // Biblioteca de símbolos como fuente de verdad (AXOS-CAD-LAYER-001): una
+  // Biblioteca de símbolos como fuente de verdad (VD-CAD-LAYER-001): una
   // puerta colocada por el copiloto va a Arquitectura, no a Equipos — igual
   // en el DXF que se abre en AutoCAD. Los tags especiales de arriba ganan.
   const symbol = getCadSymbol(kind);

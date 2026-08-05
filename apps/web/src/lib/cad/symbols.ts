@@ -4,7 +4,7 @@ export type CadSymbolCategory =
   | "safety"
   | "storage"
   | "operator"
-  // CAD universal (AXOS-CAD-UNIVERSAL-001): cualquiera diseñando cualquier
+  // CAD universal (VD-CAD-UNIVERSAL-001): cualquiera diseñando cualquier
   // cosa — no solo plantas EMS.
   | "architecture"
   | "furniture"
@@ -354,7 +354,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     ],
   },
 
-  // ── CAD universal (AXOS-CAD-UNIVERSAL-001): arquitectura y casa ──
+  // ── CAD universal (VD-CAD-UNIVERSAL-001): arquitectura y casa ──
   {
     id: "door-90",
     label: "Puerta 90 cm",
@@ -581,7 +581,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["barra", "bar", "restaurante", "cafetería"],
     ports: [],
   },
-  // Segunda tanda universal (AXOS-CAD-UNIVERSAL-004): escuela, gimnasio,
+  // Segunda tanda universal (VD-CAD-UNIVERSAL-004): escuela, gimnasio,
   // exterior y baño público — medidas reales en mm, tags bilingües.
   {
     id: "school-desk",
@@ -693,7 +693,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["lavabo", "sink", "baño", "bano", "corrido", "público"],
     ports: [],
   },
-  // — Tercera tanda universal (AXOS-CAD-UNIVERSAL-009): taller mecánico —
+  // — Tercera tanda universal (VD-CAD-UNIVERSAL-009): taller mecánico —
   {
     id: "car",
     label: "Auto",
@@ -754,7 +754,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["llantas", "neumáticos", "neumaticos", "tire", "estante", "taller"],
     ports: [],
   },
-  // — Cuarta tanda universal (AXOS-CAD-UNIVERSAL-012): salón de belleza —
+  // — Cuarta tanda universal (VD-CAD-UNIVERSAL-012): salón de belleza —
   {
     id: "styling-chair",
     label: "Silla de estilista",
@@ -785,7 +785,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["tocador", "espejo", "estilista", "salón", "salon", "belleza"],
     ports: [],
   },
-  // — Quinta tanda universal (AXOS-CAD-UNIVERSAL-015): panadería —
+  // — Quinta tanda universal (VD-CAD-UNIVERSAL-015): panadería —
   {
     id: "oven",
     label: "Horno",
@@ -816,7 +816,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["vitrina", "display", "mostrador", "panadería", "panaderia", "tienda"],
     ports: [],
   },
-  // — Sexta tanda universal (AXOS-CAD-UNIVERSAL-016): veterinaria —
+  // — Sexta tanda universal (VD-CAD-UNIVERSAL-016): veterinaria —
   {
     id: "kennel-cage",
     label: "Jaula para mascotas",
@@ -827,7 +827,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["jaula", "kennel", "mascotas", "veterinaria", "hospitalización", "hospitalizacion"],
     ports: [],
   },
-  // — Séptima tanda universal (AXOS-CAD-UNIVERSAL-017): lavandería —
+  // — Séptima tanda universal (VD-CAD-UNIVERSAL-017): lavandería —
   {
     id: "washer",
     label: "Lavadora",
@@ -848,7 +848,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["secadora", "dryer", "lavandería", "lavanderia", "ropa"],
     ports: [],
   },
-  // — Octava tanda universal (AXOS-CAD-UNIVERSAL-018): guardería —
+  // — Octava tanda universal (VD-CAD-UNIVERSAL-018): guardería —
   {
     id: "crib",
     label: "Cuna",
@@ -859,7 +859,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["cuna", "crib", "guardería", "guarderia", "bebé", "bebe", "kinder"],
     ports: [],
   },
-  // — Novena tanda universal (AXOS-CAD-UNIVERSAL-020): hotel —
+  // — Novena tanda universal (VD-CAD-UNIVERSAL-020): hotel —
   {
     id: "nightstand",
     label: "Buró",
@@ -870,7 +870,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["buró", "buro", "nightstand", "mesa de noche", "recámara", "recamara", "hotel"],
     ports: [],
   },
-  // — Décima tanda universal (AXOS-CAD-UNIVERSAL-021): consultorio dental —
+  // — Décima tanda universal (VD-CAD-UNIVERSAL-021): consultorio dental —
   {
     id: "dental-chair",
     label: "Sillón dental",
@@ -881,7 +881,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["sillón dental", "sillon dental", "dental", "dentista", "consultorio"],
     ports: [],
   },
-  // — Undécima tanda universal (AXOS-CAD-UNIVERSAL-023): deportes —
+  // — Undécima tanda universal (VD-CAD-UNIVERSAL-023): deportes —
   {
     id: "goal",
     label: "Portería",
@@ -892,7 +892,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["portería", "porteria", "goal", "fútbol", "futbol", "cancha", "deporte"],
     ports: [],
   },
-  // — Duodécima tanda universal (AXOS-CAD-UNIVERSAL-024): fiestas —
+  // — Duodécima tanda universal (VD-CAD-UNIVERSAL-024): fiestas —
   {
     id: "bounce-house",
     label: "Brincolín",
@@ -903,7 +903,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["brincolín", "brincolin", "inflable", "bounce", "fiesta", "salón de fiestas", "salon de fiestas"],
     ports: [],
   },
-  // — Decimotercera tanda universal (AXOS-CAD-UNIVERSAL-025): iglesia —
+  // — Decimotercera tanda universal (VD-CAD-UNIVERSAL-025): iglesia —
   {
     id: "pew",
     label: "Banca de iglesia",
@@ -924,7 +924,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["púlpito", "pulpito", "pulpit", "iglesia", "templo", "altar"],
     ports: [],
   },
-  // — Decimocuarta tanda universal (AXOS-CAD-UNIVERSAL-028): comercio —
+  // — Decimocuarta tanda universal (VD-CAD-UNIVERSAL-028): comercio —
   {
     id: "freezer",
     label: "Congelador",
@@ -955,7 +955,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["báscula", "bascula", "scale", "peso", "abarrotes", "carnicería", "carniceria", "fruteria", "frutería"],
     ports: [],
   },
-  // — Decimoquinta tanda universal (AXOS-CAD-UNIVERSAL-030): frutería —
+  // — Decimoquinta tanda universal (VD-CAD-UNIVERSAL-030): frutería —
   {
     id: "fruit-crate",
     label: "Cajón de fruta",
@@ -966,7 +966,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["cajón de fruta", "cajon de fruta", "huacal", "guacal", "frutería", "fruteria", "verdulería", "verduleria"],
     ports: [],
   },
-  // — Decimosexta tanda universal (AXOS-CAD-UNIVERSAL-032): tortillería —
+  // — Decimosexta tanda universal (VD-CAD-UNIVERSAL-032): tortillería —
   {
     id: "tortilla-machine",
     label: "Máquina tortilladora",
@@ -977,7 +977,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["máquina tortilladora", "maquina tortilladora", "tortilladora", "tortillería", "tortilleria", "tortillas"],
     ports: [],
   },
-  // — Decimoséptima tanda universal (AXOS-CAD-UNIVERSAL-033): papelería —
+  // — Decimoséptima tanda universal (VD-CAD-UNIVERSAL-033): papelería —
   {
     id: "copier",
     label: "Copiadora",
@@ -988,7 +988,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["copiadora", "impresora", "copier", "fotocopiadora", "papelería", "papeleria", "oficina"],
     ports: [],
   },
-  // — Decimoctava tanda universal (AXOS-CAD-UNIVERSAL-036): salud —
+  // — Decimoctava tanda universal (VD-CAD-UNIVERSAL-036): salud —
   {
     id: "exam-table",
     label: "Camilla",
@@ -999,7 +999,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["camilla", "exam table", "fisioterapia", "consultorio", "masaje", "spa", "exploración", "exploracion"],
     ports: [],
   },
-  // — Decimonovena tanda universal (AXOS-CAD-UNIVERSAL-039): box —
+  // — Decimonovena tanda universal (VD-CAD-UNIVERSAL-039): box —
   {
     id: "punching-bag",
     label: "Costal de box",
@@ -1010,7 +1010,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["costal", "saco", "box", "boxeo", "punching bag", "gimnasio"],
     ports: [],
   },
-  // — Vigésima tanda universal (AXOS-CAD-UNIVERSAL-041): detalles —
+  // — Vigésima tanda universal (VD-CAD-UNIVERSAL-041): detalles —
   {
     id: "plant-pot",
     label: "Maceta",
@@ -1031,7 +1031,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["perchero", "coat rack", "abrigos", "recepción", "recepcion", "entrada"],
     ports: [],
   },
-  // — Vigesimoprimera tanda universal (AXOS-CAD-UNIVERSAL-043): mostrador —
+  // — Vigesimoprimera tanda universal (VD-CAD-UNIVERSAL-043): mostrador —
   {
     id: "cash-register",
     label: "Caja registradora",
@@ -1062,7 +1062,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["garrafón", "garrafon", "agua", "dispensador", "water", "bebedero"],
     ports: [],
   },
-  // — Vigesimosegunda tanda universal (AXOS-CAD-UNIVERSAL-046): eléctricos —
+  // — Vigesimosegunda tanda universal (VD-CAD-UNIVERSAL-046): eléctricos —
   {
     id: "tv-screen",
     label: "Pantalla / TV",
@@ -1093,7 +1093,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["ventilador", "fan", "aire", "pedestal"],
     ports: [],
   },
-  // — Vigesimotercera tanda universal (AXOS-CAD-UNIVERSAL-049): cocina y barra —
+  // — Vigesimotercera tanda universal (VD-CAD-UNIVERSAL-049): cocina y barra —
   {
     id: "kitchen-sink",
     label: "Fregadero",
@@ -1124,7 +1124,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["campana", "extractor", "cocina", "hood", "humo"],
     ports: [],
   },
-  // — Vigesimocuarta tanda universal (AXOS-CAD-UNIVERSAL-051): recámara y patio —
+  // — Vigesimocuarta tanda universal (VD-CAD-UNIVERSAL-051): recámara y patio —
   {
     id: "wall-mirror",
     label: "Espejo de pared",
@@ -1155,7 +1155,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["asador", "parrilla", "grill", "taquería", "taqueria", "jardín", "jardin", "carne asada"],
     ports: [],
   },
-  // — Vigesimoquinta tanda universal (AXOS-CAD-UNIVERSAL-054): autolavado y taller —
+  // — Vigesimoquinta tanda universal (VD-CAD-UNIVERSAL-054): autolavado y taller —
   {
     id: "vacuum-cleaner",
     label: "Aspiradora",
@@ -1186,7 +1186,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["cono", "tráfico", "trafico", "seguridad", "obra", "estacionamiento"],
     ports: [],
   },
-  // — Vigesimosexta tanda universal (AXOS-CAD-UNIVERSAL-057): servicios del patio —
+  // — Vigesimosexta tanda universal (VD-CAD-UNIVERSAL-057): servicios del patio —
   {
     id: "water-tank",
     label: "Tinaco",
@@ -1217,7 +1217,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["boiler", "calentador", "agua caliente", "water heater", "patio"],
     ports: [],
   },
-  // — Vigesimoséptima tanda universal (AXOS-CAD-UNIVERSAL-060): patio de casa —
+  // — Vigesimoséptima tanda universal (VD-CAD-UNIVERSAL-060): patio de casa —
   {
     id: "laundry-sink",
     label: "Lavadero",
@@ -1248,7 +1248,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["juegos", "juegos infantiles", "resbaladilla", "columpios", "guardería", "guarderia", "parque"],
     ports: [],
   },
-  // — Vigesimoctava tanda universal (AXOS-CAD-UNIVERSAL-061): terraza y asado —
+  // — Vigesimoctava tanda universal (VD-CAD-UNIVERSAL-061): terraza y asado —
   {
     id: "patio-umbrella",
     label: "Sombrilla de terraza",
@@ -1279,7 +1279,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["mesa de picnic", "picnic", "terraza", "jardín", "jardin", "exterior"],
     ports: [],
   },
-  // — Vigesimonovena tanda universal (AXOS-CAD-UNIVERSAL-064): protección civil —
+  // — Vigesimonovena tanda universal (VD-CAD-UNIVERSAL-064): protección civil —
   {
     id: "fire-extinguisher",
     label: "Extintor",
@@ -1310,7 +1310,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["salida de emergencia", "emergencia", "ruta de evacuación", "ruta de evacuacion", "exit", "protección civil", "proteccion civil"],
     ports: [],
   },
-  // — Trigésima tanda universal (AXOS-CAD-UNIVERSAL-066): masa y repostería —
+  // — Trigésima tanda universal (VD-CAD-UNIVERSAL-066): masa y repostería —
   {
     id: "bread-rack",
     label: "Espiguero",
@@ -1341,7 +1341,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["molino", "nixtamal", "masa", "tortillería", "tortilleria"],
     ports: [],
   },
-  // — Trigésima primera tanda universal (AXOS-CAD-UNIVERSAL-068): escenario y baile —
+  // — Trigésima primera tanda universal (VD-CAD-UNIVERSAL-068): escenario y baile —
   {
     id: "speaker",
     label: "Bocina",
@@ -1372,7 +1372,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["barra de ballet", "ballet", "danza", "baile", "academia"],
     ports: [],
   },
-  // — Trigésima segunda tanda universal (AXOS-CAD-UNIVERSAL-078): velación —
+  // — Trigésima segunda tanda universal (VD-CAD-UNIVERSAL-078): velación —
   {
     id: "coffin",
     label: "Ataúd",
@@ -1403,7 +1403,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["corona fúnebre", "corona funebre", "arreglo", "flores", "funeraria"],
     ports: [],
   },
-  // — Trigésima tercera tanda universal (AXOS-CAD-UNIVERSAL-080): templo —
+  // — Trigésima tercera tanda universal (VD-CAD-UNIVERSAL-080): templo —
   {
     id: "church-altar",
     label: "Altar mayor",
@@ -1434,7 +1434,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["pila bautismal", "bautismo", "bautizo", "iglesia", "templo"],
     ports: [],
   },
-  // — Trigésima cuarta tanda universal (AXOS-CAD-UNIVERSAL-083): laboratorio —
+  // — Trigésima cuarta tanda universal (VD-CAD-UNIVERSAL-083): laboratorio —
   {
     id: "phlebotomy-chair",
     label: "Sillón de toma de muestra",
@@ -1465,7 +1465,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["autoclave", "esterilizador", "esterilización", "esterilizacion", "laboratorio", "consultorio", "dental"],
     ports: [],
   },
-  // Trigésima quinta tanda universal (AXOS-CAD-UNIVERSAL-085): bar y cantina.
+  // Trigésima quinta tanda universal (VD-CAD-UNIVERSAL-085): bar y cantina.
   {
     id: "pool-table",
     label: "Mesa de billar",
@@ -1496,7 +1496,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["rocola", "sinfonola", "jukebox", "música", "musica", "cantina", "bar", "entretenimiento"],
     ports: [],
   },
-  // Trigésima sexta tanda universal (AXOS-CAD-UNIVERSAL-093): taller/oficios.
+  // Trigésima sexta tanda universal (VD-CAD-UNIVERSAL-093): taller/oficios.
   {
     id: "pedestal-grinder",
     label: "Esmeril de pedestal",
@@ -1527,7 +1527,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["vulcanizadora", "desmontadora de llantas", "montallantas", "llantas", "neumáticos", "neumaticos", "taller", "vulca"],
     ports: [],
   },
-  // Trigésima séptima tanda universal (AXOS-CAD-UNIVERSAL-098): servicios.
+  // Trigésima séptima tanda universal (VD-CAD-UNIVERSAL-098): servicios.
   {
     id: "atm",
     label: "Cajero automático",
@@ -1558,7 +1558,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["casilleros", "lockers", "guardado", "empleados", "vestidor", "pertenencias"],
     ports: [],
   },
-  // Trigésima octava tanda universal (AXOS-CAD-UNIVERSAL-130): gasolinera y automotriz.
+  // Trigésima octava tanda universal (VD-CAD-UNIVERSAL-130): gasolinera y automotriz.
   {
     id: "fuel-dispenser",
     label: "Bomba de gasolina",
@@ -1589,7 +1589,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["montacargas", "forklift", "carga", "maniobras", "almacén", "almacen", "industrial"],
     ports: [],
   },
-  // Trigésima novena tanda universal (AXOS-CAD-UNIVERSAL-131): cervecería.
+  // Trigésima novena tanda universal (VD-CAD-UNIVERSAL-131): cervecería.
   {
     id: "brew-kettle",
     label: "Olla de cocción",
@@ -1620,7 +1620,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["molino de malta", "molino", "malta", "grano", "molienda", "cervecería", "cerveceria"],
     ports: [],
   },
-  // Cuadragésima tanda universal (AXOS-CAD-UNIVERSAL-132): soldadura y metalurgia.
+  // Cuadragésima tanda universal (VD-CAD-UNIVERSAL-132): soldadura y metalurgia.
   {
     id: "welder",
     label: "Máquina de soldar",
@@ -1651,7 +1651,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["prensa", "prensa hidráulica", "prensa hidraulica", "troquelado", "producción", "produccion", "industrial", "máquina", "maquina"],
     ports: [],
   },
-  // Cuadragésima primera tanda universal (AXOS-CAD-UNIVERSAL-133): deporte y recreación.
+  // Cuadragésima primera tanda universal (VD-CAD-UNIVERSAL-133): deporte y recreación.
   {
     id: "pool-lane",
     label: "Carril de alberca",
@@ -1682,7 +1682,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["pista de boliche", "boliche", "bowling", "pista", "bolos", "entretenimiento"],
     ports: [],
   },
-  // Cuadragésima segunda tanda universal (AXOS-CAD-UNIVERSAL-134): industria y agro.
+  // Cuadragésima segunda tanda universal (VD-CAD-UNIVERSAL-134): industria y agro.
   {
     id: "assembly-line",
     label: "Línea de producción",
@@ -1713,7 +1713,7 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     tags: ["rack de sentadilla", "power rack", "rack", "pesas", "sentadilla", "gimnasio", "crossfit", "levantamiento"],
     ports: [],
   },
-  // Cuadragésima tercera tanda universal (AXOS-CAD-UNIVERSAL-135): servicio y cultura.
+  // Cuadragésima tercera tanda universal (VD-CAD-UNIVERSAL-135): servicio y cultura.
   {
     id: "fire-truck",
     label: "Camión de bomberos",

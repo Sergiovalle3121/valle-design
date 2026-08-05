@@ -1,7 +1,7 @@
 /**
  * CIDE provider — the self-hosted inference client.
  *
- * CIDE ("Cognitive Intelligence & Decision Engine") is Axos OS's own AI. It does
+ * CIDE ("Cognitive Intelligence & Decision Engine") is Valle Design's own AI. It does
  * NOT call any external AI vendor (no Anthropic, no DeepSeek, no OpenAI cloud).
  * Instead it talks to an **OpenAI-compatible** inference server that the
  * operator runs and controls — Ollama, vLLM, llama.cpp, TGI — serving an

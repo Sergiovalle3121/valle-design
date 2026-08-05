@@ -1,5 +1,5 @@
 /**
- * Limpiar anotaciones (AXOS-CAD-CLEAN-001): kinds correctos desde el
+ * Limpiar anotaciones (VD-CAD-CLEAN-001): kinds correctos desde el
  * parser (antes de la rama de borrar) y preview con la orden explícita.
  */
 import { strict as assert } from "node:assert";

@@ -1,5 +1,5 @@
 /**
- * Espejo de selección (AXOS-CAD-MIRROR-001): reflejo de centros y de la
+ * Espejo de selección (VD-CAD-MIRROR-001): reflejo de centros y de la
  * orientación (vertical θ→180−θ, horizontal θ→−θ); copy default crea
  * "(espejo)" y copy:false mueve en sitio; sin selección → error.
  * Run: ts-node --compiler-options '{"module":"commonjs"}' este archivo.
@@ -74,7 +74,7 @@ const ctx = (objects: CadBox[], selectedIds: string[]): CadCommandContext =>
   assert.equal(out.operations.length, 0, "sin operaciones");
 }
 
-// Objetivo por nombre (AXOS-CAD-NAME-002): 'espejo de la prensa' sin selección.
+// Objetivo por nombre (VD-CAD-NAME-002): 'espejo de la prensa' sin selección.
 {
   const c = ctx([box({ id: "p1" })], []);
   const out = mirrorSelectionPreview(

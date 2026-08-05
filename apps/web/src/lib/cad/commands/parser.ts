@@ -54,7 +54,7 @@ function labelAfter(raw: string): string | undefined {
 }
 
 /**
- * Cadenas de comandos (AXOS-CAD-CHAIN-001): 'pon una puerta y luego
+ * Cadenas de comandos (VD-CAD-CHAIN-001): 'pon una puerta y luego
  * céntrala' / 'quita las cotas; borra las notas'. Separadores EXPLÍCITOS
  * (';', 'y luego', 'luego', 'y después', 'después') — el ' y ' pelón es
  * ambiguo dentro de nombres y NO separa.
@@ -276,7 +276,7 @@ export function parseCadCommand(text: string): CadParseResult {
       input: { id: "array_polar", count, angleSpanDeg, centerLabel },
     };
   }
-  // CAMBIAR TAMAÑO (AXOS-CAD-RESIZE-001): 'cambia el tamaño de la mesa a
+  // CAMBIAR TAMAÑO (VD-CAD-RESIZE-001): 'cambia el tamaño de la mesa a
   // 1500x900' — fija w×h exactos conservando la esquina superior izquierda.
   const resizeMatch = raw.match(
     /^(?:cambia\s+el\s+tama[ñn]o|redimensiona|ajusta\s+el\s+tama[ñn]o)\s+(.+)$/i,
@@ -313,7 +313,7 @@ export function parseCadCommand(text: string): CadParseResult {
       },
     };
   }
-  // IGUALAR TAMAÑO (AXOS-CAD-RESIZE-002): 'haz la mesa del tamaño del
+  // IGUALAR TAMAÑO (VD-CAD-RESIZE-002): 'haz la mesa del tamaño del
   // escritorio' / 'iguala el tamaño de la mesa y el escritorio' — copia el
   // w×h de la referencia sin pedir números.
   const likeMatch =
@@ -363,7 +363,7 @@ export function parseCadCommand(text: string): CadParseResult {
       input: { id: "resize_object", target: cleanTarget, like },
     };
   }
-  // AGRANDAR/ACHICAR RELATIVO (AXOS-CAD-RESIZE-003): 'haz la mesa 500 más
+  // AGRANDAR/ACHICAR RELATIVO (VD-CAD-RESIZE-003): 'haz la mesa 500 más
   // ancha' — deltas en mm sobre el tamaño actual; con % ('20% más grande')
   // escala desde el centro vía scale_selection.
   const growVerb = raw.match(
@@ -448,7 +448,7 @@ export function parseCadCommand(text: string): CadParseResult {
       };
     }
   }
-  // REPARTIR (AXOS-CAD-MOVE-005): 'reparte las sillas entre los cuartos' —
+  // REPARTIR (VD-CAD-MOVE-005): 'reparte las sillas entre los cuartos' —
   // cada objeto viaja al centro de un cuarto hoja en round-robin.
   const repartMatch = raw.match(/^repart[ei](?:me)?\s+(.+)$/i);
   if (repartMatch) {
@@ -482,7 +482,7 @@ export function parseCadCommand(text: string): CadParseResult {
       },
     };
   }
-  // PEGAR A LA PARED (AXOS-CAD-MOVE-006): 'pega la mesa a la pared (del
+  // PEGAR A LA PARED (VD-CAD-MOVE-006): 'pega la mesa a la pared (del
   // fondo)' — snap contra el muro del cuarto que la contiene o del plano.
   const wallMatch = raw.match(
     /^(?:pega(?:me)?|arrima(?:me)?|recarga(?:me)?)\s+(.+)$/i,
@@ -525,7 +525,7 @@ export function parseCadCommand(text: string): CadParseResult {
       };
     }
   }
-  // JUNTAR (AXOS-CAD-MOVE-007): 'junta la silla y la mesa' — el primero
+  // JUNTAR (VD-CAD-MOVE-007): 'junta la silla y la mesa' — el primero
   // nombrado viaja junto al segundo (azúcar sobre mover con ancla).
   const juntaMatch = raw.match(/^junta(?:me|l[oa]s?)?\s+(.+)$/i);
   if (juntaMatch) {
@@ -545,7 +545,7 @@ export function parseCadCommand(text: string): CadParseResult {
       input: { id: "move_selection", target: parts[0], anchor: parts[1] },
     };
   }
-  // ALEJAR (AXOS-CAD-MOVE-009): 'aleja la silla de la mesa (800)' — el
+  // ALEJAR (VD-CAD-MOVE-009): 'aleja la silla de la mesa (800)' — el
   // conjunto se aparta en línea recta del ancla; par inverso de juntar.
   const alejaMatch = raw.match(
     /^aleja(?:me|l[oa]s?)?\s+(.+?)\s+de\s+(?:l[oa]s?\s+|el\s+)?(.+?)\s*$/i,
@@ -584,7 +584,7 @@ export function parseCadCommand(text: string): CadParseResult {
         },
       };
   }
-  // ACOMODAR EN CUADRÍCULA (AXOS-CAD-MOVE-008): 'acomoda las sillas en 2
+  // ACOMODAR EN CUADRÍCULA (VD-CAD-MOVE-008): 'acomoda las sillas en 2
   // filas' / 'en 3 columnas' — matriz desde la esquina del conjunto.
   const gridMatch = raw.match(
     /^(?:acomoda(?:me)?|ordena(?:me)?|forma)\s+(.+?)\s+en\s+(\d{1,2}|dos|tres|cuatro|cinco|seis)\s+(filas?|hileras?|columnas?)\s*$/i,
@@ -621,7 +621,7 @@ export function parseCadCommand(text: string): CadParseResult {
         },
       };
   }
-  // FILA/REPETIR (AXOS-CAD-ARRAY-001): 'repite la silla 4 veces cada 600
+  // FILA/REPETIR (VD-CAD-ARRAY-001): 'repite la silla 4 veces cada 600
   // a la derecha' — arreglo lineal conversacional con objetivo por nombre.
   const repeatMatch = raw.match(/^rep[ií]te(?:me|l[ao]s?)?\s+(.+)$/i);
   if (repeatMatch) {
@@ -786,7 +786,7 @@ export function parseCadCommand(text: string): CadParseResult {
       .replace(/\b(?:girad[ao]|rotad[ao])\s+-?\d[\d.,]*\s*/, "")
       .replace(/\ben\s+\d[\d\s.,x]*$/, "")
       .trim();
-    // 'pon 3 sillas en fila cada 200' (AXOS-CAD-PLACE-003): N en fila.
+    // 'pon 3 sillas en fila cada 200' (VD-CAD-PLACE-003): N en fila.
     const countMatch = query.match(/^(\d{1,2})\s+/);
     let count: number | undefined;
     if (countMatch) {
@@ -801,7 +801,7 @@ export function parseCadCommand(text: string): CadParseResult {
       .replace(/\ben\s+(?:fila|l[ií]nea)\b/gi, " ")
       .replace(/\s+/g, " ")
       .trim();
-    // 'pon una silla junto a la mesa' (AXOS-CAD-PLACE-004/005): ancla por
+    // 'pon una silla junto a la mesa' (VD-CAD-PLACE-004/005): ancla por
     // nombre con lado opcional (izquierda/derecha/arriba/abajo).
     const anchorMatch = query.match(
       /\b(junto\s+al?|al\s+lado\s+del?|a\s+un\s+lado\s+del?|a\s+la\s+izquierda\s+del?|a\s+la\s+derecha\s+del?|arriba\s+del?|encima\s+del?|abajo\s+del?|debajo\s+del?)\s+(.+)$/i,
@@ -811,7 +811,7 @@ export function parseCadCommand(text: string): CadParseResult {
     let anchorEach: boolean | undefined;
     if (anchorMatch) {
       let anchorResidue = anchorMatch[2]!.replace(/\s+/g, " ").trim();
-      // 'junto a cada mesa' (AXOS-CAD-PLACE-006): uno por coincidencia.
+      // 'junto a cada mesa' (VD-CAD-PLACE-006): uno por coincidencia.
       if (/^cada\s+/i.test(anchorResidue)) {
         anchorEach = true;
         anchorResidue = anchorResidue.replace(/^cada\s+/i, "");
@@ -829,14 +829,14 @@ export function parseCadCommand(text: string): CadParseResult {
             : undefined;
       query = query.slice(0, anchorMatch.index).trim();
     }
-    // 'pon una planta en cada esquina' (AXOS-CAD-PLACE-008): 4 piezas en
+    // 'pon una planta en cada esquina' (VD-CAD-PLACE-008): 4 piezas en
     // las esquinas del footprint.
     let corners: boolean | undefined;
     if (/\ben\s+cada\s+esquina\b/.test(query)) {
       corners = true;
       query = query.replace(/\ben\s+cada\s+esquina\b/g, " ").replace(/\s+/g, " ").trim();
     }
-    // 'pon una silla en cada cuarto' (AXOS-CAD-PLACE-009): una pieza
+    // 'pon una silla en cada cuarto' (VD-CAD-PLACE-009): una pieza
     // centrada en cada cuarto hoja del plano.
     let perRoom: boolean | undefined;
     if (/\ben\s+cada\s+(?:cuarto|habitaci[oó]n|zona)\b/.test(query)) {
@@ -846,7 +846,7 @@ export function parseCadCommand(text: string): CadParseResult {
         .replace(/\s+/g, " ")
         .trim();
     }
-    // 'pon una silla en la cocina' (AXOS-CAD-PLACE-007): colocar dentro
+    // 'pon una silla en la cocina' (VD-CAD-PLACE-007): colocar dentro
     // de un cuarto/zona por nombre — solo sin coordenadas y sin ancla;
     // las direcciones sueltas no son zonas.
     let into: string | undefined;
@@ -893,9 +893,9 @@ export function parseCadCommand(text: string): CadParseResult {
       },
     };
   }
-  // 'intercambia la mesa y el escritorio' (AXOS-CAD-SWAP-001): los dos
+  // 'intercambia la mesa y el escritorio' (VD-CAD-SWAP-001): los dos
   // objetos cambian de lugar; sin nombres cae a la pareja seleccionada.
-  // REVISAR PLANO (AXOS-CAD-AUDIT-001): 'revisa el plano' / '¿qué le falta
+  // REVISAR PLANO (VD-CAD-AUDIT-001): 'revisa el plano' / '¿qué le falta
   // al plano para protección civil?' — checklist de seguridad.
   if (
     /^(?:revisa(?:me)?|checa|audita)\s+(?:el\s+)?plano\b/i.test(raw) ||
@@ -930,7 +930,7 @@ export function parseCadCommand(text: string): CadParseResult {
       input: { id: "swap_objects", a: parts[0], b: parts[1] },
     };
   }
-  // VOLTEAR (AXOS-CAD-ROT-002): 'voltea la mesa' = 180°; 'media vuelta',
+  // VOLTEAR (VD-CAD-ROT-002): 'voltea la mesa' = 180°; 'media vuelta',
   // 'un cuarto de vuelta' y 'tres cuartos de vuelta' hablan en vueltas.
   const volteaMatch = raw.match(/^volt[eé]a(?:me|l[oa]s?)?\s*(.*)$/i);
   const vueltas = /tres\s+cuartos\s+de\s+vuelta/i.test(raw)
@@ -1057,7 +1057,7 @@ export function parseCadCommand(text: string): CadParseResult {
       input: { id: "clear_annotations", kind },
     };
   }
-  // 'despeja la cocina' (AXOS-CAD-ZONE-003): vaciar una zona con un
+  // 'despeja la cocina' (VD-CAD-ZONE-003): vaciar una zona con un
   // verbo — arma 'lo que está en X' y la contención borra el contenido
   // del cuarto sin tocar al cuarto mismo.
   if (/\b(despeja|despejar|vac[ií]a|vaciar)\b/.test(q)) {
@@ -1127,7 +1127,7 @@ export function parseCadCommand(text: string): CadParseResult {
   }
   if (/\b(duplica|duplicar|copia|copiar|clona|clonar)\b/.test(q)) {
     const off = q.match(/\b(?:a|en)\s+(-?\d+)\s*[,x]\s*(-?\d+)/);
-    // 'duplica la mesa en la bodega' (AXOS-CAD-DUP-002): la copia
+    // 'duplica la mesa en la bodega' (VD-CAD-DUP-002): la copia
     // aterriza centrada en la zona — solo sin offset explícito.
     let into: string | undefined;
     if (!off) {
@@ -1210,7 +1210,7 @@ export function parseCadCommand(text: string): CadParseResult {
       .trim()
       .replace(/^(?:tod[oa]s\s+(?:las|los)\s+|una?\s+|el\s+|la\s+|los\s+|las\s+)/, "")
       .trim();
-    // Exclusión (AXOS-CAD-SELECT-002): 'selecciona todo menos las mesas'.
+    // Exclusión (VD-CAD-SELECT-002): 'selecciona todo menos las mesas'.
     let exclude: string | undefined;
     const exclM = query.match(/\b(?:menos|excepto|salvo)\s+(.+)$/);
     if (exclM) {
@@ -1250,7 +1250,7 @@ export function parseCadCommand(text: string): CadParseResult {
       input: { id: "rename_object", target: m[1].trim(), name },
     };
   }
-  // '¿dónde está la estufa?' (AXOS-CAD-QUERY-007): INFO responde también
+  // '¿dónde está la estufa?' (VD-CAD-QUERY-007): INFO responde también
   // la ubicación — en qué cuarto/zona vive cada coincidencia.
   // OJO: \b de JS es ASCII — tras 'á' no hay frontera, por eso lookahead.
   if (/d[oó]nde\s+(?:est[aá]n?|queda|anda)(?=[\s?!.]|$)/.test(q)) {
@@ -1286,7 +1286,7 @@ export function parseCadCommand(text: string): CadParseResult {
     }
     return { ok: true, confidence: 0.86, input: { id: "object_info", query } };
   }
-  // '¿qué hay en la cocina?' (AXOS-CAD-QUERY-008): inventario de zona —
+  // '¿qué hay en la cocina?' (VD-CAD-QUERY-008): inventario de zona —
   // arma 'lo que hay en la X' y la contención (ZONE-001) hace el resto.
   // Sin residuo (o 'en el plano') cuenta todo. Lookahead, no \b (ASCII).
   if (/qu[eé]\s+(?:hay|tenemos|tengo)(?=[\s?!.]|$)/.test(q)) {
@@ -1308,7 +1308,7 @@ export function parseCadCommand(text: string): CadParseResult {
     };
   }
   if (/\b(cuenta|cuentame|cuéntame|cuantas|cuántas|cuantos|cuántos)\b/.test(q)) {
-    // '¿cuántas mesas hay en cada cuarto?' (AXOS-CAD-QUERY-010): el
+    // '¿cuántas mesas hay en cada cuarto?' (VD-CAD-QUERY-010): el
     // conteo se desglosa por el cuarto que contiene cada coincidencia.
     const byRoom = /\ben\s+cada\s+(?:cuarto|habitaci[oó]n|zona|espacio)\b/.test(
       q,
@@ -1365,7 +1365,7 @@ export function parseCadCommand(text: string): CadParseResult {
       else if (rel[3] === "abajo") dy = mag;
       else dy = -mag;
     }
-    // Destino relacional (AXOS-CAD-MOVE-003): 'mueve la silla junto a la
+    // Destino relacional (VD-CAD-MOVE-003): 'mueve la silla junto a la
     // mesa' / 'a la izquierda del tocador'.
     const moveAnchorM = q.match(
       /\b(junto\s+al?|al\s+lado\s+del?|a\s+la\s+izquierda\s+del?|a\s+la\s+derecha\s+del?|arriba\s+del?|encima\s+del?|abajo\s+del?|debajo\s+del?)\s+(.+)$/,
@@ -1388,7 +1388,7 @@ export function parseCadCommand(text: string): CadParseResult {
             ? "below"
             : undefined;
     }
-    // Destino de zona (AXOS-CAD-MOVE-004): 'mete la mesa en la cocina',
+    // Destino de zona (VD-CAD-MOVE-004): 'mete la mesa en la cocina',
     // 'lleva la silla al comedor' — solo cuando no hay coords, relativo
     // ni ancla; las direcciones sueltas siguen pidiendo aclaración.
     let into: string | undefined;
@@ -1510,7 +1510,7 @@ export function parseCadCommand(text: string): CadParseResult {
             : /medio|middle/.test(q)
               ? "middle"
               : "center";
-    // ALINEAR con ancla (AXOS-CAD-ALIGN-002): 'alinea las sillas con la mesa'.
+    // ALINEAR con ancla (VD-CAD-ALIGN-002): 'alinea las sillas con la mesa'.
     let alignAnchor: string | undefined;
     const alignAnchorM = q.match(/\bcon\s+(.+)$/);
     if (alignAnchorM) {
@@ -1544,7 +1544,7 @@ export function parseCadCommand(text: string): CadParseResult {
     };
   }
   if (/distribu|espacia|equal/.test(q)) {
-    // Separación fija (AXOS-CAD-DIST-002): 'distribuye las mesas cada 800'.
+    // Separación fija (VD-CAD-DIST-002): 'distribuye las mesas cada 800'.
     const distGap = unitValueToMm(
       q.match(/cada\s*(\d+(?:[.,]\d+)?)\s*(mm|m)?\b/i),
     );

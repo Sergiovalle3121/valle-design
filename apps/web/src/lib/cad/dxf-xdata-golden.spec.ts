@@ -2,16 +2,19 @@
  * GOLDEN DXF — XDATA de aplicación AXOS_DIM / AXOS_MLEADER / AXOS_BLOCK.
  *
  * Estos bytes están CONGELADOS: reproducen un archivo DXF ya exportado por
- * el producto y que hoy vive en discos de clientes. Los nombres de aplicación
- * XDATA (AXOS_DIM, AXOS_MLEADER, AXOS_BLOCK) forman parte del FORMATO DE
- * ARCHIVO, no del código: renombrarlos a la vez en exportador e importador
- * pasaría desapercibido en un round-trip generado, pero rompería en silencio
- * la lectura de todo lo ya exportado.
+ * el producto bajo su nombre anterior y que hoy vive en discos de clientes.
+ * Los nombres de aplicación XDATA forman parte del FORMATO DE ARCHIVO, no del
+ * código.
  *
- * Este spec es el seguro contra ese renombre ciego: el importador debe seguir
- * leyendo ESTE texto literal, sin regenerarlo. Si falla, el cambio está mal;
- * retirar estos nombres exige lectura bidireccional y un bump de versión de
- * formato (ver packages/contracts/src/legacy/README.md).
+ * El exportador ya NO los escribe —emite VALLE_DIM / VALLE_MLEADER /
+ * VALLE_BLOCK, ver packages/contracts/src/dxf-xdata-apps.ts—, así que ningún
+ * round-trip generado vuelve a pasar por aquí. Este spec es lo único que
+ * sostiene la otra mitad del contrato: el importador debe seguir leyendo ESTE
+ * texto literal, sin regenerarlo. Si falla, el cambio deja ilegible todo lo
+ * exportado hasta el cambio de nombre.
+ *
+ * `dxf-xdata-app-names.spec.ts` completa el par: prueba que ambas lecturas dan
+ * exactamente la misma semántica sobre un mismo dibujo.
  */
 import { strict as assert } from "node:assert";
 import { importDxfPrimitives } from "./dxf-import";

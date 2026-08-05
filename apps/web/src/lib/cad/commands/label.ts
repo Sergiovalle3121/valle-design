@@ -1,5 +1,5 @@
 /**
- * Texto en el plano (AXOS-CAD-TEXT-001): el TEXT de AutoCAD, conversacional.
+ * Texto en el plano (VD-CAD-TEXT-001): el TEXT de AutoCAD, conversacional.
  * "escribe 'Recepción' en 2000,1000" emite una anotación kind:text que el
  * estudio crea con el mismo flujo que el botón de notas. Sin coordenadas,
  * la nota cae al centro del footprint para arrastrarla a su sitio.

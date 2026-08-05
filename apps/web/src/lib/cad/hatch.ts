@@ -1,5 +1,5 @@
 /**
- * Achurado (hatch) de regiones cerradas del CAD (AXOS-CAD-DEPTH-A4).
+ * Achurado (hatch) de regiones cerradas del CAD (VD-CAD-DEPTH-A4).
  *
  * Rellenar un cuarto o una pieza con líneas a 45° (ANSI31), con rayado cruzado
  * o a cualquier ángulo/espaciado, es pan de cada día en un CAD real y el modelo

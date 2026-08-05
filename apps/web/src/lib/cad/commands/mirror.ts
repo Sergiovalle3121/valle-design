@@ -1,5 +1,5 @@
 /**
- * Espejo de selección (AXOS-CAD-MIRROR-001): MIRROR de AutoCAD. Refleja los
+ * Espejo de selección (VD-CAD-MIRROR-001): MIRROR de AutoCAD. Refleja los
  * objetos seleccionados sobre un eje vertical u horizontal; por default el
  * eje pasa por el centro del bounding box del conjunto (espejo "en sitio"
  * simétrico), o por la coordenada explícita `at`. Con `copy` (default, como

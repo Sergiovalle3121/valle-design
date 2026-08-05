@@ -1,4 +1,4 @@
-/** Matrices / arreglos ARRAY (AXOS-CAD-DEPTH-B3). */
+/** Matrices / arreglos ARRAY (VD-CAD-DEPTH-B3). */
 import { strict as assert } from "node:assert";
 import type { CadPrimitive, CadVec2 } from "./primitives";
 import {

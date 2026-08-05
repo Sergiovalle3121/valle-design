@@ -1,5 +1,5 @@
 /**
- * Objetivo por nombre (AXOS-CAD-NAME-001): resuelve sobre qué objetos actúa
+ * Objetivo por nombre (VD-CAD-NAME-001): resuelve sobre qué objetos actúa
  * un comando. Prioridad: objectIds explícitos > nombre ('la puerta', el
  * label o kind por substring sin acentos) > selección actual. Con nombre,
  * TODAS las coincidencias entran — 'borra las sillas' borra todas.
@@ -24,7 +24,7 @@ export function matchObjectsByName(
   const raw = query.trim();
   if (!raw) return [];
   if (/^tod[oa]s?$/i.test(raw)) return context.objects;
-  // Entre dos anclas (AXOS-CAD-ZONE-005): 'lo que está entre la mesa y
+  // Entre dos anclas (VD-CAD-ZONE-005): 'lo que está entre la mesa y
   // la puerta' — el sobre que abarca ambas anclas; entran los objetos
   // no-contenedor con centro dentro, nunca las anclas mismas.
   const betweenM = fold(raw).match(
@@ -58,7 +58,7 @@ export function matchObjectsByName(
       return [];
     }
   }
-  // Objetivo por proximidad (AXOS-CAD-ZONE-002): 'lo que está cerca de
+  // Objetivo por proximidad (VD-CAD-ZONE-002): 'lo que está cerca de
   // la mesa' / 'junto a la mesa' — separación caja-a-caja ≤ 1000 mm,
   // excluyendo al ancla misma. Con varias anclas ('las mesas') se une
   // la vecindad de todas.
@@ -83,7 +83,7 @@ export function matchObjectsByName(
     }
     return [...near.values()];
   }
-  // Objetivo por contención (AXOS-CAD-ZONE-001): 'lo que está en la
+  // Objetivo por contención (VD-CAD-ZONE-001): 'lo que está en la
   // cocina' / 'dentro de la bodega' — los objetos cuyo centro cae dentro
   // del contenedor nombrado, sin incluir al contenedor mismo. Hereda los
   // compuestos: 'lo que hay en la cocina y la bodega' une ambos cuartos.
@@ -107,7 +107,7 @@ export function matchObjectsByName(
     }
     return [...inside.values()];
   }
-  // Cardinales (AXOS-CAD-NAME-010): 'dos sillas' / '3 mesas' — las
+  // Cardinales (VD-CAD-NAME-010): 'dos sillas' / '3 mesas' — las
   // primeras N coincidencias en orden del plano; pedir más de las que
   // hay cae al error de objetivo no encontrado del comando. Si el base
   // no existe, sigue el matching normal (labels con número al frente).
@@ -126,7 +126,7 @@ export function matchObjectsByName(
       return baseHits.length >= n ? baseHits.slice(0, n) : [];
     }
   }
-  // Más cercano (AXOS-CAD-NAME-009): 'la silla más cercana a la puerta'
+  // Más cercano (VD-CAD-NAME-009): 'la silla más cercana a la puerta'
   // — resuelve base y ancla y escoge la coincidencia con centro más
   // próximo; si base o ancla no existen, cae al matching normal.
   const nearestM = fold(raw).match(
@@ -150,7 +150,7 @@ export function matchObjectsByName(
       return [sorted[0]!];
     }
   }
-  // Superlativos (AXOS-CAD-NAME-007): 'la mesa más grande' / 'el mueble
+  // Superlativos (VD-CAD-NAME-007): 'la mesa más grande' / 'el mueble
   // más pequeño' — resuelve el nombre base y se queda con la coincidencia
   // de mayor/menor área. Si el base no existe, cae al matching normal
   // (un label literal con 'más grande' aún puede ganar abajo).
@@ -166,7 +166,7 @@ export function matchObjectsByName(
       return [wantLargest ? sorted[0]! : sorted[sorted.length - 1]!];
     }
   }
-  // Ordinales (AXOS-CAD-NAME-008): 'la primera mesa' / 'la última silla'
+  // Ordinales (VD-CAD-NAME-008): 'la primera mesa' / 'la última silla'
   // — resuelve el base y escoge por orden del plano; un índice fuera de
   // rango cae al error de objetivo no encontrado del comando.
   const ordM = fold(raw).match(
@@ -198,7 +198,7 @@ export function matchObjectsByName(
     );
     if (hits.length) return hits;
   }
-  // Posesivo de zona (AXOS-CAD-ZONE-004): 'las mesas de la cocina' — las
+  // Posesivo de zona (VD-CAD-ZONE-004): 'las mesas de la cocina' — las
   // coincidencias del nombre cuyo centro cae dentro del cuarto nombrado.
   // Solo cuando el matching directo falló: 'Mesa de corte' literal gana.
   const possM = raw.match(/^(.+?)\s+del?\s+(?:l[oa]s?\s+|el\s+|la\s+)?(.+)$/i);
@@ -219,7 +219,7 @@ export function matchObjectsByName(
       if (insideZone.length) return insideZone;
     }
   }
-  // Objetivos compuestos (AXOS-CAD-NAME-006): 'las mesas y las sillas'.
+  // Objetivos compuestos (VD-CAD-NAME-006): 'las mesas y las sillas'.
   // Solo como fallback — un label que contenga ' y ' literal gana arriba.
   const parts = raw
     .split(/\s*,\s*|\s+y\s+/i)
@@ -249,7 +249,7 @@ export function resolveCommandTargets(
     };
   }
   if (target?.trim()) {
-    // Mismo matching que contar/seleccionar (AXOS-CAD-NAME-003): plural
+    // Mismo matching que contar/seleccionar (VD-CAD-NAME-003): plural
     // plegado ('borra las mesas'), acentos y 'todo' = plano completo.
     return { objs: matchObjectsByName(context, target), usedTarget: true };
   }

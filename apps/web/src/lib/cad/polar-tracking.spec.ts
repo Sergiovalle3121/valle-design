@@ -1,4 +1,4 @@
-/** Rastreo polar y ortogonal POLAR/ORTHO (AXOS-CAD-DEPTH-B7). */
+/** Rastreo polar y ortogonal POLAR/ORTHO (VD-CAD-DEPTH-B7). */
 import { strict as assert } from "node:assert";
 import type { CadVec2 } from "./primitives";
 import {

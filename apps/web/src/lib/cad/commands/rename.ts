@@ -1,5 +1,5 @@
 /**
- * Renombrar (AXOS-CAD-RENAME-001): "renombra la mesa a 'Mesa VIP'". Solo
+ * Renombrar (VD-CAD-RENAME-001): "renombra la mesa a 'Mesa VIP'". Solo
  * renombra la PRIMERA coincidencia (renombrar veinte objetos al mismo
  * nombre nunca es lo que se quiso); si hay más, lo avisa. Las estaciones
  * toman su nombre del routing — el estudio rechaza renombrarlas.

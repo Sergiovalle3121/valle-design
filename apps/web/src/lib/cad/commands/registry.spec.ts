@@ -67,7 +67,7 @@ assert.equal(
 );
 assert.equal(CAD_COMMAND_REGISTRY.length, 47, "registry exposes 47 commands");
 
-// Renombrar (AXOS-CAD-RENAME-001): primera coincidencia, con aviso si hay más.
+// Renombrar (VD-CAD-RENAME-001): primera coincidencia, con aviso si hay más.
 {
   const parsed = parseCadCommand("renombra la smt a 'Línea Uno'");
   assert.equal(parsed.input?.id, "rename_object", "renombra parsea");
@@ -97,7 +97,7 @@ assert.equal(CAD_COMMAND_REGISTRY.length, 47, "registry exposes 47 commands");
   );
 }
 
-// Info de objeto (AXOS-CAD-QUERY-002): '¿cuánto mide X?' responde medidas.
+// Info de objeto (VD-CAD-QUERY-002): '¿cuánto mide X?' responde medidas.
 {
   const parsed = parseCadCommand("¿cuánto mide la smt?");
   assert.equal(parsed.input?.id, "object_info", "cuánto mide parsea");
@@ -118,7 +118,7 @@ assert.equal(CAD_COMMAND_REGISTRY.length, 47, "registry exposes 47 commands");
   );
 }
 
-// Acotar por nombre (AXOS-CAD-NAME-005).
+// Acotar por nombre (VD-CAD-NAME-005).
 {
   const parsed = parseCadCommand("acota las mesas");
   assert.equal(parsed.input?.id, "auto_dimension", "acota parsea");
@@ -139,7 +139,7 @@ assert.equal(CAD_COMMAND_REGISTRY.length, 47, "registry exposes 47 commands");
   );
 }
 
-// Alinear/Distribuir por nombre (AXOS-CAD-NAME-004).
+// Alinear/Distribuir por nombre (VD-CAD-NAME-004).
 {
   const parsed = parseCadCommand("alinea las estaciones al centro");
   assert.equal(parsed.input?.id, "align_selection", "alinea parsea");
@@ -178,7 +178,7 @@ assert.equal(CAD_COMMAND_REGISTRY.length, 47, "registry exposes 47 commands");
   );
 }
 
-// Zoom por nombre (AXOS-CAD-ZOOM-001): 'enfoca X' resuelve y manda zoom.
+// Zoom por nombre (VD-CAD-ZOOM-001): 'enfoca X' resuelve y manda zoom.
 {
   const parsed = parseCadCommand("enfoca la cocina");
   assert.equal(parsed.input?.id, "fit_to_view", "enfoca parsea");
@@ -202,7 +202,7 @@ assert.equal(CAD_COMMAND_REGISTRY.length, 47, "registry exposes 47 commands");
   );
 }
 
-// Guardar conversacional (AXOS-CAD-SAVE-001).
+// Guardar conversacional (VD-CAD-SAVE-001).
 {
   const saved = parseCadCommand("guarda el plano");
   assert.equal(saved.input?.id, "studio_save", "guarda parsea");
@@ -214,7 +214,7 @@ assert.equal(CAD_COMMAND_REGISTRY.length, 47, "registry exposes 47 commands");
   );
 }
 
-// Vista conversacional (AXOS-CAD-VIEW-001).
+// Vista conversacional (VD-CAD-VIEW-001).
 {
   const planta = parseCadCommand("vista 2d");
   assert.equal(planta.input?.id, "studio_view", "vista 2d parsea");
@@ -231,7 +231,7 @@ assert.equal(CAD_COMMAND_REGISTRY.length, 47, "registry exposes 47 commands");
   }
 }
 
-// Imprimir/Exportar (AXOS-CAD-PLOT-003): formato y papel desde la frase.
+// Imprimir/Exportar (VD-CAD-PLOT-003): formato y papel desde la frase.
 {
   const printed = parseCadCommand("imprime en a3");
   assert.equal(printed.input?.id, "studio_export", "imprime parsea");
@@ -254,7 +254,7 @@ assert.equal(CAD_COMMAND_REGISTRY.length, 47, "registry exposes 47 commands");
   if (op.type === "studio_export") assert.equal(op.paper, "A3", "papel en la op");
 }
 
-// Deshacer conversacional (AXOS-CAD-UNDO-001).
+// Deshacer conversacional (VD-CAD-UNDO-001).
 {
   const parsedUndo = parseCadCommand("deshaz");
   assert.equal(parsedUndo.input?.id, "history_step", "deshaz parsea");
@@ -267,7 +267,7 @@ assert.equal(CAD_COMMAND_REGISTRY.length, 47, "registry exposes 47 commands");
   if (op.type === "history") assert.equal(op.action, "redo", "acción redo");
 }
 
-// Cadenas (AXOS-CAD-CHAIN-001): separadores explícitos; ' y ' pelón NO corta.
+// Cadenas (VD-CAD-CHAIN-001): separadores explícitos; ' y ' pelón NO corta.
 {
   const chain = splitCadCommandChain("pon una puerta y luego céntrala; quita las cotas");
   assert.deepEqual(
@@ -285,7 +285,7 @@ assert.equal(CAD_COMMAND_REGISTRY.length, 47, "registry exposes 47 commands");
   );
 }
 
-// Ayuda (AXOS-CAD-HELP-001): '¿qué puedes hacer?' lista el catálogo.
+// Ayuda (VD-CAD-HELP-001): '¿qué puedes hacer?' lista el catálogo.
 {
   const help = parseCadCommand("¿qué puedes hacer?");
   assert.equal(help.input?.id, "help_commands", "la pregunta parsea a ayuda");
@@ -1125,7 +1125,7 @@ if (rectDraftCreate?.type === "create") {
   assert.equal(rectDraftCreate.object.label, "QA", "label is parsed");
 }
 
-// FILA/REPETIR (AXOS-CAD-ARRAY-001): repetición conversacional por nombre.
+// FILA/REPETIR (VD-CAD-ARRAY-001): repetición conversacional por nombre.
 {
   const parsed = parseCadCommand(
     "repite la silla 3 veces cada 600 a la derecha",
@@ -1208,7 +1208,7 @@ if (rectDraftCreate?.type === "create") {
   );
 }
 
-// CAMBIAR TAMAÑO (AXOS-CAD-RESIZE-001): w×h exactos por nombre.
+// CAMBIAR TAMAÑO (VD-CAD-RESIZE-001): w×h exactos por nombre.
 {
   const parsed = parseCadCommand("cambia el tamaño de la mesa a 1500x900");
   assert.ok(parsed.ok, "cambia el tamaño parsea");
@@ -1262,7 +1262,7 @@ if (rectDraftCreate?.type === "create") {
   );
 }
 
-// MOVER con ancla (AXOS-CAD-MOVE-003): 'mueve la silla junto a la mesa'.
+// MOVER con ancla (VD-CAD-MOVE-003): 'mueve la silla junto a la mesa'.
 {
   const parsed = parseCadCommand("mueve la silla junto a la mesa");
   assert.ok(parsed.ok, "mueve junto a parsea");
@@ -1329,7 +1329,7 @@ if (rectDraftCreate?.type === "create") {
   );
 }
 
-// DISTRIBUIR con separación fija (AXOS-CAD-DIST-002): 'cada 800'.
+// DISTRIBUIR con separación fija (VD-CAD-DIST-002): 'cada 800'.
 {
   const parsed = parseCadCommand("distribuye las mesas cada 800");
   assert.ok(parsed.ok, "distribuye cada N parsea");
@@ -1381,7 +1381,7 @@ if (rectDraftCreate?.type === "create") {
     assert.equal(second.after.x, 1000 + 900 + 800, "segunda a 800 del borde");
 }
 
-// ALINEAR con referencia (AXOS-CAD-ALIGN-002): 'alinea las sillas con la mesa'.
+// ALINEAR con referencia (VD-CAD-ALIGN-002): 'alinea las sillas con la mesa'.
 {
   const parsed = parseCadCommand("alinea las sillas con la mesa");
   assert.ok(parsed.ok, "alinea con parsea");
@@ -1442,7 +1442,7 @@ if (rectDraftCreate?.type === "create") {
   );
 }
 
-// INFO del plano (AXOS-CAD-QUERY-003): '¿cuánto mide el plano?'.
+// INFO del plano (VD-CAD-QUERY-003): '¿cuánto mide el plano?'.
 {
   const parsed = parseCadCommand("¿cuánto mide el plano?");
   assert.equal(parsed.input?.id, "object_info", "cuánto mide el plano es info");
@@ -1461,7 +1461,7 @@ if (rectDraftCreate?.type === "create") {
       ),
       "reporta el conteo total de objetos",
     );
-    // AXOS-CAD-QUERY-004: área ocupada por equipos y libre aproximada.
+    // VD-CAD-QUERY-004: área ocupada por equipos y libre aproximada.
     assert.ok(
       report.rows.some((r) => r.label === "Área ocupada"),
       "reporta el área ocupada",
@@ -1473,7 +1473,7 @@ if (rectDraftCreate?.type === "create") {
   }
 }
 
-// Área total en INFO múltiple (AXOS-CAD-QUERY-005).
+// Área total en INFO múltiple (VD-CAD-QUERY-005).
 {
   const dosMesasCtx: CadCommandContext = {
     unit: "mm",
@@ -1522,7 +1522,7 @@ if (rectDraftCreate?.type === "create") {
     );
 }
 
-// SELECCIONAR con exclusión (AXOS-CAD-SELECT-002): 'todo menos las mesas'.
+// SELECCIONAR con exclusión (VD-CAD-SELECT-002): 'todo menos las mesas'.
 {
   const parsed = parseCadCommand("selecciona todo menos las mesas");
   assert.ok(parsed.ok, "selecciona con exclusión parsea");
@@ -1575,7 +1575,7 @@ if (rectDraftCreate?.type === "create") {
   );
 }
 
-// CONTAR compuesto (AXOS-CAD-QUERY-006): 'cuenta las mesas y las sillas'.
+// CONTAR compuesto (VD-CAD-QUERY-006): 'cuenta las mesas y las sillas'.
 {
   const comedorCtx: CadCommandContext = {
     unit: "mm",
@@ -1638,7 +1638,7 @@ if (rectDraftCreate?.type === "create") {
   assert.equal(simple.affectedObjectIds.length, 2, "conteo simple sin cambio");
 }
 
-// Objetivo por contención (AXOS-CAD-ZONE-001): 'borra lo que está en la
+// Objetivo por contención (VD-CAD-ZONE-001): 'borra lo que está en la
 // cocina' actúa sobre el contenido del cuarto, nunca sobre el cuarto.
 {
   const casaCtx: CadCommandContext = {
@@ -1725,7 +1725,7 @@ if (rectDraftCreate?.type === "create") {
   );
 }
 
-// Ubicación (AXOS-CAD-QUERY-007): '¿dónde está la estufa?' reporta el
+// Ubicación (VD-CAD-QUERY-007): '¿dónde está la estufa?' reporta el
 // cuarto más pequeño que la contiene — el muro perimetral no gana.
 {
   const ubicacionCtx: CadCommandContext = {
@@ -1807,7 +1807,7 @@ if (rectDraftCreate?.type === "create") {
   );
 }
 
-// Inventario de zona (AXOS-CAD-QUERY-008): '¿qué hay en la cocina?'
+// Inventario de zona (VD-CAD-QUERY-008): '¿qué hay en la cocina?'
 // cuenta el contenido del cuarto con desglose; sin residuo cuenta todo.
 {
   const inventarioCtx: CadCommandContext = {
@@ -1880,7 +1880,7 @@ if (rectDraftCreate?.type === "create") {
   }
 }
 
-// Despejar zona (AXOS-CAD-ZONE-003): 'despeja la cocina' borra el
+// Despejar zona (VD-CAD-ZONE-003): 'despeja la cocina' borra el
 // contenido del cuarto — nunca el cuarto — vía la contención.
 {
   const despejeCtx: CadCommandContext = {
@@ -1951,7 +1951,7 @@ if (rectDraftCreate?.type === "create") {
   assert.equal(bare.ok, false, "sin zona pide aclaración");
 }
 
-// INFO de cuarto (AXOS-CAD-QUERY-009): '¿cuánto mide la cocina?'
+// INFO de cuarto (VD-CAD-QUERY-009): '¿cuánto mide la cocina?'
 // responde contenido, área ocupada y libre del cuarto.
 {
   const cuartoCtx: CadCommandContext = {
@@ -2032,7 +2032,7 @@ if (rectDraftCreate?.type === "create") {
   }
 }
 
-// Superlativos (AXOS-CAD-NAME-007): 'la mesa más grande' resuelve una
+// Superlativos (VD-CAD-NAME-007): 'la mesa más grande' resuelve una
 // sola coincidencia por área; el plural simple sigue trayendo todas.
 {
   const superCtx: CadCommandContext = {
@@ -2092,7 +2092,7 @@ if (rectDraftCreate?.type === "create") {
   assert.equal(plural.affectedObjectIds.length, 2, "el plural sigue igual");
 }
 
-// Ordinales (AXOS-CAD-NAME-008): 'la primera mesa' escoge por orden del
+// Ordinales (VD-CAD-NAME-008): 'la primera mesa' escoge por orden del
 // plano; un índice fuera de rango reporta objetivo no encontrado.
 {
   const ordenCtx: CadCommandContext = {
@@ -2160,7 +2160,7 @@ if (rectDraftCreate?.type === "create") {
   );
 }
 
-// Posesivo de zona (AXOS-CAD-ZONE-004): 'las mesas de la cocina' trae
+// Posesivo de zona (VD-CAD-ZONE-004): 'las mesas de la cocina' trae
 // solo las del cuarto; los labels literales con 'de' siguen ganando.
 {
   const posesivoCtx: CadCommandContext = {
@@ -2240,7 +2240,7 @@ if (rectDraftCreate?.type === "create") {
   );
 }
 
-// Más cercano (AXOS-CAD-NAME-009): 'la silla más cercana a la puerta'
+// Más cercano (VD-CAD-NAME-009): 'la silla más cercana a la puerta'
 // escoge por distancia al ancla; el plural simple sigue intacto.
 {
   const cercanoCtx: CadCommandContext = {
@@ -2300,7 +2300,7 @@ if (rectDraftCreate?.type === "create") {
   assert.equal(plural.affectedObjectIds.length, 2, "el plural sigue igual");
 }
 
-// Reporte de cuartos (AXOS-CAD-QUERY-011): '¿cuánto miden los cuartos?'
+// Reporte de cuartos (VD-CAD-QUERY-011): '¿cuánto miden los cuartos?'
 // lista cada contenedor con medidas y área; sin cuartos hay error.
 {
   const cuartosInfoCtx: CadCommandContext = {
@@ -2381,7 +2381,7 @@ if (rectDraftCreate?.type === "create") {
   );
 }
 
-// Intercambiar (AXOS-CAD-SWAP-001): los dos objetos cambian de lugar
+// Intercambiar (VD-CAD-SWAP-001): los dos objetos cambian de lugar
 // conservando tamaño y rotación; errores accionables.
 {
   const swapCtx: CadCommandContext = {
@@ -2446,7 +2446,7 @@ if (rectDraftCreate?.type === "create") {
   );
 }
 
-// IGUALAR TAMAÑO (AXOS-CAD-RESIZE-002): 'haz la mesa del tamaño del
+// IGUALAR TAMAÑO (VD-CAD-RESIZE-002): 'haz la mesa del tamaño del
 // escritorio' — copia el w×h de la referencia conservando la posición.
 {
   const likeCtx: CadCommandContext = {
@@ -2520,7 +2520,7 @@ if (rectDraftCreate?.type === "create") {
   );
 }
 
-// AGRANDAR/ACHICAR RELATIVO (AXOS-CAD-RESIZE-003): 'haz la mesa 500 más
+// AGRANDAR/ACHICAR RELATIVO (VD-CAD-RESIZE-003): 'haz la mesa 500 más
 // ancha' — deltas en mm; '20% más grande' escala desde el centro.
 {
   const growCtx: CadCommandContext = {
@@ -2582,7 +2582,7 @@ if (rectDraftCreate?.type === "create") {
   );
 }
 
-// REPARTIR (AXOS-CAD-MOVE-005): 'reparte las sillas entre los cuartos' —
+// REPARTIR (VD-CAD-MOVE-005): 'reparte las sillas entre los cuartos' —
 // round-robin a los cuartos hoja, escalonando los que exceden.
 {
   const roomBox = (id: string, label: string, x: number): CadBox => ({
@@ -2650,7 +2650,7 @@ if (rectDraftCreate?.type === "create") {
   assert.equal(vago.ok, false, "sin destino → aclaración");
 }
 
-// PEGAR A LA PARED (AXOS-CAD-MOVE-006): 'pega la mesa a la pared (del
+// PEGAR A LA PARED (VD-CAD-MOVE-006): 'pega la mesa a la pared (del
 // fondo)' — snap contra el muro del cuarto contenedor o del plano.
 {
   const wallCtx: CadCommandContext = {
@@ -2723,7 +2723,7 @@ if (rectDraftCreate?.type === "create") {
   }
 }
 
-// VOLTEAR (AXOS-CAD-ROT-002): 'voltea la mesa' = 180°; vueltas habladas.
+// VOLTEAR (VD-CAD-ROT-002): 'voltea la mesa' = 180°; vueltas habladas.
 {
   const voltea = parseCadCommand("voltea la mesa");
   assert.equal(voltea.input?.id, "rotate_selection", "voltea parsea");
@@ -2749,7 +2749,7 @@ if (rectDraftCreate?.type === "create") {
   }
 }
 
-// JUNTAR (AXOS-CAD-MOVE-007): 'junta la silla y la mesa' — el primero
+// JUNTAR (VD-CAD-MOVE-007): 'junta la silla y la mesa' — el primero
 // viaja junto al segundo con el gap estándar del ancla.
 {
   const juntaCtx: CadCommandContext = {
@@ -2797,7 +2797,7 @@ if (rectDraftCreate?.type === "create") {
   const uno = parseCadCommand("junta la mesa");
   assert.equal(uno.ok, false, "una sola parte → aclaración");
 
-  // ALEJAR (AXOS-CAD-MOVE-009): par inverso — se aparta en línea recta.
+  // ALEJAR (VD-CAD-MOVE-009): par inverso — se aparta en línea recta.
   const aleja = parseCadCommand("aleja la silla de la mesa");
   assert.equal(aleja.input?.id, "move_selection", "aleja parsea");
   if (aleja.input?.id === "move_selection") {
@@ -2827,7 +2827,7 @@ if (rectDraftCreate?.type === "create") {
   );
 }
 
-// CUADRÍCULA (AXOS-CAD-MOVE-008): 'acomoda las sillas en 2 filas' —
+// CUADRÍCULA (VD-CAD-MOVE-008): 'acomoda las sillas en 2 filas' —
 // matriz desde la esquina del conjunto en orden del plano.
 {
   const gridChair = (id: string, x: number, y: number): CadBox => ({
@@ -2884,7 +2884,7 @@ if (rectDraftCreate?.type === "create") {
   }
 }
 
-// REVISAR PLANO (AXOS-CAD-AUDIT-001): checklist de protección civil —
+// REVISAR PLANO (VD-CAD-AUDIT-001): checklist de protección civil —
 // el comando 46 del catálogo.
 {
   const parsed = parseCadCommand(

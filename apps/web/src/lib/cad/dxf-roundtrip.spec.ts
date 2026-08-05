@@ -1,5 +1,5 @@
 /**
- * Round-trip DXF de geometría curva real (AXOS-CAD-DEPTH-A1).
+ * Round-trip DXF de geometría curva real (VD-CAD-DEPTH-A1).
  *
  * Antes, un círculo se exportaba como cuadrado y un arco no existía: exportar e
  * importar destruía la geometría. Este spec exporta un modelo con círculo y

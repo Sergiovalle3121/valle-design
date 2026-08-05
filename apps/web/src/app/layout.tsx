@@ -25,10 +25,10 @@ export const viewport: Viewport = {
 
 /**
  * Anti-flash (patrón del origen): fija la clase `.dark` en <html> ANTES del
- * primer paint, leyendo la preferencia guardada (`axos_theme`) o la del
+ * primer paint, leyendo la preferencia guardada (`valle_theme`) o la del
  * sistema. El ThemeProvider sólo re-sincroniza después.
  */
-const themeInitScript = `(function(){try{var s=localStorage.getItem('axos_theme');var d=s==='dark'||((!s||s==='system')&&window.matchMedia('(prefers-color-scheme: dark)').matches);var r=document.documentElement;r.classList.toggle('dark',d);r.style.colorScheme=d?'dark':'light';}catch(e){}})();`;
+const themeInitScript = `(function(){try{var s=localStorage.getItem('valle_theme')||localStorage.getItem('axos_theme');var d=s==='dark'||((!s||s==='system')&&window.matchMedia('(prefers-color-scheme: dark)').matches);var r=document.documentElement;r.classList.toggle('dark',d);r.style.colorScheme=d?'dark':'light';}catch(e){}})();`;
 
 export default async function RootLayout({
   children,
