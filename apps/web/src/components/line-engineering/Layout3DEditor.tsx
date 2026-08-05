@@ -200,6 +200,7 @@ import {
   type CadWorkspaceProfile,
 } from "@/lib/cad/cad-workspace";
 import { readRenamedStorageKey } from "@/lib/storage-rename";
+import { createCadCheckpointQueue } from "@/lib/cad/recovery-checkpoint-queue";
 import {
   cadCommandHistoryStorageKey,
   navigateCadCommandHistory,
@@ -2413,7 +2414,6 @@ export default function Layout3DEditor({
     useState<CadRecoveryRecord | null>(null);
   const [recoverySavedAt, setRecoverySavedAt] = useState<string | null>(null);
   const [recoveryWarning, setRecoveryWarning] = useState<string | null>(null);
-  const recoveryWriteInFlightRef = useRef(false);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<AutosaveStatus>("idle");
   const [saveIssue, setSaveIssue] = useState<{
@@ -5077,32 +5077,29 @@ export default function Layout3DEditor({
   useEffect(() => {
     if (!open || !dirty || !data || !recoveryScope || drawingReadOnly) return;
     let active = true;
-    const checkpoint = () => {
-      if (recoveryWriteInFlightRef.current) return;
-      recoveryWriteInFlightRef.current = true;
-      const document = snapshotDocument();
-      void saveCadRecovery(
-        recoveryScope,
-        document,
-        data.cadDocumentVersion ?? 0,
-      )
-        .then((record) => {
-          if (!active) return;
-          setRecoverySavedAt(record.savedAt);
-          setRecoveryWarning(null);
-        })
-        .catch((cause) => {
-          if (!active) return;
-          setRecoveryWarning(
-            cause instanceof CadRecoveryQuotaError
-              ? cause.message
-              : "No se pudo actualizar la recuperación local. Guarda el dibujo en el servidor.",
-          );
-        })
-        .finally(() => {
-          recoveryWriteInFlightRef.current = false;
-        });
-    };
+    // Un solo escritor CON escritura final: la petición que llega mientras hay
+    // otra en vuelo se encola en vez de tirarse. Descartarla perdía justo el
+    // checkpoint de ocultar la pestaña o cerrar, que es el que se le ofrece
+    // después a la persona.
+    const queue = createCadCheckpointQueue({
+      snapshot: () => snapshotDocument(),
+      write: (document) =>
+        saveCadRecovery(recoveryScope, document, data.cadDocumentVersion ?? 0)
+          .then((record) => {
+            if (!active) return;
+            setRecoverySavedAt(record.savedAt);
+            setRecoveryWarning(null);
+          }),
+      onError: (cause) => {
+        if (!active) return;
+        setRecoveryWarning(
+          cause instanceof CadRecoveryQuotaError
+            ? cause.message
+            : "No se pudo actualizar la recuperación local. Guarda el dibujo en el servidor.",
+        );
+      },
+    });
+    const checkpoint = () => queue.request();
     const checkpointWhenHidden = () => {
       if (document.visibilityState === "hidden") checkpoint();
     };
@@ -5112,6 +5109,7 @@ export default function Layout3DEditor({
     document.addEventListener("visibilitychange", checkpointWhenHidden);
     return () => {
       active = false;
+      queue.stop();
       window.clearTimeout(initialTimer);
       window.clearInterval(interval);
       window.removeEventListener("beforeunload", checkpoint);
