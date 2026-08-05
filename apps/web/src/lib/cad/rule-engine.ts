@@ -1,5 +1,5 @@
 /**
- * Motor de reglas transversal de AXOS CAD Next (CAD-NEXT-100).
+ * Motor de reglas transversal de Valle Design CAD (CAD-NEXT-100).
  *
  * Sobre el `CadDocument` canónico corre un conjunto de reglas que revisan el
  * diseño y devuelven hallazgos accionables con las entidades implicadas — la

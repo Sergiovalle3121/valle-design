@@ -1,4 +1,4 @@
-/** Bloques (BLOCK / INSERT) (AXOS-CAD-DEPTH-B1). */
+/** Bloques (BLOCK / INSERT) (VD-CAD-DEPTH-B1). */
 import { strict as assert } from "node:assert";
 import type { CadPrimitive, CadVec2 } from "./primitives";
 import {

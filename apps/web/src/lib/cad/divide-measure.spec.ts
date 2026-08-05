@@ -1,4 +1,4 @@
-/** DIVIDE y MEASURE (AXOS-CAD-DEPTH-B6). */
+/** DIVIDE y MEASURE (VD-CAD-DEPTH-B6). */
 import { strict as assert } from "node:assert";
 import type { CadVec2 } from "./primitives";
 import { dividePath, measurePath, pointAtDistance } from "./divide-measure";

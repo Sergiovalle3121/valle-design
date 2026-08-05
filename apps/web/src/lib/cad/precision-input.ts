@@ -1,5 +1,5 @@
 /**
- * Precision input for AXOS CAD drafting.
+ * Precision input for Valle Design CAD drafting.
  *
  * Pure geometry helpers used by the command registry and by the line-engineering
  * editor. Coordinates are expressed in the active layout footprint unit.

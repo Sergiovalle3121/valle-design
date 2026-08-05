@@ -22,7 +22,7 @@ assert.deepEqual(
   applyCadWorkspaceProfile(normalized, 'presentation'),
   { ...normalized, profile: 'presentation', leftDock: false, rightDock: false, commandDock: false, minimap: false, toolbarDensity: 'comfortable' },
 );
-assert.equal(cadWorkspaceStorageKey({ tenantId: 'a', userId: 'b' }), 'axos_cad_workspace:a:b');
+assert.equal(cadWorkspaceStorageKey({ tenantId: 'a', userId: 'b' }), 'valle_cad_workspace:a:b');
 
 const line = CAD_KEYBOARD_SHORTCUTS.find((shortcut) => shortcut.id === 'line')!;
 assert.deepEqual(parseCadShortcutBinding('Ctrl+Shift+L', line), { ...line, key: 'l', ctrl: true, shift: true, alt: false });

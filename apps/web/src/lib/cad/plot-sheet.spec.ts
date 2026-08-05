@@ -1,5 +1,5 @@
 /**
- * Plano a escala (AXOS-CAD-PLOT-001): elección de la mayor escala estándar
+ * Plano a escala (VD-CAD-PLOT-001): elección de la mayor escala estándar
  * que cabe, colocación centrada, cajetín y barra de escala redonda.
  */
 import { strict as assert } from "node:assert";

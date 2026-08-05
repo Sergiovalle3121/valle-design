@@ -1,5 +1,5 @@
 /**
- * Borrar selección (AXOS-CAD-DELETE-001): ERASE de AutoCAD, conversacional.
+ * Borrar selección (VD-CAD-DELETE-001): ERASE de AutoCAD, conversacional.
  * 'borra la selección' / 'elimina lo seleccionado' emite una operación
  * delete por objeto; el estudio decide si puede aplicarla (capas bloqueadas)
  * y limpia la selección. Sin selección, el error dice qué hacer.

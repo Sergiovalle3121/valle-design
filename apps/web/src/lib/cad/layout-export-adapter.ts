@@ -20,13 +20,13 @@ export interface CadExportBox {
   y: number;
   width: number;
   height: number;
-  /** Grados; el rect se emite con las esquinas ya rotadas (AXOS-CAD-DXF-ROT-001). */
+  /** Grados; el rect se emite con las esquinas ya rotadas (VD-CAD-DXF-ROT-001). */
   rotation?: number;
   layer?: string;
   /**
    * Forma del objeto. "circle" lo emite como un CIRCLE real en el DXF (centro
    * en x,y; radio = width/2), de modo que abre como círculo en AutoCAD y no como
-   * un cuadrado. Por defecto (sin shape) es un rectángulo (AXOS-CAD-WIRE-001).
+   * un cuadrado. Por defecto (sin shape) es un rectángulo (VD-CAD-WIRE-001).
    */
   shape?: "circle" | "rect";
   /**

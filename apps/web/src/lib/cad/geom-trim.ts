@@ -1,5 +1,5 @@
 /**
- * Recortar, extender y partir segmentos del CAD (AXOS-CAD-DEPTH-A8).
+ * Recortar, extender y partir segmentos del CAD (VD-CAD-DEPTH-A8).
  *
  * TRIM, EXTEND y BREAK son de los comandos más usados en AutoCAD y el modelo de
  * caja no los tenía. Este módulo los implementa sobre segmentos reales usando

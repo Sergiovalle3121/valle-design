@@ -1,5 +1,5 @@
 /**
- * Capas (LAYER) del CAD (AXOS-CAD-DEPTH-B4).
+ * Capas (LAYER) del CAD (VD-CAD-DEPTH-B4).
  *
  * La capa es cómo AutoCAD organiza un plano: cada entidad vive en una capa con
  * color, tipo de línea, grosor y estados (encendida/apagada, congelada,

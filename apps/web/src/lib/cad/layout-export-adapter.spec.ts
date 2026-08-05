@@ -23,7 +23,7 @@ assert.equal(
   5,
   "maps equipment layer color",
 );
-// Rotación real en el DXF (AXOS-CAD-DXF-ROT-001): 4×2 en (10,10) girada 90°
+// Rotación real en el DXF (VD-CAD-DXF-ROT-001): 4×2 en (10,10) girada 90°
 // → esquinas (11,8),(11,12),(9,12),(9,8); sin rotación las esquinas quedan
 // axis-aligned como siempre.
 {
@@ -44,7 +44,7 @@ assert.equal(
   assert.ok(near((flat.primitives?.[0]?.points ?? [])[0], 8, 9), "sin rotación queda igual");
 }
 
-// Objeto redondo (AXOS-CAD-WIRE-001): un box con shape:"circle" sale como un
+// Objeto redondo (VD-CAD-WIRE-001): un box con shape:"circle" sale como un
 // CIRCLE real en el DXF (centro en x,y, radio = width/2), no como cuadrado, así
 // que abre como círculo en AutoCAD.
 {

@@ -1,5 +1,5 @@
 /**
- * Referencia a objetos (OSNAP) del CAD (AXOS-CAD-DEPTH-A9).
+ * Referencia a objetos (OSNAP) del CAD (VD-CAD-DEPTH-A9).
  *
  * El OSNAP —enganchar el cursor al extremo, al punto medio, al centro, al
  * cuadrante, a una intersección, a lo más cercano o al pie de la perpendicular—

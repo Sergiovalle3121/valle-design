@@ -5,7 +5,7 @@
  *
  * Conserva EXACTAMENTE la superficie que consume el workbench CAD extraído
  * (`useTheme` → { colorScheme, resolvedScheme, setColorScheme, toggleTheme }
- * y el tipo `ColorScheme`), la clave de persistencia `axos_theme` y la clase
+ * y el tipo `ColorScheme`), la clave de persistencia `valle_theme` y la clase
  * `.dark` en <html> como única fuente de verdad de las utilidades `dark:`.
  *
  * DIFERENCIA DELIBERADA con el origen: sin branding por tenant vía
@@ -38,8 +38,14 @@ type ThemeContextValue = {
   toggleTheme: () => void;
 };
 
-/** Clave de persistencia del origen (compartida con el script anti-flash). */
-const THEME_STORAGE_KEY = "axos_theme";
+/** Clave de persistencia (compartida con el script anti-flash). */
+const THEME_STORAGE_KEY = "valle_theme";
+/**
+ * Clave ANTERIOR, del nombre de producto que ya no se usa. Vive en el
+ * navegador de quien ya visitó el producto: renombrar sin leerla le devolvería
+ * el tema por defecto sin explicación. Se lee una vez, se migra y se borra.
+ */
+const LEGACY_THEME_STORAGE_KEY = "axos_theme";
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
@@ -53,6 +59,12 @@ function readStoredScheme(): ColorScheme {
   try {
     const raw = window.localStorage.getItem(THEME_STORAGE_KEY);
     if (raw === "light" || raw === "dark" || raw === "system") return raw;
+    const legacy = window.localStorage.getItem(LEGACY_THEME_STORAGE_KEY);
+    if (legacy === "light" || legacy === "dark" || legacy === "system") {
+      window.localStorage.setItem(THEME_STORAGE_KEY, legacy);
+      window.localStorage.removeItem(LEGACY_THEME_STORAGE_KEY);
+      return legacy;
+    }
   } catch {
     /* almacenamiento no disponible */
   }

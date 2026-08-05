@@ -1,4 +1,4 @@
-# AXOS CAD Grand Leap — ejecución y evidencia
+# Valle Design CAD Grand Leap — ejecución y evidencia
 
 > Tracker verificable del corte `CAD-GL-000/010/020/030/050/070`. El referente
 > competitivo es interno; no se declara paridad total ni compatibilidad DWG.
@@ -8,9 +8,9 @@
 | Campo                   | Evidencia                                                                                                     |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------- |
 | `origin/main` resuelto  | `74546077b9675dcfc26ad718b63a4a59cf5c83cc`                                                                    |
-| Mensaje base            | `feat(enterprise): build AXOS ERP + MES commercialization program (#1375)`                                    |
-| Rama                    | `feat/axos-cad-grand-leap`, creada desde ese SHA                                                              |
-| Worktree                | limpio al iniciar; cambios de este programa aislados en `work/axos-os`                                        |
+| Mensaje base            | `feat(enterprise): build Valle Design ERP + MES commercialization program (#1375)`                                    |
+| Rama                    | `feat/valle-cad-grand-leap`, creada desde ese SHA                                                              |
+| Worktree                | limpio al iniciar; cambios de este programa aislados en `work/valle-design`                                        |
 | PRs abiertos al iniciar | ninguno                                                                                                       |
 | Cambios CAD observados  | `b23c154d7a91f0b0595758bb416fd4e5fb2e61d2` ya era ancestro de `main`                                          |
 | Cambio PDF observado    | `0ef433cfa6396a9ee0e13320dbf1d9af8eb948e3` ya era ancestro de `main`                                          |
@@ -185,7 +185,7 @@ passthrough, pero no reemplaza el parser ni fabrica soporte DWG.
 | 3D                 | partial histórico | layout Three.js; sin kernel sólido/superficie profesional           |
 | SDK                | missing estable   | registry/provider contracts existen, no SDK público versionado      |
 
-### Ventaja AXOS
+### Ventaja Valle Design
 
 | Eje                   | Estado               | Evidencia / siguiente brecha                                        |
 | --------------------- | -------------------- | ------------------------------------------------------------------- |
@@ -252,8 +252,8 @@ schema IA, payload API acotado, tags, reload y conflicto de versión stale.
 | --------- | ---------------------------------------------------------------- |
 | LOCAL     | cambios implementados y gates locales verdes                     |
 | COMMITTED | `1fb54182c3226dc413a3f1b1b6784739b0af5c89`                     |
-| PUSHED    | `feat/axos-cad-grand-leap`                                       |
-| PR        | [#1399](https://github.com/Sergiovalle3121/axos-os/pull/1399)     |
+| PUSHED    | `feat/valle-cad-grand-leap`                                       |
+| PR        | [#1399](https://github.com/Sergiovalle3121/valle-design/pull/1399)     |
 | MERGED    | pendiente del gate remoto `Build · Test · Lint · Smoke`           |
 
 ## 11. Deuda priorizada
@@ -268,4 +268,4 @@ schema IA, payload API acotado, tags, reload y conflicto de versión stale.
 6. E2E del recorrido import→edit→cleanup→undo→save→reload→export.
 7. Editor de múltiples viewports y overrides de capa/plot styles por viewport;
    paper spaces, sheet sets y publicación vectorial base se cerraron en
-   `AXOS_CAD_PROFESSIONAL_DAILY_DRIVER.md`.
+   `VALLE_CAD_PROFESSIONAL_DAILY_DRIVER.md`.

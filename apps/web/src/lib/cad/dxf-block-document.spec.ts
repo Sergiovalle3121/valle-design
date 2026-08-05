@@ -29,7 +29,7 @@ assert.match(exported.content, /\nBLOCK\n/);
 assert.match(exported.content, /\nINSERT\n/);
 assert.match(exported.content, /\nATTDEF\n/);
 assert.match(exported.content, /\nATTRIB\n/);
-assert.match(exported.content, /AXOS_BLOCK/);
+assert.match(exported.content, /VALLE_BLOCK/);
 
 const imported = importDxfPrimitives(exported.content);
 assert.equal(imported.blocks.length, 2, 'BLOCK definitions remain semantic');

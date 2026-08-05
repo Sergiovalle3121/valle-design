@@ -1,33 +1,33 @@
 /**
- * NOMBRES DE APLICACIÓN XDATA DEL DXF — identificadores de FORMATO DE ARCHIVO.
+ * NOMBRES DE APLICACIÓN XDATA DEL DXF — SÓLO LECTURA.
  *
- * El DXF que exporta Valle Design conserva la semántica que AutoCAD no
- * modela (cotas asociativas, directrices, bloques con atributos) en XDATA
- * registrada bajo un nombre de aplicación (tabla `APPID` + código de grupo
- * 1001). Estos tres nombres viajan DENTRO de cada archivo exportado.
+ * Estos tres nombres corresponden al nombre de producto ANTERIOR y ya no se
+ * escriben: el exportador emite los de `../dxf-xdata-apps.ts`. Siguen aquí
+ * porque viajan DENTRO de cada archivo exportado hasta hoy, y esos archivos no
+ * viven en el repositorio: viven en los discos de los clientes y en lo que ya
+ * intercambiaron con terceros.
  *
- * Consecuencia: no viven en el repositorio, viven en los discos de los
- * clientes y en los archivos que ya intercambiaron con terceros. Renombrarlos
- * a la vez en exportador e importador se ve verde en cualquier round-trip
- * generado y, aun así, deja ilegible todo lo exportado hasta hoy.
+ * Retirarlos del IMPORTADOR —no del exportador, eso ya está hecho— dejaría
+ * ilegible todo ese material. Un round-trip generado no lo detectaría, porque
+ * sólo produce archivos nuevos.
  *
  * El golden `apps/web/src/lib/cad/dxf-xdata-golden.spec.ts` congela un
  * archivo real con estos nombres y exige que el importador lo siga leyendo.
  * Ver `README.md` de esta carpeta para la condición de retiro.
  */
 
-/** XDATA de cotas semánticas (DIMENSION). Valor de formato: NO renombrar. */
+/** XDATA de cotas semánticas (DIMENSION). Histórico: sólo lectura. */
 export const LEGACY_DXF_XDATA_APP_DIMENSION = "AXOS_DIM" as const;
 
-/** XDATA de directrices múltiples (MLEADER). Valor de formato: NO renombrar. */
+/** XDATA de directrices múltiples (MLEADER). Histórico: sólo lectura. */
 export const LEGACY_DXF_XDATA_APP_MLEADER = "AXOS_MLEADER" as const;
 
-/** XDATA de bloques y sus atributos (BLOCK/INSERT). Valor de formato: NO renombrar. */
+/** XDATA de bloques y sus atributos (BLOCK/INSERT). Histórico: sólo lectura. */
 export const LEGACY_DXF_XDATA_APP_BLOCK = "AXOS_BLOCK" as const;
 
 /**
- * Los tres nombres, en el orden en que se registran en la tabla `APPID` del
- * DXF exportado. El orden también es formato: cambiarlo altera los bytes.
+ * Los tres nombres históricos, en el orden en que aparecían en la tabla
+ * `APPID` de los archivos que los llevan.
  */
 export const LEGACY_DXF_XDATA_APPS = [
   LEGACY_DXF_XDATA_APP_DIMENSION,

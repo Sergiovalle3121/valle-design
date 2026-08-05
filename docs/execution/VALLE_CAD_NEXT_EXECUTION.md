@@ -1,6 +1,6 @@
-# AXOS CAD Next — Execution & Wiring Audit
+# Valle Design CAD — Execution & Wiring Audit
 
-> Programa interno: **AXOS CAD Next**. Producto en código/UI: **AXOS CAD**.
+> Programa interno: **Valle Design CAD**. Producto en código/UI: **Valle Design CAD**.
 > Referente competitivo interno: AutoCAD (benchmark, no copia). Este documento es
 > el tracker vivo de la ejecución: auditoría de verdad, matriz de cableado,
 > compatibilidad, decisiones, riesgos y estado local/remoto/PR.
@@ -8,7 +8,7 @@
 > **Actualización 2026-07-24:** `CadDocument` evolucionó de v2 a v3 con
 > persistencia canónica, entidades de primera clase, grafo de restricciones y
 > passthrough opaco. La evidencia y los límites vigentes están en
-> `docs/execution/AXOS_CAD_GRAND_LEAP_EXECUTION.md`; las menciones históricas a
+> `docs/execution/VALLE_CAD_GRAND_LEAP_EXECUTION.md`; las menciones históricas a
 > v2 debajo describen el estado de aquel corte.
 
 ## 0. Estado base verificado
@@ -16,8 +16,8 @@
 | Campo | Valor |
 |---|---|
 | `origin/main` SHA base | `c257cc35f3949a90fea8603246e4b71b1f314c62` |
-| `origin/main` mensaje | `feat(cad): DIVIDE y MEASURE — puntos a lo largo de una curva (AXOS-CAD-DEPTH-B6) (#1372)` |
-| Rama de trabajo | `claude/axos-cad-next-multiindustry` (creada limpia desde `origin/main`) |
+| `origin/main` mensaje | `feat(cad): DIVIDE y MEASURE — puntos a lo largo de una curva (VD-CAD-DEPTH-B6) (#1372)` |
+| Rama de trabajo | `claude/valle-cad-next-multiindustry` (creada limpia desde `origin/main`) |
 | Identidad de commits | `Claude <noreply@anthropic.com>` |
 | Fecha auditoría | 2026-07-23 |
 
@@ -31,10 +31,10 @@ de exportación emite `CIRCLE` real para objetos redondos).
 
 | PR | Título | Estado | Decisión |
 |---|---|---|---|
-| #1373 | `feat(cad): rastreo polar y ortogonal POLAR/ORTHO (AXOS-CAD-DEPTH-B7)` | **draft, CI** | Se deja abierto; **no se fusiona** dentro de este programa (regla del owner: no merge por cuenta propia). Es un módulo puro más. |
-| (sin PR) | `text-metrics` (MTEXT, AXOS-CAD-DEPTH-B8) | pre-verificado local, **no pusheado** | No se incluye en esta rama; queda como candidato a cablear, no a acumular. |
+| #1373 | `feat(cad): rastreo polar y ortogonal POLAR/ORTHO (VD-CAD-DEPTH-B7)` | **draft, CI** | Se deja abierto; **no se fusiona** dentro de este programa (regla del owner: no merge por cuenta propia). Es un módulo puro más. |
+| (sin PR) | `text-metrics` (MTEXT, VD-CAD-DEPTH-B8) | pre-verificado local, **no pusheado** | No se incluye en esta rama; queda como candidato a cablear, no a acumular. |
 
-Este programa abre **un solo draft PR** desde `claude/axos-cad-next-multiindustry`
+Este programa abre **un solo draft PR** desde `claude/valle-cad-next-multiindustry`
 y **no lo mergea** (owner decide). Cada merge a `main` despliega producción.
 
 ## 1. Diagnóstico central (por qué existe este programa)
@@ -91,7 +91,7 @@ CadDocument (versionado, serializable determinista)
   ├── Constraints
   ├── ExternalReferences
   ├── ChangeHistory
-  └── BusinessObjectLinks            (link por ID estable a registros AXOS; NO copia la entidad canónica)
+  └── BusinessObjectLinks            (link por ID estable a registros Valle Design; NO copia la entidad canónica)
 
 CadCommand: validate → preview → commit(txn) → render incremental → persist/version → undo/redo → audited event
 ```
@@ -180,7 +180,7 @@ entra en el body de `save()`; eso es CAD-NEXT-060, no undo.)
 Hay **dos capas** de DXF que no coinciden: el **kernel** (`lib/cad/dxf-export.ts`
 + `dxf-import.ts`, con specs de CI) sabe leer y escribir entidades nativas con
 fidelidad; el **editor** (`Layout3DEditor.tsx`) sólo usa una fracción de ese
-kernel. El gap DXF de AXOS CAD **no es de kernel, es de cableado**.
+kernel. El gap DXF de Valle Design CAD **no es de kernel, es de cableado**.
 
 > Columnas: Export-kernel (`exportCadDxf`) · Export-editor (ruta real
 > `exportDxf`→`layout-export-adapter`) · Import-kernel (`importDxfPrimitives`) ·
@@ -386,8 +386,8 @@ Gates verdes: `tsc` (web+api), `eslint`, `test:specs` (81/81), `check:nav`,
 
 | Estado | Detalle |
 |---|---|
-| LOCAL | rama `claude/axos-cad-next-multiindustry` desde `c257cc35` |
-| PUSHED | ✓ `origin/claude/axos-cad-next-multiindustry` |
+| LOCAL | rama `claude/valle-cad-next-multiindustry` desde `c257cc35` |
+| PUSHED | ✓ `origin/claude/valle-cad-next-multiindustry` |
 | DRAFT PR | ✓ #1374 (draft) — auditoría CAD-NEXT-000 |
 | MERGED | NO — fuera del alcance de este programa; el owner decide la fusión |
 
@@ -514,7 +514,7 @@ Gates verdes: `tsc` (web+api), `eslint`, `test:specs` (81/81), `check:nav`,
     rollup por industria, determinista. REVISAR PLANO muestra el bloque
     "Objetos inteligentes" con lo que un CAD genérico NO puede dar: el total
     de posiciones de pallet del almacén, los facings de exhibición, las camas.
-    AutoCAD ve rectángulos; AXOS cuenta capacidad.
+    AutoCAD ve rectángulos; Valle Design cuenta capacidad.
     **CAD-NEXT-099:** `industryRollupToCsv` serializa ese BOM a CSV entregable
     (industria, objeto, cantidad + una columna por métrica; escape correcto de
     comas/comillas; BOM UTF-8 para Excel) con un botón "Exportar CSV" en el

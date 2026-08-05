@@ -8,4 +8,5 @@
 export * from "./product-catalog";
 export * from "./brand";
 export * from "./design-contracts";
+export * from "./dxf-xdata-apps";
 export * from "./legacy";

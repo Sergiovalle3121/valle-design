@@ -10,7 +10,7 @@ export type CadLayoutTemplateId =
   | "civil-site-utilities"
   | "structural-grid-core"
   | "mep-plantroom"
-  // CAD universal (AXOS-CAD-UNIVERSAL-002): arranques para cualquiera.
+  // CAD universal (VD-CAD-UNIVERSAL-002): arranques para cualquiera.
   | "casa-habitacion"
   | "local-comercial"
   | "consultorio"

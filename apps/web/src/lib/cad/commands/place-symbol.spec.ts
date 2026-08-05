@@ -1,5 +1,5 @@
 /**
- * Colocar símbolo (AXOS-CAD-PLACE-001): búsqueda en la biblioteca, medidas
+ * Colocar símbolo (VD-CAD-PLACE-001): búsqueda en la biblioteca, medidas
  * reales del símbolo, centrado por default y errores accionables.
  */
 import { strict as assert } from "node:assert";
@@ -87,7 +87,7 @@ const ctx = {
   assert.equal(create.object.rotation, 270, "rotación normalizada (−90→270)");
 }
 
-// Fila al colocar (AXOS-CAD-PLACE-003): 'pon 3 sillas en fila cada 200'.
+// Fila al colocar (VD-CAD-PLACE-003): 'pon 3 sillas en fila cada 200'.
 {
   const parsed = parseCadCommand("pon 3 sillas en fila cada 200");
   assert.equal(parsed.input?.id, "place_symbol", "pon N sillas es place");
@@ -123,7 +123,7 @@ const ctx = {
   );
 }
 
-// Ancla relacional (AXOS-CAD-PLACE-004): 'pon una silla junto a la mesa'.
+// Ancla relacional (VD-CAD-PLACE-004): 'pon una silla junto a la mesa'.
 {
   const parsed = parseCadCommand("pon una silla junto a la mesa");
   assert.equal(parsed.input?.id, "place_symbol", "junto a sigue siendo place");
@@ -167,7 +167,7 @@ const ctx = {
   );
 }
 
-// Lados del ancla (AXOS-CAD-PLACE-005): izquierda/derecha/arriba/abajo.
+// Lados del ancla (VD-CAD-PLACE-005): izquierda/derecha/arriba/abajo.
 {
   const izq = parseCadCommand("pon una silla a la izquierda de la mesa");
   assert.equal(izq.input?.id, "place_symbol", "lado izquierdo es place");
@@ -223,7 +223,7 @@ const ctx = {
   assert.equal(belowOp.object.x, 3000, "debajo alinea la x");
 }
 
-// Uno por coincidencia (AXOS-CAD-PLACE-006): 'pon una silla junto a cada mesa'.
+// Uno por coincidencia (VD-CAD-PLACE-006): 'pon una silla junto a cada mesa'.
 {
   const parsed = parseCadCommand("pon una silla junto a cada mesa");
   assert.equal(parsed.input?.id, "place_symbol", "junto a cada es place");
@@ -272,7 +272,7 @@ const ctx = {
   assert.equal(first.object.y, 2000, "misma altura que su mesa");
 }
 
-// Dentro de un cuarto (AXOS-CAD-PLACE-007): 'pon una silla en la cocina'
+// Dentro de un cuarto (VD-CAD-PLACE-007): 'pon una silla en la cocina'
 // aterriza centrada en el contenedor; coordenadas siguen ganando.
 {
   const casaCtx = {
@@ -329,7 +329,7 @@ const ctx = {
   );
 }
 
-// En cada esquina (AXOS-CAD-PLACE-008): 4 piezas con margen de 200 mm.
+// En cada esquina (VD-CAD-PLACE-008): 4 piezas con margen de 200 mm.
 {
   const esquinaCtx = {
     unit: "mm",
@@ -370,7 +370,7 @@ const ctx = {
 
 console.log("cad place-symbol specs passed");
 
-// En cada cuarto (AXOS-CAD-PLACE-009): una pieza centrada por cuarto
+// En cada cuarto (VD-CAD-PLACE-009): una pieza centrada por cuarto
 // hoja; el muro perimetral no duplica y sin cuartos hay error.
 {
   const cuartosCtx = {

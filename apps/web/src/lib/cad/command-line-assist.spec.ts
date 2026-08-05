@@ -74,7 +74,7 @@ console.log("cad command line assist specs passed");
   assertEqual(mirror?.ready, true, "con seleccion queda listo");
 }
 
-// Palette vacío sin selección (AXOS-CAD-ASSIST-002): el kit universal
+// Palette vacío sin selección (VD-CAD-ASSIST-002): el kit universal
 // primero — colocar y seleccionar por nombre arriba, no los comandos EMS.
 {
   const items = suggestCadCommands({ selectedCount: 0, maxItems: 5 });
@@ -89,7 +89,7 @@ console.log("cad command line assist specs passed");
   );
 }
 
-// AXOS-CAD-ASSIST-004: REDIMENSIONAR aparece al teclear 'tamaño'.
+// VD-CAD-ASSIST-004: REDIMENSIONAR aparece al teclear 'tamaño'.
 {
   const items = suggestCadCommands({
     query: "tamaño",
@@ -105,7 +105,7 @@ console.log("cad command line assist specs passed");
   assertEqual(resize?.ready, true, "con un objeto seleccionado queda listo");
 }
 
-// AXOS-CAD-ASSIST-005: sinónimos espaciales — palabras sin example ganan.
+// VD-CAD-ASSIST-005: sinónimos espaciales — palabras sin example ganan.
 {
   const vacia = suggestCadCommands({ query: "vacia", maxItems: 5 });
   assertEqual(

@@ -103,7 +103,7 @@ export function arrayRectangularPreview(
   input: Extract<CadCommandInput, { id: "array_rectangular" }>,
   context: CadCommandContext,
 ): CadCommandPreview {
-  // Objetivo por nombre (AXOS-CAD-ARRAY-001): 'repite la silla 4 veces'.
+  // Objetivo por nombre (VD-CAD-ARRAY-001): 'repite la silla 4 veces'.
   const targetQuery = input.target?.trim();
   let assets: CadBox[];
   let issues: CadValidationIssue[];

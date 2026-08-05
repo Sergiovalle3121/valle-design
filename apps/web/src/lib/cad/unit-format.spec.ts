@@ -1,4 +1,4 @@
-/** Formato de unidades UNITS/DIMSTYLE (AXOS-CAD-DEPTH-B5). */
+/** Formato de unidades UNITS/DIMSTYLE (VD-CAD-DEPTH-B5). */
 import { strict as assert } from "node:assert";
 import {
   formatCentimeters,

@@ -1,5 +1,5 @@
 /**
- * Cotas asociativas del CAD (AXOS-CAD-DEPTH-A3).
+ * Cotas asociativas del CAD (VD-CAD-DEPTH-A3).
  *
  * Una cota de verdad no es una etiqueta suelta: es geometría derivada de dos
  * puntos —líneas de extensión, línea de cota, flechas y texto orientado— que

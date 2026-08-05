@@ -122,7 +122,7 @@ export function autoDimensionPreview(
   input: Extract<CadCommandInput, { id: "auto_dimension" }>,
   context: CadCommandContext,
 ): CadCommandPreview {
-  // Objetivo por nombre (AXOS-CAD-NAME-005): 'acota las mesas'.
+  // Objetivo por nombre (VD-CAD-NAME-005): 'acota las mesas'.
   const targetIds = input.target?.trim()
     ? matchObjectsByName(context, input.target).map((o) => o.id)
     : undefined;

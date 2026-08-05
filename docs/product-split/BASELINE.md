@@ -19,7 +19,7 @@ fix(erp): el control de crédito cuenta los pedidos EMBARCADOS no facturados (O2
 | Ref | Tipo | Contenido | Clasificación |
 |---|---|---|---|
 | `main` | rama | baseline | — |
-| `claude/axos-os-engineering-brief-txz760` | rama de PR #1445 | fix ERP O2C | EXCLUIDO |
+| (rama del repositorio anterior) | rama de PR #1445 | fix ERP O2C | EXCLUIDO |
 | PR **#1445** (draft) | PR abierto | `invoiceSO` exactamente-una-vez: 2 archivos, ambos `apps/api/src/modules/erp-core/services/` (fix + spec pg) | **EXCLUIDO / NO BLOQUEANTE** — cero rutas CAD; no toca rutas que la Fase 1 refactoriza; permanece en enterprise y se fusiona por su flujo normal. Detalle en DECISIONS.md D-001 |
 
 No existen otras ramas ni PRs abiertos. No hay trabajo CAD sin fusionar fuera de `main`.
@@ -46,7 +46,7 @@ Entorno: Node v22.22.2, npm 10.9.7, PostgreSQL 16.13 local, 4 vCPU.
 | Specs Web | `apps/web: npm run test:specs` | ✅ **136/136 verdes** | de ellas **106 en `src/lib/cad/`** (los "~106 specs del kernel" de la misión, confirmado exacto) |
 | Unit API | `apps/api: npm test` | ✅ **2,468 passed / 17 skipped** (363 suites passed, 7 skipped) | las 7 suites saltadas son `*.pg.spec.ts` (exigen PostgreSQL; ver abajo) |
 | Tenant safety | `npm run test:tenant-safety` | ✅ 0 fail | |
-| Suites PostgreSQL | `apps/api: npm run test:pg` con PG 16 local (`TEST_DATABASE_URL` a BD `axos_test`) | ✅ **7 suites / 17 tests passed** | cubre exactamente las 7 suites/17 tests saltados en `npm test` → cobertura unit+pg completa |
+| Suites PostgreSQL | `apps/api: npm run test:pg` con PG 16 local (`TEST_DATABASE_URL` a BD `valle_test`) | ✅ **7 suites / 17 tests passed** | cubre exactamente las 7 suites/17 tests saltados en `npm test` → cobertura unit+pg completa |
 
 Logs completos del baseline: `scratchpad/baseline/*.log` de la sesión (efímeros); los conteos
 de arriba son el contrato de paridad. Toda fase posterior debe reproducir **estos números o

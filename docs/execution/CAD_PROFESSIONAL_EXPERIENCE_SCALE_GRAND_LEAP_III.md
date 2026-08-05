@@ -6,13 +6,13 @@
 | --- | --- |
 | Inicio | 2026-07-28 00:41:25 -06:00 |
 | Objetivo de ventana | 2026-07-28 08:41:25 -06:00 |
-| Repositorio | `Sergiovalle3121/axos-os` |
+| Repositorio | `Sergiovalle3121/valle-design` |
 | Base actual | `1625ba26a07876943b821586c46b02c9f47f6bac` (`origin/main`) |
 | Rama | `codex/cad-professional-grand-leap-iii` |
-| Worktree | `D:\\Codex\\Projects\\axos-os-cad-grand-leap-iii` |
+| Worktree | `D:\\Codex\\Projects\\valle-design-cad-grand-leap-iii` |
 | Integración | Commits focales, push y PR draft; sin auto-merge |
 
-El checkout `D:\\Codex\\Projects\\axos-os-active` contenía trabajo local no
+El checkout `D:\\Codex\\Projects\\valle-design-active` contenía trabajo local no
 relacionado de la vertical de IA. Se preservó sin alteraciones y esta misión se
 aisló en un worktree limpio desde el `origin/main` más reciente.
 
@@ -80,7 +80,7 @@ Orden de ejecución:
 - Evidencia exacta:
   - `npm run test:specs --workspace=web`: 107/107 specs, 157.2 s.
   - `npx tsc --noEmit -p apps/web/tsconfig.json`: exit 0, 128.3 s.
-  - `npm run typecheck --workspace=axos-os-backend`: exit 0, 77.8 s.
+  - `npm run typecheck --workspace=valle-design-backend`: exit 0, 77.8 s.
   - Jest CAD API focal (`cad-document-validation` + `line-engineering.service`):
     2/2 suites, 52/52 tests, 29.1 s.
 - Hallazgos: HATCH se publica pero se pierde al importar DXF; la consola no
@@ -111,7 +111,8 @@ Orden de ejecución:
     editor monolítico, sin errores.
   - `git diff --check`: limpio.
 - Riesgo/rollback: el historial es local, acotado y puede desactivarse borrando
-  la clave `axos:cad:command-history:v1:*`; ninguna geometría canónica depende
+  la clave `valle:cad:command-history:v1:*` (la anterior se migra al leerla);
+  ninguna geometría canónica depende
   de él. Los atajos llaman las rutas de guardado/precisión existentes.
 - Siguiente acción: cerrar HATCH nativo en runtime, propiedades y DXF sin crear
   un segundo motor geométrico.

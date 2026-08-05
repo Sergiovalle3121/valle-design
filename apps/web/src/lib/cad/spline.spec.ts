@@ -1,4 +1,4 @@
-/** Curvas spline / Bézier cúbica (AXOS-CAD-DEPTH-A10). */
+/** Curvas spline / Bézier cúbica (VD-CAD-DEPTH-A10). */
 import { strict as assert } from "node:assert";
 import type { CadVec2 } from "./primitives";
 import {

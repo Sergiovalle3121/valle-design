@@ -1,5 +1,5 @@
 /**
- * Baseline de rendimiento de AXOS CAD Next (CAD-NEXT-050).
+ * Baseline de rendimiento de Valle Design CAD (CAD-NEXT-050).
  *
  * Mide las operaciones canónicas del CAD sobre un plano sintético de N
  * entidades: adaptar el layout al `CadDocument`, serializarlo, correr el motor

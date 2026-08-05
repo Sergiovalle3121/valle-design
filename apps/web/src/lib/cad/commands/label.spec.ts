@@ -1,5 +1,5 @@
 /**
- * Texto en el plano (AXOS-CAD-TEXT-001): anotación kind:text con centrado
+ * Texto en el plano (VD-CAD-TEXT-001): anotación kind:text con centrado
  * por default, clamp al footprint y parser con comillas o texto libre.
  */
 import { strict as assert } from "node:assert";

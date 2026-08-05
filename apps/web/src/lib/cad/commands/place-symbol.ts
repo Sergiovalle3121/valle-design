@@ -1,5 +1,5 @@
 /**
- * Colocar símbolo (AXOS-CAD-PLACE-001): 'pon una puerta', 'coloca una cama
+ * Colocar símbolo (VD-CAD-PLACE-001): 'pon una puerta', 'coloca una cama
  * en 3000,2000' — el copiloto busca en la biblioteca (universal + EMS) y
  * emite el create con las medidas reales del símbolo. Sin coordenadas, lo
  * centra en el footprint para que el usuario lo arrastre a su sitio.
@@ -70,9 +70,9 @@ export function placeSymbolPreview(
   const gap = Math.max(0, input.gap ?? 100);
   const step = symbol.defaultWidth + gap;
   const totalW = symbol.defaultWidth + (count - 1) * step;
-  // En cada esquina (AXOS-CAD-PLACE-008): 4 piezas en las esquinas del
+  // En cada esquina (VD-CAD-PLACE-008): 4 piezas en las esquinas del
   // footprint con margen de 200 mm; ignora conteo, anclas y coordenadas.
-  // En cada cuarto (AXOS-CAD-PLACE-009): una pieza centrada en cada
+  // En cada cuarto (VD-CAD-PLACE-009): una pieza centrada en cada
   // cuarto hoja — contenedores (room/zone) que no contienen el centro de
   // otro contenedor; el muro perimetral queda fuera solo.
   if (input.perRoom) {
@@ -156,7 +156,7 @@ export function placeSymbolPreview(
       issues,
     };
   }
-  // Ancla relacional (AXOS-CAD-PLACE-004/005): 'junto a la mesa' cae a la
+  // Ancla relacional (VD-CAD-PLACE-004/005): 'junto a la mesa' cae a la
   // derecha del ancla; 'a la izquierda de' termina la fila en el ancla;
   // 'arriba/debajo de' alinean x. Coordenadas explícitas ganan siempre.
   const anchorQuery = input.anchor?.trim();
@@ -171,7 +171,7 @@ export function placeSymbolPreview(
     return { summary: "", affectedObjectIds: [], operations: [], issues };
   }
   const side = input.anchorSide ?? "right";
-  // 'junto a cada mesa' (AXOS-CAD-PLACE-006): una pieza por coincidencia,
+  // 'junto a cada mesa' (VD-CAD-PLACE-006): una pieza por coincidencia,
   // respetando el lado; ignora count/coordenadas (no aplican al modo cada).
   if (input.anchorEach && anchors.length) {
     const eachRotation = Number.isFinite(input.rotation)
@@ -210,7 +210,7 @@ export function placeSymbolPreview(
     };
   }
   const anchorBox = anchors[0];
-  // Dentro de un cuarto (AXOS-CAD-PLACE-007): 'pon una silla en la
+  // Dentro de un cuarto (VD-CAD-PLACE-007): 'pon una silla en la
   // cocina' — la pieza (o la fila completa) aterriza centrada dentro del
   // contenedor nombrado. Coordenadas y ancla siguen ganando.
   const intoQuery = input.into?.trim();

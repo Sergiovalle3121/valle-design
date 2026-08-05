@@ -1,5 +1,5 @@
 /**
- * Limpiar anotaciones (AXOS-CAD-CLEAN-001): 'quita las cotas', 'borra las
+ * Limpiar anotaciones (VD-CAD-CLEAN-001): 'quita las cotas', 'borra las
  * notas' o 'limpia las anotaciones'. Las anotaciones no son objetos del
  * plano (no viven en context.objects), así que el preview emite la orden y
  * el estudio decide si había algo que limpiar — con undo por historial.

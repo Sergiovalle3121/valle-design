@@ -124,7 +124,7 @@ function alignPreview(
   input: Extract<CadCommandInput, { id: "align_selection" }>,
   context: Parameters<CadCommandDefinition["preview"]>[1],
 ): CadCommandPreview {
-  // Objetivo por nombre (AXOS-CAD-NAME-004): 'alinea las mesas al centro'.
+  // Objetivo por nombre (VD-CAD-NAME-004): 'alinea las mesas al centro'.
   const targetIds = input.target?.trim()
     ? matchObjectsByName(context, input.target).map((o) => o.id)
     : undefined;
@@ -138,7 +138,7 @@ function alignPreview(
       ],
     };
   }
-  // Referencia por nombre (AXOS-CAD-ALIGN-002): 'alinea las sillas con la
+  // Referencia por nombre (VD-CAD-ALIGN-002): 'alinea las sillas con la
   // mesa' — la línea de referencia sale del ancla, no del bounding box.
   const anchorQuery = input.anchor?.trim();
   let anchorBox: CadBox | undefined;
@@ -210,7 +210,7 @@ function distributePreview(
   input: Extract<CadCommandInput, { id: "distribute_selection" }>,
   context: Parameters<CadCommandDefinition["preview"]>[1],
 ): CadCommandPreview {
-  // Objetivo por nombre (AXOS-CAD-NAME-004): 'distribuye las sillas'.
+  // Objetivo por nombre (VD-CAD-NAME-004): 'distribuye las sillas'.
   const targetIds = input.target?.trim()
     ? matchObjectsByName(context, input.target).map((o) => o.id)
     : undefined;
@@ -224,7 +224,7 @@ function distributePreview(
       ],
     };
   }
-  // Separación fija (AXOS-CAD-DIST-002): 'cada 800' apila desde el primero
+  // Separación fija (VD-CAD-DIST-002): 'cada 800' apila desde el primero
   // con ese hueco exacto; sin gap reparte los huecos iguales (min 3).
   const fixedGap = Number.isFinite(input.gap)
     ? Math.max(0, Math.round(input.gap as number))
@@ -960,7 +960,7 @@ function drawRectZonePreview(
   };
 }
 
-/** Catálogo como reporte (AXOS-CAD-HELP-001): un ejemplo por comando. La
+/** Catálogo como reporte (VD-CAD-HELP-001): un ejemplo por comando. La
  * función se declara hoisted y solo corre en runtime, ya con el registry
  * inicializado — sin ciclo de imports. */
 function helpCommandsPreview(): CadCommandPreview {

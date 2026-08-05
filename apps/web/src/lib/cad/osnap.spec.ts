@@ -1,4 +1,4 @@
-/** Referencia a objetos / OSNAP (AXOS-CAD-DEPTH-A9). */
+/** Referencia a objetos / OSNAP (VD-CAD-DEPTH-A9). */
 import { strict as assert } from "node:assert";
 import type { CadPrimitive, CadVec2 } from "./primitives";
 import { primitiveOsnaps, resolveOsnap } from "./osnap";

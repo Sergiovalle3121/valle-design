@@ -1,10 +1,10 @@
-# AXOS CAD Architecture Layer
+# Valle Design CAD Architecture Layer
 
 Last updated: 2026-06-30
 
 ## Scope
 
-This document tracks the first dedicated AXOS CAD architecture layer for factory and industrial engineering layouts. The goal is not to clone AutoCAD. The goal is to make the existing AXOS CAD workbench useful for plant shells, rooms, doors, columns, technical area takeoff, and utility planning.
+This document tracks the first dedicated Valle Design CAD architecture layer for factory and industrial engineering layouts. The goal is not to clone AutoCAD. The goal is to make the existing Valle Design CAD workbench useful for plant shells, rooms, doors, columns, technical area takeoff, and utility planning.
 
 ## Existing CAD implementation inspected
 
@@ -15,14 +15,14 @@ This document tracks the first dedicated AXOS CAD architecture layer for factory
 - `apps/web/src/lib/cad/layout-export-adapter.ts`
 - `apps/web/src/lib/cad/templates.ts`
 - `apps/web/src/lib/cad/commands/**`
-- `docs/cad/AXOS_CAD_CAPABILITY_AUDIT.md`
-- `docs/cad/AXOS_CAD_TREE_STATUS.md`
+- `docs/cad/VALLE_CAD_CAPABILITY_AUDIT.md`
+- `docs/cad/VALLE_CAD_TREE_STATUS.md`
 - `docs/cad-copilot-command-contract.md`
-- `docs/design/AXOS_DESIGN_LANGUAGE.md`
+- `docs/design/VALLE_DESIGN_LANGUAGE.md`
 
 ## What already existed
 
-AXOS CAD already had one editor, one asset catalog, one layer model, one object inspector, one takeoff modal, one DXF export path, one command registry, and one validation path. The editor already supported a wall drawing tool and wall mesh rendering, but doors and rooms were not exposed as first-class editable architecture primitives and the takeoff logic was still mostly equipment-oriented.
+Valle Design CAD already had one editor, one asset catalog, one layer model, one object inspector, one takeoff modal, one DXF export path, one command registry, and one validation path. The editor already supported a wall drawing tool and wall mesh rendering, but doors and rooms were not exposed as first-class editable architecture primitives and the takeoff logic was still mostly equipment-oriented.
 
 ## Architecture primitives
 
@@ -176,7 +176,7 @@ Non-redundancy guardrails:
 
 ## CAD Studio decoupling — 2026-07-15
 
-AXOS CAD is now exposed as a first-class universal design studio at
+Valle Design CAD is now exposed as a first-class universal design studio at
 `/dashboard/cad`, instead of being reachable only from the line-balancing page.
 The implementation still reuses the existing `Layout3DEditor`, command engine,
 layer model, DXF import/export, validation, takeoff, templates, symbols, and
@@ -187,7 +187,7 @@ User-visible changes:
 
 - `/dashboard/cad` opens `Layout3DEditor` in `standalone` mode with the equipment
   and universal CAD library visible first, not the station-balancing tray.
-- The global dashboard catalog and command palette include **AXOS CAD Studio** as
+- The global dashboard catalog and command palette include **Valle Design CAD Studio** as
   its own destination for architecture, engineering, civil/layout, warehouse,
   utility, and plant design work.
 - `/dashboard/line-engineering` still keeps CAD available for manufacturing line

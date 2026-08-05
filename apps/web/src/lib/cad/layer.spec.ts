@@ -1,4 +1,4 @@
-/** Capas / LAYER (AXOS-CAD-DEPTH-B4). */
+/** Capas / LAYER (VD-CAD-DEPTH-B4). */
 import { strict as assert } from "node:assert";
 import {
   BY_LAYER,

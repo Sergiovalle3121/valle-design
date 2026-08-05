@@ -195,7 +195,7 @@ Se extrae a valle-design (Fase 3, vía git filter-repo tras la limpieza de Fase 
 | `apps/web/src/lib/cad/perf-baseline.spec.ts` | Baseline de performance CAD |
 | `apps/web/src/lib/cad/plot-sheet.spec.ts` | Ploteo/publicación de hojas CAD |
 | `apps/web/src/lib/cad/polar-tracking.spec.ts` | Spec kernel CAD |
-| `apps/web/src/lib/cad/polygon-room.spec.ts` | Geometría de cuartos poligonales (AXOS-CAD-DEPTH-A6) |
+| `apps/web/src/lib/cad/polygon-room.spec.ts` | Geometría de cuartos poligonales (VD-CAD-DEPTH-A6) |
 | `apps/web/src/lib/cad/precision-tracking.spec.ts` | Spec kernel CAD |
 | `apps/web/src/lib/cad/primitive-edit.spec.ts` | Spec kernel CAD |
 | `apps/web/src/lib/cad/primitives.spec.ts` | Spec kernel CAD |
@@ -218,11 +218,11 @@ Se extrae a valle-design (Fase 3, vía git filter-repo tras la limpieza de Fase 
 | `apps/web/src/lib/cad/world-scale.spec.ts` | Spec kernel CAD |
 | `docs/cad-contracts-catalog.md` | Catálogo de contratos CAD |
 | `docs/cad-copilot-command-contract.md` | Contrato del copiloto CAD |
-| `docs/cad/**` | Documentación de arquitectura CAD (AXOS_CAD_ARCHITECTURE_LAYER.md, referencia AXOS-CAD-STUDIO) |
-| `docs/execution/AXOS_CAD_GRAND_LEAP_EXECUTION.md` | Doc de ejecución CAD (23 menciones), sin cubrir. |
-| `docs/execution/AXOS_CAD_NATIVE_CORE_EXECUTION.md` | Doc de ejecución del núcleo nativo CAD (11 menciones), sin cubrir. |
-| `docs/execution/AXOS_CAD_NEXT_EXECUTION.md` | Doc de ejecución 100% CAD (133 menciones). docs/execution/ no aparece en la lista ni lo cubre ningún glob (solo docs/cad/**, docs/ai/**, docs/design/** y los dos docs cad-*.md de raíz). |
-| `docs/execution/AXOS_CAD_PROFESSIONAL_DAILY_DRIVER.md` | Doc de ejecución CAD (8 menciones), sin cubrir. |
+| `docs/cad/**` | Documentación de arquitectura CAD (VALLE_CAD_ARCHITECTURE_LAYER.md, referencia AXOS-CAD-STUDIO) |
+| `docs/execution/VALLE_CAD_GRAND_LEAP_EXECUTION.md` | Doc de ejecución CAD (23 menciones), sin cubrir. |
+| `docs/execution/VALLE_CAD_NATIVE_CORE_EXECUTION.md` | Doc de ejecución del núcleo nativo CAD (11 menciones), sin cubrir. |
+| `docs/execution/VALLE_CAD_NEXT_EXECUTION.md` | Doc de ejecución 100% CAD (133 menciones). docs/execution/ no aparece en la lista ni lo cubre ningún glob (solo docs/cad/**, docs/ai/**, docs/design/** y los dos docs cad-*.md de raíz). |
+| `docs/execution/VALLE_CAD_PROFESSIONAL_DAILY_DRIVER.md` | Doc de ejecución CAD (8 menciones), sin cubrir. |
 | `docs/execution/CAD_ACCEPTANCE_JOURNEY_IV.md` | Doc del acceptance journey CAD (los specs e2e correspondientes ya son DESIGN_OWNED), sin cubrir. |
 | `docs/execution/CAD_PROFESSIONAL_EXPERIENCE_SCALE_GRAND_LEAP_III.md` | Doc de ejecución CAD (33 menciones), sin cubrir. |
 | `docs/execution/CAD_PROFESSIONAL_PARITY_GRAND_LEAP_IV.md` | Doc de ejecución CAD (61 menciones), sin cubrir. |
@@ -255,13 +255,13 @@ Mezcla CAD + enterprise/office. La Fase 1 lo divide; después de dividir, sus mi
 | `apps/api/src/modules/line-engineering/line-engineering.module.ts` | Providers CAD (CadIntent/CadVision/CadBlocks) + industriales; importa DocumentsModule (blob store neutral, circularidad) y entidades MES de 5 módulos; exporta LineEngineeringService a Material Staging/Operator Terminal |
 | `apps/api/src/modules/line-engineering/line-engineering.service.spec.ts` | Tests industriales (balance, staffing, SWCT) mezclados con tests CAD (CAS, blob pointers, publications server-managed) |
 | `apps/api/src/modules/line-engineering/line-engineering.service.ts` | 4,120 líneas: a DESIGN hydrate/store/CAS del CadDocument, recordCadPublication, saveLayoutArchive, rama CAD de saveLayout/getLayout/snapshots, setDxf/getDxf/clearDxf/getLayoutDxf; a ENTERPRISE IE, estaciones, calificacio |
-| `apps/web/.env.example` | Subset a design: NEXT_PUBLIC_API_URL, BACKEND_INTERNAL_URL, FRONTEND_SHARED_KEY, AXOS_SESSION_SECRET, BACKEND_SERVICE_*; el resto (demo, TURN, Giphy, flags office, NEXT_PUBLIC_SELF_SERVICE_PRODUCTS) se queda |
+| `apps/web/.env.example` | Subset a design: NEXT_PUBLIC_API_URL, BACKEND_INTERNAL_URL, FRONTEND_SHARED_KEY, el secreto de sesión de la plataforma de origen, BACKEND_SERVICE_*; el resto (demo, TURN, Giphy, flags office, NEXT_PUBLIC_SELF_SERVICE_PRODUCTS) se queda |
 | `apps/web/e2e/fixtures` | Arnés compartido (constants, mock-backend, session) sin contenido CAD; los specs CAD lo consumen — design necesita copia propia. |
 | `apps/web/e2e/fixtures/*` | Harness compartido (constants.ts, session.ts login forjado HMAC/JWT, mock-backend.ts fake enterprise 746 líneas sin handlers CAD): lo usan journeys enterprise Y todos los e2e CAD; valle-design necesita copia/extracto |
 | `apps/web/e2e/fixtures/**` | constants/mock-backend/session compartidos por specs CAD y enterprise; design necesita copia del subset |
 | `apps/web/e2e/fixtures/constants.ts` | Constantes de sesión/secreto compartidas por los fixtures E2E |
 | `apps/web/e2e/fixtures/mock-backend.ts` | Mocks de backend sin referencias a line-engineering/CAD; usado por specs enterprise/office |
-| `apps/web/e2e/fixtures/session.ts` | Forja la sesión de plataforma (cookie axos_session HMAC + JWT) usada por los E2E CAD; valle-design necesitará su propio stub de identidad |
+| `apps/web/e2e/fixtures/session.ts` | Forja la sesión de plataforma (cookie valle_session HMAC + JWT) usada por los E2E CAD; valle-design necesitará su propio stub de identidad |
 | `apps/web/e2e/visual-sweep` | Barridos visuales de toda la app que incluyen checks interactivos CAD ('Salir del CAD', botón Cerrar del CAD) — extraer los tests CAD al repo design. |
 | `apps/web/e2e/visual-sweep.spec.ts` | Sweep de rutas de todo el dashboard, incluida /dashboard/cad. |
 | `apps/web/messages` | Sin namespace CAD (las cadenas del editor están hardcodeadas en español). Claves design/cad a nivel de clave en landing.json (tarjeta 'cad', stack ERP·MES·CAD·AI), products.json (bloque 'design') y pricing.json (SKU 'des |
@@ -276,7 +276,7 @@ Mezcla CAD + enterprise/office. La Fase 1 lo divide; después de dividir, sus mi
 | `apps/web/src/lib/cad/commands/registry.spec.ts` | Registro/parser de comandos CAD (design) + comando analyze_line_balance con takt/line_balance_over_takt (enterprise) |
 | `apps/web/src/lib/cad/index.ts` | Barrel que re-exporta el núcleo CAD (design) pero también line-balance (enterprise); podar el re-export en Fase 1 |
 | `docs/GO_LIVE_CHECKLIST.md` | 90 menciones CAD: contiene la bitácora completa de las cinco olas CAD (PRs #1127–#1159) mezclada con el go-live enterprise. Las secciones CAD deberían copiarse al repo design. |
-| `docs/execution` | El resto del directorio tampoco está clasificado: AXOS_PDF_*, AXOS_SHEETS_OVERNIGHT, AXOS_PRESENTATIONS_*, AXOS_DOCUMENTS_OVERNIGHT son Office (no tocar); ERP_*, VALLE_*, CIDE_*, AXOS_ENTERPRISE_*, AXOS_INTEGRATION_*, AX |
+| `docs/execution` | El resto del directorio tampoco está clasificado: VALLE_PDF_*, VALLE_SHEETS_OVERNIGHT, VALLE_PRESENTATIONS_*, VALLE_DOCUMENTS_OVERNIGHT son Office (no tocar); ERP_*, VALLE_*, CIDE_*, VALLE_ENTERPRISE_*, VALLE_INTEGRATION_*, AX |
 | `docs/execution/ERP_MES_CAD_COLLISION_LEDGER.md` | Ledger que mezcla colisiones ERP/MES/CAD (38 menciones CAD): las entradas CAD van a valle-design, las ERP/MES quedan. |
 
 ## ENTERPRISE_OWNED (301)
@@ -436,7 +436,7 @@ Permanece en valle-enterprise.
 | `apps/api/src/modules/line-engineering/line-optimize.spec.ts` | Pruebas de optimización |
 | `apps/api/src/modules/line-engineering/line-optimize.ts` | Optimización 2-opt del orden de estaciones |
 | `apps/api/src/modules/line-engineering/line-process-templates.spec.ts` | Pruebas de templates de proceso |
-| `apps/api/src/modules/line-engineering/line-process-templates.ts` | Templates de proceso IE por industria; usa IndustryId de @axos/contracts (SHARED_PROTOCOL) |
+| `apps/api/src/modules/line-engineering/line-process-templates.ts` | Templates de proceso IE por industria; usa IndustryId de el paquete de contratos del monorepo de origen (SHARED_PROTOCOL) |
 | `apps/api/src/modules/line-engineering/line-review.spec.ts` | Pruebas de revisión |
 | `apps/api/src/modules/line-engineering/line-review.ts` | Consolidación de revisión del layout industrial (punch-list) |
 | `apps/api/src/modules/line-engineering/line-scorecard.spec.ts` | Pruebas del scorecard |
@@ -574,7 +574,7 @@ Permanece en valle-enterprise.
 | `docs/TESTING_STRATEGY.md` | Estrategia de pruebas que referencia las suites CAD; sin cubrir; Fase 1 debe extraer la sección CAD al repo design. |
 | `docs/ai/**` | Docs de la IA general CIDE/Intelligence Fabric |
 | `docs/architecture/REPOSITORY_HEALTH.md` | 5 menciones CAD (salud del monorepo, cuenta suites CAD); sin cubrir. |
-| `docs/design/**` | Design language del shell enterprise (AXOS_DESIGN_LANGUAGE/SHELL_TAXONOMY), no el producto CAD |
+| `docs/design/**` | Design language del shell enterprise (VALLE_DESIGN_LANGUAGE/SHELL_TAXONOMY), no el producto CAD |
 | `docs/legal/BRAND_AND_TRADEMARK_SWEEP.md` | Barrido de marca que incluye la marca del CAD Studio; sin cubrir. Insumo de Fase 1 para renombrar marca en valle-design. |
 | `docs/legal/IP_PROVENANCE.md` | Procedencia de IP con mención CAD; relevante para extraer el CAD con licencias limpias; sin cubrir. |
 | `docs/line-engineering-ems-balance-engine.md` | Doc del motor de balanceo de line-engineering (el lado que SE QUEDA); sin cubrir. |
@@ -582,7 +582,7 @@ Permanece en valle-enterprise.
 | `infra/cide/**` | Infra del motor de inferencia self-hosted (Ollama CPU / vLLM GPU / Railway); design la reutiliza vía CIDE_BASE_URL o duplica el compose |
 | `package-lock.json` | Lockfile del monorepo; design genera lockfile propio |
 | `package.json` | Raíz del turborepo (workspaces, override multer, scripts de gates); design crea el suyo |
-| `scripts/**` | Gates del monorepo: check:brand (allowlista AXOS-CAD-STUDIO y axos-dxf), check:licenses (política SBOM: GPL/AGPL/SSPL bloqueadas), tenant-safety, check:capabilities, commercial-deploy; valle-design necesita equivalentes  |
+| `scripts/**` | Gates del monorepo: check:brand (allowlista AXOS-CAD-STUDIO y valle-dxf), check:licenses (política SBOM: GPL/AGPL/SSPL bloqueadas), tenant-safety, check:capabilities, commercial-deploy; valle-design necesita equivalentes  |
 | `scripts/test-fixtures/**` | Fixtures del analizador tenant-safety (sin CAD) |
 | `scripts/test-tenant-safety.mjs` | Guard tenant-safety (root package.json test:tenant-safety) |
 | `turbo.json` | Sin tarea test (solo build/lint/dev/start) |
@@ -641,9 +641,9 @@ Contratos/identificadores compartidos: viven como spec versionado; cada repo tie
 | `apps/web/src/config/brand.spec.ts` | Spec del contrato de marca |
 | `apps/web/src/config/brand.ts` | productNames.design, %PRODUCT_DESIGN%, PRODUCT_LABEL.design — marca multi-producto; design la consumirá vía su propia config. |
 | `apps/web/src/config/productCatalog.spec.ts` | Spec del catálogo de productos web |
-| `apps/web/src/config/productCatalog.ts` | Vista web del catálogo de productos derivada de @axos/contracts (platform-core/erp/mes/design) |
-| `packages/contracts/**` | Paquete @axos/contracts completo: tipos/contratos neutrales (brand, pricing, price-book-mx con priceEnvVar de design, bundles, licence, api-response y contratos office). Queda físicamente en enterprise; valle-design lo c |
-| `packages/contracts/src/document-authoring.ts` | Tipos AxosAssetReference etc. del editor Word en contracts compartidos |
+| `apps/web/src/config/productCatalog.ts` | Vista web del catálogo de productos derivada de el paquete de contratos del monorepo de origen (platform-core/erp/mes/design) |
+| `packages/contracts/**` | Paquete el paquete de contratos del monorepo de origen completo: tipos/contratos neutrales (brand, pricing, price-book-mx con priceEnvVar de design, bundles, licence, api-response y contratos office). Queda físicamente en enterprise; valle-design lo c |
+| `packages/contracts/src/document-authoring.ts` | Tipos ValleAssetReference etc. del editor Word en contracts compartidos |
 | `packages/contracts/src/documents.ts` | Tipos DocumentSummary/Detail/Annotation/NcrDraft compartidos api+web para PDF Studio; permanecen en contracts |
 | `packages/contracts/src/entitlements.ts` | Máquina de estados de entitlements y funciones puras (grantIsActive/hasCapability) compartidas API↔web; design la consumirá vía API/paquete |
 | `packages/contracts/src/pdf-coordinates.ts` | normalizedBoxToPdfPoints usado por pdf-engine; contrato compartido |
@@ -678,7 +678,7 @@ Word/Sheets/Presentations/PDF Studio: fuera de alcance; solo se toca el desacopl
 | `apps/api/src/modules/presentations/**` | Backend Presentations |
 | `apps/api/src/modules/sheets/**` | Backend Sheets (exceljs) |
 | `apps/web/e2e/document-authoring.spec.ts` | Spec del editor de documentos. |
-| `apps/web/e2e/golden/10-axos-sheets-professional-core.spec.ts` | Spec de Sheets. |
+| `apps/web/e2e/golden/10-valle-sheets-professional-core.spec.ts` | Spec de Sheets. |
 | `apps/web/src/app/dashboard/pdf-studio` | Ruta PDF Studio. |
 | `apps/web/src/app/dashboard/pdf-studio/page.tsx` | PDF Studio UI — principal consumidor frontend de /documents; el CAD no usa estos endpoints |
 | `apps/web/src/app/dashboard/presentations` | Ruta Presentations. |

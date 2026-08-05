@@ -24,7 +24,7 @@ export type CadKeyboardShortcutId =
   | "object_tracking_toggle"
   | "validate_layout"
   | "export_dxf"
-  // Kit diario (AXOS-CAD-XFORM-001/MIRROR-001): transformaciones directas.
+  // Kit diario (VD-CAD-XFORM-001/MIRROR-001): transformaciones directas.
   | "rotate"
   | "scale"
   | "mirror";

@@ -1,4 +1,4 @@
-/** Paper space, viewports and deterministic vector publish (AXOS-CAD-PAPER-001). */
+/** Paper space, viewports and deterministic vector publish (VD-CAD-PAPER-001). */
 import { strict as assert } from "node:assert";
 import {
   layoutToCadDocument,
@@ -181,7 +181,7 @@ const paperSpaces = createThreeSheetDemo({
   bounds: { x: 0, y: 0, width: 200, height: 220 },
   unit: "mm",
   metadata: {
-    project: "AXOS Demo",
+    project: "Valle Design Demo",
     drawingNumber: "AX-CAD-001",
     revision: "P01",
     discipline: "Manufacturing",
@@ -330,7 +330,7 @@ assert.equal(
 );
 assert.equal(
   roundTrip.paperSpaces[0].titleBlock?.attributes.PROJECT,
-  "AXOS Demo",
+  "Valle Design Demo",
   "persistencia conserva cajetin",
 );
 assert.deepEqual(

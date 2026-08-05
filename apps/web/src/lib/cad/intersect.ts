@@ -1,5 +1,5 @@
 /**
- * Intersecciones de geometría del CAD (AXOS-CAD-DEPTH-A7).
+ * Intersecciones de geometría del CAD (VD-CAD-DEPTH-A7).
  *
  * Saber DÓNDE se cruzan dos entidades es la base de casi todo lo que hace a un
  * CAD sentirse profesional: recortar (TRIM) y extender (EXTEND) hasta un borde,

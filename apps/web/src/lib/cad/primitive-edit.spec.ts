@@ -1,4 +1,4 @@
-/** Fillet, chamfer y offset de primitivas (AXOS-CAD-DEPTH-A2). */
+/** Fillet, chamfer y offset de primitivas (VD-CAD-DEPTH-A2). */
 import { strict as assert } from "node:assert";
 import { arcPoint, arcSweepDeg, type CadVec2 } from "./primitives";
 import {

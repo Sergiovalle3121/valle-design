@@ -1,5 +1,5 @@
 /**
- * Curvas spline (Bézier cúbica) del CAD (AXOS-CAD-DEPTH-A10).
+ * Curvas spline (Bézier cúbica) del CAD (VD-CAD-DEPTH-A10).
  *
  * La SPLINE es la curva libre de AutoCAD: trazos suaves que pasan por una serie
  * de puntos (una rampa, un mueble curvo, un contorno orgánico). La caja

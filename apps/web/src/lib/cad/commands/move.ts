@@ -1,5 +1,5 @@
 /**
- * Mover selección (AXOS-CAD-MOVE-001): el MOVE de AutoCAD, conversacional.
+ * Mover selección (VD-CAD-MOVE-001): el MOVE de AutoCAD, conversacional.
  * 'mueve la puerta a 2000,650' lleva el conjunto (su esquina superior
  * izquierda, como place_symbol) al punto absoluto; 'mueve la selección
  * 500 a la derecha' desplaza en relativo. El grupo viaja rígido: un solo
@@ -43,7 +43,7 @@ export function moveSelectionPreview(
     return { summary: "", affectedObjectIds: [], operations: [], issues };
   }
 
-  // Repartir (AXOS-CAD-MOVE-005): 'reparte las sillas entre los cuartos'
+  // Repartir (VD-CAD-MOVE-005): 'reparte las sillas entre los cuartos'
   // — cada objeto viaja al centro de un cuarto hoja en round-robin (misma
   // regla de hojas que PLACE-009: solo un contenedor MÁS CHICO cuenta como
   // hijo); los que exceden el número de cuartos se escalonan 300 mm.
@@ -93,7 +93,7 @@ export function moveSelectionPreview(
     };
   }
 
-  // Acomodo en cuadrícula (AXOS-CAD-MOVE-008): 'acomoda las sillas en 2
+  // Acomodo en cuadrícula (VD-CAD-MOVE-008): 'acomoda las sillas en 2
   // filas' — matriz anclada en la esquina del conjunto (orden del plano:
   // arriba-abajo, izquierda-derecha), celdas del objeto más grande + 200.
   if (input.rows || input.cols) {
@@ -125,7 +125,7 @@ export function moveSelectionPreview(
     };
   }
 
-  // Alejar (AXOS-CAD-MOVE-009): 'aleja la silla de la mesa (800)' — el
+  // Alejar (VD-CAD-MOVE-009): 'aleja la silla de la mesa (800)' — el
   // conjunto se mueve en línea recta ALEJÁNDOSE del centro del ancla;
   // par inverso de JUNTAR. Si los centros coinciden, se aleja a la derecha.
   const awayQuery = input.awayFrom?.trim();
@@ -172,7 +172,7 @@ export function moveSelectionPreview(
     };
   }
 
-  // Pegar a la pared (AXOS-CAD-MOVE-006): 'pega la mesa a la pared' — el
+  // Pegar a la pared (VD-CAD-MOVE-006): 'pega la mesa a la pared' — el
   // conjunto se recarga contra el muro del contenedor más chico que lo
   // contiene (cuarto/zona) o, si no hay, contra la orilla del plano;
   // 'nearest' elige la pared más cercana.
@@ -239,7 +239,7 @@ export function moveSelectionPreview(
     };
   }
 
-  // Destino relacional (AXOS-CAD-MOVE-003): 'mueve la silla junto a la
+  // Destino relacional (VD-CAD-MOVE-003): 'mueve la silla junto a la
   // mesa' — el conjunto aterriza al lado del ancla (excluyendo del ancla a
   // los propios objetos movidos).
   const anchorQuery = input.anchor?.trim();
@@ -261,7 +261,7 @@ export function moveSelectionPreview(
     anchorBox = anchors[0];
   }
 
-  // Destino de zona (AXOS-CAD-MOVE-004): 'mete la mesa en la cocina' — el
+  // Destino de zona (VD-CAD-MOVE-004): 'mete la mesa en la cocina' — el
   // conjunto aterriza centrado dentro del contenedor nombrado.
   const intoQuery = input.into?.trim();
   let intoBox: CadBox | undefined;
@@ -298,7 +298,7 @@ export function moveSelectionPreview(
 
   const minX = Math.min(...objs.map((o) => o.x));
   const minY = Math.min(...objs.map((o) => o.y));
-  // 'centra la mesa' (AXOS-CAD-MOVE-002): el bounding box del conjunto al
+  // 'centra la mesa' (VD-CAD-MOVE-002): el bounding box del conjunto al
   // centro del footprint — mismo delta rígido para todos.
   const maxX = Math.max(...objs.map((o) => o.x + o.w));
   const maxY = Math.max(...objs.map((o) => o.y + o.h));

@@ -1,4 +1,4 @@
-/** Elipses y arcos elípticos (AXOS-CAD-DEPTH-B2). */
+/** Elipses y arcos elípticos (VD-CAD-DEPTH-B2). */
 import { strict as assert } from "node:assert";
 import type { CadVec2 } from "./primitives";
 import {

@@ -1,4 +1,5 @@
 import type { CadCommandHistoryItem } from "./commands";
+import { readRenamedStorageKey, type RenamableStorage } from "../storage-rename";
 
 export const CAD_COMMAND_HISTORY_LIMIT = 50;
 
@@ -19,12 +20,13 @@ const compact = (value: string | null | undefined) =>
  * are known. This prevents a shared browser profile from replaying another
  * tenant's commands while still allowing workspace/model-specific history.
  */
-export function cadCommandHistoryStorageKey(
+function commandHistoryKey(
+  prefix: string,
   scope: CadCommandSessionScope,
 ): string | null {
   if (!scope.tenantId?.trim() || !scope.userId?.trim()) return null;
   return [
-    "axos:cad:command-history:v1",
+    prefix,
     compact(scope.tenantId),
     compact(scope.userId),
     compact(scope.buildingId),
@@ -32,6 +34,34 @@ export function cadCommandHistoryStorageKey(
     compact(scope.model),
     compact(scope.revision),
   ].join(":");
+}
+
+export function cadCommandHistoryStorageKey(
+  scope: CadCommandSessionScope,
+): string | null {
+  return commandHistoryKey("valle:cad:command-history:v1", scope);
+}
+
+/**
+ * Clave del nombre de producto ANTERIOR. Se lee una vez para no borrarle el
+ * historial de comandos a quien ya trabajó con el editor; ver
+ * `lib/storage-rename.ts`.
+ */
+export function legacyCadCommandHistoryStorageKey(
+  scope: CadCommandSessionScope,
+): string | null {
+  return commandHistoryKey("axos:cad:command-history:v1", scope);
+}
+
+/** Historial persistido, migrando la clave anterior si es la única presente. */
+export function readCadCommandHistory(
+  storage: RenamableStorage,
+  scope: CadCommandSessionScope,
+): CadCommandHistoryItem[] {
+  const current = cadCommandHistoryStorageKey(scope);
+  const legacy = legacyCadCommandHistoryStorageKey(scope);
+  if (!current || !legacy) return [];
+  return parseCadCommandHistory(readRenamedStorageKey(storage, current, legacy));
 }
 
 function isHistoryItem(value: unknown): value is CadCommandHistoryItem {

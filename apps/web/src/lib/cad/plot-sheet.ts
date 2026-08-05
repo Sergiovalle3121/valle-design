@@ -1,5 +1,5 @@
 /**
- * Plano a escala con cajetín (AXOS-CAD-PLOT-001): el motor de "plot" que
+ * Plano a escala con cajetín (VD-CAD-PLOT-001): el motor de "plot" que
  * cualquier usuario de AutoCAD espera — dado el tamaño real del dibujo (mm)
  * y un papel, elige la MAYOR escala estándar que quepa en el área imprimible
  * (descontando márgenes y la franja del cajetín), centra el dibujo y arma

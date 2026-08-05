@@ -1,5 +1,5 @@
 /**
- * Duplicar selección (AXOS-CAD-DUP-001): el COPY de AutoCAD, conversacional.
+ * Duplicar selección (VD-CAD-DUP-001): el COPY de AutoCAD, conversacional.
  * "duplica la selección" o "copia esto a 800,0" emite creates con sourceId
  * (el estudio copia kind/etiqueta/capa del origen). Sin desplazamiento
  * explícito, la copia cae a +500,+500 mm para que no tape al original.
@@ -44,7 +44,7 @@ export function duplicateSelectionPreview(
     Number.isFinite(input.dx) || Number.isFinite(input.dy);
   let dx = Number.isFinite(input.dx) ? Math.round(input.dx as number) : 500;
   let dy = Number.isFinite(input.dy) ? Math.round(input.dy as number) : 500;
-  // Copia a una zona (AXOS-CAD-DUP-002): 'duplica la mesa en la bodega'
+  // Copia a una zona (VD-CAD-DUP-002): 'duplica la mesa en la bodega'
   // — la copia aterriza centrada dentro del contenedor; un offset
   // explícito sigue ganando.
   const intoQuery = input.into?.trim();

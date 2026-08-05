@@ -1,5 +1,5 @@
 /**
- * Documento CAD canónico de AXOS CAD Next (CAD-NEXT-010).
+ * Documento CAD canónico de Valle Design CAD (CAD-NEXT-010).
  *
  * El editor histórico modela todo como cajas alineadas a ejes (`Asset`),
  * anotaciones y conectores, dispersos en colecciones sueltas. Este módulo

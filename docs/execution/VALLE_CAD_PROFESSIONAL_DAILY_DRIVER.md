@@ -1,8 +1,8 @@
-# AXOS CAD Professional Daily Driver — ejecución
+# Valle Design CAD Professional Daily Driver — ejecución
 
 Fecha de corte: 2026-07-26
 Base sincronizada y rebase final: `418c087a25a1ce41c1d3c1eac5bff15ea47bd783`
-Rama: `agent/axos-cad-professional-daily-driver`
+Rama: `agent/valle-cad-professional-daily-driver`
 
 ## 1. Objetivo y frontera honesta
 

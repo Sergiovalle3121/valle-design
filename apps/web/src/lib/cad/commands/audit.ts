@@ -1,5 +1,5 @@
 /**
- * Revisión del plano (AXOS-CAD-AUDIT-001): '¿qué le falta al plano para
+ * Revisión del plano (VD-CAD-AUDIT-001): '¿qué le falta al plano para
  * protección civil?' — checklist de seguridad como reporte accionable:
  * extintor, botiquín, salida de emergencia y puerta de entrada. Cada
  * renglón dice cuántos hay o marca FALTA; el resumen enumera pendientes.

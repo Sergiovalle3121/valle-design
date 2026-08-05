@@ -1,5 +1,5 @@
 /**
- * Info de objeto (AXOS-CAD-QUERY-002): '¿cuánto mide la mesa?' o 'info de
+ * Info de objeto (VD-CAD-QUERY-002): '¿cuánto mide la mesa?' o 'info de
  * la barra' responde medidas reales, posición y rotación de cada
  * coincidencia, resaltándolas en el lienzo. El plano responde — AutoCAD
  * te deja midiendo con el mouse.
@@ -18,7 +18,7 @@ const MAX_ROWS = 8;
 const CONTAINER_KINDS = new Set(["room", "zone", "wall"]);
 
 /**
- * Ubicación (AXOS-CAD-QUERY-007): el cuarto/zona MÁS PEQUEÑO que contiene
+ * Ubicación (VD-CAD-QUERY-007): el cuarto/zona MÁS PEQUEÑO que contiene
  * el centro del objeto — el muro perimetral contiene todo, así que gana el
  * contenedor específico.
  */
@@ -53,13 +53,13 @@ export function objectInfoPreview(
     );
     return { summary: "", affectedObjectIds: [], operations: [], issues };
   }
-  // INFO del plano (AXOS-CAD-QUERY-003): '¿cuánto mide el plano?' responde
+  // INFO del plano (VD-CAD-QUERY-003): '¿cuánto mide el plano?' responde
   // footprint, área y conteo total sin necesitar un objeto.
   const folded = raw
     .toLocaleLowerCase("es-MX")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
-  // Reporte de cuartos (AXOS-CAD-QUERY-011): '¿cuánto miden los cuartos?'
+  // Reporte de cuartos (VD-CAD-QUERY-011): '¿cuánto miden los cuartos?'
   // lista cada contenedor (cuarto/zona) con medidas y área, más el total.
   if (/^(cada\s+)?(cuartos?|habitaciones|zonas)$/.test(folded)) {
     const rooms = context.objects.filter((o) =>
@@ -97,7 +97,7 @@ export function objectInfoPreview(
     const areaM2 = (w / 1000) * (h / 1000);
     const assets = context.objects.filter((o) => o.type === "asset").length;
     const stations = context.objects.length - assets;
-    // Área ocupada (AXOS-CAD-QUERY-004): suma de equipos/muebles; los
+    // Área ocupada (VD-CAD-QUERY-004): suma de equipos/muebles; los
     // contenedores (cuartos, zonas, muros) no cuentan como ocupación.
     const occupiedM2 = context.objects.reduce(
       (sum, o) =>
@@ -145,7 +145,7 @@ export function objectInfoPreview(
   if (matched.length > MAX_ROWS) {
     rows.push({ label: "…", value: `${matched.length - MAX_ROWS} más` });
   }
-  // Área total (AXOS-CAD-QUERY-005): con varias coincidencias, la suma en m².
+  // Área total (VD-CAD-QUERY-005): con varias coincidencias, la suma en m².
   const totalM2 = matched.reduce(
     (sum, o) => sum + (o.w / 1000) * (o.h / 1000),
     0,
@@ -154,7 +154,7 @@ export function objectInfoPreview(
     rows.push({ label: "Área total", value: `${totalM2.toFixed(2)} m²` });
   }
   const first = matched[0];
-  // INFO de cuarto (AXOS-CAD-QUERY-009): si la coincidencia única es un
+  // INFO de cuarto (VD-CAD-QUERY-009): si la coincidencia única es un
   // contenedor, el reporte suma su contenido (no-contenedores con centro
   // dentro) y responde área ocupada y libre del cuarto.
   if (matched.length === 1 && CONTAINER_KINDS.has(first.kind ?? "")) {

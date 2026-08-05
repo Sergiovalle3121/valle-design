@@ -1,5 +1,5 @@
 /**
- * Tipos de línea (linetypes) del CAD (AXOS-CAD-DEPTH-A5).
+ * Tipos de línea (linetypes) del CAD (VD-CAD-DEPTH-A5).
  *
  * Una línea a trazos, de eje o de detalle oculto (DASHED / CENTER / HIDDEN) es
  * geometría, no un estilo cosmético: hay que trocear la polilínea en los trazos

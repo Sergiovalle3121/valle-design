@@ -1,5 +1,5 @@
 /**
- * Bloques (BLOCK / INSERT) del CAD (AXOS-CAD-DEPTH-B1).
+ * Bloques (BLOCK / INSERT) del CAD (VD-CAD-DEPTH-B1).
  *
  * El bloque es el contenido reutilizable de AutoCAD: defines una vez una puerta,
  * un mueble o un símbolo (un conjunto de geometría con un punto base) y lo

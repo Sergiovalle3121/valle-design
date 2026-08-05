@@ -1,10 +1,10 @@
 /**
- * Cambiar tamaño (AXOS-CAD-RESIZE-001): 'cambia el tamaño de la mesa a
+ * Cambiar tamaño (VD-CAD-RESIZE-001): 'cambia el tamaño de la mesa a
  * 1500x900' — fija ancho×alto exactos en mm conservando la esquina superior
  * izquierda. Emite ops move (before/after) para que el editor y el undo lo
- * traten igual que un arrastre. Con `like` (AXOS-CAD-RESIZE-002: 'haz la
+ * traten igual que un arrastre. Con `like` (VD-CAD-RESIZE-002: 'haz la
  * mesa del tamaño del escritorio') copia el w×h de la referencia. Con
- * `dw`/`dh` (AXOS-CAD-RESIZE-003: 'haz la mesa 500 más ancha') ajusta en
+ * `dw`/`dh` (VD-CAD-RESIZE-003: 'haz la mesa 500 más ancha') ajusta en
  * mm relativos sobre el tamaño actual de cada objeto.
  */
 import { matchObjectsByName, resolveCommandTargets } from "./targets";

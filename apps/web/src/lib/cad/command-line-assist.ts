@@ -31,7 +31,7 @@ const SELECTION_MINIMUMS: Partial<Record<CadCommandId, number>> = {
   array_polar: 1,
   array_along_flow: 1,
   offset_object: 1,
-  // Kit diario (AXOS-CAD-MIRROR/XFORM-001): transformaciones sobre selección.
+  // Kit diario (VD-CAD-MIRROR/XFORM-001): transformaciones sobre selección.
   mirror_selection: 1,
   delete_selection: 1,
   duplicate_selection: 1,
@@ -50,7 +50,7 @@ const SELECTION_MINIMUMS: Partial<Record<CadCommandId, number>> = {
 
 const EMPTY_QUERY_PRIORITY: Partial<Record<CadCommandId, number>> = {
   measure_distance: 10,
-  // Kit diario universal (AXOS-CAD-ASSIST-002): con el palette vacío y sin
+  // Kit diario universal (VD-CAD-ASSIST-002): con el palette vacío y sin
   // selección, lo primero que ve cualquiera es colocar/seleccionar/contar —
   // no los comandos EMS de planta. Con selección, el bump de readiness (+6)
   // sube las transformaciones solo cuando ya aplican.
@@ -79,7 +79,7 @@ const EMPTY_QUERY_PRIORITY: Partial<Record<CadCommandId, number>> = {
   draw_rect_zone: 1,
 };
 
-// Sinónimos espaciales (AXOS-CAD-ASSIST-005): palabras que la gente
+// Sinónimos espaciales (VD-CAD-ASSIST-005): palabras que la gente
 // teclea y que no viven en ningún example del registry — sin esto, el
 // palette las castigaba con la penalización de no-match. OJO: 'mide'
 // pertenece a measure_distance (contrato del spec), no va aquí.

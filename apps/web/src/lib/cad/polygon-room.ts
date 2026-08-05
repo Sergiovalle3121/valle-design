@@ -1,5 +1,5 @@
 /**
- * Cuartos poligonales del CAD (AXOS-CAD-DEPTH-A6).
+ * Cuartos poligonales del CAD (VD-CAD-DEPTH-A6).
  *
  * El CAD histórico sólo sabía de cuartos rectangulares (la caja): un cuarto en
  * L, un salón hexagonal o una nave con chaflán eran imposibles. Este módulo
