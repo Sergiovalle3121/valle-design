@@ -49,9 +49,20 @@ async function installCadBackend(context: BrowserContext) {
  */
 async function point(page: Page, x: string, y: string) {
   const dynamic = page.getByTestId('cad-dynamic-input');
-  await dynamic.getByRole('button', { name: 'ABS', exact: true }).click();
-  await page.getByTestId('cad-dynamic-field-x').fill(x);
-  await page.getByTestId('cad-dynamic-field-y').fill(y);
+  const fieldX = page.getByTestId('cad-dynamic-field-x');
+  const fieldY = page.getByTestId('cad-dynamic-field-y');
+  // `CadDynamicInput` se REMONTA al aparecer el ancla (su `key` incluye
+  // `anchored|origin`), así que rellenarlo justo en ese instante perdía el
+  // punto en silencio: la herramienta recibía dos veces la misma coordenada y
+  // la figura se rechazaba por degenerada. Rellenar y comprobar es una sola
+  // condición reintentable, de modo que el paso espera a su propio estado.
+  await expect(async () => {
+    await dynamic.getByRole('button', { name: 'ABS', exact: true }).click();
+    await fieldX.fill(x);
+    await fieldY.fill(y);
+    await expect(fieldX).toHaveValue(x, { timeout: 1_000 });
+    await expect(fieldY).toHaveValue(y, { timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
   await dynamic.getByRole('button', { name: 'Aplicar' }).click();
 }
 

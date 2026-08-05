@@ -353,6 +353,7 @@ import {
   type CadEntity,
   type CadExternalReference,
   type CadLayerDef,
+  type CadLossManifestEntry,
   type CadPaperSpace,
   type CadPublicationRecord,
 } from "@/lib/cad/cad-document";
@@ -2531,6 +2532,28 @@ export default function Layout3DEditor({
     layerSummary: [],
     issues: [],
   });
+  /**
+   * PREFLIGHT de pérdidas del DXF.
+   *
+   * El flujo era: generar Blob → `a.click()` → cerrar el modal → decir "listo"
+   * → y SÓLO entonces calcular qué se había perdido. El usuario recibía el
+   * fichero y el mensaje de éxito antes de saber que había geometría dentro
+   * que el DXF no representa, y con el modal ya cerrado no quedaba superficie
+   * donde leer el detalle.
+   *
+   * Ahora las pérdidas se calculan ANTES de existir el Blob, con exactamente
+   * el mismo alcance, selección, capas y opciones con los que se exportaría.
+   * `token` describe esa entrada: si cambia el documento, la selección, el
+   * alcance o las opciones, la aceptación anterior deja de ser válida.
+   */
+  const [dxfPreflight, setDxfPreflight] = useState<{
+    token: string;
+    losses: CadLossManifestEntry[];
+    blocking: boolean;
+  } | null>(null);
+  const [dxfPreflightAccepted, setDxfPreflightAccepted] = useState<string | null>(
+    null,
+  );
   const [sheetPackageDraft, setSheetPackageDraft] =
     useState<CadSheetPackageDraft>({
       project: branding.productLabel,
@@ -14494,6 +14517,35 @@ export default function Layout3DEditor({
     setDxfExportSummary(computeDxfExportSummary(next));
     setShowDxfExport(true);
   };
+  /**
+   * Huella de la ENTRADA del preflight: documento, alcance, selección, capas
+   * ocultas y opciones. Aceptar unas pérdidas vale sólo para esta huella; en
+   * cuanto cambia algo que puede alterar lo que se pierde, hay que volver a
+   * mirar. Se usa la versión del documento —que sube en cada `commitChange`—
+   * en vez de serializarlo entero, que en un plano grande sería caro.
+   */
+  const dxfPreflightToken = (
+    options: DxfExportOptions,
+    document: CadDocument,
+  ) =>
+    JSON.stringify({
+      documentId: currentDocumentIdRef.current,
+      version: document.meta.version,
+      entities: document.entities.length,
+      scope: options.scope,
+      includeHidden: options.includeHidden,
+      includeMeasurements: options.includeMeasurements,
+      includeLabels: options.includeLabels,
+      units: options.units,
+      selection:
+        options.scope === "selection"
+          ? [...nativeSelectionIdsRef.current].sort()
+          : null,
+      hiddenLayers: document.layers
+        .filter((layer) => layer.visible === false)
+        .map((layer) => layer.id)
+        .sort(),
+    });
   const exportDxf = async (options: DxfExportOptions = dxfExportOptions) => {
     try {
       const summary = computeDxfExportSummary(options);
@@ -14697,6 +14749,47 @@ export default function Layout3DEditor({
           fileComment: `${branding.productLabel} ${model} ${revision}`,
         },
       );
+      // ── PREFLIGHT ──────────────────────────────────────────────────────
+      // Las pérdidas se calculan con el MISMO filtro que se acaba de usar para
+      // construir el modelo, y ANTES de que exista el Blob. Un DXF limpio
+      // descarga directamente; uno con pérdidas exige verlas primero, y si
+      // alguna elimina geometría, aceptarlas explícitamente.
+      const exportLosses = cadDocumentDxfExportLosses(
+        dxfDocument,
+        dxfExportEntityFilter,
+      );
+      const token = dxfPreflightToken(options, dxfDocument);
+      if (exportLosses.length > 0) {
+        const blocking = exportLosses.some((loss) => loss.severity === "error");
+        const alreadyReported = dxfPreflight?.token === token;
+        setDxfPreflight({ token, losses: exportLosses, blocking });
+        // Primera pulsación sobre una entrada con pérdidas: se ENSEÑA el
+        // informe y no se descarga nada. Nunca se anuncia éxito antes de que
+        // el usuario haya podido ver lo que el DXF no representa.
+        if (!alreadyReported) {
+          toast.error(
+            blocking
+              ? `El DXF no puede representar ${exportLosses.filter((loss) => loss.severity === "error").length} entidad(es). Revisa el informe y confirma si quieres descargarlo igualmente.`
+              : `El DXF degrada ${exportLosses.length} entidad(es). Revisa el informe antes de descargar.`,
+            "DXF",
+          );
+          return;
+        }
+        // Una pérdida que ELIMINA geometría exige además aceptación explícita;
+        // una degradación se descarga tras haberse mostrado. La aceptación es
+        // de ESTA entrada: si cambió el documento, la selección, el alcance o
+        // las opciones, el token cambia y vuelve a pedirse.
+        if (blocking && dxfPreflightAccepted !== token) {
+          toast.error(
+            "Confirma que aceptas las pérdidas antes de descargar el DXF.",
+            "DXF",
+          );
+          return;
+        }
+      } else {
+        setDxfPreflight(null);
+      }
+
       const blob = new Blob([exported.content], { type: "application/dxf" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -14705,28 +14798,14 @@ export default function Layout3DEditor({
       a.click();
       URL.revokeObjectURL(url);
       setShowDxfExport(false);
+      setDxfPreflight(null);
+      setDxfPreflightAccepted(null);
       toast.success(
-        `Layout exportado a DXF (${exported.entityCount} entidades).`,
+        exportLosses.length
+          ? `Layout exportado a DXF (${exported.entityCount} entidades) con ${exportLosses.length} pérdida(s) aceptada(s). Conserva el documento de Valle Design como original.`
+          : `Layout exportado a DXF (${exported.entityCount} entidades).`,
         "DXF",
       );
-      // El DXF exportado es PARCIAL por diseño. Callarse las degradaciones
-      // haría que el usuario confiara en un fichero que perdió geometría, así
-      // que se avisa con el MISMO filtro que se acaba de exportar.
-      const exportLosses = cadDocumentDxfExportLosses(
-        dxfDocument,
-        dxfExportEntityFilter,
-      );
-      if (exportLosses.length > 0) {
-        const dropped = exportLosses.filter(
-          (loss) => loss.severity === "error",
-        ).length;
-        toast.error(
-          dropped > 0
-            ? `El DXF no incluye ${dropped} entidad(es) sin representación y degrada otras ${exportLosses.length - dropped}. Conserva el documento de Valle Design como original.`
-            : `El DXF degrada ${exportLosses.length} entidad(es) (elevación Z o pesos de spline). Conserva el documento de Valle Design como original.`,
-          "DXF",
-        );
-      }
     } catch {
       toast.error("No se pudo exportar el DXF.", "DXF");
     }
@@ -21678,12 +21757,81 @@ export default function Layout3DEditor({
                   </div>
                 )}
               </div>
+              {/* MANIFIESTO DE PÉRDIDAS — se muestra ANTES de descargar, no
+                  después. Cada fila dice qué entidad, de qué gravedad y por
+                  qué, para que la decisión sea informada y no un mensaje que
+                  llega cuando el fichero ya está en la carpeta de descargas. */}
+              {dxfPreflight && (
+                <div
+                  data-testid="cad-dxf-loss-manifest"
+                  data-blocking={dxfPreflight.blocking ? "true" : "false"}
+                  data-losses={dxfPreflight.losses.length}
+                  className={`space-y-1.5 rounded-lg border px-2 py-2 text-[11px] ${dxfPreflight.blocking ? "border-rose-400/30 bg-rose-400/10 text-rose-100" : "border-amber-400/30 bg-amber-400/10 text-amber-100"}`}
+                >
+                  <div className="font-semibold">
+                    {dxfPreflight.blocking
+                      ? "Este DXF perdería geometría"
+                      : "Este DXF degrada parte del dibujo"}
+                  </div>
+                  <div className="max-h-40 space-y-1 overflow-y-auto">
+                    {dxfPreflight.losses.slice(0, 40).map((loss, index) => (
+                      <div
+                        key={`${loss.code}:${loss.entityId ?? index}`}
+                        data-testid="cad-dxf-loss-row"
+                        className="flex items-start gap-1.5"
+                      >
+                        <span className="mt-0.5 shrink-0 font-mono text-[9.5px] uppercase opacity-70">
+                          {loss.severity}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          {loss.entityId ? (
+                            <b className="font-mono text-[10px]">
+                              {loss.entityId}
+                            </b>
+                          ) : null}{" "}
+                          {loss.detail}
+                        </span>
+                      </div>
+                    ))}
+                    {dxfPreflight.losses.length > 40 && (
+                      <div className="opacity-70">
+                        …y {dxfPreflight.losses.length - 40} más.
+                      </div>
+                    )}
+                  </div>
+                  <label className="flex items-start gap-1.5">
+                    <input
+                      data-testid="cad-dxf-loss-accept"
+                      type="checkbox"
+                      checked={dxfPreflightAccepted === dxfPreflight.token}
+                      onChange={(event) =>
+                        setDxfPreflightAccepted(
+                          event.target.checked ? dxfPreflight.token : null,
+                        )
+                      }
+                      className="mt-0.5"
+                    />
+                    <span>
+                      Entiendo lo que este DXF no representa y quiero
+                      descargarlo igualmente. El documento de Valle Design sigue
+                      siendo el original.
+                    </span>
+                  </label>
+                </div>
+              )}
               <button
-                disabled={!dxfExportSummary.canExport}
+                data-testid="cad-dxf-download"
+                disabled={
+                  !dxfExportSummary.canExport ||
+                  (dxfPreflight?.blocking === true &&
+                    dxfPreflightAccepted !== dxfPreflight.token)
+                }
                 onClick={() => exportDxf(dxfExportOptions)}
-                className={`w-full rounded-lg px-3 py-2 text-[12px] font-semibold text-white ${dxfExportSummary.canExport ? "bg-cyan-600 hover:bg-cyan-500" : "cursor-not-allowed bg-gray-700 text-gray-500 dark:text-gray-400"}`}
+                className={`w-full rounded-lg px-3 py-2 text-[12px] font-semibold text-white ${dxfExportSummary.canExport && !(dxfPreflight?.blocking === true && dxfPreflightAccepted !== dxfPreflight.token) ? "bg-cyan-600 hover:bg-cyan-500" : "cursor-not-allowed bg-gray-700 text-gray-500 dark:text-gray-400"}`}
               >
-                Descargar DXF
+                {dxfPreflight && dxfPreflightAccepted === dxfPreflight.token
+                  ? "Descargar DXF de todos modos"
+                  : "Descargar DXF"}
               </button>
             </div>
           </div>

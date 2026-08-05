@@ -74,12 +74,37 @@ async function openStudio(context: BrowserContext, page: Page, entityIds: string
   return backend;
 }
 
-/** Fija un punto en coordenadas ABSOLUTAS por la entrada dinámica. */
+/**
+ * Fija un punto en coordenadas ABSOLUTAS por la entrada dinámica.
+ *
+ * `CadDynamicInput` se REMONTA en cuanto aparece el ancla: su `key` incluye
+ * `anchored|origin`, así que en cuanto se fija el primer punto React sustituye
+ * el formulario por uno nuevo con los campos vacíos. Rellenarlo mientras
+ * ocurre ese reemplazo pierde el punto en silencio, y entonces LINE recibe dos
+ * veces la misma coordenada, se rechaza por degenerada y no se crea nada.
+ *
+ * Por eso cada punto espera a que SU formulario esté listo antes de escribir y
+ * confirma que el valor se quedó puesto antes de aplicar: el paso espera a su
+ * propia condición en vez de a que el reloj acompañe.
+ */
 async function point(page: Page, x: string, y: string) {
   const dynamic = page.getByTestId('cad-dynamic-input');
-  await dynamic.getByRole('button', { name: 'ABS', exact: true }).click();
-  await page.getByTestId('cad-dynamic-field-x').fill(x);
-  await page.getByTestId('cad-dynamic-field-y').fill(y);
+  const fieldX = page.getByTestId('cad-dynamic-field-x');
+  const fieldY = page.getByTestId('cad-dynamic-field-y');
+  // Rellenar y COMPROBAR es una sola condición reintentable: si el formulario
+  // se sustituyó a mitad, los campos vuelven vacíos, el intento falla y se
+  // repite sobre el formulario nuevo. Sin esto el punto se perdía en silencio
+  // de vez en cuando y el fallo aparecía después, como una figura que no se
+  // creó. (No se puede exigir que el campo esté vacío de partida: sólo se
+  // remonta al aparecer el ancla, así que del tercer punto en adelante
+  // conserva legítimamente el valor anterior.)
+  await expect(async () => {
+    await dynamic.getByRole('button', { name: 'ABS', exact: true }).click();
+    await fieldX.fill(x);
+    await fieldY.fill(y);
+    await expect(fieldX).toHaveValue(x, { timeout: 1_000 });
+    await expect(fieldY).toHaveValue(y, { timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
   await dynamic.getByRole('button', { name: 'Aplicar' }).click();
 }
 

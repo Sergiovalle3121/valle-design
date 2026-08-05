@@ -26,7 +26,16 @@ const rect = mapDxfEntityToPrimitive({
   ],
 }).primitive;
 assert.equal(rect?.kind, "rect", "closed axis-aligned polyline maps to rect");
-assert.equal(rect?.points.length, 5, "closed rectangle is explicitly closed");
+// El cierre se DECLARA (bit 1 del grupo 70). Antes se afirmaba `points.length
+// === 5`, es decir el canal lateral: repetir el primer vértice al final. Eso
+// arrastraba un segmento nulo hasta el documento canónico y no distinguía un
+// contorno cerrado de una polilínea abierta de extremos coincidentes.
+assert.equal(rect?.closed, true, "closed rectangle carries the explicit flag");
+assert.equal(
+  rect?.points.length,
+  4,
+  "four unique corners: closure is the flag, not a repeated point",
+);
 assert.equal(
   mapDxfEntityToPrimitive({
     type: "TEXT",

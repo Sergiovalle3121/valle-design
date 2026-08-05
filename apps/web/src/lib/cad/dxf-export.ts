@@ -445,12 +445,20 @@ function pushMText(lines: string[], layer: string, text: CadDxfExportMText): boo
   }
   return true;
 }
-function rectToClosedPoints(points: CadDxfPoint[]): CadDxfPoint[] {
-  if (points.length >= 5) return points.slice(0, 5);
-  if (points.length >= 4) return [...points.slice(0, 4), points[0]];
+/**
+ * Las CUATRO esquinas de un rectángulo, sin repetir la primera.
+ *
+ * Antes devolvía cinco puntos y el escritor emitía además 70=1: un contorno
+ * cerrado con un último tramo de longitud cero. El cierre lo declara el grupo
+ * 70; el quinto punto sólo añadía un segmento nulo. Se acepta una entrada de
+ * cinco puntos (cerrada al viejo estilo) para no romper llamadas existentes.
+ */
+function rectCornerPoints(points: CadDxfPoint[]): CadDxfPoint[] {
+  if (points.length >= 5) return points.slice(0, 4);
+  if (points.length >= 4) return points.slice(0, 4);
   if (points.length >= 2) {
     const [a, b] = points;
-    return [a, { x: b.x, y: a.y }, b, { x: a.x, y: b.y }, a];
+    return [a, { x: b.x, y: a.y }, b, { x: a.x, y: b.y }];
   }
   return points;
 }
@@ -495,11 +503,14 @@ function writePrimitiveGeometry(
     return { wrote: true, isGeometry: true };
   }
   if (primitive.kind === "polyline" && primitive.points.length >= 2) {
-    pushPolyline(lines, layer, primitive.points, false);
+    // El cierre lo declara la primitiva. Estaba fijado a `false`, así que TODO
+    // contorno cerrado salía con 70=0 —abierto para cualquier lector de DXF—
+    // aunque llevase sus vértices coincidentes.
+    pushPolyline(lines, layer, primitive.points, primitive.closed === true);
     return { wrote: true, isGeometry: true };
   }
   if (primitive.kind === "rect" && primitive.points.length >= 2) {
-    pushPolyline(lines, layer, rectToClosedPoints(primitive.points), true);
+    pushPolyline(lines, layer, rectCornerPoints(primitive.points), true);
     return { wrote: true, isGeometry: true };
   }
   if (
@@ -729,10 +740,13 @@ interface PreparedSemanticDimension {
 function semanticDimensionBlockPrimitives(dimension: PreparedSemanticDimension): CadDxfPrimitive[] {
   const layer = safeLayerName(dimension.entity.layer ?? MEASUREMENT_LAYER);
   return [
+    // El cierre se declara con `closed`; repetir el primer punto añadía un
+    // tramo nulo a la geometría del bloque de cota.
     ...dimension.geometry.paths.map((path): CadDxfPrimitive => ({
       kind: path.closed ? "rect" : path.points.length === 2 ? "line" : "polyline",
       layer,
-      points: path.closed ? [...path.points, path.points[0]] : path.points,
+      points: path.points,
+      ...(path.closed ? { closed: true } : {}),
     })),
     { kind: "text", layer, points: [dimension.geometry.textAnchor], text: dimension.geometry.label },
   ];
