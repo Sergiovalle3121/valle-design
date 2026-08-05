@@ -7,7 +7,14 @@ import {
 
 type WorkerRequest =
   | { id: number; type: 'encode'; document: CadDocument }
-  | { id: number; type: 'decode'; format: CadRecoveryPayloadFormat; buffer: ArrayBuffer };
+  | {
+      id: number;
+      type: 'decode';
+      format: CadRecoveryPayloadFormat;
+      buffer: ArrayBuffer;
+      /** Hash con el que se guardó; el worker verifica antes de devolver. */
+      expectedSha256?: string;
+    };
 
 type WorkerResponse =
   | { id: number; ok: true; result: unknown }
@@ -29,7 +36,11 @@ workerScope.onmessage = (event) => {
       );
       return;
     }
-    const document = await decodeCadRecoveryPayload(request.format, request.buffer);
+    const document = await decodeCadRecoveryPayload(
+      request.format,
+      request.buffer,
+      request.expectedSha256,
+    );
     workerScope.postMessage({ id: request.id, ok: true, result: document });
   })().catch((cause) => {
     workerScope.postMessage({
