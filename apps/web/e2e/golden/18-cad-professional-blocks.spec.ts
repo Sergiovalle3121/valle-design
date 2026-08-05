@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadV1Backend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
+import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadBlockDefinition, CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
 
@@ -102,8 +103,13 @@ test('BLOCK/INSERT stays native through tenant library, attributes, persistence,
   await page.keyboard.press('Control+Shift+z');
   await expect(page.getByTestId('cad-native-property-attribute:MARK')).toHaveValue('D-03');
 
-  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
-  await expect.poll(() => backend.snapshot().version).toBe(1);
+  // El recorrido hasta aquí abarca varios pasos de UI y supera los 2 s del
+  // debounce, así que el autosave persiste parte del lote de forma legítima:
+  // el número EXACTO de versiones dependía del tiempo del usuario, no del
+  // contrato. Se confirma que no queda trabajo pendiente y se afirma el
+  // CONTENIDO, que es la sustancia. El conteo exacto se sigue afirmando donde
+  // SÍ es el contrato (10-cad-native-entities, 30-cad-save-affordance).
+  await saveAndSettle(page, backend);
   const stored = backend.snapshot().document;
   const storedInserts = stored.entities.filter((entity): entity is CadInsert => entity.type === 'insert');
   expect(stored.blocks).toHaveLength(1);
@@ -128,8 +134,7 @@ test('BLOCK/INSERT stays native through tenant library, attributes, persistence,
   await page.getByTitle(/^BLOCK\/INSERT:/).click();
   await page.getByTestId('cad-block-explode').click();
   await expect(properties).not.toBeVisible();
-  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
-  await expect.poll(() => backend.snapshot().version).toBe(2);
+  await saveAndSettle(page, backend);
   const exploded = backend.snapshot().document;
   expect(exploded.entities.filter((entity) => entity.type === 'insert')).toHaveLength(1);
   expect(exploded.entities.some((entity) => entity.type === 'line' && entity.id.startsWith(`${transformed!.id}:`))).toBe(true);

@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Artefactos de Playwright: trazas, informes y recursos capturados del
+    // navegador. Son JS de terceros generado en tiempo de ejecución; lintarlos
+    // ensucia el gate con errores que no vienen del código del producto.
+    "e2e/.test-results/**",
+    "e2e/.report/**",
   ]),
   {
     // `eslint-plugin-react-hooks` v7 (que arrastra eslint-config-next 16) añade

@@ -2,6 +2,7 @@ import { expect, test, type BrowserContext } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
+import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
 
 type CadHatch = Extract<CadEntity, { type: 'hatch' }>;
@@ -66,8 +67,13 @@ test('HATCH remains associated, regenerates with its source and reports a broken
   const majorAxisX = page.getByTestId('cad-native-property-majorAxisX');
   await majorAxisX.fill('1000');
   await majorAxisX.blur();
-  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
-  await expect.poll(() => backend.snapshot().version).toBe(1);
+  // El recorrido hasta aquí abarca varios pasos de UI y supera los 2 s del
+  // debounce, así que el autosave persiste parte del lote de forma legítima:
+  // el número EXACTO de versiones dependía del tiempo del usuario, no del
+  // contrato. Se confirma que no queda trabajo pendiente y se afirma el
+  // CONTENIDO, que es la sustancia. El conteo exacto se sigue afirmando donde
+  // SÍ es el contrato (10-cad-native-entities, 30-cad-save-affordance).
+  await saveAndSettle(page, backend);
   const associated = backend.snapshot().document.entities.find((entity): entity is CadHatch => entity.type === 'hatch');
   expect(associated).toBeDefined();
   expect(associated?.associationStatus).toBe('associated');
@@ -75,8 +81,7 @@ test('HATCH remains associated, regenerates with its source and reports a broken
   expect(Math.max(...(associated?.boundaries[0] ?? []).map((point) => point.x))).toBeGreaterThan(8_000);
 
   await page.getByTestId('cad-native-delete').click();
-  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
-  await expect.poll(() => backend.snapshot().version).toBe(2);
+  await saveAndSettle(page, backend);
   const broken = backend.snapshot().document.entities.find((entity): entity is CadHatch => entity.type === 'hatch');
   expect(broken?.associationStatus).toBe('broken');
 });
@@ -97,8 +102,7 @@ test('HATCH resolves an exact interior point through the production boundary pic
   const properties = page.getByTestId('cad-native-properties');
   await expect(properties).toContainText('HATCH');
   await expect(properties).toContainText('associated');
-  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
-  await expect.poll(() => backend.snapshot().version).toBe(1);
+  await saveAndSettle(page, backend);
 
   const hatch = backend.snapshot().document.entities.find((entity): entity is CadHatch => entity.type === 'hatch');
   expect(hatch).toBeDefined();
