@@ -740,10 +740,13 @@ interface PreparedSemanticDimension {
 function semanticDimensionBlockPrimitives(dimension: PreparedSemanticDimension): CadDxfPrimitive[] {
   const layer = safeLayerName(dimension.entity.layer ?? MEASUREMENT_LAYER);
   return [
+    // El cierre se declara con `closed`; repetir el primer punto añadía un
+    // tramo nulo a la geometría del bloque de cota.
     ...dimension.geometry.paths.map((path): CadDxfPrimitive => ({
       kind: path.closed ? "rect" : path.points.length === 2 ? "line" : "polyline",
       layer,
-      points: path.closed ? [...path.points, path.points[0]] : path.points,
+      points: path.points,
+      ...(path.closed ? { closed: true } : {}),
     })),
     { kind: "text", layer, points: [dimension.geometry.textAnchor], text: dimension.geometry.label },
   ];
