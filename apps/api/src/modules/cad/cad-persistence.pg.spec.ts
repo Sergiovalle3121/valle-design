@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
 import { DataSource } from 'typeorm';
 import {
@@ -164,6 +165,88 @@ describePostgres('CAD persistence atomicity (PostgreSQL)', () => {
     });
   });
 
+  /**
+   * Fase 2 — un documento RECHAZADO por el validador no deja NADA detrás.
+   *
+   * El validador falla cerrado en la frontera, antes de abrir transacción. Lo
+   * que esta prueba fija —sobre PostgreSQL real, no sobre un mock— es la otra
+   * mitad: que ese rechazo no crea documento, ni versión, ni blob, ni uso, ni
+   * evento de outbox, y que el documento ANTERIOR queda intacto y legible.
+   * Un 400 que además corrompiera el estado sería peor que un 500.
+   */
+  it('rejects an invalid document without leaving version, blob, usage or outbox, and keeps the previous content intact', async () => {
+    await inOrganization(async () => {
+      const created = await repository.createDocument({ name: 'Plano válido' });
+      const sound = {
+        meta: { schema: 3, version: 1, unit: 'mm' },
+        entities: [
+          {
+            id: 'line-1',
+            type: 'line',
+            start: { x: 0, y: 0, z: 0 },
+            end: { x: 1_000, y: 0, z: 0 },
+            layer: '0',
+          },
+        ],
+        modelSpace: { entityIds: ['line-1'] },
+      };
+      await repository.saveContent(created.id, {
+        document: sound,
+        expectedVersion: 0,
+      });
+
+      const versionsBefore = await source
+        .getRepository(CadDocumentVersion)
+        .count();
+      const blobsBefore = await source.getRepository(DesignBlob).count();
+      const usageBefore = await source.getRepository(UsageLedger).count();
+      const outboxBefore = await source.getRepository(DomainOutbox).count();
+
+      // Geometría imposible: una polilínea cerrada con un tramo de cierre de
+      // longitud cero y un INSERT que apunta a un bloque inexistente.
+      const corrupt = {
+        meta: { schema: 3, version: 1, unit: 'mm' },
+        entities: [
+          {
+            id: 'pl-1',
+            type: 'polyline',
+            closed: true,
+            vertices: [
+              { x: 0, y: 0, z: 0 },
+              { x: 10, y: 0, z: 0 },
+              { x: 10, y: 10, z: 0 },
+              { x: 0, y: 0, z: 0 },
+            ],
+            layer: '0',
+          },
+        ],
+        modelSpace: { entityIds: ['pl-1'] },
+      };
+      await expect(
+        repository.saveContent(created.id, {
+          document: corrupt,
+          expectedVersion: 1,
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(await source.getRepository(CadDocumentVersion).count()).toBe(
+        versionsBefore,
+      );
+      expect(await source.getRepository(DesignBlob).count()).toBe(blobsBefore);
+      expect(await source.getRepository(UsageLedger).count()).toBe(usageBefore);
+      expect(await source.getRepository(DomainOutbox).count()).toBe(
+        outboxBefore,
+      );
+
+      // Y el documento anterior sigue siendo exactamente el que era.
+      const stored = await repository.getDocument(created.id);
+      expect(stored.cadDocumentVersion).toBe(1);
+      expect(
+        await cadDocuments.hydrateCadDocument(stored.cadDocument!),
+      ).toEqual(sound);
+    });
+  });
+
   it('rolls back a losing idempotency payload without CAS, version, usage or orphan blob', async () => {
     await inOrganization(async () => {
       const created = await repository.createDocument({
@@ -280,6 +363,7 @@ function largeDocument(): Record<string, unknown> {
         type: 'line',
         start: { x: 0, y: 0 },
         end: { x: 1000, y: 0 },
+        layer: '0',
       },
     ],
     paperSpaces: [{ id: 'sheet-1', page: { width: 297, height: 210 } }],

@@ -22,6 +22,16 @@ function objectValue(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
+/**
+ * Un `String(x)` sobre `unknown` produce `[object Object]` cuando llega un
+ * objeto, y ese texto acabaría en un mensaje de error o —peor— comparándose
+ * con un id real. En un validador que existe para no fiarse de la entrada, lo
+ * que no es una cadena no se convierte: se trata como ausente.
+ */
+function stringValue(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+
 function finitePositive(value: unknown): boolean {
   return typeof value === 'number' && Number.isFinite(value) && value > 0;
 }
@@ -77,12 +87,103 @@ function assertFiniteNumbers(node: unknown, entityId: string, depth = 0): void {
  * cruzaban la frontera y rompían render, índice espacial y exportación más
  * tarde, lejos de su causa. Aquí se falla CERRADO y en el punto de entrada.
  */
-function assertEntityInvariants(entities: unknown[]): void {
+/** Tolerancia de coincidencia: por debajo, dos puntos SON el mismo punto. */
+const POINT_EPSILON = 1e-9;
+
+/** Un punto canónico: `x`/`y` numéricos y finitos; `z` opcional. */
+function assertPoint(
+  value: unknown,
+  entityId: string,
+  what: string,
+): { x: number; y: number } {
+  const point = objectValue(value);
+  if (!point) {
+    throw new BadRequestException(
+      `CadDocument: ${what} de ${entityId} debe ser un punto {x, y}.`,
+    );
+  }
+  const x = point.x;
+  const y = point.y;
+  if (
+    typeof x !== 'number' ||
+    typeof y !== 'number' ||
+    !Number.isFinite(x) ||
+    !Number.isFinite(y)
+  ) {
+    throw new BadRequestException(
+      `CadDocument: ${what} de ${entityId} necesita coordenadas numéricas finitas.`,
+    );
+  }
+  if (point.z !== undefined && typeof point.z !== 'number') {
+    throw new BadRequestException(
+      `CadDocument: ${what} de ${entityId} tiene una cota z no numérica.`,
+    );
+  }
+  return { x, y };
+}
+
+function samePoint(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+): boolean {
+  return (
+    Math.abs(a.x - b.x) <= POINT_EPSILON && Math.abs(a.y - b.y) <= POINT_EPSILON
+  );
+}
+
+function assertEntityInvariants(
+  entities: unknown[],
+  declaredLayers: Set<string> | null,
+  where = 'el documento',
+  /**
+   * Las entidades de PRIMER NIVEL siempre declaran capa: es lo que fija color,
+   * visibilidad, bloqueo y exportación. Dentro de una DEFINICIÓN de bloque la
+   * capa puede heredarse del INSERT (semántica ByBlock del propio DXF), así que
+   * ahí no se exige su presencia — pero si viene, tiene que ser válida y
+   * resolver. Se comprueba lo que hay; no se inventa un requisito sobre
+   * definiciones heredadas.
+   */
+  requireLayer = true,
+): void {
   for (const raw of entities) {
-    const entity = raw as Record<string, unknown>;
-    const id = String(entity.id);
+    const entity = objectValue(raw);
+    if (!entity) {
+      throw new BadRequestException(
+        `CadDocument: ${where} contiene una entidad que no es un objeto.`,
+      );
+    }
+    const id = stringValue(entity.id) || '(sin id)';
     const type = entity.type;
     assertFiniteNumbers(entity, id);
+
+    // Toda entidad vive en una capa. Sin ella no hay color, visibilidad,
+    // bloqueo ni exportación posibles, y el editor la dibuja en la nada.
+    const layer = entity.layer;
+    if (layer !== undefined || requireLayer) {
+      if (typeof layer !== 'string' || !layer.trim()) {
+        throw new BadRequestException(
+          `CadDocument: la entidad ${id} necesita una capa.`,
+        );
+      }
+      // Sólo puede comprobarse la EXISTENCIA cuando el documento declara sus
+      // capas. Un documento heredado que no las trae no se rechaza por eso: se
+      // comprueba lo que hay, no se finge lo que falta.
+      if (declaredLayers && !declaredLayers.has(layer)) {
+        throw new BadRequestException(
+          `CadDocument: la entidad ${id} referencia la capa inexistente ${layer}.`,
+        );
+      }
+    }
+
+    if (type === 'line') {
+      const start = assertPoint(entity.start, id, 'el inicio de la línea');
+      const end = assertPoint(entity.end, id, 'el final de la línea');
+      if (samePoint(start, end)) {
+        throw new BadRequestException(
+          `CadDocument: la línea ${id} necesita dos extremos distintos.`,
+        );
+      }
+    }
 
     if (type === 'circle' || type === 'arc') {
       const radius = entity.radius;
@@ -95,10 +196,49 @@ function assertEntityInvariants(entities: unknown[]): void {
 
     if (type === 'polyline') {
       const vertices = entity.vertices;
+      const closed = entity.closed;
+      if (closed !== undefined && typeof closed !== 'boolean') {
+        throw new BadRequestException(
+          `CadDocument: la polilínea ${id} tiene un \`closed\` que no es booleano.`,
+        );
+      }
       if (!Array.isArray(vertices) || vertices.length < 2) {
         throw new BadRequestException(
           `CadDocument: la polilínea ${id} requiere al menos 2 vértices.`,
         );
+      }
+      // Una CERRADA necesita tres vértices para encerrar área: con dos es un
+      // segmento recorrido de ida y vuelta.
+      if (closed === true && vertices.length < 3) {
+        throw new BadRequestException(
+          `CadDocument: la polilínea cerrada ${id} requiere al menos 3 vértices.`,
+        );
+      }
+      const points = vertices.map((vertex, index) => {
+        const point = assertPoint(vertex, id, `el vértice ${index}`);
+        const bulge = (vertex as Record<string, unknown>)?.bulge;
+        if (
+          bulge !== undefined &&
+          (typeof bulge !== 'number' || !Number.isFinite(bulge))
+        ) {
+          throw new BadRequestException(
+            `CadDocument: el vértice ${index} de ${id} tiene un bulge no finito.`,
+          );
+        }
+        return point;
+      });
+      // Un tramo de longitud cero no es geometría: rompe normales, offset,
+      // OSNAP y el propio DXF. En una cerrada, el tramo de CIERRE cuenta
+      // igual, y repetir el primer vértice al final es justo ese caso.
+      const segments = closed === true ? points.length : points.length - 1;
+      for (let index = 0; index < segments; index += 1) {
+        const from = points[index];
+        const to = points[(index + 1) % points.length];
+        if (samePoint(from, to)) {
+          throw new BadRequestException(
+            `CadDocument: la polilínea ${id} tiene un segmento nulo entre los vértices ${index} y ${(index + 1) % points.length}.`,
+          );
+        }
       }
     }
 
@@ -170,6 +310,17 @@ function assertReferentialIntegrity(
       }
       seen.add(id);
     }
+    // Una entidad que existe pero NO está en el orden de dibujo no se dibuja
+    // jamás: está en el documento, ocupa memoria, viaja en cada guardado y el
+    // usuario no puede verla ni seleccionarla. Cuando el documento declara su
+    // orden, ese orden tiene que cubrirlo entero.
+    for (const id of entityIds) {
+      if (!seen.has(id)) {
+        throw new BadRequestException(
+          `CadDocument: la entidad ${id} existe pero no se dibuja: falta en el orden de dibujo.`,
+        );
+      }
+    }
   }
 
   // Recursión de bloques: un ciclo cuelga render, explode y purge.
@@ -177,16 +328,60 @@ function assertReferentialIntegrity(
   if (!Array.isArray(blocks)) return;
   const children = new Map<string, string[]>();
   for (const rawBlock of blocks) {
-    const block = rawBlock as Record<string, unknown> | null;
-    const blockId = typeof block?.id === 'string' ? block.id : '';
-    if (!blockId) continue;
+    const block = objectValue(rawBlock);
+    const blockId = typeof block?.id === 'string' ? block.id.trim() : '';
+    // Un bloque sin id se saltaba en silencio: sus entidades no se validaban,
+    // su recursión no se exploraba y ningún INSERT podía resolverlo.
+    if (!blockId || blockId.length > 128) {
+      throw new BadRequestException(
+        'CadDocument requiere ids de bloque no vacíos.',
+      );
+    }
+    // Dos bloques con el mismo id hacen impredecible qué resuelve un INSERT.
+    if (children.has(blockId)) {
+      throw new BadRequestException(
+        `CadDocument: el id de bloque ${blockId} está duplicado.`,
+      );
+    }
     const nested = Array.isArray(block?.entities)
-      ? (block.entities as Record<string, unknown>[])
+      ? (block.entities as unknown[])
+          .map((child) => objectValue(child))
           .filter((child) => child?.type === 'insert')
-          .map((child) => String(child.block))
+          .map((child) => stringValue(child?.block))
       : [];
     children.set(blockId, nested);
   }
+
+  /**
+   * Un INSERT que apunta a un bloque INEXISTENTE es una referencia rota: el
+   * editor no puede resolverlo y el explode produce nada. Antes no se
+   * comprobaba en ninguno de los dos niveles — los INSERT de primer nivel ni
+   * siquiera se recorrían, y un id desconocido dentro de un bloque se marcaba
+   * `done` sin error.
+   */
+  const assertInsertResolves = (blockName: string, from: string) => {
+    if (!blockName || !children.has(blockName)) {
+      throw new BadRequestException(
+        `CadDocument: ${from} referencia el bloque inexistente ${blockName || '(vacío)'}.`,
+      );
+    }
+  };
+  const topLevelEntities = (document as unknown as Record<string, unknown>)
+    .entities;
+  if (Array.isArray(topLevelEntities)) {
+    for (const raw of topLevelEntities) {
+      const entity = objectValue(raw);
+      if (entity?.type !== 'insert') continue;
+      assertInsertResolves(
+        stringValue(entity.block),
+        `el INSERT ${stringValue(entity.id)}`,
+      );
+    }
+  }
+  for (const [blockId, nested] of children)
+    for (const child of nested)
+      assertInsertResolves(child, `el bloque ${blockId}`);
+
   const state = new Map<string, 'visiting' | 'done'>();
   const walk = (blockId: string): void => {
     const mark = state.get(blockId);
@@ -422,7 +617,44 @@ export function validateCadDocumentPayload(
       }
     }
   }
-  assertEntityInvariants(entities);
+  // Las capas DECLARADAS son la referencia para comprobar `entity.layer`. Un
+  // documento que no las trae (heredado, o mínimo) no se rechaza por eso.
+  const rawLayers = document.layers;
+  let declaredLayers: Set<string> | null = null;
+  if (rawLayers !== undefined) {
+    if (!Array.isArray(rawLayers)) {
+      throw new BadRequestException('CadDocument layers debe ser un arreglo.');
+    }
+    if (rawLayers.length) {
+      declaredLayers = new Set<string>();
+      for (const rawLayer of rawLayers) {
+        const layer = objectValue(rawLayer);
+        const layerId = typeof layer?.id === 'string' ? layer.id : '';
+        if (!layerId || layerId.length > 128 || declaredLayers.has(layerId)) {
+          throw new BadRequestException(
+            'CadDocument requiere ids de capa únicos y no vacíos.',
+          );
+        }
+        declaredLayers.add(layerId);
+      }
+    }
+  }
+  assertEntityInvariants(entities, declaredLayers);
+  // Las entidades ANIDADAS en un bloque son geometría igual que las de primer
+  // nivel: no pasaban por ninguna invariante, así que un radio negativo dentro
+  // de un bloque cruzaba la frontera sin más.
+  if (Array.isArray(document.blocks)) {
+    for (const rawBlock of document.blocks) {
+      const block = objectValue(rawBlock);
+      if (!Array.isArray(block?.entities)) continue;
+      assertEntityInvariants(
+        block.entities as unknown[],
+        declaredLayers,
+        `el bloque ${stringValue(block?.id) || '(sin id)'}`,
+        false,
+      );
+    }
+  }
   assertReferentialIntegrity(document, ids);
   const text = JSON.stringify(document);
   if (Buffer.byteLength(text, 'utf8') > maxBytes) {

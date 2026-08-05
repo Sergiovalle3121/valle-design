@@ -152,6 +152,7 @@ describePostgres(
                 type: 'line',
                 start: { x: 0, y: 0 },
                 end: { x: 100, y: 0 },
+                layer: '0',
               },
             ],
             paperSpaces: [{ id: 'sheet-1', page: { width: 297, height: 210 } }],

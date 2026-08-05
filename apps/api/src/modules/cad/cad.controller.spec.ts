@@ -259,6 +259,7 @@ describe('CadController (/v1/cad, stack completo)', () => {
           type: 'line',
           start: { x: 0, y: 0 },
           end: { x: 1000, y: 0 },
+          layer: '0',
         },
       ],
       paperSpaces: [{ id: 'sheet-1', page: { width: 297, height: 210 } }],
@@ -364,7 +365,18 @@ describe('CadController (/v1/cad, stack completo)', () => {
     //    Se acepta (no se rompe el guardado) pero NO se persiste.
     const cadDocument = {
       meta: { schema: 3, version: 1, unit: 'mm' },
-      entities: [{ id: 'line-1', type: 'line' }],
+      // Geometría bien formada: este caso mide la REDACCIÓN del token, no la
+      // validación, pero una línea sin extremos ni capa ya no cruza la
+      // frontera — y no debería haberlo hecho nunca.
+      entities: [
+        {
+          id: 'line-1',
+          type: 'line',
+          start: { x: 0, y: 0 },
+          end: { x: 1000, y: 0 },
+          layer: '0',
+        },
+      ],
       collaboration: {
         versions: [],
         threads: [],
@@ -448,8 +460,8 @@ describe('CadController (/v1/cad, stack completo)', () => {
     const cadDocument = {
       meta: { schema: 3, version: 1, unit: 'mm' },
       entities: [
-        { id: 'e1', type: 'box', x: 0, y: 0, w: 100, h: 50 },
-        { id: 'e2', type: 'box', x: 200, y: 0, w: 100, h: 50 },
+        { id: 'e1', type: 'box', x: 0, y: 0, w: 100, h: 50, layer: '0' },
+        { id: 'e2', type: 'box', x: 200, y: 0, w: 100, h: 50, layer: '0' },
       ],
     };
     const gz = gzipSync(Buffer.from(JSON.stringify(cadDocument), 'utf8'));
