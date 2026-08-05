@@ -31,6 +31,16 @@ export interface CadDxfPrimitive {
   kind: CadDxfPrimitiveKind;
   layer: string;
   points: CadDxfPoint[];
+  /**
+   * Cierre EXPLÍCITO del recorrido, sólo para "polyline" y "rect".
+   *
+   * Antes no existía y el cierre viajaba repitiendo el primer vértice al
+   * final. Ese canal lateral perdía información en las dos direcciones: al
+   * escribir añadía un segmento nulo y dejaba el grupo 70 en 0, y al leer
+   * confundía una polilínea ABIERTA de extremos coincidentes con una cerrada.
+   * `undefined` significa "no aplica" (líneas, círculos, textos…).
+   */
+  closed?: boolean;
   text?: string;
   /** Radio, sólo para kind "circle" y "arc". */
   radius?: number;
@@ -239,10 +249,18 @@ export function mapDxfEntityToPrimitive(entity: any): {
           layer,
         },
       };
+    // Bit 1 del grupo 70. `dxf-parser` lo expone como `shape` en POLYLINE y
+    // como `closed` en LWPOLYLINE, así que se consultan ambos.
     const closed = !!(entity.closed || entity.shape);
-    const closedPoints =
-      closed && !samePoint(points[0], points[points.length - 1])
-        ? [...points, points[0]]
+    // Un DXF de otra herramienta sí puede repetir el primer vértice al final
+    // de un contorno cerrado. Ese punto es redundante con el bit 70: se funde
+    // aquí para que el documento canónico tenga vértices ÚNICOS, en vez de
+    // arrastrar un segmento nulo hasta el validador y el dibujo.
+    const vertices =
+      closed &&
+      points.length > 2 &&
+      samePoint(points[0], points[points.length - 1])
+        ? points.slice(0, -1)
         : points;
     return {
       primitive: {
@@ -250,13 +268,13 @@ export function mapDxfEntityToPrimitive(entity: any): {
         // caigan en las esquinas: degradarla a "rect" perdería los arcos.
         kind:
           closed &&
-          !closedPoints.some((point) => point.bulge)
-        &&
-          isAxisAlignedRect(closedPoints)
+          !vertices.some((point) => point.bulge) &&
+          isAxisAlignedRect(vertices)
             ? "rect"
             : "polyline",
         layer,
-        points: closedPoints,
+        points: vertices,
+        closed,
       },
     };
   }

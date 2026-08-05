@@ -557,13 +557,15 @@ export function cadEntityToDxfPrimitive(
         ? { bulge: point.bulge }
         : {}),
     }));
+    // El cierre se DECLARA. Repetir el primer vértice al final añadía un
+    // segmento nulo al DXF y dejaba el grupo 70 en 0, así que el contorno
+    // llegaba abierto al destino; además el bulge del tramo de cierre —que
+    // vive en el ÚLTIMO vértice— quedaba tapado por la copia del primero.
     return {
       kind: "polyline",
       layer: entity.layer,
-      points:
-        entity.closed && points.length && points[0] !== points.at(-1)
-          ? [...points, { ...points[0] }]
-          : points,
+      points,
+      closed: entity.closed === true,
     };
   }
   if (entity.type === "circle" && !entity.legacy) {
@@ -815,15 +817,26 @@ function dxfPrimitiveToBlockEntity(
     (primitive.kind === "polyline" || primitive.kind === "rect") &&
     primitive.points.length >= 2
   ) {
+    // El cierre lo declara la primitiva. Reinferirlo comparando el primer y el
+    // último punto convertía en cerrada cualquier polilínea ABIERTA cuyos
+    // extremos coincidieran por geometría, y le borraba su último vértice.
+    // Sólo se recurre a la comparación cuando la primitiva no trae el dato
+    // (primitivas construidas a mano por código anterior a este contrato).
     const source = primitive.points;
     const closed =
+      primitive.closed ??
+      (source.length > 2 &&
+        source[0].x === source.at(-1)?.x &&
+        source[0].y === source.at(-1)?.y);
+    const redundantClosingVertex =
+      closed &&
       source.length > 2 &&
       source[0].x === source.at(-1)?.x &&
       source[0].y === source.at(-1)?.y;
     return {
       id,
       type: "polyline",
-      vertices: (closed ? source.slice(0, -1) : source).map((value) => ({
+      vertices: (redundantClosingVertex ? source.slice(0, -1) : source).map((value) => ({
         ...point3(projection.point(value)),
         // El bulge es angular: sobrevive a la proyección de la unidad.
         ...(typeof value.bulge === "number" && value.bulge !== 0
@@ -1072,10 +1085,14 @@ function blockEntityToDxfPrimitive(entity: CadEntity): CadDxfPrimitive | null {
       x: cx + value.x * cos - value.y * sin,
       y: cy + value.x * sin + value.y * cos,
     }));
+    // Una caja/estación es un contorno CERRADO de cuatro esquinas. Repetía la
+    // primera —y con la MISMA referencia de objeto, no una copia—, así que el
+    // bloque salía con un tramo nulo y sin el bit 70.
     return {
       kind: "polyline",
       layer: entity.layer,
-      points: [...points, points[0]],
+      points,
+      closed: true,
       text: entity.type === "box" ? entity.label : undefined,
     };
   }
