@@ -4,14 +4,45 @@ import {
   encodeCadRecoveryOffThread,
 } from './cad-recovery-worker-client';
 import type { CadRecoveryPayloadFormat } from './cad-recovery-codec';
+import {
+  LEGACY_LANE,
+  MAX_RECOVERY_AGE_MS,
+  orderCadRecoveryCandidates,
+  planCadRecoveryPrune,
+} from './cad-recovery-journal';
 
 const DATABASE_NAME = 'cad-recovery';
 const LEGACY_STORE_NAME = 'checkpoints';
 const JOURNAL_STORE_NAME = 'journal';
 const DATABASE_VERSION = 2;
-const MAX_RECOVERY_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-const MAX_CHECKPOINTS_PER_SCOPE = 3;
-const MAX_GLOBAL_CHECKPOINTS = 24;
+const LANE_STORAGE_KEY = 'valle_cad_recovery_lane';
+
+/**
+ * Identificador del CARRIL de esta pestaña.
+ *
+ * Vive en `sessionStorage` a propósito: es el único almacén con el alcance
+ * correcto —una pestaña, sobreviviendo a recargas y a la restauración tras un
+ * cierre inesperado, sin compartirse con las demás—, que es exactamente la vida
+ * de un borrador de recuperación. En `localStorage` todas las pestañas
+ * compartirían carril y no habría arreglado nada.
+ */
+export function cadRecoveryLaneId(): string {
+  if (typeof sessionStorage === 'undefined') return LEGACY_LANE;
+  try {
+    const existing = sessionStorage.getItem(LANE_STORAGE_KEY);
+    if (existing) return existing;
+    const lane =
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `lane-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
+    sessionStorage.setItem(LANE_STORAGE_KEY, lane);
+    return lane;
+  } catch {
+    // Sin almacenamiento de sesión no hay carril estable; el anónimo mantiene
+    // el comportamiento anterior en vez de dejar sin recovery a la pestaña.
+    return LEGACY_LANE;
+  }
+}
 
 export interface CadRecoveryScope {
   tenantId: string;
@@ -35,6 +66,8 @@ export interface CadRecoveryRecord {
   storedBytes: number;
   sha256?: string;
   encoder?: 'worker' | 'main-thread-fallback';
+  /** Pestaña que lo escribió; ausente en los registros previos a los carriles. */
+  lane?: string;
 }
 
 interface StoredCadRecoveryRecord {
@@ -50,6 +83,7 @@ interface StoredCadRecoveryRecord {
   storedBytes: number;
   sha256: string;
   encoder: 'worker' | 'main-thread-fallback';
+  lane?: string;
 }
 
 interface LegacyCadRecoveryRecord {
@@ -146,26 +180,10 @@ async function pruneJournal(database: IDBDatabase, aggressive = false): Promise<
   const records = await requestResult(
     transaction.objectStore(JOURNAL_STORE_NAME).getAll(),
   ) as StoredCadRecoveryRecord[];
-  const now = Date.now();
-  const byScope = new Map<string, StoredCadRecoveryRecord[]>();
-  for (const record of records) {
-    const group = byScope.get(record.scopeKey) ?? [];
-    group.push(record);
-    byScope.set(record.scopeKey, group);
-  }
-  const remove = new Set<string>();
-  for (const group of byScope.values()) {
-    group.sort((left, right) => right.savedAtMs - left.savedAtMs);
-    group.forEach((record, index) => {
-      if (now - record.savedAtMs > MAX_RECOVERY_AGE_MS) remove.add(record.key);
-      else if (index >= (aggressive ? 1 : MAX_CHECKPOINTS_PER_SCOPE)) remove.add(record.key);
-    });
-  }
-  const retained = records
-    .filter((record) => !remove.has(record.key))
-    .sort((left, right) => right.savedAtMs - left.savedAtMs);
-  retained.slice(MAX_GLOBAL_CHECKPOINTS).forEach((record) => remove.add(record.key));
-  await deleteJournalKeys(database, [...remove]);
+  await deleteJournalKeys(
+    database,
+    planCadRecoveryPrune(records, { now: Date.now(), aggressive }),
+  );
 }
 
 async function storageLikelyFull(requiredBytes: number): Promise<boolean> {
@@ -201,12 +219,18 @@ export async function saveCadRecovery(
   const scopeKey = cadRecoveryScopeKey(scope);
   try {
     if (await storageLikelyFull(encoded.storedBytes)) await pruneJournal(database, true);
+    const lane = cadRecoveryLaneId();
     const existing = await scopeJournal(database, scopeKey);
     const savedAtMs = Date.now();
-    const journalSequence = (existing[0]?.journalSequence ?? 0) + 1;
+    // La secuencia avanza dentro del CARRIL. Contarla sobre el ámbito entero
+    // hacía que dos pestañas leyesen el mismo máximo y calculasen el mismo
+    // número, dejando un journal cuya numeración no describe ninguna historia.
+    const journalSequence =
+      (existing.find((record) => (record.lane || LEGACY_LANE) === lane)?.journalSequence ?? 0) + 1;
     const stored: StoredCadRecoveryRecord = {
-      key: `${scopeKey}:j:${String(journalSequence).padStart(8, '0')}:${savedAtMs}`,
+      key: `${scopeKey}:l:${lane}:j:${String(journalSequence).padStart(8, '0')}:${savedAtMs}`,
       scopeKey,
+      lane,
       baseCadDocumentVersion,
       savedAt: new Date(savedAtMs).toISOString(),
       savedAtMs,
@@ -243,7 +267,10 @@ export async function loadCadRecovery(
   const database = await openDatabase();
   const scopeKey = cadRecoveryScopeKey(scope);
   try {
-    const records = await scopeJournal(database, scopeKey);
+    const records = orderCadRecoveryCandidates(
+      await scopeJournal(database, scopeKey),
+      cadRecoveryLaneId(),
+    );
     const expiredKeys: string[] = [];
     for (const record of records) {
       if (!Number.isFinite(record.savedAtMs) || Date.now() - record.savedAtMs > MAX_RECOVERY_AGE_MS) {
