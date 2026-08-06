@@ -202,12 +202,13 @@ import {
 import { readRenamedStorageKey } from "@/lib/storage-rename";
 import { createCadCheckpointQueue } from "@/lib/cad/recovery-checkpoint-queue";
 import {
-  cadAutosaveBlockedByConflict,
-  cadSaveConflictLabel,
-  latchCadSaveConflict,
-  reconcileCadSaveConflict,
-  type CadSaveConflict,
-} from "@/lib/cad/cad-save-conflict";
+  archiveCadConflictsExcept,
+  cadAutosaveBlockedForDocument,
+  cadConflictIncidentLabel,
+  closeCadConflictIncident,
+  openCadConflictIncident,
+  type CadConflictRegistry,
+} from "@/lib/cad/cad-conflict-incident";
 import {
   cadCommandHistoryStorageKey,
   navigateCadCommandHistory,
@@ -2452,10 +2453,19 @@ export default function Layout3DEditor({
     message: string;
     serverVersion?: number;
   } | null>(null);
-  // Conflicto CAS enclavado contra la versión base que lo provocó. Vive en un
-  // ref porque lo consulta el programador de autosave, que corre fuera del
-  // ciclo de render.
-  const saveConflictRef = useRef<CadSaveConflict | null>(null);
+  /**
+   * Incidentes de conflicto CAS, UNO POR DOCUMENTO.
+   *
+   * Antes era un solo `saveConflictRef` comparado sólo por número de versión.
+   * Los números de versión no son únicos entre documentos —cada dibujo tiene su
+   * contador y todos arrancan en 0—, así que un conflicto en el plano A con
+   * base v3 detenía el autosave del plano B en cuanto B pasaba por su propia
+   * v3: un dibujo sin conflicto cuyo trabajo dejaba de subir al servidor.
+   *
+   * Vive en un ref porque lo consulta el programador de autosave, que corre
+   * fuera del ciclo de render.
+   */
+  const conflictRegistryRef = useRef<CadConflictRegistry>({});
   const versionByDocumentRef = useRef(new Map<string, number>());
   const savedGenerationByDocumentRef = useRef(new Map<string, number>());
   const autosaveSchedulerRef = useRef<ReturnType<
@@ -3639,6 +3649,13 @@ export default function Layout3DEditor({
       editGenerationRef.current = 0;
       setSaveIssue(null);
       setSaveStatus("idle");
+      // Un incidente del documento anterior no puede sobrevivir al cambio: su
+      // panel ofrece recargar y sobrescribir, y aplicarlos sobre el dibujo que
+      // ahora está delante destruiría el que no es.
+      conflictRegistryRef.current = archiveCadConflictsExcept(
+        conflictRegistryRef.current,
+        documentId,
+      );
       setRecoveryCandidate(null);
       setRecoveryDivergent(false);
       setRecoverySavedAt(null);
@@ -14972,7 +14989,13 @@ export default function Layout3DEditor({
             : saved,
         );
         setConnectionState("online");
-        saveConflictRef.current = null;
+        // Sólo el de ESTE documento: otro dibujo puede seguir en conflicto y
+        // desenclavarlo aquí le devolvería un autosave que el servidor ya
+        // rechazó.
+        conflictRegistryRef.current = closeCadConflictIncident(
+          conflictRegistryRef.current,
+          request.documentId,
+        );
         setSaveIssue(null);
         loadedPlacedRef.current = new Set(placementsRef.current.keys());
         if (editGenerationRef.current === request.generation) {
@@ -15017,9 +15040,13 @@ export default function Layout3DEditor({
       if (saveError instanceof CadCasConflictError) {
         // Enclavar ANTES de informar: a partir de aquí el autosave deja de
         // reintentar esta misma versión, que el servidor ya rechazó.
-        saveConflictRef.current = latchCadSaveConflict(
-          expectedVersion,
-          saveError.serverVersion,
+        conflictRegistryRef.current = openCadConflictIncident(
+          conflictRegistryRef.current,
+          {
+            documentId: request.documentId,
+            baseVersion: expectedVersion,
+            serverVersion: saveError.serverVersion,
+          },
         );
         if (requestIsActive) {
           setSaveIssue({
@@ -15210,11 +15237,14 @@ export default function Layout3DEditor({
         versionByDocumentRef.current.get(scheduledDocumentId) ??
         dataRef.current?.cadDocumentVersion ??
         0;
-      saveConflictRef.current = reconcileCadSaveConflict(
-        saveConflictRef.current,
-        baseVersion,
-      );
-      if (cadAutosaveBlockedByConflict(saveConflictRef.current, baseVersion)) return;
+      if (
+        cadAutosaveBlockedForDocument(
+          conflictRegistryRef.current,
+          scheduledDocumentId,
+          baseVersion,
+        )
+      )
+        return;
       autosaveSchedulerRef.current!.schedule(async () => {
         const request = captureCanonicalSaveRequestRef.current();
         if (!request || request.documentId !== scheduledDocumentId) return;
@@ -18893,9 +18923,11 @@ export default function Layout3DEditor({
                 {saving
                   ? "Guardando…"
                   : saveIssue?.kind === "conflict"
-                    ? cadSaveConflictLabel(
-                        latchCadSaveConflict(0, saveIssue.serverVersion),
-                      )
+                    ? cadConflictIncidentLabel({
+                        documentId: documentId ?? "",
+                        baseVersion: 0,
+                        serverVersion: saveIssue.serverVersion ?? null,
+                      })
                     : saveIssue?.kind === "offline"
                       ? "Sin conexión · cambios pendientes"
                       : saveIssue
