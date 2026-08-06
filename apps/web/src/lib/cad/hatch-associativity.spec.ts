@@ -46,3 +46,5 @@ assert.equal(regenerated.entities.find((entity) => entity.id === 'hatch')?.type,
 const broken = regenerateAssociativeHatches([hatch], ['source'], () => []);
 assert.deepEqual(broken.brokenIds, ['hatch']);
 assert.equal((broken.entities[0].type === 'hatch' && broken.entities[0].associationStatus), 'broken');
+
+console.log("hatch-associativity: el sombreado se regenera con su contorno y se marca broken al perderlo");

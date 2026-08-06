@@ -20,3 +20,5 @@ assert.doesNotMatch(
   /AXOS_SESSION_SECRET|axos_access_token|\bmasterJwt\b|\bloginAsMaster\b|Authorization:\s*Bearer|\blocalStorage\b/i,
   "Los fixtures Playwright herméticos deben usar cookies first-party y CSRF standalone.",
 );
+
+console.log("session-storage: la sesión no toca localStorage ni cabeceras Bearer");

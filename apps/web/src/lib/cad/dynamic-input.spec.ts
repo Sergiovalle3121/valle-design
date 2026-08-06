@@ -32,3 +32,5 @@ assert.equal(resolveCadDynamicInput({ x: '1', y: '2' }, {
 const defaults = defaultCadDynamicValues({ x: 0, y: 0 }, { x: 3, y: 4 });
 assert.equal(defaults.distance, 5);
 assert.equal(defaults.diameter, 10);
+
+console.log("dynamic-input: campos, validación y valores por defecto de la entrada dinámica");

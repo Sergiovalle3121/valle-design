@@ -42,3 +42,5 @@ assert.deepEqual(broken.brokenIds, ['leader']);
 assert.equal(broken.entities.find((entity) => entity.id === 'leader')?.type === 'mleader'
   ? (broken.entities.find((entity) => entity.id === 'leader') as CadMleaderEntity).associationStatus
   : null, 'broken');
+
+console.log("associative-mleader: la directriz sigue a su geometría y se marca broken al perderla");

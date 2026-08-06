@@ -81,3 +81,5 @@ assert.equal(
 index.applyPatch({ upsert: [], remove: [moved.id] });
 assert.equal(index.entity(moved.id), undefined);
 assert.equal(index.size, 999);
+
+console.log("native-selection-index: el índice espacial sigue altas, bajas y movimientos");

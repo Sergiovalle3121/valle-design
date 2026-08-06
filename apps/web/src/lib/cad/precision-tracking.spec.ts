@@ -33,3 +33,5 @@ const polar = resolveCadPolarTracking({ x: 0, y: 0 }, { x: 20, y: 19 }, 45, 5);
 assert.equal(polar.snapped, true);
 assert.equal(polar.angle, 45);
 assert.equal(polar.guide?.axis, 'polar');
+
+console.log("precision-tracking: rastreo polar y ortogonal con sus guías");

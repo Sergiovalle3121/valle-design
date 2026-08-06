@@ -89,3 +89,5 @@ assert.ok(denseViewport.entities.every((entity) => {
   const index = Number(entity.id.slice(4));
   return index >= 10_000 && index < 30_000;
 }));
+
+console.log("native-render-budget: el presupuesto de render acota lo que entra en escena");
