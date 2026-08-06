@@ -31,27 +31,9 @@ async function installCadBackend(context: BrowserContext) {
 }
 
 async function fillPoint(page: import('@playwright/test').Page, x: string, y: string) {
-  const dynamic = page.getByTestId('cad-dynamic-input');
-  const fieldX = page.getByTestId('cad-dynamic-field-x');
-  const fieldY = page.getByTestId('cad-dynamic-field-y');
-  // `CadDynamicInput` se remonta cuando aparece el ancla (su `key` incluye
-  // anchored|origin), así que un `fill` que caiga justo en el cambio escribe
-  // sobre un formulario que deja de existir y el punto se pierde SIN error. El
-  // síntoma llegaba mucho después: una polilínea que nunca se creó y un panel
-  // de propiedades que no aparece. Se comprueba que el valor cuajó antes de
-  // aplicar; si el formulario se sustituyó, el intento falla y se repite sobre
-  // el nuevo. Esto endurece el spec —ahora afirma lo que antes daba por hecho—
-  // y no relaja ningún tiempo de espera.
-  //
-  // El modo (ABS/REL/POLAR) NO se fija aquí: este golden lo alterna a
-  // propósito, y reponerlo en cada intento anularía lo que está probando.
-  await expect(async () => {
-    await fieldX.fill(x);
-    await fieldY.fill(y);
-    await expect(fieldX).toHaveValue(x, { timeout: 1_000 });
-    await expect(fieldY).toHaveValue(y, { timeout: 1_000 });
-  }).toPass({ timeout: 15_000 });
-  await dynamic.getByRole('button', { name: 'Aplicar' }).click();
+  await page.getByTestId('cad-dynamic-field-x').fill(x);
+  await page.getByTestId('cad-dynamic-field-y').fill(y);
+  await page.getByTestId('cad-dynamic-input').getByRole('button', { name: 'Aplicar' }).click();
 }
 
 test('neutral drawing uses units, layers, ABS/REL/POLAR, closed polyline and OFFSET', async ({ context, page }, testInfo) => {
