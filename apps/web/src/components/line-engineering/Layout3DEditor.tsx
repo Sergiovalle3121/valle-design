@@ -2435,14 +2435,16 @@ export default function Layout3DEditor({
   const [recoverySavedAt, setRecoverySavedAt] = useState<string | null>(null);
   const [recoveryWarning, setRecoveryWarning] = useState<string | null>(null);
   /**
-   * Carril de recuperación de ESTA pestaña y momento en que empezó a editar.
-   * Los dos acotan qué puede borrar un guardado: sólo lo que esta pestaña
-   * escribió en esta sesión. Antes se borraba el ámbito entero.
+   * Carril de recuperación de ESTA pestaña y momento en que empezó a editar
+   * ESTE documento. Los dos acotan qué puede borrar un guardado: sólo lo que
+   * esta pestaña escribió en esta sesión. Antes se borraba el ámbito entero.
+   *
+   * Se rellenan en un efecto, no en el render: `cadRecoveryLaneId()` toca
+   * `sessionStorage` y `Date.now()` no es puro, y ninguna de las dos cosas
+   * puede pasar mientras React está renderizando.
    */
   const recoveryLaneRef = useRef<string | null>(null);
-  if (recoveryLaneRef.current === null && typeof window !== "undefined")
-    recoveryLaneRef.current = cadRecoveryLaneId();
-  const recoverySessionStartedAtRef = useRef(Date.now());
+  const recoverySessionStartedAtRef = useRef(0);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<AutosaveStatus>("idle");
   const [saveIssue, setSaveIssue] = useState<{
@@ -5086,6 +5088,14 @@ export default function Layout3DEditor({
     },
     [clearNativeSelection, rebuildAll, select],
   );
+
+  // La sesión de recuperación se reinicia con el documento, igual que
+  // `editGenerationRef`: un guardado sólo confirma lo que se escribió después
+  // de abrir esto.
+  useEffect(() => {
+    recoveryLaneRef.current = cadRecoveryLaneId();
+    recoverySessionStartedAtRef.current = Date.now();
+  }, [documentId, model, revision]);
 
   useEffect(() => {
     if (!open || !data || !recoveryScope || dirty) return;
