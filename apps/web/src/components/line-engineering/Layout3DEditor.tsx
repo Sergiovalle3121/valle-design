@@ -202,6 +202,13 @@ import {
 import { readRenamedStorageKey } from "@/lib/storage-rename";
 import { createCadCheckpointQueue } from "@/lib/cad/recovery-checkpoint-queue";
 import {
+  cadAutosaveBlockedByConflict,
+  cadSaveConflictLabel,
+  latchCadSaveConflict,
+  reconcileCadSaveConflict,
+  type CadSaveConflict,
+} from "@/lib/cad/cad-save-conflict";
+import {
   cadCommandHistoryStorageKey,
   navigateCadCommandHistory,
   prependCadCommandHistory,
@@ -2421,6 +2428,10 @@ export default function Layout3DEditor({
     message: string;
     serverVersion?: number;
   } | null>(null);
+  // Conflicto CAS enclavado contra la versión base que lo provocó. Vive en un
+  // ref porque lo consulta el programador de autosave, que corre fuera del
+  // ciclo de render.
+  const saveConflictRef = useRef<CadSaveConflict | null>(null);
   const versionByDocumentRef = useRef(new Map<string, number>());
   const savedGenerationByDocumentRef = useRef(new Map<string, number>());
   const autosaveSchedulerRef = useRef<ReturnType<
@@ -14846,11 +14857,11 @@ export default function Layout3DEditor({
         ? dataRef.current
         : request.base;
     }
+    const expectedVersion =
+      versionByDocumentRef.current.get(request.documentId) ??
+      request.base.cadDocumentVersion ??
+      0;
     try {
-      const expectedVersion =
-        versionByDocumentRef.current.get(request.documentId) ??
-        request.base.cadDocumentVersion ??
-        0;
       const result = await documentLifecycle.save(
         request.documentId,
         request.document,
@@ -14899,6 +14910,7 @@ export default function Layout3DEditor({
             : saved,
         );
         setConnectionState("online");
+        saveConflictRef.current = null;
         setSaveIssue(null);
         loadedPlacedRef.current = new Set(placementsRef.current.keys());
         if (editGenerationRef.current === request.generation) {
@@ -14931,6 +14943,12 @@ export default function Layout3DEditor({
         editorOpenRef.current &&
         currentDocumentIdRef.current === request.documentId;
       if (saveError instanceof CadCasConflictError) {
+        // Enclavar ANTES de informar: a partir de aquí el autosave deja de
+        // reintentar esta misma versión, que el servidor ya rechazó.
+        saveConflictRef.current = latchCadSaveConflict(
+          expectedVersion,
+          saveError.serverVersion,
+        );
         if (requestIsActive) {
           setSaveIssue({
             kind: "conflict",
@@ -15107,6 +15125,18 @@ export default function Layout3DEditor({
     scheduleAutosaveRef.current = () => {
       if (!open || !documentId || drawingReadOnly || !dirtyRef.current) return;
       const scheduledDocumentId = documentId;
+      // Un conflicto CAS enclavado significa que ESTA versión base ya fue
+      // rechazada. Reprogramarla es gastar una petición para que la nieguen
+      // otra vez; el guardado manual sigue disponible para quien decida actuar.
+      const baseVersion =
+        versionByDocumentRef.current.get(scheduledDocumentId) ??
+        dataRef.current?.cadDocumentVersion ??
+        0;
+      saveConflictRef.current = reconcileCadSaveConflict(
+        saveConflictRef.current,
+        baseVersion,
+      );
+      if (cadAutosaveBlockedByConflict(saveConflictRef.current, baseVersion)) return;
       autosaveSchedulerRef.current!.schedule(async () => {
         const request = captureCanonicalSaveRequestRef.current();
         if (!request || request.documentId !== scheduledDocumentId) return;
@@ -18760,7 +18790,9 @@ export default function Layout3DEditor({
                 {saving
                   ? "Guardando…"
                   : saveIssue?.kind === "conflict"
-                    ? `Conflicto CAS${saveIssue.serverVersion == null ? "" : ` · servidor v${saveIssue.serverVersion}`}`
+                    ? cadSaveConflictLabel(
+                        latchCadSaveConflict(0, saveIssue.serverVersion),
+                      )
                     : saveIssue?.kind === "offline"
                       ? "Sin conexión · cambios pendientes"
                       : saveIssue
