@@ -399,7 +399,10 @@ export function deltaKey(
   tenantId: string | null,
   legacySourceId: string,
 ): string {
-  return `${tenantId ?? ' '}::${legacySourceId}`;
+  // El centinela de "sin tenant" es U+0000, escrito como escape: en crudo
+  // convierte el fichero en binario para grep/ripgrep, que lo saltan sin
+  // avisar. La cadena resultante es idéntica.
+  return `${tenantId ?? '\u0000'}::${legacySourceId}`;
 }
 
 /**
