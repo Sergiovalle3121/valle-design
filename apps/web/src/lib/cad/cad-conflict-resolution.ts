@@ -27,7 +27,10 @@
 import {
   mergeCadDocuments,
   type CadMergeCollision,
+  type CadMergeReferenceBreak,
   type CadMergeResolution,
+  type CadSectionCollision,
+  type CadSectionResolution,
 } from './cad-collaboration';
 import type { CadDocument } from './cad-document';
 
@@ -44,6 +47,12 @@ export interface CadConflictInputs {
   theirsVersion: number;
   /** Elección por entidad para las colisiones (sólo la usa `merge`). */
   resolutions?: Record<string, CadMergeResolution>;
+  /**
+   * Elección por recurso NO-entidad (`capas:WALLS`, `bloques:DOOR`…). Un plano
+   * no son sólo sus entidades: una fusión también decide capas, bloques,
+   * estilos y layouts.
+   */
+  sectionResolutions?: Record<string, CadSectionResolution>;
 }
 
 /** Lo que hay que enseñar antes de que alguien elija. */
@@ -54,22 +63,39 @@ export interface CadConflictSummary {
   collisions: CadMergeCollision[];
   /** Colisiones todavía sin decidir. */
   unresolved: string[];
+  /** Recursos no-entidad que ambos tocaron y exigen una elección. */
+  sectionCollisions: CadSectionCollision[];
+  /** Claves `sección:recurso` todavía sin decidir. */
+  unresolvedSections: string[];
+  /**
+   * Referencias que el documento fusionado no resolvería. Con una sola de
+   * éstas la fusión no puede aplicarse: el validador del servidor la rechaza.
+   */
+  referenceBreaks: CadMergeReferenceBreak[];
   /** ¿Puede aplicarse la fusión ya? */
   mergeReady: boolean;
 }
 
-export function summarizeCadConflict(inputs: CadConflictInputs): CadConflictSummary {
-  const merge = mergeCadDocuments(
+function merge(inputs: CadConflictInputs) {
+  return mergeCadDocuments(
     inputs.base,
     inputs.mine,
     inputs.theirs,
     inputs.resolutions ?? {},
+    inputs.sectionResolutions ?? {},
   );
+}
+
+export function summarizeCadConflict(inputs: CadConflictInputs): CadConflictSummary {
+  const result = merge(inputs);
   return {
-    autoMerged: merge.autoMergedIds.length,
-    collisions: merge.collisions,
-    unresolved: merge.unresolved,
-    mergeReady: merge.unresolved.length === 0,
+    autoMerged: result.autoMergedIds.length,
+    collisions: result.collisions,
+    unresolved: result.unresolved,
+    sectionCollisions: result.sectionCollisions,
+    unresolvedSections: result.unresolvedSections,
+    referenceBreaks: result.referenceBreaks,
+    mergeReady: result.ok,
   };
 }
 
@@ -94,7 +120,19 @@ export interface CadConflictPlan {
 
 export type CadConflictPlanResult =
   | { ok: true; plan: CadConflictPlan }
-  | { ok: false; reason: 'unresolved-collisions'; unresolved: string[] };
+  | {
+      ok: false;
+      /**
+       * `unresolved-collisions`: falta decidir. `reference-breaks`: ya está
+       * todo decidido pero el resultado dejaría algo apuntando a lo que no
+       * existe —típicamente una capa o un bloque que un lado borró mientras el
+       * otro lo seguía usando— y el servidor rechazaría ese documento.
+       */
+      reason: 'unresolved-collisions' | 'reference-breaks';
+      unresolved: string[];
+      unresolvedSections: string[];
+      referenceBreaks: CadMergeReferenceBreak[];
+    };
 
 export function planCadConflictResolution(
   strategy: CadConflictStrategy,
@@ -125,20 +163,23 @@ export function planCadConflictResolution(
     };
   }
 
-  const merge = mergeCadDocuments(
-    inputs.base,
-    inputs.mine,
-    inputs.theirs,
-    inputs.resolutions ?? {},
-  );
-  if (merge.unresolved.length) {
-    return { ok: false, reason: 'unresolved-collisions', unresolved: merge.unresolved };
+  const result = merge(inputs);
+  if (!result.ok) {
+    const pending =
+      result.unresolved.length > 0 || result.unresolvedSections.length > 0;
+    return {
+      ok: false,
+      reason: pending ? 'unresolved-collisions' : 'reference-breaks',
+      unresolved: result.unresolved,
+      unresolvedSections: result.unresolvedSections,
+      referenceBreaks: result.referenceBreaks,
+    };
   }
   return {
     ok: true,
     plan: {
       strategy,
-      document: merge.document,
+      document: result.document,
       saveAgainstVersion: inputs.theirsVersion,
       clearsRecovery: true,
     },

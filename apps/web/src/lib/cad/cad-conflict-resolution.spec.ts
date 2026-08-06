@@ -16,17 +16,39 @@ import {
 } from "./cad-conflict-resolution";
 import { migrateCadDocument, type CadDocument, type CadEntity } from "./cad-document";
 
-const line = (id: string, x: number): CadEntity =>
-  ({
-    id,
-    type: "line",
-    layer: "0",
-    a: { x, y: 0, z: 0 },
-    b: { x: x + 100, y: 0, z: 0 },
-  }) as unknown as CadEntity;
+/**
+ * LINE de verdad: `start`/`end`, que es como la declara el esquema canónico.
+ * El fixture anterior escribía `{a,b}` y lo pasaba por `as unknown as
+ * CadEntity` — o sea, comprobaba la fusión sobre una entidad que el producto
+ * no acepta, y ninguna de estas aserciones tocaba geometría real.
+ */
+const line = (id: string, x: number): Extract<CadEntity, { type: "line" }> => ({
+  id,
+  type: "line",
+  layer: "0",
+  start: { x, y: 0, z: 0 },
+  end: { x: x + 100, y: 0, z: 0 },
+});
 
-const doc = (entities: CadEntity[]): CadDocument =>
+const startX = (entity: CadEntity | undefined): number => {
+  assert.ok(entity && entity.type === "line", "se esperaba una LINE");
+  return entity.start.x;
+};
+
+/**
+ * Con tabla de capas DECLARADA: es la única forma de que el cierre referencial
+ * se pueda comprobar. Un documento que llega sin capas no permite decidir si
+ * `entity.layer` existe, y ni el servidor ni la fusión lo rechazan por eso.
+ */
+const doc = (entities: CadEntity[], layerIds = ["0", "GUIA"]): CadDocument =>
   migrateCadDocument({
+    layers: layerIds.map((id) => ({
+      id,
+      name: id,
+      color: "#ffffff",
+      visible: true,
+      locked: false,
+    })),
     entities,
     modelSpace: { entityIds: entities.map((entity) => entity.id) },
   } as unknown as CadDocument);
@@ -51,8 +73,8 @@ const inputs: CadConflictInputs = { base, mine, theirs, theirsVersion: 9 };
   assert.deepEqual(ids, ["a", "b"]);
   // Sobrevive lo de cada lado: mi 'a' movida y su 'b' movida.
   const merged = new Map(result.plan.document.entities.map((entity) => [entity.id, entity]));
-  assert.equal((merged.get("a") as { a: { x: number } }).a.x, 50, "mi edición sobrevive");
-  assert.equal((merged.get("b") as { a: { x: number } }).a.x, 1500, "la suya también");
+  assert.equal(startX(merged.get("a")), 50, "mi edición sobrevive");
+  assert.equal(startX(merged.get("b")), 1500, "la suya también");
 }
 
 /* ── EL INVARIANTE: se guarda contra la versión del SERVIDOR ─────────────── */
@@ -92,6 +114,7 @@ const inputs: CadConflictInputs = { base, mine, theirs, theirsVersion: 9 };
   if (blocked.ok) throw new Error("no debía haber plan");
   assert.equal(blocked.reason, "unresolved-collisions");
   assert.deepEqual(blocked.unresolved, ["a"]);
+  assert.deepEqual(blocked.referenceBreaks, []);
 
   // Decidida, el plan sale y respeta la elección.
   for (const [strategy, expectedX] of [["mine", 50], ["theirs", 90]] as const) {
@@ -101,8 +124,10 @@ const inputs: CadConflictInputs = { base, mine, theirs, theirsVersion: 9 };
     });
     assert.equal(decided.ok, true);
     if (!decided.ok) throw new Error("plan esperado");
-    const entity = decided.plan.document.entities.find((item) => item.id === "a");
-    assert.equal((entity as unknown as { a: { x: number } }).a.x, expectedX);
+    assert.equal(
+      startX(decided.plan.document.entities.find((item) => item.id === "a")),
+      expectedX,
+    );
   }
 
   // Y las otras dos salidas no quedan bloqueadas por una colisión: elegirlas
@@ -153,12 +178,102 @@ const inputs: CadConflictInputs = { base, mine, theirs, theirsVersion: 9 };
     result.plan.document.entities.map((entity) => entity.id).sort(),
     mine.entities.map((entity) => entity.id).sort(),
   );
-  const entity = result.plan.document.entities.find((item) => item.id === "b");
   assert.equal(
-    (entity as unknown as { a: { x: number } }).a.x,
+    startX(result.plan.document.entities.find((item) => item.id === "b")),
     1000,
     "sobrescribir descarta lo del servidor: eso es lo que anuncia y lo que hace",
   );
+}
+
+/* ── Un plano no son sólo sus entidades: las capas también bloquean ──────── */
+{
+  const recolour = (document: CadDocument, color: string): CadDocument => ({
+    ...document,
+    layers: document.layers.map((layer) =>
+      layer.id === "0" ? { ...layer, color } : layer,
+    ),
+  });
+  const clash: CadConflictInputs = {
+    base,
+    mine: recolour(mine, "#ff0000"),
+    theirs: recolour(theirs, "#00ff00"),
+    theirsVersion: 9,
+  };
+  const summary = summarizeCadConflict(clash);
+  assert.deepEqual(
+    summary.unresolvedSections,
+    ["layers:0"],
+    "que ambos hayan repintado la misma capa es una colisión, no un ganador silencioso",
+  );
+  assert.equal(summary.mergeReady, false, "y bloquea la fusión igual que una entidad");
+
+  const blocked = planCadConflictResolution("merge", clash);
+  assert.equal(blocked.ok, false);
+  if (blocked.ok) throw new Error("no debía haber plan");
+  assert.equal(blocked.reason, "unresolved-collisions");
+  assert.deepEqual(blocked.unresolvedSections, ["layers:0"]);
+
+  const decided = planCadConflictResolution("merge", {
+    ...clash,
+    sectionResolutions: { "layers:0": { strategy: "theirs" } },
+  });
+  assert.equal(decided.ok, true, "decidida la capa, la fusión sale");
+  if (!decided.ok) throw new Error("plan esperado");
+  assert.equal(
+    decided.plan.document.layers.find((layer) => layer.id === "0")?.color,
+    "#00ff00",
+  );
+}
+
+/* ── Una fusión que dejaría referencias colgantes NO se ofrece ───────────── */
+{
+  // Yo borro la capa `0` y todo lo que había en ella —me queda `GUIA`, así que
+  // el documento SIGUE declarando capas y la comprobación aplica—; la otra
+  // sesión sigue dibujando encima. Fusionar traería sus entidades a una capa
+  // que ya no existe: exactamente el documento que el servidor rechaza.
+  // Lo único que yo cambio es la tabla de capas; lo único que cambia la otra
+  // sesión es una entidad nueva. Ninguna entidad está en disputa: la fusión se
+  // bloquea EXCLUSIVAMENTE por el cierre referencial.
+  const iDropTheLayer: CadDocument = {
+    ...base,
+    layers: base.layers.filter((layer) => layer.id !== "0"),
+  };
+  const theyKeepDrawing: CadDocument = {
+    ...base,
+    entities: [...base.entities, line("c", 3000)],
+    modelSpace: { entityIds: [...base.modelSpace.entityIds, "c"] },
+  };
+  const inputsBroken: CadConflictInputs = {
+    base,
+    mine: iDropTheLayer,
+    theirs: theyKeepDrawing,
+    theirsVersion: 9,
+  };
+  const summary = summarizeCadConflict(inputsBroken);
+  assert.equal(summary.unresolved.length, 0, "no queda ninguna entidad por decidir");
+  assert.equal(summary.unresolvedSections.length, 0, "ni ningún recurso");
+  assert.ok(
+    summary.referenceBreaks.some(
+      (item) => item.section === "layers" && item.resourceId === "0",
+    ),
+    "y aun así la capa que borré sigue haciendo falta",
+  );
+  assert.equal(
+    summary.mergeReady,
+    false,
+    "ofrecer esta fusión sería prometer un guardado que sólo puede terminar en error",
+  );
+
+  const blocked = planCadConflictResolution("merge", inputsBroken);
+  assert.equal(blocked.ok, false);
+  if (blocked.ok) throw new Error("no debía haber plan");
+  assert.equal(blocked.reason, "reference-breaks");
+  assert.ok(blocked.referenceBreaks[0].dependents.length > 0, "dice qué se queda huérfano");
+
+  // Recargar y sobrescribir siguen disponibles: adoptan un documento entero y
+  // coherente de un lado, así que no pueden romper referencias.
+  assert.equal(planCadConflictResolution("reload", inputsBroken).ok, true);
+  assert.equal(planCadConflictResolution("overwrite", inputsBroken).ok, true);
 }
 
 /* ── Cada salida declara qué pierde, y ninguna se calla ──────────────────── */
