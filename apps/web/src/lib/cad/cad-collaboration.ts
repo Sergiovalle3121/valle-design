@@ -1,5 +1,4 @@
 import {
-  preserveDrawOrder,
   serializeCadDocument,
   type CadCollaborationAuditEvent,
   type CadCollaborationState,
@@ -9,6 +8,28 @@ import {
   type CadReviewThread,
   type CadVersionSnapshot,
 } from "./cad-document";
+import {
+  cadDocumentReferenceBreaks,
+  emptySectionSink,
+  mergeCollaboration,
+  mergeDrawOrder,
+  mergeHistory,
+  mergeKeyedSection,
+  mergeLossManifest,
+  mergeMeta,
+  mergeStyles,
+  type CadMergeReferenceBreak,
+  type CadMergeSection,
+  type CadSectionCollision,
+  type CadSectionResolution,
+} from "./cad-document-merge";
+
+export type {
+  CadMergeReferenceBreak,
+  CadMergeSection,
+  CadSectionCollision,
+  CadSectionResolution,
+};
 
 export type CadEntityChangeKind = "added" | "modified" | "deleted";
 
@@ -51,6 +72,19 @@ export interface CadMergeResult {
   collisions: CadMergeCollision[];
   unresolved: string[];
   appliedResolutions: string[];
+  /** Recursos NO-entidad que ambas ramas cambiaron distinto. */
+  sectionCollisions: CadSectionCollision[];
+  /** Claves `sección:recurso` todavía sin decidir. */
+  unresolvedSections: string[];
+  appliedSectionResolutions: string[];
+  /** Referencias que el documento fusionado no puede resolver. */
+  referenceBreaks: CadMergeReferenceBreak[];
+  /**
+   * ¿Puede aplicarse esta fusión? Falso mientras quede una entidad o un recurso
+   * sin decidir, y también cuando el resultado dejaría una referencia colgante:
+   * el validador del servidor rechazaría ese documento al guardarlo.
+   */
+  ok: boolean;
 }
 
 const GEOMETRY_KEYS = new Set([
@@ -160,14 +194,21 @@ function collisionReason(
 }
 
 /**
- * Entity-granular three-way merge. Disjoint edits merge automatically; the
- * result refuses to silently choose when both branches changed one entity.
+ * Fusión a tres vías del DOCUMENTO COMPLETO. Los cambios disjuntos se fusionan
+ * solos —en entidades y en las otras once secciones—; el resultado se niega a
+ * elegir en silencio cuando ambas ramas cambiaron el mismo recurso, y se niega a
+ * declararse aplicable cuando dejaría una referencia colgante.
+ *
+ * Las entidades se fusionan PRIMERO porque son quienes dependen del resto: sólo
+ * con la lista fusionada delante se puede decir, ante una colisión de capa, qué
+ * entidades concretas se ven afectadas por elegir un lado u otro.
  */
 export function mergeCadDocuments(
   baseDocument: CadDocument,
   mineDocument: CadDocument,
   theirsDocument: CadDocument,
   resolutions: Record<string, CadMergeResolution> = {},
+  sectionResolutions: Record<string, CadSectionResolution> = {},
 ): CadMergeResult {
   const base = entityMap(baseDocument);
   const mine = entityMap(mineDocument);
@@ -219,25 +260,148 @@ export function mergeCadDocuments(
   }
 
   const entities = [...merged.values()].sort((left, right) => left.id.localeCompare(right.id));
-  return {
-    document: {
-      ...structuredClone(mineDocument),
-      entities,
-      // El orden por id sirve para serializar de forma determinista, no para
-      // dibujar: derivar de él `modelSpace.entityIds` alfabetizaba el z-order
-      // del documento al resolver un conflicto. Se conserva el orden propio y
-      // lo que llega nuevo entra al frente.
-      modelSpace: {
-        entityIds: preserveDrawOrder(
-          mineDocument.modelSpace.entityIds,
-          entities.map((entity) => entity.id),
-        ),
-      },
+
+  // Índice de dependencias: qué entidades del RESULTADO usan cada capa y cada
+  // bloque. Es lo que convierte «la capa WALLS está en disputa» en «elegir aquí
+  // afecta a estas tres entidades».
+  const dependentsByLayer = new Map<string, string[]>();
+  const dependentsByBlock = new Map<string, string[]>();
+  const index = (bucket: Map<string, string[]>, key: string | undefined, id: string) => {
+    if (key === undefined) return;
+    const list = bucket.get(key) ?? [];
+    list.push(id);
+    bucket.set(key, list);
+  };
+  for (const entity of entities) {
+    index(dependentsByLayer, (entity as { layer?: string }).layer, entity.id);
+    if (entity.type === "insert") index(dependentsByBlock, entity.block, entity.id);
+  }
+  const sink = emptySectionSink();
+  const none = () => [];
+
+  const document: CadDocument = {
+    meta: mergeMeta(
+      baseDocument.meta,
+      mineDocument.meta,
+      theirsDocument.meta,
+      sectionResolutions,
+      sink,
+    ),
+    layers: mergeKeyedSection(
+      "layers",
+      baseDocument.layers,
+      mineDocument.layers,
+      theirsDocument.layers,
+      (layer) => layer.id,
+      (id) => dependentsByLayer.get(id) ?? [],
+      sectionResolutions,
+      sink,
+    ),
+    entities,
+    history: mergeHistory(mineDocument.history, theirsDocument.history),
+    // El orden por id sirve para serializar de forma determinista, no para
+    // dibujar: derivar de él `modelSpace.entityIds` alfabetizaba el z-order del
+    // documento al resolver un conflicto. Se conserva el orden propio, después
+    // el de la otra sesión para lo que sólo trae ella.
+    modelSpace: {
+      entityIds: mergeDrawOrder(
+        mineDocument.modelSpace.entityIds,
+        theirsDocument.modelSpace.entityIds,
+        entities.map((entity) => entity.id),
+      ),
     },
+    paperSpaces: mergeKeyedSection(
+      "paperSpaces",
+      baseDocument.paperSpaces,
+      mineDocument.paperSpaces,
+      theirsDocument.paperSpaces,
+      (space) => space.id,
+      none,
+      sectionResolutions,
+      sink,
+    ),
+    styles: mergeStyles(
+      baseDocument.styles,
+      mineDocument.styles,
+      theirsDocument.styles,
+      sectionResolutions,
+      sink,
+    ),
+    blocks: mergeKeyedSection(
+      "blocks",
+      baseDocument.blocks,
+      mineDocument.blocks,
+      theirsDocument.blocks,
+      (block) => block.id,
+      (id) => dependentsByBlock.get(id) ?? [],
+      sectionResolutions,
+      sink,
+    ),
+    constraints: mergeKeyedSection(
+      "constraints",
+      baseDocument.constraints,
+      mineDocument.constraints,
+      theirsDocument.constraints,
+      (constraint) => constraint.id,
+      none,
+      sectionResolutions,
+      sink,
+    ),
+    externalReferences: mergeKeyedSection(
+      "externalReferences",
+      baseDocument.externalReferences,
+      mineDocument.externalReferences,
+      theirsDocument.externalReferences,
+      (reference) => reference.id,
+      none,
+      sectionResolutions,
+      sink,
+    ),
+    unsupportedEntities: mergeKeyedSection(
+      "unsupportedEntities",
+      baseDocument.unsupportedEntities,
+      mineDocument.unsupportedEntities,
+      theirsDocument.unsupportedEntities,
+      (opaque) => opaque.id,
+      none,
+      sectionResolutions,
+      sink,
+    ),
+    lossManifest: mergeLossManifest(
+      mineDocument.lossManifest,
+      theirsDocument.lossManifest,
+    ),
+    publications: mergeKeyedSection(
+      "publications",
+      baseDocument.publications,
+      mineDocument.publications,
+      theirsDocument.publications,
+      (publication) => publication.id,
+      none,
+      sectionResolutions,
+      sink,
+    ),
+    collaboration: mergeCollaboration(
+      mineDocument.collaboration,
+      theirsDocument.collaboration,
+    ),
+  };
+
+  const referenceBreaks = cadDocumentReferenceBreaks(document);
+  return {
+    document,
     autoMergedIds,
     collisions,
     unresolved,
     appliedResolutions,
+    sectionCollisions: sink.collisions,
+    unresolvedSections: sink.unresolved,
+    appliedSectionResolutions: sink.applied,
+    referenceBreaks,
+    ok:
+      unresolved.length === 0 &&
+      sink.unresolved.length === 0 &&
+      referenceBreaks.length === 0,
   };
 }
 
