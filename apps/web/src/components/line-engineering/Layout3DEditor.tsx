@@ -202,6 +202,14 @@ import {
 import { readRenamedStorageKey } from "@/lib/storage-rename";
 import { createCadCheckpointQueue } from "@/lib/cad/recovery-checkpoint-queue";
 import {
+  CAD_CONFLICT_CONSEQUENCE,
+  planCadConflictResolution,
+  summarizeCadConflict,
+  type CadConflictInputs,
+  type CadConflictStrategy,
+} from "@/lib/cad/cad-conflict-resolution";
+import type { CadMergeResolution } from "@/lib/cad/cad-collaboration";
+import {
   cadAutosaveBlockedByConflict,
   cadSaveConflictLabel,
   latchCadSaveConflict,
@@ -2432,6 +2440,17 @@ export default function Layout3DEditor({
   // ref porque lo consulta el programador de autosave, que corre fuera del
   // ciclo de render.
   const saveConflictRef = useRef<CadSaveConflict | null>(null);
+  /**
+   * Entradas del panel de resolución. Se rellena tras el 409 trayendo el
+   * documento del servidor; `null` mientras no haya conflicto que resolver.
+   */
+  const [conflictInputs, setConflictInputs] = useState<CadConflictInputs | null>(
+    null,
+  );
+  const [conflictResolutions, setConflictResolutions] = useState<
+    Record<string, CadMergeResolution>
+  >({});
+  const [conflictBusy, setConflictBusy] = useState(false);
   const versionByDocumentRef = useRef(new Map<string, number>());
   const savedGenerationByDocumentRef = useRef(new Map<string, number>());
   const autosaveSchedulerRef = useRef<ReturnType<
@@ -2441,6 +2460,15 @@ export default function Layout3DEditor({
     () => CanonicalSaveRequest | null
   >(() => null);
   const persistCanonicalSaveRef = useRef<
+    (
+      request: CanonicalSaveRequest,
+      origin: "manual" | "autosave",
+    ) => Promise<Layout | null>
+  >(async () => null);
+  // Mismo motivo que los dos refs de arriba: `runCanonicalSave` se redefine en
+  // cada render, así que depender de él haría cambiar de identidad a todo lo
+  // que lo capture. El ref lo mantiene fresco sin arrastrar la dependencia.
+  const runCanonicalSaveRef = useRef<
     (
       request: CanonicalSaveRequest,
       origin: "manual" | "autosave",
@@ -5164,6 +5192,98 @@ export default function Layout3DEditor({
       toast.error("El borrador local no pudo restaurarse.", "CAD");
     }
   }, [notifyReadOnly, recoveryCandidate, restore, syncCadLayerState, toast]);
+
+  /** Vuelca un documento resuelto en el editor (misma adopción que recovery). */
+  const adoptResolvedDocument = useCallback(
+    (document: CadDocument) => {
+      loadedCadDocumentRef.current = document;
+      setPaperSpaces(document.paperSpaces.map((space) => ({ ...space })));
+      syncCadLayerState(document);
+      setCadXrefs(
+        document.externalReferences.map((reference) => ({ ...reference })),
+      );
+      setPublicationRecords([...document.publications]);
+      setNativeEntities(
+        document.entities.filter((entity): entity is CadNativeEntity =>
+          CAD_ENTITY_REGISTRY.supports(entity),
+        ),
+      );
+      setNativeDocumentRevision((value) => value + 1);
+      restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
+    },
+    [restore, syncCadLayerState],
+  );
+
+  const conflictSummary = useMemo(
+    () =>
+      conflictInputs
+        ? summarizeCadConflict({ ...conflictInputs, resolutions: conflictResolutions })
+        : null,
+    [conflictInputs, conflictResolutions],
+  );
+
+  /**
+   * Aplica la salida elegida. Las tres pasan por `planCadConflictResolution`,
+   * que es quien decide el documento y la versión: aquí no se reinterpreta
+   * ninguna de esas dos cosas, sólo se ejecutan.
+   */
+  const resolveSaveConflict = useCallback(
+    async (strategy: CadConflictStrategy) => {
+      if (!conflictInputs || !documentId || conflictBusy) return;
+      const planned = planCadConflictResolution(strategy, {
+        ...conflictInputs,
+        resolutions: conflictResolutions,
+      });
+      if (!planned.ok) {
+        toast.error(
+          `Quedan ${planned.unresolved.length} entidades en disputa por decidir.`,
+          "Conflicto CAS",
+        );
+        return;
+      }
+      const { plan } = planned;
+      setConflictBusy(true);
+      try {
+        adoptResolvedDocument(plan.document);
+        if (plan.saveAgainstVersion === null) {
+          // Recargar: el servidor ya tiene esto, así que no se escribe. El
+          // borrador local NO se toca; es lo único que queda de lo descartado.
+          versionByDocumentRef.current.set(documentId, conflictInputs.theirsVersion);
+          dirtyRef.current = false;
+          setDirty(false);
+          saveConflictRef.current = null;
+          setSaveIssue(null);
+          setConflictInputs(null);
+          toast.success(
+            "Recargado del servidor. Tus cambios siguen en la recuperación local.",
+            "Conflicto CAS",
+          );
+          return;
+        }
+        // Fusionar o sobrescribir: se reapunta el CAS a la versión vigente y
+        // se guarda por el camino normal, con su control de concurrencia.
+        versionByDocumentRef.current.set(documentId, plan.saveAgainstVersion);
+        saveConflictRef.current = null;
+        markDirty();
+        const request = captureCanonicalSaveRequestRef.current();
+        const saved = request
+          ? await runCanonicalSaveRef.current(request, "manual")
+          : null;
+        if (saved) setConflictInputs(null);
+      } finally {
+        setConflictBusy(false);
+      }
+    },
+    [
+      adoptResolvedDocument,
+      conflictBusy,
+      conflictInputs,
+      conflictResolutions,
+      documentId,
+      markDirty,
+      toast,
+    ],
+  );
 
   const discardRecoveryCandidate = useCallback(() => {
     setRecoveryCandidate(null);
@@ -14949,6 +15069,33 @@ export default function Layout3DEditor({
           expectedVersion,
           saveError.serverVersion,
         );
+        // Traer lo que el servidor tiene AHORA es lo que convierte el conflicto
+        // en algo resoluble: sin `theirs` no hay fusión a tres vías posible,
+        // sólo la elección ciega entre descartar un lado u otro.
+        if (requestIsActive) {
+          void documentLifecycle
+            .open(request.documentId)
+            .then((opened) => {
+              if (
+                !editorOpenRef.current ||
+                currentDocumentIdRef.current !== request.documentId
+              )
+                return;
+              setConflictResolutions({});
+              setConflictInputs({
+                base: migrateCadDocument(request.base.cadDocument),
+                mine: request.document,
+                theirs: opened.document,
+                theirsVersion: opened.version,
+              });
+            })
+            .catch(() => {
+              // Sin el documento del servidor no se puede ofrecer una
+              // resolución honesta: se deja el conflicto anunciado y el
+              // autosave detenido, que ya es la protección principal.
+              setConflictInputs(null);
+            });
+        }
         if (requestIsActive) {
           setSaveIssue({
             kind: "conflict",
@@ -15119,6 +15266,7 @@ export default function Layout3DEditor({
   useEffect(() => {
     captureCanonicalSaveRequestRef.current = captureCanonicalSaveRequest;
     persistCanonicalSaveRef.current = persistCanonicalSave;
+    runCanonicalSaveRef.current = runCanonicalSave;
   });
 
   useEffect(() => {
@@ -18544,6 +18692,102 @@ export default function Layout3DEditor({
                 >
                   Mostrar propiedades
                 </button>
+              </div>
+            )}
+            {conflictInputs && conflictSummary && (
+              <div
+                data-testid="cad-conflict-panel"
+                className="absolute right-3 top-16 z-40 w-[22rem] rounded-2xl border border-rose-300/30 bg-gray-950/97 p-3 shadow-2xl backdrop-blur"
+              >
+                <div className="text-[12px] font-semibold text-rose-100">
+                  El dibujo cambió en el servidor (v
+                  {conflictInputs.theirsVersion})
+                </div>
+                <div
+                  data-testid="cad-conflict-counts"
+                  data-auto-merged={conflictSummary.autoMerged}
+                  data-collisions={conflictSummary.collisions.length}
+                  data-unresolved={conflictSummary.unresolved.length}
+                  className="mt-1 text-[10.5px] leading-snug text-gray-400"
+                >
+                  {conflictSummary.autoMerged} entidades se combinan solas ·{" "}
+                  {conflictSummary.collisions.length} en disputa
+                </div>
+
+                {conflictSummary.collisions.length > 0 && (
+                  <div className="mt-2 max-h-52 overflow-y-auto rounded-lg border border-white/10">
+                    {conflictSummary.collisions.map((collision) => {
+                      const chosen = conflictResolutions[collision.entityId];
+                      return (
+                        <div
+                          key={collision.entityId}
+                          data-testid={`cad-conflict-row-${collision.entityId}`}
+                          data-resolved={chosen ? chosen.strategy : ""}
+                          className="border-b border-white/5 px-2 py-1.5 last:border-b-0"
+                        >
+                          <div className="truncate text-[10.5px] text-gray-300">
+                            {collision.entityType} · {collision.entityId}
+                          </div>
+                          <div className="mt-1 flex gap-1">
+                            {(["mine", "theirs"] as const).map((side) => (
+                              <button
+                                key={side}
+                                type="button"
+                                data-testid={`cad-conflict-${side}-${collision.entityId}`}
+                                onClick={() =>
+                                  setConflictResolutions((current) => ({
+                                    ...current,
+                                    [collision.entityId]: { strategy: side },
+                                  }))
+                                }
+                                className={`rounded px-1.5 py-0.5 text-[10px] ${
+                                  chosen?.strategy === side
+                                    ? "bg-cyan-400/20 text-cyan-100"
+                                    : "bg-white/5 text-gray-400 hover:text-gray-200"
+                                }`}
+                              >
+                                {side === "mine" ? "Lo mío" : "Lo suyo"}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className="mt-2 space-y-1.5">
+                  {(
+                    [
+                      ["merge", "Revisar y fusionar"],
+                      ["reload", "Recargar del servidor"],
+                      ["overwrite", "Sobrescribir"],
+                    ] as const
+                  ).map(([strategy, label]) => {
+                    const blocked = strategy === "merge" && !conflictSummary.mergeReady;
+                    return (
+                      <button
+                        key={strategy}
+                        type="button"
+                        data-testid={`cad-conflict-${strategy}`}
+                        disabled={conflictBusy || blocked}
+                        onClick={() => void resolveSaveConflict(strategy)}
+                        className={`w-full rounded-lg px-2 py-1.5 text-left text-[11px] disabled:opacity-40 ${
+                          strategy === "merge"
+                            ? "bg-cyan-400/15 text-cyan-100"
+                            : "bg-white/5 text-gray-300"
+                        }`}
+                      >
+                        <span className="font-semibold">{label}</span>
+                        <span className="mt-0.5 block text-[9.5px] leading-snug text-gray-400">
+                          {blocked
+                            ? `Decide las ${conflictSummary.unresolved.length} entidades en disputa para continuar.`
+                            : CAD_CONFLICT_CONSEQUENCE[strategy]}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
             {recoveryCandidate && (
