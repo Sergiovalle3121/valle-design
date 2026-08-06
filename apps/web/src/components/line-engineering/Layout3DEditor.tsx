@@ -221,12 +221,18 @@ import {
   serializeCadDocumentForTransport,
 } from "@/lib/cad/large-document-transport";
 import {
-  clearCadRecovery,
+  cadRecoveryLaneId,
+  clearCadRecoveryLaneThrough,
+  discardCadRecoveryThrough,
   CadRecoveryQuotaError,
   loadCadRecovery,
   saveCadRecovery,
   type CadRecoveryRecord,
 } from "@/lib/cad/cad-recovery";
+import {
+  classifyCadRecoveryCandidate,
+  LEGACY_LANE as LEGACY_RECOVERY_LANE,
+} from "@/lib/cad/cad-recovery-journal";
 import { planCadNativeRenderBudget } from "@/lib/cad/native-render-budget";
 import { CadNativeSelectionIndex } from "@/lib/cad/native-selection-index";
 import {
@@ -2419,8 +2425,26 @@ export default function Layout3DEditor({
   }, []);
   const [recoveryCandidate, setRecoveryCandidate] =
     useState<CadRecoveryRecord | null>(null);
+  /**
+   * ¿El borrador ofrecido parte de una versión que el servidor ya superó? Es
+   * una RAMA local, no un borrador al día, y el aviso tiene que decirlo: sus
+   * cambios no se pueden guardar encima sin decidir antes qué pasa con lo que
+   * la otra sesión escribió.
+   */
+  const [recoveryDivergent, setRecoveryDivergent] = useState(false);
   const [recoverySavedAt, setRecoverySavedAt] = useState<string | null>(null);
   const [recoveryWarning, setRecoveryWarning] = useState<string | null>(null);
+  /**
+   * Carril de recuperación de ESTA pestaña y momento en que empezó a editar
+   * ESTE documento. Los dos acotan qué puede borrar un guardado: sólo lo que
+   * esta pestaña escribió en esta sesión. Antes se borraba el ámbito entero.
+   *
+   * Se rellenan en un efecto, no en el render: `cadRecoveryLaneId()` toca
+   * `sessionStorage` y `Date.now()` no es puro, y ninguna de las dos cosas
+   * puede pasar mientras React está renderizando.
+   */
+  const recoveryLaneRef = useRef<string | null>(null);
+  const recoverySessionStartedAtRef = useRef(0);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<AutosaveStatus>("idle");
   const [saveIssue, setSaveIssue] = useState<{
@@ -3616,6 +3640,7 @@ export default function Layout3DEditor({
       setSaveIssue(null);
       setSaveStatus("idle");
       setRecoveryCandidate(null);
+      setRecoveryDivergent(false);
       setRecoverySavedAt(null);
       setTab("stations");
       setOverlay(null);
@@ -5064,20 +5089,38 @@ export default function Layout3DEditor({
     [clearNativeSelection, rebuildAll, select],
   );
 
+  // La sesión de recuperación se reinicia con el documento, igual que
+  // `editGenerationRef`: un guardado sólo confirma lo que se escribió después
+  // de abrir esto.
+  useEffect(() => {
+    recoveryLaneRef.current = cadRecoveryLaneId();
+    recoverySessionStartedAtRef.current = Date.now();
+  }, [documentId, model, revision]);
+
   useEffect(() => {
     if (!open || !data || !recoveryScope || dirty) return;
     let active = true;
     void loadCadRecovery(recoveryScope)
       .then((candidate) => {
         if (!active || !candidate) return;
-        if (
-          candidate.baseCadDocumentVersion === (data.cadDocumentVersion ?? 0)
-        ) {
-          setRecoveryCandidate(candidate);
-          setRecoverySavedAt(candidate.savedAt);
-        } else {
-          void clearCadRecovery(recoveryScope).catch(() => undefined);
-        }
+        // ANTES: si la versión base del borrador no coincidía con la del
+        // servidor, se BORRABA. Es decir, que otra sesión guardase bastaba para
+        // destruir trabajo local que sólo existía ahí. Un borrador sobre una
+        // versión superada no es basura: es una rama, y el journal es su única
+        // copia. Se ofrece igual, diciendo lo que es.
+        const kind = classifyCadRecoveryCandidate(candidate, {
+          serverVersion: data.cadDocumentVersion ?? 0,
+          savedGeneration:
+            (currentDocumentIdRef.current
+              ? savedGenerationByDocumentRef.current.get(
+                  currentDocumentIdRef.current,
+                )
+              : undefined) ?? -1,
+        });
+        if (kind === "confirmed") return;
+        setRecoveryCandidate(candidate);
+        setRecoveryDivergent(kind === "divergent");
+        setRecoverySavedAt(candidate.savedAt);
       })
       .catch(() => undefined);
     return () => {
@@ -5095,12 +5138,19 @@ export default function Layout3DEditor({
     const queue = createCadCheckpointQueue({
       snapshot: () => snapshotDocument(),
       write: (document) =>
-        saveCadRecovery(recoveryScope, document, data.cadDocumentVersion ?? 0)
-          .then((record) => {
-            if (!active) return;
-            setRecoverySavedAt(record.savedAt);
-            setRecoveryWarning(null);
-          }),
+        // La generación se lee AQUÍ, junto al documento que se está
+        // persistiendo: es lo que permite después distinguir un checkpoint ya
+        // confirmado por un guardado de uno que capturó una edición posterior.
+        saveCadRecovery(
+          recoveryScope,
+          document,
+          data.cadDocumentVersion ?? 0,
+          editGenerationRef.current,
+        ).then((record) => {
+          if (!active) return;
+          setRecoverySavedAt(record.savedAt);
+          setRecoveryWarning(null);
+        }),
       onError: (cause) => {
         if (!active) return;
         setRecoveryWarning(
@@ -5156,6 +5206,7 @@ export default function Layout3DEditor({
       setNativeDocumentRevision((value) => value + 1);
       restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
       setRecoveryCandidate(null);
+      setRecoveryDivergent(false);
       toast.success(
         "Borrador local recuperado. Guárdalo para confirmar.",
         "CAD",
@@ -5165,12 +5216,23 @@ export default function Layout3DEditor({
     }
   }, [notifyReadOnly, recoveryCandidate, restore, syncCadLayerState, toast]);
 
+  /**
+   * Descartar es una acción EXPLÍCITA sobre un borrador concreto, así que borra
+   * ese registro y los anteriores de SU carril — no el ámbito entero, que se
+   * llevaba por delante los checkpoints de las demás pestañas abiertas.
+   */
   const discardRecoveryCandidate = useCallback(() => {
+    const discarded = recoveryCandidate;
     setRecoveryCandidate(null);
+    setRecoveryDivergent(false);
     setRecoverySavedAt(null);
-    if (recoveryScope)
-      void clearCadRecovery(recoveryScope).catch(() => undefined);
-  }, [recoveryScope]);
+    if (!recoveryScope || !discarded) return;
+    void discardCadRecoveryThrough(
+      recoveryScope,
+      discarded.lane ?? LEGACY_RECOVERY_LANE,
+      discarded.savedAtMs,
+    ).catch(() => undefined);
+  }, [recoveryCandidate, recoveryScope]);
 
   const commitPaperSpaces = useCallback(
     (next: CadPaperSpace[], label: string) => {
@@ -14917,10 +14979,20 @@ export default function Layout3DEditor({
           dirtyRef.current = false;
           setDirty(false);
           setRecoveryCandidate(null);
+          setRecoveryDivergent(false);
           setRecoverySavedAt(null);
           setRecoveryWarning(null);
-          if (recoveryScope)
-            void clearCadRecovery(recoveryScope).catch(() => undefined);
+          // Sólo MI carril y sólo hasta la generación que el servidor acaba de
+          // confirmar. Antes se borraba el ámbito entero: guardar aquí
+          // destruía los checkpoints de las demás pestañas abiertas sobre este
+          // dibujo, que ni habían guardado y cuyo trabajo sólo existía ahí.
+          if (recoveryScope && recoveryLaneRef.current)
+            void clearCadRecoveryLaneThrough(
+              recoveryScope,
+              recoveryLaneRef.current,
+              request.generation,
+              recoverySessionStartedAtRef.current,
+            ).catch(() => undefined);
         } else {
           // A newer edit landed while the request was in flight. Preserve
           // dirty and queue that generation against the new CAS version.
@@ -15084,10 +15156,16 @@ export default function Layout3DEditor({
       dirtyRef.current = false;
       setDirty(false);
       setRecoveryCandidate(null);
+      setRecoveryDivergent(false);
       setRecoverySavedAt(null);
       setRecoveryWarning(null);
-      if (recoveryScope)
-        void clearCadRecovery(recoveryScope).catch(() => undefined);
+      if (recoveryScope && recoveryLaneRef.current)
+        void clearCadRecoveryLaneThrough(
+          recoveryScope,
+          recoveryLaneRef.current,
+          editGenerationRef.current,
+          recoverySessionStartedAtRef.current,
+        ).catch(() => undefined);
       onSaved?.();
       return saved;
     } catch (saveError) {
@@ -18547,18 +18625,41 @@ export default function Layout3DEditor({
               </div>
             )}
             {recoveryCandidate && (
-              <div className="absolute left-3 top-16 z-30 w-80 rounded-2xl border border-amber-300/30 bg-gray-950/95 p-3 shadow-2xl backdrop-blur">
+              <div
+                data-testid="cad-recovery-panel"
+                data-divergent={recoveryDivergent ? "true" : "false"}
+                data-base-version={recoveryCandidate.baseCadDocumentVersion}
+                className={`absolute left-3 top-16 z-30 w-80 rounded-2xl border bg-gray-950/95 p-3 shadow-2xl backdrop-blur ${
+                  recoveryDivergent
+                    ? "border-orange-400/40"
+                    : "border-amber-300/30"
+                }`}
+              >
                 <div className="flex items-start gap-2">
                   <History className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
                   <div className="min-w-0 flex-1">
                     <div className="text-[12px] font-semibold text-amber-100">
-                      Borrador local recuperable
+                      {recoveryDivergent
+                        ? "Rama local divergente"
+                        : "Borrador local recuperable"}
                     </div>
                     <div className="mt-1 text-[10.5px] leading-snug text-gray-400">
                       Guardado automáticamente{" "}
                       {new Date(recoveryCandidate.savedAt).toLocaleString()} en
                       este tenant, usuario y workspace.
                     </div>
+                    {recoveryDivergent && (
+                      // Antes este borrador se BORRABA sin preguntar en cuanto
+                      // el servidor avanzaba. Ahora se ofrece diciendo lo que
+                      // es: trabajo local sobre una versión ya superada.
+                      <div className="mt-1 text-[10.5px] leading-snug text-orange-200">
+                        Parte de la v
+                        {recoveryCandidate.baseCadDocumentVersion} y el servidor
+                        ya va por la v{data?.cadDocumentVersion ?? 0}: otra
+                        sesión guardó mientras tanto. Al restaurarlo y guardar
+                        tendrás que decidir qué pasa con lo que ella escribió.
+                      </div>
+                    )}
                     {recoveryCandidate.format !== "legacy-object" && (
                       <div className="mt-1 text-[10px] text-sky-200/80">
                         Journal #{recoveryCandidate.journalSequence} ·{" "}
@@ -18569,12 +18670,14 @@ export default function Layout3DEditor({
                     )}
                     <div className="mt-2 flex gap-2">
                       <button
+                        data-testid="cad-recovery-restore"
                         onClick={restoreRecoveryCandidate}
                         className="rounded-lg bg-amber-400 px-2.5 py-1.5 text-[11px] font-semibold text-gray-950 hover:bg-amber-300"
                       >
                         Restaurar
                       </button>
                       <button
+                        data-testid="cad-recovery-discard"
                         onClick={discardRecoveryCandidate}
                         className="rounded-lg border border-white/10 px-2.5 py-1.5 text-[11px] text-gray-300 hover:bg-white/10"
                       >
