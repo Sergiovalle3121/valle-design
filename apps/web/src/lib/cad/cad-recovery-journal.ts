@@ -38,6 +38,16 @@ export interface CadRecoveryJournalEntry {
   scopeKey: string;
   savedAtMs: number;
   lane?: string;
+  /**
+   * Generación de edición que capturó este checkpoint. Es el contador local de
+   * ediciones, y es lo ÚNICO que permite decir si un checkpoint ya está a salvo
+   * en el servidor: la versión CAS no sirve —dos checkpoints consecutivos
+   * comparten versión base— y el reloj tampoco, porque una escritura lenta
+   * puede confirmarse después de un guardado que ya la dejó obsoleta.
+   *
+   * Ausente en los registros anteriores a este campo.
+   */
+  editGeneration?: number;
 }
 
 const laneOf = (entry: CadRecoveryJournalEntry) => entry.lane || LEGACY_LANE;
@@ -103,8 +113,112 @@ export function planCadRecoveryPrune(
       .sort(newestFirst);
     fairOrder.push(...roundEntries);
   }
-  fairOrder.slice(MAX_GLOBAL_CHECKPOINTS).forEach((entry) => remove.add(entry.key));
+  // El tope global no puede llevarse el ÚNICO checkpoint de un carril. Con más
+  // carriles que el tope —muchas ventanas abiertas y cerradas sobre el mismo
+  // dibujo— la ronda 0 excedía el corte y pestañas enteras se quedaban sin red
+  // de seguridad. El tope sigue acotando el crecimiento: lo que se conserva de
+  // más es un registro por carril vivo, no una lista sin fin.
+  const lastPerLane = new Set(lanes.map((lane) => lane[0]?.key).filter(Boolean));
+  fairOrder
+    .slice(MAX_GLOBAL_CHECKPOINTS)
+    .filter((entry) => !lastPerLane.has(entry.key))
+    .forEach((entry) => remove.add(entry.key));
   return [...remove];
+}
+
+/**
+ * Qué claves borra una operación de limpieza ACOTADA A UN CARRIL.
+ *
+ * Sustituye al borrado por ámbito, que era el defecto de fondo: un guardado en
+ * la pestaña A destruía los checkpoints de la pestaña B. Aquí sólo entran los
+ * registros del mismo ámbito Y del mismo carril, y sólo hasta la generación que
+ * la operación confirma. Un checkpoint que capturó una edición posterior —o que
+ * terminó de escribirse después del guardado pero con contenido más nuevo—
+ * sobrevive, porque sigue siendo la única copia de trabajo no confirmado.
+ *
+ * Los registros sin `editGeneration` son anteriores a este campo: se dan por
+ * confirmados por el guardado de SU carril, que es exactamente el alcance que
+ * tenían antes, sin heredar el de los demás.
+ */
+export function planCadRecoveryLaneClear(
+  entries: readonly CadRecoveryJournalEntry[],
+  scopeKey: string,
+  lane: string,
+  throughGeneration: number,
+  /**
+   * Momento en que empezó la sesión de edición que confirma. Las generaciones
+   * se reinician al abrir un documento, así que un checkpoint de una sesión
+   * ANTERIOR puede llevar un número más bajo sin que este guardado tenga nada
+   * que ver con su contenido. Confirmar es afirmar «esto ya está en el
+   * servidor»; sobre trabajo que esta sesión nunca produjo, no se puede
+   * afirmar. Esos registros envejecen o se descartan a mano, no se dan por
+   * salvados.
+   */
+  sinceMs = 0,
+): string[] {
+  return entries
+    .filter(
+      (entry) =>
+        entry.scopeKey === scopeKey &&
+        laneOf(entry) === lane &&
+        entry.savedAtMs >= sinceMs &&
+        (entry.editGeneration ?? 0) <= throughGeneration,
+    )
+    .map((entry) => entry.key);
+}
+
+/**
+ * Qué claves borra un DESCARTE explícito del borrador ofrecido.
+ *
+ * Corta por reloj y no por generación a propósito: las generaciones se
+ * reinician al abrir un documento, así que comparar la del borrador de una
+ * sesión anterior con las de ésta puede llevarse por delante un checkpoint más
+ * nuevo. «Descarto este borrador» significa este y los anteriores de su carril,
+ * que es exactamente lo que la persona ve y rechaza.
+ */
+export function planCadRecoveryLaneDiscard(
+  entries: readonly CadRecoveryJournalEntry[],
+  scopeKey: string,
+  lane: string,
+  throughSavedAtMs: number,
+): string[] {
+  return entries
+    .filter(
+      (entry) =>
+        entry.scopeKey === scopeKey &&
+        laneOf(entry) === lane &&
+        entry.savedAtMs <= throughSavedAtMs,
+    )
+    .map((entry) => entry.key);
+}
+
+/** Estado del servidor y del guardado con el que se juzga un candidato. */
+export interface CadRecoveryServerState {
+  /** Versión que el servidor tiene AHORA para este documento. */
+  serverVersion: number;
+  /** Última generación de edición que este cliente consiguió guardar. */
+  savedGeneration: number;
+}
+
+/**
+ * Qué es un borrador local frente a lo que el servidor tiene ahora.
+ *
+ *   confirmed  su contenido ya está guardado; no hay nada que ofrecer
+ *   current    trabajo sin guardar sobre la MISMA versión base
+ *   divergent  trabajo sin guardar sobre una versión que el servidor ya superó
+ *
+ * `divergent` era el caso que se BORRABA. Un borrador basado en v4 cuando el
+ * servidor va por v5 no es basura: es una rama local, y el journal es su única
+ * copia. Tirarlo destruye trabajo por el hecho de que otra sesión guardase.
+ */
+export function classifyCadRecoveryCandidate(
+  record: { baseCadDocumentVersion?: number; editGeneration?: number },
+  server: CadRecoveryServerState,
+): 'confirmed' | 'current' | 'divergent' {
+  if ((record.editGeneration ?? 0) <= server.savedGeneration) return 'confirmed';
+  return (record.baseCadDocumentVersion ?? 0) === server.serverVersion
+    ? 'current'
+    : 'divergent';
 }
 
 /**

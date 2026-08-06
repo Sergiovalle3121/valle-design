@@ -8,6 +8,8 @@ import {
   LEGACY_LANE,
   MAX_RECOVERY_AGE_MS,
   orderCadRecoveryCandidates,
+  planCadRecoveryLaneClear,
+  planCadRecoveryLaneDiscard,
   planCadRecoveryPrune,
 } from './cad-recovery-journal';
 
@@ -68,6 +70,11 @@ export interface CadRecoveryRecord {
   encoder?: 'worker' | 'main-thread-fallback';
   /** Pestaña que lo escribió; ausente en los registros previos a los carriles. */
   lane?: string;
+  /**
+   * Generación de edición capturada. Es lo que permite saber si el contenido de
+   * este checkpoint ya llegó al servidor; ausente en registros anteriores.
+   */
+  editGeneration?: number;
 }
 
 interface StoredCadRecoveryRecord {
@@ -84,6 +91,7 @@ interface StoredCadRecoveryRecord {
   sha256: string;
   encoder: 'worker' | 'main-thread-fallback';
   lane?: string;
+  editGeneration?: number;
 }
 
 interface LegacyCadRecoveryRecord {
@@ -213,6 +221,7 @@ export async function saveCadRecovery(
   scope: CadRecoveryScope,
   document: CadDocument,
   baseCadDocumentVersion: number,
+  editGeneration = 0,
 ): Promise<CadRecoveryRecord> {
   const encoded = await encodeCadRecoveryOffThread(document);
   const database = await openDatabase();
@@ -231,6 +240,7 @@ export async function saveCadRecovery(
       key: `${scopeKey}:l:${lane}:j:${String(journalSequence).padStart(8, '0')}:${savedAtMs}`,
       scopeKey,
       lane,
+      editGeneration,
       baseCadDocumentVersion,
       savedAt: new Date(savedAtMs).toISOString(),
       savedAtMs,
@@ -313,12 +323,67 @@ export async function loadCadRecovery(
   }
 }
 
-export async function clearCadRecovery(scope: CadRecoveryScope): Promise<void> {
+/**
+ * Borra, DENTRO DE UN CARRIL, los checkpoints hasta la generación indicada.
+ *
+ * Sustituye al borrado por ámbito. Ese borraba todos los carriles, así que un
+ * guardado en una pestaña destruía los checkpoints de las demás — pestañas que
+ * ni habían guardado y cuyo trabajo sólo existía ahí.
+ *
+ * El corte es por GENERACIÓN, no por reloj: un checkpoint que se confirmó
+ * después del guardado pero capturó una edición posterior sobrevive, porque su
+ * contenido todavía no está en el servidor.
+ */
+export async function clearCadRecoveryLaneThrough(
+  scope: CadRecoveryScope,
+  lane: string,
+  throughGeneration: number,
+  sinceMs = 0,
+): Promise<void> {
   const database = await openDatabase();
   const scopeKey = cadRecoveryScopeKey(scope);
   try {
-    const records = await scopeJournal(database, scopeKey);
-    await deleteJournalKeys(database, records.map((record) => record.key));
+    await deleteJournalKeys(
+      database,
+      planCadRecoveryLaneClear(
+        await scopeJournal(database, scopeKey),
+        scopeKey,
+        lane,
+        throughGeneration,
+        sinceMs,
+      ),
+    );
+  } finally {
+    database.close();
+  }
+}
+
+/**
+ * Descarte explícito: borra el borrador rechazado y los anteriores de SU
+ * carril. Corta por reloj, que es lo que la persona ve — «este y los de antes».
+ *
+ * Arrastra también el registro del almacén HEREDADO. Ese almacén guarda como
+ * mucho un borrador por ámbito y es anterior a los carriles, así que siempre es
+ * más viejo que lo que se está descartando; si no se borrara aquí no lo borraría
+ * nadie, y un borrador heredado se reofrecería para siempre.
+ */
+export async function discardCadRecoveryThrough(
+  scope: CadRecoveryScope,
+  lane: string,
+  throughSavedAtMs: number,
+): Promise<void> {
+  const database = await openDatabase();
+  const scopeKey = cadRecoveryScopeKey(scope);
+  try {
+    await deleteJournalKeys(
+      database,
+      planCadRecoveryLaneDiscard(
+        await scopeJournal(database, scopeKey),
+        scopeKey,
+        lane,
+        throughSavedAtMs,
+      ),
+    );
     const transaction = database.transaction(LEGACY_STORE_NAME, 'readwrite');
     transaction.objectStore(LEGACY_STORE_NAME).delete(scopeKey);
     await transactionDone(transaction);
