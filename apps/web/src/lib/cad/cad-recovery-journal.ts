@@ -215,7 +215,16 @@ export function classifyCadRecoveryCandidate(
   record: { baseCadDocumentVersion?: number; editGeneration?: number },
   server: CadRecoveryServerState,
 ): 'confirmed' | 'current' | 'divergent' {
-  if ((record.editGeneration ?? 0) <= server.savedGeneration) return 'confirmed';
+  // Un registro SIN generación es anterior a este campo, y no se puede afirmar
+  // nada sobre él comparando contadores: al abrir un documento la generación
+  // guardada arranca en 0, así que leer la ausencia como «generación 0» daría
+  // por confirmado —y dejaría de ofrecer— todo borrador heredado. Sin dato, se
+  // decide por versión, que es exactamente como se decidía antes.
+  if (
+    record.editGeneration !== undefined &&
+    record.editGeneration <= server.savedGeneration
+  )
+    return 'confirmed';
   return (record.baseCadDocumentVersion ?? 0) === server.serverVersion
     ? 'current'
     : 'divergent';

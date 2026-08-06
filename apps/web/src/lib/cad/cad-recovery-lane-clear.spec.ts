@@ -134,6 +134,29 @@ function entry(
 }
 
 // ---------------------------------------------------------------------------
+// 4-bis. Un borrador HEREDADO, sin generación, se sigue ofreciendo
+// ---------------------------------------------------------------------------
+
+{
+  // Al abrir un documento la generación guardada arranca en 0. Si la ausencia
+  // de `editGeneration` se leyese como «generación 0», TODO borrador escrito
+  // antes de que el campo existiera se daría por confirmado y dejaría de
+  // ofrecerse: los usuarios con un borrador pendiente lo perderían de vista al
+  // actualizar. Sin dato se decide por versión, como se decidía antes.
+  const inherited = { baseCadDocumentVersion: 4 };
+  assert.equal(
+    classifyCadRecoveryCandidate(inherited, { serverVersion: 4, savedGeneration: 0 }),
+    "current",
+    "un borrador heredado sobre la versión vigente se sigue ofreciendo",
+  );
+  assert.equal(
+    classifyCadRecoveryCandidate(inherited, { serverVersion: 9, savedGeneration: 0 }),
+    "divergent",
+    "y si el servidor avanzó, se ofrece como rama divergente",
+  );
+}
+
+// ---------------------------------------------------------------------------
 // 5. Descartar explícitamente borra ese registro y los anteriores del carril
 // ---------------------------------------------------------------------------
 
