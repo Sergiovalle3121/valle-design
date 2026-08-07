@@ -32,10 +32,6 @@
 import { strict as assert } from "node:assert";
 import { CAD_ENTITY_REGISTRY } from "./entity-runtime";
 import {
-  cadDocumentToEditorSnapshot,
-  editorSnapshotToCadDocument,
-} from "./editor-snapshot";
-import {
   layoutToCadDocument,
   replaceEditorProjection,
   type CadDocument,

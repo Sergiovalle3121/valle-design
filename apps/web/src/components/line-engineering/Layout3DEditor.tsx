@@ -11882,15 +11882,12 @@ export default function Layout3DEditor({
         toast.error("No se reconocieron líneas en el DXF.", "3D");
         return;
       }
-      const res = await legacyCadFetch("layout/dxf", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model, revision, name: file.name, data: text }),
-      });
-      if (!res.ok) {
-        toast.error("No se pudo guardar el DXF.", "3D");
-        return;
-      }
+      // La colocación se calcula ANTES de subir y viaja CON la subida. Antes se
+      // computaba después, así que el servidor guardaba el plano con su
+      // colocación por defecto (`scale: 1` en el origen) mientras el editor
+      // mostraba el encaje centrado: al recargar, el plano saltaba de sitio y
+      // de escala. Sólo lo repescaba `propagateDxfPlacement` desde el guardado
+      // HEREDADO, que no corre cuando hay `documentId`.
       const fp = data.footprint;
       const scale =
         Math.min(
@@ -11905,6 +11902,21 @@ export default function Layout3DEditor({
         visible: true,
         opacity: 0.5,
       };
+      const res = await legacyCadFetch("layout/dxf", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model,
+          revision,
+          name: file.name,
+          data: text,
+          placement: meta,
+        }),
+      });
+      if (!res.ok) {
+        toast.error("No se pudo guardar el DXF.", "3D");
+        return;
+      }
       dxfModelRef.current = dxfModel;
       dxfMetaRef.current = meta;
       setHasDxf(true);
@@ -17897,6 +17909,7 @@ export default function Layout3DEditor({
         </T3Btn>
         <input
           ref={dxfInputRef}
+          data-testid="cad-dxf-input"
           type="file"
           accept=".dxf,.dwg"
           className="hidden"
