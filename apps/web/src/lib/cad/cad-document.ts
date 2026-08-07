@@ -611,6 +611,23 @@ export interface CadCollaborationState {
   audit: CadCollaborationAuditEvent[];
 }
 
+/**
+ * Agrupación industrial de estaciones. NO es núcleo arquitectónico —un plano de
+ * arquitectura no tiene celdas—, así que vive como sección OPCIONAL: un
+ * documento que nunca las tuvo se serializa exactamente igual que antes.
+ *
+ * Está aquí porque la alternativa era seguir perdiéndolas: el editor las dejaba
+ * en un ref que sólo escribía la vía de guardado heredada, de modo que en un
+ * documento moderno crear una celda ensuciaba el dibujo, provocaba un autosave
+ * que respondía 200 y la celda no llegaba al servidor.
+ */
+export interface CadCellDefinition {
+  id: string;
+  name: string;
+  color: string;
+  stationIds: string[];
+}
+
 export interface CadDocument {
   meta: CadDocumentMeta;
   layers: CadLayerDef[];
@@ -627,6 +644,8 @@ export interface CadDocument {
   publications: CadPublicationRecord[];
   /** Review/merge metadata persisted in the same tenant-scoped CAS document. */
   collaboration?: CadCollaborationState;
+  /** Extensión industrial: agrupaciones de estaciones. Ausente si no se usan. */
+  cells?: CadCellDefinition[];
 }
 
 /** v3: modelo profesional extensible con migración aditiva desde v1/v2. */
@@ -941,6 +960,7 @@ export function commitChange(doc: CadDocument, label: string): CadDocument {
     lossManifest: structuredClone(doc.lossManifest),
     publications: structuredClone(doc.publications),
     collaboration: doc.collaboration ? structuredClone(doc.collaboration) : undefined,
+    ...(doc.cells ? { cells: structuredClone(doc.cells) } : {}),
     history: [...doc.history, { version, label }],
   };
 }
@@ -1010,6 +1030,7 @@ export function serializeCadDocument(doc: CadDocument): string {
     lossManifest: doc.lossManifest.map(stableValue),
     publications: doc.publications.map(stableValue),
     collaboration: doc.collaboration ? stableValue(doc.collaboration) : undefined,
+    ...(doc.cells ? { cells: [...doc.cells].sort(byId).map(stableValue) } : {}),
   };
   return JSON.stringify(payload);
 }
@@ -1064,6 +1085,9 @@ function withV3Defaults(doc: Partial<CadDocument>): CadDocument {
       doc.collaboration && typeof doc.collaboration === "object"
         ? doc.collaboration
         : undefined,
+    // Sección OPCIONAL: sólo aparece si el documento la traía. Materializarla
+    // como `[]` cambiaría la serialización de todos los documentos existentes.
+    ...(Array.isArray(doc.cells) ? { cells: doc.cells } : {}),
   };
 }
 

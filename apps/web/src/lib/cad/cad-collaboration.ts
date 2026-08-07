@@ -385,6 +385,24 @@ export function mergeCadDocuments(
       mineDocument.collaboration,
       theirsDocument.collaboration,
     ),
+    // Sección opcional: sólo se fusiona si algún lado la trae, para no
+    // materializarla —y cambiar la serialización— en documentos que nunca la
+    // tuvieron. Sin esto, fusionar volvería a tirar en silencio las celdas de
+    // la otra sesión, que es justo el defecto que cerró la fusión de documento.
+    ...(mineDocument.cells || theirsDocument.cells
+      ? {
+          cells: mergeKeyedSection(
+            "cells",
+            baseDocument.cells ?? [],
+            mineDocument.cells ?? [],
+            theirsDocument.cells ?? [],
+            (cell) => cell.id,
+            none,
+            sectionResolutions,
+            sink,
+          ),
+        }
+      : {}),
   };
 
   const referenceBreaks = cadDocumentReferenceBreaks(document);

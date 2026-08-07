@@ -51,7 +51,8 @@ export type CadMergeSection =
   | "paperSpaces"
   | "externalReferences"
   | "unsupportedEntities"
-  | "publications";
+  | "publications"
+  | "cells";
 
 /**
  * Un recurso que ambas ramas cambiaron de forma distinta. Lleva la sección, el
