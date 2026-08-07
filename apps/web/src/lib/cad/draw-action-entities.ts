@@ -239,7 +239,7 @@ export type OffsetEntityResult =
 export const OFFSET_REJECTION_MESSAGE: Record<OffsetRejection, string> = {
   "invalid-distance": "El desfase necesita una distancia finita distinta de cero.",
   "unsupported-entity":
-    "OFFSET sólo admite líneas, polilíneas y círculos en esta versión.",
+    "OFFSET admite líneas, polilíneas, círculos y arcos. Esta entidad no: el desfase de una elipse o una spline no es otra elipse ni otra spline, y devolverla como tal cambiaría la forma.",
   "bulge-unsupported":
     "Esta polilínea tiene tramos en arco (bulge). OFFSET de arcos todavía no está implementado y convertirlos en rectas perdería el dibujo.",
   "degenerate-geometry":
@@ -351,6 +351,23 @@ export function offsetCanonicalEntity(
     // Un círculo concéntrico: radio + distancia. Un radio no positivo no es un
     // círculo, así que la operación no produce nada.
     if (!finite(entity.radius, entity.center.x, entity.center.y))
+      return { ok: false, reason: "degenerate-geometry" };
+    const radius = entity.radius + distance;
+    if (radius <= epsilon) return { ok: false, reason: "impossible-result" };
+    return { ok: true, entity: { ...entity, id: newId(), radius } };
+  }
+
+  if (entity.type === "arc") {
+    // Un arco CONCÉNTRICO, y es exacto: el offset de un arco de circunferencia
+    // ES otro arco de circunferencia. Mismo centro, mismos ángulos, radio ± la
+    // distancia. No hay tesela, ni polilínea sustituta, ni pérdida de forma —
+    // es el mismo caso que el círculo, que no es más que un arco de 360°.
+    //
+    // Los ángulos viajan TAL CUAL a propósito: normalizarlos aquí rompería un
+    // arco que cruza el origen (300° → 60°), que es geometría legítima.
+    if (!finite(entity.radius, entity.center.x, entity.center.y))
+      return { ok: false, reason: "degenerate-geometry" };
+    if (!finite(entity.startAngle, entity.endAngle))
       return { ok: false, reason: "degenerate-geometry" };
     const radius = entity.radius + distance;
     if (radius <= epsilon) return { ok: false, reason: "impossible-result" };
