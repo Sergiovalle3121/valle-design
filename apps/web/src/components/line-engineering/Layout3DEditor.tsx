@@ -17909,6 +17909,7 @@ export default function Layout3DEditor({
         </T3Btn>
         <input
           ref={dxfInputRef}
+          data-testid="cad-dxf-input"
           type="file"
           accept=".dxf,.dwg"
           className="hidden"
