@@ -4978,6 +4978,14 @@ export default function Layout3DEditor({
    * Sin esto, poner un punto de historial al redimensionar la planta crearía un
    * checkpoint que al deshacerlo no devuelve nada — un arreglo a medias, peor
    * que no tenerlo.
+   *
+   * SALE SIN TOCAR NADA cuando la huella no cambia, que es el caso de CADA
+   * orden de dibujo. No es una micro-optimización: `data` es el objeto de
+   * estado más ancho del editor, y sustituirlo en cada orden remonta el
+   * formulario de entrada dinámica a mitad de un punto. El propio golden 33 lo
+   * documenta —"si el formulario se sustituyó a mitad, los campos vuelven
+   * vacíos"— y así fue como esto se cayó en CI: la figura no llegaba a crearse.
+   * Devolver la MISMA referencia hace que React se salte el re-render.
    */
   const applyDocumentFootprint = useCallback((document: CadDocument) => {
     const { footprintW, footprintH, gridSize } = document.meta;
@@ -4987,24 +4995,27 @@ export default function Layout3DEditor({
       gridSize === undefined
     )
       return;
-    setData((current) =>
-      current
-        ? {
-            ...current,
-            footprint: {
-              ...current.footprint,
-              ...(footprintW === undefined ? {} : { footprintW }),
-              ...(footprintH === undefined ? {} : { footprintH }),
-              ...(gridSize === undefined ? {} : { gridSize }),
-            },
-          }
-        : current,
-    );
-    setFpDraft((draft) => ({
-      w: footprintW ?? draft.w,
-      h: footprintH ?? draft.h,
-      g: gridSize ?? draft.g,
-    }));
+    setData((current) => {
+      if (!current) return current;
+      const next = {
+        footprintW: footprintW ?? current.footprint.footprintW,
+        footprintH: footprintH ?? current.footprint.footprintH,
+        gridSize: gridSize ?? current.footprint.gridSize,
+      };
+      return next.footprintW === current.footprint.footprintW &&
+        next.footprintH === current.footprint.footprintH &&
+        next.gridSize === current.footprint.gridSize
+        ? current
+        : { ...current, footprint: { ...current.footprint, ...next } };
+    });
+    setFpDraft((draft) => {
+      const w = footprintW ?? draft.w;
+      const h = footprintH ?? draft.h;
+      const g = gridSize ?? draft.g;
+      return w === draft.w && h === draft.h && g === draft.g
+        ? draft
+        : { w, h, g };
+    });
   }, []);
   const undo = useCallback(() => {
     if (drawingReadOnlyRef.current) {
