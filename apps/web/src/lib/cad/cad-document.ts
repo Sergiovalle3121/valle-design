@@ -665,6 +665,12 @@ export const CAD_DOCUMENT_SCHEMA = 3;
 export const STATIONS_LAYER = "Stations";
 /** Prefijo estable del id de conector (from→to) para round-trip determinista. */
 const CONNECTOR_PREFIX = "conn:";
+/**
+ * Capa que el adaptador heredado impone a todo conector, porque el modelo
+ * histórico no la modela. Verla en una proyección significa "no lo sé", no
+ * "quiero esta capa" — de ahí que la reproyección conserve la del documento.
+ */
+const CONNECTOR_LAYER = "Flow";
 
 function byId(a: { id: string }, b: { id: string }): number {
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
@@ -790,7 +796,7 @@ export function layoutToCadDocument(
       from: c.from,
       to: c.to,
       kind: c.kind ?? "flow",
-      layer: "Flow",
+      layer: CONNECTOR_LAYER,
     });
   }
 
@@ -1253,11 +1259,52 @@ export function replaceEditorProjection(
    */
   const baseById = new Map((base?.entities ?? []).map((entity) => [entity.id, entity]));
   const projected = projection.entities.map((entity) => {
-    if (entity.context !== undefined) return entity;
     const previous = baseById.get(entity.id);
-    return previous?.context === undefined
-      ? entity
-      : ({ ...entity, context: structuredClone(previous.context) } as CadEntity);
+    if (!previous) return entity;
+    let carried = entity;
+    if (carried.context === undefined && previous.context !== undefined)
+      carried = { ...carried, context: structuredClone(previous.context) } as CadEntity;
+    /**
+     * Y los otros dos huecos de la misma vista parcial:
+     *
+     *   · `text` declara `style`, `height` y `rotation`, que no son decorativos
+     *     —la altura ES el tamaño del texto en el dibujo y la rotación la puso
+     *     el usuario— y `CadEditorAnnotation` no los lleva.
+     *   · `connector` declara `layer`, pero `layoutToCadDocument` escribe
+     *     `"Flow"` LITERAL: la capa del conector no es que se perdiese al
+     *     guardar, es que nunca se leía.
+     *
+     * Mismo criterio que arriba: si la proyección lo trae manda ella, y si no
+     * se conserva lo del base. El acarreo es POR ENTIDAD, así que una entidad
+     * nueva nunca hereda de otra.
+     */
+    if (carried.type === "text" && previous.type === "text") {
+      const style = carried.style ?? previous.style;
+      const height = carried.height ?? previous.height;
+      const rotation = carried.rotation ?? previous.rotation;
+      if (
+        style !== carried.style ||
+        height !== carried.height ||
+        rotation !== carried.rotation
+      )
+        carried = {
+          ...carried,
+          ...(style === undefined ? {} : { style }),
+          ...(height === undefined ? {} : { height }),
+          ...(rotation === undefined ? {} : { rotation }),
+        };
+    } else if (
+      carried.type === "connector" &&
+      previous.type === "connector" &&
+      carried.layer === CONNECTOR_LAYER &&
+      previous.layer !== CONNECTOR_LAYER
+    ) {
+      // `CONNECTOR_LAYER` es el valor que el adaptador impone cuando no sabe
+      // nada, así que verlo en la proyección significa "no lo sé", no "quiero
+      // esta capa". Sólo entonces se conserva la del documento.
+      carried = { ...carried, layer: previous.layer };
+    }
+    return carried;
   });
   const entities = [...projected, ...preserved].sort(byId);
   const current = base ? migrateCadDocument(base) : projection;
