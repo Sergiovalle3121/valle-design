@@ -957,6 +957,8 @@ interface Snapshot {
   connectors: Conn[];
   layers: CadLayerAssignments;
   tags: Record<string, string>;
+  /** Grupo por objeto: sin esto moría en la reproyección de cada guardado. */
+  groups?: Record<string, string>;
 }
 interface CommandPreviewState {
   input: CadCommandInput;
@@ -4813,10 +4815,12 @@ export default function Layout3DEditor({
       assets: [...assetsRef.current.values()].map((a) => ({ ...a })),
       annotations: [...annotationsRef.current.values()].map((a) => ({ ...a })),
       connectors: connectorsRef.current.map((c) => ({ ...c })),
-      // Capa y tags viajan en el snapshot: al deshacer un dibujo recién creado,
-      // su capa/tag ya no quedan colgando (bug §3.1b, CAD-NEXT-021).
+      // Capa, tags y GRUPO viajan en el snapshot: al deshacer un dibujo recién
+      // creado, su capa/tag ya no quedan colgando (bug §3.1b, CAD-NEXT-021), y
+      // el grupo deja de morir en la reproyección de cada guardado canónico.
       layers: { ...layerAssignmentsRef.current },
       tags: { ...objectTagsRef.current },
+      groups: { ...objectGroupsRef.current },
     }),
     [],
   );

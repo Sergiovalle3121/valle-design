@@ -74,6 +74,14 @@ export interface CadEditorSnapshot<L extends string = string> {
   connectors: CadEditorConnector[];
   layers: Record<string, L>;
   tags: Record<string, string>;
+  /**
+   * Grupo por objeto. Faltaba, y el documento canónico SÍ tiene sitio (una
+   * `box` declara `group`), así que el hueco estaba justo en esta proyección:
+   * el editor la usa para reconstruir el documento en CADA guardado, de modo
+   * que el grupo desaparecía en un documento moderno mientras la interfaz
+   * seguía dejándolo poner y el guardado seguía respondiendo 200.
+   */
+  groups?: Record<string, string>;
 }
 
 const TEXT_LAYER = "Text";
@@ -112,6 +120,8 @@ export function editorSnapshotToCadDocument(
     if (layer !== undefined) asset.layer = layer;
     const tags = splitTags(snap.tags[a.id]);
     if (tags.length) asset.tags = tags;
+    const group = snap.groups?.[a.id];
+    if (group) asset.group = group;
     return asset;
   });
 
@@ -164,6 +174,7 @@ export function cadDocumentToEditorSnapshot<L extends string = string>(
     connectors: [],
     layers: {},
     tags: {},
+    groups: {},
   };
 
   for (const e of doc.entities) {
@@ -182,6 +193,7 @@ export function cadDocumentToEditorSnapshot<L extends string = string>(
       snap.assets.push(asset);
       if (e.layer !== DEFAULT_LAYER_ID) snap.layers[e.id] = e.layer as L;
       if (e.tags?.length) snap.tags[e.id] = joinTags(e.tags);
+      if (e.group) snap.groups![e.id] = e.group;
     } else if (e.type === "circle" && e.legacy) {
       const asset: CadEditorAsset = {
         id: e.id,
@@ -197,6 +209,7 @@ export function cadDocumentToEditorSnapshot<L extends string = string>(
       snap.assets.push(asset);
       if (e.layer !== DEFAULT_LAYER_ID) snap.layers[e.id] = e.layer as L;
       if (e.legacy.tags?.length) snap.tags[e.id] = joinTags(e.legacy.tags);
+      if (e.legacy.group) snap.groups![e.id] = e.legacy.group;
     } else if (e.type === "station") {
       snap.placements.push([e.id, { x: e.x, y: e.y, w: e.w, h: e.h, rotation: e.rotation }]);
       if (e.layer !== STATIONS_LAYER) snap.layers[e.id] = e.layer as L;
