@@ -43,6 +43,8 @@ export interface LayoutAssetInput {
   shape?: "rect" | "circle";
   /** Etiquetas libres del objeto (`use:smt`, `requires:power`, …). */
   tags?: string[];
+  /** Nota libre del objeto (owner, restricción, pendiente…). */
+  notes?: string;
 }
 /** Colocación de una estación de línea en el plano (el catálogo vive aparte). */
 export interface LayoutStationPlacementInput {
@@ -56,6 +58,8 @@ export interface LayoutStationPlacementInput {
   layer?: string;
   /** Etiquetas libres de la estación. */
   tags?: string[];
+  /** Nota libre de la estación. */
+  notes?: string;
 }
 export interface LayoutAnnotationInput {
   id: string;
@@ -160,6 +164,12 @@ export type CadEntity =
       label?: string;
       group?: string;
       tags?: string[];
+      /**
+       * Nota libre del objeto. Campo propio, no `context.metadata`: la
+       * reproyección trata el `context` como todo-o-nada, así que colgar aquí
+       * las notas habría borrado el color explícito y la procedencia.
+       */
+      notes?: string;
       context?: CadEntityContext;
     }
   | {
@@ -172,6 +182,7 @@ export type CadEntity =
       rotation: number;
       layer: string;
       tags?: string[];
+      notes?: string;
       context?: CadEntityContext;
     }
   | {
@@ -254,7 +265,7 @@ export type CadEntity =
       center: CadPoint3;
       radius: number;
       layer: string;
-      legacy?: { kind: string; rotation: number; label?: string; group?: string; tags?: string[] };
+      legacy?: { kind: string; rotation: number; label?: string; group?: string; tags?: string[]; notes?: string };
       context?: CadEntityContext;
     }
   | {
@@ -707,6 +718,7 @@ export function layoutToCadDocument(
       if (a.label !== undefined) circle.legacy!.label = a.label;
       if (a.group !== undefined) circle.legacy!.group = a.group;
       if (a.tags !== undefined) circle.legacy!.tags = [...a.tags];
+      if (a.notes !== undefined) circle.legacy!.notes = a.notes;
       entities.push(circle);
       continue;
     }
@@ -725,6 +737,7 @@ export function layoutToCadDocument(
     if (a.label !== undefined) box.label = a.label;
     if (a.group !== undefined) box.group = a.group;
     if (a.tags !== undefined) box.tags = [...a.tags];
+    if (a.notes !== undefined) box.notes = a.notes;
     entities.push(box);
   }
 
@@ -740,6 +753,7 @@ export function layoutToCadDocument(
       layer: s.layer ?? STATIONS_LAYER,
     };
     if (s.tags !== undefined) station.tags = [...s.tags];
+    if (s.notes !== undefined) station.notes = s.notes;
     entities.push(station);
   }
 
@@ -848,6 +862,7 @@ export function cadDocumentToLayout(doc: CadDocument): Required<LayoutInput> {
       if (e.group !== undefined) a.group = e.group;
       if (e.shape === "circle") a.shape = "circle";
       if (e.tags !== undefined) a.tags = [...e.tags];
+      if (e.notes !== undefined) a.notes = e.notes;
       assets.push(a);
     } else if (e.type === "circle" && e.legacy) {
       const a: LayoutAssetInput = {
@@ -864,11 +879,13 @@ export function cadDocumentToLayout(doc: CadDocument): Required<LayoutInput> {
       if (e.legacy.label !== undefined) a.label = e.legacy.label;
       if (e.legacy.group !== undefined) a.group = e.legacy.group;
       if (e.legacy.tags !== undefined) a.tags = [...e.legacy.tags];
+      if (e.legacy.notes !== undefined) a.notes = e.legacy.notes;
       assets.push(a);
     } else if (e.type === "station") {
       const s: LayoutStationPlacementInput = { id: e.id, x: e.x, y: e.y, w: e.w, h: e.h, rotation: e.rotation };
       if (e.layer !== STATIONS_LAYER) s.layer = e.layer;
       if (e.tags !== undefined) s.tags = [...e.tags];
+      if (e.notes !== undefined) s.notes = e.notes;
       stations.push(s);
     } else if (e.type === "text") {
       const an: LayoutAnnotationInput = { id: e.id, type: "text", x: e.x, y: e.y, text: e.text };

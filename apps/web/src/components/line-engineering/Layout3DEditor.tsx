@@ -959,7 +959,24 @@ interface Snapshot {
   tags: Record<string, string>;
   /** Grupo por objeto: sin esto moría en la reproyección de cada guardado. */
   groups?: Record<string, string>;
+  /** Nota por objeto: sin esto no se guardaba en ningún sitio, en absoluto. */
+  notes?: Record<string, string>;
 }
+/**
+ * ¿Dos mapas de cadenas por objeto tienen el MISMO contenido?
+ *
+ * Sirve para no disparar un re-render cuando una restauración devuelve lo que
+ * ya había. Comparación superficial y suficiente: los valores son cadenas.
+ */
+function sameStringMap(
+  a: Readonly<Record<string, string>>,
+  b: Readonly<Record<string, string>>,
+): boolean {
+  const keys = Object.keys(a);
+  if (keys.length !== Object.keys(b).length) return false;
+  return keys.every((key) => a[key] === b[key]);
+}
+
 interface CommandPreviewState {
   input: CadCommandInput;
   preview: CadCommandPreview;
@@ -3788,6 +3805,7 @@ export default function Layout3DEditor({
         const restoredLayers: CadLayerAssignments = {};
         const restoredGroups: Record<string, string> = {};
         const restoredTags: Record<string, string> = {};
+        const restoredNotes: Record<string, string> = {};
         (d.assets ?? []).forEach((a) => {
           const layer = (a as { layer?: string }).layer;
           if (layer?.trim()) restoredLayers[a.id] = layer;
@@ -3799,13 +3817,17 @@ export default function Layout3DEditor({
         // guardado canónico los escribe en `box.group`, mientras que
         // `d.assets[].group` sólo lo actualiza la vía heredada y por tanto se
         // queda viejo en cuanto se guarda por la moderna.
+        //
+        // Las NOTAS sólo viven ahí: no hay campo heredado del que sacarlas, así
+        // que el documento canónico es su ÚNICA fuente.
         if (d.cadDocument) {
           try {
-            const canonicalGroups = cadDocumentToEditorSnapshot(
+            const canonical = cadDocumentToEditorSnapshot(
               migrateCadDocument(d.cadDocument),
-            ).groups;
-            if (canonicalGroups && Object.keys(canonicalGroups).length)
-              Object.assign(restoredGroups, canonicalGroups);
+            );
+            if (canonical.groups && Object.keys(canonical.groups).length)
+              Object.assign(restoredGroups, canonical.groups);
+            if (canonical.notes) Object.assign(restoredNotes, canonical.notes);
           } catch {
             // Documento inválido: la rama de abajo ya avisa y cae a la
             // proyección compatible. Aquí se conserva lo heredado.
@@ -3816,6 +3838,8 @@ export default function Layout3DEditor({
         objectGroupsRef.current = restoredGroups;
         objectTagsRef.current = restoredTags;
         setObjectTags(restoredTags);
+        objectNotesRef.current = restoredNotes;
+        setObjectNotes(restoredNotes);
         const projection = editorSnapshotToCadDocument(
           {
             placements: [...pl.entries()],
@@ -3826,8 +3850,9 @@ export default function Layout3DEditor({
             tags: restoredTags,
             // Sin esto, abrir REPROYECTABA sin grupos y los borraba del
             // documento canónico en memoria; el siguiente guardado persistía
-            // la versión ya mutilada.
+            // la versión ya mutilada. Las notas van por el mismo motivo.
             groups: restoredGroups,
+            notes: restoredNotes,
           },
           { unit: d.footprint.unit },
         );
@@ -4842,6 +4867,9 @@ export default function Layout3DEditor({
       layers: { ...layerAssignmentsRef.current },
       tags: { ...objectTagsRef.current },
       groups: { ...objectGroupsRef.current },
+      // La NOTA no tenía sitio en ningún esquema: era estado de React y nada
+      // más, así que se perdía al recargar y al cambiar de documento.
+      notes: { ...objectNotesRef.current },
     }),
     [],
   );
@@ -4934,12 +4962,30 @@ export default function Layout3DEditor({
       const restoredLayers = { ...(s.layers ?? {}) };
       const restoredTags = { ...(s.tags ?? {}) };
       const restoredGroups = { ...(s.groups ?? {}) };
+      const restoredNotes = { ...(s.notes ?? {}) };
+      // Los REFS se fijan siempre —el rebuild síncrono siguiente los lee—, pero
+      // el ESTADO sólo cuando cambia de verdad. `restore` corre en cada orden
+      // canónica (vía `commitBlockMutation`), y sustituir estos cuatro mapas por
+      // objetos nuevos cada vez remonta el formulario de entrada dinámica a
+      // mitad de un punto: el mismo mecanismo que ya rompió el golden 33.
+      // Añadir aquí las notas sumaba un cuarto re-render por orden, así que los
+      // cuatro dejan de dispararse cuando el contenido coincide.
       layerAssignmentsRef.current = restoredLayers;
-      setLayerAssignments(restoredLayers);
+      setLayerAssignments((current) =>
+        sameStringMap(current, restoredLayers) ? current : restoredLayers,
+      );
       objectTagsRef.current = restoredTags;
-      setObjectTags(restoredTags);
+      setObjectTags((current) =>
+        sameStringMap(current, restoredTags) ? current : restoredTags,
+      );
       objectGroupsRef.current = restoredGroups;
-      setObjectGroups(restoredGroups);
+      setObjectGroups((current) =>
+        sameStringMap(current, restoredGroups) ? current : restoredGroups,
+      );
+      objectNotesRef.current = restoredNotes;
+      setObjectNotes((current) =>
+        sameStringMap(current, restoredNotes) ? current : restoredNotes,
+      );
       setPlacedIds(new Set(placementsRef.current.keys()));
       setAssetIds(new Set(assetsRef.current.keys()));
       setDimCount(
@@ -20773,6 +20819,7 @@ export default function Layout3DEditor({
                         <label className="block text-[11px] text-gray-500 dark:text-gray-400">
                           <span className="block mb-1">Notas</span>
                           <textarea
+                            data-testid="cad-object-notes"
                             value={objectNotes[selSnap.id] ?? ""}
                             onChange={(e) =>
                               updateSelectedNotes(e.target.value)

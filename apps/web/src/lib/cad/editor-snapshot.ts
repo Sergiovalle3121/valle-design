@@ -82,6 +82,13 @@ export interface CadEditorSnapshot<L extends string = string> {
    * seguía dejándolo poner y el guardado seguía respondiendo 200.
    */
   groups?: Record<string, string>;
+  /**
+   * Nota libre por objeto. Faltaba igual que el grupo, pero peor: el grupo al
+   * menos sobrevivía por la vía heredada, y la nota no tenía sitio en NINGÚN
+   * esquema. Era estado de React y nada más — la interfaz la dejaba escribir,
+   * el guardado respondía 200, y desaparecía al recargar.
+   */
+  notes?: Record<string, string>;
 }
 
 const TEXT_LAYER = "Text";
@@ -133,6 +140,8 @@ export function editorSnapshotToCadDocument(
     if (tags.length) asset.tags = tags;
     const group = snap.groups?.[a.id];
     if (group) asset.group = group;
+    const note = snap.notes?.[a.id];
+    if (note) asset.notes = note;
     return asset;
   });
 
@@ -149,6 +158,8 @@ export function editorSnapshotToCadDocument(
     if (layer !== undefined) station.layer = layer;
     const tags = splitTags(snap.tags[id]);
     if (tags.length) station.tags = tags;
+    const note = snap.notes?.[id];
+    if (note) station.notes = note;
     return station;
   });
 
@@ -191,6 +202,7 @@ export function cadDocumentToEditorSnapshot<L extends string = string>(
     layers: {},
     tags: {},
     groups: {},
+    notes: {},
   };
 
   for (const e of doc.entities) {
@@ -210,6 +222,7 @@ export function cadDocumentToEditorSnapshot<L extends string = string>(
       if (e.layer !== DEFAULT_LAYER_ID) snap.layers[e.id] = e.layer as L;
       if (e.tags?.length) snap.tags[e.id] = joinTags(e.tags);
       if (e.group) snap.groups![e.id] = e.group;
+      if (e.notes) snap.notes![e.id] = e.notes;
     } else if (e.type === "circle" && e.legacy) {
       const asset: CadEditorAsset = {
         id: e.id,
@@ -226,10 +239,12 @@ export function cadDocumentToEditorSnapshot<L extends string = string>(
       if (e.layer !== DEFAULT_LAYER_ID) snap.layers[e.id] = e.layer as L;
       if (e.legacy.tags?.length) snap.tags[e.id] = joinTags(e.legacy.tags);
       if (e.legacy.group) snap.groups![e.id] = e.legacy.group;
+      if (e.legacy.notes) snap.notes![e.id] = e.legacy.notes;
     } else if (e.type === "station") {
       snap.placements.push([e.id, { x: e.x, y: e.y, w: e.w, h: e.h, rotation: e.rotation }]);
       if (e.layer !== STATIONS_LAYER) snap.layers[e.id] = e.layer as L;
       if (e.tags?.length) snap.tags[e.id] = joinTags(e.tags);
+      if (e.notes) snap.notes![e.id] = e.notes;
     } else if (e.type === "text") {
       const annotation: CadEditorAnnotation = { id: e.id, type: "text", x: e.x, y: e.y, text: e.text };
       if (e.color !== undefined) annotation.color = e.color;

@@ -6,7 +6,7 @@ import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
-import { applyDynamicInput } from '../fixtures/dynamic-input';
+import { applyDynamicInput, applyDynamicPoint, applyNativeProperty } from '../fixtures/dynamic-input';
 
 /**
  * PRIORIDAD 2 — corte VERTICAL de la autoría 2D canónica.
@@ -48,23 +48,12 @@ async function installCadBackend(context: BrowserContext) {
  * siguientes. Este spec quiere coordenadas inequívocas, así que declara ABS
  * explícitamente en cada punto en vez de depender del modo por defecto.
  */
+// Este helper era la COPIA LOCAL de la que salió `applyDynamicPoint`: mismo
+// `toPass`, mismo motivo. Se queda como delegación para que el spec herede
+// también la ventana de quietud previa a «Aplicar», que es el hueco por el que
+// este mismo golden seguía cayendo con «Native 3» en vez de «Native 4».
 async function point(page: Page, x: string, y: string) {
-  const dynamic = page.getByTestId('cad-dynamic-input');
-  const fieldX = page.getByTestId('cad-dynamic-field-x');
-  const fieldY = page.getByTestId('cad-dynamic-field-y');
-  // `CadDynamicInput` se REMONTA al aparecer el ancla (su `key` incluye
-  // `anchored|origin`), así que rellenarlo justo en ese instante perdía el
-  // punto en silencio: la herramienta recibía dos veces la misma coordenada y
-  // la figura se rechazaba por degenerada. Rellenar y comprobar es una sola
-  // condición reintentable, de modo que el paso espera a su propio estado.
-  await expect(async () => {
-    await dynamic.getByRole('button', { name: 'ABS', exact: true }).click();
-    await fieldX.fill(x);
-    await fieldY.fill(y);
-    await expect(fieldX).toHaveValue(x, { timeout: 1_000 });
-    await expect(fieldY).toHaveValue(y, { timeout: 1_000 });
-  }).toPass({ timeout: 15_000 });
-  await dynamic.getByRole('button', { name: 'Aplicar' }).click();
+  await applyDynamicPoint(page, x, y);
 }
 
 const properties = (page: Page) => page.getByTestId('cad-native-properties');
@@ -185,10 +174,8 @@ test('LINE, PLINE, RECT and CIRCLE author canonical geometry end to end', async 
     // elegir la línea.
     await properties(page).getByRole('button', { name: 'Deseleccionar' }).click();
     await page.getByTestId(`cad-native-entity-${line.id}`).click();
-    const startX = page.getByTestId('cad-native-property-startX');
-    await expect(startX).toHaveValue('1000');
-    await startX.fill('1500');
-    await startX.blur();
+    await expect(page.getByTestId('cad-native-property-startX')).toHaveValue('1000');
+    await applyNativeProperty(page, 'startX', '1500');
     await expect(page.getByTestId('cad-native-property-startX')).toHaveValue('1500');
   });
 

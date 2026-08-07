@@ -3,6 +3,7 @@ import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { saveAndSettle } from '../fixtures/cad-save';
+import { applySelectGroup } from '../fixtures/dynamic-input';
 import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
 
 type CadLine = Extract<CadEntity, { type: 'line' }>;
@@ -53,20 +54,30 @@ test('native TRIM and EXTEND edit LINE endpoints atomically and persist', async 
 
   await test.step('15. TRIM', async () => {
     await selectPair(page, 'trim-target', 'trim-cutter');
-    await page.getByTestId('cad-line-edit-operation').selectOption('trim');
-    await page.getByTestId('cad-line-edit-target').selectOption('trim-target');
-    await page.getByTestId('cad-line-edit-endpoint').selectOption('start');
-    await page.getByTestId('cad-line-edit-apply').click();
+    await applySelectGroup(
+      page,
+      {
+        'cad-line-edit-operation': 'trim',
+        'cad-line-edit-target': 'trim-target',
+        'cad-line-edit-endpoint': 'start',
+      },
+      'cad-line-edit-apply',
+    );
     await expect(page.getByTestId('cad-native-property-endX')).toHaveValue('6000');
   });
 
   await page.getByTestId('cad-native-properties').getByRole('button', { name: 'Deseleccionar' }).click();
   await test.step('16. EXTEND', async () => {
     await selectPair(page, 'extend-target', 'extend-boundary');
-    await page.getByTestId('cad-line-edit-operation').selectOption('extend');
-    await page.getByTestId('cad-line-edit-target').selectOption('extend-target');
-    await page.getByTestId('cad-line-edit-endpoint').selectOption('end');
-    await page.getByTestId('cad-line-edit-apply').click();
+    await applySelectGroup(
+      page,
+      {
+        'cad-line-edit-operation': 'extend',
+        'cad-line-edit-target': 'extend-target',
+        'cad-line-edit-endpoint': 'end',
+      },
+      'cad-line-edit-apply',
+    );
     await expect(page.getByTestId('cad-native-property-endX')).toHaveValue('6000');
   });
 
