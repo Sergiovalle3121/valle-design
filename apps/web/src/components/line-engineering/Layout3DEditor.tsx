@@ -3754,7 +3754,16 @@ export default function Layout3DEditor({
         annotationsRef.current = an;
         stationsByIdRef.current = new Map(d.stations.map((s) => [s.id, s]));
         connectorsRef.current = (d.connectors ?? []).map((c) => ({ ...c }));
-        cellsRef.current = (d.cells ?? []).map((c) => ({ ...c }));
+        // El documento canónico manda cuando trae la sección: es donde se
+        // guardan desde que dejaron de perderse por la vía moderna. El modelo
+        // heredado sigue alimentando a los documentos que nunca la tuvieron.
+        const canonicalCells = d.cadDocument
+          ? (migrateCadDocument(d.cadDocument).cells ?? null)
+          : null;
+        cellsRef.current = (canonicalCells ?? d.cells ?? []).map((c) => ({
+          ...c,
+          stationIds: [...(c.stationIds ?? [])],
+        }));
         setCellsView(
           cellsRef.current.map((c) => ({
             ...c,
@@ -4773,29 +4782,25 @@ export default function Layout3DEditor({
       "#4ade80",
     ];
     const color = palette[cellsRef.current.length % palette.length];
-    cellsRef.current = [
-      ...cellsRef.current,
-      {
-        id: newId("cell"),
-        name: `Celda ${cellsRef.current.length + 1}`,
-        color,
-        stationIds: [...new Set(ids)],
-      },
-    ];
-    setCellsView(
-      cellsRef.current.map((c) => ({ ...c, stationIds: [...c.stationIds] })),
+    commitCells(
+      [
+        ...cellsRef.current,
+        {
+          id: newId("cell"),
+          name: `Celda ${cellsRef.current.length + 1}`,
+          color,
+          stationIds: [...new Set(ids)],
+        },
+      ],
+      "crear celda",
     );
-    markDirty();
-    rebuildCells();
     toast.success("Celda creada.", "3D");
   };
   const deleteCell = (id: string) => {
-    cellsRef.current = cellsRef.current.filter((c) => c.id !== id);
-    setCellsView(
-      cellsRef.current.map((c) => ({ ...c, stationIds: [...c.stationIds] })),
+    commitCells(
+      cellsRef.current.filter((c) => c.id !== id),
+      "borrar celda",
     );
-    markDirty();
-    rebuildCells();
   };
 
   // ---- undo / redo (memento of the editable collections) ----
@@ -5250,6 +5255,48 @@ export default function Layout3DEditor({
       discarded.savedAtMs,
     ).catch(() => undefined);
   }, [recoveryCandidate, recoveryScope]);
+
+  /**
+   * Única frontera de mutación de celdas.
+   *
+   * Antes `createCell`/`deleteCell` sólo tocaban `cellsRef` y llamaban a
+   * `markDirty()`. En un documento moderno el guardado va por la vía canónica,
+   * donde las celdas no existían: el autosave respondía 200, limpiaba `dirty` y
+   * la celda no llegaba al servidor — pérdida con confirmación positiva de
+   * guardado. Y sin entrada de historial, deshacer tampoco la alcanzaba.
+   *
+   * Ahora es una sola transacción: historial, documento canónico, proyección y
+   * dirty, en ese orden y sin estados intermedios visibles.
+   */
+  const commitCells = useCallback(
+    (next: Cell[], label: string) => {
+      if (drawingReadOnlyRef.current) {
+        notifyReadOnly();
+        return;
+      }
+      const checkpoint = snapshotDocument();
+      recordHistoryDocument(checkpoint);
+      const cells = next.map((cell) => ({
+        ...cell,
+        stationIds: [...cell.stationIds],
+      }));
+      loadedCadDocumentRef.current = commitChange(
+        { ...checkpoint, cells },
+        label,
+      );
+      cellsRef.current = cells;
+      setCellsView(cells.map((c) => ({ ...c, stationIds: [...c.stationIds] })));
+      markDirty();
+      rebuildCells();
+    },
+    [
+      markDirty,
+      notifyReadOnly,
+      rebuildCells,
+      recordHistoryDocument,
+      snapshotDocument,
+    ],
+  );
 
   const commitPaperSpaces = useCallback(
     (next: CadPaperSpace[], label: string) => {
