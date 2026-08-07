@@ -3795,8 +3795,25 @@ export default function Layout3DEditor({
           if (group) restoredGroups[a.id] = group;
           if (a.tags?.length) restoredTags[a.id] = a.tags.join(", ");
         });
+        // El documento CANÓNICO manda para los grupos cuando existe: el
+        // guardado canónico los escribe en `box.group`, mientras que
+        // `d.assets[].group` sólo lo actualiza la vía heredada y por tanto se
+        // queda viejo en cuanto se guarda por la moderna.
+        if (d.cadDocument) {
+          try {
+            const canonicalGroups = cadDocumentToEditorSnapshot(
+              migrateCadDocument(d.cadDocument),
+            ).groups;
+            if (canonicalGroups && Object.keys(canonicalGroups).length)
+              Object.assign(restoredGroups, canonicalGroups);
+          } catch {
+            // Documento inválido: la rama de abajo ya avisa y cae a la
+            // proyección compatible. Aquí se conserva lo heredado.
+          }
+        }
         setLayerAssignments(restoredLayers);
         setObjectGroups(restoredGroups);
+        objectGroupsRef.current = restoredGroups;
         objectTagsRef.current = restoredTags;
         setObjectTags(restoredTags);
         const projection = editorSnapshotToCadDocument(
@@ -3807,6 +3824,10 @@ export default function Layout3DEditor({
             connectors: connectorsRef.current,
             layers: restoredLayers,
             tags: restoredTags,
+            // Sin esto, abrir REPROYECTABA sin grupos y los borraba del
+            // documento canónico en memoria; el siguiente guardado persistía
+            // la versión ya mutilada.
+            groups: restoredGroups,
           },
           { unit: d.footprint.unit },
         );
@@ -4889,15 +4910,22 @@ export default function Layout3DEditor({
         s.annotations.map((a) => [a.id, { ...a }]),
       );
       connectorsRef.current = (s.connectors ?? []).map((c) => ({ ...c }));
-      // Restaura capa/tags junto al resto (defensivo con snapshots antiguos que
-      // no los llevaban). Se fija el ref además del estado para que el rebuild
-      // síncrono siguiente ya use los valores restaurados.
+      // Restaura capa/tags/GRUPO junto al resto (defensivo con snapshots
+      // antiguos que no los llevaban). Se fija el ref además del estado para
+      // que el rebuild síncrono siguiente ya use los valores restaurados.
+      //
+      // El grupo faltaba aquí: se añadió al snapshot para que sobreviviera al
+      // guardado canónico, pero sin aplicarlo en la restauración deshacer
+      // seguía sin devolverlo — el snapshot lo llevaba y nadie lo leía.
       const restoredLayers = { ...(s.layers ?? {}) };
       const restoredTags = { ...(s.tags ?? {}) };
+      const restoredGroups = { ...(s.groups ?? {}) };
       layerAssignmentsRef.current = restoredLayers;
       setLayerAssignments(restoredLayers);
       objectTagsRef.current = restoredTags;
       setObjectTags(restoredTags);
+      objectGroupsRef.current = restoredGroups;
+      setObjectGroups(restoredGroups);
       setPlacedIds(new Set(placementsRef.current.keys()));
       setAssetIds(new Set(assetsRef.current.keys()));
       setDimCount(
