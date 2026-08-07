@@ -959,6 +959,8 @@ interface Snapshot {
   tags: Record<string, string>;
   /** Grupo por objeto: sin esto moría en la reproyección de cada guardado. */
   groups?: Record<string, string>;
+  /** Nota por objeto: sin esto no se guardaba en ningún sitio, en absoluto. */
+  notes?: Record<string, string>;
 }
 interface CommandPreviewState {
   input: CadCommandInput;
@@ -3788,6 +3790,7 @@ export default function Layout3DEditor({
         const restoredLayers: CadLayerAssignments = {};
         const restoredGroups: Record<string, string> = {};
         const restoredTags: Record<string, string> = {};
+        const restoredNotes: Record<string, string> = {};
         (d.assets ?? []).forEach((a) => {
           const layer = (a as { layer?: string }).layer;
           if (layer?.trim()) restoredLayers[a.id] = layer;
@@ -3799,13 +3802,17 @@ export default function Layout3DEditor({
         // guardado canónico los escribe en `box.group`, mientras que
         // `d.assets[].group` sólo lo actualiza la vía heredada y por tanto se
         // queda viejo en cuanto se guarda por la moderna.
+        //
+        // Las NOTAS sólo viven ahí: no hay campo heredado del que sacarlas, así
+        // que el documento canónico es su ÚNICA fuente.
         if (d.cadDocument) {
           try {
-            const canonicalGroups = cadDocumentToEditorSnapshot(
+            const canonical = cadDocumentToEditorSnapshot(
               migrateCadDocument(d.cadDocument),
-            ).groups;
-            if (canonicalGroups && Object.keys(canonicalGroups).length)
-              Object.assign(restoredGroups, canonicalGroups);
+            );
+            if (canonical.groups && Object.keys(canonical.groups).length)
+              Object.assign(restoredGroups, canonical.groups);
+            if (canonical.notes) Object.assign(restoredNotes, canonical.notes);
           } catch {
             // Documento inválido: la rama de abajo ya avisa y cae a la
             // proyección compatible. Aquí se conserva lo heredado.
@@ -3816,6 +3823,8 @@ export default function Layout3DEditor({
         objectGroupsRef.current = restoredGroups;
         objectTagsRef.current = restoredTags;
         setObjectTags(restoredTags);
+        objectNotesRef.current = restoredNotes;
+        setObjectNotes(restoredNotes);
         const projection = editorSnapshotToCadDocument(
           {
             placements: [...pl.entries()],
@@ -3826,8 +3835,9 @@ export default function Layout3DEditor({
             tags: restoredTags,
             // Sin esto, abrir REPROYECTABA sin grupos y los borraba del
             // documento canónico en memoria; el siguiente guardado persistía
-            // la versión ya mutilada.
+            // la versión ya mutilada. Las notas van por el mismo motivo.
             groups: restoredGroups,
+            notes: restoredNotes,
           },
           { unit: d.footprint.unit },
         );
@@ -4842,6 +4852,9 @@ export default function Layout3DEditor({
       layers: { ...layerAssignmentsRef.current },
       tags: { ...objectTagsRef.current },
       groups: { ...objectGroupsRef.current },
+      // La NOTA no tenía sitio en ningún esquema: era estado de React y nada
+      // más, así que se perdía al recargar y al cambiar de documento.
+      notes: { ...objectNotesRef.current },
     }),
     [],
   );
@@ -4934,12 +4947,15 @@ export default function Layout3DEditor({
       const restoredLayers = { ...(s.layers ?? {}) };
       const restoredTags = { ...(s.tags ?? {}) };
       const restoredGroups = { ...(s.groups ?? {}) };
+      const restoredNotes = { ...(s.notes ?? {}) };
       layerAssignmentsRef.current = restoredLayers;
       setLayerAssignments(restoredLayers);
       objectTagsRef.current = restoredTags;
       setObjectTags(restoredTags);
       objectGroupsRef.current = restoredGroups;
       setObjectGroups(restoredGroups);
+      objectNotesRef.current = restoredNotes;
+      setObjectNotes(restoredNotes);
       setPlacedIds(new Set(placementsRef.current.keys()));
       setAssetIds(new Set(assetsRef.current.keys()));
       setDimCount(
@@ -20773,6 +20789,7 @@ export default function Layout3DEditor({
                         <label className="block text-[11px] text-gray-500 dark:text-gray-400">
                           <span className="block mb-1">Notas</span>
                           <textarea
+                            data-testid="cad-object-notes"
                             value={objectNotes[selSnap.id] ?? ""}
                             onChange={(e) =>
                               updateSelectedNotes(e.target.value)
