@@ -4863,12 +4863,26 @@ export default function Layout3DEditor({
   );
   const snapshotDocument = useCallback(
     (value: Snapshot = snapshot()) => {
+      // La huella viaja con la proyección: `replaceEditorProjection` reconstruye
+      // `meta` desde el documento base, así que sin pasarla aquí el tamaño de
+      // planta y el paso de rejilla del documento CARGADO se reimponían sobre
+      // cualquier cambio. Sólo llegaban al servidor por `saveLegacy`, que no
+      // corre cuando hay `documentId` — o sea, nunca en el estudio moderno.
       const projection = editorSnapshotToCadDocument(value, {
         unit: data?.footprint.unit || "mm",
+        footprintW: data?.footprint.footprintW,
+        footprintH: data?.footprint.footprintH,
+        gridSize: data?.footprint.gridSize,
       });
       return replaceEditorProjection(loadedCadDocumentRef.current, projection);
     },
-    [data?.footprint.unit, snapshot],
+    [
+      data?.footprint.unit,
+      data?.footprint.footprintW,
+      data?.footprint.footprintH,
+      data?.footprint.gridSize,
+      snapshot,
+    ],
   );
   const recordHistoryDocument = useCallback(
     (document: CadDocument, groupKey?: string) => {
@@ -4956,6 +4970,53 @@ export default function Layout3DEditor({
     },
     [computeSnap, markDirty, rebuildAll],
   );
+  /**
+   * Devuelve la huella del documento al estado del editor.
+   *
+   * Deshacer restaura un `CadDocument` completo y lo derrama sobre el estado,
+   * pero `meta.footprintW/H/gridSize` no tenía a nadie que lo leyera de vuelta.
+   * Sin esto, poner un punto de historial al redimensionar la planta crearía un
+   * checkpoint que al deshacerlo no devuelve nada — un arreglo a medias, peor
+   * que no tenerlo.
+   *
+   * SALE SIN TOCAR NADA cuando la huella no cambia, que es el caso de CADA
+   * orden de dibujo. No es una micro-optimización: `data` es el objeto de
+   * estado más ancho del editor, y sustituirlo en cada orden remonta el
+   * formulario de entrada dinámica a mitad de un punto. El propio golden 33 lo
+   * documenta —"si el formulario se sustituyó a mitad, los campos vuelven
+   * vacíos"— y así fue como esto se cayó en CI: la figura no llegaba a crearse.
+   * Devolver la MISMA referencia hace que React se salte el re-render.
+   */
+  const applyDocumentFootprint = useCallback((document: CadDocument) => {
+    const { footprintW, footprintH, gridSize } = document.meta;
+    if (
+      footprintW === undefined &&
+      footprintH === undefined &&
+      gridSize === undefined
+    )
+      return;
+    setData((current) => {
+      if (!current) return current;
+      const next = {
+        footprintW: footprintW ?? current.footprint.footprintW,
+        footprintH: footprintH ?? current.footprint.footprintH,
+        gridSize: gridSize ?? current.footprint.gridSize,
+      };
+      return next.footprintW === current.footprint.footprintW &&
+        next.footprintH === current.footprint.footprintH &&
+        next.gridSize === current.footprint.gridSize
+        ? current
+        : { ...current, footprint: { ...current.footprint, ...next } };
+    });
+    setFpDraft((draft) => {
+      const w = footprintW ?? draft.w;
+      const h = footprintH ?? draft.h;
+      const g = gridSize ?? draft.g;
+      return w === draft.w && h === draft.h && g === draft.g
+        ? draft
+        : { w, h, g };
+    });
+  }, []);
   const undo = useCallback(() => {
     if (drawingReadOnlyRef.current) {
       notifyReadOnly();
@@ -4990,9 +5051,16 @@ export default function Layout3DEditor({
       ),
     );
     setNativeDocumentRevision((value) => value + 1);
+    applyDocumentFootprint(document);
     restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
     setHist(history.depths());
-  }, [notifyReadOnly, restore, snapshotDocument, syncCadLayerState]);
+  }, [
+    applyDocumentFootprint,
+    notifyReadOnly,
+    restore,
+    snapshotDocument,
+    syncCadLayerState,
+  ]);
   const redo = useCallback(() => {
     if (drawingReadOnlyRef.current) {
       notifyReadOnly();
@@ -5027,9 +5095,16 @@ export default function Layout3DEditor({
       ),
     );
     setNativeDocumentRevision((value) => value + 1);
+    applyDocumentFootprint(document);
     restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
     setHist(history.depths());
-  }, [notifyReadOnly, restore, snapshotDocument, syncCadLayerState]);
+  }, [
+    applyDocumentFootprint,
+    notifyReadOnly,
+    restore,
+    snapshotDocument,
+    syncCadLayerState,
+  ]);
 
   const applyCollaborationDocument = useCallback(
     (next: CadDocument, label: string) => {
@@ -5052,10 +5127,12 @@ export default function Layout3DEditor({
         ),
       );
       setNativeDocumentRevision((value) => value + 1);
+      applyDocumentFootprint(document);
       restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
       toast.success(label, "Compare / Merge");
     },
     [
+      applyDocumentFootprint,
       drawingReadOnly,
       notifyReadOnly,
       pushHistory,
@@ -5258,6 +5335,7 @@ export default function Layout3DEditor({
         ),
       );
       setNativeDocumentRevision((value) => value + 1);
+      applyDocumentFootprint(document);
       restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
       setRecoveryCandidate(null);
       setRecoveryDivergent(false);
@@ -5268,7 +5346,14 @@ export default function Layout3DEditor({
     } catch {
       toast.error("El borrador local no pudo restaurarse.", "CAD");
     }
-  }, [notifyReadOnly, recoveryCandidate, restore, syncCadLayerState, toast]);
+  }, [
+    applyDocumentFootprint,
+    notifyReadOnly,
+    recoveryCandidate,
+    restore,
+    syncCadLayerState,
+    toast,
+  ]);
 
   /**
    * Descartar es una acción EXPLÍCITA sobre un borrador concreto, así que borra
@@ -5925,6 +6010,7 @@ export default function Layout3DEditor({
         );
         setNativeDocumentRevision((value) => value + 1);
         markDirty();
+        applyDocumentFootprint(document);
         restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
         syncNativeScene(document);
         toast.success(success, notificationTitle);
@@ -5941,6 +6027,7 @@ export default function Layout3DEditor({
       }
     },
     [
+      applyDocumentFootprint,
       markDirty,
       notifyReadOnly,
       recordHistoryDocument,
@@ -9718,6 +9805,10 @@ export default function Layout3DEditor({
   // Resize the plant footprint / grid from the CAD; the scene rebuilds at the
   // new scale and the change persists on save (objects keep their world coords).
   const applyFootprint = useCallback(() => {
+    // El checkpoint va ANTES de mutar: captura la huella vieja, que es lo que
+    // deshacer tiene que devolver. Sólo marcaba dirty, así que redimensionar la
+    // planta no entraba en el historial.
+    pushHistory();
     setData((d) => {
       if (!d) return d;
       const unit = (d.footprint.unit || "mm") as WorldUnit;
@@ -9745,7 +9836,7 @@ export default function Layout3DEditor({
     });
     markDirty();
     setShowView(false);
-  }, [fpDraft, markDirty]);
+  }, [fpDraft, markDirty, pushHistory]);
 
   // One-click factory-scale presets — set the plant to a workcell … full nave
   // size in real metres regardless of the layout's stored unit (EPIC 0). The
@@ -9754,6 +9845,7 @@ export default function Layout3DEditor({
     (preset: FactoryPreset) => {
       const unit = (data?.footprint.unit || "mm") as WorldUnit;
       const u = presetToUnit(preset, unit);
+      pushHistory();
       setData((d) =>
         d
           ? {
@@ -9771,7 +9863,7 @@ export default function Layout3DEditor({
       markDirty();
       setShowView(false);
     },
-    [data, markDirty],
+    [data, markDirty, pushHistory],
   );
 
   // Add a free-text note at the point the camera is looking at (round-trips 2D).
@@ -17555,16 +17647,19 @@ export default function Layout3DEditor({
                 <div className="grid grid-cols-3 gap-1.5 mb-1">
                   <DimInput
                     label="Ancho"
+                    testId="cad-footprint-w"
                     value={fpDraft.w}
                     onChange={(v) => setFpDraft((s) => ({ ...s, w: v }))}
                   />
                   <DimInput
                     label="Largo"
+                    testId="cad-footprint-h"
                     value={fpDraft.h}
                     onChange={(v) => setFpDraft((s) => ({ ...s, h: v }))}
                   />
                   <DimInput
                     label="Rejilla"
+                    testId="cad-footprint-grid"
                     value={fpDraft.g}
                     onChange={(v) => setFpDraft((s) => ({ ...s, g: v }))}
                   />
@@ -17581,6 +17676,7 @@ export default function Layout3DEditor({
                   })()}
                 </div>
                 <button
+                  data-testid="cad-footprint-apply"
                   onClick={applyFootprint}
                   className="w-full px-2 py-1.5 rounded-md bg-cyan-600 hover:bg-cyan-500 text-white text-[12px] font-medium"
                 >
@@ -23134,10 +23230,12 @@ function DimInput({
   label,
   value,
   onChange,
+  testId,
 }: {
   label: string;
   value: number;
   onChange: (v: number) => void;
+  testId?: string;
 }) {
   return (
     <label className="block">
@@ -23146,6 +23244,7 @@ function DimInput({
       </span>
       <input
         type="number"
+        data-testid={testId}
         value={value}
         onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
         className="w-full px-1.5 py-1 rounded-md bg-white/[0.06] border border-white/10 text-[12px] text-white focus:outline-none focus:border-cyan-400/60"

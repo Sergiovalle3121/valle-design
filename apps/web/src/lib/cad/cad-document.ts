@@ -678,7 +678,19 @@ function point3(x: number, y: number, z = 0): CadPoint3 {
  */
 export function layoutToCadDocument(
   layout: LayoutInput,
-  options: { unit?: string; version?: number } = {},
+  options: {
+    unit?: string;
+    version?: number;
+    /**
+     * Huella y paso de rejilla del editor. Van a `meta` porque es de donde el
+     * adaptador heredado los LEE al abrir (`footprintFromMeta`); sin esto la
+     * proyección nacía sin huella y el guardado canónico no tenía forma de
+     * transportar un cambio de tamaño de planta.
+     */
+    footprintW?: number;
+    footprintH?: number;
+    gridSize?: number;
+  } = {},
 ): CadDocument {
   const entities: CadEntity[] = [];
 
@@ -784,6 +796,11 @@ export function layoutToCadDocument(
       version: options.version ?? 1,
       schema: CAD_DOCUMENT_SCHEMA,
       unit: options.unit ?? "mm",
+      // Sólo cuando existen: un documento que nunca declaró huella no puede
+      // estrenar una aquí, o el adaptador dejaría de aplicar su default.
+      ...(options.footprintW === undefined ? {} : { footprintW: options.footprintW }),
+      ...(options.footprintH === undefined ? {} : { footprintH: options.footprintH }),
+      ...(options.gridSize === undefined ? {} : { gridSize: options.gridSize }),
     },
     layers,
     entities: orderedEntities,
@@ -1229,7 +1246,30 @@ export function replaceEditorProjection(
   const current = base ? migrateCadDocument(base) : projection;
   return {
     ...current,
-    meta: { ...current.meta, schema: CAD_DOCUMENT_SCHEMA, unit: projection.meta.unit },
+    /**
+     * `meta` se reconstruye desde el documento BASE, así que todo lo que la
+     * proyección quiera cambiar tiene que pasar por aquí explícitamente. Antes
+     * sólo pasaba `unit`, y la huella del documento cargado se reimponía sobre
+     * cualquier cambio de tamaño de planta o de rejilla — que es contenido que
+     * el usuario compuso, no una preferencia de vista.
+     *
+     * Asimétrico a propósito: si la proyección NO trae huella, se conserva la
+     * del documento. Lo que la proyección no sabe expresar no puede destruirlo.
+     */
+    meta: {
+      ...current.meta,
+      schema: CAD_DOCUMENT_SCHEMA,
+      unit: projection.meta.unit,
+      ...(projection.meta.footprintW === undefined
+        ? {}
+        : { footprintW: projection.meta.footprintW }),
+      ...(projection.meta.footprintH === undefined
+        ? {}
+        : { footprintH: projection.meta.footprintH }),
+      ...(projection.meta.gridSize === undefined
+        ? {}
+        : { gridSize: projection.meta.gridSize }),
+    },
     layers: projection.layers.length ? projection.layers : current.layers,
     entities,
     // `entities` va ordenado por id para canonicalización; derivar el orden de
