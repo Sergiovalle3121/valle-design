@@ -5,6 +5,7 @@ import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
+import { applyNativeProperty } from '../fixtures/dynamic-input';
 
 type CadMleader = Extract<CadEntity, { type: 'mleader' }>;
 
@@ -65,8 +66,7 @@ test('MLEADER is unitary, associative, editable, persistent and DXF semantic', a
 
   await properties.getByRole('button', { name: 'Deseleccionar' }).click();
   await page.getByTestId('cad-native-entity-mleader-source-line').click();
-  await page.getByTestId('cad-native-property-endX').fill('6100');
-  await page.getByTestId('cad-native-property-endX').blur();
+  await applyNativeProperty(page, 'endX', '6100');
   await page.getByRole('button', { name: 'Guardar', exact: true }).click();
   await expect.poll(() => backend.snapshot().version).toBe(1);
   const stored = backend.snapshot().document.entities.find((entity): entity is CadMleader => entity.type === 'mleader');

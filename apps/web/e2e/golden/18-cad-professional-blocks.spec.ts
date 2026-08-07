@@ -6,6 +6,7 @@ import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadBlockDefinition, CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
+import { applyNativeProperty } from '../fixtures/dynamic-input';
 
 type CadInsert = Extract<CadEntity, { type: 'insert' }>;
 
@@ -92,12 +93,9 @@ test('BLOCK/INSERT stays native through tenant library, attributes, persistence,
   await expect(page.getByTestId('cad-native-property-rotation')).toHaveValue('30');
   await expect(page.getByTestId('cad-native-property-scaleX')).toHaveValue('1.5');
   await expect(page.getByTestId('cad-native-property-attribute:MARK')).toHaveValue('D-02');
-  await page.getByTestId('cad-native-property-rotation').fill('45');
-  await page.getByTestId('cad-native-property-rotation').blur();
-  await page.getByTestId('cad-native-property-scaleX').fill('2');
-  await page.getByTestId('cad-native-property-scaleX').blur();
-  await page.getByTestId('cad-native-property-attribute:MARK').fill('D-03');
-  await page.getByTestId('cad-native-property-attribute:MARK').blur();
+  await applyNativeProperty(page, 'rotation', '45');
+  await applyNativeProperty(page, 'scaleX', '2');
+  await applyNativeProperty(page, 'attribute:MARK', 'D-03');
   await page.keyboard.press('Control+z');
   await expect(page.getByTestId('cad-native-property-attribute:MARK')).toHaveValue('D-02');
   await page.keyboard.press('Control+Shift+z');

@@ -4,6 +4,7 @@ import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
+import { applyDynamicInput } from '../fixtures/dynamic-input';
 
 /**
  * FASE 0 — la autoría canónica es TRANSACCIONAL y respeta el orden de dibujo.
@@ -230,10 +231,7 @@ test('every canonical draw records exactly one undo entry and one dirty transiti
     ['Circle', async () => {
       await startTool(page, 'Circle');
       await point(page, '8000', '6000');
-      const radius = page.getByTestId('cad-dynamic-field-radius');
-      await expect(radius).toBeVisible();
-      await radius.fill('400');
-      await page.getByTestId('cad-dynamic-input').getByRole('button', { name: 'Aplicar' }).click();
+      await applyDynamicInput(page, { radius: '400' });
     }],
   ];
 
@@ -415,8 +413,7 @@ test('a locked layer refuses drawing and OFFSET, and rejection leaves zero histo
     await page.getByTestId('cad-native-entity-zeta').click();
     await expectHistory(page, 0, 0);
     await toolbar(page).getByRole('button', { name: 'Offset', exact: true }).click();
-    await page.getByTestId('cad-dynamic-field-offset').fill('250');
-    await page.getByTestId('cad-dynamic-input').getByRole('button', { name: 'Aplicar' }).click();
+    await applyDynamicInput(page, { offset: '250' });
     await expectNativeCount(page, 2);
     await expectHistory(page, 1, 0);
     await undoButton(page).click();
@@ -440,8 +437,7 @@ test('a locked layer refuses drawing and OFFSET, and rejection leaves zero histo
     await deselect(page);
     await page.getByTestId('cad-native-entity-zeta').click();
     await toolbar(page).getByRole('button', { name: 'Offset', exact: true }).click();
-    await page.getByTestId('cad-dynamic-field-offset').fill('250');
-    await page.getByTestId('cad-dynamic-input').getByRole('button', { name: 'Aplicar' }).click();
+    await applyDynamicInput(page, { offset: '250' });
 
     await expectNativeCount(page, 1);
     await expect(page.getByTestId('cad-history-depth')).toHaveAttribute(

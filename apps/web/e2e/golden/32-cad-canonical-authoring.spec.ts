@@ -6,6 +6,7 @@ import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
+import { applyDynamicInput } from '../fixtures/dynamic-input';
 
 /**
  * PRIORIDAD 2 — corte VERTICAL de la autoría 2D canónica.
@@ -123,10 +124,10 @@ test('LINE, PLINE, RECT and CIRCLE author canonical geometry end to end', async 
   await test.step('4. CIRCLE crea una entidad `circle`', async () => {
     await startTool(page, 'Circle');
     await point(page, '8000', '6000');
-    const radius = page.getByTestId('cad-dynamic-field-radius');
-    await expect(radius).toBeVisible();
-    await radius.fill('400');
-    await page.getByTestId('cad-dynamic-input').getByRole('button', { name: 'Aplicar' }).click();
+    // El paso que señalaba el rojo de `main`: «Native 3» en vez de «Native 4»,
+    // o sea el círculo que no llega a crearse. El punto del centro ya iba
+    // protegido; el radio no.
+    await applyDynamicInput(page, { radius: '400' });
     await expectNativeCount(page, 4);
   });
 

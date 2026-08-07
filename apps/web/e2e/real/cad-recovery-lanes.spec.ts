@@ -148,6 +148,28 @@ async function thirdWriterAdvances(
   ).body.cadDocumentVersion;
 }
 
+/**
+ * El invariante que estas pruebas miden: NADA se destruyó en ese carril.
+ *
+ * Comparar las listas por igualdad exacta era frágil y no era lo que se quiere
+ * afirmar. Un carril vivo sigue escribiendo mientras esté sucio —temporizador
+ * de 15 s, y el checkpoint de `beforeunload` al recargar, que PR #24 añadió a
+ * propósito—, así que un checkpoint DE MÁS es comportamiento correcto. El
+ * defecto sería que desapareciera el que ya estaba.
+ *
+ * Se comprueba contra el más reciente porque la poda por carril puede retirar
+ * los más viejos, y esa poda es legítima y no la provoca la otra pestaña.
+ */
+function expectLanePreserved(
+  before: readonly string[],
+  after: readonly string[],
+  message: string,
+): void {
+  expect(before.length, "el carril tenía que tener algo que preservar").toBeGreaterThan(0);
+  expect(after, message).toContain(before[before.length - 1]);
+  expect(after.length, message).toBeGreaterThan(0);
+}
+
 /** Carril de ESTA pestaña, tal como lo guarda el editor en sessionStorage. */
 async function laneOf(page: Page): Promise<string | null> {
   return page.evaluate(() => sessionStorage.getItem("valle_cad_recovery_lane"));
@@ -334,10 +356,11 @@ test.describe("recuperación local por carril contra PostgreSQL", () => {
       .filter((row) => row.lane === laneB)
       .map((row) => row.key)
       .sort();
-    expect(
+    expectLanePreserved(
+      bBefore,
       bAfter,
       "guardar en una pestaña NUNCA puede borrar el borrador de otra",
-    ).toEqual(bBefore);
+    );
   });
 
   test("3: el borrador de B sobrevive a que el servidor avance, y se ofrece como rama divergente", async () => {
@@ -371,10 +394,20 @@ test.describe("recuperación local por carril contra PostgreSQL", () => {
       .filter((row) => row.lane === laneB)
       .map((row) => row.key)
       .sort();
-    expect(
+    // Igualdad EXACTA era demasiado estricta y hacía la prueba frágil: recargar
+    // dispara el checkpoint de `beforeunload`, que es justo lo que PR #24
+    // arregló para no perder el estado al cerrar. Un checkpoint DE MÁS no es el
+    // defecto; el defecto sería que desapareciese el que ya había.
+    //
+    // Lo que se afirma es eso: el borrador que existía antes sigue existiendo.
+    // Se comprueba contra el más reciente porque la poda por carril puede
+    // retirar los más viejos, y esa poda es correcta y no la provoca la otra
+    // sesión.
+    expectLanePreserved(
+      keysBefore,
       keysAfter,
       "que otra sesión guarde no puede destruir el borrador local",
-    ).toEqual(keysBefore);
+    );
   });
 
   test("4: descartar borra ese carril y sólo ese", async () => {
@@ -409,7 +442,11 @@ test.describe("recuperación local por carril contra PostgreSQL", () => {
       .filter((row) => row.lane === laneA)
       .map((row) => row.key)
       .sort();
-    expect(aAfter, "descartar en una pestaña no toca el carril de otra").toEqual(aBefore);
+    expectLanePreserved(
+      aBefore,
+      aAfter,
+      "descartar en una pestaña no toca el carril de otra",
+    );
   });
 
   test("5: ninguna de las pestañas registró un error de página", async () => {
