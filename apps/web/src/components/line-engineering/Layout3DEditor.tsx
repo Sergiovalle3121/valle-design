@@ -4936,6 +4936,38 @@ export default function Layout3DEditor({
     },
     [recordHistoryDocument, snapshotDocument],
   );
+  /**
+   * Un punto de deshacer por SESIÓN de edición, no por pulsación.
+   *
+   * Los campos del panel de propiedades —nombre, tags, notas, coordenadas, el
+   * texto de una cota— se disparan en `onChange`, o sea en cada tecla. Sólo
+   * ensuciaban: nunca dejaban checkpoint. El daño no es que el cambio se
+   * pierda —se guarda— sino que un Ctrl+Z posterior salta al checkpoint
+   * ANTERIOR y revierte a la vez lo escrito y la acción de antes, sin avisar; y
+   * si hay autosave por medio, esa reversión llega al servidor.
+   *
+   * Llamar a `pushHistory()` en cada tecla NO es la respuesta: reconstruye el
+   * documento entero, y el agrupamiento de `CanonicalHistory` fusiona la
+   * ENTRADA pero no ahorra ese trabajo. Ese coste por pulsación es justo el que
+   * remontó el formulario de entrada dinámica y rompió el golden 33.
+   *
+   * Así que el checkpoint se toma UNA vez, al empezar a editar. La clave lleva
+   * objeto y campo, de modo que cambiar de objeto o de campo abre sesión nueva;
+   * `endFieldEdit` (en el `onBlur`) la cierra para que volver al mismo campo
+   * después de hacer otra cosa vuelva a dejar su punto.
+   */
+  const fieldEditKeyRef = useRef<string | null>(null);
+  const beginFieldEdit = useCallback(
+    (key: string) => {
+      if (fieldEditKeyRef.current === key) return;
+      fieldEditKeyRef.current = key;
+      pushHistory();
+    },
+    [pushHistory],
+  );
+  const endFieldEdit = useCallback(() => {
+    fieldEditKeyRef.current = null;
+  }, []);
   const cancelHistoryCheckpoint = useCallback(() => {
     const history = canonicalHistoryRef.current;
     if (!history) return;
@@ -11042,6 +11074,12 @@ export default function Layout3DEditor({
       );
       return;
     }
+    // Agrupar es una acción DELIBERADA y discreta, así que deja su punto de
+    // deshacer. No lo tenía: sólo ensuciaba, de modo que un Ctrl+Z posterior
+    // saltaba al checkpoint ANTERIOR y se llevaba por delante la acción previa
+    // además del grupo. Desde que los grupos sobreviven al guardado (PR #33),
+    // poder deshacerlos importa de verdad.
+    pushHistory();
     const gid = newId("grp");
     setObjectGroups((cur) => {
       const next = { ...cur };
@@ -11066,6 +11104,9 @@ export default function Layout3DEditor({
       toast.error("La selección no tiene grupos.", "Grupos");
       return;
     }
+    // Igual que agrupar: disolver es discreto y deshacerlo tiene que devolver
+    // los grupos, no la acción de antes.
+    pushHistory();
     setObjectGroups((cur) =>
       Object.fromEntries(
         Object.entries(cur).filter(([, gid]) => !gids.has(gid)),
@@ -12483,6 +12524,7 @@ export default function Layout3DEditor({
   const updateMeasurementText = (id: string, text: string) => {
     const ann = annotationsRef.current.get(id);
     if (!ann || ann.type !== "dim") return;
+    beginFieldEdit(`dim-text:${id}`);
     ann.text = text;
     markDirty();
     rebuildDims();
@@ -12674,6 +12716,7 @@ export default function Layout3DEditor({
         : assetsRef.current.get(cur.id);
     const ctx = ctxRef.current;
     if (!p || !ctx) return;
+    beginFieldEdit(`geom:${cur.id}:${field}`);
     const v = Number.isFinite(value) ? value : 0;
     if (field === "rotation") p.rotation = ((v % 360) + 360) % 360;
     else if (field === "w") p.w = Math.max(50, Math.min(ctx.W, Math.round(v)));
@@ -12698,6 +12741,7 @@ export default function Layout3DEditor({
     }
     const asset = assetsRef.current.get(cur.id);
     if (!asset) return;
+    beginFieldEdit(`label:${cur.id}`);
     asset.label = value.trim() || undefined;
     markDirty();
     refreshSnap();
@@ -12713,6 +12757,7 @@ export default function Layout3DEditor({
       );
       return;
     }
+    beginFieldEdit(`tags:${cur.id}`);
     setObjectTags((state) => {
       const next = { ...state, [cur.id]: value };
       objectTagsRef.current = next;
@@ -12731,6 +12776,7 @@ export default function Layout3DEditor({
       );
       return;
     }
+    beginFieldEdit(`notes:${cur.id}`);
     setObjectNotes((state) => {
       const next = { ...state, [cur.id]: value };
       objectNotesRef.current = next;
@@ -20257,13 +20303,13 @@ export default function Layout3DEditor({
                             >
                               <input
                                 value={measurement.label}
-                                onFocus={() => pushHistory()}
                                 onChange={(e) =>
                                   updateMeasurementText(
                                     measurement.id,
                                     e.target.value,
                                   )
                                 }
+                                onBlur={endFieldEdit}
                                 className="mb-1 w-full rounded-md bg-white/[0.05] px-2 py-1 text-[11px] text-white outline-none focus:ring-1 focus:ring-cyan-500/40"
                               />
                               <div className="flex items-center justify-between gap-2 text-[10.5px] text-gray-500 dark:text-gray-400">
@@ -20784,10 +20830,12 @@ export default function Layout3DEditor({
                           <label className="block text-[11px] text-gray-500 dark:text-gray-400">
                             <span className="block mb-1">Nombre visible</span>
                             <input
+                              data-testid="cad-object-label"
                               value={selSnap.title}
                               onChange={(e) =>
                                 updateSelectedAssetLabel(e.target.value)
                               }
+                              onBlur={endFieldEdit}
                               placeholder="Nombre del equipo o zona"
                               className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white placeholder:text-gray-600 outline-none"
                             />
@@ -20823,8 +20871,10 @@ export default function Layout3DEditor({
                         <label className="block text-[11px] text-gray-500 dark:text-gray-400">
                           <span className="block mb-1">Tags</span>
                           <input
+                            data-testid="cad-object-tags"
                             value={objectTags[selSnap.id] ?? ""}
                             onChange={(e) => updateSelectedTags(e.target.value)}
+                            onBlur={endFieldEdit}
                             placeholder="esd, safety, smt…"
                             className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white placeholder:text-gray-600 outline-none"
                           />
@@ -20837,6 +20887,7 @@ export default function Layout3DEditor({
                             onChange={(e) =>
                               updateSelectedNotes(e.target.value)
                             }
+                            onBlur={endFieldEdit}
                             rows={2}
                             placeholder="Owner, restriccion, pendiente..."
                             className="w-full resize-none rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white placeholder:text-gray-600 outline-none"
@@ -20981,31 +21032,36 @@ export default function Layout3DEditor({
                       <NumField
                         label="X"
                         value={Math.round(selSnap.x)}
-                        onBegin={pushHistory}
+                        testId="cad-object-x"
+                        onEnd={endFieldEdit}
                         onChange={(v) => setField("x", v)}
                       />
                       <NumField
                         label="Y"
                         value={Math.round(selSnap.y)}
-                        onBegin={pushHistory}
+                        testId="cad-object-y"
+                        onEnd={endFieldEdit}
                         onChange={(v) => setField("y", v)}
                       />
                       <NumField
                         label="Ancho"
                         value={Math.round(selSnap.w)}
-                        onBegin={pushHistory}
+                        testId="cad-object-w"
+                        onEnd={endFieldEdit}
                         onChange={(v) => setField("w", v)}
                       />
                       <NumField
                         label="Largo"
                         value={Math.round(selSnap.h)}
-                        onBegin={pushHistory}
+                        testId="cad-object-h"
+                        onEnd={endFieldEdit}
                         onChange={(v) => setField("h", v)}
                       />
                       <NumField
                         label="Rotación°"
                         value={Math.round(selSnap.rotation)}
-                        onBegin={pushHistory}
+                        testId="cad-object-rotation"
+                        onEnd={endFieldEdit}
                         onChange={(v) => setField("rotation", v)}
                       />
                       {selSnap.height !== undefined && (
@@ -23259,16 +23315,27 @@ function T3Btn({
   );
 }
 
+/**
+ * Campo numérico del panel de propiedades.
+ *
+ * Antes disparaba `onBegin` en el FOCO, que dejaba un punto de deshacer aunque
+ * el usuario no escribiera nada: enfocar y salir bastaba para que el siguiente
+ * Ctrl+Z reviniera la acción ANTERIOR. Ahora el checkpoint lo abre la propia
+ * mutación —`beginFieldEdit`, una vez por sesión de edición— y aquí sólo queda
+ * cerrarla al salir.
+ */
 function NumField({
   label,
   value,
   onChange,
-  onBegin,
+  onEnd,
+  testId,
 }: {
   label: string;
   value: number;
   onChange: (v: number) => void;
-  onBegin?: () => void;
+  onEnd?: () => void;
+  testId?: string;
 }) {
   return (
     <label className="block">
@@ -23277,9 +23344,10 @@ function NumField({
       </span>
       <input
         type="number"
+        data-testid={testId}
         value={value}
-        onFocus={onBegin}
         onChange={(e) => onChange(parseFloat(e.target.value))}
+        onBlur={onEnd}
         className="w-full px-2 py-1 rounded-md bg-white/[0.06] border border-white/10 text-[13px] text-white focus:outline-none focus:border-cyan-400/60"
       />
     </label>

@@ -2,6 +2,7 @@ import { expect, test, type BrowserContext } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadV1Backend } from '../fixtures/cad-v1-backend';
+import { applyFieldGroup } from '../fixtures/dynamic-input';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadBlockDefinition, CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
@@ -79,13 +80,18 @@ test('BLOCK/INSERT stays native through tenant library, attributes, persistence,
   await expect.poll(() => backend.snapshot().library.length).toBe(1);
   expect(backend.snapshot().library[0].definition.library?.scope).toBe('tenant');
 
-  await page.getByTestId('cad-block-insert-x').fill('7200');
-  await page.getByTestId('cad-block-insert-y').fill('4300');
-  await page.getByTestId('cad-block-insert-rotation').fill('30');
-  await page.getByTestId('cad-block-insert-scaleX').fill('1.5');
-  await page.getByTestId('cad-block-insert-scaleY').fill('0.75');
-  await page.getByTestId('cad-block-attributes').fill('MARK=D-02');
-  await page.getByTestId('cad-block-insert').click();
+  await applyFieldGroup(
+    page,
+    {
+      'cad-block-insert-x': '7200',
+      'cad-block-insert-y': '4300',
+      'cad-block-insert-rotation': '30',
+      'cad-block-insert-scaleX': '1.5',
+      'cad-block-insert-scaleY': '0.75',
+      'cad-block-attributes': 'MARK=D-02',
+    },
+    'cad-block-insert',
+  );
 
   await page.getByLabel('Cerrar panel profesional').click();
   const properties = page.getByTestId('cad-native-properties');
