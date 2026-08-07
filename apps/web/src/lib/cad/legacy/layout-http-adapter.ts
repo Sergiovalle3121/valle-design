@@ -702,9 +702,17 @@ async function putDxfRoute(
   if (!model) return json({ message: "model es obligatorio." }, 400);
   const id = await ensureDocumentId(model, revision);
   dxfCache.delete(id);
+  // La COLOCACIÓN viaja con la subida. Sin esto el servidor la resetea a sus
+  // valores por defecto (`scale: 1` en el origen) mientras el editor conserva
+  // el encaje centrado que acaba de calcular: el plano saltaba de sitio y de
+  // escala al recargar. Sólo la reponía `propagateDxfPlacement`, que corre
+  // desde el guardado HEREDADO — y ése no corre cuando hay `documentId`, o sea
+  // nunca en el estudio moderno.
+  const placement = payload.placement;
   return v1Json("PUT", `/v1/cad/documents/${id}/dxf`, {
     name: payload.name ?? "plano.dxf",
     data: payload.data,
+    ...(placement && typeof placement === "object" ? { placement } : {}),
   });
 }
 
