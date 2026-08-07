@@ -22,7 +22,11 @@ import {
   cadDocumentToEditorSnapshot,
   editorSnapshotToCadDocument,
 } from "./editor-snapshot";
-import { layoutToCadDocument, type CadDocument } from "./cad-document";
+import {
+  layoutToCadDocument,
+  replaceEditorProjection,
+  type CadDocument,
+} from "./cad-document";
 
 function boxOf(document: CadDocument, id: string) {
   const entity = document.entities.find((candidate) => candidate.id === id);
@@ -95,6 +99,40 @@ assert.equal(
   "Nave norte",
   "guardar dos veces seguidas tampoco puede perderlo",
 );
+
+// ---------------------------------------------------------------------------
+// Abrir: la reproyección contra el documento canónico NO puede mutilarlo
+// ---------------------------------------------------------------------------
+
+{
+  // Al abrir, el editor construye una proyección desde el modelo heredado y la
+  // mezcla con el documento canónico del servidor. Si esa proyección se arma
+  // SIN grupos, `replaceEditorProjection` deja las cajas sin grupo — y el
+  // siguiente guardado persiste la versión ya mutilada. Ése era el camino que
+  // anulaba el arreglo entero, en silencio y sin tocar el guardado.
+  const canonical = source;
+  const snapshot = cadDocumentToEditorSnapshot(canonical);
+
+  const withGroups = replaceEditorProjection(
+    canonical,
+    editorSnapshotToCadDocument(snapshot),
+  );
+  assert.equal(
+    boxOf(withGroups, "a1").group,
+    "Nave norte",
+    "abrir con la proyección completa conserva el grupo del documento canónico",
+  );
+
+  const stripped = replaceEditorProjection(
+    canonical,
+    editorSnapshotToCadDocument({ ...snapshot, groups: {} }),
+  );
+  assert.equal(
+    boxOf(stripped, "a1").group,
+    undefined,
+    "y si la proyección se arma sin grupos, los borra: por eso el camino de apertura tiene que pasarlos",
+  );
+}
 
 console.log(
   "editor-snapshot: el grupo de un objeto sobrevive a la reproyección canónica, igual que su capa y sus tags",
