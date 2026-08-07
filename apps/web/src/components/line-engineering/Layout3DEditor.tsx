@@ -962,6 +962,21 @@ interface Snapshot {
   /** Nota por objeto: sin esto no se guardaba en ningún sitio, en absoluto. */
   notes?: Record<string, string>;
 }
+/**
+ * ¿Dos mapas de cadenas por objeto tienen el MISMO contenido?
+ *
+ * Sirve para no disparar un re-render cuando una restauración devuelve lo que
+ * ya había. Comparación superficial y suficiente: los valores son cadenas.
+ */
+function sameStringMap(
+  a: Readonly<Record<string, string>>,
+  b: Readonly<Record<string, string>>,
+): boolean {
+  const keys = Object.keys(a);
+  if (keys.length !== Object.keys(b).length) return false;
+  return keys.every((key) => a[key] === b[key]);
+}
+
 interface CommandPreviewState {
   input: CadCommandInput;
   preview: CadCommandPreview;
@@ -4948,14 +4963,29 @@ export default function Layout3DEditor({
       const restoredTags = { ...(s.tags ?? {}) };
       const restoredGroups = { ...(s.groups ?? {}) };
       const restoredNotes = { ...(s.notes ?? {}) };
+      // Los REFS se fijan siempre —el rebuild síncrono siguiente los lee—, pero
+      // el ESTADO sólo cuando cambia de verdad. `restore` corre en cada orden
+      // canónica (vía `commitBlockMutation`), y sustituir estos cuatro mapas por
+      // objetos nuevos cada vez remonta el formulario de entrada dinámica a
+      // mitad de un punto: el mismo mecanismo que ya rompió el golden 33.
+      // Añadir aquí las notas sumaba un cuarto re-render por orden, así que los
+      // cuatro dejan de dispararse cuando el contenido coincide.
       layerAssignmentsRef.current = restoredLayers;
-      setLayerAssignments(restoredLayers);
+      setLayerAssignments((current) =>
+        sameStringMap(current, restoredLayers) ? current : restoredLayers,
+      );
       objectTagsRef.current = restoredTags;
-      setObjectTags(restoredTags);
+      setObjectTags((current) =>
+        sameStringMap(current, restoredTags) ? current : restoredTags,
+      );
       objectGroupsRef.current = restoredGroups;
-      setObjectGroups(restoredGroups);
+      setObjectGroups((current) =>
+        sameStringMap(current, restoredGroups) ? current : restoredGroups,
+      );
       objectNotesRef.current = restoredNotes;
-      setObjectNotes(restoredNotes);
+      setObjectNotes((current) =>
+        sameStringMap(current, restoredNotes) ? current : restoredNotes,
+      );
       setPlacedIds(new Set(placementsRef.current.keys()));
       setAssetIds(new Set(assetsRef.current.keys()));
       setDimCount(
