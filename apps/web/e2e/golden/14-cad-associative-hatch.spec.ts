@@ -4,6 +4,7 @@ import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
+import { applyNativeProperty } from '../fixtures/dynamic-input';
 
 type CadHatch = Extract<CadEntity, { type: 'hatch' }>;
 
@@ -64,9 +65,10 @@ test('HATCH remains associated, regenerates with its source and reports a broken
 
   await properties.getByRole('button', { name: 'Deseleccionar' }).click();
   await page.getByTestId('cad-native-entity-hatch-source-ellipse').click();
-  const majorAxisX = page.getByTestId('cad-native-property-majorAxisX');
-  await majorAxisX.fill('1000');
-  await majorAxisX.blur();
+  // Sin confirmar que el campo sostiene el valor, el redimensionado se perdía
+  // y la aserción de más abajo medía la elipse ORIGINAL: «> 8000» recibía
+  // 7804.97, que es su extensión sin tocar.
+  await applyNativeProperty(page, 'majorAxisX', '1000');
   // El recorrido hasta aquí abarca varios pasos de UI y supera los 2 s del
   // debounce, así que el autosave persiste parte del lote de forma legítima:
   // el número EXACTO de versiones dependía del tiempo del usuario, no del

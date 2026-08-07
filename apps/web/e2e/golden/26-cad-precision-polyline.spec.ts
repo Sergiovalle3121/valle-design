@@ -5,6 +5,7 @@ import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { migrateCadDocument, type CadDocument, type CadEntity } from '../../src/lib/cad/cad-document';
 import { cadDocumentToEditorSnapshot } from '../../src/lib/cad/editor-snapshot';
 import { saveAndSettle } from '../fixtures/cad-save';
+import { applyDynamicInput } from '../fixtures/dynamic-input';
 
 // MIGRACIÓN R3: mock en la superficie v1 real. DIFERENCIA de transporte
 // documentada: el PUT legacy arrastraba el array `assets` junto al documento;
@@ -30,10 +31,14 @@ async function installCadBackend(context: BrowserContext) {
   };
 }
 
+/**
+ * Antes escribía los dos campos y pulsaba «Aplicar» sin comprobar que el valor
+ * hubiese cuajado. El panel se remonta al cambiar de fase y ahí el punto se
+ * perdía en silencio — el helper compartido espera a su propia precondición.
+ * El modo lo fija cada paso (ABS/REL/POLAR), así que aquí no se toca.
+ */
 async function fillPoint(page: import('@playwright/test').Page, x: string, y: string) {
-  await page.getByTestId('cad-dynamic-field-x').fill(x);
-  await page.getByTestId('cad-dynamic-field-y').fill(y);
-  await page.getByTestId('cad-dynamic-input').getByRole('button', { name: 'Aplicar' }).click();
+  await applyDynamicInput(page, { x, y });
 }
 
 test('neutral drawing uses units, layers, ABS/REL/POLAR, closed polyline and OFFSET', async ({ context, page }, testInfo) => {
@@ -73,9 +78,7 @@ test('neutral drawing uses units, layers, ABS/REL/POLAR, closed polyline and OFF
   await test.step('6. Coordenada polar', async () => {
     const dynamic = page.getByTestId('cad-dynamic-input');
     await dynamic.getByRole('button', { name: 'POLAR' }).click();
-    await page.getByTestId('cad-dynamic-field-distance').fill('1500');
-    await page.getByTestId('cad-dynamic-field-angle').fill('90deg');
-    await dynamic.getByRole('button', { name: 'Aplicar' }).click();
+    await applyDynamicInput(page, { distance: '1500', angle: '90deg' });
     await page.getByRole('button', { name: 'Terminar' }).click();
     // PRIORIDAD 2 — antes esto afirmaba `/2 equipos/`: LINE creaba MUROS
     // heredados, uno por tramo. Hoy son dos entidades `line` canónicas y el
@@ -101,8 +104,7 @@ test('neutral drawing uses units, layers, ABS/REL/POLAR, closed polyline and OFF
     // canónica, así que ya no hace falta buscarla por la etiqueta heredada
     // «Pline 1» — que además ya no existe.
     await page.getByRole('button', { name: 'Offset', exact: true }).click();
-    await page.getByTestId('cad-dynamic-field-offset').fill('250mm');
-    await page.getByTestId('cad-dynamic-input').getByRole('button', { name: 'Aplicar' }).click();
+    await applyDynamicInput(page, { offset: '250mm' });
     await expect(page.getByTestId('cad-native-properties')).toContainText('POLYLINE');
   });
 

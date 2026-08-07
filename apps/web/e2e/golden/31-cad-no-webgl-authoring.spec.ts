@@ -6,6 +6,7 @@ import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
+import { applyDynamicInput } from '../fixtures/dynamic-input';
 
 type CadLine = Extract<CadEntity, { type: 'line' }>;
 
@@ -88,11 +89,8 @@ test('the 2D editor stays fully operable when the browser denies WebGL', async (
   await page.getByRole('button', { name: 'Circle', exact: true }).click();
   const dynamic = page.getByTestId('cad-dynamic-input');
   await expect(dynamic).toBeVisible();
-  await page.getByTestId('cad-dynamic-field-x').fill('4000');
-  await page.getByTestId('cad-dynamic-field-y').fill('3000');
-  await dynamic.getByRole('button', { name: 'Aplicar' }).click();
-  await page.getByTestId('cad-dynamic-field-radius').fill('250');
-  await dynamic.getByRole('button', { name: 'Aplicar' }).click();
+  await applyDynamicInput(page, { x: '4000', y: '3000' });
+  await applyDynamicInput(page, { radius: '250' });
   await expect(dynamic).toBeHidden();
 
   // 3. Guardar de verdad, contra el CAS real del contrato.
