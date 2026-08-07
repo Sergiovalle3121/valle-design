@@ -12589,19 +12589,53 @@ export default function Layout3DEditor({
     refreshSnap();
     markDirty();
   };
-  const assignSelectedToActiveLayer = () => {
-    const cur = selList[0];
-    if (!cur) return;
-    if (isItemLayerLocked(cur)) {
+  /**
+   * Única frontera para cambiar la capa de objetos heredados.
+   *
+   * Antes `setSelectionLayer` era una línea: `setLayerAssignments(...)`. Sin
+   * historial, sin dirty, sin guarda de solo-lectura y sin comprobar el
+   * bloqueo. Cambiar de capa NO ensuciaba el documento, así que no se
+   * programaba autosave y el cambio sólo llegaba al servidor si alguna OTRA
+   * edición ensuciaba después. Cambiar la capa y cerrar la pestaña lo perdía:
+   * la guarda de cierre mira `dirtyRef`, que seguía en falso.
+   *
+   * Las entidades nativas ya iban por `commitNativeCommands`, con su
+   * transacción. Esto pone a las heredadas al mismo nivel: una entrada de
+   * historial, una transición de dirty, y rechazo atómico si la capa de origen
+   * está bloqueada.
+   */
+  const commitLayerAssignment = (
+    items: SelItem[],
+    layerId: CadLayerId,
+  ): boolean => {
+    if (!items.length) return false;
+    if (drawingReadOnlyRef.current) {
+      notifyReadOnly();
+      return false;
+    }
+    if (items.some((item) => isItemLayerLocked(item))) {
       toast.error(
         "La capa actual del objeto está bloqueada. Desbloquéala antes de recategorizar.",
         "Capas",
       );
-      return;
+      return false;
     }
+    pushHistory();
     setLayerAssignments((state) =>
-      assignObjectsToLayer(state, [cur.id], activeCadLayer),
+      assignObjectsToLayer(
+        state,
+        items.map((item) => item.id),
+        layerId,
+      ),
     );
+    markDirty();
+    return true;
+  };
+
+  const assignSelectedToActiveLayer = () => {
+    const cur = selList[0];
+    if (!cur) return;
+    if (!commitLayerAssignment([cur], activeCadLayer)) return;
     toast.success(
       `Objeto asignado a ${cadLayers.find((layer) => layer.id === activeCadLayer)?.label ?? activeCadLayer}.`,
       "Capas",
@@ -13692,14 +13726,16 @@ export default function Layout3DEditor({
     } else setCadLayers(DEFAULT_CAD_LAYERS.map((layer) => ({ ...layer })));
   };
   const assignSelectionToCadLayer = (id: CadLayerId) => {
-    const ids = selRef.current.map((it) => it.id);
+    const items = selRef.current;
     const nativeIds = [...nativeSelectionIdsRef.current];
-    if (!ids.length && !nativeIds.length) {
+    if (!items.length && !nativeIds.length) {
       toast.error("Selecciona objetos para asignarlos a una capa.", "Capas");
       return;
     }
-    if (ids.length)
-      setLayerAssignments((cur) => assignObjectsToLayer(cur, ids, id));
+    // Las nativas ya iban por su transacción; las heredadas escribían el estado
+    // a pelo. Ahora las dos mitades cruzan una frontera, y si la heredada se
+    // rechaza —capa de origen bloqueada— no se aplica tampoco la nativa.
+    if (items.length && !commitLayerAssignment(items, id)) return;
     if (nativeIds.length)
       commitNativeCommands(
         nativeIds.map((entityId) => ({
@@ -13709,7 +13745,7 @@ export default function Layout3DEditor({
         })),
       );
     toast.success(
-      `${ids.length + nativeIds.length} objeto(s) asignados a ${cadLayers.find((l) => l.id === id)?.label ?? id}.`,
+      `${items.length + nativeIds.length} objeto(s) asignados a ${cadLayers.find((l) => l.id === id)?.label ?? id}.`,
       "Capas",
     );
   };
@@ -13823,8 +13859,9 @@ export default function Layout3DEditor({
   };
   const selectionLayer = (item: SelItem): CadLayerId =>
     layerAssignments[item.id] ?? defaultLayerFor(item);
-  const setSelectionLayer = (item: SelItem, layerId: CadLayerId) =>
-    setLayerAssignments((cur) => assignObjectsToLayer(cur, [item.id], layerId));
+  const setSelectionLayer = (item: SelItem, layerId: CadLayerId) => {
+    commitLayerAssignment([item], layerId);
+  };
   const runToolbarAction = (id: CadToolbarActionId) => {
     if (drawingReadOnlyRef.current && !READ_ONLY_TOOLBAR_ACTION_IDS.has(id)) {
       notifyReadOnly();
@@ -20606,6 +20643,7 @@ export default function Layout3DEditor({
                         <label className="block text-[11px] text-gray-500 dark:text-gray-400">
                           <span className="block mb-1">Capa</span>
                           <select
+                            data-testid="cad-object-layer"
                             value={selectionLayer(selList[0])}
                             onChange={(e) =>
                               setSelectionLayer(
@@ -22886,6 +22924,7 @@ export default function Layout3DEditor({
               </span>
               <div className="flex-1" />
               <button
+                data-testid="cad-cells-close"
                 onClick={() => setShowCells(false)}
                 className="p-1 rounded-lg hover:bg-white/10"
               >
@@ -22894,6 +22933,7 @@ export default function Layout3DEditor({
             </div>
             <div className="p-4">
               <button
+                data-testid="cad-cells-create"
                 onClick={createCellFromSelection}
                 className="w-full mb-3 px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-[12px] font-medium"
               >
@@ -22909,6 +22949,7 @@ export default function Layout3DEditor({
                   {cellsView.map((c) => (
                     <div
                       key={c.id}
+                      data-testid="cad-cell-row"
                       className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2"
                     >
                       <span
@@ -22917,21 +22958,22 @@ export default function Layout3DEditor({
                       />
                       <div className="min-w-0 flex-1">
                         <input
+                          data-testid="cad-cell-name"
                           defaultValue={c.name}
                           onBlur={(e) => {
                             const v = e.target.value.trim();
-                            if (v) {
-                              cellsRef.current = cellsRef.current.map((cell) =>
-                                cell.id === c.id ? { ...cell, name: v } : cell,
+                            // Crear y borrar ya pasaban por `commitCells`;
+                            // renombrar escribía `cellsRef` a mano y sólo
+                            // marcaba dirty, así que el nombre nuevo no entraba
+                            // en el documento canónico y se perdía en el
+                            // guardado — con el autosave respondiendo 200.
+                            if (v && v !== c.name)
+                              commitCells(
+                                cellsRef.current.map((cell) =>
+                                  cell.id === c.id ? { ...cell, name: v } : cell,
+                                ),
+                                "renombrar celda",
                               );
-                              setCellsView(
-                                cellsRef.current.map((cell) => ({
-                                  ...cell,
-                                  stationIds: [...cell.stationIds],
-                                })),
-                              );
-                              markDirty();
-                            }
                           }}
                           className="w-full bg-transparent text-[13px] font-medium outline-none focus:bg-white/[0.06] rounded px-1"
                         />
