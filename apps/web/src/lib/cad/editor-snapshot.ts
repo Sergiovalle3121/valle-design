@@ -102,7 +102,18 @@ export function joinTags(tags: string[]): string {
 /** Snapshot del editor → documento canónico (versión 1, sin historial). */
 export function editorSnapshotToCadDocument(
   snap: CadEditorSnapshot,
-  options: { unit?: string } = {},
+  options: {
+    unit?: string;
+    /**
+     * Huella y rejilla del editor. No están en `CadEditorSnapshot` porque no
+     * son por objeto: viven en el layout. Viajan por aquí para que el guardado
+     * canónico pueda transportar un cambio de tamaño de planta, que antes sólo
+     * llegaba al servidor por la vía heredada.
+     */
+    footprintW?: number;
+    footprintH?: number;
+    gridSize?: number;
+  } = {},
 ): CadDocument {
   const assets: LayoutAssetInput[] = snap.assets.map((a) => {
     const asset: LayoutAssetInput = {
@@ -154,7 +165,12 @@ export function editorSnapshotToCadDocument(
 
   return layoutToCadDocument(
     { assets, stations, annotations, connectors: snap.connectors },
-    { unit: options.unit },
+    {
+      unit: options.unit,
+      footprintW: options.footprintW,
+      footprintH: options.footprintH,
+      gridSize: options.gridSize,
+    },
   );
 }
 
