@@ -113,3 +113,18 @@ export const circleAdapter: CadEntityAdapter<CircleEntity> = {
 export function isLegacyCircle(entity: CadEntity): boolean {
   return entity.type === 'circle' && !!entity.legacy;
 }
+
+/**
+ * ¿Es una cota del sistema HEREDADO de anotaciones?
+ *
+ * Las que crea la herramienta de medir no traen `dimensionKind`. Importa porque
+ * `replaceEditorProjection` sólo preserva las que SÍ lo traen: la heredada se
+ * reconstruye desde `annotationsRef` en cada guardado, así que el registro
+ * nativo no puede reclamarla — mutarla, borrarla o copiarla por la vía nativa se
+ * revertía en la siguiente reproyección, en silencio y con respuesta 200.
+ *
+ * Simétrico a `isLegacyCircle`: un solo dueño por entidad.
+ */
+export function isLegacyDimension(entity: CadEntity): boolean {
+  return entity.type === 'dimension' && !entity.dimensionKind;
+}

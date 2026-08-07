@@ -4,7 +4,7 @@ import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
-import { applyDynamicInput } from '../fixtures/dynamic-input';
+import { applyDynamicInput, applyDynamicPoint } from '../fixtures/dynamic-input';
 
 /**
  * FASE 0 — la autoría canónica es TRANSACCIONAL y respeta el orden de dibujo.
@@ -88,25 +88,14 @@ async function openStudio(context: BrowserContext, page: Page, entityIds: string
  * confirma que el valor se quedó puesto antes de aplicar: el paso espera a su
  * propia condición en vez de a que el reloj acompañe.
  */
+// Copia local que se queda como DELEGACIÓN. Tenía el `toPass` correcto, pero el
+// click de «Aplicar» caía fuera de él, así que un re-montaje en ese hueco
+// confirmaba un formulario vacío y la figura no se creaba: exactamente el
+// «Native 0» en vez de «Native 1» con que este spec cayó en CI. El fixture
+// compartido añade la ventana de quietud; delegar es lo que hace que se herede
+// aquí y en cualquier mejora futura, en vez de arreglarlo copia por copia.
 async function point(page: Page, x: string, y: string) {
-  const dynamic = page.getByTestId('cad-dynamic-input');
-  const fieldX = page.getByTestId('cad-dynamic-field-x');
-  const fieldY = page.getByTestId('cad-dynamic-field-y');
-  // Rellenar y COMPROBAR es una sola condición reintentable: si el formulario
-  // se sustituyó a mitad, los campos vuelven vacíos, el intento falla y se
-  // repite sobre el formulario nuevo. Sin esto el punto se perdía en silencio
-  // de vez en cuando y el fallo aparecía después, como una figura que no se
-  // creó. (No se puede exigir que el campo esté vacío de partida: sólo se
-  // remonta al aparecer el ancla, así que del tercer punto en adelante
-  // conserva legítimamente el valor anterior.)
-  await expect(async () => {
-    await dynamic.getByRole('button', { name: 'ABS', exact: true }).click();
-    await fieldX.fill(x);
-    await fieldY.fill(y);
-    await expect(fieldX).toHaveValue(x, { timeout: 1_000 });
-    await expect(fieldY).toHaveValue(y, { timeout: 1_000 });
-  }).toPass({ timeout: 15_000 });
-  await dynamic.getByRole('button', { name: 'Aplicar' }).click();
+  await applyDynamicPoint(page, x, y);
 }
 
 /** La barra CAD, acotada: hay otros botones con estos nombres en el editor. */
