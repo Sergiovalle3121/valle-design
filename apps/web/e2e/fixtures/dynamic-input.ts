@@ -31,6 +31,19 @@ import { expect, type Page } from "@playwright/test";
 const ATTEMPT_MS = 1_000;
 /** Plazo total. Si en 15 s el campo nunca sostiene el valor, es del producto. */
 const SETTLE_MS = 15_000;
+/**
+ * Ventana de QUIETUD antes de confirmar.
+ *
+ * El agujero que quedaba: el `toPass` garantiza que los campos sostienen su
+ * valor, pero el click de «Aplicar» va DESPUÉS del reintento, así que un
+ * re-montaje en ese hueco vaciaba el formulario y el botón confirmaba nada. No
+ * se puede meter el click dentro del reintento —lo ejecutaría dos veces y
+ * crearía la figura duplicada—, así que en su lugar se exige que el valor siga
+ * ahí tras una pausa: si el panel se remontó en la ventana, el intento entero
+ * se repite. El hueco pasa de "cualquier instante tras el relleno" a los pocos
+ * milisegundos entre la última comprobación y el click.
+ */
+const QUIET_MS = 150;
 
 export interface DynamicInputOptions {
   /**
@@ -70,6 +83,14 @@ export async function applyDynamicInput(
       await expect(page.getByTestId(`cad-dynamic-field-${name}`)).toHaveValue(value, {
         timeout: ATTEMPT_MS,
       });
+    // Y siguen ahí tras la ventana de quietud: si el panel se remonta ahora,
+    // este intento falla y se repite, en vez de que lo haga entre la
+    // comprobación y el click.
+    await page.waitForTimeout(QUIET_MS);
+    for (const [name, value] of entries)
+      await expect(page.getByTestId(`cad-dynamic-field-${name}`)).toHaveValue(value, {
+        timeout: ATTEMPT_MS,
+      });
   }).toPass({ timeout: SETTLE_MS });
 
   if (options.apply !== false)
@@ -84,6 +105,48 @@ export async function applyDynamicPoint(
   options: DynamicInputOptions = {},
 ): Promise<void> {
   await applyDynamicInput(page, { x, y }, { mode: "ABS", ...options });
+}
+
+/**
+ * Un grupo de `<select>` que se confirma con un botón, con la misma garantía.
+ *
+ * Es el tercer sitio donde aparece el mismo patrón vulnerable: se colocan N
+ * controles y se pulsa «Aplicar». Si el panel se reconstruye entre medias —al
+ * recalcular la selección nativa, por ejemplo— los `select` vuelven a su opción
+ * por defecto y el botón ejecuta OTRA operación, o la misma sobre otro objetivo.
+ * El síntoma es una propiedad que se queda en su valor de partida, sin error
+ * ninguno: el golden 25 esperaba endX=6000 tras un EXTEND y recibía 4000, que es
+ * exactamente la línea sin extender.
+ *
+ * Igual que arriba: se reintenta la PRECONDICIÓN —que los selects sostengan lo
+ * elegido—, nunca la aserción bajo prueba, que sigue fuera y sin reintento.
+ */
+export async function applySelectGroup(
+  page: Page,
+  selections: Record<string, string>,
+  applyTestId: string,
+): Promise<void> {
+  const entries = Object.entries(selections);
+  await expect(async () => {
+    for (const [testId, value] of entries) {
+      const select = page.getByTestId(testId);
+      await expect(select).toBeVisible({ timeout: ATTEMPT_MS });
+      await select.selectOption(value);
+    }
+    // Se comprueban DESPUÉS de colocarlos todos: elegir el segundo puede
+    // remontar el panel y resetear el primero, y eso hay que verlo.
+    for (const [testId, value] of entries)
+      await expect(page.getByTestId(testId)).toHaveValue(value, {
+        timeout: ATTEMPT_MS,
+      });
+    await page.waitForTimeout(QUIET_MS);
+    for (const [testId, value] of entries)
+      await expect(page.getByTestId(testId)).toHaveValue(value, {
+        timeout: ATTEMPT_MS,
+      });
+  }).toPass({ timeout: SETTLE_MS });
+
+  await page.getByTestId(applyTestId).click();
 }
 
 /**
