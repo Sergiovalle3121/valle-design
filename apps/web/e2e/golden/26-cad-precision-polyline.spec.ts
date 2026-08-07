@@ -37,8 +37,22 @@ async function installCadBackend(context: BrowserContext) {
  * perdía en silencio — el helper compartido espera a su propia precondición.
  * El modo lo fija cada paso (ABS/REL/POLAR), así que aquí no se toca.
  */
-async function fillPoint(page: import('@playwright/test').Page, x: string, y: string) {
-  await applyDynamicInput(page, { x, y });
+/**
+ * Un punto, con su MODO dentro del reintento.
+ *
+ * El fixture acepta `mode` justamente porque un re-montaje también resetea el
+ * modo, y rellenar con el modo equivocado escribe el valor en otra coordenada.
+ * Este spec pulsaba REL/POLAR por su cuenta, FUERA del `toPass`, así que ese
+ * click podía perderse contra un panel que se estaba reconstruyendo y el punto
+ * siguiente se interpretaba como absoluto.
+ */
+async function fillPoint(
+  page: import('@playwright/test').Page,
+  x: string,
+  y: string,
+  mode?: string,
+) {
+  await applyDynamicInput(page, { x, y }, mode ? { mode } : {});
 }
 
 test('neutral drawing uses units, layers, ABS/REL/POLAR, closed polyline and OFFSET', async ({ context, page }, testInfo) => {
@@ -72,13 +86,10 @@ test('neutral drawing uses units, layers, ABS/REL/POLAR, closed polyline and OFF
     await fillPoint(page, '1000', '1000');
   });
   await test.step('5. Coordenada relativa', async () => {
-    await page.getByTestId('cad-dynamic-input').getByRole('button', { name: 'REL' }).click();
-    await fillPoint(page, '2000', '0');
+    await fillPoint(page, '2000', '0', 'REL');
   });
   await test.step('6. Coordenada polar', async () => {
-    const dynamic = page.getByTestId('cad-dynamic-input');
-    await dynamic.getByRole('button', { name: 'POLAR' }).click();
-    await applyDynamicInput(page, { distance: '1500', angle: '90deg' });
+    await applyDynamicInput(page, { distance: '1500', angle: '90deg' }, { mode: 'POLAR' });
     await page.getByRole('button', { name: 'Terminar' }).click();
     // PRIORIDAD 2 — antes esto afirmaba `/2 equipos/`: LINE creaba MUROS
     // heredados, uno por tramo. Hoy son dos entidades `line` canónicas y el
@@ -89,9 +100,8 @@ test('neutral drawing uses units, layers, ABS/REL/POLAR, closed polyline and OFF
   await test.step('13. Crear polilínea cerrada', async () => {
     await page.getByRole('button', { name: 'Pline', exact: true }).click();
     await fillPoint(page, '2000', '4000');
-    await page.getByTestId('cad-dynamic-input').getByRole('button', { name: 'REL' }).click();
-    await fillPoint(page, '2000', '0');
-    await fillPoint(page, '0', '1500');
+    await fillPoint(page, '2000', '0', 'REL');
+    await fillPoint(page, '0', '1500', 'REL');
     await page.getByTestId('cad-polyline-close').click();
     // Antes: `/5 equipos/` — la polilínea se partía en un muro POR TRAMO. Hoy
     // es UNA entidad `polyline` cerrada, así que el conteo heredado no cambia.
