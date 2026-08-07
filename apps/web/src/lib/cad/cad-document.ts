@@ -1205,7 +1205,27 @@ export function replaceEditorProjection(
         && (entity.type !== "circle" || !entity.legacy),
       )
     : [];
-  const entities = [...projection.entities, ...preserved].sort(byId);
+
+  /**
+   * La proyección del editor es una vista PARCIAL: no modela `context`, donde
+   * viven el color/tipo de línea/grosor explícitos, la cota, el `handle` del
+   * DXF de origen y la procedencia de lo importado. Como los tipos `box`,
+   * `station`, `text` y `connector` se reemplazan en bloque desde ella, todo
+   * eso se perdía en CADA guardado del estudio moderno: el muro al que alguien
+   * puso un color dejaba de tenerlo, y lo importado perdía su trazabilidad.
+   *
+   * Lo que la proyección no sabe expresar no puede destruirlo. Si trae su
+   * propio `context` manda ella; si no, se conserva el del documento base.
+   */
+  const baseById = new Map((base?.entities ?? []).map((entity) => [entity.id, entity]));
+  const projected = projection.entities.map((entity) => {
+    if (entity.context !== undefined) return entity;
+    const previous = baseById.get(entity.id);
+    return previous?.context === undefined
+      ? entity
+      : ({ ...entity, context: structuredClone(previous.context) } as CadEntity);
+  });
+  const entities = [...projected, ...preserved].sort(byId);
   const current = base ? migrateCadDocument(base) : projection;
   return {
     ...current,
