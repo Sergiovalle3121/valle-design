@@ -15,7 +15,7 @@ import {
 import { hatchPolygon } from "./hatch";
 import { layoutCadMText } from "./mtext-layout";
 import { regenerateAssociativeDimensions } from "./associative-dimension";
-import { circleAdapter, isLegacyCircle, lineAdapter } from "./basic-native-adapters";
+import { circleAdapter, isLegacyCircle, isLegacyDimension, lineAdapter } from "./basic-native-adapters";
 import { dimensionAdapter } from "./dimension-entity-adapter";
 import { mleaderAdapter } from "./mleader-entity-adapter";
 import { regenerateAssociativeMleaders } from "./associative-mleader";
@@ -1460,7 +1460,12 @@ export class CadEntityRegistry {
   }
 
   supports(entity: CadEntity): entity is CadNativeEntity {
-    return !isLegacyCircle(entity) && this.adapters.has(entity.type as CadNativeEntityType);
+    // Lo que posee el sistema heredado NO lo reclama el registro nativo: el
+    // nativo no sabe guardarlo, porque la reproyección lo rehace desde la
+    // proyección del editor. Vale para el círculo heredado y para la cota sin
+    // `dimensionKind`.
+    if (isLegacyCircle(entity) || isLegacyDimension(entity)) return false;
+    return this.adapters.has(entity.type as CadNativeEntityType);
   }
 
   adapter<E extends CadNativeEntity>(entity: E): CadEntityAdapter<E> {
