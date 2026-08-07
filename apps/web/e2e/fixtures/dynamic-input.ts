@@ -150,6 +150,43 @@ export async function applySelectGroup(
 }
 
 /**
+ * N campos de texto identificados por testid, confirmados con un botón.
+ *
+ * Cuarta forma del mismo patrón vulnerable, y la más común: se rellenan varios
+ * campos y se pulsa el botón que los confirma. Si el panel se reconstruye entre
+ * medias —al llegar la respuesta de una petición previa, por ejemplo— los
+ * campos vuelven a su valor inicial y el botón confirma otra cosa. El síntoma
+ * del golden 18 es que la instancia insertada no aparece, sin error ninguno.
+ *
+ * Igual que el resto: se reintenta la PRECONDICIÓN, nunca la aserción.
+ */
+export async function applyFieldGroup(
+  page: Page,
+  fields: Record<string, string>,
+  applyTestId: string,
+): Promise<void> {
+  const entries = Object.entries(fields);
+  await expect(async () => {
+    for (const [testId, value] of entries) {
+      const field = page.getByTestId(testId);
+      await expect(field).toBeVisible({ timeout: ATTEMPT_MS });
+      await field.fill(value);
+    }
+    for (const [testId, value] of entries)
+      await expect(page.getByTestId(testId)).toHaveValue(value, {
+        timeout: ATTEMPT_MS,
+      });
+    await page.waitForTimeout(QUIET_MS);
+    for (const [testId, value] of entries)
+      await expect(page.getByTestId(testId)).toHaveValue(value, {
+        timeout: ATTEMPT_MS,
+      });
+  }).toPass({ timeout: SETTLE_MS });
+
+  await page.getByTestId(applyTestId).click();
+}
+
+/**
  * Un campo del panel de PROPIEDADES nativas, con la misma garantía.
  *
  * Aquí el patrón vulnerable es `fill()` + `blur()` y a continuación afirmar
