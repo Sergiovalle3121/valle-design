@@ -378,6 +378,11 @@ import { type CadEntityDiffRow } from "@/lib/cad/cad-collaboration";
 import { applyCadLineFillet } from "@/lib/cad/cad-fillet";
 import { applyCadLineChamfer } from "@/lib/cad/cad-chamfer";
 import {
+  applyCadMirror,
+  mirrorRejectionFor,
+  MIRROR_REJECTION_MESSAGE,
+} from "@/lib/cad/cad-mirror";
+import {
   applyCadLineEdit,
   type CadLineEndpoint,
 } from "@/lib/cad/cad-line-edit";
@@ -2572,6 +2577,9 @@ export default function Layout3DEditor({
   const [filletRadius, setFilletRadius] = useState(100);
   const [chamferDistanceA, setChamferDistanceA] = useState(100);
   const [chamferDistanceB, setChamferDistanceB] = useState(100);
+  const [mirrorAxisA, setMirrorAxisA] = useState({ x: 0, y: 0 });
+  const [mirrorAxisB, setMirrorAxisB] = useState({ x: 0, y: 1000 });
+  const [mirrorKeepOriginal, setMirrorKeepOriginal] = useState(true);
   const [lineEditOperation, setLineEditOperation] = useState<"trim" | "extend">(
     "trim",
   );
@@ -6156,6 +6164,27 @@ export default function Layout3DEditor({
     },
     [chamferDistanceA, chamferDistanceB, commitBlockMutation],
   );
+  const mirrorNativeSelection = useCallback(() => {
+    const entityIds = [...nativeSelectionIdsRef.current];
+    const mirroredIds = entityIds.map(() => newId("mirror"));
+    commitBlockMutation(
+      (document) =>
+        applyCadMirror(document, {
+          entityIds,
+          axis: { a: mirrorAxisA, b: mirrorAxisB },
+          keepOriginal: mirrorKeepOriginal,
+          newId: (index) => mirroredIds[index],
+        }),
+      mirroredIds,
+      `MIRROR aplicado a ${entityIds.length} ${entityIds.length === 1 ? "entidad" : "entidades"}.`,
+      "MIRROR",
+    );
+  }, [
+    commitBlockMutation,
+    mirrorAxisA,
+    mirrorAxisB,
+    mirrorKeepOriginal,
+  ]);
   const editNativeLines = useCallback(
     (lineIds: [string, string]) => {
       const targetId = lineIds.includes(lineEditTargetId)
@@ -16197,6 +16226,14 @@ export default function Layout3DEditor({
     nativeSelectedEntities.every((entity) => entity.type === "line")
       ? (nativeSelectedEntities.map((entity) => entity.id) as [string, string])
       : null;
+  /**
+   * MIRROR se ofrece sobre la selección nativa, pero no sobre cualquiera: el
+   * texto reflejado sale del revés y esa decisión —MIRRTEXT— no está tomada.
+   * Por el mismo motivo que los paneles de esquina, es mejor decir aquí QUÉ
+   * entidad lo impide que dejar pulsar y devolver un error después.
+   */
+  const mirrorBlockedBy =
+    nativeSelectedEntities.find((entity) => mirrorRejectionFor(entity)) ?? null;
   const primaryNativeEntity =
     nativeSelectedEntities.length === 1 ? nativeSelectedEntities[0] : null;
   const primaryNativeAdapter = primaryNativeEntity
@@ -20203,6 +20240,76 @@ export default function Layout3DEditor({
                       >
                         Deseleccionar
                       </button>
+                    </div>
+                    <div
+                      data-testid="cad-mirror-control"
+                      className="mt-2 rounded-xl border border-sky-400/20 bg-sky-400/[0.07] p-3"
+                    >
+                      <div className="text-[10px] uppercase tracking-wide text-sky-200">
+                        MIRROR · eje por dos puntos
+                      </div>
+                      <p className="mt-1 text-[10.5px] text-gray-400">
+                        Refleja la selección sobre la recta que pasa por los dos
+                        puntos. Texto y cotas todavía no: quedarían del revés.
+                      </p>
+                      <div className="mt-2 grid grid-cols-4 gap-1.5">
+                        {(
+                          [
+                            ["cad-mirror-ax", "X1", mirrorAxisA.x, (v: number) => setMirrorAxisA((p) => ({ ...p, x: v }))],
+                            ["cad-mirror-ay", "Y1", mirrorAxisA.y, (v: number) => setMirrorAxisA((p) => ({ ...p, y: v }))],
+                            ["cad-mirror-bx", "X2", mirrorAxisB.x, (v: number) => setMirrorAxisB((p) => ({ ...p, x: v }))],
+                            ["cad-mirror-by", "Y2", mirrorAxisB.y, (v: number) => setMirrorAxisB((p) => ({ ...p, y: v }))],
+                          ] as const
+                        ).map(([testId, label, value, set]) => (
+                          <label key={testId} className="text-[10px] text-gray-500">
+                            {label}
+                            <input
+                              data-testid={testId}
+                              type="number"
+                              value={value}
+                              onChange={(event) =>
+                                set(Number(event.target.value) || 0)
+                              }
+                              className="mt-1 w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white outline-none focus:ring-1 focus:ring-sky-400/50"
+                            />
+                          </label>
+                        ))}
+                      </div>
+                      {mirrorBlockedBy ? (
+                        <p
+                          data-testid="cad-mirror-blocked"
+                          className="mt-2 rounded-lg border border-amber-400/20 bg-amber-400/[0.07] p-2 text-[10.5px] text-amber-100"
+                        >
+                          No se puede reflejar «{mirrorBlockedBy.id}» (
+                          {mirrorBlockedBy.type.toUpperCase()}):{" "}
+                          {
+                            MIRROR_REJECTION_MESSAGE[
+                              mirrorRejectionFor(mirrorBlockedBy)!
+                            ]
+                          }
+                        </p>
+                      ) : null}
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <label className="flex items-center gap-1.5 text-[10.5px] text-gray-400">
+                          <input
+                            data-testid="cad-mirror-erase"
+                            type="checkbox"
+                            checked={!mirrorKeepOriginal}
+                            onChange={(event) =>
+                              setMirrorKeepOriginal(!event.target.checked)
+                            }
+                          />
+                          Borrar el original
+                        </label>
+                        <button
+                          data-testid="cad-mirror-apply"
+                          disabled={drawingReadOnly || !!mirrorBlockedBy}
+                          onClick={mirrorNativeSelection}
+                          className="rounded-lg bg-sky-500 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-sky-400 disabled:opacity-40"
+                        >
+                          Aplicar MIRROR
+                        </button>
+                      </div>
                     </div>
                     {primaryNativeEntity?.type === "hatch" && (
                       <div className="mt-2 flex items-center gap-1.5 rounded-lg border border-violet-400/15 bg-violet-400/[0.05] p-2 text-[10.5px]">
