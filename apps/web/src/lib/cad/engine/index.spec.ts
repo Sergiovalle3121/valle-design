@@ -8,7 +8,7 @@
  *
  * Además publica en cada corrida cuántos alias de `acad.pgp` siguen sin
  * implementación. Es el número que impide que «tiene motor de comandos» se lea
- * como «tiene los comandos»: al escribir esto, 15 comandos registrados y 108 de
+ * como «tiene los comandos»: al escribir esto, 18 comandos registrados y 105 de
  * 125 alias todavía sin implementar. El log lo dice en cada corrida, sin que
  * haya que ir a buscarlo ni fiarse de un comentario que envejece.
  */
@@ -77,6 +77,9 @@ const names = registry.all().map((command) => command.name);
     "SCALE",
     "FILLET",
     "CHAMFER",
+    "TRIM",
+    "EXTEND",
+    "BREAK",
   ])
     assert.ok(names.includes(expected), `${expected} no llegó al registro del producto`);
 }
