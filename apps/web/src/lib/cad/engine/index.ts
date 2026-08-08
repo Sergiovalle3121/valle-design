@@ -10,6 +10,7 @@
 import { CAD_DRAW_BASIC_COMMANDS } from "./commands/draw-basics";
 import { CAD_DRAW_CURVE_COMMANDS } from "./commands/draw-curves";
 import { CAD_MODIFY_BASIC_COMMANDS } from "./commands/modify-basics";
+import { CAD_MODIFY_TRANSFORM_COMMANDS } from "./commands/modify-transform";
 import { createCadCommandRegistry, type CadCommandRegistryImpl } from "./registry";
 
 export * from "./command-types";
@@ -24,6 +25,7 @@ export const CAD_COMMAND_DESCRIPTORS = [
   ...CAD_DRAW_BASIC_COMMANDS,
   ...CAD_DRAW_CURVE_COMMANDS,
   ...CAD_MODIFY_BASIC_COMMANDS,
+  ...CAD_MODIFY_TRANSFORM_COMMANDS,
 ] as const;
 
 /**
