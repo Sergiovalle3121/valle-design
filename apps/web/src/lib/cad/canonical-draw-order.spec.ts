@@ -6,7 +6,7 @@ import {
   type CadDocument,
   type CadEntity,
 } from "./cad-document";
-import { executeCadEntityCommand } from "./entity-runtime";
+import { executeCadEntityCommand } from "./entity-commands";
 import { mergeCadDocuments } from "./cad-collaboration";
 
 /**

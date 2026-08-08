@@ -424,12 +424,12 @@ import {
   CAD_ENTITY_REGISTRY,
   CadSceneSynchronizer,
   cadEntityBoundaryPaths,
-  executeCadEntityCommand,
   type CadNativeEntity,
   type CadBounds,
   type CadPropertyBag,
   type CadScenePatch,
 } from "@/lib/cad/entity-runtime";
+import { executeCadEntityCommand } from "@/lib/cad/entity-commands";
 import {
   buildCadInsertBatchObject,
   buildCadNativeOverviewObject,
@@ -5958,15 +5958,15 @@ export default function Layout3DEditor({
         let document = checkpoint;
         const touchedIds = new Set<string>();
         for (const command of commands) {
-          const source = document.entities.find(
-            (entity) => entity.id === command.entityId,
-          );
+          // `insert` trae su propia entidad; la capa a comprobar es la de ella.
+          const target = "entityId" in command
+            ? document.entities.find((entity) => entity.id === command.entityId)
+            : command.entity;
           const lockedLayer =
-            source &&
-            document.layers.find((layer) => layer.id === source.layer)?.locked;
+            target && document.layers.find((layer) => layer.id === target.layer)?.locked;
           if (lockedLayer)
             throw new Error(
-              `Layer ${source.layer} is locked. Unlock it before editing ${source.id}.`,
+              `Layer ${target.layer} is locked. Unlock it before editing ${target.id}.`,
             );
           const result = executeCadEntityCommand(document, command);
           document = result.document;

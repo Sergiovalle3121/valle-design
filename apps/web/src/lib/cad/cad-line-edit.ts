@@ -1,5 +1,5 @@
 import { commitChange, type CadDocument, type CadEntity, type CadPoint3 } from './cad-document';
-import { executeCadEntityCommand } from './entity-runtime';
+import { executeCadEntityCommand } from './entity-commands';
 import { lineArcIntersections, lineCircleIntersections, arcArcIntersections } from './intersect';
 import { arcSweepDeg, type CadVec2 } from './primitives';
 
