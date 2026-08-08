@@ -409,10 +409,13 @@ assert.throws(
   "registrar dos veces el mismo comando es un error de programación",
 );
 
-// Inventario honesto de lo que la tabla de alias promete y aún no existe.
+// Este `registry` es el MONTAJE DE PRUEBA de esta spec —los básicos de dibujo
+// más un ZOOM de mentira para ejercitar los transparentes—, así que su tamaño
+// no dice nada del producto. El inventario real lo publica `index.spec.ts`
+// contra el registro que el editor usa de verdad.
 console.log(
-  `motor de comandos: ${registry.all().length} comandos registrados · ` +
-    `${registry.unresolvedAliases().length} alias de acad.pgp todavía sin implementar`,
+  `montaje de prueba: ${registry.all().length} comandos, ` +
+    `${registry.unresolvedAliases().length} alias sin resolver EN ESTE MONTAJE`,
 );
 
 console.log("cad command engine specs passed");

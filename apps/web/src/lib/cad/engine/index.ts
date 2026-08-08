@@ -8,6 +8,7 @@
  * existe con tres sistemas de comandos que no se conocen entre sí.
  */
 import { CAD_DRAW_BASIC_COMMANDS } from "./commands/draw-basics";
+import { CAD_DRAW_CURVE_COMMANDS } from "./commands/draw-curves";
 import { CAD_MODIFY_BASIC_COMMANDS } from "./commands/modify-basics";
 import { createCadCommandRegistry, type CadCommandRegistryImpl } from "./registry";
 
@@ -21,6 +22,7 @@ export { createCadCommandRegistry, CadCommandRegistryImpl } from "./registry";
 /** Todos los descriptores implementados hasta ahora. */
 export const CAD_COMMAND_DESCRIPTORS = [
   ...CAD_DRAW_BASIC_COMMANDS,
+  ...CAD_DRAW_CURVE_COMMANDS,
   ...CAD_MODIFY_BASIC_COMMANDS,
 ] as const;
 
