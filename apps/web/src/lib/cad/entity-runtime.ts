@@ -1,6 +1,4 @@
 import {
-  commitChange,
-  preserveDrawOrder,
   type CadDocument,
   type CadEntity,
   type CadEntityContext,
@@ -14,17 +12,11 @@ import {
 } from "./curve-tessellate";
 import { hatchPolygon } from "./hatch";
 import { layoutCadMText } from "./mtext-layout";
-import { regenerateAssociativeDimensions } from "./associative-dimension";
 import { circleAdapter, isLegacyCircle, isLegacyDimension, lineAdapter } from "./basic-native-adapters";
 import { dimensionAdapter } from "./dimension-entity-adapter";
 import { mleaderAdapter } from "./mleader-entity-adapter";
-import { regenerateAssociativeMleaders } from "./associative-mleader";
 import { resolveCadInsert } from "./professional-blocks";
-import {
-  hatchRegionContainsPoint,
-  regenerateAssociativeHatches,
-  type CadBoundaryPath,
-} from "./hatch-associativity";
+import { hatchRegionContainsPoint, type CadBoundaryPath } from "./hatch-associativity";
 
 export type CadNativeEntity = Extract<
   CadEntity,
@@ -127,7 +119,14 @@ function point3(point: CadPoint2, z = 0): CadPoint3 {
   return { x: point.x, y: point.y, z };
 }
 
-function cloneContext(context: CadEntityContext | undefined): CadEntityContext | undefined {
+/**
+ * Copia profunda del contexto de una entidad (color/tipo de línea/grosor
+ * explícitos, procedencia, vínculo de negocio). Se exporta porque el ejecutor
+ * de comandos la necesita al copiar una entidad: sin ella, el original y la
+ * copia compartirían el mismo objeto `presentation` y cambiar el color de una
+ * cambiaría el de la otra.
+ */
+export function cloneContext(context: CadEntityContext | undefined): CadEntityContext | undefined {
   if (!context) return undefined;
   return {
     ...context,
@@ -1526,124 +1525,6 @@ export function cadEntityBoundaryPaths(
     .map((path) => ({ sourceId: entity.id, points: path.points, closed: path.closed }));
 }
 
-export type CadEntityCommand =
-  | { type: "transform"; entityId: string; transform: CadEntityTransform }
-  | { type: "properties"; entityId: string; patch: Partial<CadPropertyBag> }
-  | { type: "grip"; entityId: string; gripId: string; point: CadPoint2 }
-  | { type: "copy"; entityId: string; newEntityId: string; offset?: CadPoint2 }
-  | { type: "hatch-association"; entityId: string; associative: boolean }
-  | { type: "dimension-association"; entityId: string; associative: boolean }
-  | { type: "mleader-association"; entityId: string; associative: boolean }
-  | { type: "delete"; entityId: string };
-
-export interface CadEntityCommandResult {
-  document: CadDocument;
-  affectedEntityIds: string[];
-  createdEntityIds: string[];
-  deletedEntityIds: string[];
-}
-
-export function executeCadEntityCommand(
-  document: CadDocument,
-  command: CadEntityCommand,
-  registry = CAD_ENTITY_REGISTRY,
-): CadEntityCommandResult {
-  const source = document.entities.find((entity) => entity.id === command.entityId);
-  if (!source || !registry.supports(source))
-    throw new Error(`Native CAD entity ${command.entityId} was not found.`);
-  const adapter = registry.adapter(source);
-  let entities = [...document.entities];
-  const createdEntityIds: string[] = [];
-  const deletedEntityIds: string[] = [];
-  const label = `${command.type}:${source.type}`;
-  let regenerationSourceIds = [source.id];
-
-  if (command.type === "delete") {
-    entities = entities.filter((entity) => entity.id !== source.id);
-    deletedEntityIds.push(source.id);
-  } else if (command.type === "copy") {
-    if (document.entities.some((entity) => entity.id === command.newEntityId))
-      throw new Error(`CAD entity id ${command.newEntityId} already exists.`);
-    const copy = adapter.commands.transform(
-      { ...source, id: command.newEntityId, context: cloneContext(source.context) },
-      { translation: command.offset ?? { x: 0, y: 0 } },
-    );
-    entities.push(copy);
-    createdEntityIds.push(copy.id);
-  } else if (command.type === "hatch-association") {
-    if (source.type !== "hatch") throw new Error("Hatch association commands require a HATCH entity.");
-    entities = entities.map((entity) => entity.id === source.id ? {
-      ...source,
-      associative: command.associative,
-      associationStatus: command.associative ? "associated" : "detached",
-    } : entity);
-    regenerationSourceIds = command.associative ? [...(source.boundaryRefs ?? [])] : [];
-  } else if (command.type === "dimension-association") {
-    if (source.type !== "dimension") throw new Error("Dimension association commands require a DIMENSION entity.");
-    entities = entities.map((entity) => entity.id === source.id ? {
-      ...source,
-      associative: command.associative,
-      associationStatus: command.associative ? "associated" : "detached",
-    } : entity);
-    regenerationSourceIds = command.associative ? [...new Set((source.references ?? []).map((reference) => reference.entityId))] : [];
-  } else if (command.type === "mleader-association") {
-    if (source.type !== "mleader") throw new Error("MLeader association commands require an MLEADER entity.");
-    entities = entities.map((entity) => entity.id === source.id ? {
-      ...source,
-      associative: command.associative,
-      associationStatus: command.associative ? "associated" : "detached",
-    } : entity);
-    regenerationSourceIds = command.associative ? [...new Set((source.references ?? []).map((reference) => reference.entityId))] : [];
-  } else {
-    const next =
-      command.type === "transform"
-        ? adapter.commands.transform(source, command.transform)
-        : command.type === "properties"
-          ? adapter.properties.write(source, command.patch)
-          : adapter.grips.moveGrip(source, command.gripId, command.point);
-    entities = entities.map((entity) => (entity.id === source.id ? next : entity));
-  }
-
-  const regenerated = regenerateAssociativeHatches(
-    entities,
-    regenerationSourceIds,
-    (entity) => cadEntityBoundaryPaths(entity, registry),
-  );
-  const regeneratedDimensions = regenerateAssociativeDimensions(regenerated.entities, regenerationSourceIds);
-  const regeneratedMleaders = regenerateAssociativeMleaders(regeneratedDimensions.entities, regenerationSourceIds);
-  entities = regeneratedMleaders.entities;
-  // `entities` se ordena por id para que el serializado sea determinista y los
-  // hashes reproducibles. El Z-ORDER NO vive aquí: vive en
-  // `modelSpace.entityIds`, y ahí alfabetizar destruía el dibujo — editar,
-  // mover o soltar un grip reordenaba el plano entero por id, así que "traer al
-  // frente", el apilado de hatches y los wipeouts no sobrevivían a una edición.
-  entities.sort((a, b) => a.id.localeCompare(b.id));
-  const deleted = new Set(deletedEntityIds);
-  const nextDocument = commitChange(
-    {
-      ...document,
-      entities,
-      modelSpace: {
-        // Los supervivientes conservan su posición relativa exacta; lo creado
-        // (una copia) entra al frente. `preserveDrawOrder` además deduplica,
-        // así que no quedan fantasmas ni omisiones.
-        entityIds: preserveDrawOrder(
-          document.modelSpace.entityIds,
-          document.modelSpace.entityIds
-            .filter((id) => !deleted.has(id))
-            .concat(createdEntityIds),
-        ),
-      },
-    },
-    label,
-  );
-  return {
-    document: nextDocument,
-    affectedEntityIds: [...new Set([source.id, ...regenerated.regeneratedIds, ...regenerated.brokenIds, ...regeneratedDimensions.regeneratedIds, ...regeneratedDimensions.brokenIds, ...regeneratedMleaders.regeneratedIds, ...regeneratedMleaders.brokenIds])],
-    createdEntityIds,
-    deletedEntityIds,
-  };
-}
 
 interface SpatialEntry {
   bounds: CadBounds;

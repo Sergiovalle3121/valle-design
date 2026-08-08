@@ -17,7 +17,7 @@ runtime dependency on another product or identity service.
 ## Canonical commands
 
 - Install reproducibly: `npm ci`.
-- CAD contracts and route boundaries: `npm run check:cad`.
+- CAD contracts, route boundaries and file-size budget: `npm run check:cad`.
 - Core gates: `npm run build`, `npm run typecheck`, `npm test`, `npm run lint`.
 - Non-mutating API lint: `npm run lint:check --workspace=valle-design-api`.
 - Generated SDK: `npm test --workspace=@valle/design-sdk`.
@@ -94,6 +94,11 @@ tests.
   release gates.
 - `Layout3DEditor.tsx` is a high-risk monolith. Prefer characterized extraction
   into the existing canonical lifecycle and kernel over adding another engine.
+  `npm run check:cad` enforces this: a file not listed in
+  `scripts/cad/monolith-budget.json` may not exceed 800 lines, a listed file may
+  only shrink, and the monolith's `useState` count may only go down. When an
+  extraction lands, run `node scripts/cad/check-monolith-budget.mjs --update` so
+  the recorded budget keeps telling the truth.
 - Preserve unrelated working-tree changes. Do not rewrite generated files by
   hand when their generator is available.
 - No button, import format, price, security statement or compatibility claim

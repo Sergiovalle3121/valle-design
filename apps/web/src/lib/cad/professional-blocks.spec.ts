@@ -13,7 +13,8 @@ import {
   resolveCadInsert,
   searchCadBlocks,
 } from './professional-blocks';
-import { CAD_ENTITY_REGISTRY, executeCadEntityCommand } from './entity-runtime';
+import { CAD_ENTITY_REGISTRY } from './entity-runtime';
+import { executeCadEntityCommand } from './entity-commands';
 
 const line = (id: string, x1: number, y1: number, x2: number, y2: number, layer = '0'): CadEntity => ({
   id, type: 'line', start: { x: x1, y: y1, z: 0 }, end: { x: x2, y: y2, z: 0 }, layer,

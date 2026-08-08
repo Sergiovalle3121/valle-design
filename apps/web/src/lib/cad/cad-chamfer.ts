@@ -11,7 +11,7 @@
  * puedan dar respuestas distintas a la misma pareja de líneas.
  */
 import { commitChange, type CadDocument, type CadEntity, type CadPoint3 } from './cad-document';
-import { executeCadEntityCommand } from './entity-runtime';
+import { executeCadEntityCommand } from './entity-commands';
 import { intersectInfiniteLines, retainedRay } from './cad-fillet';
 
 type CadLine = Extract<CadEntity, { type: 'line' }>;

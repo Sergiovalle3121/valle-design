@@ -247,7 +247,6 @@ import {
 import { cadSelectionPathMatchesPolygon } from "@/lib/cad/selection-shapes";
 import {
   acquireCadTrackingPoint,
-  cadWorldToleranceFromView,
   resolveCadPolarTracking,
   trackFromAcquiredPoints,
 } from "@/lib/cad/precision-tracking";
@@ -261,10 +260,7 @@ import {
   resolveCadHatchRegionWithSources,
   stitchCadBoundaryPaths,
 } from "@/lib/cad/hatch-associativity";
-import {
-  cadViewportBoundsChanged,
-  cadViewportBoundsFromCamera,
-} from "@/lib/cad/native-viewport";
+import { cadViewportBoundsChanged } from "@/lib/cad/native-viewport";
 import { exportCadLayoutDxf } from "@/lib/cad/layout-export-adapter";
 import {
   buildPlotSheet,
@@ -424,12 +420,21 @@ import {
   CAD_ENTITY_REGISTRY,
   CadSceneSynchronizer,
   cadEntityBoundaryPaths,
-  executeCadEntityCommand,
   type CadNativeEntity,
   type CadBounds,
   type CadPropertyBag,
   type CadScenePatch,
 } from "@/lib/cad/entity-runtime";
+import { executeCadEntityCommand } from "@/lib/cad/entity-commands";
+import { CadViewController } from "@/lib/cad/view/view-controller";
+import {
+  AlignBtn,
+  DimInput,
+  NumField,
+  ReadField,
+  Stat,
+  T3Btn,
+} from "@/components/cad/studio/field-controls";
 import {
   buildCadInsertBatchObject,
   buildCadNativeOverviewObject,
@@ -3004,6 +3009,11 @@ export default function Layout3DEditor({
   // three.js refs
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  // Dueño de las DOS cámaras. En 2D manda la ortográfica: proyección paralela,
+  // `pixelsPerUnit` legible y tolerancia de snap exacta. En 3D sigue mandando
+  // la perspectiva de siempre. OrbitControls continúa siendo el dispositivo de
+  // entrada; de su objetivo y su distancia se deriva la vista ortográfica.
+  const viewControllerRef = useRef<CadViewController | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   // El viewport 3D exige WebGL. Cuando el navegador no lo ofrece (WebGL
   // deshabilitado, sin GPU, headless sin fallback software) NO se puede
@@ -3110,6 +3120,10 @@ export default function Layout3DEditor({
   const toolRef = useRef(tool);
   const themeRef = useRef(theme);
   const sunRef = useRef(sun);
+  // El ciclo de vida de la escena se monta una sola vez y necesita saber en qué
+  // modo arranca la vista sin volver a montarse cuando el modo cambia.
+  const viewModeRef = useRef(viewMode);
+  viewModeRef.current = viewMode;
   useEffect(() => {
     snapRef.current = snap;
   }, [snap]);
@@ -5958,15 +5972,15 @@ export default function Layout3DEditor({
         let document = checkpoint;
         const touchedIds = new Set<string>();
         for (const command of commands) {
-          const source = document.entities.find(
-            (entity) => entity.id === command.entityId,
-          );
+          // `insert` trae su propia entidad; la capa a comprobar es la de ella.
+          const target = "entityId" in command
+            ? document.entities.find((entity) => entity.id === command.entityId)
+            : command.entity;
           const lockedLayer =
-            source &&
-            document.layers.find((layer) => layer.id === source.layer)?.locked;
+            target && document.layers.find((layer) => layer.id === target.layer)?.locked;
           if (lockedLayer)
             throw new Error(
-              `Layer ${source.layer} is locked. Unlock it before editing ${source.id}.`,
+              `Layer ${target.layer} is locked. Unlock it before editing ${target.id}.`,
             );
           const result = executeCadEntityCommand(document, command);
           document = result.document;
@@ -7201,15 +7215,30 @@ export default function Layout3DEditor({
     controls.target.set(0, 0, 0);
     controls.update();
     controlsRef.current = controls;
+
+    const viewController = new CadViewController(
+      { scale: s, width: W, height: H },
+      renderer.domElement.clientWidth || width,
+      renderer.domElement.clientHeight || height,
+      camera,
+    );
+    viewControllerRef.current = viewController;
+    viewController.setMode(viewModeRef.current);
+    /** La cámara que se dibuja y contra la que se lanzan los rayos. */
+    const activeCamera = () => viewController.camera;
+    const syncViewFromOrbit = () =>
+      viewController.adoptPerspectiveFraming(
+        controls.target,
+        renderer.domElement.clientWidth || width,
+        renderer.domElement.clientHeight || height,
+      );
+    syncViewFromOrbit();
+
     let viewportSyncTimer: ReturnType<typeof setTimeout> | null = null;
     const queueNativeViewportSync = () => {
       if (viewportSyncTimer) clearTimeout(viewportSyncTimer);
       viewportSyncTimer = setTimeout(() => {
-        const bounds = cadViewportBoundsFromCamera(camera, {
-          scale: s,
-          width: W,
-          height: H,
-        });
+        const bounds = viewController.viewportBounds();
         if (
           !bounds ||
           !cadViewportBoundsChanged(nativeViewportBoundsRef.current, bounds)
@@ -7219,7 +7248,10 @@ export default function Layout3DEditor({
         syncNativeScene();
       }, 80);
     };
-    controls.addEventListener("change", queueNativeViewportSync);
+    controls.addEventListener("change", () => {
+      syncViewFromOrbit();
+      queueNativeViewportSync();
+    });
     queueNativeViewportSync();
 
     // ---- drag a station block or an asset on the floor ----
@@ -7424,7 +7456,16 @@ export default function Layout3DEditor({
     /** World (x,y) of the floor point under the pointer, or null. */
     const floorWorld = (e: PointerEvent): { wx: number; wy: number } | null => {
       setPtr(e);
-      raycaster.setFromCamera(ptr, camera);
+      if (viewController.mode === "2d") {
+        // Aritmética exacta: ni rayo, ni plano, ni escorzo.
+        const rect = renderer.domElement.getBoundingClientRect();
+        const point = viewController.screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+        return point ? { wx: point.x, wy: point.y } : null;
+      }
+      // En 3D se conserva el rayo original tal cual: los goldens corren en 3D y
+      // el NDC debe salir del rectángulo real del lienzo, no de un tamaño
+      // cacheado que puede ir un frame por detrás.
+      raycaster.setFromCamera(ptr, activeCamera());
       if (!raycaster.ray.intersectPlane(floorPlane, hit)) return null;
       const ctx = ctxRef.current!;
       return { wx: hit.x / ctx.s + ctx.W / 2, wy: hit.z / ctx.s + ctx.H / 2 };
@@ -7437,15 +7478,14 @@ export default function Layout3DEditor({
      */
     const pointerWorldTolerance = (pixels: number) => {
       const ctx = ctxRef.current!;
-      return cadWorldToleranceFromView({
-        cameraDistance: camera.position.distanceTo(controls.target),
-        verticalFovDeg: camera.fov,
-        viewportHeightPx: renderer.domElement.clientHeight,
-        drawingToSceneScale: ctx.s,
-        aperturePx: pixels,
-        min: Math.max(0.01, Math.min(ctx.W, ctx.H) * 0.00001),
-        max: Math.max(ctx.W, ctx.H) * 0.02,
-      });
+      // Una división en 2D: la apertura mide los mismos píxeles a cualquier
+      // zoom. Antes se aproximaba con distancia de cámara y FOV, y derivaba al
+      // acercarse porque la relación píxel↔mundo no es constante en perspectiva.
+      return viewController.toleranceWorld(
+        pixels,
+        Math.max(0.01, Math.min(ctx.W, ctx.H) * 0.00001),
+        Math.max(ctx.W, ctx.H) * 0.02,
+      );
     };
     const snapFloor = (
       wx: number,
@@ -7715,7 +7755,7 @@ export default function Layout3DEditor({
         return;
       }
       setPtr(e);
-      raycaster.setFromCamera(ptr, camera);
+      raycaster.setFromCamera(ptr, activeCamera());
       // clicking a dimension label removes that cota
       const dimHit = raycaster
         .intersectObjects(dimsGroup.children, false)
@@ -8109,7 +8149,7 @@ export default function Layout3DEditor({
       }
       if (!drag) return;
       setPtr(e);
-      raycaster.setFromCamera(ptr, camera);
+      raycaster.setFromCamera(ptr, activeCamera());
       if (!raycaster.ray.intersectPlane(floorPlane, hit)) return;
       const ctx = ctxRef.current!;
       const leadP = getPlace(drag.lead);
@@ -8546,6 +8586,8 @@ export default function Layout3DEditor({
       renderer.setSize(w, hh);
       camera.aspect = w / hh;
       camera.updateProjectionMatrix();
+      // Redimensionar muestra más o menos dibujo; NO cambia el zoom.
+      viewController.setViewportSize(w, hh);
       queueNativeViewportSync();
     };
     const ro = new ResizeObserver(onResize);
@@ -8591,7 +8633,7 @@ export default function Layout3DEditor({
       } else {
         controls.update();
       }
-      renderer.render(scene, camera);
+      renderer.render(scene, activeCamera());
       raf = requestAnimationFrame(animate);
     };
     animate();
@@ -8621,6 +8663,7 @@ export default function Layout3DEditor({
       sceneRef.current = null;
       rendererRef.current = null;
       cameraRef.current = null;
+      viewControllerRef.current = null;
       blocksRef.current = null;
       assetsGroupRef.current = null;
       nativeGroupRef.current = null;
@@ -9318,6 +9361,7 @@ export default function Layout3DEditor({
   }, [data]);
   const configureOrbitControlsForMode = (mode: "3d" | "2d") => {
     const ctrl = controlsRef.current;
+    viewControllerRef.current?.setMode(mode);
     if (!ctrl) return;
     if (mode === "2d") {
       ctrl.minPolarAngle = 0;
@@ -14366,6 +14410,7 @@ export default function Layout3DEditor({
     const cam = cameraRef.current;
     const ctrl = controlsRef.current;
     const ctx = ctxRef.current;
+    viewControllerRef.current?.setMode(mode);
     if (!cam || !ctrl || !ctx) return;
     const d = Math.max(ctx.W, ctx.H) * ctx.s;
     if (mode === "2d") {
@@ -23406,155 +23451,5 @@ export default function Layout3DEditor({
       )}
     </div>,
     document.body,
-  );
-}
-
-function T3Btn({
-  active,
-  onClick,
-  title,
-  children,
-  disabled,
-}: {
-  active?: boolean;
-  onClick: () => void;
-  title: string;
-  children: React.ReactNode;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      title={title}
-      disabled={disabled}
-      className={`p-1.5 rounded-lg transition-colors disabled:opacity-30 disabled:hover:bg-transparent ${active ? "text-white" : "text-gray-500 dark:text-gray-400 hover:bg-white/10"}`}
-      style={active ? { background: "#0e7490" } : undefined}
-    >
-      {children}
-    </button>
-  );
-}
-
-/**
- * Campo numérico del panel de propiedades.
- *
- * Antes disparaba `onBegin` en el FOCO, que dejaba un punto de deshacer aunque
- * el usuario no escribiera nada: enfocar y salir bastaba para que el siguiente
- * Ctrl+Z reviniera la acción ANTERIOR. Ahora el checkpoint lo abre la propia
- * mutación —`beginFieldEdit`, una vez por sesión de edición— y aquí sólo queda
- * cerrarla al salir.
- */
-function NumField({
-  label,
-  value,
-  onChange,
-  onEnd,
-  testId,
-}: {
-  label: string;
-  value: number;
-  onChange: (v: number) => void;
-  onEnd?: () => void;
-  testId?: string;
-}) {
-  return (
-    <label className="block">
-      <span className="block text-[10px] uppercase tracking-wide text-gray-500 mb-0.5">
-        {label}
-      </span>
-      <input
-        type="number"
-        data-testid={testId}
-        value={value}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
-        onBlur={onEnd}
-        className="w-full px-2 py-1 rounded-md bg-white/[0.06] border border-white/10 text-[13px] text-white focus:outline-none focus:border-cyan-400/60"
-      />
-    </label>
-  );
-}
-
-function DimInput({
-  label,
-  value,
-  onChange,
-  testId,
-}: {
-  label: string;
-  value: number;
-  onChange: (v: number) => void;
-  testId?: string;
-}) {
-  return (
-    <label className="block">
-      <span className="block text-[9px] uppercase tracking-wide text-gray-500 mb-0.5">
-        {label}
-      </span>
-      <input
-        type="number"
-        data-testid={testId}
-        value={value}
-        onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-        className="w-full px-1.5 py-1 rounded-md bg-white/[0.06] border border-white/10 text-[12px] text-white focus:outline-none focus:border-cyan-400/60"
-      />
-    </label>
-  );
-}
-
-function AlignBtn({
-  title,
-  onClick,
-  children,
-}: {
-  title: string;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      title={title}
-      className="inline-flex items-center justify-center py-1.5 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-gray-200"
-    >
-      {children}
-    </button>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  highlight,
-}: {
-  label: string;
-  value: string;
-  highlight?: boolean;
-}) {
-  return (
-    <div
-      className={`rounded-lg px-3 py-2 ${highlight ? "bg-cyan-500/15" : "bg-white/[0.04]"}`}
-    >
-      <div className="text-[10px] uppercase tracking-wide text-gray-500">
-        {label}
-      </div>
-      <div
-        className={`text-[15px] font-semibold ${highlight ? "text-cyan-300" : "text-white"}`}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function ReadField({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <span className="block text-[10px] uppercase tracking-wide text-gray-500 mb-0.5">
-        {label}
-      </span>
-      <div className="w-full px-2 py-1 rounded-md bg-white/[0.03] border border-white/5 text-[13px] text-gray-500 dark:text-gray-400">
-        {value}
-      </div>
-    </div>
   );
 }

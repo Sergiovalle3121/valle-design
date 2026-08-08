@@ -3,9 +3,9 @@ import {
   CAD_ENTITY_REGISTRY,
   CadSceneSynchronizer,
   CadSpatialIndex,
-  executeCadEntityCommand,
   type CadNativeEntity,
 } from "./entity-runtime";
+import { executeCadEntityCommand } from "./entity-commands";
 import { migrateCadDocument, type CadDocument } from "./cad-document";
 
 const arc: Extract<CadNativeEntity, { type: "arc" }> = {

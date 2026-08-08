@@ -1,5 +1,5 @@
 import { commitChange, type CadDocument, type CadEntity, type CadPoint3 } from './cad-document';
-import { executeCadEntityCommand } from './entity-runtime';
+import { executeCadEntityCommand } from './entity-commands';
 
 type CadLine = Extract<CadEntity, { type: 'line' }>;
 type CadArc = Extract<CadEntity, { type: 'arc' }>;
