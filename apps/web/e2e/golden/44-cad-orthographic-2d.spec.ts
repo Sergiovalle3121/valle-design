@@ -78,6 +78,18 @@ async function installCadBackend(context: BrowserContext) {
  * lienzo y la medición reutilizaría en silencio la coordenada previa, dando un
  * residuo enorme que parecería un fallo de proyección y no lo sería.
  */
+async function readAt(page: Page, x: number, y: number): Promise<string> {
+  const coordinate = page.getByTestId('cad-cursor-coordinate');
+  await page.mouse.move(x, y);
+  await expect
+    .poll(async () => {
+      const raw = `${await coordinate.getAttribute('data-x')}|${await coordinate.getAttribute('data-y')}`;
+      return raw !== '|' && raw !== '';
+    }, { message: `la barra de estado no reaccionó al mover el puntero a (${x}, ${y})` })
+    .toBe(true);
+  return `${await coordinate.getAttribute('data-x')}|${await coordinate.getAttribute('data-y')}`;
+}
+
 async function worldAt(
   page: Page,
   x: number,
@@ -94,6 +106,36 @@ async function worldAt(
     .toBe(true);
   const raw = `${await coordinate.getAttribute('data-x')}|${await coordinate.getAttribute('data-y')}`;
   return { x: Number(await coordinate.getAttribute('data-x')), y: Number(await coordinate.getAttribute('data-y')), raw };
+}
+
+/**
+ * Espera a que el encuadre deje de moverse.
+ *
+ * OrbitControls tiene `enableDamping`, así que tras un encuadre sigue emitiendo
+ * `change` mientras se asienta, y la vista ortográfica —que deriva su centro y
+ * su `pixelsPerUnit` de ese estado— se mueve con él. Muestrear durante ese
+ * asentamiento mide una vista distinta en cada punto y produce un residuo que
+ * parece un fallo de proyección sin serlo.
+ *
+ * Esto no se descubrió razonando: Chromium daba 0,000 px y Firefox 3,005 px
+ * sobre el mismo código. La diferencia es que Firefox corre con WebGL por
+ * software y tarda más en asentar.
+ *
+ * Se confirma la quietud leyendo el MISMO píxel dos veces con otra lectura de
+ * por medio: si la vista se mueve, las dos lecturas difieren.
+ */
+async function waitForSettledView(page: Page, centre: { x: number; y: number }): Promise<void> {
+  await expect
+    .poll(
+      async () => {
+        const first = await readAt(page, centre.x, centre.y);
+        await readAt(page, centre.x + 9, centre.y + 7);
+        const second = await readAt(page, centre.x, centre.y);
+        return first === second;
+      },
+      { timeout: 20_000, message: 'el encuadre no se estabiliza: OrbitControls sigue amortiguando' },
+    )
+    .toBe(true);
 }
 
 test('the 2D plan view is a parallel projection: three points predict the rest', async ({ context, page }) => {
@@ -114,6 +156,9 @@ test('the 2D plan view is a parallel projection: three points predict the rest',
 
   const centre = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   const step = Math.min(box.width, box.height) * 0.18;
+
+  // Nada de medir sobre una vista que todavía se está asentando.
+  await waitForSettledView(page, centre);
 
   // Tres puntos determinan la afín.
   let last = await worldAt(page, centre.x, centre.y);
@@ -145,6 +190,13 @@ test('the 2D plan view is a parallel projection: three points predict the rest',
       // Residuo en PÍXELES, para que el umbral no dependa del zoom.
       residuals.push(Math.hypot(measured.x - predicted.x, measured.y - predicted.y) / unitsPerPixel);
     }
+
+  // Se comprueba que la vista NO se movió durante el muestreo. Sin esto, un
+  // encuadre que todavía se asienta produce un residuo alto que parece un
+  // fallo de proyección y manda a depurar el sitio equivocado — que es
+  // exactamente lo que pasó la primera vez que este golden corrió en Firefox.
+  const centreAfter = await readAt(page, centre.x, centre.y);
+  expect(centreAfter, 'el encuadre se movió mientras se medía').toBe(origin.raw);
 
   const worstResidual = Math.max(...residuals);
   // eslint-disable-next-line no-console

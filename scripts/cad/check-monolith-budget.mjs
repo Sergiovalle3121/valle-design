@@ -31,6 +31,7 @@
  * crecimiento nunca es silencioso — queda en el comando que se tecleó y en el
  * diff del manifiesto, delante de quien revisa.
  */
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -53,6 +54,41 @@ const {
 const ignoredDirectorySet = new Set(ignoredDirectories);
 const ignoredFileSet = new Set(ignoredFiles);
 const extensionSet = new Set(extensions);
+
+/**
+ * Archivos VERSIONADOS que participan del presupuesto.
+ *
+ * Se pregunta a git en vez de recorrer el disco. Recorrer el disco metió en el
+ * manifiesto un artefacto de Playwright —`e2e/.test-results/…/traces/…js`, 2.236
+ * líneas de código generado— que está en `.gitignore` y no existe en un clon
+ * limpio. Presupuestar lo que no está versionado no significa nada: el número
+ * depende de si alguien corrió los tests antes.
+ *
+ * Si git no está disponible se recorre el disco, que es mejor que no comprobar
+ * nada, y se avisa de que el resultado puede incluir generados.
+ */
+function trackedFiles() {
+  try {
+    const output = execFileSync("git", ["ls-files", "-z"], {
+      cwd: root,
+      encoding: "utf8",
+      maxBuffer: 64 * 1024 * 1024,
+    });
+    return output
+      .split("\0")
+      .filter(Boolean)
+      .filter((file) => extensionSet.has(path.extname(file)))
+      .filter((file) => !ignoredFileSet.has(file))
+      .filter((file) => !file.split("/").some((segment) => ignoredDirectorySet.has(segment)))
+      // Un archivo borrado pero aún indexado no se puede medir.
+      .filter((file) => fs.existsSync(path.join(root, file)));
+  } catch {
+    console.warn(
+      "Aviso: git no disponible; se recorre el disco y el resultado puede incluir archivos generados.",
+    );
+    return walk(root);
+  }
+}
 
 /** Recorre el árbol devolviendo rutas relativas al raíz, con `/` siempre. */
 function walk(directory, into = []) {
@@ -89,7 +125,7 @@ function countStateHooks(source) {
   return (source.match(/\buseState\s*[<(]/g) ?? []).length;
 }
 
-const files = walk(root).sort();
+const files = trackedFiles().sort();
 const sizes = new Map();
 const sources = new Map();
 for (const file of files) {
