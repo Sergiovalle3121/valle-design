@@ -16142,8 +16142,10 @@ export default function Layout3DEditor({
    * línea y un arco el panel ni siquiera aparecía — pese a que la matemática de
    * intersección ya existía.
    *
-   * El CÍRCULO no puede ser objetivo: no tiene extremos que recortar, y cortarlo
-   * lo convertiría en un arco, que es otra operación.
+   * El CÍRCULO y la POLILÍNEA no pueden ser objetivo: el círculo no tiene
+   * extremos que recortar —cortarlo lo convertiría en un arco, que es cambiar el
+   * tipo de la entidad— y recortar una polilínea exige decidir qué tramo se
+   * corta y qué pasa con los vértices intermedios, que es otra operación.
    */
   const selectedNativeLineIds =
     nativeSelectedEntities.length === 2 &&
@@ -16154,7 +16156,8 @@ export default function Layout3DEditor({
       (entity) =>
         entity.type === "line" ||
         entity.type === "circle" ||
-        entity.type === "arc",
+        entity.type === "arc" ||
+        entity.type === "polyline",
     )
       ? (nativeSelectedEntities.map((entity) => entity.id) as [string, string])
       : null;
@@ -19772,7 +19775,7 @@ export default function Layout3DEditor({
                           className="rounded-xl border border-cyan-400/20 bg-cyan-400/[0.06] p-3"
                         >
                           <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-cyan-200">
-                            TRIM / EXTEND · LINE o ARC contra LINE, CIRCLE o ARC
+                            TRIM / EXTEND · LINE o ARC contra LINE, CIRCLE, ARC o PLINE
                           </div>
                           <div className="grid grid-cols-3 gap-1.5">
                             <select

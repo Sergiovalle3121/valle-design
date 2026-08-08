@@ -1,7 +1,7 @@
 import { commitChange, type CadDocument, type CadEntity, type CadPoint3 } from './cad-document';
 import { executeCadEntityCommand } from './entity-runtime';
 import { lineArcIntersections, lineCircleIntersections, arcArcIntersections } from './intersect';
-import { arcSweepDeg } from './primitives';
+import { arcSweepDeg, type CadVec2 } from './primitives';
 
 type CadLine = Extract<CadEntity, { type: 'line' }>;
 /**
@@ -12,7 +12,7 @@ type CadLine = Extract<CadEntity, { type: 'line' }>;
  * círculo sin pensarlo — y la matemática ya estaba en `intersect.ts`, sólo
  * faltaba cablearla.
  */
-export type CadEditBoundary = Extract<CadEntity, { type: 'line' | 'circle' | 'arc' }>;
+export type CadEditBoundary = Extract<CadEntity, { type: 'line' | 'circle' | 'arc' | 'polyline' }>;
 export type CadLineEndpoint = 'start' | 'end';
 
 const EPS = 1e-9;
@@ -42,6 +42,41 @@ function parameterOf(target: CadLine, point: { x: number; y: number }): number {
 }
 
 /**
+ * Los tramos RECTOS de una polilínea, como pares de puntos.
+ *
+ * Una polilínea con `bulge` describe ARCOS. Aplanarlos a cuerdas daría cortes
+ * en el sitio equivocado —la frontera se ve cruzar por un punto y el recorte
+ * cae en otro—, que es peor que negarse. Se rechaza en bloque, igual que hace
+ * OFFSET con el mismo caso.
+ */
+function polylineSegments(boundary: Extract<CadEntity, { type: 'polyline' }>): [CadVec2, CadVec2][] {
+  if (boundary.vertices.some((vertex) => (vertex.bulge ?? 0) !== 0))
+    throw new Error('TRIM/EXTEND no admite todavía una polilínea con tramos en arco (bulge): aplanarlos cortaría en el sitio equivocado.');
+  const points = boundary.vertices.map((vertex) => ({ x: vertex.x, y: vertex.y }));
+  const segments: [CadVec2, CadVec2][] = [];
+  const count = boundary.closed ? points.length : points.length - 1;
+  for (let index = 0; index < count; index += 1)
+    segments.push([points[index], points[(index + 1) % points.length]]);
+  return segments;
+}
+
+/** Cruce de dos SEGMENTOS, o null si no se tocan. Sin excepciones: en una
+ *  polilínea es normal que un tramo concreto no cruce. */
+function segmentHit(target: CadLine, a: CadVec2, b: CadVec2): number | null {
+  const rx = target.end.x - target.start.x;
+  const ry = target.end.y - target.start.y;
+  const sx = b.x - a.x;
+  const sy = b.y - a.y;
+  const denominator = rx * sy - ry * sx;
+  if (Math.abs(denominator) <= EPS) return null;
+  const qx = a.x - target.start.x;
+  const qy = a.y - target.start.y;
+  const boundaryParameter = (qx * ry - qy * rx) / denominator;
+  if (boundaryParameter < -EPS || boundaryParameter > 1 + EPS) return null;
+  return (qx * sy - qy * sx) / denominator;
+}
+
+/**
  * Todos los cruces del objetivo con la frontera.
  *
  * El objetivo se trata como recta INFINITA a propósito: TRIM filtrará después
@@ -68,6 +103,15 @@ function boundaryHits(target: CadLine, boundary: CadEditBoundary): BoundaryHit[]
     if (boundaryParameter < -EPS || boundaryParameter > 1 + EPS)
       throw new Error('The cutting/boundary entity does not reach the target intersection.');
     return [{ point: pointAt(target, targetParameter), targetParameter }];
+  }
+
+  if (boundary.type === 'polyline') {
+    // Cada tramo se respeta como SEGMENTO; que uno concreto no cruce es normal.
+    return polylineSegments(boundary)
+      .map(([from, to]) => segmentHit(target, from, to))
+      .filter((value): value is number => value !== null)
+      .map((targetParameter) => ({ point: pointAt(target, targetParameter), targetParameter }))
+      .sort((left, right) => left.targetParameter - right.targetParameter);
   }
 
   const points =
@@ -151,7 +195,11 @@ const angleDegOf = (center: { x: number; y: number }, point: { x: number; y: num
 function arcHits(target: CadArc, boundary: CadEditBoundary): { angle: number; advance: number }[] {
   const center = { x: target.center.x, y: target.center.y };
   const points =
-    boundary.type === 'line'
+    boundary.type === 'polyline'
+      ? polylineSegments(boundary).flatMap(([from, to]) =>
+          lineCircleIntersections(from, to, center, target.radius, true),
+        )
+      : boundary.type === 'line'
       ? lineCircleIntersections(
           { x: boundary.start.x, y: boundary.start.y },
           { x: boundary.end.x, y: boundary.end.y },
@@ -232,10 +280,13 @@ export function applyCadLineEdit(
   const boundary = document.entities.find(
     (entity): entity is CadEditBoundary =>
       entity.id === input.boundaryId &&
-      (entity.type === 'line' || entity.type === 'circle' || entity.type === 'arc'),
+      (entity.type === 'line' ||
+        entity.type === 'circle' ||
+        entity.type === 'arc' ||
+        entity.type === 'polyline'),
   );
   if (!target) throw new Error(`${input.operation.toUpperCase()} requires an existing LINE or ARC as the target.`);
-  if (!boundary) throw new Error(`${input.operation.toUpperCase()} requires an existing LINE, CIRCLE or ARC as the boundary.`);
+  if (!boundary) throw new Error(`${input.operation.toUpperCase()} requires an existing LINE, CIRCLE, ARC or POLYLINE as the boundary.`);
   // El parcheo depende del tipo: una línea mueve extremos, un arco mueve
   // ÁNGULOS. Son propiedades distintas del mismo adaptador.
   const patch =
