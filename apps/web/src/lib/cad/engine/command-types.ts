@@ -32,7 +32,7 @@
  * - **El motor no sabe de snaps.** Los catorce modos de `snap-engine.ts` entran
  *   como un override por paso, así que añadir modos no toca el motor.
  */
-import type { CadPoint2 } from "../cad-document";
+import type { CadEntity, CadPoint2 } from "../cad-document";
 import type { CadEntityCommand } from "../entity-commands";
 import type { SnapType } from "../snap-engine";
 
@@ -105,6 +105,13 @@ export interface CadViewSnapshot {
 export interface CadCommandContext {
   /** Entidades presentes, sólo para consultar; el motor no las muta. */
   entityIds: readonly string[];
+  /**
+   * Lectura de una entidad por id. Los comandos que necesitan mirar la
+   * geometría —OFFSET calcula el desfase real, no una traslación— la reciben
+   * así en vez de recibir el documento entero: no pueden mutarlo aunque
+   * quieran, y sus specs se montan con un objeto de tres líneas.
+   */
+  entity?: (entityId: string) => CadEntity | undefined;
   selection: readonly string[];
   activeLayer: string;
   view: CadViewSnapshot;
