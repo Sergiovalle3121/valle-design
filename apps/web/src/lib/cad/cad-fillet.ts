@@ -17,26 +17,43 @@ const point3 = (x: number, y: number, z = 0): CadPoint3 => ({ x, y, z });
 const distance = (a: CadPoint3, b: CadPoint3) => Math.hypot(a.x - b.x, a.y - b.y);
 const normalizeAngle = (value: number) => ((value % 360) + 360) % 360;
 
-function intersectInfiniteLines(a: CadLine, b: CadLine): CadPoint3 {
+/**
+ * El vértice de la esquina: donde se cortarían las dos rectas PROLONGADAS.
+ *
+ * Se exporta porque CHAMFER (`cad-chamfer.ts`) resuelve la esquina con esta
+ * misma regla. Las dos órdenes se aplican sobre la misma selección de dos
+ * líneas, así que responder distinto a la misma pareja sería incoherente; una
+ * sola implementación evita que se separen con el tiempo. `operation` sólo
+ * decide el nombre que ve el usuario en el error.
+ */
+export function intersectInfiniteLines(a: CadLine, b: CadLine, operation = 'FILLET'): CadPoint3 {
   const rx = a.end.x - a.start.x;
   const ry = a.end.y - a.start.y;
   const sx = b.end.x - b.start.x;
   const sy = b.end.y - b.start.y;
   const denominator = rx * sy - ry * sx;
-  if (Math.abs(denominator) <= EPS) throw new Error('FILLET requires two non-parallel LINE entities.');
+  if (Math.abs(denominator) <= EPS) throw new Error(`${operation} requires two non-parallel LINE entities.`);
   const qx = b.start.x - a.start.x;
   const qy = b.start.y - a.start.y;
   const t = (qx * sy - qy * sx) / denominator;
   return point3(a.start.x + t * rx, a.start.y + t * ry, (a.start.z + b.start.z) / 2);
 }
 
-function retainedRay(line: CadLine, intersection: CadPoint3) {
+/**
+ * Cuál de los dos extremos es la esquina y qué dirección se conserva.
+ *
+ * Dos rectas que se cruzan dejan CUATRO esquinas posibles. La regla que las
+ * desambigua sin depender de dónde pinchó el ratón: el extremo más CERCANO al
+ * cruce es el que se mueve, y el lejano fija la dirección que sobrevive.
+ * Exportada por el mismo motivo que `intersectInfiniteLines`.
+ */
+export function retainedRay(line: CadLine, intersection: CadPoint3, operation = 'FILLET') {
   const startDistance = distance(line.start, intersection);
   const endDistance = distance(line.end, intersection);
   const near: 'start' | 'end' = startDistance <= endDistance ? 'start' : 'end';
   const far = near === 'start' ? line.end : line.start;
   const available = distance(far, intersection);
-  if (available <= EPS) throw new Error('FILLET cannot use a zero-length LINE.');
+  if (available <= EPS) throw new Error(`${operation} cannot use a zero-length LINE.`);
   return {
     near,
     far,

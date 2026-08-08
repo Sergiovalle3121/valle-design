@@ -376,6 +376,7 @@ import {
 } from "@/lib/cad/cad-document";
 import { type CadEntityDiffRow } from "@/lib/cad/cad-collaboration";
 import { applyCadLineFillet } from "@/lib/cad/cad-fillet";
+import { applyCadLineChamfer } from "@/lib/cad/cad-chamfer";
 import {
   applyCadLineEdit,
   type CadLineEndpoint,
@@ -2569,6 +2570,8 @@ export default function Layout3DEditor({
     };
   }, []);
   const [filletRadius, setFilletRadius] = useState(100);
+  const [chamferDistanceA, setChamferDistanceA] = useState(100);
+  const [chamferDistanceB, setChamferDistanceB] = useState(100);
   const [lineEditOperation, setLineEditOperation] = useState<"trim" | "extend">(
     "trim",
   );
@@ -6133,6 +6136,25 @@ export default function Layout3DEditor({
       );
     },
     [commitBlockMutation, filletRadius],
+  );
+  const chamferNativeLines = useCallback(
+    (lineIds: [string, string]) => {
+      const chamferId = newId("chamfer");
+      commitBlockMutation(
+        (document) =>
+          applyCadLineChamfer(document, {
+            lineAId: lineIds[0],
+            lineBId: lineIds[1],
+            distanceA: chamferDistanceA,
+            distanceB: chamferDistanceB,
+            chamferId,
+          }),
+        [chamferId],
+        `CHAMFER ${chamferDistanceA}×${chamferDistanceB} aplicado como LINE.`,
+        "CHAMFER",
+      );
+    },
+    [chamferDistanceA, chamferDistanceB, commitBlockMutation],
   );
   const editNativeLines = useCallback(
     (lineIds: [string, string]) => {
@@ -16161,6 +16183,20 @@ export default function Layout3DEditor({
     )
       ? (nativeSelectedEntities.map((entity) => entity.id) as [string, string])
       : null;
+  /**
+   * FILLET y CHAMFER exigen DOS LÍNEAS, y por eso no comparten compuerta con
+   * TRIM/EXTEND. Al abrir TRIM a círculos, arcos y polilíneas, la compuerta
+   * común empezó a mostrar el panel «FILLET · 2 LINE» con una línea y un
+   * círculo seleccionados: la orden se ofrecía y al pulsarla sólo salía un
+   * error. Las dos órdenes redondean o cortan la esquina de dos rectas —una
+   * curva no tiene esa esquina— así que la compuerta se estrecha aquí en vez de
+   * fingir que están disponibles.
+   */
+  const selectedNativeCornerLineIds =
+    nativeSelectedEntities.length === 2 &&
+    nativeSelectedEntities.every((entity) => entity.type === "line")
+      ? (nativeSelectedEntities.map((entity) => entity.id) as [string, string])
+      : null;
   const primaryNativeEntity =
     nativeSelectedEntities.length === 1 ? nativeSelectedEntities[0] : null;
   const primaryNativeAdapter = primaryNativeEntity
@@ -19834,6 +19870,7 @@ export default function Layout3DEditor({
                             Aplicar {lineEditOperation.toUpperCase()}
                           </button>
                         </div>
+                        {selectedNativeCornerLineIds ? (
                         <div
                           data-testid="cad-fillet-control"
                           className="rounded-xl border border-violet-400/20 bg-violet-400/[0.07] p-3"
@@ -19868,7 +19905,7 @@ export default function Layout3DEditor({
                               data-testid="cad-fillet-apply"
                               disabled={drawingReadOnly}
                               onClick={() =>
-                                filletNativeLines(selectedNativeLineIds)
+                                filletNativeLines(selectedNativeCornerLineIds)
                               }
                               className="self-end rounded-lg bg-violet-500 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-violet-400 disabled:opacity-40"
                             >
@@ -19876,6 +19913,69 @@ export default function Layout3DEditor({
                             </button>
                           </div>
                         </div>
+                        ) : null}
+                        {selectedNativeCornerLineIds ? (
+                        <div
+                          data-testid="cad-chamfer-control"
+                          className="rounded-xl border border-amber-400/20 bg-amber-400/[0.07] p-3"
+                        >
+                          <div className="text-[10px] uppercase tracking-wide text-amber-200">
+                            CHAMFER · 2 LINE
+                          </div>
+                          <p className="mt-1 text-[10.5px] text-gray-400">
+                            Recorta ambas líneas y las une con un tramo recto.
+                            Distancias distintas dan un chaflán asimétrico.
+                          </p>
+                          <div className="mt-2 grid grid-cols-[1fr_1fr_auto] gap-2">
+                            <label className="text-[10px] text-gray-500">
+                              Distancia 1
+                              <input
+                                data-testid="cad-chamfer-distance-a"
+                                type="number"
+                                min="0.000001"
+                                value={chamferDistanceA}
+                                onChange={(event) =>
+                                  setChamferDistanceA(
+                                    Math.max(
+                                      0.000001,
+                                      Number(event.target.value) || 0.000001,
+                                    ),
+                                  )
+                                }
+                                className="mt-1 w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white outline-none focus:ring-1 focus:ring-amber-400/50"
+                              />
+                            </label>
+                            <label className="text-[10px] text-gray-500">
+                              Distancia 2
+                              <input
+                                data-testid="cad-chamfer-distance-b"
+                                type="number"
+                                min="0.000001"
+                                value={chamferDistanceB}
+                                onChange={(event) =>
+                                  setChamferDistanceB(
+                                    Math.max(
+                                      0.000001,
+                                      Number(event.target.value) || 0.000001,
+                                    ),
+                                  )
+                                }
+                                className="mt-1 w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white outline-none focus:ring-1 focus:ring-amber-400/50"
+                              />
+                            </label>
+                            <button
+                              data-testid="cad-chamfer-apply"
+                              disabled={drawingReadOnly}
+                              onClick={() =>
+                                chamferNativeLines(selectedNativeCornerLineIds)
+                              }
+                              className="self-end rounded-lg bg-amber-500 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-amber-400 disabled:opacity-40"
+                            >
+                              Aplicar CHAMFER
+                            </button>
+                          </div>
+                        </div>
+                        ) : null}
                       </div>
                     ) : primaryNativeEntity &&
                       primaryNativeProperties &&
