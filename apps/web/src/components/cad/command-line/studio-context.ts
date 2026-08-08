@@ -1,0 +1,62 @@
+/**
+ * El contexto que el motor de comandos ve del estudio.
+ *
+ * El motor pregunta esto cada vez que despacha: qué entidades hay, cuáles están
+ * designadas, en qué capa se dibuja, cuánto vale un píxel y dónde está el
+ * cursor. El editor tiene todo eso repartido entre refs y estado, y traducirlo
+ * en el sitio costaría veinte líneas dentro de una función que ya tiene 21.000.
+ *
+ * Vive aquí por eso, y porque así la traducción se puede probar sin montar el
+ * editor: entra un documento, sale un contexto.
+ */
+import type { CadDocument, CadEntity } from "@/lib/cad/cad-document";
+import type { CadCommandContext } from "@/lib/cad/engine/command-types";
+import type { CadView } from "@/lib/cad/view/cad-view";
+
+export interface CadStudioCommandInputs {
+  /** Documento canónico vivo. `null` mientras no haya dibujo abierto. */
+  document: CadDocument | null;
+  selection: readonly string[];
+  activeLayer: string;
+  /** Vista actual. `null` antes de que exista la escena. */
+  view: CadView | null;
+  /**
+   * Último punto conocido del puntero, en unidades de dibujo.
+   *
+   * Puede ser `null`: mientras el puntero no esté enrutado al motor, no hay
+   * una posición que ofrecer. Se propaga como está en vez de inventar el
+   * origen, porque la entrada directa de distancia calcula su dirección desde
+   * aquí: con un cursor falso daría un punto plausible y equivocado, y con
+   * ninguno el motor responde «mueve el cursor para fijar la dirección», que
+   * es la verdad.
+   */
+  cursor: { x: number; y: number } | null;
+  newEntityId: () => string;
+}
+
+/** Escala por defecto cuando todavía no hay escena: un píxel, una unidad. */
+const FALLBACK_PIXELS_PER_UNIT = 1;
+
+export function cadStudioCommandContext(
+  inputs: CadStudioCommandInputs,
+): CadCommandContext {
+  const entities: readonly CadEntity[] = inputs.document?.entities ?? [];
+  // Se indexa al construir el contexto y no en cada consulta: OFFSET y los
+  // comandos de modificación preguntan una vez por objeto designado, y un
+  // `find` lineal por consulta convierte una selección de 500 objetos en
+  // 500 recorridos del documento entero.
+  const byId = new Map(entities.map((entity) => [entity.id, entity]));
+  return {
+    entityIds: entities.map((entity) => entity.id),
+    entity: (entityId) => byId.get(entityId),
+    selection: inputs.selection,
+    activeLayer: inputs.activeLayer,
+    view: {
+      pixelsPerUnit: inputs.view?.pixelsPerUnit ?? FALLBACK_PIXELS_PER_UNIT,
+      centerX: inputs.view?.centerX ?? 0,
+      centerY: inputs.view?.centerY ?? 0,
+    },
+    ...(inputs.cursor ? { cursor: inputs.cursor } : {}),
+    newEntityId: inputs.newEntityId,
+  };
+}

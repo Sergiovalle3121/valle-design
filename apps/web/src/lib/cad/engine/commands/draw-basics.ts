@@ -21,7 +21,6 @@ import {
   type CadAnyCommandDescriptor,
   type CadCommandContext,
   type CadCommandDescriptor,
-  type CadCommandInput,
   type CadCommandStep,
   type CadPreviewPath,
 } from "../command-types";

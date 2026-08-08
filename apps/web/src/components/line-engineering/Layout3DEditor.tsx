@@ -14,7 +14,6 @@ import {
   Loader2,
   X,
   Save,
-  Move3d,
   Grid3x3,
   Grid2x2,
   ShieldAlert,
@@ -427,6 +426,14 @@ import {
 } from "@/lib/cad/entity-runtime";
 import { executeCadEntityCommand } from "@/lib/cad/entity-commands";
 import { CadViewController } from "@/lib/cad/view/view-controller";
+import { CadCommandLineDock } from "@/components/cad/command-line/CadCommandLineDock";
+import { useCadStudioCommandEngine } from "@/components/cad/command-line/use-command-engine";
+import {
+  CadOverlayLegends,
+  CadViewportHint,
+  CadViewportPrompt,
+} from "@/components/cad/studio/viewport-hints";
+import { CadDraftToolbar } from "@/components/cad/studio/draft-toolbar";
 import {
   AlignBtn,
   DimInput,
@@ -499,7 +506,6 @@ import {
   CadSelectionPalette,
   type CadSelectionGeometryMode,
 } from "./cad-workbench/CadSelectionPalette";
-import { CadDynamicInput } from "./cad-workbench/CadDynamicInput";
 import { CadHatchPalette } from "./cad-workbench/CadHatchPalette";
 import {
   CadMTextEditor,
@@ -6019,6 +6025,33 @@ export default function Layout3DEditor({
     },
     [commitCanonicalDocument, notifyReadOnly, snapshotDocument, toast],
   );
+
+  /**
+   * Motor de comandos (ola 3), conectado por la línea de comandos.
+   *
+   * De momento **sólo por teclado**: el puntero sigue yendo a la máquina
+   * heredada de `cad-command.ts`. Es deliberado y no un a medias — enrutar el
+   * puntero exige la banda elástica y el cursor vivo, y meter las dos cosas en
+   * el mismo cambio pondría 52 goldens a depender de código sin estrenar. Lo
+   * que entra aquí ya es funcionalidad que no existía: se teclea `L`, `@100,0`,
+   * `C` para cerrar, Espacio para repetir.
+   *
+   * `apply` va por `commitNativeCommands`, que es la MISMA puerta que usa el
+   * panel de propiedades: un checkpoint, un `commitChange`, un paso de deshacer.
+   * No hay una segunda ruta de mutación, que es justo lo que el motor venía a
+   * eliminar.
+   */
+  const commandEngine = useCadStudioCommandEngine({
+    document: loadedCadDocumentRef,
+    selection: nativeSelectionIdsRef,
+    view: viewControllerRef,
+    activeLayer: activeCadLayer,
+    newEntityId: () => newId("cad"),
+    apply: (commands) => {
+      commitNativeCommands([...commands]);
+    },
+  });
+
   const updateNativeProperties = useCallback(
     (entityId: string, patch: Partial<CadPropertyBag>) => {
       commitNativeCommands([{ type: "properties", entityId, patch }]);
@@ -19152,44 +19185,7 @@ export default function Layout3DEditor({
               mountRef={mountRef}
               unit={(data?.footprint.unit ?? "mm") as WorldUnit}
             />
-            {showHeat && (
-              <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-xl bg-gray-900/80 backdrop-blur border border-white/10 text-[11px] text-gray-300 inline-flex items-center gap-2 pointer-events-none">
-                <Grid2x2 className="w-3.5 h-3.5" /> Ocupación del piso
-                <span className="inline-flex items-center gap-1">
-                  menos
-                  <span
-                    className="inline-block w-12 h-2 rounded-sm"
-                    style={{
-                      background:
-                        "linear-gradient(90deg, rgba(244,63,94,0.15), rgba(244,63,94,1))",
-                    }}
-                  />
-                  más
-                </span>
-              </div>
-            )}
-            {showGaps && (
-              <div
-                className="absolute bottom-3 left-3 px-3 py-1.5 rounded-xl bg-gray-900/80 backdrop-blur border border-white/10 text-[11px] text-gray-300 inline-flex items-center gap-3 pointer-events-none"
-                style={{ bottom: showHeat ? "3.25rem" : undefined }}
-              >
-                <ShieldAlert className="w-3.5 h-3.5" /> Holguras
-                <span className="inline-flex items-center gap-1">
-                  <span
-                    className="inline-block w-3 h-2 rounded-sm"
-                    style={{ background: "#f59e0b" }}
-                  />{" "}
-                  juntos
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <span
-                    className="inline-block w-3 h-2 rounded-sm"
-                    style={{ background: "#ef4444" }}
-                  />{" "}
-                  traslape
-                </span>
-              </div>
-            )}
+            <CadOverlayLegends heat={showHeat} gaps={showGaps} />
             {(dxfWarnings.length > 0 || dxfImportPreview) && (
               <div className="absolute right-3 top-16 z-20 w-80 rounded-2xl border border-amber-400/20 bg-gray-950/90 p-3 shadow-2xl backdrop-blur">
                 <div className="mb-2 flex items-center justify-between gap-2">
@@ -19553,69 +19549,47 @@ export default function Layout3DEditor({
               (tool === "measure" ||
                 tool === "wall" ||
                 isCadDrawTool(tool)) && (
-                <div
-                  data-testid="cad-live-prompt"
-                  className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-amber-400/95 text-gray-900 text-[12px] font-semibold inline-flex items-center gap-1.5 pointer-events-none"
-                >
-                  {tool === "measure" ? (
-                    <Ruler className="w-3.5 h-3.5" />
-                  ) : (
-                    <Spline className="w-3.5 h-3.5" />
-                  )}
-                  {measureLive || drawPrompt
-                    ? measureLive || drawPrompt
-                    : tool === "measure"
-                      ? "Clic en dos puntos para medir"
+                <CadViewportPrompt
+                  kind={
+                    tool === "measure"
+                      ? "measure"
                       : isCadDrawTool(tool)
-                        ? "Dibujo CAD activo · clic o coordenada · Enter termina"
-                        : "Clic para trazar muros · Esc termina"}
-                </div>
+                        ? "draw"
+                        : "wall"
+                  }
+                  live={measureLive || drawPrompt}
+                />
               )}
             {!walk && (tool === "wall" || isCadDrawTool(tool)) && (
-              <div className="absolute top-12 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 rounded-full border border-white/10 bg-gray-900/90 px-2 py-1.5 backdrop-blur">
-                <button
-                  onClick={() => setOrthoLock((v) => !v)}
-                  title="Orto: restringe los muros a 0/90/180/270 (como F8 de AutoCAD)"
-                  className={`rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${orthoLock ? "bg-amber-400 text-gray-900" : "bg-white/[0.08] text-gray-300 hover:bg-white/[0.15]"}`}
-                >
-                  ORTO
-                </button>
-                <CadDynamicInput
-                  key={`${dynamicInputKind}:${dynamicAnchor ? "anchored" : "origin"}`}
-                  kind={dynamicInputKind}
-                  anchor={dynamicAnchor}
-                  documentUnit={data?.footprint.unit === "m" ? "m" : "mm"}
-                  locale="es-MX"
-                  defaults={dynamicInputDefaults}
-                  onCommit={commitDynamicInput}
-                  onCancel={() => {
+              <CadDraftToolbar
+                orthoLock={orthoLock}
+                onToggleOrtho={() => setOrthoLock((v) => !v)}
+                dynamicInputKey={`${dynamicInputKind}:${dynamicAnchor ? "anchored" : "origin"}`}
+                dynamicInput={{
+                  kind: dynamicInputKind,
+                  anchor: dynamicAnchor,
+                  documentUnit: data?.footprint.unit === "m" ? "m" : "mm",
+                  locale: "es-MX",
+                  defaults: dynamicInputDefaults,
+                  onCommit: commitDynamicInput,
+                  onCancel: () => {
                     setPrecisionText("");
                     endDraw();
                     setTool("select");
                     toolRef.current = "select";
-                  }}
-                />
-                {activeDynamicCommand &&
-                  (activeDynamicCommand.id === "line" ||
-                    activeDynamicCommand.id === "polyline") && (
-                    <button
-                      onClick={commitActiveDraftCommand}
-                      className="rounded-lg border border-white/10 px-2 py-1 text-[10px] text-gray-300 hover:bg-white/10"
-                    >
-                      Terminar
-                    </button>
-                  )}
-                {activeDynamicCommand?.id === "polyline" &&
-                  canCloseDraftPolyline && (
-                    <button
-                      data-testid="cad-polyline-close"
-                      onClick={closeActiveDraftPolyline}
-                      className="rounded-lg border border-cyan-400/20 bg-cyan-400/10 px-2 py-1 text-[10px] font-semibold text-cyan-100 hover:bg-cyan-400/20"
-                    >
-                      Cerrar
-                    </button>
-                  )}
-              </div>
+                  },
+                }}
+                chaining={
+                  activeDynamicCommand?.id === "line" ||
+                  activeDynamicCommand?.id === "polyline"
+                }
+                canClose={
+                  activeDynamicCommand?.id === "polyline" &&
+                  canCloseDraftPolyline
+                }
+                onFinish={commitActiveDraftCommand}
+                onClose={closeActiveDraftPolyline}
+              />
             )}
             {mtextEditorOpen && (
               <CadMTextEditor
@@ -19635,18 +19609,33 @@ export default function Layout3DEditor({
                 }}
               />
             )}
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-gray-900/80 backdrop-blur border border-white/10 text-[11px] text-gray-300 inline-flex items-center gap-2 pointer-events-none">
-              <Move3d className="w-3.5 h-3.5" />
-              {walk
-                ? "Arrastra para mirar · W A S D para caminar · Esc para salir del recorrido"
-                : tool === "measure"
-                  ? "Clic en dos puntos para medir · arrastra el fondo para orbitar · Esc cancela"
-                  : tool === "wall"
-                    ? "Clic en cada esquina para trazar muros · Shift = 45° · ORTO = ejes · teclea x,y / @dx,dy / @d<áng · Esc termina"
-                    : isCadDrawTool(tool)
-                      ? "LINE/PLINE/RECT: clic o coordenada · @relativo y @dist<ángulo · Enter termina · Esc cancela"
-                      : "Arrastra para mover · Shift+clic multiselecciona · Shift+arrastre = ventana · fondo = orbitar · rueda = zoom · R rota · Ctrl+C/V copia/pega · Supr borra"}
-            </div>
+            {/*
+              La línea de comandos. No se enfoca sola: robarle el teclado al
+              lienzo rompería Supr, Ctrl+Z y las teclas de captura, que es
+              exactamente el reproche que se le hace al copiloto de lenguaje
+              natural. Se pulsa y se escribe.
+            */}
+            {!walk && (
+              <div className="absolute bottom-14 left-3 z-30 w-[min(30rem,42vw)]">
+                <CadCommandLineDock
+                  host={commandEngine}
+                  disabled={drawingReadOnly}
+                />
+              </div>
+            )}
+            <CadViewportHint
+              kind={
+                walk
+                  ? "walk"
+                  : tool === "measure"
+                    ? "measure"
+                    : tool === "wall"
+                      ? "wall"
+                      : isCadDrawTool(tool)
+                        ? "draw"
+                        : "select"
+              }
+            />
             {visionPreview && (
               <div className="absolute top-3 right-3 z-30 w-[20rem] rounded-2xl border border-violet-400/25 bg-gray-950/95 p-3 shadow-2xl backdrop-blur">
                 <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-violet-200">
