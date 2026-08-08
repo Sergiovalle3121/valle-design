@@ -16137,15 +16137,19 @@ export default function Layout3DEditor({
     .map((id) => nativeById.get(id))
     .filter((entity): entity is CadNativeEntity => !!entity);
   /**
-   * TRIM/EXTEND necesita un OBJETIVO línea y una FRONTERA que puede ser línea,
-   * círculo o arco. Antes exigía dos `line`, así que con una línea y un arco el
-   * panel ni siquiera aparecía — pese a que la matemática de intersección ya
-   * existía. El objetivo sigue siendo una línea: recortar un arco es otra
-   * operación y no está implementada.
+   * TRIM/EXTEND admite como OBJETIVO una línea o un arco, y como FRONTERA una
+   * línea, un círculo o un arco. Empezó exigiendo dos `line`, así que con una
+   * línea y un arco el panel ni siquiera aparecía — pese a que la matemática de
+   * intersección ya existía.
+   *
+   * El CÍRCULO no puede ser objetivo: no tiene extremos que recortar, y cortarlo
+   * lo convertiría en un arco, que es otra operación.
    */
   const selectedNativeLineIds =
     nativeSelectedEntities.length === 2 &&
-    nativeSelectedEntities.some((entity) => entity.type === "line") &&
+    nativeSelectedEntities.some(
+      (entity) => entity.type === "line" || entity.type === "arc",
+    ) &&
     nativeSelectedEntities.every(
       (entity) =>
         entity.type === "line" ||
@@ -19768,7 +19772,7 @@ export default function Layout3DEditor({
                           className="rounded-xl border border-cyan-400/20 bg-cyan-400/[0.06] p-3"
                         >
                           <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-cyan-200">
-                            TRIM / EXTEND · LINE contra LINE, CIRCLE o ARC
+                            TRIM / EXTEND · LINE o ARC contra LINE, CIRCLE o ARC
                           </div>
                           <div className="grid grid-cols-3 gap-1.5">
                             <select

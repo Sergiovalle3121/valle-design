@@ -1,6 +1,7 @@
 import { commitChange, type CadDocument, type CadEntity, type CadPoint3 } from './cad-document';
 import { executeCadEntityCommand } from './entity-runtime';
-import { lineArcIntersections, lineCircleIntersections } from './intersect';
+import { lineArcIntersections, lineCircleIntersections, arcArcIntersections } from './intersect';
+import { arcSweepDeg } from './primitives';
 
 type CadLine = Extract<CadEntity, { type: 'line' }>;
 /**
@@ -129,11 +130,103 @@ export function computeCadLineExtend(target: CadLine, boundary: CadEditBoundary,
   return { ...target, end: beyond[0].point };
 }
 
+type CadArc = Extract<CadEntity, { type: 'arc' }>;
+
+const norm360 = (deg: number) => ((deg % 360) + 360) % 360;
+const angleDegOf = (center: { x: number; y: number }, point: { x: number; y: number }) =>
+  norm360((Math.atan2(point.y - center.y, point.x - center.x) * 180) / Math.PI);
+
+/**
+ * Cruces de un ARCO objetivo con la frontera, ordenados por AVANCE DEL BARRIDO.
+ *
+ * El avance relativo —`norm360(ángulo − startAngle)`— hace aquí el mismo papel
+ * que el parámetro sobre la recta en el caso de la línea: 0 en el inicio y
+ * `sweep` en el final. Con él, «el primer cruce» y «el más cercano al extremo»
+ * significan lo mismo para un arco que para un segmento.
+ *
+ * El objetivo se considera CIRCUNFERENCIA COMPLETA a propósito: TRIM se queda
+ * después con los cruces dentro del barrido y EXTEND con los de fuera. La
+ * frontera, en cambio, se respeta como es.
+ */
+function arcHits(target: CadArc, boundary: CadEditBoundary): { angle: number; advance: number }[] {
+  const center = { x: target.center.x, y: target.center.y };
+  const points =
+    boundary.type === 'line'
+      ? lineCircleIntersections(
+          { x: boundary.start.x, y: boundary.start.y },
+          { x: boundary.end.x, y: boundary.end.y },
+          center,
+          target.radius,
+          true,
+        )
+      : boundary.type === 'circle'
+        ? arcArcIntersections(center, target.radius, 0, 360, boundary.center, boundary.radius, 0, 360)
+        : arcArcIntersections(
+            center,
+            target.radius,
+            0,
+            360,
+            boundary.center,
+            boundary.radius,
+            boundary.startAngle,
+            boundary.endAngle,
+          );
+
+  return points
+    .map((point) => {
+      const angle = angleDegOf(center, point);
+      return { angle, advance: norm360(angle - target.startAngle) };
+    })
+    .sort((left, right) => left.advance - right.advance);
+}
+
+/**
+ * TRIM de un ARCO: mueve el extremo ANGULAR, no los puntos.
+ *
+ * Conservando el inicio se corta en el PRIMER cruce del barrido y se mueve
+ * `endAngle`; conservando el fin, en el ÚLTIMO, moviendo `startAngle`. Es la
+ * misma regla que para la línea, expresada en avance de barrido.
+ */
+export function computeCadArcTrim(target: CadArc, cutter: CadEditBoundary, keep: CadLineEndpoint): CadArc {
+  if (target.id === cutter.id) throw new Error('TRIM requires two different entities.');
+  const sweep = arcSweepDeg(target.startAngle, target.endAngle);
+  const inside = arcHits(target, cutter).filter(
+    (hit) => hit.advance > EPS && hit.advance < sweep - EPS,
+  );
+  if (!inside.length)
+    throw new Error('TRIM intersection must fall inside the target ARC sweep: this boundary does not cross it there.');
+  return keep === 'start'
+    ? { ...target, endAngle: inside[0].angle }
+    : { ...target, startAngle: inside[inside.length - 1].angle };
+}
+
+/**
+ * EXTEND de un ARCO: crece por el extremo pedido hasta el cruce inmediato.
+ *
+ * Los cruces de FUERA del barrido son los candidatos. Para crecer por delante
+ * vale el de menor avance por encima de `sweep`; para crecer hacia atrás, el de
+ * mayor avance (el que queda justo antes del inicio yendo en sentido horario).
+ * Pasar de largo daría la vuelta al arco entero.
+ */
+export function computeCadArcExtend(target: CadArc, boundary: CadEditBoundary, endpoint: CadLineEndpoint): CadArc {
+  if (target.id === boundary.id) throw new Error('EXTEND requires two different entities.');
+  const sweep = arcSweepDeg(target.startAngle, target.endAngle);
+  const outside = arcHits(target, boundary).filter((hit) => hit.advance > sweep + EPS);
+  if (!outside.length)
+    throw new Error(`EXTEND ${endpoint} requires a boundary beyond the ARC ${endpoint} endpoint.`);
+  return endpoint === 'end'
+    ? { ...target, endAngle: outside[0].angle }
+    : { ...target, startAngle: outside[outside.length - 1].angle };
+}
+
 export function applyCadLineEdit(
   document: CadDocument,
   input: { operation: 'trim' | 'extend'; targetId: string; boundaryId: string; endpoint: CadLineEndpoint },
 ): CadDocument {
-  const target = document.entities.find((entity): entity is CadLine => entity.id === input.targetId && entity.type === 'line');
+  const target = document.entities.find(
+    (entity): entity is CadLine | CadArc =>
+      entity.id === input.targetId && (entity.type === 'line' || entity.type === 'arc'),
+  );
   // La FRONTERA ya no tiene por qué ser una línea: un arco o un círculo cortan
   // igual de bien, y su matemática vive en `intersect.ts`.
   const boundary = document.entities.find(
@@ -141,14 +234,26 @@ export function applyCadLineEdit(
       entity.id === input.boundaryId &&
       (entity.type === 'line' || entity.type === 'circle' || entity.type === 'arc'),
   );
-  if (!target) throw new Error(`${input.operation.toUpperCase()} requires an existing LINE as the target.`);
+  if (!target) throw new Error(`${input.operation.toUpperCase()} requires an existing LINE or ARC as the target.`);
   if (!boundary) throw new Error(`${input.operation.toUpperCase()} requires an existing LINE, CIRCLE or ARC as the boundary.`);
-  const next = input.operation === 'trim'
-    ? computeCadLineTrim(target, boundary, input.endpoint)
-    : computeCadLineExtend(target, boundary, input.endpoint);
+  // El parcheo depende del tipo: una línea mueve extremos, un arco mueve
+  // ÁNGULOS. Son propiedades distintas del mismo adaptador.
+  const patch =
+    target.type === 'arc'
+      ? (() => {
+          const next = input.operation === 'trim'
+            ? computeCadArcTrim(target, boundary, input.endpoint)
+            : computeCadArcExtend(target, boundary, input.endpoint);
+          return { startAngle: next.startAngle, endAngle: next.endAngle };
+        })()
+      : (() => {
+          const next = input.operation === 'trim'
+            ? computeCadLineTrim(target, boundary, input.endpoint)
+            : computeCadLineExtend(target, boundary, input.endpoint);
+          return { startX: next.start.x, startY: next.start.y, endX: next.end.x, endY: next.end.y };
+        })();
   const changed = executeCadEntityCommand(document, {
-    type: 'properties', entityId: target.id,
-    patch: { startX: next.start.x, startY: next.start.y, endX: next.end.x, endY: next.end.y },
+    type: 'properties', entityId: target.id, patch,
   }).document;
   return commitChange({
     ...changed,
