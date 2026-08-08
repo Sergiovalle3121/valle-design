@@ -80,6 +80,26 @@ test('BLOCK/INSERT stays native through tenant library, attributes, persistence,
   await expect.poll(() => backend.snapshot().library.length).toBe(1);
   expect(backend.snapshot().library[0].definition.library?.scope).toBe('tenant');
 
+  // Se DESIGNA la fila en vez de confiar en que quede designada sola.
+  //
+  // `CadBlockPalette` inicializa `selectedBlock` al montarse —cuando todavía no
+  // hay bloques, así que queda vacío— y a partir de ahí resuelve qué insertar
+  // como `blocks.find(id === selectedBlock) ?? visibleBlocks[0]`. Sin esta
+  // pulsación lo que se inserta es «el primero de la lista», y la lista son los
+  // bloques del documento MÁS las filas de la biblioteca tenant que llegan por
+  // red: quién ocupa el puesto 0 depende de cuándo responde esa petición.
+  //
+  // Este golden falla en CI de forma intermitente —Firefox en una corrida,
+  // Chromium en la siguiente, verde en 12 repeticiones locales— con
+  // `cad-native-properties` inexistente, que es lo que se ve cuando la
+  // inserción no designa nada. **No está demostrado que la causa sea ésta**:
+  // `insertProfessionalBlock` sí sabe adoptar una definición que sólo esté en
+  // la biblioteca, así que la ruta de la fila equivocada no es obviamente
+  // mortal. Lo que sí es cierto y comprobable es que la prueba dependía del
+  // orden de una lista que se completa por red, y una prueba no debería
+  // depender de eso aunque el producto lo tolere.
+  await page.getByTestId('cad-block-row-DOOR').click();
+
   await applyFieldGroup(
     page,
     {
