@@ -1,0 +1,168 @@
+/**
+ * Contrato del motor de comandos CAD.
+ *
+ * ## Por qué existe
+ *
+ * Hoy el dibujo interactivo son 162 líneas con **siete** comandos cableados
+ * (`line`, `polyline`, `rect`, `circle`, `move`, `copy`, `offset`). `TRIM`,
+ * `FILLET`, `ARRAY` o `MIRROR` no se pueden escribir porque no existen como
+ * nombre: se alcanzan desde controles sueltos del panel derecho. Y la caja que
+ * parece una línea de comandos es un copiloto en lenguaje natural que exige
+ * escribir prosa, pulsar *Preview* y luego *Aplicar*.
+ *
+ * Eso no es una carencia de funciones: es la ausencia del mecanismo con el que
+ * se usa un CAD. La velocidad de AutoCAD vive en teclear el nombre, leer las
+ * opciones entre corchetes, elegir una con una letra y repetir con Espacio.
+ *
+ * ## Qué modela este archivo
+ *
+ * Un comando es una **máquina de estados pura**: recibe entradas —un punto, una
+ * distancia, una palabra clave, Enter, Esc— y devuelve el siguiente prompt más,
+ * al terminar, los comandos de entidad que hay que aplicar. No toca React, ni
+ * THREE, ni el documento: eso lo hace el anfitrión. Así cada comando se prueba
+ * en Node como una función.
+ *
+ * Tres reglas que el diseño impone y que conviene tener presentes:
+ *
+ * - **La frontera de deshacer es el comando.** Un comando termina emitiendo UN
+ *   lote (`executeCadEntityCommandBatch`), no N mutaciones sueltas.
+ * - **El nombre canónico es invariante; el prompt es traducible.** `LINE` se
+ *   escribe igual en cualquier idioma, como en AutoCAD; el texto que lo
+ *   acompaña no. Sin esa separación, i18n rompería las macros y los scripts.
+ * - **El motor no sabe de snaps.** Los catorce modos de `snap-engine.ts` entran
+ *   como un override por paso, así que añadir modos no toca el motor.
+ */
+import type { CadPoint2 } from "../cad-document";
+import type { CadEntityCommand } from "../entity-commands";
+import type { SnapType } from "../snap-engine";
+
+export type CadCommandKind = "draw" | "modify" | "annotate" | "inquiry" | "view" | "manage";
+
+/**
+ * Qué espera un comando respecto de la selección previa.
+ *
+ * - `none`: no le interesa.
+ * - `optional`: la usa si la hay.
+ * - `required`: si no hay nada seleccionado, pide una selección antes de seguir.
+ * - `command-first`: ignora la selección previa y siempre pide objetos, como
+ *   hace TRIM con sus bordes de corte.
+ */
+export type CadSelectionRule = "none" | "optional" | "required" | "command-first";
+
+export interface CadKeyword {
+  /** Palabra completa: `Close`. */
+  keyword: string;
+  /** Letras que la eligen: `C`. Se compara sin distinguir mayúsculas. */
+  shortcut: string;
+  /** Texto mostrado si difiere de `keyword` (localizable). */
+  label?: string;
+}
+
+export interface CadPrompt {
+  /** Petición principal, ya localizada: «Precise el siguiente punto». */
+  message: string;
+  /** Opciones; se renderizan entre corchetes: `[Close/Undo]`. */
+  options: readonly CadKeyword[];
+  /** Opción por defecto al pulsar Enter; se muestra entre ángulos. */
+  defaultOption?: string;
+  /** Valor por defecto al pulsar Enter; se muestra entre ángulos. */
+  defaultValue?: string;
+}
+
+/** Qué acepta el paso actual. Bits, porque casi siempre acepta varias cosas. */
+export type CadInputMask = number;
+export const CAD_ACCEPT_POINT = 1;
+export const CAD_ACCEPT_DISTANCE = 2;
+export const CAD_ACCEPT_ANGLE = 4;
+export const CAD_ACCEPT_TEXT = 8;
+export const CAD_ACCEPT_KEYWORD = 16;
+export const CAD_ACCEPT_SELECTION = 32;
+export const CAD_ACCEPT_ENTITY_PICK = 64;
+
+export type CadCommandInput =
+  | { kind: "point"; point: CadPoint2; snap?: SnapType; source: "pointer" | "typed" | "tracked" }
+  | { kind: "distance"; value: number }
+  | { kind: "angle"; degrees: number }
+  | { kind: "text"; value: string }
+  | { kind: "keyword"; keyword: string }
+  | { kind: "selection"; entityIds: readonly string[] }
+  | { kind: "entityPick"; entityId: string; point: CadPoint2 }
+  | { kind: "enter" }
+  | { kind: "cancel" };
+
+/** Trazo efímero de previsualización (rubber-band). No se persiste. */
+export interface CadPreviewPath {
+  points: readonly CadPoint2[];
+  closed?: boolean;
+}
+
+export interface CadViewSnapshot {
+  pixelsPerUnit: number;
+  centerX: number;
+  centerY: number;
+}
+
+export interface CadCommandContext {
+  /** Entidades presentes, sólo para consultar; el motor no las muta. */
+  entityIds: readonly string[];
+  selection: readonly string[];
+  activeLayer: string;
+  view: CadViewSnapshot;
+  /** Posición actual del puntero en unidades de dibujo, si se conoce. */
+  cursor?: CadPoint2;
+  /**
+   * Generador de identificadores, inyectado. Los comandos no llaman a
+   * `crypto.randomUUID()` por su cuenta: si lo hicieran, sus specs no serían
+   * deterministas y no se podrían comparar documentos.
+   */
+  newEntityId: () => string;
+}
+
+export type CadCommandResult =
+  | { kind: "document"; commands: readonly CadEntityCommand[]; label: string }
+  | { kind: "message"; text: string }
+  | { kind: "none" };
+
+export interface CadCommandStep<S = unknown> {
+  state: S;
+  prompt: CadPrompt;
+  accepts: CadInputMask;
+  /** Geometría transitoria bajo el cursor. */
+  preview?: readonly CadPreviewPath[];
+  /** Modos de snap forzados sólo para este paso (p. ej. TANGENTE en CIRCLE TTR). */
+  osnapOverride?: readonly SnapType[];
+  /**
+   * Presente cuando el comando ha terminado. Que exista `result` es lo que
+   * indica el final; no hay un `done` aparte que pueda quedar descoordinado.
+   */
+  result?: CadCommandResult;
+}
+
+export interface CadCommandDescriptor<S = unknown> {
+  /** Nombre canónico en mayúsculas. Invariante entre idiomas. */
+  name: string;
+  aliases: readonly string[];
+  kind: CadCommandKind;
+  /** Invocable con `'` dentro de otro comando, como `'ZOOM`. */
+  transparent: boolean;
+  selection: CadSelectionRule;
+  /** Espacio o Enter con el lienzo enfocado lo repiten. */
+  repeatable: boolean;
+  /** `false` para consultas y vistas: no piden permiso de escritura. */
+  mutates: boolean;
+  begin(context: CadCommandContext): CadCommandStep<S>;
+  step(state: S, input: CadCommandInput, context: CadCommandContext): CadCommandStep<S>;
+  /** Cursor que muestra el viewport: cruz para puntos, caja para seleccionar. */
+  cursor?: "crosshair" | "pick" | "none";
+}
+
+/**
+ * Descriptor con su estado ya olvidado. El registro guarda comandos de estados
+ * distintos en la misma lista, y sin esto TypeScript no deja mezclarlos.
+ */
+export type CadAnyCommandDescriptor = CadCommandDescriptor<never>;
+
+/** Convierte un descriptor tipado en uno almacenable en el registro. */
+export function asCadCommand<S>(descriptor: CadCommandDescriptor<S>): CadAnyCommandDescriptor {
+  return descriptor as unknown as CadAnyCommandDescriptor;
+}
