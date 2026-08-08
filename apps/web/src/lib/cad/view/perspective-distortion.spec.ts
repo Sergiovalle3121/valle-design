@@ -1,28 +1,34 @@
 /**
- * Línea base de la cámara actual (Ola 1 del plan de paridad).
+ * Qué gana de verdad la vista 2D al ser ortográfica (Ola 2 del plan de paridad).
  *
- * El editor dibuja los planos 2D con `new THREE.PerspectiveCamera(50, …)` y el
- * "modo 2D" sólo limita OrbitControls a `maxPolarAngle = 0.05`. Esta spec
- * reconstruye esa cámara y **mide** qué se rompe y qué no, para que la
- * migración a ortográfica se justifique con números y no con intuición.
+ * Esta spec existe porque la primera versión del argumento era **falsa** y
+ * conviene dejarlo escrito en vez de borrarlo.
  *
- * ## Lo que la medición corrigió
+ * ## La corrección
  *
- * La intuición dice "perspectiva ⇒ las paralelas convergen mucho". Es falso en
- * este encuadre, y conviene decirlo: **un plano perpendicular al eje óptico se
- * proyecta con escala uniforme aunque la cámara sea en perspectiva.** Como el
- * modo 2D deja la cámara a sólo 0,05 rad (2,9°) de la vertical, la deformación
- * visible es pequeña. Medirla y publicarla evita defender la ola con un
- * argumento que no se sostiene.
+ * La intuición decía: "el 2D se dibuja con una cámara en perspectiva de 50°
+ * inclinada 0,05 rad, luego las paralelas convergen". Se midió esa pose y salió
+ * un 14,13% de dispersión de escala. Pero **el producto no usa esa pose**:
+ * `applyViewMode("2d")` coloca la cámara en `(0, d·1.6, 0.01)` mirando al
+ * origen, o sea perpendicular al plano con 0,012° de inclinación. El
+ * `maxPolarAngle = 0.05` de OrbitControls es un LÍMITE, no el ángulo real, y en
+ * 2D la rotación está desactivada, así que nunca se alcanza.
  *
- * El problema que sí bloquea no es la fuga: es que **no existe un factor de
- * escala que se pueda leer ni fijar**. El zoom es un desplazamiento de cámara,
- * y el factor por el que crece una longitud al acercarse depende de dónde esté
- * esa longitud en la pantalla. De ahí que hoy sean inalcanzables `ZOOM nXP`,
- * el escalado anotativo, un grosor de línea en píxeles y una regla exacta.
+ * Y hay un hecho geométrico que remata el asunto: **un plano perpendicular al
+ * eje óptico se proyecta con escala uniforme aunque la cámara sea en
+ * perspectiva.** Es decir, para geometría a cota cero la vista 2D de hoy ya era
+ * esencialmente paralela. Un golden que sólo comprobara "la proyección es afín"
+ * pasaría con ambas cámaras y no probaría nada.
  *
- * No prueba código de producción: mide un defecto. Vive junto a `cad-view.ts`,
- * que es su reemplazo.
+ * ## Lo que sí cambia, y no es pequeño
+ *
+ * La geometría CAD tiene **elevación**: `CadPoint3` lleva `z`, el DXF la
+ * transporta y el editor la proyecta. Bajo perspectiva, una entidad elevada está
+ * más cerca de la cámara y se dibuja **más grande** que otra idéntica a cota
+ * cero. En una vista de planta eso es sencillamente incorrecto: dos muros de la
+ * misma longitud a distinta altura deben medir lo mismo sobre el plano.
+ *
+ * Bajo ortográfica miden lo mismo, exactamente, por construcción.
  */
 import { strict as assert } from "node:assert";
 import * as THREE from "three";
@@ -30,14 +36,11 @@ import { cadViewFromViewport, cadViewWorldToScreen } from "./cad-view";
 
 const WIDTH_PX = 1600;
 const HEIGHT_PX = 900;
-/** Inclinación que OrbitControls deja en modo 2D: `maxPolarAngle = 0.05`. */
-const POLAR = 0.05;
 
-function editorCamera(distance: number): THREE.PerspectiveCamera {
+/** Reproduce `applyViewMode("2d")`: cámara sobre el origen, casi perpendicular. */
+function plan2dCamera(distance: number): THREE.PerspectiveCamera {
   const camera = new THREE.PerspectiveCamera(50, WIDTH_PX / HEIGHT_PX, 0.1, 4000);
-  // La inclinación va en el plano X–Y, así que el gradiente de escorzo corre
-  // por X. Medir por Z —el eje perpendicular a la inclinación— da 0% y engaña.
-  camera.position.set(distance * Math.sin(POLAR), distance * Math.cos(POLAR), 0);
+  camera.position.set(0, distance, 0.01);
   camera.up.set(0, 1, 0);
   camera.lookAt(0, 0, 0);
   camera.updateMatrixWorld();
@@ -45,130 +48,92 @@ function editorCamera(distance: number): THREE.PerspectiveCamera {
   return camera;
 }
 
-function project(camera: THREE.PerspectiveCamera, x: number, z: number): { x: number; y: number } {
-  const ndc = new THREE.Vector3(x, 0, z).project(camera);
+function project(camera: THREE.PerspectiveCamera, x: number, y: number, z: number) {
+  const ndc = new THREE.Vector3(x, y, z).project(camera);
   return { x: ((ndc.x + 1) / 2) * WIDTH_PX, y: ((1 - ndc.y) / 2) * HEIGHT_PX };
 }
 
-function pixelLength(camera: THREE.PerspectiveCamera, x0: number, z0: number, x1: number, z1: number): number {
-  const a = project(camera, x0, z0);
-  const b = project(camera, x1, z1);
-  return Math.hypot(b.x - a.x, b.y - a.y);
+function pixelLength(
+  camera: THREE.PerspectiveCamera,
+  a: [number, number, number],
+  b: [number, number, number],
+) {
+  const pa = project(camera, ...a);
+  const pb = project(camera, ...b);
+  return Math.hypot(pb.x - pa.x, pb.y - pa.y);
 }
 
-const distance = 1000;
-const camera = editorCamera(distance);
-const halfVisibleZ = distance * Math.tan((50 * Math.PI) / 180 / 2);
-const halfVisibleX = halfVisibleZ * (WIDTH_PX / HEIGHT_PX);
-const probe = halfVisibleZ * 0.05;
+// Escala del editor: `s = 30 / max(W, H)`, así que la planta ocupa 30 unidades
+// de escena y la cámara se sitúa a `max(W,H)·s·1.6 = 48`.
+const cameraHeight = 48;
+const camera = plan2dCamera(cameraHeight);
 
-// --- 1. La escala NO es uniforme, pero el error es pequeño -------------------
+// --- 1. A cota cero, la vista de hoy YA era esencialmente paralela -----------
 {
-  const left = -halfVisibleX * 0.85;
-  const right = halfVisibleX * 0.85;
-  const atLeft = pixelLength(camera, left, 0, left + probe, 0);
-  const atRight = pixelLength(camera, right, 0, right + probe, 0);
-  const atCenter = pixelLength(camera, 0, 0, probe, 0);
-  const spread = (Math.max(atLeft, atRight) - Math.min(atLeft, atRight)) / atCenter;
-
+  const probe = 1.2;
+  const at = (x: number) => pixelLength(camera, [x, 0, 0], [x + probe, 0, 0]);
+  const left = at(-12);
+  const centre = at(0);
+  const right = at(12);
+  const spread = (Math.max(left, centre, right) - Math.min(left, centre, right)) / centre;
   console.log(
-    `Perspectiva: el mismo segmento mide ${atLeft.toFixed(3)} px a la izquierda, ` +
-      `${atCenter.toFixed(3)} px en el centro y ${atRight.toFixed(3)} px a la derecha ` +
-      `— ${(spread * 100).toFixed(2)}% de dispersión de escala a lo ancho de la pantalla.`,
+    `Pose 2D real: dispersión de escala a cota cero = ${(spread * 100).toFixed(4)}% ` +
+      `(${left.toFixed(4)} / ${centre.toFixed(4)} / ${right.toFixed(4)} px).`,
   );
-  assert.ok(spread > 0, "la escala varía a lo ancho de la pantalla: no hay UN factor de escala");
+  assert.ok(
+    spread < 0.001,
+    "a cota cero la pose 2D vigente ya es casi paralela: el argumento de la fuga NO se sostiene",
+  );
+}
 
-  // La ortográfica que la sustituye no tiene esa dispersión, por construcción.
+// --- 2. Con elevación, deja de serlo — y ese es el defecto real ---------------
+{
+  const probe = 1.2;
+  // Elevaciones en unidades de ESCENA. Con `s = 30/20000`, 4,5 unidades de
+  // escena son 3.000 mm de dibujo: la altura de un muro corriente.
+  const flat = pixelLength(camera, [0, 0, 0], [probe, 0, 0]);
+  const raised = pixelLength(camera, [0, 4.5, 0], [probe, 4.5, 0]);
+  const error = (raised - flat) / flat;
+  console.log(
+    `Pose 2D real: el mismo segmento mide ${flat.toFixed(3)} px a cota cero y ` +
+      `${raised.toFixed(3)} px a 3.000 mm de elevación — ${(error * 100).toFixed(2)}% más grande.`,
+  );
+  assert.ok(
+    error > 0.05,
+    "bajo perspectiva la elevación cambia el tamaño en planta: dos muros iguales a distinta altura no miden lo mismo",
+  );
+
+  // Bajo ortográfica la elevación no altera el tamaño: es la definición de
+  // proyección paralela, y es lo que una vista de planta necesita.
   const view = cadViewFromViewport(WIDTH_PX, HEIGHT_PX, 0, 0, 1);
-  const orthoAt = (x: number) =>
-    cadViewWorldToScreen(view, { x: x + probe, y: 0 }).x - cadViewWorldToScreen(view, { x, y: 0 }).x;
-  assert.ok(
-    Math.abs(orthoAt(left) - orthoAt(right)) < 1e-9,
-    "bajo ortográfica el mismo segmento mide exactamente lo mismo en cualquier punto de la pantalla",
-  );
+  const orthoFlat =
+    cadViewWorldToScreen(view, { x: probe, y: 0 }).x - cadViewWorldToScreen(view, { x: 0, y: 0 }).x;
+  assert.ok(orthoFlat > 0, "la ortográfica mide una longitud positiva");
+  // `cadViewWorldToScreen` no admite elevación por diseño: en una proyección
+  // paralela la cota NO interviene en la posición sobre el plano. Esa ausencia
+  // es la garantía, no una carencia.
 }
 
-// --- 2. Las paralelas convergen, poco pero de forma medible ------------------
+// --- 3. Y la escala sigue sin ser un número que se pueda leer ----------------
 {
-  // Dos rectas paralelas al eje X (z constante), separadas en Z. Se miden a lo
-  // largo de su recorrido, que es donde se ve si convergen.
-  const separation = halfVisibleZ * 0.3;
-  const zA = -separation / 2;
-  const zB = separation / 2;
-  const xNear = -halfVisibleX * 0.85;
-  const xFar = halfVisibleX * 0.85;
-
-  const gapNear = Math.hypot(
-    project(camera, xNear, zB).x - project(camera, xNear, zA).x,
-    project(camera, xNear, zB).y - project(camera, xNear, zA).y,
-  );
-  const gapFar = Math.hypot(
-    project(camera, xFar, zB).x - project(camera, xFar, zA).x,
-    project(camera, xFar, zB).y - project(camera, xFar, zA).y,
-  );
-  const convergence = Math.abs(gapFar - gapNear) / Math.max(gapNear, gapFar);
-
-  const angleOf = (z: number) => {
-    const a = project(camera, xNear, z);
-    const b = project(camera, xFar, z);
-    return Math.atan2(b.y - a.y, b.x - a.x);
-  };
-  const angleSkewDeg = Math.abs(((angleOf(zA) - angleOf(zB)) * 180) / Math.PI);
-
+  // La única forma de saber cuántos píxeles mide una unidad de dibujo bajo
+  // perspectiva es proyectar y medir —que es exactamente lo que `ScaleBar.tsx`
+  // hace, y por lo que su comentario admite que una regla exacta es frágil—.
+  const measured = pixelLength(camera, [0, 0, 0], [1, 0, 0]);
+  const fromCameraState =
+    HEIGHT_PX / (2 * cameraHeight * Math.tan((50 * Math.PI) / 180 / 2));
   console.log(
-    `Perspectiva: dos paralelas separadas ${separation.toFixed(0)} unidades se ven a ` +
-      `${gapNear.toFixed(2)} px en un extremo y ${gapFar.toFixed(2)} px en el otro ` +
-      `— ${(convergence * 100).toFixed(2)}% de fuga, con ${angleSkewDeg.toFixed(3)}° de desalineación angular.`,
+    `Pose 2D real: la escala hay que deducirla proyectando (${measured.toFixed(4)} px/unidad); ` +
+      `derivarla del estado de cámara exige distancia, FOV y alto de viewport (${fromCameraState.toFixed(4)}).`,
   );
-  assert.ok(convergence > 0.01, "las paralelas convergen de forma medible");
-
-  // Bajo ortográfica, ni fuga ni desalineación.
-  const view = cadViewFromViewport(WIDTH_PX, HEIGHT_PX, 0, 0, 1);
-  const orthoGap = (x: number) =>
-    Math.hypot(
-      cadViewWorldToScreen(view, { x, y: zB }).x - cadViewWorldToScreen(view, { x, y: zA }).x,
-      cadViewWorldToScreen(view, { x, y: zB }).y - cadViewWorldToScreen(view, { x, y: zA }).y,
-    );
   assert.ok(
-    Math.abs(orthoGap(xNear) - orthoGap(xFar)) < 1e-9,
-    "bajo ortográfica dos paralelas conservan su separación de extremo a extremo",
+    Math.abs(measured - fromCameraState) / measured < 0.01,
+    "las dos vías coinciden a cota cero, pero ninguna es un valor que la vista posea",
   );
+
+  // Bajo ortográfica ese número ES el estado de la vista: se lee y se fija.
+  const view = cadViewFromViewport(WIDTH_PX, HEIGHT_PX, 0, 0, 3.25);
+  assert.equal(view.pixelsPerUnit, 3.25, "pixelsPerUnit es estado, no una medición");
 }
 
-// --- 3. El zoom es un dolly: no existe UN factor de zoom ---------------------
-// Esta es la propiedad que de verdad bloquea el producto, y no es sutil.
-{
-  const closer = editorCamera(distance / 2);
-  const factorAt = (x: number) =>
-    pixelLength(closer, x, 0, x + probe, 0) / pixelLength(camera, x, 0, x + probe, 0);
-  const centerFactor = factorAt(0);
-  const edgeFactor = factorAt(halfVisibleX * 0.85);
-  const disagreement = Math.abs(centerFactor - edgeFactor) / centerFactor;
-
-  console.log(
-    `Perspectiva: al acercar la cámara a la mitad, el centro escala ×${centerFactor.toFixed(4)} ` +
-      `y el borde ×${edgeFactor.toFixed(4)} — ${(disagreement * 100).toFixed(2)}% de desacuerdo. ` +
-      `No hay un número que se pueda llamar "el zoom".`,
-  );
-  assert.ok(
-    disagreement > 0,
-    "acercar la cámara no escala por igual: por eso no se puede leer ni fijar una escala de ploteo",
-  );
-
-  // Y lo decisivo: la distancia de cámara no dice cuántos píxeles mide una
-  // unidad de dibujo sin conocer además el FOV, el alto del viewport y la
-  // posición del punto. Bajo ortográfica ese número ES el estado de la vista.
-  const view = cadViewFromViewport(WIDTH_PX, HEIGHT_PX, 0, 0, 3);
-  const zoomed = { ...view, pixelsPerUnit: view.pixelsPerUnit * 2 };
-  const orthoFactorAt = (x: number) => {
-    const before = cadViewWorldToScreen(view, { x: x + probe, y: 0 }).x - cadViewWorldToScreen(view, { x, y: 0 }).x;
-    const after = cadViewWorldToScreen(zoomed, { x: x + probe, y: 0 }).x - cadViewWorldToScreen(zoomed, { x, y: 0 }).x;
-    return after / before;
-  };
-  assert.ok(
-    Math.abs(orthoFactorAt(0) - 2) < 1e-12 && Math.abs(orthoFactorAt(halfVisibleX * 0.85) - 2) < 1e-12,
-    "bajo ortográfica duplicar pixelsPerUnit duplica TODA longitud, en cualquier punto: eso es un zoom",
-  );
-}
-
-console.log("cad perspective distortion baseline recorded");
+console.log("cad 2D projection baseline recorded");
