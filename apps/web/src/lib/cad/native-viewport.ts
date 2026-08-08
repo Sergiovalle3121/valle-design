@@ -1,10 +1,28 @@
 import * as THREE from 'three';
 import type { CadBounds } from './entity-runtime';
+import { cadViewBounds, type CadView } from './view/cad-view';
 
 export interface CadViewportTransform {
   scale: number;
   width: number;
   height: number;
+}
+
+/**
+ * Límites visibles bajo proyección ortográfica: una división en vez de nueve
+ * rayos.
+ *
+ * Convive a propósito con `cadViewportBoundsFromCamera`, que sigue siendo la
+ * única vía correcta para el modo 3D —ahí la huella visible SÍ es un trapecio y
+ * no existe forma cerrada—. La ola 2 enruta el 2D por aquí; el 3D se queda con
+ * las sondas.
+ */
+export function cadViewportBoundsFromView(
+  view: CadView,
+  overscanRatio = 0.12,
+): CadBounds | null {
+  if (!(view.pixelsPerUnit > 0) || !(view.widthPx > 0) || !(view.heightPx > 0)) return null;
+  return cadViewBounds(view, overscanRatio);
 }
 
 const VIEWPORT_PROBES = [
