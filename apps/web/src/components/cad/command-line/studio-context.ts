@@ -49,6 +49,10 @@ export function cadStudioCommandContext(
   return {
     entityIds: entities.map((entity) => entity.id),
     entity: (entityId) => byId.get(entityId),
+    // EXPLODE de un INSERT necesita saber qué hay DENTRO del bloque. Sin esta
+    // línea el comando se negaría —dice que no las tiene— en vez de descomponer
+    // la inserción, que es exactamente el caso que la gente prueba primero.
+    blocks: () => inputs.document?.blocks ?? [],
     selection: inputs.selection,
     activeLayer: inputs.activeLayer,
     view: {

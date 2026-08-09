@@ -105,4 +105,22 @@ const base = {
   assert.equal(context.newEntityId(), "id-1", "el generador es el del editor, inyectado");
 }
 
+// --- los BLOQUES viajan: sin ellos EXPLODE de un INSERT se niega ---------------
+{
+  const withBlocks = cadStudioCommandContext({
+    ...base,
+    document: {
+      entities: [],
+      blocks: [{ id: "b", name: "PILAR", basePoint: { x: 0, y: 0, z: 0 }, entities: [] }],
+    } as unknown as CadDocument,
+  });
+  assert.equal(
+    withBlocks.blocks?.().length,
+    1,
+    "EXPLODE de un INSERT necesita el contenido del bloque; sin él se negaría",
+  );
+  const empty = cadStudioCommandContext({ ...base, document: null });
+  assert.deepEqual(empty.blocks?.(), [], "y sin dibujo abierto, la lista está vacía, no ausente");
+}
+
 console.log("cad studio command context specs passed");

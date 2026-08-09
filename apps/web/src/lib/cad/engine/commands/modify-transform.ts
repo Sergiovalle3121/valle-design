@@ -30,10 +30,12 @@
  * sombreado pasa a `180° − ángulo`. Es la refactorización a afín, y va en su
  * propio cambio con su corpus de propiedades.
  */
-import type { CadPoint2 } from "../../cad-document";
+import type { CadEntity, CadPoint2 } from "../../cad-document";
 import type { CadEntityCommand } from "../../entity-commands";
 import { computeCadLineChamfer } from "../../cad-chamfer";
+import { computeCadCurveFillet, type CadCornerEntity } from "../../cad-corner";
 import { computeCadLineFillet } from "../../cad-fillet";
+import { asCadEditableEntity, computeCadCurveKeepSide } from "../../curve-edit";
 import {
   CAD_ACCEPT_ANGLE,
   CAD_ACCEPT_DISTANCE,
@@ -329,6 +331,15 @@ interface CornerState {
   /** Se está pidiendo la magnitud en vez de designar. */
   asking: "none" | "primary" | "secondary";
   picks: string[];
+  /**
+   * Dónde se pinchó cada objeto.
+   *
+   * No es un adorno: dos curvas admiten hasta OCHO empalmes de un mismo radio,
+   * todos geométricamente válidos, y el punto de designación es lo único que
+   * distingue el que se quería. Con dos líneas basta la regla del extremo más
+   * cercano al cruce; en cuanto entra un arco, deja de bastar.
+   */
+  pickPoints: CadPoint2[];
 }
 
 function cornerFinish(
@@ -390,28 +401,133 @@ function cornerStep(
 }
 
 /**
- * Las dos líneas designadas, o el motivo por el que no sirven.
+ * Los dos objetos designados, o el motivo por el que no sirven.
  *
  * `context.entity` sólo da lectura, que es justo lo que hace falta: se
  * comprueba el tipo ANTES de calcular nada, y el rechazo nombra lo que se
  * designó. Sin esto, `computeCadLineFillet` recibiría un arco, leería
  * `entity.start` como `undefined` y produciría `NaN` — geometría corrupta
  * escrita sin un solo error visible.
+ *
+ * CHAMFER sigue admitiendo sólo LINE, y no es una carencia: en AutoCAD el
+ * chaflán tampoco acepta arcos ni círculos. No hay «distancia a lo largo» de
+ * una curva que produzca una recta tangente, así que aceptarlo habría
+ * significado inventar una geometría que ningún otro CAD produce.
  */
-function twoLines(picks: readonly string[], context: CadCommandContext) {
+function twoCorners(
+  picks: readonly string[],
+  context: CadCommandContext,
+  label: "FILLET" | "CHAMFER",
+) {
+  const allowed: readonly string[] = label === "FILLET" ? ["line", "arc", "circle"] : ["line"];
   const found = picks.map((id) => context.entity?.(id));
   for (let index = 0; index < found.length; index += 1) {
     const entity = found[index];
     if (!entity) return { error: `La entidad designada (${picks[index]}) ya no existe.` };
-    if (entity.type !== "line")
+    if (!allowed.includes(entity.type))
       return {
-        error: `Sólo se admiten LINE por ahora; se designó ${entity.type.toUpperCase()}.`,
+        error:
+          label === "FILLET"
+            ? `Sólo se admiten LINE, ARC y CIRCLE; se designó ${entity.type.toUpperCase()}.`
+            : `CHAMFER sólo admite LINE, igual que en AutoCAD; se designó ${entity.type.toUpperCase()}.`,
       };
   }
   const [a, b] = found;
-  if (!a || !b || a.type !== "line" || b.type !== "line") return { error: "Faltan líneas." };
-  if (a.id === b.id) return { error: "Hay que designar dos líneas distintas." };
-  return { lineA: a, lineB: b };
+  if (!a || !b) return { error: "Faltan objetos." };
+  if (a.id === b.id) return { error: "Hay que designar dos objetos distintos." };
+  return { first: a as CadCornerEntity, second: b as CadCornerEntity };
+}
+
+/** El recorte de un objeto hasta su punto de tangencia, ya como comando. */
+function trimToTangent(
+  entity: CadCornerEntity,
+  tangent: CadPoint2,
+  pick: CadPoint2,
+): CadEntityCommand | null {
+  // Un CÍRCULO no se recorta al redondear una esquina — es la regla de AutoCAD,
+  // y la sensata: recortarlo lo convertiría en arco y destruiría el objeto que
+  // sirve de referencia.
+  if (entity.type === "circle") return null;
+  const target = asCadEditableEntity(entity);
+  if (!target) return null;
+  const outcome = computeCadCurveKeepSide(target, tangent, pick);
+  if ("error" in outcome) return null;
+  if (outcome.replace) return { type: "replace", entityId: entity.id, entity: outcome.replace };
+  if (outcome.patch) return { type: "properties", entityId: entity.id, patch: outcome.patch };
+  return null;
+}
+
+/**
+ * El empalme general: línea contra arco, arco contra círculo, y sus mezclas.
+ *
+ * Los recortes se piden a `computeCadCurveKeepSide`, que prolonga cuando la
+ * tangencia cae fuera del objeto y recorta cuando cae dentro. Antes de emitir
+ * nada se comprueba que TODOS los números del lote son finitos: el modo de
+ * fallo documentado de este repositorio es un `NaN` que entra en el documento y
+ * se exporta a DXF sin un solo error visible, y la comprobación es lo que lo
+ * impide.
+ */
+function curveFillet(
+  state: CornerState,
+  first: CadCornerEntity,
+  second: CadCornerEntity,
+  pickPoints: readonly CadPoint2[],
+  context: CadCommandContext,
+): CadCommandStep<CornerState> {
+  const refuseCorner = (text: string): CadCommandStep<CornerState> => ({
+    state: { ...state, picks: [], pickPoints: [] },
+    prompt: { message: "", options: [] },
+    accepts: 0,
+    result: { kind: "message", text: `FILLET: ${text}` },
+  });
+
+  const pickFirst = pickPoints[0] ?? entityAnchorPoint(first);
+  const pickSecond = pickPoints[1] ?? entityAnchorPoint(second);
+  const geometry = computeCadCurveFillet(
+    first,
+    second,
+    state.primary,
+    context.newEntityId(),
+    pickFirst,
+    pickSecond,
+  );
+  if ("error" in geometry) return refuseCorner(geometry.error);
+
+  const commands: CadEntityCommand[] = [];
+  const trimFirst = trimToTangent(first, geometry.tangents[0], pickFirst);
+  if (trimFirst) commands.push(trimFirst);
+  const trimSecond = trimToTangent(second, geometry.tangents[1], pickSecond);
+  if (trimSecond) commands.push(trimSecond);
+  commands.push({ type: "insert", entity: geometry.arc });
+
+  if (!allFinite(commands))
+    return refuseCorner(
+      "el cálculo produjo coordenadas no finitas y no se ha escrito nada. Es un fallo del empalme, no del dibujo.",
+    );
+  return cornerFinish(commands, "FILLET", state);
+}
+
+/** Punto de referencia cuando se designó por selección y no hay clic. */
+function entityAnchorPoint(entity: CadCornerEntity): CadPoint2 {
+  return entity.type === "line"
+    ? { x: entity.start.x, y: entity.start.y }
+    : { x: entity.center.x, y: entity.center.y };
+}
+
+/**
+ * `true` si ningún número del lote es NaN ni infinito.
+ *
+ * Es el guardia que este repositorio pagó caro por no tener: un arco llegando
+ * donde se esperaba una línea escribía NaN en las coordenadas y el documento se
+ * guardaba y se exportaba con la geometría corrupta, sin un solo error.
+ */
+function allFinite(commands: readonly CadEntityCommand[]): boolean {
+  let ok = true;
+  JSON.stringify(commands, (_key, value) => {
+    if (typeof value === "number" && !Number.isFinite(value)) ok = false;
+    return value;
+  });
+  return ok;
 }
 
 function cornerCommand(
@@ -419,7 +535,13 @@ function cornerCommand(
   name: string,
   aliases: readonly string[],
 ): CadCommandDescriptor<CornerState> {
-  const initial: CornerState = { primary: 0, secondary: 0, asking: "none", picks: [] };
+  const initial: CornerState = {
+    primary: 0,
+    secondary: 0,
+    asking: "none",
+    picks: [],
+    pickPoints: [],
+  };
   return {
     name,
     aliases,
@@ -461,35 +583,50 @@ function cornerCommand(
       if (!picked) return cornerStep(state, label);
 
       const picks = [...state.picks, ...picked].slice(0, 2);
-      if (picks.length < 2) return cornerStep({ ...state, picks }, label);
+      // El punto de designación se guarda cuando lo hay. Al designar por
+      // selección no lo hay, y entonces se toma un punto del propio objeto:
+      // basta para las dos líneas, y para un arco es lo mejor disponible.
+      const pickPoints = [
+        ...state.pickPoints,
+        ...(input.kind === "entityPick" ? [input.point] : picked.map(() => null)),
+      ]
+        .slice(0, 2)
+        .filter((point): point is CadPoint2 => point !== null);
+      if (picks.length < 2) return cornerStep({ ...state, picks, pickPoints }, label);
 
-      const resolved = twoLines(picks, context);
+      const resolved = twoCorners(picks, context, label);
       if ("error" in resolved)
         return {
-          state: { ...state, picks: [] },
+          state: { ...state, picks: [], pickPoints: [] },
           prompt: { message: "", options: [] },
           accepts: 0,
           result: { kind: "message", text: `${label}: ${resolved.error}` },
         };
 
+      // El par de LÍNEAS sigue yendo por `computeCadLineFillet`: su regla de
+      // desambiguación —el extremo más cercano al cruce es la esquina— está
+      // congelada y probada, y sustituirla por la general cambiaría resultados
+      // que hoy son correctos.
+      if (
+        label === "FILLET" &&
+        (resolved.first.type !== "line" || resolved.second.type !== "line")
+      )
+        return curveFillet(state, resolved.first, resolved.second, pickPoints, context);
+
       try {
         const newId = context.newEntityId();
+        const lineA = resolved.first as Extract<CadEntity, { type: "line" }>;
+        const lineB = resolved.second as Extract<CadEntity, { type: "line" }>;
         const geometry =
           label === "FILLET"
-            ? computeCadLineFillet(resolved.lineA, resolved.lineB, state.primary, newId)
-            : computeCadLineChamfer(
-                resolved.lineA,
-                resolved.lineB,
-                state.primary,
-                state.secondary,
-                newId,
-              );
+            ? computeCadLineFillet(lineA, lineB, state.primary, newId)
+            : computeCadLineChamfer(lineA, lineB, state.primary, state.secondary, newId);
         const inserted = "arc" in geometry ? geometry.arc : geometry.chamfer;
         return cornerFinish(
           [
             {
               type: "properties",
-              entityId: resolved.lineA.id,
+              entityId: lineA.id,
               patch: {
                 startX: geometry.lineA.start.x,
                 startY: geometry.lineA.start.y,
@@ -499,7 +636,7 @@ function cornerCommand(
             },
             {
               type: "properties",
-              entityId: resolved.lineB.id,
+              entityId: lineB.id,
               patch: {
                 startX: geometry.lineB.start.x,
                 startY: geometry.lineB.start.y,

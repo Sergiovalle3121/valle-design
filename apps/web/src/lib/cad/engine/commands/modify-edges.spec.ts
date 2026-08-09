@@ -32,8 +32,9 @@ function line(id: string, x1: number, y1: number, x2: number, y2: number): CadEn
 }
 
 /**
- * Escena: una horizontal larga cruzada por una vertical en x=500, y un círculo
- * para comprobar los rechazos.
+ * Escena: una horizontal larga cruzada por una vertical en x=500, un círculo
+ * centrado en el origen que la horizontal `low` atraviesa, y un MTEXT que sirve
+ * para comprobar que lo que no es geometría se rechaza nombrándolo.
  */
 const SCENE: CadEntity[] = [
   line("h", 0, 100, 1000, 100),
@@ -42,6 +43,15 @@ const SCENE: CadEntity[] = [
   // Corta, apunta al borde vertical y NO llega: el caso de EXTEND.
   line("short", 0, 50, 200, 50),
   { id: "circ", type: "circle", center: { x: 0, y: 0, z: 0 }, radius: 50, layer: "0" },
+  // Atraviesa el círculo de lado a lado por y=0: dos cortes en x=±50.
+  line("low", -200, 0, 200, 0),
+  {
+    id: "note",
+    type: "mtext",
+    insertion: { x: 0, y: 0, z: 0 },
+    text: "no es geometría",
+    layer: "0",
+  },
 ];
 
 function makeContext(): CadCommandContext {
@@ -131,12 +141,29 @@ const pickAt = (entityId: string, x: number, y: number): CadCommandInput => ({
   assert.ok(result && result.kind === "document", "sin designar bordes, valen todas las líneas");
 }
 
-// --- lo que no se puede tratar se cuenta ---------------------------------------
+// --- un CÍRCULO sí se recorta, y deja de ser un círculo -------------------------
 {
-  const result = run("TRIM", [pickAt("v", 500, 100), enter, pickAt("circ", 0, 50), enter]);
-  assert.equal(result?.kind, "message", "un círculo no se recorta todavía, y se dice");
+  // Dos cortes (x=±50) contra la horizontal que lo atraviesa. Pinchando arriba
+  // sobrevive la media superior. Antes esto era un rechazo por tipo.
+  const result = run("TRIM", [pickAt("low", 0, 0), enter, pickAt("circ", 0, 50), enter]);
+  assert.ok(result && result.kind === "document", "el círculo se recorta");
+  const command = result.commands[0];
   assert.ok(
-    result.kind === "message" && result.text.includes("CIRCLE"),
+    command.type === "replace",
+    "cambia de tipo, así que va por `replace` y CONSERVA el id",
+  );
+  assert.equal(command.entityId, "circ");
+  assert.ok(command.entity.type === "arc");
+  assert.equal(command.entity.startAngle, 0, "media superior: de 0°…");
+  assert.equal(command.entity.endAngle, 180, "…a 180°");
+}
+
+// --- lo que no es geometría se cuenta -------------------------------------------
+{
+  const result = run("TRIM", [pickAt("v", 500, 100), enter, pickAt("note", 0, 0), enter]);
+  assert.equal(result?.kind, "message", "un MTEXT no se recorta, y se dice");
+  assert.ok(
+    result.kind === "message" && result.text.includes("MTEXT"),
     `debe nombrar el tipo: "${result.kind === "message" ? result.text : ""}"`,
   );
 }
@@ -186,6 +213,25 @@ const pickAt = (entityId: string, x: number, y: number): CadCommandInput => ({
   assert.ok(result.kind === "message" && result.text.includes("extremo"));
 }
 
+// --- objetos de TIPOS DISTINTOS, un solo lote -------------------------------------
+{
+  // Que el círculo salga por `replace` y la línea por `properties` no debe
+  // partir la orden en dos: sigue siendo UN paso de deshacer.
+  const descriptor = commands.get("TRIM");
+  assert.ok(descriptor);
+  const context = makeContext();
+  let step = descriptor.begin(context);
+  step = descriptor.step(step.state, { kind: "keyword", keyword: "Todos" }, context);
+  step = descriptor.step(step.state, pickAt("circ", 0, 50), context);
+  step = descriptor.step(step.state, pickAt("h", 100, 100), context);
+  step = descriptor.step(step.state, enter, context);
+  assert.ok(step.result && step.result.kind === "document");
+  assert.equal(step.result.commands.length, 2, "un círculo y una línea, UN lote");
+  assert.equal(step.result.commands[0].type, "replace", "el círculo cambia de tipo");
+  assert.equal(step.result.commands[1].type, "properties", "la línea sólo mueve números");
+}
+
 console.log(
-  `modificación de bordes: ${CAD_MODIFY_EDGE_COMMANDS.map((command) => command.name).join(", ")} verificados`,
+  `modificación de bordes: ${CAD_MODIFY_EDGE_COMMANDS.map((command) => command.name).join(", ")} ` +
+    `verificados sobre línea, círculo y arco`,
 );

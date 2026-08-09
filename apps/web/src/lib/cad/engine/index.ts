@@ -17,7 +17,12 @@ import { CAD_DRAW_POINT_COMMANDS } from "./commands/draw-points";
 import { CAD_DRAW_RECTANG_COMMANDS } from "./commands/draw-rectang";
 import { CAD_DRAW_RING_COMMANDS } from "./commands/draw-rings";
 import { CAD_DRAW_SPLINE_COMMANDS } from "./commands/draw-spline";
+import { CAD_MODIFY_ALIGN_COMMANDS } from "./commands/modify-align";
+import { CAD_MODIFY_ARRAY_COMMANDS } from "./commands/modify-array";
 import { CAD_MODIFY_BASIC_COMMANDS } from "./commands/modify-basics";
+import { CAD_MODIFY_JOIN_COMMANDS } from "./commands/modify-join";
+import { CAD_MODIFY_PEDIT_COMMANDS } from "./commands/modify-pedit";
+import { CAD_MODIFY_STRETCH_COMMANDS } from "./commands/modify-stretch";
 import { CAD_MODIFY_EDGE_COMMANDS } from "./commands/modify-edges";
 import { CAD_MIRROR_COMMANDS } from "./commands/modify-mirror";
 import { CAD_MODIFY_TRANSFORM_COMMANDS } from "./commands/modify-transform";
@@ -46,6 +51,11 @@ export const CAD_COMMAND_DESCRIPTORS = [
   ...CAD_MODIFY_TRANSFORM_COMMANDS,
   ...CAD_MODIFY_EDGE_COMMANDS,
   ...CAD_MIRROR_COMMANDS,
+  ...CAD_MODIFY_ARRAY_COMMANDS,
+  ...CAD_MODIFY_ALIGN_COMMANDS,
+  ...CAD_MODIFY_STRETCH_COMMANDS,
+  ...CAD_MODIFY_JOIN_COMMANDS,
+  ...CAD_MODIFY_PEDIT_COMMANDS,
 ] as const;
 
 /**
