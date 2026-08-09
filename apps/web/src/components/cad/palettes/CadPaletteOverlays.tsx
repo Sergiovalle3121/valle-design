@@ -23,7 +23,10 @@ import {
   type CadDraftSettingsSnapshot,
 } from "./draft-settings-host";
 import type { CadPaletteHost, CadPaletteId } from "./palette-host";
-import type { CadStyleManagerHost, CadStyleManagerSnapshot } from "./style-manager-host";
+import type {
+  CadStyleManagerHost,
+  CadStyleManagerSnapshot,
+} from "./style-manager-host";
 import {
   EMPTY_CAD_STYLES,
   cadStyleFamilyDescriptor,
@@ -89,7 +92,9 @@ export const CadPaletteOverlays = React.memo(function CadPaletteOverlays(
           onToggleOrtho={props.draftSettingsHost.toggleOrtho}
           onTogglePolar={props.draftSettingsHost.togglePolar}
           onPolarIncrement={props.draftSettingsHost.setPolarIncrement}
-          onToggleObjectSnapTracking={props.draftSettingsHost.toggleObjectSnapTracking}
+          onToggleObjectSnapTracking={
+            props.draftSettingsHost.toggleObjectSnapTracking
+          }
           onClearTracking={props.draftSettingsHost.clearTrackingPoints}
           onToggleGridVisible={props.onToggleGridVisible}
           onToggleGridSnap={props.onToggleGridSnap}
@@ -105,7 +110,10 @@ export const CadPaletteOverlays = React.memo(function CadPaletteOverlays(
       <Backdrop onClose={props.paletteHost.close}>
         <CadStyleManagerPalette
           family={family}
-          rows={cadStyleRows(props.document?.styles ?? EMPTY_CAD_STYLES, family)}
+          rows={cadStyleRows(
+            props.document?.styles ?? EMPTY_CAD_STYLES,
+            family,
+          )}
           fields={descriptor.fields}
           usedBy={descriptor.usedBy}
           usage={cadStyleUsage(props.document, family)}

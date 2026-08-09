@@ -6320,9 +6320,7 @@ export default function Layout3DEditor({
         nativeSelectionIdsRef.current,
         success,
         "Estilos",
-        true,
       ),
-    notify: { error: (message) => toast.error(message, "Estilos") },
   });
   const filletNativeLines = useCallback(
     (lineIds: [string, string]) => {

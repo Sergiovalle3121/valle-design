@@ -57,11 +57,18 @@ export function cadStyleUsage(
 
 export interface CadStyleActionsOptions {
   host: CadStyleManagerHost;
+  /**
+   * Ruta canónica de mutación del editor.
+   *
+   * El modelo LANZA con el motivo exacto —nombre inválido, duplicado, altura
+   * por debajo del mínimo— desde dentro del `mutate`, y `commit` ya lo
+   * convierte en un aviso con ese mismo texto. Por eso aquí no hay try/catch:
+   * añadirlo mostraría el mismo error dos veces.
+   */
   commit: (
     mutate: (document: CadDocument) => CadDocument,
     success: string,
   ) => boolean;
-  notify: { error: (message: string) => void };
 }
 
 export interface CadStyleActions {
@@ -76,33 +83,18 @@ export function useCadStyleActions(
   const live = useRef(options);
   live.current = options;
 
-  /**
-   * Traduce el rechazo del modelo en un aviso y NO deja pasar el cambio. El
-   * modelo lanza con el motivo exacto —nombre inválido, duplicado, número por
-   * debajo del mínimo— y ese es el texto que el usuario necesita leer.
-   */
-  const guarded = (
-    mutate: (document: CadDocument) => CadDocument,
-    success: string,
-  ) => {
-    try {
-      live.current.commit(mutate, success);
-    } catch (cause) {
-      live.current.notify.error(
-        cause instanceof Error ? cause.message : "No se pudo editar el estilo.",
-      );
-    }
-  };
-
   const create = useCallback(() => {
     const { host } = live.current;
     const family = host.family;
     const name = host.draftName.trim();
     if (!name) return;
-    guarded(
+    live.current.commit(
       (document) =>
         commitChange(
-          { ...document, styles: createCadStyle(document.styles, family, name) },
+          {
+            ...document,
+            styles: createCadStyle(document.styles, family, name),
+          },
           `style:create:${family}:${name}`,
         ),
       `Estilo ${cadStyleFamilyDescriptor(family).label} «${name}» creado.`,
@@ -110,27 +102,39 @@ export function useCadStyleActions(
     host.setDraftName("");
   }, []);
 
-  const edit = useCallback((name: string, key: string, value: CadStyleValue) => {
+  const edit = useCallback(
+    (name: string, key: string, value: CadStyleValue) => {
+      const family = live.current.host.family;
+      live.current.commit(
+        (document) =>
+          commitChange(
+            {
+              ...document,
+              styles: writeCadStyleValue(
+                document.styles,
+                family,
+                name,
+                key,
+                value,
+              ),
+            },
+            `style:update:${family}:${name}`,
+          ),
+        `Estilo «${name}» actualizado.`,
+      );
+    },
+    [],
+  );
+
+  const remove = useCallback((name: string) => {
     const family = live.current.host.family;
-    guarded(
+    live.current.commit(
       (document) =>
         commitChange(
           {
             ...document,
-            styles: writeCadStyleValue(document.styles, family, name, key, value),
+            styles: deleteCadStyle(document.styles, family, name),
           },
-          `style:update:${family}:${name}`,
-        ),
-      `Estilo «${name}» actualizado.`,
-    );
-  }, []);
-
-  const remove = useCallback((name: string) => {
-    const family = live.current.host.family;
-    guarded(
-      (document) =>
-        commitChange(
-          { ...document, styles: deleteCadStyle(document.styles, family, name) },
           `style:delete:${family}:${name}`,
         ),
       `Estilo «${name}» borrado.`,

@@ -22,7 +22,8 @@
  */
 import type { CadStyleTable } from "@/lib/cad/cad-document";
 
-export type CadStyleFamily = "text" | "dimension" | "mleader" | "table" | "plot";
+export type CadStyleFamily =
+  "text" | "dimension" | "mleader" | "table" | "plot";
 
 export type CadStyleValue = string | number | boolean;
 
@@ -53,7 +54,13 @@ export const CAD_STYLE_FAMILIES: readonly CadStyleFamilyDescriptor[] = [
     usedBy: "MTEXT",
     fields: [
       { key: "fontFamily", label: "Fuente", kind: "text", fallback: "Arial" },
-      { key: "height", label: "Altura", kind: "number", fallback: 120, min: 0.000001 },
+      {
+        key: "height",
+        label: "Altura",
+        kind: "number",
+        fallback: 120,
+        min: 0.000001,
+      },
     ],
   },
   {
@@ -61,9 +68,26 @@ export const CAD_STYLE_FAMILIES: readonly CadStyleFamilyDescriptor[] = [
     label: "Cota",
     usedBy: "DIMENSION",
     fields: [
-      { key: "textStyle", label: "Estilo de texto", kind: "text", fallback: "Standard" },
-      { key: "arrowSize", label: "Tamaño de flecha", kind: "number", fallback: 180, min: 0.000001 },
-      { key: "precision", label: "Decimales", kind: "number", fallback: 2, min: 0 },
+      {
+        key: "textStyle",
+        label: "Estilo de texto",
+        kind: "text",
+        fallback: "Standard",
+      },
+      {
+        key: "arrowSize",
+        label: "Tamaño de flecha",
+        kind: "number",
+        fallback: 180,
+        min: 0.000001,
+      },
+      {
+        key: "precision",
+        label: "Decimales",
+        kind: "number",
+        fallback: 2,
+        min: 0,
+      },
     ],
   },
   {
@@ -71,9 +95,26 @@ export const CAD_STYLE_FAMILIES: readonly CadStyleFamilyDescriptor[] = [
     label: "Directriz",
     usedBy: "MLEADER",
     fields: [
-      { key: "textStyle", label: "Estilo de texto", kind: "text", fallback: "Standard" },
-      { key: "arrowSize", label: "Tamaño de flecha", kind: "number", fallback: 180, min: 0.000001 },
-      { key: "doglegLength", label: "Longitud de codo", kind: "number", fallback: 600, min: 0 },
+      {
+        key: "textStyle",
+        label: "Estilo de texto",
+        kind: "text",
+        fallback: "Standard",
+      },
+      {
+        key: "arrowSize",
+        label: "Tamaño de flecha",
+        kind: "number",
+        fallback: 180,
+        min: 0.000001,
+      },
+      {
+        key: "doglegLength",
+        label: "Longitud de codo",
+        kind: "number",
+        fallback: 600,
+        min: 0,
+      },
       { key: "landing", label: "Con codo", kind: "boolean", fallback: true },
     ],
   },
@@ -82,8 +123,19 @@ export const CAD_STYLE_FAMILIES: readonly CadStyleFamilyDescriptor[] = [
     label: "Tabla",
     usedBy: "TABLE",
     fields: [
-      { key: "textStyle", label: "Estilo de texto", kind: "text", fallback: "Standard" },
-      { key: "rowHeight", label: "Alto de fila", kind: "number", fallback: 240, min: 0.000001 },
+      {
+        key: "textStyle",
+        label: "Estilo de texto",
+        kind: "text",
+        fallback: "Standard",
+      },
+      {
+        key: "rowHeight",
+        label: "Alto de fila",
+        kind: "number",
+        fallback: 240,
+        min: 0.000001,
+      },
     ],
   },
   {
@@ -98,7 +150,13 @@ export const CAD_STYLE_FAMILIES: readonly CadStyleFamilyDescriptor[] = [
         options: ["color", "monochrome"],
         fallback: "color",
       },
-      { key: "lineweightScale", label: "Escala de grosor", kind: "number", fallback: 1, min: 0.000001 },
+      {
+        key: "lineweightScale",
+        label: "Escala de grosor",
+        kind: "number",
+        fallback: 1,
+        min: 0.000001,
+      },
     ],
   },
 ];
@@ -119,7 +177,9 @@ export const EMPTY_CAD_STYLES: CadStyleTable = Object.freeze({
 export function cadStyleFamilyDescriptor(
   family: CadStyleFamily,
 ): CadStyleFamilyDescriptor {
-  const descriptor = CAD_STYLE_FAMILIES.find((entry) => entry.family === family);
+  const descriptor = CAD_STYLE_FAMILIES.find(
+    (entry) => entry.family === family,
+  );
   if (!descriptor) throw new Error(`Unknown CAD style family ${family}.`);
   return descriptor;
 }
@@ -170,7 +230,9 @@ const INVALID_STYLE_NAME = /[<>/\\":;?*|=`,]/;
 export function assertCadStyleName(name: string): string {
   const trimmed = name.trim();
   if (!trimmed || trimmed.length > 96 || INVALID_STYLE_NAME.test(trimmed))
-    throw new Error("El nombre del estilo debe tener 1–96 caracteres válidos de DXF.");
+    throw new Error(
+      "El nombre del estilo debe tener 1–96 caracteres válidos de DXF.",
+    );
   return trimmed;
 }
 
@@ -202,7 +264,10 @@ export function writeCadStyleValue(
   const descriptor = cadStyleFamilyDescriptor(family);
   const field = descriptor.fields.find((entry) => entry.key === key);
   if (!field) throw new Error(`El estilo ${family} no tiene el campo ${key}.`);
-  const table = (styles[family] ?? {}) as Record<string, Record<string, CadStyleValue>>;
+  const table = (styles[family] ?? {}) as Record<
+    string,
+    Record<string, CadStyleValue>
+  >;
   if (!table[name]) throw new Error(`El estilo ${name} no existe.`);
 
   let next = value;

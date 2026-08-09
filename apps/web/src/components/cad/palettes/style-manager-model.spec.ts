@@ -44,8 +44,9 @@ const empty = (): CadStyleTable => ({
     ["textStyle", "arrowSize", "precision"],
   );
   assert.deepEqual(
-    cadStyleFamilyDescriptor("plot").fields.find((field) => field.key === "colorMode")
-      ?.options,
+    cadStyleFamilyDescriptor("plot").fields.find(
+      (field) => field.key === "colorMode",
+    )?.options,
     ["color", "monochrome"],
   );
   assert.throws(
@@ -74,9 +75,18 @@ const empty = (): CadStyleTable => ({
 
 // --- crear: nombres inválidos y duplicados -----------------------------------
 {
-  assert.throws(() => createCadStyle(empty(), "text", "   "), /1–96 caracteres/);
-  assert.throws(() => createCadStyle(empty(), "text", "mal/nombre"), /1–96 caracteres/);
-  assert.throws(() => createCadStyle(empty(), "text", "x".repeat(97)), /1–96 caracteres/);
+  assert.throws(
+    () => createCadStyle(empty(), "text", "   "),
+    /1–96 caracteres/,
+  );
+  assert.throws(
+    () => createCadStyle(empty(), "text", "mal/nombre"),
+    /1–96 caracteres/,
+  );
+  assert.throws(
+    () => createCadStyle(empty(), "text", "x".repeat(97)),
+    /1–96 caracteres/,
+  );
   const once = createCadStyle(empty(), "text", "Titulos");
   assert.throws(() => createCadStyle(once, "text", "titulos"), /ya existe/);
   assert.equal(assertCadStyleName("  Cotas  "), "Cotas");
@@ -89,7 +99,11 @@ const empty = (): CadStyleTable => ({
   assert.deepEqual(styles.text.Titulos, { height: 250 });
   const [row] = cadStyleRows(styles, "text");
   assert.equal(row.values.height, 250);
-  assert.equal(row.values.fontFamily, "Arial", "lo no fijado sigue siendo de fábrica");
+  assert.equal(
+    row.values.fontFamily,
+    "Arial",
+    "lo no fijado sigue siendo de fábrica",
+  );
   assert.deepEqual(row.explicit, ["height"]);
 
   styles = writeCadStyleValue(styles, "text", "Titulos", "fontFamily", "Inter");
@@ -109,7 +123,8 @@ const empty = (): CadStyleTable => ({
     "una altura de 0 no se dibuja",
   );
   assert.throws(
-    () => writeCadStyleValue(styles, "text", "Titulos", "height", "no" as never),
+    () =>
+      writeCadStyleValue(styles, "text", "Titulos", "height", "no" as never),
     /Altura tiene que ser un número/,
   );
   assert.throws(
@@ -122,12 +137,18 @@ const empty = (): CadStyleTable => ({
   );
   const plot = createCadStyle(empty(), "plot", "Blanco y negro");
   assert.throws(
-    () => writeCadStyleValue(plot, "plot", "Blanco y negro", "colorMode", "sepia"),
+    () =>
+      writeCadStyleValue(plot, "plot", "Blanco y negro", "colorMode", "sepia"),
     /no admite «sepia»/,
   );
   assert.deepEqual(
-    writeCadStyleValue(plot, "plot", "Blanco y negro", "colorMode", "monochrome")
-      .plot["Blanco y negro"],
+    writeCadStyleValue(
+      plot,
+      "plot",
+      "Blanco y negro",
+      "colorMode",
+      "monochrome",
+    ).plot["Blanco y negro"],
     { colorMode: "monochrome" },
   );
 }
@@ -135,7 +156,13 @@ const empty = (): CadStyleTable => ({
 // --- un número que llega como texto se convierte -----------------------------
 {
   let styles = createCadStyle(empty(), "dimension", "Arq");
-  styles = writeCadStyleValue(styles, "dimension", "Arq", "precision", "3" as never);
+  styles = writeCadStyleValue(
+    styles,
+    "dimension",
+    "Arq",
+    "precision",
+    "3" as never,
+  );
   assert.deepEqual(styles.dimension.Arq, { precision: 3 });
   assert.equal(typeof styles.dimension.Arq.precision, "number");
   styles = writeCadStyleValue(styles, "dimension", "Arq", "precision", 0);
@@ -161,13 +188,22 @@ const empty = (): CadStyleTable => ({
   );
   const without = deleteCadStyle(styles, "text", "A");
   assert.deepEqual(Object.keys(without.text), ["B"]);
-  assert.deepEqual(Object.keys(styles.text), ["A", "B"], "el original no se muta");
+  assert.deepEqual(
+    Object.keys(styles.text),
+    ["A", "B"],
+    "el original no se muta",
+  );
   assert.throws(() => deleteCadStyle(without, "text", "A"), /no existe/);
 }
 
 // --- una familia ausente en el documento no revienta -------------------------
 {
-  const partial = { text: {}, dimension: {}, table: {}, plot: {} } as CadStyleTable;
+  const partial = {
+    text: {},
+    dimension: {},
+    table: {},
+    plot: {},
+  } as CadStyleTable;
   assert.deepEqual(cadStyleRows(partial, "mleader"), []);
   const created = createCadStyle(partial, "mleader", "Detalle");
   assert.deepEqual(Object.keys(created.mleader ?? {}), ["Detalle"]);
