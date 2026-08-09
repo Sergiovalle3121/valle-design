@@ -1,5 +1,5 @@
 /**
- * El diálogo de XREF, XBIND y XCLIP.
+ * El diálogo de XREF, XATTACH, XBIND y XCLIP.
  *
  * Lo que se comprueba aquí es sobre todo cómo se NIEGAN. Una orden de gestión
  * que responde «no hay nada» cuando en realidad no puede mirar le echa la culpa
@@ -8,6 +8,7 @@
  */
 import { strict as assert } from "node:assert";
 import { migrateCadDocument, type CadDocument, type CadEntity } from "../../cad-document";
+import type { CadXrefAssetSnapshot } from "../../xref/xref-projection";
 import { cadTenantLayoutUri } from "../../xref/xref-projection";
 import type { CadXrefCatalogEntry } from "../../xref/xref-paths";
 import type { CadAnyCommandDescriptor, CadCommandContext, CadCommandInput } from "../command-types";
@@ -122,6 +123,7 @@ function run(
 const keyword = (value: string): CadCommandInput => ({ kind: "keyword", keyword: value });
 const text = (value: string): CadCommandInput => ({ kind: "text", value });
 const point = (x: number, y: number): CadCommandInput => ({ kind: "point", point: { x, y }, source: "typed" });
+const distance = (value: number): CadCommandInput => ({ kind: "distance", value });
 
 // --- 1. XREF ? dice las rutas guardadas cuando no hay biblioteca -------------
 {
@@ -195,12 +197,99 @@ const point = (x: number, y: number): CadCommandInput => ({ kind: "point", point
   checks += 1;
 }
 
-// --- 5. XATTACH NO se registra: taparía un alias que sí funciona ------------
+// --- 5. XATTACH: adjunta desde la biblioteca, y sin ella lo DICE ------------
 {
-  ok(
-    !byName.has("XATTACH"),
-    "XATTACH sin biblioteca sólo sabría disculparse, y hoy ese nombre es un alias de IMAGE que adjunta imágenes de verdad",
+  const snapshot: CadXrefAssetSnapshot = {
+    tenantId: "tenant-1",
+    assetId: "asset-estructura",
+    name: "ESTRUCTURA",
+    revision: "rev-2",
+    version: 5,
+    document: migrateCadDocument({
+      meta: { version: 5, schema: 4, unit: "mm" },
+      entities: [
+        {
+          id: "pilar",
+          type: "line",
+          start: { x: 0, y: 0, z: 0 },
+          end: { x: 0, y: 3_000, z: 0 },
+          layer: "0",
+        },
+      ],
+    }),
+    contentHash: "hash-estructura",
+    fetchedAt: "2026-01-01T00:00:00.000Z",
+  };
+  const catalog: CadXrefCatalogEntry[] = [
+    {
+      assetId: "asset-estructura",
+      revision: "rev-2",
+      name: "ESTRUCTURA",
+      uri: cadTenantLayoutUri("asset-estructura", "rev-2"),
+      relativePath: "estructura/base",
+      snapshot,
+    },
+    {
+      assetId: "asset-sin-traer",
+      revision: "rev-1",
+      name: "SIN-TRAER",
+      uri: cadTenantLayoutUri("asset-sin-traer", "rev-1"),
+    },
+  ];
+
+  // Sin biblioteca: explica QUÉ le falta al editor, no que el dibujo no exista.
+  const blind = command("XATTACH").begin(contextFor(documentWithXref())).result;
+  assert.ok(blind && blind.kind === "message" && /biblioteca/.test(blind.text));
+  ok(!/no existe/i.test(blind.text), "y no le echa la culpa al dibujo");
+  checks += 1;
+
+  // Con biblioteca: el diálogo entero, y sale un lote de adjuntado.
+  const context = contextFor(documentWithXref(), { catalog });
+  const attached = run(
+    command("XATTACH"),
+    [text("ESTRUCTURA"), keyword("Adjuntar"), point(1_000, 2_000), { kind: "enter" }, { kind: "enter" }],
+    context,
+  ).result;
+  assert.ok(attached && attached.kind === "document");
+  assert.deepEqual(
+    [...new Set(attached.commands.map((entry) => entry.type))].sort(),
+    ["block", "insert", "layer", "xref"],
+    "capa, proyección, INSERT y registro en el MISMO lote",
   );
+  const reference = attached.commands.find((entry) => entry.type === "xref");
+  assert.ok(reference && reference.type === "xref" && reference.op === "upsert");
+  assert.equal(reference.reference.mode, "attachment");
+  assert.equal(reference.reference.relativePath, "estructura/base", "la ruta relativa del catálogo se GUARDA");
+  checks += 4;
+
+  // Superponer no es adjuntar, y el registro lo refleja.
+  const overlaid = run(
+    command("XATTACH"),
+    [text("ESTRUCTURA"), keyword("Superponer"), point(0, 0), { kind: "enter" }, { kind: "enter" }],
+    context,
+  ).result;
+  assert.ok(overlaid && overlaid.kind === "document");
+  const overlayReference = overlaid.commands.find((entry) => entry.type === "xref");
+  assert.ok(overlayReference && overlayReference.type === "xref" && overlayReference.op === "upsert");
+  assert.equal(overlayReference.reference.mode, "overlay");
+  checks += 2;
+
+  // Conocerlo y no tener su contenido son dos problemas distintos.
+  const notFetched = run(command("XATTACH"), [text("SIN-TRAER")], context).result;
+  assert.ok(notFetched && notFetched.kind === "message" && /contenido no se ha traído/.test(notFetched.text));
+  const unknown = run(command("XATTACH"), [text("FANTASMA")], context).result;
+  assert.ok(unknown && unknown.kind === "message" && /biblioteca no tiene/.test(unknown.text));
+  checks += 2;
+
+  // Una escala no positiva se rechaza: `attachCadXref` la ignoraría, y aceptar
+  // aquí lo que allí no se usa sería mentir sobre lo que va a pasar.
+  const negative = run(
+    command("XATTACH"),
+    [text("ESTRUCTURA"), keyword("Adjuntar"), point(0, 0), distance(-2)],
+    context,
+  ).result;
+  assert.ok(negative && negative.kind === "message" && /positiva/.test(negative.text));
+  checks += 1;
 }
 
 // --- 6. XBIND pregunta enlazar o insertar, y no son lo mismo -----------------

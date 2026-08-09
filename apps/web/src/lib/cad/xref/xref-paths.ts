@@ -26,6 +26,7 @@
  * qué se intentó y con qué, que es la otra mitad de la misma pregunta.
  */
 import type { CadExternalReference } from "../cad-document";
+import type { CadXrefAssetSnapshot } from "./xref-projection";
 
 /** Un activo del inquilino que se puede referenciar. */
 export interface CadXrefCatalogEntry {
@@ -36,6 +37,16 @@ export interface CadXrefCatalogEntry {
   uri: string;
   /** Ruta relativa dentro del proyecto, si la tiene. */
   relativePath?: string;
+  /**
+   * El contenido del dibujo, si el anfitrión ya lo trajo.
+   *
+   * Un catálogo puede listar activos sin haberlos descargado —listar es barato,
+   * descargar no—, y XATTACH necesita el contenido para PROYECTARLO. Por eso es
+   * opcional y por eso la orden distingue «no conozco ese dibujo» de «lo conozco
+   * y no tengo su contenido»: son dos problemas distintos y se arreglan en
+   * sitios distintos.
+   */
+  snapshot?: CadXrefAssetSnapshot;
 }
 
 export type CadXrefPathStrategy = "relative" | "absolute" | "search";

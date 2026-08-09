@@ -1,5 +1,5 @@
 /**
- * XREF, XBIND y XCLIP.
+ * XREF, XATTACH, XBIND y XCLIP.
  *
  * ## Lo que estas órdenes tienen que hacer bien
  *
@@ -14,31 +14,31 @@
  * **Distinguir enlazar de insertar.** XBIND pregunta cuál de las dos, porque
  * son resultados distintos y uno no se deshace en el otro.
  *
- * ## Por qué NO hay un comando XATTACH, todavía
+ * ## De dónde salen los dibujos que XATTACH referencia
  *
- * Adjuntar un dibujo nuevo exige traer el CONTENIDO del activo referenciado, y
- * eso es I/O: el motor de comandos es síncrono y puro, y recibiría la
- * biblioteca ya cargada por `context.xrefCatalog`. El estudio todavía no la
- * aporta —eso vive en el monolito, que es de otra sesión en esta ronda—, así
- * que un XATTACH registrado hoy sólo sabría imprimir una disculpa. Y encima
- * TAPARÍA algo que sí funciona: `XATTACH` es hoy un alias de IMAGE, que
- * adjunta imágenes. Cambiar una orden que trabaja por un mensaje de error no
- * es progreso, así que se deja sin registrar y se anota en el PR — el mismo
- * criterio que con BEDIT.
+ * De `context.xrefCatalog`, que el anfitrión aporta ya cargado: traer el
+ * contenido de un activo es I/O y este motor es síncrono y puro. El diálogo
+ * está completo —elegir dibujo, adjuntar o superponer, punto, escala y giro— y
+ * la proyección la construye `cadXrefAttachCommands`, la misma que usa el panel
+ * de referencias externas. Lo que falta es que el estudio pase la biblioteca:
+ * eso vive en el monolito, que es de otra sesión en esta ronda. Mientras tanto
+ * la orden dice QUÉ le falta al editor en vez de decir que el dibujo no
+ * existe, y distingue «no conozco ese dibujo» de «lo conozco y no tengo su
+ * contenido», que se arreglan en sitios distintos.
  *
- * `cadXrefAttachCommands` sí existe y está probado: lo usa `attachCadXref`,
- * que es por donde el editor adjunta hoy. Lo que falta es el diálogo, no la
- * operación.
+ * `XATTACH` era hasta ahora un alias de IMAGE. En AutoCAD esa orden referencia
+ * un DIBUJO; las imágenes se adjuntan con IMAGEATTACH, que sigue existiendo.
  *
- * Lo que sí funciona entero sin I/O y se puede teclear: listar con su
- * resolución de rutas, descargar, volver a cargar lo descargado (la proyección
- * sigue en el documento), desligar, enlazar y recortar.
+ * Lo que funciona entero sin biblioteca: listar con su resolución de rutas,
+ * descargar, volver a cargar lo descargado (la proyección sigue en el
+ * documento), desligar, enlazar y recortar.
  */
 import type { CadEntity, CadExternalReference, CadPoint2 } from "../../cad-document";
 import type { CadEntityCommand } from "../../entity-commands";
 import type { CadNativeEntity } from "../../entity-runtime";
 import {
   cadFindXref,
+  cadXrefAttachCommands,
   cadXrefBindCommands,
   cadXrefDetachCommands,
   cadXrefUnloadCommands,
@@ -52,6 +52,7 @@ import {
   cadResolveXrefPath,
   cadXrefStoredPaths,
   cadXrefStrategyLabel,
+  type CadXrefCatalogEntry,
 } from "../../xref/xref-paths";
 import {
   cadDeleteXclipCommands,
@@ -61,6 +62,8 @@ import {
   cadXclipRectangle,
 } from "../../xref/xclip";
 import {
+  CAD_ACCEPT_ANGLE,
+  CAD_ACCEPT_DISTANCE,
   CAD_ACCEPT_ENTITY_PICK,
   CAD_ACCEPT_KEYWORD,
   CAD_ACCEPT_POINT,
@@ -250,6 +253,167 @@ const xrefCommand: CadCommandDescriptor<XrefState> = {
     if (input.kind !== "text") return nothing(state);
     if (input.value.trim() === "?") return message(state, xrefReport(context));
     return xrefApply(state, context, input.value);
+  },
+};
+
+// ---------------------------------------------------------------------------
+// XATTACH
+// ---------------------------------------------------------------------------
+
+const XATTACH_ATTACH = { keyword: "Adjuntar", shortcut: "A" } as const;
+const XATTACH_OVERLAY = { keyword: "Superponer", shortcut: "S" } as const;
+
+interface XAttachState {
+  entry: CadXrefCatalogEntry | null;
+  mode: "attachment" | "overlay" | null;
+  insertion: { x: number; y: number } | null;
+  scale: number | null;
+}
+
+const EMPTY_XATTACH: XAttachState = { entry: null, mode: null, insertion: null, scale: null };
+
+const NO_LIBRARY =
+  "El anfitrión no expone la biblioteca de dibujos del inquilino, así que XATTACH no tiene de dónde traer el contenido a referenciar. XREF sí gestiona desde aquí las referencias que ya están.";
+
+function catalogList(catalog: readonly CadXrefCatalogEntry[]): string {
+  return catalog
+    .map((entry) => `${entry.name}${entry.snapshot ? "" : " (sin contenido cargado)"}`)
+    .join(", ");
+}
+
+function xattachStep(state: XAttachState, catalog: readonly CadXrefCatalogEntry[]): CadCommandStep<XAttachState> {
+  if (!state.entry)
+    return {
+      state,
+      prompt: { message: `Indique el dibujo a referenciar (${catalogList(catalog)})`, options: [XREF_LIST] },
+      accepts: CAD_ACCEPT_TEXT | CAD_ACCEPT_KEYWORD,
+    };
+  if (!state.mode)
+    return {
+      state,
+      prompt: {
+        // Adjuntar y superponer NO son lo mismo al anidar: un attachment
+        // arrastra los xrefs que lleve dentro y un overlay corta ahí.
+        message: "¿Adjuntar o superponer?",
+        options: [XATTACH_ATTACH, XATTACH_OVERLAY],
+        defaultOption: XATTACH_ATTACH.keyword,
+      },
+      accepts: CAD_ACCEPT_KEYWORD,
+    };
+  if (!state.insertion)
+    return {
+      state,
+      prompt: { message: "Precise el punto de inserción", options: [] },
+      accepts: CAD_ACCEPT_POINT,
+    };
+  if (state.scale === null)
+    return {
+      state,
+      prompt: { message: "Factor de escala", options: [], defaultValue: "1" },
+      accepts: CAD_ACCEPT_DISTANCE,
+    };
+  return {
+    state,
+    prompt: { message: "Ángulo de rotación", options: [], defaultValue: "0" },
+    accepts: CAD_ACCEPT_ANGLE | CAD_ACCEPT_DISTANCE,
+  };
+}
+
+/**
+ * XATTACH: referenciar OTRO dibujo.
+ *
+ * La orden está entera; lo que depende del anfitrión es de dónde salen los
+ * dibujos, porque traer su contenido es I/O y el motor es síncrono y puro. El
+ * estudio todavía no aporta esa biblioteca —vive en el monolito, que es de otra
+ * sesión en esta ronda—, así que hoy la orden explica exactamente qué le falta
+ * al editor en vez de decir que el dibujo no existe. En cuanto
+ * `context.xrefCatalog` traiga entradas con contenido, adjunta.
+ */
+const xattachCommand: CadCommandDescriptor<XAttachState> = {
+  name: "XATTACH",
+  aliases: ["XA"],
+  kind: "manage",
+  transparent: false,
+  selection: "none",
+  repeatable: true,
+  mutates: true,
+  cursor: "crosshair",
+  begin: (context) => {
+    const catalog = context.xrefCatalog?.();
+    if (!catalog || catalog.length === 0) return message(EMPTY_XATTACH, NO_LIBRARY);
+    return xattachStep(EMPTY_XATTACH, catalog);
+  },
+  step: (state, input, context) => {
+    if (input.kind === "cancel") return nothing(state);
+    const catalog = context.xrefCatalog?.();
+    if (!catalog || catalog.length === 0) return message(state, NO_LIBRARY);
+    const document = context.document?.();
+    if (!document) return message(state, NO_DOCUMENT);
+
+    if (!state.entry) {
+      if (input.kind === "keyword" && input.keyword === XREF_LIST.keyword)
+        return message(state, `Dibujos disponibles: ${catalogList(catalog)}.`);
+      if (input.kind !== "text") return xattachStep(state, catalog);
+      const typed = input.value.trim();
+      if (typed === "?") return message(state, `Dibujos disponibles: ${catalogList(catalog)}.`);
+      const needle = typed.toLocaleLowerCase();
+      const entry = catalog.find(
+        (candidate) =>
+          candidate.name.toLocaleLowerCase() === needle ||
+          candidate.assetId.toLocaleLowerCase() === needle ||
+          (candidate.relativePath ?? "").toLocaleLowerCase() === needle,
+      );
+      if (!entry) return message(state, `La biblioteca no tiene ningún dibujo llamado ${typed}.`);
+      // Conocerlo y no tener su contenido son dos problemas distintos, y se
+      // arreglan en sitios distintos: decir «no existe» mandaría a buscar en el
+      // sitio equivocado.
+      if (!entry.snapshot)
+        return message(state, `${entry.name} está en la biblioteca pero su contenido no se ha traído todavía.`);
+      return xattachStep({ ...state, entry }, catalog);
+    }
+
+    if (!state.mode) {
+      if (input.kind === "enter") return xattachStep({ ...state, mode: "attachment" }, catalog);
+      if (input.kind !== "keyword") return xattachStep(state, catalog);
+      const mode = input.keyword === XATTACH_OVERLAY.keyword ? "overlay" : "attachment";
+      return xattachStep({ ...state, mode }, catalog);
+    }
+
+    if (!state.insertion) {
+      if (input.kind !== "point") return xattachStep(state, catalog);
+      return xattachStep({ ...state, insertion: input.point }, catalog);
+    }
+
+    if (state.scale === null) {
+      if (input.kind === "enter") return xattachStep({ ...state, scale: 1 }, catalog);
+      if (input.kind !== "distance") return xattachStep(state, catalog);
+      // Un xref se escala UNIFORMEMENTE y en positivo: `attachCadXref` no
+      // admite otra cosa, y aceptar aquí un valor que allí se ignora sería
+      // mentir sobre lo que va a pasar.
+      if (!(input.value > 0)) return message(state, "La escala de una referencia externa debe ser positiva.");
+      return xattachStep({ ...state, scale: input.value }, catalog);
+    }
+
+    const rotation =
+      input.kind === "enter"
+        ? 0
+        : input.kind === "angle"
+          ? input.degrees
+          : input.kind === "distance"
+            ? input.value
+            : null;
+    if (rotation === null) return xattachStep(state, catalog);
+    return attempt(state, "XATTACH", () =>
+      cadXrefAttachCommands(document, {
+        id: context.newEntityId(),
+        snapshot: state.entry!.snapshot!,
+        mode: state.mode!,
+        insertion: { x: state.insertion!.x, y: state.insertion!.y, z: 0 },
+        scale: state.scale!,
+        rotation,
+        relativePath: state.entry!.relativePath,
+      }),
+    );
   },
 };
 
@@ -456,6 +620,7 @@ const xclipCommand: CadCommandDescriptor<XClipState> = {
 
 export const CAD_XREF_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(xrefCommand),
+  asCadCommand(xattachCommand),
   asCadCommand(xbindCommand),
   asCadCommand(xclipCommand),
 ];

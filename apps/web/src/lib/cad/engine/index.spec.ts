@@ -118,6 +118,7 @@ const names = registry.all().map((command) => command.name);
     "UNGROUP",
     "PURGE",
     "XREF",
+    "XATTACH",
     "XBIND",
     "XCLIP",
     "ADCENTER",
