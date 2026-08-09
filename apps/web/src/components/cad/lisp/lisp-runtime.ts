@@ -167,6 +167,8 @@ export class CadLispRuntime {
   private serial = 0;
   private filePickerRequest = 0;
   private source: CadLispDocumentSource | null = null;
+  /** Ejecución en curso, para poder cerrarla si el usuario la abandona. */
+  private active: { run: InteractiveLispRun; invoke: string; origin: string } | null = null;
   private registry: CadCommandRegistry | null = null;
   private snapshot: CadLispSnapshot;
 
@@ -370,6 +372,7 @@ export class CadLispRuntime {
    * limpiando el desastre con un mensaje genérico en vez del que toca.
    */
   createRun(invoke: string, origin: string): { run: InteractiveLispRun } | { problem: string } {
+    this.abandonActive();
     const source = this.source;
     if (!source)
       return {
@@ -396,10 +399,32 @@ export class CadLispRuntime {
         [LIBRARY_READER, (name: string) => this.readSource(name)],
       ],
     });
+    this.active = { run, invoke, origin };
     this.running = invoke;
     this.log("input", invoke, origin);
     this.publish();
     return { run };
+  }
+
+  /**
+   * Cierra una ejecución que quedó a medias.
+   *
+   * El motor de comandos atiende el Esc por su cuenta: descarta el comando
+   * activo SIN volver a llamar a su `step`, así que la rutina suspendida en un
+   * `getpoint` nunca se entera de que la abandonaron. Sin esto quedaría un
+   * generador vivo, con su medidor sin envenenar, reanudable por cualquiera que
+   * conservase la referencia — y la consola diría «ejecutando» para siempre.
+   *
+   * Se limpia al empezar la siguiente ejecución en vez de intentar adivinar el
+   * Esc: es el momento en el que el abandono es un hecho comprobado.
+   */
+  private abandonActive(): void {
+    const active = this.active;
+    this.active = null;
+    if (!active || active.run.done) return;
+    active.run.cancel(`Se abandonó "${active.invoke}" sin terminar.`);
+    this.log("info", `${active.invoke} se abandonó sin terminar.`, active.origin);
+    this.running = null;
   }
 
   /**
@@ -408,6 +433,7 @@ export class CadLispRuntime {
    */
   settle(run: InteractiveLispRun, turn: LispTurn, invoke: string, origin: string): void {
     this.running = null;
+    if (this.active?.run === run) this.active = null;
     const output = run.output.trim();
     if (output) this.log("output", output, origin);
 

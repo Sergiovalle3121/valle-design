@@ -284,6 +284,19 @@ const CAJETIN = `
   );
   eq(studio.undoSteps.length, 0, "y no hay ningún paso de deshacer que limpiar");
   ok(!studio.busy, "el motor queda libre para el comando siguiente");
+
+  // El motor atiende el Esc por su cuenta y NO vuelve a llamar al comando, así
+  // que la rutina se queda suspendida sin enterarse. Se cierra al empezar la
+  // siguiente: sin esto quedaría un generador vivo y reanudable, y la consola
+  // diría «ejecutando» para siempre.
+  eq(messages(studio.type("(+ 1 1)")), ["2"], "la siguiente ejecución funciona…");
+  eq(studio.lisp.runtime.getSnapshot().running, null, "…y la consola ya no dice que hay nada en curso");
+  ok(
+    studio.lisp.runtime
+      .getSnapshot()
+      .transcript.some((entry) => /se abandonó sin terminar/.test(entry.text)),
+    "y queda dicho que la anterior se abandonó, en vez de desaparecer sin rastro",
+  );
 }
 
 // --- 7. `command` encadenado sobre comandos NATIVOS -------------------------------
