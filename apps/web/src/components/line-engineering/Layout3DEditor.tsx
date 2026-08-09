@@ -456,6 +456,16 @@ import {
   updateCadNativeOverviewObject,
 } from "@/lib/cad/entity-three";
 import {
+  CadRenderHostSlot,
+  CadViewportRenderHost,
+} from "@/components/cad/viewport/render-pipeline-host";
+import { buildCadAssetArchetype } from "@/components/cad/viewport/asset-archetypes";
+import { CadRenderPipelineBadge } from "@/components/cad/viewport/RenderPipelineBadge";
+import {
+  resolveCadRenderPipeline,
+  type CadRenderPipelineChoice,
+} from "@/lib/cad/render-pipeline-preference";
+import {
   cadDocumentNativeDxfHatches,
   cadDocumentDxfBlocks,
   cadDocumentDxfInserts,
@@ -1410,707 +1420,6 @@ function makeNoteLabel(text: string): THREE.Sprite {
   return sprite;
 }
 
-// ── 3D asset geometry factory ────────────────────────────────────────────────
-// Builds a distinctive mesh group per archetype. Geometry is centred in X/Z with
-// its base at y=0; the caller positions the group on the floor and rotates it.
-function mat(
-  color: THREE.ColorRepresentation,
-  rough = 0.6,
-  metal = 0.15,
-  emissive: THREE.ColorRepresentation = 0x000000,
-) {
-  return new THREE.MeshStandardMaterial({
-    color,
-    roughness: rough,
-    metalness: metal,
-    emissive,
-  });
-}
-function part(
-  geo: THREE.BufferGeometry,
-  material: THREE.Material,
-  x = 0,
-  y = 0,
-  z = 0,
-): THREE.Mesh {
-  const m = new THREE.Mesh(geo, material);
-  m.position.set(x, y, z);
-  m.castShadow = true;
-  m.receiveShadow = true;
-  return m;
-}
-
-function buildArchetype(
-  archetype: AssetArchetype,
-  wS: number,
-  dS: number,
-  H: number,
-  colorHex: string,
-  shape: "rect" | "circle" = "rect",
-): THREE.Object3D[] {
-  const c = new THREE.Color(colorHex);
-  const dark = c.clone().multiplyScalar(0.6);
-  const light = c.clone().lerp(new THREE.Color(0xffffff), 0.25);
-  const out: THREE.Object3D[] = [];
-  const leg = Math.max(0.04, Math.min(wS, dS) * 0.08);
-
-  switch (archetype) {
-    case "table": {
-      const top = Math.max(0.05, H * 0.07);
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS, top, dS),
-          mat(c, 0.55, 0.1),
-          0,
-          H - top / 2,
-          0,
-        ),
-      );
-      const lx = wS / 2 - leg,
-        lz = dS / 2 - leg;
-      [
-        [lx, lz],
-        [-lx, lz],
-        [lx, -lz],
-        [-lx, -lz],
-      ].forEach(([x, z]) =>
-        out.push(
-          part(
-            new THREE.BoxGeometry(leg, H - top, leg),
-            mat(dark, 0.7, 0.3),
-            x,
-            (H - top) / 2,
-            z,
-          ),
-        ),
-      );
-      break;
-    }
-    case "belt": {
-      const deckY = H * 0.78,
-        deckT = Math.max(0.05, H * 0.12);
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS, deckT, dS * 0.78),
-          mat(c, 0.5, 0.2),
-          0,
-          deckY,
-          0,
-        ),
-      );
-      // side rails
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS, deckT * 0.9, leg),
-          mat(dark, 0.5, 0.3),
-          0,
-          deckY + deckT * 0.6,
-          dS / 2 - leg / 2,
-        ),
-      );
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS, deckT * 0.9, leg),
-          mat(dark, 0.5, 0.3),
-          0,
-          deckY + deckT * 0.6,
-          -dS / 2 + leg / 2,
-        ),
-      );
-      // rollers (visual hint of belt direction)
-      const rollers = Math.max(
-        3,
-        Math.min(9, Math.round(wS / Math.max(0.4, dS * 0.6))),
-      );
-      const rr = Math.max(0.03, dS * 0.14);
-      const rg = new THREE.CylinderGeometry(rr, rr, dS * 0.7, 10);
-      for (let i = 0; i < rollers; i++) {
-        const rx = -wS / 2 + (wS / (rollers - 1 || 1)) * i;
-        const rm = part(rg, mat(light, 0.4, 0.6), rx, deckY + deckT * 0.5, 0);
-        rm.rotation.x = Math.PI / 2;
-        out.push(rm);
-      }
-      // legs
-      const lx = wS / 2 - leg,
-        lz = (dS * 0.78) / 2 - leg;
-      [
-        [lx, lz],
-        [-lx, lz],
-        [lx, -lz],
-        [-lx, -lz],
-      ].forEach(([x, z]) =>
-        out.push(
-          part(
-            new THREE.BoxGeometry(leg, deckY, leg),
-            mat(dark, 0.7, 0.3),
-            x,
-            deckY / 2,
-            z,
-          ),
-        ),
-      );
-      break;
-    }
-    case "shelf": {
-      const post = Math.max(0.05, Math.min(wS, dS) * 0.09);
-      const lx = wS / 2 - post / 2,
-        lz = dS / 2 - post / 2;
-      [
-        [lx, lz],
-        [-lx, lz],
-        [lx, -lz],
-        [-lx, -lz],
-      ].forEach(([x, z]) =>
-        out.push(
-          part(
-            new THREE.BoxGeometry(post, H, post),
-            mat(dark, 0.6, 0.35),
-            x,
-            H / 2,
-            z,
-          ),
-        ),
-      );
-      const shelves = 4;
-      const st = Math.max(0.04, H * 0.04);
-      for (let i = 0; i < shelves; i++) {
-        const y = (H / (shelves - 1)) * i;
-        out.push(
-          part(
-            new THREE.BoxGeometry(wS, st, dS),
-            mat(c, 0.65, 0.1),
-            0,
-            Math.min(H - st / 2, Math.max(st / 2, y)),
-            0,
-          ),
-        );
-      }
-      break;
-    }
-    case "arm": {
-      const baseH = H * 0.18,
-        baseR = Math.min(wS, dS) * 0.42;
-      out.push(
-        part(
-          new THREE.CylinderGeometry(baseR, baseR * 1.1, baseH, 18),
-          mat(dark, 0.5, 0.5),
-          0,
-          baseH / 2,
-          0,
-        ),
-      );
-      const col = part(
-        new THREE.CylinderGeometry(baseR * 0.55, baseR * 0.6, H * 0.42, 14),
-        mat(c, 0.45, 0.5),
-        0,
-        baseH + H * 0.21,
-        0,
-      );
-      out.push(col);
-      // upper arm tilted out
-      const upper = part(
-        new THREE.BoxGeometry(wS * 0.7, H * 0.12, H * 0.1),
-        mat(c, 0.4, 0.6),
-        wS * 0.18,
-        baseH + H * 0.46,
-        0,
-      );
-      upper.rotation.z = -0.5;
-      out.push(upper);
-      const fore = part(
-        new THREE.BoxGeometry(wS * 0.5, H * 0.09, H * 0.08),
-        mat(light, 0.4, 0.6),
-        wS * 0.42,
-        baseH + H * 0.6,
-        0,
-      );
-      fore.rotation.z = 0.35;
-      out.push(fore);
-      out.push(
-        part(
-          new THREE.SphereGeometry(baseR * 0.4, 12, 10),
-          mat(dark, 0.4, 0.7),
-          wS * 0.55,
-          baseH + H * 0.52,
-          0,
-        ),
-      );
-      break;
-    }
-    case "machine": {
-      const bodyH = H * 0.82;
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS, bodyH, dS),
-          mat(c, 0.5, 0.25),
-          0,
-          bodyH / 2,
-          0,
-        ),
-      );
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS * 0.96, H * 0.16, dS * 0.96),
-          mat(dark, 0.55, 0.3),
-          0,
-          bodyH + H * 0.08,
-          0,
-        ),
-      );
-      // viewing window / control panel on the +Z face
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS * 0.5, bodyH * 0.4, leg * 0.6),
-          mat(0x0f172a, 0.2, 0.7, 0x0b1220),
-          0,
-          bodyH * 0.6,
-          dS / 2,
-        ),
-      );
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS * 0.22, bodyH * 0.3, leg * 0.6),
-          mat(light, 0.3, 0.5),
-          wS * 0.32,
-          bodyH * 0.45,
-          dS / 2,
-        ),
-      );
-      // feet
-      const lx = wS / 2 - leg,
-        lz = dS / 2 - leg;
-      [
-        [lx, lz],
-        [-lx, lz],
-        [lx, -lz],
-        [-lx, -lz],
-      ].forEach(([x, z]) =>
-        out.push(
-          part(
-            new THREE.BoxGeometry(leg * 1.2, H * 0.05, leg * 1.2),
-            mat(dark, 0.7, 0.3),
-            x,
-            H * 0.025,
-            z,
-          ),
-        ),
-      );
-      break;
-    }
-    case "wall": {
-      out.push(
-        part(new THREE.BoxGeometry(wS, H, dS), mat(c, 0.9, 0.02), 0, H / 2, 0),
-      );
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS, H * 0.03, dS * 1.15),
-          mat(dark, 0.8, 0.05),
-          0,
-          H,
-          0,
-        ),
-      );
-      break;
-    }
-    case "door": {
-      const jamb = Math.max(0.04, dS * 0.35);
-      const leaf = part(
-        new THREE.BoxGeometry(wS * 0.92, H * 0.92, jamb),
-        mat(c, 0.65, 0.08),
-        wS * 0.04,
-        H * 0.46,
-        -dS * 0.1,
-      );
-      leaf.rotation.y = -Math.PI / 5;
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS, Math.max(0.04, H * 0.025), dS),
-          mat(dark, 0.8, 0.05),
-          0,
-          Math.max(0.03, H * 0.012),
-          0,
-        ),
-      );
-      out.push(leaf);
-      const arcPoints = new THREE.EllipseCurve(
-        0,
-        0,
-        wS * 0.86,
-        wS * 0.86,
-        0,
-        Math.PI / 2,
-      )
-        .getPoints(24)
-        .map(
-          (point) =>
-            new THREE.Vector3(point.x, Math.max(0.06, H * 0.03), point.y),
-        );
-      const arc = new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints(arcPoints),
-        new THREE.LineBasicMaterial({ color: c }),
-      );
-      arc.position.set(-wS / 2, 0, -dS / 2);
-      arc.renderOrder = 4;
-      out.push(arc);
-      break;
-    }
-    case "cabinet": {
-      out.push(
-        part(new THREE.BoxGeometry(wS, H, dS), mat(c, 0.5, 0.3), 0, H / 2, 0),
-      );
-      // door seam + handle
-      out.push(
-        part(
-          new THREE.BoxGeometry(leg * 0.4, H * 0.9, leg * 0.3),
-          mat(dark, 0.4, 0.5),
-          0,
-          H / 2,
-          dS / 2,
-        ),
-      );
-      out.push(
-        part(
-          new THREE.BoxGeometry(leg, H * 0.16, leg * 0.5),
-          mat(light, 0.3, 0.6),
-          wS * 0.22,
-          H * 0.5,
-          dS / 2,
-        ),
-      );
-      break;
-    }
-    case "column": {
-      const r = Math.min(wS, dS) * 0.5;
-      out.push(
-        part(
-          new THREE.CylinderGeometry(r, r * 1.1, H, 20),
-          mat(c, 0.85, 0.1),
-          0,
-          H / 2,
-          0,
-        ),
-      );
-      out.push(
-        part(
-          new THREE.BoxGeometry(r * 2.4, H * 0.04, r * 2.4),
-          mat(dark, 0.8, 0.1),
-          0,
-          H * 0.02,
-          0,
-        ),
-      );
-      break;
-    }
-    case "pallet": {
-      const deck = Math.max(0.05, H * 0.45);
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS, deck, dS),
-          mat(c, 0.85, 0.02),
-          0,
-          H - deck / 2,
-          0,
-        ),
-      );
-      // 3 runners
-      [-dS / 2 + leg, 0, dS / 2 - leg].forEach((z) =>
-        out.push(
-          part(
-            new THREE.BoxGeometry(wS, H - deck, leg * 2),
-            mat(c.clone().multiplyScalar(0.85), 0.9, 0.02),
-            0,
-            (H - deck) / 2,
-            z,
-          ),
-        ),
-      );
-      break;
-    }
-    case "fence": {
-      const posts = Math.max(2, Math.round(wS / Math.max(0.6, dS * 4)) + 1);
-      const pw = Math.max(0.05, dS * 0.5);
-      for (let i = 0; i < posts; i++) {
-        const x = -wS / 2 + (wS / (posts - 1 || 1)) * i;
-        out.push(
-          part(new THREE.BoxGeometry(pw, H, pw), mat(c, 0.6, 0.3), x, H / 2, 0),
-        );
-      }
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS, H * 0.08, pw * 0.6),
-          mat(c, 0.6, 0.3),
-          0,
-          H * 0.9,
-          0,
-        ),
-      );
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS, H * 0.08, pw * 0.6),
-          mat(c, 0.6, 0.3),
-          0,
-          H * 0.45,
-          0,
-        ),
-      );
-      break;
-    }
-    case "cart": {
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS, H * 0.7, dS),
-          mat(c, 0.45, 0.4),
-          0,
-          H * 0.45,
-          0,
-        ),
-      );
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS * 0.6, H * 0.3, dS * 0.6),
-          mat(light, 0.4, 0.5),
-          0,
-          H * 0.85,
-          0,
-        ),
-      );
-      // wheels
-      const wr = H * 0.18;
-      const wg = new THREE.CylinderGeometry(wr, wr, leg, 12);
-      const lx = wS / 2 - leg,
-        lz = dS / 2 - leg;
-      [
-        [lx, lz],
-        [-lx, lz],
-        [lx, -lz],
-        [-lx, -lz],
-      ].forEach(([x, z]) => {
-        const w = part(wg, mat(0x111827, 0.6, 0.2), x, wr, z);
-        w.rotation.x = Math.PI / 2;
-        out.push(w);
-      });
-      break;
-    }
-    case "person": {
-      const r = Math.min(wS, dS) * 0.3;
-      out.push(
-        part(
-          new THREE.CylinderGeometry(r * 0.9, r, H * 0.58, 14),
-          mat(c, 0.7, 0.05),
-          0,
-          H * 0.32,
-          0,
-        ),
-      );
-      out.push(
-        part(
-          new THREE.SphereGeometry(r * 0.7, 14, 12),
-          mat(light, 0.6, 0.05),
-          0,
-          H * 0.74,
-          0,
-        ),
-      );
-      break;
-    }
-    case "desk": {
-      const top = Math.max(0.05, H * 0.08),
-        deskY = H * 0.62;
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS, top, dS),
-          mat(c, 0.55, 0.1),
-          0,
-          deskY,
-          0,
-        ),
-      );
-      const lx = wS / 2 - leg,
-        lz = dS / 2 - leg;
-      [
-        [lx, lz],
-        [-lx, lz],
-        [lx, -lz],
-        [-lx, -lz],
-      ].forEach(([x, z]) =>
-        out.push(
-          part(
-            new THREE.BoxGeometry(leg, deskY, leg),
-            mat(dark, 0.7, 0.3),
-            x,
-            deskY / 2,
-            z,
-          ),
-        ),
-      );
-      // monitor: panel on a small stand
-      out.push(
-        part(
-          new THREE.BoxGeometry(leg, H * 0.12, leg),
-          mat(dark, 0.5, 0.4),
-          0,
-          deskY + top + H * 0.06,
-          -dS * 0.2,
-        ),
-      );
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS * 0.42, H * 0.26, leg * 0.5),
-          mat(0x0f172a, 0.2, 0.6, 0x0b1220),
-          0,
-          deskY + top + H * 0.22,
-          -dS * 0.2,
-        ),
-      );
-      break;
-    }
-    case "bin": {
-      const wall = Math.max(0.04, Math.min(wS, dS) * 0.08);
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS, Math.max(0.04, H * 0.08), dS),
-          mat(dark, 0.8, 0.05),
-          0,
-          H * 0.04,
-          0,
-        ),
-      ); // floor
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS, H, wall),
-          mat(c, 0.7, 0.05),
-          0,
-          H / 2,
-          dS / 2 - wall / 2,
-        ),
-      );
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS, H, wall),
-          mat(c, 0.7, 0.05),
-          0,
-          H / 2,
-          -dS / 2 + wall / 2,
-        ),
-      );
-      out.push(
-        part(
-          new THREE.BoxGeometry(wall, H, dS - wall * 2),
-          mat(c, 0.7, 0.05),
-          wS / 2 - wall / 2,
-          H / 2,
-          0,
-        ),
-      );
-      out.push(
-        part(
-          new THREE.BoxGeometry(wall, H, dS - wall * 2),
-          mat(c, 0.7, 0.05),
-          -wS / 2 + wall / 2,
-          H / 2,
-          0,
-        ),
-      );
-      break;
-    }
-    case "gantry": {
-      const legW = Math.max(0.1, dS * 0.5),
-        beamH = Math.max(0.15, H * 0.12);
-      // two end legs (span along X)
-      [wS / 2 - legW / 2, -wS / 2 + legW / 2].forEach((x) =>
-        out.push(
-          part(
-            new THREE.BoxGeometry(legW, H - beamH, legW),
-            mat(dark, 0.6, 0.35),
-            x,
-            (H - beamH) / 2,
-            0,
-          ),
-        ),
-      );
-      // top beam spanning the legs
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS, beamH, legW * 0.9),
-          mat(c, 0.5, 0.4),
-          0,
-          H - beamH / 2,
-          0,
-        ),
-      );
-      // trolley/hoist hanging from the beam
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS * 0.12, beamH * 1.4, legW * 1.1),
-          mat(light, 0.4, 0.5),
-          wS * 0.1,
-          H - beamH * 1.1,
-          0,
-        ),
-      );
-      break;
-    }
-    case "zone":
-    case "path":
-    default: {
-      const opacity = archetype === "path" ? 0.22 : 0.14;
-      if (shape === "circle") {
-        // disco plano con borde: el radio sigue la caja delimitadora (wS≈dS).
-        const ring2d = new THREE.EllipseCurve(
-          0,
-          0,
-          wS / 2,
-          dS / 2,
-          0,
-          Math.PI * 2,
-        ).getPoints(64);
-        const fillC = new THREE.Mesh(
-          new THREE.ShapeGeometry(new THREE.Shape(ring2d)),
-          new THREE.MeshBasicMaterial({
-            color: c,
-            transparent: true,
-            opacity,
-            side: THREE.DoubleSide,
-          }),
-        );
-        fillC.rotation.x = -Math.PI / 2;
-        fillC.position.y = 0.04;
-        out.push(fillC);
-        const ring = new THREE.LineLoop(
-          new THREE.BufferGeometry().setFromPoints(
-            ring2d.map((p) => new THREE.Vector3(p.x, 0, p.y)),
-          ),
-          new THREE.LineBasicMaterial({ color: c }),
-        );
-        ring.position.y = 0.05;
-        out.push(ring);
-        break;
-      }
-      // flat translucent footprint with a coloured border
-      const fill = new THREE.Mesh(
-        new THREE.PlaneGeometry(wS, dS),
-        new THREE.MeshBasicMaterial({
-          color: c,
-          transparent: true,
-          opacity,
-          side: THREE.DoubleSide,
-        }),
-      );
-      fill.rotation.x = -Math.PI / 2;
-      fill.position.y = 0.04;
-      out.push(fill);
-      const edge = new THREE.LineSegments(
-        new THREE.EdgesGeometry(new THREE.PlaneGeometry(wS, dS)),
-        new THREE.LineBasicMaterial({ color: c }),
-      );
-      edge.rotation.x = -Math.PI / 2;
-      edge.position.y = 0.05;
-      out.push(edge);
-      break;
-    }
-  }
-  return out;
-}
 
 /** Build a positioned, rotated, pickable asset group (base at floor). */
 function buildAssetGroup(
@@ -2126,7 +1435,7 @@ function buildAssetGroup(
   const dS = Math.max(0.2, a.h * s);
   const h3d = Math.max(0.05, def.height * s);
   const group = new THREE.Group();
-  buildArchetype(def.archetype, wS, dS, h3d, def.color, a.shape).forEach((o) =>
+  buildCadAssetArchetype(def.archetype, wS, dS, h3d, def.color, a.shape).forEach((o) =>
     group.add(o),
   );
 
@@ -3146,6 +2455,25 @@ export default function Layout3DEditor({
   >(() => {});
   const nativeSceneSyncRef =
     useRef<CadSceneSynchronizer<THREE.Object3D> | null>(null);
+  /**
+   * Pipeline de render por lotes, encendido por defecto (ver
+   * `render-pipeline-preference.ts`). El anfitrión vive en una ref porque lo
+   * conduce el bucle de cuadros, no React: un `useState` por cuadro sería un
+   * render por cuadro, y el presupuesto de `check:cad` sólo permite bajar.
+   */
+  const renderPipelineRef = useRef<CadRenderPipelineChoice>("batched");
+  const renderPipelineResolvedRef = useRef(false);
+  const renderPipelineHostRef = useRef<CadViewportRenderHost | null>(null);
+  const renderPipelineSlotRef = useRef<CadRenderHostSlot | null>(null);
+  if (renderPipelineSlotRef.current === null)
+    renderPipelineSlotRef.current = new CadRenderHostSlot();
+  if (typeof window !== "undefined" && !renderPipelineResolvedRef.current) {
+    renderPipelineResolvedRef.current = true;
+    renderPipelineRef.current = resolveCadRenderPipeline({
+      storage: window.localStorage,
+      search: window.location.search,
+    });
+  }
   const nativeSelectionIndexRef = useRef<CadNativeSelectionIndex | null>(null);
   const nativeViewportBoundsRef = useRef<CadBounds | null>(null);
   const nativeIndexedDocumentRef = useRef<CadDocument | null>(null);
@@ -3399,6 +2727,22 @@ export default function Layout3DEditor({
           child.visible = L.equipment;
           setCadNativeOverviewHiddenLayers(
             child as THREE.LineSegments,
+            new Set(
+              document?.layers
+                .filter((layer) => layer.visible === false)
+                .map((layer) => layer.id) ?? [],
+            ),
+          );
+          return;
+        }
+        // El pipeline por lotes apaga capas por LOTE, no por objeto: es un
+        // booleano en unos pocos hijos en vez de reconstruir la geometría.
+        if (
+          child.userData?.cadRenderScene === true ||
+          child.userData?.cadRenderDepthClear === true
+        ) {
+          child.visible = L.equipment;
+          renderPipelineHostRef.current?.setHiddenLayers(
             new Set(
               document?.layers
                 .filter((layer) => layer.visible === false)
@@ -4316,6 +3660,14 @@ export default function Layout3DEditor({
 
   const refreshNativeSelectionVisuals = useCallback(() => {
     const selected = new Set(nativeSelectionIdsRef.current);
+    // Con el pipeline por lotes la selección NO es una malla que recolorear:
+    // es un color por instancia, así que se le pide al anfitrión que vuelva a
+    // teselar lo que entra y sale de la selección. Los objetos heredados siguen
+    // existiendo para los grips y el realce, y se recolorean abajo.
+    renderPipelineHostRef.current?.setSelection(
+      nativeSelectionIdsRef.current,
+      loadedCadDocumentRef.current,
+    );
     for (const [id, object] of nativeSceneSyncRef.current?.entries() ?? []) {
       setCadNativeObjectSelected(object, selected.has(id));
       if (object.userData.nativeBlockBatched === true)
@@ -4416,11 +3768,69 @@ export default function Layout3DEditor({
         (entity): entity is CadNativeEntity =>
           CAD_ENTITY_REGISTRY.supports(entity),
       );
-      if (nativeIndexedDocumentRef.current !== document) {
+      const documentChanged = nativeIndexedDocumentRef.current !== document;
+      if (documentChanged) {
         if (patch && nativeIndexedDocumentRef.current)
           selectionIndex.applyPatch(patch, document);
         else selectionIndex.replace(nativeDocumentEntities, document);
         nativeIndexedDocumentRef.current = document;
+      }
+      /**
+       * PIPELINE POR LOTES. Cuando está encendido, el espacio modelo lo dibuja
+       * él entero y la proyección por entidad se reduce a la SELECCIÓN — que es
+       * lo único que aporta que el lote no tiene: grips y realce por encima.
+       *
+       * Sin presupuesto, sin muestreo y sin overview: ésa es toda la diferencia.
+       * `planCadNativeRenderBudget` existía para no morir dibujando 100.000
+       * objetos de escena; aquí no hay 100.000 objetos, hay lotes por tile.
+       *
+       * Un cambio de vista NO entra por aquí: el pipeline lo resuelve con
+       * `setView` en el bucle de cuadros. Reemplazar en cada paneo vaciaría la
+       * caché de teselado y convertiría el paneo en la reconstrucción completa
+       * que este camino existe para eliminar.
+       */
+      const batchedHost = renderPipelineHostRef.current;
+      if (batchedHost) {
+        if (patch && batchedHost.loaded)
+          batchedHost.invalidate(
+            [...patch.upsert.map((entity) => entity.id), ...patch.remove],
+            patch.upsert.filter((entity) => !batchedInsertIds.has(entity.id)),
+          );
+        else if (documentChanged || !batchedHost.loaded)
+          batchedHost.replace(document, { excludeEntityIds: batchedInsertIds });
+        batchedHost.setHiddenLayers(
+          new Set(
+            document.layers
+              .filter((layer) => layer.visible === false)
+              .map((layer) => layer.id),
+          ),
+        );
+        setNativeRenderStats((current) =>
+          current.total === nativeDocumentEntities.length &&
+          current.omitted === 0 &&
+          current.batching === false
+            ? current
+            : {
+                total: nativeDocumentEntities.length,
+                visible: nativeDocumentEntities.length,
+                rendered: nativeDocumentEntities.length,
+                omitted: 0,
+                batching: false,
+              },
+        );
+        const selected = new Set(nativeSelectionIdsRef.current);
+        synchronizer.sync(
+          {
+            ...document,
+            entities: nativeDocumentEntities.filter((entity) =>
+              selected.has(entity.id),
+            ),
+          },
+          sink,
+        );
+        refreshNativeSelectionVisuals();
+        applyLayersRef.current();
+        return;
       }
       const visibleEntities = nativeViewportBoundsRef.current
         ? selectionIndex.search(nativeViewportBoundsRef.current)
@@ -7310,6 +6720,19 @@ export default function Layout3DEditor({
     const nativeGroup = new THREE.Group();
     scene.add(nativeGroup);
     nativeGroupRef.current = nativeGroup;
+    // El pipeline por lotes se enchufa aquí, con el mapeo mundo→XZ intacto: lo
+    // único que recibe es el mismo `{ scale, width, height }` que ya usaba
+    // `scenePoint`. `yScreenSign: 1` reproduce la convención vigente (+Y del
+    // dibujo hacia abajo); voltearla es un cambio con su propio PR.
+    if (renderPipelineRef.current === "batched") {
+      const host = new CadViewportRenderHost({
+        parent: nativeGroup,
+        viewport: { scale: s, width: W, height: H, elevation: 0.11 },
+        yScreenSign: 1,
+      });
+      renderPipelineHostRef.current = host;
+      renderPipelineSlotRef.current?.set(host);
+    }
     const connsGroup = new THREE.Group();
     scene.add(connsGroup);
     connsGroupRef.current = connsGroup;
@@ -7412,6 +6835,11 @@ export default function Layout3DEditor({
       camera,
     );
     viewControllerRef.current = viewController;
+    let batchedViewBounds: CadBounds | null = null;
+    let batchedViewDirty = true;
+    const unsubscribeBatchedView = viewController.onChange(() => {
+      batchedViewDirty = true;
+    });
     viewController.setMode(viewModeRef.current);
     /** La cámara que se dibuja y contra la que se lanzan los rayos. */
     const activeCamera = () => viewController.camera;
@@ -7434,7 +6862,10 @@ export default function Layout3DEditor({
         )
           return;
         nativeViewportBoundsRef.current = bounds;
-        syncNativeScene();
+        // Con el pipeline por lotes, un cambio de vista NO reproyecta nada: lo
+        // resuelve `setView` en el bucle de cuadros, que es justamente lo que
+        // convierte un paneo en cuatro uniformes en vez de una reconstrucción.
+        if (!renderPipelineHostRef.current) syncNativeScene();
       }, 80);
     };
     controls.addEventListener("change", () => {
@@ -8822,6 +8253,26 @@ export default function Layout3DEditor({
       } else {
         controls.update();
       }
+      // Un cuadro del pipeline por lotes: fija la vista, gasta su presupuesto
+      // de teselado y reconcilia mallas SÓLO si hubo algo que reconciliar.
+      // Va antes de `render` para que lo materializado en este cuadro se vea en
+      // este cuadro y no en el siguiente.
+      const batchedHost = renderPipelineHostRef.current;
+      if (batchedHost) {
+        // Recalcular la huella visible en CADA cuadro costaría cinco rayos por
+        // cuadro en 3D. Sólo se recalcula cuando la vista cambió de verdad; el
+        // resto de cuadros reusan la última y siguen gastando su presupuesto de
+        // teselado, que es el trabajo que realmente hay que repartir.
+        if (batchedViewDirty) {
+          batchedViewBounds = viewController.viewportBounds() ?? batchedViewBounds;
+          batchedViewDirty = false;
+        }
+        if (batchedViewBounds)
+          batchedHost.frame({
+            bounds: batchedViewBounds,
+            pixelsPerUnit: viewController.view.pixelsPerUnit,
+          });
+      }
       renderer.render(scene, activeCamera());
       raf = requestAnimationFrame(animate);
     };
@@ -8842,6 +8293,12 @@ export default function Layout3DEditor({
       controls.dispose();
       disposeObject(scene);
       nativeSceneSyncRef.current?.clear({ remove: () => {} });
+      unsubscribeBatchedView();
+      // El pipeline retiene geometría en la GPU y una caché de teselado: sin
+      // esto, cerrar el editor deja el dibujo entero en memoria.
+      renderPipelineSlotRef.current?.set(null);
+      renderPipelineHostRef.current?.dispose();
+      renderPipelineHostRef.current = null;
       nativeInsertBatchRef.current = null;
       nativeOverviewRef.current = null;
       nativeOverviewDocumentRef.current = null;
@@ -19318,6 +18775,13 @@ export default function Layout3DEditor({
               >
                 Native {nativeEntities.length}
               </span>
+              {/* QUÉ pipeline dibuja y CUÁNTO lleva materializado. El benchmark
+                  midió un camino que el producto no ejecutaba; publicarlo en el
+                  DOM es lo que impide que vuelva a pasar sin que nadie lo note. */}
+              <CadRenderPipelineBadge
+                pipeline={renderPipelineRef.current}
+                slot={renderPipelineSlotRef.current!}
+              />
               {/* La profundidad del historial es OBSERVABLE: una acción de
                   dibujo tiene que dejar exactamente una entrada, y una acción
                   rechazada ninguna. Sin esto, "el primer Undo no deshace nada"
