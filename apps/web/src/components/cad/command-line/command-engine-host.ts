@@ -29,7 +29,9 @@ import type {
   CadCommandContext,
   CadPreviewPath,
   CadPrompt,
+  CadUiRequest,
 } from "@/lib/cad/engine/command-types";
+import type { CadSystemVariableValue } from "@/lib/cad/system-variables";
 import type { CadEntityCommand } from "@/lib/cad/entity-commands";
 import type { SnapType } from "@/lib/cad/snap-engine";
 import type { CadCommandLineEntry } from "./CadCommandLine";
@@ -46,6 +48,27 @@ export interface CadCommandEngineBridge {
   osnapOverride(modes: readonly SnapType[] | null): void;
   /** Forma del cursor del viewport. */
   cursor(shape: "crosshair" | "pick" | "none"): void;
+  /**
+   * Escribe variables de sistema. Devuelve los renglones que haya que enseñar
+   * —una variable rechazada explica por qué— para que el diálogo cuente lo que
+   * pasó en vez de tragarse el error.
+   */
+  variables?(
+    patch: Readonly<Record<string, CadSystemVariableValue>>,
+    system: boolean,
+  ): readonly string[];
+  /**
+   * Atiende una petición de interfaz. `false` si este espacio de trabajo no
+   * sabe abrir esa paleta; el anfitrión lo dice con el texto que trae la propia
+   * petición, que para eso lo trae.
+   */
+  ui?(request: CadUiRequest): boolean;
+  /**
+   * Deja designado exactamente esto. `false` si este anfitrión no sostiene la
+   * selección — QSELECT lo dice entonces con el número de coincidencias, que es
+   * la mitad de la respuesta, en vez de fingir que ha designado algo.
+   */
+  select?(entityIds: readonly string[]): boolean;
 }
 
 export interface CadCommandEngineSnapshot {
@@ -98,6 +121,14 @@ export class CadCommandEngineHost {
 
   private log(text: string, level: CadCommandLineEntry["level"]): void {
     if (!text) return;
+    // Un volcado de LIST o de MASSPROP son quince renglones, no un párrafo. Se
+    // parten aquí y no en el comando para que el comando siga devolviendo UN
+    // resultado —que es lo que el motor sabe manejar— y el diálogo siga
+    // guardando UN renglón por línea, que es lo que su historial cuenta.
+    if (text.includes("\n")) {
+      for (const line of text.split("\n")) this.log(line, level);
+      return;
+    }
     const last = this.history[this.history.length - 1];
     // Un prompt repetido —al reanudar un transparente, por ejemplo— no debe
     // llenar el diálogo con la misma línea dos veces seguidas.
@@ -119,6 +150,18 @@ export class CadCommandEngineHost {
 
   repeat(): void {
     this.dispatch({ kind: "repeat" });
+  }
+
+  /**
+   * Escribe un renglón en el diálogo sin pasar por el motor.
+   *
+   * Lo usa quien ejecuta un `.scr`: los avisos del script —«la línea 7 abre un
+   * cuadro»— no son la respuesta de ningún comando, pero tienen que salir por
+   * el mismo sitio o el usuario no los ve.
+   */
+  note(text: string, level: CadCommandLineEntry["level"] = "info"): void {
+    this.log(text, level);
+    this.publish();
   }
 
   cancel(): void {
@@ -196,6 +239,32 @@ export class CadCommandEngineHost {
         return;
       case "osnapOverride":
         this.bridge.osnapOverride(effect.modes);
+        return;
+      case "variables": {
+        if (!this.bridge.variables) {
+          this.log(
+            "Este espacio de trabajo no sostiene las variables de sistema; el cambio no se ha aplicado.",
+            "error",
+          );
+          return;
+        }
+        for (const line of this.bridge.variables(effect.patch, effect.system))
+          this.log(line, "info");
+        return;
+      }
+      case "ui":
+        // Que nadie sepa abrir la paleta NO es un fallo del comando: es un
+        // espacio de trabajo que todavía no la monta. Se dice con el texto que
+        // trae la petición, que nombra lo que el usuario se pierde.
+        if (!this.bridge.ui?.(effect.request)) this.log(effect.request.unavailable, "error");
+        return;
+      case "selection":
+        if (!this.bridge.select?.(effect.entityIds))
+          this.log(
+            `Este espacio de trabajo no sostiene la designación desde la línea de comandos: ` +
+              `${effect.entityIds.length} objeto(s) casan con el filtro, pero no se han designado.`,
+            "error",
+          );
         return;
       case "cursor":
         this.bridge.cursor(effect.cursor);

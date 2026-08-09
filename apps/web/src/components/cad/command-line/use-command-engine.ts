@@ -22,11 +22,14 @@
  * despacharse desde un manejador que corre ANTES de que los efectos de ese
  * render se hayan ejecutado.
  */
-import { useMemo, useRef, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import { CAD_COMMAND_REGISTRY_V2 } from "@/lib/cad/engine";
+import { requestCadUi } from "@/components/cad/palettes/palette-command-bus";
 import type { CadDocument } from "@/lib/cad/cad-document";
 import type { CadEntityCommand } from "@/lib/cad/entity-commands";
+import { runCadScript } from "@/lib/cad/script-runner";
 import type { CadView } from "@/lib/cad/view/cad-view";
+import { useCadFileCommandHandlers, useCadSessionState } from "./session-catalogs";
 import {
   CadCommandEngineHost,
   type CadCommandEngineBridge,
@@ -47,6 +50,9 @@ export function useCadCommandEngineHost(
         preview: (paths) => live.current.preview(paths),
         osnapOverride: (modes) => live.current.osnapOverride(modes),
         cursor: (shape) => live.current.cursor(shape),
+        variables: (patch, system) => live.current.variables?.(patch, system) ?? [],
+        ui: (request) => live.current.ui?.(request) ?? false,
+        select: (entityIds) => live.current.select?.(entityIds) ?? false,
       }),
     [],
   );
@@ -71,17 +77,29 @@ export interface CadStudioCommandEngineOptions {
   newEntityId: () => string;
   /** Aplica el lote por la ruta canónica del editor. */
   apply(commands: readonly CadEntityCommand[], label: string): void;
+  /**
+   * Deja designado exactamente esto. Es lo que QSELECT y FILTER necesitan para
+   * que designar por propiedades signifique algo.
+   *
+   * Opcional porque la selección la sostiene el editor y esta ola no puede
+   * tocarlo. Sin ella los dos comandos siguen funcionando y CUENTAN cuántos
+   * objetos casan; lo que no hacen es designarlos.
+   */
+  setSelection?(entityIds: readonly string[]): void;
 }
 
 export function useCadStudioCommandEngine(
   options: CadStudioCommandEngineOptions,
 ): CadCommandEngineHost {
-  return useCadCommandEngineHost({
+  const session = useCadSessionState();
+  const host = useCadCommandEngineHost({
     context: () =>
       cadStudioCommandContext({
         document: options.document.current,
         selection: options.selection.current,
         activeLayer: options.activeLayer,
+        variables: session.variables,
+        catalogs: session.catalogs,
         view: options.view.current?.view ?? null,
         // El puntero todavía no pasa por el motor: mientras no pase, no hay
         // cursor que ofrecer. Se dice que no lo hay en vez de fingir el origen,
@@ -96,7 +114,40 @@ export function useCadStudioCommandEngine(
     preview: () => {},
     osnapOverride: () => {},
     cursor: () => {},
+    variables: (patch, system) => {
+      const lines: string[] = [];
+      for (const [name, value] of Object.entries(patch)) {
+        const outcome = system
+          ? session.variables.publish(name, value)
+          : session.variables.set(name, value);
+        if (!outcome.ok) lines.push(outcome.reason);
+      }
+      return lines;
+    },
+    ui: (request) => requestCadUi(request),
+    select: (entityIds) => {
+      if (!options.setSelection) return false;
+      options.setSelection(entityIds);
+      return true;
+    },
   });
+
+  // Los dos manejadores que necesitan leer un archivo. Van aquí porque SCRIPT
+  // tiene que volver a entrar por el MISMO anfitrión: un script es entrada
+  // tecleada, y meterla por otra puerta sería un segundo intérprete.
+  useCadFileCommandHandlers(
+    session,
+    useCallback(
+      (name: string, text: string) => {
+        const report = runCadScript(text, host);
+        for (const warning of report.warnings) host.note(warning, "error");
+        host.note(`${name}: ${report.executed} renglón(es) ejecutado(s).`, "info");
+      },
+      [host],
+    ),
+  );
+
+  return host;
 }
 
 /**

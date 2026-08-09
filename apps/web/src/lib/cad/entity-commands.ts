@@ -20,6 +20,7 @@ import {
   type CadEntityContext,
   type CadEntityPresentation,
   type CadImageDefinition,
+  type CadLayerDef,
   type CadParameter,
   type CadPoint2,
 } from "./cad-document";
@@ -120,13 +121,49 @@ export type CadEntityCommand =
       op: "set";
       parameter: { name: string; expression: string; comment?: string };
     }
-  | { type: "parameter"; entity?: undefined; op: "delete"; name: string };
+  | { type: "parameter"; entity?: undefined; op: "delete"; name: string }
+  /**
+   * Tabla de capas: otra SECCIÓN del documento, por el mismo embudo.
+   *
+   * Existe porque `-LAYER` y LAYERSTATE tienen que poder crear una capa y
+   * restaurar cuarenta desde la línea de comandos, y hacerlo por fuera del lote
+   * habría abierto una segunda ruta de mutación: restaurar un estado de capa
+   * dejaría cuarenta pasos de deshacer, o ninguno, según por dónde se entrase.
+   * Un `upsert` con un nombre que ya existe MODIFICA esa capa; el nombre es la
+   * identidad, como en DXF.
+   */
+  | { type: "layer"; entity?: undefined; op: "upsert"; layer: CadLayerDef }
+  | { type: "layer"; entity?: undefined; op: "delete"; name: string; reassignTo: string }
+  /**
+   * Orden de dibujo (DRAWORDER). Toca `modelSpace.entityIds` y NADA más: quién
+   * tapa a quién es una propiedad del espacio, no de la entidad.
+   *
+   * `above`/`below` necesitan `referenceId`; `front`/`back` lo ignoran.
+   */
+  | {
+      type: "draw-order";
+      entity?: undefined;
+      entityIds: readonly string[];
+      placement: "front" | "back" | "above" | "below";
+      referenceId?: string;
+    };
 
 /** Los que operan sobre secciones del documento y no sobre entidades. */
 type CadDocumentSectionCommand = Extract<CadEntityCommand, { type: "constraint" | "parameter" }>;
 
+/**
+ * Tablas del documento que no pasan por el solucionador: capas y orden de
+ * dibujo. Se separan de las restricciones porque aquéllas obligan a resolver el
+ * sistema entero y éstas no tienen por qué pagarlo — restaurar un estado de
+ * cuarenta capas no mueve un solo punto.
+ */
+type CadDocumentTableCommand = Extract<CadEntityCommand, { type: "layer" | "draw-order" }>;
+
 const isSectionCommand = (command: CadEntityCommand): command is CadDocumentSectionCommand =>
   command.type === "constraint" || command.type === "parameter";
+
+const isTableCommand = (command: CadEntityCommand): command is CadDocumentTableCommand =>
+  command.type === "layer" || command.type === "draw-order";
 
 export interface CadEntityCommandResult {
   document: CadDocument;
@@ -148,6 +185,8 @@ function cadEntityCommandLabel(
   if (command.type === "insert") return `insert:${command.entity.type}`;
   if (command.type === "image-definition") return `image-definition:${command.definition.id}`;
   if (isSectionCommand(command)) return `${command.type}:${command.op}`;
+  if (command.type === "layer") return `layer:${command.op}`;
+  if (command.type === "draw-order") return `draw-order:${command.placement}`;
   const source = document.entities.find((entity) => entity.id === command.entityId);
   if (!source || !registry.supports(source))
     throw new Error(`Native CAD entity ${command.entityId} was not found.`);
@@ -204,10 +243,15 @@ export function executeCadEntityCommandBatch(
   };
 
   const sectionCommands: CadDocumentSectionCommand[] = [];
+  const tableCommands: CadDocumentTableCommand[] = [];
 
   for (const command of commands) {
     if (isSectionCommand(command)) {
       sectionCommands.push(command);
+      continue;
+    }
+    if (isTableCommand(command)) {
+      tableCommands.push(command);
       continue;
     }
     if (command.type === "insert") {
@@ -376,11 +420,14 @@ export function executeCadEntityCommandBatch(
     // fantasmas ni omisiones.
     document.modelSpace.entityIds.filter((id) => !deleted.has(id)).concat(createdFrontIds),
   );
+  const tables = applyDocumentTables(document, tableCommands, [...createdBackIds, ...ordered], entities);
+  for (const entityId of tables.touchedEntityIds) touchedIds.push(entityId);
   const staged: CadDocument = {
     ...document,
-    entities,
+    entities: tables.entities,
+    layers: tables.layers,
     constraints: sections.constraints,
-    modelSpace: { entityIds: [...createdBackIds, ...ordered] },
+    modelSpace: { entityIds: tables.entityOrder },
     // Mismo criterio que `parameters` justo debajo: el catálogo de imágenes
     // sólo viaja si el lote lo tocó o si el documento ya lo traía.
     ...(imageDefinitions ? { imageDefinitions } : {}),
@@ -484,6 +531,99 @@ function applyDocumentSections(
     if (before && JSON.stringify(before) !== JSON.stringify(entity)) movedEntityIds.push(entity.id);
   }
   return { constraints, parameters: parameters.length > 0 ? parameters : undefined, movedEntityIds };
+}
+
+/**
+ * Reordena `entityIds` colocando `moving` donde diga `placement`.
+ *
+ * Los que se mueven conservan su orden RELATIVO entre sí. Sin eso, «traer al
+ * frente» tres objetos apilados los devolvería en el orden en que se
+ * designaron, que casi nunca es el orden en que estaban — y quien trae al
+ * frente un grupo espera encontrarlo tal cual estaba, sólo que arriba.
+ */
+function reorderDrawOrder(
+  entityIds: readonly string[],
+  moving: readonly string[],
+  placement: "front" | "back" | "above" | "below",
+  referenceId: string | undefined,
+): string[] {
+  const target = new Set(moving.filter((id) => entityIds.includes(id)));
+  if (target.size === 0) return [...entityIds];
+  // Una referencia que también se mueve no es una referencia: sería un objeto
+  // colocándose respecto de sí mismo.
+  if ((placement === "above" || placement === "below") && (!referenceId || target.has(referenceId)))
+    throw new Error("DRAWORDER necesita un objeto de referencia que no esté entre los designados.");
+
+  const kept = entityIds.filter((id) => !target.has(id));
+  const picked = entityIds.filter((id) => target.has(id));
+  if (placement === "front") return [...kept, ...picked];
+  if (placement === "back") return [...picked, ...kept];
+  const at = kept.indexOf(referenceId as string);
+  if (at < 0) throw new Error(`DRAWORDER no encuentra el objeto de referencia ${referenceId}.`);
+  const cut = placement === "above" ? at + 1 : at;
+  return [...kept.slice(0, cut), ...picked, ...kept.slice(cut)];
+}
+
+/**
+ * Aplica las tablas del documento: capas y orden de dibujo.
+ *
+ * Borrar una capa REASIGNA sus entidades en la misma transacción. Dejarlas
+ * apuntando a una capa que ya no existe produciría un documento que se abre
+ * pero no se puede dibujar, y el error aparecería tres sesiones después.
+ */
+function applyDocumentTables(
+  document: CadDocument,
+  commands: readonly CadDocumentTableCommand[],
+  entityOrder: readonly string[],
+  entities: readonly CadEntity[],
+): {
+  layers: CadLayerDef[];
+  entityOrder: string[];
+  entities: CadEntity[];
+  touchedEntityIds: string[];
+} {
+  if (commands.length === 0)
+    return {
+      layers: document.layers,
+      entityOrder: [...entityOrder],
+      entities: [...entities],
+      touchedEntityIds: [],
+    };
+
+  let layers = [...document.layers];
+  let order = [...entityOrder];
+  let current = [...entities];
+  const touchedEntityIds: string[] = [];
+
+  for (const command of commands) {
+    if (command.type === "draw-order") {
+      order = reorderDrawOrder(order, command.entityIds, command.placement, command.referenceId);
+      for (const entityId of command.entityIds) touchedEntityIds.push(entityId);
+      continue;
+    }
+    if (command.op === "delete") {
+      const key = command.name.trim().toUpperCase();
+      if (key === "0") throw new Error("La capa 0 no se puede borrar.");
+      if (!layers.some((layer) => layer.name.toUpperCase() === key))
+        throw new Error(`No existe la capa "${command.name}".`);
+      if (!layers.some((layer) => layer.name.toUpperCase() === command.reassignTo.toUpperCase()))
+        throw new Error(`No existe la capa de destino "${command.reassignTo}".`);
+      layers = layers.filter((layer) => layer.name.toUpperCase() !== key);
+      current = current.map((entity) => {
+        if (!("layer" in entity) || entity.layer.toUpperCase() !== key) return entity;
+        touchedEntityIds.push(entity.id);
+        return { ...entity, layer: command.reassignTo };
+      });
+      continue;
+    }
+    const key = command.layer.name.trim().toUpperCase();
+    if (!key) throw new Error("Una capa necesita un nombre.");
+    const at = layers.findIndex((layer) => layer.name.toUpperCase() === key);
+    if (at >= 0) layers = layers.map((layer, index) => (index === at ? { ...command.layer } : layer));
+    else layers = [...layers, { ...command.layer }];
+  }
+
+  return { layers, entityOrder: order, entities: current, touchedEntityIds };
 }
 
 export function executeCadEntityCommand(
