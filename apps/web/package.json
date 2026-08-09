@@ -37,6 +37,7 @@
     "@types/react-dom": "^19",
     "@types/three": "^0.182.0",
     "cross-env": "^7.0.3",
+    "esbuild": "^0.28.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
     "glob": "^13.0.6",
