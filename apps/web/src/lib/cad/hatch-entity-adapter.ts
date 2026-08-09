@@ -229,7 +229,12 @@ export const hatchAdapter: CadEntityAdapter<CadHatchEntity> = {
       // hacia el mismo lado después de espejarlo, así que el sombreado de la
       // planta reflejada saldría rayado al revés que su original — la clase de
       // error que sólo se ve en la lámina impresa, al comparar las dos alas.
-      ...(entity.angle === undefined && angleBase === 0
+      //
+      // El `!reflecting` del guarda no sobra: un espejo sobre el eje X tiene
+      // `angleBase === 0`, así que sin él un sombreado SIN ángulo explícito se
+      // saltaba la escritura y conservaba su 45° por defecto — el único caso en
+      // que la regla de reflexión se anulaba a sí misma, y justo el más común.
+      ...(entity.angle === undefined && angleBase === 0 && !reflecting
         ? {}
         : {
             angle: normalizeAngleDeg(
