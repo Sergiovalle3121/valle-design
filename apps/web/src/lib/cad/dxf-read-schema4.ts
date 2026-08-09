@@ -55,7 +55,29 @@ export interface CadDxfImportedImageDefinition {
 export interface CadDxfSchema4ImportResult {
   primitives: CadDxfPrimitive[];
   imageDefinitions: CadDxfImportedImageDefinition[];
+  /**
+   * Tipos de la sección ENTITIES en ORDEN de fichero, con el índice de la
+   * primitiva del esquema 4 cuando la entidad es de las que lee este módulo.
+   *
+   * Existe para que el importador pueda INTERCALAR estas primitivas donde
+   * estaban en vez de amontonarlas al principio. El orden de la sección
+   * ENTITIES ES el orden de dibujo, y para un WIPEOUT eso no es cosmético: su
+   * sitio en la pila es lo que decide qué tapa.
+   */
+  order: CadDxfSchema4Ordinal[];
 }
+
+export interface CadDxfSchema4Ordinal {
+  type: string;
+  /** Índice en `primitives`, o `null` si la entidad no es del esquema 4. */
+  schema4Index: number | null;
+}
+
+/**
+ * Tipos que NO son entidades por derecho propio: cuelgan de la anterior. Se
+ * excluyen del orden porque el tokenizador tampoco los cuenta como entidades.
+ */
+const DXF_SUBENTITY_TYPES = new Set(["VERTEX", "SEQEND", "ATTRIB"]);
 
 /** Vista de una entidad: sus pares, con acceso por código. */
 class EntityPairs {
@@ -159,6 +181,7 @@ function denormalizeBoundary(
 export function parseRawDxfSchema4(text: string): CadDxfSchema4ImportResult {
   const pairs = rawDxfPairs(text);
   const primitives: CadDxfPrimitive[] = [];
+  const order: CadDxfSchema4Ordinal[] = [];
 
   // 1. Diccionarios y definiciones de imagen. Se leen ANTES que las entidades
   //    porque una IMAGE sin su IMAGEDEF resuelto no puede construirse.
@@ -201,9 +224,19 @@ export function parseRawDxfSchema4(text: string): CadDxfSchema4ImportResult {
   // 2. Entidades del MODELO. Las de la sección BLOCKS llegan al dibujo por su
   //    INSERT, no sueltas.
   for (const [type, entity] of walkSection(pairs, "ENTITIES")) {
+    if (DXF_SUBENTITY_TYPES.has(type)) continue;
+    // El hueco se anota SIEMPRE, aunque la entidad no sea del esquema 4 o se
+    // descarte por degenerada: lo que hace útil esta lista es que sea el orden
+    // COMPLETO de la sección.
+    const slot = order.length;
+    order.push({ type, schema4Index: null });
+    const claim = () => {
+      order[slot].schema4Index = primitives.length;
+    };
     const layer = entity.layer();
     const anchor = entity.point(10, 20);
     if (type === "POINT" && anchor) {
+      claim();
       primitives.push({
         kind: "point",
         layer,
@@ -219,6 +252,7 @@ export function parseRawDxfSchema4(text: string): CadDxfSchema4ImportResult {
     if ((type === "XLINE" || type === "RAY") && anchor) {
       const direction = entity.point(11, 21);
       if (!direction || (!direction.x && !direction.y)) continue;
+      claim();
       primitives.push({
         kind: type === "RAY" ? "ray" : "xline",
         layer,
@@ -235,6 +269,7 @@ export function parseRawDxfSchema4(text: string): CadDxfSchema4ImportResult {
       // triangular repite su tercer vértice en el cuarto grupo.
       const contour =
         Math.abs(c.x - d.x) < 1e-9 && Math.abs(c.y - d.y) < 1e-9 ? [a, b, c] : [a, b, d, c];
+      claim();
       primitives.push({ kind: "solid", layer, points: contour, schema4: { kind: "solid" } });
       continue;
     }
@@ -243,6 +278,7 @@ export function parseRawDxfSchema4(text: string): CadDxfSchema4ImportResult {
       const height = entity.number(22, 0) || entity.number(12, 0);
       const boundary = denormalizeBoundary(entity, anchor, width, height);
       if (boundary.length < 3) continue;
+      claim();
       primitives.push({
         kind: "wipeout",
         layer,
@@ -266,6 +302,7 @@ export function parseRawDxfSchema4(text: string): CadDxfSchema4ImportResult {
         Math.abs(uVector.x) * pixelWidth,
         Math.abs(vVector.y) * pixelHeight,
       );
+      claim();
       primitives.push({
         kind: "image",
         layer,
@@ -297,6 +334,7 @@ export function parseRawDxfSchema4(text: string): CadDxfSchema4ImportResult {
       // Con 72 o 74 distintos de 0, la posición REAL es el grupo 11: leer el 10
       // dejaría todo ATTDEF centrado en el origen del dibujo.
       const aligned = alignment === "bottom-left" ? anchor : entity.point(11, 21) ?? anchor;
+      claim();
       primitives.push({
         kind: "attdef",
         layer,
@@ -330,5 +368,6 @@ export function parseRawDxfSchema4(text: string): CadDxfSchema4ImportResult {
   return {
     primitives,
     imageDefinitions: [...imageDefs.values()].filter((definition) => used.has(definition.id)),
+    order,
   };
 }

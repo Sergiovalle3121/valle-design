@@ -870,17 +870,47 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
   const inserts = entities
     .filter((entity) => String(entity?.type || "").toUpperCase() === "INSERT")
     .map((entity) => semanticInsert(entity, blockXdata));
-  const primitives: CadDxfPrimitive[] = [...schema4.primitives];
-  const primitiveSources: CadDxfImportResult["primitiveSources"] = schema4.primitives.map(
-    () => "entity" as const,
-  );
-  const layers = new Set<string>(schema4.primitives.map((primitive) => primitive.layer));
+  const primitives: CadDxfPrimitive[] = [];
+  const primitiveSources: CadDxfImportResult["primitiveSources"] = [];
+  const layers = new Set<string>();
+  /**
+   * Cursor sobre el orden REAL de la sección ENTITIES.
+   *
+   * Las primitivas del esquema 4 se intercalan donde estaban en vez de
+   * amontonarse al principio: el orden de esa sección ES el orden de dibujo, y
+   * para un WIPEOUT eso no es cosmético — su sitio en la pila es lo que decide
+   * qué tapa. El cursor se sincroniza por TIPO, así que si el tokenizador se
+   * saltó una entidad que el recorrido crudo sí vio, el desfase se corrige solo
+   * en la siguiente coincidencia.
+   */
+  let orderCursor = 0;
+  /**
+   * Avanza hasta consumir el hueco de la entidad `type` que el tokenizador está
+   * entregando, emitiendo por el camino las primitivas del esquema 4 que la
+   * preceden. Con `null` vacía lo que quede detrás de la última.
+   */
+  const flushSchema4Upto = (type: string | null) => {
+    while (orderCursor < schema4.order.length) {
+      const slot = schema4.order[orderCursor];
+      orderCursor += 1;
+      if (slot.schema4Index !== null) {
+        const primitive = schema4.primitives[slot.schema4Index];
+        primitives.push(primitive);
+        primitiveSources.push("entity");
+        layers.add(primitive.layer);
+      }
+      // Este hueco ES el de la entidad que trae el tokenizador: se para aquí.
+      if (type !== null && slot.type === type) return;
+    }
+  };
+
   const semanticDimensionBlocks = new Set(semanticDimensions.map((dimension) => dimension.blockName));
   const semanticMleaderOrdinals = new Set(mleaders.map((mleader) => mleader.sourceOrdinal));
   let mleaderOrdinal = -1;
   for (const entity of entities) {
     if (primitives.length >= remainingEntityCapacity) break;
     const type = String(entity?.type || "").toUpperCase();
+    flushSchema4Upto(type);
     if (type === "MLEADER") {
       mleaderOrdinal += 1;
       if (semanticMleaderOrdinals.has(mleaderOrdinal)) continue;
@@ -920,6 +950,8 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
     }
     if (mapped.warning) warnings.push(mapped.warning);
   }
+  // Lo que quedara detrás de la última entidad tokenizada.
+  flushSchema4Upto(null);
   if (
     Array.isArray(parsed?.entities) &&
     parsed.entities.length > remainingEntityCapacity
