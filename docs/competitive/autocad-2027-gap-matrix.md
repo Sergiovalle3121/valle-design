@@ -233,10 +233,10 @@ pedía. Van aquí con su evidencia porque son el subproducto útil del ejercicio
 3. **El PDF sólo existe dentro del monolito.** `jspdf` se importa únicamente
    desde `Layout3DEditor.tsx:14742` y `:15892`, no desde `plot-sheet.ts` ni desde
    `layout-export-adapter.ts`. La capacidad de publicar está acoplada a un
-   componente de 23.316 líneas con 153 `useState`, que es también el único
-   consumidor de `planCadNativeRenderBudget` (`:236`, usado en `:4428`). Cualquier
-   plan de sacar el ploteo del monolito empieza aquí. Las 23.316 líneas y los
-   153 `useState` los reporta el propio `npm run check:monolith-budget`.
+   componente de 23.316 líneas con 153 `useState` —las dos cifras las reporta
+   `npm run check:monolith-budget`—, que es además el único consumidor de
+   `planCadNativeRenderBudget` (`:236`, usado en `:4428`). Cualquier plan de sacar
+   el ploteo del monolito empieza aquí.
 
 4. **La brecha de comandos es de anotación, no de dibujo.** De los 80 alias sin
    resolver, el bloque más caro comercialmente es homogéneo: `H` (HATCH), `T`/`MT`
@@ -274,7 +274,7 @@ por puntos entre días declarados en `costDays`. Reproducible con
 Nueve de los diez son comandos que no se pueden teclear sobre motores que ya
 existen. Eso es lo que dicen los datos, y coincide con el defecto 4: **la ola 3
 es una ola de puertas de entrada, no de motores**. 22 puntos por unos 44 días
-declarados, frente a los 8 puntos de DWG por 120.
+declarados, frente a los 6 puntos que le faltan a DWG por 120 días.
 
 Los `costDays` los declara quien escribe el criterio y no afectan a la nota; si
 una estimación es mala, lo que sale mal es el orden de la ola, no la puntuación.
