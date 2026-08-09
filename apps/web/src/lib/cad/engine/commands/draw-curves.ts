@@ -377,7 +377,14 @@ function ellipseFinish(
             majorAxis: flat(major),
             ratio,
             startParameter: 0,
-            endParameter: Math.PI * 2,
+            // GRADOS, no radianes. `Math.PI * 2` son 6,28 GRADOS: un gajo de
+            // elipse de seis grados donde el usuario pidió la elipse entera.
+            // Toda la convención del producto está en grados —`tessellateEllipse`
+            // los recibe así, `paper-space` compara contra 359,999, la
+            // importación DXF escribe `0…360`— y este comando era el único sitio
+            // que escribía radianes. Lo dejó anotado la ola de MIRROR como
+            // defecto conocido, fuera de su alcance.
+            endParameter: 360,
             layer: context.activeLayer,
           },
         },

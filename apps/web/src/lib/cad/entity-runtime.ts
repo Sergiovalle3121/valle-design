@@ -5,11 +5,7 @@ import {
   type CadPoint2,
   type CadPoint3,
 } from "./cad-document";
-import {
-  tessellateArc,
-  tessellateEllipse,
-  tessellateSpline,
-} from "./curve-tessellate";
+import { tessellateArc, tessellateEllipse } from "./curve-tessellate";
 import { hatchPolygon } from "./hatch";
 import { layoutCadMText } from "./mtext-layout";
 import {
@@ -37,6 +33,7 @@ import {
 } from "./entity-hit-geometry";
 import { hatchAdapter } from "./hatch-entity-adapter";
 import { polylineAdapter } from "./polyline-entity-adapter";
+import { splineAdapter } from "./spline-entity-adapter";
 import { pointAdapter, rayAdapter, xlineAdapter } from "./point-line-adapters";
 import { imageAdapter, solidAdapter, wipeoutAdapter } from "./fill-entity-adapters";
 import { attdefAdapter, tableAdapter } from "./annotation-v4-adapters";
@@ -675,105 +672,6 @@ const ellipseAdapter: CadEntityAdapter<
         context: cloneContext(entity.context),
       };
     },
-  },
-};
-
-const splineRenderer: CadEntityRenderer<
-  Extract<CadNativeEntity, { type: "spline" }>
-> = {
-  paths: (entity, segments = 96) => [
-    {
-      points: tessellateSpline(
-        entity.controlPoints,
-        entity.degree,
-        entity.knots,
-        segments,
-      ),
-      closed: entity.closed === true,
-    },
-  ],
-};
-
-const splineBounds: CadBoundsProvider<
-  Extract<CadNativeEntity, { type: "spline" }>
-> = {
-  bounds: (entity) =>
-    pointsBounds(splineRenderer.paths(entity, 160)[0].points),
-};
-
-const splineAdapter: CadEntityAdapter<
-  Extract<CadNativeEntity, { type: "spline" }>
-> = {
-  type: "spline",
-  renderer: splineRenderer,
-  bounds: splineBounds,
-  hitTester: commonHitTester(splineRenderer, splineBounds),
-  grips: {
-    grips: (entity) =>
-      entity.controlPoints.map((point, index) => ({
-        id: `control:${index}`,
-        kind: "control",
-        point,
-        label: `Control ${index + 1}`,
-      })),
-    moveGrip: (entity, gripId, point) => {
-      const index = Number(gripId.split(":")[1]);
-      if (!Number.isInteger(index) || !entity.controlPoints[index]) return entity;
-      return {
-        ...entity,
-        controlPoints: entity.controlPoints.map((control, current) =>
-          current === index ? point3(point, control.z) : { ...control },
-        ),
-      };
-    },
-  },
-  snaps: {
-    snaps: (entity) =>
-      entity.controlPoints.map((point, index) => ({
-        kind:
-          index === 0 || index === entity.controlPoints.length - 1
-            ? ("endpoint" as const)
-            : ("control" as const),
-        point,
-        label:
-          index === 0
-            ? "Extremo inicial"
-            : index === entity.controlPoints.length - 1
-              ? "Extremo final"
-              : `Control ${index + 1}`,
-      })),
-  },
-  properties: {
-    read: (entity) => ({
-      degree: entity.degree,
-      controlPointCount: entity.controlPoints.length,
-      closed: entity.closed === true,
-      layer: entity.layer,
-    }),
-    write: (entity, patch) => ({
-      ...entity,
-      degree: Math.max(
-        1,
-        Math.min(
-          entity.controlPoints.length - 1,
-          Math.floor(finite(patch.degree, entity.degree)),
-        ),
-      ),
-      closed:
-        typeof patch.closed === "boolean" ? patch.closed : entity.closed,
-      layer: typeof patch.layer === "string" ? patch.layer : entity.layer,
-    }),
-  },
-  commands: {
-    transform: (entity, transform) => ({
-      ...entity,
-      controlPoints: entity.controlPoints.map((point) =>
-        transformPoint(point, transform),
-      ),
-      knots: [...entity.knots],
-      ...(entity.weights ? { weights: [...entity.weights] } : {}),
-      context: cloneContext(entity.context),
-    }),
   },
 };
 
