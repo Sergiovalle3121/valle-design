@@ -2,7 +2,11 @@ import {
   EMPTY_DWG_DIAGNOSTICS,
   EMPTY_DWG_LOSS_MANIFEST,
 } from "./diagnostics.js";
-import { createDwgLimits, type DwgLimitOverrides } from "./limits.js";
+import {
+  createDwgLimits,
+  type DwgLimitOverrides,
+  type DwgLimitProfile,
+} from "./limits.js";
 import type { DwgProbeMetadata, DwgProbeResult } from "./results.js";
 import { detectDwgSignature } from "../container/signature.js";
 import { lookupDwgVersion } from "../container/version-registry.js";
@@ -19,6 +23,7 @@ import {
 } from "../security/resource-budget.js";
 
 export interface DwgProbeOptions {
+  readonly profile?: DwgLimitProfile;
   readonly limits?: DwgLimitOverrides;
   readonly clock?: DwgClock;
   readonly signal?: DwgCancellationSignal;
@@ -39,7 +44,13 @@ function validateOptions(options: unknown): asserts options is DwgProbeOptions {
     );
   }
   const record = options as Record<string, unknown>;
-  const allowed = ["limits", "clock", "signal", "deadlineMs"] as const;
+  const allowed = [
+    "profile",
+    "limits",
+    "clock",
+    "signal",
+    "deadlineMs",
+  ] as const;
   for (const name of Object.keys(record)) {
     if (!allowed.includes(name as (typeof allowed)[number])) {
       throwDwgError(
@@ -49,6 +60,18 @@ function validateOptions(options: unknown): asserts options is DwgProbeOptions {
         "Probe options contain an unknown field.",
       );
     }
+  }
+  if (
+    record.profile !== undefined &&
+    record.profile !== "browser" &&
+    record.profile !== "api"
+  ) {
+    throwDwgError(
+      "DWG_INPUT_INVALID",
+      "input",
+      0,
+      "The probe resource profile is invalid.",
+    );
   }
   const clock = record.clock;
   if (
@@ -101,7 +124,7 @@ export function probeDwg(
   let budget: ResourceBudget | undefined;
   try {
     validateOptions(options);
-    const limits = createDwgLimits(options.limits);
+    const limits = createDwgLimits(options.limits, options.profile);
     budget = new ResourceBudget(limits, {
       ...(options.clock === undefined ? {} : { clock: options.clock }),
       ...(options.signal === undefined ? {} : { signal: options.signal }),

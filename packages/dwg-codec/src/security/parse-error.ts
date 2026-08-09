@@ -6,6 +6,10 @@ export const DWG_ERROR_CODES = [
   "DWG_SIGNATURE_INVALID",
   "DWG_VERSION_UNKNOWN",
   "DWG_VERSION_DECODER_UNSUPPORTED",
+  "DWG_VERSION_WRITER_UNSUPPORTED",
+  "DWG_OUTPUT_LIMIT_EXCEEDED",
+  "DWG_MEMORY_LIMIT_EXCEEDED",
+  "DWG_EXPANSION_LIMIT_EXCEEDED",
   "DWG_WORK_LIMIT_EXCEEDED",
   "DWG_CANCELLED",
   "DWG_DEADLINE_EXCEEDED",
@@ -72,6 +76,6 @@ export function normalizeDwgError(error: unknown): DwgError {
     "DWG_INTERNAL_ERROR",
     "internal",
     0,
-    "The probe failed without exposing implementation details.",
+    "The DWG operation failed without exposing implementation details.",
   );
 }

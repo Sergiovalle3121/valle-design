@@ -61,19 +61,28 @@ vista no confiable
 
 ## Límites mínimos que el código debe exponer
 
-`DwgLimits` es inmutable y limita tamaño del archivo, secciones, objetos,
-handles, referencias, profundidad, strings, arrays, trabajo total, intervalo de
-polling, tiempo de pared y bytes descomprimidos. Cada uno se prueba en su mínimo,
-máximo y un valor por encima. Un tamaño no confiable nunca se usa para reservar
-antes de compararlo con el budget.
+`DwgLimits` es inmutable y limita por separado tamaño del archivo, memoria
+concurrente, secciones, objetos, handles, referencias, profundidad, strings,
+arrays, trabajo total, intervalo de polling, tiempo de pared y bytes expandidos.
+Cada uno se prueba en su mínimo, máximo de perfil y un valor por encima. Un
+tamaño no confiable nunca se usa para reservar antes de compararlo con el
+budget; `maxFileBytes` nunca se interpreta como un permiso de RAM.
 
 El contador de trabajo determinista es el límite reproducible del núcleo. Un
 reloj inyectado y una señal de cancelación se consultan cada cantidad fija de
 trabajo; su vencimiento devuelve un error tipado sin estado parcial. Además, un
-supervisor termina el worker si un bug impide cooperar con el deadline. Las
-pruebas usan reloj falso para fijar el resultado y una prueba separada demuestra
-la terminación externa. La frontera pública no puede filtrar `RangeError`, panic
-o excepciones sin tipar.
+supervisor solicita la terminación si un bug impide cooperar con el deadline y
+espera su confirmación bajo un timer interno acotado. Si el host no confirma la
+terminación, el supervisor devuelve un fallo tipado de terminación no confirmada:
+eso no demuestra que el worker haya muerto y el proceso contenedor debe seguir
+siendo el límite externo. Las pruebas usan reloj falso para fijar el resultado y
+pruebas separadas cubren confirmación, rechazo, thenables pendientes y hostiles.
+La frontera pública no puede filtrar `RangeError`, panic o excepciones sin tipar.
+
+Las reservas del budget son estimaciones conservadoras independientes del motor,
+aplicadas antes de crear copias, arreglos, mapas, sets y strings relevantes. No
+son telemetría exacta del heap ni una garantía contra toda presión de GC; por eso
+no reemplazan el aislamiento y límite de memoria del worker o proceso.
 
 ## Casos adversariales mínimos
 
@@ -87,6 +96,8 @@ o excepciones sin tipar.
 - dos ejecuciones idénticas con resultado/error byte por byte equivalente; y
 - deadline/cancelación con reloj falso y hard timeout de un worker no
   cooperativo;
+- respuesta de worker incompleta, proxy hostil y resultado específico de
+  operación inválido, siempre sin promover estado parcial;
 - rechazo de `SharedArrayBuffer` y estabilidad ante mutación del buffer original
   después de crear el snapshot; y
 - prueba estática y dinámica de ausencia de red y filesystem.
@@ -103,6 +114,12 @@ evidencia de seguridad o compatibilidad para una fase posterior.
 Fixtures sintéticos pueden ocultar una interpretación equivocada del formato.
 Fuzz smoke determinista no sustituye fuzzing sostenido ni sanitizers. TypeScript
 reduce complejidad de toolchain, pero requiere polling cooperativo y supervisor
-para controlar tiempo y no evita presión de GC. Cualquier decoder de una
-estructura real permanece `experimental` hasta validación independiente,
-revisión de procedencia y CI sobre el SHA exacto.
+para controlar tiempo y no evita presión de GC. Un parser, scheduler o
+`terminate()` síncrono no cooperativo tampoco es preemptable dentro de su propio
+realm; el hard timeout depende de un worker o proceso externo que el host pueda
+descartar. El protocolo limita y cobra las transfer lists de requests; para
+responses, el adapter y worker first-party deben cobrar y transferir cada buffer
+antes de publicarlo. Su marker es una declaración fail-closed del contrato, no
+una prueba contra un host malicioso. Cualquier decoder de una estructura real
+permanece `experimental`
+hasta validación independiente, revisión de procedencia y CI sobre el SHA exacto.

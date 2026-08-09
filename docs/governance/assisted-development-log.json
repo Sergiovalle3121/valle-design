@@ -99,6 +99,45 @@
       "aiCoAuthorTrailers": false
     },
     {
+      "id": "DWG-04-SAFE-CORE-2026-08-09",
+      "date": "2026-08-09",
+      "initiative": "DWG-04 — núcleo seguro y contratos fail-closed",
+      "branch": "codex/dwg-04-safe-core",
+      "assistants": [
+        {
+          "name": "OpenAI Codex",
+          "role": "diseño, edición, revisión adversarial y verificación supervisada"
+        }
+      ],
+      "authority": "Plan DWG propietario y requisitos DWG-04 aprobados expresamente por Sergio Valle Zárate",
+      "firstPartyInputs": [
+        "Directiva first-party DWG-1 de Sergio Valle Zárate",
+        "Matriz de compatibilidad y políticas clean-room versionadas de Valle Design",
+        "Requisitos de contratos, límites y diagnóstico definidos por el titular"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": false,
+      "derivedAreas": [
+        "contratos públicos fail-closed aislados del producto",
+        "paridad exacta de capacidades con la matriz gobernada",
+        "perfiles de recursos browser y API",
+        "presupuestos separados de memoria, expansión y trabajo",
+        "diagnósticos y manifiesto de pérdidas estable",
+        "primitivas binarias acotadas y protocolo de worker"
+      ],
+      "fixtures": [
+        "No se añadieron fixtures DWG ni corpus externo"
+      ],
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "La aprobación y merge por Sergio del PR adopta exactamente el diff revisado; no activa reader, writer ni disponibilidad productiva."
+      },
+      "aiCoAuthorTrailers": false
+    },
+    {
       "id": "AI-ASSISTED-HISTORY-BASELINE-2026-08-09",
       "date": "2026-08-09",
       "initiative": "Línea base histórica de desarrollo asistido",

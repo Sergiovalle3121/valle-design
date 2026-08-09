@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { BitCursor } from "../../src/binary/bit-cursor.js";
+import { ByteSink } from "../../src/binary/byte-sink.js";
 import { BoundedByteCursor } from "../../src/binary/byte-cursor.js";
 import {
   assertNonNegativeSafeInteger,
@@ -12,6 +13,7 @@ import {
 } from "../../src/binary/checked-arithmetic.js";
 import { RangeTable } from "../../src/binary/range-table.js";
 import { createDwgLimits } from "../../src/api/limits.js";
+import { createInputSnapshot } from "../../src/security/input-snapshot.js";
 import { ResourceBudget } from "../../src/security/resource-budget.js";
 import { assertDwgError } from "../support/assert.js";
 import { FixedClock } from "../support/fake-clock.js";
@@ -213,4 +215,81 @@ test("range table rejects duplicate, overlap, outside and count excess", () => {
   const limited = new RangeTable(20, 1);
   limited.add("one", 0, 1);
   assertDwgError(() => limited.add("two", 2, 1), "DWG_STRUCTURE_CORRUPT");
+});
+
+test("range table precharges retained and traversal allocations with rollback", () => {
+  const exhausted = new ResourceBudget(createDwgLimits({ maxMemoryBytes: 1 }), {
+    clock: new FixedClock(0),
+  });
+  assertDwgError(
+    () => new RangeTable(20, 3, exhausted),
+    "DWG_MEMORY_LIMIT_EXCEEDED",
+  );
+  assert.equal(exhausted.memoryBytes, 0);
+
+  const budget = new ResourceBudget(
+    createDwgLimits({ maxMemoryBytes: 1_024 }),
+    { clock: new FixedClock(0) },
+  );
+  const table = new RangeTable(20, 3, budget);
+  const tableBytes = budget.memoryBytes;
+  assert.ok(tableBytes > 0);
+  table.add("one", 0, 5);
+  const retainedBytes = budget.memoryBytes;
+  assert.ok(retainedBytes > tableBytes);
+  assertDwgError(() => table.add("one", 5, 5), "DWG_STRUCTURE_CORRUPT");
+  assert.equal(budget.memoryBytes, retainedBytes);
+  assert.equal(table.ranges.length, 1);
+  assert.ok(budget.memoryBytes > retainedBytes);
+});
+
+test("snapshot cursors and subcursors share one owned allocation", () => {
+  const budget = new ResourceBudget(
+    createDwgLimits({
+      maxFileBytes: 4,
+      maxWorkUnits: 20,
+      workPollInterval: 20,
+    }),
+    { clock: new FixedClock(0) },
+  );
+  const source = Uint8Array.of(1, 2, 3, 4);
+  const snapshot = createInputSnapshot(source, budget.limits, budget);
+  const cursor = BoundedByteCursor.fromSnapshot(snapshot, budget);
+  const first = cursor.readSubcursor(2);
+  source.fill(9);
+  assert.deepEqual(first.readBytes(2), Uint8Array.of(1, 2));
+  assert.deepEqual(cursor.readBytes(2), Uint8Array.of(3, 4));
+  assert.equal(budget.workUnits, 9);
+});
+
+test("range insertion remains within a logarithmic comparison budget", () => {
+  const budget = new ResourceBudget(
+    createDwgLimits({ maxWorkUnits: 100_000, workPollInterval: 1_024 }),
+    { clock: new FixedClock(0) },
+  );
+  const count = 4_096;
+  const table = new RangeTable(count * 2, count, budget);
+  for (let index = 0; index < count; index += 1) {
+    table.add(`range-${index}`, index * 2, 1);
+  }
+  assert.equal(table.size, count);
+  assert.equal(table.ranges.length, count);
+  assert.ok(budget.workUnits < 100_000);
+});
+
+test("ByteSink writes deterministic endian values and enforces its ceiling", () => {
+  const budget = new ResourceBudget(
+    createDwgLimits({ maxWorkUnits: 100, workPollInterval: 100 }),
+    { clock: new FixedClock(0) },
+  );
+  const sink = new ByteSink(10, budget, 1);
+  sink.writeUint8(1);
+  sink.writeUint16LE(0x0203);
+  sink.writeUint16BE(0x0405);
+  sink.writeUint32LE(0x0607_0809);
+  assert.deepEqual(
+    sink.toUint8Array(),
+    Uint8Array.of(1, 3, 2, 4, 5, 9, 8, 7, 6),
+  );
+  assertDwgError(() => sink.writeUint16BE(1), "DWG_OUTPUT_LIMIT_EXCEEDED");
 });

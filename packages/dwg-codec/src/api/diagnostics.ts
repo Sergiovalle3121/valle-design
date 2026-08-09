@@ -7,9 +7,20 @@ export interface DwgDiagnostic {
   readonly message: string;
 }
 
+export type DwgLossScope = "container" | "database" | "entity";
+export type DwgLossSubjectKind = "source" | "object";
+
+export interface DwgLossSubject {
+  readonly kind: DwgLossSubjectKind;
+  /** Deterministic identifier; never a display label or array position. */
+  readonly stableId: string;
+}
+
 export interface DwgLossEntry {
   readonly code: string;
-  readonly scope: "container" | "database" | "entity";
+  readonly severity: DwgDiagnosticSeverity;
+  readonly scope: DwgLossScope;
+  readonly subject: DwgLossSubject;
   readonly message: string;
 }
 
