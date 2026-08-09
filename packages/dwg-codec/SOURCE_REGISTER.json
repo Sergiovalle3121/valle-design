@@ -84,6 +84,7 @@
         "packages/dwg-codec/scripts/schema-validation.ts",
         "packages/dwg-codec/tests/adversarial.spec.ts",
         "packages/dwg-codec/tests/unit.spec.ts",
+        "packages/dwg-codec/tests/adversarial/checker-hardening.spec.ts",
         "packages/dwg-codec/tests/adversarial/probe-boundary.spec.ts",
         "packages/dwg-codec/tests/adversarial/resource-limits.spec.ts",
         "packages/dwg-codec/tests/adversarial/worker-timeout.spec.ts",
