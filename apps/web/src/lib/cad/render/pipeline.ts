@@ -50,10 +50,10 @@ import {
   type CadTessellationCacheStats,
 } from "./tessellation-cache";
 import {
-  buildCadLineBatches,
+  CadLineBatchBuilder,
   cadDrawOrderDepth,
+  cadLineStyleKey,
   type CadLineBatch,
-  type CadLineBatchItem,
   type CadLineStyle,
 } from "./line-batch";
 import { CadRenderScheduler, type CadRenderFrameResult } from "./render-scheduler";
@@ -63,6 +63,21 @@ import type { CadTextQuadRequest } from "./text-atlas";
 export const CAD_RENDER_DEFAULT_COLOR = 0x60a5fa;
 /** Medio grosor por defecto en píxeles: un trazo de 1 px. */
 export const CAD_RENDER_DEFAULT_HALF_WIDTH_PX = 0.5;
+
+/**
+ * Segmentos que materializa como mucho una tarea del planificador.
+ *
+ * El átomo de trabajo NO puede ser el tile entero. Un tile con 256 arcos en el
+ * escalón fino son ~33.000 puntos, y producirlos cuesta más de 20 ms: la
+ * garantía de progreso del planificador —siempre ejecuta al menos una tarea—
+ * convierte ese tile en un cuadro de 20 ms por muy bien afinado que esté el
+ * presupuesto de 4 ms. Se midió así en el arnés antes de trocear.
+ *
+ * El tope va en SEGMENTOS y no en entidades porque el coste depende del nivel
+ * de detalle: 256 entidades son triviales en el escalón grueso y carísimas en el
+ * fino. Contando segmentos, el trozo se adapta solo al zoom.
+ */
+export const CAD_RENDER_CHUNK_SEGMENT_BUDGET = 2_048;
 
 export interface CadRenderView {
   /** Rectángulo de dibujo visible, ya con overscan. De `cadViewBounds`. */
@@ -109,11 +124,16 @@ export interface CadRenderViewUpdate {
 }
 
 interface ResidentTile {
-  batches: CadLineBatch[];
+  /** Constructor por cubo de estilo, vivo entre trozos del mismo tile. */
+  builders: Map<string, { style: CadLineStyle; builder: CadLineBatchBuilder }>;
+  /** Entidades del tile pendientes de materializar, y por dónde va. */
+  pending: readonly string[];
+  cursor: number;
   entityIds: string[];
   textRequests: CadTextQuadRequest[];
   instances: number;
   zoomOctave: number;
+  complete: boolean;
 }
 
 function defaultStyle(entity: CadNativeEntity): CadLineStyle {
@@ -288,26 +308,50 @@ export class CadRenderPipeline {
 
   private enqueueMissingTiles(): void {
     for (const tileId of this.visibleTiles) {
-      if (this.resident.has(tileId)) continue;
-      const tile = this.index.tile(tileId);
-      if (!tile) continue;
-      const centerX = (tile.contentBounds.minX + tile.contentBounds.maxX) / 2;
-      const centerY = (tile.contentBounds.minY + tile.contentBounds.maxY) / 2;
-      this.scheduler.enqueue({
-        key: tileId,
-        x: centerX,
-        y: centerY,
-        run: () => this.buildTile(tileId),
-      });
+      const resident = this.resident.get(tileId);
+      if (resident?.complete) continue;
+      this.enqueueTile(tileId);
     }
   }
 
-  private buildTile(tileId: CadTileId): void {
-    const entityIds = this.index.entityIdsInTile(tileId);
-    const items: CadLineBatchItem[] = [];
-    const textRequests: CadTextQuadRequest[] = [];
-    const rendered: string[] = [];
-    for (const id of entityIds) {
+  private enqueueTile(tileId: CadTileId): void {
+    const bounds = this.index.tileContentBounds(tileId);
+    if (!bounds) return;
+    this.scheduler.enqueue({
+      key: tileId,
+      x: (bounds.minX + bounds.maxX) / 2,
+      y: (bounds.minY + bounds.maxY) / 2,
+      run: () => this.buildTileChunk(tileId),
+    });
+  }
+
+  /**
+   * Materializa un TROZO del tile y, si queda contenido, se reencola a sí mismo.
+   *
+   * El tile sigue siendo la unidad que entra y sale de la vista, pero deja de
+   * ser la unidad de trabajo: así un tile denso en el escalón fino no se come el
+   * cuadro entero. Lo ya materializado se ve mientras el resto llega, que es
+   * exactamente la carga progresiva que se busca.
+   */
+  private buildTileChunk(tileId: CadTileId): void {
+    let resident = this.resident.get(tileId);
+    if (!resident) {
+      resident = {
+        builders: new Map(),
+        pending: this.index.entityIdsInTile(tileId),
+        cursor: 0,
+        entityIds: [],
+        textRequests: [],
+        instances: 0,
+        zoomOctave: this.zoomOctaveValue,
+        complete: false,
+      };
+      this.resident.set(tileId, resident);
+    }
+    let segmentsThisChunk = 0;
+    while (resident.cursor < resident.pending.length) {
+      const id = resident.pending[resident.cursor];
+      resident.cursor += 1;
       const entity = this.entities.get(id);
       if (!entity) continue;
       const depth = cadDrawOrderDepth(this.drawOrder.get(id) ?? 0, this.drawOrderCount);
@@ -315,7 +359,7 @@ export class CadRenderPipeline {
         // El texto no se tesela: viaja como petición de quads para el atlas.
         // Los productores de geometría de MText, cotas y mleader se conservan;
         // este pipeline sólo cambia CÓMO se materializa el resultado.
-        textRequests.push({
+        resident.textRequests.push({
           text: entity.text,
           fontKey: entity.fontFamily ?? "Arial",
           fontSize: entity.height ?? 120,
@@ -325,7 +369,7 @@ export class CadRenderPipeline {
           color: this.styleOf(entity).color,
           depth,
         });
-        rendered.push(id);
+        resident.entityIds.push(id);
         continue;
       }
       const tier = this.lodTierFor(id);
@@ -333,19 +377,49 @@ export class CadRenderPipeline {
         tessellateCadEntity(entity, cadRenderSegmentBudget(tier), this.document),
       );
       if (tessellation.segmentCount === 0) continue;
-      items.push({ tessellation, style: this.styleOf(entity), depth });
-      rendered.push(id);
+      const style = this.styleOf(entity);
+      const key = cadLineStyleKey(style);
+      let bucket = resident.builders.get(key);
+      if (!bucket) {
+        bucket = { style, builder: new CadLineBatchBuilder(Math.max(256, tessellation.segmentCount)) };
+        resident.builders.set(key, bucket);
+      }
+      resident.instances += bucket.builder.push({ tessellation, style, depth });
+      resident.entityIds.push(id);
+      segmentsThisChunk += tessellation.segmentCount;
+      if (segmentsThisChunk >= CAD_RENDER_CHUNK_SEGMENT_BUDGET) break;
     }
-    const batches = buildCadLineBatches(items);
-    let instances = 0;
-    for (const batch of batches) instances += batch.instanceCount;
-    this.resident.set(tileId, {
-      batches,
-      entityIds: rendered,
-      textRequests,
-      instances,
-      zoomOctave: this.zoomOctaveValue,
-    });
+    if (resident.cursor >= resident.pending.length) {
+      resident.complete = true;
+      // La lista de pendientes ya no hace falta: retenerla sería memoria muerta
+      // multiplicada por el número de tiles residentes.
+      resident.pending = [];
+      return;
+    }
+    // Continuación del MISMO tile. Reencolar aquí el conjunto visible entero
+    // volvería a recorrer todos los tiles por cada trozo: O(tiles) por trozo,
+    // que es cuadrático sobre el cuadro y se comía el presupuesto.
+    this.enqueueTile(tileId);
+  }
+
+  /**
+   * Lotes de un tile. La clave lleva el TILE por delante del cubo de estilo: un
+   * lote es (tile × estilo), no sólo estilo. Sin el prefijo, dos tiles con el
+   * mismo color se pisaban en el mapa de mallas del consumidor y sólo
+   * sobrevivía el último — 48 lotes acababan siendo 3 objetos de escena y el
+   * resto del dibujo desaparecía. Lo cazó el spec de la escena.
+   */
+  private residentBatches(tileId: CadTileId, resident: ResidentTile): CadLineBatch[] {
+    // `build()` devuelve VISTAS de los arrays del constructor, así que derivar
+    // los lotes tras cada trozo cuesta O(cubos de estilo), no O(instancias).
+    return [...resident.builders.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([styleKey, bucket]) => ({
+        bucketKey: `${tileId}#${styleKey}`,
+        style: bucket.style,
+        ...bucket.builder.build(),
+      }))
+      .filter((batch) => batch.instanceCount > 0);
   }
 
   private lodTierFor(entityId: string): CadRenderLodTier {
@@ -357,6 +431,24 @@ export class CadRenderPipeline {
 
   runFrame(budgetMs?: number): CadRenderFrameResult {
     return this.scheduler.runFrame(budgetMs);
+  }
+
+  /**
+   * Accesores BARATOS del estado de la cola.
+   *
+   * Existen porque `stats()` no lo es: recorre las entidades visibles y las
+   * residentes para poder afirmar que son las mismas, y eso es O(visibles).
+   * Consultarlo dentro del bucle de cuadros convierte el bucle en O(n²) — pasó
+   * al escribir el arnés de medida, y a 100.000 entidades el benchmark dejó de
+   * terminar. Un bucle de cuadros pregunta «¿queda trabajo?», no «cuéntamelo
+   * todo».
+   */
+  get pendingTasks(): number {
+    return this.scheduler.pending;
+  }
+
+  get settled(): boolean {
+    return this.scheduler.pending === 0;
   }
 
   /** Ejecuta cuadros hasta asentar. Es lo que mide `firstDetailMs` sin un rAF. */
@@ -374,7 +466,7 @@ export class CadRenderPipeline {
     const batches: CadLineBatch[] = [];
     for (const tileId of this.visibleTiles) {
       const tile = this.resident.get(tileId);
-      if (tile) batches.push(...tile.batches);
+      if (tile) batches.push(...this.residentBatches(tileId, tile));
     }
     return batches;
   }
@@ -417,7 +509,7 @@ export class CadRenderPipeline {
     for (const tileId of this.visibleTiles) {
       const tile = this.resident.get(tileId);
       if (!tile) continue;
-      batches += tile.batches.length;
+      batches += tile.builders.size;
       instances += tile.instances;
       for (const request of tile.textRequests) glyphRequests += request.text.length;
     }

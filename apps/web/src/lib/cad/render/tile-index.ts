@@ -216,6 +216,20 @@ export class CadRenderTileIndex {
     };
   }
 
+  /**
+   * Caja de contenido de un tile SIN copiar su lista de entidades.
+   *
+   * `tile()` devuelve una instantánea completa, lista de ids incluida. Llamarlo
+   * desde el bucle de encolado costaba una copia de cada lista de entidades por
+   * trozo construido — miles de cadenas por cuadro, y el coste se llevaba por
+   * delante el presupuesto que el planificador intenta respetar. Aquí se copian
+   * cuatro números.
+   */
+  tileContentBounds(id: CadTileId): CadBounds | null {
+    const tile = this.tiles.get(id);
+    return tile ? { ...this.resolvedBounds(tile) } : null;
+  }
+
   entityIdsInTile(id: CadTileId): readonly string[] {
     const tile = this.tiles.get(id);
     return tile ? [...tile.entityIds] : [];
