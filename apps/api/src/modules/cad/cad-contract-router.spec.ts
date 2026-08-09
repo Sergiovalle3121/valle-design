@@ -11,6 +11,8 @@ import { CadDocumentsRepository } from './cad-documents.repository';
 import { CadReviewLinkController } from './cad-review-link.controller';
 import { CadReviewController } from './cad-review.controller';
 import { CadReviewRepository } from './cad-review.repository';
+import { CadSheetSetController } from './cad-sheet-set.controller';
+import { CadSheetSetsRepository } from './cad-sheet-sets.repository';
 
 interface ExpressRouteLayer {
   route?: {
@@ -28,10 +30,12 @@ describe('contrato OpenAPI contra el router Nest real', () => {
         CadController,
         CadReviewController,
         CadReviewLinkController,
+        CadSheetSetController,
       ],
       providers: [
         CadDocumentsRepository,
         CadReviewRepository,
+        CadSheetSetsRepository,
         CadDocumentsService,
         CadBlocksService,
         CadIntentService,

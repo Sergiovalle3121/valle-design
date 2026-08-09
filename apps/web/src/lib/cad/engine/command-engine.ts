@@ -25,6 +25,8 @@
  */
 import type { SnapType } from "../snap-engine";
 import type { CadEntityCommand } from "../entity-commands";
+import type { CadViewRequest } from "../view/view-navigation";
+import type { CadHostRequest } from "./host-requests";
 import {
   type CadAnyCommandDescriptor,
   type CadCommandContext,
@@ -63,6 +65,10 @@ export type CadCommandEffect =
   | { kind: "prompt"; prompt: CadPrompt; accepts: CadInputMask }
   | { kind: "preview"; paths: readonly CadPreviewPath[] }
   | { kind: "execute"; commands: readonly CadEntityCommand[]; label: string }
+  /** Encuadre: ZOOM, PAN, VIEW, REGEN. No entra en la pila de deshacer. */
+  | { kind: "view"; request: CadViewRequest; label: string }
+  /** Trabajo del anfitrión fuera del documento: trazar, publicar, cambiar de espacio. */
+  | { kind: "host"; request: CadHostRequest; label: string }
   | { kind: "message"; text: string; level: "info" | "error" }
   | { kind: "osnapOverride"; modes: readonly SnapType[] | null }
   | { kind: "cursor"; cursor: "crosshair" | "pick" | "none" }
@@ -187,6 +193,10 @@ function finish(
   const result = step.result;
   if (result?.kind === "document" && result.commands.length > 0)
     effects.push({ kind: "execute", commands: result.commands, label: result.label });
+  if (result?.kind === "view")
+    effects.push({ kind: "view", request: result.request, label: result.label });
+  if (result?.kind === "host")
+    effects.push({ kind: "host", request: result.request, label: result.label });
   if (result?.kind === "message") effects.push({ kind: "message", text: result.text, level: "info" });
   // Se limpia la previsualización pase lo que pase: si el comando terminó, su
   // rubber-band no debe quedarse pegado en pantalla.
