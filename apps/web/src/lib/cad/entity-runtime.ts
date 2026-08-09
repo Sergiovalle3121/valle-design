@@ -12,9 +12,29 @@ import {
 } from "./curve-tessellate";
 import { hatchPolygon } from "./hatch";
 import { layoutCadMText } from "./mtext-layout";
-import { cadTransformPoint3, cadTransformVector3 } from "./transform2d";
+import {
+  cadAffineAngle,
+  cadAffineDet,
+  cadAffineFromTransform,
+  cadAffineIsConformal,
+  cadAffineIsReflecting,
+  cadTransformAngleBase,
+  cadTransformIsReflecting,
+  cadTransformPoint3,
+  cadTransformScaleFactor,
+  cadTransformVector3,
+  type CadAffine2,
+} from "./transform2d";
 import { circleAdapter, isLegacyCircle, isLegacyDimension, lineAdapter } from "./basic-native-adapters";
 import { dimensionAdapter } from "./dimension-entity-adapter";
+import {
+  boundsContained,
+  boundsIntersect,
+  pathHit,
+  pointInPolygon,
+  pointsBounds,
+} from "./entity-hit-geometry";
+import { hatchAdapter } from "./hatch-entity-adapter";
 import { mleaderAdapter } from "./mleader-entity-adapter";
 import { resolveCadInsert } from "./professional-blocks";
 import { hatchRegionContainsPoint, type CadBoundaryPath } from "./hatch-associativity";
@@ -94,12 +114,33 @@ export interface CadBoundsProvider<E extends CadNativeEntity = CadNativeEntity> 
   bounds(entity: E, document?: CadDocument): CadBounds;
 }
 
+/**
+ * Transformada aplicable a una entidad.
+ *
+ * Los cuatro primeros campos son el vocabulario histórico y su comportamiento
+ * está congelado bit a bit (ver `cadTransformPoint3`). Los tres últimos son
+ * nuevos y amplían lo expresable a **cualquier afín 2×3**, que es lo que hacía
+ * falta para MIRROR: una reflexión tiene determinante negativo y no se puede
+ * escribir como giro más escala uniforme, por mucho que se intente.
+ */
 export interface CadEntityTransform {
   translation?: CadPoint2;
   rotationDeg?: number;
   scale?: number;
   origin?: CadPoint2;
+  /** Escala no uniforme. Gana sobre `scale` cuando ambas están presentes. */
+  scaleXY?: CadPoint2;
+  /** Eje de reflexión: un punto y una dirección (no hace falta normalizarla). */
+  mirror?: { point: CadPoint2; direction: CadPoint2 };
+  /** Escotilla de escape: si viene, gana sobre todo lo demás. */
+  affine?: CadAffine2;
 }
+
+export {
+  cadTransformAngleBase,
+  cadTransformIsReflecting,
+  cadTransformScaleFactor,
+} from "./transform2d";
 
 export interface CadCommandAdapter<E extends CadNativeEntity = CadNativeEntity> {
   transform(entity: E, transform: CadEntityTransform): E;
@@ -154,96 +195,13 @@ export function cloneContext(context: CadEntityContext | undefined): CadEntityCo
   };
 }
 
-function pointsBounds(points: CadPoint2[]): CadBounds {
-  if (!points.length)
-    return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
-  return {
-    minX: Math.min(...points.map((point) => point.x)),
-    minY: Math.min(...points.map((point) => point.y)),
-    maxX: Math.max(...points.map((point) => point.x)),
-    maxY: Math.max(...points.map((point) => point.y)),
-  };
-}
-
-function boundsContained(inner: CadBounds, outer: CadBounds): boolean {
-  return (
-    inner.minX >= outer.minX &&
-    inner.maxX <= outer.maxX &&
-    inner.minY >= outer.minY &&
-    inner.maxY <= outer.maxY
-  );
-}
-
-function boundsIntersect(a: CadBounds, b: CadBounds): boolean {
-  return (
-    a.minX <= b.maxX &&
-    a.maxX >= b.minX &&
-    a.minY <= b.maxY &&
-    a.maxY >= b.minY
-  );
-}
-
-function distanceToSegment(
-  point: CadPoint2,
-  start: CadPoint2,
-  end: CadPoint2,
-): number {
-  const dx = end.x - start.x;
-  const dy = end.y - start.y;
-  const length2 = dx * dx + dy * dy;
-  if (length2 <= 1e-18) return Math.hypot(point.x - start.x, point.y - start.y);
-  const t = Math.max(
-    0,
-    Math.min(
-      1,
-      ((point.x - start.x) * dx + (point.y - start.y) * dy) / length2,
-    ),
-  );
-  return Math.hypot(
-    point.x - (start.x + t * dx),
-    point.y - (start.y + t * dy),
-  );
-}
-
-function pathHit(paths: CadRenderPath[], point: CadPoint2, tolerance: number): boolean {
-  return paths.some((path) => {
-    for (let index = 1; index < path.points.length; index += 1) {
-      if (
-        distanceToSegment(point, path.points[index - 1], path.points[index]) <=
-        tolerance
-      )
-        return true;
-    }
-    if (
-      path.closed &&
-      path.points.length > 2 &&
-      distanceToSegment(
-        point,
-        path.points[path.points.length - 1],
-        path.points[0],
-      ) <= tolerance
-    )
-      return true;
-    return false;
-  });
-}
-
-function pointInPolygon(point: CadPoint2, polygon: CadPoint2[]): boolean {
-  let inside = false;
-  for (let current = 0, previous = polygon.length - 1; current < polygon.length; previous = current, current += 1) {
-    const a = polygon[current];
-    const b = polygon[previous];
-    const crosses =
-      (a.y > point.y) !== (b.y > point.y) &&
-      point.x < ((b.x - a.x) * (point.y - a.y)) / (b.y - a.y) + a.x;
-    if (crosses) inside = !inside;
-  }
-  return inside;
-}
-
-/** Delega en `cadTransformPoint3`. Había dos copias y no coincidían en `z`. */
 function transformPoint(point: CadPoint3, transform: CadEntityTransform): CadPoint3 {
   return cadTransformPoint3(point, transform);
+}
+
+/** Grados en `[0, 360)`, que es el rango que DXF exige a un arco. */
+function normalizeAngleDeg(value: number): number {
+  return ((value % 360) + 360) % 360;
 }
 
 /** Sólo la parte lineal: para direcciones, como el eje mayor de una elipse. */
@@ -451,14 +409,36 @@ const arcAdapter: CadEntityAdapter<
     }),
   },
   commands: {
-    transform: (entity, transform) => ({
-      ...entity,
-      center: transformPoint(entity.center, transform),
-      radius: entity.radius * Math.abs(transform.scale ?? 1),
-      startAngle: entity.startAngle + (transform.rotationDeg ?? 0),
-      endAngle: entity.endAngle + (transform.rotationDeg ?? 0),
-      context: cloneContext(entity.context),
-    }),
+    /**
+     * Un arco DXF se recorre SIEMPRE en antihorario de `startAngle` a
+     * `endAngle`. Una reflexión invierte el sentido del plano, así que el arco
+     * reflejado no es «el mismo con los ángulos reflejados»: es el que va del
+     * FINAL reflejado al INICIO reflejado. Los extremos se intercambian además
+     * de reflejarse.
+     *
+     * Reflejarlos sin intercambiarlos produce el arco COMPLEMENTARIO —el trozo
+     * de circunferencia que el usuario no dibujó—, con el mismo centro y el
+     * mismo radio. En una esquina redondeada eso se ve como un arco que sale
+     * disparado al otro lado; en un arco casi cerrado, no se ve en absoluto.
+     */
+    transform: (entity, transform) => {
+      const reflecting = cadTransformIsReflecting(transform);
+      const base = cadTransformAngleBase(transform);
+      return {
+        ...entity,
+        center: transformPoint(entity.center, transform),
+        radius: entity.radius * cadTransformScaleFactor(transform),
+        // Se normaliza a [0, 360), que es lo que exige DXF. Antes se sumaba
+        // `rotationDeg` en crudo, y como podía ser negativo los ángulos se
+        // cancelaban solos al ir y volver. `cadTransformAngleBase` devuelve
+        // siempre un ángulo positivo, así que sin normalizar aquí un giro y su
+        // contrario acumulaban 360° — una vuelta entera de deriva por cada
+        // pareja de operaciones.
+        startAngle: normalizeAngleDeg(reflecting ? base - entity.endAngle : entity.startAngle + base),
+        endAngle: normalizeAngleDeg(reflecting ? base - entity.startAngle : entity.endAngle + base),
+        context: cloneContext(entity.context),
+      };
+    },
   },
 };
 
@@ -659,12 +639,35 @@ const ellipseAdapter: CadEntityAdapter<
     }),
   },
   commands: {
-    transform: (entity, transform) => ({
-      ...entity,
-      center: transformPoint(entity.center, transform),
-      majorAxis: transformVector(entity.majorAxis, transform),
-      context: cloneContext(entity.context),
-    }),
+    /**
+     * El eje mayor es un VECTOR desde el centro, no un punto: va por la parte
+     * lineal, sin traslación. Pasarlo por `transformPoint` lo mandaría a la
+     * otra punta del plano y alargaría la elipse en proporción a lo lejos que
+     * estuviera del origen.
+     *
+     * Bajo reflexión hay además una segunda cosa: la elipse se recorre en
+     * sentido contrario. Para una elipse COMPLETA —de 0 a 2π, que es lo que
+     * produce el comando ELLIPSE— eso no se nota, pero para un arco elíptico
+     * los parámetros deben reflejarse e intercambiarse igual que los ángulos
+     * de un arco. Se hace aquí para que un arco elíptico importado de DXF no se
+     * convierta en su complementario al espejarlo.
+     */
+    transform: (entity, transform) => {
+      const reflecting = cadTransformIsReflecting(transform);
+      const full = Math.abs(entity.endParameter - entity.startParameter - Math.PI * 2) < 1e-9;
+      return {
+        ...entity,
+        center: transformPoint(entity.center, transform),
+        majorAxis: transformVector(entity.majorAxis, transform),
+        ...(reflecting && !full
+          ? {
+              startParameter: Math.PI * 2 - entity.endParameter,
+              endParameter: Math.PI * 2 - entity.startParameter,
+            }
+          : {}),
+        context: cloneContext(entity.context),
+      };
+    },
   },
 };
 
@@ -992,17 +995,27 @@ const polylineAdapter: CadEntityAdapter<CadPolylineEntity> = {
     }),
   },
   commands: {
-    // `bulge` es invariante bajo traslación, rotación y escala uniforme
-    // (es tan(θ/4), y θ no cambia). La reflexión SÍ lo invierte, pero
-    // CadEntityTransform no la expresa — professional-blocks la trata aparte.
-    transform: (entity, transform) => ({
-      ...entity,
-      vertices: entity.vertices.map((vertex) => ({
-        ...transformPoint(vertex, transform),
-        ...(vertex.bulge !== undefined ? { bulge: vertex.bulge } : {}),
-      })),
-      context: cloneContext(entity.context),
-    }),
+    // `bulge` es invariante bajo traslación, giro y escala uniforme: vale
+    // tan(θ/4) y θ no cambia. Bajo REFLEXIÓN se niega, porque su signo es lo
+    // único que codifica hacia qué lado de la cuerda se comba el arco.
+    //
+    // El índice del vértice, el orden y el cierre NO se tocan. Reflejar
+    // invirtiendo la lista de vértices daría la misma silueta y rompería todo
+    // lo que apunta a un vértice por su posición: grips, cotas asociativas y
+    // el propio `bulge`, que vive en el vértice de ARRANQUE de cada tramo.
+    transform: (entity, transform) => {
+      const reflecting = cadTransformIsReflecting(transform);
+      return {
+        ...entity,
+        vertices: entity.vertices.map((vertex) => ({
+          ...transformPoint(vertex, transform),
+          ...(vertex.bulge !== undefined
+            ? { bulge: reflecting ? -vertex.bulge : vertex.bulge }
+            : {}),
+        })),
+        context: cloneContext(entity.context),
+      };
+    },
   },
 };
 
@@ -1145,7 +1158,10 @@ const mtextAdapter: CadEntityAdapter<CadMTextEntity> = {
     }),
   },
   commands: {
-    transform: (entity, transform) => ({
+    transform: (entity, transform) => {
+      const reflecting = cadTransformIsReflecting(transform);
+      const angleBase = cadTransformAngleBase(transform);
+      return {
       ...entity,
       insertion: transformPoint(entity.insertion, transform),
       // `width` y `height` AUSENTES se conservan ausentes. Antes se
@@ -1157,192 +1173,19 @@ const mtextAdapter: CadEntityAdapter<CadMTextEntity> = {
       // se deriva de la altura. Lo encontró `entity-transform-roundtrip.spec`.
       ...(entity.width === undefined
         ? {}
-        : { width: entity.width * Math.abs(transform.scale ?? 1) }),
+        : { width: entity.width * cadTransformScaleFactor(transform) }),
       ...(entity.height === undefined
         ? {}
-        : { height: entity.height * Math.abs(transform.scale ?? 1) }),
-      rotation: (entity.rotation ?? 0) + (transform.rotationDeg ?? 0),
+        : { height: entity.height * cadTransformScaleFactor(transform) }),
+      // Igual que el INSERT: bajo reflexión el texto se re-orienta restando.
+      // Sumar el giro dejaría el rótulo inclinado hacia el lado contrario al
+      // de la geometría que acompaña.
+      rotation: normalizeAngleDeg(
+        reflecting ? angleBase - (entity.rotation ?? 0) : (entity.rotation ?? 0) + angleBase,
+      ),
       context: cloneContext(entity.context),
-    }),
-  },
-};
-
-type CadHatchEntity = Extract<CadNativeEntity, { type: "hatch" }>;
-
-function hatchBoundaries(entity: CadHatchEntity): CadPoint2[][] {
-  return entity.boundaries
-    .map((boundary) => boundary.map((point) => ({ x: point.x, y: point.y })))
-    .filter((boundary) => boundary.length >= 3);
-}
-
-function hatchContains(entity: CadHatchEntity, point: CadPoint2): boolean {
-  return hatchRegionContainsPoint(hatchBoundaries(entity), point, entity.islandStyle ?? "normal");
-}
-
-const hatchRenderer: CadEntityRenderer<CadHatchEntity> = {
-  paths: (entity) => {
-    const boundaries = hatchBoundaries(entity);
-    const outlines: CadRenderPath[] = boundaries.map((points) => ({ points, closed: true }));
-    if (entity.solid || !boundaries[0]) return outlines;
-    const bounds = pointsBounds(boundaries.flat());
-    const diagonal = Math.hypot(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
-    const spacing = Math.max(entity.scale ?? diagonal / 40, diagonal / 256, 1e-6);
-    const pattern = entity.pattern.trim().toUpperCase();
-    const angles = pattern === "CROSS" ? [entity.angle ?? 45, (entity.angle ?? 45) + 90] : [entity.angle ?? 45];
-    const strokes = angles.flatMap((angle) =>
-      hatchPolygon(boundaries[0], { angle, spacing, origin: entity.origin }).filter((segment) => {
-        const midpoint = { x: (segment.a.x + segment.b.x) / 2, y: (segment.a.y + segment.b.y) / 2 };
-        return hatchRegionContainsPoint(boundaries, midpoint, entity.islandStyle ?? "normal");
-      }),
-    );
-    return [
-      ...outlines,
-      ...strokes.map((segment) => ({ points: [segment.a, segment.b], closed: false })),
-    ];
-  },
-};
-
-const hatchBounds: CadBoundsProvider<CadHatchEntity> = {
-  bounds: (entity) => pointsBounds(hatchBoundaries(entity).flat()),
-};
-
-const hatchAdapter: CadEntityAdapter<CadHatchEntity> = {
-  type: "hatch",
-  renderer: hatchRenderer,
-  bounds: hatchBounds,
-  hitTester: {
-    hitTest: (entity, point, tolerance) =>
-      hatchContains(entity, point) || pathHit(hatchRenderer.paths(entity), point, tolerance),
-    intersectsWindow: (entity, window, crossing) => {
-      const entityBounds = hatchBounds.bounds(entity);
-      return crossing ? boundsIntersect(entityBounds, window) : boundsContained(entityBounds, window);
-    },
-  },
-  grips: {
-    grips: (entity) => {
-      const bounds = hatchBounds.bounds(entity);
-      return [
-        {
-          id: "center",
-          kind: "center" as const,
-          point: { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 },
-          label: "Centro",
-        },
-        ...entity.boundaries.flatMap((boundary, boundaryIndex) =>
-          boundary.map((point, vertexIndex) => ({
-            id: `boundary:${boundaryIndex}:vertex:${vertexIndex}`,
-            kind: "control" as const,
-            point: { x: point.x, y: point.y },
-            label: `Contorno ${boundaryIndex + 1} · vértice ${vertexIndex + 1}`,
-          })),
-        ),
-      ];
-    },
-    moveGrip: (entity, gripId, point) => {
-      if (gripId === "center") {
-        const bounds = hatchBounds.bounds(entity);
-        const center = { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 };
-        return hatchAdapter.commands.transform(entity, {
-          translation: { x: point.x - center.x, y: point.y - center.y },
-        });
-      }
-      const match = /^boundary:(\d+):vertex:(\d+)$/.exec(gripId);
-      if (!match) return entity;
-      const boundaryIndex = Number(match[1]);
-      const vertexIndex = Number(match[2]);
-      if (!entity.boundaries[boundaryIndex]?.[vertexIndex]) return entity;
-      return {
-        ...entity,
-        boundaries: entity.boundaries.map((boundary, currentBoundary) =>
-          boundary.map((vertex, currentVertex) =>
-            currentBoundary === boundaryIndex && currentVertex === vertexIndex
-              ? point3(point, vertex.z)
-              : { ...vertex },
-          ),
-        ),
       };
     },
-  },
-  snaps: {
-    snaps: (entity) => {
-      const bounds = hatchBounds.bounds(entity);
-      return [
-        {
-          kind: "center" as const,
-          point: { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 },
-          label: "Centro",
-        },
-        ...entity.boundaries.flatMap((boundary, boundaryIndex) =>
-          boundary.map((point, vertexIndex) => ({
-            kind: "endpoint" as const,
-            point: { x: point.x, y: point.y },
-            label: `Contorno ${boundaryIndex + 1} · vértice ${vertexIndex + 1}`,
-          })),
-        ),
-      ];
-    },
-  },
-  properties: {
-    read: (entity) => ({
-      pattern: entity.pattern,
-      solid: entity.solid,
-      scale: entity.scale ?? 1,
-      angle: entity.angle ?? 0,
-      boundaryCount: entity.boundaries.length,
-      islandStyle: entity.islandStyle ?? "normal",
-      associative: entity.associative ?? false,
-      associationStatus: entity.associationStatus ?? (entity.associative ? "associated" : "detached"),
-      boundaryReferenceCount: entity.boundaryRefs?.length ?? 0,
-      originX: entity.origin?.x ?? 0,
-      originY: entity.origin?.y ?? 0,
-      layer: entity.layer,
-    }),
-    write: (entity, patch) => {
-      let pattern = typeof patch.pattern === "string" && patch.pattern.trim() ? patch.pattern.trim() : entity.pattern;
-      let solid = typeof patch.solid === "boolean" ? patch.solid : entity.solid;
-      if (typeof patch.pattern === "string" && patch.pattern.trim())
-        solid = pattern.toUpperCase() === "SOLID";
-      if (patch.solid === true) pattern = "SOLID";
-      else if (patch.solid === false && pattern.toUpperCase() === "SOLID") pattern = "ANSI31";
-      return {
-        ...entity,
-        pattern,
-        solid,
-        scale: positive(patch.scale, entity.scale ?? 1),
-        angle: finite(patch.angle, entity.angle ?? 0),
-        origin: {
-          x: finite(patch.originX, entity.origin?.x ?? 0),
-          y: finite(patch.originY, entity.origin?.y ?? 0),
-          z: entity.origin?.z ?? 0,
-        },
-        islandStyle: patch.islandStyle === "outer" || patch.islandStyle === "ignore" || patch.islandStyle === "normal"
-          ? patch.islandStyle
-          : entity.islandStyle ?? "normal",
-        associative: typeof patch.associative === "boolean" ? patch.associative : entity.associative,
-        associationStatus: patch.associative === false ? "detached" : entity.associationStatus,
-        layer: typeof patch.layer === "string" ? patch.layer : entity.layer,
-      };
-    },
-  },
-  commands: {
-    transform: (entity, transform) => ({
-      ...entity,
-      boundaries: entity.boundaries.map((boundary) => boundary.map((point) => transformPoint(point, transform))),
-      // Espaciado y ángulo AUSENTES se conservan ausentes, y al escribirlos se
-      // parte de los MISMOS valores por defecto que usa el renderizador. Antes
-      // no coincidían: se dibuja `angle ?? 45` y `scale ?? diagonal/40`, y esta
-      // transformada materializaba `angle ?? 0` y `scale ?? 1`. Mover un
-      // sombreado le giraba el patrón 45° y le fijaba el espaciado en 1 unidad
-      // — en milímetros, una mancha casi sólida.
-      ...(entity.scale === undefined
-        ? {}
-        : { scale: entity.scale * Math.abs(transform.scale ?? 1) }),
-      ...(entity.angle === undefined && !transform.rotationDeg
-        ? {}
-        : { angle: (entity.angle ?? 45) + (transform.rotationDeg ?? 0) }),
-      origin: entity.origin ? transformPoint(entity.origin, transform) : undefined,
-      context: cloneContext(entity.context),
-    }),
   },
 };
 
@@ -1431,13 +1274,47 @@ const insertAdapter: CadEntityAdapter<CadInsertEntity> = {
     }),
   },
   commands: {
-    transform: (entity, transform) => ({
-      ...entity,
-      insertion: transformPoint(entity.insertion, transform),
-      scale: { x: entity.scale.x * Math.abs(transform.scale ?? 1), y: entity.scale.y * Math.abs(transform.scale ?? 1), z: entity.scale.z * Math.abs(transform.scale ?? 1) },
-      rotation: entity.rotation + (transform.rotationDeg ?? 0),
-      context: cloneContext(entity.context),
-    }),
+    /**
+     * Un INSERT no es geometría: es `{insertion, rotation, scale}`, que
+     * `insertMatrix` recompone como `T(ins)·R(rot)·S(scale)·T(−base)`. Así que
+     * reflejarlo NO es reflejar puntos — es **volver a descomponer** el
+     * producto en esos tres campos. Explotarlo sería la otra salida, y está
+     * descartada: rompería la referencia al bloque.
+     *
+     * De `Ref(φ)·Rot(θ) = Rot(φ−θ)·diag(1,−1)` sale la regla entera:
+     *
+     *     rotación' = φ − rotación        (se RESTA, no se suma)
+     *     escala'   = (k·sx, −k·sy)       (exactamente UN eje negado)
+     *
+     * Dos trampas, y las dos dan un dibujo plausible:
+     *
+     * 1. Sumar en vez de restar se equivoca en `2·rotación`, y es INVISIBLE en
+     *    todo bloque colocado a 0° — que son casi todos. Una puerta a 30° en un
+     *    muro inclinado aparece reflejada respecto de un eje 60° girado: acaba
+     *    fuera del muro al que pertenece, con las bisagras en la jamba
+     *    equivocada, y parece corrupción de datos y no un error de fórmula.
+     * 2. `Math.abs` sobre la escala compuesta se come el espejo. El signo se
+     *    MULTIPLICA, no se asigna: reflejar dos veces tiene que devolver la
+     *    escala positiva de partida.
+     *
+     * `scale.z` no se toca: una reflexión en el plano no tiene componente z.
+     */
+    transform: (entity, transform) => {
+      const reflecting = cadTransformIsReflecting(transform);
+      const factor = cadTransformScaleFactor(transform);
+      const base = cadTransformAngleBase(transform);
+      return {
+        ...entity,
+        insertion: transformPoint(entity.insertion, transform),
+        scale: {
+          x: entity.scale.x * factor,
+          y: entity.scale.y * factor * (reflecting ? -1 : 1),
+          z: entity.scale.z,
+        },
+        rotation: normalizeAngleDeg(reflecting ? base - entity.rotation : entity.rotation + base),
+        context: cloneContext(entity.context),
+      };
+    },
   },
 };
 
