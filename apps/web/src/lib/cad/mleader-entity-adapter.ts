@@ -103,9 +103,18 @@ export const mleaderAdapter: CadEntityAdapter<NativeMleader> = {
     const leaderLines = cadMleaderLines(entity).map((line) => line.map((point) => ({ ...transformPoint(point, transform), z: 0 })));
     return {
       ...entity, vertices: leaderLines[0], leaderLines, textPosition: { ...transformPoint(entity.textPosition, transform), z: entity.textPosition.z },
-      arrowSize: (entity.arrowSize ?? 180) * Math.abs(transform.scale ?? 1), doglegLength: (entity.doglegLength ?? 600) * Math.abs(transform.scale ?? 1),
-      textWidth: (entity.textWidth ?? 1800) * Math.abs(transform.scale ?? 1), textHeight: (entity.textHeight ?? 120) * Math.abs(transform.scale ?? 1),
-      textRotation: (entity.textRotation ?? 0) + (transform.rotationDeg ?? 0), associative: false, associationStatus: 'detached',
+      // Los tamaños AUSENTES se conservan ausentes. Antes se materializaban con
+      // su valor por defecto en cualquier transformada, incluida una traslación
+      // pura: arrastrar una directriz le fijaba para siempre el tamaño de
+      // flecha, la longitud del codo y la caja de texto, y a partir de ahí
+      // dejaba de seguir a su estilo. Mismo defecto que tenía MTEXT, encontrado
+      // por la misma spec de ida y vuelta.
+      ...(entity.arrowSize === undefined ? {} : { arrowSize: entity.arrowSize * Math.abs(transform.scale ?? 1) }),
+      ...(entity.doglegLength === undefined ? {} : { doglegLength: entity.doglegLength * Math.abs(transform.scale ?? 1) }),
+      ...(entity.textWidth === undefined ? {} : { textWidth: entity.textWidth * Math.abs(transform.scale ?? 1) }),
+      ...(entity.textHeight === undefined ? {} : { textHeight: entity.textHeight * Math.abs(transform.scale ?? 1) }),
+      textRotation: (entity.textRotation ?? 0) + (transform.rotationDeg ?? 0),
+      associative: false, associationStatus: 'detached',
       context: entity.context ? structuredClone(entity.context) : undefined,
     };
   } },

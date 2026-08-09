@@ -1,5 +1,6 @@
 import type { CadEntity, CadPoint2, CadPoint3 } from './cad-document';
 import { tessellateArc } from './curve-tessellate';
+import { cadTransformPoint3 } from './transform2d';
 import type { CadEntityAdapter, CadEntityTransform, CadNativeEntity, CadPropertyValue } from './entity-runtime';
 
 type LineEntity = Extract<CadNativeEntity, { type: 'line' }>;
@@ -10,18 +11,9 @@ const finite = (value: CadPropertyValue | undefined, fallback: number): number =
   typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 const positive = (value: CadPropertyValue | undefined, fallback: number): number => Math.max(1e-9, finite(value, fallback));
 
-function transformPoint(point: CadPoint3, transform: CadEntityTransform): CadPoint3 {
-  const origin = transform.origin ?? { x: 0, y: 0 };
-  const scale = transform.scale ?? 1;
-  const radians = ((transform.rotationDeg ?? 0) * Math.PI) / 180;
-  const dx = (point.x - origin.x) * scale;
-  const dy = (point.y - origin.y) * scale;
-  return {
-    x: origin.x + dx * Math.cos(radians) - dy * Math.sin(radians) + (transform.translation?.x ?? 0),
-    y: origin.y + dx * Math.sin(radians) + dy * Math.cos(radians) + (transform.translation?.y ?? 0),
-    z: point.z,
-  };
-}
+/** Delega en la implementación compartida; aquí había una copia divergente. */
+const transformPoint = (point: CadPoint3, transform: CadEntityTransform): CadPoint3 =>
+  cadTransformPoint3(point, transform);
 
 function distanceToSegment(point: CadPoint2, start: CadPoint2, end: CadPoint2): number {
   const dx = end.x - start.x;
