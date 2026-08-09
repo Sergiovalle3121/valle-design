@@ -272,7 +272,7 @@ polylinesBefore.forEach((source, index) => {
 
 /* ── El importador reporta lo que NO entiende ───────────────────────────── */
 
-for (const type of ["POINT", "SOLID", "3DFACE"]) {
+for (const type of ["3DFACE"]) {
   // Entidades deliberadamente fuera del subconjunto implementado.
   const hostile = [
     "0", "SECTION", "2", "ENTITIES",
@@ -288,6 +288,41 @@ for (const type of ["POINT", "SOLID", "3DFACE"]) {
   assert.ok(
     parsed.warnings.some((warning) => warning.code === "unsupported_entity"),
     `${type}: la entidad no soportada se declara como advertencia`,
+  );
+}
+
+// POINT dejó de estar en esa lista: el esquema 4 lo importa como entidad de
+// pleno derecho. Se fija aquí para que la cobertura quede a la vista y para que
+// nadie devuelva este tipo al saco de "no soportado".
+{
+  const withPoint = [
+    "0", "SECTION", "2", "ENTITIES",
+    "0", "POINT", "8", "MUROS", "10", "150", "20", "250", "30", "0",
+    "0", "ENDSEC", "0", "EOF",
+  ].join("\n");
+  const parsed = importDxfPrimitives(withPoint);
+  assert.equal(parsed.primitives.length, 1, "POINT es una entidad de primera clase");
+  assert.equal(parsed.primitives[0].kind, "point");
+  assert.deepEqual(parsed.primitives[0].points[0], { x: 150, y: 250 });
+  assert.equal(
+    parsed.warnings.filter((warning) => warning.code === "unsupported_entity").length,
+    0,
+    "y por tanto ya no genera advertencia de tipo no soportado",
+  );
+}
+
+// Un SOLID sin sus cuatro esquinas no define superficie: se descarta en vez de
+// inventar un triángulo degenerado.
+{
+  const partial = [
+    "0", "SECTION", "2", "ENTITIES",
+    "0", "SOLID", "8", "MUROS", "10", "0", "20", "0", "30", "0",
+    "0", "ENDSEC", "0", "EOF",
+  ].join("\n");
+  assert.equal(
+    importDxfPrimitives(partial).primitives.length,
+    0,
+    "SOLID incompleto: no se inventa geometría",
   );
 }
 

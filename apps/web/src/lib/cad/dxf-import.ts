@@ -18,6 +18,11 @@ import {
   parseRawDxfSemanticDimensions,
   parseRawDxfSemanticMleaders,
 } from "./dxf-read-annotations";
+import {
+  DXF_SCHEMA4_ENTITY_TYPES,
+  parseRawDxfSchema4,
+  type CadDxfImportedImageDefinition,
+} from "./dxf-read-schema4";
 export { parseRawDxfSemanticDimensions, parseRawDxfSemanticMleaders };
 
 export type CadDxfPrimitiveKind =
@@ -167,6 +172,11 @@ export interface CadDxfImportResult {
   /** Preserved BLOCK table and live top-level INSERTs; primitives remain for backward compatibility. */
   blocks: CadDxfSemanticBlock[];
   inserts: CadDxfSemanticInsert[];
+  /**
+   * Catálogo de imágenes referenciadas por las entidades IMAGE del fichero,
+   * igual que `blocks` lo es de los INSERT: N inserciones comparten un archivo.
+   */
+  imageDefinitions: CadDxfImportedImageDefinition[];
   warnings: CadDxfImportWarning[];
   layers: string[];
 }
@@ -820,6 +830,10 @@ export function parseRawDxfHatches(text: string): {
 
 export function importDxfPrimitives(text: string): CadDxfImportResult {
   const rawHatchResult = parseRawDxfHatches(text);
+  // Los ocho tipos del esquema 4 se leen sobre los pares crudos: `dxf-parser`
+  // no modela XLINE, RAY, WIPEOUT ni IMAGE, y los que sí modela llegarían sin
+  // su carga útil (el estilo del punto, las banderas del ATTDEF).
+  const schema4 = parseRawDxfSchema4(text);
   const rawMTexts = parseRawDxfMTexts(text);
   const semanticDimensions = parseRawDxfSemanticDimensions(text);
   const mleaders = parseRawDxfSemanticMleaders(text);
@@ -838,6 +852,7 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
       mleaders,
       blocks: [],
       inserts: [],
+      imageDefinitions: [],
       layers: [...new Set([...rawHatchResult.hatches.map((hatch) => hatch.layer), ...rawMTexts.map((mtext) => mtext.layer), ...semanticDimensions.map((dimension) => dimension.layer), ...mleaders.map((mleader) => mleader.layer)])].sort(),
       warnings: [
         ...warnings,
@@ -855,9 +870,11 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
   const inserts = entities
     .filter((entity) => String(entity?.type || "").toUpperCase() === "INSERT")
     .map((entity) => semanticInsert(entity, blockXdata));
-  const primitives: CadDxfPrimitive[] = [];
-  const primitiveSources: CadDxfImportResult["primitiveSources"] = [];
-  const layers = new Set<string>();
+  const primitives: CadDxfPrimitive[] = [...schema4.primitives];
+  const primitiveSources: CadDxfImportResult["primitiveSources"] = schema4.primitives.map(
+    () => "entity" as const,
+  );
+  const layers = new Set<string>(schema4.primitives.map((primitive) => primitive.layer));
   const semanticDimensionBlocks = new Set(semanticDimensions.map((dimension) => dimension.blockName));
   const semanticMleaderOrdinals = new Set(mleaders.map((mleader) => mleader.sourceOrdinal));
   let mleaderOrdinal = -1;
@@ -869,6 +886,9 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
       if (semanticMleaderOrdinals.has(mleaderOrdinal)) continue;
     }
     if (type === "MTEXT") continue;
+    // Ya los leyó `parseRawDxfSchema4`. Sin este salto, `dxf-parser` los daría
+    // por no soportados y el fichero llegaría con un aviso por cada uno.
+    if (DXF_SCHEMA4_ENTITY_TYPES.has(type)) continue;
     if (type === "INSERT") {
       // Expansión de bloques (CAD-NEXT-063): las puertas/luminarias/mobiliario
       // insertados dejan de perderse como "no soportados".
@@ -912,5 +932,5 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
   for (const mtext of rawMTexts) layers.add(mtext.layer);
   for (const dimension of semanticDimensions) layers.add(dimension.layer);
   for (const mleader of mleaders) layers.add(mleader.layer);
-  return { primitives, primitiveSources, hatches: rawHatchResult.hatches, mtexts: rawMTexts, semanticDimensions, mleaders, blocks, inserts, warnings, layers: [...layers].sort() };
+  return { primitives, primitiveSources, hatches: rawHatchResult.hatches, mtexts: rawMTexts, semanticDimensions, mleaders, blocks, inserts, imageDefinitions: schema4.imageDefinitions, warnings, layers: [...layers].sort() };
 }

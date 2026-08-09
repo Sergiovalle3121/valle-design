@@ -25,6 +25,7 @@ import type { CadNativeEntity } from "./entity-runtime";
 // pierde viven en sus propios módulos: este archivo ENSAMBLA el modelo de
 // exportación, y mezclar las tres cosas era lo que lo tenía en su techo.
 import { cadEntityToDxfPrimitive } from "./dxf-entity-primitives";
+import { schema4PrimitiveToEntity } from "./dxf-schema4-entities";
 export { cadEntityToDxfPrimitive };
 export { cadDocumentDxfExportLosses } from "./dxf-export-loss-manifest";
 // El contrato de proyección y sus helpers viven en su propio módulo: son una
@@ -593,6 +594,12 @@ function dxfPrimitiveToBlockEntity(
   provider: string,
 ): CadEntity | null {
   const context = sourceContext(primitive, provider);
+  // Los tipos del esquema 4 se reconstruyen en su propio módulo: es la vuelta
+  // exacta de `dxf-schema4-primitives.ts` y la simetría es el contrato.
+  if (primitive.schema4) {
+    const entity = schema4PrimitiveToEntity(primitive, id, projection, context);
+    if (entity) return entity;
+  }
   if (primitive.kind === "line" && primitive.points.length >= 2)
     return {
       id,
