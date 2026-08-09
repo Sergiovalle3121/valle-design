@@ -50,6 +50,12 @@ export type CadDocumentTableCommand =
   | { type: "xref"; entity?: undefined; op: "upsert"; reference: CadExternalReference }
   | { type: "xref"; entity?: undefined; op: "delete"; xrefId: string };
 
+/**
+ * Los ESTILOS no están aquí: `entity-commands.ts` ya trae su propia orden
+ * `style`, con `upsert` y `delete`, y duplicarla habría dado dos vías para lo
+ * mismo — justo lo que este módulo existe para evitar. PURGE emite aquella.
+ */
+
 export interface CadDocumentTables {
   blocks: CadBlockDefinition[];
   layers: CadLayerDef[];
@@ -183,7 +189,13 @@ export function applyCadDocumentTables(
       if (command.op === "delete") {
         const target = layers.find((layer) => layer.id === command.layerId);
         if (!target) throw new Error(`Layer ${command.layerId} was not found.`);
-        if (entities.some((entity) => entity.layer === target.id))
+        // También DENTRO de los bloques: una capa que sólo ocupa el contenido
+        // de una definición sigue ocupada, y borrarla dejaría esa geometría
+        // apuntando a una capa que no existe en cuanto alguien la insertara.
+        const occupied =
+          entities.some((entity) => entity.layer === target.id) ||
+          blocks.some((block) => block.entities.some((entity) => entity.layer === target.id));
+        if (occupied)
           throw new Error(`Layer ${target.name} still has entities; it cannot be deleted.`);
         layers = layers.filter((layer) => layer.id !== target.id);
         continue;

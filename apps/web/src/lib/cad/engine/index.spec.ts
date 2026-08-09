@@ -114,6 +114,9 @@ const names = registry.all().map((command) => command.name);
     "INSERT",
     "BASE",
     "ATTEDIT",
+    "GROUP",
+    "UNGROUP",
+    "PURGE",
   ])
     assert.ok(names.includes(expected), `${expected} no llegó al registro del producto`);
 }

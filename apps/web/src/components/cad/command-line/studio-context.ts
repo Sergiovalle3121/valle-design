@@ -59,6 +59,11 @@ export function cadStudioCommandContext(
     // línea el comando se negaría —dice que no las tiene— en vez de descomponer
     // la inserción, que es exactamente el caso que la gente prueba primero.
     blocks: () => inputs.document?.blocks ?? [],
+    // PURGE, XREF y ADCENTER operan sobre las TABLAS del documento, no sobre
+    // una selección: sin esta línea se negarían a analizar nada. Sólo se ofrece
+    // cuando hay documento abierto, para que la negativa sea la verdad y no un
+    // «no hay nada» calculado sobre un documento vacío.
+    ...(inputs.document ? { document: () => inputs.document! } : {}),
     selection: inputs.selection,
     activeLayer: inputs.activeLayer,
     // Presentaciones, unidad y envolvente: lo que LAYOUT, MVIEW y PLOT

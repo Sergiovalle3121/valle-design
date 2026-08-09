@@ -8,6 +8,7 @@
  * existe con tres sistemas de comandos que no se conocen entre sí.
  */
 import { CAD_BLOCK_COMMANDS } from "./commands/blocks";
+import { CAD_GROUP_COMMANDS } from "./commands/groups";
 import { CAD_DRAW_BASIC_COMMANDS } from "./commands/draw-basics";
 import { CAD_DRAW_CURVE_COMMANDS } from "./commands/draw-curves";
 import { CAD_ANNOTATION_V4_COMMANDS } from "./commands/draw-annotation-v4";
@@ -87,6 +88,7 @@ export const CAD_COMMAND_DESCRIPTORS = [
   ...CAD_LAYOUT_COMMANDS,
   ...CAD_PLOT_COMMANDS,
   ...CAD_BLOCK_COMMANDS,
+  ...CAD_GROUP_COMMANDS,
 ] as const;
 
 /**

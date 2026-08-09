@@ -33,7 +33,8 @@
  *   como un override por paso, así que añadir modos no toca el motor.
  */
 import type {
-  CadBlockDefinition, CadConstraint, CadEntity, CadPaperSpace, CadParameter, CadPoint2,
+  CadBlockDefinition, CadConstraint, CadDocument, CadEntity, CadPaperSpace,
+  CadParameter, CadPoint2,
 } from "../cad-document";
 import type { CadBounds } from "../entity-runtime";
 import type { CadEntityCommand } from "../entity-commands";
@@ -131,6 +132,16 @@ export interface CadCommandSession {
   lastDimensionId?: string;
 }
 
+/**
+ * Lo que un comando puede LEER del documento. Es un `Pick` y no el documento
+ * entero para que quede escrito qué secciones entran en el contrato del motor:
+ * historia, colaboración y publicaciones no son asunto de un comando.
+ */
+export type CadCommandDocumentView = Pick<
+  CadDocument,
+  "meta" | "entities" | "blocks" | "layers" | "styles" | "externalReferences" | "modelSpace"
+>;
+
 export interface CadCommandContext {
   /** Entidades presentes, sólo para consultar; el motor no las muta. */
   entityIds: readonly string[];
@@ -151,6 +162,20 @@ export interface CadCommandContext {
    * diciéndolo, en vez de explotar el bloque a la nada.
    */
   blocks?: () => readonly CadBlockDefinition[];
+  /**
+   * Lectura del documento entero, sólo para CONSULTAR.
+   *
+   * Las órdenes de gestión —PURGE, XREF, ADCENTER— no operan sobre una
+   * selección: operan sobre las TABLAS. PURGE tiene que saber qué capas hay y
+   * a qué apunta cada estilo antes de proponer nada, y no hay forma de
+   * responder eso con `entity()` y `blocks()`.
+   *
+   * Es opcional, y quien la necesita y no la recibe se NIEGA diciéndolo: un
+   * PURGE que responde «no hay nada que purgar» cuando en realidad no puede
+   * mirar es exactamente la clase de mentira que borra un dibujo por
+   * confianza. Escribir sigue yendo por el lote de comandos, como todo.
+   */
+  document?: () => CadCommandDocumentView;
   selection: readonly string[];
   activeLayer: string;
   /**

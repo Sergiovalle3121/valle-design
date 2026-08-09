@@ -117,8 +117,9 @@ const enter: CadCommandInput = { kind: "enter" };
   const kinds = result.commands.map((entry) => entry.type);
   assert.deepEqual(kinds, ["block"], "sólo define: exportar no altera el dibujo del que se exporta");
   const definition = result.commands[0];
-  assert.ok(definition.type === "block" && definition.definition.library?.scope === "tenant");
-  checks += 3;
+  assert.ok(definition.type === "block" && definition.op === "define");
+  assert.equal(definition.definition.library?.scope, "tenant", "y la publica al inquilino");
+  checks += 4;
 }
 
 // --- 4. INSERT con escala NEGATIVA tecleada ---------------------------------
