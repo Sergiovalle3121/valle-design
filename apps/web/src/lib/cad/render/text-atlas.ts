@@ -169,6 +169,29 @@ export interface CadTextQuadRequest {
   depth: number;
 }
 
+/**
+ * Signo de la Y de PANTALLA por unidad de Y de DIBUJO, tal y como lo define
+ * `CadView.yScreenSign`. `1` —el comportamiento actual del producto— significa
+ * que la +Y del dibujo se ve hacia ABAJO.
+ *
+ * Importa aquí y no importaba en el camino anterior: `buildCadMTextSprite` usaba
+ * `THREE.Sprite`, que mira siempre a la cámara y por eso se saltaba la
+ * orientación del mundo por completo. Estos quads viven en el plano del dibujo,
+ * así que si el eje vertical de la pantalla va al revés que el del mundo, el
+ * texto sale reflejado. El marco local del glifo se refleja en Y antes de rotar.
+ *
+ * PENDIENTE DE MIRAR: la orientación en pantalla del texto ROTADO bajo esta
+ * convención no está verificada visualmente, porque el pipeline aún no está
+ * enchufado y en Node no hay nada que mirar. Los casos de 0° y 90° sí tienen
+ * anclas numéricas en el spec.
+ */
+export type CadScreenYSign = 1 | -1;
+
+export interface CadTextQuadOptions {
+  /** Por defecto `1`: la convención que el editor usa hoy. */
+  yScreenSign?: CadScreenYSign;
+}
+
 export interface CadTextQuadArrays {
   /** 2 flotantes: esquina inferior izquierda del glifo en unidades de dibujo. */
   instanceOrigin: Float32Array;
@@ -197,7 +220,12 @@ export function buildCadTextQuads(
   requests: readonly CadTextQuadRequest[],
   atlas: CadGlyphAtlas,
   source: CadGlyphSource,
+  options: CadTextQuadOptions = {},
 ): CadTextQuadArrays {
+  // Con la +Y del dibujo hacia abajo en pantalla, «arriba» para el glifo es la
+  // −Y del mundo. Se refleja el eje vertical del marco local ANTES de rotar,
+  // para que el giro del texto acompañe al de la geometría que lo rodea.
+  const flipY = (options.yScreenSign ?? 1) === 1 ? -1 : 1;
   let capacity = 0;
   for (const request of requests) capacity += request.text.length;
   const origin = new Float32Array(capacity * 2);
@@ -231,9 +259,9 @@ export function buildCadTextQuads(
       }
       // Esquina inferior izquierda del glifo en el espacio local del rótulo.
       const localX = (pen + metrics.bearingX) * request.fontSize;
-      const localY = metrics.bearingY * request.fontSize;
+      const localY = metrics.bearingY * request.fontSize * flipY;
       const width = metrics.emWidth * request.fontSize;
-      const height = metrics.emHeight * request.fontSize;
+      const height = metrics.emHeight * request.fontSize * flipY;
       origin[count * 2] = request.x + localX * cos - localY * sin;
       origin[count * 2 + 1] = request.y + localX * sin + localY * cos;
       right[count * 2] = width * cos;

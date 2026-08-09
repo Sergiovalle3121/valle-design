@@ -104,11 +104,47 @@ assert.deepEqual([...straight.instanceOrigin.slice(0, 2)], [100.5, 50]);
 // Segundo: avance 0,6 em × 10 = 6, más el mismo bearing.
 assert.deepEqual([...straight.instanceOrigin.slice(2, 4)], [106.5, 50]);
 assert.deepEqual([...straight.instanceRight.slice(0, 2)], [5, 0], "0,5 em × 10 unidades de ancho");
-assert.deepEqual([...straight.instanceUp.slice(0, 2)], [-0, 7], "0,7 em × 10 unidades de alto");
+assert.deepEqual([...straight.instanceUp.slice(0, 2)], [0, -7], "0,7 em × 10 unidades de alto, reflejado en Y");
 assert.equal(straight.instanceStyle[0], 0xff8800);
 assert.ok(Math.abs(straight.instanceStyle[1] - 0.5) < 1e-6, "la profundidad viaja por glifo");
 assert.deepEqual(unpackCadColor(straight.instanceStyle[0]), { r: 0xff, g: 0x88, b: 0x00 });
 ok(true, "sin rotación los quads salen en 100,5 y 106,5 con recuadro 5 × 7");
+
+// La Y de PANTALLA va al revés que la del dibujo (`yScreenSign: 1`, la
+// convención actual del producto), así que el marco local del glifo se refleja
+// en Y: el vector de altura apunta a −Y del mundo, que en pantalla es ARRIBA.
+// Con sprites esto no importaba porque miran siempre a la cámara; con quads en
+// el plano del dibujo, sin reflejar, el texto saldría del revés.
+assert.equal(straight.instanceUp[1], -7, "con Y de pantalla hacia abajo, el alto apunta a −Y del mundo");
+const upright = buildCadTextQuads(
+  [{ text: "A", fontKey: "arial", fontSize: 10, x: 0, y: 0, color: 0, depth: 0 }],
+  flat,
+  monospace,
+  { yScreenSign: -1 },
+);
+assert.equal(upright.instanceUp[1], 7, "con la convención de AutoCAD el alto apunta a +Y");
+// Con un glifo que baja de la línea base (bearingY negativo) el origen también
+// se refleja: es lo que coloca la cola de la «p» al lado correcto.
+const descender: CadGlyphSource = {
+  key: (character, fontKey) => `desc:${fontKey}:${character}`,
+  metrics: () => ({
+    advance: 0.6,
+    bearingX: 0,
+    bearingY: -0.2,
+    emWidth: 0.5,
+    emHeight: 0.9,
+    pixelWidth: 32,
+    pixelHeight: 58,
+  }),
+};
+const request = { text: "p", fontKey: "arial", fontSize: 10, x: 0, y: 0, color: 0, depth: 0 };
+const down = buildCadTextQuads([request], flat, descender, { yScreenSign: 1 });
+const up2 = buildCadTextQuads([request], flat, descender, { yScreenSign: -1 });
+assert.equal(up2.instanceOrigin[1], -2, "con Y hacia arriba la cola baja a −2");
+assert.equal(down.instanceOrigin[1], 2, "con Y hacia abajo se refleja a +2");
+assert.equal(up2.instanceUp[1], 9);
+assert.equal(down.instanceUp[1], -9);
+ok(true, "el reflejo por yScreenSign invierte el vector de altura y el origen del glifo");
 
 const rotated = buildCadTextQuads(
   [{ text: "A", fontKey: "arial", fontSize: 10, x: 0, y: 0, rotationDeg: 90, color: 0, depth: 0 }],
@@ -120,8 +156,8 @@ assert.ok(near(rotated.instanceOrigin[0], 0) && near(rotated.instanceOrigin[1], 
   `a 90° el bearing horizontal se convierte en vertical: ${rotated.instanceOrigin[0]}, ${rotated.instanceOrigin[1]}`);
 assert.ok(near(rotated.instanceRight[0], 0) && near(rotated.instanceRight[1], 5),
   "el vector de anchura apunta a +Y");
-assert.ok(near(rotated.instanceUp[0], -7) && near(rotated.instanceUp[1], 0),
-  "y el de altura a −X");
+assert.ok(near(rotated.instanceUp[0], 7) && near(rotated.instanceUp[1], 0),
+  "y el de altura a +X, que es el reflejo en Y del marco ya girado");
 ok(true, "una rotación de 90° gira los dos vectores del quad, no sólo el origen");
 
 // Los ejes siguen siendo perpendiculares y con la longitud correcta a 37°.

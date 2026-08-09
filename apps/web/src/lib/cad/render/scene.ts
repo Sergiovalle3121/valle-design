@@ -38,7 +38,7 @@ import {
   createCadTextAtlasMaterial,
   type CadTextAtlasUniforms,
 } from "./text-atlas-three";
-import { buildCadTextQuads } from "./text-atlas";
+import { buildCadTextQuads, type CadScreenYSign } from "./text-atlas";
 import {
   CadRenderPipeline,
   type CadRenderPipelineOptions,
@@ -56,6 +56,13 @@ export interface CadRenderSceneOptions extends CadRenderPipelineOptions {
   atlasSize?: number;
   /** Altura de la em rasterizada. Por encima de ~3× el texto se ablanda. */
   atlasEmPixels?: number;
+  /**
+   * Convención del eje Y de pantalla, de `CadView.yScreenSign`. Por defecto `1`
+   * —la +Y del dibujo se ve hacia abajo—, que es lo que hace el editor hoy. Sin
+   * esto el texto saldría reflejado, porque estos quads viven en el plano del
+   * dibujo y no miran a la cámara como hacían los sprites.
+   */
+  yScreenSign?: CadScreenYSign;
 }
 
 export interface CadRenderSyncResult {
@@ -82,10 +89,12 @@ export class CadRenderScene {
   private viewport: CadThreeViewport;
   private pixelsPerUnit = 1;
   private hiddenLayers: ReadonlySet<string> = new Set();
+  private readonly yScreenSign: CadScreenYSign;
 
   constructor(options: CadRenderSceneOptions) {
     this.pipeline = new CadRenderPipeline(options);
     this.viewport = options.viewport;
+    this.yScreenSign = options.yScreenSign ?? 1;
     this.group.name = "cad-render:scene";
     this.group.userData.cadRenderScene = true;
     const line = createCadLineBatchMaterial({
@@ -190,7 +199,9 @@ export class CadRenderScene {
       this.textMesh = null;
     }
     if (requests.length > 0) {
-      const quads = buildCadTextQuads(requests, this.textAtlas.atlas, this.textAtlas.source);
+      const quads = buildCadTextQuads(requests, this.textAtlas.atlas, this.textAtlas.source, {
+        yScreenSign: this.yScreenSign,
+      });
       this.textAtlas.sync();
       this.textUniforms.cadAtlas.value = this.textAtlas.texture;
       glyphs = quads.instanceCount;
