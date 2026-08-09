@@ -9,6 +9,8 @@
  */
 import { CAD_DRAW_BASIC_COMMANDS } from "./commands/draw-basics";
 import { CAD_DRAW_CURVE_COMMANDS } from "./commands/draw-curves";
+import { CAD_MODIFY_ALIGN_COMMANDS } from "./commands/modify-align";
+import { CAD_MODIFY_ARRAY_COMMANDS } from "./commands/modify-array";
 import { CAD_MODIFY_BASIC_COMMANDS } from "./commands/modify-basics";
 import { CAD_MODIFY_EDGE_COMMANDS } from "./commands/modify-edges";
 import { CAD_MIRROR_COMMANDS } from "./commands/modify-mirror";
@@ -30,6 +32,8 @@ export const CAD_COMMAND_DESCRIPTORS = [
   ...CAD_MODIFY_TRANSFORM_COMMANDS,
   ...CAD_MODIFY_EDGE_COMMANDS,
   ...CAD_MIRROR_COMMANDS,
+  ...CAD_MODIFY_ARRAY_COMMANDS,
+  ...CAD_MODIFY_ALIGN_COMMANDS,
 ] as const;
 
 /**

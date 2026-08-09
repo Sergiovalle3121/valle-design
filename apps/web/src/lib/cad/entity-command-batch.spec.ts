@@ -273,4 +273,65 @@ assert.throws(
 // --- 8. el registro sigue mandando ------------------------------------------
 assert.ok(CAD_ENTITY_REGISTRY.supports(circle), "el círculo de prueba es una entidad nativa");
 
+// --- 9. `metadata` y `presentation`: el contexto también se muta por comando ---
+//
+// Existen para las asociatividades y los aspectos que NO tienen campo propio:
+// `properties.write` es por adaptador y ninguno expone el contexto. Sin ellos,
+// ARRAY no podría dejar escrito de qué matriz forma parte cada copia y
+// MATCHPROP no podría copiar un color explícito.
+{
+  const marked = executeCadEntityCommandBatch(
+    baseDocument(),
+    [
+      { type: "metadata", entityId: "line-a", patch: { arrayId: "A1", arrayIndex: 3 } },
+      { type: "metadata", entityId: "line-a", patch: { arrayIndex: 4, extra: "x" } },
+    ],
+    "META",
+  );
+  const entity = marked.document.entities.find((candidate) => candidate.id === "line-a");
+  assert.equal(entity?.context?.metadata?.arrayId, "A1", "la primera clave sobrevive…");
+  assert.equal(entity?.context?.metadata?.arrayIndex, 4, "…y la segunda escritura la actualiza");
+  assert.equal(entity?.context?.metadata?.extra, "x");
+  assert.equal(marked.document.history.length, 1, "los dos comandos son UN paso de historia");
+
+  // `null` BORRA la clave. Es como una matriz se desasocia, y sin ello el
+  // metadato sería para siempre.
+  const cleared = executeCadEntityCommandBatch(
+    marked.document,
+    [{ type: "metadata", entityId: "line-a", patch: { arrayId: null, arrayIndex: null, extra: null } }],
+    "META",
+  );
+  const bare = cleared.document.entities.find((candidate) => candidate.id === "line-a");
+  assert.equal(
+    bare?.context,
+    undefined,
+    "sin metadatos ni nada más, el contexto se quita entero: dejar `{}` cambiaría el serializado",
+  );
+
+  const painted = executeCadEntityCommandBatch(
+    baseDocument(),
+    [
+      {
+        type: "presentation",
+        entityId: "circle-1",
+        presentation: { color: { source: "explicit", value: "#ff0000" } },
+      },
+    ],
+    "MATCHPROP",
+  );
+  const circleAfter = painted.document.entities.find((candidate) => candidate.id === "circle-1");
+  assert.equal(circleAfter?.context?.presentation?.color?.value, "#ff0000");
+
+  const byLayer = executeCadEntityCommandBatch(
+    painted.document,
+    [{ type: "presentation", entityId: "circle-1", presentation: null }],
+    "MATCHPROP",
+  );
+  assert.equal(
+    byLayer.document.entities.find((candidate) => candidate.id === "circle-1")?.context,
+    undefined,
+    "`null` devuelve la entidad a PorCapa, que es distinto de no tocarla",
+  );
+}
+
 console.log("cad entity command batch specs passed");
