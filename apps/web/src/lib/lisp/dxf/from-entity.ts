@@ -254,6 +254,22 @@ export function cadEntityToDxf(entity: CadEntity): LispValue | null {
         entity.text === undefined ? null : dxfString(1, entity.text),
         entity.style ? dxfString(3, entity.style) : null,
         entity.radius === undefined ? null : dxfReal(40, entity.radius),
+        /**
+         * EXTENSIÓN de Valle Design, y conviene saberlo: en DXF la
+         * asociatividad de una cota vive en un diccionario de extensión que
+         * `entget` no devuelve, así que en AutoCAD no hay forma cómoda de
+         * preguntarla desde LISP. Aquí el modelo canónico la tiene como campo
+         * de primera clase, y ocultarla haría IMPOSIBLE la rutina de
+         * comprobación de norma más pedida que existe: «dime qué cotas se han
+         * desasociado». Se expone como 290 (asociativa) y 291 (rota).
+         *
+         * Son de SÓLO LECTURA: `entmod` no las aplica. Cambiar la
+         * asociatividad tiene su propio comando canónico
+         * (`dimension-association`) porque además regenera la cota, y fingir
+         * que un par DXF puede hacer eso sería la mentira de siempre.
+         */
+        dxfInt(290, entity.associative ? 1 : 0),
+        dxfInt(291, entity.associationStatus === "broken" ? 1 : 0),
       ]);
 
     case "mleader":
