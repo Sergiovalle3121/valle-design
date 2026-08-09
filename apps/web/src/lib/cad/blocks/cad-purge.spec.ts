@@ -155,7 +155,7 @@ const labels = (candidates: ReturnType<typeof cadPurgePreview>, kind: string) =>
   // Y el purgado se APLICA sin romper nada.
   const purged = executeCadEntityCommandBatch(
     document,
-    cadPurgeCommands(candidates, document.blocks),
+    cadPurgeCommands(candidates),
     "PURGE",
   ).document;
   assert.deepEqual(
@@ -182,7 +182,7 @@ const labels = (candidates: ReturnType<typeof cadPurgePreview>, kind: string) =>
   );
   const twice = executeCadEntityCommandBatch(
     purged,
-    cadPurgeCommands(cadPurgePreview(purged, { activeLayer: "ACTIVA" }), purged.blocks),
+    cadPurgeCommands(cadPurgePreview(purged, { activeLayer: "ACTIVA" })),
     "PURGE",
   ).document;
   assert.deepEqual(cadPurgePreview(twice, { activeLayer: "ACTIVA" }), [], "y la tercera ya no encuentra nada");
@@ -221,16 +221,16 @@ const labels = (candidates: ReturnType<typeof cadPurgePreview>, kind: string) =>
   });
   const candidates = cadPurgePreview(document);
   assert.deepEqual(labels(candidates, "block"), ["HIJO", "PADRE"], "los dos están huérfanos");
-  const commands = cadPurgeCommands(candidates, document.blocks);
-  assert.deepEqual(
-    commands.map((command) =>
-      command.type === "block" && command.op === "delete" ? command.blockId : command.type,
-    ),
-    ["block:aaa-padre", "block:zzz-hijo"],
-    "el CONTENEDOR se borra primero, aunque su id vaya antes alfabéticamente por casualidad",
-  );
+  const commands = cadPurgeCommands(candidates);
   const purged = executeCadEntityCommandBatch(document, commands, "PURGE").document;
-  assert.equal(purged.blocks.length, 0, "y el lote se aplica sin «todavía está insertado»");
+  assert.equal(
+    purged.blocks.length,
+    0,
+    "el árbol entero se va de una pieza: la tabla no cuenta como «en uso» lo que el mismo lote borra",
+  );
+  // Y al revés también, para que la propiedad no dependa del orden por azar.
+  const reversed = executeCadEntityCommandBatch(document, [...commands].reverse(), "PURGE").document;
+  assert.equal(reversed.blocks.length, 0, "en cualquier orden");
   checks += 3;
 }
 

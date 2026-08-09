@@ -106,17 +106,29 @@ function blockCycle(blocks: readonly CadBlockDefinition[]): string | null {
   return null;
 }
 
-/** ¿Alguna entidad —suelta o dentro de un bloque— inserta esta definición? */
+/**
+ * ¿Alguna entidad —suelta o dentro de un bloque— inserta esta definición?
+ *
+ * Los bloques que el MISMO lote va a borrar no cuentan. Sin eso, borrar un
+ * árbol de bloques huérfanos dependería del orden en que se emitieran las
+ * órdenes: el contenedor antes que el contenido, o falla. Un lote es atómico
+ * respecto de su punto de partida, así que su orden interno no debería decidir
+ * si una operación legítima se puede hacer.
+ */
 function blockIsUsed(
   block: CadBlockDefinition,
   entities: readonly CadEntity[],
   blocks: readonly CadBlockDefinition[],
+  alsoDeleted: ReadonlySet<string>,
 ): boolean {
   const keys = new Set([block.id, block.name]);
   const references = (list: readonly CadEntity[]) =>
     list.some((entity) => entity.type === "insert" && keys.has(entity.block));
   if (references(entities)) return true;
-  return blocks.some((candidate) => candidate.id !== block.id && references(candidate.entities));
+  return blocks.some(
+    (candidate) =>
+      candidate.id !== block.id && !alsoDeleted.has(candidate.id) && references(candidate.entities),
+  );
 }
 
 /**
@@ -143,13 +155,21 @@ export function applyCadDocumentTables(
   let layers = [...document.layers];
   let externalReferences = [...document.externalReferences];
   let touchedLayers = false;
+  // Se calcula ANTES del bucle: lo que este lote va a borrar no puede contar
+  // como «todavía en uso» para lo que también se va a borrar.
+  const pendingBlockDeletes = new Set(
+    commands
+      .filter((command): command is Extract<CadDocumentTableCommand, { type: "block"; op: "delete" }> =>
+        command.type === "block" && command.op === "delete")
+      .map((command) => command.blockId),
+  );
 
   for (const command of commands) {
     if (command.type === "block") {
       if (command.op === "delete") {
         const target = blocks.find((block) => block.id === command.blockId);
         if (!target) throw new Error(`Block ${command.blockId} was not found.`);
-        if (blockIsUsed(target, entities, blocks))
+        if (blockIsUsed(target, entities, blocks, pendingBlockDeletes))
           throw new Error(`Block ${target.name} is still inserted; it cannot be deleted.`);
         blocks = blocks.filter((block) => block.id !== target.id);
         continue;

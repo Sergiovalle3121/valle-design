@@ -189,54 +189,16 @@ export function cadPurgePreview(
 }
 
 /**
- * Ordena los bloques a purgar de CONTENEDOR a CONTENIDO.
- *
- * La tabla comprueba el uso contra el estado que va quedando en el lote, así
- * que borrar primero un bloque anidado fallaría con «todavía está insertado»
- * mientras su contenedor —que también se va— siguiera en la tabla. Un purgado
- * legítimo no puede depender del orden alfabético de los ids.
- */
-function orderBlocksByContainment(
-  candidates: readonly CadPurgeCandidate[],
-  blocks: readonly CadBlockDefinition[],
-): CadPurgeCandidate[] {
-  const byId = new Map(blocks.map((block) => [block.id, block]));
-  const pending = [...candidates];
-  const ordered: CadPurgeCandidate[] = [];
-  while (pending.length > 0) {
-    const remaining = new Set(pending.map((candidate) => candidate.id));
-    const index = pending.findIndex((candidate) => {
-      const keys = new Set([candidate.id, candidate.label]);
-      // ¿Alguno de los que TODAVÍA no se han emitido lo contiene?
-      return ![...remaining]
-        .filter((id) => id !== candidate.id)
-        .some((id) =>
-          (byId.get(id)?.entities ?? []).some(
-            (entity) => entity.type === "insert" && keys.has(entity.block),
-          ),
-        );
-    });
-    // Un ciclo entre bloques no debería existir —la tabla lo rechaza al
-    // definirlos—, pero si apareciera, emitir en el orden dado es mejor que
-    // colgarse: el error que dé la tabla será más informativo que un bucle.
-    ordered.push(...pending.splice(index < 0 ? 0 : index, 1));
-  }
-  return ordered;
-}
-
-/**
  * Las órdenes de un purgado: estilos, capas y por último los bloques.
+ *
+ * El orden ENTRE bloques da igual: la tabla no cuenta como «en uso» lo que el
+ * mismo lote va a borrar, así que un árbol entero de bloques huérfanos se va de
+ * una pieza sin que quien llama tenga que ordenarlo de contenedor a contenido.
  */
-export function cadPurgeCommands(
-  candidates: readonly CadPurgeCandidate[],
-  blocks: readonly CadBlockDefinition[] = [],
-): CadEntityCommand[] {
+export function cadPurgeCommands(candidates: readonly CadPurgeCandidate[]): CadEntityCommand[] {
   const styles = candidates.filter((candidate) => candidate.kind === "style");
   const layers = candidates.filter((candidate) => candidate.kind === "layer");
-  const blockCandidates = orderBlocksByContainment(
-    candidates.filter((candidate) => candidate.kind === "block"),
-    blocks,
-  );
+  const blockCandidates = candidates.filter((candidate) => candidate.kind === "block");
   return [
     ...styles.map((candidate): CadEntityCommand => ({
       type: "style",

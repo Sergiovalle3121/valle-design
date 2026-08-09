@@ -120,6 +120,7 @@ const names = registry.all().map((command) => command.name);
     "XREF",
     "XBIND",
     "XCLIP",
+    "ADCENTER",
   ])
     assert.ok(names.includes(expected), `${expected} no llegó al registro del producto`);
 }
