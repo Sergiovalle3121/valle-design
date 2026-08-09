@@ -223,6 +223,53 @@ assert.deepEqual(
   "la definición vuelve con su ruta y su tamaño en píxeles; el nombre se reconstruye del archivo",
 );
 
+// --- IMAGE GIRADA con recorte: la base, no el ancho y el alto -------------
+//
+// El recorte de una IMAGE viaja en coordenadas NORMALIZADAS de la imagen. Si se
+// normalizara dividiendo por un ancho y un alto, para una imagen girada esos
+// dos números no serían ejes de nada y el recorte volvería torcido respecto de
+// la imagen que recorta. Se resuelve contra la base U/V, y esto lo demuestra.
+
+{
+  const rotated: CadEntity = {
+    id: "e-image-girada",
+    type: "image",
+    definition: "img-plano",
+    insertion: p(0, 0),
+    // Girada 90°: un píxel avanza en +Y por U y en −X por V.
+    uVector: p(0, 1),
+    vVector: p(-1, 0),
+    size: { width: 100, height: 50 },
+    clipBoundary: [p(0, 25), p(0, 75), p(-25, 75), p(-25, 25)],
+    layer: "FONDO",
+  } as unknown as CadEntity;
+  const rotatedDocument = {
+    ...document,
+    entities: [rotated],
+    modelSpace: { entityIds: [rotated.id] },
+  } as unknown as CadDocument;
+  const [returned] = cadDxfPrimitivesToCanonicalEntities(
+    importDxfPrimitives(
+      exportCadDxf({ primitives: cadDocumentNativeDxfPrimitives(rotatedDocument) }).content,
+    ).primitives,
+    { idPrefix: "rot", provider: "native-dxf" },
+  );
+  assert.ok(returned?.type === "image", "la imagen girada tiene que volver");
+  assert.deepEqual(
+    returned.clipBoundary?.map((point) => [
+      Math.round(point.x * 1e6) / 1e6,
+      Math.round(point.y * 1e6) / 1e6,
+    ]),
+    [
+      [0, 25],
+      [0, 75],
+      [-25, 75],
+      [-25, 25],
+    ],
+    "el recorte de una imagen GIRADA vuelve a sus coordenadas exactas",
+  );
+}
+
 // --- ATTDEF: etiqueta, banderas, alineación y ángulo ---------------------
 
 const attdef = only("attdef");

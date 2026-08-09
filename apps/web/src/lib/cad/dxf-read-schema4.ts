@@ -147,24 +147,27 @@ function headerVariable(pairs: RawDxfPair[], name: string, code: number): number
 /**
  * Devuelve el recorte a coordenadas de dibujo.
  *
- * Se invierte exactamente la normalización del escritor: `x = minX + (u + 0,5)
- * · ancho`. El vértice de cierre repetido se descarta, porque el documento
- * canónico DECLARA el cierre en vez de duplicar el primer punto.
+ * Se invierte exactamente la normalización del escritor: el punto es
+ * `origen + (u + 0,5)·U + (v + 0,5)·V`, con `U` y `V` los LADOS completos de la
+ * imagen (con su rotación dentro). El vértice de cierre repetido se descarta,
+ * porque el documento canónico DECLARA el cierre en vez de duplicar el primero.
  */
 function denormalizeBoundary(
   entity: EntityPairs,
   origin: CadDxfPoint,
-  width: number,
-  height: number,
+  uAxis: CadDxfPoint,
+  vAxis: CadDxfPoint,
 ): CadDxfPoint[] {
   const us = entity.all(14).map(Number);
   const vs = entity.all(24).map(Number);
   const points: CadDxfPoint[] = [];
   for (let index = 0; index < Math.min(us.length, vs.length); index += 1) {
     if (!Number.isFinite(us[index]) || !Number.isFinite(vs[index])) continue;
+    const u = us[index] + 0.5;
+    const v = vs[index] + 0.5;
     points.push({
-      x: origin.x + (us[index] + 0.5) * width,
-      y: origin.y + (vs[index] + 0.5) * height,
+      x: origin.x + u * uAxis.x + v * vAxis.x,
+      y: origin.y + u * uAxis.y + v * vAxis.y,
     });
   }
   const last = points.at(-1);
@@ -276,7 +279,12 @@ export function parseRawDxfSchema4(text: string): CadDxfSchema4ImportResult {
     if (type === "WIPEOUT" && anchor) {
       const width = entity.number(11, 0) || entity.number(21, 0);
       const height = entity.number(22, 0) || entity.number(12, 0);
-      const boundary = denormalizeBoundary(entity, anchor, width, height);
+      const boundary = denormalizeBoundary(
+        entity,
+        anchor,
+        { x: width, y: 0 },
+        { x: 0, y: height },
+      );
       if (boundary.length < 3) continue;
       claim();
       primitives.push({
@@ -299,8 +307,8 @@ export function parseRawDxfSchema4(text: string): CadDxfSchema4ImportResult {
       const clip = denormalizeBoundary(
         entity,
         anchor,
-        Math.abs(uVector.x) * pixelWidth,
-        Math.abs(vVector.y) * pixelHeight,
+        { x: uVector.x * pixelWidth, y: uVector.y * pixelWidth },
+        { x: vVector.x * pixelHeight, y: vVector.y * pixelHeight },
       );
       claim();
       primitives.push({

@@ -168,22 +168,34 @@ function boundsOf(points: CadDxfPoint[]): Bounds {
 }
 
 /**
- * Vértices del contorno de recorte en coordenadas normalizadas de la imagen:
- * el origen es el CENTRO y el lado completo mide 1, de ahí el −0,5.
+ * Vértices del contorno de recorte en coordenadas normalizadas de la imagen.
+ *
+ * El origen es el CENTRO y el lado completo mide 1, de ahí el −0,5. Las
+ * coordenadas se resuelven contra la BASE de la imagen (`uAxis` y `vAxis` son
+ * los lados completos, ya con la rotación dentro), no dividiendo por un ancho y
+ * un alto: para una imagen girada esos dos números no son ejes de nada y el
+ * recorte saldría torcido respecto de la imagen que recorta.
  */
 function pushClipBoundary(
   lines: string[],
   boundary: CadDxfPoint[],
-  bounds: Bounds,
+  origin: CadDxfPoint,
+  uAxis: CadDxfPoint,
+  vAxis: CadDxfPoint,
 ) {
+  const determinant = uAxis.x * vAxis.y - uAxis.y * vAxis.x;
+  // Base degenerada (imagen de lado cero): no hay sistema que resolver.
+  if (!Number.isFinite(determinant) || Math.abs(determinant) < 1e-12) return;
   // El contorno poligonal se CIERRA repitiendo el primer vértice, que es como
   // lo escribe AutoCAD; al leerlo se vuelve a fundir.
   const closed = [...boundary, boundary[0]];
   pushPair(lines, 71, 2); // 2 = poligonal (1 sería rectangular)
   pushPair(lines, 91, closed.length);
   for (const vertex of closed) {
-    pushPair(lines, 14, fmt((vertex.x - bounds.minX) / bounds.width - 0.5));
-    pushPair(lines, 24, fmt((vertex.y - bounds.minY) / bounds.height - 0.5));
+    const dx = vertex.x - origin.x;
+    const dy = vertex.y - origin.y;
+    pushPair(lines, 14, fmt((dx * vAxis.y - dy * vAxis.x) / determinant - 0.5));
+    pushPair(lines, 24, fmt((uAxis.x * dy - uAxis.y * dx) / determinant - 0.5));
   }
 }
 
@@ -217,7 +229,13 @@ export function pushWipeout(
   pushPair(lines, 281, 50);
   pushPair(lines, 282, 50);
   pushPair(lines, 283, 0);
-  pushClipBoundary(lines, boundary, bounds);
+  pushClipBoundary(
+    lines,
+    boundary,
+    { x: bounds.minX, y: bounds.minY },
+    { x: bounds.width, y: 0 },
+    { x: 0, y: bounds.height },
+  );
 }
 
 /**
@@ -275,15 +293,14 @@ export function pushImage(
   pushPair(lines, 282, Math.round(payload.contrast ?? 50));
   pushPair(lines, 283, Math.round(payload.fade ?? 0));
   pushPair(lines, 360, reactorHandle);
-  if (payload.clipBoundary?.length) {
-    const bounds = {
-      minX: insertion.x,
-      minY: insertion.y,
-      width: Math.max(1e-9, Math.abs(payload.uVector.x) * payload.pixelWidth),
-      height: Math.max(1e-9, Math.abs(payload.vVector.y) * payload.pixelHeight),
-    };
-    pushClipBoundary(lines, payload.clipBoundary, bounds);
-  }
+  if (payload.clipBoundary?.length)
+    pushClipBoundary(
+      lines,
+      payload.clipBoundary,
+      insertion,
+      { x: payload.uVector.x * payload.pixelWidth, y: payload.uVector.y * payload.pixelWidth },
+      { x: payload.vVector.x * payload.pixelHeight, y: payload.vVector.y * payload.pixelHeight },
+    );
 }
 
 // ---------------------------------------------------------------------------
