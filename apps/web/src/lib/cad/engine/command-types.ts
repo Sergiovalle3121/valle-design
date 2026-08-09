@@ -32,7 +32,9 @@
  * - **El motor no sabe de snaps.** Los catorce modos de `snap-engine.ts` entran
  *   como un override por paso, así que añadir modos no toca el motor.
  */
-import type { CadBlockDefinition, CadEntity, CadPoint2 } from "../cad-document";
+import type {
+  CadBlockDefinition, CadConstraint, CadEntity, CadParameter, CadPoint2,
+} from "../cad-document";
 import type { CadEntityCommand } from "../entity-commands";
 import type { SnapType } from "../snap-engine";
 
@@ -124,6 +126,18 @@ export interface CadCommandContext {
   blocks?: () => readonly CadBlockDefinition[];
   selection: readonly string[];
   activeLayer: string;
+  /**
+   * Restricciones y parámetros del documento, sólo para CONSULTAR.
+   *
+   * Opcionales porque el anfitrión puede no aportarlos, y los comandos que los
+   * usan lo dicen en voz alta en vez de fingir que la tabla está vacía: un
+   * `PARAMETERS` que responde «no hay ninguno» cuando en realidad no puede
+   * mirar es peor que uno que responde «no puedo mirar».
+   *
+   * Escribir NO va por aquí: va por el lote de comandos, como la geometría.
+   */
+  constraints?: readonly CadConstraint[];
+  parameters?: readonly CadParameter[];
   view: CadViewSnapshot;
   /** Posición actual del puntero en unidades de dibujo, si se conoce. */
   cursor?: CadPoint2;

@@ -14,11 +14,20 @@
 import {
   commitChange,
   preserveDrawOrder,
+  type CadConstraint,
   type CadDocument,
+  type CadEntity,
   type CadEntityContext,
   type CadEntityPresentation,
+  type CadParameter,
   type CadPoint2,
 } from "./cad-document";
+import {
+  deleteCadParameter,
+  evaluateCadParameters,
+  setCadParameter,
+} from "./constraints/parameters";
+import { solveConstraintSystem } from "./constraints/solver";
 import { regenerateAssociativeDimensions } from "./associative-dimension";
 import { regenerateAssociativeMleaders } from "./associative-mleader";
 import { regenerateAssociativeHatches } from "./hatch-associativity";
@@ -75,7 +84,37 @@ export type CadEntityCommand =
   | { type: "hatch-association"; entityId: string; associative: boolean }
   | { type: "dimension-association"; entityId: string; associative: boolean }
   | { type: "mleader-association"; entityId: string; associative: boolean }
-  | { type: "delete"; entityId: string };
+  | { type: "delete"; entityId: string }
+  /**
+   * Restricciones y parámetros: SECCIONES del documento, no entidades.
+   *
+   * Van por el mismo embudo que la geometría a propósito. Un parámetro que
+   * cambia mueve el dibujo, así que el cambio del parámetro y el movimiento de
+   * la geometría son UNA transacción: un `commitChange`, un paso de deshacer.
+   * Con dos rutas separadas, deshacer dejaría el dibujo movido y el parámetro
+   * viejo, o al revés.
+   *
+   * `entity` se declara ausente en vez de omitirse porque el anfitrión decide
+   * qué capa comprobar preguntando `"entityId" in command ? … : command.entity`,
+   * y estos comandos no apuntan a ninguna entidad.
+   */
+  | { type: "constraint"; entity?: undefined; op: "upsert"; constraint: CadConstraint }
+  | { type: "constraint"; entity?: undefined; op: "delete"; constraintId: string }
+  /** Quita TODAS las restricciones que tocan estas entidades (DELCONSTRAINT). */
+  | { type: "constraint"; entity?: undefined; op: "clear"; entityIds: string[] }
+  | {
+      type: "parameter";
+      entity?: undefined;
+      op: "set";
+      parameter: { name: string; expression: string; comment?: string };
+    }
+  | { type: "parameter"; entity?: undefined; op: "delete"; name: string };
+
+/** Los que operan sobre secciones del documento y no sobre entidades. */
+type CadDocumentSectionCommand = Extract<CadEntityCommand, { type: "constraint" | "parameter" }>;
+
+const isSectionCommand = (command: CadEntityCommand): command is CadDocumentSectionCommand =>
+  command.type === "constraint" || command.type === "parameter";
 
 export interface CadEntityCommandResult {
   document: CadDocument;
@@ -95,6 +134,7 @@ function cadEntityCommandLabel(
   registry: CadEntityRegistry,
 ): string {
   if (command.type === "insert") return `insert:${command.entity.type}`;
+  if (isSectionCommand(command)) return `${command.type}:${command.op}`;
   const source = document.entities.find((entity) => entity.id === command.entityId);
   if (!source || !registry.supports(source))
     throw new Error(`Native CAD entity ${command.entityId} was not found.`);
@@ -146,7 +186,13 @@ export function executeCadEntityCommandBatch(
     if (back >= 0) createdBackIds.splice(back, 1);
   };
 
+  const sectionCommands: CadDocumentSectionCommand[] = [];
+
   for (const command of commands) {
+    if (isSectionCommand(command)) {
+      sectionCommands.push(command);
+      continue;
+    }
     if (command.type === "insert") {
       // El id se lee antes del guardia: `supports` estrecha a `never` en la
       // rama falsa, así que leerlo después no compila. La comprobación en
@@ -270,6 +316,15 @@ export function executeCadEntityCommandBatch(
     }
   }
 
+  // Las secciones se aplican DESPUÉS de la geometría y ANTES de regenerar los
+  // asociativos: si cambiar un parámetro mueve una línea, la cota que la mide
+  // tiene que enterarse dentro de esta misma transacción.
+  const sections = applyDocumentSections(document, sectionCommands, present);
+  for (const entity of sections.movedEntityIds) {
+    touchedIds.push(entity);
+    regenerationSourceIds.push(entity);
+  }
+
   const regenerationSources = [...new Set(regenerationSourceIds)];
   let entities = [...present.values()];
   const regenerated = regenerateAssociativeHatches(
@@ -294,14 +349,18 @@ export function executeCadEntityCommandBatch(
     // fantasmas ni omisiones.
     document.modelSpace.entityIds.filter((id) => !deleted.has(id)).concat(createdFrontIds),
   );
-  const nextDocument = commitChange(
-    {
-      ...document,
-      entities,
-      modelSpace: { entityIds: [...createdBackIds, ...ordered] },
-    },
-    label,
-  );
+  const staged: CadDocument = {
+    ...document,
+    entities,
+    constraints: sections.constraints,
+    modelSpace: { entityIds: [...createdBackIds, ...ordered] },
+  };
+  // La sección de parámetros sólo existe si se usa: materializarla como `[]`
+  // cambiaría el serializado de todos los documentos que hoy no la tienen, y
+  // con él sus hashes.
+  if (sections.parameters === undefined) delete staged.parameters;
+  else staged.parameters = sections.parameters;
+  const nextDocument = commitChange(staged, label);
   return {
     document: nextDocument,
     affectedEntityIds: [...new Set([
@@ -316,6 +375,81 @@ export function executeCadEntityCommandBatch(
     createdEntityIds: [...createdBackIds, ...createdFrontIds],
     deletedEntityIds,
   };
+}
+
+/**
+ * Aplica los comandos de sección y RESUELVE las restricciones sobre el estado
+ * ya editado.
+ *
+ * Resolver aquí dentro es lo que hace que «cambio el parámetro `ancho`» y «el
+ * perfil se reajusta» sean el mismo paso de deshacer. Si el sistema resultante
+ * es imposible, se LANZA: el ejecutor por lotes es atómico y el anfitrión ya
+ * revierte al checkpoint. Un dibujo medio reajustado es peor que un cambio que
+ * no se hizo, porque nadie sabe qué parte es la buena.
+ *
+ * Sólo se resuelve cuando el lote toca restricciones o parámetros. Una edición
+ * corriente de geometría no paga este coste; de propagar las restricciones tras
+ * mover algo ya se encarga el editor con `solveCadConstraints`.
+ */
+function applyDocumentSections(
+  document: CadDocument,
+  commands: readonly CadDocumentSectionCommand[],
+  present: Map<string, CadEntity>,
+): { constraints: CadConstraint[]; parameters: CadParameter[] | undefined; movedEntityIds: string[] } {
+  if (commands.length === 0)
+    return { constraints: document.constraints, parameters: document.parameters, movedEntityIds: [] };
+
+  let constraints = [...document.constraints];
+  let parameters = [...(document.parameters ?? [])];
+  const unit = document.meta.unit;
+
+  for (const command of commands) {
+    if (command.type === "constraint") {
+      if (command.op === "delete") {
+        constraints = constraints.filter((constraint) => constraint.id !== command.constraintId);
+        continue;
+      }
+      if (command.op === "clear") {
+        const targets = new Set(command.entityIds);
+        constraints = constraints.filter(
+          (constraint) => !constraint.entityIds.some((entityId) => targets.has(entityId)),
+        );
+        continue;
+      }
+      constraints = [
+        ...constraints.filter((constraint) => constraint.id !== command.constraint.id),
+        { ...command.constraint, entityIds: [...command.constraint.entityIds] },
+      ].sort((a, b) => a.id.localeCompare(b.id));
+      continue;
+    }
+    const written =
+      command.op === "delete"
+        ? deleteCadParameter(parameters, command.name, { unit })
+        : setCadParameter(parameters, command.parameter, { unit });
+    if (!written.ok) throw new Error(written.issues[0]?.message ?? "El parámetro no se pudo escribir.");
+    parameters = written.parameters;
+  }
+
+  const evaluation = evaluateCadParameters(parameters, { unit });
+  const blocking = evaluation.issues.filter((issue) => issue.code !== "parameter_unknown_reference");
+  if (blocking.length > 0) throw new Error(blocking[0].message);
+  parameters = evaluation.parameters;
+
+  const solution = solveConstraintSystem([...present.values()], constraints, {
+    parameterValues: evaluation.values,
+  });
+  if (!solution.converged && constraints.some((constraint) => constraint.enabled))
+    throw new Error(
+      solution.issues[0]?.message ?? "Las restricciones del documento no se pueden cumplir.",
+    );
+
+  const movedEntityIds: string[] = [];
+  for (const entity of solution.entities) {
+    const before = present.get(entity.id);
+    present.set(entity.id, entity);
+    if (before && JSON.stringify(before) !== JSON.stringify(entity)) movedEntityIds.push(entity.id);
+  }
+  return { constraints, parameters: parameters.length > 0 ? parameters : undefined, movedEntityIds };
 }
 
 export function executeCadEntityCommand(
