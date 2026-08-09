@@ -25,8 +25,8 @@
   "allowances": {
     "apps/api/src/migration-cli/import.ts": 810,
     "apps/web/e2e/real/studio-real-api.spec.ts": 821,
-    "apps/web/src/components/line-engineering/Layout3DEditor.tsx": 23442,
-    "apps/web/src/lib/cad/cad-document.ts": 1349,
+    "apps/web/src/components/line-engineering/Layout3DEditor.tsx": 23316,
+    "apps/web/src/lib/cad/cad-document.ts": 922,
     "apps/web/src/lib/cad/commands/parser.ts": 1636,
     "apps/web/src/lib/cad/commands/registry.spec.ts": 3063,
     "apps/web/src/lib/cad/commands/registry.ts": 2953,
