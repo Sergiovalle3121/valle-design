@@ -141,6 +141,14 @@ function integrate(points: readonly CadPoint2[]): RawIntegral {
   };
 }
 
+function normalizePrincipalAngle(degrees: number): number {
+  const wrapped = degrees % 180;
+  const positive = wrapped < 0 ? wrapped + 180 : wrapped;
+  // `180 - 1e-14` no es una dirección distinta de `0`: el redondeo la produce y
+  // dejarla pasar haría que el mismo eje se informase de dos maneras.
+  return Math.abs(positive - 180) < 1e-9 ? 0 : positive;
+}
+
 function emptyBounds() {
   return {
     minX: Number.POSITIVE_INFINITY,
@@ -211,10 +219,13 @@ export function cadMassProperties(contours: readonly CadContour[]): CadMassPrope
     principal: {
       major: average + radius,
       minor: average - radius,
-      // Dirección del eje del momento MAYOR. `atan2` de dos ceros da 0, que es
-      // la respuesta correcta para una figura con simetría de revolución: no
-      // hay dirección privilegiada y cualquiera vale.
-      angleDeg: (Math.atan2(-2 * ixyC, ixxC - iyyC) * 90) / Math.PI,
+      // Dirección del eje del momento MAYOR, normalizada a `[0, 180)`: un eje
+      // no tiene sentido, sólo dirección, y 90 y −90 son el mismo. Sin
+      // normalizar, un rectángulo tumbado y el mismo rectángulo dibujado al
+      // revés informarían direcciones distintas para el mismo eje.
+      // `atan2` de dos ceros da 0, que es la respuesta correcta para una figura
+      // con simetría de revolución: no hay dirección privilegiada.
+      angleDeg: normalizePrincipalAngle((Math.atan2(-2 * ixyC, ixxC - iyyC) * 90) / Math.PI),
     },
     bounds,
   };

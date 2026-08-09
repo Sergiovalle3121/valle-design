@@ -57,12 +57,36 @@ export interface CadOverkillPlan {
 
 const DEFAULT_TOLERANCE = 1e-6;
 
-/** Cuantiza a la tolerancia para que dos valores «iguales» den la misma clave. */
-function quantize(value: number, tolerance: number): string {
-  const step = Math.max(tolerance, Number.EPSILON);
-  // `+0` normaliza el `-0` que sale de redondear un negativo diminuto: sin él,
-  // dos puntos idénticos darían claves distintas por el signo del cero.
-  return String(Math.round(value / step) * step + 0);
+/**
+ * Convierte un número en una clave comparable con TOLERANCIA.
+ *
+ * Redondear a la rejilla —`round(v/tol)*tol`— es lo primero que uno escribe y
+ * está mal: con tolerancia 0,1, los valores 0,049 y 0,051 distan 0,002 y caen
+ * en cubos distintos, así que dos líneas que el usuario ve como la misma no se
+ * detectan. El fallo aparece justo en la frontera y por eso se cuela.
+ *
+ * Aquí se agrupa por REPRESENTANTE: el primer valor visto de cada campo funda
+ * su grupo, y todo lo que caiga a menos de la tolerancia de él se le suma. No
+ * hay fronteras. El precio es que el resultado depende del orden en que llegan
+ * las entidades —lo cual es determinista, porque el orden es el del documento—
+ * y que un rosario de valores separados 0,9·tolerancia acaba en un solo grupo.
+ * Es exactamente el compromiso que hace AutoCAD, y es el que quiere quien pide
+ * «limpia esto con tolerancia 0,1».
+ */
+class ValueSnapper {
+  private readonly groups = new Map<string, number[]>();
+
+  constructor(private readonly tolerance: number) {}
+
+  key(field: string, value: number): string {
+    if (this.tolerance <= 0) return String(value + 0);
+    const representatives = this.groups.get(field) ?? [];
+    for (const representative of representatives)
+      if (Math.abs(representative - value) <= this.tolerance) return String(representative + 0);
+    representatives.push(value);
+    this.groups.set(field, representatives);
+    return String(value + 0);
+  }
 }
 
 function presentationKey(entity: CadEntity, options: CadOverkillOptions): string {
@@ -85,15 +109,17 @@ function presentationKey(entity: CadEntity, options: CadOverkillOptions): string
  */
 function geometryKey(
   entity: CadEntity,
-  tolerance: number,
+  snapper: ValueSnapper,
   registry: CadEntityRegistry,
 ): string | null {
   if (entity.type === "line") {
     const a = { x: entity.start.x, y: entity.start.y };
     const b = { x: entity.end.x, y: entity.end.y };
-    const [first, second] =
-      a.x < b.x || (a.x === b.x && a.y <= b.y) ? [a, b] : [b, a];
-    return `line:${quantize(first.x, tolerance)},${quantize(first.y, tolerance)},${quantize(second.x, tolerance)},${quantize(second.y, tolerance)}`;
+    const [first, second] = a.x < b.x || (a.x === b.x && a.y <= b.y) ? [a, b] : [b, a];
+    return (
+      `line:${snapper.key("x", first.x)},${snapper.key("y", first.y)},` +
+      `${snapper.key("x", second.x)},${snapper.key("y", second.y)}`
+    );
   }
   if (!registry.supports(entity)) return null;
   const bag = registry.adapter(entity).properties.read(entity);
@@ -101,7 +127,9 @@ function geometryKey(
     .filter(([key]) => key !== "layer")
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([key, value]) =>
-      typeof value === "number" ? `${key}=${quantize(value, tolerance)}` : `${key}=${value}`,
+      typeof value === "number"
+        ? `${key}=${snapper.key(`${entity.type}.${key}`, value)}`
+        : `${key}=${value}`,
     );
   return `${entity.type}:${parts.join("|")}`;
 }
@@ -124,6 +152,7 @@ interface SegmentGroup {
 function groupCollinear(
   lines: readonly Extract<CadEntity, { type: "line" }>[],
   tolerance: number,
+  snapper: ValueSnapper,
 ): SegmentGroup[] {
   const groups = new Map<string, SegmentGroup>();
   for (const entity of lines) {
@@ -137,7 +166,7 @@ function groupCollinear(
     const direction = { x: Math.cos(angle), y: Math.sin(angle) };
     const normal = { x: -direction.y, y: direction.x };
     const offset = entity.start.x * normal.x + entity.start.y * normal.y;
-    const key = `${quantize(angle, tolerance)}|${quantize(offset, tolerance)}`;
+    const key = `${snapper.key("angle", angle)}|${snapper.key("offset", offset)}`;
     const group =
       groups.get(key) ??
       ({ direction, anchor: { x: entity.start.x, y: entity.start.y }, members: [] } as SegmentGroup);
@@ -174,11 +203,12 @@ export function planCadOverkill(
   const tolerance = options.tolerance ?? DEFAULT_TOLERANCE;
   const commands: CadEntityCommand[] = [];
 
+  const snapper = new ValueSnapper(tolerance);
   const seen = new Set<string>();
   const survivors: CadEntity[] = [];
   let duplicatesRemoved = 0;
   for (const entity of entities) {
-    const geometry = geometryKey(entity, tolerance, registry);
+    const geometry = geometryKey(entity, snapper, registry);
     if (geometry === null) {
       survivors.push(entity);
       continue;
@@ -207,7 +237,7 @@ export function planCadOverkill(
     }
 
     for (const bucket of byPresentation.values())
-      for (const group of groupCollinear(bucket, tolerance)) {
+      for (const group of groupCollinear(bucket, tolerance, new ValueSnapper(tolerance))) {
         const ordered = [...group.members].sort((a, b) => a.from - b.from);
         let run = [ordered[0]];
         const flush = () => {

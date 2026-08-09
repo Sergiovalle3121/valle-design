@@ -46,14 +46,19 @@ const names = registry.all().map((command) => command.name);
         command.name,
         `el alias ${alias} debería llevar a ${command.name}`,
       );
-      // La variante con guion de AutoCAD (`-LAYER`, `-INSERT`) resuelve al
-      // mismo descriptor. Es lo que hace posible SCRIPT, y se comprueba aquí
-      // porque es la clase de detalle que se rompe sin que nada avise.
-      assert.equal(
-        registry.get(`-${alias}`)?.name,
-        command.name,
-        `la variante -${alias} debería resolver igual`,
-      );
+      // El guion de AutoCAD es decorativo MIENTRAS nadie reclame ese nombre.
+      // Desde la ola de utilidades hay comandos que SÍ lo reclaman: `-LAYER`
+      // pide sus opciones por la línea y `LAYER` abre el gestor, y son dos
+      // descriptores distintos. Para ésos, anteponer otro guion no significa
+      // nada y la comprobación no aplica; para todos los demás, sigue.
+      if (!command.name.startsWith("-")) {
+        const dashed = registry.get(`-${alias}`);
+        assert.ok(
+          dashed?.name === command.name || dashed?.name === `-${command.name}`,
+          `-${alias} debería llevar a ${command.name} o a su variante sin diálogo ` +
+            `-${command.name}; llevó a ${dashed?.name ?? "ninguna parte"}`,
+        );
+      }
     }
 }
 
@@ -104,6 +109,40 @@ const names = registry.all().map((command) => command.name);
     "EXPLODE",
     "PEDIT",
     "SPLINEDIT",
+    // Ola de utilidades: consulta, selección avanzada, propiedades globales,
+    // limpieza y automatización.
+    "DIST",
+    "AREA",
+    "LIST",
+    "ID",
+    "MASSPROP",
+    "REGION",
+    "QSELECT",
+    "FILTER",
+    "OVERKILL",
+    "DRAWORDER",
+    "UNITS",
+    "LTSCALE",
+    "LWEIGHT",
+    "COLOR",
+    "SETVAR",
+    "GETVAR",
+    "LAYER",
+    "LAYERSTATE",
+    "OSNAP",
+    "DSETTINGS",
+    "OPTIONS",
+    "PROPERTIES",
+    "TOOLPALETTES",
+    "UCSMAN",
+    "LINETYPE",
+    "SCRIPT",
+    // Y las variantes SIN diálogo, que son las que un `.scr` puede ejecutar.
+    "-LAYER",
+    "-OSNAP",
+    "-LINETYPE",
+    "-UCSMAN",
+    "-TOOLPALETTES",
   ])
     assert.ok(names.includes(expected), `${expected} no llegó al registro del producto`);
 }

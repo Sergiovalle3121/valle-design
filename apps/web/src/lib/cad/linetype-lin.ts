@@ -121,7 +121,9 @@ export function parseCadLinetypeLibrary(source: string): CadLinetypeLibrary {
     }
     // Un patrón que sólo tiene huecos dibuja una línea invisible. Casi siempre
     // es un signo puesto al revés, y cargarlo produce una capa que "no se ve".
-    if (pattern.every((value) => value <= 0)) {
+    // El CERO no cuenta como hueco: es un PUNTO, y es lo único que tiene el
+    // patrón `DOT`, que es perfectamente legítimo.
+    if (pattern.every((value) => value < 0)) {
       skipped.push(`"${name}": el patrón no tiene ningún trazo; la línea sería invisible.`);
       continue;
     }

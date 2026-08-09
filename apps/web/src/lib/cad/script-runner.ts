@@ -59,6 +59,10 @@ export const CAD_DIALOG_COMMANDS: readonly string[] = [
 ];
 
 export function parseCadScript(source: string): CadScriptLine[] {
+  // Un archivo vacío no es «un Enter»: es un archivo vacío. `"".split("\n")`
+  // devuelve un trozo, y sin este guardia un `.scr` en blanco aceptaría el
+  // prompt del comando que estuviera en curso.
+  if (source === "") return [];
   const lines: CadScriptLine[] = [];
   const rows = source.split(/\r?\n/);
   for (let index = 0; index < rows.length; index += 1) {
@@ -69,8 +73,12 @@ export function parseCadScript(source: string): CadScriptLine[] {
     if (comment >= 0 && body === "" && rows[index].trim().startsWith(";")) continue;
     lines.push({ token: body, line: index + 1 });
   }
-  // El salto final que todo editor añade no es un Enter que el autor quisiera.
-  while (lines.length > 0 && lines[lines.length - 1].token === "") lines.pop();
+  // Exactamente UNO. El salto de línea con el que todo editor termina un
+  // archivo produce un último trozo vacío al partir, y ése no es un Enter que
+  // el autor escribiera. Los demás SÍ lo son: `LINE\n0,0\n10,0\n\n` termina la
+  // línea a propósito, y descartar todos los vacíos —el impulso natural— dejaba
+  // el comando a medias y el script sin dibujar nada.
+  if (source.endsWith("\n") && lines.length > 0 && lines[lines.length - 1].token === "") lines.pop();
   return lines;
 }
 

@@ -17,7 +17,9 @@ const performance = 'apps/web/e2e/performance/cad-viewport-100k.spec.ts';
  */
 export const CAD_ACCEPTANCE_JOURNEY: readonly CadAcceptanceJourneyStep[] = [
   { step: 1, action: 'Abrir dibujo', level: 'browser-proven', evidence: [golden('26-cad-precision-polyline.spec.ts')] },
-  { step: 2, action: 'Elegir unidades', level: 'browser-proven', evidence: [golden('26-cad-precision-polyline.spec.ts')] },
+  // 46 prueba el paso de la única forma que lo prueba de verdad: se cambia a
+  // arquitectónico y la MISMA medida pasa a leerse en pies y pulgadas.
+  { step: 2, action: 'Elegir unidades', level: 'browser-proven', evidence: [golden('26-cad-precision-polyline.spec.ts'), golden('46-cad-inquiry-and-utilities.spec.ts')] },
   { step: 3, action: 'Crear capas', level: 'browser-proven', evidence: [golden('24-cad-canonical-layers.spec.ts'), golden('50-cad-layer-properties.spec.ts'), golden('26-cad-precision-polyline.spec.ts')] },
   { step: 4, action: 'Dibujar con coordenadas absolutas', level: 'browser-proven', evidence: [golden('26-cad-precision-polyline.spec.ts')] },
   { step: 5, action: 'Dibujar con relativas', level: 'browser-proven', evidence: [golden('26-cad-precision-polyline.spec.ts')] },
