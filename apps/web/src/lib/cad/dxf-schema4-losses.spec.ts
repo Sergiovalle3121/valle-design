@@ -243,6 +243,24 @@ assert.deepEqual(
   "sólo se avisa de lo que el ámbito exportado incluye",
 );
 
+// Las variables GLOBALES del fichero las decide lo que viaja, no lo que hay en
+// el documento: un punto de otro estilo en una capa oculta no puede provocar un
+// aviso de "mezcla de estilos" sobre un fichero en el que no está.
+const mixedStyles = documentWith([
+  SAMPLES.point,
+  { ...SAMPLES.point, id: "s4-point-oculto", style: 3 } as CadEntity,
+]);
+assert.equal(
+  cadDocumentDxfExportLosses(mixedStyles).length,
+  2,
+  "con los dos puntos exportados, la mezcla de estilos SÍ es una pérdida real",
+);
+assert.deepEqual(
+  cadDocumentDxfExportLosses(mixedStyles, (entity) => entity.id === "s4-point"),
+  [],
+  "si el punto de otro estilo no viaja, no hay mezcla que declarar",
+);
+
 // --- 6. Una entidad que SÍ se descarta se declara una vez, no una por campo -
 
 const degenerate = cadDocumentDxfExportLosses(

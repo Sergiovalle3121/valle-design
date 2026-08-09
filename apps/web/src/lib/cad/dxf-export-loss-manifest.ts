@@ -52,11 +52,18 @@ const DXF_NON_PRIMITIVE_TYPES = new Set([
  * Un tipo sin entrada en esta tabla y sin primitiva se sigue reportando por la
  * vía genérica: el manifiesto no se queda mudo por un olvido en la tabla.
  *
+ * `scoped` son las entidades que REALMENTE se van a exportar, no todas las del
+ * documento: las variables globales del fichero ($PDMODE, el marco de los
+ * enmascaramientos) las decide lo que viaja, así que un enmascaramiento en una
+ * capa oculta no puede provocar un aviso de "mezcla de marcos" sobre un fichero
+ * en el que no está.
+ *
  * `null` = ninguna pérdida que declarar para ESTA entidad concreta.
  */
 type Schema4LossRule = (
   entity: CadEntity,
   document: CadDocument,
+  scoped: readonly CadEntity[],
 ) => Pick<CadLossManifestEntry, "code" | "severity" | "detail"> | null;
 
 const SCHEMA4_LOSS_RULES: Record<string, Schema4LossRule> = {
@@ -79,11 +86,11 @@ const SCHEMA4_LOSS_RULES: Record<string, Schema4LossRule> = {
    * estrictamente más expresivo — así que la pérdida sólo EXISTE si los puntos
    * no comparten estilo, y sólo entonces se declara.
    */
-  point: (entity, document) => {
+  point: (entity, _document, scoped) => {
     if (entity.type !== "point") return null;
     const styles = new Set<number>();
     const sizes = new Set<number>();
-    for (const candidate of document.entities) {
+    for (const candidate of scoped) {
       if (candidate.type !== "point") continue;
       styles.add(candidate.style ?? 0);
       sizes.add(candidate.size ?? 0);
@@ -130,10 +137,10 @@ const SCHEMA4_LOSS_RULES: Record<string, Schema4LossRule> = {
    * WIPEOUT: el marco es una variable del FICHERO (`ACAD_WIPEOUT_VARS`), no de
    * cada enmascaramiento. Mientras todos coincidan no se pierde nada.
    */
-  wipeout: (entity, document) => {
+  wipeout: (entity, _document, scoped) => {
     if (entity.type !== "wipeout") return null;
     const frames = new Set(
-      document.entities
+      scoped
         .filter((candidate) => candidate.type === "wipeout")
         .map((candidate) => candidate.frame === true),
     );
@@ -186,13 +193,14 @@ export function cadDocumentDxfExportLosses(
   // El informe debe usar EL MISMO filtro que la exportación (ámbito de
   // selección, capas ocultas): avisar de pérdidas en entidades que no se van a
   // exportar sería ruido y erosionaría la confianza en el aviso.
-  for (const entity of document.entities.filter((candidate) =>
+  const scoped = document.entities.filter((candidate) =>
     filter ? filter(candidate) : true,
-  )) {
+  );
+  for (const entity of scoped) {
     // 1. Fidelidad declarada de los tipos del esquema 4. Va ANTES del descarte
     //    genérico porque una regla concreta dice QUÉ se pierde, y "no tiene
     //    representación" no dice nada que el usuario pueda accionar.
-    const declared = SCHEMA4_LOSS_RULES[entity.type]?.(entity, document) ?? null;
+    const declared = SCHEMA4_LOSS_RULES[entity.type]?.(entity, document, scoped) ?? null;
     if (declared)
       losses.push({
         ...declared,
