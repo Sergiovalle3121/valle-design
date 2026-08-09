@@ -65,6 +65,15 @@ export interface CadRenderPathMeasurement {
   segmentsAtRest: number;
   /** Cuadros que hicieron falta para asentar la vista inicial. */
   framesToFirstDetail: number;
+  /**
+   * Cuántos cuadros entraron en cada percentil.
+   *
+   * Un p95 sobre dos muestras ES el máximo, y presentarlo como percentil sin
+   * decir cuántas muestras hay invita a leerlo como si fuera robusto. El número
+   * viaja al lado del percentil para que nadie tenga que deducirlo.
+   */
+  panFrameSamples: number;
+  zoomFrameSamples: number;
 }
 
 export interface CadRenderLeakMeasurement {
@@ -225,6 +234,8 @@ export function measureCadNextPipeline(
     detailedAtRest: stats.renderedEntities,
     segmentsAtRest: stats.instances,
     framesToFirstDetail,
+    panFrameSamples: panFrames.length,
+    zoomFrameSamples: zoomFrames.length,
   };
   pipeline.dispose();
   return measurement;
@@ -308,6 +319,8 @@ export function measureCadLegacyPipeline(
     detailedAtRest: zoom.rendered,
     segmentsAtRest: zoom.segments,
     framesToFirstDetail: 1,
+    panFrameSamples: panFrames.length,
+    zoomFrameSamples: 1,
   };
 }
 

@@ -109,6 +109,74 @@ assert.equal(
 ok(true, "sincronizar dos veces seguidas sin mover la vista no crea ni destruye nada");
 
 // ---------------------------------------------------------------------------
+// EDITAR TIENE QUE VERSE. Es el caso que rompe una comprobación de reutilización
+// basada sólo en el número de instancias: mover una línea no cambia cuántos
+// segmentos tiene, así que la malla vieja se quedaría en la GPU con las
+// coordenadas de antes y la edición no aparecería.
+// ---------------------------------------------------------------------------
+const editedId = scene.pipeline
+  .renderedEntityIds()
+  .find((id) => corpus.nativeEntities.find((entity) => entity.id === id)?.type === "line")!;
+const originalEntity = corpus.nativeEntities.find(
+  (entity) => entity.id === editedId,
+)! as Extract<(typeof corpus.nativeEntities)[number], { type: "line" }>;
+// Mover la línea NO cambia su número de segmentos: es exactamente el caso que
+// una comprobación por recuento de instancias dejaría pasar.
+const movedEntity = {
+  ...originalEntity,
+  start: { ...originalEntity.start, x: originalEntity.start.x + 7.5 },
+};
+const buffersBefore = new Map(
+  scene.group.children
+    .filter((child) => child.userData.cadLineBatch === true)
+    .map((child) => [String(child.userData.cadLineBatchKey), child.userData.cadLineBatchBuffer]),
+);
+const segmentsBefore = scene.stats().instances;
+scene.invalidate([editedId], [movedEntity]);
+while (!scene.settled) scene.runFrame();
+const edited = scene.sync();
+assert.ok(edited.created > 0, "una edición obliga a resubir la geometría de su lote");
+assert.equal(
+  scene.stats().instances,
+  segmentsBefore,
+  "mover una línea no cambia el número de segmentos — por eso el recuento no basta",
+);
+const changedBatches = scene.group.children
+  .filter((child) => child.userData.cadLineBatch === true)
+  .filter((child) => {
+    const key = String(child.userData.cadLineBatchKey);
+    return buffersBefore.has(key) && buffersBefore.get(key) !== child.userData.cadLineBatchBuffer;
+  });
+assert.ok(
+  changedBatches.length > 0,
+  "al menos un lote tiene que traer memoria NUEVA, o la edición no llegaría a la GPU",
+);
+// Y el PUNTO nuevo está de verdad en los atributos que se van a subir. Se busca
+// el par (x, y) completo, no una coordenada suelta: un x que coincidiese por
+// casualidad con el de otra entidad no probaría nada.
+const newX = movedEntity.start.x;
+const newY = movedEntity.start.y;
+const oldX = originalEntity.start.x;
+const hasPoint = (x: number, y: number) =>
+  scene.pipeline.visibleBatches().some((batch) => {
+    for (let index = 0; index < batch.instanceCount; index += 1)
+      if (
+        Math.abs(batch.instanceStart[index * 2] - x) < 0.05 &&
+        Math.abs(batch.instanceStart[index * 2 + 1] - y) < 0.05
+      )
+        return true;
+    return false;
+  });
+assert.ok(hasPoint(newX, newY), `el punto movido (${newX}, ${newY}) debe estar en los lotes`);
+assert.ok(!hasPoint(oldX, newY), `y el punto anterior (${oldX}, ${newY}) ya no`);
+const editedStats = scene.stats();
+assert.equal(editedStats.renderedEntities, editedStats.visibleEntities);
+ok(
+  true,
+  `mover una línea sin cambiar su recuento de segmentos resube ${changedBatches.length} lote(s) y la coordenada nueva llega a los atributos`,
+);
+
+// ---------------------------------------------------------------------------
 // Ocultar una capa es un booleano, no una reconstrucción.
 // ---------------------------------------------------------------------------
 const layers = new Set(

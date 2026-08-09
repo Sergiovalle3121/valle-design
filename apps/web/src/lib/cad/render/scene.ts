@@ -146,9 +146,19 @@ export class CadRenderScene {
     for (const batch of batches) {
       wanted.add(batch.bucketKey);
       const existing = this.meshes.get(batch.bucketKey);
-      // Un lote que ha crecido trae arrays NUEVOS: comparar el número de
-      // instancias basta para saber si la geometría en GPU sigue valiendo.
-      if (existing && existing.userData.cadLineBatchInstances === batch.instanceCount) {
+      // Reutilizar exige DOS igualdades, y contar sólo las instancias no basta.
+      //
+      // Al editar una entidad, su tile se libera y se reconstruye con la misma
+      // clave; si la edición no cambia el número de segmentos —mover una línea,
+      // por ejemplo— el recuento coincide y la malla vieja se quedaría en la
+      // GPU con las coordenadas de ANTES. La edición no aparecería y no habría
+      // nada que lo delatase. Comparar también el búfer de respaldo lo cierra:
+      // un lote reconstruido, o uno que creció, trae memoria nueva.
+      if (
+        existing &&
+        existing.userData.cadLineBatchInstances === batch.instanceCount &&
+        existing.userData.cadLineBatchBuffer === batch.instanceStart.buffer
+      ) {
         retained += 1;
         continue;
       }
@@ -157,6 +167,7 @@ export class CadRenderScene {
         this.meshes.delete(batch.bucketKey);
       }
       const mesh = buildCadLineBatchMesh(batch, this.material);
+      mesh.userData.cadLineBatchBuffer = batch.instanceStart.buffer;
       this.meshes.set(batch.bucketKey, mesh);
       this.group.add(mesh);
       created += 1;
