@@ -424,7 +424,10 @@ import {
   type CadPropertyBag,
   type CadScenePatch,
 } from "@/lib/cad/entity-runtime";
-import { executeCadEntityCommand } from "@/lib/cad/entity-commands";
+import {
+  executeCadEntityCommand,
+  executeCadEntityCommandBatch,
+} from "@/lib/cad/entity-commands";
 import { CadViewController } from "@/lib/cad/view/view-controller";
 import { CadCommandLineDock } from "@/components/cad/command-line/CadCommandLineDock";
 import { useCadStudioCommandEngine } from "@/components/cad/command-line/use-command-engine";
@@ -531,6 +534,41 @@ import {
 } from "./cad-workbench/CadXrefPalette";
 import { CadCollaborationPalette } from "./cad-workbench/CadCollaborationPalette";
 import { CadWorkspaceDock } from "./cad-workbench/CadWorkspaceDock";
+import { CadEntityPropertiesPanel } from "@/components/cad/palettes/CadEntityPropertiesPanel";
+import type {
+  CadPropertyRow,
+  CadPropertyValue,
+} from "@/components/cad/palettes/property-model";
+import { CadDraftStatusBar } from "@/components/cad/palettes/CadDraftStatusBar";
+import { CadPaletteOverlays } from "@/components/cad/palettes/CadPaletteOverlays";
+import {
+  CAD_OSNAP_HUD_LABELS,
+  CAD_POLAR_INCREMENTS,
+} from "@/components/cad/palettes/draft-settings-host";
+import {
+  useCadDraftSettings,
+  useCadDraftSettingsHost,
+  useCadLayerManager,
+  useCadLayerManagerHost,
+  useCadPalette,
+  useCadPaletteHost,
+  useCadStyleManager,
+  useCadStyleManagerHost,
+} from "@/components/cad/palettes/use-palettes";
+import { CadLayerManagerPalette } from "@/components/cad/palettes/CadLayerManagerPalette";
+import { useCadLayerActions } from "@/components/cad/palettes/use-layer-actions";
+import { useCadStyleActions } from "@/components/cad/palettes/use-style-actions";
+import {
+  CadEditorLayerToggles,
+  type CadEditorLayerKey,
+} from "@/components/cad/palettes/CadEditorLayerToggles";
+import {
+  captureCadLayerState,
+  filterCadLayerRows,
+  planCadLayerStateRestore,
+  type CadLayerFilterProperty,
+  type CadLayerManagerRow,
+} from "@/components/cad/palettes/layer-manager-model";
 import { cadEntityAssociationAnchor } from "@/lib/cad/associative-dimension";
 import {
   cadViewportFocusBounds,
@@ -692,22 +730,6 @@ async function redeemReviewLink(): Promise<boolean> {
 }
 
 // Etiquetas del glifo OSNAP (Fase 66 cableada, ADR §216) — se muestran en el HUD.
-const OSNAP_LABELS: Record<SnapType, string> = {
-  endpoint: "extremo",
-  midpoint: "medio",
-  center: "centro",
-  "geometric-center": "centro geométrico",
-  node: "nodo",
-  quadrant: "cuadrante",
-  intersection: "intersección",
-  insertion: "inserción",
-  perpendicular: "perpendicular",
-  tangent: "tangente",
-  nearest: "cercano",
-  "apparent-intersection": "intersección aparente",
-  extension: "extensión",
-  grid: "grilla",
-};
 
 // Portapapeles CAD (ADR §220) — a nivel de módulo para que Ctrl+C/Ctrl+V
 // funcione también ENTRE layouts (copiar en AX-1000/A, pegar en AX-2000/B).
@@ -2405,7 +2427,6 @@ export default function Layout3DEditor({
     "checking" | "online" | "offline"
   >("checking");
   const [snap, setSnap] = useState(true);
-  const [osnap, setOsnap] = useState(true); // object snap: align to other objects' edges/centers (Fase 54)
   const [dirty, setDirty] = useState(false);
   const dirtyRef = useRef(false);
   const editGenerationRef = useRef(0);
@@ -2538,8 +2559,20 @@ export default function Layout3DEditor({
   const [showSheetPackage, setShowSheetPackage] = useState(false);
   const [paperSpaces, setPaperSpaces] = useState<CadPaperSpace[]>([]);
   const [paperSpaceLayers, setPaperSpaceLayers] = useState<CadLayerDef[]>([]);
-  const [newCadLayerName, setNewCadLayerName] = useState("");
-  const [newCadLayerColor, setNewCadLayerColor] = useState("#22d3ee");
+  /**
+   * Gestor de capas: filtros, borradores y estados de capa.
+   *
+   * El nombre y el color de la capa nueva eran dos `useState` del monolito;
+   * viven ahora en el anfitrión junto al resto del estado del gestor, que de
+   * otro modo habría sumado cuatro más (dos filtros y el nombre del estado).
+   */
+  const layerManagerHost = useCadLayerManagerHost();
+  const layerManager = useCadLayerManager(layerManagerHost);
+  const styleManagerHost = useCadStyleManagerHost();
+  const styleManager = useCadStyleManager(styleManagerHost);
+  // Las filas del gestor se calculan al final del render; las acciones se
+  // montan mucho antes, así que las leen por referencia viva.
+  const cadLayerRowsRef = useRef<CadLayerManagerRow[]>([]);
   const [cadXrefs, setCadXrefs] = useState<CadExternalReference[]>([]);
   const [publicationRecords, setPublicationRecords] = useState<
     CadPublicationRecord[]
@@ -2827,6 +2860,24 @@ export default function Layout3DEditor({
     grid: true,
     dxf: true,
   });
+  /**
+   * La rejilla NO se ha movido al anfitrión de ayudas al dibujo, aunque
+   * DSETTINGS la conmute: la dibuja la escena y la leen veinte sitios del
+   * editor. Mover un estado que veinte llamadas leen es otra ola; mezclar esa
+   * migración con la de OSNAP habría hecho el diff imposible de verificar.
+   * Aquí sólo quedan los dos conmutadores, estables por identidad para no
+   * anular la memoización del cuadro.
+   */
+  const toggleGridVisible = useCallback(
+    () => setLayers((current) => ({ ...current, grid: !current.grid })),
+    [],
+  );
+  const toggleGridSnap = useCallback(() => setSnap((value) => !value), []);
+  const toggleEditorLayer = useCallback(
+    (key: CadEditorLayerKey, value: boolean) =>
+      setLayers((current) => ({ ...current, [key]: value })),
+    [],
+  );
   const [cadLayers, setCadLayers] = useState<CadLayer[]>(DEFAULT_CAD_LAYERS);
   const [layerAssignments, setLayerAssignments] = useState<CadLayerAssignments>(
     {},
@@ -3122,7 +3173,6 @@ export default function Layout3DEditor({
   const wallChainRef = useRef<{ wx: number; wy: number } | null>(null);
   const selRef = useRef<SelItem[]>([]);
   const snapRef = useRef(snap);
-  const osnapRef = useRef(osnap);
   const toolRef = useRef(tool);
   const themeRef = useRef(theme);
   const sunRef = useRef(sun);
@@ -3133,9 +3183,6 @@ export default function Layout3DEditor({
   useEffect(() => {
     snapRef.current = snap;
   }, [snap]);
-  useEffect(() => {
-    osnapRef.current = osnap;
-  }, [osnap]);
   useEffect(() => {
     toolRef.current = tool;
   }, [tool]);
@@ -3148,31 +3195,33 @@ export default function Layout3DEditor({
   useEffect(() => {
     hatchPickModeRef.current = hatchPickMode;
   }, [hatchPickMode]);
-  // Núcleo de precisión (Fase 66 cableada, ADR §216): orto 0/90/180/270 y
-  // entrada tecleada de coordenadas para el trazo de muros.
-  const [orthoLock, setOrthoLock] = useState(false);
-  const orthoLockRef = useRef(orthoLock);
-  const [polarTracking, setPolarTracking] = useState(true);
-  const polarTrackingRef = useRef(polarTracking);
-  const [polarIncrement, setPolarIncrement] = useState(45);
-  const polarIncrementRef = useRef(polarIncrement);
-  const [objectSnapTracking, setObjectSnapTracking] = useState(true);
-  const objectSnapTrackingRef = useRef(objectSnapTracking);
-  const acquiredTrackingPointsRef = useRef<Array<{ x: number; y: number }>>([]);
-  const [acquiredTrackingPointCount, setAcquiredTrackingPointCount] =
-    useState(0);
-  useEffect(() => {
-    orthoLockRef.current = orthoLock;
-  }, [orthoLock]);
-  useEffect(() => {
-    polarTrackingRef.current = polarTracking;
-  }, [polarTracking]);
-  useEffect(() => {
-    polarIncrementRef.current = polarIncrement;
-  }, [polarIncrement]);
-  useEffect(() => {
-    objectSnapTrackingRef.current = objectSnapTracking;
-  }, [objectSnapTracking]);
+  /**
+   * Núcleo de precisión (Fase 66 cableada, ADR §216): OSNAP por modo, orto
+   * 0/90/180/270, rastreo polar y OTRACK.
+   *
+   * Vivían aquí como SEIS `useState` con su `ref` espejo y su `useEffect` de
+   * sincronía cada uno, porque la ruta del puntero corre en un manejador nativo
+   * y no puede leer estado de React. Ahora el estado vive fuera —ver
+   * `draft-settings-host.ts`—: el puntero lee los getters directamente y la
+   * interfaz se suscribe con `useSyncExternalStore`. Seis estados, cinco refs y
+   * cinco efectos menos, y a cambio los catorce modos de captura se pueden
+   * configurar, que es lo que DSETTINGS venía a resolver.
+   */
+  const draftSettingsHost = useCadDraftSettingsHost();
+  const draftSettings = useCadDraftSettings(draftSettingsHost);
+  /** Qué paleta/gestor está abierto. También fuera de React, por lo mismo. */
+  const paletteHost = useCadPaletteHost();
+  const activePalette = useCadPalette(paletteHost).open;
+  // Los métodos de los anfitriones son propiedades flecha por instancia, así que
+  // ya son estables por identidad y se pasan directos: envolverlos en
+  // `useCallback` no habría añadido estabilidad, sólo ruido.
+  // El único que sí necesita envoltorio: el cuadro habla en `string` para no
+  // importar `SnapType` de `lib/cad`, y aquí se estrecha.
+  const toggleDraftOsnapMode = useCallback(
+    (mode: string, value: boolean) =>
+      draftSettingsHost.setOsnapMode(mode as SnapType, value),
+    [draftSettingsHost],
+  );
   const lastWallAngleRef = useRef<number | null>(null); // ángulo del último tramo → entrada directa de distancia
   const [precisionText, setPrecisionText] = useState("");
   const [drawPrompt, setDrawPrompt] = useState<string | null>(null);
@@ -3236,6 +3285,28 @@ export default function Layout3DEditor({
     },
     [],
   );
+  /**
+   * Revela la paleta de propiedades (Ctrl+1).
+   *
+   * El panel derecho es un recurso compartido: lo ocupan los paneles
+   * profesionales —selección, hatch, cotas, bloques…— y el modo enfoque lo
+   * esconde entero. Enseñar propiedades es, literalmente, dejarlo libre.
+   */
+  const revealPropertiesPalette = useCallback(() => {
+    setShowSelectionPalette(false);
+    setShowHatchPalette(false);
+    setShowDimensionPalette(false);
+    setShowMleaderPalette(false);
+    setShowBlockPalette(false);
+    setShowCollaborationDock(false);
+    setShowWorkspaceDock(false);
+    setFocusMode(false);
+    if (!workspacePreferencesRef.current.rightDock)
+      updateWorkspacePreferences({
+        ...workspacePreferencesRef.current,
+        rightDock: true,
+      });
+  }, [updateWorkspacePreferences]);
   const applyWorkspaceProfile = useCallback(
     (profile: CadWorkspaceProfile) => {
       updateWorkspacePreferences(
@@ -5975,25 +6046,54 @@ export default function Layout3DEditor({
       if (!commands.length) return false;
       const checkpoint = snapshotDocument();
       try {
-        let document = checkpoint;
-        const touchedIds = new Set<string>();
+        // Capa bloqueada: se comprueba TODO el lote contra el estado de
+        // partida, antes de aplicar nada. Un lote es atómico respecto de su
+        // punto de partida, así que preguntar por el documento intermedio no
+        // añadía información y obligaba a aplicar los comandos de uno en uno.
         for (const command of commands) {
           // `insert` trae su propia entidad; la capa a comprobar es la de ella.
           const target = "entityId" in command
-            ? document.entities.find((entity) => entity.id === command.entityId)
+            ? checkpoint.entities.find((entity) => entity.id === command.entityId)
             : command.entity;
           const lockedLayer =
-            target && document.layers.find((layer) => layer.id === target.layer)?.locked;
+            target && checkpoint.layers.find((layer) => layer.id === target.layer)?.locked;
           if (lockedLayer)
             throw new Error(
               `Layer ${target.layer} is locked. Unlock it before editing ${target.id}.`,
             );
-          const result = executeCadEntityCommand(document, command);
-          document = result.document;
-          result.affectedEntityIds.forEach((id) => touchedIds.add(id));
-          result.createdEntityIds.forEach((id) => touchedIds.add(id));
-          result.deletedEntityIds.forEach((id) => touchedIds.add(id));
         }
+        /**
+         * UN lote, UN `commitChange`.
+         *
+         * Esto aplicaba los comandos EN BUCLE, uno por llamada a
+         * `executeCadEntityCommand`, y cada vuelta hacía su propio
+         * `commitChange`: mover veinte entidades dejaba veinte entradas en
+         * `document.history` y subía `meta.version` veinte veces para UNA orden
+         * del usuario, además de pagar veinte `structuredClone` completos de
+         * bloques, estilos, hojas y referencias. El paso de DESHACER sí era uno
+         * —lo fija `recordHistoryDocument(checkpoint)` más abajo—, así que el
+         * defecto era invisible en la interfaz y sólo salía en el documento
+         * guardado.
+         *
+         * `executeCadEntityCommandBatch` existe justo para esto y su propia
+         * documentación lo dice; simplemente nadie lo había enchufado aquí.
+         * Con UN comando se sigue llamando a `executeCadEntityCommand` para
+         * conservar exactamente la misma etiqueta de historia que antes.
+         */
+        const result =
+          commands.length === 1
+            ? executeCadEntityCommand(checkpoint, commands[0])
+            : executeCadEntityCommandBatch(
+                checkpoint,
+                commands,
+                `${new Set(commands.map((command) => command.type)).size === 1 ? commands[0].type : "batch"}:${commands.length}`,
+              );
+        const document = result.document;
+        const touchedIds = new Set<string>([
+          ...result.affectedEntityIds,
+          ...result.createdEntityIds,
+          ...result.deletedEntityIds,
+        ]);
         const upsert = document.entities.filter(
           (entity): entity is CadNativeEntity =>
             touchedIds.has(entity.id) && CAD_ENTITY_REGISTRY.supports(entity),
@@ -6055,6 +6155,27 @@ export default function Layout3DEditor({
   const updateNativeProperties = useCallback(
     (entityId: string, patch: Partial<CadPropertyBag>) => {
       commitNativeCommands([{ type: "properties", entityId, patch }]);
+    },
+    [commitNativeCommands],
+  );
+  /**
+   * Edición desde la paleta de propiedades, con selección múltiple.
+   *
+   * Sale UN lote con una orden por entidad, no una llamada por entidad: el
+   * ejecutor lo aplica como una transacción y deja UN paso de deshacer. Si esto
+   * hiciera un `commitNativeCommands` por objeto, editar la capa de veinte
+   * entidades dejaría veinte pasos que habría que deshacer uno a uno — y esa es
+   * justamente la propiedad central que el embudo de mutación protege.
+   */
+  const editNativeProperty = useCallback(
+    (row: CadPropertyRow, value: CadPropertyValue) => {
+      commitNativeCommands(
+        row.entityIds.map((entityId) => ({
+          type: "properties" as const,
+          entityId,
+          patch: { [row.key]: value },
+        })),
+      );
     },
     [commitNativeCommands],
   );
@@ -6166,6 +6287,41 @@ export default function Layout3DEditor({
       toast,
     ],
   );
+  /**
+   * Acciones del gestor de capas que faltaban: tipo de línea, grosor, plot,
+   * congelación por viewport y estados de capa. Viven en
+   * `components/cad/palettes/use-layer-actions.ts` porque este archivo sólo
+   * puede encoger; `commit` les pasa la MISMA puerta canónica que usa el resto
+   * del editor, así que no hay una segunda ruta de mutación.
+   */
+  const layerActions = useCadLayerActions({
+    host: layerManagerHost,
+    rows: cadLayerRowsRef,
+    commit: (mutate, success) =>
+      commitBlockMutation(
+        mutate,
+        nativeSelectionIdsRef.current,
+        success,
+        "Capas",
+      ),
+    notify: {
+      success: (message) => toast.success(message, "Capas"),
+      info: (message) => toast.info(message, "Capas"),
+      error: (message) => toast.error(message, "Capas"),
+    },
+    activeViewportId: activePaperViewportId,
+    setViewportLayerVisibility: changePaperViewportLayerVisibility,
+  });
+  const styleActions = useCadStyleActions({
+    host: styleManagerHost,
+    commit: (mutate, success) =>
+      commitBlockMutation(
+        mutate,
+        nativeSelectionIdsRef.current,
+        success,
+        "Estilos",
+      ),
+  });
   const filletNativeLines = useCallback(
     (lineIds: [string, string]) => {
       const arcId = newId("fillet");
@@ -7536,7 +7692,7 @@ export default function Layout3DEditor({
       const tol = pointerWorldTolerance(
         workspacePreferencesRef.current.aperturePx,
       );
-      if (osnapRef.current) {
+      if (draftSettingsHost.osnap) {
         const boxes: {
           x: number;
           y: number;
@@ -7661,19 +7817,19 @@ export default function Layout3DEditor({
           tolerance: tol,
           from: anchor,
           maxSegments: 96,
-          // intersección/perp/cercano quedan fuera: costosos u over-greedy para
-          // el pointermove; grid lo cubre el fallback snapWorld de siempre.
-          modes: { grid: false },
+          // `grid` lo cubre el fallback snapWorld de siempre; el resto sale
+          // ahora de DSETTINGS, cuyo reparto de fábrica es exactamente el que
+          // estaba cableado aquí (todo encendido salvo `grid`).
+          modes: draftSettingsHost.snapModes(),
         });
         if (hit) {
-          if (acquire && objectSnapTrackingRef.current) {
-            acquiredTrackingPointsRef.current = acquireCadTrackingPoint(
-              acquiredTrackingPointsRef.current,
-              hit.point,
-              tol * 0.25,
-            );
-            setAcquiredTrackingPointCount(
-              acquiredTrackingPointsRef.current.length,
+          if (acquire && draftSettingsHost.objectSnapTracking) {
+            draftSettingsHost.setTrackingPoints(
+              acquireCadTrackingPoint(
+                draftSettingsHost.trackingPoints,
+                hit.point,
+                tol * 0.25,
+              ),
             );
           }
           setGuides(null, null);
@@ -7691,12 +7847,12 @@ export default function Layout3DEditor({
           ? { x: wallChainRef.current.wx, y: wallChainRef.current.wy }
           : null);
       if (
-        objectSnapTrackingRef.current &&
-        acquiredTrackingPointsRef.current.length
+        draftSettingsHost.objectSnapTracking &&
+        draftSettingsHost.trackingPoints.length
       ) {
         const tracked = trackFromAcquiredPoints(
           { x: wx, y: wy },
-          acquiredTrackingPointsRef.current,
+          draftSettingsHost.trackingPoints,
           tol,
         );
         if (tracked.snapped) {
@@ -7713,20 +7869,20 @@ export default function Layout3DEditor({
         }
       }
       setGuides(null, null);
-      if (anchor && (orthoLockRef.current || polarTrackingRef.current)) {
-        const increment = orthoLockRef.current ? 90 : polarIncrementRef.current;
+      if (anchor && (draftSettingsHost.ortho || draftSettingsHost.polar)) {
+        const increment = draftSettingsHost.ortho ? 90 : draftSettingsHost.polarIncrement;
         const tracked = resolveCadPolarTracking(
           anchor,
           { x: wx, y: wy },
           increment,
-          orthoLockRef.current ? 45 : Math.min(6, increment / 4),
+          draftSettingsHost.ortho ? 45 : Math.min(6, increment / 4),
         );
         if (tracked.snapped)
           return {
             wx: tracked.point.x,
             wy: tracked.point.y,
             onDxf: false,
-            tracking: orthoLockRef.current ? "ortho" : "polar",
+            tracking: draftSettingsHost.ortho ? "ortho" : "polar",
             trackingAngle: tracked.angle,
           };
       }
@@ -8169,7 +8325,7 @@ export default function Layout3DEditor({
         }
         const dist = Math.hypot(s.wx - a.wx, s.wy - a.wy);
         const tag = s.onDxf
-          ? ` · ${s.snapType ? OSNAP_LABELS[s.snapType] : "plano"}`
+          ? ` · ${s.snapType ? CAD_OSNAP_HUD_LABELS[s.snapType] : "plano"}`
           : "";
         if (toolRef.current === "wall" || isCadDrawTool(toolRef.current)) {
           const deg =
@@ -8196,7 +8352,7 @@ export default function Layout3DEditor({
       // Object snap: align the lead's edges/centre to other objects + the footprint.
       let gvx: number | null = null,
         ghy: number | null = null;
-      if (osnapRef.current && drag.xEdges) {
+      if (draftSettingsHost.osnap && drag.xEdges) {
         const tol = Math.max(ctx.W, ctx.H) * 0.012;
         const sx = snap1D(targetX, leadP.w, drag.xEdges, tol);
         if (sx) {
@@ -8470,7 +8626,7 @@ export default function Layout3DEditor({
             const sp = snapFloor(w.wx, w.wy, true);
             let pt = { wx: sp.wx, wy: sp.wy };
             const prev = drawCommandRef.current?.points.at(-1);
-            if (prev && (e.shiftKey || orthoLockRef.current) && !sp.onDxf) {
+            if (prev && (e.shiftKey || draftSettingsHost.ortho) && !sp.onDxf) {
               const c = constrainPoint(
                 { x: prev.x, y: prev.y },
                 { x: pt.wx, y: pt.wy },
@@ -8502,7 +8658,7 @@ export default function Layout3DEditor({
             const prev = wallChainRef.current;
             // Shift = incrementos de 45°; ORTO (toggle) = ejes 0/90/180/270 — pero
             // un snap explícito a objeto/plano gana sobre el bloqueo de ángulo.
-            if (prev && (e.shiftKey || orthoLockRef.current) && !sp.onDxf) {
+            if (prev && (e.shiftKey || draftSettingsHost.ortho) && !sp.onDxf) {
               const c = constrainPoint(
                 { x: prev.wx, y: prev.wy },
                 { x: pt.wx, y: pt.wy },
@@ -13951,20 +14107,20 @@ export default function Layout3DEditor({
   };
   const createCanonicalCadLayer = () => {
     try {
-      const id = cadLayerIdFromName(newCadLayerName);
+      const id = cadLayerIdFromName(layerManagerHost.draftName);
       const created = commitBlockMutation(
         (document) =>
           createCadDocumentLayer(document, {
-            name: newCadLayerName,
-            color: newCadLayerColor,
+            name: layerManagerHost.draftName,
+            color: layerManagerHost.draftColor,
           }),
         nativeSelectionIdsRef.current,
-        `Capa ${newCadLayerName.trim()} creada.`,
+        `Capa ${layerManagerHost.draftName.trim()} creada.`,
         "Capas",
       );
       if (created) {
         setActiveCadLayer(id);
-        setNewCadLayerName("");
+        layerManagerHost.setDraftName("");
       }
     } catch (cause) {
       toast.error(
@@ -16015,6 +16171,36 @@ export default function Layout3DEditor({
         notifyReadOnly();
         return;
       }
+      /**
+       * Ctrl+1 abre la paleta de PROPIEDADES, como en AutoCAD.
+       *
+       * No pasa por `matchCadShortcut` porque su registro vive en `lib/cad`,
+       * que esta sesión no toca. Cuando ese registro admita la combinación,
+       * este bloque se sustituye por un `cadShortcut?.id === "properties"` y no
+       * cambia nada más.
+       *
+       * Abrirla es revelar el panel derecho: cerrar el panel profesional que lo
+       * esté ocupando, salir del modo enfoque y encender la preferencia. Si sólo
+       * se encendiera la preferencia, pulsar Ctrl+1 con el panel de bloques
+       * abierto no enseñaría propiedad ninguna y parecería que el atajo no hace
+       * nada.
+       */
+      if ((e.ctrlKey || e.metaKey) && e.key === "1") {
+        e.preventDefault();
+        revealPropertiesPalette();
+        return;
+      }
+      // Ctrl+8 → gestor de estilos; Ctrl+9 → DSETTINGS. Misma familia.
+      if ((e.ctrlKey || e.metaKey) && e.key === "8") {
+        e.preventDefault();
+        paletteHost.toggleStyles();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "9") {
+        e.preventDefault();
+        paletteHost.toggleDraftSettings();
+        return;
+      }
       if (cadShortcut?.id === "palette") {
         e.preventDefault();
         setShowPalette(true);
@@ -16048,22 +16234,22 @@ export default function Layout3DEditor({
       }
       if (cadShortcut?.id === "object_snap_toggle") {
         e.preventDefault();
-        setOsnap((cur) => !cur);
+        draftSettingsHost.toggleOsnap();
         return;
       }
       if (cadShortcut?.id === "ortho_toggle") {
         e.preventDefault();
-        setOrthoLock((cur) => !cur);
+        draftSettingsHost.toggleOrtho();
         return;
       }
       if (cadShortcut?.id === "polar_tracking_toggle") {
         e.preventDefault();
-        setPolarTracking((cur) => !cur);
+        draftSettingsHost.togglePolar();
         return;
       }
       if (cadShortcut?.id === "object_tracking_toggle") {
         e.preventDefault();
-        setObjectSnapTracking((cur) => !cur);
+        draftSettingsHost.toggleObjectSnapTracking();
         return;
       }
       if (cadShortcut?.id === "validate_layout") {
@@ -16280,10 +16466,9 @@ export default function Layout3DEditor({
   const primaryNativeAdapter = primaryNativeEntity
     ? CAD_ENTITY_REGISTRY.adapter(primaryNativeEntity)
     : null;
-  const primaryNativeProperties =
-    primaryNativeEntity && primaryNativeAdapter
-      ? primaryNativeAdapter.properties.read(primaryNativeEntity)
-      : null;
+  // Las propiedades y los grips del objeto designado los lee ahora la paleta,
+  // que además memoiza esa lectura. Aquí sólo quedan los bounds, que usa el
+  // botón de giro para tomar el centro como origen.
   const primaryNativeBounds =
     primaryNativeEntity && primaryNativeAdapter
       ? primaryNativeAdapter.bounds.bounds(
@@ -16291,10 +16476,6 @@ export default function Layout3DEditor({
           loadedCadDocumentRef.current ?? undefined,
         )
       : null;
-  const primaryNativeGrips =
-    primaryNativeEntity && primaryNativeAdapter
-      ? primaryNativeAdapter.grips.grips(primaryNativeEntity)
-      : [];
   const professionalBlockDefinitions = [
     ...(loadedCadDocumentRef.current?.blocks ?? []),
   ].filter((block) => !block.id.startsWith("xref:"));
@@ -16447,7 +16628,7 @@ export default function Layout3DEditor({
         ? { x: dynamicAnchor.x + dynamicGridDefault, y: dynamicAnchor.y }
         : { x: 0, y: 0 },
     ),
-    angle: lastWallAngleRef.current ?? polarIncrement,
+    angle: lastWallAngleRef.current ?? draftSettings.polarIncrement,
     radius: dynamicGridDefault,
     diameter: dynamicGridDefault * 2,
     offset: dynamicGridDefault,
@@ -16697,6 +16878,49 @@ export default function Layout3DEditor({
   );
   nativeEntities.forEach((entity) => incrementCadLayerCount(entity.layer));
   const cadLayerSummary = summarizeCadLayers(cadLayers, cadLayerCounts);
+  /**
+   * Filas del gestor de capas.
+   *
+   * `cadLayers` es la PROYECCIÓN del editor (id, nombre, color, visible,
+   * bloqueada) y `paperSpaceLayers` son las `CadLayerDef` completas del
+   * documento, que además traen tipo de línea, grosor y plot. Se juntan aquí
+   * porque un documento sin capas propias todavía enseña las de fábrica, y en
+   * ese caso sólo existe la proyección.
+   *
+   * `frozenInViewport` es `null` —no `false`— cuando no hay viewport activo:
+   * en espacio modelo no hay ventana que congelar, y la columna se apaga en
+   * vez de ofrecer un interruptor que no iría a ninguna parte.
+   */
+  const activeCadViewport =
+    activePaperSpace?.viewports?.find(
+      (viewport) => viewport.id === activePaperViewportId,
+    ) ?? null;
+  const activeCadViewportName = activeCadViewport
+    ? (activeCadViewport.name ?? activeCadViewport.id)
+    : null;
+  const cadLayerManagerRows: CadLayerManagerRow[] = cadLayers.map((layer) => {
+    const definition = paperSpaceLayers.find((entry) => entry.id === layer.id);
+    return {
+      id: layer.id,
+      name: layer.label,
+      color: layer.color,
+      visible: layer.visible,
+      locked: layer.locked,
+      linetype: definition?.linetype ?? "CONTINUOUS",
+      lineweight: definition?.lineweight ?? -1,
+      plot: definition?.plot !== false,
+      objectCount: cadLayerCounts[layer.id] ?? 0,
+      frozenInViewport: activeCadViewport
+        ? activeCadViewport.layerVisibility?.[layer.id] === false
+        : null,
+      active: activeCadLayer === layer.id,
+    };
+  });
+  cadLayerRowsRef.current = cadLayerManagerRows;
+  const visibleCadLayerRows = filterCadLayerRows(
+    cadLayerManagerRows,
+    layerManager.filter,
+  );
   // Plant-scale safety: flag objects that sit outside the saved factory footprint (EPIC 0).
   const plantBoundsW = data?.footprint.footprintW ?? 0;
   const plantBoundsH = data?.footprint.footprintH ?? 0;
@@ -17397,8 +17621,8 @@ export default function Layout3DEditor({
           <Crosshair className="w-4 h-4" />
         </T3Btn>
         <T3Btn
-          active={osnap}
-          onClick={() => setOsnap((v) => !v)}
+          active={draftSettings.osnap}
+          onClick={() => draftSettingsHost.toggleOsnap()}
           title="Snap a objetos y al plano DXF — alinea con bordes/centros y engancha a vértices y puntos medios del plano al medir o trazar muros"
         >
           <Magnet className="w-4 h-4" />
@@ -17539,237 +17763,54 @@ export default function Layout3DEditor({
                 style={viewMenuPosition}
                 className="fixed z-[90] w-72 max-h-[78vh] overflow-y-auto rounded-xl border border-white/10 bg-gray-900 shadow-2xl p-3 text-[12px]"
               >
-                <div className="text-[10px] uppercase tracking-wide text-gray-500 mb-1.5">
-                  Capas
-                </div>
-                {(
-                  [
-                    ["stations", standalone ? "Puntos" : "Estaciones"],
-                    ["equipment", "Biblioteca"],
-                    ["connectors", "Conexiones"],
-                    ["dims", "Cotas"],
-                    ["notes", "Notas"],
-                    ["labels", "Etiquetas"],
-                    ["dxf", "Plano DXF"],
-                    ["grid", "Grilla"],
-                  ] as const
-                ).map(([k, lbl]) => (
-                  <label
-                    key={k}
-                    className="flex items-center gap-2 py-1 cursor-pointer text-gray-300 hover:text-white"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={layers[k]}
-                      onChange={(e) =>
-                        setLayers((st) => ({ ...st, [k]: e.target.checked }))
-                      }
-                      className="accent-cyan-500"
-                    />
-                    {lbl}
-                  </label>
-                ))}
-                <div className="mt-2.5 mb-1.5 flex items-center justify-between gap-2">
-                  <div className="text-[10px] uppercase tracking-wide text-gray-500">
-                    Capas CAD
-                  </div>
-                  <div
-                    className={`text-[10px] ${cadLayerSummary.hidden ? "text-amber-300" : "text-gray-500"}`}
-                  >
-                    {cadLayerSummary.visible}/{cadLayerSummary.total} visibles
-                  </div>
-                </div>
-                <div className="mb-2 grid grid-cols-[1fr_auto_auto] gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] p-1.5">
-                  <input
-                    data-testid="cad-layer-new-name"
-                    value={newCadLayerName}
-                    onChange={(event) => setNewCadLayerName(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        createCanonicalCadLayer();
-                      }
-                    }}
-                    disabled={drawingReadOnly}
-                    placeholder="Nueva capa"
-                    className="min-w-0 rounded-md border border-white/10 bg-gray-950/70 px-2 py-1 text-[10.5px] text-gray-200 outline-none focus:ring-1 focus:ring-cyan-500/40 disabled:opacity-50"
-                  />
-                  <input
-                    data-testid="cad-layer-new-color"
-                    type="color"
-                    value={newCadLayerColor}
-                    onChange={(event) =>
-                      setNewCadLayerColor(event.target.value)
-                    }
-                    disabled={drawingReadOnly}
-                    className="h-7 w-8 rounded border border-white/10 bg-transparent p-0 disabled:opacity-50"
-                    title="Color de la nueva capa"
-                  />
-                  <button
-                    data-testid="cad-layer-create"
-                    onClick={createCanonicalCadLayer}
-                    disabled={drawingReadOnly || !newCadLayerName.trim()}
-                    className="rounded-md bg-cyan-500/15 px-2 text-[10px] font-semibold text-cyan-200 hover:bg-cyan-500/25 disabled:opacity-40"
-                  >
-                    Crear
-                  </button>
-                </div>
-                <div className="space-y-1">
-                  {cadLayers.map((layer) => (
-                    <div
-                      key={layer.id}
-                      data-testid={`cad-layer-row-${layer.id}`}
-                      className={`rounded-lg px-2 py-1 ${activeCadLayer === layer.id ? "bg-cyan-400/[0.10] ring-1 ring-cyan-400/20" : "bg-white/[0.04]"}`}
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          data-testid={`cad-layer-visible-${layer.id}`}
-                          onClick={() => toggleCadLayerVisibility(layer.id)}
-                          disabled={drawingReadOnly}
-                          className={`h-2.5 w-2.5 rounded-full ${layer.visible ? "" : "opacity-30"} disabled:cursor-not-allowed`}
-                          style={{ background: layer.color }}
-                          title={
-                            layer.visible ? "Ocultar capa" : "Mostrar capa"
-                          }
-                        />
-                        <button
-                          data-testid={`cad-layer-active-${layer.id}`}
-                          onClick={() => setActiveCadLayer(layer.id)}
-                          className={`min-w-0 flex-1 truncate text-left ${layer.visible ? "text-gray-200" : "text-gray-500"}`}
-                          title="Definir como capa activa"
-                        >
-                          {layer.label}
-                        </button>
-                        <span className="rounded bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-gray-500 dark:text-gray-400">
-                          {cadLayerCounts[layer.id]}
-                        </span>
-                        <button
-                          data-testid={`cad-layer-lock-${layer.id}`}
-                          onClick={() => toggleCadLayerLock(layer.id)}
-                          disabled={drawingReadOnly}
-                          className={`text-[10px] ${layer.locked ? "text-amber-300" : "text-gray-500"} disabled:opacity-40`}
-                        >
-                          {layer.locked ? "Lock" : "Open"}
-                        </button>
-                      </div>
-                      <div className="mt-1 grid grid-cols-[1fr_auto] gap-1.5">
-                        <input
-                          key={`${layer.id}:${layer.label}`}
-                          data-testid={`cad-layer-name-${layer.id}`}
-                          defaultValue={layer.label}
-                          onBlur={(event) =>
-                            updateCadLayerLabel(layer.id, event.target.value)
-                          }
-                          disabled={drawingReadOnly}
-                          className="min-w-0 rounded-md border border-white/10 bg-gray-950/70 px-1.5 py-0.5 text-[10.5px] text-gray-200 outline-none focus:ring-1 focus:ring-cyan-500/40 disabled:opacity-50"
-                          title="Renombrar capa del documento"
-                        />
-                        <input
-                          data-testid={`cad-layer-color-${layer.id}`}
-                          type="color"
-                          value={layer.color}
-                          onChange={(event) =>
-                            updateCadLayerColor(layer.id, event.target.value)
-                          }
-                          disabled={drawingReadOnly}
-                          className="h-6 w-7 rounded border border-white/10 bg-transparent p-0 disabled:opacity-50"
-                          title="Color de capa"
-                        />
-                      </div>
-                      <div className="mt-1 flex items-center justify-end gap-2 text-[10px]">
-                        <button
-                          onClick={() => selectCadLayerObjects(layer.id)}
-                          className="text-gray-500 dark:text-gray-400 hover:text-white"
-                        >
-                          Sel
-                        </button>
-                        <button
-                          onClick={() => isolateCadLayer(layer.id)}
-                          disabled={drawingReadOnly}
-                          className="text-gray-500 dark:text-gray-400 hover:text-white disabled:opacity-40"
-                        >
-                          Solo
-                        </button>
-                        <button
-                          onClick={() => assignSelectionToCadLayer(layer.id)}
-                          disabled={drawingReadOnly}
-                          className="text-cyan-300 hover:text-cyan-100 disabled:opacity-40"
-                        >
-                          Asignar
-                        </button>
-                        {layer.id !== "0" && (
-                          <button
-                            data-testid={`cad-layer-delete-${layer.id}`}
-                            onClick={() => deleteCanonicalCadLayer(layer.id)}
-                            disabled={drawingReadOnly || cadLayers.length < 2}
-                            className="text-rose-300/80 hover:text-rose-200 disabled:opacity-40"
-                          >
-                            Borrar
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-gray-500">
-                  <span>
-                    {Object.keys(layerAssignments).length} asignados ·{" "}
-                    {cadLayerSummary.hiddenObjectCount} ocultos ·{" "}
-                    {cadLayerSummary.lockedObjectCount} bloqueados
-                  </span>
-                  <div className="inline-flex items-center gap-2">
-                    <button
-                      onClick={showAllCadLayerVisibility}
-                      className="text-gray-500 dark:text-gray-400 hover:text-white"
-                    >
-                      All
-                    </button>
-                    <button
-                      onClick={() =>
-                        commitBlockMutation(
-                          (document) =>
-                            commitChange(
-                              {
-                                ...document,
-                                layers: document.layers.map((layer) => ({
-                                  ...layer,
-                                  visible: (cadLayerCounts[layer.id] ?? 0) > 0,
-                                })),
-                              },
-                              "layer:hide-empty",
-                            ),
-                          nativeSelectionIdsRef.current,
-                          "Capas CAD vacías ocultas.",
-                          "Capas",
-                        )
-                      }
-                      disabled={drawingReadOnly}
-                      className="text-gray-500 dark:text-gray-400 hover:text-white disabled:opacity-40"
-                      title="Ocultar capas sin objetos"
-                    >
-                      Ocultar 0
-                    </button>
-                    <button
-                      onClick={unlockAllCadLayerVisibility}
-                      className="text-gray-500 dark:text-gray-400 hover:text-white"
-                      title="Desbloquear todas las capas"
-                    >
-                      Unlock
-                    </button>
-                    <button
-                      onClick={resetCadLayerPresentation}
-                      className="text-gray-500 dark:text-gray-400 hover:text-white"
-                    >
-                      Reset
-                    </button>
-                  </div>
-                </div>
-                {cadLayerSummary.hiddenObjectCount > 0 && (
-                  <div className="mt-1 rounded-lg border border-amber-400/15 bg-amber-400/[0.06] px-2 py-1 text-[10.5px] text-amber-100">
-                    {cadLayerSummary.hiddenObjectCount} objeto(s) ocultos por
-                    capas CAD. Usa All para recuperar la vista completa.
-                  </div>
-                )}
+                <CadEditorLayerToggles
+                  layers={layers}
+                  stationsLabel={standalone ? "Puntos" : "Estaciones"}
+                  onToggle={toggleEditorLayer}
+                />
+                <CadLayerManagerPalette
+                  rows={visibleCadLayerRows}
+                  totalRows={cadLayerManagerRows.length}
+                  filter={layerManager.filter}
+                  draftName={layerManager.draftName}
+                  draftColor={layerManager.draftColor}
+                  draftStateName={layerManager.draftStateName}
+                  states={layerManager.states}
+                  readOnly={drawingReadOnly}
+                  activeViewportName={activeCadViewportName}
+                  onFilterText={layerManagerHost.setFilterText}
+                  onFilterProperty={layerManagerHost.setFilterProperty}
+                  onClearFilter={layerManagerHost.clearFilter}
+                  onDraftName={layerManagerHost.setDraftName}
+                  onDraftColor={layerManagerHost.setDraftColor}
+                  onCreate={createCanonicalCadLayer}
+                  onRename={updateCadLayerLabel}
+                  onColor={updateCadLayerColor}
+                  onLinetype={layerActions.setLinetype}
+                  onLineweight={layerActions.setLineweight}
+                  onPlot={layerActions.setPlot}
+                  onToggleVisible={toggleCadLayerVisibility}
+                  onToggleLock={toggleCadLayerLock}
+                  onToggleViewportFreeze={layerActions.toggleViewportFreeze}
+                  onActivate={setActiveCadLayer}
+                  onSelectObjects={selectCadLayerObjects}
+                  onIsolate={isolateCadLayer}
+                  onAssignSelection={assignSelectionToCadLayer}
+                  onDelete={deleteCanonicalCadLayer}
+                  onDraftStateName={layerManagerHost.setDraftStateName}
+                  onSaveState={layerActions.saveState}
+                  onRestoreState={layerActions.restoreState}
+                  onDeleteState={layerActions.deleteState}
+                  summary={{
+                    assigned: Object.keys(layerAssignments).length,
+                    hiddenObjects: cadLayerSummary.hiddenObjectCount,
+                    lockedObjects: cadLayerSummary.lockedObjectCount,
+                  }}
+                  onShowAll={showAllCadLayerVisibility}
+                  onHideEmpty={layerActions.hideEmpty}
+                  onUnlockAll={unlockAllCadLayerVisibility}
+                  onResetPresentation={resetCadLayerPresentation}
+                />
                 <div className="mt-2.5 mb-1.5 flex items-center justify-between gap-2">
                   <div className="text-[10px] uppercase tracking-wide text-gray-500">
                     Vistas
@@ -19394,75 +19435,18 @@ export default function Layout3DEditor({
                 Grilla {layers.grid ? "on" : "off"} / Snap{" "}
                 {snap ? "grid" : "free"}
               </span>
-              <button
-                onClick={() => setOsnap((value) => !value)}
-                className={
-                  osnap
-                    ? "text-cyan-200 hover:text-white"
-                    : "text-gray-500 hover:text-white"
-                }
-              >
-                OSNAP {osnap ? "on" : "off"} · F3
-              </button>
-              <button
-                onClick={() => setOrthoLock((value) => !value)}
-                className={
-                  orthoLock
-                    ? "text-amber-300 hover:text-white"
-                    : "text-gray-500 hover:text-white"
-                }
-              >
-                ORTHO {orthoLock ? "on" : "off"} · F8
-              </button>
-              <button
-                onClick={() => setPolarTracking((value) => !value)}
-                className={
-                  polarTracking
-                    ? "text-violet-300 hover:text-white"
-                    : "text-gray-500 hover:text-white"
-                }
-              >
-                POLAR {polarTracking ? `${polarIncrement}°` : "off"} · F10
-              </button>
-              <select
-                aria-label="Incremento polar"
-                value={polarIncrement}
-                onChange={(event) =>
-                  setPolarIncrement(Number(event.target.value))
-                }
-                className="rounded bg-white/[0.06] px-1 py-0.5 text-[10px] text-gray-200 outline-none"
-              >
-                {[15, 30, 45, 90].map((value) => (
-                  <option key={value} value={value} className="text-gray-900">
-                    {value}°
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={() => setObjectSnapTracking((value) => !value)}
-                className={
-                  objectSnapTracking
-                    ? "text-fuchsia-300 hover:text-white"
-                    : "text-gray-500 hover:text-white"
-                }
-              >
-                OTRACK{" "}
-                {objectSnapTracking
-                  ? `on · ${acquiredTrackingPointCount}`
-                  : "off"}{" "}
-                · F11
-              </button>
-              {acquiredTrackingPointCount > 0 && (
-                <button
-                  onClick={() => {
-                    acquiredTrackingPointsRef.current = [];
-                    setAcquiredTrackingPointCount(0);
-                  }}
-                  className="text-gray-500 hover:text-white"
-                >
-                  Limpiar tracking
-                </button>
-              )}
+              <CadDraftStatusBar
+                settings={draftSettings}
+                polarIncrements={CAD_POLAR_INCREMENTS}
+                onToggleOsnap={draftSettingsHost.toggleOsnap}
+                onToggleOrtho={draftSettingsHost.toggleOrtho}
+                onTogglePolar={draftSettingsHost.togglePolar}
+                onPolarIncrement={draftSettingsHost.setPolarIncrement}
+                onToggleObjectSnapTracking={draftSettingsHost.toggleObjectSnapTracking}
+                onClearTracking={draftSettingsHost.clearTrackingPoints}
+                onOpenSettings={paletteHost.toggleDraftSettings}
+                onOpenStyles={paletteHost.toggleStyles}
+              />
               <button
                 onClick={openChecks}
                 className={`${releaseTone} hover:text-white`}
@@ -19562,8 +19546,8 @@ export default function Layout3DEditor({
               )}
             {!walk && (tool === "wall" || isCadDrawTool(tool)) && (
               <CadDraftToolbar
-                orthoLock={orthoLock}
-                onToggleOrtho={() => setOrthoLock((v) => !v)}
+                orthoLock={draftSettings.ortho}
+                onToggleOrtho={() => draftSettingsHost.toggleOrtho()}
                 dynamicInputKey={`${dynamicInputKind}:${dynamicAnchor ? "anchored" : "origin"}`}
                 dynamicInput={{
                   kind: dynamicInputKind,
@@ -20011,149 +19995,14 @@ export default function Layout3DEditor({
                         </div>
                         ) : null}
                       </div>
-                    ) : primaryNativeEntity &&
-                      primaryNativeProperties &&
-                      primaryNativeBounds ? (
-                      <>
-                        <div className="mb-3 grid grid-cols-2 gap-2 rounded-xl border border-cyan-400/15 bg-cyan-400/[0.04] p-2.5">
-                          <ReadField
-                            label="ID"
-                            value={primaryNativeEntity.id}
-                          />
-                          <ReadField
-                            label="Capa"
-                            value={primaryNativeEntity.layer}
-                          />
-                          <ReadField
-                            label="Bounds"
-                            value={`${Math.round(primaryNativeBounds.maxX - primaryNativeBounds.minX)} × ${Math.round(primaryNativeBounds.maxY - primaryNativeBounds.minY)}`}
-                          />
-                          <ReadField
-                            label="Grips"
-                            value={`${primaryNativeGrips.length}`}
-                          />
-                        </div>
-                        <div className="mb-3 grid grid-cols-2 gap-2">
-                          {Object.entries(primaryNativeProperties).map(
-                            ([key, value]) => {
-                              if (
-                                (primaryNativeEntity.type === "mtext" ||
-                                  primaryNativeEntity.type === "mleader") &&
-                                key === "text"
-                              )
-                                return (
-                                  <label
-                                    key={`${primaryNativeEntity.id}-${key}-${nativeDocumentRevision}`}
-                                    className="col-span-2 text-[10.5px] text-gray-500 dark:text-gray-400"
-                                  >
-                                    text
-                                    <textarea
-                                      data-testid="cad-native-property-text"
-                                      defaultValue={String(value)}
-                                      rows={4}
-                                      onBlur={(event) => {
-                                        if (event.target.value !== value)
-                                          updateNativeProperties(
-                                            primaryNativeEntity.id,
-                                            { text: event.target.value },
-                                          );
-                                      }}
-                                      className="mt-1 w-full resize-y rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white outline-none focus:ring-1 focus:ring-cyan-500/40"
-                                    />
-                                  </label>
-                                );
-                              if (typeof value === "boolean")
-                                return (
-                                  <label
-                                    key={`${primaryNativeEntity.id}-${key}-${nativeDocumentRevision}`}
-                                    className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-gray-950/50 px-2 py-1.5 text-[10.5px] text-gray-400"
-                                  >
-                                    {key}
-                                    <input
-                                      type="checkbox"
-                                      checked={value}
-                                      onChange={(event) =>
-                                        updateNativeProperties(
-                                          primaryNativeEntity.id,
-                                          { [key]: event.target.checked },
-                                        )
-                                      }
-                                      className="accent-cyan-500"
-                                    />
-                                  </label>
-                                );
-                              if (key.endsWith("Count"))
-                                return (
-                                  <ReadField
-                                    key={key}
-                                    label={key}
-                                    value={String(value)}
-                                  />
-                                );
-                              return (
-                                <label
-                                  key={`${primaryNativeEntity.id}-${key}-${nativeDocumentRevision}`}
-                                  className="text-[10.5px] text-gray-500 dark:text-gray-400"
-                                >
-                                  {key}
-                                  <input
-                                    data-testid={`cad-native-property-${key}`}
-                                    type={
-                                      typeof value === "number"
-                                        ? "number"
-                                        : "text"
-                                    }
-                                    defaultValue={String(value)}
-                                    step={
-                                      typeof value === "number"
-                                        ? "any"
-                                        : undefined
-                                    }
-                                    onBlur={(event) => {
-                                      const next =
-                                        typeof value === "number"
-                                          ? Number(event.target.value)
-                                          : event.target.value;
-                                      if (
-                                        (typeof next === "number" &&
-                                          !Number.isFinite(next)) ||
-                                        next === value
-                                      )
-                                        return;
-                                      updateNativeProperties(
-                                        primaryNativeEntity.id,
-                                        { [key]: next },
-                                      );
-                                    }}
-                                    className="mt-1 w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white outline-none focus:ring-1 focus:ring-cyan-500/40"
-                                  />
-                                </label>
-                              );
-                            },
-                          )}
-                        </div>
-                        <div className="mb-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
-                          <div className="mb-2 text-[10px] uppercase tracking-wide text-cyan-200">
-                            Grips disponibles
-                          </div>
-                          <div className="flex flex-wrap gap-1">
-                            {primaryNativeGrips.slice(0, 12).map((grip) => (
-                              <span
-                                key={grip.id}
-                                className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] text-gray-300"
-                              >
-                                {grip.label}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="mb-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5 text-[11px] text-gray-400">
-                        La transformación o el borrado se aplicará a las{" "}
-                        {nativeSelectedEntities.length} entidades seleccionadas.
-                      </div>
-                    )}
+                    ) : null}
+                    <CadEntityPropertiesPanel
+                      entities={nativeSelectedEntities}
+                      document={loadedCadDocumentRef.current}
+                      revision={nativeDocumentRevision}
+                      readOnly={drawingReadOnly}
+                      onEdit={editNativeProperty}
+                    />
                     <div className="mb-2 grid grid-cols-3 gap-1.5">
                       <button
                         data-testid="cad-native-move-x"
@@ -23382,6 +23231,31 @@ export default function Layout3DEditor({
             onClose: () => setAnalysisPanel(null),
           });
         })()}
+
+      {/* Cuadros flotantes de las paletas. Su estado vive fuera de React
+          (`components/cad/palettes`), así que abrirlos no cuesta un `useState`
+          en una función que ya tiene demasiados. */}
+      <CadPaletteOverlays
+        open={activePalette}
+        paletteHost={paletteHost}
+        readOnly={drawingReadOnly}
+        document={loadedCadDocumentRef.current}
+        draftSettingsHost={draftSettingsHost}
+        draftSettings={draftSettings}
+        grid={{
+          visible: layers.grid,
+          snap,
+          size: data?.footprint.gridSize ?? 0,
+        }}
+        onToggleGridVisible={toggleGridVisible}
+        onToggleGridSnap={toggleGridSnap}
+        onToggleOsnapMode={toggleDraftOsnapMode}
+        styleManagerHost={styleManagerHost}
+        styleManager={styleManager}
+        onCreateStyle={styleActions.create}
+        onEditStyle={styleActions.edit}
+        onDeleteStyle={styleActions.remove}
+      />
 
       {/* Keyboard shortcuts / help overlay */}
       {showHelp && (
