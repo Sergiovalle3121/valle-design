@@ -1,0 +1,721 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-08-09T00:00:00Z",
+  "fixtures": [
+    {
+      "id": "synthetic.truncated.empty",
+      "path": "synthetic/truncated/empty.dwg",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "creator": "Valle Design DWG-0 clean-room generator",
+      "createdAt": "2026-08-09",
+      "origin": {
+        "type": "valle-synthetic",
+        "reference": "fixtures/generators/generate-synthetic.ts"
+      },
+      "sourceIds": [
+        "VALLE-OWNER-DWG0-2026-08-09",
+        "VALLE-REPO-BASE-8BE49A55"
+      ],
+      "permission": {
+        "basis": "Direct authorization from the Valle repository owner",
+        "license": "Valle-Internal-Synthetic",
+        "redistributionEvidence": "SOURCE_REGISTER.json#VALLE-OWNER-DWG0-2026-08-09"
+      },
+      "declaredVersion": null,
+      "byteLength": 0,
+      "purpose": [
+        "Exercise deterministic signature truncation at every byte"
+      ],
+      "expectations": {
+        "signature": "truncated",
+        "parseOutcome": "error",
+        "errorCode": "DWG_SIGNATURE_TRUNCATED",
+        "maxWorkUnits": 32
+      },
+      "synthetic": true,
+      "generatedBy": "fixtures/generators/generate-synthetic.ts",
+      "redistributable": true
+    },
+    {
+      "id": "synthetic.truncated.ac1015-prefix-1",
+      "path": "synthetic/truncated/ac1015-prefix-1.dwg",
+      "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd",
+      "creator": "Valle Design DWG-0 clean-room generator",
+      "createdAt": "2026-08-09",
+      "origin": {
+        "type": "valle-synthetic",
+        "reference": "fixtures/generators/generate-synthetic.ts"
+      },
+      "sourceIds": [
+        "VALLE-OWNER-DWG0-2026-08-09",
+        "VALLE-REPO-BASE-8BE49A55"
+      ],
+      "permission": {
+        "basis": "Direct authorization from the Valle repository owner",
+        "license": "Valle-Internal-Synthetic",
+        "redistributionEvidence": "SOURCE_REGISTER.json#VALLE-OWNER-DWG0-2026-08-09"
+      },
+      "declaredVersion": null,
+      "byteLength": 1,
+      "purpose": [
+        "Exercise deterministic signature truncation at every byte"
+      ],
+      "expectations": {
+        "signature": "truncated",
+        "parseOutcome": "error",
+        "errorCode": "DWG_SIGNATURE_TRUNCATED",
+        "maxWorkUnits": 32
+      },
+      "synthetic": true,
+      "generatedBy": "fixtures/generators/generate-synthetic.ts",
+      "redistributable": true
+    },
+    {
+      "id": "synthetic.truncated.ac1015-prefix-2",
+      "path": "synthetic/truncated/ac1015-prefix-2.dwg",
+      "sha256": "472e73d796e20aa8ff9059e6316f218e0322548f661ec4dc267507ed66317404",
+      "creator": "Valle Design DWG-0 clean-room generator",
+      "createdAt": "2026-08-09",
+      "origin": {
+        "type": "valle-synthetic",
+        "reference": "fixtures/generators/generate-synthetic.ts"
+      },
+      "sourceIds": [
+        "VALLE-OWNER-DWG0-2026-08-09",
+        "VALLE-REPO-BASE-8BE49A55"
+      ],
+      "permission": {
+        "basis": "Direct authorization from the Valle repository owner",
+        "license": "Valle-Internal-Synthetic",
+        "redistributionEvidence": "SOURCE_REGISTER.json#VALLE-OWNER-DWG0-2026-08-09"
+      },
+      "declaredVersion": null,
+      "byteLength": 2,
+      "purpose": [
+        "Exercise deterministic signature truncation at every byte"
+      ],
+      "expectations": {
+        "signature": "truncated",
+        "parseOutcome": "error",
+        "errorCode": "DWG_SIGNATURE_TRUNCATED",
+        "maxWorkUnits": 32
+      },
+      "synthetic": true,
+      "generatedBy": "fixtures/generators/generate-synthetic.ts",
+      "redistributable": true
+    },
+    {
+      "id": "synthetic.truncated.ac1015-prefix-3",
+      "path": "synthetic/truncated/ac1015-prefix-3.dwg",
+      "sha256": "77ad7e0416dad8c0167db82d4292995a6de78cc06d57e65a72a77efd5317cde7",
+      "creator": "Valle Design DWG-0 clean-room generator",
+      "createdAt": "2026-08-09",
+      "origin": {
+        "type": "valle-synthetic",
+        "reference": "fixtures/generators/generate-synthetic.ts"
+      },
+      "sourceIds": [
+        "VALLE-OWNER-DWG0-2026-08-09",
+        "VALLE-REPO-BASE-8BE49A55"
+      ],
+      "permission": {
+        "basis": "Direct authorization from the Valle repository owner",
+        "license": "Valle-Internal-Synthetic",
+        "redistributionEvidence": "SOURCE_REGISTER.json#VALLE-OWNER-DWG0-2026-08-09"
+      },
+      "declaredVersion": null,
+      "byteLength": 3,
+      "purpose": [
+        "Exercise deterministic signature truncation at every byte"
+      ],
+      "expectations": {
+        "signature": "truncated",
+        "parseOutcome": "error",
+        "errorCode": "DWG_SIGNATURE_TRUNCATED",
+        "maxWorkUnits": 32
+      },
+      "synthetic": true,
+      "generatedBy": "fixtures/generators/generate-synthetic.ts",
+      "redistributable": true
+    },
+    {
+      "id": "synthetic.truncated.ac1015-prefix-4",
+      "path": "synthetic/truncated/ac1015-prefix-4.dwg",
+      "sha256": "cec96812cdcb45acd32b83feb1b1186b6105f7b7f962b6b215dfe91281bb132f",
+      "creator": "Valle Design DWG-0 clean-room generator",
+      "createdAt": "2026-08-09",
+      "origin": {
+        "type": "valle-synthetic",
+        "reference": "fixtures/generators/generate-synthetic.ts"
+      },
+      "sourceIds": [
+        "VALLE-OWNER-DWG0-2026-08-09",
+        "VALLE-REPO-BASE-8BE49A55"
+      ],
+      "permission": {
+        "basis": "Direct authorization from the Valle repository owner",
+        "license": "Valle-Internal-Synthetic",
+        "redistributionEvidence": "SOURCE_REGISTER.json#VALLE-OWNER-DWG0-2026-08-09"
+      },
+      "declaredVersion": null,
+      "byteLength": 4,
+      "purpose": [
+        "Exercise deterministic signature truncation at every byte"
+      ],
+      "expectations": {
+        "signature": "truncated",
+        "parseOutcome": "error",
+        "errorCode": "DWG_SIGNATURE_TRUNCATED",
+        "maxWorkUnits": 32
+      },
+      "synthetic": true,
+      "generatedBy": "fixtures/generators/generate-synthetic.ts",
+      "redistributable": true
+    },
+    {
+      "id": "synthetic.truncated.ac1015-prefix-5",
+      "path": "synthetic/truncated/ac1015-prefix-5.dwg",
+      "sha256": "a54112857f9321b80672dfa39773bdf28cf914f76b010c8f94c81f4475e1babe",
+      "creator": "Valle Design DWG-0 clean-room generator",
+      "createdAt": "2026-08-09",
+      "origin": {
+        "type": "valle-synthetic",
+        "reference": "fixtures/generators/generate-synthetic.ts"
+      },
+      "sourceIds": [
+        "VALLE-OWNER-DWG0-2026-08-09",
+        "VALLE-REPO-BASE-8BE49A55"
+      ],
+      "permission": {
+        "basis": "Direct authorization from the Valle repository owner",
+        "license": "Valle-Internal-Synthetic",
+        "redistributionEvidence": "SOURCE_REGISTER.json#VALLE-OWNER-DWG0-2026-08-09"
+      },
+      "declaredVersion": null,
+      "byteLength": 5,
+      "purpose": [
+        "Exercise deterministic signature truncation at every byte"
+      ],
+      "expectations": {
+        "signature": "truncated",
+        "parseOutcome": "error",
+        "errorCode": "DWG_SIGNATURE_TRUNCATED",
+        "maxWorkUnits": 32
+      },
+      "synthetic": true,
+      "generatedBy": "fixtures/generators/generate-synthetic.ts",
+      "redistributable": true
+    },
+    {
+      "id": "synthetic.invalid.lowercase-ac1015",
+      "path": "synthetic/invalid/lowercase-ac1015.dwg",
+      "sha256": "d978bd2779aa4640e8eac6a101c745debf9eeb87701ce58f9d6105b6f371573a",
+      "creator": "Valle Design DWG-0 clean-room generator",
+      "createdAt": "2026-08-09",
+      "origin": {
+        "type": "valle-synthetic",
+        "reference": "fixtures/generators/generate-synthetic.ts"
+      },
+      "sourceIds": [
+        "VALLE-OWNER-DWG0-2026-08-09",
+        "VALLE-REPO-BASE-8BE49A55"
+      ],
+      "permission": {
+        "basis": "Direct authorization from the Valle repository owner",
+        "license": "Valle-Internal-Synthetic",
+        "redistributionEvidence": "SOURCE_REGISTER.json#VALLE-OWNER-DWG0-2026-08-09"
+      },
+      "declaredVersion": null,
+      "byteLength": 6,
+      "purpose": [
+        "Verify that signature matching is case-sensitive"
+      ],
+      "expectations": {
+        "signature": "invalid",
+        "parseOutcome": "error",
+        "errorCode": "DWG_SIGNATURE_INVALID",
+        "maxWorkUnits": 32
+      },
+      "synthetic": true,
+      "generatedBy": "fixtures/generators/generate-synthetic.ts",
+      "redistributable": true
+    },
+    {
+      "id": "synthetic.invalid.nondigit-ac10a5",
+      "path": "synthetic/invalid/nondigit-ac10a5.dwg",
+      "sha256": "5e1ec546ddae45c942730e750f7bcd60d3e345888ca922775d1e1c38009d4a53",
+      "creator": "Valle Design DWG-0 clean-room generator",
+      "createdAt": "2026-08-09",
+      "origin": {
+        "type": "valle-synthetic",
+        "reference": "fixtures/generators/generate-synthetic.ts"
+      },
+      "sourceIds": [
+        "VALLE-OWNER-DWG0-2026-08-09",
+        "VALLE-REPO-BASE-8BE49A55"
+      ],
+      "permission": {
+        "basis": "Direct authorization from the Valle repository owner",
+        "license": "Valle-Internal-Synthetic",
+        "redistributionEvidence": "SOURCE_REGISTER.json#VALLE-OWNER-DWG0-2026-08-09"
+      },
+      "declaredVersion": null,
+      "byteLength": 6,
+      "purpose": [
+        "Reject a non-decimal byte in the AC10xx version suffix"
+      ],
+      "expectations": {
+        "signature": "invalid",
+        "parseOutcome": "error",
+        "errorCode": "DWG_SIGNATURE_INVALID",
+        "maxWorkUnits": 32
+      },
+      "synthetic": true,
+      "generatedBy": "fixtures/generators/generate-synthetic.ts",
+      "redistributable": true
+    },
+    {
+      "id": "synthetic.invalid.shifted-xac1015",
+      "path": "synthetic/invalid/shifted-xac1015.dwg",
+      "sha256": "7d6ff8a0e2fe90c877514fcba04fdc0c6fa308dc8b02c8b222776f8cc4317b9c",
+      "creator": "Valle Design DWG-0 clean-room generator",
+      "createdAt": "2026-08-09",
+      "origin": {
+        "type": "valle-synthetic",
+        "reference": "fixtures/generators/generate-synthetic.ts"
+      },
+      "sourceIds": [
+        "VALLE-OWNER-DWG0-2026-08-09",
+        "VALLE-REPO-BASE-8BE49A55"
+      ],
+      "permission": {
+        "basis": "Direct authorization from the Valle repository owner",
+        "license": "Valle-Internal-Synthetic",
+        "redistributionEvidence": "SOURCE_REGISTER.json#VALLE-OWNER-DWG0-2026-08-09"
+      },
+      "declaredVersion": null,
+      "byteLength": 7,
+      "purpose": [
+        "Reject a known signature shifted away from offset zero"
+      ],
+      "expectations": {
+        "signature": "invalid",
+        "parseOutcome": "error",
+        "errorCode": "DWG_SIGNATURE_INVALID",
+        "maxWorkUnits": 32
+      },
+      "synthetic": true,
+      "generatedBy": "fixtures/generators/generate-synthetic.ts",
+      "redistributable": true
+    },
+    {
+      "id": "synthetic.recognized.ac1009",
+      "path": "synthetic/recognized/ac1009.dwg",
+      "sha256": "b7d89c3e88a45587d66e661211cab2486b57373ec255d2e9b6c6a95d5a972008",
+      "creator": "Valle Design DWG-0 clean-room generator",
+      "createdAt": "2026-08-09",
+      "origin": {
+        "type": "valle-synthetic",
+        "reference": "fixtures/generators/generate-synthetic.ts"
+      },
+      "sourceIds": [
+        "VALLE-OWNER-DWG0-2026-08-09",
+        "VALLE-REPO-BASE-8BE49A55"
+      ],
+      "permission": {
+        "basis": "Direct authorization from the Valle repository owner",
+        "license": "Valle-Internal-Synthetic",
+        "redistributionEvidence": "SOURCE_REGISTER.json#VALLE-OWNER-DWG0-2026-08-09"
+      },
+      "declaredVersion": "AC1009",
+      "byteLength": 6,
+      "purpose": [
+        "Exercise a known first-party signature without claiming a decoder"
+      ],
+      "expectations": {
+        "signature": "recognized",
+        "parseOutcome": "unsupported",
+        "errorCode": "DWG_VERSION_DECODER_UNSUPPORTED",
+        "maxWorkUnits": 32
+      },
+      "synthetic": true,
+      "generatedBy": "fixtures/generators/generate-synthetic.ts",
+      "redistributable": true
+    },
+    {
+      "id": "synthetic.recognized.ac1012",
+      "path": "synthetic/recognized/ac1012.dwg",
+      "sha256": "5a974c0ec07afdb2573ecae8c02f6c0feaed00d4433ca7d61fc3e61c9e73cafa",
+      "creator": "Valle Design DWG-0 clean-room generator",
+      "createdAt": "2026-08-09",
+      "origin": {
+        "type": "valle-synthetic",
+        "reference": "fixtures/generators/generate-synthetic.ts"
+      },
+      "sourceIds": [
+        "VALLE-OWNER-DWG0-2026-08-09",
+        "VALLE-REPO-BASE-8BE49A55"
+      ],
+      "permission": {
+        "basis": "Direct authorization from the Valle repository owner",
+        "license": "Valle-Internal-Synthetic",
+        "redistributionEvidence": "SOURCE_REGISTER.json#VALLE-OWNER-DWG0-2026-08-09"
+      },
+      "declaredVersion": "AC1012",
+      "byteLength": 6,
+      "purpose": [
+        "Exercise a known first-party signature without claiming a decoder"
+      ],
+      "expectations": {
+        "signature": "recognized",
+        "parseOutcome": "unsupported",
+        "errorCode": "DWG_VERSION_DECODER_UNSUPPORTED",
+        "maxWorkUnits": 32
+      },
+      "synthetic": true,
+      "generatedBy": "fixtures/generators/generate-synthetic.ts",
+      "redistributable": true
+    },
+    {
+      "id": "synthetic.recognized.ac1014",
+      "path": "synthetic/recognized/ac1014.dwg",
+      "sha256": "e104bdce394fe609ef2debc02006b6e14acf5662015299a120777581dd79d79f",
+      "creator": "Valle Design DWG-0 clean-room generator",
+      "createdAt": "2026-08-09",
+      "origin": {
+        "type": "valle-synthetic",
+        "reference": "fixtures/generators/generate-synthetic.ts"
+      },
+      "sourceIds": [
+        "VALLE-OWNER-DWG0-2026-08-09",
+        "VALLE-REPO-BASE-8BE49A55"
+      ],
+      "permission": {
+        "basis": "Direct authorization from the Valle repository owner",
+        "license": "Valle-Internal-Synthetic",
+        "redistributionEvidence": "SOURCE_REGISTER.json#VALLE-OWNER-DWG0-2026-08-09"
+      },
+      "declaredVersion": "AC1014",
+      "byteLength": 6,
+      "purpose": [
+        "Exercise a known first-party signature without claiming a decoder"
+      ],
+      "expectations": {
+        "signature": "recognized",
+        "parseOutcome": "unsupported",
+        "errorCode": "DWG_VERSION_DECODER_UNSUPPORTED",
+        "maxWorkUnits": 32
+      },
+      "synthetic": true,
+      "generatedBy": "fixtures/generators/generate-synthetic.ts",
+      "redistributable": true
+    },
+    {
+      "id": "synthetic.recognized.ac1015",
+      "path": "synthetic/recognized/ac1015.dwg",
+      "sha256": "9ce5fb2e200652a7a15ad53114d957900508cb83f9ddbcbe703457b93dbbe621",
+      "creator": "Valle Design DWG-0 clean-room generator",
+      "createdAt": "2026-08-09",
+      "origin": {
+        "type": "valle-synthetic",
+        "reference": "fixtures/generators/generate-synthetic.ts"
+      },
+      "sourceIds": [
+        "VALLE-OWNER-DWG0-2026-08-09",
+        "VALLE-REPO-BASE-8BE49A55"
+      ],
+      "permission": {
+        "basis": "Direct authorization from the Valle repository owner",
+        "license": "Valle-Internal-Synthetic",
+        "redistributionEvidence": "SOURCE_REGISTER.json#VALLE-OWNER-DWG0-2026-08-09"
+      },
+      "declaredVersion": "AC1015",
+      "byteLength": 6,
+      "purpose": [
+        "Exercise a known first-party signature without claiming a decoder"
+      ],
+      "expectations": {
+        "signature": "recognized",
+        "parseOutcome": "unsupported",
+        "errorCode": "DWG_VERSION_DECODER_UNSUPPORTED",
+        "maxWorkUnits": 32
+      },
+      "synthetic": true,
+      "generatedBy": "fixtures/generators/generate-synthetic.ts",
+      "redistributable": true
+    },
+    {
+      "id": "synthetic.recognized.ac1018",
+      "path": "synthetic/recognized/ac1018.dwg",
+      "sha256": "82a851544745f0f2200d4af460ba564df4cec02327d7f30d361717fde235b5e0",
+      "creator": "Valle Design DWG-0 clean-room generator",
+      "createdAt": "2026-08-09",
+      "origin": {
+        "type": "valle-synthetic",
+        "reference": "fixtures/generators/generate-synthetic.ts"
+      },
+      "sourceIds": [
+        "VALLE-OWNER-DWG0-2026-08-09",
+        "VALLE-REPO-BASE-8BE49A55"
+      ],
+      "permission": {
+        "basis": "Direct authorization from the Valle repository owner",
+        "license": "Valle-Internal-Synthetic",
+        "redistributionEvidence": "SOURCE_REGISTER.json#VALLE-OWNER-DWG0-2026-08-09"
+      },
+      "declaredVersion": "AC1018",
+      "byteLength": 6,
+      "purpose": [
+        "Exercise a known first-party signature without claiming a decoder"
+      ],
+      "expectations": {
+        "signature": "recognized",
+        "parseOutcome": "unsupported",
+        "errorCode": "DWG_VERSION_DECODER_UNSUPPORTED",
+        "maxWorkUnits": 32
+      },
+      "synthetic": true,
+      "generatedBy": "fixtures/generators/generate-synthetic.ts",
+      "redistributable": true
+    },
+    {
+      "id": "synthetic.recognized.ac1021",
+      "path": "synthetic/recognized/ac1021.dwg",
+      "sha256": "68c835a439b97f36a7161c0d694bfa1a756de8e3de40215f16d295e96558212c",
+      "creator": "Valle Design DWG-0 clean-room generator",
+      "createdAt": "2026-08-09",
+      "origin": {
+        "type": "valle-synthetic",
+        "reference": "fixtures/generators/generate-synthetic.ts"
+      },
+      "sourceIds": [
+        "VALLE-OWNER-DWG0-2026-08-09",
+        "VALLE-REPO-BASE-8BE49A55"
+      ],
+      "permission": {
+        "basis": "Direct authorization from the Valle repository owner",
+        "license": "Valle-Internal-Synthetic",
+        "redistributionEvidence": "SOURCE_REGISTER.json#VALLE-OWNER-DWG0-2026-08-09"
+      },
+      "declaredVersion": "AC1021",
+      "byteLength": 6,
+      "purpose": [
+        "Exercise a known first-party signature without claiming a decoder"
+      ],
+      "expectations": {
+        "signature": "recognized",
+        "parseOutcome": "unsupported",
+        "errorCode": "DWG_VERSION_DECODER_UNSUPPORTED",
+        "maxWorkUnits": 32
+      },
+      "synthetic": true,
+      "generatedBy": "fixtures/generators/generate-synthetic.ts",
+      "redistributable": true
+    },
+    {
+      "id": "synthetic.recognized.ac1024",
+      "path": "synthetic/recognized/ac1024.dwg",
+      "sha256": "76fca34a2f6c19f9137abef24172eedaea12870884cf0111b24fcd7f67c017b9",
+      "creator": "Valle Design DWG-0 clean-room generator",
+      "createdAt": "2026-08-09",
+      "origin": {
+        "type": "valle-synthetic",
+        "reference": "fixtures/generators/generate-synthetic.ts"
+      },
+      "sourceIds": [
+        "VALLE-OWNER-DWG0-2026-08-09",
+        "VALLE-REPO-BASE-8BE49A55"
+      ],
+      "permission": {
+        "basis": "Direct authorization from the Valle repository owner",
+        "license": "Valle-Internal-Synthetic",
+        "redistributionEvidence": "SOURCE_REGISTER.json#VALLE-OWNER-DWG0-2026-08-09"
+      },
+      "declaredVersion": "AC1024",
+      "byteLength": 6,
+      "purpose": [
+        "Exercise a known first-party signature without claiming a decoder"
+      ],
+      "expectations": {
+        "signature": "recognized",
+        "parseOutcome": "unsupported",
+        "errorCode": "DWG_VERSION_DECODER_UNSUPPORTED",
+        "maxWorkUnits": 32
+      },
+      "synthetic": true,
+      "generatedBy": "fixtures/generators/generate-synthetic.ts",
+      "redistributable": true
+    },
+    {
+      "id": "synthetic.recognized.ac1027",
+      "path": "synthetic/recognized/ac1027.dwg",
+      "sha256": "90fd7991f0c24e8cebceba2d2d77224846e7fb456aac66bd7c3cc6bbf4f345a1",
+      "creator": "Valle Design DWG-0 clean-room generator",
+      "createdAt": "2026-08-09",
+      "origin": {
+        "type": "valle-synthetic",
+        "reference": "fixtures/generators/generate-synthetic.ts"
+      },
+      "sourceIds": [
+        "VALLE-OWNER-DWG0-2026-08-09",
+        "VALLE-REPO-BASE-8BE49A55"
+      ],
+      "permission": {
+        "basis": "Direct authorization from the Valle repository owner",
+        "license": "Valle-Internal-Synthetic",
+        "redistributionEvidence": "SOURCE_REGISTER.json#VALLE-OWNER-DWG0-2026-08-09"
+      },
+      "declaredVersion": "AC1027",
+      "byteLength": 6,
+      "purpose": [
+        "Exercise a known first-party signature without claiming a decoder"
+      ],
+      "expectations": {
+        "signature": "recognized",
+        "parseOutcome": "unsupported",
+        "errorCode": "DWG_VERSION_DECODER_UNSUPPORTED",
+        "maxWorkUnits": 32
+      },
+      "synthetic": true,
+      "generatedBy": "fixtures/generators/generate-synthetic.ts",
+      "redistributable": true
+    },
+    {
+      "id": "synthetic.recognized.ac1032",
+      "path": "synthetic/recognized/ac1032.dwg",
+      "sha256": "3eeaa3dadf81a4ca7d6a4f35cc0b0660f9a43b9122b276f11f5138bd2d5984ac",
+      "creator": "Valle Design DWG-0 clean-room generator",
+      "createdAt": "2026-08-09",
+      "origin": {
+        "type": "valle-synthetic",
+        "reference": "fixtures/generators/generate-synthetic.ts"
+      },
+      "sourceIds": [
+        "VALLE-OWNER-DWG0-2026-08-09",
+        "VALLE-REPO-BASE-8BE49A55"
+      ],
+      "permission": {
+        "basis": "Direct authorization from the Valle repository owner",
+        "license": "Valle-Internal-Synthetic",
+        "redistributionEvidence": "SOURCE_REGISTER.json#VALLE-OWNER-DWG0-2026-08-09"
+      },
+      "declaredVersion": "AC1032",
+      "byteLength": 6,
+      "purpose": [
+        "Exercise a known first-party signature without claiming a decoder"
+      ],
+      "expectations": {
+        "signature": "recognized",
+        "parseOutcome": "unsupported",
+        "errorCode": "DWG_VERSION_DECODER_UNSUPPORTED",
+        "maxWorkUnits": 32
+      },
+      "synthetic": true,
+      "generatedBy": "fixtures/generators/generate-synthetic.ts",
+      "redistributable": true
+    },
+    {
+      "id": "synthetic.recognized.ac1015-tail",
+      "path": "synthetic/recognized/ac1015-tail.dwg",
+      "sha256": "c4881c683e0bb16c47ccb739cc92023e8d1feb752294ab5c58ca804074cc498f",
+      "creator": "Valle Design DWG-0 clean-room generator",
+      "createdAt": "2026-08-09",
+      "origin": {
+        "type": "valle-synthetic",
+        "reference": "fixtures/generators/generate-synthetic.ts"
+      },
+      "sourceIds": [
+        "VALLE-OWNER-DWG0-2026-08-09",
+        "VALLE-REPO-BASE-8BE49A55"
+      ],
+      "permission": {
+        "basis": "Direct authorization from the Valle repository owner",
+        "license": "Valle-Internal-Synthetic",
+        "redistributionEvidence": "SOURCE_REGISTER.json#VALLE-OWNER-DWG0-2026-08-09"
+      },
+      "declaredVersion": "AC1015",
+      "byteLength": 9,
+      "purpose": [
+        "Verify that signature probing is bounded to the six-byte prefix",
+        "Keep arbitrary trailing bytes unsupported rather than treating them as a decoded header"
+      ],
+      "expectations": {
+        "signature": "recognized",
+        "parseOutcome": "unsupported",
+        "errorCode": "DWG_VERSION_DECODER_UNSUPPORTED",
+        "maxWorkUnits": 32
+      },
+      "synthetic": true,
+      "generatedBy": "fixtures/generators/generate-synthetic.ts",
+      "redistributable": true
+    },
+    {
+      "id": "synthetic.unknown.ac1000",
+      "path": "synthetic/unknown/ac1000.dwg",
+      "sha256": "445cec61144afef89aadb557bb6dc59f34e635778cf22b8a99b73c00d15b9310",
+      "creator": "Valle Design DWG-0 clean-room generator",
+      "createdAt": "2026-08-09",
+      "origin": {
+        "type": "valle-synthetic",
+        "reference": "fixtures/generators/generate-synthetic.ts"
+      },
+      "sourceIds": [
+        "VALLE-OWNER-DWG0-2026-08-09",
+        "VALLE-REPO-BASE-8BE49A55"
+      ],
+      "permission": {
+        "basis": "Direct authorization from the Valle repository owner",
+        "license": "Valle-Internal-Synthetic",
+        "redistributionEvidence": "SOURCE_REGISTER.json#VALLE-OWNER-DWG0-2026-08-09"
+      },
+      "declaredVersion": "AC1000",
+      "byteLength": 6,
+      "purpose": [
+        "Exercise a syntactically valid but unknown AC10xx signature"
+      ],
+      "expectations": {
+        "signature": "unknown-version",
+        "parseOutcome": "unsupported",
+        "errorCode": "DWG_VERSION_UNKNOWN",
+        "maxWorkUnits": 32
+      },
+      "synthetic": true,
+      "generatedBy": "fixtures/generators/generate-synthetic.ts",
+      "redistributable": true
+    },
+    {
+      "id": "synthetic.unknown.ac1099",
+      "path": "synthetic/unknown/ac1099.dwg",
+      "sha256": "7f759985b4c824fbb79bd409e32795defc0f90953d4ac9773930f67fa1629024",
+      "creator": "Valle Design DWG-0 clean-room generator",
+      "createdAt": "2026-08-09",
+      "origin": {
+        "type": "valle-synthetic",
+        "reference": "fixtures/generators/generate-synthetic.ts"
+      },
+      "sourceIds": [
+        "VALLE-OWNER-DWG0-2026-08-09",
+        "VALLE-REPO-BASE-8BE49A55"
+      ],
+      "permission": {
+        "basis": "Direct authorization from the Valle repository owner",
+        "license": "Valle-Internal-Synthetic",
+        "redistributionEvidence": "SOURCE_REGISTER.json#VALLE-OWNER-DWG0-2026-08-09"
+      },
+      "declaredVersion": "AC1099",
+      "byteLength": 6,
+      "purpose": [
+        "Exercise a syntactically valid but unknown AC10xx signature"
+      ],
+      "expectations": {
+        "signature": "unknown-version",
+        "parseOutcome": "unsupported",
+        "errorCode": "DWG_VERSION_UNKNOWN",
+        "maxWorkUnits": 32
+      },
+      "synthetic": true,
+      "generatedBy": "fixtures/generators/generate-synthetic.ts",
+      "redistributable": true
+    }
+  ]
+}
