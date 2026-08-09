@@ -55,6 +55,12 @@ export function useCadCommandEngineHost(
         preview: (paths) => live.current.preview(paths),
         osnapOverride: (modes) => live.current.osnapOverride(modes),
         cursor: (shape) => live.current.cursor(shape),
+        // `view` y `host` SE REENVÍAN. Olvidarlos aquí dejaba a ZOOM y a PLOT
+        // llegando hasta el motor, emitiendo su efecto y muriendo en un
+        // «no está disponible en este contexto» — la clase de fallo que sólo
+        // destapa un recorrido de punta a punta, porque cada pieza estaba bien.
+        view: (request) => live.current.view?.(request) ?? null,
+        host: (request) => live.current.host?.(request) ?? null,
       }),
     [],
   );
@@ -132,7 +138,10 @@ export function useCadStudioNavigation(
  * DOM — inyectado para que el anfitrión se pueda probar en Node.
  */
 export function useCadStudioPlotHost(
-  options: Pick<CadStudioCommandEngineOptions, "document">,
+  options: Pick<CadStudioCommandEngineOptions, "document"> & {
+    /** Adónde va el renglón del trazado cuando termina. */
+    note?: (text: string, level: "info" | "error") => void;
+  },
 ): CadPlotHost {
   const live = useRef(options);
   live.current = options;
@@ -141,6 +150,7 @@ export function useCadStudioPlotHost(
       new CadPlotHost({
         document: () => live.current.document.current,
         download: downloadCadFile,
+        onResult: (text, level) => live.current.note?.(text, level),
       }),
     [],
   );
@@ -150,10 +160,17 @@ export function useCadStudioCommandEngine(
   options: CadStudioCommandEngineOptions,
 ): CadCommandEngineHost {
   const navigation = useCadStudioNavigation(options);
-  const plot = useCadStudioPlotHost(options);
+  // El anfitrión del motor todavía no existe cuando se crea el de trazado, así
+  // que el renglón del resultado se enruta por una `ref` que se rellena justo
+  // después. Es la misma técnica del puente vivo, y evita el orden imposible.
+  const engineRef = useRef<CadCommandEngineHost | null>(null);
+  const plot = useCadStudioPlotHost({
+    document: options.document,
+    note: (text, level) => engineRef.current?.note(text, level),
+  });
   const live = useRef(options);
   live.current = options;
-  return useCadCommandEngineHost({
+  const engine = useCadCommandEngineHost({
     context: () =>
       cadStudioCommandContext({
         document: options.document.current,
@@ -179,6 +196,8 @@ export function useCadStudioCommandEngine(
     osnapOverride: () => {},
     cursor: () => {},
   });
+  engineRef.current = engine;
+  return engine;
 }
 
 /**

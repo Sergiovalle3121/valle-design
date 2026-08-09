@@ -26,6 +26,8 @@ import {
   type CadPlotPdfResult,
 } from "@/lib/cad/plot/plot-pdf";
 import type { CadPlotPreview } from "@/lib/cad/plot/plot-job";
+import { publishCadSheetSet } from "@/lib/cad/sheet-set/sheet-set-publish";
+import type { CadSheetSet } from "@/lib/cad/sheet-set/sheet-set";
 
 export interface CadPlotHostBridge {
   /** Documento vivo. `null` mientras no hay dibujo abierto. */
@@ -42,6 +44,20 @@ export interface CadPlotHostBridge {
   openPageSetup?(layoutId: string): void;
   /** Cambia el espacio activo del editor. */
   setSpace?(space: "model" | "paper", layoutId?: string): void;
+  /**
+   * Conjunto de planos ya cargado, con los dibujos que necesitan sus hojas.
+   *
+   * Los documentos ENTRAN, no se buscan: traerlos es una operación de red que
+   * puede fallar, y un PDF con diecinueve de veinte hojas presentado como
+   * completo es peor que un error. Quien los reúne decide qué hacer si falta
+   * alguno.
+   */
+  sheetSet?(sheetSetId: string): {
+    set: CadSheetSet;
+    documents: ReadonlyMap<string, CadDocument>;
+  } | null;
+  /** Fecha de publicación. Inyectada: hace el PDF reproducible. */
+  now?(): string;
   /** Resultado del trazado, para el diálogo de la línea de comandos. */
   onResult?(message: string, level: "info" | "error"): void;
 }
@@ -58,7 +74,13 @@ export function downloadCadFile(
   anchor.href = url;
   anchor.download = fileName;
   anchor.rel = "noopener";
+  anchor.style.display = "none";
+  // El ancla se INSERTA antes de pulsarla. Un ancla suelta funciona en algunos
+  // navegadores y en otros no descarga nada, sin error: es la diferencia entre
+  // «traza» y «parece que traza».
+  document.body.append(anchor);
   anchor.click();
+  anchor.remove();
   // Revocar en el mismo turno cancelaría la descarga en Firefox: se deja al
   // siguiente tick, que es cuando el navegador ya ha tomado el blob.
   setTimeout(() => URL.revokeObjectURL(url), 0);
@@ -83,8 +105,13 @@ export class CadPlotHost {
       return "Configuración de página abierta.";
     }
 
-    if (request.kind === "publish")
-      return "La publicación por lotes se lanza desde el conjunto de planos.";
+    if (request.kind === "publish") {
+      const loaded = this.bridge.sheetSet?.(request.sheetSetId) ?? null;
+      if (!loaded)
+        return `El conjunto de planos ${request.sheetSetId} no está cargado en este estudio.`;
+      void this.publish(loaded.set, loaded.documents, request.sheetIds);
+      return `Publicando «${loaded.set.name}» a un único PDF paginado…`;
+    }
 
     const document = this.bridge.document();
     if (!document) return "No hay ningún dibujo abierto que trazar.";
@@ -120,6 +147,46 @@ export class CadPlotHost {
     void this.emit(job.sheets, request.request.fileName);
     return `Trazando ${request.request.fileName} a PDF…`;
   };
+
+  private async publish(
+    set: CadSheetSet,
+    documents: ReadonlyMap<string, CadDocument>,
+    sheetIds?: readonly string[],
+  ): Promise<void> {
+    try {
+      const result = await publishCadSheetSet({
+        set,
+        documents,
+        date: this.bridge.now?.() ?? new Date().toISOString().slice(0, 10),
+        ...(sheetIds && sheetIds.length > 0 ? { sheetIds } : {}),
+      });
+      if (result.pageCount === 0) {
+        this.bridge.onResult?.(
+          `El conjunto «${set.name}» no produjo ninguna página.`,
+          "error",
+        );
+        return;
+      }
+      this.bridge.download(result.fileName, result.bytes, "application/pdf");
+      // Las hojas omitidas se dicen SIEMPRE. Un conjunto publicado al que le
+      // falta un plano y no lo cuenta es la peor forma de fallar: parece que
+      // salió bien.
+      this.bridge.onResult?.(
+        `Publicado ${result.fileName}: ${result.pageCount} página(s)` +
+          (result.plan.skipped.length > 0
+            ? `, ${result.plan.skipped.length} hoja(s) omitida(s): ${result.plan.skipped
+                .map((entry) => entry.reason)
+                .join(" ")}`
+            : "."),
+        result.plan.skipped.length > 0 ? "error" : "info",
+      );
+    } catch (error) {
+      this.bridge.onResult?.(
+        `La publicación falló: ${error instanceof Error ? error.message : String(error)}`,
+        "error",
+      );
+    }
+  }
 
   private async emit(
     sheets: Parameters<typeof renderCadPlotPdf>[0],

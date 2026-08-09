@@ -53,15 +53,19 @@ export interface CadCommandEngineBridge {
    * —«ZOOM Extensión», «No hay ninguna vista previa que recuperar»— porque la
    * respuesta depende del dibujo y del lienzo, que el motor no ve.
    *
-   * Opcional: un anfitrión sin vista (una prueba, un script sin lienzo) no
-   * tiene dónde encuadrar, y decirlo es mejor que fingir que encuadró.
+   * `null` significa «aquí no hay dónde encuadrar»: un guion sin lienzo, una
+   * prueba del motor. Se distingue de una cadena vacía a propósito, y se dice
+   * en voz alta en vez de fingir que se encuadró.
+   *
+   * Puede faltar entero, y entonces vale lo mismo que devolver `null`.
    */
-  view?(request: CadViewRequest): string;
+  view?(request: CadViewRequest): string | null;
   /**
-   * Trabajo fuera del documento: trazar, publicar, cambiar de espacio. Devuelve
-   * el renglón a mostrar, igual que `view`.
+   * Trabajo fuera del documento: trazar, publicar, cambiar de espacio. Mismo
+   * contrato que `view`: el renglón a mostrar, o `null` si no hay quien lo
+   * atienda.
    */
-  host?(request: CadHostRequest): string;
+  host?(request: CadHostRequest): string | null;
 }
 
 export interface CadCommandEngineSnapshot {
@@ -158,6 +162,20 @@ export class CadCommandEngineHost {
     this.dispatch({ kind: "input", input: { kind: "enter" } });
   }
 
+  /**
+   * Renglón que NO viene de un comando: el resultado de un trabajo asíncrono
+   * del anfitrión, típicamente un trazado que acaba de terminar.
+   *
+   * Existe porque trazar tarda y la línea de comandos no espera: PLOT responde
+   * «trazando…» de inmediato y el resultado llega por aquí, con el número de
+   * páginas y de fuentes. Sin esta puerta, el usuario se queda mirando un
+   * «trazando…» que nunca se resuelve.
+   */
+  note(text: string, level: "info" | "error" = "info"): void {
+    this.log(text, level);
+    this.publish();
+  }
+
   get busy(): boolean {
     return this.state.active !== null;
   }
@@ -204,23 +222,25 @@ export class CadCommandEngineHost {
       case "execute":
         this.bridge.apply(effect.commands, effect.label);
         return;
-      case "view":
+      case "view": {
         // Sin puente de vista el comando no encuadró nada, y eso se dice. Un
         // «ZOOM Extensión» impreso sobre una vista que no se movió es peor que
         // un aviso: enseña a no fiarse del diálogo.
+        const answered = this.bridge.view?.(effect.request) ?? null;
         this.log(
-          this.bridge.view?.(effect.request) ??
-            `${effect.label} no está disponible sin una vista activa.`,
-          this.bridge.view ? "info" : "error",
+          answered ?? `${effect.label} no está disponible sin una vista activa.`,
+          answered === null ? "error" : "info",
         );
         return;
-      case "host":
+      }
+      case "host": {
+        const answered = this.bridge.host?.(effect.request) ?? null;
         this.log(
-          this.bridge.host?.(effect.request) ??
-            `${effect.label} no está disponible en este contexto.`,
-          this.bridge.host ? "info" : "error",
+          answered ?? `${effect.label} no está disponible en este contexto.`,
+          answered === null ? "error" : "info",
         );
         return;
+      }
       case "message":
         this.log(effect.text, effect.level === "error" ? "error" : "info");
         return;

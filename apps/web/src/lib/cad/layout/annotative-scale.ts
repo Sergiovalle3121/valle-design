@@ -30,7 +30,7 @@
  * `CANNOSCALE`, y tiene la propiedad que importa: el documento sigue siendo
  * legible por cualquier consumidor que no sepa nada de anotatividad.
  */
-import type { CadDocument, CadEntity, CadPaperSpace, CadPaperViewport } from "../cad-document";
+import type { CadEntity, CadPaperSpace, CadPaperViewport } from "../cad-document";
 import type { CadEntityCommand } from "../entity-commands";
 
 /** Clave de metadatos con la altura sobre el papel, en milímetros. */
@@ -127,6 +127,10 @@ export interface CadAnnotativeRescaleResult {
  * Recalcula las alturas anotativas de una presentación para la escala vigente
  * de cada ventana.
  *
+ * Recibe las ENTIDADES y la unidad, no el documento: así lo puede llamar un
+ * comando del motor, que ve el dibujo por la rendija de `context.entity` y
+ * nunca tiene el documento entero en la mano.
+ *
  * Se recorre POR VENTANA porque una hoja puede tener una ventana general a
  * 1:100 y un detalle a 1:5, y el mismo rótulo no puede servir para las dos. La
  * regla es la de AutoCAD: manda la escala de anotación de la ventana en la que
@@ -135,12 +139,16 @@ export interface CadAnnotativeRescaleResult {
  * daría documentos distintos en dos ejecuciones iguales.
  */
 export function cadAnnotativeRescaleCommands(
-  document: CadDocument,
+  input: {
+    entities: readonly CadEntity[];
+    /** Unidad del dibujo. Decide los milímetros por unidad. */
+    unit?: string;
+  },
   space: CadPaperSpace,
   isVisible: (viewport: CadPaperViewport, entity: CadEntity) => boolean = defaultVisibility,
 ): CadAnnotativeRescaleResult {
-  const unit = document.meta.unit;
-  const byId = new Map(document.entities.map((entity) => [entity.id, entity]));
+  const unit = input.unit ?? "mm";
+  const byId = new Map(input.entities.map((entity) => [entity.id, entity]));
   const commands: CadEntityCommand[] = [];
   const rescaledEntityIds: string[] = [];
   const skippedEntityIds: string[] = [];

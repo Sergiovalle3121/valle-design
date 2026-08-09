@@ -157,7 +157,10 @@ import {
     ],
   } as never as CadPaperSpace;
 
-  const result = cadAnnotativeRescaleCommands(document, space);
+  const result = cadAnnotativeRescaleCommands(
+    { entities: document.entities, unit: document.meta.unit },
+    space,
+  );
 
   const heights = new Map(
     result.commands.map((command) => [
@@ -185,7 +188,10 @@ import {
       heights.has(entity.id) ? { ...entity, height: heights.get(entity.id) } : entity,
     ),
   } as CadDocument;
-  const again = cadAnnotativeRescaleCommands(settled, space);
+  const again = cadAnnotativeRescaleCommands(
+    { entities: settled.entities, unit: settled.meta.unit },
+    space,
+  );
   assert.deepEqual(again.commands, []);
   assert.deepEqual(again.rescaledEntityIds, []);
 }

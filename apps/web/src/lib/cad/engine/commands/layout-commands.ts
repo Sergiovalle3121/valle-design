@@ -43,6 +43,7 @@ import {
   renameCadLayout,
   upsertCadLayoutCommand,
 } from "../../layout/layout-operations";
+import { cadAnnotativeRescaleCommands } from "../../layout/annotative-scale";
 import {
   cadBoundaryFromEntity,
   cadViewportId,
@@ -91,6 +92,21 @@ function hostStep(
     accepts: 0,
     result: { kind: "host", request, label },
   };
+}
+
+/**
+ * Entidades que el comando puede ver.
+ *
+ * El contexto da los ids y un lector por id; no da el documento. Se
+ * materializa aquí, una vez, en vez de en cada bucle: MVIEW ESCala lo pide una
+ * sola vez por invocación y un `find` por entidad convertiría un dibujo de
+ * cien mil objetos en cien mil recorridos.
+ */
+function entitiesOf(context: CadCommandContext) {
+  if (!context.entity) return [];
+  return context.entityIds
+    .map((entityId) => context.entity!(entityId))
+    .filter((entity): entity is NonNullable<typeof entity> => !!entity);
 }
 
 /** Presentaciones del documento, o `null` si el anfitrión no las aporta. */
@@ -551,12 +567,20 @@ const mviewCommand: CadCommandDescriptor<MviewState> = {
         return say(`«${token}» no es una escala válida. Escribe 50 o 1:50.`);
       // Fijar la escala BLOQUEA la ventana: si no, el siguiente zoom dentro de
       // ella la desharía y el plano saldría a una escala que nadie pidió.
+      const rescaled = setCadViewportScale(space, state.op.viewportId, {
+        denominator,
+        lock: true,
+      });
+      // Y el reescalado anotativo va en el MISMO lote. Es el punto entero de la
+      // anotatividad: cambiar la escala de la ventana sin reescalar los rótulos
+      // deja el plano con dos tamaños de letra, y hacerlo en otro lote lo
+      // convertiría en dos pasos de deshacer que se pueden separar.
+      const annotative = cadAnnotativeRescaleCommands(
+        { entities: entitiesOf(context), unit: context.unit },
+        rescaled,
+      );
       return documentResult(
-        [
-          upsertCadLayoutCommand(
-            setCadViewportScale(space, state.op.viewportId, { denominator, lock: true }),
-          ),
-        ],
+        [upsertCadLayoutCommand(rescaled), ...annotative.commands],
         "MVIEW",
       );
     }

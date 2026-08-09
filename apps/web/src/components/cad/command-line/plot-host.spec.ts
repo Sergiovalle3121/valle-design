@@ -13,6 +13,7 @@ import { cadPageSetupFromLayout } from "@/lib/cad/plot/page-setup";
 import { createCadMonochromeTable } from "@/lib/cad/plot/plot-style-table";
 import { inspectCadPdf } from "@/lib/cad/plot/plot-pdf";
 import { CadPlotHost } from "./plot-host";
+import { addCadSheet, createCadSheetSet } from "@/lib/cad/sheet-set/sheet-set";
 
 function drawing(): CadDocument {
   const layout = createCadLayout([], {
@@ -139,6 +140,64 @@ async function specs(): Promise<void> {
   });
   assert.match(refused, /no está cargada/);
   assert.equal(downloads.length, 1, "y no se descargó nada");
+
+  // --- PUBLISH: un conjunto de planos sale como UN PDF paginado ------------
+  {
+    let set = createCadSheetSet({ id: "set:nave", name: "Nave industrial" });
+    set = addCadSheet(set, {
+      id: "s1",
+      documentId: "doc",
+      layoutId: "layout:planta",
+      title: "Planta",
+    });
+    set = addCadSheet(set, {
+      id: "s2",
+      documentId: "doc",
+      layoutId: "layout:planta",
+      title: "Planta (bis)",
+    });
+    // Una tercera hoja de un dibujo que NO está cargado: tiene que decirse.
+    set = addCadSheet(set, {
+      id: "s3",
+      documentId: "ausente",
+      layoutId: "layout:x",
+      title: "Ausente",
+    });
+
+    const published: Downloaded[] = [];
+    const notes: Array<{ message: string; level: string }> = [];
+    const publisher = new CadPlotHost({
+      document: () => document,
+      sheetSet: () => ({ set, documents: new Map([["doc", document]]) }),
+      now: () => "2026-08-09",
+      download: (fileName, bytes, mimeType) =>
+        published.push({ fileName, bytes, mimeType }),
+      onResult: (message, level) => notes.push({ message, level }),
+    });
+
+    const message = publisher.handle({ kind: "publish", sheetSetId: "set:nave" });
+    assert.match(message, /Publicando «Nave industrial»/);
+
+    for (let attempt = 0; attempt < 300 && published.length === 0; attempt += 1)
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+    assert.equal(published.length, 1, "un conjunto, UN archivo");
+    assert.equal(published[0].fileName, "Nave industrial.pdf");
+    const batch = inspectCadPdf(published[0].bytes);
+    assert.equal(batch.pageCount, 2, "las dos hojas publicables, paginadas juntas");
+    assert.ok(
+      notes.some((note) => note.level === "error" && /ausente/i.test(note.message)),
+      `la hoja omitida tiene que decirse; los renglones fueron ${notes
+        .map((note) => note.message)
+        .join(" | ")}`,
+    );
+
+    const missing = new CadPlotHost({ document: () => document, download: () => {} });
+    assert.match(
+      missing.handle({ kind: "publish", sheetSetId: "set:nave" }),
+      /no está cargado/,
+    );
+  }
 
   // --- sin dibujo abierto, se dice ----------------------------------------
   const empty = new CadPlotHost({ document: () => null, download: () => {} });
