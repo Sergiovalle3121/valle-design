@@ -239,16 +239,29 @@ export class CadRenderPipeline {
   }
 
   /**
-   * Invalidación por `affectedEntityIds`. Reindexa las entidades tocadas, tira
-   * su teselado y libera los tiles residentes que las contenían para que se
-   * reconstruyan con presupuesto en vez de de golpe.
+   * Invalidación por `affectedEntityIds`, que es lo que devuelve el ejecutor de
+   * comandos tras aplicar un lote.
+   *
+   * CONTRATO, y conviene leerlo entero: un id afectado que **no** venga en
+   * `upserts` se trata como una BAJA. Es lo que permite que borrar sea la misma
+   * llamada que editar, pero significa que quien modifica una entidad tiene que
+   * pasar su versión nueva; si sólo pasa el id, la entidad desaparece del
+   * dibujo.
+   *
+   * Reindexa lo tocado, tira su teselado y libera los tiles residentes que lo
+   * contenían, para que se reconstruyan con presupuesto en vez de de golpe.
    */
   invalidate(
     affectedEntityIds: readonly string[],
     upserts: readonly CadNativeEntity[] = [],
   ): number {
+    // Conjunto y no búsqueda lineal: un MOVE de 10.000 entidades cruzaría
+    // 10.000 ids contra 10.000 upserts, que son 100 millones de comparaciones
+    // por lote de edición.
+    const upsertedIds = new Set<string>();
     for (const entity of upserts) {
       if (!CAD_ENTITY_REGISTRY.supports(entity)) continue;
+      upsertedIds.add(entity.id);
       this.entities.set(entity.id, entity);
       this.index.upsert(
         entity.id,
@@ -256,9 +269,8 @@ export class CadRenderPipeline {
       );
     }
     for (const id of affectedEntityIds) {
-      if (upserts.some((entity) => entity.id === id)) continue;
+      if (upsertedIds.has(id)) continue;
       if (!this.entities.has(id)) continue;
-      // Un id afectado que ya no está entre las entidades es una baja.
       this.index.remove(id);
       this.entities.delete(id);
     }
