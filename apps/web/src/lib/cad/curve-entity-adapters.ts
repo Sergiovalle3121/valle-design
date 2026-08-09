@@ -510,4 +510,4 @@ const ellipseAdapter: CadEntityAdapter<
   },
 };
 
-export { arcAdapter, arcRenderer, ellipseAdapter, ellipseRenderer, normalizedSweep };
+export { arcAdapter, ellipseAdapter };
