@@ -72,6 +72,29 @@ El fixture reintenta la PRECONDICIÓN (que los campos sostengan su valor) pero
 **nunca comprueba la POSTCONDICIÓN** (que el click surtiera efecto). Ésa es la
 pieza que falta.
 
+### Lo que NO se ha conseguido demostrar, y conviene decirlo
+
+El mecanismo de arriba es una hipótesis coherente con los tres síntomas, **pero
+no está reproducido**. Se intentaron dos vías, las dos en chromium (firefox no
+se puede descargar tras el proxy del entorno, y dos de los tres fallos de CI
+son de firefox):
+
+- **Soak bajo contención**: goldens 18 y 33 repetidos con los cuatro núcleos
+  saturados, `workers=1`, modo producción. **5 iteraciones, 30 tests, 0
+  fallos.**
+- **Carrera forzada por CDP**: `Emulation.setCPUThrottlingRate` a 20×, seis
+  rondas de LINE por entrada dinámica, sin el arreglo puesto. **6/6 crearon la
+  entidad.** Estrangular la CPU ralentiza por igual al re-montaje y a la
+  prueba, así que la ventana de quietud de 150 ms sigue atrapándolo.
+
+Conclusión honesta: **el intermitente es real y está acotado, pero su mecanismo
+exacto sigue sin probarse.** Lo que se ha hecho es (a) cerrar el hueco lógico
+que sí es demostrable por lectura —volver de `applyDynamicInput` con un
+re-montaje en vuelo— y (b) hacer que el fallo, si vuelve, sea **ruidoso y
+localizado** en vez de silencioso y a tres pasos de distancia. Y sobre todo,
+(c) arreglar que el artefacto con la traza se suba: la próxima vez que ocurra
+habrá evidencia directa en vez de otra reconstrucción desde los logs.
+
 ## 4. Segunda avería, independiente: nadie podía ver el informe
 
 Las tres corridas rojas terminan con:
@@ -105,21 +128,67 @@ notara: con diez sesiones fusionando en cadena, la mayoría de los commits de
 `main` nunca llegaban a decir si estaban sanos. No es que se ignorara la
 alarma; es que la alarma se apagaba sola.
 
-## 6. Cuarta observación, NO confirmada: «Web specs (tsx)»
+## 6. Cuarta avería, REPRODUCIDA: «Web specs (tsx)»
 
-Se ha reportado que ese job cayó al menos una vez sobre una rama cuyo único
-cambio era Markdown, mientras `npm run test:specs` daba 230/230 en local. No se
-ha reproducido ni se ha localizado la corrida, así que **no se toca**:
-`apps/web/scripts/run-specs.mjs` da 120 s por spec y el más lento del repo baja
-de 20 s, de modo que un timeout exigiría una degradación severa del runner.
-Queda anotado como pista, explícitamente separado del fallo del E2E para que
-nadie los confunda.
+Se había reportado que ese job cayó sobre una rama cuyo único cambio era
+Markdown, con 230/230 en local. **Ha vuelto a pasar, en este mismo PR**, cuya
+única aportación en ese momento eran un documento y el workflow: la corrida
+`31331144931` dio 229/230 con
+
+```
+❌ src/lib/cad/render/render-benchmark.spec.ts
+```
+
+No es un timeout ni un spec silencioso: es una **comparación de reloj de pared**
+entre dos pipelines de render.
+
+```ts
+assert.ok(next.panFrameP95Ms < legacy.panFrameP95Ms, …);
+assert.ok(next.panFrameMaxMs < legacy.panFrameMaxMs, …);
+```
+
+Reproducido en local sin tocar nada: **2 de cada 10 corridas fallan**, siempre
+la del p95, con cifras como «nuevo 15.589 ms frente a 9.35 ms del anterior»
+cuando lo normal es «5.4 frente a 9.1».
+
+La razón es aritmética. El ruido de planificación es ABSOLUTO —una pausa de GC
+cuesta lo mismo a los dos caminos— pero el coste real no lo es: el nuevo ronda
+5-7 ms por cuadro y el anterior 9. Un hipo de 5 ms apenas mueve al anterior y
+DUPLICA al nuevo. Encima el «p95» se calcula sobre los ~8 cuadros de las ocho
+paradas del paseo: con esa muestra, **un percentil 95 es literalmente el
+máximo**, el estadístico más sensible al ruido que existe. El propio módulo lo
+avisa en un comentario («un p95 sobre dos muestras ES el máximo») sin sacar la
+consecuencia.
+
+**Arreglo**: cada ronda mide los dos caminos seguidos sobre el MISMO guion de
+ocho paradas —el escenario no se ablanda— y se exige que el nuevo gane la
+mayoría de cinco paseos emparejados. Se repite la MEDIDA, nunca la aserción: si
+el pipeline nuevo se volviera de verdad más caro, perdería siempre y la mayoría
+no se alcanzaría.
+
+Medido: **0/12 fallos sin carga** (antes 2/10) y **0/12 con carga moderada**
+(dos de cuatro núcleos ocupados).
+
+**Residuo declarado**: con los cuatro núcleos saturados el spec sigue cayendo
+—5/12, frente a 6/12 del original—. A esa oversuscripción ninguna estadística
+salva una medida de reloj de pared. El arreglo durable es sacar la comparación
+temporal de un spec unitario y dejarla en `scripts/cad-render-benchmark.mts`,
+que corre en condiciones controladas y ya tiene su propia puerta de CI
+(`benchmark:cad:smoke`); en el spec quedarían sólo las afirmaciones
+deterministas, que son las que de verdad fijan el contrato (25.000 detalladas
+frente al techo de 10.000 del camino anterior, el troceado en cuadros). Eso
+toca `render-benchmark.ts` y es del dueño del pipeline de render (#62), no mío.
 
 ## 7. Reparto
 
-- §3 se arregla en `e2e/fixtures/dynamic-input.ts` y en los dos goldens: es
+- §3 se arregla en `e2e/fixtures/dynamic-input.ts` y en el golden 18: es
   territorio de pruebas, sin dueño en el reparto de las diez sesiones.
 - §4 y §5 se arreglan en `.github/workflows/ci.yml`, que tampoco tiene dueño.
+- §6 toca `src/lib/cad/render/render-benchmark.spec.ts`, que **sí** es del área
+  del pipeline de render (#62). Se ha tocado igualmente porque bloqueaba el
+  merge y el cambio es acotado —sólo la parte temporal del spec, ni una línea
+  de `render-benchmark.ts` ni del producto—, y se avisa aquí y en el PR para
+  que esa sesión resuelva el conflicto sabiendo lo que pasó.
 - **No se toca código de producto.** La carrera es real en el producto —un
   botón deshabilitado que se come un click es un defecto de usabilidad menor—
   pero cerrarla de verdad exige tocar `CadDynamicInput`/`CadBlockPalette`
