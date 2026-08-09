@@ -30,18 +30,27 @@ import { dimensionAdapter } from "./dimension-entity-adapter";
 import {
   boundsContained,
   boundsIntersect,
+  commonHitTester,
   pathHit,
   pointInPolygon,
   pointsBounds,
 } from "./entity-hit-geometry";
 import { hatchAdapter } from "./hatch-entity-adapter";
+import { polylineAdapter } from "./polyline-entity-adapter";
+import { pointAdapter, rayAdapter, xlineAdapter } from "./point-line-adapters";
+import { imageAdapter, solidAdapter, wipeoutAdapter } from "./fill-entity-adapters";
+import { attdefAdapter, tableAdapter } from "./annotation-v4-adapters";
 import { mleaderAdapter } from "./mleader-entity-adapter";
 import { resolveCadInsert } from "./professional-blocks";
 import { hatchRegionContainsPoint, type CadBoundaryPath } from "./hatch-associativity";
 
 export type CadNativeEntity = Extract<
   CadEntity,
-  { type: "line" | "polyline" | "circle" | "arc" | "ellipse" | "spline" | "hatch" | "mtext" | "dimension" | "mleader" | "insert" }
+  { type: "line" | "polyline" | "circle" | "arc" | "ellipse" | "spline" | "hatch" | "mtext" | "dimension" | "mleader" | "insert"
+    // Esquema 4. Cada uno tiene su adaptador registrado abajo; un tipo que
+    // entra en esta unión sin adaptador revienta en `adapter()` la primera vez
+    // que alguien lo dibuja, así que las dos listas se editan juntas.
+    | "point" | "xline" | "ray" | "solid" | "wipeout" | "image" | "attdef" | "table" }
 >;
 export type CadNativeEntityType = CadNativeEntity["type"];
 
@@ -237,27 +246,6 @@ function angleOnArc(angle: number, startAngle: number, endAngle: number): boolea
   let offset = angle - startAngle;
   while (offset < 0) offset += 360;
   return offset <= sweep + 1e-7;
-}
-
-function commonHitTester<E extends CadNativeEntity>(
-  renderer: CadEntityRenderer<E>,
-  boundsProvider: CadBoundsProvider<E>,
-): CadHitTester<E> {
-  return {
-    hitTest: (entity, point, tolerance) =>
-      boundsIntersect(boundsProvider.bounds(entity), {
-        minX: point.x - tolerance,
-        minY: point.y - tolerance,
-        maxX: point.x + tolerance,
-        maxY: point.y + tolerance,
-      }) && pathHit(renderer.paths(entity, 96), point, tolerance),
-    intersectsWindow: (entity, window, crossing) => {
-      const entityBounds = boundsProvider.bounds(entity);
-      return crossing
-        ? boundsIntersect(entityBounds, window)
-        : boundsContained(entityBounds, window);
-    },
-  };
 }
 
 const arcRenderer: CadEntityRenderer<Extract<CadNativeEntity, { type: "arc" }>> = {
@@ -770,255 +758,6 @@ const splineAdapter: CadEntityAdapter<
   },
 };
 
-type CadPolylineEntity = Extract<CadNativeEntity, { type: "polyline" }>;
-type CadPolylineVertex = CadPolylineEntity["vertices"][number];
-
-interface CadPolylineArc {
-  center: CadPoint2;
-  radius: number;
-  startAngle: number;
-  sweep: number;
-}
-
-/**
- * Arco de un segmento con `bulge`, en la convención DXF: `bulge = tan(θ/4)`,
- * positivo = sentido antihorario. Devuelve `null` cuando el segmento es recto
- * o degenerado para que el llamador use la recta.
- *
- * El centro se sitúa a `R·cos(θ/2)` de la mitad de la cuerda, sobre la
- * perpendicular girada +90°; con esa elección barrer `+θ` desde el vértice
- * inicial aterriza exactamente en el final.
- */
-function polylineArc(
-  start: CadPolylineVertex,
-  end: CadPoint3,
-): CadPolylineArc | null {
-  const bulge =
-    typeof start.bulge === "number" && Number.isFinite(start.bulge)
-      ? start.bulge
-      : 0;
-  if (Math.abs(bulge) < 1e-12) return null;
-  const dx = end.x - start.x;
-  const dy = end.y - start.y;
-  const chord = Math.hypot(dx, dy);
-  if (chord < 1e-12) return null;
-  const theta = 4 * Math.atan(bulge);
-  const halfSin = Math.sin(theta / 2);
-  if (Math.abs(halfSin) < 1e-12) return null;
-  const radius = chord / (2 * halfSin);
-  const offset = radius * Math.cos(theta / 2);
-  const center = {
-    x: (start.x + end.x) / 2 + (-dy / chord) * offset,
-    y: (start.y + end.y) / 2 + (dx / chord) * offset,
-  };
-  return {
-    center,
-    radius: Math.abs(radius),
-    startAngle: Math.atan2(start.y - center.y, start.x - center.x),
-    sweep: theta,
-  };
-}
-
-/** Segmentos (inicio, fin) recorridos por la polilínea, cerrando si procede. */
-function polylineSegments(
-  entity: CadPolylineEntity,
-): { start: CadPolylineVertex; end: CadPolylineVertex }[] {
-  const vertices = entity.vertices;
-  if (vertices.length < 2) return [];
-  const count = entity.closed ? vertices.length : vertices.length - 1;
-  return Array.from({ length: count }, (_, index) => ({
-    start: vertices[index],
-    end: vertices[(index + 1) % vertices.length],
-  }));
-}
-
-function polylinePoints(
-  entity: CadPolylineEntity,
-  segments = 96,
-): CadPoint2[] {
-  const vertices = entity.vertices;
-  if (vertices.length === 0) return [];
-  if (vertices.length === 1) return [{ x: vertices[0].x, y: vertices[0].y }];
-  const perArc = Math.max(
-    2,
-    Math.ceil(segments / Math.max(1, vertices.length)),
-  );
-  const points: CadPoint2[] = [];
-  for (const { start, end } of polylineSegments(entity)) {
-    points.push({ x: start.x, y: start.y });
-    const arc = polylineArc(start, end);
-    if (!arc) continue;
-    for (let step = 1; step < perArc; step += 1) {
-      const angle = arc.startAngle + (arc.sweep * step) / perArc;
-      points.push({
-        x: arc.center.x + Math.cos(angle) * arc.radius,
-        y: arc.center.y + Math.sin(angle) * arc.radius,
-      });
-    }
-  }
-  if (!entity.closed) {
-    const tail = vertices[vertices.length - 1];
-    points.push({ x: tail.x, y: tail.y });
-  }
-  return points;
-}
-
-const polylineRenderer: CadEntityRenderer<CadPolylineEntity> = {
-  paths: (entity, segments = 96) => {
-    const points = polylinePoints(entity, segments);
-    if (points.length === 0) return [];
-    return [{ points, closed: entity.closed }];
-  },
-};
-
-/**
- * Bounds EXACTOS: los vértices no bastan cuando un segmento tiene `bulge`,
- * porque el arco puede sobresalir de la cuerda. Se añaden los puntos
- * cardinales del arco que caen dentro del barrido.
- */
-const polylineBounds: CadBoundsProvider<CadPolylineEntity> = {
-  bounds: (entity) => {
-    const vertices = entity.vertices;
-    if (vertices.length === 0)
-      return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-    const include = (x: number, y: number) => {
-      if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-      minX = Math.min(minX, x);
-      minY = Math.min(minY, y);
-      maxX = Math.max(maxX, x);
-      maxY = Math.max(maxY, y);
-    };
-    for (const vertex of vertices) include(vertex.x, vertex.y);
-    const twoPi = Math.PI * 2;
-    for (const { start, end } of polylineSegments(entity)) {
-      const arc = polylineArc(start, end);
-      if (!arc) continue;
-      for (let quadrant = 0; quadrant < 4; quadrant += 1) {
-        const cardinal = (quadrant * Math.PI) / 2;
-        const raw = cardinal - arc.startAngle;
-        const delta = ((raw % twoPi) + twoPi) % twoPi;
-        const inSweep =
-          arc.sweep >= 0
-            ? delta <= arc.sweep + 1e-9
-            : delta - twoPi >= arc.sweep - 1e-9;
-        if (!inSweep) continue;
-        include(
-          arc.center.x + Math.cos(cardinal) * arc.radius,
-          arc.center.y + Math.sin(cardinal) * arc.radius,
-        );
-      }
-    }
-    if (minX === Infinity) return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
-    return { minX, minY, maxX, maxY };
-  },
-};
-
-const polylineAdapter: CadEntityAdapter<CadPolylineEntity> = {
-  type: "polyline",
-  renderer: polylineRenderer,
-  bounds: polylineBounds,
-  hitTester: commonHitTester(polylineRenderer, polylineBounds),
-  grips: {
-    grips: (entity) =>
-      entity.vertices.map((vertex, index) => ({
-        id: `vertex:${index}`,
-        kind: "endpoint" as const,
-        point: { x: vertex.x, y: vertex.y },
-        label: `Vértice ${index + 1}`,
-      })),
-    moveGrip: (entity, gripId, point) => {
-      const index = Number(gripId.split(":")[1]);
-      if (!Number.isInteger(index) || !entity.vertices[index]) return entity;
-      return {
-        ...entity,
-        vertices: entity.vertices.map((vertex, current) =>
-          current === index
-            ? { ...vertex, x: point.x, y: point.y }
-            : { ...vertex },
-        ),
-      };
-    },
-  },
-  snaps: {
-    snaps: (entity) => {
-      const points: CadSnapPoint[] = entity.vertices.map((vertex, index) => ({
-        kind: "endpoint" as const,
-        point: { x: vertex.x, y: vertex.y },
-        label: `Vértice ${index + 1}`,
-      }));
-      polylineSegments(entity).forEach(({ start, end }, index) => {
-        const arc = polylineArc(start, end);
-        if (arc) {
-          points.push({
-            kind: "center",
-            point: arc.center,
-            label: `Centro del arco ${index + 1}`,
-          });
-          const mid = arc.startAngle + arc.sweep / 2;
-          points.push({
-            kind: "control",
-            point: {
-              x: arc.center.x + Math.cos(mid) * arc.radius,
-              y: arc.center.y + Math.sin(mid) * arc.radius,
-            },
-            label: `Punto medio del arco ${index + 1}`,
-          });
-          return;
-        }
-        points.push({
-          kind: "control",
-          point: { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 },
-          label: `Punto medio ${index + 1}`,
-        });
-      });
-      return points;
-    },
-  },
-  properties: {
-    read: (entity) => ({
-      vertexCount: entity.vertices.length,
-      segmentCount: polylineSegments(entity).length,
-      arcSegments: polylineSegments(entity).filter(
-        ({ start, end }) => polylineArc(start, end) !== null,
-      ).length,
-      closed: entity.closed,
-      layer: entity.layer,
-    }),
-    write: (entity, patch) => ({
-      ...entity,
-      closed: typeof patch.closed === "boolean" ? patch.closed : entity.closed,
-      layer: typeof patch.layer === "string" ? patch.layer : entity.layer,
-    }),
-  },
-  commands: {
-    // `bulge` es invariante bajo traslación, giro y escala uniforme: vale
-    // tan(θ/4) y θ no cambia. Bajo REFLEXIÓN se niega, porque su signo es lo
-    // único que codifica hacia qué lado de la cuerda se comba el arco.
-    //
-    // El índice del vértice, el orden y el cierre NO se tocan. Reflejar
-    // invirtiendo la lista de vértices daría la misma silueta y rompería todo
-    // lo que apunta a un vértice por su posición: grips, cotas asociativas y
-    // el propio `bulge`, que vive en el vértice de ARRANQUE de cada tramo.
-    transform: (entity, transform) => {
-      const reflecting = cadTransformIsReflecting(transform);
-      return {
-        ...entity,
-        vertices: entity.vertices.map((vertex) => ({
-          ...transformPoint(vertex, transform),
-          ...(vertex.bulge !== undefined
-            ? { bulge: reflecting ? -vertex.bulge : vertex.bulge }
-            : {}),
-        })),
-        context: cloneContext(entity.context),
-      };
-    },
-  },
-};
-
 type CadMTextEntity = Extract<CadNativeEntity, { type: "mtext" }>;
 
 const mtextRenderer: CadEntityRenderer<CadMTextEntity> = {
@@ -1359,7 +1098,17 @@ export const CAD_ENTITY_REGISTRY = new CadEntityRegistry()
   .register(hatchAdapter)
   .register(dimensionAdapter)
   .register(mleaderAdapter)
-  .register(insertAdapter);
+  .register(insertAdapter)
+  // Esquema 4. Van al final porque el orden de registro no importa —el registro
+  // indexa por tipo—, pero mantenerlos juntos hace evidente qué estrena v4.
+  .register(pointAdapter)
+  .register(xlineAdapter)
+  .register(rayAdapter)
+  .register(solidAdapter)
+  .register(wipeoutAdapter)
+  .register(imageAdapter)
+  .register(attdefAdapter)
+  .register(tableAdapter);
 
 function rectangularBoundary(entity: Extract<CadEntity, { type: "box" | "station" }>): CadPoint2[] {
   const center = { x: entity.x + entity.w / 2, y: entity.y + entity.h / 2 };
@@ -1424,6 +1173,22 @@ export class CadSpatialIndex {
   }
 
   private cellKeys(bounds: CadBounds): string[] {
+    // Una entidad SIN COTA —XLINE, RAY— tiene bounds infinitos, y eso no es un
+    // caso raro: es su definición. Sin este guardia, `Math.floor(-Infinity /
+    // cellSize)` da `-Infinity`, el conteo de celdas sale `NaN`, la comparación
+    // `NaN > maxCellsPerEntity` es FALSA y el bucle siguiente itera de
+    // `-Infinity` a `+Infinity`. No es que el índice devuelva de más: es que se
+    // cuelga el hilo, y con él el editor entero.
+    //
+    // La salida correcta ya existía para las entidades enormes: la lista vacía
+    // enruta al conjunto de DESBORDAMIENTO, que se examina en toda búsqueda.
+    // Una recta infinita se comporta como una entidad gigantesca, que es
+    // exactamente lo que es.
+    if (
+      !Number.isFinite(bounds.minX) || !Number.isFinite(bounds.maxX) ||
+      !Number.isFinite(bounds.minY) || !Number.isFinite(bounds.maxY)
+    )
+      return [];
     const minX = Math.floor(bounds.minX / this.cellSize);
     const maxX = Math.floor(bounds.maxX / this.cellSize);
     const minY = Math.floor(bounds.minY / this.cellSize);

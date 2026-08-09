@@ -23,8 +23,13 @@ import type { CadStyleTable } from "./cad-document";
 /** Prefijo de capa por defecto cuando un objeto no declara ninguna. */
 export const DEFAULT_LAYER_ID = "0";
 
-/** v3: modelo profesional extensible con migración aditiva desde v1/v2. */
-export const CAD_DOCUMENT_SCHEMA = 3;
+/**
+ * v4: estrena POINT, XLINE, RAY, SOLID, WIPEOUT, IMAGE, ATTDEF y TABLE, más la
+ * sección `imageDefinitions`, los atributos POSICIONADOS de INSERT y el grosor
+ * por tramo de una polilínea. Todo aditivo: un documento v3 migra sin perder un
+ * campo y sin que se reinterprete ninguno de los que ya traía.
+ */
+export const CAD_DOCUMENT_SCHEMA = 4;
 
 /** Capa estable de las colocaciones de estación. */
 export const STATIONS_LAYER = "Stations";
@@ -49,4 +54,58 @@ export function point3(x: number, y: number, z = 0): { x: number; y: number; z: 
 
 export function emptyStyles(): CadStyleTable {
   return { text: {}, dimension: {}, mleader: {}, table: {}, plot: {} };
+}
+
+/**
+ * Sustituye un conjunto de ids del orden de dibujo por otros, **en la posición
+ * que ocupaban**, conservando el z-order del resto.
+ *
+ * Es lo que necesitan convertir geometría en bloque y explotar un bloque: si
+ * el resultado se añade al final, la operación cambia lo que tapa a qué. Con
+ * esto, definir un bloque y explotarlo vuelve a ser visualmente inocuo.
+ *
+ * La posición elegida es la del elemento sustituido MÁS ALTO (el índice mayor),
+ * porque es el que determinaba qué cubría el conjunto.
+ */
+export function replaceEntityIdsAt(
+  entityIds: string[],
+  removed: ReadonlySet<string>,
+  inserted: string[],
+): string[] {
+  const indices = entityIds
+    .map((id, index) => (removed.has(id) ? index : -1))
+    .filter((index) => index >= 0);
+  const kept = entityIds.filter((id) => !removed.has(id));
+  if (indices.length === 0) return [...kept, ...inserted];
+  // Cuántos elementos conservados quedaban por debajo del más alto retirado.
+  const anchor = indices[indices.length - 1];
+  const below = entityIds
+    .slice(0, anchor)
+    .filter((id) => !removed.has(id)).length;
+  return [...kept.slice(0, below), ...inserted, ...kept.slice(below)];
+}
+
+/**
+ * Reconstruye el orden de dibujo CONSERVANDO el previo.
+ *
+ * Necesario cada vez que un camino recompone el documento a partir de una
+ * colección de entidades: esa colección puede estar ordenada por id para
+ * canonicalización, y derivar `entityIds` de ella **alfabetiza el z-order**.
+ * Ése era el defecto que sobrevivía en `replaceEditorProjection` y en la
+ * migración de MLEADER heredados: editar una propiedad convertía
+ * `zeta, alfa` en `alfa, zeta`.
+ *
+ * Contrato: las entidades que ya tenían posición la conservan, en su orden
+ * relativo; las nuevas se añaden AL FRENTE (final de la lista), en el orden en
+ * que llegan; las desaparecidas se quitan.
+ */
+export function preserveDrawOrder(
+  previousIds: readonly string[],
+  presentIds: readonly string[],
+): string[] {
+  const present = new Set(presentIds);
+  const kept = previousIds.filter((id) => present.has(id));
+  const seen = new Set(kept);
+  const appended = presentIds.filter((id) => !seen.has(id));
+  return [...kept, ...appended];
 }

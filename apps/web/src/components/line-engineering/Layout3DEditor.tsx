@@ -14305,15 +14305,13 @@ export default function Layout3DEditor({
         )
           continue;
         const bounds = CAD_ENTITY_REGISTRY.adapter(entity).bounds.bounds(
-          entity,
-          loadedCadDocumentRef.current ?? undefined,
-        );
-        add(
-          bounds.minX,
-          bounds.minY,
-          bounds.maxX - bounds.minX,
-          bounds.maxY - bounds.minY,
-        );
+          entity, loadedCadDocumentRef.current ?? undefined);
+        // XLINE y RAY declaran bounds INFINITOS, que es lo que son. Sin este
+        // descarte `minX` pasa a −Infinity, el guardia de abajo devuelve `null`
+        // y ZOOM EXTENTS muere para el dibujo ENTERO en cuanto alguien traza una
+        // recta de construcción. AutoCAD también las excluye del encuadre.
+        if (![bounds.minX, bounds.minY, bounds.maxX, bounds.maxY].every(Number.isFinite)) continue;
+        add(bounds.minX, bounds.minY, bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
       }
       if (!Number.isFinite(minX)) return null;
       return { minX, minY, maxX, maxY };

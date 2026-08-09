@@ -2,6 +2,8 @@ import { BadRequestException } from '@nestjs/common';
 
 export type PersistedCadDocument = Record<string, unknown>;
 
+/** Última versión de esquema que este servidor sabe validar. */
+export const CAD_DOCUMENT_MAX_SCHEMA = 4;
 export const CAD_DOCUMENT_MAX_INLINE_BYTES = 8_000_000;
 export const CAD_DOCUMENT_MAX_ARCHIVE_BYTES = 128 * 1024 * 1024;
 const MAX_ENTITIES = 100_000;
@@ -417,7 +419,14 @@ export function validateCadDocumentPayload(
   const document = value as PersistedCadDocument;
   const meta = document.meta as Record<string, unknown> | undefined;
   const schema = Number(meta?.schema);
-  if (!Number.isInteger(schema) || schema < 1 || schema > 3) {
+  // El esquema 4 estrena POINT, XLINE, RAY, SOLID, WIPEOUT, IMAGE, ATTDEF y
+  // TABLE. Aceptar el 4 no es opcional: el cliente ya escribe documentos con
+  // ese número, y rechazarlos convertiría cada guardado en un 400.
+  if (
+    !Number.isInteger(schema) ||
+    schema < 1 ||
+    schema > CAD_DOCUMENT_MAX_SCHEMA
+  ) {
     throw new BadRequestException('CadDocument schema no soportado.');
   }
   const entities = document.entities;
