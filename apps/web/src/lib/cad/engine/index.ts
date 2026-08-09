@@ -30,6 +30,7 @@ import { CAD_PARAMETRIC_DIMENSION_COMMANDS } from "./commands/parametric-dimensi
 import { CAD_PARAMETRIC_GEOMETRY_COMMANDS } from "./commands/parametric-geometry";
 import { CAD_VIEW_NAVIGATION_COMMANDS } from "./commands/view-navigation";
 import { CAD_LAYOUT_COMMANDS } from "./commands/layout-commands";
+import { CAD_PLOT_COMMANDS } from "./commands/plot-commands";
 import { createCadCommandRegistry, type CadCommandRegistryImpl } from "./registry";
 
 export * from "./command-types";
@@ -65,6 +66,7 @@ export const CAD_COMMAND_DESCRIPTORS = [
   ...CAD_PARAMETRIC_DIMENSION_COMMANDS,
   ...CAD_VIEW_NAVIGATION_COMMANDS,
   ...CAD_LAYOUT_COMMANDS,
+  ...CAD_PLOT_COMMANDS,
 ] as const;
 
 /**

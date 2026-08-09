@@ -24,7 +24,7 @@
  * RESERVADO del cajetín (`PLOT_STYLE_TABLE`), que es el único bolsillo de
  * cadenas que la presentación tiene y donde además ese dato suele imprimirse.
  */
-import type { CadPoint2 } from "../cad-document";
+import type { CadPaperSpace, CadPoint2 } from "../cad-document";
 import type { CadBounds } from "../entity-runtime";
 import { CAD_SHEET_PAPERS, type CadSheetPaper } from "../paper-space";
 
@@ -357,4 +357,66 @@ export function preflightCadPageSetup(
     });
 
   return issues;
+}
+
+// ---------------------------------------------------------------------------
+// Puente con la presentación del esquema
+// ---------------------------------------------------------------------------
+
+/**
+ * Configuración de página de una presentación, leída del esquema.
+ *
+ * Lo que el esquema guarda —papel, márgenes, modo de color, escala de
+ * grosores— sale de `pageSetup`; el resto son decisiones de TRAZADO y se
+ * rellenan con los valores por defecto. La tabla de plumas se lee del atributo
+ * reservado del cajetín, que es donde persiste.
+ */
+export function cadPageSetupFromLayout(space: CadPaperSpace): CadPageSetup {
+  const paper = space.pageSetup?.paper;
+  const setup = defaultCadPageSetup({
+    paper: paper && paper !== "custom" ? paper : "custom",
+    ...(paper === "custom" || !paper
+      ? { customSize: { width: space.page.width, height: space.page.height } }
+      : {}),
+    orientation: space.page.orientation,
+    ...(space.pageSetup ? { margins: { ...space.pageSetup.margins } } : {}),
+    ...(space.pageSetup ? { colorMode: space.pageSetup.colorMode } : {}),
+    ...(space.pageSetup ? { lineweightScale: space.pageSetup.lineweightScale } : {}),
+    plotStyleTable:
+      space.titleBlock?.attributes?.[CAD_PLOT_STYLE_TABLE_ATTRIBUTE]?.trim() || null,
+  });
+  return { ...setup, name: space.name };
+}
+
+/**
+ * Escribe en la presentación lo que el esquema sabe guardar.
+ *
+ * Devuelve una hoja nueva, lista para viajar en una orden `paper-space`. Lo
+ * que no cabe en el esquema —área, escala, centrado, desfase— NO se inventa un
+ * sitio: viaja en la petición de PLOT, que es donde tiene sentido.
+ */
+export function applyCadPageSetupToLayout(
+  space: CadPaperSpace,
+  setup: CadPageSetup,
+): CadPaperSpace {
+  const size = cadPageSize(setup);
+  const attributes = { ...(space.titleBlock?.attributes ?? {}) };
+  if (setup.plotStyleTable) attributes[CAD_PLOT_STYLE_TABLE_ATTRIBUTE] = setup.plotStyleTable;
+  else delete attributes[CAD_PLOT_STYLE_TABLE_ATTRIBUTE];
+  return {
+    ...space,
+    page: { ...space.page, width: size.width, height: size.height, orientation: setup.orientation },
+    pageSetup: {
+      paper: setup.paper,
+      margins: { ...setup.margins },
+      colorMode: setup.colorMode,
+      lineweightScale: setup.lineweightScale,
+    },
+    titleBlock: { ...(space.titleBlock ?? {}), attributes },
+  };
+}
+
+/** Nombre de la tabla de plumas asignada a una presentación, si la tiene. */
+export function cadLayoutPlotStyleTable(space: CadPaperSpace): string | null {
+  return space.titleBlock?.attributes?.[CAD_PLOT_STYLE_TABLE_ATTRIBUTE]?.trim() || null;
 }
