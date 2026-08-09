@@ -20,6 +20,7 @@ import {
   type CadEntityContext,
   type CadEntityPresentation,
   type CadImageDefinition,
+  type CadPaperSpace,
   type CadParameter,
   type CadPoint2,
 } from "./cad-document";
@@ -120,13 +121,34 @@ export type CadEntityCommand =
       op: "set";
       parameter: { name: string; expression: string; comment?: string };
     }
-  | { type: "parameter"; entity?: undefined; op: "delete"; name: string };
+  | { type: "parameter"; entity?: undefined; op: "delete"; name: string }
+  /**
+   * Presentaciones: otra SECCIÓN del documento, por el mismo embudo.
+   *
+   * LAYOUT, MVIEW, PAGESETUP y el bloqueo de escala de una ventana escriben
+   * `document.paperSpaces`. Sin esta orden tendrían que hacerlo por su cuenta,
+   * que es una segunda vía de mutación — exactamente lo que este módulo existe
+   * para impedir. Con ella, crear una presentación, colocarle dos ventanas y
+   * fijarles la escala es UN lote, UN `commitChange` y UN paso de deshacer.
+   *
+   * `upsert` sustituye la presentación entera por id: los comandos componen la
+   * nueva a partir de la vieja con las funciones puras de `layout/`, y aquí
+   * sólo se guarda. `reorder` lleva las pestañas al orden dado y renumera.
+   */
+  | { type: "paper-space"; entity?: undefined; op: "upsert"; space: CadPaperSpace }
+  | { type: "paper-space"; entity?: undefined; op: "delete"; spaceId: string }
+  | { type: "paper-space"; entity?: undefined; op: "reorder"; spaceIds: readonly string[] };
 
 /** Los que operan sobre secciones del documento y no sobre entidades. */
-type CadDocumentSectionCommand = Extract<CadEntityCommand, { type: "constraint" | "parameter" }>;
+type CadDocumentSectionCommand = Extract<
+  CadEntityCommand,
+  { type: "constraint" | "parameter" | "paper-space" }
+>;
 
 const isSectionCommand = (command: CadEntityCommand): command is CadDocumentSectionCommand =>
-  command.type === "constraint" || command.type === "parameter";
+  command.type === "constraint" ||
+  command.type === "parameter" ||
+  command.type === "paper-space";
 
 export interface CadEntityCommandResult {
   document: CadDocument;
@@ -380,6 +402,7 @@ export function executeCadEntityCommandBatch(
     ...document,
     entities,
     constraints: sections.constraints,
+    paperSpaces: sections.paperSpaces,
     modelSpace: { entityIds: [...createdBackIds, ...ordered] },
     // Mismo criterio que `parameters` justo debajo: el catálogo de imágenes
     // sólo viaja si el lote lo tocó o si el documento ya lo traía.
@@ -425,15 +448,30 @@ function applyDocumentSections(
   document: CadDocument,
   commands: readonly CadDocumentSectionCommand[],
   present: Map<string, CadEntity>,
-): { constraints: CadConstraint[]; parameters: CadParameter[] | undefined; movedEntityIds: string[] } {
+): {
+  constraints: CadConstraint[];
+  parameters: CadParameter[] | undefined;
+  paperSpaces: CadPaperSpace[];
+  movedEntityIds: string[];
+} {
   if (commands.length === 0)
-    return { constraints: document.constraints, parameters: document.parameters, movedEntityIds: [] };
+    return {
+      constraints: document.constraints,
+      parameters: document.parameters,
+      paperSpaces: document.paperSpaces,
+      movedEntityIds: [],
+    };
 
   let constraints = [...document.constraints];
   let parameters = [...(document.parameters ?? [])];
+  let paperSpaces = [...document.paperSpaces];
   const unit = document.meta.unit;
 
   for (const command of commands) {
+    if (command.type === "paper-space") {
+      paperSpaces = applyPaperSpaceCommand(paperSpaces, command);
+      continue;
+    }
     if (command.type === "constraint") {
       if (command.op === "delete") {
         constraints = constraints.filter((constraint) => constraint.id !== command.constraintId);
@@ -460,6 +498,18 @@ function applyDocumentSections(
     parameters = written.parameters;
   }
 
+  // Un lote que SÓLO toca presentaciones no resuelve restricciones. No es una
+  // optimización: resolver aquí haría que crear una pestaña fallase en un
+  // documento cuyas restricciones vienen rotas de un importado, y una
+  // presentación nueva no tiene nada que ver con la geometría restringida.
+  if (commands.every((command) => command.type === "paper-space"))
+    return {
+      constraints,
+      parameters: parameters.length > 0 ? parameters : undefined,
+      paperSpaces,
+      movedEntityIds: [],
+    };
+
   const evaluation = evaluateCadParameters(parameters, { unit });
   // Una referencia colgando NO bloquea. `setCadParameter` ya rechaza crear una,
   // así que si aparece aquí es que el documento venía con ella —importado, o
@@ -483,7 +533,53 @@ function applyDocumentSections(
     present.set(entity.id, entity);
     if (before && JSON.stringify(before) !== JSON.stringify(entity)) movedEntityIds.push(entity.id);
   }
-  return { constraints, parameters: parameters.length > 0 ? parameters : undefined, movedEntityIds };
+  return {
+    constraints,
+    parameters: parameters.length > 0 ? parameters : undefined,
+    paperSpaces,
+    movedEntityIds,
+  };
+}
+
+/**
+ * Aplica una orden de presentación sobre la lista de pestañas.
+ *
+ * `order` se renumera siempre a partir de la posición real: un documento con
+ * dos hojas en `order: 0` es un documento con pestañas que se ordenan según el
+ * humor del `sort`, y eso se nota en la interfaz. Renumerar aquí lo cierra en
+ * el único sitio por el que se puede escribir la sección.
+ */
+function applyPaperSpaceCommand(
+  spaces: readonly CadPaperSpace[],
+  command: Extract<CadEntityCommand, { type: "paper-space" }>,
+): CadPaperSpace[] {
+  const renumber = (list: readonly CadPaperSpace[]): CadPaperSpace[] =>
+    [...list]
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id.localeCompare(b.id))
+      .map((space, order) => (space.order === order ? space : { ...space, order }));
+
+  if (command.op === "delete")
+    return renumber(spaces.filter((space) => space.id !== command.spaceId));
+
+  if (command.op === "reorder") {
+    const position = new Map(command.spaceIds.map((id, index) => [id, index]));
+    // Las que no se nombran conservan su orden relativo DETRÁS de las nombradas,
+    // para que reordenar tres pestañas de veinte no reviente las otras
+    // diecisiete.
+    return renumber(
+      spaces.map((space) => ({
+        ...space,
+        order: position.get(space.id) ?? command.spaceIds.length + (space.order ?? 0),
+      })),
+    );
+  }
+
+  const exists = spaces.some((space) => space.id === command.space.id);
+  return renumber(
+    exists
+      ? spaces.map((space) => (space.id === command.space.id ? command.space : space))
+      : [...spaces, command.space],
+  );
 }
 
 export function executeCadEntityCommand(

@@ -29,6 +29,7 @@ import { CAD_MODIFY_TRANSFORM_COMMANDS } from "./commands/modify-transform";
 import { CAD_PARAMETRIC_DIMENSION_COMMANDS } from "./commands/parametric-dimensions";
 import { CAD_PARAMETRIC_GEOMETRY_COMMANDS } from "./commands/parametric-geometry";
 import { CAD_VIEW_NAVIGATION_COMMANDS } from "./commands/view-navigation";
+import { CAD_LAYOUT_COMMANDS } from "./commands/layout-commands";
 import { createCadCommandRegistry, type CadCommandRegistryImpl } from "./registry";
 
 export * from "./command-types";
@@ -63,6 +64,7 @@ export const CAD_COMMAND_DESCRIPTORS = [
   ...CAD_PARAMETRIC_GEOMETRY_COMMANDS,
   ...CAD_PARAMETRIC_DIMENSION_COMMANDS,
   ...CAD_VIEW_NAVIGATION_COMMANDS,
+  ...CAD_LAYOUT_COMMANDS,
 ] as const;
 
 /**

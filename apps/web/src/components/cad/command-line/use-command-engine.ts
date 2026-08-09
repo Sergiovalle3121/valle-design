@@ -81,6 +81,8 @@ export interface CadStudioCommandEngineOptions {
    */
   view: { current: (CadViewControllerLike & { view: CadView }) | null };
   activeLayer: string;
+  /** Pestaña abierta, si el editor está en espacio papel. */
+  activeLayout?: string | null;
   newEntityId: () => string;
   /** Aplica el lote por la ruta canónica del editor. */
   apply(commands: readonly CadEntityCommand[], label: string): void;
@@ -140,6 +142,7 @@ export function useCadStudioCommandEngine(
         // en lugar de dar un punto medido desde un sitio inventado.
         cursor: null,
         newEntityId: options.newEntityId,
+        activeLayout: options.activeLayout ?? null,
       }),
     apply: options.apply,
     view: navigation.apply,

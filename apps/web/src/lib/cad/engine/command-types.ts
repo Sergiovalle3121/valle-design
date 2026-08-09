@@ -33,8 +33,9 @@
  *   como un override por paso, así que añadir modos no toca el motor.
  */
 import type {
-  CadBlockDefinition, CadConstraint, CadEntity, CadParameter, CadPoint2,
+  CadBlockDefinition, CadConstraint, CadEntity, CadPaperSpace, CadParameter, CadPoint2,
 } from "../cad-document";
+import type { CadBounds } from "../entity-runtime";
 import type { CadEntityCommand } from "../entity-commands";
 import type { SnapType } from "../snap-engine";
 // Sólo TIPOS: la importación se borra al compilar, así que el motor sigue sin
@@ -143,6 +144,28 @@ export interface CadCommandContext {
    */
   constraints?: readonly CadConstraint[];
   parameters?: readonly CadParameter[];
+  /**
+   * Presentaciones del documento, sólo para CONSULTAR.
+   *
+   * LAYOUT y MVIEW no se pueden resolver sin ellas: hay que saber qué pestañas
+   * existen, cómo se llaman y qué ventanas tienen. Es opcional por lo mismo que
+   * `blocks`: la inmensa mayoría de los comandos no las necesita, y obligar a
+   * montarlas encarecería todas sus specs. Quien las necesite y no las reciba
+   * se niega diciéndolo, en vez de inventar una hoja.
+   *
+   * Escribir NO va por aquí: va por el lote, con órdenes `paper-space`.
+   */
+  paperSpaces?: () => readonly CadPaperSpace[];
+  /** Nombre o id de la pestaña abierta. `undefined` en espacio modelo. */
+  activeLayout?: string;
+  /** Unidad del documento (`mm`, `cm`, `m`, `in`). Decide los milímetros de papel. */
+  unit?: string;
+  /**
+   * Envolvente de lo dibujado. La calcula el anfitrión —necesita el registro de
+   * adaptadores entero— y los comandos la piden para encuadrar una ventana
+   * nueva sobre el modelo real en vez de sobre un rectángulo inventado.
+   */
+  drawingExtents?: () => CadBounds | null;
   view: CadViewSnapshot;
   /** Posición actual del puntero en unidades de dibujo, si se conoce. */
   cursor?: CadPoint2;
