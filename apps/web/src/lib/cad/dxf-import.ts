@@ -5,14 +5,7 @@ import type { CadMleaderEntity } from "./associative-mleader";
 import { isDxfXdataApp } from "@valle-design/contracts";
 
 export type CadDxfPrimitiveKind =
-  | "line"
-  | "polyline"
-  | "rect"
-  | "text"
-  | "circle"
-  | "arc"
-  | "ellipse"
-  | "spline";
+  | "line" | "polyline" | "rect" | "text" | "circle" | "arc" | "ellipse" | "spline";
 export interface CadDxfPoint {
   x: number;
   y: number;
@@ -191,12 +184,8 @@ const pt = (v: any): CadDxfPoint | null => {
   return bulge == null || bulge === 0 ? { x, y } : { x, y, bulge };
 };
 
-function closeEnough(a: number, b: number, tol = 1e-6) {
-  return Math.abs(a - b) <= tol;
-}
-function samePoint(a: CadDxfPoint, b: CadDxfPoint) {
-  return closeEnough(a.x, b.x) && closeEnough(a.y, b.y);
-}
+const closeEnough = (a: number, b: number, tol = 1e-6) => Math.abs(a - b) <= tol;
+const samePoint = (a: CadDxfPoint, b: CadDxfPoint) => closeEnough(a.x, b.x) && closeEnough(a.y, b.y);
 function isAxisAlignedRect(points: CadDxfPoint[]): boolean {
   const pts =
     points.length === 5 && samePoint(points[0], points[4])
@@ -410,29 +399,30 @@ export function mapDxfEntityToPrimitive(entity: any): {
 }
 
 /** Transformación de un INSERT: posición + rotación (grados) + escala. */
-interface InsertTransform {
-  x: number;
-  y: number;
-  rotationDeg: number;
-  sx: number;
-  sy: number;
-}
+interface InsertTransform { x: number; y: number; rotationDeg: number; sx: number; sy: number }
 
-function transformPoint(p: CadDxfPoint, t: InsertTransform): CadDxfPoint {
-  const rad = (t.rotationDeg * Math.PI) / 180;
-  const cos = Math.cos(rad);
-  const sin = Math.sin(rad);
-  const x = p.x * t.sx;
-  const y = p.y * t.sy;
-  return { x: t.x + x * cos - y * sin, y: t.y + x * sin + y * cos };
-}
+/** Parte LINEAL de la transformación: el giro compuesto con la escala CON signo. */
 function transformVector(v: CadDxfPoint, t: InsertTransform): CadDxfPoint {
   const rad = (t.rotationDeg * Math.PI) / 180;
-  const cos = Math.cos(rad);
-  const sin = Math.sin(rad);
   const x = v.x * t.sx;
   const y = v.y * t.sy;
-  return { x: x * cos - y * sin, y: x * sin + y * cos };
+  return { x: x * Math.cos(rad) - y * Math.sin(rad), y: x * Math.sin(rad) + y * Math.cos(rad) };
+}
+function transformPoint(p: CadDxfPoint, t: InsertTransform): CadDxfPoint {
+  const moved = transformVector(p, t);
+  return { x: t.x + moved.x, y: t.y + moved.y };
+}
+
+/**
+ * Cómo deja la parte lineal —`R(θ)·diag(sx, sy)`— un ángulo ALMACENADO. Su
+ * determinante vale `sx·sy`: hay espejo si los signos difieren, y entonces
+ * `atan2(b, a)` no es un giro sino `2φ`. Ese ángulo base vale `θ` con `sx > 0`
+ * y `θ + 180` con `sx < 0` — el otro caso que faltaba: con `(−1, −1)`, que es
+ * un giro de 180°, los puntos se movían y los ángulos no.
+ */
+function mappedAngle(t: InsertTransform, angle: number): number {
+  const base = t.sx < 0 ? t.rotationDeg + 180 : t.rotationDeg;
+  return (((t.sx * t.sy < 0 ? base - angle : angle + base) % 360) + 360) % 360;
 }
 
 /** Aplica la transformación del INSERT a una primitiva ya mapeada. */
@@ -450,10 +440,14 @@ function transformPrimitive(
     out.radius = primitive.radius * ((Math.abs(t.sx) + Math.abs(t.sy)) / 2);
   }
   if (primitive.kind === "arc") {
-    // El arco gira con el bloque; la elipse no (sus params son relativos al
-    // eje mayor, que ya rotó como vector).
-    out.startAngle = (primitive.startAngle ?? 0) + t.rotationDeg;
-    out.endAngle = (primitive.endAngle ?? 0) + t.rotationDeg;
+    // El arco gira con el bloque; la elipse no (sus params son relativos al eje
+    // mayor, que ya rotó como vector). Bajo espejo los extremos se INTERCAMBIAN
+    // además de reflejarse, porque un arco DXF va siempre en antihorario. Antes
+    // sólo se les sumaba el giro mientras los PUNTOS ya usaban `sx`/`sy` CON
+    // signo: incoherente consigo mismo — extremos bien y arco combado al revés.
+    const reflected = t.sx * t.sy < 0;
+    out.startAngle = mappedAngle(t, (reflected ? primitive.endAngle : primitive.startAngle) ?? 0);
+    out.endAngle = mappedAngle(t, (reflected ? primitive.startAngle : primitive.endAngle) ?? 0);
   }
   return out;
 }
@@ -501,6 +495,10 @@ function expandInsert(
     sx: Number(entity?.xScale) || 1,
     sy: Number(entity?.yScale) || 1,
   };
+  // Se comparan MAGNITUDES a propósito: el aviso existe porque el radio se
+  // aproxima por el promedio, y un espejo puro como `(2, −2)` conserva los
+  // ángulos — el círculo sigue siendo círculo y el radio es exacto. Lo que sí
+  // se perdía ahí eran los ángulos del arco, y eso lo arregla `mappedAngle`.
   const anisotropic = Math.abs(Math.abs(t.sx) - Math.abs(t.sy)) > 1e-9;
   let warnedAnisotropy = false;
   const expanded: CadDxfPrimitive[] = [];

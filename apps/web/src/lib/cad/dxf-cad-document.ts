@@ -25,67 +25,23 @@ import type {
   CadDxfExportSemanticDimension,
 } from "./dxf-export";
 import type { CadNativeEntity } from "./entity-runtime";
+// El contrato de proyección y sus helpers viven en su propio módulo: son una
+// pieza coherente y este archivo está en su asignación de tamaño.
+import {
+  identityProjection,
+  mappedVector,
+  point3,
+  projectedAngle,
+  projectionOrientation,
+  type CadDxfProjection,
+} from "./dxf-projection";
 
-export interface CadDxfProjection {
-  point(point: CadDxfPoint): CadPoint2;
-}
+export type { CadDxfProjection };
 
 export interface CadDxfNativeImportOptions {
   idPrefix?: string;
   projection?: CadDxfProjection;
   provider?: string;
-}
-
-const identityProjection: CadDxfProjection = {
-  point: (point) => ({ ...point }),
-};
-
-function point3(point: CadPoint2): CadPoint3 {
-  return { x: point.x, y: point.y, z: 0 };
-}
-
-function mappedVector(
-  projection: CadDxfProjection,
-  origin: CadDxfPoint,
-  vector: CadDxfPoint,
-): CadPoint2 {
-  const start = projection.point(origin);
-  const end = projection.point({
-    x: origin.x + vector.x,
-    y: origin.y + vector.y,
-  });
-  return { x: end.x - start.x, y: end.y - start.y };
-}
-
-function projectionOrientation(
-  projection: CadDxfProjection,
-  origin: CadDxfPoint,
-): number {
-  const x = mappedVector(projection, origin, { x: 1, y: 0 });
-  const y = mappedVector(projection, origin, { x: 0, y: 1 });
-  return x.x * y.y - x.y * y.x;
-}
-
-function projectedAngle(
-  projection: CadDxfProjection,
-  center: CadDxfPoint,
-  radius: number,
-  angleDeg: number,
-): number {
-  const angle = (angleDeg * Math.PI) / 180;
-  const projectedCenter = projection.point(center);
-  const projectedPoint = projection.point({
-    x: center.x + Math.cos(angle) * radius,
-    y: center.y + Math.sin(angle) * radius,
-  });
-  return (
-    (Math.atan2(
-      projectedPoint.y - projectedCenter.y,
-      projectedPoint.x - projectedCenter.x,
-    ) *
-      180) /
-    Math.PI
-  );
 }
 
 function sourceContext(
@@ -833,14 +789,21 @@ function dxfPrimitiveToBlockEntity(
       source.length > 2 &&
       source[0].x === source.at(-1)?.x &&
       source[0].y === source.at(-1)?.y;
+    // El bulge es angular y sobrevive a un giro o a una escala, pero NO a una
+    // reflexión: bajo determinante negativo el arco recorre su cuerda en
+    // sentido contrario y su signo va con él. El comentario que había aquí
+    // decía que sobrevivía a la proyección, y es cierto para una escala y
+    // falso para un espejo. Arcos y elipses ya lo tratan intercambiando sus
+    // extremos; la polilínea era el hueco, y copiar el bulge tal cual dejaba
+    // cada tramo curvo combado hacia el lado contrario al de la planta.
+    const reflected = projectionOrientation(projection, source[0]) < 0;
     return {
       id,
       type: "polyline",
       vertices: (redundantClosingVertex ? source.slice(0, -1) : source).map((value) => ({
         ...point3(projection.point(value)),
-        // El bulge es angular: sobrevive a la proyección de la unidad.
         ...(typeof value.bulge === "number" && value.bulge !== 0
-          ? { bulge: value.bulge }
+          ? { bulge: reflected ? -value.bulge : value.bulge }
           : {}),
       })),
       closed,
@@ -934,22 +897,32 @@ function semanticInsertToEntity(
   provider: string,
 ): Extract<CadEntity, { type: "insert" }> {
   const origin = projection.point(insert.insertion);
-  const xVector = mappedVector(projection, insert.insertion, {
-    x: insert.scaleX,
-    y: 0,
-  });
-  const yVector = mappedVector(projection, insert.insertion, {
-    x: 0,
-    y: insert.scaleY,
-  });
+  const xVector = mappedVector(projection, insert.insertion, { x: insert.scaleX, y: 0 });
+  const yVector = mappedVector(projection, insert.insertion, { x: 0, y: insert.scaleY });
+  /**
+   * El SIGNO de la escala es lo único que distingue un bloque espejado de uno
+   * girado, y `Math.hypot` es una magnitud: se lo comía. Un INSERT con group
+   * code 41 = −1 volvía como +1, y con `scale.z` fijado a 1 no quedaba ningún
+   * canal por el que recuperar la orientación. Exportar e importar perdía el
+   * espejo sin avisar, y una prueba de ida y vuelta habría pasado con el
+   * espejo roto porque el signo se descartaba antes de poder comprobarlo.
+   *
+   * La reposición tiene dos partes. El signo que traía el archivo se devuelve
+   * a su eje. Y si la PROYECCIÓN invierte el plano se niega además un eje —el
+   * `y`, mismo criterio que el adaptador nativo de INSERT—, porque
+   * `P·R(θ)·diag(sx,sy)` con `P` reflectante vale `R(ψ−θ)·diag(k·sx, −k·sy)`.
+   * El giro que sale de ahí, `ψ−θ`, es exactamente lo que ya devuelve
+   * `projectedAngle`, así que las dos mitades encajan sin más ajuste.
+   */
+  const flip = projectionOrientation(projection, insert.insertion) < 0 ? -1 : 1;
   return {
     id,
     type: "insert",
     block: blockIds.get(insert.block) ?? insert.block,
     insertion: point3(origin),
     scale: {
-      x: Math.hypot(xVector.x, xVector.y),
-      y: Math.hypot(yVector.x, yVector.y),
+      x: Math.hypot(xVector.x, xVector.y) * (insert.scaleX < 0 ? -1 : 1),
+      y: Math.hypot(yVector.x, yVector.y) * (insert.scaleY < 0 ? -1 : 1) * flip,
       z: 1,
     },
     rotation: projectedAngle(projection, insert.insertion, 1, insert.rotation),
