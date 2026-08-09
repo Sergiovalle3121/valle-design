@@ -9,6 +9,10 @@
  */
 import { CAD_DRAW_BASIC_COMMANDS } from "./commands/draw-basics";
 import { CAD_DRAW_CURVE_COMMANDS } from "./commands/draw-curves";
+import { CAD_DRAW_PLINE_COMMANDS } from "./commands/draw-pline";
+import { CAD_DRAW_RECTANG_COMMANDS } from "./commands/draw-rectang";
+import { CAD_DRAW_RING_COMMANDS } from "./commands/draw-rings";
+import { CAD_DRAW_SPLINE_COMMANDS } from "./commands/draw-spline";
 import { CAD_MODIFY_BASIC_COMMANDS } from "./commands/modify-basics";
 import { CAD_MODIFY_EDGE_COMMANDS } from "./commands/modify-edges";
 import { CAD_MIRROR_COMMANDS } from "./commands/modify-mirror";
@@ -26,6 +30,10 @@ export { createCadCommandRegistry, CadCommandRegistryImpl } from "./registry";
 export const CAD_COMMAND_DESCRIPTORS = [
   ...CAD_DRAW_BASIC_COMMANDS,
   ...CAD_DRAW_CURVE_COMMANDS,
+  ...CAD_DRAW_PLINE_COMMANDS,
+  ...CAD_DRAW_RECTANG_COMMANDS,
+  ...CAD_DRAW_SPLINE_COMMANDS,
+  ...CAD_DRAW_RING_COMMANDS,
   ...CAD_MODIFY_BASIC_COMMANDS,
   ...CAD_MODIFY_TRANSFORM_COMMANDS,
   ...CAD_MODIFY_EDGE_COMMANDS,

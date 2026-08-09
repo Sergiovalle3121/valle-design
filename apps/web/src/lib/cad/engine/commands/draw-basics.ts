@@ -1,5 +1,5 @@
 /**
- * LINE, PLINE, RECTANG y CIRCLE como descriptores del motor.
+ * LINE y CIRCLE como descriptores del motor.
  *
  * Sustituyen al reductor de siete comandos de
  * `components/line-engineering/cad-command.ts`, que emitía «acciones de dibujo»
@@ -8,7 +8,12 @@
  * así que deshacer una polilínea de treinta vértices es un solo Ctrl+Z.
  *
  * De paso llegan opciones que antes no existían y que un dibujante espera:
- * `Cerrar` y `desHacer` en LINE y PLINE, `Diámetro`, `2P` y `3P` en CIRCLE.
+ * `Cerrar` y `desHacer` en LINE, `Diámetro`, `2P` y `3P` en CIRCLE.
+ *
+ * PLINE y RECTANG vivían aquí y se han mudado a `draw-pline.ts` y
+ * `draw-rectang.ts`: al ganar sus opciones (arco, grosor, chaflán, empalme,
+ * área…) dejaron de ser casos triviales y cada uno pesa ya más que este
+ * archivo entero.
  */
 import type { CadPoint2 } from "../../cad-document";
 import type { CadEntityCommand } from "../../entity-commands";
@@ -34,15 +39,6 @@ function flat(point: CadPoint2) {
 
 function lineEntity(id: string, a: CadPoint2, b: CadPoint2, layer: string): CadNativeEntity {
   return { id, type: "line", start: flat(a), end: flat(b), layer };
-}
-
-function polylineEntity(
-  id: string,
-  vertices: readonly CadPoint2[],
-  closed: boolean,
-  layer: string,
-): CadNativeEntity {
-  return { id, type: "polyline", vertices: vertices.map(flat), closed, layer };
 }
 
 function circleEntity(id: string, center: CadPoint2, radius: number, layer: string): CadNativeEntity {
@@ -153,149 +149,6 @@ const lineCommand: CadCommandDescriptor<LineState> = {
       },
       context,
     );
-  },
-};
-
-// ---------------------------------------------------------------------------
-// PLINE
-// ---------------------------------------------------------------------------
-
-interface PolylineState {
-  points: CadPoint2[];
-}
-
-function polylineStep(state: PolylineState, context: CadCommandContext): CadCommandStep<PolylineState> {
-  if (state.points.length === 0)
-    return {
-      state,
-      prompt: { message: "Precise el punto inicial", options: [] },
-      accepts: CAD_ACCEPT_POINT,
-    };
-  const options = state.points.length >= 2 ? [CLOSE, UNDO] : [UNDO];
-  return {
-    state,
-    prompt: { message: "Precise el punto siguiente", options },
-    // Igual que LINE: el número suelto es entrada directa, no una distancia.
-    accepts: CAD_ACCEPT_POINT | CAD_ACCEPT_KEYWORD,
-    preview: [
-      ...(context.cursor
-        ? [{ points: [...state.points, context.cursor] }]
-        : [{ points: state.points }]),
-    ],
-  };
-}
-
-function finishPolyline(
-  state: PolylineState,
-  closed: boolean,
-  context: CadCommandContext,
-): CadCommandStep<PolylineState> {
-  const enough = closed ? state.points.length >= 3 : state.points.length >= 2;
-  return {
-    state,
-    prompt: { message: "", options: [] },
-    accepts: 0,
-    result: enough
-      ? {
-          kind: "document",
-          commands: [
-            {
-              type: "insert",
-              entity: polylineEntity(context.newEntityId(), state.points, closed, context.activeLayer),
-            },
-          ],
-          label: "PLINE",
-        }
-      : { kind: "none" },
-  };
-}
-
-const polylineCommand: CadCommandDescriptor<PolylineState> = {
-  name: "PLINE",
-  aliases: ["PL"],
-  kind: "draw",
-  transparent: false,
-  selection: "none",
-  repeatable: true,
-  mutates: true,
-  cursor: "crosshair",
-  begin: (context) => polylineStep({ points: [] }, context),
-  step: (state, input, context) => {
-    if (input.kind === "enter") return finishPolyline(state, false, context);
-    if (input.kind === "keyword" && input.keyword === CLOSE.keyword)
-      return finishPolyline(state, true, context);
-    if (input.kind === "keyword" && input.keyword === UNDO.keyword)
-      return polylineStep({ points: state.points.slice(0, -1) }, context);
-    if (input.kind !== "point") return polylineStep(state, context);
-    const last = state.points[state.points.length - 1];
-    if (last && distance(last, input.point) < 1e-9) return polylineStep(state, context);
-    return polylineStep({ points: [...state.points, input.point] }, context);
-  },
-};
-
-// ---------------------------------------------------------------------------
-// RECTANG
-// ---------------------------------------------------------------------------
-
-interface RectangState {
-  points: CadPoint2[];
-}
-
-const rectangCommand: CadCommandDescriptor<RectangState> = {
-  name: "RECTANG",
-  aliases: ["REC", "RECTANGLE"],
-  kind: "draw",
-  transparent: false,
-  selection: "none",
-  repeatable: true,
-  mutates: true,
-  cursor: "crosshair",
-  begin: () => ({
-    state: { points: [] },
-    prompt: { message: "Precise la primera esquina", options: [] },
-    accepts: CAD_ACCEPT_POINT,
-  }),
-  step: (state, input, context) => {
-    if (input.kind === "enter" || input.kind !== "point")
-      return {
-        state,
-        prompt: { message: "Precise la esquina opuesta", options: [] },
-        accepts: CAD_ACCEPT_POINT,
-      };
-    if (state.points.length === 0)
-      return {
-        state: { points: [input.point] },
-        prompt: { message: "Precise la esquina opuesta", options: [] },
-        accepts: CAD_ACCEPT_POINT,
-        preview: [],
-      };
-    const [first] = state.points;
-    const second = input.point;
-    // Un rectángulo degenerado no es un rectángulo; se descarta en vez de
-    // guardar una polilínea de área cero.
-    if (Math.abs(second.x - first.x) < 1e-9 || Math.abs(second.y - first.y) < 1e-9)
-      return { state, prompt: { message: "", options: [] }, accepts: 0, result: { kind: "none" } };
-    const corners: CadPoint2[] = [
-      { x: first.x, y: first.y },
-      { x: second.x, y: first.y },
-      { x: second.x, y: second.y },
-      { x: first.x, y: second.y },
-    ];
-    return {
-      state,
-      prompt: { message: "", options: [] },
-      accepts: 0,
-      result: {
-        kind: "document",
-        commands: [
-          {
-            type: "insert",
-            entity: polylineEntity(context.newEntityId(), corners, true, context.activeLayer),
-          },
-        ],
-        label: "RECTANG",
-      },
-    };
   },
 };
 
@@ -456,8 +309,6 @@ const circleCommand: CadCommandDescriptor<CircleState> = {
 
 export const CAD_DRAW_BASIC_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(lineCommand),
-  asCadCommand(polylineCommand),
-  asCadCommand(rectangCommand),
   asCadCommand(circleCommand),
 ];
 
