@@ -99,6 +99,11 @@ async function installCadBackend(context: BrowserContext) {
  * Designa por id con el panel de selección profesional. `add` acumula sobre lo
  * ya designado, que es la única forma de llegar a una designación múltiple sin
  * depender de un clic en el lienzo con coordenadas de píxel.
+ *
+ * El panel se cierra con Ctrl+1 y no con su aspa: el panel derecho es un
+ * recurso compartido —lo ocupan selección, hatch, cotas, bloques…— y Ctrl+1
+ * significa exactamente «enséñame las propiedades ahí». Cerrarlo con el aspa
+ * probaría el aspa; usar el atajo prueba el atajo, que es lo que se añadió.
  */
 async function select(
   page: import("@playwright/test").Page,
@@ -115,7 +120,9 @@ async function select(
   await expect(page.getByTestId("cad-selection-count")).toHaveText(
     `${ids.length} seleccionados`,
   );
-  await page.getByLabel("Cerrar panel profesional").click();
+  await expect(page.getByTestId("cad-properties-palette")).toHaveCount(0);
+  await page.keyboard.press("Control+1");
+  await expect(page.getByTestId("cad-properties-palette")).toBeVisible();
 }
 
 test("la paleta de propiedades edita N objetos a la vez y marca lo que difiere", async ({
