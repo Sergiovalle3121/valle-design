@@ -151,7 +151,9 @@ export function applyCadDocumentTables(
       const definition = command.definition;
       const name = definition.name.trim();
       if (!name) throw new Error("A block definition needs a name.");
-      if (definition.entities.length === 0)
+      // Un bloque SÓLO de atributos es legítimo —un cajetín es exactamente
+      // eso—, así que la tabla lo acepta. Lo que no puede es no tener nada.
+      if (definition.entities.length === 0 && Object.keys(definition.attributes ?? {}).length === 0)
         throw new Error(`Block ${name} cannot be empty.`);
       // El nombre es la clave con la que se INSERTA un bloque, así que dos
       // definiciones con el mismo nombre y distinto id hacen ambiguo cada

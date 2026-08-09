@@ -1,7 +1,6 @@
 import {
   type CadDocument,
   type CadEntity,
-  type CadEntityContext,
   type CadPoint2,
   type CadPoint3,
 } from "./cad-document";
@@ -40,6 +39,8 @@ import { attdefAdapter, tableAdapter } from "./annotation-v4-adapters";
 import { mleaderAdapter } from "./mleader-entity-adapter";
 import { resolveCadInsert } from "./professional-blocks";
 import { hatchRegionContainsPoint, type CadBoundaryPath } from "./hatch-associativity";
+import { cloneContext } from "./entity-context";
+import { cadTransformPositionedAttributes } from "./blocks/positioned-attributes";
 
 export type CadNativeEntity = Extract<
   CadEntity,
@@ -168,38 +169,13 @@ function point3(point: CadPoint2, z = 0): CadPoint3 {
 }
 
 /**
- * Copia profunda del contexto de una entidad (color/tipo de línea/grosor
- * explícitos, procedencia, vínculo de negocio). Se exporta porque el ejecutor
- * de comandos la necesita al copiar una entidad: sin ella, el original y la
- * copia compartirían el mismo objeto `presentation` y cambiar el color de una
- * cambiaría el de la otra.
+ * Copia profunda del contexto: vive en `entity-context.ts`, un módulo HOJA, y
+ * se reexporta aquí porque es de donde la importa todo el editor. Se mudó para
+ * que los módulos a los que ESTE archivo importa —los adaptadores, y desde el
+ * esquema 4 los atributos posicionados— puedan usarla sin cerrar un ciclo de
+ * carga.
  */
-export function cloneContext(context: CadEntityContext | undefined): CadEntityContext | undefined {
-  if (!context) return undefined;
-  return {
-    ...context,
-    ...(context.normal ? { normal: { ...context.normal } } : {}),
-    ...(context.presentation
-      ? {
-          presentation: {
-            ...context.presentation,
-            ...(context.presentation.color
-              ? { color: { ...context.presentation.color } }
-              : {}),
-            ...(context.presentation.linetype
-              ? { linetype: { ...context.presentation.linetype } }
-              : {}),
-            ...(context.presentation.lineweight
-              ? { lineweight: { ...context.presentation.lineweight } }
-              : {}),
-          },
-        }
-      : {}),
-    ...(context.metadata ? { metadata: { ...context.metadata } } : {}),
-    ...(context.provenance ? { provenance: { ...context.provenance } } : {}),
-    ...(context.businessLink ? { businessLink: { ...context.businessLink } } : {}),
-  };
-}
+export { cloneContext };
 
 function transformPoint(point: CadPoint3, transform: CadEntityTransform): CadPoint3 {
   return cadTransformPoint3(point, transform);
@@ -968,6 +944,12 @@ const insertAdapter: CadEntityAdapter<CadInsertEntity> = {
           z: entity.scale.z,
         },
         rotation: normalizeAngleDeg(reflecting ? base - entity.rotation : entity.rotation + base),
+        // Los atributos POSICIONADOS llevan geometría propia, en coordenadas de
+        // MUNDO. Sin esta línea mover un cajetín deja atrás el texto de su
+        // número de plano: el bloque se va y sus etiquetas se quedan.
+        ...(entity.positionedAttributes
+          ? { positionedAttributes: cadTransformPositionedAttributes(entity.positionedAttributes, transform) }
+          : {}),
         context: cloneContext(entity.context),
       };
     },
