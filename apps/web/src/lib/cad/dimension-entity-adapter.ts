@@ -1,6 +1,11 @@
 import type { CadPoint2 } from './cad-document';
 import { buildCadDimensionGeometry, type CadDimensionEntity } from './associative-dimension';
 import type { CadEntityAdapter, CadEntityTransform, CadNativeEntity, CadPropertyValue } from './entity-runtime';
+// Se importan de `transform2d` y no de `entity-runtime` a propósito:
+// `entity-runtime` importa este módulo, así que ir por él cerraría un ciclo que
+// revienta al cargar («Cannot access X before initialization»). Ya pasó con el
+// adaptador de sombreado.
+import { cadTransformPoint3, cadTransformScaleFactor } from './transform2d';
 
 type NativeDimension = Extract<CadNativeEntity, { type: 'dimension' }>;
 
@@ -11,13 +16,20 @@ const bounds = (entity: NativeDimension) => {
   const values = points(entity);
   return { minX: Math.min(...values.map((point) => point.x)), minY: Math.min(...values.map((point) => point.y)), maxX: Math.max(...values.map((point) => point.x)), maxY: Math.max(...values.map((point) => point.y)) };
 };
+/**
+ * Delega en la implementación compartida. Aquí había una copia que leía SÓLO
+ * `{origin, rotationDeg, scale, translation}`: bajo `{ mirror: … }` —donde no
+ * existe ninguno de esos cuatro campos— evaluaba la identidad, así que espejar
+ * una selección movía toda su geometría y dejaba la cota clavada en su sitio,
+ * midiendo dos puntos que ya no estaban ahí. Sin error y con dibujo plausible.
+ *
+ * Los puntos de definición de una cota son 2D en el esquema canónico, así que
+ * la `z` del helper se descarta en vez de materializarse: escribirla cambiaría
+ * la forma de la entidad y con ella su versión.
+ */
 const transformPoint = (point: CadPoint2, transform: CadEntityTransform): CadPoint2 => {
-  const origin = transform.origin ?? { x: 0, y: 0 };
-  const radians = ((transform.rotationDeg ?? 0) * Math.PI) / 180;
-  const factor = transform.scale ?? 1;
-  const dx = (point.x - origin.x) * factor;
-  const dy = (point.y - origin.y) * factor;
-  return { x: origin.x + dx * Math.cos(radians) - dy * Math.sin(radians) + (transform.translation?.x ?? 0), y: origin.y + dx * Math.sin(radians) + dy * Math.cos(radians) + (transform.translation?.y ?? 0) };
+  const moved = cadTransformPoint3({ ...point, z: 0 }, transform);
+  return { x: moved.x, y: moved.y };
 };
 const distanceToSegment = (point: CadPoint2, a: CadPoint2, b: CadPoint2) => {
   const dx = b.x - a.x; const dy = b.y - a.y; const lengthSquared = dx * dx + dy * dy;
@@ -90,10 +102,17 @@ export const dimensionAdapter: CadEntityAdapter<NativeDimension> = {
       layer: typeof patch.layer === 'string' ? patch.layer : entity.layer,
     }),
   },
-  commands: { transform: (entity, transform) => ({
-    ...entity, a: transformPoint(entity.a, transform), b: transformPoint(entity.b, transform), c: entity.c ? transformPoint(entity.c, transform) : undefined,
-    textPosition: entity.textPosition ? transformPoint(entity.textPosition, transform) : undefined,
-    offset: (entity.offset ?? 0) * Math.abs(transform.scale ?? 1), radius: entity.radius === undefined ? undefined : entity.radius * Math.abs(transform.scale ?? 1),
-    associative: false, associationStatus: 'detached', context: entity.context ? structuredClone(entity.context) : undefined,
-  }) },
+  commands: { transform: (entity, transform) => {
+    // `Math.abs(transform.scale ?? 1)` valía 1 bajo `scaleXY`, `mirror` o
+    // `affine` —donde `scale` no existe—, así que la cota se movía sin cambiar
+    // de tamaño. `cadTransformScaleFactor` es √|det|, definido para CUALQUIER
+    // afín, y coincide con `|scale|` en el vocabulario histórico.
+    const factor = cadTransformScaleFactor(transform);
+    return {
+      ...entity, a: transformPoint(entity.a, transform), b: transformPoint(entity.b, transform), c: entity.c ? transformPoint(entity.c, transform) : undefined,
+      textPosition: entity.textPosition ? transformPoint(entity.textPosition, transform) : undefined,
+      offset: (entity.offset ?? 0) * factor, radius: entity.radius === undefined ? undefined : entity.radius * factor,
+      associative: false, associationStatus: 'detached', context: entity.context ? structuredClone(entity.context) : undefined,
+    };
+  } },
 };

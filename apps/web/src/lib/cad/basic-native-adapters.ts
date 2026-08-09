@@ -1,6 +1,6 @@
 import type { CadEntity, CadPoint2, CadPoint3 } from './cad-document';
 import { tessellateArc } from './curve-tessellate';
-import { cadTransformPoint3 } from './transform2d';
+import { cadTransformPoint3, cadTransformScaleFactor } from './transform2d';
 import type { CadEntityAdapter, CadEntityTransform, CadNativeEntity, CadPropertyValue } from './entity-runtime';
 
 type LineEntity = Extract<CadNativeEntity, { type: 'line' }>;
@@ -99,7 +99,15 @@ export const circleAdapter: CadEntityAdapter<CircleEntity> = {
       layer: typeof patch.layer === 'string' ? patch.layer : entity.layer,
     }),
   },
-  commands: { transform: (entity, transform) => ({ ...entity, center: transformPoint(entity.center, transform), radius: entity.radius * Math.abs(transform.scale ?? 1), context: entity.context ? structuredClone(entity.context) : undefined }) },
+  commands: {
+    // El radio va por `cadTransformScaleFactor` —√|det|— y no por
+    // `Math.abs(transform.scale ?? 1)`. Bajo `scaleXY`, `mirror` o `affine` el
+    // campo `scale` no existe, así que aquel factor valía 1: el círculo se
+    // movía a su nueva posición conservando su tamaño de antes. Para el
+    // vocabulario histórico ambos dan el mismo número, así que el cambio sólo
+    // se nota donde antes estaba mal.
+    transform: (entity, transform) => ({ ...entity, center: transformPoint(entity.center, transform), radius: entity.radius * cadTransformScaleFactor(transform), context: entity.context ? structuredClone(entity.context) : undefined }),
+  },
 };
 
 export function isLegacyCircle(entity: CadEntity): boolean {

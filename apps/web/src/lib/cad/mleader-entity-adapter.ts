@@ -1,21 +1,22 @@
-import type { CadPoint2 } from './cad-document';
+import type { CadPoint2, CadPoint3 } from './cad-document';
 import { buildCadMleaderGeometry, cadMleaderLines, type CadMleaderEntity } from './associative-mleader';
 import type { CadEntityAdapter, CadEntityTransform, CadNativeEntity, CadPropertyValue } from './entity-runtime';
 // Se importan de `transform2d` y no de `entity-runtime` a propósito:
 // `entity-runtime` importa este módulo, así que ir por él cerraría un ciclo.
-import { cadTransformAngleBase, cadTransformIsReflecting, cadTransformScaleFactor } from './transform2d';
+import { cadTransformAngleBase, cadTransformIsReflecting, cadTransformPoint3, cadTransformScaleFactor } from './transform2d';
 
 type NativeMleader = Extract<CadNativeEntity, { type: 'mleader' }>;
 const finite = (value: CadPropertyValue | undefined, fallback: number): number => typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 const positive = (value: CadPropertyValue | undefined, fallback: number): number => Math.max(1e-9, finite(value, fallback));
-const transformPoint = (point: CadPoint2, transform: CadEntityTransform): CadPoint2 => {
-  const origin = transform.origin ?? { x: 0, y: 0 };
-  const radians = (transform.rotationDeg ?? 0) * Math.PI / 180;
-  const factor = transform.scale ?? 1;
-  const dx = (point.x - origin.x) * factor;
-  const dy = (point.y - origin.y) * factor;
-  return { x: origin.x + dx * Math.cos(radians) - dy * Math.sin(radians) + (transform.translation?.x ?? 0), y: origin.y + dx * Math.sin(radians) + dy * Math.cos(radians) + (transform.translation?.y ?? 0) };
-};
+/**
+ * Delega en la implementación compartida. La copia que había aquí leía SÓLO el
+ * vocabulario histórico, así que bajo `{ mirror: … }` devolvía el punto tal
+ * cual: las directrices no se movían. Y era además incoherente CONSIGO MISMA,
+ * porque `textRotation` sí consultaba `cadTransformAngleBase` — el rótulo
+ * giraba mientras la flecha que señala se quedaba quieta.
+ */
+const transformPoint = (point: CadPoint3, transform: CadEntityTransform): CadPoint3 =>
+  cadTransformPoint3(point, transform);
 const normalizeAngleDeg = (value: number) => ((value % 360) + 360) % 360;
 const distanceToSegment = (point: CadPoint2, a: CadPoint2, b: CadPoint2) => {
   const dx = b.x - a.x; const dy = b.y - a.y; const lengthSquared = dx * dx + dy * dy;
@@ -104,7 +105,9 @@ export const mleaderAdapter: CadEntityAdapter<NativeMleader> = {
     }),
   },
   commands: { transform: (entity, transform) => {
-    const leaderLines = cadMleaderLines(entity).map((line) => line.map((point) => ({ ...transformPoint(point, transform), z: 0 })));
+    // `cadMleaderLines` devuelve puntos 2D; la elevación de una directriz vive
+    // en 0 por contrato, así que se repone al entrar y al salir.
+    const leaderLines = cadMleaderLines(entity).map((line) => line.map((point) => ({ ...transformPoint({ ...point, z: 0 }, transform), z: 0 })));
     return {
       ...entity, vertices: leaderLines[0], leaderLines, textPosition: { ...transformPoint(entity.textPosition, transform), z: entity.textPosition.z },
       // Los tamaños AUSENTES se conservan ausentes. Antes se materializaban con

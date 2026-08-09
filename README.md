@@ -18,7 +18,9 @@ canónico, guardar con control de concurrencia CAS, consultar versiones,
 publicar hojas, usar review links y comentarios, importar DXF de texto o JSON
 canónico y exportar el subconjunto DXF implementado. Los documentos grandes se
 envían como archivos gzip y se guardan en PostgreSQL mediante blobs
-content-addressed. DWG no está soportado.
+content-addressed. DWG no está disponible en el producto. El repositorio
+contiene gobernanza para un laboratorio clean-room experimental y aislado; no
+está conectado a UI, API, provider ni al documento canónico.
 
 ## Repositorio
 
@@ -29,6 +31,7 @@ apps/
 packages/
   contracts/   Contratos compartidos y OpenAPI/AsyncAPI versionados
   design-sdk/  Cliente TypeScript generado desde OpenAPI
+  dwg-codec/   Laboratorio clean-room experimental; no disponible en producto
 docs/          ADR, guías operativas, evidencia y matriz de brechas
 ```
 
@@ -136,8 +139,9 @@ siendo pruebas útiles, pero no sustituyen el recorrido full-stack.
 
 ## Límites declarados
 
-- No existe soporte DWG, modelador sólido B-rep, API de plugins AutoLISP/.NET,
-  GIS ni paridad general con AutoCAD.
+- No existe importación/exportación DWG productiva, modelador sólido B-rep,
+  API de plugins AutoLISP/.NET, GIS ni paridad general con AutoCAD. Detectar
+  una firma o mantener un laboratorio desconectado no cambia ese estado.
 - DXF es un subconjunto de texto con manifiesto de pérdidas, no compatibilidad
   universal.
 - El benchmark de 100k usa LOD y presupuestos amplios; no autoriza afirmar

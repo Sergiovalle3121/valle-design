@@ -1,0 +1,204 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:valle-design:dwg-source-register:1.0.0",
+  "title": "Valle DWG clean-room source register",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "updatedAt", "entries"],
+  "properties": {
+    "$schema": {
+      "const": "./source-register.schema.json"
+    },
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date"
+    },
+    "entries": {
+      "type": "array",
+      "uniqueItems": true,
+      "$comment": "check:provenance must also reject duplicate source IDs and verify that every derived path resolves inside the repository root",
+      "items": {
+        "$ref": "#/$defs/source"
+      }
+    }
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "owner",
+        "origin",
+        "title",
+        "versionOrDate",
+        "terms",
+        "status",
+        "factsConsulted",
+        "derivedFiles",
+        "reviewer",
+        "reviewedAt"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Z0-9][A-Z0-9._-]{2,127}$"
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "origin": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "location", "accessedAt"],
+          "properties": {
+            "type": {
+              "enum": [
+                "owner-directive",
+                "first-party-repository",
+                "public-documentation",
+                "original-measurement",
+                "third-party-fixture"
+              ]
+            },
+            "location": {
+              "type": "string",
+              "minLength": 1
+            },
+            "accessedAt": {
+              "type": "string",
+              "format": "date"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "byteLength": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "const": "owner-directive"
+                  }
+                },
+                "required": ["type"]
+              },
+              "then": {
+                "type": "object",
+                "properties": {
+                  "sha256": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "byteLength": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": ["sha256", "byteLength"]
+              }
+            }
+          ]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "versionOrDate": {
+          "type": "string",
+          "minLength": 1
+        },
+        "terms": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["license", "access", "redistribution", "notes"],
+          "properties": {
+            "license": {
+              "type": "string",
+              "minLength": 1
+            },
+            "access": {
+              "type": "string",
+              "minLength": 1
+            },
+            "redistribution": {
+              "type": "string",
+              "minLength": 1
+            },
+            "notes": {
+              "type": "string"
+            }
+          }
+        },
+        "status": {
+          "enum": ["allowed", "quarantined", "prohibited"]
+        },
+        "factsConsulted": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "derivedFiles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(?:(?:[A-Za-z0-9][A-Za-z0-9._-]*|\\.[A-Za-z0-9][A-Za-z0-9._-]*)/)*(?:[A-Za-z0-9][A-Za-z0-9._-]*|\\.[A-Za-z0-9][A-Za-z0-9._-]*)$"
+          },
+          "uniqueItems": true
+        },
+        "reviewer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reviewedAt": {
+          "type": "string",
+          "format": "date"
+        },
+        "notes": {
+          "type": "string"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "enum": ["quarantined", "prohibited"]
+              }
+            },
+            "required": ["status"]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "factsConsulted": {
+                "type": "array",
+                "maxItems": 0
+              },
+              "derivedFiles": {
+                "type": "array",
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

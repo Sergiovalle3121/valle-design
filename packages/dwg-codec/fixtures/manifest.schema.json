@@ -1,0 +1,507 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:valle-design:dwg-fixture-manifest:1.0.0",
+  "title": "Valle DWG authorized fixture manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "generatedAt", "fixtures"],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "fixtures": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "$comment": "check:fixtures must also reject duplicate id/path/hash values and resolve every path inside the fixture root",
+      "items": {
+        "$ref": "#/$defs/fixture"
+      }
+    }
+  },
+  "$defs": {
+    "fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "path",
+        "sha256",
+        "creator",
+        "createdAt",
+        "origin",
+        "sourceIds",
+        "permission",
+        "declaredVersion",
+        "byteLength",
+        "purpose",
+        "expectations",
+        "synthetic",
+        "generatedBy",
+        "redistributable"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,127}$"
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^(synthetic|authorized)/(?:[A-Za-z0-9][A-Za-z0-9._-]*/)*[A-Za-z0-9][A-Za-z0-9._-]*\\.dwg$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "creator": {
+          "type": "string",
+          "minLength": 1
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date"
+        },
+        "origin": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "reference"],
+          "properties": {
+            "type": {
+              "enum": [
+                "valle-synthetic",
+                "owner-authorized",
+                "third-party-licensed"
+              ]
+            },
+            "reference": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "sourceIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "$comment": "check:provenance must resolve every ID to an allowed SOURCE_REGISTER entry",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z0-9][A-Z0-9._-]{2,127}$"
+          }
+        },
+        "permission": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["basis", "license", "redistributionEvidence"],
+          "properties": {
+            "basis": {
+              "type": "string",
+              "minLength": 1
+            },
+            "license": {
+              "enum": [
+                "Valle-Internal-Synthetic",
+                "Valle-Owner-Authorized",
+                "0BSD",
+                "Apache-2.0",
+                "BSD-2-Clause",
+                "BSD-3-Clause",
+                "CC-BY-4.0",
+                "CC0-1.0",
+                "ISC",
+                "MIT",
+                "Unlicense"
+              ]
+            },
+            "redistributionEvidence": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "declaredVersion": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^AC10[0-9]{2}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "byteLength": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 67108864
+        },
+        "purpose": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "expectations": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "signature",
+            "parseOutcome",
+            "errorCode",
+            "maxWorkUnits"
+          ],
+          "properties": {
+            "signature": {
+              "enum": ["recognized", "unknown-version", "invalid", "truncated"]
+            },
+            "parseOutcome": {
+              "enum": ["ok", "unsupported", "error"]
+            },
+            "errorCode": {
+              "type": ["string", "null"]
+            },
+            "maxWorkUnits": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000000
+            }
+          }
+        },
+        "synthetic": {
+          "type": "boolean"
+        },
+        "generatedBy": {
+          "type": ["string", "null"]
+        },
+        "redistributable": {
+          "const": true
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "synthetic": {
+                "const": true
+              }
+            },
+            "required": ["synthetic"]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "pattern": "^synthetic/(?:[A-Za-z0-9][A-Za-z0-9._-]*/)*[A-Za-z0-9][A-Za-z0-9._-]*\\.dwg$"
+              },
+              "generatedBy": {
+                "type": "string",
+                "minLength": 1
+              },
+              "origin": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "const": "valle-synthetic"
+                  }
+                },
+                "required": ["type"]
+              },
+              "permission": {
+                "type": "object",
+                "properties": {
+                  "license": {
+                    "const": "Valle-Internal-Synthetic"
+                  }
+                },
+                "required": ["license"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "synthetic": {
+                "const": false
+              }
+            },
+            "required": ["synthetic"]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "pattern": "^authorized/(?:[A-Za-z0-9][A-Za-z0-9._-]*/)*[A-Za-z0-9][A-Za-z0-9._-]*\\.dwg$"
+              },
+              "generatedBy": {
+                "type": "null"
+              },
+              "origin": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "enum": ["owner-authorized", "third-party-licensed"]
+                  }
+                },
+                "required": ["type"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "origin": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "const": "owner-authorized"
+                  }
+                },
+                "required": ["type"]
+              }
+            },
+            "required": ["origin"]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "synthetic": {
+                "const": false
+              },
+              "permission": {
+                "type": "object",
+                "properties": {
+                  "license": {
+                    "const": "Valle-Owner-Authorized"
+                  }
+                },
+                "required": ["license"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "origin": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "const": "third-party-licensed"
+                  }
+                },
+                "required": ["type"]
+              }
+            },
+            "required": ["origin"]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "synthetic": {
+                "const": false
+              },
+              "permission": {
+                "type": "object",
+                "properties": {
+                  "license": {
+                    "enum": [
+                      "0BSD",
+                      "Apache-2.0",
+                      "BSD-2-Clause",
+                      "BSD-3-Clause",
+                      "CC-BY-4.0",
+                      "CC0-1.0",
+                      "ISC",
+                      "MIT",
+                      "Unlicense"
+                    ]
+                  }
+                },
+                "required": ["license"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "expectations": {
+                "type": "object",
+                "properties": {
+                  "parseOutcome": {
+                    "const": "ok"
+                  }
+                },
+                "required": ["parseOutcome"]
+              }
+            },
+            "required": ["expectations"]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "expectations": {
+                "type": "object",
+                "properties": {
+                  "errorCode": {
+                    "type": "null"
+                  }
+                },
+                "required": ["errorCode"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "expectations": {
+                "type": "object",
+                "properties": {
+                  "parseOutcome": {
+                    "enum": ["unsupported", "error"]
+                  }
+                },
+                "required": ["parseOutcome"]
+              }
+            },
+            "required": ["expectations"]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "expectations": {
+                "type": "object",
+                "properties": {
+                  "errorCode": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": ["errorCode"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "expectations": {
+                "type": "object",
+                "properties": {
+                  "signature": {
+                    "const": "recognized"
+                  }
+                },
+                "required": ["signature"]
+              }
+            },
+            "required": ["expectations"]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "declaredVersion": {
+                "enum": [
+                  "AC1009",
+                  "AC1012",
+                  "AC1014",
+                  "AC1015",
+                  "AC1018",
+                  "AC1021",
+                  "AC1024",
+                  "AC1027",
+                  "AC1032"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "expectations": {
+                "type": "object",
+                "properties": {
+                  "signature": {
+                    "const": "unknown-version"
+                  }
+                },
+                "required": ["signature"]
+              }
+            },
+            "required": ["expectations"]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "declaredVersion": {
+                "type": "string",
+                "pattern": "^AC10(?!(09|12|14|15|18|21|24|27|32)$)[0-9]{2}$"
+              },
+              "expectations": {
+                "type": "object",
+                "properties": {
+                  "parseOutcome": {
+                    "const": "unsupported"
+                  }
+                },
+                "required": ["parseOutcome"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "expectations": {
+                "type": "object",
+                "properties": {
+                  "signature": {
+                    "enum": ["invalid", "truncated"]
+                  }
+                },
+                "required": ["signature"]
+              }
+            },
+            "required": ["expectations"]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "expectations": {
+                "type": "object",
+                "properties": {
+                  "parseOutcome": {
+                    "const": "error"
+                  }
+                },
+                "required": ["parseOutcome"]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

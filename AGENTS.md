@@ -65,8 +65,11 @@ runtime dependency on another product or identity service.
   not leave partial state.
 - New documents use generated UUIDs and `/studio/[documentId]`. Historical
   model/revision sentinels are lookup-only compatibility values.
-- Import only DXF text and canonical JSON within their declared limits. Keep
-  warnings and loss manifests visible. DWG is unsupported.
+- Product runtime imports only DXF text and canonical JSON within their
+  declared limits. Keep warnings and loss manifests visible. DWG remains
+  unsupported in UI, API and providers. Isolated clean-room research under
+  `packages/dwg-codec/` follows ADR-0007 and its scoped `AGENTS.md`; its
+  presence never implies product availability.
 
 ## Outbox invariants
 
