@@ -1,0 +1,206 @@
+import { readdir, readFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { dirname, extname, join, relative, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+const scriptDir = dirname(fileURLToPath(import.meta.url));
+const repositoryRoot = resolve(scriptDir, "..", "..");
+const detectorPath = join(
+  repositoryRoot,
+  "apps",
+  "web",
+  "src",
+  "components",
+  "line-engineering",
+  "cad-format-detect.ts",
+);
+const codecEntry = join(
+  repositoryRoot,
+  "packages",
+  "dwg-codec",
+  "dist",
+  "index.js",
+);
+const expectedSpecs = [
+  "src/components/line-engineering/cad-format-detect.spec.ts",
+  "src/lib/cad/interop-provider.spec.ts",
+  "src/lib/cad/document-import.spec.ts",
+];
+const forbiddenCodecReferences = [
+  "@valle-design/dwg-codec",
+  "packages/dwg-codec",
+  "packages\\dwg-codec",
+  "../dwg-codec",
+  "..\\dwg-codec",
+];
+const ignoredRuntimeDirectories = new Set([
+  ".next",
+  ".report",
+  ".turbo",
+  "coverage",
+  "dist",
+  "node_modules",
+  "playwright-report",
+  "test-results",
+]);
+const runtimeSourceExtensions = new Set([
+  ".cjs",
+  ".cts",
+  ".graphql",
+  ".js",
+  ".json",
+  ".jsx",
+  ".mjs",
+  ".mts",
+  ".ts",
+  ".tsx",
+  ".yaml",
+  ".yml",
+]);
+
+function fail(message) {
+  throw new Error(`DWG product boundary: ${message}`);
+}
+
+async function readWebVersionRegistry() {
+  const source = await readFile(detectorPath, "utf8");
+  const object = source.match(
+    /export const ACAD_VERSION_NAMES:[^{]+\{([\s\S]*?)\n\};/,
+  );
+  if (!object)
+    fail("could not locate ACAD_VERSION_NAMES in the first-party detector");
+
+  const versions = new Map();
+  const entryPattern = /^\s*(AC10\d{2}):\s*'([^']+)',?\s*$/gm;
+  for (const match of object[1].matchAll(entryPattern)) {
+    versions.set(match[1], match[2]);
+  }
+  if (versions.size === 0)
+    fail("the product detector version registry is empty");
+  return versions;
+}
+
+function hasCodecReference(source) {
+  return forbiddenCodecReferences.some((needle) => source.includes(needle));
+}
+
+async function collectRuntimeSourceFiles(root) {
+  const output = [];
+  for (const entry of await readdir(root, { withFileTypes: true })) {
+    if (ignoredRuntimeDirectories.has(entry.name)) continue;
+    const path = join(root, entry.name);
+    if (entry.isDirectory()) {
+      output.push(...(await collectRuntimeSourceFiles(path)));
+    } else if (
+      entry.isFile() &&
+      entry.name !== "package.json" &&
+      runtimeSourceExtensions.has(extname(entry.name))
+    ) {
+      output.push(path);
+    }
+  }
+  return output;
+}
+
+async function assertNoRuntimeIntegration() {
+  const workspaceParents = [
+    join(repositoryRoot, "apps"),
+    join(repositoryRoot, "packages"),
+  ];
+  const codecRoot = resolve(repositoryRoot, "packages", "dwg-codec");
+  let manifestCount = 0;
+  let sourceFileCount = 0;
+  let workspaceCount = 0;
+
+  for (const parent of workspaceParents) {
+    const entries = await readdir(parent, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const workspaceRoot = resolve(parent, entry.name);
+      if (workspaceRoot === codecRoot) continue;
+      workspaceCount += 1;
+
+      const manifestPath = join(workspaceRoot, "package.json");
+      let manifest;
+      try {
+        manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+      } catch (error) {
+        fail(
+          `could not read runtime workspace manifest ${relative(repositoryRoot, manifestPath)}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+      manifestCount += 1;
+      if (hasCodecReference(JSON.stringify(manifest))) {
+        fail(
+          `runtime manifest references the laboratory: ${relative(repositoryRoot, manifestPath)}`,
+        );
+      }
+
+      const sourceFiles = await collectRuntimeSourceFiles(workspaceRoot);
+      sourceFileCount += sourceFiles.length;
+      for (const path of sourceFiles) {
+        const source = await readFile(path, "utf8");
+        if (hasCodecReference(source)) {
+          fail(
+            `runtime import/reference found in ${relative(repositoryRoot, path)}`,
+          );
+        }
+      }
+    }
+  }
+
+  if (workspaceCount === 0 || manifestCount !== workspaceCount) {
+    fail("runtime workspace discovery did not cover every manifest");
+  }
+  return { manifestCount, sourceFileCount, workspaceCount };
+}
+
+function runProductSpecs() {
+  const webRoot = join(repositoryRoot, "apps", "web");
+  for (const spec of expectedSpecs) {
+    const result = spawnSync(
+      process.execPath,
+      [join(repositoryRoot, "node_modules", "tsx", "dist", "cli.mjs"), spec],
+      {
+        cwd: webRoot,
+        encoding: "utf8",
+        env: process.env,
+        stdio: "pipe",
+      },
+    );
+    if (result.status !== 0) {
+      process.stdout.write(result.stdout ?? "");
+      process.stderr.write(result.stderr ?? "");
+      fail(`${spec} exited with ${result.status ?? "no status"}`);
+    }
+    process.stdout.write(result.stdout ?? "");
+  }
+}
+
+const codec = await import(pathToFileURL(codecEntry).href);
+if (!Array.isArray(codec.DWG_VERSION_REGISTRY)) {
+  fail("codec does not export DWG_VERSION_REGISTRY");
+}
+
+const webVersions = await readWebVersionRegistry();
+const codecVersions = new Map(
+  codec.DWG_VERSION_REGISTRY.map(({ code, label }) => [code, label]),
+);
+if (webVersions.size !== codecVersions.size) {
+  fail(
+    `version registry size differs: product=${webVersions.size}, codec=${codecVersions.size}`,
+  );
+}
+for (const [code, label] of webVersions) {
+  if (codecVersions.get(code) !== label) {
+    fail(
+      `version label differs for ${code}: product=${label}, codec=${codecVersions.get(code)}`,
+    );
+  }
+}
+
+const runtimeBoundary = await assertNoRuntimeIntegration();
+runProductSpecs();
+console.log(
+  `DWG product boundary OK: ${codecVersions.size} signatures, 3 product specs, ${runtimeBoundary.workspaceCount} runtime workspaces, ${runtimeBoundary.manifestCount} manifests, ${runtimeBoundary.sourceFileCount} source files, 0 runtime imports`,
+);

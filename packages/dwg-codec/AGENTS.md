@@ -51,10 +51,9 @@ Lee completamente `CLEAN_ROOM_POLICY.md`, `SOURCE_REGISTER.json`,
   SHA-256, creador, fecha, origen, permiso/licencia, versión declarada, tamaño,
   propósito y expectativas.
 - `sourceIds` debe resolver a entradas `allowed` de `SOURCE_REGISTER.json`.
-  `check:fixtures`/`check:provenance`, cuando se implementen en PR 2, deben
-  rechazar IDs, paths o hashes duplicados y cualquier path que, resuelto, salga
-  de la raíz de fixtures o del repositorio; el schema por sí solo no expresa
-  esas invariantes cruzadas.
+  `check:fixtures` y `check:provenance` rechazan IDs, paths o hashes duplicados y
+  cualquier path que, resuelto, salga de la raíz de fixtures o del repositorio;
+  el schema por sí solo no expresa esas invariantes cruzadas.
 - No ocultes binarios en base64, snapshots o strings largos.
 - Un fixture creado por el mismo generador sólo prueba consistencia interna; no
   prueba compatibilidad con DWG real.
