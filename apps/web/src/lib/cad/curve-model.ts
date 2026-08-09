@@ -291,6 +291,43 @@ export function curveIsClosed(curve: CadCurve): boolean {
   return curve.kind !== "segment" && Math.abs(curve.sweep) >= 360 - 1e-7;
 }
 
+/**
+ * Parámetro del punto de la curva ACOTADA más cercano al dado.
+ *
+ * Es la traducción de «dónde pinchó el usuario» a la coordenada con la que se
+ * recorta. Se acota a `[0, 1]` a propósito: un clic siempre cae sobre el objeto
+ * dibujado, y dejar que el parámetro se escapara del barrido haría que TRIM
+ * eligiera un tramo que no está en pantalla.
+ */
+export function curveClosestParam(curve: CadCurve, point: CadVec2): number {
+  const raw = curveParamAt(curve, point);
+  if (curve.kind === "segment") return Math.max(0, Math.min(1, raw));
+  if (curveIsClosed(curve)) return raw;
+  // Fuera del barrido hay que decidir a qué extremo se parece más, y el
+  // parámetro no lo dice: 1.1 y 3.9 están ambos fuera, pero el segundo está
+  // más cerca del inicio. Se compara la distancia real a los dos extremos.
+  if (raw >= 0 && raw <= 1) return raw;
+  const toStart = distanceBetween(point, curvePointAt(curve, 0));
+  const toEnd = distanceBetween(point, curvePointAt(curve, 1));
+  return toStart <= toEnd ? 0 : 1;
+}
+
+function distanceBetween(a: CadVec2, b: CadVec2): number {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+/**
+ * Distancia del punto a la curva acotada.
+ *
+ * Para segmento y arco es exacta. Para una elipse usa la proyección RADIAL en
+ * el marco local, no el pie de perpendicular verdadero: es lo que hace falta
+ * para decidir en qué sector paramétrico pinchó el usuario —que es el uso—, y
+ * no sirve para medir separaciones.
+ */
+export function curveDistanceTo(curve: CadCurve, point: CadVec2): number {
+  return distanceBetween(point, curvePointAt(curve, curveClosestParam(curve, point)));
+}
+
 /** Longitud aproximada; suficiente para ordenar y para tolerancias relativas. */
 export function curveScale(curve: CadCurve): number {
   if (curve.kind === "segment") return Math.hypot(curve.b.x - curve.a.x, curve.b.y - curve.a.y);
