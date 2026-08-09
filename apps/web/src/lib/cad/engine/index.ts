@@ -26,6 +26,8 @@ import { CAD_MODIFY_STRETCH_COMMANDS } from "./commands/modify-stretch";
 import { CAD_MODIFY_EDGE_COMMANDS } from "./commands/modify-edges";
 import { CAD_MIRROR_COMMANDS } from "./commands/modify-mirror";
 import { CAD_MODIFY_TRANSFORM_COMMANDS } from "./commands/modify-transform";
+import { CAD_PARAMETRIC_DIMENSION_COMMANDS } from "./commands/parametric-dimensions";
+import { CAD_PARAMETRIC_GEOMETRY_COMMANDS } from "./commands/parametric-geometry";
 import { createCadCommandRegistry, type CadCommandRegistryImpl } from "./registry";
 
 export * from "./command-types";
@@ -56,6 +58,8 @@ export const CAD_COMMAND_DESCRIPTORS = [
   ...CAD_MODIFY_STRETCH_COMMANDS,
   ...CAD_MODIFY_JOIN_COMMANDS,
   ...CAD_MODIFY_PEDIT_COMMANDS,
+  ...CAD_PARAMETRIC_GEOMETRY_COMMANDS,
+  ...CAD_PARAMETRIC_DIMENSION_COMMANDS,
 ] as const;
 
 /**

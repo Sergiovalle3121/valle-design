@@ -1,0 +1,196 @@
+/**
+ * El iterador de punto fijo ANTERIOR, conservado a propósito.
+ *
+ * Era la implementación de `solveCadConstraints`: hasta 16 pasadas aplicando las
+ * restricciones de una en una, ordenadas por id, cada una sobre el resultado de
+ * la anterior. Se ha sustituido por un solucionador de Newton (`solver.ts`), y
+ * el código viejo NO se ha borrado por una razón concreta: la afirmación «el
+ * iterador no resuelve los lazos acoplados» es el motivo de todo este trabajo, y
+ * una afirmación que no se puede ejecutar es una opinión.
+ *
+ * `constraints/solver.spec.ts` monta el MISMO triángulo con los tres lados
+ * acotados contra los dos algoritmos y comprueba que éste no converge y el nuevo
+ * sí. Si algún día alguien mejora el iterador hasta resolverlo, el spec lo dirá.
+ *
+ * No lo use código de producción: sólo resuelve líneas y muros, y sólo cuando
+ * las restricciones no se acoplan.
+ */
+import {
+  makeCollinear,
+  makeEqualLength,
+  makeHorizontal,
+  makeParallel,
+  makePerpendicular,
+  makeVertical,
+  setAngle,
+  setLength,
+  type Segment,
+} from "../geom-constraints";
+import type { CadConstraint, CadDocument, CadEntity } from "../cad-document";
+
+export interface LegacyFixedPointResult {
+  document: CadDocument;
+  converged: boolean;
+  iterations: number;
+  changedEntityIds: string[];
+  error?: string;
+}
+
+type SolvableEntity = Extract<CadEntity, { type: "box" | "line" }>;
+
+function toSegment(entity: SolvableEntity): Segment | null {
+  if (entity.type === "line")
+    return {
+      a: { x: entity.start.x, y: entity.start.y },
+      b: { x: entity.end.x, y: entity.end.y },
+    };
+  if (entity.kind !== "wall" || !(entity.w > 0)) return null;
+  const cx = entity.x + entity.w / 2;
+  const cy = entity.y + entity.h / 2;
+  const radians = (entity.rotation * Math.PI) / 180;
+  const hx = (Math.cos(radians) * entity.w) / 2;
+  const hy = (Math.sin(radians) * entity.w) / 2;
+  return { a: { x: cx - hx, y: cy - hy }, b: { x: cx + hx, y: cy + hy } };
+}
+
+function fromSegment(entity: SolvableEntity, segment: Segment): SolvableEntity | null {
+  const dx = segment.b.x - segment.a.x;
+  const dy = segment.b.y - segment.a.y;
+  const length = Math.hypot(dx, dy);
+  if (!(length > 1e-9) || !Number.isFinite(length)) return null;
+  if (entity.type === "line")
+    return {
+      ...entity,
+      start: { ...entity.start, x: segment.a.x, y: segment.a.y },
+      end: { ...entity.end, x: segment.b.x, y: segment.b.y },
+    };
+  const cx = (segment.a.x + segment.b.x) / 2;
+  const cy = (segment.a.y + segment.b.y) / 2;
+  return {
+    ...entity,
+    w: length,
+    x: cx - length / 2,
+    y: cy - entity.h / 2,
+    rotation: (Math.atan2(dy, dx) * 180) / Math.PI,
+  };
+}
+
+function maxDelta(a: Segment, b: Segment): number {
+  return Math.max(
+    Math.abs(a.a.x - b.a.x),
+    Math.abs(a.a.y - b.a.y),
+    Math.abs(a.b.x - b.b.x),
+    Math.abs(a.b.y - b.b.y),
+  );
+}
+
+function chooseReference(
+  constraint: CadConstraint,
+  changed: Set<string>,
+): { referenceId: string; targetId: string } | null {
+  const [a, b] = constraint.entityIds;
+  if (!a || !b) return null;
+  if (changed.has(b) && !changed.has(a)) return { referenceId: b, targetId: a };
+  return { referenceId: a, targetId: b };
+}
+
+function applyConstraint(
+  constraint: CadConstraint,
+  entities: Map<string, SolvableEntity>,
+  changed: Set<string>,
+): { delta: number; changedId?: string; error?: string } {
+  const firstId = constraint.entityIds[0];
+  const first = firstId ? entities.get(firstId) : undefined;
+  const firstSegment = first ? toSegment(first) : null;
+  if (!first || !firstSegment)
+    return { delta: 0, error: `Entity ${firstId ?? "(missing)"} is not a solvable wall/line.` };
+
+  let target = first;
+  let before = firstSegment;
+  let after: Segment;
+  if (constraint.kind === "horizontal") after = makeHorizontal(before);
+  else if (constraint.kind === "vertical") after = makeVertical(before);
+  else if (constraint.kind === "distance") {
+    if (!(constraint.value && constraint.value > 0))
+      return { delta: 0, error: "Distance must be greater than zero." };
+    after = setLength(before, constraint.value, "start");
+  } else if (constraint.kind === "angle") {
+    if (!Number.isFinite(constraint.value)) return { delta: 0, error: "Angle must be finite." };
+    after = setAngle(before, constraint.value!, "start");
+  } else {
+    const pair = chooseReference(constraint, changed);
+    if (!pair) return { delta: 0, error: `${constraint.kind} needs two entities.` };
+    const reference = entities.get(pair.referenceId);
+    const targetEntity = entities.get(pair.targetId);
+    const referenceSegment = reference ? toSegment(reference) : null;
+    const targetSegment = targetEntity ? toSegment(targetEntity) : null;
+    if (!reference || !targetEntity || !referenceSegment || !targetSegment)
+      return { delta: 0, error: `${constraint.kind} references an unknown entity.` };
+    target = targetEntity;
+    before = targetSegment;
+    if (constraint.kind === "parallel") after = makeParallel(before, referenceSegment);
+    else if (constraint.kind === "perpendicular") after = makePerpendicular(before, referenceSegment);
+    else if (constraint.kind === "equalLength") after = makeEqualLength(before, referenceSegment);
+    else if (constraint.kind === "collinear") after = makeCollinear(before, referenceSegment);
+    else {
+      const dx = before.b.x - before.a.x;
+      const dy = before.b.y - before.a.y;
+      after = {
+        a: { ...referenceSegment.b },
+        b: { x: referenceSegment.b.x + dx, y: referenceSegment.b.y + dy },
+      };
+    }
+  }
+
+  const next = fromSegment(target, after);
+  if (!next) return { delta: 0, error: `${constraint.kind} produced degenerate geometry.` };
+  entities.set(target.id, next);
+  return { delta: maxDelta(before, after), changedId: target.id };
+}
+
+/** El algoritmo anterior, tal cual. Sólo lo usa su spec comparativo. */
+export function solveCadConstraintsFixedPoint(
+  document: CadDocument,
+  changedEntityIds: readonly string[] = [],
+  options: { tolerance?: number; maxIterations?: number } = {},
+): LegacyFixedPointResult {
+  const tolerance = Math.max(1e-9, options.tolerance ?? 1e-6);
+  const maxIterations = Math.min(64, Math.max(1, options.maxIterations ?? 16));
+  const constraints = document.constraints
+    .filter((constraint) => constraint.enabled)
+    .sort((a, b) => a.id.localeCompare(b.id));
+
+  const solvable = new Map<string, SolvableEntity>();
+  for (const entity of document.entities)
+    if (entity.type === "line" || (entity.type === "box" && entity.kind === "wall"))
+      solvable.set(entity.id, structuredClone(entity));
+
+  const changed = new Set(changedEntityIds);
+  const touched = new Set<string>();
+  let converged = constraints.length === 0;
+  let iterations = 0;
+
+  for (let pass = 1; pass <= maxIterations && constraints.length; pass += 1) {
+    iterations = pass;
+    let largest = 0;
+    for (const constraint of constraints) {
+      const result = applyConstraint(constraint, solvable, changed);
+      if (result.error)
+        return { document, converged: false, iterations, changedEntityIds: [], error: result.error };
+      largest = Math.max(largest, result.delta);
+      if (result.changedId && result.delta > tolerance) touched.add(result.changedId);
+    }
+    if (largest <= tolerance) {
+      converged = true;
+      break;
+    }
+  }
+
+  if (!converged) return { document, converged: false, iterations, changedEntityIds: [] };
+  return {
+    document: { ...document, entities: document.entities.map((entity) => solvable.get(entity.id) ?? entity) },
+    converged: true,
+    iterations,
+    changedEntityIds: [...touched].sort(),
+  };
+}

@@ -73,6 +73,7 @@ function withSchemaDefaults(doc: Partial<CadDocument>): CadDocument {
     styles: doc.styles ?? emptyStyles(),
     blocks: Array.isArray(doc.blocks) ? doc.blocks : [],
     constraints: Array.isArray(doc.constraints) ? doc.constraints : [],
+    ...(Array.isArray(doc.parameters) ? { parameters: doc.parameters } : {}),
     externalReferences: Array.isArray(doc.externalReferences) ? doc.externalReferences : [],
     unsupportedEntities: Array.isArray(doc.unsupportedEntities) ? doc.unsupportedEntities : [],
     lossManifest: Array.isArray(doc.lossManifest) ? doc.lossManifest : [],
@@ -81,7 +82,8 @@ function withSchemaDefaults(doc: Partial<CadDocument>): CadDocument {
       doc.collaboration && typeof doc.collaboration === "object"
         ? doc.collaboration
         : undefined,
-    // Secciones OPCIONALES: sólo aparecen si el documento las traía.
+    // Secciones OPCIONALES: sólo aparecen si el documento las traía. Vale
+    // igual para `parameters`, que llega con el dibujo paramétrico.
     ...(Array.isArray(doc.cells) ? { cells: doc.cells } : {}),
     ...(Array.isArray(doc.imageDefinitions) ? { imageDefinitions: doc.imageDefinitions } : {}),
   };

@@ -48,6 +48,16 @@ export function byId(a: { id: string }, b: { id: string }): number {
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
+/**
+ * Los PARÁMETROS se identifican por nombre, no por id: su orden estable es el
+ * alfabético por nombre. Vive junto a `byId` porque es la misma clase de
+ * canonicalización — un catálogo que se resuelve por su clave, no un orden que
+ * el usuario compuso.
+ */
+export function byName(a: { name: string }, b: { name: string }): number {
+  return a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
+}
+
 export function point3(x: number, y: number, z = 0): { x: number; y: number; z: number } {
   return { x, y, z };
 }

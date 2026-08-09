@@ -32,6 +32,7 @@ import type {
 import { migrateCadDocument } from "./cad-document-migrate";
 import {
   byId,
+  byName,
   CAD_DOCUMENT_SCHEMA,
   CONNECTOR_LAYER,
   preserveDrawOrder,
@@ -425,24 +426,13 @@ export interface CadBlockDefinition {
   businessLink?: CadEntityContext["businessLink"];
 }
 
-export type CadConstraintKind =
-  | "coincident"
-  | "horizontal"
-  | "vertical"
-  | "parallel"
-  | "perpendicular"
-  | "collinear"
-  | "equalLength"
-  | "distance"
-  | "angle";
-
-export interface CadConstraint {
-  id: string;
-  kind: CadConstraintKind;
-  entityIds: string[];
-  value?: number;
-  enabled: boolean;
-}
+// Restricciones y parámetros viven en `constraints/constraint-schema.ts` (un
+// archivo SIN imports, así que no hay ciclo posible) y se reexportan aquí para
+// que todo lo que ya los importaba desde este módulo siga compilando igual.
+import type { CadConstraint, CadParameter } from "./constraints/constraint-schema";
+export type {
+  CadConstraint, CadConstraintAnchor, CadConstraintKind, CadParameter,
+} from "./constraints/constraint-schema";
 
 export interface CadLossManifestEntry {
   code: string;
@@ -639,6 +629,8 @@ export interface CadDocument {
   styles: CadStyleTable;
   blocks: CadBlockDefinition[];
   constraints: CadConstraint[];
+  /** Parámetros con nombre. Sección OPCIONAL: sólo existe si se usan. */
+  parameters?: CadParameter[];
   externalReferences: CadExternalReference[];
   unsupportedEntities: CadOpaqueEntity[];
   lossManifest: CadLossManifestEntry[];
@@ -697,6 +689,7 @@ export function commitChange(doc: CadDocument, label: string): CadDocument {
     styles: structuredClone(doc.styles),
     blocks: structuredClone(doc.blocks),
     constraints: structuredClone(doc.constraints),
+    ...(doc.parameters ? { parameters: structuredClone(doc.parameters) } : {}),
     externalReferences: structuredClone(doc.externalReferences),
     unsupportedEntities: structuredClone(doc.unsupportedEntities),
     lossManifest: structuredClone(doc.lossManifest),
@@ -768,6 +761,7 @@ export function serializeCadDocument(doc: CadDocument): string {
       entities: [...block.entities],
     })),
     constraints: [...doc.constraints].sort(byId).map(stableValue),
+    ...(doc.parameters ? { parameters: [...doc.parameters].sort(byName).map(stableValue) } : {}),
     externalReferences: [...doc.externalReferences].sort(byId).map(stableValue),
     unsupportedEntities: [...doc.unsupportedEntities].sort(byId).map(stableValue),
     lossManifest: doc.lossManifest.map(stableValue),
