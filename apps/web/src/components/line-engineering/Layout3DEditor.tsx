@@ -540,9 +540,9 @@ import type {
   CadPropertyValue,
 } from "@/components/cad/palettes/property-model";
 import { CadDraftStatusBar } from "@/components/cad/palettes/CadDraftStatusBar";
-import { CadDraftSettingsDialog } from "@/components/cad/palettes/CadDraftSettingsDialog";
+import { CadPaletteOverlays } from "@/components/cad/palettes/CadPaletteOverlays";
 import {
-  CAD_OSNAP_MODES,
+  CAD_OSNAP_HUD_LABELS,
   CAD_POLAR_INCREMENTS,
 } from "@/components/cad/palettes/draft-settings-host";
 import {
@@ -552,9 +552,12 @@ import {
   useCadLayerManagerHost,
   useCadPalette,
   useCadPaletteHost,
+  useCadStyleManager,
+  useCadStyleManagerHost,
 } from "@/components/cad/palettes/use-palettes";
 import { CadLayerManagerPalette } from "@/components/cad/palettes/CadLayerManagerPalette";
 import { useCadLayerActions } from "@/components/cad/palettes/use-layer-actions";
+import { useCadStyleActions } from "@/components/cad/palettes/use-style-actions";
 import {
   CadEditorLayerToggles,
   type CadEditorLayerKey,
@@ -727,22 +730,6 @@ async function redeemReviewLink(): Promise<boolean> {
 }
 
 // Etiquetas del glifo OSNAP (Fase 66 cableada, ADR §216) — se muestran en el HUD.
-const OSNAP_LABELS: Record<SnapType, string> = {
-  endpoint: "extremo",
-  midpoint: "medio",
-  center: "centro",
-  "geometric-center": "centro geométrico",
-  node: "nodo",
-  quadrant: "cuadrante",
-  intersection: "intersección",
-  insertion: "inserción",
-  perpendicular: "perpendicular",
-  tangent: "tangente",
-  nearest: "cercano",
-  "apparent-intersection": "intersección aparente",
-  extension: "extensión",
-  grid: "grilla",
-};
 
 // Portapapeles CAD (ADR §220) — a nivel de módulo para que Ctrl+C/Ctrl+V
 // funcione también ENTRE layouts (copiar en AX-1000/A, pegar en AX-2000/B).
@@ -2581,6 +2568,8 @@ export default function Layout3DEditor({
    */
   const layerManagerHost = useCadLayerManagerHost();
   const layerManager = useCadLayerManager(layerManagerHost);
+  const styleManagerHost = useCadStyleManagerHost();
+  const styleManager = useCadStyleManager(styleManagerHost);
   // Las filas del gestor se calculan al final del render; las acciones se
   // montan mucho antes, así que las leen por referencia viva.
   const cadLayerRowsRef = useRef<CadLayerManagerRow[]>([]);
@@ -3226,10 +3215,6 @@ export default function Layout3DEditor({
   // Los métodos de los anfitriones son propiedades flecha por instancia, así que
   // ya son estables por identidad y se pasan directos: envolverlos en
   // `useCallback` no habría añadido estabilidad, sólo ruido.
-  const openDraftSettings = useCallback(
-    () => paletteHost.toggle("draft-settings"),
-    [paletteHost],
-  );
   // El único que sí necesita envoltorio: el cuadro habla en `string` para no
   // importar `SnapType` de `lib/cad`, y aquí se estrecha.
   const toggleDraftOsnapMode = useCallback(
@@ -6327,6 +6312,18 @@ export default function Layout3DEditor({
     activeViewportId: activePaperViewportId,
     setViewportLayerVisibility: changePaperViewportLayerVisibility,
   });
+  const styleActions = useCadStyleActions({
+    host: styleManagerHost,
+    commit: (mutate, success) =>
+      commitBlockMutation(
+        mutate,
+        nativeSelectionIdsRef.current,
+        success,
+        "Estilos",
+        true,
+      ),
+    notify: { error: (message) => toast.error(message, "Estilos") },
+  });
   const filletNativeLines = useCallback(
     (lineIds: [string, string]) => {
       const arcId = newId("fillet");
@@ -8330,7 +8327,7 @@ export default function Layout3DEditor({
         }
         const dist = Math.hypot(s.wx - a.wx, s.wy - a.wy);
         const tag = s.onDxf
-          ? ` · ${s.snapType ? OSNAP_LABELS[s.snapType] : "plano"}`
+          ? ` · ${s.snapType ? CAD_OSNAP_HUD_LABELS[s.snapType] : "plano"}`
           : "";
         if (toolRef.current === "wall" || isCadDrawTool(toolRef.current)) {
           const deg =
@@ -16195,10 +16192,15 @@ export default function Layout3DEditor({
         revealPropertiesPalette();
         return;
       }
-      // Ctrl+9 → DSETTINGS, en la misma familia de atajos de paleta.
+      // Ctrl+8 → gestor de estilos; Ctrl+9 → DSETTINGS. Misma familia.
+      if ((e.ctrlKey || e.metaKey) && e.key === "8") {
+        e.preventDefault();
+        paletteHost.toggleStyles();
+        return;
+      }
       if ((e.ctrlKey || e.metaKey) && e.key === "9") {
         e.preventDefault();
-        paletteHost.toggle("draft-settings");
+        paletteHost.toggleDraftSettings();
         return;
       }
       if (cadShortcut?.id === "palette") {
@@ -19444,7 +19446,8 @@ export default function Layout3DEditor({
                 onPolarIncrement={draftSettingsHost.setPolarIncrement}
                 onToggleObjectSnapTracking={draftSettingsHost.toggleObjectSnapTracking}
                 onClearTracking={draftSettingsHost.clearTrackingPoints}
-                onOpenSettings={openDraftSettings}
+                onOpenSettings={paletteHost.toggleDraftSettings}
+                onOpenStyles={paletteHost.toggleStyles}
               />
               <button
                 onClick={openChecks}
@@ -23231,40 +23234,30 @@ export default function Layout3DEditor({
           });
         })()}
 
-      {/* DSETTINGS — ayudas al dibujo. Lo que sostiene su estado vive fuera de
-          React (`draft-settings-host.ts`), así que abrirlo no cuesta un
-          `useState` en una función que ya tiene demasiados. */}
-      {activePalette === "draft-settings" && (
-        <div
-          className="absolute inset-0 z-[85] grid place-items-center bg-black/55 p-4"
-          onClick={paletteHost.close}
-        >
-          <div onClick={(event) => event.stopPropagation()}>
-            <CadDraftSettingsDialog
-              settings={draftSettings}
-              modes={CAD_OSNAP_MODES}
-              polarIncrements={CAD_POLAR_INCREMENTS}
-              grid={{
-                visible: layers.grid,
-                snap,
-                size: data?.footprint.gridSize ?? 0,
-              }}
-              onToggleOsnap={draftSettingsHost.toggleOsnap}
-              onToggleMode={toggleDraftOsnapMode}
-              onAllModes={draftSettingsHost.setAllOsnapModes}
-              onResetModes={draftSettingsHost.resetOsnapModes}
-              onToggleOrtho={draftSettingsHost.toggleOrtho}
-              onTogglePolar={draftSettingsHost.togglePolar}
-              onPolarIncrement={draftSettingsHost.setPolarIncrement}
-              onToggleObjectSnapTracking={draftSettingsHost.toggleObjectSnapTracking}
-              onClearTracking={draftSettingsHost.clearTrackingPoints}
-              onToggleGridVisible={toggleGridVisible}
-              onToggleGridSnap={toggleGridSnap}
-              onClose={paletteHost.close}
-            />
-          </div>
-        </div>
-      )}
+      {/* Cuadros flotantes de las paletas. Su estado vive fuera de React
+          (`components/cad/palettes`), así que abrirlos no cuesta un `useState`
+          en una función que ya tiene demasiados. */}
+      <CadPaletteOverlays
+        open={activePalette}
+        paletteHost={paletteHost}
+        readOnly={drawingReadOnly}
+        document={loadedCadDocumentRef.current}
+        draftSettingsHost={draftSettingsHost}
+        draftSettings={draftSettings}
+        grid={{
+          visible: layers.grid,
+          snap,
+          size: data?.footprint.gridSize ?? 0,
+        }}
+        onToggleGridVisible={toggleGridVisible}
+        onToggleGridSnap={toggleGridSnap}
+        onToggleOsnapMode={toggleDraftOsnapMode}
+        styleManagerHost={styleManagerHost}
+        styleManager={styleManager}
+        onCreateStyle={styleActions.create}
+        onEditStyle={styleActions.edit}
+        onDeleteStyle={styleActions.remove}
+      />
 
       {/* Keyboard shortcuts / help overlay */}
       {showHelp && (

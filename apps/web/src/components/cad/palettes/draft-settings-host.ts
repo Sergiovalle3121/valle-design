@@ -71,6 +71,31 @@ export function defaultCadOsnapModes(): Record<SnapType, boolean> {
 /** Incrementos polares que ofrece la interfaz, como en AutoCAD. */
 export const CAD_POLAR_INCREMENTS = [5, 10, 15, 22.5, 30, 45, 90] as const;
 
+/**
+ * Etiqueta corta de cada modo para el HUD del puntero.
+ *
+ * Es DISTINTA de la del cuadro DSETTINGS a propósito: el HUD la escribe en
+ * minúscula dentro de una frase («capturado a extremo») y el cuadro la usa como
+ * título de una casilla. Vive aquí, y no en el monolito, porque el monolito
+ * sólo puede encoger.
+ */
+export const CAD_OSNAP_HUD_LABELS: Record<SnapType, string> = {
+  endpoint: "extremo",
+  midpoint: "medio",
+  center: "centro",
+  "geometric-center": "centro geométrico",
+  node: "nodo",
+  quadrant: "cuadrante",
+  intersection: "intersección",
+  insertion: "inserción",
+  perpendicular: "perpendicular",
+  tangent: "tangente",
+  nearest: "cercano",
+  "apparent-intersection": "intersección aparente",
+  extension: "extensión",
+  grid: "grilla",
+};
+
 /** Todos los modos, en el orden de desempate del motor. Para pintar la lista. */
 export const CAD_OSNAP_MODES: readonly SnapType[] = SNAP_PRIORITY;
 

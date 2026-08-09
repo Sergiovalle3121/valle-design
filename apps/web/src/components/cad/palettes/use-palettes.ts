@@ -19,6 +19,10 @@ import {
   CadLayerManagerHost,
   type CadLayerManagerSnapshot,
 } from "./layer-manager-host";
+import {
+  CadStyleManagerHost,
+  type CadStyleManagerSnapshot,
+} from "./style-manager-host";
 
 export function useCadDraftSettingsHost(): CadDraftSettingsHost {
   return useMemo(() => new CadDraftSettingsHost(), []);
@@ -46,6 +50,20 @@ export function useCadLayerManagerHost(): CadLayerManagerHost {
 export function useCadLayerManager(
   host: CadLayerManagerHost,
 ): CadLayerManagerSnapshot {
+  return useSyncExternalStore(
+    host.subscribe,
+    host.getSnapshot,
+    host.getSnapshot,
+  );
+}
+
+export function useCadStyleManagerHost(): CadStyleManagerHost {
+  return useMemo(() => new CadStyleManagerHost(), []);
+}
+
+export function useCadStyleManager(
+  host: CadStyleManagerHost,
+): CadStyleManagerSnapshot {
   return useSyncExternalStore(
     host.subscribe,
     host.getSnapshot,

@@ -14,11 +14,8 @@ export type CadPaletteId =
   | "properties"
   | "layers"
   | "draft-settings"
-  | "text-style"
-  | "dimension-style"
-  | "mleader-style"
-  | "table-style"
-  | "plot-style";
+  /** Los cinco gestores de estilo comparten cuadro y se eligen por pestaña. */
+  | "styles";
 
 export interface CadPaletteSnapshot {
   open: CadPaletteId | null;
@@ -62,5 +59,19 @@ export class CadPaletteHost {
 
   close = (): void => {
     this.publish(null);
+  };
+
+  /**
+   * Atajos preligados a las paletas que tienen botón propio. Existen para que
+   * el editor pase `host.toggleDraftSettings` tal cual: una lambda nueva por
+   * render anularía la memoización del componente que la recibe, y envolverla
+   * en `useCallback` allí sería ruido en un archivo que sólo puede encoger.
+   */
+  toggleDraftSettings = (): void => {
+    this.toggle("draft-settings");
+  };
+
+  toggleStyles = (): void => {
+    this.toggle("styles");
   };
 }

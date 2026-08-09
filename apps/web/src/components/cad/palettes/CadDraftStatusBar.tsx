@@ -23,6 +23,7 @@ export interface CadDraftStatusBarProps {
   onToggleObjectSnapTracking: () => void;
   onClearTracking: () => void;
   onOpenSettings: () => void;
+  onOpenStyles: () => void;
 }
 
 export const CadDraftStatusBar = React.memo(function CadDraftStatusBar({
@@ -35,6 +36,7 @@ export const CadDraftStatusBar = React.memo(function CadDraftStatusBar({
   onToggleObjectSnapTracking,
   onClearTracking,
   onOpenSettings,
+  onOpenStyles,
 }: CadDraftStatusBarProps) {
   const toggles = [
     {
@@ -122,6 +124,14 @@ export const CadDraftStatusBar = React.memo(function CadDraftStatusBar({
         className="text-gray-500 hover:text-white"
       >
         DSETTINGS
+      </button>
+      <button
+        data-testid="cad-draft-status-styles"
+        onClick={onOpenStyles}
+        title="Gestor de estilos: texto, cota, directriz, tabla y ploteo"
+        className="text-gray-500 hover:text-white"
+      >
+        ESTILOS
       </button>
     </>
   );
