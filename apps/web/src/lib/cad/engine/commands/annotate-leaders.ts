@@ -203,7 +203,7 @@ function descriptor(polyline: boolean): CadCommandDescriptor<LeaderState> {
   };
   return {
     name: polyline ? "LEADER" : "MLEADER",
-    aliases: polyline ? ["LE"] : ["MLD", "MLEADERS"],
+    aliases: polyline ? ["LE"] : ["MLD"],
     kind: "annotate",
     transparent: false,
     selection: "none",

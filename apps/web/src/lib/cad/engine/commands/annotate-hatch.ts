@@ -251,7 +251,9 @@ function descriptor(mode: Mode): CadCommandDescriptor<HatchState> {
   return {
     name,
     aliases: mode === "hatch" ? ["H", "BH"] : mode === "gradient" ? ["GD"] : ["BO"],
-    kind: mode === "boundary" ? "draw" : "draw",
+    // Las tres son de DIBUJO: crean geometría. BOUNDARY traza polilíneas y las
+    // otras dos rellenan, pero ninguna anota nada sobre lo que ya hay.
+    kind: "draw",
     transparent: false,
     selection: "optional",
     repeatable: true,
