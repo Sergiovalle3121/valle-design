@@ -8,6 +8,19 @@ import {
   type CadPoint2,
   type CadPoint3,
 } from './cad-document';
+// De `transform2d` y NO de `entity-runtime`: aquél importa `resolveCadInsert`
+// de este módulo, así que pedirle un VALOR de vuelta cierra un ciclo que
+// revienta al cargar. `transform2d` sólo importa un TIPO de `cad-document`, que
+// se borra al compilar, así que por ahí no hay ciclo posible.
+//
+// La `Affine` local de este archivo es estructuralmente idéntica a `CadAffine2`,
+// de modo que entra por la escotilla `affine` sin adaptar nada.
+import {
+  cadAffineIsConformal,
+  cadTransformAngleBase,
+  cadTransformIsReflecting,
+  cadTransformScaleFactor,
+} from './transform2d';
 
 type CadInsert = Extract<CadEntity, { type: 'insert' }>;
 
@@ -72,17 +85,48 @@ function vector(matrix: Affine, value: CadPoint3): CadPoint3 {
   };
 }
 
+const normalizeAngleDeg = (value: number) => ((value % 360) + 360) % 360;
+
+/**
+ * Lo que la matriz de un INSERT le hace a la geometría que contiene.
+ *
+ * Este objeto tenía tres campos que sólo eran correctos cuando la matriz era un
+ * giro, y `resolveCadInsert` alimenta el render, la selección, los límites y la
+ * exportación DXF a la vez — así que el error salía por los cuatro sitios:
+ *
+ * - `uniform` comparaba magnitudes de columnas, y para un espejo puro
+ *   (`scale.x = −1, scale.y = 1`) da `sx = sy = 1`. La bandera decía «esto es un
+ *   giro» y toda la geometría tomaba las ramas que asumen giro. Ahora se
+ *   pregunta lo que de verdad importa —`cadAffineIsConformal`: ¿conserva los
+ *   ángulos?—, que es la condición exacta para que un círculo siga siendo un
+ *   círculo. Un espejo puro la cumple, y con razón.
+ * - `rotation` era `atan2(b, a)` a secas. Para una matriz REFLECTANTE eso no es
+ *   un giro: es `2φ`, el doble del ángulo del eje de reflexión. Sumarlo a un
+ *   ángulo almacenado no significa nada. Se renombra a `angleBase` para que el
+ *   nombre no invite a sumarlo, y se consume siempre por `mappedAngle`.
+ * - `scale` era la media aritmética `(sx+sy)/2`, mientras el resto del kernel
+ *   usa `√|det|`. Difieren en cuanto la matriz es anisótropa, y entonces el
+ *   mismo bloque resuelto por dos caminos daba dos tamaños.
+ */
 function matrixMetrics(matrix: Affine) {
-  const sx = Math.hypot(matrix.a, matrix.b);
-  const sy = Math.hypot(matrix.c, matrix.d);
+  const input = { affine: matrix };
   return {
-    sx,
-    sy,
-    scale: (sx + sy) / 2,
-    uniform: Math.abs(sx - sy) <= Math.max(sx, sy, 1) * 1e-9,
-    rotation: Math.atan2(matrix.b, matrix.a) * 180 / Math.PI,
-    reflected: matrix.a * matrix.d - matrix.b * matrix.c < 0,
+    sx: Math.hypot(matrix.a, matrix.b),
+    sy: Math.hypot(matrix.c, matrix.d),
+    scale: cadTransformScaleFactor(input),
+    conformal: cadAffineIsConformal(matrix),
+    angleBase: cadTransformAngleBase(input),
+    reflected: cadTransformIsReflecting(input),
   };
+}
+
+/**
+ * Ángulo ALMACENADO después de la matriz. Bajo reflexión se RESTA de `2φ`; en
+ * cualquier otro caso se le suma el giro. Es la misma regla que aplican los
+ * adaptadores de entidad, y aquí no se reinventa: se copia.
+ */
+function mappedAngle(metrics: ReturnType<typeof matrixMetrics>, angle: number): number {
+  return normalizeAngleDeg(metrics.reflected ? metrics.angleBase - angle : angle + metrics.angleBase);
 }
 
 function insertMatrix(entity: CadInsert, block: CadBlockDefinition): Affine {
@@ -197,20 +241,42 @@ function transformedEntity(
   if (entity.type === 'line') return { ...entity, ...common, start: point(matrix, entity.start), end: point(matrix, entity.end) };
   if (entity.type === 'polyline') return { ...entity, ...common, vertices: entity.vertices.map((value) => ({ ...point(matrix, value), ...(value.bulge !== undefined ? { bulge: metrics.reflected ? -value.bulge : value.bulge } : {}) })) };
   if (entity.type === 'circle') {
-    if (metrics.uniform) return { ...entity, ...common, center: point(matrix, entity.center), radius: entity.radius * metrics.scale };
+    if (metrics.conformal) return { ...entity, ...common, center: point(matrix, entity.center), radius: entity.radius * metrics.scale };
     return { ...common, type: 'ellipse', center: point(matrix, entity.center), majorAxis: vector(matrix, { x: entity.radius, y: 0, z: 0 }), ratio: Math.min(metrics.sx, metrics.sy) / Math.max(metrics.sx, metrics.sy), startParameter: 0, endParameter: 360 };
   }
   if (entity.type === 'arc') {
-    if (!metrics.uniform) return { ...common, type: 'polyline', vertices: arcPolyline(entity).map((value) => point(matrix, value)), closed: false };
-    return { ...entity, ...common, center: point(matrix, entity.center), radius: entity.radius * metrics.scale, startAngle: entity.startAngle + metrics.rotation, endAngle: entity.endAngle + metrics.rotation };
+    // Una matriz NO conforme deforma el arco hasta dejar de serlo, y ahí la
+    // teselación a polilínea es la salida honesta. Un espejo puro SÍ es
+    // conforme, así que ya no cae por aquí: antes lo hacía, y degradaba el arco
+    // a segmentos rectos sin decírselo a nadie.
+    if (!metrics.conformal) return { ...common, type: 'polyline', vertices: arcPolyline(entity).map((value) => point(matrix, value)), closed: false };
+    // Un arco DXF se recorre SIEMPRE en antihorario, así que bajo reflexión los
+    // extremos se INTERCAMBIAN además de reflejarse. Sumarles el ángulo, que es
+    // lo que se hacía, produce el arco COMPLEMENTARIO: el trozo de
+    // circunferencia que el usuario no dibujó, con el mismo centro y radio.
+    return { ...entity, ...common, center: point(matrix, entity.center), radius: entity.radius * metrics.scale, startAngle: mappedAngle(metrics, metrics.reflected ? entity.endAngle : entity.startAngle), endAngle: mappedAngle(metrics, metrics.reflected ? entity.startAngle : entity.endAngle) };
   }
-  if (entity.type === 'ellipse') return { ...entity, ...common, center: point(matrix, entity.center), majorAxis: vector(matrix, entity.majorAxis), ratio: entity.ratio * (metrics.sy / Math.max(metrics.sx, 1e-12)) };
+  if (entity.type === 'ellipse') {
+    // Los parámetros están en GRADOS (los lee `tessellateEllipse`). Bajo
+    // reflexión el recorrido se invierte: `t ↦ −t`, o sea `360 − parámetro`, con
+    // los extremos intercambiados. Una elipse completa no lo nota; un arco
+    // elíptico salía al revés porque estos dos campos no se tocaban NUNCA.
+    const full = Math.abs(entity.endParameter - entity.startParameter) >= 360 - 1e-9;
+    return { ...entity, ...common, center: point(matrix, entity.center), majorAxis: vector(matrix, entity.majorAxis), ratio: entity.ratio * (metrics.sy / Math.max(metrics.sx, 1e-12)), ...(metrics.reflected && !full ? { startParameter: 360 - entity.endParameter, endParameter: 360 - entity.startParameter } : {}) };
+  }
   if (entity.type === 'spline') return { ...entity, ...common, controlPoints: entity.controlPoints.map((value) => point(matrix, value)) };
-  if (entity.type === 'text') return { ...entity, ...common, x: point(matrix, entity).x, y: point(matrix, entity).y, text: substitute(entity.text, attributes), height: entity.height === undefined ? undefined : entity.height * metrics.scale, rotation: (entity.rotation ?? 0) + metrics.rotation };
-  if (entity.type === 'mtext') return { ...entity, ...common, insertion: point(matrix, entity.insertion), text: substitute(entity.text, attributes), width: entity.width === undefined ? undefined : entity.width * metrics.scale, height: entity.height === undefined ? undefined : entity.height * metrics.scale, rotation: (entity.rotation ?? 0) + metrics.rotation };
+  if (entity.type === 'text') return { ...entity, ...common, x: point(matrix, entity).x, y: point(matrix, entity).y, text: substitute(entity.text, attributes), height: entity.height === undefined ? undefined : entity.height * metrics.scale, rotation: mappedAngle(metrics, entity.rotation ?? 0) };
+  if (entity.type === 'mtext') return { ...entity, ...common, insertion: point(matrix, entity.insertion), text: substitute(entity.text, attributes), width: entity.width === undefined ? undefined : entity.width * metrics.scale, height: entity.height === undefined ? undefined : entity.height * metrics.scale, rotation: mappedAngle(metrics, entity.rotation ?? 0) };
   if (entity.type === 'dimension') return { ...entity, ...common, a: point(matrix, entity.a), b: point(matrix, entity.b), ...(entity.c ? { c: point(matrix, entity.c) } : {}), offset: entity.offset === undefined ? undefined : entity.offset * metrics.scale, radius: entity.radius === undefined ? undefined : entity.radius * metrics.scale, arrowSize: entity.arrowSize === undefined ? undefined : entity.arrowSize * metrics.scale, text: entity.text === undefined ? undefined : substitute(entity.text, attributes), associative: false, references: undefined, associationStatus: 'detached' };
-  if (entity.type === 'hatch') return { ...entity, ...common, boundaries: entity.boundaries.map((boundary) => boundary.map((value) => point(matrix, value))), origin: entity.origin ? point(matrix, entity.origin) : undefined, scale: (entity.scale ?? 1) * metrics.scale, angle: (entity.angle ?? 0) + metrics.rotation, associative: false, boundaryRefs: undefined, associationStatus: 'detached' };
-  if (entity.type === 'mleader') return { ...entity, ...common, vertices: entity.vertices.map((value) => point(matrix, value)), leaderLines: entity.leaderLines?.map((line) => line.map((value) => point(matrix, value))), textPosition: point(matrix, entity.textPosition), text: substitute(entity.text, attributes), textWidth: entity.textWidth === undefined ? undefined : entity.textWidth * metrics.scale, textHeight: entity.textHeight === undefined ? undefined : entity.textHeight * metrics.scale, doglegLength: entity.doglegLength === undefined ? undefined : entity.doglegLength * metrics.scale, arrowSize: entity.arrowSize === undefined ? undefined : entity.arrowSize * metrics.scale, textRotation: (entity.textRotation ?? 0) + metrics.rotation, associative: false, references: undefined, associationStatus: 'detached' };
+  // Sombreado: el ángulo del patrón se REFLEJA, no se suma, y los valores
+  // AUSENTES se resuelven con los MISMOS por defecto que usa el renderizador —
+  // `angle ?? 45` y el espaciado derivado de la diagonal, que aquí se conserva
+  // ausente. Antes se materializaban `?? 0` y `?? 1`: resolver un bloque con un
+  // ANSI31 sin ángulo explícito le giraba el rayado 45° y le fijaba el
+  // espaciado en una unidad —en milímetros, una mancha casi sólida— AUNQUE NO
+  // HUBIERA ESPEJO NI GIRO.
+  if (entity.type === 'hatch') return { ...entity, ...common, boundaries: entity.boundaries.map((boundary) => boundary.map((value) => point(matrix, value))), origin: entity.origin ? point(matrix, entity.origin) : undefined, ...(entity.scale === undefined ? {} : { scale: entity.scale * metrics.scale }), ...(entity.angle === undefined && metrics.angleBase === 0 && !metrics.reflected ? {} : { angle: mappedAngle(metrics, entity.angle ?? 45) }), associative: false, boundaryRefs: undefined, associationStatus: 'detached' };
+  if (entity.type === 'mleader') return { ...entity, ...common, vertices: entity.vertices.map((value) => point(matrix, value)), leaderLines: entity.leaderLines?.map((line) => line.map((value) => point(matrix, value))), textPosition: point(matrix, entity.textPosition), text: substitute(entity.text, attributes), textWidth: entity.textWidth === undefined ? undefined : entity.textWidth * metrics.scale, textHeight: entity.textHeight === undefined ? undefined : entity.textHeight * metrics.scale, doglegLength: entity.doglegLength === undefined ? undefined : entity.doglegLength * metrics.scale, arrowSize: entity.arrowSize === undefined ? undefined : entity.arrowSize * metrics.scale, textRotation: mappedAngle(metrics, entity.textRotation ?? 0), associative: false, references: undefined, associationStatus: 'detached' };
   if (entity.type === 'connector') return { ...entity, ...common };
   return entity;
 }
@@ -251,14 +317,19 @@ function resolveDefinition(
     const id = `${insert.id}:${childPath}:${child.id}`;
     result.push(transformedEntity(child, nextMatrix, id, insert.layer, attributes, insert.context));
   });
+  // Se calcula UNA vez para todos los atributos. Antes se recalculaba dos veces
+  // por atributo, y con el ángulo equivocado: un ATTDEF no lleva rotación
+  // propia, así que la suya sale de la matriz — y bajo reflexión eso no es
+  // `atan2(b, a)` a secas sino `2φ − 0`, que `mappedAngle` ya sabe resolver.
+  const metrics = matrixMetrics(nextMatrix);
   for (const [key, definition] of Object.entries(block.attributes ?? {})) {
     if (definition.invisible || !definition.position || !attributes[key]) continue;
     const anchor = point(nextMatrix, definition.position);
     result.push({
       id: `${insert.id}:${path}:attribute:${key}`,
       type: 'text', x: anchor.x, y: anchor.y, text: attributes[key],
-      height: (definition.height ?? 120) * matrixMetrics(nextMatrix).scale,
-      rotation: matrixMetrics(nextMatrix).rotation,
+      height: (definition.height ?? 120) * metrics.scale,
+      rotation: mappedAngle(metrics, 0),
       style: definition.style,
       layer: insert.layer,
       context: resolvedContext(undefined, insert.context),

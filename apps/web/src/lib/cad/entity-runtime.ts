@@ -646,23 +646,42 @@ const ellipseAdapter: CadEntityAdapter<
      * estuviera del origen.
      *
      * Bajo reflexión hay además una segunda cosa: la elipse se recorre en
-     * sentido contrario. Para una elipse COMPLETA —de 0 a 2π, que es lo que
-     * produce el comando ELLIPSE— eso no se nota, pero para un arco elíptico
-     * los parámetros deben reflejarse e intercambiarse igual que los ángulos
-     * de un arco. Se hace aquí para que un arco elíptico importado de DXF no se
-     * convierta en su complementario al espejarlo.
+     * sentido contrario. Para una elipse COMPLETA eso no se nota, pero para un
+     * arco elíptico los parámetros deben reflejarse e intercambiarse igual que
+     * los ángulos de un arco. Se hace aquí para que un arco elíptico importado
+     * de DXF no se convierta en su complementario al espejarlo.
+     *
+     * ## Los parámetros están en GRADOS
+     *
+     * Esta regla nació escrita en RADIANES —`2π − parámetro`, con la elipse
+     * completa detectada como `end − start ≈ 2π`— y ninguna de las dos cosas
+     * casa con el resto del producto: `tessellateEllipse` recibe grados, el
+     * renderizador cierra la curva cuando el barrido llega a 360, `paper-space`
+     * compara contra 359,999 y la importación DXF escribe `0…360`. Con la
+     * convención equivocada, espejar un arco elíptico de 0° a 90° producía
+     * −83,7°…6,28°: un trozo de elipse que el usuario no dibujó, en el sitio
+     * equivocado.
+     *
+     * La spec de ida y vuelta no lo cazó porque su ejemplar iba de 0 a `2π`, y
+     * bajo la comparación en radianes eso se clasificaba como elipse completa:
+     * la rama de reflexión NUNCA se ejecutaba. La propiedad se cumplía de forma
+     * vacía. Ahora hay un ancla absoluta que fija el valor concreto.
+     *
+     * Nota aparte: `engine/commands/draw-curves.ts` emite `endParameter:
+     * Math.PI * 2` al crear una elipse, que en grados son 6,28° — un gajo. Ese
+     * archivo queda fuera de este cambio; el defecto está anotado en el PR.
      */
     transform: (entity, transform) => {
       const reflecting = cadTransformIsReflecting(transform);
-      const full = Math.abs(entity.endParameter - entity.startParameter - Math.PI * 2) < 1e-9;
+      const full = Math.abs(entity.endParameter - entity.startParameter) >= 360 - 1e-9;
       return {
         ...entity,
         center: transformPoint(entity.center, transform),
         majorAxis: transformVector(entity.majorAxis, transform),
         ...(reflecting && !full
           ? {
-              startParameter: Math.PI * 2 - entity.endParameter,
-              endParameter: Math.PI * 2 - entity.startParameter,
+              startParameter: 360 - entity.endParameter,
+              endParameter: 360 - entity.startParameter,
             }
           : {}),
         context: cloneContext(entity.context),
