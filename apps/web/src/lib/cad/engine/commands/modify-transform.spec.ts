@@ -7,9 +7,11 @@
  *   - `Copiar` debe dejar el original INTACTO y transformar el duplicado. Si se
  *     transformara el original y se copiara después, el resultado sería el
  *     mismo objeto dos veces en el sitio equivocado.
- *   - FILLET sobre algo que no es una línea debe negarse ANTES de calcular.
- *     `computeCadLineFillet` leería `entity.start` de un arco, obtendría
- *     `undefined` y escribiría `NaN` en el documento sin un solo error visible.
+ *   - FILLET ya admite ARC y CIRCLE, pero por OTRA vía: `computeCadLineFillet`
+ *     leería `entity.start` de un arco, obtendría `undefined` y escribiría
+ *     `NaN` en el documento sin un solo error visible. Se comprueba que el par
+ *     con arco produce geometría finita, y que CHAMFER —que en AutoCAD tampoco
+ *     admite curvas— se niega nombrando lo designado.
  *   - Una escala de cero colapsa la geometría y una negativa es una reflexión
  *     disfrazada. Ambas se rechazan diciendo por qué.
  *   - El radio de FILLET es pegajoso entre invocaciones, como en AutoCAD.
@@ -35,6 +37,13 @@ const LINE_B: CadEntity = {
   end: { x: 1000, y: 1000, z: 0 },
   layer: "0",
 };
+const CIRCLE: CadEntity = {
+  id: "circ",
+  type: "circle",
+  center: { x: 500, y: 100, z: 0 },
+  radius: 120,
+  layer: "0",
+};
 const ARC: CadEntity = {
   id: "arc",
   type: "arc",
@@ -46,7 +55,7 @@ const ARC: CadEntity = {
 };
 
 function makeContext(selection: readonly string[] = []): CadCommandContext {
-  const entities = new Map([LINE_A, LINE_B, ARC].map((entity) => [entity.id, entity]));
+  const entities = new Map([LINE_A, LINE_B, ARC, CIRCLE].map((entity) => [entity.id, entity]));
   let ids = 0;
   return {
     entityIds: [...entities.keys()],
@@ -204,9 +213,44 @@ const pick = (entityId: string): CadCommandInput => ({
         );
 }
 
-// --- FILLET sobre algo que no es una línea: se niega ANTES de calcular ---------
+// --- FILLET contra un ARCO: por la vía general, y sin un solo NaN ---------------
 {
-  const result = run("FILLET", [pick("a"), pick("arc")]);
+  // `a` es la horizontal y=0 de 0 a 1000; `arc` es el cuadrante de radio 100
+  // centrado en el origen. Un empalme de radio 20 entre los dos es tangente por
+  // fuera del arco, con el centro a 120 del origen y a 20 de la recta.
+  const result = run("FILLET", [keyword("Radio"), distance(20), pick("a"), pick("arc")]);
+  assert.ok(
+    result && result.kind === "document",
+    `un arco ya se admite: "${result?.kind === "message" ? result.text : result?.kind}"`,
+  );
+  const inserted = result.commands.find((command) => command.type === "insert");
+  assert.ok(inserted && inserted.type === "insert" && inserted.entity.type === "arc");
+  assert.ok(Math.abs(inserted.entity.radius - 20) < 1e-6, "con el radio pedido");
+  // La aserción que salva de la corrupción silenciosa.
+  let finite = true;
+  JSON.stringify(result.commands, (_key, value) => {
+    if (typeof value === "number" && !Number.isFinite(value)) finite = false;
+    return value;
+  });
+  assert.ok(finite, "ningún número del lote es NaN ni infinito");
+}
+
+// --- FILLET contra un CÍRCULO no recorta el círculo -----------------------------
+{
+  const result = run("FILLET", [keyword("Radio"), distance(20), pick("a"), pick("circ")]);
+  assert.ok(result && result.kind === "document");
+  assert.ok(
+    !result.commands.some(
+      (command) =>
+        (command.type === "properties" || command.type === "replace") && command.entityId === "circ",
+    ),
+    "un círculo recortado dejaría de ser un círculo: AutoCAD tampoco lo recorta",
+  );
+}
+
+// --- CHAMFER sigue admitiendo sólo LINE, como en AutoCAD -------------------------
+{
+  const result = run("CHAMFER", [keyword("Distancia"), distance(10), distance(10), pick("a"), pick("arc")]);
   assert.equal(result?.kind, "message", "un arco no se acepta en silencio");
   assert.ok(
     result.kind === "message" && result.text.includes("ARC"),
@@ -218,7 +262,7 @@ const pick = (entityId: string): CadCommandInput => ({
 {
   const result = run("FILLET", [pick("a"), pick("a")]);
   assert.equal(result?.kind, "message");
-  assert.ok(result.kind === "message" && result.text.includes("distintas"));
+  assert.ok(result.kind === "message" && result.text.includes("distintos"));
 }
 
 // --- FILLET propaga el rechazo de la geometría, no lo sustituye ---------------

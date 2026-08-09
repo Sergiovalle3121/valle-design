@@ -18,16 +18,30 @@
  * como UN lote al terminar, así que las quince líneas son un solo paso de
  * deshacer — que es lo que espera quien luego pulsa Ctrl+Z una vez.
  *
- * ## Alcance declarado
+ * ## Alcance
  *
- * La geometría de `geom-trim.ts` trabaja sobre SEGMENTOS. Se admiten LINE como
- * objeto y como borde; cualquier otra cosa se rechaza nombrándola. Generalizar
- * a arcos, círculos y polilíneas es trabajo aparte y no se disimula aceptando
- * la designación para después no hacer nada.
+ * TRIM y EXTEND aceptan LINE, ARC, CIRCLE, ELLIPSE y POLYLINE, como objeto y
+ * como borde. La regla es una sola —conservar el tramo entre los cortes vecinos
+ * al clic— y vive en `curve-edit.ts`, escrita sobre el parámetro de
+ * `curve-model.ts`; aquí sólo se recoge la designación y se emite el lote. Lo
+ * que ese módulo no sabe convertir (hoy, SPLINE) se rechaza nombrándolo en vez
+ * de aproximarlo por su poligonal, que cortaría en el sitio equivocado.
+ *
+ * BREAK sigue admitiendo sólo LINE. Su geometría es la de `geom-trim.ts`, que
+ * trabaja sobre segmentos, y generalizarla es un cambio con su propia decisión
+ * —partir un círculo por un punto no produce dos trozos— que no se disimula
+ * aceptando la designación para después no hacer nada.
  */
 import type { CadEntity, CadPoint2 } from "../../cad-document";
 import type { CadEntityCommand } from "../../entity-commands";
-import { breakSegment, extendSegment, trimSegment } from "../../geom-trim";
+import {
+  asCadEditableEntity,
+  computeCadCurveExtend,
+  computeCadCurveTrim,
+  type CadCurveEditOutcome,
+  type CadEditableEntity,
+} from "../../curve-edit";
+import { breakSegment } from "../../geom-trim";
 import {
   CAD_ACCEPT_ENTITY_PICK,
   CAD_ACCEPT_KEYWORD,
@@ -136,13 +150,26 @@ function edgeFinish(state: EdgeState, operation: EdgeOperation): CadCommandStep<
   };
 }
 
-/** Bordes efectivos: los designados, o todas las líneas si se pidió `Todos`. */
-function edgeLines(state: EdgeState, context: CadCommandContext): CadLineEntity[] {
-  const ids =
-    state.edges.length > 0
-      ? state.edges
-      : context.entityIds.filter((id) => asLine(context.entity?.(id)));
-  return ids.map((id) => asLine(context.entity?.(id))).filter((line): line is CadLineEntity => !!line);
+/**
+ * Bordes efectivos: los designados, o TODO el dibujo si se pidió `Todos`.
+ *
+ * Ya no se filtra a líneas. `curve-edit.ts` descarta por su cuenta lo que no
+ * sabe convertir, así que un arco o una polilínea del dibujo cortan igual que
+ * una línea sin que este comando tenga que saberlo.
+ */
+function edgeEntities(state: EdgeState, context: CadCommandContext): CadEntity[] {
+  const ids = state.edges.length > 0 ? state.edges : context.entityIds;
+  return ids
+    .map((id) => context.entity?.(id))
+    .filter((entity): entity is CadEntity => !!entity);
+}
+
+/** El cambio calculado, ya como comando de entidad. */
+function editCommand(entityId: string, outcome: CadCurveEditOutcome): CadEntityCommand | null {
+  if ("error" in outcome) return null;
+  if (outcome.replace) return { type: "replace", entityId, entity: outcome.replace };
+  if (outcome.patch) return { type: "properties", entityId, patch: outcome.patch };
+  return null;
 }
 
 function edgeCommand(
@@ -190,9 +217,9 @@ function edgeCommand(
 
       if (!picked || picked.length === 0) return edgeStep(state, operation);
       const targetId = picked[0];
-      const target = asLine(context.entity?.(targetId));
-      if (!target) {
-        const found = context.entity?.(targetId);
+      const found = context.entity?.(targetId);
+      const target: CadEditableEntity | null = asCadEditableEntity(found);
+      if (!target)
         return edgeStep(
           {
             ...state,
@@ -205,52 +232,51 @@ function edgeCommand(
           },
           operation,
         );
-      }
 
-      // El punto de designación decide QUÉ TROZO se conserva en TRIM. Sin él no
-      // hay forma de saber a qué lado del cruce apuntaba el usuario, y elegir
-      // por nuestra cuenta borraría la mitad equivocada.
-      const keep =
-        input.kind === "entityPick"
-          ? input.point
-          : { x: target.start.x, y: target.start.y };
+      // El punto de designación decide QUÉ TROZO se conserva en TRIM y QUÉ
+      // EXTREMO se estira en EXTEND. Sin él no hay forma de saber a qué lado
+      // del cruce apuntaba el usuario, y elegir por nuestra cuenta cambiaría la
+      // mitad equivocada. Sin punto se toma el arranque del objeto, que es el
+      // comportamiento que ya tenía la designación por selección.
+      const pick =
+        input.kind === "entityPick" ? input.point : entityAnchor(target);
 
-      const segment = ends(target);
-      for (const edge of edgeLines(state, context)) {
-        if (edge.id === target.id) continue;
-        const edgeEnds = ends(edge);
-        const result =
-          operation === "TRIM"
-            ? trimSegment(segment.a, segment.b, edgeEnds.a, edgeEnds.b, keep)
-            : extendSegment(segment.a, segment.b, edgeEnds.a, edgeEnds.b);
-        if (!result) continue;
+      const payload = {
+        target,
+        boundaries: edgeEntities(state, context),
+        pick,
+      };
+      const outcome =
+        operation === "TRIM" ? computeCadCurveTrim(payload) : computeCadCurveExtend(payload);
+      const command = editCommand(target.id, outcome);
+      if (!command)
         return edgeStep(
           {
             ...state,
-            touched: state.touched + 1,
-            commands: [
-              ...state.commands,
-              { type: "properties", entityId: target.id, patch: segmentPatch(result) },
+            refusals: [
+              ...state.refusals,
+              `${target.id} ${"error" in outcome ? outcome.error : "no cambió."}`,
             ],
           },
           operation,
         );
-      }
 
       return edgeStep(
-        {
-          ...state,
-          refusals: [
-            ...state.refusals,
-            operation === "TRIM"
-              ? `${target.id} no cruza ningún borde.`
-              : `${target.id} no alcanza ningún borde.`,
-          ],
-        },
+        { ...state, touched: state.touched + 1, commands: [...state.commands, command] },
         operation,
       );
     },
   };
+}
+
+/** Punto de referencia cuando se designa sin pinchar: el arranque del objeto. */
+function entityAnchor(entity: CadEditableEntity): CadPoint2 {
+  if (entity.type === "line") return { x: entity.start.x, y: entity.start.y };
+  if (entity.type === "polyline")
+    return entity.vertices.length > 0
+      ? { x: entity.vertices[0].x, y: entity.vertices[0].y }
+      : { x: 0, y: 0 };
+  return { x: entity.center.x, y: entity.center.y };
 }
 
 // ---------------------------------------------------------------------------
