@@ -117,6 +117,9 @@ const names = registry.all().map((command) => command.name);
     "GROUP",
     "UNGROUP",
     "PURGE",
+    "XREF",
+    "XBIND",
+    "XCLIP",
   ])
     assert.ok(names.includes(expected), `${expected} no llegó al registro del producto`);
 }

@@ -40,9 +40,10 @@ import type { CadBounds } from "../entity-runtime";
 import type { CadEntityCommand } from "../entity-commands";
 import type { SnapType } from "../snap-engine";
 // Sólo TIPOS: la importación se borra al compilar, así que el motor sigue sin
-// depender en tiempo de ejecución ni de la vista ni del trazado, y no hay ciclo
-// que `benchmark:cad:smoke` pueda destapar.
+// depender en tiempo de ejecución ni de la vista, ni del trazado, ni de las
+// referencias externas, y no hay ciclo que `benchmark:cad:smoke` pueda destapar.
 import type { CadViewRequest } from "../view/view-navigation";
+import type { CadXrefCatalogEntry } from "../xref/xref-paths";
 import type { CadHostRequest } from "./host-requests";
 
 export type CadCommandKind = "draw" | "modify" | "annotate" | "inquiry" | "view" | "manage";
@@ -176,6 +177,17 @@ export interface CadCommandContext {
    * confianza. Escribir sigue yendo por el lote de comandos, como todo.
    */
   document?: () => CadCommandDocumentView;
+  /**
+   * Biblioteca de dibujos del inquilino que se pueden referenciar.
+   *
+   * XATTACH y la RESOLUCIÓN DE RUTAS de XREF la necesitan: sin un catálogo no
+   * hay forma de saber si `plantas/base` existe, ni de decir por cuál de las
+   * tres rutas se encontró. Traerla es I/O, y el motor es síncrono y puro, así
+   * que la aporta el anfitrión ya cargada. Quien la necesita y no la recibe lo
+   * dice —«el anfitrión no expone la biblioteca»— en vez de responder «no
+   * existe», que culparía al dibujo de una carencia del editor.
+   */
+  xrefCatalog?: () => readonly CadXrefCatalogEntry[];
   selection: readonly string[];
   activeLayer: string;
   /**
