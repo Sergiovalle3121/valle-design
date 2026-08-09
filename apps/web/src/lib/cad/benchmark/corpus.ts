@@ -122,6 +122,13 @@ export function createCadBenchmarkCorpus(options: {
     image: 0,
     attdef: 0,
     table: 0,
+    // Esquema 5. Mismo criterio: un sólido en el corpus cambiaría los hashes
+    // del manifiesto del benchmark, y además su coste no es comparable al de
+    // una línea — evaluar un árbol de construcción no mide lo mismo que
+    // proyectar un segmento. Se declaran en cero para que el recuento siga
+    // cubriendo todos los tipos nativos.
+    solid3d: 0,
+    region: 0,
   };
 
   for (let index = 0; index < count; index += 1) {
