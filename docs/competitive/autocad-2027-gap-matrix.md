@@ -167,13 +167,17 @@ puntuar honestidad de producto, no funcionalidad.
 `apps/web/scripts/cad-render-benchmark.mts` y versionado en
 `docs/cad/evidence/cad-render-benchmark-100k.json`:
 
-| Métrica sobre 100.000 entidades   | Pipeline nuevo | Pipeline actual del editor |
-| --------------------------------- | -------------: | -------------------------: |
-| Primer detalle                    |       750,5 ms |                    73,4 ms |
-| Asentado del zoom                 |        23,3 ms |                    39,1 ms |
-| Cuadro de paneo p95               |         7,2 ms |                    64,1 ms |
-| Entidades detalladas en reposo    |        100.000 |                      2.500 |
-| Crecimiento del montón (3 ciclos) |        0,01 MB |                          — |
+| Métrica sobre 100.000 entidades   | Pipeline nuevo (`next`) | Camino heredado (`legacy`) |
+| --------------------------------- | ----------------------: | -------------------------: |
+| Primer detalle                    |                750,5 ms |                    73,4 ms |
+| Asentado del zoom                 |                 23,3 ms |                    39,1 ms |
+| Cuadro de paneo p95               |                  7,2 ms |                    64,1 ms |
+| Entidades detalladas en reposo    |                 100.000 |                      2.500 |
+| Crecimiento del montón (3 ciclos) |                 0,01 MB |                          — |
+
+`legacy` es el modelo en Node del camino que hoy usa el editor, no el editor
+medido en navegador. Sirve para comparar los dos caminos con el mismo guion, no
+para afirmar qué siente un usuario.
 
 Máquina: **Node v22.22.2 sobre Linux x64, Intel Xeon a 2,80 GHz, 4 CPU lógicas,
 16,8 GB de RAM, límite de montón 4,3 GB**, corrida del 2026-08-09T07:30Z, corpus
