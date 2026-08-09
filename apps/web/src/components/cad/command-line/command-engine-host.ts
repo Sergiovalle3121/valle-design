@@ -31,7 +31,9 @@ import type {
   CadPrompt,
 } from "@/lib/cad/engine/command-types";
 import type { CadEntityCommand } from "@/lib/cad/entity-commands";
+import type { CadHostRequest } from "@/lib/cad/engine/host-requests";
 import type { SnapType } from "@/lib/cad/snap-engine";
+import type { CadViewRequest } from "@/lib/cad/view/view-navigation";
 import type { CadCommandLineEntry } from "./CadCommandLine";
 
 /** Lo que el anfitrión necesita del editor para que un comando surta efecto. */
@@ -46,6 +48,20 @@ export interface CadCommandEngineBridge {
   osnapOverride(modes: readonly SnapType[] | null): void;
   /** Forma del cursor del viewport. */
   cursor(shape: "crosshair" | "pick" | "none"): void;
+  /**
+   * Encuadre: ZOOM, PAN, VIEW y REGEN. Devuelve el renglón que hay que enseñar
+   * —«ZOOM Extensión», «No hay ninguna vista previa que recuperar»— porque la
+   * respuesta depende del dibujo y del lienzo, que el motor no ve.
+   *
+   * Opcional: un anfitrión sin vista (una prueba, un script sin lienzo) no
+   * tiene dónde encuadrar, y decirlo es mejor que fingir que encuadró.
+   */
+  view?(request: CadViewRequest): string;
+  /**
+   * Trabajo fuera del documento: trazar, publicar, cambiar de espacio. Devuelve
+   * el renglón a mostrar, igual que `view`.
+   */
+  host?(request: CadHostRequest): string;
 }
 
 export interface CadCommandEngineSnapshot {
@@ -187,6 +203,23 @@ export class CadCommandEngineHost {
         return;
       case "execute":
         this.bridge.apply(effect.commands, effect.label);
+        return;
+      case "view":
+        // Sin puente de vista el comando no encuadró nada, y eso se dice. Un
+        // «ZOOM Extensión» impreso sobre una vista que no se movió es peor que
+        // un aviso: enseña a no fiarse del diálogo.
+        this.log(
+          this.bridge.view?.(effect.request) ??
+            `${effect.label} no está disponible sin una vista activa.`,
+          this.bridge.view ? "info" : "error",
+        );
+        return;
+      case "host":
+        this.log(
+          this.bridge.host?.(effect.request) ??
+            `${effect.label} no está disponible en este contexto.`,
+          this.bridge.host ? "info" : "error",
+        );
         return;
       case "message":
         this.log(effect.text, effect.level === "error" ? "error" : "info");

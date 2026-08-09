@@ -26,12 +26,19 @@ import { useMemo, useRef, useSyncExternalStore } from "react";
 import { CAD_COMMAND_REGISTRY_V2 } from "@/lib/cad/engine";
 import type { CadDocument } from "@/lib/cad/cad-document";
 import type { CadEntityCommand } from "@/lib/cad/entity-commands";
+import type { CadHostRequest } from "@/lib/cad/engine/host-requests";
 import type { CadView } from "@/lib/cad/view/cad-view";
+import { cadDocumentExtents, cadEntityExtents } from "@/lib/cad/view/document-extents";
 import {
   CadCommandEngineHost,
   type CadCommandEngineBridge,
   type CadCommandEngineSnapshot,
 } from "./command-engine-host";
+import {
+  CadNavigationHost,
+  type CadNavigationSnapshot,
+  type CadViewControllerLike,
+} from "./navigation-host";
 import { cadStudioCommandContext } from "./studio-context";
 
 export function useCadCommandEngineHost(
@@ -66,16 +73,60 @@ export function useCadCommandEngineHost(
 export interface CadStudioCommandEngineOptions {
   document: { current: CadDocument | null };
   selection: { current: readonly string[] };
-  view: { current: { view: CadView } | null };
+  /**
+   * Controlador de vista vivo. El editor ya guardaba aquí su
+   * `CadViewController`, así que ZOOM, PAN y VIEW encuadran la cámara REAL sin
+   * que el editor tenga que cablear nada nuevo: el controlador que ya pasaba
+   * para leer `pixelsPerUnit` es el mismo que ahora recibe `setView`.
+   */
+  view: { current: (CadViewControllerLike & { view: CadView }) | null };
   activeLayer: string;
   newEntityId: () => string;
   /** Aplica el lote por la ruta canónica del editor. */
   apply(commands: readonly CadEntityCommand[], label: string): void;
+  /** Trabajo fuera del documento: trazar, publicar, cambiar de espacio. */
+  host?(request: CadHostRequest): string;
+}
+
+/**
+ * Anfitrión de navegación del estudio.
+ *
+ * Se crea UNA vez, igual que el del motor: lleva dentro la pila de vistas
+ * previas y las vistas con nombre, y recrearlo en un render las borraría. El
+ * puente delega en las opciones vivas a través de una `ref`, por lo mismo que
+ * el del motor.
+ */
+export function useCadStudioNavigation(
+  options: Pick<CadStudioCommandEngineOptions, "document" | "view">,
+): CadNavigationHost {
+  const live = useRef(options);
+  live.current = options;
+  return useMemo(
+    () =>
+      new CadNavigationHost({
+        controller: () => live.current.view.current,
+        // La envolvente se recalcula por petición y no se memoriza: ZOOM
+        // Extensión se teclea unas pocas veces por sesión, y una caché que
+        // envejece encuadraría el dibujo de hace tres órdenes.
+        extents: () => {
+          const document = live.current.document.current;
+          return document ? cadDocumentExtents(document) : null;
+        },
+        entityBounds: (entityId) => {
+          const document = live.current.document.current;
+          return document ? cadEntityExtents(document, entityId) : null;
+        },
+      }),
+    [],
+  );
 }
 
 export function useCadStudioCommandEngine(
   options: CadStudioCommandEngineOptions,
 ): CadCommandEngineHost {
+  const navigation = useCadStudioNavigation(options);
+  const live = useRef(options);
+  live.current = options;
   return useCadCommandEngineHost({
     context: () =>
       cadStudioCommandContext({
@@ -91,6 +142,10 @@ export function useCadStudioCommandEngine(
         newEntityId: options.newEntityId,
       }),
     apply: options.apply,
+    view: navigation.apply,
+    host: (request) =>
+      live.current.host?.(request) ??
+      `«${request.kind}» todavía no está disponible en este estudio.`,
     // Previsualización, captura forzada y forma del cursor pertenecen al
     // puntero. Se ignoran a conciencia hasta que el puntero llegue.
     preview: () => {},
@@ -110,5 +165,13 @@ export function useCadStudioCommandEngine(
 export function useCadCommandEngine(
   host: CadCommandEngineHost,
 ): CadCommandEngineSnapshot {
+  return useSyncExternalStore(host.subscribe, host.getSnapshot, host.getSnapshot);
+}
+
+/**
+ * Lectura del estado de navegación: vistas con nombre, profundidad de la pila
+ * de `ZOOM Previo` y regeneraciones. Mismo patrón que el del motor.
+ */
+export function useCadNavigation(host: CadNavigationHost): CadNavigationSnapshot {
   return useSyncExternalStore(host.subscribe, host.getSnapshot, host.getSnapshot);
 }

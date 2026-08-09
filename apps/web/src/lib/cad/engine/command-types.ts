@@ -37,6 +37,11 @@ import type {
 } from "../cad-document";
 import type { CadEntityCommand } from "../entity-commands";
 import type { SnapType } from "../snap-engine";
+// Sólo TIPOS: la importación se borra al compilar, así que el motor sigue sin
+// depender en tiempo de ejecución ni de la vista ni del trazado, y no hay ciclo
+// que `benchmark:cad:smoke` pueda destapar.
+import type { CadViewRequest } from "../view/view-navigation";
+import type { CadHostRequest } from "./host-requests";
 
 export type CadCommandKind = "draw" | "modify" | "annotate" | "inquiry" | "view" | "manage";
 
@@ -151,6 +156,30 @@ export interface CadCommandContext {
 
 export type CadCommandResult =
   | { kind: "document"; commands: readonly CadEntityCommand[]; label: string }
+  /**
+   * Cambio de ENCUADRE, no de documento.
+   *
+   * ZOOM, PAN y VIEW no mutan nada: mueven la cámara. Colarlos por
+   * `"document"` los metería en la pila de deshacer —Ctrl+Z desharía un
+   * zoom en vez de la línea anterior— y obligaría a inventar un
+   * `CadEntityCommand` que no toca ninguna entidad.
+   *
+   * Lo que viaja es una PETICIÓN declarativa, no una `CadView` ya resuelta: el
+   * comando no sabe cuánto mide el lienzo ni dónde está la envolvente del
+   * dibujo, y fingir que lo sabe volvería a meter el estado de la vista dentro
+   * del motor. Resolverla es trabajo del anfitrión, con
+   * `applyCadViewRequest`.
+   */
+  | { kind: "view"; request: CadViewRequest; label: string }
+  /**
+   * Trabajo del ANFITRIÓN con efecto fuera del documento: trazar a PDF,
+   * publicar un conjunto de planos, abrir un cuadro de configuración.
+   *
+   * Igual que `"view"`, viaja una petición declarativa. Un comando puro no
+   * puede fabricar un PDF —necesita fuentes, `Blob` y una descarga— y meter eso
+   * en el motor lo ataría al navegador y haría imposible probarlo en Node.
+   */
+  | { kind: "host"; request: CadHostRequest; label: string }
   | { kind: "message"; text: string }
   | { kind: "none" };
 

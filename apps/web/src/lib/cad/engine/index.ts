@@ -28,10 +28,12 @@ import { CAD_MIRROR_COMMANDS } from "./commands/modify-mirror";
 import { CAD_MODIFY_TRANSFORM_COMMANDS } from "./commands/modify-transform";
 import { CAD_PARAMETRIC_DIMENSION_COMMANDS } from "./commands/parametric-dimensions";
 import { CAD_PARAMETRIC_GEOMETRY_COMMANDS } from "./commands/parametric-geometry";
+import { CAD_VIEW_NAVIGATION_COMMANDS } from "./commands/view-navigation";
 import { createCadCommandRegistry, type CadCommandRegistryImpl } from "./registry";
 
 export * from "./command-types";
 export * from "./command-engine";
+export type { CadHostRequest } from "./host-requests";
 export * from "./alias-table";
 export * from "./prompt";
 export * from "./input-pipeline";
@@ -60,6 +62,7 @@ export const CAD_COMMAND_DESCRIPTORS = [
   ...CAD_MODIFY_PEDIT_COMMANDS,
   ...CAD_PARAMETRIC_GEOMETRY_COMMANDS,
   ...CAD_PARAMETRIC_DIMENSION_COMMANDS,
+  ...CAD_VIEW_NAVIGATION_COMMANDS,
 ] as const;
 
 /**
