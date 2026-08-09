@@ -1,0 +1,157 @@
+/**
+ * Anfitrión de trazado: donde `PLOT` deja de ser una petición y sale un PDF.
+ *
+ * El motor de comandos es puro y no puede fabricar un archivo — necesita
+ * `Blob`, una URL y un enlace que se pulse solo. Eso es esta clase: recibe la
+ * `CadHostRequest` que emitió PLOT, PAGESETUP o PUBLISH y hace el trabajo del
+ * navegador. Todo lo que se puede decidir sin navegador —el área, la escala,
+ * la colocación, los grosores— ya venía decidido desde `lib/cad/plot`.
+ *
+ * ## Por qué devuelve un renglón y no una promesa
+ *
+ * La línea de comandos es síncrona: se teclea `PLOT`, se pulsa Enter y aparece
+ * una respuesta. Trazar tarda. Así que se responde de inmediato con lo que se
+ * sabe —«Trazando A-101 a PDF…»— y el resultado llega después por
+ * `onResult`. Devolver una promesa obligaría a la línea de comandos a saber de
+ * asincronía, que es exactamente lo que no debe saber.
+ */
+import type { CadDocument } from "@/lib/cad/cad-document";
+import type { CadHostRequest } from "@/lib/cad/engine/host-requests";
+import { cadDocumentExtents } from "@/lib/cad/view/document-extents";
+import { buildCadPlotJob, buildCadPlotPreview } from "@/lib/cad/plot/plot-job";
+import type { CadPlotStyleTable } from "@/lib/cad/plot/plot-style-table";
+import {
+  renderCadPlotPdf,
+  type CadPlotFontProgram,
+  type CadPlotPdfResult,
+} from "@/lib/cad/plot/plot-pdf";
+import type { CadPlotPreview } from "@/lib/cad/plot/plot-job";
+
+export interface CadPlotHostBridge {
+  /** Documento vivo. `null` mientras no hay dibujo abierto. */
+  document(): CadDocument | null;
+  /** Tablas de plumas cargadas, por nombre. */
+  plotStyleTables?(): ReadonlyMap<string, CadPlotStyleTable>;
+  /** Programas de fuente para incrustar. Sin ellos se usan las estándar. */
+  fonts?(): readonly CadPlotFontProgram[];
+  /** Entrega el archivo al usuario. Inyectado para poder probarlo en Node. */
+  download(fileName: string, bytes: Uint8Array, mimeType: string): void;
+  /** Muestra la vista previa. */
+  preview?(preview: CadPlotPreview): void;
+  /** Abre el cuadro de configuración de página. */
+  openPageSetup?(layoutId: string): void;
+  /** Cambia el espacio activo del editor. */
+  setSpace?(space: "model" | "paper", layoutId?: string): void;
+  /** Resultado del trazado, para el diálogo de la línea de comandos. */
+  onResult?(message: string, level: "info" | "error"): void;
+}
+
+/** Descarga en el navegador. Aparte para que las pruebas no necesiten DOM. */
+export function downloadCadFile(
+  fileName: string,
+  bytes: Uint8Array,
+  mimeType: string,
+): void {
+  const blob = new Blob([bytes as unknown as BlobPart], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.rel = "noopener";
+  anchor.click();
+  // Revocar en el mismo turno cancelaría la descarga en Firefox: se deja al
+  // siguiente tick, que es cuando el navegador ya ha tomado el blob.
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+export class CadPlotHost {
+  constructor(private readonly bridge: CadPlotHostBridge) {}
+
+  /** Punto de entrada del puente del motor. Devuelve el renglón a mostrar. */
+  handle = (request: CadHostRequest): string => {
+    if (request.kind === "space") {
+      this.bridge.setSpace?.(request.space, request.layoutId);
+      return request.space === "paper"
+        ? `Espacio papel${request.layoutId ? `: ${request.layoutId}` : ""}.`
+        : "Espacio modelo.";
+    }
+
+    if (request.kind === "page-setup") {
+      if (!this.bridge.openPageSetup)
+        return "La configuración de página por cuadro no está disponible aquí; usa las opciones de PAGESETUP.";
+      this.bridge.openPageSetup(request.layoutId);
+      return "Configuración de página abierta.";
+    }
+
+    if (request.kind === "publish")
+      return "La publicación por lotes se lanza desde el conjunto de planos.";
+
+    const document = this.bridge.document();
+    if (!document) return "No hay ningún dibujo abierto que trazar.";
+
+    const table = request.request.pageSetup.plotStyleTable
+      ? (this.bridge.plotStyleTables?.().get(request.request.pageSetup.plotStyleTable) ?? null)
+      : null;
+    if (request.request.pageSetup.plotStyleTable && !table)
+      return `La tabla de plumas «${request.request.pageSetup.plotStyleTable}» no está cargada: el plano saldría con los grosores equivocados.`;
+
+    const input = {
+      document,
+      layoutIds: [request.request.layoutId],
+      pageSetup: request.request.pageSetup,
+      plotStyleTable: table,
+    };
+
+    if (request.mode === "preview") {
+      const preview = buildCadPlotPreview(input);
+      this.bridge.preview?.(preview);
+      const errors = preview.issues.filter((issue) => issue.severity === "error");
+      return errors.length > 0
+        ? `Vista previa con ${errors.length} problema(s): ${errors[0].detail}`
+        : `Vista previa de ${preview.sheets.length} hoja(s).`;
+    }
+
+    const job = buildCadPlotJob(input);
+    const blocking = job.issues.filter((issue) => issue.severity === "error");
+    if (blocking.length > 0) return `No se puede trazar: ${blocking[0].detail}`;
+    if (job.sheets.length === 0)
+      return `La presentación ${request.request.layoutId} no está marcada para publicar.`;
+
+    void this.emit(job.sheets, request.request.fileName);
+    return `Trazando ${request.request.fileName} a PDF…`;
+  };
+
+  private async emit(
+    sheets: Parameters<typeof renderCadPlotPdf>[0],
+    fileName: string,
+  ): Promise<void> {
+    try {
+      const result: CadPlotPdfResult = await renderCadPlotPdf(sheets, {
+        ...(this.bridge.fonts ? { fonts: this.bridge.fonts() } : {}),
+        metadata: { title: fileName },
+      });
+      if (result.pageCount === 0) {
+        this.bridge.onResult?.("El trazado no produjo ninguna página.", "error");
+        return;
+      }
+      this.bridge.download(`${fileName}.pdf`, result.bytes, "application/pdf");
+      // Las fuentes se dicen SIEMPRE: quien traza tiene que saber si el plano
+      // depende de que el visor tenga la fuente o si viaja dentro del archivo.
+      const embedded = result.fonts.filter((font) => font.embedded).length;
+      this.bridge.onResult?.(
+        `Trazado ${fileName}.pdf: ${result.pageCount} página(s), ${result.fonts.length} fuente(s) (${embedded} incrustada(s)).`,
+        "info",
+      );
+    } catch (error) {
+      this.bridge.onResult?.(
+        `El trazado falló: ${error instanceof Error ? error.message : String(error)}`,
+        "error",
+      );
+    }
+  }
+}
+
+/** Envolvente del dibujo, para el área «Extensión» del trazado. */
+export function cadPlotExtents(document: CadDocument | null) {
+  return document ? cadDocumentExtents(document) : null;
+}

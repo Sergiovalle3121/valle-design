@@ -67,7 +67,10 @@ export function cadStudioCommandContext(
     // copia de la lista de hojas.
     paperSpaces: () => inputs.document?.paperSpaces ?? [],
     ...(inputs.activeLayout ? { activeLayout: inputs.activeLayout } : {}),
-    ...(inputs.document ? { unit: inputs.document.meta.unit } : {}),
+    // Encadenado opcional a propósito: un anfitrión puede montar un documento
+    // parcial —lo hacen las pruebas de esta misma capa— y reventar aquí
+    // convertiría «no sé la unidad» en «no hay contexto».
+    ...(inputs.document?.meta?.unit ? { unit: inputs.document.meta.unit } : {}),
     drawingExtents: () =>
       inputs.document ? cadDocumentExtents(inputs.document) : null,
     view: {

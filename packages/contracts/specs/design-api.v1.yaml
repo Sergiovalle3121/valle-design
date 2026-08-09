@@ -113,6 +113,12 @@ tags:
       (`/v1/cad/review/*`): contexto de solo lectura autenticado por
       `X-Review-Token`, con expiración y revocación comprobadas server-side
       en cada request.
+  - name: sheet-sets
+    description: >-
+      Conjuntos de planos (`cad_sheet_sets`) — el equivalente del `.dst` de
+      AutoCAD. Viven en su PROPIA tabla y no dentro del documento canónico:
+      un conjunto agrupa hojas de varios dibujos, así que ninguno de ellos
+      puede ser su dueño. Escritura con CAS optimista sobre `version`.
   - name: dxf
     description: Plano DXF de fondo (importar/quitar) y exportación DXF R12 del documento.
   - name: blocks
@@ -995,6 +1001,124 @@ paths:
         "403": { $ref: "#/components/responses/EntitlementRequired" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/VersionConflict" }
+  /v1/cad/sheet-sets:
+    get:
+      operationId: listCadSheetSets
+      tags: [sheet-sets]
+      summary: Lista los conjuntos de planos del tenant.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:view
+      parameters:
+        - name: projectId
+          in: query
+          description: Filtra por proyecto CAD.
+          schema:
+            $ref: "#/components/schemas/CadProjectId"
+        - $ref: "#/components/parameters/limit"
+        - $ref: "#/components/parameters/offset"
+      responses:
+        "200":
+          description: Página de conjuntos de planos.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/CadSheetSetSummary"
+                  total:
+                    type: integer
+                    minimum: 0
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+    post:
+      operationId: createCadSheetSet
+      tags: [sheet-sets]
+      summary: Crea un conjunto de planos.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CadSheetSetCreate"
+      responses:
+        "201":
+          description: Conjunto creado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CadSheetSet"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+  /v1/cad/sheet-sets/{sheetSetId}:
+    parameters:
+      - $ref: "#/components/parameters/sheetSetId"
+    get:
+      operationId: getCadSheetSet
+      tags: [sheet-sets]
+      summary: Conjunto de planos completo, con sus hojas.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:view
+      responses:
+        "200":
+          description: Conjunto de planos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CadSheetSet"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      operationId: saveCadSheetSet
+      tags: [sheet-sets]
+      summary: Guarda el conjunto con CAS optimista.
+      description: >-
+        `expectedVersion` es OBLIGATORIO y debe coincidir con la versión
+        almacenada. Si no coincide, la respuesta es 409 con la versión vigente:
+        dos personas ordenando el mismo conjunto a la vez se resuelven, jamás
+        se sobrescriben.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CadSheetSetSave"
+      responses:
+        "200":
+          description: Conjunto guardado, con la versión nueva.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CadSheetSet"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/VersionConflict" }
+    delete:
+      operationId: deleteCadSheetSet
+      tags: [sheet-sets]
+      summary: Borra un conjunto de planos.
+      description: >-
+        Borra SOLO el conjunto: los dibujos y sus presentaciones no se tocan.
+        Un conjunto es una lista ordenada de referencias, no el contenido.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:admin
+      responses:
+        "204":
+          description: Conjunto borrado.
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /v1/cad/documents/{documentId}/review-sessions:
     get:
       operationId: listCadReviewSessions
@@ -1646,6 +1770,12 @@ components:
       required: true
       schema:
         $ref: "#/components/schemas/CadDocumentId"
+    sheetSetId:
+      name: sheetSetId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/CadSheetSetId"
     sessionId:
       name: sessionId
       in: path
@@ -2084,6 +2214,178 @@ components:
       type: string
       format: uuid
       description: Identificador de `cad_publications`.
+    CadSheetSetId:
+      type: string
+      format: uuid
+      description: Identificador de `cad_sheet_sets`.
+    CadSheetNumbering:
+      type: object
+      required: [prefix, start, step, padding, suffix]
+      description: >-
+        Cómo se numeran las hojas: `A-` + 101 + paso 1 da `A-101`, `A-102`…
+        `padding` rellena con ceros a la izquierda.
+      properties:
+        prefix:
+          type: string
+          maxLength: 32
+        start:
+          type: integer
+        step:
+          type: integer
+        padding:
+          type: integer
+          minimum: 0
+          maximum: 8
+        suffix:
+          type: string
+          maxLength: 32
+    CadSheetSetSheet:
+      type: object
+      required: [id, order, documentId, layoutId, title, number, revision]
+      description: >-
+        Una hoja del conjunto: la REFERENCIA a una presentación de un dibujo,
+        no su contenido.
+      properties:
+        id:
+          type: string
+          maxLength: 64
+        order:
+          type: integer
+          minimum: 0
+        documentId:
+          $ref: "#/components/schemas/CadDocumentId"
+        layoutId:
+          type: string
+          maxLength: 128
+        title:
+          type: string
+          maxLength: 200
+        number:
+          type: string
+          maxLength: 64
+        numberLocked:
+          type: boolean
+          description: >-
+            Conserva su número aunque se reordene el conjunto. Hay planos cuyo
+            número es contractual.
+        revision:
+          type: string
+          maxLength: 32
+        fields:
+          type: object
+          additionalProperties:
+            type: string
+        includeInPublish:
+          type: boolean
+    CadSheetSetSubset:
+      type: object
+      required: [id, name, sheetIds]
+      properties:
+        id:
+          type: string
+          maxLength: 64
+        name:
+          type: string
+          maxLength: 160
+        sheetIds:
+          type: array
+          items:
+            type: string
+            maxLength: 64
+    CadSheetSetSummary:
+      type: object
+      required: [id, name, sheetCount, version, createdAt]
+      properties:
+        id:
+          $ref: "#/components/schemas/CadSheetSetId"
+        projectId:
+          type: ["string", "null"]
+          format: uuid
+        name:
+          type: string
+          maxLength: 160
+        description:
+          type: ["string", "null"]
+          maxLength: 500
+        sheetCount:
+          type: integer
+          minimum: 0
+        version:
+          type: integer
+          minimum: 1
+        createdAt:
+          $ref: "#/components/schemas/Timestamp"
+        updatedAt:
+          $ref: "#/components/schemas/Timestamp"
+    CadSheetSet:
+      allOf:
+        - $ref: "#/components/schemas/CadSheetSetSummary"
+        - type: object
+          required: [fields, numbering, sheets]
+          properties:
+            fields:
+              type: object
+              description: Campos comunes que rellenan los cajetines (`%<Proyecto>%`).
+              additionalProperties:
+                type: string
+            numbering:
+              $ref: "#/components/schemas/CadSheetNumbering"
+            sheets:
+              type: array
+              items:
+                $ref: "#/components/schemas/CadSheetSetSheet"
+            subsets:
+              type: array
+              items:
+                $ref: "#/components/schemas/CadSheetSetSubset"
+    CadSheetSetCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 160
+        description:
+          type: string
+          maxLength: 500
+        projectId:
+          $ref: "#/components/schemas/CadProjectId"
+        fields:
+          type: object
+          additionalProperties:
+            type: string
+        numbering:
+          $ref: "#/components/schemas/CadSheetNumbering"
+    CadSheetSetSave:
+      type: object
+      required: [expectedVersion, sheets]
+      properties:
+        expectedVersion:
+          type: integer
+          minimum: 1
+          description: Versión que el cliente cree tener. Distinta ⇒ 409.
+        name:
+          type: string
+          minLength: 1
+          maxLength: 160
+        description:
+          type: ["string", "null"]
+          maxLength: 500
+        fields:
+          type: object
+          additionalProperties:
+            type: string
+        numbering:
+          $ref: "#/components/schemas/CadSheetNumbering"
+        sheets:
+          type: array
+          items:
+            $ref: "#/components/schemas/CadSheetSetSheet"
+        subsets:
+          type: array
+          items:
+            $ref: "#/components/schemas/CadSheetSetSubset"
     CadReviewSessionId:
       type: string
       format: uuid

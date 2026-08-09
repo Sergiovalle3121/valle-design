@@ -39,6 +39,7 @@ import {
   type CadNavigationSnapshot,
   type CadViewControllerLike,
 } from "./navigation-host";
+import { CadPlotHost, downloadCadFile } from "./plot-host";
 import { cadStudioCommandContext } from "./studio-context";
 
 export function useCadCommandEngineHost(
@@ -123,10 +124,33 @@ export function useCadStudioNavigation(
   );
 }
 
+/**
+ * Anfitrión de trazado del estudio.
+ *
+ * Se crea una vez, igual que los otros dos, y lee el documento vivo por `ref`.
+ * La descarga va por `downloadCadFile`, que es lo único de aquí que necesita
+ * DOM — inyectado para que el anfitrión se pueda probar en Node.
+ */
+export function useCadStudioPlotHost(
+  options: Pick<CadStudioCommandEngineOptions, "document">,
+): CadPlotHost {
+  const live = useRef(options);
+  live.current = options;
+  return useMemo(
+    () =>
+      new CadPlotHost({
+        document: () => live.current.document.current,
+        download: downloadCadFile,
+      }),
+    [],
+  );
+}
+
 export function useCadStudioCommandEngine(
   options: CadStudioCommandEngineOptions,
 ): CadCommandEngineHost {
   const navigation = useCadStudioNavigation(options);
+  const plot = useCadStudioPlotHost(options);
   const live = useRef(options);
   live.current = options;
   return useCadCommandEngineHost({
@@ -146,9 +170,9 @@ export function useCadStudioCommandEngine(
       }),
     apply: options.apply,
     view: navigation.apply,
-    host: (request) =>
-      live.current.host?.(request) ??
-      `«${request.kind}» todavía no está disponible en este estudio.`,
+    // El anfitrión del estudio traza de verdad. Un `host` propio en las
+    // opciones lo sustituye, que es lo que hace un guion sin navegador.
+    host: (request) => live.current.host?.(request) ?? plot.handle(request),
     // Previsualización, captura forzada y forma del cursor pertenecen al
     // puntero. Se ignoran a conciencia hasta que el puntero llegue.
     preview: () => {},

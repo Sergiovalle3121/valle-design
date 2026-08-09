@@ -17,6 +17,7 @@ import { FirstPartyIdentity20260802160000 } from './20260802160000-FirstPartyIde
 import { CommercialFoundation20260802170000 } from './20260802170000-CommercialFoundation';
 import { NormalizeCadIdentifiers20260802180000 } from './20260802180000-NormalizeCadIdentifiers';
 import { DesignAuditLogIdentity20260805120000 } from './20260805120000-DesignAuditLogIdentity';
+import { CreateCadSheetSets20260809100000 } from './20260809100000-CreateCadSheetSets';
 
 const LEGACY_MIGRATIONS: Array<new () => MigrationInterface> = [
   AddCadBlocks20260706180000,
@@ -36,6 +37,7 @@ const ALL_MIGRATIONS: Array<new () => MigrationInterface> = [
   CommercialFoundation20260802170000,
   NormalizeCadIdentifiers20260802180000,
   DesignAuditLogIdentity20260805120000,
+  CreateCadSheetSets20260809100000,
 ];
 
 describePostgres('migration chain (previous main -> latest)', () => {

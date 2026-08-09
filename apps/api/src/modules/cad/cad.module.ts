@@ -3,8 +3,10 @@ import { CadDocumentsModule } from '../cad-documents/cad-documents.module';
 import { CadController } from './cad.controller';
 import { CadReviewController } from './cad-review.controller';
 import { CadReviewLinkController } from './cad-review-link.controller';
+import { CadSheetSetController } from './cad-sheet-set.controller';
 import { CadDocumentsRepository } from './cad-documents.repository';
 import { CadReviewRepository } from './cad-review.repository';
+import { CadSheetSetsRepository } from './cad-sheet-sets.repository';
 
 /**
  * Superficie HTTP del producto Design (/v1/cad/*): controllers + repositorios
@@ -15,8 +17,21 @@ import { CadReviewRepository } from './cad-review.repository';
  */
 @Module({
   imports: [CadDocumentsModule],
-  controllers: [CadController, CadReviewController, CadReviewLinkController],
-  providers: [CadDocumentsRepository, CadReviewRepository],
-  exports: [CadDocumentsRepository, CadReviewRepository],
+  controllers: [
+    CadController,
+    CadReviewController,
+    CadReviewLinkController,
+    CadSheetSetController,
+  ],
+  providers: [
+    CadDocumentsRepository,
+    CadReviewRepository,
+    CadSheetSetsRepository,
+  ],
+  exports: [
+    CadDocumentsRepository,
+    CadReviewRepository,
+    CadSheetSetsRepository,
+  ],
 })
 export class CadModule {}
