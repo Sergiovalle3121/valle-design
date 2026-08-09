@@ -23,10 +23,10 @@
  * término `λ` interpola entre Newton (rápido cerca) y descenso de gradiente
  * (seguro lejos), y se ajusta solo según el paso mejore o empeore.
  *
- * **Descomposición en bloques.** Dos lazos que no comparten ninguna variable son
+ * **Descomposición en bloques.** Dos lazos que no comparten ninguna entidad son
  * dos sistemas, no uno: resolverlos juntos multiplica el coste (el sistema
  * normal es cuadrático en el número de variables) y mezcla el diagnóstico de uno
- * con el del otro. Se separan por componentes conexas del grafo variable-fila.
+ * con el del otro. Cada bloque se itera evaluando SÓLO sus restricciones.
  *
  * **Preacondicionado por papel de la variable.** Un ángulo en radianes y una
  * coordenada en milímetros no son comparables. Cada columna angular se escala
@@ -35,6 +35,9 @@
  * es geométricamente razonable en vez de depender de las unidades del dibujo.
  *
  * **Diagnóstico por rango** (`diagnosis.ts`): grados de libertad y culpables.
+ *
+ * El MONTAJE del sistema —qué variables hay, qué filas produce cada restricción
+ * y qué bloques quedan— vive en `system.ts`. Aquí sólo está la iteración.
  */
 import type { CadEntity } from "../cad-document";
 import type { CadConstraint } from "./constraint-schema";

@@ -431,6 +431,10 @@ function applyDocumentSections(
   }
 
   const evaluation = evaluateCadParameters(parameters, { unit });
+  // Una referencia colgando NO bloquea. `setCadParameter` ya rechaza crear una,
+  // así que si aparece aquí es que el documento venía con ella —importado, o
+  // guardado por una versión anterior— y negarse a tocar cualquier otro
+  // parámetro dejaría esa tabla imposible de arreglar desde dentro.
   const blocking = evaluation.issues.filter((issue) => issue.code !== "parameter_unknown_reference");
   if (blocking.length > 0) throw new Error(blocking[0].message);
   parameters = evaluation.parameters;
