@@ -47,17 +47,20 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       # La versión de Node sale de .nvmrc (única fuente de verdad).
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .nvmrc
           cache: npm
 
       - name: Install dependencies (npm ci reproducible)
         run: npm ci
+
+      - name: Proprietary governance gate
+        run: npm run check:governance
 
       # Puerta de CONTRATO: los YAML de packages/contracts/specs validan
       # (el SDK se genera de ahí; un spec roto es un SDK roto).
@@ -70,8 +73,8 @@ jobs:
       - name: DWG experimental laboratory gates
         run: npm run check:dwg
 
-      # Puerta de LICENCIAS (misma política del origen): el producto es
-      # UNLICENSED; toda dependencia de producción debe ser permisiva.
+      # Puerta de LICENCIAS: el producto es UNLICENSED; el inventario incluye
+      # dependencias de runtime y desarrollo y ninguna puede quedar desconocida.
       - name: Dependency licenses gate
         run: npm run sbom && npm run check:licenses
 
@@ -120,7 +123,7 @@ jobs:
         run: npm run benchmark:smoke --workspace=@valle-design/dwg-codec -- --output "$RUNNER_TEMP/dwg-benchmark-smoke.json"
 
       - name: Upload DWG benchmark evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: dwg-benchmark-${{ github.sha }}
           path: ${{ runner.temp }}/dwg-benchmark-smoke.json
@@ -132,7 +135,7 @@ jobs:
         run: npm run benchmark:cad:scale -- --output ../../cad-benchmark-scale.json
 
       - name: Upload CAD benchmark evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: cad-benchmark-${{ github.sha }}
           path: |
@@ -182,10 +185,10 @@ jobs:
           --health-retries 5
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -273,7 +276,7 @@ jobs:
 
       - name: Upload Playwright report
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: playwright-report-${{ github.sha }}
           path: apps/web/e2e/.report
@@ -288,7 +291,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout (historial completo)
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
@@ -299,6 +302,7 @@ jobs:
         run: |
           GITLEAKS_VERSION=8.24.3
           curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" -o /tmp/gitleaks.tgz
+          echo "9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c  /tmp/gitleaks.tgz" | sha256sum --check --strict
           tar -xzf /tmp/gitleaks.tgz -C /tmp gitleaks
           /tmp/gitleaks version
           /tmp/gitleaks detect --source . --config .gitleaks.toml --redact --no-banner
@@ -308,10 +312,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -319,11 +323,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Generate SBOM (production dependencies)
+      - name: Generate SBOM (runtime and development dependencies)
         run: npm run sbom
 
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: valle-design-sbom-${{ github.sha }}
           path: sbom.cdx.json

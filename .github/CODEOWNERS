@@ -1,0 +1,13 @@
+# Titular actual. No inventar el usuario del segundo revisor: su incorporación
+# está bloqueada hasta que Sergio lo designe y confirme su aceptación.
+* @Sergiovalle3121
+
+# Superficies sensibles que siempre requieren revisión del titular.
+/.github/ @Sergiovalle3121
+/LICENSE @Sergiovalle3121
+/NOTICE @Sergiovalle3121
+/CONTRIBUTING.md @Sergiovalle3121
+/docs/governance/ @Sergiovalle3121
+/packages/dwg-codec/ @Sergiovalle3121
+/scripts/check-dependency-licenses.mjs @Sergiovalle3121
+/scripts/check-proprietary-governance.mjs @Sergiovalle3121

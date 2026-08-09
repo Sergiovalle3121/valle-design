@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "1.0.0",
+  "capturedAt": "2026-08-09",
+  "repository": "Sergiovalle3121/valle-design",
+  "repositoryId": 1318987896,
+  "visibility": "public",
+  "defaultBranch": "main",
+  "protection": {
+    "kind": "classic-branch-protection",
+    "requirePullRequest": true,
+    "requiredApprovals": 1,
+    "dismissStaleReviews": true,
+    "requireLastPushApproval": true,
+    "requireCodeOwnerReview": false,
+    "requireBranchUpToDate": true,
+    "requiredStatusChecks": [
+      "Contrato · Build · Test · Lint · Smoke",
+      "E2E Playwright (PostgreSQL · Chromium + Firefox)",
+      "Gitleaks (historial completo)",
+      "SBOM CycloneDX (evidencia)"
+    ],
+    "requireConversationResolution": true,
+    "requireLinearHistory": true,
+    "enforceAdmins": true,
+    "allowForcePushes": false,
+    "allowDeletions": false
+  },
+  "repositoryMergeSettings": {
+    "allowSquashMerge": true,
+    "allowMergeCommit": false,
+    "allowRebaseMerge": false,
+    "allowAutoMerge": true,
+    "allowUpdateBranch": true,
+    "deleteBranchOnMerge": true
+  },
+  "pending": {
+    "secondHumanReviewer": true,
+    "codeOwnerReview": true,
+    "mergeQueue": {
+      "enabled": false,
+      "reason": "GitHub merge queues require an organization-owned repository; the current repository is owned by a personal account.",
+      "officialDocumentation": "https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/merging-a-pull-request-with-a-merge-queue"
+    }
+  }
+}

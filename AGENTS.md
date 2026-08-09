@@ -21,7 +21,8 @@ runtime dependency on another product or identity service.
 - Core gates: `npm run build`, `npm run typecheck`, `npm test`, `npm run lint`.
 - Non-mutating API lint: `npm run lint:check --workspace=valle-design-api`.
 - Generated SDK: `npm test --workspace=@valle/design-sdk`.
-- Supply chain: `npm run sbom && npm run check:licenses`.
+- Proprietary governance: `npm run check:governance`.
+- Supply chain: `npm run sbom && npm run check:licenses` (runtime + development).
 - PostgreSQL tests: set `TEST_DATABASE_URL` and
   `REQUIRE_POSTGRES_TESTS=true`, then run
   `npm run test:pg --workspace=valle-design-api`.

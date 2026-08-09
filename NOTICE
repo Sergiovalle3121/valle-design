@@ -1,0 +1,20 @@
+VALLE DESIGN — AVISO DE DESARROLLO PROPIETARIO
+
+Copyright (c) 2026 Sergio Valle Zárate. Todos los derechos reservados.
+
+Este repositorio es visible públicamente de forma temporal para facilitar el
+desarrollo asistido y la revisión. Valle Design no es software open source ni
+source-available bajo una licencia de uso: la visibilidad no concede permiso
+para copiar, usar, modificar, redistribuir, vender, entrenar un producto
+derivado ni explotar comercialmente el código. Consulte LICENSE.
+
+Valle Design se comercializará como software propietario y cerrado. Antes del
+primer piloto comercial, el repositorio se convertirá en privado y sólo se
+distribuirán aplicaciones compiladas, servicios y SDK expresamente autorizados.
+
+No se aceptan aportaciones externas sin acuerdo escrito de cesión o CLA
+confirmado por el titular. No deben subirse secretos, corpus privados, planos de
+clientes, documentación técnica confidencial ni material de procedencia dudosa.
+
+Third-party components retain their own notices and licenses. Public access to
+this repository grants no license to the first-party Valle Design works.
