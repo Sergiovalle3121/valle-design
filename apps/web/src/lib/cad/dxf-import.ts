@@ -9,6 +9,16 @@ import {
   transformInsertPrimitive,
   type CadDxfInsertTransform,
 } from "./dxf-insert-transform";
+import type { CadDxfSchema4Kind, CadDxfSchema4Payload } from "./dxf-schema4";
+// La lectura de pares crudos y los parsers de las anotaciones semánticas viven
+// en sus propios módulos: este archivo está en su asignación de tamaño y los
+// tipos del esquema 4 necesitaban sitio.
+import { num, pt, rawDxfPairs } from "./dxf-read-core";
+import {
+  parseRawDxfSemanticDimensions,
+  parseRawDxfSemanticMleaders,
+} from "./dxf-read-annotations";
+export { parseRawDxfSemanticDimensions, parseRawDxfSemanticMleaders };
 
 export type CadDxfPrimitiveKind =
   | "line"
@@ -18,7 +28,11 @@ export type CadDxfPrimitiveKind =
   | "circle"
   | "arc"
   | "ellipse"
-  | "spline";
+  | "spline"
+  // Esquema 4. Entran por el MISMO canal que el resto —ver `dxf-schema4.ts`—
+  // para que exportar un XLINE no exija que cada intermediario aprenda una
+  // lista nueva; lo que no es geometría viaja en `schema4`.
+  | CadDxfSchema4Kind;
 export interface CadDxfPoint {
   x: number;
   y: number;
@@ -44,6 +58,8 @@ export interface CadDxfPrimitive {
    */
   closed?: boolean;
   text?: string;
+  /** Altura del texto, sólo para kind "text". Sin ella se usa la del exportador. */
+  textHeight?: number;
   /** Radio, sólo para kind "circle" y "arc". */
   radius?: number;
   /** Ángulo inicial en grados (CCW desde +X), sólo para kind "arc" y "ellipse". */
@@ -58,6 +74,13 @@ export interface CadDxfPrimitive {
   degree?: number;
   /** Vector de nudos, sólo para kind "spline". */
   knots?: number[];
+  /**
+   * Carga útil de los tipos del esquema 4: todo lo que no es geometría de
+   * `points`. La unión se discrimina por el MISMO `kind` de la primitiva, así
+   * que `kind === "image" && schema4?.kind === "image"` estrecha el tipo sin
+   * un solo `as`.
+   */
+  schema4?: CadDxfSchema4Payload;
 }
 export interface CadDxfHatch {
   layer: string;
@@ -186,16 +209,6 @@ export function summarizeDxfImportWarnings(
 const DEFAULT_LAYER = "0";
 const MAX_DXF_ENTITIES = 50000;
 
-const num = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : null);
-const pt = (v: any): CadDxfPoint | null => {
-  const x = num(v?.x);
-  const y = num(v?.y);
-  if (x == null || y == null) return null;
-  // El bulge viaja en el vértice: descartarlo aplanaba a cuerda recta todos
-  // los arcos de polilínea del fichero importado, en silencio.
-  const bulge = num(v?.bulge);
-  return bulge == null || bulge === 0 ? { x, y } : { x, y, bulge };
-};
 
 function closeEnough(a: number, b: number, tol = 1e-6) {
   return Math.abs(a - b) <= tol;
@@ -531,21 +544,6 @@ function expandDimension(
     : [];
 }
 
-interface RawDxfPair {
-  code: number;
-  value: string;
-}
-
-function rawDxfPairs(text: string): RawDxfPair[] {
-  const lines = text.split(/\r?\n/);
-  const pairs: RawDxfPair[] = [];
-  for (let index = 0; index + 1 < lines.length; index += 2) {
-    const code = Number(lines[index].trim());
-    if (Number.isInteger(code)) pairs.push({ code, value: lines[index + 1].trim() });
-  }
-  return pairs;
-}
-
 interface RawBlockXdata {
   definitions: Map<string, Map<string, string>>;
   insertAttributes: Map<string, Array<Record<string, string>>>;
@@ -725,174 +723,6 @@ export function parseRawDxfMTexts(text: string): CadDxfMText[] {
   return result;
 }
 
-const DIMENSION_KINDS = new Set<CadDxfSemanticDimension["dimensionKind"]>([
-  "linear", "aligned", "angular", "radius", "diameter", "ordinate", "arc-length",
-]);
-const DIMENSION_UNITS = new Set<NonNullable<CadDxfSemanticDimension["units"]>>(["mm", "cm", "m", "in", "ft"]);
-const DIMENSION_ARROWS = new Set<NonNullable<CadDxfSemanticDimension["arrowhead"]>>([
-  "closed-filled", "open", "architectural-tick", "dot",
-]);
-
-/**
- * Valle Design dimensions use ordinary DIMENSION entities plus registered XDATA. The
- * metadata retains semantic formatting while the anonymous *D block keeps the
- * drawing visible in CAD readers that do not understand the XDATA.
- */
-export function parseRawDxfSemanticDimensions(text: string): CadDxfSemanticDimension[] {
-  const pairs = rawDxfPairs(text);
-  const dimensions: CadDxfSemanticDimension[] = [];
-  for (let start = 0; start < pairs.length && dimensions.length < MAX_DXF_ENTITIES; start += 1) {
-    if (pairs[start].code !== 0 || pairs[start].value.toUpperCase() !== "DIMENSION") continue;
-    let end = start + 1;
-    while (end < pairs.length && pairs[end].code !== 0) end += 1;
-    const entityPairs = pairs.slice(start + 1, end);
-    const applicationIndex = entityPairs.findIndex((pair) => pair.code === 1001 && isDxfXdataApp('dimension', pair.value));
-    if (applicationIndex < 0) { start = end - 1; continue; }
-    const first = (code: number) => entityPairs.find((pair) => pair.code === code)?.value;
-    const point = (xCode: number, yCode: number): CadDxfPoint | null => {
-      const x = num(first(xCode));
-      const y = num(first(yCode));
-      return x === null || y === null ? null : { x, y };
-    };
-    const metadata = new Map<string, string>();
-    for (const pair of entityPairs.slice(applicationIndex + 1)) {
-      if (pair.code !== 1000) continue;
-      const separator = pair.value.indexOf("=");
-      if (separator > 0) metadata.set(pair.value.slice(0, separator), pair.value.slice(separator + 1));
-    }
-    const rawKind = metadata.get("kind") as CadDxfSemanticDimension["dimensionKind"] | undefined;
-    const kind = rawKind && DIMENSION_KINDS.has(rawKind) ? rawKind : null;
-    const a = point(13, 23);
-    const b = point(14, 24) ?? point(10, 20);
-    const blockName = first(2) ?? "";
-    if (!kind || !a || !b || !blockName) { start = end - 1; continue; }
-    const numericMetadata = (key: string) => num(metadata.get(key));
-    const rawUnits = metadata.get("units") as NonNullable<CadDxfSemanticDimension["units"]> | undefined;
-    const rawSourceUnit = metadata.get("sourceUnit") as NonNullable<CadDxfSemanticDimension["sourceUnit"]> | undefined;
-    const rawAlternate = metadata.get("alternateUnits") as NonNullable<CadDxfSemanticDimension["alternateUnits"]> | undefined;
-    const rawArrow = metadata.get("arrowhead") as NonNullable<CadDxfSemanticDimension["arrowhead"]> | undefined;
-    const c = point(15, 25);
-    const precision = num(first(271));
-    const offset = numericMetadata("offset");
-    const radius = numericMetadata("radius");
-    const arrowSize = numericMetadata("arrowSize");
-    const extensionGap = numericMetadata("extensionGap");
-    const extensionOvershoot = numericMetadata("extensionOvershoot");
-    const textGap = numericMetadata("textGap");
-    const textOverride = metadata.get("textOverride") ?? "";
-    dimensions.push({
-      blockName,
-      layer: first(8) || DEFAULT_LAYER,
-      dimensionKind: kind,
-      a,
-      b,
-      ...(c ? { c } : {}),
-      axis: metadata.get("axis") === "y" ? "y" : "x",
-      ...(offset !== null ? { offset } : {}),
-      ...(radius !== null && radius > 0 ? { radius } : {}),
-      style: first(3) || "Standard",
-      ...(precision !== null ? { precision: Math.max(0, Math.min(8, Math.floor(precision))) } : {}),
-      ...(rawUnits && DIMENSION_UNITS.has(rawUnits) ? { units: rawUnits } : {}),
-      ...(rawSourceUnit && DIMENSION_UNITS.has(rawSourceUnit) ? { sourceUnit: rawSourceUnit } : {}),
-      ...(rawAlternate && DIMENSION_UNITS.has(rawAlternate) ? { alternateUnits: rawAlternate } : {}),
-      prefix: metadata.get("prefix") ?? "",
-      suffix: metadata.get("suffix") ?? "",
-      extensionLines: metadata.get("extensionLines") !== "0",
-      ...(rawArrow && DIMENSION_ARROWS.has(rawArrow) ? { arrowhead: rawArrow } : {}),
-      ...(arrowSize !== null && arrowSize > 0 ? { arrowSize } : {}),
-      ...(extensionGap !== null && extensionGap >= 0 ? { extensionGap } : {}),
-      ...(extensionOvershoot !== null && extensionOvershoot >= 0 ? { extensionOvershoot } : {}),
-      ...(textGap !== null && textGap >= 0 ? { textGap } : {}),
-      ...(textOverride ? { text: textOverride } : {}),
-    });
-    start = end - 1;
-  }
-  return dimensions;
-}
-
-const MLEADER_ARROWS = new Set<NonNullable<CadDxfSemanticMleader["arrowhead"]>>([
-  "closed-filled", "open", "architectural-tick", "dot", "none",
-]);
-
-export function parseRawDxfSemanticMleaders(text: string): CadDxfSemanticMleader[] {
-  const pairs = rawDxfPairs(text);
-  const mleaders: CadDxfSemanticMleader[] = [];
-  let sourceOrdinal = -1;
-  for (let start = 0; start < pairs.length && mleaders.length < MAX_DXF_ENTITIES; start += 1) {
-    if (pairs[start].code !== 0 || pairs[start].value.toUpperCase() !== "MLEADER") continue;
-    sourceOrdinal += 1;
-    let end = start + 1;
-    while (end < pairs.length && pairs[end].code !== 0) end += 1;
-    const entityPairs = pairs.slice(start + 1, end);
-    const applicationIndex = entityPairs.findIndex((pair) => pair.code === 1001 && isDxfXdataApp('mleader', pair.value));
-    if (applicationIndex < 0) { start = end - 1; continue; }
-    const first = (code: number) => entityPairs.find((pair) => pair.code === code)?.value;
-    const metadataPairs = entityPairs.slice(applicationIndex + 1).filter((pair) => pair.code === 1000);
-    const metadata = new Map<string, string>();
-    const lines = new Map<number, Map<number, CadDxfPoint>>();
-    for (const pair of metadataPairs) {
-      const separator = pair.value.indexOf("=");
-      if (separator <= 0) continue;
-      const key = pair.value.slice(0, separator);
-      const value = pair.value.slice(separator + 1);
-      if (key === "line") {
-        const [rawLine, rawPoint, rawX, rawY] = value.split(",");
-        const lineIndex = Number(rawLine); const pointIndex = Number(rawPoint); const x = num(rawX); const y = num(rawY);
-        if (Number.isInteger(lineIndex) && Number.isInteger(pointIndex) && lineIndex >= 0 && pointIndex >= 0 && x !== null && y !== null) {
-          const line = lines.get(lineIndex) ?? new Map<number, CadDxfPoint>();
-          line.set(pointIndex, { x, y });
-          lines.set(lineIndex, line);
-        }
-      } else metadata.set(key, value);
-    }
-    const leaderLines = [...lines.entries()].sort(([a], [b]) => a - b)
-      .map(([, line]) => [...line.entries()].sort(([a], [b]) => a - b).map(([, point]) => point))
-      .filter((line) => line.length >= 2);
-    const textX = num(metadata.get("textX")); const textY = num(metadata.get("textY"));
-    if (!leaderLines.length || textX === null || textY === null) { start = end - 1; continue; }
-    const decode = (value: string | undefined, fallback = "") => {
-      try { return decodeURIComponent(value ?? fallback); } catch { return fallback; }
-    };
-    const textChunks = [...metadata.entries()].filter(([key]) => /^text\d+$/.test(key)).sort(([a], [b]) => Number(a.slice(4)) - Number(b.slice(4))).map(([, value]) => value).join("");
-    const arrow = metadata.get("arrowhead") as NonNullable<CadDxfSemanticMleader["arrowhead"]> | undefined;
-    const numeric = (key: string) => num(metadata.get(key));
-    const textWidth = numeric("textWidth"); const textHeight = numeric("textHeight"); const textRotation = numeric("textRotation");
-    const lineSpacing = numeric("lineSpacing"); const backgroundPadding = numeric("backgroundPadding");
-    const doglegLength = numeric("doglegLength"); const arrowSize = numeric("arrowSize");
-    const alignment = metadata.get("textAlignment");
-    mleaders.push({
-      sourceOrdinal,
-      layer: first(8) || DEFAULT_LAYER,
-      vertices: leaderLines[0].map((point) => ({ ...point, z: 0 })),
-      leaderLines: leaderLines.map((line) => line.map((point) => ({ ...point, z: 0 }))),
-      text: decode(textChunks),
-      textPosition: { x: textX, y: textY, z: 0 },
-      contentType: metadata.get("contentType") === "text" ? "text" : "mtext",
-      style: decode(metadata.get("style"), "Standard"),
-      ...(textWidth !== null && textWidth > 0 ? { textWidth } : {}),
-      ...(textHeight !== null && textHeight > 0 ? { textHeight } : {}),
-      ...(textRotation !== null ? { textRotation } : {}),
-      ...(alignment && ["left", "center", "right", "justify"].includes(alignment) ? { textAlignment: alignment as NonNullable<CadDxfSemanticMleader["textAlignment"]> } : {}),
-      fontFamily: decode(metadata.get("fontFamily"), "Arial"),
-      ...(lineSpacing !== null && lineSpacing > 0 ? { lineSpacing } : {}),
-      bold: metadata.get("bold") === "1", italic: metadata.get("italic") === "1", underline: metadata.get("underline") === "1",
-      backgroundMask: metadata.get("backgroundMask") === "1", backgroundColor: metadata.get("backgroundColor") || undefined,
-      ...(backgroundPadding !== null && backgroundPadding >= 0 ? { backgroundPadding } : {}),
-      landing: metadata.get("landing") !== "0",
-      ...(doglegLength !== null && doglegLength > 0 ? { doglegLength } : {}),
-      ...(arrow && MLEADER_ARROWS.has(arrow) ? { arrowhead: arrow } : {}),
-      ...(arrowSize !== null && arrowSize > 0 ? { arrowSize } : {}),
-    });
-    start = end - 1;
-  }
-  return mleaders;
-}
-
-/**
- * dxf-parser currently drops HATCH. Parse polyline boundary paths directly
- * from ASCII group codes so solid and predefined-pattern hatches survive the
- * same import pipeline. Edge paths (arc/spline loops) remain explicit warnings.
- */
 export function parseRawDxfHatches(text: string): {
   hatches: CadDxfHatch[];
   warnings: CadDxfImportWarning[];

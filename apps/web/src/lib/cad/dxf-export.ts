@@ -1,10 +1,6 @@
 import type { CadDxfPoint, CadDxfPrimitive } from "./dxf-import";
-import {
-  alignedDimension,
-  DEFAULT_DIMENSION_STYLE,
-  type DimensionGeometry,
-} from "./dimension";
-import { buildCadDimensionGeometry, type CadDimensionEntity, type CadDimensionGeometry } from "./associative-dimension";
+import type { CadTextAnchor } from "./cad-entities-v4";
+import type { CadDimensionEntity } from "./associative-dimension";
 import { buildCadMleaderGeometry, type CadMleaderEntity } from "./associative-mleader";
 import { DEFAULT_MLEADER_STYLE } from "./mleader";
 import {
@@ -12,6 +8,46 @@ import {
   DXF_XDATA_APP_DIMENSION,
   DXF_XDATA_APP_MLEADER,
 } from "@valle-design/contracts";
+// Los pares código/valor, el saneado de nombres y el formato numérico viven en
+// su propio módulo hoja: los escritores del esquema 4 usan EXACTAMENTE los
+// mismos, y duplicarlos era la manera segura de que divergiesen.
+import {
+  DEFAULT_LAYER,
+  MEASUREMENT_LAYER,
+  TEXT_LAYER,
+  fmt,
+  pushPair,
+  pushPoint,
+  safeLayerName,
+  safeStyleName,
+  safeText,
+} from "./dxf-write-core";
+// Los ocho tipos del esquema 4 tienen su propio módulo de escritura: cada uno
+// con su código DXF real y con las rarezas del formato (el corbatín del SOLID,
+// el diccionario de imágenes) resueltas ahí y no aquí.
+import {
+  createSchema4Objects,
+  pushAttdef,
+  pushImage,
+  pushPointEntity,
+  pushPositionedAttrib,
+  pushSchema4Objects,
+  pushSolid,
+  pushWipeout,
+  pushXLine,
+  schema4PointVariables,
+  type CadDxfSchema4Objects,
+} from "./dxf-write-schema4";
+import { tableToDxfPrimitives } from "./dxf-schema4-table";
+// Las cotas —heredadas y semánticas— viven en su propio módulo de escritura.
+import {
+  dimensionBlockPrimitives,
+  prepareDimensions,
+  prepareSemanticDimensions,
+  pushDimension,
+  pushSemanticDimension,
+  semanticDimensionBlockPrimitives,
+} from "./dxf-write-dimensions";
 
 export type CadDxfExportUnit = "mm" | "m";
 export interface CadDxfExportOptions {
@@ -113,6 +149,23 @@ export interface CadDxfExportInsert {
   scaleY?: number;
   layer?: string;
   attributes?: Record<string, string>;
+  /**
+   * Atributos CON geometría, ya en coordenadas del mundo. Cuando existen son la
+   * fuente de los ATTRIB: el mapa plano `attributes` dice qué vale cada
+   * etiqueta, pero no dónde se dibuja, y recomponer la posición desde la
+   * definición del bloque dejaba el texto en un sitio distinto del que el
+   * usuario veía en pantalla.
+   */
+  positionedAttributes?: Array<{
+    tag: string;
+    value: string;
+    insertion: CadDxfPoint;
+    height?: number;
+    rotation?: number;
+    style?: string;
+    alignment?: CadTextAnchor;
+    invisible?: boolean;
+  }>;
 }
 export interface CadDxfExportModel {
   primitives?: CadDxfPrimitive[];
@@ -132,38 +185,8 @@ export interface CadDxfExportResult {
   entityCount: number;
 }
 
-const DEFAULT_LAYER = "0";
-const MEASUREMENT_LAYER = "Measurements";
-const TEXT_LAYER = "Text";
 const PRIMITIVE_LABEL_HEIGHT = 220;
 const DXF_UNIT_CODES: Record<CadDxfExportUnit, number> = { mm: 4, m: 6 };
-
-function safeLayerName(name: string | undefined): string {
-  const cleaned = (name || DEFAULT_LAYER).trim().replace(/[\r\n]/g, " ");
-  return cleaned || DEFAULT_LAYER;
-}
-function safeText(value: string): string {
-  return value.replace(/[\r\n]/g, " ").trim();
-}
-function safeStyleName(value: string | undefined): string {
-  return safeText(value ?? "Standard").replace(/[<>/\\"':;?*|=`,]/g, "_").slice(0, 64) || "Standard";
-}
-function fmt(value: number): string {
-  if (!Number.isFinite(value)) return "0";
-  return Number(value.toFixed(6)).toString();
-}
-function pushPair(
-  lines: string[],
-  code: number | string,
-  value: number | string,
-) {
-  lines.push(String(code), String(value));
-}
-function pushPoint(lines: string[], point: CadDxfPoint) {
-  pushPair(lines, 10, fmt(point.x));
-  pushPair(lines, 20, fmt(point.y));
-  pushPair(lines, 30, "0");
-}
 function uniqueLayers(model: CadDxfExportModel): string[] {
   const names = new Set<string>([DEFAULT_LAYER]);
   for (const layer of model.layers ?? []) names.add(safeLayerName(layer.name));
@@ -249,7 +272,11 @@ function pushLayerTable(
   pushPair(lines, 0, "ENDTAB");
   pushPair(lines, 0, "ENDSEC");
 }
-function pushHeader(lines: string[], options: CadDxfExportOptions) {
+function pushHeader(
+  lines: string[],
+  options: CadDxfExportOptions,
+  pointVariables: { pdmode: number; pdsize: number } | null,
+) {
   pushPair(lines, 0, "SECTION");
   pushPair(lines, 2, "HEADER");
   // AC1015 (AutoCAD 2000): la versión mínima honesta para las entidades que
@@ -258,6 +285,15 @@ function pushHeader(lines: string[], options: CadDxfExportOptions) {
   pushPair(lines, 1, "AC1015");
   pushPair(lines, 9, "$INSUNITS");
   pushPair(lines, 70, DXF_UNIT_CODES[options.units ?? "mm"]);
+  // El estilo de punto es del DIBUJO, no del POINT: si no viaja aquí, todos
+  // los puntos del fichero salen del estilo por defecto y la marca que el
+  // usuario eligió desaparece sin que nadie lo diga.
+  if (pointVariables) {
+    pushPair(lines, 9, "$PDMODE");
+    pushPair(lines, 70, pointVariables.pdmode);
+    pushPair(lines, 9, "$PDSIZE");
+    pushPair(lines, 40, fmt(pointVariables.pdsize));
+  }
   if (options.fileComment) {
     pushPair(lines, 999, safeText(options.fileComment));
   }
@@ -490,6 +526,61 @@ function pushPrimitiveLabel(
 }
 
 /**
+ * Escritura de los ocho tipos del esquema 4.
+ *
+ * Devuelve cuántas entidades DXF se escribieron (la tabla escribe muchas) o 0
+ * si la primitiva no es de este esquema. Vive junto al despachador general
+ * porque comparte su contrato: lo que no se escribe aquí lo declara el
+ * manifiesto de pérdidas, nunca desaparece callando.
+ */
+function writeSchema4Geometry(
+  lines: string[],
+  layer: string,
+  primitive: CadDxfPrimitive,
+  objects: CadDxfSchema4Objects,
+): number {
+  const payload = primitive.schema4;
+  if (!payload || payload.kind !== primitive.kind) return 0;
+  const anchor = primitive.points[0];
+  if (payload.kind === "point" && anchor) {
+    pushPointEntity(lines, layer, anchor);
+    return 1;
+  }
+  if ((payload.kind === "xline" || payload.kind === "ray") && anchor) {
+    // Una dirección nula no define recta alguna: se descarta aquí en vez de
+    // escribir una entidad que ningún lector puede dibujar.
+    if (!payload.direction.x && !payload.direction.y) return 0;
+    pushXLine(lines, layer, anchor, payload.direction, payload.kind === "ray");
+    return 1;
+  }
+  if (payload.kind === "solid" && primitive.points.length >= 3) {
+    pushSolid(lines, layer, primitive.points);
+    return 1;
+  }
+  if (payload.kind === "wipeout" && primitive.points.length >= 3) {
+    pushWipeout(lines, layer, primitive.points, objects, payload.frame);
+    return 1;
+  }
+  if (payload.kind === "image" && anchor) {
+    pushImage(lines, layer, anchor, payload, objects);
+    return 1;
+  }
+  if (payload.kind === "attdef" && anchor) {
+    pushAttdef(lines, layer, anchor, payload);
+    return 1;
+  }
+  if (payload.kind === "table" && anchor) {
+    // La tabla se degrada a geometría; el porqué está en `dxf-schema4-table.ts`
+    // y el aviso, en el manifiesto de pérdidas.
+    let written = 0;
+    for (const piece of tableToDxfPrimitives(layer, anchor, payload))
+      if (writePrimitiveGeometry(lines, layer, piece, objects).wrote) written += 1;
+    return written;
+  }
+  return 0;
+}
+
+/**
  * Escribe la geometría de una primitiva (compartido entre ENTITIES y BLOCKS).
  * Devuelve true si escribió geometría no-texto (candidata a etiqueta).
  */
@@ -497,21 +588,28 @@ function writePrimitiveGeometry(
   lines: string[],
   layer: string,
   primitive: CadDxfPrimitive,
-): { wrote: boolean; isGeometry: boolean } {
+  objects: CadDxfSchema4Objects,
+): { wrote: boolean; isGeometry: boolean; count: number } {
+  if (primitive.schema4) {
+    const count = writeSchema4Geometry(lines, layer, primitive, objects);
+    // Los tipos del esquema 4 no llevan etiqueta de primitiva: su texto —el de
+    // un ATTDEF o el de una celda— ya es una entidad de pleno derecho.
+    return { wrote: count > 0, isGeometry: false, count };
+  }
   if (primitive.kind === "line" && primitive.points.length >= 2) {
     pushLine(lines, layer, primitive.points[0], primitive.points[1]);
-    return { wrote: true, isGeometry: true };
+    return { wrote: true, isGeometry: true, count: 1 };
   }
   if (primitive.kind === "polyline" && primitive.points.length >= 2) {
     // El cierre lo declara la primitiva. Estaba fijado a `false`, así que TODO
     // contorno cerrado salía con 70=0 —abierto para cualquier lector de DXF—
     // aunque llevase sus vértices coincidentes.
     pushPolyline(lines, layer, primitive.points, primitive.closed === true);
-    return { wrote: true, isGeometry: true };
+    return { wrote: true, isGeometry: true, count: 1 };
   }
   if (primitive.kind === "rect" && primitive.points.length >= 2) {
     pushPolyline(lines, layer, rectCornerPoints(primitive.points), true);
-    return { wrote: true, isGeometry: true };
+    return { wrote: true, isGeometry: true, count: 1 };
   }
   if (
     primitive.kind === "circle" &&
@@ -520,7 +618,7 @@ function writePrimitiveGeometry(
     primitive.radius > 0
   ) {
     pushCircle(lines, layer, primitive.points[0], primitive.radius);
-    return { wrote: true, isGeometry: true };
+    return { wrote: true, isGeometry: true, count: 1 };
   }
   if (
     primitive.kind === "arc" &&
@@ -538,7 +636,7 @@ function writePrimitiveGeometry(
       primitive.startAngle,
       primitive.endAngle,
     );
-    return { wrote: true, isGeometry: true };
+    return { wrote: true, isGeometry: true, count: 1 };
   }
   if (
     primitive.kind === "ellipse" &&
@@ -556,7 +654,7 @@ function writePrimitiveGeometry(
       primitive.startAngle ?? 0,
       primitive.endAngle ?? 360,
     );
-    return { wrote: true, isGeometry: true };
+    return { wrote: true, isGeometry: true, count: 1 };
   }
   if (primitive.kind === "spline" && primitive.points.length >= 2) {
     pushSpline(
@@ -566,99 +664,19 @@ function writePrimitiveGeometry(
       Math.max(1, Math.min(primitive.degree ?? 3, primitive.points.length - 1)),
       primitive.knots,
     );
-    return { wrote: true, isGeometry: true };
+    return { wrote: true, isGeometry: true, count: 1 };
   }
   if (primitive.kind === "text" && primitive.points[0] && primitive.text) {
-    const wrote = pushText(lines, layer, primitive.points[0], primitive.text);
-    return { wrote, isGeometry: false };
-  }
-  return { wrote: false, isGeometry: false };
-}
-
-/**
- * Geometría renderizada de una cota como primitivas (líneas de extensión,
- * línea de cota, flechas y texto), lista para vivir en su bloque anónimo *D.
- */
-function dimensionBlockPrimitives(
-  geo: DimensionGeometry,
-  layer: string,
-  label: string,
-): CadDxfPrimitive[] {
-  const seg = (a: CadDxfPoint, b: CadDxfPoint): CadDxfPrimitive => ({
-    kind: "line",
-    layer,
-    points: [a, b],
-  });
-  const arrow = (tri: CadDxfPoint[]): CadDxfPrimitive => ({
-    kind: "polyline",
-    layer,
-    points: [...tri, tri[0]],
-  });
-  return [
-    seg(geo.extensionA.a, geo.extensionA.b),
-    seg(geo.extensionB.a, geo.extensionB.b),
-    seg(geo.dimLine.a, geo.dimLine.b),
-    arrow(geo.arrowA),
-    arrow(geo.arrowB),
-    { kind: "text", layer, points: [geo.textAnchor], text: label },
-  ];
-}
-
-interface PreparedDimension {
-  measurement: CadDxfExportMeasurement;
-  geo: DimensionGeometry;
-  blockName: string;
-  label: string;
-}
-
-/** Resuelve cada cota exportable a su geometría + bloque anónimo *D{n}. */
-function prepareDimensions(
-  measurements: CadDxfExportMeasurement[],
-): PreparedDimension[] {
-  const prepared: PreparedDimension[] = [];
-  for (const measurement of measurements) {
-    const geo = alignedDimension(
-      measurement.from,
-      measurement.to,
-      measurement.offset ?? 0,
-      DEFAULT_DIMENSION_STYLE,
+    const wrote = pushText(
+      lines,
+      layer,
+      primitive.points[0],
+      primitive.text,
+      primitive.textHeight,
     );
-    if (!geo) continue; // cota degenerada (from == to): no hay nada que medir
-    prepared.push({
-      measurement,
-      geo,
-      blockName: `*D${prepared.length + 1}`,
-      label: safeText(measurement.label ?? fmt(geo.measurement)),
-    });
+    return { wrote, isGeometry: false, count: wrote ? 1 : 0 };
   }
-  return prepared;
-}
-
-/**
- * Entidad DIMENSION nativa (cota alineada) que referencia su bloque *D con la
- * geometría renderizada — el mismo esquema que escribe AutoCAD.
- */
-function pushDimension(lines: string[], layer: string, dim: PreparedDimension) {
-  pushPair(lines, 0, "DIMENSION");
-  pushPair(lines, 8, layer);
-  pushPair(lines, 2, dim.blockName);
-  // 10/20/30: punto de definición (extremo de la línea de cota).
-  pushPoint(lines, dim.geo.dimLine.b);
-  // 11/21/31: centro del texto.
-  pushPair(lines, 11, fmt(dim.geo.textAnchor.x));
-  pushPair(lines, 21, fmt(dim.geo.textAnchor.y));
-  pushPair(lines, 31, "0");
-  // 70: tipo 1 (alineada) + 32 (la geometría vive en un bloque referenciado).
-  pushPair(lines, 70, 33);
-  pushPair(lines, 1, dim.label);
-  pushPair(lines, 42, fmt(dim.geo.measurement));
-  // 13/23 y 14/24: orígenes de las líneas de extensión (los puntos medidos).
-  pushPair(lines, 13, fmt(dim.measurement.from.x));
-  pushPair(lines, 23, fmt(dim.measurement.from.y));
-  pushPair(lines, 33, "0");
-  pushPair(lines, 14, fmt(dim.measurement.to.x));
-  pushPair(lines, 24, fmt(dim.measurement.to.y));
-  pushPair(lines, 34, "0");
+  return { wrote: false, isGeometry: false, count: 0 };
 }
 
 /**
@@ -731,77 +749,6 @@ function pushHatch(lines: string[], layer: string, hatch: CadDxfExportHatch) {
   pushPoint(lines, origin);
 }
 
-interface PreparedSemanticDimension {
-  entity: CadDxfExportSemanticDimension;
-  geometry: CadDimensionGeometry;
-  blockName: string;
-}
-
-function semanticDimensionBlockPrimitives(dimension: PreparedSemanticDimension): CadDxfPrimitive[] {
-  const layer = safeLayerName(dimension.entity.layer ?? MEASUREMENT_LAYER);
-  return [
-    // El cierre se declara con `closed`; repetir el primer punto añadía un
-    // tramo nulo a la geometría del bloque de cota.
-    ...dimension.geometry.paths.map((path): CadDxfPrimitive => ({
-      kind: path.closed ? "rect" : path.points.length === 2 ? "line" : "polyline",
-      layer,
-      points: path.points,
-      ...(path.closed ? { closed: true } : {}),
-    })),
-    { kind: "text", layer, points: [dimension.geometry.textAnchor], text: dimension.geometry.label },
-  ];
-}
-
-function prepareSemanticDimensions(
-  dimensions: CadDxfExportSemanticDimension[],
-  blockOffset: number,
-): PreparedSemanticDimension[] {
-  return dimensions.flatMap((entity, index) => {
-    const canonical: CadDimensionEntity = { id: `dxf-dimension:${index}`, type: "dimension", ...entity };
-    const geometry = buildCadDimensionGeometry(canonical);
-    return geometry ? [{ entity, geometry, blockName: `*D${blockOffset + index + 1}` }] : [];
-  });
-}
-
-function semanticDimensionType(kind: CadDxfExportSemanticDimension["dimensionKind"]): number {
-  return ({ linear: 0, aligned: 1, angular: 5, radius: 4, diameter: 3, ordinate: 6, "arc-length": 8 } as const)[kind ?? "aligned"] + 32;
-}
-
-function pushSemanticDimension(lines: string[], dimension: PreparedSemanticDimension) {
-  const entity = dimension.entity;
-  const pointPair = (xCode: number, yCode: number, point: CadDxfPoint) => {
-    pushPair(lines, xCode, fmt(point.x));
-    pushPair(lines, yCode, fmt(point.y));
-    pushPair(lines, xCode + 20, "0");
-  };
-  pushPair(lines, 0, "DIMENSION");
-  pushPair(lines, 8, safeLayerName(entity.layer ?? MEASUREMENT_LAYER));
-  pushPair(lines, 2, dimension.blockName);
-  pushPoint(lines, entity.b);
-  pointPair(11, 21, dimension.geometry.textAnchor);
-  pushPair(lines, 70, semanticDimensionType(entity.dimensionKind));
-  pushPair(lines, 1, safeText(dimension.geometry.label));
-  pushPair(lines, 3, safeStyleName(entity.style));
-  pushPair(lines, 42, fmt(dimension.geometry.measurement));
-  pointPair(13, 23, entity.a);
-  pointPair(14, 24, entity.b);
-  if (entity.c) pointPair(15, 25, entity.c);
-  pushPair(lines, 40, fmt(entity.offset ?? entity.radius ?? 0));
-  pushPair(lines, 271, Math.max(0, Math.min(8, Math.floor(entity.precision ?? 2))));
-  pushPair(lines, 1001, DXF_XDATA_APP_DIMENSION);
-  const metadata = [
-    `kind=${entity.dimensionKind ?? "aligned"}`, `axis=${entity.axis ?? "x"}`,
-    `units=${entity.units ?? entity.sourceUnit ?? "mm"}`, `sourceUnit=${entity.sourceUnit ?? "mm"}`,
-    `alternateUnits=${entity.alternateUnits ?? ""}`, `prefix=${entity.prefix ?? ""}`, `suffix=${entity.suffix ?? ""}`,
-    `arrowhead=${entity.arrowhead ?? "closed-filled"}`, `extensionLines=${entity.extensionLines === false ? 0 : 1}`,
-    `arrowSize=${fmt(entity.arrowSize ?? DEFAULT_DIMENSION_STYLE.arrowSize)}`, `offset=${fmt(entity.offset ?? 0)}`,
-    `radius=${fmt(entity.radius ?? 0)}`, `extensionGap=${fmt(entity.extensionGap ?? DEFAULT_DIMENSION_STYLE.extensionGap)}`,
-    `extensionOvershoot=${fmt(entity.extensionOvershoot ?? DEFAULT_DIMENSION_STYLE.extensionOvershoot)}`,
-    `textGap=${fmt(entity.textGap ?? DEFAULT_DIMENSION_STYLE.textGap)}`, `textOverride=${entity.text ?? ""}`,
-  ];
-  metadata.forEach((value) => pushPair(lines, 1000, safeText(value).slice(0, 240)));
-}
-
 function pushMleader(lines: string[], entity: CadDxfExportMleader): boolean {
   const geometry = buildCadMleaderGeometry({ id: "dxf-mleader", type: "mleader", ...entity });
   if (!geometry) return false;
@@ -848,11 +795,15 @@ function pushMleader(lines: string[], entity: CadDxfExportMleader): boolean {
 
 /** Sección BLOCKS: definiciones reutilizables (mismos códigos que lee el parser). */
 function pushInsert(lines: string[], insert: CadDxfExportInsert, definition?: CadDxfExportBlock) {
-  const attributes = Object.entries(insert.attributes ?? {}).filter(([tag]) => !!definition?.attributes?.[tag]);
+  const positioned = insert.positionedAttributes ?? [];
+  const attributes = positioned.length
+    ? []
+    : Object.entries(insert.attributes ?? {}).filter(([tag]) => !!definition?.attributes?.[tag]);
+  const attributeCount = positioned.length || attributes.length;
   pushPair(lines, 0, "INSERT");
   pushPair(lines, 8, safeLayerName(insert.layer));
   pushPair(lines, 2, safeText(insert.block));
-  if (attributes.length) pushPair(lines, 66, 1);
+  if (attributeCount) pushPair(lines, 66, 1);
   pushPoint(lines, { x: insert.x, y: insert.y });
   if (insert.rotation) pushPair(lines, 50, fmt(insert.rotation));
   if (insert.scaleX !== undefined && insert.scaleX !== 1) pushPair(lines, 41, fmt(insert.scaleX));
@@ -861,6 +812,8 @@ function pushInsert(lines: string[], insert: CadDxfExportInsert, definition?: Ca
   pushPair(lines, 1000, "kind=insert");
   for (const [tag, value] of Object.entries(insert.attributes ?? {}))
     pushPair(lines, 1000, `attribute=${encodeURIComponent(tag)},${encodeURIComponent(value)}`);
+  for (const attribute of positioned)
+    pushPositionedAttrib(lines, safeLayerName(insert.layer), attribute);
   for (const [tag, value] of attributes) {
     const attribute = definition?.attributes?.[tag];
     const base = definition?.basePoint ?? { x: 0, y: 0 };
@@ -877,10 +830,14 @@ function pushInsert(lines: string[], insert: CadDxfExportInsert, definition?: Ca
     pushPair(lines, 70, (attribute?.invisible ? 1 : 0) | (attribute?.constant ? 2 : 0));
     if (insert.rotation) pushPair(lines, 50, fmt(insert.rotation));
   }
-  if (attributes.length) { pushPair(lines, 0, "SEQEND"); pushPair(lines, 8, safeLayerName(insert.layer)); }
+  if (attributeCount) { pushPair(lines, 0, "SEQEND"); pushPair(lines, 8, safeLayerName(insert.layer)); }
 }
 
-function pushBlocks(lines: string[], blocks: CadDxfExportBlock[]) {
+function pushBlocks(
+  lines: string[],
+  blocks: CadDxfExportBlock[],
+  objects: CadDxfSchema4Objects,
+) {
   pushPair(lines, 0, "SECTION");
   pushPair(lines, 2, "BLOCKS");
   for (const block of blocks) {
@@ -902,7 +859,7 @@ function pushBlocks(lines: string[], blocks: CadDxfExportBlock[]) {
       pushPair(lines, 1000, `businessEntityId=${encodeURIComponent(block.businessEntityId ?? "")}`);
     }
     for (const primitive of block.primitives)
-      writePrimitiveGeometry(lines, safeLayerName(primitive.layer), primitive);
+      writePrimitiveGeometry(lines, safeLayerName(primitive.layer), primitive, objects);
     for (const insert of block.inserts ?? [])
       pushInsert(lines, insert, blocks.find((candidate) => candidate.name === insert.block));
     for (const [tag, attribute] of Object.entries(block.attributes ?? {})) {
@@ -927,6 +884,10 @@ export function exportCadDxf(
   const layers = uniqueLayers(model);
   const lines: string[] = [];
   let entityCount = 0;
+  // Los manejadores de IMAGE/WIPEOUT y sus objetos se reparten entre ENTITIES
+  // y OBJECTS: el estado tiene que nacer antes de escribir la primera entidad
+  // y sobrevivir hasta que se cierre la sección de objetos.
+  const schema4Objects = createSchema4Objects();
   // Cotas nativas (CAD-NEXT-066): cada medición se materializa como entidad
   // DIMENSION + bloque anónimo *D{n} con su geometría renderizada.
   const dimensions = prepareDimensions(model.measurements ?? []);
@@ -944,16 +905,21 @@ export function exportCadDxf(
     primitives: semanticDimensionBlockPrimitives(dimension),
   }));
   const allBlocks = [...(model.blocks ?? []), ...dimensionBlocks, ...semanticDimensionBlocks];
-  pushHeader(lines, options);
+  pushHeader(lines, options, schema4PointVariables(model.primitives ?? []));
   pushLayerTable(lines, model, layers);
-  if (allBlocks.length) pushBlocks(lines, allBlocks);
+  if (allBlocks.length) pushBlocks(lines, allBlocks, schema4Objects);
   pushPair(lines, 0, "SECTION");
   pushPair(lines, 2, "ENTITIES");
 
   for (const primitive of model.primitives ?? []) {
     const layer = safeLayerName(primitive.layer);
-    const { wrote, isGeometry } = writePrimitiveGeometry(lines, layer, primitive);
-    if (wrote) entityCount += 1;
+    const { wrote, isGeometry, count } = writePrimitiveGeometry(
+      lines,
+      layer,
+      primitive,
+      schema4Objects,
+    );
+    entityCount += count;
     if (wrote && isGeometry && pushPrimitiveLabel(lines, layer, primitive))
       entityCount += 1;
   }
@@ -997,6 +963,9 @@ export function exportCadDxf(
   }
 
   pushPair(lines, 0, "ENDSEC");
+  // La sección OBJECTS sólo existe si hay imágenes o enmascaramientos: un
+  // dibujo sin ellos produce exactamente el mismo fichero que antes.
+  pushSchema4Objects(lines, schema4Objects);
   pushPair(lines, 0, "EOF");
   return { content: `${lines.join("\n")}\n`, layers, entityCount };
 }

@@ -1,29 +1,26 @@
 import assert from "node:assert/strict";
-import { cadDocumentDxfExportLosses } from "./dxf-cad-document";
+import {
+  cadDocumentDxfExportLosses,
+  cadDocumentNativeDxfPrimitives,
+} from "./dxf-cad-document";
 import { CAD_SCHEMA_4_ENTITY_TYPES, type CadDocument, type CadEntity } from "./cad-document";
 import { CAD_ENTITY_REGISTRY } from "./entity-runtime";
 
 /**
- * Los OCHO tipos del esquema 4 y el manifiesto de pérdidas.
+ * La regla ANTI-SILENCIO de los ocho tipos del esquema 4.
  *
- * La ola 1 metió POINT, XLINE, RAY, SOLID, WIPEOUT, IMAGE, ATTDEF y TABLE en el
- * documento canónico y ninguno se escribe en el DXF. Eso, por sí solo, es una
- * limitación conocida. Lo que sería una regresión de confianza es que se
- * perdieran CALLANDO: un dibujante pone una directriz de referencia, un
- * enmascaramiento y una imagen de fondo, exporta para mandárselo al cliente, y
- * llegan tres cosas menos sin que nadie avise.
+ * Este spec no comprueba que la exportación sea completa —de eso se ocupa
+ * `dxf-schema4-export.spec.ts`—, sino algo que tiene que seguir siendo verdad
+ * pase lo que pase con el soporte: **de cada entidad, o viaja al fichero, o el
+ * manifiesto dice qué se pierde**. Nunca las dos cosas a cero.
  *
- * Este spec fija el contrato ANTES de escribir una sola línea de exportación:
+ * La regresión de confianza que esto impide es concreta: un dibujante pone una
+ * directriz de referencia, un enmascaramiento y una imagen de fondo, exporta
+ * para mandárselo al cliente, y llegan tres cosas menos sin que nadie avise.
  *
- *   1. Los ocho tipos aparecen en el manifiesto. Sin excepciones, y la lista se
- *      recorre desde `CAD_SCHEMA_4_ENTITY_TYPES` para que un noveno tipo futuro
- *      no pueda colarse sin entrada.
- *   2. Cada aviso dice QUÉ se pierde en concreto, no una frase genérica.
- *   3. Las entidades OPACAS —lo que se conservó de un DXF ajeno— también se
- *      declaran: son la pérdida más traicionera porque el usuario cree que
- *      están precisamente porque las importó.
- *   4. El filtro de ámbito se sigue respetando: avisar de lo que no viaja sería
- *      ruido, y el ruido erosiona la confianza en el aviso.
+ * La lista de tipos se recorre desde `CAD_SCHEMA_4_ENTITY_TYPES` —no una copia
+ * escrita a mano— para que un noveno tipo futuro no pueda colarse sin pasar por
+ * aquí.
  */
 
 function documentWith(
@@ -40,6 +37,14 @@ function documentWith(
 }
 
 const p = (x: number, y: number, z = 0) => ({ x, y, z });
+
+const IMAGE_DEFINITION = {
+  id: "img-1",
+  name: "fondo",
+  uri: "asset://tenant/fondo.png",
+  pixelWidth: 64,
+  pixelHeight: 48,
+};
 
 /** Una entidad mínima pero VÁLIDA de cada tipo del esquema 4. */
 const SAMPLES: Record<(typeof CAD_SCHEMA_4_ENTITY_TYPES)[number], CadEntity> = {
@@ -109,28 +114,22 @@ for (const type of CAD_SCHEMA_4_ENTITY_TYPES) {
 // --- 1. Ninguno de los ocho se pierde en silencio --------------------------
 
 for (const type of CAD_SCHEMA_4_ENTITY_TYPES) {
-  const losses = cadDocumentDxfExportLosses(documentWith([SAMPLES[type]]));
+  const document = documentWith([SAMPLES[type]], {
+    imageDefinitions: [IMAGE_DEFINITION],
+  } as Partial<CadDocument>);
+  const written = cadDocumentNativeDxfPrimitives(document).length;
+  const losses = cadDocumentDxfExportLosses(document);
   assert.ok(
-    losses.length > 0,
-    `${type} no aparece en el manifiesto: se perdería en SILENCIO`,
+    written > 0 || losses.length > 0,
+    `${type} no viaja al fichero Y tampoco aparece en el manifiesto: se perdería en SILENCIO`,
   );
-  assert.equal(
-    losses[0].entityId,
-    SAMPLES[type].id,
-    `el aviso de ${type} debe nombrar la entidad concreta`,
-  );
-  assert.equal(losses[0].sourceType, type);
-  assert.equal(
-    losses[0].severity,
-    "error",
-    `descartar una entidad ${type} entera es más grave que degradarla`,
-  );
+  for (const loss of losses) {
+    assert.equal(loss.entityId, SAMPLES[type].id, `el aviso de ${type} debe nombrar la entidad`);
+    assert.equal(loss.sourceType, type);
+  }
 }
 
-// --- 2. El aviso dice QUÉ se pierde, no una frase intercambiable -----------
-//
-// El aviso genérico existía y ya los cubría; lo que no daba era nada
-// accionable. Cada tipo tiene que nombrar lo suyo.
+// --- 2. Lo que se declara dice QUÉ se pierde, no una frase intercambiable --
 
 const CONCRETE: Record<string, RegExp> = {
   point: /POINT/,
@@ -144,27 +143,49 @@ const CONCRETE: Record<string, RegExp> = {
 };
 
 for (const type of CAD_SCHEMA_4_ENTITY_TYPES) {
-  const [loss] = cadDocumentDxfExportLosses(documentWith([SAMPLES[type]]));
-  assert.match(
-    loss.detail,
-    CONCRETE[type],
-    `el aviso de ${type} debe nombrar el tipo DXF que se queda fuera`,
-  );
-  assert.ok(
-    loss.detail.length > 60,
-    `el aviso de ${type} debe explicar la pérdida, no despacharla`,
-  );
+  for (const loss of cadDocumentDxfExportLosses(
+    documentWith([SAMPLES[type]], { imageDefinitions: [IMAGE_DEFINITION] } as Partial<CadDocument>),
+  )) {
+    assert.match(
+      loss.detail,
+      CONCRETE[type],
+      `el aviso de ${type} debe nombrar el tipo DXF del que habla`,
+    );
+    assert.ok(
+      loss.detail.length > 60,
+      `el aviso de ${type} debe explicar la pérdida, no despacharla`,
+    );
+  }
 }
 
-// El manifiesto de un documento con los OCHO a la vez los lista todos.
+// Las tres pérdidas de FORMATO que quedan tras exportar los ocho: la tabla
+// degradada a geometría, la imagen que sólo lleva su ruta y —porque este
+// documento mezcla estilos de punto— la variable global $PDMODE.
 const everything = cadDocumentDxfExportLosses(
-  documentWith(CAD_SCHEMA_4_ENTITY_TYPES.map((type) => SAMPLES[type])),
+  documentWith(
+    [
+      ...CAD_SCHEMA_4_ENTITY_TYPES.map((type) => SAMPLES[type]),
+      { ...SAMPLES.point, id: "s4-point-otro", style: 3 } as CadEntity,
+    ],
+    { imageDefinitions: [IMAGE_DEFINITION] } as Partial<CadDocument>,
+  ),
 );
 assert.deepEqual(
-  [...new Set(everything.map((loss) => loss.sourceType))].sort(),
-  [...CAD_SCHEMA_4_ENTITY_TYPES].sort(),
-  "un documento con los ocho tipos debe declarar los ocho",
+  [...new Set(everything.map((loss) => loss.code))].sort(),
+  [
+    "dxf_export_image_reference_only",
+    "dxf_export_point_style_global",
+    "dxf_export_table_degraded",
+  ],
+  "tras exportar los ocho, lo que queda declarado es lo que el FORMATO no sabe guardar",
 );
+
+// Una IMAGE cuya definición no existe no llega al fichero: eso ya es pérdida de
+// geometría, y sube a error para que el preflight la bloquee.
+const orphan = cadDocumentDxfExportLosses(documentWith([SAMPLES.image]));
+assert.equal(orphan.length, 1);
+assert.equal(orphan[0].code, "dxf_export_image_definition_missing");
+assert.equal(orphan[0].severity, "error");
 
 // --- 3. Entidades opacas: lo que llegó de un DXF ajeno ---------------------
 
@@ -206,31 +227,42 @@ assert.deepEqual(
 );
 
 // --- 5. El ámbito se respeta ----------------------------------------------
+//
+// Avisar de pérdidas en entidades que no viajan al fichero sería ruido, y el
+// ruido erosiona la confianza en el aviso.
 
-const scoped = documentWith([SAMPLES.xline, SAMPLES.ray]);
+const scoped = documentWith([
+  SAMPLES.table,
+  { ...SAMPLES.table, id: "s4-table-fuera" } as CadEntity,
+]);
 assert.deepEqual(
-  cadDocumentDxfExportLosses(scoped, (entity) => entity.id === "s4-ray").map(
+  cadDocumentDxfExportLosses(scoped, (entity) => entity.id === "s4-table").map(
     (loss) => loss.entityId,
   ),
-  ["s4-ray"],
+  ["s4-table"],
   "sólo se avisa de lo que el ámbito exportado incluye",
 );
 
-// --- 6. Una entidad descartada NO acumula además avisos de degradación -----
-//
-// Detallar que se aplana la Z de algo que no llega al fichero es ruido.
+// --- 6. Una entidad que SÍ se descarta se declara una vez, no una por campo -
 
-const elevated = {
-  ...SAMPLES.solid,
-  id: "s4-solid-elevado",
-  points: [p(0, 0, 500), p(100, 0, 500), p(100, 80, 500)],
-} as CadEntity;
-assert.equal(
-  cadDocumentDxfExportLosses(documentWith([elevated])).length,
-  1,
-  "una entidad que no viaja se declara UNA vez, no una por campo degradado",
+const degenerate = cadDocumentDxfExportLosses(
+  documentWith([
+    {
+      id: "s4-xline-degenerado",
+      type: "xline",
+      basePoint: p(0, 0, 500),
+      direction: p(0, 0),
+      layer: "0",
+    } as CadEntity,
+  ]),
 );
+assert.equal(
+  degenerate.length,
+  1,
+  "una XLINE sin dirección no define recta: se declara UNA vez, no una por campo degradado",
+);
+assert.equal(degenerate[0].severity, "error");
 
 console.log(
-  `dxf-schema4-losses.spec.ts OK — ${CAD_SCHEMA_4_ENTITY_TYPES.length} tipos declarados, ${everything.length} avisos`,
+  `dxf-schema4-losses.spec.ts OK — ${CAD_SCHEMA_4_ENTITY_TYPES.length} tipos sin silencio, ${everything.length} pérdidas de formato declaradas`,
 );

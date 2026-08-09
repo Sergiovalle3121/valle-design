@@ -469,7 +469,7 @@ export function cadDocumentNativeDxfPrimitives(
 ): CadDxfPrimitive[] {
   return document.entities
     .filter((entity) => (filter ? filter(entity) : true))
-    .map(cadEntityToDxfPrimitive)
+    .map((entity) => cadEntityToDxfPrimitive(entity, document))
     .filter((primitive): primitive is CadDxfPrimitive => primitive !== null);
 }
 
@@ -972,5 +972,13 @@ export function cadDocumentDxfInserts(
       rotation: entity.rotation,
       layer: entity.layer,
       attributes: entity.attributes,
+      ...(entity.positionedAttributes?.length
+        ? {
+            positionedAttributes: entity.positionedAttributes.map((attribute) => ({
+              ...attribute,
+              insertion: { x: attribute.insertion.x, y: attribute.insertion.y },
+            })),
+          }
+        : {}),
     }));
 }

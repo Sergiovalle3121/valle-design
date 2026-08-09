@@ -13,11 +13,18 @@
  *
  * Módulo puro: sin THREE, sin DOM, sin estado.
  */
-import type { CadEntity } from "./cad-document";
+import type { CadDocument, CadEntity } from "./cad-document";
 import type { CadDxfPrimitive } from "./dxf-import";
+import { cadEntityToSchema4Primitive } from "./dxf-schema4-primitives";
 
+/**
+ * `document` sólo hace falta para IMAGE, que referencia una definición del
+ * catálogo del documento igual que un INSERT referencia un bloque. El resto de
+ * las entidades se traducen con lo que llevan dentro.
+ */
 export function cadEntityToDxfPrimitive(
   entity: CadEntity,
+  document?: Pick<CadDocument, "imageDefinitions">,
 ): CadDxfPrimitive | null {
   if (entity.type === "arc") {
     return {
@@ -87,5 +94,5 @@ export function cadEntityToDxfPrimitive(
       radius: entity.radius,
     };
   }
-  return null;
+  return cadEntityToSchema4Primitive(entity, document);
 }

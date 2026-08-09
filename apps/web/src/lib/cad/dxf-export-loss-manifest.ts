@@ -43,48 +43,109 @@ const DXF_NON_PRIMITIVE_TYPES = new Set([
 /**
  * Reglas de fidelidad de los tipos del esquema 4.
  *
- * Cada entrada describe lo que la exportación NO conserva de ese tipo, ya sea
- * porque la entidad entera se queda fuera (`severity: "error"`) o porque viaja
- * degradada (`severity: "warning"`). Un tipo del esquema 4 que no tenga entrada
- * aquí y tampoco primitiva se sigue reportando por la vía genérica: el
- * manifiesto nunca se queda mudo por un olvido en esta tabla.
+ * Los ocho se escriben ya con su código DXF real, así que lo que queda aquí no
+ * es "qué falta por implementar" sino qué NO SABE GUARDAR EL FORMATO aunque la
+ * entidad viaje: el estilo de punto, que en DXF es del dibujo y no del punto;
+ * los píxeles de una imagen, que el fichero nunca lleva dentro; el marco de un
+ * enmascaramiento, que también es global.
  *
- * Que la tabla diga hoy «se descarta» para los ocho tipos es EXACTAMENTE lo que
- * hace el exportador hoy. El aviso genérico —«no tiene representación»— ya los
- * cubría, pero no dice nada accionable: quien acaba de trazar una directriz de
- * construcción necesita leer que se pierde la recta infinita, no una frase que
- * vale igual para un sombreado.
+ * Un tipo sin entrada en esta tabla y sin primitiva se sigue reportando por la
+ * vía genérica: el manifiesto no se queda mudo por un olvido en la tabla.
+ *
+ * `null` = ninguna pérdida que declarar para ESTA entidad concreta.
  */
-interface Schema4LossRule {
-  code: string;
-  severity: CadLossManifestEntry["severity"];
-  /** `null` = ninguna pérdida que declarar para ESTA entidad concreta. */
-  detail: (entity: CadEntity, document: CadDocument) => string | null;
-}
-
-/** Frase común: la entidad entera se queda fuera del fichero. */
-function dropped(what: string): Schema4LossRule {
-  return {
-    code: "dxf_export_entity_dropped",
-    severity: "error",
-    detail: () =>
-      `${what} La exportación DXF todavía no escribe este tipo, así que la entidad NO estará en el ` +
-      "fichero. Conserva el documento canónico como original.",
-  };
-}
+type Schema4LossRule = (
+  entity: CadEntity,
+  document: CadDocument,
+) => Pick<CadLossManifestEntry, "code" | "severity" | "detail"> | null;
 
 const SCHEMA4_LOSS_RULES: Record<string, Schema4LossRule> = {
-  point: dropped("POINT — el nodo del dibujo, con su estilo de marca y su tamaño."),
-  xline: dropped("XLINE — recta de construcción infinita en ambos sentidos."),
-  ray: dropped("RAY — semirrecta de construcción, infinita en un sentido."),
-  solid: dropped("SOLID — triángulo o cuadrilátero relleno."),
-  wipeout: dropped(
-    "WIPEOUT — el polígono que TAPA lo que hay debajo; sin él, el dibujo exportado enseña lo que el " +
-      "enmascaramiento ocultaba.",
-  ),
-  image: dropped("IMAGE — inserción de una imagen ráster con su encuadre."),
-  attdef: dropped("ATTDEF — definición de atributo con su etiqueta, su valor por defecto y sus banderas."),
-  table: dropped("TABLE — tabla con su rejilla, sus medidas de fila/columna y el texto de cada celda."),
+  /**
+   * TABLE se degrada a geometría A PROPÓSITO. El porqué —una ACAD_TABLE sin su
+   * TABLESTYLE no la dibuja casi nadie— está en `dxf-schema4-table.ts`; aquí lo
+   * que importa es que la decisión no se toma en silencio.
+   */
+  table: () => ({
+    code: "dxf_export_table_degraded",
+    severity: "warning",
+    detail:
+      "TABLE — la tabla se exporta como GEOMETRÍA (rejilla y textos), no como ACAD_TABLE editable: " +
+      "una ACAD_TABLE fiel exige además su TABLESTYLE y el formato por celda, y sin ellos la mayoría " +
+      "de los visores no dibujarían nada. Al reimportar volverá como líneas y textos sueltos.",
+  }),
+  /**
+   * POINT: en DXF el estilo de marca es una variable del DIBUJO ($PDMODE y
+   * $PDSIZE), no del punto. El documento canónico lo guarda por entidad, que es
+   * estrictamente más expresivo — así que la pérdida sólo EXISTE si los puntos
+   * no comparten estilo, y sólo entonces se declara.
+   */
+  point: (entity, document) => {
+    if (entity.type !== "point") return null;
+    const styles = new Set<number>();
+    const sizes = new Set<number>();
+    for (const candidate of document.entities) {
+      if (candidate.type !== "point") continue;
+      styles.add(candidate.style ?? 0);
+      sizes.add(candidate.size ?? 0);
+    }
+    if (styles.size <= 1 && sizes.size <= 1) return null;
+    return {
+      code: "dxf_export_point_style_global",
+      severity: "info",
+      detail:
+        "POINT — el estilo de marca es una variable global del DXF ($PDMODE/$PDSIZE) y el documento usa " +
+        `${styles.size} estilo(s) y ${sizes.size} tamaño(s) distintos: todos los POINT del fichero saldrán ` +
+        "con el estilo mayoritario.",
+    };
+  },
+  /**
+   * IMAGE: el DXF guarda la RUTA, nunca los píxeles. Y si la definición no
+   * existe en el documento, no hay IMAGEDEF que escribir y la inserción se cae
+   * del fichero: eso ya es una pérdida de geometría, no una degradación.
+   */
+  image: (entity, document) => {
+    if (entity.type !== "image") return null;
+    const definition = (document.imageDefinitions ?? []).find(
+      (candidate) => candidate.id === entity.definition,
+    );
+    // Sin definición no hay IMAGEDEF y la inserción se cae del fichero: eso ya
+    // es pérdida de geometría, no una degradación, y sube a `error`.
+    if (!definition)
+      return {
+        code: "dxf_export_image_definition_missing",
+        severity: "error",
+        detail:
+          `IMAGE — la inserción referencia la definición «${entity.definition}», que no existe en el ` +
+          "documento: sin IMAGEDEF que escribir, la imagen NO estará en el fichero.",
+      };
+    return {
+      code: "dxf_export_image_reference_only",
+      severity: "warning",
+      detail:
+        `IMAGE — el DXF sólo guarda la RUTA de la imagen («${definition.uri}»), nunca sus píxeles: quien ` +
+        "abra el fichero verá el marco vacío si no tiene acceso al mismo archivo.",
+    };
+  },
+  /**
+   * WIPEOUT: el marco es una variable del FICHERO (`ACAD_WIPEOUT_VARS`), no de
+   * cada enmascaramiento. Mientras todos coincidan no se pierde nada.
+   */
+  wipeout: (entity, document) => {
+    if (entity.type !== "wipeout") return null;
+    const frames = new Set(
+      document.entities
+        .filter((candidate) => candidate.type === "wipeout")
+        .map((candidate) => candidate.frame === true),
+    );
+    if (frames.size <= 1) return null;
+    return {
+      code: "dxf_export_wipeout_frame_global",
+      severity: "info",
+      detail:
+        "WIPEOUT — el marco es una variable global del DXF (ACAD_WIPEOUT_VARS) y este documento mezcla " +
+        "enmascaramientos con marco y sin él: en el fichero todos saldrán con marco.",
+    };
+  },
 };
 
 /** ¿Alguna coordenada de la entidad vive fuera del plano Z=0? */
@@ -131,27 +192,22 @@ export function cadDocumentDxfExportLosses(
     // 1. Fidelidad declarada de los tipos del esquema 4. Va ANTES del descarte
     //    genérico porque una regla concreta dice QUÉ se pierde, y "no tiene
     //    representación" no dice nada que el usuario pueda accionar.
-    const rule = SCHEMA4_LOSS_RULES[entity.type];
-    if (rule) {
-      const detail = rule.detail(entity, document);
-      if (detail !== null)
-        losses.push({
-          code: rule.code,
-          entityId: entity.id,
-          sourceType: entity.type,
-          severity: rule.severity,
-          detail,
-        });
-      // Si la entidad entera se queda fuera, detallar además que su Z se
-      // aplana sería ruido: no hay fichero donde aplanarla.
-      if (rule.severity === "error") continue;
-    }
+    const declared = SCHEMA4_LOSS_RULES[entity.type]?.(entity, document) ?? null;
+    if (declared)
+      losses.push({
+        ...declared,
+        entityId: entity.id,
+        sourceType: entity.type,
+      });
+    // Si la entidad entera se queda fuera, detallar además que su Z se aplana
+    // sería ruido: no hay fichero donde aplanarla.
+    if (declared?.severity === "error") continue;
 
     // 2. Entidades que no se escriben en absoluto.
     if (
-      !rule &&
+      !declared &&
       !DXF_NON_PRIMITIVE_TYPES.has(entity.type) &&
-      cadEntityToDxfPrimitive(entity) === null
+      cadEntityToDxfPrimitive(entity, document) === null
     ) {
       losses.push({
         code: "dxf_export_entity_dropped",
