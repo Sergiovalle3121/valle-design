@@ -21,7 +21,10 @@
  * con un solo objeto la intersección es todo, así que el caso de siempre no
  * cambia ni un campo.
  */
-import type { CadPropertyBag, CadPropertyValue } from "@/lib/cad/entity-runtime";
+import type {
+  CadPropertyBag,
+  CadPropertyValue,
+} from "@/lib/cad/entity-runtime";
 
 export type { CadPropertyValue };
 
@@ -37,11 +40,7 @@ export interface CadPropertySubject {
 }
 
 export type CadPropertyEditorKind =
-  | "text"
-  | "multiline"
-  | "number"
-  | "boolean"
-  | "readonly";
+  "text" | "multiline" | "number" | "boolean" | "readonly";
 
 export interface CadPropertyRow {
   key: string;
@@ -211,7 +210,10 @@ function categoryOf(key: string): string {
   return CATEGORY_BY_KEY[key] ?? OTHER;
 }
 
-function editorKindOf(key: string, value: CadPropertyValue): CadPropertyEditorKind {
+function editorKindOf(
+  key: string,
+  value: CadPropertyValue,
+): CadPropertyEditorKind {
   if (READONLY_KEYS.has(key) || key.endsWith("Count")) return "readonly";
   if (typeof value === "boolean") return "boolean";
   if (key === "text") return "multiline";
@@ -231,7 +233,10 @@ function commonKeys(subjects: readonly CadPropertySubject[]): string[] {
   );
 }
 
-function headlineOf(subjects: readonly CadPropertySubject[], types: string[]): string {
+function headlineOf(
+  subjects: readonly CadPropertySubject[],
+  types: string[],
+): string {
   if (subjects.length === 1)
     return `${subjects[0].type.toUpperCase()} ${subjects[0].id}`;
   return `${subjects.length} objetos · ${types.join(", ")}`;

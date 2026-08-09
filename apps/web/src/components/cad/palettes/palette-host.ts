@@ -51,16 +51,16 @@ export class CadPaletteHost {
     for (const listener of this.listeners) listener();
   }
 
-  show(palette: CadPaletteId): void {
+  show = (palette: CadPaletteId): void => {
     this.publish(palette);
-  }
+  };
 
   /** Abre si estaba cerrada o era otra; cierra si ya era esta. */
-  toggle(palette: CadPaletteId): void {
+  toggle = (palette: CadPaletteId): void => {
     this.publish(this.snapshot.open === palette ? null : palette);
-  }
+  };
 
-  close(): void {
+  close = (): void => {
     this.publish(null);
-  }
+  };
 }

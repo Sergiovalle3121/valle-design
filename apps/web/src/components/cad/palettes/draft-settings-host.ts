@@ -156,78 +156,78 @@ export class CadDraftSettingsHost {
 
   // --- mutaciones -----------------------------------------------------------
 
-  setOsnap(value: boolean): void {
+  setOsnap = (value: boolean): void => {
     if (this.osnapOn === value) return;
     this.osnapOn = value;
     this.publish();
-  }
+  };
 
-  toggleOsnap(): void {
+  toggleOsnap = (): void => {
     this.setOsnap(!this.osnapOn);
-  }
+  };
 
-  setOsnapMode(mode: SnapType, value: boolean): void {
+  setOsnapMode = (mode: SnapType, value: boolean): void => {
     if (this.modes[mode] === value) return;
     this.modes = { ...this.modes, [mode]: value };
     this.publish();
-  }
+  };
 
   /**
    * Enciende o apaga los catorce de golpe. `grid` va incluido: quien pulsa
    * «todos» pide todos, y dejar uno fuera en silencio sería mentir sobre lo
    * que hace el botón.
    */
-  setAllOsnapModes(value: boolean): void {
+  setAllOsnapModes = (value: boolean): void => {
     const next = {} as Record<SnapType, boolean>;
     for (const mode of SNAP_PRIORITY) next[mode] = value;
     this.modes = next;
     this.publish();
-  }
+  };
 
   /** Vuelve al reparto de fábrica: todo encendido salvo `grid`. */
-  resetOsnapModes(): void {
+  resetOsnapModes = (): void => {
     this.modes = defaultCadOsnapModes();
     this.publish();
-  }
+  };
 
-  setOrtho(value: boolean): void {
+  setOrtho = (value: boolean): void => {
     if (this.orthoOn === value) return;
     this.orthoOn = value;
     this.publish();
-  }
+  };
 
-  toggleOrtho(): void {
+  toggleOrtho = (): void => {
     this.setOrtho(!this.orthoOn);
-  }
+  };
 
-  setPolar(value: boolean): void {
+  setPolar = (value: boolean): void => {
     if (this.polarOn === value) return;
     this.polarOn = value;
     this.publish();
-  }
+  };
 
-  togglePolar(): void {
+  togglePolar = (): void => {
     this.setPolar(!this.polarOn);
-  }
+  };
 
-  setPolarIncrement(degrees: number): void {
+  setPolarIncrement = (degrees: number): void => {
     // Un incremento de 0 o negativo divide el círculo en infinitos sectores y
     // cuelga el ajuste angular; se ignora en vez de propagarlo.
     if (!Number.isFinite(degrees) || degrees <= 0) return;
     if (this.polarStep === degrees) return;
     this.polarStep = degrees;
     this.publish();
-  }
+  };
 
-  setObjectSnapTracking(value: boolean): void {
+  setObjectSnapTracking = (value: boolean): void => {
     if (this.trackingOn === value) return;
     this.trackingOn = value;
     this.publish();
-  }
+  };
 
-  toggleObjectSnapTracking(): void {
+  toggleObjectSnapTracking = (): void => {
     this.setObjectSnapTracking(!this.trackingOn);
-  }
+  };
 
   /**
    * Guarda la lista de puntos adquiridos por OTRACK.
@@ -237,16 +237,19 @@ export class CadDraftSettingsHost {
    * dependa del motor de rastreo: lo único que aporta es sostener el dato y
    * avisar a la interfaz cuando el contador cambia.
    */
-  setTrackingPoints(points: readonly CadTrackingPoint[]): void {
-    if (points.length === this.tracked.length && points.every((point, index) => point === this.tracked[index]))
+  setTrackingPoints = (points: readonly CadTrackingPoint[]): void => {
+    if (
+      points.length === this.tracked.length &&
+      points.every((point, index) => point === this.tracked[index])
+    )
       return;
     this.tracked = [...points];
     this.publish();
-  }
+  };
 
-  clearTrackingPoints(): void {
+  clearTrackingPoints = (): void => {
     if (this.tracked.length === 0) return;
     this.tracked = [];
     this.publish();
-  }
+  };
 }

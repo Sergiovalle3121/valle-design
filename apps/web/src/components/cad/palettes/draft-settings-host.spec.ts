@@ -25,18 +25,28 @@ import {
     14,
     "los catorce modos de AutoCAD, ni uno menos",
   );
-  assert.equal(modes.grid, false, "el editor llamaba con `{ grid: false }` fijo");
+  assert.equal(
+    modes.grid,
+    false,
+    "el editor llamaba con `{ grid: false }` fijo",
+  );
   assert.equal(modes.endpoint, true);
   assert.equal(modes.intersection, true);
   assert.equal(modes.perpendicular, true);
   assert.equal(modes.nearest, true);
   assert.equal(modes["apparent-intersection"], true);
   assert.equal(
-    SNAP_PRIORITY.every((mode) => (mode === "grid" ? !modes[mode] : modes[mode])),
+    SNAP_PRIORITY.every((mode) =>
+      mode === "grid" ? !modes[mode] : modes[mode],
+    ),
     true,
     "todo encendido salvo grid: el comportamiento de partida no cambia",
   );
-  assert.deepEqual([...CAD_OSNAP_MODES], [...SNAP_PRIORITY], "y en el orden del motor");
+  assert.deepEqual(
+    [...CAD_OSNAP_MODES],
+    [...SNAP_PRIORITY],
+    "y en el orden del motor",
+  );
 }
 
 // --- la instantánea es estable por identidad ---------------------------------
@@ -67,7 +77,11 @@ import {
   host.setPolarIncrement(30);
   assert.equal(calls, 1);
   host.setPolarIncrement(0);
-  assert.equal(calls, 1, "un incremento de 0 partiría el círculo en infinitos sectores");
+  assert.equal(
+    calls,
+    1,
+    "un incremento de 0 partiría el círculo en infinitos sectores",
+  );
   assert.equal(host.polarIncrement, 30, "y se queda como estaba");
   host.setPolarIncrement(Number.NaN);
   assert.equal(host.polarIncrement, 30);
@@ -108,7 +122,11 @@ import {
   const host = new CadDraftSettingsHost();
   host.setOsnapMode("intersection", false);
   assert.equal(host.snapModes().intersection, false);
-  assert.equal(host.snapModes().endpoint, true, "apagar uno no toca a los demás");
+  assert.equal(
+    host.snapModes().endpoint,
+    true,
+    "apagar uno no toca a los demás",
+  );
   host.setAllOsnapModes(false);
   assert.equal(
     Object.values(host.snapModes()).some(Boolean),
@@ -116,7 +134,11 @@ import {
     "«ninguno» apaga los catorce, grid incluido",
   );
   host.setAllOsnapModes(true);
-  assert.equal(host.snapModes().grid, true, "«todos» enciende los catorce, grid incluido");
+  assert.equal(
+    host.snapModes().grid,
+    true,
+    "«todos» enciende los catorce, grid incluido",
+  );
   host.resetOsnapModes();
   assert.equal(host.snapModes().grid, false);
   assert.equal(host.snapModes().endpoint, true);
@@ -133,7 +155,11 @@ import {
     "un `MID` tecleado captura al punto medio aunque el modo esté apagado",
   );
   assert.equal(forced.endpoint, false, "y sólo a ese");
-  assert.equal(Object.keys(forced).length, 14, "el override describe los catorce");
+  assert.equal(
+    Object.keys(forced).length,
+    14,
+    "el override describe los catorce",
+  );
   assert.equal(
     host.snapModes([]).midpoint,
     false,

@@ -1,12 +1,13 @@
 "use client";
 
 /**
- * El anfitrión de las ayudas al dibujo, sostenido desde React sin ocupar un
+ * Los anfitriones de las paletas, sostenidos desde React sin ocupar un
  * `useState`.
  *
- * Mismo patrón que `use-command-engine.ts`: el anfitrión se crea UNA vez —lleva
- * dentro los puntos adquiridos por OTRACK, y recrearlo en un render perdería el
- * rastreo a medias— y la interfaz lo lee con `useSyncExternalStore`.
+ * Mismo patrón que `use-command-engine.ts`: cada anfitrión se crea UNA vez
+ * —el de ayudas al dibujo lleva dentro los puntos adquiridos por OTRACK, y
+ * recrearlo en un render perdería el rastreo a medias— y la interfaz lo lee con
+ * `useSyncExternalStore`.
  */
 import { useMemo, useSyncExternalStore } from "react";
 import {
@@ -14,6 +15,10 @@ import {
   type CadDraftSettingsSnapshot,
 } from "./draft-settings-host";
 import { CadPaletteHost, type CadPaletteSnapshot } from "./palette-host";
+import {
+  CadLayerManagerHost,
+  type CadLayerManagerSnapshot,
+} from "./layer-manager-host";
 
 export function useCadDraftSettingsHost(): CadDraftSettingsHost {
   return useMemo(() => new CadDraftSettingsHost(), []);
@@ -27,7 +32,25 @@ export function useCadDraftSettingsHost(): CadDraftSettingsHost {
 export function useCadDraftSettings(
   host: CadDraftSettingsHost,
 ): CadDraftSettingsSnapshot {
-  return useSyncExternalStore(host.subscribe, host.getSnapshot, host.getSnapshot);
+  return useSyncExternalStore(
+    host.subscribe,
+    host.getSnapshot,
+    host.getSnapshot,
+  );
+}
+
+export function useCadLayerManagerHost(): CadLayerManagerHost {
+  return useMemo(() => new CadLayerManagerHost(), []);
+}
+
+export function useCadLayerManager(
+  host: CadLayerManagerHost,
+): CadLayerManagerSnapshot {
+  return useSyncExternalStore(
+    host.subscribe,
+    host.getSnapshot,
+    host.getSnapshot,
+  );
 }
 
 /** Qué paleta está abierta, con el mismo trato: una instancia y una suscripción. */
@@ -36,5 +59,9 @@ export function useCadPaletteHost(): CadPaletteHost {
 }
 
 export function useCadPalette(host: CadPaletteHost): CadPaletteSnapshot {
-  return useSyncExternalStore(host.subscribe, host.getSnapshot, host.getSnapshot);
+  return useSyncExternalStore(
+    host.subscribe,
+    host.getSnapshot,
+    host.getSnapshot,
+  );
 }

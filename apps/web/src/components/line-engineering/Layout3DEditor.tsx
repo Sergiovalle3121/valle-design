@@ -424,7 +424,10 @@ import {
   type CadPropertyBag,
   type CadScenePatch,
 } from "@/lib/cad/entity-runtime";
-import { executeCadEntityCommand } from "@/lib/cad/entity-commands";
+import {
+  executeCadEntityCommand,
+  executeCadEntityCommandBatch,
+} from "@/lib/cad/entity-commands";
 import { CadViewController } from "@/lib/cad/view/view-controller";
 import { CadCommandLineDock } from "@/components/cad/command-line/CadCommandLineDock";
 import { useCadStudioCommandEngine } from "@/components/cad/command-line/use-command-engine";
@@ -545,9 +548,24 @@ import {
 import {
   useCadDraftSettings,
   useCadDraftSettingsHost,
+  useCadLayerManager,
+  useCadLayerManagerHost,
   useCadPalette,
   useCadPaletteHost,
-} from "@/components/cad/palettes/use-draft-settings";
+} from "@/components/cad/palettes/use-palettes";
+import { CadLayerManagerPalette } from "@/components/cad/palettes/CadLayerManagerPalette";
+import { useCadLayerActions } from "@/components/cad/palettes/use-layer-actions";
+import {
+  CadEditorLayerToggles,
+  type CadEditorLayerKey,
+} from "@/components/cad/palettes/CadEditorLayerToggles";
+import {
+  captureCadLayerState,
+  filterCadLayerRows,
+  planCadLayerStateRestore,
+  type CadLayerFilterProperty,
+  type CadLayerManagerRow,
+} from "@/components/cad/palettes/layer-manager-model";
 import { cadEntityAssociationAnchor } from "@/lib/cad/associative-dimension";
 import {
   cadViewportFocusBounds,
@@ -2554,8 +2572,18 @@ export default function Layout3DEditor({
   const [showSheetPackage, setShowSheetPackage] = useState(false);
   const [paperSpaces, setPaperSpaces] = useState<CadPaperSpace[]>([]);
   const [paperSpaceLayers, setPaperSpaceLayers] = useState<CadLayerDef[]>([]);
-  const [newCadLayerName, setNewCadLayerName] = useState("");
-  const [newCadLayerColor, setNewCadLayerColor] = useState("#22d3ee");
+  /**
+   * Gestor de capas: filtros, borradores y estados de capa.
+   *
+   * El nombre y el color de la capa nueva eran dos `useState` del monolito;
+   * viven ahora en el anfitrión junto al resto del estado del gestor, que de
+   * otro modo habría sumado cuatro más (dos filtros y el nombre del estado).
+   */
+  const layerManagerHost = useCadLayerManagerHost();
+  const layerManager = useCadLayerManager(layerManagerHost);
+  // Las filas del gestor se calculan al final del render; las acciones se
+  // montan mucho antes, así que las leen por referencia viva.
+  const cadLayerRowsRef = useRef<CadLayerManagerRow[]>([]);
   const [cadXrefs, setCadXrefs] = useState<CadExternalReference[]>([]);
   const [publicationRecords, setPublicationRecords] = useState<
     CadPublicationRecord[]
@@ -2856,6 +2884,11 @@ export default function Layout3DEditor({
     [],
   );
   const toggleGridSnap = useCallback(() => setSnap((value) => !value), []);
+  const toggleEditorLayer = useCallback(
+    (key: CadEditorLayerKey, value: boolean) =>
+      setLayers((current) => ({ ...current, [key]: value })),
+    [],
+  );
   const [cadLayers, setCadLayers] = useState<CadLayer[]>(DEFAULT_CAD_LAYERS);
   const [layerAssignments, setLayerAssignments] = useState<CadLayerAssignments>(
     {},
@@ -3190,50 +3223,20 @@ export default function Layout3DEditor({
   /** Qué paleta/gestor está abierto. También fuera de React, por lo mismo. */
   const paletteHost = useCadPaletteHost();
   const activePalette = useCadPalette(paletteHost).open;
-  // Estables por identidad: la barra de estado y el cuadro de DSETTINGS van
-  // memoizados, y una lambda nueva en cada render anularía la memoización.
-  const toggleDraftOsnap = useCallback(
-    () => draftSettingsHost.toggleOsnap(),
-    [draftSettingsHost],
+  // Los métodos de los anfitriones son propiedades flecha por instancia, así que
+  // ya son estables por identidad y se pasan directos: envolverlos en
+  // `useCallback` no habría añadido estabilidad, sólo ruido.
+  const openDraftSettings = useCallback(
+    () => paletteHost.toggle("draft-settings"),
+    [paletteHost],
   );
-  const toggleDraftOrtho = useCallback(
-    () => draftSettingsHost.toggleOrtho(),
-    [draftSettingsHost],
-  );
-  const toggleDraftPolar = useCallback(
-    () => draftSettingsHost.togglePolar(),
-    [draftSettingsHost],
-  );
-  const setDraftPolarIncrement = useCallback(
-    (degrees: number) => draftSettingsHost.setPolarIncrement(degrees),
-    [draftSettingsHost],
-  );
-  const toggleDraftObjectSnapTracking = useCallback(
-    () => draftSettingsHost.toggleObjectSnapTracking(),
-    [draftSettingsHost],
-  );
-  const clearDraftTracking = useCallback(
-    () => draftSettingsHost.clearTrackingPoints(),
-    [draftSettingsHost],
-  );
+  // El único que sí necesita envoltorio: el cuadro habla en `string` para no
+  // importar `SnapType` de `lib/cad`, y aquí se estrecha.
   const toggleDraftOsnapMode = useCallback(
     (mode: string, value: boolean) =>
       draftSettingsHost.setOsnapMode(mode as SnapType, value),
     [draftSettingsHost],
   );
-  const setAllDraftOsnapModes = useCallback(
-    (value: boolean) => draftSettingsHost.setAllOsnapModes(value),
-    [draftSettingsHost],
-  );
-  const resetDraftOsnapModes = useCallback(
-    () => draftSettingsHost.resetOsnapModes(),
-    [draftSettingsHost],
-  );
-  const openDraftSettings = useCallback(
-    () => paletteHost.toggle("draft-settings"),
-    [paletteHost],
-  );
-  const closePalette = useCallback(() => paletteHost.close(), [paletteHost]);
   const lastWallAngleRef = useRef<number | null>(null); // ángulo del último tramo → entrada directa de distancia
   const [precisionText, setPrecisionText] = useState("");
   const [drawPrompt, setDrawPrompt] = useState<string | null>(null);
@@ -6058,25 +6061,54 @@ export default function Layout3DEditor({
       if (!commands.length) return false;
       const checkpoint = snapshotDocument();
       try {
-        let document = checkpoint;
-        const touchedIds = new Set<string>();
+        // Capa bloqueada: se comprueba TODO el lote contra el estado de
+        // partida, antes de aplicar nada. Un lote es atómico respecto de su
+        // punto de partida, así que preguntar por el documento intermedio no
+        // añadía información y obligaba a aplicar los comandos de uno en uno.
         for (const command of commands) {
           // `insert` trae su propia entidad; la capa a comprobar es la de ella.
           const target = "entityId" in command
-            ? document.entities.find((entity) => entity.id === command.entityId)
+            ? checkpoint.entities.find((entity) => entity.id === command.entityId)
             : command.entity;
           const lockedLayer =
-            target && document.layers.find((layer) => layer.id === target.layer)?.locked;
+            target && checkpoint.layers.find((layer) => layer.id === target.layer)?.locked;
           if (lockedLayer)
             throw new Error(
               `Layer ${target.layer} is locked. Unlock it before editing ${target.id}.`,
             );
-          const result = executeCadEntityCommand(document, command);
-          document = result.document;
-          result.affectedEntityIds.forEach((id) => touchedIds.add(id));
-          result.createdEntityIds.forEach((id) => touchedIds.add(id));
-          result.deletedEntityIds.forEach((id) => touchedIds.add(id));
         }
+        /**
+         * UN lote, UN `commitChange`.
+         *
+         * Esto aplicaba los comandos EN BUCLE, uno por llamada a
+         * `executeCadEntityCommand`, y cada vuelta hacía su propio
+         * `commitChange`: mover veinte entidades dejaba veinte entradas en
+         * `document.history` y subía `meta.version` veinte veces para UNA orden
+         * del usuario, además de pagar veinte `structuredClone` completos de
+         * bloques, estilos, hojas y referencias. El paso de DESHACER sí era uno
+         * —lo fija `recordHistoryDocument(checkpoint)` más abajo—, así que el
+         * defecto era invisible en la interfaz y sólo salía en el documento
+         * guardado.
+         *
+         * `executeCadEntityCommandBatch` existe justo para esto y su propia
+         * documentación lo dice; simplemente nadie lo había enchufado aquí.
+         * Con UN comando se sigue llamando a `executeCadEntityCommand` para
+         * conservar exactamente la misma etiqueta de historia que antes.
+         */
+        const result =
+          commands.length === 1
+            ? executeCadEntityCommand(checkpoint, commands[0])
+            : executeCadEntityCommandBatch(
+                checkpoint,
+                commands,
+                `${new Set(commands.map((command) => command.type)).size === 1 ? commands[0].type : "batch"}:${commands.length}`,
+              );
+        const document = result.document;
+        const touchedIds = new Set<string>([
+          ...result.affectedEntityIds,
+          ...result.createdEntityIds,
+          ...result.deletedEntityIds,
+        ]);
         const upsert = document.entities.filter(
           (entity): entity is CadNativeEntity =>
             touchedIds.has(entity.id) && CAD_ENTITY_REGISTRY.supports(entity),
@@ -6270,6 +6302,31 @@ export default function Layout3DEditor({
       toast,
     ],
   );
+  /**
+   * Acciones del gestor de capas que faltaban: tipo de línea, grosor, plot,
+   * congelación por viewport y estados de capa. Viven en
+   * `components/cad/palettes/use-layer-actions.ts` porque este archivo sólo
+   * puede encoger; `commit` les pasa la MISMA puerta canónica que usa el resto
+   * del editor, así que no hay una segunda ruta de mutación.
+   */
+  const layerActions = useCadLayerActions({
+    host: layerManagerHost,
+    rows: cadLayerRowsRef,
+    commit: (mutate, success) =>
+      commitBlockMutation(
+        mutate,
+        nativeSelectionIdsRef.current,
+        success,
+        "Capas",
+      ),
+    notify: {
+      success: (message) => toast.success(message, "Capas"),
+      info: (message) => toast.info(message, "Capas"),
+      error: (message) => toast.error(message, "Capas"),
+    },
+    activeViewportId: activePaperViewportId,
+    setViewportLayerVisibility: changePaperViewportLayerVisibility,
+  });
   const filletNativeLines = useCallback(
     (lineIds: [string, string]) => {
       const arcId = newId("fillet");
@@ -14055,20 +14112,20 @@ export default function Layout3DEditor({
   };
   const createCanonicalCadLayer = () => {
     try {
-      const id = cadLayerIdFromName(newCadLayerName);
+      const id = cadLayerIdFromName(layerManagerHost.draftName);
       const created = commitBlockMutation(
         (document) =>
           createCadDocumentLayer(document, {
-            name: newCadLayerName,
-            color: newCadLayerColor,
+            name: layerManagerHost.draftName,
+            color: layerManagerHost.draftColor,
           }),
         nativeSelectionIdsRef.current,
-        `Capa ${newCadLayerName.trim()} creada.`,
+        `Capa ${layerManagerHost.draftName.trim()} creada.`,
         "Capas",
       );
       if (created) {
         setActiveCadLayer(id);
-        setNewCadLayerName("");
+        layerManagerHost.setDraftName("");
       }
     } catch (cause) {
       toast.error(
@@ -16821,6 +16878,49 @@ export default function Layout3DEditor({
   );
   nativeEntities.forEach((entity) => incrementCadLayerCount(entity.layer));
   const cadLayerSummary = summarizeCadLayers(cadLayers, cadLayerCounts);
+  /**
+   * Filas del gestor de capas.
+   *
+   * `cadLayers` es la PROYECCIÓN del editor (id, nombre, color, visible,
+   * bloqueada) y `paperSpaceLayers` son las `CadLayerDef` completas del
+   * documento, que además traen tipo de línea, grosor y plot. Se juntan aquí
+   * porque un documento sin capas propias todavía enseña las de fábrica, y en
+   * ese caso sólo existe la proyección.
+   *
+   * `frozenInViewport` es `null` —no `false`— cuando no hay viewport activo:
+   * en espacio modelo no hay ventana que congelar, y la columna se apaga en
+   * vez de ofrecer un interruptor que no iría a ninguna parte.
+   */
+  const activeCadViewport =
+    activePaperSpace?.viewports?.find(
+      (viewport) => viewport.id === activePaperViewportId,
+    ) ?? null;
+  const activeCadViewportName = activeCadViewport
+    ? (activeCadViewport.name ?? activeCadViewport.id)
+    : null;
+  const cadLayerManagerRows: CadLayerManagerRow[] = cadLayers.map((layer) => {
+    const definition = paperSpaceLayers.find((entry) => entry.id === layer.id);
+    return {
+      id: layer.id,
+      name: layer.label,
+      color: layer.color,
+      visible: layer.visible,
+      locked: layer.locked,
+      linetype: definition?.linetype ?? "CONTINUOUS",
+      lineweight: definition?.lineweight ?? -1,
+      plot: definition?.plot !== false,
+      objectCount: cadLayerCounts[layer.id] ?? 0,
+      frozenInViewport: activeCadViewport
+        ? activeCadViewport.layerVisibility?.[layer.id] === false
+        : null,
+      active: activeCadLayer === layer.id,
+    };
+  });
+  cadLayerRowsRef.current = cadLayerManagerRows;
+  const visibleCadLayerRows = filterCadLayerRows(
+    cadLayerManagerRows,
+    layerManager.filter,
+  );
   // Plant-scale safety: flag objects that sit outside the saved factory footprint (EPIC 0).
   const plantBoundsW = data?.footprint.footprintW ?? 0;
   const plantBoundsH = data?.footprint.footprintH ?? 0;
@@ -17663,237 +17763,54 @@ export default function Layout3DEditor({
                 style={viewMenuPosition}
                 className="fixed z-[90] w-72 max-h-[78vh] overflow-y-auto rounded-xl border border-white/10 bg-gray-900 shadow-2xl p-3 text-[12px]"
               >
-                <div className="text-[10px] uppercase tracking-wide text-gray-500 mb-1.5">
-                  Capas
-                </div>
-                {(
-                  [
-                    ["stations", standalone ? "Puntos" : "Estaciones"],
-                    ["equipment", "Biblioteca"],
-                    ["connectors", "Conexiones"],
-                    ["dims", "Cotas"],
-                    ["notes", "Notas"],
-                    ["labels", "Etiquetas"],
-                    ["dxf", "Plano DXF"],
-                    ["grid", "Grilla"],
-                  ] as const
-                ).map(([k, lbl]) => (
-                  <label
-                    key={k}
-                    className="flex items-center gap-2 py-1 cursor-pointer text-gray-300 hover:text-white"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={layers[k]}
-                      onChange={(e) =>
-                        setLayers((st) => ({ ...st, [k]: e.target.checked }))
-                      }
-                      className="accent-cyan-500"
-                    />
-                    {lbl}
-                  </label>
-                ))}
-                <div className="mt-2.5 mb-1.5 flex items-center justify-between gap-2">
-                  <div className="text-[10px] uppercase tracking-wide text-gray-500">
-                    Capas CAD
-                  </div>
-                  <div
-                    className={`text-[10px] ${cadLayerSummary.hidden ? "text-amber-300" : "text-gray-500"}`}
-                  >
-                    {cadLayerSummary.visible}/{cadLayerSummary.total} visibles
-                  </div>
-                </div>
-                <div className="mb-2 grid grid-cols-[1fr_auto_auto] gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] p-1.5">
-                  <input
-                    data-testid="cad-layer-new-name"
-                    value={newCadLayerName}
-                    onChange={(event) => setNewCadLayerName(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        createCanonicalCadLayer();
-                      }
-                    }}
-                    disabled={drawingReadOnly}
-                    placeholder="Nueva capa"
-                    className="min-w-0 rounded-md border border-white/10 bg-gray-950/70 px-2 py-1 text-[10.5px] text-gray-200 outline-none focus:ring-1 focus:ring-cyan-500/40 disabled:opacity-50"
-                  />
-                  <input
-                    data-testid="cad-layer-new-color"
-                    type="color"
-                    value={newCadLayerColor}
-                    onChange={(event) =>
-                      setNewCadLayerColor(event.target.value)
-                    }
-                    disabled={drawingReadOnly}
-                    className="h-7 w-8 rounded border border-white/10 bg-transparent p-0 disabled:opacity-50"
-                    title="Color de la nueva capa"
-                  />
-                  <button
-                    data-testid="cad-layer-create"
-                    onClick={createCanonicalCadLayer}
-                    disabled={drawingReadOnly || !newCadLayerName.trim()}
-                    className="rounded-md bg-cyan-500/15 px-2 text-[10px] font-semibold text-cyan-200 hover:bg-cyan-500/25 disabled:opacity-40"
-                  >
-                    Crear
-                  </button>
-                </div>
-                <div className="space-y-1">
-                  {cadLayers.map((layer) => (
-                    <div
-                      key={layer.id}
-                      data-testid={`cad-layer-row-${layer.id}`}
-                      className={`rounded-lg px-2 py-1 ${activeCadLayer === layer.id ? "bg-cyan-400/[0.10] ring-1 ring-cyan-400/20" : "bg-white/[0.04]"}`}
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          data-testid={`cad-layer-visible-${layer.id}`}
-                          onClick={() => toggleCadLayerVisibility(layer.id)}
-                          disabled={drawingReadOnly}
-                          className={`h-2.5 w-2.5 rounded-full ${layer.visible ? "" : "opacity-30"} disabled:cursor-not-allowed`}
-                          style={{ background: layer.color }}
-                          title={
-                            layer.visible ? "Ocultar capa" : "Mostrar capa"
-                          }
-                        />
-                        <button
-                          data-testid={`cad-layer-active-${layer.id}`}
-                          onClick={() => setActiveCadLayer(layer.id)}
-                          className={`min-w-0 flex-1 truncate text-left ${layer.visible ? "text-gray-200" : "text-gray-500"}`}
-                          title="Definir como capa activa"
-                        >
-                          {layer.label}
-                        </button>
-                        <span className="rounded bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-gray-500 dark:text-gray-400">
-                          {cadLayerCounts[layer.id]}
-                        </span>
-                        <button
-                          data-testid={`cad-layer-lock-${layer.id}`}
-                          onClick={() => toggleCadLayerLock(layer.id)}
-                          disabled={drawingReadOnly}
-                          className={`text-[10px] ${layer.locked ? "text-amber-300" : "text-gray-500"} disabled:opacity-40`}
-                        >
-                          {layer.locked ? "Lock" : "Open"}
-                        </button>
-                      </div>
-                      <div className="mt-1 grid grid-cols-[1fr_auto] gap-1.5">
-                        <input
-                          key={`${layer.id}:${layer.label}`}
-                          data-testid={`cad-layer-name-${layer.id}`}
-                          defaultValue={layer.label}
-                          onBlur={(event) =>
-                            updateCadLayerLabel(layer.id, event.target.value)
-                          }
-                          disabled={drawingReadOnly}
-                          className="min-w-0 rounded-md border border-white/10 bg-gray-950/70 px-1.5 py-0.5 text-[10.5px] text-gray-200 outline-none focus:ring-1 focus:ring-cyan-500/40 disabled:opacity-50"
-                          title="Renombrar capa del documento"
-                        />
-                        <input
-                          data-testid={`cad-layer-color-${layer.id}`}
-                          type="color"
-                          value={layer.color}
-                          onChange={(event) =>
-                            updateCadLayerColor(layer.id, event.target.value)
-                          }
-                          disabled={drawingReadOnly}
-                          className="h-6 w-7 rounded border border-white/10 bg-transparent p-0 disabled:opacity-50"
-                          title="Color de capa"
-                        />
-                      </div>
-                      <div className="mt-1 flex items-center justify-end gap-2 text-[10px]">
-                        <button
-                          onClick={() => selectCadLayerObjects(layer.id)}
-                          className="text-gray-500 dark:text-gray-400 hover:text-white"
-                        >
-                          Sel
-                        </button>
-                        <button
-                          onClick={() => isolateCadLayer(layer.id)}
-                          disabled={drawingReadOnly}
-                          className="text-gray-500 dark:text-gray-400 hover:text-white disabled:opacity-40"
-                        >
-                          Solo
-                        </button>
-                        <button
-                          onClick={() => assignSelectionToCadLayer(layer.id)}
-                          disabled={drawingReadOnly}
-                          className="text-cyan-300 hover:text-cyan-100 disabled:opacity-40"
-                        >
-                          Asignar
-                        </button>
-                        {layer.id !== "0" && (
-                          <button
-                            data-testid={`cad-layer-delete-${layer.id}`}
-                            onClick={() => deleteCanonicalCadLayer(layer.id)}
-                            disabled={drawingReadOnly || cadLayers.length < 2}
-                            className="text-rose-300/80 hover:text-rose-200 disabled:opacity-40"
-                          >
-                            Borrar
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-gray-500">
-                  <span>
-                    {Object.keys(layerAssignments).length} asignados ·{" "}
-                    {cadLayerSummary.hiddenObjectCount} ocultos ·{" "}
-                    {cadLayerSummary.lockedObjectCount} bloqueados
-                  </span>
-                  <div className="inline-flex items-center gap-2">
-                    <button
-                      onClick={showAllCadLayerVisibility}
-                      className="text-gray-500 dark:text-gray-400 hover:text-white"
-                    >
-                      All
-                    </button>
-                    <button
-                      onClick={() =>
-                        commitBlockMutation(
-                          (document) =>
-                            commitChange(
-                              {
-                                ...document,
-                                layers: document.layers.map((layer) => ({
-                                  ...layer,
-                                  visible: (cadLayerCounts[layer.id] ?? 0) > 0,
-                                })),
-                              },
-                              "layer:hide-empty",
-                            ),
-                          nativeSelectionIdsRef.current,
-                          "Capas CAD vacías ocultas.",
-                          "Capas",
-                        )
-                      }
-                      disabled={drawingReadOnly}
-                      className="text-gray-500 dark:text-gray-400 hover:text-white disabled:opacity-40"
-                      title="Ocultar capas sin objetos"
-                    >
-                      Ocultar 0
-                    </button>
-                    <button
-                      onClick={unlockAllCadLayerVisibility}
-                      className="text-gray-500 dark:text-gray-400 hover:text-white"
-                      title="Desbloquear todas las capas"
-                    >
-                      Unlock
-                    </button>
-                    <button
-                      onClick={resetCadLayerPresentation}
-                      className="text-gray-500 dark:text-gray-400 hover:text-white"
-                    >
-                      Reset
-                    </button>
-                  </div>
-                </div>
-                {cadLayerSummary.hiddenObjectCount > 0 && (
-                  <div className="mt-1 rounded-lg border border-amber-400/15 bg-amber-400/[0.06] px-2 py-1 text-[10.5px] text-amber-100">
-                    {cadLayerSummary.hiddenObjectCount} objeto(s) ocultos por
-                    capas CAD. Usa All para recuperar la vista completa.
-                  </div>
-                )}
+                <CadEditorLayerToggles
+                  layers={layers}
+                  stationsLabel={standalone ? "Puntos" : "Estaciones"}
+                  onToggle={toggleEditorLayer}
+                />
+                <CadLayerManagerPalette
+                  rows={visibleCadLayerRows}
+                  totalRows={cadLayerManagerRows.length}
+                  filter={layerManager.filter}
+                  draftName={layerManager.draftName}
+                  draftColor={layerManager.draftColor}
+                  draftStateName={layerManager.draftStateName}
+                  states={layerManager.states}
+                  readOnly={drawingReadOnly}
+                  activeViewportName={activeCadViewportName}
+                  onFilterText={layerManagerHost.setFilterText}
+                  onFilterProperty={layerManagerHost.setFilterProperty}
+                  onClearFilter={layerManagerHost.clearFilter}
+                  onDraftName={layerManagerHost.setDraftName}
+                  onDraftColor={layerManagerHost.setDraftColor}
+                  onCreate={createCanonicalCadLayer}
+                  onRename={updateCadLayerLabel}
+                  onColor={updateCadLayerColor}
+                  onLinetype={layerActions.setLinetype}
+                  onLineweight={layerActions.setLineweight}
+                  onPlot={layerActions.setPlot}
+                  onToggleVisible={toggleCadLayerVisibility}
+                  onToggleLock={toggleCadLayerLock}
+                  onToggleViewportFreeze={layerActions.toggleViewportFreeze}
+                  onActivate={setActiveCadLayer}
+                  onSelectObjects={selectCadLayerObjects}
+                  onIsolate={isolateCadLayer}
+                  onAssignSelection={assignSelectionToCadLayer}
+                  onDelete={deleteCanonicalCadLayer}
+                  onDraftStateName={layerManagerHost.setDraftStateName}
+                  onSaveState={layerActions.saveState}
+                  onRestoreState={layerActions.restoreState}
+                  onDeleteState={layerActions.deleteState}
+                  summary={{
+                    assigned: Object.keys(layerAssignments).length,
+                    hiddenObjects: cadLayerSummary.hiddenObjectCount,
+                    lockedObjects: cadLayerSummary.lockedObjectCount,
+                  }}
+                  onShowAll={showAllCadLayerVisibility}
+                  onHideEmpty={layerActions.hideEmpty}
+                  onUnlockAll={unlockAllCadLayerVisibility}
+                  onResetPresentation={resetCadLayerPresentation}
+                />
                 <div className="mt-2.5 mb-1.5 flex items-center justify-between gap-2">
                   <div className="text-[10px] uppercase tracking-wide text-gray-500">
                     Vistas
@@ -19521,12 +19438,12 @@ export default function Layout3DEditor({
               <CadDraftStatusBar
                 settings={draftSettings}
                 polarIncrements={CAD_POLAR_INCREMENTS}
-                onToggleOsnap={toggleDraftOsnap}
-                onToggleOrtho={toggleDraftOrtho}
-                onTogglePolar={toggleDraftPolar}
-                onPolarIncrement={setDraftPolarIncrement}
-                onToggleObjectSnapTracking={toggleDraftObjectSnapTracking}
-                onClearTracking={clearDraftTracking}
+                onToggleOsnap={draftSettingsHost.toggleOsnap}
+                onToggleOrtho={draftSettingsHost.toggleOrtho}
+                onTogglePolar={draftSettingsHost.togglePolar}
+                onPolarIncrement={draftSettingsHost.setPolarIncrement}
+                onToggleObjectSnapTracking={draftSettingsHost.toggleObjectSnapTracking}
+                onClearTracking={draftSettingsHost.clearTrackingPoints}
                 onOpenSettings={openDraftSettings}
               />
               <button
@@ -23320,7 +23237,7 @@ export default function Layout3DEditor({
       {activePalette === "draft-settings" && (
         <div
           className="absolute inset-0 z-[85] grid place-items-center bg-black/55 p-4"
-          onClick={closePalette}
+          onClick={paletteHost.close}
         >
           <div onClick={(event) => event.stopPropagation()}>
             <CadDraftSettingsDialog
@@ -23332,18 +23249,18 @@ export default function Layout3DEditor({
                 snap,
                 size: data?.footprint.gridSize ?? 0,
               }}
-              onToggleOsnap={toggleDraftOsnap}
+              onToggleOsnap={draftSettingsHost.toggleOsnap}
               onToggleMode={toggleDraftOsnapMode}
-              onAllModes={setAllDraftOsnapModes}
-              onResetModes={resetDraftOsnapModes}
-              onToggleOrtho={toggleDraftOrtho}
-              onTogglePolar={toggleDraftPolar}
-              onPolarIncrement={setDraftPolarIncrement}
-              onToggleObjectSnapTracking={toggleDraftObjectSnapTracking}
-              onClearTracking={clearDraftTracking}
+              onAllModes={draftSettingsHost.setAllOsnapModes}
+              onResetModes={draftSettingsHost.resetOsnapModes}
+              onToggleOrtho={draftSettingsHost.toggleOrtho}
+              onTogglePolar={draftSettingsHost.togglePolar}
+              onPolarIncrement={draftSettingsHost.setPolarIncrement}
+              onToggleObjectSnapTracking={draftSettingsHost.toggleObjectSnapTracking}
+              onClearTracking={draftSettingsHost.clearTrackingPoints}
               onToggleGridVisible={toggleGridVisible}
               onToggleGridSnap={toggleGridSnap}
-              onClose={closePalette}
+              onClose={paletteHost.close}
             />
           </div>
         </div>

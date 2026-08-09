@@ -25,7 +25,8 @@ import {
 
 function row(model: CadPropertyModel, key: string): CadPropertyRow {
   for (const group of model.groups)
-    for (const candidate of group.rows) if (candidate.key === key) return candidate;
+    for (const candidate of group.rows)
+      if (candidate.key === key) return candidate;
   throw new Error(`La fila ${key} no está en el modelo.`);
 }
 
@@ -36,17 +37,37 @@ function keys(model: CadPropertyModel): string[] {
 const lineA = {
   id: "line-a",
   type: "line",
-  properties: { startX: 0, startY: 0, endX: 100, endY: 0, length: 100, layer: "0" },
+  properties: {
+    startX: 0,
+    startY: 0,
+    endX: 100,
+    endY: 0,
+    length: 100,
+    layer: "0",
+  },
 };
 const lineB = {
   id: "line-b",
   type: "line",
-  properties: { startX: 0, startY: 50, endX: 100, endY: 50, length: 100, layer: "0" },
+  properties: {
+    startX: 0,
+    startY: 50,
+    endX: 100,
+    endY: 50,
+    length: 100,
+    layer: "0",
+  },
 };
 const circle = {
   id: "circle-a",
   type: "circle",
-  properties: { centerX: 10, centerY: 20, radius: 5, diameter: 10, layer: "Muros" },
+  properties: {
+    centerX: 10,
+    centerY: 20,
+    radius: 5,
+    diameter: 10,
+    layer: "Muros",
+  },
 };
 
 // --- designación vacía: modelo vacío, no una excepción ------------------------
@@ -91,7 +112,11 @@ const circle = {
   assert.equal(model.headline, "2 objetos · line");
   assert.equal(row(model, "startX").varies, false, "ambas empiezan en x=0");
   assert.equal(row(model, "startX").value, 0);
-  assert.equal(row(model, "startY").varies, true, "una en y=0 y la otra en y=50");
+  assert.equal(
+    row(model, "startY").varies,
+    true,
+    "una en y=0 y la otra en y=50",
+  );
   assert.equal(row(model, "startY").value, null);
   assert.equal(
     cadPropertyFieldValue(row(model, "startY")),
@@ -172,7 +197,11 @@ const circle = {
   ]);
   assert.equal(row(model, "attribute:MARK").category, "Atributos");
   assert.equal(row(model, "attribute:MARK").kind, "text");
-  assert.equal(row(model, "block").kind, "readonly", "el bloque se cambia con otra orden");
+  assert.equal(
+    row(model, "block").kind,
+    "readonly",
+    "el bloque se cambia con otra orden",
+  );
   assert.equal(
     row(model, "attributeCount").kind,
     "readonly",

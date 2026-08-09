@@ -52,7 +52,9 @@ export interface CadPropertiesPaletteProps {
 
 function fieldClass(varies: boolean): string {
   return `mt-1 w-full rounded-lg border bg-gray-950/70 px-2 py-1.5 text-[12px] text-white outline-none focus:ring-1 focus:ring-cyan-500/40 ${
-    varies ? "border-amber-400/40 placeholder:text-amber-300/70" : "border-white/10"
+    varies
+      ? "border-amber-400/40 placeholder:text-amber-300/70"
+      : "border-white/10"
   }`;
 }
 
@@ -99,7 +101,9 @@ const PropertyField = React.memo(function PropertyField({
       >
         {row.key}
         {row.varies && (
-          <span className="text-[9.5px] text-amber-300">{CAD_PROPERTY_VARIES}</span>
+          <span className="text-[9.5px] text-amber-300">
+            {CAD_PROPERTY_VARIES}
+          </span>
         )}
         <input
           type="checkbox"
@@ -140,7 +144,10 @@ const PropertyField = React.memo(function PropertyField({
     );
 
   return (
-    <label key={fieldKey} className="text-[10.5px] text-gray-500 dark:text-gray-400">
+    <label
+      key={fieldKey}
+      className="text-[10.5px] text-gray-500 dark:text-gray-400"
+    >
       {row.key}
       <input
         data-testid={testId}
@@ -203,8 +210,8 @@ export const CadPropertiesPalette = React.memo(function CadPropertiesPalette({
               data-testid="cad-properties-multi-hint"
             >
               Se editan las propiedades COMUNES. Un valor que difiere se marca{" "}
-              {CAD_PROPERTY_VARIES} y al escribirlo se aplica a los {model.count}{" "}
-              objetos en un solo paso de deshacer.
+              {CAD_PROPERTY_VARIES} y al escribirlo se aplica a los{" "}
+              {model.count} objetos en un solo paso de deshacer.
             </div>
           </>
         )}
