@@ -143,14 +143,16 @@ function dimensionalResult(
   if (parsed.kind === "literal") {
     constraint.value = parsed.value;
   } else {
-    const name = parsed.kind === "definition" ? parsed.name : parsed.name;
+    // `nombre = expresión` define el parámetro ANTES de referenciarlo: los dos
+    // comandos van en el mismo lote, así que el ejecutor ve el parámetro ya
+    // puesto cuando resuelve la cota que lo usa.
     if (parsed.kind === "definition")
       commands.push({
         type: "parameter",
         op: "set",
         parameter: { name: parsed.name, expression: parsed.expression },
       });
-    constraint.parameter = name;
+    constraint.parameter = parsed.name;
   }
   commands.push({ type: "constraint", op: "upsert", constraint });
   return done(state, { kind: "document", commands, label: spec.command });
