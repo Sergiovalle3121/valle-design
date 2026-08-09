@@ -10,6 +10,7 @@
  * editor: entra un documento, sale un contexto.
  */
 import type { CadDocument, CadEntity } from "@/lib/cad/cad-document";
+import { cadExpandSelectionByGroup } from "@/lib/cad/blocks/cad-groups";
 import type { CadCommandContext } from "@/lib/cad/engine/command-types";
 import { cadDocumentExtents } from "@/lib/cad/view/document-extents";
 import type { CadView } from "@/lib/cad/view/cad-view";
@@ -64,7 +65,12 @@ export function cadStudioCommandContext(
     // cuando hay documento abierto, para que la negativa sea la verdad y no un
     // «no hay nada» calculado sobre un documento vacío.
     ...(inputs.document ? { document: () => inputs.document! } : {}),
-    selection: inputs.selection,
+    // La selección se expande POR GRUPO antes de que la vea ningún comando.
+    // Es la mitad del valor de un grupo —la otra es que se mueva junto— y
+    // resolverlo aquí lo hace cierto para MOVE, ROTATE, ERASE y todo lo que
+    // venga, en vez de una vez por comando. Sin grupos no cambia nada: la
+    // función devuelve la misma lista.
+    selection: cadExpandSelectionByGroup(inputs.selection, entities),
     activeLayer: inputs.activeLayer,
     // Presentaciones, unidad y envolvente: lo que LAYOUT, MVIEW y PLOT
     // necesitan y ningún comando anterior pedía. Se exponen como funciones
