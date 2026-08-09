@@ -120,7 +120,12 @@ describePostgres('migration chain (previous main -> latest)', () => {
 
     dataSource = source(ALL_MIGRATIONS);
     await dataSource.initialize();
-    expect(await dataSource.runMigrations()).toHaveLength(4);
+    // El número sale de la LISTA, no de una constante escrita a mano: cada
+    // migración nueva rompía esta línea con un «esperaba 4, llegaron 5» que no
+    // dice nada del cambio que la causó.
+    expect(await dataSource.runMigrations()).toHaveLength(
+      ALL_MIGRATIONS.length - LEGACY_MIGRATIONS.length,
+    );
 
     expect(
       await dataSource.query(
