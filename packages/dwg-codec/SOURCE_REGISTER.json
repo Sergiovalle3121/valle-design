@@ -1,0 +1,93 @@
+{
+  "$schema": "./source-register.schema.json",
+  "schemaVersion": "1.0.0",
+  "updatedAt": "2026-08-09",
+  "entries": [
+    {
+      "id": "VALLE-OWNER-DWG0-2026-08-09",
+      "owner": "Sergio Valle Zárate",
+      "origin": {
+        "type": "owner-directive",
+        "location": "codex-attachment://195e7b7f-f15e-4ae8-856a-b4b99e604e09/pasted-text-1.txt",
+        "accessedAt": "2026-08-09",
+        "sha256": "1bce21c0ba4a21f055892a4bef1e7b4ec5c75e2bce26c528dd98b7978aad1f9b",
+        "byteLength": 23305
+      },
+      "title": "DWG-0 owner authorization and engineering constraints",
+      "versionOrDate": "2026-08-09",
+      "terms": {
+        "license": "Valle proprietary owner authorization",
+        "access": "Supplied directly by the repository owner for this work",
+        "redistribution": "Only this metadata and the resulting first-party governance may be published; the directive text is not redistributed",
+        "notes": "Authorization is limited to clean-room research in valle-design and is not a legal opinion, DWG license or certification"
+      },
+      "status": "allowed",
+      "factsConsulted": [
+        "Valle may research an original first-party DWG implementation inside this monorepo without a commercial codec",
+        "Product DWG availability must remain false throughout DWG-0",
+        "Restricted implementations, ambiguous sources and non-permissive licensing are prohibited",
+        "Work must use isolated branches, exact-SHA gates and no protection bypass"
+      ],
+      "derivedFiles": [
+        "AGENTS.md",
+        "ARCHITECTURE.md",
+        "README.md",
+        "SECURITY.md",
+        "docs/adr/0007-dwg-clean-room-experimental-research.md",
+        "docs/competitive/autocad-2027-gap-matrix.md",
+        "packages/dwg-codec/AGENTS.md",
+        "packages/dwg-codec/CAPABILITIES.md",
+        "packages/dwg-codec/CLEAN_ROOM_POLICY.md",
+        "packages/dwg-codec/DWG0_WORKLOG.md",
+        "packages/dwg-codec/README.md",
+        "packages/dwg-codec/THREAT_MODEL.md",
+        "packages/dwg-codec/SOURCE_REGISTER.json",
+        "packages/dwg-codec/source-register.schema.json",
+        "packages/dwg-codec/fixtures/manifest.schema.json"
+      ],
+      "reviewer": "Codex preflight; owner is the authorizing party",
+      "reviewedAt": "2026-08-09",
+      "notes": "No external implementation, SDK, specification or fixture was consulted for PR 1"
+    },
+    {
+      "id": "VALLE-REPO-BASE-C792F938",
+      "owner": "Sergio Valle Zárate",
+      "origin": {
+        "type": "first-party-repository",
+        "location": "https://github.com/Sergiovalle3121/valle-design/tree/c792f938e8c962b641caf59d54f46f86bb52168d",
+        "accessedAt": "2026-08-09"
+      },
+      "title": "Existing Valle Design architecture, DWG boundary and signature preflight",
+      "versionOrDate": "c792f938e8c962b641caf59d54f46f86bb52168d",
+      "terms": {
+        "license": "Valle proprietary software; UNLICENSED",
+        "access": "First-party repository controlled by the owner",
+        "redistribution": "Changes may remain in the same owner-controlled repository under its existing terms",
+        "notes": "Consulted as the authoritative pre-existing product and governance baseline"
+      },
+      "status": "allowed",
+      "factsConsulted": [
+        "ADR-0003 requires one canonical CadDocument and gates Rust/WASM",
+        "ADR-0004 and the product provider keep DWG unavailable",
+        "The web preflight recognizes AC10xx at offset zero and names nine known versions",
+        "Existing tests assert nativeSupport false, provider available false and .dwg dashboard rejection",
+        "The monorepo limits new TypeScript and JavaScript files to 800 lines"
+      ],
+      "derivedFiles": [
+        "AGENTS.md",
+        "ARCHITECTURE.md",
+        "README.md",
+        "SECURITY.md",
+        "docs/adr/0007-dwg-clean-room-experimental-research.md",
+        "docs/competitive/autocad-2027-gap-matrix.md",
+        "packages/dwg-codec/AGENTS.md",
+        "packages/dwg-codec/CAPABILITIES.md",
+        "packages/dwg-codec/README.md",
+        "packages/dwg-codec/THREAT_MODEL.md"
+      ],
+      "reviewer": "Codex repository preflight",
+      "reviewedAt": "2026-08-09",
+      "notes": "No third-party DWG facts were derived from the existing detector; its current behavior is only a first-party compatibility baseline"
+    }
+  ]
+}

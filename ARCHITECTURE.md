@@ -84,7 +84,8 @@ convierte en un segundo modelo público.
 
 La importación de DXF de texto y JSON canónico ocurre en un Web Worker con
 progreso, cancelación, timeout y límites estructurales. La conversión produce
-el mismo `CadDocument` y conserva warnings/loss manifest. DWG se rechaza.
+el mismo `CadDocument` y conserva warnings/loss manifest. El runtime de producto
+rechaza DWG.
 
 ## Outbox y efectos externos
 
@@ -103,8 +104,17 @@ efecto externo.
 
 DXF es un adaptador parcial sobre el documento canónico. El loss manifest hace
 explícita la semántica no representable; DWG, STEP, IGES e IFC no están
-implementados. CIDE es un puerto opcional para intent y vision: si falta, la
-respuesta es `available: false` y el editor sigue funcionando.
+implementados en el producto.
+
+`packages/dwg-codec/` es un laboratorio clean-room experimental y aislado
+gobernado por ADR-0007. Su frontera futura recibe bytes, produce primero una
+representación neutral, diagnostics y manifiesto de pérdidas y no depende de
+web, API, persistencia ni `CadDocument`. En DWG-0 no tiene consumidor runtime,
+provider, endpoint, upload ni UI; por tanto no cambia la disponibilidad del
+producto.
+
+CIDE es un puerto opcional para intent y vision: si falta, la respuesta es
+`available: false` y el editor sigue funcionando.
 
 ## Deuda visible
 
@@ -113,4 +123,6 @@ respuesta es `available: false` y el editor sigue funcionando.
 - El benchmark 100k usa LOD y presupuestos de decenas de segundos, no demuestra
   interacción profesional sostenida ni 60 FPS.
 - No hay receptor webhook, proveedor de correo ni broker dentro del repo.
-- La cobertura DXF no equivale a round-trip universal y no existe DWG.
+- La cobertura DXF no equivale a round-trip universal y no existe
+  importación/exportación DWG productiva; el laboratorio desconectado no cuenta
+  como soporte.
