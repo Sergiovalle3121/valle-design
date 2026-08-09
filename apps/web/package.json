@@ -14,7 +14,8 @@
     "benchmark:cad:smoke": "tsx scripts/cad-corpus-benchmark.mts --tier smoke",
     "benchmark:cad:scale": "tsx scripts/cad-corpus-benchmark.mts --tier scale",
     "benchmark:cad:render": "cross-env NODE_OPTIONS=\"--expose-gc --max-old-space-size=4096\" tsx scripts/cad-render-benchmark.mts",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "benchmark:cad:baseline": "cross-env NODE_OPTIONS=\"--expose-gc --max-old-space-size=4096\" tsx scripts/cad-render-baseline.mts"
   },
   "dependencies": {
     "@valle-design/contracts": "*",

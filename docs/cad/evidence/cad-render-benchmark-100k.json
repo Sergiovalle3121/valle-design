@@ -2,11 +2,47 @@
   "$schema": "urn:valle-design:schema:cad-render-benchmark-evidence:v1",
   "schemaVersion": 1,
   "benchmarkId": "valle-design-cad-render-pipeline-v1",
-  "startedAt": "2026-08-09T07:30:03.048Z",
-  "finishedAt": "2026-08-09T07:30:17.087Z",
-  "enforcement": "report-only",
+  "startedAt": "2026-08-09T22:09:17.643Z",
+  "finishedAt": "2026-08-09T22:09:36.236Z",
+  "enforcement": "blocking",
   "heapMeasurementReliable": true,
-  "enforcementRationale": "Métrica nueva. Entra registrada y NO bloqueante hasta tener una línea base versionada debajo; ningún presupuesto existente se toca en el mismo PR.",
+  "enforcementRationale": "Perfil de referencia a 100.000 entidades: el mismo tamaño que la evidencia publicada, para que el número que se enseña y el que bloquea se juzguen con las mismas reglas. El benchmark cumplió su versión en report-only y pasa a BLOQUEANTE con esta línea base debajo.",
+  "baseline": {
+    "profileId": "reference-100k",
+    "budgets": {
+      "nextFirstDetailMs": 2410,
+      "nextZoomSettleMs": 200,
+      "nextPanFrameP95Ms": 40,
+      "nextPanFrameMaxMs": 80,
+      "leakHeapGrowthMb": 8
+    },
+    "invariants": {
+      "detailedEqualsVisibleAtRest": true,
+      "minDetailedAtFullView": 100000,
+      "maxLegacyDetailedAtFullView": 2500
+    },
+    "calibratedOn": {
+      "node": "v22.22.2",
+      "v8": "12.4.254.21-node.39",
+      "platform": "linux",
+      "architecture": "x64",
+      "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+      "logicalCpuCount": 4,
+      "totalMemoryBytes": 16856068096,
+      "heapLimitBytes": 4345298944,
+      "exposedGc": true
+    },
+    "calibratedAt": "2026-08-09T20:02:57.967Z",
+    "runs": 5,
+    "marginFactor": 2.5
+  },
+  "verdict": {
+    "profileId": "reference-100k",
+    "enforcement": "blocking",
+    "downgradeReason": null,
+    "violations": [],
+    "notEvaluated": []
+  },
   "environment": {
     "node": "v22.22.2",
     "v8": "12.4.254.21-node.39",
@@ -31,7 +67,15 @@
       "mtext": 0,
       "dimension": 0,
       "mleader": 0,
-      "insert": 0
+      "insert": 0,
+      "point": 0,
+      "xline": 0,
+      "ray": 0,
+      "solid": 0,
+      "wipeout": 0,
+      "image": 0,
+      "attdef": 0,
+      "table": 0
     },
     "bounds": {
       "minX": 1.6500000000000004,
@@ -50,27 +94,27 @@
   "measurements": {
     "next": {
       "pipeline": "next",
-      "firstDetailMs": 750.534,
-      "zoomSettleMs": 23.302,
-      "panFrameP95Ms": 7.171,
-      "zoomFrameP95Ms": 15.405,
-      "panFrameMaxMs": 11.875,
-      "zoomFrameMaxMs": 15.405,
+      "firstDetailMs": 943.359,
+      "zoomSettleMs": 25.646,
+      "panFrameP95Ms": 6.217,
+      "zoomFrameP95Ms": 18.001,
+      "panFrameMaxMs": 8.916,
+      "zoomFrameMaxMs": 18.001,
       "visibleAtRest": 407,
       "detailedAtRest": 407,
       "segmentsAtRest": 12119,
-      "framesToFirstDetail": 136,
-      "panFrameSamples": 42,
+      "framesToFirstDetail": 167,
+      "panFrameSamples": 45,
       "zoomFrameSamples": 3
     },
     "legacy": {
       "pipeline": "legacy",
-      "firstDetailMs": 73.368,
-      "zoomSettleMs": 39.095,
-      "panFrameP95Ms": 64.094,
-      "zoomFrameP95Ms": 39.095,
-      "panFrameMaxMs": 64.094,
-      "zoomFrameMaxMs": 39.095,
+      "firstDetailMs": 71.07,
+      "zoomSettleMs": 46.479,
+      "panFrameP95Ms": 70.343,
+      "zoomFrameP95Ms": 46.479,
+      "panFrameMaxMs": 70.343,
+      "zoomFrameMaxMs": 46.479,
       "visibleAtRest": 407,
       "detailedAtRest": 407,
       "segmentsAtRest": 15236,
@@ -80,27 +124,27 @@
     },
     "nextAtFullView": {
       "pipeline": "next",
-      "firstDetailMs": 806.031,
-      "zoomSettleMs": 0.576,
+      "firstDetailMs": 1103.646,
+      "zoomSettleMs": 0.606,
       "panFrameP95Ms": 0,
-      "zoomFrameP95Ms": 0.004,
+      "zoomFrameP95Ms": 0.002,
       "panFrameMaxMs": 0,
-      "zoomFrameMaxMs": 0.004,
+      "zoomFrameMaxMs": 0.002,
       "visibleAtRest": 100000,
       "detailedAtRest": 100000,
       "segmentsAtRest": 375764,
-      "framesToFirstDetail": 132,
+      "framesToFirstDetail": 172,
       "panFrameSamples": 0,
       "zoomFrameSamples": 1
     },
     "legacyAtFullView": {
       "pipeline": "legacy",
-      "firstDetailMs": 74.18,
-      "zoomSettleMs": 59.031,
+      "firstDetailMs": 79.802,
+      "zoomSettleMs": 66.836,
       "panFrameP95Ms": 0,
-      "zoomFrameP95Ms": 59.031,
+      "zoomFrameP95Ms": 66.836,
       "panFrameMaxMs": 0,
-      "zoomFrameMaxMs": 59.031,
+      "zoomFrameMaxMs": 66.836,
       "visibleAtRest": 100000,
       "detailedAtRest": 2500,
       "segmentsAtRest": 89644,
@@ -110,28 +154,54 @@
     },
     "leak": {
       "cycles": 3,
-      "heapAfterFirstCycleBytes": 37653840,
-      "heapAfterLastCycleBytes": 37664496,
-      "heapGrowthMb": 0.01,
+      "heapAfterFirstCycleBytes": 38297584,
+      "heapAfterLastCycleBytes": 37049072,
+      "heapGrowthMb": -1.191,
       "samplesMb": [
-        35.91,
-        35.919,
-        35.92
+        36.523,
+        35.324,
+        35.333
       ]
     }
+  },
+  "variance": {
+    "runs": 5,
+    "published": "mediana por firstDetailMs",
+    "firstDetailMs": [
+      1018.011,
+      929.163,
+      854.766,
+      944.187,
+      943.359
+    ],
+    "zoomSettleMs": [
+      36.999,
+      27.217,
+      27.636,
+      25.759,
+      25.646
+    ],
+    "panFrameP95Ms": [
+      5.856,
+      8.243,
+      5.826,
+      7.981,
+      6.217
+    ]
   },
   "comparison": {
     "detailedAtFullViewNext": 100000,
     "detailedAtFullViewLegacy": 2500,
     "visibleAtFullView": 100000,
-    "panFrameP95Ratio": 8.94,
-    "firstDetailRatio": 0.1
+    "panFrameP95Ratio": 11.31,
+    "firstDetailRatio": 0.08
   },
   "scope": {
     "measured": [
       "trabajo de CPU de teselado, agrupación en lotes y culling para un guion determinista de apertura, paneo y zoom",
       "entidades detalladas en reposo frente a entidades visibles, en los dos caminos",
-      "crecimiento del montón tras ciclos completos de abrir, panear, hacer zoom y cerrar"
+      "crecimiento del montón tras ciclos completos de abrir, panear, hacer zoom y cerrar",
+      "dispersión entre corridas del camino nuevo: se publica la mediana y viajan todas las muestras en `variance`"
     ],
     "notMeasured": [
       "GPU, llamadas de dibujo reales, composición del navegador y cuadros por segundo",

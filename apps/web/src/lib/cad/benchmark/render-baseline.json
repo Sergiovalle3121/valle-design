@@ -1,0 +1,159 @@
+{
+  "$schema": "./render-baseline.schema.json",
+  "schemaVersion": 1,
+  "benchmarkId": "valle-design-cad-render-pipeline-v1",
+  "profiles": [
+    {
+      "id": "gate-25k",
+      "entities": 25000,
+      "panStops": 6,
+      "enforcement": "blocking",
+      "enforcementRationale": "El benchmark de render ya cumplió su versión en report-only y tiene evidencia publicada; con línea base versionada debajo pasa a BLOQUEANTE. Corre dentro de npm test para bloquear en CI sin tocar el workflow.",
+      "hardware": {
+        "minimumLogicalCpuCount": 4,
+        "minimumTotalMemoryBytes": 15170461286
+      },
+      "budgets": {
+        "nextFirstDetailMs": 423,
+        "nextZoomSettleMs": 200,
+        "nextPanFrameP95Ms": 40,
+        "nextPanFrameMaxMs": 80,
+        "leakHeapGrowthMb": 8
+      },
+      "invariants": {
+        "detailedEqualsVisibleAtRest": true,
+        "minDetailedAtFullView": 25000,
+        "maxLegacyDetailedAtFullView": 10000
+      },
+      "calibration": {
+        "runs": 5,
+        "marginFactor": 2.5,
+        "recordedAt": "2026-08-09T20:01:56.956Z",
+        "environment": {
+          "node": "v22.22.2",
+          "v8": "12.4.254.21-node.39",
+          "platform": "linux",
+          "architecture": "x64",
+          "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+          "logicalCpuCount": 4,
+          "totalMemoryBytes": 16856068096,
+          "heapLimitBytes": 4345298944,
+          "exposedGc": true
+        },
+        "observed": {
+          "next.firstDetailMs": [
+            163.631,
+            168.901,
+            162.947,
+            150.202,
+            150.701
+          ],
+          "next.zoomSettleMs": [
+            4.065,
+            4.178,
+            5.51,
+            3.403,
+            3.433
+          ],
+          "next.panFrameP95Ms": [
+            6.573,
+            9.239,
+            8.748,
+            7.12,
+            7.614
+          ],
+          "next.panFrameMaxMs": [
+            6.573,
+            9.239,
+            8.748,
+            7.12,
+            7.614
+          ],
+          "leak.heapGrowthMb": [
+            0.01,
+            0.007,
+            0.003,
+            0.027,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": "reference-100k",
+      "entities": 100000,
+      "panStops": 12,
+      "enforcement": "blocking",
+      "enforcementRationale": "Perfil de referencia a 100.000 entidades: el mismo tamaño que la evidencia publicada, para que el número que se enseña y el que bloquea se juzguen con las mismas reglas. El benchmark cumplió su versión en report-only y pasa a BLOQUEANTE con esta línea base debajo.",
+      "hardware": {
+        "minimumLogicalCpuCount": 4,
+        "minimumTotalMemoryBytes": 15170461286
+      },
+      "budgets": {
+        "nextFirstDetailMs": 2410,
+        "nextZoomSettleMs": 200,
+        "nextPanFrameP95Ms": 40,
+        "nextPanFrameMaxMs": 80,
+        "leakHeapGrowthMb": 8
+      },
+      "invariants": {
+        "detailedEqualsVisibleAtRest": true,
+        "minDetailedAtFullView": 100000,
+        "maxLegacyDetailedAtFullView": 2500
+      },
+      "calibration": {
+        "runs": 5,
+        "marginFactor": 2.5,
+        "recordedAt": "2026-08-09T20:02:57.967Z",
+        "environment": {
+          "node": "v22.22.2",
+          "v8": "12.4.254.21-node.39",
+          "platform": "linux",
+          "architecture": "x64",
+          "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+          "logicalCpuCount": 4,
+          "totalMemoryBytes": 16856068096,
+          "heapLimitBytes": 4345298944,
+          "exposedGc": true
+        },
+        "observed": {
+          "next.firstDetailMs": [
+            881.412,
+            963.919,
+            665.133,
+            701.353,
+            858.453
+          ],
+          "next.zoomSettleMs": [
+            31.004,
+            26.913,
+            27.987,
+            21.911,
+            28.774
+          ],
+          "next.panFrameP95Ms": [
+            5.915,
+            6.094,
+            5.346,
+            5.383,
+            5.638
+          ],
+          "next.panFrameMaxMs": [
+            12.403,
+            8.894,
+            8.202,
+            8.124,
+            10.476
+          ],
+          "leak.heapGrowthMb": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    }
+  ]
+}
