@@ -209,17 +209,19 @@ export function cadArrayCommands(
 ): CadEntityCommand[] {
   const placements = cadArrayPlacements(spec);
   const serialized = serializeCadArraySpec(spec);
+  // Sin parámetros que quepan se guarda la pertenencia igual —los miembros
+  // siguen siendo de la misma matriz— pero no la promesa de regenerarla.
+  const association = {
+    [CAD_ARRAY_META.id]: arrayId,
+    [CAD_ARRAY_META.kind]: spec.kind,
+    ...(serialized ? { [CAD_ARRAY_META.params]: serialized } : {}),
+  };
   const commands: CadEntityCommand[] = [];
   for (const entityId of targets) {
     commands.push({
       type: "metadata",
       entityId,
-      patch: {
-        [CAD_ARRAY_META.id]: arrayId,
-        [CAD_ARRAY_META.kind]: spec.kind,
-        [CAD_ARRAY_META.index]: 0,
-        [CAD_ARRAY_META.params]: serialized,
-      },
+      patch: { ...association, [CAD_ARRAY_META.index]: 0 },
     });
     // La colocación 0 es la identidad: coincide con el original y no se copia.
     for (let index = 1; index < placements.length; index += 1) {
@@ -229,12 +231,7 @@ export function cadArrayCommands(
       commands.push({
         type: "metadata",
         entityId: copyId,
-        patch: {
-          [CAD_ARRAY_META.id]: arrayId,
-          [CAD_ARRAY_META.kind]: spec.kind,
-          [CAD_ARRAY_META.index]: index,
-          [CAD_ARRAY_META.params]: serialized,
-        },
+        patch: { ...association, [CAD_ARRAY_META.index]: index },
       });
     }
   }

@@ -122,9 +122,40 @@ export function cadArrayPlacements(spec: CadArraySpec): CadEntityTransform[] {
     .filter((transform): transform is CadEntityTransform => transform !== null);
 }
 
-/** Los parámetros, serializados para caber en `metadata` (sólo escalares). */
+/**
+ * Presupuesto de la especificación guardada, en caracteres.
+ *
+ * Los parámetros viajan en el `metadata` de CADA miembro, así que una matriz de
+ * camino de cincuenta elementos los guarda cincuenta veces. Un camino teselado
+ * puede tener decenas de puntos, y sin tope una sola matriz engordaría el
+ * documento —y cada guardado, y cada envío— más que el dibujo entero.
+ */
+const SPEC_BUDGET = 4_000;
+
+/**
+ * Los parámetros, serializados para caber en `metadata` (sólo escalares).
+ *
+ * Cadena vacía cuando no caben: quien llama omite entonces la clave, y
+ * `ARRAYEDIT` responde que la matriz no conserva sus parámetros en vez de
+ * regenerar una distinta de la que se ve. Perder la regeneración de una matriz
+ * enorme es mejor que multiplicar el peso del documento por su número de
+ * copias.
+ */
 export function serializeCadArraySpec(spec: CadArraySpec): string {
-  return JSON.stringify(spec);
+  // Las coordenadas del camino se redondean: seis decimales son nanómetros en
+  // un plano en milímetros, y la diferencia en tamaño es de tres a uno.
+  const compact =
+    spec.kind === "path"
+      ? {
+          ...spec,
+          path: spec.path.map((point) => ({
+            x: Number(point.x.toFixed(6)),
+            y: Number(point.y.toFixed(6)),
+          })),
+        }
+      : spec;
+  const serialized = JSON.stringify(compact);
+  return serialized.length <= SPEC_BUDGET ? serialized : "";
 }
 
 /**

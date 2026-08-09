@@ -19,7 +19,12 @@
  */
 import { strict as assert } from "node:assert";
 import type { CadEntity } from "../../cad-document";
-import { CAD_ARRAY_META, cadArrayPlacements } from "../../cad-array-placement";
+import {
+  CAD_ARRAY_META,
+  cadArrayPlacements,
+  parseCadArraySpec,
+  serializeCadArraySpec,
+} from "../../cad-array-placement";
 import type { CadCommandContext, CadCommandInput } from "../command-types";
 import { CAD_MODIFY_ARRAY_COMMANDS } from "./modify-array";
 
@@ -286,6 +291,44 @@ const keyword = (word: string): CadCommandInput => ({ kind: "keyword", keyword: 
   assert.ok(
     result.kind === "message" && result.text.includes("inventárselos"),
     "sin parámetros no se regenera: adivinarlos daría una matriz distinta de la que se ve",
+  );
+}
+
+// --- unos parámetros que no caben se OMITEN, no se truncan ---------------------------------
+{
+  // Los parámetros viajan en el `metadata` de CADA miembro. Un camino teselado
+  // largo, guardado cincuenta veces, engordaría el documento más que el dibujo
+  // entero. Pasado el tope se omite la clave y ARRAYEDIT dice que no puede
+  // regenerar — que es lo honesto — en vez de guardar medio JSON.
+  const huge = {
+    kind: "path" as const,
+    path: Array.from({ length: 400 }, (_unused, index) => ({ x: index * 1.123456789, y: index })),
+    count: 5,
+    base: { x: 0, y: 0 },
+  };
+  assert.equal(serializeCadArraySpec(huge), "", "un camino enorme no cabe");
+  assert.equal(parseCadArraySpec(""), null, "y lo que no cabe no se puede releer");
+
+  const small = { kind: "path" as const, path: [{ x: 0, y: 0 }, { x: 10, y: 0 }], count: 3, base: { x: 0, y: 0 } };
+  assert.ok(serializeCadArraySpec(small).length > 0, "uno normal sí cabe");
+  assert.deepEqual(parseCadArraySpec(serializeCadArraySpec(small))?.kind, "path", "y vuelve entero");
+
+  // Y el comando lo refleja: sin parámetros que quepan, la pertenencia se
+  // guarda igual pero la promesa de regenerar no.
+  const commands = run("ARRAY", [
+    pick("seat"),
+    keyword("Rectangular"),
+    distance(1),
+    distance(2),
+    distance(0),
+    distance(10),
+  ]);
+  assert.ok(commands && commands.kind === "document");
+  const mark = commands.commands.find((command) => command.type === "metadata");
+  assert.ok(mark && mark.type === "metadata");
+  assert.ok(
+    typeof mark.patch[CAD_ARRAY_META.params] === "string",
+    "una rectangular normal SÍ guarda sus parámetros",
   );
 }
 
