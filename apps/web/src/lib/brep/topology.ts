@@ -28,7 +28,7 @@
  * veces. `NO_INDEX` da nombre a ese −1 para que nadie lo confunda con un índice.
  */
 import type { BrepSurface } from "./surfaces";
-import { aabbEmpty, aabbExpand, v3Cross, v3Dot, v3Length, v3Normalize, v3Scale, v3Sub, type Aabb3, type Vec3 } from "./vec3";
+import { aabbEmpty, aabbExpand, v3Add, v3Cross, v3Dot, v3Length, v3Normalize, v3Scale, v3Sub, type Aabb3, type Vec3 } from "./vec3";
 
 /** Ausencia de índice. Nunca es un índice válido. */
 export const NO_INDEX = -1;
@@ -437,6 +437,31 @@ export function cloneBody(body: BrepBody): BrepBody {
     faces: body.faces.map((face) => ({ ...face, loops: [...face.loops] })),
     shells: body.shells.map((shell) => ({ ...shell, faces: [...shell.faces] })),
   };
+}
+
+/**
+ * Traslada un cuerpo, moviendo TAMBIÉN el origen de las superficies portadoras.
+ *
+ * Mover sólo los vértices es el error silencioso obvio: la topología queda bien,
+ * el volumen sale bien, y las superficies portadoras se quedan donde estaban. La
+ * incoherencia no se nota hasta que alguien pide una normal exacta al teselar o
+ * exporta a STEP, y entonces el plano dice una cosa y la cara otra.
+ *
+ * Sólo hay traslación a propósito. Una transformada general tiene que decidir
+ * qué hace con una superficie de revolución bajo escalado no uniforme (deja de
+ * ser un cilindro), y ésa es una decisión que merece su propio módulo, no un
+ * apaño aquí.
+ */
+export function translateBody(body: BrepBody, delta: Vec3): BrepBody {
+  const moved = cloneBody(body);
+  for (const vertex of moved.vertices) {
+    vertex.point = v3Add(vertex.point, delta);
+  }
+  for (const face of moved.faces) {
+    if (!face.surface || !("frame" in face.surface)) continue;
+    face.surface = { ...face.surface, frame: { ...face.surface.frame, origin: v3Add(face.surface.frame.origin, delta) } };
+  }
+  return moved;
 }
 
 /** Ángulo diedro (rad) entre las dos caras de una arista; `null` si es de borde. */

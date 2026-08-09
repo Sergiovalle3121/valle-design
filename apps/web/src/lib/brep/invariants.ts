@@ -289,7 +289,14 @@ function checkFacesAndVolume(
   add: Reporter,
 ): { signedVolume: number; planar: boolean } {
   const scale = Math.max(1, aabbDiagonal(bodyBounds(body)));
-  const areaTolerance = tol.linear * scale;
+  // La tolerancia de ÁREA es el CUADRADO de la longitud mínima resoluble, no la
+  // longitud. Comparar un área contra una longitud es un error de dimensiones, y
+  // no es teórico: con `tol.linear·escala` una placa de 14 unidades rechazaba
+  // caras de 1,3e−6 —astillas legítimas que salen de fragmentar coplanarias en
+  // una booleana encadenada— mientras que en una pieza de 1 unidad dejaba pasar
+  // caras mil veces peores. Lo que se quiere detectar es el área CERO: vértices
+  // colineales, o un agujero mal orientado que resta en vez de sumar.
+  const areaTolerance = (tol.linear * scale) ** 2;
   let planar = true;
   for (let i = 0; i < body.faces.length; i += 1) {
     const at = { type: "face" as const, index: i };
