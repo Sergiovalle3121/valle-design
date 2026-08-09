@@ -3,13 +3,11 @@ import type {
   CadDocument,
   CadEntity,
   CadLossManifestEntry,
-  CadPoint2,
   CadPoint3,
 } from "./cad-document";
 import type {
   CadDxfHatch,
   CadDxfMText,
-  CadDxfPoint,
   CadDxfPrimitive,
   CadDxfSemanticBlock,
   CadDxfSemanticDimension,
