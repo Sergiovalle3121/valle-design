@@ -20,7 +20,9 @@
     "check:cad-contract": "node scripts/cad/check-design-contract.mjs",
     "check:no-line-engineering": "node scripts/cad/check-no-line-engineering.mjs",
     "check:monolith-budget": "node scripts/cad/check-monolith-budget.mjs",
-    "check:cad": "node scripts/cad/check-design-contract.mjs && node scripts/cad/check-no-line-engineering.mjs && node scripts/cad/check-monolith-budget.mjs"
+    "check:rubric": "node scripts/cad/rubric.mjs",
+    "check:rubric:spec": "node scripts/cad/rubric.spec.mjs",
+    "check:cad": "node scripts/cad/check-design-contract.mjs && node scripts/cad/check-no-line-engineering.mjs && node scripts/cad/check-monolith-budget.mjs && node scripts/cad/rubric.spec.mjs && node scripts/cad/rubric.mjs"
   },
   "devDependencies": {
     "prettier": "^3.0.0",
