@@ -1,0 +1,1908 @@
+{
+  "$schema": "urn:valle-design:schema:cad-competitive-rubric:v1",
+  "schemaVersion": 1,
+  "version": "2026-08-09.1",
+  "title": "Rúbrica competitiva CAD — Valle Design frente a AutoCAD 2027",
+  "cutoffDate": "2026-08-09",
+  "totalPoints": 200,
+  "manualMaxAgeDays": 180,
+  "notes": [
+    "El denominador es 200 y se publica. Ninguna categoría llega a su tope en este corte.",
+    "Un criterio se concede sólo si TODA su evidencia verifica. Sin evidencia, cero.",
+    "Los puntos se reparten por PESO COMERCIAL, no por esfuerzo de implementación. El argumento está en autocad-2027-gap-matrix.md §Reparto.",
+    "costDays es una estimación de esfuerzo declarada por quien escribe el criterio; alimenta la tabla de prioridad y no la nota."
+  ],
+  "groups": [
+    { "id": "core", "name": "Núcleo del plano entregable", "points": 110 },
+    { "id": "pro", "name": "Productividad profesional", "points": 44 },
+    { "id": "ext", "name": "Extensibilidad e integración", "points": 26 },
+    { "id": "frontier", "name": "Frontera avanzada", "points": 20 }
+  ],
+  "categories": [
+    {
+      "id": "draw-2d",
+      "group": "core",
+      "name": "Dibujo 2D y precisión",
+      "points": 16,
+      "gap": "Sin corpus de geometría degenerada con criterio publicado, y sin SLO interactivo de navegador.",
+      "criteria": [
+        {
+          "id": "draw-2d.canonical",
+          "points": 3,
+          "text": "Entidades canónicas (línea, polilínea, círculo, arco, elipse, spline) en el documento, con specs",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/cad-document.ts",
+              "minLines": 400
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/cad-document.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/primitives.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "draw-2d.commands",
+          "points": 3,
+          "text": "LINE, PLINE, CIRCLE, ARC, RECTANG, POLYGON, ELLIPSE y SPLINE son tecleables",
+          "costDays": 0,
+          "evidence": [
+            { "kind": "command", "name": "LINE" },
+            { "kind": "command", "name": "PLINE" },
+            { "kind": "command", "name": "CIRCLE" },
+            { "kind": "command", "name": "ARC" },
+            { "kind": "command", "name": "RECTANG" },
+            { "kind": "command", "name": "POLYGON" },
+            { "kind": "command", "name": "ELLIPSE" },
+            { "kind": "command", "name": "SPLINE" }
+          ]
+        },
+        {
+          "id": "draw-2d.coordinates",
+          "points": 2,
+          "text": "Coordenadas absolutas, relativas (@) y polares (<) con entrada dinámica",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/precision-input.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/dynamic-input.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/13-cad-dynamic-input.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "draw-2d.osnap",
+          "points": 2,
+          "text": "OSNAP sobre el puntero con consulta indexada medida (p95 publicado)",
+          "costDays": 0,
+          "evidence": [
+            { "kind": "file", "path": "apps/web/src/lib/cad/snap-engine.ts" },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/professional-snap-query-benchmark.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/28-cad-osnap-pointer.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "draw-2d.tracking",
+          "points": 2,
+          "text": "ORTHO, rastreo polar y ajustes de dibujo con diálogo aplicable",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/polar-tracking.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/polar-tracking.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/52-cad-draft-settings.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "draw-2d.construction",
+          "points": 2,
+          "text": "Construcción y reparto: XLINE, RAY, DIVIDE, MEASURE, DONUT y REVCLOUD tecleables",
+          "costDays": 0,
+          "evidence": [
+            { "kind": "command", "name": "XLINE" },
+            { "kind": "command", "name": "RAY" },
+            { "kind": "command", "name": "DIVIDE" },
+            { "kind": "command", "name": "MEASURE" },
+            { "kind": "command", "name": "DONUT" },
+            { "kind": "command", "name": "REVCLOUD" }
+          ]
+        },
+        {
+          "id": "draw-2d.degenerate",
+          "points": 2,
+          "text": "Corpus de geometría degenerada (tangencias, radio cero, autointersección, colineales) con criterio publicado por caso",
+          "costDays": 4,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/degenerate-geometry-corpus.spec.ts"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "modify",
+      "group": "core",
+      "name": "Selección y modificación",
+      "points": 14,
+      "gap": "Faltan MATCHPROP en grupo con GROUP/OVERKILL/DRAWORDER, y el estrés de navegador con trazos densos.",
+      "criteria": [
+        {
+          "id": "modify.selection",
+          "points": 2,
+          "text": "Selección por ventana y captura con índice espacial",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/selection-controller.ts"
+            },
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/native-selection-index.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/selection-controller.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/12-cad-professional-selection.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "modify.grips",
+          "points": 2,
+          "text": "Grips con edición directa sobre entidades canónicas",
+          "costDays": 0,
+          "evidence": [
+            { "kind": "file", "path": "apps/web/src/lib/cad/grip-actions.ts" },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/grip-actions.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "modify.basics",
+          "points": 2,
+          "text": "ERASE, MOVE, COPY, ROTATE, SCALE, MIRROR y OFFSET tecleables y respetando la selección previa",
+          "costDays": 0,
+          "evidence": [
+            { "kind": "command", "name": "ERASE" },
+            { "kind": "command", "name": "MOVE" },
+            { "kind": "command", "name": "COPY" },
+            { "kind": "command", "name": "ROTATE" },
+            { "kind": "command", "name": "SCALE" },
+            { "kind": "command", "name": "MIRROR" },
+            { "kind": "command", "name": "OFFSET" },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/modify-basics.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "modify.edges",
+          "points": 2,
+          "text": "TRIM, EXTEND, FILLET, CHAMFER, BREAK y JOIN tecleables, con goldens de recorte y empalme",
+          "costDays": 0,
+          "evidence": [
+            { "kind": "command", "name": "TRIM" },
+            { "kind": "command", "name": "EXTEND" },
+            { "kind": "command", "name": "FILLET" },
+            { "kind": "command", "name": "CHAMFER" },
+            { "kind": "command", "name": "BREAK" },
+            { "kind": "command", "name": "JOIN" },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/25-cad-trim-extend.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/43-cad-chamfer.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "modify.array",
+          "points": 2,
+          "text": "ARRAY rectangular y polar con ARRAYEDIT posterior",
+          "costDays": 0,
+          "evidence": [
+            { "kind": "command", "name": "ARRAY" },
+            { "kind": "command", "name": "ARRAYEDIT" },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/modify-array.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "modify.advanced",
+          "points": 2,
+          "text": "STRETCH, LENGTHEN, ALIGN, PEDIT, SPLINEDIT y EXPLODE tecleables",
+          "costDays": 0,
+          "evidence": [
+            { "kind": "command", "name": "STRETCH" },
+            { "kind": "command", "name": "LENGTHEN" },
+            { "kind": "command", "name": "ALIGN" },
+            { "kind": "command", "name": "PEDIT" },
+            { "kind": "command", "name": "SPLINEDIT" },
+            { "kind": "command", "name": "EXPLODE" }
+          ]
+        },
+        {
+          "id": "modify.housekeeping",
+          "points": 1,
+          "text": "MATCHPROP, GROUP/UNGROUP, OVERKILL y DRAWORDER tecleables",
+          "costDays": 3,
+          "evidence": [
+            { "kind": "command", "name": "MATCHPROP" },
+            { "kind": "command", "name": "GROUP" },
+            { "kind": "command", "name": "OVERKILL" },
+            { "kind": "command", "name": "DRAWORDER" }
+          ]
+        },
+        {
+          "id": "modify.dense-stress",
+          "points": 1,
+          "text": "Estrés de navegador con trazos densos (100k) sobre selección y modificación, con artefacto por corrida",
+          "costDays": 5,
+          "evidence": [
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/performance/cad-dense-editing-100k.spec.ts"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dimensions",
+      "group": "core",
+      "name": "Cotas asociativas",
+      "points": 12,
+      "gap": "Ningún comando DIM* es tecleable: el alias DLI no resuelve. Sin DIMSTYLE no hay entrega normalizada.",
+      "criteria": [
+        {
+          "id": "dimensions.entity",
+          "points": 3,
+          "text": "Entidad DIMENSION canónica con asociatividad al geométrico medido",
+          "costDays": 0,
+          "evidence": [
+            { "kind": "file", "path": "apps/web/src/lib/cad/dimension.ts" },
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/associative-dimension.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/associative-dimension.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/16-cad-associative-dimensions.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "dimensions.format",
+          "points": 2,
+          "text": "Formato de cota: unidades, precisión y presentación del valor",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/dimension-format.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/dimension-format.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "dimensions.dxf",
+          "points": 2,
+          "text": "Round-trip DXF de DIMENSION con XDATA propietaria",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/dxf-dimension.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/dxf-xdata-golden.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "dimensions.commands",
+          "points": 3,
+          "text": "DIMLINEAR, DIMALIGNED, DIMANGULAR, DIMRADIUS y DIMDIAMETER tecleables (DLI, DAL, DAN, DRA, DDI resuelven)",
+          "costDays": 6,
+          "evidence": [
+            { "kind": "command", "name": "DIMLINEAR" },
+            { "kind": "command", "name": "DIMALIGNED" },
+            { "kind": "command", "name": "DIMANGULAR" },
+            { "kind": "command", "name": "DIMRADIUS" },
+            { "kind": "command", "name": "DIMDIAMETER" },
+            { "kind": "alias", "alias": "DLI" }
+          ]
+        },
+        {
+          "id": "dimensions.style",
+          "points": 2,
+          "text": "DIMSTYLE aplicable: familia de estilos de cota que el plano entregado respeta",
+          "costDays": 5,
+          "evidence": [
+            { "kind": "command", "name": "DIMSTYLE" },
+            { "kind": "alias", "alias": "D" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hatch",
+      "group": "core",
+      "name": "HATCH asociativo",
+      "points": 10,
+      "gap": "El motor existe y no hay forma de invocarlo escribiendo H: el alias no resuelve a ningún comando.",
+      "criteria": [
+        {
+          "id": "hatch.engine",
+          "points": 3,
+          "text": "Motor de sombreado poligonal con asociatividad al contorno",
+          "costDays": 0,
+          "evidence": [
+            { "kind": "file", "path": "apps/web/src/lib/cad/hatch.ts" },
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/hatch-associativity.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/hatch-associativity.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/14-cad-associative-hatch.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "hatch.dxf",
+          "points": 2,
+          "text": "Round-trip DXF de HATCH",
+          "costDays": 0,
+          "evidence": [
+            { "kind": "spec", "path": "apps/web/src/lib/cad/dxf-hatch.spec.ts" }
+          ]
+        },
+        {
+          "id": "hatch.command",
+          "points": 3,
+          "text": "HATCH tecleable con detección de contorno por punto interior (H y BH resuelven)",
+          "costDays": 5,
+          "evidence": [
+            { "kind": "command", "name": "HATCH" },
+            { "kind": "alias", "alias": "H" },
+            { "kind": "command", "name": "BOUNDARY" }
+          ]
+        },
+        {
+          "id": "hatch.islands",
+          "points": 2,
+          "text": "Contornos curvos e islas anidadas con corpus de casos y criterio por caso",
+          "costDays": 6,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/hatch-islands-corpus.spec.ts"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mtext",
+      "group": "core",
+      "name": "MTEXT y texto",
+      "points": 9,
+      "gap": "No hay comando de texto tecleable ni fuentes SHX/TTF; el formato rico está sin cubrir.",
+      "criteria": [
+        {
+          "id": "mtext.entity",
+          "points": 3,
+          "text": "Entidad MTEXT con maquetación de párrafo",
+          "costDays": 0,
+          "evidence": [
+            { "kind": "file", "path": "apps/web/src/lib/cad/mtext-layout.ts" },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/mtext-layout.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/15-cad-native-mtext.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "mtext.dxf",
+          "points": 2,
+          "text": "MTEXT viaja por DXF en los dos sentidos",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "grep",
+              "path": "apps/web/src/lib/cad/dxf-export.ts",
+              "pattern": "MTEXT"
+            },
+            {
+              "kind": "grep",
+              "path": "apps/web/src/lib/cad/dxf-import.ts",
+              "pattern": "MTEXT"
+            }
+          ]
+        },
+        {
+          "id": "mtext.commands",
+          "points": 3,
+          "text": "MTEXT, TEXT y STYLE tecleables (T, MT, DT y ST resuelven)",
+          "costDays": 4,
+          "evidence": [
+            { "kind": "command", "name": "MTEXT" },
+            { "kind": "command", "name": "TEXT" },
+            { "kind": "command", "name": "STYLE" },
+            { "kind": "alias", "alias": "T" }
+          ]
+        },
+        {
+          "id": "mtext.rich",
+          "points": 1,
+          "text": "Códigos de control (\\P, apilado, cambio de fuente) y fuentes SHX/TTF resueltas",
+          "costDays": 8,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/mtext-rich-format.spec.ts"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "layers",
+      "group": "core",
+      "name": "Capas y propiedades",
+      "points": 10,
+      "gap": "La capa se gestiona por paleta pero no por línea de comandos; LA no resuelve.",
+      "criteria": [
+        {
+          "id": "layers.canonical",
+          "points": 2,
+          "text": "Capa canónica con mapa DXF probado",
+          "costDays": 0,
+          "evidence": [
+            { "kind": "file", "path": "apps/web/src/lib/cad/layer.ts" },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/dxf-layer-map.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/24-cad-canonical-layers.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "layers.manager",
+          "points": 2,
+          "text": "Gestor de capas con congelar, bloquear y visibilidad",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/cad-layer-manager.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/cad-layer-manager.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/50-cad-layer-properties.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "layers.properties",
+          "points": 2,
+          "text": "Paleta de propiedades multi-objeto",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/object-properties.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/components/cad/palettes/property-model.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/49-cad-properties-palette.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "layers.linetype",
+          "points": 2,
+          "text": "Tipos de línea y escala aplicables a la entidad",
+          "costDays": 0,
+          "evidence": [
+            { "kind": "file", "path": "apps/web/src/lib/cad/linetype.ts" },
+            { "kind": "spec", "path": "apps/web/src/lib/cad/linetype.spec.ts" }
+          ]
+        },
+        {
+          "id": "layers.commands",
+          "points": 2,
+          "text": "LAYER, LINETYPE, LWEIGHT, COLOR y PROPERTIES tecleables (LA, LT, LW, COL, CH resuelven)",
+          "costDays": 4,
+          "evidence": [
+            { "kind": "command", "name": "LAYER" },
+            { "kind": "command", "name": "LINETYPE" },
+            { "kind": "command", "name": "COLOR" },
+            { "kind": "command", "name": "PROPERTIES" },
+            { "kind": "alias", "alias": "LA" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "blocks",
+      "group": "core",
+      "name": "Bloques y atributos",
+      "points": 9,
+      "gap": "Sin BLOCK/INSERT/WBLOCK tecleables y sin bloques dinámicos ni comportamiento anotativo.",
+      "criteria": [
+        {
+          "id": "blocks.library",
+          "points": 2,
+          "text": "Definición e inserción de bloques con biblioteca profesional",
+          "costDays": 0,
+          "evidence": [
+            { "kind": "file", "path": "apps/web/src/lib/cad/block.ts" },
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/professional-blocks.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/18-cad-professional-blocks.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "blocks.attributes",
+          "points": 2,
+          "text": "ATTDEF tecleable con atributos persistidos en el documento",
+          "costDays": 0,
+          "evidence": [
+            { "kind": "command", "name": "ATTDEF" },
+            {
+              "kind": "grep",
+              "path": "apps/web/src/lib/cad/engine/commands/draw-annotation-v4.ts",
+              "pattern": "ATTDEF",
+              "min": 2
+            }
+          ]
+        },
+        {
+          "id": "blocks.dxf",
+          "points": 2,
+          "text": "Round-trip DXF de INSERT con transformación y de la tabla de bloques",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/dxf-insert.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/dxf-block-document.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "blocks.commands",
+          "points": 2,
+          "text": "BLOCK, INSERT, WBLOCK y BEDIT tecleables (B, I, W, BE resuelven)",
+          "costDays": 5,
+          "evidence": [
+            { "kind": "command", "name": "BLOCK" },
+            { "kind": "command", "name": "INSERT" },
+            { "kind": "command", "name": "WBLOCK" },
+            { "kind": "alias", "alias": "I" }
+          ]
+        },
+        {
+          "id": "blocks.dynamic",
+          "points": 1,
+          "text": "Bloques dinámicos y comportamiento anotativo demostrados",
+          "costDays": 12,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/dynamic-blocks.spec.ts"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dxf",
+      "group": "core",
+      "name": "Import/export DXF de texto",
+      "points": 12,
+      "gap": "El corpus es propio. Sin archivos de terceros autorizados no se puede afirmar interoperabilidad real.",
+      "criteria": [
+        {
+          "id": "dxf.import",
+          "points": 2,
+          "text": "Importador DXF en TypeScript con specs",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/dxf-import.ts",
+              "minLines": 500
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/dxf-import.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "dxf.export",
+          "points": 2,
+          "text": "Exportador con manifiesto de pérdidas y preflight antes de entregar",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/dxf-export.ts",
+              "minLines": 500
+            },
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/dxf-export-readiness.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/27-cad-dxf-loss-manifest.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/34-cad-dxf-export-preflight.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "dxf.roundtrip",
+          "points": 3,
+          "text": "Round-trip por entidad: polilínea con bulge, polilínea cerrada, hatch, cota e insert",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/dxf-roundtrip.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/dxf-bulge-roundtrip.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/dxf-closed-polyline.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/dxf-hatch.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/dxf-insert.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "dxf.xdata",
+          "points": 1,
+          "text": "XDATA con nombres de aplicación registrados y estables",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/dxf-xdata-app-names.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "dxf.corpus-own",
+          "points": 1,
+          "text": "Corpus propio versionado con round-trip completo",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/dxf-corpus-roundtrip.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "dxf.corpus-external",
+          "points": 2,
+          "text": "Corpus DXF de terceros, autorizado y diverso, con matriz por entidad y pérdidas aceptadas",
+          "costDays": 10,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "docs/cad/evidence/dxf-external-corpus-matrix.json"
+            },
+            {
+              "kind": "manual",
+              "verifiedBy": "",
+              "verifiedAt": "",
+              "note": "Requiere licencia de los archivos de origen; no hay firma todavía."
+            }
+          ]
+        },
+        {
+          "id": "dxf.commands",
+          "points": 1,
+          "text": "DXFIN y DXFOUT tecleables",
+          "costDays": 2,
+          "evidence": [
+            { "kind": "command", "name": "DXFIN" },
+            { "kind": "command", "name": "DXFOUT" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "layouts",
+      "group": "core",
+      "name": "Layouts, viewports y publicación",
+      "points": 10,
+      "gap": "El PDF sólo se genera desde el monolito de 23k líneas; no hay comando de ploteo ni SLO de publicación.",
+      "criteria": [
+        {
+          "id": "layouts.paper-space",
+          "points": 2,
+          "text": "Paper space con múltiples viewports",
+          "costDays": 0,
+          "evidence": [
+            { "kind": "file", "path": "apps/web/src/lib/cad/paper-space.ts" },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/paper-space.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/20-cad-multiple-viewports.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "layouts.plot-sheet",
+          "points": 2,
+          "text": "Hoja de ploteo y adaptador de exportación del layout",
+          "costDays": 0,
+          "evidence": [
+            { "kind": "file", "path": "apps/web/src/lib/cad/plot-sheet.ts" },
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/layout-export-adapter.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/plot-sheet.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "layouts.publications",
+          "points": 2,
+          "text": "Publicaciones versionadas y consultables desde el cliente",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/repositories/publications.ts"
+            },
+            {
+              "kind": "imported",
+              "module": "apps/web/src/lib/cad/repositories"
+            }
+          ]
+        },
+        {
+          "id": "layouts.commands",
+          "points": 2,
+          "text": "LAYOUT, MVIEW, MSPACE, PSPACE, PLOT y PAGESETUP tecleables",
+          "costDays": 6,
+          "evidence": [
+            { "kind": "command", "name": "LAYOUT" },
+            { "kind": "command", "name": "MVIEW" },
+            { "kind": "command", "name": "PLOT" },
+            { "kind": "alias", "alias": "PLO" }
+          ]
+        },
+        {
+          "id": "layouts.fidelity",
+          "points": 2,
+          "text": "Fidelidad de fuentes y estilos de trazado con SLO de publicación medido y máquina declarada",
+          "costDays": 10,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "docs/cad/evidence/plot-fidelity-slo.json"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "persistence",
+      "group": "core",
+      "name": "Guardado CAS, autosave, historia y versiones",
+      "points": 8,
+      "gap": "Offline, multi-pestaña y cierre forzado siguen sin cerrar; los límites de documento no están publicados.",
+      "criteria": [
+        {
+          "id": "persistence.cas",
+          "points": 2,
+          "text": "Cola de un solo escritor con CAS y conflicto 409 explícito",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/web/src/components/cad/document-lifecycle/controller.ts"
+            },
+            {
+              "kind": "file",
+              "path": "apps/web/src/components/cad/document-lifecycle/autosave.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/components/cad/document-lifecycle/document-lifecycle.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "persistence.recovery",
+          "points": 2,
+          "text": "Journal de recuperación con códec e integridad verificada",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/cad-recovery-journal.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/cad-recovery-journal.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/cad-recovery-integrity.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/11-cad-recovery-journal.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "persistence.real-e2e",
+          "points": 2,
+          "text": "Recorrido real contra API y PostgreSQL: logout, reapertura y documento >1 MB",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/real/studio-real-api.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/real/cad-recovery-lanes.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "persistence.offline",
+          "points": 2,
+          "text": "Offline, multi-pestaña y cierre forzado sin pérdida, con presupuesto de documento y memoria publicado",
+          "costDays": 10,
+          "evidence": [
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/real/cad-offline-multitab.spec.ts"
+            },
+            { "kind": "file", "path": "docs/cad/evidence/document-limits.json" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "command-line",
+      "group": "pro",
+      "name": "Línea de comandos, alias y scripting",
+      "points": 12,
+      "gap": "80 de los 125 alias de acad.pgp no resuelven a ningún comando, y no hay ejecución de scripts.",
+      "criteria": [
+        {
+          "id": "command-line.registry",
+          "points": 2,
+          "text": "Registro único de comandos: paleta, línea, barra y scripts leen del mismo sitio",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/engine/registry.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/index.spec.ts"
+            },
+            { "kind": "imported", "module": "apps/web/src/lib/cad/engine" }
+          ]
+        },
+        {
+          "id": "command-line.alias-table",
+          "points": 1,
+          "text": "Tabla de alias compatible con acad.pgp, invariante entre idiomas",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/engine/alias-table.ts"
+            },
+            {
+              "kind": "grep",
+              "path": "apps/web/src/lib/cad/engine/alias-table.ts",
+              "pattern": "^  [A-Z0-9]+: \"[A-Z0-9]+\",",
+              "flags": "gm",
+              "min": 100
+            }
+          ]
+        },
+        {
+          "id": "command-line.ui",
+          "points": 2,
+          "text": "Línea de comandos en el editor con prompts, opciones y eco",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/web/src/components/cad/command-line/CadCommandLine.tsx"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/components/cad/command-line/command-engine-host.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/44-cad-command-line.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "command-line.engine",
+          "points": 2,
+          "text": "Motor de comandos con estados y pipeline de entrada (punto, distancia, palabra clave, selección)",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/engine/command-engine.ts"
+            },
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/engine/input-pipeline.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/command-engine.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "command-line.alias-coverage",
+          "points": 3,
+          "text": "Los alias de anotación, capa, consulta y vista resuelven: H, LA, DLI, T, Z, P, I y B",
+          "costDays": 25,
+          "evidence": [
+            { "kind": "alias", "alias": "H" },
+            { "kind": "alias", "alias": "LA" },
+            { "kind": "alias", "alias": "DLI" },
+            { "kind": "alias", "alias": "T" },
+            { "kind": "alias", "alias": "Z" },
+            { "kind": "alias", "alias": "P" },
+            { "kind": "alias", "alias": "I" },
+            { "kind": "alias", "alias": "B" }
+          ]
+        },
+        {
+          "id": "command-line.scripting",
+          "points": 2,
+          "text": "SCRIPT (.scr) y variantes -COMANDO ejecutables sin interfaz gráfica",
+          "costDays": 6,
+          "evidence": [
+            { "kind": "command", "name": "SCRIPT" },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/script-runner.spec.ts"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "annotation-extras",
+      "group": "pro",
+      "name": "MLEADER y tablas",
+      "points": 5,
+      "gap": "Los estilos de directriz y de tabla no existen; MLD y TS no resuelven.",
+      "criteria": [
+        {
+          "id": "annotation-extras.mleader",
+          "points": 2,
+          "text": "MLEADER canónico con asociatividad",
+          "costDays": 0,
+          "evidence": [
+            { "kind": "file", "path": "apps/web/src/lib/cad/mleader.ts" },
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/associative-mleader.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/associative-mleader.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/17-cad-native-mleader.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "annotation-extras.table",
+          "points": 1,
+          "text": "TABLE tecleable como descriptor del motor",
+          "costDays": 0,
+          "evidence": [{ "kind": "command", "name": "TABLE" }]
+        },
+        {
+          "id": "annotation-extras.styles",
+          "points": 2,
+          "text": "MLEADER, MLEADERSTYLE y TABLESTYLE tecleables con estilos aplicables",
+          "costDays": 5,
+          "evidence": [
+            { "kind": "command", "name": "MLEADER" },
+            { "kind": "command", "name": "MLEADERSTYLE" },
+            { "kind": "command", "name": "TABLESTYLE" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "xrefs",
+      "group": "pro",
+      "name": "Xrefs",
+      "points": 6,
+      "gap": "Sin bind, sin resolución de recursos y sin comandos.",
+      "criteria": [
+        {
+          "id": "xrefs.document",
+          "points": 2,
+          "text": "Referencias externas declaradas en el documento canónico",
+          "costDays": 0,
+          "evidence": [
+            { "kind": "file", "path": "apps/web/src/lib/cad/cad-xrefs.ts" },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/cad-xrefs.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/21-cad-xrefs.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "xrefs.resolution",
+          "points": 2,
+          "text": "Resolución de recursos, capas de xref y bind con round-trip",
+          "costDays": 6,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/cad-xrefs-bind.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "xrefs.commands",
+          "points": 2,
+          "text": "XREF, XATTACH, XBIND y XCLIP tecleables",
+          "costDays": 4,
+          "evidence": [
+            { "kind": "command", "name": "XREF" },
+            { "kind": "command", "name": "XATTACH" },
+            { "kind": "command", "name": "XCLIP" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "performance",
+      "group": "pro",
+      "name": "Rendimiento 10k/100k",
+      "points": 12,
+      "gap": "El pipeline rápido está medido y NO está enchufado al editor; los presupuestos actuales toleran 29 s de zoom.",
+      "criteria": [
+        {
+          "id": "performance.index",
+          "points": 2,
+          "text": "Índice espacial, nivel de detalle y presupuesto de render en el editor",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/native-render-budget.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/native-render-budget.spec.ts"
+            },
+            {
+              "kind": "imported",
+              "module": "apps/web/src/lib/cad/native-render-budget.ts"
+            }
+          ]
+        },
+        {
+          "id": "performance.corpus",
+          "points": 2,
+          "text": "Corpus determinista versionado por sha256 y benchmark reproducible",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/benchmark/corpus.ts"
+            },
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/benchmark/corpus-manifest.json"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/benchmark/corpus.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "performance.playwright",
+          "points": 2,
+          "text": "Spec Playwright a 100k con artefacto JSON por corrida",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/performance/cad-viewport-100k.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "performance.pipeline-measured",
+          "points": 2,
+          "text": "Pipeline por lotes y tiles medido: primer detalle <1 s y asentado del zoom <100 ms sobre 100k, con máquina declarada",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "metric",
+              "path": "docs/cad/evidence/cad-render-benchmark-100k.json",
+              "pointer": "measurements/next/firstDetailMs",
+              "max": 1000,
+              "unit": "ms"
+            },
+            {
+              "kind": "metric",
+              "path": "docs/cad/evidence/cad-render-benchmark-100k.json",
+              "pointer": "measurements/next/zoomSettleMs",
+              "max": 100,
+              "unit": "ms"
+            }
+          ]
+        },
+        {
+          "id": "performance.pipeline-wired",
+          "points": 2,
+          "text": "El editor USA ese pipeline: algo fuera de lib/cad/render lo importa",
+          "costDays": 8,
+          "evidence": [
+            { "kind": "imported", "module": "apps/web/src/lib/cad/render" }
+          ]
+        },
+        {
+          "id": "performance.browser-slo",
+          "points": 2,
+          "text": "SLO de navegador publicado (cuadros por segundo sostenidos, memoria estabilizada) con hardware y navegador documentados",
+          "costDays": 12,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "docs/cad/evidence/browser-slo-100k.json"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "review",
+      "group": "pro",
+      "name": "Compare, comentarios y enlaces de revisión",
+      "points": 5,
+      "gap": "Sin carga concurrente medida ni merge semántico amplio.",
+      "criteria": [
+        {
+          "id": "review.links",
+          "points": 2,
+          "text": "Enlaces de revisión con hash, caducidad, revocación y aislamiento por organización",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/api/src/modules/cad/cad-review-link.controller.ts"
+            },
+            {
+              "kind": "file",
+              "path": "apps/api/src/modules/cad/cad-review.controller.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/22-cad-compare-collaboration.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "review.comments",
+          "points": 1,
+          "text": "Comentarios anclados a la geometría, con spec de anclaje",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/api/src/modules/cad/cad-comment-anchor.ts"
+            },
+            {
+              "kind": "file",
+              "path": "apps/api/src/modules/cad/cad-comment-anchor.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "review.concurrency",
+          "points": 2,
+          "text": "Carga concurrente medida y merge semántico con recorrido de todos los roles",
+          "costDays": 8,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "docs/cad/evidence/review-concurrency.json"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "json-import",
+      "group": "pro",
+      "name": "Importación de JSON canónico",
+      "points": 4,
+      "gap": "Falta corpus hostil y fuzzing en navegador.",
+      "criteria": [
+        {
+          "id": "json-import.worker",
+          "points": 2,
+          "text": "Worker con progreso, cancelación y límites declarados",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/document-import.worker.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/document-import.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "json-import.transport",
+          "points": 1,
+          "text": "Transporte de documentos grandes con gzip y blobs",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/large-document-transport.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/large-document-transport.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "json-import.fuzzing",
+          "points": 1,
+          "text": "Corpus hostil y fuzzing ejecutados en navegador, no sólo en Node",
+          "costDays": 4,
+          "evidence": [
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/performance/cad-import-fuzzing.spec.ts"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "api-sdk",
+      "group": "ext",
+      "name": "API y SDK de automatización",
+      "points": 7,
+      "gap": "Sin consola pública, sin pruebas de carga publicadas y sin política de extensiones de terceros.",
+      "criteria": [
+        {
+          "id": "api-sdk.contract",
+          "points": 2,
+          "text": "OpenAPI 3.1 versionado con gate de contrato en CI",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "packages/contracts/specs/design-api.v1.yaml",
+              "minLines": 200
+            },
+            { "kind": "file", "path": "scripts/cad/check-design-contract.mjs" }
+          ]
+        },
+        {
+          "id": "api-sdk.generated",
+          "points": 2,
+          "text": "SDK generado desde el contrato con test de compatibilidad",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "packages/design-sdk/src/generated/design-api.ts"
+            },
+            { "kind": "file", "path": "packages/design-sdk/src/compat.spec.ts" }
+          ]
+        },
+        {
+          "id": "api-sdk.client",
+          "points": 1,
+          "text": "El web consume el SDK a través de repositorios tipados",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/repositories/client.ts"
+            },
+            {
+              "kind": "imported",
+              "module": "apps/web/src/lib/cad/repositories/client.ts"
+            }
+          ]
+        },
+        {
+          "id": "api-sdk.public",
+          "points": 2,
+          "text": "Consola pública, pruebas de límite y carga publicadas, y política de extensiones de terceros",
+          "costDays": 15,
+          "evidence": [
+            { "kind": "file", "path": "docs/cad/evidence/api-load-tests.json" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "plugins",
+      "group": "ext",
+      "name": "Plugins AutoLISP / .NET / VBA",
+      "points": 8,
+      "gap": "El intérprete está completo y NADIE lo importa: un usuario no puede cargar un .lsp.",
+      "criteria": [
+        {
+          "id": "plugins.interpreter",
+          "points": 2,
+          "text": "Intérprete AutoLISP: lector, evaluador, entorno y errores",
+          "costDays": 0,
+          "evidence": [
+            { "kind": "file", "path": "apps/web/src/lib/lisp/reader.ts" },
+            { "kind": "file", "path": "apps/web/src/lib/lisp/evaluator.ts" },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/lisp/evaluator.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/lisp/acceptance.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "plugins.cad-builtins",
+          "points": 2,
+          "text": "Funciones de CAD y de entidad por códigos DXF",
+          "costDays": 0,
+          "evidence": [
+            { "kind": "file", "path": "apps/web/src/lib/lisp/cad-builtins.ts" },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/lisp/entity-functions.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "plugins.sandbox",
+          "points": 1,
+          "text": "Sandbox con presupuesto de ejecución y superficie declarada",
+          "costDays": 0,
+          "evidence": [
+            { "kind": "file", "path": "apps/web/src/lib/lisp/budget.ts" },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/lisp/sandbox-surface.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "plugins.dcl",
+          "points": 1,
+          "text": "DCL y manifiesto de plugins",
+          "costDays": 0,
+          "evidence": [
+            { "kind": "file", "path": "apps/web/src/lib/lisp/dcl/parser.ts" },
+            { "kind": "file", "path": "apps/web/src/lib/lisp/plugins/api.ts" },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/lisp/dcl-and-plugins.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "plugins.wired",
+          "points": 2,
+          "text": "El editor puede cargar y ejecutar un .lsp: algo fuera de lib/lisp lo importa",
+          "costDays": 6,
+          "evidence": [
+            { "kind": "imported", "module": "apps/web/src/lib/lisp" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "events",
+      "group": "ext",
+      "name": "Eventos e integración asíncrona",
+      "points": 4,
+      "gap": "Falta evidencia operacional sostenida y replay auditado.",
+      "criteria": [
+        {
+          "id": "events.outbox",
+          "points": 2,
+          "text": "Outbox transaccional con leases, reintentos y cola muerta",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/api/src/modules/commercial/webhook-outbox.transport.ts"
+            },
+            {
+              "kind": "file",
+              "path": "apps/api/src/modules/commercial/outbox-worker.service.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "events.contract",
+          "points": 1,
+          "text": "Contrato de eventos versionado",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "packages/contracts/specs/design-events.v1.yaml"
+            }
+          ]
+        },
+        {
+          "id": "events.operational",
+          "points": 1,
+          "text": "Evidencia operacional sostenida y replay auditado con receptor externo",
+          "costDays": 8,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "docs/cad/evidence/webhook-replay-audit.json"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nl-cad",
+      "group": "ext",
+      "name": "Asistencia NL→CAD y Vision→CAD",
+      "points": 4,
+      "gap": "Sin benchmark de calidad ni evaluación adversarial.",
+      "criteria": [
+        {
+          "id": "nl-cad.port",
+          "points": 2,
+          "text": "Puerto de proveedor opcional con validación y previsualización antes de aplicar",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/api/src/modules/cad-documents/ports/cad-ai-provider.port.ts"
+            },
+            {
+              "kind": "file",
+              "path": "apps/api/src/modules/cad-documents/cide-ai-provider.adapter.ts"
+            },
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/copilot-contract.ts"
+            }
+          ]
+        },
+        {
+          "id": "nl-cad.deterministic",
+          "points": 1,
+          "text": "Contrato del copiloto con specs deterministas",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/copilot-contract.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "nl-cad.benchmark",
+          "points": 1,
+          "text": "Benchmark de calidad por modelo y evaluación adversarial publicados",
+          "costDays": 10,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "docs/cad/evidence/nl-cad-quality-benchmark.json"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "object-storage",
+      "group": "ext",
+      "name": "Almacenamiento de objetos",
+      "points": 3,
+      "gap": "El MinIO del Compose no está cableado; no hay adaptador S3 ni migración.",
+      "criteria": [
+        {
+          "id": "object-storage.port",
+          "points": 1,
+          "text": "Puerto de blob store desacoplado del almacenamiento concreto",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/api/src/modules/cad-documents/ports/cad-blob-store.port.ts"
+            },
+            {
+              "kind": "file",
+              "path": "apps/api/src/modules/cad-documents/design-blob-store.adapter.ts"
+            }
+          ]
+        },
+        {
+          "id": "object-storage.bytea",
+          "points": 1,
+          "text": "Adaptador BYTEA con aislamiento por organización y specs",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/api/src/modules/blob-store/design-blob.store.ts"
+            },
+            {
+              "kind": "file",
+              "path": "apps/api/src/modules/blob-store/design-blob.store.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "object-storage.s3",
+          "points": 1,
+          "text": "Adaptador S3/MinIO cableado, con migración y operación documentadas",
+          "costDays": 5,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/api/src/modules/blob-store/s3-blob.store.ts"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dwg",
+      "group": "frontier",
+      "name": "Import/export DWG",
+      "points": 8,
+      "gap": "No hay decoder productivo. La decisión y el rechazo explícito sí existen y puntúan.",
+      "criteria": [
+        {
+          "id": "dwg.decision",
+          "points": 1,
+          "text": "Decisión de arquitectura publicada sobre DWG y el laboratorio clean-room",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "docs/adr/0004-dxf-native-dwg-authorized-provider.md"
+            },
+            {
+              "kind": "file",
+              "path": "docs/adr/0007-dwg-clean-room-experimental-research.md"
+            }
+          ]
+        },
+        {
+          "id": "dwg.honest-rejection",
+          "points": 1,
+          "text": "La interfaz detecta y rechaza el formato en vez de fingir soporte",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "apps/web/src/components/line-engineering/cad-format-detect.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/components/line-engineering/cad-format-detect.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "dwg.decoder",
+          "points": 3,
+          "text": "Decoder productivo con corpus independiente y matriz de entidades",
+          "costDays": 60,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "docs/cad/evidence/dwg-decoder-matrix.json"
+            }
+          ]
+        },
+        {
+          "id": "dwg.export",
+          "points": 2,
+          "text": "Exportación DWG con round-trip verificado por lector externo",
+          "costDays": 40,
+          "evidence": [
+            { "kind": "file", "path": "docs/cad/evidence/dwg-roundtrip.json" }
+          ]
+        },
+        {
+          "id": "dwg.gates",
+          "points": 1,
+          "text": "Integración en runtime con gates legal, de seguridad y de fidelidad superados",
+          "costDays": 20,
+          "evidence": [
+            {
+              "kind": "manual",
+              "verifiedBy": "",
+              "verifiedAt": "",
+              "note": "Requiere ADR posterior de promoción; sin firma."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "brep",
+      "group": "frontier",
+      "name": "Modelo 3D y sólidos B-rep",
+      "points": 7,
+      "gap": "El kernel está construido y probado, y ningún archivo del editor lo importa.",
+      "criteria": [
+        {
+          "id": "brep.topology",
+          "points": 1,
+          "text": "Topología, tolerancia e invariantes verificadas",
+          "costDays": 0,
+          "evidence": [
+            { "kind": "file", "path": "apps/web/src/lib/brep/topology.ts" },
+            { "kind": "file", "path": "apps/web/src/lib/brep/tolerance.ts" },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/brep/invariants.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "brep.operations",
+          "points": 2,
+          "text": "Extrusión, barrido, booleanas y redondeo con specs",
+          "costDays": 0,
+          "evidence": [
+            { "kind": "spec", "path": "apps/web/src/lib/brep/extrude.spec.ts" },
+            { "kind": "spec", "path": "apps/web/src/lib/brep/sweep.spec.ts" },
+            { "kind": "spec", "path": "apps/web/src/lib/brep/boolean.spec.ts" },
+            { "kind": "spec", "path": "apps/web/src/lib/brep/fillet.spec.ts" }
+          ]
+        },
+        {
+          "id": "brep.surfaces",
+          "points": 1,
+          "text": "NURBS, superficies y teselado",
+          "costDays": 0,
+          "evidence": [
+            { "kind": "spec", "path": "apps/web/src/lib/brep/nurbs.spec.ts" },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/brep/surfaces.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/brep/tessellate.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "brep.interop",
+          "points": 1,
+          "text": "STEP e IGES en los dos sentidos",
+          "costDays": 0,
+          "evidence": [
+            { "kind": "file", "path": "apps/web/src/lib/brep/step-import.ts" },
+            { "kind": "file", "path": "apps/web/src/lib/brep/step-export.ts" },
+            { "kind": "file", "path": "apps/web/src/lib/brep/iges.ts" },
+            { "kind": "spec", "path": "apps/web/src/lib/brep/interop.spec.ts" }
+          ]
+        },
+        {
+          "id": "brep.wired",
+          "points": 2,
+          "text": "El editor lo usa: algo fuera de lib/brep lo importa",
+          "costDays": 10,
+          "evidence": [
+            { "kind": "imported", "module": "apps/web/src/lib/brep" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wasm",
+      "group": "frontier",
+      "name": "Kernel Rust/WASM",
+      "points": 2,
+      "gap": "Condicionado: sólo se abre si el kernel TypeScript deja de cumplir el presupuesto.",
+      "criteria": [
+        {
+          "id": "wasm.gate",
+          "points": 1,
+          "text": "Puerta de entrada publicada con condición de activación explícita",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "docs/adr/0003-native-kernel-and-rust-wasm-entry-gate.md"
+            }
+          ]
+        },
+        {
+          "id": "wasm.toolchain",
+          "points": 1,
+          "text": "Toolchain, manifiesto, paridad numérica, fallback y benchmarks WASM",
+          "costDays": 30,
+          "evidence": [
+            { "kind": "file", "path": "docs/cad/evidence/wasm-parity.json" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geo",
+      "group": "frontier",
+      "name": "Nubes de puntos, raster georreferenciado y GIS",
+      "points": 3,
+      "gap": "No aparece en contratos ni en runtime.",
+      "criteria": [
+        {
+          "id": "geo.formats",
+          "points": 1,
+          "text": "LAS/LAZ, GeoTIFF o SHP leídos en el runtime",
+          "costDays": 25,
+          "evidence": [
+            { "kind": "file", "path": "apps/web/src/lib/geo/index.ts" }
+          ]
+        },
+        {
+          "id": "geo.crs",
+          "points": 1,
+          "text": "Sistemas de referencia y reproyección",
+          "costDays": 15,
+          "evidence": [
+            { "kind": "file", "path": "apps/web/src/lib/geo/crs.ts" }
+          ]
+        },
+        {
+          "id": "geo.scale",
+          "points": 1,
+          "text": "Índices espaciales y pruebas a escala de nube de puntos",
+          "costDays": 20,
+          "evidence": [
+            {
+              "kind": "file",
+              "path": "docs/cad/evidence/point-cloud-scale.json"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
