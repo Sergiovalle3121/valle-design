@@ -19,11 +19,15 @@ import {
   cadTransformPoint3,
   cadTransformScaleFactor,
 } from "./transform2d";
+// De `entity-hit-geometry` y NO de `entity-runtime`: aquél importa este
+// módulo, así que pedirle un VALOR de vuelta cierra un ciclo que revienta al
+// cargar. Con tipos no pasaba nada; con valores, sí.
 import {
   boundsContained,
   boundsIntersect,
   pathHit,
-} from "./entity-runtime";
+  pointsBounds,
+} from "./entity-hit-geometry";
 import type {
   CadBoundsProvider,
   CadEntityAdapter,
@@ -46,16 +50,6 @@ const positive = (value: CadPropertyValue | undefined, fallback: number): number
 };
 const cloneContext = <T,>(context: T): T =>
   context === undefined ? context : structuredClone(context);
-
-function pointsBounds(points: readonly CadPoint2[]) {
-  if (points.length === 0) return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
-  return {
-    minX: Math.min(...points.map((point) => point.x)),
-    minY: Math.min(...points.map((point) => point.y)),
-    maxX: Math.max(...points.map((point) => point.x)),
-    maxY: Math.max(...points.map((point) => point.y)),
-  };
-}
 
 type CadHatchEntity = Extract<CadNativeEntity, { type: "hatch" }>;
 

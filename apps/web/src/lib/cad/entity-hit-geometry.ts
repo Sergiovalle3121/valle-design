@@ -1,0 +1,105 @@
+/**
+ * Geometría compartida de impacto y encuadre.
+ *
+ * Vive fuera de `entity-runtime.ts` para romper un **ciclo de importación
+ * real**: `entity-runtime` importa los adaptadores de cada entidad, así que un
+ * adaptador que necesite estas funciones no puede pedírselas de vuelta. Con
+ * tipos no pasaba nada —se borran al compilar— pero en cuanto un adaptador
+ * importó un VALOR, el módulo reventó al cargarse con «Cannot access
+ * 'hatchAdapter' before initialization».
+ *
+ * El `typecheck` no lo vio: TypeScript acepta los ciclos sin rechistar y el
+ * fallo sólo existe en tiempo de ejecución. Lo cazó el benchmark de CAD, que es
+ * lo que ocurre cuando un gate ejecuta código de verdad en vez de mirarlo.
+ */
+import type { CadPoint2 } from "./cad-document";
+import type { CadBounds, CadRenderPath } from "./entity-runtime";
+
+export function pointsBounds(points: CadPoint2[]): CadBounds {
+  if (!points.length)
+    return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+  return {
+    minX: Math.min(...points.map((point) => point.x)),
+    minY: Math.min(...points.map((point) => point.y)),
+    maxX: Math.max(...points.map((point) => point.x)),
+    maxY: Math.max(...points.map((point) => point.y)),
+  };
+}
+
+export function boundsContained(inner: CadBounds, outer: CadBounds): boolean {
+  return (
+    inner.minX >= outer.minX &&
+    inner.maxX <= outer.maxX &&
+    inner.minY >= outer.minY &&
+    inner.maxY <= outer.maxY
+  );
+}
+
+export function boundsIntersect(a: CadBounds, b: CadBounds): boolean {
+  return (
+    a.minX <= b.maxX &&
+    a.maxX >= b.minX &&
+    a.minY <= b.maxY &&
+    a.maxY >= b.minY
+  );
+}
+
+function distanceToSegment(
+  point: CadPoint2,
+  start: CadPoint2,
+  end: CadPoint2,
+): number {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const length2 = dx * dx + dy * dy;
+  if (length2 <= 1e-18) return Math.hypot(point.x - start.x, point.y - start.y);
+  const t = Math.max(
+    0,
+    Math.min(
+      1,
+      ((point.x - start.x) * dx + (point.y - start.y) * dy) / length2,
+    ),
+  );
+  return Math.hypot(
+    point.x - (start.x + t * dx),
+    point.y - (start.y + t * dy),
+  );
+}
+
+export function pathHit(paths: CadRenderPath[], point: CadPoint2, tolerance: number): boolean {
+  return paths.some((path) => {
+    for (let index = 1; index < path.points.length; index += 1) {
+      if (
+        distanceToSegment(point, path.points[index - 1], path.points[index]) <=
+        tolerance
+      )
+        return true;
+    }
+    if (
+      path.closed &&
+      path.points.length > 2 &&
+      distanceToSegment(
+        point,
+        path.points[path.points.length - 1],
+        path.points[0],
+      ) <= tolerance
+    )
+      return true;
+    return false;
+  });
+}
+
+export function pointInPolygon(point: CadPoint2, polygon: CadPoint2[]): boolean {
+  let inside = false;
+  for (let current = 0, previous = polygon.length - 1; current < polygon.length; previous = current, current += 1) {
+    const a = polygon[current];
+    const b = polygon[previous];
+    const crosses =
+      (a.y > point.y) !== (b.y > point.y) &&
+      point.x < ((b.x - a.x) * (point.y - a.y)) / (b.y - a.y) + a.x;
+    if (crosses) inside = !inside;
+  }
+  return inside;
+}
+
+/** Delega en `cadTransformPoint3`. Había dos copias y no coincidían en `z`. */
