@@ -13,10 +13,11 @@
  * este código.
  *
  * Y una segunda comprobación, más útil todavía: la LISTA COMPLETA de imports
- * fuera de `lib/lisp/`. Ahora mismo son dos módulos puros del CAD. Cualquier
- * dependencia nueva hace fallar esta spec, que es exactamente el momento en el
- * que alguien tiene que justificar por qué el intérprete necesita alcanzar algo
- * más del programa.
+ * fuera de `lib/lisp/`, con lo que cada uno hace aquí. Cualquier dependencia
+ * nueva hace fallar esta spec, que es exactamente el momento en el que alguien
+ * tiene que justificar por qué el intérprete necesita alcanzar algo más del
+ * programa. El inventario se imprime en cada corrida para que no envejezca en
+ * silencio dentro de un comentario.
  */
 import { strict as assert } from "node:assert";
 import fs from "node:fs";
@@ -81,36 +82,37 @@ checks += 1;
 // --- la lista COMPLETA de dependencias externas ------------------------------------
 {
   /**
-   * Módulos de fuera de `lib/lisp/` que el subsistema importa. Se enumeran
-   * exhaustivamente porque el valor de esta comprobación está en que cambiarla
-   * duela: añadir una dependencia nueva obliga a editar esta lista, y esa
-   * edición es lo que hace visible en el diff que el intérprete ha empezado a
-   * depender de otra parte del programa.
+   * Módulos de fuera de `lib/lisp/` que el subsistema importa, NORMALIZADOS a
+   * su ruta desde `src/`: el especificador relativo cambia con la profundidad
+   * del fichero (`../cad/x` frente a `../../cad/x`) y enumerar las dos formas
+   * de cada módulo escondería el inventario detrás del ruido.
+   *
+   * Se enumeran exhaustivamente porque el valor de esta comprobación está en
+   * que cambiarla duela: añadir una dependencia nueva obliga a editar esta
+   * lista, y esa edición es lo que hace visible en el diff que el intérprete ha
+   * empezado a depender de otra parte del programa.
    */
-  const allowed = new Set([
-    // Formato de longitudes: `rtos` reutiliza el MISMO formateador que las
-    // cotas para que un plano no tenga dos verdades sobre cómo se escribe una
-    // medida. Módulo puro, sin dependencias del editor.
-    "../../cad/unit-format",
-    // El modelo canónico y el ejecutor de comandos: sólo TIPOS y funciones
-    // puras. La escritura sigue saliendo por el puerto del anfitrión.
-    "../cad-document",
-    "../cad/cad-document",
-    "../cad/entity-commands",
-    "../cad/entity-runtime",
-    "../cad/engine",
-    "../cad/transform2d",
-    "../../cad/cad-document",
-    "../../cad/entity-commands",
-    "../../cad/entity-runtime",
+  const allowed = new Map<string, string>([
+    // `rtos` reutiliza el MISMO formateador que las cotas: un plano no puede
+    // tener dos verdades sobre cómo se escribe una medida.
+    ["lib/cad/unit-format", "formato de longitudes de rtos"],
+    // El modelo canónico y su ejecutor: tipos y funciones PURAS. La escritura
+    // sigue saliendo por el puerto del anfitrión, nunca desde aquí.
+    ["lib/cad/cad-document", "el documento canónico"],
+    ["lib/cad/entity-commands", "el vocabulario de mutación canónico"],
+    ["lib/cad/entity-runtime", "el registro de adaptadores por entidad"],
+    // El motor de comandos del producto: `command` lo CONDUCE en vez de
+    // reimplementar un segundo intérprete de comandos.
+    ["lib/cad/engine", "el registro de comandos del producto"],
   ]);
 
+  const srcRoot = path.resolve(here, "../..");
   const seen = new Set<string>();
   for (const file of files) {
     const source = fs.readFileSync(file, "utf8");
     for (const match of source.matchAll(/from\s+"([^"]+)"/g)) {
       const specifier = match[1];
-      // Node builtins no aparecen en el código de producción del subsistema.
+      // El intérprete no puede depender de Node: viaja al navegador.
       assert.ok(
         !specifier.startsWith("node:"),
         `${path.relative(here, file)} importa ${specifier}: el intérprete no puede depender de Node.`,
@@ -119,10 +121,12 @@ checks += 1;
       // Los relativos que se quedan dentro de `lib/lisp/` son libres.
       const resolved = path.resolve(path.dirname(file), specifier);
       if (resolved.startsWith(here)) continue;
-      seen.add(specifier);
+      const normalized = path.relative(srcRoot, resolved);
+      seen.add(normalized);
       assert.ok(
-        allowed.has(specifier),
-        `${path.relative(here, file)} importa ${specifier}, que no está en la lista de dependencias externas permitidas.`,
+        allowed.has(normalized),
+        `${path.relative(here, file)} importa ${specifier} (${normalized}), que no está en la ` +
+          `lista de dependencias externas permitidas del subsistema LISP.`,
       );
       checks += 1;
     }

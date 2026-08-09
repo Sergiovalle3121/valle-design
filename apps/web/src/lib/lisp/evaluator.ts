@@ -123,6 +123,7 @@ export class LispInterpreter {
       this.picksetSerial += 1;
       return this.picksetSerial;
     },
+    state: new Map<string, unknown>(),
   };
 
   *evaluate(form: LispValue): LispEval {

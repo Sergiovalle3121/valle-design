@@ -27,10 +27,18 @@
  *
  * ## Qué NO está aquí
  *
- * Ni evaluación, ni presupuesto, ni acceso al documento. Este módulo es hoja:
- * no importa nada del subsistema. Es la condición que impide el ciclo de
- * inicialización que el repositorio ya ha sufrido en `entity-runtime`.
+ * Ni evaluación, ni presupuesto, ni implementación del acceso al documento.
+ * Su única importación es el TIPO del puerto del anfitrión, que se borra al
+ * compilar: en tiempo de ejecución este módulo no depende de nada. Es la
+ * condición que impide el ciclo de inicialización que el repositorio ya ha
+ * sufrido en `entity-runtime`, donde un adaptador pidió de vuelta un VALOR al
+ * registro y el módulo reventó al cargar.
  */
+
+import type { LispHostServices } from "./host";
+
+/** Reexportado: casi todo el subsistema necesita el puerto y el valor juntos. */
+export type { LispHostServices };
 
 export interface LispNil {
   readonly t: "nil";
@@ -189,27 +197,14 @@ export interface LispCallContext {
   host: LispHostServices | null;
   /** Contador de conjuntos de selección; garantiza seriales únicos. */
   nextPicksetSerial(): number;
-}
-
-/**
- * Puerto del anfitrión. Lo implementa quien monta el intérprete (el editor, un
- * spec, la golden headless); el subsistema LISP nunca lo implementa por su
- * cuenta ni supone nada de él más allá de esta interfaz.
- */
-export interface LispHostServices {
-  /** Entidades visibles, en orden de dibujo. */
-  entityIds(): readonly string[];
-  entity(id: string): unknown;
-  /** Capa activa, para las entidades que no declaran la suya. */
-  activeLayer(): string;
-  /** Identificador nuevo para una entidad creada por la rutina. */
-  newEntityId(): string;
   /**
-   * ÚNICA salida de escritura. Recibe comandos canónicos ya construidos y los
-   * aplica por `commitNativeCommands`: un lote, un paso de deshacer, la
-   * disciplina CAS del anfitrión. El subsistema LISP no conoce otra puerta.
+   * Pizarra por SESIÓN para los builtins que necesitan recordar algo entre
+   * llamadas — hoy sólo `initget`, que arma la siguiente `get*`. Va aquí y no
+   * en un símbolo LISP porque un símbolo lo puede pisar la rutina del usuario,
+   * y entonces `initget` dejaría de armar la palabra clave que el autor
+   * escribió, sin decir nada.
    */
-  commit(commands: readonly unknown[], label: string): void;
+  readonly state: Map<string, unknown>;
 }
 
 // ---------------------------------------------------------------------------
