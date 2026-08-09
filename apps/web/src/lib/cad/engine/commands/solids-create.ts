@@ -84,6 +84,8 @@ function profilesOf(context: CadCommandContext, ids: readonly string[]): CadExtr
 // REGION
 // ---------------------------------------------------------------------------
 
+const REGION_PROMPT = "Designe los contornos cerrados que convertir en regiones";
+
 const regionCommand: CadCommandDescriptor<SelectionState> = {
   name: "REGION",
   aliases: ["REG"],
@@ -111,34 +113,32 @@ const regionCommand: CadCommandDescriptor<SelectionState> = {
   },
 };
 
-const REGION_PROMPT = "Designe los contornos cerrados que convertir en regiones";
-
 function regionResult(
   state: SelectionState,
   context: CadCommandContext,
 ): CadCommandStep<SelectionState> {
-    const commands: CadEntityCommand[] = [];
-    let created = 0;
-    for (const entity of selectedEntities(context, state.selection)) {
-      const loops = closedLoopsOfEntity(entity);
-      if (loops.length === 0) continue;
-      commands.push({
-        type: "insert",
-        entity: {
-          id: context.newEntityId(),
-          type: "region",
-          outer: loops[0],
-          ...(loops.length > 1 ? { inners: loops.slice(1) } : {}),
-          layer: entity.layer ?? context.activeLayer,
-        },
-      });
-      // El contorno se consume: dejarlo debajo de la región duplicaría la
-      // silueta en pantalla y en el exportado.
-      commands.push({ type: "delete", entityId: entity.id });
-      created += 1;
-    }
-    if (created === 0) return solidMessage(state, NO_PROFILE);
-    return solidBatch(state, commands, "REGION");
+  const commands: CadEntityCommand[] = [];
+  let created = 0;
+  for (const entity of selectedEntities(context, state.selection)) {
+    const loops = closedLoopsOfEntity(entity);
+    if (loops.length === 0) continue;
+    commands.push({
+      type: "insert",
+      entity: {
+        id: context.newEntityId(),
+        type: "region",
+        outer: loops[0],
+        ...(loops.length > 1 ? { inners: loops.slice(1) } : {}),
+        layer: entity.layer ?? context.activeLayer,
+      },
+    });
+    // El contorno se consume: dejarlo debajo de la región duplicaría la
+    // silueta en pantalla y en el exportado.
+    commands.push({ type: "delete", entityId: entity.id });
+    created += 1;
+  }
+  if (created === 0) return solidMessage(state, NO_PROFILE);
+  return solidBatch(state, commands, "REGION");
 }
 
 // ---------------------------------------------------------------------------

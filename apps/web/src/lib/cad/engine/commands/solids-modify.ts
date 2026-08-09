@@ -122,36 +122,36 @@ function booleanDescriptor(
     state: SolidSelectionState,
     context: CadCommandContext,
   ): CadCommandStep<SolidSelectionState> {
-      const solids = selectedSolids(context, state.selection);
-      if (solids.length < 2)
-        return solidMessage(state, `${name} necesita al menos DOS sólidos designados; hay ${solids.length}.`);
+    const solids = selectedSolids(context, state.selection);
+    if (solids.length < 2)
+      return solidMessage(state, `${name} necesita al menos DOS sólidos designados; hay ${solids.length}.`);
 
-      const nodes: CadSolidNode[] = [];
-      const roots: string[] = [];
-      const removals: CadEntityCommand[] = [];
-      for (const [index, solid] of solids.entries()) {
-        const prefix = `op${index}:`;
-        nodes.push(...prefixNodes(solid.nodes, prefix));
-        roots.push(`${prefix}${solid.root}`);
-        removals.push({ type: "delete", entityId: solid.id });
-      }
-      const rootId = "resultado";
-      nodes.push({ id: rootId, op, operands: roots } as CadSolidNode);
+    const nodes: CadSolidNode[] = [];
+    const roots: string[] = [];
+    const removals: CadEntityCommand[] = [];
+    for (const [index, solid] of solids.entries()) {
+      const prefix = `op${index}:`;
+      nodes.push(...prefixNodes(solid.nodes, prefix));
+      roots.push(`${prefix}${solid.root}`);
+      removals.push({ type: "delete", entityId: solid.id });
+    }
+    const rootId = "resultado";
+    nodes.push({ id: rootId, op, operands: roots } as CadSolidNode);
 
-      // La colocación del PRIMER operando manda. No es arbitrario: en una resta
-      // el resultado «es» la primera pieza con un trozo menos, y conservar su
-      // punto base hace que los grips y las cotas que la apuntaban sigan
-      // significando lo mismo. Los demás operandos ya traen su colocación
-      // horneada en sus nodos... salvo que la tuvieran, y por eso se aplica.
-      const solid = makeSolidEntity(
-        context.newEntityId(),
-        nodes,
-        rootId,
-        solids[0].layer,
-        solids[0].name,
-      );
-      const placed = solids[0].placement ? { ...solid, placement: solids[0].placement } : solid;
-      return finishedSolid(placed, { state, label: name, before: removals });
+    // La colocación del PRIMER operando manda. No es arbitrario: en una resta
+    // el resultado «es» la primera pieza con un trozo menos, y conservar su
+    // punto base hace que los grips y las cotas que la apuntaban sigan
+    // significando lo mismo. Los demás operandos ya traen su colocación
+    // horneada en sus nodos... salvo que la tuvieran, y por eso se aplica.
+    const solid = makeSolidEntity(
+      context.newEntityId(),
+      nodes,
+      rootId,
+      solids[0].layer,
+      solids[0].name,
+    );
+    const placed = solids[0].placement ? { ...solid, placement: solids[0].placement } : solid;
+    return finishedSolid(placed, { state, label: name, before: removals });
   }
 }
 
