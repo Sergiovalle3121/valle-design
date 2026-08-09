@@ -6,6 +6,16 @@
  * las intersecciones de la fase A7: recortar contra un borde, extender hasta
  * tocar un borde y partir en uno o dos puntos. Geometría pura, sin dependencias
  * del editor.
+ *
+ * ## Estado actual, para que nadie lo deduzca mal
+ *
+ * `breakSegment` sigue siendo la geometría de BREAK. `trimSegment` y
+ * `extendSegment` YA NO los usa ningún comando: TRIM y EXTEND pasaron a
+ * `curve-edit.ts`, que expresa la misma regla sobre el parámetro de cualquier
+ * curva y por eso admite arcos, círculos, elipses y polilíneas. Se conservan
+ * porque su spec documenta el caso de dos segmentos con anclas propias, pero
+ * si alguien los amplía sin tocar `curve-edit.ts` estará mejorando código que
+ * el producto no ejecuta.
  */
 import type { CadVec2 } from "./primitives";
 

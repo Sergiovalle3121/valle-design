@@ -1,3 +1,19 @@
+/**
+ * TRIM y EXTEND de una LINE o un ARC contra una frontera, más su aplicador.
+ *
+ * ## Qué lo usa hoy, y qué no
+ *
+ * El MOTOR de comandos ya no pasa por aquí: `curve-edit.ts` expresa la misma
+ * regla sobre el parámetro de cualquier curva y por eso admite además círculos,
+ * elipses y polilíneas, y varias fronteras a la vez.
+ *
+ * Lo que sí sigue usando este archivo es `applyCadLineEdit`, y lo llama el
+ * panel derecho del monolito. Es una SEGUNDA RUTA DE MUTACIÓN —toma el
+ * documento entero y hace su propio `commitChange`—, exactamente lo que el
+ * motor vino a eliminar. Retirarla exige tocar `Layout3DEditor.tsx` para que
+ * ese panel invoque el comando en vez de la función, y eso es un cambio con su
+ * propio alcance. Queda dicho aquí para que no se lea como una decisión.
+ */
 import { commitChange, type CadDocument, type CadEntity, type CadPoint3 } from './cad-document';
 import { executeCadEntityCommand } from './entity-commands';
 import { lineArcIntersections, lineCircleIntersections, arcArcIntersections } from './intersect';
