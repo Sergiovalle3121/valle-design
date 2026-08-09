@@ -143,6 +143,12 @@ const names = registry.all().map((command) => command.name);
     "-LINETYPE",
     "-UCSMAN",
     "-TOOLPALETTES",
+    // Ola de presentaciones y trazado.
+    "ZOOM",
+    "PAN",
+    "VIEW",
+    "REGEN",
+    "REGENALL",
   ])
     assert.ok(names.includes(expected), `${expected} no llegó al registro del producto`);
 }

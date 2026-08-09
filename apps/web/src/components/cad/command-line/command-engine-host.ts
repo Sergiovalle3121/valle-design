@@ -33,7 +33,9 @@ import type {
 } from "@/lib/cad/engine/command-types";
 import type { CadSystemVariableValue } from "@/lib/cad/system-variables";
 import type { CadEntityCommand } from "@/lib/cad/entity-commands";
+import type { CadHostRequest } from "@/lib/cad/engine/host-requests";
 import type { SnapType } from "@/lib/cad/snap-engine";
+import type { CadViewRequest } from "@/lib/cad/view/view-navigation";
 import type { CadCommandLineEntry } from "./CadCommandLine";
 
 /** Lo que el anfitrión necesita del editor para que un comando surta efecto. */
@@ -69,6 +71,24 @@ export interface CadCommandEngineBridge {
    * la mitad de la respuesta, en vez de fingir que ha designado algo.
    */
   select?(entityIds: readonly string[]): boolean;
+  /**
+   * Encuadre: ZOOM, PAN, VIEW y REGEN. Devuelve el renglón que hay que enseñar
+   * —«ZOOM Extensión», «No hay ninguna vista previa que recuperar»— porque la
+   * respuesta depende del dibujo y del lienzo, que el motor no ve.
+   *
+   * `null` significa «aquí no hay dónde encuadrar»: un guion sin lienzo, una
+   * prueba del motor. Se distingue de una cadena vacía a propósito, y se dice
+   * en voz alta en vez de fingir que se encuadró.
+   *
+   * Puede faltar entero, y entonces vale lo mismo que devolver `null`.
+   */
+  view?(request: CadViewRequest): string | null;
+  /**
+   * Trabajo fuera del documento: trazar, publicar, cambiar de espacio. Mismo
+   * contrato que `view`: el renglón a mostrar, o `null` si no hay quien lo
+   * atienda.
+   */
+  host?(request: CadHostRequest): string | null;
 }
 
 export interface CadCommandEngineSnapshot {
@@ -152,18 +172,6 @@ export class CadCommandEngineHost {
     this.dispatch({ kind: "repeat" });
   }
 
-  /**
-   * Escribe un renglón en el diálogo sin pasar por el motor.
-   *
-   * Lo usa quien ejecuta un `.scr`: los avisos del script —«la línea 7 abre un
-   * cuadro»— no son la respuesta de ningún comando, pero tienen que salir por
-   * el mismo sitio o el usuario no los ve.
-   */
-  note(text: string, level: CadCommandLineEntry["level"] = "info"): void {
-    this.log(text, level);
-    this.publish();
-  }
-
   cancel(): void {
     this.dispatch({ kind: "input", input: { kind: "cancel" } });
   }
@@ -183,6 +191,24 @@ export class CadCommandEngineHost {
 
   accept(): void {
     this.dispatch({ kind: "input", input: { kind: "enter" } });
+  }
+
+  /**
+   * Renglón que NO viene de un comando: el resultado de un trabajo asíncrono
+   * del anfitrión, típicamente un trazado que acaba de terminar.
+   *
+   * Existe porque trazar tarda y la línea de comandos no espera: PLOT responde
+   * «trazando…» de inmediato y el resultado llega por aquí, con el número de
+   * páginas y de fuentes. Sin esta puerta, el usuario se queda mirando un
+   * «trazando…» que nunca se resuelve.
+   *
+   * La usa por lo mismo quien ejecuta un `.scr`: los avisos del script —«la
+   * línea 7 abre un cuadro»— no son la respuesta de ningún comando y tienen que
+   * salir por el mismo sitio o el usuario no los ve.
+   */
+  note(text: string, level: "info" | "error" = "info"): void {
+    this.log(text, level);
+    this.publish();
   }
 
   get busy(): boolean {
@@ -231,6 +257,25 @@ export class CadCommandEngineHost {
       case "execute":
         this.bridge.apply(effect.commands, effect.label);
         return;
+      case "view": {
+        // Sin puente de vista el comando no encuadró nada, y eso se dice. Un
+        // «ZOOM Extensión» impreso sobre una vista que no se movió es peor que
+        // un aviso: enseña a no fiarse del diálogo.
+        const answered = this.bridge.view?.(effect.request) ?? null;
+        this.log(
+          answered ?? `${effect.label} no está disponible sin una vista activa.`,
+          answered === null ? "error" : "info",
+        );
+        return;
+      }
+      case "host": {
+        const answered = this.bridge.host?.(effect.request) ?? null;
+        this.log(
+          answered ?? `${effect.label} no está disponible en este contexto.`,
+          answered === null ? "error" : "info",
+        );
+        return;
+      }
       case "message":
         this.log(effect.text, effect.level === "error" ? "error" : "info");
         return;

@@ -28,13 +28,21 @@ import { requestCadUi } from "@/components/cad/palettes/palette-command-bus";
 import type { CadDocument } from "@/lib/cad/cad-document";
 import type { CadEntityCommand } from "@/lib/cad/entity-commands";
 import { runCadScript } from "@/lib/cad/script-runner";
+import type { CadHostRequest } from "@/lib/cad/engine/host-requests";
 import type { CadView } from "@/lib/cad/view/cad-view";
+import { cadDocumentExtents, cadEntityExtents } from "@/lib/cad/view/document-extents";
 import { useCadFileCommandHandlers, useCadSessionState } from "./session-catalogs";
 import {
   CadCommandEngineHost,
   type CadCommandEngineBridge,
   type CadCommandEngineSnapshot,
 } from "./command-engine-host";
+import {
+  CadNavigationHost,
+  type CadNavigationSnapshot,
+  type CadViewControllerLike,
+} from "./navigation-host";
+import { CadPlotHost, downloadCadFile } from "./plot-host";
 import { cadStudioCommandContext } from "./studio-context";
 
 export function useCadCommandEngineHost(
@@ -53,6 +61,12 @@ export function useCadCommandEngineHost(
         variables: (patch, system) => live.current.variables?.(patch, system) ?? [],
         ui: (request) => live.current.ui?.(request) ?? false,
         select: (entityIds) => live.current.select?.(entityIds) ?? false,
+        // `view` y `host` SE REENVÍAN. Olvidarlos aquí dejaba a ZOOM y a PLOT
+        // llegando hasta el motor, emitiendo su efecto y muriendo en un
+        // «no está disponible en este contexto» — la clase de fallo que sólo
+        // destapa un recorrido de punta a punta, porque cada pieza estaba bien.
+        view: (request) => live.current.view?.(request) ?? null,
+        host: (request) => live.current.host?.(request) ?? null,
       }),
     [],
   );
@@ -72,8 +86,16 @@ export function useCadCommandEngineHost(
 export interface CadStudioCommandEngineOptions {
   document: { current: CadDocument | null };
   selection: { current: readonly string[] };
-  view: { current: { view: CadView } | null };
+  /**
+   * Controlador de vista vivo. El editor ya guardaba aquí su
+   * `CadViewController`, así que ZOOM, PAN y VIEW encuadran la cámara REAL sin
+   * que el editor tenga que cablear nada nuevo: el controlador que ya pasaba
+   * para leer `pixelsPerUnit` es el mismo que ahora recibe `setView`.
+   */
+  view: { current: (CadViewControllerLike & { view: CadView }) | null };
   activeLayer: string;
+  /** Pestaña abierta, si el editor está en espacio papel. */
+  activeLayout?: string | null;
   newEntityId: () => string;
   /** Aplica el lote por la ruta canónica del editor. */
   apply(commands: readonly CadEntityCommand[], label: string): void;
@@ -86,13 +108,85 @@ export interface CadStudioCommandEngineOptions {
    * objetos casan; lo que no hacen es designarlos.
    */
   setSelection?(entityIds: readonly string[]): void;
+  /** Trabajo fuera del documento: trazar, publicar, cambiar de espacio. */
+  host?(request: CadHostRequest): string;
+}
+
+/**
+ * Anfitrión de navegación del estudio.
+ *
+ * Se crea UNA vez, igual que el del motor: lleva dentro la pila de vistas
+ * previas y las vistas con nombre, y recrearlo en un render las borraría. El
+ * puente delega en las opciones vivas a través de una `ref`, por lo mismo que
+ * el del motor.
+ */
+export function useCadStudioNavigation(
+  options: Pick<CadStudioCommandEngineOptions, "document" | "view">,
+): CadNavigationHost {
+  const live = useRef(options);
+  live.current = options;
+  return useMemo(
+    () =>
+      new CadNavigationHost({
+        controller: () => live.current.view.current,
+        // La envolvente se recalcula por petición y no se memoriza: ZOOM
+        // Extensión se teclea unas pocas veces por sesión, y una caché que
+        // envejece encuadraría el dibujo de hace tres órdenes.
+        extents: () => {
+          const document = live.current.document.current;
+          return document ? cadDocumentExtents(document) : null;
+        },
+        entityBounds: (entityId) => {
+          const document = live.current.document.current;
+          return document ? cadEntityExtents(document, entityId) : null;
+        },
+      }),
+    [],
+  );
+}
+
+/**
+ * Anfitrión de trazado del estudio.
+ *
+ * Se crea una vez, igual que los otros dos, y lee el documento vivo por `ref`.
+ * La descarga va por `downloadCadFile`, que es lo único de aquí que necesita
+ * DOM — inyectado para que el anfitrión se pueda probar en Node.
+ */
+export function useCadStudioPlotHost(
+  options: Pick<CadStudioCommandEngineOptions, "document"> & {
+    /** Adónde va el renglón del trazado cuando termina. */
+    note?: (text: string, level: "info" | "error") => void;
+  },
+): CadPlotHost {
+  const live = useRef(options);
+  live.current = options;
+  return useMemo(
+    () =>
+      new CadPlotHost({
+        document: () => live.current.document.current,
+        download: downloadCadFile,
+        onResult: (text, level) => live.current.note?.(text, level),
+      }),
+    [],
+  );
 }
 
 export function useCadStudioCommandEngine(
   options: CadStudioCommandEngineOptions,
 ): CadCommandEngineHost {
   const session = useCadSessionState();
-  const host = useCadCommandEngineHost({
+  const navigation = useCadStudioNavigation(options);
+  // El anfitrión del motor todavía no existe cuando se crea el de trazado, así
+  // que el renglón del resultado se enruta por una `ref` que se rellena justo
+  // después. Es la misma técnica del puente vivo, y evita el orden imposible.
+  const engineRef = useRef<CadCommandEngineHost | null>(null);
+  const plot = useCadStudioPlotHost({
+    document: options.document,
+    note: (text, level) => engineRef.current?.note(text, level),
+  });
+  const live = useRef(options);
+  live.current = options;
+  const engine = useCadCommandEngineHost({
     context: () =>
       cadStudioCommandContext({
         document: options.document.current,
@@ -107,8 +201,13 @@ export function useCadStudioCommandEngine(
         // en lugar de dar un punto medido desde un sitio inventado.
         cursor: null,
         newEntityId: options.newEntityId,
+        activeLayout: options.activeLayout ?? null,
       }),
     apply: options.apply,
+    view: navigation.apply,
+    // El anfitrión del estudio traza de verdad. Un `host` propio en las
+    // opciones lo sustituye, que es lo que hace un guion sin navegador.
+    host: (request) => live.current.host?.(request) ?? plot.handle(request),
     // Previsualización, captura forzada y forma del cursor pertenecen al
     // puntero. Se ignoran a conciencia hasta que el puntero llegue.
     preview: () => {},
@@ -131,6 +230,7 @@ export function useCadStudioCommandEngine(
       return true;
     },
   });
+  engineRef.current = engine;
 
   // Los dos manejadores que necesitan leer un archivo. Van aquí porque SCRIPT
   // tiene que volver a entrar por el MISMO anfitrión: un script es entrada
@@ -139,15 +239,15 @@ export function useCadStudioCommandEngine(
     session,
     useCallback(
       (name: string, text: string) => {
-        const report = runCadScript(text, host);
-        for (const warning of report.warnings) host.note(warning, "error");
-        host.note(`${name}: ${report.executed} renglón(es) ejecutado(s).`, "info");
+        const report = runCadScript(text, engine);
+        for (const warning of report.warnings) engine.note(warning, "error");
+        engine.note(`${name}: ${report.executed} renglón(es) ejecutado(s).`, "info");
       },
-      [host],
+      [engine],
     ),
   );
 
-  return host;
+  return engine;
 }
 
 /**
@@ -161,5 +261,13 @@ export function useCadStudioCommandEngine(
 export function useCadCommandEngine(
   host: CadCommandEngineHost,
 ): CadCommandEngineSnapshot {
+  return useSyncExternalStore(host.subscribe, host.getSnapshot, host.getSnapshot);
+}
+
+/**
+ * Lectura del estado de navegación: vistas con nombre, profundidad de la pila
+ * de `ZOOM Previo` y regeneraciones. Mismo patrón que el del motor.
+ */
+export function useCadNavigation(host: CadNavigationHost): CadNavigationSnapshot {
   return useSyncExternalStore(host.subscribe, host.getSnapshot, host.getSnapshot);
 }
