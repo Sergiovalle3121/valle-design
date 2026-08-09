@@ -11,6 +11,7 @@
  */
 import type { CadDocument, CadEntity } from "@/lib/cad/cad-document";
 import type { CadCommandContext } from "@/lib/cad/engine/command-types";
+import { cadDocumentExtents } from "@/lib/cad/view/document-extents";
 import type { CadView } from "@/lib/cad/view/cad-view";
 
 export interface CadStudioCommandInputs {
@@ -32,6 +33,11 @@ export interface CadStudioCommandInputs {
    */
   cursor: { x: number; y: number } | null;
   newEntityId: () => string;
+  /**
+   * Pestaña abierta. `null` en espacio modelo, que es donde arranca el editor.
+   * LAYOUT y MVIEW la usan para saber sobre qué hoja operan sin preguntar.
+   */
+  activeLayout?: string | null;
 }
 
 /** Escala por defecto cuando todavía no hay escena: un píxel, una unidad. */
@@ -55,6 +61,18 @@ export function cadStudioCommandContext(
     blocks: () => inputs.document?.blocks ?? [],
     selection: inputs.selection,
     activeLayer: inputs.activeLayer,
+    // Presentaciones, unidad y envolvente: lo que LAYOUT, MVIEW y PLOT
+    // necesitan y ningún comando anterior pedía. Se exponen como funciones
+    // para que un comando que no las use no pague ni una envolvente ni una
+    // copia de la lista de hojas.
+    paperSpaces: () => inputs.document?.paperSpaces ?? [],
+    ...(inputs.activeLayout ? { activeLayout: inputs.activeLayout } : {}),
+    // Encadenado opcional a propósito: un anfitrión puede montar un documento
+    // parcial —lo hacen las pruebas de esta misma capa— y reventar aquí
+    // convertiría «no sé la unidad» en «no hay contexto».
+    ...(inputs.document?.meta?.unit ? { unit: inputs.document.meta.unit } : {}),
+    drawingExtents: () =>
+      inputs.document ? cadDocumentExtents(inputs.document) : null,
     view: {
       pixelsPerUnit: inputs.view?.pixelsPerUnit ?? FALLBACK_PIXELS_PER_UNIT,
       centerX: inputs.view?.centerX ?? 0,

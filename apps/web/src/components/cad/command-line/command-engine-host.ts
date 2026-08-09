@@ -32,7 +32,9 @@ import type {
   CadPrompt,
 } from "@/lib/cad/engine/command-types";
 import type { CadEntityCommand } from "@/lib/cad/entity-commands";
+import type { CadHostRequest } from "@/lib/cad/engine/host-requests";
 import type { SnapType } from "@/lib/cad/snap-engine";
+import type { CadViewRequest } from "@/lib/cad/view/view-navigation";
 import type { CadCommandLineEntry } from "./CadCommandLine";
 
 /** Lo que el anfitrión necesita del editor para que un comando surta efecto. */
@@ -47,6 +49,24 @@ export interface CadCommandEngineBridge {
   osnapOverride(modes: readonly SnapType[] | null): void;
   /** Forma del cursor del viewport. */
   cursor(shape: "crosshair" | "pick" | "none"): void;
+  /**
+   * Encuadre: ZOOM, PAN, VIEW y REGEN. Devuelve el renglón que hay que enseñar
+   * —«ZOOM Extensión», «No hay ninguna vista previa que recuperar»— porque la
+   * respuesta depende del dibujo y del lienzo, que el motor no ve.
+   *
+   * `null` significa «aquí no hay dónde encuadrar»: un guion sin lienzo, una
+   * prueba del motor. Se distingue de una cadena vacía a propósito, y se dice
+   * en voz alta en vez de fingir que se encuadró.
+   *
+   * Puede faltar entero, y entonces vale lo mismo que devolver `null`.
+   */
+  view?(request: CadViewRequest): string | null;
+  /**
+   * Trabajo fuera del documento: trazar, publicar, cambiar de espacio. Mismo
+   * contrato que `view`: el renglón a mostrar, o `null` si no hay quien lo
+   * atienda.
+   */
+  host?(request: CadHostRequest): string | null;
 }
 
 export interface CadCommandEngineSnapshot {
@@ -173,6 +193,20 @@ export class CadCommandEngineHost {
     this.dispatch({ kind: "input", input: { kind: "enter" } });
   }
 
+  /**
+   * Renglón que NO viene de un comando: el resultado de un trabajo asíncrono
+   * del anfitrión, típicamente un trazado que acaba de terminar.
+   *
+   * Existe porque trazar tarda y la línea de comandos no espera: PLOT responde
+   * «trazando…» de inmediato y el resultado llega por aquí, con el número de
+   * páginas y de fuentes. Sin esta puerta, el usuario se queda mirando un
+   * «trazando…» que nunca se resuelve.
+   */
+  note(text: string, level: "info" | "error" = "info"): void {
+    this.log(text, level);
+    this.publish();
+  }
+
   get busy(): boolean {
     return this.state.active !== null;
   }
@@ -220,6 +254,25 @@ export class CadCommandEngineHost {
         this.rememberSession(effect.commands);
         this.bridge.apply(effect.commands, effect.label);
         return;
+      case "view": {
+        // Sin puente de vista el comando no encuadró nada, y eso se dice. Un
+        // «ZOOM Extensión» impreso sobre una vista que no se movió es peor que
+        // un aviso: enseña a no fiarse del diálogo.
+        const answered = this.bridge.view?.(effect.request) ?? null;
+        this.log(
+          answered ?? `${effect.label} no está disponible sin una vista activa.`,
+          answered === null ? "error" : "info",
+        );
+        return;
+      }
+      case "host": {
+        const answered = this.bridge.host?.(effect.request) ?? null;
+        this.log(
+          answered ?? `${effect.label} no está disponible en este contexto.`,
+          answered === null ? "error" : "info",
+        );
+        return;
+      }
       case "message":
         this.log(effect.text, effect.level === "error" ? "error" : "info");
         return;

@@ -38,6 +38,12 @@ export type OrganizationInvitationAccepted =
 export type CommercialSubscriptionResponse =
   Schemas["CommercialSubscriptionResponse"];
 export type EffectiveEntitlementList = Schemas["EffectiveEntitlementList"];
+export type CadSheetSet = Schemas["CadSheetSet"];
+export type CadSheetSetSummary = Schemas["CadSheetSetSummary"];
+export type CadSheetSetCreate = Schemas["CadSheetSetCreate"];
+export type CadSheetSetSave = Schemas["CadSheetSetSave"];
+export type CadSheetSetSheet = Schemas["CadSheetSetSheet"];
+export type CadSheetNumbering = Schemas["CadSheetNumbering"];
 export type CadProject = Schemas["CadProject"];
 export type CadProjectCreate = Schemas["CadProjectCreate"];
 export type CadProjectUpdate = Schemas["CadProjectUpdate"];
@@ -322,6 +328,34 @@ export function createDesignClient(options: DesignClientOptions) {
         ),
       archive: (projectId: string) =>
         call<CadProject>("DELETE", resource(`/v1/cad/projects/${projectId}`)),
+    },
+
+    /**
+     * Conjuntos de planos — el `.dst` de AutoCAD.
+     *
+     * `save` manda SIEMPRE `expectedVersion`: reordenar un conjunto reescribe
+     * el número de casi todas sus hojas, así que un guardado sin CAS no pierde
+     * un campo, pierde la numeración entera de quien llegó antes. Un 409 se
+     * resuelve recargando, jamás reintentando con la versión nueva a ciegas.
+     */
+    sheetSets: {
+      list: (query?: PageQuery & { projectId?: string }) =>
+        call<Page<CadSheetSetSummary>>(
+          "GET",
+          resource("/v1/cad/sheet-sets", query),
+        ),
+      create: (input: CadSheetSetCreate) =>
+        call<CadSheetSet>("POST", resource("/v1/cad/sheet-sets"), input),
+      get: (sheetSetId: string) =>
+        call<CadSheetSet>("GET", resource(`/v1/cad/sheet-sets/${sheetSetId}`)),
+      save: (sheetSetId: string, input: CadSheetSetSave) =>
+        call<CadSheetSet>(
+          "PUT",
+          resource(`/v1/cad/sheet-sets/${sheetSetId}`),
+          input,
+        ),
+      remove: (sheetSetId: string) =>
+        call<void>("DELETE", resource(`/v1/cad/sheet-sets/${sheetSetId}`)),
     },
 
     documents: {

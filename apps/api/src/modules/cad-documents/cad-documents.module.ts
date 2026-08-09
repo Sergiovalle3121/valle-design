@@ -7,6 +7,7 @@ import { CadDocumentVersion } from './entities/cad-document-version.entity';
 import { CadPublication } from './entities/cad-publication.entity';
 import { CadReviewSession } from './entities/cad-review-session.entity';
 import { CadComment } from './entities/cad-comment.entity';
+import { CadSheetSet } from './entities/cad-sheet-set.entity';
 import { CadBlocksService } from './cad-blocks.service';
 import { CadDocumentsService } from './cad-documents.service';
 import { CadIntentService } from './cad-intent.service';
@@ -54,6 +55,7 @@ import { ReviewLinkService } from './review-link.service';
       CadPublication,
       CadReviewSession,
       CadComment,
+      CadSheetSet,
     ]),
     // Aporta DatabaseBlobStore, que el adaptador envuelve como CAD_BLOB_STORE.
     BlobStoreModule,
@@ -77,6 +79,7 @@ import { ReviewLinkService } from './review-link.service';
     provideTenantScopedRepository(CadPublication, { strict: true }),
     provideTenantScopedRepository(CadReviewSession, { strict: true }),
     provideTenantScopedRepository(CadComment, { strict: true }),
+    provideTenantScopedRepository(CadSheetSet, { strict: true }),
     // ── Puertos: cada token se satisface con su adaptador Design ──
     {
       provide: CAD_BLOB_STORE,
@@ -102,6 +105,7 @@ import { ReviewLinkService } from './review-link.service';
     getTenantRepositoryToken(CadPublication),
     getTenantRepositoryToken(CadReviewSession),
     getTenantRepositoryToken(CadComment),
+    getTenantRepositoryToken(CadSheetSet),
     getTenantRepositoryToken(SfCadBlock),
     CAD_BLOB_STORE,
     CAD_AI_PROVIDER,

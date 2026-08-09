@@ -592,6 +592,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/cad/sheet-sets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista los conjuntos de planos del tenant. */
+        get: operations["listCadSheetSets"];
+        put?: never;
+        /** Crea un conjunto de planos. */
+        post: operations["createCadSheetSet"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/cad/sheet-sets/{sheetSetId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sheetSetId: components["parameters"]["sheetSetId"];
+            };
+            cookie?: never;
+        };
+        /** Conjunto de planos completo, con sus hojas. */
+        get: operations["getCadSheetSet"];
+        /**
+         * Guarda el conjunto con CAS optimista.
+         * @description `expectedVersion` es OBLIGATORIO y debe coincidir con la versión almacenada. Si no coincide, la respuesta es 409 con la versión vigente: dos personas ordenando el mismo conjunto a la vez se resuelven, jamás se sobrescriben.
+         */
+        put: operations["saveCadSheetSet"];
+        post?: never;
+        /**
+         * Borra un conjunto de planos.
+         * @description Borra SOLO el conjunto: los dibujos y sus presentaciones no se tocan. Un conjunto es una lista ordenada de referencias, no el contenido.
+         */
+        delete: operations["deleteCadSheetSet"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/cad/documents/{documentId}/review-sessions": {
         parameters: {
             query?: never;
@@ -1107,6 +1152,81 @@ export interface components {
          * @description Identificador de `cad_publications`.
          */
         CadPublicationId: string;
+        /**
+         * Format: uuid
+         * @description Identificador de `cad_sheet_sets`.
+         */
+        CadSheetSetId: string;
+        /** @description Cómo se numeran las hojas: `A-` + 101 + paso 1 da `A-101`, `A-102`… `padding` rellena con ceros a la izquierda. */
+        CadSheetNumbering: {
+            prefix: string;
+            start: number;
+            step: number;
+            padding: number;
+            suffix: string;
+        };
+        /** @description Una hoja del conjunto: la REFERENCIA a una presentación de un dibujo, no su contenido. */
+        CadSheetSetSheet: {
+            id: string;
+            order: number;
+            documentId: components["schemas"]["CadDocumentId"];
+            layoutId: string;
+            title: string;
+            number: string;
+            /** @description Conserva su número aunque se reordene el conjunto. Hay planos cuyo número es contractual. */
+            numberLocked?: boolean;
+            revision: string;
+            fields?: {
+                [key: string]: string;
+            };
+            includeInPublish?: boolean;
+        };
+        CadSheetSetSubset: {
+            id: string;
+            name: string;
+            sheetIds: string[];
+        };
+        CadSheetSetSummary: {
+            id: components["schemas"]["CadSheetSetId"];
+            /** Format: uuid */
+            projectId?: string | null;
+            name: string;
+            description?: string | null;
+            sheetCount: number;
+            version: number;
+            createdAt: components["schemas"]["Timestamp"];
+            updatedAt?: components["schemas"]["Timestamp"];
+        };
+        CadSheetSet: components["schemas"]["CadSheetSetSummary"] & {
+            /** @description Campos comunes que rellenan los cajetines (`%<Proyecto>%`). */
+            fields: {
+                [key: string]: string;
+            };
+            numbering: components["schemas"]["CadSheetNumbering"];
+            sheets: components["schemas"]["CadSheetSetSheet"][];
+            subsets?: components["schemas"]["CadSheetSetSubset"][];
+        };
+        CadSheetSetCreate: {
+            name: string;
+            description?: string;
+            projectId?: components["schemas"]["CadProjectId"];
+            fields?: {
+                [key: string]: string;
+            };
+            numbering?: components["schemas"]["CadSheetNumbering"];
+        };
+        CadSheetSetSave: {
+            /** @description Versión que el cliente cree tener. Distinta ⇒ 409. */
+            expectedVersion: number;
+            name?: string;
+            description?: string | null;
+            fields?: {
+                [key: string]: string;
+            };
+            numbering?: components["schemas"]["CadSheetNumbering"];
+            sheets: components["schemas"]["CadSheetSetSheet"][];
+            subsets?: components["schemas"]["CadSheetSetSubset"][];
+        };
         /**
          * Format: uuid
          * @description Identificador de `cad_review_sessions`.
@@ -1655,6 +1775,7 @@ export interface components {
         organizationId: string;
         projectId: components["schemas"]["CadProjectId"];
         documentId: components["schemas"]["CadDocumentId"];
+        sheetSetId: components["schemas"]["CadSheetSetId"];
         sessionId: components["schemas"]["CadReviewSessionId"];
         commentId: components["schemas"]["CadCommentId"];
         blockId: components["schemas"]["CadBlockId"];
@@ -2682,6 +2803,142 @@ export interface operations {
             403: components["responses"]["EntitlementRequired"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["VersionConflict"];
+        };
+    };
+    listCadSheetSets: {
+        parameters: {
+            query?: {
+                /** @description Filtra por proyecto CAD. */
+                projectId?: components["schemas"]["CadProjectId"];
+                limit?: components["parameters"]["limit"];
+                offset?: components["parameters"]["offset"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Página de conjuntos de planos. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["CadSheetSetSummary"][];
+                        total?: number;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["EntitlementRequired"];
+        };
+    };
+    createCadSheetSet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CadSheetSetCreate"];
+            };
+        };
+        responses: {
+            /** @description Conjunto creado. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CadSheetSet"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["EntitlementRequired"];
+        };
+    };
+    getCadSheetSet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sheetSetId: components["parameters"]["sheetSetId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Conjunto de planos. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CadSheetSet"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["EntitlementRequired"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    saveCadSheetSet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sheetSetId: components["parameters"]["sheetSetId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CadSheetSetSave"];
+            };
+        };
+        responses: {
+            /** @description Conjunto guardado, con la versión nueva. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CadSheetSet"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["EntitlementRequired"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["VersionConflict"];
+        };
+    };
+    deleteCadSheetSet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sheetSetId: components["parameters"]["sheetSetId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Conjunto borrado. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["EntitlementRequired"];
+            404: components["responses"]["NotFound"];
         };
     };
     listCadReviewSessions: {
