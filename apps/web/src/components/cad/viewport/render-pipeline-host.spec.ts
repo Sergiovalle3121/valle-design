@@ -15,7 +15,8 @@ import assert from "node:assert/strict";
 import * as THREE from "three";
 import {
   CAD_RENDER_BATCH_ORDER,
-  CAD_RENDER_DEPTH_CLEAR_ORDER,
+  CAD_RENDER_DEPTH_BIAS,
+  CAD_RENDER_DEPTH_SCALE,
   CAD_RENDER_SELECTED_COLOR,
   CadViewportRenderHost,
 } from "./render-pipeline-host";
@@ -174,50 +175,33 @@ function settle(host: CadViewportRenderHost): void {
 }
 
 // ---------------------------------------------------------------------------
-// 1. El anfitrión se enchufa al grupo del editor y trae su centinela.
+// 1. El anfitrión se enchufa al grupo del editor con su lámina de profundidad.
 // ---------------------------------------------------------------------------
 const parent = new THREE.Group();
 const document = mixedDocument();
-const host = new CadViewportRenderHost({ parent, viewport, clearDepth: () => {} });
+const host = new CadViewportRenderHost({ parent, viewport });
 
 ok(parent.children.includes(host.group), "el grupo de lotes cuelga del grupo del CAD");
-const sentinel = parent.children.find(
-  (child) => child.userData.cadRenderDepthClear === true,
-) as THREE.Mesh;
-ok(!!sentinel, "el centinela de limpieza de profundidad entra en la escena");
 ok(
-  sentinel.renderOrder < CAD_RENDER_BATCH_ORDER,
-  `el centinela (${sentinel.renderOrder}) se dibuja ANTES que los lotes (${CAD_RENDER_BATCH_ORDER})`,
+  CAD_RENDER_BATCH_ORDER < 28,
+  "los lotes se dibujan por debajo de la selección heredada (28–31), que va sin prueba de profundidad",
 );
-assert.equal(sentinel.renderOrder, CAD_RENDER_DEPTH_CLEAR_ORDER);
-// Y por debajo de los objetos heredados del CAD (28–31), que llevan
-// `depthTest: false` y tienen que seguir viéndose sobre los lotes.
-ok(CAD_RENDER_BATCH_ORDER < 28, "los lotes van por debajo de la selección heredada");
-
-// El centinela dispara de verdad su limpieza cuando THREE lo dibuja.
-let cleared = 0;
-const probeParent = new THREE.Group();
-const probe = new CadViewportRenderHost({
-  parent: probeParent,
-  viewport,
-  clearDepth: () => {
-    cleared += 1;
-  },
-});
-const probeSentinel = probeParent.children.find(
-  (child) => child.userData.cadRenderDepthClear === true,
-) as THREE.Mesh;
-probeSentinel.onBeforeRender(
-  null as unknown as THREE.WebGLRenderer,
-  new THREE.Scene(),
-  new THREE.Camera(),
-  probeSentinel.geometry,
-  probeSentinel.material as THREE.Material,
-  null as unknown as THREE.Group,
+// ANCLA ABSOLUTA de la lámina. `cadDrawOrderDepth` entrega (−0,9 … +0,9); la
+// lámina lo comprime a (−0,9895 … −0,8905), delante del suelo y de los objetos
+// 3D. Si esta comprobación se cae, la primera entidad del orden de dibujo
+// vuelve al fondo del búfer y el suelo la tapa — que es exactamente el fallo
+// que costó el golden 20 en su primera versión.
+const slabFar = CAD_RENDER_DEPTH_BIAS + 0.9 * CAD_RENDER_DEPTH_SCALE;
+const slabNear = CAD_RENDER_DEPTH_BIAS - 0.9 * CAD_RENDER_DEPTH_SCALE;
+assert.ok(Math.abs(slabFar + 0.8905) < 1e-4, `el borde lejano de la lámina es −0,8905, no ${slabFar}`);
+assert.ok(Math.abs(slabNear + 0.9895) < 1e-4, `el borde cercano es −0,9895, no ${slabNear}`);
+ok(slabNear > -1 && slabFar < 0, "la lámina entera cae dentro del búfer y delante del centro de la escena");
+// Y NO queda ningún centinela que limpie la profundidad: esa era la versión
+// cara, y volver a introducirla reproduciría el atasco del hilo principal.
+ok(
+  !parent.children.some((child) => child.userData.cadRenderDepthClear === true),
+  "no hay limpieza de profundidad por cuadro",
 );
-assert.equal(cleared, 1, "dibujar el centinela limpia la profundidad");
-probe.dispose();
-ok(true, "el centinela limpia la profundidad una vez por cuadro, antes del dibujo");
 
 // ---------------------------------------------------------------------------
 // 2. Un documento MIXTO se materializa entero. Cero muestreo.
@@ -324,11 +308,7 @@ ok(true, "la selección va y vuelve sin perder entidades");
 //    duplica geometría ni se toca `buildCadInsertBatches`.
 // ---------------------------------------------------------------------------
 const excludedParent = new THREE.Group();
-const excluded = new CadViewportRenderHost({
-  parent: excludedParent,
-  viewport,
-  clearDepth: () => {},
-});
+const excluded = new CadViewportRenderHost({ parent: excludedParent, viewport });
 excluded.replace(document, { excludeEntityIds: new Set(["insert-1"]) });
 settle(excluded);
 assert.equal(
@@ -381,7 +361,7 @@ host.setVisible(false);
 const framesWhileHidden = host.diagnostics().meshes;
 host.frame(view, viewport);
 assert.equal(host.diagnostics().meshes, framesWhileHidden, "oculto, un cuadro no trabaja");
-ok(!sentinel.visible, "ocultar el anfitrión oculta también su centinela");
+ok(!host.visible, "ocultar el anfitrión apaga su grupo entero");
 host.setVisible(true);
 
 // ---------------------------------------------------------------------------
@@ -389,15 +369,11 @@ host.setVisible(true);
 // ---------------------------------------------------------------------------
 host.dispose();
 ok(!parent.children.includes(host.group), "liberar saca el grupo de la escena");
-ok(
-  !parent.children.some((child) => child.userData.cadRenderDepthClear === true),
-  "y también el centinela",
-);
 host.frame(view, viewport);
 host.replace(document);
 assert.deepEqual(host.diagnostics().total, 0, "un anfitrión liberado no vuelve a la vida");
 ok(true, "liberar es idempotente y no revive");
 
 console.log(
-  `render-pipeline-host: ${checks} comprobaciones — documento con polilínea/hatch/cota/mtext/insert materializado entero (rendered == visible), orden de dibujo anclado en ±0,7875, selección por color de instancia sin perder entidades, y limpieza de profundidad antes de los lotes.`,
+  `render-pipeline-host: ${checks} comprobaciones — documento con polilínea/hatch/cota/mtext/insert materializado entero (rendered == visible), orden de dibujo anclado en ±0,7875, selección por color de instancia sin perder entidades, y lámina de profundidad en vez de limpiar el búfer por cuadro.`,
 );

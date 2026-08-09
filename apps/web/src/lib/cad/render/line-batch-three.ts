@@ -55,6 +55,8 @@ uniform float cadScale;
 uniform vec2 cadCenter;
 uniform float cadElevation;
 uniform float cadWorldPerPixel;
+uniform float cadDepthBias;
+uniform float cadDepthScale;
 
 varying vec3 vColor;
 varying float vDash;
@@ -86,7 +88,15 @@ void main() {
   gl_Position = projectionMatrix * modelViewMatrix * vec4(scenePosition, 1.0);
   // Orden de dibujo semántico. Bajo ortográfica w == 1, así que multiplicar por
   // w deja la z NDC exactamente donde la puso el planificador de orden.
-  gl_Position.z = instanceStyle.w * gl_Position.w;
+  //
+  // cadDepthBias/cadDepthScale COMPRIMEN ese rango en una lámina. Por
+  // defecto valen 0 y 1 —el comportamiento original, todo el búfer—, pero un
+  // consumidor que dibuja el CAD dentro de una escena con más geometría
+  // necesita meterlo entero DELANTE de ella: sin lámina, la primera entidad del
+  // orden de dibujo recibe z ≈ +0,9 y el suelo la tapa. La alternativa era
+  // limpiar la profundidad a pantalla completa en cada cuadro, que en un
+  // rasterizador por software cuesta un cuadro entero.
+  gl_Position.z = (cadDepthBias + instanceStyle.w * cadDepthScale) * gl_Position.w;
   vColor = cadUnpackColor(instanceStyle.x);
   vDash = instanceArc.x + position.x * instanceArc.y;
   vLinetype = instanceStyle.z;
@@ -131,6 +141,8 @@ export interface CadLineBatchUniforms {
   cadCenter: { value: THREE.Vector2 };
   cadElevation: { value: number };
   cadWorldPerPixel: { value: number };
+  cadDepthBias: { value: number };
+  cadDepthScale: { value: number };
   cadLinetypePattern: { value: THREE.Vector2[] };
   cadLinetypeScale: { value: number };
   cadOpacity: { value: number };
@@ -145,6 +157,10 @@ export interface CadLineBatchMaterialOptions {
   linetypePatterns?: ReadonlyArray<readonly [number, number]>;
   linetypeScale?: number;
   opacity?: number;
+  /** Centro de la lámina de profundidad en NDC. 0 = todo el búfer (por defecto). */
+  depthBias?: number;
+  /** Semiancho de la lámina. 1 = sin comprimir (por defecto). */
+  depthScale?: number;
 }
 
 function linetypeUniformValue(
@@ -170,6 +186,8 @@ export function createCadLineBatchMaterial(
     },
     cadElevation: { value: options.viewport.elevation ?? 0.11 },
     cadWorldPerPixel: { value: 1 / Math.max(options.pixelsPerUnit, 1e-6) },
+    cadDepthBias: { value: options.depthBias ?? 0 },
+    cadDepthScale: { value: options.depthScale ?? 1 },
     cadLinetypePattern: { value: linetypeUniformValue(options.linetypePatterns) },
     cadLinetypeScale: { value: options.linetypeScale ?? 1 },
     cadOpacity: { value: options.opacity ?? 1 },

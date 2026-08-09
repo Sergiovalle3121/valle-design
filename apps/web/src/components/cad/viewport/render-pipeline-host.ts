@@ -23,7 +23,7 @@
  * - `replace()` acepta un documento entero, no una lista de líneas, así que el
  *   primer dibujo con MTEXT, hatch e insert pasa por este camino.
  *
- * ## Convivencia con el resto de la escena — la limpieza de profundidad
+ * ## Convivencia con el resto de la escena — la lámina de profundidad
  *
  * Los lotes escriben el orden de dibujo en `gl_Position.z`, y para que eso
  * signifique algo necesitan `depthTest`/`depthWrite` encendidos. Pero esa `z`
@@ -32,13 +32,19 @@
  * dentro de la escena del editor, el suelo o una estación la taparían — un
  * dibujo entero desaparecería debajo del plano de la planta.
  *
- * Se resuelve limpiando la profundidad justo ANTES del grupo del CAD, con un
- * centinela que ocupa su propio `renderOrder`. A partir de ahí el búfer es del
- * dibujo y sólo del dibujo, que es exactamente la semántica que tenía el camino
- * anterior con `depthTest: false` + `renderOrder`, pero conservando el orden
- * interno entre entidades. Los objetos heredados del CAD (selección, grips,
- * cotas) siguen en 28–31 con `depthTest: false`, así que se dibujan DESPUÉS y
- * encima: la selección se sigue viendo.
+ * La primera versión de este archivo lo resolvía limpiando la profundidad justo
+ * antes del grupo del CAD. Funcionaba y **costó un golden**: bajo el WebGL por
+ * software con el que corren los goldens y CI, una limpieza de profundidad a
+ * pantalla completa por cuadro atasca el hilo principal lo bastante como para
+ * que un arrastre HTML5 pierda su `drop`. Medido: el golden 20 pasaba 3/3 sin la
+ * limpieza y fallaba 2/3 con ella, con `main` verde.
+ *
+ * Lo que hace ahora es COMPRIMIR el orden de dibujo en una lámina delante de
+ * todo lo demás (`CAD_RENDER_DEPTH_*`). Cuesta dos multiplicaciones en el
+ * vertex shader, conserva el orden interno entre entidades y deja el resto de la
+ * escena intacto. Los objetos heredados del CAD (selección, grips, cotas) siguen
+ * en 28–31 con `depthTest: false`, así que se dibujan DESPUÉS y encima: la
+ * selección se sigue viendo.
  */
 import * as THREE from "three";
 import type { CadDocument } from "@/lib/cad/cad-document";
@@ -58,13 +64,23 @@ import type { CadScreenYSign } from "@/lib/cad/render/text-atlas";
 export const CAD_RENDER_SELECTED_COLOR = 0x22d3ee;
 
 /**
- * `renderOrder` del centinela que limpia la profundidad y de los lotes.
+ * `renderOrder` de los lotes.
  *
  * Por debajo van suelo, rejilla, estaciones y activos (0–11). Por encima, los
  * objetos heredados del CAD (28–31): selección, grips y anotaciones.
  */
-export const CAD_RENDER_DEPTH_CLEAR_ORDER = 25;
 export const CAD_RENDER_BATCH_ORDER = 26;
+
+/**
+ * Lámina de profundidad del dibujo, en NDC.
+ *
+ * `cadDrawOrderDepth` produce (−0,9 … +0,9); comprimido queda
+ * (−0,9895 … −0,8905): todo el dibujo delante del suelo y de los objetos 3D,
+ * y el orden interno intacto. Con un búfer de 24 bits, esos 0,099 de NDC son
+ * ~830.000 escalones, más de ocho por posición incluso con 100.000 entidades.
+ */
+export const CAD_RENDER_DEPTH_BIAS = -0.94;
+export const CAD_RENDER_DEPTH_SCALE = 0.055;
 
 export interface CadViewportRenderHostOptions {
   /** Grupo del CAD dentro de la escena; el del editor es `nativeGroupRef`. */
@@ -72,11 +88,6 @@ export interface CadViewportRenderHostOptions {
   viewport: CadThreeViewport;
   yScreenSign?: CadScreenYSign;
   frameBudgetMs?: number;
-  /**
-   * Inyectable para el spec: por defecto el centinela llama a
-   * `renderer.clearDepth()`, que necesita un WebGLRenderer real.
-   */
-  clearDepth?: (renderer: THREE.WebGLRenderer) => void;
 }
 
 export interface CadViewportRenderDiagnostics {
@@ -128,7 +139,6 @@ const EMPTY_DIAGNOSTICS: CadViewportRenderDiagnostics = {
 export class CadViewportRenderHost {
   private readonly scene: CadRenderScene;
   private readonly parent: THREE.Object3D;
-  private readonly sentinel: THREE.Mesh;
   private selection: ReadonlySet<string> = new Set();
   private glyphs = 0;
   private droppedGlyphs = 0;
@@ -147,10 +157,10 @@ export class CadViewportRenderHost {
       yScreenSign: options.yScreenSign,
       frameBudgetMs: options.frameBudgetMs,
       style: (entity) => this.styleOf(entity),
+      depthBias: CAD_RENDER_DEPTH_BIAS,
+      depthScale: CAD_RENDER_DEPTH_SCALE,
     });
     this.scene.group.renderOrder = CAD_RENDER_BATCH_ORDER;
-    this.sentinel = buildDepthClearSentinel(options.clearDepth);
-    this.parent.add(this.sentinel);
     this.parent.add(this.scene.group);
   }
 
@@ -175,7 +185,6 @@ export class CadViewportRenderHost {
 
   setVisible(visible: boolean): void {
     this.scene.group.visible = visible;
-    this.sentinel.visible = visible;
   }
 
   /**
@@ -297,9 +306,9 @@ export class CadViewportRenderHost {
     const sync = this.scene.sync();
     this.glyphs = sync.glyphs;
     this.droppedGlyphs = sync.droppedGlyphs;
-    // Las mallas nacen con `renderOrder` 0. Sin esto se dibujarían junto al
-    // suelo, es decir ANTES del centinela que limpia la profundidad, y la
-    // limpieza las borraría: el dibujo entero quedaría invisible.
+    // Las mallas nacen con `renderOrder` 0, que las dibujaría entremezcladas
+    // con el suelo y los activos. La lámina de profundidad las pone delante,
+    // pero el ORDEN de las llamadas también importa para lo translúcido.
     for (const child of this.scene.group.children)
       child.renderOrder = CAD_RENDER_BATCH_ORDER;
     this.dirty = false;
@@ -370,9 +379,6 @@ export class CadViewportRenderHost {
     this.published = EMPTY_DIAGNOSTICS;
     for (const listener of this.listeners) listener();
     this.scene.dispose();
-    this.sentinel.geometry.dispose();
-    (this.sentinel.material as THREE.Material).dispose();
-    this.sentinel.removeFromParent();
   }
 }
 
@@ -417,35 +423,4 @@ export class CadRenderHostSlot {
   private emit(): void {
     for (const listener of this.listeners) listener();
   }
-}
-
-/**
- * Centinela de limpieza de profundidad.
- *
- * THREE sólo llama a `onBeforeRender` de objetos que de verdad entran en la
- * cola de dibujo, así que no vale un `Object3D` vacío: hace falta una malla con
- * geometría. No escribe color ni profundidad y no se prueba contra nada, de
- * modo que su único efecto observable es el `clearDepth` que dispara.
- */
-function buildDepthClearSentinel(
-  clearDepth: ((renderer: THREE.WebGLRenderer) => void) | undefined,
-): THREE.Mesh {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    "position",
-    new THREE.BufferAttribute(new Float32Array([0, 0, 0, 0, 0, 0, 0, 0, 0]), 3),
-  );
-  const material = new THREE.MeshBasicMaterial({
-    colorWrite: false,
-    depthWrite: false,
-    depthTest: false,
-  });
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.name = "cad-render:depth-clear";
-  mesh.frustumCulled = false;
-  mesh.renderOrder = CAD_RENDER_DEPTH_CLEAR_ORDER;
-  mesh.userData.cadRenderDepthClear = true;
-  const clear = clearDepth ?? ((renderer: THREE.WebGLRenderer) => renderer.clearDepth());
-  mesh.onBeforeRender = (renderer) => clear(renderer);
-  return mesh;
 }

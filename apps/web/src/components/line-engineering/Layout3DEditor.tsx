@@ -2737,10 +2737,7 @@ export default function Layout3DEditor({
         }
         // El pipeline por lotes apaga capas por LOTE, no por objeto: es un
         // booleano en unos pocos hijos en vez de reconstruir la geometría.
-        if (
-          child.userData?.cadRenderScene === true ||
-          child.userData?.cadRenderDepthClear === true
-        ) {
+        if (child.userData?.cadRenderScene === true) {
           child.visible = L.equipment;
           renderPipelineHostRef.current?.setHiddenLayers(
             new Set(
