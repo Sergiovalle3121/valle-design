@@ -143,6 +143,24 @@ function inserted(result: ReturnType<typeof run>) {
   assert.ok(Math.abs(Math.abs(entity.majorAxis.y) - 200) < 1e-6, `mayor.y ${entity.majorAxis.y}`);
 }
 
+// --- ELLIPSE: la elipse ENTERA va de 0 a 360 GRADOS --------------------------
+{
+  const entity = inserted(run("ELLIPSE", [point(-100, 0), point(100, 0), point(0, 50)]));
+  if (entity.type !== "ellipse") throw new Error("tipo");
+  // Ancla absoluta. Todo el producto parametriza la elipse en GRADOS:
+  // `tessellateEllipse` los recibe así, `paper-space` la da por cerrada al
+  // llegar a 359,999 y la importación DXF escribe `0…360`. Escribir aquí
+  // `Math.PI * 2` daba 6,28 GRADOS — un gajo de seis grados donde el usuario
+  // pidió la elipse completa, y perfectamente dibujable.
+  assert.equal(entity.startParameter, 0, "empieza en 0");
+  assert.equal(entity.endParameter, 360, `termina en 360, no en ${entity.endParameter}`);
+  // Y el barrido completo es lo que hace que el renderizador la cierre.
+  assert.ok(
+    Math.abs(entity.endParameter - entity.startParameter) >= 360 - 1e-9,
+    "una elipse creada por el comando es una elipse CERRADA",
+  );
+}
+
 // --- ELLIPSE: degenerada, no se escribe --------------------------------------
 {
   assert.equal(

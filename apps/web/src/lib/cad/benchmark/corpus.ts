@@ -110,6 +110,18 @@ export function createCadBenchmarkCorpus(options: {
     dimension: 0,
     mleader: 0,
     insert: 0,
+    // Esquema 4. Igual que POLYLINE: el generador determinista todavía no las
+    // emite, y hacerlo cambiaría el corpus y sus hashes. Se declaran en cero
+    // para que el recuento siga cubriendo TODOS los tipos nativos y añadir uno
+    // nuevo vuelva a fallar aquí, que es justo lo que se quiere.
+    point: 0,
+    xline: 0,
+    ray: 0,
+    solid: 0,
+    wipeout: 0,
+    image: 0,
+    attdef: 0,
+    table: 0,
   };
 
   for (let index = 0; index < count; index += 1) {

@@ -50,6 +50,17 @@ const DXF_TYPE: Record<CadNativeEntity["type"], string> = {
   dimension: "DIMENSION",
   mleader: "MULTILEADER",
   insert: "INSERT",
+  // Esquema 4. Los nombres son los del propio DXF; que el exportador todavía no
+  // los escriba no cambia CÓMO se llaman, y dejar el mapa incompleto haría que
+  // AutoLISP devolviera `undefined` como tipo de entidad.
+  point: "POINT",
+  xline: "XLINE",
+  ray: "RAY",
+  solid: "SOLID",
+  wipeout: "WIPEOUT",
+  image: "IMAGE",
+  attdef: "ATTDEF",
+  table: "ACAD_TABLE",
 };
 
 export function dxfTypeOf(entity: CadNativeEntity): string {

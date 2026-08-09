@@ -17,6 +17,8 @@ import {
 } from "./command-engine";
 import { createCadCommandRegistry } from "./registry";
 import { CAD_DRAW_BASIC_COMMANDS, __testables } from "./commands/draw-basics";
+import { CAD_DRAW_PLINE_COMMANDS } from "./commands/draw-pline";
+import { CAD_DRAW_RECTANG_COMMANDS } from "./commands/draw-rectang";
 import { formatCadPrompt, matchCadKeyword } from "./prompt";
 import { resolveCadCommandAlias } from "./alias-table";
 import { resolveCadToken } from "./input-pipeline";
@@ -47,7 +49,14 @@ const zoomCommand: CadCommandDescriptor<Record<string, never>> = {
   step: (state) => ({ state, prompt: { message: "", options: [] }, accepts: 0, result: { kind: "none" } }),
 };
 
-const registry = createCadCommandRegistry([...CAD_DRAW_BASIC_COMMANDS, asCadCommand(zoomCommand)]);
+// PLINE y RECTANG viven en sus propios módulos desde que ganaron opciones; se
+// montan aquí porque esta spec ejercita el motor CON ellos.
+const registry = createCadCommandRegistry([
+  ...CAD_DRAW_BASIC_COMMANDS,
+  ...CAD_DRAW_PLINE_COMMANDS,
+  ...CAD_DRAW_RECTANG_COMMANDS,
+  asCadCommand(zoomCommand),
+]);
 
 let nextId = 0;
 function context(cursor?: { x: number; y: number }): CadCommandContext {

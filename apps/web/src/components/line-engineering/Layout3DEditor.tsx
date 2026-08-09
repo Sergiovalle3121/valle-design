@@ -6051,10 +6051,10 @@ export default function Layout3DEditor({
         // punto de partida, así que preguntar por el documento intermedio no
         // añadía información y obligaba a aplicar los comandos de uno en uno.
         for (const command of commands) {
-          // `insert` trae su propia entidad; la capa a comprobar es la de ella.
+          // `insert` trae su entidad; `image-definition` no toca ninguna capa.
           const target = "entityId" in command
             ? checkpoint.entities.find((entity) => entity.id === command.entityId)
-            : command.entity;
+            : "entity" in command ? command.entity : undefined;
           const lockedLayer =
             target && checkpoint.layers.find((layer) => layer.id === target.layer)?.locked;
           if (lockedLayer)
@@ -14461,15 +14461,13 @@ export default function Layout3DEditor({
         )
           continue;
         const bounds = CAD_ENTITY_REGISTRY.adapter(entity).bounds.bounds(
-          entity,
-          loadedCadDocumentRef.current ?? undefined,
-        );
-        add(
-          bounds.minX,
-          bounds.minY,
-          bounds.maxX - bounds.minX,
-          bounds.maxY - bounds.minY,
-        );
+          entity, loadedCadDocumentRef.current ?? undefined);
+        // XLINE y RAY declaran bounds INFINITOS, que es lo que son. Sin este
+        // descarte `minX` pasa a −Infinity, el guardia de abajo devuelve `null`
+        // y ZOOM EXTENTS muere para el dibujo ENTERO en cuanto alguien traza una
+        // recta de construcción. AutoCAD también las excluye del encuadre.
+        if (![bounds.minX, bounds.minY, bounds.maxX, bounds.maxY].every(Number.isFinite)) continue;
+        add(bounds.minX, bounds.minY, bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
       }
       if (!Number.isFinite(minX)) return null;
       return { minX, minY, maxX, maxY };

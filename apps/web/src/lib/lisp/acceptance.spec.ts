@@ -33,6 +33,7 @@ import path from "node:path";
 import {
   parseCadDocument,
   serializeCadDocument,
+  CAD_DOCUMENT_SCHEMA,
   type CadDocument,
 } from "../cad/cad-document";
 import { executeCadEntityCommandBatch } from "../cad/entity-commands";
@@ -50,7 +51,11 @@ const corpusDir = path.join(path.dirname(new URL(import.meta.url).pathname), "co
 
 function emptyDocument(): CadDocument {
   return {
-    meta: { version: 7, schema: 3, unit: "mm" },
+    // El esquema VIGENTE, no un número literal: `parseCadDocument` migra al
+    // abrir, así que un documento fijado a una versión antigua se reabre en la
+    // nueva y la comprobación de «guardar dos veces da el mismo texto» dejaría
+    // de medir determinismo para medir la migración.
+    meta: { version: 7, schema: CAD_DOCUMENT_SCHEMA, unit: "mm" },
     layers: [
       { id: "0", name: "0", color: "#ffffff", visible: true, locked: false },
       { id: "CAJETIN", name: "CAJETIN", color: "#ffffff", visible: true, locked: false },

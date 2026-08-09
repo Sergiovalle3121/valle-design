@@ -19,6 +19,7 @@ import {
   type CadEntity,
   type CadEntityContext,
   type CadEntityPresentation,
+  type CadImageDefinition,
   type CadParameter,
   type CadPoint2,
 } from "./cad-document";
@@ -60,6 +61,17 @@ export type CadEntityCommand =
    * cotas asociativas y los sombreados que dependen de esa entidad.
    */
   | { type: "replace"; entityId: string; entity: CadNativeEntity }
+  /**
+   * Da de alta o actualiza una DEFINICIÓN de imagen del documento.
+   *
+   * Existe porque una entidad IMAGE apunta a una entrada de
+   * `document.imageDefinitions` igual que un INSERT apunta a un bloque, y sin
+   * esta orden el comando IMAGE tendría que escribir esa sección por su cuenta
+   * — una SEGUNDA vía de mutación, que es exactamente la propiedad que este
+   * módulo existe para impedir. Una sola ruta, un solo `commitChange`, un solo
+   * paso de deshacer.
+   */
+  | { type: "image-definition"; definition: CadImageDefinition }
   /**
    * Fusiona claves en `context.metadata`, sin tocar el resto del contexto.
    *
@@ -134,6 +146,7 @@ function cadEntityCommandLabel(
   registry: CadEntityRegistry,
 ): string {
   if (command.type === "insert") return `insert:${command.entity.type}`;
+  if (command.type === "image-definition") return `image-definition:${command.definition.id}`;
   if (isSectionCommand(command)) return `${command.type}:${command.op}`;
   const source = document.entities.find((entity) => entity.id === command.entityId);
   if (!source || !registry.supports(source))
@@ -171,6 +184,10 @@ export function executeCadEntityCommandBatch(
   // El orden del array da igual porque abajo se ordena por id; el que importa
   // —el de dibujo— vive en `modelSpace.entityIds`.
   const present = new Map(document.entities.map((entity) => [entity.id, entity]));
+  // Catálogo de imágenes: se copia sólo si el lote lo toca, para que un
+  // documento que nunca insertó una imagen siga sin la sección y su serializado
+  // no cambie.
+  let imageDefinitions = document.imageDefinitions;
   // Los ids nacidos en este lote se acumulan aparte porque `preserveDrawOrder`
   // sólo sabe añadir al final.
   const createdFrontIds: string[] = [];
@@ -207,6 +224,16 @@ export function executeCadEntityCommandBatch(
       (command.drawOrder === "back" ? createdBackIds : createdFrontIds).push(command.entity.id);
       touchedIds.push(command.entity.id);
       regenerationSourceIds.push(command.entity.id);
+      continue;
+    }
+
+    if (command.type === "image-definition") {
+      const id = command.definition.id;
+      if (!id) throw new Error("An image definition needs a non-empty id.");
+      const existing = imageDefinitions ?? [];
+      imageDefinitions = existing.some((definition) => definition.id === id)
+        ? existing.map((definition) => (definition.id === id ? { ...command.definition } : definition))
+        : [...existing, { ...command.definition }];
       continue;
     }
 
@@ -354,6 +381,9 @@ export function executeCadEntityCommandBatch(
     entities,
     constraints: sections.constraints,
     modelSpace: { entityIds: [...createdBackIds, ...ordered] },
+    // Mismo criterio que `parameters` justo debajo: el catálogo de imágenes
+    // sólo viaja si el lote lo tocó o si el documento ya lo traía.
+    ...(imageDefinitions ? { imageDefinitions } : {}),
   };
   // La sección de parámetros sólo existe si se usa: materializarla como `[]`
   // cambiaría el serializado de todos los documentos que hoy no la tienen, y

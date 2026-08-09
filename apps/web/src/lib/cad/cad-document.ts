@@ -24,80 +24,50 @@
  * El editor legado sigue siendo una proyección compatible, no otra fuente de
  * verdad.
  */
+import type {
+  CadImageDefinition,
+  CadPositionedAttribute,
+  CadSchema4Entity,
+} from "./cad-entities-v4";
+import { migrateCadDocument } from "./cad-document-migrate";
+import {
+  byId,
+  byName,
+  CAD_DOCUMENT_SCHEMA,
+  CONNECTOR_LAYER,
+  preserveDrawOrder,
+} from "./cad-document-shared";
 
 // ---------------------------------------------------------------------------
-// Modelo histórico (estructural: coincide con LayoutAsset/Annotation/… del API)
+// Modelo histórico
 // ---------------------------------------------------------------------------
 
-export interface LayoutAssetInput {
-  id: string;
-  kind: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  rotation: number;
-  label?: string;
-  layer?: string;
-  group?: string;
-  shape?: "rect" | "circle";
-  /** Etiquetas libres del objeto (`use:smt`, `requires:power`, …). */
-  tags?: string[];
-  /** Nota libre del objeto (owner, restricción, pendiente…). */
-  notes?: string;
-}
-/** Colocación de una estación de línea en el plano (el catálogo vive aparte). */
-export interface LayoutStationPlacementInput {
-  id: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  rotation: number;
-  /** Capa asignada en el editor; por defecto la capa estable de estaciones. */
-  layer?: string;
-  /** Etiquetas libres de la estación. */
-  tags?: string[];
-  /** Nota libre de la estación. */
-  notes?: string;
-}
-export interface LayoutAnnotationInput {
-  id: string;
-  type: "text" | "dim";
-  x: number;
-  y: number;
-  x2?: number;
-  y2?: number;
-  text?: string;
-  color?: string;
-  layer?: string;
-}
-export interface LayoutConnectorInput {
-  from: string;
-  to: string;
-  kind?: string;
-}
-export interface LayoutLayerInput {
-  id: string;
-  name: string;
-  color: string;
-  visible: boolean;
-  locked: boolean;
-}
-export interface LayoutInput {
-  assets?: LayoutAssetInput[];
-  annotations?: LayoutAnnotationInput[];
-  connectors?: LayoutConnectorInput[];
-  layers?: LayoutLayerInput[];
-  stations?: LayoutStationPlacementInput[];
-}
+/**
+ * El adaptador hacia y desde el modelo histórico vive en
+ * `cad-document-legacy-adapter.ts`. Se reexporta entero para que ningún
+ * consumidor tenga que cambiar su import: la separación es de responsabilidad
+ * (modelo canónico vs. proyección compatible), no de API pública.
+ */
+export {
+  cadDocumentToLayout,
+  layoutToCadDocument,
+  type LayoutAnnotationInput,
+  type LayoutAssetInput,
+  type LayoutConnectorInput,
+  type LayoutInput,
+  type LayoutLayerInput,
+  type LayoutStationPlacementInput,
+} from "./cad-document-legacy-adapter";
 
 // ---------------------------------------------------------------------------
 // Documento canónico
 // ---------------------------------------------------------------------------
 
-/** Prefijo de capa por defecto cuando un objeto no declara ninguna. */
-export const DEFAULT_LAYER_ID = "0";
+export {
+  CAD_DOCUMENT_SCHEMA,
+  DEFAULT_LAYER_ID,
+  STATIONS_LAYER,
+} from "./cad-document-shared";
 
 export interface CadDocumentMeta {
   /** Versión del contenido; sube en cada `commitChange`. */
@@ -254,7 +224,17 @@ export type CadEntity =
   | {
       id: string;
       type: "polyline";
-      vertices: (CadPoint3 & { bulge?: number })[];
+      /**
+       * `bulge` es el arco del tramo que ARRANCA en este vértice (tan(θ/4),
+       * positivo = antihorario). `startWidth`/`endWidth` son el grosor de ese
+       * mismo tramo en cada punta, en unidades de dibujo — los mismos grupos
+       * 40/41 de una LWPOLYLINE.
+       *
+       * Los grosores son OPCIONALES y su ausencia significa «traza fina», no
+       * cero: materializarlos con un valor por defecto cambiaría el texto
+       * serializado de todas las polilíneas existentes.
+       */
+      vertices: (CadPoint3 & { bulge?: number; startWidth?: number; endWidth?: number })[];
       closed: boolean;
       layer: string;
       context?: CadEntityContext;
@@ -384,9 +364,20 @@ export type CadEntity =
       scale: CadPoint3;
       rotation: number;
       attributes?: Record<string, string>;
+      /**
+       * Los mismos atributos, pero CON geometría. Ver `CadPositionedAttribute`:
+       * `attributes` dice qué vale cada etiqueta y esto dice dónde se dibuja.
+       * Conviven; ninguno sustituye al otro.
+       */
+      positionedAttributes?: CadPositionedAttribute[];
       layer: string;
       context?: CadEntityContext;
-    };
+    }
+  /**
+   * Los ocho tipos que estrena el esquema 4 (POINT, XLINE, RAY, SOLID,
+   * WIPEOUT, IMAGE, ATTDEF, TABLE). Se declaran en `cad-entities-v4.ts`.
+   */
+  | CadSchema4Entity;
 
 export interface CadLayerDef {
   id: string;
@@ -648,337 +639,44 @@ export interface CadDocument {
   collaboration?: CadCollaborationState;
   /** Extensión industrial: agrupaciones de estaciones. Ausente si no se usan. */
   cells?: CadCellDefinition[];
+  /**
+   * Catálogo de imágenes referenciadas por las entidades IMAGE, igual que
+   * `blocks` lo es de los INSERT: N inserciones comparten un archivo. Sección
+   * OPCIONAL — un documento que nunca insertó una imagen se serializa
+   * exactamente igual que antes del esquema 4.
+   */
+  imageDefinitions?: CadImageDefinition[];
 }
 
-/** v3: modelo profesional extensible con migración aditiva desde v1/v2. */
-export const CAD_DOCUMENT_SCHEMA = 3;
-/** Capa estable de las colocaciones de estación. */
-export const STATIONS_LAYER = "Stations";
-/** Prefijo estable del id de conector (from→to) para round-trip determinista. */
-const CONNECTOR_PREFIX = "conn:";
-/**
- * Capa que el adaptador heredado impone a todo conector, porque el modelo
- * histórico no la modela. Verla en una proyección significa "no lo sé", no
- * "quiero esta capa" — de ahí que la reproyección conserve la del documento.
- */
-const CONNECTOR_LAYER = "Flow";
-
-function byId(a: { id: string }, b: { id: string }): number {
-  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
-}
-
-/** Los parámetros se identifican por NOMBRE; su orden estable es el alfabético. */
-function byName(a: { name: string }, b: { name: string }): number {
-  return a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
-}
-
-function emptyStyles(): CadStyleTable {
-  return { text: {}, dimension: {}, mleader: {}, table: {}, plot: {} };
-}
-
-function point3(x: number, y: number, z = 0): CadPoint3 {
-  return { x, y, z };
-}
-
-// ---------------------------------------------------------------------------
-// Adaptador: modelo histórico → documento canónico
-// ---------------------------------------------------------------------------
-
-/**
- * Construye un `CadDocument` desde el modelo histórico. Sin pérdida: cada
- * colección se mapea a entidades tipadas conservando todos sus campos. Las
- * entidades quedan ordenadas por id para que el documento sea determinista.
- */
-export function layoutToCadDocument(
-  layout: LayoutInput,
-  options: {
-    unit?: string;
-    version?: number;
-    /**
-     * Huella y paso de rejilla del editor. Van a `meta` porque es de donde el
-     * adaptador heredado los LEE al abrir (`footprintFromMeta`); sin esto la
-     * proyección nacía sin huella y el guardado canónico no tenía forma de
-     * transportar un cambio de tamaño de planta.
-     */
-    footprintW?: number;
-    footprintH?: number;
-    gridSize?: number;
-  } = {},
-): CadDocument {
-  const entities: CadEntity[] = [];
-
-  for (const a of layout.assets ?? []) {
-    if (a.shape === "circle" && Math.abs(a.w - a.h) <= 1e-9) {
-      const circle: Extract<CadEntity, { type: "circle" }> = {
-        id: a.id,
-        type: "circle",
-        center: point3(a.x + a.w / 2, a.y + a.h / 2),
-        radius: a.w / 2,
-        layer: a.layer ?? DEFAULT_LAYER_ID,
-        legacy: { kind: a.kind, rotation: a.rotation },
-      };
-      if (a.label !== undefined) circle.legacy!.label = a.label;
-      if (a.group !== undefined) circle.legacy!.group = a.group;
-      if (a.tags !== undefined) circle.legacy!.tags = [...a.tags];
-      if (a.notes !== undefined) circle.legacy!.notes = a.notes;
-      entities.push(circle);
-      continue;
-    }
-    const box: CadEntity = {
-      id: a.id,
-      type: "box",
-      kind: a.kind,
-      x: a.x,
-      y: a.y,
-      w: a.w,
-      h: a.h,
-      rotation: a.rotation,
-      layer: a.layer ?? DEFAULT_LAYER_ID,
-      shape: a.shape ?? "rect",
-    };
-    if (a.label !== undefined) box.label = a.label;
-    if (a.group !== undefined) box.group = a.group;
-    if (a.tags !== undefined) box.tags = [...a.tags];
-    if (a.notes !== undefined) box.notes = a.notes;
-    entities.push(box);
-  }
-
-  for (const s of layout.stations ?? []) {
-    const station: CadEntity = {
-      id: s.id,
-      type: "station",
-      x: s.x,
-      y: s.y,
-      w: s.w,
-      h: s.h,
-      rotation: s.rotation,
-      layer: s.layer ?? STATIONS_LAYER,
-    };
-    if (s.tags !== undefined) station.tags = [...s.tags];
-    if (s.notes !== undefined) station.notes = s.notes;
-    entities.push(station);
-  }
-
-  for (const an of layout.annotations ?? []) {
-    if (an.type === "dim") {
-      const dim: CadEntity = {
-        id: an.id,
-        type: "dimension",
-        a: { x: an.x, y: an.y },
-        b: { x: an.x2 ?? an.x, y: an.y2 ?? an.y },
-        layer: an.layer ?? "Measurements",
-      };
-      if (an.text !== undefined) dim.text = an.text;
-      if (an.color !== undefined) dim.color = an.color;
-      entities.push(dim);
-    } else {
-      const text: CadEntity = {
-        id: an.id,
-        type: "text",
-        x: an.x,
-        y: an.y,
-        text: an.text ?? "",
-        layer: an.layer ?? "Text",
-      };
-      if (an.color !== undefined) text.color = an.color;
-      entities.push(text);
-    }
-  }
-
-  for (const c of layout.connectors ?? []) {
-    entities.push({
-      id: `${CONNECTOR_PREFIX}${c.from}->${c.to}`,
-      type: "connector",
-      from: c.from,
-      to: c.to,
-      kind: c.kind ?? "flow",
-      layer: CONNECTOR_LAYER,
-    });
-  }
-
-  const layers = (layout.layers ?? [])
-    .map((l) => ({
-      id: l.id,
-      name: l.name,
-      color: l.color,
-      visible: l.visible,
-      locked: l.locked,
-    }))
-    .sort(byId);
-
-  const orderedEntities = entities.sort(byId);
-  return {
-    meta: {
-      version: options.version ?? 1,
-      schema: CAD_DOCUMENT_SCHEMA,
-      unit: options.unit ?? "mm",
-      // Sólo cuando existen: un documento que nunca declaró huella no puede
-      // estrenar una aquí, o el adaptador dejaría de aplicar su default.
-      ...(options.footprintW === undefined ? {} : { footprintW: options.footprintW }),
-      ...(options.footprintH === undefined ? {} : { footprintH: options.footprintH }),
-      ...(options.gridSize === undefined ? {} : { gridSize: options.gridSize }),
-    },
-    layers,
-    entities: orderedEntities,
-    history: [],
-    modelSpace: { entityIds: orderedEntities.map((entity) => entity.id) },
-    paperSpaces: [],
-    styles: emptyStyles(),
-    blocks: [],
-    constraints: [],
-    externalReferences: [],
-    unsupportedEntities: [],
-    lossManifest: [],
-    publications: [],
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Adaptador: documento canónico → modelo histórico
-// ---------------------------------------------------------------------------
-
-/**
- * Proyecta el documento de vuelta al modelo histórico. Inversa exacta de
- * `layoutToCadDocument`: los assets recuperan `shape`/`label`/`group`, las
- * cotas su `x2`/`y2`, y los conectores su `from`/`to`.
- */
-export function cadDocumentToLayout(doc: CadDocument): Required<LayoutInput> {
-  const assets: LayoutAssetInput[] = [];
-  const annotations: LayoutAnnotationInput[] = [];
-  const connectors: LayoutConnectorInput[] = [];
-  const stations: LayoutStationPlacementInput[] = [];
-
-  for (const e of doc.entities) {
-    if (e.type === "box") {
-      const a: LayoutAssetInput = {
-        id: e.id,
-        kind: e.kind,
-        x: e.x,
-        y: e.y,
-        w: e.w,
-        h: e.h,
-        rotation: e.rotation,
-      };
-      if (e.label !== undefined) a.label = e.label;
-      if (e.layer !== DEFAULT_LAYER_ID) a.layer = e.layer;
-      if (e.group !== undefined) a.group = e.group;
-      if (e.shape === "circle") a.shape = "circle";
-      if (e.tags !== undefined) a.tags = [...e.tags];
-      if (e.notes !== undefined) a.notes = e.notes;
-      assets.push(a);
-    } else if (e.type === "circle" && e.legacy) {
-      const a: LayoutAssetInput = {
-        id: e.id,
-        kind: e.legacy.kind,
-        x: e.center.x - e.radius,
-        y: e.center.y - e.radius,
-        w: e.radius * 2,
-        h: e.radius * 2,
-        rotation: e.legacy.rotation,
-        shape: "circle",
-      };
-      if (e.layer !== DEFAULT_LAYER_ID) a.layer = e.layer;
-      if (e.legacy.label !== undefined) a.label = e.legacy.label;
-      if (e.legacy.group !== undefined) a.group = e.legacy.group;
-      if (e.legacy.tags !== undefined) a.tags = [...e.legacy.tags];
-      if (e.legacy.notes !== undefined) a.notes = e.legacy.notes;
-      assets.push(a);
-    } else if (e.type === "station") {
-      const s: LayoutStationPlacementInput = { id: e.id, x: e.x, y: e.y, w: e.w, h: e.h, rotation: e.rotation };
-      if (e.layer !== STATIONS_LAYER) s.layer = e.layer;
-      if (e.tags !== undefined) s.tags = [...e.tags];
-      if (e.notes !== undefined) s.notes = e.notes;
-      stations.push(s);
-    } else if (e.type === "text") {
-      const an: LayoutAnnotationInput = { id: e.id, type: "text", x: e.x, y: e.y, text: e.text };
-      if (e.layer !== "Text") an.layer = e.layer;
-      if (e.color !== undefined) an.color = e.color;
-      annotations.push(an);
-    } else if (e.type === "dimension") {
-      const an: LayoutAnnotationInput = {
-        id: e.id,
-        type: "dim",
-        x: e.a.x,
-        y: e.a.y,
-        x2: e.b.x,
-        y2: e.b.y,
-      };
-      if (e.text !== undefined) an.text = e.text;
-      if (e.layer !== "Measurements") an.layer = e.layer;
-      if (e.color !== undefined) an.color = e.color;
-      annotations.push(an);
-    } else if (e.type === "connector") {
-      const c: LayoutConnectorInput = { from: e.from, to: e.to };
-      if (e.kind !== "flow") c.kind = e.kind;
-      connectors.push(c);
-    }
-  }
-
-  return { assets, annotations, connectors, layers: doc.layers.map((l) => ({ ...l })), stations };
-}
+/** Reexporta el vocabulario del esquema 4 desde el módulo del documento. */
+export type {
+  CadAttdefEntity,
+  CadImageDefinition,
+  CadImageEntity,
+  CadPointEntity,
+  CadPositionedAttribute,
+  CadRayEntity,
+  CadSchema4Entity,
+  CadSolidEntity,
+  CadTableCell,
+  CadTableEntity,
+  CadTextAnchor,
+  CadWipeoutEntity,
+  CadXLineEntity,
+} from "./cad-entities-v4";
+export { CAD_SCHEMA_4_ENTITY_TYPES } from "./cad-entities-v4";
 
 // ---------------------------------------------------------------------------
 // Versionado + serialización determinista
 // ---------------------------------------------------------------------------
 
+/** Ayudas de orden de dibujo: viven en el módulo hoja, se reexportan aquí. */
+export { preserveDrawOrder, replaceEntityIdsAt } from "./cad-document-shared";
+
 /**
  * Devuelve una copia del documento con la versión incrementada y un registro
  * añadido al historial. Inmutable: no muta el documento de entrada.
  */
-/**
- * Sustituye un conjunto de ids del orden de dibujo por otros, **en la posición
- * que ocupaban**, conservando el z-order del resto.
- *
- * Es lo que necesitan convertir geometría en bloque y explotar un bloque: si
- * el resultado se añade al final, la operación cambia lo que tapa a qué. Con
- * esto, definir un bloque y explotarlo vuelve a ser visualmente inocuo.
- *
- * La posición elegida es la del elemento sustituido MÁS ALTO (el índice mayor),
- * porque es el que determinaba qué cubría el conjunto.
- */
-export function replaceEntityIdsAt(
-  entityIds: string[],
-  removed: ReadonlySet<string>,
-  inserted: string[],
-): string[] {
-  const indices = entityIds
-    .map((id, index) => (removed.has(id) ? index : -1))
-    .filter((index) => index >= 0);
-  const kept = entityIds.filter((id) => !removed.has(id));
-  if (indices.length === 0) return [...kept, ...inserted];
-  // Cuántos elementos conservados quedaban por debajo del más alto retirado.
-  const anchor = indices[indices.length - 1];
-  const below = entityIds
-    .slice(0, anchor)
-    .filter((id) => !removed.has(id)).length;
-  return [...kept.slice(0, below), ...inserted, ...kept.slice(below)];
-}
-
-/**
- * Reconstruye el orden de dibujo CONSERVANDO el previo.
- *
- * Necesario cada vez que un camino recompone el documento a partir de una
- * colección de entidades: esa colección puede estar ordenada por id para
- * canonicalización, y derivar `entityIds` de ella **alfabetiza el z-order**.
- * Ése era el defecto que sobrevivía en `replaceEditorProjection` y en la
- * migración de MLEADER heredados: editar una propiedad convertía
- * `zeta, alfa` en `alfa, zeta`.
- *
- * Contrato: las entidades que ya tenían posición la conservan, en su orden
- * relativo; las nuevas se añaden AL FRENTE (final de la lista), en el orden en
- * que llegan; las desaparecidas se quitan.
- */
-export function preserveDrawOrder(
-  previousIds: readonly string[],
-  presentIds: readonly string[],
-): string[] {
-  const present = new Set(presentIds);
-  const kept = previousIds.filter((id) => present.has(id));
-  const seen = new Set(kept);
-  const appended = presentIds.filter((id) => !seen.has(id));
-  return [...kept, ...appended];
-}
-
 export function commitChange(doc: CadDocument, label: string): CadDocument {
   const version = doc.meta.version + 1;
   return {
@@ -998,6 +696,7 @@ export function commitChange(doc: CadDocument, label: string): CadDocument {
     publications: structuredClone(doc.publications),
     collaboration: doc.collaboration ? structuredClone(doc.collaboration) : undefined,
     ...(doc.cells ? { cells: structuredClone(doc.cells) } : {}),
+    ...(doc.imageDefinitions ? { imageDefinitions: structuredClone(doc.imageDefinitions) } : {}),
     history: [...doc.history, { version, label }],
   };
 }
@@ -1069,6 +768,11 @@ export function serializeCadDocument(doc: CadDocument): string {
     publications: doc.publications.map(stableValue),
     collaboration: doc.collaboration ? stableValue(doc.collaboration) : undefined,
     ...(doc.cells ? { cells: [...doc.cells].sort(byId).map(stableValue) } : {}),
+    // Catálogo, no orden de dibujo: ordenarlo por id es canonicalización
+    // legítima, igual que con `blocks`.
+    ...(doc.imageDefinitions
+      ? { imageDefinitions: [...doc.imageDefinitions].sort(byId).map(stableValue) }
+      : {}),
   };
   return JSON.stringify(payload);
 }
@@ -1079,153 +783,23 @@ export function cadDocumentStats(doc: CadDocument): Record<CadEntity["type"], nu
     box: 0, station: 0, text: 0, dimension: 0, connector: 0, line: 0,
     polyline: 0, circle: 0, arc: 0, ellipse: 0, spline: 0, mtext: 0,
     hatch: 0, mleader: 0, insert: 0,
+    point: 0, xline: 0, ray: 0, solid: 0, wipeout: 0, image: 0,
+    attdef: 0, table: 0,
   } satisfies Record<CadEntity["type"], number>;
   for (const e of doc.entities) stats[e.type]++;
   return stats;
 }
 
-function finite(value: unknown): boolean {
-  if (typeof value === "number") return Number.isFinite(value);
-  if (Array.isArray(value)) return value.every(finite);
-  if (value && typeof value === "object") return Object.values(value).every(finite);
-  return true;
-}
-
-function withV3Defaults(doc: Partial<CadDocument>): CadDocument {
-  const entities = Array.isArray(doc.entities) ? doc.entities : [];
-  return {
-    meta: {
-      version: Number(doc.meta?.version) || 1,
-      schema: CAD_DOCUMENT_SCHEMA,
-      unit: doc.meta?.unit || "mm",
-      // La huella declarada del documento se conserva tal cual. Normalizar el
-      // esquema no puede inventar un lienzo ni descartar el que ya existía.
-      ...(Number.isFinite(doc.meta?.footprintW) ? { footprintW: doc.meta!.footprintW } : {}),
-      ...(Number.isFinite(doc.meta?.footprintH) ? { footprintH: doc.meta!.footprintH } : {}),
-      ...(Number.isFinite(doc.meta?.gridSize) ? { gridSize: doc.meta!.gridSize } : {}),
-    },
-    layers: Array.isArray(doc.layers) ? doc.layers : [],
-    entities,
-    history: Array.isArray(doc.history) ? doc.history : [],
-    // Documento heredado sin `modelSpace`: el orden del array `entities` es la
-    // mejor señal disponible del orden de dibujo. Ordenar por id imponía un
-    // z-order alfabético que nunca estuvo en los datos.
-    modelSpace: doc.modelSpace ?? { entityIds: entities.map((entity) => entity.id) },
-    paperSpaces: Array.isArray(doc.paperSpaces) ? doc.paperSpaces : [],
-    styles: doc.styles ?? emptyStyles(),
-    blocks: Array.isArray(doc.blocks) ? doc.blocks : [],
-    constraints: Array.isArray(doc.constraints) ? doc.constraints : [],
-    ...(Array.isArray(doc.parameters) ? { parameters: doc.parameters } : {}),
-    externalReferences: Array.isArray(doc.externalReferences) ? doc.externalReferences : [],
-    unsupportedEntities: Array.isArray(doc.unsupportedEntities) ? doc.unsupportedEntities : [],
-    lossManifest: Array.isArray(doc.lossManifest) ? doc.lossManifest : [],
-    publications: Array.isArray(doc.publications) ? doc.publications : [],
-    collaboration:
-      doc.collaboration && typeof doc.collaboration === "object"
-        ? doc.collaboration
-        : undefined,
-    // Sección OPCIONAL: sólo aparece si el documento la traía. Materializarla
-    // como `[]` cambiaría la serialización de todos los documentos existentes.
-    ...(Array.isArray(doc.cells) ? { cells: doc.cells } : {}),
-  };
-}
-
-const legacyPointEqual = (a: CadPoint2, b: CadPoint2, tolerance = 1e-6) =>
-  Math.hypot(a.x - b.x, a.y - b.y) <= tolerance;
-
 /**
- * The former editor emitted a leader as two `ld_*` legacy DIM annotations plus
- * one `nt_*` TEXT at the landing endpoint. Only that exact, isolated signature
- * is folded into one MLEADER; ambiguous candidates remain untouched and gain a
- * loss-manifest warning instead of being guessed.
+ * Migración y lectura: viven en `cad-document-migrate.ts`, que normaliza lo
+ * que llega del disco o de una versión anterior. Se reexportan aquí porque
+ * son la puerta pública de siempre.
  */
-export function migrateLegacyMleaderCompositions(document: CadDocument): CadDocument {
-  const dimensions = document.entities.filter((entity): entity is Extract<CadEntity, { type: "dimension" }> =>
-    entity.type === "dimension" && !entity.dimensionKind && /^ld_/.test(entity.id));
-  const texts = document.entities.filter((entity): entity is Extract<CadEntity, { type: "text" }> =>
-    entity.type === "text" && /^nt_/.test(entity.id));
-  const used = new Set<string>();
-  const created: Extract<CadEntity, { type: "mleader" }>[] = [];
-  const warnings: CadLossManifestEntry[] = [];
-  for (const dogleg of dimensions) {
-    if (used.has(dogleg.id) || Math.abs(dogleg.a.y - dogleg.b.y) > 1e-6) continue;
-    const candidates = dimensions.filter((leader) =>
-      leader.id !== dogleg.id && !used.has(leader.id) &&
-      [leader.a, leader.b].some((point) => legacyPointEqual(point, dogleg.a) || legacyPointEqual(point, dogleg.b)));
-    const textCandidates = texts.filter((text) =>
-      !used.has(text.id) && (legacyPointEqual({ x: text.x, y: text.y }, dogleg.a) || legacyPointEqual({ x: text.x, y: text.y }, dogleg.b)));
-    if (candidates.length !== 1 || textCandidates.length !== 1) {
-      if (candidates.length || textCandidates.length) warnings.push({
-        code: "legacy_mleader_ambiguous",
-        entityId: dogleg.id,
-        sourceType: "DIM+DIM+TEXT",
-        detail: "Legacy leader composition was not uniquely identifiable and remains unflattened.",
-        severity: "warning",
-      });
-      continue;
-    }
-    const leader = candidates[0];
-    const text = textCandidates[0];
-    const shared = [leader.a, leader.b].find((point) => legacyPointEqual(point, dogleg.a) || legacyPointEqual(point, dogleg.b))!;
-    const tip = legacyPointEqual(leader.a, shared) ? leader.b : leader.a;
-    const textPosition = { x: text.x, y: text.y, z: 0 };
-    const id = `mleader:migrated:${[leader.id, dogleg.id, text.id].sort().join("+")}`;
-    created.push({
-      id,
-      type: "mleader",
-      vertices: [point3(tip.x, tip.y), point3(shared.x, shared.y)],
-      leaderLines: [[point3(tip.x, tip.y), point3(shared.x, shared.y)]],
-      text: text.text,
-      textPosition,
-      contentType: "text",
-      landing: true,
-      doglegLength: Math.hypot(dogleg.b.x - dogleg.a.x, dogleg.b.y - dogleg.a.y),
-      arrowhead: "closed-filled",
-      associationStatus: "detached",
-      associative: false,
-      style: "Standard",
-      layer: text.layer || leader.layer,
-      context: { provenance: { provider: "legacy-editor" }, metadata: { migratedLeader: leader.id, migratedDogleg: dogleg.id, migratedText: text.id } },
-    });
-    used.add(leader.id); used.add(dogleg.id); used.add(text.id);
-  }
-  if (!created.length && !warnings.length) return document;
-  const entities = [...document.entities.filter((entity) => !used.has(entity.id)), ...created].sort(byId);
-  return {
-    ...document,
-    entities,
-    // Mismo defecto que en `replaceEditorProjection`: `entities` está ordenado
-    // por id y derivar de ahí el orden de dibujo lo alfabetizaba. Migrar
-    // MLEADER heredados no debe reordenar el plano del usuario.
-    modelSpace: {
-      entityIds: preserveDrawOrder(
-        document.modelSpace.entityIds,
-        entities.map((entity) => entity.id),
-      ),
-    },
-    lossManifest: [...document.lossManifest, ...warnings],
-  };
-}
-
-/** Deterministic additive migration from v1/v2 to the current schema. */
-export function migrateCadDocument(value: unknown): CadDocument {
-  if (!value || typeof value !== "object") throw new Error("CadDocument must be an object.");
-  const raw = value as Partial<CadDocument>;
-  const schema = Number(raw.meta?.schema) || 1;
-  if (schema > CAD_DOCUMENT_SCHEMA) throw new Error(`Unsupported CadDocument schema ${schema}.`);
-  const migrated = migrateLegacyMleaderCompositions(withV3Defaults(raw));
-  if (!finite(migrated)) throw new Error("CadDocument contains non-finite numeric values.");
-  const ids = migrated.entities.map((entity) => entity.id);
-  if (ids.some((id) => typeof id !== "string" || !id) || new Set(ids).size !== ids.length) {
-    throw new Error("CadDocument entity ids must be non-empty and unique.");
-  }
-  return migrated;
-}
-
-export function parseCadDocument(serialized: string): CadDocument {
-  if (serialized.length > 20_000_000) throw new Error("CadDocument exceeds the 20 MB client limit.");
-  return migrateCadDocument(JSON.parse(serialized));
-}
+export {
+  migrateCadDocument,
+  migrateLegacyMleaderCompositions,
+  parseCadDocument,
+} from "./cad-document-migrate";
 
 /**
  * Replace the legacy editor projection without dropping first-class entities,

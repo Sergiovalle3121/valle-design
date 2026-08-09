@@ -13,7 +13,14 @@
  * lo que ocurre cuando un gate ejecuta código de verdad en vez de mirarlo.
  */
 import type { CadPoint2 } from "./cad-document";
-import type { CadBounds, CadRenderPath } from "./entity-runtime";
+import type {
+  CadBounds,
+  CadBoundsProvider,
+  CadEntityRenderer,
+  CadHitTester,
+  CadNativeEntity,
+  CadRenderPath,
+} from "./entity-runtime";
 
 export function pointsBounds(points: CadPoint2[]): CadBounds {
   if (!points.length)
@@ -87,6 +94,34 @@ export function pathHit(paths: CadRenderPath[], point: CadPoint2, tolerance: num
       return true;
     return false;
   });
+}
+
+/**
+ * Impacto genérico: descarta por caja envolvente y luego mide contra el
+ * trazado teselado. Vale para toda entidad cuya silueta ES su renderizado.
+ *
+ * Vive aquí y no en `entity-runtime.ts` porque lo usan los adaptadores, y un
+ * adaptador no puede pedirle un valor al registro que los importa.
+ */
+export function commonHitTester<E extends CadNativeEntity>(
+  renderer: CadEntityRenderer<E>,
+  boundsProvider: CadBoundsProvider<E>,
+): CadHitTester<E> {
+  return {
+    hitTest: (entity, point, tolerance) =>
+      boundsIntersect(boundsProvider.bounds(entity), {
+        minX: point.x - tolerance,
+        minY: point.y - tolerance,
+        maxX: point.x + tolerance,
+        maxY: point.y + tolerance,
+      }) && pathHit(renderer.paths(entity, 96), point, tolerance),
+    intersectsWindow: (entity, window, crossing) => {
+      const entityBounds = boundsProvider.bounds(entity);
+      return crossing
+        ? boundsIntersect(entityBounds, window)
+        : boundsContained(entityBounds, window);
+    },
+  };
 }
 
 export function pointInPolygon(point: CadPoint2, polygon: CadPoint2[]): boolean {
