@@ -12,6 +12,7 @@ import {
 } from "./curve-tessellate";
 import { hatchPolygon } from "./hatch";
 import { layoutCadMText } from "./mtext-layout";
+import { cadTransformPoint3, cadTransformVector3 } from "./transform2d";
 import { circleAdapter, isLegacyCircle, isLegacyDimension, lineAdapter } from "./basic-native-adapters";
 import { dimensionAdapter } from "./dimension-entity-adapter";
 import { mleaderAdapter } from "./mleader-entity-adapter";
@@ -240,39 +241,14 @@ function pointInPolygon(point: CadPoint2, polygon: CadPoint2[]): boolean {
   return inside;
 }
 
+/** Delega en `cadTransformPoint3`. Había dos copias y no coincidían en `z`. */
 function transformPoint(point: CadPoint3, transform: CadEntityTransform): CadPoint3 {
-  const origin = transform.origin ?? { x: 0, y: 0 };
-  const scale = transform.scale ?? 1;
-  const rotation = ((transform.rotationDeg ?? 0) * Math.PI) / 180;
-  const cos = Math.cos(rotation);
-  const sin = Math.sin(rotation);
-  const localX = (point.x - origin.x) * scale;
-  const localY = (point.y - origin.y) * scale;
-  return {
-    x:
-      origin.x +
-      localX * cos -
-      localY * sin +
-      (transform.translation?.x ?? 0),
-    y:
-      origin.y +
-      localX * sin +
-      localY * cos +
-      (transform.translation?.y ?? 0),
-    z: point.z * scale,
-  };
+  return cadTransformPoint3(point, transform);
 }
 
+/** Sólo la parte lineal: para direcciones, como el eje mayor de una elipse. */
 function transformVector(point: CadPoint3, transform: CadEntityTransform): CadPoint3 {
-  const scale = transform.scale ?? 1;
-  const rotation = ((transform.rotationDeg ?? 0) * Math.PI) / 180;
-  const cos = Math.cos(rotation);
-  const sin = Math.sin(rotation);
-  return {
-    x: (point.x * cos - point.y * sin) * scale,
-    y: (point.x * sin + point.y * cos) * scale,
-    z: point.z * scale,
-  };
+  return cadTransformVector3(point, transform);
 }
 
 function finite(value: CadPropertyValue | undefined, fallback: number): number {
@@ -1172,8 +1148,19 @@ const mtextAdapter: CadEntityAdapter<CadMTextEntity> = {
     transform: (entity, transform) => ({
       ...entity,
       insertion: transformPoint(entity.insertion, transform),
-      width: (entity.width ?? (entity.height ?? 120) * 20) * Math.abs(transform.scale ?? 1),
-      height: (entity.height ?? 120) * Math.abs(transform.scale ?? 1),
+      // `width` y `height` AUSENTES se conservan ausentes. Antes se
+      // materializaban con su valor por defecto —`width` pasaba a valer
+      // `height × 20`— en CUALQUIER transformada, incluida una traslación
+      // pura: mover un MTEXT de ancho automático le fijaba el ancho de columna
+      // y el texto empezaba a partirse donde antes iba seguido. Conservar la
+      // ausencia además es MÁS correcto al escalar, porque el ancho efectivo
+      // se deriva de la altura. Lo encontró `entity-transform-roundtrip.spec`.
+      ...(entity.width === undefined
+        ? {}
+        : { width: entity.width * Math.abs(transform.scale ?? 1) }),
+      ...(entity.height === undefined
+        ? {}
+        : { height: entity.height * Math.abs(transform.scale ?? 1) }),
       rotation: (entity.rotation ?? 0) + (transform.rotationDeg ?? 0),
       context: cloneContext(entity.context),
     }),
@@ -1341,8 +1328,18 @@ const hatchAdapter: CadEntityAdapter<CadHatchEntity> = {
     transform: (entity, transform) => ({
       ...entity,
       boundaries: entity.boundaries.map((boundary) => boundary.map((point) => transformPoint(point, transform))),
-      scale: (entity.scale ?? 1) * Math.abs(transform.scale ?? 1),
-      angle: (entity.angle ?? 0) + (transform.rotationDeg ?? 0),
+      // Espaciado y ángulo AUSENTES se conservan ausentes, y al escribirlos se
+      // parte de los MISMOS valores por defecto que usa el renderizador. Antes
+      // no coincidían: se dibuja `angle ?? 45` y `scale ?? diagonal/40`, y esta
+      // transformada materializaba `angle ?? 0` y `scale ?? 1`. Mover un
+      // sombreado le giraba el patrón 45° y le fijaba el espaciado en 1 unidad
+      // — en milímetros, una mancha casi sólida.
+      ...(entity.scale === undefined
+        ? {}
+        : { scale: entity.scale * Math.abs(transform.scale ?? 1) }),
+      ...(entity.angle === undefined && !transform.rotationDeg
+        ? {}
+        : { angle: (entity.angle ?? 45) + (transform.rotationDeg ?? 0) }),
       origin: entity.origin ? transformPoint(entity.origin, transform) : undefined,
       context: cloneContext(entity.context),
     }),

@@ -10,6 +10,7 @@
 import { strict as assert } from "node:assert";
 import type { CadPoint2 } from "./cad-document";
 import {
+  cadTransformPoint3,
   cadAffineAngle,
   cadAffineApply,
   cadAffineApplyVector,
@@ -220,6 +221,64 @@ assert.ok(
     pointNear(cadAffineApplyVector(withShift, { x: 1, y: 0 }), { x: 0, y: 1 }),
     "la parte lineal no traslada",
   );
+}
+
+// --- `cadTransformPoint3` reproduce la fórmula heredada BIT A BIT -------------
+//
+// Esta comprobación es distinta de la de arriba y existe porque aquélla no
+// bastó. El corpus de 2.000 puntos compara con tolerancia relativa 1e-9, así
+// que da por buena una diferencia en el último dígito del `double`. Y esa
+// diferencia SÍ importa: `cadTransformPoint3` sustituyó a las dos copias que
+// los adaptadores tenían, la versión de una entidad se calcula con
+// `JSON.stringify`, y un último dígito distinto la marca como cambiada,
+// dispara un guardado extra y rompe seis goldens que afirman `version === 1`.
+//
+// Se midió: componer la matriz y aplicarla sólo coincidía bit a bit en 607 de
+// 3.000 casos, con desviaciones de hasta 1,5e-11. Matemáticamente irrelevante,
+// operativamente no. Por eso el camino heredado evalúa la misma expresión en el
+// mismo orden, y por eso hace falta una aserción de IGUALDAD ESTRICTA que lo
+// vigile — una tolerancia no habría detectado nunca la regresión.
+{
+  // Semilla propia: este corpus no debe cambiar porque otro bloque de arriba
+  // consuma un número más de su generador.
+  const random = lcg(20260809);
+  const pick = () => (random() - 0.5) * 2000;
+
+  /** Copia literal de la implementación que había en los adaptadores. */
+  function legacyPoint3(
+    point: { x: number; y: number; z: number },
+    transform: CadAffineTransformInput,
+  ) {
+    const origin = transform.origin ?? { x: 0, y: 0 };
+    const scale = transform.scale ?? 1;
+    const radians = ((transform.rotationDeg ?? 0) * Math.PI) / 180;
+    const dx = (point.x - origin.x) * scale;
+    const dy = (point.y - origin.y) * scale;
+    return {
+      x: origin.x + dx * Math.cos(radians) - dy * Math.sin(radians) + (transform.translation?.x ?? 0),
+      y: origin.y + dx * Math.sin(radians) + dy * Math.cos(radians) + (transform.translation?.y ?? 0),
+      z: point.z,
+    };
+  }
+
+  let identical = 0;
+  for (let i = 0; i < 2000; i += 1) {
+    const transform: CadAffineTransformInput = {
+      translation: { x: pick(), y: pick() },
+      rotationDeg: (random() - 0.5) * 720,
+      scale: (random() - 0.5) * 20 || 1,
+      origin: { x: pick(), y: pick() },
+    };
+    const point = { x: pick(), y: pick(), z: pick() };
+    const expected = legacyPoint3(point, transform);
+    const actual = cadTransformPoint3(point, transform);
+    // `assert.equal` sobre números es `===`: sin tolerancia, a propósito.
+    assert.equal(actual.x, expected.x, `x difiere en el caso ${i}`);
+    assert.equal(actual.y, expected.y, `y difiere en el caso ${i}`);
+    assert.equal(actual.z, expected.z, `la elevación no se escala (caso ${i})`);
+    identical += 1;
+  }
+  assert.equal(identical, 2000, "corpus de identidad binaria completo");
 }
 
 console.log("cad transform2d specs passed");

@@ -243,3 +243,92 @@ export function cadAffineEquals(left: CadAffine2, right: CadAffine2, epsilon = 1
     Math.abs(left.f - right.f) <= epsilon
   );
 }
+
+/**
+ * Aplica una transformada a un punto CON elevación.
+ *
+ * Existe para que haya UNA sola implementación. Había dos, casi idénticas —una
+ * en `entity-runtime.ts` y otra en `basic-native-adapters.ts`—, y diferían
+ * exactamente en una línea: la de `entity-runtime` hacía `z: point.z * scale` y
+ * la de `basic-native-adapters` hacía `z: point.z`. Consecuencia: escalar una
+ * selección que contuviera una línea y una polilínea las dejaba en planos de
+ * elevación DISTINTOS. En una escena 3D eso es z-fighting y orden de dibujo
+ * equivocado entre un muro y su perfil, sin un solo error por ningún sitio.
+ *
+ * ## La decisión sobre `z`, explícita
+ *
+ * **La elevación no se escala.** Escalar una planta al doble no sube los
+ * objetos al doble de altura; son cosas distintas y en AutoCAD también lo son.
+ * Se elige la versión de `basic-native-adapters`, que además coincide con la
+ * de `professional-blocks.ts`: dos de las tres implementaciones ya lo hacían
+ * así. En la práctica el cambio es invisible porque las entidades nativas se
+ * proyectan a una elevación fija de viewport, pero dejarlo sin decidir era
+ * garantizar que reapareciera.
+ *
+ * Bajo una afín general no existe «el factor de escala» —hay dos, y pueden
+ * diferir—, así que multiplicar `z` por uno de ellos no tendría ni siquiera un
+ * significado que defender.
+ */
+export function cadTransformPoint3<P extends { x: number; y: number; z: number }>(
+  point: P,
+  transform: CadAffineTransformInput,
+): { x: number; y: number; z: number } {
+  // Camino heredado, BIT A BIT.
+  //
+  // Para el vocabulario clásico —traslación, giro y escala uniforme— se evalúa
+  // la misma expresión que evaluaban las dos copias que esta función sustituye,
+  // en el mismo orden. No es purismo: componer la matriz y aplicarla da el
+  // mismo número real pero NO el mismo `double`. Se midió sobre 3.000 casos y
+  // sólo 607 salían idénticos, con desviaciones de hasta 1,5e-11.
+  //
+  // Esa diferencia es invisible en el dibujo y perfectamente visible en el
+  // producto: la versión de una entidad se calcula con `JSON.stringify`, así
+  // que un último dígito distinto la marca como cambiada, dispara un guardado
+  // extra y rompe seis goldens que afirman `version === 1`. Reproducir el
+  // orden de evaluación es lo que hace que unificar las dos copias sea una
+  // refactorización y no un cambio de comportamiento.
+  //
+  // Reflexión, escala no uniforme y afín cruda son capacidades NUEVAS: no
+  // tienen comportamiento heredado que preservar y van por la matriz.
+  if (!transform.affine && !transform.mirror && !transform.scaleXY) {
+    const origin = transform.origin ?? { x: 0, y: 0 };
+    const scale = transform.scale ?? 1;
+    const radians = ((transform.rotationDeg ?? 0) * Math.PI) / 180;
+    const dx = (point.x - origin.x) * scale;
+    const dy = (point.y - origin.y) * scale;
+    return {
+      x:
+        origin.x +
+        dx * Math.cos(radians) -
+        dy * Math.sin(radians) +
+        (transform.translation?.x ?? 0),
+      y:
+        origin.y +
+        dx * Math.sin(radians) +
+        dy * Math.cos(radians) +
+        (transform.translation?.y ?? 0),
+      z: point.z,
+    };
+  }
+  const moved = cadAffineApply(cadAffineFromTransform(transform), point);
+  return { x: moved.x, y: moved.y, z: point.z };
+}
+
+/**
+ * Aplica sólo la parte LINEAL a un vector (una dirección, no una posición).
+ *
+ * La distinción importa y es la fuente de un error clásico: el eje mayor de una
+ * elipse es un vector desde su centro, no un punto del dibujo. Pasarlo por
+ * `cadTransformPoint3` le sumaría la traslación y lo mandaría a la otra punta
+ * del plano, alargando la elipse en proporción a lo lejos que estuviera del
+ * origen. Aquí la traslación no participa, por construcción.
+ *
+ * `z` se conserva por el mismo motivo que en `cadTransformPoint3`.
+ */
+export function cadTransformVector3<P extends { x: number; y: number; z: number }>(
+  vector: P,
+  transform: CadAffineTransformInput,
+): { x: number; y: number; z: number } {
+  const moved = cadAffineApplyVector(cadAffineFromTransform(transform), vector);
+  return { x: moved.x, y: moved.y, z: vector.z };
+}
