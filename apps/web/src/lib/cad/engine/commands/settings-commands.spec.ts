@@ -17,7 +17,7 @@
  */
 import { strict as assert } from "node:assert";
 import type { CadLayerDef } from "../../cad-document";
-import { CadLayerStateCatalog, captureCadLayerState } from "../../layer-states";
+import { CadLayerStateCatalog } from "../../layer-states";
 import { CadLinetypeCatalog } from "../../linetype-lin";
 import { CadSystemVariableStore } from "../../system-variables";
 import { CadToolPaletteCatalog } from "../../tool-palettes";
