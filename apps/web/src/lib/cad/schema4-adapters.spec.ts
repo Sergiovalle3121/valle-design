@@ -25,9 +25,19 @@ import {
   type CadNativeEntity,
 } from "./entity-runtime";
 import { CAD_SCHEMA_4_ENTITY_TYPES } from "./cad-entities-v4";
+import { CadNativeSelectionIndex } from "./native-selection-index";
+import { migrateCadDocument, type CadDocument } from "./cad-document";
 import { __testables as infinite } from "./point-line-adapters";
 
 const layer = "MUROS";
+
+/** Documento mínimo válido sobre el que montar escenarios. */
+const EMPTY_DOCUMENT: CadDocument = migrateCadDocument({
+  meta: { version: 1, schema: 4, unit: "mm" },
+  layers: [{ id: layer, name: "Muros", color: "#fff", visible: true, locked: false }],
+  entities: [],
+  modelSpace: { entityIds: [] },
+});
 const near = (actual: number, expected: number, what: string, epsilon = 1e-6) =>
   assert.ok(Math.abs(actual - expected) <= epsilon, `${what}: ${actual}, se esperaba ${expected}`);
 
@@ -167,6 +177,30 @@ function apply<E extends CadNativeEntity>(entity: E, transform: CadEntityTransfo
     false,
     "una ventana detrás del origen no corta la semirrecta",
   );
+}
+
+// --- bajo el cursor gana la geometría real, no la recta de construcción ------
+{
+  const document: CadDocument = {
+    ...EMPTY_DOCUMENT,
+    entities: [
+      { id: "muro", type: "line", start: { x: -50, y: 0, z: 0 }, end: { x: 50, y: 0, z: 0 }, layer },
+      { id: "eje", type: "xline", basePoint: { x: 0, y: 0, z: 0 }, direction: { x: 1, y: 0, z: 0 }, layer },
+    ],
+    modelSpace: { entityIds: ["muro", "eje"] },
+  };
+  const index = new CadNativeSelectionIndex();
+  index.replace(
+    document.entities.filter((entity): entity is CadNativeEntity =>
+      CAD_ENTITY_REGISTRY.supports(entity)),
+    document,
+  );
+  const hits = index.hitTest({ x: 0, y: 0 }, 1);
+  assert.deepEqual(hits.map((entity) => entity.id), ["muro", "eje"]);
+  // El orden NO puede quedar a merced del motor: el centro de una entidad sin
+  // cota es `(−∞ + ∞)/2 = NaN`, y un comparador que devuelve `NaN` deja el
+  // resultado indefinido. Se manda al final, que además es lo que se quiere:
+  // si bajo el cursor hay un muro y un eje, se pincha el muro.
 }
 
 // --- XLINE bajo reflexión: la dirección va por la parte LINEAL ---------------

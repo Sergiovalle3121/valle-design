@@ -15,7 +15,12 @@ function centerDistanceSquared(
   const bounds = CAD_ENTITY_REGISTRY.adapter(entity).bounds.bounds(entity, document);
   const dx = (bounds.minX + bounds.maxX) / 2 - point.x;
   const dy = (bounds.minY + bounds.maxY) / 2 - point.y;
-  return dx * dx + dy * dy;
+  // Una entidad SIN COTA —XLINE, RAY— no tiene centro: `(−∞ + ∞)/2` es `NaN`, y
+  // un comparador que devuelve `NaN` deja el orden a merced del motor. Se manda
+  // al final, que además es la preferencia correcta: si bajo el cursor hay una
+  // recta de construcción y un muro, se quiere el muro.
+  const squared = dx * dx + dy * dy;
+  return Number.isFinite(squared) ? squared : Number.POSITIVE_INFINITY;
 }
 
 type CadPathSelectionMode = "polygon" | "fence" | "lasso";
