@@ -1,15 +1,37 @@
-import {
-  makeCollinear,
-  makeEqualLength,
-  makeHorizontal,
-  makeParallel,
-  makePerpendicular,
-  makeVertical,
-  setAngle,
-  setLength,
-  type Segment,
-} from "./geom-constraints";
+/**
+ * Fachada del dibujo paramétrico sobre el documento canónico.
+ *
+ * Mantiene la MISMA firma que tenía cuando por debajo había un iterador de punto
+ * fijo (`constraints/legacy-fixed-point.ts`), para que el editor no se entere del
+ * cambio de motor. Por dentro llama al solucionador de Newton
+ * (`constraints/solver.ts`), que resuelve todas las restricciones a la vez.
+ *
+ * ## Qué cambia respecto del iterador, y por qué el nuevo es el correcto
+ *
+ * 1. **Los lazos acoplados ahora se resuelven.** Un triángulo con los tres lados
+ *    acotados hacía oscilar al iterador hasta agotar las pasadas; Newton lo
+ *    resuelve. Es el motivo del cambio y está fijado en `solver.spec.ts`.
+ * 2. **Participan círculos, arcos, elipses, polilíneas y splines**, no sólo
+ *    líneas y muros.
+ * 3. **`changedEntityIds` es una preferencia, no un orden de referencia.** Antes
+ *    decidía qué entidad de un par hacía de referencia; ahora ancla lo que el
+ *    usuario acaba de mover, y si anclarlo hace el sistema imposible se resuelve
+ *    otra vez sin anclas. Acotar la línea que acabas de dibujar sigue
+ *    funcionando, y arrastrar ya no mueve de vuelta lo que arrastraste.
+ * 4. **`colinear` conserva la longitud.** El aplicador anterior proyectaba los
+ *    dos extremos sobre la recta de referencia, lo que además ACORTABA el
+ *    segmento; dos segmentos colineales comparten recta soporte, no longitud.
+ * 5. **`fully_constrained` significa cero grados de libertad de verdad**,
+ *    calculados por el rango del jacobiano, no «cada entidad aparece en dos
+ *    restricciones». Un dibujo sin anclar conserva sus tres movimientos de
+ *    sólido rígido y se informa aparte de cuántos grados son internos.
+ *
+ * Lo que NO cambia: no muta el documento de entrada, y ante un fallo devuelve
+ * exactamente el documento que recibió.
+ */
 import type { CadConstraint, CadDocument, CadEntity } from "./cad-document";
+import { evaluateCadParameters } from "./constraints/parameters";
+import { solveConstraintSystem } from "./constraints/solver";
 
 export type CadConstraintSolveStatus =
   | "under_constrained"
@@ -24,279 +46,76 @@ export interface CadConstraintSolveResult {
   iterations: number;
   changedEntityIds: string[];
   issues: { code: string; message: string; constraintIds: string[] }[];
-}
-
-type SolvableEntity = Extract<CadEntity, { type: "box" | "line" }>;
-
-function toSegment(entity: SolvableEntity): Segment | null {
-  if (entity.type === "line") {
-    return {
-      a: { x: entity.start.x, y: entity.start.y },
-      b: { x: entity.end.x, y: entity.end.y },
-    };
-  }
-  if (entity.kind !== "wall" || !(entity.w > 0)) return null;
-  const cx = entity.x + entity.w / 2;
-  const cy = entity.y + entity.h / 2;
-  const radians = (entity.rotation * Math.PI) / 180;
-  const hx = (Math.cos(radians) * entity.w) / 2;
-  const hy = (Math.sin(radians) * entity.w) / 2;
-  return { a: { x: cx - hx, y: cy - hy }, b: { x: cx + hx, y: cy + hy } };
-}
-
-function fromSegment(
-  entity: SolvableEntity,
-  segment: Segment,
-): SolvableEntity | null {
-  const dx = segment.b.x - segment.a.x;
-  const dy = segment.b.y - segment.a.y;
-  const length = Math.hypot(dx, dy);
-  if (!(length > 1e-9) || !Number.isFinite(length)) return null;
-  if (entity.type === "line") {
-    return {
-      ...entity,
-      start: { ...entity.start, x: segment.a.x, y: segment.a.y },
-      end: { ...entity.end, x: segment.b.x, y: segment.b.y },
-    };
-  }
-  const cx = (segment.a.x + segment.b.x) / 2;
-  const cy = (segment.a.y + segment.b.y) / 2;
-  return {
-    ...entity,
-    w: length,
-    x: cx - length / 2,
-    y: cy - entity.h / 2,
-    rotation: (Math.atan2(dy, dx) * 180) / Math.PI,
-  };
-}
-
-function maxDelta(a: Segment, b: Segment): number {
-  return Math.max(
-    Math.abs(a.a.x - b.a.x),
-    Math.abs(a.a.y - b.a.y),
-    Math.abs(a.b.x - b.b.x),
-    Math.abs(a.b.y - b.b.y),
-  );
-}
-
-function conflictIssues(constraints: CadConstraint[]) {
-  const axis = new Map<string, CadConstraint[]>();
-  for (const constraint of constraints) {
-    if (
-      !constraint.enabled ||
-      (constraint.kind !== "horizontal" && constraint.kind !== "vertical")
-    )
-      continue;
-    const id = constraint.entityIds[0];
-    if (!id) continue;
-    const list = axis.get(id) ?? [];
-    list.push(constraint);
-    axis.set(id, list);
-  }
-  return [...axis.entries()].flatMap(([entityId, list]) => {
-    const kinds = new Set(list.map((constraint) => constraint.kind));
-    if (kinds.size < 2) return [];
-    return [
-      {
-        code: "axis_conflict",
-        message: `${entityId} cannot be horizontal and vertical while preserving a non-zero length.`,
-        constraintIds: list.map((constraint) => constraint.id),
-      },
-    ];
-  });
-}
-
-function chooseReference(
-  constraint: CadConstraint,
-  changed: Set<string>,
-): { referenceId: string; targetId: string } | null {
-  const [a, b] = constraint.entityIds;
-  if (!a || !b) return null;
-  if (changed.has(b) && !changed.has(a)) return { referenceId: b, targetId: a };
-  return { referenceId: a, targetId: b };
-}
-
-function applyConstraint(
-  constraint: CadConstraint,
-  entities: Map<string, SolvableEntity>,
-  changed: Set<string>,
-): { delta: number; changedId?: string; error?: string } {
-  const firstId = constraint.entityIds[0];
-  const first = firstId ? entities.get(firstId) : undefined;
-  const firstSegment = first ? toSegment(first) : null;
-  if (!first || !firstSegment)
-    return {
-      delta: 0,
-      error: `Entity ${firstId ?? "(missing)"} is not a solvable wall/line.`,
-    };
-
-  let target = first;
-  let before = firstSegment;
-  let after: Segment;
-  if (constraint.kind === "horizontal") after = makeHorizontal(before);
-  else if (constraint.kind === "vertical") after = makeVertical(before);
-  else if (constraint.kind === "distance") {
-    if (!(constraint.value && constraint.value > 0))
-      return { delta: 0, error: "Distance must be greater than zero." };
-    after = setLength(before, constraint.value, "start");
-  } else if (constraint.kind === "angle") {
-    if (!Number.isFinite(constraint.value))
-      return { delta: 0, error: "Angle must be finite." };
-    after = setAngle(before, constraint.value!, "start");
-  } else {
-    const pair = chooseReference(constraint, changed);
-    if (!pair)
-      return { delta: 0, error: `${constraint.kind} needs two entities.` };
-    const reference = entities.get(pair.referenceId);
-    const targetEntity = entities.get(pair.targetId);
-    const referenceSegment = reference ? toSegment(reference) : null;
-    const targetSegment = targetEntity ? toSegment(targetEntity) : null;
-    if (!reference || !targetEntity || !referenceSegment || !targetSegment) {
-      return {
-        delta: 0,
-        error: `${constraint.kind} references an unknown entity.`,
-      };
-    }
-    target = targetEntity;
-    before = targetSegment;
-    if (constraint.kind === "parallel")
-      after = makeParallel(before, referenceSegment);
-    else if (constraint.kind === "perpendicular")
-      after = makePerpendicular(before, referenceSegment);
-    else if (constraint.kind === "equalLength")
-      after = makeEqualLength(before, referenceSegment);
-    else if (constraint.kind === "collinear")
-      after = makeCollinear(before, referenceSegment);
-    else {
-      const dx = before.b.x - before.a.x;
-      const dy = before.b.y - before.a.y;
-      after = {
-        a: { ...referenceSegment.b },
-        b: { x: referenceSegment.b.x + dx, y: referenceSegment.b.y + dy },
-      };
-    }
-  }
-
-  const next = fromSegment(target, after);
-  if (!next)
-    return {
-      delta: 0,
-      error: `${constraint.kind} produced degenerate geometry.`,
-    };
-  entities.set(target.id, next);
-  return { delta: maxDelta(before, after), changedId: target.id };
+  /** Variables libres menos ecuaciones independientes. */
+  degreesOfFreedom: number;
+  /** Los de arriba menos los movimientos de sólido rígido del conjunto. */
+  internalDegreesOfFreedom: number;
+  rigidBodyModes: number;
+  /** Restricciones que no aportan ecuación nueva (sobran, pero no estorban). */
+  redundantConstraintIds: string[];
+  /** Restricciones que se contradicen entre sí. */
+  conflictingConstraintIds: string[];
 }
 
 /**
- * Deterministic live solver for the wall/line subset. It never mutates the
- * input document and rolls back to it on conflict, degeneration or non-
- * convergence.
+ * Resuelve las restricciones del documento. Determinista: el mismo documento y
+ * las mismas restricciones dan exactamente la misma solución.
  */
 export function solveCadConstraints(
   document: CadDocument,
   changedEntityIds: string[] = [],
   options: { tolerance?: number; maxIterations?: number } = {},
 ): CadConstraintSolveResult {
-  const tolerance = Math.max(1e-9, options.tolerance ?? 1e-6);
-  const maxIterations = Math.min(64, Math.max(1, options.maxIterations ?? 16));
-  const constraints = document.constraints
-    .filter((constraint) => constraint.enabled)
-    .sort((a, b) => a.id.localeCompare(b.id));
-  const conflicts = conflictIssues(constraints);
-  if (conflicts.length) {
+  const parameters = evaluateCadParameters(document.parameters ?? [], { unit: document.meta.unit });
+  const solution = solveConstraintSystem(document.entities, document.constraints, {
+    tolerance: options.tolerance,
+    // El iterador anterior daba 16 pasadas sobre TODAS las restricciones; Newton
+    // necesita muchas menos, pero converger desde muy lejos con amortiguación
+    // fuerte puede pedir unas decenas. El techo alto sólo se paga cuando hace
+    // falta, porque el bucle sale en cuanto el residuo baja de la tolerancia.
+    maxIterations: options.maxIterations === undefined ? undefined : Math.max(16, options.maxIterations),
+    preferFixedEntityIds: changedEntityIds,
+    parameterValues: parameters.values,
+  });
+
+  const issues = [
+    ...parameters.issues.map((issue) => ({
+      code: issue.code,
+      message: issue.message,
+      constraintIds: [] as string[],
+    })),
+    ...solution.issues,
+  ];
+
+  if (!solution.converged)
     return {
       document,
-      status: "over_constrained",
+      status: solution.status,
       converged: false,
-      iterations: 0,
+      iterations: solution.iterations,
       changedEntityIds: [],
-      issues: conflicts,
+      issues,
+      degreesOfFreedom: solution.degreesOfFreedom,
+      internalDegreesOfFreedom: solution.internalDegreesOfFreedom,
+      rigidBodyModes: solution.rigidBodyModes,
+      redundantConstraintIds: solution.redundantConstraintIds,
+      conflictingConstraintIds: solution.conflictingConstraintIds,
     };
-  }
 
-  const solvable = new Map<string, SolvableEntity>();
-  for (const entity of document.entities) {
-    if (
-      entity.type === "line" ||
-      (entity.type === "box" && entity.kind === "wall")
-    )
-      solvable.set(entity.id, structuredClone(entity));
-  }
-  const changed = new Set(changedEntityIds);
-  const touched = new Set<string>();
-  const issues: CadConstraintSolveResult["issues"] = [];
-  let converged = constraints.length === 0;
-  let iterations = 0;
-
-  for (let pass = 1; pass <= maxIterations && constraints.length; pass++) {
-    iterations = pass;
-    let largest = 0;
-    for (const constraint of constraints) {
-      const result = applyConstraint(constraint, solvable, changed);
-      if (result.error) {
-        issues.push({
-          code: "constraint_invalid",
-          message: result.error,
-          constraintIds: [constraint.id],
-        });
-        return {
-          document,
-          status: "inconsistent",
-          converged: false,
-          iterations,
-          changedEntityIds: [],
-          issues,
-        };
-      }
-      largest = Math.max(largest, result.delta);
-      if (result.changedId && result.delta > tolerance)
-        touched.add(result.changedId);
-    }
-    if (largest <= tolerance) {
-      converged = true;
-      break;
-    }
-  }
-
-  if (!converged) {
-    return {
-      document,
-      status: "inconsistent",
-      converged: false,
-      iterations,
-      changedEntityIds: [],
-      issues: [
-        {
-          code: "constraint_no_convergence",
-          message: `Constraint graph did not converge in ${maxIterations} iterations.`,
-          constraintIds: constraints.map((constraint) => constraint.id),
-        },
-      ],
-    };
-  }
-
-  const entities = document.entities.map(
-    (entity) => solvable.get(entity.id) ?? entity,
-  );
-  const constrainedIds = new Set(
-    constraints.flatMap((constraint) => constraint.entityIds),
-  );
-  const status: CadConstraintSolveStatus =
-    constraints.length > 0 &&
-    [...constrainedIds].every(
-      (id) =>
-        constraints.filter((constraint) => constraint.entityIds.includes(id))
-          .length >= 2,
-    )
-      ? "fully_constrained"
-      : "under_constrained";
+  const solved = new Map<string, CadEntity>(solution.entities.map((entity) => [entity.id, entity]));
+  const entities = document.entities.map((entity) => solved.get(entity.id) ?? entity);
   return {
     document: { ...document, entities },
-    status,
+    status: solution.status,
     converged: true,
-    iterations,
-    changedEntityIds: [...touched].sort(),
+    iterations: solution.iterations,
+    changedEntityIds: solution.changedEntityIds,
     issues,
+    degreesOfFreedom: solution.degreesOfFreedom,
+    internalDegreesOfFreedom: solution.internalDegreesOfFreedom,
+    rigidBodyModes: solution.rigidBodyModes,
+    redundantConstraintIds: solution.redundantConstraintIds,
+    conflictingConstraintIds: solution.conflictingConstraintIds,
   };
 }
 
@@ -304,10 +123,17 @@ export function upsertCadConstraint(
   document: CadDocument,
   constraint: CadConstraint,
 ): CadDocument {
-  const constraints = document.constraints.filter(
-    (candidate) => candidate.id !== constraint.id,
-  );
+  const constraints = document.constraints.filter((candidate) => candidate.id !== constraint.id);
   constraints.push({ ...constraint, entityIds: [...constraint.entityIds] });
   constraints.sort((a, b) => a.id.localeCompare(b.id));
   return { ...document, constraints };
+}
+
+/** Baja de una restricción por id. Devuelve el documento intacto si no existe. */
+export function removeCadConstraint(document: CadDocument, constraintId: string): CadDocument {
+  if (!document.constraints.some((constraint) => constraint.id === constraintId)) return document;
+  return {
+    ...document,
+    constraints: document.constraints.filter((constraint) => constraint.id !== constraintId),
+  };
 }

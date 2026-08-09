@@ -99,7 +99,11 @@ const pickAt = (entityId: string, x: number, y: number): CadCommandInput => ({
   const result = run("STRETCH", [point(40, -10), point(200, 30), point(0, 0), point(30, 0)]);
   assert.ok(result && result.kind === "document");
   const byId = new Map(
-    result.commands.map((command) => [command.type === "insert" ? "" : command.entityId, command]),
+    // `entityId` sólo existe en los comandos que APUNTAN a una entidad: ni
+    // `insert` (trae la suya) ni los de sección —restricciones y parámetros—
+    // lo tienen. Se pregunta por la propiedad en vez de enumerar los tipos que
+    // no la traen, para que añadir un comando nuevo no rompa este spec.
+    result.commands.map((command) => ["entityId" in command ? command.entityId : "", command]),
   );
 
   const wall = byId.get("wall");
