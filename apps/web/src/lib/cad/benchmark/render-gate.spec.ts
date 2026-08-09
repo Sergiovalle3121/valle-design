@@ -184,13 +184,58 @@ function runProfile(profile: CadRenderBudgetProfile) {
   };
 }
 
-const measured = runProfile(gate);
+/**
+ * Se REPITE LA MEDIDA, nunca la aserción.
+ *
+ * Esta técnica no es mía: la demostró T11 en #65 sobre este mismo repositorio,
+ * y su aritmética es la razón por la que hace falta aquí. El ruido de
+ * planificación es ABSOLUTO —una pausa del recolector cuesta lo mismo a
+ * cualquier medida— pero el coste real de este pipeline es pequeño, así que un
+ * hipo de 5 ms apenas mueve un número de 70 ms y DUPLICA uno de 6 ms. Con los
+ * cuatro núcleos saturados, ninguna estadística salva una medida de reloj de
+ * pared tomada una sola vez: lo midieron, 5 de 12 corridas caían.
+ *
+ * Repetir la medida y juzgar la MEDIANA es distinto de reintentar la aserción.
+ * Reintentar la aserción esconde una regresión real —basta con que una de tres
+ * corridas pase—; la mediana exige que la MAYORÍA de las corridas estén dentro
+ * del presupuesto, así que un pipeline de verdad más lento sigue cayendo.
+ *
+ * Y la separación importa: las INVARIANTES no se medianizan. No dependen del
+ * reloj, así que se exigen en TODAS las corridas — que es más estricto que
+ * exigirlas en una.
+ */
+const GATE_RUNS = 3;
+const runs = Array.from({ length: GATE_RUNS }, () => runProfile(gate));
 const host = {
   logicalCpuCount: os.cpus().length,
   totalMemoryBytes: os.totalmem(),
   exposedGc: typeof (globalThis as { gc?: () => void }).gc === "function",
 };
+
+// Invariantes: en TODAS las corridas.
+for (const [index, run] of runs.entries()) {
+  const invariantVerdict = evaluateCadRenderBudget(run, gate, host, run.fullView);
+  const invariantViolations = blockingCadRenderViolations(invariantVerdict).filter(
+    (violation) => violation.kind === "invariant",
+  );
+  assert.deepEqual(
+    invariantViolations.map((violation) => violation.message),
+    [],
+    `Corrida ${index + 1}/${GATE_RUNS}: el pipeline rompió una INVARIANTE. Esto no es ruido de reloj.`,
+  );
+}
+
+// Tiempos: la corrida MEDIANA por firstDetailMs.
+const measured = [...runs].sort(
+  (left, right) => left.next.firstDetailMs - right.next.firstDetailMs,
+)[Math.floor((runs.length - 1) / 2)];
 const verdict = evaluateCadRenderBudget(measured, gate, host, measured.fullView);
+console.log(
+  `muestras firstDetailMs: [${runs.map((run) => run.next.firstDetailMs).join(" · ")}] → mediana ${measured.next.firstDetailMs}`,
+);
+console.log(
+  `muestras panFrameP95Ms: [${runs.map((run) => run.next.panFrameP95Ms).join(" · ")}]`,
+);
 console.log(formatCadRenderVerdict(verdict));
 
 const blocking = blockingCadRenderViolations(verdict);
