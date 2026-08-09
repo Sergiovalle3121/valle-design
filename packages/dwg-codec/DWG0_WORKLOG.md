@@ -61,3 +61,51 @@ sin cambiar reglas, retries ni timeouts, usando 4 GiB como ya hace el build del
 repositorio; la repetición completa pasó. Un sondeo posterior de 1 segundo fue
 interrumpido por el timeout del wrapper antes de relanzar esa ejecución
 supervisada; no se clasificó como fallo de producto.
+
+## Fase 2 — fundamentos binarios
+
+- PR 1 se fusionó por squash como
+  `792c06036c6102b3e26d78a69007ecf500d844b1`; su head exacto tuvo cuatro jobs
+  verdes. La rama de fase 2 partió del `origin/main`
+  `8be49a5500758b46e20ebe746d81edf208083dc1`, que contiene ese squash.
+- El run exacto de esa base, `31309553089`, terminó con quality, Gitleaks y SBOM
+  verdes y un fallo E2E histórico de propiedades CAD en Firefox. La instrucción
+  explícita posterior autorizó continuar la implementación aislada; no autoriza
+  ocultar el rojo ni fusionar. PR 2 permanece bloqueado para merge hasta que el
+  SHA exacto de `main` requerido tenga CI completa verde.
+- La procedencia de código, fixtures y herramientas se registró antes de
+  derivarlos en los commits `8a62316`, `62216c5`, `556c954` y `59a7c49`.
+- Se añadieron sólo herramientas dev fijadas: Ajv `8.20.0`, ajv-formats `3.0.1`,
+  tsx `4.23.1`, TypeScript `5.9.3` y `@types/node` `22.20.1`. El codec conserva
+  cero dependencias runtime, `private:true` y `UNLICENSED`.
+- El corpus contiene 21 archivos sintéticos first-party, 109 bytes y 21 hashes
+  SHA-256 distintos. No contiene un DWG real ni material externo y ningún
+  fixture declara resultado `ok`.
+- No se consultó, copió, tradujo, portó ni adaptó implementación externa de
+  Autodesk, RealDWG, ODA, LibreDWG u otro codec.
+
+| Gate focal de fase 2  | Resultado                                                                                                                                                   |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `check:provenance`    | 5/5 fuentes permitidas, 80 archivos gobernados y 21 fixtures enlazados.                                                                                     |
+| `check:fixtures`      | 21/21 archivos, 109 bytes y 21 hashes únicos; bytes/manifiesto coinciden con el generador determinista.                                                     |
+| `check:no-io`         | 21 fuentes del núcleo, 4 probes dinámicos y 8 controles negativos; sin filesystem, red, telemetría ni estado de producto.                                   |
+| `check:boundary`      | 21 fuentes y 24 archivos de laboratorio revisados; 2 controles de código dinámico, cero dependencias runtime e imports de producto.                         |
+| Frontera de producto  | 4 workspaces, 4 manifests y 894 fuentes revisadas; 3 specs conservan rechazo/no disponibilidad y hay cero imports runtime del laboratorio.                  |
+| Unitarias             | 100/100: API, versiones, snapshots, límites, cursores, aritmética, modelo neutral, arrays hostiles, errores y supervisor.                                   |
+| Adversariales         | 349/349: truncación exhaustiva, 160 subcasos hostiles, límites, cancelación/deadline, worker no cooperativo y hardening de procedencia.                     |
+| Fuzz smoke            | 20,000 ejecuciones en dos pasadas SHA-256 deterministas; input `0f51ac40…b648`, resultado `72cd5397…59fb`, sin crash, hang ni `DWG_INTERNAL_ERROR`.         |
+| Benchmark smoke local | Node 22/Windows x64; snapshot exacto de 16 MiB en 9.875 ms y 16,777,223 unidades; resultado `decoder-unsupported`. Medición sin umbral ni claim productivo. |
+
+## Decisión de lenguaje del corte
+
+TypeScript estricto permanece como baseline, oráculo diferencial y fallback
+worker-compatible. La medición actual sólo cubre snapshot y firma; no existe un
+decoder común que permita demostrar una mejora material de Rust, paridad
+diferencial o costes reales de memoria/CPU sobre estructuras DWG. Por tanto no
+se añade Rust, WASM, toolchain nativo ni `unsafe` superficialmente.
+
+El próximo gate profundo no es “decodificar por intuición”: requiere registrar
+primero fuentes permitidas y vectores redistribuibles e independientes para el
+envelope AC1015. Mientras sólo existan fixtures producidos por el mismo
+generador, `ac1015Envelope`, object database, entidades, mapping, writer y
+round-trip permanecen `unsupported`.
