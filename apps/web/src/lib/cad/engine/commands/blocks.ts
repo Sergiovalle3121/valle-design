@@ -338,6 +338,10 @@ const insertCommand: CadCommandDescriptor<InsertState> = {
     if (input.kind === "cancel") return nothing(state);
 
     if (!state.block) {
+      // Enter con la caja vacía en el primer paso CANCELA. AutoCAD ofrecería
+      // aquí el último bloque insertado como valor por defecto; mientras no lo
+      // haya, repreguntar sin fin es peor que soltar el comando.
+      if (input.kind === "enter") return nothing(state);
       if (input.kind !== "text") return insertStep(state);
       const typed = input.value.trim();
       if (typed === "?") return message(state, blockList(context));
