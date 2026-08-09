@@ -18,15 +18,17 @@
       "terms": {
         "license": "Valle proprietary owner authorization",
         "access": "Supplied directly by the repository owner for this work",
-        "redistribution": "Only this metadata and the resulting first-party governance may be published; the directive text is not redistributed",
+        "redistribution": "This metadata, original first-party DWG-0 implementation and Valle synthetic fixtures may remain in this owner-controlled repository; the directive text and external material are not redistributed",
         "notes": "Authorization is limited to clean-room research in valle-design and is not a legal opinion, DWG license or certification"
       },
       "status": "allowed",
       "factsConsulted": [
         "Valle may research an original first-party DWG implementation inside this monorepo without a commercial codec",
+        "Valle may publish original first-party DWG-0 code and deterministic synthetic fixtures in this owner-controlled repository",
         "Product DWG availability must remain false throughout DWG-0",
         "Restricted implementations, ambiguous sources and non-permissive licensing are prohibited",
-        "Work must use isolated branches, exact-SHA gates and no protection bypass"
+        "Work must use isolated branches, exact-SHA gates and no protection bypass",
+        "DWG-0 phase 2 requires a strict TypeScript binary baseline, neutral model foundations, provenance gates, synthetic corpus, adversarial tests, deterministic fuzzing and benchmark evidence"
       ],
       "derivedFiles": [
         "AGENTS.md",
@@ -43,7 +45,80 @@
         "packages/dwg-codec/THREAT_MODEL.md",
         "packages/dwg-codec/SOURCE_REGISTER.json",
         "packages/dwg-codec/source-register.schema.json",
-        "packages/dwg-codec/fixtures/manifest.schema.json"
+        "packages/dwg-codec/fixtures/manifest.schema.json",
+        ".github/workflows/ci.yml",
+        "package-lock.json",
+        "package.json",
+        "scripts/dwg/check-product-boundary.mjs",
+        "packages/dwg-codec/package.json",
+        "packages/dwg-codec/tsconfig.json",
+        "packages/dwg-codec/tsconfig.test.json",
+        "packages/dwg-codec/src/index.ts",
+        "packages/dwg-codec/src/api/diagnostics.ts",
+        "packages/dwg-codec/src/api/limits.ts",
+        "packages/dwg-codec/src/api/probe.ts",
+        "packages/dwg-codec/src/api/results.ts",
+        "packages/dwg-codec/src/binary/bit-cursor.ts",
+        "packages/dwg-codec/src/binary/byte-cursor.ts",
+        "packages/dwg-codec/src/binary/checked-arithmetic.ts",
+        "packages/dwg-codec/src/binary/range-table.ts",
+        "packages/dwg-codec/src/container/signature.ts",
+        "packages/dwg-codec/src/container/version-registry.ts",
+        "packages/dwg-codec/src/model/database.ts",
+        "packages/dwg-codec/src/model/handle.ts",
+        "packages/dwg-codec/src/model/opaque-object.ts",
+        "packages/dwg-codec/src/model/reference.ts",
+        "packages/dwg-codec/src/model/symbol-table.ts",
+        "packages/dwg-codec/src/security/input-snapshot.ts",
+        "packages/dwg-codec/src/security/parse-error.ts",
+        "packages/dwg-codec/src/security/resource-budget.ts",
+        "packages/dwg-codec/src/security/worker-supervisor.ts",
+        "packages/dwg-codec/scripts/check-boundary.ts",
+        "packages/dwg-codec/scripts/check-fixtures.ts",
+        "packages/dwg-codec/scripts/check-no-io.ts",
+        "packages/dwg-codec/scripts/check-provenance.ts",
+        "packages/dwg-codec/scripts/fixture-validation.ts",
+        "packages/dwg-codec/scripts/json-document.ts",
+        "packages/dwg-codec/scripts/provenance-validation.ts",
+        "packages/dwg-codec/scripts/safe-path.ts",
+        "packages/dwg-codec/scripts/schema-validation.ts",
+        "packages/dwg-codec/tests/adversarial.spec.ts",
+        "packages/dwg-codec/tests/unit.spec.ts",
+        "packages/dwg-codec/tests/adversarial/probe-boundary.spec.ts",
+        "packages/dwg-codec/tests/adversarial/resource-limits.spec.ts",
+        "packages/dwg-codec/tests/adversarial/worker-timeout.spec.ts",
+        "packages/dwg-codec/tests/support/assert.ts",
+        "packages/dwg-codec/tests/support/fake-clock.ts",
+        "packages/dwg-codec/tests/unit/api.spec.ts",
+        "packages/dwg-codec/tests/unit/binary.spec.ts",
+        "packages/dwg-codec/tests/unit/model.spec.ts",
+        "packages/dwg-codec/tests/unit/security.spec.ts",
+        "packages/dwg-codec/fixtures/.gitattributes",
+        "packages/dwg-codec/fixtures/manifest.json",
+        "packages/dwg-codec/fixtures/generators/generate-synthetic.ts",
+        "packages/dwg-codec/fixtures/synthetic/invalid/lowercase-ac1015.dwg",
+        "packages/dwg-codec/fixtures/synthetic/invalid/nondigit-ac10a5.dwg",
+        "packages/dwg-codec/fixtures/synthetic/invalid/shifted-xac1015.dwg",
+        "packages/dwg-codec/fixtures/synthetic/recognized/ac1009.dwg",
+        "packages/dwg-codec/fixtures/synthetic/recognized/ac1012.dwg",
+        "packages/dwg-codec/fixtures/synthetic/recognized/ac1014.dwg",
+        "packages/dwg-codec/fixtures/synthetic/recognized/ac1015-tail.dwg",
+        "packages/dwg-codec/fixtures/synthetic/recognized/ac1015.dwg",
+        "packages/dwg-codec/fixtures/synthetic/recognized/ac1018.dwg",
+        "packages/dwg-codec/fixtures/synthetic/recognized/ac1021.dwg",
+        "packages/dwg-codec/fixtures/synthetic/recognized/ac1024.dwg",
+        "packages/dwg-codec/fixtures/synthetic/recognized/ac1027.dwg",
+        "packages/dwg-codec/fixtures/synthetic/recognized/ac1032.dwg",
+        "packages/dwg-codec/fixtures/synthetic/truncated/ac1015-prefix-1.dwg",
+        "packages/dwg-codec/fixtures/synthetic/truncated/ac1015-prefix-2.dwg",
+        "packages/dwg-codec/fixtures/synthetic/truncated/ac1015-prefix-3.dwg",
+        "packages/dwg-codec/fixtures/synthetic/truncated/ac1015-prefix-4.dwg",
+        "packages/dwg-codec/fixtures/synthetic/truncated/ac1015-prefix-5.dwg",
+        "packages/dwg-codec/fixtures/synthetic/truncated/empty.dwg",
+        "packages/dwg-codec/fixtures/synthetic/unknown/ac1000.dwg",
+        "packages/dwg-codec/fixtures/synthetic/unknown/ac1099.dwg",
+        "packages/dwg-codec/fuzz/smoke.ts",
+        "packages/dwg-codec/benchmarks/smoke.ts"
       ],
       "reviewer": "Codex preflight; owner is the authorizing party",
       "reviewedAt": "2026-08-09",
@@ -88,6 +163,106 @@
       "reviewer": "Codex repository preflight",
       "reviewedAt": "2026-08-09",
       "notes": "No third-party DWG facts were derived from the existing detector; its current behavior is only a first-party compatibility baseline"
+    },
+    {
+      "id": "VALLE-REPO-BASE-8BE49A55",
+      "owner": "Sergio Valle Zarate",
+      "origin": {
+        "type": "first-party-repository",
+        "location": "https://github.com/Sergiovalle3121/valle-design/tree/8be49a5500758b46e20ebe746d81edf208083dc1",
+        "accessedAt": "2026-08-09"
+      },
+      "title": "Valle Design phase-2 workspace, CI and DWG product boundary baseline",
+      "versionOrDate": "8be49a5500758b46e20ebe746d81edf208083dc1",
+      "terms": {
+        "license": "Valle proprietary software; UNLICENSED",
+        "access": "First-party repository controlled by the owner",
+        "redistribution": "Original changes may remain in the same owner-controlled repository under its existing terms",
+        "notes": "Authoritative implementation baseline for DWG-0 phase 2"
+      },
+      "status": "allowed",
+      "factsConsulted": [
+        "The npm workspace discovers packages under packages/* and Turbo captures dist outputs",
+        "The first-party detector recognizes AC10xx at offset zero and maps nine known version codes while keeping nativeSupport false",
+        "The product provider remains unavailable and product import rejects DWG",
+        "CI uses the repository Node version, npm ci, blocking quality gates, Chromium and Firefox E2E, Gitleaks and CycloneDX evidence",
+        "New TypeScript and JavaScript files must remain below the monorepo 800-line budget"
+      ],
+      "derivedFiles": [
+        ".github/workflows/ci.yml",
+        "package-lock.json",
+        "package.json",
+        "scripts/dwg/check-product-boundary.mjs",
+        "packages/dwg-codec/package.json",
+        "packages/dwg-codec/tsconfig.json",
+        "packages/dwg-codec/tsconfig.test.json",
+        "packages/dwg-codec/src/index.ts",
+        "packages/dwg-codec/src/container/signature.ts",
+        "packages/dwg-codec/src/container/version-registry.ts",
+        "packages/dwg-codec/scripts/check-boundary.ts",
+        "packages/dwg-codec/tests/unit/api.spec.ts"
+      ],
+      "reviewer": "Codex phase-2 repository preflight",
+      "reviewedAt": "2026-08-09",
+      "notes": "No external DWG implementation, specification, SDK or fixture was consulted"
+    },
+    {
+      "id": "AJV-8.20.0-OFFICIAL",
+      "owner": "Ajv contributors",
+      "origin": {
+        "type": "public-documentation",
+        "location": "https://www.npmjs.com/package/ajv/v/8.20.0",
+        "accessedAt": "2026-08-09"
+      },
+      "title": "Ajv JSON Schema validator 8.20.0 package metadata",
+      "versionOrDate": "8.20.0",
+      "terms": {
+        "license": "MIT",
+        "access": "Public package metadata",
+        "redistribution": "Development-only use under the MIT license",
+        "notes": "Tooling only; not a DWG technical source or runtime dependency"
+      },
+      "status": "allowed",
+      "factsConsulted": [
+        "Ajv 8 provides a Draft 2020 validator entry point and strict schema validation"
+      ],
+      "derivedFiles": [
+        "package-lock.json",
+        "packages/dwg-codec/package.json",
+        "packages/dwg-codec/scripts/schema-validation.ts"
+      ],
+      "reviewer": "Codex dependency provenance review",
+      "reviewedAt": "2026-08-09",
+      "notes": "Pinned development dependency only"
+    },
+    {
+      "id": "AJV-FORMATS-3.0.1-OFFICIAL",
+      "owner": "Ajv contributors",
+      "origin": {
+        "type": "public-documentation",
+        "location": "https://www.npmjs.com/package/ajv-formats/v/3.0.1",
+        "accessedAt": "2026-08-09"
+      },
+      "title": "ajv-formats 3.0.1 package metadata",
+      "versionOrDate": "3.0.1",
+      "terms": {
+        "license": "MIT",
+        "access": "Public package metadata",
+        "redistribution": "Development-only use under the MIT license",
+        "notes": "Tooling only; supplies date and date-time format validation"
+      },
+      "status": "allowed",
+      "factsConsulted": [
+        "ajv-formats adds standard date and date-time validation to Ajv"
+      ],
+      "derivedFiles": [
+        "package-lock.json",
+        "packages/dwg-codec/package.json",
+        "packages/dwg-codec/scripts/schema-validation.ts"
+      ],
+      "reviewer": "Codex dependency provenance review",
+      "reviewedAt": "2026-08-09",
+      "notes": "Pinned development dependency only"
     }
   ]
 }
