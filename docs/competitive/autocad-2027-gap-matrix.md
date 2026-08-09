@@ -249,8 +249,29 @@ pedía. Van aquí con su evidencia porque son el subproducto útil del ejercicio
 5. **El número más impresionante del repositorio no lo nota nadie.** Ver la
    tercera advertencia de la sección de benchmarks.
 
-Ninguno de estos cinco es un fallo de un gate: todos pasan hoy. Son fallos que
-sólo se ven mirando el conjunto, que es precisamente lo que una rúbrica hace.
+Los cinco anteriores no rompen ningún gate: pasan todos hoy. Son fallos que sólo
+se ven mirando el conjunto, que es precisamente lo que una rúbrica hace. El
+sexto sí rompe un gate, y estaba antes de este corte:
+
+6. **El autoguardado se cuela por delante del guardado explícito.** Nueve
+   goldens afirman `expect.poll(() => backend.snapshot().version).toBe(...)` tras
+   pulsar «Guardar»; ocho de ellos esperan la versión 1. En una máquina cargada
+   el debounce del autoguardado (`components/cad/document-lifecycle/autosave.ts:29`
+   y `:81`) vence antes que el clic y el backend llega a la versión 2, así que el
+   golden falla con `Expected: 1 / Received: 2`. Medido el 2026-08-09 sobre
+   `8be49a5` en Chromium, con el árbol de `main` limpio: `17-cad-native-mleader`
+   (`:71`) y `24-cad-canonical-layers` (`:67`) fallan de forma reproducible, y
+   `19-cad-professional-workbench` falla o no según la carga.
+
+   No es un fallo del test: el aserto es correcto y lo que expone es real. Un
+   usuario que edita y guarda a mano produce **dos** versiones en el historial
+   donde debería producir una, y el número de versión de un documento es dato de
+   producto —lo consumen historia, versiones y el CAS—. El punto
+   `persistence.cas` sigue otorgado porque la cola de un solo escritor y el 409
+   existen y funcionan; lo que falta es que un guardado manual **supersede** al
+   debounce pendiente en vez de sumarse a él. El propio `autosave.ts:3` dice que
+   ésa es la intención («supersedes a pending debounce»), así que el defecto está
+   entre la intención declarada y lo que se observa, no en el diseño.
 
 ## Prioridad: los diez puntos más baratos por valor comercial
 
