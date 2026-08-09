@@ -32,7 +32,7 @@
  * - **El motor no sabe de snaps.** Los catorce modos de `snap-engine.ts` entran
  *   como un override por paso, así que añadir modos no toca el motor.
  */
-import type { CadEntity, CadPoint2 } from "../cad-document";
+import type { CadBlockDefinition, CadEntity, CadPoint2 } from "../cad-document";
 import type { CadEntityCommand } from "../entity-commands";
 import type { SnapType } from "../snap-engine";
 
@@ -112,6 +112,16 @@ export interface CadCommandContext {
    * quieran, y sus specs se montan con un objeto de tres líneas.
    */
   entity?: (entityId: string) => CadEntity | undefined;
+  /**
+   * Definiciones de bloque del documento, si el anfitrión las expone.
+   *
+   * EXPLODE de un INSERT no se puede resolver sin ellas: hay que ir a buscar el
+   * contenido del bloque y aplicarle la inserción. Es opcional porque la
+   * inmensa mayoría de los comandos no la necesita y obligar a montarla haría
+   * más caras todas sus specs; quien la necesite y no la reciba se niega
+   * diciéndolo, en vez de explotar el bloque a la nada.
+   */
+  blocks?: () => readonly CadBlockDefinition[];
   selection: readonly string[];
   activeLayer: string;
   view: CadViewSnapshot;

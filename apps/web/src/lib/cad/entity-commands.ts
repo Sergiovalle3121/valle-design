@@ -15,6 +15,8 @@ import {
   commitChange,
   preserveDrawOrder,
   type CadDocument,
+  type CadEntityContext,
+  type CadEntityPresentation,
   type CadPoint2,
 } from "./cad-document";
 import { regenerateAssociativeDimensions } from "./associative-dimension";
@@ -49,6 +51,27 @@ export type CadEntityCommand =
    * cotas asociativas y los sombreados que dependen de esa entidad.
    */
   | { type: "replace"; entityId: string; entity: CadNativeEntity }
+  /**
+   * Fusiona claves en `context.metadata`, sin tocar el resto del contexto.
+   *
+   * Existe para las asociatividades que NO tienen campo propio en el esquema.
+   * ARRAY necesita dejar escrito en cada copia de qué matriz forma parte y con
+   * qué parámetros se generó; sin eso, la matriz deja de existir en cuanto se
+   * suelta el ratón y «asociativa» es una palabra. El bolsillo de propiedades
+   * no vale: `properties.write` es por adaptador y ninguno expone el contexto.
+   *
+   * Un valor `null` BORRA la clave, que es como una matriz se desasocia.
+   */
+  | { type: "metadata"; entityId: string; patch: Record<string, string | number | boolean | null> }
+  /**
+   * Sustituye la presentación EXPLÍCITA de la entidad (color, tipo de línea y
+   * grosor propios, frente a los heredados de la capa). Es lo que MATCHPROP
+   * copia y lo único que no cabe en `properties`, que es por adaptador y no
+   * expone el contexto. `null` la borra entera, devolviendo la entidad a
+   * PorCapa — que es un resultado distinto de «no cambiar nada» y por eso se
+   * puede pedir.
+   */
+  | { type: "presentation"; entityId: string; presentation: CadEntityPresentation | null }
   | { type: "hatch-association"; entityId: string; associative: boolean }
   | { type: "dimension-association"; entityId: string; associative: boolean }
   | { type: "mleader-association"; entityId: string; associative: boolean }
@@ -178,6 +201,35 @@ export function executeCadEntityCommandBatch(
       if (!registry.supports(command.entity))
         throw new Error(`CAD entity ${incomingId} is not a native entity.`);
       present.set(command.entity.id, command.entity);
+      regenerationSourceIds.push(source.id);
+    } else if (command.type === "metadata") {
+      const merged: Record<string, string | number | boolean | null> = {
+        ...(source.context?.metadata ?? {}),
+      };
+      for (const [key, value] of Object.entries(command.patch)) {
+        if (value === null) delete merged[key];
+        else merged[key] = value;
+      }
+      // Un `metadata` vacío se quita entero, y un contexto que se queda sin
+      // nada también: dejar `{}` colgando cambiaría el serializado de todas las
+      // entidades que nunca han tenido metadatos y rompería la comparación de
+      // documentos.
+      const context: CadEntityContext = { ...(source.context ?? {}) };
+      if (Object.keys(merged).length === 0) delete context.metadata;
+      else context.metadata = merged;
+      present.set(
+        source.id,
+        Object.keys(context).length === 0
+          ? { ...source, context: undefined }
+          : { ...source, context },
+      );
+      regenerationSourceIds.push(source.id);
+    } else if (command.type === "presentation") {
+      const context: CadEntityContext = { ...(source.context ?? {}) };
+      if (command.presentation === null) delete context.presentation;
+      else context.presentation = structuredClone(command.presentation);
+      const empty = Object.keys(context).length === 0;
+      present.set(source.id, empty ? { ...source, context: undefined } : { ...source, context });
       regenerationSourceIds.push(source.id);
     } else if (command.type === "hatch-association") {
       if (source.type !== "hatch") throw new Error("Hatch association commands require a HATCH entity.");
