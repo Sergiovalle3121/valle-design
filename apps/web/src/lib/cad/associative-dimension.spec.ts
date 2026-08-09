@@ -45,8 +45,13 @@ assert.deepEqual(regenerated.regeneratedIds, ['associated']);
 const next = regenerated.entities.find((entity) => entity.id === 'associated');
 assert.equal(next?.type, 'dimension');
 if (next?.type === 'dimension') {
-  assert.deepEqual(next.a, { x: 10, y: 20, z: 0 });
-  assert.deepEqual(next.b, { x: 210, y: 20, z: 0 });
+  // Los puntos de definición de una cota son 2D en el esquema. Los anclajes
+  // salen de geometría 3D (`line.start` lleva `z`), y copiarlos tal cual le
+  // añadía una `z` a la cota en la primera regeneración: la misma cota se
+  // serializaba distinto según si había pasado por aquí. El adaptador ya la
+  // descartaba al transformar; la regeneración hace ahora lo mismo.
+  assert.deepEqual(next.a, { x: 10, y: 20 });
+  assert.deepEqual(next.b, { x: 210, y: 20 });
 }
 const broken = regenerateAssociativeDimensions([associated], ['line']);
 assert.deepEqual(broken.brokenIds, ['associated']);

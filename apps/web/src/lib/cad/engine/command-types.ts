@@ -117,6 +117,27 @@ export interface CadViewSnapshot {
   centerY: number;
 }
 
+/**
+ * Estado de SESIÓN del motor. No es del documento y no se guarda.
+ *
+ * `DIMBASELINE` y `DIMCONTINUE` encadenan desde «la cota anterior», y eso no es
+ * una propiedad del dibujo: dos personas con el mismo plano abierto tienen cada
+ * una la suya. Guardarlo en el documento lo haría viajar por la red y aparecer
+ * en el diff; guardarlo en un módulo global lo haría compartido entre pestañas y
+ * no comprobable en una spec. Va aquí, en el contexto, de SÓLO LECTURA para los
+ * comandos: quien lo mantiene es el anfitrión, que es quien ve lo que se aplicó.
+ */
+export interface CadCommandSession {
+  /**
+   * Id de la última cota creada en esta sesión, si sigue existiendo.
+   *
+   * Puede faltar —sesión recién abierta, o la cota se borró— y entonces
+   * `DIMBASELINE`/`DIMCONTINUE` PIDEN la cota base en vez de fallar: es lo que
+   * hace AutoCAD y la única respuesta honesta cuando no hay de dónde encadenar.
+   */
+  lastDimensionId?: string;
+}
+
 export interface CadCommandContext {
   /** Entidades presentes, sólo para consultar; el motor no las muta. */
   entityIds: readonly string[];
@@ -205,6 +226,8 @@ export interface CadCommandContext {
   catalogs?: CadSessionCatalogs;
   /** Posición actual del puntero en unidades de dibujo, si se conoce. */
   cursor?: CadPoint2;
+  /** Rastro de lo hecho en esta sesión. Ver `CadCommandSession`. */
+  session?: CadCommandSession;
   /**
    * Generador de identificadores, inyectado. Los comandos no llaman a
    * `crypto.randomUUID()` por su cuenta: si lo hicieran, sus specs no serían

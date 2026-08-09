@@ -5,7 +5,7 @@ import type { CadEntityAdapter, CadEntityTransform, CadNativeEntity, CadProperty
 // `entity-runtime` importa este módulo, así que ir por él cerraría un ciclo que
 // revienta al cargar («Cannot access X before initialization»). Ya pasó con el
 // adaptador de sombreado.
-import { cadTransformPoint3, cadTransformScaleFactor } from './transform2d';
+import { cadTransformIsReflecting, cadTransformPoint3, cadTransformScaleFactor } from './transform2d';
 
 type NativeDimension = Extract<CadNativeEntity, { type: 'dimension' }>;
 
@@ -108,10 +108,22 @@ export const dimensionAdapter: CadEntityAdapter<NativeDimension> = {
     // de tamaño. `cadTransformScaleFactor` es √|det|, definido para CUALQUIER
     // afín, y coincide con `|scale|` en el vocabulario histórico.
     const factor = cadTransformScaleFactor(transform);
+    // El desfase de una cota ALINEADA es una proyección sobre la NORMAL del
+    // tramo, y su signo es el que elige de qué lado sale la línea de cota. Una
+    // reflexión invierte la mano del par (dirección, normal): la normal que
+    // `alignedDimension` recalcula del tramo espejado apunta al lado CONTRARIO,
+    // así que conservar el signo mandaba la cota al otro lado de la pieza —el
+    // texto seguía diciendo la verdad y el dibujo estaba mal.
+    //
+    // Sólo `aligned` se corrige. En una cota LINEAL el desfase se mide desde el
+    // extremo MAYOR del eje (`Math.max`), y bajo una reflexión el mayor pasa a
+    // ser el menor: eso no se puede expresar cambiándole el signo al desfase, y
+    // arreglarlo pide un campo que el esquema no tiene. Queda anotado.
+    const alignedFlip = (entity.dimensionKind ?? 'aligned') === 'aligned' && cadTransformIsReflecting(transform) ? -1 : 1;
     return {
       ...entity, a: transformPoint(entity.a, transform), b: transformPoint(entity.b, transform), c: entity.c ? transformPoint(entity.c, transform) : undefined,
       textPosition: entity.textPosition ? transformPoint(entity.textPosition, transform) : undefined,
-      offset: (entity.offset ?? 0) * factor, radius: entity.radius === undefined ? undefined : entity.radius * factor,
+      offset: (entity.offset ?? 0) * factor * alignedFlip, radius: entity.radius === undefined ? undefined : entity.radius * factor,
       associative: false, associationStatus: 'detached', context: entity.context ? structuredClone(entity.context) : undefined,
     };
   } },

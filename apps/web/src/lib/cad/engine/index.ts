@@ -10,6 +10,15 @@
 import { CAD_DRAW_BASIC_COMMANDS } from "./commands/draw-basics";
 import { CAD_DRAW_CURVE_COMMANDS } from "./commands/draw-curves";
 import { CAD_ANNOTATION_V4_COMMANDS } from "./commands/draw-annotation-v4";
+import { CAD_ANNOTATE_STYLE_COMMANDS } from "./commands/annotate-styles";
+import { CAD_DIMENSION_ANGULAR_COMMANDS } from "./commands/annotate-dimensions-angular";
+import { CAD_HATCH_COMMANDS } from "./commands/annotate-hatch";
+import { CAD_LEADER_COMMANDS } from "./commands/annotate-leaders";
+import { CAD_TOLERANCE_COMMANDS } from "./commands/annotate-tolerance";
+import { CAD_DIMENSION_CHAIN_COMMANDS } from "./commands/annotate-dimension-chains";
+import { CAD_DIMENSION_LINEAR_COMMANDS } from "./commands/annotate-dimensions";
+import { CAD_DIMENSION_RADIAL_COMMANDS } from "./commands/annotate-dimensions-radial";
+import { CAD_ANNOTATE_TEXT_COMMANDS } from "./commands/annotate-text";
 import { CAD_DRAW_CONSTRUCTION_COMMANDS } from "./commands/draw-construction";
 import { CAD_DRAW_FILL_COMMANDS } from "./commands/draw-fills";
 import { CAD_DRAW_PLINE_COMMANDS } from "./commands/draw-pline";
@@ -61,6 +70,15 @@ export const CAD_COMMAND_DESCRIPTORS = [
   ...CAD_DRAW_CONSTRUCTION_COMMANDS,
   ...CAD_DRAW_FILL_COMMANDS,
   ...CAD_ANNOTATION_V4_COMMANDS,
+  ...CAD_ANNOTATE_TEXT_COMMANDS,
+  ...CAD_ANNOTATE_STYLE_COMMANDS,
+  ...CAD_DIMENSION_LINEAR_COMMANDS,
+  ...CAD_DIMENSION_ANGULAR_COMMANDS,
+  ...CAD_DIMENSION_RADIAL_COMMANDS,
+  ...CAD_DIMENSION_CHAIN_COMMANDS,
+  ...CAD_HATCH_COMMANDS,
+  ...CAD_LEADER_COMMANDS,
+  ...CAD_TOLERANCE_COMMANDS,
   ...CAD_MODIFY_BASIC_COMMANDS,
   ...CAD_MODIFY_TRANSFORM_COMMANDS,
   ...CAD_MODIFY_EDGE_COMMANDS,

@@ -24,6 +24,7 @@ import {
   type CadPaperSpace,
   type CadParameter,
   type CadPoint2,
+  type CadStyleTable,
 } from "./cad-document";
 import {
   deleteCadParameter,
@@ -34,6 +35,11 @@ import { solveConstraintSystem } from "./constraints/solver";
 import { regenerateAssociativeDimensions } from "./associative-dimension";
 import { regenerateAssociativeMleaders } from "./associative-mleader";
 import { regenerateAssociativeHatches } from "./hatch-associativity";
+import {
+  applyDocumentTables,
+  isCadTableCommand,
+  type CadDocumentTableCommand,
+} from "./entity-command-tables";
 import {
   CAD_ENTITY_REGISTRY,
   CadEntityRegistry,
@@ -149,6 +155,29 @@ export type CadEntityCommand =
       referenceId?: string;
     }
   /**
+   * La tabla de ESTILOS, que es otra sección del documento.
+   *
+   * Existe porque `STYLE`, `DIMSTYLE`, `MLEADERSTYLE` y `TABLESTYLE` tienen que
+   * poder escribirla, y sin esto sólo podían hacerlo llamando a `commitChange`
+   * por su cuenta — una segunda ruta de mutación, que es exactamente la
+   * propiedad que este módulo existe para impedir. Con esto, «crea el estilo
+   * COTAS-2 y aplícaselo a esta cota» es UN lote y UN paso de deshacer.
+   *
+   * No entra en `CadDocumentSectionCommand` a propósito: aquella rama resuelve
+   * el sistema de restricciones entero, y definir un estilo de texto no mueve
+   * geometría. Pagar un solve por un cambio de fuente sería gratuito sólo en un
+   * dibujo vacío.
+   */
+  | {
+      type: "style";
+      entity?: undefined;
+      op: "upsert";
+      family: CadStyleFamilyName;
+      name: string;
+      values: Readonly<Record<string, string | number | boolean>>;
+    }
+  | { type: "style"; entity?: undefined; op: "delete"; family: CadStyleFamilyName; name: string }
+  /**
    * Presentaciones: otra SECCIÓN del documento, por el mismo embudo.
    *
    * LAYOUT, MVIEW, PAGESETUP y el bloqueo de escala de una ventana escriben
@@ -165,27 +194,64 @@ export type CadEntityCommand =
   | { type: "paper-space"; entity?: undefined; op: "delete"; spaceId: string }
   | { type: "paper-space"; entity?: undefined; op: "reorder"; spaceIds: readonly string[] };
 
-/** Los que operan sobre secciones del documento y no sobre entidades. */
+/** Las cinco familias de `CadStyleTable`. */
+export type CadStyleFamilyName = "text" | "dimension" | "mleader" | "table" | "plot";
+
+/**
+ * Los que operan sobre secciones del documento y no sobre entidades.
+ *
+ * `style` NO entra: esta rama resuelve el sistema de restricciones entero al
+ * aplicarse, y definir una fuente o un tamaño de flecha no mueve geometría.
+ */
 type CadDocumentSectionCommand = Extract<
   CadEntityCommand,
   { type: "constraint" | "parameter" | "paper-space" }
 >;
-
-/**
- * Tablas del documento que no pasan por el solucionador: capas y orden de
- * dibujo. Se separan de las restricciones porque aquéllas obligan a resolver el
- * sistema entero y éstas no tienen por qué pagarlo — restaurar un estado de
- * cuarenta capas no mueve un solo punto.
- */
-type CadDocumentTableCommand = Extract<CadEntityCommand, { type: "layer" | "draw-order" }>;
+type CadStyleCommand = Extract<CadEntityCommand, { type: "style" }>;
 
 const isSectionCommand = (command: CadEntityCommand): command is CadDocumentSectionCommand =>
   command.type === "constraint" ||
   command.type === "parameter" ||
   command.type === "paper-space";
 
-const isTableCommand = (command: CadEntityCommand): command is CadDocumentTableCommand =>
-  command.type === "layer" || command.type === "draw-order";
+const isStyleCommand = (command: CadEntityCommand): command is CadStyleCommand =>
+  command.type === "style";
+
+/**
+ * Aplica los comandos de estilo sobre la tabla, sin tocar lo que no nombran.
+ *
+ * `upsert` FUSIONA: escribir sólo la altura de un estilo de texto no debe
+ * borrarle la fuente. Un valor `undefined` no llega hasta aquí —el tipo no lo
+ * admite—, así que no hay forma accidental de vaciar un campo; para eso está
+ * borrar el estilo entero.
+ */
+function applyStyleCommands(
+  styles: CadStyleTable,
+  commands: readonly CadStyleCommand[],
+): CadStyleTable {
+  if (commands.length === 0) return styles;
+  const next: CadStyleTable = {
+    text: { ...styles.text },
+    dimension: { ...styles.dimension },
+    mleader: { ...(styles.mleader ?? {}) },
+    table: { ...styles.table },
+    plot: { ...styles.plot },
+  };
+  for (const command of commands) {
+    const name = command.name.trim();
+    if (!name) throw new Error("Un estilo necesita un nombre no vacío.");
+    const family = next[command.family] as Record<string, Record<string, unknown>>;
+    if (command.op === "delete") {
+      delete family[name];
+      continue;
+    }
+    family[name] = { ...(family[name] ?? {}), ...command.values };
+  }
+  // La familia `mleader` es OPCIONAL en el esquema: materializarla como `{}` en
+  // un documento que nunca la tuvo cambiaría su serializado y con él su hash.
+  if (Object.keys(next.mleader ?? {}).length === 0 && !styles.mleader) delete next.mleader;
+  return next;
+}
 
 export interface CadEntityCommandResult {
   document: CadDocument;
@@ -206,6 +272,7 @@ function cadEntityCommandLabel(
 ): string {
   if (command.type === "insert") return `insert:${command.entity.type}`;
   if (command.type === "image-definition") return `image-definition:${command.definition.id}`;
+  if (isStyleCommand(command)) return `style:${command.op}:${command.family}:${command.name}`;
   if (isSectionCommand(command)) return `${command.type}:${command.op}`;
   if (command.type === "layer") return `layer:${command.op}`;
   if (command.type === "draw-order") return `draw-order:${command.placement}`;
@@ -266,13 +333,18 @@ export function executeCadEntityCommandBatch(
 
   const sectionCommands: CadDocumentSectionCommand[] = [];
   const tableCommands: CadDocumentTableCommand[] = [];
+  const styleCommands: CadStyleCommand[] = [];
 
   for (const command of commands) {
+    if (isStyleCommand(command)) {
+      styleCommands.push(command);
+      continue;
+    }
     if (isSectionCommand(command)) {
       sectionCommands.push(command);
       continue;
     }
-    if (isTableCommand(command)) {
+    if (isCadTableCommand(command)) {
       tableCommands.push(command);
       continue;
     }
@@ -449,6 +521,7 @@ export function executeCadEntityCommandBatch(
     entities: tables.entities,
     layers: tables.layers,
     constraints: sections.constraints,
+    styles: applyStyleCommands(document.styles, styleCommands),
     paperSpaces: sections.paperSpaces,
     modelSpace: { entityIds: tables.entityOrder },
     // Mismo criterio que `parameters` justo debajo: el catálogo de imágenes
@@ -629,98 +702,6 @@ function applyPaperSpaceCommand(
   );
 }
 
-/**
- * Reordena `entityIds` colocando `moving` donde diga `placement`.
- *
- * Los que se mueven conservan su orden RELATIVO entre sí. Sin eso, «traer al
- * frente» tres objetos apilados los devolvería en el orden en que se
- * designaron, que casi nunca es el orden en que estaban — y quien trae al
- * frente un grupo espera encontrarlo tal cual estaba, sólo que arriba.
- */
-function reorderDrawOrder(
-  entityIds: readonly string[],
-  moving: readonly string[],
-  placement: "front" | "back" | "above" | "below",
-  referenceId: string | undefined,
-): string[] {
-  const target = new Set(moving.filter((id) => entityIds.includes(id)));
-  if (target.size === 0) return [...entityIds];
-  // Una referencia que también se mueve no es una referencia: sería un objeto
-  // colocándose respecto de sí mismo.
-  if ((placement === "above" || placement === "below") && (!referenceId || target.has(referenceId)))
-    throw new Error("DRAWORDER necesita un objeto de referencia que no esté entre los designados.");
-
-  const kept = entityIds.filter((id) => !target.has(id));
-  const picked = entityIds.filter((id) => target.has(id));
-  if (placement === "front") return [...kept, ...picked];
-  if (placement === "back") return [...picked, ...kept];
-  const at = kept.indexOf(referenceId as string);
-  if (at < 0) throw new Error(`DRAWORDER no encuentra el objeto de referencia ${referenceId}.`);
-  const cut = placement === "above" ? at + 1 : at;
-  return [...kept.slice(0, cut), ...picked, ...kept.slice(cut)];
-}
-
-/**
- * Aplica las tablas del documento: capas y orden de dibujo.
- *
- * Borrar una capa REASIGNA sus entidades en la misma transacción. Dejarlas
- * apuntando a una capa que ya no existe produciría un documento que se abre
- * pero no se puede dibujar, y el error aparecería tres sesiones después.
- */
-function applyDocumentTables(
-  document: CadDocument,
-  commands: readonly CadDocumentTableCommand[],
-  entityOrder: readonly string[],
-  entities: readonly CadEntity[],
-): {
-  layers: CadLayerDef[];
-  entityOrder: string[];
-  entities: CadEntity[];
-  touchedEntityIds: string[];
-} {
-  if (commands.length === 0)
-    return {
-      layers: document.layers,
-      entityOrder: [...entityOrder],
-      entities: [...entities],
-      touchedEntityIds: [],
-    };
-
-  let layers = [...document.layers];
-  let order = [...entityOrder];
-  let current = [...entities];
-  const touchedEntityIds: string[] = [];
-
-  for (const command of commands) {
-    if (command.type === "draw-order") {
-      order = reorderDrawOrder(order, command.entityIds, command.placement, command.referenceId);
-      for (const entityId of command.entityIds) touchedEntityIds.push(entityId);
-      continue;
-    }
-    if (command.op === "delete") {
-      const key = command.name.trim().toUpperCase();
-      if (key === "0") throw new Error("La capa 0 no se puede borrar.");
-      if (!layers.some((layer) => layer.name.toUpperCase() === key))
-        throw new Error(`No existe la capa "${command.name}".`);
-      if (!layers.some((layer) => layer.name.toUpperCase() === command.reassignTo.toUpperCase()))
-        throw new Error(`No existe la capa de destino "${command.reassignTo}".`);
-      layers = layers.filter((layer) => layer.name.toUpperCase() !== key);
-      current = current.map((entity) => {
-        if (!("layer" in entity) || entity.layer.toUpperCase() !== key) return entity;
-        touchedEntityIds.push(entity.id);
-        return { ...entity, layer: command.reassignTo };
-      });
-      continue;
-    }
-    const key = command.layer.name.trim().toUpperCase();
-    if (!key) throw new Error("Una capa necesita un nombre.");
-    const at = layers.findIndex((layer) => layer.name.toUpperCase() === key);
-    if (at >= 0) layers = layers.map((layer, index) => (index === at ? { ...command.layer } : layer));
-    else layers = [...layers, { ...command.layer }];
-  }
-
-  return { layers, entityOrder: order, entities: current, touchedEntityIds };
-}
 
 export function executeCadEntityCommand(
   document: CadDocument,
