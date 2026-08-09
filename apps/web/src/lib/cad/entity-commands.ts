@@ -26,6 +26,11 @@ import {
   type CadStyleTable,
 } from "./cad-document";
 import {
+  applyCadDocumentTables,
+  isCadDocumentTableCommand,
+  type CadDocumentTableCommand,
+} from "./cad-document-tables";
+import {
   deleteCadParameter,
   evaluateCadParameters,
   setCadParameter,
@@ -161,7 +166,18 @@ export type CadEntityCommand =
    */
   | { type: "paper-space"; entity?: undefined; op: "upsert"; space: CadPaperSpace }
   | { type: "paper-space"; entity?: undefined; op: "delete"; spaceId: string }
-  | { type: "paper-space"; entity?: undefined; op: "reorder"; spaceIds: readonly string[] };
+  | { type: "paper-space"; entity?: undefined; op: "reorder"; spaceIds: readonly string[] }
+  /**
+   * Tablas del documento: bloques, capas, estilos y referencias externas.
+   *
+   * Van por aquí por lo mismo que las restricciones: BLOCK define la
+   * definición, borra la geometría que sustituye y crea el INSERT, y las tres
+   * cosas son UNA orden. Con dos rutas, deshacer dejaría el dibujo sin la
+   * geometría y sin el bloque. Su aplicación vive en `cad-document-tables.ts`.
+   */
+  | CadDocumentTableCommand;
+
+export type { CadDocumentTableCommand } from "./cad-document-tables";
 
 /** Las cinco familias de `CadStyleTable`. */
 export type CadStyleFamilyName = "text" | "dimension" | "mleader" | "table" | "plot";
@@ -242,7 +258,8 @@ function cadEntityCommandLabel(
   if (command.type === "insert") return `insert:${command.entity.type}`;
   if (command.type === "image-definition") return `image-definition:${command.definition.id}`;
   if (isStyleCommand(command)) return `style:${command.op}:${command.family}:${command.name}`;
-  if (isSectionCommand(command)) return `${command.type}:${command.op}`;
+  if (isSectionCommand(command) || isCadDocumentTableCommand(command))
+    return `${command.type}:${command.op}`;
   const source = document.entities.find((entity) => entity.id === command.entityId);
   if (!source || !registry.supports(source))
     throw new Error(`Native CAD entity ${command.entityId} was not found.`);
@@ -300,6 +317,7 @@ export function executeCadEntityCommandBatch(
 
   const sectionCommands: CadDocumentSectionCommand[] = [];
   const styleCommands: CadStyleCommand[] = [];
+  const tableCommands: CadDocumentTableCommand[] = [];
 
   for (const command of commands) {
     if (isStyleCommand(command)) {
@@ -308,6 +326,10 @@ export function executeCadEntityCommandBatch(
     }
     if (isSectionCommand(command)) {
       sectionCommands.push(command);
+      continue;
+    }
+    if (isCadDocumentTableCommand(command)) {
+      tableCommands.push(command);
       continue;
     }
     if (command.type === "insert") {
@@ -452,6 +474,11 @@ export function executeCadEntityCommandBatch(
     regenerationSourceIds.push(entity);
   }
 
+  // Las tablas se resuelven contra las entidades YA editadas: BLOCK borra en
+  // este mismo lote la geometría que convierte en definición, y preguntar por
+  // el documento de partida diría que la capa sigue ocupada.
+  const tables = applyCadDocumentTables(document, tableCommands, [...present.values()]);
+
   const regenerationSources = [...new Set(regenerationSourceIds)];
   let entities = [...present.values()];
   const regenerated = regenerateAssociativeHatches(
@@ -482,6 +509,9 @@ export function executeCadEntityCommandBatch(
     constraints: sections.constraints,
     styles: applyStyleCommands(document.styles, styleCommands),
     paperSpaces: sections.paperSpaces,
+    blocks: tables.blocks,
+    layers: tables.layers,
+    externalReferences: tables.externalReferences,
     modelSpace: { entityIds: [...createdBackIds, ...ordered] },
     // Mismo criterio que `parameters` justo debajo: el catálogo de imágenes
     // sólo viaja si el lote lo tocó o si el documento ya lo traía.
