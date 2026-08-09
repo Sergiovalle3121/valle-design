@@ -536,6 +536,18 @@ import type {
   CadPropertyRow,
   CadPropertyValue,
 } from "@/components/cad/palettes/property-model";
+import { CadDraftStatusBar } from "@/components/cad/palettes/CadDraftStatusBar";
+import { CadDraftSettingsDialog } from "@/components/cad/palettes/CadDraftSettingsDialog";
+import {
+  CAD_OSNAP_MODES,
+  CAD_POLAR_INCREMENTS,
+} from "@/components/cad/palettes/draft-settings-host";
+import {
+  useCadDraftSettings,
+  useCadDraftSettingsHost,
+  useCadPalette,
+  useCadPaletteHost,
+} from "@/components/cad/palettes/use-draft-settings";
 import { cadEntityAssociationAnchor } from "@/lib/cad/associative-dimension";
 import {
   cadViewportFocusBounds,
@@ -2410,7 +2422,6 @@ export default function Layout3DEditor({
     "checking" | "online" | "offline"
   >("checking");
   const [snap, setSnap] = useState(true);
-  const [osnap, setOsnap] = useState(true); // object snap: align to other objects' edges/centers (Fase 54)
   const [dirty, setDirty] = useState(false);
   const dirtyRef = useRef(false);
   const editGenerationRef = useRef(0);
@@ -2832,6 +2843,19 @@ export default function Layout3DEditor({
     grid: true,
     dxf: true,
   });
+  /**
+   * La rejilla NO se ha movido al anfitrión de ayudas al dibujo, aunque
+   * DSETTINGS la conmute: la dibuja la escena y la leen veinte sitios del
+   * editor. Mover un estado que veinte llamadas leen es otra ola; mezclar esa
+   * migración con la de OSNAP habría hecho el diff imposible de verificar.
+   * Aquí sólo quedan los dos conmutadores, estables por identidad para no
+   * anular la memoización del cuadro.
+   */
+  const toggleGridVisible = useCallback(
+    () => setLayers((current) => ({ ...current, grid: !current.grid })),
+    [],
+  );
+  const toggleGridSnap = useCallback(() => setSnap((value) => !value), []);
   const [cadLayers, setCadLayers] = useState<CadLayer[]>(DEFAULT_CAD_LAYERS);
   const [layerAssignments, setLayerAssignments] = useState<CadLayerAssignments>(
     {},
@@ -3127,7 +3151,6 @@ export default function Layout3DEditor({
   const wallChainRef = useRef<{ wx: number; wy: number } | null>(null);
   const selRef = useRef<SelItem[]>([]);
   const snapRef = useRef(snap);
-  const osnapRef = useRef(osnap);
   const toolRef = useRef(tool);
   const themeRef = useRef(theme);
   const sunRef = useRef(sun);
@@ -3138,9 +3161,6 @@ export default function Layout3DEditor({
   useEffect(() => {
     snapRef.current = snap;
   }, [snap]);
-  useEffect(() => {
-    osnapRef.current = osnap;
-  }, [osnap]);
   useEffect(() => {
     toolRef.current = tool;
   }, [tool]);
@@ -3153,31 +3173,67 @@ export default function Layout3DEditor({
   useEffect(() => {
     hatchPickModeRef.current = hatchPickMode;
   }, [hatchPickMode]);
-  // Núcleo de precisión (Fase 66 cableada, ADR §216): orto 0/90/180/270 y
-  // entrada tecleada de coordenadas para el trazo de muros.
-  const [orthoLock, setOrthoLock] = useState(false);
-  const orthoLockRef = useRef(orthoLock);
-  const [polarTracking, setPolarTracking] = useState(true);
-  const polarTrackingRef = useRef(polarTracking);
-  const [polarIncrement, setPolarIncrement] = useState(45);
-  const polarIncrementRef = useRef(polarIncrement);
-  const [objectSnapTracking, setObjectSnapTracking] = useState(true);
-  const objectSnapTrackingRef = useRef(objectSnapTracking);
-  const acquiredTrackingPointsRef = useRef<Array<{ x: number; y: number }>>([]);
-  const [acquiredTrackingPointCount, setAcquiredTrackingPointCount] =
-    useState(0);
-  useEffect(() => {
-    orthoLockRef.current = orthoLock;
-  }, [orthoLock]);
-  useEffect(() => {
-    polarTrackingRef.current = polarTracking;
-  }, [polarTracking]);
-  useEffect(() => {
-    polarIncrementRef.current = polarIncrement;
-  }, [polarIncrement]);
-  useEffect(() => {
-    objectSnapTrackingRef.current = objectSnapTracking;
-  }, [objectSnapTracking]);
+  /**
+   * Núcleo de precisión (Fase 66 cableada, ADR §216): OSNAP por modo, orto
+   * 0/90/180/270, rastreo polar y OTRACK.
+   *
+   * Vivían aquí como SEIS `useState` con su `ref` espejo y su `useEffect` de
+   * sincronía cada uno, porque la ruta del puntero corre en un manejador nativo
+   * y no puede leer estado de React. Ahora el estado vive fuera —ver
+   * `draft-settings-host.ts`—: el puntero lee los getters directamente y la
+   * interfaz se suscribe con `useSyncExternalStore`. Seis estados, cinco refs y
+   * cinco efectos menos, y a cambio los catorce modos de captura se pueden
+   * configurar, que es lo que DSETTINGS venía a resolver.
+   */
+  const draftSettingsHost = useCadDraftSettingsHost();
+  const draftSettings = useCadDraftSettings(draftSettingsHost);
+  /** Qué paleta/gestor está abierto. También fuera de React, por lo mismo. */
+  const paletteHost = useCadPaletteHost();
+  const activePalette = useCadPalette(paletteHost).open;
+  // Estables por identidad: la barra de estado y el cuadro de DSETTINGS van
+  // memoizados, y una lambda nueva en cada render anularía la memoización.
+  const toggleDraftOsnap = useCallback(
+    () => draftSettingsHost.toggleOsnap(),
+    [draftSettingsHost],
+  );
+  const toggleDraftOrtho = useCallback(
+    () => draftSettingsHost.toggleOrtho(),
+    [draftSettingsHost],
+  );
+  const toggleDraftPolar = useCallback(
+    () => draftSettingsHost.togglePolar(),
+    [draftSettingsHost],
+  );
+  const setDraftPolarIncrement = useCallback(
+    (degrees: number) => draftSettingsHost.setPolarIncrement(degrees),
+    [draftSettingsHost],
+  );
+  const toggleDraftObjectSnapTracking = useCallback(
+    () => draftSettingsHost.toggleObjectSnapTracking(),
+    [draftSettingsHost],
+  );
+  const clearDraftTracking = useCallback(
+    () => draftSettingsHost.clearTrackingPoints(),
+    [draftSettingsHost],
+  );
+  const toggleDraftOsnapMode = useCallback(
+    (mode: string, value: boolean) =>
+      draftSettingsHost.setOsnapMode(mode as SnapType, value),
+    [draftSettingsHost],
+  );
+  const setAllDraftOsnapModes = useCallback(
+    (value: boolean) => draftSettingsHost.setAllOsnapModes(value),
+    [draftSettingsHost],
+  );
+  const resetDraftOsnapModes = useCallback(
+    () => draftSettingsHost.resetOsnapModes(),
+    [draftSettingsHost],
+  );
+  const openDraftSettings = useCallback(
+    () => paletteHost.toggle("draft-settings"),
+    [paletteHost],
+  );
+  const closePalette = useCallback(() => paletteHost.close(), [paletteHost]);
   const lastWallAngleRef = useRef<number | null>(null); // ángulo del último tramo → entrada directa de distancia
   const [precisionText, setPrecisionText] = useState("");
   const [drawPrompt, setDrawPrompt] = useState<string | null>(null);
@@ -3241,6 +3297,28 @@ export default function Layout3DEditor({
     },
     [],
   );
+  /**
+   * Revela la paleta de propiedades (Ctrl+1).
+   *
+   * El panel derecho es un recurso compartido: lo ocupan los paneles
+   * profesionales —selección, hatch, cotas, bloques…— y el modo enfoque lo
+   * esconde entero. Enseñar propiedades es, literalmente, dejarlo libre.
+   */
+  const revealPropertiesPalette = useCallback(() => {
+    setShowSelectionPalette(false);
+    setShowHatchPalette(false);
+    setShowDimensionPalette(false);
+    setShowMleaderPalette(false);
+    setShowBlockPalette(false);
+    setShowCollaborationDock(false);
+    setShowWorkspaceDock(false);
+    setFocusMode(false);
+    if (!workspacePreferencesRef.current.rightDock)
+      updateWorkspacePreferences({
+        ...workspacePreferencesRef.current,
+        rightDock: true,
+      });
+  }, [updateWorkspacePreferences]);
   const applyWorkspaceProfile = useCallback(
     (profile: CadWorkspaceProfile) => {
       updateWorkspacePreferences(
@@ -7562,7 +7640,7 @@ export default function Layout3DEditor({
       const tol = pointerWorldTolerance(
         workspacePreferencesRef.current.aperturePx,
       );
-      if (osnapRef.current) {
+      if (draftSettingsHost.osnap) {
         const boxes: {
           x: number;
           y: number;
@@ -7687,19 +7765,19 @@ export default function Layout3DEditor({
           tolerance: tol,
           from: anchor,
           maxSegments: 96,
-          // intersección/perp/cercano quedan fuera: costosos u over-greedy para
-          // el pointermove; grid lo cubre el fallback snapWorld de siempre.
-          modes: { grid: false },
+          // `grid` lo cubre el fallback snapWorld de siempre; el resto sale
+          // ahora de DSETTINGS, cuyo reparto de fábrica es exactamente el que
+          // estaba cableado aquí (todo encendido salvo `grid`).
+          modes: draftSettingsHost.snapModes(),
         });
         if (hit) {
-          if (acquire && objectSnapTrackingRef.current) {
-            acquiredTrackingPointsRef.current = acquireCadTrackingPoint(
-              acquiredTrackingPointsRef.current,
-              hit.point,
-              tol * 0.25,
-            );
-            setAcquiredTrackingPointCount(
-              acquiredTrackingPointsRef.current.length,
+          if (acquire && draftSettingsHost.objectSnapTracking) {
+            draftSettingsHost.setTrackingPoints(
+              acquireCadTrackingPoint(
+                draftSettingsHost.trackingPoints,
+                hit.point,
+                tol * 0.25,
+              ),
             );
           }
           setGuides(null, null);
@@ -7717,12 +7795,12 @@ export default function Layout3DEditor({
           ? { x: wallChainRef.current.wx, y: wallChainRef.current.wy }
           : null);
       if (
-        objectSnapTrackingRef.current &&
-        acquiredTrackingPointsRef.current.length
+        draftSettingsHost.objectSnapTracking &&
+        draftSettingsHost.trackingPoints.length
       ) {
         const tracked = trackFromAcquiredPoints(
           { x: wx, y: wy },
-          acquiredTrackingPointsRef.current,
+          draftSettingsHost.trackingPoints,
           tol,
         );
         if (tracked.snapped) {
@@ -7739,20 +7817,20 @@ export default function Layout3DEditor({
         }
       }
       setGuides(null, null);
-      if (anchor && (orthoLockRef.current || polarTrackingRef.current)) {
-        const increment = orthoLockRef.current ? 90 : polarIncrementRef.current;
+      if (anchor && (draftSettingsHost.ortho || draftSettingsHost.polar)) {
+        const increment = draftSettingsHost.ortho ? 90 : draftSettingsHost.polarIncrement;
         const tracked = resolveCadPolarTracking(
           anchor,
           { x: wx, y: wy },
           increment,
-          orthoLockRef.current ? 45 : Math.min(6, increment / 4),
+          draftSettingsHost.ortho ? 45 : Math.min(6, increment / 4),
         );
         if (tracked.snapped)
           return {
             wx: tracked.point.x,
             wy: tracked.point.y,
             onDxf: false,
-            tracking: orthoLockRef.current ? "ortho" : "polar",
+            tracking: draftSettingsHost.ortho ? "ortho" : "polar",
             trackingAngle: tracked.angle,
           };
       }
@@ -8222,7 +8300,7 @@ export default function Layout3DEditor({
       // Object snap: align the lead's edges/centre to other objects + the footprint.
       let gvx: number | null = null,
         ghy: number | null = null;
-      if (osnapRef.current && drag.xEdges) {
+      if (draftSettingsHost.osnap && drag.xEdges) {
         const tol = Math.max(ctx.W, ctx.H) * 0.012;
         const sx = snap1D(targetX, leadP.w, drag.xEdges, tol);
         if (sx) {
@@ -8496,7 +8574,7 @@ export default function Layout3DEditor({
             const sp = snapFloor(w.wx, w.wy, true);
             let pt = { wx: sp.wx, wy: sp.wy };
             const prev = drawCommandRef.current?.points.at(-1);
-            if (prev && (e.shiftKey || orthoLockRef.current) && !sp.onDxf) {
+            if (prev && (e.shiftKey || draftSettingsHost.ortho) && !sp.onDxf) {
               const c = constrainPoint(
                 { x: prev.x, y: prev.y },
                 { x: pt.wx, y: pt.wy },
@@ -8528,7 +8606,7 @@ export default function Layout3DEditor({
             const prev = wallChainRef.current;
             // Shift = incrementos de 45°; ORTO (toggle) = ejes 0/90/180/270 — pero
             // un snap explícito a objeto/plano gana sobre el bloqueo de ángulo.
-            if (prev && (e.shiftKey || orthoLockRef.current) && !sp.onDxf) {
+            if (prev && (e.shiftKey || draftSettingsHost.ortho) && !sp.onDxf) {
               const c = constrainPoint(
                 { x: prev.wx, y: prev.wy },
                 { x: pt.wx, y: pt.wy },
@@ -16041,6 +16119,31 @@ export default function Layout3DEditor({
         notifyReadOnly();
         return;
       }
+      /**
+       * Ctrl+1 abre la paleta de PROPIEDADES, como en AutoCAD.
+       *
+       * No pasa por `matchCadShortcut` porque su registro vive en `lib/cad`,
+       * que esta sesión no toca. Cuando ese registro admita la combinación,
+       * este bloque se sustituye por un `cadShortcut?.id === "properties"` y no
+       * cambia nada más.
+       *
+       * Abrirla es revelar el panel derecho: cerrar el panel profesional que lo
+       * esté ocupando, salir del modo enfoque y encender la preferencia. Si sólo
+       * se encendiera la preferencia, pulsar Ctrl+1 con el panel de bloques
+       * abierto no enseñaría propiedad ninguna y parecería que el atajo no hace
+       * nada.
+       */
+      if ((e.ctrlKey || e.metaKey) && e.key === "1") {
+        e.preventDefault();
+        revealPropertiesPalette();
+        return;
+      }
+      // Ctrl+9 → DSETTINGS, en la misma familia de atajos de paleta.
+      if ((e.ctrlKey || e.metaKey) && e.key === "9") {
+        e.preventDefault();
+        paletteHost.toggle("draft-settings");
+        return;
+      }
       if (cadShortcut?.id === "palette") {
         e.preventDefault();
         setShowPalette(true);
@@ -16074,22 +16177,22 @@ export default function Layout3DEditor({
       }
       if (cadShortcut?.id === "object_snap_toggle") {
         e.preventDefault();
-        setOsnap((cur) => !cur);
+        draftSettingsHost.toggleOsnap();
         return;
       }
       if (cadShortcut?.id === "ortho_toggle") {
         e.preventDefault();
-        setOrthoLock((cur) => !cur);
+        draftSettingsHost.toggleOrtho();
         return;
       }
       if (cadShortcut?.id === "polar_tracking_toggle") {
         e.preventDefault();
-        setPolarTracking((cur) => !cur);
+        draftSettingsHost.togglePolar();
         return;
       }
       if (cadShortcut?.id === "object_tracking_toggle") {
         e.preventDefault();
-        setObjectSnapTracking((cur) => !cur);
+        draftSettingsHost.toggleObjectSnapTracking();
         return;
       }
       if (cadShortcut?.id === "validate_layout") {
@@ -16468,7 +16571,7 @@ export default function Layout3DEditor({
         ? { x: dynamicAnchor.x + dynamicGridDefault, y: dynamicAnchor.y }
         : { x: 0, y: 0 },
     ),
-    angle: lastWallAngleRef.current ?? polarIncrement,
+    angle: lastWallAngleRef.current ?? draftSettings.polarIncrement,
     radius: dynamicGridDefault,
     diameter: dynamicGridDefault * 2,
     offset: dynamicGridDefault,
@@ -17418,8 +17521,8 @@ export default function Layout3DEditor({
           <Crosshair className="w-4 h-4" />
         </T3Btn>
         <T3Btn
-          active={osnap}
-          onClick={() => setOsnap((v) => !v)}
+          active={draftSettings.osnap}
+          onClick={() => draftSettingsHost.toggleOsnap()}
           title="Snap a objetos y al plano DXF — alinea con bordes/centros y engancha a vértices y puntos medios del plano al medir o trazar muros"
         >
           <Magnet className="w-4 h-4" />
@@ -19415,75 +19518,17 @@ export default function Layout3DEditor({
                 Grilla {layers.grid ? "on" : "off"} / Snap{" "}
                 {snap ? "grid" : "free"}
               </span>
-              <button
-                onClick={() => setOsnap((value) => !value)}
-                className={
-                  osnap
-                    ? "text-cyan-200 hover:text-white"
-                    : "text-gray-500 hover:text-white"
-                }
-              >
-                OSNAP {osnap ? "on" : "off"} · F3
-              </button>
-              <button
-                onClick={() => setOrthoLock((value) => !value)}
-                className={
-                  orthoLock
-                    ? "text-amber-300 hover:text-white"
-                    : "text-gray-500 hover:text-white"
-                }
-              >
-                ORTHO {orthoLock ? "on" : "off"} · F8
-              </button>
-              <button
-                onClick={() => setPolarTracking((value) => !value)}
-                className={
-                  polarTracking
-                    ? "text-violet-300 hover:text-white"
-                    : "text-gray-500 hover:text-white"
-                }
-              >
-                POLAR {polarTracking ? `${polarIncrement}°` : "off"} · F10
-              </button>
-              <select
-                aria-label="Incremento polar"
-                value={polarIncrement}
-                onChange={(event) =>
-                  setPolarIncrement(Number(event.target.value))
-                }
-                className="rounded bg-white/[0.06] px-1 py-0.5 text-[10px] text-gray-200 outline-none"
-              >
-                {[15, 30, 45, 90].map((value) => (
-                  <option key={value} value={value} className="text-gray-900">
-                    {value}°
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={() => setObjectSnapTracking((value) => !value)}
-                className={
-                  objectSnapTracking
-                    ? "text-fuchsia-300 hover:text-white"
-                    : "text-gray-500 hover:text-white"
-                }
-              >
-                OTRACK{" "}
-                {objectSnapTracking
-                  ? `on · ${acquiredTrackingPointCount}`
-                  : "off"}{" "}
-                · F11
-              </button>
-              {acquiredTrackingPointCount > 0 && (
-                <button
-                  onClick={() => {
-                    acquiredTrackingPointsRef.current = [];
-                    setAcquiredTrackingPointCount(0);
-                  }}
-                  className="text-gray-500 hover:text-white"
-                >
-                  Limpiar tracking
-                </button>
-              )}
+              <CadDraftStatusBar
+                settings={draftSettings}
+                polarIncrements={CAD_POLAR_INCREMENTS}
+                onToggleOsnap={toggleDraftOsnap}
+                onToggleOrtho={toggleDraftOrtho}
+                onTogglePolar={toggleDraftPolar}
+                onPolarIncrement={setDraftPolarIncrement}
+                onToggleObjectSnapTracking={toggleDraftObjectSnapTracking}
+                onClearTracking={clearDraftTracking}
+                onOpenSettings={openDraftSettings}
+              />
               <button
                 onClick={openChecks}
                 className={`${releaseTone} hover:text-white`}
@@ -19583,8 +19628,8 @@ export default function Layout3DEditor({
               )}
             {!walk && (tool === "wall" || isCadDrawTool(tool)) && (
               <CadDraftToolbar
-                orthoLock={orthoLock}
-                onToggleOrtho={() => setOrthoLock((v) => !v)}
+                orthoLock={draftSettings.ortho}
+                onToggleOrtho={() => draftSettingsHost.toggleOrtho()}
                 dynamicInputKey={`${dynamicInputKind}:${dynamicAnchor ? "anchored" : "origin"}`}
                 dynamicInput={{
                   kind: dynamicInputKind,
@@ -23268,6 +23313,41 @@ export default function Layout3DEditor({
             onClose: () => setAnalysisPanel(null),
           });
         })()}
+
+      {/* DSETTINGS — ayudas al dibujo. Lo que sostiene su estado vive fuera de
+          React (`draft-settings-host.ts`), así que abrirlo no cuesta un
+          `useState` en una función que ya tiene demasiados. */}
+      {activePalette === "draft-settings" && (
+        <div
+          className="absolute inset-0 z-[85] grid place-items-center bg-black/55 p-4"
+          onClick={closePalette}
+        >
+          <div onClick={(event) => event.stopPropagation()}>
+            <CadDraftSettingsDialog
+              settings={draftSettings}
+              modes={CAD_OSNAP_MODES}
+              polarIncrements={CAD_POLAR_INCREMENTS}
+              grid={{
+                visible: layers.grid,
+                snap,
+                size: data?.footprint.gridSize ?? 0,
+              }}
+              onToggleOsnap={toggleDraftOsnap}
+              onToggleMode={toggleDraftOsnapMode}
+              onAllModes={setAllDraftOsnapModes}
+              onResetModes={resetDraftOsnapModes}
+              onToggleOrtho={toggleDraftOrtho}
+              onTogglePolar={toggleDraftPolar}
+              onPolarIncrement={setDraftPolarIncrement}
+              onToggleObjectSnapTracking={toggleDraftObjectSnapTracking}
+              onClearTracking={clearDraftTracking}
+              onToggleGridVisible={toggleGridVisible}
+              onToggleGridSnap={toggleGridSnap}
+              onClose={closePalette}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Keyboard shortcuts / help overlay */}
       {showHelp && (
