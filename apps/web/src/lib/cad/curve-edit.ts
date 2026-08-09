@@ -32,6 +32,8 @@ import {
   curveExtensionPeriod,
   curveIntersections,
   curveIsClosed,
+  curveLength,
+  curveParamAt,
   curvePointAt,
   type CadCurve,
 } from "./curve-model";
@@ -378,20 +380,121 @@ export function computeCadCurveExtend(input: CadCurveEditInput): CadCurveEditOut
 
   const localFrom = extendEnd ? 0 : best;
   const localTo = extendEnd ? best : 1;
-  if (curves.length === 1) return restrict(input.target, curves, localFrom, localTo);
+  return reshapeTerminal(input.target, curves, index, localFrom, localTo);
+}
 
-  // Polilínea: se conserva todo y sólo se estira el tramo del borde.
+/**
+ * Sustituye el tramo TERMINAL por su versión reparametrizada.
+ *
+ * Para una entidad de una sola curva es exactamente `restrict`. Para una
+ * polilínea conserva todos los demás tramos intactos, que es lo que distingue
+ * «alargar la polilínea» de «rehacerla».
+ */
+function reshapeTerminal(
+  target: CadEditableEntity,
+  curves: readonly CadCurve[],
+  index: number,
+  from: number,
+  to: number,
+): CadCurveEditOutcome {
+  if (curves.length === 1) return restrict(target, curves, from, to);
   const grown = [...curves];
-  grown[index] = subCurve(terminal, localFrom, localTo);
-  const z = input.target.type === "polyline" ? input.target.vertices[0]?.z ?? 0 : 0;
+  grown[index] = subCurve(curves[index], from, to);
+  const z = target.type === "polyline" ? target.vertices[0]?.z ?? 0 : 0;
   return {
     replace: {
-      id: input.target.id,
+      id: target.id,
       type: "polyline",
       vertices: verticesOf(grown, z),
       closed: false,
-      layer: input.target.layer,
-      ...(input.target.context ? { context: input.target.context } : {}),
+      layer: target.layer,
+      ...(target.context ? { context: target.context } : {}),
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// LENGTHEN
+// ---------------------------------------------------------------------------
+
+export type CadLengthenMode = "delta" | "percent" | "total" | "dynamic";
+
+export interface CadLengthenInput {
+  target: CadEditableEntity;
+  /** Dónde se designó: decide QUÉ EXTREMO crece o encoge. */
+  pick: CadPoint2;
+  mode: CadLengthenMode;
+  /** Incremento, porcentaje o longitud total, según el modo. */
+  value?: number;
+  /** Destino del arrastre, en el modo dinámico. */
+  toPoint?: CadPoint2;
+}
+
+/**
+ * LENGTHEN: cambia la longitud por el extremo designado.
+ *
+ * Sólo LINE, ARC y POLILÍNEA abierta. Una ELIPSE se rechaza a propósito: su
+ * longitud de arco no es proporcional a su parámetro —no hay forma cerrada— y
+ * repartir una longitud pedida como si lo fuera dejaría el extremo en un sitio
+ * distinto del que dice el número. Un error de milímetros que nadie ve es peor
+ * que una negativa.
+ */
+export function computeCadCurveLengthen(input: CadLengthenInput): CadCurveEditOutcome {
+  const curves = cadEntityCurves(input.target);
+  if (!curves || curves.length === 0)
+    return { error: `${input.target.type.toUpperCase()} no tiene longitud que cambiar.` };
+  if (entityIsClosed(input.target, curves))
+    return { error: "una curva cerrada no tiene extremos que alargar." };
+  if (curves.some((curve) => curve.kind === "ellipse"))
+    return {
+      error:
+        "una ELIPSE no se alarga por longitud: su arco no es proporcional a su parámetro y el extremo caería donde no dice el número.",
+    };
+
+  const domain = globalDomain(curves);
+  const pick = globalClosest(curves, input.pick);
+  const growEnd = pick >= domain / 2;
+  const index = growEnd ? curves.length - 1 : 0;
+  const terminal = curves[index];
+
+  if (input.mode === "dynamic") {
+    if (!input.toPoint) return { error: "el modo dinámico necesita un punto de destino." };
+    const t = curveParamAt(terminal, input.toPoint);
+    // Arrastrar más allá del otro extremo invertiría la curva sobre sí misma.
+    if (growEnd ? t <= EPS : t >= 1 - EPS)
+      return { error: "el punto de destino cruza el otro extremo: la curva se daría la vuelta." };
+    return reshapeTerminal(input.target, curves, index, growEnd ? 0 : t, growEnd ? t : 1);
+  }
+
+  const lengths = curves.map(curveLength);
+  const total = lengths.reduce((sum, value) => sum + value, 0);
+  if (!(total > EPS)) return { error: "el objeto tiene longitud cero." };
+  const value = input.value ?? 0;
+  const target =
+    input.mode === "delta" ? total + value : input.mode === "percent" ? (total * value) / 100 : value;
+  if (!Number.isFinite(target) || target <= EPS)
+    return { error: `la longitud pedida (${target}) no es positiva.` };
+
+  const terminalLength = lengths[index];
+  const newTerminal = terminalLength + (target - total);
+  if (!(newTerminal > EPS))
+    return {
+      error:
+        "el cambio se comería el tramo del extremo entero; LENGTHEN sólo estira o encoge el último tramo.",
+    };
+  const ratio = newTerminal / terminalLength;
+  return reshapeTerminal(
+    input.target,
+    curves,
+    index,
+    growEnd ? 0 : 1 - ratio,
+    growEnd ? ratio : 1,
+  );
+}
+
+/** Longitud total de la entidad, o `null` si no es una curva de las tratables. */
+export function cadEntityLength(entity: CadEntity): number | null {
+  const curves = cadEntityCurves(entity);
+  if (!curves || curves.length === 0) return null;
+  return curves.reduce((sum, curve) => sum + curveLength(curve), 0);
 }

@@ -85,6 +85,10 @@ const names = registry.all().map((command) => command.name);
     "ARRAYEDIT",
     "ALIGN",
     "MATCHPROP",
+    "STRETCH",
+    "LENGTHEN",
+    "JOIN",
+    "EXPLODE",
   ])
     assert.ok(names.includes(expected), `${expected} no llegó al registro del producto`);
 }

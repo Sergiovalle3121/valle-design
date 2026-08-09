@@ -328,6 +328,27 @@ export function curveDistanceTo(curve: CadCurve, point: CadVec2): number {
   return distanceBetween(point, curvePointAt(curve, curveClosestParam(curve, point)));
 }
 
+/**
+ * Longitud de la curva acotada.
+ *
+ * Exacta para segmento y arco. Para el arco elíptico es una suma de cuerdas
+ * sobre 256 muestras: la integral elíptica no tiene forma cerrada y ese error
+ * —menos de una millonésima del semieje— no cambia ninguna decisión que se tome
+ * con ella.
+ */
+export function curveLength(curve: CadCurve): number {
+  if (curve.kind === "segment") return distanceBetween(curve.a, curve.b);
+  if (curve.kind === "arc") return (Math.abs(curve.sweep) * Math.PI * curve.radius) / 180;
+  let total = 0;
+  let previous = curvePointAt(curve, 0);
+  for (let index = 1; index <= 256; index += 1) {
+    const current = curvePointAt(curve, index / 256);
+    total += distanceBetween(previous, current);
+    previous = current;
+  }
+  return total;
+}
+
 /** Longitud aproximada; suficiente para ordenar y para tolerancias relativas. */
 export function curveScale(curve: CadCurve): number {
   if (curve.kind === "segment") return Math.hypot(curve.b.x - curve.a.x, curve.b.y - curve.a.y);
