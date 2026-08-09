@@ -59,8 +59,11 @@ export const CAD_ACCEPTANCE_JOURNEY: readonly CadAcceptanceJourneyStep[] = [
   { step: 41, action: 'Comparar revisiones', level: 'browser-proven', evidence: [golden('22-cad-compare-collaboration.spec.ts')] },
   { step: 42, action: 'Importar DXF', level: 'browser-proven', evidence: [golden('27-cad-dxf-loss-manifest.spec.ts')] },
   { step: 43, action: 'Editar importado', level: 'browser-proven', evidence: [golden('27-cad-dxf-loss-manifest.spec.ts')] },
-  { step: 44, action: 'Exportar DXF', level: 'browser-proven', evidence: [golden('27-cad-dxf-loss-manifest.spec.ts')] },
-  { step: 45, action: 'Verificar loss manifest', level: 'browser-proven', evidence: [golden('27-cad-dxf-loss-manifest.spec.ts')] },
+  // El golden 46 prueba la exportación de los ocho tipos del esquema 4 sobre el
+  // fichero DESCARGADO, y su preflight declara lo que el formato no sabe
+  // guardar: es evidencia de los mismos dos pasos, no de uno nuevo.
+  { step: 44, action: 'Exportar DXF', level: 'browser-proven', evidence: [golden('27-cad-dxf-loss-manifest.spec.ts'), golden('46-cad-dxf-schema4-export.spec.ts')] },
+  { step: 45, action: 'Verificar loss manifest', level: 'browser-proven', evidence: [golden('27-cad-dxf-loss-manifest.spec.ts'), golden('46-cad-dxf-schema4-export.spec.ts')] },
   { step: 46, action: 'Abrir 10k', level: 'performance', evidence: [performance] },
   { step: 47, action: 'Medir 10k', level: 'performance', evidence: [performance] },
   { step: 48, action: 'Abrir 100k', level: 'performance', evidence: [performance] },
