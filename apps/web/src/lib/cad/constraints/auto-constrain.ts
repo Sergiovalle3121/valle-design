@@ -23,7 +23,7 @@
  */
 import type { CadEntity } from "../cad-document";
 import type { CadConstraint, CadConstraintKind } from "./constraint-schema";
-import { solveConstraintSystem } from "./solver";
+import { sampleConstraintJacobian } from "./solver";
 import { parametrizeCadEntity, type CadEntityParametrization } from "./variables";
 
 export interface CadAutoConstrainOptions {
@@ -170,20 +170,53 @@ export function autoConstrainCadEntities(
   }
 
   // --- filtro por rango ------------------------------------------------------
-  const accepted = [...existing];
-  const added: CadConstraint[] = [];
+  //
+  // Las candidatas ya existentes se descartan primero; las demás se ordenan por
+  // preferencia y se aceptan sólo si su ecuación es INDEPENDIENTE de todo lo
+  // aceptado hasta ese momento. La independencia se mide ortogonalizando la fila
+  // contra una base acumulada: es el mismo criterio de rango que da los grados
+  // de libertad, pero incremental — preguntárselo al solucionador una vez por
+  // candidata convertía cuarenta objetos en varios minutos de espera.
+  const ordered = candidates.sort(byKindPriority).filter((candidate) => {
+    if (!existing.some((constraint) => sameConstraint(constraint, candidate))) return true;
+    skipped.push({ kind: candidate.kind, entityIds: candidate.entityIds, reason: "ya existía" });
+    return false;
+  });
   const relevant = entities.filter(
     (entity) => probes.some((probe) => probe.id === entity.id) || existingTouches(existing, entity.id),
   );
-  let rank = rankOf(relevant, accepted);
-  const ordered = candidates.sort(byKindPriority);
+  // Las existentes van PRIMERO en la muestra: son la base de partida, y una
+  // candidata que sólo repita lo que ya había tiene que caer.
+  const sample = sampleConstraintJacobian(relevant, [...existing, ...ordered]);
+  if (!sample) {
+    // Sin jacobiano no hay filtro honesto posible. Antes que devolver un
+    // conjunto redundante en silencio, se devuelve nada y se dice por qué.
+    for (const candidate of ordered)
+      skipped.push({
+        kind: candidate.kind,
+        entityIds: candidate.entityIds,
+        reason: "la geometría designada no se pudo parametrizar",
+      });
+    return { added: [], skipped };
+  }
+
+  const rowsById = new Map<string, Float64Array[]>();
+  for (const row of sample.rows) {
+    const list = rowsById.get(row.constraintId) ?? [];
+    list.push(row.gradient);
+    rowsById.set(row.constraintId, list);
+  }
+  const basis: Float64Array[] = [];
+  const contributes = (constraintId: string): boolean => {
+    let any = false;
+    for (const row of rowsById.get(constraintId) ?? []) if (orthogonalize(basis, row)) any = true;
+    return any;
+  };
+  for (const constraint of existing) contributes(constraint.id);
+
+  const added: CadConstraint[] = [];
   for (const candidate of ordered) {
-    if (accepted.some((constraint) => sameConstraint(constraint, candidate))) {
-      skipped.push({ kind: candidate.kind, entityIds: candidate.entityIds, reason: "ya existía" });
-      continue;
-    }
-    const next = rankOf(relevant, [...accepted, candidate]);
-    if (next <= rank) {
+    if (!contributes(candidate.id)) {
       skipped.push({
         kind: candidate.kind,
         entityIds: candidate.entityIds,
@@ -191,18 +224,36 @@ export function autoConstrainCadEntities(
       });
       continue;
     }
-    rank = next;
-    accepted.push(candidate);
     added.push(candidate);
   }
   return { added, skipped };
 }
 
-function rankOf(entities: readonly CadEntity[], constraints: readonly CadConstraint[]): number {
-  if (constraints.length === 0) return 0;
-  // Dos iteraciones bastan: la geometría ya cumple (casi) lo que se afirma, así
-  // que sólo interesa el jacobiano, no mover nada.
-  return solveConstraintSystem(entities, constraints, { maxIterations: 2 }).rank;
+/**
+ * Gram-Schmidt modificado. Devuelve `true` y AMPLÍA la base si la fila aporta
+ * una dirección nueva; si no, la base queda intacta.
+ */
+function orthogonalize(basis: Float64Array[], row: Float64Array): boolean {
+  const residual = Float64Array.from(row);
+  const original = norm(residual);
+  if (!(original > 0)) return false;
+  for (const vector of basis) {
+    let projection = 0;
+    for (let index = 0; index < residual.length; index += 1) projection += residual[index] * vector[index];
+    if (projection === 0) continue;
+    for (let index = 0; index < residual.length; index += 1) residual[index] -= projection * vector[index];
+  }
+  const remaining = norm(residual);
+  if (!(remaining > 1e-7 * original)) return false;
+  for (let index = 0; index < residual.length; index += 1) residual[index] /= remaining;
+  basis.push(residual);
+  return true;
+}
+
+function norm(vector: Float64Array): number {
+  let sum = 0;
+  for (let index = 0; index < vector.length; index += 1) sum += vector[index] * vector[index];
+  return Math.sqrt(sum);
 }
 
 const KIND_PRIORITY = new Map(CAD_AUTO_CONSTRAIN_KINDS.map((kind, index) => [kind, index]));

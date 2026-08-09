@@ -189,7 +189,7 @@ let document = documentOf(rectangle());
   const { batches: dimension } = type(document, ["DCLINEAR", { pick: "left" }, "alto"], []);
   const command = dimension[0].commands[0];
   ok(
-    command.type === "constraint" && command.constraint.parameter === "alto",
+    command.type === "constraint" && command.op === "upsert" && command.constraint.parameter === "alto",
     "un identificador suelto se interpreta como referencia a un parámetro existente",
   );
   document = apply(document, dimension[0].commands, dimension[0].label);

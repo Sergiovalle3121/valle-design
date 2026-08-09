@@ -40,20 +40,27 @@ import type { CadEntity } from "../cad-document";
 import type { CadConstraint } from "./constraint-schema";
 import { createMatrix, matrixAdd, solveLinearSystem, type DenseMatrix } from "./linalg";
 import { diagnoseBlock, type DiagnosisRow, type RigidMotion } from "./diagnosis";
-import { evaluateConstraint, planConstraint, type ConstraintPlan } from "./residuals";
-import { dualGeometry, parametrizeCadEntity, type CadEntityParametrization } from "./variables";
+import type { CadEntityParametrization } from "./variables";
+import {
+  collectParametrizations,
+  denseRow,
+  evaluateSystem,
+  prepareSystem,
+  splitIntoBlocks,
+  type CadConstraintIssue,
+  type PreparedSystem,
+  type SolverBlock,
+  type SystemEvaluation,
+} from "./system";
+
+export type { CadConstraintIssue, CadConstraintJacobianRow } from "./system";
+export { sampleConstraintJacobian } from "./system";
 
 export type CadConstraintStatus =
   | "under_constrained"
   | "fully_constrained"
   | "over_constrained"
   | "inconsistent";
-
-export interface CadConstraintIssue {
-  code: string;
-  message: string;
-  constraintIds: string[];
-}
 
 export interface CadConstraintSolution {
   /** Entidades resueltas, sólo las que participan. Vacío si no se resolvió. */
@@ -90,24 +97,6 @@ export interface CadConstraintSolverOptions {
   parameterValues?: ReadonlyMap<string, number>;
 }
 
-interface PreparedConstraint {
-  constraint: CadConstraint;
-  parametrizations: CadEntityParametrization[];
-  localOffsets: number[];
-  localSize: number;
-  localToGlobal: Int32Array;
-  plan: ConstraintPlan;
-}
-
-interface PreparedSystem {
-  parametrizations: CadEntityParametrization[];
-  offsets: number[];
-  values: Float64Array;
-  columnScale: Float64Array;
-  columnEntity: Int32Array;
-  constraints: PreparedConstraint[];
-}
-
 const byIdAsc = (a: { id: string }, b: { id: string }) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
 /**
@@ -123,34 +112,9 @@ export function solveConstraintSystem(
   const enabled = [...constraints].filter((constraint) => constraint.enabled).sort(byIdAsc);
   if (enabled.length === 0) return emptySolution();
 
-  const byId = new Map(entities.map((entity) => [entity.id, entity]));
-  const parametrizations = new Map<string, CadEntityParametrization>();
-  const issues: CadConstraintIssue[] = [];
-  for (const constraint of enabled) {
-    for (const entityId of constraint.entityIds) {
-      if (parametrizations.has(entityId)) continue;
-      const entity = byId.get(entityId);
-      if (!entity) {
-        issues.push({
-          code: "constraint_missing_entity",
-          message: `La restricción ${constraint.id} apunta a ${entityId}, que no está en el documento.`,
-          constraintIds: [constraint.id],
-        });
-        continue;
-      }
-      const parametrization = parametrizeCadEntity(entity);
-      if (!parametrization) {
-        issues.push({
-          code: "constraint_unsupported",
-          message: `${entityId} es de tipo ${entity.type} y no participa en el dibujo paramétrico.`,
-          constraintIds: [constraint.id],
-        });
-        continue;
-      }
-      parametrizations.set(entityId, parametrization);
-    }
-  }
-  if (issues.length > 0) return failedSolution(issues);
+  const collected = collectParametrizations(entities, enabled);
+  if ("issues" in collected) return failedSolution(collected.issues);
+  const parametrizations = collected.parametrizations;
 
   const anchored = new Set<string>();
   for (const constraint of enabled)
@@ -207,257 +171,6 @@ function attempt(
 }
 
 // ---------------------------------------------------------------------------
-// Montaje del sistema
-// ---------------------------------------------------------------------------
-
-function prepareSystem(
-  parametrizations: ReadonlyMap<string, CadEntityParametrization>,
-  constraints: readonly CadConstraint[],
-  parameterValues: ReadonlyMap<string, number> | undefined,
-): PreparedSystem | { issues: CadConstraintIssue[] } {
-  // Orden estable por id: el orden de las columnas decide qué solución de norma
-  // mínima sale, así que dejarlo al orden de inserción haría que el mismo
-  // documento se resolviese distinto según cómo se hubiera cargado.
-  const list = [...parametrizations.values()].sort((a, b) =>
-    a.entityId < b.entityId ? -1 : a.entityId > b.entityId ? 1 : 0,
-  );
-  const offsets: number[] = [];
-  let total = 0;
-  for (const parametrization of list) {
-    offsets.push(total);
-    total += parametrization.values.length;
-  }
-  const values = new Float64Array(total);
-  const columnScale = new Float64Array(total);
-  const columnEntity = new Int32Array(total);
-  list.forEach((parametrization, index) => {
-    const offset = offsets[index];
-    parametrization.values.forEach((value, local) => {
-      values[offset + local] = value;
-      columnEntity[offset + local] = index;
-      const role = parametrization.roles[local];
-      columnScale[offset + local] = role === "length" ? 1 : 1 / parametrization.scale;
-    });
-  });
-
-  const indexOf = new Map(list.map((parametrization, index) => [parametrization.entityId, index]));
-  const issues: CadConstraintIssue[] = [];
-  const preparedConstraints: PreparedConstraint[] = [];
-  for (const constraint of constraints) {
-    const entityIndices = constraint.entityIds.map((entityId) => indexOf.get(entityId));
-    if (entityIndices.some((index) => index === undefined)) continue;
-    const involved = entityIndices as number[];
-    const localOffsets: number[] = [];
-    const localToGlobal: number[] = [];
-    for (const index of involved) {
-      localOffsets.push(localToGlobal.length);
-      const offset = offsets[index];
-      for (let local = 0; local < list[index].values.length; local += 1)
-        localToGlobal.push(offset + local);
-    }
-    const value = resolveConstraintValue(constraint, parameterValues);
-    if (value === "missing") {
-      issues.push({
-        code: "constraint_parameter_missing",
-        message: `La restricción ${constraint.id} usa el parámetro «${constraint.parameter}», que no existe.`,
-        constraintIds: [constraint.id],
-      });
-      continue;
-    }
-    const scale = Math.max(...involved.map((index) => list[index].scale), 1e-6);
-    preparedConstraints.push({
-      constraint,
-      parametrizations: involved.map((index) => list[index]),
-      localOffsets,
-      localSize: localToGlobal.length,
-      localToGlobal: Int32Array.from(localToGlobal),
-      plan: planConstraint(constraint, involved.map((index) => snapshotGeometry(list[index])), value, scale),
-    });
-  }
-  if (issues.length > 0) return { issues };
-  return { parametrizations: list, offsets, values, columnScale, columnEntity, constraints: preparedConstraints };
-}
-
-function resolveConstraintValue(
-  constraint: CadConstraint,
-  parameterValues: ReadonlyMap<string, number> | undefined,
-): number | null | "missing" {
-  if (!constraint.parameter) return constraint.value ?? null;
-  const resolved = parameterValues?.get(constraint.parameter);
-  if (resolved === undefined || !Number.isFinite(resolved)) return "missing";
-  return resolved;
-}
-
-/** Vista escalar de una entidad, para congelar el caso de las tangencias. */
-function snapshotGeometry(parametrization: CadEntityParametrization) {
-  const values = parametrization.values;
-  if (parametrization.form === "segment")
-    return { form: "segment", center: { x: values[0], y: values[1] }, angle: values[2], radius: null };
-  if (parametrization.form === "circle")
-    return { form: "circle", center: { x: values[0], y: values[1] }, angle: null, radius: values[2] };
-  if (parametrization.form === "arc")
-    return { form: "arc", center: { x: values[0], y: values[1] }, angle: null, radius: values[2] };
-  if (parametrization.form === "ellipse")
-    return { form: "ellipse", center: { x: values[0], y: values[1] }, angle: values[2], radius: values[3] };
-  return { form: "points", center: { x: values[0], y: values[1] }, angle: null, radius: null };
-}
-
-interface SystemEvaluation {
-  residuals: number[];
-  /** Gradiente de cada fila en columnas GLOBALES, ya escaladas. */
-  rowGradients: Float64Array[];
-  rowOwners: string[];
-  rowConstraintIndex: number[];
-}
-
-function evaluateSystem(system: PreparedSystem): SystemEvaluation | { issues: CadConstraintIssue[] } {
-  const residuals: number[] = [];
-  const rowGradients: Float64Array[] = [];
-  const rowOwners: string[] = [];
-  const rowConstraintIndex: number[] = [];
-  const issues: CadConstraintIssue[] = [];
-
-  system.constraints.forEach((prepared, constraintIndex) => {
-    const localValues: number[] = [];
-    for (let local = 0; local < prepared.localSize; local += 1)
-      localValues.push(system.values[prepared.localToGlobal[local]]);
-    const geometries = prepared.parametrizations.map((parametrization, index) =>
-      dualGeometry(parametrization, prepared.localOffsets[index], prepared.localSize, localValues),
-    );
-    const evaluated = evaluateConstraint(prepared.constraint, geometries, prepared.plan, prepared.localSize);
-    if (!evaluated.ok) {
-      issues.push({
-        code: evaluated.code,
-        message: evaluated.message,
-        constraintIds: [prepared.constraint.id],
-      });
-      return;
-    }
-    for (const row of evaluated.rows) {
-      if (!Number.isFinite(row.v)) {
-        issues.push({
-          code: "constraint_degenerate",
-          message: `La restricción ${prepared.constraint.id} produce geometría degenerada.`,
-          constraintIds: [prepared.constraint.id],
-        });
-        return;
-      }
-      const gradient = new Float64Array(system.values.length);
-      for (let local = 0; local < prepared.localSize; local += 1) {
-        const column = prepared.localToGlobal[local];
-        gradient[column] += row.g[local] * system.columnScale[column];
-      }
-      residuals.push(row.v);
-      rowGradients.push(gradient);
-      rowOwners.push(prepared.constraint.id);
-      rowConstraintIndex.push(constraintIndex);
-    }
-  });
-
-  if (issues.length > 0) return { issues };
-  return { residuals, rowGradients, rowOwners, rowConstraintIndex };
-}
-
-// ---------------------------------------------------------------------------
-// Bloques independientes
-// ---------------------------------------------------------------------------
-
-interface SolverBlock {
-  /** Columnas GLOBALES libres del bloque. */
-  columns: number[];
-  /** Índices de fila (en el orden de `evaluateSystem`). */
-  rows: number[];
-}
-
-/**
- * Componentes independientes del sistema.
- *
- * El acoplamiento se decide por ESTRUCTURA —qué entidades toca cada
- * restricción— y no por qué derivadas salen distintas de cero en la
- * configuración actual. La diferencia importa: la derivada de una tangencia
- * respecto del centro X del círculo vale exactamente cero cuando la recta es
- * horizontal, y con el criterio numérico esa variable desaparecía del bloque,
- * se descontaba de los grados de libertad y volvía a aparecer en cuanto la
- * recta se inclinaba un poco. Los grados de libertad de un dibujo no pueden
- * depender de en qué ángulo esté.
- */
-function splitIntoBlocks(
-  system: PreparedSystem,
-  rowConstraintIndex: readonly number[],
-  frozenColumns: Uint8Array,
-): SolverBlock[] {
-  const parent = new Int32Array(system.values.length);
-  for (let index = 0; index < parent.length; index += 1) parent[index] = index;
-  const find = (index: number): number => {
-    let root = index;
-    while (parent[root] !== root) root = parent[root];
-    let walk = index;
-    while (parent[walk] !== root) {
-      const next = parent[walk];
-      parent[walk] = root;
-      walk = next;
-    }
-    return root;
-  };
-  const union = (a: number, b: number) => {
-    const rootA = find(a);
-    const rootB = find(b);
-    if (rootA !== rootB) parent[Math.max(rootA, rootB)] = Math.min(rootA, rootB);
-  };
-
-  // Las columnas libres de una misma entidad van siempre juntas: una entidad no
-  // se parte entre dos subsistemas.
-  const entityColumns = system.parametrizations.map((): number[] => []);
-  for (let column = 0; column < system.values.length; column += 1) {
-    if (frozenColumns[column]) continue;
-    entityColumns[system.columnEntity[column]].push(column);
-  }
-  for (const columns of entityColumns)
-    for (let index = 1; index < columns.length; index += 1) union(columns[0], columns[index]);
-
-  const entityIndexOf = new Map(
-    system.parametrizations.map((parametrization, index) => [parametrization.entityId, index]),
-  );
-  const constraintColumns = system.constraints.map((prepared) => {
-    const free = [
-      ...new Set(
-        prepared.parametrizations.flatMap(
-          (parametrization) => entityColumns[entityIndexOf.get(parametrization.entityId)!],
-        ),
-      ),
-    ].sort((a, b) => a - b);
-    for (let index = 1; index < free.length; index += 1) union(free[0], free[index]);
-    return free;
-  });
-  const rowColumns: number[][] = rowConstraintIndex.map((index) => constraintColumns[index]);
-
-  const blocks = new Map<number, SolverBlock>();
-  // Filas sin NINGUNA variable libre: no se pueden resolver, pero sí
-  // diagnosticar — son las que chocan con un anclaje y hay que nombrarlas.
-  const stuck: SolverBlock = { columns: [], rows: [] };
-  rowColumns.forEach((columns, rowIndex) => {
-    if (columns.length === 0) {
-      stuck.rows.push(rowIndex);
-      return;
-    }
-    const root = find(columns[0]);
-    const block = blocks.get(root) ?? { columns: [], rows: [] };
-    block.rows.push(rowIndex);
-    blocks.set(root, block);
-  });
-  for (let column = 0; column < parent.length; column += 1) {
-    if (frozenColumns[column]) continue;
-    const root = find(column);
-    const block = blocks.get(root) ?? { columns: [], rows: [] };
-    block.columns.push(column);
-    blocks.set(root, block);
-  }
-  const ordered = [...blocks.entries()].sort((a, b) => a[0] - b[0]).map(([, block]) => block);
-  if (stuck.rows.length > 0) ordered.push(stuck);
-  return ordered;
-}
-
-// ---------------------------------------------------------------------------
 // Levenberg-Marquardt sobre un bloque
 // ---------------------------------------------------------------------------
 
@@ -473,18 +186,20 @@ function solveBlock(
   let underTolerance = 0;
   let iterations = 0;
 
-  const blockResiduals = (): number[] | null => {
-    const evaluated = evaluateSystem(system);
-    if ("issues" in evaluated) return null;
-    return block.rows.map((rowIndex) => evaluated.residuals[rowIndex]);
-  };
+  const columnIndex = new Map(columns.map((column, index) => [column, index]));
+  // Se evalúan SÓLO las restricciones de este bloque. Con la evaluación
+  // completa, resolver N bloques cuesta N veces el sistema entero por iteración
+  // y la descomposición deja de servir para lo que existe.
+  const evaluateBlock = () => evaluateSystem(system, block.constraintIndices);
+  const normOf = (values: readonly number[]) =>
+    values.reduce((max, value) => Math.max(max, Math.abs(value)), 0);
 
   for (let iteration = 1; iteration <= maxIterations; iteration += 1) {
     iterations = iteration;
-    const evaluated = evaluateSystem(system);
+    const evaluated = evaluateBlock();
     if ("issues" in evaluated) return { converged: false, iterations };
-    const residuals = block.rows.map((rowIndex) => evaluated.residuals[rowIndex]);
-    const norm = residuals.reduce((max, value) => Math.max(max, Math.abs(value)), 0);
+    const residuals = evaluated.residuals;
+    const norm = normOf(residuals);
     if (norm <= tolerance) {
       // Un paso de PULIDO tras cruzar la tolerancia. Newton converge de forma
       // cuadrática: la iteración siguiente baja el residuo varios órdenes de
@@ -503,15 +218,15 @@ function solveBlock(
     // recorrerlo denso convertiría un dibujo grande en un cuadrado inútil.
     const normal = createMatrix(n, n);
     const gradient = new Float64Array(n);
-    block.rows.forEach((rowIndex, localRow) => {
-      const row = evaluated.rowGradients[rowIndex];
+    evaluated.rows.forEach((row, localRow) => {
       const entries: number[] = [];
       const factors: number[] = [];
-      for (let index = 0; index < n; index += 1) {
-        const value = row[columns[index]];
-        if (value === 0) continue;
+      for (let entry = 0; entry < row.columns.length; entry += 1) {
+        const index = columnIndex.get(row.columns[entry]);
+        // Columnas congeladas: aportan al residuo pero no son incógnitas.
+        if (index === undefined || row.values[entry] === 0) continue;
         entries.push(index);
-        factors.push(value);
+        factors.push(row.values[entry]);
       }
       for (let i = 0; i < entries.length; i += 1) {
         gradient[entries[i]] += factors[i] * residuals[localRow];
@@ -541,8 +256,8 @@ function solveBlock(
       columns.forEach((column, index) => {
         system.values[column] = snapshot[column] + step[index] * system.columnScale[column];
       });
-      const next = blockResiduals();
-      const nextNorm = next ? next.reduce((max, value) => Math.max(max, Math.abs(value)), 0) : Number.POSITIVE_INFINITY;
+      const next = evaluateBlock();
+      const nextNorm = "issues" in next ? Number.POSITIVE_INFINITY : normOf(next.residuals);
       if (Number.isFinite(nextNorm) && nextNorm < before) {
         accepted = true;
         lambda = Math.max(lambda / 3, 1e-12);
@@ -558,8 +273,8 @@ function solveBlock(
       return { converged: underTolerance > 0, iterations };
     }
   }
-  const residuals = blockResiduals();
-  const norm = residuals ? residuals.reduce((max, value) => Math.max(max, Math.abs(value)), 0) : Number.POSITIVE_INFINITY;
+  const last = evaluateBlock();
+  const norm = "issues" in last ? Number.POSITIVE_INFINITY : normOf(last.residuals);
   return { converged: norm <= tolerance, iterations };
 }
 
@@ -585,9 +300,10 @@ function summarize(
   const issues: CadConstraintIssue[] = [];
 
   for (const block of blocks) {
+    const columnIndex = new Map(block.columns.map((column, index) => [column, index]));
     const rows: DiagnosisRow[] = block.rows.map((rowIndex) => ({
       constraintId: evaluation.rowOwners[rowIndex],
-      gradient: Float64Array.from(block.columns.map((column) => evaluation.rowGradients[rowIndex][column])),
+      gradient: denseRow(evaluation.rows[rowIndex], columnIndex, block.columns.length),
       residual: evaluation.residuals[rowIndex],
     }));
     const diagnosis = diagnoseBlock(block.columns.length, rows, rigidMotions(system, block), tolerance);

@@ -108,4 +108,26 @@ assert.deepEqual(
 );
 checks += 1;
 
+// Deducir sobre una selección grande no puede costar minutos. El filtro de
+// rango es incremental precisamente por esto: preguntando al solucionador una
+// vez por candidata, cuarenta objetos alineados —1.600 candidatas— no
+// terminaban. El margen es holgadísimo a propósito, para que falle cuando
+// alguien vuelva a hacerlo cuadrático y no cuando la máquina va cargada.
+{
+  const many: CadEntity[] = [];
+  for (let index = 0; index < 40; index += 1) many.push(line(`l${index}`, index * 100, 0, index * 100 + 100, 0));
+  const started = Date.now();
+  const result = autoConstrainCadEntities(many, many.map((entity) => entity.id));
+  const elapsed = Date.now() - started;
+  ok(elapsed < 10_000, `deducir sobre 40 objetos tarda ${elapsed} ms`);
+  ok(result.added.length > 0, "y deduce algo");
+  ok(
+    result.added.length < result.skipped.length,
+    "descartando muchas más de las que acepta: 40 rectas alineadas no necesitan 1.600 relaciones",
+  );
+  const check = solveConstraintSystem(many, result.added, { tolerance: 1e-9 });
+  assert.deepEqual(check.redundantConstraintIds, [], "y lo aceptado no tiene redundancias");
+  checks += 1;
+}
+
 console.log(`cad autoconstrain spec: ${checks} comprobaciones verdes`);
