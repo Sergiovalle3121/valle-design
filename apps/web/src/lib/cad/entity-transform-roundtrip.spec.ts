@@ -230,6 +230,25 @@ const TRANSFORMS: { label: string; forward: CadEntityTransform; inverse: CadEnti
   },
 ];
 
+/**
+ * Reflexiones. **Una reflexión es su propia inversa**, así que la ida y vuelta
+ * se hace aplicándola DOS VECES — sin necesidad de construir un inverso, que es
+ * justo donde se cuelan los errores de las pruebas.
+ *
+ * Es además la propiedad más fuerte del archivo: si un adaptador olvida negar
+ * el `bulge`, o intercambiar los extremos del arco, o reflejar el ángulo del
+ * patrón, aplicar dos veces NO devuelve la entidad original y falla aquí con su
+ * nombre delante. Un caso concreto podría pasar por casualidad; catorce ejes
+ * distintos sobre doce tipos, no.
+ */
+const MIRRORS: { label: string; mirror: NonNullable<CadEntityTransform["mirror"]> }[] = [
+  { label: "eje vertical por el origen", mirror: { point: { x: 0, y: 0 }, direction: { x: 0, y: 1 } } },
+  { label: "eje horizontal por el origen", mirror: { point: { x: 0, y: 0 }, direction: { x: 1, y: 0 } } },
+  { label: "eje vertical desplazado", mirror: { point: { x: 500, y: 0 }, direction: { x: 0, y: 1 } } },
+  { label: "eje a 45°", mirror: { point: { x: 0, y: 0 }, direction: { x: 1, y: 1 } } },
+  { label: "eje a 30° fuera del origen", mirror: { point: { x: 120, y: -80 }, direction: { x: Math.cos(Math.PI / 6), y: Math.sin(Math.PI / 6) } } },
+];
+
 // Diez transformadas aleatorias deterministas, cada una con su inversa exacta.
 for (let index = 0; index < 10; index += 1) {
   const rotationDeg = Math.round((random() * 720 - 360) * 1000) / 1000;
@@ -374,6 +393,26 @@ for (const entity of CORPUS)
       failures.push(`${entity.type} · ${spec.label}: ${differences.slice(0, 3).join(" | ")}`);
   }
 
+// --- reflexiones: aplicar dos veces devuelve el original ----------------------
+for (const entity of CORPUS)
+  for (const spec of MIRRORS) {
+    checks += 1;
+    const once = transform(entity, { mirror: spec.mirror });
+    const twice = transform(once, { mirror: spec.mirror });
+    const differences = drift(entity, twice).filter(
+      (difference) => !isDeclaredNormalization(entity.type, difference.split(":")[0]),
+    );
+    if (differences.length > 0)
+      failures.push(
+        `${entity.type} · espejo ${spec.label}: ${differences.slice(0, 3).join(" | ")}`,
+      );
+    // Y la ida tiene que reflejar de verdad: si el adaptador ignorase el
+    // espejo, aplicar dos veces también devolvería el original y esta spec
+    // pasaría sin que MIRROR hiciera nada.
+    if (JSON.stringify(once) === JSON.stringify(entity))
+      failures.push(`${entity.type} · espejo ${spec.label}: la entidad NO cambió al reflejarse`);
+  }
+
 if (failures.length > 0) {
   console.error(`\nIda y vuelta rota en ${failures.length} de ${checks} combinaciones:\n`);
   for (const failure of failures) console.error(`  - ${failure}`);
@@ -440,6 +479,135 @@ assert.equal(
   assert.ok(
     Math.abs(((arc.endAngle % 360) + 360) % 360 - 180) < 1e-9,
     `y el final también: ${arc.endAngle}`,
+  );
+}
+
+// --- anclas ABSOLUTAS de reflexión --------------------------------------------
+//
+// La involución de arriba no basta y conviene decir por qué: si un adaptador
+// IGNORA por completo el espejo en un campo angular, aplicarlo dos veces
+// también devuelve el original — el campo nunca se tocó. La propiedad se cumple
+// de forma vacía. Por eso cada regla de reflexión necesita además una
+// afirmación absoluta que diga qué valor CONCRETO debe salir.
+{
+  const aboutX: CadEntityTransform = {
+    mirror: { point: { x: 0, y: 0 }, direction: { x: 1, y: 0 } },
+  };
+
+  // Polilínea: el `bulge` codifica el sentido del arco, así que se NIEGA. El
+  // índice del vértice, el orden y el cierre no se tocan.
+  const polyline = transform(
+    {
+      id: "p",
+      type: "polyline",
+      vertices: [
+        { x: 0, y: 0, z: 0 },
+        { x: 400, y: 0, z: 0, bulge: 0.5 },
+        { x: 400, y: 300, z: 0, bulge: -0.25 },
+      ],
+      closed: true,
+      layer: "0",
+    },
+    aboutX,
+  );
+  assert.ok(polyline.type === "polyline");
+  assert.equal(polyline.vertices[1].bulge, -0.5, "el bulge se niega al reflejar");
+  assert.equal(polyline.vertices[2].bulge, 0.25, "y el negativo se vuelve positivo");
+  assert.equal(polyline.vertices[0].bulge, undefined, "un vértice sin bulge sigue sin él");
+  assert.equal(polyline.closed, true, "el cierre no cambia");
+
+  // Arco: DXF los recorre SIEMPRE en antihorario, así que reflejar no gira los
+  // extremos: los intercambia y los refleja. Espejo sobre el eje X (φ=0):
+  // start' = −end, end' = −start. De 30°→200° sale 160°→330°.
+  const arc = transform(
+    {
+      id: "a",
+      type: "arc",
+      center: { x: 0, y: 0, z: 0 },
+      radius: 150,
+      startAngle: 30,
+      endAngle: 200,
+      layer: "0",
+    },
+    aboutX,
+  );
+  assert.ok(arc.type === "arc");
+  assert.ok(
+    Math.abs(arc.startAngle - 160) < 1e-9,
+    `el inicio sale del FINAL reflejado: ${arc.startAngle}`,
+  );
+  assert.ok(
+    Math.abs(arc.endAngle - 330) < 1e-9,
+    `y el final del inicio reflejado: ${arc.endAngle}`,
+  );
+
+  // Sombreado: el ángulo del patrón pasa de α a φ − α. Con φ=0, de 45° a −45°,
+  // normalizado a 315°. Sumarlo en vez de reflejarlo dejaría 45° intacto, que
+  // es el error que no se ve.
+  const hatch = transform(
+    {
+      id: "h",
+      type: "hatch",
+      pattern: "ANSI31",
+      solid: false,
+      boundaries: [[{ x: 0, y: 0, z: 0 }, { x: 300, y: 0, z: 0 }, { x: 300, y: 200, z: 0 }]],
+      angle: 45,
+      layer: "0",
+    },
+    aboutX,
+  );
+  assert.ok(hatch.type === "hatch");
+  assert.ok(
+    Math.abs((((hatch.angle ?? 0) % 360) + 360) % 360 - 315) < 1e-9,
+    `el patrón se refleja, no se conserva: ${hatch.angle}`,
+  );
+
+  // INSERT: no se explota jamás. Se re-descompone — el giro pasa a φ − rotación
+  // y UN eje de la escala se niega. Con φ=0 y rotación 30, sale −30 (≡330).
+  const insert = transform(
+    {
+      id: "i",
+      type: "insert",
+      block: "PUERTA",
+      insertion: { x: 900, y: 300, z: 0 },
+      scale: { x: 1.5, y: 0.75, z: 1 },
+      rotation: 30,
+      layer: "0",
+    },
+    aboutX,
+  );
+  assert.ok(insert.type === "insert");
+  assert.ok(
+    Math.abs((((insert.rotation % 360) + 360) % 360) - 330) < 1e-9,
+    `el giro se RESTA, no se suma: ${insert.rotation}`,
+  );
+  assert.ok(
+    insert.scale.x * insert.scale.y < 0,
+    `exactamente un eje de la escala queda negado: ${insert.scale.x}, ${insert.scale.y}`,
+  );
+  assert.ok(
+    Math.abs(Math.abs(insert.scale.x) - 1.5) < 1e-9 &&
+      Math.abs(Math.abs(insert.scale.y) - 0.75) < 1e-9,
+    "y las magnitudes no cambian bajo un espejo puro",
+  );
+
+  // MTEXT: el texto reflejado se re-orienta como el INSERT — φ − rotación.
+  const mtext = transform(
+    {
+      id: "t",
+      type: "mtext",
+      insertion: { x: 120, y: 640, z: 0 },
+      text: "PLANTA BAJA",
+      height: 25,
+      rotation: 15,
+      layer: "0",
+    },
+    aboutX,
+  );
+  assert.ok(mtext.type === "mtext");
+  assert.ok(
+    Math.abs(((((mtext.rotation ?? 0) % 360) + 360) % 360) - 345) < 1e-9,
+    `el texto se re-orienta restando: ${mtext.rotation}`,
   );
 }
 

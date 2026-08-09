@@ -1,6 +1,9 @@
 import type { CadPoint2 } from './cad-document';
 import { buildCadMleaderGeometry, cadMleaderLines, type CadMleaderEntity } from './associative-mleader';
 import type { CadEntityAdapter, CadEntityTransform, CadNativeEntity, CadPropertyValue } from './entity-runtime';
+// Se importan de `transform2d` y no de `entity-runtime` a propósito:
+// `entity-runtime` importa este módulo, así que ir por él cerraría un ciclo.
+import { cadTransformAngleBase, cadTransformIsReflecting, cadTransformScaleFactor } from './transform2d';
 
 type NativeMleader = Extract<CadNativeEntity, { type: 'mleader' }>;
 const finite = (value: CadPropertyValue | undefined, fallback: number): number => typeof value === 'number' && Number.isFinite(value) ? value : fallback;
@@ -13,6 +16,7 @@ const transformPoint = (point: CadPoint2, transform: CadEntityTransform): CadPoi
   const dy = (point.y - origin.y) * factor;
   return { x: origin.x + dx * Math.cos(radians) - dy * Math.sin(radians) + (transform.translation?.x ?? 0), y: origin.y + dx * Math.sin(radians) + dy * Math.cos(radians) + (transform.translation?.y ?? 0) };
 };
+const normalizeAngleDeg = (value: number) => ((value % 360) + 360) % 360;
 const distanceToSegment = (point: CadPoint2, a: CadPoint2, b: CadPoint2) => {
   const dx = b.x - a.x; const dy = b.y - a.y; const lengthSquared = dx * dx + dy * dy;
   if (lengthSquared <= 1e-18) return Math.hypot(point.x - a.x, point.y - a.y);
@@ -109,11 +113,19 @@ export const mleaderAdapter: CadEntityAdapter<NativeMleader> = {
       // flecha, la longitud del codo y la caja de texto, y a partir de ahí
       // dejaba de seguir a su estilo. Mismo defecto que tenía MTEXT, encontrado
       // por la misma spec de ida y vuelta.
-      ...(entity.arrowSize === undefined ? {} : { arrowSize: entity.arrowSize * Math.abs(transform.scale ?? 1) }),
-      ...(entity.doglegLength === undefined ? {} : { doglegLength: entity.doglegLength * Math.abs(transform.scale ?? 1) }),
-      ...(entity.textWidth === undefined ? {} : { textWidth: entity.textWidth * Math.abs(transform.scale ?? 1) }),
-      ...(entity.textHeight === undefined ? {} : { textHeight: entity.textHeight * Math.abs(transform.scale ?? 1) }),
-      textRotation: (entity.textRotation ?? 0) + (transform.rotationDeg ?? 0),
+      ...(entity.arrowSize === undefined ? {} : { arrowSize: entity.arrowSize * cadTransformScaleFactor(transform) }),
+      ...(entity.doglegLength === undefined ? {} : { doglegLength: entity.doglegLength * cadTransformScaleFactor(transform) }),
+      ...(entity.textWidth === undefined ? {} : { textWidth: entity.textWidth * cadTransformScaleFactor(transform) }),
+      ...(entity.textHeight === undefined ? {} : { textHeight: entity.textHeight * cadTransformScaleFactor(transform) }),
+      // Igual que MTEXT y que INSERT: bajo reflexión el rótulo se re-orienta
+      // restando, no sumando. Sin esto, espejar un ala de la planta dejaría
+      // cada directriz con su texto inclinado hacia el lado contrario al de la
+      // geometría que señala.
+      textRotation: normalizeAngleDeg(
+        cadTransformIsReflecting(transform)
+          ? cadTransformAngleBase(transform) - (entity.textRotation ?? 0)
+          : (entity.textRotation ?? 0) + cadTransformAngleBase(transform),
+      ),
       associative: false, associationStatus: 'detached',
       context: entity.context ? structuredClone(entity.context) : undefined,
     };

@@ -332,3 +332,47 @@ export function cadTransformVector3<P extends { x: number; y: number; z: number 
   const moved = cadAffineApplyVector(cadAffineFromTransform(transform), vector);
   return { x: moved.x, y: moved.y, z: vector.z };
 }
+
+/**
+ * ¿Esta transformada invierte la orientación del plano?
+ *
+ * La pregunta que **todos** los adaptadores tienen que hacerse, porque bajo
+ * determinante negativo hay campos que no se transforman: se invierten. El
+ * `bulge` de una polilínea cambia de signo, un arco DXF —siempre antihorario—
+ * intercambia sus extremos, el ángulo de un patrón de sombreado pasa de α a
+ * `2φ − α`. Olvidar cualquiera de ellos no da error: da un dibujo plausible y
+ * equivocado.
+ */
+export function cadTransformIsReflecting(transform: CadAffineTransformInput): boolean {
+  return cadAffineIsReflecting(cadAffineFromTransform(transform));
+}
+
+/**
+ * Ángulo `φ` que gobierna la reflexión de todo campo angular almacenado.
+ *
+ * Bajo una reflexión de eje `φ/2`, una dirección de ángulo α acaba en
+ * `φ − α`. `cadAffineAngle` devuelve `atan2(b, a)`, que para una reflexión pura
+ * vale exactamente `2·(ángulo del eje)` — de ahí que la regla se escriba igual
+ * para todos: `ángulo' = cadTransformAngleBase(t) − ángulo`.
+ *
+ * Bajo una transformada NO reflectante el mismo valor es el giro, y la regla es
+ * la suma de siempre. Por eso conviene un único sitio del que sacarlo.
+ */
+export function cadTransformAngleBase(transform: CadAffineTransformInput): number {
+  // `cadAffineAngle` YA devuelve grados en [0, 360). Convertirlos otra vez es
+  // el error que esta línea tuvo una vez y que la spec cazó al instante: un
+  // arco de 30° salía a 20.656°.
+  return cadAffineAngle(cadAffineFromTransform(transform));
+}
+
+/**
+ * Factor de escala de longitudes: la raíz del valor absoluto del determinante.
+ *
+ * Es la media geométrica de las dos escalas principales, así que para una
+ * similitud —el único caso en que un radio sigue siendo un radio— es exacta.
+ * Para una afín anisótropa no existe «el» factor: un círculo deja de ser un
+ * círculo, y eso lo resuelve el adaptador cambiando de tipo, no este número.
+ */
+export function cadTransformScaleFactor(transform: CadAffineTransformInput): number {
+  return Math.sqrt(Math.abs(cadAffineDet(cadAffineFromTransform(transform))));
+}
