@@ -69,6 +69,7 @@
         "packages/dwg-codec/src/model/opaque-object.ts",
         "packages/dwg-codec/src/model/reference.ts",
         "packages/dwg-codec/src/model/symbol-table.ts",
+        "packages/dwg-codec/src/security/byte-view.ts",
         "packages/dwg-codec/src/security/input-snapshot.ts",
         "packages/dwg-codec/src/security/parse-error.ts",
         "packages/dwg-codec/src/security/resource-budget.ts",
