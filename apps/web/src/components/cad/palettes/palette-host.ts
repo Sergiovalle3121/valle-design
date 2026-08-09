@@ -10,9 +10,13 @@
  * Es deliberadamente tonto. La lógica de cada gestor vive en su propio módulo;
  * esto sólo dice cuál se pinta.
  */
+/**
+ * Sólo los cuadros FLOTANTES. La paleta de propiedades y el gestor de capas
+ * viven anclados —en el panel derecho y en el menú de vista— y su visibilidad
+ * la decide el editor, así que no aparecen aquí: listarlos daría a entender que
+ * este anfitrión los controla, y no es verdad.
+ */
 export type CadPaletteId =
-  | "properties"
-  | "layers"
   | "draft-settings"
   /** Los cinco gestores de estilo comparten cuadro y se eligen por pestaña. */
   | "styles";
