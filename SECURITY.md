@@ -61,7 +61,14 @@ Importar es tratar datos hostiles. DXF/JSON se procesan en un Web Worker con
 límites de archivo, tiempo, profundidad y cantidad de nodos; claves de
 prototype pollution se rechazan. El servidor valida esquema, cardinalidad,
 números finitos, gzip, tamaño expandido y hash para evitar payloads sin límite
-y zip bombs. DWG se rechaza, no se intenta interpretar.
+y zip bombs. El producto rechaza DWG y no lo envía al laboratorio.
+
+La investigación aislada de `packages/dwg-codec/` trata cada byte como hostil,
+sin red, filesystem implícito, telemetría ni ejecución de contenido embebido.
+Debe usar cursores y aritmética comprobados, budgets inmutables, errores tipados
+y pruebas adversariales deterministas. Esa investigación no es una afirmación
+de seguridad ni autoriza integración runtime; su threat model y procedencia
+están gobernados por ADR-0007 y las reglas scoped del package.
 
 ## Outbox y webhooks firmados
 

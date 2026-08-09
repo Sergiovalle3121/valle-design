@@ -1,6 +1,6 @@
 # Matriz de brechas frente a AutoCAD 2027
 
-Fecha de corte: 2026-08-02. AutoCAD 2027 se usa sólo como referencia de
+Fecha de corte: 2026-08-09. AutoCAD 2027 se usa sólo como referencia de
 categorías; no existe afiliación, certificación ni claim de paridad.
 
 ## Criterio
@@ -35,7 +35,7 @@ de cada punto; nunca se redondea a 10/10 mientras exista un gap.
 | Guardado CAS, autosave, historia y versiones                      | Parcial     | Cola single-writer, CAS 409, historia acotada, versiones, gzip/blob y E2E real de logout/reopen/>1 MB | Offline/multi-tab, recovery bajo cierre forzado y presupuesto/SLO de documentos extremos no cerrados            | P0                         |
 | Importación de JSON canónico                                      | Parcial     | Web Worker, progreso/cancelación, límites, persistencia y E2E real                                    | Corpus hostil/fuzzing de navegador y UX de merge/reemplazo más amplia pendientes                                | P1                         |
 | Import/export DXF de texto                                        | Parcial     | Parser/exportador TS, XDATA, loss manifest, goldens 27 y round-trip E2E real                          | Falta corpus autorizado diverso y fidelidad completa; el round-trip masivo no está demostrado                   | P0                         |
-| Import/export DWG                                                 | **Ausente** | UI rechaza formato y ADR-0004 declara el límite                                                       | No hay parser/SDK/licencia/proveedor/corpus/pruebas                                                             | P0 si el producto lo exige |
+| Import/export DWG                                                 | **Ausente** | UI rechaza formato; ADR-0004/0007 mantienen el producto fuera del laboratorio clean-room aislado      | No hay decoder productivo, corpus independiente, mapping, entidades, export, round-trip ni integración runtime  | P0 si el producto lo exige |
 | API y SDK de automatización                                       | Parcial     | OpenAPI `/v1`, SDK generado, byte gate y router gate                                                  | No hay consola, rate/load tests públicos ni política de extensiones de terceros                                 | P1                         |
 | Asistencia NL→CAD/Vision→CAD                                      | Parcial     | Puerto CIDE opcional, validación/preview y specs deterministas                                        | Sin benchmark de calidad/modelo, evaluación adversarial ni garantía de disponibilidad                           | P2                         |
 | Eventos e integración asíncrona                                   | Parcial     | Outbox transaccional, leases PG, retries/dead, webhook HMAC e idempotencia                            | Receptor/proveedor externo no vive aquí; falta evidencia operacional sostenida y replay auditado                | P1                         |
@@ -85,8 +85,10 @@ rendimiento entre ellos.
    round-trip y pérdidas aceptadas. No promover DXF por un único archivo feliz.
 4. Cerrar recuperación offline, cierre forzado y edición multi-tab sin perder
    trabajo ni eludir conflictos; publicar límites de documento y memoria.
-5. Si DWG es requisito comercial, seleccionar proveedor autorizado y completar
-   el gate legal/seguridad/fidelidad de ADR-0004. Hasta entonces sigue ausente.
+5. Si DWG es requisito comercial, validar la implementación clean-room contra
+   ADR-0007 o seleccionar un proveedor autorizado y completar los gates
+   legal/seguridad/fidelidad. Sin un ADR posterior de promoción, corpus
+   independiente e integración real, sigue ausente.
 6. Mantener como gate bloqueante identidad→organización→trial→documento→CAS→
    logout/login/reset→aislamiento A/B→archivo grande→DXF con API y PostgreSQL
    reales en Chromium y Firefox, sin interceptar `/v1`.
