@@ -159,9 +159,7 @@ function booleanDescriptor(
 // FILLETEDGE / CHAMFEREDGE
 // ---------------------------------------------------------------------------
 
-interface EdgeFeatureState extends SolidSelectionState {
-  radius: number | null;
-}
+type EdgeFeatureState = SolidSelectionState;
 
 function edgeFeatureDescriptor(
   name: string,
@@ -186,7 +184,7 @@ function edgeFeatureDescriptor(
     repeatable: true,
     mutates: true,
     cursor: "pick",
-    begin: (context) => step({ selection: context.selection, radius: null }),
+    begin: (context) => step({ selection: context.selection }),
     step: (state, input, context) => {
       if (input.kind === "cancel") return solidCancelled(state);
       if (input.kind === "selection") return step({ ...state, selection: input.entityIds });

@@ -255,6 +255,3 @@ export const CAD_SOLID_INQUIRY_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   selectionDescriptor("MASSPROP", ["MASS"], "inquiry", "Designe los sólidos o regiones que medir", massPropRun),
   selectionDescriptor("INTERFERE", ["INF"], "inquiry", "Designe los sólidos entre los que buscar interferencias", interfereRun),
 ].map(asCadCommand);
-
-/** Reexportado para que el spec pueda comprobar el lote sin montar el motor. */
-export const __testables = { sweepRun, loftRun, massPropRun, interfereRun };

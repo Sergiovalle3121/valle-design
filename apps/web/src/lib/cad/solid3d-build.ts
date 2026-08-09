@@ -31,10 +31,8 @@
  * su colocación, así que no puede devolver un cuerpo desactualizado.
  */
 import {
-  BodyBuilder,
   aabbDiagonal,
   attachPlanarSurfaces,
-  assertValidBody,
   bodyBounds,
   bodyMassProperties,
   bodyToFaceSpecs,
@@ -44,7 +42,6 @@ import {
   buildBody,
   chamferEdges,
   compareMassProperties,
-  eulerCounts,
   extrudeProfile,
   halfEdgeDestination,
   halfEdgeSegment,
@@ -60,7 +57,6 @@ import {
   vec3,
   type BrepBody,
   type BrepMesh,
-  type EulerCounts,
   type FaceSpec,
   type MassProperties,
   type SurfaceFrame,
@@ -114,12 +110,6 @@ export function resolveSolidPlacement(placement?: CadSolidPlacement): Required<C
     f: placement.f,
     dz: placement.dz ?? 0,
   };
-}
-
-/** Determinante de la parte lineal. Negativo ⟺ la colocación refleja. */
-export function solidPlacementDeterminant(placement?: CadSolidPlacement): number {
-  const m = resolveSolidPlacement(placement);
-  return m.a * m.d - m.b * m.c;
 }
 
 /**
@@ -520,24 +510,6 @@ export function bodyToSolidNode(
   };
 }
 
-/**
- * Suelda una sopa de puntos repetidos antes de construir. `buildBody` no suelda
- * —los índices ya vienen resueltos— así que un cuerpo importado que trae el
- * mismo vértice escrito dos veces produciría dos vértices distintos y una
- * topología con aristas de borde donde no las hay.
- */
-export function weldedBodyFromLoops(
-  loops: readonly (readonly Vec3[])[],
-  tolerance = 1e-7,
-): BrepBody {
-  const builder = new BodyBuilder(tolerance);
-  for (const loop of loops) {
-    if (loop.length < 3) continue;
-    builder.addPolygon(loop);
-  }
-  return attachPlanarSurfaces(builder.build());
-}
-
 // ---------------------------------------------------------------------------
 // Caché
 // ---------------------------------------------------------------------------
@@ -593,11 +565,6 @@ export function solid3dMassProperties(entity: CadSolid3dEntity): MassProperties 
   return entry.mass;
 }
 
-/** Cuentas de Euler-Poincaré del sólido evaluado. */
-export function solid3dEulerCounts(entity: CadSolid3dEntity): EulerCounts {
-  return eulerCounts(solid3dBody(entity));
-}
-
 /**
  * Contraste de los DOS caminos: integración sobre las caras del B-rep frente a
  * suma sobre los triángulos de la malla. Se reexporta con el sólido como entrada
@@ -607,11 +574,3 @@ export function solid3dMassComparison(entity: CadSolid3dEntity) {
   return compareMassProperties(solid3dBody(entity));
 }
 
-/** Lanza si el cuerpo del sólido rompe algún invariante. */
-export function assertSolidValid(entity: CadSolid3dEntity): void {
-  assertValidBody(
-    solid3dBody(entity),
-    { requireClosed: true, requirePlanarFaces: true },
-    `SOLID3D ${entity.id}`,
-  );
-}
