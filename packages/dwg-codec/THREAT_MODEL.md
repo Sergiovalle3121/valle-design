@@ -2,9 +2,10 @@
 
 ## Alcance y activos
 
-La frontera futura recibe un `Uint8Array` no confiable y produce un resultado
-neutral, diagnostics y un manifiesto de pérdidas. No produce `CadDocument` ni
-se ejecuta en el producto durante DWG-0.
+La frontera actual recibe un `Uint8Array` no confiable y produce un probe
+discriminado con error tipado, diagnostics y un manifiesto de pérdidas vacío.
+Sólo detecta la firma: no produce una object database ni `CadDocument` y no se
+ejecuta en el producto durante DWG-0.
 
 Se protegen:
 
@@ -34,9 +35,9 @@ síncrona que no coopera.
 vista no confiable
   -> rechazar SharedArrayBuffer + validar tamaño + snapshot propio
   -> detección de firma estricta
-  -> cursores/budgets/aritmética comprobada
-  -> decoder versionado y acotado
-  -> base de objetos neutral + diagnostics + loss manifest
+  -> versión conocida/desconocida + resultado unsupported/error
+  -> [fundamentos internos] cursores/budgets/aritmética comprobada
+  -X-> decoder y base de objetos completa (todavía unsupported)
   -X-> filesystem, red, comandos, OLE, scripts, URLs, CadDocument o UI
 ```
 
@@ -48,7 +49,7 @@ vista no confiable
 | Overflow/underflow     | `offset + length`, conteos enormes    | Aritmética comprobada y conversiones seguras antes de leer/reservar                     |
 | Memoria no acotada     | longitud controla array/string        | Budget inmutable; validar antes de reservar; límites de bytes expandidos                |
 | CPU/tiempo no acotados | ciclos, nesting o trabajo cuadrático  | Trabajo determinista; deadline/cancel checks acotados; terminación externa del worker   |
-| Mutación concurrente   | caller cambia bytes durante el parseo | Rechazar SharedArrayBuffer; copiar una vez a bytes propios después del límite de tamaño |
+| Mutación concurrente   | caller cambia bytes durante el parseo | Rechazar SharedArrayBuffer; validar/cobrar budget y copiar atómicamente a bytes propios |
 | Confusión estructural  | secciones duplicadas/solapadas        | Validación global de rangos, unicidad y orden antes de decodificar contenido            |
 | Recuperación insegura  | rellenar campos faltantes con cero    | Fallo cerrado o `unsupported`; ninguna resincronización silenciosa                      |
 | Checksum falso         | CRC/sentinel corrupto                 | Validar sólo algoritmos/constantes con fuente permitida y vectores independientes       |
@@ -60,12 +61,11 @@ vista no confiable
 
 ## Límites mínimos que el código debe exponer
 
-El futuro `DwgLimits` debe ser inmutable y limitar, como mínimo: tamaño del
-archivo, secciones, objetos, handles, referencias, profundidad, strings,
-arrays, trabajo total, intervalo de polling, tiempo de pared y bytes
-descomprimidos. Cada límite requiere pruebas en su mínimo, máximo y un valor por
-encima. Un tamaño no confiable nunca se usa para reservar antes de compararlo
-con el budget.
+`DwgLimits` es inmutable y limita tamaño del archivo, secciones, objetos,
+handles, referencias, profundidad, strings, arrays, trabajo total, intervalo de
+polling, tiempo de pared y bytes descomprimidos. Cada uno se prueba en su mínimo,
+máximo y un valor por encima. Un tamaño no confiable nunca se usa para reservar
+antes de compararlo con el budget.
 
 El contador de trabajo determinista es el límite reproducible del núcleo. Un
 reloj inyectado y una señal de cancelación se consultan cada cantidad fija de

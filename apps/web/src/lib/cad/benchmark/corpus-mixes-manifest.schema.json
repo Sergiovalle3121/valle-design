@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:valle-design:schema:cad-benchmark-corpus-mixes-manifest:v1",
+  "title": "Valle Design CAD benchmark corpus mixes manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "benchmarkId", "generator", "corpora"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "benchmarkId": { "type": "string", "minLength": 1 },
+    "generator": {
+      "type": "object",
+      "required": ["id", "rng", "period", "mixes"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "rng": { "type": "string" },
+        "period": { "const": 1000 },
+        "mixes": {
+          "type": "object",
+          "minProperties": 4,
+          "additionalProperties": {
+            "type": "object",
+            "required": ["seed", "cellSize", "title", "stresses"],
+            "additionalProperties": false,
+            "properties": {
+              "seed": { "type": "integer", "minimum": 0, "maximum": 4294967295 },
+              "cellSize": { "type": "number", "exclusiveMinimum": 0 },
+              "title": { "type": "string", "minLength": 1 },
+              "stresses": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    "corpora": {
+      "type": "array",
+      "minItems": 8,
+      "items": {
+        "type": "object",
+        "required": ["mix", "entities", "sha256", "entityMix"],
+        "additionalProperties": false,
+        "properties": {
+          "mix": {
+            "enum": ["architecture", "mechanical", "cartography", "text-hostile"]
+          },
+          "entities": { "enum": [10000, 100000] },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "entityMix": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": { "type": "integer", "minimum": 1 }
+          }
+        }
+      }
+    }
+  }
+}

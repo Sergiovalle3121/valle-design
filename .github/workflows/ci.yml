@@ -67,6 +67,9 @@ jobs:
       - name: CAD contract and legacy-route gates
         run: npm run check:cad
 
+      - name: DWG experimental laboratory gates
+        run: npm run check:dwg
+
       # Puerta de LICENCIAS (misma política del origen): el producto es
       # UNLICENSED; toda dependencia de producción debe ser permisiva.
       - name: Dependency licenses gate
@@ -112,6 +115,17 @@ jobs:
       - name: CAD deterministic corpus benchmark (10k + 100k, blocking)
         working-directory: apps/web
         run: npm run benchmark:cad:smoke -- --output ../../cad-benchmark-smoke.json
+
+      - name: DWG deterministic smoke benchmark
+        run: npm run benchmark:smoke --workspace=@valle-design/dwg-codec -- --output "$RUNNER_TEMP/dwg-benchmark-smoke.json"
+
+      - name: Upload DWG benchmark evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: dwg-benchmark-${{ github.sha }}
+          path: ${{ runner.temp }}/dwg-benchmark-smoke.json
+          if-no-files-found: error
+          retention-days: 90
 
       - name: CAD scale capability report (500k + 1M, hardware guarded)
         working-directory: apps/web

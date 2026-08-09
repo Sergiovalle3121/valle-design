@@ -19,8 +19,9 @@ publicar hojas, usar review links y comentarios, importar DXF de texto o JSON
 canónico y exportar el subconjunto DXF implementado. Los documentos grandes se
 envían como archivos gzip y se guardan en PostgreSQL mediante blobs
 content-addressed. DWG no está disponible en el producto. El repositorio
-contiene gobernanza para un laboratorio clean-room experimental y aislado; no
-está conectado a UI, API, provider ni al documento canónico.
+contiene un laboratorio clean-room experimental y aislado con detección binaria
+acotada y errores tipados; no decodifica una base de objetos y no está conectado
+a UI, API, provider ni al documento canónico.
 
 ## Repositorio
 
@@ -116,6 +117,7 @@ de correo sólo existe para pruebas explícitas y está bloqueado en producción
 
 ```bash
 npm run check:cad
+npm run check:dwg
 npm run typecheck
 npm test
 npm run lint
