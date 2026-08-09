@@ -531,6 +531,11 @@ import {
 } from "./cad-workbench/CadXrefPalette";
 import { CadCollaborationPalette } from "./cad-workbench/CadCollaborationPalette";
 import { CadWorkspaceDock } from "./cad-workbench/CadWorkspaceDock";
+import { CadEntityPropertiesPanel } from "@/components/cad/palettes/CadEntityPropertiesPanel";
+import type {
+  CadPropertyRow,
+  CadPropertyValue,
+} from "@/components/cad/palettes/property-model";
 import { cadEntityAssociationAnchor } from "@/lib/cad/associative-dimension";
 import {
   cadViewportFocusBounds,
@@ -6055,6 +6060,27 @@ export default function Layout3DEditor({
   const updateNativeProperties = useCallback(
     (entityId: string, patch: Partial<CadPropertyBag>) => {
       commitNativeCommands([{ type: "properties", entityId, patch }]);
+    },
+    [commitNativeCommands],
+  );
+  /**
+   * Edición desde la paleta de propiedades, con selección múltiple.
+   *
+   * Sale UN lote con una orden por entidad, no una llamada por entidad: el
+   * ejecutor lo aplica como una transacción y deja UN paso de deshacer. Si esto
+   * hiciera un `commitNativeCommands` por objeto, editar la capa de veinte
+   * entidades dejaría veinte pasos que habría que deshacer uno a uno — y esa es
+   * justamente la propiedad central que el embudo de mutación protege.
+   */
+  const editNativeProperty = useCallback(
+    (row: CadPropertyRow, value: CadPropertyValue) => {
+      commitNativeCommands(
+        row.entityIds.map((entityId) => ({
+          type: "properties" as const,
+          entityId,
+          patch: { [row.key]: value },
+        })),
+      );
     },
     [commitNativeCommands],
   );
@@ -16280,10 +16306,9 @@ export default function Layout3DEditor({
   const primaryNativeAdapter = primaryNativeEntity
     ? CAD_ENTITY_REGISTRY.adapter(primaryNativeEntity)
     : null;
-  const primaryNativeProperties =
-    primaryNativeEntity && primaryNativeAdapter
-      ? primaryNativeAdapter.properties.read(primaryNativeEntity)
-      : null;
+  // Las propiedades y los grips del objeto designado los lee ahora la paleta,
+  // que además memoiza esa lectura. Aquí sólo quedan los bounds, que usa el
+  // botón de giro para tomar el centro como origen.
   const primaryNativeBounds =
     primaryNativeEntity && primaryNativeAdapter
       ? primaryNativeAdapter.bounds.bounds(
@@ -16291,10 +16316,6 @@ export default function Layout3DEditor({
           loadedCadDocumentRef.current ?? undefined,
         )
       : null;
-  const primaryNativeGrips =
-    primaryNativeEntity && primaryNativeAdapter
-      ? primaryNativeAdapter.grips.grips(primaryNativeEntity)
-      : [];
   const professionalBlockDefinitions = [
     ...(loadedCadDocumentRef.current?.blocks ?? []),
   ].filter((block) => !block.id.startsWith("xref:"));
@@ -20011,149 +20032,14 @@ export default function Layout3DEditor({
                         </div>
                         ) : null}
                       </div>
-                    ) : primaryNativeEntity &&
-                      primaryNativeProperties &&
-                      primaryNativeBounds ? (
-                      <>
-                        <div className="mb-3 grid grid-cols-2 gap-2 rounded-xl border border-cyan-400/15 bg-cyan-400/[0.04] p-2.5">
-                          <ReadField
-                            label="ID"
-                            value={primaryNativeEntity.id}
-                          />
-                          <ReadField
-                            label="Capa"
-                            value={primaryNativeEntity.layer}
-                          />
-                          <ReadField
-                            label="Bounds"
-                            value={`${Math.round(primaryNativeBounds.maxX - primaryNativeBounds.minX)} × ${Math.round(primaryNativeBounds.maxY - primaryNativeBounds.minY)}`}
-                          />
-                          <ReadField
-                            label="Grips"
-                            value={`${primaryNativeGrips.length}`}
-                          />
-                        </div>
-                        <div className="mb-3 grid grid-cols-2 gap-2">
-                          {Object.entries(primaryNativeProperties).map(
-                            ([key, value]) => {
-                              if (
-                                (primaryNativeEntity.type === "mtext" ||
-                                  primaryNativeEntity.type === "mleader") &&
-                                key === "text"
-                              )
-                                return (
-                                  <label
-                                    key={`${primaryNativeEntity.id}-${key}-${nativeDocumentRevision}`}
-                                    className="col-span-2 text-[10.5px] text-gray-500 dark:text-gray-400"
-                                  >
-                                    text
-                                    <textarea
-                                      data-testid="cad-native-property-text"
-                                      defaultValue={String(value)}
-                                      rows={4}
-                                      onBlur={(event) => {
-                                        if (event.target.value !== value)
-                                          updateNativeProperties(
-                                            primaryNativeEntity.id,
-                                            { text: event.target.value },
-                                          );
-                                      }}
-                                      className="mt-1 w-full resize-y rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white outline-none focus:ring-1 focus:ring-cyan-500/40"
-                                    />
-                                  </label>
-                                );
-                              if (typeof value === "boolean")
-                                return (
-                                  <label
-                                    key={`${primaryNativeEntity.id}-${key}-${nativeDocumentRevision}`}
-                                    className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-gray-950/50 px-2 py-1.5 text-[10.5px] text-gray-400"
-                                  >
-                                    {key}
-                                    <input
-                                      type="checkbox"
-                                      checked={value}
-                                      onChange={(event) =>
-                                        updateNativeProperties(
-                                          primaryNativeEntity.id,
-                                          { [key]: event.target.checked },
-                                        )
-                                      }
-                                      className="accent-cyan-500"
-                                    />
-                                  </label>
-                                );
-                              if (key.endsWith("Count"))
-                                return (
-                                  <ReadField
-                                    key={key}
-                                    label={key}
-                                    value={String(value)}
-                                  />
-                                );
-                              return (
-                                <label
-                                  key={`${primaryNativeEntity.id}-${key}-${nativeDocumentRevision}`}
-                                  className="text-[10.5px] text-gray-500 dark:text-gray-400"
-                                >
-                                  {key}
-                                  <input
-                                    data-testid={`cad-native-property-${key}`}
-                                    type={
-                                      typeof value === "number"
-                                        ? "number"
-                                        : "text"
-                                    }
-                                    defaultValue={String(value)}
-                                    step={
-                                      typeof value === "number"
-                                        ? "any"
-                                        : undefined
-                                    }
-                                    onBlur={(event) => {
-                                      const next =
-                                        typeof value === "number"
-                                          ? Number(event.target.value)
-                                          : event.target.value;
-                                      if (
-                                        (typeof next === "number" &&
-                                          !Number.isFinite(next)) ||
-                                        next === value
-                                      )
-                                        return;
-                                      updateNativeProperties(
-                                        primaryNativeEntity.id,
-                                        { [key]: next },
-                                      );
-                                    }}
-                                    className="mt-1 w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white outline-none focus:ring-1 focus:ring-cyan-500/40"
-                                  />
-                                </label>
-                              );
-                            },
-                          )}
-                        </div>
-                        <div className="mb-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
-                          <div className="mb-2 text-[10px] uppercase tracking-wide text-cyan-200">
-                            Grips disponibles
-                          </div>
-                          <div className="flex flex-wrap gap-1">
-                            {primaryNativeGrips.slice(0, 12).map((grip) => (
-                              <span
-                                key={grip.id}
-                                className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] text-gray-300"
-                              >
-                                {grip.label}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="mb-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5 text-[11px] text-gray-400">
-                        La transformación o el borrado se aplicará a las{" "}
-                        {nativeSelectedEntities.length} entidades seleccionadas.
-                      </div>
-                    )}
+                    ) : null}
+                    <CadEntityPropertiesPanel
+                      entities={nativeSelectedEntities}
+                      document={loadedCadDocumentRef.current}
+                      revision={nativeDocumentRevision}
+                      readOnly={drawingReadOnly}
+                      onEdit={editNativeProperty}
+                    />
                     <div className="mb-2 grid grid-cols-3 gap-1.5">
                       <button
                         data-testid="cad-native-move-x"
