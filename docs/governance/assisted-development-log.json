@@ -61,6 +61,44 @@
       "aiCoAuthorTrailers": false
     },
     {
+      "id": "DWG-02-03-RESEARCH-CORPUS-2026-08-09",
+      "date": "2026-08-09",
+      "initiative": "DWG-02/03 — investigación trazable y admisión de corpus",
+      "branch": "codex/dwg-02-research-corpus",
+      "assistants": [
+        {
+          "name": "OpenAI Codex",
+          "role": "diseño, edición, revisión adversarial y verificación supervisada"
+        }
+      ],
+      "authority": "Plan DWG propietario aprobado expresamente por Sergio Valle Zárate",
+      "firstPartyInputs": [
+        "Directiva first-party DWG-1 de Sergio Valle Zárate",
+        "Políticas clean-room y laboratorio DWG existentes de Valle Design",
+        "Requisitos de matriz, procedencia y corpus definidos por el titular"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": false,
+      "derivedAreas": [
+        "ADR DWG-1",
+        "matriz de alcance sin claims de compatibilidad",
+        "registros y schemas de sources/facts/evidencia",
+        "admisión content-addressed de fixtures y oráculos",
+        "gates adversariales fail-closed"
+      ],
+      "fixtures": [
+        "Sólo se conservaron los 21 fixtures sintéticos first-party existentes; no se añadió corpus DWG externo"
+      ],
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "La aprobación y merge por Sergio del PR adopta exactamente el diff revisado; no adopta facts técnicos ni claims no presentes."
+      },
+      "aiCoAuthorTrailers": false
+    },
+    {
       "id": "AI-ASSISTED-HISTORY-BASELINE-2026-08-09",
       "date": "2026-08-09",
       "initiative": "Línea base histórica de desarrollo asistido",

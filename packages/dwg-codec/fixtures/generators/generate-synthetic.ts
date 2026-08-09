@@ -35,26 +35,62 @@ export interface FixtureManifestEntry {
   readonly creator: string;
   readonly createdAt: string;
   readonly origin: {
-    readonly type: "valle-synthetic";
+    readonly type:
+      | "valle-synthetic"
+      | "owner-authorized"
+      | "original-measurement"
+      | "third-party-licensed";
     readonly reference: string;
   };
   readonly sourceIds: readonly string[];
   readonly permission: {
     readonly basis: string;
-    readonly license: "Valle-Internal-Synthetic";
+    readonly license:
+      | "Valle-Internal-Synthetic"
+      | "Valle-Owner-Authorized"
+      | "0BSD"
+      | "Apache-2.0"
+      | "BSD-2-Clause"
+      | "BSD-3-Clause"
+      | "CC-BY-4.0"
+      | "CC0-1.0"
+      | "ISC"
+      | "MIT"
+      | "Unlicense";
     readonly redistributionEvidence: string;
   };
   readonly declaredVersion: string | null;
   readonly byteLength: number;
   readonly purpose: readonly string[];
   readonly expectations: SyntheticFixtureSpec["expectations"];
-  readonly synthetic: true;
-  readonly generatedBy: string;
+  readonly synthetic: boolean;
+  readonly generatedBy: string | null;
   readonly redistributable: true;
+  readonly intakeId?: string | null;
+  readonly intakeRecord?: {
+    readonly path: string;
+    readonly sha256: string;
+    readonly byteLength: number;
+  } | null;
+  readonly oracle?: {
+    readonly id: string;
+    readonly kind:
+      | "owner-ground-truth"
+      | "original-measurement"
+      | "independent-reader"
+      | "independent-writer"
+      | "adversarial-expectation";
+    readonly artifactSha256: string;
+    readonly groundTruthSha256: string;
+    readonly groundTruthPath: string;
+    readonly groundTruthByteLength: number;
+    readonly reviewer: string;
+    readonly reviewedAt: string;
+  } | null;
 }
 
 export interface FixtureManifest {
-  readonly schemaVersion: "1.0.0";
+  readonly schemaVersion: "1.1.0";
   readonly generatedAt: string;
   readonly fixtures: readonly FixtureManifestEntry[];
 }
@@ -192,7 +228,7 @@ export function createSyntheticManifest(
   corpus: readonly SyntheticFixtureSpec[] = createSyntheticCorpus(),
 ): FixtureManifest {
   return {
-    schemaVersion: "1.0.0",
+    schemaVersion: "1.1.0",
     generatedAt: FIXED_GENERATED_AT,
     fixtures: corpus.map((fixture) => ({
       id: fixture.id,

@@ -1,0 +1,215 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:valle-design:dwg-fact-register:1.0.0",
+  "title": "Valle DWG clean-room fact register",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "updatedAt", "facts"],
+  "properties": {
+    "$schema": {
+      "const": "./fact-register.schema.json"
+    },
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date"
+    },
+    "facts": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/fact"
+      }
+    }
+  },
+  "$defs": {
+    "fact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "statement",
+        "status",
+        "derivableContentRecorded",
+        "sourceIds",
+        "sourceEvidence",
+        "terms",
+        "humanReview",
+        "derivedFiles"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Z0-9][A-Z0-9._-]{2,127}$"
+        },
+        "kind": {
+          "enum": [
+            "governance",
+            "format",
+            "algorithm",
+            "original-measurement",
+            "conformance"
+          ]
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": ["allowed", "quarantined", "prohibited"]
+        },
+        "derivableContentRecorded": {
+          "type": "boolean"
+        },
+        "sourceIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z0-9][A-Z0-9._-]{2,127}$"
+          }
+        },
+        "sourceEvidence": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["sourceId", "locator", "sha256", "byteLength"],
+            "properties": {
+              "sourceId": {
+                "type": "string",
+                "pattern": "^[A-Z0-9][A-Z0-9._-]{2,127}$"
+              },
+              "locator": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "byteLength": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            }
+          }
+        },
+        "terms": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["license", "permittedUse", "redistribution"],
+          "properties": {
+            "license": {
+              "type": "string",
+              "minLength": 1
+            },
+            "permittedUse": {
+              "type": "string",
+              "minLength": 1
+            },
+            "redistribution": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "humanReview": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["reviewer", "reviewedAt", "decision"],
+          "properties": {
+            "reviewer": {
+              "type": "string",
+              "minLength": 1
+            },
+            "reviewedAt": {
+              "type": "string",
+              "format": "date"
+            },
+            "decision": {
+              "enum": ["approved", "pending", "rejected"]
+            }
+          }
+        },
+        "derivedFiles": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(?:(?:[A-Za-z0-9][A-Za-z0-9._-]*|\\.[A-Za-z0-9][A-Za-z0-9._-]*)/)*(?:[A-Za-z0-9][A-Za-z0-9._-]*|\\.[A-Za-z0-9][A-Za-z0-9._-]*)$"
+          }
+        },
+        "notes": {
+          "type": "string"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "allowed"
+              }
+            },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "derivableContentRecorded": {
+                "const": true
+              },
+              "humanReview": {
+                "type": "object",
+                "properties": {
+                  "decision": {
+                    "const": "approved"
+                  }
+                },
+                "required": ["decision"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": ["quarantined", "prohibited"]
+              }
+            },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "derivableContentRecorded": {
+                "const": false
+              },
+              "derivedFiles": {
+                "type": "array",
+                "maxItems": 0
+              },
+              "humanReview": {
+                "type": "object",
+                "properties": {
+                  "decision": {
+                    "enum": ["pending", "rejected"]
+                  }
+                },
+                "required": ["decision"]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -23,6 +23,7 @@ Estas reglas se aplican a todo `packages/dwg-codec/` y complementan el
 ## Clean-room obligatorio
 
 Lee completamente `CLEAN_ROOM_POLICY.md`, `SOURCE_REGISTER.json`,
+`FACT_REGISTER.json`, `COMPATIBILITY_MATRIX.v1.json`, `CORPUS_INTAKE.md`,
 `THREAT_MODEL.md` y `CAPABILITIES.md` antes de editar código o fixtures.
 
 - Registra una fuente antes de consultarla para derivar cualquier hecho,
@@ -44,9 +45,11 @@ Lee completamente `CLEAN_ROOM_POLICY.md`, `SOURCE_REGISTER.json`,
 
 ## Fixtures y evidencia
 
-- Sólo se admiten fixtures sintéticos de Valle, archivos de Sergio con permiso
-  expreso de publicación o terceros con licencia explícita de uso y
-  redistribución.
+- Sólo se admiten fixtures sintéticos de Valle, archivos de Sergio o mediciones
+  originales con permiso expreso de publicación, o terceros con licencia
+  explícita de uso y redistribución.
+- Todo fixture no sintético requiere intake, segundo revisor y oracle hasheado.
+  Un caso positivo registra ground truth, pero no implica que el reader pase.
 - Cada fixture debe cumplir `fixtures/manifest.schema.json` y registrar
   SHA-256, creador, fecha, origen, permiso/licencia, versión declarada, tamaño,
   propósito y expectativas.
@@ -102,8 +105,11 @@ Lee completamente `CLEAN_ROOM_POLICY.md`, `SOURCE_REGISTER.json`,
 
 - Actualiza `CAPABILITIES.md` con evidencia exacta; no promociones capacidades
   por código sin integración o fixtures autocreados.
+- Toda promoción actualiza la matriz sin huecos/solapes y referencia sólo facts
+  `allowed`; `verified` exige dos evidencias independientes.
 - Reconocer `AC1015` no significa leer R2000. Leer un header no significa
-  importar geometría. No hay writer en DWG-0.
+  importar geometría. ADR-0008 autoriza investigar reader y writer, pero no hay
+  writer implementado ni disponibilidad productiva.
 - No uses “TrustedDWG”, sellos ajenos, afirmaciones de certificación Autodesk,
   paridad, 100% de compatibilidad ni propiedad sobre DWG.
 - Cada PR declara fuentes consultadas, archivos derivados, fixtures,

@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:valle-design:dwg-private-conformance-bundle:1.0.0",
+  "title": "Valle DWG private conformance bundle manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "bundleId",
+    "createdAt",
+    "repository",
+    "immutable",
+    "minimumTokenScope",
+    "checkerContract",
+    "entries"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "bundleId": {
+      "type": "string",
+      "pattern": "^DWG-BUNDLE-[A-Z0-9][A-Z0-9._-]{7,119}$"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "repository": {
+      "const": "valle-design-dwg-conformance"
+    },
+    "immutable": {
+      "const": true
+    },
+    "minimumTokenScope": {
+      "const": "contents:read"
+    },
+    "checkerContract": {
+      "const": "valle-dwg-private-bundle-structure@1"
+    },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "$comment": "The companion must invoke validatePrivateBundleManifestStructure and a physical exact-file-set checker. That companion integration is not yet present in this repository.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "objectPath",
+          "sha256",
+          "byteLength",
+          "declaredVersion",
+          "intakeRecordPath",
+          "intakeRecordSha256",
+          "intakeRecordByteLength",
+          "oraclePath",
+          "oracleSha256",
+          "oracleByteLength",
+          "redistributable"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._-]{2,127}$"
+          },
+          "objectPath": {
+            "type": "string",
+            "pattern": "^objects/sha256/[a-f0-9]{64}\\.dwg$"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "byteLength": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 536870912
+          },
+          "declaredVersion": {
+            "enum": [
+              "AC1009",
+              "AC1012",
+              "AC1014",
+              "AC1015",
+              "AC1018",
+              "AC1021",
+              "AC1024",
+              "AC1027",
+              "AC1032"
+            ]
+          },
+          "intakeRecordPath": {
+            "type": "string",
+            "pattern": "^intake/sha256/[a-f0-9]{64}\\.json$"
+          },
+          "intakeRecordSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "intakeRecordByteLength": {
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 4194304
+          },
+          "oraclePath": {
+            "type": "string",
+            "pattern": "^oracles/sha256/[a-f0-9]{64}\\.json$"
+          },
+          "oracleSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "oracleByteLength": {
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 4194304
+          },
+          "redistributable": {
+            "const": false
+          }
+        }
+      }
+    }
+  }
+}

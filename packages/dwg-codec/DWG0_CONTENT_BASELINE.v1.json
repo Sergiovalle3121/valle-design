@@ -1,0 +1,409 @@
+{
+  "$schema": "./dwg0-content-baseline.schema.json",
+  "schemaVersion": "1.0.0",
+  "repository": "Sergiovalle3121/valle-design",
+  "commit": "98a5b185587107dc2b32da02ae209b8b99e08c6e",
+  "treePath": "packages/dwg-codec",
+  "files": [
+    {
+      "path": "packages/dwg-codec/AGENTS.md",
+      "sha256": "1fb592f7c3d7c3c753dfb353d26d9595ce48cadaaf3204d715192ff9dbc93c20",
+      "byteLength": 6010
+    },
+    {
+      "path": "packages/dwg-codec/CAPABILITIES.md",
+      "sha256": "ea432b2f134d0db64628ff51b402fffda47f7344b2e417f1b10346aa9df30b87",
+      "byteLength": 2584
+    },
+    {
+      "path": "packages/dwg-codec/CLEAN_ROOM_POLICY.md",
+      "sha256": "1fb5f4683758e68069bc539298000afa6850de033a35da2dde432f272d29f85b",
+      "byteLength": 5177
+    },
+    {
+      "path": "packages/dwg-codec/DWG0_WORKLOG.md",
+      "sha256": "6b7d0dd92b09a4161eb6f456763eb29e2d335bef2324387a956de3db6adfade1",
+      "byteLength": 11148
+    },
+    {
+      "path": "packages/dwg-codec/README.md",
+      "sha256": "fbd3743143cfc779e44c33767abc4b7998c6489ed73d9b3c391c13053e6e5743",
+      "byteLength": 2588
+    },
+    {
+      "path": "packages/dwg-codec/SOURCE_REGISTER.json",
+      "sha256": "d92dfd4bc6f4982ade0abf10ed631d88cdb10053c8516e0bb99560ecff0fbaa4",
+      "byteLength": 15237
+    },
+    {
+      "path": "packages/dwg-codec/THREAT_MODEL.md",
+      "sha256": "f353bf04fb0ceb69d53a943338f247b6966faae4ec693519cd3f3b8cc80d2391",
+      "byteLength": 6750
+    },
+    {
+      "path": "packages/dwg-codec/benchmarks/smoke.ts",
+      "sha256": "ccee144b8d501a63bc73bacd4a2d10a7ef409c47dd15acda2f90f1740617b82d",
+      "byteLength": 6833
+    },
+    {
+      "path": "packages/dwg-codec/fixtures/.gitattributes",
+      "sha256": "ca082780cd38ce102933131b5f5747bdcde7aa0052134fc9e8fcdeb5a44c501e",
+      "byteLength": 76
+    },
+    {
+      "path": "packages/dwg-codec/fixtures/generators/generate-synthetic.ts",
+      "sha256": "3a68067a5e51935880634ed4c77eb6ce6bc5f7fcb65f840b34a2c97861a10842",
+      "byteLength": 8300
+    },
+    {
+      "path": "packages/dwg-codec/fixtures/manifest.json",
+      "sha256": "4decefd5c42e0c4fab5776453be8b76f4cb8dc1364b3514ac3928933b46a8c5d",
+      "byteLength": 25667
+    },
+    {
+      "path": "packages/dwg-codec/fixtures/manifest.schema.json",
+      "sha256": "b4ed7841d834fc0e4b98ae17dcff6eec4aef275c994bb7f686b4f34a86f12bfb",
+      "byteLength": 13371
+    },
+    {
+      "path": "packages/dwg-codec/fixtures/synthetic/invalid/lowercase-ac1015.dwg",
+      "sha256": "d978bd2779aa4640e8eac6a101c745debf9eeb87701ce58f9d6105b6f371573a",
+      "byteLength": 6
+    },
+    {
+      "path": "packages/dwg-codec/fixtures/synthetic/invalid/nondigit-ac10a5.dwg",
+      "sha256": "5e1ec546ddae45c942730e750f7bcd60d3e345888ca922775d1e1c38009d4a53",
+      "byteLength": 6
+    },
+    {
+      "path": "packages/dwg-codec/fixtures/synthetic/invalid/shifted-xac1015.dwg",
+      "sha256": "7d6ff8a0e2fe90c877514fcba04fdc0c6fa308dc8b02c8b222776f8cc4317b9c",
+      "byteLength": 7
+    },
+    {
+      "path": "packages/dwg-codec/fixtures/synthetic/recognized/ac1009.dwg",
+      "sha256": "b7d89c3e88a45587d66e661211cab2486b57373ec255d2e9b6c6a95d5a972008",
+      "byteLength": 6
+    },
+    {
+      "path": "packages/dwg-codec/fixtures/synthetic/recognized/ac1012.dwg",
+      "sha256": "5a974c0ec07afdb2573ecae8c02f6c0feaed00d4433ca7d61fc3e61c9e73cafa",
+      "byteLength": 6
+    },
+    {
+      "path": "packages/dwg-codec/fixtures/synthetic/recognized/ac1014.dwg",
+      "sha256": "e104bdce394fe609ef2debc02006b6e14acf5662015299a120777581dd79d79f",
+      "byteLength": 6
+    },
+    {
+      "path": "packages/dwg-codec/fixtures/synthetic/recognized/ac1015-tail.dwg",
+      "sha256": "c4881c683e0bb16c47ccb739cc92023e8d1feb752294ab5c58ca804074cc498f",
+      "byteLength": 9
+    },
+    {
+      "path": "packages/dwg-codec/fixtures/synthetic/recognized/ac1015.dwg",
+      "sha256": "9ce5fb2e200652a7a15ad53114d957900508cb83f9ddbcbe703457b93dbbe621",
+      "byteLength": 6
+    },
+    {
+      "path": "packages/dwg-codec/fixtures/synthetic/recognized/ac1018.dwg",
+      "sha256": "82a851544745f0f2200d4af460ba564df4cec02327d7f30d361717fde235b5e0",
+      "byteLength": 6
+    },
+    {
+      "path": "packages/dwg-codec/fixtures/synthetic/recognized/ac1021.dwg",
+      "sha256": "68c835a439b97f36a7161c0d694bfa1a756de8e3de40215f16d295e96558212c",
+      "byteLength": 6
+    },
+    {
+      "path": "packages/dwg-codec/fixtures/synthetic/recognized/ac1024.dwg",
+      "sha256": "76fca34a2f6c19f9137abef24172eedaea12870884cf0111b24fcd7f67c017b9",
+      "byteLength": 6
+    },
+    {
+      "path": "packages/dwg-codec/fixtures/synthetic/recognized/ac1027.dwg",
+      "sha256": "90fd7991f0c24e8cebceba2d2d77224846e7fb456aac66bd7c3cc6bbf4f345a1",
+      "byteLength": 6
+    },
+    {
+      "path": "packages/dwg-codec/fixtures/synthetic/recognized/ac1032.dwg",
+      "sha256": "3eeaa3dadf81a4ca7d6a4f35cc0b0660f9a43b9122b276f11f5138bd2d5984ac",
+      "byteLength": 6
+    },
+    {
+      "path": "packages/dwg-codec/fixtures/synthetic/truncated/ac1015-prefix-1.dwg",
+      "sha256": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd",
+      "byteLength": 1
+    },
+    {
+      "path": "packages/dwg-codec/fixtures/synthetic/truncated/ac1015-prefix-2.dwg",
+      "sha256": "472e73d796e20aa8ff9059e6316f218e0322548f661ec4dc267507ed66317404",
+      "byteLength": 2
+    },
+    {
+      "path": "packages/dwg-codec/fixtures/synthetic/truncated/ac1015-prefix-3.dwg",
+      "sha256": "77ad7e0416dad8c0167db82d4292995a6de78cc06d57e65a72a77efd5317cde7",
+      "byteLength": 3
+    },
+    {
+      "path": "packages/dwg-codec/fixtures/synthetic/truncated/ac1015-prefix-4.dwg",
+      "sha256": "cec96812cdcb45acd32b83feb1b1186b6105f7b7f962b6b215dfe91281bb132f",
+      "byteLength": 4
+    },
+    {
+      "path": "packages/dwg-codec/fixtures/synthetic/truncated/ac1015-prefix-5.dwg",
+      "sha256": "a54112857f9321b80672dfa39773bdf28cf914f76b010c8f94c81f4475e1babe",
+      "byteLength": 5
+    },
+    {
+      "path": "packages/dwg-codec/fixtures/synthetic/truncated/empty.dwg",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byteLength": 0
+    },
+    {
+      "path": "packages/dwg-codec/fixtures/synthetic/unknown/ac1000.dwg",
+      "sha256": "445cec61144afef89aadb557bb6dc59f34e635778cf22b8a99b73c00d15b9310",
+      "byteLength": 6
+    },
+    {
+      "path": "packages/dwg-codec/fixtures/synthetic/unknown/ac1099.dwg",
+      "sha256": "7f759985b4c824fbb79bd409e32795defc0f90953d4ac9773930f67fa1629024",
+      "byteLength": 6
+    },
+    {
+      "path": "packages/dwg-codec/fuzz/smoke.ts",
+      "sha256": "d62a90c0907c0f21f9ea08af4510ee2b373a4446d90777c8ff61d5514541b83f",
+      "byteLength": 6134
+    },
+    {
+      "path": "packages/dwg-codec/package.json",
+      "sha256": "ffb8f6f2a3b5f1d1b377007ac2c17f8d27a5218241e66f8d387fae75cce27da0",
+      "byteLength": 1478
+    },
+    {
+      "path": "packages/dwg-codec/scripts/check-boundary.ts",
+      "sha256": "daccfa607051f0be1dec95d98b835e095d256dcaa3e6ce3866e67c3657d77e9c",
+      "byteLength": 9687
+    },
+    {
+      "path": "packages/dwg-codec/scripts/check-fixtures.ts",
+      "sha256": "6a97d3e4889375fcc666e02c231b2cf68ec631825b7147d60d76c75f22b772ed",
+      "byteLength": 556
+    },
+    {
+      "path": "packages/dwg-codec/scripts/check-no-io.ts",
+      "sha256": "a54412b99d86b860a74695a5bcc2d259b68479cab0c3731aca06feebf93808bd",
+      "byteLength": 9456
+    },
+    {
+      "path": "packages/dwg-codec/scripts/check-provenance.ts",
+      "sha256": "89826dee87128703ea5d5913b0c54a5893bf5d715db20048bcf9f45c200a0691",
+      "byteLength": 679
+    },
+    {
+      "path": "packages/dwg-codec/scripts/fixture-validation.ts",
+      "sha256": "2238bc8409483177ab3cd5ab19778f7b2b92abbdfcd206c2d1c455ee9adce2fc",
+      "byteLength": 9080
+    },
+    {
+      "path": "packages/dwg-codec/scripts/json-document.ts",
+      "sha256": "18f52bee432784f2f5a1e15435e136d8f2539d4dd8d6d5bea2984767c801df29",
+      "byteLength": 4298
+    },
+    {
+      "path": "packages/dwg-codec/scripts/provenance-validation.ts",
+      "sha256": "f83001bf8e6dd71160e5c3548fb92be781705c1ec7e4b311ad1bb4ee09bfb09d",
+      "byteLength": 8038
+    },
+    {
+      "path": "packages/dwg-codec/scripts/safe-path.ts",
+      "sha256": "b0d35ceaa597416ff76bc372a8f5afb030a5f3c408162ce0c78a39ca06f4a3df",
+      "byteLength": 5877
+    },
+    {
+      "path": "packages/dwg-codec/scripts/schema-validation.ts",
+      "sha256": "7715012486204951abe38bc2d5ab74ae4c792464526ed2abe44fd0471fe00925",
+      "byteLength": 1272
+    },
+    {
+      "path": "packages/dwg-codec/source-register.schema.json",
+      "sha256": "6af36311623beead22999d08e85a85b59e7bb5781591b676656f8ac5770359bc",
+      "byteLength": 5289
+    },
+    {
+      "path": "packages/dwg-codec/src/api/diagnostics.ts",
+      "sha256": "a184c70dc457362c8559fef396cea9aacf3351662d00e1797b309af44b6dc5e1",
+      "byteLength": 545
+    },
+    {
+      "path": "packages/dwg-codec/src/api/limits.ts",
+      "sha256": "e602f05454935185540436b0a6996511308300714fccb992e59f6b2c1fff6a20",
+      "byteLength": 3837
+    },
+    {
+      "path": "packages/dwg-codec/src/api/probe.ts",
+      "sha256": "b39ff8c240054a5e9151fa64bd7fd0ff61e4f91c73f3bf87da2bfbce83dbf58d",
+      "byteLength": 4361
+    },
+    {
+      "path": "packages/dwg-codec/src/api/results.ts",
+      "sha256": "89ac9b1658a43918368325a63410d68fbe89be10110bef42021f32ee725eb0e9",
+      "byteLength": 1027
+    },
+    {
+      "path": "packages/dwg-codec/src/binary/bit-cursor.ts",
+      "sha256": "0b24512ecc5039c5344ded7dda679485ebadae5f9168a33444b23afb857d647e",
+      "byteLength": 2860
+    },
+    {
+      "path": "packages/dwg-codec/src/binary/byte-cursor.ts",
+      "sha256": "60cc02aa25f1e6ac26be75ff9225217bebdd0d3341601d944330863ecb0794a7",
+      "byteLength": 4204
+    },
+    {
+      "path": "packages/dwg-codec/src/binary/checked-arithmetic.ts",
+      "sha256": "a251757330296c36b45c523b0b7111e13d4ad8ceae6209e3aaeb72e08c32f923",
+      "byteLength": 2482
+    },
+    {
+      "path": "packages/dwg-codec/src/binary/range-table.ts",
+      "sha256": "29399d53ba78235498f2f565488bc8b70a7be5631272fae63aff7a7c082530b3",
+      "byteLength": 2280
+    },
+    {
+      "path": "packages/dwg-codec/src/container/signature.ts",
+      "sha256": "77b8936cc747dd82e991b09800769a0aea1f8f0d41101b633ecd863cbf170d6f",
+      "byteLength": 1922
+    },
+    {
+      "path": "packages/dwg-codec/src/container/version-registry.ts",
+      "sha256": "420bcacb4a49c9e2a34fd3d5161ed9f166080ee8c3725b2d004a940e39c39625",
+      "byteLength": 2151
+    },
+    {
+      "path": "packages/dwg-codec/src/index.ts",
+      "sha256": "ca71540f30bfb5c03c2d8556e83ddc36e0199d705f724a6d999441627e5fd259",
+      "byteLength": 775
+    },
+    {
+      "path": "packages/dwg-codec/src/model/database.ts",
+      "sha256": "41a24fd692b1538bdda9899554643c52f7d19204ee18bf057013ccb551d81275",
+      "byteLength": 11949
+    },
+    {
+      "path": "packages/dwg-codec/src/model/handle.ts",
+      "sha256": "7e3549fed38969cd04a943a9abd8ff503432018d01088815e79099c0f3af2f46",
+      "byteLength": 1256
+    },
+    {
+      "path": "packages/dwg-codec/src/model/opaque-object.ts",
+      "sha256": "f864f379f2738e696adbe24bc06ef21b0188526af4c8e462cbab7d5b91da093e",
+      "byteLength": 3094
+    },
+    {
+      "path": "packages/dwg-codec/src/model/reference.ts",
+      "sha256": "26325cfcb3c9aca821c82ca0a3d20d87736077e120e5aecf66e2b08c2909bc56",
+      "byteLength": 643
+    },
+    {
+      "path": "packages/dwg-codec/src/model/symbol-table.ts",
+      "sha256": "3271dc7266cdc253e7cb49b183f19a9748a17615e05b834fd77e1bbfc445f8d4",
+      "byteLength": 3675
+    },
+    {
+      "path": "packages/dwg-codec/src/security/byte-view.ts",
+      "sha256": "e00a1d7683e65b46c2d2a3426974f68dab13325b9058ee7de3fefe47ac72876e",
+      "byteLength": 4139
+    },
+    {
+      "path": "packages/dwg-codec/src/security/input-snapshot.ts",
+      "sha256": "351b234dd060ba927be27e7ec904aa785651c0197570ea57dfe37c277a9773ff",
+      "byteLength": 802
+    },
+    {
+      "path": "packages/dwg-codec/src/security/parse-error.ts",
+      "sha256": "645c9e4c2924560decd61a1c597bf8922a98efda36e2a0506717c2793e277354",
+      "byteLength": 1926
+    },
+    {
+      "path": "packages/dwg-codec/src/security/resource-budget.ts",
+      "sha256": "0167576c7fd4fcef90cf772cb8e804b9474cac481c5fa6c8e5cd4ec0fba23379",
+      "byteLength": 4623
+    },
+    {
+      "path": "packages/dwg-codec/src/security/worker-supervisor.ts",
+      "sha256": "f3ff95260554b6b66f39f55df990abdba097185ceea76625400319ebf03f70fc",
+      "byteLength": 5038
+    },
+    {
+      "path": "packages/dwg-codec/tests/adversarial.spec.ts",
+      "sha256": "c5b88d6c5b00bce1d2b1f3e4062682121c819439a9bc98123f3e0f8f8a138a35",
+      "byteLength": 192
+    },
+    {
+      "path": "packages/dwg-codec/tests/adversarial/checker-hardening.spec.ts",
+      "sha256": "37a341ece522856fa2db7da43daff18a7032df62a6333e9557ea30f935e5194f",
+      "byteLength": 13615
+    },
+    {
+      "path": "packages/dwg-codec/tests/adversarial/probe-boundary.spec.ts",
+      "sha256": "8f38550e2c7f253ffc7a70b498aecf45e7ae900adcf1462e9c265044ba9b2d1a",
+      "byteLength": 7501
+    },
+    {
+      "path": "packages/dwg-codec/tests/adversarial/resource-limits.spec.ts",
+      "sha256": "21a28d2bae85d1ab848f4da7f9b5d9c00a0fc86b7cdaa873b49effaea89cccf6",
+      "byteLength": 6275
+    },
+    {
+      "path": "packages/dwg-codec/tests/adversarial/worker-timeout.spec.ts",
+      "sha256": "99f8a978bc2dcb7cb98e8c6aaa17212ff1f6e1010425fd38be6a416b2c29176e",
+      "byteLength": 7445
+    },
+    {
+      "path": "packages/dwg-codec/tests/support/assert.ts",
+      "sha256": "fe04bd2ccc78dc0eee8e2895568d285539018a5d95b901f295e28a914727d211",
+      "byteLength": 719
+    },
+    {
+      "path": "packages/dwg-codec/tests/support/fake-clock.ts",
+      "sha256": "84185ef2f4abe1c926d98870da444519efe93ee52b3a775622894083ac2eda66",
+      "byteLength": 745
+    },
+    {
+      "path": "packages/dwg-codec/tests/unit.spec.ts",
+      "sha256": "f90a218d560143381b2ef2b8204d5400e7940bd14b1b1d46e616ae0cb0062660",
+      "byteLength": 126
+    },
+    {
+      "path": "packages/dwg-codec/tests/unit/api.spec.ts",
+      "sha256": "72a22b48d5f5e1eaa1fd96f6a252812b98b983a7e5dfc1b9397de94e5406167d",
+      "byteLength": 10447
+    },
+    {
+      "path": "packages/dwg-codec/tests/unit/binary.spec.ts",
+      "sha256": "264aed8bc8192572d7b554f1e1e3efaab03bbd79aee5fc6a766abcb52139172d",
+      "byteLength": 7569
+    },
+    {
+      "path": "packages/dwg-codec/tests/unit/model.spec.ts",
+      "sha256": "9c51b28ab2feff814183961f1cec5b8d28579cb308cedcfc1519c06a8079ba62",
+      "byteLength": 11196
+    },
+    {
+      "path": "packages/dwg-codec/tests/unit/security.spec.ts",
+      "sha256": "deead774d813a1aa3dd2d53b67028eb359a4f02764b238fd352c9abc7707886a",
+      "byteLength": 10349
+    },
+    {
+      "path": "packages/dwg-codec/tsconfig.json",
+      "sha256": "9c4332278c901def23b4dad116f9d2c0ab98158334b7130df941c415709c415e",
+      "byteLength": 654
+    },
+    {
+      "path": "packages/dwg-codec/tsconfig.test.json",
+      "sha256": "1d31b2b9e05a7345e108845f549f6f986041a11082816c2c9d5b07e4e7bc70b3",
+      "byteLength": 358
+    }
+  ]
+}
