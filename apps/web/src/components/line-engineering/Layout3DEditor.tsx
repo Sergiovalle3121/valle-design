@@ -5978,10 +5978,10 @@ export default function Layout3DEditor({
         let document = checkpoint;
         const touchedIds = new Set<string>();
         for (const command of commands) {
-          // `insert` trae su propia entidad; la capa a comprobar es la de ella.
+          // `insert` trae su entidad; `image-definition` no toca ninguna capa.
           const target = "entityId" in command
             ? document.entities.find((entity) => entity.id === command.entityId)
-            : command.entity;
+            : "entity" in command ? command.entity : undefined;
           const lockedLayer =
             target && document.layers.find((layer) => layer.id === target.layer)?.locked;
           if (lockedLayer)
