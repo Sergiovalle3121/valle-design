@@ -93,8 +93,8 @@ const attached = (() => {
   );
   assert.equal(next.externalReferences[0].name, "PLANTA", "y el nombre, que es la tercera vía");
   ok(
-    next.layers.some((layer) => layer.id === "xref:xref-planta:layer" && layer.locked),
-    "la capa del xref nace bloqueada",
+    next.layers.some((layer) => layer.id === "xref:xref-planta:layer" && !layer.locked),
+    "la capa del xref nace DESBLOQUEADA: el candado no protegía el contenido —vive en un bloque— y sí impedía gestionar la referencia",
   );
   checks += 5;
   return next;

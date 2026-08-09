@@ -195,8 +195,8 @@ const copied = (() => {
   const layer = next.layers.find((candidate) => candidate.name === "PLANTA")!;
   ok(!layer.locked, "la copia de la capa entra DESBLOQUEADA: su contenido sí es editable");
   ok(
-    next.layers.find((candidate) => candidate.id === "xref:planta:layer")!.locked,
-    "y la del xref sigue bloqueada",
+    next.layers.some((candidate) => candidate.id === "xref:planta:layer"),
+    "y la de la referencia sigue en su sitio, sin que copiarla la mueva",
   );
   checks += 1;
 }

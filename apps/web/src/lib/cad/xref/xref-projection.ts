@@ -129,14 +129,26 @@ export function projectCadXrefBlocks(
   return blocks;
 }
 
-/** La capa BLOQUEADA sobre la que aterriza todo lo que proyecta un xref. */
+/**
+ * La capa sobre la que aterriza todo lo que proyecta un xref.
+ *
+ * **Nace DESBLOQUEADA, y eso es un arreglo.** Nacía bloqueada, y el candado no
+ * protegía lo que parecía: el contenido del xref vive dentro de una definición
+ * de bloque y no se puede editar de todas formas. Lo que sí impedía era
+ * GESTIONAR la referencia — el INSERT que la representa está en esta capa, así
+ * que descargarla, desligarla o enlazarla chocaba con el guardia de capa
+ * bloqueada del editor y se rechazaba con «Layer … is locked». La referencia
+ * quedaba inmanejable desde cualquier ruta que pase por ese guardia.
+ *
+ * Apagar la capa sigue ocultando el xref entero, que es para lo que se creó.
+ */
 export function cadXrefLayer(xrefId: string, name: string): CadLayerDef {
   return {
     id: cadXrefLayerId(xrefId),
     name: `XREF|${name}`,
     color: "#64748b",
     visible: true,
-    locked: true,
+    locked: false,
     linetype: "continuous",
     lineweight: 0.18,
   };
