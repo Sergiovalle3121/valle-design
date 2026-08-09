@@ -27,6 +27,8 @@
 import type { CadEntity, CadPoint2, CadPoint3 } from "./cad-document";
 import {
   cadEntityCurves,
+  curveBoundsOverlap,
+  curveBoundsUnion,
   curveClosestParam,
   curveDistanceTo,
   curveExtensionPeriod,
@@ -36,6 +38,7 @@ import {
   curveParamAt,
   curvePointAt,
   type CadCurve,
+  type CadCurveBounds,
 } from "./curve-model";
 import type { CadNativeEntity, CadPropertyBag } from "./entity-runtime";
 import { norm360, type CadVec2 } from "./primitives";
@@ -275,17 +278,46 @@ export interface CadCurveEditInput {
   pick: CadPoint2;
 }
 
-function boundaryCurves(target: CadEditableEntity, boundaries: readonly CadEntity[]): CadCurve[] {
+/**
+ * Las curvas de los bordes, ya convertidas.
+ *
+ * `within` descarta por caja envolvente lo que ni se acerca al objetivo. No es
+ * una micro-optimización: TRIM con la opción `Todos` pasa el dibujo ENTERO como
+ * borde, y sin este filtro un plano de 100.000 entidades pagaría una
+ * intersección curva-curva —hasta 720 muestras si hay una elipse por medio— por
+ * cada objeto del plano y por cada recorte. La caja es un SUPERCONJUNTO, así
+ * que sólo puede dejar pasar de más.
+ *
+ * EXTEND no la usa: allí el objetivo se prolonga sin límite y una caja calculada
+ * sobre su geometría actual descartaría justo los contornos lejanos que EXTEND
+ * existe para alcanzar.
+ */
+function boundaryCurves(
+  target: CadEditableEntity,
+  boundaries: readonly CadEntity[],
+  within?: CadCurveBounds | null,
+): { curves: CadCurve[]; convertible: number } {
   const curves: CadCurve[] = [];
+  let convertible = 0;
   for (const boundary of boundaries) {
     if (boundary.id === target.id) continue;
     const converted = cadEntityCurves(boundary);
-    // Lo que no se sabe convertir NO se aproxima. Un SPLICE aplanado cortaría
+    // Lo que no se sabe convertir NO se aproxima. Un SPLINE aplanado cortaría
     // en el sitio equivocado, y un corte en el sitio equivocado es peor que no
     // cortar: el usuario ve una geometría plausible y falsa.
-    if (converted) curves.push(...converted);
+    if (!converted) continue;
+    convertible += 1;
+    // Descartado por caja: el borde EXISTE y sabe cortar, sólo que no llega.
+    // Se cuenta como convertible para que el mensaje siga siendo «no cruza
+    // ningún borde» y no «ningún borde sabe cortar», que serían cosas
+    // distintas y sólo una es cierta.
+    if (within) {
+      const bounds = curveBoundsUnion(converted);
+      if (bounds && !curveBoundsOverlap(bounds, within, 1e-6)) continue;
+    }
+    curves.push(...converted);
   }
-  return curves;
+  return { curves, convertible };
 }
 
 /**
@@ -299,10 +331,10 @@ export function computeCadCurveTrim(input: CadCurveEditInput): CadCurveEditOutco
   const curves = cadEntityCurves(input.target);
   if (!curves || curves.length === 0)
     return { error: `${input.target.type.toUpperCase()} no tiene geometría que recortar.` };
-  const boundaries = boundaryCurves(input.target, input.boundaries);
-  if (boundaries.length === 0) return { error: "ningún borde designado sabe cortar." };
+  const boundaries = boundaryCurves(input.target, input.boundaries, curveBoundsUnion(curves));
+  if (boundaries.convertible === 0) return { error: "ningún borde designado sabe cortar." };
 
-  const cuts = cutParameters(curves, boundaries, false);
+  const cuts = cutParameters(curves, boundaries.curves, false);
   if (cuts.length === 0) return { error: "no cruza ningún borde." };
 
   const domain = globalDomain(curves);
@@ -347,7 +379,7 @@ export function computeCadCurveExtend(input: CadCurveEditInput): CadCurveEditOut
   if (entityIsClosed(input.target, curves))
     return { error: "una curva cerrada no tiene extremos que alargar." };
   const boundaries = boundaryCurves(input.target, input.boundaries);
-  if (boundaries.length === 0) return { error: "ningún contorno designado sabe alargar." };
+  if (boundaries.convertible === 0) return { error: "ningún contorno designado sabe alargar." };
 
   const domain = globalDomain(curves);
   const pick = globalClosest(curves, input.pick);
@@ -360,7 +392,7 @@ export function computeCadCurveExtend(input: CadCurveEditInput): CadCurveEditOut
   const period = curveExtensionPeriod(terminal);
 
   let best: number | null = null;
-  for (const boundary of boundaries)
+  for (const boundary of boundaries.curves)
     for (const hit of curveIntersections(terminal, boundary, { extendA: true })) {
       // Un arco extendido da la vuelta: un cruce a 3/4 de vuelta hacia delante
       // es en realidad 1/4 hacia atrás, y sin restar el periodo EXTEND

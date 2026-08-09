@@ -26,6 +26,9 @@ import {
   curveExtensionPeriod,
   curveIntersections,
   curveIntersectionsWithAll,
+  curveBounds,
+  curveBoundsOverlap,
+  curveBoundsUnion,
   curveIsClosed,
   curveParamAt,
   curvePointAt,
@@ -407,6 +410,47 @@ const line = (x1: number, y1: number, x2: number, y2: number): CadEntity => ({
             `un cruce no finito: ${JSON.stringify(hit)}`,
           );
         }
+}
+
+// --- la caja envolvente es un SUPERCONJUNTO, nunca falta ------------------------------
+{
+  // Se usa para descartar bordes baratos en TRIM con `Todos`: si se quedara
+  // corta, descartaría un corte real. Un arco devuelve la caja de su
+  // CIRCUNFERENCIA entera a propósito.
+  const quarter: CadCurve = { kind: "arc", center: { x: 0, y: 0 }, radius: 10, startAngle: 0, sweep: 90 };
+  const box = curveBounds(quarter);
+  near(box.minX, -10, 1e-12, "aunque el cuadrante no baja de x=0, la caja sí");
+  near(box.maxY, 10, 1e-12, "");
+
+  // Y para cualquier curva, todo punto muestreado cae DENTRO de su caja.
+  const samples: CadCurve[] = [
+    { kind: "segment", a: { x: -3, y: 7 }, b: { x: 11, y: -2 } },
+    { kind: "arc", center: { x: 4, y: -1 }, radius: 6, startAngle: 200, sweep: 130 },
+    { kind: "ellipse", center: { x: 2, y: 2 }, major: { x: 9, y: 4 }, ratio: 0.4, startParam: 10, sweep: 300 },
+  ];
+  for (const curve of samples) {
+    const bounds = curveBounds(curve);
+    for (let step = 0; step <= 64; step += 1) {
+      const point = curvePointAt(curve, step / 64);
+      checks += 1;
+      assert.ok(
+        point.x >= bounds.minX - 1e-9 &&
+          point.x <= bounds.maxX + 1e-9 &&
+          point.y >= bounds.minY - 1e-9 &&
+          point.y <= bounds.maxY + 1e-9,
+        `${curve.kind}: el punto (${point.x}, ${point.y}) se sale de su propia caja`,
+      );
+    }
+  }
+
+  // Dos cajas que no se tocan no se solapan, y una margen las junta.
+  const left = curveBounds({ kind: "segment", a: { x: 0, y: 0 }, b: { x: 1, y: 0 } });
+  const right = curveBounds({ kind: "segment", a: { x: 2, y: 0 }, b: { x: 3, y: 0 } });
+  checks += 1;
+  assert.ok(!curveBoundsOverlap(left, right), "separadas");
+  checks += 1;
+  assert.ok(curveBoundsOverlap(left, right, 1.5), "con margen, se tocan");
+  assert.equal(curveBoundsUnion([]), null, "sin curvas no hay caja");
 }
 
 console.log(

@@ -349,6 +349,72 @@ export function curveLength(curve: CadCurve): number {
   return total;
 }
 
+export interface CadCurveBounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
+/**
+ * Caja envolvente CONSERVADORA: puede sobrar, nunca falta.
+ *
+ * Para un arco o un arco elíptico se devuelve la de la curva CERRADA entera, no
+ * la del barrido. Es un superconjunto a propósito: sirve para descartar
+ * candidatos baratos —«esta frontera ni se acerca al objeto»— y un
+ * superconjunto sólo puede dejar pasar de más. Afinarla y equivocarse por un
+ * pelo descartaría un corte real, que es un fallo mucho peor que una
+ * comprobación de sobra.
+ */
+export function curveBounds(curve: CadCurve): CadCurveBounds {
+  if (curve.kind === "segment")
+    return {
+      minX: Math.min(curve.a.x, curve.b.x),
+      minY: Math.min(curve.a.y, curve.b.y),
+      maxX: Math.max(curve.a.x, curve.b.x),
+      maxY: Math.max(curve.a.y, curve.b.y),
+    };
+  if (curve.kind === "arc")
+    return {
+      minX: curve.center.x - curve.radius,
+      minY: curve.center.y - curve.radius,
+      maxX: curve.center.x + curve.radius,
+      maxY: curve.center.y + curve.radius,
+    };
+  const { minor } = ellipseFrame(curve);
+  const halfWidth = Math.hypot(curve.major.x, minor.x);
+  const halfHeight = Math.hypot(curve.major.y, minor.y);
+  return {
+    minX: curve.center.x - halfWidth,
+    minY: curve.center.y - halfHeight,
+    maxX: curve.center.x + halfWidth,
+    maxY: curve.center.y + halfHeight,
+  };
+}
+
+export function curveBoundsUnion(curves: readonly CadCurve[]): CadCurveBounds | null {
+  if (curves.length === 0) return null;
+  return curves.map(curveBounds).reduce((accumulated, bounds) => ({
+    minX: Math.min(accumulated.minX, bounds.minX),
+    minY: Math.min(accumulated.minY, bounds.minY),
+    maxX: Math.max(accumulated.maxX, bounds.maxX),
+    maxY: Math.max(accumulated.maxY, bounds.maxY),
+  }));
+}
+
+export function curveBoundsOverlap(
+  first: CadCurveBounds,
+  second: CadCurveBounds,
+  margin = 0,
+): boolean {
+  return (
+    first.minX <= second.maxX + margin &&
+    first.maxX >= second.minX - margin &&
+    first.minY <= second.maxY + margin &&
+    first.maxY >= second.minY - margin
+  );
+}
+
 /** Longitud aproximada; suficiente para ordenar y para tolerancias relativas. */
 export function curveScale(curve: CadCurve): number {
   if (curve.kind === "segment") return Math.hypot(curve.b.x - curve.a.x, curve.b.y - curve.a.y);
