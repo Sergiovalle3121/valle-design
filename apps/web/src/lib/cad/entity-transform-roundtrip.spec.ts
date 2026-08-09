@@ -104,8 +104,25 @@ const CORPUS: CadEntity[] = [
     center: { x: 500, y: 400, z: 0 },
     majorAxis: { x: 200, y: 50, z: 0 },
     ratio: 0.4,
+    // GRADOS, que es lo que leen `tessellateEllipse`, el renderizador y la
+    // exportación DXF. Este ejemplar iba de 0 a `2π` y la regla de reflexión
+    // comparaba contra `2π`, así que se clasificaba como elipse completa y la
+    // rama de espejo no se ejecutaba NUNCA: la involución se cumplía porque el
+    // campo no se tocaba. De ahí el ejemplar de abajo, que sí es un arco.
     startParameter: 0,
-    endParameter: Math.PI * 2,
+    endParameter: 360,
+    layer: "0",
+  },
+  {
+    // Arco elíptico PARCIAL: el único ejemplar que ejerce la reflexión de
+    // parámetros. Sin él, cualquier regla —o su ausencia— pasa la ida y vuelta.
+    id: "ellipse-arco",
+    type: "ellipse",
+    center: { x: -300, y: 150, z: 0 },
+    majorAxis: { x: 180, y: 0, z: 0 },
+    ratio: 0.6,
+    startParameter: 30,
+    endParameter: 200,
     layer: "0",
   },
   {
@@ -169,8 +186,11 @@ const CORPUS: CadEntity[] = [
   {
     id: "dimension",
     type: "dimension",
-    a: { x: 0, y: 0 },
-    b: { x: 800, y: 0 },
+    // FUERA de los ejes de reflexión del corpus: con `a` y `b` sobre el eje X
+    // —como estaban— un espejo horizontal los dejaba donde ya estaban, y un
+    // adaptador que ignorase el espejo por completo habría pasado igual.
+    a: { x: 0, y: -60 },
+    b: { x: 800, y: 140 },
     dimensionKind: "linear",
     axis: "x",
     offset: 120,
@@ -609,8 +629,153 @@ assert.equal(
     Math.abs(((((mtext.rotation ?? 0) % 360) + 360) % 360) - 345) < 1e-9,
     `el texto se re-orienta restando: ${mtext.rotation}`,
   );
+
+  // --- y ahora los seis tipos que NO tenían ancla ------------------------------
+  //
+  // El agujero de esta spec estaba exactamente donde faltaba el ancla: cota y
+  // directriz llevaban una copia local de `transformPoint` que sólo leía
+  // `{origin, rotationDeg, scale, translation}`. Bajo `{mirror}` ninguno de esos
+  // campos existe, así que la copia evaluaba la identidad y la entidad se
+  // quedaba QUIETA. La involución pasaba —la identidad aplicada dos veces
+  // también devuelve el original— y la comprobación de «la entidad cambió al
+  // reflejarse» tampoco lo veía en la directriz, porque su `textRotation` sí
+  // consultaba el ángulo y bastaba para que el JSON saliera distinto.
+
+  // Línea: reflejo sobre el eje X, la `y` cambia de signo y la `x` no.
+  const line = transform(
+    { id: "l", type: "line", start: { x: 100, y: 200, z: 0 }, end: { x: 700, y: -50, z: 0 }, layer: "0" },
+    aboutX,
+  );
+  assert.ok(line.type === "line");
+  assert.ok(Math.abs(line.start.x - 100) < 1e-9 && Math.abs(line.start.y + 200) < 1e-9, `inicio ${line.start.x},${line.start.y}`);
+  assert.ok(Math.abs(line.end.y - 50) < 1e-9, `la y negativa vuelve positiva: ${line.end.y}`);
+
+  // Círculo: el centro se refleja y el radio NO cambia, porque un espejo puro
+  // tiene |det| = 1.
+  const circle = transform(
+    { id: "c", type: "circle", center: { x: 250, y: 250, z: 0 }, radius: 120, layer: "0" },
+    aboutX,
+  );
+  assert.ok(circle.type === "circle");
+  assert.ok(Math.abs(circle.center.y + 250) < 1e-9, `centro ${circle.center.y}`);
+  assert.equal(circle.radius, 120, "un espejo puro no cambia el radio");
+
+  // Y el radio SÍ escala bajo `scaleXY`, donde `transform.scale` no existe.
+  // Antes se leía `Math.abs(transform.scale ?? 1)`, o sea factor 1: el círculo
+  // se movía al doble de distancia conservando su tamaño de antes.
+  const scaled = transform(
+    { id: "c2", type: "circle", center: { x: 100, y: 0, z: 0 }, radius: 50, layer: "0" },
+    { scaleXY: { x: 2, y: 2 } },
+  );
+  assert.ok(scaled.type === "circle");
+  assert.ok(Math.abs(scaled.center.x - 200) < 1e-9, `centro ${scaled.center.x}`);
+  assert.ok(Math.abs(scaled.radius - 100) < 1e-9, `el radio escala con scaleXY: ${scaled.radius}`);
+
+  // Arco elíptico: los parámetros están en GRADOS y se reflejan e intercambian
+  // como los de un arco — de 30°…200° salen 160°…330°. El eje mayor es un
+  // vector y se refleja sin trasladarse.
+  const ellipse = transform(
+    {
+      id: "e",
+      type: "ellipse",
+      center: { x: -300, y: 150, z: 0 },
+      majorAxis: { x: 180, y: 60, z: 0 },
+      ratio: 0.6,
+      startParameter: 30,
+      endParameter: 200,
+      layer: "0",
+    },
+    aboutX,
+  );
+  assert.ok(ellipse.type === "ellipse");
+  assert.ok(Math.abs(ellipse.center.y + 150) < 1e-9, `centro ${ellipse.center.y}`);
+  assert.ok(Math.abs(ellipse.majorAxis.y + 60) < 1e-9, `eje mayor ${ellipse.majorAxis.y}`);
+  assert.ok(Math.abs(ellipse.startParameter - 160) < 1e-9, `el inicio sale del FINAL reflejado: ${ellipse.startParameter}`);
+  assert.ok(Math.abs(ellipse.endParameter - 330) < 1e-9, `y el final del inicio reflejado: ${ellipse.endParameter}`);
+
+  // Spline: no tiene campos angulares, así que su regla entera son los puntos
+  // de control — y el ORDEN de esos puntos, que un espejo no invierte.
+  const spline = transform(
+    {
+      id: "s",
+      type: "spline",
+      degree: 3,
+      controlPoints: [
+        { x: 0, y: 0, z: 0 },
+        { x: 100, y: 300, z: 0 },
+        { x: 400, y: 300, z: 0 },
+        { x: 500, y: 0, z: 0 },
+      ],
+      knots: [0, 0, 0, 0, 1, 1, 1, 1],
+      layer: "0",
+    },
+    aboutX,
+  );
+  assert.ok(spline.type === "spline");
+  assert.ok(Math.abs(spline.controlPoints[1].y + 300) < 1e-9, `control 1 en y=${spline.controlPoints[1].y}`);
+  assert.ok(Math.abs(spline.controlPoints[1].x - 100) < 1e-9, "y la x no se toca");
+  assert.equal(spline.controlPoints.length, 4, "el orden y el número de controles no cambian");
+
+  // Cota: los puntos de definición SE MUEVEN. Esto es lo que no hacía.
+  const dimension = transform(
+    {
+      id: "d",
+      type: "dimension",
+      a: { x: 0, y: 100 },
+      b: { x: 800, y: 300 },
+      dimensionKind: "linear",
+      axis: "x",
+      offset: 120,
+      layer: "0",
+    },
+    aboutX,
+  );
+  assert.ok(dimension.type === "dimension");
+  assert.ok(Math.abs(dimension.a.y + 100) < 1e-9, `la cota DEBE moverse al espejar: a.y=${dimension.a.y}`);
+  assert.ok(Math.abs(dimension.b.y + 300) < 1e-9, `y su segundo punto también: b.y=${dimension.b.y}`);
+  assert.ok(Math.abs(dimension.b.x - 800) < 1e-9, "la x no cambia bajo un espejo sobre el eje X");
+  assert.equal(dimension.offset, 120, "un espejo puro no cambia la separación");
+  assert.equal((dimension as { a: { z?: number } }).a.z, undefined, "y los puntos siguen siendo 2D");
+
+  // Y su `offset` escala bajo `scaleXY`, que es la segunda mitad del mismo
+  // defecto: se leía `Math.abs(transform.scale ?? 1)` → 1.
+  const dimensionScaled = transform(
+    { id: "d2", type: "dimension", a: { x: 0, y: 0 }, b: { x: 800, y: 0 }, dimensionKind: "linear", offset: 120, radius: 40, layer: "0" },
+    { scaleXY: { x: 2, y: 2 } },
+  );
+  assert.ok(dimensionScaled.type === "dimension");
+  assert.ok(Math.abs(dimensionScaled.b.x - 1600) < 1e-9, `punto ${dimensionScaled.b.x}`);
+  assert.ok(Math.abs((dimensionScaled.offset ?? 0) - 240) < 1e-9, `la separación escala: ${dimensionScaled.offset}`);
+  assert.ok(Math.abs((dimensionScaled.radius ?? 0) - 80) < 1e-9, `y el radio también: ${dimensionScaled.radius}`);
+
+  // Directriz: la geometría se mueve Y el rótulo se re-orienta restando. Antes
+  // sólo pasaba lo segundo, así que el texto giraba hacia un lado y la flecha
+  // seguía señalando al otro — incoherente consigo misma.
+  const mleader = transform(
+    {
+      id: "m",
+      type: "mleader",
+      vertices: [
+        { x: 400, y: 400, z: 0 },
+        { x: 600, y: 600, z: 0 },
+      ],
+      text: "Junta de dilatación",
+      textPosition: { x: 620, y: 610, z: 0 },
+      textRotation: 20,
+      layer: "0",
+    },
+    aboutX,
+  );
+  assert.ok(mleader.type === "mleader");
+  assert.ok(Math.abs(mleader.vertices[0].y + 400) < 1e-9, `la punta DEBE moverse: ${mleader.vertices[0].y}`);
+  assert.ok(Math.abs(mleader.vertices[1].y + 600) < 1e-9, `y el codo también: ${mleader.vertices[1].y}`);
+  assert.ok(Math.abs(mleader.textPosition.y + 610) < 1e-9, `y el contenido: ${mleader.textPosition.y}`);
+  assert.ok(
+    Math.abs(((((mleader.textRotation ?? 0) % 360) + 360) % 360) - 340) < 1e-9,
+    `el rótulo se re-orienta restando, igual que su geometría: ${mleader.textRotation}`,
+  );
 }
 
 console.log(
-  `transformadas por adaptador: ${checks} idas y vueltas verdes sobre ${CORPUS.length} tipos × ${TRANSFORMS.length} transformadas, más 3 anclas absolutas`,
+  `transformadas por adaptador: ${checks} idas y vueltas verdes sobre ${CORPUS.length} ejemplares × ${TRANSFORMS.length} transformadas, más anclas absolutas para los ${new Set(CORPUS.map((entity) => entity.type)).size} tipos del corpus`,
 );
