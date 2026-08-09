@@ -492,6 +492,42 @@ export function computeCadCurveLengthen(input: CadLengthenInput): CadCurveEditOu
   );
 }
 
+/**
+ * Corta la curva en `at` conservando el lado donde está `pick`, y ALARGÁNDOLA
+ * si `at` cae fuera.
+ *
+ * Es lo que necesita FILLET: el punto de tangencia puede quedar dentro del
+ * objeto (hay que recortar) o más allá de su extremo (hay que prolongar), y en
+ * los dos casos el trozo que sobrevive es el del lado por donde se designó.
+ * Tratar los dos casos como operaciones distintas fue lo que dejó a FILLET
+ * admitiendo sólo líneas.
+ */
+export function computeCadCurveKeepSide(
+  target: CadEditableEntity,
+  at: CadPoint2,
+  pick: CadPoint2,
+): CadCurveEditOutcome {
+  const curves = cadEntityCurves(target);
+  if (!curves || curves.length === 0)
+    return { error: `${target.type.toUpperCase()} no tiene geometría que cortar.` };
+  if (curves.length !== 1)
+    return { error: "una polilínea no se corta por un punto suelto; use TRIM o BREAK." };
+  if (entityIsClosed(target, curves))
+    return { error: "una curva cerrada no se corta en un solo punto." };
+
+  const curve = curves[0];
+  const pickParam = curveClosestParam(curve, pick);
+  let cut = curveParamAt(curve, at);
+  const period = curveExtensionPeriod(curve);
+  // Un arco extendido da la vuelta: el mismo punto se puede leer como «tres
+  // cuartos hacia delante» o «un cuarto hacia atrás». Se toma la lectura más
+  // cercana al lado por el que se designó, o FILLET recortaría el arco entero.
+  if (period !== null && Math.abs(cut - period - pickParam) < Math.abs(cut - pickParam))
+    cut -= period;
+
+  return cut < pickParam ? restrict(target, curves, cut, 1) : restrict(target, curves, 0, cut);
+}
+
 /** Longitud total de la entidad, o `null` si no es una curva de las tratables. */
 export function cadEntityLength(entity: CadEntity): number | null {
   const curves = cadEntityCurves(entity);
