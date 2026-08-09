@@ -13,6 +13,7 @@
  * documento —validar la sintaxis de un `.lsp` al subirlo, por ejemplo— y tienen
  * que fallar diciendo qué falta.
  */
+import { installDialogs } from "./builtins/dialogs";
 import { installEntityFunctions } from "./builtins/entities";
 import { installInteraction } from "./builtins/interaction";
 import { installSelectionFunctions } from "./builtins/selection";
@@ -24,6 +25,7 @@ export function createCadLispBuiltins(): Map<string, LispValue> {
   installEntityFunctions(table);
   installSelectionFunctions(table);
   installInteraction(table);
+  installDialogs(table);
   return table;
 }
 

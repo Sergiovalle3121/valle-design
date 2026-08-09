@@ -90,6 +90,14 @@ export interface LispInterpreterOptions {
   limits?: LispBudgetLimits;
   now?: () => number;
   host?: LispHostServices | null;
+  /**
+   * Semillas de la pizarra de la sesión. Es por donde el anfitrión inyecta
+   * cosas que los builtins necesitan y el evaluador no debe conocer — hoy, el
+   * registro de comandos compuesto con los de los plugins. Va como `unknown`
+   * a propósito: el evaluador no puede acabar importando el motor de comandos
+   * para tipar algo que sólo lee `interaction.ts`.
+   */
+  state?: Iterable<readonly [string, unknown]>;
 }
 
 export class LispInterpreter {
@@ -105,6 +113,7 @@ export class LispInterpreter {
     this.meter = new LispMeter(options.limits, options.now);
     this.host = options.host ?? null;
     this.context.host = this.host;
+    for (const [key, value] of options.state ?? []) this.context.state.set(key, value);
   }
 
   /**

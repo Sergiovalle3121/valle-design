@@ -158,7 +158,31 @@ export type LispRequest =
   | { kind: "alert"; text: string }
   /** Un `(command ...)` completo, ya traducido a entradas del motor. */
   | { kind: "command"; name: string; args: readonly LispValue[] }
-  | { kind: "dialog"; id: string; values: Readonly<Record<string, string>> };
+  /**
+   * Un diálogo DCL listo para pintar. Viaja como DATOS —un árbol de tiles con
+   * atributos ya normalizados a cadenas— y no como una referencia a algo que el
+   * anfitrión tenga que ir a buscar: así el anfitrión puede pintarlo sin
+   * conocer el subsistema LISP, y la petición se puede registrar y reproducir.
+   */
+  | {
+      kind: "dialog";
+      name: string;
+      tile: LispDialogTile;
+      values: Readonly<Record<string, string>>;
+    };
+
+/**
+ * Un control de un diálogo DCL. Estructura plana y serializable a propósito.
+ * `attributes` guarda TODO lo que el fichero declaró, incluidos los atributos
+ * que este producto todavía no sabe pintar: descartarlos aquí haría imposible
+ * que el anfitrión mejorase el pintado sin tocar el intérprete.
+ */
+export interface LispDialogTile {
+  type: string;
+  key?: string;
+  attributes: Readonly<Record<string, string>>;
+  children: readonly LispDialogTile[];
+}
 
 /** Respuesta del anfitrión a una petición. `cancel` es el Esc del usuario. */
 export type LispResponse =

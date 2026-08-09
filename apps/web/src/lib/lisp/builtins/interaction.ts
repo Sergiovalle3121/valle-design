@@ -43,6 +43,7 @@ import {
   CAD_ACCEPT_TEXT,
   CAD_COMMAND_REGISTRY_V2,
   type CadCommandContext,
+  type CadCommandRegistry,
   type CadCommandInput,
   type CadCommandStep,
 } from "../../cad/engine";
@@ -62,6 +63,13 @@ import {
 } from "../values";
 import { requireHost } from "./entities";
 import { defgen, defsubr, wantString, type BuiltinTable } from "./define";
+
+/**
+ * Clave de la pizarra bajo la que el anfitrión puede dejar un registro de
+ * comandos COMPUESTO (producto + plugins). Se declara aquí, junto a quien lo
+ * lee, para que la constante no viva en dos sitios con dos ortografías.
+ */
+export const COMMAND_REGISTRY = "commandRegistry";
 
 /** Lo que `initget` dejó armado para la siguiente pregunta. */
 interface InitgetState {
@@ -240,7 +248,11 @@ export function installInteraction(table: BuiltinTable): void {
     const name = args[0];
     if (name.t !== "str")
       throw new LispError("bad argument type: command: el primer argumento es el nombre del comando");
-    runCommand(host, name.v, args.slice(1));
+    // El registro puede venir COMPUESTO con los comandos de los plugins de la
+    // organización. Si nadie lo inyectó, manda el del producto.
+    const registry = (ctx.state.get(COMMAND_REGISTRY) as CadCommandRegistry | undefined)
+      ?? CAD_COMMAND_REGISTRY_V2;
+    runCommand(host, name.v, args.slice(1), registry);
     // AutoLISP devuelve nil; las rutinas leen el resultado con `entlast`.
     return NIL;
   });
@@ -427,8 +439,9 @@ export function runCommand(
   host: LispHostServices,
   name: string,
   args: readonly LispValue[],
+  registry: CadCommandRegistry = CAD_COMMAND_REGISTRY_V2,
 ): void {
-  const descriptor = CAD_COMMAND_REGISTRY_V2.get(name);
+  const descriptor = registry.get(name);
   if (!descriptor)
     throw new LispError(
       `command: el comando "${name.toUpperCase()}" no existe en este producto. ` +
