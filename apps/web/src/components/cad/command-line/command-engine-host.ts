@@ -27,6 +27,7 @@ import {
 } from "@/lib/cad/engine/command-engine";
 import type {
   CadCommandContext,
+  CadCommandSession,
   CadPreviewPath,
   CadPrompt,
 } from "@/lib/cad/engine/command-types";
@@ -88,11 +89,41 @@ export class CadCommandEngineHost {
     lastCommand: null,
   };
   private readonly listeners = new Set<() => void>();
+  /**
+   * Rastro de sesión que los comandos LEEN y sólo el anfitrión escribe.
+   *
+   * Está aquí y no dentro del motor porque el motor es un reductor puro que no
+   * ve el resultado de aplicar un lote; el anfitrión sí, porque es quien lo
+   * aplica. Y está aquí y no en un módulo global porque un global lo compartiría
+   * entre editores abiertos: dos dibujos, dos «cota anterior» distintas.
+   */
+  private session: CadCommandSession = {};
 
   constructor(
     private readonly registry: CadCommandRegistry,
     private readonly bridge: CadCommandEngineBridge,
   ) {}
+
+  /** El contexto del editor MÁS lo que esta sesión recuerda. */
+  private context(): CadCommandContext {
+    return { ...this.bridge.context(), session: this.session };
+  }
+
+  /**
+   * Anota la última cota creada por el lote que se acaba de aplicar.
+   *
+   * Se mira el LOTE y no el documento porque el documento no dice cuál de sus
+   * cotas es la nueva. Se recorre al revés: si una orden crea varias —`DIM`
+   * sobre una selección— la que encadena es la última, igual que en AutoCAD.
+   */
+  private rememberSession(commands: readonly CadEntityCommand[]): void {
+    for (let index = commands.length - 1; index >= 0; index -= 1) {
+      const command = commands[index];
+      if (command.type !== "insert" || command.entity.type !== "dimension") continue;
+      this.session = { ...this.session, lastDimensionId: command.entity.id };
+      return;
+    }
+  }
 
   subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener);
@@ -196,7 +227,7 @@ export class CadCommandEngineHost {
     if (!descriptor) return;
     // Se vuelve a pedir el paso con el contexto actual; el comando es puro, así
     // que recalcular su previsualización no tiene efectos secundarios.
-    const refreshed = descriptor.step(step.state as never, { kind: "text", value: "" }, this.bridge.context());
+    const refreshed = descriptor.step(step.state as never, { kind: "text", value: "" }, this.context());
     this.bridge.preview(refreshed.preview ?? []);
   }
 
@@ -204,7 +235,7 @@ export class CadCommandEngineHost {
     const reduction = cadCommandEngineReduce(
       this.state,
       action,
-      this.bridge.context(),
+      this.context(),
       this.registry,
     );
     this.state = reduction.state;
@@ -220,6 +251,7 @@ export class CadCommandEngineHost {
         this.log(effect.prompt.message, "prompt");
         return;
       case "execute":
+        this.rememberSession(effect.commands);
         this.bridge.apply(effect.commands, effect.label);
         return;
       case "view": {

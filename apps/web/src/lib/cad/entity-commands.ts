@@ -23,6 +23,7 @@ import {
   type CadPaperSpace,
   type CadParameter,
   type CadPoint2,
+  type CadStyleTable,
 } from "./cad-document";
 import {
   deleteCadParameter,
@@ -123,6 +124,29 @@ export type CadEntityCommand =
     }
   | { type: "parameter"; entity?: undefined; op: "delete"; name: string }
   /**
+   * La tabla de ESTILOS, que es otra sección del documento.
+   *
+   * Existe porque `STYLE`, `DIMSTYLE`, `MLEADERSTYLE` y `TABLESTYLE` tienen que
+   * poder escribirla, y sin esto sólo podían hacerlo llamando a `commitChange`
+   * por su cuenta — una segunda ruta de mutación, que es exactamente la
+   * propiedad que este módulo existe para impedir. Con esto, «crea el estilo
+   * COTAS-2 y aplícaselo a esta cota» es UN lote y UN paso de deshacer.
+   *
+   * No entra en `CadDocumentSectionCommand` a propósito: aquella rama resuelve
+   * el sistema de restricciones entero, y definir un estilo de texto no mueve
+   * geometría. Pagar un solve por un cambio de fuente sería gratuito sólo en un
+   * dibujo vacío.
+   */
+  | {
+      type: "style";
+      entity?: undefined;
+      op: "upsert";
+      family: CadStyleFamilyName;
+      name: string;
+      values: Readonly<Record<string, string | number | boolean>>;
+    }
+  | { type: "style"; entity?: undefined; op: "delete"; family: CadStyleFamilyName; name: string }
+  /**
    * Presentaciones: otra SECCIÓN del documento, por el mismo embudo.
    *
    * LAYOUT, MVIEW, PAGESETUP y el bloqueo de escala de una ventana escriben
@@ -139,16 +163,64 @@ export type CadEntityCommand =
   | { type: "paper-space"; entity?: undefined; op: "delete"; spaceId: string }
   | { type: "paper-space"; entity?: undefined; op: "reorder"; spaceIds: readonly string[] };
 
-/** Los que operan sobre secciones del documento y no sobre entidades. */
+/** Las cinco familias de `CadStyleTable`. */
+export type CadStyleFamilyName = "text" | "dimension" | "mleader" | "table" | "plot";
+
+/**
+ * Los que operan sobre secciones del documento y no sobre entidades.
+ *
+ * `style` NO entra: esta rama resuelve el sistema de restricciones entero al
+ * aplicarse, y definir una fuente o un tamaño de flecha no mueve geometría.
+ */
 type CadDocumentSectionCommand = Extract<
   CadEntityCommand,
   { type: "constraint" | "parameter" | "paper-space" }
 >;
+type CadStyleCommand = Extract<CadEntityCommand, { type: "style" }>;
 
 const isSectionCommand = (command: CadEntityCommand): command is CadDocumentSectionCommand =>
   command.type === "constraint" ||
   command.type === "parameter" ||
   command.type === "paper-space";
+
+const isStyleCommand = (command: CadEntityCommand): command is CadStyleCommand =>
+  command.type === "style";
+
+/**
+ * Aplica los comandos de estilo sobre la tabla, sin tocar lo que no nombran.
+ *
+ * `upsert` FUSIONA: escribir sólo la altura de un estilo de texto no debe
+ * borrarle la fuente. Un valor `undefined` no llega hasta aquí —el tipo no lo
+ * admite—, así que no hay forma accidental de vaciar un campo; para eso está
+ * borrar el estilo entero.
+ */
+function applyStyleCommands(
+  styles: CadStyleTable,
+  commands: readonly CadStyleCommand[],
+): CadStyleTable {
+  if (commands.length === 0) return styles;
+  const next: CadStyleTable = {
+    text: { ...styles.text },
+    dimension: { ...styles.dimension },
+    mleader: { ...(styles.mleader ?? {}) },
+    table: { ...styles.table },
+    plot: { ...styles.plot },
+  };
+  for (const command of commands) {
+    const name = command.name.trim();
+    if (!name) throw new Error("Un estilo necesita un nombre no vacío.");
+    const family = next[command.family] as Record<string, Record<string, unknown>>;
+    if (command.op === "delete") {
+      delete family[name];
+      continue;
+    }
+    family[name] = { ...(family[name] ?? {}), ...command.values };
+  }
+  // La familia `mleader` es OPCIONAL en el esquema: materializarla como `{}` en
+  // un documento que nunca la tuvo cambiaría su serializado y con él su hash.
+  if (Object.keys(next.mleader ?? {}).length === 0 && !styles.mleader) delete next.mleader;
+  return next;
+}
 
 export interface CadEntityCommandResult {
   document: CadDocument;
@@ -169,6 +241,7 @@ function cadEntityCommandLabel(
 ): string {
   if (command.type === "insert") return `insert:${command.entity.type}`;
   if (command.type === "image-definition") return `image-definition:${command.definition.id}`;
+  if (isStyleCommand(command)) return `style:${command.op}:${command.family}:${command.name}`;
   if (isSectionCommand(command)) return `${command.type}:${command.op}`;
   const source = document.entities.find((entity) => entity.id === command.entityId);
   if (!source || !registry.supports(source))
@@ -226,8 +299,13 @@ export function executeCadEntityCommandBatch(
   };
 
   const sectionCommands: CadDocumentSectionCommand[] = [];
+  const styleCommands: CadStyleCommand[] = [];
 
   for (const command of commands) {
+    if (isStyleCommand(command)) {
+      styleCommands.push(command);
+      continue;
+    }
     if (isSectionCommand(command)) {
       sectionCommands.push(command);
       continue;
@@ -402,6 +480,7 @@ export function executeCadEntityCommandBatch(
     ...document,
     entities,
     constraints: sections.constraints,
+    styles: applyStyleCommands(document.styles, styleCommands),
     paperSpaces: sections.paperSpaces,
     modelSpace: { entityIds: [...createdBackIds, ...ordered] },
     // Mismo criterio que `parameters` justo debajo: el catálogo de imágenes

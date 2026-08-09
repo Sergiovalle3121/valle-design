@@ -259,12 +259,28 @@ export function regenerateAssociativeDimensions(
       return { ...entity, associationStatus: 'broken' };
     }
     regeneratedIds.push(entity.id);
+    // Los puntos de definición de una cota son 2D en el esquema canónico. Los
+    // anclajes salen de la geometría de origen, que SÍ es 3D (`line.start` lleva
+    // `z`), así que copiarlos tal cual le añadía una `z` a la cota en la primera
+    // regeneración: el documento cambiaba de forma —y de hash— sin que nadie
+    // hubiera editado nada, y la misma cota se serializaba distinto según si
+    // había pasado por aquí. El adaptador ya descartaba la `z` al transformar;
+    // esto es la otra mitad de la misma regla.
+    const flat = (point: CadPoint2): CadPoint2 => ({ x: point.x, y: point.y });
     return {
       ...entity,
-      a: points[0]!,
-      b: points[1]!,
-      ...(points[2] ? { c: points[2] } : {}),
-      ...(entity.dimensionKind === 'radius' || entity.dimensionKind === 'diameter' ? { radius: length(sub(points[1]!, points[0]!)) } : {}),
+      a: flat(points[0]!),
+      b: flat(points[1]!),
+      ...(points[2] ? { c: flat(points[2]) } : {}),
+      // El radio se REDERIVA de los dos primeros puntos de definición. En
+      // `radius` y `diameter` son centro y borde; en `arc-length` son el centro
+      // y el arranque del arco, así que la distancia entre ambos vuelve a ser el
+      // radio — y sin recalcularlo, alargar el arco cambiaba el barrido pero
+      // conservaba el radio viejo, de modo que la longitud de arco quedaba mal
+      // sin que nada avisara.
+      ...(entity.dimensionKind === 'radius' || entity.dimensionKind === 'diameter' || entity.dimensionKind === 'arc-length'
+        ? { radius: length(sub(points[1]!, points[0]!)) }
+        : {}),
       associationStatus: 'associated',
     };
   });
