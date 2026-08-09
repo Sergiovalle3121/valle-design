@@ -146,6 +146,7 @@ export class CadViewportRenderHost {
   private dirty = true;
   private disposed = false;
   private hasContent = false;
+  private lastView: CadRenderView | null = null;
   private published: CadViewportRenderDiagnostics = EMPTY_DIAGNOSTICS;
   private syncsSincePublish = 0;
   private readonly listeners = new Set<() => void>();
@@ -222,6 +223,18 @@ export class CadViewportRenderHost {
    * geometría y romper el guionado. El orden de dibujo sale de
    * `modelSpace.entityIds`, no del orden del array de entidades.
    */
+  private viewChanged(view: CadRenderView): boolean {
+    const last = this.lastView;
+    if (!last) return true;
+    if (last.pixelsPerUnit !== view.pixelsPerUnit) return true;
+    return (
+      last.bounds.minX !== view.bounds.minX ||
+      last.bounds.minY !== view.bounds.minY ||
+      last.bounds.maxX !== view.bounds.maxX ||
+      last.bounds.maxY !== view.bounds.maxY
+    );
+  }
+
   replace(
     document: CadDocument,
     options: { excludeEntityIds?: ReadonlySet<string> } = {},
@@ -238,6 +251,10 @@ export class CadViewportRenderHost {
     this.scene.replace(entities, drawOrder, document);
     this.hasContent = true;
     this.dirty = true;
+    // Contenido nuevo: hay que volver a fijar la vista para que los tiles del
+    // encuadre actual se encolen. Sin esto, cargar un documento con la cámara
+    // quieta no dibujaría nada hasta que alguien moviese el ratón.
+    this.lastView = null;
   }
 
   /**
@@ -297,9 +314,18 @@ export class CadViewportRenderHost {
    */
   frame(view: CadRenderView, viewport?: CadThreeViewport): void {
     if (this.disposed || !this.scene.group.visible) return;
-    const update = this.scene.setView(view, viewport);
-    if (update.addedTiles > 0 || update.removedTiles > 0 || update.lodChanged)
-      this.dirty = true;
+    // `setView` NO es gratis y no es idempotente: aborta la cola del
+    // planificador, recalcula los tiles visibles y los vuelve a encolar.
+    // Llamarlo en cada cuadro con la MISMA vista convierte un dibujo en reposo
+    // en trabajo perpetuo — y el editor tiene una cámara amortiguada que emite
+    // cambios mucho después de que el usuario suelte el ratón. Se llama sólo
+    // cuando la vista cambió de verdad.
+    if (viewport || this.viewChanged(view)) {
+      const update = this.scene.setView(view, viewport);
+      this.lastView = { bounds: { ...view.bounds }, pixelsPerUnit: view.pixelsPerUnit };
+      if (update.addedTiles > 0 || update.removedTiles > 0 || update.lodChanged)
+        this.dirty = true;
+    }
     const result = this.scene.runFrame();
     if (result.ran > 0) this.dirty = true;
     if (!this.dirty) return;

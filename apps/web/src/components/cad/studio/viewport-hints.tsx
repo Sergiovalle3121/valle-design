@@ -20,10 +20,20 @@ export interface CadViewportPromptProps {
   kind: "measure" | "wall" | "draw";
   /** Aviso vivo del comando en curso; manda sobre el texto por defecto. */
   live?: string | null;
+  /**
+   * Hueco para el modo de captura resuelto BAJO EL CURSOR.
+   *
+   * Se rellena de forma imperativa, escribiendo `textContent`, porque cambia
+   * con cada movimiento del ratón: pasarlo como prop sería un render del árbol
+   * del editor por cada muestra del puntero, y el árbol de aquí abajo tiene
+   * 6.000 líneas de JSX. Es el mismo motivo por el que el cursor vivo no es un
+   * componente.
+   */
+  snapLabelRef?: React.Ref<HTMLSpanElement>;
 }
 
 /** Aviso superior: qué espera la herramienta activa AHORA mismo. */
-export function CadViewportPrompt({ kind, live }: CadViewportPromptProps) {
+export function CadViewportPrompt({ kind, live, snapLabelRef }: CadViewportPromptProps) {
   return (
     <div
       data-testid="cad-live-prompt"
@@ -40,6 +50,7 @@ export function CadViewportPrompt({ kind, live }: CadViewportPromptProps) {
           : kind === "draw"
             ? "Dibujo CAD activo · clic o coordenada · Enter termina"
             : "Clic para trazar muros · Esc termina")}
+      <span ref={snapLabelRef} data-testid="cad-live-snap-label" />
     </div>
   );
 }

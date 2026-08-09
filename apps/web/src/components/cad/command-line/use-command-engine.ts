@@ -29,6 +29,8 @@ import type { CadEntityCommand } from "@/lib/cad/entity-commands";
 import type { CadHostRequest } from "@/lib/cad/engine/host-requests";
 import type { CadView } from "@/lib/cad/view/cad-view";
 import { cadDocumentExtents, cadEntityExtents } from "@/lib/cad/view/document-extents";
+import type { CadPreviewPath } from "@/lib/cad/engine/command-types";
+import type { SnapType } from "@/lib/cad/snap-engine";
 import {
   CadCommandEngineHost,
   type CadCommandEngineBridge,
@@ -95,6 +97,22 @@ export interface CadStudioCommandEngineOptions {
   apply(commands: readonly CadEntityCommand[], label: string): void;
   /** Trabajo fuera del documento: trazar, publicar, cambiar de espacio. */
   host?(request: CadHostRequest): string;
+  /**
+   * Posición viva del puntero, en unidades de dibujo.
+   *
+   * Antes era siempre `null` con un comentario diciendo que el puntero no
+   * pasaba por el motor. Ya pasa: lo publica el enrutador del viewport en cada
+   * movimiento. Sigue pudiendo ser `null` —el ratón fuera del lienzo—, y en ese
+   * caso el motor responde «mueve el cursor» en vez de medir desde un origen
+   * inventado.
+   */
+  cursor?: { current: { x: number; y: number } | null };
+  /** Banda elástica: los trazos del paso actual, ya con su geometría real. */
+  preview?(paths: readonly CadPreviewPath[]): void;
+  /** Modos de captura forzados por el paso actual. */
+  osnapOverride?(modes: readonly SnapType[] | null): void;
+  /** Forma del cursor del viewport. */
+  cursorShape?(shape: "crosshair" | "pick" | "none"): void;
 }
 
 /**
@@ -177,11 +195,12 @@ export function useCadStudioCommandEngine(
         selection: options.selection.current,
         activeLayer: options.activeLayer,
         view: options.view.current?.view ?? null,
-        // El puntero todavía no pasa por el motor: mientras no pase, no hay
-        // cursor que ofrecer. Se dice que no lo hay en vez de fingir el origen,
-        // para que la entrada directa de distancia responda «mueve el cursor»
-        // en lugar de dar un punto medido desde un sitio inventado.
-        cursor: null,
+        // El puntero YA pasa por el motor: esto es lo que el enrutador del
+        // viewport publica en cada movimiento. Sigue pudiendo faltar —el ratón
+        // fuera del lienzo—, y entonces se dice que no lo hay en vez de fingir
+        // el origen, para que la entrada directa de distancia responda «mueve
+        // el cursor» en lugar de medir desde un sitio inventado.
+        cursor: options.cursor?.current ?? null,
         newEntityId: options.newEntityId,
         activeLayout: options.activeLayout ?? null,
       }),
@@ -190,11 +209,9 @@ export function useCadStudioCommandEngine(
     // El anfitrión del estudio traza de verdad. Un `host` propio en las
     // opciones lo sustituye, que es lo que hace un guion sin navegador.
     host: (request) => live.current.host?.(request) ?? plot.handle(request),
-    // Previsualización, captura forzada y forma del cursor pertenecen al
-    // puntero. Se ignoran a conciencia hasta que el puntero llegue.
-    preview: () => {},
-    osnapOverride: () => {},
-    cursor: () => {},
+    preview: (paths) => options.preview?.(paths),
+    osnapOverride: (modes) => options.osnapOverride?.(modes),
+    cursor: (shape) => options.cursorShape?.(shape),
   });
   engineRef.current = engine;
   return engine;
