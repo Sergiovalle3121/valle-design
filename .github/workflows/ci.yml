@@ -18,10 +18,25 @@ on:
     branches: [main]
   push:
     branches: [main]
+  # Alarma sobre `main` aunque nadie empuje: un fallo intermitente que sólo
+  # aparece 1 de cada N corridas no se ve en una foto, se ve en la serie.
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # SÓLO se cancelan las corridas de PR, donde el push siguiente sustituye al
+  # anterior sobre el MISMO código propuesto.
+  #
+  # En `main` cancelar era activamente dañino y es la razón de que este repo
+  # se quedara rojo sin que nadie lo viera: todos los merges comparten el ref
+  # `refs/heads/main`, así que cada fusión mataba la corrida de la fusión
+  # anterior. En la serie del 9 de agosto, CINCO commits consecutivos de `main`
+  # (792c0603, 99e867d3, 9abe5287, ccffc17c, bfbd26b9) terminaron en
+  # «cancelled»: nunca hubo veredicto sobre ellos. Cada commit de `main`
+  # merece el suyo, aunque llegue tarde.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   quality-gates:
@@ -66,6 +81,9 @@ jobs:
 
       - name: CAD contract and legacy-route gates
         run: npm run check:cad
+
+      - name: DWG experimental laboratory gates
+        run: npm run check:dwg
 
       # Puerta de LICENCIAS (misma política del origen): el producto es
       # UNLICENSED; toda dependencia de producción debe ser permisiva.
@@ -112,6 +130,17 @@ jobs:
       - name: CAD deterministic corpus benchmark (10k + 100k, blocking)
         working-directory: apps/web
         run: npm run benchmark:cad:smoke -- --output ../../cad-benchmark-smoke.json
+
+      - name: DWG deterministic smoke benchmark
+        run: npm run benchmark:smoke --workspace=@valle-design/dwg-codec -- --output "$RUNNER_TEMP/dwg-benchmark-smoke.json"
+
+      - name: Upload DWG benchmark evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: dwg-benchmark-${{ github.sha }}
+          path: ${{ runner.temp }}/dwg-benchmark-smoke.json
+          if-no-files-found: error
+          retention-days: 90
 
       - name: CAD scale capability report (500k + 1M, hardware guarded)
         working-directory: apps/web
@@ -257,12 +286,22 @@ jobs:
         # llvmpipe por GLX/EGL-X11. Chromium no se ve afectado.
         run: xvfb-run -a --server-args="-screen 0 1920x1080x24" npx playwright test
 
+      # `include-hidden-files` NO es cosmético: sin él este paso nunca subió
+      # nada. `.report` y `.test-results` empiezan por punto, y
+      # upload-artifact@v4 excluye los ocultos por defecto, así que las tres
+      # corridas rojas de `main` del 9 de agosto avisaron
+      # «No files were found with the provided path: apps/web/e2e/.report».
+      # El informe y las trazas —lo único que explica un fallo intermitente—
+      # se descartaban justo cuando hacían falta.
       - name: Upload Playwright report
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-${{ github.sha }}
-          path: apps/web/e2e/.report
+          path: |
+            apps/web/e2e/.report
+            apps/web/e2e/.test-results
+          include-hidden-files: true
           retention-days: 14
 
       - name: API log (diagnóstico)

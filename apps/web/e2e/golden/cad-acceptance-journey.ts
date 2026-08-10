@@ -17,7 +17,9 @@ const performance = 'apps/web/e2e/performance/cad-viewport-100k.spec.ts';
  */
 export const CAD_ACCEPTANCE_JOURNEY: readonly CadAcceptanceJourneyStep[] = [
   { step: 1, action: 'Abrir dibujo', level: 'browser-proven', evidence: [golden('26-cad-precision-polyline.spec.ts')] },
-  { step: 2, action: 'Elegir unidades', level: 'browser-proven', evidence: [golden('26-cad-precision-polyline.spec.ts')] },
+  // 46 prueba el paso de la única forma que lo prueba de verdad: se cambia a
+  // arquitectónico y la MISMA medida pasa a leerse en pies y pulgadas.
+  { step: 2, action: 'Elegir unidades', level: 'browser-proven', evidence: [golden('26-cad-precision-polyline.spec.ts'), golden('46-cad-inquiry-and-utilities.spec.ts')] },
   { step: 3, action: 'Crear capas', level: 'browser-proven', evidence: [golden('24-cad-canonical-layers.spec.ts'), golden('50-cad-layer-properties.spec.ts'), golden('26-cad-precision-polyline.spec.ts')] },
   { step: 4, action: 'Dibujar con coordenadas absolutas', level: 'browser-proven', evidence: [golden('26-cad-precision-polyline.spec.ts')] },
   { step: 5, action: 'Dibujar con relativas', level: 'browser-proven', evidence: [golden('26-cad-precision-polyline.spec.ts')] },
@@ -40,9 +42,9 @@ export const CAD_ACCEPTANCE_JOURNEY: readonly CadAcceptanceJourneyStep[] = [
   { step: 22, action: 'Editar grips', level: 'browser-proven', evidence: [golden('12-cad-professional-selection.spec.ts')] },
   { step: 23, action: 'Crear HATCH por punto interior', level: 'browser-proven', evidence: [golden('14-cad-associative-hatch.spec.ts')] },
   { step: 24, action: 'Cambiar boundary y comprobar associativity', level: 'browser-proven', evidence: [golden('14-cad-associative-hatch.spec.ts')] },
-  { step: 25, action: 'Crear MTEXT', level: 'browser-proven', evidence: [golden('15-cad-native-mtext.spec.ts')] },
-  { step: 26, action: 'Crear dimensiones asociativas', level: 'browser-proven', evidence: [golden('16-cad-associative-dimensions.spec.ts')] },
-  { step: 27, action: 'Mover geometría y verificar cotas', level: 'browser-proven', evidence: [golden('16-cad-associative-dimensions.spec.ts')] },
+  { step: 25, action: 'Crear MTEXT', level: 'browser-proven', evidence: [golden('15-cad-native-mtext.spec.ts'), golden('46-cad-annotation-commands.spec.ts')] },
+  { step: 26, action: 'Crear dimensiones asociativas', level: 'browser-proven', evidence: [golden('16-cad-associative-dimensions.spec.ts'), golden('46-cad-annotation-commands.spec.ts')] },
+  { step: 27, action: 'Mover geometría y verificar cotas', level: 'browser-proven', evidence: [golden('16-cad-associative-dimensions.spec.ts'), golden('46-cad-annotation-commands.spec.ts')] },
   { step: 28, action: 'Crear MLEADER', level: 'browser-proven', evidence: [golden('17-cad-native-mleader.spec.ts')] },
   { step: 29, action: 'Crear bloque', level: 'browser-proven', evidence: [golden('18-cad-professional-blocks.spec.ts')] },
   { step: 30, action: 'Insertar múltiples instancias', level: 'browser-proven', evidence: [golden('18-cad-professional-blocks.spec.ts')] },

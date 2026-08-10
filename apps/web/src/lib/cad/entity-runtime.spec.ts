@@ -194,8 +194,10 @@ const movedLineDocument = executeCadEntityCommand(dimensionDocument, {
 const regeneratedDimension = movedLineDocument.document.entities.find((entity) => entity.id === associatedDimension.id);
 assert.equal(regeneratedDimension?.type, "dimension");
 if (regeneratedDimension?.type === "dimension") {
-  assert.deepEqual(regeneratedDimension.a, { x: 25, y: 10, z: 0 });
-  assert.deepEqual(regeneratedDimension.b, { x: 225, y: 10, z: 0 });
+  // Sin `z`: los puntos de definición de una cota son 2D y la regeneración ya
+  // no arrastra la de la geometría de origen. Ver `associative-dimension.ts`.
+  assert.deepEqual(regeneratedDimension.a, { x: 25, y: 10 });
+  assert.deepEqual(regeneratedDimension.b, { x: 225, y: 10 });
   assert.equal(regeneratedDimension.associationStatus, "associated");
 }
 const deletedLineDocument = executeCadEntityCommand(movedLineDocument.document, { type: "delete", entityId: nativeLine.id });

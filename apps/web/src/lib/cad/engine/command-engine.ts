@@ -25,7 +25,11 @@
  */
 import type { SnapType } from "../snap-engine";
 import type { CadEntityCommand } from "../entity-commands";
+import type { CadSystemVariableValue } from "../system-variables";
+import type { CadViewRequest } from "../view/view-navigation";
+import type { CadHostRequest } from "./host-requests";
 import {
+  type CadUiRequest,
   type CadAnyCommandDescriptor,
   type CadCommandContext,
   type CadCommandInput,
@@ -63,7 +67,21 @@ export type CadCommandEffect =
   | { kind: "prompt"; prompt: CadPrompt; accepts: CadInputMask }
   | { kind: "preview"; paths: readonly CadPreviewPath[] }
   | { kind: "execute"; commands: readonly CadEntityCommand[]; label: string }
+  /** Encuadre: ZOOM, PAN, VIEW, REGEN. No entra en la pila de deshacer. */
+  | { kind: "view"; request: CadViewRequest; label: string }
+  /** Trabajo del anfitrión fuera del documento: trazar, publicar, cambiar de espacio. */
+  | { kind: "host"; request: CadHostRequest; label: string }
   | { kind: "message"; text: string; level: "info" | "error" }
+  /** Escribir variables de sistema. `system` puede tocar las de sólo lectura. */
+  | {
+      kind: "variables";
+      patch: Readonly<Record<string, CadSystemVariableValue>>;
+      system: boolean;
+    }
+  /** Abrir una paleta o un cuadro. El anfitrión decide si sabe servirlo. */
+  | { kind: "ui"; request: CadUiRequest }
+  /** Dejar designado exactamente esto. */
+  | { kind: "selection"; entityIds: readonly string[] }
   | { kind: "osnapOverride"; modes: readonly SnapType[] | null }
   | { kind: "cursor"; cursor: "crosshair" | "pick" | "none" }
   | { kind: "idle" };
@@ -187,7 +205,23 @@ function finish(
   const result = step.result;
   if (result?.kind === "document" && result.commands.length > 0)
     effects.push({ kind: "execute", commands: result.commands, label: result.label });
+  if (result?.kind === "view")
+    effects.push({ kind: "view", request: result.request, label: result.label });
+  if (result?.kind === "host")
+    effects.push({ kind: "host", request: result.request, label: result.label });
   if (result?.kind === "message") effects.push({ kind: "message", text: result.text, level: "info" });
+  if (result?.kind === "variables") {
+    effects.push({ kind: "variables", patch: result.patch, system: result.system ?? false });
+    if (result.text) effects.push({ kind: "message", text: result.text, level: "info" });
+  }
+  if (result?.kind === "ui") {
+    effects.push({ kind: "ui", request: result.request });
+    if (result.text) effects.push({ kind: "message", text: result.text, level: "info" });
+  }
+  if (result?.kind === "selection") {
+    effects.push({ kind: "selection", entityIds: result.entityIds });
+    if (result.text) effects.push({ kind: "message", text: result.text, level: "info" });
+  }
   // Se limpia la previsualización pase lo que pase: si el comando terminó, su
   // rubber-band no debe quedarse pegado en pantalla.
   effects.push({ kind: "preview", paths: [] });
