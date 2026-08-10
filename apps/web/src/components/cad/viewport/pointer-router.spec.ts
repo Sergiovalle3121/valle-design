@@ -138,7 +138,7 @@ function harness(): Harness {
       x: (event as unknown as { clientX: number }).clientX,
       y: (event as unknown as { clientY: number }).clientY,
     }),
-    anchor: { current: null },
+    session: { current: { anchor: null, pointerStarted: false } },
   });
   return {
     router,

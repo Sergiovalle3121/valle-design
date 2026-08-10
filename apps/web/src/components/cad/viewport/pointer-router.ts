@@ -140,23 +140,51 @@ export interface CadEnginePointerBridge {
   /** Coordenadas del evento relativas al lienzo, para colocar el DOM. */
   localPoint(event: PointerEvent | MouseEvent): { x: number; y: number };
   /**
-   * Dónde vive el último punto confirmado.
+   * Estado del comando EN CURSO, guardado fuera del enrutador.
    *
-   * FUERA del enrutador, y es importante. El anfitrión del motor se crea una
-   * vez y sobrevive a todo; el enrutador nace y muere con el lienzo THREE, que
-   * se vuelve a montar cuando cambia el documento o la planta. Con el ancla
-   * dentro, un remontaje a mitad de un comando dejaba al motor pidiendo el
-   * segundo punto y al enrutador creyendo que no había primero: la entrada
-   * dinámica volvía a «origen», se remontaba y perdía lo que hubiera escrito.
+   * FUERA, y es importante. El anfitrión del motor se crea una vez y sobrevive
+   * a todo; el enrutador nace y muere con el lienzo THREE, que se vuelve a
+   * montar cuando cambia el documento o la planta. Con esto dentro, un
+   * remontaje a mitad de un comando dejaba al motor con su comando abierto y al
+   * enrutador con la memoria en blanco: la entrada dinámica volvía a «origen» y
+   * perdía lo escrito, y el dibujo dejaba de quedar designado al terminar.
    */
-  anchor: { current: CadPoint2 | null };
+  session: { current: CadPointerSession };
 }
+
+/** Lo que dura lo que dura un comando, no lo que dura el lienzo. */
+export interface CadPointerSession {
+  /** Último punto confirmado. */
+  anchor: CadPoint2 | null;
+  /** El comando arrancó desde la barra o el puntero, no tecleado. */
+  pointerStarted: boolean;
+}
+
+export const EMPTY_CAD_POINTER_SESSION: CadPointerSession = {
+  anchor: null,
+  pointerStarted: false,
+};
 
 export class CadEnginePointerRouter {
   private lastSnap: SnapType | null = null;
   private lastPoint: CadPoint2 | null = null;
 
   constructor(private readonly bridge: CadEnginePointerBridge) {}
+
+  /**
+   * ¿Arrancó ESTE comando desde la barra o el puntero, y no tecleado?
+   *
+   * Distingue qué comportamiento heredado se está sustituyendo, y no es una
+   * sutileza: la barra reemplaza a `cad-command.ts`, que al dibujar dejaba lo
+   * dibujado DESIGNADO; la línea de comandos nunca designó nada. Designar
+   * también en el camino tecleado cambia lo que ve la orden SIGUIENTE —HATCH
+   * con algo designado sombrea esos objetos en vez de pedir un punto interior—,
+   * y eso rompía el recorrido de anotación tecleada. Cada camino conserva el
+   * suyo.
+   */
+  get startedByPointer(): boolean {
+    return this.bridge.session.current.pointerStarted;
+  }
 
   /**
    * Último punto CONFIRMADO. El motor no lo expone —es estado interno del
@@ -166,11 +194,14 @@ export class CadEnginePointerRouter {
    * guarda fuera (ver `bridge.anchor`) para sobrevivir a un remontaje.
    */
   private get anchorPoint(): CadPoint2 | null {
-    return this.bridge.anchor.current;
+    return this.bridge.session.current.anchor;
   }
 
   private set anchorPoint(point: CadPoint2 | null) {
-    this.bridge.anchor.current = point;
+    this.bridge.session.current = {
+      ...this.bridge.session.current,
+      anchor: point,
+    };
   }
 
   /** true cuando el motor manda: la máquina heredada no debe recibir nada. */
@@ -196,6 +227,7 @@ export class CadEnginePointerRouter {
     this.reset();
     this.bridge.host.invoke(command);
     if (!this.bridge.host.busy) return false;
+    this.bridge.session.current = { anchor: null, pointerStarted: true };
     this.bridge.cursor.setDynamicVisible(true);
     return true;
   }
@@ -394,7 +426,7 @@ export class CadEnginePointerRouter {
   }
 
   private reset(): void {
-    this.anchorPoint = null;
+    this.bridge.session.current = EMPTY_CAD_POINTER_SESSION;
     this.lastPoint = null;
     this.lastSnap = null;
   }

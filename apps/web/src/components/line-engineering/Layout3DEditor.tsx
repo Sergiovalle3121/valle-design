@@ -479,7 +479,9 @@ import { CadEnginePreview } from "@/components/cad/viewport/engine-preview";
 import { CadLiveCursorOverlay } from "@/components/cad/viewport/live-cursor";
 import {
   CadEnginePointerRouter,
+  EMPTY_CAD_POINTER_SESSION,
   cadEngineCommandForTool,
+  type CadPointerSession,
 } from "@/components/cad/viewport/pointer-router";
 import {
   CadRenderPipelineBadge,
@@ -2189,14 +2191,14 @@ export default function Layout3DEditor({
   const engineLiveCursorRef = useRef<CadLiveCursorOverlay | null>(null);
   const engineCursorPointRef = useRef<{ x: number; y: number } | null>(null);
   /**
-   * Último punto confirmado del comando en curso. Vive AQUÍ y no dentro del
-   * enrutador porque el enrutador se recrea con el lienzo THREE —que se vuelve
-   * a montar al cambiar de documento o de planta— y el comando del motor no:
-   * el anfitrión es un `useMemo` sin dependencias. Con el ancla dentro, un
-   * remontaje a mitad de un comando dejaba al motor pidiendo el segundo punto y
-   * al enrutador creyendo que no había primero.
+   * Estado del comando en curso: último punto confirmado y si lo arrancó la
+   * barra. Vive AQUÍ y no dentro del enrutador porque el enrutador se recrea con
+   * el lienzo THREE —que se vuelve a montar al cambiar de documento o de
+   * planta— y el comando del motor no: su anfitrión es un `useMemo` sin
+   * dependencias. Con esto dentro, un remontaje a mitad de un comando dejaba al
+   * motor con su comando abierto y al enrutador con la memoria en blanco.
    */
-  const engineAnchorRef = useRef<{ x: number; y: number } | null>(null);
+  const engineSessionRef = useRef<CadPointerSession>(EMPTY_CAD_POINTER_SESSION);
   const engineOsnapOverrideRef = useRef<readonly SnapType[] | null>(null);
   /** Hueco del aviso superior donde el cursor vivo escribe el modo capturado. */
   const engineSnapLabelRef = useRef<HTMLSpanElement | null>(null);
@@ -5306,12 +5308,19 @@ export default function Layout3DEditor({
     activeLayer: activeCadLayer,
     newEntityId: () => newId("cad"),
     apply: (commands) => {
-      // Un dibujo termina con lo dibujado DESIGNADO, igual que en el camino
-      // heredado: es lo que hace que el panel de propiedades describa la
-      // entidad recién creada sin tener que ir a buscarla.
-      const created = commands.flatMap((command) =>
-        command.type === "insert" ? [command.entity.id] : [],
-      );
+      // Un dibujo con la BARRA termina con lo dibujado designado, igual que en
+      // el camino heredado que sustituye: es lo que hace que el panel de
+      // propiedades describa la entidad recién creada sin ir a buscarla.
+      //
+      // Tecleado NO, y la diferencia importa: la línea de comandos nunca
+      // designó nada, y designar cambia lo que ve la orden siguiente. Un HATCH
+      // tecleado detrás de un MTEXT sombrearía el rótulo en vez de pedir su
+      // punto interior.
+      const created = enginePointerRouterRef.current?.startedByPointer
+        ? commands.flatMap((command) =>
+            command.type === "insert" ? [command.entity.id] : [],
+          )
+        : [];
       commitNativeCommands([...commands], created.length ? created : undefined);
     },
     // El puntero ya alimenta al motor: éstas son las tres cosas que su puente
@@ -7168,7 +7177,7 @@ export default function Layout3DEditor({
         const rect = renderer.domElement.getBoundingClientRect();
         return { x: event.clientX - rect.left, y: event.clientY - rect.top };
       },
-      anchor: engineAnchorRef,
+      session: engineSessionRef,
     });
     enginePointerRouterRef.current = enginePointerRouter;
     const onContextMenu = (event: MouseEvent) => {
