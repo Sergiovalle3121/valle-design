@@ -43,6 +43,12 @@ import {
   clampPixelsPerUnit,
   type CadView,
 } from "./cad-view";
+import {
+  orbitCameraPosition,
+  orbitStateFromPosition,
+  orbitStep,
+  type CadOrbitState,
+} from "./visual-styles";
 
 export interface CadDrawingTransform {
   /** Unidades de escena por unidad de dibujo (`s` en el editor). */
@@ -176,6 +182,43 @@ export class CadViewController {
           ? (heightPx * this.transform.scale) / visibleSceneHeight
           : this.current.pixelsPerUnit,
     });
+  }
+
+  /**
+   * 3DORBIT: gira la cámara en perspectiva alrededor de su objetivo.
+   *
+   * La aritmética vive en `visual-styles.ts` y es pura; aquí sólo se aplica a la
+   * cámara. Dos cosas que este método hace y que un `camera.position.set` suelto
+   * no haría:
+   *
+   *  · Acota la elevación por debajo del polo. Con la cámara mirando exactamente
+   *    a lo largo de su propio `up`, la base de la matriz de vista se degenera y
+   *    THREE produce `NaN`: la escena DESAPARECE al arrastrar hasta arriba del
+   *    todo. No es un caso raro, es el final natural de cualquier arrastre largo.
+   *  · Conserva la DISTANCIA. Orbitar es girar, no acercarse; mezclarlo con el
+   *    zoom convierte cada giro en un salto de escala.
+   *
+   * Devuelve el estado resultante para que quien lo llame pueda enseñarlo.
+   */
+  orbitPerspective(deltaAzimuthDeg: number, deltaElevationDeg: number): CadOrbitState {
+    const target = this.perspectiveTarget;
+    const next = orbitStep(
+      orbitStateFromPosition(target, this.perspective.position),
+      deltaAzimuthDeg,
+      deltaElevationDeg,
+    );
+    const position = orbitCameraPosition(target, next);
+    this.perspective.position.set(position.x, position.y, position.z);
+    this.perspective.up.set(0, 1, 0);
+    this.perspective.lookAt(target);
+    this.perspective.updateMatrixWorld();
+    this.emit();
+    return next;
+  }
+
+  /** Objetivo actual de la órbita, en unidades de ESCENA. */
+  get orbitTarget(): THREE.Vector3 {
+    return this.perspectiveTarget.clone();
   }
 
   /** Unidades de escena por píxel de pantalla — para `Raycaster.params.Line`. */

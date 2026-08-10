@@ -108,6 +108,12 @@ export function createEmptyCadEntityMix(): Record<
     image: 0,
     attdef: 0,
     table: 0,
+    // Esquema 5. Mismo criterio, y además por una razón propia: evaluar un árbol
+    // de construcción no mide lo mismo que proyectar un segmento, así que meter
+    // un sólido en el corpus mezclaría dos costes distintos en un solo número.
+    // Se declaran en cero para que el recuento siga cubriendo TODOS los tipos.
+    solid3d: 0,
+    region: 0,
   };
 }
 
