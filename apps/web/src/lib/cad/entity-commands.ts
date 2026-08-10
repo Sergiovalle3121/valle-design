@@ -20,6 +20,7 @@ import {
   type CadEntityContext,
   type CadEntityPresentation,
   type CadImageDefinition,
+  type CadLayerDef,
   type CadPaperSpace,
   type CadParameter,
   type CadPoint2,
@@ -34,6 +35,11 @@ import { solveConstraintSystem } from "./constraints/solver";
 import { regenerateAssociativeDimensions } from "./associative-dimension";
 import { regenerateAssociativeMleaders } from "./associative-mleader";
 import { regenerateAssociativeHatches } from "./hatch-associativity";
+import {
+  applyDocumentTables,
+  isCadTableCommand,
+  type CadDocumentTableCommand,
+} from "./entity-command-tables";
 import {
   CAD_ENTITY_REGISTRY,
   CadEntityRegistry,
@@ -123,6 +129,31 @@ export type CadEntityCommand =
       parameter: { name: string; expression: string; comment?: string };
     }
   | { type: "parameter"; entity?: undefined; op: "delete"; name: string }
+  /**
+   * Tabla de capas: otra SECCIÓN del documento, por el mismo embudo.
+   *
+   * Existe porque `-LAYER` y LAYERSTATE tienen que poder crear una capa y
+   * restaurar cuarenta desde la línea de comandos, y hacerlo por fuera del lote
+   * habría abierto una segunda ruta de mutación: restaurar un estado de capa
+   * dejaría cuarenta pasos de deshacer, o ninguno, según por dónde se entrase.
+   * Un `upsert` con un nombre que ya existe MODIFICA esa capa; el nombre es la
+   * identidad, como en DXF.
+   */
+  | { type: "layer"; entity?: undefined; op: "upsert"; layer: CadLayerDef }
+  | { type: "layer"; entity?: undefined; op: "delete"; name: string; reassignTo: string }
+  /**
+   * Orden de dibujo (DRAWORDER). Toca `modelSpace.entityIds` y NADA más: quién
+   * tapa a quién es una propiedad del espacio, no de la entidad.
+   *
+   * `above`/`below` necesitan `referenceId`; `front`/`back` lo ignoran.
+   */
+  | {
+      type: "draw-order";
+      entity?: undefined;
+      entityIds: readonly string[];
+      placement: "front" | "back" | "above" | "below";
+      referenceId?: string;
+    }
   /**
    * La tabla de ESTILOS, que es otra sección del documento.
    *
@@ -243,6 +274,8 @@ function cadEntityCommandLabel(
   if (command.type === "image-definition") return `image-definition:${command.definition.id}`;
   if (isStyleCommand(command)) return `style:${command.op}:${command.family}:${command.name}`;
   if (isSectionCommand(command)) return `${command.type}:${command.op}`;
+  if (command.type === "layer") return `layer:${command.op}`;
+  if (command.type === "draw-order") return `draw-order:${command.placement}`;
   const source = document.entities.find((entity) => entity.id === command.entityId);
   if (!source || !registry.supports(source))
     throw new Error(`Native CAD entity ${command.entityId} was not found.`);
@@ -299,6 +332,7 @@ export function executeCadEntityCommandBatch(
   };
 
   const sectionCommands: CadDocumentSectionCommand[] = [];
+  const tableCommands: CadDocumentTableCommand[] = [];
   const styleCommands: CadStyleCommand[] = [];
 
   for (const command of commands) {
@@ -308,6 +342,10 @@ export function executeCadEntityCommandBatch(
     }
     if (isSectionCommand(command)) {
       sectionCommands.push(command);
+      continue;
+    }
+    if (isCadTableCommand(command)) {
+      tableCommands.push(command);
       continue;
     }
     if (command.type === "insert") {
@@ -476,13 +514,16 @@ export function executeCadEntityCommandBatch(
     // fantasmas ni omisiones.
     document.modelSpace.entityIds.filter((id) => !deleted.has(id)).concat(createdFrontIds),
   );
+  const tables = applyDocumentTables(document, tableCommands, [...createdBackIds, ...ordered], entities);
+  for (const entityId of tables.touchedEntityIds) touchedIds.push(entityId);
   const staged: CadDocument = {
     ...document,
-    entities,
+    entities: tables.entities,
+    layers: tables.layers,
     constraints: sections.constraints,
     styles: applyStyleCommands(document.styles, styleCommands),
     paperSpaces: sections.paperSpaces,
-    modelSpace: { entityIds: [...createdBackIds, ...ordered] },
+    modelSpace: { entityIds: tables.entityOrder },
     // Mismo criterio que `parameters` justo debajo: el catálogo de imágenes
     // sólo viaja si el lote lo tocó o si el documento ya lo traía.
     ...(imageDefinitions ? { imageDefinitions } : {}),
@@ -660,6 +701,7 @@ function applyPaperSpaceCommand(
       : [...spaces, command.space],
   );
 }
+
 
 export function executeCadEntityCommand(
   document: CadDocument,
