@@ -213,6 +213,21 @@ const CAJETIN = `
     ["LINE"],
     "y la rutina que intentó taparlo se reporta como inalcanzable",
   );
+  // Reportarlo por una API que nadie llama es lo mismo que no reportarlo. Tiene
+  // que llegar al usuario, y por partida doble: en el histórico al cargar y en
+  // la lista de rutinas. Con 96 comandos nativos y subiendo, que una rutina de
+  // estudio se llame como uno de ellos ha dejado de ser improbable.
+  eq(
+    studio.lisp.runtime.getSnapshot().shadowedByNative,
+    ["LINE"],
+    "la consola publica qué rutinas quedan tapadas por un nativo",
+  );
+  ok(
+    studio.lisp.runtime
+      .getSnapshot()
+      .transcript.some((entry) => entry.level === "error" && /LINE/.test(entry.text) && /nativo/i.test(entry.text)),
+    "y al cargarla se avisa en el acto, en vez de dejar una rutina muda",
+  );
   ok(
     !studio.lisp.runtime.getSnapshot().commands.includes("NOEXISTE"),
     "el inventario sólo lista lo que la biblioteca declara de verdad",

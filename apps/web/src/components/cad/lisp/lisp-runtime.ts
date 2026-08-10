@@ -57,6 +57,12 @@ import type { LispFailure } from "@/lib/lisp/session";
 import type { LispValue } from "@/lib/lisp/values";
 import { BrowserLispLibraryStore, browserKeyValueStorage } from "./library-storage";
 
+/** Lo que el runtime necesita preguntarle al registro compuesto. */
+export interface CadLispCommandGuard {
+  /** `true` si el nombre ya lo ocupa un comando nativo, que siempre gana. */
+  isNative(name: string): boolean;
+}
+
 /** Lo que el editor le presta al subsistema. Sólo lectura salvo los ids. */
 export interface CadLispDocumentSource {
   /** Documento canónico vivo. `null` mientras no haya dibujo abierto. */
@@ -114,6 +120,8 @@ export interface CadLispSnapshot {
   commands: readonly string[];
   /** Dos ficheros declarando el mismo comando. Gana el último cargado. */
   collisions: readonly { command: string; files: readonly string[] }[];
+  /** Comandos `c:` que un nativo tapa. Se anuncian; no se pueden ejecutar. */
+  shadowedByNative: readonly string[];
   transcript: readonly CadLispEntry[];
   variables: readonly CadLispVariable[];
   lastTrace: CadLispTrace | null;
@@ -169,7 +177,7 @@ export class CadLispRuntime {
   private source: CadLispDocumentSource | null = null;
   /** Ejecución en curso, para poder cerrarla si el usuario la abandona. */
   private active: { run: InteractiveLispRun; invoke: string; origin: string } | null = null;
-  private registry: CadCommandRegistry | null = null;
+  private registry: (CadCommandRegistry & Partial<CadLispCommandGuard>) | null = null;
   private snapshot: CadLispSnapshot;
 
   constructor(private readonly options: CadLispRuntimeOptions = {}) {
@@ -204,8 +212,20 @@ export class CadLispRuntime {
    * este objeto para existir: es una referencia mutua y sólo una de las dos
    * puede ir en el constructor.
    */
-  attachCommandRegistry(registry: CadCommandRegistry): void {
+  attachCommandRegistry(registry: CadCommandRegistry & Partial<CadLispCommandGuard>): void {
     this.registry = registry;
+  }
+
+  /**
+   * Comandos de la biblioteca que un nativo del mismo nombre deja
+   * INALCANZABLES. El producto siempre gana —un `.lsp` de un proveedor no puede
+   * secuestrar LINE—, y eso es lo correcto; lo que no puede ser es que ocurra en
+   * silencio.
+   */
+  shadowedByNative(): string[] {
+    const guard = this.registry;
+    if (!guard?.isNative) return [];
+    return this.commandNames().filter((command) => guard.isNative!(command));
   }
 
   /** APPLOAD pide el selector de fichero del navegador. La consola lo abre. */
@@ -297,6 +317,17 @@ export class CadLispRuntime {
       this.publish();
       return { ok: false, problem: result.problem };
     }
+    const shadowed = result.file.commands
+      .map((command) => command.toUpperCase())
+      .filter((command) => this.registry?.isNative?.(command));
+    if (shadowed.length)
+      this.log(
+        "error",
+        `${result.file.name}: ${shadowed.join(", ")} ya ${shadowed.length === 1 ? "es un comando" : "son comandos"} ` +
+          `del producto y el nativo SIEMPRE gana, así que esa rutina no se podrá invocar por ese nombre. ` +
+          `Renómbrala en el .lsp (por ejemplo, con un prefijo de estudio) para poder usarla.`,
+        "APPLOAD",
+      );
     const offered = result.file.commands.length
       ? ` · comandos: ${result.file.commands.map((command) => command.toUpperCase()).join(", ")}`
       : " · no declara ningún comando c:";
@@ -509,6 +540,7 @@ export class CadLispRuntime {
       files: this.files(),
       commands: this.commandNames(),
       collisions: inventory.collisions,
+      shadowedByNative: this.shadowedByNative(),
       transcript: this.transcript,
       variables: this.variables,
       lastTrace: this.lastTrace,

@@ -292,6 +292,12 @@ function RoutineList({
           Almacén · {problem}
         </li>
       ))}
+      {snapshot.shadowedByNative.length > 0 && (
+        <li data-testid="cad-lisp-shadowed" className="text-amber-300">
+          {snapshot.shadowedByNative.join(", ")} ya {snapshot.shadowedByNative.length === 1 ? "es" : "son"}{" "}
+          del producto: el comando nativo gana y esa rutina no se puede invocar así.
+        </li>
+      )}
       {snapshot.collisions.map((collision) => (
         <li key={collision.command} className="text-amber-300">
           {collision.command} lo declaran {collision.files.join(" y ")}; gana el último cargado.

@@ -138,8 +138,20 @@ export class CadLispCommandRegistry implements CadCommandRegistry {
     return names;
   }
 
+  /**
+   * `true` si el nombre ya lo ocupa un comando del producto.
+   *
+   * Lo consulta el runtime al cargar un `.lsp` para poder AVISAR. Con 96
+   * comandos nativos y subiendo, que una rutina de estudio se llame `c:MEDIR` o
+   * `c:LISTA` ha dejado de ser improbable, y una rutina que no se ejecuta y no
+   * dice por qué cuesta una tarde de diagnóstico.
+   */
+  isNative(name: string): boolean {
+    return this.base.get(name) !== undefined;
+  }
+
   /** Comandos `c:` que un nativo del mismo nombre deja inalcanzables. */
   shadowedCommands(): string[] {
-    return this.runtime.commandNames().filter((command) => this.base.get(command) !== undefined);
+    return this.runtime.commandNames().filter((command) => this.isNative(command));
   }
 }
