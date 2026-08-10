@@ -177,6 +177,16 @@ export function resolveCadCommandAlias(
 ): string | null {
   const trimmed = token.trim();
   if (!trimmed) return null;
+  // Las variantes con guion son comandos DISTINTOS cuando existen: `-LAYER`
+  // pide sus opciones por la línea y `LAYER` abre el gestor. Se busca primero
+  // el nombre tal cual —con su guion— y sólo si nadie lo reclama se cae al
+  // comportamiento histórico de tratar el prefijo como decorativo. Sin esta
+  // consulta previa, teclear `-LAYER` abriría el cuadro y un `.scr` se
+  // quedaría esperando un clic, que es justo lo que el guion evita.
+  const literal = trimmed.replace(/^_+/, "").toUpperCase();
+  if (known?.has(literal)) return literal;
+  const literalAlias = CAD_COMMAND_ALIASES[literal];
+  if (literalAlias && (!known || known.has(literalAlias))) return literalAlias;
   // `_` es el prefijo internacional de AutoCAD y `-` el de "sin diálogo";
   // ninguno cambia a qué comando se refiere quien escribe.
   const normalized = trimmed.replace(/^[-_]+/, "").toUpperCase();

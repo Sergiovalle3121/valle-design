@@ -1,8 +1,8 @@
 /**
- * SWEEP, LOFT, MASSPROP e INTERFERE.
+ * SWEEP, LOFT e INTERFERE.
  *
- * Los dos primeros crean sólidos a partir de varias entidades a la vez; los dos
- * últimos no escriben nada y responden con un número. Van juntos porque comparten
+ * Los dos primeros crean sólidos a partir de varias entidades a la vez; el
+ * último no escribe nada y responde con un número. Van juntos porque comparten
  * la parte difícil: leer varias entidades designadas y decidir qué papel juega
  * cada una.
  *
@@ -17,19 +17,19 @@
  * se coloca sobre el camino, así que un perfil dibujado lejos del origen pasado
  * tal cual produciría un barrido hueco y desplazado mil unidades.
  *
- * ## MASSPROP y el reparto con T10
+ * ## Dónde está MASSPROP
  *
- * MASSPROP responde de sólidos y de regiones. Sobre SOLID3D lo resuelve este
- * archivo, integrando por los DOS caminos del kernel y diciendo cuánto se
- * separan; sobre las regiones 2D es de T10. La orden es una sola y el reparto es
- * por tipo de objeto designado, no por comando: quien designe las dos cosas debe
- * recibir las dos respuestas.
+ * En `inquiry-list.ts`, junto a LIST, y no aquí. Esa otra ola escribió la mitad
+ * de las regiones 2D y dejó la de los sólidos apartándose con un mensaje; esta
+ * rellena ese hueco en su propio archivo en vez de registrar un segundo comando
+ * con el mismo nombre. El reparto es por TIPO DE OBJETO DESIGNADO, no por
+ * comando: una sola orden, y quien designe las dos cosas recibe las dos
+ * respuestas.
  */
 import type { CadEntity } from "../../cad-document";
 import type { CadSolidNode } from "../../cad-entities-v5";
 import type { CadEntityCommand } from "../../entity-commands";
-import { regionArea, regionPerimeter } from "../../solid3d-adapter";
-import { solid3dBody, solid3dMassComparison } from "../../solid3d-build";
+import { solid3dBody } from "../../solid3d-build";
 import {
   centeredProfile,
   pathOfEntity,
@@ -177,43 +177,6 @@ function loftRun(state: SelectionState, context: CadCommandContext): CadCommandS
 }
 
 // ---------------------------------------------------------------------------
-// MASSPROP
-// ---------------------------------------------------------------------------
-
-function massPropRun(state: SelectionState, context: CadCommandContext): CadCommandStep<SelectionState> {
-  const entities = selectedEntities(context, state.selection);
-  const lines: string[] = [];
-  for (const entity of entities) {
-    if (entity.type === "solid3d") {
-      let comparison;
-      try {
-        comparison = solid3dMassComparison(entity);
-      } catch (error) {
-        lines.push(`${entity.id}: no se pudo evaluar — ${error instanceof Error ? error.message : String(error)}`);
-        continue;
-      }
-      // Se publican los DOS caminos y su discrepancia. Un solo número escondería
-      // justo la información que sirve para saber si fiarse de él.
-      lines.push(
-        `SOLID3D ${entity.name ?? entity.id}: volumen ${formatMagnitude(comparison.byFaces.volume)} ` +
-          `(malla ${formatMagnitude(comparison.byMesh.volume)}, deriva ${comparison.volumeDrift.toExponential(2)}), ` +
-          `área ${formatMagnitude(comparison.byFaces.area)}, ` +
-          `centroide (${formatMagnitude(comparison.byMesh.centroid.x)}, ${formatMagnitude(comparison.byMesh.centroid.y)}, ${formatMagnitude(comparison.byMesh.centroid.z)})`,
-      );
-      continue;
-    }
-    if (entity.type === "region") {
-      lines.push(
-        `REGION ${entity.id}: área ${formatMagnitude(regionArea(entity))}, perímetro ${formatMagnitude(regionPerimeter(entity))}`,
-      );
-    }
-  }
-  if (lines.length === 0)
-    return solidMessage(state, "MASSPROP necesita SOLID3D o REGION designados.");
-  return solidMessage(state, lines.join("\n"));
-}
-
-// ---------------------------------------------------------------------------
 // INTERFERE
 // ---------------------------------------------------------------------------
 
@@ -252,6 +215,5 @@ function interfereRun(state: SelectionState, context: CadCommandContext): CadCom
 export const CAD_SOLID_INQUIRY_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   selectionDescriptor("SWEEP", [], "draw", "Designe la sección cerrada y el recorrido del barrido", sweepRun),
   selectionDescriptor("LOFT", [], "draw", "Designe dos o más secciones cerradas a cotas distintas", loftRun),
-  selectionDescriptor("MASSPROP", ["MASS"], "inquiry", "Designe los sólidos o regiones que medir", massPropRun),
   selectionDescriptor("INTERFERE", ["INF"], "inquiry", "Designe los sólidos entre los que buscar interferencias", interfereRun),
 ].map(asCadCommand);

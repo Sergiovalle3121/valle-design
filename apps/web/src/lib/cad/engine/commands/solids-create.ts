@@ -1,7 +1,7 @@
 /**
- * REGION, EXTRUDE, PRESSPULL y REVOLVE: de un dibujo plano a un sólido.
+ * EXTRUDE, PRESSPULL y REVOLVE: de un dibujo plano a un sólido.
  *
- * Son las cuatro órdenes con las que empieza cualquier modelado, y las cuatro
+ * Son las tres órdenes con las que empieza cualquier modelado, y las cuatro
  * comparten la misma promesa: **no se teclean coordenadas de perfil**. Se designa
  * lo que ya está dibujado —una polilínea cerrada, un círculo, una región— y el
  * comando saca de ahí la sección. La conversión vive en `solid3d-profiles.ts` y
@@ -30,7 +30,6 @@ import {
   planeFrameAt,
   profileFromEntity,
   revolveSetupFromProfile,
-  closedLoopsOfEntity,
   type CadExtractedProfile,
 } from "../../solid3d-profiles";
 import {
@@ -78,67 +77,6 @@ function profilesOf(context: CadCommandContext, ids: readonly string[]): CadExtr
     if (extracted) profiles.push(extracted);
   }
   return profiles;
-}
-
-// ---------------------------------------------------------------------------
-// REGION
-// ---------------------------------------------------------------------------
-
-const REGION_PROMPT = "Designe los contornos cerrados que convertir en regiones";
-
-const regionCommand: CadCommandDescriptor<SelectionState> = {
-  name: "REGION",
-  aliases: ["REG"],
-  kind: "draw",
-  transparent: false,
-  selection: "optional",
-  repeatable: true,
-  mutates: true,
-  cursor: "pick",
-  // Semántica PICKFIRST, como el resto de las órdenes de sólidos.
-  begin: (context) =>
-    context.selection.length > 0
-      ? regionResult({ selection: context.selection }, context)
-      : designatePrompt({ selection: context.selection }, REGION_PROMPT),
-  step: (state, input, context) => {
-    if (input.kind === "cancel") return solidCancelled(state);
-    if (input.kind === "selection") return designatePrompt({ selection: input.entityIds }, REGION_PROMPT);
-    if (input.kind === "entityPick")
-      return designatePrompt(
-        { selection: [...new Set([...state.selection, input.entityId])] },
-        REGION_PROMPT,
-      );
-    if (input.kind !== "enter") return designatePrompt(state, REGION_PROMPT);
-    return regionResult(state, context);
-  },
-};
-
-function regionResult(
-  state: SelectionState,
-  context: CadCommandContext,
-): CadCommandStep<SelectionState> {
-  const commands: CadEntityCommand[] = [];
-  let created = 0;
-  for (const entity of selectedEntities(context, state.selection)) {
-    const loops = closedLoopsOfEntity(entity);
-    if (loops.length === 0) continue;
-    commands.push({
-      type: "insert",
-      entity: {
-        id: context.newEntityId(),
-        type: "region",
-        outer: loops[0],
-        ...(loops.length > 1 ? { inners: loops.slice(1) } : {}),
-        layer: entity.layer ?? context.activeLayer,
-      },
-    });
-    // El contorno se consume: dejarlo debajo de la región duplicaría la
-    // silueta en pantalla y en el exportado.
-    commands.push({ type: "delete", entityId: entity.id });
-    created += 1;
-  }
-  if (created === 0) return solidMessage(state, NO_PROFILE);
-  return solidBatch(state, commands, "REGION");
 }
 
 // ---------------------------------------------------------------------------
@@ -372,7 +310,6 @@ const revolveCommand: CadCommandDescriptor<RevolveState> = {
 };
 
 export const CAD_SOLID_CREATE_COMMANDS: readonly CadAnyCommandDescriptor[] = [
-  asCadCommand(regionCommand),
   asCadCommand(extrudeDescriptor("EXTRUDE", ["EXT"], "extruir")),
   // PRESSPULL comparte máquina con EXTRUDE porque hace lo mismo sobre un área
   // cerrada; lo que NO hace es empujar la cara de un sólido existente, y eso se

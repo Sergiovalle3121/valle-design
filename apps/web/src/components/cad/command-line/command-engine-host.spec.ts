@@ -10,6 +10,8 @@ import { strict as assert } from "node:assert";
 import { createCadCommandRegistry } from "@/lib/cad/engine/registry";
 import { CAD_DRAW_BASIC_COMMANDS } from "@/lib/cad/engine/commands/draw-basics";
 import { CAD_MODIFY_BASIC_COMMANDS } from "@/lib/cad/engine/commands/modify-basics";
+import type { CadEntity } from "@/lib/cad/cad-document";
+import { CAD_COMMAND_REGISTRY_V2 } from "@/lib/cad/engine";
 import type { CadEntityCommand } from "@/lib/cad/entity-commands";
 import type { CadPreviewPath } from "@/lib/cad/engine/command-types";
 import type { SnapType } from "@/lib/cad/snap-engine";
@@ -203,6 +205,50 @@ function makeHost(selection: readonly string[] = []) {
   host.submit("E");
   assert.equal(applied.length, 1, "con objetos designados, ERASE actúa al invocarse");
   assert.equal(applied[0].commands[0].type, "delete");
+}
+
+// --- el anfitrión recuerda la última COTA de la sesión --------------------------
+{
+  // Es la mitad que falta de `CadCommandContext.session`: el motor es un
+  // reductor puro y no ve el resultado de aplicar un lote, así que quien anota
+  // «ésta fue la última cota» sólo puede ser el anfitrión. Sin esto,
+  // DIMCONTINUE preguntaría por la base después de cada cota y la cadena, que es
+  // el gesto entero de la orden, no existiría.
+  const entities = new Map<string, CadEntity>([
+    ["l1", { id: "l1", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 1_000, y: 0, z: 0 }, layer: "0" }],
+  ]);
+  let ids = 0;
+  const host = new CadCommandEngineHost(CAD_COMMAND_REGISTRY_V2, {
+    context: () => ({
+      entityIds: [...entities.keys()],
+      entity: (entityId) => entities.get(entityId),
+      selection: [],
+      activeLayer: "0",
+      view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
+      newEntityId: () => `cota${++ids}`,
+    }),
+    apply: (commands) => {
+      for (const command of commands)
+        if (command.type === "insert") entities.set(command.entity.id, command.entity);
+    },
+    preview: () => {},
+    osnapOverride: () => {},
+    cursor: () => {},
+  });
+
+  host.invoke("DIMLINEAR");
+  host.pickPoint({ x: 0, y: 0 });
+  host.pickPoint({ x: 1_000, y: 0 });
+  host.pickPoint({ x: 500, y: 400 });
+  assert.equal(entities.size, 2, "la cota se aplicó");
+
+  host.invoke("DIMCONTINUE");
+  assert.match(
+    host.getSnapshot().prompt?.message ?? "",
+    /línea de referencia siguiente/,
+    "DIMCONTINUE encadena sin preguntar: el anfitrión le pasó la cota anterior",
+  );
+  host.cancel();
 }
 
 console.log("cad command engine host specs passed");

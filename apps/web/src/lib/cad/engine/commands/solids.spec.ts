@@ -1,5 +1,5 @@
 /**
- * Los diecisiete comandos de modelado de sólidos, tecleados de punta a punta.
+ * Los quince comandos de modelado de sólidos, tecleados de punta a punta.
  *
  * No basta con que cada comando emita un lote bonito: la definición de terminado
  * es que el lote pase por la ÚNICA ruta de mutación
@@ -128,20 +128,23 @@ function rectangle(id: string, x: number, y: number, w: number, h: number, z = 0
   };
 }
 
-// --- REGION -------------------------------------------------------------------
+// --- REGION la aporta otra ola; aquí sólo se comprueba que ALIMENTA a EXTRUDE ---
+//
+// `REGION` vive en `inquiry-region.ts` y encadena bordes SUELTOS por sus
+// extremos, cosa que esta rama no sabía hacer. Al fundir las dos olas se retiró
+// la versión de aquí en vez de registrar un segundo comando con el mismo nombre.
+// Lo que sí hay que demostrar es que su salida sirve de perfil: si no, «crear
+// una región» y «extruirla» serían dos mundos que no se tocan.
 {
   const document = documentWith([rectangle("rect", 0, 0, 400, 300)]);
-  const next = apply("REGION", [select("rect"), ENTER], document, ["rect"]);
-  const regions = next.entities.filter((entity) => entity.type === "region");
-  assert.equal(regions.length, 1, "REGION crea una región");
-  assert.ok(!next.entities.some((entity) => entity.id === "rect"), "y consume la polilínea");
-  const region = regions[0];
-  if (region.type !== "region") throw new Error("tipo");
-  assert.equal(region.outer.length, 4, "con los cuatro vértices del rectángulo");
-
-  // Un objeto que no encierra área no se convierte en nada, y se dice.
-  const open = documentWith([{ id: "l", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 1, y: 0, z: 0 }, layer }]);
-  assert.match(messageOf(run("REGION", [select("l"), ENTER], open, ["l"])), /contorno cerrado/);
+  const afterRegion = apply("REGION", [select("rect"), ENTER], document, ["rect"]);
+  const next = apply(
+    "EXTRUDE",
+    [select(afterRegion.entities[0].id), distance(200)],
+    afterRegion,
+    [afterRegion.entities[0].id],
+  );
+  near(solid3dMassProperties(soleSolid(next)).volume, 24_000_000, "volumen de lo extruido tras REGION", 1e-3);
 }
 
 // --- EXTRUDE ------------------------------------------------------------------
@@ -384,7 +387,7 @@ function rectangle(id: string, x: number, y: number, w: number, h: number, z = 0
   );
 }
 
-// --- MASSPROP / INTERFERE -----------------------------------------------------
+// --- MASSPROP (de la ola de consultas) / INTERFERE -----------------------------
 {
   let document = documentWith([rectangle("a", 0, 0, 100, 100), rectangle("b", 50, 50, 100, 100)]);
   document = apply("EXTRUDE", [select("a"), distance(10)], document, ["a"]);
@@ -395,8 +398,12 @@ function rectangle(id: string, x: number, y: number, w: number, h: number, z = 0
     .map((entity) => entity.id)
     .find((id) => id !== firstId)!;
 
+  // MASSPROP es UNA sola orden repartida por tipo de objeto designado: las
+  // regiones 2D las mide `inquiry-list.ts` y los sólidos los mide el kernel
+  // desde ese mismo archivo. Aquí se comprueba la mitad de los sólidos.
   const mass = messageOf(run("MASSPROP", [select(firstId), ENTER], document, [firstId]));
-  assert.match(mass, /volumen/, "MASSPROP publica el volumen");
+  assert.match(mass, /SOLID3D/, "MASSPROP reconoce el sólido en vez de apartarse");
+  assert.match(mass, /volumen/, "y publica el volumen");
   assert.match(mass, /deriva/, "y la discrepancia entre los DOS caminos, que es lo que permite fiarse");
 
   const interfering = messageOf(run("INTERFERE", [select(firstId, secondId), ENTER], document, [firstId, secondId]));
@@ -492,7 +499,7 @@ function rectangle(id: string, x: number, y: number, w: number, h: number, z = 0
 }
 
 console.log(
-  "sólidos: REGION, EXTRUDE, PRESSPULL, REVOLVE, SWEEP, LOFT, UNION, SUBTRACT, INTERSECT, " +
-    "FILLETEDGE, CHAMFEREDGE, SLICE, SECTION, MASSPROP, INTERFERE, IMPORT y EXPORT tecleados de punta a punta; " +
+  "sólidos: EXTRUDE, PRESSPULL, REVOLVE, SWEEP, LOFT, UNION, SUBTRACT, INTERSECT, " +
+    "FILLETEDGE, CHAMFEREDGE, SLICE, SECTION, INTERFERE, IMPORT y EXPORT tecleados de punta a punta; " +
     "invariantes, Euler-Poincaré y volumen verificados tras cada operación; ida y vuelta STEP/IGES y por el documento",
 );

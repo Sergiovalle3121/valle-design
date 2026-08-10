@@ -9,7 +9,8 @@
  * recrearlo en un render perdería el rastreo a medias— y la interfaz lo lee con
  * `useSyncExternalStore`.
  */
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
+import { registerCadUiHandler } from "./palette-command-bus";
 import {
   CadDraftSettingsHost,
   type CadDraftSettingsSnapshot,
@@ -71,9 +72,44 @@ export function useCadStyleManager(
   );
 }
 
-/** Qué paleta está abierta, con el mismo trato: una instancia y una suscripción. */
+/**
+ * Qué paleta está abierta, con el mismo trato: una instancia y una suscripción.
+ *
+ * Además se apunta en el puente de comandos, y eso es lo que hace que teclear
+ * `DSETTINGS` abra el cuadro de ayudas al dibujo. El registro se hace en un
+ * efecto y no en el cuerpo del render porque apuntarse es un efecto secundario:
+ * hacerlo al renderizar dejaría manejadores vivos de árboles que React
+ * descartó.
+ *
+ * Sólo se declaran los dos destinos que este anfitrión SABE servir. El gestor
+ * de capas y la paleta de propiedades viven anclados y su visibilidad la
+ * decide el editor, así que aquí no se anuncian: anunciarlos y no abrirlos
+ * sería peor que decir que no están.
+ */
 export function useCadPaletteHost(): CadPaletteHost {
-  return useMemo(() => new CadPaletteHost(), []);
+  const host = useMemo(() => new CadPaletteHost(), []);
+  useEffect(() => {
+    const unregister = [
+      registerCadUiHandler("draft-settings", () => {
+        host.show("draft-settings");
+        return true;
+      }),
+      // OSNAP es la pestaña de referencias del MISMO cuadro; en AutoCAD también
+      // abren los dos lo mismo.
+      registerCadUiHandler("osnap", () => {
+        host.show("draft-settings");
+        return true;
+      }),
+      registerCadUiHandler("styles", () => {
+        host.show("styles");
+        return true;
+      }),
+    ];
+    return () => {
+      for (const off of unregister) off();
+    };
+  }, [host]);
+  return host;
 }
 
 export function useCadPalette(host: CadPaletteHost): CadPaletteSnapshot {

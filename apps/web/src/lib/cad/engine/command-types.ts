@@ -33,16 +33,23 @@
  *   como un override por paso, así que añadir modos no toca el motor.
  */
 import type {
-  CadBlockDefinition, CadConstraint, CadEntity, CadPaperSpace, CadParameter, CadPoint2,
+  CadBlockDefinition, CadConstraint, CadEntity, CadLayerDef, CadPaperSpace,
+  CadParameter, CadPoint2,
 } from "../cad-document";
 import type { CadBounds } from "../entity-runtime";
 import type { CadEntityCommand } from "../entity-commands";
 import type { SnapType } from "../snap-engine";
 // Sólo TIPOS: la importación se borra al compilar, así que el motor sigue sin
-// depender en tiempo de ejecución ni de la vista ni del trazado, y no hay ciclo
-// que `benchmark:cad:smoke` pueda destapar.
+// depender en tiempo de ejecución ni de la vista, ni del trazado, ni de los
+// catálogos de sesión, y no hay ciclo que `benchmark:cad:smoke` pueda destapar.
 import type { CadViewRequest } from "../view/view-navigation";
 import type { CadHostRequest } from "./host-requests";
+import type { CadSystemVariableValue, CadVariableAccess } from "../system-variables";
+import type { CadNamedLayerState } from "../layer-states";
+import type { CadLinetypeDefinition } from "../linetype-lin";
+import type { CadNamedSelectionFilter } from "../selection/selection-filter";
+import type { CadToolPalette } from "../tool-palettes";
+import type { CadNamedUcs } from "../ucs";
 
 export type CadCommandKind = "draw" | "modify" | "annotate" | "inquiry" | "view" | "manage";
 
@@ -110,6 +117,27 @@ export interface CadViewSnapshot {
   centerY: number;
 }
 
+/**
+ * Estado de SESIÓN del motor. No es del documento y no se guarda.
+ *
+ * `DIMBASELINE` y `DIMCONTINUE` encadenan desde «la cota anterior», y eso no es
+ * una propiedad del dibujo: dos personas con el mismo plano abierto tienen cada
+ * una la suya. Guardarlo en el documento lo haría viajar por la red y aparecer
+ * en el diff; guardarlo en un módulo global lo haría compartido entre pestañas y
+ * no comprobable en una spec. Va aquí, en el contexto, de SÓLO LECTURA para los
+ * comandos: quien lo mantiene es el anfitrión, que es quien ve lo que se aplicó.
+ */
+export interface CadCommandSession {
+  /**
+   * Id de la última cota creada en esta sesión, si sigue existiendo.
+   *
+   * Puede faltar —sesión recién abierta, o la cota se borró— y entonces
+   * `DIMBASELINE`/`DIMCONTINUE` PIDEN la cota base en vez de fallar: es lo que
+   * hace AutoCAD y la única respuesta honesta cuando no hay de dónde encadenar.
+   */
+  lastDimensionId?: string;
+}
+
 export interface CadCommandContext {
   /** Entidades presentes, sólo para consultar; el motor no las muta. */
   entityIds: readonly string[];
@@ -132,6 +160,15 @@ export interface CadCommandContext {
   blocks?: () => readonly CadBlockDefinition[];
   selection: readonly string[];
   activeLayer: string;
+  /**
+   * Tabla de capas del documento, sólo para CONSULTAR.
+   *
+   * `-LAYER` no puede trabajar sin ella: crear una capa que ya existe, apagar
+   * una que no existe o colorear a ciegas son las tres formas de estropear una
+   * tabla de capas desde la línea de comandos. Escribir va por el lote, como
+   * todo lo demás.
+   */
+  layers?: () => readonly CadLayerDef[];
   /**
    * Restricciones y parámetros del documento, sólo para CONSULTAR.
    *
@@ -167,14 +204,96 @@ export interface CadCommandContext {
    */
   drawingExtents?: () => CadBounds | null;
   view: CadViewSnapshot;
+  /**
+   * Variables de sistema, sólo para CONSULTAR.
+   *
+   * Es lo que hace que DIST imprima `3'-6"` en vez de `3.5` sin que DIST sepa
+   * nada de unidades. Opcional como el resto de capacidades: quien no la
+   * recibe usa los valores de fábrica, que es lo que ve un dibujo recién
+   * abierto, no una mentira.
+   *
+   * Escribir NO va por aquí: va en el resultado del comando, como la
+   * geometría, para que el anfitrión tenga un solo sitio donde aplicar efectos.
+   */
+  variables?: CadVariableAccess;
+  /**
+   * Catálogos de sesión que no caben en `CadDocument` —filtros de selección con
+   * nombre, estados de capa, paletas de herramientas, SCU con nombre—. Se pasan
+   * como capacidad opcional por la misma razón que `blocks`: la inmensa mayoría
+   * de los comandos no los necesita y obligar a montarlos encarecería todas sus
+   * specs.
+   */
+  catalogs?: CadSessionCatalogs;
   /** Posición actual del puntero en unidades de dibujo, si se conoce. */
   cursor?: CadPoint2;
+  /** Rastro de lo hecho en esta sesión. Ver `CadCommandSession`. */
+  session?: CadCommandSession;
   /**
    * Generador de identificadores, inyectado. Los comandos no llaman a
    * `crypto.randomUUID()` por su cuenta: si lo hicieran, sus specs no serían
    * deterministas y no se podrían comparar documentos.
    */
   newEntityId: () => string;
+}
+
+/**
+ * Catálogo con nombre que vive en la SESIÓN, no en el documento.
+ *
+ * Filtros de selección, estados de capa, paletas de herramientas y SCU con
+ * nombre tienen todos la misma forma —una lista de cosas con nombre que se
+ * guardan y se restauran— y ninguno tiene sección en `CadDocument`. Un solo
+ * contrato para los cuatro evita cuatro interfaces que se parecen y cuatro
+ * comandos que las usan de cuatro maneras distintas.
+ */
+export interface CadNamedCatalog<T extends { name: string }> {
+  list(): readonly T[];
+  get(name: string): T | undefined;
+  save(item: T): void;
+  remove(name: string): boolean;
+}
+
+export interface CadSessionCatalogs {
+  filters?: CadNamedCatalog<CadNamedSelectionFilter>;
+  linetypes?: CadNamedCatalog<CadLinetypeDefinition>;
+  layerStates?: CadNamedCatalog<CadNamedLayerState>;
+  toolPalettes?: CadNamedCatalog<CadToolPalette>;
+  coordinateSystems?: CadNamedCatalog<CadNamedUcs>;
+}
+
+/**
+ * Lo que un comando pide a la INTERFAZ: abrir una paleta, un cuadro, un
+ * selector de archivo.
+ *
+ * El motor no abre nada —no sabe que existe React— y tampoco fabrica texto de
+ * interfaz. Devuelve QUÉ quiere y el anfitrión decide si puede servirlo. Así
+ * `LAYER` es un comando normal, probado en Node como los demás, y la única
+ * parte que depende del navegador es la línea que atiende la petición.
+ */
+export type CadUiTarget =
+  | "layer-manager"
+  | "layer-states"
+  | "properties"
+  | "draft-settings"
+  | "osnap"
+  | "options"
+  | "styles"
+  | "tool-palettes"
+  | "ucs-manager"
+  | "quick-select"
+  | "filter"
+  | "script-file"
+  | "linetype-file";
+
+export interface CadUiRequest {
+  target: CadUiTarget;
+  /** Qué pestaña, qué filtro precargado… Sólo cadenas: viaja hasta React. */
+  params?: Readonly<Record<string, string>>;
+  /**
+   * Qué hacer si nadie atiende la petición. Un comando que abre un cuadro
+   * TIENE que decir qué se pierde el usuario cuando ese cuadro no existe
+   * todavía en su espacio de trabajo; si no, la orden se traga en silencio.
+   */
+  unavailable: string;
 }
 
 export type CadCommandResult =
@@ -204,6 +323,27 @@ export type CadCommandResult =
    */
   | { kind: "host"; request: CadHostRequest; label: string }
   | { kind: "message"; text: string }
+  /**
+   * Escritura de variables de sistema. UNITS, LTSCALE, COLOR, LINETYPE,
+   * LWEIGHT, OSNAP y SETVAR terminan todos aquí, y las consultas la usan para
+   * publicar `AREA`, `PERIMETER` y `DISTANCE` como hace AutoCAD.
+   *
+   * `system` marca la escritura que hace el PRODUCTO y no el usuario: es la
+   * única que puede tocar una variable de sólo lectura.
+   */
+  | {
+      kind: "variables";
+      patch: Readonly<Record<string, CadSystemVariableValue>>;
+      system?: boolean;
+      text?: string;
+    }
+  | { kind: "ui"; request: CadUiRequest; text?: string }
+  /**
+   * Cambia lo DESIGNADO. Es el resultado de QSELECT y de FILTER, y no cabe en
+   * ninguno de los otros: no toca el documento —deshacer no debe devolver una
+   * selección— pero tampoco es un mensaje, porque el efecto es real.
+   */
+  | { kind: "selection"; entityIds: readonly string[]; text?: string }
   | { kind: "none" };
 
 export interface CadCommandStep<S = unknown> {

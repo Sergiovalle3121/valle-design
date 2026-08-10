@@ -1,0 +1,44 @@
+{
+  "name": "@valle-design/dwg-codec",
+  "version": "0.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "description": "Investigacion experimental interna de interoperabilidad; no disponible en el producto.",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "test": "tsx --test tests/unit.spec.ts",
+    "test:adversarial": "tsx --test tests/adversarial.spec.ts",
+    "fuzz:smoke": "tsx fuzz/smoke.ts",
+    "benchmark:smoke": "tsx benchmarks/smoke.ts",
+    "check:fixtures": "tsx scripts/check-fixtures.ts",
+    "check:provenance": "tsx scripts/check-provenance.ts",
+    "check:no-io": "tsx scripts/check-no-io.ts",
+    "check:boundary": "tsx scripts/check-boundary.ts",
+    "generate:fixtures": "tsx fixtures/generators/generate-synthetic.ts --write",
+    "check": "npm run check:provenance && npm run check:fixtures && npm run check:no-io && npm run check:boundary && npm run build && npm run typecheck && npm test && npm run test:adversarial && npm run fuzz:smoke"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.1",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "tsx": "4.23.1",
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  }
+}
