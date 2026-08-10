@@ -27,11 +27,16 @@ import {
 } from "@/lib/cad/engine/command-engine";
 import type {
   CadCommandContext,
+  CadCommandSession,
   CadPreviewPath,
   CadPrompt,
+  CadUiRequest,
 } from "@/lib/cad/engine/command-types";
+import type { CadSystemVariableValue } from "@/lib/cad/system-variables";
 import type { CadEntityCommand } from "@/lib/cad/entity-commands";
+import type { CadHostRequest } from "@/lib/cad/engine/host-requests";
 import type { SnapType } from "@/lib/cad/snap-engine";
+import type { CadViewRequest } from "@/lib/cad/view/view-navigation";
 import type { CadCommandLineEntry } from "./CadCommandLine";
 
 /** Lo que el anfitrión necesita del editor para que un comando surta efecto. */
@@ -46,6 +51,45 @@ export interface CadCommandEngineBridge {
   osnapOverride(modes: readonly SnapType[] | null): void;
   /** Forma del cursor del viewport. */
   cursor(shape: "crosshair" | "pick" | "none"): void;
+  /**
+   * Escribe variables de sistema. Devuelve los renglones que haya que enseñar
+   * —una variable rechazada explica por qué— para que el diálogo cuente lo que
+   * pasó en vez de tragarse el error.
+   */
+  variables?(
+    patch: Readonly<Record<string, CadSystemVariableValue>>,
+    system: boolean,
+  ): readonly string[];
+  /**
+   * Atiende una petición de interfaz. `false` si este espacio de trabajo no
+   * sabe abrir esa paleta; el anfitrión lo dice con el texto que trae la propia
+   * petición, que para eso lo trae.
+   */
+  ui?(request: CadUiRequest): boolean;
+  /**
+   * Deja designado exactamente esto. `false` si este anfitrión no sostiene la
+   * selección — QSELECT lo dice entonces con el número de coincidencias, que es
+   * la mitad de la respuesta, en vez de fingir que ha designado algo.
+   */
+  select?(entityIds: readonly string[]): boolean;
+  /**
+   * Encuadre: ZOOM, PAN, VIEW y REGEN. Devuelve el renglón que hay que enseñar
+   * —«ZOOM Extensión», «No hay ninguna vista previa que recuperar»— porque la
+   * respuesta depende del dibujo y del lienzo, que el motor no ve.
+   *
+   * `null` significa «aquí no hay dónde encuadrar»: un guion sin lienzo, una
+   * prueba del motor. Se distingue de una cadena vacía a propósito, y se dice
+   * en voz alta en vez de fingir que se encuadró.
+   *
+   * Puede faltar entero, y entonces vale lo mismo que devolver `null`.
+   */
+  view?(request: CadViewRequest): string | null;
+  /**
+   * Trabajo fuera del documento: trazar, publicar, cambiar de espacio. Mismo
+   * contrato que `view`: el renglón a mostrar, o `null` si no hay quien lo
+   * atienda.
+   */
+  host?(request: CadHostRequest): string | null;
 }
 
 export interface CadCommandEngineSnapshot {
@@ -68,11 +112,41 @@ export class CadCommandEngineHost {
     lastCommand: null,
   };
   private readonly listeners = new Set<() => void>();
+  /**
+   * Rastro de sesión que los comandos LEEN y sólo el anfitrión escribe.
+   *
+   * Está aquí y no dentro del motor porque el motor es un reductor puro que no
+   * ve el resultado de aplicar un lote; el anfitrión sí, porque es quien lo
+   * aplica. Y está aquí y no en un módulo global porque un global lo compartiría
+   * entre editores abiertos: dos dibujos, dos «cota anterior» distintas.
+   */
+  private session: CadCommandSession = {};
 
   constructor(
     private readonly registry: CadCommandRegistry,
     private readonly bridge: CadCommandEngineBridge,
   ) {}
+
+  /** El contexto del editor MÁS lo que esta sesión recuerda. */
+  private context(): CadCommandContext {
+    return { ...this.bridge.context(), session: this.session };
+  }
+
+  /**
+   * Anota la última cota creada por el lote que se acaba de aplicar.
+   *
+   * Se mira el LOTE y no el documento porque el documento no dice cuál de sus
+   * cotas es la nueva. Se recorre al revés: si una orden crea varias —`DIM`
+   * sobre una selección— la que encadena es la última, igual que en AutoCAD.
+   */
+  private rememberSession(commands: readonly CadEntityCommand[]): void {
+    for (let index = commands.length - 1; index >= 0; index -= 1) {
+      const command = commands[index];
+      if (command.type !== "insert" || command.entity.type !== "dimension") continue;
+      this.session = { ...this.session, lastDimensionId: command.entity.id };
+      return;
+    }
+  }
 
   subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener);
@@ -98,6 +172,14 @@ export class CadCommandEngineHost {
 
   private log(text: string, level: CadCommandLineEntry["level"]): void {
     if (!text) return;
+    // Un volcado de LIST o de MASSPROP son quince renglones, no un párrafo. Se
+    // parten aquí y no en el comando para que el comando siga devolviendo UN
+    // resultado —que es lo que el motor sabe manejar— y el diálogo siga
+    // guardando UN renglón por línea, que es lo que su historial cuenta.
+    if (text.includes("\n")) {
+      for (const line of text.split("\n")) this.log(line, level);
+      return;
+    }
     const last = this.history[this.history.length - 1];
     // Un prompt repetido —al reanudar un transparente, por ejemplo— no debe
     // llenar el diálogo con la misma línea dos veces seguidas.
@@ -142,6 +224,24 @@ export class CadCommandEngineHost {
     this.dispatch({ kind: "input", input: { kind: "enter" } });
   }
 
+  /**
+   * Renglón que NO viene de un comando: el resultado de un trabajo asíncrono
+   * del anfitrión, típicamente un trazado que acaba de terminar.
+   *
+   * Existe porque trazar tarda y la línea de comandos no espera: PLOT responde
+   * «trazando…» de inmediato y el resultado llega por aquí, con el número de
+   * páginas y de fuentes. Sin esta puerta, el usuario se queda mirando un
+   * «trazando…» que nunca se resuelve.
+   *
+   * La usa por lo mismo quien ejecuta un `.scr`: los avisos del script —«la
+   * línea 7 abre un cuadro»— no son la respuesta de ningún comando y tienen que
+   * salir por el mismo sitio o el usuario no los ve.
+   */
+  note(text: string, level: "info" | "error" = "info"): void {
+    this.log(text, level);
+    this.publish();
+  }
+
   get busy(): boolean {
     return this.state.active !== null;
   }
@@ -162,7 +262,7 @@ export class CadCommandEngineHost {
     if (!descriptor) return;
     // Se vuelve a pedir el paso con el contexto actual; el comando es puro, así
     // que recalcular su previsualización no tiene efectos secundarios.
-    const refreshed = descriptor.step(step.state as never, { kind: "text", value: "" }, this.bridge.context());
+    const refreshed = descriptor.step(step.state as never, { kind: "text", value: "" }, this.context());
     this.bridge.preview(refreshed.preview ?? []);
   }
 
@@ -170,7 +270,7 @@ export class CadCommandEngineHost {
     const reduction = cadCommandEngineReduce(
       this.state,
       action,
-      this.bridge.context(),
+      this.context(),
       this.registry,
     );
     this.state = reduction.state;
@@ -186,8 +286,28 @@ export class CadCommandEngineHost {
         this.log(effect.prompt.message, "prompt");
         return;
       case "execute":
+        this.rememberSession(effect.commands);
         this.bridge.apply(effect.commands, effect.label);
         return;
+      case "view": {
+        // Sin puente de vista el comando no encuadró nada, y eso se dice. Un
+        // «ZOOM Extensión» impreso sobre una vista que no se movió es peor que
+        // un aviso: enseña a no fiarse del diálogo.
+        const answered = this.bridge.view?.(effect.request) ?? null;
+        this.log(
+          answered ?? `${effect.label} no está disponible sin una vista activa.`,
+          answered === null ? "error" : "info",
+        );
+        return;
+      }
+      case "host": {
+        const answered = this.bridge.host?.(effect.request) ?? null;
+        this.log(
+          answered ?? `${effect.label} no está disponible en este contexto.`,
+          answered === null ? "error" : "info",
+        );
+        return;
+      }
       case "message":
         this.log(effect.text, effect.level === "error" ? "error" : "info");
         return;
@@ -196,6 +316,32 @@ export class CadCommandEngineHost {
         return;
       case "osnapOverride":
         this.bridge.osnapOverride(effect.modes);
+        return;
+      case "variables": {
+        if (!this.bridge.variables) {
+          this.log(
+            "Este espacio de trabajo no sostiene las variables de sistema; el cambio no se ha aplicado.",
+            "error",
+          );
+          return;
+        }
+        for (const line of this.bridge.variables(effect.patch, effect.system))
+          this.log(line, "info");
+        return;
+      }
+      case "ui":
+        // Que nadie sepa abrir la paleta NO es un fallo del comando: es un
+        // espacio de trabajo que todavía no la monta. Se dice con el texto que
+        // trae la petición, que nombra lo que el usuario se pierde.
+        if (!this.bridge.ui?.(effect.request)) this.log(effect.request.unavailable, "error");
+        return;
+      case "selection":
+        if (!this.bridge.select?.(effect.entityIds))
+          this.log(
+            `Este espacio de trabajo no sostiene la designación desde la línea de comandos: ` +
+              `${effect.entityIds.length} objeto(s) casan con el filtro, pero no se han designado.`,
+            "error",
+          );
         return;
       case "cursor":
         this.bridge.cursor(effect.cursor);

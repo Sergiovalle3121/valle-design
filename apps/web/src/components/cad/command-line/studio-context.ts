@@ -10,7 +10,12 @@
  * editor: entra un documento, sale un contexto.
  */
 import type { CadDocument, CadEntity } from "@/lib/cad/cad-document";
-import type { CadCommandContext } from "@/lib/cad/engine/command-types";
+import type {
+  CadCommandContext,
+  CadSessionCatalogs,
+} from "@/lib/cad/engine/command-types";
+import type { CadVariableAccess } from "@/lib/cad/system-variables";
+import { cadDocumentExtents } from "@/lib/cad/view/document-extents";
 import type { CadView } from "@/lib/cad/view/cad-view";
 
 export interface CadStudioCommandInputs {
@@ -32,10 +37,32 @@ export interface CadStudioCommandInputs {
    */
   cursor: { x: number; y: number } | null;
   newEntityId: () => string;
+  /**
+   * Variables de sistema de la sesión. Opcional para no romper a quien ya
+   * llamaba a esta función con cinco campos; cuando falta, los comandos usan
+   * los valores de fábrica, que es lo que ve un dibujo recién abierto.
+   */
+  variables?: CadVariableAccess;
+  /** Catálogos de sesión: filtros, estados de capa, tipos de línea, SCU… */
+  catalogs?: CadSessionCatalogs;
+  /**
+   * Pestaña abierta. `null` en espacio modelo, que es donde arranca el editor.
+   * LAYOUT y MVIEW la usan para saber sobre qué hoja operan sin preguntar.
+   */
+  activeLayout?: string | null;
 }
 
 /** Escala por defecto cuando todavía no hay escena: un píxel, una unidad. */
 const FALLBACK_PIXELS_PER_UNIT = 1;
+
+function resolveActiveLayer(inputs: CadStudioCommandInputs): string {
+  const clayer = String(inputs.variables?.get("CLAYER") ?? "").trim();
+  if (!clayer) return inputs.activeLayer;
+  const exists = inputs.document?.layers.some(
+    (layer) => layer.name.toUpperCase() === clayer.toUpperCase(),
+  );
+  return exists ? clayer : inputs.activeLayer;
+}
 
 export function cadStudioCommandContext(
   inputs: CadStudioCommandInputs,
@@ -53,8 +80,27 @@ export function cadStudioCommandContext(
     // línea el comando se negaría —dice que no las tiene— en vez de descomponer
     // la inserción, que es exactamente el caso que la gente prueba primero.
     blocks: () => inputs.document?.blocks ?? [],
+    layers: () => inputs.document?.layers ?? [],
     selection: inputs.selection,
-    activeLayer: inputs.activeLayer,
+    // `CLAYER` manda cuando nombra una capa que existe: es la capa actual
+    // también para AutoCAD, y es lo que permite que un `.scr` dibuje donde
+    // quiere con `-LAYER definir`. Si nadie la ha tocado o apunta a una capa
+    // borrada, gana la del editor, que es la que el usuario está viendo.
+    activeLayer: resolveActiveLayer(inputs),
+    ...(inputs.variables ? { variables: inputs.variables } : {}),
+    ...(inputs.catalogs ? { catalogs: inputs.catalogs } : {}),
+    // Presentaciones, unidad y envolvente: lo que LAYOUT, MVIEW y PLOT
+    // necesitan y ningún comando anterior pedía. Se exponen como funciones
+    // para que un comando que no las use no pague ni una envolvente ni una
+    // copia de la lista de hojas.
+    paperSpaces: () => inputs.document?.paperSpaces ?? [],
+    ...(inputs.activeLayout ? { activeLayout: inputs.activeLayout } : {}),
+    // Encadenado opcional a propósito: un anfitrión puede montar un documento
+    // parcial —lo hacen las pruebas de esta misma capa— y reventar aquí
+    // convertiría «no sé la unidad» en «no hay contexto».
+    ...(inputs.document?.meta?.unit ? { unit: inputs.document.meta.unit } : {}),
+    drawingExtents: () =>
+      inputs.document ? cadDocumentExtents(inputs.document) : null,
     view: {
       pixelsPerUnit: inputs.view?.pixelsPerUnit ?? FALLBACK_PIXELS_PER_UNIT,
       centerX: inputs.view?.centerX ?? 0,

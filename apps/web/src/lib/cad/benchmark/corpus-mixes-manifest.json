@@ -1,0 +1,130 @@
+{
+  "$schema": "./corpus-mixes-manifest.schema.json",
+  "schemaVersion": 1,
+  "benchmarkId": "valle-design-cad-corpus-mixes-v1",
+  "generator": {
+    "id": "native-mix-lcg32-largest-remainder-v1",
+    "rng": "LCG32(a=1664525,c=1013904223)",
+    "period": 1000,
+    "mixes": {
+      "architecture": {
+        "seed": 1095913728,
+        "cellSize": 900,
+        "title": "Planta arquitectónica: muros, carpintería repetida, suelos y rótulos",
+        "stresses": "expansión de bloques por instancia, sombreados, cotas y atlas de glifos"
+      },
+      "mechanical": {
+        "seed": 1296384768,
+        "cellSize": 60,
+        "title": "Pieza mecánica: splines, elipses, arcos pequeños y cotas con tolerancia",
+        "stresses": "teselado dependiente del escalón de LOD y densidad de glifos por cota"
+      },
+      "cartography": {
+        "seed": 1128354304,
+        "cellSize": 5000,
+        "title": "Cartografía: curvas de nivel largas y poquísimo texto",
+        "stresses": "volumen bruto de segmentos por lote y presión sobre la caché"
+      },
+      "text-hostile": {
+        "seed": 1415074816,
+        "cellSize": 400,
+        "title": "Hostil: 20.000 MTEXT de varias líneas con alfabeto ancho",
+        "stresses": "atlas de glifos y memoria de textura del texto"
+      }
+    }
+  },
+  "corpora": [
+    {
+      "mix": "architecture",
+      "entities": 10000,
+      "sha256": "3ed34f0957ccbd3887c8366cffeadf032a90e4457b7a6433c82b824057c63e7c",
+      "entityMix": {
+        "line": 700,
+        "polyline": 1800,
+        "hatch": 1400,
+        "mtext": 1000,
+        "dimension": 1700,
+        "insert": 3400
+      }
+    },
+    {
+      "mix": "architecture",
+      "entities": 100000,
+      "sha256": "42ceb51ed1cef69766186b9543a1890bd83d4e53186919fb9749148f11820a44",
+      "entityMix": {
+        "line": 7000,
+        "polyline": 18000,
+        "hatch": 14000,
+        "mtext": 10000,
+        "dimension": 17000,
+        "insert": 34000
+      }
+    },
+    {
+      "mix": "mechanical",
+      "entities": 10000,
+      "sha256": "b6c97309a33840a200ef3469d51b54ef8344cd7ad18ca95b7ab01bc800b07c3d",
+      "entityMix": {
+        "line": 1400,
+        "circle": 800,
+        "arc": 3800,
+        "ellipse": 1000,
+        "spline": 1400,
+        "dimension": 1600
+      }
+    },
+    {
+      "mix": "mechanical",
+      "entities": 100000,
+      "sha256": "b55d31a0f73edadffee7b39935ed53ccabf2486f6d111fd2356233ccc30dbb0b",
+      "entityMix": {
+        "line": 14000,
+        "circle": 8000,
+        "arc": 38000,
+        "ellipse": 10000,
+        "spline": 14000,
+        "dimension": 16000
+      }
+    },
+    {
+      "mix": "cartography",
+      "entities": 10000,
+      "sha256": "1de4864c2f6d929e15a1265c38bafcf14440a9d1fa0596773e3a76f1e1f9cff2",
+      "entityMix": {
+        "line": 500,
+        "polyline": 9200,
+        "mtext": 300
+      }
+    },
+    {
+      "mix": "cartography",
+      "entities": 100000,
+      "sha256": "e40082a797a4c2336ea0d0bd90a7a6244bd60241e00f9c84e81768b81722956e",
+      "entityMix": {
+        "line": 5000,
+        "polyline": 92000,
+        "mtext": 3000
+      }
+    },
+    {
+      "mix": "text-hostile",
+      "entities": 10000,
+      "sha256": "0eee2212d2c6b900602827dbaccb05817edc0de295bfedd6648f58d10bf7f52c",
+      "entityMix": {
+        "line": 6000,
+        "polyline": 2000,
+        "mtext": 2000
+      }
+    },
+    {
+      "mix": "text-hostile",
+      "entities": 100000,
+      "sha256": "81f8bb2107249345b50b21a8ed2a86a7bfca7239b7de8010d1fc9ce794fb822f",
+      "entityMix": {
+        "line": 60000,
+        "polyline": 20000,
+        "mtext": 20000
+      }
+    }
+  ]
+}

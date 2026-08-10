@@ -1,4 +1,5 @@
 import type { CadEntity, CadPoint2 } from './cad-document';
+import { cadMTextPlainText } from './mtext-codes';
 
 export type CadMTextEntity = Extract<CadEntity, { type: 'mtext' }>;
 
@@ -118,7 +119,16 @@ export function layoutCadMText(entity: CadMTextEntity): CadMTextLayout {
   const requestedWidth = Math.max(fontSize, entity.width ?? fontSize * 20);
   const gap = columns > 1 ? fontSize : 0;
   const columnWidth = Math.max(fontSize, (requestedWidth - gap * (columns - 1)) / columns);
-  const rawText = entity.text.replace(/\r\n?/g, '\n').replace(/\\P/g, '\n');
+  // Los códigos de control se resuelven ANTES de medir. Antes sólo se traducía
+  // `\P`, así que un apilado se dibujaba como los caracteres `\S1^2;` y ocupaba
+  // el ancho de esa retahíla en vez del de la fracción.
+  //
+  // A MEDIAS a propósito: la maqueta mide con la altura de la ENTIDAD, así que
+  // un tramo con `\H` propio se mide con la altura equivocada, y el apilado se
+  // aplana a `superior/inferior` en una sola línea. La estructura por tramos ya
+  // está en `parseCadMText`; consumirla exige que el render sepa dibujar tramos,
+  // que es trabajo del pipeline de render y no de esta maqueta de líneas.
+  const rawText = cadMTextPlainText(entity.text);
   const wrapped = rawText.split('\n').flatMap((paragraph) => {
     const paragraphLines = wrapParagraph(paragraph, columnWidth, fontSize, entity);
     return paragraphLines.map((text, index) => ({

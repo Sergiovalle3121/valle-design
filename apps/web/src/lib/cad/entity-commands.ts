@@ -20,8 +20,11 @@ import {
   type CadEntityContext,
   type CadEntityPresentation,
   type CadImageDefinition,
+  type CadLayerDef,
+  type CadPaperSpace,
   type CadParameter,
   type CadPoint2,
+  type CadStyleTable,
 } from "./cad-document";
 import {
   deleteCadParameter,
@@ -32,6 +35,11 @@ import { solveConstraintSystem } from "./constraints/solver";
 import { regenerateAssociativeDimensions } from "./associative-dimension";
 import { regenerateAssociativeMleaders } from "./associative-mleader";
 import { regenerateAssociativeHatches } from "./hatch-associativity";
+import {
+  applyDocumentTables,
+  isCadTableCommand,
+  type CadDocumentTableCommand,
+} from "./entity-command-tables";
 import {
   CAD_ENTITY_REGISTRY,
   CadEntityRegistry,
@@ -120,13 +128,130 @@ export type CadEntityCommand =
       op: "set";
       parameter: { name: string; expression: string; comment?: string };
     }
-  | { type: "parameter"; entity?: undefined; op: "delete"; name: string };
+  | { type: "parameter"; entity?: undefined; op: "delete"; name: string }
+  /**
+   * Tabla de capas: otra SECCIÓN del documento, por el mismo embudo.
+   *
+   * Existe porque `-LAYER` y LAYERSTATE tienen que poder crear una capa y
+   * restaurar cuarenta desde la línea de comandos, y hacerlo por fuera del lote
+   * habría abierto una segunda ruta de mutación: restaurar un estado de capa
+   * dejaría cuarenta pasos de deshacer, o ninguno, según por dónde se entrase.
+   * Un `upsert` con un nombre que ya existe MODIFICA esa capa; el nombre es la
+   * identidad, como en DXF.
+   */
+  | { type: "layer"; entity?: undefined; op: "upsert"; layer: CadLayerDef }
+  | { type: "layer"; entity?: undefined; op: "delete"; name: string; reassignTo: string }
+  /**
+   * Orden de dibujo (DRAWORDER). Toca `modelSpace.entityIds` y NADA más: quién
+   * tapa a quién es una propiedad del espacio, no de la entidad.
+   *
+   * `above`/`below` necesitan `referenceId`; `front`/`back` lo ignoran.
+   */
+  | {
+      type: "draw-order";
+      entity?: undefined;
+      entityIds: readonly string[];
+      placement: "front" | "back" | "above" | "below";
+      referenceId?: string;
+    }
+  /**
+   * La tabla de ESTILOS, que es otra sección del documento.
+   *
+   * Existe porque `STYLE`, `DIMSTYLE`, `MLEADERSTYLE` y `TABLESTYLE` tienen que
+   * poder escribirla, y sin esto sólo podían hacerlo llamando a `commitChange`
+   * por su cuenta — una segunda ruta de mutación, que es exactamente la
+   * propiedad que este módulo existe para impedir. Con esto, «crea el estilo
+   * COTAS-2 y aplícaselo a esta cota» es UN lote y UN paso de deshacer.
+   *
+   * No entra en `CadDocumentSectionCommand` a propósito: aquella rama resuelve
+   * el sistema de restricciones entero, y definir un estilo de texto no mueve
+   * geometría. Pagar un solve por un cambio de fuente sería gratuito sólo en un
+   * dibujo vacío.
+   */
+  | {
+      type: "style";
+      entity?: undefined;
+      op: "upsert";
+      family: CadStyleFamilyName;
+      name: string;
+      values: Readonly<Record<string, string | number | boolean>>;
+    }
+  | { type: "style"; entity?: undefined; op: "delete"; family: CadStyleFamilyName; name: string }
+  /**
+   * Presentaciones: otra SECCIÓN del documento, por el mismo embudo.
+   *
+   * LAYOUT, MVIEW, PAGESETUP y el bloqueo de escala de una ventana escriben
+   * `document.paperSpaces`. Sin esta orden tendrían que hacerlo por su cuenta,
+   * que es una segunda vía de mutación — exactamente lo que este módulo existe
+   * para impedir. Con ella, crear una presentación, colocarle dos ventanas y
+   * fijarles la escala es UN lote, UN `commitChange` y UN paso de deshacer.
+   *
+   * `upsert` sustituye la presentación entera por id: los comandos componen la
+   * nueva a partir de la vieja con las funciones puras de `layout/`, y aquí
+   * sólo se guarda. `reorder` lleva las pestañas al orden dado y renumera.
+   */
+  | { type: "paper-space"; entity?: undefined; op: "upsert"; space: CadPaperSpace }
+  | { type: "paper-space"; entity?: undefined; op: "delete"; spaceId: string }
+  | { type: "paper-space"; entity?: undefined; op: "reorder"; spaceIds: readonly string[] };
 
-/** Los que operan sobre secciones del documento y no sobre entidades. */
-type CadDocumentSectionCommand = Extract<CadEntityCommand, { type: "constraint" | "parameter" }>;
+/** Las cinco familias de `CadStyleTable`. */
+export type CadStyleFamilyName = "text" | "dimension" | "mleader" | "table" | "plot";
+
+/**
+ * Los que operan sobre secciones del documento y no sobre entidades.
+ *
+ * `style` NO entra: esta rama resuelve el sistema de restricciones entero al
+ * aplicarse, y definir una fuente o un tamaño de flecha no mueve geometría.
+ */
+type CadDocumentSectionCommand = Extract<
+  CadEntityCommand,
+  { type: "constraint" | "parameter" | "paper-space" }
+>;
+type CadStyleCommand = Extract<CadEntityCommand, { type: "style" }>;
 
 const isSectionCommand = (command: CadEntityCommand): command is CadDocumentSectionCommand =>
-  command.type === "constraint" || command.type === "parameter";
+  command.type === "constraint" ||
+  command.type === "parameter" ||
+  command.type === "paper-space";
+
+const isStyleCommand = (command: CadEntityCommand): command is CadStyleCommand =>
+  command.type === "style";
+
+/**
+ * Aplica los comandos de estilo sobre la tabla, sin tocar lo que no nombran.
+ *
+ * `upsert` FUSIONA: escribir sólo la altura de un estilo de texto no debe
+ * borrarle la fuente. Un valor `undefined` no llega hasta aquí —el tipo no lo
+ * admite—, así que no hay forma accidental de vaciar un campo; para eso está
+ * borrar el estilo entero.
+ */
+function applyStyleCommands(
+  styles: CadStyleTable,
+  commands: readonly CadStyleCommand[],
+): CadStyleTable {
+  if (commands.length === 0) return styles;
+  const next: CadStyleTable = {
+    text: { ...styles.text },
+    dimension: { ...styles.dimension },
+    mleader: { ...(styles.mleader ?? {}) },
+    table: { ...styles.table },
+    plot: { ...styles.plot },
+  };
+  for (const command of commands) {
+    const name = command.name.trim();
+    if (!name) throw new Error("Un estilo necesita un nombre no vacío.");
+    const family = next[command.family] as Record<string, Record<string, unknown>>;
+    if (command.op === "delete") {
+      delete family[name];
+      continue;
+    }
+    family[name] = { ...(family[name] ?? {}), ...command.values };
+  }
+  // La familia `mleader` es OPCIONAL en el esquema: materializarla como `{}` en
+  // un documento que nunca la tuvo cambiaría su serializado y con él su hash.
+  if (Object.keys(next.mleader ?? {}).length === 0 && !styles.mleader) delete next.mleader;
+  return next;
+}
 
 export interface CadEntityCommandResult {
   document: CadDocument;
@@ -147,7 +272,10 @@ function cadEntityCommandLabel(
 ): string {
   if (command.type === "insert") return `insert:${command.entity.type}`;
   if (command.type === "image-definition") return `image-definition:${command.definition.id}`;
+  if (isStyleCommand(command)) return `style:${command.op}:${command.family}:${command.name}`;
   if (isSectionCommand(command)) return `${command.type}:${command.op}`;
+  if (command.type === "layer") return `layer:${command.op}`;
+  if (command.type === "draw-order") return `draw-order:${command.placement}`;
   const source = document.entities.find((entity) => entity.id === command.entityId);
   if (!source || !registry.supports(source))
     throw new Error(`Native CAD entity ${command.entityId} was not found.`);
@@ -204,10 +332,20 @@ export function executeCadEntityCommandBatch(
   };
 
   const sectionCommands: CadDocumentSectionCommand[] = [];
+  const tableCommands: CadDocumentTableCommand[] = [];
+  const styleCommands: CadStyleCommand[] = [];
 
   for (const command of commands) {
+    if (isStyleCommand(command)) {
+      styleCommands.push(command);
+      continue;
+    }
     if (isSectionCommand(command)) {
       sectionCommands.push(command);
+      continue;
+    }
+    if (isCadTableCommand(command)) {
+      tableCommands.push(command);
       continue;
     }
     if (command.type === "insert") {
@@ -376,11 +514,16 @@ export function executeCadEntityCommandBatch(
     // fantasmas ni omisiones.
     document.modelSpace.entityIds.filter((id) => !deleted.has(id)).concat(createdFrontIds),
   );
+  const tables = applyDocumentTables(document, tableCommands, [...createdBackIds, ...ordered], entities);
+  for (const entityId of tables.touchedEntityIds) touchedIds.push(entityId);
   const staged: CadDocument = {
     ...document,
-    entities,
+    entities: tables.entities,
+    layers: tables.layers,
     constraints: sections.constraints,
-    modelSpace: { entityIds: [...createdBackIds, ...ordered] },
+    styles: applyStyleCommands(document.styles, styleCommands),
+    paperSpaces: sections.paperSpaces,
+    modelSpace: { entityIds: tables.entityOrder },
     // Mismo criterio que `parameters` justo debajo: el catálogo de imágenes
     // sólo viaja si el lote lo tocó o si el documento ya lo traía.
     ...(imageDefinitions ? { imageDefinitions } : {}),
@@ -425,15 +568,30 @@ function applyDocumentSections(
   document: CadDocument,
   commands: readonly CadDocumentSectionCommand[],
   present: Map<string, CadEntity>,
-): { constraints: CadConstraint[]; parameters: CadParameter[] | undefined; movedEntityIds: string[] } {
+): {
+  constraints: CadConstraint[];
+  parameters: CadParameter[] | undefined;
+  paperSpaces: CadPaperSpace[];
+  movedEntityIds: string[];
+} {
   if (commands.length === 0)
-    return { constraints: document.constraints, parameters: document.parameters, movedEntityIds: [] };
+    return {
+      constraints: document.constraints,
+      parameters: document.parameters,
+      paperSpaces: document.paperSpaces,
+      movedEntityIds: [],
+    };
 
   let constraints = [...document.constraints];
   let parameters = [...(document.parameters ?? [])];
+  let paperSpaces = [...document.paperSpaces];
   const unit = document.meta.unit;
 
   for (const command of commands) {
+    if (command.type === "paper-space") {
+      paperSpaces = applyPaperSpaceCommand(paperSpaces, command);
+      continue;
+    }
     if (command.type === "constraint") {
       if (command.op === "delete") {
         constraints = constraints.filter((constraint) => constraint.id !== command.constraintId);
@@ -460,6 +618,18 @@ function applyDocumentSections(
     parameters = written.parameters;
   }
 
+  // Un lote que SÓLO toca presentaciones no resuelve restricciones. No es una
+  // optimización: resolver aquí haría que crear una pestaña fallase en un
+  // documento cuyas restricciones vienen rotas de un importado, y una
+  // presentación nueva no tiene nada que ver con la geometría restringida.
+  if (commands.every((command) => command.type === "paper-space"))
+    return {
+      constraints,
+      parameters: parameters.length > 0 ? parameters : undefined,
+      paperSpaces,
+      movedEntityIds: [],
+    };
+
   const evaluation = evaluateCadParameters(parameters, { unit });
   // Una referencia colgando NO bloquea. `setCadParameter` ya rechaza crear una,
   // así que si aparece aquí es que el documento venía con ella —importado, o
@@ -483,8 +653,55 @@ function applyDocumentSections(
     present.set(entity.id, entity);
     if (before && JSON.stringify(before) !== JSON.stringify(entity)) movedEntityIds.push(entity.id);
   }
-  return { constraints, parameters: parameters.length > 0 ? parameters : undefined, movedEntityIds };
+  return {
+    constraints,
+    parameters: parameters.length > 0 ? parameters : undefined,
+    paperSpaces,
+    movedEntityIds,
+  };
 }
+
+/**
+ * Aplica una orden de presentación sobre la lista de pestañas.
+ *
+ * `order` se renumera siempre a partir de la posición real: un documento con
+ * dos hojas en `order: 0` es un documento con pestañas que se ordenan según el
+ * humor del `sort`, y eso se nota en la interfaz. Renumerar aquí lo cierra en
+ * el único sitio por el que se puede escribir la sección.
+ */
+function applyPaperSpaceCommand(
+  spaces: readonly CadPaperSpace[],
+  command: Extract<CadEntityCommand, { type: "paper-space" }>,
+): CadPaperSpace[] {
+  const renumber = (list: readonly CadPaperSpace[]): CadPaperSpace[] =>
+    [...list]
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id.localeCompare(b.id))
+      .map((space, order) => (space.order === order ? space : { ...space, order }));
+
+  if (command.op === "delete")
+    return renumber(spaces.filter((space) => space.id !== command.spaceId));
+
+  if (command.op === "reorder") {
+    const position = new Map(command.spaceIds.map((id, index) => [id, index]));
+    // Las que no se nombran conservan su orden relativo DETRÁS de las nombradas,
+    // para que reordenar tres pestañas de veinte no reviente las otras
+    // diecisiete.
+    return renumber(
+      spaces.map((space) => ({
+        ...space,
+        order: position.get(space.id) ?? command.spaceIds.length + (space.order ?? 0),
+      })),
+    );
+  }
+
+  const exists = spaces.some((space) => space.id === command.space.id);
+  return renumber(
+    exists
+      ? spaces.map((space) => (space.id === command.space.id ? command.space : space))
+      : [...spaces, command.space],
+  );
+}
+
 
 export function executeCadEntityCommand(
   document: CadDocument,

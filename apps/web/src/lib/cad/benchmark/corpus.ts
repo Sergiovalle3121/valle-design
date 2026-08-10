@@ -67,8 +67,56 @@ export interface CadBenchmarkCorpus {
   entityMix: Record<CadNativeEntity["type"], number>;
 }
 
-function roundCoordinate(value: number): number {
+/**
+ * Recuento a cero de TODOS los tipos nativos.
+ *
+ * Vive aquí y no duplicado en cada generador a propósito: cuando el esquema
+ * estrena un tipo, `Record<CadNativeEntity["type"], number>` deja de compilar
+ * en UN sitio y el compilador obliga a declararlo. Si cada mezcla llevara su
+ * propia copia, añadir un tipo rompería cuatro archivos y la tentación sería
+ * arreglarlos con un `as` — que es exactamente perder el aviso.
+ */
+export function createEmptyCadEntityMix(): Record<
+  CadNativeEntity["type"],
+  number
+> {
+  return {
+    line: 0,
+    // POLYLINE ya es nativa, pero el generador determinista de
+    // `createCadBenchmarkCorpus` todavía no la emite: añadirla cambiaría el
+    // corpus y sus hashes, lo que exige actualizar el manifiesto del benchmark
+    // de forma explícita. Las MEZCLAS de `corpus-mixes.ts` sí la emiten.
+    polyline: 0,
+    circle: 0,
+    arc: 0,
+    ellipse: 0,
+    spline: 0,
+    hatch: 0,
+    mtext: 0,
+    dimension: 0,
+    mleader: 0,
+    insert: 0,
+    // Esquema 4. Igual que POLYLINE: el generador determinista todavía no las
+    // emite, y hacerlo cambiaría el corpus y sus hashes. Se declaran en cero
+    // para que el recuento siga cubriendo TODOS los tipos nativos y añadir uno
+    // nuevo vuelva a fallar aquí, que es justo lo que se quiere.
+    point: 0,
+    xline: 0,
+    ray: 0,
+    solid: 0,
+    wipeout: 0,
+    image: 0,
+    attdef: 0,
+    table: 0,
+  };
+}
+
+export function roundCadBenchmarkCoordinate(value: number): number {
   return Math.round(value * 1_000) / 1_000;
+}
+
+function roundCoordinate(value: number): number {
+  return roundCadBenchmarkCoordinate(value);
 }
 
 /**
@@ -95,34 +143,7 @@ export function createCadBenchmarkCorpus(options: {
   const idWidth = Math.max(7, String(count - 1).length);
   const nativeEntities: CadNativeEntity[] = new Array(count);
   const modelSpaceIds: string[] = new Array(count);
-  const entityMix: Record<CadNativeEntity["type"], number> = {
-    line: 0,
-    // POLYLINE ya es nativa, pero el generador determinista todavía no la
-    // emite: añadirla cambiaría el corpus y sus hashes, lo que exige
-    // actualizar el manifiesto del benchmark de forma explícita.
-    polyline: 0,
-    circle: 0,
-    arc: 0,
-    ellipse: 0,
-    spline: 0,
-    hatch: 0,
-    mtext: 0,
-    dimension: 0,
-    mleader: 0,
-    insert: 0,
-    // Esquema 4. Igual que POLYLINE: el generador determinista todavía no las
-    // emite, y hacerlo cambiaría el corpus y sus hashes. Se declaran en cero
-    // para que el recuento siga cubriendo TODOS los tipos nativos y añadir uno
-    // nuevo vuelva a fallar aquí, que es justo lo que se quiere.
-    point: 0,
-    xline: 0,
-    ray: 0,
-    solid: 0,
-    wipeout: 0,
-    image: 0,
-    attdef: 0,
-    table: 0,
-  };
+  const entityMix = createEmptyCadEntityMix();
 
   for (let index = 0; index < count; index += 1) {
     const id = `bench-${String(index).padStart(idWidth, "0")}`;

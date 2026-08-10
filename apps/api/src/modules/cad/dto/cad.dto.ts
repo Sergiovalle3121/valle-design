@@ -498,3 +498,174 @@ export class CadVisionDto {
   @MaxLength(15_000_000)
   image: string;
 }
+
+/* ──────────────────────── Conjuntos de planos (.dst) ───────────────────── */
+
+export class CadSheetNumberingDto {
+  @IsString()
+  @MaxLength(32)
+  prefix: string;
+
+  @Type(() => Number)
+  @IsInt()
+  start: number;
+
+  @Type(() => Number)
+  @IsInt()
+  step: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(8)
+  padding: number;
+
+  @IsString()
+  @MaxLength(32)
+  suffix: string;
+}
+
+/**
+ * Una hoja del conjunto: la REFERENCIA a una presentación de un dibujo, no su
+ * contenido. `fields` queda como objeto libre porque son los campos del
+ * cajetín del estudio, que la API no tiene por qué conocer.
+ */
+export class CadSheetSetSheetDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
+  id: string;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  order: number;
+
+  @IsUUID()
+  documentId: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(128)
+  layoutId: string;
+
+  @IsString()
+  @MaxLength(200)
+  title: string;
+
+  @IsString()
+  @MaxLength(64)
+  number: string;
+
+  @IsOptional()
+  @IsBoolean()
+  numberLocked?: boolean;
+
+  @IsString()
+  @MaxLength(32)
+  revision: string;
+
+  @IsOptional()
+  @IsObject()
+  fields?: Record<string, string>;
+
+  @IsOptional()
+  @IsBoolean()
+  includeInPublish?: boolean;
+}
+
+export class CadSheetSetSubsetDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
+  id: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(160)
+  name: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @ArrayMaxSize(500)
+  sheetIds: string[];
+}
+
+export class ListSheetSetsQueryDto extends PageQueryDto {
+  @IsOptional()
+  @IsUUID()
+  projectId?: string;
+}
+
+export class CreateCadSheetSetDto {
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MinLength(1)
+  @MaxLength(160)
+  name: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  description?: string;
+
+  @IsOptional()
+  @IsUUID()
+  projectId?: string;
+
+  @IsOptional()
+  @IsObject()
+  fields?: Record<string, string>;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CadSheetNumberingDto)
+  numbering?: CadSheetNumberingDto;
+}
+
+/**
+ * Guardado con CAS. `expectedVersion` es OBLIGATORIO: reordenar un conjunto
+ * reescribe el número de casi todas sus hojas, así que dos guardados
+ * concurrentes sin CAS no pierden un campo — pierden la numeración entera de
+ * una de las dos personas.
+ */
+export class SaveCadSheetSetDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  expectedVersion: number;
+
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MinLength(1)
+  @MaxLength(160)
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  description?: string | null;
+
+  @IsOptional()
+  @IsObject()
+  fields?: Record<string, string>;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CadSheetNumberingDto)
+  numbering?: CadSheetNumberingDto;
+
+  @IsArray()
+  @ArrayMaxSize(500)
+  @ValidateNested({ each: true })
+  @Type(() => CadSheetSetSheetDto)
+  sheets: CadSheetSetSheetDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(100)
+  @ValidateNested({ each: true })
+  @Type(() => CadSheetSetSubsetDto)
+  subsets?: CadSheetSetSubsetDto[];
+}
