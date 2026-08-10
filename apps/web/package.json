@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "cross-env NODE_OPTIONS=\"--max-old-space-size=4096\" next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "cross-env NODE_OPTIONS=\"--max-old-space-size=4096\" eslint",
     "typecheck": "tsc --noEmit",
     "test": "npm run test:specs",
     "test:specs": "node scripts/run-specs.mjs",
