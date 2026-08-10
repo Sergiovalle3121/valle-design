@@ -93,7 +93,7 @@
       "dependenciesAdded": [],
       "adoption": {
         "required": true,
-        "status": "proposed-baseline-confirmation",
+        "status": "proposed",
         "adopter": "Sergio Valle Zárate",
         "evidence": "El merge del PR DWG-01 confirma el uso histórico de asistencia y adopta este registro sin reescribir autoría, titularidad o procedencia de commits anteriores."
       },

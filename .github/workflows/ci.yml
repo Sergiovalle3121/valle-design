@@ -108,6 +108,11 @@ jobs:
 
       - name: Lint web
         working-directory: apps/web
+        # eslint + el grafo tipado de Next supera el heap predeterminado del
+        # runner. La cota sigue por debajo de la memoria disponible y aplica
+        # únicamente al proceso bloqueante de lint.
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: npm run lint
 
       # Suites script-style del kernel CAD y la plataforma web (tsx).

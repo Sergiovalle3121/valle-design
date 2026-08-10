@@ -34,7 +34,7 @@ const requiredFiles = [
   baselinePath,
 ];
 
-function runFixture(mutateBaseline = () => {}) {
+function runFixture(mutateBaseline = () => {}, mutateAssistedLog = () => {}) {
   const fixtureRoot = mkdtempSync(join(tmpdir(), "valle-governance-"));
   try {
     for (const relativePath of requiredFiles) {
@@ -47,6 +47,17 @@ function runFixture(mutateBaseline = () => {}) {
     const baseline = JSON.parse(readFileSync(targetBaseline, "utf8"));
     mutateBaseline(baseline);
     writeFileSync(targetBaseline, `${JSON.stringify(baseline, null, 2)}\n`);
+
+    const targetAssistedLog = join(
+      fixtureRoot,
+      "docs/governance/assisted-development-log.json",
+    );
+    const assistedLog = JSON.parse(readFileSync(targetAssistedLog, "utf8"));
+    mutateAssistedLog(assistedLog);
+    writeFileSync(
+      targetAssistedLog,
+      `${JSON.stringify(assistedLog, null, 2)}\n`,
+    );
 
     return spawnSync(process.execPath, [checker], {
       cwd: fixtureRoot,
@@ -109,4 +120,16 @@ test("rechaza omitir el SHA esperado del protocolo temporal", () => {
   });
   assert.equal(result.status, 1);
   assert.match(result.stderr, /protocolo temporal exact-SHA/);
+});
+
+test("rechaza declarar a una IA como adoptante humana", () => {
+  const result = runFixture(
+    () => {},
+    (assistedLog) => {
+      assistedLog.entries[0].adoption.adopter = "OpenAI Codex";
+      assistedLog.entries[0].adoption.evidence = "";
+    },
+  );
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /Sergio debe figurar como adoptante humano/);
 });

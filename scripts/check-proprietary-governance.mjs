@@ -176,11 +176,22 @@ if (assistedLog) {
     if (!Array.isArray(entry.externalSources)) {
       failures.push(`${prefix}: externalSources debe ser un arreglo explícito`);
     }
+    if (entry.adoption?.required !== true) {
+      failures.push(`${prefix}: la adopción humana debe ser obligatoria`);
+    }
     if (
-      entry.adoption?.required !== true ||
-      typeof entry.adoption?.status !== "string"
+      !new Set(["proposed", "adopted", "rejected"]).has(entry.adoption?.status)
     ) {
-      failures.push(`${prefix}: falta estado de adopción humana`);
+      failures.push(`${prefix}: estado de adopción humana no permitido`);
+    }
+    if (
+      entry.adoption?.adopter !== "Sergio Valle Zárate" ||
+      typeof entry.adoption?.evidence !== "string" ||
+      entry.adoption.evidence.trim().length === 0
+    ) {
+      failures.push(
+        `${prefix}: Sergio debe figurar como adoptante humano con evidencia no vacía`,
+      );
     }
     if (entry.aiCoAuthorTrailers !== false) {
       failures.push(`${prefix}: aiCoAuthorTrailers debe ser false`);
