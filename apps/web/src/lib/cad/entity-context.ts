@@ -1,21 +1,23 @@
 /**
- * Copia profunda del contexto de una entidad, en un módulo HOJA.
+ * Copia profunda del contexto de una entidad.
  *
- * Vivía en `entity-runtime.ts`, que la exporta desde su primera versión. El
- * problema no era el tamaño: era que cualquier módulo al que `entity-runtime`
- * importe —los adaptadores, y desde el esquema 4 también los atributos
- * posicionados— no puede pedirle un VALOR de vuelta sin cerrar un ciclo que
- * revienta al cargar con «Cannot access X before initialization», y que
- * `tsc --noEmit` no ve.
+ * Vivía dentro de `entity-runtime.ts` y se ha mudado aquí por la razón de
+ * siempre en este árbol: `entity-runtime` importa los adaptadores para
+ * registrarlos, así que un adaptador que le pida de vuelta un VALOR cierra un
+ * ciclo de carga. `tsc --noEmit` no ve esos ciclos —los tipos se borran al
+ * compilar y no cuentan— y el producto revienta al arrancar con «Cannot access X
+ * before initialization». Este módulo no importa nada en tiempo de ejecución, así
+ * que es una hoja del grafo y cualquiera puede depender de él.
  *
- * Aquí no hay ese riesgo: este archivo sólo importa TIPOS, que se borran al
- * compilar. `entity-runtime` lo reexporta, así que todo lo que ya lo importaba
- * de allí sigue igual.
+ * `entity-runtime.ts` lo reexporta, de modo que ningún consumidor cambia.
  */
 import type { CadEntityContext } from "./cad-document";
 
 /**
- * El ejecutor de comandos la necesita al copiar una entidad: sin ella, el
+ * Copia el contexto (color/tipo de línea/grosor explícitos, procedencia, vínculo
+ * de negocio) hasta el fondo.
+ *
+ * La necesita el ejecutor de comandos al copiar una entidad: sin ella, el
  * original y la copia compartirían el mismo objeto `presentation` y cambiar el
  * color de una cambiaría el de la otra.
  */

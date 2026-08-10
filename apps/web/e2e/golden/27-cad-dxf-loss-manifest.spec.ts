@@ -6,6 +6,11 @@ import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
 import type { CadDocument } from '../../src/lib/cad/cad-document';
 
+// El tipo no soportado de este golden era POINT. Dejó de serlo: el esquema 4 lo
+// importa como entidad de pleno derecho, así que el ejemplo pasa a 3DFACE, que
+// sigue fuera del subconjunto implementado. Lo que este golden protege no es
+// QUÉ tipo falta, sino que lo que falta se DECLARE en el manifiesto.
+
 const DXF_WITH_LOSS = `0
 SECTION
 2
@@ -33,7 +38,7 @@ CURVES
 51
 90
 0
-POINT
+3DFACE
 8
 UNSUPPORTED
 10
@@ -83,7 +88,7 @@ test('DXF import remains editable/exportable and persists an explicit loss manif
       buffer: Buffer.from(DXF_WITH_LOSS),
     });
     await expect(page.getByText(/1 entidades soportadas/)).toBeVisible();
-    await expect(page.getByText(/Entidad DXF no soportada: POINT/)).toBeVisible();
+    await expect(page.getByText(/Entidad DXF no soportada: 3DFACE/)).toBeVisible();
     await page.getByRole('button', { name: 'Convertir entidades soportadas' }).click();
     await expect(page.getByTestId('cad-native-properties')).toContainText('ARC');
   });
@@ -100,7 +105,7 @@ test('DXF import remains editable/exportable and persists an explicit loss manif
 
   await test.step('45. Verificar loss manifest', async () => {
     expect(backend.snapshot().document.lossManifest).toEqual(expect.arrayContaining([
-      expect.objectContaining({ code: 'dxf_import:unsupported_entity', sourceType: 'POINT', severity: 'warning' }),
+      expect.objectContaining({ code: 'dxf_import:unsupported_entity', sourceType: '3DFACE', severity: 'warning' }),
     ]));
     await page.getByTitle(/Paquete de entrega/).click();
     await expect(page.getByTestId('cad-sheet-package-manifest')).toContainText('dxf_import:unsupported_entity');

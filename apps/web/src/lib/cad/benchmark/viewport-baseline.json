@@ -1,0 +1,145 @@
+{
+  "$schema": "./viewport-baseline.schema.json",
+  "schemaVersion": 1,
+  "benchmarkId": "valle-design-cad-viewport-experience-v1",
+  "profiles": [
+    {
+      "id": "viewport-10k",
+      "entities": 10000,
+      "gate": {
+        "canonicalReadyMs": 4480,
+        "detailReadyMs": null,
+        "frameLatencyMs": 400,
+        "zoomReplanMs": null,
+        "zoomSettleMs": null,
+        "minDetailedFractionAtOpen": 1,
+        "minDetailedFractionAfterZoom": 0
+      },
+      "target": {
+        "canonicalReadyMs": 3000,
+        "detailReadyMs": null,
+        "frameLatencyMs": 33,
+        "zoomReplanMs": null,
+        "zoomSettleMs": null,
+        "minDetailedFractionAtOpen": 1,
+        "minDetailedFractionAfterZoom": 0
+      },
+      "targetBlockedBy": "Nadie: a 10k la fidelidad ya es 1,0 y sólo queda el tiempo de apertura.",
+      "calibration": {
+        "recordedAt": "2026-08-09T22:03:42Z",
+        "runs": 3,
+        "marginFactor": 1.6,
+        "environment": {
+          "playwrightProject": "chromium",
+          "mode": "E2E_PROD=1 (next start, mismo modo que CI)",
+          "platform": "linux",
+          "architecture": "x86_64",
+          "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+          "logicalCpuCount": 4,
+          "totalMemoryBytes": 16856068096,
+          "node": "v22.22.2",
+          "browser": "Chromium 141.0.7390.37 · ANGLE (SwiftShader, sin GPU)"
+        },
+        "observed": {
+          "canonicalReadyMs": [
+            2031,
+            2796,
+            2009
+          ],
+          "frameLatencyMs": [
+            17.7,
+            103.5,
+            17.4
+          ],
+          "detailedFractionAtOpen": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      },
+      "calibratedProjects": [
+        "chromium"
+      ]
+    },
+    {
+      "id": "viewport-100k",
+      "entities": 100000,
+      "gate": {
+        "canonicalReadyMs": 17200,
+        "detailReadyMs": 56700,
+        "frameLatencyMs": 400,
+        "zoomReplanMs": 35900,
+        "zoomSettleMs": 70500,
+        "minDetailedFractionAtOpen": 0.025,
+        "minDetailedFractionAfterZoom": 0.0366
+      },
+      "target": {
+        "canonicalReadyMs": 5000,
+        "detailReadyMs": 8000,
+        "frameLatencyMs": 33,
+        "zoomReplanMs": 150,
+        "zoomSettleMs": 1000,
+        "minDetailedFractionAtOpen": 1,
+        "minDetailedFractionAfterZoom": 1
+      },
+      "targetBlockedBy": "T1: enchufar lib/cad/render/ (pipeline por lotes y tiles) a Layout3DEditor.tsx. Mientras el editor use entity-three.ts, planCadNativeRenderBudget muestrea 2.500 de 100.000 y ni la fidelidad ni el zoom pueden alcanzar el objetivo.",
+      "calibration": {
+        "recordedAt": "2026-08-09T22:03:42Z",
+        "runs": 3,
+        "marginFactor": 1.6,
+        "environment": {
+          "playwrightProject": "chromium",
+          "mode": "E2E_PROD=1 (next start, mismo modo que CI)",
+          "platform": "linux",
+          "architecture": "x86_64",
+          "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+          "logicalCpuCount": 4,
+          "totalMemoryBytes": 16856068096,
+          "node": "v22.22.2",
+          "browser": "Chromium 141.0.7390.37 · ANGLE (SwiftShader, sin GPU)"
+        },
+        "observed": {
+          "canonicalReadyMs": [
+            9473,
+            10730,
+            9992
+          ],
+          "detailReadyMs": [
+            34719,
+            30163,
+            35387
+          ],
+          "frameLatencyMs": [
+            50,
+            44,
+            69.6
+          ],
+          "zoomReplanMs": [
+            22436,
+            18122,
+            17837
+          ],
+          "zoomSettleMs": [
+            39640,
+            44029,
+            31762
+          ],
+          "detailedFractionAtOpen": [
+            0.025,
+            0.025,
+            0.025
+          ],
+          "detailedFractionAfterZoom": [
+            0.0366568914956,
+            0.0366568914956,
+            0.0366568914956
+          ]
+        }
+      },
+      "calibratedProjects": [
+        "chromium"
+      ]
+    }
+  ]
+}

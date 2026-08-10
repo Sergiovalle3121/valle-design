@@ -146,6 +146,12 @@ function importDxfDocument(content: string): DocumentImportReport {
     // dibujo del fichero de origen. Ordenarlo por id descartaba esa fidelidad.
     modelSpace: { entityIds: entities.map((entity) => entity.id) },
     blocks: blockParts.blocks,
+    // Catálogo de imágenes: sin él, las entidades IMAGE importadas apuntarían
+    // a una definición que no existe y el documento quedaría roto en el mismo
+    // acto de importarlo. Sección OPCIONAL: sólo se escribe si hay imágenes.
+    ...(imported.imageDefinitions.length
+      ? { imageDefinitions: imported.imageDefinitions }
+      : {}),
     lossManifest,
   });
   return {

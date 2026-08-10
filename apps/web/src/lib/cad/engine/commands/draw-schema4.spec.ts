@@ -373,7 +373,10 @@ const near = (actual: number, expected: number, what: string, epsilon = 1e-6) =>
   for (const type of ["point", "xline", "ray", "solid", "wipeout", "image", "attdef", "table", "spline", "polyline"])
     assert.ok((byType.get(type) ?? 0) > 0, `${type} debía sobrevivir a guardar y reabrir`);
   assert.equal(reopened.imageDefinitions?.length, 1, "y la definición de imagen también");
-  assert.equal(reopened.meta.schema, 4);
+  // El esquema vigente es el 5 desde la ola de sólidos. La migración es
+  // aditiva: un documento escrito como v4 se reabre como v5 sin perder un campo,
+  // y lo único que cambia es este número.
+  assert.equal(reopened.meta.schema, 5);
   // Un paso de historia por ORDEN, no por entidad: trece órdenes, trece pasos.
   assert.equal(reopened.history.length, 13, "la frontera de deshacer es el comando");
   // El wipeout está por encima de lo que se dibujó antes que él; la imagen, por
