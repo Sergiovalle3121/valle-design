@@ -18,10 +18,25 @@ on:
     branches: [main]
   push:
     branches: [main]
+  # Alarma sobre `main` aunque nadie empuje: un fallo intermitente que sólo
+  # aparece 1 de cada N corridas no se ve en una foto, se ve en la serie.
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # SÓLO se cancelan las corridas de PR, donde el push siguiente sustituye al
+  # anterior sobre el MISMO código propuesto.
+  #
+  # En `main` cancelar era activamente dañino y es la razón de que este repo
+  # se quedara rojo sin que nadie lo viera: todos los merges comparten el ref
+  # `refs/heads/main`, así que cada fusión mataba la corrida de la fusión
+  # anterior. En la serie del 9 de agosto, CINCO commits consecutivos de `main`
+  # (792c0603, 99e867d3, 9abe5287, ccffc17c, bfbd26b9) terminaron en
+  # «cancelled»: nunca hubo veredicto sobre ellos. Cada commit de `main`
+  # merece el suyo, aunque llegue tarde.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   quality-gates:
@@ -271,12 +286,22 @@ jobs:
         # llvmpipe por GLX/EGL-X11. Chromium no se ve afectado.
         run: xvfb-run -a --server-args="-screen 0 1920x1080x24" npx playwright test
 
+      # `include-hidden-files` NO es cosmético: sin él este paso nunca subió
+      # nada. `.report` y `.test-results` empiezan por punto, y
+      # upload-artifact@v4 excluye los ocultos por defecto, así que las tres
+      # corridas rojas de `main` del 9 de agosto avisaron
+      # «No files were found with the provided path: apps/web/e2e/.report».
+      # El informe y las trazas —lo único que explica un fallo intermitente—
+      # se descartaban justo cuando hacían falta.
       - name: Upload Playwright report
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-${{ github.sha }}
-          path: apps/web/e2e/.report
+          path: |
+            apps/web/e2e/.report
+            apps/web/e2e/.test-results
+          include-hidden-files: true
           retention-days: 14
 
       - name: API log (diagnóstico)
