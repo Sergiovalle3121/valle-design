@@ -179,7 +179,11 @@ async function assertViewportExperience(
 
 test.describe('CAD viewport performance · 10k/100k', () => {
   test.skip(process.env.CAD_PERF_E2E !== '1', 'Run explicitly with CAD_PERF_E2E=1.');
-  test.setTimeout(180_000);
+  // 20 minutos de techo para el proceso, no de presupuesto: el caso de 100.000
+  // dibuja ahora TODAS las entidades sobre un rasterizador por software. Quien
+  // juzga si el viewport cumple es `viewport-baseline.json`, y ése sí es un
+  // presupuesto y sí bloquea.
+  test.setTimeout(1_200_000);
 
   test('opens and measures the 10k reference corpus', async ({ context, page }, testInfo) => {
     await installMockBackend(context);
@@ -252,7 +256,12 @@ test.describe('CAD viewport performance · 10k/100k', () => {
     const stats = page.getByTestId('cad-native-render-stats');
     await expect(stats).toHaveAttribute('data-total', String(LARGE_ENTITY_COUNT), { timeout: 120_000 });
     const canonicalReadyMs = Date.now() - startedAt;
-    await expect(stats).toHaveAttribute('data-batching', 'false', { timeout: 60_000 });
+    // 600 s, y no es una holgura: con el pipeline por lotes encendido «detalle
+    // listo» significa las 100.000 DIBUJADAS, no 2.500 muestreadas. Sobre WebGL
+    // por software eso son minutos. El plazo que juzga NO es este `timeout` —es
+    // el presupuesto versionado de `viewport-baseline.json`—; esto sólo evita
+    // que Playwright corte la medición antes de poder tomarla.
+    await expect(stats).toHaveAttribute('data-batching', 'false', { timeout: 600_000 });
     const detailReadyMs = Date.now() - startedAt;
     const initialVisible = Number(await stats.getAttribute('data-visible'));
     const initialRendered = Number(await stats.getAttribute('data-rendered'));
@@ -273,7 +282,11 @@ test.describe('CAD viewport performance · 10k/100k', () => {
     // «El viewport me ha oído»: el índice espacial ya recortó el conjunto
     // candidato. Se cronometra APARTE de lo que sigue.
     const zoomReplanMs = Date.now() - zoomStartedAt;
-    await expect(stats).toHaveAttribute('data-batching', 'false', { timeout: 30_000 });
+    // Mismo motivo, y una consecuencia más: al cambiar de escalón de LOD el
+    // pipeline LIBERA los tiles residentes y los reconstruye con el detalle
+    // nuevo, así que acercarse vuelve a teselar las ~68.000 que quedan a la
+    // vista y con más segmentos cada una. Es más trabajo que la carga inicial.
+    await expect(stats).toHaveAttribute('data-batching', 'false', { timeout: 600_000 });
     // «Ya puedo trabajar»: el dibujo terminó de rehacerse.
     const zoomSettleMs = Date.now() - zoomStartedAt;
     const zoomVisible = Number(await stats.getAttribute('data-visible'));
