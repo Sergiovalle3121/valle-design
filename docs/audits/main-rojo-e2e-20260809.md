@@ -284,3 +284,61 @@ Queda para esa sesión la recomendación de fondo, que sigue en pie: el sitio
 natural de una comparación de coste por cuadro es
 `scripts/cad-render-benchmark.mts`, que corre en condiciones controladas y ya
 tiene puerta propia (`benchmark:cad:smoke`), más la medida de navegador de #73.
+**Recomendación para el dueño de #62/#73**: llevar allí la comparación de
+coste por cuadro, donde el número significa algo.
+
+Medido tras el cambio: **0/8 fallos sin carga y 0/7 con los cuatro núcleos
+saturados**, donde el original caía 6/12 en esas mismas condiciones.
+
+## 13. El E2E de `main` NO es sólo un runner lento — hay al menos una rotura real
+
+En el §11 se atribuyeron a un runner degradado las 12 caídas de `e41f12d`. **Esa
+lectura era incompleta y aquí se corrige.** La corrida `31361876031` repitió el
+patrón —11 caídas en 54,6 min, casi el mismo conjunto de specs— y al mirar los
+mensajes aparecen dos familias distintas:
+
+**Familia A — la edición no se aplica.** El valor recibido es el ORIGINAL, no
+uno corrupto:
+
+| Spec | Esperado | Recibido |
+| --- | --- | --- |
+| golden 15 · `cad-native-property-text` | «Instrucción editada» | «Instrucción de proceso» |
+| golden 16 · `cad-native-property-measurement` | 260 | 200 |
+
+Los dos pasan por `applyNativeProperty`, que era **el único de los cuatro
+helpers sin ventana de quietud**: el campo sostiene lo tecleado un instante y
+vuelve solo a su valor anterior cuando el panel se recompone desde el
+documento. Cerrado en este PR.
+
+**Familia B — `19-cad-professional-workbench` está ROTO, y no es intermitente.**
+Se reproduce en local, aislado, con y sin los cambios de este PR: agota los
+180 s del test. La traza sitúa el cuelgue con precisión — tras entrar en el
+perfil `cad-workspace-profile-presentation` y comprobar que los docks se
+ocultan, el spec pide la caja de `cad-canvas`:
+
+```
+internal:testid=[data-testid="cad-canvas"]  { state: 'attached', timeout: 0 }
+```
+
+`timeout: 0` es espera **sin límite**. Si en el perfil de presentación el canvas
+no está montado, ahí se queda hasta que el test entero caduca.
+
+**Esto no es del reparto de esta sesión.** El perfil de presentación es del área
+de presentaciones/ventanas (#71). Hay dos preguntas que sólo su dueño puede
+responder: si el canvas DEBE desaparecer en ese perfil —y entonces lo que sobra
+es la medición del spec— o si desaparecer es el defecto. Se deja documentado con
+la traza señalando la línea, en vez de adivinar.
+
+Queda además una observación de método: el resto de caídas de esa corrida
+todavía puede ser mezcla de ambas familias más lentitud real. Con el artefacto
+de Playwright ya subiéndose (§8) y el arnés de specs enseñando por fin el
+mensaje (§14), la próxima persona no tendrá que reconstruir nada.
+
+## 14. `run-specs.mjs` enseñaba el final del error en vez del principio
+
+`.slice(-15)` sobre el detalle del fallo. En un `AssertionError` de Node el
+mensaje es la PRIMERA línea y la cola son frames de `node:internal` más un
+volcado «actual: false, expected: true» que no dice de qué. Las cuatro caídas de
+`render-benchmark.spec.ts` en CI fueron ilegibles por esto, y el diagnóstico
+hubo que reconstruirlo midiendo en local cada vez. Ahora se enseñan cabeza y
+cola, con las de en medio contadas.
