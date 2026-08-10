@@ -93,142 +93,55 @@ assert.ok(
 assert.equal(legacy.framesToFirstDetail, 1, "el camino anterior lo hacía todo de una vez");
 ok(true, `el pipeline nuevo asienta la vista inicial en ${next.framesToFirstDetail} cuadros; el anterior en 1`);
 
-// Un cuadro del paneo del pipeline nuevo es MUY más barato que una
-// reconstrucción del anterior. Es la diferencia entre responder y bloquear.
+// LA COMPARACIÓN DE RELOJ DE PARED SE HA IDO DE AQUÍ. No se ha ablandado: se
+// ha mudado a donde se puede medir.
 //
-// POR QUÉ ESTO SE DECIDE POR MAYORÍA DE PASEOS EMPAREJADOS Y NO POR UNA
-// MEDIDA SUELTA. Una sola muestra de reloj de pared no comparaba los dos
-// pipelines: comparaba al runner consigo mismo.
+// #65 dejó este bloque como mayoría de cinco paseos emparejados y declaró su
+// residuo con honestidad: **con los cuatro núcleos saturados seguía cayendo 5
+// de 12**. Y escribió cuál era el arreglo durable y de quién: sacar la
+// comparación temporal a `scripts/cad-render-benchmark.mts`, que corre en
+// condiciones controladas con su propia puerta, «y eso toca render-benchmark.ts
+// y es del dueño de #62». Esto lo cierra.
 //
-// El ruido de planificación es ABSOLUTO —una pausa de GC o un desalojo cuestan
-// los mismos milisegundos a los dos caminos— pero el coste real no lo es: el
-// nuevo ronda los 5-7 ms por cuadro y el anterior los 9. Un hipo de 5 ms
-// apenas mueve al anterior y DUPLICA al nuevo, así que el veredicto se lo
-// llevaba quien tuviera mala suerte. Y encima el «p95» se calcula sobre los
-// ~8 cuadros de las ocho paradas: con esa muestra un percentil 95 ES el
-// máximo, o sea el estadístico más sensible al ruido que existe.
+// El diagnóstico de #65, que sigue siendo correcto y por eso se conserva
+// escrito: el ruido de planificación es ABSOLUTO —una pausa de GC cuesta los
+// mismos milisegundos a los dos caminos— pero el coste real no lo es. El nuevo
+// ronda 5-7 ms por cuadro y el anterior 9, así que un hipo de 5 ms apenas mueve
+// al anterior y DUPLICA al nuevo. Y el «p95» sobre ~8 cuadros ES el máximo, el
+// estadístico más sensible al ruido que existe. Ninguna estadística arregla eso
+// dentro de `run-specs.mjs`, que encadena 260 specs y nunca deja la máquina
+// tranquila.
 //
-// Medido en local sobre `main`: 2 de cada 10 corridas invertían el signo
-// —«nuevo 15.589 ms frente a 9.35 ms»— sin que nada hubiera cambiado. Así cayó
-// `test:specs` en CI sobre una rama que sólo tocaba Markdown y el workflow.
+// Dónde vive ahora, y por qué ahí sí: `npm run benchmark:cad:render` es un paso
+// propio de CI, en serie y en su propio proceso, que juzga contra los
+// presupuestos ABSOLUTOS versionados de `benchmark/render-baseline.json` —con
+// margen ×2,5 sobre la peor corrida de calibración y suelos por métrica— y
+// publica la mediana de varias corridas. Medido: 0 fallos de 12 sin carga y 0
+// de 12 con los cuatro núcleos saturados.
 //
-// La cura es emparejar y repetir. Cada ronda mide los DOS caminos seguidos,
-// sobre el mismo guion de ocho paradas —el escenario no se toca, no se ablanda
-// el paseo—, y anota quién ganó. Se exige que el pipeline nuevo gane la MAYORÍA
-// de las rondas. El ruido golpea rondas sueltas de forma independiente, así que
-// tolerar dos derrotas de cinco absorbe los hipos sin necesidad de que ninguna
-// ronda salga perfecta.
+// La ADENDA que `main` añadió mientras esto se escribía es la pieza que faltaba,
+// y va aquí porque su medida sobrevive aunque su cura se retire. Midiendo los
+// dos caminos JUNTOS en cada ronda, sobre una máquina con contención:
 //
-// Y NO puede tapar una regresión. Lo que se repite es la MEDIDA, nunca la
-// aserción: si el pipeline nuevo se volviera de verdad más caro que el
-// anterior, perdería sistemáticamente y la mayoría no se alcanzaría. Lo único
-// que este recuento elimina es que una hipo del runner dicte el veredicto.
-const TIMING_ROUNDS = 5;
-
-/**
- * ADENDA. El razonamiento de arriba es correcto y su cura se queda corta: el
- * recuento por rondas SIGUE siendo un lanzamiento de moneda cuando la ventaja
- * real es cero, y con una máquina cargada lo es.
- *
- * Este spec nunca había llegado a ejecutarse en CI —el job moría antes, en
- * «Lint web», por falta de memoria de ESLint—, así que la primera vez que
- * corrió de verdad falló. Medido aquí con el pipeline nuevo y el anterior
- * JUNTOS en cada ronda, sobre una máquina con contención:
- *
- *   nuevo/anterior:  10.368/10.229   8.933/8.571   9.795/8.191   5.735/7.915   8.023/8.124
- *
- * Los dos caminos miden LO MISMO dentro del ruido. Y si la diferencia real es
- * ~0, ninguna regla de recuento la salva: pedir 3 victorias de 5 es pedir tres
- * caras de cinco, que sale la mitad de las veces. Más rondas no arreglan una
- * moneda; sólo la lanzan más veces.
- *
- * El veredicto pasa a la MEDIANA de las rondas emparejadas, que es el
- * estadístico que el propio comentario de arriba echaba en falta cuando
- * explicaba por qué un p95 sobre ocho cuadros es el máximo disfrazado. Lo que
- * se exige es que la mediana del pipeline nuevo no sea PEOR que la del anterior
- * más un margen: un pipeline que de verdad se hubiera encarecido pierde por
- * goleada y esto lo caza; un empate dentro del ruido deja de dictar veredicto.
- *
- * El recuento de victorias se sigue midiendo y se sigue imprimiendo, porque es
- * la información que enseña la ventaja donde existe. Lo que ya no hace es
- * decidir si el gate pasa.
- */
-function median(values: number[]): number {
-  const sorted = [...values].sort((a, b) => a - b);
-  const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
-}
-
-let p95Wins = 0;
-let maxWins = 0;
-const scoreboard: string[] = [];
-const nextP95: number[] = [];
-const legacyP95: number[] = [];
-const nextMax: number[] = [];
-const legacyMax: number[] = [];
-for (let round = 0; round < TIMING_ROUNDS; round += 1) {
-  const n = round === 0
-    ? next
-    : measureCadNextPipeline(corpus.nativeEntities, corpus.document.modelSpace.entityIds, scenario);
-  const l = round === 0 ? legacy : measureCadLegacyPipeline(corpus.nativeEntities, scenario);
-  if (n.panFrameP95Ms < l.panFrameP95Ms) p95Wins += 1;
-  if (n.panFrameMaxMs < l.panFrameMaxMs) maxWins += 1;
-  nextP95.push(n.panFrameP95Ms);
-  legacyP95.push(l.panFrameP95Ms);
-  nextMax.push(n.panFrameMaxMs);
-  legacyMax.push(l.panFrameMaxMs);
-  scoreboard.push(`${n.panFrameP95Ms}/${l.panFrameP95Ms}`);
-}
-
-const nextP95Median = median(nextP95);
-const legacyP95Median = median(legacyP95);
-const nextMaxMedian = median(nextMax);
-const legacyMaxMedian = median(legacyMax);
-
-/**
- * SEGUNDA ADENDA, Y AQUÍ SE ACABA LA ESCALADA ESTADÍSTICA.
- *
- * Tres reglas sucesivas han intentado que una comparación de reloj de pared
- * dictamine en un spec unitario, y las tres han caído en CI:
- *
- *   1. muestra única                  → cayó (#65 lo diagnosticó)
- *   2. mayoría de 5 paseos emparejados → cayó (#68 lo midió)
- *   3. mediana con un 25 % de margen   → cayó aquí, en la corrida de este PR
- *
- * La adenda anterior ya trae el dato que cierra el asunto: medidos JUNTOS en
- * cada ronda sobre una máquina con contención, los dos caminos dan
- * 10.368/10.229, 8.933/8.571, 9.795/8.191, 5.735/7.915, 8.023/8.124. La ventaja
- * real es CERO dentro del ruido, y sobre una ventaja de cero ninguna regla
- * —recuento, mediana o margen— produce un veredicto: produce una moneda con más
- * pasos. Subir el margen hasta que deje de caer sería peor que quitarlo, porque
- * pasaría a llamarse «gate» algo que ya no puede fallar.
- *
- * Así que la medida se queda y la ASERCIÓN se va, que es exactamente lo que
- * `docs/audits/main-rojo-e2e-20260809.md` §6 prescribe como arreglo durable:
- * «sacar la comparación temporal de un spec unitario … en el spec quedarían
- * sólo las afirmaciones deterministas, que son las que de verdad fijan el
- * contrato».
- *
- * LO QUE CI DEJA DE VIGILAR, dicho sin rodeos: que un cuadro de paneo del
- * pipeline nuevo no se encarezca respecto al anterior. Esa comparación sigue
- * existiendo y se sigue IMPRIMIENDO en cada corrida —las cifras están abajo—,
- * y en condiciones controladas la mide `npm run benchmark:cad:render`, que es
- * donde una medida de tiempo puede significar algo.
- *
- * LO QUE SIGUE SIENDO GATE, y es lo que fija el contrato del pipeline: 25.000
- * entidades detalladas frente al techo de 10.000 del camino anterior, el
- * troceado en cuadros de la vista inicial, y la prueba de fuga. Ninguna de esas
- * depende del reloj.
- *
- * Esto toca un spec de `lib/cad/render/`, del que esta sesión es CONSUMIDORA.
- * Se hace igual porque bloquea la fusión por segunda vez y el cambio es
- * acotado —ni una línea de `render-benchmark.ts` ni de producto—, con el mismo
- * criterio con el que #65 lo tocó antes, y queda dicho en el PR.
- */
-ok(
-  true,
-  `paneo: mediana del p95 nuevo ${nextP95Median} ms frente a anterior ${legacyP95Median} ms; peor cuadro ${nextMaxMedian} frente a ${legacyMaxMedian}; el nuevo gana el p95 en ${p95Wins}/${TIMING_ROUNDS} paseos y el peor cuadro en ${maxWins}/${TIMING_ROUNDS} — TODO INFORMATIVO, ninguna de estas cifras decide el gate (por ronda: ${scoreboard.join(", ")})`,
-);
+//   nuevo/anterior:  10.368/10.229   8.933/8.571   9.795/8.191   5.735/7.915   8.023/8.124
+//
+// Los dos caminos miden LO MISMO dentro del ruido. Ésa es la conclusión que
+// decide, y es más fuerte que cualquier estadístico: si la ventaja real es ~0,
+// ninguna regla de recuento la salva —pedir tres victorias de cinco es pedir
+// tres caras de cinco— y la mediana emparejada tampoco, porque con tolerancia
+// ×1,25 sobre un empate lo que queda no es un gate sino un margen. Más rondas
+// no arreglan una moneda; sólo la lanzan más veces, y aquí cuestan diez medidas
+// de 25.000 entidades dentro del runner que encadena 260 specs.
+//
+// Un gate RELATIVO entre dos caminos que empatan no tiene señal que dar. El
+// gate que sí la tiene es ABSOLUTO —cada camino contra su presupuesto
+// versionado— y por eso vive en `benchmark:cad:render` y no aquí.
+//
+// Lo que se queda en este archivo es lo que NO puede parpadear: recuentos de
+// entidades. «En reposo, detalladas == visibles» y «con el dibujo entero a la
+// vista el anterior se queda en su techo» no dependen del reloj ni de la carga,
+// y son las que cazan el regreso del muestreo — que es lo que este pipeline
+// vino a arreglar.
 
 // ---------------------------------------------------------------------------
 // PRUEBA DE FUGA: tres ciclos completos de abrir, panear, hacer zoom y cerrar.
@@ -255,5 +168,5 @@ ok(
 );
 
 console.log(
-  `render-benchmark: ${checks} comprobaciones verdes — a ${ENTITIES} entidades con el dibujo entero a la vista el pipeline nuevo detalla ${fullNext.detailedAtRest} y el anterior ${fullLegacy.detailedAtRest}; el pipeline nuevo gana el p95 por cuadro al panear en ${p95Wins} de ${TIMING_ROUNDS} paseos emparejados; el montón crece ${leak.heapGrowthMb} MiB en tres ciclos. MEDIDA DE CPU EN NODE, no de cuadros de navegador ni de GPU.`,
+  `render-benchmark: ${checks} comprobaciones verdes — a ${ENTITIES} entidades con el dibujo entero a la vista el pipeline nuevo detalla ${fullNext.detailedAtRest} y el anterior ${fullLegacy.detailedAtRest}; los tiempos por cuadro los juzga benchmark:cad:render en su propio paso de CI; el montón crece ${leak.heapGrowthMb} MiB en tres ciclos. MEDIDA DE CPU EN NODE, no de cuadros de navegador ni de GPU.`,
 );
