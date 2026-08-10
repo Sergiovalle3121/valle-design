@@ -42,8 +42,10 @@ import type {
   CadBlockDefinition,
   CadDocument,
   CadEntity,
+  CadLayerDef,
   CadStyleTable,
 } from "../cad-document";
+import { cadEmptyLayerDeleteCommand } from "../cad-symbol-tables";
 import type { CadEntityCommand, CadStyleFamilyName } from "../entity-commands";
 
 /**
@@ -194,11 +196,25 @@ export function cadPurgePreview(
  * El orden ENTRE bloques da igual: la tabla no cuenta como «en uso» lo que el
  * mismo lote va a borrar, así que un árbol entero de bloques huérfanos se va de
  * una pieza sin que quien llama tenga que ordenarlo de contenedor a contenido.
+ *
+ * `layers` es la tabla de capas del documento, y sólo sirve para elegir el
+ * destino de reasignación que la orden `layer` exige. Es opcional porque a un
+ * purgado que no propone ninguna capa no le hace falta.
  */
-export function cadPurgeCommands(candidates: readonly CadPurgeCandidate[]): CadEntityCommand[] {
+export function cadPurgeCommands(
+  candidates: readonly CadPurgeCandidate[],
+  layerTable: readonly CadLayerDef[] = [],
+): CadEntityCommand[] {
   const styles = candidates.filter((candidate) => candidate.kind === "style");
   const layers = candidates.filter((candidate) => candidate.kind === "layer");
   const blockCandidates = candidates.filter((candidate) => candidate.kind === "block");
+  // El destino se elige entre las capas que SOBREVIVEN al purgado: ofrecer como
+  // destino otra capa que este mismo lote va a borrar sería elegir un sitio que
+  // no va a existir.
+  const purgedNames = new Set(layers.map((candidate) => candidate.label.trim().toLocaleLowerCase()));
+  const remainingLayers = layerTable.filter(
+    (layer) => !purgedNames.has(layer.name.trim().toLocaleLowerCase()),
+  );
   return [
     ...styles.map((candidate): CadEntityCommand => ({
       type: "style",
@@ -206,11 +222,11 @@ export function cadPurgeCommands(candidates: readonly CadPurgeCandidate[]): CadE
       family: candidate.family!,
       name: candidate.label,
     })),
-    ...layers.map((candidate): CadEntityCommand => ({
-      type: "layer",
-      op: "delete",
-      layerId: candidate.id,
-    })),
+    // Una capa sólo es candidata si está VACÍA —el análisis mira también la
+    // geometría de dentro de los bloques—, así que la reasignación que exige
+    // la orden `layer` no mueve una sola entidad.
+    ...layers.map((candidate): CadEntityCommand =>
+      cadEmptyLayerDeleteCommand(remainingLayers, candidate.label)),
     ...blockCandidates.map((candidate): CadEntityCommand => ({
       type: "block",
       op: "delete",

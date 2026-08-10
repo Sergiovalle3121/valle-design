@@ -1,5 +1,5 @@
 /**
- * Las tablas del documento por la ruta canónica de mutación.
+ * Las tablas de símbolos por la ruta canónica de mutación.
  *
  * Lo que se afirma aquí no es que las funciones "funcionen": es que definir un
  * bloque, borrar la geometría que sustituye y crear su INSERT sean UNA
@@ -9,7 +9,7 @@
  */
 import assert from "node:assert/strict";
 import { migrateCadDocument, type CadDocument } from "./cad-document";
-import { applyCadDocumentTables } from "./cad-document-tables";
+import { applyCadSymbolTables } from "./cad-symbol-tables";
 import { executeCadEntityCommandBatch } from "./entity-commands";
 import type { CadNativeEntity } from "./entity-runtime";
 
@@ -197,10 +197,14 @@ const ok = (condition: boolean, message: string) => {
   checks += 1;
 }
 
-// --- 5. Capas: no se borra una capa ocupada ---------------------------------
+// --- 5. Las dos tablas conviven en UN lote ---------------------------------
+// Las capas las escribe `entity-command-tables.ts` y los bloques este módulo.
+// Que sean dos aplicadores es un detalle interno: para quien teclea la orden
+// tiene que seguir siendo UNA transacción, y ninguno de los dos puede pisar la
+// tabla del otro al construir el documento.
 {
   const document = baseDocument();
-  const withLayer = executeCadEntityCommandBatch(
+  const both = executeCadEntityCommandBatch(
     document,
     [
       {
@@ -208,30 +212,26 @@ const ok = (condition: boolean, message: string) => {
         op: "upsert",
         layer: { id: "MUROS", name: "MUROS", color: "#ff0000", visible: true, locked: false },
       },
+      {
+        type: "block",
+        op: "define",
+        definition: {
+          id: "puerta",
+          name: "PUERTA",
+          basePoint: { x: 0, y: 0, z: 0 },
+          entities: [line("puerta:entity:0", 0)],
+        },
+      },
     ],
-    "LAYER",
+    "BLOCK",
   ).document;
-  assert.equal(withLayer.layers.length, document.layers.length + 1, "la capa se creó");
-  checks += 1;
-  const occupied = executeCadEntityCommandBatch(
-    withLayer,
-    [{ type: "properties", entityId: "line-a", patch: { layer: "MUROS" } }],
-    "PROPERTIES",
-  ).document;
-  assert.throws(
-    () =>
-      executeCadEntityCommandBatch(
-        occupied,
-        [{ type: "layer", op: "delete", layerId: "MUROS" }],
-        "PURGE",
-      ),
-    /still has entities/,
-    "purgar una capa ocupada perdería geometría",
-  );
-  checks += 1;
+  assert.equal(both.meta.version, document.meta.version + 1, "UN paso de deshacer para las dos");
+  assert.ok(both.layers.some((layer) => layer.id === "MUROS"), "la capa entró");
+  assert.ok(both.blocks.some((block) => block.id === "puerta"), "y el bloque también");
+  checks += 3;
 }
 
-// --- 6. Un lote que no toca capas NO reordena la tabla de capas -------------
+// --- 6. Un lote que no toca una tabla la devuelve TAL CUAL ------------------
 {
   const document = migrateCadDocument({
     meta: { version: 1, schema: 4, unit: "mm" },
@@ -242,7 +242,7 @@ const ok = (condition: boolean, message: string) => {
     entities: [line("line-a", 0)],
   });
   const order = document.layers.map((layer) => layer.id);
-  const tables = applyCadDocumentTables(
+  const defined = executeCadEntityCommandBatch(
     document,
     [
       {
@@ -256,10 +256,22 @@ const ok = (condition: boolean, message: string) => {
         },
       },
     ],
-    document.entities,
+    "BLOCK",
+  ).document;
+  assert.deepEqual(
+    defined.layers.map((layer) => layer.id),
+    order,
+    "definir un bloque no reordena la tabla de CAPAS: cambiaría el serializado —y el hash— sin que nadie lo pida",
   );
-  assert.deepEqual(tables.layers.map((layer) => layer.id), order, "las capas se devuelven tal cual");
-  assert.equal(tables.layers, document.layers, "y es el MISMO array: no se copia lo que no se toca");
+  checks += 1;
+
+  const tables = applyCadSymbolTables(document, [], document.entities);
+  assert.equal(tables.blocks, document.blocks, "un lote sin órdenes devuelve el MISMO array de bloques");
+  assert.equal(
+    tables.externalReferences,
+    document.externalReferences,
+    "y el mismo de referencias: no se copia lo que no se toca",
+  );
   checks += 2;
 }
 

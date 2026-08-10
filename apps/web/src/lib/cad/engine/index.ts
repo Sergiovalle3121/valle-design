@@ -30,7 +30,15 @@ import { CAD_DRAW_POINT_COMMANDS } from "./commands/draw-points";
 import { CAD_DRAW_RECTANG_COMMANDS } from "./commands/draw-rectang";
 import { CAD_DRAW_RING_COMMANDS } from "./commands/draw-rings";
 import { CAD_DRAW_SPLINE_COMMANDS } from "./commands/draw-spline";
+import { CAD_INQUIRY_LIST_COMMANDS } from "./commands/inquiry-list";
+import { CAD_INQUIRY_MEASURE_COMMANDS } from "./commands/inquiry-measure";
+import { CAD_REGION_COMMANDS } from "./commands/inquiry-region";
+import { CAD_AUTOMATION_COMMANDS } from "./commands/automation-script";
 import { CAD_MODIFY_ALIGN_COMMANDS } from "./commands/modify-align";
+import { CAD_MODIFY_CLEANUP_COMMANDS } from "./commands/modify-cleanup";
+import { CAD_SELECT_QUERY_COMMANDS } from "./commands/select-query";
+import { CAD_SETTINGS_PALETTE_COMMANDS } from "./commands/settings-palettes";
+import { CAD_SETTINGS_VARIABLE_COMMANDS } from "./commands/settings-variables";
 import { CAD_MODIFY_ARRAY_COMMANDS } from "./commands/modify-array";
 import { CAD_MODIFY_BASIC_COMMANDS } from "./commands/modify-basics";
 import { CAD_MODIFY_JOIN_COMMANDS } from "./commands/modify-join";
@@ -86,6 +94,14 @@ export const CAD_COMMAND_DESCRIPTORS = [
   ...CAD_MODIFY_PEDIT_COMMANDS,
   ...CAD_PARAMETRIC_GEOMETRY_COMMANDS,
   ...CAD_PARAMETRIC_DIMENSION_COMMANDS,
+  ...CAD_INQUIRY_MEASURE_COMMANDS,
+  ...CAD_INQUIRY_LIST_COMMANDS,
+  ...CAD_REGION_COMMANDS,
+  ...CAD_SELECT_QUERY_COMMANDS,
+  ...CAD_MODIFY_CLEANUP_COMMANDS,
+  ...CAD_SETTINGS_VARIABLE_COMMANDS,
+  ...CAD_SETTINGS_PALETTE_COMMANDS,
+  ...CAD_AUTOMATION_COMMANDS,
   ...CAD_VIEW_NAVIGATION_COMMANDS,
   ...CAD_LAYOUT_COMMANDS,
   ...CAD_PLOT_COMMANDS,

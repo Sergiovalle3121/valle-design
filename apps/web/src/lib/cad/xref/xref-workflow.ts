@@ -35,6 +35,7 @@ import type {
   CadPoint3,
 } from "../cad-document";
 import type { CadEntityCommand } from "../entity-commands";
+import { cadEmptyLayerDeleteCommand } from "../cad-symbol-tables";
 import type { CadNativeEntity } from "../entity-runtime";
 import { resolveCadInsert } from "../professional-blocks";
 import { analyzeCadXrefGraph } from "./xref-graph";
@@ -209,9 +210,13 @@ function withoutProjection(
   if (document.entities.some((entity) => entity.id === rootInsert))
     commands.push({ type: "delete", entityId: rootInsert });
   commands.push(...ordered.map((block): CadEntityCommand => ({ type: "block", op: "delete", blockId: block.id })));
-  const layerId = cadXrefLayer(reference.id, reference.name).id;
-  if (!options.keepLayer && document.layers.some((layer) => layer.id === layerId))
-    commands.push({ type: "layer", op: "delete", layerId });
+  const xrefLayer = cadXrefLayer(reference.id, reference.name);
+  // La geometría del xref vive DENTRO de su bloque y el INSERT que la sostiene
+  // se borra en este mismo lote, así que la capa queda vacía y no hay nada que
+  // reasignar. El destino lo elige el ayudante contra la tabla real: aquí la
+  // del xref suele ser la única capa del documento.
+  if (!options.keepLayer && document.layers.some((layer) => layer.id === xrefLayer.id))
+    commands.push(cadEmptyLayerDeleteCommand(document.layers, xrefLayer.name));
   return commands;
 }
 

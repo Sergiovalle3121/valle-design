@@ -11,7 +11,11 @@
  */
 import type { CadDocument, CadEntity } from "@/lib/cad/cad-document";
 import { cadExpandSelectionByGroup } from "@/lib/cad/blocks/cad-groups";
-import type { CadCommandContext } from "@/lib/cad/engine/command-types";
+import type {
+  CadCommandContext,
+  CadSessionCatalogs,
+} from "@/lib/cad/engine/command-types";
+import type { CadVariableAccess } from "@/lib/cad/system-variables";
 import { cadDocumentExtents } from "@/lib/cad/view/document-extents";
 import type { CadView } from "@/lib/cad/view/cad-view";
 
@@ -35,6 +39,14 @@ export interface CadStudioCommandInputs {
   cursor: { x: number; y: number } | null;
   newEntityId: () => string;
   /**
+   * Variables de sistema de la sesión. Opcional para no romper a quien ya
+   * llamaba a esta función con cinco campos; cuando falta, los comandos usan
+   * los valores de fábrica, que es lo que ve un dibujo recién abierto.
+   */
+  variables?: CadVariableAccess;
+  /** Catálogos de sesión: filtros, estados de capa, tipos de línea, SCU… */
+  catalogs?: CadSessionCatalogs;
+  /**
    * Pestaña abierta. `null` en espacio modelo, que es donde arranca el editor.
    * LAYOUT y MVIEW la usan para saber sobre qué hoja operan sin preguntar.
    */
@@ -43,6 +55,15 @@ export interface CadStudioCommandInputs {
 
 /** Escala por defecto cuando todavía no hay escena: un píxel, una unidad. */
 const FALLBACK_PIXELS_PER_UNIT = 1;
+
+function resolveActiveLayer(inputs: CadStudioCommandInputs): string {
+  const clayer = String(inputs.variables?.get("CLAYER") ?? "").trim();
+  if (!clayer) return inputs.activeLayer;
+  const exists = inputs.document?.layers.some(
+    (layer) => layer.name.toUpperCase() === clayer.toUpperCase(),
+  );
+  return exists ? clayer : inputs.activeLayer;
+}
 
 export function cadStudioCommandContext(
   inputs: CadStudioCommandInputs,
@@ -60,6 +81,7 @@ export function cadStudioCommandContext(
     // línea el comando se negaría —dice que no las tiene— en vez de descomponer
     // la inserción, que es exactamente el caso que la gente prueba primero.
     blocks: () => inputs.document?.blocks ?? [],
+    layers: () => inputs.document?.layers ?? [],
     // PURGE, XREF y ADCENTER operan sobre las TABLAS del documento, no sobre
     // una selección: sin esta línea se negarían a analizar nada. Sólo se ofrece
     // cuando hay documento abierto, para que la negativa sea la verdad y no un
@@ -71,7 +93,13 @@ export function cadStudioCommandContext(
     // venga, en vez de una vez por comando. Sin grupos no cambia nada: la
     // función devuelve la misma lista.
     selection: cadExpandSelectionByGroup(inputs.selection, entities),
-    activeLayer: inputs.activeLayer,
+    // `CLAYER` manda cuando nombra una capa que existe: es la capa actual
+    // también para AutoCAD, y es lo que permite que un `.scr` dibuje donde
+    // quiere con `-LAYER definir`. Si nadie la ha tocado o apunta a una capa
+    // borrada, gana la del editor, que es la que el usuario está viendo.
+    activeLayer: resolveActiveLayer(inputs),
+    ...(inputs.variables ? { variables: inputs.variables } : {}),
+    ...(inputs.catalogs ? { catalogs: inputs.catalogs } : {}),
     // Presentaciones, unidad y envolvente: lo que LAYOUT, MVIEW y PLOT
     // necesitan y ningún comando anterior pedía. Se exponen como funciones
     // para que un comando que no las use no pague ni una envolvente ni una

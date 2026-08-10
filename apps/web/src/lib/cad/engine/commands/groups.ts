@@ -265,12 +265,12 @@ const purgeCommand: CadCommandDescriptor<PurgeState> = {
       accepts: CAD_ACCEPT_KEYWORD,
     };
   },
-  step: (state, input) => {
+  step: (state, input, context) => {
     if (input.kind === "cancel" || input.kind === "enter") return nothing(state);
     if (input.kind !== "keyword") return nothing(state);
     if (input.keyword === PURGE_NO.keyword)
       return message(state, "Purgado cancelado: no se ha borrado nada.");
-    return attempt(state, "PURGE", () => cadPurgeCommands(state.candidates));
+    return attempt(state, "PURGE", () => cadPurgeCommands(state.candidates, context.layers?.() ?? []));
   },
 };
 
