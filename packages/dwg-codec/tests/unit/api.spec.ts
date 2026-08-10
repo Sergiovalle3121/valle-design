@@ -24,13 +24,19 @@ const KNOWN = [
   ["AC1032", "2018"],
 ] as const;
 
-test("the package exposes only one callable public boundary", () => {
+test("the package exposes the versioned public DWG boundaries", () => {
   const functions = Object.entries(publicApi).filter(
     ([, value]) => typeof value === "function",
   );
   assert.deepEqual(
     functions.map(([name]) => name),
-    ["probeDwg"],
+    [
+      "createDwgExtensionRegistry",
+      "getDwgCapabilities",
+      "probeDwg",
+      "readDwg",
+      "writeDwg",
+    ],
   );
 });
 
@@ -274,15 +280,13 @@ test("malformed clock and cancellation collaborators are typed invalid input", (
   }
 });
 
-test("all twelve limits are frozen, reducible, and bounded by their defaults", () => {
+test("all thirteen limits are frozen, reducible, and profile-bounded", () => {
   const names = Object.keys(DEFAULT_DWG_LIMITS) as (keyof DwgLimits)[];
-  assert.equal(names.length, 12);
+  assert.equal(names.length, 13);
   assert.equal(Object.isFrozen(DEFAULT_DWG_LIMITS), true);
   for (const name of names) {
-    assert.deepEqual(DWG_LIMIT_BOUNDS[name], {
-      min: 1,
-      max: DEFAULT_DWG_LIMITS[name],
-    });
+    assert.equal(DWG_LIMIT_BOUNDS[name].min, 1);
+    assert.ok(DWG_LIMIT_BOUNDS[name].max >= DEFAULT_DWG_LIMITS[name]);
     assert.equal(createDwgLimits({ [name]: 1 })[name], 1);
     assert.equal(
       createDwgLimits({ [name]: DEFAULT_DWG_LIMITS[name] })[name],

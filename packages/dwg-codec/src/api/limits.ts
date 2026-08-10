@@ -1,7 +1,10 @@
 import { throwDwgError } from "../security/parse-error.js";
 
 export interface DwgLimits {
+  /** Input byte length only. This is not a process-memory allowance. */
   readonly maxFileBytes: number;
+  /** Concurrent owned allocations charged by the codec. */
+  readonly maxMemoryBytes: number;
   readonly maxSections: number;
   readonly maxObjects: number;
   readonly maxHandles: number;
@@ -9,33 +12,66 @@ export interface DwgLimits {
   readonly maxDepth: number;
   readonly maxStringBytes: number;
   readonly maxArrayLength: number;
+  /** Deterministic CPU-work allowance, independent of bytes or memory. */
   readonly maxWorkUnits: number;
   readonly workPollInterval: number;
   readonly maxWallTimeMs: number;
+  /** Aggregate decoded/retained payload bytes, independent of input size. */
   readonly maxExpandedBytes: number;
 }
 
 export type DwgLimitOverrides = Readonly<Partial<DwgLimits>>;
+export type DwgLimitProfile = "browser" | "api";
 
-export const DEFAULT_DWG_LIMITS: DwgLimits = Object.freeze({
-  maxFileBytes: 16 * 1024 * 1024,
+const MEBIBYTE = 1024 * 1024;
+
+export const API_DWG_HARD_TIMEOUT_MS = 5 * 60_000;
+
+export const BROWSER_DWG_LIMITS: DwgLimits = Object.freeze({
+  maxFileBytes: 16 * MEBIBYTE,
+  maxMemoryBytes: 128 * MEBIBYTE,
+  maxSections: 8_192,
+  maxObjects: 250_000,
+  maxHandles: 250_000,
+  maxReferences: 1_000_000,
+  maxDepth: 128,
+  maxStringBytes: 16 * MEBIBYTE,
+  maxArrayLength: 250_000,
+  maxWorkUnits: 2 * 16 * MEBIBYTE + 1,
+  workPollInterval: 1_024,
+  maxWallTimeMs: 45_000,
+  maxExpandedBytes: 64 * MEBIBYTE,
+});
+
+export const API_DWG_LIMITS: DwgLimits = Object.freeze({
+  maxFileBytes: 16 * MEBIBYTE,
+  maxMemoryBytes: 512 * MEBIBYTE,
   maxSections: 8_192,
   maxObjects: 1_000_000,
   maxHandles: 1_000_000,
   maxReferences: 4_000_000,
   maxDepth: 128,
-  maxStringBytes: 16 * 1024 * 1024,
+  maxStringBytes: 16 * MEBIBYTE,
   maxArrayLength: 1_000_000,
-  maxWorkUnits: 2 * 16 * 1024 * 1024 + 1,
+  maxWorkUnits: 256 * MEBIBYTE,
   workPollInterval: 1_024,
-  maxWallTimeMs: 2_000,
-  maxExpandedBytes: 64 * 1024 * 1024,
+  maxWallTimeMs: 120_000,
+  maxExpandedBytes: 256 * MEBIBYTE,
 });
+
+export const DWG_LIMIT_PROFILES: Readonly<Record<DwgLimitProfile, DwgLimits>> =
+  Object.freeze({
+    browser: BROWSER_DWG_LIMITS,
+    api: API_DWG_LIMITS,
+  });
+
+export const DEFAULT_DWG_LIMITS = BROWSER_DWG_LIMITS;
 
 type DwgLimitName = keyof DwgLimits;
 
 const LIMIT_NAMES = Object.freeze([
   "maxFileBytes",
+  "maxMemoryBytes",
   "maxSections",
   "maxObjects",
   "maxHandles",
@@ -52,35 +88,36 @@ const LIMIT_NAMES = Object.freeze([
 export const DWG_LIMIT_BOUNDS: Readonly<
   Record<DwgLimitName, Readonly<{ min: number; max: number }>>
 > = Object.freeze({
-  maxFileBytes: Object.freeze({ min: 1, max: DEFAULT_DWG_LIMITS.maxFileBytes }),
-  maxSections: Object.freeze({ min: 1, max: DEFAULT_DWG_LIMITS.maxSections }),
-  maxObjects: Object.freeze({ min: 1, max: DEFAULT_DWG_LIMITS.maxObjects }),
-  maxHandles: Object.freeze({ min: 1, max: DEFAULT_DWG_LIMITS.maxHandles }),
-  maxReferences: Object.freeze({
+  maxFileBytes: Object.freeze({ min: 1, max: API_DWG_LIMITS.maxFileBytes }),
+  maxMemoryBytes: Object.freeze({
     min: 1,
-    max: DEFAULT_DWG_LIMITS.maxReferences,
+    max: API_DWG_LIMITS.maxMemoryBytes,
   }),
-  maxDepth: Object.freeze({ min: 1, max: DEFAULT_DWG_LIMITS.maxDepth }),
+  maxSections: Object.freeze({ min: 1, max: API_DWG_LIMITS.maxSections }),
+  maxObjects: Object.freeze({ min: 1, max: API_DWG_LIMITS.maxObjects }),
+  maxHandles: Object.freeze({ min: 1, max: API_DWG_LIMITS.maxHandles }),
+  maxReferences: Object.freeze({ min: 1, max: API_DWG_LIMITS.maxReferences }),
+  maxDepth: Object.freeze({ min: 1, max: API_DWG_LIMITS.maxDepth }),
   maxStringBytes: Object.freeze({
     min: 1,
-    max: DEFAULT_DWG_LIMITS.maxStringBytes,
+    max: API_DWG_LIMITS.maxStringBytes,
   }),
   maxArrayLength: Object.freeze({
     min: 1,
-    max: DEFAULT_DWG_LIMITS.maxArrayLength,
+    max: API_DWG_LIMITS.maxArrayLength,
   }),
-  maxWorkUnits: Object.freeze({ min: 1, max: DEFAULT_DWG_LIMITS.maxWorkUnits }),
+  maxWorkUnits: Object.freeze({
+    min: 1,
+    max: API_DWG_LIMITS.maxWorkUnits,
+  }),
   workPollInterval: Object.freeze({
     min: 1,
-    max: DEFAULT_DWG_LIMITS.workPollInterval,
+    max: API_DWG_LIMITS.workPollInterval,
   }),
-  maxWallTimeMs: Object.freeze({
-    min: 1,
-    max: DEFAULT_DWG_LIMITS.maxWallTimeMs,
-  }),
+  maxWallTimeMs: Object.freeze({ min: 1, max: API_DWG_HARD_TIMEOUT_MS }),
   maxExpandedBytes: Object.freeze({
     min: 1,
-    max: DEFAULT_DWG_LIMITS.maxExpandedBytes,
+    max: API_DWG_LIMITS.maxExpandedBytes,
   }),
 });
 
@@ -88,16 +125,33 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export function createDwgLimits(overrides?: DwgLimitOverrides): DwgLimits {
-  if (overrides === undefined) {
-    return DEFAULT_DWG_LIMITS;
+function profileMaximum(profile: DwgLimitProfile, name: DwgLimitName): number {
+  if (profile === "api" && name === "maxWallTimeMs") {
+    return API_DWG_HARD_TIMEOUT_MS;
   }
+  return DWG_LIMIT_PROFILES[profile][name];
+}
+
+export function createDwgLimits(
+  overrides?: DwgLimitOverrides,
+  profile: DwgLimitProfile = "browser",
+): DwgLimits {
+  if (profile !== "browser" && profile !== "api") {
+    throwDwgError(
+      "DWG_INPUT_INVALID",
+      "input",
+      0,
+      "The DWG resource profile is invalid.",
+    );
+  }
+  const defaults = DWG_LIMIT_PROFILES[profile];
+  if (overrides === undefined) return defaults;
   if (!isRecord(overrides)) {
     throwDwgError(
       "DWG_INPUT_INVALID",
       "input",
       0,
-      "Probe limits must be an object.",
+      "DWG limits must be an object.",
     );
   }
 
@@ -108,7 +162,7 @@ export function createDwgLimits(overrides?: DwgLimitOverrides): DwgLimits {
         "DWG_INPUT_INVALID",
         "input",
         0,
-        "Probe limits contain an unknown field.",
+        "DWG limits contain an unknown field.",
       );
     }
   }
@@ -116,19 +170,17 @@ export function createDwgLimits(overrides?: DwgLimitOverrides): DwgLimits {
   const normalized = {} as Record<DwgLimitName, number>;
   for (const name of LIMIT_NAMES) {
     const supplied = overrides[name];
-    const candidate =
-      supplied === undefined ? DEFAULT_DWG_LIMITS[name] : supplied;
-    const bounds = DWG_LIMIT_BOUNDS[name];
+    const candidate = supplied === undefined ? defaults[name] : supplied;
     if (
       !Number.isSafeInteger(candidate) ||
-      candidate < bounds.min ||
-      candidate > bounds.max
+      candidate < 1 ||
+      candidate > profileMaximum(profile, name)
     ) {
       throwDwgError(
         "DWG_INPUT_INVALID",
         "input",
         0,
-        "A probe limit is outside its supported integer range.",
+        "A DWG limit is outside its profile's supported integer range.",
       );
     }
     normalized[name] = candidate;

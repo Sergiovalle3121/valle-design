@@ -15,11 +15,13 @@ restringido.
 ## Estado del baseline DWG-1
 
 - El package es privado, `UNLICENSED`, estricto y no tiene dependencias runtime.
-- La única función pública es `probeDwg(Uint8Array, options?)`. Hace snapshot de
-  bytes propios, reconoce nueve firmas `AC10xx` y distingue truncación, firma
-  inválida, versión desconocida y versión reconocida sin decoder.
-- Toda firma reconocida devuelve `DWG_VERSION_DECODER_UNSUPPORTED`; no existe
-  `parseDwg`, object database completa, importación de entidades ni writer.
+- Las fronteras públicas `probeDwg`, `readDwg` y `writeDwg` son contratos
+  fail-closed. El probe hace snapshot de bytes propios y reconoce nueve firmas;
+  lectura y escritura no devuelven documento o bytes parciales y permanecen
+  explícitamente `unsupported`.
+- `getDwgCapabilities()` refleja la matriz v1 por versión, dirección, familia y
+  propiedad. Un gate exige paridad exacta con el JSON gobernado y mantiene
+  `probe` separado de reader/writer.
 - ADR-0008 autoriza construir reader y writer first-party, pero no promueve
   capacidad alguna. `COMPATIBILITY_MATRIX.v1.json` mantiene sus 1.134 celdas
   versión × dirección × familia × propiedad en `not-started` y
@@ -32,12 +34,41 @@ restringido.
   del package en `98a5b18`. Cambios o paths nuevos sólo pasan por una admisión
   exacta, sin globs, ligada al fact concreto; el propio manifest está fijado por
   hash y tamaño dentro del verifier.
+- De las 66 rutas admitidas por DWG-1, 65 tienen SHA-256 y tamaño canónico
+  fijados. Sólo el módulo que contiene esa tabla no puede fijar su propio hash.
+  Reutilizar cualquier otra ruta con contenido distinto falla; actualizar el
+  ancla requiere un cambio de tooling separado y revisión humana previa. El
+  checker ejecutado desde el mismo candidate no puede demostrar por sí solo esa
+  secuencia: branch protection debe impedir fusionar este corte hasta que el
+  ancla exista en una base protegida y haya revisión humana independiente.
 - El corpus publicable es extensible bajo intake, hash, permiso y oracle. El
   corpus no redistribuible se reserva al repositorio privado compañero y no ha
-  sido incorporado en este corte; tampoco existe aún el checker/CI físico del
-  repositorio compañero.
+  sido incorporado en este corte. El companion privado existe vacío; su checker
+  y CI endurecidos permanecen en PRs borrador y todavía no admiten bundles.
 - Cursores acotados, aritmética comprobada, rangos y modelos neutrales son
   fundamentos internos todavía desconectados de la frontera de producto.
+- El protocolo experimental interno de worker no se exporta desde el barrel
+  público. Valida cada operación y su resultado de forma explícita, rechaza
+  `SharedArrayBuffer` y toma una copia propia antes de entregar bytes al worker.
+  Una respuesta hostil o incompleta sólo produce un error tipado; no existe un
+  cast genérico que pueda promover un documento parcial. Su presupuesto portable
+  es acumulado entre las copias visible, privada, transferida y de respuesta;
+  cada transfer list está acotada y sus entradas se cobran. La respuesta sólo
+  cruza una frontera first-party que debe presupuestar y transferir sus buffers
+  antes de `postMessage`; el marker del adapter declara ese contrato, no lo
+  demuestra frente a código hostil.
+- Los perfiles de recursos son explícitos: browser limita memoria concurrente a
+  128 MiB, objetos a 250 000 y pared a 45 s; API limita memoria a 512 MiB,
+  objetos a 1 000 000 y permite reducir/configurar el timeout hasta un tope duro
+  de 5 min. Tamaño de archivo, memoria, expansión y trabajo determinista son
+  budgets distintos. Estos valores son controles fail-closed, no benchmarks.
+- La contabilidad de objetos, colecciones, copias y strings usa estimaciones
+  deliberadamente conservadoras y overflow-safe. No pretende medir el heap ni
+  la presión de GC exactos de un motor JavaScript; el aislamiento externo sigue
+  siendo el backstop para costos que el núcleo no puede observar.
+- Los parsers y schedulers del protocolo son componentes first-party internos.
+  Una callback síncrona no cooperativa no puede ser interrumpida por JavaScript;
+  el límite duro exige ejecutar la operación dentro de un worker real.
 - El detector web conserva `nativeSupport:false`; un gate exige paridad exacta
   de sus nueve etiquetas y que el producto siga sin importar este package.
 - La matriz exacta está en `CAPABILITIES.md`.

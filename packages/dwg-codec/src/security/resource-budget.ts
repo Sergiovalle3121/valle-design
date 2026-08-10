@@ -63,10 +63,12 @@ export class ResourceBudget {
   #clock: DwgClock;
   #signal: DwgCancellationSignal | undefined;
   #workUnits = 0;
+  #memoryBytes = 0;
+  #expandedBytes = 0;
   #unitsSincePoll = 0;
 
   constructor(limits: DwgLimits, options: ResourceBudgetOptions = {}) {
-    this.limits = createDwgLimits(limits);
+    this.limits = createDwgLimits(limits, "api");
     this.#clock = options.clock ?? SYSTEM_CLOCK;
     this.#signal = options.signal;
 
@@ -97,6 +99,76 @@ export class ResourceBudget {
 
   get workUnits(): number {
     return this.#workUnits;
+  }
+
+  get memoryBytes(): number {
+    return this.#memoryBytes;
+  }
+
+  get expandedBytes(): number {
+    return this.#expandedBytes;
+  }
+
+  reserveMemory(bytes: number, offset: number): void {
+    const checkedOffset =
+      Number.isSafeInteger(offset) && offset >= 0 ? offset : 0;
+    if (!Number.isSafeInteger(bytes) || bytes < 0) {
+      throwDwgError(
+        "DWG_INPUT_INVALID",
+        "input",
+        checkedOffset,
+        "A memory reservation must be a non-negative safe integer.",
+      );
+    }
+    if (bytes > this.limits.maxMemoryBytes - this.#memoryBytes) {
+      throwDwgError(
+        "DWG_MEMORY_LIMIT_EXCEEDED",
+        "resource",
+        checkedOffset,
+        "The concurrent memory budget was exceeded.",
+      );
+    }
+    this.#memoryBytes += bytes;
+  }
+
+  releaseMemory(bytes: number, offset: number): void {
+    const checkedOffset =
+      Number.isSafeInteger(offset) && offset >= 0 ? offset : 0;
+    if (
+      !Number.isSafeInteger(bytes) ||
+      bytes < 0 ||
+      bytes > this.#memoryBytes
+    ) {
+      throwDwgError(
+        "DWG_INPUT_INVALID",
+        "input",
+        checkedOffset,
+        "A memory release is outside the owned allocation budget.",
+      );
+    }
+    this.#memoryBytes -= bytes;
+  }
+
+  consumeExpanded(bytes: number, offset: number): void {
+    const checkedOffset =
+      Number.isSafeInteger(offset) && offset >= 0 ? offset : 0;
+    if (!Number.isSafeInteger(bytes) || bytes < 0) {
+      throwDwgError(
+        "DWG_INPUT_INVALID",
+        "input",
+        checkedOffset,
+        "Expanded bytes must be a non-negative safe integer.",
+      );
+    }
+    if (bytes > this.limits.maxExpandedBytes - this.#expandedBytes) {
+      throwDwgError(
+        "DWG_EXPANSION_LIMIT_EXCEEDED",
+        "resource",
+        checkedOffset,
+        "The aggregate expansion budget was exceeded.",
+      );
+    }
+    this.#expandedBytes += bytes;
   }
 
   assertWorkAvailable(units: number, offset: number): void {

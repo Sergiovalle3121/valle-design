@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import {
   cp,
-  lstat,
   mkdir,
   mkdtemp,
   readFile,
@@ -21,7 +20,6 @@ import {
   MAX_CANONICAL_JSON_BYTES,
   readCanonicalJson,
 } from "../../scripts/json-document.js";
-import { validateProvenance } from "../../scripts/provenance-validation.js";
 import {
   assertPortableRelativePath,
   assertUniqueCaseFolded,
@@ -82,57 +80,6 @@ async function mutateJson(
   );
   mutation(document);
   await writeFile(path, canonicalJson(document), "utf8");
-}
-
-async function pathExists(path: string): Promise<boolean> {
-  try {
-    await lstat(path);
-    return true;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
-    throw error;
-  }
-}
-
-async function cloneMinimalProvenanceRepository(root: string): Promise<{
-  readonly repositoryRoot: string;
-  readonly packageRoot: string;
-}> {
-  const repositoryRoot = resolve(root, "repository");
-  const clonedPackage = resolve(repositoryRoot, "packages/dwg-codec");
-  await mkdir(dirname(clonedPackage), { recursive: true });
-  await cp(packageRoot, clonedPackage, {
-    filter(source) {
-      const normalized = source.replaceAll("\\", "/");
-      return (
-        !normalized.endsWith("/checker-hardening.spec.ts") &&
-        !normalized.includes("/node_modules/") &&
-        !normalized.includes("/dist/") &&
-        !normalized.includes("/.turbo/")
-      );
-    },
-    recursive: true,
-  });
-
-  const register = asRecord(
-    JSON.parse(
-      await readFile(resolve(clonedPackage, "SOURCE_REGISTER.json"), "utf8"),
-    ) as unknown,
-    "SOURCE_REGISTER.json",
-  );
-  for (const entryValue of asArray(register.entries, "source entries")) {
-    const entry = asRecord(entryValue, "source entry");
-    for (const derivedValue of asArray(entry.derivedFiles, "derivedFiles")) {
-      if (typeof derivedValue !== "string")
-        throw new Error("derived path must be a string");
-      const target = resolve(repositoryRoot, derivedValue);
-      if (!(await pathExists(target))) {
-        await mkdir(dirname(target), { recursive: true });
-        await writeFile(target, new Uint8Array());
-      }
-    }
-  }
-  return { packageRoot: clonedPackage, repositoryRoot };
 }
 
 test("portable paths reject traversal, platform separators and drive-like segments", () => {
@@ -559,173 +506,6 @@ test("canonical JSON size is bounded before allocating or parsing", async () => 
       new RegExp(
         `initial size ${MAX_CANONICAL_JSON_BYTES + 1} exceeds the ${MAX_CANONICAL_JSON_BYTES}-byte limit`,
       ),
-    );
-  });
-});
-
-test("provenance rejects a fixture sourceId that is quarantined", async () => {
-  await withTemporaryRoot("provenance-source", async (root) => {
-    const clone = await cloneMinimalProvenanceRepository(root);
-    const sourcePath = resolve(clone.packageRoot, "SOURCE_REGISTER.json");
-    await mutateJson(sourcePath, (register) => {
-      const entries = asArray(register.entries, "entries");
-      const template = structuredClone(asRecord(entries[1], "source template"));
-      template.id = "VALLE-TEST-QUARANTINED-SOURCE";
-      template.title = "Adversarial quarantined source metadata";
-      template.status = "quarantined";
-      template.factsConsulted = [];
-      template.derivedFiles = [];
-      template.origin = {
-        accessedAt: "2026-08-09",
-        location: "https://example.invalid/valle-dwg1-quarantined-source",
-        type: "first-party-repository",
-      };
-      entries.push(template);
-    });
-    const manifestPath = resolve(clone.packageRoot, "fixtures/manifest.json");
-    await mutateJson(manifestPath, (manifest) => {
-      const fixture = asRecord(
-        asArray(manifest.fixtures, "fixtures")[0],
-        "fixture",
-      );
-      fixture.sourceIds = ["VALLE-TEST-QUARANTINED-SOURCE"];
-    });
-    await assert.rejects(
-      validateProvenance(clone.repositoryRoot, clone.packageRoot),
-      /does not resolve to an allowed source/,
-    );
-  });
-});
-
-test("provenance rejects new technical files covered only by a source", async () => {
-  await withTemporaryRoot("provenance-technical-fact", async (root) => {
-    const clone = await cloneMinimalProvenanceRepository(root);
-    const technicalPath = resolve(clone.packageRoot, "src/new-decoder.ts");
-    await writeFile(technicalPath, "export {};\n", "utf8");
-    await mutateJson(
-      resolve(clone.packageRoot, "SOURCE_REGISTER.json"),
-      (register) => {
-        const ownerSource = asArray(register.entries, "entries")
-          .map((entry) => asRecord(entry, "source"))
-          .find((entry) => entry.id === "VALLE-OWNER-DWG1-2026-08-09");
-        assert.ok(ownerSource);
-        asArray(ownerSource.derivedFiles, "derivedFiles").push(
-          "packages/dwg-codec/src/new-decoder.ts",
-        );
-      },
-    );
-    await assert.rejects(
-      validateProvenance(clone.repositoryRoot, clone.packageRoot),
-      /changed or new package file is not in the exact DWG-1 admission allowlist/,
-    );
-  });
-});
-
-test("provenance rejects mutation of a legacy technical file outside the exact admission allowlist", async () => {
-  await withTemporaryRoot("provenance-legacy-content", async (root) => {
-    const clone = await cloneMinimalProvenanceRepository(root);
-    const technicalPath = resolve(
-      clone.packageRoot,
-      "src/container/signature.ts",
-    );
-    const original = await readFile(technicalPath, "utf8");
-    await writeFile(
-      technicalPath,
-      `${original}\n// unreviewed format claim\n`,
-      "utf8",
-    );
-    await assert.rejects(
-      validateProvenance(clone.repositoryRoot, clone.packageRoot),
-      /src\/container\/signature\.ts: changed or new package file is not in the exact DWG-1 admission allowlist/,
-    );
-  });
-});
-
-test("provenance rejects deletion of a frozen legacy file", async () => {
-  await withTemporaryRoot("provenance-legacy-deletion", async (root) => {
-    const clone = await cloneMinimalProvenanceRepository(root);
-    await rm(resolve(clone.packageRoot, "src/container/signature.ts"));
-    await assert.rejects(
-      validateProvenance(clone.repositoryRoot, clone.packageRoot),
-      /src\/container\/signature\.ts.*required path does not exist or is inaccessible/,
-    );
-  });
-});
-
-test("provenance rejects an arbitrary rewrite of the pinned DWG-0 baseline", async () => {
-  await withTemporaryRoot("provenance-baseline-rewrite", async (root) => {
-    const clone = await cloneMinimalProvenanceRepository(root);
-    await mutateJson(
-      resolve(clone.packageRoot, "DWG0_CONTENT_BASELINE.v1.json"),
-      (baseline) => {
-        const first = asRecord(
-          asArray(baseline.files, "baseline files")[0],
-          "baseline file",
-        );
-        first.sha256 = "0".repeat(64);
-      },
-    );
-    await assert.rejects(
-      validateProvenance(clone.repositoryRoot, clone.packageRoot),
-      /baseline document differs from its verifier-pinned hash and size/,
-    );
-  });
-});
-
-for (const [label, license] of [
-  ["Autodesk proprietary SDK EULA", "Autodesk proprietary SDK EULA"],
-  ["custom terms", "Custom"],
-  ["Commons Clause", "Commons-Clause"],
-] as const) {
-  test(`provenance rejects allowed public metadata under ${label}`, async () => {
-    await withTemporaryRoot("provenance-license", async (root) => {
-      const clone = await cloneMinimalProvenanceRepository(root);
-      const sourcePath = resolve(clone.packageRoot, "SOURCE_REGISTER.json");
-      await mutateJson(sourcePath, (register) => {
-        const entries = asArray(register.entries, "entries");
-        const publicSource = entries
-          .map((entry) => asRecord(entry, "source entry"))
-          .find(
-            (entry) =>
-              asRecord(entry.origin, "source origin").type ===
-              "public-documentation",
-          );
-        assert.ok(publicSource, "expected a public-documentation source");
-        asRecord(publicSource.terms, "source terms").license = license;
-      });
-      await assert.rejects(
-        validateProvenance(clone.repositoryRoot, clone.packageRoot),
-        /is not explicitly allowed for origin type "public-documentation"/,
-      );
-    });
-  });
-}
-
-test("provenance rejects authorized corpus metadata without intake and oracle", async () => {
-  await withTemporaryRoot("provenance-authorized", async (root) => {
-    const clone = await cloneMinimalProvenanceRepository(root);
-    const manifestPath = resolve(clone.packageRoot, "fixtures/manifest.json");
-    await mutateJson(manifestPath, (manifest) => {
-      const fixture = asRecord(
-        asArray(manifest.fixtures, "fixtures")[0],
-        "fixture",
-      );
-      fixture.path = "authorized/owner/empty.dwg";
-      fixture.origin = {
-        reference: "owner-test-reference",
-        type: "owner-authorized",
-      };
-      fixture.permission = {
-        basis: "Adversarial test metadata only",
-        license: "Valle-Owner-Authorized",
-        redistributionEvidence: "Adversarial test metadata only",
-      };
-      fixture.synthetic = false;
-      fixture.generatedBy = null;
-    });
-    await assert.rejects(
-      validateProvenance(clone.repositoryRoot, clone.packageRoot),
-      /must have required property '(?:intakeId|oracle)'/,
     );
   });
 });

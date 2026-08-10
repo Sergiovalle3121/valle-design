@@ -9,12 +9,16 @@ import {
 } from "../../src/security/parse-error.js";
 import { ResourceBudget } from "../../src/security/resource-budget.js";
 import {
+  DWG_FIRST_PARTY_WORKER_TRANSPORT,
+  MAX_DWG_WORKER_TRANSFER_BUFFERS,
+  MAX_DWG_WORKER_TIMEOUT_MS,
   superviseWorker,
   type WorkerEventListener,
   type WorkerEventType,
   type WorkerLike,
   type WorkerScheduler,
   type WorkerSupervisorOptions,
+  type WorkerTransferList,
 } from "../../src/security/worker-supervisor.js";
 import { assertDwgError, ascii } from "../support/assert.js";
 import { FixedClock, ManualClock } from "../support/fake-clock.js";
@@ -86,6 +90,32 @@ test("work availability rejects an oversized operation before accounting", () =>
   assert.equal(budget.workUnits, 0);
 });
 
+test("memory, expansion and deterministic work use independent counters", () => {
+  const budget = new ResourceBudget(
+    createDwgLimits({
+      maxMemoryBytes: 3,
+      maxExpandedBytes: 2,
+      maxWorkUnits: 1,
+      workPollInterval: 1,
+    }),
+    { clock: new FixedClock(0) },
+  );
+  budget.reserveMemory(3, 0);
+  budget.consumeExpanded(2, 0);
+  budget.consume(1, 0);
+  assert.equal(budget.memoryBytes, 3);
+  assert.equal(budget.expandedBytes, 2);
+  assert.equal(budget.workUnits, 1);
+  assertDwgError(() => budget.reserveMemory(1, 0), "DWG_MEMORY_LIMIT_EXCEEDED");
+  assertDwgError(
+    () => budget.consumeExpanded(1, 0),
+    "DWG_EXPANSION_LIMIT_EXCEEDED",
+  );
+  assertDwgError(() => budget.consume(1, 0), "DWG_WORK_LIMIT_EXCEEDED");
+  budget.releaseMemory(2, 0);
+  assert.equal(budget.memoryBytes, 1);
+});
+
 test("resource budget snapshots and freezes caller-owned limits", () => {
   const limits = {
     ...createDwgLimits({ maxWorkUnits: 1, workPollInterval: 1 }),
@@ -152,10 +182,12 @@ test("snapshot charges one unit per copied byte and owns its exact region", () =
   backing.fill(0);
   assert.deepEqual(snapshot, ascii("AC1015"));
   assert.equal(budget.workUnits, 6);
+  assert.equal(budget.memoryBytes, 6);
   assert.notEqual(snapshot.buffer, view.buffer);
 });
 
 class FakeWorker implements WorkerLike {
+  readonly dwgTransportContract = DWG_FIRST_PARTY_WORKER_TRANSPORT;
   readonly listeners = new Map<WorkerEventType, Set<WorkerEventListener>>([
     ["message", new Set()],
     ["error", new Set()],
@@ -163,12 +195,18 @@ class FakeWorker implements WorkerLike {
   posted: unknown[] = [];
   terminations = 0;
 
-  postMessage(message: unknown): void {
+  constructor(
+    private readonly terminateImplementation: () => void | Promise<void> = () =>
+      undefined,
+  ) {}
+
+  postMessage(message: unknown, _transferList: WorkerTransferList): void {
     this.posted.push(message);
   }
 
-  terminate(): void {
+  terminate(): void | Promise<void> {
     this.terminations += 1;
+    return this.terminateImplementation();
   }
 
   addEventListener(type: WorkerEventType, listener: WorkerEventListener): void {
@@ -202,14 +240,17 @@ class ManualScheduler implements WorkerScheduler {
   }
 }
 
+function acceptWorkerMessage(message: unknown): unknown {
+  return message;
+}
+
 test("worker supervisor resolves a message, cleans listeners and terminates", async () => {
   const worker = new FakeWorker();
   const scheduler = new ManualScheduler();
-  const pending = superviseWorker<{ answer: number }>(
-    worker,
-    { request: 1 },
-    { timeoutMs: 10, scheduler },
-  );
+  const pending = superviseWorker(worker, { request: 1 }, acceptWorkerMessage, {
+    timeoutMs: 10,
+    scheduler,
+  });
   worker.emit("message", { data: { answer: 42 } });
   assert.deepEqual(await pending, { ok: true, value: { answer: 42 } });
   assert.deepEqual(worker.posted, [{ request: 1 }]);
@@ -218,10 +259,96 @@ test("worker supervisor resolves a message, cleans listeners and terminates", as
   assert.equal(worker.listeners.get("message")?.size, 0);
 });
 
+test("worker supervisor waits for async termination before resolving", async () => {
+  let confirmTermination: (() => void) | undefined;
+  const termination = new Promise<void>((resolve) => {
+    confirmTermination = resolve;
+  });
+  const worker = new FakeWorker(() => termination);
+  const scheduler = new ManualScheduler();
+  const pending = superviseWorker(worker, "request", acceptWorkerMessage, {
+    timeoutMs: 10,
+    scheduler,
+  });
+  let delivered = false;
+  void pending.then(() => {
+    delivered = true;
+  });
+
+  worker.emit("message", { data: "done" });
+  await Promise.resolve();
+  assert.equal(delivered, false);
+  confirmTermination?.();
+  assert.deepEqual(await pending, { ok: true, value: "done" });
+  assert.equal(delivered, true);
+});
+
+test("worker supervisor reports an unconfirmed rejected termination", async () => {
+  const worker = new FakeWorker(() =>
+    Promise.reject(new Error("private termination detail")),
+  );
+  const scheduler = new ManualScheduler();
+  const pending = superviseWorker(worker, "request", acceptWorkerMessage, {
+    timeoutMs: 10,
+    scheduler,
+  });
+  worker.emit("message", { data: "must-not-be-returned" });
+
+  const result = await pending;
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.error.code, "DWG_INTERNAL_ERROR");
+    assert.equal(result.error.message.includes("private"), false);
+  }
+});
+
+test("worker supervisor never reads a hostile termination then getter", async () => {
+  let reads = 0;
+  const hostile = Object.defineProperty({}, "then", {
+    get(): never {
+      reads += 1;
+      throw new Error("must not be read");
+    },
+  });
+  const worker = new FakeWorker(() => hostile as Promise<void>);
+  const scheduler = new ManualScheduler();
+  const pending = superviseWorker(worker, "request", acceptWorkerMessage, {
+    timeoutMs: 10,
+    scheduler,
+  });
+  worker.emit("message", { data: "must-not-be-returned" });
+
+  const result = await pending;
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.error.code, "DWG_INTERNAL_ERROR");
+  assert.equal(reads, 0);
+});
+
+test(
+  "worker supervisor bounds a native termination promise that never settles",
+  { timeout: 2_000 },
+  async () => {
+    const worker = new FakeWorker(() => new Promise<void>(() => undefined));
+    const scheduler = new ManualScheduler();
+    const pending = superviseWorker(worker, "request", acceptWorkerMessage, {
+      timeoutMs: 10,
+      scheduler,
+    });
+    worker.emit("message", { data: "must-not-be-returned" });
+
+    const result = await pending;
+    assert.equal(result.ok, false);
+    if (!result.ok) assert.equal(result.error.code, "DWG_INTERNAL_ERROR");
+  },
+);
+
 test("worker supervisor returns typed error and terminates on error", async () => {
   const worker = new FakeWorker();
   const scheduler = new ManualScheduler();
-  const pending = superviseWorker(worker, null, { timeoutMs: 10, scheduler });
+  const pending = superviseWorker(worker, null, acceptWorkerMessage, {
+    timeoutMs: 10,
+    scheduler,
+  });
   worker.emit("error", new Error("sensitive worker detail"));
   const result = await pending;
   assert.equal(result.ok, false);
@@ -235,7 +362,7 @@ test("worker supervisor returns typed error and terminates on error", async () =
 test("worker supervisor enforces an external timeout", async () => {
   const worker = new FakeWorker();
   const scheduler = new ManualScheduler();
-  const pending = superviseWorker(worker, "probe", {
+  const pending = superviseWorker(worker, "probe", acceptWorkerMessage, {
     timeoutMs: 10,
     scheduler,
   });
@@ -244,6 +371,87 @@ test("worker supervisor enforces an external timeout", async () => {
   assert.equal(result.ok, false);
   if (!result.ok) assert.equal(result.error.code, "DWG_DEADLINE_EXCEEDED");
   assert.equal(worker.terminations, 1);
+});
+
+test("trusted host timeout backs up a non-firing injected scheduler", async () => {
+  const worker = new FakeWorker();
+  const scheduler: WorkerScheduler = {
+    setTimeout(): unknown {
+      return Object.freeze({ kind: "never-fired" });
+    },
+    clearTimeout(): void {},
+  };
+  const result = await superviseWorker(worker, "probe", acceptWorkerMessage, {
+    timeoutMs: 10,
+    scheduler,
+  });
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.error.code, "DWG_DEADLINE_EXCEEDED");
+  assert.equal(worker.terminations, 1);
+});
+
+test("worker supervisor rejects an external timeout above its hard bound", async () => {
+  const worker = new FakeWorker();
+  const scheduler = new ManualScheduler();
+  const result = await superviseWorker(worker, "probe", acceptWorkerMessage, {
+    timeoutMs: MAX_DWG_WORKER_TIMEOUT_MS + 1,
+    scheduler,
+  });
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.error.code, "DWG_INPUT_INVALID");
+  assert.deepEqual(worker.posted, []);
+  assert.equal(worker.terminations, 0);
+});
+
+test("worker supervisor requires the exact first-party transport declaration", async () => {
+  const worker = new FakeWorker();
+  Object.defineProperty(worker, "dwgTransportContract", {
+    value: "untrusted-transport",
+  });
+  const result = await superviseWorker(
+    worker,
+    "must-not-post",
+    acceptWorkerMessage,
+    { timeoutMs: 10, scheduler: new ManualScheduler() },
+  );
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.error.code, "DWG_INPUT_INVALID");
+  assert.deepEqual(worker.posted, []);
+  assert.equal(worker.terminations, 0);
+});
+
+test("worker supervisor rejects aliased transfer buffers before posting", async () => {
+  const worker = new FakeWorker();
+  const buffer = new ArrayBuffer(1);
+  const result = await superviseWorker(
+    worker,
+    "must-not-post",
+    acceptWorkerMessage,
+    { timeoutMs: 10, scheduler: new ManualScheduler() },
+    [buffer, buffer],
+  );
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.error.code, "DWG_INPUT_INVALID");
+  assert.deepEqual(worker.posted, []);
+  assert.equal(worker.terminations, 0);
+});
+
+test("worker supervisor rejects an oversized transfer list before allocating its capture", async () => {
+  const worker = new FakeWorker();
+  const transferList = new Array<ArrayBuffer>(
+    MAX_DWG_WORKER_TRANSFER_BUFFERS + 1,
+  ).fill(new ArrayBuffer(0));
+  const result = await superviseWorker(
+    worker,
+    "must-not-post",
+    acceptWorkerMessage,
+    { timeoutMs: 10, scheduler: new ManualScheduler() },
+    transferList,
+  );
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.error.code, "DWG_INPUT_INVALID");
+  assert.deepEqual(worker.posted, []);
+  assert.equal(worker.terminations, 0);
 });
 
 test("a synchronous timeout scheduler never posts after timing out", async () => {
@@ -258,10 +466,12 @@ test("a synchronous timeout scheduler never posts after timing out", async () =>
       cleared += 1;
     },
   };
-  const result = await superviseWorker(worker, "must-not-post", {
-    timeoutMs: 10,
-    scheduler,
-  });
+  const result = await superviseWorker(
+    worker,
+    "must-not-post",
+    acceptWorkerMessage,
+    { timeoutMs: 10, scheduler },
+  );
   assert.equal(result.ok, false);
   assert.deepEqual(worker.posted, []);
   assert.equal(worker.terminations, 1);
@@ -292,6 +502,7 @@ test("hostile worker supervisor option getters never throw synchronously", async
       pending = superviseWorker(
         worker,
         "must-not-post",
+        acceptWorkerMessage,
         options as WorkerSupervisorOptions,
       );
     });
@@ -323,7 +534,7 @@ test("captured scheduler methods clear an installed undefined handle", async () 
     },
   };
   const worker = new FakeWorker();
-  const pending = superviseWorker(worker, "request", {
+  const pending = superviseWorker(worker, "request", acceptWorkerMessage, {
     timeoutMs: 10,
     scheduler,
   });

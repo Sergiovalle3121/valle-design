@@ -9,6 +9,10 @@ import {
 } from "../fixtures/generators/generate-synthetic.js";
 import { canonicalJson, readCanonicalJson } from "./json-document.js";
 import {
+  DWG1_CONTENT_BOUND_ADMISSION,
+  DWG1_CONTENT_BOUND_ADMISSION_COUNT,
+} from "./dwg1-safe-core-admission.js";
+import {
   assertPortableRelativePath,
   assertUniqueCaseFolded,
   caseFold,
@@ -102,6 +106,7 @@ const ALLOWED_LICENSES_BY_ORIGIN = new Map<string, ReadonlySet<string>>([
   ],
 ]);
 const LEGACY_TECHNICAL_SOURCE_ID = "VALLE-OWNER-DWG0-2026-08-09";
+const DWG1_PROGRAM_SOURCE_ID = "VALLE-OWNER-DWG1-2026-08-09";
 const LEGACY_PACKAGE_PATHS_SHA256 =
   "fcfdd6c61f08e1f68d564635607257d2a083f3b4d2661501241f8ee20bbad7a0";
 const DWG0_CONTENT_BASELINE_PATH = "DWG0_CONTENT_BASELINE.v1.json";
@@ -112,7 +117,7 @@ const DWG0_CONTENT_BASELINE_COMMIT = "98a5b185587107dc2b32da02ae209b8b99e08c6e";
 const DWG0_CONTENT_BASELINE_FILE_COUNT = 80;
 const DWG0_TEXT_BASELINE_SUFFIXES = [".json", ".md", ".ts"] as const;
 const DWG1_PROGRAM_FACT_ID = "VALLE-DWG1-PROGRAM-SCOPE-2026-08-09";
-const DWG1_FILE_ADMISSION_COUNT = 31;
+const DWG1_FILE_ADMISSION_COUNT = 66;
 const DWG1_FILE_ADMISSION = new Map(
   [
     "packages/dwg-codec/.gitattributes",
@@ -135,6 +140,9 @@ const DWG1_FILE_ADMISSION = new Map(
     "packages/dwg-codec/private-bundle.schema.json",
     "packages/dwg-codec/README.md",
     "packages/dwg-codec/SOURCE_REGISTER.json",
+    "packages/dwg-codec/THREAT_MODEL.md",
+    "packages/dwg-codec/scripts/check-capabilities.ts",
+    "packages/dwg-codec/scripts/dwg1-safe-core-admission.ts",
     "packages/dwg-codec/scripts/check-fixtures.ts",
     "packages/dwg-codec/scripts/check-research.ts",
     "packages/dwg-codec/scripts/fixture-validation.ts",
@@ -143,14 +151,46 @@ const DWG1_FILE_ADMISSION = new Map(
     "packages/dwg-codec/scripts/research-validation.ts",
     "packages/dwg-codec/scripts/schema-validation.ts",
     "packages/dwg-codec/source-register.schema.json",
+    "packages/dwg-codec/src/api/capabilities.ts",
+    "packages/dwg-codec/src/api/diagnostics.ts",
+    "packages/dwg-codec/src/api/limits.ts",
+    "packages/dwg-codec/src/api/probe.ts",
+    "packages/dwg-codec/src/api/read.ts",
+    "packages/dwg-codec/src/api/write.ts",
+    "packages/dwg-codec/src/binary/byte-cursor.ts",
+    "packages/dwg-codec/src/binary/byte-sink.ts",
+    "packages/dwg-codec/src/binary/range-table.ts",
+    "packages/dwg-codec/src/extensions/registry.ts",
+    "packages/dwg-codec/src/index.ts",
+    "packages/dwg-codec/src/model/database.ts",
+    "packages/dwg-codec/src/model/document.ts",
+    "packages/dwg-codec/src/model/handle.ts",
+    "packages/dwg-codec/src/model/opaque-object.ts",
+    "packages/dwg-codec/src/model/reference.ts",
+    "packages/dwg-codec/src/model/symbol-table.ts",
+    "packages/dwg-codec/src/security/input-snapshot.ts",
+    "packages/dwg-codec/src/security/owned-bytes.ts",
+    "packages/dwg-codec/src/security/parse-error.ts",
+    "packages/dwg-codec/src/security/resource-budget.ts",
+    "packages/dwg-codec/src/security/worker-supervisor.ts",
+    "packages/dwg-codec/src/worker/protocol.ts",
     "packages/dwg-codec/tests/adversarial.spec.ts",
     "packages/dwg-codec/tests/adversarial/checker-hardening.spec.ts",
+    "packages/dwg-codec/tests/adversarial/provenance-hardening.spec.ts",
     "packages/dwg-codec/tests/adversarial/research-governance.spec.ts",
+    "packages/dwg-codec/tests/adversarial/resource-limits.spec.ts",
+    "packages/dwg-codec/tests/adversarial/worker-timeout.spec.ts",
+    "packages/dwg-codec/tests/unit.spec.ts",
+    "packages/dwg-codec/tests/unit/api.spec.ts",
+    "packages/dwg-codec/tests/unit/binary.spec.ts",
+    "packages/dwg-codec/tests/unit/model.spec.ts",
+    "packages/dwg-codec/tests/unit/public-api.spec.ts",
+    "packages/dwg-codec/tests/unit/security.spec.ts",
   ].map(
     (path) =>
       [
         caseFold(path),
-        { factId: DWG1_PROGRAM_FACT_ID, kind: "governance" },
+        { path, factId: DWG1_PROGRAM_FACT_ID, kind: "governance" },
       ] as const,
   ),
 );
@@ -299,10 +339,36 @@ function assertExactDwg1AdmissionPaths(): void {
   if (DWG1_FILE_ADMISSION.size !== DWG1_FILE_ADMISSION_COUNT) {
     throw new Error("DWG-1 exact file admission cardinality changed");
   }
-  for (const path of DWG1_FILE_ADMISSION.keys()) {
-    assertPortableRelativePath(path, "DWG-1 exact file admission");
-    if (/[*?[\]{}!]/u.test(path)) {
-      throw new Error(`DWG-1 file admission must not contain globs: ${path}`);
+  if (
+    DWG1_CONTENT_BOUND_ADMISSION.size !== DWG1_CONTENT_BOUND_ADMISSION_COUNT ||
+    DWG1_FILE_ADMISSION.size - DWG1_CONTENT_BOUND_ADMISSION.size !== 1
+  ) {
+    throw new Error("DWG-1 content-bound admission cardinality changed");
+  }
+  for (const [foldedPath, admission] of DWG1_FILE_ADMISSION) {
+    assertPortableRelativePath(admission.path, "DWG-1 exact file admission");
+    if (
+      caseFold(admission.path) !== foldedPath ||
+      /[*?[\]{}!]/u.test(admission.path)
+    ) {
+      throw new Error(
+        `DWG-1 file admission must be canonical and contain no globs: ${admission.path}`,
+      );
+    }
+  }
+  for (const [foldedPath, content] of DWG1_CONTENT_BOUND_ADMISSION) {
+    const admission = DWG1_FILE_ADMISSION.get(foldedPath);
+    if (
+      admission === undefined ||
+      caseFold(content.path) !== foldedPath ||
+      content.path !== admission.path ||
+      !/^[a-f0-9]{64}$/u.test(content.sha256) ||
+      !Number.isSafeInteger(content.byteLength) ||
+      content.byteLength < 0
+    ) {
+      throw new Error(
+        `${content.path}: DWG-1 content-bound admission must be exact and canonical`,
+      );
     }
   }
 }
@@ -561,9 +627,52 @@ export async function validateProvenance(
     );
   }
 
+  const dwg1ProgramSource = allowedById.get(caseFold(DWG1_PROGRAM_SOURCE_ID));
+  if (dwg1ProgramSource === undefined) {
+    throw new Error("DWG-1 first-party program source is missing");
+  }
+  const dwg1ProgramSourceFiles = new Set(
+    packagePathsFromSource(dwg1ProgramSource),
+  );
+
   const packageFiles = await walkRegularFiles(packageRoot, {
     ignoredDirectories: [".turbo", "coverage", "dist", "node_modules"],
   });
+  const repositoryPackageFiles = packageFiles.map(
+    (relativePath) => `packages/dwg-codec/${relativePath}`,
+  );
+  assertUniqueCaseFolded(repositoryPackageFiles, "DWG package file inventory");
+  const packageFilePaths = new Set(repositoryPackageFiles.map(caseFold));
+  for (const [foldedRepositoryPath, admission] of DWG1_FILE_ADMISSION) {
+    const fact = allowedFactsById.get(caseFold(admission.factId));
+    const pinnedContent =
+      DWG1_CONTENT_BOUND_ADMISSION.get(foldedRepositoryPath);
+    if (
+      !packageFilePaths.has(foldedRepositoryPath) ||
+      !dwg1ProgramSourceFiles.has(foldedRepositoryPath) ||
+      fact === undefined ||
+      fact.kind !== admission.kind ||
+      !fact.derivedFiles.map(caseFold).includes(foldedRepositoryPath)
+    ) {
+      throw new Error(
+        `${admission.path}: exact DWG-1 admission must name an existing file covered by the DWG-1 source and ${admission.kind} fact ${admission.factId}`,
+      );
+    }
+    if (pinnedContent !== undefined) {
+      const actual = await hashBaselineCandidateFile(
+        repositoryRoot,
+        pinnedContent,
+      );
+      if (
+        actual.sha256 !== pinnedContent.sha256 ||
+        actual.byteLength !== pinnedContent.byteLength
+      ) {
+        throw new Error(
+          `${admission.path}: content differs from its exact DWG-1 safe-core admission`,
+        );
+      }
+    }
+  }
   for (const relativePath of packageFiles) {
     const repositoryPath = `packages/dwg-codec/${relativePath}`;
     const foldedRepositoryPath = caseFold(repositoryPath);
