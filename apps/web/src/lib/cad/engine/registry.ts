@@ -39,7 +39,14 @@ export class CadCommandRegistryImpl implements CadCommandRegistry {
   }
 
   get(name: string): CadAnyCommandDescriptor | undefined {
-    const key = name.trim().replace(/^[-_]+/, "").toUpperCase();
+    // El nombre LITERAL primero, guion incluido: `-LAYER` es un comando propio
+    // —el que pide sus opciones por la línea— y no una forma de escribir
+    // `LAYER`. Sólo cuando nadie reclama el nombre literal se quita el prefijo,
+    // que es el comportamiento histórico y el que hace que `_LINE` funcione.
+    const literal = name.trim().toUpperCase();
+    const direct = this.byName.get(literal) ?? this.byName.get(this.byAlias.get(literal) ?? "");
+    if (direct) return direct;
+    const key = literal.replace(/^[-_]+/, "");
     return this.byName.get(key) ?? this.byName.get(this.byAlias.get(key) ?? "");
   }
 

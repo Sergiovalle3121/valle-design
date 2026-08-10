@@ -22,15 +22,18 @@
  * despacharse desde un manejador que corre ANTES de que los efectos de ese
  * render se hayan ejecutado.
  */
-import { useMemo, useRef, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import { CAD_COMMAND_REGISTRY_V2 } from "@/lib/cad/engine";
+import { requestCadUi } from "@/components/cad/palettes/palette-command-bus";
 import type { CadDocument } from "@/lib/cad/cad-document";
 import type { CadEntityCommand } from "@/lib/cad/entity-commands";
+import { runCadScript } from "@/lib/cad/script-runner";
 import type { CadHostRequest } from "@/lib/cad/engine/host-requests";
 import type { CadView } from "@/lib/cad/view/cad-view";
 import { cadDocumentExtents, cadEntityExtents } from "@/lib/cad/view/document-extents";
 import type { CadPreviewPath } from "@/lib/cad/engine/command-types";
 import type { SnapType } from "@/lib/cad/snap-engine";
+import { useCadFileCommandHandlers, useCadSessionState } from "./session-catalogs";
 import {
   CadCommandEngineHost,
   type CadCommandEngineBridge,
@@ -57,6 +60,9 @@ export function useCadCommandEngineHost(
         preview: (paths) => live.current.preview(paths),
         osnapOverride: (modes) => live.current.osnapOverride(modes),
         cursor: (shape) => live.current.cursor(shape),
+        variables: (patch, system) => live.current.variables?.(patch, system) ?? [],
+        ui: (request) => live.current.ui?.(request) ?? false,
+        select: (entityIds) => live.current.select?.(entityIds) ?? false,
         // `view` y `host` SE REENVÍAN. Olvidarlos aquí dejaba a ZOOM y a PLOT
         // llegando hasta el motor, emitiendo su efecto y muriendo en un
         // «no está disponible en este contexto» — la clase de fallo que sólo
@@ -95,6 +101,15 @@ export interface CadStudioCommandEngineOptions {
   newEntityId: () => string;
   /** Aplica el lote por la ruta canónica del editor. */
   apply(commands: readonly CadEntityCommand[], label: string): void;
+  /**
+   * Deja designado exactamente esto. Es lo que QSELECT y FILTER necesitan para
+   * que designar por propiedades signifique algo.
+   *
+   * Opcional porque la selección la sostiene el editor y esta ola no puede
+   * tocarlo. Sin ella los dos comandos siguen funcionando y CUENTAN cuántos
+   * objetos casan; lo que no hacen es designarlos.
+   */
+  setSelection?(entityIds: readonly string[]): void;
   /** Trabajo fuera del documento: trazar, publicar, cambiar de espacio. */
   host?(request: CadHostRequest): string;
   /**
@@ -177,6 +192,7 @@ export function useCadStudioPlotHost(
 export function useCadStudioCommandEngine(
   options: CadStudioCommandEngineOptions,
 ): CadCommandEngineHost {
+  const session = useCadSessionState();
   const navigation = useCadStudioNavigation(options);
   // El anfitrión del motor todavía no existe cuando se crea el de trazado, así
   // que el renglón del resultado se enruta por una `ref` que se rellena justo
@@ -194,6 +210,8 @@ export function useCadStudioCommandEngine(
         document: options.document.current,
         selection: options.selection.current,
         activeLayer: options.activeLayer,
+        variables: session.variables,
+        catalogs: session.catalogs,
         view: options.view.current?.view ?? null,
         // El puntero YA pasa por el motor: esto es lo que el enrutador del
         // viewport publica en cada movimiento. Sigue pudiendo faltar —el ratón
@@ -209,11 +227,47 @@ export function useCadStudioCommandEngine(
     // El anfitrión del estudio traza de verdad. Un `host` propio en las
     // opciones lo sustituye, que es lo que hace un guion sin navegador.
     host: (request) => live.current.host?.(request) ?? plot.handle(request),
+    // Previsualización, captura forzada y forma del cursor pertenecen al
+    // puntero, y el puntero YA llegó: las tres las sirve el enrutador del
+    // viewport a través de estas opciones. Sin enrutador —un guion, una
+    // prueba— siguen siendo opcionales y no pasa nada.
     preview: (paths) => options.preview?.(paths),
     osnapOverride: (modes) => options.osnapOverride?.(modes),
     cursor: (shape) => options.cursorShape?.(shape),
+    variables: (patch, system) => {
+      const lines: string[] = [];
+      for (const [name, value] of Object.entries(patch)) {
+        const outcome = system
+          ? session.variables.publish(name, value)
+          : session.variables.set(name, value);
+        if (!outcome.ok) lines.push(outcome.reason);
+      }
+      return lines;
+    },
+    ui: (request) => requestCadUi(request),
+    select: (entityIds) => {
+      if (!options.setSelection) return false;
+      options.setSelection(entityIds);
+      return true;
+    },
   });
   engineRef.current = engine;
+
+  // Los dos manejadores que necesitan leer un archivo. Van aquí porque SCRIPT
+  // tiene que volver a entrar por el MISMO anfitrión: un script es entrada
+  // tecleada, y meterla por otra puerta sería un segundo intérprete.
+  useCadFileCommandHandlers(
+    session,
+    useCallback(
+      (name: string, text: string) => {
+        const report = runCadScript(text, engine);
+        for (const warning of report.warnings) engine.note(warning, "error");
+        engine.note(`${name}: ${report.executed} renglón(es) ejecutado(s).`, "info");
+      },
+      [engine],
+    ),
+  );
+
   return engine;
 }
 
