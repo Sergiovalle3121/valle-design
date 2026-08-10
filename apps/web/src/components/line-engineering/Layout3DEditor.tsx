@@ -2188,6 +2188,15 @@ export default function Layout3DEditor({
   const enginePreviewRef = useRef<CadEnginePreview | null>(null);
   const engineLiveCursorRef = useRef<CadLiveCursorOverlay | null>(null);
   const engineCursorPointRef = useRef<{ x: number; y: number } | null>(null);
+  /**
+   * Último punto confirmado del comando en curso. Vive AQUÍ y no dentro del
+   * enrutador porque el enrutador se recrea con el lienzo THREE —que se vuelve
+   * a montar al cambiar de documento o de planta— y el comando del motor no:
+   * el anfitrión es un `useMemo` sin dependencias. Con el ancla dentro, un
+   * remontaje a mitad de un comando dejaba al motor pidiendo el segundo punto y
+   * al enrutador creyendo que no había primero.
+   */
+  const engineAnchorRef = useRef<{ x: number; y: number } | null>(null);
   const engineOsnapOverrideRef = useRef<readonly SnapType[] | null>(null);
   /** Hueco del aviso superior donde el cursor vivo escribe el modo capturado. */
   const engineSnapLabelRef = useRef<HTMLSpanElement | null>(null);
@@ -7159,6 +7168,7 @@ export default function Layout3DEditor({
         const rect = renderer.domElement.getBoundingClientRect();
         return { x: event.clientX - rect.left, y: event.clientY - rect.top };
       },
+      anchor: engineAnchorRef,
     });
     enginePointerRouterRef.current = enginePointerRouter;
     const onContextMenu = (event: MouseEvent) => {

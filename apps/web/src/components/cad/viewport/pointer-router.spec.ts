@@ -138,6 +138,7 @@ function harness(): Harness {
       x: (event as unknown as { clientX: number }).clientX,
       y: (event as unknown as { clientY: number }).clientY,
     }),
+    anchor: { current: null },
   });
   return {
     router,

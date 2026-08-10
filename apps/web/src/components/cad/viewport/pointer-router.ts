@@ -139,20 +139,39 @@ export interface CadEnginePointerBridge {
   setCursor(point: CadPoint2 | null): void;
   /** Coordenadas del evento relativas al lienzo, para colocar el DOM. */
   localPoint(event: PointerEvent | MouseEvent): { x: number; y: number };
+  /**
+   * Dónde vive el último punto confirmado.
+   *
+   * FUERA del enrutador, y es importante. El anfitrión del motor se crea una
+   * vez y sobrevive a todo; el enrutador nace y muere con el lienzo THREE, que
+   * se vuelve a montar cuando cambia el documento o la planta. Con el ancla
+   * dentro, un remontaje a mitad de un comando dejaba al motor pidiendo el
+   * segundo punto y al enrutador creyendo que no había primero: la entrada
+   * dinámica volvía a «origen», se remontaba y perdía lo que hubiera escrito.
+   */
+  anchor: { current: CadPoint2 | null };
 }
 
 export class CadEnginePointerRouter {
-  /**
-   * Último punto CONFIRMADO. El motor no lo expone —es estado interno del
-   * comando— y hace falta para medir la banda elástica y para resolver la
-   * entrada directa de distancia. Se conoce porque es este enrutador quien lo
-   * envió.
-   */
-  private anchorPoint: CadPoint2 | null = null;
   private lastSnap: SnapType | null = null;
   private lastPoint: CadPoint2 | null = null;
 
   constructor(private readonly bridge: CadEnginePointerBridge) {}
+
+  /**
+   * Último punto CONFIRMADO. El motor no lo expone —es estado interno del
+   * comando— y hace falta para medir la banda elástica, para resolver la
+   * entrada directa de distancia y para que la entrada dinámica sepa que ya hay
+   * un punto fijado. Se conoce porque es este enrutador quien lo envió, y se
+   * guarda fuera (ver `bridge.anchor`) para sobrevivir a un remontaje.
+   */
+  private get anchorPoint(): CadPoint2 | null {
+    return this.bridge.anchor.current;
+  }
+
+  private set anchorPoint(point: CadPoint2 | null) {
+    this.bridge.anchor.current = point;
+  }
 
   /** true cuando el motor manda: la máquina heredada no debe recibir nada. */
   get active(): boolean {
