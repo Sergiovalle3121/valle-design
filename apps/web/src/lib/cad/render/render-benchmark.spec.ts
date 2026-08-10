@@ -95,17 +95,61 @@ ok(true, `el pipeline nuevo asienta la vista inicial en ${next.framesToFirstDeta
 
 // Un cuadro del paneo del pipeline nuevo es MUY más barato que una
 // reconstrucción del anterior. Es la diferencia entre responder y bloquear.
+//
+// POR QUÉ ESTO SE DECIDE POR MAYORÍA DE PASEOS EMPAREJADOS Y NO POR UNA
+// MEDIDA SUELTA. Una sola muestra de reloj de pared no comparaba los dos
+// pipelines: comparaba al runner consigo mismo.
+//
+// El ruido de planificación es ABSOLUTO —una pausa de GC o un desalojo cuestan
+// los mismos milisegundos a los dos caminos— pero el coste real no lo es: el
+// nuevo ronda los 5-7 ms por cuadro y el anterior los 9. Un hipo de 5 ms
+// apenas mueve al anterior y DUPLICA al nuevo, así que el veredicto se lo
+// llevaba quien tuviera mala suerte. Y encima el «p95» se calcula sobre los
+// ~8 cuadros de las ocho paradas: con esa muestra un percentil 95 ES el
+// máximo, o sea el estadístico más sensible al ruido que existe.
+//
+// Medido en local sobre `main`: 2 de cada 10 corridas invertían el signo
+// —«nuevo 15.589 ms frente a 9.35 ms»— sin que nada hubiera cambiado. Así cayó
+// `test:specs` en CI sobre una rama que sólo tocaba Markdown y el workflow.
+//
+// La cura es emparejar y repetir. Cada ronda mide los DOS caminos seguidos,
+// sobre el mismo guion de ocho paradas —el escenario no se toca, no se ablanda
+// el paseo—, y anota quién ganó. Se exige que el pipeline nuevo gane la MAYORÍA
+// de las rondas. El ruido golpea rondas sueltas de forma independiente, así que
+// tolerar dos derrotas de cinco absorbe los hipos sin necesidad de que ninguna
+// ronda salga perfecta.
+//
+// Y NO puede tapar una regresión. Lo que se repite es la MEDIDA, nunca la
+// aserción: si el pipeline nuevo se volviera de verdad más caro que el
+// anterior, perdería sistemáticamente y la mayoría no se alcanzaría. Lo único
+// que este recuento elimina es que una hipo del runner dicte el veredicto.
+const TIMING_ROUNDS = 5;
+const REQUIRED_WINS = 3;
+
+let p95Wins = 0;
+let maxWins = 0;
+const scoreboard: string[] = [];
+for (let round = 0; round < TIMING_ROUNDS; round += 1) {
+  const n = round === 0
+    ? next
+    : measureCadNextPipeline(corpus.nativeEntities, corpus.document.modelSpace.entityIds, scenario);
+  const l = round === 0 ? legacy : measureCadLegacyPipeline(corpus.nativeEntities, scenario);
+  if (n.panFrameP95Ms < l.panFrameP95Ms) p95Wins += 1;
+  if (n.panFrameMaxMs < l.panFrameMaxMs) maxWins += 1;
+  scoreboard.push(`${n.panFrameP95Ms}/${l.panFrameP95Ms}`);
+}
+
 assert.ok(
-  next.panFrameP95Ms < legacy.panFrameP95Ms,
-  `p95 por cuadro al panear: nuevo ${next.panFrameP95Ms} ms frente a ${legacy.panFrameP95Ms} ms del anterior`,
+  p95Wins >= REQUIRED_WINS,
+  `p95 por cuadro al panear: el pipeline nuevo sólo ganó ${p95Wins} de ${TIMING_ROUNDS} paseos (nuevo/anterior: ${scoreboard.join(", ")})`,
 );
 assert.ok(
-  next.panFrameMaxMs < legacy.panFrameMaxMs,
-  `y también el peor cuadro: ${next.panFrameMaxMs} ms frente a ${legacy.panFrameMaxMs} ms`,
+  maxWins >= REQUIRED_WINS,
+  `peor cuadro al panear: el pipeline nuevo sólo ganó ${maxWins} de ${TIMING_ROUNDS} paseos`,
 );
 ok(
   true,
-  `paneo p95: ${next.panFrameP95Ms} ms (nuevo) frente a ${legacy.panFrameP95Ms} ms (anterior); peor cuadro ${next.panFrameMaxMs} frente a ${legacy.panFrameMaxMs}`,
+  `paneo: el pipeline nuevo gana el p95 en ${p95Wins}/${TIMING_ROUNDS} paseos y el peor cuadro en ${maxWins}/${TIMING_ROUNDS} (p95 nuevo/anterior por ronda: ${scoreboard.join(", ")})`,
 );
 
 // ---------------------------------------------------------------------------
@@ -133,5 +177,5 @@ ok(
 );
 
 console.log(
-  `render-benchmark: ${checks} comprobaciones verdes — a ${ENTITIES} entidades con el dibujo entero a la vista el pipeline nuevo detalla ${fullNext.detailedAtRest} y el anterior ${fullLegacy.detailedAtRest}; p95 por cuadro al panear ${next.panFrameP95Ms} ms frente a ${legacy.panFrameP95Ms} ms; el montón crece ${leak.heapGrowthMb} MiB en tres ciclos. MEDIDA DE CPU EN NODE, no de cuadros de navegador ni de GPU.`,
+  `render-benchmark: ${checks} comprobaciones verdes — a ${ENTITIES} entidades con el dibujo entero a la vista el pipeline nuevo detalla ${fullNext.detailedAtRest} y el anterior ${fullLegacy.detailedAtRest}; el pipeline nuevo gana el p95 por cuadro al panear en ${p95Wins} de ${TIMING_ROUNDS} paseos emparejados; el montón crece ${leak.heapGrowthMb} MiB en tres ciclos. MEDIDA DE CPU EN NODE, no de cuadros de navegador ni de GPU.`,
 );

@@ -100,6 +100,16 @@ test('BLOCK/INSERT stays native through tenant library, attributes, persistence,
   // depender de eso aunque el producto lo tolere.
   await page.getByTestId('cad-block-row-DOOR').click();
 
+  // «Insertar instancia viva» es `disabled={!selectedDefinition}`. Si el panel
+  // se re-renderiza en el instante del despacho, el navegador se come el click
+  // SIN RUIDO: no se inserta nada, no hay error, y la prueba muere más abajo
+  // en `cad-native-properties` inexistente — que es exactamente como cayó este
+  // golden en CI sobre 8be49a55. Se afirma aquí la postcondición del paso, en
+  // el sitio donde se rompe, en vez de deducirla de una aserción posterior.
+  const nativeCount = async () =>
+    (await page.getByTestId('cad-native-document-count').textContent())?.trim() ?? '';
+  const countBeforeInsert = await nativeCount();
+
   await applyFieldGroup(
     page,
     {
@@ -111,6 +121,7 @@ test('BLOCK/INSERT stays native through tenant library, attributes, persistence,
       'cad-block-attributes': 'MARK=D-02',
     },
     'cad-block-insert',
+    { confirmed: async () => (await nativeCount()) !== countBeforeInsert },
   );
 
   await page.getByLabel('Cerrar panel profesional').click();
