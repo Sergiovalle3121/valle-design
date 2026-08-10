@@ -1,4 +1,8 @@
 import { BadRequestException } from '@nestjs/common';
+import {
+  assertRegionInvariants,
+  assertSolid3dInvariants,
+} from './cad-solid-invariants';
 
 /**
  * Invariantes por TIPO de entidad, fail-closed.
@@ -142,6 +146,13 @@ export function assertEntityInvariants(
         );
       }
     }
+
+    // Esquema 5. Las dos entidades de sólidos tienen sus invariantes en
+    // `cad-solid-invariants.ts`: un SOLID3D no persiste geometría sino el ÁRBOL
+    // que la produce, y validar un programa —referencias, ciclos, aridad— es una
+    // responsabilidad distinta de comprobar que un radio es positivo.
+    if (type === 'solid3d') assertSolid3dInvariants(entity, id);
+    if (type === 'region') assertRegionInvariants(entity, id);
 
     if (type === 'line') {
       const start = assertPoint(entity.start, id, 'el inicio de la línea');

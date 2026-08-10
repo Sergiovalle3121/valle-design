@@ -24,12 +24,20 @@ import type { CadStyleTable } from "./cad-document";
 export const DEFAULT_LAYER_ID = "0";
 
 /**
- * v4: estrena POINT, XLINE, RAY, SOLID, WIPEOUT, IMAGE, ATTDEF y TABLE, más la
+ * v4 estrenó POINT, XLINE, RAY, SOLID, WIPEOUT, IMAGE, ATTDEF y TABLE, más la
  * sección `imageDefinitions`, los atributos POSICIONADOS de INSERT y el grosor
- * por tramo de una polilínea. Todo aditivo: un documento v3 migra sin perder un
- * campo y sin que se reinterprete ninguno de los que ya traía.
+ * por tramo de una polilínea.
+ *
+ * v5 estrena SOLID3D y REGION: el modelado de sólidos B-rep. Un SOLID3D guarda
+ * su ÁRBOL DE CONSTRUCCIÓN —primitivas y operaciones— y no su malla, de modo que
+ * se puede reeditar y el archivo no engorda con decenas de miles de triángulos;
+ * la malla se deriva al abrir.
+ *
+ * Todo aditivo, en las dos subidas: un documento v3 o v4 migra sin perder un
+ * campo y sin que se reinterprete ninguno de los que ya traía. Lo único que
+ * cambia es `meta.schema`.
  */
-export const CAD_DOCUMENT_SCHEMA = 4;
+export const CAD_DOCUMENT_SCHEMA = 5;
 
 /** Capa estable de las colocaciones de estación. */
 export const STATIONS_LAYER = "Stations";

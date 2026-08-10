@@ -1,5 +1,5 @@
 /**
- * Migración del esquema 3 al 4.
+ * Migración del esquema 3 al 5.
  *
  * ## Por qué esta spec no usa una propiedad de ida y vuelta
  *
@@ -16,6 +16,7 @@
 import { strict as assert } from "node:assert";
 import {
   CAD_DOCUMENT_SCHEMA,
+  cadDocumentStats,
   commitChange,
   migrateCadDocument,
   parseCadDocument,
@@ -25,7 +26,7 @@ import {
 
 // --- ancla absoluta: el número del esquema vigente ---------------------------
 {
-  assert.equal(CAD_DOCUMENT_SCHEMA, 4, "esta ola sube el esquema canónico a 4");
+  assert.equal(CAD_DOCUMENT_SCHEMA, 5, "esta ola sube el esquema canónico a 5");
 }
 
 /** Documento v3 con una entidad de cada familia que ya existía. */
@@ -75,7 +76,7 @@ function schema3Document(): Record<string, unknown> {
   const source = schema3Document();
   const migrated = migrateCadDocument(source);
 
-  assert.equal(migrated.meta.schema, 4, "el documento pasa a declararse v4");
+  assert.equal(migrated.meta.schema, 5, "el documento pasa a declararse v5");
   // Anclas absolutas, campo a campo: no «igual que antes», sino ESTE valor.
   assert.equal(migrated.meta.version, 7, "la versión de contenido NO se toca");
   assert.equal(migrated.meta.unit, "mm");
@@ -126,7 +127,7 @@ function schema3Document(): Record<string, unknown> {
   assert.equal(
     serializeCadDocument(twice),
     serializeCadDocument(once),
-    "volver a migrar un v4 no cambia un byte",
+    "volver a migrar un v5 no cambia un byte",
   );
 }
 
@@ -189,6 +190,120 @@ function schema3Document(): Record<string, unknown> {
   assert.equal(withV4.imageDefinitions![0].name, "planta.png", "el clon es profundo");
 }
 
+// --- v4 → v5: aditivo, y NO se fabrican regiones ------------------------------
+//
+// Ésta es la tentación concreta del esquema 5: un v4 tiene polilíneas CERRADAS y
+// círculos, que es justo lo que consume EXTRUDE, y convertirlos en REGION al
+// abrir «para que ya estén listos» parecería un favor. Sería un cambio de
+// contenido no pedido: cambiaría lo que el usuario ve, lo que exporta a DXF y el
+// hash de todos los documentos existentes. El ancla que lo fija no es «migrar
+// dos veces da lo mismo» —eso se cumple vacío— sino el RECUENTO exacto por tipo.
+{
+  const v4: Record<string, unknown> = {
+    ...schema3Document(),
+    meta: { version: 3, schema: 4, unit: "mm" },
+    entities: [
+      {
+        id: "cerrada",
+        type: "polyline",
+        vertices: [
+          { x: 0, y: 0, z: 0 },
+          { x: 100, y: 0, z: 0 },
+          { x: 100, y: 100, z: 0 },
+        ],
+        closed: true,
+        layer: "MUROS",
+      },
+      { id: "circ", type: "circle", center: { x: 0, y: 0, z: 0 }, radius: 50, layer: "MUROS" },
+    ],
+    modelSpace: { entityIds: ["cerrada", "circ"] },
+  };
+  const migrated = migrateCadDocument(v4);
+
+  assert.equal(migrated.meta.schema, 5, "el v4 pasa a declararse v5");
+  assert.equal(migrated.meta.version, 3, "la versión de contenido NO se toca al subir de esquema");
+  const stats = cadDocumentStats(migrated);
+  assert.equal(stats.polyline, 1, "la polilínea cerrada SIGUE siendo una polilínea");
+  assert.equal(stats.circle, 1, "el círculo SIGUE siendo un círculo");
+  assert.equal(stats.region, 0, "no se fabrica ninguna REGION al abrir");
+  assert.equal(stats.solid3d, 0, "no se fabrica ningún SOLID3D al abrir");
+  assert.deepEqual(migrated.modelSpace.entityIds, ["cerrada", "circ"], "el z-order no se toca");
+}
+
+// --- un v5 con sólidos y regiones sobrevive a guardar y reabrir ---------------
+{
+  const base = migrateCadDocument(schema3Document());
+  const withV5: CadDocument = {
+    ...base,
+    entities: [
+      ...base.entities,
+      {
+        id: "sol1",
+        type: "solid3d",
+        name: "Base",
+        root: "n2",
+        nodes: [
+          {
+            id: "n1",
+            op: "extrude",
+            profile: {
+              outer: [
+                { x: 0, y: 0 },
+                { x: 400, y: 0 },
+                { x: 400, y: 300 },
+                { x: 0, y: 300 },
+              ],
+            },
+            height: 200,
+          },
+          { id: "n2", op: "subtract", operands: ["n1", "n1b"] },
+          { id: "n1b", op: "box", min: { x: 100, y: 100, z: -50 }, max: { x: 200, y: 200, z: 250 } },
+        ],
+        placement: { a: 1, b: 0, c: 0, d: 1, e: 1_000, f: 500, dz: 0 },
+        layer: "MUROS",
+      },
+      {
+        id: "reg1",
+        type: "region",
+        outer: [
+          { x: 0, y: 0, z: 0 },
+          { x: 100, y: 0, z: 0 },
+          { x: 100, y: 100, z: 0 },
+          { x: 0, y: 100, z: 0 },
+        ],
+        layer: "MUROS",
+      },
+    ],
+    modelSpace: { entityIds: [...base.modelSpace.entityIds, "sol1", "reg1"] },
+  };
+
+  const reopened = parseCadDocument(serializeCadDocument(withV5));
+  const solid = reopened.entities.find((entity) => entity.id === "sol1");
+  if (solid?.type !== "solid3d") throw new Error("tipo");
+  // El ÁRBOL sobrevive entero, nodo a nodo. Es lo que hace que un sólido se
+  // pueda reeditar después de cerrar el dibujo; si sólo viajase la malla,
+  // «cambia la altura de la extrusión» sería imposible.
+  assert.equal(solid.nodes.length, 3, "los tres nodos del árbol sobreviven");
+  assert.equal(solid.root, "n2");
+  const extrude = solid.nodes.find((node) => node.id === "n1");
+  if (extrude?.op !== "extrude") throw new Error("op");
+  assert.equal(extrude.height, 200, "la altura de la extrusión llega con su valor exacto");
+  assert.equal(extrude.profile.outer.length, 4);
+  assert.equal(solid.placement?.e, 1_000, "la colocación sobrevive");
+  assert.equal(solid.name, "Base");
+
+  const region = reopened.entities.find((entity) => entity.id === "reg1");
+  if (region?.type !== "region") throw new Error("tipo");
+  assert.equal(region.outer.length, 4);
+  assert.equal(region.inners, undefined, "los agujeros ausentes siguen ausentes");
+
+  // Y la malla NO se persiste: el serializado no contiene ni un triángulo. Es la
+  // razón de ser del esquema 5 y merece un ancla en vez de confianza.
+  const text = serializeCadDocument(withV5);
+  assert.ok(!text.includes("positions"), "la malla no viaja en el documento");
+  assert.ok(!text.includes("indices"), "los índices de triángulo tampoco");
+}
+
 // --- un esquema del futuro se rechaza, no se adivina --------------------------
 {
   assert.throws(
@@ -198,6 +313,7 @@ function schema3Document(): Record<string, unknown> {
 }
 
 console.log(
-  "migración v3→v4: esquema, huella, bulge, orden de dibujo y atributos verificados con anclas absolutas; " +
-    "secciones opcionales siguen ausentes; ida y vuelta de POINT/XLINE/IMAGE confirmada",
+  "migración v3→v5: esquema, huella, bulge, orden de dibujo y atributos verificados con anclas absolutas; " +
+    "secciones opcionales siguen ausentes; ida y vuelta de POINT/XLINE/IMAGE confirmada; " +
+    "v4→v5 aditivo (ninguna REGION ni SOLID3D fabricados) y el árbol de construcción sobrevive sin malla",
 );
