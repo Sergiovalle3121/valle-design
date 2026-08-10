@@ -193,3 +193,59 @@ toca `render-benchmark.ts` y es del dueño del pipeline de render (#62), no mío
   botón deshabilitado que se come un click es un defecto de usabilidad menor—
   pero cerrarla de verdad exige tocar `CadDynamicInput`/`CadBlockPalette`
   (T1/T2) y no hace falta para poner `main` en verde.
+
+---
+
+# Segunda ronda — lo que se vio DESPUÉS de fusionar (10 de agosto)
+
+El PR #65 entró como `e41f12d`. Su corrida sobre `main` dejó tres cosas.
+
+## 8. El arreglo del artefacto funciona
+
+El paso «Upload Playwright report» pasó de avisar «No files were found» a
+subir **123 ficheros, 512 MB**, informe HTML y trazas incluidas. Por primera
+vez hay evidencia directa de un E2E rojo de `main` sin reconstruirla desde los
+logs. Artefacto `9050785880` de la corrida `31352932559`.
+
+## 9. Y la concurrencia también
+
+`6419f3d` (#69) seguía en curso cuando entró `e41f12d`, y **no se canceló**.
+Con la configuración anterior habría muerto, exactamente como los cinco commits
+del 9 de agosto. La causa de fondo está cerrada.
+
+## 10. `Lint web` murió de memoria, y es la prueba del §5 que faltaba
+
+```
+FATAL ERROR: Ineffective mark-compacts near heap limit
+JavaScript heap out of memory     (exit 134)
+```
+
+No falló ninguna regla: **el linter se cayó**, tras 91 s de GC dando vueltas.
+El límite por defecto de Node en el runner son ~2 GB y, medido sobre este
+árbol, eslint necesita entre 1,5 y 2: revienta con 1024, 1280 y 1536 MB, y pasa
+con 2048. El gate venía corriendo con **margen cero**.
+
+Lo importante no es el número, es el patrón: **#69 pasó su lint, #65 pasó el
+suyo, y la suma se cayó.** Es exactamente el agujero que el §11 de FASE 3
+describía — dos ramas verdes por separado que nadie prueba juntas— y ha
+ocurrido en la primera oportunidad que tuvo. Si hiciera falta un argumento para
+exigir *Require branches to be up to date before merging*, es éste.
+
+Se le da a eslint 4 GB explícitos en el paso de CI. Es un tope, no una cura: el
+coste sale del linteo con tipos sobre un monolito de 23k líneas
+(`Layout3DEditor.tsx`), y quien lo parta recuperará este margen.
+
+## 11. El E2E de esa corrida NO es el intermitente de siempre
+
+12 tests caídos —goldens 10, 15, 16, 17, 19, 22, 24, 46, 51, la performance de
+100k y dos de firefox— y **57,1 minutos** de ejecución, cuando la misma suite
+tardó 32,6 en el PR y ~25-30 históricamente. El doble de tiempo y doce caídas a
+la vez no es el fallo de un test: es un runner degradado, y la mayoría de las
+caídas son afirmaciones sensibles al reloj, del tipo
+`expect.poll(() => backend.snapshot().version).toBe(1)` recibiendo 2 —el
+autosave con debounce de 2 s disparando dentro del test porque todo va lento.
+
+No se persigue: doce fallos con la suite al doble de lento se arreglan
+volviendo a correr, no tocando doce specs. La corrida del PR que trae el §10
+sirve de contraste; si ahí el E2E vuelve a salir verde, queda confirmado que
+fue el runner.
