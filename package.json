@@ -17,7 +17,7 @@
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "sbom": "npm sbom --sbom-format cyclonedx > sbom.cdx.json && node -e \"const b=require('./sbom.cdx.json');console.log('SBOM OK:',b.components.length,'componentes de runtime y desarrollo')\"",
     "check:licenses": "node scripts/check-dependency-licenses.mjs",
-    "check:governance": "node scripts/check-proprietary-governance.mjs",
+    "check:governance": "node scripts/check-proprietary-governance.mjs && node --test scripts/check-proprietary-governance.spec.mjs",
     "check:cad-contract": "node scripts/cad/check-design-contract.mjs",
     "check:no-line-engineering": "node scripts/cad/check-no-line-engineering.mjs",
     "check:monolith-budget": "node scripts/cad/check-monolith-budget.mjs",

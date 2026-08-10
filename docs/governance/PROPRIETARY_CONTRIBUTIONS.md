@@ -7,7 +7,17 @@ Zárate es el titular del proyecto y de sus obras first-party, sujeto a los
 instrumentos escritos que pueda celebrar posteriormente con una entidad
 comercial. El repositorio no adopta una licencia open source.
 
+Sergio es también el único contribuidor humano actual. Un cambio first-party
+presentado y adoptado por él no necesita un CLA consigo mismo ni la aprobación
+de otra persona. Si fue asistido por IA, Sergio revisa y adopta personalmente el
+diff bajo `ASSISTED_DEVELOPMENT.md`; la herramienta no adquiere autoría ni
+titularidad.
+
 ## Regla de admisión
+
+La regla de esta sección se aplica a toda persona distinta de Sergio Valle
+Zárate. No existe una excepción implícita para amistades, contratistas,
+empleados futuros, cuentas automatizadas o aportaciones no solicitadas.
 
 Una persona externa sólo puede aportar después de que el titular confirme un
 acuerdo escrito y ejecutado que cubra la contribución. El instrumento aplicable
@@ -48,12 +58,16 @@ mantienen bajo sus propios términos y pasan SBOM/licencias.
 
 La persona que use una herramienta de IA sigue siendo responsable de revisar el
 resultado, demostrar que las entradas estaban autorizadas y adoptar el cambio.
-La herramienta no figura como autora, contribuidora, copropietaria ni coautora
-del commit.
+Cuando Sergio presenta el cambio first-party, su revisión del SHA exacto, su
+autorización de merge y el registro aplicable documentan esa adopción. La
+herramienta no figura como autora, contribuidora, copropietaria ni coautora del
+commit.
 
-## Cambio de visibilidad
+## Repositorio privado único
 
-La visibilidad pública actual es temporal y no concede licencia. Antes del
-primer piloto comercial, el repositorio debe ser privado. El corpus privado,
-contratos, secretos, planos de clientes y documentación técnica confidencial no
-se publican ni siquiera durante esta etapa.
+`Sergiovalle3121/valle-design` es privado y es el único repositorio del proyecto;
+esta política no exige ni autoriza un repositorio compañero. Su carácter privado
+no concede licencias ni relaja procedencia, secretos o privacidad. Contratos,
+secretos, datos personales y planos de clientes no se incorporan al control de
+versiones. Tampoco se presupone la existencia o aprobación de un corpus: todo
+fixture o dato deberá superar su gate de derechos antes de incorporarse.

@@ -1,16 +1,36 @@
 {
-  "schemaVersion": "1.0.0",
-  "capturedAt": "2026-08-09",
+  "schemaVersion": "1.1.0",
+  "recordedAt": "2026-08-09",
   "repository": "Sergiovalle3121/valle-design",
   "repositoryId": 1318987896,
-  "visibility": "public",
+  "visibility": "private",
+  "visibilityVerifiedAt": "2026-08-09",
   "defaultBranch": "main",
-  "protection": {
+  "repositoryTopology": {
+    "kind": "single-repository",
+    "repository": "Sergiovalle3121/valle-design",
+    "companionRepositoryRequired": false
+  },
+  "governanceModel": {
+    "kind": "sole-human-owner",
+    "owner": "Sergio Valle Zárate",
+    "githubLogin": "Sergiovalle3121",
+    "humanContributors": 1,
+    "independentApprovalRequiredForOwnerChanges": false,
+    "ownerClaOrAssignmentRequired": false
+  },
+  "lastRemoteObservation": {
+    "capturedAt": "2026-08-09",
+    "context": "before-sole-owner-transition",
+    "requiredApprovals": 1,
+    "requireLastPushApproval": true
+  },
+  "requiredProtection": {
     "kind": "classic-branch-protection",
     "requirePullRequest": true,
-    "requiredApprovals": 1,
+    "requiredApprovals": 0,
     "dismissStaleReviews": true,
-    "requireLastPushApproval": true,
+    "requireLastPushApproval": false,
     "requireCodeOwnerReview": false,
     "requireBranchUpToDate": true,
     "requiredStatusChecks": [
@@ -23,7 +43,8 @@
     "requireLinearHistory": true,
     "enforceAdmins": true,
     "allowForcePushes": false,
-    "allowDeletions": false
+    "allowDeletions": false,
+    "allowStatusCheckBypass": false
   },
   "repositoryMergeSettings": {
     "allowSquashMerge": true,
@@ -33,13 +54,42 @@
     "allowUpdateBranch": true,
     "deleteBranchOnMerge": true
   },
-  "pending": {
-    "secondHumanReviewer": true,
-    "codeOwnerReview": true,
-    "mergeQueue": {
-      "enabled": false,
-      "reason": "GitHub merge queues require an organization-owned repository; the current repository is owned by a personal account.",
-      "officialDocumentation": "https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/merging-a-pull-request-with-a-merge-queue"
-    }
+  "soleOwnerSubstituteControls": [
+    "pull-request-record",
+    "exact-sha-required-status-checks",
+    "strict-up-to-date-branch",
+    "resolved-conversations",
+    "linear-history",
+    "owner-adoption-record"
+  ],
+  "remoteEnforcement": {
+    "status": "unavailable-current-plan",
+    "verifiedAt": "2026-08-09T21:18:25-06:00",
+    "branchProtectionApi": "403 Upgrade to GitHub Pro or make this repository public to enable this feature.",
+    "rulesetsApi": "403 Upgrade to GitHub Pro or make this repository public to enable this feature.",
+    "machineEnforced": false,
+    "protectionClaimAllowed": false,
+    "requiredRemediation": "Upgrade the owner account to GitHub Pro or transfer this same private repository to an organization plan that supports protected branches before declaring requiredProtection remotely enforced."
+  },
+  "interimOwnerMergeProtocol": {
+    "requirePullRequest": true,
+    "requireExactHeadSha": true,
+    "requireAllFourChecksSuccessful": true,
+    "requireHeadBasedOnCurrentMain": true,
+    "requireExpectedHeadShaAtMerge": true,
+    "directPushProhibitedByPolicy": true,
+    "machineEnforced": false
+  },
+  "futureExternalContributorGate": {
+    "assignmentOrClaRequired": true,
+    "independentApprovalRequired": true,
+    "lastPushApprovalRequired": true,
+    "codeOwnerReviewRequiredForSensitivePaths": true,
+    "mustBeEnabledBeforeFirstExternalPullRequest": true
+  },
+  "mergeQueue": {
+    "enabled": false,
+    "reason": "GitHub merge queues require an organization-owned repository; the current repository is owned by a personal account.",
+    "officialDocumentation": "https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/merging-a-pull-request-with-a-merge-queue"
   }
 }

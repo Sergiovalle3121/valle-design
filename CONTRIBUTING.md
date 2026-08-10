@@ -1,12 +1,22 @@
 # Contribuir
 
-Valle Design es software propietario y comercial. La visibilidad pública
-temporal del repositorio no lo convierte en open source ni constituye una
-invitación general a contribuir. Lea `NOTICE`, `LICENSE` y la
+Valle Design es software propietario y comercial. El acceso privado y
+confidencial al repositorio no concede una licencia ni constituye una invitación
+general a contribuir. Lea `NOTICE`, `LICENSE` y la
 [política de propiedad intelectual](docs/governance/PROPRIETARY_CONTRIBUTIONS.md)
 antes de preparar un cambio.
 
 ## Requisito previo de titularidad
+
+Sergio Valle Zárate es el único titular y contribuidor humano actual. Sus
+cambios first-party no requieren que celebre consigo mismo un CLA o una cesión,
+ni una aprobación de GitHub emitida por una segunda persona inexistente. Para
+esos cambios, la adopción se documenta mediante el PR revisado por Sergio, el
+registro de desarrollo asistido cuando corresponda, los checks requeridos sobre
+el SHA exacto, la rama actualizada y el historial lineal.
+
+Esta excepción sólo aplica al titular. No habilita contribuciones externas ni
+convierte la asistencia de IA en una contribución humana.
 
 No se acepta ni fusiona una aportación externa hasta que Sergio Valle Zárate:
 
@@ -32,6 +42,12 @@ firmados en GitHub.
 5. Complete la plantilla del PR: alcance, procedencia, desarrollo asistido,
    dependencias, evidencia, riesgos, migración y rollback. No eleve “parcial” a
    “soportado” sin prueba completa.
+
+Mientras Sergio sea el único contribuidor humano, un cambio sólo se fusiona
+desde PR, con todos los checks requeridos verdes sobre el SHA exacto que se va a
+fusionar, la rama actualizada respecto de `main`, conversaciones resueltas e
+historial lineal. La ausencia de una aprobación externa no permite omitir
+ninguno de esos controles.
 
 El formato es el Prettier/ESLint existente; no envuelva imports en `try/catch`.
 No edite `package-lock.json` a mano. Dependencias nuevas requieren licencia

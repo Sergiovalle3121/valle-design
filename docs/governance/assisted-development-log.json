@@ -14,10 +14,12 @@
           "role": "análisis, propuesta y edición supervisada"
         }
       ],
-      "authority": "Directiva expresa de Sergio Valle Zárate en la tarea de implementación DWG-01",
+      "authority": "Directiva expresa de Sergio Valle Zárate en la tarea de implementación DWG-01 y confirmación posterior de que es el único titular y contribuidor humano",
       "firstPartyInputs": [
         "Repositorio Valle Design y sus políticas existentes",
-        "Plan propietario y comercial aprobado por Sergio Valle Zárate"
+        "Plan propietario y comercial aprobado por Sergio Valle Zárate",
+        "Decisión expresa de Sergio de operar la gobernanza sin un segundo revisor inexistente, conservando PR, checks exact-SHA e historial lineal",
+        "Confirmación por API de que valle-design es privado y directiva de Sergio de mantener un único repositorio"
       ],
       "externalSources": [
         {
@@ -46,6 +48,8 @@
         "términos propietarios",
         "política de contribuciones",
         "procedencia de desarrollo asistido",
+        "modelo de adopción personal por propietario único",
+        "aviso confidencial y topología de repositorio privado único",
         "protección del repositorio",
         "inventario SBOM y gate de licencias",
         "CI"
@@ -56,7 +60,7 @@
         "required": true,
         "status": "proposed",
         "adopter": "Sergio Valle Zárate",
-        "evidence": "La aprobación y merge por Sergio del PR que contiene esta entrada adopta únicamente el diff revisado."
+        "evidence": "La autorización y merge por Sergio del PR, después de revisar el diff y verificar los checks requeridos sobre el SHA exacto, adopta únicamente ese diff."
       },
       "aiCoAuthorTrailers": false
     },

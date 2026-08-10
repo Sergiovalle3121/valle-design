@@ -5,13 +5,14 @@
 
 ## Titularidad y procedencia
 
+- Tipo de contribución (titular Sergio / tercero autorizado):
 - Contribuidor humano responsable:
-- Acuerdo de cesión/CLA confirmado por Sergio (interno / referencia privada / no aplica):
+- Acuerdo de cesión/CLA confirmado por Sergio (referencia privada / no aplica porque el contribuidor es Sergio):
 - Fuentes consultadas, con términos y versión:
 - Archivos o decisiones derivados de cada fuente:
 - Fixtures/datos añadidos, titular y permiso de redistribución:
 - [ ] No copié, traduje, porté ni adapté una implementación externa restringida.
-- [ ] No incluí secretos, datos de clientes, corpus privado ni material confidencial.
+- [ ] No incluí secretos, datos de clientes ni corpus/material sin derechos y procedencia verificados.
 
 ## Desarrollo asistido
 
@@ -29,7 +30,9 @@
 
 ## Evidencia
 
+- SHA exacto revisado y candidato a merge:
 - Checks ejecutados y resultado:
 - Evidencia independiente para cualquier capability promovida:
 - [ ] Las afirmaciones públicas coinciden con la capacidad probada.
+- [ ] Los checks requeridos corresponden al SHA exacto candidato y la rama está actualizada.
 - [ ] Si toca DWG, declaré IDs de fuentes permitidas, derivados y fixtures según la política clean-room.

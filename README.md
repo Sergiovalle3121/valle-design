@@ -1,9 +1,9 @@
 # Valle Design
 
 > [!IMPORTANT]
-> Este repositorio es temporalmente público para desarrollo asistido, pero
-> Valle Design es software propietario, comercial y cerrado. No se concede una
-> licencia open source ni permiso de uso por el acceso al código. Consulte
+> Este repositorio es privado y confidencial. Valle Design es software
+> propietario, comercial y cerrado. No se concede una licencia open source ni
+> permiso de uso por el acceso al código. Consulte
 > [NOTICE](NOTICE), [LICENSE](LICENSE) y la
 > [política de contribuciones](docs/governance/PROPRIETARY_CONTRIBUTIONS.md).
 

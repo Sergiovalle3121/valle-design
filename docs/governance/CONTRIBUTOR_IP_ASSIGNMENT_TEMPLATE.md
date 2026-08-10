@@ -2,7 +2,8 @@
 
 > Plantilla operativa pendiente de adaptación y aprobación por asesor jurídico
 > para la jurisdicción, entidad y relación concretas. No se ejecuta al abrir un
-> PR, no sustituye firmas y no debe completarse dentro del repositorio público.
+> PR, no sustituye firmas y no debe completarse dentro del repositorio de
+> código.
 
 ## Datos y alcance
 

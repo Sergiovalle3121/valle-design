@@ -1,5 +1,6 @@
-# Titular actual. No inventar el usuario del segundo revisor: su incorporación
-# está bloqueada hasta que Sergio lo designe y confirme su aceptación.
+# Sergio Valle Zárate es el único titular y contribuidor humano actual.
+# CODEOWNERS conserva su control sobre cada cambio aunque, mientras no exista
+# otro contribuidor, GitHub no pueda exigir una autoaprobación del autor.
 * @Sergiovalle3121
 
 # Superficies sensibles que siempre requieren revisión del titular.

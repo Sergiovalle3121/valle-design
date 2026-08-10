@@ -12,11 +12,14 @@ una decisión humana antes de declarar la cadena “limpia” para distribución
 | `lightningcss@1.32.0`                | desarrollo, toolchain CSS web         | MPL-2.0                                  | pendiente |
 | `lightningcss-win32-x64-msvc@1.32.0` | desarrollo, binario CSS de plataforma | MPL-2.0                                  | pendiente |
 
-La presencia en esta tabla no es aprobación jurídica. El segundo revisor debe
-confirmar para cada componente si sus términos y modo real de uso permiten el
-build propietario, si se necesitan notices/oferta de fuente correspondiente, o
-si debe reemplazarse. La decisión final debe registrar versión exacta,
-plataforma, artefactos distribuidos, obligaciones y revisor.
+La presencia en esta tabla no es aprobación jurídica. Sergio, como único
+titular, debe registrar para cada componente una decisión informada —con
+asesoría jurídica competente cuando corresponda— sobre si sus términos y modo
+real de uso permiten el build propietario, si se necesitan notices u oferta de
+fuente correspondiente, o si debe reemplazarse. La decisión final debe registrar
+versión exacta, plataforma, artefactos distribuidos, obligaciones, responsable
+y evidencia consultada. Ninguna entrada se considera aprobada por la ausencia
+de un segundo revisor.
 
 `npm run check:licenses` mantiene estas entradas visibles y falla ante cualquier
 licencia bloqueada o desconocida. Un upgrade que deje de declarar licencia no
