@@ -183,7 +183,7 @@ test.describe('CAD viewport performance · 10k/100k', () => {
   // dibuja ahora TODAS las entidades sobre un rasterizador por software. Quien
   // juzga si el viewport cumple es `viewport-baseline.json`, y ése sí es un
   // presupuesto y sí bloquea.
-  test.setTimeout(1_200_000);
+  test.setTimeout(1_800_000);
 
   test('opens and measures the 10k reference corpus', async ({ context, page }, testInfo) => {
     await installMockBackend(context);
@@ -261,7 +261,7 @@ test.describe('CAD viewport performance · 10k/100k', () => {
     // por software eso son minutos. El plazo que juzga NO es este `timeout` —es
     // el presupuesto versionado de `viewport-baseline.json`—; esto sólo evita
     // que Playwright corte la medición antes de poder tomarla.
-    await expect(stats).toHaveAttribute('data-batching', 'false', { timeout: 600_000 });
+    await expect(stats).toHaveAttribute('data-batching', 'false', { timeout: 900_000 });
     const detailReadyMs = Date.now() - startedAt;
     const initialVisible = Number(await stats.getAttribute('data-visible'));
     const initialRendered = Number(await stats.getAttribute('data-rendered'));
@@ -286,7 +286,7 @@ test.describe('CAD viewport performance · 10k/100k', () => {
     // pipeline LIBERA los tiles residentes y los reconstruye con el detalle
     // nuevo, así que acercarse vuelve a teselar las ~68.000 que quedan a la
     // vista y con más segmentos cada una. Es más trabajo que la carga inicial.
-    await expect(stats).toHaveAttribute('data-batching', 'false', { timeout: 600_000 });
+    await expect(stats).toHaveAttribute('data-batching', 'false', { timeout: 900_000 });
     // «Ya puedo trabajar»: el dibujo terminó de rehacerse.
     const zoomSettleMs = Date.now() - zoomStartedAt;
     const zoomVisible = Number(await stats.getAttribute('data-visible'));

@@ -130,8 +130,20 @@ assert.deepEqual(
 assert.deepEqual(perfect.targetGaps, [], "con fidelidad 1,0 y tiempos ideales no queda brecha");
 assert.equal(perfect.detailedFractionAtOpen, 1);
 
-// Y el muestreo de hoy sí produce brecha: 2.500 de 100.000 no alcanza el
-// objetivo, y eso tiene que salir impreso en cada corrida.
+// Y EL MUESTREO YA NO PASA. Esta afirmación cambió de signo, y es la razón de
+// ser del PR que enciende el pipeline por lotes en el editor.
+//
+// Cuando se escribió, el suelo de fidelidad del gate era 0,025 —el techo de
+// 2.500 de 100.000 que imponía `planCadNativeRenderBudget`— y esta línea decía
+// «el muestreo de hoy no debe romper el gate»: el muestreo ERA lo de hoy, y un
+// gate que lo prohibiera habría estado prohibiendo el producto.
+//
+// Con el editor enchufado a `lib/cad/render/`, lo de hoy es el dibujo entero:
+// 100.000 de 100.000 al abrir y 68.200 de 68.200 tras el zoom, medido en tres
+// corridas y anotado en `viewport-baseline.json`. El suelo sube a 1,0 —que es
+// justo el objetivo que ese manifiesto declaraba bloqueado por este trabajo— y
+// el muestreo pasa de ser el estado del arte a ser una REGRESIÓN que el gate
+// tiene que cazar. Eso es lo que se comprueba aquí.
 const sampled = evaluateCadViewportExperience(
   {
     canonicalReadyMs: 1,
@@ -146,10 +158,13 @@ const sampled = evaluateCadViewportExperience(
   },
   large,
 );
-assert.deepEqual(sampled.gateViolations, [], "el muestreo de hoy no debe romper el gate");
+assert.ok(
+  sampled.gateViolations.some((violation) => violation.metric === "detailedFractionAtOpen"),
+  "volver a muestrear 2.500 de 100.000 TIENE que romper el gate",
+);
 assert.ok(
   sampled.targetGaps.some((gap) => gap.metric === "detailedFractionAtOpen"),
-  "el muestreo de hoy TIENE que aparecer como brecha con el objetivo",
+  "y sigue apareciendo como brecha con el objetivo",
 );
 
 // En un proyecto NO calibrado los tiempos se registran y no bloquean, pero el
@@ -178,8 +193,12 @@ assert.ok(
 );
 assert.deepEqual(
   slowUncalibrated.gateViolations.map((violation) => violation.metric),
-  ["detailedFractionAtOpen"],
-  "en un proyecto sin calibrar sólo bloquea la fidelidad",
+  ["detailedFractionAtOpen", "detailedFractionAfterZoom"],
+  // Lo que esta línea fija sigue siendo lo mismo —en un proyecto sin calibrar
+  // NINGÚN tiempo bloquea y la fidelidad SÍ—, y ahora bloquean las dos mitades.
+  // Antes la de después del zoom se colaba: 2.500 de 68.200 es 0,0366, que era
+  // exactamente el suelo de entonces. Con el suelo en 1,0 ya no se cuela.
+  "en un proyecto sin calibrar sólo bloquea la fidelidad, y ahora en sus dos mitades",
 );
 assert.equal(
   evaluateCadViewportExperience(

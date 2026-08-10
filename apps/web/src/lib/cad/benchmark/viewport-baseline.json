@@ -67,12 +67,12 @@
       "entities": 100000,
       "gate": {
         "canonicalReadyMs": 17200,
-        "detailReadyMs": 56700,
+        "detailReadyMs": 600000,
         "frameLatencyMs": 400,
-        "zoomReplanMs": 35900,
-        "zoomSettleMs": 70500,
-        "minDetailedFractionAtOpen": 0.025,
-        "minDetailedFractionAfterZoom": 0.0366
+        "zoomReplanMs": 260000,
+        "zoomSettleMs": 520000,
+        "minDetailedFractionAtOpen": 1,
+        "minDetailedFractionAfterZoom": 1
       },
       "target": {
         "canonicalReadyMs": 5000,
@@ -83,9 +83,9 @@
         "minDetailedFractionAtOpen": 1,
         "minDetailedFractionAfterZoom": 1
       },
-      "targetBlockedBy": "T1: enchufar lib/cad/render/ (pipeline por lotes y tiles) a Layout3DEditor.tsx. Mientras el editor use entity-three.ts, planCadNativeRenderBudget muestrea 2.500 de 100.000 y ni la fidelidad ni el zoom pueden alcanzar el objetivo.",
+      "targetBlockedBy": "El rasterizador POR SOFTWARE del runner. La fidelidad ya está en su objetivo —1,0 al abrir y tras el zoom, que es lo que este perfil declaraba bloqueado por T1 y quedó desbloqueado al enchufar lib/cad/render/ al editor—, así que lo que queda es tiempo puro de DIBUJO: pintar 100.000 entidades por ANGLE/SwiftShader sin GPU. Ni este spec ni el benchmark de Node miden la máquina del usuario, que sí tiene GPU, y eso sigue sin medirse. Lo segundo que queda es de lib/cad/render/: al cambiar de escalón de LOD el pipeline libera los tiles residentes y los reconstruye, y por eso el zoom cuesta más que la carga inicial.",
       "calibration": {
-        "recordedAt": "2026-08-09T22:03:42Z",
+        "recordedAt": "2026-08-10T18:45:00Z",
         "runs": 3,
         "marginFactor": 1.6,
         "environment": {
@@ -97,43 +97,42 @@
           "logicalCpuCount": 4,
           "totalMemoryBytes": 16856068096,
           "node": "v22.22.2",
-          "browser": "Chromium 141.0.7390.37 · ANGLE (SwiftShader, sin GPU)"
+          "browser": "Chromium 141.0.7390.37 · ANGLE (SwiftShader, sin GPU)",
+          "note": "Recalibrado con el pipeline por lotes ENCENDIDO (cadRenderPipeline=batched, el defecto desde el PR #75). Las corridas anteriores median el camino con muestreo: 2.500 de 100.000."
         },
         "observed": {
           "canonicalReadyMs": [
-            9473,
-            10730,
-            9992
+            5700,
+            9992,
+            9418
           ],
           "detailReadyMs": [
-            34719,
-            30163,
-            35387
+            296500,
+            293400,
+            369997
           ],
           "frameLatencyMs": [
-            50,
-            44,
-            69.6
+            4.9,
+            4.8,
+            4.7
           ],
           "zoomReplanMs": [
-            22436,
-            18122,
-            17837
+            161095
           ],
           "zoomSettleMs": [
-            39640,
-            44029,
-            31762
+            187900,
+            222800,
+            316679
           ],
           "detailedFractionAtOpen": [
-            0.025,
-            0.025,
-            0.025
+            1,
+            1,
+            1
           ],
           "detailedFractionAfterZoom": [
-            0.0366568914956,
-            0.0366568914956,
-            0.0366568914956
+            1,
+            1,
+            1
           ]
         }
       },
