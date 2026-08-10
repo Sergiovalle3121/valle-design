@@ -8,15 +8,15 @@
       "entities": 25000,
       "panStops": 6,
       "enforcement": "blocking",
-      "enforcementRationale": "El benchmark de render ya cumplió su versión en report-only y tiene evidencia publicada; con línea base versionada debajo pasa a BLOQUEANTE. Corre dentro de npm test para bloquear en CI sin tocar el workflow.",
+      "enforcementRationale": "El benchmark de render ya cumplió su versión en report-only y tiene evidencia publicada; con línea base versionada debajo pasa a BLOQUEANTE. Los TIEMPOS los juzga «npm run benchmark:cad:render» en su propio paso de CI, en serie; el spec del runner sólo afirma invariantes. Calibrado con DOS núcleos, que son los que tiene el runner de CI: con la calibración de cuatro el guardián de hardware lo degradaba a registrado justo donde corre.",
       "hardware": {
-        "minimumLogicalCpuCount": 4,
+        "minimumLogicalCpuCount": 2,
         "minimumTotalMemoryBytes": 15170461286
       },
       "budgets": {
-        "nextFirstDetailMs": 423,
-        "nextZoomSettleMs": 200,
-        "nextPanFrameP95Ms": 40,
+        "nextFirstDetailMs": 972,
+        "nextZoomSettleMs": 350,
+        "nextPanFrameP95Ms": 62,
         "nextPanFrameMaxMs": 80,
         "leakHeapGrowthMb": 8
       },
@@ -26,54 +26,74 @@
         "maxLegacyDetailedAtFullView": 10000
       },
       "calibration": {
-        "runs": 5,
+        "runs": 9,
         "marginFactor": 2.5,
-        "recordedAt": "2026-08-09T20:01:56.956Z",
+        "recordedAt": "2026-08-10T07:12:50.728Z",
         "environment": {
           "node": "v22.22.2",
           "v8": "12.4.254.21-node.39",
           "platform": "linux",
           "architecture": "x64",
           "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
-          "logicalCpuCount": 4,
+          "logicalCpuCount": 2,
           "totalMemoryBytes": 16856068096,
           "heapLimitBytes": 4345298944,
           "exposedGc": true
         },
         "observed": {
           "next.firstDetailMs": [
-            163.631,
-            168.901,
-            162.947,
-            150.202,
-            150.701
+            355.623,
+            388.768,
+            368.212,
+            341.497,
+            370.986,
+            353.982,
+            346.551,
+            354.688,
+            345.518
           ],
           "next.zoomSettleMs": [
-            4.065,
-            4.178,
-            5.51,
-            3.403,
-            3.433
+            8.184,
+            8.188,
+            8.07,
+            7.849,
+            8.156,
+            12.217,
+            8.615,
+            21.333,
+            7.853
           ],
           "next.panFrameP95Ms": [
-            6.573,
-            9.239,
-            8.748,
-            7.12,
-            7.614
+            9.922,
+            21.609,
+            9.831,
+            24.423,
+            10.029,
+            21.561,
+            16.785,
+            9.713,
+            19.548
           ],
           "next.panFrameMaxMs": [
-            6.573,
-            9.239,
-            8.748,
-            7.12,
-            7.614
+            19.424,
+            21.609,
+            16.951,
+            24.423,
+            19.334,
+            21.561,
+            19.391,
+            25.168,
+            19.548
           ],
           "leak.heapGrowthMb": [
-            0.01,
-            0.007,
-            0.003,
-            0.027,
+            0.011,
+            0.005,
+            0.001,
+            0.012,
+            0.001,
+            0.009,
+            0,
+            -0.001,
             0
           ]
         }
@@ -84,16 +104,16 @@
       "entities": 100000,
       "panStops": 12,
       "enforcement": "blocking",
-      "enforcementRationale": "Perfil de referencia a 100.000 entidades: el mismo tamaño que la evidencia publicada, para que el número que se enseña y el que bloquea se juzguen con las mismas reglas. El benchmark cumplió su versión en report-only y pasa a BLOQUEANTE con esta línea base debajo.",
+      "enforcementRationale": "Perfil de referencia a 100.000 entidades: el mismo tamaño que la evidencia publicada, para que el número que se enseña y el que bloquea se juzguen con las mismas reglas. El benchmark cumplió su versión en report-only y pasa a BLOQUEANTE con esta línea base debajo. Calibrado con DOS núcleos y la máquina disputada, que es el peor caso del runner de CI; medido allí, la corrida real cae 8,5× por dentro del presupuesto.",
       "hardware": {
-        "minimumLogicalCpuCount": 4,
+        "minimumLogicalCpuCount": 2,
         "minimumTotalMemoryBytes": 15170461286
       },
       "budgets": {
-        "nextFirstDetailMs": 2410,
-        "nextZoomSettleMs": 200,
+        "nextFirstDetailMs": 4730,
+        "nextZoomSettleMs": 350,
         "nextPanFrameP95Ms": 40,
-        "nextPanFrameMaxMs": 80,
+        "nextPanFrameMaxMs": 86,
         "leakHeapGrowthMb": 8
       },
       "invariants": {
@@ -102,55 +122,75 @@
         "maxLegacyDetailedAtFullView": 2500
       },
       "calibration": {
-        "runs": 5,
+        "runs": 9,
         "marginFactor": 2.5,
-        "recordedAt": "2026-08-09T20:02:57.967Z",
+        "recordedAt": "2026-08-10T07:16:25.833Z",
         "environment": {
           "node": "v22.22.2",
           "v8": "12.4.254.21-node.39",
           "platform": "linux",
           "architecture": "x64",
           "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
-          "logicalCpuCount": 4,
+          "logicalCpuCount": 2,
           "totalMemoryBytes": 16856068096,
           "heapLimitBytes": 4345298944,
           "exposedGc": true
         },
         "observed": {
           "next.firstDetailMs": [
-            881.412,
-            963.919,
-            665.133,
-            701.353,
-            858.453
+            1112.108,
+            1597.109,
+            1568.975,
+            1619.639,
+            1661.661,
+            1569.751,
+            1639.609,
+            1890.328,
+            1660.831
           ],
           "next.zoomSettleMs": [
-            31.004,
-            26.913,
-            27.987,
-            21.911,
-            28.774
+            23.989,
+            43.246,
+            44.479,
+            69.43,
+            59.756,
+            48.58,
+            56.641,
+            49.902,
+            64.289
           ],
           "next.panFrameP95Ms": [
-            5.915,
-            6.094,
-            5.346,
-            5.383,
-            5.638
+            5.471,
+            8.992,
+            10.247,
+            9.232,
+            10.248,
+            12.239,
+            9.303,
+            9.007,
+            9.071
           ],
           "next.panFrameMaxMs": [
-            12.403,
-            8.894,
-            8.202,
-            8.124,
-            10.476
+            15.103,
+            17.212,
+            24.582,
+            16.954,
+            22.044,
+            19.988,
+            28.137,
+            20.381,
+            34.117
           ],
           "leak.heapGrowthMb": [
+            0.003,
+            0.002,
             0,
             0,
             0,
             0,
-            0
+            0,
+            0,
+            0.018
           ]
         }
       }

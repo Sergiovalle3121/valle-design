@@ -157,6 +157,15 @@ const leak = measureCadRenderLeak(
 );
 
 const cpus = os.cpus();
+/**
+ * Los núcleos que este proceso puede usar, no los que tiene la máquina.
+ *
+ * Tiene que leerse igual que en `cad-render-baseline.mts` —ver el comentario
+ * largo de allí—: si la calibración registra la paralelización disponible y el
+ * juicio compara contra el recuento de la máquina, el guardián de hardware
+ * compara dos cosas distintas y degrada (o deja de degradar) por accidente.
+ */
+const availableCpus = os.availableParallelism();
 
 /**
  * Juicio contra la línea base versionada.
@@ -187,7 +196,7 @@ const verdict =
         { entities: options.entities, scenarioStops: scenario.pan.length, next, legacy, leak },
         profile,
         {
-          logicalCpuCount: cpus.length,
+          logicalCpuCount: availableCpus,
           totalMemoryBytes: os.totalmem(),
           exposedGc: gcAvailable,
         },
@@ -224,7 +233,7 @@ const evidence = {
     platform: process.platform,
     architecture: process.arch,
     cpuModel: cpus[0]?.model ?? "unknown",
-    logicalCpuCount: cpus.length,
+    logicalCpuCount: availableCpus,
     totalMemoryBytes: os.totalmem(),
     heapLimitBytes: getHeapStatistics().heap_size_limit,
     exposedGc: gcAvailable,

@@ -210,7 +210,9 @@ function runProfile(profile: CadRenderBudgetProfile) {
 
 const measured = runProfile(gate);
 const host = {
-  logicalCpuCount: os.cpus().length,
+  // `availableParallelism()`, igual que la calibración y el script de juicio:
+  // los núcleos que el proceso puede usar, no los que tiene la máquina.
+  logicalCpuCount: os.availableParallelism(),
   totalMemoryBytes: os.totalmem(),
   exposedGc: typeof (globalThis as { gc?: () => void }).gc === "function",
 };

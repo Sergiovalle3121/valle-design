@@ -75,7 +75,7 @@ const PROFILES: ProfileSpec[] = [
     panStops: 6,
     leakCycles: 3,
     enforcementRationale:
-      "El benchmark de render ya cumplió su versión en report-only y tiene evidencia publicada; con línea base versionada debajo pasa a BLOQUEANTE. Corre dentro de npm test para bloquear en CI sin tocar el workflow.",
+      "El benchmark de render ya cumplió su versión en report-only y tiene evidencia publicada; con línea base versionada debajo pasa a BLOQUEANTE. Los TIEMPOS los juzga «npm run benchmark:cad:render» en su propio paso de CI, en serie; el spec del runner sólo afirma invariantes. Calibrado con DOS núcleos, que son los que tiene el runner de CI: con la calibración de cuatro el guardián de hardware lo degradaba a registrado justo donde corre.",
   },
   {
     id: "reference-100k",
@@ -83,7 +83,7 @@ const PROFILES: ProfileSpec[] = [
     panStops: 12,
     leakCycles: 3,
     enforcementRationale:
-      "Perfil de referencia a 100.000 entidades: el mismo tamaño que la evidencia publicada, para que el número que se enseña y el que bloquea se juzguen con las mismas reglas. El benchmark cumplió su versión en report-only y pasa a BLOQUEANTE con esta línea base debajo.",
+      "Perfil de referencia a 100.000 entidades: el mismo tamaño que la evidencia publicada, para que el número que se enseña y el que bloquea se juzguen con las mismas reglas. El benchmark cumplió su versión en report-only y pasa a BLOQUEANTE con esta línea base debajo. Calibrado con DOS núcleos y la máquina disputada, que es el peor caso del runner de CI; medido allí, la corrida real cae 8,5× por dentro del presupuesto.",
   },
 ];
 
@@ -109,13 +109,31 @@ if (!gcAvailable)
   );
 
 const cpus = os.cpus();
+/**
+ * `availableParallelism()` y NO `cpus().length`, y la diferencia decide si el
+ * gate llega a morder.
+ *
+ * `os.cpus()` enumera los núcleos de la MÁQUINA; `availableParallelism()`
+ * devuelve los que este proceso puede usar de verdad, respetando afinidad y
+ * cuotas de cgroup. En un runner de CI en contenedor son cifras distintas, y
+ * usar la primera calibraba contra un hardware que el proceso nunca tuvo.
+ *
+ * Lo que costó descubrirlo: la primera versión de este perfil se calibró con
+ * `cpus().length` = 4 y en CI el guardián lo degradó a REGISTRADO —«2 CPU
+ * lógicas frente a las 4 de la calibración»—, así que el presupuesto de tiempo
+ * no bloqueaba en la única máquina que lo ejecuta. Un gate bloqueante que se
+ * auto-degrada donde corre no es un gate bloqueante.
+ *
+ * Con esto, calibrar bajo `taskset -c 0,1` registra 2 y el gate muerde en CI.
+ */
+const availableCpus = os.availableParallelism();
 const environment = {
   node: process.version,
   v8: process.versions.v8,
   platform: process.platform,
   architecture: process.arch,
   cpuModel: cpus[0]?.model ?? "unknown",
-  logicalCpuCount: cpus.length,
+  logicalCpuCount: availableCpus,
   totalMemoryBytes: os.totalmem(),
   heapLimitBytes: getHeapStatistics().heap_size_limit,
   exposedGc: gcAvailable,
@@ -150,7 +168,21 @@ const MARGIN_FACTOR = 2.5;
  */
 const FLOOR_MS: Record<string, number> = {
   nextFirstDetailMs: 250,
-  nextZoomSettleMs: 200,
+  /**
+   * 350 y no 200, y el número sale de una medida, no de la prudencia.
+   *
+   * Calibrando con dos núcleos —los que hay en CI— el peor asentado de zoom de
+   * las nueve corridas fue 69 ms, que por el margen daría 174 y se quedaría en
+   * el suelo de 200. Pero en corridas sueltas de dos núcleos con la máquina
+   * disputada se midió **139 ms**, y 139 contra un presupuesto de 200 es 1,4×:
+   * el margen más fino de todo el perfil, sobre justo la métrica que más se
+   * mueve —el asentado depende de cuántos cuadros le deje el planificador—.
+   *
+   * Un gate con 1,4× de holgura en la métrica más ruidosa es el intermitente
+   * que se acaba desactivando. 350 deja 2,5× sobre ESA medida, no sólo sobre
+   * las cómodas.
+   */
+  nextZoomSettleMs: 350,
   nextPanFrameP95Ms: 40,
   nextPanFrameMaxMs: 80,
 };
