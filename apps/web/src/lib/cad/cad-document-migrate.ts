@@ -8,11 +8,21 @@
  *
  * ## Qué significa «aditiva» aquí
  *
- * Un documento v1/v2/v3 se lee sin perder un campo, sin reinterpretar ninguno y
- * sin materializar secciones que no traía —`cells` e `imageDefinitions` sólo
- * aparecen si existían—. Lo único que cambia al subir a v4 es `meta.schema`.
- * Las entidades nuevas del v4 no se inventan: no hay nada en un v3 que se
- * parezca a un XLINE, así que fabricar uno sería adivinar.
+ * Un documento v1/v2/v3/v4 se lee sin perder un campo, sin reinterpretar ninguno
+ * y sin materializar secciones que no traía —`cells` e `imageDefinitions` sólo
+ * aparecen si existían—. Lo único que cambia al subir de esquema es
+ * `meta.schema`. Las entidades nuevas no se inventan: no hay nada en un v3 que
+ * se parezca a un XLINE ni nada en un v4 que se parezca a un SOLID3D, así que
+ * fabricar uno sería adivinar.
+ *
+ * El paso de v4 a v5 merece una frase propia porque es el que más tienta a
+ * hacer algo listo: un documento v4 tiene POLILÍNEAS CERRADAS y CÍRCULOS, que
+ * son exactamente lo que consume EXTRUDE, y sería fácil convertirlos en REGION
+ * «para que ya estén listos». No se hace. Una polilínea cerrada es un trazo que
+ * alguien dibujó y una región es un ÁREA con semántica de sólido; convertir la
+ * una en la otra al abrir cambiaría lo que el usuario ve, lo que exporta a DXF y
+ * el hash de todos los documentos existentes, y todo ello sin que nadie lo haya
+ * pedido. La conversión existe: se llama REGION y la teclea quien la quiere.
  *
  * Que la migración no pierda nada NO se demuestra con una ida y vuelta: migrar
  * dos veces devuelve lo mismo aunque el código no toque un solo campo. Por eso

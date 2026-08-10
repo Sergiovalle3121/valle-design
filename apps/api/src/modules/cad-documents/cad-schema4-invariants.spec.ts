@@ -112,11 +112,19 @@ describe('schema 4 entity invariants', () => {
     expect(() =>
       validateCadDocumentPayload(withEntities([sound.point])),
     ).not.toThrow();
-    // Rechazar el 4 convertiría cada guardado del editor en un 400.
+    // Rechazar el esquema vigente convertiría cada guardado del editor en un
+    // 400. El techo subió a 5 con los sólidos B-rep, así que el 5 se acepta y el
+    // que se rechaza es el 6: un esquema del FUTURO no se adivina.
     expect(() =>
       validateCadDocumentPayload({
         ...withEntities([sound.point]),
         meta: { schema: 5, version: 1, unit: 'mm' },
+      }),
+    ).not.toThrow();
+    expect(() =>
+      validateCadDocumentPayload({
+        ...withEntities([sound.point]),
+        meta: { schema: 6, version: 1, unit: 'mm' },
       }),
     ).toThrow(BadRequestException);
   });

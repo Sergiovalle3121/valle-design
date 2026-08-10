@@ -435,6 +435,11 @@ export function expectedDxfType(entity: CadNativeEntity): string {
     image: "IMAGE",
     attdef: "ATTDEF",
     table: "ACAD_TABLE",
+    // Esquema 5. `3DSOLID` y `REGION` son los nombres de DXF; el exportador
+    // todavía no los escribe, pero un mapa incompleto haría que AutoLISP
+    // devolviera `undefined` como tipo de entidad.
+    solid3d: "3DSOLID",
+    region: "REGION",
   };
   return names[entity.type];
 }
