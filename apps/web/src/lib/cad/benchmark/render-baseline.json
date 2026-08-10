@@ -11,7 +11,7 @@
       "enforcementRationale": "El benchmark de render ya cumplió su versión en report-only y tiene evidencia publicada; con línea base versionada debajo pasa a BLOQUEANTE. Los TIEMPOS los juzga «npm run benchmark:cad:render» en su propio paso de CI, en serie; el spec del runner sólo afirma invariantes. Calibrado con DOS núcleos, que son los que tiene el runner de CI: con la calibración de cuatro el guardián de hardware lo degradaba a registrado justo donde corre.",
       "hardware": {
         "minimumLogicalCpuCount": 2,
-        "minimumTotalMemoryBytes": 15170461286
+        "minimumTotalMemoryBytes": 6517948416
       },
       "budgets": {
         "nextFirstDetailMs": 972,
@@ -107,7 +107,7 @@
       "enforcementRationale": "Perfil de referencia a 100.000 entidades: el mismo tamaño que la evidencia publicada, para que el número que se enseña y el que bloquea se juzguen con las mismas reglas. El benchmark cumplió su versión en report-only y pasa a BLOQUEANTE con esta línea base debajo. Calibrado con DOS núcleos y la máquina disputada, que es el peor caso del runner de CI; medido allí, la corrida real cae 8,5× por dentro del presupuesto.",
       "hardware": {
         "minimumLogicalCpuCount": 2,
-        "minimumTotalMemoryBytes": 15170461286
+        "minimumTotalMemoryBytes": 6517948416
       },
       "budgets": {
         "nextFirstDetailMs": 4730,

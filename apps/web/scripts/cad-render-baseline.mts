@@ -260,7 +260,28 @@ for (const spec of PROFILES) {
       // Guarda sobre la máquina de calibración, no un número redondo: por
       // debajo de esto los TIEMPOS se degradan a registrados.
       minimumLogicalCpuCount: environment.logicalCpuCount,
-      minimumTotalMemoryBytes: Math.floor(environment.totalMemoryBytes * 0.9),
+      /**
+       * La RAM de la máquina de calibración era el proxy EQUIVOCADO, y costó
+       * una corrida de CI descubrirlo.
+       *
+       * Estaba puesto en el 90 % de la memoria del equipo de calibración
+       * —14 GiB—, así que el runner de CI, que tiene 8, degradaba los tiempos a
+       * registrados: «8 GiB de memoria frente a los 14 GiB de la calibración».
+       * Otra vez un gate bloqueante que no bloquea donde corre, ahora por la
+       * otra mitad del guardián.
+       *
+       * Y el número no medía lo que decía medir. El techo del montón lo fija
+       * `NODE_OPTIONS=--max-old-space-size=4096` en el script de npm, IGUAL en
+       * las dos máquinas, así que el comportamiento del recolector —lo único
+       * por lo que la memoria puede mover estos tiempos— es el mismo en ambas.
+       * La RAM total sólo importa si no da para respaldar ese montón.
+       *
+       * De modo que el suelo se deriva del techo del montón, que es la magnitud
+       * que de verdad manda: 1,5× para dejar sitio al propio proceso y al resto
+       * del sistema. Con 4 GiB de techo salen ~6,1 GiB, que un runner de 8
+       * cumple y una máquina que no podría sostener la medida, no.
+       */
+      minimumTotalMemoryBytes: Math.floor(environment.heapLimitBytes * 1.5),
     },
     budgets: {
       nextFirstDetailMs: budget(observed["next.firstDetailMs"], "nextFirstDetailMs"),

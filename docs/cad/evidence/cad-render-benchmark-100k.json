@@ -2,8 +2,8 @@
   "$schema": "urn:valle-design:schema:cad-render-benchmark-evidence:v1",
   "schemaVersion": 1,
   "benchmarkId": "valle-design-cad-render-pipeline-v1",
-  "startedAt": "2026-08-10T07:23:02.399Z",
-  "finishedAt": "2026-08-10T07:23:17.536Z",
+  "startedAt": "2026-08-10T08:15:01.385Z",
+  "finishedAt": "2026-08-10T08:15:19.575Z",
   "enforcement": "blocking",
   "heapMeasurementReliable": true,
   "enforcementRationale": "Perfil de referencia a 100.000 entidades: el mismo tamaño que la evidencia publicada, para que el número que se enseña y el que bloquea se juzguen con las mismas reglas. El benchmark cumplió su versión en report-only y pasa a BLOQUEANTE con esta línea base debajo. Calibrado con DOS núcleos y la máquina disputada, que es el peor caso del runner de CI; medido allí, la corrida real cae 8,5× por dentro del presupuesto.",
@@ -75,7 +75,9 @@
       "wipeout": 0,
       "image": 0,
       "attdef": 0,
-      "table": 0
+      "table": 0,
+      "solid3d": 0,
+      "region": 0
     },
     "bounds": {
       "minX": 1.6500000000000004,
@@ -94,27 +96,27 @@
   "measurements": {
     "next": {
       "pipeline": "next",
-      "firstDetailMs": 646.514,
-      "zoomSettleMs": 19.701,
-      "panFrameP95Ms": 9.119,
-      "zoomFrameP95Ms": 17.043,
-      "panFrameMaxMs": 11.822,
-      "zoomFrameMaxMs": 17.043,
+      "firstDetailMs": 765.011,
+      "zoomSettleMs": 22.545,
+      "panFrameP95Ms": 7.446,
+      "zoomFrameP95Ms": 15.031,
+      "panFrameMaxMs": 8.748,
+      "zoomFrameMaxMs": 15.031,
       "visibleAtRest": 407,
       "detailedAtRest": 407,
       "segmentsAtRest": 12119,
-      "framesToFirstDetail": 120,
-      "panFrameSamples": 43,
-      "zoomFrameSamples": 2
+      "framesToFirstDetail": 139,
+      "panFrameSamples": 45,
+      "zoomFrameSamples": 3
     },
     "legacy": {
       "pipeline": "legacy",
-      "firstDetailMs": 63.84,
-      "zoomSettleMs": 39.538,
-      "panFrameP95Ms": 61.751,
-      "zoomFrameP95Ms": 39.538,
-      "panFrameMaxMs": 61.751,
-      "zoomFrameMaxMs": 39.538,
+      "firstDetailMs": 81.508,
+      "zoomSettleMs": 48.846,
+      "panFrameP95Ms": 71.869,
+      "zoomFrameP95Ms": 48.846,
+      "panFrameMaxMs": 71.869,
+      "zoomFrameMaxMs": 48.846,
       "visibleAtRest": 407,
       "detailedAtRest": 407,
       "segmentsAtRest": 15236,
@@ -124,27 +126,27 @@
     },
     "nextAtFullView": {
       "pipeline": "next",
-      "firstDetailMs": 698.639,
-      "zoomSettleMs": 0.595,
+      "firstDetailMs": 761.276,
+      "zoomSettleMs": 7.24,
       "panFrameP95Ms": 0,
-      "zoomFrameP95Ms": 0.005,
+      "zoomFrameP95Ms": 0.008,
       "panFrameMaxMs": 0,
-      "zoomFrameMaxMs": 0.005,
+      "zoomFrameMaxMs": 0.008,
       "visibleAtRest": 100000,
       "detailedAtRest": 100000,
       "segmentsAtRest": 375764,
-      "framesToFirstDetail": 114,
+      "framesToFirstDetail": 139,
       "panFrameSamples": 0,
       "zoomFrameSamples": 1
     },
     "legacyAtFullView": {
       "pipeline": "legacy",
-      "firstDetailMs": 70.287,
-      "zoomSettleMs": 73.136,
+      "firstDetailMs": 68.992,
+      "zoomSettleMs": 78.805,
       "panFrameP95Ms": 0,
-      "zoomFrameP95Ms": 73.136,
+      "zoomFrameP95Ms": 78.805,
       "panFrameMaxMs": 0,
-      "zoomFrameMaxMs": 73.136,
+      "zoomFrameMaxMs": 78.805,
       "visibleAtRest": 100000,
       "detailedAtRest": 2500,
       "segmentsAtRest": 89644,
@@ -154,13 +156,13 @@
     },
     "leak": {
       "cycles": 3,
-      "heapAfterFirstCycleBytes": 38383440,
-      "heapAfterLastCycleBytes": 37129968,
-      "heapGrowthMb": -1.195,
+      "heapAfterFirstCycleBytes": 40203856,
+      "heapAfterLastCycleBytes": 38828840,
+      "heapGrowthMb": -1.311,
       "samplesMb": [
-        36.605,
-        35.403,
-        35.41
+        38.341,
+        37.023,
+        37.03
       ]
     }
   },
@@ -168,33 +170,33 @@
     "runs": 5,
     "published": "mediana por firstDetailMs",
     "firstDetailMs": [
-      656.055,
-      646.514,
-      645.554,
-      605.888,
-      651.6
+      765.011,
+      698.401,
+      714.557,
+      775.474,
+      854.848
     ],
     "zoomSettleMs": [
-      23.994,
-      19.701,
-      21.169,
-      18.697,
-      22.309
+      22.545,
+      21.404,
+      20.85,
+      28.925,
+      32.951
     ],
     "panFrameP95Ms": [
-      6.796,
-      9.119,
-      6.69,
-      10.01,
-      6.752
+      7.446,
+      10.18,
+      5.584,
+      12.549,
+      6.932
     ]
   },
   "comparison": {
     "detailedAtFullViewNext": 100000,
     "detailedAtFullViewLegacy": 2500,
     "visibleAtFullView": 100000,
-    "panFrameP95Ratio": 6.77,
-    "firstDetailRatio": 0.1
+    "panFrameP95Ratio": 9.65,
+    "firstDetailRatio": 0.11
   },
   "scope": {
     "measured": [

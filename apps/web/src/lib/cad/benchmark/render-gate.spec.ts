@@ -178,6 +178,35 @@ assert.equal(sampled.enforcement, "report-only");
 assert.equal(blockingCadRenderViolations(sampled).length, 1);
 assert.equal(blockingCadRenderViolations(sampled)[0].kind, "invariant");
 
+/**
+ * ANCLA ABSOLUTA: en la máquina de CI el perfil tiene que BLOQUEAR.
+ *
+ * Esto no es una comprobación de adorno; es la que faltaba, y su ausencia costó
+ * dos corridas. El paso `benchmark:cad:render` salió VERDE en CI dos veces
+ * seguidas sin juzgar nada: la primera degradado por CPU —«2 CPU lógicas frente
+ * a las 4 de la calibración»— y la segunda por memoria —«8 GiB frente a los
+ * 14 GiB»—. Un gate bloqueante que se auto-degrada donde corre pasa por bueno
+ * indefinidamente, porque su síntoma es exactamente el mismo que el del éxito.
+ *
+ * El modo de fallo es sigiloso y volverá: basta con recalibrar en un equipo más
+ * grande que el runner para que el guardián vuelva a apagar los tiempos sin que
+ * nadie se entere. Con esta afirmación, recalibrar así ROMPE aquí.
+ *
+ * Los números son los del runner de CI de este repositorio, medidos en sus
+ * propios logs: 2 CPU lógicas y 8 GiB.
+ */
+const CI_HOST = { logicalCpuCount: 2, totalMemoryBytes: 8 * 1024 ** 3, exposedGc: true };
+for (const profile of CAD_RENDER_BASELINE.profiles) {
+  const onCi = evaluateCadRenderBudget(fabricate({}), profile, CI_HOST);
+  assert.equal(
+    onCi.enforcement,
+    "blocking",
+    `${profile.id}: el guardián de hardware DEGRADA en el runner de CI (2 CPU, 8 GiB) — «${onCi.downgradeReason}». ` +
+      `Un presupuesto de tiempo que no bloquea en la única máquina que lo ejecuta no es un presupuesto: es un informe. ` +
+      `Recalibra con los núcleos y la memoria del runner, no con los de tu equipo.`,
+  );
+}
+
 // Sin --expose-gc la fuga NO se juzga, y se dice.
 assert.ok(
   evaluateCadRenderBudget(fabricate({}), gate, fastHost).notEvaluated.some((note) =>
