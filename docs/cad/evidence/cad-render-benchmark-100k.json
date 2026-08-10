@@ -2,8 +2,8 @@
   "$schema": "urn:valle-design:schema:cad-render-benchmark-evidence:v1",
   "schemaVersion": 1,
   "benchmarkId": "valle-design-cad-render-pipeline-v1",
-  "startedAt": "2026-08-09T22:09:17.643Z",
-  "finishedAt": "2026-08-09T22:09:36.236Z",
+  "startedAt": "2026-08-10T03:57:45.690Z",
+  "finishedAt": "2026-08-10T03:57:55.586Z",
   "enforcement": "blocking",
   "heapMeasurementReliable": true,
   "enforcementRationale": "Perfil de referencia a 100.000 entidades: el mismo tamaño que la evidencia publicada, para que el número que se enseña y el que bloquea se juzguen con las mismas reglas. El benchmark cumplió su versión en report-only y pasa a BLOQUEANTE con esta línea base debajo.",
@@ -48,7 +48,7 @@
     "v8": "12.4.254.21-node.39",
     "platform": "linux",
     "architecture": "x64",
-    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.10GHz",
     "logicalCpuCount": 4,
     "totalMemoryBytes": 16856068096,
     "heapLimitBytes": 4345298944,
@@ -94,27 +94,27 @@
   "measurements": {
     "next": {
       "pipeline": "next",
-      "firstDetailMs": 943.359,
-      "zoomSettleMs": 25.646,
-      "panFrameP95Ms": 6.217,
-      "zoomFrameP95Ms": 18.001,
-      "panFrameMaxMs": 8.916,
-      "zoomFrameMaxMs": 18.001,
+      "firstDetailMs": 427.282,
+      "zoomSettleMs": 13.552,
+      "panFrameP95Ms": 8.954,
+      "zoomFrameP95Ms": 7.736,
+      "panFrameMaxMs": 10.908,
+      "zoomFrameMaxMs": 7.736,
       "visibleAtRest": 407,
       "detailedAtRest": 407,
       "segmentsAtRest": 12119,
-      "framesToFirstDetail": 167,
-      "panFrameSamples": 45,
+      "framesToFirstDetail": 88,
+      "panFrameSamples": 33,
       "zoomFrameSamples": 3
     },
     "legacy": {
       "pipeline": "legacy",
-      "firstDetailMs": 71.07,
-      "zoomSettleMs": 46.479,
-      "panFrameP95Ms": 70.343,
-      "zoomFrameP95Ms": 46.479,
-      "panFrameMaxMs": 70.343,
-      "zoomFrameMaxMs": 46.479,
+      "firstDetailMs": 42.769,
+      "zoomSettleMs": 26.013,
+      "panFrameP95Ms": 37.589,
+      "zoomFrameP95Ms": 26.013,
+      "panFrameMaxMs": 37.589,
+      "zoomFrameMaxMs": 26.013,
       "visibleAtRest": 407,
       "detailedAtRest": 407,
       "segmentsAtRest": 15236,
@@ -124,8 +124,8 @@
     },
     "nextAtFullView": {
       "pipeline": "next",
-      "firstDetailMs": 1103.646,
-      "zoomSettleMs": 0.606,
+      "firstDetailMs": 385.075,
+      "zoomSettleMs": 0.269,
       "panFrameP95Ms": 0,
       "zoomFrameP95Ms": 0.002,
       "panFrameMaxMs": 0,
@@ -133,18 +133,18 @@
       "visibleAtRest": 100000,
       "detailedAtRest": 100000,
       "segmentsAtRest": 375764,
-      "framesToFirstDetail": 172,
+      "framesToFirstDetail": 80,
       "panFrameSamples": 0,
       "zoomFrameSamples": 1
     },
     "legacyAtFullView": {
       "pipeline": "legacy",
-      "firstDetailMs": 79.802,
-      "zoomSettleMs": 66.836,
+      "firstDetailMs": 41.255,
+      "zoomSettleMs": 35.89,
       "panFrameP95Ms": 0,
-      "zoomFrameP95Ms": 66.836,
+      "zoomFrameP95Ms": 35.89,
       "panFrameMaxMs": 0,
-      "zoomFrameMaxMs": 66.836,
+      "zoomFrameMaxMs": 35.89,
       "visibleAtRest": 100000,
       "detailedAtRest": 2500,
       "segmentsAtRest": 89644,
@@ -154,13 +154,13 @@
     },
     "leak": {
       "cycles": 3,
-      "heapAfterFirstCycleBytes": 38297584,
-      "heapAfterLastCycleBytes": 37049072,
-      "heapGrowthMb": -1.191,
+      "heapAfterFirstCycleBytes": 38379952,
+      "heapAfterLastCycleBytes": 37127368,
+      "heapGrowthMb": -1.195,
       "samplesMb": [
-        36.523,
-        35.324,
-        35.333
+        36.602,
+        35.401,
+        35.407
       ]
     }
   },
@@ -168,33 +168,33 @@
     "runs": 5,
     "published": "mediana por firstDetailMs",
     "firstDetailMs": [
-      1018.011,
-      929.163,
-      854.766,
-      944.187,
-      943.359
+      455.998,
+      427.282,
+      415.227,
+      442.277,
+      413.152
     ],
     "zoomSettleMs": [
-      36.999,
-      27.217,
-      27.636,
-      25.759,
-      25.646
+      14.346,
+      13.552,
+      13.567,
+      12.696,
+      16.343
     ],
     "panFrameP95Ms": [
-      5.856,
-      8.243,
-      5.826,
-      7.981,
-      6.217
+      5.169,
+      8.954,
+      5.058,
+      6.509,
+      4.854
     ]
   },
   "comparison": {
     "detailedAtFullViewNext": 100000,
     "detailedAtFullViewLegacy": 2500,
     "visibleAtFullView": 100000,
-    "panFrameP95Ratio": 11.31,
-    "firstDetailRatio": 0.08
+    "panFrameP95Ratio": 4.2,
+    "firstDetailRatio": 0.1
   },
   "scope": {
     "measured": [

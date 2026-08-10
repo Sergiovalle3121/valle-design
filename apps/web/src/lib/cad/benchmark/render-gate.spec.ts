@@ -1,19 +1,43 @@
 /**
- * El gate BLOQUEANTE del pipeline de render.
+ * El gate del pipeline de render — SÓLO AFIRMACIONES DETERMINISTAS.
  *
- * ## Por qué el gate vive en un spec y no sólo en un script
+ * ## Aquí NO se mide el reloj, y es deliberado
  *
- * `npm run benchmark:cad:render` no lo ejecuta nadie en CI: el workflow corre
- * `benchmark:cad:smoke` y `benchmark:cad:scale`, no éste. Un presupuesto que
- * sólo se comprueba cuando alguien se acuerda de teclearlo no es bloqueante,
- * es decorativo. El paso «Web specs (tsx)» sí existe y ya corre todos los
- * `src/**\/*.spec.ts`, así que poner el gate aquí lo hace bloquear de verdad
- * sin tocar el workflow —que además está fuera del alcance de este trabajo.
+ * La primera versión de este archivo juzgaba tiempos: `firstDetailMs`,
+ * `panFrameP95Ms`, el asentado del zoom. Estaba mal, y quien lo demostró fue
+ * #65 sobre este mismo repositorio con un intermitente REPRODUCIDO en
+ * `render-benchmark.spec.ts` —2 de cada 10 corridas— cuya causa es aritmética
+ * y no de máquina:
  *
- * El perfil `gate-25k` existe por eso: 100.000 entidades tres veces no caben en
- * el presupuesto por spec, y 25.000 sí con margen de sobra. El perfil
- * `reference-100k` se juzga con EL MISMO evaluador desde el script, así que el
- * número de CI y el de la evidencia publicada no pueden divergir de criterio.
+ *   El ruido de planificación es ABSOLUTO —una pausa del recolector cuesta lo
+ *   mismo a cualquier medida— pero el coste real de este pipeline es PEQUEÑO.
+ *   Un hipo de 5 ms apenas mueve un número de 70 ms y DUPLICA uno de 6 ms.
+ *
+ * Y su residuo declarado es la parte que decide: con los cuatro núcleos
+ * saturados seguía cayendo 5 de 12 **incluso con la mediana puesta**. El
+ * `run-specs.mjs` ejecuta 250 specs seguidos; ahí la máquina nunca está
+ * tranquila. Un presupuesto de reloj en este runner es un intermitente en la
+ * puerta de TODO EL MUNDO, y un gate que la gente desactiva es peor que no
+ * tenerlo.
+ *
+ * ## Dónde vive entonces el presupuesto de tiempo
+ *
+ * En `scripts/cad-render-benchmark.mts`, que corre como paso propio de CI, en
+ * serie, con su propio proceso y `--repeat` para publicar la mediana con todas
+ * las muestras. Es el arreglo durable que #65 dejó escrito como pendiente del
+ * dueño de #62, y es lo que se hace aquí.
+ *
+ * ## Lo que SÍ se queda, y por qué no puede parpadear
+ *
+ * Las INVARIANTES son recuentos de entidades, no milisegundos:
+ *
+ *   - en reposo, `detailedAtRest == visibleAtRest` — sin muestreo;
+ *   - con el dibujo entero a la vista, el pipeline detalla las 25.000;
+ *   - el camino anterior sigue detallando como mucho su tope.
+ *
+ * Ninguna depende del reloj, de la carga ni del navegador. Son las que separan
+ * un dibujo lento de un dibujo FALSO, que es lo que el pipeline vino a
+ * arreglar, y por eso son las que tienen que bloquear en la puerta común.
  */
 import assert from "node:assert/strict";
 import os from "node:os";
@@ -184,73 +208,45 @@ function runProfile(profile: CadRenderBudgetProfile) {
   };
 }
 
-/**
- * Se REPITE LA MEDIDA, nunca la aserción.
- *
- * Esta técnica no es mía: la demostró T11 en #65 sobre este mismo repositorio,
- * y su aritmética es la razón por la que hace falta aquí. El ruido de
- * planificación es ABSOLUTO —una pausa del recolector cuesta lo mismo a
- * cualquier medida— pero el coste real de este pipeline es pequeño, así que un
- * hipo de 5 ms apenas mueve un número de 70 ms y DUPLICA uno de 6 ms. Con los
- * cuatro núcleos saturados, ninguna estadística salva una medida de reloj de
- * pared tomada una sola vez: lo midieron, 5 de 12 corridas caían.
- *
- * Repetir la medida y juzgar la MEDIANA es distinto de reintentar la aserción.
- * Reintentar la aserción esconde una regresión real —basta con que una de tres
- * corridas pase—; la mediana exige que la MAYORÍA de las corridas estén dentro
- * del presupuesto, así que un pipeline de verdad más lento sigue cayendo.
- *
- * Y la separación importa: las INVARIANTES no se medianizan. No dependen del
- * reloj, así que se exigen en TODAS las corridas — que es más estricto que
- * exigirlas en una.
- */
-const GATE_RUNS = 3;
-const runs = Array.from({ length: GATE_RUNS }, () => runProfile(gate));
+const measured = runProfile(gate);
 const host = {
   logicalCpuCount: os.cpus().length,
   totalMemoryBytes: os.totalmem(),
   exposedGc: typeof (globalThis as { gc?: () => void }).gc === "function",
 };
-
-// Invariantes: en TODAS las corridas.
-for (const [index, run] of runs.entries()) {
-  const invariantVerdict = evaluateCadRenderBudget(run, gate, host, run.fullView);
-  const invariantViolations = blockingCadRenderViolations(invariantVerdict).filter(
-    (violation) => violation.kind === "invariant",
-  );
-  assert.deepEqual(
-    invariantViolations.map((violation) => violation.message),
-    [],
-    `Corrida ${index + 1}/${GATE_RUNS}: el pipeline rompió una INVARIANTE. Esto no es ruido de reloj.`,
-  );
-}
-
-// Tiempos: la corrida MEDIANA por firstDetailMs.
-const measured = [...runs].sort(
-  (left, right) => left.next.firstDetailMs - right.next.firstDetailMs,
-)[Math.floor((runs.length - 1) / 2)];
 const verdict = evaluateCadRenderBudget(measured, gate, host, measured.fullView);
-console.log(
-  `muestras firstDetailMs: [${runs.map((run) => run.next.firstDetailMs).join(" · ")}] → mediana ${measured.next.firstDetailMs}`,
+
+/**
+ * De todo el veredicto, aquí SÓLO se exigen las invariantes.
+ *
+ * Los incumplimientos de tiempo se imprimen —para que quien lea el log de CI
+ * los vea— pero NO rompen: los juzga `benchmark:cad:render` en su propio paso,
+ * en serie y con la mediana de varias corridas. Filtrar por `kind` en vez de
+ * dejar de medir mantiene la información y quita el parpadeo.
+ */
+const invariantViolations = verdict.violations.filter(
+  (violation) => violation.kind === "invariant",
 );
-console.log(
-  `muestras panFrameP95Ms: [${runs.map((run) => run.next.panFrameP95Ms).join(" · ")}]`,
+const timingObservations = verdict.violations.filter(
+  (violation) => violation.kind === "timing",
 );
 console.log(formatCadRenderVerdict(verdict));
+if (timingObservations.length > 0)
+  console.log(
+    `AVISO (no bloquea aquí): ${timingObservations.length} presupuesto(s) de tiempo por encima en esta corrida. ` +
+      `El juicio de tiempos es de «npm run benchmark:cad:render», que corre en serie y con mediana. ` +
+      `Este spec sólo bloquea invariantes porque el runner de specs no es un entorno de reloj controlado.`,
+  );
 
-const blocking = blockingCadRenderViolations(verdict);
 assert.deepEqual(
-  blocking.map((violation) => violation.message),
+  invariantViolations.map((violation) => violation.message),
   [],
-  `El pipeline de render incumple su línea base versionada.\n${formatCadRenderVerdict(verdict)}\n` +
-    `Si el cambio es intencionado y MEJORA los números, recalibra con:\n` +
-    `  npm run benchmark:cad:baseline --workspace=web -- --write\n` +
-    `y deja el diff del manifiesto delante de quien revise.`,
+  `El pipeline de render rompió una INVARIANTE. Esto no es ruido de reloj: es que ha vuelto el muestreo.\n${formatCadRenderVerdict(verdict)}`,
 );
 
 console.log(
-  `ok CAD render gate: ${gate.id} · ${measured.entities} entidades · ` +
-    `firstDetail ${measured.next.firstDetailMs} ms (tope ${gate.budgets.nextFirstDetailMs}) · ` +
-    `panP95 ${measured.next.panFrameP95Ms} ms (tope ${gate.budgets.nextPanFrameP95Ms}) · ` +
-    `detalladas ${measured.fullView.next.detailedAtRest} frente a ${measured.fullView.legacy.detailedAtRest} del camino anterior`,
+  `ok CAD render gate (invariantes): ${gate.id} · ${measured.entities} entidades · ` +
+    `en reposo detalladas ${measured.next.detailedAtRest} == visibles ${measured.next.visibleAtRest} · ` +
+    `con el dibujo entero a la vista el pipeline detalla ${measured.fullView.next.detailedAtRest} y el anterior ${measured.fullView.legacy.detailedAtRest}. ` +
+    `Los TIEMPOS los juzga benchmark:cad:render, no este spec.`,
 );

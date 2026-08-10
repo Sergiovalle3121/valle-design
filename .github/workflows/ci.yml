@@ -131,6 +131,25 @@ jobs:
         working-directory: apps/web
         run: npm run benchmark:cad:smoke -- --output ../../cad-benchmark-smoke.json
 
+      # Presupuesto de TIEMPO del pipeline de render, contra la línea base
+      # versionada de `render-baseline.json`.
+      #
+      # Vive AQUÍ y no en «Web specs (tsx)» por lo que demostró #65: el ruido de
+      # planificación es absoluto y el coste de este pipeline es pequeño, así
+      # que un hipo de 5 ms DUPLICA un número de 6 ms. Dentro del runner de
+      # specs —250 specs seguidos, máquina nunca tranquila— eso es un
+      # intermitente en la puerta de todo el mundo. Como paso propio, en serie y
+      # en su propio proceso, las condiciones son las mismas que las del
+      # benchmark de corpus de arriba, que lleva bloqueando desde siempre sin
+      # parpadear.
+      #
+      # El spec `render-gate.spec.ts` sigue en «Web specs», pero sólo con las
+      # INVARIANTES —recuentos de entidades, no milisegundos—, que es lo que
+      # caza el regreso del muestreo y no puede parpadear.
+      - name: CAD render pipeline budget (100k, blocking)
+        working-directory: apps/web
+        run: npm run benchmark:cad:render -- --repeat 3 --output ../../cad-benchmark-render.json
+
       - name: DWG deterministic smoke benchmark
         run: npm run benchmark:smoke --workspace=@valle-design/dwg-codec -- --output "$RUNNER_TEMP/dwg-benchmark-smoke.json"
 
@@ -153,6 +172,7 @@ jobs:
           path: |
             cad-benchmark-smoke.json
             cad-benchmark-scale.json
+            cad-benchmark-render.json
           retention-days: 90
 
       # Test de compatibilidad de contrato del SDK generado vs @valle-design/contracts.
