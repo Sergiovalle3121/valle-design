@@ -119,11 +119,29 @@ ok(true, `el pipeline nuevo asienta la vista inicial en ${next.framesToFirstDeta
 // publica la mediana de varias corridas. Medido: 0 fallos de 12 sin carga y 0
 // de 12 con los cuatro núcleos saturados.
 //
-// Lo que se queda aquí es lo que NO puede parpadear: recuentos de entidades.
-// «En reposo, detalladas == visibles» y «con el dibujo entero a la vista el
-// anterior detalla 2.500 de 100.000» no dependen del reloj ni de la carga, y
-// son las que cazan el regreso del muestreo — que es lo que este pipeline vino
-// a arreglar.
+// La ADENDA que `main` añadió mientras esto se escribía es la pieza que faltaba,
+// y va aquí porque su medida sobrevive aunque su cura se retire. Midiendo los
+// dos caminos JUNTOS en cada ronda, sobre una máquina con contención:
+//
+//   nuevo/anterior:  10.368/10.229   8.933/8.571   9.795/8.191   5.735/7.915   8.023/8.124
+//
+// Los dos caminos miden LO MISMO dentro del ruido. Ésa es la conclusión que
+// decide, y es más fuerte que cualquier estadístico: si la ventaja real es ~0,
+// ninguna regla de recuento la salva —pedir tres victorias de cinco es pedir
+// tres caras de cinco— y la mediana emparejada tampoco, porque con tolerancia
+// ×1,25 sobre un empate lo que queda no es un gate sino un margen. Más rondas
+// no arreglan una moneda; sólo la lanzan más veces, y aquí cuestan diez medidas
+// de 25.000 entidades dentro del runner que encadena 260 specs.
+//
+// Un gate RELATIVO entre dos caminos que empatan no tiene señal que dar. El
+// gate que sí la tiene es ABSOLUTO —cada camino contra su presupuesto
+// versionado— y por eso vive en `benchmark:cad:render` y no aquí.
+//
+// Lo que se queda en este archivo es lo que NO puede parpadear: recuentos de
+// entidades. «En reposo, detalladas == visibles» y «con el dibujo entero a la
+// vista el anterior se queda en su techo» no dependen del reloj ni de la carga,
+// y son las que cazan el regreso del muestreo — que es lo que este pipeline
+// vino a arreglar.
 
 // ---------------------------------------------------------------------------
 // PRUEBA DE FUGA: tres ciclos completos de abrir, panear, hacer zoom y cerrar.

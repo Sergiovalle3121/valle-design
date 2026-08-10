@@ -16,6 +16,7 @@
 import { installDialogs } from "./builtins/dialogs";
 import { installEntityFunctions } from "./builtins/entities";
 import { installInteraction } from "./builtins/interaction";
+import { installLoader } from "./builtins/loader";
 import { installSelectionFunctions } from "./builtins/selection";
 import { createCoreLispBuiltins } from "./core-builtins";
 import type { LispValue } from "./values";
@@ -26,6 +27,9 @@ export function createCadLispBuiltins(): Map<string, LispValue> {
   installSelectionFunctions(table);
   installInteraction(table);
   installDialogs(table);
+  // `load` va en la tabla CAD y no en el núcleo porque necesita una biblioteca
+  // montada por el anfitrión; el núcleo se evalúa entero sin nada montado.
+  installLoader(table);
   return table;
 }
 

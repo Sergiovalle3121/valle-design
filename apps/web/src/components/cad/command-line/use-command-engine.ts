@@ -24,6 +24,7 @@
  */
 import { useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import { CAD_COMMAND_REGISTRY_V2 } from "@/lib/cad/engine";
+import type { CadCommandRegistry } from "@/lib/cad/engine/command-engine";
 import { requestCadUi } from "@/components/cad/palettes/palette-command-bus";
 import type { CadDocument } from "@/lib/cad/cad-document";
 import type { CadEntityCommand } from "@/lib/cad/entity-commands";
@@ -32,6 +33,11 @@ import type { CadHostRequest } from "@/lib/cad/engine/host-requests";
 import type { CadView } from "@/lib/cad/view/cad-view";
 import { cadDocumentExtents, cadEntityExtents } from "@/lib/cad/view/document-extents";
 import { useCadFileCommandHandlers, useCadSessionState } from "./session-catalogs";
+import {
+  attachCadLisp,
+  useCadLispAttachment,
+  type CadLispIdentity,
+} from "../lisp/use-lisp";
 import {
   CadCommandEngineHost,
   type CadCommandEngineBridge,
@@ -45,14 +51,25 @@ import {
 import { CadPlotHost, downloadCadFile } from "./plot-host";
 import { cadStudioCommandContext } from "./studio-context";
 
+/**
+ * El registro entra por parámetro con el del producto por defecto.
+ *
+ * Lo aprovecha el estudio para pasar el registro COMPUESTO —los 63 nativos más
+ * los comandos `c:` que aporten las rutinas `.lsp` cargadas—. Componer en el
+ * punto de montaje, en vez de añadir comandos en caliente a
+ * `CAD_COMMAND_REGISTRY_V2`, mantiene la propiedad que `registry.ts` protege:
+ * el registro del producto no cambia según qué se haya importado antes.
+ */
 export function useCadCommandEngineHost(
   bridge: CadCommandEngineBridge,
+  registry: CadCommandRegistry = CAD_COMMAND_REGISTRY_V2,
 ): CadCommandEngineHost {
   const live = useRef(bridge);
   live.current = bridge;
+  const table = useRef(registry);
   return useMemo(
     () =>
-      new CadCommandEngineHost(CAD_COMMAND_REGISTRY_V2, {
+      new CadCommandEngineHost(table.current, {
         context: () => live.current.context(),
         apply: (commands, label) => live.current.apply(commands, label),
         preview: (paths) => live.current.preview(paths),
@@ -110,6 +127,15 @@ export interface CadStudioCommandEngineOptions {
   setSelection?(entityIds: readonly string[]): void;
   /** Trabajo fuera del documento: trazar, publicar, cambiar de espacio. */
   host?(request: CadHostRequest): string;
+  /**
+   * Organización y usuario, para la biblioteca de rutinas `.lsp`.
+   *
+   * Opcional porque el editor todavía no la pasa: mientras no lo haga, la
+   * biblioteca vive bajo `anon` y es la misma para todo el mundo en ese
+   * navegador. Es un límite declarado, no un descuido; pasarla es una línea en
+   * el punto de montaje y está pedida en el PR.
+   */
+  identity?: CadLispIdentity;
 }
 
 /**
@@ -174,6 +200,29 @@ export function useCadStudioPlotHost(
 export function useCadStudioCommandEngine(
   options: CadStudioCommandEngineOptions,
 ): CadCommandEngineHost {
+  /**
+   * El subsistema AutoLISP, enchufado.
+   *
+   * `lib/lisp/` existía entero desde la ola 1 y nadie lo importaba: un veterano
+   * no podía cargar ni ejecutar una sola de sus rutinas. Estas líneas son el
+   * enchufe: el registro COMPUESTO hace que un `(defun c:MICOMANDO …)` se teclee
+   * como cualquiera de los 96 nativos, y el runtime queda atado al anfitrión
+   * para que la consola lo encuentre.
+   *
+   * La geometría de una rutina sale por el efecto `execute` del motor y acaba en
+   * el `apply` de abajo, que es `commitNativeCommands`. No hay segunda ruta de
+   * mutación: el subsistema LISP hereda la disciplina CAS por construcción.
+   */
+  const lisp = useCadLispAttachment(options.identity ?? {});
+  // Se ata en el cuerpo del render y no en un efecto, porque el motor puede
+  // despacharse desde un manejador que corre ANTES de que los efectos de ese
+  // render se hayan ejecutado. No notifica a nadie, así que no puede desgarrar.
+  lisp.runtime.bind({
+    document: () => options.document.current,
+    activeLayer: () => options.activeLayer,
+    newEntityId: options.newEntityId,
+  });
+
   const session = useCadSessionState();
   const navigation = useCadStudioNavigation(options);
   // El anfitrión del motor todavía no existe cuando se crea el de trazado, así
@@ -229,8 +278,12 @@ export function useCadStudioCommandEngine(
       options.setSelection(entityIds);
       return true;
     },
-  });
+  },
+  // El registro COMPUESTO: los nativos primero y, sólo si allí no está, lo que
+  // aporten las rutinas `.lsp` cargadas. Un nativo nunca pierde.
+  lisp.registry);
   engineRef.current = engine;
+  attachCadLisp(engine, lisp);
 
   // Los dos manejadores que necesitan leer un archivo. Van aquí porque SCRIPT
   // tiene que volver a entrar por el MISMO anfitrión: un script es entrada

@@ -39,16 +39,33 @@
  *    sobre el código fuente y publica la lista completa de dependencias
  *    externas en cada corrida.
  *
- * ## Lo que falta, y está dicho donde toca
+ * ## Cómo se ENCHUFA al editor (ola 4)
  *
- * - Montarlo en la línea de comandos del editor (`Layout3DEditor.tsx`,
- *   `components/cad/command-line/`). Fuera del alcance de la sesión que lo
- *   escribió; `routine.ts` deja el enganche en una llamada.
- * - Persistir la biblioteca por organización: necesita un endpoint
- *   `/v1/cad/*`. La lógica está entera detrás de un puerto (`library.ts`).
+ * `runLispRoutine` sirve para quien puede contestar en el acto. El editor no
+ * puede: cuando la rutina llama a `getpoint`, la respuesta llega tres eventos de
+ * teclado después. Para eso está `InteractiveLispRun` (`interactive.ts`), que
+ * conduce el generador por turnos —`ask` / `done` / `failed`— y es lo que usa
+ * `components/cad/lisp/`.
+ *
+ * Allí, cada `(defun c:MICOMANDO …)` se convierte en un descriptor del motor de
+ * comandos y entra en el MISMO registro que los 63 nativos, así que su geometría
+ * sale por el efecto `execute` del motor y acaba en `commitNativeCommands`: un
+ * lote, un `commitChange`, UN paso de deshacer, la disciplina CAS heredada por
+ * construcción.
+ *
+ * ## Lo que sigue faltando, y está dicho donde toca
+ *
+ * - Persistir la biblioteca EN EL SERVIDOR: necesita un endpoint
+ *   `/v1/cad/lisp/*`. El puerto (`library.ts`) tiene hoy dos implementaciones:
+ *   memoria, y el almacén del navegador que vive en el anfitrión
+ *   (`components/cad/lisp/library-storage.ts`) porque el intérprete no puede
+ *   tocar el navegador.
  * - `command` no deja un comando ACTIVO esperando al usuario, y el diálogo DCL
- *   funciona por un viaje en vez de reaccionar en vivo. Los dos límites tienen
- *   su explicación en el módulo correspondiente y su spec.
+ *   todavía no se pinta: el anfitrión lo recibe y lo trata como cancelado, que es
+ *   un camino que las rutinas ya manejan. Los tres límites tienen su explicación
+ *   en el módulo correspondiente y su spec.
+ * - Una rutina puede INSERTAR un bloque pero no DEFINIRLO: el vocabulario
+ *   canónico de mutación no tiene esa orden y el subsistema no se lo salta.
  */
 export { DEFAULT_LISP_BUDGET, LispMeter, type LispBudgetLimits } from "./budget";
 export { CAD_LISP_BUILTINS, createCadLispBuiltins } from "./cad-builtins";
@@ -57,6 +74,18 @@ export { CadDocumentLispHost, type CadLispHostOptions } from "./document-host";
 export { LispAbort, LispError, LispQuit, failureText } from "./errors";
 export { LispInterpreter, type LispInterpreterOptions } from "./evaluator";
 export type { LispHostServices } from "./host";
+export {
+  InteractiveLispRun,
+  isLispAsk,
+  type InteractiveLispOptions,
+  type LispAsk,
+  type LispTurn,
+} from "./interactive";
+export {
+  LIBRARY_READER,
+  normalizeLispFileName,
+  type LispLibraryReader,
+} from "./builtins/loader";
 export {
   InMemoryLispLibraryStore,
   autoloadOrder,

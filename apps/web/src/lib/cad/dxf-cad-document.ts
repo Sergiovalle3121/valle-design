@@ -2,8 +2,6 @@ import type {
   CadBlockDefinition,
   CadDocument,
   CadEntity,
-  CadLossManifestEntry,
-  CadPoint3,
 } from "./cad-document";
 import type {
   CadDxfHatch,
@@ -23,6 +21,13 @@ import type {
   CadDxfExportSemanticDimension,
 } from "./dxf-export";
 import type { CadNativeEntity } from "./entity-runtime";
+// La traducción entidad→primitiva y la AUDITORÍA de lo que la exportación
+// pierde viven en sus propios módulos: este archivo ENSAMBLA el modelo de
+// exportación, y mezclar las tres cosas era lo que lo tenía en su techo.
+import { cadEntityToDxfPrimitive } from "./dxf-entity-primitives";
+import { schema4PrimitiveToEntity } from "./dxf-schema4-entities";
+export { cadEntityToDxfPrimitive };
+export { cadDocumentDxfExportLosses } from "./dxf-export-loss-manifest";
 // El contrato de proyección y sus helpers viven en su propio módulo: son una
 // pieza coherente y este archivo está en su asignación de tamaño.
 import {
@@ -459,182 +464,13 @@ function clampedKnots(controlCount: number, degree: number): number[] {
   return knots;
 }
 
-export function cadEntityToDxfPrimitive(
-  entity: CadEntity,
-): CadDxfPrimitive | null {
-  if (entity.type === "arc") {
-    return {
-      kind: "arc",
-      layer: entity.layer,
-      points: [{ x: entity.center.x, y: entity.center.y }],
-      radius: entity.radius,
-      startAngle: entity.startAngle,
-      endAngle: entity.endAngle,
-    };
-  }
-  if (entity.type === "ellipse") {
-    return {
-      kind: "ellipse",
-      layer: entity.layer,
-      points: [{ x: entity.center.x, y: entity.center.y }],
-      majorAxis: { x: entity.majorAxis.x, y: entity.majorAxis.y },
-      axisRatio: entity.ratio,
-      startAngle: entity.startParameter,
-      endAngle: entity.endParameter,
-    };
-  }
-  if (entity.type === "spline") {
-    return {
-      kind: "spline",
-      layer: entity.layer,
-      points: entity.controlPoints.map((point) => ({ x: point.x, y: point.y })),
-      degree: entity.degree,
-      knots: [...entity.knots],
-    };
-  }
-  if (entity.type === "line") {
-    return {
-      kind: "line",
-      layer: entity.layer,
-      points: [
-        { x: entity.start.x, y: entity.start.y },
-        { x: entity.end.x, y: entity.end.y },
-      ],
-    };
-  }
-  if (entity.type === "polyline") {
-    // Se conserva el bulge: sin él la exportación aplanaba cada arco a cuerda.
-    const points = entity.vertices.map((point) => ({
-      x: point.x,
-      y: point.y,
-      ...(typeof point.bulge === "number" && point.bulge !== 0
-        ? { bulge: point.bulge }
-        : {}),
-    }));
-    // El cierre se DECLARA. Repetir el primer vértice al final añadía un
-    // segmento nulo al DXF y dejaba el grupo 70 en 0, así que el contorno
-    // llegaba abierto al destino; además el bulge del tramo de cierre —que
-    // vive en el ÚLTIMO vértice— quedaba tapado por la copia del primero.
-    return {
-      kind: "polyline",
-      layer: entity.layer,
-      points,
-      closed: entity.closed === true,
-    };
-  }
-  if (entity.type === "circle" && !entity.legacy) {
-    return {
-      kind: "circle",
-      layer: entity.layer,
-      points: [{ x: entity.center.x, y: entity.center.y }],
-      radius: entity.radius,
-    };
-  }
-  return null;
-}
-
-/** Tipos con su PROPIO camino de exportación, fuera de las primitivas. */
-const DXF_NON_PRIMITIVE_TYPES = new Set([
-  "hatch",
-  "mtext",
-  "dimension",
-  "mleader",
-  "insert",
-]);
-
-/** ¿Alguna coordenada de la entidad vive fuera del plano Z=0? */
-function entityElevations(entity: CadEntity): number[] {
-  const points: (CadPoint3 | undefined)[] = [];
-  const candidate = entity as unknown as Record<string, CadPoint3 | undefined>;
-  for (const key of ["start", "end", "center", "insertion", "position"]) {
-    points.push(candidate[key]);
-  }
-  const vertices = (entity as unknown as { vertices?: CadPoint3[] }).vertices;
-  if (Array.isArray(vertices)) points.push(...vertices);
-  const controls = (entity as unknown as { controlPoints?: CadPoint3[] })
-    .controlPoints;
-  if (Array.isArray(controls)) points.push(...controls);
-  return points
-    .map((point) => point?.z)
-    .filter((z): z is number => typeof z === "number" && Number.isFinite(z) && z !== 0);
-}
-
-/**
- * Enumera lo que la exportación DXF va a degradar o descartar, ANTES de
- * escribir el fichero.
- *
- * El problema real nunca fue que el soporte DXF sea parcial: es que las
- * pérdidas eran SILENCIOSAS. Esta función no cambia el contrato de
- * exportación — es aditiva — y permite mostrar al usuario qué se va a perder
- * con entidad, campo, severidad y recomendación.
- *
- * NO cubre todavía OCS/extrusion ni widths, que no existen en el modelo
- * canónico actual: cuando se añadan, deben registrarse aquí.
- */
-export function cadDocumentDxfExportLosses(
-  document: CadDocument,
-  filter?: (entity: CadEntity) => boolean,
-): CadLossManifestEntry[] {
-  const losses: CadLossManifestEntry[] = [];
-  // El informe debe usar EL MISMO filtro que la exportación (ámbito de
-  // selección, capas ocultas): avisar de pérdidas en entidades que no se van a
-  // exportar sería ruido y erosionaría la confianza en el aviso.
-  for (const entity of document.entities.filter((candidate) =>
-    filter ? filter(candidate) : true,
-  )) {
-    // 1. Entidades que no se escriben en absoluto.
-    if (
-      !DXF_NON_PRIMITIVE_TYPES.has(entity.type) &&
-      cadEntityToDxfPrimitive(entity) === null
-    ) {
-      losses.push({
-        code: "dxf_export_entity_dropped",
-        entityId: entity.id,
-        sourceType: entity.type,
-        severity: "error",
-        detail: `La entidad ${entity.type} no tiene representación en la exportación DXF y se omitirá del fichero. Conserva el documento canónico como original.`,
-      });
-      continue;
-    }
-
-    // 2. Elevación: las primitivas DXF de este exportador son 2D.
-    const elevations = entityElevations(entity);
-    if (elevations.length > 0) {
-      losses.push({
-        code: "dxf_export_z_flattened",
-        entityId: entity.id,
-        sourceType: entity.type,
-        severity: "warning",
-        detail: `La elevación Z (${elevations[0]}) se aplanará a 0 al exportar a DXF. Si la cota importa, no uses este DXF como original.`,
-      });
-    }
-
-    // 3. Splines racionales: se exportan grado y knots, pero no los pesos, así
-    //    que una NURBS racional sale como no racional y la curva cambia.
-    if (entity.type === "spline") {
-      const weights = (entity as unknown as { weights?: number[] }).weights;
-      if (Array.isArray(weights) && weights.some((weight) => weight !== 1)) {
-        losses.push({
-          code: "dxf_export_spline_weights_dropped",
-          entityId: entity.id,
-          sourceType: "spline",
-          severity: "warning",
-          detail:
-            "Los pesos de la spline racional no se exportan: la curva resultante será una spline NO racional y su forma cambiará.",
-        });
-      }
-    }
-  }
-  return losses;
-}
-
 export function cadDocumentNativeDxfPrimitives(
   document: CadDocument,
   filter?: (entity: CadEntity) => boolean,
 ): CadDxfPrimitive[] {
   return document.entities
     .filter((entity) => (filter ? filter(entity) : true))
-    .map(cadEntityToDxfPrimitive)
+    .map((entity) => cadEntityToDxfPrimitive(entity, document))
     .filter((primitive): primitive is CadDxfPrimitive => primitive !== null);
 }
 
@@ -758,6 +594,12 @@ function dxfPrimitiveToBlockEntity(
   provider: string,
 ): CadEntity | null {
   const context = sourceContext(primitive, provider);
+  // Los tipos del esquema 4 se reconstruyen en su propio módulo: es la vuelta
+  // exacta de `dxf-schema4-primitives.ts` y la simetría es el contrato.
+  if (primitive.schema4) {
+    const entity = schema4PrimitiveToEntity(primitive, id, projection, context);
+    if (entity) return entity;
+  }
   if (primitive.kind === "line" && primitive.points.length >= 2)
     return {
       id,
@@ -1137,5 +979,13 @@ export function cadDocumentDxfInserts(
       rotation: entity.rotation,
       layer: entity.layer,
       attributes: entity.attributes,
+      ...(entity.positionedAttributes?.length
+        ? {
+            positionedAttributes: entity.positionedAttributes.map((attribute) => ({
+              ...attribute,
+              insertion: { x: attribute.insertion.x, y: attribute.insertion.y },
+            })),
+          }
+        : {}),
     }));
 }
