@@ -28,6 +28,7 @@ import { requestCadUi } from "@/components/cad/palettes/palette-command-bus";
 import type { CadDocument } from "@/lib/cad/cad-document";
 import type { CadEntityCommand } from "@/lib/cad/entity-commands";
 import { runCadScript } from "@/lib/cad/script-runner";
+import type { CadVariableAccess } from "@/lib/cad/system-variables";
 import type { CadHostRequest } from "@/lib/cad/engine/host-requests";
 import type { CadView } from "@/lib/cad/view/cad-view";
 import { cadDocumentExtents, cadEntityExtents } from "@/lib/cad/view/document-extents";
@@ -204,13 +205,49 @@ export function useCadStudioCommandEngine(
   });
   const live = useRef(options);
   live.current = options;
+  // `CLAYER` sin tocar ES la capa del editor.
+  //
+  // La tabla de variables nace con `CLAYER = "0"`, y el contexto del estudio da
+  // preferencia a `CLAYER` cuando nombra una capa que existe. La capa «0»
+  // existe SIEMPRE, así que ese valor de fábrica tapaba la capa que el usuario
+  // acababa de elegir en el panel: con el puntero enrutado al motor, dibujar
+  // tras cambiar de capa escribía en «0» (golden 33).
+  //
+  // Aquí `CLAYER` se lee como la capa activa del editor mientras nadie la haya
+  // escrito — que es exactamente lo que ya hacía `(getvar "CLAYER")` en el
+  // intérprete LISP, `host.activeLayer()`—, y en cuanto un comando o un `.scr`
+  // la fija, manda el valor fijado. Así `-LAYER definir` sigue mandando sobre
+  // el dibujo de un guion, y el panel de capas sigue mandando sobre el ratón.
+  //
+  // LÍMITE, dicho en voz alta: una vez escrita, `CLAYER` gana aunque después se
+  // cambie de capa en el panel. Cerrar ese círculo es la ligadura inversa
+  // —el editor observando la variable— y pertenece a quien traiga el panel de
+  // capas al motor, no a este PR.
+  const clayerWritten = useRef(false);
+  const variables = useMemo<CadVariableAccess>(
+    () => ({
+      get: (name) =>
+        name.toUpperCase() === "CLAYER" && !clayerWritten.current
+          ? live.current.activeLayer
+          : session.variables.get(name),
+      set: (name, value) => {
+        if (name.toUpperCase() === "CLAYER") clayerWritten.current = true;
+        return session.variables.set(name, value);
+      },
+      publish: (name, value) => {
+        if (name.toUpperCase() === "CLAYER") clayerWritten.current = true;
+        return session.variables.publish(name, value);
+      },
+    }),
+    [session],
+  );
   const engine = useCadCommandEngineHost({
     context: () =>
       cadStudioCommandContext({
         document: options.document.current,
         selection: options.selection.current,
         activeLayer: options.activeLayer,
-        variables: session.variables,
+        variables,
         catalogs: session.catalogs,
         view: options.view.current?.view ?? null,
         // El puntero YA pasa por el motor: esto es lo que el enrutador del
@@ -237,9 +274,11 @@ export function useCadStudioCommandEngine(
     variables: (patch, system) => {
       const lines: string[] = [];
       for (const [name, value] of Object.entries(patch)) {
+        // Por la fachada, no por la tabla: es lo que apunta que `CLAYER` ya
+        // tiene dueño y deja de ser un espejo de la capa del editor.
         const outcome = system
-          ? session.variables.publish(name, value)
-          : session.variables.set(name, value);
+          ? variables.publish(name, value)
+          : variables.set(name, value);
         if (!outcome.ok) lines.push(outcome.reason);
       }
       return lines;
