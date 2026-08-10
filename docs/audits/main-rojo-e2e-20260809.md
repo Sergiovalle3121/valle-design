@@ -249,3 +249,38 @@ No se persigue: doce fallos con la suite al doble de lento se arreglan
 volviendo a correr, no tocando doce specs. La corrida del PR que trae el §10
 sirve de contraste; si ahí el E2E vuelve a salir verde, queda confirmado que
 fue el runner.
+
+## 12. Corrección al §6: la estadística no bastaba — y otra sesión llegó antes
+
+El §6 daba por arreglado `render-benchmark.spec.ts` con mayoría de paseos
+emparejados. **Volvió a caer en CI** (`78e7562`). Se midió por qué, y la causa
+es que la magnitud no existe como constante: el pipeline nuevo **trocea por
+presupuesto de tiempo**, así que en tres rondas idénticas sobre el mismo árbol
+su p95 dio 15.673, 7.232 y 15.707 ms —con 41, 24 y 32 cuadros hasta el detalle—
+mientras el anterior se quedaba clavado en ~13.7 las tres veces. Su p95 no mide
+lo que cuesta el pipeline: mide cómo de rápido iba la máquina. Comparar eso con
+un coste fijo es comparar la afinación de un planificador contra una constante,
+y ninguna cantidad de repeticiones lo arregla.
+
+Tampoco hay atajo determinista: `segmentsAtRest` es MAYOR en el nuevo (6494
+frente a 3675), porque detalla todo lo visible en vez de muestrear.
+
+**La sesión dueña del pipeline de render llegó a la misma conclusión en
+paralelo y ya la ha fusionado en `main`**, con medidas propias que corroboran
+ésta —«los dos caminos miden LO MISMO dentro del ruido»— y con la observación
+independiente de que este spec nunca había llegado a ejecutarse en CI porque el
+job moría antes en «Lint web» por falta de memoria (§10).
+
+Su cura es distinta de la que se había preparado aquí: el veredicto pasa a la
+MEDIANA de las rondas emparejadas con una tolerancia de 1,25, en vez de retirar
+la aserción temporal y dejarla sólo medida. **Se adopta la suya y se descarta
+la de aquí.** Es su fichero y su área, su decisión ya está en `main`, y su
+enfoque conserva un guardarraíl que caza un encarecimiento real —un pipeline
+que de verdad se hubiera vuelto más caro pierde por goleada, no por 1,25— sin
+dejar que un empate dentro del ruido dicte el veredicto. Pisarla para imponer
+la variante de aquí no habría añadido nada y habría roto el reparto.
+
+Queda para esa sesión la recomendación de fondo, que sigue en pie: el sitio
+natural de una comparación de coste por cuadro es
+`scripts/cad-render-benchmark.mts`, que corre en condiciones controladas y ya
+tiene puerta propia (`benchmark:cad:smoke`), más la medida de navegador de #73.
