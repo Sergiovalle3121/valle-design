@@ -350,9 +350,17 @@ export class CadEnginePointerRouter {
   }
 
   private commitPoint(point: CadPoint2, snap?: SnapType): void {
-    this.bridge.host.pickPoint(point, snap);
+    // El ancla se fija ANTES de despachar, y el orden no es cosmético.
+    //
+    // Despachar publica la instantánea del motor, y `useSyncExternalStore`
+    // puede forzar un render SÍNCRONO desde ahí. Ese render lee el ancla para
+    // decidir la clave de la entrada dinámica (`origin` vs `anchored`), y con
+    // el ancla puesta después leía la de ANTES: el panel no se remontaba
+    // cuando debía y lo hacía más tarde, en un render cualquiera, vaciando los
+    // campos que el usuario —o el golden— acababa de rellenar.
     this.anchorPoint = point;
     this.lastPoint = point;
+    this.bridge.host.pickPoint(point, snap);
     this.afterDispatch();
   }
 

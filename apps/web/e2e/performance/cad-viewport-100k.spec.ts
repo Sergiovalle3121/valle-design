@@ -97,6 +97,11 @@ test.describe('CAD viewport performance · 10k/100k', () => {
   });
 
   test('loads progressively, remains responsive and replans after zoom', async ({ context, page }, testInfo) => {
+    // Plazo propio, más largo que el de la familia: este caso espera DOS veces
+    // a que todas las entidades a la vista tengan detalle —al abrir y tras el
+    // zoom—, no a que termine un presupuesto de 10.000. Ver las notas junto a
+    // cada espera de `data-batching`.
+    test.setTimeout(1_200_000);
     await installMockBackend(context);
     await loginAsStandaloneOwner(context);
     const payloadBytes = await installLargeCadBackend(context);
@@ -107,7 +112,21 @@ test.describe('CAD viewport performance · 10k/100k', () => {
     const stats = page.getByTestId('cad-native-render-stats');
     await expect(stats).toHaveAttribute('data-total', String(LARGE_ENTITY_COUNT), { timeout: 120_000 });
     const canonicalReadyMs = Date.now() - startedAt;
-    await expect(stats).toHaveAttribute('data-batching', 'false', { timeout: 60_000 });
+    // OJO AL PLAZO, Y A QUÉ MIDE AHORA.
+    //
+    // `data-batching = false` significaba «el presupuesto de render terminó»,
+    // y ese presupuesto DETALLABA 10.000 de las 100.000 entidades: el resto se
+    // dibujaba como un contorno de ocho segmentos. Con el pipeline por lotes no
+    // hay presupuesto ni contorno — `settled` quiere decir que las 100.000
+    // tienen detalle—, así que el plazo dejó de comparar lo mismo.
+    //
+    // Medido en un runner con WebGL por software: la carga completa se asienta
+    // en ~4 min, y la cifra de `data-rendered` sube sin pausa durante todo ese
+    // rato, que es exactamente la carga progresiva que este spec afirma. El
+    // coste no está en teselar sino en DIBUJAR cien mil entidades sin GPU; en
+    // una máquina con GPU real esto es otro orden de magnitud, y es justo lo
+    // que ni este spec ni el benchmark de Node pueden medir.
+    await expect(stats).toHaveAttribute('data-batching', 'false', { timeout: 360_000 });
     const detailReadyMs = Date.now() - startedAt;
     const initialVisible = Number(await stats.getAttribute('data-visible'));
     const initialRendered = Number(await stats.getAttribute('data-rendered'));
@@ -125,7 +144,13 @@ test.describe('CAD viewport performance · 10k/100k', () => {
       timeout: 30_000,
       message: 'zoom must reduce the spatial-index viewport candidate set',
     }).toBeLessThan(initialVisible);
-    await expect(stats).toHaveAttribute('data-batching', 'false', { timeout: 30_000 });
+    // Mismo motivo que el plazo de arriba, y una consecuencia más que conviene
+    // tener escrita: al cambiar de escalón de LOD el pipeline LIBERA los tiles
+    // residentes y los reconstruye con el detalle nuevo. Acercarse sobre un
+    // plano de 100.000 entidades vuelve a teselar las ~68.000 que quedan a la
+    // vista, y con más segmentos cada una que en el escalón anterior. Es más
+    // trabajo que la carga inicial, no menos.
+    await expect(stats).toHaveAttribute('data-batching', 'false', { timeout: 360_000 });
     const zoomSettleMs = Date.now() - zoomStartedAt;
     const zoomVisible = Number(await stats.getAttribute('data-visible'));
     const zoomRendered = Number(await stats.getAttribute('data-rendered'));
@@ -160,12 +185,60 @@ test.describe('CAD viewport performance · 10k/100k', () => {
     });
     console.log(JSON.stringify(evidence));
 
+    /*
+     * ESTAS DOS AFIRMACIONES CAMBIARON DE SIGNO, Y HAY QUE LEER POR QUÉ.
+     *
+     * Antes decían:
+     *
+     *     expect(initialRendered).toBeLessThanOrEqual(2_500);
+     *     expect(zoomRendered).toBeLessThanOrEqual(10_000);
+     *
+     * Es decir: fijaban como REQUISITO que el editor detallara como mucho 2.500
+     * de las 100.000 entidades al abrir, y 10.000 tras el zoom. Ése era el
+     * contrato de `planCadNativeRenderBudget`: muestrear un presupuesto y
+     * dibujar el resto como un contorno de ocho segmentos. Un plano en el que
+     * el 97,5 % de la geometría no está dibujada con su forma real.
+     *
+     * El pipeline por lotes existe justamente para no hacer eso, y su propio
+     * módulo lo dice en la primera línea: «en reposo el número de entidades
+     * detalladas es el de las VISIBLES. No 2.500 de 100.000 muestreadas
+     * uniformemente. Todas.» Mantener el tope habría sido pedirle al producto
+     * que siguiera muestreando.
+     *
+     * Lo que se afirma ahora es la propiedad NUEVA, que es estrictamente más
+     * fuerte: el detalle cubre TODO lo visible, al abrir y después del zoom.
+     */
+    expect(initialRendered).toBe(initialVisible);
+    expect(zoomRendered).toBe(zoomVisible);
+
+    /*
+     * Y ESTOS DOS PLAZOS SE ALARGARON, porque ya no miden lo mismo.
+     *
+     * `detailReadyMs` medía cuánto tardaba en materializarse un presupuesto de
+     * 2.500; ahora mide cuánto tardan las 100.000. `zoomSettleMs` medía lo
+     * mismo tras el zoom sobre 10.000; ahora son las ~68.000 que quedan a la
+     * vista, y encima con más segmentos cada una porque el escalón de LOD es
+     * más fino. Medido en este runner, con WebGL POR SOFTWARE:
+     *
+     *     canonicalReady  10,0 s      (documento listo — sin cambios)
+     *     detailReady    293,4 s      100.000 / 100.000 con detalle
+     *     zoomSettle     222,8 s       68.200 /  68.200 con detalle
+     *     frameLatency     4,8 ms     el hilo principal sigue libre
+     *
+     * El coste no está en teselar: está en DIBUJAR cien mil entidades sin GPU.
+     * Ni este spec ni el benchmark de Node pueden medir la máquina del usuario,
+     * y eso sigue sin medirse — está anotado en el PR como lo que es.
+     *
+     * Lo que NO se ha relajado: el documento sigue teniendo que estar listo en
+     * menos de un minuto, el hilo principal sigue teniendo que responder en
+     * menos de un segundo, la carga sigue siendo progresiva (el zoom reduce el
+     * conjunto candidato mientras tanto) y la consola sigue teniendo que estar
+     * limpia.
+     */
     expect(canonicalReadyMs).toBeLessThan(60_000);
-    expect(detailReadyMs).toBeLessThan(90_000);
+    expect(detailReadyMs).toBeLessThan(360_000);
     expect(frameLatencyMs).toBeLessThan(1_000);
-    expect(zoomSettleMs).toBeLessThan(30_000);
-    expect(initialRendered).toBeLessThanOrEqual(2_500);
-    expect(zoomRendered).toBeLessThanOrEqual(10_000);
+    expect(zoomSettleMs).toBeLessThan(360_000);
     expect(browserErrors).toEqual([]);
   });
 });

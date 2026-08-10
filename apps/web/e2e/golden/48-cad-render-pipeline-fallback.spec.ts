@@ -94,22 +94,34 @@ async function screenPointFor(page: Page, target: { x: number; y: number }) {
 }
 
 /**
- * El segmento esperado, con la tolerancia del CLIC.
+ * Tolerancia del clic, en unidades de dibujo.
  *
- * El punto pasa por la captura a objeto, que es el comportamiento real del
- * producto: un clic a mano alzada aterriza a fracciones de unidad del objetivo.
- * Lo que este golden compara NO es la exactitud del ratón —eso lo fija el
- * golden 46 con un extremo capturado— sino que los DOS pipelines produzcan el
- * mismo segmento, así que la tolerancia es idéntica en ambos casos.
+ * El punto no lo pone el test: lo pone el ratón sobre el lienzo, y para saber
+ * dónde pulsar el helper invierte la afín pantalla↔dibujo muestreándola en tres
+ * posiciones. Esa inversión arrastra el redondeo del navegador —Chromium cayó a
+ * 0,09 unidades del objetivo y Firefox a 13,8—, que sobre una huella de 12.000
+ * unidades a ~1.200 px son un par de píxeles.
+ *
+ * 30 unidades ≈ 3 px. La exactitud del punto NO se mide aquí: la fija el golden
+ * 46, donde una captura a extremo tiene que dar el valor EXACTO. Lo que se mide
+ * aquí es que los dos pipelines escriban el mismo segmento, y por eso la
+ * tolerancia es literalmente la misma función en los dos casos.
  */
+const CLICK_TOLERANCE = 30;
+
 function expectSameSegment(drawn: unknown) {
   const line = drawn as { type: string; layer: string; start: { x: number; y: number }; end: { x: number; y: number } };
   expect(line.type).toBe('line');
   expect(line.layer).toBe('0');
-  expect(line.start.x).toBeCloseTo(3_000, -1);
-  expect(line.start.y).toBeCloseTo(8_000, -1);
-  expect(line.end.x).toBeCloseTo(8_000, -1);
-  expect(line.end.y).toBeCloseTo(8_000, -1);
+  const near = (actual: number, expected: number, label: string) =>
+    expect(
+      Math.abs(actual - expected),
+      `${label}: ${actual} debería estar a menos de ${CLICK_TOLERANCE} de ${expected}`,
+    ).toBeLessThan(CLICK_TOLERANCE);
+  near(line.start.x, 3_000, 'start.x');
+  near(line.start.y, 8_000, 'start.y');
+  near(line.end.x, 8_000, 'end.x');
+  near(line.end.y, 8_000, 'end.y');
 }
 
 /** Dibuja el MISMO segmento con el ratón y devuelve lo que quedó guardado. */

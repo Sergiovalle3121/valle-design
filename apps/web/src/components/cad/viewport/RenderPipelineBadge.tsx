@@ -77,3 +77,40 @@ export function CadRenderPipelineBadge({ pipeline, slot }: CadRenderPipelineBadg
     </span>
   );
 }
+
+/**
+ * El diagnóstico de viewport que el editor ya publicaba, servido por el
+ * pipeline nuevo.
+ *
+ * `cad-native-render-stats` existía atado a `planCadNativeRenderBudget` y sólo
+ * aparecía cuando ese plan OMITÍA entidades. El pipeline por lotes no omite
+ * ninguna, así que el indicador desaparecía —y con él la prueba de rendimiento
+ * a 100.000 entidades, que lo espera para medir la carga progresiva y el
+ * reencuadre tras el zoom—. Perder la medida al mejorar lo medido es la peor
+ * forma de mejorar algo.
+ *
+ * Se vuelve a publicar con los mismos nombres de atributo y el mismo
+ * significado, sólo que ahora las cifras vienen del índice de tiles:
+ * `data-visible` son las entidades dentro de la vista y `data-rendered` las que
+ * ya tienen detalle. `data-batching` es «queda trabajo en cola».
+ */
+export function CadRenderPipelineStats({ slot }: { slot: CadRenderHostSlot }) {
+  const diagnostics = useSyncExternalStore(slot.subscribe, slot.getSnapshot, empty);
+  if (diagnostics.total === 0) return null;
+  return (
+    <span
+      data-testid="cad-native-render-stats"
+      data-total={diagnostics.total}
+      data-visible={diagnostics.visible}
+      data-rendered={diagnostics.rendered}
+      data-batching={diagnostics.settled ? "false" : "true"}
+      className="text-emerald-300"
+      title={`${diagnostics.visible.toLocaleString()} entidades en la vista; ${diagnostics.rendered.toLocaleString()} con detalle materializado`}
+    >
+      Viewport {diagnostics.rendered.toLocaleString()}/
+      {diagnostics.visible.toLocaleString()} visibles ·{" "}
+      {diagnostics.total.toLocaleString()} total
+      {diagnostics.settled ? "" : " · cargando…"}
+    </span>
+  );
+}

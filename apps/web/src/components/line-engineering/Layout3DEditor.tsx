@@ -481,7 +481,10 @@ import {
   CadEnginePointerRouter,
   cadEngineCommandForTool,
 } from "@/components/cad/viewport/pointer-router";
-import { CadRenderPipelineBadge } from "@/components/cad/viewport/RenderPipelineBadge";
+import {
+  CadRenderPipelineBadge,
+  CadRenderPipelineStats,
+} from "@/components/cad/viewport/RenderPipelineBadge";
 import {
   resolveCadRenderPipeline,
   type CadRenderPipelineChoice,
@@ -6501,6 +6504,12 @@ export default function Layout3DEditor({
         parent: nativeGroup,
         viewport: { scale: s, width: W, height: H, elevation: 0.11 },
         yScreenSign: 1,
+        // 4 ms de 16,7 es el defecto del planificador y está pensado para que
+        // el usuario no note nada mientras dibuja. Cargar un plano de 100.000
+        // entidades con ese presupuesto tarda minutos, y durante la carga NO
+        // hay nadie dibujando: lo que hay es alguien esperando a ver su plano.
+        // 8 ms sigue dejando la mitad del cuadro libre.
+        frameBudgetMs: 8,
       });
       renderPipelineHostRef.current = host;
       renderPipelineSlotRef.current?.set(host);
@@ -18733,6 +18742,9 @@ export default function Layout3DEditor({
                 pipeline={renderPipelineRef.current}
                 slot={renderPipelineSlotRef.current!}
               />
+              {renderPipelineRef.current === "batched" && (
+                <CadRenderPipelineStats slot={renderPipelineSlotRef.current!} />
+              )}
               {/* La profundidad del historial es OBSERVABLE: una acción de
                   dibujo tiene que dejar exactamente una entrada, y una acción
                   rechazada ninguna. Sin esto, "el primer Undo no deshace nada"
@@ -18745,7 +18757,11 @@ export default function Layout3DEditor({
               >
                 U{hist.undo}/R{hist.redo}
               </span>
-              {nativeRenderStats.omitted > 0 && (
+              {/* El indicador HEREDADO. Con el pipeline por lotes lo sirve
+                  `CadRenderPipelineStats` con las cifras del índice de tiles;
+                  aquí se apaga para que el `data-testid` no salga dos veces. */}
+              {renderPipelineRef.current !== "batched" &&
+                nativeRenderStats.omitted > 0 && (
                 <span
                   data-testid="cad-native-render-stats"
                   data-total={nativeRenderStats.total}

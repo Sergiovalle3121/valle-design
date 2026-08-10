@@ -119,8 +119,22 @@ export interface CadViewportRenderDiagnostics {
  * y a 100.000 entidades el benchmark dejó de terminar. Se publica al asentar
  * (que es el momento que interesa) y, durante una carga larga, de vez en
  * cuando, para que el indicador avance en vez de quedarse mudo.
+ *
+ * El número es alto A PROPÓSITO. Bajarlo a ocho para que el indicador se
+ * moviera más seguido multiplicó por cuatro las lecturas de `stats()` y hundió
+ * la carga de un plano de 100.000 entidades de ~4 min a no terminar: el
+ * diagnóstico se comía el presupuesto que debía teselar. El indicador se
+ * refresca además cuando el encuadre PARA de moverse, que es cuando su cifra
+ * cambia de verdad.
  */
 const DIAGNOSTICS_SYNC_INTERVAL = 30;
+
+/**
+ * Movimiento de vista por debajo del cual no se vuelve a fijar: 0,4 % del
+ * encuadre. A 1.600 px de ancho son ~6 px, que es menos de lo que se aprecia y
+ * mucho más de lo que la amortiguación de la cámara produce en reposo.
+ */
+const VIEW_CHANGE_TOLERANCE = 0.004;
 
 const EMPTY_DIAGNOSTICS: CadViewportRenderDiagnostics = {
   total: 0,
@@ -149,6 +163,9 @@ export class CadViewportRenderHost {
   private lastView: CadRenderView | null = null;
   private published: CadViewportRenderDiagnostics = EMPTY_DIAGNOSTICS;
   private syncsSincePublish = 0;
+  private viewPublishPending = false;
+  /** Evita republicar en cada cuadro mientras la escena sigue en reposo. */
+  private publishedSettled = false;
   private readonly listeners = new Set<() => void>();
 
   constructor(options: CadViewportRenderHostOptions) {
@@ -223,15 +240,37 @@ export class CadViewportRenderHost {
    * geometría y romper el guionado. El orden de dibujo sale de
    * `modelSpace.entityIds`, no del orden del array de entidades.
    */
+  /**
+   * ¿Cambió la vista lo bastante como para volver a fijarla?
+   *
+   * Con TOLERANCIA, y no por elegancia. `setView` aborta la cola del
+   * planificador y vuelve a encolar los tiles visibles; con cientos de tiles
+   * eso es trabajo por cuadro que NO cuenta contra el presupuesto de teselado
+   * —ocurre antes de `runFrame`— y se lo come entero. Y la cámara del editor
+   * tiene amortiguación: emite cambios de fracción de píxel mucho después de
+   * que el usuario suelte el ratón, así que sin tolerancia la comparación exacta
+   * daba «cambió» en cada cuadro y la carga de un dibujo grande se arrastraba.
+   *
+   * El umbral es el mismo criterio que `cadViewportBoundsChanged` aplica al
+   * índice espacial: una fracción del propio encuadre, no un absoluto.
+   */
   private viewChanged(view: CadRenderView): boolean {
     const last = this.lastView;
     if (!last) return true;
-    if (last.pixelsPerUnit !== view.pixelsPerUnit) return true;
+    if (
+      Math.abs(last.pixelsPerUnit - view.pixelsPerUnit) >
+      last.pixelsPerUnit * VIEW_CHANGE_TOLERANCE
+    )
+      return true;
+    const toleranceX =
+      Math.max(1, last.bounds.maxX - last.bounds.minX) * VIEW_CHANGE_TOLERANCE;
+    const toleranceY =
+      Math.max(1, last.bounds.maxY - last.bounds.minY) * VIEW_CHANGE_TOLERANCE;
     return (
-      last.bounds.minX !== view.bounds.minX ||
-      last.bounds.minY !== view.bounds.minY ||
-      last.bounds.maxX !== view.bounds.maxX ||
-      last.bounds.maxY !== view.bounds.maxY
+      Math.abs(last.bounds.minX - view.bounds.minX) > toleranceX ||
+      Math.abs(last.bounds.maxX - view.bounds.maxX) > toleranceX ||
+      Math.abs(last.bounds.minY - view.bounds.minY) > toleranceY ||
+      Math.abs(last.bounds.maxY - view.bounds.maxY) > toleranceY
     );
   }
 
@@ -320,27 +359,49 @@ export class CadViewportRenderHost {
     // en trabajo perpetuo — y el editor tiene una cámara amortiguada que emite
     // cambios mucho después de que el usuario suelte el ratón. Se llama sólo
     // cuando la vista cambió de verdad.
+    let viewMoved = false;
     if (viewport || this.viewChanged(view)) {
       const update = this.scene.setView(view, viewport);
       this.lastView = { bounds: { ...view.bounds }, pixelsPerUnit: view.pixelsPerUnit };
-      if (update.addedTiles > 0 || update.removedTiles > 0 || update.lodChanged)
+      if (update.addedTiles > 0 || update.removedTiles > 0 || update.lodChanged) {
         this.dirty = true;
+        viewMoved = true;
+      }
     }
+    // Publicar en CADA cuadro de un zoom sería pagar `stats()` —que recorre las
+    // entidades— sesenta veces por segundo. Se espera al primer cuadro en que el
+    // encuadre ya NO se mueve: una rueda de ratón produce una publicación, no
+    // ciento veinte.
+    if (viewMoved) this.viewPublishPending = true;
     const result = this.scene.runFrame();
     if (result.ran > 0) this.dirty = true;
-    if (!this.dirty) return;
-    const sync = this.scene.sync();
-    this.glyphs = sync.glyphs;
-    this.droppedGlyphs = sync.droppedGlyphs;
-    // Las mallas nacen con `renderOrder` 0, que las dibujaría entremezcladas
-    // con el suelo y los activos. La lámina de profundidad las pone delante,
-    // pero el ORDEN de las llamadas también importa para lo translúcido.
-    for (const child of this.scene.group.children)
-      child.renderOrder = CAD_RENDER_BATCH_ORDER;
-    this.dirty = false;
-    this.syncsSincePublish += 1;
-    if (this.scene.settled || this.syncsSincePublish >= DIAGNOSTICS_SYNC_INTERVAL)
+    if (this.dirty) {
+      const sync = this.scene.sync();
+      this.glyphs = sync.glyphs;
+      this.droppedGlyphs = sync.droppedGlyphs;
+      // Las mallas nacen con `renderOrder` 0, que las dibujaría entremezcladas
+      // con el suelo y los activos. La lámina de profundidad las pone delante,
+      // pero el ORDEN de las llamadas también importa para lo translúcido.
+      for (const child of this.scene.group.children)
+        child.renderOrder = CAD_RENDER_BATCH_ORDER;
+      this.dirty = false;
+      this.syncsSincePublish += 1;
+    }
+    // La decisión de publicar vive FUERA de la reconciliación. Dentro, un
+    // encuadre que se para justo cuando ya no queda trabajo no volvía a
+    // sincronizar nunca y su publicación pendiente no llegaba jamás: el
+    // indicador se quedaba con las cifras del encuadre anterior para siempre.
+    const settled = this.scene.settled;
+    const viewSettled = this.viewPublishPending && !viewMoved;
+    if (
+      viewSettled ||
+      (settled && !this.publishedSettled) ||
+      this.syncsSincePublish >= DIAGNOSTICS_SYNC_INTERVAL
+    ) {
+      this.viewPublishPending = viewMoved;
       this.publish();
+    }
+    this.publishedSettled = settled;
   }
 
   /**
