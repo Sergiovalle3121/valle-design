@@ -320,5 +320,20 @@ export async function applyNativeProperty(
     await field.fill(value);
     await field.blur();
     await expect(field).toHaveValue(value, { timeout: ATTEMPT_MS });
+    // Y SIGUE AHÍ TRAS LA VENTANA DE QUIETUD. Éste era el único de los cuatro
+    // helpers sin esta comprobación, y el hueco es peor aquí que en los demás:
+    // el campo puede sostener lo tecleado un instante y VOLVER SOLO a su valor
+    // anterior cuando el panel se recompone desde el documento —porque el blur
+    // no llegó a confirmar—. La aserción de arriba pasa, el helper vuelve
+    // contento, y la prueba muere después comparando contra el valor viejo.
+    //
+    // Es exactamente lo que se ve en CI: el golden 15 esperaba «Instrucción
+    // editada» y recibía «Instrucción de proceso», y el 16 esperaba 260 y
+    // recibía 200 — en ambos casos el valor ORIGINAL, no uno corrupto. Si el
+    // documento de verdad no acepta el valor, este `toPass` agota su plazo y
+    // la prueba falla igual, pero señalando el campo que no cuajó en vez de
+    // una aserción tres pasos más allá.
+    await page.waitForTimeout(QUIET_MS);
+    await expect(field).toHaveValue(value, { timeout: ATTEMPT_MS });
   }).toPass({ timeout: SETTLE_MS });
 }

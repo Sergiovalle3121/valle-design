@@ -77,6 +77,46 @@ export function runSpecs({
   });
 }
 
+/**
+ * Cuántas líneas del principio y del final del fallo se enseñan.
+ *
+ * ANTES SE ENSEÑABAN SÓLO LAS 15 ÚLTIMAS, y eso tiraba justo la línea que
+ * importa. En un `AssertionError` de Node el orden es:
+ *
+ *     AssertionError [ERR_ASSERTION]: <EL MENSAJE>      ← primera línea
+ *         at <el spec, con su número de línea>          ← segunda
+ *         at Module.load (node:internal/...)            ← relleno del runtime
+ *         …
+ *     { generatedMessage: false, code: 'ERR_ASSERTION', actual: false, … }
+ *
+ * Quedarse con la cola deja exactamente lo inútil: frames de `node:internal` y
+ * un volcado que dice «actual: false, expected: true» sin decir de QUÉ. Este
+ * spec falló cuatro veces en CI y ni una sola vez se pudo leer por qué; el
+ * diagnóstico hubo que reconstruirlo midiendo en local. Un runner que oculta la
+ * causa del fallo cuesta más que el fallo.
+ *
+ * Se enseñan la CABEZA —donde vive el mensaje— y la cola —donde a veces está el
+ * volcado de valores—, con las de en medio contadas para que se note que hay
+ * más y no parezca que eso es todo.
+ */
+const DETAIL_HEAD_LINES = 30;
+const DETAIL_TAIL_LINES = 12;
+
+function indentDetail(detail) {
+  const lines = detail.split("\n");
+  const indent = (line) => `   ${line}`;
+  if (lines.length <= DETAIL_HEAD_LINES + DETAIL_TAIL_LINES)
+    return lines.map(indent).join("\n");
+  const omitted = lines.length - DETAIL_HEAD_LINES - DETAIL_TAIL_LINES;
+  return [
+    ...lines.slice(0, DETAIL_HEAD_LINES),
+    `   … ${omitted} línea(s) omitidas …`,
+    ...lines.slice(-DETAIL_TAIL_LINES),
+  ]
+    .map((line, index) => (index === DETAIL_HEAD_LINES ? line : indent(line)))
+    .join("\n");
+}
+
 /** Sólo actúa como CLI cuando se ejecuta directamente, no al importarse. */
 const invokedDirectly =
   process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
@@ -96,13 +136,7 @@ if (invokedDirectly) {
     failures.push(result);
     const label = result.status === "timeout" ? "⏱" : result.status === "silent" ? "🔇" : "❌";
     console.error(`${label} ${result.spec}`);
-    console.error(
-      result.detail
-        .split("\n")
-        .slice(-15)
-        .map((line) => `   ${line}`)
-        .join("\n"),
-    );
+    console.error(indentDetail(result.detail));
   }
   console.log(`\n${results.length - failures.length}/${results.length} specs verdes`);
   if (failures.length) {
