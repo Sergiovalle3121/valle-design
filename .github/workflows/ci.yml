@@ -277,26 +277,9 @@ jobs:
         run: npm run smoke:bootstrap
 
   e2e:
-    name: E2E Playwright ${{ matrix.shard }}/4 (PostgreSQL · Chromium + Firefox)
+    name: E2E Playwright (PostgreSQL · Chromium + Firefox)
     runs-on: ubuntu-latest
 
-    # Reparto entre CUATRO máquinas. `playwright.config.ts` fija
-    # `workers: 1` y `fullyParallel: false` A PROPÓSITO —los goldens comparten
-    # backend y se pisarían—, así que dentro de un job no hay paralelismo que
-    # sacar: 56 archivos de spec en serie son ~26 minutos de reloj.
-    #
-    # `--shard` es otra cosa: reparte los ARCHIVOS entre procesos aislados, y
-    # cada uno se lleva su propio Postgres efímero, su propia API y su propio
-    # navegador. La serialización dentro de cada shard se conserva intacta.
-    #
-    # No sale gratis y conviene decirlo: cada shard repite instalación, build y
-    # arranque de API, así que el total facturado sube un poco. Se compensa de
-    # sobra con la caché de dependencias, y lo que se compra es tiempo de
-    # reloj: de ~26 minutos a ~7.
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3, 4]
 
     services:
       postgres:
@@ -463,11 +446,10 @@ jobs:
         # Xvfb sólo cuando hay Firefox; con Chromium solo es un envoltorio
         # inútil y un servidor X de más en el runner.
         run: |
-          SHARD="--shard=${{ matrix.shard }}/4"
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            npx playwright test $SHARD ${{ steps.browsers.outputs.projects }}
+            npx playwright test ${{ steps.browsers.outputs.projects }}
           else
-            xvfb-run -a --server-args="-screen 0 1920x1080x24" npx playwright test $SHARD
+            xvfb-run -a --server-args="-screen 0 1920x1080x24" npx playwright test
           fi
 
       # `include-hidden-files` NO es cosmético: sin él este paso nunca subió
@@ -481,7 +463,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report-${{ github.sha }}-shard${{ matrix.shard }}
+          name: playwright-report-${{ github.sha }}
           path: |
             apps/web/e2e/.report
             apps/web/e2e/.test-results
