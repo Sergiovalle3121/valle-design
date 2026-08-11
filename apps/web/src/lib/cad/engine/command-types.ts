@@ -33,16 +33,18 @@
  *   como un override por paso, así que añadir modos no toca el motor.
  */
 import type {
-  CadBlockDefinition, CadConstraint, CadEntity, CadLayerDef, CadPaperSpace,
-  CadParameter, CadPoint2,
+  CadBlockDefinition, CadConstraint, CadDocument, CadEntity, CadLayerDef,
+  CadPaperSpace, CadParameter, CadPoint2,
 } from "../cad-document";
 import type { CadBounds } from "../entity-runtime";
 import type { CadEntityCommand } from "../entity-commands";
 import type { SnapType } from "../snap-engine";
 // Sólo TIPOS: la importación se borra al compilar, así que el motor sigue sin
-// depender en tiempo de ejecución ni de la vista, ni del trazado, ni de los
-// catálogos de sesión, y no hay ciclo que `benchmark:cad:smoke` pueda destapar.
+// depender en tiempo de ejecución ni de la vista, ni del trazado, ni de las
+// referencias externas, ni de los catálogos de sesión, y no hay ciclo que
+// `benchmark:cad:smoke` pueda destapar.
 import type { CadViewRequest } from "../view/view-navigation";
+import type { CadXrefCatalogEntry } from "../xref/xref-paths";
 import type { CadHostRequest } from "./host-requests";
 import type { CadSystemVariableValue, CadVariableAccess } from "../system-variables";
 import type { CadNamedLayerState } from "../layer-states";
@@ -138,6 +140,16 @@ export interface CadCommandSession {
   lastDimensionId?: string;
 }
 
+/**
+ * Lo que un comando puede LEER del documento. Es un `Pick` y no el documento
+ * entero para que quede escrito qué secciones entran en el contrato del motor:
+ * historia, colaboración y publicaciones no son asunto de un comando.
+ */
+export type CadCommandDocumentView = Pick<
+  CadDocument,
+  "meta" | "entities" | "blocks" | "layers" | "styles" | "externalReferences" | "modelSpace"
+>;
+
 export interface CadCommandContext {
   /** Entidades presentes, sólo para consultar; el motor no las muta. */
   entityIds: readonly string[];
@@ -158,6 +170,31 @@ export interface CadCommandContext {
    * diciéndolo, en vez de explotar el bloque a la nada.
    */
   blocks?: () => readonly CadBlockDefinition[];
+  /**
+   * Lectura del documento entero, sólo para CONSULTAR.
+   *
+   * Las órdenes de gestión —PURGE, XREF, ADCENTER— no operan sobre una
+   * selección: operan sobre las TABLAS. PURGE tiene que saber qué capas hay y
+   * a qué apunta cada estilo antes de proponer nada, y no hay forma de
+   * responder eso con `entity()` y `blocks()`.
+   *
+   * Es opcional, y quien la necesita y no la recibe se NIEGA diciéndolo: un
+   * PURGE que responde «no hay nada que purgar» cuando en realidad no puede
+   * mirar es exactamente la clase de mentira que borra un dibujo por
+   * confianza. Escribir sigue yendo por el lote de comandos, como todo.
+   */
+  document?: () => CadCommandDocumentView;
+  /**
+   * Biblioteca de dibujos del inquilino que se pueden referenciar.
+   *
+   * XATTACH y la RESOLUCIÓN DE RUTAS de XREF la necesitan: sin un catálogo no
+   * hay forma de saber si `plantas/base` existe, ni de decir por cuál de las
+   * tres rutas se encontró. Traerla es I/O, y el motor es síncrono y puro, así
+   * que la aporta el anfitrión ya cargada. Quien la necesita y no la recibe lo
+   * dice —«el anfitrión no expone la biblioteca»— en vez de responder «no
+   * existe», que culparía al dibujo de una carencia del editor.
+   */
+  xrefCatalog?: () => readonly CadXrefCatalogEntry[];
   selection: readonly string[];
   activeLayer: string;
   /**

@@ -193,3 +193,152 @@ toca `render-benchmark.ts` y es del dueño del pipeline de render (#62), no mío
   botón deshabilitado que se come un click es un defecto de usabilidad menor—
   pero cerrarla de verdad exige tocar `CadDynamicInput`/`CadBlockPalette`
   (T1/T2) y no hace falta para poner `main` en verde.
+
+---
+
+# Segunda ronda — lo que se vio DESPUÉS de fusionar (10 de agosto)
+
+El PR #65 entró como `e41f12d`. Su corrida sobre `main` dejó tres cosas.
+
+## 8. El arreglo del artefacto funciona
+
+El paso «Upload Playwright report» pasó de avisar «No files were found» a
+subir **123 ficheros, 512 MB**, informe HTML y trazas incluidas. Por primera
+vez hay evidencia directa de un E2E rojo de `main` sin reconstruirla desde los
+logs. Artefacto `9050785880` de la corrida `31352932559`.
+
+## 9. Y la concurrencia también
+
+`6419f3d` (#69) seguía en curso cuando entró `e41f12d`, y **no se canceló**.
+Con la configuración anterior habría muerto, exactamente como los cinco commits
+del 9 de agosto. La causa de fondo está cerrada.
+
+## 10. `Lint web` murió de memoria, y es la prueba del §5 que faltaba
+
+```
+FATAL ERROR: Ineffective mark-compacts near heap limit
+JavaScript heap out of memory     (exit 134)
+```
+
+No falló ninguna regla: **el linter se cayó**, tras 91 s de GC dando vueltas.
+El límite por defecto de Node en el runner son ~2 GB y, medido sobre este
+árbol, eslint necesita entre 1,5 y 2: revienta con 1024, 1280 y 1536 MB, y pasa
+con 2048. El gate venía corriendo con **margen cero**.
+
+Lo importante no es el número, es el patrón: **#69 pasó su lint, #65 pasó el
+suyo, y la suma se cayó.** Es exactamente el agujero que el §11 de FASE 3
+describía — dos ramas verdes por separado que nadie prueba juntas— y ha
+ocurrido en la primera oportunidad que tuvo. Si hiciera falta un argumento para
+exigir *Require branches to be up to date before merging*, es éste.
+
+Se le da a eslint 4 GB explícitos en el paso de CI. Es un tope, no una cura: el
+coste sale del linteo con tipos sobre un monolito de 23k líneas
+(`Layout3DEditor.tsx`), y quien lo parta recuperará este margen.
+
+## 11. El E2E de esa corrida NO es el intermitente de siempre
+
+12 tests caídos —goldens 10, 15, 16, 17, 19, 22, 24, 46, 51, la performance de
+100k y dos de firefox— y **57,1 minutos** de ejecución, cuando la misma suite
+tardó 32,6 en el PR y ~25-30 históricamente. El doble de tiempo y doce caídas a
+la vez no es el fallo de un test: es un runner degradado, y la mayoría de las
+caídas son afirmaciones sensibles al reloj, del tipo
+`expect.poll(() => backend.snapshot().version).toBe(1)` recibiendo 2 —el
+autosave con debounce de 2 s disparando dentro del test porque todo va lento.
+
+No se persigue: doce fallos con la suite al doble de lento se arreglan
+volviendo a correr, no tocando doce specs. La corrida del PR que trae el §10
+sirve de contraste; si ahí el E2E vuelve a salir verde, queda confirmado que
+fue el runner.
+
+## 12. Corrección al §6: la estadística no bastaba — y otra sesión llegó antes
+
+El §6 daba por arreglado `render-benchmark.spec.ts` con mayoría de paseos
+emparejados. **Volvió a caer en CI** (`78e7562`). Se midió por qué, y la causa
+es que la magnitud no existe como constante: el pipeline nuevo **trocea por
+presupuesto de tiempo**, así que en tres rondas idénticas sobre el mismo árbol
+su p95 dio 15.673, 7.232 y 15.707 ms —con 41, 24 y 32 cuadros hasta el detalle—
+mientras el anterior se quedaba clavado en ~13.7 las tres veces. Su p95 no mide
+lo que cuesta el pipeline: mide cómo de rápido iba la máquina. Comparar eso con
+un coste fijo es comparar la afinación de un planificador contra una constante,
+y ninguna cantidad de repeticiones lo arregla.
+
+Tampoco hay atajo determinista: `segmentsAtRest` es MAYOR en el nuevo (6494
+frente a 3675), porque detalla todo lo visible en vez de muestrear.
+
+**La sesión dueña del pipeline de render llegó a la misma conclusión en
+paralelo y ya la ha fusionado en `main`**, con medidas propias que corroboran
+ésta —«los dos caminos miden LO MISMO dentro del ruido»— y con la observación
+independiente de que este spec nunca había llegado a ejecutarse en CI porque el
+job moría antes en «Lint web» por falta de memoria (§10).
+
+Su cura es distinta de la que se había preparado aquí: el veredicto pasa a la
+MEDIANA de las rondas emparejadas con una tolerancia de 1,25, en vez de retirar
+la aserción temporal y dejarla sólo medida. **Se adopta la suya y se descarta
+la de aquí.** Es su fichero y su área, su decisión ya está en `main`, y su
+enfoque conserva un guardarraíl que caza un encarecimiento real —un pipeline
+que de verdad se hubiera vuelto más caro pierde por goleada, no por 1,25— sin
+dejar que un empate dentro del ruido dicte el veredicto. Pisarla para imponer
+la variante de aquí no habría añadido nada y habría roto el reparto.
+
+Queda para esa sesión la recomendación de fondo, que sigue en pie: el sitio
+natural de una comparación de coste por cuadro es
+`scripts/cad-render-benchmark.mts`, que corre en condiciones controladas y ya
+tiene puerta propia (`benchmark:cad:smoke`), más la medida de navegador de #73.
+**Recomendación para el dueño de #62/#73**: llevar allí la comparación de
+coste por cuadro, donde el número significa algo.
+
+Medido tras el cambio: **0/8 fallos sin carga y 0/7 con los cuatro núcleos
+saturados**, donde el original caía 6/12 en esas mismas condiciones.
+
+## 13. El E2E de `main` NO es sólo un runner lento — hay al menos una rotura real
+
+En el §11 se atribuyeron a un runner degradado las 12 caídas de `e41f12d`. **Esa
+lectura era incompleta y aquí se corrige.** La corrida `31361876031` repitió el
+patrón —11 caídas en 54,6 min, casi el mismo conjunto de specs— y al mirar los
+mensajes aparecen dos familias distintas:
+
+**Familia A — la edición no se aplica.** El valor recibido es el ORIGINAL, no
+uno corrupto:
+
+| Spec | Esperado | Recibido |
+| --- | --- | --- |
+| golden 15 · `cad-native-property-text` | «Instrucción editada» | «Instrucción de proceso» |
+| golden 16 · `cad-native-property-measurement` | 260 | 200 |
+
+Los dos pasan por `applyNativeProperty`, que era **el único de los cuatro
+helpers sin ventana de quietud**: el campo sostiene lo tecleado un instante y
+vuelve solo a su valor anterior cuando el panel se recompone desde el
+documento. Cerrado en este PR.
+
+**Familia B — `19-cad-professional-workbench` está ROTO, y no es intermitente.**
+Se reproduce en local, aislado, con y sin los cambios de este PR: agota los
+180 s del test. La traza sitúa el cuelgue con precisión — tras entrar en el
+perfil `cad-workspace-profile-presentation` y comprobar que los docks se
+ocultan, el spec pide la caja de `cad-canvas`:
+
+```
+internal:testid=[data-testid="cad-canvas"]  { state: 'attached', timeout: 0 }
+```
+
+`timeout: 0` es espera **sin límite**. Si en el perfil de presentación el canvas
+no está montado, ahí se queda hasta que el test entero caduca.
+
+**Esto no es del reparto de esta sesión.** El perfil de presentación es del área
+de presentaciones/ventanas (#71). Hay dos preguntas que sólo su dueño puede
+responder: si el canvas DEBE desaparecer en ese perfil —y entonces lo que sobra
+es la medición del spec— o si desaparecer es el defecto. Se deja documentado con
+la traza señalando la línea, en vez de adivinar.
+
+Queda además una observación de método: el resto de caídas de esa corrida
+todavía puede ser mezcla de ambas familias más lentitud real. Con el artefacto
+de Playwright ya subiéndose (§8) y el arnés de specs enseñando por fin el
+mensaje (§14), la próxima persona no tendrá que reconstruir nada.
+
+## 14. `run-specs.mjs` enseñaba el final del error en vez del principio
+
+`.slice(-15)` sobre el detalle del fallo. En un `AssertionError` de Node el
+mensaje es la PRIMERA línea y la cola son frames de `node:internal` más un
+volcado «actual: false, expected: true» que no dice de qué. Las cuatro caídas de
+`render-benchmark.spec.ts` en CI fueron ilegibles por esto, y el diagnóstico
+hubo que reconstruirlo midiendo en local cada vez. Ahora se enseñan cabeza y
+cola, con las de en medio contadas.

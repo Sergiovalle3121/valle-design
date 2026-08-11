@@ -123,4 +123,31 @@ const base = {
   assert.deepEqual(empty.blocks?.(), [], "y sin dibujo abierto, la lista está vacía, no ausente");
 }
 
+// --- la selección se expande POR GRUPO antes de llegar a ningún comando -------
+{
+  const grouped = cadStudioCommandContext({
+    ...base,
+    document: {
+      entities: [
+        { id: "pata", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 1, y: 0, z: 0 }, layer: "0", context: { metadata: { "cad:groups": "MESA" } } },
+        { id: "tablero", type: "line", start: { x: 0, y: 1, z: 0 }, end: { x: 1, y: 1, z: 0 }, layer: "0", context: { metadata: { "cad:groups": "MESA" } } },
+        { id: "ajena", type: "line", start: { x: 0, y: 2, z: 0 }, end: { x: 1, y: 2, z: 0 }, layer: "0" },
+      ],
+      blocks: [],
+    } as unknown as CadDocument,
+    selection: ["pata"],
+  });
+  assert.deepEqual(
+    grouped.selection,
+    ["pata", "tablero"],
+    "designar una pata designa la mesa: MOVE, ROTATE y ERASE lo ven expandido sin saber de grupos",
+  );
+  const loose = cadStudioCommandContext({
+    ...base,
+    document: documentWith(["a", "b"]),
+    selection: ["b"],
+  });
+  assert.deepEqual(loose.selection, ["b"], "y sin grupos la lista no cambia");
+}
+
 console.log("cad studio command context specs passed");

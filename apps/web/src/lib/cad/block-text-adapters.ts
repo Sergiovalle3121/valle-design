@@ -30,6 +30,7 @@ import { hatchAdapter } from "./hatch-entity-adapter";
 import { mleaderAdapter } from "./mleader-entity-adapter";
 import { layoutCadMText } from "./mtext-layout";
 import { polylineAdapter } from "./polyline-entity-adapter";
+import { cadTransformPositionedAttributes } from "./blocks/positioned-attributes";
 import { resolveCadInsert } from "./professional-blocks";
 import { splineAdapter } from "./spline-entity-adapter";
 import {
@@ -359,6 +360,12 @@ const insertAdapter: CadEntityAdapter<CadInsertEntity> = {
           z: entity.scale.z,
         },
         rotation: normalizeAngleDeg(reflecting ? base - entity.rotation : entity.rotation + base),
+        // Los atributos POSICIONADOS llevan geometría propia, en coordenadas de
+        // MUNDO. Sin esta línea mover un cajetín deja atrás el texto de su
+        // número de plano: el bloque se va y sus etiquetas se quedan.
+        ...(entity.positionedAttributes
+          ? { positionedAttributes: cadTransformPositionedAttributes(entity.positionedAttributes, transform) }
+          : {}),
         context: cloneContext(entity.context),
       };
     },

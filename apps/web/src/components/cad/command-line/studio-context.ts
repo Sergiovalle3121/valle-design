@@ -10,6 +10,7 @@
  * editor: entra un documento, sale un contexto.
  */
 import type { CadDocument, CadEntity } from "@/lib/cad/cad-document";
+import { cadExpandSelectionByGroup } from "@/lib/cad/blocks/cad-groups";
 import type {
   CadCommandContext,
   CadSessionCatalogs,
@@ -81,7 +82,17 @@ export function cadStudioCommandContext(
     // la inserción, que es exactamente el caso que la gente prueba primero.
     blocks: () => inputs.document?.blocks ?? [],
     layers: () => inputs.document?.layers ?? [],
-    selection: inputs.selection,
+    // PURGE, XREF y ADCENTER operan sobre las TABLAS del documento, no sobre
+    // una selección: sin esta línea se negarían a analizar nada. Sólo se ofrece
+    // cuando hay documento abierto, para que la negativa sea la verdad y no un
+    // «no hay nada» calculado sobre un documento vacío.
+    ...(inputs.document ? { document: () => inputs.document! } : {}),
+    // La selección se expande POR GRUPO antes de que la vea ningún comando.
+    // Es la mitad del valor de un grupo —la otra es que se mueva junto— y
+    // resolverlo aquí lo hace cierto para MOVE, ROTATE, ERASE y todo lo que
+    // venga, en vez de una vez por comando. Sin grupos no cambia nada: la
+    // función devuelve la misma lista.
+    selection: cadExpandSelectionByGroup(inputs.selection, entities),
     // `CLAYER` manda cuando nombra una capa que existe: es la capa actual
     // también para AutoCAD, y es lo que permite que un `.scr` dibuje donde
     // quiere con `-LAYER definir`. Si nadie la ha tocado o apunta a una capa

@@ -7,6 +7,10 @@
  * cuatro sitios a la vez o en ninguno. Ese es justamente el problema que hoy
  * existe con tres sistemas de comandos que no se conocen entre sí.
  */
+import { CAD_BLOCK_COMMANDS } from "./commands/blocks";
+import { CAD_GROUP_COMMANDS } from "./commands/groups";
+import { CAD_XREF_COMMANDS } from "./commands/xrefs";
+import { CAD_DESIGN_CENTER_COMMANDS } from "./commands/design-center";
 import { CAD_DRAW_BASIC_COMMANDS } from "./commands/draw-basics";
 import { CAD_DRAW_CURVE_COMMANDS } from "./commands/draw-curves";
 import { CAD_ANNOTATION_V4_COMMANDS } from "./commands/draw-annotation-v4";
@@ -105,6 +109,10 @@ export const CAD_COMMAND_DESCRIPTORS = [
   ...CAD_VIEW_NAVIGATION_COMMANDS,
   ...CAD_LAYOUT_COMMANDS,
   ...CAD_PLOT_COMMANDS,
+  ...CAD_BLOCK_COMMANDS,
+  ...CAD_GROUP_COMMANDS,
+  ...CAD_XREF_COMMANDS,
+  ...CAD_DESIGN_CENTER_COMMANDS,
   // Esquema 5: modelado de sólidos. Enchufan el kernel B-rep de `lib/brep/`, que
   // hasta esta ola estaba construido, probado y sin un solo consumidor.
   ...CAD_SOLID_CREATE_COMMANDS,
