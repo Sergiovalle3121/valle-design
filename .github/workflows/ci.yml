@@ -165,8 +165,30 @@ jobs:
         working-directory: apps/api
         run: npm run lint:check
 
+      # Montón EXPLÍCITO, y no es un capricho: sobre `main` (e41f12d) este paso
+      # murió con `FATAL ERROR: Ineffective mark-compacts near heap limit —
+      # JavaScript heap out of memory`, exit 134, tras 91 s de GC dando vueltas.
+      # No falló ninguna regla: el linter se cayó. Y al caerse arrastró a
+      # `skipped` los NUEVE pasos siguientes —`test:specs`, los benchmarks, el
+      # journey de aceptación y el smoke de bootstrap—, que por tanto nunca
+      # llegaron a correr. Un gate que se muere no dice «hay un error»: deja de
+      # decir nada, que es peor.
+      #
+      # El límite por defecto de Node en el runner son ~2 GB y eslint necesita
+      # entre 1,5 y 2 sobre este árbol, así que venía con margen CERO y el
+      # veredicto dependía de la suerte. 4 GB da el doble de lo necesario en un
+      # runner de 16.
+      #
+      # Es un tope, no una cura: el coste viene de lintar con tipos un monolito
+      # de 23k líneas, y quien lo parta recuperará también este margen.
+      #
+      # Diagnóstico y medida original: PR #80. Se replica aquí para que este PR
+      # no dependa del orden de fusión — los dos tocan este mismo paso y el
+      # contenido es idéntico, así que el conflicto se resuelve solo.
       - name: Lint web
         working-directory: apps/web
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         run: npm run lint
 
       # Suites script-style del kernel CAD y la plataforma web (tsx).
