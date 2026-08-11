@@ -358,11 +358,13 @@ jobs:
       # que las pruebas que dependen de la escena real no medían el producto.
       # La alternativa —excluir Firefox o saltarse esos specs— escondería el
       # problema; darle a Mesa su driver software lo resuelve de verdad.
-      # Sólo hace falta cuando corre Firefox: Chromium cae solo en SwiftShader
-      # y no toca ni Mesa ni Xvfb. En los PR (Chromium únicamente) este paso
-      # era un `apt-get update` + install de seis paquetes para nada.
+      # Se instala SIEMPRE, también en los PR que sólo corren Chromium. Hacerlo
+      # condicional ahorraba ~15 s y a cambio cambiaba el ENTORNO DE EJECUCIÓN
+      # de las pruebas: sin el paquete no hay `xvfb-run`, así que Chromium
+      # pasaba a correr sin display donde en `main` corre con uno. Quince
+      # segundos no valen introducir una variable en el único gate que mide el
+      # producto de punta a punta.
       - name: Install Mesa software OpenGL (Firefox WebGL)
-        if: github.event_name != 'pull_request'
         run: |
           sudo apt-get update
           # `eglinfo` en este runner demuestra que llvmpipe está disponible
@@ -441,12 +443,9 @@ jobs:
         # llvmpipe por GLX/EGL-X11. Chromium no se ve afectado.
         # Xvfb sólo cuando hay Firefox; con Chromium solo es un envoltorio
         # inútil y un servidor X de más en el runner.
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            npx playwright test ${{ steps.browsers.outputs.projects }}
-          else
-            xvfb-run -a --server-args="-screen 0 1920x1080x24" npx playwright test
-          fi
+        # Bajo Xvfb SIEMPRE, con o sin Firefox: lo único que cambia entre un PR
+        # y `main` debe ser QUÉ navegadores corren, nunca CÓMO se ejecutan.
+        run: xvfb-run -a --server-args="-screen 0 1920x1080x24" npx playwright test ${{ steps.browsers.outputs.projects }}
 
       # `include-hidden-files` NO es cosmético: sin él este paso nunca subió
       # nada. `.report` y `.test-results` empiezan por punto, y
