@@ -149,6 +149,19 @@ const names = registry.all().map((command) => command.name);
     "VIEW",
     "REGEN",
     "REGENALL",
+    "BLOCK",
+    "WBLOCK",
+    "INSERT",
+    "BASE",
+    "ATTEDIT",
+    "GROUP",
+    "UNGROUP",
+    "PURGE",
+    "XREF",
+    "XATTACH",
+    "XBIND",
+    "XCLIP",
+    "ADCENTER",
   ])
     assert.ok(names.includes(expected), `${expected} no llegó al registro del producto`);
 }

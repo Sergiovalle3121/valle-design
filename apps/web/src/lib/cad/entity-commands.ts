@@ -27,6 +27,11 @@ import {
   type CadStyleTable,
 } from "./cad-document";
 import {
+  applyCadSymbolTables,
+  isCadSymbolTableCommand,
+  type CadSymbolTableCommand,
+} from "./cad-symbol-tables";
+import {
   deleteCadParameter,
   evaluateCadParameters,
   setCadParameter,
@@ -192,7 +197,19 @@ export type CadEntityCommand =
    */
   | { type: "paper-space"; entity?: undefined; op: "upsert"; space: CadPaperSpace }
   | { type: "paper-space"; entity?: undefined; op: "delete"; spaceId: string }
-  | { type: "paper-space"; entity?: undefined; op: "reorder"; spaceIds: readonly string[] };
+  | { type: "paper-space"; entity?: undefined; op: "reorder"; spaceIds: readonly string[] }
+  /**
+   * Tablas de SÍMBOLOS: bloques y referencias externas.
+   *
+   * Van por aquí por lo mismo que las restricciones: BLOCK define la
+   * definición, borra la geometría que sustituye y crea el INSERT, y las tres
+   * cosas son UNA orden. Con dos rutas, deshacer dejaría el dibujo sin la
+   * geometría y sin el bloque. Su aplicación vive en `cad-symbol-tables.ts`;
+   * las capas y el orden de dibujo, en `entity-command-tables.ts`.
+   */
+  | CadSymbolTableCommand;
+
+export type { CadSymbolTableCommand } from "./cad-symbol-tables";
 
 /** Las cinco familias de `CadStyleTable`. */
 export type CadStyleFamilyName = "text" | "dimension" | "mleader" | "table" | "plot";
@@ -273,7 +290,8 @@ function cadEntityCommandLabel(
   if (command.type === "insert") return `insert:${command.entity.type}`;
   if (command.type === "image-definition") return `image-definition:${command.definition.id}`;
   if (isStyleCommand(command)) return `style:${command.op}:${command.family}:${command.name}`;
-  if (isSectionCommand(command)) return `${command.type}:${command.op}`;
+  if (isSectionCommand(command) || isCadSymbolTableCommand(command))
+    return `${command.type}:${command.op}`;
   if (command.type === "layer") return `layer:${command.op}`;
   if (command.type === "draw-order") return `draw-order:${command.placement}`;
   const source = document.entities.find((entity) => entity.id === command.entityId);
@@ -332,8 +350,14 @@ export function executeCadEntityCommandBatch(
   };
 
   const sectionCommands: CadDocumentSectionCommand[] = [];
-  const tableCommands: CadDocumentTableCommand[] = [];
   const styleCommands: CadStyleCommand[] = [];
+  // Dos tablas, dos aplicadores: las capas y el orden de dibujo se resuelven
+  // sobre la lista de entidades YA ordenada (`entity-command-tables.ts`), y los
+  // bloques y las referencias externas sobre el conjunto de entidades
+  // (`cad-symbol-tables.ts`). Se separan aquí para que ninguna escriba encima
+  // de la otra: `layers` sale de una y `blocks`/`externalReferences` de la otra.
+  const tableCommands: CadDocumentTableCommand[] = [];
+  const symbolCommands: CadSymbolTableCommand[] = [];
 
   for (const command of commands) {
     if (isStyleCommand(command)) {
@@ -342,6 +366,10 @@ export function executeCadEntityCommandBatch(
     }
     if (isSectionCommand(command)) {
       sectionCommands.push(command);
+      continue;
+    }
+    if (isCadSymbolTableCommand(command)) {
+      symbolCommands.push(command);
       continue;
     }
     if (isCadTableCommand(command)) {
@@ -490,6 +518,11 @@ export function executeCadEntityCommandBatch(
     regenerationSourceIds.push(entity);
   }
 
+  // Las tablas de símbolos se resuelven contra las entidades YA editadas: BLOCK
+  // borra en este mismo lote la geometría que convierte en definición, y
+  // preguntar por el documento de partida diría que ese bloque no se usa.
+  const symbolTables = applyCadSymbolTables(document, symbolCommands, [...present.values()]);
+
   const regenerationSources = [...new Set(regenerationSourceIds)];
   let entities = [...present.values()];
   const regenerated = regenerateAssociativeHatches(
@@ -514,6 +547,20 @@ export function executeCadEntityCommandBatch(
     // fantasmas ni omisiones.
     document.modelSpace.entityIds.filter((id) => !deleted.has(id)).concat(createdFrontIds),
   );
+  // El orden de dibujo se compone en DOS tramos y hay que respetar los dos.
+  //
+  //  1. `[...createdBackIds, ...ordered]` es el orden BASE del lote: lo creado
+  //     «al fondo» va delante de todo —es lo que pide `drawOrder: "back"`, y es
+  //     como un sombreado nace debajo de la geometría que rellena— y detrás va
+  //     lo que sobrevivió, con su posición relativa intacta.
+  //  2. `applyDocumentTables` aplica DRAWORDER ENCIMA de ese orden base, que es
+  //     lo que mueve al frente o al fondo lo que el usuario designó.
+  //
+  // Por eso el resultado es `tables.entityOrder` y no el tramo 1 a secas:
+  // quedarse con el tramo 1 tiraría el DRAWORDER del mismo lote, y pasar otra
+  // cosa como entrada perdería el «al fondo» de lo recién creado. Ninguno de
+  // los dos fallos se ve en un dibujo pequeño: se ven cuando un sombreado
+  // empieza a tapar la pieza que rellena.
   const tables = applyDocumentTables(document, tableCommands, [...createdBackIds, ...ordered], entities);
   for (const entityId of tables.touchedEntityIds) touchedIds.push(entityId);
   const staged: CadDocument = {
@@ -523,6 +570,8 @@ export function executeCadEntityCommandBatch(
     constraints: sections.constraints,
     styles: applyStyleCommands(document.styles, styleCommands),
     paperSpaces: sections.paperSpaces,
+    blocks: symbolTables.blocks,
+    externalReferences: symbolTables.externalReferences,
     modelSpace: { entityIds: tables.entityOrder },
     // Mismo criterio que `parameters` justo debajo: el catálogo de imágenes
     // sólo viaja si el lote lo tocó o si el documento ya lo traía.
