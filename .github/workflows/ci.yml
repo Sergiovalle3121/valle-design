@@ -85,7 +85,26 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
+      # `cache: npm` de arriba sólo guarda el TARBALL descargado: `npm ci`
+      # sigue borrando y reconstruyendo `node_modules` entero, unos dos minutos
+      # en cada job y en cada corrida. Cachear el árbol ya instalado, con la
+      # clave atada al hash del lockfile, lo deja en segundos.
+      #
+      # La reproducibilidad no se pierde: si el lockfile cambia un solo byte la
+      # clave cambia y se reinstala desde cero con `npm ci`. Un acierto de
+      # caché significa, por construcción, el mismo lockfile.
+      - name: Restaurar node_modules
+        id: deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            apps/*/node_modules
+            packages/*/node_modules
+          key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
       - name: Install dependencies (npm ci reproducible)
+        if: steps.deps.outputs.cache-hit != 'true'
         run: npm ci
 
       # Puerta de CONTRATO: los YAML de packages/contracts/specs validan
@@ -174,7 +193,12 @@ jobs:
       # El spec `render-gate.spec.ts` sigue en «Web specs», pero sólo con las
       # INVARIANTES —recuentos de entidades, no milisegundos—, que es lo que
       # caza el regreso del muestreo y no puede parpadear.
+      # Mismo criterio que la suite de rendimiento del E2E: esto MIDE, no
+      # comprueba corrección, y `--repeat 3` son tres pasadas de 100k. Su sitio
+      # es `main`, el cron y el disparo manual, que es donde el número tiene
+      # significado; en una rama sólo encarece cada push.
       - name: CAD render pipeline budget (100k, blocking)
+        if: github.event_name != 'pull_request'
         working-directory: apps/web
         run: npm run benchmark:cad:render -- --repeat 3 --output ../../cad-benchmark-render.json
 
@@ -189,7 +213,11 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+      # Un INFORME de capacidad a 500k y 1M de entidades. No bloquea nada y no
+      # cambia entre un push de rama y el siguiente: es un retrato del motor,
+      # no una prueba del cambio propuesto.
       - name: CAD scale capability report (500k + 1M, hardware guarded)
+        if: github.event_name != 'pull_request'
         working-directory: apps/web
         run: npm run benchmark:cad:scale -- --output ../../cad-benchmark-scale.json
 
@@ -227,8 +255,27 @@ jobs:
         run: npm run smoke:bootstrap
 
   e2e:
-    name: E2E Playwright (PostgreSQL · Chromium + Firefox)
+    name: E2E Playwright ${{ matrix.shard }}/4 (PostgreSQL · Chromium + Firefox)
     runs-on: ubuntu-latest
+
+    # Reparto entre CUATRO máquinas. `playwright.config.ts` fija
+    # `workers: 1` y `fullyParallel: false` A PROPÓSITO —los goldens comparten
+    # backend y se pisarían—, así que dentro de un job no hay paralelismo que
+    # sacar: 56 archivos de spec en serie son ~26 minutos de reloj.
+    #
+    # `--shard` es otra cosa: reparte los ARCHIVOS entre procesos aislados, y
+    # cada uno se lleva su propio Postgres efímero, su propia API y su propio
+    # navegador. La serialización dentro de cada shard se conserva intacta.
+    #
+    # No sale gratis y conviene decirlo: cada shard repite instalación, build y
+    # arranque de API, así que el total facturado sube un poco. Se compensa de
+    # sobra con la caché de dependencias, y lo que se compra es tiempo de
+    # reloj: de ~26 minutos a ~7.
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+
     services:
       postgres:
         image: postgres:16
@@ -253,8 +300,28 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
+      - name: Restaurar node_modules
+        id: deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            apps/*/node_modules
+            packages/*/node_modules
+          key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
       - name: Install dependencies
+        if: steps.deps.outputs.cache-hit != 'true'
         run: npm ci
+
+      # Los navegadores pesan cientos de megas y no cambian entre corridas: la
+      # clave los ata a la versión de Playwright del lockfile.
+      - name: Restaurar navegadores de Playwright
+        id: browsercache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.event_name == 'pull_request' && 'chromium' || 'both' }}
 
       # Cobertura ESCALONADA por navegador, y la escala está elegida a partir
       # de los fallos reales de este repo, no por ahorrar sin más:
@@ -374,10 +441,11 @@ jobs:
         # Xvfb sólo cuando hay Firefox; con Chromium solo es un envoltorio
         # inútil y un servidor X de más en el runner.
         run: |
+          SHARD="--shard=${{ matrix.shard }}/4"
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            npx playwright test ${{ steps.browsers.outputs.projects }}
+            npx playwright test $SHARD ${{ steps.browsers.outputs.projects }}
           else
-            xvfb-run -a --server-args="-screen 0 1920x1080x24" npx playwright test
+            xvfb-run -a --server-args="-screen 0 1920x1080x24" npx playwright test $SHARD
           fi
 
       # `include-hidden-files` NO es cosmético: sin él este paso nunca subió
@@ -391,7 +459,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report-${{ github.sha }}
+          name: playwright-report-${{ github.sha }}-shard${{ matrix.shard }}
           path: |
             apps/web/e2e/.report
             apps/web/e2e/.test-results
