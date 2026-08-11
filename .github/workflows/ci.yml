@@ -16,6 +16,20 @@ name: CI
 on:
   pull_request:
     branches: [main]
+    # Un cambio que sólo toca prosa no puede romper un gate: no hay contrato,
+    # ni tipo, ni spec, ni byte de SDK que dependa de un `.md`. Correr el
+    # pipeline entero sobre documentación costó ~150 minutos de runner el 10 de
+    # agosto (PR #63, un único archivo Markdown, dos corridas completas) y fue
+    # parte de por qué la cuota mensual se agotó a mitad de ciclo.
+    #
+    # `paths-ignore` NO se aplica al push sobre `main`: ahí sí queremos
+    # veredicto de cada commit, cueste lo que cueste, porque es la rama de la
+    # que se despliega.
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "LICENSE"
+      - "NOTICE"
   push:
     branches: [main]
   # Alarma sobre `main` aunque nadie empuje: un fallo intermitente que sólo
@@ -71,7 +85,26 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
+      # `cache: npm` de arriba sólo guarda el TARBALL descargado: `npm ci`
+      # sigue borrando y reconstruyendo `node_modules` entero, unos dos minutos
+      # en cada job y en cada corrida. Cachear el árbol ya instalado, con la
+      # clave atada al hash del lockfile, lo deja en segundos.
+      #
+      # La reproducibilidad no se pierde: si el lockfile cambia un solo byte la
+      # clave cambia y se reinstala desde cero con `npm ci`. Un acierto de
+      # caché significa, por construcción, el mismo lockfile.
+      - name: Restaurar node_modules
+        id: deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            apps/*/node_modules
+            packages/*/node_modules
+          key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
       - name: Install dependencies (npm ci reproducible)
+        if: steps.deps.outputs.cache-hit != 'true'
         run: npm ci
 
       # Puerta de CONTRATO: los YAML de packages/contracts/specs validan
@@ -89,6 +122,20 @@ jobs:
       # UNLICENSED; toda dependencia de producción debe ser permisiva.
       - name: Dependency licenses gate
         run: npm run sbom && npm run check:licenses
+
+      # El SBOM ya está generado por el paso de arriba, que es el que BLOQUEA.
+      # Antes existía un job `sbom` aparte que repetía checkout + setup + `npm
+      # ci` + `npm run sbom` sólo para subir este mismo archivo: ~2,5 minutos de
+      # runner por corrida produciendo un artefacto idéntico al que aquí ya
+      # está en disco. La evidencia de cadena de suministro no cambia; lo que
+      # desaparece es pagarla dos veces.
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: valle-design-sbom-${{ github.sha }}
+          path: sbom.cdx.json
+          if-no-files-found: error
+          retention-days: 90
 
       # Build turbo del monorepo: contracts → design-sdk → api → web.
       - name: Build (turbo)
@@ -164,7 +211,12 @@ jobs:
       # El spec `render-gate.spec.ts` sigue en «Web specs», pero sólo con las
       # INVARIANTES —recuentos de entidades, no milisegundos—, que es lo que
       # caza el regreso del muestreo y no puede parpadear.
+      # Mismo criterio que la suite de rendimiento del E2E: esto MIDE, no
+      # comprueba corrección, y `--repeat 3` son tres pasadas de 100k. Su sitio
+      # es `main`, el cron y el disparo manual, que es donde el número tiene
+      # significado; en una rama sólo encarece cada push.
       - name: CAD render pipeline budget (100k, blocking)
+        if: github.event_name != 'pull_request'
         working-directory: apps/web
         run: npm run benchmark:cad:render -- --repeat 3 --output ../../cad-benchmark-render.json
 
@@ -179,7 +231,11 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+      # Un INFORME de capacidad a 500k y 1M de entidades. No bloquea nada y no
+      # cambia entre un push de rama y el siguiente: es un retrato del motor,
+      # no una prueba del cambio propuesto.
       - name: CAD scale capability report (500k + 1M, hardware guarded)
+        if: github.event_name != 'pull_request'
         working-directory: apps/web
         run: npm run benchmark:cad:scale -- --output ../../cad-benchmark-scale.json
 
@@ -219,6 +275,8 @@ jobs:
   e2e:
     name: E2E Playwright (PostgreSQL · Chromium + Firefox)
     runs-on: ubuntu-latest
+
+
     services:
       postgres:
         image: postgres:16
@@ -243,12 +301,56 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
+      - name: Restaurar node_modules
+        id: deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            apps/*/node_modules
+            packages/*/node_modules
+          key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
       - name: Install dependencies
+        if: steps.deps.outputs.cache-hit != 'true'
         run: npm ci
 
-      - name: Install Playwright Chromium and Firefox
+      # Los navegadores pesan cientos de megas y no cambian entre corridas: la
+      # clave los ata a la versión de Playwright del lockfile.
+      - name: Restaurar navegadores de Playwright
+        id: browsercache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.event_name == 'pull_request' && 'chromium' || 'both' }}
+
+      # Cobertura ESCALONADA por navegador, y la escala está elegida a partir
+      # de los fallos reales de este repo, no por ahorrar sin más:
+      #
+      #   PR      → Chromium. Los tres intermitentes que costaron un día entero
+      #             (goldens 18, 33 y 20) se reprodujeron en Chromium; el
+      #             navegador no era la variable.
+      #   main    → Chromium + Firefox. Aquí sí importa: Firefox necesita
+      #             llvmpipe por X11 y es donde aparecieron dos de los tres
+      #             rojos del 9 de agosto. Un commit de `main` sin veredicto de
+      #             Firefox no está verificado.
+      #
+      # Firefox DUPLICA el job (~30 min de runner por corrida). Correrlo en
+      # cada push de rama es pagar dos veces por la señal que ya da el otro.
+      - name: Seleccionar navegadores
+        id: browsers
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "list=chromium" >> "$GITHUB_OUTPUT"
+            echo "projects=--project=chromium" >> "$GITHUB_OUTPUT"
+          else
+            echo "list=chromium firefox" >> "$GITHUB_OUTPUT"
+            echo "projects=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Playwright browsers
         working-directory: apps/web
-        run: npx playwright install --with-deps chromium firefox
+        run: npx playwright install --with-deps ${{ steps.browsers.outputs.list }}
 
       # WebGL por software para Firefox. El runner no tiene GPU: Chromium cae
       # solo en SwiftShader, pero Firefox agota los drivers
@@ -256,6 +358,12 @@ jobs:
       # que las pruebas que dependen de la escena real no medían el producto.
       # La alternativa —excluir Firefox o saltarse esos specs— escondería el
       # problema; darle a Mesa su driver software lo resuelve de verdad.
+      # Se instala SIEMPRE, también en los PR que sólo corren Chromium. Hacerlo
+      # condicional ahorraba ~15 s y a cambio cambiaba el ENTORNO DE EJECUCIÓN
+      # de las pruebas: sin el paquete no hay `xvfb-run`, así que Chromium
+      # pasaba a correr sin display donde en `main` corre con uno. Quince
+      # segundos no valen introducir una variable en el único gate que mide el
+      # producto de punta a punta.
       - name: Install Mesa software OpenGL (Firefox WebGL)
         run: |
           sudo apt-get update
@@ -308,7 +416,18 @@ jobs:
           E2E_API_ORIGIN: http://localhost:4000
           E2E_REAL_API: "1"
           E2E_IDENTITY_HARNESS_KEY: valle-design-e2e-harness-key-32-characters-minimum
-          CAD_PERF_E2E: "1"
+          # La suite de rendimiento SÓLO fuera de los PR. No es una prueba de
+          # corrección: es una medida, y mide lo que ya está en `main`.
+          # Su coste está documentado por el propio #75 — `detailReady` 296 s y
+          # `zoomSettle` 188 s a 100.000 entidades sin GPU—, o sea ~8 minutos de
+          # los ~35 del job, cada vez que alguien empuja una rama.
+          #
+          # En `main`, en el cron diario y en `workflow_dispatch` sigue corriendo
+          # entera y bloqueando: una regresión de rendimiento se detecta en la
+          # rama principal y en la serie, que es donde el número significa algo.
+          # Quien toque el pipeline de render puede pedirla en su PR con
+          # `workflow_dispatch`.
+          CAD_PERF_E2E: ${{ github.event_name == 'pull_request' && '0' || '1' }}
           # Fuerza el rasterizador software de Mesa (llvmpipe) para que Firefox
           # obtenga contexto WebGL sin GPU. Chromium no lo necesita y no le
           # afecta: ya usa su propio SwiftShader.
@@ -322,7 +441,11 @@ jobs:
         # gráfico. Firefox no toma esa ruta surfaceless y por eso agota los
         # drivers. Darle un display real es la forma canónica de que use
         # llvmpipe por GLX/EGL-X11. Chromium no se ve afectado.
-        run: xvfb-run -a --server-args="-screen 0 1920x1080x24" npx playwright test
+        # Xvfb sólo cuando hay Firefox; con Chromium solo es un envoltorio
+        # inútil y un servidor X de más en el runner.
+        # Bajo Xvfb SIEMPRE, con o sin Firefox: lo único que cambia entre un PR
+        # y `main` debe ser QUÉ navegadores corren, nunca CÓMO se ejecutan.
+        run: xvfb-run -a --server-args="-screen 0 1920x1080x24" npx playwright test ${{ steps.browsers.outputs.projects }}
 
       # `include-hidden-files` NO es cosmético: sin él este paso nunca subió
       # nada. `.report` y `.test-results` empiezan por punto, y
@@ -366,28 +489,3 @@ jobs:
           /tmp/gitleaks version
           /tmp/gitleaks detect --source . --config .gitleaks.toml --redact --no-banner
 
-  sbom:
-    name: SBOM CycloneDX (evidencia)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Generate SBOM (production dependencies)
-        run: npm run sbom
-
-      - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: valle-design-sbom-${{ github.sha }}
-          path: sbom.cdx.json
-          retention-days: 90
