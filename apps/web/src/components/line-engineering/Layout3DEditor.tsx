@@ -430,6 +430,8 @@ import {
 } from "@/lib/cad/entity-commands";
 import { CadViewController } from "@/lib/cad/view/view-controller";
 import { CadCommandLineDock } from "@/components/cad/command-line/CadCommandLineDock";
+import { useCadCommandEngine } from "@/components/cad/command-line/use-command-engine";
+import { formatCadPrompt } from "@/lib/cad/engine/prompt";
 import { useCadStudioCommandEngine } from "@/components/cad/command-line/use-command-engine";
 import {
   CadOverlayLegends,
@@ -455,6 +457,40 @@ import {
   setCadNativeObjectSelected,
   updateCadNativeOverviewObject,
 } from "@/lib/cad/entity-three";
+import {
+  CadRenderHostSlot,
+  CadViewportRenderHost,
+} from "@/components/cad/viewport/render-pipeline-host";
+import {
+  HELP_SECTIONS,
+  THEMES,
+  type Theme3D,
+} from "@/components/cad/studio/editor-presentation";
+import {
+  buildAssetGroup,
+  buildDim,
+  disposeObject,
+  makeLabel,
+  makeNoteLabel,
+  type Ann,
+  type Asset,
+} from "@/components/cad/viewport/scene-objects";
+import { CadEnginePreview } from "@/components/cad/viewport/engine-preview";
+import { CadLiveCursorOverlay } from "@/components/cad/viewport/live-cursor";
+import {
+  CadEnginePointerRouter,
+  EMPTY_CAD_POINTER_SESSION,
+  cadEngineCommandForTool,
+  type CadPointerSession,
+} from "@/components/cad/viewport/pointer-router";
+import {
+  CadRenderPipelineBadge,
+  CadRenderPipelineStats,
+} from "@/components/cad/viewport/RenderPipelineBadge";
+import {
+  resolveCadRenderPipeline,
+  type CadRenderPipelineChoice,
+} from "@/lib/cad/render-pipeline-preference";
 import {
   cadDocumentNativeDxfHatches,
   cadDocumentDxfBlocks,
@@ -898,18 +934,6 @@ interface Conn {
   to: string;
   kind?: string;
 }
-interface Asset {
-  id: string;
-  kind: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  rotation: number;
-  label?: string;
-  shape?: "rect" | "circle";
-  tags?: string[];
-}
 /** Bloque CAD reutilizable de la biblioteca del tenant (ADR §224). */
 interface CadBlockRow {
   id: string;
@@ -928,16 +952,6 @@ interface ClearancePair {
   gap: number;
 }
 /** A free-text note or a dimension line (cota) on the plan — world coords. */
-interface Ann {
-  id: string;
-  type: "text" | "dim";
-  x: number;
-  y: number;
-  x2?: number;
-  y2?: number;
-  text?: string;
-  color?: string;
-}
 interface Footprint {
   footprintW: number;
   footprintH: number;
@@ -1126,143 +1140,6 @@ const ROSE = 0xf43f5e;
 const AMBER = 0xf59e0b;
 const SELECT = 0x22d3ee;
 
-function makeLabel(text: string, scale = 1.5): THREE.Sprite {
-  const canvas = document.createElement("canvas");
-  const fontSize = 46;
-  const m = canvas.getContext("2d")!;
-  m.font = `bold ${fontSize}px sans-serif`;
-  const tw = m.measureText(text).width;
-  canvas.width = Math.ceil(tw + 30);
-  canvas.height = fontSize + 24;
-  const ctx = canvas.getContext("2d")!;
-  ctx.font = `bold ${fontSize}px sans-serif`;
-  ctx.fillStyle = "rgba(15,23,42,0.85)";
-  const r = 10;
-  ctx.beginPath();
-  ctx.moveTo(r, 0);
-  ctx.arcTo(canvas.width, 0, canvas.width, canvas.height, r);
-  ctx.arcTo(canvas.width, canvas.height, 0, canvas.height, r);
-  ctx.arcTo(0, canvas.height, 0, 0, r);
-  ctx.arcTo(0, 0, canvas.width, 0, r);
-  ctx.closePath();
-  ctx.fill();
-  ctx.fillStyle = "#fff";
-  ctx.textBaseline = "middle";
-  ctx.textAlign = "center";
-  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.minFilter = THREE.LinearFilter;
-  const sprite = new THREE.Sprite(
-    new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }),
-  );
-  const aspect = canvas.width / canvas.height;
-  sprite.scale.set(scale * aspect, scale, 1);
-  sprite.renderOrder = 10;
-  sprite.userData.isLabel = true; // so the "Etiquetas" layer can hide every label
-  return sprite;
-}
-
-/** Visual theme presets for the scene (background / fog / floor / grid). */
-type Theme3D = "dark" | "light" | "night" | "studio";
-const THEMES: Record<
-  Theme3D,
-  {
-    bg: number;
-    ground: number;
-    gridA: number;
-    gridB: number;
-    fog: number;
-    label: string;
-  }
-> = {
-  dark: {
-    bg: 0x0a0f1e,
-    ground: 0x14203a,
-    gridA: 0x2a3a5c,
-    gridB: 0x1b2640,
-    fog: 0x0a0f1e,
-    label: "Oscuro",
-  },
-  light: {
-    bg: 0xeaf0f8,
-    ground: 0xd7e2f1,
-    gridA: 0x9db4d6,
-    gridB: 0xbccce4,
-    fog: 0xeaf0f8,
-    label: "Claro",
-  },
-  night: {
-    bg: 0x05070d,
-    ground: 0x0b1322,
-    gridA: 0x1e2c47,
-    gridB: 0x121a2e,
-    fog: 0x05070d,
-    label: "Noche",
-  },
-  studio: {
-    bg: 0x202329,
-    ground: 0x2b2f37,
-    gridA: 0x3c424d,
-    gridB: 0x2f343d,
-    fog: 0x202329,
-    label: "Estudio",
-  },
-};
-
-/** Keyboard + tool reference shown in the help overlay. */
-const HELP_SECTIONS: { title: string; rows: [string, string][] }[] = [
-  {
-    title: "Herramientas",
-    rows: [
-      ["V", "Seleccionar / mover"],
-      ["M", "Medir / acotar"],
-      ["A", "Preparar pasillo / holgura"],
-      ["L", "Conectar flujo"],
-      ["Z", "Insertar zona"],
-      ["I", "Abrir equipo / simbolos"],
-      ["T", "Agregar nota"],
-      ["W", "Dibujar muros (Shift = 45°)"],
-      ["F", "Enfocar layout"],
-      ["G", "Mostrar / ocultar grilla"],
-      ["O", "Activar / desactivar object snap"],
-      ["Shift+V", "Validar layout"],
-      ["E", "Exportar DXF"],
-      ["Recorrido", "Caminar en primera persona"],
-    ],
-  },
-  {
-    title: "Selección",
-    rows: [
-      ["Clic", "Seleccionar un objeto"],
-      ["Shift+clic", "Agregar / quitar de la selección"],
-      ["Ctrl/⌘+A", "Seleccionar todo"],
-      ["Esc", "Deseleccionar / salir / cerrar"],
-    ],
-  },
-  {
-    title: "Edición",
-    rows: [
-      ["Arrastrar", "Mover (en grupo si hay varios)"],
-      ["← → ↑ ↓", "Ajustar (Shift = ×5)"],
-      ["R / Shift+R", "Rotar ±15°"],
-      ["Ctrl/⌘+D", "Duplicar"],
-      ["Supr", "Borrar selección"],
-      ["Ctrl/⌘+Z / ⇧+Z", "Deshacer / Rehacer"],
-    ],
-  },
-  {
-    title: "Vista",
-    rows: [
-      ["Arrastrar fondo", "Orbitar"],
-      ["Rueda", "Acercar / alejar"],
-      ["F", "Ajustar a contenido / selección"],
-      ["Shift+F", "Ajustar a toda la planta"],
-      ["\\", "Modo foco (ocultar paneles)"],
-      ["Recorrido", "Arrastrar = mirar · WASD = caminar"],
-      ["?", "Mostrar esta ayuda"],
-    ],
-  },
-];
 
 const TOOLBAR_SHORTCUT_IDS = new Set<CadToolbarActionId>([
   "select",
@@ -1358,821 +1235,8 @@ const DXF_LABEL_REQUIRED_ASSET_KINDS = new Set([
   "zone",
 ]);
 
-function disposeObject(o: THREE.Object3D) {
-  o.traverse((c) => {
-    const mesh = c as THREE.Mesh & {
-      material?: THREE.Material | THREE.Material[];
-    };
-    if (mesh.geometry) mesh.geometry.dispose();
-    const mat = mesh.material;
-    if (mat)
-      (Array.isArray(mat) ? mat : [mat]).forEach((mm) => {
-        const t = (mm as THREE.Material & { map?: THREE.Texture | null }).map;
-        if (t) t.dispose();
-        mm.dispose();
-      });
-  });
-}
-
 /** An amber "sticky note" sprite for a free-text annotation on the plan. */
-function makeNoteLabel(text: string): THREE.Sprite {
-  const canvas = document.createElement("canvas");
-  const fontSize = 40;
-  const m = canvas.getContext("2d")!;
-  m.font = `600 ${fontSize}px sans-serif`;
-  const tw = Math.min(520, m.measureText(text).width);
-  canvas.width = Math.ceil(tw + 34);
-  canvas.height = fontSize + 22;
-  const ctx = canvas.getContext("2d")!;
-  ctx.font = `600 ${fontSize}px sans-serif`;
-  ctx.fillStyle = "rgba(251,191,36,0.94)";
-  const r = 9;
-  ctx.beginPath();
-  ctx.moveTo(r, 0);
-  ctx.arcTo(canvas.width, 0, canvas.width, canvas.height, r);
-  ctx.arcTo(canvas.width, canvas.height, 0, canvas.height, r);
-  ctx.arcTo(0, canvas.height, 0, 0, r);
-  ctx.arcTo(0, 0, canvas.width, 0, r);
-  ctx.closePath();
-  ctx.fill();
-  ctx.fillStyle = "#422006";
-  ctx.textBaseline = "middle";
-  ctx.textAlign = "center";
-  ctx.fillText(text, canvas.width / 2, canvas.height / 2 + 1);
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.minFilter = THREE.LinearFilter;
-  const sprite = new THREE.Sprite(
-    new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }),
-  );
-  const scale = 1.3;
-  sprite.scale.set(scale * (canvas.width / canvas.height), scale, 1);
-  sprite.renderOrder = 11;
-  return sprite;
-}
-
-// ── 3D asset geometry factory ────────────────────────────────────────────────
-// Builds a distinctive mesh group per archetype. Geometry is centred in X/Z with
-// its base at y=0; the caller positions the group on the floor and rotates it.
-function mat(
-  color: THREE.ColorRepresentation,
-  rough = 0.6,
-  metal = 0.15,
-  emissive: THREE.ColorRepresentation = 0x000000,
-) {
-  return new THREE.MeshStandardMaterial({
-    color,
-    roughness: rough,
-    metalness: metal,
-    emissive,
-  });
-}
-function part(
-  geo: THREE.BufferGeometry,
-  material: THREE.Material,
-  x = 0,
-  y = 0,
-  z = 0,
-): THREE.Mesh {
-  const m = new THREE.Mesh(geo, material);
-  m.position.set(x, y, z);
-  m.castShadow = true;
-  m.receiveShadow = true;
-  return m;
-}
-
-function buildArchetype(
-  archetype: AssetArchetype,
-  wS: number,
-  dS: number,
-  H: number,
-  colorHex: string,
-  shape: "rect" | "circle" = "rect",
-): THREE.Object3D[] {
-  const c = new THREE.Color(colorHex);
-  const dark = c.clone().multiplyScalar(0.6);
-  const light = c.clone().lerp(new THREE.Color(0xffffff), 0.25);
-  const out: THREE.Object3D[] = [];
-  const leg = Math.max(0.04, Math.min(wS, dS) * 0.08);
-
-  switch (archetype) {
-    case "table": {
-      const top = Math.max(0.05, H * 0.07);
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS, top, dS),
-          mat(c, 0.55, 0.1),
-          0,
-          H - top / 2,
-          0,
-        ),
-      );
-      const lx = wS / 2 - leg,
-        lz = dS / 2 - leg;
-      [
-        [lx, lz],
-        [-lx, lz],
-        [lx, -lz],
-        [-lx, -lz],
-      ].forEach(([x, z]) =>
-        out.push(
-          part(
-            new THREE.BoxGeometry(leg, H - top, leg),
-            mat(dark, 0.7, 0.3),
-            x,
-            (H - top) / 2,
-            z,
-          ),
-        ),
-      );
-      break;
-    }
-    case "belt": {
-      const deckY = H * 0.78,
-        deckT = Math.max(0.05, H * 0.12);
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS, deckT, dS * 0.78),
-          mat(c, 0.5, 0.2),
-          0,
-          deckY,
-          0,
-        ),
-      );
-      // side rails
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS, deckT * 0.9, leg),
-          mat(dark, 0.5, 0.3),
-          0,
-          deckY + deckT * 0.6,
-          dS / 2 - leg / 2,
-        ),
-      );
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS, deckT * 0.9, leg),
-          mat(dark, 0.5, 0.3),
-          0,
-          deckY + deckT * 0.6,
-          -dS / 2 + leg / 2,
-        ),
-      );
-      // rollers (visual hint of belt direction)
-      const rollers = Math.max(
-        3,
-        Math.min(9, Math.round(wS / Math.max(0.4, dS * 0.6))),
-      );
-      const rr = Math.max(0.03, dS * 0.14);
-      const rg = new THREE.CylinderGeometry(rr, rr, dS * 0.7, 10);
-      for (let i = 0; i < rollers; i++) {
-        const rx = -wS / 2 + (wS / (rollers - 1 || 1)) * i;
-        const rm = part(rg, mat(light, 0.4, 0.6), rx, deckY + deckT * 0.5, 0);
-        rm.rotation.x = Math.PI / 2;
-        out.push(rm);
-      }
-      // legs
-      const lx = wS / 2 - leg,
-        lz = (dS * 0.78) / 2 - leg;
-      [
-        [lx, lz],
-        [-lx, lz],
-        [lx, -lz],
-        [-lx, -lz],
-      ].forEach(([x, z]) =>
-        out.push(
-          part(
-            new THREE.BoxGeometry(leg, deckY, leg),
-            mat(dark, 0.7, 0.3),
-            x,
-            deckY / 2,
-            z,
-          ),
-        ),
-      );
-      break;
-    }
-    case "shelf": {
-      const post = Math.max(0.05, Math.min(wS, dS) * 0.09);
-      const lx = wS / 2 - post / 2,
-        lz = dS / 2 - post / 2;
-      [
-        [lx, lz],
-        [-lx, lz],
-        [lx, -lz],
-        [-lx, -lz],
-      ].forEach(([x, z]) =>
-        out.push(
-          part(
-            new THREE.BoxGeometry(post, H, post),
-            mat(dark, 0.6, 0.35),
-            x,
-            H / 2,
-            z,
-          ),
-        ),
-      );
-      const shelves = 4;
-      const st = Math.max(0.04, H * 0.04);
-      for (let i = 0; i < shelves; i++) {
-        const y = (H / (shelves - 1)) * i;
-        out.push(
-          part(
-            new THREE.BoxGeometry(wS, st, dS),
-            mat(c, 0.65, 0.1),
-            0,
-            Math.min(H - st / 2, Math.max(st / 2, y)),
-            0,
-          ),
-        );
-      }
-      break;
-    }
-    case "arm": {
-      const baseH = H * 0.18,
-        baseR = Math.min(wS, dS) * 0.42;
-      out.push(
-        part(
-          new THREE.CylinderGeometry(baseR, baseR * 1.1, baseH, 18),
-          mat(dark, 0.5, 0.5),
-          0,
-          baseH / 2,
-          0,
-        ),
-      );
-      const col = part(
-        new THREE.CylinderGeometry(baseR * 0.55, baseR * 0.6, H * 0.42, 14),
-        mat(c, 0.45, 0.5),
-        0,
-        baseH + H * 0.21,
-        0,
-      );
-      out.push(col);
-      // upper arm tilted out
-      const upper = part(
-        new THREE.BoxGeometry(wS * 0.7, H * 0.12, H * 0.1),
-        mat(c, 0.4, 0.6),
-        wS * 0.18,
-        baseH + H * 0.46,
-        0,
-      );
-      upper.rotation.z = -0.5;
-      out.push(upper);
-      const fore = part(
-        new THREE.BoxGeometry(wS * 0.5, H * 0.09, H * 0.08),
-        mat(light, 0.4, 0.6),
-        wS * 0.42,
-        baseH + H * 0.6,
-        0,
-      );
-      fore.rotation.z = 0.35;
-      out.push(fore);
-      out.push(
-        part(
-          new THREE.SphereGeometry(baseR * 0.4, 12, 10),
-          mat(dark, 0.4, 0.7),
-          wS * 0.55,
-          baseH + H * 0.52,
-          0,
-        ),
-      );
-      break;
-    }
-    case "machine": {
-      const bodyH = H * 0.82;
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS, bodyH, dS),
-          mat(c, 0.5, 0.25),
-          0,
-          bodyH / 2,
-          0,
-        ),
-      );
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS * 0.96, H * 0.16, dS * 0.96),
-          mat(dark, 0.55, 0.3),
-          0,
-          bodyH + H * 0.08,
-          0,
-        ),
-      );
-      // viewing window / control panel on the +Z face
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS * 0.5, bodyH * 0.4, leg * 0.6),
-          mat(0x0f172a, 0.2, 0.7, 0x0b1220),
-          0,
-          bodyH * 0.6,
-          dS / 2,
-        ),
-      );
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS * 0.22, bodyH * 0.3, leg * 0.6),
-          mat(light, 0.3, 0.5),
-          wS * 0.32,
-          bodyH * 0.45,
-          dS / 2,
-        ),
-      );
-      // feet
-      const lx = wS / 2 - leg,
-        lz = dS / 2 - leg;
-      [
-        [lx, lz],
-        [-lx, lz],
-        [lx, -lz],
-        [-lx, -lz],
-      ].forEach(([x, z]) =>
-        out.push(
-          part(
-            new THREE.BoxGeometry(leg * 1.2, H * 0.05, leg * 1.2),
-            mat(dark, 0.7, 0.3),
-            x,
-            H * 0.025,
-            z,
-          ),
-        ),
-      );
-      break;
-    }
-    case "wall": {
-      out.push(
-        part(new THREE.BoxGeometry(wS, H, dS), mat(c, 0.9, 0.02), 0, H / 2, 0),
-      );
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS, H * 0.03, dS * 1.15),
-          mat(dark, 0.8, 0.05),
-          0,
-          H,
-          0,
-        ),
-      );
-      break;
-    }
-    case "door": {
-      const jamb = Math.max(0.04, dS * 0.35);
-      const leaf = part(
-        new THREE.BoxGeometry(wS * 0.92, H * 0.92, jamb),
-        mat(c, 0.65, 0.08),
-        wS * 0.04,
-        H * 0.46,
-        -dS * 0.1,
-      );
-      leaf.rotation.y = -Math.PI / 5;
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS, Math.max(0.04, H * 0.025), dS),
-          mat(dark, 0.8, 0.05),
-          0,
-          Math.max(0.03, H * 0.012),
-          0,
-        ),
-      );
-      out.push(leaf);
-      const arcPoints = new THREE.EllipseCurve(
-        0,
-        0,
-        wS * 0.86,
-        wS * 0.86,
-        0,
-        Math.PI / 2,
-      )
-        .getPoints(24)
-        .map(
-          (point) =>
-            new THREE.Vector3(point.x, Math.max(0.06, H * 0.03), point.y),
-        );
-      const arc = new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints(arcPoints),
-        new THREE.LineBasicMaterial({ color: c }),
-      );
-      arc.position.set(-wS / 2, 0, -dS / 2);
-      arc.renderOrder = 4;
-      out.push(arc);
-      break;
-    }
-    case "cabinet": {
-      out.push(
-        part(new THREE.BoxGeometry(wS, H, dS), mat(c, 0.5, 0.3), 0, H / 2, 0),
-      );
-      // door seam + handle
-      out.push(
-        part(
-          new THREE.BoxGeometry(leg * 0.4, H * 0.9, leg * 0.3),
-          mat(dark, 0.4, 0.5),
-          0,
-          H / 2,
-          dS / 2,
-        ),
-      );
-      out.push(
-        part(
-          new THREE.BoxGeometry(leg, H * 0.16, leg * 0.5),
-          mat(light, 0.3, 0.6),
-          wS * 0.22,
-          H * 0.5,
-          dS / 2,
-        ),
-      );
-      break;
-    }
-    case "column": {
-      const r = Math.min(wS, dS) * 0.5;
-      out.push(
-        part(
-          new THREE.CylinderGeometry(r, r * 1.1, H, 20),
-          mat(c, 0.85, 0.1),
-          0,
-          H / 2,
-          0,
-        ),
-      );
-      out.push(
-        part(
-          new THREE.BoxGeometry(r * 2.4, H * 0.04, r * 2.4),
-          mat(dark, 0.8, 0.1),
-          0,
-          H * 0.02,
-          0,
-        ),
-      );
-      break;
-    }
-    case "pallet": {
-      const deck = Math.max(0.05, H * 0.45);
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS, deck, dS),
-          mat(c, 0.85, 0.02),
-          0,
-          H - deck / 2,
-          0,
-        ),
-      );
-      // 3 runners
-      [-dS / 2 + leg, 0, dS / 2 - leg].forEach((z) =>
-        out.push(
-          part(
-            new THREE.BoxGeometry(wS, H - deck, leg * 2),
-            mat(c.clone().multiplyScalar(0.85), 0.9, 0.02),
-            0,
-            (H - deck) / 2,
-            z,
-          ),
-        ),
-      );
-      break;
-    }
-    case "fence": {
-      const posts = Math.max(2, Math.round(wS / Math.max(0.6, dS * 4)) + 1);
-      const pw = Math.max(0.05, dS * 0.5);
-      for (let i = 0; i < posts; i++) {
-        const x = -wS / 2 + (wS / (posts - 1 || 1)) * i;
-        out.push(
-          part(new THREE.BoxGeometry(pw, H, pw), mat(c, 0.6, 0.3), x, H / 2, 0),
-        );
-      }
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS, H * 0.08, pw * 0.6),
-          mat(c, 0.6, 0.3),
-          0,
-          H * 0.9,
-          0,
-        ),
-      );
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS, H * 0.08, pw * 0.6),
-          mat(c, 0.6, 0.3),
-          0,
-          H * 0.45,
-          0,
-        ),
-      );
-      break;
-    }
-    case "cart": {
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS, H * 0.7, dS),
-          mat(c, 0.45, 0.4),
-          0,
-          H * 0.45,
-          0,
-        ),
-      );
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS * 0.6, H * 0.3, dS * 0.6),
-          mat(light, 0.4, 0.5),
-          0,
-          H * 0.85,
-          0,
-        ),
-      );
-      // wheels
-      const wr = H * 0.18;
-      const wg = new THREE.CylinderGeometry(wr, wr, leg, 12);
-      const lx = wS / 2 - leg,
-        lz = dS / 2 - leg;
-      [
-        [lx, lz],
-        [-lx, lz],
-        [lx, -lz],
-        [-lx, -lz],
-      ].forEach(([x, z]) => {
-        const w = part(wg, mat(0x111827, 0.6, 0.2), x, wr, z);
-        w.rotation.x = Math.PI / 2;
-        out.push(w);
-      });
-      break;
-    }
-    case "person": {
-      const r = Math.min(wS, dS) * 0.3;
-      out.push(
-        part(
-          new THREE.CylinderGeometry(r * 0.9, r, H * 0.58, 14),
-          mat(c, 0.7, 0.05),
-          0,
-          H * 0.32,
-          0,
-        ),
-      );
-      out.push(
-        part(
-          new THREE.SphereGeometry(r * 0.7, 14, 12),
-          mat(light, 0.6, 0.05),
-          0,
-          H * 0.74,
-          0,
-        ),
-      );
-      break;
-    }
-    case "desk": {
-      const top = Math.max(0.05, H * 0.08),
-        deskY = H * 0.62;
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS, top, dS),
-          mat(c, 0.55, 0.1),
-          0,
-          deskY,
-          0,
-        ),
-      );
-      const lx = wS / 2 - leg,
-        lz = dS / 2 - leg;
-      [
-        [lx, lz],
-        [-lx, lz],
-        [lx, -lz],
-        [-lx, -lz],
-      ].forEach(([x, z]) =>
-        out.push(
-          part(
-            new THREE.BoxGeometry(leg, deskY, leg),
-            mat(dark, 0.7, 0.3),
-            x,
-            deskY / 2,
-            z,
-          ),
-        ),
-      );
-      // monitor: panel on a small stand
-      out.push(
-        part(
-          new THREE.BoxGeometry(leg, H * 0.12, leg),
-          mat(dark, 0.5, 0.4),
-          0,
-          deskY + top + H * 0.06,
-          -dS * 0.2,
-        ),
-      );
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS * 0.42, H * 0.26, leg * 0.5),
-          mat(0x0f172a, 0.2, 0.6, 0x0b1220),
-          0,
-          deskY + top + H * 0.22,
-          -dS * 0.2,
-        ),
-      );
-      break;
-    }
-    case "bin": {
-      const wall = Math.max(0.04, Math.min(wS, dS) * 0.08);
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS, Math.max(0.04, H * 0.08), dS),
-          mat(dark, 0.8, 0.05),
-          0,
-          H * 0.04,
-          0,
-        ),
-      ); // floor
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS, H, wall),
-          mat(c, 0.7, 0.05),
-          0,
-          H / 2,
-          dS / 2 - wall / 2,
-        ),
-      );
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS, H, wall),
-          mat(c, 0.7, 0.05),
-          0,
-          H / 2,
-          -dS / 2 + wall / 2,
-        ),
-      );
-      out.push(
-        part(
-          new THREE.BoxGeometry(wall, H, dS - wall * 2),
-          mat(c, 0.7, 0.05),
-          wS / 2 - wall / 2,
-          H / 2,
-          0,
-        ),
-      );
-      out.push(
-        part(
-          new THREE.BoxGeometry(wall, H, dS - wall * 2),
-          mat(c, 0.7, 0.05),
-          -wS / 2 + wall / 2,
-          H / 2,
-          0,
-        ),
-      );
-      break;
-    }
-    case "gantry": {
-      const legW = Math.max(0.1, dS * 0.5),
-        beamH = Math.max(0.15, H * 0.12);
-      // two end legs (span along X)
-      [wS / 2 - legW / 2, -wS / 2 + legW / 2].forEach((x) =>
-        out.push(
-          part(
-            new THREE.BoxGeometry(legW, H - beamH, legW),
-            mat(dark, 0.6, 0.35),
-            x,
-            (H - beamH) / 2,
-            0,
-          ),
-        ),
-      );
-      // top beam spanning the legs
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS, beamH, legW * 0.9),
-          mat(c, 0.5, 0.4),
-          0,
-          H - beamH / 2,
-          0,
-        ),
-      );
-      // trolley/hoist hanging from the beam
-      out.push(
-        part(
-          new THREE.BoxGeometry(wS * 0.12, beamH * 1.4, legW * 1.1),
-          mat(light, 0.4, 0.5),
-          wS * 0.1,
-          H - beamH * 1.1,
-          0,
-        ),
-      );
-      break;
-    }
-    case "zone":
-    case "path":
-    default: {
-      const opacity = archetype === "path" ? 0.22 : 0.14;
-      if (shape === "circle") {
-        // disco plano con borde: el radio sigue la caja delimitadora (wS≈dS).
-        const ring2d = new THREE.EllipseCurve(
-          0,
-          0,
-          wS / 2,
-          dS / 2,
-          0,
-          Math.PI * 2,
-        ).getPoints(64);
-        const fillC = new THREE.Mesh(
-          new THREE.ShapeGeometry(new THREE.Shape(ring2d)),
-          new THREE.MeshBasicMaterial({
-            color: c,
-            transparent: true,
-            opacity,
-            side: THREE.DoubleSide,
-          }),
-        );
-        fillC.rotation.x = -Math.PI / 2;
-        fillC.position.y = 0.04;
-        out.push(fillC);
-        const ring = new THREE.LineLoop(
-          new THREE.BufferGeometry().setFromPoints(
-            ring2d.map((p) => new THREE.Vector3(p.x, 0, p.y)),
-          ),
-          new THREE.LineBasicMaterial({ color: c }),
-        );
-        ring.position.y = 0.05;
-        out.push(ring);
-        break;
-      }
-      // flat translucent footprint with a coloured border
-      const fill = new THREE.Mesh(
-        new THREE.PlaneGeometry(wS, dS),
-        new THREE.MeshBasicMaterial({
-          color: c,
-          transparent: true,
-          opacity,
-          side: THREE.DoubleSide,
-        }),
-      );
-      fill.rotation.x = -Math.PI / 2;
-      fill.position.y = 0.04;
-      out.push(fill);
-      const edge = new THREE.LineSegments(
-        new THREE.EdgesGeometry(new THREE.PlaneGeometry(wS, dS)),
-        new THREE.LineBasicMaterial({ color: c }),
-      );
-      edge.rotation.x = -Math.PI / 2;
-      edge.position.y = 0.05;
-      out.push(edge);
-      break;
-    }
-  }
-  return out;
-}
-
 /** Build a positioned, rotated, pickable asset group (base at floor). */
-function buildAssetGroup(
-  a: Asset,
-  s: number,
-  W: number,
-  H: number,
-  selected: boolean,
-  alert = false,
-): THREE.Group {
-  const def = assetMeta(a.kind);
-  const wS = Math.max(0.2, a.w * s);
-  const dS = Math.max(0.2, a.h * s);
-  const h3d = Math.max(0.05, def.height * s);
-  const group = new THREE.Group();
-  buildArchetype(def.archetype, wS, dS, h3d, def.color, a.shape).forEach((o) =>
-    group.add(o),
-  );
-
-  // invisible, forgiving hit box covering the whole bounding volume
-  const flat = def.archetype === "zone" || def.archetype === "path";
-  const hb = new THREE.Mesh(
-    new THREE.BoxGeometry(wS, flat ? Math.max(0.4, h3d) : h3d, dS),
-    new THREE.MeshBasicMaterial({
-      transparent: true,
-      opacity: 0,
-      depthWrite: false,
-    }),
-  );
-  hb.position.y = (flat ? Math.max(0.4, h3d) : h3d) / 2;
-  hb.userData.assetId = a.id;
-  group.add(hb);
-
-  if (selected || alert) {
-    const oh = Math.max(0.3, h3d);
-    const outline = new THREE.LineSegments(
-      new THREE.EdgesGeometry(
-        new THREE.BoxGeometry(
-          wS * (alert ? 1.08 : 1.04),
-          oh * 1.04,
-          dS * (alert ? 1.08 : 1.04),
-        ),
-      ),
-      new THREE.LineBasicMaterial({ color: alert ? 0xf87171 : SELECT }),
-    );
-    outline.position.y = oh / 2;
-    group.add(outline);
-  }
-  if (a.label) {
-    const lab = makeLabel(a.label, 1.2);
-    lab.position.set(0, (flat ? 0.6 : h3d) + 0.9, 0);
-    group.add(lab);
-  }
-
-  group.userData.assetId = a.id;
-  const cx = (a.x + a.w / 2 - W / 2) * s;
-  const cz = (a.y + a.h / 2 - H / 2) * s;
-  group.position.set(cx, 0, cz);
-  group.rotation.y = -((a.rotation || 0) * Math.PI) / 180;
-  return group;
-}
-
 /** Registro de Industry Packs (CAD-NEXT-090): objetos inteligentes por industria. */
 const INDUSTRY_REGISTRY = createDefaultIndustryRegistry();
 const newId = (p: string) =>
@@ -2196,58 +1260,6 @@ const defaultCadClearance = (unit: string) => {
 };
 
 /** Floor-plane line + end ticks + distance label for a dimension annotation. */
-function buildDim(
-  a: Ann,
-  s: number,
-  W: number,
-  H: number,
-  unit: string,
-): THREE.Object3D[] {
-  if (a.x2 === undefined || a.y2 === undefined) return [];
-  const y = 0.06;
-  const ax = (a.x - W / 2) * s,
-    az = (a.y - H / 2) * s;
-  const bx = (a.x2 - W / 2) * s,
-    bz = (a.y2 - H / 2) * s;
-  const color = a.color || "#22d3ee";
-  const out: THREE.Object3D[] = [];
-  const lineMat = () => new THREE.LineBasicMaterial({ color });
-  out.push(
-    new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(ax, y, az),
-        new THREE.Vector3(bx, y, bz),
-      ]),
-      lineMat(),
-    ),
-  );
-  const dx = bx - ax,
-    dz = bz - az;
-  const len = Math.hypot(dx, dz) || 1;
-  const px = -dz / len,
-    pz = dx / len;
-  const t = 0.4;
-  [
-    [ax, az],
-    [bx, bz],
-  ].forEach(([cx, cz]) =>
-    out.push(
-      new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(cx + px * t, y, cz + pz * t),
-          new THREE.Vector3(cx - px * t, y, cz - pz * t),
-        ]),
-        lineMat(),
-      ),
-    ),
-  );
-  const dist = Math.hypot(a.x2 - a.x, a.y2 - a.y);
-  const label = makeLabel(a.text || fmtDist(dist, unit), 1.1);
-  label.position.set((ax + bx) / 2, y + 0.85, (az + bz) / 2);
-  label.userData.dimId = a.id;
-  out.push(label);
-  return out;
-}
 
 /**
  * Props de PLATAFORMA del editor CAD (WP5 — inversión de dependencias).
@@ -3146,6 +2158,59 @@ export default function Layout3DEditor({
   >(() => {});
   const nativeSceneSyncRef =
     useRef<CadSceneSynchronizer<THREE.Object3D> | null>(null);
+  /**
+   * Pipeline de render por lotes, encendido por defecto (ver
+   * `render-pipeline-preference.ts`). El anfitrión vive en una ref porque lo
+   * conduce el bucle de cuadros, no React: un `useState` por cuadro sería un
+   * render por cuadro, y el presupuesto de `check:cad` sólo permite bajar.
+   */
+  const renderPipelineRef = useRef<CadRenderPipelineChoice>("batched");
+  const renderPipelineResolvedRef = useRef(false);
+  const renderPipelineHostRef = useRef<CadViewportRenderHost | null>(null);
+  /**
+   * Reproyecta los objetos heredados de la SELECCIÓN.
+   *
+   * Con el pipeline por lotes, la proyección por entidad se reduce a lo
+   * designado —es lo único que aporta grips y realce por encima del lote—, así
+   * que designar tiene que crear ese objeto. `refreshNativeSelectionVisuals`
+   * sólo recoloreaba los que ya existían, y con el camino nuevo la entidad
+   * recién designada no existía todavía: se quedaba sin grips y no se podía
+   * arrastrar. La cierra `syncNativeScene`, que deja aquí su proyección.
+   */
+  const nativeSelectionProjectionRef = useRef<
+    ((selected: ReadonlySet<string>) => void) | null
+  >(null);
+  const renderPipelineSlotRef = useRef<CadRenderHostSlot | null>(null);
+  /**
+   * Enrutado del puntero al motor de comandos (FASE 2). Vive en refs porque lo
+   * conducen manejadores de evento a 60 Hz: un `useState` por movimiento del
+   * ratón sería un render del árbol entero por muestra.
+   */
+  const enginePointerRouterRef = useRef<CadEnginePointerRouter | null>(null);
+  const enginePreviewRef = useRef<CadEnginePreview | null>(null);
+  const engineLiveCursorRef = useRef<CadLiveCursorOverlay | null>(null);
+  const engineCursorPointRef = useRef<{ x: number; y: number } | null>(null);
+  /**
+   * Estado del comando en curso: último punto confirmado y si lo arrancó la
+   * barra. Vive AQUÍ y no dentro del enrutador porque el enrutador se recrea con
+   * el lienzo THREE —que se vuelve a montar al cambiar de documento o de
+   * planta— y el comando del motor no: su anfitrión es un `useMemo` sin
+   * dependencias. Con esto dentro, un remontaje a mitad de un comando dejaba al
+   * motor con su comando abierto y al enrutador con la memoria en blanco.
+   */
+  const engineSessionRef = useRef<CadPointerSession>(EMPTY_CAD_POINTER_SESSION);
+  const engineOsnapOverrideRef = useRef<readonly SnapType[] | null>(null);
+  /** Hueco del aviso superior donde el cursor vivo escribe el modo capturado. */
+  const engineSnapLabelRef = useRef<HTMLSpanElement | null>(null);
+  if (renderPipelineSlotRef.current === null)
+    renderPipelineSlotRef.current = new CadRenderHostSlot();
+  if (typeof window !== "undefined" && !renderPipelineResolvedRef.current) {
+    renderPipelineResolvedRef.current = true;
+    renderPipelineRef.current = resolveCadRenderPipeline({
+      storage: window.localStorage,
+      search: window.location.search,
+    });
+  }
   const nativeSelectionIndexRef = useRef<CadNativeSelectionIndex | null>(null);
   const nativeViewportBoundsRef = useRef<CadBounds | null>(null);
   const nativeIndexedDocumentRef = useRef<CadDocument | null>(null);
@@ -3399,6 +2464,19 @@ export default function Layout3DEditor({
           child.visible = L.equipment;
           setCadNativeOverviewHiddenLayers(
             child as THREE.LineSegments,
+            new Set(
+              document?.layers
+                .filter((layer) => layer.visible === false)
+                .map((layer) => layer.id) ?? [],
+            ),
+          );
+          return;
+        }
+        // El pipeline por lotes apaga capas por LOTE, no por objeto: es un
+        // booleano en unos pocos hijos en vez de reconstruir la geometría.
+        if (child.userData?.cadRenderScene === true) {
+          child.visible = L.equipment;
+          renderPipelineHostRef.current?.setHiddenLayers(
             new Set(
               document?.layers
                 .filter((layer) => layer.visible === false)
@@ -4316,6 +3394,16 @@ export default function Layout3DEditor({
 
   const refreshNativeSelectionVisuals = useCallback(() => {
     const selected = new Set(nativeSelectionIdsRef.current);
+    // Con el pipeline por lotes la selección NO es una malla que recolorear:
+    // es un color por instancia, así que se le pide al anfitrión que vuelva a
+    // teselar lo que entra y sale de la selección. Los objetos heredados siguen
+    // existiendo para los grips y el realce, y se recolorean abajo.
+    renderPipelineHostRef.current?.setSelection(
+      nativeSelectionIdsRef.current,
+      loadedCadDocumentRef.current,
+    );
+    if (renderPipelineHostRef.current)
+      nativeSelectionProjectionRef.current?.(selected);
     for (const [id, object] of nativeSceneSyncRef.current?.entries() ?? []) {
       setCadNativeObjectSelected(object, selected.has(id));
       if (object.userData.nativeBlockBatched === true)
@@ -4416,11 +3504,82 @@ export default function Layout3DEditor({
         (entity): entity is CadNativeEntity =>
           CAD_ENTITY_REGISTRY.supports(entity),
       );
-      if (nativeIndexedDocumentRef.current !== document) {
+      const documentChanged = nativeIndexedDocumentRef.current !== document;
+      if (documentChanged) {
         if (patch && nativeIndexedDocumentRef.current)
           selectionIndex.applyPatch(patch, document);
         else selectionIndex.replace(nativeDocumentEntities, document);
         nativeIndexedDocumentRef.current = document;
+      }
+      /**
+       * PIPELINE POR LOTES. Cuando está encendido, el espacio modelo lo dibuja
+       * él entero y la proyección por entidad se reduce a la SELECCIÓN — que es
+       * lo único que aporta que el lote no tiene: grips y realce por encima.
+       *
+       * Sin presupuesto, sin muestreo y sin overview: ésa es toda la diferencia.
+       * `planCadNativeRenderBudget` existía para no morir dibujando 100.000
+       * objetos de escena; aquí no hay 100.000 objetos, hay lotes por tile.
+       *
+       * Un cambio de vista NO entra por aquí: el pipeline lo resuelve con
+       * `setView` en el bucle de cuadros. Reemplazar en cada paneo vaciaría la
+       * caché de teselado y convertiría el paneo en la reconstrucción completa
+       * que este camino existe para eliminar.
+       */
+      const batchedHost = renderPipelineHostRef.current;
+      if (batchedHost) {
+        if (patch && batchedHost.loaded)
+          batchedHost.invalidate(
+            [...patch.upsert.map((entity) => entity.id), ...patch.remove],
+            patch.upsert.filter((entity) => !batchedInsertIds.has(entity.id)),
+          );
+        else if (documentChanged || !batchedHost.loaded)
+          batchedHost.replace(document, { excludeEntityIds: batchedInsertIds });
+        batchedHost.setHiddenLayers(
+          new Set(
+            document.layers
+              .filter((layer) => layer.visible === false)
+              .map((layer) => layer.id),
+          ),
+        );
+        setNativeRenderStats((current) =>
+          current.total === nativeDocumentEntities.length &&
+          current.omitted === 0 &&
+          current.batching === false
+            ? current
+            : {
+                total: nativeDocumentEntities.length,
+                visible: nativeDocumentEntities.length,
+                rendered: nativeDocumentEntities.length,
+                omitted: 0,
+                batching: false,
+              },
+        );
+        // La proyección de la selección queda disponible para que designar la
+        // vuelva a ejecutar sin repetir el lote de INSERT ni recorrer el
+        // documento entero: designar es frecuente y el documento no cambia.
+        let projected: string | null = null;
+        const projectSelection = (selected: ReadonlySet<string>) => {
+          // Sin esta memoria, `refreshNativeSelectionVisuals` reproyectaría
+          // dentro de la propia proyección: una vuelta de más en cada
+          // designación, sobre el documento entero.
+          const key = [...selected].sort().join("|");
+          if (key === projected) return;
+          projected = key;
+          synchronizer.sync(
+            {
+              ...document,
+              entities: nativeDocumentEntities.filter((entity) =>
+                selected.has(entity.id),
+              ),
+            },
+            sink,
+          );
+        };
+        nativeSelectionProjectionRef.current = projectSelection;
+        projectSelection(new Set(nativeSelectionIdsRef.current));
+        refreshNativeSelectionVisuals();
+        applyLayersRef.current();
+        return;
       }
       const visibleEntities = nativeViewportBoundsRef.current
         ? selectionIndex.search(nativeViewportBoundsRef.current)
@@ -6127,14 +5286,15 @@ export default function Layout3DEditor({
   );
 
   /**
-   * Motor de comandos (ola 3), conectado por la línea de comandos.
+   * Motor de comandos, conectado por la línea de comandos **y por el puntero**.
    *
-   * De momento **sólo por teclado**: el puntero sigue yendo a la máquina
-   * heredada de `cad-command.ts`. Es deliberado y no un a medias — enrutar el
-   * puntero exige la banda elástica y el cursor vivo, y meter las dos cosas en
-   * el mismo cambio pondría 52 goldens a depender de código sin estrenar. Lo
-   * que entra aquí ya es funcionalidad que no existía: se teclea `L`, `@100,0`,
-   * `C` para cerrar, Espacio para repetir.
+   * La ola 3 lo dejó sólo de teclado y lo dijo aquí: «el puntero sigue yendo a
+   * la máquina heredada de `cad-command.ts`… enrutar el puntero exige la banda
+   * elástica y el cursor vivo». Las dos cosas existen ya
+   * (`components/cad/viewport/`), y con ellas el enrutado: el ratón, la entrada
+   * dinámica y la línea de precisión entran todos por aquí. `cad-command.ts`
+   * sólo conserva las herramientas de `CAD_LEGACY_POINTER_TOOLS`, que son las
+   * que no tienen equivalente en el motor y están listadas por su nombre.
    *
    * `apply` va por `commitNativeCommands`, que es la MISMA puerta que usa el
    * panel de propiedades: un checkpoint, un `commitChange`, un paso de deshacer.
@@ -6148,9 +5308,52 @@ export default function Layout3DEditor({
     activeLayer: activeCadLayer,
     newEntityId: () => newId("cad"),
     apply: (commands) => {
-      commitNativeCommands([...commands]);
+      // Un dibujo con la BARRA termina con lo dibujado designado, igual que en
+      // el camino heredado que sustituye: es lo que hace que el panel de
+      // propiedades describa la entidad recién creada sin ir a buscarla.
+      //
+      // Tecleado NO, y la diferencia importa: la línea de comandos nunca
+      // designó nada, y designar cambia lo que ve la orden siguiente. Un HATCH
+      // tecleado detrás de un MTEXT sombrearía el rótulo en vez de pedir su
+      // punto interior.
+      const created = enginePointerRouterRef.current?.startedByPointer
+        ? commands.flatMap((command) =>
+            command.type === "insert" ? [command.entity.id] : [],
+          )
+        : [];
+      commitNativeCommands([...commands], created.length ? created : undefined);
+    },
+    // El puntero ya alimenta al motor: éstas son las tres cosas que su puente
+    // ignoraba «a conciencia hasta que el puntero llegue».
+    cursor: engineCursorPointRef,
+    preview: (paths) => enginePreviewRef.current?.draw(paths),
+    osnapOverride: (modes) => {
+      engineOsnapOverrideRef.current = modes;
     },
   });
+
+  /**
+   * El anfitrión del motor, alcanzable desde el efecto de la escena.
+   *
+   * `useCadStudioCommandEngine` devuelve SIEMPRE la misma instancia —su `useMemo`
+   * no tiene dependencias, y por buenas razones—, pero el efecto que monta el
+   * lienzo no la lista en sus dependencias. La ref lo hace explícito en vez de
+   * apoyarse en una estabilidad que no se ve desde ahí.
+   */
+  const commandEngineRef = useRef(commandEngine);
+  commandEngineRef.current = commandEngine;
+  const commandEngineSnapshot = useCadCommandEngine(commandEngine);
+  /**
+   * Al terminar un comando del motor, la herramienta vuelve a designar — el
+   * mismo gesto que tenía la máquina heredada. Sin esto, la barra seguiría
+   * mostrando LINE encendido con el comando ya cerrado.
+   */
+  const engineBusy = commandEngineSnapshot.activeCommand !== null;
+  useEffect(() => {
+    if (engineBusy || !isCadDrawTool(toolRef.current)) return;
+    toolRef.current = "select";
+    setTool("select");
+  }, [engineBusy]);
 
   const updateNativeProperties = useCallback(
     (entityId: string, patch: Partial<CadPropertyBag>) => {
@@ -7310,6 +6513,25 @@ export default function Layout3DEditor({
     const nativeGroup = new THREE.Group();
     scene.add(nativeGroup);
     nativeGroupRef.current = nativeGroup;
+    // El pipeline por lotes se enchufa aquí, con el mapeo mundo→XZ intacto: lo
+    // único que recibe es el mismo `{ scale, width, height }` que ya usaba
+    // `scenePoint`. `yScreenSign: 1` reproduce la convención vigente (+Y del
+    // dibujo hacia abajo); voltearla es un cambio con su propio PR.
+    if (renderPipelineRef.current === "batched") {
+      const host = new CadViewportRenderHost({
+        parent: nativeGroup,
+        viewport: { scale: s, width: W, height: H, elevation: 0.11 },
+        yScreenSign: 1,
+        // 4 ms de 16,7 es el defecto del planificador y está pensado para que
+        // el usuario no note nada mientras dibuja. Cargar un plano de 100.000
+        // entidades con ese presupuesto tarda minutos, y durante la carga NO
+        // hay nadie dibujando: lo que hay es alguien esperando a ver su plano.
+        // 8 ms sigue dejando la mitad del cuadro libre.
+        frameBudgetMs: 8,
+      });
+      renderPipelineHostRef.current = host;
+      renderPipelineSlotRef.current?.set(host);
+    }
     const connsGroup = new THREE.Group();
     scene.add(connsGroup);
     connsGroupRef.current = connsGroup;
@@ -7412,6 +6634,11 @@ export default function Layout3DEditor({
       camera,
     );
     viewControllerRef.current = viewController;
+    let batchedViewBounds: CadBounds | null = null;
+    let batchedViewDirty = true;
+    const unsubscribeBatchedView = viewController.onChange(() => {
+      batchedViewDirty = true;
+    });
     viewController.setMode(viewModeRef.current);
     /** La cámara que se dibuja y contra la que se lanzan los rayos. */
     const activeCamera = () => viewController.camera;
@@ -7434,7 +6661,10 @@ export default function Layout3DEditor({
         )
           return;
         nativeViewportBoundsRef.current = bounds;
-        syncNativeScene();
+        // Con el pipeline por lotes, un cambio de vista NO reproyecta nada: lo
+        // resuelve `setView` en el bucle de cuadros, que es justamente lo que
+        // convierte un paneo en cuatro uniformes en vez de una reconstrucción.
+        if (!renderPipelineHostRef.current) syncNativeScene();
       }, 80);
     };
     controls.addEventListener("change", () => {
@@ -7749,7 +6979,12 @@ export default function Layout3DEditor({
           scene.geometricCenters!.push(g.center);
           scene.insertions!.push(g.center);
         }
+        // El ancla del rastreo: el último punto confirmado. Con el puntero ya
+        // enrutado, ese punto lo tiene el motor —no `drawCommandRef`—, así que
+        // se pregunta primero por ahí. Sin esto, el rastreo polar y de objeto
+        // se apagarían justo en los comandos que sí pasan por el motor.
         const anchor =
+          enginePointerRouterRef.current?.anchor ??
           drawCommandRef.current?.points.at(-1) ??
           (wallChainRef.current
             ? { x: wallChainRef.current.wx, y: wallChainRef.current.wy }
@@ -7842,6 +7077,7 @@ export default function Layout3DEditor({
         }
       }
       const anchor =
+        enginePointerRouterRef.current?.anchor ??
         drawCommandRef.current?.points.at(-1) ??
         (wallChainRef.current
           ? { x: wallChainRef.current.wx, y: wallChainRef.current.wy }
@@ -7899,6 +7135,57 @@ export default function Layout3DEditor({
       m.position.set((wx - ctx.W / 2) * ctx.s, 0.07, (wy - ctx.H / 2) * ctx.s);
       m.visible = true;
     };
+
+    // ---- FASE 2: el puntero entra en el motor de comandos ------------------
+    // La banda elástica y el cursor vivo son la condición que hacía deliberado
+    // el «sólo por teclado» de la ola 3. Aquí están, y con ellas el enrutado.
+    const enginePreview = new CadEnginePreview(scene, {
+      scale: s,
+      width: W,
+      height: H,
+    });
+    enginePreviewRef.current = enginePreview;
+    const engineLiveCursor = new CadLiveCursorOverlay(mount, {
+      commit: (values) => enginePointerRouterRef.current?.commitMeasurements(values),
+      keyword: (shortcut) => enginePointerRouterRef.current?.keyword(shortcut),
+      cancel: () => enginePointerRouterRef.current?.cancel(),
+    });
+    engineLiveCursor.setMirror(() => engineSnapLabelRef.current);
+    engineLiveCursorRef.current = engineLiveCursor;
+    const enginePointerRouter = new CadEnginePointerRouter({
+      host: commandEngineRef.current!,
+      preview: enginePreview,
+      cursor: engineLiveCursor,
+      worldPoint: (event) => {
+        const world = floorWorld(event as PointerEvent);
+        return world ? { x: world.wx, y: world.wy } : null;
+      },
+      // La captura la resuelve `snapFloor`, con los catorce modos ya
+      // implementados. El motor no sabe de snaps: los pide por paso y aquí se
+      // le devuelve el punto ya capturado junto con el modo que ganó.
+      snap: (point, override) => {
+        const resolved = snapFloor(point.x, point.y, true);
+        const snap = resolved.snapType;
+        if (override && override.length > 0 && (!snap || !override.includes(snap)))
+          return { point };
+        return { point: { x: resolved.wx, y: resolved.wy }, ...(snap ? { snap } : {}) };
+      },
+      setCursor: (point) => {
+        engineCursorPointRef.current = point;
+      },
+      localPoint: (event) => {
+        const rect = renderer.domElement.getBoundingClientRect();
+        return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+      },
+      session: engineSessionRef,
+    });
+    enginePointerRouterRef.current = enginePointerRouter;
+    const onContextMenu = (event: MouseEvent) => {
+      if (!enginePointerRouter.contextMenu(event)) return;
+      event.preventDefault();
+    };
+    renderer.domElement.addEventListener("contextmenu", onContextMenu);
+
     const onDown = (e: PointerEvent) => {
       downX = e.clientX;
       downY = e.clientY;
@@ -8217,6 +7504,9 @@ export default function Layout3DEditor({
           ? `X ${cursorWorld.wx.toFixed(2)} · Y ${cursorWorld.wy.toFixed(2)}`
           : "X — · Y —";
       }
+      // REGLA DURA: con un comando del motor abierto, el movimiento es suyo.
+      // La máquina heredada no ve nada — no hay dos máquinas escuchando.
+      if (enginePointerRouter.move(e)) return;
       if (walkRef.current) {
         if (!walkLook) return;
         walkYawRef.current -= (e.clientX - lookX) * 0.005;
@@ -8569,6 +7859,16 @@ export default function Layout3DEditor({
         return;
       }
       const isClick = Math.hypot(e.clientX - downX, e.clientY - downY) < 5;
+      // Sólo el CLIC: arrastrar sigue orbitando la cámara aunque haya un
+      // comando abierto, que es como se encuadra mientras se dibuja.
+      if (isClick && enginePointerRouter.click(e)) {
+        try {
+          renderer.domElement.releasePointerCapture(e.pointerId);
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
       if (drawingReadOnlyRef.current) {
         drag = null;
         dragSnap = null;
@@ -8746,6 +8046,10 @@ export default function Layout3DEditor({
     const onPointerLeave = () => {
       if (crosshairOverlayRef.current)
         crosshairOverlayRef.current.style.display = "none";
+      // El puntero se fue del lienzo: no hay cursor que ofrecer al motor, y
+      // decirlo es mejor que dejar el último punto conocido colgando.
+      engineCursorPointRef.current = null;
+      engineLiveCursor.setSnap(null);
     };
     renderer.domElement.addEventListener("pointerdown", onDown);
     renderer.domElement.addEventListener("pointermove", onMove);
@@ -8822,6 +8126,26 @@ export default function Layout3DEditor({
       } else {
         controls.update();
       }
+      // Un cuadro del pipeline por lotes: fija la vista, gasta su presupuesto
+      // de teselado y reconcilia mallas SÓLO si hubo algo que reconciliar.
+      // Va antes de `render` para que lo materializado en este cuadro se vea en
+      // este cuadro y no en el siguiente.
+      const batchedHost = renderPipelineHostRef.current;
+      if (batchedHost) {
+        // Recalcular la huella visible en CADA cuadro costaría cinco rayos por
+        // cuadro en 3D. Sólo se recalcula cuando la vista cambió de verdad; el
+        // resto de cuadros reusan la última y siguen gastando su presupuesto de
+        // teselado, que es el trabajo que realmente hay que repartir.
+        if (batchedViewDirty) {
+          batchedViewBounds = viewController.viewportBounds() ?? batchedViewBounds;
+          batchedViewDirty = false;
+        }
+        if (batchedViewBounds)
+          batchedHost.frame({
+            bounds: batchedViewBounds,
+            pixelsPerUnit: viewController.view.pixelsPerUnit,
+          });
+      }
       renderer.render(scene, activeCamera());
       raf = requestAnimationFrame(animate);
     };
@@ -8835,6 +8159,13 @@ export default function Layout3DEditor({
       renderer.domElement.removeEventListener("pointerdown", onDown);
       renderer.domElement.removeEventListener("pointermove", onMove);
       renderer.domElement.removeEventListener("pointerleave", onPointerLeave);
+      renderer.domElement.removeEventListener("contextmenu", onContextMenu);
+      enginePointerRouterRef.current = null;
+      enginePreviewRef.current = null;
+      engineLiveCursorRef.current = null;
+      engineCursorPointRef.current = null;
+      enginePreview.dispose();
+      engineLiveCursor.dispose();
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("keydown", walkKd);
       window.removeEventListener("keyup", walkKu);
@@ -8842,6 +8173,13 @@ export default function Layout3DEditor({
       controls.dispose();
       disposeObject(scene);
       nativeSceneSyncRef.current?.clear({ remove: () => {} });
+      unsubscribeBatchedView();
+      // El pipeline retiene geometría en la GPU y una caché de teselado: sin
+      // esto, cerrar el editor deja el dibujo entero en memoria.
+      renderPipelineSlotRef.current?.set(null);
+      renderPipelineHostRef.current?.dispose();
+      renderPipelineHostRef.current = null;
+      nativeSelectionProjectionRef.current = null;
       nativeInsertBatchRef.current = null;
       nativeOverviewRef.current = null;
       nativeOverviewDocumentRef.current = null;
@@ -8892,29 +8230,44 @@ export default function Layout3DEditor({
     lastWallAngleRef.current = null;
     if (previewLineRef.current) previewLineRef.current.visible = false;
     if (snapMarkerRef.current) snapMarkerRef.current.visible = false;
+    // Salir de una herramienta cancela también el comando del motor: dejarlo
+    // abierto haría que el siguiente clic en otra herramienta designara un
+    // punto del comando anterior.
+    enginePointerRouterRef.current?.cancel();
+    enginePointerRouterRef.current?.end();
   }, []);
   const setToolMode = useCallback(
     (next: EditorTool) => {
-      setTool((prev) => {
-        const t = prev === next && next !== "select" ? "select" : next;
-        toolRef.current = t;
-        if (t === "select") endDraw();
-        else {
-          endDraw();
-          // Modification commands need the picked source to survive tool entry.
-          if (t !== "move" && t !== "copy" && t !== "offset") {
-            select([]);
-            clearNativeSelection();
-          }
-        }
-        if (isCadDrawTool(t)) {
-          const cmd = startCommand(t);
-          drawCommandRef.current = cmd;
-          setDrawPrompt(cmd.prompt);
-          setMeasureLive(cmd.prompt);
-        }
-        return t;
-      });
+      // La herramienta se resuelve FUERA del actualizador de estado. Arrancar
+      // el comando dentro de él metía un efecto secundario en una función que
+      // React puede volver a ejecutar, y el motor despachaba —y publicaba su
+      // instantánea— en mitad de un render.
+      const t =
+        toolRef.current === next && next !== "select" ? "select" : next;
+      toolRef.current = t;
+      endDraw();
+      // Modification commands need the picked source to survive tool entry.
+      if (t !== "select" && t !== "move" && t !== "copy" && t !== "offset") {
+        select([]);
+        clearNativeSelection();
+      }
+      setTool(t);
+      if (!isCadDrawTool(t)) return;
+      // El botón de la barra invoca el comando del MOTOR, con su prompt, sus
+      // palabras clave y su banda elástica. La máquina heredada sólo arranca si
+      // el motor no conoce la herramienta —hoy no ocurre para ninguna de las
+      // siete—, y entonces se dice en voz alta en vez de caer al camino viejo
+      // por omisión.
+      const engineCommand = cadEngineCommandForTool(t);
+      if (
+        engineCommand !== null &&
+        enginePointerRouterRef.current?.invoke(engineCommand) === true
+      )
+        return;
+      const cmd = startCommand(t);
+      drawCommandRef.current = cmd;
+      setDrawPrompt(cmd.prompt);
+      setMeasureLive(cmd.prompt);
     },
     [clearNativeSelection, endDraw, select],
   );
@@ -9198,7 +8551,17 @@ export default function Layout3DEditor({
     }
     return changed;
   };
+  /**
+   * Un punto ya resuelto —tecleado, de la entrada dinámica o del ratón— entra
+   * en el comando activo.
+   *
+   * Con el motor abierto va AL MOTOR. Es la otra mitad de la regla dura: no
+   * basta con que el clic no llegue a la máquina heredada; una coordenada
+   * tecleada tampoco puede llegar, o el mismo gesto haría dos cosas distintas
+   * según por dónde entrase.
+   */
   function feedDraftPoint(x: number, y: number) {
+    if (enginePointerRouterRef.current?.pick({ x, y })) return true;
     const active = drawCommandRef.current;
     if (!active) return false;
     const next = feedPoint(active, { x, y });
@@ -9216,6 +8579,10 @@ export default function Layout3DEditor({
     return true;
   }
   function commitActiveDraftCommand() {
+    if (enginePointerRouterRef.current?.active) {
+      enginePointerRouterRef.current.accept();
+      return true;
+    }
     const active = drawCommandRef.current;
     if (!active) return false;
     const next = commitDrawCommand(active);
@@ -9229,6 +8596,12 @@ export default function Layout3DEditor({
     return true;
   }
   function closeActiveDraftPolyline() {
+    if (enginePointerRouterRef.current?.active) {
+      // `Cerrar` es una palabra clave del paso, no una operación aparte: entra
+      // por la misma puerta que si se tecleara `C`.
+      enginePointerRouterRef.current.keyword("C");
+      return true;
+    }
     const active = drawCommandRef.current;
     if (!active) return false;
     const next = closeDrawPolyline(active);
@@ -9285,7 +8658,18 @@ export default function Layout3DEditor({
   const submitPrecisionPoint = () => {
     const raw = precisionText.trim();
     if (!raw) {
-      if (drawCommandRef.current) commitActiveDraftCommand();
+      if (enginePointerRouterRef.current?.active || drawCommandRef.current)
+        commitActiveDraftCommand();
+      return;
+    }
+    // Con el motor abierto, la línea de precisión entrega el texto TAL CUAL al
+    // motor. No lo analiza aquí: el pipeline de entrada del motor ya resuelve
+    // coordenadas absolutas y relativas, polares, palabras clave, overrides de
+    // captura y entrada directa de distancia — y hacerlo dos veces con dos
+    // gramáticas distintas es exactamente cómo se acaba con dos productos.
+    if (enginePointerRouterRef.current?.active) {
+      commandEngineRef.current.submit(raw);
+      setPrecisionText("");
       return;
     }
     if (drawCommandRef.current) {
@@ -9335,10 +8719,25 @@ export default function Layout3DEditor({
     result: Extract<CadDynamicInputResult, { ok: true }>,
   ) => {
     if ("point" in result) {
-      if (drawCommandRef.current)
-        feedDraftPoint(result.point.x, result.point.y);
-      else if (toolRef.current === "wall")
+      // `feedDraftPoint` decide a quién va: al motor si tiene un comando
+      // abierto, y si no a la máquina heredada. Preguntar aquí por
+      // `drawCommandRef` era preguntar SÓLO por la heredada, y con el puntero
+      // enrutado ese ref está vacío: el punto se perdía en silencio y el
+      // comando se quedaba pidiendo el mismo dato para siempre.
+      if (
+        !feedDraftPoint(result.point.x, result.point.y) &&
+        toolRef.current === "wall"
+      )
         appendWallTo(result.point.x, result.point.y);
+      setPrecisionText("");
+      return;
+    }
+    if (enginePointerRouterRef.current?.active) {
+      // Un escalar —radio, diámetro ya reducido a radio, desfase— entra como
+      // número por la misma puerta que si se tecleara. El paso decide si es una
+      // distancia o entrada directa sobre la dirección del cursor; el editor no
+      // tiene por qué saberlo.
+      commandEngineRef.current.submit(String(result.scalar));
       setPrecisionText("");
       return;
     }
@@ -16260,6 +15659,11 @@ export default function Layout3DEditor({
         openDxfExport();
         return;
       }
+      // El motor manda mientras tenga un comando abierto: Esc cancela, Enter
+      // acepta y Tab salta entre distancia y ángulo. Va ANTES de la cascada de
+      // Esc del editor, que si no cancelaría la herramienta heredada y dejaría
+      // el comando del motor abierto sin dueño.
+      if (enginePointerRouterRef.current?.keyDown(e)) return;
       const g = data?.footprint.gridSize || 100;
       const step = e.shiftKey ? g * 5 : g;
       const hasNativeSelection = nativeSelectionIdsRef.current.length > 0;
@@ -16589,14 +15993,21 @@ export default function Layout3DEditor({
   };
   const handleCadContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
     event.preventDefault();
+    // Con un comando del motor abierto, el botón derecho ya ha ofrecido las
+    // palabras clave DEL PASO junto al cursor. Abrir además el menú general
+    // del editor lo tapaba y dejaba el gesto sin efecto: dos menús para el
+    // mismo clic es la misma clase de duplicidad que la de las dos máquinas.
+    if (enginePointerRouterRef.current?.active) return;
     const action = workspacePreferencesRef.current.rightClickAction;
     if (action === "repeat") {
       repeatLastCommand();
       return;
     }
     if (action === "enter") {
-      if (drawCommandRef.current) commitActiveDraftCommand();
-      else repeatLastCommand();
+      // `commitActiveDraftCommand` ya sabe si manda el motor o la máquina
+      // heredada; preguntar por `drawCommandRef` dejaba a Enter sin efecto
+      // sobre los comandos del motor, que son todos los del ratón.
+      if (!commitActiveDraftCommand()) repeatLastCommand();
       return;
     }
     const rect = event.currentTarget.getBoundingClientRect();
@@ -16605,15 +16016,40 @@ export default function Layout3DEditor({
       y: Math.max(8, Math.min(rect.height - 176, event.clientY - rect.top)),
     });
   };
+  /**
+   * La entrada dinámica y el aviso del viewport, ahora alimentados por el
+   * MOTOR cuando es él quien lleva el comando.
+   *
+   * `commandEngineSnapshot` cambia una vez por PASO, no por movimiento del
+   * ratón —`refreshPreview` no despacha—, así que esto no mete un render por
+   * muestra del puntero. El ancla se lee de la ref en ese mismo render: es el
+   * punto que el enrutador acaba de confirmar.
+   */
+  const engineCommand = commandEngineSnapshot.activeCommand;
+  const engineAnchor = engineCommand
+    ? (enginePointerRouterRef.current?.anchor ?? null)
+    : null;
+  const enginePromptText = commandEngineSnapshot.prompt
+    ? formatCadPrompt(commandEngineSnapshot.prompt)
+    : null;
+  const engineCanClose = !!commandEngineSnapshot.prompt?.options.some((option) =>
+    /^close$/i.test(option.keyword) || /^cerrar$/i.test(option.keyword),
+  );
   const activeDynamicCommand = drawCommandRef.current;
-  const dynamicInputKind: "point" | "radius" | "offset" =
-    activeDynamicCommand?.id === "offset"
+  const dynamicInputKind: "point" | "radius" | "offset" = engineCommand
+    ? engineCommand === "OFFSET"
+      ? "offset"
+      : engineCommand === "CIRCLE" && engineAnchor
+        ? "radius"
+        : "point"
+    : activeDynamicCommand?.id === "offset"
       ? "offset"
       : activeDynamicCommand?.id === "circle" &&
           activeDynamicCommand.awaitingRadius
         ? "radius"
         : "point";
   const dynamicAnchor =
+    engineAnchor ??
     activeDynamicCommand?.points.at(-1) ??
     (wallChainRef.current
       ? { x: wallChainRef.current.wx, y: wallChainRef.current.wy }
@@ -19097,7 +18533,7 @@ export default function Layout3DEditor({
                 <button
                   role="menuitem"
                   onClick={() => {
-                    if (drawCommandRef.current) commitActiveDraftCommand();
+                    commitActiveDraftCommand();
                     setCadContextMenu(null);
                   }}
                   className="w-full rounded-lg px-2 py-1.5 text-left hover:bg-white/10"
@@ -19318,6 +18754,16 @@ export default function Layout3DEditor({
               >
                 Native {nativeEntities.length}
               </span>
+              {/* QUÉ pipeline dibuja y CUÁNTO lleva materializado. El benchmark
+                  midió un camino que el producto no ejecutaba; publicarlo en el
+                  DOM es lo que impide que vuelva a pasar sin que nadie lo note. */}
+              <CadRenderPipelineBadge
+                pipeline={renderPipelineRef.current}
+                slot={renderPipelineSlotRef.current!}
+              />
+              {renderPipelineRef.current === "batched" && (
+                <CadRenderPipelineStats slot={renderPipelineSlotRef.current!} />
+              )}
               {/* La profundidad del historial es OBSERVABLE: una acción de
                   dibujo tiene que dejar exactamente una entrada, y una acción
                   rechazada ninguna. Sin esto, "el primer Undo no deshace nada"
@@ -19330,7 +18776,11 @@ export default function Layout3DEditor({
               >
                 U{hist.undo}/R{hist.redo}
               </span>
-              {nativeRenderStats.omitted > 0 && (
+              {/* El indicador HEREDADO. Con el pipeline por lotes lo sirve
+                  `CadRenderPipelineStats` con las cifras del índice de tiles;
+                  aquí se apaga para que el `data-testid` no salga dos veces. */}
+              {renderPipelineRef.current !== "batched" &&
+                nativeRenderStats.omitted > 0 && (
                 <span
                   data-testid="cad-native-render-stats"
                   data-total={nativeRenderStats.total}
@@ -19539,7 +18989,8 @@ export default function Layout3DEditor({
                         ? "draw"
                         : "wall"
                   }
-                  live={measureLive || drawPrompt}
+                  live={measureLive || enginePromptText || drawPrompt}
+                  snapLabelRef={engineSnapLabelRef}
                 />
               )}
             {!walk && (tool === "wall" || isCadDrawTool(tool)) && (
@@ -19562,12 +19013,16 @@ export default function Layout3DEditor({
                   },
                 }}
                 chaining={
+                  engineCommand === "LINE" ||
+                  engineCommand === "PLINE" ||
                   activeDynamicCommand?.id === "line" ||
                   activeDynamicCommand?.id === "polyline"
                 }
                 canClose={
-                  activeDynamicCommand?.id === "polyline" &&
-                  canCloseDraftPolyline
+                  engineCommand
+                    ? engineCanClose
+                    : activeDynamicCommand?.id === "polyline" &&
+                      canCloseDraftPolyline
                 }
                 onFinish={commitActiveDraftCommand}
                 onClose={closeActiveDraftPolyline}
@@ -19597,8 +19052,11 @@ export default function Layout3DEditor({
               exactamente el reproche que se le hace al copiloto de lenguaje
               natural. Se pulsa y se escribe.
             */}
+            {/* El envoltorio lleva `pointer-events-none`: flota sobre la barra
+                inferior y, con el diálogo lleno, tapaba Undo. Los controles del
+                muelle reactivan el ratón por su cuenta. */}
             {!walk && (
-              <div className="absolute bottom-14 left-3 z-30 w-[min(30rem,42vw)]">
+              <div className="pointer-events-none absolute bottom-14 left-3 z-30 w-[min(30rem,42vw)]">
                 <CadCommandLineDock
                   host={commandEngine}
                   disabled={drawingReadOnly}

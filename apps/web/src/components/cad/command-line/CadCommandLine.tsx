@@ -121,12 +121,23 @@ export function CadCommandLine({
   return (
     <div
       data-testid="cad-command-line"
-      className="pointer-events-auto flex w-full flex-col rounded-lg border border-white/10 bg-[#0b1020]/95 text-[12px] shadow-lg backdrop-blur"
+      // El muelle NO captura el ratón como bloque: flota sobre el lienzo y
+      // sobre la barra inferior, y con el puntero enrutado al motor crece hasta
+      // su tope en cuanto se dibuja. Reciben el ratón sólo las dos filas que lo
+      // necesitan —palabras clave y entrada—; el diálogo y el fondo lo dejan
+      // pasar, para que Undo y la barra sigan siendo pulsables debajo.
+      className="pointer-events-none flex w-full flex-col rounded-lg border border-white/10 bg-[#0b1020]/95 text-[12px] shadow-lg backdrop-blur"
     >
       <div
         ref={logRef}
         data-testid="cad-command-line-log"
-        className="max-h-24 overflow-y-auto px-2 py-1 font-mono leading-snug"
+        // `pointer-events-none`: el diálogo es texto de SÓLO LECTURA y el
+        // muelle flota sobre el lienzo y sobre la barra inferior. Con el
+        // puntero enrutado al motor, cada paso de cada comando deja su renglón
+        // y el diálogo crece hasta su tope, tapando lo que hay debajo: Undo, la
+        // entrada dinámica y los botones de la barra dejaban de poder pulsarse.
+        // Sólo la entrada y las palabras clave necesitan recibir el ratón.
+        className="pointer-events-none max-h-24 overflow-y-auto px-2 py-1 font-mono leading-snug"
       >
         {history.map((entry, index) => (
           <div key={`${index}-${entry.text}`} className={LEVEL_CLASS[entry.level]}>
@@ -136,7 +147,7 @@ export function CadCommandLine({
       </div>
 
       {prompt && (
-        <div className="flex flex-wrap items-center gap-1 border-t border-white/5 px-2 py-1">
+        <div className="pointer-events-none flex flex-wrap items-center gap-1 border-t border-white/5 px-2 py-1">
           <span data-testid="cad-command-prompt" className="font-mono text-gray-200">
             {line}
           </span>
@@ -149,7 +160,7 @@ export function CadCommandLine({
                 onKeyword(option.shortcut);
                 inputRef.current?.focus();
               }}
-              className="rounded border border-white/15 px-1.5 py-0.5 font-mono text-[11px] text-cyan-200 transition-colors hover:bg-white/10"
+              className="pointer-events-auto rounded border border-white/15 px-1.5 py-0.5 font-mono text-[11px] text-cyan-200 transition-colors hover:bg-white/10"
               title={`Atajo: ${option.shortcut.toUpperCase()}`}
             >
               {formatCadKeyword(option)}
@@ -158,7 +169,7 @@ export function CadCommandLine({
         </div>
       )}
 
-      <div className="flex items-center gap-1 border-t border-white/5 px-2 py-1">
+      <div className="pointer-events-none flex items-center gap-1 border-t border-white/5 px-2 py-1">
         <span className="font-mono text-gray-500">{prompt ? "»" : "Comando:"}</span>
         <input
           ref={inputRef}
@@ -177,7 +188,7 @@ export function CadCommandLine({
                 ? `escribe un comando · Espacio repite ${lastCommand}`
                 : "escribe un comando (L, C, TR, MI…)"
           }
-          className="min-w-0 flex-1 bg-transparent font-mono text-gray-100 outline-none placeholder:text-gray-600"
+          className="pointer-events-auto min-w-0 flex-1 bg-transparent font-mono text-gray-100 outline-none placeholder:text-gray-600"
         />
       </div>
     </div>

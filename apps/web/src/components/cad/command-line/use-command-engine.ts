@@ -29,9 +29,12 @@ import { requestCadUi } from "@/components/cad/palettes/palette-command-bus";
 import type { CadDocument } from "@/lib/cad/cad-document";
 import type { CadEntityCommand } from "@/lib/cad/entity-commands";
 import { runCadScript } from "@/lib/cad/script-runner";
+import type { CadVariableAccess } from "@/lib/cad/system-variables";
 import type { CadHostRequest } from "@/lib/cad/engine/host-requests";
 import type { CadView } from "@/lib/cad/view/cad-view";
 import { cadDocumentExtents, cadEntityExtents } from "@/lib/cad/view/document-extents";
+import type { CadPreviewPath } from "@/lib/cad/engine/command-types";
+import type { SnapType } from "@/lib/cad/snap-engine";
 import { useCadFileCommandHandlers, useCadSessionState } from "./session-catalogs";
 import {
   attachCadLisp,
@@ -127,6 +130,22 @@ export interface CadStudioCommandEngineOptions {
   setSelection?(entityIds: readonly string[]): void;
   /** Trabajo fuera del documento: trazar, publicar, cambiar de espacio. */
   host?(request: CadHostRequest): string;
+  /**
+   * Posición viva del puntero, en unidades de dibujo.
+   *
+   * Antes era siempre `null` con un comentario diciendo que el puntero no
+   * pasaba por el motor. Ya pasa: lo publica el enrutador del viewport en cada
+   * movimiento. Sigue pudiendo ser `null` —el ratón fuera del lienzo—, y en ese
+   * caso el motor responde «mueve el cursor» en vez de medir desde un origen
+   * inventado.
+   */
+  cursor?: { current: { x: number; y: number } | null };
+  /** Banda elástica: los trazos del paso actual, ya con su geometría real. */
+  preview?(paths: readonly CadPreviewPath[]): void;
+  /** Modos de captura forzados por el paso actual. */
+  osnapOverride?(modes: readonly SnapType[] | null): void;
+  /** Forma del cursor del viewport. */
+  cursorShape?(shape: "crosshair" | "pick" | "none"): void;
   /**
    * Organización y usuario, para la biblioteca de rutinas `.lsp`.
    *
@@ -235,20 +254,57 @@ export function useCadStudioCommandEngine(
   });
   const live = useRef(options);
   live.current = options;
+  // `CLAYER` sin tocar ES la capa del editor.
+  //
+  // La tabla de variables nace con `CLAYER = "0"`, y el contexto del estudio da
+  // preferencia a `CLAYER` cuando nombra una capa que existe. La capa «0»
+  // existe SIEMPRE, así que ese valor de fábrica tapaba la capa que el usuario
+  // acababa de elegir en el panel: con el puntero enrutado al motor, dibujar
+  // tras cambiar de capa escribía en «0» (golden 33).
+  //
+  // Aquí `CLAYER` se lee como la capa activa del editor mientras nadie la haya
+  // escrito — que es exactamente lo que ya hacía `(getvar "CLAYER")` en el
+  // intérprete LISP, `host.activeLayer()`—, y en cuanto un comando o un `.scr`
+  // la fija, manda el valor fijado. Así `-LAYER definir` sigue mandando sobre
+  // el dibujo de un guion, y el panel de capas sigue mandando sobre el ratón.
+  //
+  // LÍMITE, dicho en voz alta: una vez escrita, `CLAYER` gana aunque después se
+  // cambie de capa en el panel. Cerrar ese círculo es la ligadura inversa
+  // —el editor observando la variable— y pertenece a quien traiga el panel de
+  // capas al motor, no a este PR.
+  const clayerWritten = useRef(false);
+  const variables = useMemo<CadVariableAccess>(
+    () => ({
+      get: (name) =>
+        name.toUpperCase() === "CLAYER" && !clayerWritten.current
+          ? live.current.activeLayer
+          : session.variables.get(name),
+      set: (name, value) => {
+        if (name.toUpperCase() === "CLAYER") clayerWritten.current = true;
+        return session.variables.set(name, value);
+      },
+      publish: (name, value) => {
+        if (name.toUpperCase() === "CLAYER") clayerWritten.current = true;
+        return session.variables.publish(name, value);
+      },
+    }),
+    [session],
+  );
   const engine = useCadCommandEngineHost({
     context: () =>
       cadStudioCommandContext({
         document: options.document.current,
         selection: options.selection.current,
         activeLayer: options.activeLayer,
-        variables: session.variables,
+        variables,
         catalogs: session.catalogs,
         view: options.view.current?.view ?? null,
-        // El puntero todavía no pasa por el motor: mientras no pase, no hay
-        // cursor que ofrecer. Se dice que no lo hay en vez de fingir el origen,
-        // para que la entrada directa de distancia responda «mueve el cursor»
-        // en lugar de dar un punto medido desde un sitio inventado.
-        cursor: null,
+        // El puntero YA pasa por el motor: esto es lo que el enrutador del
+        // viewport publica en cada movimiento. Sigue pudiendo faltar —el ratón
+        // fuera del lienzo—, y entonces se dice que no lo hay en vez de fingir
+        // el origen, para que la entrada directa de distancia responda «mueve
+        // el cursor» en lugar de medir desde un sitio inventado.
+        cursor: options.cursor?.current ?? null,
         newEntityId: options.newEntityId,
         activeLayout: options.activeLayout ?? null,
       }),
@@ -258,16 +314,20 @@ export function useCadStudioCommandEngine(
     // opciones lo sustituye, que es lo que hace un guion sin navegador.
     host: (request) => live.current.host?.(request) ?? plot.handle(request),
     // Previsualización, captura forzada y forma del cursor pertenecen al
-    // puntero. Se ignoran a conciencia hasta que el puntero llegue.
-    preview: () => {},
-    osnapOverride: () => {},
-    cursor: () => {},
+    // puntero, y el puntero YA llegó: las tres las sirve el enrutador del
+    // viewport a través de estas opciones. Sin enrutador —un guion, una
+    // prueba— siguen siendo opcionales y no pasa nada.
+    preview: (paths) => options.preview?.(paths),
+    osnapOverride: (modes) => options.osnapOverride?.(modes),
+    cursor: (shape) => options.cursorShape?.(shape),
     variables: (patch, system) => {
       const lines: string[] = [];
       for (const [name, value] of Object.entries(patch)) {
+        // Por la fachada, no por la tabla: es lo que apunta que `CLAYER` ya
+        // tiene dueño y deja de ser un espejo de la capa del editor.
         const outcome = system
-          ? session.variables.publish(name, value)
-          : session.variables.set(name, value);
+          ? variables.publish(name, value)
+          : variables.set(name, value);
         if (!outcome.ok) lines.push(outcome.reason);
       }
       return lines;

@@ -24,7 +24,13 @@ export default function LegacyStudioLoader() {
         // Nunca se envía al servidor; sólo se reenvía al destino interno.
         const fragment =
           typeof window === "undefined" ? "" : window.location.hash;
-        router.replace(`/studio/${existing.id}${fragment}`);
+        // La CONSULTA también viaja. Descartarla perdía en silencio las
+        // banderas que se pasan por URL —`?cadRenderPipeline=legacy` es la que
+        // devuelve el editor al pipeline de render heredado—, de modo que el
+        // respaldo existía y no se podía activar desde un marcador.
+        const search =
+          typeof window === "undefined" ? "" : window.location.search;
+        router.replace(`/studio/${existing.id}${search}${fragment}`);
       })
       .catch(() => setFailed(true));
   }, [router]);

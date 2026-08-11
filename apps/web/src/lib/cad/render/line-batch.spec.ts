@@ -15,6 +15,7 @@ import {
 import {
   CAD_LINE_BATCH_FRAGMENT_SHADER,
   CAD_LINE_BATCH_VERTEX_SHADER,
+  createCadLineBatchMaterial,
 } from "./line-batch-three";
 import type { CadTessellation } from "./tessellation-cache";
 
@@ -231,9 +232,29 @@ ok(true, `cadLineBatchStats: ${stats.instances} instancias en ${stats.batches} l
 // NO se redeclara — hacerlo rompe la compilación en THREE.
 // ---------------------------------------------------------------------------
 assert.ok(
-  CAD_LINE_BATCH_VERTEX_SHADER.includes("gl_Position.z = instanceStyle.w * gl_Position.w;"),
+  CAD_LINE_BATCH_VERTEX_SHADER.includes(
+    "gl_Position.z = (cadDepthBias + instanceStyle.w * cadDepthScale) * gl_Position.w;",
+  ),
   "el vertex shader debe escribir el orden de dibujo en la profundidad",
 );
+// La lámina es OPCIONAL y su defecto tiene que ser transparente: bias 0 y
+// escala 1 reproducen exactamente `z = instanceStyle.w`, que es lo que este
+// módulo prometía antes de que existiera. Un defecto distinto cambiaría en
+// silencio lo que ve cualquier consumidor que no la configure.
+const defaultSlab = createCadLineBatchMaterial({
+  viewport: { scale: 1, width: 100, height: 100 },
+  pixelsPerUnit: 1,
+});
+assert.equal(defaultSlab.uniforms.cadDepthBias.value, 0);
+assert.equal(defaultSlab.uniforms.cadDepthScale.value, 1);
+const slab = createCadLineBatchMaterial({
+  viewport: { scale: 1, width: 100, height: 100 },
+  pixelsPerUnit: 1,
+  depthBias: -0.94,
+  depthScale: 0.055,
+});
+assert.equal(slab.uniforms.cadDepthBias.value, -0.94);
+assert.equal(slab.uniforms.cadDepthScale.value, 0.055);
 assert.ok(
   !/attribute\s+vec[234]\s+position\s*;/.test(CAD_LINE_BATCH_VERTEX_SHADER),
   "`position` es un atributo reservado de THREE: redeclararlo rompe la compilación",

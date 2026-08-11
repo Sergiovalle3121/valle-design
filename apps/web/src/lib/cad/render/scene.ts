@@ -63,6 +63,15 @@ export interface CadRenderSceneOptions extends CadRenderPipelineOptions {
    * dibujo y no miran a la cámara como hacían los sprites.
    */
   yScreenSign?: CadScreenYSign;
+  /**
+   * Lámina de profundidad, en NDC. Ver `line-batch-three.ts`: por defecto el
+   * orden de dibujo ocupa el búfer entero, que es lo correcto cuando esta
+   * escena es lo ÚNICO que se dibuja. Un consumidor que la mete dentro de una
+   * escena con suelo, rejilla y objetos 3D tiene que comprimirla en una lámina
+   * delante de todo eso, o su primera entidad quedará detrás del suelo.
+   */
+  depthBias?: number;
+  depthScale?: number;
 }
 
 export interface CadRenderSyncResult {
@@ -100,6 +109,8 @@ export class CadRenderScene {
     const line = createCadLineBatchMaterial({
       viewport: options.viewport,
       pixelsPerUnit: 1,
+      depthBias: options.depthBias,
+      depthScale: options.depthScale,
     });
     this.material = line.material;
     this.uniforms = line.uniforms;
@@ -107,6 +118,8 @@ export class CadRenderScene {
     const text = createCadTextAtlasMaterial({
       viewport: options.viewport,
       texture: this.textAtlas.texture,
+      depthBias: options.depthBias,
+      depthScale: options.depthScale,
     });
     this.textMaterial = text.material;
     this.textUniforms = text.uniforms;
