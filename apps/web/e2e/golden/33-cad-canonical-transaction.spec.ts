@@ -376,6 +376,13 @@ test('switching the active layer changes where the MOUSE draws, and it survives 
   await page.mouse.click(from.x, from.y);
   const to = await worldPoint(page, { x: 6_000, y: 5_000 });
   await page.mouse.click(to.x, to.y);
+  // Enter TERMINA el comando, y hasta entonces LINE no ha escrito nada.
+  //
+  // Es un cambio deliberado: con el puntero enrutado al motor, una cadena de
+  // LINE emite UN lote al terminar —un `commitChange`, un paso de deshacer—
+  // en vez de una entidad por clic. Lo fija el golden 44 para el teclado; aquí
+  // se comprueba que el ratón hace exactamente lo mismo.
+  await page.keyboard.press('Enter');
   await expectNativeCount(page, 1);
 
   await saveAndSettle(page, backend);

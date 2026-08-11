@@ -14,7 +14,7 @@ import {
 export type PersistedCadDocument = Record<string, unknown>;
 
 /** Última versión de esquema que este servidor sabe validar. */
-export const CAD_DOCUMENT_MAX_SCHEMA = 4;
+export const CAD_DOCUMENT_MAX_SCHEMA = 5;
 export const CAD_DOCUMENT_MAX_INLINE_BYTES = 8_000_000;
 export const CAD_DOCUMENT_MAX_ARCHIVE_BYTES = 128 * 1024 * 1024;
 const MAX_ENTITIES = 100_000;

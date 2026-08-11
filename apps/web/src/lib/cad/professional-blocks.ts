@@ -21,6 +21,12 @@ import {
   cadTransformIsReflecting,
   cadTransformScaleFactor,
 } from './transform2d';
+// XCLIP se aplica AQUÍ, en el único sitio por el que pasan el render, la
+// designación, los límites y la exportación. Recortar en cada consumidor por
+// separado garantizaría que el dibujo y lo que se puede seleccionar acabaran
+// diciendo cosas distintas. `xclip` sólo importa tipos de este módulo, así que
+// no hay ciclo de carga.
+import { cadApplyXclip, cadXclipOf } from './xref/xclip';
 
 type CadInsert = Extract<CadEntity, { type: 'insert' }>;
 
@@ -371,7 +377,11 @@ export function resolveCadInsert(document: Pick<CadDocument, 'blocks' | 'entitie
   const maps = blockMaps(document);
   const block = maps.byKey.get(insert.block);
   if (!block) return { entities: [], diagnostics: [{ code: 'missing_block', severity: 'error', block: insert.block, entityId: insert.id, detail: `INSERT ${insert.id} references missing block ${insert.block}.` }] };
-  return { entities: resolveDefinition(block, insert, maps, diagnostics, IDENTITY, 'root', [], maxDepth), diagnostics };
+  const resolved = resolveDefinition(block, insert, maps, diagnostics, IDENTITY, 'root', [], maxDepth);
+  // El recorte se aplica DESPUÉS de resolver: el contorno vive en coordenadas
+  // de mundo, que es donde acaba la geometría del bloque.
+  const clip = cadXclipOf(insert);
+  return { entities: clip ? cadApplyXclip(resolved, clip) : resolved, diagnostics };
 }
 
 function remapBlockEntityIds(entities: CadEntity[], blockId: string): CadEntity[] {

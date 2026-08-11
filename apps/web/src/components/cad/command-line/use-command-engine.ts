@@ -22,13 +22,25 @@
  * despacharse desde un manejador que corre ANTES de que los efectos de ese
  * render se hayan ejecutado.
  */
-import { useMemo, useRef, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import { CAD_COMMAND_REGISTRY_V2 } from "@/lib/cad/engine";
+import type { CadCommandRegistry } from "@/lib/cad/engine/command-engine";
+import { requestCadUi } from "@/components/cad/palettes/palette-command-bus";
 import type { CadDocument } from "@/lib/cad/cad-document";
 import type { CadEntityCommand } from "@/lib/cad/entity-commands";
+import { runCadScript } from "@/lib/cad/script-runner";
+import type { CadVariableAccess } from "@/lib/cad/system-variables";
 import type { CadHostRequest } from "@/lib/cad/engine/host-requests";
 import type { CadView } from "@/lib/cad/view/cad-view";
 import { cadDocumentExtents, cadEntityExtents } from "@/lib/cad/view/document-extents";
+import type { CadPreviewPath } from "@/lib/cad/engine/command-types";
+import type { SnapType } from "@/lib/cad/snap-engine";
+import { useCadFileCommandHandlers, useCadSessionState } from "./session-catalogs";
+import {
+  attachCadLisp,
+  useCadLispAttachment,
+  type CadLispIdentity,
+} from "../lisp/use-lisp";
 import {
   CadCommandEngineHost,
   type CadCommandEngineBridge,
@@ -42,19 +54,33 @@ import {
 import { CadPlotHost, downloadCadFile } from "./plot-host";
 import { cadStudioCommandContext } from "./studio-context";
 
+/**
+ * El registro entra por parámetro con el del producto por defecto.
+ *
+ * Lo aprovecha el estudio para pasar el registro COMPUESTO —los 63 nativos más
+ * los comandos `c:` que aporten las rutinas `.lsp` cargadas—. Componer en el
+ * punto de montaje, en vez de añadir comandos en caliente a
+ * `CAD_COMMAND_REGISTRY_V2`, mantiene la propiedad que `registry.ts` protege:
+ * el registro del producto no cambia según qué se haya importado antes.
+ */
 export function useCadCommandEngineHost(
   bridge: CadCommandEngineBridge,
+  registry: CadCommandRegistry = CAD_COMMAND_REGISTRY_V2,
 ): CadCommandEngineHost {
   const live = useRef(bridge);
   live.current = bridge;
+  const table = useRef(registry);
   return useMemo(
     () =>
-      new CadCommandEngineHost(CAD_COMMAND_REGISTRY_V2, {
+      new CadCommandEngineHost(table.current, {
         context: () => live.current.context(),
         apply: (commands, label) => live.current.apply(commands, label),
         preview: (paths) => live.current.preview(paths),
         osnapOverride: (modes) => live.current.osnapOverride(modes),
         cursor: (shape) => live.current.cursor(shape),
+        variables: (patch, system) => live.current.variables?.(patch, system) ?? [],
+        ui: (request) => live.current.ui?.(request) ?? false,
+        select: (entityIds) => live.current.select?.(entityIds) ?? false,
         // `view` y `host` SE REENVÍAN. Olvidarlos aquí dejaba a ZOOM y a PLOT
         // llegando hasta el motor, emitiendo su efecto y muriendo en un
         // «no está disponible en este contexto» — la clase de fallo que sólo
@@ -93,8 +119,42 @@ export interface CadStudioCommandEngineOptions {
   newEntityId: () => string;
   /** Aplica el lote por la ruta canónica del editor. */
   apply(commands: readonly CadEntityCommand[], label: string): void;
+  /**
+   * Deja designado exactamente esto. Es lo que QSELECT y FILTER necesitan para
+   * que designar por propiedades signifique algo.
+   *
+   * Opcional porque la selección la sostiene el editor y esta ola no puede
+   * tocarlo. Sin ella los dos comandos siguen funcionando y CUENTAN cuántos
+   * objetos casan; lo que no hacen es designarlos.
+   */
+  setSelection?(entityIds: readonly string[]): void;
   /** Trabajo fuera del documento: trazar, publicar, cambiar de espacio. */
   host?(request: CadHostRequest): string;
+  /**
+   * Posición viva del puntero, en unidades de dibujo.
+   *
+   * Antes era siempre `null` con un comentario diciendo que el puntero no
+   * pasaba por el motor. Ya pasa: lo publica el enrutador del viewport en cada
+   * movimiento. Sigue pudiendo ser `null` —el ratón fuera del lienzo—, y en ese
+   * caso el motor responde «mueve el cursor» en vez de medir desde un origen
+   * inventado.
+   */
+  cursor?: { current: { x: number; y: number } | null };
+  /** Banda elástica: los trazos del paso actual, ya con su geometría real. */
+  preview?(paths: readonly CadPreviewPath[]): void;
+  /** Modos de captura forzados por el paso actual. */
+  osnapOverride?(modes: readonly SnapType[] | null): void;
+  /** Forma del cursor del viewport. */
+  cursorShape?(shape: "crosshair" | "pick" | "none"): void;
+  /**
+   * Organización y usuario, para la biblioteca de rutinas `.lsp`.
+   *
+   * Opcional porque el editor todavía no la pasa: mientras no lo haga, la
+   * biblioteca vive bajo `anon` y es la misma para todo el mundo en ese
+   * navegador. Es un límite declarado, no un descuido; pasarla es una línea en
+   * el punto de montaje y está pedida en el PR.
+   */
+  identity?: CadLispIdentity;
 }
 
 /**
@@ -159,6 +219,30 @@ export function useCadStudioPlotHost(
 export function useCadStudioCommandEngine(
   options: CadStudioCommandEngineOptions,
 ): CadCommandEngineHost {
+  /**
+   * El subsistema AutoLISP, enchufado.
+   *
+   * `lib/lisp/` existía entero desde la ola 1 y nadie lo importaba: un veterano
+   * no podía cargar ni ejecutar una sola de sus rutinas. Estas líneas son el
+   * enchufe: el registro COMPUESTO hace que un `(defun c:MICOMANDO …)` se teclee
+   * como cualquiera de los 96 nativos, y el runtime queda atado al anfitrión
+   * para que la consola lo encuentre.
+   *
+   * La geometría de una rutina sale por el efecto `execute` del motor y acaba en
+   * el `apply` de abajo, que es `commitNativeCommands`. No hay segunda ruta de
+   * mutación: el subsistema LISP hereda la disciplina CAS por construcción.
+   */
+  const lisp = useCadLispAttachment(options.identity ?? {});
+  // Se ata en el cuerpo del render y no en un efecto, porque el motor puede
+  // despacharse desde un manejador que corre ANTES de que los efectos de ese
+  // render se hayan ejecutado. No notifica a nadie, así que no puede desgarrar.
+  lisp.runtime.bind({
+    document: () => options.document.current,
+    activeLayer: () => options.activeLayer,
+    newEntityId: options.newEntityId,
+  });
+
+  const session = useCadSessionState();
   const navigation = useCadStudioNavigation(options);
   // El anfitrión del motor todavía no existe cuando se crea el de trazado, así
   // que el renglón del resultado se enruta por una `ref` que se rellena justo
@@ -170,18 +254,57 @@ export function useCadStudioCommandEngine(
   });
   const live = useRef(options);
   live.current = options;
+  // `CLAYER` sin tocar ES la capa del editor.
+  //
+  // La tabla de variables nace con `CLAYER = "0"`, y el contexto del estudio da
+  // preferencia a `CLAYER` cuando nombra una capa que existe. La capa «0»
+  // existe SIEMPRE, así que ese valor de fábrica tapaba la capa que el usuario
+  // acababa de elegir en el panel: con el puntero enrutado al motor, dibujar
+  // tras cambiar de capa escribía en «0» (golden 33).
+  //
+  // Aquí `CLAYER` se lee como la capa activa del editor mientras nadie la haya
+  // escrito — que es exactamente lo que ya hacía `(getvar "CLAYER")` en el
+  // intérprete LISP, `host.activeLayer()`—, y en cuanto un comando o un `.scr`
+  // la fija, manda el valor fijado. Así `-LAYER definir` sigue mandando sobre
+  // el dibujo de un guion, y el panel de capas sigue mandando sobre el ratón.
+  //
+  // LÍMITE, dicho en voz alta: una vez escrita, `CLAYER` gana aunque después se
+  // cambie de capa en el panel. Cerrar ese círculo es la ligadura inversa
+  // —el editor observando la variable— y pertenece a quien traiga el panel de
+  // capas al motor, no a este PR.
+  const clayerWritten = useRef(false);
+  const variables = useMemo<CadVariableAccess>(
+    () => ({
+      get: (name) =>
+        name.toUpperCase() === "CLAYER" && !clayerWritten.current
+          ? live.current.activeLayer
+          : session.variables.get(name),
+      set: (name, value) => {
+        if (name.toUpperCase() === "CLAYER") clayerWritten.current = true;
+        return session.variables.set(name, value);
+      },
+      publish: (name, value) => {
+        if (name.toUpperCase() === "CLAYER") clayerWritten.current = true;
+        return session.variables.publish(name, value);
+      },
+    }),
+    [session],
+  );
   const engine = useCadCommandEngineHost({
     context: () =>
       cadStudioCommandContext({
         document: options.document.current,
         selection: options.selection.current,
         activeLayer: options.activeLayer,
+        variables,
+        catalogs: session.catalogs,
         view: options.view.current?.view ?? null,
-        // El puntero todavía no pasa por el motor: mientras no pase, no hay
-        // cursor que ofrecer. Se dice que no lo hay en vez de fingir el origen,
-        // para que la entrada directa de distancia responda «mueve el cursor»
-        // en lugar de dar un punto medido desde un sitio inventado.
-        cursor: null,
+        // El puntero YA pasa por el motor: esto es lo que el enrutador del
+        // viewport publica en cada movimiento. Sigue pudiendo faltar —el ratón
+        // fuera del lienzo—, y entonces se dice que no lo hay en vez de fingir
+        // el origen, para que la entrada directa de distancia responda «mueve
+        // el cursor» en lugar de medir desde un sitio inventado.
+        cursor: options.cursor?.current ?? null,
         newEntityId: options.newEntityId,
         activeLayout: options.activeLayout ?? null,
       }),
@@ -191,12 +314,52 @@ export function useCadStudioCommandEngine(
     // opciones lo sustituye, que es lo que hace un guion sin navegador.
     host: (request) => live.current.host?.(request) ?? plot.handle(request),
     // Previsualización, captura forzada y forma del cursor pertenecen al
-    // puntero. Se ignoran a conciencia hasta que el puntero llegue.
-    preview: () => {},
-    osnapOverride: () => {},
-    cursor: () => {},
-  });
+    // puntero, y el puntero YA llegó: las tres las sirve el enrutador del
+    // viewport a través de estas opciones. Sin enrutador —un guion, una
+    // prueba— siguen siendo opcionales y no pasa nada.
+    preview: (paths) => options.preview?.(paths),
+    osnapOverride: (modes) => options.osnapOverride?.(modes),
+    cursor: (shape) => options.cursorShape?.(shape),
+    variables: (patch, system) => {
+      const lines: string[] = [];
+      for (const [name, value] of Object.entries(patch)) {
+        // Por la fachada, no por la tabla: es lo que apunta que `CLAYER` ya
+        // tiene dueño y deja de ser un espejo de la capa del editor.
+        const outcome = system
+          ? variables.publish(name, value)
+          : variables.set(name, value);
+        if (!outcome.ok) lines.push(outcome.reason);
+      }
+      return lines;
+    },
+    ui: (request) => requestCadUi(request),
+    select: (entityIds) => {
+      if (!options.setSelection) return false;
+      options.setSelection(entityIds);
+      return true;
+    },
+  },
+  // El registro COMPUESTO: los nativos primero y, sólo si allí no está, lo que
+  // aporten las rutinas `.lsp` cargadas. Un nativo nunca pierde.
+  lisp.registry);
   engineRef.current = engine;
+  attachCadLisp(engine, lisp);
+
+  // Los dos manejadores que necesitan leer un archivo. Van aquí porque SCRIPT
+  // tiene que volver a entrar por el MISMO anfitrión: un script es entrada
+  // tecleada, y meterla por otra puerta sería un segundo intérprete.
+  useCadFileCommandHandlers(
+    session,
+    useCallback(
+      (name: string, text: string) => {
+        const report = runCadScript(text, engine);
+        for (const warning of report.warnings) engine.note(warning, "error");
+        engine.note(`${name}: ${report.executed} renglón(es) ejecutado(s).`, "info");
+      },
+      [engine],
+    ),
+  );
+
   return engine;
 }
 

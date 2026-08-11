@@ -29,14 +29,8 @@ import type {
   CadPositionedAttribute,
   CadSchema4Entity,
 } from "./cad-entities-v4";
-import { migrateCadDocument } from "./cad-document-migrate";
-import {
-  byId,
-  byName,
-  CAD_DOCUMENT_SCHEMA,
-  CONNECTOR_LAYER,
-  preserveDrawOrder,
-} from "./cad-document-shared";
+import type { CadSchema5Entity } from "./cad-entities-v5";
+import { byId, byName } from "./cad-document-shared";
 
 // ---------------------------------------------------------------------------
 // Modelo histórico
@@ -377,7 +371,13 @@ export type CadEntity =
    * Los ocho tipos que estrena el esquema 4 (POINT, XLINE, RAY, SOLID,
    * WIPEOUT, IMAGE, ATTDEF, TABLE). Se declaran en `cad-entities-v4.ts`.
    */
-  | CadSchema4Entity;
+  | CadSchema4Entity
+  /**
+   * Los dos que estrena el esquema 5: SOLID3D —un sólido B-rep descrito por su
+   * ÁRBOL DE CONSTRUCCIÓN, no por su malla— y REGION. Viven en
+   * `cad-entities-v5.ts`.
+   */
+  | CadSchema5Entity;
 
 export interface CadLayerDef {
   id: string;
@@ -529,78 +529,21 @@ export interface CadChange {
   label: string;
 }
 
-export type CadReviewThreadStatus = "open" | "resolved";
-
-export interface CadReviewThread {
-  id: string;
-  entityId?: string;
-  body: string;
-  author: string;
-  assignedTo?: string;
-  status: CadReviewThreadStatus;
-  createdAt: string;
-  resolvedAt?: string;
-  resolvedBy?: string;
-  markup?: {
-    kind: "note" | "arrow" | "cloud";
-    point?: CadPoint2;
-    color: string;
-  };
-}
-
 /**
- * Metadato NO SENSIBLE de un review link. El token NUNCA vive aquí: lo genera
- * el servidor al crear la sesión de revisión (`POST /v1/cad/documents/:id/
- * review-sessions`), sólo se persiste su sha256 en `cad_review_sessions.
- * token_hash` y su valor en claro aparece UNA vez, en esa respuesta.
- *
- * `id` es el id de la sesión de revisión server-owned — la misma referencia
- * que usan revocación (`/v1/cad/review-sessions/:id/close`) y auditoría.
- * `hasToken` lo escribe la API al redactar documentos heredados que todavía
- * traían el token en claro dentro del JSON.
+ * El vocabulario de COLABORACIÓN —versiones, hilos, enlaces de revisión y
+ * auditoría— vive en `cad-document-collaboration.ts`. Se reexporta entero para
+ * que ningún consumidor cambie de import: la separación es de responsabilidad
+ * (geometría vs. proceso de revisión), no de API pública.
  */
-export interface CadReviewLink {
-  id: string;
-  label: string;
-  readOnly: true;
-  createdAt: string;
-  createdBy: string;
-  expiresAt?: string;
-  revokedAt?: string;
-  hasToken?: boolean;
-}
-
-export interface CadCollaborationAuditEvent {
-  id: string;
-  action:
-    | "version_created"
-    | "merge_applied"
-    | "comment_added"
-    | "comment_resolved"
-    | "review_link_created"
-    | "review_link_revoked";
-  actor: string;
-  at: string;
-  detail: string;
-  entityIds?: string[];
-}
-
-export interface CadVersionSnapshot {
-  id: string;
-  label: string;
-  createdAt: string;
-  createdBy: string;
-  contentHash: string;
-  /** Full canonical content without collaboration recursion. */
-  document: Omit<CadDocument, "collaboration">;
-}
-
-export interface CadCollaborationState {
-  versions: CadVersionSnapshot[];
-  threads: CadReviewThread[];
-  reviewLinks: CadReviewLink[];
-  audit: CadCollaborationAuditEvent[];
-}
+export type {
+  CadCollaborationAuditEvent,
+  CadCollaborationState,
+  CadReviewLink,
+  CadReviewThread,
+  CadReviewThreadStatus,
+  CadVersionSnapshot,
+} from "./cad-document-collaboration";
+import type { CadCollaborationState } from "./cad-document-collaboration";
 
 /**
  * Agrupación industrial de estaciones. NO es núcleo arquitectónico —un plano de
@@ -665,6 +608,25 @@ export type {
   CadXLineEntity,
 } from "./cad-entities-v4";
 export { CAD_SCHEMA_4_ENTITY_TYPES } from "./cad-entities-v4";
+
+/** Y el del esquema 5: sólidos B-rep y regiones. */
+export type {
+  CadRegionEntity,
+  CadSchema5Entity,
+  CadSolid3dEntity,
+  CadSolidFrame,
+  CadSolidNode,
+  CadSolidNodeOp,
+  CadSolidPlacement,
+  CadSolidPlane,
+  CadSolidProfile,
+} from "./cad-entities-v5";
+export {
+  CAD_SCHEMA_5_ENTITY_TYPES,
+  CAD_SOLID_LEAF_OPS,
+  CAD_SOLID_NODE_OPS,
+  CAD_SOLID_OPERATION_OPS,
+} from "./cad-entities-v5";
 
 // ---------------------------------------------------------------------------
 // Versionado + serialización determinista
@@ -785,6 +747,7 @@ export function cadDocumentStats(doc: CadDocument): Record<CadEntity["type"], nu
     hatch: 0, mleader: 0, insert: 0,
     point: 0, xline: 0, ray: 0, solid: 0, wipeout: 0, image: 0,
     attdef: 0, table: 0,
+    solid3d: 0, region: 0,
   } satisfies Record<CadEntity["type"], number>;
   for (const e of doc.entities) stats[e.type]++;
   return stats;
@@ -802,121 +765,8 @@ export {
 } from "./cad-document-migrate";
 
 /**
- * Replace the legacy editor projection without dropping first-class entities,
- * constraints, blocks, xrefs or opaque provider payloads.
+ * La REPROYECCIÓN del editor heredado vive en `cad-document-projection.ts`. Se
+ * reexporta aquí porque es la puerta pública de siempre; salió de este archivo
+ * por el trinquete de tamaño, no por un cambio de contrato.
  */
-export function replaceEditorProjection(
-  base: CadDocument | null | undefined,
-  projection: CadDocument,
-): CadDocument {
-  const projectionIds = new Set(projection.entities.map((entity) => entity.id));
-  const preserved = base
-    ? base.entities.filter((entity) =>
-        !projectionIds.has(entity.id)
-        && !["box", "station", "text", "connector"].includes(entity.type)
-        && (entity.type !== "dimension" || !!entity.dimensionKind)
-        && (entity.type !== "circle" || !entity.legacy),
-      )
-    : [];
-
-  /**
-   * La proyección del editor es una vista PARCIAL: no modela `context`, donde
-   * viven el color/tipo de línea/grosor explícitos, la cota, el `handle` del
-   * DXF de origen y la procedencia de lo importado. Como los tipos `box`,
-   * `station`, `text` y `connector` se reemplazan en bloque desde ella, todo
-   * eso se perdía en CADA guardado del estudio moderno: el muro al que alguien
-   * puso un color dejaba de tenerlo, y lo importado perdía su trazabilidad.
-   *
-   * Lo que la proyección no sabe expresar no puede destruirlo. Si trae su
-   * propio `context` manda ella; si no, se conserva el del documento base.
-   */
-  const baseById = new Map((base?.entities ?? []).map((entity) => [entity.id, entity]));
-  const projected = projection.entities.map((entity) => {
-    const previous = baseById.get(entity.id);
-    if (!previous) return entity;
-    let carried = entity;
-    if (carried.context === undefined && previous.context !== undefined)
-      carried = { ...carried, context: structuredClone(previous.context) } as CadEntity;
-    /**
-     * Y los otros dos huecos de la misma vista parcial:
-     *
-     *   · `text` declara `style`, `height` y `rotation`, que no son decorativos
-     *     —la altura ES el tamaño del texto en el dibujo y la rotación la puso
-     *     el usuario— y `CadEditorAnnotation` no los lleva.
-     *   · `connector` declara `layer`, pero `layoutToCadDocument` escribe
-     *     `"Flow"` LITERAL: la capa del conector no es que se perdiese al
-     *     guardar, es que nunca se leía.
-     *
-     * Mismo criterio que arriba: si la proyección lo trae manda ella, y si no
-     * se conserva lo del base. El acarreo es POR ENTIDAD, así que una entidad
-     * nueva nunca hereda de otra.
-     */
-    if (carried.type === "text" && previous.type === "text") {
-      const style = carried.style ?? previous.style;
-      const height = carried.height ?? previous.height;
-      const rotation = carried.rotation ?? previous.rotation;
-      if (
-        style !== carried.style ||
-        height !== carried.height ||
-        rotation !== carried.rotation
-      )
-        carried = {
-          ...carried,
-          ...(style === undefined ? {} : { style }),
-          ...(height === undefined ? {} : { height }),
-          ...(rotation === undefined ? {} : { rotation }),
-        };
-    } else if (
-      carried.type === "connector" &&
-      previous.type === "connector" &&
-      carried.layer === CONNECTOR_LAYER &&
-      previous.layer !== CONNECTOR_LAYER
-    ) {
-      // `CONNECTOR_LAYER` es el valor que el adaptador impone cuando no sabe
-      // nada, así que verlo en la proyección significa "no lo sé", no "quiero
-      // esta capa". Sólo entonces se conserva la del documento.
-      carried = { ...carried, layer: previous.layer };
-    }
-    return carried;
-  });
-  const entities = [...projected, ...preserved].sort(byId);
-  const current = base ? migrateCadDocument(base) : projection;
-  return {
-    ...current,
-    /**
-     * `meta` se reconstruye desde el documento BASE, así que todo lo que la
-     * proyección quiera cambiar tiene que pasar por aquí explícitamente. Antes
-     * sólo pasaba `unit`, y la huella del documento cargado se reimponía sobre
-     * cualquier cambio de tamaño de planta o de rejilla — que es contenido que
-     * el usuario compuso, no una preferencia de vista.
-     *
-     * Asimétrico a propósito: si la proyección NO trae huella, se conserva la
-     * del documento. Lo que la proyección no sabe expresar no puede destruirlo.
-     */
-    meta: {
-      ...current.meta,
-      schema: CAD_DOCUMENT_SCHEMA,
-      unit: projection.meta.unit,
-      ...(projection.meta.footprintW === undefined
-        ? {}
-        : { footprintW: projection.meta.footprintW }),
-      ...(projection.meta.footprintH === undefined
-        ? {}
-        : { footprintH: projection.meta.footprintH }),
-      ...(projection.meta.gridSize === undefined
-        ? {}
-        : { gridSize: projection.meta.gridSize }),
-    },
-    layers: projection.layers.length ? projection.layers : current.layers,
-    entities,
-    // `entities` va ordenado por id para canonicalización; derivar el orden de
-    // dibujo de ahí lo alfabetizaba en CADA reproyección (tras editar una
-    // propiedad, transformar o mover un grip). Se conserva el z-order previo.
-    modelSpace: {
-      entityIds: preserveDrawOrder(
-        base?.modelSpace?.entityIds ?? [],
-        entities.map((entity) => entity.id),
-      ),
-    },
-  };
-}
+export { replaceEditorProjection } from "./cad-document-projection";

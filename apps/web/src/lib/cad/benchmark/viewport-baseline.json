@@ -1,0 +1,144 @@
+{
+  "$schema": "./viewport-baseline.schema.json",
+  "schemaVersion": 1,
+  "benchmarkId": "valle-design-cad-viewport-experience-v1",
+  "profiles": [
+    {
+      "id": "viewport-10k",
+      "entities": 10000,
+      "gate": {
+        "canonicalReadyMs": 4480,
+        "detailReadyMs": null,
+        "frameLatencyMs": 400,
+        "zoomReplanMs": null,
+        "zoomSettleMs": null,
+        "minDetailedFractionAtOpen": 1,
+        "minDetailedFractionAfterZoom": 0
+      },
+      "target": {
+        "canonicalReadyMs": 3000,
+        "detailReadyMs": null,
+        "frameLatencyMs": 33,
+        "zoomReplanMs": null,
+        "zoomSettleMs": null,
+        "minDetailedFractionAtOpen": 1,
+        "minDetailedFractionAfterZoom": 0
+      },
+      "targetBlockedBy": "Nadie: a 10k la fidelidad ya es 1,0 y sólo queda el tiempo de apertura.",
+      "calibration": {
+        "recordedAt": "2026-08-09T22:03:42Z",
+        "runs": 3,
+        "marginFactor": 1.6,
+        "environment": {
+          "playwrightProject": "chromium",
+          "mode": "E2E_PROD=1 (next start, mismo modo que CI)",
+          "platform": "linux",
+          "architecture": "x86_64",
+          "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+          "logicalCpuCount": 4,
+          "totalMemoryBytes": 16856068096,
+          "node": "v22.22.2",
+          "browser": "Chromium 141.0.7390.37 · ANGLE (SwiftShader, sin GPU)"
+        },
+        "observed": {
+          "canonicalReadyMs": [
+            2031,
+            2796,
+            2009
+          ],
+          "frameLatencyMs": [
+            17.7,
+            103.5,
+            17.4
+          ],
+          "detailedFractionAtOpen": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      },
+      "calibratedProjects": [
+        "chromium"
+      ]
+    },
+    {
+      "id": "viewport-100k",
+      "entities": 100000,
+      "gate": {
+        "canonicalReadyMs": 17200,
+        "detailReadyMs": 600000,
+        "frameLatencyMs": 400,
+        "zoomReplanMs": 260000,
+        "zoomSettleMs": 520000,
+        "minDetailedFractionAtOpen": 1,
+        "minDetailedFractionAfterZoom": 1
+      },
+      "target": {
+        "canonicalReadyMs": 5000,
+        "detailReadyMs": 8000,
+        "frameLatencyMs": 33,
+        "zoomReplanMs": 150,
+        "zoomSettleMs": 1000,
+        "minDetailedFractionAtOpen": 1,
+        "minDetailedFractionAfterZoom": 1
+      },
+      "targetBlockedBy": "El rasterizador POR SOFTWARE del runner. La fidelidad ya está en su objetivo —1,0 al abrir y tras el zoom, que es lo que este perfil declaraba bloqueado por T1 y quedó desbloqueado al enchufar lib/cad/render/ al editor—, así que lo que queda es tiempo puro de DIBUJO: pintar 100.000 entidades por ANGLE/SwiftShader sin GPU. Ni este spec ni el benchmark de Node miden la máquina del usuario, que sí tiene GPU, y eso sigue sin medirse. Lo segundo que queda es de lib/cad/render/: al cambiar de escalón de LOD el pipeline libera los tiles residentes y los reconstruye, y por eso el zoom cuesta más que la carga inicial.",
+      "calibration": {
+        "recordedAt": "2026-08-10T18:45:00Z",
+        "runs": 3,
+        "marginFactor": 1.6,
+        "environment": {
+          "playwrightProject": "chromium",
+          "mode": "E2E_PROD=1 (next start, mismo modo que CI)",
+          "platform": "linux",
+          "architecture": "x86_64",
+          "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+          "logicalCpuCount": 4,
+          "totalMemoryBytes": 16856068096,
+          "node": "v22.22.2",
+          "browser": "Chromium 141.0.7390.37 · ANGLE (SwiftShader, sin GPU)",
+          "note": "Recalibrado con el pipeline por lotes ENCENDIDO (cadRenderPipeline=batched, el defecto desde el PR #75). Las corridas anteriores median el camino con muestreo: 2.500 de 100.000."
+        },
+        "observed": {
+          "canonicalReadyMs": [
+            5700,
+            9992,
+            9418
+          ],
+          "detailReadyMs": [
+            296500,
+            293400,
+            369997
+          ],
+          "frameLatencyMs": [
+            4.9,
+            4.8,
+            4.7
+          ],
+          "zoomReplanMs": [
+            161095
+          ],
+          "zoomSettleMs": [
+            187900,
+            222800,
+            316679
+          ],
+          "detailedFractionAtOpen": [
+            1,
+            1,
+            1
+          ],
+          "detailedFractionAfterZoom": [
+            1,
+            1,
+            1
+          ]
+        }
+      },
+      "calibratedProjects": [
+        "chromium"
+      ]
+    }
+  ]
+}

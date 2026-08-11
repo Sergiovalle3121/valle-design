@@ -39,6 +39,8 @@ attribute vec2 instanceStyle;
 uniform float cadScale;
 uniform vec2 cadCenter;
 uniform float cadElevation;
+uniform float cadDepthBias;
+uniform float cadDepthScale;
 
 varying vec2 vUv;
 varying vec3 vColor;
@@ -58,7 +60,9 @@ void main() {
     (world.y - cadCenter.y) * cadScale
   );
   gl_Position = projectionMatrix * modelViewMatrix * vec4(scenePosition, 1.0);
-  gl_Position.z = instanceStyle.y * gl_Position.w;
+  // Misma lámina de profundidad que los lotes de líneas: el texto tiene que
+  // ordenarse CON la geometría, no contra ella.
+  gl_Position.z = (cadDepthBias + instanceStyle.y * cadDepthScale) * gl_Position.w;
   // La V se invierte porque el canvas crece hacia abajo y la textura hacia
   // arriba: sin esto todos los rótulos salen del revés.
   vUv = vec2(
@@ -89,6 +93,8 @@ export interface CadTextAtlasUniforms {
   cadScale: { value: number };
   cadCenter: { value: THREE.Vector2 };
   cadElevation: { value: number };
+  cadDepthBias: { value: number };
+  cadDepthScale: { value: number };
   cadAtlas: { value: THREE.Texture | null };
   cadAlphaCutoff: { value: number };
   [uniform: string]: { value: unknown };
@@ -208,6 +214,8 @@ export function createCadTextAtlasMaterial(options: {
   viewport: CadThreeViewport;
   texture: THREE.Texture | null;
   alphaCutoff?: number;
+  depthBias?: number;
+  depthScale?: number;
 }): { material: THREE.ShaderMaterial; uniforms: CadTextAtlasUniforms } {
   const uniforms: CadTextAtlasUniforms = {
     cadScale: { value: options.viewport.scale },
@@ -215,6 +223,8 @@ export function createCadTextAtlasMaterial(options: {
       value: new THREE.Vector2(options.viewport.width / 2, options.viewport.height / 2),
     },
     cadElevation: { value: (options.viewport.elevation ?? 0.11) + 0.005 },
+    cadDepthBias: { value: options.depthBias ?? 0 },
+    cadDepthScale: { value: options.depthScale ?? 1 },
     cadAtlas: { value: options.texture },
     cadAlphaCutoff: { value: options.alphaCutoff ?? 0.45 },
   };

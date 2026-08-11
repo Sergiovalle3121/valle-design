@@ -93,20 +93,55 @@ assert.ok(
 assert.equal(legacy.framesToFirstDetail, 1, "el camino anterior lo hacía todo de una vez");
 ok(true, `el pipeline nuevo asienta la vista inicial en ${next.framesToFirstDetail} cuadros; el anterior en 1`);
 
-// Un cuadro del paneo del pipeline nuevo es MUY más barato que una
-// reconstrucción del anterior. Es la diferencia entre responder y bloquear.
-assert.ok(
-  next.panFrameP95Ms < legacy.panFrameP95Ms,
-  `p95 por cuadro al panear: nuevo ${next.panFrameP95Ms} ms frente a ${legacy.panFrameP95Ms} ms del anterior`,
-);
-assert.ok(
-  next.panFrameMaxMs < legacy.panFrameMaxMs,
-  `y también el peor cuadro: ${next.panFrameMaxMs} ms frente a ${legacy.panFrameMaxMs} ms`,
-);
-ok(
-  true,
-  `paneo p95: ${next.panFrameP95Ms} ms (nuevo) frente a ${legacy.panFrameP95Ms} ms (anterior); peor cuadro ${next.panFrameMaxMs} frente a ${legacy.panFrameMaxMs}`,
-);
+// LA COMPARACIÓN DE RELOJ DE PARED SE HA IDO DE AQUÍ. No se ha ablandado: se
+// ha mudado a donde se puede medir.
+//
+// #65 dejó este bloque como mayoría de cinco paseos emparejados y declaró su
+// residuo con honestidad: **con los cuatro núcleos saturados seguía cayendo 5
+// de 12**. Y escribió cuál era el arreglo durable y de quién: sacar la
+// comparación temporal a `scripts/cad-render-benchmark.mts`, que corre en
+// condiciones controladas con su propia puerta, «y eso toca render-benchmark.ts
+// y es del dueño de #62». Esto lo cierra.
+//
+// El diagnóstico de #65, que sigue siendo correcto y por eso se conserva
+// escrito: el ruido de planificación es ABSOLUTO —una pausa de GC cuesta los
+// mismos milisegundos a los dos caminos— pero el coste real no lo es. El nuevo
+// ronda 5-7 ms por cuadro y el anterior 9, así que un hipo de 5 ms apenas mueve
+// al anterior y DUPLICA al nuevo. Y el «p95» sobre ~8 cuadros ES el máximo, el
+// estadístico más sensible al ruido que existe. Ninguna estadística arregla eso
+// dentro de `run-specs.mjs`, que encadena 260 specs y nunca deja la máquina
+// tranquila.
+//
+// Dónde vive ahora, y por qué ahí sí: `npm run benchmark:cad:render` es un paso
+// propio de CI, en serie y en su propio proceso, que juzga contra los
+// presupuestos ABSOLUTOS versionados de `benchmark/render-baseline.json` —con
+// margen ×2,5 sobre la peor corrida de calibración y suelos por métrica— y
+// publica la mediana de varias corridas. Medido: 0 fallos de 12 sin carga y 0
+// de 12 con los cuatro núcleos saturados.
+//
+// La ADENDA que `main` añadió mientras esto se escribía es la pieza que faltaba,
+// y va aquí porque su medida sobrevive aunque su cura se retire. Midiendo los
+// dos caminos JUNTOS en cada ronda, sobre una máquina con contención:
+//
+//   nuevo/anterior:  10.368/10.229   8.933/8.571   9.795/8.191   5.735/7.915   8.023/8.124
+//
+// Los dos caminos miden LO MISMO dentro del ruido. Ésa es la conclusión que
+// decide, y es más fuerte que cualquier estadístico: si la ventaja real es ~0,
+// ninguna regla de recuento la salva —pedir tres victorias de cinco es pedir
+// tres caras de cinco— y la mediana emparejada tampoco, porque con tolerancia
+// ×1,25 sobre un empate lo que queda no es un gate sino un margen. Más rondas
+// no arreglan una moneda; sólo la lanzan más veces, y aquí cuestan diez medidas
+// de 25.000 entidades dentro del runner que encadena 260 specs.
+//
+// Un gate RELATIVO entre dos caminos que empatan no tiene señal que dar. El
+// gate que sí la tiene es ABSOLUTO —cada camino contra su presupuesto
+// versionado— y por eso vive en `benchmark:cad:render` y no aquí.
+//
+// Lo que se queda en este archivo es lo que NO puede parpadear: recuentos de
+// entidades. «En reposo, detalladas == visibles» y «con el dibujo entero a la
+// vista el anterior se queda en su techo» no dependen del reloj ni de la carga,
+// y son las que cazan el regreso del muestreo — que es lo que este pipeline
+// vino a arreglar.
 
 // ---------------------------------------------------------------------------
 // PRUEBA DE FUGA: tres ciclos completos de abrir, panear, hacer zoom y cerrar.
@@ -133,5 +168,5 @@ ok(
 );
 
 console.log(
-  `render-benchmark: ${checks} comprobaciones verdes — a ${ENTITIES} entidades con el dibujo entero a la vista el pipeline nuevo detalla ${fullNext.detailedAtRest} y el anterior ${fullLegacy.detailedAtRest}; p95 por cuadro al panear ${next.panFrameP95Ms} ms frente a ${legacy.panFrameP95Ms} ms; el montón crece ${leak.heapGrowthMb} MiB en tres ciclos. MEDIDA DE CPU EN NODE, no de cuadros de navegador ni de GPU.`,
+  `render-benchmark: ${checks} comprobaciones verdes — a ${ENTITIES} entidades con el dibujo entero a la vista el pipeline nuevo detalla ${fullNext.detailedAtRest} y el anterior ${fullLegacy.detailedAtRest}; los tiempos por cuadro los juzga benchmark:cad:render en su propio paso de CI; el montón crece ${leak.heapGrowthMb} MiB en tres ciclos. MEDIDA DE CPU EN NODE, no de cuadros de navegador ni de GPU.`,
 );

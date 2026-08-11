@@ -18,10 +18,25 @@ on:
     branches: [main]
   push:
     branches: [main]
+  # Alarma sobre `main` aunque nadie empuje: un fallo intermitente que sólo
+  # aparece 1 de cada N corridas no se ve en una foto, se ve en la serie.
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # SÓLO se cancelan las corridas de PR, donde el push siguiente sustituye al
+  # anterior sobre el MISMO código propuesto.
+  #
+  # En `main` cancelar era activamente dañino y es la razón de que este repo
+  # se quedara rojo sin que nadie lo viera: todos los merges comparten el ref
+  # `refs/heads/main`, así que cada fusión mataba la corrida de la fusión
+  # anterior. En la serie del 9 de agosto, CINCO commits consecutivos de `main`
+  # (792c0603, 99e867d3, 9abe5287, ccffc17c, bfbd26b9) terminaron en
+  # «cancelled»: nunca hubo veredicto sobre ellos. Cada commit de `main`
+  # merece el suyo, aunque llegue tarde.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   quality-gates:
@@ -106,11 +121,34 @@ jobs:
         working-directory: apps/api
         run: npm run lint:check
 
+      # ESLint necesita montón EXPLÍCITO, y no es un capricho: sobre `main`
+      # (e41f12d) este paso murió con `FATAL ERROR: Ineffective mark-compacts
+      # near heap limit — JavaScript heap out of memory`, exit 134, tras 91 s
+      # de GC dando vueltas. No falló ninguna regla: el linter se cayó.
+      #
+      # El límite por defecto de Node en el runner son ~2 GB, y medido sobre
+      # este árbol eslint necesita entre 1,5 y 2: revienta con 1024, 1280 y
+      # 1536 MB, y pasa con 2048. Es decir, el gate venía corriendo con margen
+      # CERO, y por eso el veredicto dependía de la suerte — #69 pasó su lint,
+      # este PR pasó el suyo, y la suma se cayó. Un linter que se muere no
+      # dice «hay un error»: deja de decir nada, que es peor.
+      #
+      # 4 GB da el doble de lo que hace falta en un runner de 16. Esto es un
+      # tope, no una cura: el coste viene del linteo con tipos sobre un
+      # monolito de 23k líneas (`Layout3DEditor.tsx`), y quien reduzca ese
+      # monolito recuperará también este margen.
       - name: Lint web
         working-directory: apps/web
-        # eslint + el grafo tipado de Next supera el heap predeterminado del
-        # runner. La cota sigue por debajo de la memoria disponible y aplica
-        # únicamente al proceso bloqueante de lint.
+        # Dos diagnósticos independientes llegaron aquí a la vez: el #80 midió
+        # que sobre `main` este paso moría con `JavaScript heap out of memory`
+        # (exit 134) y que eslint necesita entre 1,5 y 2 GB —revienta con 1536,
+        # pasa con 2048—, y esta rama observó lo mismo por su cuenta al lintar
+        # el grafo tipado de Next.
+        #
+        # Se conserva la cota MAYOR de las dos propuestas (6 GB frente a 4). Un
+        # `--max-old-space-size` es un techo, no una reserva: pasarse no cuesta
+        # nada en un runner de 16 GB, y quedarse corto deja el gate muerto sin
+        # que nadie lo vea, que es exactamente lo que pasó.
         env:
           NODE_OPTIONS: --max-old-space-size=6144
         run: npm run lint
@@ -123,6 +161,25 @@ jobs:
       - name: CAD deterministic corpus benchmark (10k + 100k, blocking)
         working-directory: apps/web
         run: npm run benchmark:cad:smoke -- --output ../../cad-benchmark-smoke.json
+
+      # Presupuesto de TIEMPO del pipeline de render, contra la línea base
+      # versionada de `render-baseline.json`.
+      #
+      # Vive AQUÍ y no en «Web specs (tsx)» por lo que demostró #65: el ruido de
+      # planificación es absoluto y el coste de este pipeline es pequeño, así
+      # que un hipo de 5 ms DUPLICA un número de 6 ms. Dentro del runner de
+      # specs —250 specs seguidos, máquina nunca tranquila— eso es un
+      # intermitente en la puerta de todo el mundo. Como paso propio, en serie y
+      # en su propio proceso, las condiciones son las mismas que las del
+      # benchmark de corpus de arriba, que lleva bloqueando desde siempre sin
+      # parpadear.
+      #
+      # El spec `render-gate.spec.ts` sigue en «Web specs», pero sólo con las
+      # INVARIANTES —recuentos de entidades, no milisegundos—, que es lo que
+      # caza el regreso del muestreo y no puede parpadear.
+      - name: CAD render pipeline budget (100k, blocking)
+        working-directory: apps/web
+        run: npm run benchmark:cad:render -- --repeat 3 --output ../../cad-benchmark-render.json
 
       - name: DWG deterministic smoke benchmark
         run: npm run benchmark:smoke --workspace=@valle-design/dwg-codec -- --output "$RUNNER_TEMP/dwg-benchmark-smoke.json"
@@ -146,6 +203,7 @@ jobs:
           path: |
             cad-benchmark-smoke.json
             cad-benchmark-scale.json
+            cad-benchmark-render.json
           retention-days: 90
 
       # Test de compatibilidad de contrato del SDK generado vs @valle-design/contracts.
@@ -279,12 +337,22 @@ jobs:
         # llvmpipe por GLX/EGL-X11. Chromium no se ve afectado.
         run: xvfb-run -a --server-args="-screen 0 1920x1080x24" npx playwright test
 
+      # `include-hidden-files` NO es cosmético: sin él este paso nunca subió
+      # nada. `.report` y `.test-results` empiezan por punto, y
+      # upload-artifact@v4 excluye los ocultos por defecto, así que las tres
+      # corridas rojas de `main` del 9 de agosto avisaron
+      # «No files were found with the provided path: apps/web/e2e/.report».
+      # El informe y las trazas —lo único que explica un fallo intermitente—
+      # se descartaban justo cuando hacían falta.
       - name: Upload Playwright report
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: playwright-report-${{ github.sha }}
-          path: apps/web/e2e/.report
+          path: |
+            apps/web/e2e/.report
+            apps/web/e2e/.test-results
+          include-hidden-files: true
           retention-days: 14
 
       - name: API log (diagnóstico)
