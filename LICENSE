@@ -1,22 +1,27 @@
-Valle Design — Proprietary Software License
+Valle Design — Proprietary Software — No License Granted
 Copyright (c) 2026 Sergio Valle Zárate. All Rights Reserved.
 
-This software, its source code, documentation, and associated assets (the
-"Software") are the proprietary and confidential property of Sergio Valle Zárate
-(the "Owner"). The Software is licensed, not sold.
+Valle Design, its first-party source code, documentation, and associated assets
+(the "Software") are proprietary works owned by Sergio Valle Zárate (the
+"Owner"), subject to any written assignment or entity-transfer instrument later
+executed by the Owner.
 
-No part of the Software may be copied, reproduced, modified, merged, published,
-distributed, sublicensed, sold, or used to create derivative works, in whole or
-in part, by any person or entity without the prior express written permission of
-the Owner.
+THIS IS NOT AN OPEN-SOURCE LICENSE. Access to a private repository, source file,
+build artifact, or development discussion does not grant permission to use the
+Software. Earlier public visibility likewise granted no right. No license or
+other right is granted by access, inspection, cloning, downloading, submission
+of an issue or pull request, or any other act unless the Owner expressly agrees
+otherwise in a separate signed writing.
 
-Access to this repository does not grant any license or right to use the
-Software beyond what has been expressly agreed in writing with the Owner.
-Any evaluation, pilot, or commercial use requires a separate written agreement.
+Without that prior written permission, no person or entity may copy, reproduce,
+modify, merge, publish, distribute, sublicense, sell, commercialize, make
+derivative works from, or otherwise use the Software, in whole or in part.
+Evaluation, pilot, production, SDK, hosted-service, and commercial use each
+require terms expressly authorized by the Owner.
 
-Unauthorized use, reproduction, or distribution of the Software, or any portion
-of it, may result in civil and criminal penalties, and will be prosecuted to the
-maximum extent permitted by law.
+The repository and materials supplied privately or expressly marked
+confidential must also be handled under the applicable confidentiality terms.
+The current confidential proprietary notice is stated in NOTICE.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
@@ -25,5 +30,6 @@ LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF
 CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-Third-party open-source components incorporated by the Software are licensed
-under their own respective terms; see THIRD_PARTY_NOTICES.md.
+Third-party components remain governed by their own terms and are not claimed
+as first-party Valle Design works. See THIRD_PARTY_NOTICES.md and the SBOM of the
+exact build.

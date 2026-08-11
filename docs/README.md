@@ -2,7 +2,7 @@
 
 La verdad operativa actual está en los documentos raíz (`README.md`,
 `ARCHITECTURE.md`, `PRODUCT.md`, `SECURITY.md`, `DEPLOYMENT.md`, `RUNBOOK.md`,
-`AGENTS.md`), los ADR, `guides/` y la matriz `competitive/`.
+`AGENTS.md`), `governance/`, los ADR, `guides/` y la matriz `competitive/`.
 
 `execution/`, `product-split/`, `cleanup/` y parte de `cad/` son bitácoras
 históricas preservadas para trazabilidad de decisiones y PR. Describen cortes

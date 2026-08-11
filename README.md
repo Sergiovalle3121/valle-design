@@ -1,5 +1,12 @@
 # Valle Design
 
+> [!IMPORTANT]
+> Este repositorio es privado y confidencial. Valle Design es software
+> propietario, comercial y cerrado. No se concede una licencia open source ni
+> permiso de uso por el acceso al código. Consulte
+> [NOTICE](NOTICE), [LICENSE](LICENSE) y la
+> [política de contribuciones](docs/governance/PROPRIETARY_CONTRIBUTIONS.md).
+
 Valle Design es un **sistema de diseño arquitectónico 2D** que corre en el
 navegador. Es el dominio de AutoCAD (Autodesk): dibujo de precisión con capas,
 bloques, cotas asociativas, referencias a objeto, espacio papel e intercambio

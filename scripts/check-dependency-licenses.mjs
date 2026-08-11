@@ -3,10 +3,10 @@
  * GATE DE LICENCIAS DE DEPENDENCIAS.
  *
  * El producto propietario se distribuye como `UNLICENSED`. Eso sólo es
- * sostenible si TODA dependencia de producción tiene una licencia permisiva:
- * una sola dependencia copyleft fuerte en el árbol de runtime cambia las
- * obligaciones de distribución del binario entero, y ese descubrimiento no se
- * puede hacer durante una negociación con un cliente.
+ * sostenible si TODA dependencia de runtime y desarrollo está inventariada y
+ * tiene términos conocidos. Una sola dependencia incompatible en el árbol que
+ * se distribuye cambia obligaciones; una herramienta de desarrollo desconocida
+ * también es un riesgo de procedencia que no se difiere hasta una negociación.
  *
  * Política (fuente única):
  *   • PERMITIDAS: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD,
@@ -19,7 +19,7 @@
  *     del alcance del archivo modificado; borrarlas por reflejo sería tan
  *     irresponsable como ignorarlas. Se listan para decisión humana.
  *
- * Fuente de datos: el SBOM CycloneDX generado con `npm run sbom` (sin dev).
+ * Fuente de datos: el SBOM CycloneDX completo generado con `npm run sbom`.
  *
  * Uso: node scripts/check-dependency-licenses.mjs [--json]
  *      exit 1 si hay licencias bloqueadas o desconocidas.
@@ -108,29 +108,23 @@ function purlName(purl) {
  * evidencia verificada; sin evidencia no hay excepción.
  */
 const VERIFIED_LICENSES = {
-  chainsaw: { license: 'MIT/X11', evidence: 'package.json "license": "MIT/X11"' },
-  'passport-strategy': {
+  busboy: {
+    version: '1.6.0',
     license: 'MIT',
     evidence: 'package.json licenses[0].type = MIT + archivo LICENSE',
   },
   rgbcolor: {
+    version: '1.0.1',
     license: 'MIT',
-    evidence: 'package.json "license": "MIT OR SEE LICENSE IN FEEL-FREE.md" + LICENSE.md',
+    evidence:
+      'package.json "license": "MIT OR SEE LICENSE IN FEEL-FREE.md" + LICENSE.md',
   },
-  traverse: { license: 'MIT', evidence: 'package.json "license": "MIT" + archivo LICENSE' },
-  'xmlhttprequest-ssl': {
+  streamsearch: {
+    version: '1.1.0',
     license: 'MIT',
     evidence: 'package.json licenses[0].type = MIT + archivo LICENSE',
   },
 };
-
-/**
- * Paquetes SIN licencia declarada en ninguna parte. NO se aprueban: quedan
- * listados como deuda legal explícita para decisión del owner, porque afirmar
- * que están limpios sin evidencia sería exactamente el tipo de suposición que
- * este gate existe para impedir.
- */
-const UNDECLARED_DEBT = ['buffers', 'pause'];
 
 /** Familias que exigen revisión legal antes de aceptar o retirar. */
 const REVIEW_PREFIXES = ['LGPL', 'MPL', 'EPL', 'CDDL'];
@@ -172,21 +166,22 @@ function classify(expression) {
   // desinstalar paquetes perfectamente utilizables.
   const alternatives = normalized.split(/\s+OR\s+/i);
   const takeable = alternatives.some((alt) =>
-    alt
-      .split(/\s+AND\s+/i)
-      .every((id) => ALLOWED.has(id.trim())),
+    alt.split(/\s+AND\s+/i).every((id) => ALLOWED.has(id.trim())),
   );
   if (takeable) return 'allowed';
 
   if (REVIEW_PREFIXES.some((p) => upper.includes(p))) return 'review';
-  if (BLOCKED_PREFIXES.some((p) => upper.includes(p.toUpperCase()))) return 'blocked';
+  if (BLOCKED_PREFIXES.some((p) => upper.includes(p.toUpperCase())))
+    return 'blocked';
 
   return 'unknown';
 }
 
 /** Nombre corto del paquete a partir de su purl. */
 function packageName(purl) {
-  const match = /^pkg:npm\/(?:(%40[^%]+)%2F|@[^/]+\/)?([^@]+)@/.exec(purl ?? '');
+  const match = /^pkg:npm\/(?:(%40[^%]+)%2F|@[^/]+\/)?([^@]+)@/.exec(
+    purl ?? '',
+  );
   return match ? decodeURIComponent(match[2]) : '';
 }
 
@@ -195,23 +190,17 @@ const buckets = { allowed: [], review: [], blocked: [], unknown: [] };
 for (const component of components) {
   const name = component.purl ?? `${component.name}@${component.version}`;
   // Producto propietario, no dependencia de tercero.
-  if (FIRST_PARTY.has(purlName(name)) || FIRST_PARTY.has(component.name)) continue;
+  if (FIRST_PARTY.has(purlName(name)) || FIRST_PARTY.has(component.name))
+    continue;
   const short = packageName(name) || component.name;
   const expressions = licensesOf(component);
 
   if (expressions.length === 0) {
     const verified = VERIFIED_LICENSES[short];
-    if (verified) {
+    if (verified?.version === component.version) {
       buckets.allowed.push({
         name,
         license: `${verified.license} (verificado en disco: ${verified.evidence})`,
-      });
-      continue;
-    }
-    if (UNDECLARED_DEBT.includes(short)) {
-      buckets.review.push({
-        name,
-        license: '(sin licencia declarada) — deuda legal pendiente de decisión del owner',
       });
       continue;
     }
@@ -233,7 +222,9 @@ for (const component of components) {
 if (process.argv.includes('--json')) {
   console.log(JSON.stringify(buckets, null, 2));
 } else {
-  console.log(`Dependencias de producción analizadas: ${components.length}`);
+  console.log(
+    `Dependencias de runtime y desarrollo analizadas: ${components.length}`,
+  );
   console.log(`  permitidas:      ${buckets.allowed.length}`);
   console.log(`  revisión legal:  ${buckets.review.length}`);
   console.log(`  bloqueadas:      ${buckets.blocked.length}`);
@@ -248,13 +239,24 @@ if (process.argv.includes('--json')) {
   // bucket equivocado.
   if (buckets.blocked.length) {
     console.log('\n🚫 Licencias bloqueadas para un producto propietario:');
-    for (const c of buckets.blocked) console.log(`  · ${c.name} — ${c.license}`);
+    for (const c of buckets.blocked)
+      console.log(`  · ${c.name} — ${c.license}`);
   }
   if (buckets.unknown.length) {
     console.log('\n🚫 Licencias desconocidas (se tratan como bloqueadas):');
-    for (const c of buckets.unknown) console.log(`  · ${c.name} — ${c.license}`);
+    for (const c of buckets.unknown)
+      console.log(`  · ${c.name} — ${c.license}`);
   }
 }
 
 if (buckets.blocked.length || buckets.unknown.length) process.exit(1);
-console.log('\n✅ Todas las dependencias de producción usan licencias permitidas.');
+if (buckets.review.length) {
+  console.log(
+    '\n✅ Inventario completo, sin licencias bloqueadas ni desconocidas. ' +
+      'Las entradas de revisión permanecen visibles para decisión humana.',
+  );
+} else {
+  console.log(
+    '\n✅ Todas las dependencias inventariadas usan licencias permitidas.',
+  );
+}

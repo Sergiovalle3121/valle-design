@@ -1,0 +1,14 @@
+# Sergio Valle Zárate es el único titular y contribuidor humano actual.
+# CODEOWNERS conserva su control sobre cada cambio aunque, mientras no exista
+# otro contribuidor, GitHub no pueda exigir una autoaprobación del autor.
+* @Sergiovalle3121
+
+# Superficies sensibles que siempre requieren revisión del titular.
+/.github/ @Sergiovalle3121
+/LICENSE @Sergiovalle3121
+/NOTICE @Sergiovalle3121
+/CONTRIBUTING.md @Sergiovalle3121
+/docs/governance/ @Sergiovalle3121
+/packages/dwg-codec/ @Sergiovalle3121
+/scripts/check-dependency-licenses.mjs @Sergiovalle3121
+/scripts/check-proprietary-governance.mjs @Sergiovalle3121
