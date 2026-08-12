@@ -130,6 +130,62 @@ function assertImageDefinitions(document: PersistedCadDocument): void {
 }
 
 /**
+ * Referencias de RESTRICCIONES y PARÁMETROS.
+ *
+ * Borrar una entidad sin retirar sus restricciones dejaba referencias
+ * colgantes que el solver sólo podía reportar como issue y que la frontera
+ * persistía sin protesta. El cliente actual las retira en la MISMA transacción
+ * del borrado y sanea documentos heredados al abrirlos; aquí se rechaza el
+ * resto: una restricción que apunta a una entidad inexistente es la misma
+ * clase de corrupción que un draw order huérfano.
+ */
+function assertConstraintReferences(
+  document: PersistedCadDocument,
+  entityIds: Set<string>,
+): void {
+  const constraints = document.constraints;
+  if (!Array.isArray(constraints)) return;
+  const parameterNames = new Set<string>();
+  if (Array.isArray(document.parameters)) {
+    for (const raw of document.parameters) {
+      const name = stringValue(objectValue(raw)?.name).trim();
+      if (name) parameterNames.add(name);
+    }
+  }
+  for (const raw of constraints) {
+    const constraint = objectValue(raw);
+    const id = stringValue(constraint?.id) || '(sin id)';
+    const referenced = constraint?.entityIds;
+    if (!Array.isArray(referenced) || referenced.length === 0) {
+      throw new BadRequestException(
+        `CadDocument: la restricción ${id} necesita entityIds no vacíos.`,
+      );
+    }
+    for (const target of referenced) {
+      if (typeof target !== 'string' || !entityIds.has(target)) {
+        throw new BadRequestException(
+          `CadDocument: la restricción ${id} referencia la entidad inexistente ${
+            typeof target === 'string' && target ? target : '(inválida)'
+          }.`,
+        );
+      }
+    }
+    const parameter = constraint?.parameter;
+    if (parameter !== undefined && parameter !== null) {
+      if (typeof parameter !== 'string' || !parameterNames.has(parameter)) {
+        throw new BadRequestException(
+          `CadDocument: la restricción ${id} referencia el parámetro inexistente ${
+            typeof parameter === 'string' && parameter
+              ? parameter
+              : '(inválido)'
+          }.`,
+        );
+      }
+    }
+  }
+}
+
+/**
  * Integridad REFERENCIAL.
  *
  * El orden de dibujo que apunta a entidades inexistentes, o un bloque que se
@@ -517,6 +573,7 @@ export function validateCadDocumentPayload(
     }
   }
   assertImageDefinitions(document);
+  assertConstraintReferences(document, ids);
   assertReferentialIntegrity(document, ids);
   const text = JSON.stringify(document);
   if (Buffer.byteLength(text, 'utf8') > maxBytes) {

@@ -312,6 +312,47 @@ function schema3Document(): Record<string, unknown> {
   );
 }
 
+// --- saneado de restricciones colgantes al abrir ------------------------------
+// Documentos guardados antes del GC transaccional podían traer restricciones
+// que apuntan a entidades borradas; ahora la frontera del servidor las rechaza
+// al guardar, así que ABRIR debe dejarlas fuera (con rastro en lossManifest)
+// para que ningún documento heredado quede inaccesible.
+{
+  const dirty = {
+    ...schema3Document(),
+    constraints: [
+      { id: "k-dangling", kind: "coincident", entityIds: ["l1", "ghost"], enabled: true },
+      { id: "k-alive", kind: "horizontal", entityIds: ["l1"], enabled: true },
+      { id: "k-param", kind: "distance", entityIds: ["l1"], value: 120, parameter: "borrado", enabled: true },
+    ],
+  };
+  const opened = migrateCadDocument(dirty);
+  assert.deepEqual(
+    opened.constraints.map((constraint) => constraint.id),
+    ["k-alive", "k-param"],
+    "la restricción con referencia colgante se retira al abrir",
+  );
+  assert.equal(
+    opened.constraints.find((constraint) => constraint.id === "k-param")?.parameter,
+    undefined,
+    "el parámetro inexistente se desengancha y la cota conserva su último valor",
+  );
+  assert.equal(
+    opened.constraints.find((constraint) => constraint.id === "k-param")?.value,
+    120,
+  );
+  assert.ok(
+    opened.lossManifest.some(
+      (entry) => entry.code === "constraint_dangling_reference_dropped" && entry.entityId === "k-dangling",
+    ),
+    "descartar una restricción es pérdida y queda anotada",
+  );
+  // Idempotencia: un documento ya saneado pasa intacto.
+  const reopened = migrateCadDocument(opened);
+  assert.deepEqual(reopened.constraints, opened.constraints);
+  assert.equal(reopened.lossManifest.length, opened.lossManifest.length);
+}
+
 console.log(
   "migración v3→v5: esquema, huella, bulge, orden de dibujo y atributos verificados con anclas absolutas; " +
     "secciones opcionales siguen ausentes; ida y vuelta de POINT/XLINE/IMAGE confirmada; " +

@@ -414,6 +414,85 @@ describe('canonical document integrity (fail-closed)', () => {
     }
   });
 
+  /* ── Referencias de restricciones y parámetros ────────────────────────── */
+
+  describe('CONSTRAINTS', () => {
+    const constrained = (
+      constraints: Record<string, unknown>[],
+      extra: Record<string, unknown> = {},
+    ) => withEntities([line()], { constraints, ...extra });
+
+    it('acepta una restricción cuyas referencias existen', () => {
+      validateCadDocumentPayload(
+        constrained([
+          {
+            id: 'k1',
+            kind: 'horizontal',
+            entityIds: ['line-1'],
+            enabled: true,
+          },
+        ]),
+      );
+    });
+
+    it('rechaza una restricción que referencia una entidad inexistente', () => {
+      reject(
+        constrained([
+          {
+            id: 'k1',
+            kind: 'coincident',
+            entityIds: ['line-1', 'ghost'],
+            enabled: true,
+          },
+        ]),
+        /restricción k1 referencia la entidad inexistente ghost/,
+      );
+    });
+
+    it('rechaza una restricción sin entityIds', () => {
+      reject(
+        constrained([
+          { id: 'k1', kind: 'horizontal', entityIds: [], enabled: true },
+        ]),
+        /necesita entityIds no vacíos/,
+      );
+    });
+
+    it('rechaza una restricción cuyo parámetro no existe en el documento', () => {
+      reject(
+        constrained([
+          {
+            id: 'k1',
+            kind: 'distance',
+            entityIds: ['line-1'],
+            value: 100,
+            parameter: 'ancho',
+            enabled: true,
+          },
+        ]),
+        /restricción k1 referencia el parámetro inexistente ancho/,
+      );
+    });
+
+    it('acepta el parámetro cuando el documento SÍ lo declara', () => {
+      validateCadDocumentPayload(
+        constrained(
+          [
+            {
+              id: 'k1',
+              kind: 'distance',
+              entityIds: ['line-1'],
+              value: 100,
+              parameter: 'ancho',
+              enabled: true,
+            },
+          ],
+          { parameters: [{ name: 'ancho', expression: '100', value: 100 }] },
+        ),
+      );
+    });
+  });
+
   /* ── Sin contaminación del prototipo ──────────────────────────────────── */
 
   it('un `__proto__` en el payload no contamina Object.prototype', () => {
