@@ -112,8 +112,10 @@ test('neutral drawing uses units, layers, ABS/REL/POLAR, closed polyline and OFF
 
   await test.step('14. Aplicar offset', async () => {
     // La secuencia del MOTOR: OFFSET es command-first. La polilínea se designa
-    // con el pickbox sobre su arista inferior (2000,4000)→(4000,4000).
-    await page.getByTitle(/Vista superior/).click();
+    // con el pickbox sobre su arista inferior (2000,4000)→(4000,4000). El modo
+    // 2D bloquea la vista superior (mapa mundo↔pantalla afín por construcción),
+    // que es lo que `worldPoint` necesita para invertir la proyección.
+    await page.getByRole('button', { name: '2D', exact: true }).click();
     await page.getByTitle(/Ajustar a la planta/).click();
     await page.getByRole('button', { name: 'Offset', exact: true }).click();
     await applyDynamicInput(page, { offset: '250mm' });

@@ -22,13 +22,35 @@ export async function worldPoint(page: Page, target: { x: number; y: number }) {
     };
   };
   const screen = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-  const origin = await sample(screen.x, screen.y);
-  const horizontal = await sample(screen.x + 80, screen.y);
-  const vertical = await sample(screen.x, screen.y + 80);
-  const a = (horizontal.x - origin.x) / 80;
-  const b = (vertical.x - origin.x) / 80;
-  const c = (horizontal.y - origin.y) / 80;
-  const d = (vertical.y - origin.y) / 80;
+  // «Vista superior» ANIMA la cámara. Muestrear durante la transición invierte
+  // una afín que ya no existe al hacer clic: la designación cae al vacío y el
+  // fallo ni siquiera menciona la cámara. En planta ortográfica los términos
+  // cruzados (b, c) son ~0 respecto de la diagonal; se espera a que la
+  // transformación lo cumpla y a que sea ESTABLE entre dos muestreos.
+  let affine = { origin: { x: 0, y: 0 }, a: 1, b: 0, c: 0, d: 1 };
+  await expect
+    .poll(
+      async () => {
+        const origin = await sample(screen.x, screen.y);
+        const horizontal = await sample(screen.x + 80, screen.y);
+        const vertical = await sample(screen.x, screen.y + 80);
+        const a = (horizontal.x - origin.x) / 80;
+        const b = (vertical.x - origin.x) / 80;
+        const c = (horizontal.y - origin.y) / 80;
+        const d = (vertical.y - origin.y) / 80;
+        const diagonal = Math.max(Math.abs(a), Math.abs(d));
+        const cross = Math.max(Math.abs(b), Math.abs(c));
+        const settled =
+          diagonal > 1e-9 &&
+          cross < diagonal * 0.02 &&
+          Math.abs(a - affine.a) < Math.abs(a) * 0.01 + 1e-9;
+        affine = { origin, a, b, c, d };
+        return settled;
+      },
+      { message: "la vista no se asentó en planta ortográfica", timeout: 15_000 },
+    )
+    .toBe(true);
+  const { origin, a, b, c, d } = affine;
   const determinant = a * d - b * c;
   if (Math.abs(determinant) < 1e-9) throw new Error("CAD world/screen transform is singular");
   const wx = target.x - origin.x;
