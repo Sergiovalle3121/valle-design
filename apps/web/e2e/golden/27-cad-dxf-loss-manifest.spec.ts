@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
+import { saveAndSettle } from '../fixtures/cad-save';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
 import type { CadDocument } from '../../src/lib/cad/cad-document';
 
@@ -100,8 +101,7 @@ test('DXF import remains editable/exportable and persists an explicit loss manif
     await expect.poll(async () => Number(await centerX.inputValue())).toBe(before + 100);
   });
 
-  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
-  await expect.poll(() => backend.snapshot().version).toBe(1);
+  await saveAndSettle(page, backend);
 
   await test.step('45. Verificar loss manifest', async () => {
     expect(backend.snapshot().document.lossManifest).toEqual(expect.arrayContaining([
