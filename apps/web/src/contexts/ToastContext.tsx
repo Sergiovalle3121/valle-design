@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useCallback, useContext, useState } from 'react';
+import React, { createContext, useCallback, useContext, useRef, useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
@@ -30,17 +30,35 @@ const ToastCtx = createContext<ToastApi | null>(null);
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const reduce = useReducedMotion();
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  // Tarjetas visibles por contenido, con su temporizador. Dos caminos de código
+  // pueden anunciar EXACTAMENTE lo mismo casi a la vez (dos guardados en vuelo
+  // que reciben el mismo 409, por ejemplo): apilar dos tarjetas idénticas no
+  // informa dos veces, sólo duplica. La repetida renueva el temporizador.
+  const liveRef = useRef(new Map<string, { id: number; timer: ReturnType<typeof setTimeout> }>());
 
-  const remove = useCallback(
-    (id: number) => setToasts((t) => t.filter((x) => x.id !== id)),
-    [],
-  );
+  const remove = useCallback((id: number) => {
+    setToasts((t) => t.filter((x) => x.id !== id));
+    for (const [key, entry] of liveRef.current)
+      if (entry.id === id) {
+        clearTimeout(entry.timer);
+        liveRef.current.delete(key);
+      }
+  }, []);
 
   const show = useCallback(
     (message: string, opts?: { kind?: Kind; title?: string }) => {
+      const kind = opts?.kind ?? 'success';
+      const key = `${kind}·${opts?.title ?? ''}·${message}`;
+      const existing = liveRef.current.get(key);
+      if (existing) {
+        clearTimeout(existing.timer);
+        existing.timer = setTimeout(() => remove(existing.id), 3500);
+        return;
+      }
       const id = Date.now() + Math.random();
-      setToasts((t) => [...t, { id, kind: opts?.kind ?? 'success', title: opts?.title, message }]);
-      setTimeout(() => remove(id), 3500);
+      const timer = setTimeout(() => remove(id), 3500);
+      liveRef.current.set(key, { id, timer });
+      setToasts((t) => [...t, { id, kind, title: opts?.title, message }]);
     },
     [remove],
   );

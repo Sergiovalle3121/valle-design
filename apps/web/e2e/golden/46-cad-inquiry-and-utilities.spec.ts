@@ -68,6 +68,11 @@ test('consultar, configurar unidades, abrir paletas y crear una capa desde la l�
   context,
   page,
 }) => {
+  // El recorrido teclea DIST, AREA, LIST, UNITS, QSELECT y -LAYER seguidos: en
+  // un runner lento el total rebasa los 60 s por defecto (el run 31586424841
+  // midió 66 s y el `fill` de -LAYER murió con el reloj agotado). El reloj es
+  // una suposición sobre la máquina, no parte del contrato.
+  test.setTimeout(180_000);
   await installMockBackend(context);
   await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);

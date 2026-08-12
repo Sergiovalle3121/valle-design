@@ -14,6 +14,7 @@ import assert from "node:assert/strict";
 import { CadCommandEngineHost } from "@/components/cad/command-line/command-engine-host";
 import { CAD_COMMAND_REGISTRY_V2 } from "@/lib/cad/engine";
 import type { CadEntityCommand } from "@/lib/cad/entity-commands";
+import type { CadNativeEntity } from "@/lib/cad/entity-runtime";
 import type { CadPoint2 } from "@/lib/cad/cad-document";
 import type { CadPreviewPath } from "@/lib/cad/engine/command-types";
 import type { SnapType } from "@/lib/cad/snap-engine";
@@ -95,20 +96,27 @@ interface Harness {
   applied: CadEntityCommand[];
   /** Punto que devolverá la captura en la próxima designación. */
   snapTo: { point: CadPoint2; snap?: SnapType } | null;
+  /** Entidad que devolverá el hit-test en el próximo clic. */
+  hitTo: string | null;
   at(x: number, y: number): PointerEvent;
 }
 
 let entityCounter = 0;
 
-function harness(): Harness {
+function harness(entities: readonly CadNativeEntity[] = []): Harness {
   const applied: CadEntityCommand[] = [];
   const preview = new FakePreview();
   const cursor = new FakeCursor();
   let cursorPoint: CadPoint2 | null = null;
-  const state: { snapTo: { point: CadPoint2; snap?: SnapType } | null } = { snapTo: null };
+  const byId = new Map(entities.map((entity) => [entity.id, entity]));
+  const state: {
+    snapTo: { point: CadPoint2; snap?: SnapType } | null;
+    hitTo: string | null;
+  } = { snapTo: null, hitTo: null };
   const host = new CadCommandEngineHost(CAD_COMMAND_REGISTRY_V2, {
     context: () => ({
-      entityIds: [],
+      entityIds: [...byId.keys()],
+      entity: (entityId: string) => byId.get(entityId),
       selection: [],
       activeLayer: "0",
       view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
@@ -131,6 +139,7 @@ function harness(): Harness {
       y: (event as unknown as { worldY: number }).worldY,
     }),
     snap: (point) => state.snapTo ?? { point },
+    hitEntity: () => state.hitTo,
     setCursor: (point) => {
       cursorPoint = point;
     },
@@ -152,6 +161,12 @@ function harness(): Harness {
     set snapTo(value) {
       state.snapTo = value;
     },
+    get hitTo() {
+      return state.hitTo;
+    },
+    set hitTo(value) {
+      state.hitTo = value;
+    },
     at: (x, y) =>
       ({ worldX: x, worldY: y, clientX: x / 10, clientY: y / 10, button: 0 }) as
         unknown as PointerEvent,
@@ -163,8 +178,8 @@ function harness(): Harness {
 // ---------------------------------------------------------------------------
 assert.deepEqual(
   Object.keys(CAD_ENGINE_POINTER_COMMANDS).sort(),
-  ["circle", "line", "polyline", "rect"],
-  "las cuatro herramientas de DIBUJO van al motor",
+  ["circle", "copy", "line", "move", "offset", "polyline", "rect"],
+  "las cuatro de DIBUJO y las tres de MODIFICACIÓN van al motor",
 );
 for (const command of Object.values(CAD_ENGINE_POINTER_COMMANDS))
   assert.ok(
@@ -173,18 +188,9 @@ for (const command of Object.values(CAD_ENGINE_POINTER_COMMANDS))
   );
 assert.deepEqual(
   Object.keys(CAD_LEGACY_POINTER_TOOLS).sort(),
-  ["copy", "measure", "move", "offset", "select", "wall"],
+  ["measure", "select", "wall"],
   "y la lista blanca del camino viejo se puede leer entera",
 );
-// Las tres de modificación llevan su deuda ESCRITA, no implícita: enrutar «lo
-// que no conozco» al camino viejo por omisión es cómo se acumulan dos
-// productos sin que nadie lo haya decidido.
-for (const tool of ["move", "copy", "offset"] as const)
-  assert.match(
-    CAD_LEGACY_POINTER_TOOLS[tool],
-    /^PENDIENTE/,
-    `${tool} sigue en el camino viejo y tiene que decir por qué`,
-  );
 // La intersección vacía es la propiedad: ninguna herramienta va a los dos.
 for (const legacy of Object.keys(CAD_LEGACY_POINTER_TOOLS))
   assert.equal(
@@ -193,8 +199,11 @@ for (const legacy of Object.keys(CAD_LEGACY_POINTER_TOOLS))
     `${legacy} no puede estar además en el motor`,
   );
 assert.equal(cadEngineCommandForTool("line"), "LINE");
+assert.equal(cadEngineCommandForTool("move"), "MOVE");
+assert.equal(cadEngineCommandForTool("copy"), "COPY");
+assert.equal(cadEngineCommandForTool("offset"), "OFFSET");
 assert.equal(cadEngineCommandForTool("inventada"), null);
-ok(true, "enrutado explícito: 4 al motor, 6 al camino viejo con su motivo, cero solapes");
+ok(true, "enrutado explícito: 7 al motor, 3 al camino viejo con su motivo, cero solapes");
 
 // ---------------------------------------------------------------------------
 // 2. Sin comando activo el enrutador NO toca el puntero: es del camino viejo.
@@ -388,6 +397,65 @@ assert.equal(
 assert.equal(buttons.router.anchor, null, "y no fija ningún punto");
 ok(true, "sólo el botón primario designa");
 
+// ---------------------------------------------------------------------------
+// 8. DESIGNAR OBJETOS con el clic: el paso decide, no el enrutador.
+// ---------------------------------------------------------------------------
+const picking = harness();
+picking.router.invoke("MOVE");
+// «Designe objetos» NO acepta puntos: el clic al vacío no designa nada, y
+// sobre todo NO se cuela como punto base (el paso se lo tragaría).
+picking.router.click(picking.at(100, 100));
+assert.equal(picking.router.active, true, "el comando sigue esperando su objeto");
+assert.equal(picking.router.anchor, null, "y el clic al vacío no fijó ningún punto");
+picking.hitTo = "e-objetivo";
+picking.router.click(picking.at(100, 100));
+assert.equal(picking.router.anchor, null, "designar una entidad tampoco es un punto");
+picking.hitTo = null;
+// El paso siguiente acepta PUNTOS y no objetos: el MISMO clic vuelve a ser un
+// punto — el gate es del paso, no un modo pegajoso del enrutador.
+picking.router.click(picking.at(0, 0));
+assert.deepEqual(picking.router.anchor, { x: 0, y: 0 }, "el punto base entra como punto");
+picking.router.click(picking.at(500, 250));
+const displaced = picking.applied.find((command) => command.type === "transform");
+assert.ok(displaced, "MOVE con el ratón emite el transform canónico");
+assert.equal(picking.router.active, false, "y termina al segundo punto");
+ok(true, "entityPick por clic con fallback a punto gobernado por la máscara del paso");
+
+// ---------------------------------------------------------------------------
+// 9. Un pick que TERMINA el comando también pasa por afterDispatch.
+// ---------------------------------------------------------------------------
+const erasing = harness();
+erasing.router.invoke("ERASE");
+erasing.hitTo = "e9";
+erasing.router.click(erasing.at(50, 50));
+assert.deepEqual(
+  erasing.applied,
+  [{ type: "delete", entityId: "e9" }],
+  "designar la entidad la borra como comando canónico",
+);
+assert.equal(erasing.router.active, false, "el comando terminó");
+ok(erasing.cursor.hidden > 0, "y el cursor vivo se retiró, como tras un punto final");
+
+// ---------------------------------------------------------------------------
+// 10. OFFSET de punta a punta con el puntero: distancia → objeto → Enter.
+// ---------------------------------------------------------------------------
+const offsetting = harness([
+  { id: "muro", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 1_000, y: 0, z: 0 }, layer: "0" },
+]);
+offsetting.router.invoke("OFFSET");
+offsetting.host.submit("250");
+offsetting.hitTo = "muro";
+offsetting.router.click(offsetting.at(500, 0));
+assert.equal(offsetting.applied.length, 0, "designar no aplica todavía: OFFSET repite");
+offsetting.router.accept();
+assert.equal(
+  offsetting.applied.filter((command) => command.type === "insert").length,
+  1,
+  "Enter emite el lote con UN desfase",
+);
+assert.equal(offsetting.router.active, false);
+ok(true, "OFFSET entero con el puntero: distancia, objeto, Enter");
+
 console.log(
-  `pointer-router: ${checks} comprobaciones — enrutado explícito sin solapes (4 al motor, 3 pendientes declaradas), LINE con el ratón produce 3 comandos insert canónicos con Cerrar, banda elástica anclada al último punto, captura a objeto y entrada directa de distancia.`,
+  `pointer-router: ${checks} comprobaciones — enrutado explícito sin solapes, LINE con el ratón produce 3 comandos insert canónicos con Cerrar, banda elástica anclada al último punto, captura a objeto, entrada directa de distancia, y el clic designa ENTIDADES cuando el paso lo acepta (MOVE al vacío no fija puntos, ERASE termina al designar, OFFSET entero con el puntero).`,
 );

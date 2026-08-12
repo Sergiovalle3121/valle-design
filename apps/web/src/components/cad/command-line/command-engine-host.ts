@@ -28,6 +28,7 @@ import {
 import type {
   CadCommandContext,
   CadCommandSession,
+  CadInputMask,
   CadPreviewPath,
   CadPrompt,
   CadUiRequest,
@@ -244,6 +245,15 @@ export class CadCommandEngineHost {
 
   get busy(): boolean {
     return this.state.active !== null;
+  }
+
+  /**
+   * Máscara `CAD_ACCEPT_*` del paso activo; 0 en reposo. Es lo que permite al
+   * enrutador del puntero decidir si un clic es un PUNTO o una ENTIDAD sin
+   * conocer el comando: la pregunta es del paso, y el paso ya la responde.
+   */
+  get accepts(): CadInputMask {
+    return this.state.active?.step.accepts ?? 0;
   }
 
   /** Modos de captura pendientes; el editor los consulta al resolver el snap. */

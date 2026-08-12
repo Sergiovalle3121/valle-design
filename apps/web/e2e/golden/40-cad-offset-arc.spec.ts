@@ -21,6 +21,7 @@ import { installCadStudioBackend } from "../fixtures/cad-v1-backend";
 import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 import { saveAndSettle } from "../fixtures/cad-save";
 import { applyDynamicInput } from "../fixtures/dynamic-input";
+import { worldPoint } from "../fixtures/world-point";
 import type { CadDocument, CadEntity } from "../../src/lib/cad/cad-document";
 
 type CadArc = Extract<CadEntity, { type: "arc" }>;
@@ -84,8 +85,16 @@ test("OFFSET sobre un arco produce un arco concéntrico y lo persiste", async ({
   await page.getByTestId("cad-native-entity-muro-curvo").click();
   await expect(page.getByTestId("cad-native-properties")).toContainText("ARC");
 
+  // La secuencia del MOTOR: OFFSET es command-first — distancia, objeto, Enter.
+  // La selección previa ya no forma parte del comando; el arco se designa con
+  // el pickbox sobre su punto a 45° (4000+1000·cos45, 3000+1000·sin45).
+  await page.getByTitle(/Vista superior/).click();
+  await page.getByTitle(/Ajustar a la planta/).click();
   await page.getByRole("button", { name: "Offset", exact: true }).click();
   await applyDynamicInput(page, { offset: "250mm" });
+  const on = await worldPoint(page, { x: 4_707, y: 3_707 });
+  await page.mouse.click(on.x, on.y);
+  await page.keyboard.press("Enter");
 
   // Antes esto dejaba el toast «OFFSET sólo admite líneas, polilíneas y
   // círculos» y no creaba nada.

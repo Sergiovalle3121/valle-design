@@ -176,13 +176,61 @@ export function migrateLegacyMleaderCompositions(document: CadDocument): CadDocu
   };
 }
 
+/**
+ * Saneado idempotente de referencias colgantes en `constraints`.
+ *
+ * Documentos guardados antes del GC transaccional del borrado podían quedar
+ * con restricciones que apuntan a entidades inexistentes, y la frontera del
+ * servidor ahora las rechaza al GUARDAR. Sanear al ABRIR garantiza que ningún
+ * documento heredado quede inaccesible: abrir → sanear → guardar limpio. No
+ * es una migración de forma (no toca `meta.schema`), y un documento limpio
+ * pasa intacto, misma referencia incluida. La retirada queda anotada en el
+ * `lossManifest`: descartar una restricción es pérdida y debe verse.
+ */
+function dropDanglingConstraintReferences(document: CadDocument): CadDocument {
+  if (!document.constraints.length) return document;
+  const ids = new Set(document.entities.map((entity) => entity.id));
+  const parameterNames = new Set((document.parameters ?? []).map((parameter) => parameter.name));
+  const dropped: CadDocument["lossManifest"] = [];
+  let changed = false;
+  const constraints = document.constraints.flatMap((constraint) => {
+    if (!constraint.entityIds.every((id) => ids.has(id))) {
+      changed = true;
+      dropped.push({
+        code: "constraint_dangling_reference_dropped",
+        entityId: constraint.id,
+        sourceType: "CONSTRAINT",
+        detail: `Constraint ${constraint.id} referenced deleted entities and was removed on open.`,
+        severity: "warning",
+      });
+      return [];
+    }
+    if (constraint.parameter !== undefined && !parameterNames.has(constraint.parameter)) {
+      // El parámetro ya no existe; `value` conserva su última evaluación, así
+      // que la restricción sigue siendo válida como cota fija.
+      changed = true;
+      const { parameter: _dangling, ...rest } = constraint;
+      return [rest];
+    }
+    return [constraint];
+  });
+  if (!changed) return document;
+  return {
+    ...document,
+    constraints,
+    lossManifest: dropped.length ? [...document.lossManifest, ...dropped] : document.lossManifest,
+  };
+}
+
 /** Deterministic additive migration from v1/v2/v3 to the current schema. */
 export function migrateCadDocument(value: unknown): CadDocument {
   if (!value || typeof value !== "object") throw new Error("CadDocument must be an object.");
   const raw = value as Partial<CadDocument>;
   const schema = Number(raw.meta?.schema) || 1;
   if (schema > CAD_DOCUMENT_SCHEMA) throw new Error(`Unsupported CadDocument schema ${schema}.`);
-  const migrated = migrateLegacyMleaderCompositions(withSchemaDefaults(raw));
+  const migrated = dropDanglingConstraintReferences(
+    migrateLegacyMleaderCompositions(withSchemaDefaults(raw)),
+  );
   if (!finite(migrated)) throw new Error("CadDocument contains non-finite numeric values.");
   const ids = migrated.entities.map((entity) => entity.id);
   if (ids.some((id) => typeof id !== "string" || !id) || new Set(ids).size !== ids.length) {

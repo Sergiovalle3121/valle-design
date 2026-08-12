@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
+import { saveAndSettle } from '../fixtures/cad-save';
 import { migrateCadDocument, type CadDocument } from '../../src/lib/cad/cad-document';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
 
@@ -50,8 +51,7 @@ test('creates, edits, undoes, reloads and DXF round-trips semantic MTEXT', async
   await page.keyboard.press('Control+Shift+z');
   await expect(page.getByTestId('cad-native-property-text')).toHaveValue('Instrucción editada\nSegunda línea');
 
-  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
-  await expect.poll(() => backend.snapshot().version).toBe(1);
+  await saveAndSettle(page, backend);
   const stored = backend.snapshot().document.entities.find((entity) => entity.type === 'mtext');
   expect(stored?.type).toBe('mtext');
   if (stored?.type === 'mtext') {

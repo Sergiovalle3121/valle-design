@@ -567,7 +567,17 @@ export function executeCadEntityCommandBatch(
     ...document,
     entities: tables.entities,
     layers: tables.layers,
-    constraints: sections.constraints,
+    // GC transaccional de restricciones: borrar una entidad retira EN EL MISMO
+    // LOTE las restricciones que la referencien. Dejarlas era la única sección
+    // sin limpieza (draw order tiene `forget`, asociativos se regeneran) y
+    // producía referencias colgantes que el solver sólo podía reportar como
+    // issue y el servidor persistía. El undo restaura el checkpoint completo,
+    // restricciones incluidas, así que la retirada es reversible.
+    constraints: deleted.size
+      ? sections.constraints.filter(
+          (constraint) => !constraint.entityIds.some((id) => deleted.has(id)),
+        )
+      : sections.constraints,
     styles: applyStyleCommands(document.styles, styleCommands),
     paperSpaces: sections.paperSpaces,
     blocks: symbolTables.blocks,

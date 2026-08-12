@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
+import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
 
@@ -62,8 +63,7 @@ test('FILLET trims two LINE entities and persists a tangent semantic ARC atomica
   await page.getByTestId('cad-native-entity-list').getByRole('button').filter({ hasText: 'ARC' }).click();
   await expect(page.getByTestId('cad-native-properties')).toContainText('ARC');
 
-  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
-  await expect.poll(() => backend.snapshot().version).toBe(1);
+  await saveAndSettle(page, backend);
   const stored = backend.snapshot().document;
   const storedArc = stored.entities.find((entity): entity is CadArc => entity.type === 'arc');
   expect(storedArc).toBeDefined();

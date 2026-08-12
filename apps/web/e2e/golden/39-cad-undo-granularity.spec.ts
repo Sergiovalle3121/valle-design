@@ -24,7 +24,9 @@ import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { installMockBackend } from "../fixtures/mock-backend";
 import { installCadStudioBackend } from "../fixtures/cad-v1-backend";
 import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
-import type { CadDocument } from "../../src/lib/cad/cad-document";
+import { saveAndSettle } from "../fixtures/cad-save";
+import { worldPoint } from "../fixtures/world-point";
+import type { CadDocument, CadEntity } from "../../src/lib/cad/cad-document";
 
 const FOOTPRINT = {
   footprintW: 12_000,
@@ -181,6 +183,124 @@ test("enfocar un campo sin escribir NO deja una entrada de deshacer fantasma", a
     "sin escribir nada no hay nada que deshacer: enfocar no es editar",
   ).toBeDisabled();
   await expect(page.getByTestId("cad-save-status")).toHaveText("Guardado");
+});
+
+/** Polilínea NATIVA para los grips multifuncionales (ciclo con Espacio y menú). */
+function gripDocument(): CadDocument {
+  const base = canonicalDocument();
+  return {
+    ...base,
+    entities: [
+      {
+        id: "poli",
+        type: "polyline",
+        closed: false,
+        vertices: [
+          { x: 2_000, y: 2_000, z: 0 },
+          { x: 6_000, y: 2_000, z: 0 },
+          { x: 6_000, y: 6_000, z: 0 },
+        ],
+        layer: "PROCESO",
+      },
+    ],
+    modelSpace: { entityIds: ["poli"] },
+  };
+}
+
+type CadPolyline = Extract<CadEntity, { type: "polyline" }>;
+
+const storedVertices = (backend: { snapshot(): { document: CadDocument } }) =>
+  (
+    backend
+      .snapshot()
+      .document.entities.find((entity) => entity.id === "poli") as CadPolyline
+  ).vertices;
+
+test("un arrastre de grip con acción CICLADA es UN paso de deshacer", async ({
+  context,
+  page,
+}) => {
+  test.setTimeout(180_000);
+  await installMockBackend(context);
+  await loginAsStandaloneOwner(context);
+  const backend = await installCadStudioBackend<CadDocument>(
+    context,
+    gripDocument(),
+    FOOTPRINT,
+  );
+  await page.goto("/legacy/studio");
+  await expect(page.getByTestId("cad-save-status")).toHaveText("Guardado");
+  // Modo 2D: la vista superior queda bloqueada y el mapa mundo↔pantalla es
+  // afín por construcción — lo que `worldPoint` necesita para invertirlo.
+  await page.getByRole("button", { name: "2D", exact: true }).click();
+  await page.getByTitle(/Ajustar a la planta/).click();
+
+  await selectLayerObjects(page, "PROCESO");
+  await expect(undoButton(page)).toBeDisabled();
+
+  // Los dos puntos se calculan ANTES de pulsar: el muestreo del helper mueve
+  // el ratón para calibrar, y hacerlo con el botón pulsado arrastraría.
+  const grip = await worldPoint(page, { x: 6_000, y: 2_000 });
+  const destination = await worldPoint(page, { x: 7_000, y: 4_000 });
+  await page.mouse.move(grip.x, grip.y);
+  await page.mouse.down();
+  await page.mouse.move(grip.x + 12, grip.y + 12, { steps: 2 });
+  // Espacio cicla estirar → añadir vértice, sin soltar el ratón.
+  await page.keyboard.press("Space");
+  await expect(page.getByTestId("cad-grip-action-badge")).toHaveAttribute(
+    "data-action",
+    "add-vertex",
+  );
+  await page.mouse.move(destination.x, destination.y, { steps: 8 });
+  await page.mouse.up();
+
+  await expect(undoButton(page)).toBeEnabled();
+  await saveAndSettle(page, backend);
+  expect(storedVertices(backend)).toHaveLength(4);
+
+  // UN solo Ctrl+Z deshace el arrastre entero y deja la pila VACÍA.
+  await page.keyboard.press("Control+z");
+  await expect(undoButton(page), "un arrastre = un paso").toBeDisabled();
+  await saveAndSettle(page, backend);
+  expect(storedVertices(backend)).toHaveLength(3);
+});
+
+test("el grip caliente abre su menú y aplicar una acción deja su propio paso", async ({
+  context,
+  page,
+}) => {
+  test.setTimeout(180_000);
+  await installMockBackend(context);
+  await loginAsStandaloneOwner(context);
+  const backend = await installCadStudioBackend<CadDocument>(
+    context,
+    gripDocument(),
+    FOOTPRINT,
+  );
+  await page.goto("/legacy/studio");
+  await expect(page.getByTestId("cad-save-status")).toHaveText("Guardado");
+  await page.getByRole("button", { name: "2D", exact: true }).click();
+  await page.getByTitle(/Ajustar a la planta/).click();
+
+  await selectLayerObjects(page, "PROCESO");
+  const grip = await worldPoint(page, { x: 6_000, y: 2_000 });
+  // Clic SIN arrastre sobre el grip = grip caliente.
+  await page.mouse.move(grip.x, grip.y);
+  await page.mouse.down();
+  await page.mouse.up();
+
+  const menu = page.getByTestId("cad-grip-menu");
+  await expect(menu).toBeVisible();
+  await page.getByTestId("cad-grip-action-remove-vertex").click();
+
+  await expect(undoButton(page)).toBeEnabled();
+  await saveAndSettle(page, backend);
+  expect(storedVertices(backend)).toHaveLength(2);
+
+  await page.keyboard.press("Control+z");
+  await expect(undoButton(page)).toBeDisabled();
+  await saveAndSettle(page, backend);
+  expect(storedVertices(backend)).toHaveLength(3);
 });
 
 test("agrupar y desagrupar se pueden deshacer", async ({ context, page }) => {

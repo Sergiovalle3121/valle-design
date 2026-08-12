@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
+import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
 
@@ -77,8 +78,7 @@ test('associated DIMENSION follows source edits, survives undo/reload/DXF and re
   await page.keyboard.press('Control+Shift+z');
   await expect(page.getByTestId('cad-native-property-measurement')).toHaveValue('260');
 
-  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
-  await expect.poll(() => backend.snapshot().version).toBe(1);
+  const firstSavedVersion = await saveAndSettle(page, backend);
   const stored = backend.snapshot().document.entities.find((entity): entity is CadDimension => entity.type === 'dimension');
   expect(stored?.associationStatus).toBe('associated');
   expect(stored?.references).toEqual([
@@ -106,8 +106,8 @@ test('associated DIMENSION follows source edits, survives undo/reload/DXF and re
   await page.getByTestId('cad-native-delete').click();
   await page.getByTestId(/^cad-native-entity-dim_/).click();
   await expect(properties).toContainText('broken');
-  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
-  await expect.poll(() => backend.snapshot().version).toBe(2);
+  const secondSavedVersion = await saveAndSettle(page, backend);
+  expect(secondSavedVersion).toBeGreaterThan(firstSavedVersion);
   const broken = backend.snapshot().document.entities.find((entity): entity is CadDimension => entity.type === 'dimension');
   expect(broken?.associationStatus).toBe('broken');
 });

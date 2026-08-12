@@ -33,6 +33,10 @@ import type { SnapType } from "@/lib/cad/snap-engine";
 import type { CadCommandEngineHost } from "@/components/cad/command-line/command-engine-host";
 import type { CadKeyword } from "@/lib/cad/engine/command-types";
 import type { CadPreviewPath } from "@/lib/cad/engine/command-types";
+import {
+  CAD_ACCEPT_ENTITY_PICK,
+  CAD_ACCEPT_POINT,
+} from "@/lib/cad/engine/command-types";
 import type { CadLiveCursorField } from "./live-cursor";
 
 /**
@@ -74,24 +78,6 @@ export const CAD_LEGACY_POINTER_TOOLS = {
   measure: "medición ad-hoc, sin equivalente en el motor",
   /** Los muros son activos del editor, no entidades canónicas. */
   wall: "cadena de muros, que produce activos y no geometría CAD",
-  /**
-   * LAS TRES DE MODIFICACIÓN SIGUEN EN EL CAMINO VIEJO, Y ESTO ES DEUDA.
-   *
-   * MOVE, COPY y OFFSET SÍ existen en el motor, así que no están aquí por
-   * falta de comando: están porque su máquina de pasos NO es la misma que la
-   * de `cad-command.ts`. El motor pide designar objetos, punto base y destino
-   * como pasos con sus prompts; la máquina vieja los resolvía con dos puntos
-   * sobre la selección que ya hubiera, y OFFSET con una sola distancia. Migrar
-   * el ratón a los pasos del motor cambia la secuencia que el usuario teclea y
-   * la que fijan los goldens 33 y 40, y eso merece su propio cambio en vez de
-   * colarse dentro del que enciende el dibujo.
-   *
-   * Lo que sí se gana ya: dibujar —LINE, PLINE, RECTANG, CIRCLE— es el mismo
-   * motor con el ratón y con el teclado.
-   */
-  move: "PENDIENTE: MOVE existe en el motor pero con otra secuencia de pasos",
-  copy: "PENDIENTE: COPY existe en el motor pero con otra secuencia de pasos",
-  offset: "PENDIENTE: OFFSET existe en el motor pero pide objeto y lado",
 } as const;
 
 export type CadLegacyPointerTool = keyof typeof CAD_LEGACY_POINTER_TOOLS;
@@ -99,21 +85,28 @@ export type CadLegacyPointerTool = keyof typeof CAD_LEGACY_POINTER_TOOLS;
 /**
  * Herramienta de dibujo del editor → comando canónico del motor.
  *
- * Las cuatro de DIBUJO. Todas existen en `CAD_COMMAND_REGISTRY_V2` con más
- * opciones de las que la máquina vieja podía ofrecer: LINE acepta `Cerrar` y
- * `desHacer`, PLINE acepta arcos, CIRCLE acepta `3P`/`2P`/`Ttr`, RECTANG acepta
- * chaflán y empalme. Enrutarlas aquí es lo que hace que el ratón herede todo
- * eso — y que dibujar con el ratón y dibujar tecleando dejen de ser dos
- * productos distintos.
- *
- * Las tres de modificación se quedan fuera a propósito: ver
- * `CAD_LEGACY_POINTER_TOOLS`, donde está escrito por qué y qué falta.
+ * Las cuatro de DIBUJO existen en `CAD_COMMAND_REGISTRY_V2` con más opciones
+ * de las que la máquina vieja podía ofrecer: LINE acepta `Cerrar` y
+ * `desHacer`, PLINE acepta arcos, CIRCLE acepta `3P`/`2P`/`Ttr`, RECTANG
+ * acepta chaflán y empalme. Enrutarlas aquí es lo que hace que el ratón
+ * herede todo eso — y que dibujar con el ratón y dibujar tecleando dejen de
+ * ser dos productos distintos.
  */
 export const CAD_ENGINE_POINTER_COMMANDS = {
   line: "LINE",
   polyline: "PLINE",
   rect: "RECTANG",
   circle: "CIRCLE",
+  /**
+   * Las tres de MODIFICACIÓN, con la secuencia del MOTOR: MOVE y COPY usan la
+   * selección previa (o piden designar con el pickbox), COPY repite destinos
+   * hasta Enter, y OFFSET es command-first —distancia, objeto, Enter—. Los
+   * goldens 26, 33 y 40 fijan esa secuencia; la vieja, de dos puntos sobre la
+   * selección, se fue con esta entrada.
+   */
+  move: "MOVE",
+  copy: "COPY",
+  offset: "OFFSET",
 } as const;
 
 export type CadEnginePointerTool = keyof typeof CAD_ENGINE_POINTER_COMMANDS;
@@ -135,6 +128,12 @@ export interface CadEnginePointerBridge {
     point: CadPoint2,
     override: readonly SnapType[] | null,
   ): { point: CadPoint2; snap?: SnapType };
+  /**
+   * Entidad canónica bajo el punto, con la apertura del pickbox del editor.
+   * `null` si no hay ninguna. Sólo se consulta cuando el paso activo acepta
+   * ENTITY_PICK: designar objetos es del paso, no un modo del enrutador.
+   */
+  hitEntity(point: CadPoint2): string | null;
   /** Publica el cursor vivo; es lo que el contexto del motor devuelve. */
   setCursor(point: CadPoint2 | null): void;
   /** Coordenadas del evento relativas al lienzo, para colocar el DOM. */
@@ -236,7 +235,11 @@ export class CadEnginePointerRouter {
     if (!this.active) return false;
     const raw = this.bridge.worldPoint(event);
     if (!raw) return true;
-    const resolved = this.bridge.snap(raw, this.bridge.host.osnapOverride);
+    // En un paso que sólo designa objetos no hay captura que enseñar: la
+    // insignia de OSNAP mentiría sobre un punto que el clic no va a usar.
+    const resolved = picksEntityOnly(this.bridge.host.accepts)
+      ? { point: raw, snap: undefined }
+      : this.bridge.snap(raw, this.bridge.host.osnapOverride);
     this.lastPoint = resolved.point;
     this.lastSnap = resolved.snap ?? null;
     // Cursor vivo: DOM directo, sin React. Es lo único que corre por muestra.
@@ -279,6 +282,22 @@ export class CadEnginePointerRouter {
     if (event.button !== 0) return false;
     const raw = this.bridge.worldPoint(event);
     if (!raw) return true;
+    // El PASO decide qué es un clic. Si acepta designar un OBJETO y hay una
+    // entidad bajo el cursor, el clic es esa entidad, no el punto de debajo.
+    // Sin entidad, cae a punto sólo si el paso también acepta puntos; si sólo
+    // acepta objetos, el clic al vacío no designa nada — como en AutoCAD, y
+    // como exige MOVE, cuyo paso de designación se tragaría el punto como
+    // punto base si llegara hasta él.
+    const accepts = this.bridge.host.accepts;
+    if (accepts & CAD_ACCEPT_ENTITY_PICK) {
+      const hit = this.bridge.hitEntity(raw);
+      if (hit) {
+        this.bridge.host.pickEntity(hit, raw);
+        this.afterDispatch();
+        return true;
+      }
+      if (!(accepts & CAD_ACCEPT_POINT)) return true;
+    }
     const resolved = this.bridge.snap(raw, this.bridge.host.osnapOverride);
     this.commitPoint(resolved.point, resolved.snap);
     return true;
@@ -434,4 +453,11 @@ export class CadEnginePointerRouter {
 
 function normalizeDegrees(degrees: number): number {
   return ((degrees % 360) + 360) % 360;
+}
+
+/** El paso sólo designa OBJETOS: un clic al vacío no puede ser un punto. */
+function picksEntityOnly(accepts: number): boolean {
+  return (
+    (accepts & CAD_ACCEPT_ENTITY_PICK) !== 0 && (accepts & CAD_ACCEPT_POINT) === 0
+  );
 }

@@ -34,8 +34,13 @@ on:
     branches: [main]
   # Alarma sobre `main` aunque nadie empuje: un fallo intermitente que sólo
   # aparece 1 de cada N corridas no se ve en una foto, se ve en la serie.
-  schedule:
-    - cron: "17 5 * * *"
+  #
+  # 2026-08-12: cron SUSPENDIDO — cada corrida diaria costaba 60-90 min de
+  # runner y la cuota mensual está a punto de agotarse. La serie se puede
+  # producir bajo demanda con workflow_dispatch. Restaurar como semanal
+  # (`17 5 * * 1`) cuando la cuota renueve.
+  # schedule:
+  #   - cron: "17 5 * * *"
   workflow_dispatch:
 
 concurrency:
@@ -56,6 +61,10 @@ jobs:
   quality-gates:
     name: Contrato · Build · Test · Lint · Smoke
     runs-on: ubuntu-latest
+    # Sin techo, un cuelgue hereda el default de GitHub (360 min) y quema seis
+    # horas de cuota sin producir veredicto. El techo es holgura sobre lo
+    # medido (~35 min en main), no una aspiración.
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 45 || 75 }}
 
     # Postgres efímero: las suites *.pg.spec.ts y el smoke de bootstrap deben
     # correr contra Postgres real (tipos jsonb/enum), no SQLite.
@@ -108,9 +117,11 @@ jobs:
         run: npm ci
 
       # Puerta de CONTRATO: los YAML de packages/contracts/specs validan
-      # (el SDK se genera de ahí; un spec roto es un SDK roto).
+      # (el SDK se genera de ahí; un spec roto es un SDK roto). La CLI viene
+      # del lockfile (devDependencies raíz): un gate bloqueante no puede
+      # depender de que npm sirva una descarga suelta en cada corrida.
       - name: Contract lint (Redocly)
-        run: npx -y @redocly/cli@1.34.3 lint packages/contracts/specs/design-api.v1.yaml
+        run: npx redocly lint packages/contracts/specs/design-api.v1.yaml
 
       - name: CAD contract and legacy-route gates
         run: npm run check:cad
@@ -275,7 +286,11 @@ jobs:
   e2e:
     name: E2E Playwright (PostgreSQL · Chromium + Firefox)
     runs-on: ubuntu-latest
-
+    # Techo sobre lo medido (~48 min en main con Firefox+perf); ver nota en
+    # quality-gates. Y no arrancar 30+ min de Playwright si un gate barato ya
+    # falló: needs no añade minutos en verde y los ahorra todos en rojo.
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 50 || 100 }}
+    needs: quality-gates
 
     services:
       postgres:
@@ -472,6 +487,7 @@ jobs:
   gitleaks:
     name: Gitleaks (historial completo)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout (historial completo)
         uses: actions/checkout@v4

@@ -2,6 +2,7 @@ import { expect, test, type BrowserContext } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
+import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument } from '../../src/lib/cad/cad-document';
 
 function canonicalDocument(): CadDocument {
@@ -63,8 +64,7 @@ test('canonical layer manager creates, edits, locks, assigns, deletes and persis
   await viewButton.click();
   await page.getByTestId('cad-native-move-x').click();
   await expect(page.getByTestId('cad-native-property-startX')).toHaveValue('1100');
-  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
-  await expect.poll(() => backend.snapshot().version).toBe(1);
+  await saveAndSettle(page, backend);
   expect(backend.snapshot().document.layers).toEqual(expect.arrayContaining([
     expect.objectContaining({ id: '0', name: '0' }),
     expect.objectContaining({ id: 'Fire_Protection', name: 'Fire Safety', color: '#ef4444', visible: false, locked: false }),

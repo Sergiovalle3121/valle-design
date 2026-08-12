@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
+import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
 import { importDxfPrimitives } from '../../src/lib/cad/dxf-import';
 import { applyNativeProperty } from '../fixtures/dynamic-input';
@@ -67,8 +68,7 @@ test('MLEADER is unitary, associative, editable, persistent and DXF semantic', a
   await properties.getByRole('button', { name: 'Deseleccionar' }).click();
   await page.getByTestId('cad-native-entity-mleader-source-line').click();
   await applyNativeProperty(page, 'endX', '6100');
-  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
-  await expect.poll(() => backend.snapshot().version).toBe(1);
+  const firstSavedVersion = await saveAndSettle(page, backend);
   const stored = backend.snapshot().document.entities.find((entity): entity is CadMleader => entity.type === 'mleader');
   expect(stored?.associationStatus).toBe('associated');
   expect(stored?.vertices[0].x).toBe(5_950);
@@ -94,8 +94,8 @@ test('MLEADER is unitary, associative, editable, persistent and DXF semantic', a
   await page.getByTestId('cad-native-delete').click();
   await page.getByTestId(/^cad-native-entity-mleader_/).click();
   await expect(properties).toContainText('broken');
-  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
-  await expect.poll(() => backend.snapshot().version).toBe(2);
+  const secondSavedVersion = await saveAndSettle(page, backend);
+  expect(secondSavedVersion).toBeGreaterThan(firstSavedVersion);
   const broken = backend.snapshot().document.entities.find((entity): entity is CadMleader => entity.type === 'mleader');
   expect(broken?.associationStatus).toBe('broken');
 });

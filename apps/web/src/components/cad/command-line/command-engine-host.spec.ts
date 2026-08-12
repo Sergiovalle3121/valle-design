@@ -251,4 +251,14 @@ function makeHost(selection: readonly string[] = []) {
   host.cancel();
 }
 
+// --- la máscara del paso se expone para el enrutador del puntero -------------
+{
+  const { host } = makeHost();
+  assert.equal(host.accepts, 0, "en reposo no se acepta nada");
+  host.invoke("MOVE");
+  assert.ok(host.accepts & 64, "«Designe objetos» acepta ENTITY_PICK (bit 64)");
+  assert.ok(!(host.accepts & 1), "y NO acepta POINT: el clic al vacío no es un punto");
+  host.cancel();
+}
+
 console.log("cad command engine host specs passed");

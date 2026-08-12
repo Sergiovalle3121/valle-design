@@ -115,7 +115,11 @@ test('professional selection composes quick, add, previous, last, all and invert
 });
 
 test('professional selection executes window, crossing, lasso and overlap cycling on the canvas', async ({ context, page }) => {
-  test.setTimeout(90_000);
+  // Cuatro encuadres de «Vista superior» con sondeo de afín asentada más los
+  // arrastres: en un runner lento el total supera los 90 s históricos (el run
+  // 31586424841 midió 96 s). El reloj es una suposición sobre la máquina, no
+  // parte del contrato; el tope real sigue siendo el del job.
+  test.setTimeout(240_000);
   await installMockBackend(context);
   await loginAsStandaloneOwner(context);
   await installCadBackend(context, spatialCadDocument);
