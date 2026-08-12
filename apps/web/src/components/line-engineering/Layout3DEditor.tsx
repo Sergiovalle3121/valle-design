@@ -14928,42 +14928,36 @@ export default function Layout3DEditor({
         editorOpenRef.current &&
         currentDocumentIdRef.current === request.documentId;
       if (requestIsActive) {
-        loadedCadDocumentRef.current = request.document;
-        syncCadLayerState(request.document);
-        setCadXrefs(
-          request.document.externalReferences.map((reference) => ({
-            ...reference,
-          })),
-        );
-        setPublicationRecords([...request.document.publications]);
-        setNativeEntities(
-          request.document.entities.filter(
-            (entity): entity is CadNativeEntity =>
-              CAD_ENTITY_REGISTRY.supports(entity),
-          ),
-        );
-        setNativeDocumentRevision((value) => value + 1);
-        dataRef.current = saved;
-        setData((current) =>
-          current
-            ? {
-                ...current,
-                cadDocument: saved.cadDocument,
-                cadDocumentVersion: result.version,
-              }
-            : saved,
-        );
-        setConnectionState("online");
-        // Sólo el de ESTE documento: otro dibujo puede seguir en conflicto y
-        // desenclavarlo aquí le devolvería un autosave que el servidor ya
-        // rechazó.
-        conflictRegistryRef.current = closeCadConflictIncident(
-          conflictRegistryRef.current,
-          request.documentId,
-        );
-        setSaveIssue(null);
-        loadedPlacedRef.current = new Set(placementsRef.current.keys());
+        // Un guardado con generación obsoleta actualiza el token CAS, nunca el
+        // estado del editor: el snapshot en vuelo es más viejo que lo que el
+        // usuario ya tiene en pantalla y reponerlo pisaría sus ediciones.
         if (editGenerationRef.current === request.generation) {
+          loadedCadDocumentRef.current = request.document;
+          syncCadLayerState(request.document);
+          setCadXrefs(
+            request.document.externalReferences.map((reference) => ({
+              ...reference,
+            })),
+          );
+          setPublicationRecords([...request.document.publications]);
+          setNativeEntities(
+            request.document.entities.filter(
+              (entity): entity is CadNativeEntity =>
+                CAD_ENTITY_REGISTRY.supports(entity),
+            ),
+          );
+          setNativeDocumentRevision((value) => value + 1);
+          dataRef.current = saved;
+          setData((current) =>
+            current
+              ? {
+                  ...current,
+                  cadDocument: saved.cadDocument,
+                  cadDocumentVersion: result.version,
+                }
+              : saved,
+          );
+          loadedPlacedRef.current = new Set(placementsRef.current.keys());
           dirtyRef.current = false;
           setDirty(false);
           setRecoveryCandidate(null);
@@ -14986,6 +14980,15 @@ export default function Layout3DEditor({
           // dirty and queue that generation against the new CAS version.
           scheduleAutosaveRef.current();
         }
+        setConnectionState("online");
+        // Sólo el de ESTE documento: otro dibujo puede seguir en conflicto y
+        // desenclavarlo aquí le devolvería un autosave que el servidor ya
+        // rechazó.
+        conflictRegistryRef.current = closeCadConflictIncident(
+          conflictRegistryRef.current,
+          request.documentId,
+        );
+        setSaveIssue(null);
       }
       if (origin === "manual" && requestIsActive) {
         const bytes = serializeCadDocumentForTransport(request.document).bytes;
