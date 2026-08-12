@@ -33,6 +33,7 @@ const EMPTY: CadViewportRenderDiagnostics = {
   visibleTiles: 0,
   residentTiles: 0,
   settled: true,
+  tessellation: "none",
 };
 
 const empty = () => EMPTY;
@@ -62,6 +63,7 @@ export function CadRenderPipelineBadge({ pipeline, slot }: CadRenderPipelineBadg
       data-meshes={diagnostics.meshes}
       data-tiles={diagnostics.visibleTiles}
       data-settled={diagnostics.settled ? "true" : "false"}
+      data-tessellation={diagnostics.tessellation}
       title={
         pipeline === "batched"
           ? "Pipeline por lotes y tiles: detalle para TODAS las entidades visibles"

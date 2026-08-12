@@ -26,6 +26,12 @@
  *   el ejecutor de comandos. No hace falta adivinar qué cambió ni vaciar nada
  *   más que los tiles tocados.
  *
+ * En el NAVEGADOR, además, el teselado de esos trozos corre en un worker: el
+ * trozo que falta se pide por `postMessage`, la espera no ocupa cuadro y la
+ * respuesta siembra la caché y reencola el tile. En Node y sin `Worker` el
+ * camino es el síncrono de siempre — mismos números de segmentos, misma
+ * geometría, como afirma el spec del worker coordenada a coordenada.
+ *
  * Puro respecto a THREE: produce lotes en arrays tipados. Quien lo consume los
  * sube a la GPU con `line-batch-three.ts`.
  */
@@ -57,7 +63,19 @@ import {
   type CadLineStyle,
 } from "./line-batch";
 import { CadRenderScheduler, type CadRenderFrameResult } from "./render-scheduler";
+import {
+  CAD_RENDER_OFFTHREAD_BATCH_MAX_ENTITIES,
+  CAD_RENDER_OFFTHREAD_BATCH_SEGMENT_BUDGET,
+  CadOffThreadTessellationLane,
+  cadEntityTessellatesWithoutDocument,
+  resolveCadOffThreadTessellator,
+  type CadOffThreadTessellator,
+  type CadRenderTessellationSource,
+} from "./pipeline-offthread";
+import { cadTessellationFromPayload } from "./tessellate-worker-client";
 import type { CadTextQuadRequest } from "./text-atlas";
+
+export type { CadOffThreadTessellator, CadRenderTessellationSource };
 
 /** Color por defecto, el mismo que usaba la proyección anterior. */
 export const CAD_RENDER_DEFAULT_COLOR = 0x60a5fa;
@@ -95,6 +113,12 @@ export interface CadRenderPipelineOptions {
   now?: () => number;
   style?: CadRenderStyleResolver;
   document?: CadDocument;
+  /**
+   * Teselador fuera de hilo. Sin especificar, se usa el cliente del worker
+   * cuando `Worker` existe (navegador) y el camino síncrono cuando no (Node,
+   * los specs, entornos sin workers). `null` fuerza el camino síncrono.
+   */
+  offThread?: CadOffThreadTessellator | null;
 }
 
 export interface CadRenderPipelineStats {
@@ -112,6 +136,8 @@ export interface CadRenderPipelineStats {
   /** true cuando no queda trabajo: es el momento en que se mide «en reposo». */
   settled: boolean;
   zoomOctave: number;
+  /** Último origen del teselado fuera de hilo. Ver el tipo. */
+  tessellation: CadRenderTessellationSource;
   cache: CadTessellationCacheStats;
 }
 
@@ -179,9 +205,20 @@ export class CadRenderPipeline {
   private readonly cache: CadTessellationCache;
   private readonly scheduler: CadRenderScheduler;
   private readonly styleOf: CadRenderStyleResolver;
+  /**
+   * Carril del teselado FUERA del hilo principal, cuando hay con qué.
+   *
+   * Cada trozo de tile pide su teselado por `postMessage`, lo espera SIN tarea
+   * en el planificador y materializa desde la caché cuando vuelve. La
+   * contabilidad —tiles en vuelo, época del contenido, origen del último
+   * teselado— vive en `pipeline-offthread.ts` con sus propias razones.
+   */
+  private readonly offThread: CadOffThreadTessellationLane;
   private index: CadRenderTileIndex;
   private document?: CadDocument;
   private visibleTiles: CadTileId[] = [];
+  /** Espejo en Set de `visibleTiles`: la respuesta del worker pregunta O(1). */
+  private visibleTileSet = new Set<CadTileId>();
   private view: CadRenderView = {
     bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0 },
     pixelsPerUnit: 1,
@@ -198,6 +235,9 @@ export class CadRenderPipeline {
     this.styleOf = options.style ?? defaultStyle;
     this.index = new CadRenderTileIndex(options.tileSize ?? 4_096);
     this.document = options.document;
+    this.offThread = new CadOffThreadTessellationLane(
+      resolveCadOffThreadTessellator(options.offThread),
+    );
   }
 
   /**
@@ -215,6 +255,9 @@ export class CadRenderPipeline {
     this.staging.clear();
     this.cache.clear();
     this.scheduler.abort();
+    // Las peticiones en vuelo describen el contenido ANTERIOR: dejan de contar
+    // como pendiente y su respuesta, con la época vieja, se descartará entera.
+    this.offThread.reset();
     this.document = document ?? this.document;
     let bounds: CadBounds | null = null;
     const boundsById = new Map<string, CadBounds>();
@@ -242,6 +285,7 @@ export class CadRenderPipeline {
     );
     for (const [id, entityBounds] of boundsById) this.index.upsert(id, entityBounds);
     this.visibleTiles = [];
+    this.visibleTileSet.clear();
   }
 
   get tileSize(): number {
@@ -268,6 +312,11 @@ export class CadRenderPipeline {
     // Conjunto y no búsqueda lineal: un MOVE de 10.000 entidades cruzaría
     // 10.000 ids contra 10.000 upserts, que son 100 millones de comparaciones
     // por lote de edición.
+    // Una respuesta del worker pedida ANTES de esta edición traería la
+    // geometría vieja de lo tocado; subir la época la descarta entera. Se paga
+    // repetir la petición de lo no tocado que compartiera lote — correcto
+    // primero, y una edición es rara al lado de una carga.
+    this.offThread.invalidateEpoch();
     const upsertedIds = new Set<string>();
     for (const entity of upserts) {
       if (!CAD_ENTITY_REGISTRY.supports(entity)) continue;
@@ -313,6 +362,7 @@ export class CadRenderPipeline {
     this.view = view;
     this.zoomOctaveValue = octave;
     this.visibleTiles = this.index.visibleTileIds(view.bounds);
+    this.visibleTileSet = new Set(this.visibleTiles);
     const diff = diffCadTiles(previousTiles, this.visibleTiles);
     // Los tiles que salen de la vista liberan su geometría: sin esto, pasear por
     // un plano grande retiene el plano entero y la prueba de fuga lo caza.
@@ -373,6 +423,10 @@ export class CadRenderPipeline {
    * exactamente la carga progresiva que se busca.
    */
   private buildTileChunk(tileId: CadTileId): void {
+    // Con una petición en vuelo no hay nada que construir todavía: la
+    // respuesta reencolará este tile. Sin la guarda, cada `setView` durante la
+    // espera dispararía una petición duplicada del mismo lote.
+    if (this.offThread.has(tileId)) return;
     // ¿Dónde se construye? Si hay un residente de OTRA octava, se construye el
     // relevo en `staging` y el residente sigue sirviendo; si no hay residente
     // (tile nuevo) o el residente ya es de la octava vigente, se construye en
@@ -402,14 +456,17 @@ export class CadRenderPipeline {
     let segmentsThisChunk = 0;
     while (resident.cursor < resident.pending.length) {
       const id = resident.pending[resident.cursor];
-      resident.cursor += 1;
       const entity = this.entities.get(id);
-      if (!entity) continue;
+      if (!entity) {
+        resident.cursor += 1;
+        continue;
+      }
       const depth = cadDrawOrderDepth(this.drawOrder.get(id) ?? 0, this.drawOrderCount);
       if (entity.type === "mtext") {
         // El texto no se tesela: viaja como petición de quads para el atlas.
         // Los productores de geometría de MText, cotas y mleader se conservan;
         // este pipeline sólo cambia CÓMO se materializa el resultado.
+        resident.cursor += 1;
         resident.textRequests.push({
           text: entity.text,
           fontKey: entity.fontFamily ?? "Arial",
@@ -424,6 +481,19 @@ export class CadRenderPipeline {
         continue;
       }
       const tier = this.lodTierFor(id);
+      // Con worker, un teselado que falta se PIDE en vez de calcularse aquí: el
+      // cursor no avanza, la petición viaja y la respuesta reencola este tile,
+      // que entonces materializa desde la caché. Sin worker (Node, la reserva),
+      // la condición es falsa y el camino es el síncrono de siempre.
+      if (
+        this.offThread.active &&
+        cadEntityTessellatesWithoutDocument(entity) &&
+        !this.cache.peek(id, tier)
+      ) {
+        this.requestOffThreadChunk(tileId, resident.pending, resident.cursor);
+        return;
+      }
+      resident.cursor += 1;
       const tessellation = this.cache.get(id, tier, () =>
         tessellateCadEntity(entity, cadRenderSegmentBudget(tier), this.document),
       );
@@ -457,6 +527,63 @@ export class CadRenderPipeline {
     // volvería a recorrer todos los tiles por cada trozo: O(tiles) por trozo,
     // que es cuadrático sobre el cuadro y se comía el presupuesto.
     this.enqueueTile(tileId);
+  }
+
+  /**
+   * Pide al worker el siguiente lote de teselados que FALTAN de un tile.
+   *
+   * Recorre las entidades pendientes desde el cursor y junta las que no están
+   * en caché para el escalón vigente, hasta el tope de lote. Mientras la
+   * petición viaja, el tile no tiene tarea en el planificador —la espera no
+   * quema presupuesto de cuadro— pero sí cuenta en `pendingTasks`: una escena
+   * con teselados en vuelo NO está asentada, y decir lo contrario haría que el
+   * indicador (y los goldens que lo leen) declarasen listo un dibujo a medias.
+   */
+  private requestOffThreadChunk(
+    tileId: CadTileId,
+    pending: readonly string[],
+    cursor: number,
+  ): void {
+    const entities: CadNativeEntity[] = [];
+    const tierByEntity = new Map<string, CadRenderLodTier>();
+    const segments: number[] = [];
+    let estimatedSegments = 0;
+    for (let index = cursor; index < pending.length; index += 1) {
+      if (entities.length >= CAD_RENDER_OFFTHREAD_BATCH_MAX_ENTITIES) break;
+      if (estimatedSegments >= CAD_RENDER_OFFTHREAD_BATCH_SEGMENT_BUDGET) break;
+      const entity = this.entities.get(pending[index]);
+      if (!entity || entity.type === "mtext") continue;
+      if (!cadEntityTessellatesWithoutDocument(entity)) continue;
+      const tier = this.lodTierFor(entity.id);
+      if (tierByEntity.has(entity.id) || this.cache.peek(entity.id, tier)) continue;
+      entities.push(entity);
+      tierByEntity.set(entity.id, tier);
+      const budget = cadRenderSegmentBudget(tier);
+      segments.push(budget);
+      estimatedSegments += budget;
+    }
+    if (entities.length === 0) {
+      // No puede pasar —se llama con el cursor sobre una entidad sin caché—,
+      // pero si pasara, dejar el tile sin tarea NI petición lo congelaría.
+      this.enqueueTile(tileId);
+      return;
+    }
+    this.offThread.request(
+      tileId,
+      { entities, segments, tierByEntity },
+      {
+        seed: (payload, tier) => {
+          if (!this.entities.has(payload.entityId)) return;
+          this.cache.get(payload.entityId, tier, () =>
+            cadTessellationFromPayload(payload),
+          );
+        },
+        finished: (finishedTileId) => {
+          if (this.visibleTileSet.has(finishedTileId))
+            this.enqueueTile(finishedTileId);
+        },
+      },
+    );
   }
 
   /**
@@ -501,14 +628,24 @@ export class CadRenderPipeline {
    * todo».
    */
   get pendingTasks(): number {
-    return this.scheduler.pending;
+    // Las peticiones al worker cuentan: no están en la cola del planificador,
+    // pero son trabajo que falta para que el dibujo esté completo.
+    return this.scheduler.pending + this.offThread.pending;
   }
 
   get settled(): boolean {
-    return this.scheduler.pending === 0;
+    return this.scheduler.pending === 0 && this.offThread.pending === 0;
   }
 
-  /** Ejecuta cuadros hasta asentar. Es lo que mide `firstDetailMs` sin un rAF. */
+  /**
+   * Ejecuta cuadros hasta asentar. Es lo que mide `firstDetailMs` sin un rAF.
+   *
+   * SÍNCRONO a sabiendas: sólo puede vaciar la cola del planificador, no
+   * esperar respuestas del worker. Quien lo usa —benchmark y specs de Node—
+   * corre sin `Worker`; el consumidor del navegador (el anfitrión del editor,
+   * el arnés del benchmark de navegador) itera con rAF preguntando `settled`,
+   * que sí espera lo que está en vuelo.
+   */
   settle(maxFrames = 100_000): number {
     let frames = 0;
     while (this.scheduler.pending > 0 && frames < maxFrames) {
@@ -579,9 +716,10 @@ export class CadRenderPipeline {
       batches,
       instances,
       glyphRequests,
-      pendingTasks: this.scheduler.pending,
-      settled: this.scheduler.pending === 0,
+      pendingTasks: this.pendingTasks,
+      settled: this.settled,
       zoomOctave: this.zoomOctaveValue,
+      tessellation: this.offThread.source,
       cache: this.cache.stats,
     };
   }
@@ -596,5 +734,10 @@ export class CadRenderPipeline {
     this.drawOrder.clear();
     this.index.clear();
     this.visibleTiles = [];
+    // Una respuesta del worker que llegue DESPUÉS no debe resucitar nada: la
+    // época sube (no se siembra), el espejo de visibles queda vacío (no se
+    // reencola) y la cuenta de en vuelo se vacía (no queda «pendiente» eterno).
+    this.offThread.reset();
+    this.visibleTileSet.clear();
   }
 }

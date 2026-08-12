@@ -58,6 +58,7 @@ import {
   type CadRenderView,
 } from "@/lib/cad/render/pipeline";
 import type { CadLineStyle } from "@/lib/cad/render/line-batch";
+import { disposeCadTessellateWorker } from "@/lib/cad/render/tessellate-worker-client";
 import type { CadScreenYSign } from "@/lib/cad/render/text-atlas";
 
 /** Color de selección: el mismo cian que usaba la proyección por entidad. */
@@ -108,6 +109,14 @@ export interface CadViewportRenderDiagnostics {
   residentTiles: number;
   /** false mientras quede trabajo encolado: la carga es progresiva. */
   settled: boolean;
+  /**
+   * De dónde salió el último teselado: `worker` es el camino fuera de hilo
+   * funcionando; `fallback` es el cliente rescatándose en el hilo principal;
+   * `sync` es que aún no se pidió nada (o no hay worker); `none`, sin
+   * anfitrión. Publicado en el DOM para que el golden pueda afirmar que el
+   * worker corre — sin esto, un empaquetado roto degradaría en silencio.
+   */
+  tessellation: "sync" | "worker" | "fallback" | "none";
 }
 
 /**
@@ -148,6 +157,7 @@ const EMPTY_DIAGNOSTICS: CadViewportRenderDiagnostics = {
   visibleTiles: 0,
   residentTiles: 0,
   settled: true,
+  tessellation: "none",
 };
 
 export class CadViewportRenderHost {
@@ -434,7 +444,8 @@ export class CadViewportRenderHost {
       current.meshes === next.meshes &&
       current.visibleTiles === next.visibleTiles &&
       current.residentTiles === next.residentTiles &&
-      current.settled === next.settled
+      current.settled === next.settled &&
+      current.tessellation === next.tessellation
     )
       return;
     this.published = next;
@@ -456,6 +467,7 @@ export class CadViewportRenderHost {
       visibleTiles: stats.visibleTiles,
       residentTiles: stats.residentTiles,
       settled: stats.settled,
+      tessellation: stats.tessellation,
     };
   }
 
@@ -466,6 +478,10 @@ export class CadViewportRenderHost {
     this.published = EMPTY_DIAGNOSTICS;
     for (const listener of this.listeners) listener();
     this.scene.dispose();
+    // El worker de teselado es un singleton del módulo y éste es su consumidor
+    // del editor: desmontar el lienzo lo cierra. Si el lienzo vuelve a
+    // montarse, el cliente lo recrea perezosamente en la primera petición.
+    disposeCadTessellateWorker();
   }
 }
 
