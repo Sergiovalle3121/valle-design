@@ -255,7 +255,6 @@ import {
 } from "@/lib/cad/dynamic-input";
 import {
   cadPointInBoundary,
-  regenerateAssociativeHatches,
   resolveCadHatchRegionWithSources,
   stitchCadBoundaryPaths,
 } from "@/lib/cad/hatch-associativity";
@@ -488,6 +487,8 @@ import {
   cadEngineCommandForTool,
   type CadPointerSession,
 } from "@/components/cad/viewport/pointer-router";
+import { CadNativeGripController } from "@/components/cad/viewport/native-grip-controller";
+import { CadGripMenuOverlay } from "@/components/cad/viewport/grip-menu-host";
 import {
   CadRenderPipelineBadge,
   CadRenderPipelineStats,
@@ -2192,6 +2193,7 @@ export default function Layout3DEditor({
    * ratón sería un render del árbol entero por muestra.
    */
   const enginePointerRouterRef = useRef<CadEnginePointerRouter | null>(null);
+  const nativeGripControllerRef = useRef<CadNativeGripController | null>(null);
   const enginePreviewRef = useRef<CadEnginePreview | null>(null);
   const engineLiveCursorRef = useRef<CadLiveCursorOverlay | null>(null);
   const engineCursorPointRef = useRef<{ x: number; y: number } | null>(null);
@@ -5175,9 +5177,10 @@ export default function Layout3DEditor({
         selection: string[];
         upsert?: CadNativeEntity[];
         remove?: string[];
+        groupKey?: string;
       },
     ) => {
-      recordHistoryDocument(checkpoint);
+      recordHistoryDocument(checkpoint, options.groupKey);
       loadedCadDocumentRef.current = document;
       const existing = new Set(document.entities.map((entity) => entity.id));
       const selected = options.selection.filter((id) => existing.has(id));
@@ -5202,6 +5205,7 @@ export default function Layout3DEditor({
     (
       commands: Parameters<typeof executeCadEntityCommand>[1][],
       nextSelection?: string[],
+      groupKey?: string,
     ) => {
       if (drawingReadOnlyRef.current) {
         notifyReadOnly();
@@ -5277,6 +5281,7 @@ export default function Layout3DEditor({
           selection: nextSelection ?? nativeSelectionIdsRef.current,
           upsert,
           remove,
+          groupKey,
         });
         return true;
       } catch (cause) {
@@ -6697,12 +6702,6 @@ export default function Layout3DEditor({
       xEdges: number[];
       yEdges: number[];
     } | null = null;
-    let nativeGripDrag: {
-      entityId: string;
-      gripId: string;
-      checkpoint: CadDocument;
-      moved: boolean;
-    } | null = null;
     // Snap a moving box's edges/centre to other objects' edges/centres + the
     // footprint, returning the offset to apply and the world axis to draw a guide.
     const snap1D = (
@@ -7197,6 +7196,51 @@ export default function Layout3DEditor({
       session: engineSessionRef,
     });
     enginePointerRouterRef.current = enginePointerRouter;
+    // ---- Grips nativos: arrastre + ciclo con Espacio + menú por pinzamiento.
+    // Mismo patrón que el enrutador: estado fuera de React, deps por closure.
+    const gripMenu = new CadGripMenuOverlay(mount, {
+      choose: (kind) => nativeGripController.chooseMenuAction(kind),
+      dismiss: () => nativeGripController.dismissMenu(),
+    });
+    const nativeGripController = new CadNativeGripController({
+      document: () => loadedCadDocumentRef.current,
+      setDocument: (document) => {
+        loadedCadDocumentRef.current = document;
+      },
+      snapshotDocument: () => snapshotDocument(),
+      readOnly: () => drawingReadOnlyRef.current,
+      worldPoint: (event) => floorWorld(event as PointerEvent),
+      snapPoint: (wx, wy) => {
+        const snapped = snapFloor(wx, wy);
+        return { wx: snapped.wx, wy: snapped.wy };
+      },
+      localPoint: (event) => {
+        const rect = renderer.domElement.getBoundingClientRect();
+        return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+      },
+      selectNative,
+      setNativeEntities,
+      bumpDocumentRevision: () => setNativeDocumentRevision((value) => value + 1),
+      syncScene: (document, patch) => syncNativeScene(document, patch),
+      recordHistory: recordHistoryDocument,
+      markDirty,
+      commitCommands: (commands, groupKey) =>
+        commitNativeCommands(commands, undefined, groupKey),
+      setOrbitEnabled: (enabled) => {
+        controls.enabled = enabled;
+      },
+      capturePointer: (id) => renderer.domElement.setPointerCapture(id),
+      releasePointer: (id) => {
+        try {
+          renderer.domElement.releasePointerCapture(id);
+        } catch {
+          /* ignore */
+        }
+      },
+      notify: (message) => toast.error(message, "Grips"),
+      menu: gripMenu,
+    });
+    nativeGripControllerRef.current = nativeGripController;
     const onContextMenu = (event: MouseEvent) => {
       if (!enginePointerRouter.contextMenu(event)) return;
       event.preventDefault();
@@ -7215,6 +7259,7 @@ export default function Layout3DEditor({
       }
       if (drawingReadOnlyRef.current && toolRef.current !== "select") return;
       if (toolRef.current !== "select") return; // measure/wall resolve on click (pointerup); drag still orbits
+      if (nativeGripController.handlePointerDown(e)) return;
       if (e.button === 0 && hatchPickModeRef.current) {
         const world = floorWorld(e);
         if (world) hatchPickCallbackRef.current({ x: world.wx, y: world.wy });
@@ -7339,18 +7384,8 @@ export default function Layout3DEditor({
       if (all.length) {
         const top = all[0];
         if (top.type === "native") {
-          if (top.gripId && !drawingReadOnlyRef.current) {
-            selectNative([top.id]);
-            nativeGripDrag = {
-              entityId: top.id,
-              gripId: top.gripId,
-              checkpoint: snapshotDocument(),
-              moved: false,
-            };
-            controls.enabled = false;
-            renderer.domElement.setPointerCapture(e.pointerId);
+          if (top.gripId && nativeGripController.start(top.id, top.gripId, e))
             return;
-          }
           const world = floorWorld(e);
           const canonicalCandidates =
             world && ctxRef.current
@@ -7543,42 +7578,7 @@ export default function Layout3DEditor({
         }
         return;
       }
-      if (nativeGripDrag) {
-        const world = floorWorld(e);
-        if (!world) return;
-        const snapped = snapFloor(world.wx, world.wy);
-        const document = loadedCadDocumentRef.current;
-        const entity = document?.entities.find(
-          (candidate) => candidate.id === nativeGripDrag!.entityId,
-        );
-        if (!document || !entity || !CAD_ENTITY_REGISTRY.supports(entity))
-          return;
-        const next = CAD_ENTITY_REGISTRY.adapter(entity).grips.moveGrip(
-          entity,
-          nativeGripDrag.gripId,
-          { x: snapped.wx, y: snapped.wy },
-        );
-        const nextDocument = {
-          ...document,
-          entities: document.entities.map((candidate) =>
-            candidate.id === entity.id ? next : candidate,
-          ),
-        };
-        loadedCadDocumentRef.current = nextDocument;
-        nativeGripDrag.moved = true;
-        setNativeEntities(
-          nextDocument.entities.filter(
-            (candidate): candidate is CadNativeEntity =>
-              CAD_ENTITY_REGISTRY.supports(candidate),
-          ),
-        );
-        setNativeDocumentRevision((value) => value + 1);
-        syncNativeScene(loadedCadDocumentRef.current, {
-          upsert: [next],
-          remove: [],
-        });
-        return;
-      }
+      if (nativeGripController.handlePointerMove(e)) return;
       if (
         toolRef.current === "measure" ||
         toolRef.current === "wall" ||
@@ -7755,40 +7755,7 @@ export default function Layout3DEditor({
         );
         return;
       }
-      if (nativeGripDrag) {
-        if (nativeGripDrag.moved && loadedCadDocumentRef.current) {
-          recordHistoryDocument(nativeGripDrag.checkpoint);
-          const regenerated = regenerateAssociativeHatches(
-            loadedCadDocumentRef.current.entities,
-            [nativeGripDrag.entityId],
-            (entity) => cadEntityBoundaryPaths(entity),
-          );
-          loadedCadDocumentRef.current = commitChange(
-            {
-              ...loadedCadDocumentRef.current,
-              entities: regenerated.entities,
-            },
-            `grip:${nativeGripDrag.entityId}:${nativeGripDrag.gripId}`,
-          );
-          setNativeEntities(
-            loadedCadDocumentRef.current.entities.filter(
-              (entity): entity is CadNativeEntity =>
-                CAD_ENTITY_REGISTRY.supports(entity),
-            ),
-          );
-          setNativeDocumentRevision((value) => value + 1);
-          markDirty();
-          syncNativeScene(loadedCadDocumentRef.current);
-        }
-        nativeGripDrag = null;
-        controls.enabled = true;
-        try {
-          renderer.domElement.releasePointerCapture(e.pointerId);
-        } catch {
-          /* ignore */
-        }
-        return;
-      }
+      if (nativeGripController.handlePointerUp(e)) return;
       if (marquee) {
         const m = marquee;
         marquee = null;
@@ -8169,6 +8136,9 @@ export default function Layout3DEditor({
       engineCursorPointRef.current = null;
       enginePreview.dispose();
       engineLiveCursor.dispose();
+      nativeGripControllerRef.current = null;
+      nativeGripController.dispose();
+      gripMenu.dispose();
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("keydown", walkKd);
       window.removeEventListener("keyup", walkKu);
@@ -15664,6 +15634,7 @@ export default function Layout3DEditor({
       // Esc del editor, que si no cancelaría la herramienta heredada y dejaría
       // el comando del motor abierto sin dueño.
       if (enginePointerRouterRef.current?.keyDown(e)) return;
+      if (nativeGripControllerRef.current?.keyDown(e)) return;
       const g = data?.footprint.gridSize || 100;
       const step = e.shiftKey ? g * 5 : g;
       const hasNativeSelection = nativeSelectionIdsRef.current.length > 0;
