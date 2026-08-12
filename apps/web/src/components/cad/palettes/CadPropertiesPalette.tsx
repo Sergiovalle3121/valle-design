@@ -73,6 +73,22 @@ const PropertyField = React.memo(function PropertyField({
   // La `key` incluye la revisión y el valor: un `defaultValue` sólo se lee al
   // montar, así que sin esto el campo seguiría enseñando el valor anterior.
   const fieldKey = `${row.key}-${revision}-${row.varies ? "varies" : String(row.value)}`;
+  /**
+   * Los campos de ESCRITURA (texto, número, multilínea) no se remontan: un
+   * autosave que aterrizaba mientras se tecleaba remontaba el input por la
+   * `key` y se comía el valor a medio escribir — el blur veía «sin cambios» y
+   * la edición no se emitía nunca (así caía el radio del golden 22). El valor
+   * se sincroniza por efecto, y NUNCA sobre un campo con el foco: lo que el
+   * usuario está escribiendo manda sobre cualquier estado que llegue de fuera.
+   */
+  const writableRef = React.useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
+  const fieldValue = cadPropertyFieldValue(row);
+  React.useEffect(() => {
+    const node = writableRef.current;
+    if (!node) return;
+    if (typeof document !== "undefined" && document.activeElement === node) return;
+    if (node.value !== fieldValue) node.value = fieldValue;
+  }, [fieldValue, revision]);
 
   // Lo derivado se pinta en un `input` de sólo lectura y no en un `div`: el
   // valor sigue siendo legible con `toHaveValue`, que es como lo leen los
@@ -123,11 +139,14 @@ const PropertyField = React.memo(function PropertyField({
   if (row.kind === "multiline")
     return (
       <label
-        key={fieldKey}
+        key={row.key}
         className="col-span-2 text-[10.5px] text-gray-500 dark:text-gray-400"
       >
         {row.key}
         <textarea
+          ref={(node) => {
+            writableRef.current = node;
+          }}
           data-testid={testId}
           data-varies={row.varies ? "true" : undefined}
           defaultValue={cadPropertyFieldValue(row)}
@@ -145,11 +164,14 @@ const PropertyField = React.memo(function PropertyField({
 
   return (
     <label
-      key={fieldKey}
+      key={row.key}
       className="text-[10.5px] text-gray-500 dark:text-gray-400"
     >
       {row.key}
       <input
+        ref={(node) => {
+          writableRef.current = node;
+        }}
         data-testid={testId}
         data-varies={row.varies ? "true" : undefined}
         type={row.kind === "number" ? "number" : "text"}
