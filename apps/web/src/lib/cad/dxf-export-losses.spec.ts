@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { cadDocumentDxfExportLosses } from "./dxf-cad-document";
+import { cadEntityToDxfPrimitive } from "./dxf-entity-primitives";
 import type { CadDocument, CadEntity } from "./cad-document";
 
 /**
@@ -133,6 +134,39 @@ for (const type of ["hatch", "mtext", "dimension", "mleader", "insert"]) {
     `${type} tiene su propio camino de exportación: no debe marcarse como descartado`,
   );
 }
+
+// --- WALL: la geometría viaja, la receta se declara perdida ---------------
+
+const wall: CadEntity = {
+  id: "muro-1",
+  type: "wall",
+  start: { x: 0, y: 0, z: 0 },
+  end: { x: 3000, y: 0, z: 0 },
+  thickness: 150,
+  height: 2400,
+  layer: "0",
+} as CadEntity;
+
+const wallLosses = cadDocumentDxfExportLosses(documentWith([wall]));
+assert.equal(wallLosses.length, 1, "el muro degrada, no se cae del fichero");
+assert.equal(wallLosses[0].code, "dxf_export_wall_parametric_degraded");
+assert.equal(wallLosses[0].severity, "warning", "la geometría viaja: es degradación, no descarte");
+assert.match(wallLosses[0].detail, /150/, "el aviso nombra el grosor que deja de ser editable");
+assert.match(wallLosses[0].detail, /2400/, "y la altura que no viaja");
+
+// Y su primitiva ES el contorno que el usuario ve: polilínea cerrada de 4 puntos.
+const wallPrimitive = cadEntityToDxfPrimitive(wall);
+assert.ok(wallPrimitive && wallPrimitive.kind === "polyline");
+assert.equal(wallPrimitive.closed, true);
+assert.equal(wallPrimitive.points.length, 4);
+
+// Un muro DEGENERADO no produce contorno: se cae del fichero y lo dice a
+// gritos, no entre degradaciones.
+const brokenWall = { ...wall, id: "muro-roto", thickness: 0 } as CadEntity;
+const brokenLosses = cadDocumentDxfExportLosses(documentWith([brokenWall]));
+assert.equal(brokenLosses.length, 1);
+assert.equal(brokenLosses[0].code, "dxf_export_entity_dropped");
+assert.equal(brokenLosses[0].severity, "error");
 
 // --- El informe respeta el MISMO filtro que la exportación ----------------
 //

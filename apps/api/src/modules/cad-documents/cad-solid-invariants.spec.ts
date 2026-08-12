@@ -81,7 +81,7 @@ describe('schema 5 solid invariants', () => {
     ).not.toThrow();
   });
 
-  it('acepta el esquema 5 como versión vigente', () => {
+  it('acepta el esquema 5 y el 6 vigentes; el 7 es futuro y se rechaza', () => {
     expect(() =>
       validateCadDocumentPayload(withEntities([soundSolid()])),
     ).not.toThrow();
@@ -89,6 +89,12 @@ describe('schema 5 solid invariants', () => {
       validateCadDocumentPayload({
         ...withEntities([]),
         meta: { schema: 6, version: 1, unit: 'mm' },
+      }),
+    ).not.toThrow();
+    expect(() =>
+      validateCadDocumentPayload({
+        ...withEntities([]),
+        meta: { schema: 7, version: 1, unit: 'mm' },
       }),
     ).toThrow(BadRequestException);
   });

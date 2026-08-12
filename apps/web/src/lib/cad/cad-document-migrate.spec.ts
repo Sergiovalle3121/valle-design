@@ -26,7 +26,7 @@ import {
 
 // --- ancla absoluta: el número del esquema vigente ---------------------------
 {
-  assert.equal(CAD_DOCUMENT_SCHEMA, 5, "esta ola sube el esquema canónico a 5");
+  assert.equal(CAD_DOCUMENT_SCHEMA, 6, "esta ola sube el esquema canónico a 6");
 }
 
 /** Documento v3 con una entidad de cada familia que ya existía. */
@@ -76,7 +76,7 @@ function schema3Document(): Record<string, unknown> {
   const source = schema3Document();
   const migrated = migrateCadDocument(source);
 
-  assert.equal(migrated.meta.schema, 5, "el documento pasa a declararse v5");
+  assert.equal(migrated.meta.schema, 6, "el documento pasa a declararse v6");
   // Anclas absolutas, campo a campo: no «igual que antes», sino ESTE valor.
   assert.equal(migrated.meta.version, 7, "la versión de contenido NO se toca");
   assert.equal(migrated.meta.unit, "mm");
@@ -220,7 +220,7 @@ function schema3Document(): Record<string, unknown> {
   };
   const migrated = migrateCadDocument(v4);
 
-  assert.equal(migrated.meta.schema, 5, "el v4 pasa a declararse v5");
+  assert.equal(migrated.meta.schema, 6, "el v4 pasa a declararse v6");
   assert.equal(migrated.meta.version, 3, "la versión de contenido NO se toca al subir de esquema");
   const stats = cadDocumentStats(migrated);
   assert.equal(stats.polyline, 1, "la polilínea cerrada SIGUE siendo una polilínea");
@@ -304,6 +304,42 @@ function schema3Document(): Record<string, unknown> {
   assert.ok(!text.includes("indices"), "los índices de triángulo tampoco");
 }
 
+// --- un v6 con muros sobrevive a guardar y reabrir ----------------------------
+{
+  const base = migrateCadDocument(schema3Document());
+  const withV6: CadDocument = {
+    ...base,
+    entities: [
+      ...base.entities,
+      {
+        id: "wall1",
+        type: "wall",
+        start: { x: 0, y: 0, z: 0 },
+        end: { x: 3_000, y: 0, z: 0 },
+        thickness: 150,
+        height: 2_400,
+        layer: "MUROS",
+      },
+    ],
+    modelSpace: { entityIds: [...base.modelSpace.entityIds, "wall1"] },
+  };
+
+  const reopened = parseCadDocument(serializeCadDocument(withV6));
+  const wall = reopened.entities.find((entity) => entity.id === "wall1");
+  if (wall?.type !== "wall") throw new Error("tipo");
+  // La RECETA sobrevive campo a campo. Es lo que hace que un muro se pueda
+  // reeditar tras cerrar el dibujo: si viajase el contorno, «cambia el
+  // grosor» exigiría adivinar dónde estaba el eje.
+  assert.equal(wall.thickness, 150, "el grosor llega con su valor exacto");
+  assert.equal(wall.height, 2_400, "la altura también");
+  assert.deepEqual(wall.start, { x: 0, y: 0, z: 0 });
+  assert.deepEqual(wall.end, { x: 3_000, y: 0, z: 0 });
+  // Y el contorno NO se persiste: se deriva al dibujar.
+  const stats = cadDocumentStats(reopened);
+  assert.equal(stats.wall, 1);
+  assert.equal(stats.polyline, 1, "no se fabrica ninguna polilínea de contorno al guardar");
+}
+
 // --- un esquema del futuro se rechaza, no se adivina --------------------------
 {
   assert.throws(
@@ -354,7 +390,8 @@ function schema3Document(): Record<string, unknown> {
 }
 
 console.log(
-  "migración v3→v5: esquema, huella, bulge, orden de dibujo y atributos verificados con anclas absolutas; " +
+  "migración v3→v6: esquema, huella, bulge, orden de dibujo y atributos verificados con anclas absolutas; " +
     "secciones opcionales siguen ausentes; ida y vuelta de POINT/XLINE/IMAGE confirmada; " +
-    "v4→v5 aditivo (ninguna REGION ni SOLID3D fabricados) y el árbol de construcción sobrevive sin malla",
+    "v4→v6 aditivo (ninguna REGION ni SOLID3D fabricados), el árbol de construcción sobrevive sin malla " +
+    "y la receta del muro (eje, grosor, altura) sobrevive sin contorno",
 );

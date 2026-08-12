@@ -132,6 +132,10 @@ const CATEGORY_BY_KEY: Record<string, string> = {
   insertionY: GEOMETRY,
   scaleX: GEOMETRY,
   scaleY: GEOMETRY,
+  // El grosor del muro es geometría en planta. `height` NO se lista aquí: la
+  // clave la comparte MTEXT (altura de texto, categoría Texto) y la categoría
+  // se resuelve por clave, no por tipo.
+  thickness: GEOMETRY,
 
   text: TEXT,
   height: TEXT,

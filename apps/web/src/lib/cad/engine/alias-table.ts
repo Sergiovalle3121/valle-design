@@ -41,6 +41,10 @@ export const CAD_COMMAND_ALIASES: Readonly<Record<string, string>> = {
   WIPE: "WIPEOUT",
   DIV: "DIVIDE",
   ME: "MEASURE",
+  // BIM. `WA` es el alias histórico de WALLADD en AutoCAD Architecture, y
+  // `MURO` la memoria muscular de quien viene del producto en español.
+  WA: "WALL",
+  MURO: "WALL",
 
   // --- modificación ---------------------------------------------------------
   E: "ERASE",

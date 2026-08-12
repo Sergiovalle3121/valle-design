@@ -154,6 +154,40 @@ export function assertEntityInvariants(
     if (type === 'solid3d') assertSolid3dInvariants(entity, id);
     if (type === 'region') assertRegionInvariants(entity, id);
 
+    // Esquema 6. Un WALL persiste su RECETA —eje, grosor, altura— y toda su
+    // geometría se deriva de ella, así que una receta degenerada no falla al
+    // guardarse: falla al DIBUJARSE, con un contorno de área nula que rompe el
+    // hit-testing lejos de su causa. Se rechaza aquí, en el punto de entrada.
+    if (type === 'wall') {
+      const start = assertPoint(entity.start, id, 'el inicio del eje del muro');
+      const end = assertPoint(entity.end, id, 'el final del eje del muro');
+      if (samePoint(start, end)) {
+        throw new BadRequestException(
+          `CadDocument: el muro ${id} necesita un eje con dos extremos distintos.`,
+        );
+      }
+      const thickness = entity.thickness;
+      if (
+        typeof thickness !== 'number' ||
+        !Number.isFinite(thickness) ||
+        !(thickness > 0)
+      ) {
+        throw new BadRequestException(
+          `CadDocument: el muro ${id} requiere un grosor positivo.`,
+        );
+      }
+      const height = entity.height;
+      if (
+        typeof height !== 'number' ||
+        !Number.isFinite(height) ||
+        !(height > 0)
+      ) {
+        throw new BadRequestException(
+          `CadDocument: el muro ${id} requiere una altura positiva.`,
+        );
+      }
+    }
+
     if (type === 'line') {
       const start = assertPoint(entity.start, id, 'el inicio de la línea');
       const end = assertPoint(entity.end, id, 'el final de la línea');

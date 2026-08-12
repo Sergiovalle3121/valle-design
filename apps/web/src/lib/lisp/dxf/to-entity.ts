@@ -440,6 +440,9 @@ export function expectedDxfType(entity: CadNativeEntity): string {
     // devolviera `undefined` como tipo de entidad.
     solid3d: "3DSOLID",
     region: "REGION",
+    // Esquema 6. El mismo nombre que usa AutoCAD Architecture para sus muros;
+    // el DXF plano no tiene entidad de muro.
+    wall: "AEC_WALL",
   };
   return names[entity.type];
 }

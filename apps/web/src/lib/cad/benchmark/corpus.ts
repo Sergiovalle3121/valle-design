@@ -114,6 +114,9 @@ export function createEmptyCadEntityMix(): Record<
     // Se declaran en cero para que el recuento siga cubriendo TODOS los tipos.
     solid3d: 0,
     region: 0,
+    // Esquema 6. Mismo criterio que el 5: el corpus determinista no emite
+    // muros y declararlos en cero mantiene el recuento exhaustivo.
+    wall: 0,
   };
 }
 

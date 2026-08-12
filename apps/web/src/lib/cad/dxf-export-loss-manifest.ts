@@ -30,6 +30,7 @@ import type {
   CadPoint3,
 } from "./cad-document";
 import { cadEntityToDxfPrimitive } from "./dxf-entity-primitives";
+import { wallFootprint } from "./wall-geometry";
 
 /** Tipos con su PROPIO camino de exportación, fuera de las primitivas. */
 const DXF_NON_PRIMITIVE_TYPES = new Set([
@@ -41,7 +42,8 @@ const DXF_NON_PRIMITIVE_TYPES = new Set([
 ]);
 
 /**
- * Reglas de fidelidad de los tipos del esquema 4.
+ * Reglas de fidelidad DECLARADAS por tipo. Nacieron con el esquema 4 y el
+ * esquema 6 añade la suya (WALL); el nombre de la tabla conserva su origen.
  *
  * Los ocho se escriben ya con su código DXF real, así que lo que queda aquí no
  * es "qué falta por implementar" sino qué NO SABE GUARDAR EL FORMATO aunque la
@@ -137,6 +139,35 @@ const SCHEMA4_LOSS_RULES: Record<string, Schema4LossRule> = {
    * WIPEOUT: el marco es una variable del FICHERO (`ACAD_WIPEOUT_VARS`), no de
    * cada enmascaramiento. Mientras todos coincidan no se pierde nada.
    */
+  /**
+   * WALL (esquema 6): la geometría VIAJA —el contorno en planta sale como
+   * polilínea cerrada— pero la RECETA no. El DXF plano no tiene entidad de
+   * muro, así que eje, grosor-como-parámetro y altura dejan de ser editables
+   * al reimportar: vuelve un contorno de cuatro vértices, no un muro.
+   */
+  wall: (entity) => {
+    if (entity.type !== "wall") return null;
+    // Una receta degenerada no produce contorno: la entidad entera se cae del
+    // fichero y eso es pérdida de geometría, no degradación — sube a `error`,
+    // igual que la IMAGE sin definición.
+    if (wallFootprint(entity) === null)
+      return {
+        code: "dxf_export_entity_dropped",
+        severity: "error",
+        detail:
+          "WALL — la receta del muro es degenerada (eje nulo o grosor no positivo) y no produce " +
+          "contorno: el muro NO estará en el fichero. Conserva el documento canónico como original.",
+      };
+    return {
+      code: "dxf_export_wall_parametric_degraded",
+      severity: "warning",
+      detail:
+        "WALL — el muro se exporta como su CONTORNO en planta (polilínea cerrada), no como muro " +
+        "paramétrico: el DXF plano no tiene entidad de muro, así que el eje, el grosor editable " +
+        `(${entity.thickness}) y la altura (${entity.height}) no viajan. Al reimportar volverá como ` +
+        "polilínea. Conserva el documento canónico como original.",
+    };
+  },
   wipeout: (entity, _document, scoped) => {
     if (entity.type !== "wipeout") return null;
     const frames = new Set(

@@ -33,11 +33,15 @@ export const DEFAULT_LAYER_ID = "0";
  * se puede reeditar y el archivo no engorda con decenas de miles de triángulos;
  * la malla se deriva al abrir.
  *
- * Todo aditivo, en las dos subidas: un documento v3 o v4 migra sin perder un
- * campo y sin que se reinterprete ninguno de los que ya traía. Lo único que
+ * v6 estrena WALL: el muro paramétrico, primera entidad BIM. Igual que un
+ * SOLID3D, persiste su RECETA —eje, grosor y altura— y la planta de doble
+ * línea se deriva al dibujar, así que reeditar el grosor es cambiar un número.
+ *
+ * Todo aditivo, en las tres subidas: un documento v3, v4 o v5 migra sin perder
+ * un campo y sin que se reinterprete ninguno de los que ya traía. Lo único que
  * cambia es `meta.schema`.
  */
-export const CAD_DOCUMENT_SCHEMA = 5;
+export const CAD_DOCUMENT_SCHEMA = 6;
 
 /** Capa estable de las colocaciones de estación. */
 export const STATIONS_LAYER = "Stations";

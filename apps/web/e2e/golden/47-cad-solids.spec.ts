@@ -132,9 +132,10 @@ test("un sólido tecleado sobrevive a guardar, cerrar y reabrir — con su árbo
   let baseSolidId = "";
   {
     const saved = backend.snapshot().document;
-    // El esquema sube a 5 en cuanto el documento viaja: la migración es aditiva
-    // y lo único que cambia es este número.
-    expect(saved.meta.schema).toBe(5);
+    // El esquema sube al vigente (6, desde la ola BIM del muro) en cuanto el
+    // documento viaja: la migración es aditiva y lo único que cambia es este
+    // número.
+    expect(saved.meta.schema).toBe(6);
     const solids = solidsOf(saved);
     expect(solids).toHaveLength(1);
     baseSolidId = solids[0].id;
