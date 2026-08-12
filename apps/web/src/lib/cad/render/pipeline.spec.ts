@@ -172,9 +172,26 @@ ok(true, "un paneo que no cambia el conjunto de tiles no genera trabajo");
 
 // ---------------------------------------------------------------------------
 // Zoom: cambiar de octava reconstruye, y lo hace apoyándose en la caché.
+// Y — DOBLE BÚFER — mientras reconstruye, la octava vieja SIGUE sirviendo:
+// la fracción detallada nunca cae a cero durante el replan.
 // ---------------------------------------------------------------------------
+// Asentar EXACTAMENTE la vista del zoom antes de cambiar de octava: así el
+// cambio de LOD es lo único que ocurre y el doble búfer se mide solo.
+pipeline.setView({ bounds: panBase.bounds, pixelsPerUnit: 0.2 });
+pipeline.settle();
 const zoomUpdate = pipeline.setView({ bounds: panBase.bounds, pixelsPerUnit: 3.2 });
 assert.equal(zoomUpdate.lodChanged, true, "cruzar octavas cambia el LOD");
+const midReplan = pipeline.stats();
+assert.ok(midReplan.pendingTasks > 0, "hay reconstrucción en cola");
+assert.equal(
+  midReplan.renderedEntities,
+  midReplan.visibleEntities,
+  `DURANTE el replan la octava vieja sigue sirviendo: cero huecos (${midReplan.renderedEntities}/${midReplan.visibleEntities}, residentes ${midReplan.residentTiles}, visibles ${midReplan.visibleTiles})`,
+);
+assert.ok(
+  pipeline.visibleBatches().length > 0,
+  "y los lotes visibles no desaparecen mientras llega el relevo",
+);
 pipeline.settle();
 const zoomed = pipeline.stats();
 assert.equal(zoomed.renderedEntities, zoomed.visibleEntities, "tras el zoom siguen estando todas");
