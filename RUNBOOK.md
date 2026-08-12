@@ -8,6 +8,14 @@ filas `dead`, latencia del webhook, conflictos CAS y tiempos de apertura,
 serialización y escena. Las métricas y logs no deben contener correos, tokens,
 cuerpos CAD, tenant IDs, firmas ni respuestas del proveedor.
 
+`GET /health/metrics/commercial` expone sin autenticación (como los probes de
+`/health`) el subconjunto comercial de estas señales listo para scrapear:
+backlog y edad por cola del outbox, filas `dead`, contadores y latencia
+`claimed→sent` del dispatcher por clase de error, y 401/403/409/429 por PATRÓN
+de ruta. Todo son agregados: sin URLs reales, payloads ni identificadores. Los
+contadores viven en memoria del proceso y se reinician con cada despliegue; el
+backlog sale de la base y es consistente entre réplicas.
+
 ## Triage inicial
 
 1. `curl -fsS https://API/health` separa indisponibilidad del API de un fallo
