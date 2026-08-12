@@ -167,6 +167,15 @@ export class CadRenderPipeline {
   private readonly entities = new Map<string, CadNativeEntity>();
   private readonly drawOrder = new Map<string, number>();
   private readonly resident = new Map<CadTileId, ResidentTile>();
+  /**
+   * DOBLE BÚFER del cambio de octava. El tile residente de la octava vieja
+   * SIGUE sirviendo sus lotes mientras la octava nueva se reconstruye aquí;
+   * al completarse, el relevo es un swap atómico por tile. Antes el cambio de
+   * LOD borraba los residentes y el usuario miraba huecos durante toda la
+   * reconstrucción — a 100.000 entidades, minutos de dibujo a medias que el
+   * benchmark de viewport documentó como `targetBlockedBy`.
+   */
+  private readonly staging = new Map<CadTileId, ResidentTile>();
   private readonly cache: CadTessellationCache;
   private readonly scheduler: CadRenderScheduler;
   private readonly styleOf: CadRenderStyleResolver;
@@ -203,6 +212,7 @@ export class CadRenderPipeline {
     this.entities.clear();
     this.drawOrder.clear();
     this.resident.clear();
+    this.staging.clear();
     this.cache.clear();
     this.scheduler.abort();
     this.document = document ?? this.document;
@@ -280,7 +290,13 @@ export class CadRenderPipeline {
     for (const [tileId, tile] of [...this.resident]) {
       if (!tile.entityIds.some((id) => affected.has(id))) continue;
       this.resident.delete(tileId);
+      this.staging.delete(tileId);
       evicted += 1;
+    }
+    // Un tile a medio reconstruir en staging también puede contener lo tocado.
+    for (const [tileId, tile] of [...this.staging]) {
+      if (!tile.entityIds.some((id) => affected.has(id))) continue;
+      this.staging.delete(tileId);
     }
     this.enqueueMissingTiles();
     return evicted;
@@ -300,10 +316,17 @@ export class CadRenderPipeline {
     const diff = diffCadTiles(previousTiles, this.visibleTiles);
     // Los tiles que salen de la vista liberan su geometría: sin esto, pasear por
     // un plano grande retiene el plano entero y la prueba de fuga lo caza.
-    for (const tileId of diff.removed) this.resident.delete(tileId);
+    for (const tileId of diff.removed) {
+      this.resident.delete(tileId);
+      this.staging.delete(tileId);
+    }
     if (lodChanged) {
-      for (const [tileId, tile] of [...this.resident])
-        if (tile.zoomOctave !== octave) this.resident.delete(tileId);
+      // Los residentes de la octava vieja NO se borran: siguen sirviendo sus
+      // lotes mientras la octava nueva se reconstruye en `staging` (ver el
+      // campo). Lo que sí muere es el staging de una octava que ya no es la
+      // objetivo: era trabajo a medias hacia un destino que dejó de existir.
+      for (const [tileId, tile] of [...this.staging])
+        if (tile.zoomOctave !== octave) this.staging.delete(tileId);
     }
     const centerX = (view.bounds.minX + view.bounds.maxX) / 2;
     const centerY = (view.bounds.minY + view.bounds.maxY) / 2;
@@ -321,7 +344,11 @@ export class CadRenderPipeline {
   private enqueueMissingTiles(): void {
     for (const tileId of this.visibleTiles) {
       const resident = this.resident.get(tileId);
-      if (resident?.complete) continue;
+      // Completo Y en la octava vigente: nada que hacer. Completo en una
+      // octava vieja: sigue sirviendo, pero hay que reconstruir su relevo.
+      if (resident?.complete && resident.zoomOctave === this.zoomOctaveValue)
+        continue;
+      if (this.staging.get(tileId)?.complete) continue;
       this.enqueueTile(tileId);
     }
   }
@@ -346,7 +373,19 @@ export class CadRenderPipeline {
    * exactamente la carga progresiva que se busca.
    */
   private buildTileChunk(tileId: CadTileId): void {
-    let resident = this.resident.get(tileId);
+    // ¿Dónde se construye? Si hay un residente de OTRA octava, se construye el
+    // relevo en `staging` y el residente sigue sirviendo; si no hay residente
+    // (tile nuevo) o el residente ya es de la octava vigente, se construye en
+    // su sitio, como siempre.
+    const current = this.resident.get(tileId);
+    const buildsInStaging =
+      current !== undefined && current.zoomOctave !== this.zoomOctaveValue;
+    const target = buildsInStaging ? this.staging : this.resident;
+    let resident = target.get(tileId);
+    if (resident && resident.zoomOctave !== this.zoomOctaveValue) {
+      target.delete(tileId);
+      resident = undefined;
+    }
     if (!resident) {
       resident = {
         builders: new Map(),
@@ -358,7 +397,7 @@ export class CadRenderPipeline {
         zoomOctave: this.zoomOctaveValue,
         complete: false,
       };
-      this.resident.set(tileId, resident);
+      target.set(tileId, resident);
     }
     let segmentsThisChunk = 0;
     while (resident.cursor < resident.pending.length) {
@@ -406,6 +445,12 @@ export class CadRenderPipeline {
       // La lista de pendientes ya no hace falta: retenerla sería memoria muerta
       // multiplicada por el número de tiles residentes.
       resident.pending = [];
+      if (buildsInStaging) {
+        // RELEVO atómico: la octava nueva está completa y sustituye a la vieja
+        // en la misma vuelta. El consumidor nunca ve el tile vacío.
+        this.resident.set(tileId, resident);
+        this.staging.delete(tileId);
+      }
       return;
     }
     // Continuación del MISMO tile. Reencolar aquí el conjunto visible entero
@@ -545,6 +590,7 @@ export class CadRenderPipeline {
   dispose(): void {
     this.scheduler.clear();
     this.resident.clear();
+    this.staging.clear();
     this.cache.clear();
     this.entities.clear();
     this.drawOrder.clear();

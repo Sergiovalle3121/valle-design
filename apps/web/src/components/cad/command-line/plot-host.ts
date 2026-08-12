@@ -17,6 +17,7 @@
  */
 import type { CadDocument } from "@/lib/cad/cad-document";
 import type { CadHostRequest } from "@/lib/cad/engine/host-requests";
+import type { CadVisualStyleId } from "@/lib/cad/view/visual-styles";
 import { cadDocumentExtents } from "@/lib/cad/view/document-extents";
 import { buildCadPlotJob, buildCadPlotPreview } from "@/lib/cad/plot/plot-job";
 import type { CadPlotStyleTable } from "@/lib/cad/plot/plot-style-table";
@@ -44,6 +45,8 @@ export interface CadPlotHostBridge {
   openPageSetup?(layoutId: string): void;
   /** Cambia el espacio activo del editor. */
   setSpace?(space: "model" | "paper", layoutId?: string): void;
+  /** Cambia el estilo visual del visor (VSCURRENT). Devuelve el aplicado. */
+  setVisualStyle?(styleId: CadVisualStyleId): string | null;
   /**
    * Conjunto de planos ya cargado, con los dibujos que necesitan sus hojas.
    *
@@ -91,6 +94,13 @@ export class CadPlotHost {
 
   /** Punto de entrada del puente del motor. Devuelve el renglón a mostrar. */
   handle = (request: CadHostRequest): string => {
+    if (request.kind === "visual-style") {
+      const applied = this.bridge.setVisualStyle?.(request.styleId) ?? null;
+      return applied
+        ? `Estilo visual: ${applied}.`
+        : "Este espacio de trabajo no tiene visor de estilos visuales.";
+    }
+
     if (request.kind === "space") {
       this.bridge.setSpace?.(request.space, request.layoutId);
       return request.space === "paper"
