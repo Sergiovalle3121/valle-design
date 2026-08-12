@@ -2,6 +2,7 @@ import { DataSource } from 'typeorm';
 import {
   CommercialCatalogBootstrap,
   STANDALONE_CAD_ENTITLEMENT,
+  STANDALONE_FULL_PLAN_CODE,
   STANDALONE_TRIAL_PLAN_CODE,
 } from './commercial-catalog.bootstrap';
 import { PlanCatalog, PlanEntitlement } from './entities/commercial.entities';
@@ -26,7 +27,7 @@ describe('CommercialCatalogBootstrap', () => {
     else process.env.NODE_ENV = originalNodeEnvironment;
   });
 
-  it('seeds the migration-equivalent trial only for a completely empty catalog', async () => {
+  it('seeds the migration-equivalent catalog only when it is completely empty', async () => {
     await new CommercialCatalogBootstrap(database).onApplicationBootstrap();
 
     await expect(
@@ -37,12 +38,27 @@ describe('CommercialCatalogBootstrap', () => {
       active: true,
       metadata: { kind: 'trial', pricePublished: false },
     });
+    // Paridad con producción: el plan vendible existe también en dev, así el
+    // flujo de upgrade se puede ejercer sin tocar la base a mano.
     await expect(
-      database.getRepository(PlanEntitlement).findOneByOrFail({
-        planCode: STANDALONE_TRIAL_PLAN_CODE,
-        entitlementCode: STANDALONE_CAD_ENTITLEMENT,
+      database.getRepository(PlanCatalog).findOneByOrFail({
+        code: STANDALONE_FULL_PLAN_CODE,
       }),
-    ).resolves.toBeDefined();
+    ).resolves.toMatchObject({
+      active: true,
+      metadata: { kind: 'paid', pricePublished: false },
+    });
+    for (const planCode of [
+      STANDALONE_TRIAL_PLAN_CODE,
+      STANDALONE_FULL_PLAN_CODE,
+    ]) {
+      await expect(
+        database.getRepository(PlanEntitlement).findOneByOrFail({
+          planCode,
+          entitlementCode: STANDALONE_CAD_ENTITLEMENT,
+        }),
+      ).resolves.toBeDefined();
+    }
   });
 
   it('never reactivates or repairs an existing operator-owned catalog', async () => {
