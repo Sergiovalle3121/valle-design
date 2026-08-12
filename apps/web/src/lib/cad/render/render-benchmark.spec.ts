@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   cadDocumentBounds,
   createCadRenderScenario,
+  measureCadDenseEditing,
   measureCadLegacyPipeline,
   measureCadNextPipeline,
   measureCadRenderLeak,
@@ -165,6 +166,43 @@ assert.ok(
 ok(
   true,
   `tres ciclos completos: montón ${leak.samplesMb.join(" → ")} MiB, crecimiento ${leak.heapGrowthMb} MiB (gc ${gcAvailable ? "forzado" : "no forzado"})`,
+);
+
+// ---------------------------------------------------------------------------
+// EDICIÓN DENSA: los invariantes que no dependen del reloj. Los tiempos de este
+// arnés se publican en benchmark:cad:render (report-only hasta tener línea
+// base); aquí se afirma lo que no puede parpadear: que las ediciones EVICTAN
+// tiles de verdad, que ninguna entidad se pierde por el camino y que tras el
+// paseo de MOVEs la fidelidad sigue siendo total.
+// ---------------------------------------------------------------------------
+const editing = measureCadDenseEditing(
+  corpus.nativeEntities,
+  corpus.document.modelSpace.entityIds,
+  scenario.initial,
+  { editBatches: 6, entitiesPerBatch: 5 },
+);
+assert.equal(editing.samplesMs.length, 6, "una muestra por lote de edición");
+assert.ok(
+  editing.samplesMs.every((sample) => sample >= 0),
+  "las muestras de commit→asentado son tiempos",
+);
+assert.ok(
+  editing.evictedTilesTotal >= 6,
+  `cada lote debe liberar al menos un tile: ${editing.evictedTilesTotal} en 6 lotes`,
+);
+assert.equal(
+  editing.totalEntitiesAfterEdits,
+  ENTITIES,
+  "un MOVE no da de baja nada: las entidades siguen todas",
+);
+assert.equal(
+  editing.detailedAtRestAfterEdits,
+  editing.visibleAtRestAfterEdits,
+  "tras el paseo de ediciones la fidelidad sigue siendo total",
+);
+ok(
+  true,
+  `6 lotes de 5 MOVE liberan ${editing.evictedTilesTotal} tiles, conservan ${editing.totalEntitiesAfterEdits} entidades y dejan ${editing.detailedAtRestAfterEdits}/${editing.visibleAtRestAfterEdits} detalladas (commit→asentado p95 ${editing.commitToSettleP95Ms} ms, sólo informativo aquí)`,
 );
 
 console.log(
