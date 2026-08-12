@@ -428,6 +428,11 @@ import {
   executeCadEntityCommand,
   executeCadEntityCommandBatch,
 } from "@/lib/cad/entity-commands";
+import { assertCadLockedLayerInvariant } from "@/lib/cad/locked-layer-guard";
+import {
+  propagateCadConstraints,
+  propagateCadConstraintsByDiff,
+} from "@/lib/cad/constraint-propagation";
 import { CadViewController } from "@/lib/cad/view/view-controller";
 import { CadCommandLineDock } from "@/components/cad/command-line/CadCommandLineDock";
 import { useCadCommandEngine } from "@/components/cad/command-line/use-command-engine";
@@ -5247,12 +5252,14 @@ export default function Layout3DEditor({
                 commands,
                 `${new Set(commands.map((command) => command.type)).size === 1 ? commands[0].type : "batch"}:${commands.length}`,
               );
-        const document = result.document;
         const touchedIds = new Set<string>([
           ...result.affectedEntityIds,
           ...result.createdEntityIds,
           ...result.deletedEntityIds,
         ]);
+        const propagated = propagateCadConstraints(result.document, touchedIds);
+        const document = propagated.document;
+        for (const id of propagated.movedEntityIds) touchedIds.add(id);
         const upsert = document.entities.filter(
           (entity): entity is CadNativeEntity =>
             touchedIds.has(entity.id) && CAD_ENTITY_REGISTRY.supports(entity),
@@ -5435,11 +5442,13 @@ export default function Layout3DEditor({
       }
       const checkpoint = snapshotDocument();
       try {
-        const document = mutate(checkpoint);
-        if (document === checkpoint) {
+        const mutated = mutate(checkpoint);
+        if (mutated === checkpoint) {
           toast.success("No había cambios que aplicar.", notificationTitle);
           return false;
         }
+        assertCadLockedLayerInvariant(checkpoint, mutated);
+        const document = propagateCadConstraintsByDiff(checkpoint, mutated).document;
         recordHistoryDocument(checkpoint);
         loadedCadDocumentRef.current = document;
         syncCadLayerState(document);
@@ -15510,16 +15519,10 @@ export default function Layout3DEditor({
         publication: CadPublicationRecord;
         cadDocumentVersion: number;
       };
-      const nextContentVersion = canonical.meta.version + 1;
-      const nextCanonical: CadDocument = {
-        ...canonical,
-        meta: { ...canonical.meta, version: nextContentVersion },
-        history: [
-          ...canonical.history,
-          { version: nextContentVersion, label: `Publicar ${fileName}` },
-        ],
-        publications: [...canonical.publications, receipt.publication],
-      };
+      const nextCanonical = commitChange(
+        { ...canonical, publications: [...canonical.publications, receipt.publication] },
+        `Publicar ${fileName}`,
+      );
       loadedCadDocumentRef.current = nextCanonical;
       setPublicationRecords([...nextCanonical.publications]);
       setData((current) =>
