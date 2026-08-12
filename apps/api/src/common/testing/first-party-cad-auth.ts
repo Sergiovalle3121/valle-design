@@ -7,6 +7,7 @@ import {
   PlanEntitlement,
   Subscription,
   type SubscriptionStatus,
+  SubscriptionUpgradeIntent,
   UsageLedger,
 } from '../../modules/commercial/entities/commercial.entities';
 import {
@@ -44,6 +45,7 @@ export const FIRST_PARTY_AUTH_ENTITY_GRAPH = [
   PlanCatalog,
   PlanEntitlement,
   Subscription,
+  SubscriptionUpgradeIntent,
   UsageLedger,
   DomainOutbox,
   EmailOutbox,

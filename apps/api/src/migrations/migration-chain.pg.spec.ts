@@ -18,6 +18,8 @@ import { CommercialFoundation20260802170000 } from './20260802170000-CommercialF
 import { NormalizeCadIdentifiers20260802180000 } from './20260802180000-NormalizeCadIdentifiers';
 import { DesignAuditLogIdentity20260805120000 } from './20260805120000-DesignAuditLogIdentity';
 import { CreateCadSheetSets20260809100000 } from './20260809100000-CreateCadSheetSets';
+import { CommercialSellableCatalog20260812100000 } from './20260812100000-CommercialSellableCatalog';
+import { SubscriptionUpgradeIntents20260812110000 } from './20260812110000-SubscriptionUpgradeIntents';
 
 const LEGACY_MIGRATIONS: Array<new () => MigrationInterface> = [
   AddCadBlocks20260706180000,
@@ -38,6 +40,8 @@ const ALL_MIGRATIONS: Array<new () => MigrationInterface> = [
   NormalizeCadIdentifiers20260802180000,
   DesignAuditLogIdentity20260805120000,
   CreateCadSheetSets20260809100000,
+  CommercialSellableCatalog20260812100000,
+  SubscriptionUpgradeIntents20260812110000,
 ];
 
 describePostgres('migration chain (previous main -> latest)', () => {
@@ -190,6 +194,17 @@ describePostgres('migration chain (previous main -> latest)', () => {
           WHERE "plan_code" = 'standalone-trial'`,
       ),
     ).toEqual([{ entitlement_code: 'design.cad' }]);
+    // El catálogo vendible sobrevive su propio down/up y la reconciliación es
+    // idempotente sobre un catálogo ya sembrado (la cadena corrió dos veces).
+    expect(
+      await dataSource.query(
+        `SELECT "plan"."active", "entitlement"."entitlement_code"
+           FROM "plan_catalog" AS "plan"
+           JOIN "plan_entitlements" AS "entitlement"
+             ON "entitlement"."plan_code" = "plan"."code"
+          WHERE "plan"."code" = 'standalone-full'`,
+      ),
+    ).toEqual([{ active: true, entitlement_code: 'design.cad' }]);
 
     await expect(
       dataSource.query(

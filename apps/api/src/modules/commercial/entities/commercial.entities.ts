@@ -11,6 +11,7 @@ import {
 import { JSON_COLUMN_TYPE } from '../../../common/database/json-column-type';
 import { DATE_COLUMN_TYPE } from '../../../common/database/date-column-type';
 import { Organization } from '../../organizations/entities/organization.entity';
+import { User } from '../../identity/entities/identity.entity';
 
 export const SUBSCRIPTION_STATUSES = [
   'trialing',
@@ -91,6 +92,54 @@ export class UsageLedger {
   payloadHash!: string;
   @CreateDateColumn({ name: 'recorded_at', type: DATE_COLUMN_TYPE })
   recordedAt!: Date;
+}
+
+export const UPGRADE_INTENT_STATUSES = [
+  'pending',
+  'confirmed',
+  'cancelled',
+] as const;
+export type UpgradeIntentStatus = (typeof UPGRADE_INTENT_STATUSES)[number];
+
+/**
+ * Asiento auditable del checkout sin pasarela: quién pidió pasar a qué plan y
+ * quién lo decidió. La fila nunca se borra al decidirse — cambia de estado —
+ * y el índice único parcial impide dos `pending` simultáneos por organización.
+ */
+@Entity('subscription_upgrade_intents')
+@Index(['organizationId'], { unique: true, where: `"status" = 'pending'` })
+@Check('chk_upgrade_intents_tenant_scope', '"tenant_id" = "organization_id"')
+export class SubscriptionUpgradeIntent {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column({ name: 'organization_id', type: 'uuid' }) organizationId!: string;
+  @ManyToOne(() => Organization, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'organization_id' })
+  organization!: Organization;
+  @Column({ name: 'tenant_id', type: 'uuid' }) tenantId!: string;
+  @ManyToOne(() => Organization, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'tenant_id' })
+  tenantOrganization!: Organization;
+  @Column({ name: 'requested_plan_code', type: 'varchar', length: 80 })
+  requestedPlanCode!: string;
+  @ManyToOne(() => PlanCatalog, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'requested_plan_code', referencedColumnName: 'code' })
+  requestedPlan!: PlanCatalog;
+  @Column({ type: 'varchar', length: 20, default: 'pending' })
+  status!: UpgradeIntentStatus;
+  @Column({ name: 'requested_by_user_id', type: 'uuid' })
+  requestedByUserId!: string;
+  @ManyToOne(() => User, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'requested_by_user_id' })
+  requestedBy!: User;
+  @Column({ name: 'decided_by_user_id', type: 'uuid', nullable: true })
+  decidedByUserId!: string | null;
+  @ManyToOne(() => User, { nullable: true, onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'decided_by_user_id' })
+  decidedBy!: User | null;
+  @Column({ name: 'decided_at', type: DATE_COLUMN_TYPE, nullable: true })
+  decidedAt!: Date | null;
+  @CreateDateColumn({ name: 'created_at', type: DATE_COLUMN_TYPE })
+  createdAt!: Date;
 }
 
 export type OutboxStatus =
