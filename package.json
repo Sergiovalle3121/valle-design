@@ -26,6 +26,7 @@
     "check:dwg": "npm run check --workspace=@valle-design/dwg-codec && node scripts/dwg/check-product-boundary.mjs"
   },
   "devDependencies": {
+    "@redocly/cli": "1.34.3",
     "prettier": "^3.0.0",
     "turbo": "^2.5.0"
   },
