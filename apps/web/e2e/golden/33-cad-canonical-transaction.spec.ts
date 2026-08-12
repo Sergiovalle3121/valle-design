@@ -374,7 +374,11 @@ test('a locked layer refuses drawing and OFFSET, and rejection leaves zero histo
   test.setTimeout(180_000);
   const backend = await openStudio(context, page, ['zeta']);
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
-  await page.getByTitle(/Vista superior/).click();
+  // Modo 2D: la vista superior queda BLOQUEADA y el mapa mundo↔pantalla es
+  // afín por construcción. El preset 3D «Vista superior» se destemplaba al
+  // abrir y cerrar el panel de capas a mitad de test, y el segundo
+  // `worldPoint` invertía una cámara que ya no era cenital.
+  await page.getByRole('button', { name: '2D', exact: true }).click();
   await page.getByTitle(/Ajustar a la planta/).click();
 
   await test.step('OFFSET de un objeto designado crea UNA entidad y UNA entrada', async () => {
