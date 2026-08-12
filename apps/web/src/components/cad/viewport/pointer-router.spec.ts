@@ -178,8 +178,8 @@ function harness(entities: readonly CadNativeEntity[] = []): Harness {
 // ---------------------------------------------------------------------------
 assert.deepEqual(
   Object.keys(CAD_ENGINE_POINTER_COMMANDS).sort(),
-  ["circle", "line", "polyline", "rect"],
-  "las cuatro herramientas de DIBUJO van al motor",
+  ["circle", "copy", "line", "move", "offset", "polyline", "rect"],
+  "las cuatro de DIBUJO y las tres de MODIFICACIÓN van al motor",
 );
 for (const command of Object.values(CAD_ENGINE_POINTER_COMMANDS))
   assert.ok(
@@ -188,18 +188,9 @@ for (const command of Object.values(CAD_ENGINE_POINTER_COMMANDS))
   );
 assert.deepEqual(
   Object.keys(CAD_LEGACY_POINTER_TOOLS).sort(),
-  ["copy", "measure", "move", "offset", "select", "wall"],
+  ["measure", "select", "wall"],
   "y la lista blanca del camino viejo se puede leer entera",
 );
-// Las tres de modificación llevan su deuda ESCRITA, no implícita: enrutar «lo
-// que no conozco» al camino viejo por omisión es cómo se acumulan dos
-// productos sin que nadie lo haya decidido.
-for (const tool of ["move", "copy", "offset"] as const)
-  assert.match(
-    CAD_LEGACY_POINTER_TOOLS[tool],
-    /^PENDIENTE/,
-    `${tool} sigue en el camino viejo y tiene que decir por qué`,
-  );
 // La intersección vacía es la propiedad: ninguna herramienta va a los dos.
 for (const legacy of Object.keys(CAD_LEGACY_POINTER_TOOLS))
   assert.equal(
@@ -208,8 +199,11 @@ for (const legacy of Object.keys(CAD_LEGACY_POINTER_TOOLS))
     `${legacy} no puede estar además en el motor`,
   );
 assert.equal(cadEngineCommandForTool("line"), "LINE");
+assert.equal(cadEngineCommandForTool("move"), "MOVE");
+assert.equal(cadEngineCommandForTool("copy"), "COPY");
+assert.equal(cadEngineCommandForTool("offset"), "OFFSET");
 assert.equal(cadEngineCommandForTool("inventada"), null);
-ok(true, "enrutado explícito: 4 al motor, 6 al camino viejo con su motivo, cero solapes");
+ok(true, "enrutado explícito: 7 al motor, 3 al camino viejo con su motivo, cero solapes");
 
 // ---------------------------------------------------------------------------
 // 2. Sin comando activo el enrutador NO toca el puntero: es del camino viejo.

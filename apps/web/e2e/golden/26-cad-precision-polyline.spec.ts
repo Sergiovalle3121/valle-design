@@ -6,6 +6,7 @@ import { migrateCadDocument, type CadDocument, type CadEntity } from '../../src/
 import { cadDocumentToEditorSnapshot } from '../../src/lib/cad/editor-snapshot';
 import { saveAndSettle } from '../fixtures/cad-save';
 import { applyDynamicInput } from '../fixtures/dynamic-input';
+import { worldPoint } from '../fixtures/world-point';
 
 // MIGRACIÓN R3: mock en la superficie v1 real. DIFERENCIA de transporte
 // documentada: el PUT legacy arrastraba el array `assets` junto al documento;
@@ -110,11 +111,15 @@ test('neutral drawing uses units, layers, ABS/REL/POLAR, closed polyline and OFF
   });
 
   await test.step('14. Aplicar offset', async () => {
-    // La polilínea recién cerrada queda seleccionada por la propia transacción
-    // canónica, así que ya no hace falta buscarla por la etiqueta heredada
-    // «Pline 1» — que además ya no existe.
+    // La secuencia del MOTOR: OFFSET es command-first. La polilínea se designa
+    // con el pickbox sobre su arista inferior (2000,4000)→(4000,4000).
+    await page.getByTitle(/Vista superior/).click();
+    await page.getByTitle(/Ajustar a la planta/).click();
     await page.getByRole('button', { name: 'Offset', exact: true }).click();
     await applyDynamicInput(page, { offset: '250mm' });
+    const on = await worldPoint(page, { x: 3_000, y: 4_000 });
+    await page.mouse.click(on.x, on.y);
+    await page.keyboard.press('Enter');
     await expect(page.getByTestId('cad-native-properties')).toContainText('POLYLINE');
   });
 

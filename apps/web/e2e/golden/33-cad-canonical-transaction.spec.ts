@@ -5,6 +5,7 @@ import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
 import { applyDynamicInput, applyDynamicPoint } from '../fixtures/dynamic-input';
+import { worldPoint } from '../fixtures/world-point';
 
 /**
  * FASE 0 — la autoría canónica es TRANSACCIONAL y respeta el orden de dibujo.
@@ -149,39 +150,8 @@ const undoButton = (page: Page) => page.getByTitle('Deshacer (Ctrl+Z)');
 const redoButton = (page: Page) => page.getByTitle('Rehacer (Ctrl+Shift+Z)');
 const properties = (page: Page) => page.getByTestId('cad-native-properties');
 
-/**
- * Traduce coordenadas de mundo a pantalla muestreando el HUD del cursor: el
- * único modo de dibujar CON EL RATÓN de verdad y no por la entrada dinámica.
- */
-async function worldPoint(page: Page, target: { x: number; y: number }) {
-  const box = await page.getByTestId('cad-canvas').boundingBox();
-  if (!box) throw new Error('CAD canvas has no bounding box');
-  const coordinate = page.getByTestId('cad-cursor-coordinate');
-  const sample = async (x: number, y: number) => {
-    await page.mouse.move(x, y);
-    await expect.poll(async () => coordinate.getAttribute('data-x')).not.toBe('');
-    return {
-      x: Number(await coordinate.getAttribute('data-x')),
-      y: Number(await coordinate.getAttribute('data-y')),
-    };
-  };
-  const screen = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-  const origin = await sample(screen.x, screen.y);
-  const horizontal = await sample(screen.x + 80, screen.y);
-  const vertical = await sample(screen.x, screen.y + 80);
-  const a = (horizontal.x - origin.x) / 80;
-  const b = (vertical.x - origin.x) / 80;
-  const c = (horizontal.y - origin.y) / 80;
-  const d = (vertical.y - origin.y) / 80;
-  const determinant = a * d - b * c;
-  if (Math.abs(determinant) < 1e-9) throw new Error('CAD world/screen transform is singular');
-  const wx = target.x - origin.x;
-  const wy = target.y - origin.y;
-  return {
-    x: screen.x + (d * wx - b * wy) / determinant,
-    y: screen.y + (-c * wx + a * wy) / determinant,
-  };
-}
+// `worldPoint` vive en e2e/fixtures/world-point.ts: el 26 y el 40 también
+// designan objetos con el pickbox desde que OFFSET usa la secuencia del motor.
 
 /* ══════════════════════════════════════════════════════════════════════════
    1. Una acción de dibujo = UNA entrada de historial
@@ -404,12 +374,18 @@ test('a locked layer refuses drawing and OFFSET, and rejection leaves zero histo
   test.setTimeout(180_000);
   const backend = await openStudio(context, page, ['zeta']);
   await expect(page.getByTestId('cad-native-entity-list')).toBeVisible();
+  await page.getByTitle(/Vista superior/).click();
+  await page.getByTitle(/Ajustar a la planta/).click();
 
-  await test.step('OFFSET de una selección válida crea UNA entidad y UNA entrada', async () => {
-    await page.getByTestId('cad-native-entity-zeta').click();
+  await test.step('OFFSET de un objeto designado crea UNA entidad y UNA entrada', async () => {
     await expectHistory(page, 0, 0);
+    // La secuencia del MOTOR (command-first, como AutoCAD): distancia →
+    // designar el objeto con el pickbox → Enter emite el lote.
     await toolbar(page).getByRole('button', { name: 'Offset', exact: true }).click();
     await applyDynamicInput(page, { offset: '250' });
+    const on = await worldPoint(page, { x: 1_250, y: 1_500 });
+    await page.mouse.click(on.x, on.y);
+    await page.keyboard.press('Enter');
     await expectNativeCount(page, 2);
     await expectHistory(page, 1, 0);
     await undoButton(page).click();
@@ -431,9 +407,11 @@ test('a locked layer refuses drawing and OFFSET, and rejection leaves zero histo
     const depthBefore = await historyDepth(page);
 
     await deselect(page);
-    await page.getByTestId('cad-native-entity-zeta').click();
     await toolbar(page).getByRole('button', { name: 'Offset', exact: true }).click();
     await applyDynamicInput(page, { offset: '250' });
+    const on = await worldPoint(page, { x: 1_250, y: 1_500 });
+    await page.mouse.click(on.x, on.y);
+    await page.keyboard.press('Enter');
 
     await expectNativeCount(page, 1);
     await expect(page.getByTestId('cad-history-depth')).toHaveAttribute(
@@ -490,6 +468,9 @@ test('MOVE and COPY run from the ordinary command on the canonical selection', a
     await toolbar(page).getByRole('button', { name: 'Copy', exact: true }).click();
     await point(page, '0', '0');
     await point(page, '0', '2000');
+    // COPY del motor es MÚLTIPLE, como en AutoCAD: sigue pidiendo destinos
+    // hasta que se acepta. Enter emite el lote entero — y UN solo Undo.
+    await page.keyboard.press('Enter');
     await expectNativeCount(page, 2);
     await saveAndSettle(page, backend);
 
