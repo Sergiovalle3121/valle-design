@@ -6915,6 +6915,13 @@ export default function Layout3DEditor({
         Math.max(ctx.W, ctx.H) * 0.02,
       );
     };
+    /** Hit-test canónico bajo un punto de DIBUJO, con la apertura del pickbox. */
+    const hitCanonical = (point: { x: number; y: number }, limit: number) =>
+      nativeSelectionIndexRef.current?.hitTest(
+        point,
+        pointerWorldTolerance(workspacePreferencesRef.current.pickBoxPx),
+        limit,
+      ) ?? [];
     const snapFloor = (
       wx: number,
       wy: number,
@@ -7179,6 +7186,7 @@ export default function Layout3DEditor({
           return { point };
         return { point: { x: resolved.wx, y: resolved.wy }, ...(snap ? { snap } : {}) };
       },
+      hitEntity: (point) => hitCanonical(point, 1)[0]?.id ?? null,
       setCursor: (point) => {
         engineCursorPointRef.current = point;
       },
@@ -7312,25 +7320,18 @@ export default function Layout3DEditor({
         }));
       if (!stationHits.length && !assetHits.length && !nativeHits.length) {
         const world = floorWorld(e);
-        const context = ctxRef.current;
-        if (world && context) {
-          const tolerance = pointerWorldTolerance(
-            workspacePreferencesRef.current.pickBoxPx,
-          );
-          const canonicalHit = nativeSelectionIndexRef.current?.hitTest(
-            { x: world.wx, y: world.wy },
-            tolerance,
-            1,
-          )[0];
-          if (canonicalHit)
-            nativeHits.push({
-              d: 0,
-              type: "native",
-              id: canonicalHit.id,
-              obj: { d: 0, id: canonicalHit.id, gripId: undefined },
-              gripId: undefined,
-            });
-        }
+        const canonicalHit =
+          world && ctxRef.current
+            ? hitCanonical({ x: world.wx, y: world.wy }, 1)[0]
+            : undefined;
+        if (canonicalHit)
+          nativeHits.push({
+            d: 0,
+            type: "native",
+            id: canonicalHit.id,
+            obj: { d: 0, id: canonicalHit.id, gripId: undefined },
+            gripId: undefined,
+          });
       }
       const all = [...stationHits, ...assetHits, ...nativeHits].sort(
         (a, b) => a.d - b.d,
@@ -7351,18 +7352,11 @@ export default function Layout3DEditor({
             return;
           }
           const world = floorWorld(e);
-          const context = ctxRef.current;
           const canonicalCandidates =
-            world && context
-              ? (nativeSelectionIndexRef.current
-                  ?.hitTest(
-                    { x: world.wx, y: world.wy },
-                    pointerWorldTolerance(
-                      workspacePreferencesRef.current.pickBoxPx,
-                    ),
-                    16,
-                  )
-                  .map((entity) => `native:${entity.id}`) ?? [])
+            world && ctxRef.current
+              ? hitCanonical({ x: world.wx, y: world.wy }, 16).map(
+                  (entity) => `native:${entity.id}`,
+                )
               : [];
           const operation =
             e.ctrlKey || e.metaKey

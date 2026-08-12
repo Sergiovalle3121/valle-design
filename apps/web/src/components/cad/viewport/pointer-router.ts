@@ -33,6 +33,10 @@ import type { SnapType } from "@/lib/cad/snap-engine";
 import type { CadCommandEngineHost } from "@/components/cad/command-line/command-engine-host";
 import type { CadKeyword } from "@/lib/cad/engine/command-types";
 import type { CadPreviewPath } from "@/lib/cad/engine/command-types";
+import {
+  CAD_ACCEPT_ENTITY_PICK,
+  CAD_ACCEPT_POINT,
+} from "@/lib/cad/engine/command-types";
 import type { CadLiveCursorField } from "./live-cursor";
 
 /**
@@ -135,6 +139,12 @@ export interface CadEnginePointerBridge {
     point: CadPoint2,
     override: readonly SnapType[] | null,
   ): { point: CadPoint2; snap?: SnapType };
+  /**
+   * Entidad canónica bajo el punto, con la apertura del pickbox del editor.
+   * `null` si no hay ninguna. Sólo se consulta cuando el paso activo acepta
+   * ENTITY_PICK: designar objetos es del paso, no un modo del enrutador.
+   */
+  hitEntity(point: CadPoint2): string | null;
   /** Publica el cursor vivo; es lo que el contexto del motor devuelve. */
   setCursor(point: CadPoint2 | null): void;
   /** Coordenadas del evento relativas al lienzo, para colocar el DOM. */
@@ -236,7 +246,11 @@ export class CadEnginePointerRouter {
     if (!this.active) return false;
     const raw = this.bridge.worldPoint(event);
     if (!raw) return true;
-    const resolved = this.bridge.snap(raw, this.bridge.host.osnapOverride);
+    // En un paso que sólo designa objetos no hay captura que enseñar: la
+    // insignia de OSNAP mentiría sobre un punto que el clic no va a usar.
+    const resolved = picksEntityOnly(this.bridge.host.accepts)
+      ? { point: raw, snap: undefined }
+      : this.bridge.snap(raw, this.bridge.host.osnapOverride);
     this.lastPoint = resolved.point;
     this.lastSnap = resolved.snap ?? null;
     // Cursor vivo: DOM directo, sin React. Es lo único que corre por muestra.
@@ -279,6 +293,22 @@ export class CadEnginePointerRouter {
     if (event.button !== 0) return false;
     const raw = this.bridge.worldPoint(event);
     if (!raw) return true;
+    // El PASO decide qué es un clic. Si acepta designar un OBJETO y hay una
+    // entidad bajo el cursor, el clic es esa entidad, no el punto de debajo.
+    // Sin entidad, cae a punto sólo si el paso también acepta puntos; si sólo
+    // acepta objetos, el clic al vacío no designa nada — como en AutoCAD, y
+    // como exige MOVE, cuyo paso de designación se tragaría el punto como
+    // punto base si llegara hasta él.
+    const accepts = this.bridge.host.accepts;
+    if (accepts & CAD_ACCEPT_ENTITY_PICK) {
+      const hit = this.bridge.hitEntity(raw);
+      if (hit) {
+        this.bridge.host.pickEntity(hit, raw);
+        this.afterDispatch();
+        return true;
+      }
+      if (!(accepts & CAD_ACCEPT_POINT)) return true;
+    }
     const resolved = this.bridge.snap(raw, this.bridge.host.osnapOverride);
     this.commitPoint(resolved.point, resolved.snap);
     return true;
@@ -434,4 +464,11 @@ export class CadEnginePointerRouter {
 
 function normalizeDegrees(degrees: number): number {
   return ((degrees % 360) + 360) % 360;
+}
+
+/** El paso sólo designa OBJETOS: un clic al vacío no puede ser un punto. */
+function picksEntityOnly(accepts: number): boolean {
+  return (
+    (accepts & CAD_ACCEPT_ENTITY_PICK) !== 0 && (accepts & CAD_ACCEPT_POINT) === 0
+  );
 }
