@@ -32,6 +32,7 @@ import { runCadScript } from "@/lib/cad/script-runner";
 import type { CadVariableAccess } from "@/lib/cad/system-variables";
 import type { CadHostRequest } from "@/lib/cad/engine/host-requests";
 import type { CadView } from "@/lib/cad/view/cad-view";
+import type { CadVisualStyleId } from "@/lib/cad/view/visual-styles";
 import { cadDocumentExtents, cadEntityExtents } from "@/lib/cad/view/document-extents";
 import type { CadPreviewPath } from "@/lib/cad/engine/command-types";
 import type { SnapType } from "@/lib/cad/snap-engine";
@@ -155,6 +156,12 @@ export interface CadStudioCommandEngineOptions {
    * el punto de montaje y está pedida en el PR.
    */
   identity?: CadLispIdentity;
+  /**
+   * Aplica un estilo visual del visor (VSCURRENT/SHADEMODE) y devuelve la
+   * etiqueta aplicada, o `null` si este espacio de trabajo no tiene visor de
+   * sólidos. Opcional: un guion sin lienzo simplemente dice que no hay visor.
+   */
+  visualStyle?(styleId: CadVisualStyleId): string | null;
 }
 
 /**
@@ -198,7 +205,7 @@ export function useCadStudioNavigation(
  * DOM — inyectado para que el anfitrión se pueda probar en Node.
  */
 export function useCadStudioPlotHost(
-  options: Pick<CadStudioCommandEngineOptions, "document"> & {
+  options: Pick<CadStudioCommandEngineOptions, "document" | "visualStyle"> & {
     /** Adónde va el renglón del trazado cuando termina. */
     note?: (text: string, level: "info" | "error") => void;
   },
@@ -211,6 +218,7 @@ export function useCadStudioPlotHost(
         document: () => live.current.document.current,
         download: downloadCadFile,
         onResult: (text, level) => live.current.note?.(text, level),
+        setVisualStyle: (styleId) => live.current.visualStyle?.(styleId) ?? null,
       }),
     [],
   );
@@ -251,6 +259,7 @@ export function useCadStudioCommandEngine(
   const plot = useCadStudioPlotHost({
     document: options.document,
     note: (text, level) => engineRef.current?.note(text, level),
+    visualStyle: options.visualStyle,
   });
   const live = useRef(options);
   live.current = options;

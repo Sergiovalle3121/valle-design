@@ -141,6 +141,9 @@ export const CAD_COMMAND_ALIASES: Readonly<Record<string, string>> = {
   P: "PAN",
   V: "VIEW",
   UC: "UCSMAN",
+  VS: "VSCURRENT",
+  // El nombre legado: en AutoCAD moderno SHADEMODE delega en VSCURRENT.
+  SHADEMODE: "VSCURRENT",
 
   // --- layouts y ploteo -----------------------------------------------------
   LO: "LAYOUT",

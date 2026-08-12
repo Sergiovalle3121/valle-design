@@ -466,6 +466,10 @@ import {
   CadViewportRenderHost,
 } from "@/components/cad/viewport/render-pipeline-host";
 import {
+  CadSolidShadeHost,
+  cadSolidEntityIds,
+} from "@/components/cad/viewport/solid-shade-host";
+import {
   HELP_SECTIONS,
   THEMES,
   type Theme3D,
@@ -2173,6 +2177,7 @@ export default function Layout3DEditor({
   const renderPipelineRef = useRef<CadRenderPipelineChoice>("batched");
   const renderPipelineResolvedRef = useRef(false);
   const renderPipelineHostRef = useRef<CadViewportRenderHost | null>(null);
+  const solidShadeHostRef = useRef<CadSolidShadeHost | null>(null);
   /**
    * Reproyecta los objetos heredados de la SELECCIÓN.
    *
@@ -3532,15 +3537,25 @@ export default function Layout3DEditor({
        * caché de teselado y convertiría el paneo en la reconstrucción completa
        * que este camino existe para eliminar.
        */
+      const shadedSolidIds = new Set(cadSolidEntityIds(document));
+      solidShadeHostRef.current?.sync(
+        document,
+        new Set(nativeSelectionIdsRef.current),
+      );
       const batchedHost = renderPipelineHostRef.current;
       if (batchedHost) {
         if (patch && batchedHost.loaded)
           batchedHost.invalidate(
             [...patch.upsert.map((entity) => entity.id), ...patch.remove],
-            patch.upsert.filter((entity) => !batchedInsertIds.has(entity.id)),
+            patch.upsert.filter(
+              (entity) =>
+                !batchedInsertIds.has(entity.id) && !shadedSolidIds.has(entity.id),
+            ),
           );
         else if (documentChanged || !batchedHost.loaded)
-          batchedHost.replace(document, { excludeEntityIds: batchedInsertIds });
+          batchedHost.replace(document, {
+            excludeEntityIds: new Set([...batchedInsertIds, ...shadedSolidIds]),
+          });
         batchedHost.setHiddenLayers(
           new Set(
             document.layers
@@ -5342,6 +5357,9 @@ export default function Layout3DEditor({
     osnapOverride: (modes) => {
       engineOsnapOverrideRef.current = modes;
     },
+    // VSCURRENT/SHADEMODE: estado del visor, no del documento.
+    visualStyle: (styleId) =>
+      solidShadeHostRef.current?.applyVisualStyle(styleId) ?? null,
   });
 
   /**
@@ -6546,6 +6564,15 @@ export default function Layout3DEditor({
       renderPipelineHostRef.current = host;
       renderPipelineSlotRef.current?.set(host);
     }
+    // Sólidos SOMBREADOS: grupo aparte con z real y luz, excluidos del batch
+    // (que vive comprimido en una lámina de profundidad NDC). Patrón INSERT.
+    const solidShadeHost = new CadSolidShadeHost(() => ({
+      scale: s,
+      width: W,
+      height: H,
+    }));
+    nativeGroup.add(solidShadeHost.group);
+    solidShadeHostRef.current = solidShadeHost;
     const connsGroup = new THREE.Group();
     scene.add(connsGroup);
     connsGroupRef.current = connsGroup;
@@ -8152,6 +8179,8 @@ export default function Layout3DEditor({
       renderPipelineSlotRef.current?.set(null);
       renderPipelineHostRef.current?.dispose();
       renderPipelineHostRef.current = null;
+      solidShadeHostRef.current?.dispose();
+      solidShadeHostRef.current = null;
       nativeSelectionProjectionRef.current = null;
       nativeInsertBatchRef.current = null;
       nativeOverviewRef.current = null;

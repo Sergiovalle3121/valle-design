@@ -16,6 +16,7 @@
  * la frontera, y una frontera con dependencias deja de serlo.
  */
 import type { CadPlotRequest } from "../plot/page-setup";
+import type { CadVisualStyleId } from "../view/visual-styles";
 
 export type CadHostRequest =
   /** Abre el cuadro de configuración de página de una presentación. */
@@ -29,4 +30,10 @@ export type CadHostRequest =
    */
   | { kind: "publish"; sheetSetId: string; sheetIds?: readonly string[] }
   /** Cambia el espacio activo del editor: modelo o papel. */
-  | { kind: "space"; space: "model" | "paper"; layoutId?: string };
+  | { kind: "space"; space: "model" | "paper"; layoutId?: string }
+  /**
+   * Cambia el estilo visual del visor (VSCURRENT/SHADEMODE). Es estado del
+   * VISOR, no del documento: cambiar cómo se mira un sólido no ensucia el
+   * dibujo ni deja paso de deshacer, igual que en AutoCAD.
+   */
+  | { kind: "visual-style"; styleId: CadVisualStyleId };

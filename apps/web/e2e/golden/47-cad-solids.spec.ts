@@ -216,6 +216,25 @@ test("un sólido tecleado sobrevive a guardar, cerrar y reabrir — con su árbo
     await expect(page.getByTestId("cad-command-line")).toContainText(/deriva/i);
   }
 
+  // --- 3b. VSCURRENT: el estilo visual, tecleable ---------------------------
+  {
+    // La respuesta trae la ETIQUETA que devolvió el anfitrión del visor de
+    // sólidos sombreados: si su grupo no estuviera montado en la escena, aquí
+    // saldría «Este espacio de trabajo no tiene visor de estilos visuales».
+    await type(page, "VSCURRENT");
+    await type(page, "A");
+    await expect(page.getByTestId("cad-command-line")).toContainText(
+      "Estilo visual: Alámbrico.",
+    );
+    // El nombre viejo delega en el nuevo, como en AutoCAD, y con él la
+    // memoria muscular de quien lleva veinte años tecleando SHADEMODE.
+    await type(page, "SHADEMODE");
+    await type(page, "S");
+    await expect(page.getByTestId("cad-command-line")).toContainText(
+      "Estilo visual: Sombreado.",
+    );
+  }
+
   // --- 4. Cerrar y REABRIR: la prueba de que ya no es una isla --------------
   const beforeReload = backend.snapshot().document;
   const expectedVolume = solid3dMassProperties(solidsOf(beforeReload)[0]).volume;

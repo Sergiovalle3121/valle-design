@@ -162,6 +162,8 @@ const names = registry.all().map((command) => command.name);
     "XBIND",
     "XCLIP",
     "ADCENTER",
+    // Ola de sólidos sombreados: el estilo visual tecleable.
+    "VSCURRENT",
   ])
     assert.ok(names.includes(expected), `${expected} no llegó al registro del producto`);
 }
