@@ -1,0 +1,389 @@
+{
+  "$schema": "./compatibility-matrix.schema.json",
+  "schemaVersion": "1.0.0",
+  "matrixVersion": "v1",
+  "updatedAt": "2026-08-09",
+  "productionAvailable": false,
+  "activationPolicy": "all-nine-together",
+  "classRegistryComplete": false,
+  "versions": [
+    "AC1009",
+    "AC1012",
+    "AC1014",
+    "AC1015",
+    "AC1018",
+    "AC1021",
+    "AC1024",
+    "AC1027",
+    "AC1032"
+  ],
+  "directions": [
+    "read",
+    "write"
+  ],
+  "families": [
+    {
+      "id": "envelope",
+      "title": "Envelope and binary container",
+      "properties": [
+        "container",
+        "sections",
+        "streams",
+        "checksums",
+        "compression"
+      ]
+    },
+    {
+      "id": "object-database",
+      "title": "Classes and object database",
+      "properties": [
+        "classes",
+        "object-map",
+        "handles",
+        "owners",
+        "dictionaries"
+      ]
+    },
+    {
+      "id": "symbol-tables",
+      "title": "Symbol tables",
+      "properties": [
+        "layers",
+        "linetypes",
+        "styles",
+        "named-records"
+      ]
+    },
+    {
+      "id": "geometry-2d",
+      "title": "2D geometry",
+      "properties": [
+        "primitives",
+        "curves",
+        "polylines"
+      ]
+    },
+    {
+      "id": "geometry-3d",
+      "title": "3D geometry",
+      "properties": [
+        "primitives",
+        "curves",
+        "transforms"
+      ]
+    },
+    {
+      "id": "annotation",
+      "title": "Annotation",
+      "properties": [
+        "text",
+        "multiline-text",
+        "leaders",
+        "tables"
+      ]
+    },
+    {
+      "id": "blocks",
+      "title": "Blocks",
+      "properties": [
+        "definitions",
+        "inserts",
+        "attributes"
+      ]
+    },
+    {
+      "id": "dynamic-blocks",
+      "title": "Dynamic blocks",
+      "properties": [
+        "parameters",
+        "actions",
+        "visibility"
+      ]
+    },
+    {
+      "id": "dimensions",
+      "title": "Dimensions",
+      "properties": [
+        "geometry",
+        "styles",
+        "associativity"
+      ]
+    },
+    {
+      "id": "hatch",
+      "title": "Hatch and fills",
+      "properties": [
+        "boundaries",
+        "patterns",
+        "gradients"
+      ]
+    },
+    {
+      "id": "layouts",
+      "title": "Layouts and view state",
+      "properties": [
+        "model-space",
+        "paper-space",
+        "viewports"
+      ]
+    },
+    {
+      "id": "xrefs",
+      "title": "External references",
+      "properties": [
+        "references",
+        "paths",
+        "overlays"
+      ]
+    },
+    {
+      "id": "constraints",
+      "title": "Constraints",
+      "properties": [
+        "geometric",
+        "dimensional",
+        "dependencies"
+      ]
+    },
+    {
+      "id": "images",
+      "title": "Raster images",
+      "properties": [
+        "definitions",
+        "placements",
+        "clipping"
+      ]
+    },
+    {
+      "id": "meshes",
+      "title": "Meshes",
+      "properties": [
+        "vertices",
+        "faces",
+        "subdivision"
+      ]
+    },
+    {
+      "id": "regions",
+      "title": "Regions",
+      "properties": [
+        "topology",
+        "boundaries",
+        "opaque-preservation"
+      ]
+    },
+    {
+      "id": "surfaces",
+      "title": "Surfaces",
+      "properties": [
+        "geometry",
+        "trimming",
+        "opaque-preservation"
+      ]
+    },
+    {
+      "id": "solids",
+      "title": "Solids",
+      "properties": [
+        "geometry",
+        "history",
+        "opaque-preservation"
+      ]
+    },
+    {
+      "id": "authorized-vertical-extensions",
+      "title": "Authorized vertical extensions",
+      "properties": [
+        "registration",
+        "typed-codecs",
+        "quarantine-preservation"
+      ]
+    }
+  ],
+  "evidenceRecords": [],
+  "coverage": [
+    {
+      "versionCodes": [
+        "AC1009",
+        "AC1012",
+        "AC1014",
+        "AC1015",
+        "AC1018",
+        "AC1021",
+        "AC1024",
+        "AC1027",
+        "AC1032"
+      ],
+      "directions": [
+        "read",
+        "write"
+      ],
+      "familyProperties": [
+        {
+          "familyId": "envelope",
+          "propertyIds": [
+            "container",
+            "sections",
+            "streams",
+            "checksums",
+            "compression"
+          ]
+        },
+        {
+          "familyId": "object-database",
+          "propertyIds": [
+            "classes",
+            "object-map",
+            "handles",
+            "owners",
+            "dictionaries"
+          ]
+        },
+        {
+          "familyId": "symbol-tables",
+          "propertyIds": [
+            "layers",
+            "linetypes",
+            "styles",
+            "named-records"
+          ]
+        },
+        {
+          "familyId": "geometry-2d",
+          "propertyIds": [
+            "primitives",
+            "curves",
+            "polylines"
+          ]
+        },
+        {
+          "familyId": "geometry-3d",
+          "propertyIds": [
+            "primitives",
+            "curves",
+            "transforms"
+          ]
+        },
+        {
+          "familyId": "annotation",
+          "propertyIds": [
+            "text",
+            "multiline-text",
+            "leaders",
+            "tables"
+          ]
+        },
+        {
+          "familyId": "blocks",
+          "propertyIds": [
+            "definitions",
+            "inserts",
+            "attributes"
+          ]
+        },
+        {
+          "familyId": "dynamic-blocks",
+          "propertyIds": [
+            "parameters",
+            "actions",
+            "visibility"
+          ]
+        },
+        {
+          "familyId": "dimensions",
+          "propertyIds": [
+            "geometry",
+            "styles",
+            "associativity"
+          ]
+        },
+        {
+          "familyId": "hatch",
+          "propertyIds": [
+            "boundaries",
+            "patterns",
+            "gradients"
+          ]
+        },
+        {
+          "familyId": "layouts",
+          "propertyIds": [
+            "model-space",
+            "paper-space",
+            "viewports"
+          ]
+        },
+        {
+          "familyId": "xrefs",
+          "propertyIds": [
+            "references",
+            "paths",
+            "overlays"
+          ]
+        },
+        {
+          "familyId": "constraints",
+          "propertyIds": [
+            "geometric",
+            "dimensional",
+            "dependencies"
+          ]
+        },
+        {
+          "familyId": "images",
+          "propertyIds": [
+            "definitions",
+            "placements",
+            "clipping"
+          ]
+        },
+        {
+          "familyId": "meshes",
+          "propertyIds": [
+            "vertices",
+            "faces",
+            "subdivision"
+          ]
+        },
+        {
+          "familyId": "regions",
+          "propertyIds": [
+            "topology",
+            "boundaries",
+            "opaque-preservation"
+          ]
+        },
+        {
+          "familyId": "surfaces",
+          "propertyIds": [
+            "geometry",
+            "trimming",
+            "opaque-preservation"
+          ]
+        },
+        {
+          "familyId": "solids",
+          "propertyIds": [
+            "geometry",
+            "history",
+            "opaque-preservation"
+          ]
+        },
+        {
+          "familyId": "authorized-vertical-extensions",
+          "propertyIds": [
+            "registration",
+            "typed-codecs",
+            "quarantine-preservation"
+          ]
+        }
+      ],
+      "status": "not-started",
+      "factIds": [
+        "VALLE-DWG1-PROGRAM-SCOPE-2026-08-09"
+      ],
+      "evidenceIds": [],
+      "rationale": "The target scope is owner-approved, but no authorized technical fact set or independent conformance evidence has been accepted for any reader or writer cell."
+    }
+  ]
+}

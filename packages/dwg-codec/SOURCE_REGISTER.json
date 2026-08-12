@@ -288,6 +288,71 @@
       "reviewer": "Codex dependency provenance review",
       "reviewedAt": "2026-08-09",
       "notes": "Pinned development dependency only"
+    },
+    {
+      "id": "VALLE-OWNER-DWG1-2026-08-09",
+      "owner": "Sergio Valle Zárate",
+      "origin": {
+        "type": "owner-directive",
+        "location": "repo://valle-design/packages/dwg-codec/OWNER_DIRECTIVE_DWG1.md",
+        "accessedAt": "2026-08-09",
+        "sha256": "15d57552b1452620c8e0343d5f554a4e5d58a5630716459caf7d69af01c3d3b0",
+        "byteLength": 2200
+      },
+      "title": "DWG-1 first-party reader and writer owner directive",
+      "versionOrDate": "2026-08-09",
+      "terms": {
+        "license": "Valle proprietary owner authorization",
+        "access": "Supplied and adopted directly by the repository owner for the DWG-1 program",
+        "redistribution": "The durable summary, original first-party governance artifacts and implementation may remain in the owner-controlled repository under Valle proprietary terms",
+        "notes": "Program authorization only; not a DWG technical source, third-party license, certification or compatibility claim"
+      },
+      "status": "allowed",
+      "factsConsulted": [
+        "Valle may design and build an original first-party clean-room DWG reader and writer",
+        "The v1 target matrix covers nine registered AC10xx labels, both directions and every registered family-scoped property",
+        "productionAvailable remains false until the complete nine-version promotion gate is satisfied",
+        "Technical facts require traceable allowed sources, hashes, terms, human review and derived-file records before implementation",
+        "Public fixtures and private conformance corpus use separate rights-reviewed intake and immutable manifests",
+        "A second human reviewer and independent corpus remain prerequisites for promoting real compatibility"
+      ],
+      "derivedFiles": [
+        "docs/adr/0008-dwg-first-party-reader-writer-program.md",
+        "packages/dwg-codec/.gitattributes",
+        "packages/dwg-codec/AGENTS.md",
+        "packages/dwg-codec/CAPABILITIES.md",
+        "packages/dwg-codec/CLEAN_ROOM_POLICY.md",
+        "packages/dwg-codec/COMPATIBILITY_MATRIX.v1.json",
+        "packages/dwg-codec/CORPUS_INTAKE.md",
+        "packages/dwg-codec/DWG0_CONTENT_BASELINE.v1.json",
+        "packages/dwg-codec/FACT_REGISTER.json",
+        "packages/dwg-codec/OWNER_DIRECTIVE_DWG1.md",
+        "packages/dwg-codec/README.md",
+        "packages/dwg-codec/SOURCE_REGISTER.json",
+        "packages/dwg-codec/compatibility-matrix.schema.json",
+        "packages/dwg-codec/corpus-intake.schema.json",
+        "packages/dwg-codec/dwg0-content-baseline.schema.json",
+        "packages/dwg-codec/fact-register.schema.json",
+        "packages/dwg-codec/fixtures/generators/generate-synthetic.ts",
+        "packages/dwg-codec/fixtures/manifest.json",
+        "packages/dwg-codec/fixtures/manifest.schema.json",
+        "packages/dwg-codec/package.json",
+        "packages/dwg-codec/private-bundle.schema.json",
+        "packages/dwg-codec/scripts/check-fixtures.ts",
+        "packages/dwg-codec/scripts/check-research.ts",
+        "packages/dwg-codec/scripts/fixture-validation.ts",
+        "packages/dwg-codec/scripts/provenance-validation.ts",
+        "packages/dwg-codec/scripts/private-bundle-validation.ts",
+        "packages/dwg-codec/scripts/research-validation.ts",
+        "packages/dwg-codec/scripts/schema-validation.ts",
+        "packages/dwg-codec/source-register.schema.json",
+        "packages/dwg-codec/tests/adversarial.spec.ts",
+        "packages/dwg-codec/tests/adversarial/checker-hardening.spec.ts",
+        "packages/dwg-codec/tests/adversarial/research-governance.spec.ts"
+      ],
+      "reviewer": "Sergio Valle Zárate (owner directive)",
+      "reviewedAt": "2026-08-09",
+      "notes": "No external DWG implementation, specification, SDK, algorithm, constant or fixture was consulted"
     }
   ]
 }

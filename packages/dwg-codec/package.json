@@ -26,10 +26,11 @@
     "benchmark:smoke": "tsx benchmarks/smoke.ts",
     "check:fixtures": "tsx scripts/check-fixtures.ts",
     "check:provenance": "tsx scripts/check-provenance.ts",
+    "check:research": "tsx scripts/check-research.ts",
     "check:no-io": "tsx scripts/check-no-io.ts",
     "check:boundary": "tsx scripts/check-boundary.ts",
     "generate:fixtures": "tsx fixtures/generators/generate-synthetic.ts --write",
-    "check": "npm run check:provenance && npm run check:fixtures && npm run check:no-io && npm run check:boundary && npm run build && npm run typecheck && npm test && npm run test:adversarial && npm run fuzz:smoke"
+    "check": "npm run check:provenance && npm run check:research && npm run check:fixtures && npm run check:no-io && npm run check:boundary && npm run build && npm run typecheck && npm test && npm run test:adversarial && npm run fuzz:smoke"
   },
   "devDependencies": {
     "@types/node": "22.20.1",

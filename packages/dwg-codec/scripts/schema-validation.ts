@@ -1,4 +1,9 @@
-import { Ajv2020, type AnySchema, type ErrorObject } from "ajv/dist/2020.js";
+import {
+  Ajv2020,
+  type AnySchema,
+  type ErrorObject,
+  type ValidateFunction,
+} from "ajv/dist/2020.js";
 import addFormatsModule from "ajv-formats";
 
 import { compareCodeUnits } from "./safe-path.js";
@@ -16,11 +21,10 @@ function formatSchemaErrors(errors: readonly ErrorObject[]): string {
     .join("; ");
 }
 
-export function assertSchemaValid<T>(
+function compileSchema(
   schema: unknown,
-  value: unknown,
   documentLabel: string,
-): asserts value is T {
+): ValidateFunction {
   const ajv = new Ajv2020({
     strict: true,
     allErrors: true,
@@ -29,9 +33,8 @@ export function assertSchemaValid<T>(
   });
   addFormats(ajv);
 
-  let validate: ReturnType<typeof ajv.compile>;
   try {
-    validate = ajv.compile(schema as AnySchema);
+    return ajv.compile(schema as AnySchema);
   } catch (error) {
     throw new Error(
       `${documentLabel}: schema is invalid under strict Ajv 2020`,
@@ -40,6 +43,21 @@ export function assertSchemaValid<T>(
       },
     );
   }
+}
+
+export function assertSchemaCompiles(
+  schema: unknown,
+  documentLabel: string,
+): void {
+  compileSchema(schema, documentLabel);
+}
+
+export function assertSchemaValid<T>(
+  schema: unknown,
+  value: unknown,
+  documentLabel: string,
+): asserts value is T {
+  const validate = compileSchema(schema, documentLabel);
 
   if (!validate(value)) {
     throw new Error(

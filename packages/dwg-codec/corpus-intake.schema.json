@@ -1,0 +1,474 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:valle-design:dwg-corpus-intake:1.0.0",
+  "title": "Valle DWG corpus intake record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "intakeId",
+    "submittedAt",
+    "disposition",
+    "asset",
+    "origin",
+    "rightsReview",
+    "privacyReview",
+    "oracle",
+    "secondReview",
+    "routing"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "intakeId": {
+      "type": "string",
+      "pattern": "^DWG-INTAKE-[A-Z0-9][A-Z0-9._-]{7,119}$"
+    },
+    "submittedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "disposition": {
+      "enum": ["public-fixture", "private-companion", "rejected"]
+    },
+    "asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["opaqueName", "sha256", "byteLength", "declaredVersion"],
+      "properties": {
+        "opaqueName": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]{2,127}\\.dwg$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "byteLength": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 536870912
+        },
+        "declaredVersion": {
+          "enum": [
+            "AC1009",
+            "AC1012",
+            "AC1014",
+            "AC1015",
+            "AC1018",
+            "AC1021",
+            "AC1024",
+            "AC1027",
+            "AC1032"
+          ]
+        }
+      }
+    },
+    "origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "creator", "createdAt", "creationTool", "sourceIds"],
+      "properties": {
+        "type": {
+          "enum": [
+            "valle-synthetic",
+            "owner-created",
+            "original-measurement",
+            "third-party-licensed"
+          ]
+        },
+        "creator": {
+          "type": "string",
+          "minLength": 1
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date"
+        },
+        "creationTool": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sourceIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z0-9][A-Z0-9._-]{2,127}$"
+          }
+        }
+      }
+    },
+    "rightsReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision",
+        "license",
+        "useAllowed",
+        "redistributionAllowed",
+        "evidenceSha256",
+        "reviewer",
+        "reviewedAt"
+      ],
+      "properties": {
+        "decision": {
+          "enum": ["approved", "rejected"]
+        },
+        "license": {
+          "enum": [
+            "Valle-Internal-Synthetic",
+            "Valle-Owner-Authorized",
+            "0BSD",
+            "Apache-2.0",
+            "BSD-2-Clause",
+            "BSD-3-Clause",
+            "CC-BY-4.0",
+            "CC0-1.0",
+            "ISC",
+            "MIT",
+            "Unlicense"
+          ]
+        },
+        "useAllowed": {
+          "type": "boolean"
+        },
+        "redistributionAllowed": {
+          "type": "boolean"
+        },
+        "evidenceSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "reviewer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reviewedAt": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    },
+    "privacyReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision",
+        "containsCustomerData",
+        "containsPersonalData",
+        "containsSecrets",
+        "reviewer",
+        "reviewedAt"
+      ],
+      "properties": {
+        "decision": {
+          "enum": ["approved", "rejected"]
+        },
+        "containsCustomerData": {
+          "type": "boolean"
+        },
+        "containsPersonalData": {
+          "type": "boolean"
+        },
+        "containsSecrets": {
+          "type": "boolean"
+        },
+        "reviewer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reviewedAt": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    },
+    "oracle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "expectedOutcome",
+        "expectedErrorCode",
+        "groundTruthSha256",
+        "groundTruthPath",
+        "groundTruthByteLength",
+        "reviewer",
+        "reviewedAt"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^DWG-ORACLE-[A-Z0-9][A-Z0-9._-]{7,119}$"
+        },
+        "kind": {
+          "enum": [
+            "owner-ground-truth",
+            "original-measurement",
+            "independent-reader",
+            "independent-writer",
+            "adversarial-expectation"
+          ]
+        },
+        "expectedOutcome": {
+          "enum": ["ok", "unsupported", "error"]
+        },
+        "expectedErrorCode": {
+          "type": ["string", "null"]
+        },
+        "groundTruthSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "groundTruthPath": {
+          "type": "string",
+          "pattern": "^(?:intake/oracles|oracles)/sha256/[a-f0-9]{64}\\.json$"
+        },
+        "groundTruthByteLength": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 4194304
+        },
+        "reviewer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reviewedAt": {
+          "type": "string",
+          "format": "date"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "expectedOutcome": {
+                "const": "ok"
+              }
+            },
+            "required": ["expectedOutcome"]
+          },
+          "then": {
+            "properties": {
+              "expectedErrorCode": {
+                "const": null
+              },
+              "kind": {
+                "not": {
+                  "const": "adversarial-expectation"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "expectedOutcome": {
+                "enum": ["unsupported", "error"]
+              }
+            },
+            "required": ["expectedOutcome"]
+          },
+          "then": {
+            "properties": {
+              "expectedErrorCode": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "secondReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision", "reviewer", "reviewedAt"],
+      "properties": {
+        "decision": {
+          "enum": ["approved", "rejected"]
+        },
+        "reviewer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reviewedAt": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    },
+    "routing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "relativePath"],
+      "properties": {
+        "repository": {
+          "enum": ["valle-design", "valle-design-dwg-conformance", "none"]
+        },
+        "relativePath": {
+          "type": ["string", "null"]
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "disposition": {
+            "const": "public-fixture"
+          }
+        },
+        "required": ["disposition"]
+      },
+      "then": {
+        "properties": {
+          "rightsReview": {
+            "type": "object",
+            "properties": {
+              "decision": {
+                "const": "approved"
+              },
+              "useAllowed": {
+                "const": true
+              },
+              "redistributionAllowed": {
+                "const": true
+              }
+            }
+          },
+          "privacyReview": {
+            "type": "object",
+            "properties": {
+              "decision": {
+                "const": "approved"
+              },
+              "containsCustomerData": {
+                "const": false
+              },
+              "containsPersonalData": {
+                "const": false
+              },
+              "containsSecrets": {
+                "const": false
+              }
+            }
+          },
+          "secondReview": {
+            "type": "object",
+            "properties": {
+              "decision": {
+                "const": "approved"
+              }
+            }
+          },
+          "routing": {
+            "type": "object",
+            "properties": {
+              "repository": {
+                "const": "valle-design"
+              },
+              "relativePath": {
+                "type": "string",
+                "pattern": "^(synthetic|authorized)/(?:[A-Za-z0-9][A-Za-z0-9._-]*/)*[A-Za-z0-9][A-Za-z0-9._-]*\\.dwg$"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "disposition": {
+            "const": "private-companion"
+          }
+        },
+        "required": ["disposition"]
+      },
+      "then": {
+        "properties": {
+          "rightsReview": {
+            "type": "object",
+            "properties": {
+              "decision": {
+                "const": "approved"
+              },
+              "useAllowed": {
+                "const": true
+              }
+            }
+          },
+          "privacyReview": {
+            "type": "object",
+            "properties": {
+              "decision": {
+                "const": "approved"
+              },
+              "containsCustomerData": {
+                "const": false
+              },
+              "containsPersonalData": {
+                "const": false
+              },
+              "containsSecrets": {
+                "const": false
+              }
+            }
+          },
+          "secondReview": {
+            "type": "object",
+            "properties": {
+              "decision": {
+                "const": "approved"
+              }
+            }
+          },
+          "routing": {
+            "type": "object",
+            "properties": {
+              "repository": {
+                "const": "valle-design-dwg-conformance"
+              },
+              "relativePath": {
+                "type": "string",
+                "pattern": "^objects/sha256/[a-f0-9]{64}\\.dwg$"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "disposition": {
+            "const": "rejected"
+          }
+        },
+        "required": ["disposition"]
+      },
+      "then": {
+        "properties": {
+          "routing": {
+            "type": "object",
+            "properties": {
+              "repository": {
+                "const": "none"
+              },
+              "relativePath": {
+                "const": null
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

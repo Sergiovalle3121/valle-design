@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:valle-design:dwg0-content-baseline:1.0.0",
+  "title": "Immutable Valle DWG-0 package content baseline",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schemaVersion",
+    "repository",
+    "commit",
+    "treePath",
+    "files"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "./dwg0-content-baseline.schema.json"
+    },
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "repository": {
+      "const": "Sergiovalle3121/valle-design"
+    },
+    "commit": {
+      "const": "98a5b185587107dc2b32da02ae209b8b99e08c6e"
+    },
+    "treePath": {
+      "const": "packages/dwg-codec"
+    },
+    "files": {
+      "type": "array",
+      "minItems": 80,
+      "maxItems": 80,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/file"
+      }
+    }
+  },
+  "$defs": {
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "byteLength"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^packages/dwg-codec/(?:(?:[A-Za-z0-9][A-Za-z0-9._-]*|\\.[A-Za-z0-9][A-Za-z0-9._-]*)/)*(?:[A-Za-z0-9][A-Za-z0-9._-]*|\\.[A-Za-z0-9][A-Za-z0-9._-]*)$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "byteLength": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4194304
+        }
+      }
+    }
+  }
+}

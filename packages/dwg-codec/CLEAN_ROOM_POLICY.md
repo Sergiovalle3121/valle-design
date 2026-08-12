@@ -25,6 +25,12 @@ registro; después se implementa únicamente desde los hechos permitidos que esa
 entrada enumera. Una revisión humana posterior sigue siendo necesaria antes de
 promover una capacidad más allá de investigación experimental.
 
+El contenido legacy DWG-0 se congela además mediante un manifest versionado de
+path, SHA-256 y tamaño contra el commit `98a5b18`. Una modificación o path nuevo
+requiere admisión exacta sin globs en un cambio previo de tooling y el fact
+concreto que autoriza ese artefacto; el candidate no puede autoampliar su
+admisión actualizando sólo registros de fuentes o facts.
+
 ## Fuentes permitidas
 
 Una fuente sólo puede ser `allowed` cuando su propietario, origen exacto,
@@ -81,19 +87,27 @@ monorepo no relaja esta política scoped.
 ## Fixtures
 
 Los únicos fixtures publicables son sintéticos de Valle, creados por Sergio con
-autorización expresa de publicación o de terceros con licencia explícita de uso
-y redistribución. Cada uno debe cumplir `fixtures/manifest.schema.json` y su
-SHA-256 se verifica contra los bytes versionados.
+autorización expresa de publicación, mediciones originales autorizadas o de
+terceros con licencia explícita de uso y redistribución. Cada uno debe completar
+el intake de `CORPUS_INTAKE.md`, cumplir `fixtures/manifest.schema.json` y
+verificar su SHA-256 contra los bytes versionados.
 
 Cada fixture enlaza mediante `sourceIds` sólo entradas `allowed` del registro.
-Los gates que se implementen en PR 2 deben resolver paths dentro de la raíz
-esperada, comparar tamaño/hash y rechazar IDs, paths o hashes duplicados; estas
-relaciones entre archivos no se delegan únicamente al JSON Schema.
+Los gates resuelven paths dentro de la raíz esperada, comparan tamaño/hash y
+rechazan IDs, paths o hashes duplicados; estas relaciones entre archivos no se
+delegan únicamente al JSON Schema. El conteo y tamaño actuales no son constantes
+de aceptación: aplican budgets reales por fixture y corpus.
 
 Los generadores sintéticos son first-party y deterministas. Sus archivos sólo
 prueban límites, errores, budgets y consistencia interna; no prueban
 compatibilidad con software o dibujos reales. Los binarios se guardan como
 archivos, nunca ocultos en base64 o snapshots.
+
+Un `parseOutcome:"ok"` sólo entra como ground truth de un fixture no sintético
+con intake y oracle hasheados; no declara que el reader actual ya lo procese ni
+promueve una capability por sí solo. El corpus no redistribuible vive en
+`valle-design-dwg-conformance`, se consume mediante bundles inmutables y nunca
+se copia a este repositorio.
 
 ## Checklist de PR
 
