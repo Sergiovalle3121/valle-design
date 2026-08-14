@@ -19,7 +19,7 @@
  * doble línea se rederiva), no lo deforma. Es la diferencia entre un muro y
  * cuatro segmentos que se le parecen.
  */
-import type { CadPoint3 } from "./cad-document";
+import type { CadDocument, CadPoint3 } from "./cad-document";
 import { cloneContext } from "./entity-context";
 import {
   boundsContained,
@@ -35,6 +35,13 @@ import {
   wallLength,
   wallMidpoint,
 } from "./wall-geometry";
+import {
+  wallJoinBoundaryPaths,
+  wallJoinFillWindow,
+  wallJoinedFootprint,
+  wallJoins,
+  type CadWallJoins,
+} from "./wall-joins";
 import type {
   CadBounds,
   CadEntityAdapter,
@@ -54,7 +61,49 @@ const positive = (value: CadPropertyValue | undefined, fallback: number): number
   return parsed > 0 ? parsed : fallback;
 };
 
-function wallPaths(entity: WallEntity): CadRenderPath[] {
+/**
+ * Uniones del muro contra los demás muros del documento — o `null` si no hay
+ * documento (consumidores que derivan el muro aislado: contornos BOUNDARY,
+ * previsualizaciones) o si ningún extremo une. Con `null`, la geometría es
+ * EXACTAMENTE la de siempre: el muro solitario no paga la existencia de las
+ * uniones ni en forma ni en número de trazos.
+ */
+function wallDocumentJoins(entity: WallEntity, document?: CadDocument): CadWallJoins | null {
+  if (!document) return null;
+  const others = document.entities.filter(
+    (candidate): candidate is WallEntity => candidate.type === "wall" && candidate.id !== entity.id,
+  );
+  if (others.length === 0) return null;
+  const joins = wallJoins(entity, others);
+  if (joins.start.kind === "free" && joins.end.kind === "free") return null;
+  return joins;
+}
+
+/**
+ * Rayado interior limitado a la ventana que los recortes de las uniones dejan
+ * en el eje: un trazo que llegara al plano del extremo invadiría la masa del
+ * muro vecino. Sin uniones, es `wallFillSegments` tal cual.
+ */
+function wallFillPaths(entity: WallEntity, joins: CadWallJoins | null): CadRenderPath[] {
+  const segments = wallFillSegments(entity);
+  if (!joins || segments.length === 0)
+    return segments.map((segment) => ({ points: [segment.a, segment.b], closed: false }));
+  const dx = entity.end.x - entity.start.x;
+  const dy = entity.end.y - entity.start.y;
+  const length = Math.hypot(dx, dy);
+  const ux = dx / length;
+  const uy = dy / length;
+  const fillWindow = wallJoinFillWindow(joins, length);
+  return segments
+    .filter((segment) => {
+      const ta = (segment.a.x - entity.start.x) * ux + (segment.a.y - entity.start.y) * uy;
+      const tb = (segment.b.x - entity.start.x) * ux + (segment.b.y - entity.start.y) * uy;
+      return Math.min(ta, tb) >= fillWindow.min - 1e-9 && Math.max(ta, tb) <= fillWindow.max + 1e-9;
+    })
+    .map((segment) => ({ points: [segment.a, segment.b], closed: false }));
+}
+
+function wallPaths(entity: WallEntity, document?: CadDocument): CadRenderPath[] {
   const footprint = wallFootprint(entity);
   // Receta degenerada (no debería cruzar la frontera, pero un documento en
   // memoria puede pasar por aquí antes de validarse): se enseña el eje pelado
@@ -64,12 +113,18 @@ function wallPaths(entity: WallEntity): CadRenderPath[] {
       { x: entity.start.x, y: entity.start.y },
       { x: entity.end.x, y: entity.end.y },
     ], closed: false }];
+  const joins = wallDocumentJoins(entity, document);
+  if (!joins)
+    return [
+      { points: footprint, closed: true },
+      ...wallFillPaths(entity, null),
+    ];
+  // Con uniones, el contorno se ajusta (inglete/empalme) y los testeros
+  // absorbidos no se trazan: la esquina limpia no enseña la diagonal.
+  const joined = wallJoinedFootprint(entity, joins) ?? footprint;
   return [
-    { points: footprint, closed: true },
-    ...wallFillSegments(entity).map((segment) => ({
-      points: [segment.a, segment.b],
-      closed: false,
-    })),
+    ...wallJoinBoundaryPaths(joined, joins.start.cap, joins.end.cap),
+    ...wallFillPaths(entity, joins),
   ];
 }
 
@@ -85,7 +140,10 @@ function wallBounds(entity: WallEntity): CadBounds {
 
 const wallAdapter: CadEntityAdapter<WallEntity> = {
   type: "wall",
-  renderer: { paths: (entity) => wallPaths(entity) },
+  // El tercer argumento es el DOCUMENTO — la misma vía por la que INSERT
+  // resuelve su definición de bloque. Es lo que permite que las uniones sean
+  // derivadas: el muro se dibuja mirando a sus vecinos sin persistir nada.
+  renderer: { paths: (entity, _segments, document) => wallPaths(entity, document) },
   bounds: { bounds: (entity) => wallBounds(entity) },
   hitTester: {
     // Un muro se pincha por su contorno O por dentro: es un cuerpo, no un
