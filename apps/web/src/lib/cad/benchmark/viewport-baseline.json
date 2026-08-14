@@ -7,7 +7,7 @@
       "id": "viewport-10k",
       "entities": 10000,
       "gate": {
-        "canonicalReadyMs": 4480,
+        "canonicalReadyMs": 2410,
         "detailReadyMs": null,
         "frameLatencyMs": 400,
         "zoomReplanMs": null,
@@ -16,7 +16,7 @@
         "minDetailedFractionAfterZoom": 0
       },
       "target": {
-        "canonicalReadyMs": 3000,
+        "canonicalReadyMs": 1500,
         "detailReadyMs": null,
         "frameLatencyMs": 33,
         "zoomReplanMs": null,
@@ -24,9 +24,9 @@
         "minDetailedFractionAtOpen": 1,
         "minDetailedFractionAfterZoom": 0
       },
-      "targetBlockedBy": "Nadie: a 10k la fidelidad ya es 1,0 y sólo queda el tiempo de apertura.",
+      "targetBlockedBy": "Nadie: a 10k la fidelidad ya es 1,0 y sólo queda el tiempo de apertura. El objetivo anterior (3000) quedó SUPERADO por el gate al recalibrar con el teselado en worker (peor corrida 1503), así que baja a 1500: la mejor corrida ya lo toca y la peor se queda a 3 ms.",
       "calibration": {
-        "recordedAt": "2026-08-09T22:03:42Z",
+        "recordedAt": "2026-08-12T00:00:00Z",
         "runs": 3,
         "marginFactor": 1.6,
         "environment": {
@@ -38,18 +38,19 @@
           "logicalCpuCount": 4,
           "totalMemoryBytes": 16856068096,
           "node": "v22.22.2",
-          "browser": "Chromium 141.0.7390.37 · ANGLE (SwiftShader, sin GPU)"
+          "browser": "Chromium 141.0.7390.37 · ANGLE (SwiftShader, sin GPU)",
+          "note": "Recalibrado con el teselado en WORKER (data-tessellation=worker): la construcción de tiles ya no roba cuadros al hilo principal. El gate de apertura baja de 4480 a 2410 por el protocolo de siempre: peor corrida × 1,6. frameLatencyMs conserva su suelo anti-flake de 400: sus muestras (0,8–29 ms) medirían la contención del runner, no el pipeline."
         },
         "observed": {
           "canonicalReadyMs": [
-            2031,
-            2796,
-            2009
+            1136,
+            1490,
+            1503
           ],
           "frameLatencyMs": [
-            17.7,
-            103.5,
-            17.4
+            29,
+            0.8,
+            8
           ],
           "detailedFractionAtOpen": [
             1.0,
@@ -66,11 +67,11 @@
       "id": "viewport-100k",
       "entities": 100000,
       "gate": {
-        "canonicalReadyMs": 17200,
-        "detailReadyMs": 600000,
+        "canonicalReadyMs": 11400,
+        "detailReadyMs": 353000,
         "frameLatencyMs": 400,
-        "zoomReplanMs": 260000,
-        "zoomSettleMs": 520000,
+        "zoomReplanMs": 221000,
+        "zoomSettleMs": 447000,
         "minDetailedFractionAtOpen": 1,
         "minDetailedFractionAfterZoom": 1
       },
@@ -83,9 +84,9 @@
         "minDetailedFractionAtOpen": 1,
         "minDetailedFractionAfterZoom": 1
       },
-      "targetBlockedBy": "El rasterizador POR SOFTWARE del runner. La fidelidad ya está en su objetivo —1,0 al abrir y tras el zoom, que es lo que este perfil declaraba bloqueado por T1 y quedó desbloqueado al enchufar lib/cad/render/ al editor—, así que lo que queda es tiempo puro de DIBUJO: pintar 100.000 entidades por ANGLE/SwiftShader sin GPU. Ni este spec ni el benchmark de Node miden la máquina del usuario, que sí tiene GPU, y eso sigue sin medirse. Lo segundo que queda es de lib/cad/render/: al cambiar de escalón de LOD el pipeline libera los tiles residentes y los reconstruye, y por eso el zoom cuesta más que la carga inicial.",
+      "targetBlockedBy": "El rasterizador POR SOFTWARE del runner. La fidelidad sigue en su objetivo (1,0 al abrir y tras el zoom) y el TESELADO ya corre en un worker fuera del hilo principal (data-tessellation=worker, golden 47), que es lo que bajó detailReadyMs de ~294-370 s a ~209-221 s y canonicalReadyMs de ~5,7-10 s a ~3,4-7,1 s. Lo que queda NO es teselado: es materializar los lotes instanciados y pintar 100.000 entidades por ANGLE/SwiftShader sin GPU, en el hilo principal a 8 ms por cuadro. Ni este spec ni el benchmark de Node miden la máquina del usuario, que sí tiene GPU, y eso sigue sin medirse. El zoom sigue costando más que la carga inicial porque el cambio de escalón de LOD reconstruye los tiles residentes (con doble búfer: sin huecos mientras tanto).",
       "calibration": {
-        "recordedAt": "2026-08-10T18:45:00Z",
+        "recordedAt": "2026-08-12T00:00:00Z",
         "runs": 3,
         "marginFactor": 1.6,
         "environment": {
@@ -98,31 +99,33 @@
           "totalMemoryBytes": 16856068096,
           "node": "v22.22.2",
           "browser": "Chromium 141.0.7390.37 · ANGLE (SwiftShader, sin GPU)",
-          "note": "Recalibrado con el pipeline por lotes ENCENDIDO (cadRenderPipeline=batched, el defecto desde el PR #75). Las corridas anteriores median el camino con muestreo: 2.500 de 100.000."
+          "note": "Recalibrado con el TESELADO EN WORKER enchufado (Ola 6): buildTileChunk pide los teselados que faltan por postMessage y materializa desde la caché al volver. Todos los gates BAJAN respecto a la calibración del 2026-08-10 (con teselado en el hilo principal): apertura 17200→11400, detalle 600000→353000, replan 260000→221000, asentado 520000→447000. Protocolo de siempre: peor de 3 corridas × 1,6, redondeado hacia arriba a 3 cifras. frameLatencyMs conserva su suelo anti-flake de 400."
         },
         "observed": {
           "canonicalReadyMs": [
-            5700,
-            9992,
-            9418
+            3360,
+            7073,
+            4324
           ],
           "detailReadyMs": [
-            296500,
-            293400,
-            369997
+            220524,
+            208644,
+            213142
           ],
           "frameLatencyMs": [
-            4.9,
-            4.8,
-            4.7
+            4,
+            2.7,
+            3.4
           ],
           "zoomReplanMs": [
-            161095
+            135264,
+            137587,
+            134148
           ],
           "zoomSettleMs": [
-            187900,
-            222800,
-            316679
+            231196,
+            230744,
+            278865
           ],
           "detailedFractionAtOpen": [
             1,

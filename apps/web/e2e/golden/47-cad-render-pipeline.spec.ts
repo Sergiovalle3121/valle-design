@@ -177,6 +177,13 @@ test('un documento con MTEXT, sombreado e inserción se dibuja con el pipeline p
   await expect(badge(page)).toHaveAttribute('data-pipeline', 'batched');
   await settled(page);
 
+  // 1b. Y QUIÉN teseló: el WORKER. Si el empaquetado del worker se rompiera,
+  //     el cliente caería a la reserva síncrona en silencio y el dibujo
+  //     saldría idéntico — sólo que otra vez en el hilo principal. Éste es el
+  //     único sitio donde ese silencio se vuelve un rojo: `data-tessellation`
+  //     publica lo que el cliente declaró, sin adornar.
+  await expect(badge(page)).toHaveAttribute('data-tessellation', 'worker');
+
   // 2. SIN MUESTREO. El pipeline anterior detallaba un presupuesto de entidades
   //    y dibujaba el resto como un contorno de 8 segmentos. Aquí el detalle
   //    cubre todo lo visible: es la propiedad que da sentido a la ola entera.

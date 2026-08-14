@@ -294,6 +294,146 @@ export function measureCadRenderLeak(
   };
 }
 
+export interface CadDenseEditingMeasurement {
+  editBatches: number;
+  entitiesPerBatch: number;
+  /** commit→asentado, por lote: p50/p95/máximo. CPU en Node, no pantalla. */
+  commitToSettleP50Ms: number;
+  commitToSettleP95Ms: number;
+  commitToSettleMaxMs: number;
+  /** Coste del PRIMER cuadro tras el commit: lo que notaría el ratón. */
+  firstFrameP95Ms: number;
+  framesPerBatchP95: number;
+  /** Tiles liberados por las ediciones. Cero significaría que no se midió nada. */
+  evictedTilesTotal: number;
+  /** Fidelidad tras el paseo de ediciones: deben ser iguales. */
+  visibleAtRestAfterEdits: number;
+  detailedAtRestAfterEdits: number;
+  totalEntitiesAfterEdits: number;
+  /** Todas las muestras, para que los percentiles no sean una caja negra. */
+  samplesMs: number[];
+}
+
+/**
+ * Desplaza una entidad sin cambiar su forma: el MOVE de un lote de edición.
+ * Devuelve `null` para tipos que este arnés no sabe mover; el corpus
+ * determinista sólo trae líneas, círculos y arcos, y las polilíneas se cubren
+ * porque los mixes de navegador las incluyen.
+ */
+function translateCadEntity(
+  entity: CadNativeEntity,
+  dx: number,
+  dy: number,
+): CadNativeEntity | null {
+  const shift = <P extends { x: number; y: number }>(point: P): P => ({
+    ...point,
+    x: point.x + dx,
+    y: point.y + dy,
+  });
+  switch (entity.type) {
+    case "line":
+      return { ...entity, start: shift(entity.start), end: shift(entity.end) };
+    case "circle":
+    case "arc":
+      return { ...entity, center: shift(entity.center) };
+    case "polyline":
+      return { ...entity, vertices: entity.vertices.map(shift) };
+    default:
+      return null;
+  }
+}
+
+/**
+ * EDICIÓN DENSA: lotes de MOVE sobre un documento grande, midiendo
+ * commit→asentado — el camino que recorre `invalidate(affectedEntityIds)`
+ * cuando el ejecutor de comandos aplica un lote: liberar los tiles tocados,
+ * tirar el teselado de lo movido y rematerializar con presupuesto.
+ *
+ * Qué mide: el TRABAJO DE CPU entre el commit y la escena asentada, y el coste
+ * del primer cuadro tras el commit (la latencia que el ratón nota). Qué NO
+ * mide: subir atributos a la GPU ni presentar el cuadro — eso es del
+ * navegador, y desde Node decir «pantalla» sería inventárselo.
+ *
+ * Las entidades editadas se reparten por TODO el documento a paso fijo: un
+ * lote que tocara siempre el mismo tile mediría la caché, no la edición.
+ */
+export function measureCadDenseEditing(
+  entities: readonly CadNativeEntity[],
+  drawOrderIds: readonly string[],
+  view: CadRenderView,
+  options: { editBatches?: number; entitiesPerBatch?: number } = {},
+  document?: CadDocument,
+): CadDenseEditingMeasurement {
+  const editBatches = options.editBatches ?? 40;
+  const entitiesPerBatch = options.entitiesPerBatch ?? 10;
+  const pipeline = new CadRenderPipeline({ document });
+  pipeline.replace(entities, drawOrderIds, document);
+  pipeline.setView(view);
+  pipeline.settle();
+
+  const spanX = view.bounds.maxX - view.bounds.minX;
+  const spanY = view.bounds.maxY - view.bounds.minY;
+  // Un empujón pequeño y visible: no cambia de tile casi nunca, que es el caso
+  // real de un MOVE fino, y alterna de signo para no migrar el dibujo.
+  const current = new Map(entities.map((entity) => [entity.id, entity] as const));
+  const ids = [...current.keys()];
+  const stride = Math.max(1, Math.floor(ids.length / (editBatches * entitiesPerBatch)));
+  const samples: number[] = [];
+  const firstFrames: number[] = [];
+  const frameCounts: number[] = [];
+  let evictedTilesTotal = 0;
+  let cursor = 0;
+  for (let batch = 0; batch < editBatches; batch += 1) {
+    const affected: string[] = [];
+    const upserts: CadNativeEntity[] = [];
+    const direction = batch % 2 === 0 ? 1 : -1;
+    while (upserts.length < entitiesPerBatch && affected.length < ids.length) {
+      const id = ids[cursor % ids.length];
+      cursor += stride;
+      const entity = current.get(id);
+      if (!entity) continue;
+      const moved = translateCadEntity(
+        entity,
+        (direction * spanX) / 1_000,
+        (direction * spanY) / 1_000,
+      );
+      if (!moved) continue;
+      affected.push(id);
+      upserts.push(moved);
+      current.set(id, moved);
+    }
+    const commitStarted = performance.now();
+    evictedTilesTotal += pipeline.invalidate(affected, upserts);
+    let frames = 0;
+    while (!pipeline.settled) {
+      const frameStarted = performance.now();
+      pipeline.runFrame();
+      if (frames === 0) firstFrames.push(performance.now() - frameStarted);
+      frames += 1;
+    }
+    frameCounts.push(frames);
+    samples.push(round(performance.now() - commitStarted));
+  }
+
+  const stats = pipeline.stats();
+  const measurement: CadDenseEditingMeasurement = {
+    editBatches,
+    entitiesPerBatch,
+    commitToSettleP50Ms: percentile(samples, 0.5),
+    commitToSettleP95Ms: percentile(samples, 0.95),
+    commitToSettleMaxMs: round(Math.max(0, ...samples)),
+    firstFrameP95Ms: percentile(firstFrames, 0.95),
+    framesPerBatchP95: percentile(frameCounts, 0.95),
+    evictedTilesTotal,
+    visibleAtRestAfterEdits: stats.visibleEntities,
+    detailedAtRestAfterEdits: stats.renderedEntities,
+    totalEntitiesAfterEdits: stats.totalEntities,
+    samplesMs: samples,
+  };
+  pipeline.dispose();
+  return measurement;
+}
+
 export function runCadRenderBenchmark(options: {
   entities: readonly CadNativeEntity[];
   drawOrderIds: readonly string[];

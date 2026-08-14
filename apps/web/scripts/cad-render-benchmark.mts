@@ -39,6 +39,7 @@ import {
   createCadRenderScenario,
 } from "../src/lib/cad/benchmark/scenario";
 import {
+  measureCadDenseEditing,
   measureCadLegacyPipeline,
   measureCadNextPipeline,
   measureCadRenderLeak,
@@ -155,6 +156,20 @@ const leak = measureCadRenderLeak(
   { initial: scenario.initial, pan: scenario.pan.slice(0, 4), zoom: scenario.zoom },
   options.leakCycles,
 );
+/**
+ * EDICIÓN DENSA — métrica nueva, en REPORT-ONLY a propósito: sin línea base
+ * versionada debajo no hay gate que valga, que es la misma doctrina con la que
+ * este benchmark entero entró en su día. Cuando cumpla una versión con
+ * evidencia publicada, se calibra en `cad-render-baseline.mts` y pasa a
+ * bloquear. Se mide con el dibujo ENTERO a la vista: cualquier edición es
+ * visible, que es el peor caso del camino de invalidación.
+ */
+const editing = measureCadDenseEditing(
+  corpus.nativeEntities,
+  corpus.document.modelSpace.entityIds,
+  scenario.initial,
+  { editBatches: 40, entitiesPerBatch: 10 },
+);
 
 const cpus = os.cpus();
 /**
@@ -252,7 +267,19 @@ const evidence = {
     panPixelsPerUnit: scenario.pan[0]?.pixelsPerUnit ?? null,
     zoomPixelsPerUnit: scenario.zoom.pixelsPerUnit,
   },
-  measurements: { next, legacy, nextAtFullView, legacyAtFullView, leak },
+  measurements: {
+    next,
+    legacy,
+    nextAtFullView,
+    legacyAtFullView,
+    leak,
+    editing: {
+      ...editing,
+      enforcement: "report-only",
+      enforcementRationale:
+        "Métrica nueva (Ola 6): sin línea base versionada debajo no bloquea. Mide commit→asentado de lotes de MOVE con el dibujo entero a la vista.",
+    },
+  },
   variance: {
     runs: nextRuns.length,
     published: "mediana por firstDetailMs",
@@ -276,6 +303,7 @@ const evidence = {
   scope: {
     measured: [
       "trabajo de CPU de teselado, agrupación en lotes y culling para un guion determinista de apertura, paneo y zoom",
+      "edición densa (report-only): commit→asentado de 40 lotes de 10 MOVE repartidos por el documento, con el dibujo entero a la vista",
       "entidades detalladas en reposo frente a entidades visibles, en los dos caminos",
       "crecimiento del montón tras ciclos completos de abrir, panear, hacer zoom y cerrar",
       "dispersión entre corridas del camino nuevo: se publica la mediana y viajan todas las muestras en `variance`",
@@ -312,6 +340,7 @@ process.stderr.write(
     `  zoomFrameP95Ms (n=${next.zoomFrameSamples})       ${String(next.zoomFrameP95Ms).padEnd(16)} ${legacy.zoomFrameP95Ms} (n=1)`,
     `  peor cuadro al panear (ms)     ${String(next.panFrameMaxMs).padEnd(16)} ${legacy.panFrameMaxMs}`,
     `  heapGrowthMb (${leak.cycles} ciclos)        ${leak.heapGrowthMb}  [${leak.samplesMb.join(" → ")}]`,
+    `  edición densa (${editing.editBatches}×${editing.entitiesPerBatch} MOVE, report-only): commit→asentado p50 ${editing.commitToSettleP50Ms} ms · p95 ${editing.commitToSettleP95Ms} ms · máx ${editing.commitToSettleMaxMs} ms · primer cuadro p95 ${editing.firstFrameP95Ms} ms · fidelidad ${editing.detailedAtRestAfterEdits}/${editing.visibleAtRestAfterEdits}`,
     "",
     "Medida de CPU en Node. No es GPU, ni cuadros de navegador, ni FPS.",
     "",
