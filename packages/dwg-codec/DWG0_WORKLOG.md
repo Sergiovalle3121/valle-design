@@ -163,3 +163,44 @@ y la promoción condicionada a revisión legal externa.
   cabecera, constantes XOR del CRC y centinela final. Límite conocido: esas
   constantes quedan pendientes de validación contra corpus real con derechos;
   hasta entonces la evidencia es el round-trip de laboratorio.
+
+## DWG-1 sesión 2026-08-14 (continuación) — writer del contenedor (fase C)
+
+- Hechos nuevos registrados ANTES de derivar código en
+  `ODA-ODS-DWG-5.4.1-PUBLIC`: centinelas de 16 bytes de las secciones de
+  variables de cabecera y de clases (cierre = complemento a uno de la
+  apertura), marco de sección tamaño RL + payload + CRC-16 semilla 0xC0C1
+  little-endian, y páginas del mapa de objetos con tamaño y CRC big-endian
+  (terminadora de tamaño 2 sin datos).
+- Nuevo `src/container/ac1015-section-frame.ts`: `readAc1015SectionFrame`
+  verifica el marco completo de una sección R2000 (centinela de apertura,
+  tamaño RL con encaje EXACTO en su registro del directorio, CRC y centinela
+  de cierre) y devuelve el payload OPACO; `readAc1015EmptyObjectMap` verifica
+  la página terminadora big-endian y declara `unsupported` —no corrupto— un
+  mapa poblado, que es de fases posteriores. Constantes de centinela y semilla
+  exportadas para el writer.
+- Nuevo `src/writer/ac1015-container-writer.ts`: `writeAc1015Container`
+  produce el contenedor AC1015 mínimo determinista — cabecera con 3 registros
+  (header-vars/classes/object-map) y CRC enmascarado, sección de variables de
+  cabecera con placeholder confeso "VALLE-DWG0-HVARS", sección de clases
+  vacía y mapa de objetos vacío. Importa magia, centinelas y máscaras de los
+  MISMOS módulos que el lector (cero constantes gemelas); payloads del
+  llamador inspeccionados y copiados una vez (SharedArrayBuffer rechazado),
+  tope de payload de laboratorio y fallo cerrado en toda opción inválida.
+- Nueva `tests/unit/ac1015-writer.spec.ts`: round-trip completo
+  writer→`parseAc1015FileHeader`→lector de marcos→mapa vacío; determinismo;
+  payloads opacos ida y vuelta; gemelos tristes torciendo los bytes del
+  writer (CRC de marco con offset exacto, centinelas de apertura/cierre,
+  centinelas de otra sección, tamaño que se sale o que sobra, extensiones
+  imposibles, páginas de mapa malformadas y mapa poblado como unsupported).
+- `tests/unit/ac1015-header.spec.ts` pasa a construir sus cabeceras con el
+  writer real como fuente única del binario válido; los gemelos tristes
+  mutan esos bytes y sólo el caso de 6 registros recompone el directorio
+  quirúrgicamente reutilizando cabecera y centinela del writer.
+- Límites conocidos: los centinelas de sección, la semilla 0xC0C1 por sección
+  y la convención big-endian del mapa quedan pendientes de validación contra
+  corpus real con derechos (fase de intake); la lectura estricta de que el
+  registro del directorio cubre el marco COMPLETO (centinelas incluidos) es
+  una decisión de laboratorio sostenida por el round-trip, no por corpus. El
+  payload de variables de cabecera sigue siendo placeholder; su contenido
+  real es de fases posteriores. El producto permanece `available:false`.

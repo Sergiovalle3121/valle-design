@@ -28,17 +28,22 @@ import {
 } from "../codecs/crc16.js";
 import { throwDwgError } from "../security/parse-error.js";
 
-/** "AC1015" en ASCII: la única versión que esta fase del contenedor abre. */
-const AC1015_MAGIC = [0x41, 0x43, 0x31, 0x30, 0x31, 0x35] as const;
+/**
+ * "AC1015" en ASCII: la única versión que esta fase del contenedor abre. Se
+ * exporta para que el writer de la fase C escriba EXACTAMENTE lo que este
+ * lector exige — una sola fuente de verdad, sin constantes gemelas.
+ */
+export const AC1015_MAGIC = [0x41, 0x43, 0x31, 0x30, 0x31, 0x35] as const;
 
 /**
  * Centinela de 16 bytes que cierra la cabecera, inmediatamente después del
  * CRC. Constante del formato (hecho registrado; validación con corpus real
- * pendiente — ver cabecera del módulo).
+ * pendiente — ver cabecera del módulo). Exportado por la misma razón que la
+ * magia: lector y writer deben compartir el mismo byte o fallar juntos.
  */
-const FILE_HEADER_END_SENTINEL = [
-  0x95, 0xa0, 0x4e, 0x28, 0x99, 0x82, 0x1a, 0xe5, 0x5e, 0x41, 0xe0, 0x5f,
-  0x9d, 0x3a, 0x4d, 0x00,
+export const AC1015_FILE_HEADER_END_SENTINEL = [
+  0x95, 0xa0, 0x4e, 0x28, 0x99, 0x82, 0x1a, 0xe5, 0x5e, 0x41, 0xe0, 0x5f, 0x9d,
+  0x3a, 0x4d, 0x00,
 ] as const;
 
 /** Offset donde empieza el puntero de previsualización. */
@@ -162,9 +167,7 @@ export function parseAc1015FileHeader(
       // La tabla ya lanza el error tipado correcto; se relanza tal cual.
       throw error;
     }
-    records.push(
-      Object.freeze({ id, start: range.start, size: range.length }),
-    );
+    records.push(Object.freeze({ id, start: range.start, size: range.length }));
   }
 
   // El CRC cubre TODO lo anterior: desde el byte 0 hasta el último registro.
@@ -180,9 +183,13 @@ export function parseAc1015FileHeader(
     );
   }
 
-  for (let index = 0; index < FILE_HEADER_END_SENTINEL.length; index += 1) {
+  for (
+    let index = 0;
+    index < AC1015_FILE_HEADER_END_SENTINEL.length;
+    index += 1
+  ) {
     const byte = cursor.readUint8();
-    if (byte !== FILE_HEADER_END_SENTINEL[index]) {
+    if (byte !== AC1015_FILE_HEADER_END_SENTINEL[index]) {
       throwDwgError(
         "DWG_STRUCTURE_CORRUPT",
         "input",

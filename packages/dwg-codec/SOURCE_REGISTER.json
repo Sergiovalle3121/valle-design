@@ -260,14 +260,21 @@
         "La especificacion 5.4.1 cubre las versiones R13 a 2013 del formato",
         "Disposicion de la cabecera R2000: magia de 6 bytes en offset 0, cinco bytes reservados, byte de version de mantenimiento, byte fijo 0x01, seeker RL de previsualizacion en 0x0D, dos bytes de version del escritor, codepage RS en 0x13, recuento RL de registros localizadores en 0x15, y a continuacion los registros {id RC, seeker RL, size RL}",
         "El CRC-16 de la cabecera usa el polinomio reflejado 0xA001 con semilla 0xC0C1 y se enmascara con una constante XOR segun el recuento de registros: 0xA598 (3), 0x8101 (4), 0x3CC4 (5), 0x8461 (6)",
-        "Tras el CRC la cabecera cierra con un centinela fijo de 16 bytes (95 A0 4E 28 99 82 1A E5 5E 41 E0 5F 9D 3A 4D 00)"
+        "Tras el CRC la cabecera cierra con un centinela fijo de 16 bytes (95 A0 4E 28 99 82 1A E5 5E 41 E0 5F 9D 3A 4D 00)",
+        "La seccion R2000 de variables de cabecera va enmarcada por centinelas fijos de 16 bytes: apertura CF 7B 1F 23 FD DE 38 A9 5F 7C 68 B8 4E 6D 33 5F y cierre 30 84 E0 DC 02 21 C7 56 A0 83 97 47 B1 92 CC A0, siendo el cierre el complemento a uno byte a byte de la apertura",
+        "La seccion R2000 de clases va enmarcada por centinelas fijos de 16 bytes: apertura 8D A1 C4 B8 C4 A9 F8 C5 C0 DC F4 5F E7 CF B6 8A y cierre 72 5E 3B 47 3B 56 07 3A 3F 23 0B A0 18 30 49 75, con la misma relacion de complemento",
+        "Dentro del marco de esas secciones viaja un tamano RL little-endian del payload seguido del payload y de un CRC-16 con semilla 0xC0C1 que cubre tamano y payload, almacenado little-endian justo antes del centinela de cierre",
+        "El mapa de objetos R2000 se compone de paginas cuyo tamano RS big-endian cuenta sus propios 2 bytes mas los datos, cerradas cada una por un CRC-16 big-endian con semilla 0xC0C1 que cubre tamano y datos; la pagina terminadora tiene tamano 2 y ningun dato"
       ],
       "derivedFiles": [
         "packages/dwg-codec/src/codecs/bitcodes.ts",
         "packages/dwg-codec/src/codecs/crc16.ts",
         "packages/dwg-codec/src/container/ac1015-file-header.ts",
+        "packages/dwg-codec/src/container/ac1015-section-frame.ts",
+        "packages/dwg-codec/src/writer/ac1015-container-writer.ts",
         "packages/dwg-codec/tests/unit/bitcodes.spec.ts",
         "packages/dwg-codec/tests/unit/ac1015-header.spec.ts",
+        "packages/dwg-codec/tests/unit/ac1015-writer.spec.ts",
         "packages/dwg-codec/DWG0_WORKLOG.md",
         "packages/dwg-codec/SOURCE_REGISTER.json"
       ],
