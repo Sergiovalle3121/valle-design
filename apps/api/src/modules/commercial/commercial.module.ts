@@ -5,6 +5,7 @@ import {
   EmailOutbox,
   PlanCatalog,
   PlanEntitlement,
+  PlanPrice,
   Subscription,
   SubscriptionUpgradeIntent,
   UsageLedger,
@@ -16,6 +17,7 @@ import {
   SUBSCRIPTION_PROVIDER,
   USAGE_METER,
 } from './ports/commercial.ports';
+import { PAYMENT_PROVIDER } from './ports/payment-provider.port';
 import {
   PostgresCadEventPublisher,
   PostgresEmailService,
@@ -23,6 +25,7 @@ import {
   PostgresSubscriptionProvider,
   PostgresUsageMeter,
 } from './adapters/postgres.adapters';
+import { NullPaymentProvider } from './adapters/null-payment.provider';
 import { EmailOutboxController } from './controllers/email-outbox.controller';
 import { CommercialController } from './controllers/commercial.controller';
 import {
@@ -41,6 +44,7 @@ import { SubscriptionLifecycleService } from './subscription-lifecycle.service';
     TypeOrmModule.forFeature([
       PlanCatalog,
       PlanEntitlement,
+      PlanPrice,
       Subscription,
       SubscriptionUpgradeIntent,
       UsageLedger,
@@ -55,6 +59,9 @@ import { SubscriptionLifecycleService } from './subscription-lifecycle.service';
     { provide: USAGE_METER, useClass: PostgresUsageMeter },
     { provide: CAD_EVENT_PUBLISHER, useClass: PostgresCadEventPublisher },
     { provide: EMAIL_SERVICE, useClass: PostgresEmailService },
+    // Adaptador de pagos por defecto: NO hay pasarela. El cobro del piloto es
+    // externo/asistido (upgrade-intents); la ola 2 sustituye este binding.
+    { provide: PAYMENT_PROVIDER, useClass: NullPaymentProvider },
     WebhookCommercialOutboxTransport,
     {
       provide: COMMERCIAL_OUTBOX_TRANSPORT,
@@ -78,6 +85,7 @@ import { SubscriptionLifecycleService } from './subscription-lifecycle.service';
     USAGE_METER,
     CAD_EVENT_PUBLISHER,
     EMAIL_SERVICE,
+    PAYMENT_PROVIDER,
     CommercialOutboxDispatcher,
     CommercialTelemetryService,
     SubscriptionLifecycleService,

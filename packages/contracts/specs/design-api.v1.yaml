@@ -93,7 +93,9 @@ tags:
   - name: organizations
     description: Organizaciones, membresias e invitaciones del producto standalone.
   - name: commercial
-    description: Estado de suscripcion y entitlements efectivos, sin precios ni secretos.
+    description: >-
+      Estado de suscripcion, entitlements efectivos y catalogo de planes con
+      sus precios publicados; sin datos de pago ni secretos.
   - name: projects
     description: Proyectos CAD (`cad_projects`) — contenedor organizativo de documentos.
   - name: documents
@@ -462,6 +464,27 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/EffectiveEntitlementList" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /v1/commercial/plans:
+    get:
+      operationId: listCommercialPlans
+      tags: [commercial]
+      summary: Publica el catalogo activo de planes con sus precios activos.
+      description: >-
+        Catalogo GLOBAL del producto (no contiene datos por organizacion, asi
+        que basta una sesion autenticada, incluso sin organizacion activa):
+        planes activos con sus entitlements y sus precios activos por moneda y
+        periodo. `checkout` se deriva del proveedor de pagos configurado;
+        `external` significa que el cobro ocurre fuera del producto y se
+        registra via upgrade-intents.
+      responses:
+        "200":
+          description: >-
+            Catalogo publicado; un plan sin precio publicado lista `prices`
+            vacio (no desaparece).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CommercialPlanList" }
         "401": { $ref: "#/components/responses/Unauthorized" }
   /v1/commercial/upgrade-intents:
     get:
@@ -2299,6 +2322,61 @@ components:
           maxItems: 200
           uniqueItems: true
           items: { type: string, maxLength: 120 }
+    PlanPricePeriod:
+      type: string
+      enum: [monthly, yearly]
+    CommercialPlanPrice:
+      type: object
+      additionalProperties: false
+      required: [currency, period, amountCents]
+      properties:
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+          description: Codigo ISO-4217 de la moneda, en mayusculas.
+        period: { $ref: "#/components/schemas/PlanPricePeriod" }
+        amountCents:
+          type: integer
+          minimum: 0
+          description: Precio en centimos enteros; jamas decimales flotantes.
+    CommercialPlan:
+      type: object
+      additionalProperties: false
+      required: [code, name, entitlements, prices]
+      properties:
+        code: { type: string, maxLength: 80 }
+        name:
+          type: string
+          maxLength: 200
+          description: >-
+            Nombre publicable definido por el operador; sin uno, el codigo del
+            plan es el nombre.
+        entitlements:
+          type: array
+          maxItems: 200
+          uniqueItems: true
+          items: { type: string, maxLength: 120 }
+        prices:
+          type: array
+          maxItems: 200
+          items: { $ref: "#/components/schemas/CommercialPlanPrice" }
+    CommercialPlanList:
+      type: object
+      additionalProperties: false
+      required: [checkout, items]
+      properties:
+        checkout:
+          type: string
+          enum: [external]
+          description: >-
+            Modo de cobro derivado del proveedor de pagos. `external`: el
+            cobro ocurre fuera del producto (asistido) y se registra via
+            upgrade-intents; una pasarela real (ola Stripe) ampliara este
+            enum.
+        items:
+          type: array
+          maxItems: 200
+          items: { $ref: "#/components/schemas/CommercialPlan" }
     UpgradeIntentStatus:
       type: string
       enum: [pending, confirmed, cancelled]

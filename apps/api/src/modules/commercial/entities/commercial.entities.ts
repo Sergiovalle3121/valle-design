@@ -13,6 +13,9 @@ import { DATE_COLUMN_TYPE } from '../../../common/database/date-column-type';
 import { Organization } from '../../organizations/entities/organization.entity';
 import { User } from '../../identity/entities/identity.entity';
 
+export const PLAN_PRICE_PERIODS = ['monthly', 'yearly'] as const;
+export type PlanPricePeriod = (typeof PLAN_PRICE_PERIODS)[number];
+
 export const SUBSCRIPTION_STATUSES = [
   'trialing',
   'active',
@@ -44,6 +47,40 @@ export class PlanEntitlement {
   plan!: PlanCatalog;
   @Column({ name: 'entitlement_code', type: 'varchar', length: 120 })
   entitlementCode!: string;
+}
+
+/**
+ * Precio publicado de un plan del catálogo.
+ *
+ * Los precios son configuración GLOBAL del catálogo, igual que `plan_catalog`
+ * y `plan_entitlements`: por eso esta tabla NO lleva las columnas
+ * `organization_id`/`tenant_id` ni el CHECK de alcance de tenant (ADR-0005
+ * gobierna datos de una organización; un precio pertenece al producto). El
+ * índice único parcial permite conservar precios históricos desactivados y
+ * garantiza a lo sumo UN precio activo por (plan, moneda, período).
+ */
+@Entity('plan_prices')
+@Index(['planCode', 'currency', 'period'], { unique: true, where: '"active"' })
+@Check('chk_plan_prices_amount', '"amount_cents" >= 0')
+@Check('chk_plan_prices_period', `"period" IN ('monthly', 'yearly')`)
+export class PlanPrice {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column({ name: 'plan_code', type: 'varchar', length: 80 })
+  planCode!: string;
+  @ManyToOne(() => PlanCatalog, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'plan_code', referencedColumnName: 'code' })
+  plan!: PlanCatalog;
+  /** Código ISO-4217 en mayúsculas (p.ej. USD); la migración fija el formato. */
+  @Column({ type: 'character', length: 3 })
+  currency!: string;
+  @Column({ type: 'varchar', length: 10 })
+  period!: PlanPricePeriod;
+  /** bigint: PostgreSQL lo devuelve como string, SQLite como number. */
+  @Column({ name: 'amount_cents', type: 'bigint' })
+  amountCents!: string | number;
+  @Column({ type: 'boolean', default: true }) active!: boolean;
+  @CreateDateColumn({ name: 'created_at', type: DATE_COLUMN_TYPE })
+  createdAt!: Date;
 }
 
 @Entity('subscriptions')

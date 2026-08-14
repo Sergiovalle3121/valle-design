@@ -16,12 +16,13 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsString, Matches, MaxLength, MinLength } from 'class-validator';
 import type { Request } from 'express';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { isUniqueViolation } from '../../../common/database/unique-violation';
 import type { AuthenticatedUser } from '../../../common/types/authenticated-user.types';
 import {
   PlanCatalog,
   PlanEntitlement,
+  PlanPrice,
   Subscription,
   SubscriptionUpgradeIntent,
 } from '../entities/commercial.entities';
@@ -29,6 +30,10 @@ import {
   CAD_EVENT_PUBLISHER,
   type CadEventPublisher,
 } from '../ports/commercial.ports';
+import {
+  PAYMENT_PROVIDER,
+  type PaymentProvider,
+} from '../ports/payment-provider.port';
 import { SubscriptionLifecycleService } from '../subscription-lifecycle.service';
 
 interface AuthenticatedRequest extends Request {
@@ -52,6 +57,26 @@ class UpgradeIntentDto {
   @MaxLength(80)
   @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
   requestedPlanCode!: string;
+}
+
+/** Vista contractual de un precio publicado: céntimos enteros, sin fechas. */
+interface CommercialPlanPriceView {
+  currency: string;
+  period: string;
+  amountCents: number;
+}
+
+interface CommercialPlanView {
+  code: string;
+  name: string;
+  entitlements: string[];
+  prices: CommercialPlanPriceView[];
+}
+
+/** Nombre publicable del plan: metadata.name del operador, o el código. */
+function readPlanName(plan: PlanCatalog): string {
+  const name = (plan.metadata as { name?: unknown } | null)?.name;
+  return typeof name === 'string' && name.trim() ? name : plan.code;
 }
 
 /** Vista contractual del intent: identificadores y estado, jamás correos. */
@@ -91,13 +116,80 @@ export class CommercialController {
     private readonly plans: Repository<PlanCatalog>,
     @InjectRepository(PlanEntitlement)
     private readonly planEntitlements: Repository<PlanEntitlement>,
+    @InjectRepository(PlanPrice)
+    private readonly planPrices: Repository<PlanPrice>,
     @InjectRepository(SubscriptionUpgradeIntent)
     private readonly upgradeIntents: Repository<SubscriptionUpgradeIntent>,
     private readonly data: DataSource,
     private readonly lifecycle: SubscriptionLifecycleService,
     @Inject(CAD_EVENT_PUBLISHER)
     private readonly events: CadEventPublisher,
+    @Inject(PAYMENT_PROVIDER)
+    private readonly payments: PaymentProvider,
   ) {}
+
+  /**
+   * Catálogo PUBLICADO: planes activos con sus precios activos.
+   *
+   * Es información global del producto (ningún dato por organización), así que
+   * basta una sesión autenticada — mismo guard pattern que GET subscription:
+   * CadAuthGuard puebla `req.user` y aquí sólo se exige su presencia, sin
+   * requerir organización activa. `checkout` se deriva del descriptor del
+   * proveedor de pagos: hoy `external` (adaptador nulo — el cobro es
+   * externo/asistido vía upgrade-intents), y cuando la ola 2 enchufe una
+   * pasarela este mismo campo lo contará sin tocar el resto de la respuesta.
+   */
+  @Get('plans')
+  async listPlans(@Req() request: AuthenticatedRequest): Promise<{
+    checkout: string;
+    items: CommercialPlanView[];
+  }> {
+    if (!request.user) {
+      throw new UnauthorizedException('Falta una sesión válida.');
+    }
+    const plans = await this.plans.find({
+      where: { active: true },
+      order: { code: 'ASC' },
+      take: 200,
+    });
+    const codes = plans.map((plan) => plan.code);
+    const [entitlements, prices] = codes.length
+      ? await Promise.all([
+          this.planEntitlements.find({
+            where: { planCode: In(codes) },
+            order: { entitlementCode: 'ASC' },
+            take: 200,
+          }),
+          this.planPrices.find({
+            where: { planCode: In(codes), active: true },
+            order: { currency: 'ASC', period: 'ASC' },
+            take: 200,
+          }),
+        ])
+      : [[], []];
+    return {
+      checkout: this.payments.descriptor().mode,
+      items: plans.map((plan) => ({
+        code: plan.code,
+        // El catálogo no persiste un nombre comercial; si el operador lo dejó
+        // en metadata.name se publica, y si no, el código ES el nombre. Nada
+        // más del metadata sale al contrato.
+        name: readPlanName(plan),
+        entitlements: entitlements
+          .filter((entry) => entry.planCode === plan.code)
+          .map((entry) => entry.entitlementCode),
+        prices: prices
+          .filter((price) => price.planCode === plan.code)
+          .map((price) => ({
+            currency: price.currency,
+            period: price.period,
+            // bigint llega como string desde PostgreSQL; el contrato publica
+            // céntimos como entero JSON.
+            amountCents: Number(price.amountCents),
+          })),
+      })),
+    };
+  }
 
   @Get('subscription')
   async subscription(@Req() request: AuthenticatedRequest) {

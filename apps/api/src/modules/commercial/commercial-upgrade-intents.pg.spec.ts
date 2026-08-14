@@ -15,11 +15,13 @@ import type { AuthenticatedUser } from '../../common/types/authenticated-user.ty
 import { User } from '../identity/entities/identity.entity';
 import { Organization } from '../organizations/entities/organization.entity';
 import { PostgresCadEventPublisher } from './adapters/postgres.adapters';
+import { NullPaymentProvider } from './adapters/null-payment.provider';
 import { CommercialController } from './controllers/commercial.controller';
 import {
   DomainOutbox,
   PlanCatalog,
   PlanEntitlement,
+  PlanPrice,
   Subscription,
   SubscriptionUpgradeIntent,
 } from './entities/commercial.entities';
@@ -48,6 +50,7 @@ describePostgres('CommercialController upgrade intents (PostgreSQL)', () => {
         Organization,
         PlanCatalog,
         PlanEntitlement,
+        PlanPrice,
         Subscription,
         SubscriptionUpgradeIntent,
         DomainOutbox,
@@ -59,10 +62,12 @@ describePostgres('CommercialController upgrade intents (PostgreSQL)', () => {
       source.getRepository(Subscription),
       source.getRepository(PlanCatalog),
       source.getRepository(PlanEntitlement),
+      source.getRepository(PlanPrice),
       source.getRepository(SubscriptionUpgradeIntent),
       source,
       new SubscriptionLifecycleService(source, new PostgresCadEventPublisher()),
       new PostgresCadEventPublisher(),
+      new NullPaymentProvider(),
     );
   });
 
