@@ -266,6 +266,8 @@ void test("el SDK generado está al día respecto de los tipos clave", () => {
     '"/v1/auth/session"',
     '"/v1/organizations/{organizationId}/memberships"',
     '"/v1/commercial/entitlements"',
+    '"/v1/commercial/plans"',
+    "CommercialPlanList",
     "OrganizationInvitationCreated",
     '"/v1/cad/documents"',
     '"/v1/cad/documents/{documentId}/provisional"',

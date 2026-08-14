@@ -11,6 +11,7 @@ import {
   EmailOutbox,
   PlanCatalog,
   PlanEntitlement,
+  PlanPrice,
   Subscription,
   UsageLedger,
 } from '../commercial/entities/commercial.entities';
@@ -40,6 +41,7 @@ describePostgres('Organization creation atomicity', () => {
         Invitation,
         PlanCatalog,
         PlanEntitlement,
+        PlanPrice,
         Subscription,
         UsageLedger,
         DomainOutbox,

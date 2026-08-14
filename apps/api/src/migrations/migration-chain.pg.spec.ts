@@ -20,6 +20,7 @@ import { DesignAuditLogIdentity20260805120000 } from './20260805120000-DesignAud
 import { CreateCadSheetSets20260809100000 } from './20260809100000-CreateCadSheetSets';
 import { CommercialSellableCatalog20260812100000 } from './20260812100000-CommercialSellableCatalog';
 import { SubscriptionUpgradeIntents20260812110000 } from './20260812110000-SubscriptionUpgradeIntents';
+import { PlanPrices20260814100000 } from './20260814100000-PlanPrices';
 
 const LEGACY_MIGRATIONS: Array<new () => MigrationInterface> = [
   AddCadBlocks20260706180000,
@@ -42,6 +43,7 @@ const ALL_MIGRATIONS: Array<new () => MigrationInterface> = [
   CreateCadSheetSets20260809100000,
   CommercialSellableCatalog20260812100000,
   SubscriptionUpgradeIntents20260812110000,
+  PlanPrices20260814100000,
 ];
 
 describePostgres('migration chain (previous main -> latest)', () => {
@@ -180,6 +182,7 @@ describePostgres('migration chain (previous main -> latest)', () => {
     await dataSource.undoLastMigration({ transaction: 'each' });
     await dataSource.undoLastMigration({ transaction: 'each' });
     await dataSource.undoLastMigration({ transaction: 'each' });
+    await dataSource.undoLastMigration({ transaction: 'each' });
     expect(
       await dataSource.query(
         `SELECT "name" FROM "cad_documents" WHERE "id" = $1`,
@@ -187,7 +190,7 @@ describePostgres('migration chain (previous main -> latest)', () => {
       ),
     ).toEqual([{ name: 'Plano anterior' }]);
 
-    expect(await dataSource.runMigrations()).toHaveLength(4);
+    expect(await dataSource.runMigrations()).toHaveLength(5);
     expect(
       await dataSource.query(
         `SELECT "entitlement_code" FROM "plan_entitlements"
@@ -220,6 +223,21 @@ describePostgres('migration chain (previous main -> latest)', () => {
            ("organization_id", "tenant_id", "plan_code", "status")
          VALUES ($1, $1, 'standalone-trial', 'active')`,
         [randomUUID()],
+      ),
+    ).rejects.toMatchObject({ code: '23503' });
+
+    // plan_prices existe tras su down/up y su FK apunta al catálogo sembrado:
+    // un precio del plan vendible entra, uno de un plan fantasma no.
+    await expect(
+      dataSource.query(
+        `INSERT INTO "plan_prices" ("plan_code", "currency", "period", "amount_cents")
+         VALUES ('standalone-full', 'USD', 'monthly', 2900)`,
+      ),
+    ).resolves.toBeDefined();
+    await expect(
+      dataSource.query(
+        `INSERT INTO "plan_prices" ("plan_code", "currency", "period", "amount_cents")
+         VALUES ('plan-fantasma', 'USD', 'monthly', 2900)`,
       ),
     ).rejects.toMatchObject({ code: '23503' });
   });

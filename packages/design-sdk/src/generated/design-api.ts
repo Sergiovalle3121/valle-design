@@ -334,6 +334,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commercial/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Publica el catalogo activo de planes con sus precios activos.
+         * @description Catalogo GLOBAL del producto (no contiene datos por organizacion, asi que basta una sesion autenticada, incluso sin organizacion activa): planes activos con sus entitlements y sus precios activos por moneda y periodo. `checkout` se deriva del proveedor de pagos configurado; `external` significa que el cobro ocurre fuera del producto y se registra via upgrade-intents.
+         */
+        get: operations["listCommercialPlans"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commercial/upgrade-intents": {
         parameters: {
             query?: never;
@@ -1194,6 +1214,30 @@ export interface components {
             /** Format: uuid */
             organizationId: string | null;
             items: string[];
+        };
+        /** @enum {string} */
+        PlanPricePeriod: "monthly" | "yearly";
+        CommercialPlanPrice: {
+            /** @description Codigo ISO-4217 de la moneda, en mayusculas. */
+            currency: string;
+            period: components["schemas"]["PlanPricePeriod"];
+            /** @description Precio en centimos enteros; jamas decimales flotantes. */
+            amountCents: number;
+        };
+        CommercialPlan: {
+            code: string;
+            /** @description Nombre publicable definido por el operador; sin uno, el codigo del plan es el nombre. */
+            name: string;
+            entitlements: string[];
+            prices: components["schemas"]["CommercialPlanPrice"][];
+        };
+        CommercialPlanList: {
+            /**
+             * @description Modo de cobro derivado del proveedor de pagos. `external`: el cobro ocurre fuera del producto (asistido) y se registra via upgrade-intents; una pasarela real (ola Stripe) ampliara este enum.
+             * @enum {string}
+             */
+            checkout: "external";
+            items: components["schemas"]["CommercialPlan"][];
         };
         /** @enum {string} */
         UpgradeIntentStatus: "pending" | "confirmed" | "cancelled";
@@ -2379,6 +2423,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EffectiveEntitlementList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    listCommercialPlans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Catalogo publicado; un plan sin precio publicado lista `prices` vacio (no desaparece). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommercialPlanList"];
                 };
             };
             401: components["responses"]["Unauthorized"];

@@ -38,6 +38,9 @@ export type OrganizationInvitationAccepted =
 export type CommercialSubscriptionResponse =
   Schemas["CommercialSubscriptionResponse"];
 export type EffectiveEntitlementList = Schemas["EffectiveEntitlementList"];
+export type CommercialPlan = Schemas["CommercialPlan"];
+export type CommercialPlanPrice = Schemas["CommercialPlanPrice"];
+export type CommercialPlanList = Schemas["CommercialPlanList"];
 export type CadSheetSet = Schemas["CadSheetSet"];
 export type CadSheetSetSummary = Schemas["CadSheetSetSummary"];
 export type CadSheetSetCreate = Schemas["CadSheetSetCreate"];
@@ -311,6 +314,13 @@ export function createDesignClient(options: DesignClientOptions) {
           "GET",
           resource("/v1/commercial/entitlements"),
         ),
+      /**
+       * Catálogo publicado: planes activos con sus precios activos. `checkout`
+       * dice cómo se cobra hoy (`external` = fuera del producto, vía
+       * upgrade-intents); una pasarela real ampliará ese enum.
+       */
+      plans: () =>
+        call<CommercialPlanList>("GET", resource("/v1/commercial/plans")),
     },
 
     projects: {
