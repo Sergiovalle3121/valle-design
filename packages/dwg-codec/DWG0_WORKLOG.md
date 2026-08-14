@@ -319,3 +319,74 @@ y la promoción condicionada a revisión legal externa.
   corrupción, radio negativo como corrupción, y el writer emitiendo DD sólo
   en sus formas 00/11 (los parches de 4/6 bytes son compresión opcional que
   el lector ya acepta). El producto permanece `available:false`.
+
+## DWG-1 sesión 2026-08-14 (continuación) — LWPOLYLINE, TEXT y tabla LAYER (fase D3)
+
+- Hechos nuevos registrados ANTES de derivar código en
+  `ODA-ODS-DWG-5.4.1-PUBLIC`: códigos de tipo 0x01 TEXT, 0x4D LWPOLYLINE,
+  0x32 LAYER CONTROL y 0x33 LAYER; bandera BS de presencia de LWPOLYLINE
+  (1 extrusión, 2 grosor, 4 ancho constante, 8 elevación, 16 recuento de
+  bulges, 32 recuento de anchos, 512 cierre) con el primer vértice 2RD y los
+  siguientes 2DD contra el anterior; RC de banderas de TEXT donde un bit a 1
+  significa campo AUSENTE (elevación/alineación/oblicuo/rotación/factor/
+  generación/alineaciones) con inserción 2RD, extrusión BE, grosor BT,
+  altura RD y cadena TV incondicionales; prólogo común de los objetos de
+  tabla (tipo→RL→H→EED→reactores BL, sin gráfico ni modo); entrada LAYER
+  (nombre TV, bandera 64, xrefindex+1 BS, bit de dependencia, BS de estado
+  empaquetado, color CmC, ltype/plotstyle por handle) y CONTROL con recuento
+  de entradas BL y sus handles en el flujo final.
+- `entity-common.ts` refactorizado sin cambiar semántica: el arranque del
+  prólogo (`readAc1015ObjectPrologue`) y las utilidades `finiteDecoded`/
+  `readFiniteExtrusion`/`assertHandleCountFits` se comparten entre entidades
+  y objetos de tabla — cero criterios gemelos.
+- Nuevo `src/objects/entities-poly.ts`: `decodeLwPolyline` con fallo cerrado
+  en recuentos que no caben (cobrados ANTES de reservar), recuentos de
+  bulges/anchos desalineados de los vértices, anchos negativos y doubles no
+  finitos; un bit de bandera NO modelado (p. ej. 0x80) es
+  `DWG_VERSION_DECODER_UNSUPPORTED`, no corrupción. TEXT en
+  `entities-core.ts` con ausencia modelada como `undefined` (0 explícito ≠
+  ausente) y la cadena como BYTES + longitud declarada (página de códigos de
+  capa superior). El despachador cubre ahora seis tipos.
+- Nuevo `src/objects/table-layer.ts`: común de objeto de tabla, LAYER
+  (nombre en bytes, campos de xref, BS de estado CRUDO, color CmC) y LAYER
+  CONTROL (recuento de entradas BL validado contra el flujo, junto a los
+  reactores); tamaño en bits exigido EXACTO y flujo de handles contabilizado
+  opaco, como en las entidades.
+- Writer espejo: `emitTV` y los emisores de LWPOLYLINE/TEXT en
+  `ac1015-entity-writer.ts` (banderas DERIVADAS de la presencia de cada
+  campo; atajos DD sólo con igualdad exacta de bits — lo no representable
+  viaja como RD literal); nuevo `src/writer/ac1015-table-writer.ts` con los
+  cuerpos de LAYER y CONTROL (flujos de handles nulos como placeholders
+  CONFESOS; entradas del control como referencias absolutas código 2). El
+  contenedor acepta specs `{layer}` y `{layerControl}` junto a entidades y
+  sintéticos, exigiendo UNA sola naturaleza por spec.
+- Nuevas `tests/unit/entities-poly.spec.ts` y `tests/unit/table-layer.spec.ts`
+  (205 unit en total): round-trips exactos de LWPOLYLINE
+  (abierta/cerrada/bulges/anchos/opcionales/120 vértices con deltas DD
+  variados y −0.0 bit a bit), TEXT (todo presente/todo ausente/cadena
+  vacía/300 bytes con valores altos), LAYER y CONTROL (nombres con bytes
+  altos, colores 0/7/255/256, banderas crudas); la meta de la fase — un
+  contenedor con control + capa "0" + entidades cuyo lector recupera nombre
+  y color exactos — y gemelos tristes: banderas no modeladas, recuentos
+  imposibles o desalineados, anchos/alturas negativos, TV que se sale,
+  truncados dentro del dato declarado, descuadres de bit-size y filtros
+  cruzados entre decodificadores (tipo ajeno = unsupported).
+- `npm run check` del paquete y `npm run check:dwg` desde la raíz: verdes
+  (205 unit + 349 adversarial + fuzz determinista).
+- Certezas declaradas: ALTA en los cuatro códigos de tipo nuevos, en la
+  estructura general de LWPOLYLINE (bandera→opcionales→recuentos→vértices
+  2RD/2DD→bulges→anchos) y en el RC de presencia invertida de TEXT. MEDIA,
+  pendiente de corpus real con derechos (fase de intake): el orden exacto
+  ancho constante→elevación→grosor→extrusión de LWPOLYLINE, la codificación
+  BE (y no 3BD) de su extrusión tras la bandera, el orden
+  elevación→inserción de TEXT, los campos xref de la entrada LAYER
+  (bandera 64, xrefindex+1, dependencia) y el recuento BL (y no BS) del
+  CONTROL. Decisiones de LABORATORIO (no hechos del formato): recuentos de
+  bulges/anchos distintos del de vértices como corrupción, anchos y alturas
+  negativos como corrupción, bits de bandera no modelados de LWPOLYLINE
+  (p. ej. generación de tipo de línea 0x80 y vertexids R2010+) como
+  unsupported, y la semántica bit a bit del BS de estado del LAYER SIN
+  interpretar (viaja crudo en el modelo hasta validarla contra corpus). Los
+  flujos de handles siguen opacos y contabilizados; resolver referencias
+  entre objetos (capa de una entidad, entradas del control) es de una fase
+  posterior. El producto permanece `available:false`.

@@ -1,7 +1,8 @@
 /**
- * Writer de cuerpos de entidad R2000 — fase D2 (espejo del decodificador).
+ * Writer de cuerpos de entidad R2000 — fases D2/D3 (espejo del decodificador).
  *
- * Emite el cuerpo COMPLETO de una entidad nuclear (LINE, POINT, CIRCLE, ARC):
+ * Emite el cuerpo COMPLETO de una entidad real (LINE, POINT, CIRCLE, ARC y,
+ * desde la fase D3, LWPOLYLINE y TEXT):
  * tipo BS, tamaño RL en bits, handle propio H, cabecera común mínima
  * coherente, datos del tipo y un flujo de handles final confesadamente
  * mínimo. El cuerpo resultante es válido para la envoltura de la fase D1
@@ -30,15 +31,20 @@
  */
 import {
   DWG_GEOMETRY_ENTITY_KINDS,
+  isFiniteDwgPoint2,
   isFiniteDwgPoint3,
   type DwgGeometryEntity,
+  type DwgLwPolylineEntity,
   type DwgPoint3,
+  type DwgTextEntity,
 } from "../model/entity-geometry.js";
 import {
   AC1015_TYPE_ARC,
   AC1015_TYPE_CIRCLE,
   AC1015_TYPE_LINE,
+  AC1015_TYPE_LWPOLYLINE,
   AC1015_TYPE_POINT,
+  AC1015_TYPE_TEXT,
 } from "../objects/entities-core.js";
 import { throwDwgError } from "../security/parse-error.js";
 
@@ -240,6 +246,26 @@ export class DwgBitEmitter {
     }
   }
 
+  /**
+   * TV: longitud BS + esos bytes tal cual (la página de códigos es de una
+   * capa superior, igual que en `readTV`). Espejo exacto del lector.
+   */
+  emitTV(bytes: readonly number[]): void {
+    if (!Array.isArray(bytes) || bytes.length > 0xffff) {
+      throwDwgError(
+        "DWG_INPUT_INVALID",
+        "input",
+        0,
+        "A text value needs at most 65535 byte values.",
+      );
+    }
+    this.emitBS(bytes.length);
+    for (const byte of bytes) {
+      // pushBits valida que cada valor sea un entero de 0 a 255.
+      this.emitRC(byte);
+    }
+  }
+
   /** H: código de 4 bits + contador + bytes big-endian mínimos del valor. */
   emitH(code: number, value: number): void {
     if (
@@ -380,6 +406,106 @@ function emitEntitySpecific(
       }
       return;
     }
+    case "lwpolyline":
+      emitLwPolyline(emitter, entity);
+      return;
+    case "text":
+      emitText(emitter, entity);
+      return;
+  }
+}
+
+/**
+ * LWPOLYLINE: la bandera BS se DERIVA de la presencia de cada campo del
+ * modelo (`undefined` = el archivo no lo lleva), los opcionales presentes se
+ * emiten en el orden del formato y los vértices tras el primero viajan como
+ * 2DD contra el anterior — el atajo DD sólo con igualdad exacta de bits, como
+ * en el resto del writer.
+ */
+function emitLwPolyline(
+  emitter: DwgBitEmitter,
+  entity: DwgLwPolylineEntity,
+): void {
+  let flags = 0;
+  if (entity.extrusion !== undefined) flags |= 0x1;
+  if (entity.thickness !== undefined) flags |= 0x2;
+  if (entity.constantWidth !== undefined) flags |= 0x4;
+  if (entity.elevation !== undefined) flags |= 0x8;
+  if (entity.bulges !== undefined) flags |= 0x10;
+  if (entity.widths !== undefined) flags |= 0x20;
+  if (entity.closed) flags |= 0x200;
+  emitter.emitBS(flags);
+
+  if (entity.constantWidth !== undefined) emitter.emitBD(entity.constantWidth);
+  if (entity.elevation !== undefined) emitter.emitBD(entity.elevation);
+  if (entity.thickness !== undefined) emitter.emitBD(entity.thickness);
+  if (entity.extrusion !== undefined) emitter.emitBE(entity.extrusion);
+
+  emitter.emitBL(entity.vertices.length);
+  if (entity.bulges !== undefined) emitter.emitBL(entity.bulges.length);
+  if (entity.widths !== undefined) emitter.emitBL(entity.widths.length);
+
+  const first = entity.vertices[0]!;
+  emitter.emitRD(first.x);
+  emitter.emitRD(first.y);
+  for (let index = 1; index < entity.vertices.length; index += 1) {
+    const vertex = entity.vertices[index]!;
+    const previous = entity.vertices[index - 1]!;
+    emitter.emitDD(vertex.x, previous.x);
+    emitter.emitDD(vertex.y, previous.y);
+  }
+
+  if (entity.bulges !== undefined) {
+    for (const bulge of entity.bulges) {
+      emitter.emitBD(bulge);
+    }
+  }
+  if (entity.widths !== undefined) {
+    for (const width of entity.widths) {
+      emitter.emitBD(width.start);
+      emitter.emitBD(width.end);
+    }
+  }
+}
+
+/**
+ * TEXT: el RC de banderas se DERIVA de la presencia — un bit a 1 declara el
+ * campo AUSENTE, así que cada `undefined` del modelo enciende su bit y no
+ * emite nada. La alineación viaja como 2DD contra la inserción y la cadena
+ * como TV de bytes crudos.
+ */
+function emitText(emitter: DwgBitEmitter, entity: DwgTextEntity): void {
+  let dataFlags = 0;
+  if (entity.elevation === undefined) dataFlags |= 0x01;
+  if (entity.alignment === undefined) dataFlags |= 0x02;
+  if (entity.obliqueAngle === undefined) dataFlags |= 0x04;
+  if (entity.rotation === undefined) dataFlags |= 0x08;
+  if (entity.widthFactor === undefined) dataFlags |= 0x10;
+  if (entity.generation === undefined) dataFlags |= 0x20;
+  if (entity.horizontalAlignment === undefined) dataFlags |= 0x40;
+  if (entity.verticalAlignment === undefined) dataFlags |= 0x80;
+  emitter.emitRC(dataFlags);
+
+  if (entity.elevation !== undefined) emitter.emitRD(entity.elevation);
+  emitter.emitRD(entity.insertion.x);
+  emitter.emitRD(entity.insertion.y);
+  if (entity.alignment !== undefined) {
+    emitter.emitDD(entity.alignment.x, entity.insertion.x);
+    emitter.emitDD(entity.alignment.y, entity.insertion.y);
+  }
+  emitter.emitBE(entity.extrusion);
+  emitter.emitBT(entity.thickness);
+  if (entity.obliqueAngle !== undefined) emitter.emitRD(entity.obliqueAngle);
+  if (entity.rotation !== undefined) emitter.emitRD(entity.rotation);
+  emitter.emitRD(entity.height);
+  if (entity.widthFactor !== undefined) emitter.emitRD(entity.widthFactor);
+  emitter.emitTV(entity.valueBytes);
+  if (entity.generation !== undefined) emitter.emitBS(entity.generation);
+  if (entity.horizontalAlignment !== undefined) {
+    emitter.emitBS(entity.horizontalAlignment);
+  }
+  if (entity.verticalAlignment !== undefined) {
+    emitter.emitBS(entity.verticalAlignment);
   }
 }
 
@@ -394,6 +520,10 @@ function typeOf(entity: DwgGeometryEntity): number {
       return AC1015_TYPE_CIRCLE;
     case "arc":
       return AC1015_TYPE_ARC;
+    case "lwpolyline":
+      return AC1015_TYPE_LWPOLYLINE;
+    case "text":
+      return AC1015_TYPE_TEXT;
   }
 }
 
@@ -418,7 +548,10 @@ function validateEntity(entity: DwgGeometryEntity): void {
       0,
       "An entity spec contains non-finite or impossible geometry.",
     );
-  if (!Number.isFinite(entity.thickness) || !isFiniteDwgPoint3(entity.extrusion)) {
+  if (
+    entity.kind !== "lwpolyline" &&
+    (!Number.isFinite(entity.thickness) || !isFiniteDwgPoint3(entity.extrusion))
+  ) {
     invalid();
   }
   switch (entity.kind) {
@@ -451,6 +584,112 @@ function validateEntity(entity: DwgGeometryEntity): void {
         invalid();
       }
       return;
+    case "lwpolyline":
+      validateLwPolyline(entity, invalid);
+      return;
+    case "text":
+      validateText(entity, invalid);
+      return;
+  }
+}
+
+/**
+ * La polilínea del modelo debe ser emitible tal cual: al menos un vértice
+ * finito, arrays de bulges/anchos alineados vértice a vértice cuando existen,
+ * anchos y ancho constante no negativos, y opcionales o bien ausentes
+ * (`undefined`) o bien finitos — exactamente lo que el lector aceptará.
+ */
+function validateLwPolyline(
+  entity: DwgLwPolylineEntity,
+  invalid: () => never,
+): void {
+  if (
+    typeof entity.closed !== "boolean" ||
+    !Array.isArray(entity.vertices) ||
+    entity.vertices.length < 1
+  ) {
+    invalid();
+  }
+  for (const vertex of entity.vertices) {
+    if (!isFiniteDwgPoint2(vertex)) invalid();
+  }
+  if (entity.bulges !== undefined) {
+    if (
+      !Array.isArray(entity.bulges) ||
+      entity.bulges.length !== entity.vertices.length ||
+      entity.bulges.some((bulge) => !Number.isFinite(bulge))
+    ) {
+      invalid();
+    }
+  }
+  if (entity.widths !== undefined) {
+    if (
+      !Array.isArray(entity.widths) ||
+      entity.widths.length !== entity.vertices.length ||
+      entity.widths.some(
+        (width) =>
+          !Number.isFinite(width.start) ||
+          width.start < 0 ||
+          !Number.isFinite(width.end) ||
+          width.end < 0,
+      )
+    ) {
+      invalid();
+    }
+  }
+  if (
+    entity.constantWidth !== undefined &&
+    (!Number.isFinite(entity.constantWidth) || entity.constantWidth < 0)
+  ) {
+    invalid();
+  }
+  if (entity.elevation !== undefined && !Number.isFinite(entity.elevation)) {
+    invalid();
+  }
+  if (entity.thickness !== undefined && !Number.isFinite(entity.thickness)) {
+    invalid();
+  }
+  if (entity.extrusion !== undefined && !isFiniteDwgPoint3(entity.extrusion)) {
+    invalid();
+  }
+}
+
+/**
+ * El texto del modelo debe ser emitible tal cual: inserción finita, altura
+ * finita no negativa, opcionales ausentes o finitos, códigos BS en rango y
+ * bytes de cadena 0–255 (el emisor TV los revalida bit a bit).
+ */
+function validateText(entity: DwgTextEntity, invalid: () => never): void {
+  if (
+    !isFiniteDwgPoint2(entity.insertion) ||
+    !Number.isFinite(entity.height) ||
+    entity.height < 0 ||
+    !Array.isArray(entity.valueBytes)
+  ) {
+    invalid();
+  }
+  if (entity.alignment !== undefined && !isFiniteDwgPoint2(entity.alignment)) {
+    invalid();
+  }
+  for (const optional of [
+    entity.elevation,
+    entity.obliqueAngle,
+    entity.rotation,
+    entity.widthFactor,
+  ]) {
+    if (optional !== undefined && !Number.isFinite(optional)) invalid();
+  }
+  for (const code of [
+    entity.generation,
+    entity.horizontalAlignment,
+    entity.verticalAlignment,
+  ]) {
+    if (
+      code !== undefined &&
+      (!Number.isInteger(code) || code < 0 || code > 0xffff)
+    ) {
+      invalid();
+    }
   }
 }
 

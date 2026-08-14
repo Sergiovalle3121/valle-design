@@ -59,6 +59,12 @@ import {
   writeAc1015ObjectEnvelope,
   type Ac1015SyntheticObjectSpec,
 } from "./ac1015-object-writer.js";
+import {
+  writeAc1015LayerBody,
+  writeAc1015LayerControlBody,
+  type Ac1015LayerControlWriteSpec,
+  type Ac1015LayerWriteSpec,
+} from "./ac1015-table-writer.js";
 
 /**
  * Especificación de una entidad REAL (fase D2): la geometría del modelo
@@ -72,10 +78,29 @@ export interface Ac1015EntityObjectSpec {
   readonly handle?: number;
 }
 
-/** Un objeto del contenedor: sintético opaco (D1) o entidad real (D2). */
+/** Especificación de una entrada LAYER real (fase D3), misma regla de handle. */
+export interface Ac1015LayerObjectSpec {
+  readonly layer: Ac1015LayerWriteSpec;
+  /** Handle del objeto. Por defecto, el anterior más uno (desde 1). */
+  readonly handle?: number;
+}
+
+/** Especificación del CONTROL de la tabla de capas (fase D3). */
+export interface Ac1015LayerControlObjectSpec {
+  readonly layerControl: Ac1015LayerControlWriteSpec;
+  /** Handle del objeto. Por defecto, el anterior más uno (desde 1). */
+  readonly handle?: number;
+}
+
+/**
+ * Un objeto del contenedor: sintético opaco (D1), entidad real (D2) o tabla
+ * de capas mínima (D3).
+ */
 export type Ac1015ObjectSpec =
   | Ac1015SyntheticObjectSpec
-  | Ac1015EntityObjectSpec;
+  | Ac1015EntityObjectSpec
+  | Ac1015LayerObjectSpec
+  | Ac1015LayerControlObjectSpec;
 
 /** Página de códigos por defecto: ANSI_1252, la habitual en dibujos R2000. */
 export const AC1015_DEFAULT_CODEPAGE = 0x4e4;
@@ -112,11 +137,12 @@ export interface Ac1015ContainerWriteOptions {
   /** Payload opaco de la sección de clases. Por defecto, vacío. */
   readonly classesPayload?: Uint8Array;
   /**
-   * Objetos del cuerpo: sintéticos opacos (fase D1) o entidades REALES
-   * (fase D2), mezclables. Se emiten uno tras otro en la región SIN mapear
-   * entre la sección de clases y el mapa de objetos, y el mapa los referencia
-   * con sus handles y offsets reales. Por defecto, ninguno: el contenedor
-   * mínimo de la fase C, byte a byte.
+   * Objetos del cuerpo: sintéticos opacos (fase D1), entidades REALES
+   * (fases D2/D3) o la tabla de capas mínima (fase D3), mezclables. Se
+   * emiten uno tras otro en la región SIN mapear entre la sección de clases
+   * y el mapa de objetos, y el mapa los referencia con sus handles y offsets
+   * reales. Por defecto, ninguno: el contenedor mínimo de la fase C, byte a
+   * byte.
    */
   readonly objects?: readonly Ac1015ObjectSpec[];
 }
@@ -319,8 +345,9 @@ function buildSyntheticObjects(
 }
 
 /**
- * Un spec es entidad real o sintético opaco, nunca ambas cosas: la mezcla
- * sería ambigua y se rechaza cerrada en vez de elegir en silencio.
+ * Un spec declara EXACTAMENTE una naturaleza — entidad real, sintético
+ * opaco, capa o control de capas —: la mezcla sería ambigua y se rechaza
+ * cerrada en vez de elegir en silencio.
  */
 function buildObjectEnvelope(
   spec: Ac1015ObjectSpec,
@@ -328,17 +355,32 @@ function buildObjectEnvelope(
 ): Uint8Array {
   const isEntity = "entity" in spec && spec.entity !== undefined;
   const isSynthetic = "type" in spec && spec.type !== undefined;
-  if (isEntity === isSynthetic) {
+  const isLayer = "layer" in spec && spec.layer !== undefined;
+  const isLayerControl = "layerControl" in spec && spec.layerControl !== undefined;
+  const natures = [isEntity, isSynthetic, isLayer, isLayerControl].filter(
+    (nature) => nature,
+  ).length;
+  if (natures !== 1) {
     throwDwgError(
       "DWG_INPUT_INVALID",
       "input",
       0,
-      "An object spec must declare exactly one of entity or type.",
+      "An object spec must declare exactly one of entity, type, layer or layerControl.",
     );
   }
   if (isEntity) {
     const entitySpec = spec as Ac1015EntityObjectSpec;
     return wrapAc1015ObjectBody(writeAc1015EntityBody(entitySpec.entity, handle));
+  }
+  if (isLayer) {
+    const layerSpec = spec as Ac1015LayerObjectSpec;
+    return wrapAc1015ObjectBody(writeAc1015LayerBody(layerSpec.layer, handle));
+  }
+  if (isLayerControl) {
+    const controlSpec = spec as Ac1015LayerControlObjectSpec;
+    return wrapAc1015ObjectBody(
+      writeAc1015LayerControlBody(controlSpec.layerControl, handle),
+    );
   }
   return writeAc1015ObjectEnvelope(spec as Ac1015SyntheticObjectSpec);
 }

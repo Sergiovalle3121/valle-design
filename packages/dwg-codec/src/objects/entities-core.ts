@@ -1,16 +1,17 @@
 /**
- * Decodificadores de las entidades geométricas nucleares R2000 — fase D2.
+ * Decodificadores de las entidades geométricas nucleares R2000 — fases D2/D3.
  *
- * La PRIMERA geometría real del laboratorio: LINE, POINT, CIRCLE y ARC. Cada
+ * La geometría real del laboratorio: LINE, POINT, CIRCLE y ARC (fase D2) más
+ * TEXT (fase D3; LWPOLYLINE vive en su hermano `entities-poly.ts`). Cada
  * decodificador es una función pura sobre lo que sigue a la cabecera común
  * (`entity-common.ts`) y produce el modelo neutral de `src/model/`; el
  * despachador `decodeAc1015EntityBody` une las piezas: común interpretado,
  * geometría del tipo y tramos opacos contabilizados (EED, gráfico y el flujo
  * de handles del final del objeto).
  *
- * Códigos de TIPO BS de estas entidades (hecho registrado en
- * SOURCE_REGISTER, ODA-ODS-DWG-5.4.1-PUBLIC): 0x11 ARC, 0x12 CIRCLE,
- * 0x13 LINE, 0x1B POINT.
+ * Códigos de TIPO BS de estas entidades (hechos registrados en
+ * SOURCE_REGISTER, ODA-ODS-DWG-5.4.1-PUBLIC): 0x01 TEXT, 0x11 ARC,
+ * 0x12 CIRCLE, 0x13 LINE, 0x1B POINT, 0x4D LWPOLYLINE.
  *
  * Reglas del laboratorio:
  * - **Unsupported no es corrupt**: un tipo BS que esta fase no decodifica
@@ -30,21 +31,29 @@ import type {
   DwgCircleEntity,
   DwgGeometryEntity,
   DwgLineEntity,
+  DwgPoint2,
   DwgPoint3,
   DwgPointEntity,
+  DwgTextEntity,
 } from "../model/entity-geometry.js";
 import { throwDwgError } from "../security/parse-error.js";
+import { AC1015_TYPE_LWPOLYLINE, decodeLwPolyline } from "./entities-poly.js";
 import {
+  finiteDecoded,
+  frozenPoint3,
   readAc1015EntityCommon,
+  readFiniteExtrusion,
   type Ac1015EntityCommon,
   type Ac1015OpaqueSpan,
 } from "./entity-common.js";
 
 /** Códigos de tipo BS de las entidades nucleares (hechos registrados). */
+export const AC1015_TYPE_TEXT = 0x01;
 export const AC1015_TYPE_ARC = 0x11;
 export const AC1015_TYPE_CIRCLE = 0x12;
 export const AC1015_TYPE_LINE = 0x13;
 export const AC1015_TYPE_POINT = 0x1b;
+export { AC1015_TYPE_LWPOLYLINE } from "./entities-poly.js";
 
 /** Una entidad decodificada por completo: común, geometría y restos opacos. */
 export interface Ac1015DecodedEntity {
@@ -73,13 +82,15 @@ export function decodeAc1015EntityBody(
     type !== AC1015_TYPE_LINE &&
     type !== AC1015_TYPE_POINT &&
     type !== AC1015_TYPE_CIRCLE &&
-    type !== AC1015_TYPE_ARC
+    type !== AC1015_TYPE_ARC &&
+    type !== AC1015_TYPE_LWPOLYLINE &&
+    type !== AC1015_TYPE_TEXT
   ) {
     throwDwgError(
       "DWG_VERSION_DECODER_UNSUPPORTED",
       "unsupported",
       0,
-      "This entity type is not decoded by the phase-D2 laboratory.",
+      "This entity type is not decoded by the phase-D laboratory.",
     );
   }
 
@@ -144,6 +155,10 @@ function decodeEntitySpecific(
       return decodeCircle(reader);
     case AC1015_TYPE_ARC:
       return decodeArc(reader);
+    case AC1015_TYPE_LWPOLYLINE:
+      return decodeLwPolyline(reader);
+    case AC1015_TYPE_TEXT:
+      return decodeText(reader);
     default:
       // Inalcanzable: el despachador sólo se llama tras el filtro de tipos.
       // Si llega, el error es NUESTRO, no del archivo.
@@ -163,22 +178,22 @@ function decodeEntitySpecific(
  */
 function decodeLine(reader: DwgBitReader): DwgLineEntity {
   const zeroZ = reader.readB() === 1;
-  const startX = finite(reader, reader.readRD(), "a line start X");
-  const endX = finite(reader, reader.readDD(startX), "a line end X");
-  const startY = finite(reader, reader.readRD(), "a line start Y");
-  const endY = finite(reader, reader.readDD(startY), "a line end Y");
+  const startX = finiteDecoded(reader, reader.readRD(), "a line start X");
+  const endX = finiteDecoded(reader, reader.readDD(startX), "a line end X");
+  const startY = finiteDecoded(reader, reader.readRD(), "a line start Y");
+  const endY = finiteDecoded(reader, reader.readDD(startY), "a line end Y");
   let startZ = 0;
   let endZ = 0;
   if (!zeroZ) {
-    startZ = finite(reader, reader.readRD(), "a line start Z");
-    endZ = finite(reader, reader.readDD(startZ), "a line end Z");
+    startZ = finiteDecoded(reader, reader.readRD(), "a line start Z");
+    endZ = finiteDecoded(reader, reader.readDD(startZ), "a line end Z");
   }
-  const thickness = finite(reader, reader.readBT(), "a line thickness");
-  const extrusion = readExtrusion(reader);
+  const thickness = finiteDecoded(reader, reader.readBT(), "a line thickness");
+  const extrusion = readFiniteExtrusion(reader);
   return Object.freeze({
     kind: "line" as const,
-    start: point3(startX, startY, startZ),
-    end: point3(endX, endY, endZ),
+    start: frozenPoint3(startX, startY, startZ),
+    end: frozenPoint3(endX, endY, endZ),
     thickness,
     extrusion,
   });
@@ -187,9 +202,13 @@ function decodeLine(reader: DwgBitReader): DwgLineEntity {
 /** POINT: posición 3BD, grosor BT, extrusión BE y ángulo BD del eje X. */
 function decodePoint(reader: DwgBitReader): DwgPointEntity {
   const position = read3BDPoint(reader, "a point position");
-  const thickness = finite(reader, reader.readBT(), "a point thickness");
-  const extrusion = readExtrusion(reader);
-  const xAxisAngle = finite(reader, reader.readBD(), "a point X-axis angle");
+  const thickness = finiteDecoded(reader, reader.readBT(), "a point thickness");
+  const extrusion = readFiniteExtrusion(reader);
+  const xAxisAngle = finiteDecoded(
+    reader,
+    reader.readBD(),
+    "a point X-axis angle",
+  );
   return Object.freeze({
     kind: "point" as const,
     position,
@@ -214,8 +233,8 @@ function decodeCircle(reader: DwgBitReader): DwgCircleEntity {
 /** ARC: los campos del círculo más los ángulos BD inicial y final. */
 function decodeArc(reader: DwgBitReader): DwgArcEntity {
   const { center, radius, thickness, extrusion } = decodeCircleFields(reader);
-  const startAngle = finite(reader, reader.readBD(), "an arc start angle");
-  const endAngle = finite(reader, reader.readBD(), "an arc end angle");
+  const startAngle = finiteDecoded(reader, reader.readBD(), "an arc start angle");
+  const endAngle = finiteDecoded(reader, reader.readBD(), "an arc end angle");
   return Object.freeze({
     kind: "arc" as const,
     center,
@@ -235,7 +254,7 @@ function decodeCircleFields(reader: DwgBitReader): {
   extrusion: DwgPoint3;
 } {
   const center = read3BDPoint(reader, "a circle center");
-  const radius = finite(reader, reader.readBD(), "a circle radius");
+  const radius = finiteDecoded(reader, reader.readBD(), "a circle radius");
   if (radius < 0) {
     // Un radio negativo no describe ningún círculo: estructura corrupta,
     // no una "convención" que inventar.
@@ -246,48 +265,118 @@ function decodeCircleFields(reader: DwgBitReader): {
       "A circle radius cannot be negative.",
     );
   }
-  const thickness = finite(reader, reader.readBT(), "a circle thickness");
-  const extrusion = readExtrusion(reader);
+  const thickness = finiteDecoded(reader, reader.readBT(), "a circle thickness");
+  const extrusion = readFiniteExtrusion(reader);
   return { center, radius, thickness, extrusion };
+}
+
+/**
+ * TEXT (R2000): un RC de banderas abre el dato y cada bit a 1 declara un
+ * campo AUSENTE (0x01 elevación, 0x02 alineación, 0x04 oblicuo, 0x08
+ * rotación, 0x10 factor de anchura, 0x20 generación, 0x40/0x80 alineaciones)
+ * — el archivo ahorra los valores por defecto no escribiéndolos. Ausente se
+ * modela `undefined`: inventar el defecto aquí sería fingir que viajó. La
+ * alineación viaja como 2DD contra la inserción; la cadena TV llega como
+ * BYTES (la página de códigos es de una capa superior); los códigos BS de
+ * generación/alineación se conservan crudos.
+ */
+function decodeText(reader: DwgBitReader): DwgTextEntity {
+  const dataFlags = reader.readRC();
+
+  const elevation =
+    (dataFlags & 0x01) === 0
+      ? finiteDecoded(reader, reader.readRD(), "a text elevation")
+      : undefined;
+
+  const insertionX = finiteDecoded(reader, reader.readRD(), "a text insertion X");
+  const insertionY = finiteDecoded(reader, reader.readRD(), "a text insertion Y");
+  const insertion = frozenPoint2(insertionX, insertionY);
+
+  let alignment: DwgPoint2 | undefined;
+  if ((dataFlags & 0x02) === 0) {
+    const alignmentX = finiteDecoded(
+      reader,
+      reader.readDD(insertionX),
+      "a text alignment X",
+    );
+    const alignmentY = finiteDecoded(
+      reader,
+      reader.readDD(insertionY),
+      "a text alignment Y",
+    );
+    alignment = frozenPoint2(alignmentX, alignmentY);
+  }
+
+  const extrusion = readFiniteExtrusion(reader);
+  const thickness = finiteDecoded(reader, reader.readBT(), "a text thickness");
+
+  const obliqueAngle =
+    (dataFlags & 0x04) === 0
+      ? finiteDecoded(reader, reader.readRD(), "a text oblique angle")
+      : undefined;
+  const rotation =
+    (dataFlags & 0x08) === 0
+      ? finiteDecoded(reader, reader.readRD(), "a text rotation")
+      : undefined;
+
+  const height = finiteDecoded(reader, reader.readRD(), "a text height");
+  if (height < 0) {
+    // Una altura negativa no describe ningún texto: estructura corrupta
+    // (decisión de laboratorio declarada), no una convención que inventar.
+    throwDwgError(
+      "DWG_STRUCTURE_CORRUPT",
+      "input",
+      Math.floor(reader.bitPosition / 8),
+      "A text height cannot be negative.",
+    );
+  }
+
+  const widthFactor =
+    (dataFlags & 0x10) === 0
+      ? finiteDecoded(reader, reader.readRD(), "a text width factor")
+      : undefined;
+
+  // La cadena llega como bytes congelados: mismos bytes, mismo modelo.
+  const text = reader.readTV();
+  const valueBytes = new Array<number>(text.bytes.length);
+  for (let index = 0; index < text.bytes.length; index += 1) {
+    valueBytes[index] = text.bytes[index]!;
+  }
+
+  const generation = (dataFlags & 0x20) === 0 ? reader.readBS() : undefined;
+  const horizontalAlignment =
+    (dataFlags & 0x40) === 0 ? reader.readBS() : undefined;
+  const verticalAlignment =
+    (dataFlags & 0x80) === 0 ? reader.readBS() : undefined;
+
+  return Object.freeze({
+    kind: "text" as const,
+    insertion,
+    elevation,
+    alignment,
+    thickness,
+    extrusion,
+    obliqueAngle,
+    rotation,
+    height,
+    widthFactor,
+    valueBytes: Object.freeze(valueBytes),
+    generation,
+    horizontalAlignment,
+    verticalAlignment,
+  });
 }
 
 /** Un 3BD validado como punto finito del modelo neutral. */
 function read3BDPoint(reader: DwgBitReader, what: string): DwgPoint3 {
   const { x, y, z } = reader.read3BD();
-  return point3(
-    finite(reader, x, what),
-    finite(reader, y, what),
-    finite(reader, z, what),
+  return frozenPoint3(
+    finiteDecoded(reader, x, what),
+    finiteDecoded(reader, y, what),
+    finiteDecoded(reader, z, what),
   );
 }
 
-/** La extrusión BE, validada finita y congelada como punto del modelo. */
-function readExtrusion(reader: DwgBitReader): DwgPoint3 {
-  const { x, y, z } = reader.readBE();
-  return point3(
-    finite(reader, x, "an extrusion component"),
-    finite(reader, y, "an extrusion component"),
-    finite(reader, z, "an extrusion component"),
-  );
-}
-
-/**
- * NaN o ±Infinity no son geometría: un double no finito en un campo de
- * coordenadas es estructura corrupta (decisión de laboratorio declarada en el
- * worklog), no un valor que propagar al modelo neutral.
- */
-function finite(reader: DwgBitReader, value: number, what: string): number {
-  if (!Number.isFinite(value)) {
-    throwDwgError(
-      "DWG_STRUCTURE_CORRUPT",
-      "input",
-      Math.floor(reader.bitPosition / 8),
-      `Reading ${what} produced a non-finite number.`,
-    );
-  }
-  return value;
-}
-
-function point3(x: number, y: number, z: number): DwgPoint3 {
-  return Object.freeze({ x, y, z });
+function frozenPoint2(x: number, y: number): DwgPoint2 {
+  return Object.freeze({ x, y });
 }

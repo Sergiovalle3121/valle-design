@@ -5,5 +5,7 @@ import "./unit/api.spec.js";
 import "./unit/binary.spec.js";
 import "./unit/bitcodes.spec.js";
 import "./unit/entities-core.spec.js";
+import "./unit/entities-poly.spec.js";
 import "./unit/model.spec.js";
 import "./unit/security.spec.js";
+import "./unit/table-layer.spec.js";

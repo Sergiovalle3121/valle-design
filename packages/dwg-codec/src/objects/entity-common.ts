@@ -1,9 +1,12 @@
 /**
- * Cabecera común de una entidad R2000 (AC1015) — fase D2.
+ * Cabecera común de una entidad R2000 (AC1015) — fases D2/D3.
  *
  * Todas las entidades del cuerpo del dibujo comparten el mismo prólogo antes
- * de sus campos específicos. Este módulo lo decodifica desde el CUERPO de la
- * envoltura (los `bodyBytes` que la fase D1 devuelve, tipo BS incluido):
+ * de sus campos específicos, y los objetos que NO son entidades (las tablas
+ * de símbolos de la fase D3) comparten con ellas el arranque de ese prólogo:
+ * tipo, tamaño en bits, handle y EED (`readAc1015ObjectPrologue`). Este
+ * módulo lo decodifica desde el CUERPO de la envoltura (los `bodyBytes` que
+ * la fase D1 devuelve, tipo BS incluido):
  *
  * - tipo BS (se relee aquí: todo lo demás depende de su anchura en bits);
  * - tamaño RL del dato en BITS (R2000+), contado desde el PRIMER bit del dato
@@ -34,6 +37,7 @@ import {
   type DwgColorReference,
   type DwgHandleReference,
 } from "../codecs/bitcodes.js";
+import type { DwgPoint3 } from "../model/entity-geometry.js";
 import { throwDwgError } from "../security/parse-error.js";
 
 /**
@@ -88,14 +92,30 @@ export interface Ac1015EntityCommonDecode {
 }
 
 /**
- * Decodifica la cabecera común de la entidad cuyo cuerpo es `bodyBytes` (los
+ * El prólogo que TODO objeto del cuerpo comparte antes de divergir: tipo BS,
+ * tamaño RL en bits, handle propio H y grupos EED contabilizados. Las
+ * entidades siguen con gráfico/modo/reactores (esta misma fase); los objetos
+ * de tabla siguen directamente con sus reactores (`table-layer.ts`).
+ */
+export interface Ac1015ObjectPrologue {
+  readonly type: number;
+  readonly bitSize: number;
+  readonly ownHandle: DwgHandleReference;
+  /** Mutable a propósito: el llamador sigue anotando tramos sobre la misma lista. */
+  readonly opaqueSpans: Ac1015OpaqueSpan[];
+  readonly reader: DwgBitReader;
+  readonly bodyBitLength: number;
+}
+
+/**
+ * Decodifica el prólogo común del objeto cuyo cuerpo es `bodyBytes` (los
  * bytes exactos del dato de la envoltura, tipo BS incluido). Los offsets de
  * error son relativos al INICIO del cuerpo; el llamador que tenga el offset
  * del archivo puede trasladarlos.
  */
-export function readAc1015EntityCommon(
+export function readAc1015ObjectPrologue(
   bodyBytes: Uint8Array,
-): Ac1015EntityCommonDecode {
+): Ac1015ObjectPrologue {
   // El cursor acotado inspecciona y copia una vez (rechaza SharedArrayBuffer):
   // a partir de aquí sólo se miran bytes propios.
   const reader = new DwgBitReader(new BoundedByteCursor(bodyBytes));
@@ -120,6 +140,43 @@ export function readAc1015EntityCommon(
 
   const opaqueSpans: Ac1015OpaqueSpan[] = [];
   readExtendedData(reader, opaqueSpans);
+
+  return { type, bitSize, ownHandle, opaqueSpans, reader, bodyBitLength };
+}
+
+/**
+ * Cada handle del flujo final ocupa al menos un byte: un recuento declarado
+ * que no cabría ni en el tramo de handles es corrupción, y se rechaza ANTES
+ * de que nadie intente recorrerlo o reservar memoria por él.
+ */
+export function assertHandleCountFits(
+  reader: DwgBitReader,
+  count: number,
+  bitSize: number,
+  bodyBitLength: number,
+  what: string,
+): void {
+  if (count * 8 > bodyBitLength - bitSize) {
+    throwDwgError(
+      "DWG_STRUCTURE_CORRUPT",
+      "input",
+      byteOf(reader),
+      `The ${what} count cannot fit inside the object handle stream.`,
+    );
+  }
+}
+
+/**
+ * Decodifica la cabecera común de la entidad cuyo cuerpo es `bodyBytes`:
+ * el prólogo compartido más los campos exclusivos de entidad (gráfico, modo,
+ * reactores, color, escala, banderas, invisibilidad y lineweight).
+ */
+export function readAc1015EntityCommon(
+  bodyBytes: Uint8Array,
+): Ac1015EntityCommonDecode {
+  const { type, bitSize, ownHandle, opaqueSpans, reader, bodyBitLength } =
+    readAc1015ObjectPrologue(bodyBytes);
+
   readGraphic(reader, opaqueSpans);
 
   const entityMode = reader.readBB();
@@ -135,17 +192,7 @@ export function readAc1015EntityCommon(
   }
 
   const reactorCount = reader.readBL();
-  // Cada handle de reactor ocupa al menos un byte del flujo final: un
-  // recuento que no cabría ni en el tramo de handles es corrupción, y se
-  // rechaza ANTES de que nadie intente recorrerlo.
-  if (reactorCount * 8 > bodyBitLength - bitSize) {
-    throwDwgError(
-      "DWG_STRUCTURE_CORRUPT",
-      "input",
-      byteOf(reader),
-      "The reactor count cannot fit inside the entity handle stream.",
-    );
-  }
+  assertHandleCountFits(reader, reactorCount, bitSize, bodyBitLength, "reactor");
 
   const noLinks = reader.readB() === 1;
   const color = reader.readCmC();
@@ -256,4 +303,41 @@ function readGraphic(
 /** El byte (relativo al cuerpo) donde está parado el lector, para errores. */
 function byteOf(reader: DwgBitReader): number {
   return Math.floor(reader.bitPosition / 8);
+}
+
+/**
+ * NaN o ±Infinity no son geometría: un double no finito en un campo decodificado
+ * es estructura corrupta (decisión de laboratorio declarada en el worklog), no
+ * un valor que propagar al modelo neutral. Compartido por todos los
+ * decodificadores de entidad para que no existan copias gemelas del criterio.
+ */
+export function finiteDecoded(
+  reader: DwgBitReader,
+  value: number,
+  what: string,
+): number {
+  if (!Number.isFinite(value)) {
+    throwDwgError(
+      "DWG_STRUCTURE_CORRUPT",
+      "input",
+      byteOf(reader),
+      `Reading ${what} produced a non-finite number.`,
+    );
+  }
+  return value;
+}
+
+/** Un punto 3D congelado del modelo neutral. */
+export function frozenPoint3(x: number, y: number, z: number): DwgPoint3 {
+  return Object.freeze({ x, y, z });
+}
+
+/** La extrusión BE, validada finita y congelada como punto del modelo. */
+export function readFiniteExtrusion(reader: DwgBitReader): DwgPoint3 {
+  const { x, y, z } = reader.readBE();
+  return frozenPoint3(
+    finiteDecoded(reader, x, "an extrusion component"),
+    finiteDecoded(reader, y, "an extrusion component"),
+    finiteDecoded(reader, z, "an extrusion component"),
+  );
 }
