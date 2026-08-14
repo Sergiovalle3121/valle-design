@@ -49,7 +49,19 @@ const ALLOWED_LICENSES_BY_ORIGIN = new Map<string, ReadonlySet<string>>([
     "first-party-repository",
     new Set(["Valle proprietary software; UNLICENSED"]),
   ],
-  ["public-documentation", new Set(["MIT"])],
+  [
+    "public-documentation",
+    new Set([
+      "MIT",
+      // La especificación pública del formato que ODA publica en su área de
+      // descargas para invitados, sin membresía ni login. Se consultan HECHOS
+      // técnicos mínimos (registrados en factsConsulted); el documento no se
+      // redistribuye ni se copia. La etiqueta es EXACTA a propósito: una
+      // fuente nueva con otros términos no entra por parecerse, entra por su
+      // propia revisión y su propia etiqueta.
+      "ODA public guest-download specification (facts only, no redistribution)",
+    ]),
+  ],
   ["original-measurement", new Set()],
   ["third-party-fixture", new Set()],
 ]);

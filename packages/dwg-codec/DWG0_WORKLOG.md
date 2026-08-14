@@ -109,3 +109,35 @@ primero fuentes permitidas y vectores redistribuibles e independientes para el
 envelope AC1015. Mientras sólo existan fixtures producidos por el mismo
 generador, `ac1015Envelope`, object database, entidades, mapping, writer y
 round-trip permanecen `unsupported`.
+
+## DWG-1 sesión 2026-08-14 — códigos de bits (fase A del lector real)
+
+Directiva del propietario (2026-08-13): construir el primer lector DWG real
+del laboratorio, manteniendo el producto en `available:false` (ADR-0004/0007)
+y la promoción condicionada a revisión legal externa.
+
+- Fuente pública registrada ANTES de derivar código: `ODA-ODS-DWG-5.4.1-PUBLIC`
+  (Open Design Specification for .dwg files 5.4.1, descarga pública de
+  opendesign.com). Sólo hechos técnicos mínimos en `factsConsulted`; ninguna
+  implementación externa consultada, copiada ni traducida.
+- Política de procedencia extendida con la etiqueta exacta
+  `ODA public guest-download specification (facts only, no redistribution)`
+  para `public-documentation` (`scripts/provenance-validation.ts`).
+- Nuevo `src/codecs/bitcodes.ts`: `DwgBitReader` sobre el `BitCursor` acotado
+  (MSB-first fijado en el constructor) con B/BB/3B, RC/RS/RL/RD, BS/BL/BD,
+  DD contra defecto (parche de 4/6 bytes bajos, simetría reservada para el
+  writer de fase C), 2BD/3BD, BT/BE, modulares MC (con y sin signo, tope de
+  8 bytes) y MS (tope de 2 palabras), handles H (código+contador+bytes BE,
+  tope de 7 bytes de contador por rango seguro) y TV como BYTES con longitud
+  declarada (la decodificación de página de códigos es de una capa superior).
+  `resolveDwgHandleReference` resuelve absolutas/±1/offset/nula como función
+  pura y falla cerrado ante códigos desconocidos o cruces por cero.
+- Nueva `tests/unit/bitcodes.spec.ts`: vectores construidos a mano con un
+  empaquetador first-party MSB-first; cada código con su gemelo triste
+  (truncado real a granularidad de byte, banderas reservadas, contadores
+  imposibles, modulares sin terminar) exigiendo `DWG_STRUCTURE_CORRUPT`.
+- `npm run check` del paquete: verde completo (procedencia, fixtures, no-io,
+  frontera, build, typecheck, unit, adversarial, fuzz determinista).
+- Límite conocido: el parcheo DD por bytes bajos y la forma exacta de 3B
+  quedan marcados para validación contra corpus real con derechos en la fase
+  de intake; hasta entonces la evidencia es de round-trip de laboratorio.
