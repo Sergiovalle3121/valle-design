@@ -30,6 +30,7 @@
 import { strict as assert } from "node:assert";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   parseCadDocument,
   serializeCadDocument,
@@ -47,7 +48,7 @@ import { ScriptedResponder } from "./session";
 import { list, real, str } from "./values";
 
 let checks = 0;
-const corpusDir = path.join(path.dirname(new URL(import.meta.url).pathname), "corpus");
+const corpusDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "corpus");
 
 function emptyDocument(): CadDocument {
   return {

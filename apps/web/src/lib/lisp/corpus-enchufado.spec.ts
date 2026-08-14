@@ -21,6 +21,7 @@
 import { strict as assert } from "node:assert";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { CadDocument, CadEntity } from "../cad/cad-document";
 import { InteractiveLispRun, type LispTurn } from "./interactive";
 import { printLisp } from "./printer";
@@ -36,7 +37,7 @@ function eq<T>(actual: T, expected: T, message: string): void {
   checks += 1;
 }
 
-const corpusDir = path.join(path.dirname(new URL(import.meta.url).pathname), "corpus");
+const corpusDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "corpus");
 const load = (name: string): string => fs.readFileSync(path.join(corpusDir, name), "utf8");
 
 function seed(entities: CadEntity[] = [], blocks: CadDocument["blocks"] = []): CadDocument {

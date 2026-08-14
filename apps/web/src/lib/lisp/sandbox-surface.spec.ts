@@ -22,10 +22,11 @@
 import { strict as assert } from "node:assert";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 let checks = 0;
 
-const here = path.dirname(new URL(import.meta.url).pathname);
+const here = path.dirname(fileURLToPath(import.meta.url));
 
 function sourceFiles(directory: string, into: string[] = []): string[] {
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
@@ -121,7 +122,9 @@ checks += 1;
       // Los relativos que se quedan dentro de `lib/lisp/` son libres.
       const resolved = path.resolve(path.dirname(file), specifier);
       if (resolved.startsWith(here)) continue;
-      const normalized = path.relative(srcRoot, resolved);
+      // En forma POSIX: la allowlist se escribe con `/` y en Windows
+      // `path.relative` devuelve `\`.
+      const normalized = path.relative(srcRoot, resolved).split(path.sep).join("/");
       seen.add(normalized);
       assert.ok(
         allowed.has(normalized),

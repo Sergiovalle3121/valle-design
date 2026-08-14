@@ -14,6 +14,7 @@
 import { strict as assert } from "node:assert";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { CadDocument, CadEntity } from "../cad/cad-document";
 import { CAD_LISP_BUILTINS } from "./cad-builtins";
 import { CadDocumentLispHost } from "./document-host";
@@ -22,7 +23,9 @@ import { LispSession, ScriptedResponder } from "./session";
 import { list, real, str, type LispResponse, type LispValue } from "./values";
 
 let checks = 0;
-const corpusDir = path.join(path.dirname(new URL(import.meta.url).pathname), "corpus");
+// `fileURLToPath` y no `.pathname`: en Windows el pathname de un file URL es
+// `/D:/…`, y unirlo con `path.join` fabrica rutas imposibles (`D:\D:\…`).
+const corpusDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "corpus");
 
 function load(name: string): string {
   return fs.readFileSync(path.join(corpusDir, name), "utf8");

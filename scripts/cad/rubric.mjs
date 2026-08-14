@@ -170,7 +170,9 @@ function sourceFiles(root, dir, out = []) {
   if (!fs.existsSync(full)) return out;
   for (const entry of fs.readdirSync(full, { withFileTypes: true })) {
     if (entry.name === "node_modules" || entry.name.startsWith(".")) continue;
-    const rel = path.join(dir, entry.name);
+    // Siempre en forma POSIX: la evidencia de la rúbrica y los importadores se
+    // publican con `/`, y en Windows `path.join` produciría `\`.
+    const rel = `${dir}/${entry.name}`;
     if (entry.isDirectory()) sourceFiles(root, rel, out);
     else if (/\.(ts|tsx|mts|mjs|js|jsx)$/.test(entry.name)) out.push(rel);
   }
