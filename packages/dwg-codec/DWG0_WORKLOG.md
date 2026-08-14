@@ -256,3 +256,66 @@ y la promoción condicionada a revisión legal externa.
   entonces la evidencia es el round-trip de laboratorio. Los cuerpos siguen
   OPACOS: tipo extraído, nada más decodificado. El producto permanece
   `available:false`.
+
+## DWG-1 sesión 2026-08-14 (continuación) — primera geometría real (fase D2)
+
+- Hechos nuevos registrados ANTES de derivar código en
+  `ODA-ODS-DWG-5.4.1-PUBLIC`: códigos de tipo BS de las cuatro entidades
+  nucleares (0x11 ARC, 0x12 CIRCLE, 0x13 LINE, 0x1B POINT), tamaño RL en
+  bits del dato tras el tipo, orden de la cabecera común de entidad R2000,
+  disposición de LINE (bit de Z nulas + RD/DD contra el inicio), de POINT
+  (3BD + BT + BE + BD del eje X), de CIRCLE (3BD + BD radio + BT + BE) y de
+  ARC (CIRCLE + BD de ángulos), y el flujo de handles del final del dato.
+- Nuevo `src/model/entity-geometry.ts`: modelo geométrico NEUTRAL de las
+  cuatro entidades (puntos 3D, grosor, extrusión, ángulos), sin banderas de
+  formato y sin tocar `CadDocument` ni el producto.
+- Nuevo `src/objects/entity-common.ts`: `readAc1015EntityCommon` decodifica
+  del cuerpo (tipo BS incluido) el tamaño RL en bits, el handle propio H, el
+  modo BB (0b11 = corrupción), reactores BL (con encaje contra el flujo de
+  handles), bit de sin-vínculos, color CmC, escala BD, banderas BB de
+  linetype/plotstyle, invisibilidad BS y lineweight RC. EED y gráfico de
+  previsualización NO se interpretan: se recorren con presupuesto y quedan
+  CONTABILIZADOS como tramos opacos `{kind, startBit, bitLength}` — nada se
+  ignora en silencio.
+- Nuevo `src/objects/entities-core.ts`: `decodeAc1015EntityBody` filtra el
+  tipo ANTES de interpretar nada (un tipo ajeno a las cuatro es
+  `DWG_VERSION_DECODER_UNSUPPORTED`, no corrupción: la disposición de otros
+  cuerpos no se conoce y fingir el común sería desincronizarse), decodifica
+  la geometría del tipo, exige que el tamaño en bits declarado CUADRE
+  EXACTAMENTE con el final de los datos, y anota el flujo de handles final
+  como tramo opaco. Doubles no finitos y radios negativos son corrupción
+  (decisión de laboratorio declarada).
+- Nuevo `src/writer/ac1015-entity-writer.ts`: `DwgBitEmitter` MSB-first
+  espejo de `DwgBitReader` (BS/BL/RL/RD/BD/DD/BT/BE/H, atajos sólo con
+  igualdad exacta de bits — un −0.0 viaja como RD completo) y
+  `writeAc1015EntityBody` que compone en dos pasadas (el RL cuenta el propio
+  RL) el cuerpo completo: común mínimo coherente (modo 2, 0 reactores, color
+  ByLayer 256, escala 1.0, banderas 0, lineweight 0x1D) y flujo de handles
+  con xdictionary y capa NULOS como placeholders confesos. El writer de
+  contenedor acepta ahora entidades reales (`{entity, handle?}`) junto a los
+  sintéticos D1, exigiendo que el handle del mapa y el del cuerpo sean el
+  mismo, y `wrapAc1015ObjectBody` es el único marco de envoltura (cero
+  marcos gemelos).
+- Nueva `tests/unit/entities-core.spec.ts`: round-trip coordenada a
+  coordenada de las cuatro entidades (positivas/negativas/cero, −0.0 bit a
+  bit, Z no nulas, ángulos en los cuatro cuadrantes y negativos, extrusiones
+  no canónicas, grosores negativos), común interpretado y opacos con
+  posiciones exactas (EED y gráfico compuestos a mano), determinismo,
+  pipeline completo mapa→envoltura→común→tipo con sintéticos conviviendo, y
+  gemelos tristes: tipo desconocido (unsupported con categoría
+  `unsupported`), común truncado en cuatro cortes, datos del tipo truncados,
+  modo 0b11, bandera BL 0b11, reactores que no caben, bit-size que se sale,
+  que se queda corto y que sobra, radio negativo y NaN.
+- `npm run check` del paquete y `npm run check:dwg` desde la raíz: verdes.
+- Certezas declaradas: ALTA en los códigos de tipo, el orden de los campos
+  específicos de las cuatro entidades y la existencia del común
+  (tipo→RL→H→EED→gráfico→modo→reactores→color→escala→banderas→invisibilidad
+  →lineweight). MEDIA, pendiente de corpus real con derechos (fase de
+  intake): que el RL cuenta desde el PRIMER bit del dato (y no desde después
+  del propio RL), la posición exacta del bit de sin-vínculos, el código 0
+  del handle propio, el flujo de handles arrancando exactamente en el bit
+  declarado, y el byte 0x1D como lineweight ByLayer. Decisiones de
+  LABORATORIO (no hechos del formato): modo 0b11 y doubles no finitos como
+  corrupción, radio negativo como corrupción, y el writer emitiendo DD sólo
+  en sus formas 00/11 (los parches de 4/6 bytes son compresión opcional que
+  el lector ya acepta). El producto permanece `available:false`.

@@ -50,12 +50,32 @@ import {
 } from "../security/byte-view.js";
 import { throwDwgError } from "../security/parse-error.js";
 import type { Ac1015ObjectMapEntry } from "../container/ac1015-object-map.js";
+import type { DwgGeometryEntity } from "../model/entity-geometry.js";
+import { writeAc1015EntityBody } from "./ac1015-entity-writer.js";
 import {
   AC1015_WRITER_MAX_OBJECTS,
   buildAc1015ObjectMapSection,
+  wrapAc1015ObjectBody,
   writeAc1015ObjectEnvelope,
   type Ac1015SyntheticObjectSpec,
 } from "./ac1015-object-writer.js";
+
+/**
+ * Especificación de una entidad REAL (fase D2): la geometría del modelo
+ * neutral, envuelta como cuerpo de entidad R2000 completo. El handle del
+ * mapa y el handle propio del cuerpo son el MISMO valor — un archivo cuyo
+ * índice y cuyos objetos se contradicen sería un archivo mentiroso.
+ */
+export interface Ac1015EntityObjectSpec {
+  readonly entity: DwgGeometryEntity;
+  /** Handle del objeto. Por defecto, el anterior más uno (desde 1). */
+  readonly handle?: number;
+}
+
+/** Un objeto del contenedor: sintético opaco (D1) o entidad real (D2). */
+export type Ac1015ObjectSpec =
+  | Ac1015SyntheticObjectSpec
+  | Ac1015EntityObjectSpec;
 
 /** Página de códigos por defecto: ANSI_1252, la habitual en dibujos R2000. */
 export const AC1015_DEFAULT_CODEPAGE = 0x4e4;
@@ -92,12 +112,13 @@ export interface Ac1015ContainerWriteOptions {
   /** Payload opaco de la sección de clases. Por defecto, vacío. */
   readonly classesPayload?: Uint8Array;
   /**
-   * Objetos sintéticos opacos (fase D1). Se emiten uno tras otro en la región
-   * SIN mapear entre la sección de clases y el mapa de objetos, y el mapa los
-   * referencia con sus handles y offsets reales. Por defecto, ninguno: el
-   * contenedor mínimo de la fase C, byte a byte.
+   * Objetos del cuerpo: sintéticos opacos (fase D1) o entidades REALES
+   * (fase D2), mezclables. Se emiten uno tras otro en la región SIN mapear
+   * entre la sección de clases y el mapa de objetos, y el mapa los referencia
+   * con sus handles y offsets reales. Por defecto, ninguno: el contenedor
+   * mínimo de la fase C, byte a byte.
    */
-  readonly objects?: readonly Ac1015SyntheticObjectSpec[];
+  readonly objects?: readonly Ac1015ObjectSpec[];
 }
 
 /** Identificadores de registro del directorio (hecho ya registrado en fase B). */
@@ -241,13 +262,14 @@ export function writeAc1015Container(
 }
 
 /**
- * Emite las envolturas de los objetos sintéticos y calcula sus entradas del
- * mapa. Los handles por defecto son secuenciales desde 1; uno explícito debe
- * ser estrictamente creciente — el writer no emite un mapa que su propio
- * lector rechazaría.
+ * Emite las envolturas de los objetos — sintéticos opacos o entidades reales
+ * — y calcula sus entradas del mapa. Los handles por defecto son secuenciales
+ * desde 1; uno explícito debe ser estrictamente creciente — el writer no
+ * emite un mapa que su propio lector rechazaría. El cuerpo de una entidad
+ * lleva DENTRO el mismo handle que la referencia en el mapa.
  */
 function buildSyntheticObjects(
-  specs: readonly Ac1015SyntheticObjectSpec[] | undefined,
+  specs: readonly Ac1015ObjectSpec[] | undefined,
   objectsStart: number,
 ): { envelopes: readonly Uint8Array[]; mapEntries: Ac1015ObjectMapEntry[] } {
   if (specs === undefined) {
@@ -258,7 +280,7 @@ function buildSyntheticObjects(
       "DWG_INPUT_INVALID",
       "input",
       0,
-      "The synthetic object list must be an array.",
+      "The object list must be an array.",
     );
   }
   if (specs.length > AC1015_WRITER_MAX_OBJECTS) {
@@ -266,7 +288,7 @@ function buildSyntheticObjects(
       "DWG_FILE_LIMIT_EXCEEDED",
       "resource",
       0,
-      "The synthetic object list exceeds the phase-D laboratory limit.",
+      "The object list exceeds the phase-D laboratory limit.",
     );
   }
   const envelopes: Uint8Array[] = [];
@@ -287,13 +309,38 @@ function buildSyntheticObjects(
         "Object handles must be strictly increasing safe integers from 1.",
       );
     }
-    const envelope = writeAc1015ObjectEnvelope(spec);
+    const envelope = buildObjectEnvelope(spec, handle);
     envelopes.push(envelope);
     mapEntries.push(Object.freeze({ handle, offset: nextOffset }));
     previousHandle = handle;
     nextOffset += envelope.length;
   }
   return { envelopes, mapEntries };
+}
+
+/**
+ * Un spec es entidad real o sintético opaco, nunca ambas cosas: la mezcla
+ * sería ambigua y se rechaza cerrada en vez de elegir en silencio.
+ */
+function buildObjectEnvelope(
+  spec: Ac1015ObjectSpec,
+  handle: number,
+): Uint8Array {
+  const isEntity = "entity" in spec && spec.entity !== undefined;
+  const isSynthetic = "type" in spec && spec.type !== undefined;
+  if (isEntity === isSynthetic) {
+    throwDwgError(
+      "DWG_INPUT_INVALID",
+      "input",
+      0,
+      "An object spec must declare exactly one of entity or type.",
+    );
+  }
+  if (isEntity) {
+    const entitySpec = spec as Ac1015EntityObjectSpec;
+    return wrapAc1015ObjectBody(writeAc1015EntityBody(entitySpec.entity, handle));
+  }
+  return writeAc1015ObjectEnvelope(spec as Ac1015SyntheticObjectSpec);
 }
 
 /**

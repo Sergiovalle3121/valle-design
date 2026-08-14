@@ -24,6 +24,10 @@ import {
   type Ac1015ObjectMapEntry,
 } from "../container/ac1015-object-map.js";
 import { AC1015_SECTION_CRC_SEED } from "../container/ac1015-section-frame.js";
+import {
+  copyInspectedByteView,
+  inspectOrdinaryByteView,
+} from "../security/byte-view.js";
 import { throwDwgError } from "../security/parse-error.js";
 
 /** Tope de objetos por archivo en esta fase: límite de LABORATORIO. */
@@ -31,6 +35,9 @@ export const AC1015_WRITER_MAX_OBJECTS = 10_000;
 
 /** Tope de bytes de relleno por objeto: límite de LABORATORIO. */
 export const AC1015_WRITER_MAX_OBJECT_FILL = 0x7f00;
+
+/** Tope de bytes del dato de un objeto envuelto: límite de LABORATORIO. */
+export const AC1015_WRITER_MAX_OBJECT_BODY = 0x8000;
 
 /** Relleno por defecto: suficiente para que la envoltura no sea trivial. */
 export const AC1015_WRITER_DEFAULT_OBJECT_FILL = 8;
@@ -95,6 +102,36 @@ export function writeAc1015ObjectEnvelope(
     body[typeBytes.length + index] = (type * 7 + index * 11 + 3) & 0xff;
   }
 
+  return wrapAc1015ObjectBody(body);
+}
+
+/**
+ * Envuelve un cuerpo de objeto YA COMPUESTO (tipo BS incluido) con su marco
+ * D1: tamaño MS del dato + cuerpo + CRC-16 RS little-endian con semilla
+ * 0xC0C1 sobre [tamaño + cuerpo] (hecho registrado). Es la única forma de
+ * emitir envolturas — los objetos sintéticos de esta misma fase y los cuerpos
+ * de entidad REALES de la fase D2 pasan por aquí, sin marcos gemelos.
+ */
+export function wrapAc1015ObjectBody(bodyBytes: Uint8Array): Uint8Array {
+  // Inspección y copia únicas (rechazando SharedArrayBuffer): a partir de
+  // aquí el marco sólo mira bytes que posee, como el resto del writer.
+  const body = copyInspectedByteView(inspectOrdinaryByteView(bodyBytes));
+  if (body.length < 1) {
+    throwDwgError(
+      "DWG_INPUT_INVALID",
+      "input",
+      0,
+      "An object body must hold at least its type field.",
+    );
+  }
+  if (body.length > AC1015_WRITER_MAX_OBJECT_BODY) {
+    throwDwgError(
+      "DWG_FILE_LIMIT_EXCEEDED",
+      "resource",
+      0,
+      "An object body exceeds the phase-D laboratory limit.",
+    );
+  }
   const sizeBytes = encodeDwgModularShort(body.length);
   const envelope = new Uint8Array(sizeBytes.length + body.length + 2);
   envelope.set(sizeBytes, 0);
