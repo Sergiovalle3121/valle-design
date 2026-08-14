@@ -122,6 +122,7 @@ test("un muro tecleado con ratón y teclado sobrevive a guardar y reabrir, y su 
   // --- 3. Lo que viaja es la RECETA, no el contorno --------------------------
   await saveAndSettle(page, backend);
   let wallId = "";
+  let savedAxis = { startX: 0, startY: 0, endX: 0, endY: 0 };
   {
     const saved = backend.snapshot().document;
     expect(saved.meta.schema).toBe(6);
@@ -129,14 +130,23 @@ test("un muro tecleado con ratón y teclado sobrevive a guardar y reabrir, y su 
     expect(walls).toHaveLength(1);
     const [wall] = walls;
     wallId = wall.id;
+    savedAxis = {
+      startX: wall.start.x,
+      startY: wall.start.y,
+      endX: wall.end.x,
+      endY: wall.end.y,
+    };
     expect(wall.thickness).toBe(250);
     expect(wall.height).toBe(2_400);
-    // Los clics pasan por la afín pantalla→mundo del fixture: exactos hasta
-    // el redondeo del HUD, de ahí la tolerancia de un par de unidades.
-    expect(Math.abs(wall.start.x - 2_000)).toBeLessThanOrEqual(5);
-    expect(Math.abs(wall.start.y - 2_000)).toBeLessThanOrEqual(5);
-    expect(Math.abs(wall.end.x - 8_000)).toBeLessThanOrEqual(5);
-    expect(Math.abs(wall.end.y - 2_000)).toBeLessThanOrEqual(5);
+    // La tolerancia es la RESOLUCIÓN DE ENTRADA del clic, no un capricho: sin
+    // OSNAP cerca, el punto confirmado cae al snap de rejilla del editor
+    // (media retícula ≈ 7,46 unidades en este encuadre — medido determinista
+    // e idéntico en Chromium y Firefox con el fixture de lazo cerrado). Pedir
+    // 5 era pedirle al clic más precisión de la que el producto comete.
+    expect(Math.abs(wall.start.x - 2_000)).toBeLessThanOrEqual(10);
+    expect(Math.abs(wall.start.y - 2_000)).toBeLessThanOrEqual(10);
+    expect(Math.abs(wall.end.x - 8_000)).toBeLessThanOrEqual(10);
+    expect(Math.abs(wall.end.y - 2_000)).toBeLessThanOrEqual(10);
     // El contorno con el grosor repartido (y = eje ± 125) NO está en el
     // documento: se deriva al dibujar. Si apareciera, la entidad habría
     // persistido geometría expandida y dejado de ser reeditable.
@@ -168,9 +178,13 @@ test("un muro tecleado con ratón y teclado sobrevive a guardar y reabrir, y su 
     expect(wall.thickness).toBe(400);
     expect(wall.height).toBe(2_400);
     // El eje NO se movió: editar el grosor rederiva el contorno, no deforma
-    // la entidad. Es la recompensa de persistir la receta.
-    expect(Math.abs(wall.start.x - 2_000)).toBeLessThanOrEqual(5);
-    expect(Math.abs(wall.end.x - 8_000)).toBeLessThanOrEqual(5);
+    // la entidad. Es la recompensa de persistir la receta. Igualdad EXACTA
+    // contra lo primero guardado — más fuerte que una tolerancia y ajena a la
+    // resolución de entrada del clic.
+    expect(wall.start.x).toBe(savedAxis.startX);
+    expect(wall.start.y).toBe(savedAxis.startY);
+    expect(wall.end.x).toBe(savedAxis.endX);
+    expect(wall.end.y).toBe(savedAxis.endY);
     // La edición por paleta fue UN lote y UN paso de historia.
     expect(
       saved.history.filter((entry) => entry.label === "properties:wall"),

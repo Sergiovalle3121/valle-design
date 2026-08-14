@@ -13,13 +13,21 @@ export async function worldPoint(page: Page, target: { x: number; y: number }) {
   const box = await page.getByTestId("cad-canvas").boundingBox();
   if (!box) throw new Error("CAD canvas has no bounding box");
   const coordinate = page.getByTestId("cad-cursor-coordinate");
+  const read = async () =>
+    `${await coordinate.getAttribute("data-x")}|${await coordinate.getAttribute("data-y")}`;
+  // FRESCURA garantizada por cambio, no por espera: el HUD se actualiza
+  // asíncrono y un poll de «no vacío» acepta el valor de la posición ANTERIOR.
+  // Moverse primero a un vecino diagonal (±4 px ≈ decenas de unidades de
+  // mundo, muy por encima del redondeo del HUD) fuerza que la lectura del
+  // destino DIFIERA de la del vecino: si difiere, es del destino.
   const sample = async (x: number, y: number) => {
+    await page.mouse.move(x - 4, y - 4);
+    await expect.poll(read).not.toBe("|");
+    const neighbor = await read();
     await page.mouse.move(x, y);
-    await expect.poll(async () => coordinate.getAttribute("data-x")).not.toBe("");
-    return {
-      x: Number(await coordinate.getAttribute("data-x")),
-      y: Number(await coordinate.getAttribute("data-y")),
-    };
+    await expect.poll(read).not.toBe(neighbor);
+    const [rawX, rawY] = (await read()).split("|");
+    return { x: Number(rawX), y: Number(rawY) };
   };
   const screen = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   // «Vista superior» ANIMA la cámara. Muestrear durante la transición invierte
@@ -55,8 +63,37 @@ export async function worldPoint(page: Page, target: { x: number; y: number }) {
   if (Math.abs(determinant) < 1e-9) throw new Error("CAD world/screen transform is singular");
   const wx = target.x - origin.x;
   const wy = target.y - origin.y;
-  return {
-    x: screen.x + (d * wx - b * wy) / determinant,
-    y: screen.y + (-c * wx + a * wy) / determinant,
+  // LAZO CERRADO, no extrapolación ciega: la posición calculada se comprueba
+  // contra el MISMO HUD que ve el usuario y se corrige con la afín medida.
+  // Dos razones medidas, no teóricas:
+  // - el ratón sintético entrega coordenadas fraccionarias distinto en cada
+  //   navegador (Firefox quedaba ~2 px sistemáticos lejos: 13,68 unidades de
+  //   mundo, deterministas, en el golden 53), y
+  // - una pendiente muestreada con el HUD cuantizado arrastra su error por
+  //   toda la extrapolación (±3.000 unidades desde el centro).
+  // Se redondea a píxel entero —un entero no se puede redondear distinto— y
+  // se itera hasta que el HUD confirme el mundo pedido.
+  let position = {
+    x: Math.round(screen.x + (d * wx - b * wy) / determinant),
+    y: Math.round(screen.y + (-c * wx + a * wy) / determinant),
   };
+  // El mejor píxel ENTERO queda a ≤0,5 px del punto fraccionario ideal, así
+  // que exigir 0,6 px (margen para el redondeo del HUD) siempre es alcanzable.
+  const pixel = Math.max(Math.abs(a), Math.abs(d), 1e-9);
+  const acceptable = pixel * 0.6;
+  let bestError = Number.POSITIVE_INFINITY;
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const measured = await sample(position.x, position.y);
+    const errorX = target.x - measured.x;
+    const errorY = target.y - measured.y;
+    bestError = Math.max(Math.abs(errorX), Math.abs(errorY));
+    if (bestError <= acceptable) return position;
+    position = {
+      x: Math.round(position.x + (d * errorX - b * errorY) / determinant),
+      y: Math.round(position.y + (-c * errorX + a * errorY) / determinant),
+    };
+  }
+  throw new Error(
+    `worldPoint no convergió: error ${bestError.toFixed(2)} unidades con ${pixel.toFixed(2)} unidades/px`,
+  );
 }
