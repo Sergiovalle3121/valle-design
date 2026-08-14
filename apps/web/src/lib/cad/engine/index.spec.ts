@@ -164,6 +164,8 @@ const names = registry.all().map((command) => command.name);
     "ADCENTER",
     // Ola de sólidos sombreados: el estilo visual tecleable.
     "VSCURRENT",
+    // Ola BIM: el muro paramétrico.
+    "WALL",
   ])
     assert.ok(names.includes(expected), `${expected} no llegó al registro del producto`);
 }

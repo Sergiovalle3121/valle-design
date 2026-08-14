@@ -30,6 +30,7 @@ import { CAD_DRAW_POINT_COMMANDS } from "./commands/draw-points";
 import { CAD_DRAW_RECTANG_COMMANDS } from "./commands/draw-rectang";
 import { CAD_DRAW_RING_COMMANDS } from "./commands/draw-rings";
 import { CAD_DRAW_SPLINE_COMMANDS } from "./commands/draw-spline";
+import { CAD_DRAW_WALL_COMMANDS } from "./commands/draw-wall";
 import { CAD_INQUIRY_LIST_COMMANDS } from "./commands/inquiry-list";
 import { CAD_INQUIRY_MEASURE_COMMANDS } from "./commands/inquiry-measure";
 import { CAD_REGION_COMMANDS } from "./commands/inquiry-region";
@@ -121,6 +122,9 @@ export const CAD_COMMAND_DESCRIPTORS = [
   ...CAD_SOLID_MODIFY_COMMANDS,
   ...CAD_SOLID_INQUIRY_COMMANDS,
   ...CAD_SOLID_INTEROP_COMMANDS,
+  // Esquema 6: la primera rebanada BIM. El muro paramétrico entra por el mismo
+  // registro que todo lo demás — no hay un «modo BIM», hay una orden más.
+  ...CAD_DRAW_WALL_COMMANDS,
 ] as const;
 
 /**

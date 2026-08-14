@@ -29,6 +29,7 @@ import { imageAdapter, solidAdapter, wipeoutAdapter } from "./fill-entity-adapte
 import { attdefAdapter, tableAdapter } from "./annotation-v4-adapters";
 import { mleaderAdapter } from "./mleader-entity-adapter";
 import { regionAdapter, solid3dAdapter } from "./solid3d-adapter";
+import { wallAdapter } from "./wall-entity-adapter";
 import type { CadBoundaryPath } from "./hatch-associativity";
 
 export type CadNativeEntity = Extract<
@@ -40,7 +41,9 @@ export type CadNativeEntity = Extract<
     | "point" | "xline" | "ray" | "solid" | "wipeout" | "image" | "attdef" | "table"
     // Esquema 5: el sólido B-rep y la región 2D de la que nace. Misma regla que
     // arriba — tipo y adaptador se editan juntos.
-    | "solid3d" | "region" }
+    | "solid3d" | "region"
+    // Esquema 6: el muro paramétrico. Misma regla — tipo y adaptador juntos.
+    | "wall" }
 >;
 export type CadNativeEntityType = CadNativeEntity["type"];
 
@@ -214,7 +217,10 @@ export const CAD_ENTITY_REGISTRY = new CadEntityRegistry()
   // Esquema 5. `solid3d` guarda su árbol de construcción y deriva su cuerpo con
   // el kernel B-rep; `region` es el área cerrada que alimenta EXTRUDE y REVOLVE.
   .register(solid3dAdapter)
-  .register(regionAdapter);
+  .register(regionAdapter)
+  // Esquema 6. `wall` guarda su receta —eje, grosor, altura— y deriva la doble
+  // línea de planta en `wall-geometry.ts`.
+  .register(wallAdapter);
 
 function rectangularBoundary(entity: Extract<CadEntity, { type: "box" | "station" }>): CadPoint2[] {
   const center = { x: entity.x + entity.w / 2, y: entity.y + entity.h / 2 };

@@ -16,6 +16,7 @@
 import type { CadDocument, CadEntity } from "./cad-document";
 import type { CadDxfPrimitive } from "./dxf-import";
 import { cadEntityToSchema4Primitive } from "./dxf-schema4-primitives";
+import { wallFootprint } from "./wall-geometry";
 
 /**
  * `document` sólo hace falta para IMAGE, que referencia una definición del
@@ -84,6 +85,21 @@ export function cadEntityToDxfPrimitive(
       layer: entity.layer,
       points,
       closed: entity.closed === true,
+    };
+  }
+  if (entity.type === "wall") {
+    // El DXF plano no tiene entidad de muro: viaja el CONTORNO en planta como
+    // polilínea cerrada — la misma que deriva `wallFootprint` para el dibujo,
+    // así que lo exportado coincide con lo que el usuario ve. La receta
+    // paramétrica se pierde y el manifiesto lo declara; una receta degenerada
+    // no produce contorno y cae al descarte genérico.
+    const footprint = wallFootprint(entity);
+    if (!footprint) return null;
+    return {
+      kind: "polyline",
+      layer: entity.layer,
+      points: footprint.map((corner) => ({ x: corner.x, y: corner.y })),
+      closed: true,
     };
   }
   if (entity.type === "circle" && !entity.legacy) {

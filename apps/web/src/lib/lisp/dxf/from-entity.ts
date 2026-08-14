@@ -66,6 +66,10 @@ const DXF_TYPE: Record<CadNativeEntity["type"], string> = {
   // devolviera `undefined` como tipo de entidad.
   solid3d: "3DSOLID",
   region: "REGION",
+  // Esquema 6. `AEC_WALL` es el nombre con el que AutoCAD Architecture emite
+  // sus muros; el DXF plano no tiene entidad de muro y nuestra exportación lo
+  // degrada a polilínea, pero AutoLISP debe nombrar lo que la entidad ES.
+  wall: "AEC_WALL",
 };
 
 export function dxfTypeOf(entity: CadNativeEntity): string {

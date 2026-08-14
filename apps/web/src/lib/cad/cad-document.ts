@@ -30,6 +30,7 @@ import type {
   CadSchema4Entity,
 } from "./cad-entities-v4";
 import type { CadSchema5Entity } from "./cad-entities-v5";
+import type { CadSchema6Entity } from "./cad-entities-v6";
 import { byId, byName } from "./cad-document-shared";
 
 // ---------------------------------------------------------------------------
@@ -377,7 +378,12 @@ export type CadEntity =
    * ÁRBOL DE CONSTRUCCIÓN, no por su malla— y REGION. Viven en
    * `cad-entities-v5.ts`.
    */
-  | CadSchema5Entity;
+  | CadSchema5Entity
+  /**
+   * El que estrena el esquema 6: WALL, el muro paramétrico que persiste su
+   * EJE, grosor y altura — no su contorno. Vive en `cad-entities-v6.ts`.
+   */
+  | CadSchema6Entity;
 
 export interface CadLayerDef {
   id: string;
@@ -628,6 +634,10 @@ export {
   CAD_SOLID_OPERATION_OPS,
 } from "./cad-entities-v5";
 
+/** Y el del esquema 6: el muro paramétrico. */
+export type { CadSchema6Entity, CadWallEntity } from "./cad-entities-v6";
+export { CAD_SCHEMA_6_ENTITY_TYPES } from "./cad-entities-v6";
+
 // ---------------------------------------------------------------------------
 // Versionado + serialización determinista
 // ---------------------------------------------------------------------------
@@ -748,6 +758,7 @@ export function cadDocumentStats(doc: CadDocument): Record<CadEntity["type"], nu
     point: 0, xline: 0, ray: 0, solid: 0, wipeout: 0, image: 0,
     attdef: 0, table: 0,
     solid3d: 0, region: 0,
+    wall: 0,
   } satisfies Record<CadEntity["type"], number>;
   for (const e of doc.entities) stats[e.type]++;
   return stats;
