@@ -55,25 +55,35 @@ export default defineConfig({
       use: {
         ...devices["Desktop Firefox"],
         // El viewport CAD se dibuja con THREE.WebGLRenderer. Firefox headless
-        // NO habilita WebGL por defecto (Chromium sí, vía SwiftShader), así
-        // que sin estas prefs TODA la suite dorada fallaba en Firefox por el
-        // navegador, no por el producto. Se fuerza el backend software para
-        // que Firefox ejercite el mismo viewport real que Chromium.
+        // en el runner SIN GPU no habilita WebGL por defecto (Chromium sí, vía
+        // SwiftShader), así que sin estas prefs TODA la suite dorada fallaba en
+        // Firefox por el navegador, no por el producto. Se fuerza el backend
+        // software para que Firefox ejercite el mismo viewport real que
+        // Chromium.
         //
         // `layers.acceleration.force-enabled` estaba aquí y se ha RETIRADO: en
         // un runner sin GPU fuerza la ruta acelerada y es candidata a agotar la
         // lista de drivers (FEATURE_FAILURE_WEBGL_EXHAUSTED_DRIVERS). Lo que
         // Firefox headless necesita es la ruta EGL surfaceless sobre llvmpipe,
         // que es lo que habilitan WebRender por software y `libegl1` en CI.
+        //
+        // SOLO EN CI: en una máquina de desarrollo con GPU real este combo es
+        // exactamente el contrario de lo que Firefox necesita — WebRender por
+        // software + WebGL forzado EN PROCESO estrella la pestaña entera
+        // (medido en Windows: «Page crashed» en cada golden; con las prefs de
+        // serie la misma suite pasa). Firefox de escritorio ya trae WebGL.
         launchOptions: {
-          firefoxUserPrefs: {
-            "webgl.disabled": false,
-            "webgl.force-enabled": true,
-            "webgl.forbid-software": false,
-            "webgl.out-of-process": false,
-            "gfx.webrender.software": true,
-            "gfx.webrender.all": true,
-          },
+          firefoxUserPrefs:
+            process.env.CI === "true"
+              ? {
+                  "webgl.disabled": false,
+                  "webgl.force-enabled": true,
+                  "webgl.forbid-software": false,
+                  "webgl.out-of-process": false,
+                  "gfx.webrender.software": true,
+                  "gfx.webrender.all": true,
+                }
+              : {},
         },
       },
     },
