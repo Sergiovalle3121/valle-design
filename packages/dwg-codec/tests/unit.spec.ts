@@ -1,3 +1,4 @@
+import "./unit/ac1015-header.spec.js";
 import "./unit/api.spec.js";
 import "./unit/binary.spec.js";
 import "./unit/bitcodes.spec.js";

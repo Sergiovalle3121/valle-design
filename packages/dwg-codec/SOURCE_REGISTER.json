@@ -257,11 +257,17 @@
         "El contenedor R2000 (AC1015) usa un file header con registros localizadores de seccion {id, seeker, size}, CRC-16 por seccion con XOR dependiente del recuento y centinelas fijos de 16 bytes alrededor de las secciones principales",
         "Las secciones principales R2000 son: variables de cabecera, clases, mapa de objetos (paginas de pares handle-delta/offset-delta en enteros modulares con CRC por pagina), y segunda cabecera",
         "Cada objeto del cuerpo lleva tamano MS, tipo BS, handle H, datos extendidos EED opcionales, y las entidades comparten una cabecera comun (modo, reactores, xdictionary, capa y vinculos de propietario) antes de los campos especificos del tipo",
-        "La especificacion 5.4.1 cubre las versiones R13 a 2013 del formato"
+        "La especificacion 5.4.1 cubre las versiones R13 a 2013 del formato",
+        "Disposicion de la cabecera R2000: magia de 6 bytes en offset 0, cinco bytes reservados, byte de version de mantenimiento, byte fijo 0x01, seeker RL de previsualizacion en 0x0D, dos bytes de version del escritor, codepage RS en 0x13, recuento RL de registros localizadores en 0x15, y a continuacion los registros {id RC, seeker RL, size RL}",
+        "El CRC-16 de la cabecera usa el polinomio reflejado 0xA001 con semilla 0xC0C1 y se enmascara con una constante XOR segun el recuento de registros: 0xA598 (3), 0x8101 (4), 0x3CC4 (5), 0x8461 (6)",
+        "Tras el CRC la cabecera cierra con un centinela fijo de 16 bytes (95 A0 4E 28 99 82 1A E5 5E 41 E0 5F 9D 3A 4D 00)"
       ],
       "derivedFiles": [
         "packages/dwg-codec/src/codecs/bitcodes.ts",
+        "packages/dwg-codec/src/codecs/crc16.ts",
+        "packages/dwg-codec/src/container/ac1015-file-header.ts",
         "packages/dwg-codec/tests/unit/bitcodes.spec.ts",
+        "packages/dwg-codec/tests/unit/ac1015-header.spec.ts",
         "packages/dwg-codec/DWG0_WORKLOG.md",
         "packages/dwg-codec/SOURCE_REGISTER.json"
       ],

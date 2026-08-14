@@ -141,3 +141,25 @@ y la promoción condicionada a revisión legal externa.
 - Límite conocido: el parcheo DD por bytes bajos y la forma exacta de 3B
   quedan marcados para validación contra corpus real con derechos en la fase
   de intake; hasta entonces la evidencia es de round-trip de laboratorio.
+
+## DWG-1 sesión 2026-08-14 (continuación) — contenedor AC1015 (fase B)
+
+- Nuevo `src/codecs/crc16.ts`: CRC-16 reflejado (0xA001) table-driven con
+  semilla del llamador, validado contra la respuesta conocida independiente
+  CRC-16/ARC("123456789") = 0xBB3D, y la tabla de máscaras XOR de la cabecera
+  por recuento de registros (3→0xA598, 4→0x8101, 5→0x3CC4, 6→0x8461).
+- Nuevo `src/container/ac1015-file-header.ts`: `parseAc1015FileHeader` abre la
+  cabecera R2000 —magia, mantenimiento, byte fijo 0x01, preview seeker,
+  codepage, recuento— y valida el directorio de secciones con la RangeTable
+  (límites del archivo, solapes, duplicados), el CRC enmascarado y el
+  centinela final byte a byte. LOCALIZA, no decodifica contenido.
+- Nueva `tests/unit/ac1015-header.spec.ts` con constructor de cabeceras
+  first-party (semilla del writer de fase C) y gemelos tristes: magia ajena,
+  recuento fuera de 3–6, solapes, sección dentro de la cabecera, CRC roto
+  (con el offset exacto del fallo), centinela torcido, truncados y recuento
+  que excede los registros presentes.
+- `npm run check`: verde completo (133 unit + 349 adversarial + fuzz).
+- Hechos nuevos registrados en ODA-ODS-DWG-5.4.1-PUBLIC: disposición de la
+  cabecera, constantes XOR del CRC y centinela final. Límite conocido: esas
+  constantes quedan pendientes de validación contra corpus real con derechos;
+  hasta entonces la evidencia es el round-trip de laboratorio.
