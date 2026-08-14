@@ -1,4 +1,5 @@
 import "./unit/ac1015-header.spec.js";
+import "./unit/ac1015-object-map.spec.js";
 import "./unit/ac1015-writer.spec.js";
 import "./unit/api.spec.js";
 import "./unit/binary.spec.js";

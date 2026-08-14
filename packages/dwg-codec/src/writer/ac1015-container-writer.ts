@@ -3,8 +3,10 @@
  *
  * Produce el archivo AC1015 estructuralmente válido MÍNIMO: cabecera con su
  * directorio de tres secciones, sección de variables de cabecera y sección de
- * clases enmarcadas con centinelas + tamaño + CRC, y un mapa de objetos VACÍO
- * (sólo su página terminadora big-endian). Los payloads de las dos primeras
+ * clases enmarcadas con centinelas + tamaño + CRC, y el mapa de objetos — por
+ * defecto VACÍO (sólo su página terminadora big-endian) y, desde la fase D1,
+ * POBLADO cuando el llamador pide objetos sintéticos opacos, que se emiten en
+ * la región sin mapear previa al mapa. Los payloads de las dos primeras
  * secciones son OPACOS aquí: el contenido real de las variables de cabecera y
  * de las clases es de fases posteriores, y por eso el placeholder por defecto
  * es un rótulo first-party evidente, no un remedo de datos reales.
@@ -47,6 +49,13 @@ import {
   inspectOrdinaryByteView,
 } from "../security/byte-view.js";
 import { throwDwgError } from "../security/parse-error.js";
+import type { Ac1015ObjectMapEntry } from "../container/ac1015-object-map.js";
+import {
+  AC1015_WRITER_MAX_OBJECTS,
+  buildAc1015ObjectMapSection,
+  writeAc1015ObjectEnvelope,
+  type Ac1015SyntheticObjectSpec,
+} from "./ac1015-object-writer.js";
 
 /** Página de códigos por defecto: ANSI_1252, la habitual en dibujos R2000. */
 export const AC1015_DEFAULT_CODEPAGE = 0x4e4;
@@ -82,6 +91,13 @@ export interface Ac1015ContainerWriteOptions {
   readonly headerVariablesPayload?: Uint8Array;
   /** Payload opaco de la sección de clases. Por defecto, vacío. */
   readonly classesPayload?: Uint8Array;
+  /**
+   * Objetos sintéticos opacos (fase D1). Se emiten uno tras otro en la región
+   * SIN mapear entre la sección de clases y el mapa de objetos, y el mapa los
+   * referencia con sus handles y offsets reales. Por defecto, ninguno: el
+   * contenedor mínimo de la fase C, byte a byte.
+   */
+  readonly objects?: readonly Ac1015SyntheticObjectSpec[];
 }
 
 /** Identificadores de registro del directorio (hecho ya registrado en fase B). */
@@ -141,14 +157,25 @@ export function writeAc1015Container(
   // Disposición: las secciones se pegan una tras otra justo después de la
   // cabecera. Los tamaños del directorio cubren el marco COMPLETO (centinelas
   // incluidos): es la lectura estricta con la que el lector de marcos exige
-  // encaje exacto, y el round-trip la mantiene honesta.
+  // encaje exacto, y el round-trip la mantiene honesta. Los OBJETOS viven en
+  // la región sin mapear entre las clases y el mapa: ningún registro del
+  // directorio los cubre, igual que en el formato — el mapa es quien los
+  // encuentra.
   const headerVariablesStart = FILE_HEADER_LENGTH;
   const headerVariablesSize =
     AC1015_SECTION_FRAME_OVERHEAD + headerVariablesPayload.length;
   const classesStart = headerVariablesStart + headerVariablesSize;
   const classesSize = AC1015_SECTION_FRAME_OVERHEAD + classesPayload.length;
-  const objectMapStart = classesStart + classesSize;
-  const objectMapSize = 4;
+  const objectsStart = classesStart + classesSize;
+  const { envelopes, mapEntries } = buildSyntheticObjects(
+    options.objects,
+    objectsStart,
+  );
+  const objectMapStart =
+    objectsStart +
+    envelopes.reduce((total, envelope) => total + envelope.length, 0);
+  const objectMapBytes = buildAc1015ObjectMapSection(mapEntries);
+  const objectMapSize = objectMapBytes.length;
   const fileLength = objectMapStart + objectMapSize;
 
   const head: number[] = [];
@@ -204,8 +231,69 @@ export function writeAc1015Container(
     buildSectionFrame(AC1015_CLASSES_SENTINELS, classesPayload),
     classesStart,
   );
-  file.set(buildEmptyObjectMap(), objectMapStart);
+  let envelopeOffset = objectsStart;
+  for (const envelope of envelopes) {
+    file.set(envelope, envelopeOffset);
+    envelopeOffset += envelope.length;
+  }
+  file.set(objectMapBytes, objectMapStart);
   return file;
+}
+
+/**
+ * Emite las envolturas de los objetos sintéticos y calcula sus entradas del
+ * mapa. Los handles por defecto son secuenciales desde 1; uno explícito debe
+ * ser estrictamente creciente — el writer no emite un mapa que su propio
+ * lector rechazaría.
+ */
+function buildSyntheticObjects(
+  specs: readonly Ac1015SyntheticObjectSpec[] | undefined,
+  objectsStart: number,
+): { envelopes: readonly Uint8Array[]; mapEntries: Ac1015ObjectMapEntry[] } {
+  if (specs === undefined) {
+    return { envelopes: [], mapEntries: [] };
+  }
+  if (!Array.isArray(specs)) {
+    throwDwgError(
+      "DWG_INPUT_INVALID",
+      "input",
+      0,
+      "The synthetic object list must be an array.",
+    );
+  }
+  if (specs.length > AC1015_WRITER_MAX_OBJECTS) {
+    throwDwgError(
+      "DWG_FILE_LIMIT_EXCEEDED",
+      "resource",
+      0,
+      "The synthetic object list exceeds the phase-D laboratory limit.",
+    );
+  }
+  const envelopes: Uint8Array[] = [];
+  const mapEntries: Ac1015ObjectMapEntry[] = [];
+  let previousHandle = 0;
+  let nextOffset = objectsStart;
+  for (const spec of specs) {
+    const handle = spec.handle ?? previousHandle + 1;
+    if (
+      !Number.isSafeInteger(handle) ||
+      handle < 1 ||
+      handle <= previousHandle
+    ) {
+      throwDwgError(
+        "DWG_INPUT_INVALID",
+        "input",
+        0,
+        "Object handles must be strictly increasing safe integers from 1.",
+      );
+    }
+    const envelope = writeAc1015ObjectEnvelope(spec);
+    envelopes.push(envelope);
+    mapEntries.push(Object.freeze({ handle, offset: nextOffset }));
+    previousHandle = handle;
+    nextOffset += envelope.length;
+  }
+  return { envelopes, mapEntries };
 }
 
 /**
@@ -252,18 +340,6 @@ function buildSectionFrame(
   frame[16 + body.length + 1] = (crc >> 8) & 0xff;
   frame.set(sentinels.end, 16 + body.length + 2);
   return frame;
-}
-
-/**
- * Mapa de objetos VACÍO: sólo la página terminadora. Dentro del mapa TODO es
- * big-endian (hecho registrado): el tamaño 2 se escribe 0x00 0x02 y el CRC de
- * página — semilla 0xC0C1 sobre esos dos bytes — también viaja high-byte
- * primero.
- */
-function buildEmptyObjectMap(): Uint8Array {
-  const sizeBytes = Uint8Array.of(0x00, 0x02);
-  const crc = crc16Dwg(sizeBytes, AC1015_SECTION_CRC_SEED);
-  return Uint8Array.of(0x00, 0x02, (crc >> 8) & 0xff, crc & 0xff);
 }
 
 function pushUint16LE(into: number[], value: number): void {

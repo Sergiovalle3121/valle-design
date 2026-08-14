@@ -204,3 +204,55 @@ y la promoción condicionada a revisión legal externa.
   una decisión de laboratorio sostenida por el round-trip, no por corpus. El
   payload de variables de cabecera sigue siendo placeholder; su contenido
   real es de fases posteriores. El producto permanece `available:false`.
+
+## DWG-1 sesión 2026-08-14 (continuación) — mapa de objetos poblado (fase D1)
+
+- Hechos nuevos registrados ANTES de derivar código en
+  `ODA-ODS-DWG-5.4.1-PUBLIC`: pares del mapa como delta de handle (entero
+  modular SIN signo) y delta de offset (CON signo) cuyos acumuladores
+  arrancan de 0 una sola vez al inicio de la SECCIÓN y sobreviven a los
+  cortes de página; tope de página de 2032 bytes contando su campo de tamaño
+  y sin partir ningún par; y envoltura de objeto = tamaño MS + datos (que
+  abren con el tipo BS) + CRC-16 RS little-endian semilla 0xC0C1 sobre
+  [tamaño+datos].
+- Nuevo `src/container/ac1015-object-map.ts`: `readAc1015ObjectMap` lee el
+  mapa COMPLETO — vacío o poblado — página a página (tamaño RS y CRC
+  big-endian, semilla 0xC0C1 sobre la página entera incluido su tamaño,
+  terminadora de tamaño 2) y devuelve la lista {handle, offset} validada:
+  handles estrictamente crecientes (delta nulo = corrupción), offsets dentro
+  del archivo y sin duplicados, topes `maxHandles`/`maxObjects` cobrados
+  ANTES de acumular, y fallo cerrado en página malformada o >2032, CRC roto,
+  deltas que desbordan el rango seguro, mapa sin terminadora y bytes de
+  sobra. Los errores del decodificador de pares se TRASLADAN al offset real
+  del archivo.
+- Nuevo `src/container/ac1015-object-envelope.ts`: `readAc1015ObjectEnvelope`
+  abre la envoltura de un objeto desde un offset del mapa — tamaño MS, cuerpo
+  OPACO, CRC RS — extrayendo SOLO el tipo BS inicial. Verifica que la
+  envoltura completa cabe en el archivo y no pisa ninguna extensión del
+  directorio (el offset se comprueba ANTES de leer el tamaño). Decodificar el
+  cuerpo es de la fase D2.
+- Nuevo `src/writer/ac1015-object-writer.ts` + extensión del writer del
+  contenedor: `writeAc1015Container({objects})` emite N objetos sintéticos
+  CONFESOS (tipo BS + relleno determinista función pura del tipo y la
+  posición + CRC) en la región sin mapear entre clases y mapa, y el mapa
+  poblado con paginación real contra el MISMO tope que exige el lector.
+  Espejos first-party de MC/MS/BS para emitir; con cero objetos el binario es
+  byte a byte el de la fase C.
+- Nueva `tests/unit/ac1015-object-map.spec.ts`: round-trip 0/1/3/100 objetos
+  con handles y offsets EXACTOS (deltas multibyte incluidos), paginación
+  real con 1200 objetos (2 páginas de datos + terminadora, acumuladores
+  sobreviviendo al corte), delta de offset negativo válido, y gemelos
+  tristes: CRC de página y de terminadora rotos (byte exacto), delta de
+  handle nulo, offsets fuera/negativos/duplicados, delta desbordante, mapa
+  sin terminadora, bytes de sobra, páginas imposibles (<2, >2032, fuera de
+  sección), topes de `createDwgLimits` a la baja, envoltura truncada, CRC de
+  envoltura roto (byte exacto), envoltura que pisa el directorio, tamaño
+  cero y writer fallando cerrado ante specs inválidos.
+- `npm run check` del paquete y `npm run check:dwg` desde la raíz: verdes.
+- Límites conocidos: la continuación de los acumuladores a través de las
+  páginas, el tope de 2032, la atomicidad de los pares por página y la
+  convención little-endian del CRC de envoltura quedan pendientes de
+  validación contra corpus real con derechos (fase de intake); hasta
+  entonces la evidencia es el round-trip de laboratorio. Los cuerpos siguen
+  OPACOS: tipo extraído, nada más decodificado. El producto permanece
+  `available:false`.
