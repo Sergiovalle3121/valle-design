@@ -334,6 +334,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commercial/upgrade-intents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista intents de upgrade de la organizacion activa (owner/admin). */
+        get: operations["listUpgradeIntents"];
+        put?: never;
+        /**
+         * Registra un intent de upgrade auditable (checkout sin pasarela).
+         * @description Sin pasarela de pagos el producto no cobra; deja constancia durable de quien pidio pasar a que plan. El intent queda `pending` hasta que un owner/admin lo confirme (tras el cobro externo) o lo cancele. A lo sumo un `pending` por organizacion (indice unico parcial).
+         */
+        post: operations["createUpgradeIntent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commercial/upgrade-intents/{intentId}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirma el intent (solo owner/admin) y activa el plan pedido.
+         * @description La decision y el cambio de suscripcion ocurren en la misma transaccion; el evento `commercial.subscription.upgraded` sale por el outbox de dominio con idempotencia por intent.
+         */
+        post: operations["confirmUpgradeIntent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commercial/upgrade-intents/{intentId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancela un intent pendiente (solo owner/admin). */
+        post: operations["cancelUpgradeIntent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/cad/projects": {
         parameters: {
             query?: never;
@@ -1136,6 +1194,34 @@ export interface components {
             /** Format: uuid */
             organizationId: string | null;
             items: string[];
+        };
+        /** @enum {string} */
+        UpgradeIntentStatus: "pending" | "confirmed" | "cancelled";
+        UpgradeIntentCreate: {
+            requestedPlanCode: string;
+        };
+        UpgradeIntentView: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            organizationId: string;
+            requestedPlanCode: string;
+            status: components["schemas"]["UpgradeIntentStatus"];
+            /** Format: uuid */
+            requestedByUserId: string;
+            /** Format: uuid */
+            decidedByUserId: string | null;
+            decidedAt: components["schemas"]["Timestamp"] | null;
+            createdAt: components["schemas"]["Timestamp"];
+        };
+        UpgradeIntentList: {
+            /** Format: uuid */
+            organizationId: string;
+            items: components["schemas"]["UpgradeIntentView"][];
+        };
+        UpgradeIntentConfirmed: {
+            intent: components["schemas"]["UpgradeIntentView"];
+            subscription: components["schemas"]["SubscriptionView"];
         };
         /**
          * Format: uuid
@@ -2296,6 +2382,132 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+        };
+    };
+    listUpgradeIntents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Intents del mas reciente al mas antiguo, sin correos. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpgradeIntentList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createUpgradeIntent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpgradeIntentCreate"];
+            };
+        };
+        responses: {
+            /** @description Intent registrado en estado `pending`. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpgradeIntentView"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Ya existe un intent `pending` (`upgrade_intent_pending`) o el plan pedido ya esta activo (`plan_already_active`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    confirmUpgradeIntent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                intentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Intent confirmado; la suscripcion queda `active`. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpgradeIntentConfirmed"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description El intent ya fue decidido (`upgrade_intent_not_pending`) o el plan dejo de estar disponible (`plan_unavailable`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    cancelUpgradeIntent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                intentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Intent cancelado; la fila persiste como auditoria. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpgradeIntentView"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description El intent ya fue decidido (`upgrade_intent_not_pending`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
         };
     };
     listCadProjects: {

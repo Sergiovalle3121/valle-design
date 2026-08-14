@@ -6,6 +6,7 @@ import {
   PlanCatalog,
   PlanEntitlement,
   Subscription,
+  SubscriptionUpgradeIntent,
   UsageLedger,
 } from './entities/commercial.entities';
 import {
@@ -25,12 +26,15 @@ import {
 import { EmailOutboxController } from './controllers/email-outbox.controller';
 import { CommercialController } from './controllers/commercial.controller';
 import {
+  COMMERCIAL_OUTBOX_OBSERVER,
   COMMERCIAL_OUTBOX_TRANSPORT,
   CommercialOutboxDispatcher,
 } from './outbox-dispatcher.service';
 import { CommercialOutboxWorker } from './outbox-worker.service';
 import { WebhookCommercialOutboxTransport } from './webhook-outbox.transport';
 import { CommercialCatalogBootstrap } from './commercial-catalog.bootstrap';
+import { CommercialTelemetryService } from './commercial-telemetry.service';
+import { SubscriptionLifecycleService } from './subscription-lifecycle.service';
 
 @Module({
   imports: [
@@ -38,6 +42,7 @@ import { CommercialCatalogBootstrap } from './commercial-catalog.bootstrap';
       PlanCatalog,
       PlanEntitlement,
       Subscription,
+      SubscriptionUpgradeIntent,
       UsageLedger,
       DomainOutbox,
       EmailOutbox,
@@ -55,6 +60,14 @@ import { CommercialCatalogBootstrap } from './commercial-catalog.bootstrap';
       provide: COMMERCIAL_OUTBOX_TRANSPORT,
       useExisting: WebhookCommercialOutboxTransport,
     },
+    CommercialTelemetryService,
+    // El dispatcher inyecta el observer como Optional; sin este binding la
+    // telemetría del runbook queda muda sin que ningún test lo note.
+    {
+      provide: COMMERCIAL_OUTBOX_OBSERVER,
+      useExisting: CommercialTelemetryService,
+    },
+    SubscriptionLifecycleService,
     CommercialOutboxDispatcher,
     CommercialOutboxWorker,
     CommercialCatalogBootstrap,
@@ -66,6 +79,8 @@ import { CommercialCatalogBootstrap } from './commercial-catalog.bootstrap';
     CAD_EVENT_PUBLISHER,
     EMAIL_SERVICE,
     CommercialOutboxDispatcher,
+    CommercialTelemetryService,
+    SubscriptionLifecycleService,
   ],
 })
 export class CommercialModule {}

@@ -1,9 +1,15 @@
-import { Module } from '@nestjs/common';
+import {
+  type MiddlewareConsumer,
+  Module,
+  type NestModule,
+} from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ormOptions } from './orm.options';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { HttpStatusTelemetryMiddleware } from './common/telemetry/http-status-telemetry.middleware';
 import { TenantModule } from './common/tenant/tenant.module';
+import { CommercialMetricsController } from './health/commercial-metrics.controller';
 import { HealthController } from './health/health.controller';
 import { AuthModule } from './modules/auth/auth.module';
 import { CadAuthGuard } from './modules/auth/guards/cad-auth.guard';
@@ -24,6 +30,8 @@ import { CommercialModule } from './modules/commercial/commercial.module';
  * PermissionsGuard impone el entitlement `design.cad` + RBAC `cad:*` sobre
  * las rutas anotadas. El TenantInterceptor (TenantModule, global) vierte la
  * identidad en TenantContextService para el scoping por tenant de TypeORM.
+ * HttpStatusTelemetryMiddleware cuenta 401/403/409/429 por patrón de ruta
+ * para el runbook (GET /health/metrics/commercial), sin URLs reales.
  */
 @Module({
   imports: [
@@ -38,11 +46,17 @@ import { CommercialModule } from './modules/commercial/commercial.module';
     CadDocumentsModule,
     CadModule,
   ],
-  controllers: [HealthController],
+  controllers: [HealthController, CommercialMetricsController],
   providers: [
+    HttpStatusTelemetryMiddleware,
     { provide: APP_GUARD, useClass: CadAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    // Sintaxis de comodín de Express 5 ('*' está deprecado en Nest 11).
+    consumer.apply(HttpStatusTelemetryMiddleware).forRoutes('{*path}');
+  }
+}

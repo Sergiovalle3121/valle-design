@@ -463,6 +463,103 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/EffectiveEntitlementList" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+  /v1/commercial/upgrade-intents:
+    get:
+      operationId: listUpgradeIntents
+      tags: [commercial]
+      summary: Lista intents de upgrade de la organizacion activa (owner/admin).
+      responses:
+        "200":
+          description: Intents del mas reciente al mas antiguo, sin correos.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UpgradeIntentList" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      operationId: createUpgradeIntent
+      tags: [commercial]
+      summary: Registra un intent de upgrade auditable (checkout sin pasarela).
+      description: >-
+        Sin pasarela de pagos el producto no cobra; deja constancia durable de
+        quien pidio pasar a que plan. El intent queda `pending` hasta que un
+        owner/admin lo confirme (tras el cobro externo) o lo cancele. A lo
+        sumo un `pending` por organizacion (indice unico parcial).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpgradeIntentCreate" }
+      responses:
+        "201":
+          description: Intent registrado en estado `pending`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UpgradeIntentView" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409":
+          description: >-
+            Ya existe un intent `pending` (`upgrade_intent_pending`) o el plan
+            pedido ya esta activo (`plan_already_active`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /v1/commercial/upgrade-intents/{intentId}/confirm:
+    post:
+      operationId: confirmUpgradeIntent
+      tags: [commercial]
+      summary: Confirma el intent (solo owner/admin) y activa el plan pedido.
+      description: >-
+        La decision y el cambio de suscripcion ocurren en la misma
+        transaccion; el evento `commercial.subscription.upgraded` sale por el
+        outbox de dominio con idempotencia por intent.
+      parameters:
+        - name: intentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Intent confirmado; la suscripcion queda `active`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UpgradeIntentConfirmed" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: >-
+            El intent ya fue decidido (`upgrade_intent_not_pending`) o el plan
+            dejo de estar disponible (`plan_unavailable`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /v1/commercial/upgrade-intents/{intentId}/cancel:
+    post:
+      operationId: cancelUpgradeIntent
+      tags: [commercial]
+      summary: Cancela un intent pendiente (solo owner/admin).
+      parameters:
+        - name: intentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Intent cancelado; la fila persiste como auditoria.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UpgradeIntentView" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: El intent ya fue decidido (`upgrade_intent_not_pending`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
   /v1/cad/projects:
     get:
       operationId: listCadProjects
@@ -2202,6 +2299,64 @@ components:
           maxItems: 200
           uniqueItems: true
           items: { type: string, maxLength: 120 }
+    UpgradeIntentStatus:
+      type: string
+      enum: [pending, confirmed, cancelled]
+    UpgradeIntentCreate:
+      type: object
+      additionalProperties: false
+      required: [requestedPlanCode]
+      properties:
+        requestedPlanCode:
+          type: string
+          minLength: 2
+          maxLength: 80
+          pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    UpgradeIntentView:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          organizationId,
+          requestedPlanCode,
+          status,
+          requestedByUserId,
+          decidedByUserId,
+          decidedAt,
+          createdAt,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        requestedPlanCode: { type: string, maxLength: 80 }
+        status: { $ref: "#/components/schemas/UpgradeIntentStatus" }
+        requestedByUserId: { type: string, format: uuid }
+        decidedByUserId:
+          type: [string, "null"]
+          format: uuid
+        decidedAt:
+          oneOf:
+            - $ref: "#/components/schemas/Timestamp"
+            - type: "null"
+        createdAt: { $ref: "#/components/schemas/Timestamp" }
+    UpgradeIntentList:
+      type: object
+      additionalProperties: false
+      required: [organizationId, items]
+      properties:
+        organizationId: { type: string, format: uuid }
+        items:
+          type: array
+          maxItems: 200
+          items: { $ref: "#/components/schemas/UpgradeIntentView" }
+    UpgradeIntentConfirmed:
+      type: object
+      additionalProperties: false
+      required: [intent, subscription]
+      properties:
+        intent: { $ref: "#/components/schemas/UpgradeIntentView" }
+        subscription: { $ref: "#/components/schemas/SubscriptionView" }
     CadProjectId:
       type: string
       format: uuid

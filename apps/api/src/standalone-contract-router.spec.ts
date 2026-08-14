@@ -9,8 +9,13 @@ import {
   PlanCatalog,
   PlanEntitlement,
   Subscription,
+  SubscriptionUpgradeIntent,
 } from './modules/commercial/entities/commercial.entities';
-import { EMAIL_SERVICE } from './modules/commercial/ports/commercial.ports';
+import {
+  CAD_EVENT_PUBLISHER,
+  EMAIL_SERVICE,
+} from './modules/commercial/ports/commercial.ports';
+import { SubscriptionLifecycleService } from './modules/commercial/subscription-lifecycle.service';
 import { User } from './modules/identity/entities/identity.entity';
 import { IdentityController } from './modules/identity/identity.controller';
 import { IDENTITY_RATE_LIMIT_STORE } from './modules/identity/identity-rate-limit.store';
@@ -49,6 +54,7 @@ describe('standalone OpenAPI contract against the real Nest router', () => {
       Subscription,
       PlanCatalog,
       PlanEntitlement,
+      SubscriptionUpgradeIntent,
     ];
     const moduleRef = await Test.createTestingModule({
       controllers: [
@@ -65,6 +71,8 @@ describe('standalone OpenAPI contract against the real Nest router', () => {
         },
         { provide: DataSource, useValue: {} },
         { provide: EMAIL_SERVICE, useValue: {} },
+        { provide: CAD_EVENT_PUBLISHER, useValue: {} },
+        { provide: SubscriptionLifecycleService, useValue: {} },
         { provide: IDENTITY_RATE_LIMIT_STORE, useValue: {} },
         ...repositoryEntities.map((entity) => ({
           provide: getRepositoryToken(entity),
@@ -115,7 +123,7 @@ describe('standalone OpenAPI contract against the real Nest router', () => {
     ).replaceAll('\r\n', '\n');
     const expected = openApiOperations(spec);
 
-    expect(expected).toHaveLength(20);
+    expect(expected).toHaveLength(24);
     expect([...actual].sort()).toEqual(expected.sort());
   });
 });
