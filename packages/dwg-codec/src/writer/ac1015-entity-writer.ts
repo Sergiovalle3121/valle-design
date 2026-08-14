@@ -1,8 +1,9 @@
 /**
- * Writer de cuerpos de entidad R2000 — fases D2/D3 (espejo del decodificador).
+ * Writer de cuerpos de entidad R2000 — fases D2/D3/D4 (espejo del
+ * decodificador).
  *
- * Emite el cuerpo COMPLETO de una entidad real (LINE, POINT, CIRCLE, ARC y,
- * desde la fase D3, LWPOLYLINE y TEXT):
+ * Emite el cuerpo COMPLETO de una entidad real (LINE, POINT, CIRCLE, ARC,
+ * LWPOLYLINE y TEXT desde la fase D3, INSERT desde la D4):
  * tipo BS, tamaño RL en bits, handle propio H, cabecera común mínima
  * coherente, datos del tipo y un flujo de handles final confesadamente
  * mínimo. El cuerpo resultante es válido para la envoltura de la fase D1
@@ -13,14 +14,15 @@
  * El común mínimo coherente que emite esta fase, campo a campo:
  * - handle propio con código 0 y bytes mínimos big-endian;
  * - EED vacío (tamaño BS = 0) y sin gráfico (bit 0);
- * - modo 2 (model space: sin handle de propietario en el flujo);
+ * - modo 2 (model space: sin handle de propietario en el flujo) o, desde la
+ *   fase D4, modo 0 cuando la entidad pertenece a un bloque — su flujo abre
+ *   entonces con el handle del BLOCK_RECORD propietario;
  * - 0 reactores y bit de sin-vínculos a 1;
  * - color ByLayer (CmC 256), escala de tipo de línea 1.0, banderas de
  *   linetype y plotstyle ByLayer (0), invisibilidad 0 y lineweight 0x1D;
  * - flujo de handles final: xdictionary NULO y capa NULA — placeholders
- *   CONFESOS (el laboratorio aún no escribe tablas de símbolos), coherentes
- *   con las banderas emitidas: ni propietario, ni reactores, ni ltype, ni
- *   plotstyle esperan handle.
+ *   CONFESOS (resolver la capa de una entidad sigue pendiente), más el hard
+ *   pointer al bloque insertado cuando la entidad es un INSERT.
  *
  * Reglas del laboratorio: determinista (misma entidad y handle → mismos
  * bits), fallo cerrado ante geometría no finita o specs imposibles, cero
@@ -34,6 +36,7 @@ import {
   isFiniteDwgPoint2,
   isFiniteDwgPoint3,
   type DwgGeometryEntity,
+  type DwgInsertEntity,
   type DwgLwPolylineEntity,
   type DwgPoint3,
   type DwgTextEntity,
@@ -41,6 +44,7 @@ import {
 import {
   AC1015_TYPE_ARC,
   AC1015_TYPE_CIRCLE,
+  AC1015_TYPE_INSERT,
   AC1015_TYPE_LINE,
   AC1015_TYPE_LWPOLYLINE,
   AC1015_TYPE_POINT,
@@ -48,263 +52,27 @@ import {
 } from "../objects/entities-core.js";
 import { throwDwgError } from "../security/parse-error.js";
 
-const FLOAT_SCRATCH = new DataView(new ArrayBuffer(8));
+import {
+  AC1015_ENTITY_WRITER_MAX_BITS,
+  DwgBitEmitter,
+} from "./dwg-bit-emitter.js";
 
-/** Tope de bits por cuerpo emitido: límite de LABORATORIO, no del formato. */
-export const AC1015_ENTITY_WRITER_MAX_BITS = 0x1_0000;
+// El emisor vive en su propio módulo desde la fase D4 (presupuesto de
+// líneas); se re-exporta aquí para conservar la superficie de las fases
+// anteriores — specs y writers hermanos siguen importando de este módulo.
+export { AC1015_ENTITY_WRITER_MAX_BITS, DwgBitEmitter };
 
 /**
- * Emisor de bits MSB-first con todos los códigos que esta fase escribe. Es el
- * espejo de `DwgBitReader`: mismo orden de bits, mismos atajos, y por eso los
- * tests de round-trip delatan cualquier asimetría. Se exporta para que los
- * specs compongan también cuerpos HOSTILES a mano (gemelos tristes).
+ * Opciones de la fase D4 para el cuerpo de una entidad:
+ * - `ownerBlockHandle`: la entidad PERTENECE a un bloque — viaja en modo 0 y
+ *   su flujo de handles abre con el propietario (el BLOCK_RECORD).
+ * - `insertBlockHandle`: obligatorio para un INSERT (y prohibido para el
+ *   resto): el hard pointer al BLOCK_RECORD insertado, tras la cabeza común
+ *   del flujo.
  */
-export class DwgBitEmitter {
-  readonly #bits: (0 | 1)[] = [];
-
-  get bitLength(): number {
-    return this.#bits.length;
-  }
-
-  pushBit(bit: 0 | 1): void {
-    if (bit !== 0 && bit !== 1) {
-      throwDwgError("DWG_INPUT_INVALID", "input", 0, "A bit must be 0 or 1.");
-    }
-    if (this.#bits.length >= AC1015_ENTITY_WRITER_MAX_BITS) {
-      throwDwgError(
-        "DWG_FILE_LIMIT_EXCEEDED",
-        "resource",
-        0,
-        "An entity body exceeds the phase-D2 laboratory bit limit.",
-      );
-    }
-    this.#bits.push(bit);
-  }
-
-  /** `width` bits de `value`, del más significativo al menos (como el lector). */
-  pushBits(value: number, width: number): void {
-    if (
-      !Number.isSafeInteger(value) ||
-      value < 0 ||
-      !Number.isSafeInteger(width) ||
-      width < 0 ||
-      width > 32 ||
-      value >= 2 ** width
-    ) {
-      throwDwgError(
-        "DWG_INPUT_INVALID",
-        "input",
-        0,
-        "A bit field must be a non-negative integer that fits its width.",
-      );
-    }
-    for (let shift = width - 1; shift >= 0; shift -= 1) {
-      this.pushBit(Math.floor(value / 2 ** shift) % 2 === 1 ? 1 : 0);
-    }
-  }
-
-  /** Replica los bits de otro emisor (composición en dos pasadas). */
-  pushEmitter(other: DwgBitEmitter): void {
-    for (const bit of other.#bits) {
-      this.pushBit(bit);
-    }
-  }
-
-  emitRC(value: number): void {
-    this.pushBits(value, 8);
-  }
-
-  /** RS: 16 bits crudos, bytes little-endian dentro del flujo de bits. */
-  emitRS(value: number): void {
-    this.emitRC(value & 0xff);
-    this.emitRC((value >> 8) & 0xff);
-  }
-
-  /** RL: 32 bits crudos, bytes little-endian. */
-  emitRL(value: number): void {
-    if (!Number.isSafeInteger(value) || value < 0 || value > 0xffff_ffff) {
-      throwDwgError(
-        "DWG_INPUT_INVALID",
-        "input",
-        0,
-        "An RL value must fit in an unsigned 32-bit integer.",
-      );
-    }
-    this.emitRS(value % 0x1_0000);
-    this.emitRS(Math.floor(value / 0x1_0000));
-  }
-
-  /** RD: double IEEE-754 de 8 bytes little-endian. */
-  emitRD(value: number): void {
-    FLOAT_SCRATCH.setFloat64(0, value, true);
-    for (let index = 0; index < 8; index += 1) {
-      this.emitRC(FLOAT_SCRATCH.getUint8(index));
-    }
-  }
-
-  /** BS: la forma más corta que el formato define (espejo de readBS). */
-  emitBS(value: number): void {
-    if (!Number.isInteger(value) || value < 0 || value > 0xffff) {
-      throwDwgError(
-        "DWG_INPUT_INVALID",
-        "input",
-        0,
-        "A BS value must fit in an unsigned 16-bit integer.",
-      );
-    }
-    if (value === 0) {
-      this.pushBits(0b10, 2);
-    } else if (value === 256) {
-      this.pushBits(0b11, 2);
-    } else if (value <= 0xff) {
-      this.pushBits(0b01, 2);
-      this.emitRC(value);
-    } else {
-      this.pushBits(0b00, 2);
-      this.emitRS(value);
-    }
-  }
-
-  /** BL: como BS pero sin el atajo de 256 (la bandera 11 no existe). */
-  emitBL(value: number): void {
-    if (!Number.isSafeInteger(value) || value < 0 || value > 0xffff_ffff) {
-      throwDwgError(
-        "DWG_INPUT_INVALID",
-        "input",
-        0,
-        "A BL value must fit in an unsigned 32-bit integer.",
-      );
-    }
-    if (value === 0) {
-      this.pushBits(0b10, 2);
-    } else if (value <= 0xff) {
-      this.pushBits(0b01, 2);
-      this.emitRC(value);
-    } else {
-      this.pushBits(0b00, 2);
-      this.emitRL(value);
-    }
-  }
-
-  /**
-   * BD: los atajos de 0.0 y 1.0 sólo se toman con igualdad EXACTA de bits
-   * (`Object.is`): un −0.0 viaja como RD completo para que el round-trip
-   * devuelva el mismo double, bit a bit.
-   */
-  emitBD(value: number): void {
-    assertFiniteDouble(value);
-    if (Object.is(value, 1)) {
-      this.pushBits(0b01, 2);
-    } else if (Object.is(value, 0)) {
-      this.pushBits(0b10, 2);
-    } else {
-      this.pushBits(0b00, 2);
-      this.emitRD(value);
-    }
-  }
-
-  /**
-   * DD: esta fase emite sólo las dos formas totales — 00 (igual al defecto,
-   * con igualdad exacta) o 11 (RD completo). Los parches de 4/6 bytes son
-   * formas de COMPRESIÓN opcionales que el lector ya acepta; no emitirlas es
-   * válido y mantiene el writer simple y sin ambigüedad.
-   */
-  emitDD(value: number, defaultValue: number): void {
-    assertFiniteDouble(value);
-    if (Object.is(value, defaultValue)) {
-      this.pushBits(0b00, 2);
-    } else {
-      this.pushBits(0b11, 2);
-      this.emitRD(value);
-    }
-  }
-
-  /** BT: grosor cero en un bit; cualquier otro, bit 0 + BD (espejo de readBT). */
-  emitBT(value: number): void {
-    assertFiniteDouble(value);
-    if (Object.is(value, 0)) {
-      this.pushBit(1);
-    } else {
-      this.pushBit(0);
-      this.emitBD(value);
-    }
-  }
-
-  /** BE: la extrusión canónica (0,0,1) en un bit; cualquier otra, 3BD. */
-  emitBE(extrusion: DwgPoint3): void {
-    if (
-      Object.is(extrusion.x, 0) &&
-      Object.is(extrusion.y, 0) &&
-      Object.is(extrusion.z, 1)
-    ) {
-      this.pushBit(1);
-    } else {
-      this.pushBit(0);
-      this.emitBD(extrusion.x);
-      this.emitBD(extrusion.y);
-      this.emitBD(extrusion.z);
-    }
-  }
-
-  /**
-   * TV: longitud BS + esos bytes tal cual (la página de códigos es de una
-   * capa superior, igual que en `readTV`). Espejo exacto del lector.
-   */
-  emitTV(bytes: readonly number[]): void {
-    if (!Array.isArray(bytes) || bytes.length > 0xffff) {
-      throwDwgError(
-        "DWG_INPUT_INVALID",
-        "input",
-        0,
-        "A text value needs at most 65535 byte values.",
-      );
-    }
-    this.emitBS(bytes.length);
-    for (const byte of bytes) {
-      // pushBits valida que cada valor sea un entero de 0 a 255.
-      this.emitRC(byte);
-    }
-  }
-
-  /** H: código de 4 bits + contador + bytes big-endian mínimos del valor. */
-  emitH(code: number, value: number): void {
-    if (
-      !Number.isInteger(code) ||
-      code < 0 ||
-      code > 0xf ||
-      !Number.isSafeInteger(value) ||
-      value < 0
-    ) {
-      throwDwgError(
-        "DWG_INPUT_INVALID",
-        "input",
-        0,
-        "A handle needs a 4-bit code and a non-negative safe value.",
-      );
-    }
-    const bytes: number[] = [];
-    let rest = value;
-    while (rest > 0) {
-      bytes.unshift(rest % 0x100);
-      rest = Math.floor(rest / 0x100);
-    }
-    this.pushBits(code, 4);
-    this.pushBits(bytes.length, 4);
-    for (const byte of bytes) {
-      this.emitRC(byte);
-    }
-  }
-
-  /** Bytes emitidos; los bits sobrantes del último byte quedan a cero. */
-  toBytes(): Uint8Array {
-    const bytes = new Uint8Array(Math.ceil(this.#bits.length / 8));
-    this.#bits.forEach((bit, index) => {
-      if (bit === 1) {
-        bytes[Math.floor(index / 8)]! |= 1 << (7 - (index % 8));
-      }
-    });
-    return bytes;
-  }
+export interface Ac1015EntityWriteOptions {
+  readonly ownerBlockHandle?: number;
+  readonly insertBlockHandle?: number;
 }
 
 /**
@@ -315,6 +83,7 @@ export class DwgBitEmitter {
 export function writeAc1015EntityBody(
   entity: DwgGeometryEntity,
   ownHandle: number,
+  options: Ac1015EntityWriteOptions = {},
 ): Uint8Array {
   validateEntity(entity);
   if (!Number.isSafeInteger(ownHandle) || ownHandle < 1) {
@@ -325,18 +94,71 @@ export function writeAc1015EntityBody(
       "An entity handle must be a positive safe integer.",
     );
   }
-
-  // Composición en dos pasadas: el tamaño RL cuenta TODOS los bits del dato
-  // desde el primer bit del tipo hasta el arranque de los handles — incluido
-  // el propio RL — así que primero se mide y después se compone.
-  const head = new DwgBitEmitter();
-  head.emitBS(typeOf(entity));
+  const ownerBlockHandle = optionalHandle(
+    options.ownerBlockHandle,
+    "An owner block handle",
+  );
+  const insertBlockHandle = optionalHandle(
+    options.insertBlockHandle,
+    "An insert block handle",
+  );
+  if (entity.kind === "insert" && insertBlockHandle === undefined) {
+    // Un INSERT sin bloque no significa nada: se rechaza cerrado en vez de
+    // emitir una referencia nula que sólo aplazaría el error.
+    throwDwgError(
+      "DWG_INPUT_INVALID",
+      "input",
+      0,
+      "An insert entity requires the handle of its block record.",
+    );
+  }
+  if (entity.kind !== "insert" && insertBlockHandle !== undefined) {
+    throwDwgError(
+      "DWG_INPUT_INVALID",
+      "input",
+      0,
+      "Only an insert entity may reference an inserted block.",
+    );
+  }
 
   const tail = new DwgBitEmitter();
+  emitAc1015EntityCommonTail(tail, ownHandle, ownerBlockHandle !== undefined);
+  emitEntitySpecific(tail, entity);
+
+  // Flujo de handles mínimo coherente con las banderas emitidas: propietario
+  // SOLO en modo 0 (código 4, decisión de laboratorio declarada — el lector
+  // acepta cualquier código absoluto 2–5), xdictionary y capa NULOS
+  // (placeholders confesos) y, en un INSERT, el hard pointer al bloque con
+  // código 5 (hecho registrado). Ni reactores (0), ni ltype ni plotstyle
+  // (banderas 0) esperan handle alguno.
+  return composeAc1015ObjectBody(typeOf(entity), tail, (stream) => {
+    if (ownerBlockHandle !== undefined) {
+      stream.emitH(4, ownerBlockHandle);
+    }
+    stream.emitH(0, 0); // xdictionary nulo
+    stream.emitH(0, 0); // capa nula
+    if (insertBlockHandle !== undefined) {
+      stream.emitH(5, insertBlockHandle);
+    }
+  });
+}
+
+/**
+ * El común mínimo coherente de entidad, campo a campo idéntico al que las
+ * fases D2/D3 emitían inline; `ownerInStream` cambia SOLO el modo (0 en vez
+ * de 2) — el handle del propietario lo emite el flujo final del llamador.
+ * Exportado para que la tabla de bloques emita BLOCK/ENDBLK con el MISMO
+ * común, sin constantes gemelas.
+ */
+export function emitAc1015EntityCommonTail(
+  tail: DwgBitEmitter,
+  ownHandle: number,
+  ownerInStream: boolean,
+): void {
   tail.emitH(0, ownHandle); // handle propio, código 0
   tail.emitBS(0); // EED vacío
   tail.pushBit(0); // sin gráfico de previsualización
-  tail.pushBits(0b10, 2); // modo 2: model space, sin propietario en el flujo
+  tail.pushBits(ownerInStream ? 0b00 : 0b10, 2); // modo 0 (bloque) o 2 (model)
   tail.emitBL(0); // cero reactores
   tail.pushBit(1); // sin vínculos de subentidad
   tail.emitBS(256); // color ByLayer
@@ -345,21 +167,47 @@ export function writeAc1015EntityBody(
   tail.pushBits(0b00, 2); // plotstyle ByLayer: sin handle en el flujo
   tail.emitBS(0); // visible
   tail.emitRC(0x1d); // lineweight ByLayer (placeholder registrado)
-  emitEntitySpecific(tail, entity);
+}
 
+/**
+ * Composición en dos pasadas de un cuerpo de objeto R2000: el tamaño RL
+ * cuenta TODOS los bits del dato desde el primer bit del tipo — incluido el
+ * propio RL — así que primero se mide y después se compone; el flujo de
+ * handles queda FUERA del tamaño declarado. Es LA única composición del
+ * writer: entidades, tablas y bloques pasan por aquí (cero marcos gemelos).
+ */
+export function composeAc1015ObjectBody(
+  type: number,
+  tail: DwgBitEmitter,
+  emitHandleStream: (stream: DwgBitEmitter) => void,
+): Uint8Array {
+  const head = new DwgBitEmitter();
+  head.emitBS(type);
   const bitSize = head.bitLength + 32 + tail.bitLength;
 
   const body = new DwgBitEmitter();
   body.pushEmitter(head);
   body.emitRL(bitSize);
   body.pushEmitter(tail);
-  // Flujo de handles mínimo coherente con las banderas emitidas: xdictionary
-  // y capa NULOS (placeholders confesos; las tablas de símbolos son de fases
-  // posteriores). Ni propietario (modo 2), ni reactores (0), ni ltype ni
-  // plotstyle (banderas 0) esperan handle alguno.
-  body.emitH(0, 0);
-  body.emitH(0, 0);
+  emitHandleStream(body);
   return body.toBytes();
+}
+
+/** Valida un handle opcional del flujo: ausente o entero seguro positivo. */
+function optionalHandle(
+  value: number | undefined,
+  what: string,
+): number | undefined {
+  if (value === undefined) return undefined;
+  if (!Number.isSafeInteger(value) || value < 1) {
+    throwDwgError(
+      "DWG_INPUT_INVALID",
+      "input",
+      0,
+      `${what} must be a positive safe integer.`,
+    );
+  }
+  return value;
 }
 
 /** Los datos específicos del tipo, espejo campo a campo del decodificador. */
@@ -412,7 +260,37 @@ function emitEntitySpecific(
     case "text":
       emitText(emitter, entity);
       return;
+    case "insert":
+      emitInsert(emitter, entity);
+      return;
   }
+}
+
+/**
+ * INSERT: inserción 3BD y la doble bandada de escalas — este writer emite
+ * SOLO sus formas totales, 0b11 (las tres escalas exactamente 1.0, bit a
+ * bit) o 0b00 (X como RD y las Y/Z como DD contra la X); las formas 0b01 y
+ * 0b10 son compresión que el lector ya acepta, como con DD. Después la
+ * rotación BD, la extrusión BE y el bit de ATTRIBs (siempre 0 aquí: emitir
+ * ATTRIBs queda declarado pendiente y el writer falla cerrado si el modelo
+ * lo pide).
+ */
+function emitInsert(emitter: DwgBitEmitter, entity: DwgInsertEntity): void {
+  emitter.emitBD(entity.position.x);
+  emitter.emitBD(entity.position.y);
+  emitter.emitBD(entity.position.z);
+  const { x, y, z } = entity.scale;
+  if (Object.is(x, 1) && Object.is(y, 1) && Object.is(z, 1)) {
+    emitter.pushBits(0b11, 2);
+  } else {
+    emitter.pushBits(0b00, 2);
+    emitter.emitRD(x);
+    emitter.emitDD(y, x);
+    emitter.emitDD(z, x);
+  }
+  emitter.emitBD(entity.rotation);
+  emitter.emitBE(entity.extrusion);
+  emitter.pushBit(0); // sin ATTRIBs: pendiente declarado de la fase D4
 }
 
 /**
@@ -524,6 +402,8 @@ function typeOf(entity: DwgGeometryEntity): number {
       return AC1015_TYPE_LWPOLYLINE;
     case "text":
       return AC1015_TYPE_TEXT;
+    case "insert":
+      return AC1015_TYPE_INSERT;
   }
 }
 
@@ -550,6 +430,7 @@ function validateEntity(entity: DwgGeometryEntity): void {
     );
   if (
     entity.kind !== "lwpolyline" &&
+    entity.kind !== "insert" &&
     (!Number.isFinite(entity.thickness) || !isFiniteDwgPoint3(entity.extrusion))
   ) {
     invalid();
@@ -589,6 +470,27 @@ function validateEntity(entity: DwgGeometryEntity): void {
       return;
     case "text":
       validateText(entity, invalid);
+      return;
+    case "insert":
+      if (
+        !isFiniteDwgPoint3(entity.position) ||
+        !isFiniteDwgPoint3(entity.scale) ||
+        !Number.isFinite(entity.rotation) ||
+        !isFiniteDwgPoint3(entity.extrusion) ||
+        typeof entity.attributesFollow !== "boolean"
+      ) {
+        invalid();
+      }
+      if (entity.attributesFollow) {
+        // Emitir ATTRIBs es pendiente DECLARADO de la fase D4: fallo cerrado
+        // en vez de emitir una bandera que promete objetos que no existen.
+        throwDwgError(
+          "DWG_INPUT_INVALID",
+          "input",
+          0,
+          "Writing insert attributes is not implemented by the phase-D4 laboratory.",
+        );
+      }
       return;
   }
 }
@@ -690,16 +592,5 @@ function validateText(entity: DwgTextEntity, invalid: () => never): void {
     ) {
       invalid();
     }
-  }
-}
-
-function assertFiniteDouble(value: number): void {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    throwDwgError(
-      "DWG_INPUT_INVALID",
-      "input",
-      0,
-      "A double field must be a finite number.",
-    );
   }
 }

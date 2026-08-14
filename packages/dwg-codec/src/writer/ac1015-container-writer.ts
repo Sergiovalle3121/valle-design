@@ -51,6 +51,16 @@ import {
 import { throwDwgError } from "../security/parse-error.js";
 import type { Ac1015ObjectMapEntry } from "../container/ac1015-object-map.js";
 import type { DwgGeometryEntity } from "../model/entity-geometry.js";
+import {
+  writeAc1015BlockBeginBody,
+  writeAc1015BlockControlBody,
+  writeAc1015BlockEndBody,
+  writeAc1015BlockRecordBody,
+  type Ac1015BlockBeginWriteSpec,
+  type Ac1015BlockControlWriteSpec,
+  type Ac1015BlockEndWriteSpec,
+  type Ac1015BlockRecordWriteSpec,
+} from "./ac1015-block-writer.js";
 import { writeAc1015EntityBody } from "./ac1015-entity-writer.js";
 import {
   AC1015_WRITER_MAX_OBJECTS,
@@ -76,6 +86,13 @@ export interface Ac1015EntityObjectSpec {
   readonly entity: DwgGeometryEntity;
   /** Handle del objeto. Por defecto, el anterior más uno (desde 1). */
   readonly handle?: number;
+  /**
+   * Fase D4: handle del BLOCK_RECORD dueño — la entidad viaja en modo 0 y
+   * pertenece al bloque; ausente, viaja en modo 2 (model space).
+   */
+  readonly ownerBlockHandle?: number;
+  /** Fase D4, sólo INSERT: handle del BLOCK_RECORD insertado. */
+  readonly insertBlockHandle?: number;
 }
 
 /** Especificación de una entrada LAYER real (fase D3), misma regla de handle. */
@@ -92,15 +109,48 @@ export interface Ac1015LayerControlObjectSpec {
   readonly handle?: number;
 }
 
+/** Especificación de un BLOCK_RECORD (fase D4), misma regla de handle. */
+export interface Ac1015BlockRecordObjectSpec {
+  readonly blockRecord: Ac1015BlockRecordWriteSpec;
+  /** Handle del objeto. Por defecto, el anterior más uno (desde 1). */
+  readonly handle?: number;
+}
+
+/** Especificación del CONTROL de la tabla de bloques (fase D4). */
+export interface Ac1015BlockControlObjectSpec {
+  readonly blockControl: Ac1015BlockControlWriteSpec;
+  /** Handle del objeto. Por defecto, el anterior más uno (desde 1). */
+  readonly handle?: number;
+}
+
+/** Especificación de la entidad BLOCK que abre un bloque (fase D4). */
+export interface Ac1015BlockBeginObjectSpec {
+  readonly blockBegin: Ac1015BlockBeginWriteSpec;
+  /** Handle del objeto. Por defecto, el anterior más uno (desde 1). */
+  readonly handle?: number;
+}
+
+/** Especificación de la entidad ENDBLK que cierra un bloque (fase D4). */
+export interface Ac1015BlockEndObjectSpec {
+  readonly blockEnd: Ac1015BlockEndWriteSpec;
+  /** Handle del objeto. Por defecto, el anterior más uno (desde 1). */
+  readonly handle?: number;
+}
+
 /**
- * Un objeto del contenedor: sintético opaco (D1), entidad real (D2) o tabla
- * de capas mínima (D3).
+ * Un objeto del contenedor: sintético opaco (D1), entidad real (D2/D4),
+ * tabla de capas mínima (D3) o tabla de bloques con sus entidades
+ * estructurales (D4).
  */
 export type Ac1015ObjectSpec =
   | Ac1015SyntheticObjectSpec
   | Ac1015EntityObjectSpec
   | Ac1015LayerObjectSpec
-  | Ac1015LayerControlObjectSpec;
+  | Ac1015LayerControlObjectSpec
+  | Ac1015BlockRecordObjectSpec
+  | Ac1015BlockControlObjectSpec
+  | Ac1015BlockBeginObjectSpec
+  | Ac1015BlockEndObjectSpec;
 
 /** Página de códigos por defecto: ANSI_1252, la habitual en dibujos R2000. */
 export const AC1015_DEFAULT_CODEPAGE = 0x4e4;
@@ -346,8 +396,8 @@ function buildSyntheticObjects(
 
 /**
  * Un spec declara EXACTAMENTE una naturaleza — entidad real, sintético
- * opaco, capa o control de capas —: la mezcla sería ambigua y se rechaza
- * cerrada en vez de elegir en silencio.
+ * opaco, capa/control de capas o pieza de la tabla de bloques —: la mezcla
+ * sería ambigua y se rechaza cerrada en vez de elegir en silencio.
  */
 function buildObjectEnvelope(
   spec: Ac1015ObjectSpec,
@@ -357,20 +407,40 @@ function buildObjectEnvelope(
   const isSynthetic = "type" in spec && spec.type !== undefined;
   const isLayer = "layer" in spec && spec.layer !== undefined;
   const isLayerControl = "layerControl" in spec && spec.layerControl !== undefined;
-  const natures = [isEntity, isSynthetic, isLayer, isLayerControl].filter(
-    (nature) => nature,
-  ).length;
+  const isBlockRecord = "blockRecord" in spec && spec.blockRecord !== undefined;
+  const isBlockControl = "blockControl" in spec && spec.blockControl !== undefined;
+  const isBlockBegin = "blockBegin" in spec && spec.blockBegin !== undefined;
+  const isBlockEnd = "blockEnd" in spec && spec.blockEnd !== undefined;
+  const natures = [
+    isEntity,
+    isSynthetic,
+    isLayer,
+    isLayerControl,
+    isBlockRecord,
+    isBlockControl,
+    isBlockBegin,
+    isBlockEnd,
+  ].filter((nature) => nature).length;
   if (natures !== 1) {
     throwDwgError(
       "DWG_INPUT_INVALID",
       "input",
       0,
-      "An object spec must declare exactly one of entity, type, layer or layerControl.",
+      "An object spec must declare exactly one nature (entity, type, layer, layerControl, blockRecord, blockControl, blockBegin or blockEnd).",
     );
   }
   if (isEntity) {
     const entitySpec = spec as Ac1015EntityObjectSpec;
-    return wrapAc1015ObjectBody(writeAc1015EntityBody(entitySpec.entity, handle));
+    return wrapAc1015ObjectBody(
+      writeAc1015EntityBody(entitySpec.entity, handle, {
+        ...(entitySpec.ownerBlockHandle === undefined
+          ? {}
+          : { ownerBlockHandle: entitySpec.ownerBlockHandle }),
+        ...(entitySpec.insertBlockHandle === undefined
+          ? {}
+          : { insertBlockHandle: entitySpec.insertBlockHandle }),
+      }),
+    );
   }
   if (isLayer) {
     const layerSpec = spec as Ac1015LayerObjectSpec;
@@ -380,6 +450,30 @@ function buildObjectEnvelope(
     const controlSpec = spec as Ac1015LayerControlObjectSpec;
     return wrapAc1015ObjectBody(
       writeAc1015LayerControlBody(controlSpec.layerControl, handle),
+    );
+  }
+  if (isBlockRecord) {
+    const recordSpec = spec as Ac1015BlockRecordObjectSpec;
+    return wrapAc1015ObjectBody(
+      writeAc1015BlockRecordBody(recordSpec.blockRecord, handle),
+    );
+  }
+  if (isBlockControl) {
+    const controlSpec = spec as Ac1015BlockControlObjectSpec;
+    return wrapAc1015ObjectBody(
+      writeAc1015BlockControlBody(controlSpec.blockControl, handle),
+    );
+  }
+  if (isBlockBegin) {
+    const beginSpec = spec as Ac1015BlockBeginObjectSpec;
+    return wrapAc1015ObjectBody(
+      writeAc1015BlockBeginBody(beginSpec.blockBegin, handle),
+    );
+  }
+  if (isBlockEnd) {
+    const endSpec = spec as Ac1015BlockEndObjectSpec;
+    return wrapAc1015ObjectBody(
+      writeAc1015BlockEndBody(endSpec.blockEnd, handle),
     );
   }
   return writeAc1015ObjectEnvelope(spec as Ac1015SyntheticObjectSpec);

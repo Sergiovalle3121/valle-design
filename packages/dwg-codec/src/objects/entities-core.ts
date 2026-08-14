@@ -10,8 +10,9 @@
  * de handles del final del objeto).
  *
  * Códigos de TIPO BS de estas entidades (hechos registrados en
- * SOURCE_REGISTER, ODA-ODS-DWG-5.4.1-PUBLIC): 0x01 TEXT, 0x11 ARC,
- * 0x12 CIRCLE, 0x13 LINE, 0x1B POINT, 0x4D LWPOLYLINE.
+ * SOURCE_REGISTER, ODA-ODS-DWG-5.4.1-PUBLIC): 0x01 TEXT, 0x07 INSERT (su
+ * decodificador vive en `entity-insert.ts`), 0x11 ARC, 0x12 CIRCLE,
+ * 0x13 LINE, 0x1B POINT, 0x4D LWPOLYLINE.
  *
  * Reglas del laboratorio:
  * - **Unsupported no es corrupt**: un tipo BS que esta fase no decodifica
@@ -25,7 +26,11 @@
  *   como tramo opaco con su posición exacta.
  */
 import { BoundedByteCursor } from "../binary/byte-cursor.js";
-import { DwgBitReader } from "../codecs/bitcodes.js";
+import {
+  DwgBitReader,
+  resolveDwgHandleReference,
+  type DwgResolvedHandle,
+} from "../codecs/bitcodes.js";
 import type {
   DwgArcEntity,
   DwgCircleEntity,
@@ -37,13 +42,16 @@ import type {
   DwgTextEntity,
 } from "../model/entity-geometry.js";
 import { throwDwgError } from "../security/parse-error.js";
+import { AC1015_TYPE_INSERT, decodeInsert } from "./entity-insert.js";
 import { AC1015_TYPE_LWPOLYLINE, decodeLwPolyline } from "./entities-poly.js";
 import {
   finiteDecoded,
   frozenPoint3,
   readAc1015EntityCommon,
+  readAc1015EntityHandleHead,
   readFiniteExtrusion,
   type Ac1015EntityCommon,
+  type Ac1015EntityHandleHead,
   type Ac1015OpaqueSpan,
 } from "./entity-common.js";
 
@@ -54,6 +62,17 @@ export const AC1015_TYPE_CIRCLE = 0x12;
 export const AC1015_TYPE_LINE = 0x13;
 export const AC1015_TYPE_POINT = 0x1b;
 export { AC1015_TYPE_LWPOLYLINE } from "./entities-poly.js";
+export { AC1015_TYPE_INSERT } from "./entity-insert.js";
+
+/**
+ * Las referencias interpretadas de una entidad (fase D4): la cabeza del flujo
+ * de handles y, SOLO para un INSERT, el hard pointer a su BLOCK_RECORD — la
+ * referencia que da sentido al INSERT y que el formato sitúa tras la cabeza
+ * común (hecho registrado; certeza declarada en el worklog).
+ */
+export interface Ac1015EntityReferences extends Ac1015EntityHandleHead {
+  readonly blockRecord: DwgResolvedHandle | undefined;
+}
 
 /** Una entidad decodificada por completo: común, geometría y restos opacos. */
 export interface Ac1015DecodedEntity {
@@ -61,6 +80,8 @@ export interface Ac1015DecodedEntity {
   readonly entity: DwgGeometryEntity;
   /** EED y gráfico (si los hubo) más el flujo de handles final. */
   readonly opaqueSpans: readonly Ac1015OpaqueSpan[];
+  /** La cabeza del flujo interpretada; el tramo sigue contabilizado opaco. */
+  readonly references: Ac1015EntityReferences;
 }
 
 /**
@@ -84,7 +105,8 @@ export function decodeAc1015EntityBody(
     type !== AC1015_TYPE_CIRCLE &&
     type !== AC1015_TYPE_ARC &&
     type !== AC1015_TYPE_LWPOLYLINE &&
-    type !== AC1015_TYPE_TEXT
+    type !== AC1015_TYPE_TEXT &&
+    type !== AC1015_TYPE_INSERT
   ) {
     throwDwgError(
       "DWG_VERSION_DECODER_UNSUPPORTED",
@@ -126,10 +148,22 @@ export function decodeAc1015EntityBody(
     );
   }
 
+  // La cabeza del flujo se interpreta ADEMÁS de contabilizarse: propietario
+  // (la pertenencia entidad→bloque de la fase D4), xdictionary y capa; y en
+  // un INSERT, el siguiente handle es el hard pointer a su BLOCK_RECORD —
+  // sin él, el INSERT no significa nada. El resto del flujo (ATTRIBs de un
+  // INSERT, estilo de un TEXT) sigue opaco y declarado pendiente.
+  const head = readAc1015EntityHandleHead(reader, common);
+  const blockRecord =
+    common.type === AC1015_TYPE_INSERT
+      ? resolveDwgHandleReference(reader.readH(), common.ownHandle.value)
+      : undefined;
+
   return Object.freeze({
     common,
     entity,
     opaqueSpans: Object.freeze(spans),
+    references: Object.freeze({ ...head, blockRecord }),
   });
 }
 
@@ -159,6 +193,8 @@ function decodeEntitySpecific(
       return decodeLwPolyline(reader);
     case AC1015_TYPE_TEXT:
       return decodeText(reader);
+    case AC1015_TYPE_INSERT:
+      return decodeInsert(reader);
     default:
       // Inalcanzable: el despachador sólo se llama tras el filtro de tipos.
       // Si llega, el error es NUESTRO, no del archivo.

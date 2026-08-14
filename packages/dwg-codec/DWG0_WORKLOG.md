@@ -390,3 +390,96 @@ y la promoción condicionada a revisión legal externa.
   flujos de handles siguen opacos y contabilizados; resolver referencias
   entre objetos (capa de una entidad, entradas del control) es de una fase
   posterior. El producto permanece `available:false`.
+
+## DWG-1 sesión 2026-08-14 (continuación) — INSERT, tabla de bloques y el ensamblado (fase D4)
+
+- Hechos nuevos registrados ANTES de derivar código en
+  `ODA-ODS-DWG-5.4.1-PUBLIC`: códigos de tipo 0x04 BLOCK, 0x05 ENDBLK,
+  0x07 INSERT, 0x30 BLOCK CONTROL y 0x31 BLOCK HEADER; los datos del INSERT
+  (inserción 3BD, doble bandada BB de escalas — 00 X como RD con Y/Z en DD
+  contra la X, 01 X = 1.0 con Y/Z en DD contra 1.0, 10 un único RD uniforme,
+  11 las tres escalas 1.0 —, rotación BD, extrusión BE y bit de ATTRIBs); la
+  cabeza del flujo de handles de entidad (propietario según el modo,
+  reactores, xdictionary, capa) con el hard pointer del INSERT a su BLOCK
+  HEADER tras ella; la entrada BLOCK HEADER (nombre TV, campos de xref, bits
+  de anónimo/ATTDEFs/es-xref/superpuesto, punto base 3BD, ruta TV, secuencia
+  RC de recuentos de inserción terminada en 0, descripción TV y
+  previsualización con tamaño BL, con los punteros a la entidad BLOCK,
+  primera/última entidad y ENDBLK en su flujo final); y el control de
+  bloques con model/paper space fuera del recuento.
+- Nuevo `src/objects/entity-insert.ts`: `decodeInsert` con las cuatro formas
+  de la bandada de escalas; el writer emite SOLO 00/11 (como con DD, lo
+  dudoso se acepta al leer y no se emite). La bandera de ATTRIBs viaja en el
+  modelo (`attributesFollow`); decodificar o emitir ATTRIBs es pendiente
+  DECLARADO — el writer falla cerrado si el modelo la pide.
+- `entity-common.ts` ampliado con la MISMA disciplina de tramos
+  contabilizados: `readAc1015EntityHandleHead` interpreta la cabeza del
+  flujo (propietario/xdictionary/capa/ltype/plotstyle, resueltos contra el
+  handle propio) SIN sustituir el tramo opaco, que sigue anotado entero. El
+  despachador de `entities-core.ts` la aplica a las siete entidades y, en un
+  INSERT, extrae además el hard pointer al BLOCK_RECORD; `references` viaja
+  en el resultado decodificado.
+- Nuevo `src/objects/table-block.ts`: BLOCK_RECORD (nombre, banderas, punto
+  base, previsualización contabilizada como tramo `graphic`), su CONTROL
+  (reutilizando el común y el cierre EXPORTADOS de `table-layer.ts` — cero
+  gemelos) y las entidades BLOCK (nombre TV) y ENDBLK (sin campos).
+- Writer espejo: `src/writer/ac1015-block-writer.ts` (registro, control con
+  dos nulos finales confesos, BLOCK/ENDBLK en modo 0 con propietario);
+  `writeAc1015EntityBody` acepta `{ownerBlockHandle, insertBlockHandle}` —
+  una entidad con dueño viaja en modo 0 con el propietario abriendo su
+  flujo; el INSERT exige su bloque o falla cerrado. La composición de
+  cuerpos y el común de entidad quedaron EXPORTADOS únicos
+  (`composeAc1015ObjectBody`, `emitAc1015EntityCommonTail`) y el contenedor
+  acepta las cuatro naturalezas nuevas manteniendo UNA naturaleza por spec.
+  `DwgBitEmitter` se movió SIN cambios a `src/writer/dwg-bit-emitter.ts`
+  (presupuesto de 800 líneas del monorepo) y se re-exporta desde el writer
+  de entidades para conservar la superficie de las fases anteriores.
+- ENSAMBLADO — nuevo `src/reader/ac1015-database-reader.ts`:
+  `readAc1015Database(bytes, limits?)` orquesta firma → cabecera → marcos de
+  variables/clases → mapa → envoltura → común → decodificador por tipo, con
+  `createDwgLimits` y presupuesto cobrado por byte Y por objeto (el cuerpo
+  se cobra otra vez al decodificarlo). Devuelve la base neutral
+  `{layers, blocks, modelSpaceEntities, unsupported, diagnostics}`: los
+  tipos no decodificados se ENUMERAN `{handle, type}` — jamás descartados
+  en silencio —, la pertenencia entidad→bloque se resuelve por el
+  PROPIETARIO del común contra los BLOCK_RECORD, y el INSERT resuelve su
+  bloque a nombre. Propietario desconocido → model space con diagnóstico;
+  INSERT sin bloque → diagnóstico de error; BLOCK/ENDBLK sueltos o con
+  nombre torcido → diagnóstico; un handle de cuerpo que no coincide con su
+  entrada del mapa → corrupción (decisión de laboratorio).
+- Nuevas `tests/unit/entity-insert.spec.ts`, `tests/unit/table-block.spec.ts`
+  y `tests/unit/ac1015-database.spec.ts` (236 unit en total): la meta de la
+  fase — un contenedor con 2 capas, 1 bloque "PUERTA" con BLOCK + LINE +
+  CIRCLE + ENDBLK y un model space con POINT, ARC e INSERT del bloque, cuya
+  base recupera la estructura EXACTA con la referencia del INSERT resuelta
+  por nombre —, determinismo bytes-y-estructura, las formas de escala 01/10
+  aceptadas sin emitirse, referencia relativa de bloque resuelta contra el
+  handle propio, y gemelos tristes: INSERT a bloque inexistente
+  (diagnóstico `error`, no silencioso), propietario desconocido (model
+  space + diagnóstico), BLOCK ajeno y nombre torcido (diagnósticos), tipos
+  no soportados enumerados junto a los decodificados, límites bajos
+  (`maxObjects`, `maxWorkUnits`, `maxFileBytes`) con error tipado de
+  recursos, flujos que no alcanzan para el handle del bloque, truncados,
+  descuadres de bit-size y filtros cruzados.
+- `npm run check` del paquete y `npm run check:dwg` desde la raíz: verdes
+  (236 unit + 349 adversarial + fuzz determinista).
+- Certezas declaradas: ALTA en los cinco códigos de tipo nuevos, en el orden
+  general del dato del INSERT y en sus formas de escala 00/11, y en que el
+  BLOCK sólo lleva su nombre tras el común. MEDIA, pendiente de corpus real
+  con derechos (fase de intake): la asignación exacta de las formas de
+  escala 01/10, la posición del bit de ATTRIBs tras la extrusión, el ORDEN
+  de la cabeza del flujo de handles (propietario→reactores→xdictionary→capa)
+  y que el hard pointer del INSERT va justo tras ella, el orden de los
+  campos intermedios del BLOCK HEADER (recuentos de inserción, descripción,
+  previsualización), los punteros primera/última entidad y su flujo, que
+  ENDBLK carece de campos propios, y los registros model/paper space del
+  control de bloques fuera del recuento. Decisiones de LABORATORIO (no
+  hechos del formato): el código 4 para el propietario emitido y el 5 para
+  los punteros de bloque (el lector acepta 2–5 como absolutas), la
+  disposición exacta del flujo emitido del BLOCK_RECORD (placeholder
+  confeso, contabilizado sin interpretarse), el descuadre mapa/cuerpo como
+  corrupción, el modo 1 (paper space) y los propietarios no resueltos
+  conservados en model space CON diagnóstico, y el orden de la base = orden
+  del mapa. Los ATTRIBs del INSERT y la interpretación de los punteros
+  primera/última entidad quedan pendientes declarados. El producto
+  permanece `available:false`.

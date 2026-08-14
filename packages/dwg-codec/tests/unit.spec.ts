@@ -1,3 +1,4 @@
+import "./unit/ac1015-database.spec.js";
 import "./unit/ac1015-header.spec.js";
 import "./unit/ac1015-object-map.spec.js";
 import "./unit/ac1015-writer.spec.js";
@@ -6,6 +7,8 @@ import "./unit/binary.spec.js";
 import "./unit/bitcodes.spec.js";
 import "./unit/entities-core.spec.js";
 import "./unit/entities-poly.spec.js";
+import "./unit/entity-insert.spec.js";
 import "./unit/model.spec.js";
 import "./unit/security.spec.js";
+import "./unit/table-block.spec.js";
 import "./unit/table-layer.spec.js";

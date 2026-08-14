@@ -89,10 +89,10 @@ export interface Ac1015DecodedLayerControl {
  * error son relativos a su inicio.
  */
 export function decodeAc1015LayerBody(bodyBytes: Uint8Array): Ac1015DecodedLayer {
-  assertBodyType(bodyBytes, AC1015_TYPE_LAYER, "LAYER");
+  assertAc1015ObjectBodyType(bodyBytes, AC1015_TYPE_LAYER, "LAYER");
 
   const { common, reader, bodyBitLength, opaqueSpans } =
-    readTableObjectCommon(bodyBytes);
+    readAc1015TableObjectCommon(bodyBytes);
 
   // La entrada: nombre TV (bytes crudos), los tres campos de xref y el BS de
   // estado crudo, cerrando con el color CmC.
@@ -107,7 +107,7 @@ export function decodeAc1015LayerBody(bodyBytes: Uint8Array): Ac1015DecodedLayer
   const stateFlags = reader.readBS();
   const color = reader.readCmC();
 
-  const spans = closeWithHandleStream(
+  const spans = closeAc1015ObjectWithHandleStream(
     reader,
     common.bitSize,
     bodyBitLength,
@@ -137,10 +137,10 @@ export function decodeAc1015LayerBody(bodyBytes: Uint8Array): Ac1015DecodedLayer
 export function decodeAc1015LayerControlBody(
   bodyBytes: Uint8Array,
 ): Ac1015DecodedLayerControl {
-  assertBodyType(bodyBytes, AC1015_TYPE_LAYER_CONTROL, "LAYER CONTROL");
+  assertAc1015ObjectBodyType(bodyBytes, AC1015_TYPE_LAYER_CONTROL, "LAYER CONTROL");
 
   const { common, reader, bodyBitLength, opaqueSpans } =
-    readTableObjectCommon(bodyBytes);
+    readAc1015TableObjectCommon(bodyBytes);
 
   const entryCount = reader.readBL();
   // Reactores Y entradas comparten el flujo final con el propietario y el
@@ -154,7 +154,7 @@ export function decodeAc1015LayerControlBody(
     "table entry",
   );
 
-  const spans = closeWithHandleStream(
+  const spans = closeAc1015ObjectWithHandleStream(
     reader,
     common.bitSize,
     bodyBitLength,
@@ -164,8 +164,12 @@ export function decodeAc1015LayerControlBody(
   return Object.freeze({ common, entryCount, opaqueSpans: spans });
 }
 
-/** El común de objeto de tabla: prólogo compartido + reactores BL. */
-function readTableObjectCommon(bodyBytes: Uint8Array): {
+/**
+ * El común de objeto de tabla: prólogo compartido + reactores BL. Exportado
+ * desde la fase D4 para que la tabla de bloques (`table-block.ts`) comparta
+ * el MISMO criterio — cero comunes gemelos.
+ */
+export function readAc1015TableObjectCommon(bodyBytes: Uint8Array): {
   common: Ac1015TableObjectCommon;
   reader: DwgBitReader;
   bodyBitLength: number;
@@ -190,8 +194,9 @@ function readTableObjectCommon(bodyBytes: Uint8Array): {
  * Cierra el decodificado exigiendo que el tamaño en bits declarado cuadre
  * EXACTAMENTE con lo leído (ahí arranca el flujo de handles) y anota ese
  * flujo como tramo opaco. El mismo contrato que el despachador de entidades.
+ * Exportado desde la fase D4 para la tabla de bloques — un solo cierre.
  */
-function closeWithHandleStream(
+export function closeAc1015ObjectWithHandleStream(
   reader: DwgBitReader,
   bitSize: number,
   bodyBitLength: number,
@@ -222,9 +227,10 @@ function closeWithHandleStream(
  * Filtra el tipo ANTES de interpretar nada: un cuerpo cuyo tipo no es el
  * esperado puede ser un archivo perfecto que este decodificador no cubre —
  * capacidad ausente, no corrupción. Un cuerpo que no alcanza ni para su tipo
- * sí falla cerrado (dentro de `readBS`).
+ * sí falla cerrado (dentro de `readBS`). Exportado desde la fase D4 para que
+ * la tabla de bloques filtre con el MISMO criterio.
  */
-function assertBodyType(
+export function assertAc1015ObjectBodyType(
   bodyBytes: Uint8Array,
   expectedType: number,
   what: string,

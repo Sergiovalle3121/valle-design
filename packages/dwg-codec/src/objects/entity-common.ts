@@ -34,8 +34,10 @@
 import { BoundedByteCursor } from "../binary/byte-cursor.js";
 import {
   DwgBitReader,
+  resolveDwgHandleReference,
   type DwgColorReference,
   type DwgHandleReference,
+  type DwgResolvedHandle,
 } from "../codecs/bitcodes.js";
 import type { DwgPoint3 } from "../model/entity-geometry.js";
 import { throwDwgError } from "../security/parse-error.js";
@@ -303,6 +305,62 @@ function readGraphic(
 /** El byte (relativo al cuerpo) donde está parado el lector, para errores. */
 function byteOf(reader: DwgBitReader): number {
   return Math.floor(reader.bitPosition / 8);
+}
+
+/**
+ * La CABEZA interpretada del flujo de handles de una entidad R2000 (fase D4).
+ * Los tramos siguen CONTABILIZADOS como opacos — esto añade interpretación,
+ * no la sustituye. Hecho registrado (SOURCE_REGISTER): el flujo arranca con
+ * el propietario cuando el modo es 0, siguen los reactores declarados, el
+ * xdictionary y la capa, y cierran tipo de línea y plotstyle cuando sus
+ * banderas valen 3. Certeza declarada MEDIA en el worklog: el orden exacto
+ * queda pendiente de corpus real con derechos.
+ */
+export interface Ac1015EntityHandleHead {
+  /** Propietario resuelto; `undefined` cuando el modo no lo lleva (1/2). */
+  readonly owner: DwgResolvedHandle | undefined;
+  readonly xdictionary: DwgResolvedHandle;
+  readonly layer: DwgResolvedHandle;
+  /** Sólo cuando las banderas de linetype valen 3. */
+  readonly linetype: DwgResolvedHandle | undefined;
+  /** Sólo cuando las banderas de plotstyle valen 3. */
+  readonly plotstyle: DwgResolvedHandle | undefined;
+}
+
+/**
+ * Interpreta la cabeza del flujo de handles con el lector YA posicionado en
+ * el bit que declaró `bitSize` (el llamador debe haber exigido antes el
+ * encaje exacto). Cada referencia se resuelve contra el handle propio del
+ * objeto — las relativas del formato son relativas a él. Un flujo que no
+ * alcanza para sus handles obligatorios es corrupción, no un hueco que
+ * rellenar: fallo cerrado con su byte.
+ */
+export function readAc1015EntityHandleHead(
+  reader: DwgBitReader,
+  common: Ac1015EntityCommon,
+): Ac1015EntityHandleHead {
+  const base = common.ownHandle.value;
+  const owner =
+    common.entityMode === 0
+      ? resolveDwgHandleReference(reader.readH(), base)
+      : undefined;
+  // Los handles de reactores se recorren (el presupuesto los cobra) pero no
+  // se modelan aún: siguen dentro del tramo opaco contabilizado y su recuento
+  // ya viaja interpretado en el común.
+  for (let index = 0; index < common.reactorCount; index += 1) {
+    reader.readH();
+  }
+  const xdictionary = resolveDwgHandleReference(reader.readH(), base);
+  const layer = resolveDwgHandleReference(reader.readH(), base);
+  const linetype =
+    common.linetypeFlags === 3
+      ? resolveDwgHandleReference(reader.readH(), base)
+      : undefined;
+  const plotstyle =
+    common.plotstyleFlags === 3
+      ? resolveDwgHandleReference(reader.readH(), base)
+      : undefined;
+  return Object.freeze({ owner, xdictionary, layer, linetype, plotstyle });
 }
 
 /**

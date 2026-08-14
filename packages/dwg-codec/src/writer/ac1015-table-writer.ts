@@ -31,7 +31,7 @@ import {
   AC1015_TYPE_LAYER_CONTROL,
 } from "../objects/table-layer.js";
 import { throwDwgError } from "../security/parse-error.js";
-import { DwgBitEmitter } from "./ac1015-entity-writer.js";
+import { composeAc1015ObjectBody, DwgBitEmitter } from "./ac1015-entity-writer.js";
 
 /** Tope de bytes del nombre de una capa emitida: límite de LABORATORIO. */
 export const AC1015_TABLE_WRITER_MAX_NAME_BYTES = 0xff;
@@ -98,7 +98,7 @@ export function writeAc1015LayerBody(
   }
 
   const tail = new DwgBitEmitter();
-  emitObjectCommonTail(tail, ownHandle);
+  emitAc1015TableObjectCommonTail(tail, ownHandle);
   tail.emitTV(spec.name); // valida cada byte 0–255
   tail.pushBit(0); // sin referencia externa
   tail.emitBS(0); // índice de xref más uno: sin xref
@@ -108,7 +108,7 @@ export function writeAc1015LayerBody(
 
   // Flujo de handles: propietario, xdictionary, bloque de xref, plotstyle y
   // tipo de línea NULOS — placeholders confesos de esta fase.
-  return composeObjectBody(AC1015_TYPE_LAYER, tail, (stream) => {
+  return composeAc1015ObjectBody(AC1015_TYPE_LAYER, tail, (stream) => {
     for (let index = 0; index < 5; index += 1) {
       stream.emitH(0, 0);
     }
@@ -124,75 +124,96 @@ export function writeAc1015LayerControlBody(
   spec: Ac1015LayerControlWriteSpec,
   ownHandle: number,
 ): Uint8Array {
+  return writeAc1015TableControlBody(
+    AC1015_TYPE_LAYER_CONTROL,
+    spec.entryHandles,
+    ownHandle,
+    0,
+  );
+}
+
+/**
+ * Emisor GENÉRICO de un objeto de control de tabla (fase D4): común de
+ * objeto, recuento de entradas BL y flujo de handles con propietario y
+ * xdictionary nulos, las entradas como referencias absolutas (código 2) y
+ * `trailingNullHandles` nulos finales — los controles que declaran handles
+ * extra fuera del recuento (la tabla de bloques con sus registros de model y
+ * paper space) los llevan como placeholders CONFESOS. Un solo emisor para
+ * todos los controles: cero gemelos.
+ */
+export function writeAc1015TableControlBody(
+  type: number,
+  entryHandles: readonly number[],
+  ownHandle: number,
+  trailingNullHandles: number,
+): Uint8Array {
   assertOwnHandle(ownHandle);
-  if (!Array.isArray(spec.entryHandles)) {
+  if (!Array.isArray(entryHandles)) {
     throwDwgError(
       "DWG_INPUT_INVALID",
       "input",
       0,
-      "A layer control needs an array of entry handles.",
+      "A table control needs an array of entry handles.",
     );
   }
-  if (spec.entryHandles.length > AC1015_TABLE_WRITER_MAX_ENTRIES) {
+  if (entryHandles.length > AC1015_TABLE_WRITER_MAX_ENTRIES) {
     throwDwgError(
       "DWG_FILE_LIMIT_EXCEEDED",
       "resource",
       0,
-      "A layer control exceeds the phase-D3 laboratory entry limit.",
+      "A table control exceeds the phase-D laboratory entry limit.",
     );
   }
-  for (const handle of spec.entryHandles) {
+  for (const handle of entryHandles) {
     if (!Number.isSafeInteger(handle) || handle < 1) {
       throwDwgError(
         "DWG_INPUT_INVALID",
         "input",
         0,
-        "A layer control entry handle must be a positive safe integer.",
+        "A table control entry handle must be a positive safe integer.",
       );
     }
   }
+  if (
+    !Number.isSafeInteger(trailingNullHandles) ||
+    trailingNullHandles < 0 ||
+    trailingNullHandles > 8
+  ) {
+    throwDwgError(
+      "DWG_INTERNAL_ERROR",
+      "internal",
+      0,
+      "A table control writer received an impossible trailing-handle count.",
+    );
+  }
 
   const tail = new DwgBitEmitter();
-  emitObjectCommonTail(tail, ownHandle);
-  tail.emitBL(spec.entryHandles.length);
+  emitAc1015TableObjectCommonTail(tail, ownHandle);
+  tail.emitBL(entryHandles.length);
 
-  return composeObjectBody(AC1015_TYPE_LAYER_CONTROL, tail, (stream) => {
+  return composeAc1015ObjectBody(type, tail, (stream) => {
     stream.emitH(0, 0); // propietario nulo (placeholder confeso)
     stream.emitH(0, 0); // xdictionary nulo
-    for (const handle of spec.entryHandles) {
+    for (const handle of entryHandles) {
       stream.emitH(2, handle); // entrada como referencia absoluta
+    }
+    for (let index = 0; index < trailingNullHandles; index += 1) {
+      stream.emitH(0, 0);
     }
   });
 }
 
-/** El común mínimo de un objeto de tabla: H + EED vacío + 0 reactores. */
-function emitObjectCommonTail(tail: DwgBitEmitter, ownHandle: number): void {
+/**
+ * El común mínimo de un objeto de tabla: H + EED vacío + 0 reactores.
+ * Exportado desde la fase D4 para el writer de la tabla de bloques.
+ */
+export function emitAc1015TableObjectCommonTail(
+  tail: DwgBitEmitter,
+  ownHandle: number,
+): void {
   tail.emitH(0, ownHandle);
   tail.emitBS(0); // EED vacío
   tail.emitBL(0); // cero reactores
-}
-
-/**
- * Composición en dos pasadas, idéntica a la del writer de entidades: el RL
- * cuenta TODOS los bits del dato desde el primer bit del tipo — incluido el
- * propio RL — así que primero se mide y después se compone; el flujo de
- * handles queda FUERA del tamaño declarado.
- */
-function composeObjectBody(
-  type: number,
-  tail: DwgBitEmitter,
-  emitHandleStream: (stream: DwgBitEmitter) => void,
-): Uint8Array {
-  const head = new DwgBitEmitter();
-  head.emitBS(type);
-  const bitSize = head.bitLength + 32 + tail.bitLength;
-
-  const body = new DwgBitEmitter();
-  body.pushEmitter(head);
-  body.emitRL(bitSize);
-  body.pushEmitter(tail);
-  emitHandleStream(body);
-  return body.toBytes();
 }
 
 function assertOwnHandle(ownHandle: number): void {

@@ -131,14 +131,35 @@ export interface DwgTextEntity {
   readonly verticalAlignment: number | undefined;
 }
 
-/** Las entidades geométricas que las fases D2/D3 decodifican y codifican. */
+/**
+ * Referencia a bloque (INSERT). La geometría propia es la colocación: punto
+ * de inserción, escalas por eje, rotación y extrusión. QUÉ bloque se inserta
+ * no vive aquí — es una referencia entre objetos, y el modelo neutral no
+ * transporta handles del formato: el decodificador la expone aparte y el
+ * lector de base de datos la resuelve a un nombre de bloque.
+ * `attributesFollow` conserva la bandera de ATTRIBs del formato; decodificar
+ * esos ATTRIBs queda declarado pendiente (fase D4).
+ */
+export interface DwgInsertEntity {
+  readonly kind: "insert";
+  readonly position: DwgPoint3;
+  /** Escalas por eje. El caso unitario (1,1,1) es el habitual. */
+  readonly scale: DwgPoint3;
+  readonly rotation: number;
+  readonly extrusion: DwgPoint3;
+  /** Bandera del formato: a 1, entidades ATTRIB siguen al INSERT. */
+  readonly attributesFollow: boolean;
+}
+
+/** Las entidades geométricas que las fases D2/D3/D4 decodifican y codifican. */
 export type DwgGeometryEntity =
   | DwgLineEntity
   | DwgPointEntity
   | DwgCircleEntity
   | DwgArcEntity
   | DwgLwPolylineEntity
-  | DwgTextEntity;
+  | DwgTextEntity
+  | DwgInsertEntity;
 
 /** Los discriminantes válidos del modelo, para validación cerrada. */
 export const DWG_GEOMETRY_ENTITY_KINDS = Object.freeze([
@@ -148,6 +169,7 @@ export const DWG_GEOMETRY_ENTITY_KINDS = Object.freeze([
   "arc",
   "lwpolyline",
   "text",
+  "insert",
 ] as const);
 
 export type DwgGeometryEntityKind = (typeof DWG_GEOMETRY_ENTITY_KINDS)[number];
