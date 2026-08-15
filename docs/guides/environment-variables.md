@@ -49,6 +49,40 @@ El receptor valida `X-Valle-Signature` sobre
 `<X-Valle-Timestamp>.<raw-body>`, aplica una ventana de frescura y deduplica
 `Idempotency-Key`. La entrega es at-least-once.
 
+## Pasarela de pagos (Stripe)
+
+El proveedor de pagos se elige POR CONFIGURACIÓN y jamás a medias:
+
+- Sin ninguna de estas variables, el producto usa el adaptador **nulo**: el
+  catálogo publica `checkout: external`, el cobro ocurre fuera del producto
+  (asistido) y se registra vía `POST /v1/commercial/upgrade-intents`. Es el
+  modo por defecto y es una configuración válida.
+- Con las **cuatro** primeras variables, se inyecta el adaptador de Stripe:
+  `checkout: hosted`, `POST /v1/commercial/checkout-sessions` devuelve una URL
+  de pago y el ciclo de vida lo mueven los webhooks firmados.
+- Con **algunas pero no todas**, el arranque FALLA. Un despliegue que puede
+  cobrar pero no puede verificar el webhook cobraría sin enterarse.
+
+| Variable                            | Requerida        | Comportamiento                                                                                                    |
+| ----------------------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `STRIPE_SECRET_KEY`                 | Con pasarela     | Clave secreta de la cuenta (`sk_…`). Viaja como `Authorization: Bearer` y nunca se registra.                       |
+| `STRIPE_WEBHOOK_SECRET`             | Con pasarela     | Secreto del endpoint (`whsec_…`), mínimo 16 caracteres. Verifica la firma sobre los bytes crudos.                  |
+| `STRIPE_CHECKOUT_SUCCESS_URL`       | Con pasarela     | Retorno tras pagar. HTTPS obligatorio; HTTP sólo en loopback fuera de producción. Sin credenciales en la URL.      |
+| `STRIPE_CHECKOUT_CANCEL_URL`        | Con pasarela     | Retorno si el usuario abandona el pago; mismas reglas.                                                            |
+| `STRIPE_API_BASE_URL`               | No               | Base de la API; default `https://api.stripe.com`. Sin query ni fragmento. Existe para apuntar a un doble local.   |
+| `STRIPE_API_VERSION`                | No               | Fija la versión (`AAAA-MM-DD`). Sin ella manda la versión por defecto de la cuenta.                                |
+| `STRIPE_TIMEOUT_MS`                 | No               | Timeout por llamada; default `20000`, entero entre `1000` y `120000`.                                             |
+| `STRIPE_WEBHOOK_TOLERANCE_SECONDS`  | No               | Ventana de frescura de la firma; default `300`, entero entre `30` y `3600`. Fuera de ella el evento se rechaza.   |
+
+El endpoint `POST /v1/commercial/webhooks/stripe` es público (el emisor no
+tiene sesión: su credencial es la firma) y recibe el CUERPO CRUDO — su body
+parser se monta sólo en esa ruta. Es idempotente por `event.id`, que se apunta
+en `payment_events` dentro de la misma transacción que el efecto, así que una
+reentrega no renueva dos veces. Configura en el dashboard del proveedor estos
+eventos: `checkout.session.completed`, `invoice.paid`,
+`invoice.payment_failed` y `customer.subscription.deleted`. Cualquier otro tipo
+responde 200 y queda registrado sin efecto.
+
 ## Asistencia CIDE opcional
 
 | Variable               | Comportamiento                                                                              |

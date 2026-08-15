@@ -3,6 +3,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import {
   DomainOutbox,
   EmailOutbox,
+  Invoice,
+  PaymentEvent,
   PlanCatalog,
   PlanEntitlement,
   PlanPrice,
@@ -17,7 +19,10 @@ import {
   SUBSCRIPTION_PROVIDER,
   USAGE_METER,
 } from './ports/commercial.ports';
-import { PAYMENT_PROVIDER } from './ports/payment-provider.port';
+import {
+  PAYMENT_PROVIDER,
+  type PaymentProvider,
+} from './ports/payment-provider.port';
 import {
   PostgresCadEventPublisher,
   PostgresEmailService,
@@ -26,7 +31,15 @@ import {
   PostgresUsageMeter,
 } from './adapters/postgres.adapters';
 import { NullPaymentProvider } from './adapters/null-payment.provider';
+import {
+  globalStripeHttpClient,
+  resolveStripeConfiguration,
+  StripePaymentProvider,
+} from './adapters/stripe-payment.provider';
+import { BillingWebhookService } from './billing-webhook.service';
 import { EmailOutboxController } from './controllers/email-outbox.controller';
+import { BillingController } from './controllers/billing.controller';
+import { BillingWebhookController } from './controllers/billing-webhook.controller';
 import { CommercialController } from './controllers/commercial.controller';
 import {
   COMMERCIAL_OUTBOX_OBSERVER,
@@ -50,18 +63,42 @@ import { SubscriptionLifecycleService } from './subscription-lifecycle.service';
       UsageLedger,
       DomainOutbox,
       EmailOutbox,
+      PaymentEvent,
+      Invoice,
     ]),
   ],
-  controllers: [CommercialController, EmailOutboxController],
+  controllers: [
+    CommercialController,
+    BillingController,
+    BillingWebhookController,
+    EmailOutboxController,
+  ],
   providers: [
     { provide: ENTITLEMENT_SERVICE, useClass: PostgresEntitlementService },
     { provide: SUBSCRIPTION_PROVIDER, useClass: PostgresSubscriptionProvider },
     { provide: USAGE_METER, useClass: PostgresUsageMeter },
     { provide: CAD_EVENT_PUBLISHER, useClass: PostgresCadEventPublisher },
     { provide: EMAIL_SERVICE, useClass: PostgresEmailService },
-    // Adaptador de pagos por defecto: NO hay pasarela. El cobro del piloto es
-    // externo/asistido (upgrade-intents); la ola 2 sustituye este binding.
-    { provide: PAYMENT_PROVIDER, useClass: NullPaymentProvider },
+    // Selección del proveedor de pagos POR CONFIGURACIÓN, jamás a medias.
+    //
+    // Sin variables de Stripe el producto sigue exactamente como en la ola 1:
+    // adaptador nulo, cobro externo/asistido vía upgrade-intents. Con la
+    // configuración COMPLETA se enchufa el adaptador real. Y con una
+    // configuración incompleta el arranque FALLA (resolveStripeConfiguration
+    // lanza), porque un despliegue que puede cobrar pero no puede verificar el
+    // webhook cobraría sin enterarse — el peor de los tres mundos y el único
+    // que no se nota hasta que hay dinero de por medio.
+    //
+    // Enchufar claves reales es, por tanto, configuración; no toca código.
+    {
+      provide: PAYMENT_PROVIDER,
+      useFactory: (): PaymentProvider => {
+        const configuration = resolveStripeConfiguration(process.env);
+        return configuration
+          ? new StripePaymentProvider(configuration, globalStripeHttpClient)
+          : new NullPaymentProvider();
+      },
+    },
     WebhookCommercialOutboxTransport,
     {
       provide: COMMERCIAL_OUTBOX_TRANSPORT,
@@ -75,6 +112,7 @@ import { SubscriptionLifecycleService } from './subscription-lifecycle.service';
       useExisting: CommercialTelemetryService,
     },
     SubscriptionLifecycleService,
+    BillingWebhookService,
     CommercialOutboxDispatcher,
     CommercialOutboxWorker,
     CommercialCatalogBootstrap,

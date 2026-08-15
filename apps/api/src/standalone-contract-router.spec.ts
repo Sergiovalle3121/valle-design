@@ -4,8 +4,12 @@ import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import { BillingWebhookService } from './modules/commercial/billing-webhook.service';
+import { BillingController } from './modules/commercial/controllers/billing.controller';
+import { BillingWebhookController } from './modules/commercial/controllers/billing-webhook.controller';
 import { CommercialController } from './modules/commercial/controllers/commercial.controller';
 import {
+  Invoice,
   PlanCatalog,
   PlanEntitlement,
   PlanPrice,
@@ -58,12 +62,15 @@ describe('standalone OpenAPI contract against the real Nest router', () => {
       PlanEntitlement,
       PlanPrice,
       SubscriptionUpgradeIntent,
+      Invoice,
     ];
     const moduleRef = await Test.createTestingModule({
       controllers: [
         IdentityController,
         OrganizationsController,
         CommercialController,
+        BillingController,
+        BillingWebhookController,
       ],
       providers: [
         { provide: IdentityService, useValue: {} },
@@ -77,6 +84,7 @@ describe('standalone OpenAPI contract against the real Nest router', () => {
         { provide: CAD_EVENT_PUBLISHER, useValue: {} },
         { provide: PAYMENT_PROVIDER, useValue: {} },
         { provide: SubscriptionLifecycleService, useValue: {} },
+        { provide: BillingWebhookService, useValue: {} },
         { provide: IDENTITY_RATE_LIMIT_STORE, useValue: {} },
         ...repositoryEntities.map((entity) => ({
           provide: getRepositoryToken(entity),
@@ -127,7 +135,9 @@ describe('standalone OpenAPI contract against the real Nest router', () => {
     ).replaceAll('\r\n', '\n');
     const expected = openApiOperations(spec);
 
-    expect(expected).toHaveLength(25);
+    // 25 de la ola 1 + las 4 de la compra autoservicio (checkout, facturas,
+    // baja y el webhook público de la pasarela).
+    expect(expected).toHaveLength(29);
     expect([...actual].sort()).toEqual(expected.sort());
   });
 });

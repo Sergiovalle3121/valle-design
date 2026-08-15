@@ -583,6 +583,140 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ApiError" }
+  /v1/commercial/checkout-sessions:
+    post:
+      operationId: createCommercialCheckoutSession
+      tags: [commercial]
+      summary: Abre una compra autoservicio (owner/admin) y devuelve la URL hospedada.
+      description: >-
+        Registra el intent auditable (a lo sumo uno `pending` por
+        organizacion; un `pending` del MISMO plan se reutiliza) y pide al
+        proveedor una sesion de pago hospedada. El precio sale de
+        `plan_prices`, nunca del cliente. Con el proveedor nulo la ruta
+        responde 409 `checkout_unavailable` con el intent ya registrado: el
+        cobro de ese despliegue es externo/asistido.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              { $ref: "#/components/schemas/CommercialCheckoutSessionCreate" }
+      responses:
+        "201":
+          description: Sesion abierta; `url` es la pagina de pago del proveedor.
+          content:
+            application/json:
+              schema:
+                { $ref: "#/components/schemas/CommercialCheckoutSession" }
+        "400":
+          description: >-
+            Plan no vendible (`plan_unavailable`) o sin precio publicado para
+            esa moneda y periodo (`price_unavailable`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409":
+          description: >-
+            No hay pasarela configurada (`checkout_unavailable`), ya existe un
+            `pending` de otro plan (`upgrade_intent_pending`) o el plan ya
+            esta activo (`plan_already_active`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /v1/commercial/invoices:
+    get:
+      operationId: listCommercialInvoices
+      tags: [commercial]
+      summary: Lista el historial de facturas de la organizacion (owner/admin).
+      description: >-
+        Espejo local de las facturas del proveedor, de la mas reciente a la
+        mas antigua. El documento fiscal sigue siendo del proveedor:
+        `hostedUrl` apunta a el. Nunca incluye datos de pago.
+      responses:
+        "200":
+          description: Facturas de la organizacion activa; vacio si no hubo cobros.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CommercialInvoiceList" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/commercial/subscription/cancel:
+    post:
+      operationId: cancelCommercialSubscription
+      tags: [commercial]
+      summary: Cancela la suscripcion a fin de periodo (solo owner).
+      description: >-
+        No corta el acceso: lo comprado sigue vigente hasta
+        `currentPeriodEnd`, y el estado `cancelled` lo aplica el webhook del
+        proveedor cuando el periodo expira. Con el proveedor nulo la solicitud
+        queda registrada como evento de dominio para el operador
+        (`kind: recorded`).
+      responses:
+        "200":
+          description: Baja programada (`scheduled`) o registrada (`recorded`).
+          content:
+            application/json:
+              schema:
+                {
+                  $ref: "#/components/schemas/CommercialSubscriptionCancellation",
+                }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: La suscripcion ya estaba cancelada.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+  /v1/commercial/webhooks/stripe:
+    post:
+      operationId: receiveStripeWebhook
+      tags: [commercial]
+      summary: Recibe eventos firmados de la pasarela (ruta publica).
+      description: >-
+        Publica porque el emisor es la pasarela, que no tiene sesion: su
+        credencial es la firma HMAC-SHA256 sobre los BYTES CRUDOS, con
+        tolerancia de tiempo. Idempotente por `event.id`; el efecto y su
+        asiento comparten transaccion. Un tipo no modelado responde 200 y
+        queda registrado — jamas un 500.
+      security: []
+      requestBody:
+        required: true
+        description: Evento del proveedor, tal cual, sin reserializar.
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Evento opaco del proveedor; se verifica por firma.
+      responses:
+        "200":
+          description: Procesado, duplicado o registrado sin efecto.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StripeWebhookAccepted" }
+        "400":
+          description: >-
+            Firma ausente, invalida o fuera de tolerancia, o cuerpo no
+            verificable (`invalid_signature`, `raw_body_required`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "409":
+          description: >-
+            Evento legitimo que aun no se puede atribuir a una organizacion
+            (`event_not_correlated`); el proveedor debe reintentar.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "503":
+          description: >-
+            El despliegue no tiene pasarela configurada
+            (`payment_provider_unavailable`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
   /v1/cad/projects:
     get:
       operationId: listCadProjects
@@ -2290,13 +2424,55 @@ components:
         accepted: { type: boolean, const: true }
         organizationId: { type: string, format: uuid }
         role: { $ref: "#/components/schemas/OrganizationInvitationRole" }
+    BilledSubscriptionView:
+      type: object
+      additionalProperties: false
+      required:
+        [planCode, status, trialEndsAt, currentPeriodEnd, cancelAtPeriodEnd]
+      properties:
+        planCode: { type: string, maxLength: 80 }
+        status: { $ref: "#/components/schemas/SubscriptionStatus" }
+        trialEndsAt:
+          oneOf:
+            - $ref: "#/components/schemas/Timestamp"
+            - type: "null"
+        currentPeriodEnd:
+          description: >-
+            Fin del periodo ya pagado; `null` mientras nadie haya cobrado
+            (trial o plan gratuito).
+          oneOf:
+            - $ref: "#/components/schemas/Timestamp"
+            - type: "null"
+        cancelAtPeriodEnd:
+          type: boolean
+          description: >-
+            Baja programada: la suscripcion sigue vigente hasta
+            `currentPeriodEnd`. No es lo mismo que el estado `cancelled`.
     EffectiveSubscriptionView:
-      allOf:
-        - $ref: "#/components/schemas/SubscriptionView"
-        - type: object
-          required: [effective]
-          properties:
-            effective: { type: boolean }
+      type: object
+      additionalProperties: false
+      required:
+        [
+          planCode,
+          status,
+          trialEndsAt,
+          currentPeriodEnd,
+          cancelAtPeriodEnd,
+          effective,
+        ]
+      properties:
+        planCode: { type: string, maxLength: 80 }
+        status: { $ref: "#/components/schemas/SubscriptionStatus" }
+        trialEndsAt:
+          oneOf:
+            - $ref: "#/components/schemas/Timestamp"
+            - type: "null"
+        currentPeriodEnd:
+          oneOf:
+            - $ref: "#/components/schemas/Timestamp"
+            - type: "null"
+        cancelAtPeriodEnd: { type: boolean }
+        effective: { type: boolean }
     CommercialSubscriptionResponse:
       type: object
       additionalProperties: false
@@ -2366,13 +2542,10 @@ components:
       required: [checkout, items]
       properties:
         checkout:
-          type: string
-          enum: [external]
+          allOf:
+            - $ref: "#/components/schemas/CommercialCheckoutMode"
           description: >-
-            Modo de cobro derivado del proveedor de pagos. `external`: el
-            cobro ocurre fuera del producto (asistido) y se registra via
-            upgrade-intents; una pasarela real (ola Stripe) ampliara este
-            enum.
+            Modo de cobro derivado del proveedor de pagos configurado.
         items:
           type: array
           maxItems: 200
@@ -2435,6 +2608,138 @@ components:
       properties:
         intent: { $ref: "#/components/schemas/UpgradeIntentView" }
         subscription: { $ref: "#/components/schemas/SubscriptionView" }
+    CommercialCheckoutMode:
+      type: string
+      enum: [external, hosted]
+      description: >-
+        `external`: el cobro ocurre fuera del producto (asistido) y se registra
+        via upgrade-intents. `hosted`: el proveedor aloja la pagina de pago y el
+        resultado vuelve por webhook firmado.
+    CommercialCheckoutSessionCreate:
+      type: object
+      additionalProperties: false
+      required: [planCode, currency, period]
+      properties:
+        planCode:
+          type: string
+          minLength: 2
+          maxLength: 80
+          pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+          description: Codigo ISO-4217 en mayusculas; debe tener precio publicado.
+        period: { $ref: "#/components/schemas/PlanPricePeriod" }
+    CommercialCheckoutSession:
+      type: object
+      additionalProperties: false
+      required: [provider, checkout, intentId, reference, url]
+      properties:
+        provider:
+          type: string
+          maxLength: 40
+          description: Adaptador que atendio la compra (`null`, `stripe`).
+        checkout: { $ref: "#/components/schemas/CommercialCheckoutMode" }
+        intentId:
+          type: string
+          format: uuid
+          description: Intent auditable que respalda la compra.
+        reference:
+          type: string
+          maxLength: 255
+          description: Identificador de la sesion en el proveedor.
+        url:
+          type: [string, "null"]
+          format: uri
+          description: >-
+            Pagina de pago hospedada; `null` cuando el modo no es `hosted`.
+    InvoiceStatus:
+      type: string
+      enum: [paid, open, uncollectible, void]
+    CommercialInvoice:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          number,
+          amountCents,
+          currency,
+          status,
+          periodStart,
+          periodEnd,
+          hostedUrl,
+          issuedAt,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        number:
+          type: [string, "null"]
+          maxLength: 80
+          description: Numero legible del proveedor; puede faltar en borradores.
+        amountCents:
+          type: integer
+          minimum: 0
+          description: Importe en centimos enteros; jamas decimales flotantes.
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+        status: { $ref: "#/components/schemas/InvoiceStatus" }
+        periodStart:
+          oneOf:
+            - $ref: "#/components/schemas/Timestamp"
+            - type: "null"
+        periodEnd:
+          oneOf:
+            - $ref: "#/components/schemas/Timestamp"
+            - type: "null"
+        hostedUrl:
+          type: [string, "null"]
+          format: uri
+          description: Enlace HTTPS al documento fiscal, que custodia el proveedor.
+        issuedAt: { $ref: "#/components/schemas/Timestamp" }
+    CommercialInvoiceList:
+      type: object
+      additionalProperties: false
+      required: [organizationId, items]
+      properties:
+        organizationId: { type: string, format: uuid }
+        items:
+          type: array
+          maxItems: 200
+          items: { $ref: "#/components/schemas/CommercialInvoice" }
+    CommercialSubscriptionCancellation:
+      type: object
+      additionalProperties: false
+      required: [organizationId, cancellation, subscription]
+      properties:
+        organizationId: { type: string, format: uuid }
+        cancellation:
+          type: object
+          additionalProperties: false
+          required: [kind, message]
+          properties:
+            kind:
+              type: string
+              enum: [scheduled, recorded]
+              description: >-
+                `scheduled`: el proveedor no renovara al terminar el periodo.
+                `recorded`: sin pasarela, la solicitud queda para el operador.
+            message: { type: string, maxLength: 400 }
+        subscription: { $ref: "#/components/schemas/BilledSubscriptionView" }
+    StripeWebhookAccepted:
+      type: object
+      additionalProperties: false
+      required: [received, status, outcome]
+      properties:
+        received: { type: boolean, const: true }
+        status:
+          type: string
+          enum: [processed, duplicate, ignored]
+          description: >-
+            `duplicate`: el `event.id` ya estaba apuntado y esta entrega no
+            hizo nada. `ignored`: tipo que el producto no modela.
+        outcome: { type: string, maxLength: 40 }
     CadProjectId:
       type: string
       format: uuid

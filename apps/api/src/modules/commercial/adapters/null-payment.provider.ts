@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type {
+  PaymentCancellationResult,
   PaymentCheckoutResult,
   PaymentProvider,
   PaymentProviderDescriptor,
@@ -15,8 +16,9 @@ import type {
  * Por eso `mode: 'external'` (así lo publica GET /v1/commercial/plans) y
  * `available: false` (el producto no puede iniciar un cobro por sí mismo).
  *
- * La ola 2 sustituye este binding por el adaptador de Stripe en
- * commercial.module; nada más debería cambiar de sitio.
+ * Sigue siendo el adaptador que el módulo inyecta cuando no hay configuración
+ * de Stripe: la selección es por configuración y JAMÁS a medias
+ * (resolveStripeConfiguration en stripe-payment.provider.ts).
  */
 @Injectable()
 export class NullPaymentProvider implements PaymentProvider {
@@ -33,6 +35,18 @@ export class NullPaymentProvider implements PaymentProvider {
       reason:
         'Sin pasarela de pagos: el cobro del piloto es externo/asistido y se ' +
         'registra vía upgrade-intents (POST /v1/commercial/upgrade-intents).',
+    });
+  }
+
+  cancelAtPeriodEnd(): Promise<PaymentCancellationResult> {
+    // Tampoco puede dar de baja lo que nunca cobró. Quien llama deja la
+    // constancia durable para el operador (evento de dominio por el outbox);
+    // aquí sólo se dice la verdad: no hay proveedor que programe la baja.
+    return Promise.resolve({
+      kind: 'unavailable',
+      reason:
+        'Sin pasarela de pagos: la baja la aplica el operador sobre el cobro ' +
+        'externo; la solicitud queda registrada para que actúe.',
     });
   }
 

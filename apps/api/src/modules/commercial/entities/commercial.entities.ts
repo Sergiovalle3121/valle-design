@@ -85,6 +85,12 @@ export class PlanPrice {
 
 @Entity('subscriptions')
 @Index(['organizationId'], { unique: true })
+// Una suscripción de la pasarela pertenece a UNA organización: el índice
+// parcial lo impone en el esquema, no en el manejador del webhook.
+@Index(['providerSubscriptionId'], {
+  unique: true,
+  where: '"provider_subscription_id" IS NOT NULL',
+})
 @Check('chk_subscriptions_tenant_scope', '"tenant_id" = "organization_id"')
 export class Subscription {
   @PrimaryGeneratedColumn('uuid') id!: string;
@@ -104,6 +110,35 @@ export class Subscription {
   @Column({ type: 'varchar', length: 24 }) status!: SubscriptionStatus;
   @Column({ name: 'trial_ends_at', type: DATE_COLUMN_TYPE, nullable: true })
   trialEndsAt!: Date | null;
+  /**
+   * Fin del período ya pagado. Null mientras nadie haya cobrado (trial o plan
+   * gratuito): es la diferencia entre «no vence» y «vence en tal fecha», y por
+   * eso no se inventa un valor por defecto.
+   */
+  @Column({
+    name: 'current_period_end',
+    type: DATE_COLUMN_TYPE,
+    nullable: true,
+  })
+  currentPeriodEnd!: Date | null;
+  /** Baja programada: sigue vigente hasta `currentPeriodEnd`. */
+  @Column({ name: 'cancel_at_period_end', type: 'boolean', default: false })
+  cancelAtPeriodEnd!: boolean;
+  /** Identidad en la pasarela; null mientras el cobro sea externo. */
+  @Column({
+    name: 'provider_subscription_id',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
+  providerSubscriptionId!: string | null;
+  @Column({
+    name: 'provider_customer_id',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
+  providerCustomerId!: string | null;
   @CreateDateColumn({ name: 'created_at', type: DATE_COLUMN_TYPE })
   createdAt!: Date;
 }
@@ -177,6 +212,89 @@ export class SubscriptionUpgradeIntent {
   decidedAt!: Date | null;
   @CreateDateColumn({ name: 'created_at', type: DATE_COLUMN_TYPE })
   createdAt!: Date;
+}
+
+/**
+ * Evento de la pasarela YA procesado. Es la barrera de idempotencia del
+ * webhook y NADA más: no guarda el payload (puede contener datos de pago),
+ * sólo su huella para poder auditar que una redelivery traía lo mismo.
+ *
+ * Sin `organization_id`/`tenant_id` a propósito: un evento llega ANTES de
+ * saberse de quién es, y en algunos casos (evento de tipo desconocido) nunca
+ * se sabrá. Afirmar un alcance de tenant que no se puede garantizar sería
+ * mentir en el esquema; ADR-0005 gobierna filas que pertenecen a UNA
+ * organización, y ésta pertenece al canal con el proveedor.
+ */
+@Entity('payment_events')
+@Index(['eventId'], { unique: true })
+export class PaymentEvent {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  /** Adaptador que lo emitió; `stripe` hoy. */
+  @Column({ type: 'varchar', length: 40 }) provider!: string;
+  /** Identificador del evento en el proveedor (`evt_…`): único global. */
+  @Column({ name: 'event_id', type: 'varchar', length: 255 })
+  eventId!: string;
+  @Column({ type: 'varchar', length: 160 }) type!: string;
+  @Column({ name: 'payload_hash', type: 'varchar', length: 64 })
+  payloadHash!: string;
+  /** Qué hizo el evento: útil para soporte sin volver a leer el payload. */
+  @Column({ type: 'varchar', length: 40 }) outcome!: string;
+  @CreateDateColumn({ name: 'received_at', type: DATE_COLUMN_TYPE })
+  receivedAt!: Date;
+}
+
+export const INVOICE_STATUSES = [
+  'paid',
+  'open',
+  'uncollectible',
+  'void',
+] as const;
+export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
+
+/**
+ * ESPEJO de la factura del proveedor, no su sustituto.
+ *
+ * El documento fiscal lo emite y custodia la pasarela; aquí se guarda lo justo
+ * para que el portal liste el historial sin llamar a Stripe en cada carga
+ * (importe, moneda, estado, período y el enlace hospedado al documento real).
+ * Lleva el CHECK de alcance de tenant como el resto de tablas por
+ * organización (ADR-0005).
+ */
+@Entity('invoices')
+@Index(['provider', 'providerInvoiceId'], { unique: true })
+@Index(['organizationId', 'issuedAt'])
+@Check('chk_invoices_tenant_scope', '"tenant_id" = "organization_id"')
+@Check('chk_invoices_amount', '"amount_cents" >= 0')
+export class Invoice {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column({ name: 'organization_id', type: 'uuid' }) organizationId!: string;
+  @ManyToOne(() => Organization, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'organization_id' })
+  organization!: Organization;
+  @Column({ name: 'tenant_id', type: 'uuid' }) tenantId!: string;
+  @ManyToOne(() => Organization, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'tenant_id' })
+  tenantOrganization!: Organization;
+  @Column({ type: 'varchar', length: 40 }) provider!: string;
+  @Column({ name: 'provider_invoice_id', type: 'varchar', length: 255 })
+  providerInvoiceId!: string;
+  /** Número legible del proveedor; puede faltar en borradores. */
+  @Column({ type: 'varchar', length: 80, nullable: true })
+  number!: string | null;
+  /** bigint: PostgreSQL lo devuelve como string, SQLite como number. */
+  @Column({ name: 'amount_cents', type: 'bigint' })
+  amountCents!: string | number;
+  @Column({ type: 'character', length: 3 }) currency!: string;
+  @Column({ type: 'varchar', length: 24 }) status!: InvoiceStatus;
+  @Column({ name: 'period_start', type: DATE_COLUMN_TYPE, nullable: true })
+  periodStart!: Date | null;
+  @Column({ name: 'period_end', type: DATE_COLUMN_TYPE, nullable: true })
+  periodEnd!: Date | null;
+  /** URL hospedada por el proveedor; sólo se acepta HTTPS. */
+  @Column({ name: 'hosted_url', type: 'text', nullable: true })
+  hostedUrl!: string | null;
+  @CreateDateColumn({ name: 'issued_at', type: DATE_COLUMN_TYPE })
+  issuedAt!: Date;
 }
 
 export type OutboxStatus =
