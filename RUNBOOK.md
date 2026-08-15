@@ -1,5 +1,27 @@
 # Runbook operativo
 
+## Cómo se usa este documento
+
+Cada incidente de abajo trae **comandos exactos**. Si un procedimiento no se
+puede ejecutar copiando y pegando a las 3 de la mañana, no sirve.
+
+Variables que se asumen exportadas:
+
+```bash
+export API=https://api.tu-dominio.com
+export DATABASE_URL=postgres://...            # base productiva
+export METRICS_TOKEN=...                      # bearer de /metrics
+export PG_BIN=/usr/lib/postgresql/16/bin      # o D:/dev/pg16/pgsql/bin
+```
+
+Primer comando de cualquier incidente, siempre el mismo:
+
+```bash
+curl -fsS $API/health        # ¿vive el proceso?
+curl -sS  $API/health/ready  # ¿puede atender? (200 ok / 503 degraded|draining)
+curl -sS  $API/health/metrics/commercial | jq '.outbox, .dispatcher'
+```
+
 ## Señales mínimas
 
 Monitorea por separado disponibilidad web/API, conexión y saturación de
@@ -15,6 +37,36 @@ backlog y edad por cola del outbox, filas `dead`, contadores y latencia
 de ruta. Todo son agregados: sin URLs reales, payloads ni identificadores. Los
 contadores viven en memoria del proceso y se reinician con cada despliegue; el
 backlog sale de la base y es consistente entre réplicas.
+
+`GET /metrics` expone lo MISMO en formato Prometheus para un scrapper, más
+latencia por ruta como histograma y el estado del pool de PostgreSQL. Exige
+`Authorization: Bearer $METRICS_TOKEN` y, **sin `METRICS_TOKEN` configurado,
+responde 404**: la observabilidad se enciende a propósito, no por omisión.
+
+```bash
+curl -fsS -H "Authorization: Bearer $METRICS_TOKEN" $API/metrics | grep -E \
+  '^valle_(outbox_backlog|outbox_oldest_pending_age_seconds|db_pool_connections)'
+```
+
+Consultas PromQL de guardia:
+
+```promql
+# p95 de latencia por ruta. Se agregan BUCKETS, no percentiles: un percentil
+# calculado dentro de cada proceso no se puede promediar entre réplicas y daría
+# un número que no corresponde a ningún usuario real.
+histogram_quantile(0.95,
+  sum by (route, le) (rate(valle_http_request_duration_seconds_bucket[5m])))
+
+# tasa de 5xx por ruta
+sum by (route) (rate(valle_http_requests_total{status=~"5.."}[5m]))
+
+# lag del outbox: edad del mensaje sin enviar más antiguo
+max by (queue) (valle_outbox_oldest_pending_age_seconds)
+
+# saturación del pool: si `waiting` crece sostenido, el cuello es el pool y
+# ninguna métrica de latencia por ruta lo dice por sí sola
+max_over_time(valle_db_pool_connections{state="waiting"}[5m])
+```
 
 ## Triage inicial
 
@@ -83,6 +135,187 @@ FROM domain_outbox WHERE status IN ('pending', 'failed');
   habilites `AI_MOCK` en producción.
 - **CORS:** reconstruir el web no corrige el API; ajusta `ALLOWED_ORIGIN` exacto.
   Si el web llama un host viejo, reconstruye con `NEXT_PUBLIC_API_URL` correcto.
+
+## Incidentes con procedimiento
+
+Cuatro incidentes concretos, con sus comandos. El resto de la sección
+«Incidentes» de más abajo cubre los casos de seguridad y datos.
+
+### INC-1 · Base de datos caída
+
+**Síntoma:** `/health` 200, `/health/ready` 503 con `"db":"down"`. Los 5xx
+suben en todas las rutas que escriben.
+
+```bash
+# 1 · Confirmar el alcance: ¿es la base o es la red del API?
+curl -sS $API/health/ready | jq                     # ¿"db":"down"?
+$PG_BIN/pg_isready -h $DB_HOST -p 5432 -U $DB_USER  # ¿responde el servidor?
+
+# 2 · ¿Es saturación del pool y no caída? (waiting alto, total en el techo)
+curl -fsS -H "Authorization: Bearer $METRICS_TOKEN" $API/metrics \
+  | grep valle_db_pool_connections
+
+# 3 · Si el servidor vive: conexiones y bloqueos
+psql "$DATABASE_URL" -c "SELECT count(*), state FROM pg_stat_activity GROUP BY state"
+psql "$DATABASE_URL" -c "SELECT pid, wait_event_type, wait_event, left(query,80) \
+  FROM pg_stat_activity WHERE wait_event_type = 'Lock'"
+```
+
+**Qué NO hacer:** apuntar el health check del balanceador a `/health` para
+«que deje de dar rojo». Liveness dice que el proceso vive; readiness dice que
+puede atender. Confundirlos hace que el balanceador mande tráfico a réplicas
+que no pueden servirlo.
+
+**Qué NO hacer, segunda:** encender `synchronize` o caer a SQLite para
+«recuperar». El arranque lo prohíbe en producción precisamente porque esa
+recuperación pierde datos en el siguiente despliegue.
+
+**Recuperación:** el API **no necesita reinicio**. `/health/ready` vuelve a 200
+en cuanto la base responde, y el balanceador reintroduce la réplica sola. Si el
+supervisor las ha estado matando, es que el liveness probe apunta al sitio
+equivocado: corrígelo antes de seguir.
+
+---
+
+### INC-2 · Outbox atascado
+
+**Síntoma:** correos de verificación/reset que no llegan; `dead` creciendo;
+`valle_outbox_oldest_pending_age_seconds` en aumento monótono.
+
+```bash
+# 1 · ¿Cuánto y desde cuándo?
+curl -sS $API/health/metrics/commercial | jq '.outbox, .dispatcher'
+
+# 2 · Mismo dato desde la base (consistente entre réplicas)
+psql "$DATABASE_URL" -c "
+  SELECT 'email' AS queue, status, count(*), min(created_at) AS mas_antiguo
+  FROM email_outbox GROUP BY status
+  UNION ALL
+  SELECT 'domain', status, count(*), min(created_at)
+  FROM domain_outbox GROUP BY status;"
+
+# 3 · ¿El worker está vivo? Sin `claimed` creciendo, no está tomando lotes.
+curl -sS $API/health/metrics/commercial | jq '.dispatcher.email.claimed'
+sleep 10
+curl -sS $API/health/metrics/commercial | jq '.dispatcher.email.claimed'
+
+# 4 · ¿Por qué falla? La CLASE de error, nunca el payload.
+curl -sS $API/health/metrics/commercial | jq '.dispatcher.email.retriesByKind, .dispatcher.email.deadByKind'
+```
+
+Árbol de decisión según la clase de fallo:
+
+| `retriesByKind` predominante | Causa habitual                 | Acción                                             |
+| ---------------------------- | ------------------------------ | -------------------------------------------------- |
+| `TimeoutError`               | receptor lento o caído         | mirar el receptor; subir `OUTBOX_WEBHOOK_TIMEOUT_MS` sólo si el receptor es lento POR DISEÑO |
+| `HTTP_401` / `HTTP_403`      | `OUTBOX_WEBHOOK_SECRET` distinto entre API y receptor | rotar el secreto **en ambos a la vez** |
+| `HTTP_404`                   | URL de webhook equivocada      | corregir `OUTBOX_*_WEBHOOK_URL` y reiniciar         |
+| `ENOTFOUND` / `ECONNREFUSED` | DNS o red                      | red; el outbox se drenará solo al restablecerse     |
+| `lease_lost` alto            | réplicas peleándose o reloj desincronizado | comprobar hora de los nodos              |
+
+**Qué NO hacer:** marcar filas como `sent`, reiniciar `attempts` o reenviar
+payloads a mano. La entrega es at-least-once y el receptor deduplica por
+`Idempotency-Key`; tocar las filas rompe esa garantía en ambos sentidos.
+
+**Recuperación:** arreglado el receptor, el worker drena solo. Comprueba que
+baja:
+
+```bash
+watch -n 10 "curl -sS $API/health/metrics/commercial | jq '.outbox.email.oldestUnsentAgeSeconds'"
+```
+
+Las filas `dead` NO se reintentan solas — es deliberado. Conserva sus IDs y
+clase de fallo y decide una herramienta de replay auditada e idempotente; el
+runtime no promete replay manual.
+
+---
+
+### INC-3 · Disco lleno
+
+**Síntoma:** escrituras que fallan con `could not extend file` o
+`No space left on device`; el API responde 500 en todo lo que guarda.
+
+```bash
+# 1 · ¿Dónde está el espacio? (el candidato #1 son los blobs CAD en la base)
+psql "$DATABASE_URL" -c "
+  SELECT relname, pg_size_pretty(pg_total_relation_size(relid)) AS tamano
+  FROM pg_catalog.pg_statio_user_tables
+  ORDER BY pg_total_relation_size(relid) DESC LIMIT 10;"
+
+psql "$DATABASE_URL" -c "SELECT pg_size_pretty(pg_database_size(current_database()))"
+
+# 2 · WAL retenido por un slot de replicación abandonado: causa clásica de
+#     «el disco crece y nadie escribe tanto».
+psql "$DATABASE_URL" -c "
+  SELECT slot_name, active, pg_size_pretty(
+    pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn)) AS wal_retenido
+  FROM pg_replication_slots;"
+
+# 3 · Tuplas muertas sin recoger: el espacio existe pero está inutilizable.
+psql "$DATABASE_URL" -c "
+  SELECT relname, n_dead_tup, last_autovacuum
+  FROM pg_stat_user_tables WHERE n_dead_tup > 10000 ORDER BY n_dead_tup DESC;"
+```
+
+Orden de actuación, del más seguro al más invasivo:
+
+1. **Ampliar el volumen.** Es lo primero: con el disco lleno, cualquier otra
+   operación (incluido `VACUUM FULL`) puede necesitar espacio y fallar.
+2. **Liberar backups y logs antiguos** del host, nunca datos de la base.
+3. **Soltar un slot de replicación abandonado** — `pg_drop_replication_slot` —
+   sólo tras confirmar que su consumidor ya no existe. Soltarlo con un consumidor
+   vivo rompe la réplica.
+4. `VACUUM (ANALYZE)` sobre las tablas con más `n_dead_tup`. `VACUUM FULL`
+   **bloquea la tabla entera** y necesita espacio equivalente a su tamaño: es
+   una operación de ventana de mantenimiento, no de incidente.
+
+**Qué NO hacer:** borrar filas de `design_blobs` para hacer sitio. Los punteros
+desde documentos y versiones son JSON, no una FK: la base seguirá pareciendo
+íntegra y el dibujo dejará de abrirse.
+
+---
+
+### INC-4 · Despliegue malo → rollback
+
+**Síntoma:** tras un rollout, 5xx en rutas que antes funcionaban, o readiness
+que no llega a 200.
+
+```bash
+# 1 · ¿Qué está corriendo? El digest, no el tag.
+kubectl get deployment valle-api -o jsonpath='{.spec.template.spec.containers[0].image}'
+
+# 2 · ¿Es el esquema o es el código?
+curl -sS $API/health/ready | jq
+#   "migrations":"pending" → falta aplicar la cadena; NO es un caso de rollback
+#   "db":"down"            → INC-1
+#   200 y aun así 5xx      → es el código: rollback de aplicación
+
+# 3 · ¿Dónde se rompe? Ruta y tasa.
+curl -fsS -H "Authorization: Bearer $METRICS_TOKEN" $API/metrics \
+  | grep 'valle_http_requests_total{.*status="5'
+
+# 4 · ROLLBACK DE APLICACIÓN (esquema compatible: el caso normal)
+kubectl rollout undo deployment/valle-api
+kubectl rollout status deployment/valle-api --timeout=120s
+curl -fsS $API/health/ready | jq '.status'      # → "ok"
+```
+
+Si la versión nueva aplicó una migración **incompatible** con la anterior, el
+paso 4 no basta: sigue `DEPLOYMENT.md` §4.2 (rollback de esquema), que exige
+parar escrituras y tomar un backup verificado ANTES de revertir nada.
+
+**Criterio para elegir:** ¿la versión anterior sabe leer el esquema actual?
+
+- **Sí** → rollback de aplicación (segundos, sin tocar datos).
+- **No** → o se corrige hacia delante, o se revierte la migración con su `down`
+  probado. Restaurar un backup es el **último** recurso: pierde todo lo escrito
+  desde el snapshot.
+
+**Qué NO hacer:** desplegar el web viejo contra el API nuevo sin comprobar el
+contrato, ni reconstruir el web «para arreglar CORS». El origen permitido es
+`ALLOWED_ORIGIN` **en el API**; reconstruir el web no lo cambia.
+
+---
 
 ## Incidentes
 

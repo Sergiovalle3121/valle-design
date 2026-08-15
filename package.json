@@ -23,7 +23,11 @@
     "check:rubric": "node scripts/cad/rubric.mjs",
     "check:rubric:spec": "node scripts/cad/rubric.spec.mjs",
     "check:cad": "node scripts/cad/check-design-contract.mjs && node scripts/cad/check-no-line-engineering.mjs && node scripts/cad/check-monolith-budget.mjs && node scripts/cad/rubric.spec.mjs && node scripts/cad/rubric.mjs",
-    "check:dwg": "npm run check --workspace=@valle-design/dwg-codec && node scripts/dwg/check-product-boundary.mjs"
+    "check:dwg": "npm run check --workspace=@valle-design/dwg-codec && node scripts/dwg/check-product-boundary.mjs",
+    "check:deploy": "node scripts/deploy/validate-dockerfiles.mjs",
+    "smoke:deploy": "node scripts/deploy/production-startup-smoke.mjs",
+    "ops:backup": "node scripts/ops/backup.mjs",
+    "ops:restore-verify": "node scripts/ops/restore-verify.mjs"
   },
   "devDependencies": {
     "@redocly/cli": "1.34.3",

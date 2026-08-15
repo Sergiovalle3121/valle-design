@@ -1,0 +1,197 @@
+name: Release
+
+# Construye y publica los ARTEFACTOS de una versión desplegable: las dos
+# imágenes de contenedor, el SBOM de la cadena de suministro y un manifiesto de
+# despliegue con los digests exactos.
+#
+# Por qué existe separado de CI: `ci.yml` responde «¿este commit es correcto?».
+# Esto responde «¿qué se despliega, y cómo se demuestra que es lo que dice
+# ser?». Un cliente que pregunta qué corre en su instalación necesita un
+# digest, no un nombre de rama.
+#
+# NUNCA corre en un push normal. La cuota de Actions de este repo está al
+# límite, y construir dos imágenes cuesta minutos reales:
+#   · `workflow_dispatch` → a mano, con opciones;
+#   · `push` de una etiqueta `v*` → un release de verdad.
+on:
+  workflow_dispatch:
+    inputs:
+      publicar_imagenes:
+        description: 'Publicar las imágenes en GHCR (si no, sólo se construyen)'
+        type: boolean
+        default: false
+      api_url:
+        description: 'NEXT_PUBLIC_API_URL — se INCRUSTA en el bundle del web'
+        type: string
+        default: 'https://api.example.com'
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  group: release-${{ github.ref }}
+  # Nunca se cancela: un release a medias deja imágenes publicadas sin
+  # manifiesto, que es peor que un release lento.
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_BASE: ghcr.io/${{ github.repository }}
+
+jobs:
+  release:
+    name: Imágenes + SBOM + manifiesto
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # Barato y bloqueante: si la imagen no cumple los invariantes de
+      # despliegue, no se construye nada. Falla en segundos.
+      - name: Gate de imagen reproducible
+        run: node scripts/deploy/validate-dockerfiles.mjs
+
+      - name: Install dependencies (npm ci reproducible)
+        run: npm ci
+
+      # SBOM de PRODUCCIÓN (sin dev) + gate de licencias: el producto es
+      # UNLICENSED y una copyleft fuerte en el árbol de runtime cambiaría las
+      # obligaciones de distribución del binario que aquí se empaqueta.
+      - name: SBOM CycloneDX y gate de licencias
+        run: npm run sbom && npm run check:licenses
+
+      - name: Determinar versión
+        id: version
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            VERSION="${GITHUB_REF_NAME}"
+          else
+            VERSION="0.0.0-dispatch.$(date -u +%Y%m%d%H%M%S)"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Versión del release: ${VERSION}"
+
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login en GHCR
+        if: inputs.publicar_imagenes || github.ref_type == 'tag'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # `provenance: false` mantiene el manifiesto en un solo digest legible:
+      # con provenance, `docker buildx` publica un índice y el digest que
+      # aparece en el manifiesto de despliegue deja de ser el de la imagen.
+      - name: Construir imagen de la API
+        id: api
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: ${{ inputs.publicar_imagenes || github.ref_type == 'tag' }}
+          load: ${{ !(inputs.publicar_imagenes || github.ref_type == 'tag') }}
+          tags: |
+            ${{ env.IMAGE_BASE }}/api:${{ steps.version.outputs.version }}
+          provenance: false
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+      # OJO: `NEXT_PUBLIC_API_URL` se incrusta en el bundle. Esta imagen SÓLO
+      # sirve para el origen con el que se construyó; desplegarla contra otro
+      # host produce un web que llama a la API equivocada desde el navegador
+      # del cliente, y el error no aparece en ningún log del servidor.
+      - name: Construir imagen del web
+        id: web
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: ${{ inputs.publicar_imagenes || github.ref_type == 'tag' }}
+          load: ${{ !(inputs.publicar_imagenes || github.ref_type == 'tag') }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ inputs.api_url || vars.RELEASE_API_URL || 'https://api.example.com' }}
+          tags: |
+            ${{ env.IMAGE_BASE }}/web:${{ steps.version.outputs.version }}
+          provenance: false
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+
+      # El manifiesto es lo que hace auditable el despliegue: qué commit, qué
+      # digests, qué origen de API quedó incrustado y qué migración es la
+      # última de la cadena. Sin esto, «qué versión corre en producción» se
+      # responde de memoria.
+      - name: Manifiesto de despliegue
+        run: |
+          LAST_MIGRATION=$(ls apps/api/src/migrations/*.ts \
+            | grep -v '\.spec\.ts$' | sort | tail -1 | xargs -n1 basename)
+          cat > release-manifest.json <<JSON
+          {
+            "version": "${{ steps.version.outputs.version }}",
+            "commit": "${{ github.sha }}",
+            "construidoEn": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "node": "$(node --version)",
+            "imagenes": {
+              "api": {
+                "referencia": "${{ env.IMAGE_BASE }}/api:${{ steps.version.outputs.version }}",
+                "digest": "${{ steps.api.outputs.digest }}"
+              },
+              "web": {
+                "referencia": "${{ env.IMAGE_BASE }}/web:${{ steps.version.outputs.version }}",
+                "digest": "${{ steps.web.outputs.digest }}",
+                "apiUrlIncrustada": "${{ inputs.api_url || vars.RELEASE_API_URL || 'https://api.example.com' }}"
+              }
+            },
+            "ultimaMigracion": "${LAST_MIGRATION}",
+            "publicado": ${{ inputs.publicar_imagenes || github.ref_type == 'tag' }}
+          }
+          JSON
+          cat release-manifest.json
+
+      - name: Subir artefactos del release
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ steps.version.outputs.version }}
+          path: |
+            release-manifest.json
+            sbom.cdx.json
+          if-no-files-found: error
+          retention-days: 365
+
+      # Sólo para etiquetas: un dispatch manual es un ensayo, no un release.
+      - name: Adjuntar artefactos al release de GitHub
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1 \
+            || gh release create "${GITHUB_REF_NAME}" --generate-notes
+          gh release upload "${GITHUB_REF_NAME}" \
+            release-manifest.json sbom.cdx.json --clobber
+
+      - name: Resumen
+        run: |
+          {
+            echo "## Release ${{ steps.version.outputs.version }}"
+            echo ""
+            echo "| Artefacto | Digest |"
+            echo "| --- | --- |"
+            echo "| API | \`${{ steps.api.outputs.digest }}\` |"
+            echo "| Web | \`${{ steps.web.outputs.digest }}\` |"
+            echo ""
+            echo "Procedimiento de despliegue y rollback: \`DEPLOYMENT.md\`."
+          } >> "$GITHUB_STEP_SUMMARY"

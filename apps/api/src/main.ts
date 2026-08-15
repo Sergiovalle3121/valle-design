@@ -1,10 +1,24 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import compression from 'compression';
 import { AppModule } from './app.module';
 import { useStripeWebhookRawBody } from './modules/commercial/stripe-webhook.raw-body';
+import { installGracefulShutdown } from './bootstrap/graceful-shutdown';
+import {
+  applyServerTimeouts,
+  helmetOptions,
+  JSON_BODY_LIMIT,
+  serverTimeoutsFromEnv,
+  type TimeoutConfigurableServer,
+} from './bootstrap/production-hardening';
+import { ReadinessState } from './bootstrap/readiness.state';
+import { ErrorReportingLogger } from './observability/error-reporting.logger';
+import {
+  ERROR_REPORTER,
+  type ErrorReporter,
+} from './observability/error-reporter.port';
 
 function parseAllowedOrigins(raw: string): string[] {
   const value = (raw || '').trim();
@@ -44,7 +58,7 @@ async function bootstrap() {
 
   // El documento canónico inline admite hasta 8 000 000 bytes serializados;
   // el margen extra cubre el framing JSON sin aceptar payloads sin tope.
-  app.useBodyParser('json', { limit: '16mb' });
+  app.useBodyParser('json', { limit: JSON_BODY_LIMIT });
 
   // Confiar en el primer salto de proxy (PaaS que termina TLS en un reverse
   // proxy): req.ip refleja el cliente real desde X-Forwarded-For.
@@ -62,7 +76,9 @@ async function bootstrap() {
     }),
   );
 
-  app.use(helmet());
+  // CSP `default-src 'none'` (la API sólo sirve JSON) y HSTS de un año en
+  // producción. Ver `bootstrap/production-hardening.ts`.
+  app.use(helmet(helmetOptions()));
   app.use(compression());
 
   // ── CORS ──────────────────────────────────────────────────────────────────
@@ -110,11 +126,59 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'X-CSRF-Token', 'X-Review-Token'],
   });
 
+  // ── Observabilidad ────────────────────────────────────────────────────────
+  // El logger de Nest se envuelve para que TODO `logger.error(...)` llegue al
+  // puerto de reporte. Es lo que cubre al worker de outbox, cuyos fallos no
+  // pasan por el filtro de excepciones: ocurren en un temporizador, sin
+  // petición HTTP que filtrar.
+  // `app.get` de un token de símbolo devuelve `any`; se pasa por `unknown`
+  // para que la aserción sea real y no un `any` disfrazado.
+  const reporterRef: unknown = app.get(ERROR_REPORTER);
+  const reporter = reporterRef as ErrorReporter;
+  app.useLogger(new ErrorReportingLogger(reporter));
+
+  // ── Apagado ordenado ──────────────────────────────────────────────────────
+  // `enableShutdownHooks` hace que `app.close()` ejecute los
+  // `onApplicationShutdown` (el worker de outbox termina su lote y suelta los
+  // leases) y cierre el pool de TypeORM. Sin esto, un despliegue deja filas
+  // `processing` con lease colgado hasta que expira.
+  app.enableShutdownHooks();
+
+  const timeouts = serverTimeoutsFromEnv();
+  const readiness = app.get(ReadinessState);
+  const shutdownLogger = new Logger('Shutdown');
+  installGracefulShutdown({
+    readiness,
+    closeApp: async () => {
+      await app.close();
+      await reporter.flush?.();
+    },
+    logger: {
+      log: (message) => shutdownLogger.log(message),
+      warn: (message) => shutdownLogger.warn(message),
+      error: (message) => shutdownLogger.error(message),
+    },
+    drainDelayMs: timeouts.drainDelayMs,
+    shutdownGraceMs: timeouts.shutdownGraceMs,
+  });
+
   // ── Arranque ──────────────────────────────────────────────────────────────
   const port = parseInt(process.env.PORT ?? '4000', 10);
-  await app.listen(port, '0.0.0.0');
+  const server = (await app.listen(
+    port,
+    '0.0.0.0',
+  )) as TimeoutConfigurableServer;
+
+  // Timeouts DESPUÉS de `listen`: antes no existe el `http.Server`.
+  // `keepAliveTimeout` por encima del idle del balanceador es lo que evita
+  // los 502 esporádicos de una conexión cerrada en la ventana equivocada.
+  applyServerTimeouts(server, timeouts);
+
   console.log(
     `Valle Design API escuchando en :${port} (NODE_ENV=${env}) allowedOrigins=${originsToValidate.join(', ')}`,
+  );
+  console.log(
+    `Timeouts: keepAlive=${timeouts.keepAliveTimeoutMs}ms headers=${timeouts.headersTimeoutMs}ms request=${timeouts.requestTimeoutMs}ms; apagado: drenaje=${timeouts.drainDelayMs}ms techo=${timeouts.shutdownGraceMs}ms`,
   );
 }
 

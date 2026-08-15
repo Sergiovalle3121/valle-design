@@ -1,0 +1,74 @@
+# Contexto de build: lo que NO debe entrar en una imagen.
+#
+# Dos motivos distintos y ambos importan:
+#   · TAMAÑO — `node_modules` del monorepo y las cachés de build multiplican
+#     el contexto que el daemon recibe antes de ejecutar la primera línea.
+#   · SEGURIDAD — `.env`, `.git` y los dumps de base contienen secretos y
+#     datos reales. Una capa que los copia los conserva aunque una capa
+#     posterior los borre: quien tenga la imagen los tiene.
+
+# Dependencias y artefactos (se reconstruyen dentro de la imagen desde el lockfile)
+node_modules
+**/node_modules
+dist
+**/dist
+.next
+**/.next
+out
+**/out
+build
+**/build
+*.tsbuildinfo
+**/*.tsbuildinfo
+
+# Historia y metadatos de repositorio
+.git
+.gitignore
+.github
+.husky
+.claude
+**/.turbo
+
+# Secretos y configuración local — NUNCA en una imagen
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+**/secrets/
+
+# Datos: bases locales, backups y dumps
+*.sqlite
+*.sqlite3
+dev.sqlite
+*.dump
+*.sql.gz
+backups/
+**/backups/
+pgdata/
+
+# Pruebas, evidencia y cobertura: no forman parte del runtime
+coverage
+**/coverage
+**/e2e/.report
+**/e2e/.test-results
+**/test-results
+playwright-report
+*.log
+npm-debug.log*
+
+# Documentación y evidencia de auditoría
+docs
+*.md
+!README.md
+sbom.cdx.json
+cad-benchmark-*.json
+
+# Editores y sistema operativo
+.vscode
+.idea
+.DS_Store
+Thumbs.db
