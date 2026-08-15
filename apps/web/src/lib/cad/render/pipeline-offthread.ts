@@ -20,7 +20,7 @@
  *   geometría de ANTES— y el tile se reencola para pedir de nuevo.
  */
 import type { CadDocument } from "../cad-document";
-import type { CadNativeEntity } from "../entity-runtime";
+import { CAD_ENTITY_REGISTRY, type CadNativeEntity } from "../entity-runtime";
 import {
   tessellateCadEntitiesOffThread,
   type CadTessellateOffThreadResult,
@@ -70,17 +70,27 @@ export type CadRenderTessellationSource = "sync" | "worker" | "fallback";
 /**
  * ¿Puede esta entidad teselarse SIN el documento al lado?
  *
- * El único adaptador cuyo `renderer.paths` consume el documento es el INSERT
- * (resuelve su bloque); todo lo demás tesela con la entidad sola. Y clonar el
- * documento entero en cada `postMessage` —a 100.000 entidades, megabytes por
- * lote— anularía la ganancia del worker completa. Así que el documento NO
- * viaja nunca: los INSERT se quedan en el hilo principal (en el editor ya van
- * excluidos del pipeline por lotes, los dibuja `buildCadInsertBatches`) y el
- * resto va al worker con la garantía de producir la MISMA geometría que la
- * reserva síncrona, que es lo que su spec afirma coordenada a coordenada.
+ * Clonar el documento entero en cada `postMessage` —a 100.000 entidades,
+ * megabytes por lote— anularía la ganancia del worker completa. Así que el
+ * documento NO viaja nunca, y lo que se queda en el hilo principal es lo que
+ * sin él saldría distinto. Sólo va al worker lo que produce la MISMA geometría
+ * que la reserva síncrona, que es lo que su spec afirma coordenada a
+ * coordenada.
+ *
+ * La pregunta se le hace al REGISTRO, no a una lista de tipos escrita aquí.
+ * Cuando la lista vivía en esta función decía «todo menos INSERT», y la ola de
+ * uniones de muro la dejó mintiendo el mismo día: WALL empezó a derivar sus
+ * ingletes leyendo el documento, siguió despachándose al worker y el navegador
+ * dibujó muros con los testeros crudos que la reserva síncrona ya no dibujaba.
+ * Con la marca en el adaptador (`renderer.needsDocument`), un adaptador futuro
+ * queda excluido del worker el día que declara lo que hace, sin tocar nada de
+ * este carril.
+ *
+ * (Los INSERT, además, ya van excluidos del pipeline por lotes en el editor:
+ * los dibuja `buildCadInsertBatches`.)
  */
 export function cadEntityTessellatesWithoutDocument(entity: CadNativeEntity): boolean {
-  return entity.type !== "insert";
+  return CAD_ENTITY_REGISTRY.adapter(entity).renderer.needsDocument !== true;
 }
 
 /**

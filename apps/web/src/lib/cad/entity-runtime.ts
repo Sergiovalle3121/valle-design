@@ -89,8 +89,51 @@ export interface CadSnapPoint {
 export type CadPropertyValue = string | number | boolean;
 export type CadPropertyBag = Record<string, CadPropertyValue>;
 
+/**
+ * Consulta ACOTADA del vecindario: las entidades cuya caja corta `bounds`.
+ *
+ * Existe para que `dependents` no reciba el documento entero. Un adaptador que
+ * contestara recorriendo `document.entities` convertiría CADA edición en un
+ * barrido O(n) del dibujo — justo el coste que el pipeline por tiles existe
+ * para no pagar. Quien la sirve tiene un índice espacial detrás y responde en
+ * proporción a lo que hay CERCA, no a lo que hay.
+ */
+export type CadEntityNeighborQuery = (bounds: CadBounds) => readonly CadNativeEntity[];
+
 export interface CadEntityRenderer<E extends CadNativeEntity = CadNativeEntity> {
   paths(entity: E, segments?: number, document?: CadDocument): CadRenderPath[];
+  /**
+   * DECLARA que `paths` consume el DOCUMENTO: los trazos de esta entidad se
+   * derivan de lo que hay alrededor, no sólo de sus propios campos.
+   *
+   * Hoy la cumplen dos adaptadores: INSERT —resuelve su definición de bloque—
+   * y WALL —deriva sus uniones contra los muros vecinos—. La marca NO es
+   * documentación: el carril fuera de hilo la consulta para decidir qué puede
+   * viajar al worker, que tesela sin documento al lado. Un adaptador que lea el
+   * documento y no se marque sale dibujado en el navegador con una geometría
+   * distinta de la de la reserva síncrona —un muro sin sus uniones— y no hay
+   * error, ni aviso, ni forma de notarlo salvo mirando el plano.
+   *
+   * Es `true` literal y opcional a propósito: `needsDocument: false` sería una
+   * segunda manera de decir «no» y obligaría a los veinte adaptadores que no lo
+   * necesitan a pronunciarse.
+   */
+  readonly needsDocument?: true;
+  /**
+   * Los ids cuya geometría cambia cuando cambia ESTA entidad.
+   *
+   * Con derivaciones por vecindad —las uniones de muro— el teselado cacheado
+   * de A queda obsoleto porque se movió B. La invalidación del pipeline entra
+   * por los ids que el ejecutor de comandos declara afectados, y ésos son los
+   * que el usuario tocó: sin esta declaración el vecino se queda en pantalla
+   * con el inglete de antes, que es un plano mal dibujado.
+   *
+   * `near` acota la búsqueda; el adaptador filtra por tipo y por su propio
+   * criterio de contacto. Devuelve dependientes DIRECTOS: la derivación es
+   * función pura de las RECETAS de los vecinos, no de su geometría derivada,
+   * así que la relación no se propaga en cadena y un solo nivel basta.
+   */
+  dependents?(entity: E, near: CadEntityNeighborQuery): readonly string[];
 }
 
 export interface CadHitTester<E extends CadNativeEntity = CadNativeEntity> {
@@ -183,6 +226,18 @@ export class CadEntityRegistry {
     // `dimensionKind`.
     if (isLegacyCircle(entity) || isLegacyDimension(entity)) return false;
     return this.adapters.has(entity.type as CadNativeEntityType);
+  }
+
+  /**
+   * Los tipos registrados, en orden de registro.
+   *
+   * Lo consumen los barridos que exigen que TODO adaptador cumpla algo —el de
+   * paridad con el worker, sin ir más lejos—. Una lista escrita a mano en el
+   * spec se queda atrás en cuanto alguien registra un tipo nuevo, que es
+   * exactamente el momento en que la comprobación hacía falta.
+   */
+  types(): CadNativeEntityType[] {
+    return [...this.adapters.keys()];
   }
 
   adapter<E extends CadNativeEntity>(entity: E): CadEntityAdapter<E> {

@@ -3551,6 +3551,9 @@ export default function Layout3DEditor({
               (entity) =>
                 !batchedInsertIds.has(entity.id) && !shadedSolidIds.has(entity.id),
             ),
+            // El documento de DESPUÉS: sin él, los vecinos de lo editado se
+            // rederivan contra la vecindad de antes (uniones de muro).
+            document,
           );
         else if (documentChanged || !batchedHost.loaded)
           batchedHost.replace(document, {
