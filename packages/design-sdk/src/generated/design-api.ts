@@ -412,6 +412,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commercial/checkout-sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Abre una compra autoservicio (owner/admin) y devuelve la URL hospedada.
+         * @description Registra el intent auditable (a lo sumo uno `pending` por organizacion; un `pending` del MISMO plan se reutiliza) y pide al proveedor una sesion de pago hospedada. El precio sale de `plan_prices`, nunca del cliente. Con el proveedor nulo la ruta responde 409 `checkout_unavailable` con el intent ya registrado: el cobro de ese despliegue es externo/asistido.
+         */
+        post: operations["createCommercialCheckoutSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commercial/invoices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lista el historial de facturas de la organizacion (owner/admin).
+         * @description Espejo local de las facturas del proveedor, de la mas reciente a la mas antigua. El documento fiscal sigue siendo del proveedor: `hostedUrl` apunta a el. Nunca incluye datos de pago.
+         */
+        get: operations["listCommercialInvoices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commercial/subscription/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancela la suscripcion a fin de periodo (solo owner).
+         * @description No corta el acceso: lo comprado sigue vigente hasta `currentPeriodEnd`, y el estado `cancelled` lo aplica el webhook del proveedor cuando el periodo expira. Con el proveedor nulo la solicitud queda registrada como evento de dominio para el operador (`kind: recorded`).
+         */
+        post: operations["cancelCommercialSubscription"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commercial/webhooks/stripe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Recibe eventos firmados de la pasarela (ruta publica).
+         * @description Publica porque el emisor es la pasarela, que no tiene sesion: su credencial es la firma HMAC-SHA256 sobre los BYTES CRUDOS, con tolerancia de tiempo. Idempotente por `event.id`; el efecto y su asiento comparten transaccion. Un tipo no modelado responde 200 y queda registrado — jamas un 500.
+         */
+        post: operations["receiveStripeWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/cad/projects": {
         parameters: {
             query?: never;
@@ -1202,7 +1282,21 @@ export interface components {
             organizationId: string;
             role: components["schemas"]["OrganizationInvitationRole"];
         };
-        EffectiveSubscriptionView: components["schemas"]["SubscriptionView"] & {
+        BilledSubscriptionView: {
+            planCode: string;
+            status: components["schemas"]["SubscriptionStatus"];
+            trialEndsAt: components["schemas"]["Timestamp"] | null;
+            /** @description Fin del periodo ya pagado; `null` mientras nadie haya cobrado (trial o plan gratuito). */
+            currentPeriodEnd: components["schemas"]["Timestamp"] | null;
+            /** @description Baja programada: la suscripcion sigue vigente hasta `currentPeriodEnd`. No es lo mismo que el estado `cancelled`. */
+            cancelAtPeriodEnd: boolean;
+        };
+        EffectiveSubscriptionView: {
+            planCode: string;
+            status: components["schemas"]["SubscriptionStatus"];
+            trialEndsAt: components["schemas"]["Timestamp"] | null;
+            currentPeriodEnd: components["schemas"]["Timestamp"] | null;
+            cancelAtPeriodEnd: boolean;
             effective: boolean;
         };
         CommercialSubscriptionResponse: {
@@ -1232,11 +1326,8 @@ export interface components {
             prices: components["schemas"]["CommercialPlanPrice"][];
         };
         CommercialPlanList: {
-            /**
-             * @description Modo de cobro derivado del proveedor de pagos. `external`: el cobro ocurre fuera del producto (asistido) y se registra via upgrade-intents; una pasarela real (ola Stripe) ampliara este enum.
-             * @enum {string}
-             */
-            checkout: "external";
+            /** @description Modo de cobro derivado del proveedor de pagos configurado. */
+            checkout: components["schemas"]["CommercialCheckoutMode"];
             items: components["schemas"]["CommercialPlan"][];
         };
         /** @enum {string} */
@@ -1266,6 +1357,82 @@ export interface components {
         UpgradeIntentConfirmed: {
             intent: components["schemas"]["UpgradeIntentView"];
             subscription: components["schemas"]["SubscriptionView"];
+        };
+        /**
+         * @description `external`: el cobro ocurre fuera del producto (asistido) y se registra via upgrade-intents. `hosted`: el proveedor aloja la pagina de pago y el resultado vuelve por webhook firmado.
+         * @enum {string}
+         */
+        CommercialCheckoutMode: "external" | "hosted";
+        CommercialCheckoutSessionCreate: {
+            planCode: string;
+            /** @description Codigo ISO-4217 en mayusculas; debe tener precio publicado. */
+            currency: string;
+            period: components["schemas"]["PlanPricePeriod"];
+        };
+        CommercialCheckoutSession: {
+            /** @description Adaptador que atendio la compra (`null`, `stripe`). */
+            provider: string;
+            checkout: components["schemas"]["CommercialCheckoutMode"];
+            /**
+             * Format: uuid
+             * @description Intent auditable que respalda la compra.
+             */
+            intentId: string;
+            /** @description Identificador de la sesion en el proveedor. */
+            reference: string;
+            /**
+             * Format: uri
+             * @description Pagina de pago hospedada; `null` cuando el modo no es `hosted`.
+             */
+            url: string | null;
+        };
+        /** @enum {string} */
+        InvoiceStatus: "paid" | "open" | "uncollectible" | "void";
+        CommercialInvoice: {
+            /** Format: uuid */
+            id: string;
+            /** @description Numero legible del proveedor; puede faltar en borradores. */
+            number: string | null;
+            /** @description Importe en centimos enteros; jamas decimales flotantes. */
+            amountCents: number;
+            currency: string;
+            status: components["schemas"]["InvoiceStatus"];
+            periodStart: components["schemas"]["Timestamp"] | null;
+            periodEnd: components["schemas"]["Timestamp"] | null;
+            /**
+             * Format: uri
+             * @description Enlace HTTPS al documento fiscal, que custodia el proveedor.
+             */
+            hostedUrl: string | null;
+            issuedAt: components["schemas"]["Timestamp"];
+        };
+        CommercialInvoiceList: {
+            /** Format: uuid */
+            organizationId: string;
+            items: components["schemas"]["CommercialInvoice"][];
+        };
+        CommercialSubscriptionCancellation: {
+            /** Format: uuid */
+            organizationId: string;
+            cancellation: {
+                /**
+                 * @description `scheduled`: el proveedor no renovara al terminar el periodo. `recorded`: sin pasarela, la solicitud queda para el operador.
+                 * @enum {string}
+                 */
+                kind: "scheduled" | "recorded";
+                message: string;
+            };
+            subscription: components["schemas"]["BilledSubscriptionView"];
+        };
+        StripeWebhookAccepted: {
+            /** @constant */
+            received: true;
+            /**
+             * @description `duplicate`: el `event.id` ya estaba apuntado y esta entrega no hizo nada. `ignored`: tipo que el producto no modela.
+             * @enum {string}
+             */
+            status: "processed" | "duplicate" | "ignored";
+            outcome: string;
         };
         /**
          * Format: uuid
@@ -2566,6 +2733,156 @@ export interface operations {
             404: components["responses"]["NotFound"];
             /** @description El intent ya fue decidido (`upgrade_intent_not_pending`). */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    createCommercialCheckoutSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommercialCheckoutSessionCreate"];
+            };
+        };
+        responses: {
+            /** @description Sesion abierta; `url` es la pagina de pago del proveedor. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommercialCheckoutSession"];
+                };
+            };
+            /** @description Plan no vendible (`plan_unavailable`) o sin precio publicado para esa moneda y periodo (`price_unavailable`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description No hay pasarela configurada (`checkout_unavailable`), ya existe un `pending` de otro plan (`upgrade_intent_pending`) o el plan ya esta activo (`plan_already_active`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    listCommercialInvoices: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Facturas de la organizacion activa; vacio si no hubo cobros. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommercialInvoiceList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    cancelCommercialSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Baja programada (`scheduled`) o registrada (`recorded`). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommercialSubscriptionCancellation"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description La suscripcion ya estaba cancelada. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    receiveStripeWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Evento del proveedor, tal cual, sin reserializar. */
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Procesado, duplicado o registrado sin efecto. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StripeWebhookAccepted"];
+                };
+            };
+            /** @description Firma ausente, invalida o fuera de tolerancia, o cuerpo no verificable (`invalid_signature`, `raw_body_required`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Evento legitimo que aun no se puede atribuir a una organizacion (`event_not_correlated`); el proveedor debe reintentar. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description El despliegue no tiene pasarela configurada (`payment_provider_unavailable`). */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

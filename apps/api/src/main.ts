@@ -4,6 +4,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import compression from 'compression';
 import { AppModule } from './app.module';
+import { useStripeWebhookRawBody } from './modules/commercial/stripe-webhook.raw-body';
 
 function parseAllowedOrigins(raw: string): string[] {
   const value = (raw || '').trim();
@@ -34,6 +35,12 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     cors: false,
   });
+
+  // El webhook de la pasarela necesita los BYTES CRUDOS para verificar su
+  // firma HMAC, así que su parser se monta ANTES del JSON global y SÓLO en su
+  // ruta: el orden de `use` es el orden de ejecución en Express, y el parser
+  // crudo marca la petición para que el JSON global no vuelva a tocarla.
+  useStripeWebhookRawBody(app);
 
   // El documento canónico inline admite hasta 8 000 000 bytes serializados;
   // el margen extra cubre el framing JSON sin aceptar payloads sin tope.

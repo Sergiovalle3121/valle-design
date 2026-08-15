@@ -21,6 +21,7 @@ import { CreateCadSheetSets20260809100000 } from './20260809100000-CreateCadShee
 import { CommercialSellableCatalog20260812100000 } from './20260812100000-CommercialSellableCatalog';
 import { SubscriptionUpgradeIntents20260812110000 } from './20260812110000-SubscriptionUpgradeIntents';
 import { PlanPrices20260814100000 } from './20260814100000-PlanPrices';
+import { StripeBilling20260815100000 } from './20260815100000-StripeBilling';
 
 const LEGACY_MIGRATIONS: Array<new () => MigrationInterface> = [
   AddCadBlocks20260706180000,
@@ -44,6 +45,7 @@ const ALL_MIGRATIONS: Array<new () => MigrationInterface> = [
   CommercialSellableCatalog20260812100000,
   SubscriptionUpgradeIntents20260812110000,
   PlanPrices20260814100000,
+  StripeBilling20260815100000,
 ];
 
 describePostgres('migration chain (previous main -> latest)', () => {
@@ -176,13 +178,13 @@ describePostgres('migration chain (previous main -> latest)', () => {
     ]);
 
     // Se deshace la ventana NUEVA COMPLETA: la prueba mide up/down/up de todo
-    // lo que esta rama añade sobre el main anterior, así que el número de
-    // `undo` acompaña al de migraciones nuevas.
-    await dataSource.undoLastMigration({ transaction: 'each' });
-    await dataSource.undoLastMigration({ transaction: 'each' });
-    await dataSource.undoLastMigration({ transaction: 'each' });
-    await dataSource.undoLastMigration({ transaction: 'each' });
-    await dataSource.undoLastMigration({ transaction: 'each' });
+    // lo que esta rama añade sobre el main anterior. El número sale de las
+    // LISTAS, no de un literal: cada migración nueva rompía esta línea con un
+    // «esperaba 5, llegaron 6» que no decía nada del cambio que lo causó.
+    const newMigrations = ALL_MIGRATIONS.length - LEGACY_MIGRATIONS.length;
+    for (let undone = 0; undone < newMigrations; undone += 1) {
+      await dataSource.undoLastMigration({ transaction: 'each' });
+    }
     expect(
       await dataSource.query(
         `SELECT "name" FROM "cad_documents" WHERE "id" = $1`,
@@ -190,7 +192,7 @@ describePostgres('migration chain (previous main -> latest)', () => {
       ),
     ).toEqual([{ name: 'Plano anterior' }]);
 
-    expect(await dataSource.runMigrations()).toHaveLength(5);
+    expect(await dataSource.runMigrations()).toHaveLength(newMigrations);
     expect(
       await dataSource.query(
         `SELECT "entitlement_code" FROM "plan_entitlements"
@@ -240,5 +242,52 @@ describePostgres('migration chain (previous main -> latest)', () => {
          VALUES ('plan-fantasma', 'USD', 'monthly', 2900)`,
       ),
     ).rejects.toMatchObject({ code: '23503' });
+
+    // La facturación de la ola 2 sobrevive su propio down/up: la barrera de
+    // idempotencia sigue siendo única y las facturas siguen siendo hijas de
+    // una organización real.
+    await expect(
+      dataSource.query(
+        `INSERT INTO "payment_events"
+           ("provider", "event_id", "type", "payload_hash", "outcome")
+         VALUES ('stripe', 'evt_chain', 'invoice.paid', $1, 'subscription_renewed')`,
+        ['b'.repeat(64)],
+      ),
+    ).resolves.toBeDefined();
+    await expect(
+      dataSource.query(
+        `INSERT INTO "payment_events"
+           ("provider", "event_id", "type", "payload_hash", "outcome")
+         VALUES ('stripe', 'evt_chain', 'invoice.paid', $1, 'subscription_renewed')`,
+        ['b'.repeat(64)],
+      ),
+    ).rejects.toMatchObject({ code: '23505' });
+    await expect(
+      dataSource.query(
+        `INSERT INTO "invoices"
+           ("organization_id", "tenant_id", "provider", "provider_invoice_id",
+            "amount_cents", "currency", "status")
+         VALUES ($1, $1, 'stripe', 'in_chain', 2900, 'USD', 'paid')`,
+        [randomUUID()],
+      ),
+    ).rejects.toMatchObject({ code: '23503' });
+    // Y `subscriptions` conserva el vocabulario del ciclo cobrado.
+    expect(
+      await dataSource.query(
+        `SELECT "column_name"
+           FROM information_schema.columns
+          WHERE table_schema = $1
+            AND table_name = 'subscriptions'
+            AND column_name IN ('cancel_at_period_end', 'current_period_end',
+                                'provider_customer_id', 'provider_subscription_id')
+          ORDER BY column_name`,
+        [schema],
+      ),
+    ).toEqual([
+      { column_name: 'cancel_at_period_end' },
+      { column_name: 'current_period_end' },
+      { column_name: 'provider_customer_id' },
+      { column_name: 'provider_subscription_id' },
+    ]);
   });
 });

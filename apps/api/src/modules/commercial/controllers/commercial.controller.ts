@@ -3,7 +3,6 @@ import {
   Body,
   ConflictException,
   Controller,
-  ForbiddenException,
   Get,
   Inject,
   NotFoundException,
@@ -15,10 +14,8 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsString, Matches, MaxLength, MinLength } from 'class-validator';
-import type { Request } from 'express';
 import { DataSource, In, Repository } from 'typeorm';
 import { isUniqueViolation } from '../../../common/database/unique-violation';
-import type { AuthenticatedUser } from '../../../common/types/authenticated-user.types';
 import {
   PlanCatalog,
   PlanEntitlement,
@@ -35,10 +32,11 @@ import {
   type PaymentProvider,
 } from '../ports/payment-provider.port';
 import { SubscriptionLifecycleService } from '../subscription-lifecycle.service';
-
-interface AuthenticatedRequest extends Request {
-  user?: AuthenticatedUser;
-}
+import {
+  type AuthenticatedRequest,
+  requireDecider,
+  requireMember,
+} from './commercial-request-context';
 
 interface CommercialSnapshot {
   organizationId: string | null;
@@ -46,6 +44,8 @@ interface CommercialSnapshot {
     planCode: string;
     status: string;
     trialEndsAt: Date | null;
+    currentPeriodEnd: Date | null;
+    cancelAtPeriodEnd: boolean;
     effective: boolean;
   } | null;
   entitlements: string[];
@@ -211,7 +211,7 @@ export class CommercialController {
 
   @Get('upgrade-intents')
   async listUpgradeIntents(@Req() request: AuthenticatedRequest) {
-    const { organizationId } = this.requireDecider(request);
+    const { organizationId } = requireDecider(request);
     const items = await this.upgradeIntents.find({
       where: { organizationId },
       order: { createdAt: 'DESC' },
@@ -225,7 +225,7 @@ export class CommercialController {
     @Body() body: UpgradeIntentDto,
     @Req() request: AuthenticatedRequest,
   ) {
-    const { user, organizationId } = this.requireMember(request);
+    const { user, organizationId } = requireMember(request);
     try {
       return await this.data.transaction(async (manager) => {
         const plan = await manager.findOneBy(PlanCatalog, {
@@ -285,7 +285,7 @@ export class CommercialController {
     @Param('intentId', new ParseUUIDPipe({ version: '4' })) intentId: string,
     @Req() request: AuthenticatedRequest,
   ) {
-    const { user, organizationId } = this.requireDecider(request);
+    const { user, organizationId } = requireDecider(request);
     return this.data.transaction(async (manager) => {
       const intent = await this.decideIntent(
         manager.getRepository(SubscriptionUpgradeIntent),
@@ -352,7 +352,7 @@ export class CommercialController {
     @Param('intentId', new ParseUUIDPipe({ version: '4' })) intentId: string,
     @Req() request: AuthenticatedRequest,
   ) {
-    const { user, organizationId } = this.requireDecider(request);
+    const { user, organizationId } = requireDecider(request);
     return this.data.transaction(async (manager) => {
       const intent = await this.decideIntent(
         manager.getRepository(SubscriptionUpgradeIntent),
@@ -397,43 +397,6 @@ export class CommercialController {
       });
     }
     return repository.findOneByOrFail({ id: intentId });
-  }
-
-  /** Miembro autenticado de la organización activa (cualquier rol). */
-  private requireMember(request: AuthenticatedRequest): {
-    user: AuthenticatedUser;
-    organizationId: string;
-  } {
-    if (!request.user) {
-      throw new UnauthorizedException('Falta una sesión válida.');
-    }
-    const organizationId = request.user.organization_id;
-    if (
-      !organizationId ||
-      request.user.tenant_id !== organizationId ||
-      !request.user.role
-    ) {
-      throw new ForbiddenException({
-        code: 'organization_required',
-        message: 'Se requiere una organización activa con membresía vigente.',
-      });
-    }
-    return { user: request.user, organizationId };
-  }
-
-  /** Owner o admin: los únicos roles que deciden (o auditan) un upgrade. */
-  private requireDecider(request: AuthenticatedRequest): {
-    user: AuthenticatedUser;
-    organizationId: string;
-  } {
-    const context = this.requireMember(request);
-    if (!['owner', 'admin'].includes(context.user.role)) {
-      throw new ForbiddenException({
-        code: 'owner_or_admin_required',
-        message: 'Sólo owner o admin pueden decidir un upgrade.',
-      });
-    }
-    return context;
   }
 
   private async snapshot(
@@ -484,6 +447,10 @@ export class CommercialController {
         planCode: subscription.planCode,
         status: subscription.status,
         trialEndsAt: subscription.trialEndsAt,
+        // Ola 2: hasta cuándo está pagado y si ya hay baja programada. Null y
+        // false son la respuesta honesta mientras el cobro sea externo.
+        currentPeriodEnd: subscription.currentPeriodEnd,
+        cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
         effective,
       },
       entitlements,

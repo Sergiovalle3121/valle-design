@@ -41,6 +41,13 @@ export type EffectiveEntitlementList = Schemas["EffectiveEntitlementList"];
 export type CommercialPlan = Schemas["CommercialPlan"];
 export type CommercialPlanPrice = Schemas["CommercialPlanPrice"];
 export type CommercialPlanList = Schemas["CommercialPlanList"];
+export type CommercialCheckoutSessionCreate =
+  Schemas["CommercialCheckoutSessionCreate"];
+export type CommercialCheckoutSession = Schemas["CommercialCheckoutSession"];
+export type CommercialInvoice = Schemas["CommercialInvoice"];
+export type CommercialInvoiceList = Schemas["CommercialInvoiceList"];
+export type CommercialSubscriptionCancellation =
+  Schemas["CommercialSubscriptionCancellation"];
 export type CadSheetSet = Schemas["CadSheetSet"];
 export type CadSheetSetSummary = Schemas["CadSheetSetSummary"];
 export type CadSheetSetCreate = Schemas["CadSheetSetCreate"];
@@ -321,6 +328,30 @@ export function createDesignClient(options: DesignClientOptions) {
        */
       plans: () =>
         call<CommercialPlanList>("GET", resource("/v1/commercial/plans")),
+      /**
+       * Abre una compra autoservicio (owner/admin). Con `checkout: hosted`,
+       * `url` es la página de pago del proveedor. Con el proveedor nulo
+       * responde 409 `checkout_unavailable` y el intent queda registrado: ese
+       * despliegue cobra por fuera.
+       */
+      createCheckoutSession: (input: CommercialCheckoutSessionCreate) =>
+        call<CommercialCheckoutSession>(
+          "POST",
+          resource("/v1/commercial/checkout-sessions"),
+          input,
+        ),
+      /** Historial de facturas de la organización activa (owner/admin). */
+      invoices: () =>
+        call<CommercialInvoiceList>("GET", resource("/v1/commercial/invoices")),
+      /**
+       * Baja a fin de período (owner). No corta el acceso: lo comprado sigue
+       * vigente hasta `currentPeriodEnd`.
+       */
+      cancelSubscription: () =>
+        call<CommercialSubscriptionCancellation>(
+          "POST",
+          resource("/v1/commercial/subscription/cancel"),
+        ),
     },
 
     projects: {
