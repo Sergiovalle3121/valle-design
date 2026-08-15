@@ -134,8 +134,13 @@ export class CadRenderScene {
     this.clearMeshes();
   }
 
-  invalidate(affectedEntityIds: readonly string[], upserts: readonly CadNativeEntity[] = []): void {
-    this.pipeline.invalidate(affectedEntityIds, upserts);
+  /** El documento acompaña a la edición: ver `CadRenderPipeline.invalidate`. */
+  invalidate(
+    affectedEntityIds: readonly string[],
+    upserts: readonly CadNativeEntity[] = [],
+    document?: CadDocument,
+  ): void {
+    this.pipeline.invalidate(affectedEntityIds, upserts, document);
   }
 
   /**

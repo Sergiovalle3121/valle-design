@@ -143,6 +143,29 @@ function coincidentEnd(frame: WallFrame, point: CadPoint2): "start" | "end" | nu
 }
 
 /**
+ * ¿Cae `point` sobre el EJE de este muro, y estrictamente entre sus extremos?
+ *
+ * Es la condición de que el muro sea el PASANTE de una T. El margen contra los
+ * extremos es la tolerancia de punto: más cerca del extremo ya habría sido
+ * esquina, y las dos uniones no pueden reclamar el mismo caso.
+ *
+ * Vive suelta porque la usan dos sitios que TIENEN que decir lo mismo: quien
+ * calcula la unión y quien decide a qué vecinos hay que rederivarles la suya.
+ * Duplicada, un cambio de tolerancia dejaría muros con el inglete viejo en
+ * pantalla y ningún test mirando ahí.
+ */
+function pointOnAxisInterior(frame: WallFrame, point: CadPoint2): boolean {
+  const toPoint = {
+    x: point.x - frame.wall.start.x,
+    y: point.y - frame.wall.start.y,
+  };
+  if (Math.abs(dot(toPoint, frame.n)) > CAD_WALL_TEE_AXIS_TOLERANCE) return false;
+  const along = dot(toPoint, frame.u);
+  if (along <= CAD_WALL_JOIN_POINT_TOLERANCE) return false;
+  return along < frame.length - CAD_WALL_JOIN_POINT_TOLERANCE;
+}
+
+/**
  * Extensión firmada de una cara con el tope aplicado.
  *
  * `raw` sale de la intersección exacta; el tope superior es el límite de
@@ -282,21 +305,10 @@ function wallEndJoin(
     return cornerEnd(frame, outward, other, otherOutward);
   }
 
-  // Sin extremo compartido: ¿toca el eje INTERIOR de un pasante? El margen en
-  // los extremos del pasante es la tolerancia de punto: más cerca del extremo
-  // ya habría sido esquina.
+  // Sin extremo compartido: ¿toca el eje INTERIOR de un pasante?
   const throughs: WallFrame[] = [];
-  for (const other of others) {
-    const toOrigin = {
-      x: origin.x - other.wall.start.x,
-      y: origin.y - other.wall.start.y,
-    };
-    if (Math.abs(dot(toOrigin, other.n)) > CAD_WALL_TEE_AXIS_TOLERANCE) continue;
-    const along = dot(toOrigin, other.u);
-    if (along <= CAD_WALL_JOIN_POINT_TOLERANCE) continue;
-    if (along >= other.length - CAD_WALL_JOIN_POINT_TOLERANCE) continue;
-    throughs.push(other);
-  }
+  for (const other of others)
+    if (pointOnAxisInterior(other, origin)) throughs.push(other);
   // Dos pasantes por el mismo punto es un cruce, no una T: se deja el testero.
   if (throughs.length !== 1) return FREE_END;
   return teeEnd(frame, origin, outward, throughs[0]);
@@ -326,6 +338,65 @@ export function wallJoins(
     start: wallEndJoin(frame, "start", frames),
     end: wallEndJoin(frame, "end", frames),
   };
+}
+
+/**
+ * Los muros a los que hay que REDERIVARLES la unión porque `wall` cambió.
+ *
+ * `wallJoins(Y, …)` mira exactamente dos cosas de cada otro muro: si comparte
+ * un EXTREMO con Y —esquina o continuación colineal— y si su EJE pasa por un
+ * extremo de Y —empalme en T—. Luego la geometría de Y depende de X justo
+ * cuando X cumple una de esas dos CONTRA Y, y eso es lo que se comprueba aquí,
+ * con los mismos predicados y las mismas tolerancias que la unión usa.
+ *
+ * La relación no es simétrica y no debe serlo: en una T, el que llega se
+ * recorta contra la cara del pasante y el pasante no se toca, así que mover el
+ * pasante sí obliga a rederivar al que llega, y al revés no. Devolver de más
+ * no rompería el dibujo, pero cada id de más es un tile que se libera y se
+ * reconstruye por nada.
+ *
+ * Un solo nivel basta: la unión es función pura de las RECETAS de los vecinos
+ * —eje y grosor—, no de su geometría derivada. Mover B cambia A y C, pero el
+ * cambio de A no vuelve a cambiar C, así que no hay cierre transitivo que
+ * calcular.
+ *
+ * `candidates` debe llegar de una consulta ACOTADA por caja —el índice
+ * espacial de quien invalida—, nunca del documento entero. No se pierde nada
+ * por ello: los dos criterios exigen CONTACTO, y dos muros en contacto tienen
+ * cajas que se cortan porque ambas contienen el punto de contacto.
+ */
+export function wallJoinDependents(
+  wall: CadWallJoinWall,
+  candidates: readonly CadWallJoinWall[],
+): string[] {
+  const frame = wallFrame(wall);
+  const dependents: string[] = [];
+  for (const other of candidates) {
+    if (other.id === wall.id) continue;
+    if (sharesEndpoint(wall, other)) {
+      dependents.push(other.id);
+      continue;
+    }
+    // Un muro degenerado no es pasante de nada: `wallJoins` lo descarta al no
+    // poder darle marco, así que tampoco puede tener dependientes por T.
+    if (!frame) continue;
+    if (pointOnAxisInterior(frame, other.start) || pointOnAxisInterior(frame, other.end))
+      dependents.push(other.id);
+  }
+  return dependents;
+}
+
+const samePoint = (a: CadPoint2, b: CadPoint2): boolean =>
+  Math.hypot(a.x - b.x, a.y - b.y) <= CAD_WALL_JOIN_POINT_TOLERANCE;
+
+/** Cualquiera de los cuatro emparejamientos de extremos vale como esquina. */
+function sharesEndpoint(a: CadWallJoinWall, b: CadWallJoinWall): boolean {
+  return (
+    samePoint(a.start, b.start) ||
+    samePoint(a.start, b.end) ||
+    samePoint(a.end, b.start) ||
+    samePoint(a.end, b.end)
+  );
 }
 
 /**

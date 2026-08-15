@@ -37,9 +37,11 @@
  */
 import {
   CAD_ENTITY_REGISTRY,
+  CadSpatialIndex,
   type CadBounds,
   type CadNativeEntity,
 } from "../entity-runtime";
+import { CadRenderDependencyLane } from "./pipeline-dependents";
 import type { CadDocument } from "../cad-document";
 import {
   CadRenderTileIndex,
@@ -119,6 +121,8 @@ export interface CadRenderPipelineOptions {
    * los specs, entornos sin workers). `null` fuerza el camino síncrono.
    */
   offThread?: CadOffThreadTessellator | null;
+  /** Índice del carril de dependientes. Inyectable para medir su coste. */
+  neighborhood?: CadSpatialIndex;
 }
 
 export interface CadRenderPipelineStats {
@@ -214,6 +218,12 @@ export class CadRenderPipeline {
    * teselado— vive en `pipeline-offthread.ts` con sus propias razones.
    */
   private readonly offThread: CadOffThreadTessellationLane;
+  /**
+   * Carril de DEPENDIENTES: quién más queda obsoleto al tocar una entidad.
+   * Las razones —y por qué el índice de detrás no es el dibujo entero— viven
+   * en `pipeline-dependents.ts`.
+   */
+  private readonly dependencies: CadRenderDependencyLane;
   private index: CadRenderTileIndex;
   private document?: CadDocument;
   private visibleTiles: CadTileId[] = [];
@@ -238,6 +248,10 @@ export class CadRenderPipeline {
     this.offThread = new CadOffThreadTessellationLane(
       resolveCadOffThreadTessellator(options.offThread),
     );
+    this.dependencies = new CadRenderDependencyLane(
+      (id) => this.entities.get(id),
+      options.neighborhood,
+    );
   }
 
   /**
@@ -258,6 +272,7 @@ export class CadRenderPipeline {
     // Las peticiones en vuelo describen el contenido ANTERIOR: dejan de contar
     // como pendiente y su respuesta, con la época vieja, se descartará entera.
     this.offThread.reset();
+    this.dependencies.clear();
     this.document = document ?? this.document;
     let bounds: CadBounds | null = null;
     const boundsById = new Map<string, CadBounds>();
@@ -269,6 +284,7 @@ export class CadRenderPipeline {
         this.document,
       );
       boundsById.set(entity.id, entityBounds);
+      this.dependencies.track(entity, entityBounds);
       bounds = bounds
         ? {
             minX: Math.min(bounds.minX, entityBounds.minX),
@@ -304,11 +320,25 @@ export class CadRenderPipeline {
    *
    * Reindexa lo tocado, tira su teselado y libera los tiles residentes que lo
    * contenían, para que se reconstruyan con presupuesto en vez de de golpe.
+   *
+   * Y no sólo lo tocado: también sus DEPENDIENTES. Desde que hay geometría
+   * derivada de la vecindad —las uniones de muro—, el contorno cacheado de A
+   * puede haberlo dejado obsoleto una edición de B. Se pregunta ANTES y
+   * DESPUÉS de aplicar el lote, porque un muro que deja de tocar a su vecino
+   * ya no lo nombra, y uno que llega a tocarlo no lo nombraba. El coste está
+   * acotado por un índice espacial que sólo contiene lo que se deriva del
+   * documento; ver `pipeline-dependents.ts`.
    */
   invalidate(
     affectedEntityIds: readonly string[],
     upserts: readonly CadNativeEntity[] = [],
+    document?: CadDocument,
   ): number {
+    // El documento vigente, cuando quien edita lo tiene a mano. No es adorno:
+    // la geometría derivada de la vecindad se rederiva LEYÉNDOLO, y con el de
+    // antes el vecino se reconstruye con el inglete viejo — invalidarlo para
+    // volver a dibujar exactamente lo mismo.
+    this.document = document ?? this.document;
     // Conjunto y no búsqueda lineal: un MOVE de 10.000 entidades cruzaría
     // 10.000 ids contra 10.000 upserts, que son 100 millones de comparaciones
     // por lote de edición.
@@ -317,24 +347,33 @@ export class CadRenderPipeline {
     // repetir la petición de lo no tocado que compartiera lote — correcto
     // primero, y una edición es rara al lado de una carga.
     this.offThread.invalidateEpoch();
+    const touched = new Set<string>(affectedEntityIds);
+    for (const entity of upserts) touched.add(entity.id);
+    // La consulta de ANTES, sobre el estado que aún está en pie.
+    const affected = new Set<string>(touched);
+    this.dependencies.expandIds(touched, affected);
     const upsertedIds = new Set<string>();
     for (const entity of upserts) {
       if (!CAD_ENTITY_REGISTRY.supports(entity)) continue;
       upsertedIds.add(entity.id);
       this.entities.set(entity.id, entity);
-      this.index.upsert(
-        entity.id,
-        CAD_ENTITY_REGISTRY.adapter(entity).bounds.bounds(entity, this.document),
+      const entityBounds = CAD_ENTITY_REGISTRY.adapter(entity).bounds.bounds(
+        entity,
+        this.document,
       );
+      this.index.upsert(entity.id, entityBounds);
+      this.dependencies.track(entity, entityBounds);
     }
     for (const id of affectedEntityIds) {
       if (upsertedIds.has(id)) continue;
       if (!this.entities.has(id)) continue;
       this.index.remove(id);
+      this.dependencies.untrack(id);
       this.entities.delete(id);
     }
-    this.cache.invalidate(affectedEntityIds);
-    const affected = new Set(affectedEntityIds);
+    // Y la de DESPUÉS: el vecino nuevo al que la edición acaba de llegar.
+    this.dependencies.expandEntities(upserts, affected);
+    this.cache.invalidate(affected);
     let evicted = 0;
     for (const [tileId, tile] of [...this.resident]) {
       if (!tile.entityIds.some((id) => affected.has(id))) continue;
@@ -733,6 +772,7 @@ export class CadRenderPipeline {
     this.entities.clear();
     this.drawOrder.clear();
     this.index.clear();
+    this.dependencies.clear();
     this.visibleTiles = [];
     // Una respuesta del worker que llegue DESPUÉS no debe resucitar nada: la
     // época sube (no se siembra), el espejo de visibles queda vacío (no se

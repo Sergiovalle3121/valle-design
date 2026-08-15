@@ -268,7 +268,13 @@ function insertRenderPaths(entity: CadInsertEntity, segments = 96, document?: Ca
 
 const insertAdapter: CadEntityAdapter<CadInsertEntity> = {
   type: "insert",
-  renderer: { paths: insertRenderPaths },
+  // Sin documento, `insertRenderPaths` dibuja la cruz de referencia en vez del
+  // bloque resuelto: geometría distinta, no una aproximación. La marca es lo
+  // que mantiene al INSERT fuera del worker de teselado, que viaja sin
+  // documento. No declara `dependents` porque su derivación mira a la TABLA de
+  // bloques, no a los vecinos: editar una definición de bloque no entra por
+  // `invalidate`, recarga el documento entero.
+  renderer: { paths: insertRenderPaths, needsDocument: true },
   bounds: {
     bounds: (entity, document) => {
       const points = insertRenderPaths(entity, 96, document).flatMap((path) => path.points);

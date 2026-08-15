@@ -309,13 +309,19 @@ export class CadViewportRenderHost {
   /**
    * Edición: exactamente el contrato del pipeline — un id afectado que no venga
    * en `upserts` se trata como BAJA.
+   *
+   * El documento viaja con la edición porque hay geometría que se deriva de la
+   * VECINDAD (las uniones de muro): rederivar el contorno de un vecino contra
+   * el documento de antes lo reconstruiría idéntico, con el inglete del muro
+   * que acaba de moverse.
    */
   invalidate(
     affectedEntityIds: readonly string[],
     upserts: readonly CadNativeEntity[] = [],
+    document?: CadDocument,
   ): void {
     if (this.disposed || affectedEntityIds.length === 0) return;
-    this.scene.invalidate(affectedEntityIds, upserts);
+    this.scene.invalidate(affectedEntityIds, upserts, document);
     this.dirty = true;
   }
 
@@ -344,7 +350,7 @@ export class CadViewportRenderHost {
     const upserts = touched
       .map((id) => byId.get(id))
       .filter((entity): entity is CadNativeEntity => !!entity);
-    this.scene.invalidate(touched, upserts);
+    this.scene.invalidate(touched, upserts, document ?? undefined);
     this.dirty = true;
   }
 

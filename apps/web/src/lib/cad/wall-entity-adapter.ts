@@ -36,7 +36,9 @@ import {
   wallMidpoint,
 } from "./wall-geometry";
 import {
+  CAD_WALL_JOIN_POINT_TOLERANCE,
   wallJoinBoundaryPaths,
+  wallJoinDependents,
   wallJoinFillWindow,
   wallJoinedFootprint,
   wallJoins,
@@ -45,6 +47,7 @@ import {
 import type {
   CadBounds,
   CadEntityAdapter,
+  CadEntityNeighborQuery,
   CadNativeEntity,
   CadPropertyValue,
   CadRenderPath,
@@ -128,6 +131,30 @@ function wallPaths(entity: WallEntity, document?: CadDocument): CadRenderPath[] 
   ];
 }
 
+/**
+ * Los vecinos a los que este muro les cambia la unión.
+ *
+ * La caja de consulta es la del contorno base con la tolerancia de unión de
+ * margen, y eso alcanza a TODOS los candidatos posibles: los dos criterios de
+ * unión —extremo compartido y extremo sobre el eje— exigen contacto, y un
+ * punto de contacto está dentro de las dos cajas. Consultar por caja en vez de
+ * recorrer los muros del documento es lo que mantiene acotado el coste de una
+ * edición en un plano de miles de entidades.
+ */
+function wallDependents(entity: WallEntity, near: CadEntityNeighborQuery): string[] {
+  const bounds = wallBounds(entity);
+  const margin = CAD_WALL_JOIN_POINT_TOLERANCE;
+  const candidates: WallEntity[] = [];
+  for (const candidate of near({
+    minX: bounds.minX - margin,
+    minY: bounds.minY - margin,
+    maxX: bounds.maxX + margin,
+    maxY: bounds.maxY + margin,
+  }))
+    if (candidate.type === "wall") candidates.push(candidate);
+  return wallJoinDependents(entity, candidates);
+}
+
 function wallBounds(entity: WallEntity): CadBounds {
   const footprint = wallFootprint(entity);
   return pointsBounds(
@@ -143,7 +170,16 @@ const wallAdapter: CadEntityAdapter<WallEntity> = {
   // El tercer argumento es el DOCUMENTO — la misma vía por la que INSERT
   // resuelve su definición de bloque. Es lo que permite que las uniones sean
   // derivadas: el muro se dibuja mirando a sus vecinos sin persistir nada.
-  renderer: { paths: (entity, _segments, document) => wallPaths(entity, document) },
+  //
+  // Y por eso el muro DECLARA las dos consecuencias de mirar a los vecinos:
+  // que no puede teselarse en un worker que no lleva documento (`needsDocument`
+  // lo aparta de ese carril), y que al moverse deja obsoleto el contorno ya
+  // cacheado de los muros con los que se unía (`dependents` los nombra).
+  renderer: {
+    paths: (entity, _segments, document) => wallPaths(entity, document),
+    needsDocument: true,
+    dependents: wallDependents,
+  },
   bounds: { bounds: (entity) => wallBounds(entity) },
   hitTester: {
     // Un muro se pincha por su contorno O por dentro: es un cuerpo, no un
