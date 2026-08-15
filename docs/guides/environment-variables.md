@@ -49,6 +49,33 @@ El receptor valida `X-Valle-Signature` sobre
 `<X-Valle-Timestamp>.<raw-body>`, aplica una ventana de frescura y deduplica
 `Idempotency-Key`. La entrega es at-least-once.
 
+## Servidor HTTP y apagado ordenado
+
+| Variable                     | Requerida | Comportamiento                                                                                                                                                                 |
+| ---------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `HTTP_KEEP_ALIVE_TIMEOUT_MS` | No        | Vida de una conexión ociosa; default `65000`. **Debe superar el idle timeout del balanceador** (60 s en ALB/nginx): si el servidor cierra primero, el proxy devuelve 502 sin rastro en la aplicación. |
+| `HTTP_HEADERS_TIMEOUT_MS`    | No        | Plazo para recibir cabeceras; default `70000`. Se fuerza SIEMPRE por encima de keep-alive: por debajo mataría conexiones sanas.                                                 |
+| `HTTP_REQUEST_TIMEOUT_MS`    | No        | Techo de una petición; default `120000`. Una petición colgada retiene socket, memoria y una conexión del pool.                                                                  |
+| `SHUTDOWN_DRAIN_DELAY_MS`    | No        | Espera con readiness en 503 antes de cerrar el listener; default `5000`. Debe cubrir al menos un ciclo de health check del balanceador.                                         |
+| `SHUTDOWN_GRACE_MS`          | No        | Techo del apagado completo; default `25000`. Por debajo del `stopTimeout` del orquestador (30 s) para terminar por decisión propia y no por SIGKILL con el pool abierto.        |
+
+Valores no numéricos, negativos, cero o decimales caen al default en vez de
+romper el arranque: una variable mal escrita no debe impedir que el servicio
+arranque, sólo que use un valor no declarado.
+
+## Observabilidad
+
+| Variable          | Requerida | Comportamiento                                                                                                                                                                    |
+| ----------------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `METRICS_TOKEN`   | No        | Bearer de `GET /metrics` (Prometheus), mínimo 16 caracteres. **Sin él el endpoint responde 404, no 401**: un 401 confirmaría que existe y que hay algo detrás. Desactivado por defecto. |
+| `SENTRY_DSN`      | No        | Activa el adaptador HTTP compatible con Sentry (sin dependencia nueva; envío por `fetch`). **Sin él el reporte de errores es INERTE**: cero red, mismo comportamiento en specs y en desarrollo. Un DSN ilegible no tumba el arranque: se registra el motivo —nunca el DSN— y se cae al adaptador nulo. |
+| `RELEASE_VERSION` | No        | Etiqueta `release` de los reportes. Se acepta también `GIT_SHA`.                                                                                                                   |
+| `HOSTNAME`        | No        | `server_name` de los reportes; lo suele poner el orquestador.                                                                                                                     |
+
+Todo lo que sale por el reporter pasa por saneo (`observability/scrub.ts`):
+correos, URLs con credenciales, cabeceras `Authorization`/`Cookie`, JWT, UUID
+de tenant, hashes y firmas se redactan antes de cruzar el proceso.
+
 ## Asistencia CIDE opcional
 
 | Variable               | Comportamiento                                                                              |

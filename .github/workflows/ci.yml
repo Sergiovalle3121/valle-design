@@ -283,6 +283,101 @@ jobs:
           IDENTITY_RATE_LIMIT_KEY_SECRET: valle-design-ci-rate-limit-key-32chars
         run: npm run smoke:bootstrap
 
+      # El `dist` compilado viaja al job `deploy-readiness` en vez de
+      # reconstruirse allí. Reconstruirlo costaría otro `npm ci` y otro build
+      # completos (~4 min de runner por corrida) para producir bytes idénticos
+      # a los que aquí ya están en disco, y la cuota de Actions de este repo
+      # está agotándose. Retención de un día: es un insumo entre jobs de la
+      # MISMA corrida, no evidencia que haya que conservar.
+      - name: Upload API dist (insumo de deploy-readiness)
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-dist-${{ github.sha }}
+          path: |
+            apps/api/dist
+            packages/contracts/dist
+            packages/design-sdk/dist
+          if-no-files-found: error
+          retention-days: 1
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # ¿Se puede DESPLEGAR esto?
+  #
+  # Los gates de arriba responden «¿el código es correcto?». Este responde otra
+  # pregunta, y hasta ahora nadie la hacía: «¿la imagen que se va a construir
+  # es reproducible, y el binario se comporta como un servicio operable?».
+  #
+  # Un repo verde que no se sabe desplegar, vigilar ni apagar no es un producto
+  # vendible, y los dos fallos que este job caza no los ve ninguna spec:
+  # una imagen que corre como root o sin healthcheck, y un proceso que ante
+  # SIGTERM corta las conexiones en vuelo en lugar de drenarlas.
+  #
+  # Coste: sin `npm ci` (usa la caché del lockfile) y sin build (descarga el
+  # `dist` del job anterior). Es del orden de un minuto de runner.
+  # ───────────────────────────────────────────────────────────────────────────
+  deploy-readiness:
+    name: Despliegue · Imagen reproducible + arranque productivo
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: quality-gates
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: valle_design_deploy
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # Invariantes del Dockerfile: no necesita dependencias ni base de datos,
+      # así que corre ANTES que nada y falla en segundos si algo se rompió.
+      - name: Gate de imagen reproducible
+        run: node scripts/deploy/validate-dockerfiles.mjs
+
+      - name: Restaurar node_modules
+        id: deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            apps/*/node_modules
+            packages/*/node_modules
+          key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies
+        if: steps.deps.outputs.cache-hit != 'true'
+        run: npm ci
+
+      - name: Descargar el dist compilado por quality-gates
+        uses: actions/download-artifact@v4
+        with:
+          name: api-dist-${{ github.sha }}
+          path: .
+
+      # Arranca el proceso real: falla cerrada ante configuración productiva
+      # incompleta, probes, /metrics protegido y drenaje con SIGTERM.
+      - name: Smoke de arranque productivo
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/valle_design_deploy
+        run: node scripts/deploy/production-startup-smoke.mjs
+
   e2e:
     name: E2E Playwright (PostgreSQL · Chromium + Firefox)
     runs-on: ubuntu-latest

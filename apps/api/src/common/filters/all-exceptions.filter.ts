@@ -3,10 +3,17 @@ import {
   Catch,
   ExceptionFilter,
   HttpException,
+  Inject,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { Request, Response } from 'express';
+import {
+  ERROR_REPORTER,
+  type ErrorReporter,
+} from '../../observability/error-reporter.port';
+import { scrubStack, scrubText } from '../../observability/scrub';
 
 /**
  * Global catch-all exception filter.
@@ -27,6 +34,18 @@ import { Request, Response } from 'express';
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger('AllExceptionsFilter');
+
+  /**
+   * Puerto de reporte, OPCIONAL a propósito: las specs que construyen el
+   * filtro a mano (y cualquier módulo de prueba que no importe
+   * `ObservabilityModule`) siguen funcionando sin binding, y el reporte no
+   * se convierte en un requisito de arranque.
+   */
+  constructor(
+    @Optional()
+    @Inject(ERROR_REPORTER)
+    private readonly reporter?: ErrorReporter,
+  ) {}
 
   catch(exception: unknown, host: ArgumentsHost): void {
     // Only handle HTTP; rethrow anything else so Nest's default ws/rpc handling
@@ -57,6 +76,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         `[${requestId}] ${req.method} ${req.originalUrl} -> ${status}: ${message}`,
         exception instanceof Error ? exception.stack : undefined,
       );
+      this.report(exception, req, requestId, status, message);
     }
 
     if (isHttp) {
@@ -78,5 +98,47 @@ export class AllExceptionsFilter implements ExceptionFilter {
       message: 'Internal server error',
       requestId,
     });
+  }
+
+  /**
+   * Envía el fallo al puerto de observabilidad.
+   *
+   * Se reporta EL MISMO conjunto que ya se escribe en el log del servidor
+   * (clase, mensaje, traza, correlación), pero saneado: el `message` de un
+   * `QueryFailedError` incluye la sentencia con sus parámetros, y ahí viajan
+   * correos, UUID de tenant y hashes. El log del servidor vive en la
+   * infraestructura del operador; un reporte sale del perímetro, así que la
+   * barra es más alta.
+   *
+   * La ruta que se etiqueta es el PATRÓN (`req.route.path`), nunca
+   * `originalUrl`: la URL real contiene identificadores.
+   *
+   * Nunca lanza: un reporter roto no puede convertir un 500 en dos.
+   */
+  private report(
+    exception: unknown,
+    req: Request,
+    requestId: string,
+    status: number,
+    message: string,
+  ): void {
+    if (!this.reporter) return;
+    try {
+      const route = (req as { route?: { path?: unknown } }).route?.path;
+      this.reporter.report({
+        kind: exception instanceof Error ? exception.name : 'UnknownError',
+        message: scrubText(message),
+        level: status >= 500 ? 'error' : 'warning',
+        source: 'AllExceptionsFilter',
+        requestId,
+        method: req.method,
+        route: typeof route === 'string' && route ? route : undefined,
+        statusCode: status,
+        stack:
+          exception instanceof Error ? scrubStack(exception.stack) : undefined,
+      });
+    } catch {
+      // Best effort: la observabilidad no puede degradar la respuesta.
+    }
   }
 }

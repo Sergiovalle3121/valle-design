@@ -1,5 +1,112 @@
 # Backup y restore
 
+## Procedimiento PROBADO (empieza por aquí)
+
+Dos scripts. El primero produce un backup; **el segundo es el que lo convierte
+en un backup**, porque un archivo que nunca se restauró no lo es.
+
+```bash
+export PG_BIN=/usr/lib/postgresql/16/bin      # o D:/dev/pg16/pgsql/bin
+export DATABASE_URL=postgres://usuario:clave@host:5432/valle_design
+
+# 1 · Crear el backup + su inventario verificable
+node scripts/ops/backup.mjs --url "$DATABASE_URL" --out backups/
+
+# 2 · Restaurar en una base TEMPORAL, verificar y borrarla
+node scripts/ops/restore-verify.mjs \
+  --dump backups/valle-design-<sello>.dump \
+  --url "$DATABASE_URL"
+```
+
+`backup.mjs` emite cuatro artefactos, y el tercero y el cuarto son los que
+hacen la diferencia:
+
+| Artefacto | Contenido |
+| --------- | --------- |
+| `<nombre>.dump` | copia en formato custom (`pg_dump --format=custom --no-owner --no-acl`) |
+| `<nombre>.dump.sha256` | integridad del archivo |
+| `<nombre>.contents` | `pg_restore --list`: el índice de objetos |
+| `<nombre>.manifest.json` | **recuentos por tabla**, migración más reciente, versión del servidor e instante UTC |
+
+Sin el manifiesto no se puede responder la única pregunta que importa el día
+del incidente: *¿lo que restauré es lo que había?* `pg_restore` puede terminar
+en 0 habiendo omitido objetos, y una restauración parcial **parece exitosa**.
+
+`restore-verify.mjs` comprueba, en este orden, y **borra siempre la base
+temporal**, también si falla:
+
+1. **SHA-256** contra el `.sha256` — un archivo corrupto no merece más pasos;
+2. **`pg_restore --exit-on-error`** sobre una base recién creada y vaciada
+   (se elimina su esquema `public`, porque el dump lo recrea);
+3. **tablas críticas presentes** — identidad, organizaciones, comercial, CAD,
+   `design_blobs` y la tabla de migraciones;
+4. **cadena de migraciones** — mismo recuento y misma última migración que el
+   origen: un esquema restaurado en otro punto no es compatible con el binario
+   que se va a desplegar;
+5. **recuentos fila a fila** contra el manifiesto — es la única comprobación
+   que detecta una restauración parcial silenciosa.
+
+### Salida real de un ejercicio (2026-08-15, PostgreSQL 16.9)
+
+```
+  [1/5] sha256 OK  c6e7030176a55d11540286e7f4ec0fe078a83a99c6f9088af857ef6d8b6163ed
+  [2/5] base temporal creada y vaciada: valle_restore_verify_7d07f537
+  [2/5] pg_restore --exit-on-error OK (1.98 s)
+  [3/5] 30 tablas restauradas, incluidas las 14 críticas
+  [4/5] migraciones: 18 (última: LegalAcceptances20260815140000)
+  [5/5] recuentos idénticos al origen en 30 tablas (23 filas)
+
+  tamaño del dump : 77.3 KiB
+  RTO medido      : 6.86 s (crear + restaurar + verificar)
+  RPO del artefacto: instantánea de 2026-08-15T17:46:59.491Z
+  limpieza: base temporal valle_restore_verify_7d07f537 eliminada
+
+BACKUP VALIDADO: restaurado, verificado y base temporal eliminada.
+```
+
+Y las dos comprobaciones negativas, ejecutadas para demostrar que el gate tiene
+dientes:
+
+```
+# Manifiesto alterado (simula una restauración parcial)
+BACKUP NO VALIDADO:
+  - Recuentos distintos del origen (restauración PARCIAL): identity_users: 0 != 7.
+
+# Un byte del dump cambiado
+BACKUP NO VALIDADO:
+  - SHA-256 no coincide: el archivo se corrompió o no es el que se registró
+    (esperado 0c5f7d01..., obtenido 6a339a26...).
+```
+
+Tras cuatro ejecuciones consecutivas, `SELECT datname FROM pg_database WHERE
+datname LIKE 'valle_restore_verify%'` devolvió **cero filas**: la limpieza no
+deja bases huérfanas llenando el disco del servidor.
+
+### RPO y RTO
+
+El RPO **es** el intervalo entre backups verificados; el RTO se mide en cada
+ejercicio y se registra. Los objetivos por plan están en `docs/ops/SLA.md` §5,
+junto con la advertencia de que la medida de arriba —28 tablas, 20 filas— **no
+se extrapola**: cada cliente con RTO comprometido necesita su propio ejercicio
+sobre su volumen real.
+
+### Dos cosas que este procedimiento aprendió a la primera
+
+1. **`--schema=public` no es una economía, es correctitud.** El primer intento
+   sobre una base compartida con suites de prueba falló: `pg_dump` bloquea la
+   lista de tablas que vio al empezar y, para cuando llegó al `LOCK TABLE`, un
+   esquema efímero de otra suite ya se había destruido
+   (`ERROR: schema "organization_creation_..." does not exist`). El runtime
+   materializa TODO su esquema en `public`; el script avisa de los esquemas
+   que encuentra y no incluye, y admite `--schema=public,otro`.
+   Corolario operativo: **un backup se toma de una base que no está sufriendo
+   DDL concurrente.**
+2. **Un `.dump` de cero bytes es peor que ningún archivo.** `pg_dump` crea el
+   archivo antes de fallar; el script lo borra al fallar, porque la siguiente
+   persona lo encontraría con fecha reciente y creería que hay copia.
+
+---
+
 ## Unidad de consistencia
 
 El backup productivo es un snapshot consistente de **toda** la base PostgreSQL,

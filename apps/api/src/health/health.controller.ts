@@ -1,5 +1,6 @@
 import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import { ReadinessState } from '../bootstrap/readiness.state';
 import { Public } from '../modules/auth/decorators/public.decorator';
 
 /**
@@ -18,10 +19,21 @@ import { Public } from '../modules/auth/decorators/public.decorator';
  * instancia vieja y la nueva; si la nueva recibe tráfico con el esquema a
  * medio migrar, sirve peticiones contra columnas que aún no existen. «La base
  * responde» no es lo mismo que «la base está lista».
+ *
+ * Y por qué readiness mira TAMBIÉN el drenaje: al recibir SIGTERM el proceso
+ * sigue vivo y sano —termina lo que aceptó— pero ya no debe recibir tráfico
+ * nuevo. Liveness debe seguir en 200 (si respondiera 503, el supervisor
+ * mataría el contenedor a mitad del drenaje, que es justo lo contrario de lo
+ * que se busca) y readiness debe pasar a 503 para que el balanceador saque la
+ * réplica de rotación. Es la diferencia entre un despliegue invisible y una
+ * ráfaga de 502 en cada release.
  */
 @Controller()
 export class HealthController {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly readiness: ReadinessState,
+  ) {}
 
   @Public()
   @Get('health')
@@ -33,6 +45,16 @@ export class HealthController {
   @Get('health/ready')
   async ready() {
     const startedAt = Date.now();
+    if (this.readiness.isDraining) {
+      throw new ServiceUnavailableException({
+        status: 'draining',
+        reason:
+          'El proceso recibio una senal de apagado y esta drenando: termina lo ' +
+          'que ya acepto y no debe recibir trafico nuevo.',
+        drainingSince: this.readiness.since?.toISOString(),
+        time: new Date().toISOString(),
+      });
+    }
     try {
       await this.dataSource.query('SELECT 1');
       const pending = await this.hasPendingMigrations();
