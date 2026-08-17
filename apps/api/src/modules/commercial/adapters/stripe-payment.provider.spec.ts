@@ -79,6 +79,7 @@ const INTENT = {
   intentId: '11111111-1111-4111-8111-111111111111',
   organizationId: '22222222-2222-4222-8222-222222222222',
   planCode: 'standalone-full',
+  seats: 1,
 };
 const PRICE = {
   planCode: 'standalone-full',
@@ -97,6 +98,48 @@ describe('StripePaymentProvider · descriptor', () => {
 });
 
 describe('StripePaymentProvider · createCheckout', () => {
+  it('cobra la CANTIDAD de asientos, no una tarifa unitaria suelta', async () => {
+    const { client, calls } = httpDouble([
+      {
+        body: JSON.stringify({
+          id: 'cs_test_asientos',
+          url: 'https://checkout.stripe.test/c/pay/cs_test_asientos',
+        }),
+      },
+    ]);
+    const provider = new StripePaymentProvider(configuration(), client);
+
+    await provider.createCheckout(
+      { ...INTENT, planCode: 'despacho', seats: 3 },
+      { ...PRICE, planCode: 'despacho', currency: 'MXN', amountCents: 16_900 },
+    );
+
+    const [call] = calls;
+    // 16.900 x 3 = 50.700 céntimos. Con cantidad 1 el proveedor cobraría 169
+    // MXN por un contrato de tres asientos, y lo haría en silencio: ningún
+    // estado del producto delataría la diferencia hasta ver la factura.
+    expect(call.form.get('line_items[0][quantity]')).toBe('3');
+    expect(call.form.get('line_items[0][price_data][unit_amount]')).toBe(
+      '16900',
+    );
+    // Los asientos viajan en la metadata de la suscripción, no sólo en la de la
+    // sesión: los eventos posteriores llegan sin la sesión delante.
+    expect(call.form.get('metadata[seats]')).toBe('3');
+    expect(call.form.get('subscription_data[metadata][seats]')).toBe('3');
+  });
+
+  it('rechaza una cantidad de asientos que no sea un entero cobrable', async () => {
+    const { client, calls } = httpDouble([]);
+    const provider = new StripePaymentProvider(configuration(), client);
+
+    // Llegar aquí con basura significa que la validación de arriba se saltó;
+    // el adaptador falla cerrado en vez de mandar `quantity=NaN` al proveedor.
+    await expect(
+      provider.createCheckout({ ...INTENT, seats: 0 }, PRICE),
+    ).rejects.toThrow(/Asientos no cobrables/);
+    expect(calls).toHaveLength(0);
+  });
+
   it('crea la sesión con el precio del catálogo y devuelve la URL hospedada', async () => {
     const { client, calls } = httpDouble([
       {

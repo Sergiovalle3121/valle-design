@@ -1410,6 +1410,8 @@ export interface components {
             /** @description Codigo ISO-4217 en mayusculas; debe tener precio publicado. */
             currency: string;
             period: components["schemas"]["PlanPricePeriod"];
+            /** @description Asientos contratados en un plan POR USUARIO. Omitido, se cobra el minimo del plan. Un plan que no cobra por asiento solo admite 1: mandar mas seria pedir algo que su precio no representa. El importe NUNCA lo pone el cliente: solo la cantidad, y contra el minimo publicado. */
+            seats?: number;
         };
         CommercialCheckoutSession: {
             /** @description Adaptador que atendio la compra (`null`, `stripe`). */
@@ -1427,6 +1429,8 @@ export interface components {
              * @description Pagina de pago hospedada; `null` cuando el modo no es `hosted`.
              */
             url: string | null;
+            /** @description Asientos con los que se abrio la compra. Se devuelve SIEMPRE para que la web pueda confirmar lo que se va a cobrar en vez de suponerlo a partir de lo que pidio. */
+            seats: number;
         };
         /** @enum {string} */
         InvoiceStatus: "paid" | "open" | "uncollectible" | "void";
@@ -2830,7 +2834,7 @@ export interface operations {
                     "application/json": components["schemas"]["CommercialCheckoutSession"];
                 };
             };
-            /** @description Plan no vendible (`plan_unavailable`) o sin precio publicado para esa moneda y periodo (`price_unavailable`). */
+            /** @description Plan no vendible (`plan_unavailable`), sin precio publicado para esa moneda y periodo (`price_unavailable`), asientos por debajo del minimo del plan (`seats_below_minimum`) o asientos en un plan que no cobra por usuario (`seats_not_applicable`). */
             400: {
                 headers: {
                     [name: string]: unknown;

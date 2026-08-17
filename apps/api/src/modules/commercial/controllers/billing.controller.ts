@@ -12,7 +12,17 @@ import {
   Req,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsIn, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import {
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Matches,
+  Max,
+  MaxLength,
+  Min,
+  MinLength,
+} from 'class-validator';
 import { DataSource, Repository } from 'typeorm';
 import { isUniqueViolation } from '../../../common/database/unique-violation';
 import {
@@ -38,6 +48,9 @@ import {
   requireOwner,
 } from './commercial-request-context';
 
+/** Tope del contrato. Un despacho de mil asientos ya no compra por checkout. */
+const MAX_CHECKOUT_SEATS = 1_000;
+
 class CheckoutSessionDto {
   @IsString()
   @MinLength(2)
@@ -51,6 +64,63 @@ class CheckoutSessionDto {
 
   @IsIn([...PLAN_PRICE_PERIODS])
   period!: PlanPricePeriod;
+
+  /**
+   * Asientos contratados. Opcional: omitirlo significa «el mínimo del plan»,
+   * que es lo que la página de precios anuncia como primera factura.
+   */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(MAX_CHECKOUT_SEATS)
+  seats?: number;
+}
+
+/**
+ * Asientos que se van a COBRAR, decididos por el catálogo y no por el cliente.
+ *
+ * El cliente elige la cantidad; el producto decide si esa cantidad es legítima
+ * para ese plan. Un plan que no cobra por usuario sólo admite un asiento: su
+ * precio publicado representa la cuenta entera, así que multiplicarlo por tres
+ * cobraría el triple por lo mismo. Y por debajo del mínimo se rechaza en vez de
+ * subirlo en silencio: quien pidió dos asientos de un plan de tres tiene que
+ * enterarse antes de pagar, no después en la factura.
+ */
+export function resolveCheckoutSeats(
+  plan: PlanCatalog,
+  requested: number | undefined,
+): number {
+  const metadata = (plan.metadata ?? {}) as {
+    perSeat?: unknown;
+    seatsMinimum?: unknown;
+  };
+  const perSeat = metadata.perSeat === true;
+  const rawMinimum = Number(metadata.seatsMinimum);
+  const minimum =
+    Number.isInteger(rawMinimum) &&
+    rawMinimum >= 1 &&
+    rawMinimum <= MAX_CHECKOUT_SEATS
+      ? rawMinimum
+      : 1;
+
+  if (!perSeat) {
+    if (requested !== undefined && requested !== 1) {
+      throw new BadRequestException({
+        code: 'seats_not_applicable',
+        message: `El plan "${plan.code}" no cobra por usuario: su precio cubre la cuenta entera.`,
+      });
+    }
+    return 1;
+  }
+  const seats = requested ?? minimum;
+  if (seats < minimum) {
+    throw new BadRequestException({
+      code: 'seats_below_minimum',
+      message: `El plan "${plan.code}" se contrata desde ${minimum} usuarios.`,
+      minimumSeats: minimum,
+    });
+  }
+  return seats;
 }
 
 /** Vista contractual de una factura espejo: nunca datos de pago. */
@@ -112,7 +182,7 @@ export class BillingController {
     const { user, organizationId } = requireDecider(request);
     const descriptor = this.payments.descriptor();
 
-    const { intent, price } = await this.openIntent(
+    const { intent, price, seats } = await this.openIntent(
       body,
       organizationId,
       user.userId,
@@ -123,6 +193,7 @@ export class BillingController {
         intentId: intent.id,
         organizationId,
         planCode: intent.requestedPlanCode,
+        seats,
       },
       {
         planCode: price.planCode,
@@ -147,6 +218,7 @@ export class BillingController {
       intentId: intent.id,
       reference: result.reference,
       url: result.kind === 'hosted' ? result.url : null,
+      seats,
     };
   }
 
@@ -270,7 +342,11 @@ export class BillingController {
     body: CheckoutSessionDto,
     organizationId: string,
     userId: string,
-  ): Promise<{ intent: SubscriptionUpgradeIntent; price: PlanPrice }> {
+  ): Promise<{
+    intent: SubscriptionUpgradeIntent;
+    price: PlanPrice;
+    seats: number;
+  }> {
     try {
       return await this.data.transaction(async (manager) => {
         const plan = await manager.findOneBy(PlanCatalog, {
@@ -286,6 +362,9 @@ export class BillingController {
             message: 'El plan solicitado no está disponible para compra.',
           });
         }
+        // Se resuelven ANTES de tocar nada más: rechazar una compra por
+        // asientos inválidos no debe dejar un intent abierto detrás.
+        const seats = resolveCheckoutSeats(plan, body.seats);
         const price = await manager.findOneBy(PlanPrice, {
           planCode: plan.code,
           currency: body.currency,
@@ -321,7 +400,7 @@ export class BillingController {
               message: 'Ya existe un intent de upgrade pendiente de decisión.',
             });
           }
-          return { intent: pending, price };
+          return { intent: pending, price, seats };
         }
         const intent = await manager.save(
           SubscriptionUpgradeIntent,
@@ -335,7 +414,7 @@ export class BillingController {
             decidedAt: null,
           }),
         );
-        return { intent, price };
+        return { intent, price, seats };
       });
     } catch (error) {
       // Bajo carrera el árbitro es el índice único parcial, no el SELECT de

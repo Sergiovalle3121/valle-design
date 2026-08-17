@@ -646,8 +646,10 @@ paths:
                 { $ref: "#/components/schemas/CommercialCheckoutSession" }
         "400":
           description: >-
-            Plan no vendible (`plan_unavailable`) o sin precio publicado para
-            esa moneda y periodo (`price_unavailable`).
+            Plan no vendible (`plan_unavailable`), sin precio publicado para
+            esa moneda y periodo (`price_unavailable`), asientos por debajo del
+            minimo del plan (`seats_below_minimum`) o asientos en un plan que
+            no cobra por usuario (`seats_not_applicable`).
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ApiError" }
@@ -2720,10 +2722,20 @@ components:
           pattern: "^[A-Z]{3}$"
           description: Codigo ISO-4217 en mayusculas; debe tener precio publicado.
         period: { $ref: "#/components/schemas/PlanPricePeriod" }
+        seats:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          description: >-
+            Asientos contratados en un plan POR USUARIO. Omitido, se cobra el
+            minimo del plan. Un plan que no cobra por asiento solo admite 1:
+            mandar mas seria pedir algo que su precio no representa. El importe
+            NUNCA lo pone el cliente: solo la cantidad, y contra el minimo
+            publicado.
     CommercialCheckoutSession:
       type: object
       additionalProperties: false
-      required: [provider, checkout, intentId, reference, url]
+      required: [provider, checkout, intentId, reference, url, seats]
       properties:
         provider:
           type: string
@@ -2743,6 +2755,14 @@ components:
           format: uri
           description: >-
             Pagina de pago hospedada; `null` cuando el modo no es `hosted`.
+        seats:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          description: >-
+            Asientos con los que se abrio la compra. Se devuelve SIEMPRE para
+            que la web pueda confirmar lo que se va a cobrar en vez de
+            suponerlo a partir de lo que pidio.
     InvoiceStatus:
       type: string
       enum: [paid, open, uncollectible, void]

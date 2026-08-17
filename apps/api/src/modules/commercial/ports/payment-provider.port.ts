@@ -34,6 +34,16 @@ export interface PaymentCheckoutIntent {
   readonly intentId: string;
   readonly organizationId: string;
   readonly planCode: string;
+  /**
+   * Asientos contratados. Va en el INTENT y no en el precio porque el precio
+   * es la tarifa publicada del catálogo —una por asiento— y los asientos son
+   * la decisión de compra: mezclarlos haría que un plan por usuario pareciera
+   * tener un precio distinto por cada organización.
+   *
+   * Siempre ≥ 1 y ya validado contra el mínimo del plan cuando llega aquí: un
+   * adaptador nunca decide cuántos asientos son legítimos.
+   */
+  readonly seats: number;
 }
 
 /** Foto del precio elegido, ya normalizada (céntimos como número entero). */

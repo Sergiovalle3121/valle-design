@@ -143,12 +143,21 @@ export class StripePaymentProvider implements PaymentProvider {
         `Período de precio no soportado por el checkout: ${price.period}.`,
       );
     }
+    // La cantidad es la que multiplica el importe unitario en la factura del
+    // proveedor. Con un plan por usuario, mandar 1 cobraría una tarifa unitaria
+    // por un contrato de varios asientos — y lo haría en silencio, sin que
+    // ningún estado del producto delatara la diferencia.
+    if (!Number.isInteger(intent.seats) || intent.seats < 1) {
+      throw new StripeConfigurationError(
+        `Asientos no cobrables: ${String(intent.seats)} no es un entero mayor o igual que 1.`,
+      );
+    }
     const form = new URLSearchParams({
       mode: 'subscription',
       success_url: this.configuration.successUrl,
       cancel_url: this.configuration.cancelUrl,
       client_reference_id: intent.intentId,
-      'line_items[0][quantity]': '1',
+      'line_items[0][quantity]': String(intent.seats),
       'line_items[0][price_data][currency]': price.currency.toLowerCase(),
       'line_items[0][price_data][unit_amount]': String(price.amountCents),
       'line_items[0][price_data][recurring][interval]': interval,
@@ -156,12 +165,14 @@ export class StripePaymentProvider implements PaymentProvider {
       'metadata[intentId]': intent.intentId,
       'metadata[organizationId]': intent.organizationId,
       'metadata[planCode]': intent.planCode,
+      'metadata[seats]': String(intent.seats),
       // La suscripción arrastra su propia metadata: los eventos posteriores
       // (invoice.paid, customer.subscription.deleted) llegan sin la sesión, y
       // sin esto la correlación dependería sólo de los ids que guardamos.
       'subscription_data[metadata][intentId]': intent.intentId,
       'subscription_data[metadata][organizationId]': intent.organizationId,
       'subscription_data[metadata][planCode]': intent.planCode,
+      'subscription_data[metadata][seats]': String(intent.seats),
     });
 
     const session = await this.call('/v1/checkout/sessions', form, {
