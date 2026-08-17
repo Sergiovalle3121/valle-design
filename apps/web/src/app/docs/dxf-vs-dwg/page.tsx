@@ -13,9 +13,15 @@ import {
  * evaluando si puede cambiar de herramienta. Justo por eso es donde más tienta
  * el eufemismo. Aquí no se usa ninguno: ADR-0004 prohíbe expresamente que la
  * documentación, la interfaz o el marketing digan "compatible con DWG", y
- * ADR-0007 añade que la investigación aislada de `packages/dwg-codec/` no
- * implica disponibilidad en el producto. La guía lo dice en la primera línea
- * del apartado que toca, no en una nota al pie.
+ * ADR-0007 añade que la investigación del laboratorio aislado no implica
+ * disponibilidad en el producto. La guía lo dice en la primera línea del
+ * apartado que toca, no en una nota al pie.
+ *
+ * El laboratorio se nombra SIN su ruta a propósito: check-product-boundary
+ * busca esa cadena como subcadena en cualquier parte del árbol del producto,
+ * comentarios incluidos. Es un guardián deliberadamente romo, y esa es su
+ * virtud —un chequeo romo no se puede engañar con una indirección—, así que
+ * el precio a pagar es escribir el nombre en prosa.
  */
 export const metadata: Metadata = guideMetadata("dxf-vs-dwg");
 
