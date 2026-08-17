@@ -65,6 +65,12 @@ export function PublicPageShell({
           >
             <a
               className="underline-offset-4 hover:underline"
+              href={COMMERCIAL_LINKS.pricing}
+            >
+              Precios
+            </a>
+            <a
+              className="underline-offset-4 hover:underline"
               href={COMMERCIAL_LINKS.documentation}
             >
               Documentación
