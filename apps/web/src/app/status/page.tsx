@@ -5,11 +5,14 @@ import {
   publicActionClass,
 } from "../docs/PublicPageShell";
 import { COMMERCIAL_LINKS } from "@/config/commercial";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
-export const metadata: Metadata = {
-  title: "Estado",
-  description: "Información honesta sobre la fuente de estado de Valle Design.",
-};
+export const metadata: Metadata = publicPageMetadata({
+  path: "/status",
+  title: "Estado del servicio",
+  description:
+    "Fuente pública de estado de Valle Design. Esta página no declara disponibilidad que no pueda demostrar con telemetría configurada.",
+});
 
 export default function StatusPage() {
   const externalStatus =

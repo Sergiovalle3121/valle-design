@@ -4,14 +4,17 @@ import {
   PublicSection,
   publicActionClass,
 } from "../docs/PublicPageShell";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 const repositoryBase =
   "https://github.com/Sergiovalle3121/valle-design/blob/main";
 
-export const metadata: Metadata = {
-  title: "Licencias",
-  description: "Licencia propietaria y avisos de terceros de Valle Design.",
-};
+export const metadata: Metadata = publicPageMetadata({
+  path: "/licenses",
+  title: "Licencias y avisos de terceros",
+  description:
+    "Licencia propietaria de Valle Design y avisos de las dependencias de terceros que utiliza el producto.",
+});
 
 export default function LicensesPage() {
   return (
