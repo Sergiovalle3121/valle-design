@@ -66,23 +66,23 @@ import {
 } from "./line-batch";
 import { CadRenderScheduler, type CadRenderFrameResult } from "./render-scheduler";
 import {
-  CAD_RENDER_OFFTHREAD_BATCH_MAX_ENTITIES,
-  CAD_RENDER_OFFTHREAD_BATCH_SEGMENT_BUDGET,
   CadOffThreadTessellationLane,
   cadEntityTessellatesWithoutDocument,
+  collectCadOffThreadBatch,
   resolveCadOffThreadTessellator,
   type CadOffThreadTessellator,
   type CadRenderTessellationSource,
 } from "./pipeline-offthread";
 import { cadTessellationFromPayload } from "./tessellate-worker-client";
 import type { CadTextQuadRequest } from "./text-atlas";
+import { cadRenderCount, cadRenderMark, cadRenderStage } from "./render-profile";
+import { defaultCadRenderStyle } from "./render-style";
 
 export type { CadOffThreadTessellator, CadRenderTessellationSource };
-
-/** Color por defecto, el mismo que usaba la proyección anterior. */
-export const CAD_RENDER_DEFAULT_COLOR = 0x60a5fa;
-/** Medio grosor por defecto en píxeles: un trazo de 1 px. */
-export const CAD_RENDER_DEFAULT_HALF_WIDTH_PX = 0.5;
+export {
+  CAD_RENDER_DEFAULT_COLOR,
+  CAD_RENDER_DEFAULT_HALF_WIDTH_PX,
+} from "./render-style";
 
 /**
  * Segmentos que materializa como mucho una tarea del planificador.
@@ -123,6 +123,12 @@ export interface CadRenderPipelineOptions {
   offThread?: CadOffThreadTessellator | null;
   /** Índice del carril de dependientes. Inyectable para medir su coste. */
   neighborhood?: CadSpatialIndex;
+  /**
+   * Clava el presupuesto por cuadro en `frameBudgetMs` en vez de adaptarlo al
+   * cuadro real. Existe para MEDIR la diferencia entre las dos políticas en la
+   * misma corrida; el editor no lo usa. Ver `render-scheduler.ts`.
+   */
+  fixedFrameBudget?: boolean;
 }
 
 export interface CadRenderPipelineStats {
@@ -164,27 +170,17 @@ interface ResidentTile {
   instances: number;
   zoomOctave: number;
   complete: boolean;
-}
-
-function defaultStyle(entity: CadNativeEntity): CadLineStyle {
-  const value = entity.context?.presentation?.color?.value;
-  const color =
-    value && /^#[0-9a-f]{6}$/i.test(value)
-      ? Number.parseInt(value.slice(1), 16)
-      : CAD_RENDER_DEFAULT_COLOR;
-  const weight = entity.context?.presentation?.lineweight?.value;
-  return {
-    color,
-    // El lineweight canónico va en centésimas de milímetro, como en DXF. Se
-    // convierte a un medio grosor en píxeles con la regla de que 0,25 mm es un
-    // trazo fino de 1 px: es una convención, pero explícita y en un solo sitio.
-    halfWidthPx:
-      typeof weight === "number" && weight > 0
-        ? Math.max(CAD_RENDER_DEFAULT_HALF_WIDTH_PX, weight / 50)
-        : CAD_RENDER_DEFAULT_HALF_WIDTH_PX,
-    linetypeIndex: 0,
-    layer: entity.layer,
-  };
+  /**
+   * Lotes ya derivados, o `null` si el tile cambió desde la última vez.
+   *
+   * `visibleBatches()` lo llama el consumidor en CADA cuadro —`scene.sync()` no
+   * tiene otra forma de saber qué mallas quiere— y derivar un tile cuesta
+   * ordenar sus cubos de estilo y construir una clave por lote. A 400 tiles
+   * residentes eso era medio segundo de un asentado de segundo y medio, gastado
+   * casi entero en volver a describir tiles que no se habían tocado. Se anula al
+   * escribir instancias, que es lo ÚNICO que cambia el resultado.
+   */
+  batches: CadLineBatch[] | null;
 }
 
 /** Octava del zoom. Cuantizar evita invalidar la escena en cada muesca. */
@@ -241,8 +237,9 @@ export class CadRenderPipeline {
     this.scheduler = new CadRenderScheduler({
       frameBudgetMs: options.frameBudgetMs,
       now: options.now,
+      fixedBudget: options.fixedFrameBudget,
     });
-    this.styleOf = options.style ?? defaultStyle;
+    this.styleOf = options.style ?? defaultCadRenderStyle;
     this.index = new CadRenderTileIndex(options.tileSize ?? 4_096);
     this.document = options.document;
     this.offThread = new CadOffThreadTessellationLane(
@@ -400,9 +397,11 @@ export class CadRenderPipeline {
     const lodChanged = octave !== this.zoomOctaveValue;
     this.view = view;
     this.zoomOctaveValue = octave;
+    const viewStarted = cadRenderMark();
     this.visibleTiles = this.index.visibleTileIds(view.bounds);
     this.visibleTileSet = new Set(this.visibleTiles);
     const diff = diffCadTiles(previousTiles, this.visibleTiles);
+    cadRenderStage("viewDiff", viewStarted);
     // Los tiles que salen de la vista liberan su geometría: sin esto, pasear por
     // un plano grande retiene el plano entero y la prueba de fuga lo caza.
     for (const tileId of diff.removed) {
@@ -443,6 +442,7 @@ export class CadRenderPipeline {
   }
 
   private enqueueTile(tileId: CadTileId): void {
+    const started = cadRenderMark();
     const bounds = this.index.tileContentBounds(tileId);
     if (!bounds) return;
     this.scheduler.enqueue({
@@ -451,6 +451,7 @@ export class CadRenderPipeline {
       y: (bounds.minY + bounds.maxY) / 2,
       run: () => this.buildTileChunk(tileId),
     });
+    cadRenderStage("tileEnqueue", started);
   }
 
   /**
@@ -462,6 +463,7 @@ export class CadRenderPipeline {
    * exactamente la carga progresiva que se busca.
    */
   private buildTileChunk(tileId: CadTileId): void {
+    cadRenderCount("chunks");
     // Con una petición en vuelo no hay nada que construir todavía: la
     // respuesta reencolará este tile. Sin la guarda, cada `setView` durante la
     // espera dispararía una petición duplicada del mismo lote.
@@ -489,6 +491,7 @@ export class CadRenderPipeline {
         instances: 0,
         zoomOctave: this.zoomOctaveValue,
         complete: false,
+        batches: null,
       };
       target.set(tileId, resident);
     }
@@ -505,6 +508,7 @@ export class CadRenderPipeline {
         // El texto no se tesela: viaja como petición de quads para el atlas.
         // Los productores de geometría de MText, cotas y mleader se conservan;
         // este pipeline sólo cambia CÓMO se materializa el resultado.
+        const textStarted = cadRenderMark();
         resident.cursor += 1;
         resident.textRequests.push({
           text: entity.text,
@@ -517,6 +521,7 @@ export class CadRenderPipeline {
           depth,
         });
         resident.entityIds.push(id);
+        cadRenderStage("textRequest", textStarted);
         continue;
       }
       const tier = this.lodTierFor(id);
@@ -533,10 +538,13 @@ export class CadRenderPipeline {
         return;
       }
       resident.cursor += 1;
+      const tessellationStarted = cadRenderMark();
       const tessellation = this.cache.get(id, tier, () =>
         tessellateCadEntity(entity, cadRenderSegmentBudget(tier), this.document),
       );
+      cadRenderStage("tessellate", tessellationStarted);
       if (tessellation.segmentCount === 0) continue;
+      const batchStarted = cadRenderMark();
       const style = this.styleOf(entity);
       const key = cadLineStyleKey(style);
       let bucket = resident.builders.get(key);
@@ -545,6 +553,9 @@ export class CadRenderPipeline {
         resident.builders.set(key, bucket);
       }
       resident.instances += bucket.builder.push({ tessellation, style, depth });
+      // Escribir instancias es lo único que invalida los lotes derivados.
+      resident.batches = null;
+      cadRenderStage("batchPush", batchStarted);
       resident.entityIds.push(id);
       segmentsThisChunk += tessellation.segmentCount;
       if (segmentsThisChunk >= CAD_RENDER_CHUNK_SEGMENT_BUDGET) break;
@@ -583,46 +594,30 @@ export class CadRenderPipeline {
     pending: readonly string[],
     cursor: number,
   ): void {
-    const entities: CadNativeEntity[] = [];
-    const tierByEntity = new Map<string, CadRenderLodTier>();
-    const segments: number[] = [];
-    let estimatedSegments = 0;
-    for (let index = cursor; index < pending.length; index += 1) {
-      if (entities.length >= CAD_RENDER_OFFTHREAD_BATCH_MAX_ENTITIES) break;
-      if (estimatedSegments >= CAD_RENDER_OFFTHREAD_BATCH_SEGMENT_BUDGET) break;
-      const entity = this.entities.get(pending[index]);
-      if (!entity || entity.type === "mtext") continue;
-      if (!cadEntityTessellatesWithoutDocument(entity)) continue;
-      const tier = this.lodTierFor(entity.id);
-      if (tierByEntity.has(entity.id) || this.cache.peek(entity.id, tier)) continue;
-      entities.push(entity);
-      tierByEntity.set(entity.id, tier);
-      const budget = cadRenderSegmentBudget(tier);
-      segments.push(budget);
-      estimatedSegments += budget;
-    }
-    if (entities.length === 0) {
+    const batch = collectCadOffThreadBatch(
+      pending,
+      cursor,
+      (id) => this.entities.get(id),
+      (id) => this.lodTierFor(id),
+      (id, tier) => this.cache.peek(id, tier) !== null,
+    );
+    if (batch.entities.length === 0) {
       // No puede pasar —se llama con el cursor sobre una entidad sin caché—,
       // pero si pasara, dejar el tile sin tarea NI petición lo congelaría.
       this.enqueueTile(tileId);
       return;
     }
-    this.offThread.request(
-      tileId,
-      { entities, segments, tierByEntity },
-      {
-        seed: (payload, tier) => {
-          if (!this.entities.has(payload.entityId)) return;
-          this.cache.get(payload.entityId, tier, () =>
-            cadTessellationFromPayload(payload),
-          );
-        },
-        finished: (finishedTileId) => {
-          if (this.visibleTileSet.has(finishedTileId))
-            this.enqueueTile(finishedTileId);
-        },
+    this.offThread.request(tileId, batch, {
+      seed: (payload, tier) => {
+        const started = cadRenderMark();
+        if (!this.entities.has(payload.entityId)) return;
+        this.cache.get(payload.entityId, tier, () => cadTessellationFromPayload(payload));
+        cadRenderStage("offThreadSeed", started);
       },
-    );
+      finished: (finishedTileId) => {
+        if (this.visibleTileSet.has(finishedTileId)) this.enqueueTile(finishedTileId);
+      },
+    });
   }
 
   /**
@@ -633,9 +628,10 @@ export class CadRenderPipeline {
    * resto del dibujo desaparecía. Lo cazó el spec de la escena.
    */
   private residentBatches(tileId: CadTileId, resident: ResidentTile): CadLineBatch[] {
+    if (resident.batches) return resident.batches;
     // `build()` devuelve VISTAS de los arrays del constructor, así que derivar
     // los lotes tras cada trozo cuesta O(cubos de estilo), no O(instancias).
-    return [...resident.builders.entries()]
+    resident.batches = [...resident.builders.entries()]
       .sort(([left], [right]) => left.localeCompare(right))
       .map(([styleKey, bucket]) => ({
         bucketKey: `${tileId}#${styleKey}`,
@@ -643,6 +639,7 @@ export class CadRenderPipeline {
         ...bucket.builder.build(),
       }))
       .filter((batch) => batch.instanceCount > 0);
+    return resident.batches;
   }
 
   private lodTierFor(entityId: string): CadRenderLodTier {
@@ -696,11 +693,13 @@ export class CadRenderPipeline {
 
   /** Lotes residentes de los tiles VISIBLES, en orden de cercanía al centro. */
   visibleBatches(): CadLineBatch[] {
+    const started = cadRenderMark();
     const batches: CadLineBatch[] = [];
     for (const tileId of this.visibleTiles) {
       const tile = this.resident.get(tileId);
       if (tile) batches.push(...this.residentBatches(tileId, tile));
     }
+    cadRenderStage("visibleBatches", started);
     return batches;
   }
 
