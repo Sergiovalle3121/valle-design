@@ -1,0 +1,268 @@
+{
+  "$schema": "urn:valle-design:schema:cad-render-benchmark-evidence:v1",
+  "schemaVersion": 1,
+  "benchmarkId": "valle-design-cad-render-pipeline-v1",
+  "startedAt": "2026-08-15T17:45:03.017Z",
+  "finishedAt": "2026-08-15T17:45:24.146Z",
+  "enforcement": "blocking",
+  "heapMeasurementReliable": true,
+  "enforcementRationale": "Perfil de referencia a 100.000 entidades: el mismo tamaño que la evidencia publicada, para que el número que se enseña y el que bloquea se juzguen con las mismas reglas. El benchmark cumplió su versión en report-only y pasa a BLOQUEANTE con esta línea base debajo. Calibrado con DOS núcleos y la máquina disputada, que es el peor caso del runner de CI; medido allí, la corrida real cae 8,5× por dentro del presupuesto.",
+  "baseline": {
+    "profileId": "reference-100k",
+    "budgets": {
+      "nextFirstDetailMs": 4730,
+      "nextZoomSettleMs": 350,
+      "nextPanFrameP95Ms": 40,
+      "nextPanFrameMaxMs": 86,
+      "leakHeapGrowthMb": 8
+    },
+    "invariants": {
+      "detailedEqualsVisibleAtRest": true,
+      "minDetailedAtFullView": 100000,
+      "maxLegacyDetailedAtFullView": 2500
+    },
+    "calibratedOn": {
+      "node": "v22.22.2",
+      "v8": "12.4.254.21-node.39",
+      "platform": "linux",
+      "architecture": "x64",
+      "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+      "logicalCpuCount": 2,
+      "totalMemoryBytes": 16856068096,
+      "heapLimitBytes": 4345298944,
+      "exposedGc": true
+    },
+    "calibratedAt": "2026-08-10T07:16:25.833Z",
+    "runs": 9,
+    "marginFactor": 2.5
+  },
+  "verdict": {
+    "profileId": "reference-100k",
+    "enforcement": "blocking",
+    "downgradeReason": null,
+    "violations": [],
+    "notEvaluated": []
+  },
+  "environment": {
+    "node": "v22.18.0",
+    "v8": "12.4.254.21-node.27",
+    "platform": "win32",
+    "architecture": "x64",
+    "cpuModel": "AMD Ryzen 5 5500U with Radeon Graphics         ",
+    "logicalCpuCount": 12,
+    "totalMemoryBytes": 7896625152,
+    "heapLimitBytes": 4345298944,
+    "exposedGc": true
+  },
+  "corpus": {
+    "entities": 100000,
+    "entityMix": {
+      "line": 49870,
+      "polyline": 0,
+      "circle": 24966,
+      "arc": 25164,
+      "ellipse": 0,
+      "spline": 0,
+      "hatch": 0,
+      "mtext": 0,
+      "dimension": 0,
+      "mleader": 0,
+      "insert": 0,
+      "point": 0,
+      "xline": 0,
+      "ray": 0,
+      "solid": 0,
+      "wipeout": 0,
+      "image": 0,
+      "attdef": 0,
+      "table": 0,
+      "solid3d": 0,
+      "region": 0,
+      "wall": 0
+    },
+    "bounds": {
+      "minX": 1.6500000000000004,
+      "minY": 5.641,
+      "maxX": 20281.829362665158,
+      "maxY": 20217.030000000002
+    },
+    "sha256": "1ba7300dbd90f9a7c5632eab13ed0e03d9106e5c048101c6a14af6aff944b183"
+  },
+  "scenario": {
+    "panStops": 12,
+    "initialPixelsPerUnit": 0.07889476574085552,
+    "panPixelsPerUnit": 0.3155790629634221,
+    "zoomPixelsPerUnit": 1.2623162518536883
+  },
+  "measurements": {
+    "next": {
+      "pipeline": "next",
+      "firstDetailMs": 902.411,
+      "zoomSettleMs": 20.596,
+      "panFrameP95Ms": 6.221,
+      "zoomFrameP95Ms": 12.712,
+      "panFrameMaxMs": 20.822,
+      "zoomFrameMaxMs": 12.712,
+      "visibleAtRest": 407,
+      "detailedAtRest": 407,
+      "segmentsAtRest": 12119,
+      "framesToFirstDetail": 157,
+      "panFrameSamples": 51,
+      "zoomFrameSamples": 3
+    },
+    "legacy": {
+      "pipeline": "legacy",
+      "firstDetailMs": 104.341,
+      "zoomSettleMs": 72.381,
+      "panFrameP95Ms": 108.838,
+      "zoomFrameP95Ms": 72.381,
+      "panFrameMaxMs": 108.838,
+      "zoomFrameMaxMs": 72.381,
+      "visibleAtRest": 407,
+      "detailedAtRest": 407,
+      "segmentsAtRest": 15236,
+      "framesToFirstDetail": 1,
+      "panFrameSamples": 12,
+      "zoomFrameSamples": 1
+    },
+    "nextAtFullView": {
+      "pipeline": "next",
+      "firstDetailMs": 893.544,
+      "zoomSettleMs": 0.68,
+      "panFrameP95Ms": 0,
+      "zoomFrameP95Ms": 0.004,
+      "panFrameMaxMs": 0,
+      "zoomFrameMaxMs": 0.004,
+      "visibleAtRest": 100000,
+      "detailedAtRest": 100000,
+      "segmentsAtRest": 375764,
+      "framesToFirstDetail": 155,
+      "panFrameSamples": 0,
+      "zoomFrameSamples": 1
+    },
+    "legacyAtFullView": {
+      "pipeline": "legacy",
+      "firstDetailMs": 91.343,
+      "zoomSettleMs": 88.391,
+      "panFrameP95Ms": 0,
+      "zoomFrameP95Ms": 88.391,
+      "panFrameMaxMs": 0,
+      "zoomFrameMaxMs": 88.391,
+      "visibleAtRest": 100000,
+      "detailedAtRest": 2500,
+      "segmentsAtRest": 89644,
+      "framesToFirstDetail": 1,
+      "panFrameSamples": 0,
+      "zoomFrameSamples": 1
+    },
+    "leak": {
+      "cycles": 3,
+      "heapAfterFirstCycleBytes": 41227968,
+      "heapAfterLastCycleBytes": 39843944,
+      "heapGrowthMb": -1.32,
+      "samplesMb": [
+        39.318,
+        39.336,
+        37.998
+      ]
+    },
+    "editing": {
+      "editBatches": 40,
+      "entitiesPerBatch": 10,
+      "commitToSettleP50Ms": 29.303,
+      "commitToSettleP95Ms": 39.151,
+      "commitToSettleMaxMs": 40.014,
+      "firstFrameP95Ms": 5.848,
+      "framesPerBatchP95": 5,
+      "evictedTilesTotal": 400,
+      "visibleAtRestAfterEdits": 100000,
+      "detailedAtRestAfterEdits": 100000,
+      "totalEntitiesAfterEdits": 100000,
+      "samplesMs": [
+        40.014,
+        30,
+        29.617,
+        39.58,
+        34.07,
+        31.522,
+        29.297,
+        29.386,
+        31.95,
+        25.922,
+        33.793,
+        29.303,
+        39.151,
+        36.63,
+        33.15,
+        24.352,
+        25.734,
+        26.182,
+        25.294,
+        30.145,
+        29.061,
+        28.555,
+        29.553,
+        26.47,
+        30.362,
+        30.519,
+        25.471,
+        31.434,
+        25.059,
+        33.175,
+        30.691,
+        25.919,
+        28.653,
+        29.418,
+        22.801,
+        26.428,
+        22.146,
+        21.88,
+        20.491,
+        18.762
+      ],
+      "enforcement": "report-only",
+      "enforcementRationale": "Métrica nueva (Ola 6): sin línea base versionada debajo no bloquea. Mide commit→asentado de lotes de MOVE con el dibujo entero a la vista."
+    }
+  },
+  "variance": {
+    "runs": 3,
+    "published": "mediana por firstDetailMs",
+    "firstDetailMs": [
+      994.283,
+      902.411,
+      872.692
+    ],
+    "zoomSettleMs": [
+      30.522,
+      20.596,
+      28.423
+    ],
+    "panFrameP95Ms": [
+      10.044,
+      6.221,
+      6.359
+    ]
+  },
+  "comparison": {
+    "detailedAtFullViewNext": 100000,
+    "detailedAtFullViewLegacy": 2500,
+    "visibleAtFullView": 100000,
+    "panFrameP95Ratio": 17.5,
+    "firstDetailRatio": 0.12
+  },
+  "scope": {
+    "measured": [
+      "trabajo de CPU de teselado, agrupación en lotes y culling para un guion determinista de apertura, paneo y zoom",
+      "edición densa (report-only): commit→asentado de 40 lotes de 10 MOVE repartidos por el documento, con el dibujo entero a la vista",
+      "entidades detalladas en reposo frente a entidades visibles, en los dos caminos",
+      "crecimiento del montón tras ciclos completos de abrir, panear, hacer zoom y cerrar",
+      "dispersión entre corridas del camino nuevo: se publica la mediana y viajan todas las muestras en `variance`"
+    ],
+    "notMeasured": [
+      "GPU, llamadas de dibujo reales, composición del navegador y cuadros por segundo",
+      "coste de subir atributos a la GPU",
+      "rasterizado de glifos: en Node no hay canvas, así que el atlas de texto no entra en esta corrida",
+      "red, API, PostgreSQL ni autoguardado"
+    ]
+  }
+}

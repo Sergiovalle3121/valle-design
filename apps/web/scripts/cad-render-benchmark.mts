@@ -27,6 +27,13 @@
  *   npm run benchmark:cad:render --workspace=web -- --entities 25000 --profile gate-25k
  *   npm run benchmark:cad:render --workspace=web -- --no-enforce
  *   npm run benchmark:cad:render --workspace=web -- --output evidence.json
+ *   npm run benchmark:cad:render --workspace=web -- --stages
+ *
+ * `--stages` añade el REPARTO POR ETAPA (ver `render-stage-profile.ts`). No
+ * sustituye a la corrida normal ni entra en el juicio de presupuesto: la
+ * instrumentación cuesta dos relojes por punto de medida, así que un tiempo
+ * medido con ella encendida no es comparable con la línea base. Se publica
+ * aparte, en su propio campo, y por eso el gate sigue leyendo `measurements`.
  */
 import { createHash } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -50,6 +57,12 @@ import {
   findCadRenderBudgetProfile,
   formatCadRenderVerdict,
 } from "../src/lib/cad/benchmark/render-budget";
+import {
+  CAD_RENDER_BROWSER_FRAME_MS_SWIFTSHADER,
+  profileCadRenderStages,
+  projectCadBrowserWallClockMs,
+  type CadRenderStageMeasurement,
+} from "../src/lib/cad/render/render-stage-profile";
 
 interface CliOptions {
   entities: number;
@@ -67,6 +80,8 @@ interface CliOptions {
   repeat: number;
   profile: string;
   enforce: boolean;
+  /** Añade el reparto por etapa. Ver la cabecera: no entra en el juicio. */
+  stages: boolean;
   output?: string;
 }
 
@@ -78,6 +93,7 @@ function parseCli(argv: string[]): CliOptions {
     repeat: 3,
     profile: "reference-100k",
     enforce: true,
+    stages: false,
   };
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
@@ -88,6 +104,7 @@ function parseCli(argv: string[]): CliOptions {
     else if (argument === "--repeat") options.repeat = Number.parseInt(argv[++index] ?? "", 10);
     else if (argument === "--profile") options.profile = argv[++index] ?? "";
     else if (argument === "--no-enforce") options.enforce = false;
+    else if (argument === "--stages") options.stages = true;
     else if (argument === "--output") options.output = argv[++index];
     else throw new Error(`Unknown argument: ${argument}`);
   }
@@ -170,6 +187,76 @@ const editing = measureCadDenseEditing(
   scenario.initial,
   { editBatches: 40, entitiesPerBatch: 10 },
 );
+
+/**
+ * REPARTO POR ETAPA, sólo con `--stages`.
+ *
+ * Tres recorridos y no uno, porque cada par de ellos aísla un coste que de otro
+ * modo se confunde con el resto:
+ *
+ * - `sync` sin reconciliar es el bucle que el benchmark de siempre mide.
+ * - `sync` reconciliando añade lo que el NAVEGADOR paga y Node nunca pagó: la
+ *   parte pura de `CadRenderScene.sync()` en cada cuadro. La diferencia entre
+ *   los dos ES ese coste, sin tener que estimarlo.
+ * - `offthread` reconciliando ejercita el carril del worker con el clonado
+ *   estructural de verdad. La diferencia con `sync` dice qué se lleva el
+ *   `postMessage` y qué deja de hacer el hilo principal.
+ */
+const stageRun = (
+  overrides: Partial<Parameters<typeof profileCadRenderStages>[0]> & {
+    offThread: "sync" | "offthread";
+    reconcile: boolean;
+  },
+) =>
+  profileCadRenderStages({
+    entities: corpus.nativeEntities,
+    drawOrderIds: corpus.document.modelSpace.entityIds,
+    scenario,
+    ...overrides,
+  });
+
+const stageProfile = options.stages
+  ? {
+      note: "Medido con la instrumentación ENCENDIDA: dos relojes por punto de medida. Los tiempos de esta sección NO son comparables con `measurements` ni con la línea base; sirven para repartir, no para juzgar.",
+      browserFrameMsSource:
+        "docs/cad/evidence/browser-slo-100k.json · baseline-line-circle-arc 100k camino nuevo: fullDetailMs 45219,2 en 39 cuadros",
+      browserFrameMs: CAD_RENDER_BROWSER_FRAME_MS_SWIFTSHADER,
+      runs: [
+        await stageRun({ offThread: "sync", reconcile: false }),
+        await stageRun({ offThread: "sync", reconcile: true }),
+        await stageRun({ offThread: "offthread", reconcile: true }),
+        // Los dos siguientes son la comparación de POLÍTICA de presupuesto con
+        // la cadencia de pantalla del runner inyectada en el reloj. Sin el
+        // cuadro modelado los dos darían lo mismo, porque en Node los cuadros no
+        // cuestan nada y el adaptativo se queda —correctamente— en su suelo.
+        await stageRun({
+          offThread: "sync",
+          reconcile: true,
+          browserFrameMs: CAD_RENDER_BROWSER_FRAME_MS_SWIFTSHADER,
+          fixedFrameBudget: true,
+        }),
+        await stageRun({
+          offThread: "sync",
+          reconcile: true,
+          browserFrameMs: CAD_RENDER_BROWSER_FRAME_MS_SWIFTSHADER,
+        }),
+        // Y el mismo par por el carril del worker: un presupuesto grande no
+        // sirve de nada si el hilo principal se queda parado esperando
+        // respuestas, y ésta es la corrida que lo dice.
+        await stageRun({
+          offThread: "offthread",
+          reconcile: true,
+          browserFrameMs: CAD_RENDER_BROWSER_FRAME_MS_SWIFTSHADER,
+          fixedFrameBudget: true,
+        }),
+        await stageRun({
+          offThread: "offthread",
+          reconcile: true,
+          browserFrameMs: CAD_RENDER_BROWSER_FRAME_MS_SWIFTSHADER,
+        }),
+      ] as CadRenderStageMeasurement[],
+    }
+  : null;
 
 const cpus = os.cpus();
 /**
@@ -280,6 +367,7 @@ const evidence = {
         "Métrica nueva (Ola 6): sin línea base versionada debajo no bloquea. Mide commit→asentado de lotes de MOVE con el dibujo entero a la vista.",
     },
   },
+  stageProfile,
   variance: {
     runs: nextRuns.length,
     published: "mediana por firstDetailMs",
@@ -346,6 +434,59 @@ process.stderr.write(
     "",
   ].join("\n"),
 );
+
+if (stageProfile) {
+  const worker = stageProfile.runs[2];
+  const line = (run: CadRenderStageMeasurement, index: number): string =>
+    [
+      `  [${index}] ${run.scenarioLabel.padEnd(58)}`,
+      `apertura ${String(run.firstDetailMs).padStart(9)} ms en ${String(run.framesToFirstDetail).padStart(4)} cuadros`,
+      `· presupuesto final ${String(run.lastFrameBudgetMs).padStart(8)} ms`,
+      `· pantalla ${
+        run.modelledFrameMs > 0
+          ? `${(run.modelledWallClockMs / 1_000).toFixed(1)} s medidos con la cadencia inyectada`
+          : `${(projectCadBrowserWallClockMs(run.framesToFirstDetail + run.framesToZoomSettle) / 1_000).toFixed(1)} s proyectados`
+      }`,
+    ].join(" ");
+  process.stderr.write(
+    [
+      "REPARTO POR ETAPA (--stages · instrumentación encendida, no comparable con la línea base)",
+      ...stageProfile.runs.map(line),
+      "",
+      `  etapa             ${stageProfile.runs.map((_, index) => `       [${index}]`).join("")}`,
+      ...(
+        [
+          "tessellate",
+          "batchPush",
+          "textRequest",
+          "viewDiff",
+          "tileEnqueue",
+          "offThreadCollect",
+          "offThreadSeed",
+          "visibleBatches",
+        ] as const
+      ).map(
+        (stage) =>
+          `  ${stage.padEnd(18)}${stageProfile.runs
+            .map((run) => String(run.stages.ms[stage]).padStart(11))
+            .join("")}`,
+      ),
+      `  ${"TOTAL explicado".padEnd(18)}${stageProfile.runs
+        .map((run) => String(run.stageTotalMs).padStart(11))
+        .join("")}`,
+      `  ${"trozos (chunks)".padEnd(18)}${stageProfile.runs
+        .map((run) => String(run.stages.counters.chunks).padStart(11))
+        .join("")}`,
+      "",
+      `  postMessage · serializar (lo paga el hilo principal): ${worker.postMessageSerializeMs} ms`,
+      `  postMessage · deserializar (lo paga el worker):       ${worker.postMessageDeserializeMs} ms`,
+      `  postMessage · ${worker.postMessageBatches} mensajes, ${worker.postMessageEntities} entidades, ${(worker.postMessageWireBytes / 1_048_576).toFixed(2)} MiB de cable`,
+      `  teselado del receptor (en el navegador NO es del hilo principal): ${worker.offThreadTessellateMs} ms`,
+      `  cuadro de navegador de la proyección: ${stageProfile.browserFrameMs} ms (${stageProfile.browserFrameMsSource})`,
+      "",
+    ].join("\n"),
+  );
+}
 
 if (verdict) {
   process.stderr.write(`${formatCadRenderVerdict(verdict)}\n\n`);
