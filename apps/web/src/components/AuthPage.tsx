@@ -12,10 +12,25 @@ import { useDesignAuth } from "@/contexts/DesignAuthContext";
 
 type AuthMode = "login" | "register";
 
+/**
+ * Conserva el destino al saltar entre registro e inicio de sesión.
+ *
+ * Quien llega desde la página de precios trae en `returnTo` el plan que eligió.
+ * Perderlo al pulsar "¿Ya tienes cuenta?" obligaría a volver a elegirlo tras
+ * autenticarse, que es justo donde se cae una compra.
+ */
+function crossLink(path: string, returnTo: string | null): string {
+  const target = localReturnTo(returnTo);
+  return target === "/dashboard"
+    ? path
+    : `${path}?returnTo=${encodeURIComponent(target)}`;
+}
+
 export function AuthPage({ mode }: { mode: AuthMode }) {
   const register = mode === "register";
   const router = useRouter();
   const searchParams = useSearchParams();
+  const returnTo = searchParams.get("returnTo");
   const auth = useDesignAuth();
   const [busy, setBusy] = useState(false);
   const submitting = useRef(false);
@@ -58,7 +73,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
         // Se relee la sesión ANTES de navegar para que el destino monte ya
         // autenticado; el servidor sigue siendo la autoridad.
         await auth.refresh();
-        router.replace(localReturnTo(searchParams.get("returnTo")));
+        router.replace(localReturnTo(returnTo));
         router.refresh();
       }
     } catch (cause) {
@@ -190,7 +205,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
           {register ? "¿Ya tienes cuenta?" : "¿Aún no tienes cuenta?"}{" "}
           <Link
             className="font-semibold text-indigo-600 underline-offset-4 hover:underline dark:text-indigo-300"
-            href={register ? "/login" : "/register"}
+            href={crossLink(register ? "/login" : "/register", returnTo)}
           >
             {register ? "Inicia sesión" : "Regístrate"}
           </Link>

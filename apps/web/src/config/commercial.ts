@@ -22,6 +22,10 @@ export const COMMERCIAL_LINKS = {
     process.env.NEXT_PUBLIC_DOCUMENTATION_URL,
     "/docs",
   ),
+  // La página de precios lee el catálogo REAL del producto; el enlace existe
+  // para que la superficie pública pueda llevar a ella sin escribir la ruta a
+  // mano en cada plantilla.
+  pricing: configuredUrl(process.env.NEXT_PUBLIC_PRICING_URL, "/precios"),
   support: configuredUrl(process.env.NEXT_PUBLIC_SUPPORT_URL, "/support"),
   status: configuredUrl(process.env.NEXT_PUBLIC_STATUS_URL, "/status"),
   contact: configuredUrl(process.env.NEXT_PUBLIC_CONTACT_URL, "/contact"),
