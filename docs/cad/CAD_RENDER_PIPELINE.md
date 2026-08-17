@@ -113,3 +113,48 @@ meterle dentro una corrida de 100k los apretaría de rebote. La regla es
 explícita: una métrica nueva entra registrada y no bloqueante hasta tener una
 línea base versionada debajo, y nunca en el mismo cambio que aprieta una vieja.
 Ningún presupuesto existente se movió.
+
+## El perfil «plano real»: 20.000 entidades, que es el tamaño que importa
+
+Los números de arriba son de 100.000 entidades de LINE/CIRCLE/ARC. Es una cifra
+elegida para enseñar escala, y no contesta la pregunta que decide si el primer
+cliente se queda. Un plano de arquitectura real de un despacho mexicano tiene
+entre 5.000 y 30.000 entidades y **otra composición**: muros por caras, cadenas
+de cotas, hatch de acabados, rótulos y bloques repetidos. En el corpus de
+100.000 esos tipos están literalmente a cero.
+
+`npm run benchmark:cad:plan --workspace=web`. Evidencia en
+`evidence/cad-plan-benchmark-20k.json`; el corpus es la mezcla `plano-real`, y
+la derivación de cada proporción —con sus supuestos declarados— está en la
+cabecera de `apps/web/src/lib/cad/benchmark/corpus-plano-real-builders.ts`.
+
+Composición exacta a 20.000: 5.800 LINE · 3.000 LWPOLYLINE · 2.800 INSERT sobre
+4 definiciones · 2.600 DIMENSION · 2.000 MTEXT · 1.400 HATCH · 1.200 CIRCLE ·
+1.200 ARC, en 11 capas.
+
+Medido en **AMD Ryzen 5 5500U (6 núcleos / 12 hilos), 7,4 GB de RAM, Windows 11,
+Node v22.18.0**, mediana de tres corridas:
+
+| Operación | p50 | p95 | Máx |
+| --- | --- | --- | --- |
+| Cuadro al panear | 4,9 | 8,1 | 9,5 |
+| Cuadro al hacer zoom | 4,4 | 5,6 | 5,6 |
+| Selección por ventana (7 ent.) | 0,18 | 0,32 | 3,7 |
+| Selección por captura (11 ent.) | 0,17 | 0,29 | 4,0 |
+| OSNAP (181/200 enganchan) | 0,09 | 2,7 | 3,7 |
+| MOVE de grupo, commit→asentado | 6,3 | 11,0 | 13,2 |
+| BORRAR grupo, commit→asentado | 6,2 | 10,6 | 12,2 |
+
+Apertura 1.237 ms en 163 cuadros; índice de selección del documento 513 ms.
+
+**Las siete operaciones de gesto caben en un cuadro de 60 Hz**, la mayoría con
+holgura de 2× o más. No se tocó el motor por esto, y la razón está medida: el
+reparto por etapa de la apertura dice que **el 74 % es teselar y el 18 % escribir
+instancias** —trabajo que impone el contenido del plano— mientras que la
+contabilidad del propio orquestador (recalcular la vista y encolar tiles) es el
+**0,5 %**. No hay desperdicio estructural que quitar; una optimización sin
+problema medido sólo habría añadido riesgo.
+
+El trinquete vive en `apps/web/src/lib/cad/benchmark/plan-budget.spec.ts` y sus
+presupuestos están calibrados **para esta máquina de desarrollo**, no para el
+runner de CI.

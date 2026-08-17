@@ -32,7 +32,7 @@ export function layer(id: string, name: string, color: string): CadLayerDef {
   return { id, name, color, visible: true, locked: false };
 }
 
-function point(x: number, y: number) {
+export function point(x: number, y: number) {
   return { x: round(x), y: round(y), z: 0 };
 }
 
@@ -48,7 +48,7 @@ function point(x: number, y: number) {
 const CAD_CORPUS_ALPHABET =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789ÁÉÍÓÚÑáéíóúñ°±ØΔ%·/-().,:";
 
-function word(rng: () => number, length: number): string {
+export function word(rng: () => number, length: number): string {
   let text = "";
   for (let index = 0; index < length; index += 1)
     text += CAD_CORPUS_ALPHABET[

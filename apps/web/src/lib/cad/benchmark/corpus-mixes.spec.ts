@@ -143,6 +143,47 @@ for (const entity of architecture.nativeEntities)
       `INSERT ${entity.id} apunta a un bloque inexistente (${entity.block}); expandirlo daría una caja vacía y el benchmark mediría la nada`,
     );
 
+/**
+ * El plano real: lo que lo distingue de `architecture` es el REPARTO, no los
+ * tipos. Las anclas son proporciones, porque una proporción que se va es
+ * exactamente la forma en que este perfil dejaría de parecerse a un archivo de
+ * trabajo sin que ningún hash lo delatara de forma legible.
+ */
+const plano = createCadCorpusMix({ mix: "plano-real", entities: 10_000 });
+assert.equal(
+  plano.entityMix.line + plano.entityMix.polyline,
+  4_400,
+  "muros y trazado lineal son el 44% del plano: es la población dominante",
+);
+assert.equal(plano.entityMix.dimension, 1_300, "las cotas son la segunda población");
+assert.equal(plano.entityMix.insert, 1_400);
+assert.equal(
+  plano.document.blocks.length,
+  4,
+  "1.400 INSERT sobre CUATRO definiciones: muchas instancias, pocas definiciones",
+);
+assert.ok(
+  plano.entityMix.insert < createCadCorpusMix({ mix: "architecture", entities: 10_000 }).entityMix.insert,
+  "el plano real tiene MENOS inserts que la mezcla hostil de bloques: por cada puerta hay una docena de segmentos de muro",
+);
+assert.equal(plano.entityMix.hatch, 700, "acabados achurados");
+assert.equal(plano.entityMix.mtext, 1_000, "rotulación de local y notas técnicas");
+const planoBlockIds = new Set(plano.document.blocks.map((block) => block.id));
+for (const entity of plano.nativeEntities)
+  if (entity.type === "insert")
+    assert.ok(
+      planoBlockIds.has(entity.block),
+      `INSERT ${entity.id} apunta a un bloque inexistente (${entity.block})`,
+    );
+// Las cotas tienen que MEDIR algo: una cota de longitud cero pasa el compilador,
+// engorda el recuento y no dibuja ni un trazo.
+for (const entity of plano.nativeEntities)
+  if (entity.type === "dimension")
+    assert.ok(
+      Math.abs(entity.a.x - entity.b.x) > 1 || Math.abs(entity.a.y - entity.b.y) > 1,
+      `la cota ${entity.id} mide cero: no dibujaría nada`,
+    );
+
 const cartography = createCadCorpusMix({ mix: "cartography", entities: 100_000 });
 let cartographySegments = 0;
 for (const entity of cartography.nativeEntities)

@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:valle-design:schema:cad-plan-benchmark-evidence:v1",
+  "title": "Valle Design CAD plano real benchmark evidence",
+  "description": "Evidencia del perfil «plano real» de 20.000 entidades: las operaciones que un arquitecto repite todo el dia, con percentiles, maquina declarada y alcance explicito. La produce scripts/cad-plan-benchmark.mts.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "benchmarkId",
+    "startedAt",
+    "finishedAt",
+    "enforcement",
+    "environment",
+    "corpus",
+    "scenario",
+    "measurements",
+    "stageProfile",
+    "variance",
+    "scope"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "benchmarkId": { "type": "string" },
+    "startedAt": { "type": "string", "format": "date-time" },
+    "finishedAt": { "type": "string", "format": "date-time" },
+    "enforcement": { "enum": ["blocking", "report-only"] },
+    "enforcementRationale": { "type": "string" },
+    "environment": {
+      "type": "object",
+      "description": "Sin la maquina al lado, un numero de rendimiento no significa nada.",
+      "required": [
+        "node",
+        "platform",
+        "cpuModel",
+        "logicalCpuCount",
+        "totalMemoryBytes",
+        "declaredMachine"
+      ],
+      "properties": {
+        "node": { "type": "string" },
+        "v8": { "type": "string" },
+        "platform": { "type": "string" },
+        "architecture": { "type": "string" },
+        "osType": { "type": "string" },
+        "osRelease": { "type": "string" },
+        "cpuModel": { "type": "string" },
+        "logicalCpuCount": { "type": "integer" },
+        "availableParallelism": { "type": "integer" },
+        "totalMemoryBytes": { "type": "integer" },
+        "freeMemoryBytesAtStart": { "type": "integer" },
+        "heapLimitBytes": { "type": "integer" },
+        "declaredMachine": {
+          "type": "string",
+          "description": "Descripcion a mano: os.cpus().length cuenta HILOS, no nucleos."
+        }
+      },
+      "additionalProperties": true
+    },
+    "corpus": {
+      "type": "object",
+      "required": ["mix", "entities", "entityMix", "sha256", "compositionRationale"],
+      "properties": {
+        "mix": { "const": "plano-real" },
+        "title": { "type": "string" },
+        "stresses": { "type": "string" },
+        "entities": { "type": "integer", "minimum": 1 },
+        "entityMix": {
+          "type": "object",
+          "description": "Recuento EXACTO por tipo. El reparto es por resto mayor, no aleatorio.",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        },
+        "cellSizeMm": { "type": "number" },
+        "layers": { "type": "integer" },
+        "blockDefinitions": { "type": "integer" },
+        "bounds": { "type": "object" },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "compositionRationale": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "scenario": { "type": "object" },
+    "measurements": {
+      "type": "object",
+      "required": [
+        "viewport",
+        "selectionIndexBuildMs",
+        "windowSelection",
+        "crossingSelection",
+        "snap",
+        "moveEdit",
+        "deleteEdit"
+      ],
+      "properties": {
+        "viewport": { "type": "object" },
+        "selectionIndexBuildMs": { "type": "number", "minimum": 0 },
+        "windowSelection": { "$ref": "#/$defs/selection" },
+        "crossingSelection": { "$ref": "#/$defs/selection" },
+        "snap": { "type": "object" },
+        "moveEdit": { "type": "object" },
+        "deleteEdit": { "type": "object" }
+      },
+      "additionalProperties": true
+    },
+    "stageProfile": {
+      "type": "object",
+      "description": "Reparto por etapa de la apertura. Instrumentacion encendida: NO comparable con measurements.",
+      "required": ["ms", "calls", "counters", "stageTotalMs", "shareOfExplained", "note"],
+      "additionalProperties": true
+    },
+    "variance": {
+      "type": "object",
+      "description": "Todas las muestras entre corridas. Sin esto la mediana publicada no se audita."
+    },
+    "verdict": { "type": ["object", "null"] },
+    "scope": {
+      "type": "object",
+      "required": ["measured", "notMeasured"],
+      "properties": {
+        "measured": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "notMeasured": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "latency": {
+      "type": "object",
+      "description": "Percentiles y TODAS las muestras: sin ellas los percentiles son una caja negra.",
+      "required": ["p50Ms", "p95Ms", "maxMs", "samples", "samplesMs"],
+      "properties": {
+        "p50Ms": { "type": "number", "minimum": 0 },
+        "p95Ms": { "type": "number", "minimum": 0 },
+        "maxMs": { "type": "number", "minimum": 0 },
+        "samples": { "type": "integer", "minimum": 0 },
+        "samplesMs": { "type": "array", "items": { "type": "number" } }
+      },
+      "additionalProperties": false
+    },
+    "selection": {
+      "type": "object",
+      "required": ["mode", "latency", "hitsP50", "hitsTotal", "windowSideMm"],
+      "properties": {
+        "mode": { "enum": ["window", "crossing"] },
+        "latency": { "$ref": "#/$defs/latency" },
+        "hitsP50": { "type": "integer", "minimum": 0 },
+        "hitsMax": { "type": "integer", "minimum": 0 },
+        "hitsTotal": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Cero significaria que se midio el camino vacio."
+        },
+        "windowSideMm": { "type": "number", "exclusiveMinimum": 0 }
+      },
+      "additionalProperties": false
+    }
+  }
+}

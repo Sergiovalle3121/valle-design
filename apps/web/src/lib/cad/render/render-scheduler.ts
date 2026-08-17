@@ -54,14 +54,70 @@ export interface CadRenderFrameResult {
 }
 
 export interface CadRenderSchedulerOptions {
-  /** Presupuesto por cuadro en milisegundos. */
+  /** Presupuesto por cuadro en milisegundos. Es el SUELO del adaptativo. */
   frameBudgetMs?: number;
   /** Reloj inyectable para poder probar el presupuesto sin esperar. */
   now?: () => number;
+  /**
+   * Deja el presupuesto CLAVADO en `frameBudgetMs`, sin adaptarlo al cuadro
+   * real. Sólo para specs que quieran fijar el reparto; ver el bloque de abajo
+   * para por qué el camino normal adapta.
+   */
+  fixedBudget?: boolean;
 }
 
 /** 4 ms de 16,7: el resto del cuadro es para el usuario. */
 export const CAD_RENDER_FRAME_BUDGET_MS = 4;
+
+/**
+ * Fracción del CUADRO REAL que el planificador puede gastar.
+ *
+ * ## Por qué el presupuesto no puede ser una constante
+ *
+ * 4 ms de 16,7 son el 24 % del cuadro: la constante de arriba nunca fue «4 ms»,
+ * fue «un cuarto del cuadro», con el cuadro dado por supuesto a 60 Hz. Cuando el
+ * cuadro dura de verdad 16,7 ms el supuesto se cumple y no hay nada que discutir.
+ *
+ * Cuando NO se cumple, la constante se vuelve destructiva, y está medido. En el
+ * runner de CI —Chromium sobre ANGLE/SwiftShader, sin GPU— un cuadro a 100.000
+ * entidades cuesta ~1.160 ms de rasterizado por software:
+ * `docs/cad/evidence/browser-slo-100k.json` registra 45.219 ms de reloj en 39
+ * cuadros con sólo 444 ms de CPU del pipeline dentro. Con 4 ms de presupuesto,
+ * asentar 1,5 s de trabajo pide ~200 cuadros, y 200 × 1,16 s son los 208–221 s
+ * que `viewport-baseline.json` lleva registrados como `detailReadyMs`. Es decir:
+ * el usuario espera casi cuatro minutos para que se hagan segundo y medio de
+ * cuentas, porque cada cuadro se paga entero para avanzar 4 ms.
+ *
+ * Dejar el 99,7 % del cuadro libre no compra ninguna respuesta: el cuadro ya
+ * dura más de un segundo, y el gesto siguiente va a esperarlo igual. Lo único
+ * que compra es multiplicar por 290 el número de cuadros.
+ *
+ * Así que el presupuesto se calcula sobre el cuadro OBSERVADO y se queda en la
+ * misma fracción de siempre. A 60 Hz da 4,2 ms —la conducta de antes, intacta—
+ * y en el rasterizador por software da cientos, que es lo que convierte 200
+ * cuadros en unos pocos.
+ */
+export const CAD_RENDER_FRAME_BUDGET_SHARE = 0.25;
+
+/**
+ * Techo del presupuesto adaptativo.
+ *
+ * Un cuarto de segundo es lo máximo que un cuadro puede robar sin que el gesto
+ * siguiente parezca colgado, y además acota el daño de un intervalo absurdo: una
+ * pestaña en segundo plano, un portátil que despierta o un punto de interrupción
+ * dan intervalos de decenas de segundos, y sin techo el cuadro siguiente
+ * intentaría hacer todo el trabajo del mundo de una vez.
+ */
+export const CAD_RENDER_FRAME_BUDGET_MAX_MS = 250;
+
+/**
+ * Peso de la muestra nueva en la media móvil del intervalo.
+ *
+ * Se suaviza porque un cuadro raro —una pausa del recolector, una pestaña que
+ * vuelve— no puede mover el presupuesto de golpe: con 0,25 hacen falta varios
+ * cuadros seguidos caros para que el planificador se crea que el cuadro es caro.
+ */
+export const CAD_RENDER_FRAME_INTERVAL_SMOOTHING = 0.25;
 
 interface HeapNode {
   key: string;
@@ -78,11 +134,17 @@ export class CadRenderScheduler {
   private generationValue = 0;
   private ranTotal = 0;
   private abortedTotal = 0;
+  /** Instante en que empezó el cuadro anterior; `null` mientras no hubo ninguno. */
+  private previousFrameStarted: number | null = null;
+  /** Media móvil del intervalo entre cuadros. 0 significa «todavía no se sabe». */
+  private frameIntervalMs = 0;
+  private readonly fixedBudget: boolean;
 
   readonly frameBudgetMs: number;
 
   constructor(options: CadRenderSchedulerOptions = {}) {
     this.frameBudgetMs = Math.max(0.1, options.frameBudgetMs ?? CAD_RENDER_FRAME_BUDGET_MS);
+    this.fixedBudget = options.fixedBudget === true;
     this.now =
       options.now ??
       (typeof performance !== "undefined" ? () => performance.now() : () => Date.now());
@@ -158,13 +220,55 @@ export class CadRenderScheduler {
    * cuando hay cola: si no, una tarea más cara que el presupuesto entero
    * bloquearía la cola para siempre y la escena nunca se asentaría.
    */
-  runFrame(budgetMs = this.frameBudgetMs): CadRenderFrameResult {
+  /**
+   * Intervalo observado entre cuadros, suavizado. Es lo que gobierna el
+   * presupuesto; se expone para que un spec pueda afirmar la adaptación sin
+   * deducirla del presupuesto resultante.
+   */
+  get observedFrameIntervalMs(): number {
+    return Math.round(this.frameIntervalMs * 1_000) / 1_000;
+  }
+
+  /**
+   * Presupuesto para el cuadro que empieza en `started`.
+   *
+   * SIEMPRE devuelve al menos `frameBudgetMs`: el adaptativo puede SUBIR el
+   * presupuesto cuando el cuadro es caro, nunca bajarlo. Bajarlo convertiría una
+   * máquina rápida en una lenta por su propia velocidad, que es justo al revés.
+   */
+  private budgetFor(started: number): number {
+    const previous = this.previousFrameStarted;
+    this.previousFrameStarted = started;
+    if (previous !== null && !this.fixedBudget) {
+      const interval = Math.max(0, started - previous);
+      this.frameIntervalMs =
+        this.frameIntervalMs === 0
+          ? interval
+          : this.frameIntervalMs +
+            (interval - this.frameIntervalMs) * CAD_RENDER_FRAME_INTERVAL_SMOOTHING;
+    }
+    if (this.fixedBudget) return this.frameBudgetMs;
+    return Math.min(
+      CAD_RENDER_FRAME_BUDGET_MAX_MS,
+      Math.max(this.frameBudgetMs, this.frameIntervalMs * CAD_RENDER_FRAME_BUDGET_SHARE),
+    );
+  }
+
+  /**
+   * Un presupuesto EXPLÍCITO manda sobre el adaptativo —quien lo pasa sabe algo
+   * que el planificador no—, pero el intervalo se observa igual: si no, alternar
+   * cuadros con y sin argumento dejaría la media móvil leyendo intervalos
+   * dobles.
+   */
+  runFrame(budgetMs?: number): CadRenderFrameResult {
     const started = this.now();
+    const adaptive = this.budgetFor(started);
+    const budget = budgetMs ?? adaptive;
     const failures: Array<{ key: string; message: string }> = [];
     let ran = 0;
     let budgetExhausted = false;
     while (this.tasks.size > 0) {
-      if (ran > 0 && this.now() - started >= budgetMs) {
+      if (ran > 0 && this.now() - started >= budget) {
         budgetExhausted = true;
         break;
       }
@@ -186,7 +290,7 @@ export class CadRenderScheduler {
       ran,
       remaining: this.tasks.size,
       elapsedMs: this.now() - started,
-      budgetMs,
+      budgetMs: budget,
       budgetExhausted,
       failures,
     };

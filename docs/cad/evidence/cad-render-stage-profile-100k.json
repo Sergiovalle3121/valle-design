@@ -1,0 +1,625 @@
+{
+  "$schema": "urn:valle-design:schema:cad-render-benchmark-evidence:v1",
+  "schemaVersion": 1,
+  "benchmarkId": "valle-design-cad-render-pipeline-v1",
+  "startedAt": "2026-08-17T06:37:03.333Z",
+  "finishedAt": "2026-08-17T06:38:08.555Z",
+  "enforcement": "blocking",
+  "heapMeasurementReliable": true,
+  "enforcementRationale": "Perfil de referencia a 100.000 entidades: el mismo tamaño que la evidencia publicada, para que el número que se enseña y el que bloquea se juzguen con las mismas reglas. El benchmark cumplió su versión en report-only y pasa a BLOQUEANTE con esta línea base debajo. Calibrado con DOS núcleos y la máquina disputada, que es el peor caso del runner de CI; medido allí, la corrida real cae 8,5× por dentro del presupuesto.",
+  "baseline": {
+    "profileId": "reference-100k",
+    "budgets": {
+      "nextFirstDetailMs": 4730,
+      "nextZoomSettleMs": 350,
+      "nextPanFrameP95Ms": 40,
+      "nextPanFrameMaxMs": 86,
+      "leakHeapGrowthMb": 8
+    },
+    "invariants": {
+      "detailedEqualsVisibleAtRest": true,
+      "minDetailedAtFullView": 100000,
+      "maxLegacyDetailedAtFullView": 2500
+    },
+    "calibratedOn": {
+      "node": "v22.22.2",
+      "v8": "12.4.254.21-node.39",
+      "platform": "linux",
+      "architecture": "x64",
+      "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+      "logicalCpuCount": 2,
+      "totalMemoryBytes": 16856068096,
+      "heapLimitBytes": 4345298944,
+      "exposedGc": true
+    },
+    "calibratedAt": "2026-08-10T07:16:25.833Z",
+    "runs": 9,
+    "marginFactor": 2.5
+  },
+  "verdict": {
+    "profileId": "reference-100k",
+    "enforcement": "blocking",
+    "downgradeReason": null,
+    "violations": [],
+    "notEvaluated": []
+  },
+  "environment": {
+    "node": "v22.18.0",
+    "v8": "12.4.254.21-node.27",
+    "platform": "win32",
+    "architecture": "x64",
+    "cpuModel": "AMD Ryzen 5 5500U with Radeon Graphics         ",
+    "logicalCpuCount": 12,
+    "totalMemoryBytes": 7896625152,
+    "heapLimitBytes": 4345298944,
+    "exposedGc": true
+  },
+  "corpus": {
+    "entities": 100000,
+    "entityMix": {
+      "line": 49870,
+      "polyline": 0,
+      "circle": 24966,
+      "arc": 25164,
+      "ellipse": 0,
+      "spline": 0,
+      "hatch": 0,
+      "mtext": 0,
+      "dimension": 0,
+      "mleader": 0,
+      "insert": 0,
+      "point": 0,
+      "xline": 0,
+      "ray": 0,
+      "solid": 0,
+      "wipeout": 0,
+      "image": 0,
+      "attdef": 0,
+      "table": 0,
+      "solid3d": 0,
+      "region": 0,
+      "wall": 0
+    },
+    "bounds": {
+      "minX": 1.6500000000000004,
+      "minY": 5.641,
+      "maxX": 20281.829362665158,
+      "maxY": 20217.030000000002
+    },
+    "sha256": "1ba7300dbd90f9a7c5632eab13ed0e03d9106e5c048101c6a14af6aff944b183"
+  },
+  "scenario": {
+    "panStops": 12,
+    "initialPixelsPerUnit": 0.07889476574085552,
+    "panPixelsPerUnit": 0.3155790629634221,
+    "zoomPixelsPerUnit": 1.2623162518536883
+  },
+  "measurements": {
+    "next": {
+      "pipeline": "next",
+      "firstDetailMs": 1767.094,
+      "zoomSettleMs": 36.244,
+      "panFrameP95Ms": 8.352,
+      "zoomFrameP95Ms": 24.396,
+      "panFrameMaxMs": 12.58,
+      "zoomFrameMaxMs": 24.396,
+      "visibleAtRest": 407,
+      "detailedAtRest": 407,
+      "segmentsAtRest": 12119,
+      "framesToFirstDetail": 250,
+      "panFrameSamples": 61,
+      "zoomFrameSamples": 4
+    },
+    "legacy": {
+      "pipeline": "legacy",
+      "firstDetailMs": 145.497,
+      "zoomSettleMs": 91.097,
+      "panFrameP95Ms": 153.865,
+      "zoomFrameP95Ms": 91.097,
+      "panFrameMaxMs": 153.865,
+      "zoomFrameMaxMs": 91.097,
+      "visibleAtRest": 407,
+      "detailedAtRest": 407,
+      "segmentsAtRest": 15236,
+      "framesToFirstDetail": 1,
+      "panFrameSamples": 12,
+      "zoomFrameSamples": 1
+    },
+    "nextAtFullView": {
+      "pipeline": "next",
+      "firstDetailMs": 1491.29,
+      "zoomSettleMs": 1.047,
+      "panFrameP95Ms": 0,
+      "zoomFrameP95Ms": 0.009,
+      "panFrameMaxMs": 0,
+      "zoomFrameMaxMs": 0.009,
+      "visibleAtRest": 100000,
+      "detailedAtRest": 100000,
+      "segmentsAtRest": 375764,
+      "framesToFirstDetail": 210,
+      "panFrameSamples": 0,
+      "zoomFrameSamples": 1
+    },
+    "legacyAtFullView": {
+      "pipeline": "legacy",
+      "firstDetailMs": 137.875,
+      "zoomSettleMs": 120.249,
+      "panFrameP95Ms": 0,
+      "zoomFrameP95Ms": 120.249,
+      "panFrameMaxMs": 0,
+      "zoomFrameMaxMs": 120.249,
+      "visibleAtRest": 100000,
+      "detailedAtRest": 2500,
+      "segmentsAtRest": 89644,
+      "framesToFirstDetail": 1,
+      "panFrameSamples": 0,
+      "zoomFrameSamples": 1
+    },
+    "leak": {
+      "cycles": 3,
+      "heapAfterFirstCycleBytes": 41245504,
+      "heapAfterLastCycleBytes": 39834128,
+      "heapGrowthMb": -1.346,
+      "samplesMb": [
+        39.335,
+        39.335,
+        37.989
+      ]
+    },
+    "editing": {
+      "editBatches": 40,
+      "entitiesPerBatch": 10,
+      "commitToSettleP50Ms": 58.547,
+      "commitToSettleP95Ms": 94.822,
+      "commitToSettleMaxMs": 127.683,
+      "firstFrameP95Ms": 14.321,
+      "framesPerBatchP95": 8,
+      "evictedTilesTotal": 400,
+      "visibleAtRestAfterEdits": 100000,
+      "detailedAtRestAfterEdits": 100000,
+      "totalEntitiesAfterEdits": 100000,
+      "samplesMs": [
+        79.247,
+        70.101,
+        71.827,
+        103.535,
+        75.59,
+        80.334,
+        72.727,
+        79.413,
+        83.529,
+        62.764,
+        59.106,
+        58.547,
+        127.683,
+        94.822,
+        88.317,
+        56.706,
+        88.639,
+        65.971,
+        84.467,
+        62.018,
+        73.448,
+        63.687,
+        53.488,
+        43.327,
+        39.534,
+        40.664,
+        47.397,
+        40.179,
+        38.409,
+        41.216,
+        48.528,
+        41.668,
+        47.417,
+        42.885,
+        38.881,
+        46.287,
+        37.208,
+        41.093,
+        40.374,
+        30.095
+      ],
+      "enforcement": "report-only",
+      "enforcementRationale": "Métrica nueva (Ola 6): sin línea base versionada debajo no bloquea. Mide commit→asentado de lotes de MOVE con el dibujo entero a la vista."
+    }
+  },
+  "stageProfile": {
+    "note": "Medido con la instrumentación ENCENDIDA: dos relojes por punto de medida. Los tiempos de esta sección NO son comparables con `measurements` ni con la línea base; sirven para repartir, no para juzgar.",
+    "browserFrameMsSource": "docs/cad/evidence/browser-slo-100k.json · baseline-line-circle-arc 100k camino nuevo: fullDetailMs 45219,2 en 39 cuadros",
+    "browserFrameMs": 1159.5,
+    "runs": [
+      {
+        "label": "sync",
+        "scenarioLabel": "sync · sin reconciliar · reloj real · presupuesto adaptativo",
+        "fixedFrameBudget": false,
+        "reconciled": false,
+        "firstDetailMs": 1890.282,
+        "framesToFirstDetail": 286,
+        "zoomSettleMs": 25.941,
+        "framesToZoomSettle": 5,
+        "visibleAtRest": 407,
+        "detailedAtRest": 407,
+        "segmentsAtRest": 12119,
+        "stages": {
+          "ms": {
+            "tessellate": 876.138,
+            "batchPush": 588.937,
+            "textRequest": 0,
+            "viewDiff": 1.711,
+            "tileEnqueue": 2.454,
+            "offThreadCollect": 0,
+            "offThreadSeed": 0,
+            "visibleBatches": 0
+          },
+          "calls": {
+            "tessellate": 101024,
+            "batchPush": 101024,
+            "textRequest": 0,
+            "viewDiff": 2,
+            "tileEnqueue": 408,
+            "offThreadCollect": 0,
+            "offThreadSeed": 0,
+            "visibleBatches": 0
+          },
+          "counters": {
+            "chunks": 408,
+            "offThreadBatches": 0,
+            "offThreadEntities": 0
+          }
+        },
+        "stageTotalMs": 1469.24,
+        "modelledFrameMs": 0,
+        "modelledWallClockMs": 0,
+        "lastFrameBudgetMs": 4,
+        "postMessageSerializeMs": 0,
+        "postMessageDeserializeMs": 0,
+        "offThreadTessellateMs": 0,
+        "postMessageBatches": 0,
+        "postMessageEntities": 0,
+        "postMessageWireBytes": 0
+      },
+      {
+        "label": "sync",
+        "scenarioLabel": "sync · reconcilia · reloj real · presupuesto adaptativo",
+        "fixedFrameBudget": false,
+        "reconciled": true,
+        "firstDetailMs": 2182.853,
+        "framesToFirstDetail": 266,
+        "zoomSettleMs": 26.948,
+        "framesToZoomSettle": 5,
+        "visibleAtRest": 407,
+        "detailedAtRest": 407,
+        "segmentsAtRest": 12119,
+        "stages": {
+          "ms": {
+            "tessellate": 1002.251,
+            "batchPush": 558.159,
+            "textRequest": 0,
+            "viewDiff": 1.895,
+            "tileEnqueue": 4.536,
+            "offThreadCollect": 0,
+            "offThreadSeed": 0,
+            "visibleBatches": 173.184
+          },
+          "calls": {
+            "tessellate": 101024,
+            "batchPush": 101024,
+            "textRequest": 0,
+            "viewDiff": 2,
+            "tileEnqueue": 408,
+            "offThreadCollect": 0,
+            "offThreadSeed": 0,
+            "visibleBatches": 271
+          },
+          "counters": {
+            "chunks": 408,
+            "offThreadBatches": 0,
+            "offThreadEntities": 0
+          }
+        },
+        "stageTotalMs": 1740.025,
+        "modelledFrameMs": 0,
+        "modelledWallClockMs": 0,
+        "lastFrameBudgetMs": 4,
+        "postMessageSerializeMs": 0,
+        "postMessageDeserializeMs": 0,
+        "offThreadTessellateMs": 0,
+        "postMessageBatches": 0,
+        "postMessageEntities": 0,
+        "postMessageWireBytes": 0
+      },
+      {
+        "label": "offthread",
+        "scenarioLabel": "offthread · reconcilia · reloj real · presupuesto adaptativo",
+        "fixedFrameBudget": false,
+        "reconciled": true,
+        "firstDetailMs": 4743.872,
+        "framesToFirstDetail": 419,
+        "zoomSettleMs": 41.683,
+        "framesToZoomSettle": 4,
+        "visibleAtRest": 407,
+        "detailedAtRest": 407,
+        "segmentsAtRest": 12119,
+        "stages": {
+          "ms": {
+            "tessellate": 281.846,
+            "batchPush": 539.445,
+            "textRequest": 0,
+            "viewDiff": 1.304,
+            "tileEnqueue": 48.791,
+            "offThreadCollect": 391.811,
+            "offThreadSeed": 543.615,
+            "visibleBatches": 129.825
+          },
+          "calls": {
+            "tessellate": 101024,
+            "batchPush": 101024,
+            "textRequest": 0,
+            "viewDiff": 2,
+            "tileEnqueue": 812,
+            "offThreadCollect": 404,
+            "offThreadSeed": 100990,
+            "visibleBatches": 423
+          },
+          "counters": {
+            "chunks": 812,
+            "offThreadBatches": 404,
+            "offThreadEntities": 100990
+          }
+        },
+        "stageTotalMs": 1936.637,
+        "modelledFrameMs": 0,
+        "modelledWallClockMs": 0,
+        "lastFrameBudgetMs": 4,
+        "postMessageSerializeMs": 395.114,
+        "postMessageDeserializeMs": 747.76,
+        "offThreadTessellateMs": 390.043,
+        "postMessageBatches": 404,
+        "postMessageEntities": 100990,
+        "postMessageWireBytes": 13452224
+      },
+      {
+        "label": "sync",
+        "scenarioLabel": "sync · reconcilia · cuadro 1159.5 ms · presupuesto 4 ms",
+        "fixedFrameBudget": true,
+        "reconciled": true,
+        "firstDetailMs": 1585.459,
+        "framesToFirstDetail": 220,
+        "zoomSettleMs": 22.777,
+        "framesToZoomSettle": 5,
+        "visibleAtRest": 407,
+        "detailedAtRest": 407,
+        "segmentsAtRest": 12119,
+        "stages": {
+          "ms": {
+            "tessellate": 703.768,
+            "batchPush": 448.644,
+            "textRequest": 0,
+            "viewDiff": 1.25,
+            "tileEnqueue": 2.246,
+            "offThreadCollect": 0,
+            "offThreadSeed": 0,
+            "visibleBatches": 74.43
+          },
+          "calls": {
+            "tessellate": 101024,
+            "batchPush": 101024,
+            "textRequest": 0,
+            "viewDiff": 2,
+            "tileEnqueue": 408,
+            "offThreadCollect": 0,
+            "offThreadSeed": 0,
+            "visibleBatches": 225
+          },
+          "counters": {
+            "chunks": 408,
+            "offThreadBatches": 0,
+            "offThreadEntities": 0
+          }
+        },
+        "stageTotalMs": 1230.338,
+        "modelledFrameMs": 1159.5,
+        "modelledWallClockMs": 260887.5,
+        "lastFrameBudgetMs": 4,
+        "postMessageSerializeMs": 0,
+        "postMessageDeserializeMs": 0,
+        "offThreadTessellateMs": 0,
+        "postMessageBatches": 0,
+        "postMessageEntities": 0,
+        "postMessageWireBytes": 0
+      },
+      {
+        "label": "sync",
+        "scenarioLabel": "sync · reconcilia · cuadro 1159.5 ms · presupuesto adaptativo",
+        "fixedFrameBudget": false,
+        "reconciled": true,
+        "firstDetailMs": 1501.621,
+        "framesToFirstDetail": 7,
+        "zoomSettleMs": 25.791,
+        "framesToZoomSettle": 1,
+        "visibleAtRest": 407,
+        "detailedAtRest": 407,
+        "segmentsAtRest": 12119,
+        "stages": {
+          "ms": {
+            "tessellate": 750.906,
+            "batchPush": 427.275,
+            "textRequest": 0,
+            "viewDiff": 0.6,
+            "tileEnqueue": 2.295,
+            "offThreadCollect": 0,
+            "offThreadSeed": 0,
+            "visibleBatches": 5.559
+          },
+          "calls": {
+            "tessellate": 101024,
+            "batchPush": 101024,
+            "textRequest": 0,
+            "viewDiff": 2,
+            "tileEnqueue": 408,
+            "offThreadCollect": 0,
+            "offThreadSeed": 0,
+            "visibleBatches": 8
+          },
+          "counters": {
+            "chunks": 408,
+            "offThreadBatches": 0,
+            "offThreadEntities": 0
+          }
+        },
+        "stageTotalMs": 1186.635,
+        "modelledFrameMs": 1159.5,
+        "modelledWallClockMs": 9276,
+        "lastFrameBudgetMs": 250,
+        "postMessageSerializeMs": 0,
+        "postMessageDeserializeMs": 0,
+        "offThreadTessellateMs": 0,
+        "postMessageBatches": 0,
+        "postMessageEntities": 0,
+        "postMessageWireBytes": 0
+      },
+      {
+        "label": "offthread",
+        "scenarioLabel": "offthread · reconcilia · cuadro 1159.5 ms · presupuesto 4 ms",
+        "fixedFrameBudget": true,
+        "reconciled": true,
+        "firstDetailMs": 4420.122,
+        "framesToFirstDetail": 395,
+        "zoomSettleMs": 43.34,
+        "framesToZoomSettle": 5,
+        "visibleAtRest": 407,
+        "detailedAtRest": 407,
+        "segmentsAtRest": 12119,
+        "stages": {
+          "ms": {
+            "tessellate": 261.863,
+            "batchPush": 497.67,
+            "textRequest": 0,
+            "viewDiff": 0.697,
+            "tileEnqueue": 18.935,
+            "offThreadCollect": 357.374,
+            "offThreadSeed": 542.482,
+            "visibleBatches": 135.393
+          },
+          "calls": {
+            "tessellate": 101024,
+            "batchPush": 101024,
+            "textRequest": 0,
+            "viewDiff": 2,
+            "tileEnqueue": 812,
+            "offThreadCollect": 404,
+            "offThreadSeed": 100990,
+            "visibleBatches": 400
+          },
+          "counters": {
+            "chunks": 812,
+            "offThreadBatches": 404,
+            "offThreadEntities": 100990
+          }
+        },
+        "stageTotalMs": 1814.414,
+        "modelledFrameMs": 1159.5,
+        "modelledWallClockMs": 463800,
+        "lastFrameBudgetMs": 4,
+        "postMessageSerializeMs": 369.056,
+        "postMessageDeserializeMs": 723.792,
+        "offThreadTessellateMs": 328.69,
+        "postMessageBatches": 404,
+        "postMessageEntities": 100990,
+        "postMessageWireBytes": 13452224
+      },
+      {
+        "label": "offthread",
+        "scenarioLabel": "offthread · reconcilia · cuadro 1159.5 ms · presupuesto adaptativo",
+        "fixedFrameBudget": false,
+        "reconciled": true,
+        "firstDetailMs": 4056.36,
+        "framesToFirstDetail": 11,
+        "zoomSettleMs": 39.604,
+        "framesToZoomSettle": 2,
+        "visibleAtRest": 407,
+        "detailedAtRest": 407,
+        "segmentsAtRest": 12119,
+        "stages": {
+          "ms": {
+            "tessellate": 226.835,
+            "batchPush": 520.75,
+            "textRequest": 0,
+            "viewDiff": 1.374,
+            "tileEnqueue": 17.542,
+            "offThreadCollect": 361.287,
+            "offThreadSeed": 566.052,
+            "visibleBatches": 7.047
+          },
+          "calls": {
+            "tessellate": 101024,
+            "batchPush": 101024,
+            "textRequest": 0,
+            "viewDiff": 2,
+            "tileEnqueue": 812,
+            "offThreadCollect": 404,
+            "offThreadSeed": 100990,
+            "visibleBatches": 13
+          },
+          "counters": {
+            "chunks": 812,
+            "offThreadBatches": 404,
+            "offThreadEntities": 100990
+          }
+        },
+        "stageTotalMs": 1700.887,
+        "modelledFrameMs": 1159.5,
+        "modelledWallClockMs": 15073.5,
+        "lastFrameBudgetMs": 250,
+        "postMessageSerializeMs": 408.728,
+        "postMessageDeserializeMs": 766.496,
+        "offThreadTessellateMs": 377.66,
+        "postMessageBatches": 404,
+        "postMessageEntities": 100990,
+        "postMessageWireBytes": 13452224
+      }
+    ]
+  },
+  "variance": {
+    "runs": 3,
+    "published": "mediana por firstDetailMs",
+    "firstDetailMs": [
+      3631.43,
+      1767.094,
+      1547.541
+    ],
+    "zoomSettleMs": [
+      50.887,
+      36.244,
+      37.959
+    ],
+    "panFrameP95Ms": [
+      7.678,
+      8.352,
+      6.583
+    ]
+  },
+  "comparison": {
+    "detailedAtFullViewNext": 100000,
+    "detailedAtFullViewLegacy": 2500,
+    "visibleAtFullView": 100000,
+    "panFrameP95Ratio": 18.42,
+    "firstDetailRatio": 0.08
+  },
+  "scope": {
+    "measured": [
+      "trabajo de CPU de teselado, agrupación en lotes y culling para un guion determinista de apertura, paneo y zoom",
+      "edición densa (report-only): commit→asentado de 40 lotes de 10 MOVE repartidos por el documento, con el dibujo entero a la vista",
+      "entidades detalladas en reposo frente a entidades visibles, en los dos caminos",
+      "crecimiento del montón tras ciclos completos de abrir, panear, hacer zoom y cerrar",
+      "dispersión entre corridas del camino nuevo: se publica la mediana y viajan todas las muestras en `variance`"
+    ],
+    "notMeasured": [
+      "GPU, llamadas de dibujo reales, composición del navegador y cuadros por segundo",
+      "coste de subir atributos a la GPU",
+      "rasterizado de glifos: en Node no hay canvas, así que el atlas de texto no entra en esta corrida",
+      "red, API, PostgreSQL ni autoguardado"
+    ]
+  }
+}

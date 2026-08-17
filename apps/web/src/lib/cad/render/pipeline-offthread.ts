@@ -26,7 +26,8 @@ import {
   type CadTessellateOffThreadResult,
 } from "./tessellate-worker-client";
 import type { CadTessellatedEntityPayload } from "./tessellate.worker";
-import type { CadRenderLodTier } from "./tessellation-cache";
+import { cadRenderSegmentBudget, type CadRenderLodTier } from "./tessellation-cache";
+import { cadRenderCount, cadRenderMark, cadRenderStage } from "./render-profile";
 
 /**
  * Tope del LOTE que viaja al worker de teselado, en segmentos ESTIMADOS.
@@ -110,6 +111,53 @@ export interface CadOffThreadBatch {
   entities: CadNativeEntity[];
   segments: number[];
   tierByEntity: Map<string, CadRenderLodTier>;
+}
+
+/**
+ * Junta el siguiente LOTE de entidades SIN teselado de un tile, desde el cursor.
+ *
+ * Vive aquí y no en el orquestador porque es la regla del CARRIL: qué cabe en un
+ * mensaje (`MAX_ENTITIES`, `SEGMENT_BUDGET`), qué queda excluido por necesitar
+ * el documento y qué ya está en caché y no hace falta pedir. El pipeline sólo
+ * aporta cómo se resuelve un id, su escalón y si está cacheado; así la regla se
+ * puede probar sin montar un pipeline entero.
+ *
+ * Devolver un lote VACÍO es un resultado legítimo —todo lo pendiente ya estaba
+ * en caché o no viaja— y quien llama tiene que reencolar el tile en ese caso: un
+ * tile sin tarea NI petición se quedaría congelado para siempre.
+ */
+export function collectCadOffThreadBatch(
+  pending: readonly string[],
+  cursor: number,
+  resolve: (entityId: string) => CadNativeEntity | undefined,
+  tierOf: (entityId: string) => CadRenderLodTier,
+  cached: (entityId: string, tier: CadRenderLodTier) => boolean,
+): CadOffThreadBatch {
+  const started = cadRenderMark();
+  const entities: CadNativeEntity[] = [];
+  const segments: number[] = [];
+  const tierByEntity = new Map<string, CadRenderLodTier>();
+  let estimatedSegments = 0;
+  for (let index = cursor; index < pending.length; index += 1) {
+    if (entities.length >= CAD_RENDER_OFFTHREAD_BATCH_MAX_ENTITIES) break;
+    if (estimatedSegments >= CAD_RENDER_OFFTHREAD_BATCH_SEGMENT_BUDGET) break;
+    const entity = resolve(pending[index]);
+    if (!entity || entity.type === "mtext") continue;
+    if (!cadEntityTessellatesWithoutDocument(entity)) continue;
+    const tier = tierOf(entity.id);
+    if (tierByEntity.has(entity.id) || cached(entity.id, tier)) continue;
+    entities.push(entity);
+    tierByEntity.set(entity.id, tier);
+    const budget = cadRenderSegmentBudget(tier);
+    segments.push(budget);
+    estimatedSegments += budget;
+  }
+  cadRenderStage("offThreadCollect", started);
+  if (entities.length > 0) {
+    cadRenderCount("offThreadBatches");
+    cadRenderCount("offThreadEntities", entities.length);
+  }
+  return { entities, segments, tierByEntity };
 }
 
 export interface CadOffThreadHooks {
