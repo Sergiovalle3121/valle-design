@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  CAD_RENDER_FRAME_BUDGET_MAX_MS,
   CAD_RENDER_FRAME_BUDGET_MS,
   CadRenderScheduler,
 } from "./render-scheduler";
@@ -187,6 +188,157 @@ for (let index = 1; index < seen.length; index += 1)
 assert.ok(elapsed < 2_000, `50.000 tareas priorizadas tardaron ${elapsed} ms`);
 ok(true, `50.000 tareas salen en orden estricto de distancia en ${elapsed} ms`);
 
+// ---------------------------------------------------------------------------
+// PRESUPUESTO ADAPTATIVO
+//
+// Llegó con la instrumentación por etapas y NUNCA tuvo spec: la conducta se
+// documentó en un comentario largo y se dio por buena. Un comentario no es una
+// afirmación comprobable, y ésta gobierna cuánto trabajo hace el CAD en cada
+// cuadro — es exactamente la clase de cambio que no puede viajar sin ancla.
+//
+// Lo que se fija aquí es el CONTRATO, no la implementación: el presupuesto sube
+// con el cuadro observado, nunca baja del suelo, y tiene techo.
+// ---------------------------------------------------------------------------
+
+{
+  // A 60 Hz la conducta de antes queda INTACTA, que es la promesa que permitió
+  // meter el adaptativo sin discutir cada llamada: un cuarto de 16,7 son 4,2 ms.
+  const clock = fakeClock();
+  const sixty = new CadRenderScheduler({ now: clock.now });
+  sixty.enqueue({ key: "a", x: 0, y: 0, run: () => {} });
+  sixty.runFrame();
+  for (let frame = 0; frame < 12; frame += 1) {
+    clock.advance(16.7);
+    sixty.enqueue({ key: `f${frame}`, x: 0, y: 0, run: () => {} });
+    sixty.runFrame();
+  }
+  clock.advance(16.7);
+  sixty.enqueue({ key: "final", x: 0, y: 0, run: () => {} });
+  const result = sixty.runFrame();
+  ok(
+    result.budgetMs > CAD_RENDER_FRAME_BUDGET_MS &&
+      result.budgetMs < CAD_RENDER_FRAME_BUDGET_MS * 1.2,
+    `a 60 Hz el presupuesto se queda donde estaba (${result.budgetMs} ms de un cuadro de 16,7)`,
+  );
+}
+
+{
+  // Con cuadros CAROS —el rasterizador por software del runner, ~1.160 ms— el
+  // presupuesto sube. Es la razón de existir del cambio: con 4 ms clavados,
+  // asentar segundo y medio de trabajo pedía cientos de cuadros de un segundo.
+  const clock = fakeClock();
+  const slow = new CadRenderScheduler({ now: clock.now });
+  slow.enqueue({ key: "a", x: 0, y: 0, run: () => {} });
+  slow.runFrame();
+  for (let frame = 0; frame < 20; frame += 1) {
+    clock.advance(1_159.5);
+    slow.enqueue({ key: `s${frame}`, x: 0, y: 0, run: () => {} });
+    slow.runFrame();
+  }
+  clock.advance(1_159.5);
+  slow.enqueue({ key: "final", x: 0, y: 0, run: () => {} });
+  const result = slow.runFrame();
+  ok(
+    result.budgetMs > 100,
+    `con cuadros de 1.159 ms el presupuesto sube muy por encima de 4 (${result.budgetMs} ms)`,
+  );
+  ok(
+    result.budgetMs <= CAD_RENDER_FRAME_BUDGET_MAX_MS,
+    `y NO se pasa del techo de ${CAD_RENDER_FRAME_BUDGET_MAX_MS} ms (${result.budgetMs})`,
+  );
+  ok(
+    slow.observedFrameIntervalMs > 900,
+    `el intervalo observado sigue al cuadro real (${slow.observedFrameIntervalMs} ms)`,
+  );
+}
+
+{
+  // El techo acota el ABSURDO: una pestaña en segundo plano, un portátil que
+  // despierta o un punto de interrupción dan intervalos de decenas de segundos.
+  // Sin techo, el cuadro siguiente intentaría hacer todo el trabajo del mundo.
+  const clock = fakeClock();
+  const stalled = new CadRenderScheduler({ now: clock.now });
+  stalled.enqueue({ key: "a", x: 0, y: 0, run: () => {} });
+  stalled.runFrame();
+  for (let frame = 0; frame < 30; frame += 1) {
+    clock.advance(60_000);
+    stalled.enqueue({ key: `p${frame}`, x: 0, y: 0, run: () => {} });
+    stalled.runFrame();
+  }
+  clock.advance(60_000);
+  stalled.enqueue({ key: "final", x: 0, y: 0, run: () => {} });
+  ok(
+    stalled.runFrame().budgetMs === CAD_RENDER_FRAME_BUDGET_MAX_MS,
+    "un intervalo de un minuto se corta en el techo, no multiplica el presupuesto",
+  );
+}
+
+{
+  // NUNCA baja del suelo. Una máquina rápida no puede castigarse a sí misma por
+  // ser rápida: con cuadros de 1 ms, un cuarto serían 0,25 ms y el CAD avanzaría
+  // dieciséis veces más despacio en el hardware mejor.
+  const clock = fakeClock();
+  const fast = new CadRenderScheduler({ now: clock.now });
+  fast.enqueue({ key: "a", x: 0, y: 0, run: () => {} });
+  fast.runFrame();
+  for (let frame = 0; frame < 10; frame += 1) {
+    clock.advance(1);
+    fast.enqueue({ key: `q${frame}`, x: 0, y: 0, run: () => {} });
+    fast.runFrame();
+  }
+  clock.advance(1);
+  fast.enqueue({ key: "final", x: 0, y: 0, run: () => {} });
+  ok(
+    fast.runFrame().budgetMs === CAD_RENDER_FRAME_BUDGET_MS,
+    "con cuadros baratísimos el presupuesto se queda en el suelo de 4 ms, no por debajo",
+  );
+}
+
+{
+  // `fixedBudget` devuelve la política de ANTES, intacta. Existe para que un
+  // spec pueda fijar el reparto sin que el adaptativo se lo mueva, y para poder
+  // comparar las dos políticas en la misma corrida del arnés de etapas.
+  const clock = fakeClock();
+  const fixed = new CadRenderScheduler({ now: clock.now, fixedBudget: true });
+  fixed.enqueue({ key: "a", x: 0, y: 0, run: () => {} });
+  fixed.runFrame();
+  for (let frame = 0; frame < 10; frame += 1) {
+    clock.advance(1_159.5);
+    fixed.enqueue({ key: `c${frame}`, x: 0, y: 0, run: () => {} });
+    fixed.runFrame();
+  }
+  clock.advance(1_159.5);
+  fixed.enqueue({ key: "final", x: 0, y: 0, run: () => {} });
+  ok(
+    fixed.runFrame().budgetMs === CAD_RENDER_FRAME_BUDGET_MS,
+    "con fixedBudget el presupuesto NO se adapta por caros que sean los cuadros",
+  );
+  ok(
+    fixed.observedFrameIntervalMs === 0,
+    "y ni siquiera observa el intervalo: con presupuesto clavado no hay nada que estimar",
+  );
+}
+
+{
+  // Un presupuesto EXPLÍCITO manda sobre el adaptativo —quien lo pasa sabe algo
+  // que el planificador no—, pero el intervalo se sigue observando: si no,
+  // alternar cuadros con y sin argumento dejaría la media móvil leyendo
+  // intervalos DOBLES y el presupuesto saldría inflado al volver.
+  const clock = fakeClock();
+  const mixed = new CadRenderScheduler({ now: clock.now });
+  mixed.enqueue({ key: "a", x: 0, y: 0, run: () => {} });
+  mixed.runFrame();
+  for (let frame = 0; frame < 8; frame += 1) {
+    clock.advance(100);
+    mixed.enqueue({ key: `m${frame}`, x: 0, y: 0, run: () => {} });
+    mixed.runFrame(7);
+  }
+  ok(
+    Math.abs(mixed.observedFrameIntervalMs - 100) < 1,
+    `el intervalo se observa aunque el presupuesto venga dado (${mixed.observedFrameIntervalMs} ms, no ~200)`,
+  );
+}
+
 console.log(
-  `render-scheduler: ${checks} comprobaciones verdes — presupuesto de 4 ms respetado con reloj determinista, garantía de progreso ante una tarea de 500 ms, y orden por cercanía verificado sobre 50.000 tareas.`,
+  `render-scheduler: ${checks} comprobaciones verdes — presupuesto de 4 ms respetado con reloj determinista, garantía de progreso ante una tarea de 500 ms, orden por cercanía verificado sobre 50.000 tareas, y el presupuesto ADAPTATIVO fijado en sus cuatro extremos: suelo, techo, 60 Hz intacto y presupuesto explícito.`,
 );

@@ -56,6 +56,7 @@ import {
   mechanicalSlots,
   textHostileSlots,
 } from "./corpus-mix-builders";
+import { planoRealBlocks, planoRealSlots } from "./corpus-plano-real-builders";
 import type { CadNativeEntity } from "../entity-runtime";
 import manifestJson from "./corpus-mixes-manifest.json";
 import {
@@ -68,13 +69,15 @@ export type CadCorpusMixId =
   | "architecture"
   | "mechanical"
   | "cartography"
-  | "text-hostile";
+  | "text-hostile"
+  | "plano-real";
 
 export const CAD_CORPUS_MIX_IDS: readonly CadCorpusMixId[] = [
   "architecture",
   "mechanical",
   "cartography",
   "text-hostile",
+  "plano-real",
 ];
 
 /** Los dos escalones que se versionan. Cambiar uno cambia su SHA. */
@@ -247,6 +250,43 @@ export const CAD_CORPUS_MIXES: Record<CadCorpusMixId, CadCorpusMixDefinition> = 
     ],
     blocks: [],
     slots: textHostileSlots(),
+  },
+  /**
+   * El perfil que contesta «¿cómo se va a sentir el primer cliente?».
+   *
+   * A diferencia de `architecture` —que estresa subsistemas a propósito con un
+   * 34 % de INSERT— aquí el reparto pretende PARECERSE a un archivo de trabajo:
+   * los muros dominan, las cotas son la segunda población y los bloques bajan al
+   * 14 %. La derivación de cada peso, con sus supuestos declarados, está en la
+   * cabecera de `corpus-plano-real-builders.ts`.
+   *
+   * `cellSize` 700 mm y no 900: un plano real es DENSO. La densidad por celda es
+   * lo que decide el coste de una selección por ventana y de una consulta de
+   * OSNAP, que son las dos operaciones que este perfil viene a medir.
+   */
+  "plano-real": {
+    id: "plano-real",
+    title:
+      "Plano real de despacho: muros por caras, cadenas de cotas, acabados y bloques repetidos",
+    stresses:
+      "densidad de segmentos cortos por celda, selección por ventana, OSNAP y reconstrucción tras editar",
+    seed: 0x50_4c_41_00,
+    cellSize: 700,
+    layers: [
+      layer("ARQ-CARP", "Carpintería", "#f59e0b"),
+      layer("ARQ-COTAS", "Cotas", "#a3e635"),
+      layer("ARQ-EJES", "Ejes", "#94a3b8"),
+      layer("ARQ-ESCAL", "Escaleras", "#c084fc"),
+      layer("ARQ-ESTR", "Estructura", "#ef4444"),
+      layer("ARQ-INSTA", "Instalaciones", "#22d3ee"),
+      layer("ARQ-MOBIL", "Mobiliario", "#fbbf24"),
+      layer("ARQ-MUROS", "Muros", "#e2e8f0"),
+      layer("ARQ-ROTUL", "Rotulación", "#38bdf8"),
+      layer("ARQ-SANIT", "Sanitarios", "#a5b4fc"),
+      layer("ARQ-SUELO", "Suelos", "#64748b"),
+    ],
+    blocks: planoRealBlocks(),
+    slots: planoRealSlots(),
   },
 };
 

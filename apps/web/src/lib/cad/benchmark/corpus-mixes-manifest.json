@@ -30,6 +30,12 @@
         "cellSize": 400,
         "title": "Hostil: 20.000 MTEXT de varias líneas con alfabeto ancho",
         "stresses": "atlas de glifos y memoria de textura del texto"
+      },
+      "plano-real": {
+        "seed": 1347174656,
+        "cellSize": 700,
+        "title": "Plano real de despacho: muros por caras, cadenas de cotas, acabados y bloques repetidos",
+        "stresses": "densidad de segmentos cortos por celda, selección por ventana, OSNAP y reconstrucción tras editar"
       }
     }
   },
@@ -124,6 +130,36 @@
         "line": 60000,
         "polyline": 20000,
         "mtext": 20000
+      }
+    },
+    {
+      "mix": "plano-real",
+      "entities": 10000,
+      "sha256": "e34b962d15f844a69442593b2a729bcd3869483e5fc6416be0add2bf006c4301",
+      "entityMix": {
+        "line": 2900,
+        "polyline": 1500,
+        "circle": 600,
+        "arc": 600,
+        "hatch": 700,
+        "mtext": 1000,
+        "dimension": 1300,
+        "insert": 1400
+      }
+    },
+    {
+      "mix": "plano-real",
+      "entities": 100000,
+      "sha256": "c4469bd513a75d1bab6a966c858060f2686a44f7133cbeb30e507db6a79343c7",
+      "entityMix": {
+        "line": 29000,
+        "polyline": 15000,
+        "circle": 6000,
+        "arc": 6000,
+        "hatch": 7000,
+        "mtext": 10000,
+        "dimension": 13000,
+        "insert": 14000
       }
     }
   ]
