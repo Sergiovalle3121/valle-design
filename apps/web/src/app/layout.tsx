@@ -6,11 +6,19 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { DesignAuthProvider } from "@/contexts/DesignAuthContext";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { BRAND } from "@/config/brand";
+import { SITE_URL } from "@/config/site-routes";
 
 /**
  * Metadata: TODA la identidad sale del manifiesto de marca (config/brand).
+ *
+ * `metadataBase` es lo que convierte los canonical y las URLs de Open Graph de
+ * cada página en absolutas. Sin él, Next emite rutas relativas y avisa en cada
+ * build; con un dominio escrito a mano, el día que cambie el despliegue todas
+ * las páginas apuntarían al sitio equivocado. Sale de la misma configuración
+ * que alimenta el sitemap, así que las tres cosas no pueden discrepar.
  */
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
     default: BRAND.productNames.design,
     template: `%s · ${BRAND.productNames.design}`,

@@ -5,11 +5,14 @@ import {
   publicActionClass,
 } from "../docs/PublicPageShell";
 import { COMMERCIAL_LINKS } from "@/config/commercial";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
-export const metadata: Metadata = {
-  title: "Términos",
-  description: "Condiciones básicas para evaluar y usar Valle Design.",
-};
+export const metadata: Metadata = publicPageMetadata({
+  path: "/terms",
+  title: "Términos de uso",
+  description:
+    "Condiciones básicas para evaluar y usar Valle Design, y los límites operativos que la web declara de forma expresa.",
+});
 
 export default function TermsPage() {
   return (

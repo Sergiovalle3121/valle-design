@@ -5,11 +5,14 @@ import {
   publicActionClass,
 } from "../docs/PublicPageShell";
 import { COMMERCIAL_CONTACTS } from "@/config/commercial";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
-export const metadata: Metadata = {
-  title: "Contacto",
-  description: "Canales públicos configurados para Valle Design.",
-};
+export const metadata: Metadata = publicPageMetadata({
+  path: "/contact",
+  title: "Contacto y canales de atención",
+  description:
+    "Canales públicos configurados para hablar con el equipo de Valle Design: comercial, soporte del producto y privacidad.",
+});
 
 const channelLabels = {
   sales: "Consultas comerciales",

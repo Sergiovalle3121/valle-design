@@ -6,11 +6,14 @@ import {
 } from "../docs/PublicPageShell";
 import { BRAND } from "@/config/brand";
 import { COMMERCIAL_CONTACTS } from "@/config/commercial";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
-export const metadata: Metadata = {
-  title: "Privacidad",
-  description: "Aviso técnico básico sobre datos tratados por Valle Design.",
-};
+export const metadata: Metadata = publicPageMetadata({
+  path: "/privacy",
+  title: "Aviso de privacidad",
+  description:
+    "Aviso técnico sobre los datos que trata Valle Design, dónde viven los documentos y qué debe completar el operador de cada despliegue.",
+});
 
 export default function PrivacyPage() {
   return (

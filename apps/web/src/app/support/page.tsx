@@ -5,12 +5,14 @@ import {
   publicActionClass,
 } from "../docs/PublicPageShell";
 import { COMMERCIAL_CONTACTS, COMMERCIAL_LINKS } from "@/config/commercial";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
-export const metadata: Metadata = {
-  title: "Soporte",
+export const metadata: Metadata = publicPageMetadata({
+  path: "/support",
+  title: "Soporte técnico",
   description:
-    "Canales y recomendaciones para solicitar ayuda con Valle Design.",
-};
+    "Canales de ayuda de Valle Design y qué información incluir para que un problema se pueda reproducir y resolver.",
+});
 
 export default function SupportPage() {
   return (
