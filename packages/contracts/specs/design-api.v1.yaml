@@ -486,6 +486,42 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/CommercialPlanList" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+  /v1/commercial/public/plans:
+    get:
+      operationId: listPublicCommercialPlans
+      tags: [commercial]
+      summary: Publica el catalogo comercial para visitantes sin sesion.
+      description: >-
+        Misma configuracion GLOBAL que `/v1/commercial/plans` (ningun dato por
+        organizacion) servida SIN sesion: la pagina de precios es la puerta de
+        entrada del embudo y exigir una cuenta para decir cuanto cuesta el
+        producto mata la conversion. Publica solo los planes que el operador
+        marco como publicables (`metadata.public`); un plan de pago sin precio
+        activo se OMITE en vez de salir sin importe, porque publicar un plan
+        sin precio es publicar una duda. La respuesta es cacheable: es
+        identica para todos los visitantes.
+      security: []
+      parameters:
+        - name: currency
+          in: query
+          required: false
+          description: >-
+            Filtra los precios a UNA moneda ISO-4217. La pagina de precios
+            de un pais no debe mezclar monedas: sin filtro se publican todas
+            las activas y el visitante tendria que adivinar cual le aplica.
+            Un plan de pago que no tenga precio en la moneda pedida se omite,
+            igual que si no tuviera precio.
+          schema: { type: string, pattern: "^[A-Z]{3}$" }
+      responses:
+        "200":
+          description: >-
+            Planes publicables con sus precios activos, ordenados por codigo.
+            Lista vacia si el operador todavia no publico ninguno.
+          content:
+            application/json:
+              schema:
+                { $ref: "#/components/schemas/PublicCommercialPlanList" }
+        "400": { $ref: "#/components/responses/BadRequest" }
   /v1/commercial/upgrade-intents:
     get:
       operationId: listUpgradeIntents
@@ -2550,6 +2586,60 @@ components:
           type: array
           maxItems: 200
           items: { $ref: "#/components/schemas/CommercialPlan" }
+    PublicCommercialPlan:
+      type: object
+      additionalProperties: false
+      required:
+        [code, name, kind, perSeat, seatsMinimum, taxIncluded, prices]
+      description: >-
+        Vista PUBLICA de un plan. Deliberadamente mas estrecha que
+        `CommercialPlan`: no expone `entitlements`, que son vocabulario
+        interno del producto y no le dicen nada a un visitante anonimo.
+      properties:
+        code: { type: string, maxLength: 80 }
+        name: { type: string, maxLength: 200 }
+        kind:
+          type: string
+          enum: [trial, paid]
+          description: >-
+            `trial` no lleva precio por definicion y por eso puede publicarse
+            con `prices` vacio; `paid` sin precio activo no se publica.
+        perSeat:
+          type: boolean
+          description: >-
+            Con `true` el importe es POR USUARIO y el total depende de los
+            asientos contratados. Publicar un precio por asiento junto a uno
+            por cuenta sin distinguirlos seria enganoso.
+        seatsMinimum:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          description: Asientos minimos contratables; 1 en un plan individual.
+        taxIncluded:
+          type: boolean
+          description: >-
+            Con `true` el importe publicado YA incluye impuestos (IVA en
+            Mexico); con `false` el impuesto se suma en el cobro.
+        prices:
+          type: array
+          maxItems: 20
+          items: { $ref: "#/components/schemas/CommercialPlanPrice" }
+    PublicCommercialPlanList:
+      type: object
+      additionalProperties: false
+      required: [checkout, items]
+      properties:
+        checkout:
+          allOf:
+            - $ref: "#/components/schemas/CommercialCheckoutMode"
+          description: >-
+            Modo de cobro derivado del proveedor configurado. `external`
+            significa que la web no puede cobrar todavia y debe decirlo en vez
+            de ofrecer un boton que no lleva a ninguna parte.
+        items:
+          type: array
+          maxItems: 50
+          items: { $ref: "#/components/schemas/PublicCommercialPlan" }
     UpgradeIntentStatus:
       type: string
       enum: [pending, confirmed, cancelled]

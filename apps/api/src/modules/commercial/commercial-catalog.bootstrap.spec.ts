@@ -1,6 +1,7 @@
 import { DataSource } from 'typeorm';
 import {
   CommercialCatalogBootstrap,
+  PUBLISHABLE_PLANS,
   SAMPLE_PLAN_PRICE,
   STANDALONE_CAD_ENTITLEMENT,
   STANDALONE_FULL_PLAN_CODE,
@@ -41,7 +42,7 @@ describe('CommercialCatalogBootstrap', () => {
       }),
     ).resolves.toMatchObject({
       active: true,
-      metadata: { kind: 'trial', pricePublished: false },
+      metadata: { kind: 'trial', pricePublished: false, public: true },
     });
     // Paridad con producción: el plan vendible existe también en dev, así el
     // flujo de upgrade se puede ejercer sin tocar la base a mano.
@@ -70,14 +71,32 @@ describe('CommercialCatalogBootstrap', () => {
     await new CommercialCatalogBootstrap(database).onApplicationBootstrap();
 
     const prices = await database.getRepository(PlanPrice).find();
-    expect(prices).toHaveLength(1);
-    expect(prices[0]).toMatchObject({
+    // El ejemplo en USD del plan heredado + los cuatro precios en MXN de la
+    // oferta publicable (dos planes x mensual/anual).
+    expect(prices).toHaveLength(5);
+    const sample = await database.getRepository(PlanPrice).findOneByOrFail({
       planCode: STANDALONE_FULL_PLAN_CODE,
+    });
+    expect(sample).toMatchObject({
       currency: SAMPLE_PLAN_PRICE.currency,
       period: SAMPLE_PLAN_PRICE.period,
       active: true,
     });
-    expect(Number(prices[0].amountCents)).toBe(SAMPLE_PLAN_PRICE.amountCents);
+    expect(Number(sample.amountCents)).toBe(SAMPLE_PLAN_PRICE.amountCents);
+    // Paridad con la migración mexicana: dev publica los mismos importes en la
+    // misma moneda que se cobran en producción.
+    for (const plan of PUBLISHABLE_PLANS) {
+      for (const expected of plan.prices) {
+        const persisted = await database
+          .getRepository(PlanPrice)
+          .findOneByOrFail({
+            planCode: plan.code,
+            currency: expected.currency,
+            period: expected.period,
+          });
+        expect(Number(persisted.amountCents)).toBe(expected.amountCents);
+      }
+    }
     // El trial es gratuito por definición: jamás recibe precio de ejemplo.
     await expect(
       database
@@ -85,9 +104,9 @@ describe('CommercialCatalogBootstrap', () => {
         .countBy({ planCode: STANDALONE_TRIAL_PLAN_CODE }),
     ).resolves.toBe(0);
 
-    // Idempotente: un segundo arranque no duplica el precio.
+    // Idempotente: un segundo arranque no duplica ningún precio.
     await new CommercialCatalogBootstrap(database).onApplicationBootstrap();
-    await expect(database.getRepository(PlanPrice).count()).resolves.toBe(1);
+    await expect(database.getRepository(PlanPrice).count()).resolves.toBe(5);
   });
 
   it('never repairs or completes operator-owned prices', async () => {

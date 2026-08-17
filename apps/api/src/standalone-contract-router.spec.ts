@@ -8,6 +8,7 @@ import { BillingWebhookService } from './modules/commercial/billing-webhook.serv
 import { BillingController } from './modules/commercial/controllers/billing.controller';
 import { BillingWebhookController } from './modules/commercial/controllers/billing-webhook.controller';
 import { CommercialController } from './modules/commercial/controllers/commercial.controller';
+import { PublicCatalogController } from './modules/commercial/controllers/public-catalog.controller';
 import {
   Invoice,
   PlanCatalog,
@@ -69,6 +70,7 @@ describe('standalone OpenAPI contract against the real Nest router', () => {
         IdentityController,
         OrganizationsController,
         CommercialController,
+        PublicCatalogController,
         BillingController,
         BillingWebhookController,
       ],
@@ -136,8 +138,9 @@ describe('standalone OpenAPI contract against the real Nest router', () => {
     const expected = openApiOperations(spec);
 
     // 25 de la ola 1 + las 4 de la compra autoservicio (checkout, facturas,
-    // baja y el webhook público de la pasarela).
-    expect(expected).toHaveLength(29);
+    // baja y el webhook público de la pasarela) + el catálogo público que
+    // alimenta la página de precios sin exigir sesión.
+    expect(expected).toHaveLength(30);
     expect([...actual].sort()).toEqual(expected.sort());
   });
 });

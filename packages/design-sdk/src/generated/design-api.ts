@@ -354,6 +354,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commercial/public/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Publica el catalogo comercial para visitantes sin sesion.
+         * @description Misma configuracion GLOBAL que `/v1/commercial/plans` (ningun dato por organizacion) servida SIN sesion: la pagina de precios es la puerta de entrada del embudo y exigir una cuenta para decir cuanto cuesta el producto mata la conversion. Publica solo los planes que el operador marco como publicables (`metadata.public`); un plan de pago sin precio activo se OMITE en vez de salir sin importe, porque publicar un plan sin precio es publicar una duda. La respuesta es cacheable: es identica para todos los visitantes.
+         */
+        get: operations["listPublicCommercialPlans"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commercial/upgrade-intents": {
         parameters: {
             query?: never;
@@ -1329,6 +1349,28 @@ export interface components {
             /** @description Modo de cobro derivado del proveedor de pagos configurado. */
             checkout: components["schemas"]["CommercialCheckoutMode"];
             items: components["schemas"]["CommercialPlan"][];
+        };
+        /** @description Vista PUBLICA de un plan. Deliberadamente mas estrecha que `CommercialPlan`: no expone `entitlements`, que son vocabulario interno del producto y no le dicen nada a un visitante anonimo. */
+        PublicCommercialPlan: {
+            code: string;
+            name: string;
+            /**
+             * @description `trial` no lleva precio por definicion y por eso puede publicarse con `prices` vacio; `paid` sin precio activo no se publica.
+             * @enum {string}
+             */
+            kind: "trial" | "paid";
+            /** @description Con `true` el importe es POR USUARIO y el total depende de los asientos contratados. Publicar un precio por asiento junto a uno por cuenta sin distinguirlos seria enganoso. */
+            perSeat: boolean;
+            /** @description Asientos minimos contratables; 1 en un plan individual. */
+            seatsMinimum: number;
+            /** @description Con `true` el importe publicado YA incluye impuestos (IVA en Mexico); con `false` el impuesto se suma en el cobro. */
+            taxIncluded: boolean;
+            prices: components["schemas"]["CommercialPlanPrice"][];
+        };
+        PublicCommercialPlanList: {
+            /** @description Modo de cobro derivado del proveedor configurado. `external` significa que la web no puede cobrar todavia y debe decirlo en vez de ofrecer un boton que no lleva a ninguna parte. */
+            checkout: components["schemas"]["CommercialCheckoutMode"];
+            items: components["schemas"]["PublicCommercialPlan"][];
         };
         /** @enum {string} */
         UpgradeIntentStatus: "pending" | "confirmed" | "cancelled";
@@ -2614,6 +2656,30 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+        };
+    };
+    listPublicCommercialPlans: {
+        parameters: {
+            query?: {
+                /** @description Filtra los precios a UNA moneda ISO-4217. La pagina de precios de un pais no debe mezclar monedas: sin filtro se publican todas las activas y el visitante tendria que adivinar cual le aplica. Un plan de pago que no tenga precio en la moneda pedida se omite, igual que si no tuviera precio. */
+                currency?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Planes publicables con sus precios activos, ordenados por codigo. Lista vacia si el operador todavia no publico ninguno. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicCommercialPlanList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
         };
     };
     listUpgradeIntents: {

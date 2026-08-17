@@ -17,6 +17,10 @@ export const STANDALONE_TRIAL_PLAN_CODE = 'standalone-trial';
 export const STANDALONE_FULL_PLAN_CODE = 'standalone-full';
 export const STANDALONE_CAD_ENTITLEMENT = DESIGN_CAD_ENTITLEMENT;
 
+/** Planes publicables de la oferta mexicana (ver 20260816120000). */
+export const INDIVIDUAL_PLAN_CODE = 'individual';
+export const DESPACHO_PLAN_CODE = 'despacho';
+
 /**
  * Precio de EJEMPLO que se siembra sólo fuera de producción, y sobre el plan
  * VENDIBLE (`standalone-full`): el trial del piloto es gratuito por
@@ -29,6 +33,64 @@ export const SAMPLE_PLAN_PRICE = {
   currency: 'USD',
   period: 'monthly',
   amountCents: 2900,
+} as const;
+
+/**
+ * Oferta publicable, IDÉNTICA a la que siembra la migración mexicana.
+ *
+ * Se duplica aquí a propósito, y no se importa de la migración, porque una
+ * migración es un hecho histórico congelado: cuando dentro de un año el precio
+ * cambie por otra migración, ESTA constante se actualizará al precio vigente y
+ * aquella conservará el que fue. Compartir la constante haría que reescribir el
+ * precio de hoy reescribiese también el pasado.
+ *
+ * Un desarrollador con base efímera (SQLite + synchronize, sin migraciones)
+ * necesita ver la misma página de precios que un cliente; si aquí sólo
+ * viviera el ejemplo de 29 USD, la página de precios local publicaría una
+ * moneda que el producto no cobra.
+ */
+export const PUBLISHABLE_PLANS = [
+  {
+    code: INDIVIDUAL_PLAN_CODE,
+    metadata: {
+      kind: 'paid',
+      public: true,
+      name: 'Individual',
+      perSeat: false,
+      seatsMinimum: 1,
+      taxIncluded: true,
+    },
+    prices: [
+      { currency: 'MXN', period: 'monthly', amountCents: 19_900 },
+      { currency: 'MXN', period: 'yearly', amountCents: 199_000 },
+    ],
+  },
+  {
+    code: DESPACHO_PLAN_CODE,
+    metadata: {
+      kind: 'paid',
+      public: true,
+      name: 'Despacho',
+      perSeat: true,
+      seatsMinimum: 3,
+      taxIncluded: true,
+    },
+    prices: [
+      { currency: 'MXN', period: 'monthly', amountCents: 16_900 },
+      { currency: 'MXN', period: 'yearly', amountCents: 169_000 },
+    ],
+  },
+] as const;
+
+/** Presentación del trial: publicable y sin precio, porque es gratuito. */
+const TRIAL_PRESENTATION = {
+  kind: 'trial',
+  pricePublished: false,
+  public: true,
+  name: 'Prueba',
+  perSeat: false,
+  seatsMinimum: 1,
+  taxIncluded: true,
 } as const;
 
 /**
@@ -56,17 +118,23 @@ export class CommercialCatalogBootstrap implements OnApplicationBootstrap {
   private async seedCatalog(manager: EntityManager): Promise<void> {
     if ((await manager.count(PlanCatalog)) !== 0) return;
 
-    // Mismo catálogo que siembran las migraciones: trial + plan vendible,
-    // ambos con el único entitlement del producto.
+    // Mismo catálogo que siembran las migraciones: trial + plan vendible
+    // heredado + la oferta publicable, todos con el único entitlement del
+    // producto. `standalone-full` NO es publicable: existe para el flujo
+    // heredado de upgrade-intents, no es una oferta que se anuncie.
     for (const plan of [
       {
         code: STANDALONE_TRIAL_PLAN_CODE,
-        metadata: { kind: 'trial', pricePublished: false },
+        metadata: { ...TRIAL_PRESENTATION },
       },
       {
         code: STANDALONE_FULL_PLAN_CODE,
         metadata: { kind: 'paid', pricePublished: false },
       },
+      ...PUBLISHABLE_PLANS.map((plan) => ({
+        code: plan.code,
+        metadata: { ...plan.metadata },
+      })),
     ]) {
       await manager
         .getRepository(PlanCatalog)
@@ -104,13 +172,33 @@ export class CommercialCatalogBootstrap implements OnApplicationBootstrap {
     const sellable = await manager.findOneBy(PlanCatalog, {
       code: SAMPLE_PLAN_PRICE.planCode,
     });
-    if (!sellable) return;
-    await manager
-      .getRepository(PlanPrice)
-      .createQueryBuilder()
-      .insert()
-      .values({ ...SAMPLE_PLAN_PRICE, active: true })
-      .orIgnore()
-      .execute();
+    if (sellable) {
+      await manager
+        .getRepository(PlanPrice)
+        .createQueryBuilder()
+        .insert()
+        .values({ ...SAMPLE_PLAN_PRICE, active: true })
+        .orIgnore()
+        .execute();
+    }
+    // Los precios de la oferta publicable viajan bajo la MISMA guardia de
+    // tabla vacía: o el bootstrap siembra el catálogo entero, o no toca nada.
+    // Sembrarlos por separado dejaría medio catálogo con precio y medio sin
+    // él ante cualquier fila preexistente.
+    for (const plan of PUBLISHABLE_PLANS) {
+      const persisted = await manager.findOneBy(PlanCatalog, {
+        code: plan.code,
+      });
+      if (!persisted) continue;
+      for (const price of plan.prices) {
+        await manager
+          .getRepository(PlanPrice)
+          .createQueryBuilder()
+          .insert()
+          .values({ planCode: plan.code, ...price, active: true })
+          .orIgnore()
+          .execute();
+      }
+    }
   }
 }

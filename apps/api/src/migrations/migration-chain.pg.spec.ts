@@ -22,6 +22,8 @@ import { CommercialSellableCatalog20260812100000 } from './20260812100000-Commer
 import { SubscriptionUpgradeIntents20260812110000 } from './20260812110000-SubscriptionUpgradeIntents';
 import { PlanPrices20260814100000 } from './20260814100000-PlanPrices';
 import { StripeBilling20260815100000 } from './20260815100000-StripeBilling';
+import { LegalAcceptances20260815140000 } from './20260815140000-LegalAcceptances';
+import { MexicanPublicCatalog20260816120000 } from './20260816120000-MexicanPublicCatalog';
 
 const LEGACY_MIGRATIONS: Array<new () => MigrationInterface> = [
   AddCadBlocks20260706180000,
@@ -46,6 +48,11 @@ const ALL_MIGRATIONS: Array<new () => MigrationInterface> = [
   SubscriptionUpgradeIntents20260812110000,
   PlanPrices20260814100000,
   StripeBilling20260815100000,
+  // Faltaba en la cadena aunque lleva aplicada desde la ola 6: una migración
+  // ausente de esta lista nunca se ejecuta aquí, así que su up/down y sus
+  // interacciones con las vecinas quedaban sin probar en el encadenado.
+  LegalAcceptances20260815140000,
+  MexicanPublicCatalog20260816120000,
 ];
 
 describePostgres('migration chain (previous main -> latest)', () => {

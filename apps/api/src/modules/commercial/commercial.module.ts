@@ -41,6 +41,7 @@ import { EmailOutboxController } from './controllers/email-outbox.controller';
 import { BillingController } from './controllers/billing.controller';
 import { BillingWebhookController } from './controllers/billing-webhook.controller';
 import { CommercialController } from './controllers/commercial.controller';
+import { PublicCatalogController } from './controllers/public-catalog.controller';
 import {
   COMMERCIAL_OUTBOX_OBSERVER,
   COMMERCIAL_OUTBOX_TRANSPORT,
@@ -69,6 +70,7 @@ import { SubscriptionLifecycleService } from './subscription-lifecycle.service';
   ],
   controllers: [
     CommercialController,
+    PublicCatalogController,
     BillingController,
     BillingWebhookController,
     EmailOutboxController,
