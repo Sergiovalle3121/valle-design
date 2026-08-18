@@ -15,6 +15,7 @@ import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
 import { importDocumentFile } from "@/lib/cad/document-import-client";
 import type { DocumentImportReport } from "@/lib/cad/document-import";
 import { serializeCadDocument } from "@/lib/cad/cad-document";
+import { CadDxfImportReportPanel } from "@/components/cad/interop/CadDxfImportReport";
 
 type Project = CadProject;
 type Document = CadDocumentSummary;
@@ -692,17 +693,28 @@ function ImportStatus({
         Importado: {state.report.importedEntityCount} entidades y{" "}
         {state.report.importedBlockCount} bloques.
       </p>
-      {state.report.warnings.length > 0 && (
-        <details className="mt-2">
-          <summary>
-            {state.report.warnings.length} advertencias de interoperabilidad
-          </summary>
-          <ul className="mt-1 list-disc pl-5 text-xs">
-            {state.report.warnings.slice(0, 6).map((warning, index) => (
-              <li key={`${warning.code}:${index}`}>{warning.message}</li>
-            ))}
-          </ul>
-        </details>
+      {/*
+        El informe en español manda cuando existe. La lista cruda de códigos se
+        queda SÓLO para el JSON canónico, que no pasa por el lector DXF y cuyas
+        incidencias son de esquema, no de fidelidad.
+      */}
+      {state.report.dxfReport ? (
+        <div className="mt-2">
+          <CadDxfImportReportPanel report={state.report.dxfReport} />
+        </div>
+      ) : (
+        state.report.warnings.length > 0 && (
+          <details className="mt-2">
+            <summary>
+              {state.report.warnings.length} advertencias de interoperabilidad
+            </summary>
+            <ul className="mt-1 list-disc pl-5 text-xs">
+              {state.report.warnings.slice(0, 6).map((warning, index) => (
+                <li key={`${warning.code}:${index}`}>{warning.message}</li>
+              ))}
+            </ul>
+          </details>
+        )
       )}
       <button
         type="button"

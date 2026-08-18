@@ -147,7 +147,22 @@ export interface CadCommandSession {
  */
 export type CadCommandDocumentView = Pick<
   CadDocument,
-  "meta" | "entities" | "blocks" | "layers" | "styles" | "externalReferences" | "modelSpace"
+  | "meta"
+  | "entities"
+  | "blocks"
+  | "layers"
+  | "styles"
+  | "externalReferences"
+  | "modelSpace"
+  /**
+   * Las dos secciones que sólo mira quien EXPORTA. `DXFOUT` tiene que declarar
+   * lo que el fichero no va a llevar, y las dos pérdidas más caras viven aquí:
+   * una imagen cuyos píxeles el DXF nunca guarda, y una entidad que llegó de un
+   * fichero ajeno y se conserva sin interpretar. Sin verlas, el manifiesto de
+   * pérdidas callaría justo lo que más duele descubrir tarde.
+   */
+  | "imageDefinitions"
+  | "unsupportedEntities"
 >;
 
 export interface CadCommandContext {
@@ -319,7 +334,14 @@ export type CadUiTarget =
   | "quick-select"
   | "filter"
   | "script-file"
-  | "linetype-file";
+  | "linetype-file"
+  /**
+   * Selector de archivo de `DXFIN`. Leer un fichero es del navegador y volver a
+   * meter su contenido por el motor es del anfitrión: el comando está DENTRO
+   * del motor y no puede reentrar en él sin reentrar en sí mismo. Mismo reparto
+   * que `script-file`, por la misma razón exacta.
+   */
+  | "dxf-file";
 
 export interface CadUiRequest {
   target: CadUiTarget;

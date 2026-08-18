@@ -89,17 +89,32 @@ export function useCadSessionState(scope: CadSessionScope = {}): CadSessionState
 /**
  * Apunta los manejadores que necesitan leer un archivo.
  *
- * Son los dos que no pueden vivir dentro del motor: SCRIPT necesita el texto de
- * un `.scr` y LINETYPE el de un `.lin`. Se sirven creando el selector de
- * archivos del navegador al vuelo, sin montar interfaz — así funcionan sin
- * tocar el monolito, que en esta ola pertenece a otra sesión.
+ * Son los TRES que no pueden vivir dentro del motor: SCRIPT necesita el texto
+ * de un `.scr`, LINETYPE el de un `.lin` y DXFIN el del plano que acaba de
+ * llegar por correo. Se sirven creando el selector de archivos del navegador al
+ * vuelo, sin montar interfaz — así funcionan sin tocar el monolito, que en esta
+ * ola pertenece a otra sesión.
+ *
+ * El de DXF es el que decide si un despacho se queda: es la puerta por la que
+ * entra el archivo del estructurista.
  */
 export function useCadFileCommandHandlers(
   session: CadSessionState,
   onScript: (name: string, text: string) => void,
+  onDxf: (name: string, text: string) => void,
 ): void {
   useEffect(() => {
     const unregister = [
+      registerCadUiHandler("dxf-file", () => {
+        // `.dxf` a secas en el filtro: un DWG no se ofrece porque no se sabe
+        // leer, y ofrecerlo para después rechazarlo sería prometer soporte que
+        // no existe justo en el momento en que el usuario más lo cree.
+        void pickCadTextFile(".dxf,text/plain").then((file) => {
+          if (!file) return;
+          onDxf(file.name, file.text);
+        });
+        return true;
+      }),
       registerCadUiHandler("linetype-file", () => {
         void pickCadTextFile(".lin,text/plain").then((file) => {
           if (!file) return;
@@ -118,5 +133,5 @@ export function useCadFileCommandHandlers(
     return () => {
       for (const off of unregister) off();
     };
-  }, [session, onScript]);
+  }, [session, onScript, onDxf]);
 }

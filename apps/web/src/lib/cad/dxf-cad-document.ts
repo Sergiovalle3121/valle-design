@@ -1,8 +1,8 @@
-import type {
-  CadBlockDefinition,
-  CadDocument,
-  CadEntity,
-} from "./cad-document";
+// `CadDocument` ya no se nombra aquí: los siete ensambladores de exportación
+// piden `CadDxfExportSource`, que dice lo que de verdad leen —entidades,
+// bloques, imágenes y opacas— en vez de exigir el documento entero con su
+// historia y sus publicaciones. Un `CadDocument` lo satisface sin conversión.
+import type { CadBlockDefinition, CadEntity } from "./cad-document";
 import type {
   CadDxfHatch,
   CadDxfMText,
@@ -27,7 +27,11 @@ import type { CadNativeEntity } from "./entity-runtime";
 import { cadEntityToDxfPrimitive } from "./dxf-entity-primitives";
 import { schema4PrimitiveToEntity } from "./dxf-schema4-entities";
 export { cadEntityToDxfPrimitive };
-export { cadDocumentDxfExportLosses } from "./dxf-export-loss-manifest";
+export {
+  cadDocumentDxfExportLosses,
+  type CadDxfExportSource,
+} from "./dxf-export-loss-manifest";
+import type { CadDxfExportSource } from "./dxf-export-loss-manifest";
 // El contrato de proyección y sus helpers viven en su propio módulo: son una
 // pieza coherente y este archivo está en su asignación de tamaño.
 import {
@@ -465,7 +469,7 @@ function clampedKnots(controlCount: number, degree: number): number[] {
 }
 
 export function cadDocumentNativeDxfPrimitives(
-  document: CadDocument,
+  document: CadDxfExportSource,
   filter?: (entity: CadEntity) => boolean,
 ): CadDxfPrimitive[] {
   return document.entities
@@ -475,7 +479,7 @@ export function cadDocumentNativeDxfPrimitives(
 }
 
 export function cadDocumentNativeDxfHatches(
-  document: CadDocument,
+  document: CadDxfExportSource,
   filter?: (entity: CadEntity) => boolean,
 ): CadDxfExportHatch[] {
   return document.entities
@@ -503,7 +507,7 @@ export function cadDocumentNativeDxfHatches(
 }
 
 export function cadDocumentNativeDxfMTexts(
-  document: CadDocument,
+  document: CadDxfExportSource,
   filter?: (entity: CadEntity) => boolean,
 ): CadDxfExportMText[] {
   return document.entities
@@ -537,7 +541,7 @@ export function cadDocumentNativeDxfMTexts(
 }
 
 export function cadDocumentNativeDxfSemanticDimensions(
-  document: CadDocument,
+  document: CadDxfExportSource,
   filter?: (entity: CadEntity) => boolean,
 ): CadDxfExportSemanticDimension[] {
   return document.entities
@@ -564,7 +568,7 @@ export function cadDocumentNativeDxfSemanticDimensions(
 }
 
 export function cadDocumentNativeDxfMleaders(
-  document: CadDocument,
+  document: CadDxfExportSource,
   filter?: (entity: CadEntity) => boolean,
 ): CadDxfExportMleader[] {
   return document.entities
@@ -913,7 +917,7 @@ function blockEntityToDxfPrimitive(entity: CadEntity): CadDxfPrimitive | null {
 }
 
 export function cadDocumentDxfBlocks(
-  document: CadDocument,
+  document: CadDxfExportSource,
 ): CadDxfExportBlock[] {
   return document.blocks.map((block) => ({
     name: block.name,
@@ -960,7 +964,7 @@ export function cadDocumentDxfBlocks(
 }
 
 export function cadDocumentDxfInserts(
-  document: CadDocument,
+  document: CadDxfExportSource,
   filter?: (entity: Extract<CadEntity, { type: "insert" }>) => boolean,
 ): CadDxfExportInsert[] {
   return document.entities

@@ -15,6 +15,7 @@
  * Este archivo declara SÓLO tipos y no importa nada en tiempo de ejecución: es
  * la frontera, y una frontera con dependencias deja de serlo.
  */
+import type { CadLossManifestEntry } from "../cad-document";
 import type { CadPlotRequest } from "../plot/page-setup";
 import type { CadVisualStyleId } from "../view/visual-styles";
 
@@ -36,4 +37,26 @@ export type CadHostRequest =
    * VISOR, no del documento: cambiar cómo se mira un sólido no ensucia el
    * dibujo ni deja paso de deshacer, igual que en AutoCAD.
    */
-  | { kind: "visual-style"; styleId: CadVisualStyleId };
+  | { kind: "visual-style"; styleId: CadVisualStyleId }
+  /**
+   * Entrega el DXF que produjo `DXFOUT`.
+   *
+   * El fichero VIENE HECHO. Escribir DXF es aritmética sobre cadenas y el motor
+   * la hace entera, así que lo único que queda fuera es la descarga —`Blob`,
+   * URL y un ancla que se pulsa sola—, que es exactamente el reparto de PLOT.
+   * Que el contenido viaje en la petición es lo que permite probar `DXFOUT` en
+   * Node comparando texto DXF real en vez de espiar al navegador.
+   *
+   * `losses` viaja al lado del contenido, no detrás: el usuario tiene que poder
+   * leer qué NO lleva el archivo ANTES de mandárselo al estructurista, y un
+   * manifiesto que llega por otro canal es un manifiesto que la interfaz puede
+   * olvidarse de enseñar.
+   */
+  | {
+      kind: "dxf-export";
+      fileName: string;
+      content: string;
+      entityCount: number;
+      layers: readonly string[];
+      losses: readonly CadLossManifestEntry[];
+    };

@@ -14,6 +14,10 @@ import {
   cadDxfSemanticDimensionsToNativeEntities,
 } from "./dxf-cad-document";
 import { importDxfPrimitives } from "./dxf-import";
+import {
+  buildCadDxfImportReport,
+  type CadDxfImportReport,
+} from "./dxf-import-report";
 
 export const MAX_DXF_IMPORT_BYTES = 12_000_000;
 export const MAX_JSON_IMPORT_BYTES = 20_000_000;
@@ -26,6 +30,17 @@ export interface DocumentImportReport {
   importedEntityCount: number;
   importedBlockCount: number;
   warnings: Array<{ code: string; message: string }>;
+  /**
+   * Lo mismo que `warnings`, pero en español y accionable: qué entró íntegro,
+   * qué entró peor y qué no entró.
+   *
+   * `warnings` era lo único que llegaba a la interfaz y era la lista de códigos
+   * del importador —`unsupported_entity`, `anisotropic_insert`—, volcada tal
+   * cual en el panel. Eso no informa a un arquitecto: le enseña el registro de
+   * depuración del programa. Sólo existe en las importaciones DXF; un JSON
+   * canónico es nuestro formato y no degrada nada.
+   */
+  dxfReport?: CadDxfImportReport;
 }
 
 export function importLimitForFileName(fileName: string): number {
@@ -163,6 +178,13 @@ function importDxfDocument(content: string): DocumentImportReport {
       code: warning.code,
       message: warning.message,
     })),
+    // Los recuentos salen del DOCUMENTO ya construido, no del importador: el
+    // primero sabe qué quedó dentro y el segundo qué traía el fichero, y
+    // derivar uno del otro es exactamente la mentira que el informe evita.
+    dxfReport: buildCadDxfImportReport(imported, {
+      entityCount: document.entities.length,
+      blockCount: document.blocks.length,
+    }),
   };
 }
 

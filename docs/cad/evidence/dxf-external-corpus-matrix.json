@@ -1,0 +1,546 @@
+{
+  "generadoPor": "node scripts/cad/build-dxf-external-corpus.mjs",
+  "corpusSintetico": true,
+  "limitacion": "CORPUS SINTÉTICO. Ninguno de estos archivos procede de un despacho real: están generados por `apps/web/src/lib/cad/dxf-external-corpus.ts` para imitar dialectos ajenos (versiones AC1009 a AC1032, CRLF y LF, códigos de grupo con relleno, notación científica, secciones reordenadas, handles no monotónicos, capas con acentos). Imitar un dialecto NO es haberlo recibido: esta matriz no acredita cobertura del mundo real y no debe citarse como tal hasta que se incorporen archivos de despachos y se regenere.",
+  "criterios": {
+    "intacto": "Llegaron tantos ejemplares como declara el archivo y con su naturaleza: un ARC vuelve arco, un HATCH vuelve sombreado. Se mide contra el resultado del lector real, no contra una lista escrita a mano.",
+    "degradado": "Llegó, pero convertido en otra cosa o en menor número. `degradaA` dice exactamente en qué, porque «degradado» a secas no permite decidir si el plano sigue sirviendo.",
+    "perdido_declarado": "No llegó ningún ejemplar Y el lector emitió un aviso que nombra ese tipo. Es una limitación conocida: el remitente puede explotar la entidad y reenviar el archivo.",
+    "perdido_en_silencio": "No llegó ningún ejemplar y NINGÚN aviso lo menciona. Es el caso peligroso: el usuario cree que tiene el plano completo. Todo lo que aparezca aquí es deuda del lector, no una limitación asumida."
+  },
+  "resumen": {
+    "archivos": 15,
+    "tiposEvaluados": 27,
+    "intactos": 20,
+    "degradados": 1,
+    "perdidosDeclarados": 6,
+    "perdidosEnSilencio": 0
+  },
+  "archivos": [
+    {
+      "id": "ac1009-r12-crlf",
+      "dialecto": "AC1009 (R12), CRLF",
+      "proposito": "Un R12 con finales de línea de Windows. Es lo que exporta cualquier herramienta que quiera compatibilidad máxima, y el \\r pegado al valor rompe cualquier comparación literal.",
+      "legible": true,
+      "capas": [
+        "COLUMNAS",
+        "DETALLE",
+        "MUROS"
+      ],
+      "avisos": {},
+      "entrada": [
+        {
+          "tipo": "ARC",
+          "declarados": 1,
+          "intactos": 1,
+          "veredicto": "intacto",
+          "criterio": "Llegaron tantos ejemplares como declara el archivo y con su naturaleza: un ARC vuelve arco, un HATCH vuelve sombreado. Se mide contra el resultado del lector real, no contra una lista escrita a mano."
+        },
+        {
+          "tipo": "CIRCLE",
+          "declarados": 1,
+          "intactos": 1,
+          "veredicto": "intacto",
+          "criterio": "Llegaron tantos ejemplares como declara el archivo y con su naturaleza: un ARC vuelve arco, un HATCH vuelve sombreado. Se mide contra el resultado del lector real, no contra una lista escrita a mano."
+        },
+        {
+          "tipo": "LINE",
+          "declarados": 2,
+          "intactos": 2,
+          "veredicto": "intacto",
+          "criterio": "Llegaron tantos ejemplares como declara el archivo y con su naturaleza: un ARC vuelve arco, un HATCH vuelve sombreado. Se mide contra el resultado del lector real, no contra una lista escrita a mano."
+        }
+      ],
+      "idaYVuelta": {
+        "completado": true,
+        "entidadesTrasImportar": 4,
+        "entidadesTrasReexportar": 4,
+        "supervivientes": {
+          "LINE": 2,
+          "CIRCLE": 1,
+          "ARC": 1
+        },
+        "perdidasDeclaradas": {}
+      }
+    },
+    {
+      "id": "ac1015-scientific-notation",
+      "dialecto": "AC1015 (2000), notación científica",
+      "proposito": "Coordenadas escritas como 4.0E+3 y 2.5e-1. Es lo que emite un exportador que usa printf con %g, y un lector que analice con una expresión regular de dígitos y punto las lee mal o las descarta.",
+      "legible": true,
+      "capas": [
+        "COLUMNAS",
+        "EJES",
+        "MUROS"
+      ],
+      "avisos": {},
+      "entrada": [
+        {
+          "tipo": "CIRCLE",
+          "declarados": 1,
+          "intactos": 1,
+          "veredicto": "intacto",
+          "criterio": "Llegaron tantos ejemplares como declara el archivo y con su naturaleza: un ARC vuelve arco, un HATCH vuelve sombreado. Se mide contra el resultado del lector real, no contra una lista escrita a mano."
+        },
+        {
+          "tipo": "LINE",
+          "declarados": 1,
+          "intactos": 1,
+          "veredicto": "intacto",
+          "criterio": "Llegaron tantos ejemplares como declara el archivo y con su naturaleza: un ARC vuelve arco, un HATCH vuelve sombreado. Se mide contra el resultado del lector real, no contra una lista escrita a mano."
+        },
+        {
+          "tipo": "LWPOLYLINE",
+          "declarados": 1,
+          "intactos": 1,
+          "veredicto": "intacto",
+          "criterio": "Llegaron tantos ejemplares como declara el archivo y con su naturaleza: un ARC vuelve arco, un HATCH vuelve sombreado. Se mide contra el resultado del lector real, no contra una lista escrita a mano."
+        }
+      ],
+      "idaYVuelta": {
+        "completado": true,
+        "entidadesTrasImportar": 3,
+        "entidadesTrasReexportar": 3,
+        "supervivientes": {
+          "LINE": 1,
+          "LWPOLYLINE": 1,
+          "POLYLINE": 1,
+          "CIRCLE": 1
+        },
+        "perdidasDeclaradas": {}
+      }
+    },
+    {
+      "id": "ac1027-padded-group-codes",
+      "dialecto": "AC1027 (2013), códigos con relleno",
+      "proposito": "Códigos de grupo alineados en un campo de seis y valores con un espacio al final. Es el formato canónico del propio AutoCAD y el que rompe a los lectores escritos contra su propia salida.",
+      "legible": true,
+      "capas": [
+        "MUROS",
+        "REFERENCIA",
+        "TEXTOS"
+      ],
+      "avisos": {},
+      "entrada": [
+        {
+          "tipo": "LINE",
+          "declarados": 1,
+          "intactos": 1,
+          "veredicto": "intacto",
+          "criterio": "Llegaron tantos ejemplares como declara el archivo y con su naturaleza: un ARC vuelve arco, un HATCH vuelve sombreado. Se mide contra el resultado del lector real, no contra una lista escrita a mano."
+        },
+        {
+          "tipo": "POINT",
+          "declarados": 1,
+          "intactos": 1,
+          "veredicto": "intacto",
+          "criterio": "Llegaron tantos ejemplares como declara el archivo y con su naturaleza: un ARC vuelve arco, un HATCH vuelve sombreado. Se mide contra el resultado del lector real, no contra una lista escrita a mano."
+        },
+        {
+          "tipo": "TEXT",
+          "declarados": 1,
+          "intactos": 1,
+          "veredicto": "intacto",
+          "criterio": "Llegaron tantos ejemplares como declara el archivo y con su naturaleza: un ARC vuelve arco, un HATCH vuelve sombreado. Se mide contra el resultado del lector real, no contra una lista escrita a mano."
+        }
+      ],
+      "idaYVuelta": {
+        "completado": true,
+        "entidadesTrasImportar": 3,
+        "entidadesTrasReexportar": 2,
+        "supervivientes": {
+          "LINE": 1,
+          "POINT": 1
+        },
+        "perdidasDeclaradas": {
+          "dxf_export_entity_dropped": 1
+        }
+      }
+    },
+    {
+      "id": "ac1021-unicode-layers",
+      "dialecto": "AC1021 (2007), capas en UTF-8",
+      "proposito": "Nombres de capa con acentos y eñes, que es como los escribe un despacho mexicano: «MUROS_ÁTICO», «DISEÑO», «CIMENTACIÓN». Un lector que normalice o recorte a ASCII funde capas distintas en una.",
+      "legible": true,
+      "capas": [
+        "CIMENTACIÓN",
+        "DISEÑO",
+        "MUROS_ÁTICO"
+      ],
+      "avisos": {},
+      "entrada": [
+        {
+          "tipo": "LINE",
+          "declarados": 3,
+          "intactos": 3,
+          "veredicto": "intacto",
+          "criterio": "Llegaron tantos ejemplares como declara el archivo y con su naturaleza: un ARC vuelve arco, un HATCH vuelve sombreado. Se mide contra el resultado del lector real, no contra una lista escrita a mano."
+        }
+      ],
+      "idaYVuelta": {
+        "completado": true,
+        "entidadesTrasImportar": 3,
+        "entidadesTrasReexportar": 3,
+        "supervivientes": {
+          "LINE": 3
+        },
+        "perdidasDeclaradas": {}
+      }
+    },
+    {
+      "id": "ac1032-reordered-sections",
+      "dialecto": "AC1032 (2018), secciones en otro orden",
+      "proposito": "ENTITIES antes que TABLES y BLOCKS, y handles no monotónicos (2F, 1A, FF). El orden de las secciones no lo fija la norma; un lector que dependa de haber visto BLOCKS antes no resuelve los INSERT.",
+      "legible": true,
+      "capas": [
+        "MOBILIARIO",
+        "MUROS"
+      ],
+      "avisos": {},
+      "entrada": [
+        {
+          "tipo": "INSERT",
+          "declarados": 1,
+          "intactos": 1,
+          "veredicto": "intacto",
+          "criterio": "Llegaron tantos ejemplares como declara el archivo y con su naturaleza: un ARC vuelve arco, un HATCH vuelve sombreado. Se mide contra el resultado del lector real, no contra una lista escrita a mano."
+        },
+        {
+          "tipo": "LINE",
+          "declarados": 1,
+          "intactos": 1,
+          "veredicto": "intacto",
+          "criterio": "Llegaron tantos ejemplares como declara el archivo y con su naturaleza: un ARC vuelve arco, un HATCH vuelve sombreado. Se mide contra el resultado del lector real, no contra una lista escrita a mano."
+        }
+      ],
+      "idaYVuelta": {
+        "completado": true,
+        "entidadesTrasImportar": 2,
+        "entidadesTrasReexportar": 2,
+        "supervivientes": {
+          "LINE": 1,
+          "INSERT": 1
+        },
+        "perdidasDeclaradas": {}
+      }
+    },
+    {
+      "id": "arch-lwpolyline-bulge",
+      "dialecto": "AC1015, LWPOLYLINE con bulge",
+      "proposito": "Un contorno cerrado con tramos curvos (código 42). Es la forma en que un plano guarda un muro curvo, y un lector que ignore el bulge devuelve el mismo contorno en recto sin decir nada.",
+      "legible": true,
+      "capas": [
+        "MUROS",
+        "ZONAS"
+      ],
+      "avisos": {},
+      "entrada": [
+        {
+          "tipo": "LWPOLYLINE",
+          "declarados": 2,
+          "intactos": 2,
+          "veredicto": "intacto",
+          "criterio": "Llegaron tantos ejemplares como declara el archivo y con su naturaleza: un ARC vuelve arco, un HATCH vuelve sombreado. Se mide contra el resultado del lector real, no contra una lista escrita a mano."
+        }
+      ],
+      "idaYVuelta": {
+        "completado": true,
+        "entidadesTrasImportar": 2,
+        "entidadesTrasReexportar": 2,
+        "supervivientes": {
+          "LWPOLYLINE": 2,
+          "POLYLINE": 2
+        },
+        "perdidasDeclaradas": {}
+      }
+    },
+    {
+      "id": "arch-spline-cubic",
+      "dialecto": "AC1021, SPLINE grado 3",
+      "proposito": "Spline cúbica con su vector de nudos y seis puntos de control. Un lector que la aproxime a polilínea cambia la geometría; uno que la descarte pierde el trazado del jardín entero.",
+      "legible": true,
+      "capas": [
+        "JARDIN"
+      ],
+      "avisos": {},
+      "entrada": [
+        {
+          "tipo": "SPLINE",
+          "declarados": 1,
+          "intactos": 1,
+          "veredicto": "intacto",
+          "criterio": "Llegaron tantos ejemplares como declara el archivo y con su naturaleza: un ARC vuelve arco, un HATCH vuelve sombreado. Se mide contra el resultado del lector real, no contra una lista escrita a mano."
+        }
+      ],
+      "idaYVuelta": {
+        "completado": true,
+        "entidadesTrasImportar": 1,
+        "entidadesTrasReexportar": 1,
+        "supervivientes": {
+          "SPLINE": 1
+        },
+        "perdidasDeclaradas": {}
+      }
+    },
+    {
+      "id": "arch-hatch-islands",
+      "dialecto": "AC1015, HATCH con isla",
+      "proposito": "Sombreado sólido con un contorno exterior y una isla interior. Es como se rellena un muro con un hueco de instalación; perder la isla rellena el hueco y el plano miente sobre el edificio.",
+      "legible": true,
+      "capas": [
+        "RELLENOS"
+      ],
+      "avisos": {},
+      "entrada": [
+        {
+          "tipo": "HATCH",
+          "declarados": 1,
+          "intactos": 1,
+          "veredicto": "intacto",
+          "criterio": "Llegaron tantos ejemplares como declara el archivo y con su naturaleza: un ARC vuelve arco, un HATCH vuelve sombreado. Se mide contra el resultado del lector real, no contra una lista escrita a mano."
+        }
+      ],
+      "idaYVuelta": {
+        "completado": true,
+        "entidadesTrasImportar": 1,
+        "entidadesTrasReexportar": 1,
+        "supervivientes": {
+          "HATCH": 1
+        },
+        "perdidasDeclaradas": {}
+      }
+    },
+    {
+      "id": "arch-mtext-formatted",
+      "dialecto": "AC1021, MTEXT con formato",
+      "proposito": "Nota general con negrita, cambio de fuente y salto de párrafo dentro del propio texto (\\fArial|b1;, \\P). Un lector que guarde la cadena cruda enseña los códigos al usuario.",
+      "legible": true,
+      "capas": [
+        "NOTAS"
+      ],
+      "avisos": {},
+      "entrada": [
+        {
+          "tipo": "MTEXT",
+          "declarados": 2,
+          "intactos": 2,
+          "veredicto": "intacto",
+          "criterio": "Llegaron tantos ejemplares como declara el archivo y con su naturaleza: un ARC vuelve arco, un HATCH vuelve sombreado. Se mide contra el resultado del lector real, no contra una lista escrita a mano."
+        }
+      ],
+      "idaYVuelta": {
+        "completado": true,
+        "entidadesTrasImportar": 2,
+        "entidadesTrasReexportar": 2,
+        "supervivientes": {
+          "MTEXT": 2
+        },
+        "perdidasDeclaradas": {}
+      }
+    },
+    {
+      "id": "arch-dimension-associative",
+      "dialecto": "AC1015, DIMENSION con bloque *D",
+      "proposito": "Cota lineal con su bloque anónimo de geometría, que es como la guarda AutoCAD. Es la entidad cuya degradación más cuesta en un plano: si entra como líneas sueltas, deja de medir al mover el muro.",
+      "legible": true,
+      "capas": [
+        "COTAS"
+      ],
+      "avisos": {},
+      "entrada": [
+        {
+          "tipo": "DIMENSION",
+          "declarados": 1,
+          "intactos": 0,
+          "veredicto": "degradado",
+          "degradaA": "geometría suelta (líneas y texto): se ve igual y deja de recalcularse al mover el muro",
+          "criterio": "Llegó, pero convertido en otra cosa o en menor número. `degradaA` dice exactamente en qué, porque «degradado» a secas no permite decidir si el plano sigue sirviendo."
+        }
+      ],
+      "idaYVuelta": {
+        "completado": true,
+        "entidadesTrasImportar": 4,
+        "entidadesTrasReexportar": 3,
+        "supervivientes": {
+          "LINE": 3
+        },
+        "perdidasDeclaradas": {
+          "dxf_export_entity_dropped": 1
+        }
+      }
+    },
+    {
+      "id": "arch-nested-inserts",
+      "dialecto": "AC1018, INSERT dentro de BLOCK",
+      "proposito": "Un bloque BAÑO que a su vez inserta LAVABO, insertado dos veces con escalas distintas. Es la estructura real de una biblioteca de despacho, y aplanarla pierde la capacidad de editar la pieza.",
+      "legible": true,
+      "capas": [
+        "MOBILIARIO"
+      ],
+      "avisos": {},
+      "entrada": [
+        {
+          "tipo": "INSERT",
+          "declarados": 2,
+          "intactos": 2,
+          "veredicto": "intacto",
+          "criterio": "Llegaron tantos ejemplares como declara el archivo y con su naturaleza: un ARC vuelve arco, un HATCH vuelve sombreado. Se mide contra el resultado del lector real, no contra una lista escrita a mano."
+        }
+      ],
+      "idaYVuelta": {
+        "completado": true,
+        "entidadesTrasImportar": 2,
+        "entidadesTrasReexportar": 2,
+        "supervivientes": {
+          "INSERT": 2
+        },
+        "perdidasDeclaradas": {}
+      }
+    },
+    {
+      "id": "arch-layer-linetype-lineweight",
+      "dialecto": "AC1015, LTYPE + grosor de capa",
+      "proposito": "Tabla de capas con tipo de línea (CENTER, DASHED) y grosor en centésimas de milímetro (código 370). El grosor es lo que distingue un muro de carga de una línea auxiliar al imprimir.",
+      "legible": true,
+      "capas": [
+        "EJES",
+        "MUROS-CARGA"
+      ],
+      "avisos": {},
+      "entrada": [
+        {
+          "tipo": "LINE",
+          "declarados": 2,
+          "intactos": 2,
+          "veredicto": "intacto",
+          "criterio": "Llegaron tantos ejemplares como declara el archivo y con su naturaleza: un ARC vuelve arco, un HATCH vuelve sombreado. Se mide contra el resultado del lector real, no contra una lista escrita a mano."
+        }
+      ],
+      "idaYVuelta": {
+        "completado": true,
+        "entidadesTrasImportar": 2,
+        "entidadesTrasReexportar": 2,
+        "supervivientes": {
+          "LINE": 2
+        },
+        "perdidasDeclaradas": {}
+      }
+    },
+    {
+      "id": "arch-xref-attach",
+      "dialecto": "AC1015, BLOCK con bandera de xref",
+      "proposito": "Un BLOCK con la bandera 4 (referencia externa) y su ruta en el código 1, insertado una vez. Es como un despacho enlaza la planta del arquitecto desde el plano de estructuras.",
+      "legible": true,
+      "capas": [],
+      "avisos": {
+        "unknown_block": 1
+      },
+      "entrada": [
+        {
+          "tipo": "INSERT",
+          "declarados": 1,
+          "intactos": 1,
+          "veredicto": "intacto",
+          "criterio": "Llegaron tantos ejemplares como declara el archivo y con su naturaleza: un ARC vuelve arco, un HATCH vuelve sombreado. Se mide contra el resultado del lector real, no contra una lista escrita a mano."
+        }
+      ],
+      "idaYVuelta": {
+        "completado": true,
+        "entidadesTrasImportar": 1,
+        "entidadesTrasReexportar": 1,
+        "supervivientes": {
+          "INSERT": 1
+        },
+        "perdidasDeclaradas": {}
+      }
+    },
+    {
+      "id": "foreign-unsupported-zoo",
+      "dialecto": "AC1024, entidades de otras disciplinas",
+      "proposito": "3DFACE, MESH, LEADER, 3DSOLID y REGION en el mismo archivo. Ninguna es de un plano 2D de arquitectura, pero todas llegan en planos reales, y lo que importa es si su ausencia SE DECLARA.",
+      "legible": true,
+      "capas": [
+        "MUROS"
+      ],
+      "avisos": {
+        "unsupported_entity": 5
+      },
+      "entrada": [
+        {
+          "tipo": "3DFACE",
+          "declarados": 1,
+          "intactos": 0,
+          "veredicto": "perdido_declarado",
+          "criterio": "No llegó ningún ejemplar Y el lector emitió un aviso que nombra ese tipo. Es una limitación conocida: el remitente puede explotar la entidad y reenviar el archivo."
+        },
+        {
+          "tipo": "3DSOLID",
+          "declarados": 1,
+          "intactos": 0,
+          "veredicto": "perdido_declarado",
+          "criterio": "No llegó ningún ejemplar Y el lector emitió un aviso que nombra ese tipo. Es una limitación conocida: el remitente puede explotar la entidad y reenviar el archivo."
+        },
+        {
+          "tipo": "LEADER",
+          "declarados": 1,
+          "intactos": 0,
+          "veredicto": "perdido_declarado",
+          "criterio": "No llegó ningún ejemplar Y el lector emitió un aviso que nombra ese tipo. Es una limitación conocida: el remitente puede explotar la entidad y reenviar el archivo."
+        },
+        {
+          "tipo": "LINE",
+          "declarados": 1,
+          "intactos": 1,
+          "veredicto": "intacto",
+          "criterio": "Llegaron tantos ejemplares como declara el archivo y con su naturaleza: un ARC vuelve arco, un HATCH vuelve sombreado. Se mide contra el resultado del lector real, no contra una lista escrita a mano."
+        },
+        {
+          "tipo": "MESH",
+          "declarados": 1,
+          "intactos": 0,
+          "veredicto": "perdido_declarado",
+          "criterio": "No llegó ningún ejemplar Y el lector emitió un aviso que nombra ese tipo. Es una limitación conocida: el remitente puede explotar la entidad y reenviar el archivo."
+        },
+        {
+          "tipo": "REGION",
+          "declarados": 1,
+          "intactos": 0,
+          "veredicto": "perdido_declarado",
+          "criterio": "No llegó ningún ejemplar Y el lector emitió un aviso que nombra ese tipo. Es una limitación conocida: el remitente puede explotar la entidad y reenviar el archivo."
+        }
+      ],
+      "idaYVuelta": {
+        "completado": true,
+        "entidadesTrasImportar": 1,
+        "entidadesTrasReexportar": 1,
+        "supervivientes": {
+          "LINE": 1
+        },
+        "perdidasDeclaradas": {}
+      }
+    },
+    {
+      "id": "foreign-truncated",
+      "dialecto": "AC1015, archivo cortado",
+      "proposito": "Un DXF sin ENDSEC ni EOF, como el que deja una descarga interrumpida o un disco lleno. Lo que se comprueba no es que entre, sino que el fallo sea explícito y no un dibujo vacío que parece bueno.",
+      "legible": false,
+      "capas": [],
+      "avisos": {
+        "parse_failed": 1
+      },
+      "entrada": [
+        {
+          "tipo": "LINE",
+          "declarados": 1,
+          "intactos": 0,
+          "veredicto": "perdido_declarado",
+          "criterio": "No llegó ningún ejemplar Y el lector emitió un aviso que nombra ese tipo. Es una limitación conocida: el remitente puede explotar la entidad y reenviar el archivo."
+        }
+      ],
+      "idaYVuelta": {
+        "completado": false,
+        "razon": "El DXF está corrupto o no es un DXF de texto válido."
+      }
+    }
+  ]
+}

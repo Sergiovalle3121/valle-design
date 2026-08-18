@@ -53,6 +53,7 @@ import {
   type CadViewControllerLike,
 } from "./navigation-host";
 import { CadPlotHost, downloadCadFile } from "./plot-host";
+import { handleCadDxfHostRequest } from "./dxf-host";
 import { cadStudioCommandContext } from "./studio-context";
 
 /**
@@ -321,7 +322,13 @@ export function useCadStudioCommandEngine(
     view: navigation.apply,
     // El anfitrión del estudio traza de verdad. Un `host` propio en las
     // opciones lo sustituye, que es lo que hace un guion sin navegador.
-    host: (request) => live.current.host?.(request) ?? plot.handle(request),
+    // El anfitrión de INTERCAMBIO va antes que el de trazado: `DXFOUT` no
+    // traza, entrega un archivo, y encadenarlos así deja cada uno con una sola
+    // responsabilidad en vez de un anfitrión que lo hace todo.
+    host: (request) =>
+      live.current.host?.(request) ??
+      handleCadDxfHostRequest(request, { download: downloadCadFile }) ??
+      plot.handle(request),
     // Previsualización, captura forzada y forma del cursor pertenecen al
     // puntero, y el puntero YA llegó: las tres las sirve el enrutador del
     // viewport a través de estas opciones. Sin enrutador —un guion, una
@@ -364,6 +371,17 @@ export function useCadStudioCommandEngine(
         const report = runCadScript(text, engine);
         for (const warning of report.warnings) engine.note(warning, "error");
         engine.note(`${name}: ${report.executed} renglón(es) ejecutado(s).`, "info");
+      },
+      [engine],
+    ),
+    // DXFIN pidió el archivo y sigue vivo esperando su contenido: se le entrega
+    // por la puerta de archivos, que no lo vuelca en el diálogo ni lo pasa por
+    // el analizador de coordenadas. Si el usuario tardó tanto en elegir que el
+    // comando ya no está, se vuelve a invocar en vez de tragarse el archivo.
+    useCallback(
+      (name: string, text: string) => {
+        if (!engine.busy) engine.invoke("DXFIN");
+        engine.feedFile(name, text);
       },
       [engine],
     ),

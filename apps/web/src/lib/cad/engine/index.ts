@@ -11,6 +11,7 @@ import { CAD_BLOCK_COMMANDS } from "./commands/blocks";
 import { CAD_GROUP_COMMANDS } from "./commands/groups";
 import { CAD_XREF_COMMANDS } from "./commands/xrefs";
 import { CAD_DESIGN_CENTER_COMMANDS } from "./commands/design-center";
+import { CAD_DXF_INTEROP_COMMANDS } from "./commands/interop-dxf";
 import { CAD_DRAW_BASIC_COMMANDS } from "./commands/draw-basics";
 import { CAD_DRAW_CURVE_COMMANDS } from "./commands/draw-curves";
 import { CAD_ANNOTATION_V4_COMMANDS } from "./commands/draw-annotation-v4";
@@ -125,6 +126,9 @@ export const CAD_COMMAND_DESCRIPTORS = [
   // Esquema 6: la primera rebanada BIM. El muro paramétrico entra por el mismo
   // registro que todo lo demás — no hay un «modo BIM», hay una orden más.
   ...CAD_DRAW_WALL_COMMANDS,
+  // Intercambio: DXFIN y DXFOUT. El bloqueo número uno de un despacho no es que
+  // falte una orden de dibujo, es que el archivo del cliente no entre ni salga.
+  ...CAD_DXF_INTEROP_COMMANDS,
 ] as const;
 
 /**
