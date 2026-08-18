@@ -1,3 +1,5 @@
+import { CAD_ARCHITECTURE_SYMBOLS } from "./symbols-architecture";
+
 export type CadSymbolCategory =
   | "equipment"
   | "flow"
@@ -38,7 +40,7 @@ export interface CadSymbolPlacement {
   tags: string[];
 }
 
-export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
+const CAD_CORE_SYMBOLS: CadSymbolDefinition[] = [
   {
     id: "smt-line",
     label: "SMT line",
@@ -352,150 +354,6 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
       { id: "in", label: "In", x: -0.5, y: 0 },
       { id: "out", label: "Out", x: 0.5, y: 0 },
     ],
-  },
-
-  // ── CAD universal (VD-CAD-UNIVERSAL-001): arquitectura y casa ──
-  {
-    id: "door-90",
-    label: "Puerta 90 cm",
-    category: "architecture",
-    defaultWidth: 900,
-    defaultHeight: 150,
-    layer: "Architecture",
-    tags: ["puerta", "door", "acceso", "casa", "oficina"],
-    ports: [],
-  },
-  {
-    id: "double-door-180",
-    label: "Puerta doble 180 cm",
-    category: "architecture",
-    defaultWidth: 1800,
-    defaultHeight: 150,
-    layer: "Architecture",
-    tags: ["puerta", "doble", "double door", "acceso"],
-    ports: [],
-  },
-  {
-    id: "window-120",
-    label: "Ventana 120 cm",
-    category: "architecture",
-    defaultWidth: 1200,
-    defaultHeight: 150,
-    layer: "Architecture",
-    tags: ["ventana", "window", "fachada"],
-    ports: [],
-  },
-  {
-    id: "stairs-straight",
-    label: "Escalera recta",
-    category: "architecture",
-    defaultWidth: 1000,
-    defaultHeight: 3000,
-    layer: "Architecture",
-    tags: ["escalera", "stairs", "nivel"],
-    ports: [],
-  },
-  {
-    id: "wc",
-    label: "WC",
-    category: "architecture",
-    defaultWidth: 400,
-    defaultHeight: 700,
-    layer: "Architecture",
-    tags: ["baño", "wc", "sanitario", "toilet"],
-    ports: [],
-  },
-  {
-    id: "sink",
-    label: "Lavabo",
-    category: "architecture",
-    defaultWidth: 600,
-    defaultHeight: 450,
-    layer: "Architecture",
-    tags: ["lavabo", "baño", "sink"],
-    ports: [],
-  },
-  {
-    id: "shower",
-    label: "Regadera",
-    category: "architecture",
-    defaultWidth: 900,
-    defaultHeight: 900,
-    layer: "Architecture",
-    tags: ["regadera", "ducha", "shower", "baño"],
-    ports: [],
-  },
-  {
-    id: "stove",
-    label: "Estufa",
-    category: "architecture",
-    defaultWidth: 760,
-    defaultHeight: 600,
-    layer: "Architecture",
-    tags: ["estufa", "cocina", "stove", "kitchen"],
-    ports: [],
-  },
-  {
-    id: "refrigerator",
-    label: "Refrigerador",
-    category: "architecture",
-    defaultWidth: 700,
-    defaultHeight: 700,
-    layer: "Architecture",
-    tags: ["refrigerador", "refri", "cocina", "fridge"],
-    ports: [],
-  },
-
-  // ── Mobiliario de casa ──
-  {
-    id: "bed-single",
-    label: "Cama individual",
-    category: "furniture",
-    defaultWidth: 1000,
-    defaultHeight: 2000,
-    layer: "Furniture",
-    tags: ["cama", "recámara", "bed", "casa"],
-    ports: [],
-  },
-  {
-    id: "bed-queen",
-    label: "Cama matrimonial",
-    category: "furniture",
-    defaultWidth: 1400,
-    defaultHeight: 2000,
-    layer: "Furniture",
-    tags: ["cama", "matrimonial", "recámara", "queen bed"],
-    ports: [],
-  },
-  {
-    id: "sofa-3",
-    label: "Sofá 3 plazas",
-    category: "furniture",
-    defaultWidth: 2100,
-    defaultHeight: 900,
-    layer: "Furniture",
-    tags: ["sofá", "sala", "sofa", "couch"],
-    ports: [],
-  },
-  {
-    id: "dining-table-4",
-    label: "Mesa comedor 4",
-    category: "furniture",
-    defaultWidth: 1200,
-    defaultHeight: 800,
-    layer: "Furniture",
-    tags: ["comedor", "mesa", "dining table"],
-    ports: [],
-  },
-  {
-    id: "wardrobe",
-    label: "Ropero",
-    category: "furniture",
-    defaultWidth: 1500,
-    defaultHeight: 600,
-    layer: "Furniture",
-    tags: ["ropero", "clóset", "wardrobe", "recámara"],
-    ports: [],
   },
 
   // ── Oficina ──
@@ -1745,6 +1603,18 @@ export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
     ports: [],
   },
 ] as const;
+
+/**
+ * El catálogo COMPLETO: el núcleo de arriba más los símbolos de arquitectura,
+ * que viven en su propio módulo (ver `symbols-architecture.ts`). Se compone
+ * aquí para que `getCadSymbol` y `searchCadSymbols` sigan siendo la única
+ * puerta de entrada: quien busca una puerta no tiene por qué saber en qué
+ * archivo la guardamos.
+ */
+export const CAD_SYMBOL_LIBRARY: CadSymbolDefinition[] = [
+  ...CAD_CORE_SYMBOLS,
+  ...CAD_ARCHITECTURE_SYMBOLS,
+];
 
 export function getCadSymbol(id: string): CadSymbolDefinition | undefined {
   return CAD_SYMBOL_LIBRARY.find((symbol) => symbol.id === id);

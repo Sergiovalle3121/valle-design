@@ -38,6 +38,115 @@ assert.equal(
   "Spanish quality tags are parsed",
 );
 
+// ── Vocabulario de arquitectura (B2) ──
+//
+// El producto nació distribuyendo líneas de producción y su lista de usos de
+// local no tenía recámara, baño ni cocina. Estas aserciones fijan las dos
+// mitades del trato: el arquitecto puede clasificar sus locales, y el documento
+// que alguien guardó con `use:smt` sigue clasificándose igual.
+
+for (const [tags, esperado] of [
+  ["room, use:recamara", "recamara"],
+  ["room, use:recámara", "recamara"],
+  ["room, use:bano", "bano"],
+  ["room, use:baño", "bano"],
+  ["room, use:medio-bano", "medio-bano"],
+  ["room, use:cocina", "cocina"],
+  ["room, use:sala", "sala"],
+  ["room, use:comedor", "comedor"],
+  ["room, use:estudio", "estudio"],
+  ["room, use:cochera", "cochera"],
+  ["room, use:garage", "cochera"],
+  ["room, use:patio", "patio"],
+  ["room, use:jardin", "jardin"],
+  ["room, use:azotea", "azotea"],
+  ["room, use:pasillo", "pasillo"],
+  ["room, use:vestibulo", "vestibulo"],
+  ["room, use:bodega", "bodega"],
+  ["room, use:servicio", "cuarto-servicio"],
+  ["room, use:lavado", "lavado"],
+] as const)
+  assert.equal(
+    roomUseTypeFromTags(tags),
+    esperado,
+    `el local ${esperado} se clasifica desde ${tags}`,
+  );
+
+// Sin etiqueta explícita se adivina por el NOMBRE, con o sin acentos.
+assert.equal(
+  roomUseTypeFromTags("room", "Recámara principal"),
+  "recamara",
+  "el nombre del local basta para clasificarlo",
+);
+assert.equal(
+  roomUseTypeFromTags("room", "Medio baño de visitas"),
+  "medio-bano",
+  "medio baño no se confunde con baño completo",
+);
+assert.equal(
+  roomUseTypeFromTags("room", "Cuarto de lavado"),
+  "lavado",
+  "el cuarto de lavado se distingue del de servicio",
+);
+// Y lo industrial NO se pierde: un documento guardado con use:smt sigue
+// abriendo clasificado, y el departamento por defecto sigue saliendo de él.
+for (const [tags, esperado] of [
+  ["room, use:smt", "smt"],
+  ["room, use:quality", "quality"],
+  ["room, use:warehouse", "warehouse"],
+  ["room, use:packing", "packing"],
+  ["room, use:shipping", "shipping"],
+  ["room, use:ehs", "ehs"],
+  ["room, use:office", "office"],
+] as const)
+  assert.equal(
+    roomUseTypeFromTags(tags),
+    esperado,
+    `el uso industrial ${esperado} se conserva`,
+  );
+
+// El local sin clasificar avisa CON VOCABULARIO DE ARQUITECTO: sugerir
+// `use:smt` a quien dibuja una casa era pedirle que hablara nuestro idioma.
+const sinUso = describeCadArchitectureObject({
+  id: "r9",
+  kind: "room",
+  label: "",
+  x: 0,
+  y: 0,
+  width: 3000,
+  height: 3000,
+  layerId: "architecture",
+  tags: "room",
+});
+assert.equal(sinUso?.roomUse, "unclassified", "un local sin pistas no se inventa");
+assert.ok(
+  sinUso?.warnings.some((warning) => warning.includes("use:recamara")),
+  "el aviso sugiere locales de vivienda",
+);
+assert.ok(
+  !sinUso?.warnings.some((warning) => warning.includes("use:smt")),
+  "el aviso ya no sugiere vocabulario de fábrica",
+);
+
+const recamara = describeCadArchitectureObject({
+  id: "r10",
+  kind: "room",
+  label: "Recámara 1",
+  x: 0,
+  y: 0,
+  width: 3200,
+  height: 3600,
+  layerId: "architecture",
+  tags: "room, use:recamara",
+});
+assert.equal(recamara?.roomUse, "recamara", "la recámara se clasifica");
+assert.equal(
+  recamara?.department,
+  "Recámara",
+  "el departamento por defecto usa la etiqueta en español",
+);
+assert.equal(recamara?.warnings.length, 0, "una recámara bien puesta no avisa");
+
 const wall = describeCadArchitectureObject({
   id: "w1",
   kind: "wall",

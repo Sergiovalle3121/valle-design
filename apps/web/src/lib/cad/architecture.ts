@@ -8,7 +8,47 @@ export type CadArchitectureRole =
   | "room"
   | "utility";
 
+/**
+ * El uso de un local.
+ *
+ * ## Por qué esta lista tiene dos mitades
+ *
+ * La lista NACIÓ industrial —`smt`, `assembly`, `test`, `quality`,
+ * `warehouse`, `packing`, `shipping`, `ehs`— porque el programa nació
+ * distribuyendo líneas de producción. Un CAD para despachos mexicanos que no
+ * sabe decir «recámara» no está a una función de distancia de su mercado: está
+ * a un VOCABULARIO, que es peor, porque el arquitecto no puede añadirlo desde
+ * fuera. Aquí se añade.
+ *
+ * Los industriales NO se borran. Hay documentos guardados con `use:smt` y
+ * quitarlos convertiría su cuarto clasificado en «sin clasificar» la próxima
+ * vez que se abrieran: perder la clasificación del usuario para hacerle sitio
+ * a la nuestra es exactamente el trato que nadie acepta.
+ *
+ * Las claves van SIN acentos ni eñes porque son etiquetas que el usuario
+ * teclea (`use:recamara`) y que viajan al DXF; el acento vive en la etiqueta
+ * que se muestra, y el clasificador pliega acentos para que `use:recámara`
+ * funcione igual.
+ */
 export type CadRoomUseType =
+  // Locales de arquitectura: lo que dibuja un despacho mexicano.
+  | "recamara"
+  | "bano"
+  | "medio-bano"
+  | "cocina"
+  | "sala"
+  | "comedor"
+  | "estudio"
+  | "cochera"
+  | "patio"
+  | "jardin"
+  | "azotea"
+  | "pasillo"
+  | "vestibulo"
+  | "bodega"
+  | "cuarto-servicio"
+  | "lavado"
+  // Herencia de las líneas de producción: se conserva íntegra.
   | "smt"
   | "assembly"
   | "test"
@@ -112,6 +152,22 @@ const SAFETY_KINDS = new Set([
 ]);
 
 const ROOM_USE_LABELS: Record<CadRoomUseType, string> = {
+  recamara: "Recámara",
+  bano: "Baño",
+  "medio-bano": "Medio baño",
+  cocina: "Cocina",
+  sala: "Sala",
+  comedor: "Comedor",
+  estudio: "Estudio",
+  cochera: "Cochera",
+  patio: "Patio",
+  jardin: "Jardín",
+  azotea: "Azotea",
+  pasillo: "Pasillo",
+  vestibulo: "Vestíbulo",
+  bodega: "Bodega",
+  "cuarto-servicio": "Cuarto de servicio",
+  lavado: "Cuarto de lavado",
   smt: "SMT",
   assembly: "Assembly",
   test: "Test",
@@ -162,24 +218,103 @@ export function isCadRoomObject(object: CadArchitectureObjectInput): boolean {
   );
 }
 
+/**
+ * Pliega acentos y eñes: «recámara» y «recamara» son la misma palabra, y
+ * «baño» y «bano» también. Sin esto, el clasificador sólo entendía a quien
+ * escribiera sin acentos — es decir, a casi nadie que escriba en español.
+ */
+function fold(value: string): string {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+/**
+ * Lo que el usuario ESCRIBE en `use:` → la clave canónica.
+ *
+ * Existe para que una etiqueta explícita se resuelva por igualdad y no por
+ * búsqueda de subcadenas dentro de todo el texto del objeto. Un cuarto
+ * etiquetado `use:smt` cuyo nombre fuese «Almacén SMT» dependía del ORDEN de
+ * los `includes` para acabar en `smt` o en `warehouse`; cuando el usuario ha
+ * dicho explícitamente qué es, no hay nada que adivinar.
+ */
+const ROOM_USE_ALIASES = new Map<string, CadRoomUseType>([
+  ["recamara", "recamara"], ["dormitorio", "recamara"], ["habitacion", "recamara"],
+  ["bano", "bano"], ["banio", "bano"], ["wc", "bano"], ["sanitario", "bano"],
+  ["medio-bano", "medio-bano"], ["medio bano", "medio-bano"], ["medio-banio", "medio-bano"],
+  ["cocina", "cocina"],
+  ["sala", "sala"], ["estancia", "sala"], ["living", "sala"],
+  ["comedor", "comedor"],
+  ["estudio", "estudio"], ["despacho", "estudio"], ["biblioteca", "estudio"],
+  ["cochera", "cochera"], ["garage", "cochera"], ["garaje", "cochera"], ["estacionamiento", "cochera"],
+  ["patio", "patio"],
+  ["jardin", "jardin"],
+  ["azotea", "azotea"], ["roof-garden", "azotea"],
+  ["pasillo", "pasillo"], ["corredor", "pasillo"], ["circulacion", "pasillo"],
+  ["vestibulo", "vestibulo"], ["recibidor", "vestibulo"], ["hall", "vestibulo"],
+  ["bodega", "bodega"], ["trastero", "bodega"],
+  ["cuarto-servicio", "cuarto-servicio"], ["cuarto de servicio", "cuarto-servicio"], ["servicio", "cuarto-servicio"],
+  ["lavado", "lavado"], ["cuarto de lavado", "lavado"], ["lavanderia", "lavado"],
+  ["smt", "smt"], ["assembly", "assembly"], ["ensamble", "assembly"],
+  ["test", "test"], ["prueba", "test"], ["quality", "quality"], ["calidad", "quality"], ["qc", "quality"],
+  ["warehouse", "warehouse"], ["almacen", "warehouse"],
+  ["packing", "packing"], ["empaque", "packing"],
+  ["shipping", "shipping"], ["embarque", "shipping"],
+  ["office", "office"], ["oficina", "office"],
+  ["ehs", "ehs"], ["safety", "ehs"],
+  ["utility", "utility"], ["utilidad", "utility"],
+]);
+
+/**
+ * Adivinanza por TEXTO, sólo cuando no hay etiqueta explícita.
+ *
+ * Los locales de arquitectura van primero porque son el mercado del producto:
+ * un «Comedor industrial» de una nave es antes un comedor que un cuarto sin
+ * clasificar. El bloque industrial sigue intacto detrás, así que ningún cuarto
+ * que hoy se clasifica deja de hacerlo — ninguna de sus palabras clave contiene
+ * a ninguna de las de arriba ni al revés.
+ */
+const ROOM_USE_TEXT_RULES: Array<[readonly string[], CadRoomUseType]> = [
+  [["medio bano", "medio-bano", "1/2 bano"], "medio-bano"],
+  [["cuarto de servicio", "cuarto-servicio"], "cuarto-servicio"],
+  [["cuarto de lavado", "lavanderia", "lavado"], "lavado"],
+  [["recamara", "dormitorio", "habitacion"], "recamara"],
+  [["bano", "sanitario", "wc"], "bano"],
+  [["cocina", "cocineta"], "cocina"],
+  [["cochera", "garaje", "garage", "estacionamiento"], "cochera"],
+  [["comedor"], "comedor"],
+  [["sala", "estancia"], "sala"],
+  [["estudio", "biblioteca"], "estudio"],
+  [["vestibulo", "recibidor"], "vestibulo"],
+  [["pasillo", "corredor"], "pasillo"],
+  [["patio"], "patio"],
+  [["jardin"], "jardin"],
+  [["azotea", "roof garden"], "azotea"],
+  [["bodega", "trastero"], "bodega"],
+  [["smt"], "smt"],
+  [["assembly", "ensamble"], "assembly"],
+  [["test", "prueba"], "test"],
+  [["quality", "calidad", "qc"], "quality"],
+  [["warehouse", "almacen", "store"], "warehouse"],
+  [["packing", "empaque"], "packing"],
+  [["shipping", "embarque"], "shipping"],
+  [["office", "oficina"], "office"],
+  [["ehs", "safety"], "ehs"],
+  [["utility", "utilities", "utilidad"], "utility"],
+];
+
 export function roomUseTypeFromTags(
   tagsValue: CadArchitectureObjectInput["tags"],
   label = "",
 ): CadRoomUseType {
   const tags = normalizedTags(tagsValue);
   const explicit = prefixedTag(tags, ["use:", "room-use:"]);
-  const text = `${explicit ?? ""} ${tags.join(" ")} ${label.toLowerCase()}`;
-
-  if (text.includes("smt")) return "smt";
-  if (text.includes("assembly") || text.includes("ensamble")) return "assembly";
-  if (text.includes("test") || text.includes("prueba")) return "test";
-  if (text.includes("quality") || text.includes("calidad") || text.includes("qc")) return "quality";
-  if (text.includes("warehouse") || text.includes("almacen") || text.includes("store")) return "warehouse";
-  if (text.includes("packing") || text.includes("empaque")) return "packing";
-  if (text.includes("shipping") || text.includes("embarque")) return "shipping";
-  if (text.includes("office") || text.includes("oficina")) return "office";
-  if (text.includes("ehs") || text.includes("safety")) return "ehs";
-  if (text.includes("utility") || text.includes("utilities") || text.includes("utilidad")) return "utility";
+  // Lo dicho a propósito manda sobre lo adivinado.
+  if (explicit) {
+    const exact = ROOM_USE_ALIASES.get(fold(explicit));
+    if (exact) return exact;
+  }
+  const text = fold(`${explicit ?? ""} ${tags.join(" ")} ${label}`);
+  for (const [needles, use] of ROOM_USE_TEXT_RULES)
+    if (needles.some((needle) => text.includes(needle))) return use;
   return "unclassified";
 }
 
@@ -231,8 +366,8 @@ export function describeCadArchitectureObject(
   const thickness = Math.min(object.width, object.height);
 
   if (object.kind === "wall") {
-    if (layerId !== "architecture") warnings.push("Wall is not on the Architecture layer.");
-    if (thickness <= 0) warnings.push("Wall thickness is not valid.");
+    if (layerId !== "architecture") warnings.push("El muro no está en la capa de Arquitectura.");
+    if (thickness <= 0) warnings.push("El espesor del muro no es válido.");
     return {
       id: object.id,
       role: "wall",
@@ -250,7 +385,7 @@ export function describeCadArchitectureObject(
   }
 
   if (object.kind === "column") {
-    if (layerId !== "structure") warnings.push("Column is not on the Structure layer.");
+    if (layerId !== "structure") warnings.push("La columna no está en la capa de Estructura.");
     return {
       id: object.id,
       role: "column",
@@ -266,7 +401,7 @@ export function describeCadArchitectureObject(
   }
 
   if (object.kind === "door") {
-    if (layerId !== "architecture") warnings.push("Door is not on the Architecture layer.");
+    if (layerId !== "architecture") warnings.push("La puerta no está en la capa de Arquitectura.");
     return {
       id: object.id,
       role: "door",
@@ -286,8 +421,8 @@ export function describeCadArchitectureObject(
   if (isCadRoomObject(object)) {
     const roomUse = roomUseTypeFromTags(object.tags, object.label);
     const department = roomDepartmentFromTags(object.tags, object.label);
-    if (roomUse === "unclassified") warnings.push("Room use is not classified; add use:smt, use:quality, etc.");
-    if (!object.label?.trim()) warnings.push("Room is missing a visible name.");
+    if (roomUse === "unclassified") warnings.push("Falta el uso del local; etiquétalo con use:recamara, use:bano, use:cocina, use:sala…");
+    if (!object.label?.trim()) warnings.push("El local no tiene nombre visible en el plano.");
     return {
       id: object.id,
       role: "room",

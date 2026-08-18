@@ -17957,8 +17957,8 @@ export default function Layout3DEditor({
                           </button>
                         </div>
                         <div className="mt-1.5 text-[10px] leading-snug text-slate-200/60">
-                          Tags: use:smt, use:quality o dept:qa clasifican
-                          cuartos en el takeoff.
+                          Tags: use:recamara, use:bano, use:cocina o dept:obra
+                          clasifican locales en el takeoff.
                         </div>
                       </div>
                       <div className="mb-3 rounded-xl border border-amber-400/15 bg-amber-400/[0.05] p-2.5">
