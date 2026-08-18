@@ -52,8 +52,16 @@ historia local acotada y no sustituye el versionado persistido.
   rendimiento.
 - DWG no se abre ni se escribe. DXF es un subconjunto de texto con pérdidas
   explícitas; no se promete fidelidad universal.
-- No existe un modelador sólido B-rep, compatibilidad AutoLISP/.NET/VBA, GIS,
-  nubes de puntos, STEP/IGES/IFC ni object storage S3 conectado.
+- No existe compatibilidad .NET/VBA, GIS, raster georreferenciado, nubes de
+  puntos, IFC ni object storage S3 conectado.
+- Sí existen, y por eso ya no se niegan aquí: un modelador sólido B-rep
+  facetado (`EXTRUDE`, `REVOLVE`, booleanas, empalmes, propiedades másicas),
+  intercambio `IMPORT`/`EXPORT` en STEP e IGES 5.3, y un intérprete AutoLISP en
+  sandbox con biblioteca `.lsp` por organización. Sus límites, que sí se
+  mantienen: los sólidos son FACETADOS —un intercambio STEP/IGES conserva la
+  faceta, no la superficie exacta que la generó— y el AutoLISP es un subconjunto
+  con presupuesto de ejecución y una única puerta de mutación, no el intérprete
+  de Autodesk.
 - El corpus de 100k usa LOD. Los números actuales no demuestran 60 FPS, tiempo
   real, memoria estabilizada ni detalle completo de 100k entidades.
 - “Standalone” describe la identidad, autorización, datos y despliegue del

@@ -1,12 +1,21 @@
 # Matriz de brechas y rúbrica frente a AutoCAD 2027
 
-Fecha de corte: **2026-08-09**, sobre el árbol de `main` en `8be49a5`.
+Fecha de corte: **2026-08-18** (UTC, la del artefacto), sobre el árbol de `main` en `986176b`.
 AutoCAD 2027 se usa sólo como referencia de categorías; no existe afiliación,
 certificación ni claim de paridad.
 
-**Puntuación de este corte: 131 / 200 (65,5 %).** El desglose lo calcula
+**Puntuación de este corte: 166 / 200 (83 %).** El desglose lo calcula
 `scripts/cad/rubric.mjs` leyendo `docs/competitive/rubric.json` y yendo a mirar
 el árbol; no se escribe a mano. Correr `npm run check:rubric` lo reproduce.
+
+> **La prosa de abajo es del corte del 2026-08-09 y la nota de arriba es de
+> hoy.** Durante ocho días este documento afirmó 131/200 mientras su propio
+> script devolvía 166/200: el análisis por filas envejeció y el encabezado se
+> quedó con él. Se corrige el número, no se reescribe el análisis fila a fila,
+> porque volvería a envejecer igual. **La autoridad es el script**: ante
+> cualquier discrepancia entre esta prosa y `npm run check:rubric`, gana el
+> script. Lo que la prosa sigue explicando bien es el PORQUÉ de los pesos, y eso
+> no ha cambiado.
 
 ## Por qué este documento cambió de forma
 
@@ -69,11 +78,11 @@ la tabla no es «¿qué nos ha costado más?», sino «¿qué impide firmar el p
 
 | Grupo                        | Puntos | En este corte | Qué representa                                                                     |
 | ---------------------------- | -----: | ------------: | ---------------------------------------------------------------------------------- |
-| Núcleo del plano entregable  |    110 |            78 | Dibujar, anotar, organizar y entregar una lámina. Sin esto no hay producto.        |
-| Productividad profesional    |     44 |            26 | Lo que separa «se puede hacer» de «se hace rápido»: línea de comandos, 100k, xrefs |
-| Extensibilidad e integración |     26 |            19 | API, SDK, plugins, eventos, almacenamiento                                         |
-| Frontera avanzada            |     20 |             8 | DWG, sólidos, WASM, GIS                                                            |
-| **Total**                    |    200 |       **131** |                                                                                    |
+| Núcleo del plano entregable  |    110 |            96 | Dibujar, anotar, organizar y entregar una lámina. Sin esto no hay producto.        |
+| Productividad profesional    |     44 |            39 | Lo que separa «se puede hacer» de «se hace rápido»: línea de comandos, 100k, xrefs |
+| Extensibilidad e integración |     26 |            21 | API, SDK, plugins, eventos, almacenamiento                                         |
+| Frontera avanzada            |     20 |            10 | DWG, sólidos, WASM, GIS                                                            |
+| **Total**                    |    200 |       **166** |                                                                                    |
 
 El argumento del 55 % al núcleo: un CAD 2D se compra para producir una lámina
 que alguien firma. Todo lo que ocurre entre abrir el archivo y entregar el PDF o
@@ -110,7 +119,7 @@ brecha las mantiene quien toca la fila. Cada evidencia está declarada como una
 comprobación automática en `docs/competitive/rubric.json`, así que una ruta que
 se mueva rompe la fila en la siguiente corrida en vez de envejecer callando.
 
-### Núcleo del plano entregable — 78/110
+### Núcleo del plano entregable — 96/110
 
 | Categoría                        | Puntos | Estado  | Qué existe hoy y dónde                                                                                                                                                      | Qué falta exactamente                                                                                          |
 | -------------------------------- | -----: | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
@@ -125,7 +134,7 @@ se mueva rompe la fila en la siguiente corrida en vez de envejecer callando.
 | MTEXT y texto                    |    5/9 | Parcial | Entidad MTEXT con maquetación de párrafo y viaje por DXF en los dos sentidos; golden 15                                                                                     | MTEXT/TEXT/STYLE no tecleables; sin códigos de control ni fuentes SHX/TTF                                      |
 | Guardado CAS, autosave, historia |    6/8 | Parcial | Cola de un escritor con CAS 409, journal de recuperación con integridad, E2E real de logout/reapertura/>1 MB; golden 11                                                     | Offline, multi-pestaña y cierre forzado; límites de documento y memoria sin publicar                           |
 
-### Productividad profesional — 26/44
+### Productividad profesional — 39/44
 
 | Categoría                            | Puntos | Estado  | Qué existe hoy y dónde                                                                                                                                                                         | Qué falta exactamente                                                                             |
 | ------------------------------------ | -----: | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
@@ -136,7 +145,7 @@ se mueva rompe la fila en la siguiente corrida en vez de envejecer callando.
 | Importación de JSON canónico         |    3/4 | Parcial | Worker con progreso, cancelación y límites; transporte de documentos grandes                                                                                                                   | Corpus hostil y fuzzing ejecutados en navegador, no sólo en Node                                  |
 | Xrefs                                |    2/6 | Parcial | Referencias externas en el documento canónico; golden 21                                                                                                                                       | Sin bind ni resolución de recursos; XREF/XATTACH/XBIND/XCLIP no tecleables                        |
 
-### Extensibilidad e integración — 19/26
+### Extensibilidad e integración — 21/26
 
 | Categoría                       | Puntos | Estado  | Qué existe hoy y dónde                                                                                                                                     | Qué falta exactamente                                                           |
 | ------------------------------- | -----: | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
@@ -146,7 +155,7 @@ se mueva rompe la fila en la siguiente corrida en vez de envejecer callando.
 | Asistencia NL→CAD y Vision→CAD  |    3/4 | Parcial | Puerto de proveedor opcional con validación y previsualización; contrato del copiloto con specs deterministas                                              | Benchmark de calidad por modelo y evaluación adversarial                        |
 | Almacenamiento de objetos       |    2/3 | Parcial | Puerto desacoplado y adaptador BYTEA con aislamiento por organización                                                                                      | El MinIO del Compose sigue sin cablear: no hay adaptador S3 ni migración        |
 
-### Frontera avanzada — 8/20
+### Frontera avanzada — 10/20
 
 | Categoría                     | Puntos | Estado  | Qué existe hoy y dónde                                                                                                    | Qué falta exactamente                                                                   |
 | ----------------------------- | -----: | ------- | ------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
@@ -313,8 +322,8 @@ node scripts/cad/rubric.mjs --run-specs   # además EJECUTA las specs citadas
 test, y un test roto es un fallo) y el informe como **informativo**. El informe
 sale siempre con código 0 aunque la nota baje. Una rúbrica que bloquea el merge
 se convierte, en dos semanas, en una rúbrica que la gente infla para poder
-mergear; el día que 131/200 sea la diferencia entre desplegar y no desplegar,
-alguien encontrará el modo de que sean 160 sin escribir una línea de producto.
+mergear; el día que 166/200 sea la diferencia entre desplegar y no desplegar,
+alguien encontrará el modo de que sean 190 sin escribir una línea de producto.
 
 Lo que el script comprueba solo: que el archivo exista y tenga cuerpo, que la
 spec esté dentro del glob del runner (y con `--run-specs`, que pase y que imprima
@@ -343,6 +352,7 @@ esconder que una categoría subió cuatro puntos y otra se cayó cuatro.
 | Fecha      | Commit    |    Nota |      % | Nota                              |
 | ---------- | --------- | ------: | -----: | --------------------------------- |
 | 2026-08-09 | `8be49a5` | 131/200 | 65,5 % | Primer corte con rúbrica puntuada |
+| 2026-08-18 | `986176b` | 166/200 |   83 % | Olas 1-7 y embudo comercial. Núcleo 96/110, productividad 39/44, extensibilidad 21/26, frontera 10/20 |
 
 ## Gaps P0 que bloquean claims superiores
 
