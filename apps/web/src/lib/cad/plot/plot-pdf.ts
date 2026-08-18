@@ -26,6 +26,19 @@
  */
 import type { CadPublishSheet, CadVectorCommand } from "../paper-space";
 import { parseHexColor } from "./aci-palette";
+import {
+  CAD_DEFAULT_FONT_FAMILY,
+  cadStandardFontFor,
+  resolveCadPlotFonts,
+  type CadPlotFontResolution,
+  type CadPlotFontUsage,
+} from "./plot-fonts";
+import { layoutCadTitleBlock, type CadTitleBlockLayout } from "./title-block";
+
+/** Márgenes ISO 5457 con los que se compone un cajetín sin configuración. */
+const DEFAULT_PLOT_MARGINS = { top: 10, right: 10, bottom: 10, left: 20 } as const;
+
+export { cadStandardFontFor } from "./plot-fonts";
 
 export interface CadPlotFontProgram {
   /** Familia tal y como la nombra el dibujo: `Arial`, `ISOCPEUR`. */
@@ -46,6 +59,25 @@ export interface CadPlotPdfMetadata {
 
 export interface CadPlotPdfOptions {
   fonts?: readonly CadPlotFontProgram[];
+  /**
+   * Familias que el DIBUJO pide, con cuántos rótulos dependen de cada una.
+   * Sin ellas el emisor no puede saber qué se está sustituyendo, y lo dice.
+   */
+  fontUsage?: readonly CadPlotFontUsage[];
+  /** Familia de cada rótulo, indexada por `entityId` del plan vectorial. */
+  fontByEntity?: ReadonlyMap<string, string>;
+  /** Cajetín paramétrico ya colocado, por hoja. */
+  titleBlocks?: readonly CadTitleBlockLayout[];
+  /**
+   * Hojas que NO llevan cajetín, por id. Es el caso de la portada de un juego:
+   * un índice no es una lámina y no tiene número de plano ni escala.
+   *
+   * Se declara explícitamente en vez de deducirlo de que la hoja venga sin
+   * atributos. Deducirlo dejaría sin cajetín —y sin identificar— a cualquier
+   * lámina cuyo cajetín no se hubiera rellenado, que es justo la que más
+   * necesita salir marcada.
+   */
+  sheetsWithoutTitleBlock?: readonly string[];
   metadata?: CadPlotPdfMetadata;
   /**
    * Comprimir los flujos. Se apaga en las pruebas para poder afirmar sobre el
@@ -54,7 +86,7 @@ export interface CadPlotPdfOptions {
   compress?: boolean;
 }
 
-export interface CadPlotPdfFontReport {
+export interface CadPlotPdfFontReport extends CadPlotFontResolution {
   /** Familia pedida por el dibujo. */
   family: string;
   /** Nombre con el que aparece en el PDF. */
@@ -76,39 +108,28 @@ export interface CadPlotPdfResult {
   warnings: string[];
 }
 
-/** Las catorce estándar que este emisor sabe usar sin incrustar. */
-const STANDARD_FONTS: Readonly<Record<string, string>> = {
-  arial: "helvetica",
-  helvetica: "helvetica",
-  "helvetica neue": "helvetica",
-  verdana: "helvetica",
-  tahoma: "helvetica",
-  "segoe ui": "helvetica",
-  times: "times",
-  "times new roman": "times",
-  georgia: "times",
-  serif: "times",
-  courier: "courier",
-  "courier new": "courier",
-  monospace: "courier",
-};
-
-/** Familia del dibujo → fuente estándar, cuando no hay programa que incrustar. */
-export function cadStandardFontFor(family: string): string {
-  return STANDARD_FONTS[family.trim().toLowerCase()] ?? "helvetica";
-}
-
 const rgb = (color: string): [number, number, number] => parseHexColor(color) ?? [17, 24, 39];
 
 /** Milímetros → puntos PostScript, que es la unidad interna del PDF. */
 export const MM_TO_POINTS = 72 / 25.4;
 
-function fontsOf(sheets: readonly CadPublishSheet[]): string[] {
-  // El plan vectorial no lleva la familia por mandato: los rótulos salen con la
-  // fuente del estilo de texto, que el emisor resuelve por familia. Hoy se usa
-  // una sola, y se declara explícitamente en vez de deducirla de nada.
-  void sheets;
-  return ["Arial"];
+/**
+ * Familias que hay que declarar en este trazado.
+ *
+ * El plan vectorial no lleva la familia: quien la sabe es el documento, y por
+ * eso entra por `fontUsage`. Cuando nadie la pasa se supone la implícita, pero
+ * NO en silencio — la advertencia deja constancia de que el informe de fuentes
+ * de ese PDF es una suposición y no una lectura del dibujo.
+ */
+function usageOf(
+  options: CadPlotPdfOptions,
+  warnings: string[],
+): readonly CadPlotFontUsage[] {
+  if (options.fontUsage && options.fontUsage.length > 0) return options.fontUsage;
+  warnings.push(
+    `Nadie declaró las familias del dibujo: el informe de fuentes supone ${CAD_DEFAULT_FONT_FAMILY} y puede no corresponderse con los estilos de texto reales.`,
+  );
+  return [{ family: CAD_DEFAULT_FONT_FAMILY, usageCount: 0 }];
 }
 
 /**
@@ -168,27 +189,70 @@ export async function renderCadPlotPdf(
     }
   }
 
+  // Segunda criba, y la que de verdad protege: se PRUEBA cada fuente añadida.
+  //
+  // jsPDF no lanza cuando el programa de la fuente es ilegible; publica el
+  // error en su bus, deja la fuente registrada con los metadatos a medias y
+  // sigue. El estallido llega mucho después, dentro de `text()`, como un
+  // `TypeError` sin nombre que tumba el trazado ENTERO — un plano perdido por
+  // un archivo de fuente corrupto. Medir el ancho de un texto obliga a jsPDF a
+  // tocar esos metadatos aquí, donde el fallo todavía tiene arreglo.
+  for (const family of [...embedded.keys()]) {
+    const name = embedded.get(family) as string;
+    try {
+      pdf.setFont(name, "normal");
+      pdf.getTextWidth("Ag");
+    } catch (error) {
+      embedded.delete(family);
+      warnings.push(
+        `El programa de la fuente ${name} no es legible (${
+          error instanceof Error ? error.message : String(error)
+        }); se sustituye por la estándar.`,
+      );
+    }
+  }
+
+  /**
+   * Estilos que existen de verdad para cada fuente.
+   *
+   * Una fuente incrustada suele traer un solo corte. Pedirle «negrita» a jsPDF
+   * no falla: cambia sin avisar a Times-Bold, y el cajetín acaba impreso en una
+   * tipografía que nadie eligió. Se consulta la lista y se pide lo que hay.
+   */
+  const registered: Record<string, string[]> = pdf.getFontList();
+  const styleFor = (name: string, wanted: string): string =>
+    (registered[name] ?? []).includes(wanted) ? wanted : "normal";
+
   // Familias que hay que declarar: las del dibujo y las que se pidió incrustar.
-  const families = [
-    ...new Set([
-      ...fontsOf(sheets),
-      ...(options.fonts ?? []).map((program) => program.family),
-    ]),
-  ];
-  const fontReports: CadPlotPdfFontReport[] = families.map((family) => {
-    const embeddedName = embedded.get(family.trim().toLowerCase());
-    return {
-      family,
-      baseFont: embeddedName ?? cadStandardFontFor(family),
-      embedded: embeddedName !== undefined,
-    };
-  });
-  const bodyFont = fontReports.find((report) => report.embedded)?.baseFont ??
-    cadStandardFontFor(fontsOf(sheets)[0] ?? "Arial");
-  if (!embedded.size)
-    warnings.push(
-      "El PDF usa las fuentes estándar de PDF (residentes en todo visor). Para incrustar una fuente propia, pásala en `fonts`.",
-    );
+  const usage = usageOf(options, warnings);
+  const declared = new Map(usage.map((entry) => [entry.family.trim().toLowerCase(), entry]));
+  for (const program of options.fonts ?? [])
+    if (!declared.has(program.family.trim().toLowerCase()))
+      declared.set(program.family.trim().toLowerCase(), { family: program.family, usageCount: 0 });
+
+  const resolutions = resolveCadPlotFonts([...declared.values()], [...embedded.values()]);
+  const fontReports: CadPlotPdfFontReport[] = resolutions.map((resolution) => ({
+    ...resolution,
+    embedded: resolution.disposition === "embedded",
+  }));
+
+  /** Nombre de fuente de jsPDF para una familia del dibujo. */
+  const byFamily = new Map(
+    fontReports.map((report) => [report.family.trim().toLowerCase(), report.baseFont]),
+  );
+  const pickFont = (family: string | undefined): string =>
+    byFamily.get((family ?? CAD_DEFAULT_FONT_FAMILY).trim().toLowerCase()) ??
+    cadStandardFontFor(family ?? CAD_DEFAULT_FONT_FAMILY);
+  const bodyFont = pickFont(usage[0]?.family);
+
+  // Las sustituciones se dicen UNA A UNA y con nombre. «Se usan las fuentes
+  // estándar» no sirve: lo que hace falta saber es que ISOCPEUR salió en
+  // Helvetica, porque eso cambia las anchuras y descoloca las cotas.
+  for (const report of fontReports)
+    if (report.disposition === "substituted")
+      warnings.push(
+        `La fuente ${report.family} NO viaja dentro del PDF: se sustituye por la estándar ${report.substitutedBy}. Las anchuras de texto no serán las del dibujo.`,
+      );
 
   const metadata = options.metadata ?? {};
   pdf.setProperties({
@@ -200,6 +264,14 @@ export async function renderCadPlotPdf(
   });
 
   const pages: CadPlotPdfResult["pages"] = [];
+  const titleBlocks = new Map(
+    (options.titleBlocks ?? []).map((layout) => [layout.sheetId, layout]),
+  );
+  const framedOnly = new Set(options.sheetsWithoutTitleBlock ?? []);
+  /** Familia de un rótulo. Los derivados llevan el id de su entidad y un sufijo. */
+  const familyOf = (entityId: string): string | undefined =>
+    options.fontByEntity?.get(entityId) ??
+    options.fontByEntity?.get(entityId.split(":attribute:")[0]);
 
   sheets.forEach((sheet, index) => {
     if (index > 0) pdf.addPage([sheet.width, sheet.height], sheet.orientation);
@@ -220,10 +292,34 @@ export async function renderCadPlotPdf(
     pdf.setLineJoin("miter");
 
     for (const viewport of sheet.viewports) {
-      for (const command of viewport.commands) drawCommand(pdf, command, bodyFont);
+      for (const command of viewport.commands)
+        drawCommand(
+          pdf,
+          command,
+          command.kind === "text" ? pickFont(familyOf(command.entityId)) : bodyFont,
+          styleFor,
+        );
     }
 
-    drawTitleBlock(pdf, sheet, bodyFont);
+    // Sin cajetín compuesto, se compone aquí con los atributos que la hoja ya
+    // trae. Degradar a un marco vacío dejaría la lámina SIN número de plano, y
+    // callado: un PDF con borde bonito y sin identificar es peor que un error.
+    // La única hoja que sale sólo con marco es la que lo pide por su nombre.
+    if (framedOnly.has(sheet.id)) drawPlainFrame(pdf, sheet);
+    else
+      drawTitleBlock(
+        pdf,
+        titleBlocks.get(sheet.id) ??
+          layoutCadTitleBlock({
+            sheetId: sheet.id,
+            page: { width: sheet.width, height: sheet.height },
+            margins: DEFAULT_PLOT_MARGINS,
+            attributes: sheet.titleBlock,
+            series: { index: index + 1, total: sheets.length },
+          }),
+        bodyFont,
+        styleFor,
+      );
   });
 
   const bytes = new Uint8Array(pdf.output("arraybuffer") as ArrayBuffer);
@@ -231,11 +327,21 @@ export async function renderCadPlotPdf(
   // Última comprobación, contra el ARCHIVO: si nadie incrustó nada, el informe
   // no puede decir que sí. Se mira el PDF ya escrito, no lo que se pretendía.
   const written = inspectCadPdf(bytes);
-  const fonts =
-    written.embeddedFonts === 0
-      ? fontReports.map((report) => ({ ...report, embedded: false }))
-      : fontReports;
-  if (written.embeddedFonts === 0 && fontReports.some((report) => report.embedded))
+  const lied = written.embeddedFonts === 0 && fontReports.some((report) => report.embedded);
+  const fonts = lied
+    ? fontReports.map((report): CadPlotPdfFontReport => {
+        if (!report.embedded) return report;
+        const baseFont = cadStandardFontFor(report.family);
+        return {
+          ...report,
+          embedded: false,
+          baseFont,
+          disposition: "substituted",
+          substitutedBy: baseFont,
+        };
+      })
+    : fontReports;
+  if (lied)
     warnings.push(
       "Ninguna fuente llegó a incrustarse en el PDF; los rótulos salen con la fuente estándar.",
     );
@@ -254,7 +360,15 @@ const BASE64 = /^[A-Za-z0-9+/]+={0,2}$/;
  */
 type PdfLike = InstanceType<typeof import("jspdf").jsPDF>;
 
-function drawCommand(pdf: PdfLike, command: CadVectorCommand, bodyFont: string): void {
+/** Estilo de una fuente que existe de verdad; `normal` cuando el pedido no. */
+type StyleResolver = (name: string, wanted: string) => string;
+
+function drawCommand(
+  pdf: PdfLike,
+  command: CadVectorCommand,
+  bodyFont: string,
+  styleFor: StyleResolver,
+): void {
   if (command.kind === "path") {
     if (command.points.length < 2) return;
     const [r, g, b] = rgb(command.style.stroke);
@@ -278,7 +392,10 @@ function drawCommand(pdf: PdfLike, command: CadVectorCommand, bodyFont: string):
 
   const [r, g, b] = rgb(command.color);
   pdf.setTextColor(r, g, b);
-  pdf.setFont(bodyFont, command.bold ? "bold" : command.italic ? "italic" : "normal");
+  pdf.setFont(
+    bodyFont,
+    styleFor(bodyFont, command.bold ? "bold" : command.italic ? "italic" : "normal"),
+  );
   // El tamaño del plan viene en milímetros de papel; `setFontSize` habla en
   // puntos.
   pdf.setFontSize(Math.max(0.5, command.size) * MM_TO_POINTS);
@@ -289,28 +406,52 @@ function drawCommand(pdf: PdfLike, command: CadVectorCommand, bodyFont: string):
   });
 }
 
-/** Marco y cajetín: el borde que convierte una página en una lámina. */
-function drawTitleBlock(pdf: PdfLike, sheet: CadPublishSheet, bodyFont: string): void {
+/** Sólo el marco. Para la hoja que declara no llevar cajetín: la portada. */
+function drawPlainFrame(pdf: PdfLike, sheet: CadPublishSheet): void {
   pdf.setDrawColor(17, 24, 39);
   pdf.setLineWidth(0.5);
   pdf.rect(10, 10, sheet.width - 20, sheet.height - 20);
+}
 
-  const entries = Object.entries(sheet.titleBlock).filter(([, value]) => value && value !== "-");
-  if (entries.length === 0) return;
+/**
+ * Marco y cajetín paramétrico.
+ *
+ * Este emisor no DECIDE nada del cajetín: la colocación entera —dónde va la
+ * caja, cuánto mide cada celda, qué tamaño tiene cada rótulo— llega ya resuelta
+ * en milímetros desde `layoutCadTitleBlock`. Es lo que permite que una prueba
+ * afirme que el cajetín cabe en A4 sin generar un PDF, y que lo que se afirma
+ * sea exactamente lo que se imprime.
+ */
+function drawTitleBlock(
+  pdf: PdfLike,
+  layout: CadTitleBlockLayout,
+  bodyFont: string,
+  styleFor: StyleResolver,
+): void {
+  pdf.setDrawColor(17, 24, 39);
+  pdf.setLineWidth(0.5);
+  pdf.rect(layout.frame.x, layout.frame.y, layout.frame.width, layout.frame.height);
 
-  const boxWidth = Math.min(180, sheet.width - 30);
-  const rowHeight = 6;
-  const boxHeight = Math.min(entries.length, 6) * rowHeight + 4;
-  const x = sheet.width - 10 - boxWidth;
-  const y = sheet.height - 10 - boxHeight;
   pdf.setLineWidth(0.35);
-  pdf.rect(x, y, boxWidth, boxHeight);
+  pdf.rect(layout.box.x, layout.box.y, layout.box.width, layout.box.height);
+  pdf.setLineWidth(0.18);
+  for (const rule of layout.rules) pdf.line(rule.x1, rule.y1, rule.x2, rule.y2);
+
   pdf.setTextColor(17, 24, 39);
-  pdf.setFont(bodyFont, "normal");
-  pdf.setFontSize(2.5 * MM_TO_POINTS);
-  entries.slice(0, 6).forEach(([key, value], index) => {
-    pdf.text(`${key}: ${value}`, x + 2, y + 5 + index * rowHeight);
-  });
+  for (const cell of layout.cells) {
+    const padding = Math.max(0.6, cell.height * 0.12);
+    pdf.setFont(bodyFont, styleFor(bodyFont, "normal"));
+    pdf.setFontSize(cell.labelSizeMm * MM_TO_POINTS);
+    pdf.text(cell.label, cell.x + padding, cell.y + padding + cell.labelSizeMm);
+    pdf.setFont(bodyFont, styleFor(bodyFont, "bold"));
+    pdf.setFontSize(cell.valueSizeMm * MM_TO_POINTS);
+    // El valor se recorta al ancho de su celda. Un nombre de proyecto largo que
+    // se desborda pisa la celda vecina y deja el número de lámina ilegible —
+    // que es justo el dato por el que se coge el plano.
+    pdf.text(cell.value, cell.x + padding, cell.y + cell.height - padding, {
+      maxWidth: Math.max(1, cell.width - padding * 2),
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------

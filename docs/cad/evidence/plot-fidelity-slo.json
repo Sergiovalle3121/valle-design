@@ -1,0 +1,573 @@
+{
+  "$schema": "urn:valle-design:schema:cad-plot-fidelity-evidence:v1",
+  "schemaVersion": 1,
+  "evidenceId": "valle-design-plot-fidelity-v1",
+  "startedAt": "2026-08-18T07:15:47.641Z",
+  "finishedAt": "2026-08-18T07:17:39.760Z",
+  "enforcement": "report-only",
+  "enforcementRationale": "Las afirmaciones de FIDELIDAD (escala, geometría, fuentes, numeración) están cerradas por specs ejecutables —plot-fidelity.spec.ts, title-block.spec.ts, sheet-set-cover.spec.ts— que fallan si cambian. Los TIEMPOS de este artefacto no fijan presupuesto: están medidos en un portátil de desarrollo con otros agentes trabajando en paralelo, y calibrarlos como umbral de CI produciría un gate que falla por contención de máquina y no por una regresión del producto.",
+  "environment": {
+    "node": "v22.18.0",
+    "v8": "12.4.254.21-node.27",
+    "platform": "win32",
+    "architecture": "x64",
+    "osType": "Windows_NT",
+    "osRelease": "10.0.26200",
+    "cpuModel": "AMD Ryzen 5 5500U with Radeon Graphics         ",
+    "logicalCpuCount": 12,
+    "availableParallelism": 12,
+    "totalMemoryBytes": 7896625152,
+    "freeMemoryBytesAtStart": 1894604800,
+    "declaredMachine": "AMD Ryzen 5 5500U with Radeon Graphics (12 hilos lógicos), 7.4 GB de RAM, Windows_NT 10.0.26200, portátil de desarrollo con carga vecina (otros agentes trabajando en el mismo equipo)"
+  },
+  "method": {
+    "runs": 3,
+    "aggregation": "mediana de 3 corridas en PROCESOS SEPARADOS",
+    "generator": "scripts/cad/plot-fidelity-evidence.mjs + scripts/cad/plot-fidelity-probe.mts",
+    "everyNumberReadFrom": "los bytes del PDF emitido: coordenadas del flujo de contenido, /MediaBox, /BaseFont y /FontFile. Ninguna cifra procede de preguntarle al código qué creía estar haciendo.",
+    "runToRunDiscrepancies": []
+  },
+  "corpus": {
+    "mix": "plano-real",
+    "entities": 10000,
+    "sheets": 6,
+    "vectorCommandsPerSheet": 18900
+  },
+  "slo": {
+    "note": "Trabajo de CPU desde el documento hasta los bytes del PDF, con la tabla de plumas aplicada y el cajetín compuesto. Incluye la compresión del PDF, porque el archivo que se entrega va comprimido.",
+    "singleSheet": {
+      "buildJobMs": {
+        "medianMs": 478.881,
+        "samplesMs": [
+          540.434,
+          478.881,
+          428.951
+        ],
+        "runs": 3
+      },
+      "emitPdfMs": {
+        "medianMs": 4638.179,
+        "samplesMs": [
+          4686.252,
+          4638.179,
+          4316.755
+        ],
+        "runs": 3
+      },
+      "totalMs": {
+        "medianMs": 5117.06,
+        "samplesMs": [
+          5226.686,
+          5117.06,
+          4745.706
+        ],
+        "runs": 3
+      },
+      "bytes": 2247610,
+      "vectorCommands": 18900
+    },
+    "series": {
+      "sheets": 6,
+      "pages": 7,
+      "totalMs": {
+        "medianMs": 28567.771,
+        "samplesMs": [
+          28765.394,
+          27282.166,
+          28567.771
+        ],
+        "runs": 3
+      },
+      "msPerPage": {
+        "medianMs": 4081.11,
+        "samplesMs": [
+          4109.342,
+          3897.452,
+          4081.11
+        ],
+        "runs": 3
+      },
+      "bytes": 13528691
+    }
+  },
+  "geometricFidelity": {
+    "verdict": {
+      "worstScaleErrorMm": 2.8e-14,
+      "worstPreviewToPdfDeviationMm": 2.8e-14,
+      "passed": true,
+      "toleranceMm": 0.001,
+      "toleranceRationale": "Una milésima de milímetro sobre el papel. Es dos órdenes de magnitud más fina que lo que distingue un escalímetro (0,1 mm) y que la resolución de cualquier trazadora, así que un error dentro de esta tolerancia no puede manifestarse en papel."
+    },
+    "cases": {
+      "a1-1-50": {
+        "label": "A1 apaisado, 1:50, dibujo en mm",
+        "paperMm": {
+          "width": 841,
+          "height": 594
+        },
+        "paperErrorMm": 1.1368683772161603e-13,
+        "horizontal": {
+          "expectedMm": 200,
+          "measuredMm": 200,
+          "errorMm": 0,
+          "errorPpm": 0,
+          "criterion": "El muro mide 10000 unidades de dibujo (mm); a 1:50 debe medir esa longitud dividida por el denominador, en mm de papel. Se mide sobre el segmento del flujo de contenido del PDF más próximo a esa longitud, convertido de puntos a mm con 25,4/72."
+        },
+        "vertical": {
+          "expectedMm": 120,
+          "measuredMm": 120,
+          "errorMm": 0,
+          "errorPpm": 0,
+          "criterion": "El muro mide 10000 unidades de dibujo (mm); a 1:50 debe medir esa longitud dividida por el denominador, en mm de papel. Se mide sobre el segmento del flujo de contenido del PDF más próximo a esa longitud, convertido de puntos a mm con 25,4/72."
+        },
+        "text": {
+          "expectedMm": 2.5,
+          "measuredMm": 2.5,
+          "errorMm": 0,
+          "errorPpm": 0,
+          "criterion": "La altura pedida (125 unidades a 1:50 = 2.500 mm) se recorta al intervalo [1.5, 12] mm en el plan de publicación; lo medido es el operando de `Tf` del PDF convertido a mm — el rótulo se localizó por su texto en el flujo de contenido.",
+          "clamped": false,
+          "unclampedExpectedMm": 2.5
+        },
+        "geometry": {
+          "comparedSegments": 2,
+          "matchedSegments": 2,
+          "maxDeviationMm": 0,
+          "meanDeviationMm": 0,
+          "criterion": "Cada trazo de la vista previa se empareja con el trazo del PDF cuyos extremos quedan más cerca; la desviación de una pareja es la MAYOR de las distancias entre sus dos extremos, en mm de papel. Se publica el máximo y la media sobre todas las parejas."
+        },
+        "segmentsOutsidePage": 0,
+        "unreadable": [],
+        "fonts": [
+          {
+            "family": "Arial",
+            "baseFont": "helvetica",
+            "disposition": "substituted",
+            "substitutedBy": "helvetica",
+            "usageCount": 1
+          }
+        ],
+        "pdfBytes": 6527
+      },
+      "a3-1-100": {
+        "label": "A3 apaisado, 1:100, dibujo en mm",
+        "paperMm": {
+          "width": 420,
+          "height": 297
+        },
+        "paperErrorMm": 0,
+        "horizontal": {
+          "expectedMm": 300,
+          "measuredMm": 300,
+          "errorMm": 0,
+          "errorPpm": 0,
+          "criterion": "El muro mide 30000 unidades de dibujo (mm); a 1:100 debe medir esa longitud dividida por el denominador, en mm de papel. Se mide sobre el segmento del flujo de contenido del PDF más próximo a esa longitud, convertido de puntos a mm con 25,4/72."
+        },
+        "vertical": {
+          "expectedMm": 180,
+          "measuredMm": 180,
+          "errorMm": 0,
+          "errorPpm": 0,
+          "criterion": "El muro mide 30000 unidades de dibujo (mm); a 1:100 debe medir esa longitud dividida por el denominador, en mm de papel. Se mide sobre el segmento del flujo de contenido del PDF más próximo a esa longitud, convertido de puntos a mm con 25,4/72."
+        },
+        "text": {
+          "expectedMm": 2.5,
+          "measuredMm": 2.5,
+          "errorMm": 0,
+          "errorPpm": 0,
+          "criterion": "La altura pedida (250 unidades a 1:100 = 2.500 mm) se recorta al intervalo [1.5, 12] mm en el plan de publicación; lo medido es el operando de `Tf` del PDF convertido a mm — el rótulo se localizó por su texto en el flujo de contenido.",
+          "clamped": false,
+          "unclampedExpectedMm": 2.5
+        },
+        "geometry": {
+          "comparedSegments": 2,
+          "matchedSegments": 2,
+          "maxDeviationMm": 0,
+          "meanDeviationMm": 0,
+          "criterion": "Cada trazo de la vista previa se empareja con el trazo del PDF cuyos extremos quedan más cerca; la desviación de una pareja es la MAYOR de las distancias entre sus dos extremos, en mm de papel. Se publica el máximo y la media sobre todas las parejas."
+        },
+        "segmentsOutsidePage": 0,
+        "unreadable": [],
+        "fonts": [
+          {
+            "family": "Arial",
+            "baseFont": "helvetica",
+            "disposition": "substituted",
+            "substitutedBy": "helvetica",
+            "usageCount": 1
+          }
+        ],
+        "pdfBytes": 6474
+      },
+      "a4-1-20": {
+        "label": "A4 vertical, 1:20, dibujo en mm",
+        "paperMm": {
+          "width": 210,
+          "height": 297
+        },
+        "paperErrorMm": 0,
+        "horizontal": {
+          "expectedMm": 150,
+          "measuredMm": 150,
+          "errorMm": 0,
+          "errorPpm": 0,
+          "criterion": "El muro mide 3000 unidades de dibujo (mm); a 1:20 debe medir esa longitud dividida por el denominador, en mm de papel. Se mide sobre el segmento del flujo de contenido del PDF más próximo a esa longitud, convertido de puntos a mm con 25,4/72."
+        },
+        "vertical": {
+          "expectedMm": 100,
+          "measuredMm": 100,
+          "errorMm": 0,
+          "errorPpm": 0,
+          "criterion": "El muro mide 3000 unidades de dibujo (mm); a 1:20 debe medir esa longitud dividida por el denominador, en mm de papel. Se mide sobre el segmento del flujo de contenido del PDF más próximo a esa longitud, convertido de puntos a mm con 25,4/72."
+        },
+        "text": {
+          "expectedMm": 2.5,
+          "measuredMm": 2.5,
+          "errorMm": 0,
+          "errorPpm": 0,
+          "criterion": "La altura pedida (50 unidades a 1:20 = 2.500 mm) se recorta al intervalo [1.5, 12] mm en el plan de publicación; lo medido es el operando de `Tf` del PDF convertido a mm — el rótulo se localizó por su texto en el flujo de contenido.",
+          "clamped": false,
+          "unclampedExpectedMm": 2.5
+        },
+        "geometry": {
+          "comparedSegments": 2,
+          "matchedSegments": 2,
+          "maxDeviationMm": 0,
+          "meanDeviationMm": 0,
+          "criterion": "Cada trazo de la vista previa se empareja con el trazo del PDF cuyos extremos quedan más cerca; la desviación de una pareja es la MAYOR de las distancias entre sus dos extremos, en mm de papel. Se publica el máximo y la media sobre todas las parejas."
+        },
+        "segmentsOutsidePage": 0,
+        "unreadable": [],
+        "fonts": [
+          {
+            "family": "Arial",
+            "baseFont": "helvetica",
+            "disposition": "substituted",
+            "substitutedBy": "helvetica",
+            "usageCount": 1
+          }
+        ],
+        "pdfBytes": 6436
+      },
+      "a2-1-50-metros": {
+        "label": "A2 apaisado, 1:50, dibujo en METROS",
+        "paperMm": {
+          "width": 594,
+          "height": 420
+        },
+        "paperErrorMm": 0,
+        "horizontal": {
+          "expectedMm": 200,
+          "measuredMm": 200.00000000000003,
+          "errorMm": 2.842170943040401e-14,
+          "errorPpm": 1.4210854715202004e-10,
+          "criterion": "El muro mide 10 unidades de dibujo (m); a 1:50 debe medir esa longitud dividida por el denominador, en mm de papel. Se mide sobre el segmento del flujo de contenido del PDF más próximo a esa longitud, convertido de puntos a mm con 25,4/72."
+        },
+        "vertical": {
+          "expectedMm": 120,
+          "measuredMm": 120,
+          "errorMm": 0,
+          "errorPpm": 0,
+          "criterion": "El muro mide 10 unidades de dibujo (m); a 1:50 debe medir esa longitud dividida por el denominador, en mm de papel. Se mide sobre el segmento del flujo de contenido del PDF más próximo a esa longitud, convertido de puntos a mm con 25,4/72."
+        },
+        "text": {
+          "expectedMm": 2.5,
+          "measuredMm": 2.5,
+          "errorMm": 0,
+          "errorPpm": 0,
+          "criterion": "La altura pedida (0.125 unidades a 1:50 = 2.500 mm) se recorta al intervalo [1.5, 12] mm en el plan de publicación; lo medido es el operando de `Tf` del PDF convertido a mm — el rótulo se localizó por su texto en el flujo de contenido.",
+          "clamped": false,
+          "unclampedExpectedMm": 2.5
+        },
+        "geometry": {
+          "comparedSegments": 2,
+          "matchedSegments": 2,
+          "maxDeviationMm": 2.842170943040401e-14,
+          "meanDeviationMm": 2.842170943040401e-14,
+          "criterion": "Cada trazo de la vista previa se empareja con el trazo del PDF cuyos extremos quedan más cerca; la desviación de una pareja es la MAYOR de las distancias entre sus dos extremos, en mm de papel. Se publica el máximo y la media sobre todas las parejas."
+        },
+        "segmentsOutsidePage": 0,
+        "unreadable": [],
+        "fonts": [
+          {
+            "family": "Arial",
+            "baseFont": "helvetica",
+            "disposition": "substituted",
+            "substitutedBy": "helvetica",
+            "usageCount": 1
+          }
+        ],
+        "pdfBytes": 6510
+      },
+      "a0-1-25": {
+        "label": "A0 apaisado, 1:25, dibujo en mm",
+        "paperMm": {
+          "width": 1189,
+          "height": 841
+        },
+        "paperErrorMm": 1.1368683772161603e-13,
+        "horizontal": {
+          "expectedMm": 800,
+          "measuredMm": 800,
+          "errorMm": 0,
+          "errorPpm": 0,
+          "criterion": "El muro mide 20000 unidades de dibujo (mm); a 1:25 debe medir esa longitud dividida por el denominador, en mm de papel. Se mide sobre el segmento del flujo de contenido del PDF más próximo a esa longitud, convertido de puntos a mm con 25,4/72."
+        },
+        "vertical": {
+          "expectedMm": 480,
+          "measuredMm": 480,
+          "errorMm": 0,
+          "errorPpm": 0,
+          "criterion": "El muro mide 20000 unidades de dibujo (mm); a 1:25 debe medir esa longitud dividida por el denominador, en mm de papel. Se mide sobre el segmento del flujo de contenido del PDF más próximo a esa longitud, convertido de puntos a mm con 25,4/72."
+        },
+        "text": {
+          "expectedMm": 2.5,
+          "measuredMm": 2.5,
+          "errorMm": 0,
+          "errorPpm": 0,
+          "criterion": "La altura pedida (62.5 unidades a 1:25 = 2.500 mm) se recorta al intervalo [1.5, 12] mm en el plan de publicación; lo medido es el operando de `Tf` del PDF convertido a mm — el rótulo se localizó por su texto en el flujo de contenido.",
+          "clamped": false,
+          "unclampedExpectedMm": 2.5
+        },
+        "geometry": {
+          "comparedSegments": 2,
+          "matchedSegments": 2,
+          "maxDeviationMm": 0,
+          "meanDeviationMm": 0,
+          "criterion": "Cada trazo de la vista previa se empareja con el trazo del PDF cuyos extremos quedan más cerca; la desviación de una pareja es la MAYOR de las distancias entre sus dos extremos, en mm de papel. Se publica el máximo y la media sobre todas las parejas."
+        },
+        "segmentsOutsidePage": 0,
+        "unreadable": [],
+        "fonts": [
+          {
+            "family": "Arial",
+            "baseFont": "helvetica",
+            "disposition": "substituted",
+            "substitutedBy": "helvetica",
+            "usageCount": 1
+          }
+        ],
+        "pdfBytes": 6526
+      }
+    }
+  },
+  "knownDefects": [
+    {
+      "id": "paper-change-does-not-move-viewport",
+      "severity": "alta",
+      "title": "Cambiar el papel en PAGESETUP no recoloca la ventana gráfica",
+      "detail": "La presentación se creó en A1 y se traza en A3: PAGESETUP cambia la hoja pero la ventana gráfica sigue colocada para el papel anterior.",
+      "measured": {
+        "segmentsOutsidePage": 2,
+        "paperMm": {
+          "width": 420,
+          "height": 297
+        },
+        "scaleErrorMm": 0
+      },
+      "consequence": "La hoja del PDF sí cambia de tamaño, pero el dibujo sigue colocado para el papel anterior y parte de la geometría cae fuera del área imprimible: se dibuja y no se imprime. La ESCALA no se resiente —el defecto es de colocación—, lo que acota el arreglo al espacio papel.",
+      "status": "medido y cerrado por spec en el valor actual; no arreglado en esta ola"
+    },
+    {
+      "id": "text-height-clamped",
+      "severity": "media",
+      "title": "La altura de todo rótulo se recorta al intervalo [1,5 – 12] mm de papel",
+      "detail": "El plan de publicación limita la altura impresa de cualquier texto. A escalas grandes un rótulo que el dibujo pide de 15 mm sale de 12, y a escalas pequeñas uno de 1 mm sale de 1,5.",
+      "measured": {
+        "a1-1-50": {
+          "pedidoMm": 2.5,
+          "impresoMm": 2.5,
+          "recortado": false
+        },
+        "a3-1-100": {
+          "pedidoMm": 2.5,
+          "impresoMm": 2.5,
+          "recortado": false
+        },
+        "a4-1-20": {
+          "pedidoMm": 2.5,
+          "impresoMm": 2.5,
+          "recortado": false
+        },
+        "a2-1-50-metros": {
+          "pedidoMm": 2.5,
+          "impresoMm": 2.5,
+          "recortado": false
+        },
+        "a0-1-25": {
+          "pedidoMm": 2.5,
+          "impresoMm": 2.5,
+          "recortado": false
+        }
+      },
+      "consequence": "El texto anotativo no conserva su tamaño relativo en todo el rango de escalas. Es visible en planos de detalle (1:20 y mayores) y en planos de conjunto (1:200 y menores).",
+      "status": "medido y declarado; el recorte es intencional en el plan de publicación"
+    }
+  ],
+  "fontBehaviour": {
+    "note": "Ésta es la pregunta que antes no tenía respuesta: qué fuente lleva de verdad el PDF entregado. Una familia sólo puede acabar de tres maneras y las tres se declaran — incrustada (el programa viaja dentro), residente (una de las catorce estándar, que todo visor conforme tiene) o sustituida (se imprime con otra distinta).",
+    "embedded": {
+      "supported": true,
+      "evidence": "Comprobado en plot-fidelity.spec.ts: con el programa de la fuente, el PDF sale con /FontFile2 y /BaseFont propio (CIDFontType2), y el informe la declara incrustada.",
+      "caveat": "Una fuente incrustada suele traer un solo corte. Al pedirle negrita, jsPDF cambiaba en silencio a Times-Bold y el cajetín salía en una tipografía que nadie eligió. Ahora se consulta qué cortes existen y se pide sólo uno de ésos."
+    },
+    "resident": {
+      "families": [
+        "helvetica",
+        "times",
+        "courier"
+      ],
+      "note": "No se incrustan porque todo visor conforme las tiene. Arial NO está en esta lista: se parece a Helvetica y por eso el cambio pasa desapercibido, pero las anchuras no son idénticas y a tamaño de cota se nota. Cuenta como sustitución."
+    },
+    "substitution": {
+      "rule": "Cualquier familia sin programa de fuente y que no sea una de las tres residentes se sustituye. El destino sale de una tabla explícita (Arial/Verdana/Tahoma/Segoe UI → helvetica; Times New Roman/Georgia → times; Courier New → courier) y todo lo desconocido cae en helvetica.",
+      "measuredExamples": [
+        {
+          "family": "ISOCPEUR",
+          "baseFont": "helvetica",
+          "disposition": "substituted",
+          "substitutedBy": "helvetica",
+          "usageCount": 1
+        }
+      ],
+      "basefontsInPdf": [
+        {
+          "baseFont": "Helvetica",
+          "embedded": false,
+          "subtype": "Type1"
+        },
+        {
+          "baseFont": "Helvetica-Bold",
+          "embedded": false,
+          "subtype": "Type1"
+        }
+      ],
+      "declaredEverywhere": "plot-fidelity.spec.ts falla si una familia se sustituye sin declararlo, y también si el PDF lleva un /BaseFont que el informe de fuentes no menciona."
+    },
+    "characterSet": {
+      "probed": "áéíóúÁÉÍÓÚñÑüÜ¿¡ºª°±²³×÷µØ€—–‘’“”…·Ω⌀",
+      "rendered": "\u0000á\u0000é\u0000í\u0000ó\u0000ú\u0000Á\u0000É\u0000Í\u0000Ó\u0000Ú\u0000ñ\u0000Ñ\u0000ü\u0000Ü\u0000¿\u0000¡\u0000º\u0000ª\u0000°\u0000±\u0000²\u0000³\u0000×\u0000÷\u0000µ\u0000Ø\u0000€\u0000—\u0000–\u0000‘\u0000’\u0000“\u0000”\u0000…\u0000·\u0003©#\u0000PROYECTO—CLIENTE—DISCIPLINA—LÁMINA—ESCALA—UNIDADES—FECHA—DIBUJÓ—REVISÓ—Nº DE PLANO—LÁMINA—HOJA1/1REV.—",
+      "lost": [
+        "Ω",
+        "⌀"
+      ],
+      "criterion": "Se traza la cadena sonda en una hoja suelta y se vuelve a leer del flujo de contenido del PDF, decodificando WinAnsi (CP1252). Un carácter «perdido» es uno que el archivo ya no contiene: no se representará en ningún visor, tenga o no la fuente.",
+      "consequence": "Con las fuentes residentes el juego útil es WinAnsi (CP1252): acentos, eñes, signos de apertura, grados, exponentes y la Ø escandinava entran. Los caracteres fuera de ese juego —el signo técnico de diámetro ⌀ (U+2300) y las letras griegas— NO llegan al archivo. Para usarlos hay que incrustar una fuente que los contenga."
+    }
+  },
+  "sheetSeries": {
+    "pageCount": 7,
+    "hasCover": true,
+    "numberingCoherent": true,
+    "convention": "La portada es la página 1 del PDF pero NO consume número de lámina: seis láminas se rotulan 1/6 … 6/6. El índice de la portada se DERIVA de los cajetines ya resueltos, así que no puede discrepar de ellos.",
+    "coverRows": [
+      {
+        "index": 1,
+        "sheetOf": "1/6",
+        "number": "A-101",
+        "title": "Planta de conjunto",
+        "scale": "1:20",
+        "revision": "B"
+      },
+      {
+        "index": 2,
+        "sheetOf": "2/6",
+        "number": "A-102",
+        "title": "Planta baja",
+        "scale": "1:20",
+        "revision": "B"
+      },
+      {
+        "index": 3,
+        "sheetOf": "3/6",
+        "number": "A-103",
+        "title": "Planta alta",
+        "scale": "1:20",
+        "revision": "B"
+      },
+      {
+        "index": 4,
+        "sheetOf": "4/6",
+        "number": "A-104",
+        "title": "Cortes A-A y B-B",
+        "scale": "1:20",
+        "revision": "B"
+      },
+      {
+        "index": 5,
+        "sheetOf": "5/6",
+        "number": "A-105",
+        "title": "Fachadas",
+        "scale": "1:20",
+        "revision": "B"
+      },
+      {
+        "index": 6,
+        "sheetOf": "6/6",
+        "number": "A-106",
+        "title": "Detalles constructivos",
+        "scale": "1:20",
+        "revision": "B"
+      }
+    ],
+    "printedNumbering": [
+      {
+        "sheetOf": "1/6",
+        "number": "A-101",
+        "onCover": true,
+        "onSheet": true
+      },
+      {
+        "sheetOf": "2/6",
+        "number": "A-102",
+        "onCover": true,
+        "onSheet": true
+      },
+      {
+        "sheetOf": "3/6",
+        "number": "A-103",
+        "onCover": true,
+        "onSheet": true
+      },
+      {
+        "sheetOf": "4/6",
+        "number": "A-104",
+        "onCover": true,
+        "onSheet": true
+      },
+      {
+        "sheetOf": "5/6",
+        "number": "A-105",
+        "onCover": true,
+        "onSheet": true
+      },
+      {
+        "sheetOf": "6/6",
+        "number": "A-106",
+        "onCover": true,
+        "onSheet": true
+      }
+    ],
+    "verifiedAgainst": "los bytes del PDF: se lee el texto de la página 1 y el de cada lámina y se comprueba que la misma etiqueta «n/N» aparece en las dos."
+  },
+  "scope": {
+    "measured": [
+      "tiempo de trazado de una lámina y de una serie de seis, hasta los bytes del PDF",
+      "escala impresa: longitud de un muro conocido medida en el flujo de contenido del PDF",
+      "geometría: cada trazo de la vista previa emparejado con el del PDF, extremo a extremo",
+      "tamaño de papel: /MediaBox contra el papel configurado",
+      "altura de rótulo impresa contra la pedida por el dibujo",
+      "fuentes: cuáles se incrustan, cuáles residen y cuáles se sustituyen, y por cuál",
+      "juego de caracteres que sobrevive al PDF con las fuentes residentes",
+      "numeración de la serie, leída del texto impreso en la portada y en cada lámina"
+    ],
+    "notMeasured": [
+      "el paso de los bytes a papel: visor de PDF, controlador de impresión, trazadora y tinta",
+      "conformidad PDF/A ni firma digital: no están implementadas y no se declaran",
+      "sombreados con patrón, que se publican como su contorno vectorial",
+      "rasterizado de glifos y métricas de texto reales: se mide el tamaño nominal, no la caja del glifo",
+      "trazado desde el navegador: estas cifras son de Node, sin GPU ni composición",
+      "compatibilidad DWG"
+    ]
+  }
+}

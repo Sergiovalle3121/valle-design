@@ -303,10 +303,18 @@ async function publishSpecs(): Promise<void> {
     pdf: { compress: false },
   });
   assert.equal(published.fileName, "nave-planos.pdf");
-  assert.equal(published.pageCount, 3);
+  // Portada más las TRES láminas publicables. La portada es página del PDF
+  // pero no lámina del juego: no consume número, y por eso el índice sigue
+  // numerando 1/3 … 3/3 y no 2/4 … 4/4.
+  assert.equal(published.hasCover, true);
+  assert.equal(published.pageCount, 4);
+  assert.deepEqual(
+    published.plan.coverRows.map((row) => row.sheetOf),
+    ["1/3", "2/3", "3/3"],
+  );
 
   const inspected = inspectCadPdf(published.bytes);
-  assert.equal(inspected.pageCount, 3, "UN PDF con las tres páginas, no tres archivos");
+  assert.equal(inspected.pageCount, 4, "UN PDF con portada y láminas, no cuatro archivos");
   // A3 apaisado: 420 × 297 mm.
   for (const size of inspected.pageSizesMm) {
     assert.ok(Math.abs(size.width - 420) < 0.05, `ancho ${size.width} ≠ 420 mm`);
@@ -326,9 +334,21 @@ async function publishSpecs(): Promise<void> {
     sheetIds: ["s2"],
     pdf: { compress: false },
   });
-  assert.equal(partial.pageCount, 1);
-  assert.equal(inspectCadPdf(partial.bytes).pageCount, 1);
+  assert.equal(partial.pageCount, 2, "su portada y su única lámina");
+  assert.equal(inspectCadPdf(partial.bytes).pageCount, 2);
   assert.equal(partial.plan.pages[0].number, "A-102");
+
+  // Y sin portada, cuando quien publica sólo quiere las láminas.
+  const bare = await publishCadSheetSet({
+    set,
+    documents,
+    date: DATE,
+    sheetIds: ["s2"],
+    cover: false,
+    pdf: { compress: false },
+  });
+  assert.equal(bare.hasCover, false);
+  assert.equal(bare.pageCount, 1);
 
   console.log(
     `Conjunto publicado: ${inspected.pageCount} páginas en un PDF, ${inspected.pageSizesMm[0].width} × ${inspected.pageSizesMm[0].height} mm`,
