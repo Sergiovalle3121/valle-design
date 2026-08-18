@@ -1,0 +1,278 @@
+{
+  "$schema": "urn:valle-design:schema:cad-document-limits-evidence:v1",
+  "schemaVersion": 1,
+  "benchmarkId": "valle-design-cad-document-limits-v1",
+  "startedAt": "2026-08-18T07:03:28.759Z",
+  "finishedAt": "2026-08-18T07:04:47.115Z",
+  "enforcement": "report-only",
+  "enforcementRationale": "Perfil nuevo: la evidencia se publica y no bloquea. Los presupuestos están calibrados para la máquina declarada abajo, NO para el runner de CI (2 vCPU), donde las mismas cifras no significan lo mismo.",
+  "scenario": {
+    "corpus": "plano-real",
+    "corpusRationale": "La mezcla que un despacho mexicano dibuja de verdad —muros por caras, cadenas de cotas, hatch de acabados, rótulos y bloques repetidos—, la misma que sostiene cad-plan-benchmark-20k.json. Un corpus de arcos sueltos daría cifras mejores y no diría nada del plano que se pierde.",
+    "repeatsPerTier": 3,
+    "published": "mediana entre pasadas",
+    "checkpointIntervalMs": 15000,
+    "checkpointBudgetMs": 3000,
+    "heapBudgetFraction": 0.5
+  },
+  "environment": {
+    "node": "v22.18.0",
+    "platform": "win32",
+    "architecture": "x64",
+    "osType": "Windows_NT",
+    "osRelease": "10.0.26200",
+    "cpuModel": "AMD Ryzen 5 5500U with Radeon Graphics",
+    "logicalCpuCount": 12,
+    "totalMemoryBytes": 7896625152,
+    "freeMemoryBytesAtStart": 1365241856,
+    "declaredMachine": "AMD Ryzen 5 5500U (6 núcleos físicos / 12 hilos), 7,4 GB de RAM utilizable, Windows 11, Node v22.18.0, portátil de desarrollo con agentes vecinos trabajando en paralelo",
+    "browser": {
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/141.0.7390.37 Safari/537.36",
+      "hardwareConcurrency": 12,
+      "deviceMemoryGb": 8,
+      "jsHeapLimitBytes": 2248146944
+    }
+  },
+  "productLimits": {
+    "web": {
+      "archiveThresholdBytes": 1000000,
+      "maxCheckpointsPerLane": 3,
+      "maxGlobalCheckpoints": 24,
+      "maxRecoveryAgeMs": 604800000,
+      "storageQuotaBytes": 466368686,
+      "storageUsageBytes": 0
+    },
+    "api": {
+      "maxEntities": 100000,
+      "maxInlineBytes": 8000000,
+      "maxArchiveBytes": 134217728,
+      "maxCompressedBytes": 20971520,
+      "jsonBodyLimit": "16mb"
+    }
+  },
+  "verdict": {
+    "largestSustainedEntities": 100000,
+    "largestSustainedDocumentBytes": 24669745,
+    "largestSustainedArchiveBytes": 3271640,
+    "largestSustainedCheckpointMs": 1864.9,
+    "largestSustainedHeapBytes": 197255505,
+    "worstCaseLossWindowMs": 16864.9,
+    "failures": []
+  },
+  "tiers": [
+    {
+      "entities": 2000,
+      "repeats": 3,
+      "buildMs": 4.2,
+      "serializeMs": 49.2,
+      "documentBytes": 488815,
+      "gzipMs": 24.7,
+      "archiveBytes": 67391,
+      "checkpoint": {
+        "encodeMs": 38,
+        "storedBytes": 65022,
+        "format": "gzip-json",
+        "decodeMs": 17.9,
+        "indexedDbWriteMs": 0.9,
+        "indexedDbReadMs": 1.5,
+        "totalMs": 38.9
+      },
+      "reopenMs": 6.4,
+      "heapUsedBytes": 21695575,
+      "heapLimitBytes": 2248146944,
+      "spread": {
+        "minMs": 36.9,
+        "maxMs": 44.5,
+        "relative": 0.195
+      },
+      "sustained": true,
+      "violations": []
+    },
+    {
+      "entities": 5000,
+      "repeats": 3,
+      "buildMs": 11.8,
+      "serializeMs": 120.7,
+      "documentBytes": 1220508,
+      "gzipMs": 62.3,
+      "archiveBytes": 164394,
+      "checkpoint": {
+        "encodeMs": 81,
+        "storedBytes": 159068,
+        "format": "gzip-json",
+        "decodeMs": 45.6,
+        "indexedDbWriteMs": 1.1,
+        "indexedDbReadMs": 1.5,
+        "totalMs": 82.1
+      },
+      "reopenMs": 11.4,
+      "heapUsedBytes": 43664071,
+      "heapLimitBytes": 2248146944,
+      "spread": {
+        "minMs": 79.8,
+        "maxMs": 91.1,
+        "relative": 0.138
+      },
+      "sustained": true,
+      "violations": []
+    },
+    {
+      "entities": 10000,
+      "repeats": 3,
+      "buildMs": 11.8,
+      "serializeMs": 215.7,
+      "documentBytes": 2439233,
+      "gzipMs": 109.5,
+      "archiveBytes": 316647,
+      "checkpoint": {
+        "encodeMs": 170.3,
+        "storedBytes": 303542,
+        "format": "gzip-json",
+        "decodeMs": 95.2,
+        "indexedDbWriteMs": 1,
+        "indexedDbReadMs": 2.3,
+        "totalMs": 184.5
+      },
+      "reopenMs": 27.3,
+      "heapUsedBytes": 85187985,
+      "heapLimitBytes": 2248146944,
+      "spread": {
+        "minMs": 155.4,
+        "maxMs": 205.5,
+        "relative": 0.272
+      },
+      "sustained": true,
+      "violations": []
+    },
+    {
+      "entities": 20000,
+      "repeats": 3,
+      "buildMs": 24.7,
+      "serializeMs": 518.1,
+      "documentBytes": 4877067,
+      "gzipMs": 227.5,
+      "archiveBytes": 650650,
+      "checkpoint": {
+        "encodeMs": 340.2,
+        "storedBytes": 628715,
+        "format": "gzip-json",
+        "decodeMs": 207.1,
+        "indexedDbWriteMs": 1.9,
+        "indexedDbReadMs": 2.9,
+        "totalMs": 342.3
+      },
+      "reopenMs": 55.3,
+      "heapUsedBytes": 87062461,
+      "heapLimitBytes": 2248146944,
+      "spread": {
+        "minMs": 340.9,
+        "maxMs": 343.9,
+        "relative": 0.009
+      },
+      "sustained": true,
+      "violations": []
+    },
+    {
+      "entities": 50000,
+      "repeats": 3,
+      "buildMs": 102.1,
+      "serializeMs": 1296.9,
+      "documentBytes": 12286855,
+      "gzipMs": 559.7,
+      "archiveBytes": 1638338,
+      "checkpoint": {
+        "encodeMs": 848.6,
+        "storedBytes": 1578202,
+        "format": "gzip-json",
+        "decodeMs": 550.8,
+        "indexedDbWriteMs": 3.6,
+        "indexedDbReadMs": 5.7,
+        "totalMs": 849.5
+      },
+      "reopenMs": 149,
+      "heapUsedBytes": 135961312,
+      "heapLimitBytes": 2248146944,
+      "spread": {
+        "minMs": 831.5,
+        "maxMs": 902.4,
+        "relative": 0.083
+      },
+      "sustained": true,
+      "violations": []
+    },
+    {
+      "entities": 100000,
+      "repeats": 3,
+      "buildMs": 134.4,
+      "serializeMs": 2515,
+      "documentBytes": 24669745,
+      "gzipMs": 1070.5,
+      "archiveBytes": 3271640,
+      "checkpoint": {
+        "encodeMs": 1863.8,
+        "storedBytes": 3149344,
+        "format": "gzip-json",
+        "decodeMs": 1065,
+        "indexedDbWriteMs": 1.1,
+        "indexedDbReadMs": 11.9,
+        "totalMs": 1864.9
+      },
+      "reopenMs": 298,
+      "heapUsedBytes": 197255505,
+      "heapLimitBytes": 2248146944,
+      "spread": {
+        "minMs": 1693.5,
+        "maxMs": 1885.1,
+        "relative": 0.103
+      },
+      "sustained": true,
+      "violations": []
+    },
+    {
+      "entities": 150000,
+      "repeats": 3,
+      "buildMs": 221.7,
+      "serializeMs": 3920.6,
+      "documentBytes": 37074200,
+      "gzipMs": 1802.8,
+      "archiveBytes": 4911420,
+      "checkpoint": {
+        "encodeMs": 2838.4,
+        "storedBytes": 4729114,
+        "format": "gzip-json",
+        "decodeMs": 1825.6,
+        "indexedDbWriteMs": 2.2,
+        "indexedDbReadMs": 17.6,
+        "totalMs": 2840.6
+      },
+      "reopenMs": 655,
+      "heapUsedBytes": 221120926,
+      "heapLimitBytes": 2248146944,
+      "spread": {
+        "minMs": 2626.7,
+        "maxMs": 2942.9,
+        "relative": 0.111
+      },
+      "sustained": false,
+      "violations": [
+        "150000 entidades superan el techo del servidor (100000)"
+      ]
+    }
+  ],
+  "scope": {
+    "measured": [
+      "serialización del documento canónico (serializeCadDocument)",
+      "compresión de la ruta de archivo (gzipCadDocumentJson, CompressionStream real)",
+      "codificación y verificación del checkpoint local (encodeCadRecoveryPayload / decodeCadRecoveryPayload)",
+      "escritura y lectura del checkpoint en IndexedDB, con la transacción confirmada",
+      "reapertura del borrador recuperado (migrateCadDocument)",
+      "montón de JavaScript usado y límite declarado por el navegador"
+    ],
+    "notMeasured": [
+      "render, GPU y cuadros por segundo: eso es browser-slo-100k.json",
+      "red, API y PostgreSQL: eso es apps/web/e2e/real/cad-offline-multitab.spec.ts",
+      "la cola y la poda completas del journal (saveCadRecovery), que añaden su propio worker",
+      "planos por encima del techo de entidades del servidor: ahí el documento ni se acepta"
+    ]
+  }
+}
