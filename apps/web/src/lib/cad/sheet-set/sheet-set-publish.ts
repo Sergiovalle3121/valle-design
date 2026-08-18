@@ -33,7 +33,14 @@ import {
   type CadPlotPdfOptions,
   type CadPlotPdfResult,
 } from "../plot/plot-pdf";
+import type { CadPlotFontUsage } from "../plot/plot-fonts";
+import type { CadTitleBlockLayout } from "../plot/title-block";
 import { resolveCadSheetTitleBlock } from "./sheet-set-fields";
+import {
+  buildCadCoverSheet,
+  cadCoverRowsFromTitleBlocks,
+  type CadCoverRow,
+} from "./sheet-set-cover";
 import { ordered, validateCadSheetSet, type CadSheetSet, type CadSheetSetIssue } from "./sheet-set";
 
 export interface CadSheetSetPublishRequest {
@@ -54,6 +61,12 @@ export interface CadSheetSetPublishInput {
   sheetIds?: readonly string[];
   /** Configuración de página común. Sin ella, la de cada presentación. */
   pageSetup?: CadPageSetup;
+  /**
+   * Anteponer la portada con el índice del juego. Encendida por defecto: lo
+   * que se entrega es un documento, y un documento de veinte láminas sin
+   * índice obliga a hojearlo entero para saber si están todas.
+   */
+  cover?: boolean;
 }
 
 export interface CadSheetSetPublishPage {
@@ -75,6 +88,13 @@ export interface CadSheetSetPublishPlan {
   issues: CadSheetSetIssue[];
   /** Hojas omitidas y por qué. Nunca se omite en silencio. */
   skipped: Array<{ sheetId: string; reason: string }>;
+  /** Cajetín colocado de cada lámina, en el mismo orden que `sheets`. */
+  titleBlocks: CadTitleBlockLayout[];
+  /** Índice del juego, derivado de esos cajetines. */
+  coverRows: CadCoverRow[];
+  /** Familias que piden los rótulos de todo el juego. */
+  fontUsage: CadPlotFontUsage[];
+  fontByEntity: Map<string, string>;
 }
 
 /** Cajetín resuelto sobre una presentación, sin tocar el documento original. */
@@ -109,7 +129,17 @@ export function buildCadSheetSetPublishPlan(
   const pages: CadSheetSetPublishPage[] = [];
   const publishSheets: CadPublishSheet[] = [];
   const skipped: CadSheetSetPublishPlan["skipped"] = [];
+  const titleBlocks: CadTitleBlockLayout[] = [];
+  const fontByEntity = new Map<string, string>();
+  const fontCounts = new Map<string, CadPlotFontUsage>();
 
+  // Las hojas que de verdad van a salir se resuelven ANTES de numerar.
+  //
+  // La serie es lo que se ENTREGA, no lo que el conjunto contiene. Numerar
+  // sobre la lista completa y descartar después rotula «1/4 … 3/4» en un juego
+  // de tres láminas: quien lo recibe busca una cuarta que nadie imprimió, y no
+  // hay forma de que sepa si se perdió en el correo o nunca existió.
+  const resolved: Array<{ sheet: (typeof sheets)[number]; document: CadDocument; layout: CadPaperSpace }> = [];
   for (const sheet of sheets) {
     const document = input.documents.get(sheet.documentId);
     if (!document) {
@@ -124,7 +154,18 @@ export function buildCadSheetSetPublishPlan(
       });
       continue;
     }
+    resolved.push({ sheet, document, layout });
+  }
 
+  const seriesTotal = resolved.length;
+  const indexBySheetId = new Map(
+    resolved.map((entry, index) => [entry.sheet.layoutId, index + 1]),
+  );
+  const numbersBySheetId = new Map(
+    resolved.map((entry) => [entry.sheet.layoutId, entry.sheet.number]),
+  );
+
+  for (const { sheet, document, layout } of resolved) {
     const resolved = resolveCadSheetTitleBlock({
       set: input.set,
       sheet,
@@ -156,9 +197,18 @@ export function buildCadSheetSetPublishPlan(
       pageSetup,
       plotStyleTable: table,
       generatedAt: input.date,
+      titleBlock: { date: input.date },
+      series: { total: seriesTotal, indexBySheetId, numbersBySheetId },
     });
 
     publishSheets.push(...job.sheets);
+    titleBlocks.push(...job.titleBlocks);
+    for (const [entityId, family] of job.fontByEntity) fontByEntity.set(entityId, family);
+    for (const entry of job.fontUsage) {
+      const accumulated = fontCounts.get(entry.family) ?? { family: entry.family, usageCount: 0 };
+      accumulated.usageCount += entry.usageCount;
+      fontCounts.set(entry.family, accumulated);
+    }
     pages.push({
       sheetId: sheet.id,
       number: sheet.number,
@@ -170,12 +220,23 @@ export function buildCadSheetSetPublishPlan(
     });
   }
 
-  return { pages, sheets: publishSheets, issues, skipped };
+  return {
+    pages,
+    sheets: publishSheets,
+    issues,
+    skipped,
+    titleBlocks,
+    coverRows: cadCoverRowsFromTitleBlocks(titleBlocks),
+    fontUsage: [...fontCounts.values()].sort((a, b) => a.family.localeCompare(b.family, "es")),
+    fontByEntity,
+  };
 }
 
 export interface CadSheetSetPublishResult extends CadPlotPdfResult {
   plan: CadSheetSetPublishPlan;
   fileName: string;
+  /** `true` cuando la página 1 del PDF es la portada y no una lámina. */
+  hasCover: boolean;
 }
 
 /**
@@ -188,8 +249,38 @@ export async function publishCadSheetSet(
   input: CadSheetSetPublishInput & { fileName?: string; pdf?: CadPlotPdfOptions },
 ): Promise<CadSheetSetPublishResult> {
   const plan = buildCadSheetSetPublishPlan(input);
-  const pdf = await renderCadPlotPdf(plan.sheets, {
+  const warnings: string[] = [];
+
+  // La portada toma el papel de la PRIMERA lámina: un juego cuyo índice sale en
+  // A4 y cuyas láminas salen en A1 no se archiva junto, y ése es el motivo por
+  // el que se entrega un único PDF.
+  const first = plan.sheets[0];
+  const cover =
+    (input.cover ?? true) && first
+      ? buildCadCoverSheet({
+          setName: input.set.name,
+          ...(input.set.description ? { subtitle: input.set.description } : {}),
+          page: { width: first.width, height: first.height, orientation: first.orientation },
+          margins: input.pageSetup?.margins ?? { top: 10, right: 10, bottom: 10, left: 20 },
+          rows: plan.coverRows,
+          colorMode: first.colorMode,
+        })
+      : null;
+  if (cover && cover.overflowRows.length > 0)
+    warnings.push(
+      `La portada no pudo listar ${cover.overflowRows.length} lámina(s) —${cover.overflowRows
+        .map((row) => row.number)
+        .join(", ")}— porque no caben en la hoja: el índice está incompleto.`,
+    );
+
+  const pdf = await renderCadPlotPdf(cover ? [cover.sheet, ...plan.sheets] : plan.sheets, {
     ...input.pdf,
+    titleBlocks: plan.titleBlocks,
+    // La portada es un índice, no una lámina: no lleva cajetín, y se dice por
+    // su nombre para que no acabe con uno vacío y una numeración que no es suya.
+    ...(cover ? { sheetsWithoutTitleBlock: [cover.sheet.id] } : {}),
+    fontUsage: plan.fontUsage,
+    fontByEntity: plan.fontByEntity,
     metadata: {
       title: input.set.name,
       subject: input.set.description ?? "Conjunto de planos",
@@ -199,9 +290,11 @@ export async function publishCadSheetSet(
   return {
     ...pdf,
     plan,
+    hasCover: cover !== null,
     fileName: `${input.fileName ?? input.set.name}.pdf`,
     warnings: [
       ...pdf.warnings,
+      ...warnings,
       ...plan.skipped.map((entry) => `Hoja ${entry.sheetId} omitida: ${entry.reason}`),
     ],
   };

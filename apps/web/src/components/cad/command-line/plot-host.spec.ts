@@ -184,7 +184,11 @@ async function specs(): Promise<void> {
     assert.equal(published.length, 1, "un conjunto, UN archivo");
     assert.equal(published[0].fileName, "Nave industrial.pdf");
     const batch = inspectCadPdf(published[0].bytes);
-    assert.equal(batch.pageCount, 2, "las dos hojas publicables, paginadas juntas");
+    assert.equal(
+      batch.pageCount,
+      3,
+      "la portada del juego y las dos hojas publicables, paginadas juntas",
+    );
     assert.ok(
       notes.some((note) => note.level === "error" && /ausente/i.test(note.message)),
       `la hoja omitida tiene que decirse; los renglones fueron ${notes

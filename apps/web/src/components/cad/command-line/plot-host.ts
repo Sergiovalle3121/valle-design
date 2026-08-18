@@ -19,7 +19,7 @@ import type { CadDocument } from "@/lib/cad/cad-document";
 import type { CadHostRequest } from "@/lib/cad/engine/host-requests";
 import type { CadVisualStyleId } from "@/lib/cad/view/visual-styles";
 import { cadDocumentExtents } from "@/lib/cad/view/document-extents";
-import { buildCadPlotJob, buildCadPlotPreview } from "@/lib/cad/plot/plot-job";
+import { buildCadPlotJob, buildCadPlotPreview, type CadPlotJob } from "@/lib/cad/plot/plot-job";
 import type { CadPlotStyleTable } from "@/lib/cad/plot/plot-style-table";
 import {
   renderCadPlotPdf,
@@ -154,7 +154,7 @@ export class CadPlotHost {
     if (job.sheets.length === 0)
       return `La presentación ${request.request.layoutId} no está marcada para publicar.`;
 
-    void this.emit(job.sheets, request.request.fileName);
+    void this.emit(job, request.request.fileName);
     return `Trazando ${request.request.fileName} a PDF…`;
   };
 
@@ -198,13 +198,16 @@ export class CadPlotHost {
     }
   }
 
-  private async emit(
-    sheets: Parameters<typeof renderCadPlotPdf>[0],
-    fileName: string,
-  ): Promise<void> {
+  private async emit(job: CadPlotJob, fileName: string): Promise<void> {
     try {
-      const result: CadPlotPdfResult = await renderCadPlotPdf(sheets, {
+      const result: CadPlotPdfResult = await renderCadPlotPdf(job.sheets, {
         ...(this.bridge.fonts ? { fonts: this.bridge.fonts() } : {}),
+        // El cajetín y las familias de fuente vienen del trabajo de trazado,
+        // que es quien leyó el documento. El anfitrión no los recompone: si lo
+        // hiciera, el PDF descargado y la vista previa podrían discrepar.
+        titleBlocks: job.titleBlocks,
+        fontUsage: job.fontUsage,
+        fontByEntity: job.fontByEntity,
         metadata: { title: fileName },
       });
       if (result.pageCount === 0) {
@@ -215,8 +218,14 @@ export class CadPlotHost {
       // Las fuentes se dicen SIEMPRE: quien traza tiene que saber si el plano
       // depende de que el visor tenga la fuente o si viaja dentro del archivo.
       const embedded = result.fonts.filter((font) => font.embedded).length;
+      const substituted = result.fonts.filter((font) => font.disposition === "substituted");
       this.bridge.onResult?.(
-        `Trazado ${fileName}.pdf: ${result.pageCount} página(s), ${result.fonts.length} fuente(s) (${embedded} incrustada(s)).`,
+        `Trazado ${fileName}.pdf: ${result.pageCount} página(s), ${result.fonts.length} fuente(s) (${embedded} incrustada(s))` +
+          (substituted.length > 0
+            ? `; SUSTITUIDAS: ${substituted
+                .map((font) => `${font.family}→${font.substitutedBy}`)
+                .join(", ")}.`
+            : "."),
         "info",
       );
     } catch (error) {

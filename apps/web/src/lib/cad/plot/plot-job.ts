@@ -30,6 +30,12 @@ import {
 } from "../paper-space";
 import { cadViewportIsOn } from "../layout/viewport-operations";
 import { toGrayscaleHex } from "./aci-palette";
+import { cadDocumentFontByEntity, type CadPlotFontUsage } from "./plot-fonts";
+import {
+  layoutCadTitleBlock,
+  type CadTitleBlockFields,
+  type CadTitleBlockLayout,
+} from "./title-block";
 import {
   resolveCadPlotStyle,
   type CadPlotStyleTable,
@@ -52,6 +58,26 @@ export interface CadPlotJobInput {
   plotStyleTable?: CadPlotStyleTable | null;
   /** Marca de tiempo del manifiesto. Fija en las pruebas para que sea estable. */
   generatedAt?: string;
+  /**
+   * Datos del cajetín que sólo sabe quien publica: la fecha, el autor, y el
+   * número de lámina cuando viene de un conjunto de planos. Todo lo demás sale
+   * de la presentación y de sus ventanas.
+   */
+  titleBlock?: Partial<CadTitleBlockFields>;
+  /**
+   * Número de lámina de cada hoja dentro de la SERIE, y cuántas son.
+   *
+   * Sin esto, la serie es el propio trabajo de trazado y se numera 1..N. Un
+   * conjunto de planos que publica un subconjunto tiene que pasar el total
+   * verdadero: «3/6» impreso en una tirada de tres láminas es una mentira que
+   * llega hasta obra.
+   */
+  series?: {
+    numbersBySheetId?: ReadonlyMap<string, string>;
+    /** Posición 1-based de cada hoja en la serie COMPLETA, no en este trabajo. */
+    indexBySheetId?: ReadonlyMap<string, number>;
+    total?: number;
+  };
 }
 
 export interface CadPlotJob {
@@ -62,6 +88,12 @@ export interface CadPlotJob {
   skippedViewports: Array<{ sheetId: string; viewportId: string }>;
   /** Milímetros de papel de cada hoja, ya orientados por la configuración. */
   pageSize: { width: number; height: number };
+  /** Cajetín de cada hoja, resuelto y colocado en mm de papel. */
+  titleBlocks: CadTitleBlockLayout[];
+  /** Familias que piden los rótulos trazados, con su recuento. */
+  fontUsage: CadPlotFontUsage[];
+  /** Familia de cada rótulo, por `entityId`, para que el emisor la respete. */
+  fontByEntity: Map<string, string>;
 }
 
 /**
@@ -189,6 +221,48 @@ export function buildCadPlotJob(input: CadPlotJobInput): CadPlotJob {
     };
   });
 
+  // --- cajetines -----------------------------------------------------------
+  // La serie por defecto es el propio trabajo: seis presentaciones trazadas
+  // juntas son «1/6 … 6/6». Quien publica un conjunto pasa el total verdadero.
+  const total = input.series?.total ?? sheets.length;
+  const titleBlocks = sheets.map((sheet, index) => {
+    const space = spacesById.get(sheet.id);
+    const number = input.series?.numbersBySheetId?.get(sheet.id);
+    return layoutCadTitleBlock({
+      sheetId: sheet.id,
+      page: pageSize,
+      margins: input.pageSetup.margins,
+      ...(space ? { layout: space } : {}),
+      series: {
+        index: input.series?.indexBySheetId?.get(sheet.id) ?? index + 1,
+        total,
+        ...(number ? { number } : {}),
+      },
+      viewportScales: (space?.viewports ?? []).map((viewport) => `1:${viewport.scale}`),
+      units: document.meta.unit,
+      ...(input.titleBlock ? { overrides: input.titleBlock } : {}),
+    });
+  });
+
+  // --- fuentes -------------------------------------------------------------
+  const fontByEntity = cadDocumentFontByEntity(document);
+  const counts = new Map<string, CadPlotFontUsage>();
+  for (const sheet of sheets)
+    for (const viewport of sheet.viewports)
+      for (const command of viewport.commands) {
+        if (command.kind !== "text") continue;
+        const family =
+          fontByEntity.get(command.entityId) ??
+          fontByEntity.get(command.entityId.split(":attribute:")[0]) ??
+          "Arial";
+        const entry = counts.get(family) ?? { family, usageCount: 0 };
+        entry.usageCount += 1;
+        counts.set(family, entry);
+      }
+  // Un dibujo sin un solo rótulo sigue teniendo cajetín, y el cajetín lleva
+  // texto: la familia implícita se declara aunque el modelo no la use.
+  if (counts.size === 0) counts.set("Arial", { family: "Arial", usageCount: 0 });
+
   return {
     sheets,
     plan,
@@ -199,6 +273,9 @@ export function buildCadPlotJob(input: CadPlotJobInput): CadPlotJob {
     ),
     skippedViewports,
     pageSize,
+    titleBlocks,
+    fontUsage: [...counts.values()].sort((a, b) => a.family.localeCompare(b.family, "es")),
+    fontByEntity,
   };
 }
 
