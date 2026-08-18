@@ -10,6 +10,7 @@ import {
   PlanPrice,
   Subscription,
   SubscriptionUpgradeIntent,
+  TaxProfile,
   UsageLedger,
 } from './entities/commercial.entities';
 import {
@@ -23,6 +24,7 @@ import {
   PAYMENT_PROVIDER,
   type PaymentProvider,
 } from './ports/payment-provider.port';
+import { CFDI_PROVIDER, type CfdiProvider } from './ports/cfdi-provider.port';
 import {
   PostgresCadEventPublisher,
   PostgresEmailService,
@@ -31,6 +33,11 @@ import {
   PostgresUsageMeter,
 } from './adapters/postgres.adapters';
 import { NullPaymentProvider } from './adapters/null-payment.provider';
+import {
+  CfdiConfigurationError,
+  NullCfdiProvider,
+  resolveCfdiConfiguration,
+} from './adapters/null-cfdi.provider';
 import {
   globalStripeHttpClient,
   resolveStripeConfiguration,
@@ -41,6 +48,7 @@ import { EmailOutboxController } from './controllers/email-outbox.controller';
 import { BillingController } from './controllers/billing.controller';
 import { BillingWebhookController } from './controllers/billing-webhook.controller';
 import { CommercialController } from './controllers/commercial.controller';
+import { TaxProfileController } from './controllers/tax-profile.controller';
 import { PublicCatalogController } from './controllers/public-catalog.controller';
 import {
   COMMERCIAL_OUTBOX_OBSERVER,
@@ -52,6 +60,7 @@ import { WebhookCommercialOutboxTransport } from './webhook-outbox.transport';
 import { CommercialCatalogBootstrap } from './commercial-catalog.bootstrap';
 import { CommercialTelemetryService } from './commercial-telemetry.service';
 import { SubscriptionLifecycleService } from './subscription-lifecycle.service';
+import { SeatEntitlementService } from './seat-entitlement.service';
 
 @Module({
   imports: [
@@ -66,6 +75,7 @@ import { SubscriptionLifecycleService } from './subscription-lifecycle.service';
       EmailOutbox,
       PaymentEvent,
       Invoice,
+      TaxProfile,
     ]),
   ],
   controllers: [
@@ -73,6 +83,7 @@ import { SubscriptionLifecycleService } from './subscription-lifecycle.service';
     PublicCatalogController,
     BillingController,
     BillingWebhookController,
+    TaxProfileController,
     EmailOutboxController,
   ],
   providers: [
@@ -101,6 +112,29 @@ import { SubscriptionLifecycleService } from './subscription-lifecycle.service';
           : new NullPaymentProvider();
       },
     },
+    // Selección del PAC por CONFIGURACIÓN, con la misma regla rígida.
+    //
+    // Sin variables CFDI_PAC_* el adaptador es el NULO: el producto captura y
+    // valida datos fiscales y el CFDI lo emite una persona (modo `manual`, y
+    // la interfaz lo dice así). Con la configuración COMPLETA el arranque
+    // FALLA hoy a propósito: el dueño todavía no ha elegido PAC, así que no
+    // existe adaptador real detrás del puerto, y arrancar en modo manual con
+    // credenciales puestas haría creer que el producto ya timbra. El día que
+    // haya PAC, el adaptador se enchufa aquí y este `throw` desaparece.
+    {
+      provide: CFDI_PROVIDER,
+      useFactory: (): CfdiProvider => {
+        const configuration = resolveCfdiConfiguration(process.env);
+        if (!configuration) return new NullCfdiProvider();
+        throw new CfdiConfigurationError(
+          `Hay configuración para el PAC "${configuration.pacName}" pero ningún ` +
+            'adaptador de PAC implementado todavía. Vacía las variables ' +
+            'CFDI_PAC_* para seguir con emisión manual, o enchufa el adaptador ' +
+            'real detrás de CFDI_PROVIDER.',
+        );
+      },
+    },
+    SeatEntitlementService,
     WebhookCommercialOutboxTransport,
     {
       provide: COMMERCIAL_OUTBOX_TRANSPORT,
@@ -126,6 +160,8 @@ import { SubscriptionLifecycleService } from './subscription-lifecycle.service';
     CAD_EVENT_PUBLISHER,
     EMAIL_SERVICE,
     PAYMENT_PROVIDER,
+    CFDI_PROVIDER,
+    SeatEntitlementService,
     CommercialOutboxDispatcher,
     CommercialTelemetryService,
     SubscriptionLifecycleService,

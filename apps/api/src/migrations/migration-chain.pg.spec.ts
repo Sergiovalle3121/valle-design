@@ -24,6 +24,7 @@ import { PlanPrices20260814100000 } from './20260814100000-PlanPrices';
 import { StripeBilling20260815100000 } from './20260815100000-StripeBilling';
 import { LegalAcceptances20260815140000 } from './20260815140000-LegalAcceptances';
 import { MexicanPublicCatalog20260816120000 } from './20260816120000-MexicanPublicCatalog';
+import { MexicanFiscalAndSeats20260817100000 } from './20260817100000-MexicanFiscalAndSeats';
 
 const LEGACY_MIGRATIONS: Array<new () => MigrationInterface> = [
   AddCadBlocks20260706180000,
@@ -53,6 +54,7 @@ const ALL_MIGRATIONS: Array<new () => MigrationInterface> = [
   // interacciones con las vecinas quedaban sin probar en el encadenado.
   LegalAcceptances20260815140000,
   MexicanPublicCatalog20260816120000,
+  MexicanFiscalAndSeats20260817100000,
 ];
 
 describePostgres('migration chain (previous main -> latest)', () => {

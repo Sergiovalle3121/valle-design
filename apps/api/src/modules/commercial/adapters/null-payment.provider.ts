@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type {
   PaymentCancellationResult,
   PaymentCheckoutResult,
+  PaymentPortalResult,
   PaymentProvider,
   PaymentProviderDescriptor,
   PaymentWebhookEvent,
@@ -47,6 +48,17 @@ export class NullPaymentProvider implements PaymentProvider {
       reason:
         'Sin pasarela de pagos: la baja la aplica el operador sobre el cobro ' +
         'externo; la solicitud queda registrada para que actúe.',
+    });
+  }
+
+  createBillingPortalSession(): Promise<PaymentPortalResult> {
+    // Sin pasarela no hay medio de pago que arreglar: el cobro externo lo
+    // gestiona una persona. Se dice, en vez de abrir una página vacía.
+    return Promise.resolve({
+      kind: 'unavailable',
+      reason:
+        'Sin pasarela de pagos no hay portal del proveedor: el cobro del ' +
+        'piloto es externo/asistido y lo gestiona el equipo comercial.',
     });
   }
 

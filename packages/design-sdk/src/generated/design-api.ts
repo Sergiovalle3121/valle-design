@@ -374,6 +374,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commercial/public/tax-catalogs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Publica los catalogos del SAT que la captura fiscal necesita.
+         * @description `c_RegimenFiscal` completo y el subconjunto de `c_UsoCFDI` aplicable a una suscripcion de software. Es informacion PUBLICA del SAT, identica para todo Mexico y sin un solo dato de ninguna organizacion, asi que se sirve sin sesion y cacheada: el formulario fiscal aparece en el alta, antes de que exista organizacion activa. Regimen y uso son catalogos CERRADOS; el producto no acepta texto libre en ninguno de los dos.
+         */
+        get: operations["listSatTaxCatalogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commercial/tax-profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lee los datos fiscales CFDI 4.0 de la organizacion (owner/admin). */
+        get: operations["getOrganizationTaxProfile"];
+        /**
+         * Captura o sustituye los datos fiscales para el CFDI 4.0.
+         * @description Los cinco campos viajan JUNTOS porque juntos se validan: el tipo de persona sale de la longitud del RFC, el regimen solo es legal para cierto tipo de persona y el uso de CFDI solo lo es para ciertos regimenes. La validacion es de FORMA y de CATALOGO; el producto NO consulta al SAT y no afirma que el RFC exista. Fallo cerrado: o se guarda el perfil entero o no se guarda nada.
+         */
+        put: operations["saveOrganizationTaxProfile"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commercial/upgrade-intents": {
         parameters: {
             query?: never;
@@ -486,6 +527,26 @@ export interface paths {
          * @description No corta el acceso: lo comprado sigue vigente hasta `currentPeriodEnd`, y el estado `cancelled` lo aplica el webhook del proveedor cuando el periodo expira. Con el proveedor nulo la solicitud queda registrada como evento de dominio para el operador (`kind: recorded`).
          */
         post: operations["cancelCommercialSubscription"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commercial/billing-portal-sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Abre el portal del proveedor para arreglar el medio de pago.
+         * @description Un cliente en `past_due` podia enterarse de que su cobro fallo pero no arreglarlo desde el producto. Los datos de la tarjeta no pasan por aqui, asi que la unica salida honesta es una sesion del portal del proveedor, que es quien los custodia. La URL es de UN cliente y caduca sola: no se cachea ni se guarda.
+         */
+        post: operations["createProviderBillingPortalSession"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1317,12 +1378,31 @@ export interface components {
             trialEndsAt: components["schemas"]["Timestamp"] | null;
             currentPeriodEnd: components["schemas"]["Timestamp"] | null;
             cancelAtPeriodEnd: boolean;
+            /** @description Asientos PAGADOS. Es el limite que la API impone al invitar, no un dato informativo: pasado ese numero, invitar o aceptar responde 409 `seat_limit_reached`. */
+            seats: number;
             effective: boolean;
+        };
+        /**
+         * @description `oxxo` y `spei` son pagos ASINCRONOS de un solo periodo: el dinero llega horas o dias despues y no se domicilian, asi que no renuevan solos. Existen porque buena parte del mercado mexicano no tiene tarjeta de credito.
+         * @enum {string}
+         */
+        PaymentMethod: "card" | "oxxo" | "spei";
+        /** @description Pago asincrono en curso. Mientras exista, que la suscripcion no este activa es lo NORMAL: presentarlo como fallo empuja al cliente a pagar dos veces. */
+        CommercialPendingPayment: {
+            method: components["schemas"]["PaymentMethod"];
+            since: components["schemas"]["Timestamp"];
+            /**
+             * Format: uri
+             * @description Ficha o instrucciones hospedadas por el proveedor, solo HTTPS. `null` cuando el proveedor no las publico en el evento: el producto no inventa un enlace que no recibio.
+             */
+            voucherUrl: string | null;
+            planCode: string;
         };
         CommercialSubscriptionResponse: {
             /** Format: uuid */
             organizationId: string | null;
             subscription: components["schemas"]["EffectiveSubscriptionView"] | null;
+            pendingPayment: components["schemas"]["CommercialPendingPayment"] | null;
         };
         EffectiveEntitlementList: {
             /** Format: uuid */
@@ -1412,6 +1492,8 @@ export interface components {
             period: components["schemas"]["PlanPricePeriod"];
             /** @description Asientos contratados en un plan POR USUARIO. Omitido, se cobra el minimo del plan. Un plan que no cobra por asiento solo admite 1: mandar mas seria pedir algo que su precio no representa. El importe NUNCA lo pone el cliente: solo la cantidad, y contra el minimo publicado. */
             seats?: number;
+            /** @description Omitido significa `card`, que es lo que el producto ya hacia. Con `oxxo` o `spei` la sesion es de cobro UNICO en MXN y el resultado llega despues por webhook. */
+            paymentMethod?: components["schemas"]["PaymentMethod"];
         };
         CommercialCheckoutSession: {
             /** @description Adaptador que atendio la compra (`null`, `stripe`). */
@@ -1431,6 +1513,9 @@ export interface components {
             url: string | null;
             /** @description Asientos con los que se abrio la compra. Se devuelve SIEMPRE para que la web pueda confirmar lo que se va a cobrar en vez de suponerlo a partir de lo que pidio. */
             seats: number;
+            paymentMethod: components["schemas"]["PaymentMethod"];
+            /** @description Con `true` el cobro NO se resuelve en la pagina del proveedor: el cliente sale con una ficha de OXXO o una CLABE y el dinero llega despues. Es lo que permite a la web decir "te esperamos" en vez de "pago fallido" cuando vuelve sin suscripcion activa. */
+            asynchronous: boolean;
         };
         /** @enum {string} */
         InvoiceStatus: "paid" | "open" | "uncollectible" | "void";
@@ -1469,6 +1554,87 @@ export interface components {
                 message: string;
             };
             subscription: components["schemas"]["BilledSubscriptionView"];
+        };
+        CommercialBillingPortalSession: {
+            /** Format: uuid */
+            organizationId: string;
+            /**
+             * Format: uri
+             * @description Portal hospedado por el proveedor, solo HTTPS. Es de UN cliente y caduca: no se cachea ni se guarda.
+             */
+            url: string;
+        };
+        /**
+         * @description Se DERIVA de la longitud del RFC (13 = fisica, 12 = moral) y decide que regimenes fiscales son legales para esa fila.
+         * @enum {string}
+         */
+        TaxPersonType: "fisica" | "moral";
+        SatTaxRegime: {
+            /** @description Clave de `c_RegimenFiscal` (601, 612, 626...). */
+            code: string;
+            name: string;
+            personTypes: components["schemas"]["TaxPersonType"][];
+        };
+        SatCfdiUse: {
+            /** @description Clave de `c_UsoCFDI` (G03, I04, S01). */
+            code: string;
+            name: string;
+            /** @description Regimenes del RECEPTOR que el SAT admite para este uso. Es la causa habitual del rechazo "el uso de CFDI no corresponde al regimen fiscal del receptor", y por eso se publica en vez de dejarlo al azar del desplegable. */
+            taxRegimeCodes: string[];
+        };
+        SatTaxCatalogs: {
+            taxRegimes: components["schemas"]["SatTaxRegime"][];
+            /** @description Subconjunto DELIBERADO del catalogo del SAT: el aplicable a una suscripcion de software. Publicar "Gastos funerales" no daria mas libertad, daria mas formas de que el CFDI salga mal. */
+            cfdiUses: components["schemas"]["SatCfdiUse"][];
+        };
+        /** @description Como se emite el CFDI en ESTE despliegue, dicho por el adaptador configurado. Con `mode: manual` y `available: false` el producto captura, valida y custodia los datos fiscales, pero NO timbra: la interfaz debe decir eso mismo en vez de prometer una factura automatica. */
+        CfdiIssuance: {
+            /** @description Adaptador de PAC (`null` mientras no haya uno contratado). */
+            provider: string;
+            /** @enum {string} */
+            mode: "manual" | "automatic";
+            /** @description false = el producto NO puede timbrar por si mismo. */
+            available: boolean;
+        };
+        TaxProfileSave: {
+            /** @description Se normaliza a mayusculas y se le quitan espacios y guiones antes de validar. Se comprueba la FORMA del SAT (letras, fecha AAMMDD, homoclave); NO se comprueba que exista. */
+            rfc: string;
+            /** @description Razon social o nombre completo como en la Constancia de Situacion Fiscal. Se normaliza a mayusculas y se le retira el regimen de capital (`S.A. DE C.V.`), que el SAT no compara. */
+            legalName: string;
+            /** @description Clave de `c_RegimenFiscal`; catalogo cerrado. */
+            taxRegimeCode: string;
+            /** @description Clave de `c_UsoCFDI`; catalogo cerrado. */
+            cfdiUseCode: string;
+            /** @description Cinco digitos del domicilio fiscal. */
+            postalCode: string;
+        };
+        TaxProfileView: {
+            rfc: string;
+            personType: components["schemas"]["TaxPersonType"];
+            legalName: string;
+            taxRegimeCode: string;
+            cfdiUseCode: string;
+            postalCode: string;
+            updatedAt: components["schemas"]["Timestamp"];
+        };
+        TaxProfileResponse: {
+            /** Format: uuid */
+            organizationId: string;
+            issuance: components["schemas"]["CfdiIssuance"];
+            profile: components["schemas"]["TaxProfileView"] | null;
+        };
+        TaxProfileIssue: {
+            /** @enum {string} */
+            field: "rfc" | "legalName" | "taxRegimeCode" | "cfdiUseCode" | "postalCode";
+            code: string;
+            message: string;
+        };
+        /** @description Se devuelven TODOS los campos mal a la vez. Obligar a descubrirlos de uno en uno es la forma mas rapida de que alguien abandone el formulario justo antes de pagar. */
+        TaxProfileInvalid: {
+            /** @enum {string} */
+            code: "tax_profile_invalid";
+            message: string;
+            issues: components["schemas"]["TaxProfileIssue"][];
         };
         StripeWebhookAccepted: {
             /** @constant */
@@ -2686,6 +2852,83 @@ export interface operations {
             400: components["responses"]["BadRequest"];
         };
     };
+    listSatTaxCatalogs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Catalogos vigentes, servidos desde constantes del producto. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SatTaxCatalogs"];
+                };
+            };
+        };
+    };
+    getOrganizationTaxProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Perfil capturado, o `null` si todavia no lo hay. `issuance` dice como se emite el CFDI hoy y nunca promete mas de lo que hace. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxProfileResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    saveOrganizationTaxProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaxProfileSave"];
+            };
+        };
+        responses: {
+            /** @description Perfil guardado; sustituye al anterior si lo habia. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxProfileResponse"];
+                };
+            };
+            /** @description Datos que el SAT rechazaria (`tax_profile_invalid`). El cuerpo lista TODOS los campos mal, no solo el primero. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxProfileInvalid"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
     listUpgradeIntents: {
         parameters: {
             query?: never;
@@ -2900,6 +3143,38 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description La suscripcion ya estaba cancelada. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    createProviderBillingPortalSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sesion del portal abierta; `url` caduca en minutos. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommercialBillingPortalSession"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description No hay pasarela configurada o la organizacion no tiene cliente en ella (`billing_portal_unavailable`). */
             409: {
                 headers: {
                     [name: string]: unknown;

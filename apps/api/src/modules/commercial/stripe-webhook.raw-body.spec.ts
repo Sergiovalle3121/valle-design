@@ -149,6 +149,7 @@ describe('POST /v1/commercial/webhooks/stripe (cuerpo crudo de extremo a extremo
         apiBaseUrl: 'https://api.stripe.test',
         successUrl: 'https://app.example.test/ok',
         cancelUrl: 'https://app.example.test/ko',
+        portalReturnUrl: 'https://app.example.test/portal',
         timeoutMs: 5_000,
         toleranceSeconds: 300,
         apiVersion: null,

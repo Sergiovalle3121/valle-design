@@ -73,15 +73,53 @@ El proveedor de pagos se elige POR CONFIGURACIÓN y jamás a medias:
 | `STRIPE_API_VERSION`                | No               | Fija la versión (`AAAA-MM-DD`). Sin ella manda la versión por defecto de la cuenta.                                |
 | `STRIPE_TIMEOUT_MS`                 | No               | Timeout por llamada; default `20000`, entero entre `1000` y `120000`.                                             |
 | `STRIPE_WEBHOOK_TOLERANCE_SECONDS`  | No               | Ventana de frescura de la firma; default `300`, entero entre `30` y `3600`. Fuera de ella el evento se rechaza.   |
+| `STRIPE_PORTAL_RETURN_URL`          | No               | Vuelta desde el portal del cliente; default, la URL de éxito del checkout. Mismas reglas de HTTPS.                |
 
 El endpoint `POST /v1/commercial/webhooks/stripe` es público (el emisor no
 tiene sesión: su credencial es la firma) y recibe el CUERPO CRUDO — su body
 parser se monta sólo en esa ruta. Es idempotente por `event.id`, que se apunta
 en `payment_events` dentro de la misma transacción que el efecto, así que una
 reentrega no renueva dos veces. Configura en el dashboard del proveedor estos
-eventos: `checkout.session.completed`, `invoice.paid`,
-`invoice.payment_failed` y `customer.subscription.deleted`. Cualquier otro tipo
+eventos: `checkout.session.completed`, `checkout.session.async_payment_succeeded`,
+`checkout.session.async_payment_failed`, `invoice.paid`,
+`invoice.payment_failed` y `customer.subscription.deleted`. Los dos
+asíncronos son OBLIGATORIOS si se habilitan OXXO o SPEI: sin ellos el pago en
+efectivo entra en la cuenta y la suscripción nunca se activa. Cualquier otro tipo
 responde 200 y queda registrado sin efecto.
+
+OXXO y SPEI hay que ACTIVARLOS además en el panel del proveedor (métodos de
+pago de la cuenta de México); el producto los ofrece sólo en MXN y rechaza una
+ficha de OXXO por encima de 10.000 MXN, que es el tope de la red. El portal
+del cliente (`POST /v1/commercial/billing-portal-sessions`) también exige
+configurarlo una vez en el panel: sin esa configuración, la llamada falla en
+vez de llevar al cliente a una página rota.
+
+## PAC para el CFDI 4.0
+
+Sin estas variables el producto CAPTURA y VALIDA los datos fiscales del
+receptor (RFC, razón social, régimen fiscal, uso de CFDI y código postal)
+contra los catálogos del SAT, y el comprobante lo emite una persona con esos
+datos: modo `manual`, `available: false`, y la interfaz lo dice con esas
+palabras en vez de prometer una factura automática.
+
+Regla idéntica a la de la pasarela: **o las cuatro, o ninguna**. Y una cuarta
+condición hoy: aunque estén las cuatro, el arranque FALLA, porque todavía no
+hay adaptador de PAC implementado detrás del puerto. Es deliberado — arrancar
+en modo manual con credenciales puestas haría creer que el producto ya timbra,
+y un comprobante fiscal que el cliente cree tener y no tiene es un problema
+legal suyo, no una decepción nuestra.
+
+| Variable                 | Requerida | Comportamiento                                                                    |
+| ------------------------ | --------- | --------------------------------------------------------------------------------- |
+| `CFDI_PAC_NAME`          | Con PAC   | Adaptador de PAC a usar (`facturama`, `bind`, `sw`…). Hoy ninguno está implementado. |
+| `CFDI_PAC_API_KEY`       | Con PAC   | Credencial del PAC. Nunca se registra.                                            |
+| `CFDI_ISSUER_RFC`        | Con PAC   | RFC del EMISOR (Valle Design), no el del cliente.                                 |
+| `CFDI_ISSUER_TAX_REGIME` | Con PAC   | Clave de `c_RegimenFiscal` del emisor.                                            |
+
+El producto NO custodia sello, certificado ni contraseña de la FIEL del
+cliente: aquí no se firma nada. Y la validación del RFC es de FORMA y de
+catálogo, nunca contra el padrón del SAT — un RFC bien formado puede no
+existir, y la interfaz lo advierte.
 
 ## Servidor HTTP y apagado ordenado
 

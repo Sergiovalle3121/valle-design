@@ -1,16 +1,21 @@
 import { strict as assert } from "node:assert";
 import {
   authPathForCheckout,
+  availablePaymentMethods,
   canCancelSubscription,
   canOpenCheckout,
   checkoutPath,
   checkoutProblem,
   forgetCheckout,
   parsePlanSelection,
+  paymentMethodLabel,
+  pendingPaymentNotice,
   recallCheckout,
   rememberCheckout,
   resolveCheckoutOutcome,
   CHECKOUT_MEMORY_KEY,
+  PAYMENT_METHOD_OPTIONS,
+  type PendingPayment,
   type Subscription,
 } from "./checkout";
 
@@ -110,6 +115,7 @@ const subscription = (patch: Partial<Subscription>): Subscription => ({
   trialEndsAt: null,
   currentPeriodEnd: "2026-09-16T14:30:00.000Z",
   cancelAtPeriodEnd: false,
+  seats: 3,
   effective: true,
   ...patch,
 });
@@ -220,6 +226,86 @@ assert.equal(recallCheckout(hostile), null);
 rememberCheckout(hostile, { planCode: "despacho", startedAt: 1 });
 forgetCheckout(hostile);
 
+// ── Medios de pago: tres opciones que NO son equivalentes ──────────────────
+assert.deepEqual(
+  PAYMENT_METHOD_OPTIONS.map((option) => option.method),
+  ["card", "oxxo", "spei"],
+);
+// Quien paga en efectivo compra UN periodo: callarlo garantiza que pierda el
+// acceso un día sin entender por qué.
+for (const option of PAYMENT_METHOD_OPTIONS.filter((o) => o.asynchronous)) {
+  assert.match(option.detail, /renovar a mano/u);
+}
+assert.equal(
+  PAYMENT_METHOD_OPTIONS.find((o) => o.method === "card")?.asynchronous,
+  false,
+);
+// OXXO y SPEI son infraestructura mexicana: sólo existen en pesos. Ofrecerlos
+// en un plan en dólares sería un botón que el proveedor va a rechazar.
+assert.deepEqual(
+  availablePaymentMethods("USD").map((option) => option.method),
+  ["card"],
+);
+assert.equal(availablePaymentMethods("MXN").length, 3);
+assert.equal(paymentMethodLabel("oxxo"), "Efectivo en OXXO");
+// Un medio desconocido se enseña tal cual en vez de romper la pantalla.
+assert.equal(paymentMethodLabel("bitcoin"), "bitcoin");
+
+// ── Un pago pendiente se NOMBRA, no se deja en blanco ──────────────────────
+const pagoPendiente: PendingPayment = {
+  method: "oxxo",
+  since: "2026-08-17T10:00:00.000Z",
+  voucherUrl: "https://payments.stripe.test/oxxo/voucher/abc",
+  planCode: "despacho",
+};
+const notice = pendingPaymentNotice(pagoPendiente);
+assert.match(notice, /Efectivo en OXXO/u);
+assert.match(notice, /despacho/u);
+// La frase que evita el doble pago, que es el fallo caro de un cobro asíncrono.
+assert.match(notice, /No vuelvas a pagar/u);
+
+// Con pago pendiente registrado, el desenlace lo dice con nombre y plan; sin
+// él, se queda en la frase genérica de siempre.
+const esperando = resolveCheckoutOutcome(
+  subscription({ status: "trialing", trialEndsAt: "2026-09-01T00:00:00.000Z" }),
+  "despacho",
+  pagoPendiente,
+);
+assert.equal(esperando.outcome, "pendiente");
+assert.equal(esperando.keepPolling, true);
+assert.match(esperando.title, /Efectivo en OXXO/u);
+const generico = resolveCheckoutOutcome(
+  subscription({ status: "trialing", trialEndsAt: "2026-09-01T00:00:00.000Z" }),
+  "despacho",
+);
+assert.match(generico.title, /Esperando la confirmación/u);
+// Un pago pendiente NUNCA convierte un fallo real en espera: el past_due sigue
+// siendo un fallo aunque haya una ficha viva.
+assert.equal(
+  resolveCheckoutOutcome(subscription({ status: "past_due" }), "despacho", pagoPendiente)
+    .outcome,
+  "fallido",
+);
+
+// ── Los problemas nuevos se explican, no se vuelven un error genérico ──────
+const fiscal = checkoutProblem({ status: 409, code: "tax_profile_required" });
+assert.equal(fiscal.code, "tax_profile_required");
+assert.match(fiscal.detail, /RFC/u);
+assert.match(fiscal.detail, /deducible/u);
+// No se manda a ventas: lo resuelve el propio cliente con cinco campos.
+assert.equal(fiscal.contactSales, false);
+
+const tope = checkoutProblem({
+  status: 400,
+  code: "payment_method_amount_limit",
+});
+assert.match(tope.detail, /10\.000 MXN/u);
+assert.match(tope.detail, /SPEI o tarjeta/u);
+assert.equal(
+  checkoutProblem({ status: 400, code: "payment_method_currency" }).title,
+  tope.title,
+);
+
 console.log(
-  "checkout: selección de plan a prueba de URL, roles owner/admin y los tres desenlaces derivados de la suscripción",
+  "checkout: selección de plan a prueba de URL, roles owner/admin, medios de pago mexicanos con su letra pequeña y los desenlaces derivados de la suscripción",
 );

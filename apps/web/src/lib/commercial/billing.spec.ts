@@ -16,6 +16,7 @@ const base: Subscription = {
   trialEndsAt: null,
   currentPeriodEnd: "2026-09-16T14:30:00.000Z",
   cancelAtPeriodEnd: false,
+  seats: 3,
   effective: true,
 };
 

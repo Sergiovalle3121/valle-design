@@ -144,6 +144,15 @@ export class BillingWebhookService {
     switch (event.type) {
       case 'checkout.session.completed':
         return this.activateFromCheckout(manager, event, object);
+      // Pago ASÍNCRONO resuelto: el dinero de OXXO o SPEI llegó (horas o días
+      // después de que el cliente cerrara la sesión) o no llegará. Es el
+      // cierre del círculo que un pago en efectivo exige, y por eso comparte
+      // camino con la activación por tarjeta: lo que activa una suscripción es
+      // que el cobro entró, no cómo entró.
+      case 'checkout.session.async_payment_succeeded':
+        return this.activateFromCheckout(manager, event, object);
+      case 'checkout.session.async_payment_failed':
+        return this.failAsyncCheckout(manager, event, object);
       case 'invoice.paid':
         return this.recordPaidInvoice(manager, event, object);
       case 'invoice.payment_failed':
@@ -185,6 +194,41 @@ export class BillingWebhookService {
     }
 
     const organizationId = intent.organizationId;
+
+    // OXXO y SPEI cierran la sesión SIN dinero: el cliente sale con una ficha
+    // o una CLABE y paga cuando puede. Activar aquí regalaría el producto a
+    // quien nunca llegue a pagar, y no activar sin más dejaría al cliente ante
+    // una pantalla que no explica nada durante dos días. Así que se registra
+    // la ESPERA — con su ficha, si el proveedor la manda — y se activará
+    // cuando llegue `async_payment_succeeded`.
+    if (!isPaidSession(session)) {
+      await manager.update(
+        SubscriptionUpgradeIntent,
+        { id: intent.id, organizationId, status: 'pending' as const },
+        {
+          awaitingPaymentAt: new Date(),
+          ...(readHttpsUrl(session, 'hosted_voucher_url')
+            ? { voucherUrl: readHttpsUrl(session, 'hosted_voucher_url') }
+            : {}),
+        },
+      );
+      await this.events.publish(
+        {
+          organizationId,
+          tenantId: organizationId,
+          type: 'commercial.checkout.awaiting_payment',
+          aggregateId: intent.id,
+          payload: {
+            planCode: intent.requestedPlanCode,
+            paymentMethod:
+              readMetadata(session, 'paymentMethod') ?? intent.paymentMethod,
+          },
+          idempotencyKey: `payment-event:${event.id}`,
+        },
+        { native: manager },
+      );
+      return { status: 'processed', outcome: 'checkout_awaiting_payment' };
+    }
     // Sólo la transición pending→confirmed afecta filas; una redelivery que
     // llegara por otro camino encuentra 0 y sigue: la activación es una
     // afirmación de estado, no un incremento.
@@ -195,6 +239,10 @@ export class BillingWebhookService {
         status: 'confirmed' as const,
         decidedByUserId: null,
         decidedAt: new Date(),
+        // Se deja de esperar: el dinero llegó. La ficha caducada no se
+        // conserva porque enseñarla después de pagar invita a pagar dos veces.
+        awaitingPaymentAt: null,
+        voucherUrl: null,
       },
     );
 
@@ -202,13 +250,23 @@ export class BillingWebhookService {
     const providerCustomerId = readReferenceId(session, 'customer');
     const currentPeriodEnd =
       readEpochSeconds(session, 'current_period_end') ??
-      readEpochSeconds(readSubscriptionObject(session), 'current_period_end');
+      readEpochSeconds(readSubscriptionObject(session), 'current_period_end') ??
+      // Pago ÚNICO (OXXO/SPEI): no hay suscripción en el proveedor, así que no
+      // hay `current_period_end` que leer. El período se deriva del que se
+      // compró, que viaja en la metadata de la sesión desde que se creó. Sin
+      // esto habría que suponer un mes: once meses regalados a quien pagó el
+      // año, o un año cobrado a quien pagó un mes.
+      periodEndFromMetadata(session);
 
     const patch = {
       planCode: intent.requestedPlanCode,
       status: 'active' as const,
       trialEndsAt: null,
       cancelAtPeriodEnd: false,
+      // Los asientos PAGADOS pasan a ser el límite que la API impone. Manda el
+      // intent y no la metadata del proveedor: el intent es nuestro registro
+      // de qué se cobró, y la metadata es lo que el proveedor decida devolver.
+      seats: Math.max(1, Number(intent.requestedSeats) || 1),
       ...(currentPeriodEnd ? { currentPeriodEnd } : {}),
       ...(providerSubscriptionId ? { providerSubscriptionId } : {}),
       ...(providerCustomerId ? { providerCustomerId } : {}),
@@ -243,6 +301,55 @@ export class BillingWebhookService {
       },
     });
     return { status: 'processed', outcome: 'subscription_activated' };
+  }
+
+  /**
+   * `checkout.session.async_payment_failed`: la ficha de OXXO caducó sin
+   * pagarse, o la transferencia no llegó.
+   *
+   * El intent NO se cancela: sigue `pending` para que el cliente pueda pedir
+   * una ficha nueva sin volver a empezar, y sólo se le quita la espera —que ya
+   * no lleva a ninguna parte— para que la interfaz deje de anunciar un pago en
+   * curso que no existe. Cancelarlo obligaría a repetir todo el embudo a
+   * alguien cuyo único error fue no llegar a la tienda en tres días.
+   */
+  private async failAsyncCheckout(
+    manager: EntityManager,
+    event: PaymentWebhookEvent,
+    session: unknown,
+  ): Promise<BillingWebhookResult> {
+    const intentId =
+      readReferenceId(session, 'client_reference_id') ??
+      readMetadata(session, 'intentId');
+    if (!intentId || !isUuid(intentId)) {
+      return { status: 'ignored', outcome: 'checkout_without_intent' };
+    }
+    const intent = await manager.findOneBy(SubscriptionUpgradeIntent, {
+      id: intentId,
+    });
+    if (!intent) {
+      throw new BillingWebhookNotCorrelatedError('checkout_intent_unknown');
+    }
+    await manager.update(
+      SubscriptionUpgradeIntent,
+      { id: intent.id, organizationId: intent.organizationId },
+      { awaitingPaymentAt: null, voucherUrl: null },
+    );
+    await this.events.publish(
+      {
+        organizationId: intent.organizationId,
+        tenantId: intent.organizationId,
+        type: 'commercial.checkout.payment_expired',
+        aggregateId: intent.id,
+        payload: {
+          planCode: intent.requestedPlanCode,
+          paymentMethod: intent.paymentMethod,
+        },
+        idempotencyKey: `payment-event:${event.id}`,
+      },
+      { native: manager },
+    );
+    return { status: 'processed', outcome: 'checkout_payment_expired' };
   }
 
   /** `invoice.paid`: renueva el período y guarda el espejo de la factura. */
@@ -463,6 +570,43 @@ export class BillingWebhookService {
       { native: manager },
     );
   }
+}
+
+/**
+ * ¿Entró el dinero de esta sesión?
+ *
+ * `payment_status` es el campo que distingue una sesión de tarjeta (llega ya
+ * `paid`) de una de OXXO/SPEI (llega `unpaid`, con la ficha recién generada).
+ * Un valor AUSENTE se trata como pagado a propósito: es lo que hacían las
+ * sesiones de suscripción de la ola 2, cuyo `checkout.session.completed` ya
+ * significaba cobro hecho. Suponer lo contrario habría dejado de activar a
+ * todos los clientes de tarjeta el día del despliegue.
+ */
+function isPaidSession(session: unknown): boolean {
+  const status = readShortString(session, 'payment_status', 40);
+  return (
+    status === null || status === 'paid' || status === 'no_payment_required'
+  );
+}
+
+/** Períodos que el checkout puede vender, en milisegundos aproximados. */
+const PERIOD_DURATION_MS: Readonly<Record<string, number>> = {
+  monthly: 30 * 86_400_000,
+  yearly: 365 * 86_400_000,
+};
+
+/**
+ * Fin del período de un pago ÚNICO, a partir del período que se compró.
+ *
+ * Los 30 y 365 días son aproximaciones deliberadas y GENEROSAS respecto al
+ * calendario: quien paga en efectivo no tiene renovación automática, así que
+ * el único efecto de redondear es que conserve el acceso un día de más. La
+ * alternativa —cortarle antes de tiempo a alguien que ya pagó— sí tiene coste.
+ */
+function periodEndFromMetadata(session: unknown): Date | null {
+  const period = readMetadata(session, 'period');
+  const duration = period ? PERIOD_DURATION_MS[period] : undefined;
+  return duration ? new Date(Date.now() + duration) : null;
 }
 
 /** Suscripción expandida dentro de la sesión de checkout, si viene. */

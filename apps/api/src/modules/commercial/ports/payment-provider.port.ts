@@ -1,4 +1,7 @@
-import type { PlanPricePeriod } from '../entities/commercial.entities';
+import type {
+  PaymentMethod,
+  PlanPricePeriod,
+} from '../entities/commercial.entities';
 
 /**
  * Puerto de pagos. Interfaz mínima y HONESTA: describe únicamente lo que el
@@ -44,6 +47,14 @@ export interface PaymentCheckoutIntent {
    * adaptador nunca decide cuántos asientos son legítimos.
    */
   readonly seats: number;
+  /**
+   * Medio de pago elegido. No es una preferencia estética: `oxxo` y `spei` son
+   * pagos ASÍNCRONOS de un solo golpe (el dinero llega horas o días después) y
+   * el adaptador tiene que pedirle al proveedor una sesión de naturaleza
+   * distinta. Mandarlos por el camino de la tarjeta produciría una sesión que
+   * el proveedor rechaza, o peor, una que nunca se confirma.
+   */
+  readonly paymentMethod: PaymentMethod;
 }
 
 /** Foto del precio elegido, ya normalizada (céntimos como número entero). */
@@ -55,8 +66,16 @@ export interface PaymentPriceSnapshot {
 }
 
 export type PaymentCheckoutResult =
-  /** El proveedor aloja el pago; `url` es la página a la que ir. */
-  | { kind: 'hosted'; url: string; reference: string }
+  /**
+   * El proveedor aloja el pago; `url` es la página a la que ir.
+   *
+   * `asynchronous` distingue el cobro que se resuelve en la propia página
+   * (tarjeta) del que sólo entrega instrucciones y se confirma después por
+   * webhook (OXXO, SPEI). La interfaz NECESITA la diferencia: con un pago en
+   * efectivo, volver del proveedor sin suscripción activa es lo NORMAL, y
+   * presentarlo como fallo empuja al cliente a pagar dos veces.
+   */
+  | { kind: 'hosted'; url: string; reference: string; asynchronous: boolean }
   /** El cobro sigue un camino externo; `reference` lo identifica de forma auditable. */
   | { kind: 'external'; reference: string }
   /** El proveedor no puede iniciar este cobro; `reason` explica el camino real. */
@@ -66,6 +85,17 @@ export type PaymentCheckoutResult =
 export interface PaymentSubscriptionReference {
   readonly providerSubscriptionId: string;
 }
+
+/** Cliente tal y como lo conoce el proveedor; lo que su portal necesita. */
+export interface PaymentCustomerReference {
+  readonly providerCustomerId: string;
+}
+
+export type PaymentPortalResult =
+  /** El proveedor aloja el portal; `url` caduca y es de un solo cliente. */
+  | { kind: 'hosted'; url: string }
+  /** No hay portal que abrir; `reason` explica el camino real. */
+  | { kind: 'unavailable'; reason: string };
 
 export type PaymentCancellationResult =
   /** El proveedor dejará de renovar al terminar el período en curso. */
@@ -94,6 +124,19 @@ export interface PaymentProvider {
   cancelAtPeriodEnd(
     reference: PaymentSubscriptionReference,
   ): Promise<PaymentCancellationResult>;
+  /**
+   * Abre el portal del proveedor para que el propio cliente arregle su medio
+   * de pago.
+   *
+   * Existe porque hasta ahora a un cliente en `past_due` se le INFORMABA de
+   * que su cobro falló y no se le daba forma de arreglarlo desde el producto:
+   * su única salida era escribir a soporte para que alguien le pasara un
+   * enlace. Los datos de la tarjeta jamás pasan por este producto —ni deben—,
+   * así que la única solución honesta es llevarle al portal del proveedor.
+   */
+  createBillingPortalSession(
+    reference: PaymentCustomerReference,
+  ): Promise<PaymentPortalResult>;
   /**
    * Verifica un webhook del proveedor sobre los BYTES crudos (nunca JSON
    * reserializado — mismo principio que ADR-0006). El adaptador nulo no lo

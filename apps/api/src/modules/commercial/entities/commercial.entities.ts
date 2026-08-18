@@ -7,6 +7,7 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { JSON_COLUMN_TYPE } from '../../../common/database/json-column-type';
 import { DATE_COLUMN_TYPE } from '../../../common/database/date-column-type';
@@ -24,6 +25,18 @@ export const SUBSCRIPTION_STATUSES = [
   'cancelled',
 ] as const;
 export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
+
+/**
+ * Medios de pago que el checkout puede abrir.
+ *
+ * `oxxo` y `spei` NO son una variante cosmética de `card`: son pagos
+ * ASÍNCRONOS que tardan de horas a días y que en Stripe viven en `mode:
+ * payment` (un cobro único por período), no en `mode: subscription`. Una parte
+ * grande del mercado objetivo mexicano no tiene tarjeta de crédito, así que
+ * sin estos dos el producto sencillamente no se le puede vender.
+ */
+export const PAYMENT_METHODS = ['card', 'oxxo', 'spei'] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
 @Entity('plan_catalog')
 export class PlanCatalog {
@@ -124,6 +137,15 @@ export class Subscription {
   /** Baja programada: sigue vigente hasta `currentPeriodEnd`. */
   @Column({ name: 'cancel_at_period_end', type: 'boolean', default: false })
   cancelAtPeriodEnd!: boolean;
+  /**
+   * Asientos PAGADOS. Es el límite que la API impone al añadir miembros, no
+   * una etiqueta informativa: el checkout ya cobraba la cantidad correcta,
+   * pero nada impedía meter después el doble de gente. Vive en la suscripción
+   * y no en el plan porque un plan por usuario tiene tantos asientos como
+   * cada organización haya comprado.
+   */
+  @Column({ type: 'integer', default: 1 })
+  seats!: number;
   /** Identidad en la pasarela; null mientras el cobro sea externo. */
   @Column({
     name: 'provider_subscription_id',
@@ -210,8 +232,102 @@ export class SubscriptionUpgradeIntent {
   decidedBy!: User | null;
   @Column({ name: 'decided_at', type: DATE_COLUMN_TYPE, nullable: true })
   decidedAt!: Date | null;
+  /**
+   * Asientos pedidos en la compra. Se guardan en el INTENT porque el webhook
+   * que activa la suscripción tiene que saber cuántos se cobraron, y confiar
+   * sólo en la metadata que vuelve del proveedor dejaría el límite de asientos
+   * a merced de lo que el proveedor decida reenviar.
+   */
+  @Column({ name: 'requested_seats', type: 'integer', default: 1 })
+  requestedSeats!: number;
+  /** Medio elegido; null en los intents del camino asistido (sin pasarela). */
+  @Column({
+    name: 'payment_method',
+    type: 'varchar',
+    length: 20,
+    nullable: true,
+  })
+  paymentMethod!: PaymentMethod | null;
+  /**
+   * Momento en que el proveedor confirmó la sesión SIN haber recibido el
+   * dinero (OXXO: el cliente ya tiene su ficha; SPEI: ya tiene la CLABE).
+   * Es la diferencia entre «no ha pasado nada» y «el cliente está esperando»,
+   * y es lo que permite a la interfaz decir qué se está esperando en vez de
+   * dejar una pantalla de compra en blanco durante dos días.
+   */
+  @Column({
+    name: 'awaiting_payment_at',
+    type: DATE_COLUMN_TYPE,
+    nullable: true,
+  })
+  awaitingPaymentAt!: Date | null;
+  /** Ficha/instrucciones hospedadas por el proveedor; sólo HTTPS. */
+  @Column({ name: 'voucher_url', type: 'text', nullable: true })
+  voucherUrl!: string | null;
   @CreateDateColumn({ name: 'created_at', type: DATE_COLUMN_TYPE })
   createdAt!: Date;
+}
+
+/**
+ * Datos fiscales del RECEPTOR para el CFDI 4.0.
+ *
+ * Una fila por organización (índice único + CHECK de alcance de tenant,
+ * ADR-0005): quien factura es la organización, no la persona que teclea. Los
+ * cinco campos son los que el SAT exige en el nodo Receptor de un CFDI 4.0 y
+ * los cinco son obligatorios: no existe el perfil «a medias», porque un perfil
+ * incompleto pasa por capturado hasta el día en que hay que timbrar.
+ *
+ * `person_type` se DERIVA del RFC (13 = física, 12 = moral) y se persiste
+ * porque es lo que decide qué regímenes son legales para esa fila; recalcularlo
+ * en cada lectura repetiría la regla en varios sitios.
+ *
+ * No lleva sello, certificado ni contraseña de la FIEL: aquí no se firma nada.
+ * Custodiar material criptográfico fiscal del cliente es una responsabilidad
+ * que este producto no necesita asumir y no asume.
+ */
+@Entity('tax_profiles')
+@Index(['organizationId'], { unique: true })
+@Check('chk_tax_profiles_tenant_scope', '"tenant_id" = "organization_id"')
+export class TaxProfile {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column({ name: 'organization_id', type: 'uuid' }) organizationId!: string;
+  @ManyToOne(() => Organization, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'organization_id' })
+  organization!: Organization;
+  @Column({ name: 'tenant_id', type: 'uuid' }) tenantId!: string;
+  @ManyToOne(() => Organization, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'tenant_id' })
+  tenantOrganization!: Organization;
+  /** 12 (moral) o 13 (física) caracteres, ya normalizado a mayúsculas. */
+  @Column({ type: 'varchar', length: 13 }) rfc!: string;
+  @Column({ name: 'person_type', type: 'varchar', length: 10 })
+  personType!: 'fisica' | 'moral';
+  /** Razón social o nombre completo, como en la Constancia del SAT. */
+  @Column({ name: 'legal_name', type: 'varchar', length: 300 })
+  legalName!: string;
+  /** Clave de `c_RegimenFiscal` (601, 612, 626…). */
+  @Column({ name: 'tax_regime_code', type: 'varchar', length: 4 })
+  taxRegimeCode!: string;
+  /** Clave de `c_UsoCFDI` (G03, I04, S01). */
+  @Column({ name: 'cfdi_use_code', type: 'varchar', length: 4 })
+  cfdiUseCode!: string;
+  /** Código postal del domicilio fiscal: cinco dígitos. */
+  @Column({ name: 'postal_code', type: 'character', length: 5 })
+  postalCode!: string;
+  @Column({ name: 'updated_by_user_id', type: 'uuid', nullable: true })
+  updatedByUserId!: string | null;
+  @ManyToOne(() => User, { nullable: true, onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'updated_by_user_id' })
+  updatedBy!: User | null;
+  @CreateDateColumn({ name: 'created_at', type: DATE_COLUMN_TYPE })
+  createdAt!: Date;
+  /**
+   * Gestionada por el ORM: la fecha de la última captura es un hecho del
+   * sistema, no un dato que quien llama pueda afirmar. Que la ponga el
+   * llamador abre la puerta a un perfil que dice haberse revisado ayer.
+   */
+  @UpdateDateColumn({ name: 'updated_at', type: DATE_COLUMN_TYPE })
+  updatedAt!: Date;
 }
 
 /**

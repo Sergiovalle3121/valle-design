@@ -27,6 +27,7 @@ import {
   PlanPrice,
   Subscription,
   SubscriptionUpgradeIntent,
+  TaxProfile,
 } from './entities/commercial.entities';
 import type { PaymentWebhookEvent } from './ports/payment-provider.port';
 
@@ -48,6 +49,7 @@ const CONFIGURATION: StripeConfiguration = {
   apiBaseUrl: 'https://api.stripe.test',
   successUrl: 'https://app.example.test/ok',
   cancelUrl: 'https://app.example.test/ko',
+  portalReturnUrl: 'https://app.example.test/portal',
   timeoutMs: 5_000,
   toleranceSeconds: 300,
   apiVersion: null,
@@ -150,6 +152,7 @@ describePostgres('Ciclo de vida cobrado con Stripe (PostgreSQL)', () => {
         DomainOutbox,
         PaymentEvent,
         Invoice,
+        TaxProfile,
       ],
       { schemaPrefix: 'stripe_billing' },
     );
@@ -161,6 +164,7 @@ describePostgres('Ciclo de vida cobrado con Stripe (PostgreSQL)', () => {
     billing = new BillingController(
       source.getRepository(Subscription),
       source.getRepository(Invoice),
+      source.getRepository(TaxProfile),
       source,
       new PostgresCadEventPublisher(),
       new StripePaymentProvider(CONFIGURATION, httpClient),
@@ -251,6 +255,14 @@ describePostgres('Ciclo de vida cobrado con Stripe (PostgreSQL)', () => {
         trialEndsAt: new Date(Date.now() + 86_400_000),
       },
     ]);
+    // `POST checkout-sessions` EXIGE datos fiscales antes de cobrar; sin esta
+    // fila el ciclo no arrancaría. La puerta y su validación se prueban en
+    // commercial-mexican-billing.pg.spec.ts: aquí sólo es atrezo.
+    await harness.dataSource.query(
+      `INSERT INTO "${harness.schema}"."tax_profiles" ("organization_id", "tenant_id", "rfc", "person_type", "legal_name", "tax_regime_code", "cfdi_use_code", "postal_code")
+       VALUES ($1, $1, 'VECJ880326XX4', 'fisica', 'JUAN CARLOS VERA CRUZ', '612', 'G03', '06700')`,
+      [organizationId],
+    );
   });
 
   it('recorre checkout → activa → renueva → past_due → cancelada', async () => {
@@ -625,6 +637,7 @@ describePostgres('Ciclo de vida cobrado con Stripe (PostgreSQL)', () => {
     const conNulo = new BillingController(
       harness.dataSource.getRepository(Subscription),
       harness.dataSource.getRepository(Invoice),
+      harness.dataSource.getRepository(TaxProfile),
       harness.dataSource,
       new PostgresCadEventPublisher(),
       new NullPaymentProvider(),

@@ -12,6 +12,7 @@ import { IsOptional, IsString, Matches } from 'class-validator';
 import { In, Repository } from 'typeorm';
 import { Public } from '../../auth/decorators/public.decorator';
 import { PlanCatalog, PlanPrice } from '../entities/commercial.entities';
+import { SAT_CFDI_USES, SAT_TAX_REGIMES } from '../fiscal/sat-catalogs';
 import {
   PAYMENT_PROVIDER,
   type PaymentProvider,
@@ -151,6 +152,39 @@ export class PublicCatalogController {
       expiresAt: now + CATALOG_CACHE_TTL_MS,
     });
     return view;
+  }
+
+  /**
+   * Catálogos del SAT que la captura fiscal necesita (`c_RegimenFiscal` y el
+   * subconjunto aplicable de `c_UsoCFDI`).
+   *
+   * Es PÚBLICO y cacheable por las mismas dos razones que el catálogo de
+   * planes: no contiene ni un dato de ninguna organización —son claves que el
+   * SAT publica para todo México— y es idéntico para todo el mundo. Además, el
+   * formulario fiscal aparece en el alta, antes de que exista organización
+   * activa; exigir sesión para pintar un desplegable de regímenes fiscales
+   * añadiría un fallo posible justo en el paso previo al cobro.
+   *
+   * Se sirve desde constantes en código, no desde la base: son catálogos
+   * versionados por el SAT que cambian con años de aviso, y meterlos en tablas
+   * añadiría una migración y un estado que se puede desincronizar a cambio de
+   * ninguna capacidad nueva.
+   */
+  @Get('tax-catalogs')
+  @Header('Cache-Control', 'public, max-age=3600, s-maxage=86400')
+  taxCatalogs() {
+    return {
+      taxRegimes: SAT_TAX_REGIMES.map((regime) => ({
+        code: regime.code,
+        name: regime.name,
+        personTypes: [...regime.personTypes],
+      })),
+      cfdiUses: SAT_CFDI_USES.map((use) => ({
+        code: use.code,
+        name: use.name,
+        taxRegimeCodes: [...use.taxRegimeCodes],
+      })),
+    };
   }
 
   private async readCatalog(
