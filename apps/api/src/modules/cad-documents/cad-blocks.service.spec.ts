@@ -124,4 +124,74 @@ describe('CadBlocksService professional tenant library', () => {
       ),
     ).rejects.toThrow('supera 1 MB');
   });
+
+  /**
+   * El carril de sistema: los bloques arquitectónicos que siembra la migración
+   * viven con `tenant_id IS NULL` y llave `valle:arq:…`. Sin estas dos
+   * propiedades el sembrado no sirve de nada — una biblioteca que la migración
+   * llena pero que ningún inquilino ve es la misma biblioteca vacía de antes—,
+   * y sin la tercera cualquiera podría borrarles la puerta a todos los demás.
+   */
+  describe('biblioteca base del producto', () => {
+    const sembrarPuerta = () =>
+      source.getRepository(SfCadBlock).save(
+        source.getRepository(SfCadBlock).create({
+          tenant_id: null,
+          name: 'Puerta abatible 0.90 m',
+          assets: [],
+          definition: definition(
+            'valle:arq:puerta-abatible-90',
+            'Puerta abatible 0.90 m',
+            'Puerta de acceso',
+          ),
+          version: 1,
+          legacySourceId: 'valle:arq:puerta-abatible-90',
+        }),
+      );
+
+    it('la ve cualquier inquilino junto a sus propios bloques', async () => {
+      await sembrarPuerta();
+      await tenant.run(context('tenant-a'), () =>
+        service.create(
+          { name: 'Mi celda', definition: definition('mia', 'Mi celda', 'x') },
+          'cad@test',
+        ),
+      );
+
+      const listado = await tenant.run(context('tenant-a'), () =>
+        service.list(),
+      );
+      expect(listado.map((row) => row.name).sort()).toEqual([
+        'Mi celda',
+        'Puerta abatible 0.90 m',
+      ]);
+      // Y también el inquilino que no ha creado nada: la puerta no es de nadie
+      // en particular, es del producto.
+      expect(
+        await tenant.run(context('tenant-b'), () => service.list()),
+      ).toHaveLength(1);
+    });
+
+    it('no se lista dos veces cuando la sesión no trae inquilino', async () => {
+      await sembrarPuerta();
+      // Sin inquilino, el carril propio Y el de sistema son el mismo: si se
+      // consultaran los dos, cada bloque de fábrica saldría duplicado.
+      expect(await service.list()).toHaveLength(1);
+    });
+
+    it('es de sólo lectura: no se redefine ni se borra', async () => {
+      const sembrada = await sembrarPuerta();
+      const intentos: Array<() => Promise<unknown>> = [
+        () => service.update(sembrada.id, { name: 'Mi puerta' }),
+        () => service.remove(sembrada.id),
+      ];
+      for (const intento of intentos)
+        await expect(tenant.run(context('tenant-a'), intento)).rejects.toThrow(
+          'sólo lectura',
+        );
+      // Y tampoco desde una sesión sin inquilino, que es donde `tenant_id IS
+      // NULL` dejaría de distinguir lo del producto de lo propio.
+      await expect(service.remove(sembrada.id)).rejects.toThrow('sólo lectura');
+    });
+  });
 });

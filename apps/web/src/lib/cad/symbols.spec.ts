@@ -646,3 +646,73 @@ for (const [query, id] of [
     `search finds ${id} via "${query}"`,
   );
 }
+
+// ── Arquitectura (VD-CAD-ARQ-001) ──
+//
+// El catálogo sabía dibujar un ataúd y una máquina de tortillas, pero de las
+// ventanas conocía una sola y de las escaleras la recta. Estas aserciones
+// fijan lo que un despacho mexicano necesita para dibujar una casa entera, y
+// que MOVER la familia a `symbols-architecture.ts` no perdió a nadie por el
+// camino: los ids viejos viajan dentro de documentos guardados.
+for (const id of [
+  "door-90",
+  "double-door-180",
+  "window-120",
+  "stairs-straight",
+  "wc",
+  "sink",
+  "shower",
+  "stove",
+  "refrigerator",
+  "bed-single",
+  "bed-queen",
+  "sofa-3",
+  "dining-table-4",
+  "wardrobe",
+]) {
+  assert.ok(getCadSymbol(id), `${id} sigue en el catálogo tras la mudanza`);
+}
+for (const [query, id] of [
+  ["corrediza", "sliding-door-90"],
+  ["clóset", "closet-door-200"],
+  ["ventana corrediza", "window-sliding-150"],
+  ["abatible", "window-casement-60"],
+  ["proyectante", "window-awning-60"],
+  ["tina", "bathtub-170"],
+  ["descanso", "stairs-l"],
+  ["caracol", "spiral-stairs"],
+  ["rampa", "ramp"],
+  ["ascensor", "elevator"],
+  ["castillo", "column-square"],
+  ["columna redonda", "column-round"],
+  ["cochera", "garage-2"],
+  ["cisterna", "cistern"],
+  ["jardinera", "planter"],
+  ["king size", "bed-king"],
+  ["silla", "dining-chair"],
+  ["alacena", "pantry"],
+  ["isla", "kitchen-island"],
+] as const) {
+  assert.ok(
+    searchCadSymbols(query).some((symbol) => symbol.id === id),
+    `search finds ${id} via "${query}"`,
+  );
+}
+// Medidas reales, no decorativas: el cajón normativo de la CDMX mide
+// 5,00 × 2,40 m y una cochera de dos autos no cabe en menos de 5 m de frente.
+assert.equal(
+  getCadSymbol("garage-2")?.defaultWidth,
+  5000,
+  "cochera de dos autos a medida real",
+);
+assert.equal(
+  getCadSymbol("bed-king")?.defaultWidth,
+  1980,
+  "king size a la talla comercial mexicana (1.98 m)",
+);
+assert.equal(
+  getCadSymbol("column-square")?.layer,
+  "Structure",
+  "la columna aterriza en la capa de Estructura, no en Arquitectura",
+);
+console.log("cad architecture symbols specs passed");

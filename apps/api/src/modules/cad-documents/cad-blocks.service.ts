@@ -4,10 +4,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { FindOptionsWhere, IsNull, Repository } from 'typeorm';
+import { FindOptionsWhere, IsNull, Like, Repository } from 'typeorm';
 import { SfCadBlock } from './entities/sf-cad-block.entity';
 import { LayoutAsset } from './cad-drawing-shapes';
 import { TenantContextService } from '../../common/tenant/tenant-context.service';
+import {
+  SYSTEM_CAD_BLOCK_LIKE,
+  isSystemCadBlockKey,
+} from './system-cad-blocks';
 
 /**
  * Entrada estructural de un asset al crear un bloque. El DTO validado de
@@ -27,6 +31,12 @@ export interface CadBlockAssetInput {
 }
 
 const MAX_BLOCKS_PER_TENANT = 200;
+/**
+ * Techo del carril de sistema. Es un número del PRODUCTO, no del cliente, así
+ * que no consume la cuota del inquilino: los bloques de fábrica se ven además
+ * de los suyos, no en lugar de ellos.
+ */
+const MAX_SYSTEM_BLOCKS = 200;
 const MAX_ASSETS_PER_BLOCK = 200;
 const MAX_CANONICAL_ENTITIES_PER_BLOCK = 500;
 const MAX_CANONICAL_DEFINITION_BYTES = 1_000_000;
@@ -50,6 +60,45 @@ export class CadBlocksService {
   private tenantWhere(): FindOptionsWhere<SfCadBlock> {
     const tenant = this.tenantCtx.getTenantId();
     return tenant ? { tenant_id: tenant } : { tenant_id: IsNull() };
+  }
+
+  /**
+   * El carril de sistema: los bloques arquitectónicos que siembra la migración
+   * `ArchitecturalBlockLibrarySeed`. Van con `tenant_id IS NULL` y llave
+   * `valle:arq:…`; las dos condiciones a la vez, porque `tenant_id IS NULL` por
+   * sí solo también describe a los bloques de una sesión sin inquilino.
+   */
+  private systemLaneWhere(): FindOptionsWhere<SfCadBlock> {
+    return {
+      tenant_id: IsNull(),
+      legacySourceId: Like(SYSTEM_CAD_BLOCK_LIKE),
+    };
+  }
+
+  /**
+   * Fila que se va a MODIFICAR o BORRAR.
+   *
+   * Busca en el carril del inquilino Y en el de sistema, y sólo entonces
+   * decide. Buscar únicamente en el del inquilino habría dado 404 sobre un
+   * bloque que el mismo servicio acaba de listar y que el editor muestra en su
+   * panel: «no existe» sobre algo que se ve en pantalla manda a quien llama a
+   * crearlo otra vez. Existe; lo que no se puede es tocarlo, y eso es un 400
+   * con su motivo. Lo ajeno —el bloque de OTRO inquilino— sigue siendo 404,
+   * que es lo único que puede responderse sin confirmar que existe.
+   */
+  private async findForMutation(id: string): Promise<SfCadBlock> {
+    const row = await this.blocks.findOne({
+      where: [
+        { id, ...this.tenantWhere() },
+        { id, ...this.systemLaneWhere() },
+      ],
+    });
+    if (!row) throw new NotFoundException('Bloque no encontrado.');
+    if (isSystemCadBlockKey(row.legacySourceId))
+      throw new BadRequestException(
+        'Los bloques de la biblioteca base son de sólo lectura: duplícalo con otro nombre para modificarlo.',
+      );
+    return row;
   }
 
   private safeDefinition(value: Record<string, unknown> | undefined) {
@@ -83,11 +132,23 @@ export class CadBlocksService {
       createdAt: Date;
     }[]
   > {
-    const rows = await this.blocks.find({
+    const own = await this.blocks.find({
       where: this.tenantWhere(),
       order: { name: 'ASC' },
       take: MAX_BLOCKS_PER_TENANT,
     });
+    // Sin inquilino, `tenantWhere()` YA es el carril de sistema: volver a
+    // pedirlo devolvería cada bloque de fábrica dos veces.
+    const system = this.tenantCtx.getTenantId()
+      ? await this.blocks.find({
+          where: this.systemLaneWhere(),
+          order: { name: 'ASC' },
+          take: MAX_SYSTEM_BLOCKS,
+        })
+      : [];
+    const rows = [...system, ...own].sort((a, b) =>
+      a.name.localeCompare(b.name),
+    );
     const terms = query.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);
     return rows
       .map((b) => ({
@@ -180,10 +241,7 @@ export class CadBlocksService {
     id: string,
     dto: { name?: string; definition?: Record<string, unknown> },
   ) {
-    const row = await this.blocks.findOne({
-      where: { id, ...this.tenantWhere() },
-    });
-    if (!row) throw new NotFoundException('Bloque no encontrado.');
+    const row = await this.findForMutation(id);
     if (dto.name !== undefined) row.name = dto.name.trim().slice(0, 80);
     if (dto.definition !== undefined) {
       row.definition = this.safeDefinition(dto.definition);
@@ -201,11 +259,7 @@ export class CadBlocksService {
   }
 
   async remove(id: string): Promise<{ removed: true }> {
-    const row = await this.blocks.findOne({
-      where: { id, ...this.tenantWhere() },
-    });
-    if (!row) throw new NotFoundException('Bloque no encontrado.');
-    await this.blocks.remove(row);
+    await this.blocks.remove(await this.findForMutation(id));
     return { removed: true };
   }
 }

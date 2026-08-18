@@ -281,7 +281,12 @@ function buildArchitectureValidationIssues(
         title: "Room use missing",
         message: `${label || "Room"} is not classified by use type.`,
         affectedObjectIds: [room.id],
-        suggestedFix: "Add a tag such as use:smt, use:quality, use:warehouse, or dept:qa.",
+        // El vocabulario que se sugiere es el del despacho que dibuja casas,
+        // no el de la nave que ensambla tarjetas: `use:smt` no le dice nada a
+        // quien está clasificando una recámara. Los industriales siguen
+        // siendo válidos y por eso quedan al final de la lista.
+        suggestedFix:
+          "Add a tag such as use:recamara, use:bano, use:cocina, use:sala, use:cochera, dept:obra (industrial: use:smt, use:quality).",
       });
     }
     if (area > 0 && area < minimumRoomArea) {
