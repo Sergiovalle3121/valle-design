@@ -32,6 +32,19 @@ import type {
 import { cadEntityToDxfPrimitive } from "./dxf-entity-primitives";
 import { wallFootprint } from "./wall-geometry";
 
+/**
+ * Lo MÍNIMO del documento que la exportación DXF necesita leer.
+ *
+ * Nació al cablear `DXFOUT`: un comando del motor no recibe el `CadDocument`
+ * entero —su vista es un `Pick` deliberado, porque historia, colaboración y
+ * publicaciones no son asunto de un comando— y exigir el documento completo
+ * habría obligado a un `as` que finge tener sesiones que no tiene. Nombrar lo
+ * que de verdad se lee es más honesto y no cuesta nada: un `CadDocument`
+ * satisface este tipo sin conversión, así que ningún llamador anterior cambia.
+ */
+export type CadDxfExportSource = Pick<CadDocument, "entities" | "blocks"> &
+  Partial<Pick<CadDocument, "imageDefinitions" | "unsupportedEntities">>;
+
 /** Tipos con su PROPIO camino de exportación, fuera de las primitivas. */
 const DXF_NON_PRIMITIVE_TYPES = new Set([
   "hatch",
@@ -64,7 +77,7 @@ const DXF_NON_PRIMITIVE_TYPES = new Set([
  */
 type Schema4LossRule = (
   entity: CadEntity,
-  document: CadDocument,
+  document: CadDxfExportSource,
   scoped: readonly CadEntity[],
 ) => Pick<CadLossManifestEntry, "code" | "severity" | "detail"> | null;
 
@@ -217,7 +230,7 @@ function entityElevations(entity: CadEntity): number[] {
  * canónico actual: cuando se añadan, deben registrarse aquí.
  */
 export function cadDocumentDxfExportLosses(
-  document: CadDocument,
+  document: CadDxfExportSource,
   filter?: (entity: CadEntity) => boolean,
 ): CadLossManifestEntry[] {
   const losses: CadLossManifestEntry[] = [];

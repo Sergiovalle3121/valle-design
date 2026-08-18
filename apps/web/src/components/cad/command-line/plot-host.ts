@@ -123,6 +123,14 @@ export class CadPlotHost {
       return `Publicando «${loaded.set.name}» a un único PDF paginado…`;
     }
 
+    // DXFOUT no es trazado y no se sirve aquí: su anfitrión se enchufa ANTES
+    // que éste en `use-command-engine.ts`. La rama existe para que la unión de
+    // peticiones quede exhaustiva —si mañana alguien añade otra clase, el
+    // compilador la reclama aquí— y para que un montaje sin anfitrión de DXF
+    // diga qué falta en vez de caer en la rama de PLOT y pedir una hoja.
+    if (request.kind === "dxf-export")
+      return "Este espacio de trabajo no sabe entregar archivos DXF: falta el anfitrión de intercambio.";
+
     const document = this.bridge.document();
     if (!document) return "No hay ningún dibujo abierto que trazar.";
 

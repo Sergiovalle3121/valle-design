@@ -326,21 +326,35 @@ for (const type of ["3DFACE"]) {
   );
 }
 
-// LÍMITE CONOCIDO, fijado aquí para que no se confunda con cobertura: el aviso
-// lo emite el mapeador, así que sólo aparece para tipos que el tokenizador
-// subyacente (`dxf-parser`) sí construye. Un 3DSOLID o un LEADER se descartan
-// ANTES de llegar al mapeador y no producen advertencia: el importador no
-// inventa geometría, pero tampoco declara esa omisión. Cerrar ese hueco exige
-// inspeccionar el texto crudo y queda fuera de este alcance.
+// HUECO CERRADO. Antes de la ola de intercambio, el aviso lo emitía sólo el
+// mapeador, así que un 3DSOLID o un LEADER —que `dxf-parser` descarta ANTES de
+// llegar a él— desaparecían del fichero sin producir advertencia: el importador
+// no inventaba geometría, pero tampoco declaraba la omisión, y el usuario
+// recibía un informe que decía «todo entró». Lo destapó la matriz del corpus
+// externo (`docs/cad/evidence/dxf-external-corpus-matrix.json`), que separa
+// «perdido declarado» de «perdido EN SILENCIO» justo para esto.
+//
+// Ahora se cuentan las entidades de la sección ENTITIES sobre los pares crudos
+// y lo que el tokenizador tiró se declara, una por ejemplar.
 {
   const dropped = ["0", "SECTION", "2", "ENTITIES", "0", "3DSOLID", "8", "M", "0", "ENDSEC", "0", "EOF"].join("\n");
   const parsed = importDxfPrimitives(dropped);
   assert.equal(parsed.primitives.length, 0, "sigue sin inventarse geometría");
-  assert.equal(
-    parsed.warnings.length,
-    0,
-    "hueco declarado: el tokenizador lo descarta antes del mapeador",
-  );
+  assert.equal(parsed.warnings.length, 1, "la ausencia ya no es silenciosa");
+  assert.equal(parsed.warnings[0].code, "unsupported_entity");
+  assert.equal(parsed.warnings[0].entityType, "3DSOLID", "el aviso nombra el tipo que se perdió");
+
+  // Un aviso POR EJEMPLAR: el informe agrupa y cuenta, y uno solo por tipo le
+  // quitaría el número que hace accionable el mensaje.
+  const two = ["0", "SECTION", "2", "ENTITIES", "0", "MESH", "8", "M", "0", "MESH", "8", "M", "0", "ENDSEC", "0", "EOF"].join("\n");
+  assert.equal(importDxfPrimitives(two).warnings.length, 2, "dos MESH perdidos, dos avisos");
+
+  // Lo que se lee FUERA del tokenizador no puede contarse como ausencia: HATCH,
+  // MTEXT y los ocho del esquema 4 tienen su propio camino y llegan enteros.
+  const rawRead = ["0", "SECTION", "2", "ENTITIES", "0", "MTEXT", "8", "N", "10", "0", "20", "0", "1", "hola", "0", "ENDSEC", "0", "EOF"].join("\n");
+  const mtext = importDxfPrimitives(rawRead);
+  assert.equal(mtext.mtexts.length, 1, "el MTEXT se lee sobre los pares crudos");
+  assert.equal(mtext.warnings.length, 0, "y no se declara como perdido");
 }
 
 console.log("dxf-corpus-roundtrip.spec.ts OK");

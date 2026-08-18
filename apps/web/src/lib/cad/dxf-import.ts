@@ -219,6 +219,65 @@ export function summarizeDxfImportWarnings(
 const DEFAULT_LAYER = "0";
 const MAX_DXF_ENTITIES = 50000;
 
+/**
+ * Tipos que se leen FUERA del tokenizador y por eso no cuentan como ausencias.
+ *
+ * HATCH, MTEXT, MLEADER y los ocho del esquema 4 los lee este módulo sobre los
+ * pares crudos; VERTEX, SEQEND y ATTRIB no son entidades sueltas sino partes de
+ * la POLYLINE o del INSERT que las contiene. Todo lo demás que aparezca en
+ * ENTITIES y no llegue al mapeador ES una ausencia y se declara.
+ */
+const RAW_ONLY_ENTITY_TYPES = new Set([
+  "HATCH",
+  "MTEXT",
+  "MLEADER",
+  "VERTEX",
+  "SEQEND",
+  "ATTRIB",
+  ...DXF_SCHEMA4_ENTITY_TYPES,
+]);
+
+/**
+ * Cuántas entidades de cada tipo hay REALMENTE en la sección ENTITIES.
+ *
+ * Existe para cerrar el agujero que la matriz del corpus externo destapó: un
+ * 3DSOLID, un MESH, una REGION o un LEADER los descarta `dxf-parser` ANTES de
+ * llegar al mapeador, así que no producían primitiva NI aviso. El fichero
+ * perdía geometría y el usuario recibía un informe que decía «todo entró». Una
+ * ausencia silenciosa es peor que una limitación declarada: la segunda se puede
+ * accionar —el remitente explota la entidad y reenvía—, la primera se descubre
+ * en obra.
+ *
+ * Se cuenta sobre los pares crudos porque es la única fuente que ve lo que el
+ * tokenizador tiró. Sólo la sección ENTITIES: lo que hay dentro de BLOCKS llega
+ * por la expansión de INSERT y tiene su propio camino.
+ */
+function rawEntityTypeCounts(text: string): Map<string, number> {
+  const counts = new Map<string, number>();
+  let section: string | null = null;
+  let expectSectionName = false;
+  for (const pair of rawDxfPairs(text)) {
+    if (pair.code === 0) {
+      const type = pair.value.toUpperCase();
+      if (type === "SECTION") {
+        expectSectionName = true;
+        continue;
+      }
+      if (type === "ENDSEC" || type === "EOF") {
+        section = null;
+        continue;
+      }
+      if (section === "ENTITIES") counts.set(type, (counts.get(type) ?? 0) + 1);
+      continue;
+    }
+    if (pair.code === 2 && expectSectionName) {
+      section = pair.value.toUpperCase();
+      expectSectionName = false;
+    }
+  }
+  return counts;
+}
+
 
 function closeEnough(a: number, b: number, tol = 1e-6) {
   return Math.abs(a - b) <= tol;
@@ -952,6 +1011,25 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
   }
   // Lo que quedara detrás de la última entidad tokenizada.
   flushSchema4Upto(null);
+  // Lo que el tokenizador TIRÓ antes de que nadie lo pudiera mapear. Ver
+  // `rawEntityTypeCounts`: hasta esta ola se perdía sin aviso.
+  const tokenized = new Map<string, number>();
+  for (const entity of Array.isArray(parsed?.entities) ? parsed.entities : []) {
+    const type = String(entity?.type || "").toUpperCase();
+    tokenized.set(type, (tokenized.get(type) ?? 0) + 1);
+  }
+  for (const [type, count] of rawEntityTypeCounts(text)) {
+    if (RAW_ONLY_ENTITY_TYPES.has(type)) continue;
+    const dropped = count - (tokenized.get(type) ?? 0);
+    // Un aviso POR EJEMPLAR, como el resto del importador: el informe agrupa y
+    // cuenta, y un solo aviso por tipo le quitaría el número.
+    for (let index = 0; index < dropped; index += 1)
+      warnings.push({
+        code: "unsupported_entity",
+        message: `Entidad DXF no soportada: ${type}.`,
+        entityType: type,
+      });
+  }
   if (
     Array.isArray(parsed?.entities) &&
     parsed.entities.length > remainingEntityCapacity

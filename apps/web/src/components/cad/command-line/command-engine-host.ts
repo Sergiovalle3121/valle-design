@@ -194,6 +194,25 @@ export class CadCommandEngineHost {
     this.dispatch({ kind: "token", value });
   }
 
+  /**
+   * Contenido de un ARCHIVO que el usuario acaba de elegir, para el comando en
+   * curso. No pasa por `submit` a propósito, y no es un capricho de estilo:
+   *
+   * · `submit` ESCRIBE lo recibido en el diálogo, y `log` parte por saltos de
+   *   línea. Un DXF de cinco megas se convertiría en cien mil renglones de
+   *   historia — la pestaña se queda sin memoria antes de terminar de pintarla.
+   * · `submit` pasa el texto por el pipeline de entrada, que primero intenta
+   *   leerlo como palabra clave, luego como coordenada y luego como distancia.
+   *   Un archivo no es nada de eso.
+   *
+   * Lo que se registra es que se cargó un archivo y cuánto ocupa, que es lo que
+   * el usuario necesita ver; el contenido va derecho al paso activo.
+   */
+  feedFile(name: string, text: string): void {
+    this.log(`${name} (${text.length} caracteres)`, "input");
+    this.dispatch({ kind: "input", input: { kind: "text", value: text } });
+  }
+
   /** Invocación directa: un botón de la barra o un atajo de teclado. */
   invoke(command: string): void {
     this.log(command, "input");
