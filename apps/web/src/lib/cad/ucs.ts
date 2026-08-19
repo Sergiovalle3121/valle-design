@@ -485,7 +485,7 @@ export function describeCadUcs(ucs: CadNamedUcs, digits = 4): string {
   if (rotation !== null) return `${ucs.name}: ${origin}, giro ${n(rotation)}°`;
   return (
     `${ucs.name}: ${origin}, eje Z (${n(ucs.zAxis.x)}, ${n(ucs.zAxis.y)}, ${n(ucs.zAxis.z)})` +
-    ` — SCU inclinado, no tiene giro en planta`
+    " — SCU inclinado, no tiene giro en planta"
   );
 }
 

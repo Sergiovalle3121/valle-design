@@ -220,7 +220,10 @@ const ucsCliCommand: CadCommandDescriptor<UcsState> = {
           },
         };
       if (keyword === UCS_LIST.keyword) {
-        const saved = catalog.list();
+        // Los nombres que empiezan por `*` están reservados: son memoria del
+        // comando UCS —el sistema anterior— y no sistemas que el usuario haya
+        // guardado. Listarlos invitaría a restituir uno y encontrarse otro.
+        const saved = catalog.list().filter((entry) => !entry.name.startsWith("*"));
         return message(
           state,
           saved.length === 0
