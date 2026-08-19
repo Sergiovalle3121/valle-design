@@ -66,7 +66,6 @@ import {
   ENTITY_COUNT,
   frameTopDown,
   measureDenseGesture,
-  ROOM_COLUMNS,
   ROOM_COUNT,
   ROOM_HEIGHT,
   ROOM_WIDTH,
