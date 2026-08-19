@@ -19,13 +19,26 @@
  * han descartado.
  *
  * Sobre un cuerpo cóncavo NO lo es, y decirlo importa más que la propia regla.
- * En una pieza en L, una arista puede tener sus dos caras de espaldas y verse
- * igualmente por la escotadura; y al revés, una arista con las dos caras de
- * frente puede quedar tapada por otro brazo de la misma pieza. Por eso el
- * resultado declara `exact`: se calcula midiendo los ángulos diedros, y sólo
- * vale `true` cuando el cuerpo es realmente convexo. Quien consuma esto tiene
- * que mirar esa bandera y caer al camino de la GPU cuando sea `false` — es la
- * diferencia entre una optimización y un dibujo mal hecho.
+ * En un canal en U, una arista con una cara de frente puede quedar tapada por el
+ * otro brazo de la misma pieza — y este módulo la dará por vista. Tampoco sabe
+ * nada de un SEGUNDO cuerpo: una caja que está entera detrás de otra sigue
+ * dando aquí nueve aristas vistas. Por eso el resultado declara `exact`: se
+ * calcula midiendo los ángulos diedros, y sólo vale `true` cuando el cuerpo es
+ * realmente convexo.
+ *
+ * ## Dónde ir cuando `exact` es `false`
+ *
+ * Hay dos salidas, y la que toque depende de para qué sea el resultado:
+ *
+ *  · **Para la pantalla**, el búfer de profundidad. Es lo que hace el visor:
+ *    pinta las caras del color del fondo y deja que la GPU esconda lo de detrás.
+ *  · **Para un PLANO**, `hidden-line-solver.ts`. Resuelve cóncavos y escenas de
+ *    varios sólidos de forma analítica y exacta, y devuelve los segmentos ya
+ *    partidos en la parte que se ve y la que no. Cuesta más —no es un gesto por
+ *    cuadro— y es lo único que sirve para emitir geometría acotable.
+ *
+ * Lo que NO vale es consumir esto ignorando la bandera: es la diferencia entre
+ * una optimización y un dibujo mal hecho.
  *
  * ## Aristas de borde
  *
