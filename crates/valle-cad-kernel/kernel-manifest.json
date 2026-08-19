@@ -1,0 +1,70 @@
+{
+  "$schema": "urn:valle-design:schema:cad-wasm-kernel-manifest:v1",
+  "schemaVersion": 1,
+  "kernelId": "valle-cad-kernel",
+  "abi": 1,
+  "rebuildWith": "node scripts/wasm/build-kernel.mjs",
+  "verifyWith": "node scripts/wasm/build-kernel.mjs --check",
+  "toolchain": {
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "cargo": "cargo 1.97.1 (c980f4866 2026-06-30)",
+    "rustup": "rustup 1.29.0 (28d1352db 2026-03-05)",
+    "host": "x86_64-pc-windows-msvc",
+    "targetsInstalled": [
+      "wasm32-unknown-unknown",
+      "x86_64-pc-windows-msvc"
+    ],
+    "target": "wasm32-unknown-unknown",
+    "profile": "release",
+    "cargoFlags": [
+      "--release",
+      "--target wasm32-unknown-unknown",
+      "--offline"
+    ],
+    "profileFlags": {
+      "optLevel": "z",
+      "lto": true,
+      "codegenUnits": 1,
+      "panic": "abort",
+      "strip": true,
+      "overflowChecks": false
+    },
+    "dependencies": [],
+    "dependencyRationale": "Grafo vacío a propósito: sin wasm-bindgen ni wasm-opt, el binario se reconstruye sin red y sin resolver versiones de terceros."
+  },
+  "sources": [
+    {
+      "path": "crates/valle-cad-kernel/Cargo.toml",
+      "bytes": 1520,
+      "sha256": "4fd2f5fb90d80f6bb40d5df5c62edf7590a4f7c20a5241b455ff9e883f56a8cf"
+    },
+    {
+      "path": "crates/valle-cad-kernel/src/lib.rs",
+      "bytes": 17953,
+      "sha256": "fb19e09cd4c3a505e4240de08318e4de86261c49b8dbeede51ce9273c3a6f733"
+    }
+  ],
+  "binary": {
+    "path": "apps/web/public/wasm/valle-cad-kernel.wasm",
+    "bytes": 31218,
+    "sha256": "70d6bb0203f986fe9fb4795b3d36abb9661000e880ad623fd29dc9fd3d5942b7",
+    "exports": [
+      "memory:memory",
+      "valle_alloc:function",
+      "valle_free:function",
+      "valle_kernel_abi:function",
+      "valle_probe_cos:function",
+      "valle_probe_sin:function",
+      "valle_tessellate_arcs:function",
+      "valle_tessellate_ellipses:function",
+      "valle_tessellate_spline:function"
+    ]
+  },
+  "builtAt": "2026-08-19T05:49:29.822Z",
+  "builtOn": {
+    "platform": "win32",
+    "architecture": "x64",
+    "osType": "Windows_NT",
+    "osRelease": "10.0.26200"
+  }
+}

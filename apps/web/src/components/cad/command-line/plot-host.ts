@@ -65,6 +65,43 @@ export interface CadPlotHostBridge {
   onResult?(message: string, level: "info" | "error"): void;
 }
 
+/**
+ * Quién quiere enterarse de que salió un PDF.
+ *
+ * Existe porque **trazar no cambia el dibujo** —y es correcto que no lo cambie:
+ * el golden de trazado afirma justamente que la versión del documento no sube—.
+ * Así que no hay forma de saber por el documento que alguien exportó un plano, y
+ * el recorrido guiado necesita saberlo para cerrar su último paso.
+ *
+ * Es un registro tonto a propósito: este módulo no sabe qué es un recorrido
+ * guiado ni le importa. Se avisa cuando el archivo YA está entregado, nunca
+ * antes: un aviso al empezar contaría como plano exportado un trazado que
+ * después falló.
+ */
+type CadPlotDeliveryListener = (delivery: { fileName: string; pageCount: number }) => void;
+
+const plotDeliveryListeners = new Set<CadPlotDeliveryListener>();
+
+export function onCadPlotDelivered(listener: CadPlotDeliveryListener): () => void {
+  plotDeliveryListeners.add(listener);
+  return () => plotDeliveryListeners.delete(listener);
+}
+
+function notifyCadPlotDelivered(fileName: string, pageCount: number): void {
+  for (const listener of plotDeliveryListeners) {
+    try {
+      listener({ fileName, pageCount });
+    } catch {
+      // Un oyente que revienta no puede tirar el trazado: el PDF ya se entregó.
+    }
+  }
+}
+
+/** Sólo para las specs: deja el registro como recién cargado. */
+export function resetCadPlotDeliveryListeners(): void {
+  plotDeliveryListeners.clear();
+}
+
 /** Descarga en el navegador. Aparte para que las pruebas no necesiten DOM. */
 export function downloadCadFile(
   fileName: string,
@@ -131,6 +168,12 @@ export class CadPlotHost {
     if (request.kind === "dxf-export")
       return "Este espacio de trabajo no sabe entregar archivos DXF: falta el anfitrión de intercambio.";
 
+    // PLAN tampoco es trazado: lo sirve el anfitrión del SCU, enchufado antes
+    // que éste. Misma razón que la rama de arriba — la exhaustividad de la
+    // unión es la que avisa cuando llega una petición sin dueño.
+    if (request.kind === "ucs-plan")
+      return "Este espacio de trabajo no tiene vista que encuadrar: falta el anfitrión del SCU.";
+
     const document = this.bridge.document();
     if (!document) return "No hay ningún dibujo abierto que trazar.";
 
@@ -186,6 +229,7 @@ export class CadPlotHost {
         return;
       }
       this.bridge.download(result.fileName, result.bytes, "application/pdf");
+      notifyCadPlotDelivered(result.fileName, result.pageCount);
       // Las hojas omitidas se dicen SIEMPRE. Un conjunto publicado al que le
       // falta un plano y no lo cuenta es la peor forma de fallar: parece que
       // salió bien.
@@ -223,6 +267,7 @@ export class CadPlotHost {
         return;
       }
       this.bridge.download(`${fileName}.pdf`, result.bytes, "application/pdf");
+      notifyCadPlotDelivered(`${fileName}.pdf`, result.pageCount);
       // Las fuentes se dicen SIEMPRE: quien traza tiene que saber si el plano
       // depende de que el visor tenga la fuente o si viaja dentro del archivo.
       const embedded = result.fonts.filter((font) => font.embedded).length;

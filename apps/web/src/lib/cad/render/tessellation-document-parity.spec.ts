@@ -55,7 +55,7 @@ const p = (x: number, y: number) => ({ x, y, z: 0 });
 
 /**
  * Un ejemplar de CADA tipo registrado, montado para que su geometría se pueda
- * mirar: los dos que se derivan del documento (INSERT y WALL) traen su
+ * mirar: los que se derivan del documento (INSERT, WALL y OPENING) traen su
  * escenario —una definición de bloque, un muro vecino en L— porque un ejemplo
  * que no ejerce la dependencia haría pasar el barrido de forma vacía.
  */
@@ -216,6 +216,22 @@ const SAMPLES: Record<CadNativeEntityType, CadNativeEntity> = {
     height: 2_400,
     layer,
   },
+  // El hueco alojado en ese mismo muro: sin documento no tiene anfitrión y no
+  // dibuja nada, con documento dibuja jambas y hoja. Es el caso extremo de la
+  // marca `needsDocument` y por eso entra en el barrido.
+  opening: {
+    id: "opening",
+    type: "opening",
+    kind: "door",
+    hostId: "wall",
+    position: 500,
+    width: 900,
+    height: 2_100,
+    sill: 0,
+    swing: "left",
+    hinge: "start",
+    layer,
+  },
 };
 
 /** El vecino del muro: no se barre, existe para que la L exista. */
@@ -232,7 +248,7 @@ const WALL_NEIGHBOUR: CadNativeEntity = {
 const SAMPLE_ENTITIES = Object.values(SAMPLES);
 
 const document: CadDocument = migrateCadDocument({
-  meta: { version: 1, schema: 6, unit: "mm" },
+  meta: { version: 1, schema: 7, unit: "mm" },
   layers: [{ id: layer, name: "Cero", color: "#ffffff", visible: true, locked: false }],
   entities: [...SAMPLE_ENTITIES, WALL_NEIGHBOUR],
   modelSpace: { entityIds: [...SAMPLE_ENTITIES.map((entity) => entity.id), WALL_NEIGHBOUR.id] },
@@ -317,7 +333,13 @@ ok(
     `distinto con documento (${differing.join(", ")}) y son exactamente los marcados ` +
     `needsDocument (${marked.join(", ")})`,
 );
-assert.deepEqual(marked, ["insert", "wall"], "hoy son INSERT y WALL, y el barrido lo confirma");
+// El hueco alojado se suma a la lista con el esquema 7: sin documento no tiene
+// anfitrión, así que no tiene NI UN punto — es el caso más extremo de los tres.
+assert.deepEqual(
+  marked,
+  ["insert", "wall", "opening"],
+  "hoy son INSERT, WALL y OPENING, y el barrido lo confirma",
+);
 assert.deepEqual(differing, marked);
 
 // ---------------------------------------------------------------------------
@@ -341,7 +363,7 @@ async function main(): Promise<void> {
     id: "l", type: "line", start: p(0, 2_000), end: p(2_000, 2_000), layer,
   };
   const ele: CadDocument = migrateCadDocument({
-    meta: { version: 1, schema: 6, unit: "mm" },
+    meta: { version: 1, schema: 7, unit: "mm" },
     layers: [{ id: layer, name: "Cero", color: "#ffffff", visible: true, locked: false }],
     entities: [wallA, wallB, line],
     modelSpace: { entityIds: ["a", "b", "l"] },

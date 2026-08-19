@@ -102,6 +102,11 @@ checks += 1;
     ["lib/cad/cad-document", "el documento canónico"],
     ["lib/cad/entity-commands", "el vocabulario de mutación canónico"],
     ["lib/cad/entity-runtime", "el registro de adaptadores por entidad"],
+    // Las consultas BIM (`vd-areas`, `vd-carpinteria`, `vd-muros`) devuelven los
+    // MISMOS números que enseña el producto. Es una lectura pura del documento
+    // que la rutina ya alcanza con `entget`; la escritura sigue saliendo por
+    // `host.apply`, que es la única puerta que hay.
+    ["lib/cad/bim-schedule", "el cuadro de áreas y la tabla de cantidades derivados"],
     // El motor de comandos del producto: `command` lo CONDUCE en vez de
     // reimplementar un segundo intérprete de comandos.
     ["lib/cad/engine", "el registro de comandos del producto"],

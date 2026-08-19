@@ -22,7 +22,7 @@
  * - onFullscreenChange: no-op — el estudio Design no tiene chrome que ocultar.
  */
 
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import Layout3DEditor, {
   type Layout3DEditorPlatformProps,
   type Layout3DEditorProps,
@@ -31,6 +31,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useDesignAuth } from "@/contexts/DesignAuthContext";
 import { BRAND } from "@/config/brand";
+import { cadTourHost } from "@/components/cad/onboarding/tour-host";
 
 /** Props del Host: las del editor SIN las de plataforma (las inyecta el Host),
  *  más el proyecto CAD que define el alcance de trabajo en Design. */
@@ -65,6 +66,14 @@ export default function CadStudioHost({
     () => ({ userId: user?.id, tenantId: tenantId ?? undefined }),
     [user?.id, tenantId],
   );
+
+  // El recorrido guiado se ata AQUÍ porque aquí vive la identidad. «Ya vi el
+  // recorrido» es de esta persona: sin la clave por usuario, el segundo
+  // arquitecto de un estudio que comparte máquina hereda el «ya lo vi» del
+  // primero y se queda sin los cinco minutos que deciden si se queda.
+  useEffect(() => {
+    cadTourHost.attach(user?.id ?? null);
+  }, [user?.id]);
 
   // En Design el alcance es el proyecto CAD (sin buildingId enterprise).
   const scope = useMemo<NonNullable<Layout3DEditorPlatformProps["scope"]>>(

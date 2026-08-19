@@ -117,6 +117,11 @@ export function createEmptyCadEntityMix(): Record<
     // Esquema 6. Mismo criterio que el 5: el corpus determinista no emite
     // muros y declararlos en cero mantiene el recuento exhaustivo.
     wall: 0,
+    // El hueco del esquema 7 no lo emite ninguna mezcla: su geometría sale del
+    // muro que lo aloja, así que un corpus que lo generase tendría que generar
+    // también muros con longitud suficiente, y eso cambia la mezcla y sus
+    // hashes. Se declara a cero para que el compilador siga avisando.
+    opening: 0,
   };
 }
 

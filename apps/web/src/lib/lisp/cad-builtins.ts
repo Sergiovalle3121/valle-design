@@ -13,6 +13,7 @@
  * documento —validar la sintaxis de un `.lsp` al subirlo, por ejemplo— y tienen
  * que fallar diciendo qué falta.
  */
+import { installBimFunctions } from "./builtins/bim";
 import { installDialogs } from "./builtins/dialogs";
 import { installEntityFunctions } from "./builtins/entities";
 import { installInteraction } from "./builtins/interaction";
@@ -27,6 +28,10 @@ export function createCadLispBuiltins(): Map<string, LispValue> {
   installSelectionFunctions(table);
   installInteraction(table);
   installDialogs(table);
+  // Las consultas BIM: leen el modelo y devuelven los MISMOS números que enseña
+  // el producto. Sin ellas, «cuadro de áreas» sería una rutina que funciona en
+  // plantas rectangulares y miente en las demás.
+  installBimFunctions(table);
   // `load` va en la tabla CAD y no en el núcleo porque necesita una biblioteca
   // montada por el anfitrión; el núcleo se evalúa entero sin nada montado.
   installLoader(table);

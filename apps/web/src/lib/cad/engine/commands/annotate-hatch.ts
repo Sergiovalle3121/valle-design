@@ -53,9 +53,15 @@ import {
   cadHatchRegionAtPoint,
   cadHatchRegionFromObjects,
   cadHatchSpacing,
+  cadSelfIntersectingBoundarySources,
   type CadHatchRegion,
   type CadIslandStyle,
 } from "./hatch-support";
+
+/** Un contorno que se cruza consigo mismo no delimita región: se dice cuál. */
+const contornoCruzado = (sources: readonly string[]): string =>
+  `El contorno se cruza consigo mismo (${sources.join(", ")}). Un perímetro que se corta ` +
+  "no delimita una región: separa los tramos cruzados o recórtalos en el punto de cruce.";
 
 const OBJECTS = { keyword: "Objetos", shortcut: "O" } as const;
 const PATTERN = { keyword: "Patrón", shortcut: "P" } as const;
@@ -210,12 +216,19 @@ function fromPoint(
   context: CadCommandContext,
 ): CadCommandStep<HatchState> {
   const region = cadHatchRegionAtPoint(point, context, state.islandStyle);
-  if (!region)
+  if (!region) {
+    // El diagnóstico ANTES del consejo. Un contorno que se cruza consigo mismo
+    // está cerrado, así que «cierra el perímetro» manda a buscar un hueco que
+    // no existe; con el nombre del objeto delante la corrección es evidente.
+    const cruzados = cadSelfIntersectingBoundarySources(context);
+    if (cruzados.length)
+      return cadCommandRefused(state, contornoCruzado(cruzados));
     return cadCommandRefused(
       state,
       `El punto (${point.x}, ${point.y}) no está dentro de ningún contorno cerrado. ` +
         "Cierra el perímetro o designa los objetos que lo forman.",
     );
+  }
   return emit(state, region, context);
 }
 
@@ -226,12 +239,16 @@ function fromObjects(
 ): CadCommandStep<HatchState> {
   if (entityIds.length === 0) return cadCommandCancelled(state);
   const region = cadHatchRegionFromObjects(entityIds, context, state.islandStyle);
-  if (!region)
+  if (!region) {
+    const cruzados = cadSelfIntersectingBoundarySources(context, entityIds);
+    if (cruzados.length)
+      return cadCommandRefused(state, contornoCruzado(cruzados));
     return cadCommandRefused(
       state,
       `Los ${entityIds.length} objeto(s) designados no encierran ninguna región. ` +
         "Un contorno tiene que cerrarse: comprueba que no queden extremos sueltos.",
     );
+  }
   return emit(state, region, context);
 }
 

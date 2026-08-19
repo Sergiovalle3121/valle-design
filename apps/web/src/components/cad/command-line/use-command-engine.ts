@@ -54,6 +54,7 @@ import {
 } from "./navigation-host";
 import { CadPlotHost, downloadCadFile } from "./plot-host";
 import { handleCadDxfHostRequest } from "./dxf-host";
+import { handleCadUcsPlanRequest } from "./ucs-plan-host";
 import { cadStudioCommandContext } from "./studio-context";
 
 /**
@@ -325,8 +326,12 @@ export function useCadStudioCommandEngine(
     // El anfitrión de INTERCAMBIO va antes que el de trazado: `DXFOUT` no
     // traza, entrega un archivo, y encadenarlos así deja cada uno con una sola
     // responsabilidad en vez de un anfitrión que lo hace todo.
+    // El del SCU va antes que los otros dos por lo mismo que el de
+    // intercambio: `PLAN` no traza ni entrega archivos, mueve la vista, y cada
+    // anfitrión se queda con una sola responsabilidad.
     host: (request) =>
       live.current.host?.(request) ??
+      handleCadUcsPlanRequest(request, { controller: () => live.current.view.current ?? null }) ??
       handleCadDxfHostRequest(request, { download: downloadCadFile }) ??
       plot.handle(request),
     // Previsualización, captura forzada y forma del cursor pertenecen al

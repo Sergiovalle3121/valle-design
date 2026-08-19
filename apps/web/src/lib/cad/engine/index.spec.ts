@@ -166,6 +166,11 @@ const names = registry.all().map((command) => command.name);
     "VSCURRENT",
     // Ola BIM: el muro paramétrico.
     "WALL",
+    // Esquema 7: el hueco alojado. Están aquí por la regla que nació con el
+    // kernel B-rep —terminado, probado y sin un solo importador—: un módulo que
+    // no llega al registro no está implementado, por muchos specs que tenga.
+    "DOOR",
+    "WINDOW",
   ])
     assert.ok(names.includes(expected), `${expected} no llegó al registro del producto`);
 }

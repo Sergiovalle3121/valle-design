@@ -443,6 +443,9 @@ export function expectedDxfType(entity: CadNativeEntity): string {
     // Esquema 6. El mismo nombre que usa AutoCAD Architecture para sus muros;
     // el DXF plano no tiene entidad de muro.
     wall: "AEC_WALL",
+    // Esquema 7. Véase `from-entity.ts`: el nombre es el que la entidad tiene,
+    // no el del trazo en que se degrada al exportar.
+    opening: "AEC_WALL_OPENING",
   };
   return names[entity.type];
 }

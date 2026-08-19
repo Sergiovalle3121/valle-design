@@ -45,6 +45,12 @@ export const CAD_COMMAND_ALIASES: Readonly<Record<string, string>> = {
   // `MURO` la memoria muscular de quien viene del producto en español.
   WA: "WALL",
   MURO: "WALL",
+  // `DOORADD` y `WINDOWADD` son los nombres con los que AutoCAD Architecture
+  // coloca huecos; `PUERTA` y `VENTANA`, la memoria muscular en español.
+  DOORADD: "DOOR",
+  PUERTA: "DOOR",
+  WINDOWADD: "WINDOW",
+  VENTANA: "WINDOW",
 
   // --- modificación ---------------------------------------------------------
   E: "ERASE",
