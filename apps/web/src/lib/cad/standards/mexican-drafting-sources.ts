@@ -134,7 +134,9 @@ const NORMS: readonly CadStandardNorm[] = [
       "panel frontal. Un cajetín que cae al dorso obliga a desplegar el plano para saber qué plano es.",
     verify:
       "El PATRÓN concreto de pliegues (qué dobleces y en qué orden) lo detalla DIN 824, no ISO 5457. " +
-      "Confirmar con la reprografía del despacho cuál sigue.",
+      "Confirmar con la reprografía del despacho cuál sigue, y confirmar contra el texto de la " +
+      "edición vigente de ISO 5457 con qué alcance trata el plegado: lo que el producto comprueba es " +
+      "el RESULTADO —cuántos paneles A4 salen y que el cajetín quede en el visible—, no la secuencia.",
   },
   {
     id: "iso-3098-alturas",
@@ -156,7 +158,8 @@ const NORMS: readonly CadStandardNorm[] = [
     jurisdiction: "internacional",
     says:
       "Los grosores de línea salen de la serie 0,13 · 0,18 · 0,25 · 0,35 · 0,5 · 0,7 · 1 · 1,4 · 2 mm, " +
-      "y una misma lámina combina grosores separados al menos dos escalones para que se distingan.",
+      "en razón √2, y la línea gruesa de un dibujo debe ser al menos el doble de ancha que la fina " +
+      "para que se distingan al reproducirlo.",
     rule:
       "Toda capa declara su grosor tomado de esa serie. El grosor va EN LA CAPA y no se deja a una " +
       "tabla de plumas por color, que es lo que se pierde al mandar el archivo a otro despacho.",

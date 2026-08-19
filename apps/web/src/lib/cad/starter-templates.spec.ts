@@ -418,6 +418,22 @@ const ok = (condition: boolean, message: string) => {
       date: "2026-08-18",
     });
   assert.equal(serializeCadDocument(build()), serializeCadDocument(build()));
+  // Y la costumbre mexicana SOBREVIVE al guardado. Es la comprobación que hace
+  // real todo lo demás: si el serializador tirase `units` o `arrowhead`, el
+  // documento nacería en metros con garrapata y volvería del servidor en
+  // milímetros con flecha, y nadie sabría en qué paso se perdió.
+  {
+    const guardado = JSON.parse(serializeCadDocument(build())) as CadDocument;
+    const cota = guardado.styles.dimension["COTA 1:50"];
+    assert.equal(cota.units, "m");
+    assert.equal(cota.precision, 2);
+    assert.equal(cota.arrowhead, "architectural-tick");
+    assert.equal(
+      guardado.paperSpaces[0].titleBlock?.attributes.TITLE_BLOCK_VARIANT,
+      "mexicano",
+    );
+    assert.equal(guardado.layers.find((item) => item.id === "EJE")?.linetype, "CENTER");
+  }
   // Y el documento arranca VACÍO de geometría: la plantilla configura, no
   // dibuja. Un arranque con geometría de ejemplo obliga a borrarla antes de
   // empezar, que es peor que un lienzo en blanco.

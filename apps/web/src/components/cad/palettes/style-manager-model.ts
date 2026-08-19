@@ -88,6 +88,28 @@ export const CAD_STYLE_FAMILIES: readonly CadStyleFamilyDescriptor[] = [
         fallback: 2,
         min: 0,
       },
+      // Los dos campos que hacen mexicana una cota. Sin ellos en la paleta, la
+      // norma llegaría en la plantilla y sería INVISIBLE e ineditable: quien
+      // quisiera pasar un estilo de metros a centímetros tendría que rehacerlo.
+      {
+        key: "units",
+        label: "Unidad rotulada",
+        kind: "enum",
+        // En arquitectura mexicana se acota en metros (planta) o centímetros
+        // (detalle). La pulgada y el pie no se ofrecen: no se dibuja así en
+        // México, y ofrecerlos invita a un plano que la obra no sabe leer.
+        options: ["m", "cm", "mm"],
+        fallback: "mm",
+      },
+      {
+        key: "arrowhead",
+        label: "Remate",
+        kind: "enum",
+        // La garrapata primero, que es la de arquitectura. Las cuatro están
+        // admitidas por ISO 129-1; la flecha rellena es la de mecánica.
+        options: ["architectural-tick", "closed-filled", "open", "dot"],
+        fallback: "closed-filled",
+      },
     ],
   },
   {
