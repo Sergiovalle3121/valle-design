@@ -42,6 +42,7 @@ import {
 } from "@/lib/cad/view/visual-styles";
 import type { CadHiddenLineView } from "@/lib/cad/view/hidden-lines";
 import type { CadThreeViewport } from "@/lib/cad/entity-three";
+import type { SnapType } from "@/lib/cad/snap-engine";
 import type {
   CadSolidSnapProjector,
   CadSolidSnapQuery,
@@ -66,10 +67,13 @@ export function cadSolidEntityIds(document: CadDocument): string[] {
  */
 export interface CadSolidViewControllerLike {
   readonly revision: number;
+  readonly mode: "2d" | "3d";
   readonly view: { widthPx: number; heightPx: number };
   createDrawingProjector(): CadSolidSnapProjector;
   eyeDrawingPoint(): { x: number; y: number; z: number };
   viewDirectionDrawing(): { x: number; y: number; z: number };
+  worldToScreen(point: { x: number; y: number }): { x: number; y: number };
+  onChange(listener: () => void): () => void;
 }
 
 /** Puente de vista a partir de un controlador vivo, leído por `ref`. */
@@ -86,6 +90,17 @@ export function cadSolidViewBridge(
     eye: () => controller()?.eyeDrawingPoint() ?? null,
     direction: () => controller()?.viewDirectionDrawing() ?? null,
   };
+}
+
+/** Lo que devuelve `snapAtDrawingPoint`, con la forma que espera el editor. */
+export interface CadSolidDrawingSnap {
+  wx: number;
+  wy: number;
+  /** Siempre `true`: hubo enganche a geometría, no a la rejilla. */
+  onDxf: true;
+  snapType: SnapType;
+  /** La COTA del punto enganchado. El canal 2D del puntero todavía la ignora. */
+  wz: number;
 }
 
 /**
@@ -119,12 +134,43 @@ export class CadSolidShadeHost {
   /** Y la dirección de mirada de entonces: es la que mide cuánto ha girado. */
   private hiddenLineDirection: { x: number; y: number; z: number } | null = null;
 
+  /** Baja de la suscripción al controlador. `null` mientras no la haya. */
+  private unsubscribeView: (() => void) | null = null;
+  private readonly viewBridge: CadSolidViewBridge | null;
+
+  /**
+   * El segundo argumento es un GETTER del controlador y no el puente ya hecho.
+   *
+   * Es lo que permite construir este anfitrión ANTES de que exista la cámara
+   * —que es el orden real en el editor— sin que quien lo monta tenga que
+   * escribir el puente a mano. Sin puente, el anfitrión dibuja igual y no hay
+   * enganche 3D ni líneas ocultas por CPU.
+   */
   constructor(
     private readonly viewport: () => CadThreeViewport,
-    private readonly viewBridge?: CadSolidViewBridge,
+    private readonly viewController?: () => CadSolidViewControllerLike | null,
   ) {
     this.group.name = "cad-solids-shaded";
-    this.snapHost = viewBridge ? new CadSolidSnapHost(viewBridge) : null;
+    this.viewBridge = viewController ? cadSolidViewBridge(viewController) : null;
+    this.snapHost = this.viewBridge ? new CadSolidSnapHost(this.viewBridge) : null;
+  }
+
+  /**
+   * Se engancha al controlador la PRIMERA vez que hay uno.
+   *
+   * No se puede hacer en el constructor: allí la cámara todavía no existe. Y no
+   * se puede dejar en manos de quien monta el lienzo, porque entonces la
+   * reconstrucción de líneas ocultas dependería de que alguien se acordara de
+   * llamarla desde el manejador de la órbita — exactamente el tipo de cable
+   * suelto que hace que una funcionalidad exista y no funcione.
+   */
+  private ensureSubscribed(): void {
+    if (this.unsubscribeView || !this.viewController) return;
+    const controller = this.viewController();
+    if (!controller) return;
+    this.unsubscribeView = controller.onChange(() => {
+      this.refreshHiddenLines();
+    });
   }
 
   /**
@@ -142,6 +188,38 @@ export class CadSolidShadeHost {
     options: CadSolidSnapQuery,
   ): CadSolidSnapResult | null {
     return this.snapHost?.query(cursorX, cursorY, options) ?? null;
+  }
+
+  /**
+   * Enganche a un sólido desde un punto de DIBUJO, con la forma que el editor
+   * espera de su `snapFloor`.
+   *
+   * Aquí vive la traducción que antes estaba en el monolito, y merece quedar
+   * escrita: el punto de dibujo que llega es el que el rayo del puntero corta
+   * contra el plano del SUELO, así que proyectarlo devuelve exactamente el
+   * píxel donde está el cursor. De ahí en adelante se razona en pantalla, que
+   * es donde el usuario ve la arista.
+   *
+   * Sólo en modo 3D. En 2D la proyección plana ya acierta y el motor de siempre
+   * la resuelve; meterse ahí movería goldens sin ganar nada.
+   */
+  snapAtDrawingPoint(
+    wx: number,
+    wy: number,
+    options: CadSolidSnapQuery,
+  ): CadSolidDrawingSnap | null {
+    const controller = this.viewController?.() ?? null;
+    if (!controller || controller.mode !== "3d") return null;
+    const at = controller.worldToScreen({ x: wx, y: wy });
+    const hit = this.snap3d(at.x, at.y, options);
+    if (!hit) return null;
+    return {
+      wx: hit.point.x,
+      wy: hit.point.y,
+      onDxf: true,
+      snapType: hit.type,
+      wz: hit.point.z,
+    };
   }
 
   /** Por qué no hay enganche 3D, o `null` si lo hay. Para el panel de estado. */
@@ -231,6 +309,9 @@ export class CadSolidShadeHost {
     // mismo punto: si se hiciera aparte, habría un instante en el que el visor
     // dibuja una pieza donde el enganche todavía la busca en su sitio anterior.
     this.snapHost?.sync(document);
+    // Primera oportunidad real de encontrar la cámara: cuando el editor
+    // reconcilia, el lienzo ya está montado.
+    this.ensureSubscribed();
     const wanted = new Map<string, CadSolid3dEntity>();
     for (const entity of document.entities)
       if (entity.type === "solid3d") wanted.set(entity.id, entity);
@@ -271,6 +352,8 @@ export class CadSolidShadeHost {
   dispose(): void {
     this.clear();
     this.snapHost?.invalidate();
+    this.unsubscribeView?.();
+    this.unsubscribeView = null;
     this.group.removeFromParent();
   }
 }

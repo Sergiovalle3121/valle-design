@@ -15,7 +15,7 @@ import type { CadDocument, CadEntity } from "@/lib/cad/cad-document";
 import { CAD_DOCUMENT_SCHEMA } from "@/lib/cad/cad-document";
 import type { CadSolid3dEntity } from "@/lib/cad/cad-entities-v5";
 import { CadViewController } from "@/lib/cad/view/view-controller";
-import { CadSolidShadeHost, cadSolidViewBridge } from "./solid-shade-host";
+import { CadSolidShadeHost } from "./solid-shade-host";
 
 const layer = { id: "0", name: "0", color: "#94a3b8", visible: true, locked: false };
 const viewport = { scale: 0.01, width: 1_000, height: 800, elevation: 0.11 };
@@ -73,7 +73,7 @@ function controllerLookingAtSolid(): CadViewController {
   const controller = controllerLookingAtSolid();
   const host = new CadSolidShadeHost(
     () => viewport,
-    cadSolidViewBridge(() => controller),
+    () => controller,
   );
   host.sync(documentWith([block("caja", 50)]), none);
   assert.equal(host.count, 1, "el visor dibuja el sólido");
@@ -110,7 +110,7 @@ function controllerLookingAtSolid(): CadViewController {
   const controller = controllerLookingAtSolid();
   const host = new CadSolidShadeHost(
     () => viewport,
-    cadSolidViewBridge(() => controller),
+    () => controller,
   );
   host.sync(documentWith([block("caja", 50)]), none);
 
@@ -165,7 +165,7 @@ function controllerLookingAtSolid(): CadViewController {
   const controller = controllerLookingAtSolid();
   const host = new CadSolidShadeHost(
     () => viewport,
-    cadSolidViewBridge(() => controller),
+    () => controller,
   );
   host.sync(documentWith([block("caja", 50)]), none);
   assert.equal(host.snapIndexedEdges, 12);
@@ -188,7 +188,7 @@ function controllerLookingAtSolid(): CadViewController {
   const controller = controllerLookingAtSolid();
   const host = new CadSolidShadeHost(
     () => viewport,
-    cadSolidViewBridge(() => controller),
+    () => controller,
   );
   host.sync(documentWith([block("caja", 50)]), none);
 
@@ -215,15 +215,27 @@ function controllerLookingAtSolid(): CadViewController {
     "VSCURRENT Oculto quita las aristas que el cuerpo tapa en el acto",
   );
 
-  // Un giro pequeño NO reconstruye: es el umbral que impide pagar una
-  // reconstrucción por cuadro mientras se arrastra una órbita.
-  assert.equal(host.refreshHiddenLines(), false, "1° no llega al umbral");
+  // El CABLE, que es lo que de verdad importa: nadie llama a
+  // `refreshHiddenLines` desde fuera. El anfitrión se suscribió al controlador
+  // en su primer `sync`, así que orbitar reconstruye SOLO. Sin esta aserción,
+  // la funcionalidad podría existir entera y no dispararse nunca — que es como
+  // se rompen las cosas que «están implementadas».
+  const beforeSmall = host.group.children[0];
   controller.orbitPerspective(1, 0);
-  assert.equal(host.refreshHiddenLines(), false, "ni tras girar un grado");
-  // Y uno grande sí.
+  assert.equal(
+    host.group.children[0],
+    beforeSmall,
+    "un grado no llega al umbral: no se reconstruye nada",
+  );
   controller.orbitPerspective(30, 0);
-  assert.equal(host.refreshHiddenLines(), true, "treinta grados sí reconstruyen");
+  assert.notEqual(
+    host.group.children[0],
+    beforeSmall,
+    "treinta grados sí, y sin que nadie lo pida a mano",
+  );
   assert.equal(host.group.children[0]?.userData.hiddenLineRemoval, true);
+  // Y ya reconstruido, pedirlo otra vez no vuelve a costar.
+  assert.equal(host.refreshHiddenLines(), false, "la vista no ha vuelto a girar");
 
   // Volver a un estilo sombreado devuelve el mando a la GPU.
   host.setStyle("shaded-edges");
