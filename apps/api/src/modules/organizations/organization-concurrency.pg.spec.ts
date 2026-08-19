@@ -16,6 +16,7 @@ import {
   UsageLedger,
 } from '../commercial/entities/commercial.entities';
 import { CommercialCatalogBootstrap } from '../commercial/commercial-catalog.bootstrap';
+import { SeatEntitlementService } from '../commercial/seat-entitlement.service';
 import { Session, User } from '../identity/entities/identity.entity';
 import type { IdentityService } from '../identity/identity.service';
 import { OrganizationAccessService } from './organization-access.service';
@@ -102,6 +103,7 @@ describePostgres('Organization creation atomicity', () => {
         } as unknown as IdentityService,
         new OrganizationAccessService(organizations, memberships),
         { trialDays: 7 },
+        new SeatEntitlementService(harness.dataSource),
         organizations,
         memberships,
         harness.dataSource.getRepository(Invitation),

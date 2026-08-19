@@ -29,6 +29,7 @@ function configuration(
     apiBaseUrl: 'https://api.stripe.test',
     successUrl: 'https://app.example.test/billing/ok',
     cancelUrl: 'https://app.example.test/billing/ko',
+    portalReturnUrl: 'https://app.example.test/billing',
     timeoutMs: 5_000,
     toleranceSeconds: 300,
     apiVersion: null,
@@ -80,6 +81,7 @@ const INTENT = {
   organizationId: '22222222-2222-4222-8222-222222222222',
   planCode: 'standalone-full',
   seats: 1,
+  paymentMethod: 'card' as const,
 };
 const PRICE = {
   planCode: 'standalone-full',
@@ -155,6 +157,8 @@ describe('StripePaymentProvider · createCheckout', () => {
       kind: 'hosted',
       url: 'https://checkout.stripe.test/c/pay/cs_test_123',
       reference: 'cs_test_123',
+      // Tarjeta: el cobro se resuelve en la propia página del proveedor.
+      asynchronous: false,
     });
 
     expect(calls).toHaveLength(1);
@@ -164,9 +168,11 @@ describe('StripePaymentProvider · createCheckout', () => {
     expect(call.headers['content-type']).toBe(
       'application/x-www-form-urlencoded',
     );
-    // La clave idempotente es el intent: un reintento de red NO cobra dos veces.
+    // La clave idempotente es el intent MÁS el medio de pago: un reintento de
+    // red NO cobra dos veces, y quien abandonó una ficha de OXXO y vuelve con
+    // tarjeta obtiene una sesión nueva en vez de la ficha reservada de antes.
     expect(call.headers['idempotency-key']).toBe(
-      `checkout-intent:${INTENT.intentId}`,
+      `checkout-intent:${INTENT.intentId}:card`,
     );
     // Sin STRIPE_API_VERSION no se inventa una: manda la de la cuenta.
     expect(call.headers['stripe-version']).toBeUndefined();
@@ -550,6 +556,10 @@ describe('resolveStripeConfiguration · el interruptor es la configuración', ()
       apiBaseUrl: 'https://api.stripe.com',
       successUrl: 'https://app.example.test/ok',
       cancelUrl: 'https://app.example.test/ko',
+      // Sin STRIPE_PORTAL_RETURN_URL el portal devuelve a la misma página de
+      // retorno del checkout, que ya sabe leer el estado real: exigir una
+      // quinta variable habría dejado sin arrancar despliegues que funcionan.
+      portalReturnUrl: 'https://app.example.test/ok',
       timeoutMs: 20_000,
       toleranceSeconds: 300,
       apiVersion: null,

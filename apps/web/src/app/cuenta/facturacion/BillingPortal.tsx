@@ -15,8 +15,12 @@ import {
 import {
   BILLING_PATH,
   canCancelSubscription,
+  canOpenCheckout,
+  pendingPaymentNotice,
   PRICING_PATH,
+  type PendingPayment,
 } from "@/lib/commercial/checkout";
+import { TaxProfileForm } from "./TaxProfileForm";
 
 type LoadState =
   | { status: "loading" }
@@ -30,6 +34,18 @@ type LoadState =
  * que el contexto de sesión ya sabía.
  */
 type SessionGate = "loading" | "expired" | "no-organization" | "ready";
+
+/**
+ * Estado del botón que lleva al portal del proveedor.
+ *
+ * Es una navegación EXTERNA con una URL que caduca: se pide justo al pulsar y
+ * no al cargar la página. Pedirla por adelantado dejaría en el DOM un enlace
+ * muerto para quien tarde diez minutos en decidirse.
+ */
+type PortalState =
+  | { status: "idle" }
+  | { status: "opening" }
+  | { status: "failed"; message: string };
 
 type CancelState =
   | { status: "idle" }
@@ -57,6 +73,10 @@ export function BillingPortal() {
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
   const [invoicesDenied, setInvoicesDenied] = useState(false);
   const [cancel, setCancel] = useState<CancelState>({ status: "idle" });
+  const [pendingPayment, setPendingPayment] = useState<PendingPayment | null>(
+    null,
+  );
+  const [portal, setPortal] = useState<PortalState>({ status: "idle" });
   const [attempt, setAttempt] = useState(0);
 
   const gate: SessionGate = auth.isLoading
@@ -78,6 +98,7 @@ export function BillingPortal() {
         const current = await designClient.commercial.subscription();
         if (cancelled) return;
         setSubscription(current.subscription);
+        setPendingPayment(current.pendingPayment);
         try {
           const history = await designClient.commercial.invoices();
           if (cancelled) return;
@@ -111,6 +132,33 @@ export function BillingPortal() {
       cancelled = true;
     };
   }, [gate, attempt]);
+
+  /**
+   * Portal del proveedor. Antes, a alguien en `past_due` se le informaba del
+   * fallo y nada más: su única salida era escribir a soporte. Los datos de la
+   * tarjeta no pasan por este producto, así que la forma honesta de que la
+   * arregle es llevarle a quien la custodia.
+   */
+  const openProviderPortal = async () => {
+    setPortal({ status: "opening" });
+    try {
+      const session = await designClient.commercial.billingPortalSession();
+      // Destino EXTERNO: el router de Next sólo navega dentro de la aplicación.
+      window.location.assign(session.url);
+    } catch (error) {
+      const unavailable =
+        error instanceof DesignApiError &&
+        error.code === "billing_portal_unavailable";
+      setPortal({
+        status: "failed",
+        message: unavailable
+          ? "Tu suscripción no se cobra por una pasarela, así que no hay medio de pago que actualizar aquí. Escríbenos y lo vemos contigo."
+          : error instanceof Error
+            ? error.message
+            : "No pudimos abrir el portal de pagos.",
+      });
+    }
+  };
 
   const confirmCancellation = async () => {
     setCancel({ status: "sending" });
@@ -211,6 +259,11 @@ export function BillingPortal() {
             <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">
               {renewalNote(subscription)}
             </p>
+            <p className="mt-2 text-sm" data-testid="subscription-seats">
+              Asientos contratados: {subscription.seats}. Al invitar a alguien
+              por encima de ese número, la API lo rechaza: el límite no vive en
+              esta pantalla.
+            </p>
           </div>
         ) : (
           <p className="mt-4" role="status">
@@ -222,6 +275,76 @@ export function BillingPortal() {
           </p>
         )}
       </section>
+
+      {pendingPayment && (
+        <section aria-labelledby="pago-pendiente" className="mt-10">
+          <h2 id="pago-pendiente" className="text-xl font-semibold">
+            Pago en curso
+          </h2>
+          <div
+            className="mt-4 rounded-2xl border border-amber-400/40 bg-amber-400/10 p-5"
+            data-testid="pending-payment"
+          >
+            <p className="text-sm" role="status">
+              {pendingPaymentNotice(pendingPayment)}
+            </p>
+            {pendingPayment.voucherUrl && (
+              <a
+                className="mt-3 inline-block underline underline-offset-4"
+                href={pendingPayment.voucherUrl}
+                target="_blank"
+                rel="noreferrer noopener"
+                data-testid="voucher-link"
+              >
+                Ver tu ficha de pago
+              </a>
+            )}
+          </div>
+        </section>
+      )}
+
+      <section aria-labelledby="datos-fiscales" className="mt-10">
+        <h2 id="datos-fiscales" className="text-xl font-semibold">
+          Datos fiscales (CFDI 4.0)
+        </h2>
+        {canOpenCheckout(auth.role) ? (
+          <TaxProfileForm />
+        ) : (
+          <p className="mt-4 text-sm" role="status" data-testid="fiscal-denied">
+            Los datos fiscales de la organización los gestiona el propietario o
+            un administrador.
+          </p>
+        )}
+      </section>
+
+      {subscription && canOpenCheckout(auth.role) && (
+        <section aria-labelledby="medio-de-pago" className="mt-10">
+          <h2 id="medio-de-pago" className="text-xl font-semibold">
+            Medio de pago
+          </h2>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+            {subscription.status === "past_due"
+              ? "Tu último cobro no prosperó. Actualiza tu tarjeta en el portal de nuestro proveedor de pagos: los datos de tu tarjeta nunca pasan por Valle Design."
+              : "Cambia tu tarjeta o revisa tus cobros en el portal de nuestro proveedor de pagos. Los datos de tu tarjeta nunca pasan por Valle Design."}
+          </p>
+          {portal.status === "failed" && (
+            <p role="alert" className="mt-3 text-sm text-rose-600">
+              {portal.message}
+            </p>
+          )}
+          <button
+            type="button"
+            className={`${actionClass} mt-4`}
+            data-testid="open-billing-portal"
+            disabled={portal.status === "opening"}
+            onClick={() => void openProviderPortal()}
+          >
+            {portal.status === "opening"
+              ? "Abriendo el portal…"
+              : "Actualizar medio de pago"}
+          </button>
+        </section>
+      )}
 
       <section aria-labelledby="facturas" className="mt-10">
         <h2 id="facturas" className="text-xl font-semibold">

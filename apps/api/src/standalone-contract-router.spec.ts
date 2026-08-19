@@ -9,6 +9,7 @@ import { BillingController } from './modules/commercial/controllers/billing.cont
 import { BillingWebhookController } from './modules/commercial/controllers/billing-webhook.controller';
 import { CommercialController } from './modules/commercial/controllers/commercial.controller';
 import { PublicCatalogController } from './modules/commercial/controllers/public-catalog.controller';
+import { TaxProfileController } from './modules/commercial/controllers/tax-profile.controller';
 import {
   Invoice,
   PlanCatalog,
@@ -16,13 +17,16 @@ import {
   PlanPrice,
   Subscription,
   SubscriptionUpgradeIntent,
+  TaxProfile,
 } from './modules/commercial/entities/commercial.entities';
 import {
   CAD_EVENT_PUBLISHER,
   EMAIL_SERVICE,
 } from './modules/commercial/ports/commercial.ports';
 import { PAYMENT_PROVIDER } from './modules/commercial/ports/payment-provider.port';
+import { CFDI_PROVIDER } from './modules/commercial/ports/cfdi-provider.port';
 import { SubscriptionLifecycleService } from './modules/commercial/subscription-lifecycle.service';
+import { SeatEntitlementService } from './modules/commercial/seat-entitlement.service';
 import { User } from './modules/identity/entities/identity.entity';
 import { IdentityController } from './modules/identity/identity.controller';
 import { IDENTITY_RATE_LIMIT_STORE } from './modules/identity/identity-rate-limit.store';
@@ -64,6 +68,7 @@ describe('standalone OpenAPI contract against the real Nest router', () => {
       PlanPrice,
       SubscriptionUpgradeIntent,
       Invoice,
+      TaxProfile,
     ];
     const moduleRef = await Test.createTestingModule({
       controllers: [
@@ -73,6 +78,7 @@ describe('standalone OpenAPI contract against the real Nest router', () => {
         PublicCatalogController,
         BillingController,
         BillingWebhookController,
+        TaxProfileController,
       ],
       providers: [
         { provide: IdentityService, useValue: {} },
@@ -85,7 +91,9 @@ describe('standalone OpenAPI contract against the real Nest router', () => {
         { provide: EMAIL_SERVICE, useValue: {} },
         { provide: CAD_EVENT_PUBLISHER, useValue: {} },
         { provide: PAYMENT_PROVIDER, useValue: {} },
+        { provide: CFDI_PROVIDER, useValue: {} },
         { provide: SubscriptionLifecycleService, useValue: {} },
+        { provide: SeatEntitlementService, useValue: {} },
         { provide: BillingWebhookService, useValue: {} },
         { provide: IDENTITY_RATE_LIMIT_STORE, useValue: {} },
         ...repositoryEntities.map((entity) => ({
@@ -139,8 +147,10 @@ describe('standalone OpenAPI contract against the real Nest router', () => {
 
     // 25 de la ola 1 + las 4 de la compra autoservicio (checkout, facturas,
     // baja y el webhook público de la pasarela) + el catálogo público que
-    // alimenta la página de precios sin exigir sesión.
-    expect(expected).toHaveLength(30);
+    // alimenta la página de precios sin exigir sesión + las 4 de la ola
+    // mexicana: los catálogos del SAT, leer y guardar los datos fiscales del
+    // CFDI 4.0, y el portal del proveedor para arreglar el medio de pago.
+    expect(expected).toHaveLength(34);
     expect([...actual].sort()).toEqual(expected.sort());
   });
 });

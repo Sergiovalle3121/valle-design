@@ -27,12 +27,15 @@ import { DataSource, Repository } from 'typeorm';
 import { isUniqueViolation } from '../../../common/database/unique-violation';
 import {
   Invoice,
+  PAYMENT_METHODS,
   PLAN_PRICE_PERIODS,
+  type PaymentMethod,
   PlanCatalog,
   PlanPrice,
   type PlanPricePeriod,
   Subscription,
   SubscriptionUpgradeIntent,
+  TaxProfile,
 } from '../entities/commercial.entities';
 import {
   CAD_EVENT_PUBLISHER,
@@ -40,8 +43,10 @@ import {
 } from '../ports/commercial.ports';
 import {
   PAYMENT_PROVIDER,
+  type PaymentCheckoutResult,
   type PaymentProvider,
 } from '../ports/payment-provider.port';
+import { StripePaymentMethodError } from '../adapters/stripe-payment.provider';
 import {
   type AuthenticatedRequest,
   requireDecider,
@@ -74,6 +79,14 @@ class CheckoutSessionDto {
   @Min(1)
   @Max(MAX_CHECKOUT_SEATS)
   seats?: number;
+
+  /**
+   * Medio de pago. Omitirlo significa tarjeta, que es lo que el producto ya
+   * hacía: un cliente existente que no manda el campo sigue comprando igual.
+   */
+  @IsOptional()
+  @IsIn([...PAYMENT_METHODS])
+  paymentMethod?: PaymentMethod;
 }
 
 /**
@@ -157,6 +170,8 @@ export class BillingController {
     private readonly subscriptions: Repository<Subscription>,
     @InjectRepository(Invoice)
     private readonly invoices: Repository<Invoice>,
+    @InjectRepository(TaxProfile)
+    private readonly taxProfiles: Repository<TaxProfile>,
     private readonly data: DataSource,
     @Inject(CAD_EVENT_PUBLISHER)
     private readonly events: CadEventPublisher,
@@ -181,27 +196,69 @@ export class BillingController {
   ) {
     const { user, organizationId } = requireDecider(request);
     const descriptor = this.payments.descriptor();
+    const paymentMethod: PaymentMethod = body.paymentMethod ?? 'card';
+
+    // DATOS FISCALES ANTES DEL COBRO, y ésta es la línea que lo impone.
+    //
+    // Sin RFC no hay CFDI, sin CFDI no hay gasto deducible y sin gasto
+    // deducible el despacho no contrata. Pedirlos DESPUÉS convierte cada cobro
+    // en una persecución por correo con el mes ya cerrado. Se comprueba antes
+    // de abrir el intent para no dejar una compra a medias detrás de un 409.
+    const taxProfile = await this.taxProfiles.findOneBy({
+      organizationId,
+      tenantId: organizationId,
+    });
+    if (!taxProfile) {
+      throw new ConflictException({
+        code: 'tax_profile_required',
+        message:
+          'Antes de cobrar necesitamos tus datos fiscales (RFC, razón social, ' +
+          'régimen fiscal, uso de CFDI y código postal). Sin ellos no podemos ' +
+          'emitirte un CFDI y el pago no sería deducible.',
+      });
+    }
 
     const { intent, price, seats } = await this.openIntent(
       body,
       organizationId,
       user.userId,
+      paymentMethod,
     );
 
-    const result = await this.payments.createCheckout(
-      {
-        intentId: intent.id,
-        organizationId,
-        planCode: intent.requestedPlanCode,
-        seats,
-      },
-      {
-        planCode: price.planCode,
-        currency: price.currency,
-        period: price.period,
-        amountCents: Number(price.amountCents),
-      },
-    );
+    // Anotado: sin el tipo, `let` sin inicializar se infiere `any` y el
+    // resultado del proveedor —el que decide si hay cobro— dejaría de estar
+    // comprobado justo donde importa.
+    let result: PaymentCheckoutResult;
+    try {
+      result = await this.payments.createCheckout(
+        {
+          intentId: intent.id,
+          organizationId,
+          planCode: intent.requestedPlanCode,
+          seats,
+          paymentMethod,
+        },
+        {
+          planCode: price.planCode,
+          currency: price.currency,
+          period: price.period,
+          amountCents: Number(price.amountCents),
+        },
+      );
+    } catch (error) {
+      // El medio elegido no sirve para ESTE pedido (moneda que OXXO no cobra,
+      // importe por encima del tope de una ficha). Es un 400 con el motivo
+      // exacto, no un 500: el cliente puede arreglarlo eligiendo otro medio, y
+      // sólo puede hacerlo si se le dice cuál es el problema.
+      if (error instanceof StripePaymentMethodError) {
+        throw new BadRequestException({
+          code: error.code,
+          message: error.message,
+          intentId: intent.id,
+        });
+      }
+      throw error;
+    }
     if (result.kind === 'unavailable') {
       // El 409 HONESTO que ya existía: no es un fallo del sistema, es que el
       // cobro de este despliegue va por fuera. El intent queda registrado, que
@@ -219,7 +276,60 @@ export class BillingController {
       reference: result.reference,
       url: result.kind === 'hosted' ? result.url : null,
       seats,
+      paymentMethod,
+      // `asynchronous` es lo que permite a la web decir «te esperamos» en vez
+      // de «pago fallido» cuando el cliente vuelve de OXXO sin haber pagado
+      // todavía. Sin este dato, la única lectura posible de una suscripción no
+      // activa es el fracaso.
+      asynchronous: result.kind === 'hosted' && result.asynchronous,
     };
+  }
+
+  /**
+   * Abre el PORTAL DEL PROVEEDOR para que el cliente arregle su medio de pago.
+   *
+   * Hasta ahora, a una organización en `past_due` se le informaba de que el
+   * cobro había fallado y ahí terminaba todo: su único camino era escribir a
+   * soporte. Los datos de la tarjeta no pasan —ni deben pasar— por este
+   * producto, así que la forma honesta de resolverlo es llevar al cliente al
+   * portal del proveedor, que es quien la custodia.
+   *
+   * Owner/admin: quien puede comprar puede arreglar el pago de lo comprado.
+   */
+  // 200: no se crea un recurso del producto, se pide una URL efímera prestada.
+  @HttpCode(HttpStatus.OK)
+  @Post('billing-portal-sessions')
+  async createBillingPortalSession(@Req() request: AuthenticatedRequest) {
+    const { organizationId } = requireDecider(request);
+    const subscription = await this.subscriptions.findOneBy({
+      organizationId,
+      tenantId: organizationId,
+    });
+    if (!subscription) {
+      throw new NotFoundException('La organización no tiene suscripción.');
+    }
+    if (!subscription.providerCustomerId) {
+      // Sin cliente en la pasarela no hay portal que abrir: o el cobro de esta
+      // organización es externo, o todavía no ha pagado nunca. Un 409 con el
+      // motivo es más útil que una URL vacía.
+      throw new ConflictException({
+        code: 'billing_portal_unavailable',
+        message:
+          'Esta organización no tiene un cliente en la pasarela: su cobro no ' +
+          'pasa por ella, así que no hay medio de pago que actualizar aquí.',
+      });
+    }
+
+    const result = await this.payments.createBillingPortalSession({
+      providerCustomerId: subscription.providerCustomerId,
+    });
+    if (result.kind === 'unavailable') {
+      throw new ConflictException({
+        code: 'billing_portal_unavailable',
+        message: result.reason,
+      });
+    }
+    return { organizationId, url: result.url };
   }
 
   /** Historial de facturas de la organización (owner/admin). */
@@ -342,6 +452,7 @@ export class BillingController {
     body: CheckoutSessionDto,
     organizationId: string,
     userId: string,
+    paymentMethod: PaymentMethod,
   ): Promise<{
     intent: SubscriptionUpgradeIntent;
     price: PlanPrice;
@@ -400,7 +511,28 @@ export class BillingController {
               message: 'Ya existe un intent de upgrade pendiente de decisión.',
             });
           }
-          return { intent: pending, price, seats };
+          // El intent reutilizado se ACTUALIZA con lo que se pide ahora: quien
+          // abandonó la ficha de OXXO y vuelve con tarjeta, o cambia de tres a
+          // cinco asientos, tiene que quedar registrado con lo que va a pagar
+          // de verdad. Un intent que conservase la petición vieja activaría
+          // después la suscripción con los asientos equivocados.
+          await manager.update(
+            SubscriptionUpgradeIntent,
+            { id: pending.id },
+            {
+              requestedSeats: seats,
+              paymentMethod,
+              awaitingPaymentAt: null,
+              voucherUrl: null,
+            },
+          );
+          return {
+            intent: await manager.findOneByOrFail(SubscriptionUpgradeIntent, {
+              id: pending.id,
+            }),
+            price,
+            seats,
+          };
         }
         const intent = await manager.save(
           SubscriptionUpgradeIntent,
@@ -412,6 +544,10 @@ export class BillingController {
             requestedByUserId: userId,
             decidedByUserId: null,
             decidedAt: null,
+            requestedSeats: seats,
+            paymentMethod,
+            awaitingPaymentAt: null,
+            voucherUrl: null,
           }),
         );
         return { intent, price, seats };

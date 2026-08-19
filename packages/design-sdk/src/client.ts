@@ -48,6 +48,19 @@ export type CommercialInvoice = Schemas["CommercialInvoice"];
 export type CommercialInvoiceList = Schemas["CommercialInvoiceList"];
 export type CommercialSubscriptionCancellation =
   Schemas["CommercialSubscriptionCancellation"];
+export type CommercialPendingPayment = Schemas["CommercialPendingPayment"];
+export type PaymentMethod = Schemas["PaymentMethod"];
+export type CommercialBillingPortalSession =
+  Schemas["CommercialBillingPortalSession"];
+export type SatTaxCatalogs = Schemas["SatTaxCatalogs"];
+export type SatTaxRegime = Schemas["SatTaxRegime"];
+export type SatCfdiUse = Schemas["SatCfdiUse"];
+export type TaxPersonType = Schemas["TaxPersonType"];
+export type TaxProfileSave = Schemas["TaxProfileSave"];
+export type TaxProfileView = Schemas["TaxProfileView"];
+export type TaxProfileResponse = Schemas["TaxProfileResponse"];
+export type TaxProfileIssue = Schemas["TaxProfileIssue"];
+export type CfdiIssuance = Schemas["CfdiIssuance"];
 export type CadSheetSet = Schemas["CadSheetSet"];
 export type CadSheetSetSummary = Schemas["CadSheetSetSummary"];
 export type CadSheetSetCreate = Schemas["CadSheetSetCreate"];
@@ -351,6 +364,39 @@ export function createDesignClient(options: DesignClientOptions) {
         call<CommercialSubscriptionCancellation>(
           "POST",
           resource("/v1/commercial/subscription/cancel"),
+        ),
+      /**
+       * Portal del proveedor para que el cliente arregle su medio de pago sin
+       * pasar por soporte (owner/admin). La URL caduca: se usa y se olvida.
+       */
+      billingPortalSession: () =>
+        call<CommercialBillingPortalSession>(
+          "POST",
+          resource("/v1/commercial/billing-portal-sessions"),
+        ),
+      /**
+       * Catalogos del SAT (regimen fiscal y uso de CFDI). Publico y cacheable:
+       * el formulario fiscal aparece en el alta, antes de que exista
+       * organizacion activa.
+       */
+      taxCatalogs: () =>
+        call<SatTaxCatalogs>(
+          "GET",
+          resource("/v1/commercial/public/tax-catalogs"),
+        ),
+      /** Datos fiscales CFDI 4.0 de la organizacion activa (owner/admin). */
+      taxProfile: () =>
+        call<TaxProfileResponse>("GET", resource("/v1/commercial/tax-profile")),
+      /**
+       * Captura o sustituye los datos fiscales. Los cinco campos van juntos
+       * porque juntos se validan; un 400 `tax_profile_invalid` trae TODOS los
+       * campos mal en `issues`.
+       */
+      saveTaxProfile: (input: TaxProfileSave) =>
+        call<TaxProfileResponse>(
+          "PUT",
+          resource("/v1/commercial/tax-profile"),
+          input,
         ),
     },
 

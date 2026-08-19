@@ -38,6 +38,19 @@ import {
   requireMember,
 } from './commercial-request-context';
 
+/**
+ * Pago ASÍNCRONO en curso. Existe para que la interfaz pueda decir qué se está
+ * esperando: entre pedir una ficha de OXXO y que el dinero llegue pasan horas
+ * o días, y una pantalla que sólo diga «sin suscripción activa» durante ese
+ * tiempo empuja al cliente a pagar otra vez.
+ */
+interface PendingPaymentView {
+  method: string;
+  since: Date;
+  voucherUrl: string | null;
+  planCode: string;
+}
+
 interface CommercialSnapshot {
   organizationId: string | null;
   subscription: {
@@ -46,8 +59,10 @@ interface CommercialSnapshot {
     trialEndsAt: Date | null;
     currentPeriodEnd: Date | null;
     cancelAtPeriodEnd: boolean;
+    seats: number;
     effective: boolean;
   } | null;
+  pendingPayment: PendingPaymentView | null;
   entitlements: string[];
 }
 
@@ -197,6 +212,7 @@ export class CommercialController {
     return {
       organizationId: snapshot.organizationId,
       subscription: snapshot.subscription,
+      pendingPayment: snapshot.pendingPayment,
     };
   }
 
@@ -305,10 +321,15 @@ export class CommercialController {
           message: 'El plan solicitado ya no está disponible.',
         });
       }
+      // Los asientos del intent viajan a la suscripción también por el camino
+      // asistido: si sólo lo hiciera el webhook, una organización cobrada por
+      // fuera se quedaría con el asiento por defecto y no podría meter a su
+      // equipo — o peor, un Despacho de diez conservaría el límite de uno.
+      const seats = Math.max(1, Number(intent.requestedSeats) || 1);
       const applied = await manager.update(
         Subscription,
         { organizationId, tenantId: organizationId },
-        { planCode: plan.code, status: 'active', trialEndsAt: null },
+        { planCode: plan.code, status: 'active', trialEndsAt: null, seats },
       );
       if (!applied.affected) {
         // Organización provisionada sin fila de suscripción: la confirmación
@@ -319,6 +340,7 @@ export class CommercialController {
           planCode: plan.code,
           status: 'active',
           trialEndsAt: null,
+          seats,
         });
       }
       const subscription = await manager.findOneByOrFail(Subscription, {
@@ -408,19 +430,38 @@ export class CommercialController {
     const organizationId = request.user.organization_id;
     const tenantId = request.user.tenant_id;
     if (!organizationId || tenantId !== organizationId) {
-      return { organizationId: null, subscription: null, entitlements: [] };
+      return {
+        organizationId: null,
+        subscription: null,
+        pendingPayment: null,
+        entitlements: [],
+      };
     }
 
     // Transición perezosa: la lectura comercial es el punto de sincronía del
     // trial vencido (los guards ya fallan cerrado por fecha sin escribir).
     await this.lifecycle.settleExpiredTrial(organizationId, tenantId);
 
-    const subscription = await this.subscriptions.findOneBy({
-      organizationId,
-      tenantId,
-    });
+    const [subscription, awaiting] = await Promise.all([
+      this.subscriptions.findOneBy({ organizationId, tenantId }),
+      this.upgradeIntents.findOneBy({ organizationId, status: 'pending' }),
+    ]);
+    const pendingPayment: PendingPaymentView | null =
+      awaiting?.awaitingPaymentAt && awaiting.paymentMethod
+        ? {
+            method: awaiting.paymentMethod,
+            since: awaiting.awaitingPaymentAt,
+            voucherUrl: awaiting.voucherUrl,
+            planCode: awaiting.requestedPlanCode,
+          }
+        : null;
     if (!subscription) {
-      return { organizationId, subscription: null, entitlements: [] };
+      return {
+        organizationId,
+        subscription: null,
+        pendingPayment,
+        entitlements: [],
+      };
     }
 
     const plan = await this.plans.findOneBy({ code: subscription.planCode });
@@ -451,8 +492,13 @@ export class CommercialController {
         // false son la respuesta honesta mientras el cobro sea externo.
         currentPeriodEnd: subscription.currentPeriodEnd,
         cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+        // Asientos PAGADOS: el mismo número que la API impone al invitar. Se
+        // publica para que la interfaz pueda decir «3 de 3 usados» antes de
+        // que alguien choque contra el 409, no después.
+        seats: Math.max(1, Number(subscription.seats) || 1),
         effective,
       },
+      pendingPayment,
       entitlements,
     };
   }

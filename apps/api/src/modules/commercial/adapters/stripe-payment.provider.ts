@@ -4,6 +4,8 @@ import type {
   PaymentCancellationResult,
   PaymentCheckoutIntent,
   PaymentCheckoutResult,
+  PaymentCustomerReference,
+  PaymentPortalResult,
   PaymentPriceSnapshot,
   PaymentProvider,
   PaymentProviderDescriptor,
@@ -60,6 +62,8 @@ export interface StripeConfiguration {
   readonly apiBaseUrl: string;
   readonly successUrl: string;
   readonly cancelUrl: string;
+  /** Vuelta desde el portal del cliente; por defecto, la URL de éxito. */
+  readonly portalReturnUrl: string;
   readonly timeoutMs: number;
   readonly toleranceSeconds: number;
   /** Versión de la API fijada por configuración; sin ella manda la cuenta. */
@@ -109,6 +113,41 @@ const PERIOD_INTERVALS: Readonly<Record<string, string>> = {
   yearly: 'year',
 };
 
+/**
+ * Moneda única de los medios de pago mexicanos.
+ *
+ * OXXO y SPEI son infraestructura de pagos DE MÉXICO: Stripe sólo los acepta
+ * en pesos. Mandar una sesión en dólares produciría un error del proveedor a
+ * mitad del embudo; se rechaza antes, con un motivo que el producto puede
+ * contar.
+ */
+const MEXICAN_CURRENCY = 'MXN';
+
+/**
+ * Tope de una ficha OXXO: 10.000 MXN.
+ *
+ * Es un límite de la RED, no nuestro: la tienda no cobra más que eso en una
+ * sola ficha. Un Despacho anual de siete asientos (11.830 MXN) lo supera, y
+ * enviar esa sesión a Stripe generaría una ficha que el cliente no podría
+ * pagar en el mostrador — y se enteraría en la tienda, con el móvil en la
+ * mano. Se rechaza aquí y quien llama ofrece SPEI o tarjeta.
+ */
+export const OXXO_MAX_AMOUNT_CENTS = 1_000_000;
+
+/** Días que vive una ficha OXXO antes de caducar. */
+const OXXO_EXPIRES_AFTER_DAYS = 3;
+
+/** El proveedor no puede cobrar así; el motivo es para el cliente, no un log. */
+export class StripePaymentMethodError extends Error {
+  constructor(
+    readonly code: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'StripePaymentMethodError';
+  }
+}
+
 @Injectable()
 export class StripePaymentProvider implements PaymentProvider {
   constructor(
@@ -152,31 +191,16 @@ export class StripePaymentProvider implements PaymentProvider {
         `Asientos no cobrables: ${String(intent.seats)} no es un entero mayor o igual que 1.`,
       );
     }
-    const form = new URLSearchParams({
-      mode: 'subscription',
-      success_url: this.configuration.successUrl,
-      cancel_url: this.configuration.cancelUrl,
-      client_reference_id: intent.intentId,
-      'line_items[0][quantity]': String(intent.seats),
-      'line_items[0][price_data][currency]': price.currency.toLowerCase(),
-      'line_items[0][price_data][unit_amount]': String(price.amountCents),
-      'line_items[0][price_data][recurring][interval]': interval,
-      'line_items[0][price_data][product_data][name]': price.planCode,
-      'metadata[intentId]': intent.intentId,
-      'metadata[organizationId]': intent.organizationId,
-      'metadata[planCode]': intent.planCode,
-      'metadata[seats]': String(intent.seats),
-      // La suscripción arrastra su propia metadata: los eventos posteriores
-      // (invoice.paid, customer.subscription.deleted) llegan sin la sesión, y
-      // sin esto la correlación dependería sólo de los ids que guardamos.
-      'subscription_data[metadata][intentId]': intent.intentId,
-      'subscription_data[metadata][organizationId]': intent.organizationId,
-      'subscription_data[metadata][planCode]': intent.planCode,
-      'subscription_data[metadata][seats]': String(intent.seats),
-    });
+    const asynchronous = intent.paymentMethod !== 'card';
+    const form = asynchronous
+      ? this.cashCheckoutForm(intent, price)
+      : this.cardCheckoutForm(intent, price, interval);
 
     const session = await this.call('/v1/checkout/sessions', form, {
-      idempotencyKey: `checkout-intent:${intent.intentId}`,
+      // La clave de idempotencia incluye el MEDIO: quien pidió una ficha de
+      // OXXO y vuelve a intentarlo con tarjeta necesita una sesión nueva, no
+      // la ficha de antes reservada bajo la misma clave.
+      idempotencyKey: `checkout-intent:${intent.intentId}:${intent.paymentMethod}`,
     });
     const url = readString(session, 'url');
     const reference = readString(session, 'id');
@@ -188,7 +212,167 @@ export class StripePaymentProvider implements PaymentProvider {
     if (!url.startsWith('https://')) {
       throw new StripeApiError(200, 'checkout_url_not_https');
     }
-    return { kind: 'hosted', url, reference };
+    return { kind: 'hosted', url, reference, asynchronous };
+  }
+
+  /** Tarjeta: suscripción recurrente, tal y como la dejó la ola 2. */
+  private cardCheckoutForm(
+    intent: PaymentCheckoutIntent,
+    price: PaymentPriceSnapshot,
+    interval: string,
+  ): URLSearchParams {
+    return new URLSearchParams({
+      mode: 'subscription',
+      success_url: this.configuration.successUrl,
+      cancel_url: this.configuration.cancelUrl,
+      client_reference_id: intent.intentId,
+      'payment_method_types[0]': 'card',
+      'line_items[0][quantity]': String(intent.seats),
+      'line_items[0][price_data][currency]': price.currency.toLowerCase(),
+      'line_items[0][price_data][unit_amount]': String(price.amountCents),
+      'line_items[0][price_data][recurring][interval]': interval,
+      'line_items[0][price_data][product_data][name]': price.planCode,
+      ...this.checkoutMetadata(intent, price),
+      // La suscripción arrastra su propia metadata: los eventos posteriores
+      // (invoice.paid, customer.subscription.deleted) llegan sin la sesión, y
+      // sin esto la correlación dependería sólo de los ids que guardamos.
+      'subscription_data[metadata][intentId]': intent.intentId,
+      'subscription_data[metadata][organizationId]': intent.organizationId,
+      'subscription_data[metadata][planCode]': intent.planCode,
+      'subscription_data[metadata][seats]': String(intent.seats),
+    });
+  }
+
+  /**
+   * OXXO y SPEI: un cobro ÚNICO por el período contratado, no una suscripción.
+   *
+   * No es una simplificación nuestra: ninguno de los dos puede domiciliarse.
+   * OXXO es dinero en efectivo en un mostrador y SPEI es una transferencia que
+   * el cliente ordena desde su banco; no existe el «vuelve a cobrarme el mes
+   * que viene». Modelarlos como suscripción de Stripe produciría una
+   * suscripción que jamás cobra su segunda cuota.
+   *
+   * La consecuencia está asumida y hay que decirla en la interfaz: quien paga
+   * con OXXO o SPEI compra UN período y tendrá que renovar a mano. A cambio,
+   * puede comprar sin tarjeta de crédito, que es la única forma de venderle a
+   * buena parte del mercado objetivo.
+   */
+  private cashCheckoutForm(
+    intent: PaymentCheckoutIntent,
+    price: PaymentPriceSnapshot,
+  ): URLSearchParams {
+    if (price.currency.toUpperCase() !== MEXICAN_CURRENCY) {
+      throw new StripePaymentMethodError(
+        'payment_method_currency',
+        `OXXO y SPEI sólo cobran en ${MEXICAN_CURRENCY}; ese plan se vende en ${price.currency}.`,
+      );
+    }
+    const total = price.amountCents * intent.seats;
+    if (intent.paymentMethod === 'oxxo' && total > OXXO_MAX_AMOUNT_CENTS) {
+      throw new StripePaymentMethodError(
+        'payment_method_amount_limit',
+        `Una ficha de OXXO no admite más de ${OXXO_MAX_AMOUNT_CENTS / 100} MXN y este pedido suma ${total / 100} MXN. Paga por SPEI o con tarjeta.`,
+      );
+    }
+
+    const form = new URLSearchParams({
+      mode: 'payment',
+      success_url: this.configuration.successUrl,
+      cancel_url: this.configuration.cancelUrl,
+      client_reference_id: intent.intentId,
+      // Un Customer siempre: es lo que SPEI necesita para tener CLABE propia y
+      // lo que el portal del proveedor (E4) necesita después para dejar al
+      // cliente arreglar su medio de pago sin pasar por soporte.
+      customer_creation: 'always',
+      'line_items[0][quantity]': String(intent.seats),
+      'line_items[0][price_data][currency]': price.currency.toLowerCase(),
+      'line_items[0][price_data][unit_amount]': String(price.amountCents),
+      'line_items[0][price_data][product_data][name]': price.planCode,
+      ...this.checkoutMetadata(intent, price),
+      // El PaymentIntent arrastra la metadata: los eventos asíncronos
+      // (`async_payment_succeeded`) llegan con la sesión, pero un reembolso o
+      // una disputa posterior llegan sólo con el PaymentIntent.
+      'payment_intent_data[metadata][intentId]': intent.intentId,
+      'payment_intent_data[metadata][organizationId]': intent.organizationId,
+      'payment_intent_data[metadata][planCode]': intent.planCode,
+    });
+
+    if (intent.paymentMethod === 'oxxo') {
+      form.set('payment_method_types[0]', 'oxxo');
+      form.set(
+        'payment_method_options[oxxo][expires_after_days]',
+        String(OXXO_EXPIRES_AFTER_DAYS),
+      );
+    } else {
+      // SPEI viaja en Stripe como `customer_balance` con transferencia
+      // bancaria mexicana: el cliente recibe una CLABE propia y el saldo se
+      // aplica al pedido cuando el banco confirma.
+      form.set('payment_method_types[0]', 'customer_balance');
+      form.set(
+        'payment_method_options[customer_balance][funding_type]',
+        'bank_transfer',
+      );
+      form.set(
+        'payment_method_options[customer_balance][bank_transfer][type]',
+        'mx_bank_transfer',
+      );
+    }
+    return form;
+  }
+
+  /**
+   * Metadata común. `period` viaja porque el webhook de un pago único tiene
+   * que saber HASTA CUÁNDO queda pagado: sin suscripción de Stripe no hay
+   * `current_period_end` que leer, y la alternativa —suponer un mes— regalaría
+   * once meses a quien pagó el año o cobraría un año a quien pagó un mes.
+   */
+  private checkoutMetadata(
+    intent: PaymentCheckoutIntent,
+    price: PaymentPriceSnapshot,
+  ): Record<string, string> {
+    return {
+      'metadata[intentId]': intent.intentId,
+      'metadata[organizationId]': intent.organizationId,
+      'metadata[planCode]': intent.planCode,
+      'metadata[seats]': String(intent.seats),
+      'metadata[period]': price.period,
+      'metadata[paymentMethod]': intent.paymentMethod,
+    };
+  }
+
+  /**
+   * Sesión del portal del proveedor para que el cliente arregle su tarjeta.
+   *
+   * La URL que devuelve Stripe es de UN cliente y caduca sola; por eso no se
+   * cachea ni se guarda. Requiere que el portal esté configurado en el panel
+   * de Stripe: si no lo está, la llamada falla con un `StripeApiError` cuyo
+   * código lo dice, en vez de llevar al cliente a una página rota.
+   */
+  async createBillingPortalSession(
+    reference: PaymentCustomerReference,
+  ): Promise<PaymentPortalResult> {
+    const id = reference.providerCustomerId.trim();
+    if (!id || !/^[A-Za-z0-9_-]{1,255}$/.test(id)) {
+      throw new StripeConfigurationError(
+        'El identificador de cliente del proveedor no es utilizable.',
+      );
+    }
+    const session = await this.call(
+      '/v1/billing_portal/sessions',
+      new URLSearchParams({
+        customer: id,
+        return_url: this.configuration.portalReturnUrl,
+      }),
+      // Sin `Idempotency-Key`: cada visita al portal necesita una sesión NUEVA
+      // porque la anterior caduca. Reutilizar la respuesta de hace una hora
+      // llevaría al cliente a un enlace muerto justo cuando intenta pagar.
+      { idempotencyKey: null },
+    );
+    const url = readString(session, 'url');
+    if (!url || !url.startsWith('https://')) {
+      throw new StripeApiError(200, 'portal_session_incomplete');
+    }
+    return { kind: 'hosted', url };
   }
 
   /**
@@ -305,12 +489,14 @@ export class StripePaymentProvider implements PaymentProvider {
   private async call(
     path: string,
     form: URLSearchParams,
-    options: { idempotencyKey: string },
+    options: { idempotencyKey: string | null },
   ): Promise<unknown> {
     const headers: Record<string, string> = {
       authorization: `Bearer ${this.configuration.secretKey}`,
       'content-type': 'application/x-www-form-urlencoded',
-      'idempotency-key': options.idempotencyKey,
+      ...(options.idempotencyKey
+        ? { 'idempotency-key': options.idempotencyKey }
+        : {}),
     };
     if (this.configuration.apiVersion) {
       headers['stripe-version'] = this.configuration.apiVersion;
@@ -407,20 +593,34 @@ export function resolveStripeConfiguration(
     );
   }
 
+  const resolvedSuccessUrl = returnUrl(
+    successUrl,
+    'STRIPE_CHECKOUT_SUCCESS_URL',
+    environment.NODE_ENV,
+  );
+  // OPCIONAL, y por eso no rompe la regla del «todas o ninguna»: sin ella el
+  // portal devuelve al cliente a la misma página de retorno del checkout, que
+  // ya sabe leer el estado real de la suscripción. Exigir una quinta variable
+  // habría dejado sin arrancar a los despliegues que ya funcionan.
+  const portalReturn = environment.STRIPE_PORTAL_RETURN_URL?.trim() ?? '';
+
   return {
     secretKey,
     webhookSecret,
     apiBaseUrl,
-    successUrl: returnUrl(
-      successUrl,
-      'STRIPE_CHECKOUT_SUCCESS_URL',
-      environment.NODE_ENV,
-    ),
+    successUrl: resolvedSuccessUrl,
     cancelUrl: returnUrl(
       cancelUrl,
       'STRIPE_CHECKOUT_CANCEL_URL',
       environment.NODE_ENV,
     ),
+    portalReturnUrl: portalReturn
+      ? returnUrl(
+          portalReturn,
+          'STRIPE_PORTAL_RETURN_URL',
+          environment.NODE_ENV,
+        )
+      : resolvedSuccessUrl,
     timeoutMs,
     toleranceSeconds,
     apiVersion,

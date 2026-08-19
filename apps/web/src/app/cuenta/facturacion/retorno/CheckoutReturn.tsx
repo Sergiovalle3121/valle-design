@@ -12,6 +12,7 @@ import {
   BILLING_PATH,
   PRICING_PATH,
   type CheckoutOutcomeView,
+  type PendingPayment,
   type Subscription,
 } from "@/lib/commercial/checkout";
 
@@ -31,6 +32,8 @@ type Snapshot =
       status: "read";
       outcome: CheckoutOutcomeView;
       subscription: Subscription | null;
+      /** Ficha de OXXO o CLABE en curso, si el cobro es asíncrono. */
+      pendingPayment: PendingPayment | null;
     }
   | { status: "unreadable" };
 
@@ -60,7 +63,14 @@ export function CheckoutReturn() {
         const storage =
           typeof window === "undefined" ? null : window.sessionStorage;
         const expected = recallCheckout(storage)?.planCode ?? null;
-        const outcome = resolveCheckoutOutcome(response.subscription, expected);
+        // El pago pendiente entra en la decisión: con una ficha de OXXO viva,
+        // «pendiente» deja de ser una frase genérica y pasa a nombrar el medio
+        // y el plan que se están esperando.
+        const outcome = resolveCheckoutOutcome(
+          response.subscription,
+          expected,
+          response.pendingPayment,
+        );
         // Confirmado: se olvida la espera para que una visita posterior a esta
         // misma URL no siga hablando de una compra ya cerrada.
         if (outcome.outcome === "pagado") forgetCheckout(storage);
@@ -68,6 +78,7 @@ export function CheckoutReturn() {
           status: "read",
           outcome,
           subscription: response.subscription,
+          pendingPayment: response.pendingPayment,
         });
       } catch {
         if (!cancelled) setSnapshot({ status: "unreadable" });
@@ -179,6 +190,21 @@ export function CheckoutReturn() {
           Plan registrado ahora mismo:{" "}
           <strong>{snapshot.subscription.planCode}</strong>.
         </p>
+      )}
+
+      {snapshot.pendingPayment?.voucherUrl && (
+        // La ficha de OXXO o la CLABE es lo ÚNICO que el cliente necesita en
+        // este momento: si cerró la pestaña del proveedor sin apuntarla, aquí
+        // la recupera en vez de abrir otra compra.
+        <a
+          className={actionClass}
+          href={snapshot.pendingPayment.voucherUrl}
+          target="_blank"
+          rel="noreferrer noopener"
+          data-testid="checkout-voucher"
+        >
+          Ver tu ficha de pago
+        </a>
       )}
 
       {exhausted && (

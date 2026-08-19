@@ -26,6 +26,8 @@ type Schemas = components["schemas"];
 
 export type Subscription = Schemas["EffectiveSubscriptionView"];
 export type OrganizationRole = Schemas["OrganizationRole"];
+export type PaymentMethod = Schemas["PaymentMethod"];
+export type PendingPayment = Schemas["CommercialPendingPayment"];
 
 /** Página pública de precios. */
 export const PRICING_PATH = "/precios";
@@ -108,6 +110,84 @@ export function canCancelSubscription(
   return role === "owner";
 }
 
+/**
+ * MEDIOS DE PAGO, con lo que el cliente necesita saber ANTES de elegir.
+ *
+ * No son tres botones equivalentes. Quien paga con OXXO o SPEI compra UN
+ * periodo y tendra que renovar a mano, porque ninguno de los dos se domicilia:
+ * OXXO es efectivo en un mostrador y SPEI una transferencia que ordena su
+ * banco. Callarlo para que el boton parezca mas atractivo garantiza que el
+ * cliente pierda el acceso un dia sin entender por que.
+ */
+export interface PaymentMethodOption {
+  method: PaymentMethod;
+  label: string;
+  detail: string;
+  /** `true` cuando el cobro se confirma horas o dias despues. */
+  asynchronous: boolean;
+}
+
+export const PAYMENT_METHOD_OPTIONS: readonly PaymentMethodOption[] = [
+  {
+    method: "card",
+    label: "Tarjeta",
+    detail:
+      "Se activa al momento y se renueva sola. Aceptamos crédito y débito.",
+    asynchronous: false,
+  },
+  {
+    method: "oxxo",
+    label: "Efectivo en OXXO",
+    detail:
+      "Te damos una ficha para pagar en cualquier tienda. Tarda unas horas en confirmarse y cubre un solo periodo: tendrás que renovar a mano.",
+    asynchronous: true,
+  },
+  {
+    method: "spei",
+    label: "Transferencia SPEI",
+    detail:
+      "Te damos una CLABE para transferir desde tu banco. Puede tardar hasta un día hábil y cubre un solo periodo: tendrás que renovar a mano.",
+    asynchronous: true,
+  },
+];
+
+export function paymentMethodLabel(method: string): string {
+  return (
+    PAYMENT_METHOD_OPTIONS.find((option) => option.method === method)?.label ??
+    method
+  );
+}
+
+/**
+ * Los medios en efectivo solo existen en pesos: es una restriccion de la red,
+ * no una decision nuestra. Ofrecerlos en un plan facturado en dolares seria
+ * ofrecer un boton que el proveedor va a rechazar.
+ */
+export function availablePaymentMethods(
+  currency: string,
+): readonly PaymentMethodOption[] {
+  if (currency.toUpperCase() !== "MXN") {
+    return PAYMENT_METHOD_OPTIONS.filter((option) => !option.asynchronous);
+  }
+  return PAYMENT_METHOD_OPTIONS;
+}
+
+/**
+ * QUE SE ESTA ESPERANDO, con nombre y fecha.
+ *
+ * Entre pedir una ficha de OXXO y que el dinero llegue pasan horas o dias. Una
+ * pantalla que durante ese tiempo solo diga "sin suscripcion activa" empuja al
+ * cliente a pagar otra vez; esta frase es lo que lo evita.
+ */
+export function pendingPaymentNotice(pending: PendingPayment): string {
+  const method = paymentMethodLabel(pending.method);
+  return (
+    `Estamos esperando tu pago por ${method} del plan ${pending.planCode}. ` +
+    "No vuelvas a pagar: en cuanto el proveedor nos confirme el dinero, tu " +
+    "suscripción se activa sola y te avisamos por correo."
+  );
+}
+
 export interface CheckoutProblem {
   /** Código contractual cuando viajó; útil para soporte. */
   code: string | null;
@@ -141,6 +221,27 @@ export function checkoutProblem(error: unknown): CheckoutProblem {
       detail:
         "Tu solicitud quedó registrada para el equipo comercial, que la retomará contigo. No se te ha cobrado nada.",
       contactSales: true,
+    };
+  }
+  if (code === "tax_profile_required") {
+    return {
+      code,
+      title: "Nos faltan tus datos fiscales",
+      detail:
+        "Antes de cobrarte necesitamos tu RFC, razón social, régimen fiscal, uso de CFDI y código postal. Sin ellos no podemos emitirte un CFDI y el pago no sería deducible. No se te ha cobrado nada.",
+      contactSales: false,
+    };
+  }
+  if (
+    code === "payment_method_amount_limit" ||
+    code === "payment_method_currency"
+  ) {
+    return {
+      code,
+      title: "Ese medio de pago no sirve para este pedido",
+      detail:
+        "Una ficha de OXXO no admite más de 10.000 MXN y los pagos en efectivo sólo se cobran en pesos. Elige transferencia SPEI o tarjeta. No se te ha cobrado nada.",
+      contactSales: false,
     };
   }
   if (code === "plan_already_active") {
@@ -222,6 +323,7 @@ export interface CheckoutOutcomeView {
 export function resolveCheckoutOutcome(
   subscription: Subscription | null,
   expectedPlanCode: string | null,
+  pendingPayment: PendingPayment | null = null,
 ): CheckoutOutcomeView {
   const status = subscription?.status ?? null;
 
@@ -262,6 +364,18 @@ export function resolveCheckoutOutcome(
       detail:
         "Tu suscripción está activa. Ya puedes usar el producto con el plan contratado.",
       keepPolling: false,
+    };
+  }
+  // Con un pago asíncrono REGISTRADO no se habla en abstracto: se nombra el
+  // medio y el plan. La diferencia entre «aún no nos ha llegado nada» y
+  // «esperamos tu pago en OXXO del plan despacho» es la diferencia entre un
+  // cliente que espera tranquilo y uno que paga dos veces.
+  if (pendingPayment) {
+    return {
+      outcome: "pendiente",
+      title: `Esperando tu pago por ${paymentMethodLabel(pendingPayment.method)}`,
+      detail: pendingPaymentNotice(pendingPayment),
+      keepPolling: true,
     };
   }
   return {

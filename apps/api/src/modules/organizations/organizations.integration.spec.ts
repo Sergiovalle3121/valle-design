@@ -465,6 +465,7 @@ describe('first-party organization and commercial HTTP integration', () => {
     await invitee.agent.get('/v1/commercial/subscription').expect(200, {
       organizationId: null,
       subscription: null,
+      pendingPayment: null,
     });
     await invitee.agent.get('/v1/commercial/entitlements').expect(200, {
       organizationId: null,
@@ -597,6 +598,41 @@ describe('first-party organization and commercial HTTP integration', () => {
         tenantId: secondOrganizationId,
       }),
     ).resolves.toBe(false);
+
+    // ── El límite de asientos vive en la API, no en la interfaz ────────────
+    //
+    // Un control que sólo esconde el botón de invitar no es un límite: es una
+    // sugerencia que cualquiera salta con una petición HTTP. Aquí se comprueba
+    // por HTTP, con la organización llena hasta sus asientos pagados.
+    const ocupados = await dataSource
+      .getRepository(Membership)
+      .countBy({ organizationId: firstOrganizationId });
+    await subscriptions.update(subscription.id, { seats: ocupados });
+    const lleno = await owner.agent
+      .post(`/v1/organizations/${firstOrganizationId}/invitations`)
+      .set('x-csrf-token', owner.csrf)
+      .send({ email: 'sin-asiento@example.test', role: 'member' })
+      .expect(409);
+    expect(lleno.body).toMatchObject({ code: 'seat_limit_reached' });
+    // El mensaje dice el número: un 409 sin cifra obliga a escribir a soporte
+    // para averiguar cuántos asientos hay contratados.
+    expect(JSON.stringify(lleno.body)).toContain(String(ocupados));
+
+    // Con un asiento más, la misma invitación entra. El límite sigue al
+    // número PAGADO, no a una constante escondida en el código.
+    await subscriptions.update(subscription.id, { seats: ocupados + 1 });
+    await owner.agent
+      .post(`/v1/organizations/${firstOrganizationId}/invitations`)
+      .set('x-csrf-token', owner.csrf)
+      .send({ email: 'con-asiento@example.test', role: 'member' })
+      .expect(201);
+    // Y esa invitación viva YA ocupa el asiento: si no contara, veinte
+    // invitaciones simultáneas se convertirían en veinte miembros.
+    await owner.agent
+      .post(`/v1/organizations/${firstOrganizationId}/invitations`)
+      .set('x-csrf-token', owner.csrf)
+      .send({ email: 'otro-mas@example.test', role: 'member' })
+      .expect(409);
   });
 });
 

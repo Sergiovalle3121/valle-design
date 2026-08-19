@@ -17,6 +17,18 @@ export const STANDALONE_TRIAL_PLAN_CODE = 'standalone-trial';
 export const STANDALONE_FULL_PLAN_CODE = 'standalone-full';
 export const STANDALONE_CAD_ENTITLEMENT = DESIGN_CAD_ENTITLEMENT;
 
+/**
+ * Asientos del trial de 14 días.
+ *
+ * Tres y no uno: lo que diferencia a este producto de AutoCAD Web es trabajar
+ * sobre el mismo documento con el equipo, y un trial de un solo asiento hace
+ * literalmente imposible probar eso. Tres tampoco es un Despacho gratis —el
+ * plan de despacho arranca justo en tres asientos y dura para siempre; el
+ * trial dura dos semanas—, así que el límite corta el abuso sin cortar la
+ * evaluación.
+ */
+export const TRIAL_SEATS = 3;
+
 /** Planes publicables de la oferta mexicana (ver 20260816120000). */
 export const INDIVIDUAL_PLAN_CODE = 'individual';
 export const DESPACHO_PLAN_CODE = 'despacho';

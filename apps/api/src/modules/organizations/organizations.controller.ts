@@ -51,7 +51,12 @@ import { OrganizationCommercialConfiguration } from './organization-commercial.c
 import {
   STANDALONE_CAD_ENTITLEMENT,
   STANDALONE_TRIAL_PLAN_CODE,
+  TRIAL_SEATS,
 } from '../commercial/commercial-catalog.bootstrap';
+import {
+  SeatEntitlementService,
+  seatDenialMessage,
+} from '../commercial/seat-entitlement.service';
 
 class OrganizationDto {
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
@@ -95,6 +100,7 @@ export class OrganizationsController {
     private readonly identity: IdentityService,
     private readonly access: OrganizationAccessService,
     private readonly commercialConfiguration: OrganizationCommercialConfiguration,
+    private readonly seats: SeatEntitlementService,
     @InjectRepository(Organization)
     private readonly organizations: Repository<Organization>,
     @InjectRepository(Membership)
@@ -228,6 +234,7 @@ export class OrganizationsController {
             planCode: STANDALONE_TRIAL_PLAN_CODE,
             status: 'trialing',
             trialEndsAt,
+            seats: TRIAL_SEATS,
           }),
         );
         await manager.update(Session, auth.session.id, {
@@ -329,6 +336,21 @@ export class OrganizationsController {
       throw new NotFoundException();
     }
 
+    // LÍMITE DE ASIENTOS, primera comprobación. Es cortesía: avisa a quien
+    // puede resolverlo —el owner— en el momento en que puede resolverlo, en
+    // vez de dejar que descubra el problema el invitado al aceptar. El límite
+    // de verdad está en la aceptación, dentro de su transacción.
+    const availability = await this.seats.availability(organizationId);
+    if (availability.denial) {
+      throw new ConflictException({
+        code: availability.denial,
+        message: seatDenialMessage(availability.denial, availability),
+        seats: availability.seats,
+        members: availability.members,
+        pendingInvitations: availability.pendingInvitations,
+      });
+    }
+
     const raw = this.identity.newToken();
     const invitation = await this.data.transaction(async (manager) => {
       const saved = await manager.save(
@@ -391,6 +413,35 @@ export class OrganizationsController {
       if (!result.affected) {
         throw new BadRequestException('La invitación ya fue utilizada.');
       }
+      // LÍMITE DE ASIENTOS, comprobación REAL: aquí y no antes, porque entre
+      // invitar y aceptar pueden pasar siete días, una bajada de plan y otras
+      // tres aceptaciones. Va dentro de la MISMA transacción que inserta la
+      // membresía, así que dos invitados que acepten a la vez no pueden ver
+      // los dos el último asiento libre.
+      //
+      // Se cuenta sin las invitaciones pendientes: la que se está consumiendo
+      // ya está contada como pendiente y restarla dos veces dejaría fuera al
+      // último invitado de un plan lleno justo hasta el borde.
+      const availability = await this.seats.availabilityForAcceptance(
+        invitation.organizationId,
+        manager,
+      );
+      const alreadyMember = await manager.findOneBy(Membership, {
+        organizationId: invitation.organizationId,
+        userId: auth.user.id,
+      });
+      // Quien ya es miembro no ocupa un asiento nuevo: aceptar una segunda
+      // invitación no debe rebotar contra el límite que esa misma persona ya
+      // está ocupando.
+      if (availability.denial && !alreadyMember) {
+        throw new ConflictException({
+          code: availability.denial,
+          message: seatDenialMessage(availability.denial, availability),
+          seats: availability.seats,
+          members: availability.members,
+        });
+      }
+
       const membershipRepository = manager.getRepository(Membership);
       await membershipRepository
         .createQueryBuilder()
