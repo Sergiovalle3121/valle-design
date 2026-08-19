@@ -273,6 +273,38 @@ fn clamped_knots(control_count: usize, degree: usize, out: &mut Vec<f64>) {
     }
 }
 
+/// ¿Es este vector de nudos USABLE, no sólo del tamaño correcto?
+///
+/// Réplica de `usableKnots` en `curve-tessellate.ts`, y la razón de que exista
+/// es la misma allí que aquí: la comprobación de LONGITUD por sí sola deja
+/// pasar basura con la forma adecuada. Un DXF ajeno trae vectores con `NaN`
+/// —grupo 40 vacío, o un `1.#QNAN` escrito literalmente— y también vectores
+/// constantes; los dos cumplen `len == n + grado + 1`. Con ellos De Boor
+/// calcula `denom = 0` en cada nivel, toma `alpha = 0` y devuelve SIEMPRE el
+/// primer punto de control: la spline se colapsa en un punto.
+///
+/// Y ése es el peor desenlace posible, porque no hay error ni hueco. El
+/// arquitecto ve un punto donde había una curva, con la caja envolvente
+/// mintiendo, y el número de puntos teselados es el correcto — así que ni
+/// siquiera una comprobación de forma lo delata. La salida correcta ya existía
+/// para el vector de longitud equivocada: sintetizar nudos clamped, que es lo
+/// que el export DXF escribe.
+///
+/// Se exige: todo finito, no decreciente y con dominio de longitud POSITIVA.
+/// Un dominio nulo (`u_min == u_max`) pondría todas las muestras en el mismo
+/// parámetro, que es el mismo colapso por otro camino.
+fn usable_knots(knots: &[f64], degree: usize) -> bool {
+    for i in 0..knots.len() {
+        if !knots[i].is_finite() {
+            return false;
+        }
+        if i > 0 && knots[i] < knots[i - 1] {
+            return false;
+        }
+    }
+    knots[knots.len() - 1 - degree] > knots[degree]
+}
+
 /// De Boor en el parámetro `u`. Sin trascendentes: aquí la paridad con el
 /// TypeScript debe ser EXACTA, y el artefacto de evidencia lo comprueba como
 /// igualdad bit a bit, no como tolerancia.
@@ -477,19 +509,35 @@ pub extern "C" fn valle_tessellate_spline(
     let deg = if capped > 1.0 { capped as usize } else { 1 };
 
     let expected = ctrl_count + deg + 1;
-    let mut synthesized: Vec<f64> = Vec::new();
-    let knots: &[f64] = if knots_ptr != 0 && knots_count as usize == expected {
+    // Se acepta el vector del llamador sólo si mide lo que debe Y sirve para
+    // algo. Que midiera lo que debe era la única condición hasta ahora, y por
+    // eso este kernel colapsaba en su primer punto de control las splines que
+    // el teselador del producto sí dibujaba: la longitud es una propiedad de la
+    // forma del dato, no de su contenido.
+    let supplied: Option<&[f64]> = if knots_ptr != 0 && knots_count as usize == expected {
         if !addressable(knots_ptr, expected, 8) {
             return ERR_ARGS;
         }
         // SAFETY: región comprobada y viva.
-        unsafe { f64s(knots_ptr, expected) }
-    } else {
-        if synthesized.try_reserve(expected).is_err() {
-            return ERR_ALLOC;
+        let candidate = unsafe { f64s(knots_ptr, expected) };
+        if usable_knots(candidate, deg) {
+            Some(candidate)
+        } else {
+            None
         }
-        clamped_knots(ctrl_count, deg, &mut synthesized);
-        &synthesized
+    } else {
+        None
+    };
+    let mut synthesized: Vec<f64> = Vec::new();
+    let knots: &[f64] = match supplied {
+        Some(candidate) => candidate,
+        None => {
+            if synthesized.try_reserve(expected).is_err() {
+                return ERR_ALLOC;
+            }
+            clamped_knots(ctrl_count, deg, &mut synthesized);
+            &synthesized
+        }
     };
 
     let points = steps as usize + 1;
