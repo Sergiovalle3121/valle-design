@@ -1,0 +1,481 @@
+{
+  "generadoPor": "node scripts/cad/build-dxf-property-matrix.mjs",
+  "corpusSintetico": true,
+  "limitacion": "Corpus SINTÉTICO: los ficheros imitan lo que emiten otras herramientas, no son capturas de despachos reales. Mide lo que supimos imaginar, no cobertura del mundo.",
+  "criterios": {
+    "intacto": "El valor que declara el fichero se lee al importar Y sigue ahí después de exportar y volver a importar. Es el único veredicto que permite decir que la propiedad viaja.",
+    "solo_entrada": "Se lee al importar y NO sobrevive al ciclo completo. El lector la entiende y el escritor la tira: el plano que el despacho devuelve al remitente ya no la lleva.",
+    "perdido_declarado": "No se lee, y un aviso del importador o una línea del manifiesto de exportación NOMBRA la propiedad. Es una limitación conocida y accionable.",
+    "perdido_en_silencio": "No se lee y nada lo menciona. El informe de importación dice que todo entró y no es verdad. Todo lo que aparezca aquí es deuda del producto, no una limitación asumida."
+  },
+  "resumen": {
+    "archivos": 5,
+    "sondas": 42,
+    "intactas": 0,
+    "soloEntrada": 0,
+    "perdidasDeclaradas": 0,
+    "perdidasEnSilencio": 42
+  },
+  "archivos": [
+    {
+      "id": "prop-ltype-capa-entidad",
+      "dialecto": "AC1015, tabla LTYPE + código 6 en capa y en entidad",
+      "proposito": "El eje del pórtico es CENTER por su capa; el muro punteado lleva DASHED puesto a mano sobre la entidad; la línea auxiliar dice BYLAYER de forma explícita. Los tres se dibujan distinto y los tres son un LINE: contar entidades no distingue ninguno.",
+      "legible": true,
+      "sondas": [
+        {
+          "sonda": "ltype-patron-center",
+          "propiedad": "tabla.ltype.patron",
+          "objetivo": "CENTER",
+          "esperado": "31.75,-6.35,6.35,-6.35",
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "Sin el patrón, el eje se dibuja continuo y deja de leerse como eje."
+        },
+        {
+          "sonda": "ltype-patron-dashed",
+          "propiedad": "tabla.ltype.patron",
+          "objetivo": "DASHED",
+          "esperado": "12.7,-6.35",
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "Sin el patrón, el trazo discontinuo del despacho remitente desaparece."
+        },
+        {
+          "sonda": "ltype-capa-ejes",
+          "propiedad": "capa.linetype",
+          "objetivo": "EJES",
+          "esperado": "CENTER",
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "La capa es donde un despacho pone la convención: perderla la pierde para todo el plano."
+        },
+        {
+          "sonda": "ltype-capa-muros",
+          "propiedad": "capa.linetype",
+          "objetivo": "MUROS-CARGA",
+          "esperado": "CONTINUOUS",
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "Una capa continua que se importa como otra cosa ensucia el plano entero."
+        },
+        {
+          "sonda": "ltype-capa-auxiliar",
+          "propiedad": "capa.linetype",
+          "objetivo": "AUXILIAR",
+          "esperado": "DASHED",
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "El auxiliar a trazos es lo que distingue una referencia de una línea de obra."
+        },
+        {
+          "sonda": "ltype-entidad-origen-ejes",
+          "propiedad": "entidad.linetype.origen",
+          "objetivo": "EJES",
+          "esperado": "byLayer",
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "Si el origen no se guarda, cambiar la capa deja de repintar la entidad."
+        },
+        {
+          "sonda": "ltype-entidad-valor-muros",
+          "propiedad": "entidad.linetype.valor",
+          "objetivo": "MUROS-CARGA",
+          "esperado": "DASHED",
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "El tipo puesto a mano sobre la entidad es una decisión del dibujante, no un default."
+        },
+        {
+          "sonda": "ltype-entidad-origen-muros",
+          "propiedad": "entidad.linetype.origen",
+          "objetivo": "MUROS-CARGA",
+          "esperado": "explicit",
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "Sin el origen explícito, el valor se confunde con heredado y se pierde al reasignar capa."
+        },
+        {
+          "sonda": "ltype-entidad-origen-auxiliar",
+          "propiedad": "entidad.linetype.origen",
+          "objetivo": "AUXILIAR",
+          "esperado": "byLayer",
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "BYLAYER escrito a mano tiene que llegar como herencia, no como el literal «BYLAYER»."
+        },
+        {
+          "sonda": "ltype-efectivo-ejes",
+          "propiedad": "efectivo.linetype",
+          "objetivo": "EJES",
+          "esperado": "CENTER",
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "Es lo que hay que dibujar: la herencia ya resuelta."
+        },
+        {
+          "sonda": "ltype-efectivo-muros",
+          "propiedad": "efectivo.linetype",
+          "objetivo": "MUROS-CARGA",
+          "esperado": "DASHED",
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "Lo explícito gana a la capa; al revés el muro sale continuo."
+        },
+        {
+          "sonda": "ltype-efectivo-auxiliar",
+          "propiedad": "efectivo.linetype",
+          "objetivo": "AUXILIAR",
+          "esperado": "DASHED",
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "BYLAYER explícito resuelve a lo que diga la capa."
+        },
+        {
+          "sonda": "ltype-visor-ejes",
+          "propiedad": "visor.linetypeIndex",
+          "objetivo": "EJES",
+          "esperado": 1,
+          "entrada": 0,
+          "idaYVuelta": 0,
+          "veredicto": "perdido_en_silencio",
+          "importa": "Si el visor manda la ranura 0, el eje se ve continuo por mucho que el documento lo sepa."
+        }
+      ]
+    },
+    {
+      "id": "prop-ltscale-global-y-entidad",
+      "dialecto": "AC1021, $LTSCALE + código 48, finales de línea de Windows",
+      "proposito": "Un plano a escala 1:50 lleva $LTSCALE 25 para que el guion se vea; una entidad concreta lo corrige a la mitad con el código 48. Las dos escalas se MULTIPLICAN, y quedarse con una sola produce guiones del tamaño equivocado, que es indistinguible de un patrón mal leído.",
+      "legible": true,
+      "sondas": [
+        {
+          "sonda": "ltscale-documento",
+          "propiedad": "documento.ltscale",
+          "objetivo": "",
+          "esperado": 25,
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "Es la escala del dibujo entero: sin ella todos los guiones salen 25 veces más cortos."
+        },
+        {
+          "sonda": "ltscale-entidad",
+          "propiedad": "entidad.linetype.escala",
+          "objetivo": "ESCALADA",
+          "esperado": 0.5,
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "La corrección por entidad es lo que un dibujante usa para que un detalle se lea."
+        },
+        {
+          "sonda": "ltscale-efectiva-global",
+          "propiedad": "efectivo.escala",
+          "objetivo": "GLOBAL",
+          "esperado": 25,
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "Sin escala efectiva no hay forma de dibujar el guion a su tamaño."
+        },
+        {
+          "sonda": "ltscale-efectiva-entidad",
+          "propiedad": "efectivo.escala",
+          "objetivo": "ESCALADA",
+          "esperado": 12.5,
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "25 × 0,5. Quedarse con cualquiera de los dos factores da un guion equivocado."
+        }
+      ]
+    },
+    {
+      "id": "prop-lineweight-enumeracion",
+      "dialecto": "AC1018, código 370 en capa y entidad con BYLAYER y DEFAULT",
+      "proposito": "El grosor en DXF no es un número libre: es una enumeración en centésimas de milímetro con tres negativos con significado (-1 BYLAYER, -2 BYBLOCK, -3 DEFAULT). Es lo que distingue al imprimir un muro de carga de una línea de referencia, y es exactamente lo que un municipio mira.",
+      "legible": true,
+      "sondas": [
+        {
+          "sonda": "lw-capa-muros",
+          "propiedad": "capa.lineweight",
+          "objetivo": "MUROS",
+          "esperado": 50,
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "0,50 mm es el grosor con el que se imprime un muro de carga."
+        },
+        {
+          "sonda": "lw-capa-ejes",
+          "propiedad": "capa.lineweight",
+          "objetivo": "EJES",
+          "esperado": 13,
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "0,13 mm es el trazo fino: si sube, el eje compite con el muro."
+        },
+        {
+          "sonda": "lw-capa-cajetin",
+          "propiedad": "capa.lineweight",
+          "objetivo": "CAJETIN",
+          "esperado": -3,
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "DEFAULT no es 0: es «lo que diga el trazador», y confundirlos cambia el plano impreso."
+        },
+        {
+          "sonda": "lw-entidad-origen-muros",
+          "propiedad": "entidad.lineweight.origen",
+          "objetivo": "MUROS",
+          "esperado": "byLayer",
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "Sin el origen, mover la entidad de capa deja de cambiarle el grosor."
+        },
+        {
+          "sonda": "lw-entidad-origen-ejes",
+          "propiedad": "entidad.lineweight.origen",
+          "objetivo": "EJES",
+          "esperado": "byLayer",
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "El -1 explícito tiene que llegar como herencia, no como el número -1."
+        },
+        {
+          "sonda": "lw-entidad-valor-remarcado",
+          "propiedad": "entidad.lineweight.valor",
+          "objetivo": "REMARCADO",
+          "esperado": 211,
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "2,11 mm es el remarcado de sección: es el trazo más grueso que existe en el formato."
+        },
+        {
+          "sonda": "lw-entidad-origen-remarcado",
+          "propiedad": "entidad.lineweight.origen",
+          "objetivo": "REMARCADO",
+          "esperado": "explicit",
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "Un grosor puesto a mano no puede confundirse con uno heredado."
+        },
+        {
+          "sonda": "lw-efectivo-muros",
+          "propiedad": "efectivo.lineweight",
+          "objetivo": "MUROS",
+          "esperado": 50,
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "Es el número con el que se traza."
+        },
+        {
+          "sonda": "lw-efectivo-ejes",
+          "propiedad": "efectivo.lineweight",
+          "objetivo": "EJES",
+          "esperado": 13,
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "BYLAYER resuelto contra su capa."
+        },
+        {
+          "sonda": "lw-efectivo-cajetin",
+          "propiedad": "efectivo.lineweight",
+          "objetivo": "CAJETIN",
+          "esperado": -3,
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "DEFAULT se propaga como DEFAULT: inventarle un número es mentir sobre el plano."
+        },
+        {
+          "sonda": "lw-visor-remarcado",
+          "propiedad": "visor.medioGrosorPx",
+          "objetivo": "REMARCADO",
+          "esperado": 4.22,
+          "entrada": 0.5,
+          "idaYVuelta": 0.5,
+          "veredicto": "perdido_en_silencio",
+          "importa": "Si el visor dibuja 0,5 px, el remarcado se ve igual que una línea auxiliar en pantalla."
+        },
+        {
+          "sonda": "lw-visor-muros",
+          "propiedad": "visor.medioGrosorPx",
+          "objetivo": "MUROS",
+          "esperado": 1,
+          "entrada": 0.5,
+          "idaYVuelta": 0.5,
+          "veredicto": "perdido_en_silencio",
+          "importa": "0,50 mm son 1 px de medio grosor con la convención del lote instanciado."
+        }
+      ]
+    },
+    {
+      "id": "prop-byblock-en-bloque",
+      "dialecto": "AC1024, BYBLOCK dentro de BLOCK con INSERT que impone tipo y grosor",
+      "proposito": "La geometría del bloque dice BYBLOCK (6=BYBLOCK, 370=-2): no hereda de su capa sino de LA INSERCIÓN. Es como se hace un símbolo reutilizable que se dibuja distinto en cada plano, y resolverlo contra la capa da el resultado equivocado sin que nada falle.",
+      "legible": true,
+      "sondas": [
+        {
+          "sonda": "byblock-origen-linetype",
+          "propiedad": "entidad.linetype.origen",
+          "objetivo": "@bloque:MARCA-NIVEL",
+          "esperado": "byBlock",
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "Sin BYBLOCK, el símbolo se dibuja igual en todos los planos y deja de ser reutilizable."
+        },
+        {
+          "sonda": "byblock-origen-lineweight",
+          "propiedad": "entidad.lineweight.origen",
+          "objetivo": "@bloque:MARCA-NIVEL",
+          "esperado": "byBlock",
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "-2 no es un grosor: es «pregúntale a la inserción»."
+        },
+        {
+          "sonda": "byblock-insercion-linetype",
+          "propiedad": "entidad.linetype.valor",
+          "objetivo": "SIMBOLOS",
+          "esperado": "DASHED",
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "El INSERT es quien manda; si su código 6 se pierde, la herencia no tiene de dónde tirar."
+        },
+        {
+          "sonda": "byblock-insercion-lineweight",
+          "propiedad": "entidad.lineweight.valor",
+          "objetivo": "SIMBOLOS",
+          "esperado": 50,
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "Ídem para el grosor de la inserción."
+        },
+        {
+          "sonda": "byblock-efectivo-linetype",
+          "propiedad": "efectivo.linetype",
+          "objetivo": "@bloque:MARCA-NIVEL",
+          "esperado": "DASHED",
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "La resolución correcta: del INSERT, no de la capa SIMBOLOS (que es CONTINUOUS)."
+        },
+        {
+          "sonda": "byblock-efectivo-lineweight",
+          "propiedad": "efectivo.lineweight",
+          "objetivo": "@bloque:MARCA-NIVEL",
+          "esperado": 50,
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "La capa dice 25 y la respuesta correcta es 50: resolver mal no falla, dibuja mal."
+        }
+      ]
+    },
+    {
+      "id": "prop-cota-asociativa-ajena",
+      "dialecto": "AC1027, DIMENSION de otro CAD con bloque *D y sin XDATA nuestra",
+      "proposito": "Una cota que llega del estructurista: entidad DIMENSION con su estilo, su medida, sus DOS puntos medidos (13/23 y 14/24) y el bloque anónimo *D1 con la geometría ya dibujada. Si entra como líneas sueltas, el plano se ve idéntico y deja de medir: mover el muro ya no cambia el número.",
+      "legible": true,
+      "sondas": [
+        {
+          "sonda": "cota-ajena-presente",
+          "propiedad": "cota.presente",
+          "objetivo": "",
+          "esperado": 1,
+          "entrada": 0,
+          "idaYVuelta": 0,
+          "veredicto": "perdido_en_silencio",
+          "importa": "Una cota que entra como seis líneas y un texto ya no es una cota: es un dibujo de una cota."
+        },
+        {
+          "sonda": "cota-ajena-a",
+          "propiedad": "cota.a",
+          "objetivo": "",
+          "esperado": "0,0",
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "El primer punto medido. Sin él no hay nada que recalcular al mover el muro."
+        },
+        {
+          "sonda": "cota-ajena-b",
+          "propiedad": "cota.b",
+          "objetivo": "",
+          "esperado": "3200,0",
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "El segundo punto medido."
+        },
+        {
+          "sonda": "cota-ajena-medida",
+          "propiedad": "cota.medida",
+          "objetivo": "",
+          "esperado": 3200,
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "La medida que el remitente declaró: es la que el municipio compara."
+        },
+        {
+          "sonda": "cota-ajena-tipo",
+          "propiedad": "cota.tipo",
+          "objetivo": "",
+          "esperado": "aligned",
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "El código 70 dice qué familia es; adivinarla cambia la geometría al regenerar."
+        },
+        {
+          "sonda": "cota-ajena-estilo",
+          "propiedad": "cota.estilo",
+          "objetivo": "",
+          "esperado": "ISO-25",
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "El estilo es la convención del despacho remitente; perderlo cambia flechas y decimales."
+        },
+        {
+          "sonda": "cota-ajena-capa-lineweight",
+          "propiedad": "capa.lineweight",
+          "objetivo": "A-ANNO-DIMS",
+          "esperado": 13,
+          "entrada": null,
+          "idaYVuelta": null,
+          "veredicto": "perdido_en_silencio",
+          "importa": "La capa de cotas se imprime fina; con el grosor perdido tapa el dibujo."
+        }
+      ]
+    }
+  ]
+}
