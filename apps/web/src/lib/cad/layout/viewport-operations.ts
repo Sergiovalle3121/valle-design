@@ -35,7 +35,9 @@ import type {
   CadPaperSpace,
   CadPaperViewport,
   CadPoint2,
+  CadViewportView,
 } from "../cad-document";
+import { CAD_VIEWPORT_PLAN_VIEW } from "../cad-paper-viewport";
 import type { CadEntityCommand } from "../entity-commands";
 import type { CadNativeEntity } from "../entity-runtime";
 import { CAD_SHEET_SCALES } from "../paper-space";
@@ -207,6 +209,8 @@ export interface CadViewportCreateInput {
   modelBounds: { x: number; y: number; width: number; height: number };
   scale?: number;
   lock?: boolean;
+  /** Cámara de la ventana. Sin ella, planta: lo que MVIEW siempre significó. */
+  view?: CadViewportView;
 }
 
 /**
@@ -233,6 +237,12 @@ export function createCadRectangularViewport(input: CadViewportCreateInput): Cad
     scale,
     annotationScale: scale,
     locked: input.lock ?? false,
+    // MVIEW crea ventanas de PLANTA, y desde el esquema 8 lo dice en vez de
+    // dejarlo implícito. `view` lo sobreescribe quien crea otra cosa —SOLVIEW
+    // fabrica alzados y cortes por esta misma puerta—, y así el invariante «no
+    // hay ventana que no declare desde dónde mira» vale también para las
+    // recién creadas, sin esperar a que el documento pase por el disco.
+    view: input.view ? { ...input.view } : { ...CAD_VIEWPORT_PLAN_VIEW },
   };
 }
 

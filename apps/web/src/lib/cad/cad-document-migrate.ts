@@ -32,8 +32,10 @@ import type {
   CadDocument,
   CadEntity,
   CadLossManifestEntry,
+  CadPaperSpace,
   CadPoint2,
 } from "./cad-document";
+import { CAD_VIEWPORT_PLAN_VIEW } from "./cad-paper-viewport";
 import {
   byId,
   CAD_DOCUMENT_SCHEMA,
@@ -222,14 +224,52 @@ function dropDanglingConstraintReferences(document: CadDocument): CadDocument {
   };
 }
 
+/**
+ * 7→8: toda ventana gráfica declara desde dónde mira.
+ *
+ * Una ventana del esquema 7 sólo sabía mirar en planta —`modelBounds` es un
+ * rectángulo del plano XY y no hay otra lectura posible—, así que escribirle
+ * `CAD_VIEWPORT_PLAN_VIEW` no reinterpreta nada: pone por escrito lo que ya
+ * significaba. Lo que la lámina enseña no cambia, y el spec del censo lo mide
+ * proyectando puntos en vez de creérselo.
+ *
+ * Se escribe SIEMPRE, incluso donde el default coincidiría, para que después
+ * de abrir «esta ventana no dice desde dónde mira» sea un estado imposible. El
+ * argumento largo está en la cabecera de `cad-paper-viewport.ts`; el corto es
+ * que un default implícito obliga a adivinar a todo el que lea la ventana, y
+ * la adivinanza no se ve fallar.
+ *
+ * IDEMPOTENTE, y por omisión en vez de por comparación: una ventana que ya
+ * trae `view` se devuelve TAL CUAL, con la misma referencia. Sobrescribirla
+ * con la de planta convertiría abrir un alzado en perderlo.
+ */
+function declarePlanViewports(document: CadDocument): CadDocument {
+  let changed = false;
+  const paperSpaces: CadPaperSpace[] = document.paperSpaces.map((space) => {
+    const viewports = space.viewports;
+    if (!Array.isArray(viewports) || viewports.length === 0) return space;
+    if (viewports.every((viewport) => viewport.view)) return space;
+    changed = true;
+    return {
+      ...space,
+      viewports: viewports.map((viewport) =>
+        viewport.view ? viewport : { ...viewport, view: { ...CAD_VIEWPORT_PLAN_VIEW } },
+      ),
+    };
+  });
+  return changed ? { ...document, paperSpaces } : document;
+}
+
 /** Deterministic additive migration from v1/v2/v3 to the current schema. */
 export function migrateCadDocument(value: unknown): CadDocument {
   if (!value || typeof value !== "object") throw new Error("CadDocument must be an object.");
   const raw = value as Partial<CadDocument>;
   const schema = Number(raw.meta?.schema) || 1;
   if (schema > CAD_DOCUMENT_SCHEMA) throw new Error(`Unsupported CadDocument schema ${schema}.`);
-  const migrated = dropDanglingConstraintReferences(
-    migrateLegacyMleaderCompositions(withSchemaDefaults(raw)),
+  const migrated = declarePlanViewports(
+    dropDanglingConstraintReferences(
+      migrateLegacyMleaderCompositions(withSchemaDefaults(raw)),
+    ),
   );
   if (!finite(migrated)) throw new Error("CadDocument contains non-finite numeric values.");
   const ids = migrated.entities.map((entity) => entity.id);

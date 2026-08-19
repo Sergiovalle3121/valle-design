@@ -26,7 +26,7 @@ import {
 
 // --- ancla absoluta: el número del esquema vigente ---------------------------
 {
-  assert.equal(CAD_DOCUMENT_SCHEMA, 7, "esta ola sube el esquema canónico a 7");
+  assert.equal(CAD_DOCUMENT_SCHEMA, 8, "esta ola sube el esquema canónico a 8");
 }
 
 /** Documento v3 con una entidad de cada familia que ya existía. */
@@ -76,7 +76,7 @@ function schema3Document(): Record<string, unknown> {
   const source = schema3Document();
   const migrated = migrateCadDocument(source);
 
-  assert.equal(migrated.meta.schema, 7, "el documento pasa a declararse v7");
+  assert.equal(migrated.meta.schema, 8, "el documento pasa a declararse v8");
   // Anclas absolutas, campo a campo: no «igual que antes», sino ESTE valor.
   assert.equal(migrated.meta.version, 7, "la versión de contenido NO se toca");
   assert.equal(migrated.meta.unit, "mm");
@@ -220,7 +220,7 @@ function schema3Document(): Record<string, unknown> {
   };
   const migrated = migrateCadDocument(v4);
 
-  assert.equal(migrated.meta.schema, 7, "el v4 pasa a declararse v7");
+  assert.equal(migrated.meta.schema, 8, "el v4 pasa a declararse v8");
   assert.equal(migrated.meta.version, 3, "la versión de contenido NO se toca al subir de esquema");
   const stats = cadDocumentStats(migrated);
   assert.equal(stats.polyline, 1, "la polilínea cerrada SIGUE siendo una polilínea");

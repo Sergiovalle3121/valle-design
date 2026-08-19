@@ -43,7 +43,7 @@
     {
       "mix": "architecture",
       "entities": 10000,
-      "sha256": "62118693c588d9bfd540bd0ac02811a0425b3efab24b044db7e6004014dfe691",
+      "sha256": "309e370b12883b8fad0a1f68fe40b5668e7eca9a4b584c342272395b482cfa64",
       "entityMix": {
         "line": 700,
         "polyline": 1800,
@@ -56,7 +56,7 @@
     {
       "mix": "architecture",
       "entities": 100000,
-      "sha256": "b4beb380735e31557aa91fa88122d208a440f76bf0066aa0371f93abaeab2bb5",
+      "sha256": "c41679765d5193fe7bf8bbd0b5224c2720fd8235b4f0ece497c6fd67363e8155",
       "entityMix": {
         "line": 7000,
         "polyline": 18000,
@@ -69,7 +69,7 @@
     {
       "mix": "mechanical",
       "entities": 10000,
-      "sha256": "dd2cf6d52db0e4f985a05c479fe76a8e1ce8608722ccb1bb669bbcd56c137b72",
+      "sha256": "b1c4c903640ed9d04affdd3bdac3af464b872c4902a38cfc929a867f44076048",
       "entityMix": {
         "line": 1400,
         "circle": 800,
@@ -82,7 +82,7 @@
     {
       "mix": "mechanical",
       "entities": 100000,
-      "sha256": "e449be38c4d136a03b55de569ab2ff28ac14c2db799250f94a4b9d2d83f978cc",
+      "sha256": "ab03d6bc349ad929d8ad8ab230b6fad6e51582241eb6c6d4c4c381ea1642e0ac",
       "entityMix": {
         "line": 14000,
         "circle": 8000,
@@ -95,7 +95,7 @@
     {
       "mix": "cartography",
       "entities": 10000,
-      "sha256": "d8b9a3b7a2ab245028d9837f7ff752630ae504a3eae2e45d8b9260852226f650",
+      "sha256": "0a6986a71469a5ec0156b45abb45304eac316e38eafd67c37f856afa8c7cd06e",
       "entityMix": {
         "line": 500,
         "polyline": 9200,
@@ -105,7 +105,7 @@
     {
       "mix": "cartography",
       "entities": 100000,
-      "sha256": "9127801ef1eb2f5d2a63d41bdb5079a414fa989999fa3aed9de1a2dcadad1a5d",
+      "sha256": "eedf59dd3b6fa87a011770eee9c165c7f7ca77f625abd536e32b3fce77d6fb13",
       "entityMix": {
         "line": 5000,
         "polyline": 92000,
@@ -115,7 +115,7 @@
     {
       "mix": "text-hostile",
       "entities": 10000,
-      "sha256": "6a541c5a470ee43455539a6286eabba07881dc89954d78e2133d170b4539258b",
+      "sha256": "6162680b4ee12d285de3de088274c45d557121b37ea508fb5e74db7ce77216df",
       "entityMix": {
         "line": 6000,
         "polyline": 2000,
@@ -125,7 +125,7 @@
     {
       "mix": "text-hostile",
       "entities": 100000,
-      "sha256": "fac1cc76c27d136bf08060fd4cdac5d49c325192778da36a242c6f1998cc2e64",
+      "sha256": "9e754bb0a736e8ca836359ff36220d398cc4238779ee97a8b4e0ecebd9b4aedd",
       "entityMix": {
         "line": 60000,
         "polyline": 20000,
@@ -135,7 +135,7 @@
     {
       "mix": "plano-real",
       "entities": 10000,
-      "sha256": "4af8fc624d45396da366e4a8e415a310712282b5ae32210ffb295d0fed81d7ab",
+      "sha256": "8cc4dadd22bf7a8925f6015ea69f2e4be427c043546ce742ddee5cb19a96dc29",
       "entityMix": {
         "line": 2900,
         "polyline": 1500,
@@ -150,7 +150,7 @@
     {
       "mix": "plano-real",
       "entities": 100000,
-      "sha256": "6a9842a3ecc37d6919449472cc16a6796c638c717b5a0acd7ca2fd523584d06d",
+      "sha256": "db9136ecd8a833b168d9ec3b6ef79d6ea833de7a00fbd4184bb6cc4467bebae8",
       "entityMix": {
         "line": 29000,
         "polyline": 15000,

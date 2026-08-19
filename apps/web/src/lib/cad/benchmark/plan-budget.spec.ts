@@ -114,16 +114,19 @@ assert.deepEqual(
   },
   "la composición del plano real a 20.000 es EXACTA, no aproximada",
 );
-// El SHA cambió con la subida del esquema canónico a 7 (el hueco alojado), y
-// SÓLO por eso: el único byte distinto del serializado es `"schema":6` →
-// `"schema":7`. Se comprobó volviendo a poner el 6 sobre el texto nuevo, que
-// devuelve b91c3468… exacto. Ninguna entidad, ningún bloque y ninguna
-// coordenada del corpus cambian, así que los presupuestos de `plan-budget.ts`
-// NO se recalibran: recalibrar por un entero de metadatos daría a los números
-// una autoridad de medida que esa corrida no tendría.
+// El SHA ha cambiado DOS veces por subidas del esquema canónico —a 7 (el hueco
+// alojado) y a 8 (la ventana gráfica con cámara)— y las dos veces SÓLO por eso:
+// el único byte distinto del serializado es el dígito del esquema. Se comprueba
+// eslabón a eslabón en `corpus-sha-provenance.spec.ts`, que revierte 8→7→6 sobre
+// el texto de hoy y recupera los dos SHA antiguos exactos. La subida al 8 sí
+// escribe algo al abrir —una cámara de planta por ventana—, pero este corpus no
+// tiene láminas, y ese spec lo comprueba en vez de suponerlo. Ninguna entidad,
+// ningún bloque y ninguna coordenada cambian, así que los presupuestos de
+// `plan-budget.ts` NO se recalibran: recalibrar por un entero de metadatos daría
+// a los números una autoridad de medida que esa corrida no tendría.
 assert.equal(
   createHash("sha256").update(serializeCadDocument(corpus.document)).digest("hex"),
-  "d569bc9d27db3cd5170f9d5da621a7d4b112afee91e68c8f48e405a820ee8f25",
+  "000a45f20f3dc18f48aec976ef6ee388108c0852f00d963e7f5e4b6b5ecb6eb2",
   "el corpus de 20.000 cambió de contenido: si es intencionado, actualiza este SHA Y vuelve a calibrar plan-budget.ts con una corrida nueva",
 );
 assert.equal(
