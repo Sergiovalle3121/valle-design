@@ -6,12 +6,48 @@ type WorkerEvent =
   | { type: "complete"; report: DocumentImportReport }
   | { type: "error"; message: string };
 
+/**
+ * Reparte una selección de varios archivos en principal y acompañantes.
+ *
+ * Un shapefile NO es un archivo: son entre dos y cinco que comparten nombre y
+ * se tienen que elegir juntos. El `.shp` manda; el `.shx`, el `.dbf`, el `.prj`
+ * y el `.cpg` lo acompañan. Si el usuario elige sólo el `.shp`, se importa
+ * igual y el manifiesto declara lo que faltó — sobre todo el `.prj`, sin el
+ * cual la geometría es correcta y no se sabe dónde está en el mundo.
+ *
+ * Cuando no hay ningún `.shp` en la selección se devuelve el primer archivo sin
+ * acompañantes, que es el comportamiento de siempre para DXF y JSON.
+ */
+export function splitDocumentSelection(files: readonly File[]): {
+  primary: File;
+  sidecars: { shx?: File; dbf?: File; prj?: File; cpg?: File };
+} | null {
+  if (files.length === 0) return null;
+  const ends = (file: File, extension: string) =>
+    file.name.toLowerCase().endsWith(extension);
+  const primary = files.find((file) => ends(file, ".shp")) ?? files[0];
+  if (!ends(primary, ".shp")) return { primary, sidecars: {} };
+  const pick = (extension: string) =>
+    files.find((file) => ends(file, extension));
+  return {
+    primary,
+    sidecars: {
+      ...(pick(".shx") ? { shx: pick(".shx")! } : {}),
+      ...(pick(".dbf") ? { dbf: pick(".dbf")! } : {}),
+      ...(pick(".prj") ? { prj: pick(".prj")! } : {}),
+      ...(pick(".cpg") ? { cpg: pick(".cpg")! } : {}),
+    },
+  };
+}
+
 export function importDocumentFile(
   file: File,
   options: {
     signal?: AbortSignal;
     timeoutMs?: number;
     onProgress?: (progress: number, stage: string) => void;
+    /** Acompañantes del `.shp`. Vacío para DXF y JSON. */
+    sidecars?: { shx?: File; dbf?: File; prj?: File; cpg?: File };
   } = {},
 ): Promise<DocumentImportReport> {
   validateImportFile(file.name, file.size);
@@ -54,6 +90,6 @@ export function importDocumentFile(
       finish(() => reject(new Error("El worker de importación falló.")));
     options.signal?.addEventListener("abort", abort, { once: true });
     if (options.signal?.aborted) abort();
-    else worker.postMessage({ file });
+    else worker.postMessage({ file, sidecars: options.sidecars ?? {} });
   });
 }
