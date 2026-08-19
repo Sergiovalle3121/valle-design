@@ -54,9 +54,26 @@ const splineRenderer: CadEntityRenderer<CadSplineEntity> = {
   ],
 };
 
+/**
+ * Caja envolvente. La RESERVA importa tanto como el caso normal.
+ *
+ * `tessellateSpline` devuelve vacío cuando la spline no da curva —menos de dos
+ * puntos de control, que es lo que llega de un DXF donde alguien borró la mitad
+ * de la definición—. Y `pointsBounds([])` contesta la caja del ORIGEN, que no
+ * es «no sé»: es una posición, y falsa. Con ella, el índice espacial archiva la
+ * entidad en la celda 0:0, la ventana de selección sobre su sitio real NO la
+ * encuentra y una ventana sobre el origen selecciona algo que no está ahí.
+ *
+ * Los puntos de control son la única posición que la entidad sigue afirmando,
+ * así que la caja se ancla en ellos. Una spline sin curva sigue estando DONDE
+ * está, y eso es lo que hay que contestar.
+ */
 const splineBounds: CadBoundsProvider<CadSplineEntity> = {
-  bounds: (entity) =>
-    pointsBounds(splineRenderer.paths(entity, 160)[0].points),
+  bounds: (entity) => {
+    const points = splineRenderer.paths(entity, 160)[0].points;
+    if (points.length > 0) return pointsBounds(points);
+    return pointsBounds(entity.controlPoints.map((point) => ({ x: point.x, y: point.y })));
+  },
 };
 
 export const splineAdapter: CadEntityAdapter<CadSplineEntity> = {

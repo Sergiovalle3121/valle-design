@@ -27,6 +27,8 @@
  */
 import type { CadPoint2 } from "../../cad-document";
 import {
+  cadBoundariesCross,
+  cadBoundarySelfIntersects,
   cadBoundarySignedArea,
   cadPointInBoundary,
   resolveCadHatchRegionWithSources,
@@ -34,6 +36,7 @@ import {
   type CadBoundaryPath,
 } from "../../hatch-associativity";
 import { CAD_ENTITY_REGISTRY, cadEntityBoundaryPaths } from "../../entity-runtime";
+import { pointsBounds } from "../../entity-hit-geometry";
 import type { CadCommandContext } from "../command-types";
 
 export type CadIslandStyle = "normal" | "outer" | "ignore";
@@ -63,6 +66,25 @@ export function cadCandidateBoundaryPaths(
     paths.push(...cadEntityBoundaryPaths(entity, CAD_ENTITY_REGISTRY));
   }
   return paths;
+}
+
+/**
+ * Entidades cuyo contorno se CRUZA CONSIGO MISMO, para poder decirlo.
+ *
+ * Sin esto, un contorno autointersecante acababa en el mismo mensaje que un
+ * perímetro abierto —«cierra el perímetro»— y ése es un consejo equivocado: el
+ * perímetro está cerrado, lo que pasa es que se cruza. El dibujante se pone a
+ * buscar un hueco que no existe. Con el nombre de la entidad delante, la
+ * corrección es evidente.
+ */
+export function cadSelfIntersectingBoundarySources(
+  context: CadCommandContext,
+  entityIds?: readonly string[],
+): string[] {
+  const culpables = new Set<string>();
+  for (const path of cadCandidateBoundaryPaths(context, entityIds))
+    if (cadBoundarySelfIntersects(path.points)) culpables.add(path.sourceId);
+  return [...culpables];
 }
 
 /** Región que contiene un punto interior. `null` si el punto no está encerrado. */
@@ -104,9 +126,14 @@ export function cadLoopInteriorPoint(
   // de la isla y el sombreado saldría al revés.
   if (usable(centroid)) return centroid;
 
-  const ys = loop.map((point) => point.y);
-  const minY = Math.min(...ys);
-  const maxY = Math.max(...ys);
+  // Recorrido y no propagación: un contorno de 200.000 puntos convertiría cada
+  // uno en un ARGUMENTO de llamada y desbordaría la pila. Ver `pointsBounds`.
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (const point of loop) {
+    if (point.y < minY) minY = point.y;
+    if (point.y > maxY) maxY = point.y;
+  }
   const span = maxY - minY;
   if (!(span > 0)) return null;
 
@@ -175,20 +202,94 @@ export function cadHatchRegionFromObjects(
  * crea la entidad: lo guardado es lo dibujado.
  */
 export function cadHatchSpacing(boundaries: readonly (readonly CadPoint2[])[]): number {
-  const points = boundaries.flat();
-  if (points.length === 0) return 1;
-  const xs = points.map((point) => point.x);
-  const ys = points.map((point) => point.y);
-  const diagonal = Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+  // Misma regla que `pointsBounds`: recorrido, nunca propagación. Este cálculo
+  // corre al CREAR el sombreado, sobre el contorno completo tal cual llega.
+  const bounds = pointsBounds(boundaries.flat().map((point) => ({ x: point.x, y: point.y })));
+  if (!Number.isFinite(bounds.minX)) return 1;
+  const diagonal = Math.hypot(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
   return Math.max(diagonal / 40, 1e-6);
 }
 
-/** Área del anillo exterior menos la de las islas. Sirve para afirmar de verdad. */
+/**
+ * ¿Está el anillo `inner` DENTRO de `outer`? Por voto de los PUNTOS MEDIOS de
+ * sus lados.
+ *
+ * No se pregunta por un punto interior de `inner` —el centroide, o el que
+ * calcula `cadLoopInteriorPoint`— porque ése cae dentro de las islas del propio
+ * anillo: el centro de un cuadrado de 1.000 con una isla de 200 centrada está
+ * DENTRO de la isla, y la profundidad del exterior salía 1 en vez de 0, con lo
+ * que el área total se volvía negativa.
+ *
+ * Y se votan los puntos MEDIOS de los lados y no los vértices porque una isla
+ * que TOCA el contorno comparte vértices con él, y un punto justo encima de la
+ * frontera no está ni dentro ni fuera para la regla par/impar. El punto medio de
+ * un lado sólo cae sobre la frontera si el lado entero está apoyado en ella, y
+ * la mayoría de los demás decide.
+ *
+ * Vale porque los anillos que se CRUZAN ya se han rechazado antes: sin cruces,
+ * o está dentro o está fuera, y el voto sólo desempata los apoyos.
+ */
+function cadLoopInsideLoop(inner: readonly CadPoint2[], outer: readonly CadPoint2[]): boolean {
+  if (inner.length < 3 || outer.length < 3) return false;
+  let dentro = 0;
+  for (let index = 0; index < inner.length; index += 1) {
+    const current = inner[index];
+    const next = inner[(index + 1) % inner.length];
+    const medio = { x: (current.x + next.x) / 2, y: (current.y + next.y) / 2 };
+    if (cadPointInBoundary(medio, outer)) dentro += 1;
+  }
+  return dentro * 2 > inner.length;
+}
+
+/** Lo ambiguo se rechaza con nombre propio, no con un número cualquiera. */
+export class CadHatchRegionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CadHatchRegionError";
+  }
+}
+
+/**
+ * Área REALMENTE rellenada por la región, contada por PARIDAD de anidamiento.
+ *
+ * ## Por qué no vale «el exterior menos las islas»
+ *
+ * Ésa era la fórmula anterior, y sólo es correcta con UN nivel de islas. Con
+ * las islas dentro de islas que trae cualquier plano de acabados —el patio
+ * dentro del edificio, el aljibe dentro del patio— restaba también las que
+ * vuelven a estar rellenas. Cuatro cuadrados concéntricos de 100, 80, 60 y 40
+ * daban 10000−6400−3600−1600 = **−1600**: un área NEGATIVA, publicada como
+ * medida. Y lo peor no es el signo, es que la misma región medía una cosa aquí
+ * y se dibujaba de otra: `hatchRegionContainsPoint` y el renderizador deciden
+ * por PARIDAD desde siempre, así que el anillo de tercer nivel se pintaba y
+ * este cálculo lo restaba.
+ *
+ * La cuenta correcta es la del renderizador: cada anillo suma o resta según la
+ * PROFUNDIDAD a la que está. Los mismos cuatro cuadrados dan 5600, que es lo
+ * que se ve al mirar el plano.
+ *
+ * ## Y lo que sigue sin poder contestarse
+ *
+ * Dos islas que se CRUZAN entre sí no forman un modelo de anidamiento: el trozo
+ * común queda relleno por paridad y ninguna suma de áreas completas lo recoge
+ * —haría falta recortar los polígonos—. Antes salía un número plausible y
+ * equivocado (1700 donde la verdad es 1900). Ahora se lanza `CadHatchRegionError`
+ * con los dos anillos nombrados, porque una medida ambigua sin aviso acaba en
+ * una tabla de acabados y de ahí en un pedido de material.
+ */
 export function cadHatchRegionArea(boundaries: readonly (readonly CadPoint2[])[]): number {
   if (boundaries.length === 0) return 0;
-  const [outer, ...islands] = boundaries;
-  return islands.reduce(
-    (area, island) => area - Math.abs(cadBoundarySignedArea(island)),
-    Math.abs(cadBoundarySignedArea(outer)),
-  );
+  for (let index = 0; index < boundaries.length; index += 1)
+    for (let other = index + 1; other < boundaries.length; other += 1)
+      if (cadBoundariesCross(boundaries[index], boundaries[other]))
+        throw new CadHatchRegionError(
+          `Los contornos ${index} y ${other} de la región se cruzan entre sí: el área rellenada ` +
+            "no es una suma de áreas completas y no se puede medir sin recortar los polígonos.",
+        );
+  return boundaries.reduce((total, loop, index) => {
+    const depth = boundaries.filter(
+      (other, position) => position !== index && cadLoopInsideLoop(loop, other),
+    ).length;
+    return total + (depth % 2 === 0 ? 1 : -1) * Math.abs(cadBoundarySignedArea(loop));
+  }, 0);
 }
