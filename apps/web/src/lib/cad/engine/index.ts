@@ -66,6 +66,8 @@ import { CAD_UCS_COMMANDS } from "./commands/ucs-commands";
 import { CAD_UCS_VIEW_COMMANDS } from "./commands/ucs-view-commands";
 // Navegación 3D tecleable: 3DORBIT, 3DFORBIT, 3DPAN, 3DZOOM y VPOINT.
 import { CAD_VIEW_NAVIGATION_3D_COMMANDS } from "./commands/view-navigation-3d";
+// Aplanado y perfil: FLATSHOT y SOLPROF convierten el modelo en dibujo 2D.
+import { CAD_SOLID_FLATSHOT_COMMANDS } from "./commands/solids-flatshot";
 
 export * from "./command-types";
 export * from "./command-engine";
@@ -144,6 +146,8 @@ export const CAD_COMMAND_DESCRIPTORS = [
   ...CAD_UCS_VIEW_COMMANDS,
   // Navegación 3D: un modelador de sólidos sin forma tecleable de mirarlos.
   ...CAD_VIEW_NAVIGATION_3D_COMMANDS,
+  // Aplanado: la mitad del 3D que devuelve dibujo 2D acotable en vez de píxeles.
+  ...CAD_SOLID_FLATSHOT_COMMANDS,
 ] as const;
 
 /**
