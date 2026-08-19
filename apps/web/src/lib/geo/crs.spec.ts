@@ -42,12 +42,12 @@ import {
   geodeticToUtm,
   geoUtmCrs,
   geoUtmZoneForLongitude,
-  parseGeoCrsWkt,
   reprojectGeoPoint,
   resolveGeoCrs,
   utmToGeodetic,
   type GeoEllipsoid,
 } from "./crs";
+import { parseGeoCrsWkt } from "./crs-prj";
 import { GeoError } from "./errors";
 
 const DEG = Math.PI / 180;

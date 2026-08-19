@@ -49,7 +49,7 @@
  * archivo salen de ahí.
  */
 import type { GeoCrs } from "./crs";
-import { parseGeoCrsWkt } from "./crs";
+import { parseGeoCrsWkt } from "./crs-prj";
 import { GeoError, geoAssert } from "./errors";
 
 /** Código mágico del archivo principal, big-endian en el byte 0. */

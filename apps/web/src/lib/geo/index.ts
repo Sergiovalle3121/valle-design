@@ -58,6 +58,7 @@ import { readDbf, type GeoDbfTable } from "./dbf";
 
 export * from "./errors";
 export * from "./crs";
+export * from "./crs-prj";
 export * from "./shapefile";
 export * from "./dbf";
 export * from "./las";

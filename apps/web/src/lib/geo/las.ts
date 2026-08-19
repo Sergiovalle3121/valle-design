@@ -42,7 +42,8 @@
  * de registro de punto.
  */
 import type { GeoCrs } from "./crs";
-import { parseGeoCrsWkt, resolveGeoCrs } from "./crs";
+import { resolveGeoCrs } from "./crs";
+import { parseGeoCrsWkt } from "./crs-prj";
 import { GeoError, geoAssert, isGeoError } from "./errors";
 
 /** Firma del formato en los cuatro primeros bytes. */
