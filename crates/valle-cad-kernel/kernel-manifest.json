@@ -40,14 +40,14 @@
     },
     {
       "path": "crates/valle-cad-kernel/src/lib.rs",
-      "bytes": 18468,
-      "sha256": "585a52edfaef51c46beffdc974ff42d8996cf6e4b6962c0a87a08fc6fe8f750c"
+      "bytes": 20720,
+      "sha256": "368b931ca79cc93268ce16a1e15df43edf2c16dbab0d930bebebf311d178bb56"
     }
   ],
   "binary": {
     "path": "apps/web/public/wasm/valle-cad-kernel.wasm",
-    "bytes": 31218,
-    "sha256": "70d6bb0203f986fe9fb4795b3d36abb9661000e880ad623fd29dc9fd3d5942b7",
+    "bytes": 31435,
+    "sha256": "7b1f5ecd917287b45ef88a4421165a24a646e2cd2ac399e5c2791dfa535a762e",
     "exports": [
       "memory:memory",
       "valle_alloc:function",
@@ -60,7 +60,7 @@
       "valle_tessellate_spline:function"
     ]
   },
-  "builtAt": "2026-08-19T21:03:44.727Z",
+  "builtAt": "2026-08-19T21:15:10.942Z",
   "builtOn": {
     "platform": "win32",
     "architecture": "x64",

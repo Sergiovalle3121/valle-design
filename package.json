@@ -27,6 +27,7 @@
     "check:wasm-kernel": "node scripts/wasm/build-kernel.mjs --check",
     "evidence:wasm-parity": "node scripts/wasm/wasm-parity-evidence.mjs",
     "evidence:dense-editing": "node scripts/cad/dense-editing-evidence.mjs",
+    "evidence:touch-support": "node scripts/cad/touch-support-evidence.mjs",
     "build:dxf-corpus": "node scripts/cad/build-dxf-external-corpus.mjs",
     "check:dxf-corpus": "node scripts/cad/build-dxf-external-corpus.mjs --check",
     "check:rubric:spec": "node scripts/cad/rubric.spec.mjs",

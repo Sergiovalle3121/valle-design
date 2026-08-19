@@ -63,6 +63,27 @@ const MENU_CLASS =
 const MENU_ITEM_CLASS =
   "rounded px-2 py-1 text-left font-mono text-cyan-200 transition-colors hover:bg-white/10";
 
+/**
+ * Dónde se dibuja la insignia respecto del punto que se está precisando.
+ *
+ * Con RATÓN, 14 px abajo a la derecha: la flecha del cursor mide eso y la
+ * insignia queda justo fuera de ella.
+ *
+ * Con DEDO no vale. Un contacto adulto ronda los 12 px de radio y la mano que
+ * lo sostiene tapa todo lo que hay debajo y a la derecha; la sonda midió la
+ * insignia a 21 px del contacto, es decir DENTRO de lo que el propio dedo
+ * oculta. Se va ARRIBA y a la derecha, a ~40 px: fuera de la huella y fuera de
+ * la mano. Lo que hay que poder mirar mientras se apunta no puede estar debajo
+ * de lo que impide mirar.
+ */
+const POINTER_BADGE_OFFSET = {
+  mouse: { x: 14, y: 14 },
+  touch: { x: 22, y: -34 },
+} as const;
+
+/** Qué aparato está apuntando. Cambia dónde se dibuja lo que hay que mirar. */
+export type CadPointerKind = keyof typeof POINTER_BADGE_OFFSET;
+
 export class CadLiveCursorOverlay {
   private readonly root: HTMLDivElement;
   private readonly badge: HTMLSpanElement;
@@ -76,6 +97,7 @@ export class CadLiveCursorOverlay {
    * cada pixel de movimiento borraría lo escrito.
    */
   private readonly frozen = new Set<CadLiveCursorField>();
+  private pointerKind: CadPointerKind = "mouse";
   private disposed = false;
 
   /**
@@ -130,9 +152,19 @@ export class CadLiveCursorOverlay {
   /** Coloca el cursor vivo. Es lo ÚNICO que corre en cada `pointermove`. */
   moveTo(x: number, y: number): void {
     if (this.disposed) return;
-    // Se desplaza 14 px para que la insignia no quede debajo del puntero, que
-    // es justo lo que hay que poder mirar mientras se dibuja.
-    this.root.style.transform = `translate3d(${Math.round(x) + 14}px, ${Math.round(y) + 14}px, 0)`;
+    // Se desplaza para que la insignia no quede debajo de lo que apunta, que es
+    // justo lo que hay que poder mirar mientras se dibuja. Cuánto, lo decide el
+    // aparato: un dedo tapa mucho más que una flecha.
+    const offset = POINTER_BADGE_OFFSET[this.pointerKind];
+    this.root.style.transform = `translate3d(${Math.round(x) + offset.x}px, ${Math.round(y) + offset.y}px, 0)`;
+  }
+
+  /**
+   * Declara con qué se está apuntando. Lo llama el enrutador en cada muestra,
+   * porque en una tableta con teclado y lápiz el aparato cambia sin avisar.
+   */
+  setPointerKind(kind: CadPointerKind): void {
+    this.pointerKind = kind;
   }
 
   setSnap(snap: SnapType | null): void {

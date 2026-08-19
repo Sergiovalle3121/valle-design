@@ -37,7 +37,7 @@ import {
   CAD_ACCEPT_ENTITY_PICK,
   CAD_ACCEPT_POINT,
 } from "@/lib/cad/engine/command-types";
-import type { CadLiveCursorField } from "./live-cursor";
+import type { CadLiveCursorField, CadPointerKind } from "./live-cursor";
 
 /**
  * Lo que el enrutador necesita de la banda elástica y del cursor vivo, y nada
@@ -52,6 +52,13 @@ export interface CadPointerPreviewSurface {
 
 export interface CadPointerCursorSurface {
   moveTo(x: number, y: number): void;
+  /**
+   * Con qué se está apuntando. Decide a qué distancia se dibuja la insignia de
+   * captura: un dedo tapa un círculo de ~12 px de radio y la mano tapa todo lo
+   * que hay debajo, así que la insignia del ratón cae dentro de lo que el
+   * propio dedo oculta — que es justo lo que hay que poder mirar.
+   */
+  setPointerKind(kind: CadPointerKind): void;
   setSnap(snap: SnapType | null): void;
   setMeasurements(distance: number, angleDeg: number): void;
   setDynamicVisible(visible: boolean): void;
@@ -244,6 +251,7 @@ export class CadEnginePointerRouter {
     this.lastSnap = resolved.snap ?? null;
     // Cursor vivo: DOM directo, sin React. Es lo único que corre por muestra.
     const local = this.bridge.localPoint(event);
+    this.bridge.cursor.setPointerKind(event.pointerType === "touch" ? "touch" : "mouse");
     this.bridge.cursor.moveTo(local.x, local.y);
     this.bridge.cursor.setSnap(this.lastSnap);
     this.bridge.setCursor(resolved.point);
@@ -312,6 +320,14 @@ export class CadEnginePointerRouter {
       // Sin opciones que ofrecer, el botón derecho vale por Enter, como en
       // AutoCAD: cerrar un LINE con el derecho es un gesto que la gente ya tiene
       // en los dedos. Abrir un menú vacío sería peor que no abrir ninguno.
+      //
+      // CON EL DEDO, NO. La pulsación larga es lo que hace quien apoya el dedo y
+      // se para a mirar el plano antes de precisar un punto, y terminar el
+      // comando por eso sería un final que nadie pidió: medido en el golden de
+      // tableta, el primer paso de LINE —que no ofrece palabras clave— se
+      // cerraba solo y las dos designaciones siguientes caían al vacío. Un dedo
+      // apoyado no puede destruir trabajo.
+      if (isTouchEvent(event)) return true;
       this.accept();
       return true;
     }
@@ -449,6 +465,16 @@ export class CadEnginePointerRouter {
     this.lastPoint = null;
     this.lastSnap = null;
   }
+}
+
+/**
+ * ¿El gesto vino de un dedo? `contextmenu` es un `PointerEvent` en los
+ * navegadores modernos, y la pulsación larga que lo emite declara su
+ * `pointerType`. Se comprueba por estructura para que el enrutador se siga
+ * pudiendo probar en Node, donde no existe `PointerEvent`.
+ */
+function isTouchEvent(event: MouseEvent): boolean {
+  return (event as Partial<PointerEvent>).pointerType === "touch";
 }
 
 function normalizeDegrees(degrees: number): number {
