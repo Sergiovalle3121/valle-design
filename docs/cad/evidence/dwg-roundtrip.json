@@ -1,0 +1,46 @@
+{
+  "$schema": "urn:valle-design:schema:dwg-roundtrip-evidence:v1",
+  "schemaVersion": 1,
+  "evidenceId": "valle-design-dwg-roundtrip-v1",
+  "generadoPor": "node scripts/dwg/dwg-evidence.mjs",
+  "generadoEn": "2026-08-19T17:07:04.367Z",
+  "environment": {
+    "node": "v22.18.0",
+    "platform": "win32",
+    "architecture": "x64",
+    "osType": "Windows_NT",
+    "osRelease": "10.0.26200",
+    "cpuModel": "AMD Ryzen 5 5500U with Radeon Graphics         ",
+    "logicalCpuCount": 12,
+    "totalMemoryBytes": 7896625152,
+    "declaredMachine": "AMD Ryzen 5 5500U with Radeon Graphics (12 hilos lógicos), 7.9 GB de RAM, Windows_NT 10.0.26200"
+  },
+  "declaracion": "CERO ROUND-TRIPS VERIFICADOS POR UN LECTOR EXTERNO. No hay exportación DWG en el producto. El laboratorio tiene un writer experimental cuyo round-trip verifica su PROPIO lector: eso demuestra consistencia interna del laboratorio y NO demuestra que ningún software ajeno abra el archivo.",
+  "porQueNoCuentaElPropio": "El writer y el reader de Valle salen del mismo código y comparten sus errores: si el writer emite un campo mal y el reader lo lee igual de mal, el round-trip cierra y no ha demostrado nada. Por eso la cifra que se publica exige un lector independiente autorizado.",
+  "disponibilidadEnProducto": false,
+  "corpus": {
+    "estado": "unavailable",
+    "origen": "https://github.com/Sergiovalle3121/valle-design-dwg-conformance.git",
+    "commitFijado": "48eaab09c4c0eb93d5149852a979e274b1aaa1d0",
+    "indiceSha256": null,
+    "bundlesAdmitidos": 0,
+    "validacionesIndependientes": 0,
+    "oraculosIndependientes": 0,
+    "fixtures": 0,
+    "versionesCubiertas": [],
+    "motivo": "sin VALLE_DWG_CORPUS_MIRROR y sin VALLE_DWG_CORPUS_TOKEN: no se descargó nada y no se afirma nada"
+  },
+  "resumen": {
+    "bundlesAdmitidos": 0,
+    "lectoresExternosAutorizados": 0,
+    "roundTripsVerificadosPorLectorExterno": 0,
+    "roundTripsDeLaboratorio": 1,
+    "oraculosIndependientes": 0
+  },
+  "laboratorio": {
+    "dwgExport": "experimental-lab-writer",
+    "roundTrip": "experimental-lab-own-corpus",
+    "limite": "Corpus generado por el mismo laboratorio: prueba consistencia interna, no compatibilidad con archivos DWG reales ni con software de terceros."
+  },
+  "versionesCubiertas": []
+}

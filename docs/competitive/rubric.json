@@ -1743,8 +1743,18 @@
           "costDays": 60,
           "evidence": [
             {
-              "kind": "file",
-              "path": "docs/cad/evidence/dwg-decoder-matrix.json"
+              "kind": "metric",
+              "path": "docs/cad/evidence/dwg-decoder-matrix.json",
+              "pointer": "resumen/bundlesAdmitidos",
+              "min": 1,
+              "unit": "bundles admitidos"
+            },
+            {
+              "kind": "metric",
+              "path": "docs/cad/evidence/dwg-decoder-matrix.json",
+              "pointer": "resumen/tiposVerificadosIndependientemente",
+              "min": 1,
+              "unit": "tipos verificados fuera del laboratorio"
             }
           ]
         },
@@ -1754,7 +1764,13 @@
           "text": "Exportación DWG con round-trip verificado por lector externo",
           "costDays": 40,
           "evidence": [
-            { "kind": "file", "path": "docs/cad/evidence/dwg-roundtrip.json" }
+            {
+              "kind": "metric",
+              "path": "docs/cad/evidence/dwg-roundtrip.json",
+              "pointer": "resumen/roundTripsVerificadosPorLectorExterno",
+              "min": 1,
+              "unit": "round-trips firmados por un lector externo"
+            }
           ]
         },
         {
