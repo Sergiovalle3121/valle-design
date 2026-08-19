@@ -135,10 +135,12 @@ const SHX_SUBSTITUTIONS: Readonly<Record<string, ShxSubstitution>> = {
   txt: { by: "Arial", reason: "trazo simple sin serifas" },
   simplex: { by: "Arial", reason: "trazo simple sin serifas" },
   romans: { by: "Arial", reason: "trazo simple sin serifas" },
+  // `isocp` e `iso` son SHX. `ISOCPEUR`, que se le parece y se cita a su lado,
+  // NO lo es: es una TrueType, y meterla aquí la clasificaría mal aunque
+  // acabase sustituida por la misma familia. El resultado coincidiría y el
+  // motivo no, que es como se cuelan los errores que nadie encuentra.
   isocp: { by: "Arial", reason: "trazo ISO, sin serifas" },
-  isocpeur: { by: "Arial", reason: "trazo ISO, sin serifas" },
   iso: { by: "Arial", reason: "trazo ISO, sin serifas" },
-  scripts: { by: "Arial", reason: "trazo simple sin serifas" },
   // Las de doble y triple trazo, con serifas: piden una romana.
   romand: { by: "Times New Roman", reason: "romana con serifas" },
   romanc: { by: "Times New Roman", reason: "romana con serifas" },

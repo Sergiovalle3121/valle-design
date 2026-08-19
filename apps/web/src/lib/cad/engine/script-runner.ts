@@ -180,7 +180,6 @@ export function executeCadScript(
     const entities = document.entities;
     const byId = new Map(entities.map((entity) => [entity.id, entity]));
     const clayer = String(variables.get("CLAYER") ?? "0").trim();
-    const known = entities.length > 0 || document.layers.length > 0;
     return {
       entityIds: entities.map((entity) => entity.id),
       entity: (entityId) => byId.get(entityId),
@@ -199,7 +198,10 @@ export function executeCadScript(
       variables,
       paperSpaces: () => document.paperSpaces ?? [],
       ...(document.meta?.unit ? { unit: document.meta.unit } : {}),
-      drawingExtents: () => (known ? cadDocumentExtents(document) : null),
+      // `ZOOM Extensión` es de los primeros renglones de media plantilla de
+      // estudio. Se calcula de verdad —no cuesta nada si nadie la pide— para
+      // que el comando no se niegue por una carencia del ejecutor.
+      drawingExtents: () => cadDocumentExtents(document),
       // Sin lienzo no hay escala de pantalla ni cursor. Se declara el valor
       // neutro en vez de inventar un encuadre: los comandos que de verdad
       // necesitan el puntero —la entrada directa de distancia— responden «mueve
@@ -226,7 +228,7 @@ export function executeCadScript(
     const head = entry.token.split(/\s+/)[0]?.toUpperCase() ?? "";
     // Se comprueba ANTES de despachar cuando no hay comando en curso: así el
     // consejo nombra el comando que el autor escribió y no el efecto que salió.
-    if (!before && head in CAD_SCRIPT_LINE_ALTERNATIVE)
+    if (!before && Object.hasOwn(CAD_SCRIPT_LINE_ALTERNATIVE, head))
       throw new CadScriptError(
         "needs-interface",
         entry.line,

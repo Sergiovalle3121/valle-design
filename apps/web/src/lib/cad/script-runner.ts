@@ -6,8 +6,13 @@
  * Un `.scr` es una lista de comandos separados por saltos de línea. Nada más.
  * Como el motor ya acepta entrada TECLEADA —y una línea de un script es
  * exactamente eso—, ejecutar un script es leer el archivo y meter sus renglones
- * por la misma puerta por la que entra lo que escribe el usuario. No hay
- * segundo intérprete, así que no hay dos comportamientos que puedan divergir.
+ * por la misma puerta por la que entra lo que escribe el usuario.
+ *
+ * El FORMATO se lee en un solo sitio —`parseCadScript`, aquí abajo— y de ahí
+ * beben los dos ejecutores que existen: éste, que empuja renglones al editor
+ * vivo, y `engine/script-runner.ts`, que ejecuta el mismo guión sin anfitrión
+ * ninguno. Un solo analizador es lo que impide que las reglas del `.scr`
+ * puedan divergir según por dónde entre el archivo.
  *
  * Es la automatización más vieja de AutoCAD y sigue siendo la más usada:
  * plantillas de estudio, purgas nocturnas, lotes de trazado, configuración de
@@ -28,8 +33,8 @@
  * No abre cuadros de diálogo, y por eso existen las variantes con guion. Un
  * `LAYER` dentro de un script abriría el gestor y el script se quedaría
  * esperando un clic; `-LAYER` hace el mismo trabajo por la línea. El ejecutor
- * lo AVISA cuando detecta un comando con diálogo, en vez de dejar que el script
- * se pare sin explicación.
+ * se PARA al detectarlo, con un error tipado que nombra el renglón y la orden
+ * que sí funciona, en vez de dejar que el guión se cuelgue sin explicación.
  */
 
 /** Un renglón del script, ya limpio. */
@@ -92,7 +97,13 @@ export const CAD_DIALOG_COMMANDS: readonly string[] =
  * que el consejo sea el mismo lo diga quien lo diga.
  */
 export function cadScriptLineAdvice(command: string): string {
-  const alternatives = CAD_SCRIPT_LINE_ALTERNATIVE[command.trim().toUpperCase()] ?? [];
+  const key = command.trim().toUpperCase();
+  // `Object.hasOwn` y no `in`: la segunda forma encuentra también lo que hereda
+  // el prototipo, así que un comando llamado CONSTRUCTOR o TOSTRING recibiría un
+  // consejo que nadie escribió.
+  const alternatives = Object.hasOwn(CAD_SCRIPT_LINE_ALTERNATIVE, key)
+    ? CAD_SCRIPT_LINE_ALTERNATIVE[key]
+    : [];
   if (alternatives.length === 0)
     return "No hay forma de hacer ese trabajo por la línea de comandos desde un guión.";
   return `Use ${alternatives.join(" o ")}, que hace el mismo trabajo por la línea de comandos.`;
@@ -232,7 +243,7 @@ export function runCadScript(
 
   for (const entry of lines) {
     const head = entry.token.split(/\s+/)[0]?.toUpperCase() ?? "";
-    if (head in CAD_SCRIPT_LINE_ALTERNATIVE) {
+    if (Object.hasOwn(CAD_SCRIPT_LINE_ALTERNATIVE, head)) {
       failures.push(
         new CadScriptError(
           "needs-interface",

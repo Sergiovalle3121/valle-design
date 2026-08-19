@@ -369,6 +369,15 @@ function mtext(text: string, extra: Partial<CadMTextEntity> = {}): CadMTextEntit
   eq(resolveCadMTextFont("arial.ttf").disposition, "resolved", "con extensión, igual");
   eq(resolveCadMTextFont("ARIAL").disposition, "resolved", "y sin distinguir mayúsculas");
 
+  // `ISOCPEUR` es la que más se cita al lado de las SHX de trazo y NO es una:
+  // es TrueType. Se clasifica como tal aunque acabe sustituida por la misma
+  // familia, porque un resultado que coincide con el motivo equivocado es como
+  // se cuelan los errores que nadie encuentra.
+  const isocpeur = resolveCadMTextFont("ISOCPEUR");
+  eq(isocpeur.kind, "ttf", "ISOCPEUR es TrueType, no una .shx");
+  eq(isocpeur.disposition, "substituted", "pero no la tiene todo el mundo");
+  eq(resolveCadMTextFont("isocp.shx").kind, "shx", "la que sí es SHX se llama isocp");
+
   // Una TTF de estudio no está en ningún sistema: se sustituye y se dice.
   const custom = resolveCadMTextFont("City Blueprint");
   eq(custom.kind, "ttf", "es una TTF");

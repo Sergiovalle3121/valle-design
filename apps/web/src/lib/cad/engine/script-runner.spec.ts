@@ -527,6 +527,19 @@ failsWith("LINE\n0,0\nesto-no-es-un-punto\n", "rejected", 3, "una coordenada ile
   );
 }
 
+{
+  // `ZOOM Extensión` abre media plantilla de estudio. Sin pantalla no hay
+  // encuadre que aplicar, pero el renglón NO puede ser un fallo: encuadrar es
+  // mirar, y un lote que se niega a ejecutar un guión porque contiene un ZOOM
+  // sería inservible para exactamente los guiones que la gente ya tiene.
+  const run = executeCadScript("LINE\n0,0\n1000,0\n\nZOOM\nE\n", {
+    registry,
+    document: emptyDocument(),
+  });
+  equal(run.document.entities.length, 1, "el dibujo es el que tiene que ser");
+  ok(run.commands.includes("ZOOM"), "y el ZOOM figura como ejecutado, no como error");
+}
+
 // ---------------------------------------------------------------------------
 // 7. LAS REGLAS DEL FORMATO SIGUEN SIENDO LAS MISMAS
 // ---------------------------------------------------------------------------
