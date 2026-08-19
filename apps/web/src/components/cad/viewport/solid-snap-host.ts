@@ -48,6 +48,16 @@ export interface CadSolidViewBridge {
   viewportPx(): { widthPx: number; heightPx: number };
   /** Ojo en coordenadas de DIBUJO, para la eliminación de líneas ocultas. */
   eye(): { x: number; y: number; z: number } | null;
+  /**
+   * Dirección de MIRADA, unitaria y en coordenadas de dibujo.
+   *
+   * Va aparte del ojo porque mide otra cosa: el ojo dice desde dónde, y la
+   * dirección dice cuánto ha girado la vista. El umbral de recálculo se mide
+   * sobre la dirección — el ángulo entre dos posiciones de ojo tomadas desde el
+   * ORIGEN del dibujo no es el ángulo que ha girado la cámara, y con el modelo
+   * lejos del origen ese error puede ser de decenas de grados.
+   */
+  direction(): { x: number; y: number; z: number } | null;
   /** Apaga la capa entera sin tocar nada más. Ausente = encendida. */
   enabled?(): boolean;
 }

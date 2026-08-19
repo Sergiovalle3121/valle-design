@@ -6981,6 +6981,9 @@ export default function Layout3DEditor({
           const at = viewController.worldToScreen({ x: wx, y: wy });
           const solid = solidShadeHostRef.current?.snap3d(at.x, at.y, {
             aperturePx: workspacePreferencesRef.current.aperturePx,
+            // Los mismos interruptores de DSETTINGS que el motor plano: apagar
+            // «punto final» tiene que apagarlo también sobre un sólido.
+            modes: draftSettingsHost.snapModes(),
           });
           if (solid)
             return { wx: solid.point.x, wy: solid.point.y, onDxf: true, snapType: solid.type };

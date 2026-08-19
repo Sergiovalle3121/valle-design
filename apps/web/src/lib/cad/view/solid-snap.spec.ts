@@ -34,6 +34,7 @@ import { solid3dBody } from "../solid3d-build";
 import { CadViewController } from "./view-controller";
 import {
   CAD_SOLID_SNAP_MAX_EDGES,
+  CAD_SOLID_SNAP_MODES,
   buildCadSolidSnapIndex,
   edgeParameterToScreenParameter,
   screenParameterToEdgeParameter,
@@ -334,6 +335,26 @@ function controllerLookingAt(distanceScene: number): CadViewController {
     check("el centro de la tapa es un geometric-center", hit?.type === "geometric-center");
     if (hit) checkClose("a la altura de la tapa", hit.point.z, 50, 1e-9);
   }
+
+  // Los modos declarados se pueden apagar UNO A UNO, que es lo que hace
+  // DSETTINGS. Apagarlos TODOS no deja ningún candidato: la comprobación de que
+  // los interruptores llegan de verdad al motor y no se ignoran.
+  check(
+    "el motor declara seis modos",
+    CAD_SOLID_SNAP_MODES.length === 6 && CAD_SOLID_SNAP_MODES.includes("endpoint"),
+  );
+  const allOff = Object.fromEntries(CAD_SOLID_SNAP_MODES.map((mode) => [mode, false]));
+  check(
+    "con todos los modos apagados no hay enganche",
+    index.query(a.x, a.y, { aperturePx: APERTURE_PX, modes: allOff, from: { x: 0, y: 0, z: 0 } }) ===
+      null,
+  );
+  // Y apagar sólo `endpoint` deja ganar al siguiente en prioridad.
+  const withoutEndpoint = index.query(a.x, a.y, {
+    aperturePx: APERTURE_PX,
+    modes: { endpoint: false },
+  });
+  check("apagar el vértice deja pasar al siguiente modo", withoutEndpoint?.type !== "endpoint");
 
   // Un cursor lejos de todo no engancha, en vez de devolver lo más cercano.
   check("lejos del sólido no hay enganche", index.query(5, 5, { aperturePx: APERTURE_PX }) === null);

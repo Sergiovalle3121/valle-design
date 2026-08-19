@@ -12,6 +12,21 @@
  * El estilo (VSCURRENT/SHADEMODE) es estado del visor: cambiarlo reconstruye
  * las mallas y no toca el documento. Estado fuera de React, como todos los
  * anfitriones del viewport.
+ *
+ * ## Y por qué aquí vive también el ENGANCHE 3D
+ *
+ * Porque los sólidos que hay que indexar para enganchar son exactamente los que
+ * este anfitrión ya reconcilia contra el documento, uno a uno y por identidad de
+ * referencia. Un segundo anfitrión con su propia lista sería una segunda verdad,
+ * y las dos se desincronizarían el día que una entidad cambie entre un `sync` y
+ * el otro: el visor dibujando la pieza donde está y el enganche buscándola donde
+ * estaba. El índice y su aritmética viven aparte —`solid-snap-host.ts` y
+ * `lib/cad/view/solid-snap.ts`—; lo que vive aquí es el ciclo de vida.
+ *
+ * El puente de VISTA que lo alimenta es opcional. Sin él —una previsualización
+ * de trazado, una prueba en Node— no hay enganche 3D ni líneas ocultas por CPU,
+ * y se dice con un `null` en vez de con un anfitrión que existe y nunca
+ * responde. Es la capa apagable que exige el presupuesto de rendimiento.
  */
 import * as THREE from "three";
 import type { CadDocument } from "@/lib/cad/cad-document";
@@ -54,6 +69,7 @@ export interface CadSolidViewControllerLike {
   readonly view: { widthPx: number; heightPx: number };
   createDrawingProjector(): CadSolidSnapProjector;
   eyeDrawingPoint(): { x: number; y: number; z: number };
+  viewDirectionDrawing(): { x: number; y: number; z: number };
 }
 
 /** Puente de vista a partir de un controlador vivo, leído por `ref`. */
@@ -68,6 +84,7 @@ export function cadSolidViewBridge(
       return { widthPx: view?.widthPx ?? 0, heightPx: view?.heightPx ?? 0 };
     },
     eye: () => controller()?.eyeDrawingPoint() ?? null,
+    direction: () => controller()?.viewDirectionDrawing() ?? null,
   };
 }
 
@@ -99,6 +116,8 @@ export class CadSolidShadeHost {
   private readonly snapHost: CadSolidSnapHost | null;
   /** Ojo con el que se calcularon las aristas visibles vigentes. */
   private hiddenLineEye: { x: number; y: number; z: number } | null = null;
+  /** Y la dirección de mirada de entonces: es la que mide cuánto ha girado. */
+  private hiddenLineDirection: { x: number; y: number; z: number } | null = null;
 
   constructor(
     private readonly viewport: () => CadThreeViewport,
@@ -145,14 +164,26 @@ export class CadSolidShadeHost {
    * que mirar —sólo un ocultador del color del fondo— y saber qué aristas
    * sobran es lo que hace que el estilo signifique lo que dice.
    *
+   * ## Por qué el umbral se mide sobre la DIRECCIÓN y no sobre el ojo
+   *
+   * Porque es la dirección la que decide qué caras miran al observador. Un
+   * desplazamiento puro de la cámara —3DPAN, 3DZOOM— mueve el ojo sin girar la
+   * mirada y no reclasifica hasta que la dirección cambia; y eso es SEGURO, no
+   * un descuido: el estilo Oculto también pinta el ocultador, así que una
+   * clasificación vieja que conserve aristas de más las sigue escondiendo la
+   * GPU. El único error que se vería es quitar una arista que debería verse, y
+   * eso sólo pasa al GIRAR, que es justo lo que este umbral mide.
+   *
    * Devuelve `true` si reconstruyó.
    */
   refreshHiddenLines(): boolean {
     if (this.style !== "hidden" || !this.viewBridge) return false;
     const eye = this.viewBridge.eye();
-    if (!eye) return false;
-    if (this.hiddenLineEye && !movedEnough(this.hiddenLineEye, eye)) return false;
+    const direction = this.viewBridge.direction();
+    if (!eye || !direction) return false;
+    if (this.hiddenLineDirection && !turnedEnough(this.hiddenLineDirection, direction)) return false;
     this.hiddenLineEye = eye;
+    this.hiddenLineDirection = direction;
     const entries = [...this.built.values()];
     this.clear();
     for (const entry of entries) this.add(entry.entity, entry.selected);
@@ -178,6 +209,7 @@ export class CadSolidShadeHost {
     // completo hasta que alguien girase, y el usuario vería que VSCURRENT
     // Oculto «no hace nada» durante ese rato.
     this.hiddenLineEye = style === "hidden" ? (this.viewBridge?.eye() ?? null) : null;
+    this.hiddenLineDirection = style === "hidden" ? (this.viewBridge?.direction() ?? null) : null;
     const entries = [...this.built.values()];
     this.clear();
     for (const entry of entries) this.add(entry.entity, entry.selected);
@@ -243,18 +275,18 @@ export class CadSolidShadeHost {
   }
 }
 
-/** ¿El ojo se ha movido más de `CAD_HIDDEN_LINE_REFRESH_DEG` alrededor del modelo? */
-function movedEnough(
+/** ¿La mirada ha girado al menos `CAD_HIDDEN_LINE_REFRESH_DEG`? */
+function turnedEnough(
   previous: { x: number; y: number; z: number },
   next: { x: number; y: number; z: number },
 ): boolean {
   const before = Math.hypot(previous.x, previous.y, previous.z);
   const after = Math.hypot(next.x, next.y, next.z);
+  // Sin dirección que comparar se recalcula: no saber es motivo para rehacer,
+  // no para conservar un dibujo que puede estar mal.
   if (!(before > 0) || !(after > 0)) return true;
   const cosine =
     (previous.x * next.x + previous.y * next.y + previous.z * next.z) / (before * after);
   const degrees = (Math.acos(Math.max(-1, Math.min(1, cosine))) * 180) / Math.PI;
-  // También se recalcula si el ojo se ha ACERCADO mucho: bajo perspectiva, qué
-  // caras miran al observador depende de la distancia, no sólo del ángulo.
-  return degrees >= CAD_HIDDEN_LINE_REFRESH_DEG || Math.abs(after - before) > before * 0.25;
+  return degrees >= CAD_HIDDEN_LINE_REFRESH_DEG;
 }
