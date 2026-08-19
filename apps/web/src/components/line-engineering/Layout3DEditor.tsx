@@ -144,9 +144,12 @@ import {
 import {
   snap as resolveOsnap,
   rectGeometry,
-  type SnapScene,
   type SnapType,
 } from "./snap-engine";
+import {
+  cadSnapSceneAddEntities,
+  cadSnapSceneFromBoxes,
+} from "@/lib/cad/snap-scene";
 import { normalizeVision, type VisionResult } from "./cad-vision";
 import { detectCadFormat } from "./cad-format-detect";
 import { worldToPaper, type PlotLayout } from "./plot-scale";
@@ -6570,11 +6573,10 @@ export default function Layout3DEditor({
     }
     // Sólidos SOMBREADOS: grupo aparte con z real y luz, excluidos del batch
     // (que vive comprimido en una lámina de profundidad NDC). Patrón INSERT.
-    const solidShadeHost = new CadSolidShadeHost(() => ({
-      scale: s,
-      width: W,
-      height: H,
-    }));
+    const solidShadeHost = new CadSolidShadeHost(
+      () => ({ scale: s, width: W, height: H }),
+      () => viewControllerRef.current,
+    );
     nativeGroup.add(solidShadeHost.group);
     solidShadeHostRef.current = solidShadeHost;
     const connsGroup = new THREE.Group();
@@ -6969,62 +6971,18 @@ export default function Layout3DEditor({
         workspacePreferencesRef.current.aperturePx,
       );
       if (draftSettingsHost.osnap) {
-        const boxes: {
-          x: number;
-          y: number;
-          w: number;
-          h: number;
-          rotation?: number;
-          d: number;
-        }[] = [];
-        placementsRef.current.forEach((p) =>
-          boxes.push({
-            x: p.x,
-            y: p.y,
-            w: p.w,
-            h: p.h,
-            rotation: p.rotation,
-            d: Math.hypot(p.x + p.w / 2 - wx, p.y + p.h / 2 - wy),
-          }),
+        // Enganche 3D primero: en perspectiva la arista de un sólido se ve
+        // donde la pinta la cámara, no sobre su sombra en el suelo.
+        const solid = solidShadeHostRef.current?.snapAtDrawingPoint(wx, wy, {
+          aperturePx: workspacePreferencesRef.current.aperturePx,
+          modes: draftSettingsHost.snapModes(),
+        });
+        if (solid) return solid;
+        const scene = cadSnapSceneFromBoxes(
+          [...placementsRef.current.values(), ...assetsRef.current.values()],
+          { x: wx, y: wy },
+          dxfSnapRef.current,
         );
-        assetsRef.current.forEach((a) =>
-          boxes.push({
-            x: a.x,
-            y: a.y,
-            w: a.w,
-            h: a.h,
-            rotation: a.rotation,
-            d: Math.hypot(a.x + a.w / 2 - wx, a.y + a.h / 2 - wy),
-          }),
-        );
-        boxes.sort((a, b) => a.d - b.d);
-        const scene: SnapScene = {
-          segments: [],
-          midpoints: [],
-          perpendicularSegments: [],
-          endpoints: [],
-          centers: [],
-          quadrants: [],
-          geometricCenters: [],
-          insertions: [],
-          tangents: [],
-          nodes: dxfSnapRef.current,
-        };
-        for (const b of boxes.slice(0, 48)) {
-          const g = rectGeometry(b);
-          scene.segments!.push(...g.edges);
-          scene.perpendicularSegments!.push(...g.edges);
-          scene.midpoints!.push(
-            ...g.edges.map((edge) => ({
-              x: (edge.a.x + edge.b.x) / 2,
-              y: (edge.a.y + edge.b.y) / 2,
-            })),
-          );
-          scene.endpoints!.push(...g.corners);
-          scene.centers!.push(g.center);
-          scene.geometricCenters!.push(g.center);
-          scene.insertions!.push(g.center);
-        }
         // El ancla del rastreo: el último punto confirmado. Con el puntero ya
         // enrutado, ese punto lo tiene el motor —no `drawCommandRef`—, así que
         // se pregunta primero por ahí. Sin esto, el rastreo polar y de objeto
@@ -7045,55 +7003,7 @@ export default function Layout3DEditor({
             },
             48,
           ) ?? [];
-        for (const entity of nativeCandidates) {
-          for (const [pathIndex, path] of CAD_ENTITY_REGISTRY.adapter(entity)
-            .renderer.paths(entity, 24)
-            .entries()) {
-            const segmentCount =
-              Math.max(0, path.points.length - 1) +
-              (path.closed && path.points.length > 2 ? 1 : 0);
-            const pathId = `${entity.id}:${pathIndex}`;
-            for (let index = 1; index < path.points.length; index++)
-              scene.segments!.push({
-                a: path.points[index - 1],
-                b: path.points[index],
-                pathId,
-                ordinal: index - 1,
-                pathLength: segmentCount,
-                closed: path.closed,
-              });
-            if (path.closed && path.points.length > 2)
-              scene.segments!.push({
-                a: path.points.at(-1)!,
-                b: path.points[0],
-                pathId,
-                ordinal: segmentCount - 1,
-                pathLength: segmentCount,
-                closed: true,
-              });
-            if (entity.type === "line" && path.points.length === 2) {
-              scene.midpoints!.push({
-                x: (path.points[0].x + path.points[1].x) / 2,
-                y: (path.points[0].y + path.points[1].y) / 2,
-              });
-              scene.perpendicularSegments!.push({
-                a: path.points[0],
-                b: path.points[1],
-              });
-            }
-          }
-          for (const snap of CAD_ENTITY_REGISTRY.adapter(entity).snaps.snaps(
-            entity,
-            anchor ?? { x: wx, y: wy },
-          )) {
-            if (snap.kind === "center") scene.centers!.push(snap.point);
-            else if (snap.kind === "control") scene.nodes!.push(snap.point);
-            else if (snap.kind === "quadrant")
-              scene.quadrants!.push(snap.point);
-            else if (snap.kind === "tangent") scene.tangents!.push(snap.point);
-            else scene.endpoints!.push(snap.point);
-          }
-        }
+        cadSnapSceneAddEntities(scene, nativeCandidates, anchor ?? { x: wx, y: wy });
         const hit = resolveOsnap({ x: wx, y: wy }, scene, {
           tolerance: tol,
           from: anchor,

@@ -48,20 +48,59 @@ export interface CadVisualStyle {
    * al Alámbrico, que es el error clásico al implementar los cuatro.
    */
   occludes: boolean;
+  /**
+   * Las aristas que el cuerpo tapa NO se dibujan.
+   *
+   * Es distinto de `occludes`, aunque en el visor se parezcan. `occludes` habla
+   * de la GPU: pinta caras y deja que el búfer de profundidad esconda lo de
+   * detrás. Esto habla de la GEOMETRÍA: qué aristas hay que enviar siquiera. La
+   * distinción sólo se nota fuera del visor —un trazado, una exportación 2D, una
+   * spec en Node—, que es donde no hay búfer de profundidad que valga.
+   *
+   * `Alámbrico` es el caso que lo aclara: dibuja TODAS las aristas, las de
+   * detrás incluidas. Ésa es su definición, y por eso vale `false` aquí aunque
+   * comparta con `Oculto` el no pintar caras.
+   */
+  removesHiddenEdges: boolean;
   /** Opacidad de las caras, en `[0, 1]`. */
   opacity: number;
 }
 
 export const CAD_VISUAL_STYLES: readonly CadVisualStyle[] = [
-  { id: "wireframe", label: "Alámbrico", faces: false, edges: true, occludes: false, opacity: 0 },
-  { id: "hidden", label: "Oculto", faces: false, edges: true, occludes: true, opacity: 1 },
-  { id: "shaded", label: "Sombreado", faces: true, edges: false, occludes: true, opacity: 1 },
+  {
+    id: "wireframe",
+    label: "Alámbrico",
+    faces: false,
+    edges: true,
+    occludes: false,
+    removesHiddenEdges: false,
+    opacity: 0,
+  },
+  {
+    id: "hidden",
+    label: "Oculto",
+    faces: false,
+    edges: true,
+    occludes: true,
+    removesHiddenEdges: true,
+    opacity: 1,
+  },
+  {
+    id: "shaded",
+    label: "Sombreado",
+    faces: true,
+    edges: false,
+    occludes: true,
+    removesHiddenEdges: false,
+    opacity: 1,
+  },
   {
     id: "shaded-edges",
     label: "Sombreado con aristas",
     faces: true,
     edges: true,
     occludes: true,
+    removesHiddenEdges: true,
     opacity: 1,
   },
 ];

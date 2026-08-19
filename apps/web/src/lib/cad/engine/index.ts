@@ -64,6 +64,8 @@ import { createCadCommandRegistry, type CadCommandRegistryImpl } from "./registr
 // Ola 3D, cimiento: el SCU de verdad. Al final del bloque a propósito.
 import { CAD_UCS_COMMANDS } from "./commands/ucs-commands";
 import { CAD_UCS_VIEW_COMMANDS } from "./commands/ucs-view-commands";
+// Navegación 3D tecleable: 3DORBIT, 3DFORBIT, 3DPAN, 3DZOOM y VPOINT.
+import { CAD_VIEW_NAVIGATION_3D_COMMANDS } from "./commands/view-navigation-3d";
 
 export * from "./command-types";
 export * from "./command-engine";
@@ -140,6 +142,8 @@ export const CAD_COMMAND_DESCRIPTORS = [
   // devuelve la vista a su planta. Al final del array a propósito.
   ...CAD_UCS_COMMANDS,
   ...CAD_UCS_VIEW_COMMANDS,
+  // Navegación 3D: un modelador de sólidos sin forma tecleable de mirarlos.
+  ...CAD_VIEW_NAVIGATION_3D_COMMANDS,
 ] as const;
 
 /**

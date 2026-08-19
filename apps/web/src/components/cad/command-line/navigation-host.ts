@@ -34,15 +34,37 @@ import {
   type CadViewRequest,
   type CadViewSnapshot,
 } from "@/lib/cad/view/view-navigation";
+import {
+  validateCadView3dRequest,
+  type CadStandardViewId,
+  type CadView3dRequest,
+} from "@/lib/cad/view/view-3d";
 
 /**
  * Lo que el anfitrión necesita del controlador de vista. Se declara
  * estructuralmente y no como `CadViewController` para que las pruebas puedan
  * montarlo con un objeto de cuatro líneas en vez de con THREE entero.
+ *
+ * Los métodos de navegación 3D son OPCIONALES, y no por comodidad: un espacio de
+ * trabajo sin visor de perspectiva —una previsualización de trazado, un guion
+ * corriendo en Node— es un montaje legítimo, y en él `3DORBIT` tiene que decir
+ * que no hay cámara que girar en vez de reventar. Lo que no puede es fingir que
+ * giró algo.
  */
 export interface CadViewControllerLike {
   readonly view: CadView;
   setView(view: CadView): void;
+  orbitPerspective?(deltaAzimuthDeg: number, deltaElevationDeg: number): unknown;
+  orbitFreePerspective?(
+    deltaAzimuthDeg: number,
+    deltaElevationDeg: number,
+    deltaRollDeg?: number,
+  ): unknown;
+  setOrbit?(azimuthDeg: number, elevationDeg: number): unknown;
+  applyStandardView?(id: CadStandardViewId): { label: string };
+  panPerspective?(deltaXPx: number, deltaYPx: number): void;
+  panPerspectiveDrawing?(dx: number, dy: number): void;
+  zoomPerspective?(factor: number): void;
 }
 
 export interface CadNavigationBridge {
@@ -144,6 +166,13 @@ export class CadNavigationHost {
     if (!controller)
       return "Todavía no hay ninguna vista activa: abre un dibujo antes de encuadrar.";
 
+    // La navegación 3D se atiende ANTES de componer el estado de encuadre. No es
+    // una optimización: `applyCadViewRequest` no puede resolverla —mover una
+    // cámara no es aritmética sobre una `CadView`— y dejarla llegar hasta allí
+    // sólo produciría un rechazo. Aquí sí está el controlador, que es quien
+    // tiene las dos cámaras.
+    if (request.kind === "view3d") return this.apply3d(controller, request.request);
+
     const state: CadNavigationState = {
       ...createCadNavigationState(controller.view),
       history: this.history,
@@ -164,6 +193,70 @@ export class CadNavigationHost {
       controller.setView(outcome.state.view);
     if (regenerated) this.bridge.regen?.(regeneratedAll ? "all" : "view");
 
+    this.publish();
+    return outcome.message;
+  };
+
+  /**
+   * Resuelve una petición de navegación 3D sobre el controlador.
+   *
+   * Se vuelve a validar aquí aunque el comando ya lo hiciera, porque por este
+   * método entran también los guiones y AutoLISP, que no pasan por ningún
+   * prompt. Y la vista 3D NO se apila en `ZOOM Previo`: la pila guarda encuadres
+   * 2D —centro, altura y giro—, y meter ahí una órbita haría que «previo»
+   * devolviera un encuadre que no es el que había.
+   */
+  private apply3d = (
+    controller: CadViewControllerLike,
+    request: CadView3dRequest,
+  ): string => {
+    const outcome = validateCadView3dRequest(request);
+    if (!outcome.request) return outcome.message;
+    const applied = outcome.request;
+    const missing =
+      "Este espacio de trabajo no tiene cámara en perspectiva: la navegación 3D no está disponible aquí.";
+
+    switch (applied.kind) {
+      case "orbit": {
+        if (applied.mode === "free") {
+          if (!controller.orbitFreePerspective) return missing;
+          controller.orbitFreePerspective(
+            applied.azimuthDeg,
+            applied.elevationDeg,
+            applied.rollDeg ?? 0,
+          );
+        } else {
+          if (!controller.orbitPerspective) return missing;
+          controller.orbitPerspective(applied.azimuthDeg, applied.elevationDeg);
+        }
+        break;
+      }
+      case "orbit-to": {
+        if (!controller.setOrbit) return missing;
+        controller.setOrbit(applied.azimuthDeg, applied.elevationDeg);
+        break;
+      }
+      case "standard-view": {
+        if (!controller.applyStandardView) return missing;
+        controller.applyStandardView(applied.view);
+        break;
+      }
+      case "pan": {
+        if (!controller.panPerspective) return missing;
+        controller.panPerspective(applied.dxPx, applied.dyPx);
+        break;
+      }
+      case "pan-drawing": {
+        if (!controller.panPerspectiveDrawing) return missing;
+        controller.panPerspectiveDrawing(applied.dx, applied.dy);
+        break;
+      }
+      case "zoom": {
+        if (!controller.zoomPerspective) return missing;
+        controller.zoomPerspective(applied.factor);
+        break;
+      }
+    }
     this.publish();
     return outcome.message;
   };

@@ -25,6 +25,8 @@ import {
 } from "../command-types";
 import type { CadPoint2 } from "../../cad-document";
 import { parseCadZoomScale, type CadViewRequest } from "../../view/view-navigation";
+import { resolveCadStandardView } from "../../view/view-3d";
+import { CAD_STANDARD_VIEW_KEYWORDS } from "./view-navigation-3d";
 
 function viewResult(request: CadViewRequest, label: string): CadCommandStep<never> {
   return {
@@ -309,10 +311,21 @@ const panCommand: CadCommandDescriptor<PanState> = {
 // VIEW
 // ---------------------------------------------------------------------------
 
+/**
+ * Las tres operaciones de siempre MÁS las diez vistas predefinidas.
+ *
+ * Las diez viven aquí además de en VPOINT porque es donde un usuario de AutoCAD
+ * las busca: `-VIEW` es la orden que ofrece las ortogonales, y el registro trata
+ * el guion como decorativo, así que `-VIEW SU` y `VIEW SU` son la misma. Tener
+ * VPOINT aparte no lo hace redundante: VPOINT además acepta ángulos.
+ *
+ * Los atajos no chocan: G/R/B contra SU/IN/FR/PO/IZ/DE/SO/SE/NE/NO.
+ */
 const VIEW_OPTIONS = [
   { keyword: "Guardar", shortcut: "G" },
   { keyword: "Restituir", shortcut: "R" },
   { keyword: "Borrar", shortcut: "B" },
+  ...CAD_STANDARD_VIEW_KEYWORDS,
 ] as const;
 
 type ViewOp = "save" | "restore" | "delete";
@@ -355,6 +368,16 @@ const viewCommand: CadCommandDescriptor<ViewState> = {
   step: (state, input) => {
     if (input.kind === "cancel") return refuse("VIEW cancelado.");
     if (input.kind === "keyword") {
+      // Una vista PREDEFINIDA no tiene nombre que pedir: se aplica y se acabó.
+      // Va antes que las tres operaciones porque sus palabras no se solapan y
+      // caer al `else` de abajo la convertiría en «Borrar», que es exactamente
+      // el fallo silencioso que una cadena de ternarios produce al crecer.
+      const standard = resolveCadStandardView(input.keyword);
+      if (standard)
+        return viewResult(
+          { kind: "view3d", request: { kind: "standard-view", view: standard.id } },
+          "VIEW",
+        );
       const op: ViewOp =
         input.keyword === "Guardar" ? "save" : input.keyword === "Restituir" ? "restore" : "delete";
       return viewStep({ op });

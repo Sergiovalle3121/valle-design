@@ -38,6 +38,7 @@ import {
   clampPixelsPerUnit,
   type CadView,
 } from "./cad-view";
+import type { CadView3dRequest } from "./view-3d";
 
 /** Vistas previas recordadas. Diez es lo que recuerda AutoCAD. */
 export const CAD_VIEW_STACK_LIMIT = 10;
@@ -92,7 +93,19 @@ export type CadViewRequest =
   | { kind: "view"; op: "save"; name: string }
   | { kind: "view"; op: "restore"; name: string }
   | { kind: "view"; op: "delete"; name: string }
-  | { kind: "regen"; scope: "view" | "all" };
+  | { kind: "regen"; scope: "view" | "all" }
+  /**
+   * Navegación 3D: órbita, vistas predefinidas, encuadre y acercamiento de la
+   * cámara en perspectiva.
+   *
+   * Viaja por el MISMO canal que ZOOM y PAN a propósito —un comando de vista es
+   * un comando de vista— pero `applyCadViewRequest` no la resuelve y no puede:
+   * mover una cámara no es aritmética sobre una `CadView`. La resuelve el
+   * anfitrión, que es quien tiene el `CadViewController`. Ver el rechazo
+   * explícito al final de `applyCadViewRequest`: si esta petición llegara ahí,
+   * es que alguien la enrutó mal, y el mensaje lo dice en vez de tragársela.
+   */
+  | { kind: "view3d"; request: CadView3dRequest };
 
 /**
  * Estado de navegación. Vive fuera de React —el presupuesto de `check:cad` sólo
@@ -507,6 +520,17 @@ export function applyCadViewRequest(
   }
 
   if (request.kind === "view") return namedView(state, request);
+
+  // Fallo cerrado. La navegación 3D necesita una CÁMARA, y aquí sólo hay una
+  // `CadView`. Devolver el estado sin tocar y decirlo es lo correcto; el peligro
+  // real es el contrario: sin esta rama, una petición 3D caería por descarte en
+  // la de REGEN de abajo y subiría el contador de regeneraciones sin mover nada,
+  // que es un fallo silencioso con aspecto de éxito.
+  if (request.kind === "view3d")
+    return refuse(
+      state,
+      "La navegación 3D la resuelve el anfitrión de la vista, no la aritmética de encuadre.",
+    );
 
   // REGEN no cambia la vista: cambia el contador que el anfitrión observa para
   // reconstruir la escena. Modelarlo como un número y no como un callback es
