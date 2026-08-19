@@ -230,6 +230,33 @@ export class CadV1Backend {
     return structuredClone(this.library);
   }
 
+  /**
+   * Siembra una fila de la biblioteca del inquilino, como hace la migración del
+   * producto.
+   *
+   * Existe porque el catálogo arquitectónico —30 bloques con `tenant_id NULL`—
+   * lo publica el servidor a todo inquilino, y un golden que quiera afirmar
+   * «coloqué una puerta DE LA BIBLIOTECA» no puede empezar creándola: eso
+   * probaría BLOCK, no la biblioteca. El `id` de fila lo pone el servidor, así
+   * que aquí también.
+   */
+  seedLibraryBlock(input: {
+    name: string;
+    definition: Record<string, unknown>;
+    assets?: unknown[];
+  }): LibraryBlockRow {
+    const row: LibraryBlockRow = {
+      id: `library-seed-${this.library.length + 1}`,
+      name: input.name,
+      assets: input.assets ?? [],
+      definition: input.definition,
+      version: 1,
+      createdAt: NOW0,
+    };
+    this.library.push(row);
+    return row;
+  }
+
   /* ─────────────────────────── Router v1 ─────────────────────────── */
 
   private async handle(route: Route): Promise<void> {

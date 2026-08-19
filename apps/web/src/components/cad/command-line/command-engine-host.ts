@@ -27,6 +27,7 @@ import {
 } from "@/lib/cad/engine/command-engine";
 import type {
   CadCommandContext,
+  CadCommandDocumentView,
   CadCommandSession,
   CadInputMask,
   CadPreviewPath,
@@ -160,6 +161,21 @@ export class CadCommandEngineHost {
    * La instantánea sólo se reconstruye cuando algo cambia de verdad.
    */
   getSnapshot = (): CadCommandEngineSnapshot => this.snapshot;
+
+  /**
+   * Vista de SÓLO LECTURA del dibujo, para quien acompaña.
+   *
+   * La usa el recorrido guiado, que necesita saber si ya hay un muro y una
+   * puerta sin importarle por qué camino entraron —paleta, línea de comandos o
+   * barra de herramientas—. Se expone la MISMA vista que reciben los comandos de
+   * gestión, no el documento: un acompañante no tiene por qué poder escribir en
+   * el dibujo, y con el documento entero podría.
+   *
+   * `null` cuando el anfitrión no la aporta, que es lo que hacen las specs del
+   * motor montadas con un puente de tres líneas.
+   */
+  documentView = (): CadCommandDocumentView | null =>
+    this.bridge.context().document?.() ?? null;
 
   private publish(): void {
     this.snapshot = {

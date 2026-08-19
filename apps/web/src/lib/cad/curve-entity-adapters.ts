@@ -282,11 +282,29 @@ const ellipseRenderer: CadEntityRenderer<
   ],
 };
 
+/**
+ * Caja envolvente de la elipse, con la RESERVA que el arco ya tenía.
+ *
+ * `tessellateEllipse` devuelve vacío cuando el eje mayor mide cero o la razón
+ * de ejes no es positiva —las dos cosas llegan de un DXF ajeno: un grupo 40 a
+ * cero, un eje mayor `(0,0)` que quedó tras un escalado degenerado—. Y
+ * `pointsBounds([])` contesta la caja del ORIGEN, que no es «no sé»: es una
+ * posición, y falsa. El índice espacial archiva entonces la entidad en la celda
+ * 0:0 y la ventana de selección sobre su sitio real no la encuentra.
+ *
+ * El CENTRO sí lo sabe la entidad siempre, así que ésa es la respuesta. Es la
+ * misma regla que `arcBounds` cumple sin darse cuenta: con radio cero sus
+ * puntos cardinales colapsan en el centro, y por eso el arco degenerado nunca
+ * tuvo este problema.
+ */
 const ellipseBounds: CadBoundsProvider<
   Extract<CadNativeEntity, { type: "ellipse" }>
 > = {
-  bounds: (entity) =>
-    pointsBounds(ellipseRenderer.paths(entity, 192)[0].points),
+  bounds: (entity) => {
+    const points = ellipseRenderer.paths(entity, 192)[0].points;
+    if (points.length > 0) return pointsBounds(points);
+    return pointsBounds([{ x: entity.center.x, y: entity.center.y }]);
+  },
 };
 
 function ellipsePoint(

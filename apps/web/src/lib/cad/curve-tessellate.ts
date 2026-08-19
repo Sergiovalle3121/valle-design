@@ -111,9 +111,37 @@ function deBoor(
 }
 
 /**
- * B-spline por De Boor: puntos de control + grado (+ nudos; si faltan o no
- * cuadran con n+grado+1 se sintetizan clamped, igual que el export DXF). El
- * muestreo es uniforme sobre el dominio válido de los nudos.
+ * ¿Es este vector de nudos USABLE, no sólo del tamaño correcto?
+ *
+ * La comprobación de LONGITUD por sí sola dejaba pasar basura con la forma
+ * adecuada. Un DXF ajeno trae vectores de nudos con `NaN` —el escritor emitió
+ * un grupo 40 vacío o un `1.#QNAN`— y también vectores constantes, y los dos
+ * cumplen `length === n + grado + 1`. Con ellos, De Boor calcula `denom = 0`
+ * en cada nivel, toma `alpha = 0` y devuelve SIEMPRE el primer punto de
+ * control: la spline se COLAPSA en un punto.
+ *
+ * Y eso es lo peor que puede pasar, porque no hay error ni hueco: el arquitecto
+ * ve un punto donde había una curva y el documento queda con una entidad cuya
+ * caja envolvente miente. La salida correcta ya existía para el vector de
+ * longitud equivocada —sintetizar nudos clamped, que es lo que el export DXF
+ * escribe— y basta con enrutar aquí lo que no sirve.
+ *
+ * Se exige: todo finito, no decreciente y con dominio de longitud POSITIVA. Un
+ * dominio nulo (`uMin === uMax`) daría todas las muestras en el mismo
+ * parámetro, que es el mismo colapso por otro camino.
+ */
+function usableKnots(knots: readonly number[], degree: number): boolean {
+  for (let i = 0; i < knots.length; i += 1) {
+    if (!Number.isFinite(knots[i])) return false;
+    if (i > 0 && knots[i] < knots[i - 1]) return false;
+  }
+  return knots[knots.length - 1 - degree] > knots[degree];
+}
+
+/**
+ * B-spline por De Boor: puntos de control + grado (+ nudos; si faltan, no
+ * cuadran con n+grado+1 o no son usables se sintetizan clamped, igual que el
+ * export DXF). El muestreo es uniforme sobre el dominio válido de los nudos.
  */
 export function tessellateSpline(
   controlPoints: CadDxfPoint[],
@@ -125,7 +153,9 @@ export function tessellateSpline(
   const deg = Math.max(1, Math.min(Math.floor(degree), controlPoints.length - 1));
   const expected = controlPoints.length + deg + 1;
   const knotVector =
-    knots && knots.length === expected ? knots : clampedKnots(controlPoints.length, deg);
+    knots && knots.length === expected && usableKnots(knots, deg)
+      ? knots
+      : clampedKnots(controlPoints.length, deg);
   const uMin = knotVector[deg];
   const uMax = knotVector[knotVector.length - 1 - deg];
   const points: CadDxfPoint[] = [];

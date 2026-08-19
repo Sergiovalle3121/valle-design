@@ -12,7 +12,11 @@ import { createCadLayout } from "@/lib/cad/layout/layout-operations";
 import { cadPageSetupFromLayout } from "@/lib/cad/plot/page-setup";
 import { createCadMonochromeTable } from "@/lib/cad/plot/plot-style-table";
 import { inspectCadPdf } from "@/lib/cad/plot/plot-pdf";
-import { CadPlotHost } from "./plot-host";
+import {
+  CadPlotHost,
+  onCadPlotDelivered,
+  resetCadPlotDeliveryListeners,
+} from "./plot-host";
 import { addCadSheet, createCadSheetSet } from "@/lib/cad/sheet-set/sheet-set";
 
 function drawing(): CadDocument {
@@ -68,6 +72,20 @@ async function specs(): Promise<void> {
   const document = drawing();
   const pageSetup = cadPageSetupFromLayout(document.paperSpaces[0]);
   const downloads: Downloaded[] = [];
+  /**
+   * Quién se entera de que salió un PDF. Existe porque TRAZAR NO CAMBIA EL
+   * DIBUJO —este mismo spec lo comprueba más abajo—, así que no hay forma de
+   * saber por el documento que alguien exportó un plano. El recorrido guiado se
+   * cuelga justo de aquí.
+   */
+  resetCadPlotDeliveryListeners();
+  const delivered: Array<{ fileName: string; pageCount: number }> = [];
+  const offDelivery = onCadPlotDelivered((delivery) => delivered.push(delivery));
+  // Un oyente que revienta no puede impedir que los demás se enteren: el
+  // archivo ya está entregado y el trazado no se deshace.
+  const offBroken = onCadPlotDelivered(() => {
+    throw new Error("oyente roto");
+  });
   const results: Array<{ message: string; level: string }> = [];
   let previewed = 0;
   let space: string | null = null;
@@ -116,6 +134,12 @@ async function specs(): Promise<void> {
   assert.equal(downloads[0].fileName, "planta-general.pdf");
   assert.equal(downloads[0].mimeType, "application/pdf");
 
+  // El aviso sale DESPUÉS de entregar, con el nombre y las páginas reales. Un
+  // aviso al empezar contaría como plano exportado un trazado que luego falla.
+  assert.deepEqual(delivered, [{ fileName: "planta-general.pdf", pageCount: 1 }]);
+  offBroken();
+  offDelivery();
+
   const inspected = inspectCadPdf(downloads[0].bytes);
   assert.equal(inspected.pageCount, 1);
   // A3 apaisado: 420 × 297 mm.
@@ -140,6 +164,8 @@ async function specs(): Promise<void> {
   });
   assert.match(refused, /no está cargada/);
   assert.equal(downloads.length, 1, "y no se descargó nada");
+  // Y sin entrega no hay aviso: dado de baja el oyente, la lista no crece.
+  assert.equal(delivered.length, 1);
 
   // --- PUBLISH: un conjunto de planos sale como UN PDF paginado ------------
   {

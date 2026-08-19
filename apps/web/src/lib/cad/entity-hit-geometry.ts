@@ -25,12 +25,26 @@ import type {
 export function pointsBounds(points: CadPoint2[]): CadBounds {
   if (!points.length)
     return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
-  return {
-    minX: Math.min(...points.map((point) => point.x)),
-    minY: Math.min(...points.map((point) => point.y)),
-    maxX: Math.max(...points.map((point) => point.x)),
-    maxY: Math.max(...points.map((point) => point.y)),
-  };
+  // Recorrido y NO `Math.min(...puntos)`. El operador de propagación convierte
+  // cada punto en un ARGUMENTO de llamada, y toda máquina de JavaScript tiene un
+  // tope de argumentos: medido en este árbol, Node v22 revienta con
+  // «Maximum call stack size exceeded» entre 125.000 y 200.000, y el tope no es
+  // el mismo en cada navegador. Un sombreado importado con una curva de nivel de
+  // 200.000 puntos —geometría perfectamente legítima en un plano topográfico—
+  // tiraba el editor entero con un desbordamiento de pila la primera vez que se
+  // dibujaba, y no en Node: en la máquina del arquitecto. El recorrido no tiene
+  // tope y cuesta lo mismo.
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const point of points) {
+    if (point.x < minX) minX = point.x;
+    if (point.x > maxX) maxX = point.x;
+    if (point.y < minY) minY = point.y;
+    if (point.y > maxY) maxY = point.y;
+  }
+  return { minX, minY, maxX, maxY };
 }
 
 export function boundsContained(inner: CadBounds, outer: CadBounds): boolean {
