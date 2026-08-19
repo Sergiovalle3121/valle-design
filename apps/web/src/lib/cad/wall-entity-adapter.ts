@@ -44,6 +44,13 @@ import {
   wallJoins,
   type CadWallJoins,
 } from "./wall-joins";
+import {
+  splitFaceByIntervals,
+  wallAxisFrame,
+  wallFaces,
+  wallOpeningIntervals,
+  type CadOpeningSpan,
+} from "./wall-openings";
 import type {
   CadBounds,
   CadEntityAdapter,
@@ -54,6 +61,7 @@ import type {
 } from "./entity-runtime";
 
 type WallEntity = Extract<CadNativeEntity, { type: "wall" }>;
+type OpeningEntity = Extract<CadNativeEntity, { type: "opening" }>;
 
 const finite = (value: CadPropertyValue | undefined, fallback: number): number =>
   typeof value === "number" && Number.isFinite(value) ? value : fallback;
@@ -86,24 +94,51 @@ function wallDocumentJoins(entity: WallEntity, document?: CadDocument): CadWallJ
  * Rayado interior limitado a la ventana que los recortes de las uniones dejan
  * en el eje: un trazo que llegara al plano del extremo invadiría la masa del
  * muro vecino. Sin uniones, es `wallFillSegments` tal cual.
+ *
+ * Los HUECOS quitan además su intervalo: rayar dentro de una puerta diría que
+ * ahí hay muro cortado por el plano, que es justo lo contrario de lo que un
+ * hueco significa.
  */
-function wallFillPaths(entity: WallEntity, joins: CadWallJoins | null): CadRenderPath[] {
+function wallFillPaths(
+  entity: WallEntity,
+  joins: CadWallJoins | null,
+  openings: readonly CadOpeningSpan[] = [],
+): CadRenderPath[] {
   const segments = wallFillSegments(entity);
-  if (!joins || segments.length === 0)
+  if ((!joins && openings.length === 0) || segments.length === 0)
     return segments.map((segment) => ({ points: [segment.a, segment.b], closed: false }));
   const dx = entity.end.x - entity.start.x;
   const dy = entity.end.y - entity.start.y;
   const length = Math.hypot(dx, dy);
   const ux = dx / length;
   const uy = dy / length;
-  const fillWindow = wallJoinFillWindow(joins, length);
+  const fillWindow = joins ? wallJoinFillWindow(joins, length) : { min: 0, max: length };
   return segments
     .filter((segment) => {
       const ta = (segment.a.x - entity.start.x) * ux + (segment.a.y - entity.start.y) * uy;
       const tb = (segment.b.x - entity.start.x) * ux + (segment.b.y - entity.start.y) * uy;
-      return Math.min(ta, tb) >= fillWindow.min - 1e-9 && Math.max(ta, tb) <= fillWindow.max + 1e-9;
+      const low = Math.min(ta, tb);
+      const high = Math.max(ta, tb);
+      if (low < fillWindow.min - 1e-9 || high > fillWindow.max + 1e-9) return false;
+      // Un trazo que ASOMA al hueco se tira entero, no se recorta: un rayado a
+      // medias contra el canto del vano parece un defecto de dibujo y no un
+      // hueco, que es la misma razón por la que `wallFillSegments` descarta los
+      // que no caben entre las dos caras.
+      return !openings.some((span) => high > span.from + 1e-9 && low < span.to - 1e-9);
     })
     .map((segment) => ({ points: [segment.a, segment.b], closed: false }));
+}
+
+/** Huecos ALOJADOS en este muro, en el orden en que estén en el documento. */
+export function wallHostedOpenings(
+  entity: Pick<WallEntity, "id">,
+  document?: CadDocument,
+): OpeningEntity[] {
+  if (!document) return [];
+  return document.entities.filter(
+    (candidate): candidate is OpeningEntity =>
+      candidate.type === "opening" && candidate.hostId === entity.id,
+  );
 }
 
 function wallPaths(entity: WallEntity, document?: CadDocument): CadRenderPath[] {
@@ -117,17 +152,40 @@ function wallPaths(entity: WallEntity, document?: CadDocument): CadRenderPath[] 
       { x: entity.end.x, y: entity.end.y },
     ], closed: false }];
   const joins = wallDocumentJoins(entity, document);
-  if (!joins)
+  const openings = wallOpeningIntervals(entity, wallHostedOpenings(entity, document));
+  if (!joins && openings.length === 0)
     return [
       { points: footprint, closed: true },
       ...wallFillPaths(entity, null),
     ];
   // Con uniones, el contorno se ajusta (inglete/empalme) y los testeros
   // absorbidos no se trazan: la esquina limpia no enseña la diagonal.
-  const joined = wallJoinedFootprint(entity, joins) ?? footprint;
+  const joined = joins ? (wallJoinedFootprint(entity, joins) ?? footprint) : footprint;
+  const startCap = joins ? joins.start.cap : true;
+  const endCap = joins ? joins.end.cap : true;
+  if (openings.length === 0)
+    return [
+      ...wallJoinBoundaryPaths(joined, startCap, endCap),
+      ...wallFillPaths(entity, joins),
+    ];
+
+  // Con huecos, el contorno DEJA DE SER un anillo: las dos caras largas se
+  // parten y el muro pasa a ser una colección de trazos abiertos. Se compone a
+  // mano en vez de por `wallJoinBoundaryPaths` porque aquella función existe
+  // para decidir qué TESTEROS se trazan, y aquí lo que cambia son las CARAS.
+  // Las jambas del vano NO se dibujan aquí: son del hueco (véase
+  // `opening-entity-adapter.ts`), de modo que borrar la puerta devuelve la cara
+  // continua sin que el muro tenga que enterarse.
+  const frame = wallAxisFrame(entity);
+  if (!frame) return [{ points: joined, closed: true }];
+  const faces = wallFaces(frame, joined);
+  const [startLeft, startRight, endRight, endLeft] = joined;
   return [
-    ...wallJoinBoundaryPaths(joined, joins.start.cap, joins.end.cap),
-    ...wallFillPaths(entity, joins),
+    ...(startCap ? [{ points: [startLeft, startRight], closed: false }] : []),
+    ...splitFaceByIntervals(faces.left.a, faces.left.b, faces.left.tA, faces.left.tB, openings),
+    ...splitFaceByIntervals(faces.right.a, faces.right.b, faces.right.tA, faces.right.tB, openings),
+    ...(endCap ? [{ points: [endLeft, endRight], closed: false }] : []),
+    ...wallFillPaths(entity, joins, openings),
   ];
 }
 
@@ -145,14 +203,23 @@ function wallDependents(entity: WallEntity, near: CadEntityNeighborQuery): strin
   const bounds = wallBounds(entity);
   const margin = CAD_WALL_JOIN_POINT_TOLERANCE;
   const candidates: WallEntity[] = [];
+  // Los huecos ALOJADOS son dependientes por definición: su geometría entera
+  // sale del eje de este muro, así que moverlo deja obsoleto lo que hubiera
+  // cacheado de ellos. Sin esta línea, mover el muro dejaría la puerta pintada
+  // en su sitio de antes — sin error, sin aviso, y visible sólo mirando el
+  // plano, que es exactamente el fallo que `dependents` existe para impedir.
+  const hosted: string[] = [];
   for (const candidate of near({
     minX: bounds.minX - margin,
     minY: bounds.minY - margin,
     maxX: bounds.maxX + margin,
     maxY: bounds.maxY + margin,
-  }))
+  })) {
     if (candidate.type === "wall") candidates.push(candidate);
-  return wallJoinDependents(entity, candidates);
+    else if (candidate.type === "opening" && candidate.hostId === entity.id)
+      hosted.push(candidate.id);
+  }
+  return [...wallJoinDependents(entity, candidates), ...hosted];
 }
 
 function wallBounds(entity: WallEntity): CadBounds {

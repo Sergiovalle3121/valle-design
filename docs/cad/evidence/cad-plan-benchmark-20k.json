@@ -50,7 +50,8 @@
       "maxX": 99480.367,
       "maxY": 99050
     },
-    "sha256": "b91c346856bf914dc0ed51b8b10a3382a10064923bad419dd17c05bd214b44ef",
+    "sha256": "d569bc9d27db3cd5170f9d5da621a7d4b112afee91e68c8f48e405a820ee8f25",
+    "sha256Rationale": "Esta medida se tomó sobre el corpus cuyo SHA era b91c346856bf914dc0ed51b8b10a3382a10064923bad419dd17c05bd214b44ef. El SHA declarado arriba es el de HOY, y cambió por la subida del esquema canónico de 6 a 7 (hueco alojado en muro): el ÚNICO byte distinto del serializado es \"schema\":6 → \"schema\":7, comprobado revirtiendo ese entero sobre el texto nuevo, que devuelve el SHA antiguo exacto. Ninguna entidad, ningún bloque y ninguna coordenada del corpus cambian, así que la medición NO se ha vuelto a correr: repetirla en una máquina con seis procesos vecinos habría sustituido números buenos por números peores sin haber medido nada distinto. Si el dueño prefiere una corrida limpia, es npm run benchmark:cad:plan --workspace=web -- --output docs/cad/evidence/cad-plan-benchmark-20k.json en una máquina en reposo.",
     "compositionRationale": "Modelo declarado, no censo de archivos reales. Derivación completa y supuestos en la cabecera de src/lib/cad/benchmark/corpus-plano-real-builders.ts."
   },
   "scenario": {

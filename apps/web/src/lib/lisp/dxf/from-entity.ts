@@ -70,6 +70,10 @@ const DXF_TYPE: Record<CadNativeEntity["type"], string> = {
   // sus muros; el DXF plano no tiene entidad de muro y nuestra exportación lo
   // degrada a polilínea, pero AutoLISP debe nombrar lo que la entidad ES.
   wall: "AEC_WALL",
+  // Esquema 7. `AEC_WALL_OPENING` es como AutoCAD Architecture nombra el hueco
+  // alojado. Aquí vale lo mismo que para el muro: la exportación plana lo
+  // degrada a trazos, pero AutoLISP tiene que nombrar lo que la entidad ES.
+  opening: "AEC_WALL_OPENING",
 };
 
 export function dxfTypeOf(entity: CadNativeEntity): string {

@@ -55,6 +55,8 @@ import {
 import { printLisp } from "@/lib/lisp/printer";
 import type { LispFailure } from "@/lib/lisp/session";
 import type { LispValue } from "@/lib/lisp/values";
+import { fingerprintLispSource } from "@/lib/lisp/library";
+import { CAD_LISP_FACTORY_ROUTINES } from "@/lib/lisp/factory/factory-library";
 import { BrowserLispLibraryStore, browserKeyValueStorage } from "./library-storage";
 
 /** Lo que el runtime necesita preguntarle al registro compuesto. */
@@ -116,6 +118,13 @@ export interface CadLispSnapshot {
   /** La consola está abierta. */
   open: boolean;
   files: readonly LispLibraryFile[];
+  /**
+   * Las rutinas de FÁBRICA. Van aparte de `files` porque no son de la
+   * organización: no se suben, no se descargan y no ocupan su cuota. Están
+   * siempre, y la interfaz tiene que poder decirlo — una lista que las mezclase
+   * con las del estudio invitaría a intentar borrarlas.
+   */
+  factory: readonly LispLibraryFile[];
   /** Comandos `c:` que la biblioteca ofrece, en mayúsculas y ordenados. */
   commands: readonly string[];
   /** Dos ficheros declarando el mismo comando. Gana el último cargado. */
@@ -162,6 +171,37 @@ export interface CadLispRuntimeOptions {
   /** Reloj, inyectado: las specs no dependen de `Date`. */
   now?: () => number;
 }
+
+/**
+ * Las rutinas de fábrica, ya validadas, en forma de fichero de biblioteca.
+ *
+ * Se construyen UNA vez al cargar el módulo: son constantes del producto y
+ * validarlas en cada sesión sería pagar el lector de LISP por algo que no puede
+ * cambiar entre dos renders. La validación no sobra —es la que detecta el
+ * paréntesis que alguien dejó abierto al editar el `.lsp`— y el `factory.spec.ts`
+ * la vuelve a hacer con aserciones.
+ *
+ * `tenantId` va vacío a propósito: no son de nadie. Lo que las hace de la
+ * organización es lo que la organización cargue ENCIMA, que gana por cargarse
+ * después (véase `sources`).
+ */
+const FACTORY_FILES: readonly LispLibraryFile[] = CAD_LISP_FACTORY_ROUTINES.map((routine) => {
+  const validation = validateLispSource(routine.source);
+  return {
+    id: `lsp:factory:${routine.name}`,
+    tenantId: "",
+    name: routine.name,
+    source: routine.source,
+    version: 1,
+    fingerprint: fingerprintLispSource(routine.source),
+    updatedAt: "",
+    updatedBy: "Valle Design",
+    autoload: true,
+    // Una rutina de fábrica con la sintaxis rota no ofrece comandos, y la spec
+    // lo cazará; lo que no puede hacer es tumbar el arranque del subsistema.
+    commands: validation.ok ? validation.commands : [],
+  };
+});
 
 export class CadLispRuntime {
   private readonly store: LispLibraryStore;
@@ -237,10 +277,19 @@ export class CadLispRuntime {
   /** Qué fichero declara un comando `c:`. Para el histórico y la consola. */
   fileOf(command: string): string | undefined {
     const wanted = command.trim().toUpperCase();
-    return [...this.files()]
+    // Se mira PRIMERO lo de la organización y en orden inverso de carga, porque
+    // gana el último cargado; la fábrica es el último recurso, igual que en la
+    // precedencia real de `sources`.
+    const owner = [...this.files()]
       .sort((a, b) => a.name.localeCompare(b.name))
       .reverse()
-      .find((file) => file.commands.some((entry) => entry.toUpperCase() === wanted))?.name;
+      .find((file) => file.commands.some((entry) => entry.toUpperCase() === wanted));
+    return (
+      owner?.name ??
+      this.factoryFiles().find((file) =>
+        file.commands.some((entry) => entry.toUpperCase() === wanted),
+      )?.name
+    );
   }
 
   get tenantId(): string {
@@ -253,29 +302,42 @@ export class CadLispRuntime {
     return this.store.read(this.tenantId);
   }
 
+  /** Las rutinas de fábrica. Están siempre y no son de ninguna organización. */
+  factoryFiles(): readonly LispLibraryFile[] {
+    return FACTORY_FILES;
+  }
+
   /**
    * Fuentes en ORDEN DE CARGA (alfabético por nombre), que es el que
    * `autoloadOrder` fija y por la misma razón: si el orden dependiera de cuándo
    * se subió cada fichero, una biblioteca funcionaría o no según el historial de
    * la organización.
+   *
+   * Las de FÁBRICA van primero, y eso decide quién gana: una redefinición se
+   * queda con la ÚLTIMA carga, así que un despacho que escriba su propio
+   * `c:CUADROAREAS` tapa el nuestro sin tener que pedirlo ni renombrar nada. Es
+   * la precedencia correcta —la casa nunca le gana al estudio en su propio
+   * dibujo— y es la contraria a la de los comandos NATIVOS, que sí ganan siempre
+   * porque son el producto y no una rutina.
    */
   sources(): string[] {
-    return [...this.files()]
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .map((file) => file.source);
+    return [
+      ...this.factoryFiles().map((file) => file.source),
+      ...[...this.files()].sort((a, b) => a.name.localeCompare(b.name)).map((file) => file.source),
+    ];
   }
 
-  /** Comandos `c:` ofrecidos, en MAYÚSCULAS, sin repetir. */
+  /** Comandos `c:` ofrecidos, en MAYÚSCULAS, sin repetir. Fábrica incluida. */
   commandNames(): string[] {
     const names = new Set<string>();
-    for (const file of this.files())
+    for (const file of [...this.factoryFiles(), ...this.files()])
       for (const command of file.commands) names.add(command.toUpperCase());
     return [...names].sort();
   }
 
   hasCommand(name: string): boolean {
     const wanted = name.trim().toUpperCase();
-    return this.files().some((file) =>
+    return [...this.factoryFiles(), ...this.files()].some((file) =>
       file.commands.some((command) => command.toUpperCase() === wanted),
     );
   }
@@ -341,6 +403,20 @@ export class CadLispRuntime {
   }
 
   unload(name: string): boolean {
+    if (this.factoryFiles().some((file) => file.name.toLowerCase() === name.toLowerCase())) {
+      // Se dice que NO en vez de aparentar que se descargó: la rutina seguiría
+      // ahí en la siguiente invocación y el usuario creería que su comando
+      // desapareció por otra causa. Para dejar de usar la de fábrica se carga
+      // una propia con el mismo `c:`, que la tapa.
+      this.log(
+        "error",
+        `${name} es una rutina de fábrica y no se descarga. Carga una tuya que declare el mismo ` +
+          `comando c: y la tuya gana, porque se carga después.`,
+        "APPLOAD",
+      );
+      this.publish();
+      return false;
+    }
     const removed = removeLispFile(this.store, this.tenantId, name);
     if (removed) this.log("info", `${name} descargado.`, "APPLOAD");
     this.publish();
@@ -538,6 +614,7 @@ export class CadLispRuntime {
     return {
       open: this.openState,
       files: this.files(),
+      factory: this.factoryFiles(),
       commands: this.commandNames(),
       collisions: inventory.collisions,
       shadowedByNative: this.shadowedByNative(),
