@@ -25,6 +25,8 @@
     "evidence:point-cloud-scale": "node scripts/cad/point-cloud-scale-evidence.mjs",
     "build:dxf-corpus": "node scripts/cad/build-dxf-external-corpus.mjs",
     "check:dxf-corpus": "node scripts/cad/build-dxf-external-corpus.mjs --check",
+    "build:pdf-corpus": "node scripts/cad/build-pdf-import-corpus.mjs",
+    "check:pdf-corpus": "node scripts/cad/build-pdf-import-corpus.mjs --check",
     "check:rubric:spec": "node scripts/cad/rubric.spec.mjs",
     "check:cad": "node scripts/cad/check-design-contract.mjs && node scripts/cad/check-no-line-engineering.mjs && node scripts/cad/check-monolith-budget.mjs && node scripts/cad/rubric.spec.mjs && node scripts/cad/rubric.mjs",
     "check:dwg": "npm run check --workspace=@valle-design/dwg-codec && node scripts/dwg/check-product-boundary.mjs",

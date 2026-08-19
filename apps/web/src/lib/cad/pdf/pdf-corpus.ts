@@ -54,6 +54,15 @@ export interface CadPdfCorpusFile {
   pages: number;
   /** Página que la matriz mide. Por defecto la 1. */
   measurePage?: number;
+  /**
+   * Archivo de REFERENCIA para los tipos que se miden por comparación.
+   *
+   * Un bloque reutilizado o unas letras dibujadas no se pueden contar mirando
+   * sólo el resultado: hay que comparar con el mismo plano SIN ellos. Nombrar
+   * aquí ese plano es lo que permite que la regla de medición sea aritmética y
+   * no una lista de entidades esperadas escrita a mano.
+   */
+  baselineId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -587,8 +596,11 @@ export function cadPdfCorpus(): readonly CadPdfCorpusFile[] {
       purpose:
         "Media industria exporta así para que no haga falta la fuente. El texto deja de ser texto: son trazos, y ningún lector puede devolverlo a MTEXT sin inventarlo.",
       bytes: textAsCurves(),
+      // Tres contornos de letra, cada uno un camino relleno: tres entidades más
+      // que el mismo plano sin ellas.
       declares: { PATH_LINE: 5, PATH_RECT: 1, PATH_CURVE: 1, TEXT_AS_CURVES: 3 },
       pages: 1,
+      baselineId: "cad-vector-uncompressed",
     },
     {
       id: "scanned-image-only",
@@ -659,8 +671,12 @@ export function cadPdfCorpus(): readonly CadPdfCorpusFile[] {
       purpose:
         "Un bloque del CAD de origen sale como un XObject insertado varias veces con su matriz. Sin seguirlos, un plano lleno de puertas entra vacío.",
       bytes: formXObjects(),
-      declares: { PATH_LINE: 5, PATH_RECT: 1, PATH_CURVE: 1, FORM_XOBJECT: 2 },
+      // Dos inserciones del mismo bloque, y cada una aporta tres entidades: dos
+      // líneas y un cuadrado. Se declara lo que hay que ENCONTRAR, que es lo
+      // que se puede medir contra el plano de referencia.
+      declares: { PATH_LINE: 5, PATH_RECT: 1, PATH_CURVE: 1, FORM_XOBJECT: 6 },
       pages: 1,
+      baselineId: "cad-vector-uncompressed",
     },
     {
       id: "shading-and-fills",
