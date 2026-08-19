@@ -53,56 +53,15 @@ const rows = new Map<string, CadDxfPropertyRow>(
  * aquí. Es la única forma de que la lista no pueda mentir en ninguna dirección.
  */
 const PENDIENTES: Readonly<Record<string, string>> = {
-  // LTYPE: ni la tabla de patrones, ni el código 6 de la capa, ni el de la
-  // entidad se leen. El eje del pórtico entra continuo y nadie lo dice.
-  "ltype-patron-center": "perdido_en_silencio: esperaba 31.75,-6.35,6.35,-6.35, no se lee",
-  "ltype-patron-dashed": "perdido_en_silencio: esperaba 12.7,-6.35, no se lee",
-  "ltype-capa-ejes": "perdido_en_silencio: esperaba CENTER, no se lee",
-  "ltype-capa-muros": "perdido_en_silencio: esperaba CONTINUOUS, no se lee",
-  "ltype-capa-auxiliar": "perdido_en_silencio: esperaba DASHED, no se lee",
-  "ltype-entidad-origen-ejes": "perdido_en_silencio: esperaba byLayer, no se lee",
-  "ltype-entidad-valor-muros": "perdido_en_silencio: esperaba DASHED, no se lee",
-  "ltype-entidad-origen-muros": "perdido_en_silencio: esperaba explicit, no se lee",
-  "ltype-entidad-origen-auxiliar": "perdido_en_silencio: esperaba byLayer, no se lee",
-  "ltype-efectivo-ejes": "perdido_en_silencio: esperaba CENTER, no se lee",
-  "ltype-efectivo-muros": "perdido_en_silencio: esperaba DASHED, no se lee",
-  "ltype-efectivo-auxiliar": "perdido_en_silencio: esperaba DASHED, no se lee",
-  "ltype-visor-ejes": "perdido_en_silencio: esperaba 1, 0",
-  // LTSCALE: el dibujo no tiene dónde guardar su escala global y la de entidad
-  // se descarta. Aunque el patrón llegase, el guion saldría del tamaño ajeno.
-  "ltscale-documento": "perdido_en_silencio: esperaba 25, no se lee",
-  "ltscale-entidad": "perdido_en_silencio: esperaba 0.5, no se lee",
-  "ltscale-efectiva-global": "perdido_en_silencio: esperaba 25, no se lee",
-  "ltscale-efectiva-entidad": "perdido_en_silencio: esperaba 12.5, no se lee",
-  // Grosores: el código 370 no se lee en ningún ámbito. Todo se imprime igual.
-  "lw-capa-muros": "perdido_en_silencio: esperaba 50, no se lee",
-  "lw-capa-ejes": "perdido_en_silencio: esperaba 13, no se lee",
-  "lw-capa-cajetin": "perdido_en_silencio: esperaba -3, no se lee",
-  "lw-entidad-origen-muros": "perdido_en_silencio: esperaba byLayer, no se lee",
-  "lw-entidad-origen-ejes": "perdido_en_silencio: esperaba byLayer, no se lee",
-  "lw-entidad-valor-remarcado": "perdido_en_silencio: esperaba 211, no se lee",
-  "lw-entidad-origen-remarcado": "perdido_en_silencio: esperaba explicit, no se lee",
-  "lw-efectivo-muros": "perdido_en_silencio: esperaba 50, no se lee",
-  "lw-efectivo-ejes": "perdido_en_silencio: esperaba 13, no se lee",
-  "lw-efectivo-cajetin": "perdido_en_silencio: esperaba -3, no se lee",
-  "lw-visor-remarcado": "perdido_en_silencio: esperaba 4.22, 0.5",
-  "lw-visor-muros": "perdido_en_silencio: esperaba 1, 0.5",
-  // BYBLOCK: la herencia de la inserción no existe en el modelo importado.
-  "byblock-origen-linetype": "perdido_en_silencio: esperaba byBlock, no se lee",
-  "byblock-origen-lineweight": "perdido_en_silencio: esperaba byBlock, no se lee",
-  "byblock-insercion-linetype": "perdido_en_silencio: esperaba DASHED, no se lee",
-  "byblock-insercion-lineweight": "perdido_en_silencio: esperaba 50, no se lee",
-  "byblock-efectivo-linetype": "perdido_en_silencio: esperaba DASHED, no se lee",
-  "byblock-efectivo-lineweight": "perdido_en_silencio: esperaba 50, no se lee",
-  // La cota ajena: entra como la geometría suelta de su bloque *D. Se ve
-  // igual, no mide, y el informe de importación no menciona ninguna pérdida.
+  // La cota que llega de otro CAD. Entra como la geometría suelta de su bloque
+  // anónimo *D: se ve idéntica, no mide y nadie lo declara. Es el hueco que
+  // queda abierto y su número está aquí para que no se pueda ignorar.
   "cota-ajena-presente": "perdido_en_silencio: esperaba 1, 0",
   "cota-ajena-a": "perdido_en_silencio: esperaba 0,0, no se lee",
   "cota-ajena-b": "perdido_en_silencio: esperaba 3200,0, no se lee",
   "cota-ajena-medida": "perdido_en_silencio: esperaba 3200, no se lee",
   "cota-ajena-tipo": "perdido_en_silencio: esperaba aligned, no se lee",
   "cota-ajena-estilo": "perdido_en_silencio: esperaba ISO-25, no se lee",
-  "cota-ajena-capa-lineweight": "perdido_en_silencio: esperaba 13, no se lee",
 };
 
 // --- 1. el corpus mide las tres familias del encargo ------------------------

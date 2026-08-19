@@ -1,13 +1,10 @@
 import type { CadDxfPoint, CadDxfPrimitive } from "./dxf-import";
+import type { CadEntityPresentation } from "./cad-document";
 import type { CadTextAnchor } from "./cad-entities-v4";
 import type { CadDimensionEntity } from "./associative-dimension";
 import { buildCadMleaderGeometry, type CadMleaderEntity } from "./associative-mleader";
 import { DEFAULT_MLEADER_STYLE } from "./mleader";
-import {
-  DXF_XDATA_APP_BLOCK,
-  DXF_XDATA_APP_DIMENSION,
-  DXF_XDATA_APP_MLEADER,
-} from "@valle-design/contracts";
+import { DXF_XDATA_APP_BLOCK, DXF_XDATA_APP_MLEADER } from "@valle-design/contracts";
 // Los pares código/valor, el saneado de nombres y el formato numérico viven en
 // su propio módulo hoja: los escritores del esquema 4 usan EXACTAMENTE los
 // mismos, y duplicarlos era la manera segura de que divergiesen.
@@ -18,10 +15,14 @@ import {
   fmt,
   pushPair,
   pushPoint,
+  pushPresentation,
   safeLayerName,
   safeStyleName,
   safeText,
 } from "./dxf-write-core";
+// La sección TABLES vive en su propio módulo: es lo que DECLARA cómo se dibuja
+// el fichero —tipos de línea, grosores y estilos— y es una pieza coherente.
+import { pushLayerTable } from "./dxf-write-tables";
 // Los ocho tipos del esquema 4 tienen su propio módulo de escritura: cada uno
 // con su código DXF real y con las rarezas del formato (el corbatín del SOLID,
 // el diccionario de imágenes) resueltas ahí y no aquí.
@@ -57,6 +58,22 @@ export interface CadDxfExportOptions {
 export interface CadDxfExportLayer {
   name: string;
   color?: number;
+  /** Tipo de línea de la capa (código 6). Ausente = CONTINUOUS. */
+  linetype?: string;
+  /**
+   * Grosor de la capa en CENTÉSIMAS de milímetro (código 370), la unidad del
+   * formato. La paleta de capas del editor guarda milímetros; la conversión
+   * ocurre en `cad-effective-style.ts` y en el ensamblador de exportación, no
+   * aquí: este tipo describe lo que se ESCRIBE al fichero.
+   */
+  lineweight?: number;
+}
+/** Definición de la tabla LTYPE: el patrón que hay que escribir. */
+export interface CadDxfExportLinetype {
+  name: string;
+  description?: string;
+  /** Longitudes con signo: >0 trazo, <0 hueco, 0 punto. */
+  pattern: number[];
 }
 export interface CadDxfExportText {
   layer?: string;
@@ -141,6 +158,8 @@ export interface CadDxfExportBlock {
 /** Referencia INSERT a un bloque, con su transformación. */
 export interface CadDxfExportInsert {
   block: string;
+  /** De aquí hereda la geometría del bloque que diga BYBLOCK. */
+  presentation?: CadEntityPresentation;
   x: number;
   y: number;
   /** Grados CCW. */
@@ -170,6 +189,14 @@ export interface CadDxfExportInsert {
 export interface CadDxfExportModel {
   primitives?: CadDxfPrimitive[];
   layers?: CadDxfExportLayer[];
+  /**
+   * Tabla LTYPE. Sin ella, una capa o una entidad que nombre CENTER produce un
+   * fichero que REFERENCIA un tipo de línea inexistente: AutoCAD lo abre y
+   * dibuja continuo, así que el plano se degrada sin un solo mensaje.
+   */
+  linetypes?: CadDxfExportLinetype[];
+  /** $LTSCALE. Ausente = no se escribe y el destino usa la suya. */
+  linetypeScale?: number;
   texts?: CadDxfExportText[];
   mtexts?: CadDxfExportMText[];
   measurements?: CadDxfExportMeasurement[];
@@ -211,71 +238,11 @@ function uniqueLayers(model: CadDxfExportModel): string[] {
   for (const mleader of model.mleaders ?? []) names.add(safeLayerName(mleader.layer ?? TEXT_LAYER));
   return [...names].sort((a, b) => a.localeCompare(b));
 }
-function layerColor(model: CadDxfExportModel, name: string): number {
-  const found = (model.layers ?? []).find(
-    (layer) => safeLayerName(layer.name) === name,
-  );
-  return found?.color ?? 7;
-}
-function pushLayerTable(
-  lines: string[],
-  model: CadDxfExportModel,
-  layers: string[],
-) {
-  pushPair(lines, 0, "SECTION");
-  pushPair(lines, 2, "TABLES");
-  pushPair(lines, 0, "TABLE");
-  pushPair(lines, 2, "LAYER");
-  pushPair(lines, 70, layers.length);
-  for (const layer of layers) {
-    pushPair(lines, 0, "LAYER");
-    pushPair(lines, 2, layer);
-    pushPair(lines, 70, 0);
-    pushPair(lines, 62, layerColor(model, layer));
-    pushPair(lines, 6, "CONTINUOUS");
-  }
-  pushPair(lines, 0, "ENDTAB");
-  const textStyles = new Map<string, string>([["Standard", "arial.ttf"]]);
-  for (const mtext of model.mtexts ?? []) {
-    const name = safeStyleName(mtext.style);
-    const family = safeText(mtext.fontFamily ?? "Arial").replace(/[^\w.-]+/g, "").toLowerCase() || "arial";
-    textStyles.set(name, family.endsWith(".ttf") || family.endsWith(".shx") ? family : `${family}.ttf`);
-  }
-  pushPair(lines, 0, "TABLE");
-  pushPair(lines, 2, "STYLE");
-  pushPair(lines, 70, textStyles.size);
-  for (const [name, font] of textStyles) {
-    pushPair(lines, 0, "STYLE");
-    pushPair(lines, 2, name);
-    pushPair(lines, 70, 0);
-    pushPair(lines, 40, 0);
-    pushPair(lines, 41, 1);
-    pushPair(lines, 50, 0);
-    pushPair(lines, 71, 0);
-    pushPair(lines, 42, 2.5);
-    pushPair(lines, 3, font);
-    pushPair(lines, 4, "");
-  }
-  pushPair(lines, 0, "ENDTAB");
-  pushPair(lines, 0, "TABLE");
-  pushPair(lines, 2, "APPID");
-  pushPair(lines, 70, 3);
-  pushPair(lines, 0, "APPID");
-  pushPair(lines, 2, DXF_XDATA_APP_DIMENSION);
-  pushPair(lines, 70, 0);
-  pushPair(lines, 0, "APPID");
-  pushPair(lines, 2, DXF_XDATA_APP_MLEADER);
-  pushPair(lines, 70, 0);
-  pushPair(lines, 0, "APPID");
-  pushPair(lines, 2, DXF_XDATA_APP_BLOCK);
-  pushPair(lines, 70, 0);
-  pushPair(lines, 0, "ENDTAB");
-  pushPair(lines, 0, "ENDSEC");
-}
 function pushHeader(
   lines: string[],
   options: CadDxfExportOptions,
   pointVariables: { pdmode: number; pdsize: number } | null,
+  linetypeScale?: number,
 ) {
   pushPair(lines, 0, "SECTION");
   pushPair(lines, 2, "HEADER");
@@ -285,6 +252,13 @@ function pushHeader(
   pushPair(lines, 1, "AC1015");
   pushPair(lines, 9, "$INSUNITS");
   pushPair(lines, 70, DXF_UNIT_CODES[options.units ?? "mm"]);
+  // La escala global del guion es del DIBUJO. Sin ella, un plano a 1:50 que se
+  // devuelve al remitente le llega con los ejes veinticinco veces más cortos y
+  // sin nada en el fichero que explique por qué.
+  if (typeof linetypeScale === "number" && linetypeScale > 0) {
+    pushPair(lines, 9, "$LTSCALE");
+    pushPair(lines, 40, fmt(linetypeScale));
+  }
   // El estilo de punto es del DIBUJO, no del POINT: si no viaja aquí, todos
   // los puntos del fichero salen del estilo por defecto y la marca que el
   // usuario eligió desaparece sin que nadie lo diga.
@@ -299,14 +273,17 @@ function pushHeader(
   }
   pushPair(lines, 0, "ENDSEC");
 }
+
 function pushLine(
   lines: string[],
   layer: string,
   from: CadDxfPoint,
   to: CadDxfPoint,
+  presentation?: CadEntityPresentation,
 ) {
   pushPair(lines, 0, "LINE");
   pushPair(lines, 8, layer);
+  pushPresentation(lines, presentation);
   pushPoint(lines, from);
   pushPair(lines, 11, fmt(to.x));
   pushPair(lines, 21, fmt(to.y));
@@ -317,9 +294,11 @@ function pushPolyline(
   layer: string,
   points: CadDxfPoint[],
   closed: boolean,
+  presentation?: CadEntityPresentation,
 ) {
   pushPair(lines, 0, "POLYLINE");
   pushPair(lines, 8, layer);
+  pushPresentation(lines, presentation);
   pushPair(lines, 66, 1);
   pushPair(lines, 70, closed ? 1 : 0);
   for (const point of points) {
@@ -340,9 +319,11 @@ function pushCircle(
   layer: string,
   center: CadDxfPoint,
   radius: number,
+  presentation?: CadEntityPresentation,
 ) {
   pushPair(lines, 0, "CIRCLE");
   pushPair(lines, 8, layer);
+  pushPresentation(lines, presentation);
   pushPoint(lines, center);
   pushPair(lines, 40, fmt(radius));
 }
@@ -353,9 +334,11 @@ function pushArc(
   radius: number,
   startAngle: number,
   endAngle: number,
+  presentation?: CadEntityPresentation,
 ) {
   pushPair(lines, 0, "ARC");
   pushPair(lines, 8, layer);
+  pushPresentation(lines, presentation);
   pushPoint(lines, center);
   pushPair(lines, 40, fmt(radius));
   pushPair(lines, 50, fmt(startAngle));
@@ -369,9 +352,11 @@ function pushEllipse(
   axisRatio: number,
   startAngleDeg: number,
   endAngleDeg: number,
+  presentation?: CadEntityPresentation,
 ) {
   pushPair(lines, 0, "ELLIPSE");
   pushPair(lines, 8, layer);
+  pushPresentation(lines, presentation);
   pushPoint(lines, center);
   // 11/21/31: extremo del eje mayor RELATIVO al centro (convención DXF).
   pushPair(lines, 11, fmt(majorAxis.x));
@@ -397,6 +382,7 @@ function pushSpline(
   controlPoints: CadDxfPoint[],
   degree: number,
   knots?: number[],
+  presentation?: CadEntityPresentation,
 ) {
   const expectedKnots = controlPoints.length + degree + 1;
   const knotValues =
@@ -405,6 +391,7 @@ function pushSpline(
       : clampedKnots(controlPoints.length, degree);
   pushPair(lines, 0, "SPLINE");
   pushPair(lines, 8, layer);
+  pushPresentation(lines, presentation);
   pushPair(lines, 70, 8); // planar
   pushPair(lines, 71, degree);
   pushPair(lines, 72, knotValues.length);
@@ -418,11 +405,13 @@ function pushText(
   position: CadDxfPoint,
   text: string,
   height = 250,
+  presentation?: CadEntityPresentation,
 ) {
   const content = safeText(text);
   if (!content) return false;
   pushPair(lines, 0, "TEXT");
   pushPair(lines, 8, layer);
+  pushPresentation(lines, presentation);
   pushPoint(lines, position);
   pushPair(lines, 40, fmt(height));
   pushPair(lines, 1, content);
@@ -597,18 +586,18 @@ function writePrimitiveGeometry(
     return { wrote: count > 0, isGeometry: false, count };
   }
   if (primitive.kind === "line" && primitive.points.length >= 2) {
-    pushLine(lines, layer, primitive.points[0], primitive.points[1]);
+    pushLine(lines, layer, primitive.points[0], primitive.points[1], primitive.presentation);
     return { wrote: true, isGeometry: true, count: 1 };
   }
   if (primitive.kind === "polyline" && primitive.points.length >= 2) {
     // El cierre lo declara la primitiva. Estaba fijado a `false`, así que TODO
     // contorno cerrado salía con 70=0 —abierto para cualquier lector de DXF—
     // aunque llevase sus vértices coincidentes.
-    pushPolyline(lines, layer, primitive.points, primitive.closed === true);
+    pushPolyline(lines, layer, primitive.points, primitive.closed === true, primitive.presentation);
     return { wrote: true, isGeometry: true, count: 1 };
   }
   if (primitive.kind === "rect" && primitive.points.length >= 2) {
-    pushPolyline(lines, layer, rectCornerPoints(primitive.points), true);
+    pushPolyline(lines, layer, rectCornerPoints(primitive.points), true, primitive.presentation);
     return { wrote: true, isGeometry: true, count: 1 };
   }
   if (
@@ -617,7 +606,7 @@ function writePrimitiveGeometry(
     typeof primitive.radius === "number" &&
     primitive.radius > 0
   ) {
-    pushCircle(lines, layer, primitive.points[0], primitive.radius);
+    pushCircle(lines, layer, primitive.points[0], primitive.radius, primitive.presentation);
     return { wrote: true, isGeometry: true, count: 1 };
   }
   if (
@@ -635,6 +624,7 @@ function writePrimitiveGeometry(
       primitive.radius,
       primitive.startAngle,
       primitive.endAngle,
+      primitive.presentation,
     );
     return { wrote: true, isGeometry: true, count: 1 };
   }
@@ -653,6 +643,7 @@ function writePrimitiveGeometry(
       primitive.axisRatio,
       primitive.startAngle ?? 0,
       primitive.endAngle ?? 360,
+      primitive.presentation,
     );
     return { wrote: true, isGeometry: true, count: 1 };
   }
@@ -663,6 +654,7 @@ function writePrimitiveGeometry(
       primitive.points,
       Math.max(1, Math.min(primitive.degree ?? 3, primitive.points.length - 1)),
       primitive.knots,
+      primitive.presentation,
     );
     return { wrote: true, isGeometry: true, count: 1 };
   }
@@ -673,6 +665,7 @@ function writePrimitiveGeometry(
       primitive.points[0],
       primitive.text,
       primitive.textHeight,
+      primitive.presentation,
     );
     return { wrote, isGeometry: false, count: wrote ? 1 : 0 };
   }
@@ -802,6 +795,7 @@ function pushInsert(lines: string[], insert: CadDxfExportInsert, definition?: Ca
   const attributeCount = positioned.length || attributes.length;
   pushPair(lines, 0, "INSERT");
   pushPair(lines, 8, safeLayerName(insert.layer));
+  pushPresentation(lines, insert.presentation);
   pushPair(lines, 2, safeText(insert.block));
   if (attributeCount) pushPair(lines, 66, 1);
   pushPoint(lines, { x: insert.x, y: insert.y });
@@ -905,7 +899,7 @@ export function exportCadDxf(
     primitives: semanticDimensionBlockPrimitives(dimension),
   }));
   const allBlocks = [...(model.blocks ?? []), ...dimensionBlocks, ...semanticDimensionBlocks];
-  pushHeader(lines, options, schema4PointVariables(model.primitives ?? []));
+  pushHeader(lines, options, schema4PointVariables(model.primitives ?? []), model.linetypeScale);
   pushLayerTable(lines, model, layers);
   if (allBlocks.length) pushBlocks(lines, allBlocks, schema4Objects);
   pushPair(lines, 0, "SECTION");

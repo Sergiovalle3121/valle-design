@@ -14,7 +14,13 @@
  *
  * Módulo puro: sin DOM, sin THREE, sin estado.
  */
-import type { CadEntity, CadLayerDef, CadLossManifestEntry } from "./cad-document";
+import type {
+  CadEntity,
+  CadLayerDef,
+  CadLossManifestEntry,
+  CadStyleTable,
+} from "./cad-document";
+import { CAD_LINEWEIGHT_DEFAULT } from "./cad-effective-style";
 import {
   cadDocumentDxfBlocks,
   cadDocumentDxfExportLosses,
@@ -28,9 +34,17 @@ import {
 } from "./dxf-cad-document";
 import { exportCadDxf, type CadDxfExportModel, type CadDxfExportOptions } from "./dxf-export";
 
-/** Lo que hace falta leer para escribir un DXF: entidades, bloques y capas. */
+/**
+ * Lo que hace falta leer para escribir un DXF: entidades, bloques, capas y —
+ * desde que el tipo de línea viaja— el catálogo de patrones y la escala global
+ * del guion. Las dos últimas son OPCIONALES: un documento que nunca abrió un
+ * DXF con tabla LTYPE no las tiene, y exigirlas habría obligado a los
+ * llamadores que sólo tienen una selección a inventárselas.
+ */
 export type CadDxfDocumentExportSource = CadDxfExportSource & {
   layers: readonly CadLayerDef[];
+  styles?: Partial<Pick<CadStyleTable, "linetype">>;
+  meta?: { linetypeScale?: number };
 };
 
 export interface CadDxfDocumentExport {
@@ -57,7 +71,29 @@ export function cadDocumentToDxfExportModel(
     // apunta a un bloque inexistente, y eso no lo abre ningún visor.
     blocks: cadDocumentDxfBlocks(document),
     inserts: cadDocumentDxfInserts(document, filter),
-    layers: document.layers.map((layer) => ({ name: layer.name })),
+    // El grosor cruza aquí su frontera de unidades: la paleta de capas guarda
+    // MILÍMETROS con −1 por «por defecto» y el fichero pide CENTÉSIMAS con −3.
+    // La conversión de ida vive en el importador y la resolución en
+    // `cad-effective-style.ts`; los tres sitios se editan juntos.
+    layers: document.layers.map((layer) => ({
+      name: layer.name,
+      ...(layer.linetype ? { linetype: layer.linetype } : {}),
+      ...(typeof layer.lineweight === "number"
+        ? { lineweight: layer.lineweight < 0 ? CAD_LINEWEIGHT_DEFAULT : Math.round(layer.lineweight * 100) }
+        : {}),
+    })),
+    ...(document.styles?.linetype
+      ? {
+          linetypes: Object.entries(document.styles.linetype).map(([name, entry]) => ({
+            name,
+            pattern: entry.pattern,
+            ...(entry.description ? { description: entry.description } : {}),
+          })),
+        }
+      : {}),
+    ...(typeof document.meta?.linetypeScale === "number"
+      ? { linetypeScale: document.meta.linetypeScale }
+      : {}),
   };
 }
 

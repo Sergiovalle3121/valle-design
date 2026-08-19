@@ -27,6 +27,21 @@ export function cadEntityToDxfPrimitive(
   entity: CadEntity,
   document?: Pick<CadDocument, "imageDefinitions">,
 ): CadDxfPrimitive | null {
+  const primitive = entityGeometryPrimitive(entity, document);
+  if (!primitive) return null;
+  // Cómo se dibuja se adjunta UNA vez y para todos los tipos. Repetirlo en cada
+  // rama era la forma segura de que el decimoquinto tipo saliera del fichero
+  // sin su tipo de línea y nadie lo notase hasta imprimir.
+  const presentation = entity.context?.presentation;
+  return presentation?.linetype || presentation?.lineweight
+    ? { ...primitive, presentation }
+    : primitive;
+}
+
+function entityGeometryPrimitive(
+  entity: CadEntity,
+  document?: Pick<CadDocument, "imageDefinitions">,
+): CadDxfPrimitive | null {
   if (entity.type === "arc") {
     return {
       kind: "arc",

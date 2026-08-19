@@ -40,6 +40,7 @@ import {
   type CadDxfPropertyProbe,
 } from "./dxf-property-corpus";
 import { defaultCadRenderStyle } from "./render/render-style";
+import { resolveCadEntityStyle } from "./cad-effective-style";
 
 export type CadDxfPropertyVerdict =
   | "intacto"
@@ -153,6 +154,26 @@ function presentationOf(entity: CadEntity | undefined, channel: "linetype" | "li
   return optionalField(optionalField(optionalField(entity, "context"), "presentation"), channel);
 }
 
+/**
+ * El ORIGEN de una propiedad, con la regla del formato aplicada.
+ *
+ * La AUSENCIA del código 6 o del 370 significa BYLAYER en DXF; el documento la
+ * representa igual, no guardando nada. Exigir aquí que el campo esté
+ * materializado mediría la codificación en vez del significado, y además
+ * empujaría al producto a escribir un objeto de herencia en cada una de las
+ * cien mil entidades de un plano para no fallar una sonda. Se mide lo que la
+ * entidad SIGNIFICA; que no exista la entidad sí es nulo.
+ */
+function sourceOf(
+  document: CadDocument,
+  target: string,
+  channel: "linetype" | "lineweight",
+): CadDxfPropertyValue {
+  const entity = entityOf(document, target);
+  if (!entity) return null;
+  return asText(optionalField(presentationOf(entity, channel), "source")) ?? "byLayer";
+}
+
 /** Patrón de un LTYPE del catálogo del documento, serializado «12.7,-6.35». */
 function catalogPattern(document: CadDocument, name: string): string | null {
   const catalog = optionalField(document.styles, "linetype");
@@ -163,52 +184,26 @@ function catalogPattern(document: CadDocument, name: string): string | null {
 }
 
 /**
- * Resolución BYLAYER/BYBLOCK/DEFAULT, escrita aquí porque es LA REGLA con la
- * que se mide y tiene que poder leerse entera junto a los números que produce.
- * Devuelve nulo cuando no hay de dónde resolver: inventar un valor por defecto
- * convertiría una pérdida en un verde.
+ * Lo EFECTIVO sale del resolvedor del producto, no de una copia de la regla.
+ *
+ * Reimplementar aquí BYLAYER y BYBLOCK habría medido esta matriz en vez del
+ * CAD: la matriz saldría verde con el resolvedor real roto, que es la forma más
+ * cara de tener una suite en verde. Se devuelve nulo cuando no hay entidad que
+ * medir, y sólo entonces.
  */
 function effective(
   document: CadDocument,
   target: string,
-  channel: "linetype" | "lineweight",
+  channel: "linetype" | "lineweight" | "escala",
 ): CadDxfPropertyValue {
   const entity = entityOf(document, target);
   if (!entity) return null;
-  const own = presentationOf(entity, channel);
-  const source = asText(optionalField(own, "source"));
-  const value = channel === "linetype"
-    ? asText(optionalField(own, "value"))
-    : asNumber(optionalField(own, "value"));
-  if (source === "explicit") return value;
-  if (source === "byBlock") {
-    // La herencia del bloque sale de LA INSERCIÓN, no de la capa de la
-    // geometría: es lo que distingue un símbolo reutilizable de uno pintado.
-    const holder = document.blocks.find((block) =>
-      block.entities.some((candidate) => candidate.id === entity.id),
-    );
-    if (!holder) return null;
-    const insert = document.entities.find(
-      (candidate) => candidate.type === "insert" && candidate.block === holder.id,
-    ) ?? insertOf(document, entity.layer);
-    const inherited = presentationOf(insert, channel);
-    return channel === "linetype"
-      ? asText(optionalField(inherited, "value"))
-      : asNumber(optionalField(inherited, "value"));
-  }
-  const layer = layerOf(document, entity.layer);
-  if (!layer) return null;
+  const resolved = resolveCadEntityStyle(entity, document);
   return channel === "linetype"
-    ? asText(layer.linetype)
-    : asNumber(layer.lineweight);
-}
-
-/** Escala del guion ya resuelta: la global del dibujo × la de la entidad. */
-function effectiveScale(document: CadDocument, target: string): CadDxfPropertyValue {
-  const global = asNumber(optionalField(document.meta, "linetypeScale"));
-  if (global === null) return null;
-  const own = asNumber(optionalField(presentationOf(entityOf(document, target), "linetype"), "scale"));
-  return own === null ? global : global * own;
+    ? resolved.linetype
+    : channel === "lineweight"
+      ? resolved.lineweight
+      : resolved.linetypeScale;
 }
 
 function dimensionOf(document: CadDocument): Extract<CadEntity, { type: "dimension" }> | undefined {
@@ -234,30 +229,30 @@ export function observeCadDxfProperty(
     case "entidad.linetype.valor":
       return asText(optionalField(presentationOf(entityOf(document, probe.target) ?? insertOf(document, probe.target), "linetype"), "value"));
     case "entidad.linetype.origen":
-      return asText(optionalField(presentationOf(entityOf(document, probe.target), "linetype"), "source"));
+      return sourceOf(document, probe.target, "linetype");
     case "entidad.linetype.escala":
       return asNumber(optionalField(presentationOf(entityOf(document, probe.target), "linetype"), "scale"));
     case "entidad.lineweight.valor":
       return asNumber(optionalField(presentationOf(entityOf(document, probe.target) ?? insertOf(document, probe.target), "lineweight"), "value"));
     case "entidad.lineweight.origen":
-      return asText(optionalField(presentationOf(entityOf(document, probe.target), "lineweight"), "source"));
+      return sourceOf(document, probe.target, "lineweight");
     case "efectivo.linetype":
       return effective(document, probe.target, "linetype");
     case "efectivo.lineweight":
       return effective(document, probe.target, "lineweight");
     case "efectivo.escala":
-      return effectiveScale(document, probe.target);
+      return effective(document, probe.target, "escala");
     // Las dos sondas del VISOR pasan por el mismo `defaultCadRenderStyle` que
     // alimenta el lote instanciado: medir una reimplementación aquí mediría
     // esta matriz, no el producto. Todas las entidades sonda son LINE, que es
     // nativa, así que la comprobación de tipo basta y no hace falta un guardián.
     case "visor.medioGrosorPx": {
       const entity = entityOf(document, probe.target);
-      return entity?.type === "line" ? defaultCadRenderStyle(entity).halfWidthPx : null;
+      return entity?.type === "line" ? defaultCadRenderStyle(entity, document).halfWidthPx : null;
     }
     case "visor.linetypeIndex": {
       const entity = entityOf(document, probe.target);
-      return entity?.type === "line" ? defaultCadRenderStyle(entity).linetypeIndex : null;
+      return entity?.type === "line" ? defaultCadRenderStyle(entity, document).linetypeIndex : null;
     }
     case "cota.presente":
       return dimensionOf(document) ? 1 : 0;

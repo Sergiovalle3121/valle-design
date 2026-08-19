@@ -46,7 +46,13 @@ export type CadDxfPropertyKind =
   | "tabla.ltype.patron"
   /** Tipo de línea declarado por una capa (código 6 del LAYER). */
   | "capa.linetype"
-  /** Grosor declarado por una capa, en centésimas de mm (código 370). */
+  /**
+   * Grosor declarado por una capa, en MILÍMETROS: es la unidad de
+   * `CadLayerDef.lineweight` desde que existe la paleta de capas, y −1 es su
+   * «por defecto». El fichero lo trae en centésimas y la frontera se cruza al
+   * importar. Las sondas `efectivo.*` sí van en centésimas, que es la unidad
+   * del formato y la del resto del documento.
+   */
   | "capa.lineweight"
   /** Valor del tipo de línea de una entidad (código 6). */
   | "entidad.linetype.valor"
@@ -302,12 +308,12 @@ function lineweightEnumeration(): CadDxfPropertyCase {
       ...EOF,
     ]),
     probes: [
-      { id: "lw-capa-muros", kind: "capa.lineweight", target: "MUROS", expected: 50,
+      { id: "lw-capa-muros", kind: "capa.lineweight", target: "MUROS", expected: 0.5,
         matters: "0,50 mm es el grosor con el que se imprime un muro de carga." },
-      { id: "lw-capa-ejes", kind: "capa.lineweight", target: "EJES", expected: 13,
+      { id: "lw-capa-ejes", kind: "capa.lineweight", target: "EJES", expected: 0.13,
         matters: "0,13 mm es el trazo fino: si sube, el eje compite con el muro." },
-      { id: "lw-capa-cajetin", kind: "capa.lineweight", target: "CAJETIN", expected: -3,
-        matters: "DEFAULT no es 0: es «lo que diga el trazador», y confundirlos cambia el plano impreso." },
+      { id: "lw-capa-cajetin", kind: "capa.lineweight", target: "CAJETIN", expected: -1,
+        matters: "DEFAULT no es 0: es «lo que diga el trazador», y la paleta lo llama −1." },
       { id: "lw-entidad-origen-muros", kind: "entidad.lineweight.origen", target: "MUROS", expected: "byLayer",
         matters: "Sin el origen, mover la entidad de capa deja de cambiarle el grosor." },
       { id: "lw-entidad-origen-ejes", kind: "entidad.lineweight.origen", target: "EJES", expected: "byLayer",
@@ -429,7 +435,7 @@ function foreignAssociativeDimension(): CadDxfPropertyCase {
         matters: "El código 70 dice qué familia es; adivinarla cambia la geometría al regenerar." },
       { id: "cota-ajena-estilo", kind: "cota.estilo", target: "", expected: "ISO-25",
         matters: "El estilo es la convención del despacho remitente; perderlo cambia flechas y decimales." },
-      { id: "cota-ajena-capa-lineweight", kind: "capa.lineweight", target: "A-ANNO-DIMS", expected: 13,
+      { id: "cota-ajena-capa-lineweight", kind: "capa.lineweight", target: "A-ANNO-DIMS", expected: 0.13,
         matters: "La capa de cotas se imprime fina; con el grosor perdido tapa el dibujo." },
     ],
   };

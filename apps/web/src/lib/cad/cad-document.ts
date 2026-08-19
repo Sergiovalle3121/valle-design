@@ -80,6 +80,13 @@ export interface CadDocumentMeta {
   footprintW?: number;
   footprintH?: number;
   gridSize?: number;
+  /**
+   * Escala GLOBAL del guion ($LTSCALE). Multiplica a la escala propia de cada
+   * entidad; no la sustituye. Es del dibujo entero porque en DXF lo es: un
+   * plano a 1:50 la sube para que el trazo discontinuo siga leyéndose, y sin
+   * ella todos los guiones salen del tamaño de otro plano. Ausente = 1.
+   */
+  linetypeScale?: number;
 }
 
 export interface CadPoint2 {
@@ -402,6 +409,17 @@ export interface CadStyleTable {
   mleader?: Record<string, { textStyle?: string; arrowSize?: number; doglegLength?: number; landing?: boolean }>;
   table: Record<string, { textStyle?: string; rowHeight?: number }>;
   plot: Record<string, { colorMode?: "color" | "monochrome"; lineweightScale?: number }>;
+  /**
+   * Catálogo de tipos de línea: nombre → patrón estilo `.lin` (>0 trazo, <0
+   * hueco, 0 punto). Sección OPCIONAL — un documento que nunca abrió un DXF con
+   * tabla LTYPE no la lleva, y materializarla vacía cambiaría el texto
+   * serializado de todos los documentos existentes y con él su hash de versión.
+   *
+   * Está en la tabla de estilos y no en las capas porque una capa REFERENCIA un
+   * tipo de línea por nombre: el patrón es del dibujo, y dos capas que digan
+   * CENTER tienen que dibujar el mismo eje.
+   */
+  linetype?: Record<string, { pattern: number[]; description?: string }>;
 }
 
 export interface CadBlockDefinition {

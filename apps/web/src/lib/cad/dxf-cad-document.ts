@@ -57,6 +57,10 @@ function sourceContext(
 ): CadNativeEntity["context"] {
   return {
     provenance: { provider },
+    // Cómo se dibuja viaja con la entidad y no con su metadato: el visor, el
+    // trazador y el escritor lo leen de aquí, y meterlo en `metadata` —que es
+    // texto libre para la procedencia— lo habría dejado fuera del tipo.
+    ...(primitive.presentation ? { presentation: primitive.presentation } : {}),
     metadata: {
       sourceType: primitive.kind.toUpperCase(),
       sourceLayer: primitive.layer,
@@ -774,6 +778,9 @@ function semanticInsertToEntity(
     layer: insert.layer,
     context: {
       provenance: { provider },
+      // El tipo de línea y el grosor de la INSERCIÓN no son decoración: son de
+      // donde tira el BYBLOCK de la geometría de dentro.
+      ...(insert.presentation ? { presentation: insert.presentation } : {}),
       metadata: { sourceType: "INSERT", sourceBlock: insert.block },
     },
   };
@@ -941,6 +948,7 @@ export function cadDocumentDxfBlocks(
         rotation: entity.rotation,
         layer: entity.layer,
         attributes: entity.attributes,
+        ...(entity.context?.presentation ? { presentation: entity.context.presentation } : {}),
       })),
     attributes: Object.fromEntries(
       Object.entries(block.attributes ?? {}).map(([tag, attribute]) => [
@@ -983,6 +991,9 @@ export function cadDocumentDxfInserts(
       rotation: entity.rotation,
       layer: entity.layer,
       attributes: entity.attributes,
+      // La presentacion de la INSERCION es de donde tira el BYBLOCK de dentro:
+      // sin ella el simbolo se reexporta y su geometria pierde de quien hereda.
+      ...(entity.context?.presentation ? { presentation: entity.context.presentation } : {}),
       ...(entity.positionedAttributes?.length
         ? {
             positionedAttributes: entity.positionedAttributes.map((attribute) => ({

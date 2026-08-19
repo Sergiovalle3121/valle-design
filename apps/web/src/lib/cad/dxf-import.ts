@@ -15,6 +15,7 @@ import type { CadDxfSchema4Kind, CadDxfSchema4Payload } from "./dxf-schema4";
 // tipos del esquema 4 necesitaban sitio.
 import { num, pt, rawDxfPairs } from "./dxf-read-core";
 import {
+  parseRawDxfMTexts,
   parseRawDxfSemanticDimensions,
   parseRawDxfSemanticMleaders,
 } from "./dxf-read-annotations";
@@ -23,7 +24,18 @@ import {
   parseRawDxfSchema4,
   type CadDxfImportedImageDefinition,
 } from "./dxf-read-schema4";
-export { parseRawDxfSemanticDimensions, parseRawDxfSemanticMleaders };
+// Cómo se DIBUJA lo que entra —tabla LTYPE, propiedades de capa, $LTSCALE y la
+// presentación por entidad— vive en su propio módulo por el mismo motivo que
+// las anotaciones: es una familia coherente y este archivo está en su tope.
+import {
+  auditDxfLinetypeReferences,
+  dxfPropertyIndex,
+  parseRawDxfProperties,
+  type CadDxfLayerDefinition,
+  type CadDxfLinetypeDefinition,
+} from "./dxf-read-properties";
+import type { CadEntityPresentation } from "./cad-document";
+export { parseRawDxfMTexts, parseRawDxfSemanticDimensions, parseRawDxfSemanticMleaders };
 
 export type CadDxfPrimitiveKind =
   | "line"
@@ -86,6 +98,13 @@ export interface CadDxfPrimitive {
    * un solo `as`.
    */
   schema4?: CadDxfSchema4Payload;
+  /**
+   * Cómo se dibuja: tipo de línea, su escala y grosor, con su ORIGEN
+   * (`byLayer` / `byBlock` / `explicit`). Va aquí y no en la entidad canónica
+   * porque la primitiva es lo que cruza la frontera del formato en las dos
+   * direcciones, y una propiedad que sólo existe a un lado se pierde al volver.
+   */
+  presentation?: CadEntityPresentation;
 }
 export interface CadDxfHatch {
   layer: string;
@@ -141,6 +160,8 @@ export interface CadDxfSemanticInsert {
   rotation: number;
   layer: string;
   attributes: Record<string, string>;
+  /** Tipo de línea y grosor de la INSERCIÓN: de aquí tira el BYBLOCK de dentro. */
+  presentation?: CadEntityPresentation;
 }
 export interface CadDxfSemanticBlock {
   name: string;
@@ -179,6 +200,20 @@ export interface CadDxfImportResult {
   imageDefinitions: CadDxfImportedImageDefinition[];
   warnings: CadDxfImportWarning[];
   layers: string[];
+  /**
+   * La tabla LTYPE del fichero. Es la CONVENCIÓN del despacho remitente —qué
+   * mide un eje, qué mide un oculto— y sin ella dos capas que digan CENTER
+   * dibujan ejes distintos según quién las abra.
+   */
+  linetypes: CadDxfLinetypeDefinition[];
+  /**
+   * La tabla LAYER con lo que declara de cada capa. `layers` sigue siendo la
+   * lista de NOMBRES vistos en las entidades: no son lo mismo, y un fichero
+   * puede declarar capas que no usa y usar capas que no declara.
+   */
+  layerDefinitions: CadDxfLayerDefinition[];
+  /** $LTSCALE. Ausente cuando el fichero no la declara. */
+  linetypeScale?: number;
 }
 
 export interface CadDxfWarningSummary {
@@ -661,7 +696,11 @@ function parseRawBlockXdata(text: string): RawBlockXdata {
   return { definitions, insertAttributes };
 }
 
-function semanticInsert(entity: any, xdata: RawBlockXdata): CadDxfSemanticInsert {
+function semanticInsert(
+  entity: any,
+  xdata: RawBlockXdata,
+  presentation?: CadEntityPresentation,
+): CadDxfSemanticInsert {
   const block = String(entity?.name ?? entity?.block ?? '');
   const x = Number(entity?.position?.x) || 0;
   const y = Number(entity?.position?.y) || 0;
@@ -676,6 +715,7 @@ function semanticInsert(entity: any, xdata: RawBlockXdata): CadDxfSemanticInsert
     rotation,
     layer: String(entity?.layer || DEFAULT_LAYER),
     attributes,
+    ...(presentation ? { presentation } : {}),
   };
 }
 
@@ -683,14 +723,25 @@ function semanticBlocks(
   parsedBlocks: Record<string, any>,
   xdata: RawBlockXdata,
   warnings: CadDxfImportWarning[],
+  blockProperties: Record<string, ReturnType<typeof dxfPropertyIndex>>,
 ): CadDxfSemanticBlock[] {
   return Object.entries(parsedBlocks).filter(([name]) => !name.startsWith('*')).map(([name, raw]) => {
     const primitives: CadDxfPrimitive[] = [];
     const inserts: CadDxfSemanticInsert[] = [];
     const attributes: Record<string, CadDxfBlockAttributeDefinition> = {};
+    // Ordinal POR TIPO dentro del bloque: el mismo criterio con el que se
+    // sincroniza el recorrido crudo con lo que entrega el tokenizador.
+    const ordinals = new Map<string, number>();
+    const presentationAt = blockProperties[name];
+    const nextPresentation = (type: string): CadEntityPresentation | undefined => {
+      const ordinal = ordinals.get(type) ?? 0;
+      ordinals.set(type, ordinal + 1);
+      return presentationAt?.(type, ordinal);
+    };
     for (const entity of Array.isArray(raw?.entities) ? raw.entities : []) {
       const type = String(entity?.type ?? '').toUpperCase();
-      if (type === 'INSERT') { inserts.push(semanticInsert(entity, xdata)); continue; }
+      const presentation = nextPresentation(type);
+      if (type === 'INSERT') { inserts.push(semanticInsert(entity, xdata, presentation)); continue; }
       if (type === 'ATTDEF') {
         const tag = String(entity?.tag ?? '').trim();
         if (tag) attributes[tag] = {
@@ -702,7 +753,8 @@ function semanticBlocks(
         continue;
       }
       const mapped = mapDxfEntityToPrimitive(entity);
-      if (mapped.primitive) primitives.push(mapped.primitive);
+      if (mapped.primitive)
+        primitives.push(presentation ? { ...mapped.primitive, presentation } : mapped.primitive);
       if (mapped.warning) warnings.push(mapped.warning);
     }
     const metadata = xdata.definitions.get(name);
@@ -726,71 +778,6 @@ function semanticBlocks(
   }).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function mtextAlignment(value: number): NonNullable<CadDxfMText["alignment"]> {
-  return [
-    "top-left", "top-center", "top-right",
-    "middle-left", "middle-center", "middle-right",
-    "bottom-left", "bottom-center", "bottom-right",
-  ][Math.max(1, Math.min(9, value)) - 1] as NonNullable<CadDxfMText["alignment"]>;
-}
-
-function decodeMTextContent(value: string): Pick<CadDxfMText, "text" | "fontFamily" | "bold" | "italic" | "underline" | "paragraphAlignment"> {
-  const font = /\\f([^|;]+)\|b([01])\|i([01]);/i.exec(value);
-  const paragraph = /\\p([crj]);/i.exec(value)?.[1]?.toLowerCase();
-  const underline = /\\L/.test(value);
-  const text = value
-    .replace(/\\p[crj];/gi, "")
-    .replace(/\{?\\f[^;]+;/gi, "")
-    .replace(/\\[LlOoKk]/g, "")
-    .replace(/\\P/g, "\n")
-    .replace(/[{}]/g, "")
-    .replace(/\\\\/g, "\\")
-    .trim();
-  return {
-    text,
-    ...(font?.[1] ? { fontFamily: font[1] } : {}),
-    ...(font ? { bold: font[2] === "1", italic: font[3] === "1" } : {}),
-    underline,
-    paragraphAlignment: paragraph === "c" ? "center" : paragraph === "r" ? "right" : paragraph === "j" ? "justify" : "left",
-  };
-}
-
-export function parseRawDxfMTexts(text: string): CadDxfMText[] {
-  const pairs = rawDxfPairs(text);
-  const result: CadDxfMText[] = [];
-  for (let start = 0; start < pairs.length && result.length < MAX_DXF_ENTITIES; start += 1) {
-    if (pairs[start].code !== 0 || pairs[start].value.toUpperCase() !== "MTEXT") continue;
-    let end = start + 1;
-    while (end < pairs.length && pairs[end].code !== 0) end += 1;
-    const entityPairs = pairs.slice(start + 1, end);
-    const first = (code: number) => entityPairs.find((pair) => pair.code === code)?.value;
-    const x = num(first(10));
-    const y = num(first(20));
-    const content = entityPairs.filter((pair) => pair.code === 1 || pair.code === 3).map((pair) => pair.value).join("");
-    const decoded = decodeMTextContent(content);
-    if (x !== null && y !== null && decoded.text) {
-      const trueColor = num(first(420));
-      const backgroundPadding = num(first(45));
-      result.push({
-        layer: first(8) || DEFAULT_LAYER,
-        insertion: { x, y },
-        ...decoded,
-        ...(num(first(41)) !== null ? { width: num(first(41))! } : {}),
-        ...(num(first(40)) !== null ? { height: num(first(40))! } : {}),
-        ...(num(first(50)) !== null ? { rotation: num(first(50))! } : {}),
-        alignment: mtextAlignment(Number(first(71) ?? 1)),
-        style: first(7) || "Standard",
-        ...(num(first(44)) !== null ? { lineSpacing: num(first(44))! } : {}),
-        backgroundMask: (Number(first(90) ?? 0) & 1) === 1,
-        ...(trueColor !== null ? { backgroundColor: `#${Math.max(0, trueColor).toString(16).padStart(6, "0").slice(-6)}` } : {}),
-        ...(backgroundPadding !== null ? { backgroundPadding: Math.max(0, backgroundPadding - 1) } : {}),
-        columns: Math.max(1, Math.min(8, Number(first(76) ?? 1) || 1)),
-      });
-    }
-    start = end - 1;
-  }
-  return result;
-}
 
 export function parseRawDxfHatches(text: string): {
   hatches: CadDxfHatch[];
@@ -897,7 +884,13 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
   const semanticDimensions = parseRawDxfSemanticDimensions(text);
   const mleaders = parseRawDxfSemanticMleaders(text);
   const blockXdata = parseRawBlockXdata(text);
-  const warnings: CadDxfImportWarning[] = [...rawHatchResult.warnings];
+  // Una sola pasada para todo lo que dice CÓMO se dibuja el fichero.
+  const properties = parseRawDxfProperties(text);
+  const warnings: CadDxfImportWarning[] = [
+    ...rawHatchResult.warnings,
+    ...properties.warnings.map((warning) => ({ ...warning })),
+    ...auditDxfLinetypeReferences(properties),
+  ];
   let parsed: any;
   try {
     parsed = new (DxfParser as any)().parseSync(text);
@@ -912,6 +905,9 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
       blocks: [],
       inserts: [],
       imageDefinitions: [],
+      linetypes: properties.linetypes,
+      layerDefinitions: properties.layers,
+      ...(properties.linetypeScale !== undefined ? { linetypeScale: properties.linetypeScale } : {}),
       layers: [...new Set([...rawHatchResult.hatches.map((hatch) => hatch.layer), ...rawMTexts.map((mtext) => mtext.layer), ...semanticDimensions.map((dimension) => dimension.layer), ...mleaders.map((mleader) => mleader.layer)])].sort(),
       warnings: [
         ...warnings,
@@ -925,10 +921,14 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
     : [];
   const parsedBlocks: Record<string, any> =
     parsed?.blocks && typeof parsed.blocks === "object" ? parsed.blocks : {};
-  const blocks = semanticBlocks(parsedBlocks, blockXdata, warnings);
+  const blockProperties = Object.fromEntries(
+    Object.entries(properties.blocks).map(([name, entries]) => [name, dxfPropertyIndex(entries)]),
+  );
+  const blocks = semanticBlocks(parsedBlocks, blockXdata, warnings, blockProperties);
+  const entityPresentationAt = dxfPropertyIndex(properties.entities);
   const inserts = entities
     .filter((entity) => String(entity?.type || "").toUpperCase() === "INSERT")
-    .map((entity) => semanticInsert(entity, blockXdata));
+    .map((entity, ordinal) => semanticInsert(entity, blockXdata, entityPresentationAt("INSERT", ordinal)));
   const primitives: CadDxfPrimitive[] = [];
   const primitiveSources: CadDxfImportResult["primitiveSources"] = [];
   const layers = new Set<string>();
@@ -954,13 +954,23 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
       orderCursor += 1;
       if (slot.schema4Index !== null) {
         const primitive = schema4.primitives[slot.schema4Index];
-        primitives.push(primitive);
+        // El recorrido de propiedades enumera la sección ENTITIES con el MISMO
+        // criterio que `schema4.order` —sin VERTEX, SEQEND ni ATTRIB—, así que
+        // las dos listas van en paralelo y la posición es exacta, no un
+        // emparejamiento por tipo que se desalinee con el primer hueco.
+        const presentation = properties.entities[orderCursor - 1]?.presentation;
+        primitives.push(presentation ? { ...primitive, presentation } : primitive);
         primitiveSources.push("entity");
         layers.add(primitive.layer);
       }
       // Este hueco ES el de la entidad que trae el tokenizador: se para aquí.
       if (type !== null && slot.type === type) return;
     }
+  };
+  /** Presentación de la entidad que el tokenizador acaba de entregar. */
+  const currentPresentation = (type: string): CadEntityPresentation | undefined => {
+    const entry = properties.entities[orderCursor - 1];
+    return entry?.type === type ? entry.presentation : undefined;
   };
 
   const semanticDimensionBlocks = new Set(semanticDimensions.map((dimension) => dimension.blockName));
@@ -1003,7 +1013,8 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
     }
     const mapped = mapDxfEntityToPrimitive(entity);
     if (mapped.primitive) {
-      primitives.push(mapped.primitive);
+      const presentation = currentPresentation(type);
+      primitives.push(presentation ? { ...mapped.primitive, presentation } : mapped.primitive);
       primitiveSources.push("entity");
       layers.add(mapped.primitive.layer);
     }
@@ -1042,5 +1053,24 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
   for (const mtext of rawMTexts) layers.add(mtext.layer);
   for (const dimension of semanticDimensions) layers.add(dimension.layer);
   for (const mleader of mleaders) layers.add(mleader.layer);
-  return { primitives, primitiveSources, hatches: rawHatchResult.hatches, mtexts: rawMTexts, semanticDimensions, mleaders, blocks, inserts, imageDefinitions: schema4.imageDefinitions, warnings, layers: [...layers].sort() };
+  // `layers` sigue siendo la lista de capas USADAS por las entidades. Las
+  // DECLARADAS viajan aparte en `layerDefinitions`: son dos preguntas
+  // distintas y fundirlas cambiaría el recuento de todos los ficheros ya
+  // medidos sin que nadie lo hubiera pedido.
+  return {
+    primitives,
+    primitiveSources,
+    hatches: rawHatchResult.hatches,
+    mtexts: rawMTexts,
+    semanticDimensions,
+    mleaders,
+    blocks,
+    inserts,
+    imageDefinitions: schema4.imageDefinitions,
+    linetypes: properties.linetypes,
+    layerDefinitions: properties.layers,
+    ...(properties.linetypeScale !== undefined ? { linetypeScale: properties.linetypeScale } : {}),
+    warnings,
+    layers: [...layers].sort(),
+  };
 }
