@@ -9,12 +9,12 @@
     "perdido_en_silencio": "No se lee y nada lo menciona. El informe de importación dice que todo entró y no es verdad. Todo lo que aparezca aquí es deuda del producto, no una limitación asumida."
   },
   "resumen": {
-    "archivos": 5,
-    "sondas": 42,
-    "intactas": 36,
+    "archivos": 6,
+    "sondas": 54,
+    "intactas": 52,
     "soloEntrada": 0,
-    "perdidasDeclaradas": 0,
-    "perdidasEnSilencio": 6
+    "perdidasDeclaradas": 2,
+    "perdidasEnSilencio": 0
   },
   "archivos": [
     {
@@ -410,9 +410,9 @@
           "propiedad": "cota.presente",
           "objetivo": "",
           "esperado": 1,
-          "entrada": 0,
-          "idaYVuelta": 0,
-          "veredicto": "perdido_en_silencio",
+          "entrada": 1,
+          "idaYVuelta": 1,
+          "veredicto": "intacto",
           "importa": "Una cota que entra como seis líneas y un texto ya no es una cota: es un dibujo de una cota."
         },
         {
@@ -420,9 +420,9 @@
           "propiedad": "cota.a",
           "objetivo": "",
           "esperado": "0,0",
-          "entrada": null,
-          "idaYVuelta": null,
-          "veredicto": "perdido_en_silencio",
+          "entrada": "0,0",
+          "idaYVuelta": "0,0",
+          "veredicto": "intacto",
           "importa": "El primer punto medido. Sin él no hay nada que recalcular al mover el muro."
         },
         {
@@ -430,9 +430,9 @@
           "propiedad": "cota.b",
           "objetivo": "",
           "esperado": "3200,0",
-          "entrada": null,
-          "idaYVuelta": null,
-          "veredicto": "perdido_en_silencio",
+          "entrada": "3200,0",
+          "idaYVuelta": "3200,0",
+          "veredicto": "intacto",
           "importa": "El segundo punto medido."
         },
         {
@@ -440,9 +440,9 @@
           "propiedad": "cota.medida",
           "objetivo": "",
           "esperado": 3200,
-          "entrada": null,
-          "idaYVuelta": null,
-          "veredicto": "perdido_en_silencio",
+          "entrada": 3200,
+          "idaYVuelta": 3200,
+          "veredicto": "intacto",
           "importa": "La medida que el remitente declaró: es la que el municipio compara."
         },
         {
@@ -450,9 +450,9 @@
           "propiedad": "cota.tipo",
           "objetivo": "",
           "esperado": "aligned",
-          "entrada": null,
-          "idaYVuelta": null,
-          "veredicto": "perdido_en_silencio",
+          "entrada": "aligned",
+          "idaYVuelta": "aligned",
+          "veredicto": "intacto",
           "importa": "El código 70 dice qué familia es; adivinarla cambia la geometría al regenerar."
         },
         {
@@ -460,9 +460,9 @@
           "propiedad": "cota.estilo",
           "objetivo": "",
           "esperado": "ISO-25",
-          "entrada": null,
-          "idaYVuelta": null,
-          "veredicto": "perdido_en_silencio",
+          "entrada": "ISO-25",
+          "idaYVuelta": "ISO-25",
+          "veredicto": "intacto",
           "importa": "El estilo es la convención del despacho remitente; perderlo cambia flechas y decimales."
         },
         {
@@ -474,6 +474,134 @@
           "idaYVuelta": 0.13,
           "veredicto": "intacto",
           "importa": "La capa de cotas se imprime fina; con el grosor perdido tapa el dibujo."
+        }
+      ]
+    },
+    {
+      "id": "prop-cota-familias-ajenas",
+      "dialecto": "AC1032, DIMENSION de las seis familias del código 70",
+      "proposito": "Radio, diámetro, ángulo, coordenada y lineal de otro CAD, más las dos que el modelo canónico no representa. Lo que se mide no es sólo cuáles entran: es que las que NO entran lo digan, porque una cota que se ve y no mide es indistinguible de una que sí, hasta que alguien mueve un muro.",
+      "legible": true,
+      "sondas": [
+        {
+          "sonda": "cota-lineal-tipo",
+          "propiedad": "cota.tipo",
+          "objetivo": "DIM-LINEAL",
+          "esperado": "linear",
+          "entrada": "linear",
+          "idaYVuelta": "linear",
+          "veredicto": "intacto",
+          "importa": "Una lineal que entra como alineada mide la diagonal en vez de la proyección."
+        },
+        {
+          "sonda": "cota-lineal-medida",
+          "propiedad": "cota.medida",
+          "objetivo": "DIM-LINEAL",
+          "esperado": 4000,
+          "entrada": 4000,
+          "idaYVuelta": 4000,
+          "veredicto": "intacto",
+          "importa": "Es la luz del vano: el número que va al cómputo."
+        },
+        {
+          "sonda": "cota-radio-tipo",
+          "propiedad": "cota.tipo",
+          "objetivo": "DIM-RADIO",
+          "esperado": "radius",
+          "entrada": "radius",
+          "idaYVuelta": "radius",
+          "veredicto": "intacto",
+          "importa": "El radio y el diámetro se dibujan distinto y valen el doble uno del otro."
+        },
+        {
+          "sonda": "cota-radio-medida",
+          "propiedad": "cota.medida",
+          "objetivo": "DIM-RADIO",
+          "esperado": 1500,
+          "entrada": 1500,
+          "idaYVuelta": 1500,
+          "veredicto": "intacto",
+          "importa": "El radio del acuerdo: si sale el diámetro, la pieza se fabrica al doble."
+        },
+        {
+          "sonda": "cota-diametro-tipo",
+          "propiedad": "cota.tipo",
+          "objetivo": "DIM-DIAMETRO",
+          "esperado": "diameter",
+          "entrada": "diameter",
+          "idaYVuelta": "diameter",
+          "veredicto": "intacto",
+          "importa": "Ídem por el otro lado."
+        },
+        {
+          "sonda": "cota-diametro-medida",
+          "propiedad": "cota.medida",
+          "objetivo": "DIM-DIAMETRO",
+          "esperado": 1800,
+          "entrada": 1800,
+          "idaYVuelta": 1800,
+          "veredicto": "intacto",
+          "importa": "El diámetro del tubo, que es lo que se pide al proveedor."
+        },
+        {
+          "sonda": "cota-angular-tipo",
+          "propiedad": "cota.tipo",
+          "objetivo": "DIM-ANGULAR",
+          "esperado": "angular",
+          "entrada": "angular",
+          "idaYVuelta": "angular",
+          "veredicto": "intacto",
+          "importa": "El ángulo de la cubierta: en grados, no en milímetros."
+        },
+        {
+          "sonda": "cota-angular-medida",
+          "propiedad": "cota.medida",
+          "objetivo": "DIM-ANGULAR",
+          "esperado": 90,
+          "entrada": 90,
+          "idaYVuelta": 90,
+          "veredicto": "intacto",
+          "importa": "Noventa grados entre los dos faldones."
+        },
+        {
+          "sonda": "cota-ordenada-tipo",
+          "propiedad": "cota.tipo",
+          "objetivo": "DIM-ORDENADA",
+          "esperado": "ordinate",
+          "entrada": "ordinate",
+          "idaYVuelta": "ordinate",
+          "veredicto": "intacto",
+          "importa": "La coordenada es lo que replantea el topógrafo."
+        },
+        {
+          "sonda": "cota-ordenada-medida",
+          "propiedad": "cota.medida",
+          "objetivo": "DIM-ORDENADA",
+          "esperado": 2500,
+          "entrada": 2500,
+          "idaYVuelta": 2500,
+          "veredicto": "intacto",
+          "importa": "La abscisa desde el origen de replanteo."
+        },
+        {
+          "sonda": "cota-angular2-presente",
+          "propiedad": "cota.presente",
+          "objetivo": "DIM-ANGULAR2",
+          "esperado": 1,
+          "entrada": 0,
+          "idaYVuelta": 0,
+          "veredicto": "perdido_declarado",
+          "importa": "No entra como cota. Lo que se mide aquí es que se DECLARE, no que se logre."
+        },
+        {
+          "sonda": "cota-girada-presente",
+          "propiedad": "cota.presente",
+          "objetivo": "DIM-GIRADA",
+          "esperado": 1,
+          "entrada": 0,
+          "idaYVuelta": 0,
+          "veredicto": "perdido_declarado",
+          "importa": "Ídem: una lineal girada no cabe en el modelo y tiene que decirse."
         }
       ]
     }

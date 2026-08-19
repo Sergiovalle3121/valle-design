@@ -74,7 +74,10 @@ export type CadDxfPropertyKind =
   | "visor.medioGrosorPx"
   /** Ranura de patrón que el visor manda al shader. 0 es continua. */
   | "visor.linetypeIndex"
-  /** ¿Hay una entidad de cota en el documento? 1 sí, 0 no. */
+  /**
+   * ¿Hay una entidad de cota en la capa del objetivo? 1 sí, 0 no. Con objetivo
+   * vacío vale la primera del documento.
+   */
   | "cota.presente"
   /** Punto medido A de la cota, serializado «x,y». */
   | "cota.a"
@@ -441,10 +444,122 @@ function foreignAssociativeDimension(): CadDxfPropertyCase {
   };
 }
 
+/**
+ * 6 — Las OTRAS familias de cota ajena, incluidas las dos que no se rehacen.
+ *
+ * Una cota alineada es la que más se ve en un plano de arquitectura, pero un
+ * plano real trae también radios, diámetros, ángulos y coordenadas. Y trae las
+ * dos que el modelo canónico NO puede representar: la angular de dos líneas,
+ * cuyo vértice sale de intersecar dos rectas que pueden ser casi paralelas, y
+ * la lineal girada a un ángulo cualquiera. Esas dos tienen que salir DECLARADAS
+ * —no rehechas a medias y no perdidas en silencio—, y aquí es donde se mide que
+ * así sea.
+ */
+function foreignDimensionFamilies(): CadDxfPropertyCase {
+  const dimBlock = (name: string, layer: string): Pair[] => [
+    [0, "BLOCK"], [8, layer], [2, name], [70, 1], [10, 0], [20, 0], [30, 0], [3, name],
+    ...line(layer, 0, 0, 100, 0),
+    [0, "ENDBLK"],
+  ];
+  const dim = (
+    layer: string,
+    block: string,
+    flags: number,
+    points: readonly Pair[],
+    extra: readonly Pair[] = [],
+  ): Pair[] => [
+    [0, "DIMENSION"], [8, layer], [2, block],
+    ...points,
+    [70, flags], [1, ""], [3, "ISO-25"],
+    ...extra,
+  ];
+  return {
+    id: "prop-cota-familias-ajenas",
+    dialect: "AC1032, DIMENSION de las seis familias del código 70",
+    purpose:
+      "Radio, diámetro, ángulo, coordenada y lineal de otro CAD, más las dos que el modelo canónico no " +
+      "representa. Lo que se mide no es sólo cuáles entran: es que las que NO entran lo digan, porque " +
+      "una cota que se ve y no mide es indistinguible de una que sí, hasta que alguien mueve un muro.",
+    content: serialize([
+      ...header("AC1032"),
+      ...section("TABLES", [
+        ...LTYPE_TABLE,
+        [0, "TABLE"], [2, "LAYER"], [70, 1],
+        [0, "LAYER"], [2, "DIM"], [70, 0], [62, 3], [6, "CONTINUOUS"], [370, 13],
+        [0, "ENDTAB"],
+      ]),
+      ...section("BLOCKS", [
+        ...dimBlock("*D1", "DIM-LINEAL"),
+        ...dimBlock("*D2", "DIM-RADIO"),
+        ...dimBlock("*D3", "DIM-DIAMETRO"),
+        ...dimBlock("*D4", "DIM-ANGULAR"),
+        ...dimBlock("*D5", "DIM-ORDENADA"),
+        ...dimBlock("*D6", "DIM-ANGULAR2"),
+        ...dimBlock("*D7", "DIM-GIRADA"),
+      ]),
+      ...section("ENTITIES", [
+        // Lineal horizontal: 50 = 0, mide sobre X.
+        ...dim("DIM-LINEAL", "*D1", 32,
+          [[10, 2000], [20, 900], [30, 0], [13, 0], [23, 0], [33, 0], [14, 4000], [24, 0], [34, 0]],
+          [[50, 0]]),
+        // Radio: 15/25 es el centro y 10/20 donde aterriza la flecha.
+        ...dim("DIM-RADIO", "*D2", 36,
+          [[10, 1500], [20, 0], [30, 0], [15, 0], [25, 0], [35, 0]]),
+        // Diámetro: los dos puntos son extremos OPUESTOS.
+        ...dim("DIM-DIAMETRO", "*D3", 35,
+          [[10, 900], [20, 0], [30, 0], [15, -900], [25, 0], [35, 0]]),
+        // Angular de tres puntos: 15/25 es el vértice.
+        ...dim("DIM-ANGULAR", "*D4", 37,
+          [[10, 707], [20, 707], [30, 0], [15, 0], [25, 0], [35, 0],
+           [13, 1000], [23, 0], [33, 0], [14, 0], [24, 1000], [34, 0]]),
+        // Coordenada con el bit 64: mide sobre X desde el origen 10/20.
+        ...dim("DIM-ORDENADA", "*D5", 102,
+          [[10, 0], [20, 0], [30, 0], [13, 2500], [23, 1200], [33, 0], [14, 3000], [24, 1700], [34, 0]]),
+        // Angular de DOS LÍNEAS: el vértice habría que intersecarlo.
+        ...dim("DIM-ANGULAR2", "*D6", 34,
+          [[10, 0], [20, 1000], [30, 0], [13, 0], [23, 0], [33, 0], [14, 1000], [24, 0], [34, 0],
+           [15, 500], [25, 500], [35, 0]]),
+        // Lineal GIRADA 30°: no cabe en un modelo de eje X o Y.
+        ...dim("DIM-GIRADA", "*D7", 32,
+          [[10, 2000], [20, 900], [30, 0], [13, 0], [23, 0], [33, 0], [14, 4000], [24, 0], [34, 0]],
+          [[50, 30]]),
+      ]),
+      ...EOF,
+    ]),
+    probes: [
+      { id: "cota-lineal-tipo", kind: "cota.tipo", target: "DIM-LINEAL", expected: "linear",
+        matters: "Una lineal que entra como alineada mide la diagonal en vez de la proyección." },
+      { id: "cota-lineal-medida", kind: "cota.medida", target: "DIM-LINEAL", expected: 4000,
+        matters: "Es la luz del vano: el número que va al cómputo." },
+      { id: "cota-radio-tipo", kind: "cota.tipo", target: "DIM-RADIO", expected: "radius",
+        matters: "El radio y el diámetro se dibujan distinto y valen el doble uno del otro." },
+      { id: "cota-radio-medida", kind: "cota.medida", target: "DIM-RADIO", expected: 1500,
+        matters: "El radio del acuerdo: si sale el diámetro, la pieza se fabrica al doble." },
+      { id: "cota-diametro-tipo", kind: "cota.tipo", target: "DIM-DIAMETRO", expected: "diameter",
+        matters: "Ídem por el otro lado." },
+      { id: "cota-diametro-medida", kind: "cota.medida", target: "DIM-DIAMETRO", expected: 1800,
+        matters: "El diámetro del tubo, que es lo que se pide al proveedor." },
+      { id: "cota-angular-tipo", kind: "cota.tipo", target: "DIM-ANGULAR", expected: "angular",
+        matters: "El ángulo de la cubierta: en grados, no en milímetros." },
+      { id: "cota-angular-medida", kind: "cota.medida", target: "DIM-ANGULAR", expected: 90,
+        matters: "Noventa grados entre los dos faldones." },
+      { id: "cota-ordenada-tipo", kind: "cota.tipo", target: "DIM-ORDENADA", expected: "ordinate",
+        matters: "La coordenada es lo que replantea el topógrafo." },
+      { id: "cota-ordenada-medida", kind: "cota.medida", target: "DIM-ORDENADA", expected: 2500,
+        matters: "La abscisa desde el origen de replanteo." },
+      { id: "cota-angular2-presente", kind: "cota.presente", target: "DIM-ANGULAR2", expected: 1,
+        matters: "No entra como cota. Lo que se mide aquí es que se DECLARE, no que se logre." },
+      { id: "cota-girada-presente", kind: "cota.presente", target: "DIM-GIRADA", expected: 1,
+        matters: "Ídem: una lineal girada no cabe en el modelo y tiene que decirse." },
+    ],
+  };
+}
+
 export const CAD_DXF_PROPERTY_CORPUS: readonly CadDxfPropertyCase[] = [
   linetypeTableAndEntities(),
   linetypeScales(),
   lineweightEnumeration(),
   byBlockInheritance(),
   foreignAssociativeDimension(),
+  foreignDimensionFamilies(),
 ];

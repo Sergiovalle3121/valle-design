@@ -35,6 +35,10 @@ import {
   type CadDxfLinetypeDefinition,
 } from "./dxf-read-properties";
 import type { CadEntityPresentation } from "./cad-document";
+// Las cotas de OTROS CAD tienen su propio lector: rehacerlas exige interpretar
+// el código 70 familia a familia, y esa tabla es una pieza coherente por su
+// cuenta que además declara lo que NO sabe rehacer.
+import { parseRawDxfForeignDimensions } from "./dxf-read-foreign-dimensions";
 export { parseRawDxfMTexts, parseRawDxfSemanticDimensions, parseRawDxfSemanticMleaders };
 
 export type CadDxfPrimitiveKind =
@@ -881,7 +885,12 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
   // su carga útil (el estilo del punto, las banderas del ATTDEF).
   const schema4 = parseRawDxfSchema4(text);
   const rawMTexts = parseRawDxfMTexts(text);
-  const semanticDimensions = parseRawDxfSemanticDimensions(text);
+  const ownDimensions = parseRawDxfSemanticDimensions(text);
+  // Las ajenas se leen aparte y se suman: para todo lo que viene después son
+  // cotas de pleno derecho, con la única diferencia de que entran desligadas.
+  const foreign = parseRawDxfForeignDimensions(text);
+  const semanticDimensions = [...ownDimensions, ...foreign.dimensions.map((entry) => entry.dimension)];
+  const foreignDimensionOrdinals = new Set(foreign.dimensions.map((entry) => entry.ordinal));
   const mleaders = parseRawDxfSemanticMleaders(text);
   const blockXdata = parseRawBlockXdata(text);
   // Una sola pasada para todo lo que dice CÓMO se dibuja el fichero.
@@ -890,6 +899,7 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
     ...rawHatchResult.warnings,
     ...properties.warnings.map((warning) => ({ ...warning })),
     ...auditDxfLinetypeReferences(properties),
+    ...foreign.warnings,
   ];
   let parsed: any;
   try {
@@ -905,8 +915,7 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
       blocks: [],
       inserts: [],
       imageDefinitions: [],
-      linetypes: properties.linetypes,
-      layerDefinitions: properties.layers,
+      linetypes: properties.linetypes, layerDefinitions: properties.layers,
       ...(properties.linetypeScale !== undefined ? { linetypeScale: properties.linetypeScale } : {}),
       layers: [...new Set([...rawHatchResult.hatches.map((hatch) => hatch.layer), ...rawMTexts.map((mtext) => mtext.layer), ...semanticDimensions.map((dimension) => dimension.layer), ...mleaders.map((mleader) => mleader.layer)])].sort(),
       warnings: [
@@ -973,7 +982,10 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
     return entry?.type === type ? entry.presentation : undefined;
   };
 
-  const semanticDimensionBlocks = new Set(semanticDimensions.map((dimension) => dimension.blockName));
+  const semanticDimensionBlocks = new Set(ownDimensions.map((dimension) => dimension.blockName));
+  // Ordinal y no nombre de bloque: una cota ajena puede no traer el código 2, y
+  // dos cotas distintas pueden compartirlo si el remitente reutilizó el bloque.
+  let dimensionOrdinal = -1;
   const semanticMleaderOrdinals = new Set(mleaders.map((mleader) => mleader.sourceOrdinal));
   let mleaderOrdinal = -1;
   for (const entity of entities) {
@@ -1000,6 +1012,8 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
       continue;
     }
     if (type === "DIMENSION") {
+      dimensionOrdinal += 1;
+      if (foreignDimensionOrdinals.has(dimensionOrdinal)) continue;
       if (semanticDimensionBlocks.has(String(entity?.block ?? entity?.blockName ?? ""))) continue;
       // Cotas nativas (CAD-NEXT-066): la geometría renderizada vive en el
       // bloque anónimo *D que referencia la entidad.
@@ -1058,19 +1072,11 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
   // distintas y fundirlas cambiaría el recuento de todos los ficheros ya
   // medidos sin que nadie lo hubiera pedido.
   return {
-    primitives,
-    primitiveSources,
-    hatches: rawHatchResult.hatches,
-    mtexts: rawMTexts,
-    semanticDimensions,
-    mleaders,
-    blocks,
-    inserts,
+    primitives, primitiveSources, hatches: rawHatchResult.hatches, mtexts: rawMTexts,
+    semanticDimensions, mleaders, blocks, inserts,
     imageDefinitions: schema4.imageDefinitions,
-    linetypes: properties.linetypes,
-    layerDefinitions: properties.layers,
+    linetypes: properties.linetypes, layerDefinitions: properties.layers,
     ...(properties.linetypeScale !== undefined ? { linetypeScale: properties.linetypeScale } : {}),
-    warnings,
-    layers: [...layers].sort(),
+    warnings, layers: [...layers].sort(),
   };
 }

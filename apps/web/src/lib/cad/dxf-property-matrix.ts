@@ -206,9 +206,18 @@ function effective(
       : resolved.linetypeScale;
 }
 
-function dimensionOf(document: CadDocument): Extract<CadEntity, { type: "dimension" }> | undefined {
+/**
+ * La cota del objetivo, buscada por CAPA. Con objetivo vacío, la primera del
+ * documento: es como nació la sonda de la cota alineada y su identificador no
+ * puede cambiar sin invalidar el histórico de la matriz.
+ */
+function dimensionOf(
+  document: CadDocument,
+  target: string,
+): Extract<CadEntity, { type: "dimension" }> | undefined {
   return document.entities.find(
-    (entity): entity is Extract<CadEntity, { type: "dimension" }> => entity.type === "dimension",
+    (entity): entity is Extract<CadEntity, { type: "dimension" }> =>
+      entity.type === "dimension" && (target === "" || entity.layer === target),
   );
 }
 
@@ -255,26 +264,26 @@ export function observeCadDxfProperty(
       return entity?.type === "line" ? defaultCadRenderStyle(entity, document).linetypeIndex : null;
     }
     case "cota.presente":
-      return dimensionOf(document) ? 1 : 0;
+      return dimensionOf(document, probe.target) ? 1 : 0;
     case "cota.a": {
-      const dimension = dimensionOf(document);
+      const dimension = dimensionOf(document, probe.target);
       return dimension ? `${dimension.a.x},${dimension.a.y}` : null;
     }
     case "cota.b": {
-      const dimension = dimensionOf(document);
+      const dimension = dimensionOf(document, probe.target);
       return dimension ? `${dimension.b.x},${dimension.b.y}` : null;
     }
     case "cota.medida": {
-      const dimension = dimensionOf(document);
+      const dimension = dimensionOf(document, probe.target);
       // La medida se RECALCULA desde los puntos: es la prueba de que la cota
       // sigue midiendo y no sólo dibujando el número que traía escrito.
       const geometry = dimension ? buildCadDimensionGeometry(dimension) : null;
       return geometry ? Number(geometry.measurement.toFixed(6)) : null;
     }
     case "cota.tipo":
-      return asText(dimensionOf(document)?.dimensionKind);
+      return asText(dimensionOf(document, probe.target)?.dimensionKind);
     case "cota.estilo":
-      return asText(dimensionOf(document)?.style);
+      return asText(dimensionOf(document, probe.target)?.style);
   }
 }
 
@@ -333,6 +342,11 @@ function measure(file: CadDxfPropertyCase): CadDxfPropertyFile {
   }
   const spoken = [
     ...imported.warnings.map((warning) => `${warning.code} ${warning.message}`),
+    // El informe en español TAMBIÉN cuenta como declaración: es lo que el
+    // arquitecto lee de verdad, y una pérdida que sólo aparece en el registro
+    // de códigos y no en el panel estaría declarada para el programa y no para
+    // la persona.
+    ...(imported.dxfReport?.rows ?? []).map((row) => `${row.code} ${row.detail}`),
     ...written.losses.map((loss) => `${loss.code} ${loss.detail}`),
     ...imported.document.lossManifest.map((loss) => `${loss.code} ${loss.detail}`),
   ]

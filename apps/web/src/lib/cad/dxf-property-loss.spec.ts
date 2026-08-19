@@ -47,21 +47,26 @@ const rows = new Map<string, CadDxfPropertyRow>(
 );
 
 /**
- * Sondas que HOY se pierden, con el veredicto medido el día que se escribió
- * esta lista. No están borradas a propósito: cada renglón es una pérdida
- * declarada y medible, y el spec falla si alguna se arregla sin quitarla de
- * aquí. Es la única forma de que la lista no pueda mentir en ninguna dirección.
+ * Lo que HOY no llega, con su veredicto medido.
+ *
+ * No están borradas a propósito: cada renglón es una pérdida medible, y el spec
+ * falla tanto si aparece una que no esté aquí como si una de éstas se arregla y
+ * nadie la quita. La lista sólo puede encoger.
+ *
+ * Las dos que quedan son `perdido_declarado`, no `perdido_en_silencio`, y la
+ * diferencia es el producto entero: el arquitecto ve un aviso que nombra la
+ * capa y sabe que esas dos cotas se ven pero no miden. Un veredicto silencioso
+ * aquí sería deuda; uno declarado es un límite del modelo canónico —que sólo
+ * tiene eje X o Y y no representa un vértice que haya que intersecar— dicho en
+ * voz alta.
  */
 const PENDIENTES: Readonly<Record<string, string>> = {
-  // La cota que llega de otro CAD. Entra como la geometría suelta de su bloque
-  // anónimo *D: se ve idéntica, no mide y nadie lo declara. Es el hueco que
-  // queda abierto y su número está aquí para que no se pueda ignorar.
-  "cota-ajena-presente": "perdido_en_silencio: esperaba 1, 0",
-  "cota-ajena-a": "perdido_en_silencio: esperaba 0,0, no se lee",
-  "cota-ajena-b": "perdido_en_silencio: esperaba 3200,0, no se lee",
-  "cota-ajena-medida": "perdido_en_silencio: esperaba 3200, no se lee",
-  "cota-ajena-tipo": "perdido_en_silencio: esperaba aligned, no se lee",
-  "cota-ajena-estilo": "perdido_en_silencio: esperaba ISO-25, no se lee",
+  "cota-angular2-presente":
+    "perdido_declarado: la angular de DOS LÍNEAS exigiría intersecar dos rectas que pueden ser casi " +
+    "paralelas; entra aplanada y el aviso nombra su capa",
+  "cota-girada-presente":
+    "perdido_declarado: la lineal GIRADA a un ángulo cualquiera no cabe en un modelo de eje X o Y; " +
+    "entra aplanada y el aviso nombra su capa",
 };
 
 // --- 1. el corpus mide las tres familias del encargo ------------------------
@@ -70,7 +75,7 @@ const PENDIENTES: Readonly<Record<string, string>> = {
   assert.equal(new Set(ids).size, ids.length, "los identificadores del corpus son únicos");
   const sondaIds = CAD_DXF_PROPERTY_CORPUS.flatMap((file) => file.probes.map((probe) => probe.id));
   assert.equal(new Set(sondaIds).size, sondaIds.length, "los identificadores de sonda son únicos");
-  assert.ok(sondaIds.length >= 40, "la medición no puede encoger sin que se note");
+  assert.ok(sondaIds.length >= 54, "la medición no puede encoger sin que se note");
 
   const kinds = new Set(CAD_DXF_PROPERTY_CORPUS.flatMap((file) => file.probes.map((p) => p.kind)));
   // Las tres familias del encargo, cada una medida en sus tres alturas: lo que
@@ -107,6 +112,21 @@ const PENDIENTES: Readonly<Record<string, string>> = {
   for (const veredicto of ["intacto", "solo_entrada", "perdido_declarado", "perdido_en_silencio"] as const)
     assert.ok(measured.criterios[veredicto].length > 40, `el criterio de ${veredicto} no está publicado`);
   assert.equal(measured.generadoPor, REGENERATE, "el artefacto dice cómo se regenera");
+}
+
+// --- 3 bis. NADA se pierde en silencio -------------------------------------
+{
+  /**
+   * El número que este trabajo bajó de 42 a 0, y el único que no puede volver a
+   * subir NUNCA. Una pérdida declarada es un límite que el arquitecto puede
+   * accionar —pedir al remitente que explote la cota, exportar con la tabla de
+   * tipos de línea—; una silenciosa es un plano que se cree completo y no lo
+   * está, y sólo se descubre en obra.
+   */
+  const silenciosas = measured.archivos.flatMap((file) =>
+    file.sondas.filter((row) => row.veredicto === "perdido_en_silencio").map((row) => `${file.id}/${row.sonda}`),
+  );
+  assert.deepEqual(silenciosas, [], `pérdidas EN SILENCIO: ${silenciosas.join(", ")}`);
 }
 
 // --- 4. cada sonda: o está intacta, o está declarada como pendiente ---------
