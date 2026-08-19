@@ -892,7 +892,7 @@
       "group": "core",
       "name": "Guardado CAS, autosave, historia y versiones",
       "points": 8,
-      "gap": "Offline, multi-pestaña y cierre forzado siguen sin cerrar; los límites de documento no están publicados.",
+      "gap": "Cerrado en la ola E1: offline, multi-pestaña y cierre forzado tienen golden contra API real y PostgreSQL, y el presupuesto de documento y memoria está publicado con la máquina declarada.",
       "criteria": [
         {
           "id": "persistence.cas",
@@ -958,13 +958,24 @@
           "id": "persistence.offline",
           "points": 2,
           "text": "Offline, multi-pestaña y cierre forzado sin pérdida, con presupuesto de documento y memoria publicado",
-          "costDays": 10,
+          "costDays": 0,
           "evidence": [
             {
               "kind": "golden",
               "path": "apps/web/e2e/real/cad-offline-multitab.spec.ts"
             },
-            { "kind": "file", "path": "docs/cad/evidence/document-limits.json" }
+            {
+              "kind": "spec",
+              "path": "apps/web/src/components/cad/document-lifecycle/connectivity.spec.ts"
+            },
+            { "kind": "file", "path": "docs/cad/evidence/document-limits.json" },
+            {
+              "kind": "metric",
+              "path": "docs/cad/evidence/document-limits.json",
+              "pointer": "/verdict/largestSustainedEntities",
+              "unit": "entidades",
+              "min": 20000
+            }
           ]
         }
       ]

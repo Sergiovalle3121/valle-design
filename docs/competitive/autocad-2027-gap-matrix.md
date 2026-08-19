@@ -4,7 +4,7 @@ Fecha de corte: **2026-08-18** (UTC, la del artefacto), sobre el árbol de `main
 AutoCAD 2027 se usa sólo como referencia de categorías; no existe afiliación,
 certificación ni claim de paridad.
 
-**Puntuación de este corte: 166 / 200 (83 %).** El desglose lo calcula
+**Puntuación de este corte: 168 / 200 (84 %).** El desglose lo calcula
 `scripts/cad/rubric.mjs` leyendo `docs/competitive/rubric.json` y yendo a mirar
 el árbol; no se escribe a mano. Correr `npm run check:rubric` lo reproduce.
 
@@ -119,7 +119,7 @@ brecha las mantiene quien toca la fila. Cada evidencia está declarada como una
 comprobación automática en `docs/competitive/rubric.json`, así que una ruta que
 se mueva rompe la fila en la siguiente corrida en vez de envejecer callando.
 
-### Núcleo del plano entregable — 96/110
+### Núcleo del plano entregable — 98/110
 
 | Categoría                        | Puntos | Estado  | Qué existe hoy y dónde                                                                                                                                                      | Qué falta exactamente                                                                                          |
 | -------------------------------- | -----: | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
@@ -132,7 +132,7 @@ se mueva rompe la fila en la siguiente corrida en vez de envejecer callando.
 | Layouts, viewports y publicación |   6/10 | Parcial | Paper space y viewports múltiples, hoja de ploteo, adaptador de exportación, publicaciones versionadas; golden 20                                                           | LAYOUT/MVIEW/PLOT/PAGESETUP no tecleables; sin fidelidad de fuentes ni SLO de publicación                      |
 | Bloques y atributos              |    6/9 | Parcial | Biblioteca y definición/inserción, ATTDEF tecleable, round-trip DXF de INSERT y de la tabla de bloques; golden 18                                                           | BLOCK/INSERT/WBLOCK/BEDIT no tecleables; sin bloques dinámicos ni comportamiento anotativo                     |
 | MTEXT y texto                    |    5/9 | Parcial | Entidad MTEXT con maquetación de párrafo y viaje por DXF en los dos sentidos; golden 15                                                                                     | MTEXT/TEXT/STYLE no tecleables; sin códigos de control ni fuentes SHX/TTF                                      |
-| Guardado CAS, autosave, historia |    6/8 | Parcial | Cola de un escritor con CAS 409, journal de recuperación con integridad, E2E real de logout/reapertura/>1 MB; golden 11                                                     | Offline, multi-pestaña y cierre forzado; límites de documento y memoria sin publicar                           |
+| Guardado CAS, autosave, historia |    8/8 | Completa | Cola de un escritor con CAS 409, journal de recuperación con integridad, E2E real de logout/reapertura/>1 MB; golden 11; ola E1: golden `e2e/real/cad-offline-multitab.spec.ts` (offline con reconexión, dos pestañas y cuelgue del renderizador contra API real y PostgreSQL) y presupuesto medido en `docs/cad/evidence/document-limits.json` | Nada pendiente en esta fila. La pared que queda es el techo de 100.000 entidades que declara el propio servidor |
 
 ### Productividad profesional — 39/44
 

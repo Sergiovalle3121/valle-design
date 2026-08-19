@@ -46,6 +46,18 @@ silenciosamente: el estado permanece pendiente hasta recargar, comparar o
 resolver el conflicto. Las versiones del servidor son inmutables; undo/redo es
 historia local acotada y no sustituye el versionado persistido.
 
+Sin conexión, el trabajo queda en un journal local comprimido y verificado por
+hash —verificado, no cifrado— y el editor lo dice —«Sin conexión · cambios pendientes»—, no finge que guardó. Al volver la
+red, lo pendiente sube solo: no hace falta que nadie vuelva a dibujar ni pulse
+Guardar. Si la pestaña muere sin avisar, al reabrir el documento se ofrece ese
+borrador para restaurarlo o descartarlo, también desde otra pestaña. Lo que sí
+se puede perder es lo dibujado desde el último checkpoint local: la ventana está
+medida y publicada, con la máquina, en `docs/cad/evidence/document-limits.json`
+junto al tamaño de plano hasta el que se sostiene esta promesa. El recorrido
+completo —caída de red, dos pestañas sobre el mismo plano y cierre forzado— se
+verifica contra la API real y PostgreSQL en
+`apps/web/e2e/real/cad-offline-multitab.spec.ts`.
+
 ## Promesas que no se hacen
 
 - Valle Design no es AutoCAD 2027 ni declara paridad funcional, de formato o

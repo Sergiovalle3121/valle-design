@@ -96,6 +96,7 @@ import {
   createDebouncedAutosave,
   type AutosaveStatus,
 } from "@/components/cad/document-lifecycle/autosave";
+import { observeCadSaveFlush } from "@/components/cad/document-lifecycle/connectivity";
 import { CanonicalHistory } from "@/components/cad/document-lifecycle/history-controller";
 import {
   ASSET_CATEGORIES,
@@ -15232,31 +15233,13 @@ export default function Layout3DEditor({
 
   useEffect(() => {
     if (!open || !documentId || drawingReadOnly) return;
-    const flushCurrent = () => {
-      if (dirtyRef.current) scheduleAutosaveRef.current();
-      void autosaveSchedulerRef.current!.flush().catch(() => undefined);
-    };
-    const onBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (!dirtyRef.current) return;
-      flushCurrent();
-      event.preventDefault();
-      event.returnValue = "";
-    };
-    const onPageHide = () => flushCurrent();
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "hidden") flushCurrent();
-    };
-    window.addEventListener("beforeunload", onBeforeUnload);
-    window.addEventListener("pagehide", onPageHide);
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => {
-      window.removeEventListener("beforeunload", onBeforeUnload);
-      window.removeEventListener("pagehide", onPageHide);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-      // The pending closure belongs to the document being left, so flush it
-      // before the next document can replace the editor refs.
-      void autosaveSchedulerRef.current!.flush().catch(() => undefined);
-    };
+    // La política —incluido reanudar cuando VUELVE la red, que es el momento
+    // que no depende de que nadie mire— vive en document-lifecycle/connectivity.
+    return observeCadSaveFlush({
+      isDirty: () => dirtyRef.current,
+      scheduleAutosave: () => scheduleAutosaveRef.current(),
+      flush: () => autosaveSchedulerRef.current!.flush(),
+    });
   }, [documentId, drawingReadOnly, open]);
 
   const closeEditor = async () => {
