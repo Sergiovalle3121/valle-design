@@ -35,13 +35,13 @@
   "sources": [
     {
       "path": "crates/valle-cad-kernel/Cargo.toml",
-      "bytes": 1520,
-      "sha256": "4fd2f5fb90d80f6bb40d5df5c62edf7590a4f7c20a5241b455ff9e883f56a8cf"
+      "bytes": 1557,
+      "sha256": "064b29aa764c8fb6af55b982ace623b0e6ce279c11ee2ea33f308f2568882d4e"
     },
     {
       "path": "crates/valle-cad-kernel/src/lib.rs",
-      "bytes": 17953,
-      "sha256": "fb19e09cd4c3a505e4240de08318e4de86261c49b8dbeede51ce9273c3a6f733"
+      "bytes": 18468,
+      "sha256": "585a52edfaef51c46beffdc974ff42d8996cf6e4b6962c0a87a08fc6fe8f750c"
     }
   ],
   "binary": {
@@ -60,7 +60,7 @@
       "valle_tessellate_spline:function"
     ]
   },
-  "builtAt": "2026-08-19T05:49:29.822Z",
+  "builtAt": "2026-08-19T21:03:44.727Z",
   "builtOn": {
     "platform": "win32",
     "architecture": "x64",
