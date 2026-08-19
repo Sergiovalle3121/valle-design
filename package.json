@@ -22,6 +22,7 @@
     "check:monolith-budget": "node scripts/cad/check-monolith-budget.mjs",
     "check:rubric": "node scripts/cad/rubric.mjs",
     "evidence:plot-fidelity": "node scripts/cad/plot-fidelity-evidence.mjs",
+    "evidence:point-cloud-scale": "node scripts/cad/point-cloud-scale-evidence.mjs",
     "build:dxf-corpus": "node scripts/cad/build-dxf-external-corpus.mjs",
     "check:dxf-corpus": "node scripts/cad/build-dxf-external-corpus.mjs --check",
     "check:rubric:spec": "node scripts/cad/rubric.spec.mjs",
