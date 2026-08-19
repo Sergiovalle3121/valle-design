@@ -15,12 +15,36 @@ export interface CadBoundaryBuildResult {
 
 const distance = (left: CadPoint2, right: CadPoint2) => Math.hypot(left.x - right.x, left.y - right.y);
 
+/**
+ * Área firmada (fórmula del cordón de zapato), medida DESDE EL PRIMER VÉRTICE.
+ *
+ * El desplazamiento no es cosmética. La fórmula sin trasladar multiplica
+ * coordenadas ABSOLUTAS entre sí, así que un plano georreferenciado —el caso
+ * normal en topografía y en cualquier archivo que venga de un levantamiento—
+ * calcula un área pequeña como diferencia de productos gigantescos, y la resta
+ * se come los dígitos significativos que quedaban. Medido en este árbol con un
+ * cuadrado de 10×10 (área real 100):
+ *
+ *     origen 1e7  →  100      (aún exacto)
+ *     origen 1e9  →  128      (28 % de error)
+ *     origen 1e12 →  0        (el área DESAPARECE)
+ *
+ * Un cero ahí no es un fallo visible: es un sombreado que informa cero metros
+ * cuadrados en una tabla de acabados, y el anillo exterior que `stitch…`
+ * elige por mayor área pasa a ser el equivocado. Trasladar al primer vértice
+ * es algebraicamente la MISMA área —los términos de traslación se cancelan en
+ * un polígono cerrado— y deja los productos en el tamaño del dibujo, no en el
+ * de sus coordenadas. Los tres casos de arriba dan 100 exacto.
+ */
 export function cadBoundarySignedArea(points: readonly CadPoint2[]): number {
+  if (points.length < 3) return 0;
+  const originX = points[0].x;
+  const originY = points[0].y;
   let area = 0;
   for (let index = 0; index < points.length; index++) {
     const current = points[index];
     const next = points[(index + 1) % points.length];
-    area += current.x * next.y - next.x * current.y;
+    area += (current.x - originX) * (next.y - originY) - (next.x - originX) * (current.y - originY);
   }
   return area / 2;
 }
@@ -47,13 +71,46 @@ function cleanLoop(points: readonly CadPoint2[], tolerance: number): CadPoint2[]
   return result;
 }
 
+/**
+ * ¿Este camino se cierra SOBRE SÍ MISMO, aunque no lo declare?
+ *
+ * Es la forma más común de contorno cerrado que llega de fuera. Una LWPOLYLINE
+ * escrita por otro programa suele repetir el primer vértice al final en vez de
+ * poner la bandera 70/1, y un ARCO de barrido nulo —el «arco de 360°» que trae
+ * cualquier archivo de otra mano— se tesela como circunferencia completa y su
+ * adaptador la entrega SIEMPRE como abierta.
+ *
+ * Sin esta comprobación esos contornos se rechazaban, y el rechazo era además
+ * INVISIBLE de diagnosticar: `cleanLoop` quita el vértice repetido ANTES de que
+ * nadie mire si cerraba, así que la prueba de cierre acababa comparando el
+ * primer vértice contra el PENÚLTIMO —un lado entero de distancia— y el
+ * contorno salía por la lista de abiertos. El arquitecto pinchaba dentro de un
+ * cuadrado perfectamente cerrado y el sombreado le decía que no había contorno.
+ */
+function selfClosingPath(points: readonly CadPoint2[], tolerance: number): boolean {
+  return points.length >= 4 && distance(points[0], points[points.length - 1]) <= tolerance;
+}
+
 export function stitchCadBoundaryPaths(
   paths: readonly CadBoundaryPath[],
   tolerance = 1e-4,
 ): CadBoundaryBuildResult {
   const pending = paths
     .filter((path) => path.points.length >= 2)
-    .map((path) => ({ ...path, points: cleanLoop(path.points, tolerance) }));
+    .map((path) => ({
+      ...path,
+      closed: path.closed || selfClosingPath(path.points, tolerance),
+      points: cleanLoop(path.points, tolerance),
+    }))
+    // Un camino que al limpiarse se queda en MENOS DE DOS puntos distintos no
+    // es un contorno abierto: no es nada. Un tramo de longitud cero —el doble
+    // clic que le sobró a alguien, o el resto de un escalado a cero— entraba
+    // por aquí, se quedaba en un punto y salía por la lista de ABIERTOS. Y esa
+    // lista no es informativa: `regenerateAssociativeHatches` marca el
+    // sombreado como ROTO en cuanto tiene un elemento, así que una basura
+    // invisible en la selección rompía para siempre la asociatividad de un
+    // relleno cuyo contorno de verdad cerraba perfectamente.
+    .filter((path) => path.points.length >= 2);
   const loops: CadPoint2[][] = [];
   const loopSourceIds: string[][] = [];
   const sourceIds = new Set<string>();
