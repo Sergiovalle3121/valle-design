@@ -6,8 +6,13 @@
  * Un `.scr` es una lista de comandos separados por saltos de línea. Nada más.
  * Como el motor ya acepta entrada TECLEADA —y una línea de un script es
  * exactamente eso—, ejecutar un script es leer el archivo y meter sus renglones
- * por la misma puerta por la que entra lo que escribe el usuario. No hay
- * segundo intérprete, así que no hay dos comportamientos que puedan divergir.
+ * por la misma puerta por la que entra lo que escribe el usuario.
+ *
+ * El FORMATO se lee en un solo sitio —`parseCadScript`, aquí abajo— y de ahí
+ * beben los dos ejecutores que existen: éste, que empuja renglones al editor
+ * vivo, y `engine/script-runner.ts`, que ejecuta el mismo guión sin anfitrión
+ * ninguno. Un solo analizador es lo que impide que las reglas del `.scr`
+ * puedan divergir según por dónde entre el archivo.
  *
  * Es la automatización más vieja de AutoCAD y sigue siendo la más usada:
  * plantillas de estudio, purgas nocturnas, lotes de trazado, configuración de
@@ -28,8 +33,8 @@
  * No abre cuadros de diálogo, y por eso existen las variantes con guion. Un
  * `LAYER` dentro de un script abriría el gestor y el script se quedaría
  * esperando un clic; `-LAYER` hace el mismo trabajo por la línea. El ejecutor
- * lo AVISA cuando detecta un comando con diálogo, en vez de dejar que el script
- * se pare sin explicación.
+ * se PARA al detectarlo, con un error tipado que nombra el renglón y la orden
+ * que sí funciona, en vez de dejar que el guión se cuelgue sin explicación.
  */
 
 /** Un renglón del script, ya limpio. */
@@ -41,22 +46,111 @@ export interface CadScriptLine {
 }
 
 /**
+ * Comandos que ABREN UN CUADRO nada más invocarse y por qué escribir en su
+ * lugar dentro de un `.scr`.
+ *
+ * La lista anterior incluía `INSERT`, `PLOT` y `STYLE` por parecido con
+ * AutoCAD, y en este producto los tres preguntan por la línea de comandos: el
+ * ejecutor avisaba de un cuelgue que no podía ocurrir y mandaba al usuario a
+ * una variante que no hacía falta. Un aviso falso se aprende a ignorar, y el
+ * día que uno sea verdad también se ignora.
+ *
+ * El valor no siempre es «lo mismo con guion delante»: ni AutoCAD ni este
+ * producto tienen `-OPTIONS` ni `-PROPERTIES`, y decir que los tienen sería
+ * mandar al autor del guión a teclear un comando inexistente. Lo que se nombra
+ * es lo que SÍ hace el trabajo desde la línea.
+ *
+ * `engine/script-runner.spec.ts` comprueba esta tabla contra el registro de
+ * verdad —qué comandos piden interfaz en su primer paso—, así que no puede
+ * quedarse desfasada en silencio.
+ */
+export const CAD_SCRIPT_LINE_ALTERNATIVE: Readonly<Record<string, readonly string[]>> = {
+  LAYER: ["-LAYER"],
+  LINETYPE: ["-LINETYPE"],
+  OSNAP: ["-OSNAP"],
+  // `-DSETTINGS` cubre forzado, rejilla y orto; las referencias a objetos son
+  // de `-OSNAP`, que ya sabe leer los catorce modos.
+  DSETTINGS: ["-DSETTINGS", "-OSNAP"],
+  TOOLPALETTES: ["-TOOLPALETTES"],
+  UCSMAN: ["-UCSMAN"],
+  // Lo que el cuadro de opciones contiene son variables de sistema; desde un
+  // guión se escriben con SETVAR, que es exactamente lo mismo sin el cuadro.
+  OPTIONS: ["SETVAR"],
+  // Leer las propiedades de lo designado desde un guión es LIST. Cambiarlas va
+  // por los comandos que las cambian, no por la paleta.
+  PROPERTIES: ["LIST"],
+  // Un guión que llama a SCRIPT pediría OTRO archivo, y elegirlo es un clic.
+  // No hay alternativa por la línea y decirlo es más honesto que inventarla.
+  SCRIPT: [],
+  RSCRIPT: [],
+};
+
+/**
  * Comandos que abren un cuadro y dejarían el script colgado. Su variante con
  * guion hace lo mismo por la línea de comandos.
  */
-export const CAD_DIALOG_COMMANDS: readonly string[] = [
-  "LAYER",
-  "LINETYPE",
-  "OSNAP",
-  "DSETTINGS",
-  "OPTIONS",
-  "PROPERTIES",
-  "TOOLPALETTES",
-  "UCSMAN",
-  "INSERT",
-  "PLOT",
-  "STYLE",
-];
+export const CAD_DIALOG_COMMANDS: readonly string[] =
+  Object.keys(CAD_SCRIPT_LINE_ALTERNATIVE).sort();
+
+/**
+ * Qué escribir en su lugar, en una frase. Vive aquí y no en cada mensaje para
+ * que el consejo sea el mismo lo diga quien lo diga.
+ */
+export function cadScriptLineAdvice(command: string): string {
+  const key = command.trim().toUpperCase();
+  // `Object.hasOwn` y no `in`: la segunda forma encuentra también lo que hereda
+  // el prototipo, así que un comando llamado CONSTRUCTOR o TOSTRING recibiría un
+  // consejo que nadie escribió.
+  const alternatives = Object.hasOwn(CAD_SCRIPT_LINE_ALTERNATIVE, key)
+    ? CAD_SCRIPT_LINE_ALTERNATIVE[key]
+    : [];
+  if (alternatives.length === 0)
+    return "No hay forma de hacer ese trabajo por la línea de comandos desde un guión.";
+  return `Use ${alternatives.join(" o ")}, que hace el mismo trabajo por la línea de comandos.`;
+}
+
+/**
+ * Por qué se detuvo un guión. Un código por modo de fallo, porque el arreglo
+ * es distinto en cada uno y «el script falló» no le dice a nadie qué tocar.
+ */
+export type CadScriptFailureCode =
+  /** El renglón no nombra ningún comando conocido. */
+  | "unknown-command"
+  /** El comando abriría un cuadro o pediría un archivo: nadie va a pulsarlo. */
+  | "needs-interface"
+  /** El comando en curso rechazó lo que traía el renglón. */
+  | "rejected"
+  /** El renglón no hizo avanzar al comando: el guión se quedó dando vueltas. */
+  | "stalled"
+  /** El archivo terminó con un comando a medias. */
+  | "unfinished"
+  /** El comando lanzó una excepción. */
+  | "threw";
+
+/**
+ * Fallo de un guión, con el RENGLÓN señalado.
+ *
+ * Es un error tipado y no una cadena porque quien lo recibe tiene que poder
+ * decidir: la interfaz enseña `line` en el diálogo, un lote de servidor lo
+ * escribe en su informe, y una prueba afirma el código sin depender de cómo
+ * esté redactado el mensaje. Un `Error` genérico obliga a leer el texto con
+ * expresiones regulares, y entonces cambiar una coma rompe a quien lo lea.
+ */
+export class CadScriptError extends Error {
+  constructor(
+    readonly code: CadScriptFailureCode,
+    /** Renglón del `.scr`, empezando en 1. Es lo primero que se mira. */
+    readonly line: number,
+    /** Lo que había escrito en ese renglón. Vacío significa Enter. */
+    readonly token: string,
+    message: string,
+    /** Comando en curso cuando se rompió, si lo había. */
+    readonly command: string | null = null,
+  ) {
+    super(`Línea ${line}${token ? ` ("${token}")` : " (Enter)"}: ${message}`);
+    this.name = "CadScriptError";
+  }
+}
 
 export function parseCadScript(source: string): CadScriptLine[] {
   // Un archivo vacío no es «un Enter»: es un archivo vacío. `"".split("\n")`
@@ -100,43 +194,107 @@ export interface CadScriptRunReport {
   warnings: readonly string[];
   /** `true` si al terminar quedaba un comando a medias esperando entrada. */
   unfinished: boolean;
+  /** Los mismos fallos que `warnings`, tipados y con su renglón. */
+  failures: readonly CadScriptError[];
+  /** Renglón en el que se paró el guión; `null` si llegó al final. */
+  stoppedAtLine: number | null;
+}
+
+export interface CadScriptRunOptions {
+  /**
+   * Seguir tras un renglón que falla. Por defecto NO.
+   *
+   * Un guión que se atasca a mitad y sigue empujando renglones mete la entrada
+   * del comando siguiente en el comando anterior: lo que sale no es «el guión
+   * menos una línea», es un dibujo que nadie escribió. Pararse y decir en qué
+   * renglón es la única salida que deja el documento en un estado explicable.
+   * Quien de verdad quiera un lote tolerante —una purga nocturna sobre cien
+   * archivos— lo pide, y entonces sabe lo que está aceptando.
+   */
+  continueOnError?: boolean;
 }
 
 /**
- * Ejecuta un script contra un anfitrión del motor.
+ * Ejecuta un script contra un anfitrión VIVO del motor.
  *
- * Nunca lanza: un renglón que hace saltar un comando produce un aviso con su
- * número de línea y el script continúa. Un script de doscientas líneas que se
- * detiene en la tercera sin decir cuál era es peor que uno que termina
- * contando lo que no pudo hacer.
+ * ## Lo que este ejecutor puede ver y lo que no
+ *
+ * Empuja renglones por la misma puerta por la que entra lo tecleado, así que ve
+ * lo que ve quien teclea: si el anfitrión lanza, si al final queda un comando a
+ * medias, y si el renglón nombra un comando que abriría un cuadro. Lo que NO ve
+ * es el rechazo INTERNO del motor —un comando inexistente produce un mensaje de
+ * error, no una excepción— porque el mensaje va al diálogo del anfitrión y no
+ * vuelve por aquí.
+ *
+ * Ese hueco es justamente el que cubre `engine/script-runner.ts`, que ejecuta
+ * el mismo guión sin anfitrión, ve TODOS los efectos y falla cerrado ante
+ * cualquiera de ellos. Los dos comparten `parseCadScript`, así que el formato
+ * del `.scr` se lee en un solo sitio y no puede divergir.
  */
-export function runCadScript(source: string, sink: CadScriptSink): CadScriptRunReport {
-  const warnings: string[] = [];
+export function runCadScript(
+  source: string,
+  sink: CadScriptSink,
+  options: CadScriptRunOptions = {},
+): CadScriptRunReport {
+  const failures: CadScriptError[] = [];
   const lines = parseCadScript(source);
   let executed = 0;
+  let stoppedAtLine: number | null = null;
 
   for (const entry of lines) {
     const head = entry.token.split(/\s+/)[0]?.toUpperCase() ?? "";
-    if (CAD_DIALOG_COMMANDS.includes(head))
-      warnings.push(
-        `Línea ${entry.line}: "${head}" abre un cuadro de diálogo y un script no puede pulsarlo. ` +
-          `Use -${head}.`,
+    if (Object.hasOwn(CAD_SCRIPT_LINE_ALTERNATIVE, head)) {
+      failures.push(
+        new CadScriptError(
+          "needs-interface",
+          entry.line,
+          entry.token,
+          `"${head}" abre un cuadro y un guión no puede pulsarlo. ` +
+            cadScriptLineAdvice(head),
+          head,
+        ),
       );
+      if (!options.continueOnError) {
+        stoppedAtLine = entry.line;
+        break;
+      }
+    }
     try {
       if (entry.token === "" && sink.accept) sink.accept();
       else sink.submit(entry.token);
       executed += 1;
     } catch (cause) {
-      warnings.push(
-        `Línea ${entry.line} ("${entry.token}"): ${cause instanceof Error ? cause.message : String(cause)}`,
+      failures.push(
+        new CadScriptError(
+          "threw",
+          entry.line,
+          entry.token,
+          cause instanceof Error ? cause.message : String(cause),
+        ),
       );
+      if (!options.continueOnError) {
+        stoppedAtLine = entry.line;
+        break;
+      }
     }
   }
 
   const unfinished = sink.busy === true;
   if (unfinished)
-    warnings.push(
-      "El script ha terminado con un comando a medias: le falta un Enter o un renglón en blanco al final.",
+    failures.push(
+      new CadScriptError(
+        "unfinished",
+        lines.length > 0 ? lines[lines.length - 1].line : 1,
+        "",
+        "el guión ha terminado con un comando a medias: le falta un Enter —un renglón en " +
+          "blanco— al final.",
+      ),
     );
-  return { executed, warnings, unfinished };
+  return {
+    executed,
+    warnings: failures.map((failure) => failure.message),
+    unfinished,
+    failures,
+    stoppedAtLine,
+  };
 }

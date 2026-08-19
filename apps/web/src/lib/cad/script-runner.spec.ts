@@ -23,7 +23,13 @@ import {
 import type { CadCommandContext } from "./engine/command-types";
 import { CAD_COMMAND_REGISTRY_V2 } from "./engine";
 import { executeCadEntityCommandBatch } from "./entity-commands";
-import { CAD_DIALOG_COMMANDS, parseCadScript, runCadScript } from "./script-runner";
+import {
+  CAD_DIALOG_COMMANDS,
+  CadScriptError,
+  cadScriptLineAdvice,
+  parseCadScript,
+  runCadScript,
+} from "./script-runner";
 import { CadSystemVariableStore } from "./system-variables";
 
 let checks = 0;
@@ -272,15 +278,45 @@ RECTANG
   );
 }
 
-// Un sink que revienta produce un aviso con su renglón, no una excepción.
+// Un sink que revienta PARA el guión, con un fallo tipado y su renglón. Fallo
+// cerrado: seguir empujando renglones tras un tropiezo mete la entrada del
+// comando siguiente en el anterior, y lo que sale no es «el guión menos una
+// línea» sino un dibujo que nadie escribió.
 {
-  const report = runCadScript("A\nB\nC\n", {
+  const boom = {
     submit(token: string) {
       if (token === "B") throw new Error("explota");
     },
-  });
-  equal(report.executed, 2, "los otros dos renglones sí se ejecutan");
-  ok(report.warnings[0].includes("Línea 2"), "y el aviso señala el renglón exacto");
+  };
+  const report = runCadScript("A\nB\nC\n", boom);
+  equal(report.executed, 1, "sólo se ejecutó el renglón anterior al que falló");
+  equal(report.stoppedAtLine, 2, "y el informe dice dónde se paró");
+  ok(report.warnings[0].includes("Línea 2"), "el aviso señala el renglón exacto");
+  equal(report.failures[0].code, "threw", "el fallo va TIPADO, no sólo redactado");
+  equal(report.failures[0].line, 2, "con el número de renglón en un campo, no en el texto");
+  ok(report.failures[0] instanceof CadScriptError, "y es un Error de verdad, capturable");
+
+  // Quien de verdad quiere un lote tolerante lo pide, y entonces sabe lo que
+  // acepta: los renglones siguientes se ejecutan sobre un estado incierto.
+  const tolerant = runCadScript("A\nB\nC\n", boom, { continueOnError: true });
+  equal(tolerant.executed, 2, "con `continueOnError` sí siguen los otros dos");
+  equal(tolerant.stoppedAtLine, null, "y no hay renglón de parada");
+}
+
+// El consejo que se da nombra comandos, no adivinanzas.
+{
+  ok(
+    cadScriptLineAdvice("LAYER").includes("-LAYER"),
+    "para LAYER, la variante con guion",
+  );
+  ok(
+    cadScriptLineAdvice("OPTIONS").includes("SETVAR"),
+    "para OPTIONS, SETVAR: no existe `-OPTIONS` ni aquí ni en AutoCAD",
+  );
+  ok(
+    cadScriptLineAdvice("SCRIPT").includes("No hay forma"),
+    "y cuando no hay alternativa se dice, en vez de inventar una",
+  );
 }
 
 console.log(`script-runner.spec: ${checks} comprobaciones verdes.`);

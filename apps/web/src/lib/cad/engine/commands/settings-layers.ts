@@ -324,7 +324,160 @@ const layerStateCommand: CadCommandDescriptor<LayerStateState> = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// RENAME / -RENAME
+// ---------------------------------------------------------------------------
+
+/**
+ * Cambiar de nombre una capa desde la línea de comandos.
+ *
+ * ## Por qué esta orden y no otra
+ *
+ * El guión que más veces se escribe en un despacho con oficio es el que
+ * normaliza la tabla de capas del archivo que acaba de llegar: `MURO` pasa a
+ * `A-MURO`, `texto` a `A-ANOT-TEXT`. En AutoCAD eso es `-RENAME`, y sin él la
+ * normalización se hace capa por capa a mano, que es media hora por archivo.
+ *
+ * No hace falta registrar el nombre con guion: el registro prueba primero el
+ * nombre LITERAL y sólo después quita el prefijo, así que `-RENAME` llega aquí
+ * mientras nadie reclame ese literal. Se registra sin guion porque esta orden
+ * NO abre ningún cuadro: no hay dos variantes que distinguir.
+ *
+ * ## Renombrar es crear y absorber, en UN lote
+ *
+ * La tabla de capas ya sabe borrar reasignando (`op: "delete"` con
+ * `reassignTo`). Renombrar es exactamente eso precedido de un alta con las
+ * mismas propiedades: las entidades de la capa vieja pasan a la nueva y no hay
+ * un instante intermedio en el que apunten a una capa que no existe. Las dos
+ * órdenes viajan en el MISMO lote, así que deshacer devuelve el nombre viejo y
+ * las entidades a la vez.
+ */
+const RENAME_LAYER = { keyword: "Capa", shortcut: "C" } as const;
+const RENAME_BLOCK = { keyword: "Bloque", shortcut: "B" } as const;
+const RENAME_STYLE = { keyword: "Estilo", shortcut: "E" } as const;
+
+/** Caracteres que DXF prohíbe en el nombre de una capa. */
+const FORBIDDEN_NAME = /[<>/\\":;?*|,='`]/;
+
+interface RenameState {
+  /** `null` mientras no se ha elegido el tipo de objeto. */
+  kind: "layer" | null;
+  from: string | null;
+}
+
+function renameMenu(state: RenameState): CadCommandStep<RenameState> {
+  return {
+    state,
+    prompt: {
+      message: "Tipo de objeto a cambiar de nombre",
+      options: [RENAME_LAYER, RENAME_BLOCK, RENAME_STYLE],
+      defaultOption: RENAME_LAYER.keyword,
+    },
+    accepts: CAD_ACCEPT_KEYWORD,
+  };
+}
+
+const renameCommand: CadCommandDescriptor<RenameState> = {
+  name: "RENAME",
+  aliases: ["REN", "DDRENAME"],
+  kind: "manage",
+  transparent: false,
+  selection: "none",
+  repeatable: false,
+  mutates: true,
+  cursor: "none",
+  begin: () => renameMenu({ kind: null, from: null }),
+  step: (state, input, context) => {
+    if (input.kind === "cancel" || input.kind === "enter") return cancelled(state);
+
+    if (state.kind === null) {
+      if (input.kind !== "keyword") return renameMenu(state);
+      // Las dos negativas son CONCRETAS a propósito. Un bloque y un estilo se
+      // referencian por NOMBRE desde las entidades (`insert.block`,
+      // `mtext.style`), así que renombrarlos es una migración sobre
+      // `entities`: hacerla a medias —cambiar el nombre y no las referencias—
+      // deja el dibujo apuntando a algo que no existe, y eso es peor que no
+      // ofrecer la orden. Las capas SÍ se pueden porque la tabla de capas ya
+      // sabe reasignar al borrar.
+      if (input.keyword === RENAME_BLOCK.keyword)
+        return message(
+          state,
+          "Todavía no se puede renombrar un bloque: las inserciones lo referencian por nombre y " +
+            "reasignarlas es una migración del dibujo entero. Redefínalo con BLOCK usando el " +
+            "nombre nuevo.",
+        );
+      if (input.keyword === RENAME_STYLE.keyword)
+        return message(
+          state,
+          "Todavía no se puede renombrar un estilo: las entidades lo referencian por nombre. " +
+            "Cree el estilo nuevo con STYLE y aplíquelo a lo que lo usaba.",
+        );
+      return {
+        state: { kind: "layer", from: null },
+        prompt: { message: "Nombre actual de la capa", options: [] },
+        accepts: CAD_ACCEPT_TEXT,
+      };
+    }
+
+    if (input.kind !== "text") return cancelled(state);
+    const typed = input.value.trim();
+    if (!typed) return cancelled(state);
+
+    if (state.from === null) {
+      const layer = findLayer(context, typed);
+      if (!layer) return message(state, `No existe la capa "${typed}".`);
+      if (layer.name === "0")
+        return message(state, "La capa 0 no se puede renombrar: es la capa que define el formato.");
+      // La capa ACTUAL tampoco, y por una razón mecánica: el resultado de un
+      // comando es de UN tipo, así que este lote no puede escribir además
+      // `CLAYER`. Renombrar la capa actual dejaría esa variable apuntando a un
+      // nombre inexistente y los objetos nuevos irían a parar a la capa 0 sin
+      // que nadie lo hubiera pedido. Se dice, y se dice qué hacer antes.
+      if (layer.name === context.activeLayer)
+        return message(
+          state,
+          `"${layer.name}" es la capa actual. Ponga otra actual con -LAYER definir y repita el ` +
+            "cambio de nombre.",
+        );
+      return {
+        state: { ...state, from: layer.name },
+        prompt: { message: `Nombre nuevo para "${layer.name}"`, options: [] },
+        accepts: CAD_ACCEPT_TEXT,
+      };
+    }
+
+    if (FORBIDDEN_NAME.test(typed))
+      return message(
+        state,
+        `"${typed}" no vale como nombre de capa: DXF prohíbe < > / \\ " : ; ? * | , = ' y la ` +
+          "comilla inversa.",
+      );
+    const clash = findLayer(context, typed);
+    if (clash && clash.name !== state.from)
+      return message(state, `Ya existe una capa "${clash.name}"; fusionar dos capas no es renombrar.`);
+    const source = findLayer(context, state.from);
+    if (!source) return message(state, `La capa "${state.from}" ha dejado de existir.`);
+    if (source.name === typed)
+      return message(state, `La capa ya se llama "${typed}"; no hay nada que cambiar.`);
+
+    return {
+      state,
+      prompt: { message: "", options: [] },
+      accepts: 0,
+      result: {
+        kind: "document",
+        commands: [
+          { type: "layer", op: "upsert", layer: { ...source, id: typed.toLowerCase(), name: typed } },
+          { type: "layer", op: "delete", name: source.name, reassignTo: typed },
+        ],
+        label: `RENAME: capa "${source.name}" → "${typed}"`,
+      },
+    };
+  },
+};
+
 export const CAD_SETTINGS_LAYER_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(layerCliCommand),
   asCadCommand(layerStateCommand),
+  asCadCommand(renameCommand),
 ];

@@ -578,8 +578,22 @@ export function formatReport(scored, { verbose = false } = {}) {
     }
   }
   lines.push("");
+  // La coletilla se CALCULA. Decía «ninguna fila llega a su tope» como texto
+  // fijo, y el día que una llegó siguió diciéndolo: una rúbrica que se escribe
+  // a sí misma una frase que ya no es cierta es la misma tabla escrita a mano
+  // que este script existe para sustituir.
+  const capped = scored.categories.filter(
+    (category) => category.earned >= category.points,
+  );
   lines.push(
-    `TOTAL ${scored.earned}/${scored.totalPoints} (${scored.percentage} %) — el denominador es público y ninguna fila llega a su tope.`,
+    `TOTAL ${scored.earned}/${scored.totalPoints} (${scored.percentage} %) — el denominador es ` +
+      `público y ${
+        capped.length === 0
+          ? "ninguna fila llega a su tope"
+          : `${capped.length} fila(s) llegan a su tope: ${capped
+              .map((category) => category.name ?? category.id)
+              .join(", ")}`
+      }.`,
   );
   const blocked = scored.categories
     .flatMap((c) => c.criteria)

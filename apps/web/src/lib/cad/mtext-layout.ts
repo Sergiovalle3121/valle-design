@@ -1,5 +1,6 @@
 import type { CadEntity, CadPoint2 } from './cad-document';
 import { cadMTextPlainText } from './mtext-codes';
+import { resolveCadMTextFont, type CadMTextFontResolution } from './mtext-fonts';
 
 export type CadMTextEntity = Extract<CadEntity, { type: 'mtext' }>;
 
@@ -22,6 +23,13 @@ export interface CadMTextLayout {
   corners: CadPoint2[];
   bounds: { minX: number; minY: number; maxX: number; maxY: number };
   fontStack: string;
+  /**
+   * Qué le pasa a la familia que pide la entidad: si se dibuja tal cual o si se
+   * sustituye, y por cuál. Viaja con la maqueta porque quien dibuja el rótulo
+   * es quien tiene que poder decirlo; calcularlo aparte daría dos respuestas
+   * que se podrían separar.
+   */
+  font: CadMTextFontResolution;
 }
 
 const DEFAULT_FONT_SIZE = 120;
@@ -29,9 +37,17 @@ const DEFAULT_LINE_SPACING = 1.2;
 const measurementCache = new Map<string, number>();
 const MAX_MEASUREMENT_CACHE = 4_096;
 
+/**
+ * Pila CSS con la que se dibuja el rótulo.
+ *
+ * Delega en `mtext-fonts.ts` en vez de encadenar respaldos a mano: una `.shx`
+ * no se puede pedir a un lienzo —no es una fuente de contornos— y ponerla la
+ * primera de la pila era una petición que el navegador tiraba en silencio,
+ * dibujando Arial sin que nada lo declarase. Ahora la sustitución se decide en
+ * un sitio, se puede consultar, y la maqueta la publica en `font`.
+ */
 export function cadMTextFontStack(fontFamily?: string): string {
-  const requested = fontFamily?.trim().replace(/["']/g, '');
-  return [requested, 'Arial', 'Helvetica', 'sans-serif'].filter(Boolean).join(', ');
+  return resolveCadMTextFont(fontFamily?.replace(/["']/g, '')).fontStack;
 }
 
 export function clearCadMTextMeasurementCache(): void {
@@ -73,7 +89,12 @@ function wrapParagraph(
   entity: CadMTextEntity,
 ): string[] {
   if (!paragraph) return [''];
-  const words = paragraph.split(/(\s+)/).filter(Boolean);
+  // El espacio DURO (U+00A0, lo que `\~` produce) queda FUERA de los separadores
+  // a propósito: es un espacio que se ve y se mide, pero por el que la línea no
+  // puede partirse. Sin esta excepción, `\~` sería un espacio corriente y «Ø 25»
+  // acabaría con el símbolo al final de una línea y el número en la siguiente,
+  // que es exactamente lo que quien lo escribió quería evitar.
+  const words = paragraph.split(/([^\S\u00A0]+)/).filter(Boolean);
   const lines: string[] = [];
   let current = '';
   for (const word of words) {
@@ -113,6 +134,7 @@ function attachmentOffset(alignment: NonNullable<CadMTextEntity['alignment']>, w
 }
 
 export function layoutCadMText(entity: CadMTextEntity): CadMTextLayout {
+  const font = resolveCadMTextFont(entity.fontFamily?.replace(/["']/g, ''));
   const fontSize = Math.max(1e-6, entity.height ?? DEFAULT_FONT_SIZE);
   const lineHeight = fontSize * Math.max(0.5, entity.lineSpacing ?? DEFAULT_LINE_SPACING);
   const columns = Math.max(1, Math.min(8, Math.floor(entity.columns ?? 1)));
@@ -123,11 +145,15 @@ export function layoutCadMText(entity: CadMTextEntity): CadMTextLayout {
   // `\P`, así que un apilado se dibujaba como los caracteres `\S1^2;` y ocupaba
   // el ancho de esa retahíla en vez del de la fracción.
   //
-  // A MEDIAS a propósito: la maqueta mide con la altura de la ENTIDAD, así que
-  // un tramo con `\H` propio se mide con la altura equivocada, y el apilado se
-  // aplana a `superior/inferior` en una sola línea. La estructura por tramos ya
-  // está en `parseCadMText`; consumirla exige que el render sepa dibujar tramos,
-  // que es trabajo del pipeline de render y no de esta maqueta de líneas.
+  // A MEDIAS a propósito, y se declara entero: la maqueta mide con la altura,
+  // la anchura y la fuente de la ENTIDAD, así que un tramo con su propio `\H`,
+  // `\W`, `\Q` o `\f` se MIDE con los valores de la entidad aunque se haya
+  // leído bien; y el apilado se aplana a `superior/inferior` en una sola línea.
+  // La estructura por tramos ya está en `parseCadMText` —con sus factores
+  // resueltos— y consumirla exige que el render sepa dibujar tramos, que es
+  // trabajo del pipeline de render y no de esta maqueta de líneas.
+  // `mtext-rich-format.spec.ts` fija exactamente esta frontera para que la
+  // diferencia entre «se lee» y «se dibuja» no se pueda confundir.
   const rawText = cadMTextPlainText(entity.text);
   const wrapped = rawText.split('\n').flatMap((paragraph) => {
     const paragraphLines = wrapParagraph(paragraph, columnWidth, fontSize, entity);
@@ -187,6 +213,7 @@ export function layoutCadMText(entity: CadMTextEntity): CadMTextLayout {
       maxX: Math.max(...corners.map((point) => point.x)),
       maxY: Math.max(...corners.map((point) => point.y)),
     },
-    fontStack: cadMTextFontStack(entity.fontFamily),
+    fontStack: font.fontStack,
+    font,
   };
 }

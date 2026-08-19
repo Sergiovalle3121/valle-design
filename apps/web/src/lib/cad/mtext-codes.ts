@@ -28,12 +28,26 @@
  * | `\f<familia>…;`       | fuente (se lee la familia; el resto se ignora)      |
  * | `\C<índice>;`         | color ACI                                           |
  * | `\H<valor>;`          | altura absoluta; `\H<valor>x;` altura relativa      |
+ * | `\W<factor>;`         | factor de anchura: 0,8 aprieta, 1,2 ensancha        |
+ * | `\Q<grados>;`         | oblicuidad: la cursiva de las fuentes de trazo      |
+ * | `\A<0\|1\|2>;`        | alineación vertical del tramo: abajo, centro, arriba|
+ * | `\~`                  | espacio DURO: no parte la línea                     |
  * | `{` … `}`             | grupo: los atributos vuelven a su valor al cerrar   |
  * | `\\`, `\{`, `\}`      | barra y llaves LITERALES                            |
  *
  * Un código no reconocido se conserva TAL CUAL, barra incluida. Es deliberado:
  * un dibujo importado puede traer códigos que este módulo todavía no entiende y
  * comérselos borraría contenido del plano en silencio. Mejor que se vea.
+ *
+ * ## Los que NO se reconocen, y por qué se dice
+ *
+ * `\T<factor>;` —espaciado entre caracteres— y `\p…;` —sangrías y tabuladores
+ * de párrafo— se conservan literales. No es olvido: el primero necesita que la
+ * medida sepa de kerning, que hoy es una suma de anchuras por carácter, y el
+ * segundo necesita que la maqueta tenga tabuladores, que no los tiene. Se
+ * declara aquí y se comprueba en `mtext-rich-format.spec.ts` para que un plano
+ * importado enseñe el código en pantalla —feo pero visible— en vez de perder
+ * silenciosamente una sangría que alguien puso a propósito.
  *
  * ## Camino rápido
  *
@@ -52,15 +66,38 @@ export interface CadMTextStack {
   style: CadMTextStackStyle;
 }
 
+/**
+ * Dónde se apoya el tramo respecto de la línea. Es lo que fija `\A`, y lo que
+ * permite que un exponente vaya arriba sin ser un apilado.
+ */
+export type CadMTextVerticalAlign = "bottom" | "center" | "top";
+
 export interface CadMTextRun {
   text: string;
   underline: boolean;
   overline: boolean;
   /** Multiplicador sobre la altura del MTEXT. 1 = la del propio MTEXT. */
   heightScale: number;
+  /**
+   * Factor de ANCHURA (`\W`). 1 es la anchura natural de la fuente.
+   *
+   * No es un capricho tipográfico: apretar a 0,8 es lo que hace un delineante
+   * para que un rótulo quepa en una casilla del cajetín sin bajar la altura del
+   * texto, que está fijada por la norma.
+   */
+  widthFactor: number;
+  /**
+   * OBLICUIDAD en grados (`\Q`). 0 es recto; 15 es la inclinación de ISOCPEUR.
+   *
+   * Las fuentes de trazo no tienen cursiva: se inclinan. Un dibujo que llega
+   * con `\Q15;` y se dibuja recto no está «casi igual», está en otra fuente.
+   */
+  oblique: number;
   fontFamily?: string;
   /** Color del tramo, si el texto lo fija. Índice ACI tal cual se escribió. */
   color?: string;
+  /** Alineación vertical del tramo (`\A`), si el texto la fija. */
+  verticalAlign?: CadMTextVerticalAlign;
   /**
    * Presente cuando el tramo es un apilado. `text` lleva entonces la versión de
    * una sola línea (`superior/inferior`), que es lo que miden y dibujan los
@@ -76,11 +113,31 @@ interface Attributes {
   underline: boolean;
   overline: boolean;
   heightScale: number;
+  widthFactor: number;
+  oblique: number;
   fontFamily?: string;
   color?: string;
+  verticalAlign?: CadMTextVerticalAlign;
 }
 
-const INITIAL: Attributes = { underline: false, overline: false, heightScale: 1 };
+const INITIAL: Attributes = {
+  underline: false,
+  overline: false,
+  heightScale: 1,
+  widthFactor: 1,
+  oblique: 0,
+};
+
+/**
+ * Espacio DURO. `~` en el `.dxf`, U+00A0 en el modelo.
+ *
+ * Se traduce a un carácter real —y no a un marcador— porque así lo miden y lo
+ * dibujan todos los consumidores sin saber nada de códigos. Lo único que sabe
+ * que es DURO es el ajuste de línea de `mtext-layout.ts`, que no parte por él:
+ * es lo que impide que «Ø 25» quede con el diámetro al final de una línea y el
+ * número al principio de la siguiente.
+ */
+export const CAD_MTEXT_HARD_SPACE = String.fromCharCode(0xa0);
 
 /** `true` si la cadena PUEDE llevar formato. Sin esto no hay nada que analizar. */
 export function cadMTextHasCodes(source: string): boolean {
@@ -146,10 +203,16 @@ function sameAttributes(a: Attributes, b: Attributes): boolean {
     a.underline === b.underline &&
     a.overline === b.overline &&
     a.heightScale === b.heightScale &&
+    a.widthFactor === b.widthFactor &&
+    a.oblique === b.oblique &&
     a.fontFamily === b.fontFamily &&
-    a.color === b.color
+    a.color === b.color &&
+    a.verticalAlign === b.verticalAlign
   );
 }
+
+/** Las tres alineaciones de `\A`, con los números que usa AutoCAD. */
+const VERTICAL_ALIGN: readonly CadMTextVerticalAlign[] = ["bottom", "center", "top"];
 
 /**
  * Descompone un MTEXT en párrafos de tramos.
@@ -161,9 +224,7 @@ function sameAttributes(a: Attributes, b: Attributes): boolean {
 export function parseCadMText(source: string): CadMTextParagraph[] {
   const normalized = source.replace(/\r\n?/g, "\n");
   if (!cadMTextHasCodes(normalized))
-    return normalized
-      .split("\n")
-      .map((text) => [{ text, underline: false, overline: false, heightScale: 1 }]);
+    return normalized.split("\n").map((text) => [{ ...INITIAL, text }]);
 
   const paragraphs: CadMTextRun[][] = [];
   let runs: CadMTextRun[] = [];
@@ -226,6 +287,16 @@ export function parseCadMText(source: string): CadMTextParagraph[] {
 
     if (code === "\\" || code === "{" || code === "}") {
       pending += code;
+      index += 2;
+      continue;
+    }
+
+    // `\~`: espacio duro. Es un CARÁCTER, no un atributo, así que entra en el
+    // texto pendiente sin cortar el tramo — partirlo aquí separaría la palabra
+    // en dos tramos y el ajuste de línea volvería a poder romperla justo ahí,
+    // que es lo contrario de lo que el código pide.
+    if (code === "~") {
+      pending += CAD_MTEXT_HARD_SPACE;
       index += 2;
       continue;
     }
@@ -301,6 +372,44 @@ export function parseCadMText(source: string): CadMTextParagraph[] {
             : -numeric
           : attributes.heightScale,
       };
+      index = read.next;
+      continue;
+    }
+
+    if (code === "W" || code === "w") {
+      const read = readValue(normalized, index + 2);
+      const numeric = Number.parseFloat(read.value);
+      flush();
+      // Un factor de cero o negativo no aprieta el texto: lo hace desaparecer o
+      // lo dibuja del revés. Se ignora y se conserva el anterior, que es la
+      // regla de todo este módulo: ante lo imposible, no cambiar nada.
+      attributes = {
+        ...attributes,
+        widthFactor: Number.isFinite(numeric) && numeric > 0 ? numeric : attributes.widthFactor,
+      };
+      index = read.next;
+      continue;
+    }
+
+    if (code === "Q" || code === "q") {
+      const read = readValue(normalized, index + 2);
+      const numeric = Number.parseFloat(read.value);
+      flush();
+      // La oblicuidad SÍ puede ser negativa —se inclina hacia el otro lado— y
+      // por eso aquí sólo se exige que sea un número.
+      attributes = {
+        ...attributes,
+        oblique: Number.isFinite(numeric) ? numeric : attributes.oblique,
+      };
+      index = read.next;
+      continue;
+    }
+
+    if (code === "A") {
+      const read = readValue(normalized, index + 2);
+      const chosen = VERTICAL_ALIGN[Number.parseInt(read.value, 10)];
+      flush();
+      attributes = { ...attributes, verticalAlign: chosen ?? attributes.verticalAlign };
       index = read.next;
       continue;
     }

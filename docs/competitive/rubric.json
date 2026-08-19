@@ -440,7 +440,7 @@
       "group": "core",
       "name": "MTEXT y texto",
       "points": 9,
-      "gap": "No hay comando de texto tecleable ni fuentes SHX/TTF; el formato rico está sin cubrir.",
+      "gap": "Cubierto. Los códigos de altura, anchura, oblicuidad y fuente se LEEN por tramo pero la maqueta los mide con los valores de la ENTIDAD: dibujar tramo a tramo es del pipeline de render. El espaciado entre caracteres y las sangrías de párrafo siguen sin interpretarse, y ninguna .shx se resuelve —se sustituyen todas, declarado—.",
       "criteria": [
         {
           "id": "mtext.entity",
@@ -985,7 +985,7 @@
       "group": "pro",
       "name": "Línea de comandos, alias y scripting",
       "points": 12,
-      "gap": "80 de los 125 alias de acad.pgp no resuelven a ningún comando, y no hay ejecución de scripts.",
+      "gap": "Cubierto. Un .scr se ejecuta sin interfaz y falla cerrado con el renglón señalado. Quedan 2 de 129 alias de acad.pgp sin implementar, y OPTIONS y PROPERTIES no tienen variante por la línea —ni aquí ni en AutoCAD—: se responde con SETVAR y LIST.",
       "criteria": [
         {
           "id": "command-line.registry",
