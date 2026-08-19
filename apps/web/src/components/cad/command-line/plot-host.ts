@@ -131,6 +131,12 @@ export class CadPlotHost {
     if (request.kind === "dxf-export")
       return "Este espacio de trabajo no sabe entregar archivos DXF: falta el anfitrión de intercambio.";
 
+    // PLAN tampoco es trazado: lo sirve el anfitrión del SCU, enchufado antes
+    // que éste. Misma razón que la rama de arriba — la exhaustividad de la
+    // unión es la que avisa cuando llega una petición sin dueño.
+    if (request.kind === "ucs-plan")
+      return "Este espacio de trabajo no tiene vista que encuadrar: falta el anfitrión del SCU.";
+
     const document = this.bridge.document();
     if (!document) return "No hay ningún dibujo abierto que trazar.";
 

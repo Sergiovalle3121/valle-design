@@ -18,6 +18,7 @@
 import type { CadLossManifestEntry } from "../cad-document";
 import type { CadPlotRequest } from "../plot/page-setup";
 import type { CadVisualStyleId } from "../view/visual-styles";
+import type { CadUcsPlanView } from "../ucs-view";
 
 export type CadHostRequest =
   /** Abre el cuadro de configuración de página de una presentación. */
@@ -32,6 +33,21 @@ export type CadHostRequest =
   | { kind: "publish"; sheetSetId: string; sheetIds?: readonly string[] }
   /** Cambia el espacio activo del editor: modelo o papel. */
   | { kind: "space"; space: "model" | "paper"; layoutId?: string }
+  /**
+   * `PLAN`: encuadra la vista en la planta del SCU que viaja dentro.
+   *
+   * Va por aquí y no por `CadViewRequest` a propósito. Una petición de vista
+   * describe un ENCUADRE —centro, altura, factor— y la planta de un SCU no es
+   * eso: es una ORIENTACIÓN, y expresarla exige una dirección de cámara que el
+   * modelo de navegación 2D no tiene. Colarla como un zoom más habría obligado
+   * a meter el SCU dentro del módulo de vista, que en esta ola pertenece a otra
+   * sesión, para acabar teniendo dos sitios donde vive la orientación.
+   *
+   * El anfitrión decide qué puede hacer con ella: con `twistDeg` no nulo, girar
+   * la vista 2D basta; con `twistDeg` nulo hace falta la cámara 3D, y quien no
+   * la tenga lo dice en vez de enseñar un plano inclinado como si fuera plano.
+   */
+  | { kind: "ucs-plan"; plan: CadUcsPlanView }
   /**
    * Cambia el estilo visual del visor (VSCURRENT/SHADEMODE). Es estado del
    * VISOR, no del documento: cambiar cómo se mira un sólido no ensucia el

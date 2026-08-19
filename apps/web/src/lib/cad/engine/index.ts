@@ -60,6 +60,9 @@ import { CAD_VIEW_VISUAL_COMMANDS } from "./commands/view-visual";
 import { CAD_LAYOUT_COMMANDS } from "./commands/layout-commands";
 import { CAD_PLOT_COMMANDS } from "./commands/plot-commands";
 import { createCadCommandRegistry, type CadCommandRegistryImpl } from "./registry";
+// Ola 3D, cimiento: el SCU de verdad. Al final del bloque a propósito.
+import { CAD_UCS_COMMANDS } from "./commands/ucs-commands";
+import { CAD_UCS_VIEW_COMMANDS } from "./commands/ucs-view-commands";
 
 export * from "./command-types";
 export * from "./command-engine";
@@ -129,6 +132,10 @@ export const CAD_COMMAND_DESCRIPTORS = [
   // Intercambio: DXFIN y DXFOUT. El bloqueo número uno de un despacho no es que
   // falte una orden de dibujo, es que el archivo del cliente no entre ni salga.
   ...CAD_DXF_INTEROP_COMMANDS,
+  // SCU en 3D: UCS fija el plano de trabajo, UCSICON lo hace visible y PLAN
+  // devuelve la vista a su planta. Al final del array a propósito.
+  ...CAD_UCS_COMMANDS,
+  ...CAD_UCS_VIEW_COMMANDS,
 ] as const;
 
 /**

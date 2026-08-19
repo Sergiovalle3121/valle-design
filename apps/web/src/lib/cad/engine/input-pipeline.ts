@@ -29,6 +29,13 @@
 import { parseCoordinate, type Point } from "../precision-input";
 import type { SnapType } from "../snap-engine";
 import {
+  isCadUcsPlanar,
+  isCadWorldUcs,
+  ucsToWorld,
+  worldToUcs,
+  type CadNamedUcs,
+} from "../ucs";
+import {
   CAD_ACCEPT_ANGLE,
   CAD_ACCEPT_DISTANCE,
   CAD_ACCEPT_KEYWORD,
@@ -85,7 +92,25 @@ export interface CadTokenContext {
   cursor?: Point | null;
   /** Nombres canónicos conocidos. Si falta, no se valida la existencia. */
   knownCommands?: ReadonlySet<string>;
+  /**
+   * SCU activo. Sin él, lo tecleado son coordenadas del mundo.
+   *
+   * Es la mitad que faltaba del SCU: hasta ahora el sistema decidía cómo se
+   * INFORMABA un punto pero no cómo se ESCRIBÍA, así que en un edificio girado
+   * 23,5° había que leer en un sistema y teclear en otro. Con esto, `10,20`
+   * significa diez y veinte medidos sobre el plano de trabajo, que es lo que
+   * pone la acotación del plano que el dibujante tiene delante.
+   */
+  ucs?: CadNamedUcs;
 }
+
+/**
+ * Prefijo que fuerza coordenadas del MUNDO habiendo un SCU activo, como en
+ * AutoCAD. Existe porque hay un caso en el que hace falta de verdad: pegar una
+ * coordenada que viene de fuera —un replanteo topográfico, un listado del
+ * estructurista— sin tener que restituir el SCU universal y volver.
+ */
+const WORLD_COORDINATE_PREFIX = "*";
 
 const NUMBER = /^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i;
 
@@ -146,6 +171,17 @@ export function resolveCadToken(raw: string, context: CadTokenContext): CadResol
     if (accepts(context.accepts, CAD_ACCEPT_DISTANCE))
       return { kind: "input", input: { kind: "distance", value } };
     if (accepts(context.accepts, CAD_ACCEPT_POINT) && context.lastPoint && context.cursor) {
+      // La entrada directa toma la dirección del CURSOR, que vive en el plano de
+      // la pantalla. Con un SCU inclinado esa dirección no está en el plano de
+      // trabajo y el punto saldría fuera de la cara: se dice, en vez de fijar un
+      // punto que parece bueno y está a centímetros de su sitio.
+      if (context.ucs && !isCadUcsPlanar(context.ucs))
+        return {
+          kind: "error",
+          message:
+            "La entrada directa de distancia toma la dirección del cursor y el SCU activo está inclinado: " +
+            "la dirección del cursor no está en su plano. Teclee la coordenada completa.",
+        };
       const point = directDistancePoint(value, context.lastPoint, context.cursor);
       if (point) return { kind: "input", input: { kind: "point", point, source: "typed" } };
       return {
@@ -155,10 +191,20 @@ export function resolveCadToken(raw: string, context: CadTokenContext): CadResol
     }
   }
 
-  // 4. Coordenada.
+  // 4. Coordenada, interpretada en el SCU activo.
   if (accepts(context.accepts, CAD_ACCEPT_POINT)) {
-    const parsed = parseCoordinate(token, { last: context.lastPoint ?? null });
-    if (parsed.ok) return { kind: "input", input: { kind: "point", point: parsed.point, source: "typed" } };
+    const forcedWorld = token.startsWith(WORLD_COORDINATE_PREFIX);
+    const body = forcedWorld ? token.slice(1) : token;
+    const ucs = forcedWorld || !context.ucs || isCadWorldUcs(context.ucs) ? null : context.ucs;
+    // El punto anterior se lleva ANTES al SCU: `@10,20` es un desplazamiento
+    // medido sobre los ejes del sistema de trabajo, y sumarlo en coordenadas
+    // del mundo giraría el incremento respecto de lo que se acaba de teclear.
+    const last = ucs && context.lastPoint ? worldToUcs(context.lastPoint, ucs) : context.lastPoint;
+    const parsed = parseCoordinate(body, { last: last ?? null });
+    if (parsed.ok) {
+      const point = ucs ? ucsToWorld(parsed.point, ucs) : parsed.point;
+      return { kind: "input", input: { kind: "point", point, source: "typed" } };
+    }
     // Si el paso NO admite texto, el error del analizador es la mejor
     // explicación disponible y se propaga tal cual.
     if (!accepts(context.accepts, CAD_ACCEPT_TEXT))

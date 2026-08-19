@@ -37,7 +37,14 @@ import {
   normalizeCadToolPalettes,
   saveCadToolPalettes,
 } from "./tool-palettes";
-import { CAD_WORLD_UCS, isCadWorldUcs, ucsToWorld, worldToUcs } from "./ucs";
+import {
+  CAD_WORLD_UCS,
+  cadUcsFromRotation,
+  cadUcsRotationDeg,
+  isCadWorldUcs,
+  ucsToWorld,
+  worldToUcs,
+} from "./ucs";
 
 let checks = 0;
 function equal(actual: unknown, expected: unknown, what: string) {
@@ -226,8 +233,11 @@ for (const bit of CAD_OSNAP_BITS) {
 
 {
   ok(isCadWorldUcs(CAD_WORLD_UCS), "el universal es el universal");
-  const ucs = { name: "PLANTA", origin: { x: 100, y: 50 }, rotationDeg: 90 };
+  // El SCU 2D de siempre, ahora construido: el giro sigue siendo la forma
+  // natural de decirlo y `cadUcsRotationDeg` lo devuelve tal cual.
+  const ucs = cadUcsFromRotation("PLANTA", { x: 100, y: 50 }, 90);
   ok(!isCadWorldUcs(ucs), "y uno girado no lo es");
+  near(cadUcsRotationDeg(ucs) ?? -1, 90, 1e-9, "el giro en planta se recupera del marco");
   const local = worldToUcs({ x: 110, y: 50 }, ucs);
   near(local.x, 0, 1e-9, "10 al este del origen, con el SCU girado 90°, es 0 en X");
   near(local.y, -10, 1e-9, "y −10 en Y");
