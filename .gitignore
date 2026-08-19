@@ -80,3 +80,7 @@ htmlcov/
 # SBOM: se REGENERA en cada verificación (`npm run sbom`). Versionarlo
 # invitaría a revisar un artefacto obsoleto como si fuera la verdad.
 sbom.cdx.json
+
+# Cache local del corpus DWG descargado: bytes con derechos que NUNCA se
+# versionan en este repositorio publico. El pin y los hashes si; los bytes no.
+.cache/
