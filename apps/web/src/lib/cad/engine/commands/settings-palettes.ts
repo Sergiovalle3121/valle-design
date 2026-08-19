@@ -417,6 +417,115 @@ const linetypeCliCommand: CadCommandDescriptor<LinetypeState> = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// -DSETTINGS
+// ---------------------------------------------------------------------------
+
+/**
+ * Las ayudas al dibujo por la línea de comandos.
+ *
+ * ## Por qué hacía falta, y por qué era una TRAMPA no tenerlo
+ *
+ * El registro prueba primero el nombre literal y, si nadie lo reclama, quita el
+ * guion. Mientras `-DSETTINGS` no existiera como comando propio, escribirlo en
+ * un `.scr` resolvía a `DSETTINGS` —el cuadro— y el guión se quedaba esperando
+ * un clic. Lo grave no es que faltara: es que el autor del guión escribía la
+ * forma con guion CREYENDO que evitaba el cuadro, y el producto le decía que sí
+ * abriéndolo. Un fallo silencioso donde la persona hizo lo correcto.
+ *
+ * ## Qué cubre y qué no, dicho aquí
+ *
+ * Forzado, rejilla y orto: las tres variables que el editor ya lee. Las
+ * REFERENCIAS a objetos no entran, y no por olvido — `-OSNAP` ya acepta la
+ * lista completa de los catorce modos y duplicar ese análisis daría dos sitios
+ * donde arreglar el mismo fallo. El prompt lo dice en voz alta en vez de
+ * dejarlo como sorpresa.
+ */
+const DS_SNAP = { keyword: "Forzcursor", shortcut: "F" } as const;
+const DS_GRID = { keyword: "Rejilla", shortcut: "R" } as const;
+const DS_ORTHO = { keyword: "Orto", shortcut: "O" } as const;
+const DS_LIST = { keyword: "?", shortcut: "?" } as const;
+const DS_ON = { keyword: "ACtivar", shortcut: "AC" } as const;
+const DS_OFF = { keyword: "DEsactivar", shortcut: "DE" } as const;
+
+/** Qué variable escribe cada opción y cómo se llama al contarlo. */
+const DRAFTING_AIDS: Readonly<Record<string, { variable: string; label: string }>> = {
+  [DS_SNAP.keyword]: { variable: "SNAPMODE", label: "Forzado de cursor" },
+  [DS_GRID.keyword]: { variable: "GRIDMODE", label: "Rejilla" },
+  [DS_ORTHO.keyword]: { variable: "ORTHOMODE", label: "Modo orto" },
+};
+
+interface DraftingState {
+  /** Palabra elegida, o `null` mientras se pide. */
+  aid: string | null;
+}
+
+function draftingMenu(state: DraftingState): CadCommandStep<DraftingState> {
+  return {
+    state,
+    prompt: {
+      message: "Ayuda al dibujo (las referencias a objetos van por -OSNAP)",
+      options: [DS_LIST, DS_SNAP, DS_GRID, DS_ORTHO],
+    },
+    accepts: CAD_ACCEPT_KEYWORD,
+  };
+}
+
+const draftingCliCommand: CadCommandDescriptor<DraftingState> = {
+  name: "-DSETTINGS",
+  aliases: ["-DS", "-SE", "-RM"],
+  kind: "manage",
+  transparent: true,
+  selection: "none",
+  repeatable: false,
+  mutates: false,
+  cursor: "none",
+  begin: () => draftingMenu({ aid: null }),
+  step: (state, input, context) => {
+    if (input.kind === "cancel" || input.kind === "enter") return cancelled(state);
+    const access = context.variables ?? createCadVariableAccess();
+
+    if (state.aid === null) {
+      if (input.kind !== "keyword") return draftingMenu(state);
+      if (input.keyword === DS_LIST.keyword)
+        return message(
+          state,
+          [
+            ...Object.values(DRAFTING_AIDS).map(
+              (aid) =>
+                `${aid.label.padEnd(20)} ${Number(access.get(aid.variable) ?? 0) === 1 ? "activado" : "desactivado"}`,
+            ),
+            `${"Referencias".padEnd(20)} ${describeCadOsmode(Number(access.get("OSMODE") ?? 0))}`,
+          ].join("\n"),
+        );
+      if (!(input.keyword in DRAFTING_AIDS)) return draftingMenu(state);
+      const aid = DRAFTING_AIDS[input.keyword];
+      return {
+        state: { aid: input.keyword },
+        prompt: {
+          message: `${aid.label} (ahora ${Number(access.get(aid.variable) ?? 0) === 1 ? "activado" : "desactivado"})`,
+          options: [DS_ON, DS_OFF],
+        },
+        accepts: CAD_ACCEPT_KEYWORD,
+      };
+    }
+
+    if (input.kind !== "keyword") return cancelled(state);
+    const aid = DRAFTING_AIDS[state.aid];
+    const value = input.keyword === DS_ON.keyword ? 1 : 0;
+    return {
+      state,
+      prompt: { message: "", options: [] },
+      accepts: 0,
+      result: {
+        kind: "variables",
+        patch: { [aid.variable]: value },
+        text: `${aid.label}: ${value === 1 ? "activado" : "desactivado"} (${aid.variable} = ${value}).`,
+      },
+    };
+  },
+};
+
 export const CAD_SETTINGS_PALETTE_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(paletteCommand(
     "LAYER",
@@ -506,6 +615,7 @@ export const CAD_SETTINGS_PALETTE_COMMANDS: readonly CadAnyCommandDescriptor[] =
     "Elija el archivo .lin que cargar.",
   )),
   ...CAD_SETTINGS_LAYER_COMMANDS,
+  asCadCommand(draftingCliCommand),
   asCadCommand(osnapCliCommand),
   asCadCommand(ucsCliCommand),
   asCadCommand(toolPaletteCliCommand),
