@@ -49,6 +49,16 @@ import {
   orbitStep,
   type CadOrbitState,
 } from "./visual-styles";
+import {
+  cadStandardView,
+  freeOrbitFromCamera,
+  freeOrbitStep,
+  type CadFreeOrbitState,
+  type CadStandardView,
+  type CadStandardViewId,
+  type CadVec3,
+} from "./view-3d";
+import type { CadProjectedPoint, CadSolidSnapProjector } from "./solid-snap";
 
 export interface CadDrawingTransform {
   /** Unidades de escena por unidad de dibujo (`s` en el editor). */
@@ -219,6 +229,214 @@ export class CadViewController {
   /** Objetivo actual de la órbita, en unidades de ESCENA. */
   get orbitTarget(): THREE.Vector3 {
     return this.perspectiveTarget.clone();
+  }
+
+  /** Estado de órbita RESTRINGIDA que reproduce la cámara actual. */
+  get orbitState(): CadOrbitState {
+    return orbitStateFromPosition(this.perspectiveTarget, this.perspective.position);
+  }
+
+  /**
+   * 3DFORBIT: órbita LIBRE, sin vertical del mundo que respetar.
+   *
+   * La diferencia con `orbitPerspective` no es de grado: la restringida acota la
+   * elevación a ±89,9° porque su parametrización se degenera en el polo, y ésta
+   * no tiene polo que degenerar — gira alrededor de los ejes de la propia cámara
+   * y arrastra el `up` consigo, así que pasar por encima del cenit es un paso
+   * más. El precio es que el horizonte se inclina, que es exactamente lo que
+   * 3DFORBIT ofrece y 3DORBIT niega.
+   */
+  orbitFreePerspective(
+    deltaAzimuthDeg: number,
+    deltaElevationDeg: number,
+    deltaRollDeg = 0,
+  ): CadFreeOrbitState | null {
+    const target = this.perspectiveTarget;
+    const state = freeOrbitFromCamera(target, this.perspective.position, this.perspective.up);
+    if (!state) return null;
+    const next = freeOrbitStep(state, deltaAzimuthDeg, deltaElevationDeg, deltaRollDeg);
+    this.perspective.position.set(
+      target.x + next.offset.x,
+      target.y + next.offset.y,
+      target.z + next.offset.z,
+    );
+    this.perspective.up.set(next.up.x, next.up.y, next.up.z);
+    this.perspective.lookAt(target);
+    this.perspective.updateMatrixWorld();
+    this.emit();
+    return next;
+  }
+
+  /**
+   * Salta a una de las diez vistas predefinidas conservando la DISTANCIA.
+   *
+   * No pasa por azimut/elevación a propósito: la vista SUPERIOR tiene elevación
+   * 90° EXACTOS y ese valor está fuera del tope de la órbita restringida. Aquí
+   * se usan los vectores declarados de la tabla, de modo que la planta pedida
+   * por su nombre es la planta y no una planta con una décima de grado.
+   */
+  applyStandardView(id: CadStandardViewId): CadStandardView {
+    const view = cadStandardView(id);
+    const target = this.perspectiveTarget;
+    const distance = this.perspective.position.distanceTo(target) || 1;
+    this.perspective.position.set(
+      target.x + view.offset.x * distance,
+      target.y + view.offset.y * distance,
+      target.z + view.offset.z * distance,
+    );
+    this.perspective.up.set(view.up.x, view.up.y, view.up.z);
+    this.perspective.lookAt(target);
+    this.perspective.updateMatrixWorld();
+    this.syncFromPerspective();
+    this.emit();
+    return view;
+  }
+
+  /**
+   * 3DPAN: arrastra la escena moviendo cámara Y objetivo a la vez.
+   *
+   * Mover sólo la cámara sería orbitar, no panear. El desplazamiento llega en
+   * PÍXELES y se convierte aquí porque cuánto mundo cubre un píxel depende de la
+   * distancia de cámara, que sólo se conoce en este lado.
+   */
+  panPerspective(deltaXPx: number, deltaYPx: number): void {
+    if (!Number.isFinite(deltaXPx) || !Number.isFinite(deltaYPx)) return;
+    const target = this.perspectiveTarget;
+    const distance = this.perspective.position.distanceTo(target) || 1;
+    const height = this.current.heightPx || 1;
+    const sceneUnitsPerPixel =
+      (2 * distance * Math.tan((this.perspective.fov * Math.PI) / 360)) / height;
+    this.perspective.updateMatrixWorld();
+    const right = new THREE.Vector3().setFromMatrixColumn(this.perspective.matrixWorld, 0);
+    const up = new THREE.Vector3().setFromMatrixColumn(this.perspective.matrixWorld, 1);
+    // El signo: arrastrar el dibujo hacia la derecha mueve la cámara hacia la
+    // izquierda, y la Y de pantalla crece hacia abajo.
+    const shift = right
+      .multiplyScalar(-deltaXPx * sceneUnitsPerPixel)
+      .add(up.multiplyScalar(deltaYPx * sceneUnitsPerPixel));
+    this.perspective.position.add(shift);
+    target.add(shift);
+    this.perspective.lookAt(target);
+    this.perspective.updateMatrixWorld();
+    this.syncFromPerspective();
+    this.emit();
+  }
+
+  /**
+   * 3DZOOM: travelín. `factor > 1` acerca.
+   *
+   * Es un cambio de DISTANCIA y no de campo de visión: tocar el FOV cambiaría la
+   * perspectiva de la pieza —las fugas se abren o se cierran— y eso no es hacer
+   * zoom, es cambiar de objetivo fotográfico.
+   */
+  zoomPerspective(factor: number): void {
+    if (!(factor > 0) || !Number.isFinite(factor)) return;
+    const target = this.perspectiveTarget;
+    const offset = this.perspective.position.clone().sub(target);
+    const length = offset.length();
+    if (!(length > 0)) return;
+    offset.multiplyScalar(1 / factor);
+    this.perspective.position.copy(target).add(offset);
+    this.perspective.lookAt(target);
+    this.perspective.updateMatrixWorld();
+    this.syncFromPerspective();
+    this.emit();
+  }
+
+  /**
+   * Reajusta la vista 2D a lo que encuadra ahora la cámara en perspectiva.
+   *
+   * Es la mitad de `adoptPerspectiveFraming` que NO toca el objetivo: aquí el
+   * objetivo lo acaba de mover el propio comando, y volver a leerlo de fuera
+   * pisaría el movimiento. Sin esto, panear en 3D y volver a 2D devolvería el
+   * encuadre anterior, que es un salto que el usuario no ha pedido.
+   */
+  private syncFromPerspective(): void {
+    const target = this.perspectiveTarget;
+    const visibleSceneHeight =
+      2 *
+      this.perspective.position.distanceTo(target) *
+      Math.tan((this.perspective.fov * Math.PI) / 360);
+    this.current = {
+      ...this.current,
+      centerX: target.x / this.transform.scale + this.transform.width / 2,
+      centerY: target.z / this.transform.scale + this.transform.height / 2,
+      pixelsPerUnit: clampPixelsPerUnit(
+        visibleSceneHeight > 0
+          ? (this.current.heightPx * this.transform.scale) / visibleSceneHeight
+          : this.current.pixelsPerUnit,
+      ),
+    };
+    if (this.current.mode === "2d") this.applyOrthographic();
+  }
+
+  /**
+   * Ojo de la cámara en coordenadas de DIBUJO, con cota.
+   *
+   * Lo pide la eliminación de líneas ocultas, que razona sobre las normales del
+   * sólido —que están en coordenadas de dibujo— y no sabe nada del mapeo de
+   * escena. Devolverlo ya convertido evita que ese módulo tenga que conocer la
+   * permutación de ejes, que es de aquí.
+   */
+  eyeDrawingPoint(): CadVec3 {
+    const camera = this.camera;
+    const position = camera.position;
+    const { scale, width, height } = this.transform;
+    return {
+      x: position.x / scale + width / 2,
+      y: position.z / scale + height / 2,
+      z: position.y / scale,
+    };
+  }
+
+  /** Dirección de MIRADA (del ojo hacia la escena) en coordenadas de dibujo. */
+  viewDirectionDrawing(): CadVec3 {
+    const camera = this.camera;
+    camera.updateMatrixWorld();
+    const forward = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 2).negate();
+    // Permutación de ejes escena→dibujo: la Y de escena es la z del dibujo.
+    const direction = { x: forward.x, y: forward.z, z: forward.y };
+    const length = Math.hypot(direction.x, direction.y, direction.z);
+    return length > 0
+      ? { x: direction.x / length, y: direction.y / length, z: direction.z / length }
+      : { x: 0, y: 0, z: -1 };
+  }
+
+  /**
+   * Proyector de puntos de dibujo a píxeles del lienzo, con su divisor
+   * homogéneo.
+   *
+   * Es una FÁBRICA y no un método por punto porque invertir la matriz de la
+   * cámara cuesta, y el índice de enganche 3D proyecta miles de puntos de una
+   * tacada: hacerlo una vez por cámara en vez de una vez por punto es la
+   * diferencia entre una proyección que cabe en un cuadro y una que no.
+   */
+  createDrawingProjector(): CadSolidSnapProjector {
+    const camera = this.camera;
+    camera.updateMatrixWorld();
+    const view = new THREE.Matrix4().copy(camera.matrixWorld).invert();
+    const projection = camera.projectionMatrix.clone();
+    const perspective = camera === this.perspective;
+    const { scale, width, height } = this.transform;
+    const widthPx = this.current.widthPx;
+    const heightPx = this.current.heightPx;
+    const point = new THREE.Vector3();
+    return (drawing): CadProjectedPoint | null => {
+      point.set((drawing.x - width / 2) * scale, drawing.z * scale, (drawing.y - height / 2) * scale);
+      point.applyMatrix4(view);
+      // El divisor homogéneo bajo perspectiva es la profundidad en espacio de
+      // vista. Se comprueba ANTES de proyectar: un punto detrás de la cámara
+      // sale al otro lado de la pantalla con el signo cambiado, y proyectarlo
+      // produce un enganche fantasma en la esquina opuesta.
+      const w = perspective ? -point.z : 1;
+      if (perspective && !(w > 1e-6)) return null;
+      point.applyMatrix4(projection);
+      return {
+        x: ((point.x + 1) / 2) * widthPx,
+        y: ((1 - point.y) / 2) * heightPx,
+        w,
+      };
+    };
   }
 
   /** Unidades de escena por píxel de pantalla — para `Raycaster.params.Line`. */

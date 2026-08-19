@@ -44,13 +44,18 @@
  */
 import * as THREE from "three";
 import type { CadSolid3dEntity } from "./cad-entities-v5";
-import { solid3dMesh } from "./solid3d-build";
+import { solid3dBody, solid3dMesh } from "./solid3d-build";
 import {
   CAD_DEFAULT_VISUAL_STYLE,
   cadVisualStyle,
   type CadVisualStyle,
   type CadVisualStyleId,
 } from "./view/visual-styles";
+import {
+  cadSolidEdgeVisibility,
+  type CadHiddenLineView,
+} from "./view/hidden-lines";
+import { edgeDihedralAngle, halfEdgeSegment } from "../brep";
 import type { CadThreeViewport } from "./entity-three";
 
 const SOLID_COLOR = 0x94a3b8;
@@ -62,6 +67,66 @@ const OCCLUDER_COLOR = 0x0b1220;
 export interface CadSolidThreeOptions {
   style?: CadVisualStyleId | CadVisualStyle;
   selected?: boolean;
+  /**
+   * Desde dónde se mira, en coordenadas de DIBUJO. Sólo lo usan los estilos que
+   * declaran `removesHiddenEdges`, y sólo sobre cuerpos convexos.
+   *
+   * Es OPCIONAL a propósito: sin él, el sólido se construye exactamente como
+   * antes y las caras ocultas las esconde el búfer de profundidad. Es decir, la
+   * eliminación de líneas ocultas por CPU es una capa que se enciende pasando
+   * este dato y se apaga no pasándolo — no un camino nuevo obligatorio.
+   */
+  view?: CadHiddenLineView;
+}
+
+/**
+ * Aristas VISIBLES de un sólido convexo, en coordenadas de escena, o `null`.
+ *
+ * `null` significa «no lo sé con certeza», y hay dos formas de llegar ahí: que
+ * el cuerpo no evalúe, o que no sea convexo. Sobre un cuerpo cóncavo la
+ * clasificación por caras traseras se equivoca en los dos sentidos —enseña
+ * aristas que otro brazo de la pieza tapa y esconde aristas que se ven por una
+ * escotadura— así que se devuelve `null` y quien llama vuelve al búfer de
+ * profundidad, que sí acierta siempre. Fallo cerrado: mejor el camino de
+ * siempre que un dibujo con aristas de menos.
+ */
+export function buildCadSolidVisibleEdges(
+  entity: CadSolid3dEntity,
+  viewport: CadThreeViewport,
+  view: CadHiddenLineView,
+  featureAngleDeg = 20,
+): THREE.BufferGeometry | null {
+  let body;
+  try {
+    body = solid3dBody(entity);
+  } catch {
+    return null;
+  }
+  const visibility = cadSolidEdgeVisibility(body, view);
+  if (!visibility.exact) return null;
+  const threshold = (featureAngleDeg * Math.PI) / 180;
+  const { scale, width, height } = viewport;
+  const positions: number[] = [];
+  for (const edge of visibility.visible) {
+    // Dos caras coplanares comparten una arista que existe en la topología y que
+    // nadie quiere ver dibujada. Es el mismo umbral que aplica `EdgesGeometry`,
+    // sólo que sobre el diedro REAL en vez de sobre el de una malla ya
+    // triangulada, que es donde ese umbral se equivoca.
+    const angle = edgeDihedralAngle(body, edge);
+    if (angle !== null && Math.abs(angle - Math.PI) < threshold) continue;
+    const segment = halfEdgeSegment(body, body.edges[edge].a);
+    for (const point of [segment.from, segment.to]) {
+      positions.push(
+        (point.x - width / 2) * scale,
+        point.z * scale,
+        (point.y - height / 2) * scale,
+      );
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(positions), 3));
+  geometry.computeBoundingSphere();
+  return geometry;
 }
 
 function resolveStyle(style: CadSolidThreeOptions["style"]): CadVisualStyle {
@@ -160,7 +225,19 @@ export function buildCadSolidObject(
   }
 
   if (style.edges) {
-    const edges = new THREE.EdgesGeometry(geometry, 20);
+    // Con vista declarada y estilo que quita lo oculto, las aristas salen de la
+    // TOPOLOGÍA del sólido y no de la malla triangulada: son menos, son las
+    // reales y las de detrás ni se envían. Sin vista, o sobre un cuerpo cóncavo,
+    // se vuelve al camino de siempre.
+    const culled =
+      style.removesHiddenEdges && options.view
+        ? buildCadSolidVisibleEdges(entity, viewport, options.view)
+        : null;
+    const edges = culled ?? new THREE.EdgesGeometry(geometry, 20);
+    // Se declara si la eliminación por CPU llegó a aplicarse. Sin esto, un
+    // cuerpo cóncavo que cayó al camino de la GPU sería indistinguible de uno
+    // convexo que sí se filtró, y el spec estaría probando lo que no cree.
+    group.userData.hiddenLineRemoval = culled !== null;
     const line = new THREE.LineSegments(
       edges,
       new THREE.LineBasicMaterial({ color: options.selected ? SELECTED_COLOR : SOLID_EDGE_COLOR }),
