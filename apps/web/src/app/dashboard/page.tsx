@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FilePlus2, FolderPlus, LogIn, LogOut, Upload, X } from "lucide-react";
+import { FilePlus2, FolderPlus, LogIn, LogOut, Upload } from "lucide-react";
 import type {
   CadDocumentInline,
   CadDocumentSummary,
@@ -13,9 +13,17 @@ import type {
 import { useDesignAuth } from "@/contexts/DesignAuthContext";
 import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
 import { importDocumentFile } from "@/lib/cad/document-import-client";
-import type { DocumentImportReport } from "@/lib/cad/document-import";
 import { serializeCadDocument } from "@/lib/cad/cad-document";
-import { CadDxfImportReportPanel } from "@/components/cad/interop/CadDxfImportReport";
+import {
+  CAD_STARTER_TEMPLATES,
+  createCadStarterDocument,
+} from "@/lib/cad/starter-templates";
+import {
+  abortError,
+  gzipDocument,
+  ImportStatus,
+  type ImportState,
+} from "./import-status";
 
 type Project = CadProject;
 type Document = CadDocumentSummary;
@@ -29,21 +37,6 @@ type ViewState =
   | "expired"
   | "error";
 type OrganizationItem = OrganizationList["items"][number];
-
-type ImportState =
-  | { status: "idle" }
-  | {
-      status: "running";
-      progress: number;
-      stage: string;
-      canCancel: boolean;
-    }
-  | {
-      status: "success";
-      report: DocumentImportReport;
-      documentId: string;
-    }
-  | { status: "error"; message: string };
 
 export default function DashboardPage() {
   const auth = useDesignAuth();
@@ -62,6 +55,12 @@ export default function DashboardPage() {
   );
   const [projectName, setProjectName] = useState("");
   const [documentName, setDocumentName] = useState("");
+  /**
+   * Plantilla de arranque elegida. Vacío = lienzo en blanco, que sigue siendo
+   * una opción legítima: quien va a importar un DXF encima no quiere capas
+   * inventadas de por medio.
+   */
+  const [starterTemplate, setStarterTemplate] = useState("");
   const [selectedProject, setSelectedProject] = useState("");
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -193,6 +192,25 @@ export default function DashboardPage() {
         name: name.trim(),
         projectId: selectedProject,
       });
+      // La plantilla se escribe ANTES de abrir el estudio. Al revés —abrir y
+      // que el editor la aplique— habría dos escritores del mismo documento en
+      // la misma décima de segundo: el guardado inicial del editor y el de la
+      // plantilla, con un 409 de CAS como resultado más probable. Aquí el
+      // documento llega al estudio ya configurado y el editor sólo lo lee.
+      if (starterTemplate) {
+        const project = projects.find((item) => item.id === selectedProject);
+        await designClient.documents.saveContent(
+          document.id,
+          createCadStarterDocument({
+            templateId: starterTemplate,
+            project: project?.name,
+            title: name.trim(),
+            drawnBy: auth.user?.email,
+            date: new Date().toISOString().slice(0, 10),
+          }) as unknown as CadDocumentInline,
+          0,
+        );
+      }
       router.push(`/studio/${document.id}`);
     } catch (error) {
       setActionError(
@@ -445,6 +463,38 @@ export default function DashboardPage() {
                 <FilePlus2 />
               </button>
             </div>
+            {/*
+              La plantilla va DEBAJO del nombre y no en un asistente aparte: es
+              una decisión de un segundo que ahorra media hora de configuración,
+              y un asistente de tres pasos para elegirla costaría más que el
+              tiempo que ahorra.
+            */}
+            <select
+              aria-label="Plantilla de arranque"
+              data-testid="starter-template"
+              value={starterTemplate}
+              onChange={(e) => setStarterTemplate(e.target.value)}
+              className="mt-2 w-full rounded-xl border bg-transparent px-3 py-2 text-sm"
+            >
+              <option value="">Sin plantilla (lienzo en blanco)</option>
+              {CAD_STARTER_TEMPLATES.map((template) => (
+                <option key={template.id} value={template.id}>
+                  {template.label} — 1:{template.scale} en {template.paper}
+                </option>
+              ))}
+            </select>
+            {starterTemplate ? (
+              <p
+                data-testid="starter-template-detail"
+                className="mt-1 text-xs text-gray-500"
+              >
+                {
+                  CAD_STARTER_TEMPLATES.find(
+                    (template) => template.id === starterTemplate,
+                  )?.description
+                }
+              </p>
+            ) : null}
             <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-indigo-500">
               <Upload className="h-4 w-4" /> Importar como documento
               <input
@@ -644,105 +694,6 @@ function OrganizationOnboarding({
       </form>
     </main>
   );
-}
-
-function ImportStatus({
-  state,
-  onCancel,
-  onOpen,
-}: {
-  state: ImportState;
-  onCancel: () => void;
-  onOpen: (documentId: string) => void;
-}) {
-  if (state.status === "idle") return null;
-  if (state.status === "running") {
-    return (
-      <div className="mt-3 rounded-xl bg-indigo-500/10 p-3 text-sm">
-        <div className="flex items-center justify-between gap-3">
-          <span role="status">{state.stage}</span>
-          {state.canCancel && (
-            <button
-              type="button"
-              onClick={onCancel}
-              className="inline-flex items-center gap-1 text-xs"
-            >
-              <X className="h-3 w-3" /> Cancelar
-            </button>
-          )}
-        </div>
-        <progress
-          aria-label="Progreso de importación"
-          className="mt-2 w-full"
-          max={1}
-          value={state.progress}
-        />
-      </div>
-    );
-  }
-  if (state.status === "error") {
-    return (
-      <p role="alert" className="mt-3 rounded-xl bg-red-500/10 p-3 text-sm">
-        {state.message}
-      </p>
-    );
-  }
-  return (
-    <div className="mt-3 rounded-xl bg-emerald-500/10 p-3 text-sm">
-      <p role="status">
-        Importado: {state.report.importedEntityCount} entidades y{" "}
-        {state.report.importedBlockCount} bloques.
-      </p>
-      {/*
-        El informe en español manda cuando existe. La lista cruda de códigos se
-        queda SÓLO para el JSON canónico, que no pasa por el lector DXF y cuyas
-        incidencias son de esquema, no de fidelidad.
-      */}
-      {state.report.dxfReport ? (
-        <div className="mt-2">
-          <CadDxfImportReportPanel report={state.report.dxfReport} />
-        </div>
-      ) : (
-        state.report.warnings.length > 0 && (
-          <details className="mt-2">
-            <summary>
-              {state.report.warnings.length} advertencias de interoperabilidad
-            </summary>
-            <ul className="mt-1 list-disc pl-5 text-xs">
-              {state.report.warnings.slice(0, 6).map((warning, index) => (
-                <li key={`${warning.code}:${index}`}>{warning.message}</li>
-              ))}
-            </ul>
-          </details>
-        )
-      )}
-      <button
-        type="button"
-        onClick={() => onOpen(state.documentId)}
-        className="mt-3 rounded-lg bg-emerald-700 px-3 py-1.5 text-white"
-      >
-        Abrir documento importado
-      </button>
-    </div>
-  );
-}
-
-async function gzipDocument(serialized: string): Promise<Blob> {
-  if (typeof CompressionStream === "undefined") {
-    throw new Error(
-      "Este navegador no puede comprimir documentos grandes. Actualízalo o importa un archivo menor de 1 MB.",
-    );
-  }
-  const compressed = new Blob([serialized])
-    .stream()
-    .pipeThrough(new CompressionStream("gzip"));
-  return new Blob([await new Response(compressed).arrayBuffer()], {
-    type: "application/gzip",
-  });
-}
-
-function abortError(): DOMException {
-  return new DOMException("Importación cancelada.", "AbortError");
 }
 
 function Status({ text, action }: { text: string; action?: () => void }) {
