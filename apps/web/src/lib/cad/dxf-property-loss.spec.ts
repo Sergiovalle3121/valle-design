@@ -3,7 +3,7 @@
  *
  * ## Por qué este spec nace en rojo y se comitea igual
  *
- * El recuento de entidades del corpus externo sale perfecto para estos cinco
+ * El recuento de entidades del corpus externo sale perfecto para estos siete
  * ficheros: entran todas las líneas, todos los bloques y todas las capas. Y aun
  * así el plano llega mal, porque el eje del pórtico aterriza continuo, el muro
  * de carga se imprime del grosor de una directriz auxiliar y la cota del
@@ -75,7 +75,7 @@ const PENDIENTES: Readonly<Record<string, string>> = {
   assert.equal(new Set(ids).size, ids.length, "los identificadores del corpus son únicos");
   const sondaIds = CAD_DXF_PROPERTY_CORPUS.flatMap((file) => file.probes.map((probe) => probe.id));
   assert.equal(new Set(sondaIds).size, sondaIds.length, "los identificadores de sonda son únicos");
-  assert.ok(sondaIds.length >= 54, "la medición no puede encoger sin que se note");
+  assert.ok(sondaIds.length >= 58, "la medición no puede encoger sin que se note");
 
   const kinds = new Set(CAD_DXF_PROPERTY_CORPUS.flatMap((file) => file.probes.map((p) => p.kind)));
   // Las tres familias del encargo, cada una medida en sus tres alturas: lo que

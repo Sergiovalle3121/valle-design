@@ -67,8 +67,12 @@ export function pushPoint(lines: string[], point: CadDxfPoint) {
 export function pushPresentation(lines: string[], presentation?: CadEntityPresentation) {
   if (!presentation) return;
   const linetype = presentation.linetype;
-  if (linetype?.source === "explicit" && linetype.value)
-    pushPair(lines, 6, safeLayerName(linetype.value));
+  // `safeText` y no `safeLayerName`: el saneador de capas sustituye el vacío
+  // por la capa "0", y un tipo de línea llamado "0" no existe. Un nombre que se
+  // queda en nada se OMITE, que en el formato significa BYLAYER; inventarle un
+  // nombre habría producido un fichero que referencia un LTYPE fantasma.
+  const linetypeName = linetype?.value ? safeText(linetype.value) : "";
+  if (linetype?.source === "explicit" && linetypeName) pushPair(lines, 6, linetypeName);
   else if (linetype?.source === "byBlock") pushPair(lines, 6, "BYBLOCK");
   if (typeof linetype?.scale === "number" && linetype.scale > 0)
     pushPair(lines, 48, fmt(linetype.scale));

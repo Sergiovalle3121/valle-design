@@ -9,9 +9,9 @@
     "perdido_en_silencio": "No se lee y nada lo menciona. El informe de importación dice que todo entró y no es verdad. Todo lo que aparezca aquí es deuda del producto, no una limitación asumida."
   },
   "resumen": {
-    "archivos": 6,
-    "sondas": 54,
-    "intactas": 52,
+    "archivos": 7,
+    "sondas": 58,
+    "intactas": 56,
     "soloEntrada": 0,
     "perdidasDeclaradas": 2,
     "perdidasEnSilencio": 0
@@ -602,6 +602,54 @@
           "idaYVuelta": 0,
           "veredicto": "perdido_declarado",
           "importa": "Ídem: una lineal girada no cabe en el modelo y tiene que decirse."
+        }
+      ]
+    },
+    {
+      "id": "prop-esquema4-trazo",
+      "dialecto": "AC1021, código 6 y 370 sobre POINT y SOLID",
+      "proposito": "Un punto de replanteo a trazos y un sólido 2D con grosor. Ninguno es una línea, y los dos llevan las mismas propiedades de trazo que una línea: el formato no distingue.",
+      "legible": true,
+      "sondas": [
+        {
+          "sonda": "esquema4-punto-linetype",
+          "propiedad": "entidad.linetype.valor",
+          "objetivo": "REPLANTEO",
+          "esperado": "DASHED",
+          "entrada": "DASHED",
+          "idaYVuelta": "DASHED",
+          "veredicto": "intacto",
+          "importa": "Un punto de replanteo con su trazo: si se cae al devolver el plano, nadie lo ve en pantalla."
+        },
+        {
+          "sonda": "esquema4-punto-lineweight",
+          "propiedad": "entidad.lineweight.valor",
+          "objetivo": "REPLANTEO",
+          "esperado": 50,
+          "entrada": 50,
+          "idaYVuelta": 50,
+          "veredicto": "intacto",
+          "importa": "Ídem con el grosor, que es lo que decide cómo se imprime."
+        },
+        {
+          "sonda": "esquema4-solido-linetype",
+          "propiedad": "entidad.linetype.valor",
+          "objetivo": "RELLENO",
+          "esperado": "CENTER",
+          "entrada": "CENTER",
+          "idaYVuelta": "CENTER",
+          "veredicto": "intacto",
+          "importa": "El sólido 2D es el relleno de un detalle constructivo."
+        },
+        {
+          "sonda": "esquema4-solido-lineweight",
+          "propiedad": "entidad.lineweight.valor",
+          "objetivo": "RELLENO",
+          "esperado": 13,
+          "entrada": 13,
+          "idaYVuelta": 13,
+          "veredicto": "intacto",
+          "importa": "Ídem con el grosor del sólido: es el trazo de su contorno al imprimir."
         }
       ]
     }

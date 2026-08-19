@@ -52,19 +52,22 @@ function pushLinetypeTable(lines: string[], model: CadDxfExportModel, layers: st
   const defined = new Map<string, CadDxfExportLinetype>();
   defined.set("CONTINUOUS", { name: "CONTINUOUS", description: "Solid line", pattern: [] });
   for (const entry of model.linetypes ?? []) {
-    const name = safeLayerName(entry.name).toUpperCase();
+    // `safeText` y no `safeLayerName`: éste último sustituye el vacío por la
+    // capa "0", y una tabla con un LTYPE llamado "0" es un fichero al que
+    // ningún visor sabe qué contestar. Un nombre vacío no entra en la tabla.
+    const name = safeText(entry.name).toUpperCase();
     if (name) defined.set(name, { ...entry, name });
   }
   const referenced = new Set<string>();
   for (const layer of layers) {
     const name = layerDefinition(model, layer)?.linetype;
-    if (name) referenced.add(safeLayerName(name).toUpperCase());
+    if (name) referenced.add(safeText(name).toUpperCase());
   }
   const collect = (primitives?: CadDxfPrimitive[]) => {
     for (const primitive of primitives ?? []) {
       const value = primitive.presentation?.linetype;
       if (value?.source === "explicit" && value.value)
-        referenced.add(safeLayerName(value.value).toUpperCase());
+        referenced.add(safeText(value.value).toUpperCase());
     }
   };
   collect(model.primitives);
@@ -108,7 +111,7 @@ export function pushLayerTable(
     pushPair(lines, 62, layerColor(model, layer));
     // El tipo de línea de la capa es donde un despacho guarda su convención:
     // fijarlo a CONTINUOUS convertía en continuo el plano entero al devolverlo.
-    pushPair(lines, 6, definition?.linetype ? safeLayerName(definition.linetype) : "CONTINUOUS");
+    pushPair(lines, 6, safeText(definition?.linetype ?? "") || "CONTINUOUS");
     if (typeof definition?.lineweight === "number")
       pushPair(lines, 370, Math.round(definition.lineweight));
   }

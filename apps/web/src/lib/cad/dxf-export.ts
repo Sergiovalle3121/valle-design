@@ -532,18 +532,18 @@ function writeSchema4Geometry(
   if (!payload || payload.kind !== primitive.kind) return 0;
   const anchor = primitive.points[0];
   if (payload.kind === "point" && anchor) {
-    pushPointEntity(lines, layer, anchor);
+    pushPointEntity(lines, layer, anchor, primitive.presentation);
     return 1;
   }
   if ((payload.kind === "xline" || payload.kind === "ray") && anchor) {
     // Una dirección nula no define recta alguna: se descarta aquí en vez de
     // escribir una entidad que ningún lector puede dibujar.
     if (!payload.direction.x && !payload.direction.y) return 0;
-    pushXLine(lines, layer, anchor, payload.direction, payload.kind === "ray");
+    pushXLine(lines, layer, anchor, payload.direction, payload.kind === "ray", primitive.presentation);
     return 1;
   }
   if (payload.kind === "solid" && primitive.points.length >= 3) {
-    pushSolid(lines, layer, primitive.points);
+    pushSolid(lines, layer, primitive.points, primitive.presentation);
     return 1;
   }
   if (payload.kind === "wipeout" && primitive.points.length >= 3) {
@@ -562,8 +562,18 @@ function writeSchema4Geometry(
     // La tabla se degrada a geometría; el porqué está en `dxf-schema4-table.ts`
     // y el aviso, en el manifiesto de pérdidas.
     let written = 0;
+    // La tabla se degrada a líneas y textos: el trazo de la entidad viaja con
+    // cada trozo, o el borde de la tabla saldría continuo mientras su celda no.
     for (const piece of tableToDxfPrimitives(layer, anchor, payload))
-      if (writePrimitiveGeometry(lines, layer, piece, objects).wrote) written += 1;
+      if (
+        writePrimitiveGeometry(
+          lines,
+          layer,
+          primitive.presentation ? { ...piece, presentation: primitive.presentation } : piece,
+          objects,
+        ).wrote
+      )
+        written += 1;
     return written;
   }
   return 0;

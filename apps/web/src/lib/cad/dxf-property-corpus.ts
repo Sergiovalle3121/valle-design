@@ -555,6 +555,53 @@ function foreignDimensionFamilies(): CadDxfPropertyCase {
   };
 }
 
+/**
+ * 7 — Los tipos que NO son geometría de trazo clásica: ¿les viaja el trazo?
+ *
+ * POINT, XLINE, RAY y SOLID entran por un camino de escritura propio, el del
+ * esquema 4, y ese camino nació antes de que el tipo de línea y el grosor
+ * existieran en el modelo. La pregunta no es retórica: si el lector los lee y
+ * el escritor no los vuelve a poner, la propiedad entra y se cae al devolver el
+ * plano, que es el veredicto `solo_entrada` y el más fácil de no notar — el
+ * dibujo se ve bien en pantalla y llega mal al remitente.
+ */
+function schema4Presentation(): CadDxfPropertyCase {
+  return {
+    id: "prop-esquema4-trazo",
+    dialect: "AC1021, código 6 y 370 sobre POINT y SOLID",
+    purpose:
+      "Un punto de replanteo a trazos y un sólido 2D con grosor. Ninguno es una línea, y los dos " +
+      "llevan las mismas propiedades de trazo que una línea: el formato no distingue.",
+    content: serialize([
+      ...header("AC1021"),
+      ...section("TABLES", [
+        ...LTYPE_TABLE,
+        [0, "TABLE"], [2, "LAYER"], [70, 2],
+        [0, "LAYER"], [2, "REPLANTEO"], [70, 0], [62, 7], [6, "CONTINUOUS"], [370, -3],
+        [0, "LAYER"], [2, "RELLENO"], [70, 0], [62, 7], [6, "CONTINUOUS"], [370, -3],
+        [0, "ENDTAB"],
+      ]),
+      ...section("ENTITIES", [
+        [0, "POINT"], [8, "REPLANTEO"], [6, "DASHED"], [370, 50], [10, 100], [20, 200], [30, 0],
+        [0, "SOLID"], [8, "RELLENO"], [6, "CENTER"], [370, 13],
+        [10, 0], [20, 0], [30, 0], [11, 500], [21, 0], [31, 0],
+        [12, 0], [22, 500], [32, 0], [13, 500], [23, 500], [33, 0],
+      ]),
+      ...EOF,
+    ]),
+    probes: [
+      { id: "esquema4-punto-linetype", kind: "entidad.linetype.valor", target: "REPLANTEO", expected: "DASHED",
+        matters: "Un punto de replanteo con su trazo: si se cae al devolver el plano, nadie lo ve en pantalla." },
+      { id: "esquema4-punto-lineweight", kind: "entidad.lineweight.valor", target: "REPLANTEO", expected: 50,
+        matters: "Ídem con el grosor, que es lo que decide cómo se imprime." },
+      { id: "esquema4-solido-linetype", kind: "entidad.linetype.valor", target: "RELLENO", expected: "CENTER",
+        matters: "El sólido 2D es el relleno de un detalle constructivo." },
+      { id: "esquema4-solido-lineweight", kind: "entidad.lineweight.valor", target: "RELLENO", expected: 13,
+        matters: "Ídem con el grosor del sólido: es el trazo de su contorno al imprimir." },
+    ],
+  };
+}
+
 export const CAD_DXF_PROPERTY_CORPUS: readonly CadDxfPropertyCase[] = [
   linetypeTableAndEntities(),
   linetypeScales(),
@@ -562,4 +609,5 @@ export const CAD_DXF_PROPERTY_CORPUS: readonly CadDxfPropertyCase[] = [
   byBlockInheritance(),
   foreignAssociativeDimension(),
   foreignDimensionFamilies(),
+  schema4Presentation(),
 ];
