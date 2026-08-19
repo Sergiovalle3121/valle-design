@@ -36,7 +36,12 @@ import {
   type CadCommandStep,
   type CadUiRequest,
 } from "../command-types";
-import { createCadVariableAccess } from "../../system-variables";
+import {
+  cadActiveUcs,
+  cadUcsVariablePatch,
+  createCadVariableAccess,
+} from "../../system-variables";
+import { CAD_WORLD_UCS, describeCadUcs } from "../../ucs";
 
 function message<S>(state: S, text: string): CadCommandStep<S> {
   return { state, prompt: { message: "", options: [] }, accepts: 0, result: { kind: "message", text } };
@@ -208,22 +213,21 @@ const ucsCliCommand: CadCommandDescriptor<UcsState> = {
           accepts: 0,
           result: {
             kind: "variables",
-            patch: { UCSNAME: "", UCSORGX: 0, UCSORGY: 0, UCSANGLE: 0 },
+            patch: cadUcsVariablePatch(CAD_WORLD_UCS),
+            system: true,
             text: "SCU universal restituido: las consultas informan en coordenadas del mundo.",
           },
         };
       if (keyword === UCS_LIST.keyword) {
-        const saved = catalog.list();
+        // Los nombres que empiezan por `*` están reservados: son memoria del
+        // comando UCS —el sistema anterior— y no sistemas que el usuario haya
+        // guardado. Listarlos invitaría a restituir uno y encontrarse otro.
+        const saved = catalog.list().filter((entry) => !entry.name.startsWith("*"));
         return message(
           state,
           saved.length === 0
             ? "No hay ningún SCU guardado."
-            : saved
-                .map(
-                  (entry) =>
-                    `${entry.name}: origen (${entry.origin.x}, ${entry.origin.y}), giro ${entry.rotationDeg}°`,
-                )
-                .join("\n"),
+            : saved.map((entry) => describeCadUcs(entry)).join("\n"),
         );
       }
       return {
@@ -238,11 +242,10 @@ const ucsCliCommand: CadCommandDescriptor<UcsState> = {
     if (!name) return cancelled(state);
 
     if (state.action === "save") {
-      catalog.save({
-        name,
-        origin: { x: Number(access.get("UCSORGX") ?? 0), y: Number(access.get("UCSORGY") ?? 0) },
-        rotationDeg: Number(access.get("UCSANGLE") ?? 0),
-      });
+      // Se guarda el SCU YA RESUELTO —marco más `UCSANGLE`—, no las variables
+      // sueltas: restituirlo tiene que devolver el mismo sistema aunque entre
+      // medias alguien haya tocado el giro por `SETVAR`.
+      catalog.save({ ...cadActiveUcs(access), name });
       return {
         state,
         prompt: { message: "", options: [] },
@@ -263,12 +266,8 @@ const ucsCliCommand: CadCommandDescriptor<UcsState> = {
       accepts: 0,
       result: {
         kind: "variables",
-        patch: {
-          UCSNAME: found.name,
-          UCSORGX: found.origin.x,
-          UCSORGY: found.origin.y,
-          UCSANGLE: found.rotationDeg,
-        },
+        patch: cadUcsVariablePatch(found),
+        system: true,
         text: `SCU "${found.name}" restituido. ID, DIST, AREA y LIST informan ya en él.`,
       },
     };

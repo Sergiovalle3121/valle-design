@@ -29,7 +29,7 @@ import {
   type CadVariableAccess,
 } from "../system-variables";
 import {
-  CAD_WORLD_UCS,
+  cadUcsVectorAngle,
   worldAngleToUcs,
   worldToUcs,
   worldVectorToUcs,
@@ -75,28 +75,34 @@ export function cadReportFormat(variables: CadVariableAccess): CadReportFormat {
 export interface CadInquiryLens {
   format: CadReportFormat;
   ucs: CadNamedUcs;
-  /** Punto del mundo → punto tal y como hay que enseñarlo. */
-  point(point: CadPoint2 | CadPoint3): CadPoint2;
+  /**
+   * Punto del mundo → punto tal y como hay que enseñarlo.
+   *
+   * Devuelve TRES coordenadas y no dos. Sobre un SCU de planta la tercera es la
+   * cota de siempre; sobre un SCU apoyado en una cara inclinada es la distancia
+   * al plano de trabajo, que es justo el número que dice si el punto está sobre
+   * la cara o flotando. Recortarlo a dos habría hecho que ID informara la misma
+   * coordenada para dos puntos separados un metro.
+   */
+  point(point: CadPoint2 | CadPoint3): CadPoint3;
   /** Desplazamiento del mundo → desplazamiento en el SCU: gira, no traslada. */
-  vector(vector: CadPoint2): CadPoint2;
+  vector(vector: CadPoint2 | CadPoint3): CadPoint3;
   /** Ángulo del mundo → ángulo en el SCU. */
   angle(degrees: number): number;
+  /** Ángulo de un desplazamiento del mundo, medido ya en el plano del SCU. */
+  vectorAngle(vector: CadPoint2 | CadPoint3): number;
 }
 
 export function cadInquiryLens(variables?: CadVariableAccess): CadInquiryLens {
   const access = variables ?? createCadVariableAccess();
-  const active = cadActiveUcs(access);
-  const ucs: CadNamedUcs = {
-    name: active.name || CAD_WORLD_UCS.name,
-    origin: active.origin,
-    rotationDeg: active.rotationDeg,
-  };
+  const ucs = cadActiveUcs(access);
   return {
     format: cadReportFormat(access),
     ucs,
     point: (point) => worldToUcs(point, ucs),
     vector: (vector) => worldVectorToUcs(vector, ucs),
     angle: (degrees) => worldAngleToUcs(degrees, ucs),
+    vectorAngle: (vector) => cadUcsVectorAngle(vector, ucs),
   };
 }
 

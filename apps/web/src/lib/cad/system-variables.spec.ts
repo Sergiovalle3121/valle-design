@@ -26,6 +26,7 @@ import {
   coerceCadSystemVariable,
   denominatorFromLuprec,
 } from "./system-variables";
+import { cadUcsRotationDeg } from "./ucs";
 import { formatLength } from "./unit-format";
 import { formatAngle, toUserAngle } from "./unit-angle";
 
@@ -207,7 +208,15 @@ equal(cadSystemVariableDef("NO_EXISTE"), undefined, "una variable inventada no e
   const ucs = cadActiveUcs(store);
   equal(ucs.name, "PLANTA", "UCSNAME");
   equal(ucs.origin.x, 10, "UCSORGX");
-  equal(ucs.rotationDeg, 30, "UCSANGLE");
+  equal(ucs.origin.z, 0, "UCSORGZ por defecto");
+  // `UCSANGLE` sigue girando el sistema exactamente igual que antes: sobre el
+  // marco del mundo, un giro alrededor de Z. Lo que cambia es que ya no se
+  // guarda como campo del SCU, se resuelve al leerlo.
+  assert.ok(
+    Math.abs((cadUcsRotationDeg(ucs) ?? -1) - 30) < 1e-9,
+    `UCSANGLE: se esperaba 30° de giro en planta, salió ${String(cadUcsRotationDeg(ucs))}`,
+  );
+  checks += 1;
 }
 
 // Toda variable de la tabla tiene descripción: `SETVAR ?` la imprime.

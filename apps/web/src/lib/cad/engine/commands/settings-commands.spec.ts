@@ -440,15 +440,25 @@ for (const bad of ["verde", "0", "256", "#GG0000"]) {
     restored.result?.kind === "variables" && restored.result.patch.UCSORGX === 100,
     "restituirlo devuelve el origen",
   );
+  // El giro ya no viaja como número suelto: viaja DENTRO del marco, y el marco
+  // es lo que se restituye. `UCSANGLE` vuelve a cero justamente para que el
+  // giro que ya está en los ejes no se aplique dos veces.
   ok(
-    restored.result?.kind === "variables" && restored.result.patch.UCSANGLE === 23.5,
-    "y el giro",
+    restored.result?.kind === "variables" &&
+      restored.result.patch.UCSANGLE === 0 &&
+      Math.abs(Number(restored.result.patch.UCSXDIRX) - Math.cos((23.5 * Math.PI) / 180)) < 1e-12 &&
+      Math.abs(Number(restored.result.patch.UCSXDIRY) - Math.sin((23.5 * Math.PI) / 180)) < 1e-12,
+    "y el giro, ahora dentro del eje X del marco",
   );
 
   const world = run("-UCSMAN", [keyword("Universal")], context(store));
   ok(
-    world.result?.kind === "variables" && world.result.patch.UCSANGLE === 0,
-    "y volver al universal lo pone todo a cero",
+    world.result?.kind === "variables" &&
+      world.result.patch.UCSANGLE === 0 &&
+      world.result.patch.UCSXDIRX === 1 &&
+      world.result.patch.UCSYDIRY === 1 &&
+      world.result.patch.UCSORGZ === 0,
+    "y volver al universal devuelve el marco del mundo entero",
   );
 }
 

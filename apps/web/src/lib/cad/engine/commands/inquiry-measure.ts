@@ -88,12 +88,20 @@ function distResult(state: DistState, context: CadCommandContext): CadCommandSte
   // La distancia y los deltas son magnitudes distintas ante un SCU: la primera
   // no cambia al girar el sistema y los segundos sí. Girar la distancia sería
   // tan erróneo como no girar los deltas.
-  const delta = lens.vector({ x: raw.deltaX, y: raw.deltaY });
+  const worldDelta = { x: raw.deltaX, y: raw.deltaY, z: raw.deltaZ };
+  const delta = lens.vector(worldDelta);
+  // Los dos ángulos se miden sobre el delta YA GIRADO, no restando el giro del
+  // sistema: con un SCU apoyado en una cara inclinada no hay ningún giro que
+  // restar, y el «ángulo en plano XY» que el dibujante espera es el que se ve
+  // sobre la cara, no sobre el suelo.
+  const planar = Math.hypot(delta.x, delta.y);
   const report = {
     ...raw,
     deltaX: delta.x,
     deltaY: delta.y,
-    angleXY: lens.angle(raw.angleXY),
+    deltaZ: delta.z,
+    angleXY: lens.vectorAngle(worldDelta),
+    angleFromXY: (Math.atan2(delta.z, planar) * 180) / Math.PI,
   };
   return finished(state, formatCadDistanceReport(report, lens.format).join("\n"), {
     DISTANCE: raw.distance,

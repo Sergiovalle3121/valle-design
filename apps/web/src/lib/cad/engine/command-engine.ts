@@ -25,7 +25,11 @@
  */
 import type { SnapType } from "../snap-engine";
 import type { CadEntityCommand } from "../entity-commands";
-import type { CadSystemVariableValue } from "../system-variables";
+import {
+  cadActiveUcs,
+  cadActiveUcsIsTilted,
+  type CadSystemVariableValue,
+} from "../system-variables";
 import type { CadViewRequest } from "../view/view-navigation";
 import type { CadHostRequest } from "./host-requests";
 import {
@@ -258,6 +262,11 @@ export function cadCommandEngineReduce(
       lastPoint: lastPointOf(state),
       cursor: context.cursor ?? null,
       knownCommands: registry.names(),
+      // El SCU llega hasta el analizador de coordenadas: `10,20` es diez y
+      // veinte SOBRE EL PLANO DE TRABAJO, no sobre el suelo. Sin esto el SCU
+      // decidía cómo se leía un punto pero no cómo se escribía, que es media
+      // función y la mitad que menos se usa.
+      ...(context.variables ? { ucs: cadActiveUcs(context.variables) } : {}),
     };
     const resolved = resolveCadToken(action.value, tokenContext);
     if (resolved.kind === "error")
@@ -298,6 +307,31 @@ export function cadCommandEngineReduce(
       effects: [{ kind: "preview", paths: [] }, ...resumed.effects],
     };
   }
+
+  // Fallo cerrado ante un SCU inclinado: un comando que escribe geometría y no
+  // se ha declarado espacial aplanaría el punto contra el suelo sin decir nada.
+  // Se comprueba aquí, en el único sitio por el que pasan TODOS los puntos —los
+  // tecleados y los del puntero—, en vez de en cada comando.
+  if (
+    action.input.kind === "point" &&
+    descriptor.mutates &&
+    !descriptor.spatial &&
+    context.variables &&
+    cadActiveUcsIsTilted(context.variables)
+  )
+    return {
+      state,
+      effects: [
+        {
+          kind: "message",
+          text:
+            `${descriptor.name} todavía no sabe dibujar fuera del plano XY del mundo, y el SCU activo está ` +
+            "inclinado: el trazo se guardaría a cota cero, donde no lo puso usted. Vuelva al SCU universal " +
+            "con UCS Universal, o use LINE, que sí conserva la cota.",
+          level: "error",
+        },
+      ],
+    };
 
   let step: CadCommandStep<unknown>;
   try {

@@ -31,6 +31,14 @@ import {
   type AngleFormatOptions,
 } from "./unit-angle";
 import type { UnitFormatOptions, UnitSystem } from "./unit-format";
+import {
+  CAD_WORLD_UCS,
+  cadUcsFromPlane,
+  cadUcsFromRotation,
+  cadUcsRotateAbout,
+  isCadWorldUcs,
+  type CadNamedUcs,
+} from "./ucs";
 
 export type CadSystemVariableValue = number | string;
 
@@ -127,13 +135,30 @@ export const CAD_SYSTEM_VARIABLES: readonly CadSystemVariableDef[] = [
   real("PDSIZE", 0, "Tamaño de los puntos; negativo, en porcentaje de la pantalla"),
 
   // --- sistema de coordenadas personal --------------------------------------
-  // En AutoCAD son de sólo lectura y las escribe el comando UCS. Aquí las
-  // escribe UCSMAN por la misma puerta que el resto, y se dice: es la única
-  // divergencia deliberada de la tabla respecto del original.
+  // El SCU es un ORIGEN y un MARCO de tres ejes. El marco se guarda en los seis
+  // `UCSXDIR*`/`UCSYDIR*`, que son de SÓLO LECTURA igual que en AutoCAD: sólo
+  // los escriben UCS y UCSMAN, con la puerta del sistema, y siempre a la vez.
+  // Dejar que se tecleen sueltos permitiría fijar dos ejes no perpendiculares,
+  // que es un SCU imposible del que toda la geometría posterior saldría torcida.
+  //
+  // `UCSANGLE` sí se escribe a mano, y significa un giro ADICIONAL del eje X
+  // DENTRO del plano del SCU. Sobre el marco del mundo —que es el que hay hasta
+  // que alguien fija otro— eso es exactamente lo que significaba antes, así que
+  // `SETVAR UCSANGLE 30` sigue haciendo lo mismo que hacía; sobre un SCU de cara
+  // gira el sistema sin sacarlo de la cara, que es lo que se querría pedir.
   text("UCSNAME", "", "Nombre del SCU activo; vacío si es el sistema del mundo"),
   real("UCSORGX", 0, "Origen del SCU activo, coordenada X del mundo"),
   real("UCSORGY", 0, "Origen del SCU activo, coordenada Y del mundo"),
-  real("UCSANGLE", 0, "Giro del eje X del SCU respecto del eje X del mundo, en grados"),
+  real("UCSORGZ", 0, "Origen del SCU activo, coordenada Z del mundo"),
+  real("UCSANGLE", 0, "Giro adicional del eje X dentro del plano del SCU, en grados"),
+  real("UCSXDIRX", 1, "Eje X del SCU en coordenadas del mundo, componente X", { readOnly: true }),
+  real("UCSXDIRY", 0, "Eje X del SCU en coordenadas del mundo, componente Y", { readOnly: true }),
+  real("UCSXDIRZ", 0, "Eje X del SCU en coordenadas del mundo, componente Z", { readOnly: true }),
+  real("UCSYDIRX", 0, "Eje Y del SCU en coordenadas del mundo, componente X", { readOnly: true }),
+  real("UCSYDIRY", 1, "Eje Y del SCU en coordenadas del mundo, componente Y", { readOnly: true }),
+  real("UCSYDIRZ", 0, "Eje Y del SCU en coordenadas del mundo, componente Z", { readOnly: true }),
+  int("UCSICON", 3, "Icono del SCU, como suma de bits: 1 visible, 2 en el origen", { min: 0, max: 3 }),
+  int("UCSICONSIZE", 12, "Lado del icono del SCU en píxeles", { min: 12, max: 120 }),
 
   // --- valores recordados por los comandos ----------------------------------
   real("FILLETRAD", 0, "Radio de empalme actual", { min: 0 }),
@@ -335,19 +360,95 @@ export function cadAngleFormat(variables: CadVariableAccess): AngleFormatOptions
  * guardarlo, un `.scr` que fija el origen por variable y una paleta que lo fija
  * por su cuenta acabarían discrepando, y las coordenadas que imprime ID
  * dependerían de por dónde se entró.
+ *
+ * Se compone en DOS pasos y el orden importa: primero el marco guardado en los
+ * seis `UCSXDIR*`/`UCSYDIR*`, y encima el giro de `UCSANGLE` alrededor de la Z
+ * de ESE marco. Así hay una sola verdad —el marco— y `UCSANGLE` es un
+ * modificador con significado propio en vez de un segundo sitio donde guardar
+ * lo mismo. Sobre el marco del mundo las dos formas coinciden número a número,
+ * que es lo que mantiene intacto el comportamiento de los dibujos de siempre.
+ *
+ * Un marco degenerado sólo puede llegar por la puerta del sistema —los ejes son
+ * de sólo lectura—, y aun así se comprueba: se cae al marco del mundo con el
+ * nombre marcado, en vez de devolver un sistema con ejes nulos que convertiría
+ * cada coordenada informada en un `NaN` silencioso.
  */
-export function cadActiveUcs(variables: CadVariableAccess): {
-  name: string;
-  origin: { x: number; y: number };
-  rotationDeg: number;
-} {
+export function cadActiveUcs(variables: CadVariableAccess): CadNamedUcs {
+  const origin = {
+    x: Number(variables.get("UCSORGX") ?? 0),
+    y: Number(variables.get("UCSORGY") ?? 0),
+    z: Number(variables.get("UCSORGZ") ?? 0),
+  };
+  const name = String(variables.get("UCSNAME") ?? "") || CAD_WORLD_UCS.name;
+  const xDir = {
+    x: Number(variables.get("UCSXDIRX") ?? 1),
+    y: Number(variables.get("UCSXDIRY") ?? 0),
+    z: Number(variables.get("UCSXDIRZ") ?? 0),
+  };
+  const yDir = {
+    x: Number(variables.get("UCSYDIRX") ?? 0),
+    y: Number(variables.get("UCSYDIRY") ?? 1),
+    z: Number(variables.get("UCSYDIRZ") ?? 0),
+  };
+  const angle = Number(variables.get("UCSANGLE") ?? 0);
+
+  const normal = {
+    x: xDir.y * yDir.z - xDir.z * yDir.y,
+    y: xDir.z * yDir.x - xDir.x * yDir.z,
+    z: xDir.x * yDir.y - xDir.y * yDir.x,
+  };
+  const base = cadUcsFromPlane(name, origin, normal, xDir);
+  if (!base.ok) return cadUcsFromRotation(name, origin, angle);
+  return angle === 0 ? base.ucs : cadUcsRotateAbout(base.ucs, "z", angle);
+}
+
+/**
+ * ¿El plano de trabajo del SCU activo es OTRO que el plano `z = 0` del mundo?
+ *
+ * Lo pregunta el motor en CADA punto que entra, así que tenía que ser barato:
+ * componer el SCU entero por cada clic para acabar mirando una condición
+ * booleana habría metido dos productos vectoriales y una raíz cuadrada en el
+ * camino del ratón. Como los ejes se escriben siempre ortonormales y `UCSANGLE`
+ * gira alrededor de la Z del propio marco, basta con cinco lecturas.
+ *
+ * Cuenta también el SCU llano pero ELEVADO, y el llano pero VOLTEADO: los dos
+ * dejan la geometría aplanada a una cota que no es la suya, que es exactamente
+ * el fallo que esta comprobación existe para impedir.
+ */
+export function cadActiveUcsIsTilted(variables: CadVariableAccess): boolean {
+  if (Number(variables.get("UCSORGZ") ?? 0) !== 0) return true;
+  if (Number(variables.get("UCSXDIRZ") ?? 0) !== 0) return true;
+  if (Number(variables.get("UCSYDIRZ") ?? 0) !== 0) return true;
+  // Componente Z del producto vectorial X×Y: negativa ⇒ el SCU mira hacia abajo.
+  const xy =
+    Number(variables.get("UCSXDIRX") ?? 1) * Number(variables.get("UCSYDIRY") ?? 1) -
+    Number(variables.get("UCSXDIRY") ?? 0) * Number(variables.get("UCSYDIRX") ?? 0);
+  return !(xy > 0);
+}
+
+/**
+ * El parche de variables que fija un SCU. Es la ÚNICA forma de escribirlo.
+ *
+ * Escribe las once de golpe, incluida `UCSANGLE` a cero: el giro que traiga el
+ * SCU ya está dentro de sus ejes, y dejar el valor anterior lo aplicaría por
+ * segunda vez. Ese era el fallo que la separación marco/ángulo invita a
+ * cometer, y se cierra aquí en vez de en cada llamador.
+ */
+export function cadUcsVariablePatch(
+  ucs: CadNamedUcs,
+): Readonly<Record<string, CadSystemVariableValue>> {
   return {
-    name: String(variables.get("UCSNAME") ?? ""),
-    origin: {
-      x: Number(variables.get("UCSORGX") ?? 0),
-      y: Number(variables.get("UCSORGY") ?? 0),
-    },
-    rotationDeg: Number(variables.get("UCSANGLE") ?? 0),
+    UCSNAME: isCadWorldUcs(ucs) ? "" : ucs.name,
+    UCSORGX: ucs.origin.x,
+    UCSORGY: ucs.origin.y,
+    UCSORGZ: ucs.origin.z,
+    UCSANGLE: 0,
+    UCSXDIRX: ucs.xAxis.x,
+    UCSXDIRY: ucs.xAxis.y,
+    UCSXDIRZ: ucs.xAxis.z,
+    UCSYDIRX: ucs.yAxis.x,
+    UCSYDIRY: ucs.yAxis.y,
+    UCSYDIRZ: ucs.yAxis.z,
   };
 }
 

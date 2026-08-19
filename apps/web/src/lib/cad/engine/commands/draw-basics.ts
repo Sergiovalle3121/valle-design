@@ -15,7 +15,7 @@
  * área…) dejaron de ser casos triviales y cada uno pesa ya más que este
  * archivo entero.
  */
-import type { CadPoint2 } from "../../cad-document";
+import type { CadPoint2, CadPoint3 } from "../../cad-document";
 import type { CadEntityCommand } from "../../entity-commands";
 import type { CadNativeEntity } from "../../entity-runtime";
 import {
@@ -33,8 +33,17 @@ import {
 const UNDO = { keyword: "desHacer", shortcut: "H" } as const;
 const CLOSE = { keyword: "Cerrar", shortcut: "C" } as const;
 
-function flat(point: CadPoint2) {
-  return { x: point.x, y: point.y, z: 0 };
+/**
+ * El punto tal y como se guarda, con su cota.
+ *
+ * Antes forzaba `z: 0`. Ya no: con un SCU apoyado en una cara inclinada, la
+ * cota es lo único que distingue un trazo dibujado SOBRE la cara de otro
+ * dibujado en el suelo, y aplanarla dejaba la geometría a la vista en el sitio
+ * correcto y en el modelo en otro. Los puntos que llegan sin cota —el puntero
+ * del visor 2D— siguen valiendo cero exactamente igual que antes.
+ */
+function flat(point: CadPoint2 | CadPoint3) {
+  return { x: point.x, y: point.y, z: "z" in point ? point.z : 0 };
 }
 
 function lineEntity(id: string, a: CadPoint2, b: CadPoint2, layer: string): CadNativeEntity {
@@ -102,6 +111,9 @@ const lineCommand: CadCommandDescriptor<LineState> = {
   selection: "none",
   repeatable: true,
   mutates: true,
+  // Conserva la cota del punto que recibe, así que dibuja sobre un SCU
+  // inclinado sin aplanar la geometría contra el suelo.
+  spatial: true,
   cursor: "crosshair",
   begin: (context) => lineStep({ points: [], commands: [] }, context),
   step: (state, input, context) => {
@@ -257,6 +269,12 @@ const circleCommand: CadCommandDescriptor<CircleState> = {
   selection: "none",
   repeatable: true,
   mutates: true,
+  // SIN `spatial`, y a conciencia: `2P` y `3P` resuelven el centro sobre la
+  // proyección XY de los puntos, que sobre un plano inclinado no es el centro
+  // de la circunferencia que pasa por ellos. Marcarlo aquí dejaría pasar un
+  // círculo con el radio equivocado; sin marcarlo, el motor lo rechaza y lo
+  // dice. Se destapará cuando el trazado por tres puntos trabaje en el plano
+  // del SCU y no en el del mundo.
   cursor: "crosshair",
   begin: (context) => circleStep({ mode: "center", points: [], diameter: false }, context),
   step: (state, input, context) => {

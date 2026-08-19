@@ -432,6 +432,20 @@ export interface CadCommandDescriptor<S = unknown> {
   repeatable: boolean;
   /** `false` para consultas y vistas: no piden permiso de escritura. */
   mutates: boolean;
+  /**
+   * `true` si el comando sabe escribir geometría FUERA del plano XY del mundo.
+   *
+   * Existe por una razón concreta y medible: con un SCU apoyado en una cara
+   * inclinada, un comando que aplana los puntos a `z = 0` deja el trazo en
+   * pantalla donde el usuario lo puso y en el modelo un metro más abajo. Eso no
+   * se ve, no da error y se descubre al exportar.
+   *
+   * Así que el motor lo cierra: si hay un SCU inclinado y el comando MUTA el
+   * documento sin declararse espacial, el punto se rechaza con su motivo en vez
+   * de aceptarse a medias. Un comando se marca cuando su geometría conserva la
+   * cota de punta a punta, no cuando «debería funcionar».
+   */
+  spatial?: boolean;
   begin(context: CadCommandContext): CadCommandStep<S>;
   step(state: S, input: CadCommandInput, context: CadCommandContext): CadCommandStep<S>;
   /** Cursor que muestra el viewport: cruz para puntos, caja para seleccionar. */
