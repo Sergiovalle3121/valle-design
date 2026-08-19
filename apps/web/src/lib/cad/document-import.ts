@@ -18,11 +18,20 @@ import {
   buildCadDxfImportReport,
   type CadDxfImportReport,
 } from "./dxf-import-report";
+import { dwgImportIsEnabled } from "./dwg-interop-flag";
 
 export const MAX_DXF_IMPORT_BYTES = 12_000_000;
 export const MAX_JSON_IMPORT_BYTES = 20_000_000;
+/**
+ * Límite del binario, declarado aunque hoy no se pueda alcanzar.
+ *
+ * Un DWG comprime, así que pesa menos que el DXF equivalente y aun así trae más
+ * dentro: el límite es mayor que el de DXF y sigue siendo un tope, porque un
+ * archivo sin tope es una denegación de servicio con extensión.
+ */
+export const MAX_DWG_IMPORT_BYTES = 24_000_000;
 
-export type DocumentImportFormat = "dxf" | "json";
+export type DocumentImportFormat = "dxf" | "json" | "dwg";
 
 export interface DocumentImportReport {
   format: DocumentImportFormat;
@@ -44,14 +53,25 @@ export interface DocumentImportReport {
 }
 
 export function importLimitForFileName(fileName: string): number {
-  return extension(fileName) === "dxf"
-    ? MAX_DXF_IMPORT_BYTES
-    : MAX_JSON_IMPORT_BYTES;
+  const kind = extension(fileName);
+  if (kind === "dxf") return MAX_DXF_IMPORT_BYTES;
+  if (kind === "dwg") return MAX_DWG_IMPORT_BYTES;
+  return MAX_JSON_IMPORT_BYTES;
 }
 
 export function validateImportFile(fileName: string, size: number): void {
   const kind = extension(fileName);
-  if (kind !== "dxf" && kind !== "json") {
+  /**
+   * `.dwg` sólo entra si el gate de promoción está abierto, y hoy NO lo está:
+   * la bandera nace apagada y sus gates son hechos que todavía son falsos. Este
+   * `if` no habilita nada; lo que hace es que el día que el dueño firme, la
+   * extensión deje de rechazarse aquí en vez de tener que descubrir este punto
+   * a base de leer el árbol entero. Mientras tanto el mensaje es el mismo de
+   * siempre, palabra por palabra, y las specs de frontera lo comprueban.
+   */
+  const admitted =
+    kind === "dxf" || kind === "json" || (kind === "dwg" && dwgImportIsEnabled());
+  if (!admitted) {
     throw new Error("Formato no soportado. Usa DXF de texto o JSON canónico.");
   }
   if (!Number.isSafeInteger(size) || size <= 0) {
