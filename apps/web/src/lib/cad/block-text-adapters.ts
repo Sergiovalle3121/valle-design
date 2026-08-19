@@ -239,7 +239,14 @@ const mtextAdapter: CadEntityAdapter<CadMTextEntity> = {
 
 type CadInsertEntity = Extract<CadNativeEntity, { type: "insert" }>;
 
-function blockChildPaths(entity: CadEntity, segments = 96): CadRenderPath[] {
+/**
+ * Trazos de una entidad ANIDADA en un bloque, ya resuelta a coordenadas de
+ * mundo. Se exporta porque el hueco alojado (`opening-entity-adapter.ts`)
+ * dibuja su símbolo con el bloque que el estudio tenga normalizado, y tiene que
+ * teselarlo EXACTAMENTE igual que lo teselaría un INSERT: dos teselados del
+ * mismo bloque son dos dibujos distintos de la misma puerta.
+ */
+export function blockChildPaths(entity: CadEntity, segments = 96): CadRenderPath[] {
   if (entity.type === "line" && !isLegacyCircle(entity)) return lineAdapter.renderer.paths(entity, segments);
   if (entity.type === "circle" && !isLegacyCircle(entity)) return circleAdapter.renderer.paths(entity, segments);
   if (entity.type === "arc") return arcAdapter.renderer.paths(entity, segments);

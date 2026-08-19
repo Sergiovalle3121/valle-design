@@ -31,6 +31,7 @@ import type {
 } from "./cad-entities-v4";
 import type { CadSchema5Entity } from "./cad-entities-v5";
 import type { CadSchema6Entity } from "./cad-entities-v6";
+import type { CadSchema7Entity } from "./cad-entities-v7";
 import { byId, byName } from "./cad-document-shared";
 
 // ---------------------------------------------------------------------------
@@ -383,7 +384,13 @@ export type CadEntity =
    * El que estrena el esquema 6: WALL, el muro paramétrico que persiste su
    * EJE, grosor y altura — no su contorno. Vive en `cad-entities-v6.ts`.
    */
-  | CadSchema6Entity;
+  | CadSchema6Entity
+  /**
+   * El que estrena el esquema 7: OPENING, el hueco ALOJADO en un muro. No
+   * persiste coordenadas de mundo: guarda su anfitrión y su distancia sobre el
+   * eje. Vive en `cad-entities-v7.ts`.
+   */
+  | CadSchema7Entity;
 
 export interface CadLayerDef {
   id: string;
@@ -638,6 +645,10 @@ export {
 export type { CadSchema6Entity, CadWallEntity } from "./cad-entities-v6";
 export { CAD_SCHEMA_6_ENTITY_TYPES } from "./cad-entities-v6";
 
+/** Y el del esquema 7: el hueco alojado en un muro. */
+export type { CadOpeningEntity, CadOpeningKind, CadSchema7Entity } from "./cad-entities-v7";
+export { CAD_SCHEMA_7_ENTITY_TYPES } from "./cad-entities-v7";
+
 // ---------------------------------------------------------------------------
 // Versionado + serialización determinista
 // ---------------------------------------------------------------------------
@@ -759,6 +770,7 @@ export function cadDocumentStats(doc: CadDocument): Record<CadEntity["type"], nu
     attdef: 0, table: 0,
     solid3d: 0, region: 0,
     wall: 0,
+    opening: 0,
   } satisfies Record<CadEntity["type"], number>;
   for (const e of doc.entities) stats[e.type]++;
   return stats;
