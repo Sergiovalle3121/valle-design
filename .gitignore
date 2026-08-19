@@ -80,3 +80,10 @@ htmlcov/
 # SBOM: se REGENERA en cada verificación (`npm run sbom`). Versionarlo
 # invitaría a revisar un artefacto obsoleto como si fuera la verdad.
 sbom.cdx.json
+
+# Salidas de Playwright y artefactos POR CORRIDA del estrés denso. Lo que se
+# versiona es la evidencia agregada de `docs/cad/evidence/`, que sale de cruzar
+# tres corridas; las corridas sueltas son insumo y caducan con la máquina.
+apps/web/e2e/.artifacts/
+apps/web/e2e/.report/
+apps/web/e2e/.test-results/

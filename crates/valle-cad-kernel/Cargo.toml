@@ -1,0 +1,37 @@
+# Núcleo de teselado de curvas del CAD, compilado a WebAssembly.
+#
+# POR QUÉ SIN DEPENDENCIAS. Un kernel que arrastra `wasm-bindgen` arrastra
+# también su generador de pegamento, su versión de `wasm-opt` y una cadena de
+# descargas de crates.io. Este artefacto tiene que poder reconstruirse dentro de
+# un año en una máquina sin red y dar EL MISMO byte: la única forma de que la
+# paridad numérica publicada siga significando algo. Por eso la ABI es
+# `extern "C"` a pelo sobre la memoria lineal y el grafo de dependencias está
+# vacío — `cargo build --offline` basta.
+#
+# POR QUÉ `std` Y NO `no_std`. Las funciones trascendentes (`sin`, `cos`) están
+# en `std`. Reimplementarlas aquí garantizaría divergir de V8 mucho más de lo
+# que diverge la libm que Rust ya trae, y la paridad es el punto entero de este
+# ejercicio.
+[package]
+name = "valle-cad-kernel"
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "UNLICENSED"
+description = "Teselado de arcos, elipses y B-splines del CAD de Valle Design, compilado a wasm32."
+
+[lib]
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+# `opt-level = "z"` y `lto` mantienen el .wasm por debajo de los 20 kB: el
+# binario se versiona en el árbol, y un binario versionado que engorda es un
+# binario que nadie vuelve a revisar. `panic = "abort"` elimina el desenrollado,
+# que en wasm32-unknown-unknown no tiene a dónde ir de todos modos.
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+overflow-checks = false
