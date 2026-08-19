@@ -208,6 +208,9 @@ test("elegir plantilla al crear el documento deja capas, estilo de cota, escala 
   await expect(picker).toBeVisible();
   await picker.selectOption("planta-arquitectonica");
   await expect(page.getByTestId("starter-template-detail")).toContainText("1:50");
+  // La ubicación de la obra se teclea AQUÍ, en el minuto cero, no al ir a
+  // ventanilla con veinte láminas ya trazadas.
+  await page.getByTestId("starter-location").fill("Álvaro Obregón 145, Roma Norte");
 
   await page.getByLabel("Nombre del documento").fill("Planta baja");
   await page.getByLabel("Crear documento").click();
@@ -234,10 +237,18 @@ test("elegir plantilla al crear el documento deja capas, estilo de cota, escala 
   expect(saved.layers.find((layer) => layer.id === "EJE")?.linetype).toBe("CENTER");
 
   // ── Estilo de cota atado a la escala ──
+  // La cota nace COMO SE ACOTA EN MÉXICO: metros con dos decimales y garrapata,
+  // no milímetros con flecha. Es lo primero que un arquitecto mexicano corregiría
+  // a mano si no viniera dado, cota por cota.
   expect(saved.styles.dimension["COTA 1:50"]).toMatchObject({
     textStyle: "ROTULO",
-    precision: 0,
+    precision: 2,
+    units: "m",
+    arrowhead: "architectural-tick",
   });
+  // Y el documento trae estilo para 1:75, que en México se usa a diario y no
+  // figura en ISO 5455: cambiar de escala no obliga a reacotar el plano.
+  expect(saved.styles.dimension["COTA 1:75"]).toBeTruthy();
   // 2,5 mm de papel a 1:50 son 125 unidades de modelo. Ni 2,5 ni 125 elegidos a
   // ojo: es la conversión anotativa.
   expect(saved.styles.text.ROTULO.height).toBe(125);
@@ -257,6 +268,12 @@ test("elegir plantilla al crear el documento deja capas, estilo de cota, escala 
   expect(sheet.titleBlock?.attributes.TITLE).toBe("Planta baja");
   expect(sheet.titleBlock?.attributes.SHEET_NO).toBe("A-101");
   expect(sheet.titleBlock?.attributes.UNIDADES).toBe("mm");
+  // El cajetín es el MEXICANO: la disposición viaja con la lámina, así que las
+  // veinte del juego salen iguales sin que nadie tenga que acordarse.
+  expect(sheet.titleBlock?.attributes.TITLE_BLOCK_VARIANT).toBe("mexicano");
+  // Y la ubicación de la obra —que ISO 7200 no nombra y una alcaldía sí pide—
+  // llega desde el formulario hasta el documento guardado.
+  expect(sheet.titleBlock?.attributes.UBICACION).toBe("Álvaro Obregón 145, Roma Norte");
 
   // Y el lienzo arranca VACÍO: la plantilla configura, no dibuja.
   expect(saved.entities).toHaveLength(0);
@@ -282,7 +299,9 @@ async function installCadBackend(context: BrowserContext) {
     document: starterDocument() as unknown as Record<string, unknown>,
     footprint: {
       footprintW: 40_550,
-      footprintH: 27_200,
+      // 26.200 y no 27.200: el cajetín mexicano con responsiva mide 50 mm de
+      // alto y no 30, y esos veinte milímetros se pagan en área de dibujo.
+      footprintH: 26_200,
       unit: "mm",
       gridSize: 100,
     },

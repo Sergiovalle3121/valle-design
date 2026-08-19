@@ -1,5 +1,6 @@
 /** Tests de dimension-format (Fase 73). npx tsx src/lib/cad/dimension-format.spec.ts */
 import {
+  cadDimensionStyleOverrides,
   convertLength, formatLength, formatWithTolerance, formatArea, formatAngle,
 } from './dimension-format';
 
@@ -33,6 +34,35 @@ eq(formatArea(1000000, { unit: 'mm', precision: 0, group: true }), '1,000,000 mm
 // ── formatAngle ──
 eq(formatAngle(45), '45.0°', 'ángulo 45.0°');
 eq(formatAngle(30.25, 2), '30.25°', 'ángulo con 2 decimales');
+
+// ── cadDimensionStyleOverrides ──
+// Manda el ESTILO. Es la única forma de que la norma de dibujo mexicana llegue
+// a cada cota nueva sin que el arquitecto la teclee: la plantilla decide una
+// vez y todas las cotas del documento heredan.
+{
+  const mexicano = { precision: 2, units: 'm' as const, arrowhead: 'architectural-tick' as const };
+  const borrador = { precision: 0, units: 'mm' as const, arrowhead: 'closed-filled' as const };
+  const merged = cadDimensionStyleOverrides(mexicano, borrador);
+  ok(merged.units === 'm', 'el estilo impone metros sobre el borrador en milímetros');
+  ok(merged.precision === 2, 'el estilo impone dos decimales');
+  ok(merged.arrowhead === 'architectural-tick', 'el estilo impone la garrapata');
+
+  // Un estilo VACÍO deja pasar el borrador entero: un documento anterior a la
+  // norma se comporta exactamente igual que antes.
+  const heredado = cadDimensionStyleOverrides({}, borrador);
+  ok(heredado.units === 'mm' && heredado.precision === 0, 'sin estilo manda el borrador');
+  ok(heredado.arrowhead === 'closed-filled', 'sin estilo manda el remate del borrador');
+
+  // Y lo que nadie declara NO se emite: escribir `units: undefined` sobre la
+  // entidad borraría lo que el borrador sí sabía.
+  const vacio = cadDimensionStyleOverrides({}, {});
+  ok(!('units' in vacio) && !('precision' in vacio) && !('arrowhead' in vacio),
+    'lo no declarado no se emite como undefined');
+  // Media declaración es media declaración: el estilo pone la unidad, el
+  // borrador conserva su remate.
+  const parcial = cadDimensionStyleOverrides({ units: 'cm' }, borrador);
+  ok(parcial.units === 'cm' && parcial.arrowhead === 'closed-filled', 'mezcla campo a campo');
+}
 
 if (fails.length) { console.log(`❌ ${passed}/${passed + fails.length}`); for (const f of fails) console.log('  - ' + f); process.exit(1); }
 console.log(`✅ ${passed}/${passed} dimension-format`);

@@ -11,11 +11,16 @@ import { strict as assert } from "node:assert";
 import { CAD_SHEET_PAPERS, type CadSheetPaper } from "../paper-space";
 import { createCadLayout, CAD_LAYOUT_TEMPLATES } from "../layout/layout-operations";
 import {
+  CAD_MEXICAN_TITLE_BLOCK_HEIGHT_MM,
   CAD_TITLE_BLOCK_HEIGHT_MM,
   CAD_TITLE_BLOCK_MIN_TEXT_MM,
+  CAD_TITLE_BLOCK_VARIANT_ATTRIBUTE,
+  CAD_TITLE_BLOCK_VARIANT_IDS,
   CAD_TITLE_BLOCK_WIDTH_MM,
   cadSheetSeriesLabel,
+  cadTitleBlockHeightMm,
   cadTitleBlockOverflowMm,
+  cadTitleBlockVariant,
   layoutCadTitleBlock,
   resolveCadTitleBlockFields,
 } from "./title-block";
@@ -203,7 +208,94 @@ const PAPERS = Object.keys(CAD_SHEET_PAPERS) as CadSheetPaper[];
   assert.equal(cadSheetSeriesLabel(1.5, 6), "");
 }
 
+// --- LA VARIANTE MEXICANA -----------------------------------------------------
+//
+// Lo que se afirma no es que exista otra disposición: es que la mexicana lleva
+// lo que la ISO no lleva y sin lo cual la lámina no se presenta en una alcaldía
+// —ubicación de la obra, propietario y la responsiva del D.R.O.— y que elegirla
+// no altera en nada a la ISO. Una variante que cambiara la de siempre en el
+// camino sería peor que no tenerla.
+{
+  const page = { width: 841, height: 594 };
+  const iso = layoutCadTitleBlock({ sheetId: "s", page, margins: ISO_MARGINS, variant: "iso" });
+  const mx = layoutCadTitleBlock({ sheetId: "s", page, margins: ISO_MARGINS, variant: "mexicano" });
+
+  assert.equal(iso.variant, "iso");
+  assert.equal(mx.variant, "mexicano");
+  assert.equal(iso.box.height, CAD_TITLE_BLOCK_HEIGHT_MM);
+  assert.equal(mx.box.height, CAD_MEXICAN_TITLE_BLOCK_HEIGHT_MM);
+  assert.equal(cadTitleBlockHeightMm("iso"), 30);
+  assert.equal(cadTitleBlockHeightMm("mexicano"), 50);
+  // Las dos anclan abajo a la derecha, que es donde se busca un cajetín.
+  assert.equal(iso.box.x, mx.box.x);
+  assert.equal(iso.box.y + iso.box.height, mx.box.y + mx.box.height);
+
+  // La suma de las bandas ES el alto declarado. En fracciones esto no se puede
+  // afirmar: añadir una banda reescalaría las demás en silencio.
+  for (const layout of [iso, mx]) {
+    const rows = new Map<number, number>();
+    for (const cell of layout.cells) rows.set(cell.y, cell.height);
+    const total = [...rows.values()].reduce((sum, height) => sum + height, 0);
+    assert.ok(Math.abs(total - layout.box.height) < 1e-9, "las bandas suman el alto del cajetín");
+  }
+
+  // Los tres campos que sólo tiene la mexicana.
+  const isoKeys = new Set(iso.cells.map((cell) => cell.key));
+  const mxKeys = new Set(mx.cells.map((cell) => cell.key));
+  for (const key of ["location", "owner", "dro", "droRegistration"] as const) {
+    assert.ok(!isoKeys.has(key), `la ISO no lleva ${key}`);
+    assert.ok(mxKeys.has(key), `la mexicana lleva ${key}`);
+  }
+
+  // La casilla de firma se imprime VACÍA y no cuenta como campo sin rellenar.
+  const firma = mx.cells.find((cell) => cell.label === "FIRMA DEL D.R.O.");
+  assert.ok(firma, "hay hueco de firma");
+  assert.equal(firma.value, "");
+  assert.ok(!mx.missing.includes("corresponsable"), "una firma no se teclea");
+
+  // «Cliente» cae a «propietario»: en una casa habitación son la misma persona
+  // y obligar a teclearla dos veces es la clase de fricción que hace que la
+  // segunda casilla se quede vacía para siempre.
+  const heredado = layoutCadTitleBlock({
+    sheetId: "s",
+    page,
+    margins: ISO_MARGINS,
+    variant: "mexicano",
+    attributes: { CLIENTE: "Familia Zaragoza" },
+  });
+  assert.equal(heredado.cells.find((cell) => cell.key === "owner")?.value, "Familia Zaragoza");
+
+  // La disposición viaja en el atributo de la presentación, que es lo que hace
+  // que veinte láminas del mismo juego salgan iguales sin que nadie se acuerde.
+  const desdeAtributo = layoutCadTitleBlock({
+    sheetId: "s",
+    page,
+    margins: ISO_MARGINS,
+    attributes: { [CAD_TITLE_BLOCK_VARIANT_ATTRIBUTE]: "mexicano" },
+  });
+  assert.equal(desdeAtributo.variant, "mexicano");
+
+  // Fallo cerrado hacia lo conocido: una disposición inventada no rompe la
+  // lámina, se cae a la ISO. Un cajetín que no se dibuja es peor que uno que se
+  // dibuja distinto.
+  assert.equal(cadTitleBlockVariant("cajetin-de-marte"), "iso");
+  assert.deepEqual([...CAD_TITLE_BLOCK_VARIANT_IDS], ["iso", "mexicano"]);
+
+  // En A4 vertical el cajetín mexicano ya no cabe a tamaño nominal y lo DICE en
+  // vez de encogerse callando: 297 − 20 de margen deja 277 de alto, pero los
+  // rótulos bajarían del mínimo legible mucho antes.
+  const a4 = layoutCadTitleBlock({
+    sheetId: "s",
+    page: { width: 210, height: 297 },
+    margins: ISO_MARGINS,
+    variant: "mexicano",
+  });
+  assert.equal(a4.shrink, 1, "en A4 vertical el cajetín mexicano todavía cabe entero");
+  assert.equal(cadTitleBlockOverflowMm(a4, { width: 210, height: 297 }), 0);
+}
+
 console.log(
   `cajetín paramétrico: ${PAPERS.length * 2} combinaciones de papel × orientación dentro del marco, ` +
-    `nominal ${CAD_TITLE_BLOCK_WIDTH_MM} × ${CAD_TITLE_BLOCK_HEIGHT_MM} mm`,
+    `nominal ${CAD_TITLE_BLOCK_WIDTH_MM} × ${CAD_TITLE_BLOCK_HEIGHT_MM} mm (ISO) y ` +
+    `${CAD_TITLE_BLOCK_WIDTH_MM} × ${CAD_MEXICAN_TITLE_BLOCK_HEIGHT_MM} mm (mexicano)`,
 );

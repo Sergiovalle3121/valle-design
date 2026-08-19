@@ -18,10 +18,11 @@ import {
 } from "@/lib/cad/document-import-client";
 import type { DocumentImportReport } from "@/lib/cad/document-import";
 import { serializeCadDocument } from "@/lib/cad/cad-document";
+import { createCadStarterDocument } from "@/lib/cad/starter-templates";
 import {
-  CAD_STARTER_TEMPLATES,
-  createCadStarterDocument,
-} from "@/lib/cad/starter-templates";
+  CadStarterTemplateFields,
+  EMPTY_CAD_STARTER_CHOICE,
+} from "./starter-template-fields";
 import {
   abortError,
   gzipDocument,
@@ -60,11 +61,11 @@ export default function DashboardPage() {
   const [projectName, setProjectName] = useState("");
   const [documentName, setDocumentName] = useState("");
   /**
-   * Plantilla de arranque elegida. Vacío = lienzo en blanco, que sigue siendo
-   * una opción legítima: quien va a importar un DXF encima no quiere capas
-   * inventadas de por medio.
+   * Plantilla de arranque, lámina y responsiva. Plantilla vacía = lienzo en
+   * blanco, que sigue siendo una opción legítima: quien va a importar un DXF
+   * encima no quiere capas inventadas de por medio.
    */
-  const [starterTemplate, setStarterTemplate] = useState("");
+  const [starter, setStarter] = useState(EMPTY_CAD_STARTER_CHOICE);
   const [selectedProject, setSelectedProject] = useState("");
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -201,16 +202,22 @@ export default function DashboardPage() {
       // la misma décima de segundo: el guardado inicial del editor y el de la
       // plantilla, con un 409 de CAS como resultado más probable. Aquí el
       // documento llega al estudio ya configurado y el editor sólo lo lee.
-      if (starterTemplate) {
+      if (starter.templateId) {
         const project = projects.find((item) => item.id === selectedProject);
         await designClient.documents.saveContent(
           document.id,
           createCadStarterDocument({
-            templateId: starterTemplate,
+            templateId: starter.templateId,
             project: project?.name,
             title: name.trim(),
             drawnBy: auth.user?.email,
             date: new Date().toISOString().slice(0, 10),
+            // Papel, ubicación de la obra y responsiva del D.R.O.: los tres van
+            // al cajetín desde el minuto cero. Descubrir en ventanilla que las
+            // veinte láminas del juego no tienen dónde firmar es rehacerlas.
+            ...(starter.paper ? { paper: starter.paper } : {}),
+            ...(starter.location.trim() ? { location: starter.location } : {}),
+            ...(starter.dro.trim() ? { dro: starter.dro } : {}),
           }) as unknown as CadDocumentInline,
           0,
         );
@@ -475,34 +482,14 @@ export default function DashboardPage() {
               La plantilla va DEBAJO del nombre y no en un asistente aparte: es
               una decisión de un segundo que ahorra media hora de configuración,
               y un asistente de tres pasos para elegirla costaría más que el
-              tiempo que ahorra.
+              tiempo que ahorra. Lo que se pinta vive en `starter-template-fields`
+              por el presupuesto de tamaño de esta página.
             */}
-            <select
-              aria-label="Plantilla de arranque"
-              data-testid="starter-template"
-              value={starterTemplate}
-              onChange={(e) => setStarterTemplate(e.target.value)}
-              className="mt-2 w-full rounded-xl border bg-transparent px-3 py-2 text-sm"
-            >
-              <option value="">Sin plantilla (lienzo en blanco)</option>
-              {CAD_STARTER_TEMPLATES.map((template) => (
-                <option key={template.id} value={template.id}>
-                  {template.label} — 1:{template.scale} en {template.paper}
-                </option>
-              ))}
-            </select>
-            {starterTemplate ? (
-              <p
-                data-testid="starter-template-detail"
-                className="mt-1 text-xs text-gray-500"
-              >
-                {
-                  CAD_STARTER_TEMPLATES.find(
-                    (template) => template.id === starterTemplate,
-                  )?.description
-                }
-              </p>
-            ) : null}
+            <CadStarterTemplateFields
+              value={starter}
+              onChange={setStarter}
+              disabled={busy}
+            />
             <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-indigo-500">
               <Upload className="h-4 w-4" /> Importar como documento
               <input
