@@ -31,6 +31,7 @@
 import type { BrowserContext, Route } from "@playwright/test";
 import { API_ORIGIN } from "./constants";
 import { firstPartyRequestFailure } from "./standalone-identity";
+import { CadReviewCommentStore } from "./cad-review-comments";
 
 export interface LegacyFootprint {
   footprintW: number;
@@ -143,6 +144,32 @@ export class CadV1Backend {
   private readonly library: LibraryBlockRow[] = [];
   readonly publicationRequests: PublicationRequest[] = [];
   readonly reviewSessions: ReviewSessionRow[] = [];
+  /**
+   * Hilos de comentario, en su propio módulo por presupuesto de tamaño. Se le
+   * pasa a ESTE backend como anfitrión para que la validez de un token la
+   * decida una sola pieza: si el fixture tuviera dos ideas de «sesión viva»,
+   * un golden podría pasar comentando por un enlace ya revocado.
+   */
+  readonly comments = new CadReviewCommentStore({
+    sessionForToken: (token) => {
+      const session = this.reviewSessions.find(
+        (candidate) => candidate.token === token,
+      );
+      if (!session) return null;
+      return {
+        id: session.id,
+        documentId: session.documentId,
+        allowComments: session.allowComments,
+        live:
+          !session.revokedAt &&
+          session.status === "open" &&
+          Date.parse(session.expiresAt) > Date.now(),
+      };
+    },
+    documentExists: (documentId) =>
+      this.rows.some((row) => row.id === documentId && row.available),
+    authorName: "e2e@valle",
+  });
   private seq = 0;
 
   constructor(seeds: CadV1DocumentSeed[]) {
@@ -256,10 +283,23 @@ export class CadV1Backend {
       }
     };
 
+    // La superficie `/v1/cad/review/*` es la del INVITADO: no lleva cookie de
+    // sesión ni CSRF de primera parte, y exigírselos aquí haría imposible el
+    // caso que este fixture existe para reproducir. `/v1/cad/review-sessions/*`
+    // NO entra (no acaba en barra): ésa es del autor y sí exige sesión.
     const authFailure = firstPartyRequestFailure(request);
-    if (authFailure && path !== "/v1/cad/review/context") {
+    if (authFailure && !path.startsWith("/v1/cad/review/")) {
       return json(authFailure.body, authFailure.status);
     }
+
+    const commentReply = this.comments.handle({
+      path,
+      method,
+      body,
+      reviewToken: request.headers()["x-review-token"] ?? "",
+      query: url.searchParams,
+    });
+    if (commentReply) return json(commentReply.body, commentReply.status);
 
     // ── Documentos: listado (resolución model+revision del adaptador) ──
     if (path === "/v1/cad/documents" && method === "GET") {
@@ -430,6 +470,17 @@ export class CadV1Backend {
           cadDocumentVersion: row.version,
           entityCount: Array.isArray(entities) ? entities.length : 0,
           storedAsBlobPointer: false,
+        });
+      }
+
+      // ── Listado de revisiones del documento (el autor gestiona sus enlaces) ──
+      if (rest === "review-sessions" && method === "GET") {
+        const status = url.searchParams.get("status");
+        return json({
+          items: this.reviewSessions
+            .filter((session) => session.documentId === row.id)
+            .filter((session) => !status || session.status === status)
+            .map(sessionResource),
         });
       }
 

@@ -433,6 +433,7 @@ import {
   propagateCadConstraintsByDiff,
 } from "@/lib/cad/constraint-propagation";
 import { CadViewController } from "@/lib/cad/view/view-controller";
+import { publishCadViewport } from "@/lib/cad/collab/viewport-registry";
 import { CadCommandLineDock } from "@/components/cad/command-line/CadCommandLineDock";
 import { useCadCommandEngine } from "@/components/cad/command-line/use-command-engine";
 import { formatCadPrompt } from "@/lib/cad/engine/prompt";
@@ -6677,7 +6678,7 @@ export default function Layout3DEditor({
       renderer.domElement.clientHeight || height,
       camera,
     );
-    viewControllerRef.current = viewController;
+    viewControllerRef.current = publishCadViewport(viewController, mount);
     let batchedViewBounds: CadBounds | null = null;
     let batchedViewDirty = true;
     const unsubscribeBatchedView = viewController.onChange(() => {
@@ -8195,7 +8196,7 @@ export default function Layout3DEditor({
       sceneRef.current = null;
       rendererRef.current = null;
       cameraRef.current = null;
-      viewControllerRef.current = null;
+      viewControllerRef.current = publishCadViewport(null);
       blocksRef.current = null;
       assetsGroupRef.current = null;
       nativeGroupRef.current = null;
