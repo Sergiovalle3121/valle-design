@@ -128,7 +128,9 @@ describe('schema 8 viewport view invariants', () => {
 
   it('rechaza una clase de vista desconocida y una proyección que no es paralela', () => {
     expect(() =>
-      validateCadDocumentPayload(withViewport({ ...planta, kind: 'isometrica' })),
+      validateCadDocumentPayload(
+        withViewport({ ...planta, kind: 'isometrica' }),
+      ),
     ).toThrow(BadRequestException);
     // La perspectiva no es un descuido: una lámina en perspectiva no se puede
     // acotar, y aceptarla aquí sería prometer algo que el trazado no sabe hacer.
@@ -140,7 +142,7 @@ describe('schema 8 viewport view invariants', () => {
   });
 
   it('rechaza una sección sin plano de corte o con normal nula', () => {
-    const { sectionPlane: _sinPlano, ...corteMutilado } = corte;
+    const corteMutilado = { ...corte, sectionPlane: undefined };
     expect(() =>
       validateCadDocumentPayload(withViewport(corteMutilado)),
     ).toThrow(BadRequestException);
@@ -158,7 +160,9 @@ describe('schema 8 viewport view invariants', () => {
   });
 
   it('acepta el esquema 8 y rechaza el 9, que no existe', () => {
-    expect(() => validateCadDocumentPayload(withViewport(planta))).not.toThrow();
+    expect(() =>
+      validateCadDocumentPayload(withViewport(planta)),
+    ).not.toThrow();
     expect(() =>
       validateCadDocumentPayload({
         ...withViewport(planta),

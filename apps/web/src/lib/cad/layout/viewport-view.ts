@@ -82,8 +82,20 @@ const v = (x: number, y: number, z: number): CadPoint3 => ({ x, y, z });
 const sub = (a: CadPoint3, b: CadPoint3): CadPoint3 => v(a.x - b.x, a.y - b.y, a.z - b.z);
 const dot = (a: CadPoint3, b: CadPoint3): number => a.x * b.x + a.y * b.y + a.z * b.z;
 const scale = (a: CadPoint3, k: number): CadPoint3 => v(a.x * k, a.y * k, a.z * k);
+/**
+ * Producto vectorial, SIN ceros negativos.
+ *
+ * El `+ 0` de cada componente no cambia ningún valor —sólo colapsa `-0` a `0`—
+ * y evita que el marco de una vista salga con un `-0` dentro. Es la misma
+ * razón que en `negate`: `-0` y `0` son el mismo número y no el mismo texto, y
+ * dos marcos que representan la misma cámara tienen que compararse iguales.
+ */
 const cross = (a: CadPoint3, b: CadPoint3): CadPoint3 =>
-  v(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
+  v(
+    a.y * b.z - a.z * b.y + 0,
+    a.z * b.x - a.x * b.z + 0,
+    a.x * b.y - a.y * b.x + 0,
+  );
 
 /**
  * Niega un vector SIN fabricar `-0`.
