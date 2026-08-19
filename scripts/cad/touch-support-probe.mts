@@ -39,10 +39,29 @@
  * secuencia de puntos de contacto; lo que un iPad hace con un dedo sólo lo
  * demuestra un iPad.
  */
-import { chromium, type BrowserContext, type CDPSession, type Page } from "@playwright/test";
+import { chromium, type BrowserContext, type Page } from "@playwright/test";
 import { installMockBackend } from "../../apps/web/e2e/fixtures/mock-backend";
 import { installCadStudioBackend } from "../../apps/web/e2e/fixtures/cad-v1-backend";
 import { loginAsStandaloneOwner } from "../../apps/web/e2e/fixtures/standalone-identity";
+import {
+  EVENT_RECORDER,
+  affine,
+  clearEventLog,
+  documentEntities,
+  eventLog,
+  occlusion,
+  release,
+  screenFor,
+  selectionCount,
+  smallTargets,
+  stroke,
+  tap,
+  topElementAt,
+  touch,
+  unitsPerPixel,
+  wait,
+  type TouchCheck,
+} from "./touch-probe-instruments.mts";
 
 const BASE_URL = process.env.E2E_BASE_URL ?? "http://localhost:3000";
 
@@ -85,254 +104,6 @@ function seedDocument() {
   };
 }
 
-export interface TouchCheck {
-  id: string;
-  gesto: string;
-  esperado: string;
-  observado: string;
-  veredicto: "funciona" | "roto" | "parcial";
-  medida?: Record<string, unknown>;
-}
-
-interface Affine {
-  origin: { x: number; y: number };
-  a: number;
-  b: number;
-  c: number;
-  d: number;
-}
-
-interface Contact {
-  x: number;
-  y: number;
-  id: number;
-}
-
-async function touch(
-  cdp: CDPSession,
-  type: "touchStart" | "touchMove" | "touchEnd" | "touchCancel",
-  contacts: readonly Contact[],
-): Promise<void> {
-  await cdp.send("Input.dispatchTouchEvent", {
-    type,
-    touchPoints: contacts.map((contact) => ({
-      x: contact.x,
-      y: contact.y,
-      id: contact.id,
-      // 12 px de radio es la huella de un dedo adulto en una tableta de 10":
-      // lo que el dedo TAPA es la mitad del problema de precisión.
-      radiusX: 12,
-      radiusY: 12,
-      force: 1,
-    })),
-  });
-}
-
-/** Suelta TODOS los contactos. Chromium interpreta así la lista vacía. */
-const release = (cdp: CDPSession) => touch(cdp, "touchEnd", []);
-
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-/** Toque simple con un temblor declarado entre pulsar y soltar. */
-async function tap(
-  cdp: CDPSession,
-  point: { x: number; y: number },
-  jitterPx = 0,
-  holdMs = 90,
-): Promise<void> {
-  await touch(cdp, "touchStart", [{ ...point, id: 1 }]);
-  if (jitterPx > 0) {
-    const steps = 3;
-    for (let step = 1; step <= steps; step += 1) {
-      await touch(cdp, "touchMove", [
-        { x: point.x + (jitterPx * step) / steps, y: point.y + (jitterPx * step) / steps / 2, id: 1 },
-      ]);
-      await wait(12);
-    }
-  }
-  await wait(holdMs);
-  await release(cdp);
-}
-
-/**
- * Coordenada de dibujo bajo un punto de pantalla, leída del HUD del editor.
- *
- * Se mueve el ratón a un vecino primero para que la lectura del destino DIFIERA
- * de la anterior: el HUD se actualiza asíncrono y un sondeo de «no vacío»
- * aceptaría el valor de la posición previa. Es el método del golden 33.
- */
-async function worldAt(page: Page, x: number, y: number): Promise<{ x: number; y: number }> {
-  const node = page.getByTestId("cad-cursor-coordinate");
-  const read = async () => `${await node.getAttribute("data-x")}|${await node.getAttribute("data-y")}`;
-  await page.mouse.move(x - 5, y - 5);
-  const neighbour = await read();
-  await page.mouse.move(x, y);
-  let last = neighbour;
-  for (let attempt = 0; attempt < 60; attempt += 1) {
-    last = await read();
-    if (last !== neighbour && !last.startsWith("|") && !last.includes("null")) {
-      const [rawX, rawY] = last.split("|");
-      return { x: Number(rawX), y: Number(rawY) };
-    }
-    await wait(50);
-  }
-  // Fallo CERRADO: sin transformación mundo↔pantalla ningún veredicto de esta
-  // sonda significa nada, y un valor inventado contaminaría paneo y zoom.
-  const diagnosis = await page.evaluate(
-    ([px, py]: number[]) =>
-      document
-        .elementsFromPoint(px!, py!)
-        .slice(0, 5)
-        .map((element) => {
-          const testId = (element as HTMLElement).dataset?.testid ?? "";
-          return `${element.tagName.toLowerCase()}${testId ? `[${testId}]` : ""}`;
-        }),
-    [x, y],
-  );
-  throw new Error(
-    `el HUD del cursor no publicó coordenada en (${x}, ${y}); última lectura «${last}», ` +
-      `pila bajo el punto ${JSON.stringify(diagnosis)}`,
-  );
-}
-
-/** Transformación pantalla→dibujo, muestreada en tres puntos del lienzo. */
-async function affine(page: Page): Promise<Affine> {
-  const box = (await page.getByTestId("cad-canvas").boundingBox())!;
-  const center = { x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2) };
-  const origin = await worldAt(page, center.x, center.y);
-  const horizontal = await worldAt(page, center.x + 80, center.y);
-  const vertical = await worldAt(page, center.x, center.y + 80);
-  return {
-    origin,
-    a: (horizontal.x - origin.x) / 80,
-    b: (vertical.x - origin.x) / 80,
-    c: (horizontal.y - origin.y) / 80,
-    d: (vertical.y - origin.y) / 80,
-  };
-}
-
-/** Unidades de dibujo por píxel: el número que cambia al hacer zoom. */
-const unitsPerPixel = (view: Affine) => Math.hypot(view.a, view.c);
-
-function screenFor(
-  view: Affine,
-  box: { x: number; y: number; width: number; height: number },
-  target: { x: number; y: number },
-): { x: number; y: number } {
-  const determinant = view.a * view.d - view.b * view.c;
-  if (Math.abs(determinant) < 1e-12) throw new Error("transformación mundo/pantalla singular");
-  const wx = target.x - view.origin.x;
-  const wy = target.y - view.origin.y;
-  return {
-    x: Math.round(box.x + box.width / 2 + (view.d * wx - view.b * wy) / determinant),
-    y: Math.round(box.y + box.height / 2 + (-view.c * wx + view.a * wy) / determinant),
-  };
-}
-
-/** Registro de eventos crudos, en captura sobre `window`: nada se pierde. */
-const EVENT_RECORDER = `
-window.__valleTouchLog = [];
-for (const type of ["pointerdown","pointermove","pointerup","pointercancel","click","dblclick","contextmenu","touchstart","touchend"]) {
-  window.addEventListener(type, (event) => {
-    const last = window.__valleTouchLog[window.__valleTouchLog.length - 1];
-    if (type === "pointermove" && last && last.type === type) { last.count += 1; return; }
-    window.__valleTouchLog.push({
-      type, count: 1,
-      pointerType: event.pointerType ?? null,
-      button: typeof event.button === "number" ? event.button : null,
-      at: Math.round(performance.now()),
-    });
-  }, true);
-}
-`;
-
-const eventLog = (page: Page) =>
-  page.evaluate(() => (window as unknown as { __valleTouchLog: Array<Record<string, unknown>> }).__valleTouchLog);
-
-const clearEventLog = (page: Page) =>
-  page.evaluate(() => {
-    (window as unknown as { __valleTouchLog: unknown[] }).__valleTouchLog.length = 0;
-  });
-
-/** Entidades del documento canónico, leídas del contador de la barra. */
-async function documentEntities(page: Page): Promise<number> {
-  const text = (await page.getByTestId("cad-native-document-count").textContent()) ?? "";
-  return Number(text.replace(/[^0-9]/g, ""));
-}
-
-const selectionCount = async (page: Page): Promise<string> =>
-  ((await page.getByTestId("cad-selection-status-count").textContent()) ?? "").trim();
-
-/**
- * Qué elemento recibe de verdad un toque en ese punto de pantalla.
- *
- * Es la diferencia entre «el gesto no funciona» y «el gesto nunca llegó al
- * lienzo porque una barra flotante se lo comió», y son dos arreglos distintos.
- */
-const topElementAt = (page: Page, x: number, y: number) =>
-  page.evaluate(
-    ([px, py]: number[]) => {
-      const element = document.elementFromPoint(px!, py!);
-      if (!element) return "ninguno";
-      for (let node: Element | null = element; node; node = node.parentElement) {
-        const testId = (node as HTMLElement).dataset?.testid;
-        if (testId) return testId;
-      }
-      return element.tagName.toLowerCase();
-    },
-    [x, y],
-  );
-
-/**
- * Cuánto del lienzo tapan los paneles flotantes, en porcentaje de su área.
- * En una tableta el lienzo ES el producto: un panel que se lleva un tercio de
- * la pantalla se lleva un tercio del plano.
- */
-const occlusion = (page: Page) =>
-  page.evaluate(() => {
-    const canvas = document.querySelector('[data-testid="cad-canvas"]');
-    if (!canvas) return {};
-    const area = canvas.getBoundingClientRect();
-    const total = Math.max(1, area.width * area.height);
-    const result: Record<string, number> = {};
-    for (const testId of ["cad-guided-tour", "cad-command-line", "cad-toolbar", "cad-left-dock", "cad-right-dock"]) {
-      const node = document.querySelector(`[data-testid="${testId}"]`);
-      if (!node) continue;
-      const box = node.getBoundingClientRect();
-      const overlapW = Math.max(0, Math.min(area.right, box.right) - Math.max(area.left, box.left));
-      const overlapH = Math.max(0, Math.min(area.bottom, box.bottom) - Math.max(area.top, box.top));
-      result[testId] = Number((((overlapW * overlapH) / total) * 100).toFixed(1));
-    }
-    return result;
-  });
-
-/**
- * Controles visibles con menos de 44 px de lado. 44 px es el mínimo que
- * publican tanto Apple como Google para un objetivo táctil; por debajo, el
- * dedo falla y el usuario culpa al programa.
- */
-const smallTargets = (page: Page) =>
-  page.evaluate(() => {
-    const nodes = [...document.querySelectorAll("button, [role='button'], select, input")];
-    let visible = 0;
-    let small = 0;
-    let smallest = Number.POSITIVE_INFINITY;
-    for (const node of nodes) {
-      const box = node.getBoundingClientRect();
-      if (box.width < 1 || box.height < 1) continue;
-      const style = getComputedStyle(node);
-      if (style.visibility === "hidden" || style.display === "none") continue;
-      visible += 1;
-      const side = Math.min(box.width, box.height);
-      if (side < smallest) smallest = side;
-      if (side < 44) small += 1;
-    }
-    return {
-      controlesVisibles: visible,
-      pordebajoDe44px: small,
-      ladoMenorPx: Number.isFinite(smallest) ? Number(smallest.toFixed(1)) : null,
-    };
-  });
 
 async function openStudio(context: BrowserContext, page: Page) {
   await installMockBackend(context);
@@ -346,7 +117,12 @@ async function openStudio(context: BrowserContext, page: Page) {
   await page.addInitScript(EVENT_RECORDER);
   await page.goto(`${BASE_URL}/legacy/studio`);
   await page.getByTestId("cad-canvas").waitFor({ state: "visible", timeout: 90_000 });
-  await page.getByTestId("cad-native-entity-list").waitFor({ state: "visible", timeout: 90_000 });
+  // El contador de la BARRA, no la lista del muelle: en tableta el muelle de
+  // propiedades se pliega para dejarle la pantalla al plano, y esperar por algo
+  // que el propio producto decide esconder sería esperar para siempre.
+  await page
+    .getByTestId("cad-native-document-count")
+    .waitFor({ state: "visible", timeout: 90_000 });
 }
 
 /** Modo 2D — el que usa quien dibuja: planta bloqueada, paneo y zoom. */
@@ -407,7 +183,7 @@ async function probeProfile(profile: (typeof PROFILES)[number]): Promise<Profile
 
     // ---- 1. UN DEDO DESIGNA ----------------------------------------------
     await clearEventLog(page);
-    await tap(cdp, wall);
+    await tap(cdp, page, wall);
     await wait(500);
     const tapped = await selectionCount(page);
     checks.push({
@@ -427,9 +203,9 @@ async function probeProfile(profile: (typeof PROFILES)[number]): Promise<Profile
       await page.keyboard.press("Escape");
       // Un toque al vacío limpia la selección anterior: cada temblor se juzga
       // desde cero, no sobre lo que dejó el anterior.
-      await tap(cdp, { x: center.x, y: center.y });
+      await tap(cdp, page, { x: center.x, y: center.y });
       await wait(250);
-      await tap(cdp, wall, jitter);
+      await tap(cdp, page, wall, jitter);
       await wait(400);
       jitterResults[`${jitter}px`] = await selectionCount(page);
     }
@@ -449,12 +225,10 @@ async function probeProfile(profile: (typeof PROFILES)[number]): Promise<Profile
     // ---- 3. UN DEDO EN EL FONDO: ¿DESIGNA O PANEA? -----------------------
     await enterPlanMode(page);
     const beforeDrag = await affine(page);
-    await touch(cdp, "touchStart", [{ x: center.x, y: center.y, id: 1 }]);
-    for (let step = 1; step <= 8; step += 1) {
-      await touch(cdp, "touchMove", [{ x: center.x + step * 12, y: center.y, id: 1 }]);
-      await wait(16);
-    }
-    await release(cdp);
+    await stroke(cdp, [
+      { x: center.x, y: center.y },
+      ...Array.from({ length: 8 }, (_, step) => ({ x: center.x + (step + 1) * 12, y: center.y })),
+    ]);
     await wait(600);
     const afterDrag = await affine(page);
     const dragPx =
@@ -542,9 +316,9 @@ async function probeProfile(profile: (typeof PROFILES)[number]): Promise<Profile
     await commandInput.fill("LINE");
     await commandInput.press("Enter");
     await wait(400);
-    await tap(cdp, from);
+    await tap(cdp, page, from);
     await wait(300);
-    await tap(cdp, to);
+    await tap(cdp, page, to);
     await wait(300);
     await page.keyboard.press("Enter");
     await wait(600);
@@ -574,22 +348,17 @@ async function probeProfile(profile: (typeof PROFILES)[number]): Promise<Profile
     await commandInput.fill("LINE");
     await commandInput.press("Enter");
     await wait(400);
-    const aimStart = screenFor(drawView, box, { x: 2_000, y: 4_500 });
-    await touch(cdp, "touchStart", [{ ...aimStart, id: 1 }]);
-    for (let step = 1; step <= 8; step += 1) {
-      await touch(cdp, "touchMove", [{ x: aimStart.x + step * 5, y: aimStart.y + step * 3, id: 1 }]);
-      await wait(20);
-    }
-    const snapBadge = ((await page.getByTestId("cad-live-snap-label").textContent().catch(() => "")) ?? "").trim();
+    /** Camino de apuntado: se posa 40 px antes y se desliza hasta el objetivo. */
+    const aimPath = (target: { x: number; y: number }) =>
+      Array.from({ length: 9 }, (_, step) => ({
+        x: target.x - 40 + (40 * step) / 8,
+        y: target.y - 24 + (24 * step) / 8,
+      }));
+    await stroke(cdp, aimPath(screenFor(drawView, box, { x: 2_000, y: 4_500 })), false);
+    const snapBadge = ((await page.getByTestId("cad-live-snap").textContent().catch(() => "")) ?? "").trim();
     await release(cdp);
     await wait(400);
-    const aimSecond = screenFor(drawView, box, { x: 6_000, y: 4_500 });
-    await touch(cdp, "touchStart", [{ ...aimSecond, id: 1 }]);
-    for (let step = 1; step <= 8; step += 1) {
-      await touch(cdp, "touchMove", [{ x: aimSecond.x + step * 5, y: aimSecond.y + step * 3, id: 1 }]);
-      await wait(20);
-    }
-    await release(cdp);
+    await stroke(cdp, aimPath(screenFor(drawView, box, { x: 6_000, y: 4_500 })));
     await wait(300);
     await page.keyboard.press("Enter");
     await wait(600);
@@ -615,7 +384,7 @@ async function probeProfile(profile: (typeof PROFILES)[number]): Promise<Profile
     await commandInput.press("Enter");
     await wait(400);
     const promptVisible = await page.getByTestId("cad-command-prompt").isVisible().catch(() => false);
-    await tap(cdp, screenFor(holdView, box, { x: 2_000, y: 2_000 }));
+    await tap(cdp, page, screenFor(holdView, box, { x: 2_000, y: 2_000 }));
     await wait(400);
     await clearEventLog(page);
     const holdPoint = screenFor(holdView, box, { x: 4_000, y: 3_000 });
@@ -626,6 +395,9 @@ async function probeProfile(profile: (typeof PROFILES)[number]): Promise<Profile
     await wait(400);
     const menuAfterHold = await page.getByTestId("cad-pointer-menu").isVisible().catch(() => false);
     const holdLog = await eventLog(page);
+    // El menú se cierra ELIGIENDO o tocando fuera, como cualquier menú. Si se
+    // dejara abierto taparía el lienzo y contaminaría lo que se mide después.
+    if (menuAfterHold) await tap(cdp, page, { x: holdPoint.x + 120, y: holdPoint.y + 120 });
     checks.push({
       id: "pulsacion-larga-abre-menu",
       gesto: "Mantener pulsado 900 ms con un comando abierto",
@@ -660,25 +432,28 @@ async function probeProfile(profile: (typeof PROFILES)[number]): Promise<Profile
     // captura está en píxeles y hoy vale lo mismo para un ratón que para un
     // dedo, cuya incertidumbre es un orden de magnitud mayor.
     const snapByDistance: Record<string, string> = {};
+    let cursorOffsetPx: number | null = null;
     for (const offset of [0, 6, 12, 20]) {
-      await touch(cdp, "touchStart", [{ x: corner.x + offset, y: corner.y + offset, id: 1 }]);
-      await wait(100);
-      await touch(cdp, "touchMove", [{ x: corner.x + offset + 1, y: corner.y + offset, id: 1 }]);
+      const at = { x: corner.x + offset, y: corner.y + offset };
+      // El dedo se queda ABAJO mientras se lee: la insignia y el cursor vivo
+      // sólo existen durante el gesto, y medirlos después mediría el reposo.
+      await stroke(cdp, [{ x: at.x - 20, y: at.y - 12 }, at, { x: at.x + 1, y: at.y }], false);
       await wait(220);
       snapByDistance[`${offset}px`] =
-        ((await page.getByTestId("cad-live-snap").textContent().catch(() => "")) ?? "").trim() || "sin captura";
+        ((await page.getByTestId("cad-live-snap").textContent().catch(() => "")) ?? "").trim() ||
+        "sin captura";
+      cursorOffsetPx = await page.evaluate(
+        ([cx, cy]: number[]) => {
+          const cursor = document.querySelector('[data-testid="cad-live-cursor"]') as HTMLElement | null;
+          if (!cursor) return null;
+          const rect = cursor.getBoundingClientRect();
+          return Math.round(Math.hypot(rect.x - cx!, rect.y - cy!));
+        },
+        [at.x + 1, at.y],
+      );
       await release(cdp);
       await wait(150);
     }
-    const cursorOffsetPx = await page.evaluate(
-      ([cx, cy]: number[]) => {
-        const cursor = document.querySelector('[data-testid="cad-live-cursor"]') as HTMLElement | null;
-        if (!cursor) return null;
-        const rect = cursor.getBoundingClientRect();
-        return Math.round(Math.hypot(rect.x - cx!, rect.y - cy!));
-      },
-      [corner.x + 20, corner.y + 20],
-    );
     await page.keyboard.press("Escape");
     const snapAtFingerWidth = snapByDistance["12px"] !== "sin captura";
     checks.push({

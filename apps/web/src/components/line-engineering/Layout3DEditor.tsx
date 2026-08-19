@@ -494,6 +494,8 @@ import {
 } from "@/components/cad/viewport/pointer-router";
 import { CadNativeGripController } from "@/components/cad/viewport/native-grip-controller";
 import { CadGripMenuOverlay } from "@/components/cad/viewport/grip-menu-host";
+import { CadTouchGestures, cadDispatchContextMenu } from "@/components/cad/viewport/touch-gestures";
+import { applyCadCameraPolicy } from "@/components/cad/viewport/camera-policy";
 import {
   CadRenderPipelineBadge,
   CadRenderPipelineStats,
@@ -7277,8 +7279,22 @@ export default function Layout3DEditor({
       event.preventDefault();
     };
     renderer.domElement.addEventListener("contextmenu", onContextMenu);
+    // Los dedos tienen sus propias reglas: `touch-gestures.ts` explica cuáles y
+    // con qué cifras. Mantener pulsado no abre un menú nuevo — emite el
+    // `contextmenu` que estos mismos oyentes ya atendían.
+    const touchGestures = new CadTouchGestures({
+      openContextMenu: (origin) => cadDispatchContextMenu(renderer.domElement, origin),
+      closeContextMenu: () => {
+        setCadContextMenu(null);
+        engineLiveCursor.closeMenu();
+      },
+      engineActive: () => enginePointerRouter.active,
+    });
 
     const onDown = (e: PointerEvent) => {
+      // El segundo dedo de un pellizco NO es un `pointerdown` del editor: si lo
+      // fuera, encuadrar limpiaría la selección o arrancaría otro arrastre.
+      if (touchGestures.pointerDown(e)) return;
       downX = e.clientX;
       downY = e.clientY;
       if (walkRef.current) {
@@ -7555,6 +7571,9 @@ export default function Layout3DEditor({
       }
     };
     const onMove = (e: PointerEvent) => {
+      // Sólo el contacto PRINCIPAL mueve el cursor vivo. Sin esto, durante un
+      // pellizco el cursor saltaba entre las dos manos.
+      if (touchGestures.pointerMove(e)) return;
       const overlay = crosshairOverlayRef.current;
       if (overlay) {
         const rect = renderer.domElement.getBoundingClientRect();
@@ -7718,6 +7737,7 @@ export default function Layout3DEditor({
       });
     };
     const onUp = (e: PointerEvent) => {
+      const touchRelease = touchGestures.pointerUp(e);
       if (walkRef.current) {
         walkLook = false;
         try {
@@ -7859,7 +7879,13 @@ export default function Layout3DEditor({
           );
         return;
       }
-      const isClick = Math.hypot(e.clientX - downX, e.clientY - downY) < 5;
+      // Con RATÓN, clic es «no se movió»: 5 px, tolerancia de aparato apoyado.
+      // Con DEDO manda el reconocedor táctil, porque deslizar es APUNTAR —sin
+      // hover no hay otra forma de ver dónde va a caer el punto— y esos 5 px
+      // anulaban justo el punto que el gesto acababa de señalar.
+      const isClick = touchRelease
+        ? touchRelease.commits
+        : Math.hypot(e.clientX - downX, e.clientY - downY) < 5;
       // Sólo el CLIC: arrastrar sigue orbitando la cámara aunque haya un
       // comando abierto, que es como se encuadra mientras se dibuja.
       if (isClick && enginePointerRouter.click(e)) {
@@ -8052,9 +8078,11 @@ export default function Layout3DEditor({
       engineCursorPointRef.current = null;
       engineLiveCursor.setSnap(null);
     };
+    const onPointerCancel = (e: PointerEvent) => touchGestures.pointerCancel(e);
     renderer.domElement.addEventListener("pointerdown", onDown);
     renderer.domElement.addEventListener("pointermove", onMove);
     renderer.domElement.addEventListener("pointerleave", onPointerLeave);
+    renderer.domElement.addEventListener("pointercancel", onPointerCancel);
     window.addEventListener("pointerup", onUp);
 
     // WASD movement while walking
@@ -8160,7 +8188,9 @@ export default function Layout3DEditor({
       renderer.domElement.removeEventListener("pointerdown", onDown);
       renderer.domElement.removeEventListener("pointermove", onMove);
       renderer.domElement.removeEventListener("pointerleave", onPointerLeave);
+      renderer.domElement.removeEventListener("pointercancel", onPointerCancel);
       renderer.domElement.removeEventListener("contextmenu", onContextMenu);
+      touchGestures.dispose();
       enginePointerRouterRef.current = null;
       enginePreviewRef.current = null;
       engineLiveCursorRef.current = null;
@@ -8954,22 +8984,8 @@ export default function Layout3DEditor({
       }));
   }, [data]);
   const configureOrbitControlsForMode = (mode: "3d" | "2d") => {
-    const ctrl = controlsRef.current;
     viewControllerRef.current?.setMode(mode);
-    if (!ctrl) return;
-    if (mode === "2d") {
-      ctrl.minPolarAngle = 0;
-      ctrl.maxPolarAngle = 0.05;
-      ctrl.enableRotate = false;
-      ctrl.mouseButtons.LEFT = THREE.MOUSE.PAN;
-      ctrl.touches.ONE = THREE.TOUCH.PAN;
-    } else {
-      ctrl.minPolarAngle = 0;
-      ctrl.maxPolarAngle = Math.PI / 2.05;
-      ctrl.enableRotate = true;
-      ctrl.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
-      ctrl.touches.ONE = THREE.TOUCH.ROTATE;
-    }
+    if (controlsRef.current) applyCadCameraPolicy(controlsRef.current, mode);
   };
   const focusViewportItems = (items: SelItem[]) => {
     const ctx = ctxRef.current;
@@ -14012,19 +14028,12 @@ export default function Layout3DEditor({
         walkRef.current = false;
       }
       cam.position.set(0, d * 1.6, 0.01); // straight above, due-south → footprint axis-aligned (no 45° diamond)
-      ctrl.minPolarAngle = 0;
-      ctrl.maxPolarAngle = 0.05; // pinned looking down
-      ctrl.enableRotate = false;
-      ctrl.mouseButtons.LEFT = THREE.MOUSE.PAN; // arrastrar el fondo = paneo (estilo 2D)
-      ctrl.touches.ONE = THREE.TOUCH.PAN;
     } else {
-      ctrl.minPolarAngle = 0;
-      ctrl.maxPolarAngle = Math.PI / 2.05;
-      ctrl.enableRotate = true;
-      ctrl.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
-      ctrl.touches.ONE = THREE.TOUCH.ROTATE;
       cam.position.set(d * 0.6, d * 0.85, d * 1.0);
     }
+    // Ángulos, botón del ratón y gesto de un dedo: una sola regla, en un solo
+    // sitio. Estaba escrita dos veces y las dos copias tenían que coincidir.
+    applyCadCameraPolicy(ctrl, mode);
     ctrl.target.set(0, 0, 0);
     ctrl.update();
   }, []);
@@ -17728,10 +17737,15 @@ export default function Layout3DEditor({
         </div>
       ) : (
         <div className="flex flex-1 min-h-0">
-          {/* left: stations tray + equipment palette */}
+          {/* left: bandeja de estaciones. EN TABLETA SE PLIEGA: con los dos
+              muelles fijos, a 768 px el lienzo se quedaba con el 34 % de la
+              ventana y la barra flotante llegaba a comerse el primer toque
+              (`docs/cad/evidence/touch-support.json`). La línea de comandos NO
+              se va con él: flota sobre el lienzo, que es donde está la memoria
+              muscular. */}
           <div
             data-testid="cad-left-dock"
-            className={`w-60 shrink-0 border-r border-white/10 bg-gray-900/95 text-white flex-col ${focusMode || (!workspacePreferences.leftDock && !workspacePreferences.commandDock) ? "hidden" : "flex"}`}
+            className={`w-60 shrink-0 border-r border-white/10 bg-gray-900/95 text-white flex-col max-[1100px]:hidden ${focusMode || (!workspacePreferences.leftDock && !workspacePreferences.commandDock) ? "hidden" : "flex"}`}
           >
             {showCommand && workspacePreferences.commandDock && (
               <CadCommandDock
@@ -19224,10 +19238,13 @@ export default function Layout3DEditor({
             )}
           </div>
 
-          {/* right: properties */}
+          {/* right: propiedades. En tableta sólo aparece si el usuario ABRIÓ una
+              paleta profesional: 256 px permanentes son la cuarta parte del
+              plano en una pantalla de 1024, y una paleta pedida a mano sí se
+              gana su sitio mientras dura. */}
           <div
             data-testid="cad-right-dock"
-            className={`${activeProfessionalDock ? "w-[min(560px,42vw)] overflow-hidden" : "w-64 overflow-y-auto"} shrink-0 border-l border-white/10 bg-gray-900/95 text-white ${focusMode || (!workspacePreferences.rightDock && !activeProfessionalDock) ? "hidden" : ""}`}
+            className={`${activeProfessionalDock ? "w-[min(560px,42vw)] overflow-hidden" : "w-64 overflow-y-auto max-[1100px]:hidden"} shrink-0 border-l border-white/10 bg-gray-900/95 text-white ${focusMode || (!workspacePreferences.rightDock && !activeProfessionalDock) ? "hidden" : ""}`}
           >
             {activeProfessionalDock ? (
               <div className="flex h-full min-h-0 flex-col">

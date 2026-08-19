@@ -118,17 +118,26 @@ export function CadGuidedTourDock({ host, disabled }: CadGuidedTourDockProps) {
       data-testid="cad-guided-tour"
       aria-label="Recorrido guiado"
       /*
-        `pointer-events-auto` NO es decorativo. El envoltorio del muelle de
-        comandos es `pointer-events-none` a propósito —flota sobre la barra
-        inferior y taparía Undo—, así que cada control que quiera ratón lo
-        reactiva por su cuenta, igual que hacen la caja de la línea de comandos y
-        sus palabras clave. Sin esta clase el panel se ve, se localiza y NO se
-        deja pulsar: el clic se lo come el lienzo que hay debajo. Un acompañante
-        que no se deja pulsar es peor que ninguno.
+        QUIÉN SE QUEDA EL RATÓN, y por qué el panel entero ya no.
+
+        El envoltorio del muelle de comandos es `pointer-events-none` a
+        propósito —flota sobre la barra inferior y taparía Undo—, así que cada
+        control que quiera ratón lo reactiva por su cuenta. Este panel lo hacía
+        ENTERO, y eso lo convertía en un telón: medido con
+        `elementsFromPoint`, en una ventana de 1.280×720 el acompañante cubría
+        el CENTRO del lienzo, y el editor dejaba de ver el ratón ahí —el HUD de
+        coordenadas se quedaba en blanco y con él la captura a objeto, la banda
+        elástica y cualquier clic de dibujo—. Un acompañante que impide dibujar
+        es peor que ninguno.
+
+        Ahora el ratón lo reclaman sólo los CONTROLES (la cabecera con «Saltar
+        recorrido» y el botón del paso). El resto del panel se ve, se lee y deja
+        pasar el puntero al plano. Y la altura baja a un tercio de la pantalla:
+        en una tableta, medio viewport de acompañante es medio plano menos.
       */
-      className="pointer-events-auto max-h-[52vh] overflow-y-auto rounded-xl border border-emerald-400/25 bg-gray-950/95 p-2.5 text-[11px] text-emerald-50 shadow-2xl backdrop-blur"
+      className="pointer-events-none max-h-[32vh] overflow-y-auto rounded-xl border border-emerald-400/25 bg-gray-950/95 p-2.5 text-[11px] text-emerald-50 shadow-2xl backdrop-blur"
     >
-      <header className="mb-2 flex items-center justify-between gap-2">
+      <header className="pointer-events-auto mb-2 flex items-center justify-between gap-2">
         <span className="font-semibold">
           Primeros cinco minutos · {progress.doneStepIds.length}/{CAD_GUIDED_TOUR_STEPS.length}
         </span>
@@ -179,7 +188,7 @@ export function CadGuidedTourDock({ host, disabled }: CadGuidedTourDockProps) {
                         type="button"
                         data-testid="cad-guided-tour-acknowledge"
                         onClick={() => cadTourHost.dispatch({ type: "acknowledge" })}
-                        className="mt-1 rounded-lg bg-emerald-500 px-2 py-1 text-[10px] font-semibold text-emerald-950"
+                        className="pointer-events-auto mt-1 rounded-lg bg-emerald-500 px-2 py-1 text-[10px] font-semibold text-emerald-950"
                       >
                         Entendido, a dibujar
                       </button>
