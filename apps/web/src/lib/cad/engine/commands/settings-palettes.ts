@@ -32,7 +32,6 @@ import {
   CAD_ACCEPT_TEXT,
   asCadCommand,
   type CadAnyCommandDescriptor,
-  type CadCommandContext,
   type CadCommandDescriptor,
   type CadCommandStep,
   type CadUiRequest,
