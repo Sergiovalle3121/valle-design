@@ -133,7 +133,23 @@ export class CadViewController {
     return () => this.listeners.delete(listener);
   }
 
+  /**
+   * Contador de cambios de vista.
+   *
+   * Sirve para lo que una suscripción no resuelve bien: saber, DENTRO de una
+   * consulta, si la caché que uno tiene sigue valiendo. El índice de enganche 3D
+   * guarda la proyección de miles de puntos y sólo necesita rehacerla cuando la
+   * cámara se ha movido; comparar un entero es más barato que suscribirse y
+   * mantener una bandera, y no puede desincronizarse.
+   */
+  get revision(): number {
+    return this.changes;
+  }
+
+  private changes = 0;
+
   private emit(): void {
+    this.changes += 1;
     for (const listener of this.listeners) listener();
   }
 

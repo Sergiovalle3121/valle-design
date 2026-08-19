@@ -469,6 +469,7 @@ import {
 import {
   CadSolidShadeHost,
   cadSolidEntityIds,
+  cadSolidViewBridge,
 } from "@/components/cad/viewport/solid-shade-host";
 import {
   HELP_SECTIONS,
@@ -6570,11 +6571,13 @@ export default function Layout3DEditor({
     }
     // Sólidos SOMBREADOS: grupo aparte con z real y luz, excluidos del batch
     // (que vive comprimido en una lámina de profundidad NDC). Patrón INSERT.
-    const solidShadeHost = new CadSolidShadeHost(() => ({
-      scale: s,
-      width: W,
-      height: H,
-    }));
+    // El segundo puente da al anfitrión la CÁMARA, que es lo que necesitan el
+    // enganche 3D y las líneas ocultas. Se lee por `ref` porque el controlador
+    // de vista todavía no existe en esta línea.
+    const solidShadeHost = new CadSolidShadeHost(
+      () => ({ scale: s, width: W, height: H }),
+      cadSolidViewBridge(() => viewControllerRef.current),
+    );
     nativeGroup.add(solidShadeHost.group);
     solidShadeHostRef.current = solidShadeHost;
     const connsGroup = new THREE.Group();
@@ -6714,6 +6717,8 @@ export default function Layout3DEditor({
     };
     controls.addEventListener("change", () => {
       syncViewFromOrbit();
+      // Sólo reconstruye si la vista giró más de 5°, y sólo en estilo Oculto.
+      solidShadeHostRef.current?.refreshHiddenLines();
       queueNativeViewportSync();
     });
     queueNativeViewportSync();
@@ -6969,6 +6974,17 @@ export default function Layout3DEditor({
         workspacePreferencesRef.current.aperturePx,
       );
       if (draftSettingsHost.osnap) {
+        // Enganche 3D primero. En perspectiva, la arista de un sólido se ve
+        // donde la pinta la cámara y no sobre su sombra en el suelo, así que el
+        // motor plano de abajo no puede acertar ahí por definición.
+        if (viewController.mode === "3d") {
+          const at = viewController.worldToScreen({ x: wx, y: wy });
+          const solid = solidShadeHostRef.current?.snap3d(at.x, at.y, {
+            aperturePx: workspacePreferencesRef.current.aperturePx,
+          });
+          if (solid)
+            return { wx: solid.point.x, wy: solid.point.y, onDxf: true, snapType: solid.type };
+        }
         const boxes: {
           x: number;
           y: number;
