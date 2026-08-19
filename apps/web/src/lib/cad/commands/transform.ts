@@ -66,6 +66,22 @@ export function rotateSelectionPreview(
     );
     return { summary: "", affectedObjectIds: [], operations: [], issues };
   }
+  // Diez vueltas es el techo. El banco de calidad NL→CAD midió que «gira el
+  // portón 1000000000 grados» se aplicaba tal cual: el resultado es el mismo
+  // que girar 280°, pero el usuario tecleó algo que no quiso decir y el
+  // producto no se lo dijo. Normalizar en silencio una cifra sin sentido
+  // físico es aceptar una orden que nadie dictó. Por encima de MAX_TURNS se
+  // pide que la reescriba; por debajo cabe el giro múltiple legítimo.
+  const MAX_ROTATION_DEG = 3600;
+  if (Math.abs(angle) > MAX_ROTATION_DEG) {
+    issues.push(
+      error(
+        "rotate_angle_out_of_range",
+        `${angle}° son más de ${MAX_ROTATION_DEG / 360} vueltas. Dime el ángulo que quieres, entre -${MAX_ROTATION_DEG}° y ${MAX_ROTATION_DEG}°.`,
+      ),
+    );
+    return { summary: "", affectedObjectIds: [], operations: [], issues };
+  }
   const pivot = selectionPivot(objs);
   const rad = (angle * Math.PI) / 180;
   const cos = Math.cos(rad);

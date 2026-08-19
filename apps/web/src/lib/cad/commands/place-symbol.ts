@@ -57,6 +57,21 @@ export function placeSymbolPreview(
     return { summary: "", affectedObjectIds: [], operations: [], issues };
   }
   const symbol = matches[0];
+  // «Pon 0 puertas» colocaba UNA. El banco de calidad NL→CAD lo cazó: el
+  // `Math.max(1, …)` estaba pensado para blindar el default, pero convertía una
+  // cantidad explícita e imposible en la cantidad más parecida que sí se podía
+  // hacer. Eso es inventar por el usuario. Pasarse del máximo sí se recorta
+  // (con aviso, abajo): ahí hay una intención clara y una cota de producto; un
+  // cero o un negativo no tienen intención que rescatar.
+  if (input.count !== undefined && Math.floor(input.count) < 1) {
+    issues.push(
+      error(
+        "place_count_invalid",
+        `No puedo colocar ${input.count} piezas. Dime cuántas quieres, a partir de 1.`,
+      ),
+    );
+    return { summary: "", affectedObjectIds: [], operations: [], issues };
+  }
   let count = Math.max(1, Math.floor(input.count ?? 1));
   if (count > MAX_ROW) {
     issues.push(

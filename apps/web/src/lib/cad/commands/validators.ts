@@ -58,6 +58,43 @@ export function validateDistance(distance: number): CadValidationIssue[] {
     : [error("invalid_distance", "La holgura debe ser mayor a 0.")];
 }
 
+/**
+ * ¿Alguno de los dos extremos de un trazo cae fuera del lote?
+ *
+ * Vive aquí y no junto al comando porque `outOfBounds` mide OTRA cosa: la caja
+ * del objeto, que se guarda sin rotar y por eso da falsos positivos con un muro
+ * vertical (su x arranca negativa por construcción). Los extremos no mienten. El
+ * banco de calidad NL→CAD midió que «muro de 0,0 a 0,25000» sobre un lote de
+ * 20 m se dibujaba entero y en silencio, y que un muro de 900 km se trazaba sin
+ * pestañear; con la caja como criterio no se podían distinguir de un muro
+ * legítimo.
+ */
+export function wallSegmentIssues(
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+  length: number,
+  context: CadCommandContext,
+): CadValidationIssue[] {
+  const issues: CadValidationIssue[] = [];
+  if (length <= 1)
+    issues.push(error("wall_too_short", "El muro necesita dos puntos distintos."));
+  const outside = [from, to].some(
+    (point) =>
+      point.x < 0 ||
+      point.y < 0 ||
+      point.x > context.footprintW ||
+      point.y > context.footprintH,
+  );
+  if (outside)
+    issues.push(
+      error(
+        "wall_endpoint_outside_plan",
+        `El muro sale del plano (${context.footprintW}×${context.footprintH} ${context.unit}). Amplía el footprint o corrige las coordenadas.`,
+      ),
+    );
+  return issues;
+}
+
 export function outOfBounds(box: CadBox, context: CadCommandContext): boolean {
   return (
     box.x < 0 ||

@@ -236,7 +236,18 @@ function render(artifact) {
 }
 
 const options = parseArgs(process.argv.slice(2));
-const artifact = buildArtifact(probe());
+
+let artifact;
+try {
+  artifact = buildArtifact(probe());
+} catch (err) {
+  // Fallo cerrado también aquí. Si el banco no se puede correr, NO se dice que
+  // la evidencia está bien: se dice que no se pudo comprobar y se sale con
+  // error. Un `--check` que pasa cuando no midió nada deja pasar un artefacto
+  // viejo, que es exactamente el agujero que este script vino a tapar.
+  console.error(`No se pudo medir el banco NL→CAD: ${err.message}`);
+  process.exit(1);
+}
 
 if (options.check) {
   if (!fs.existsSync(options.output)) {

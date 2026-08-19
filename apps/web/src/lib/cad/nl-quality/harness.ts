@@ -58,13 +58,13 @@ const FREE_TEXT_KEYS = new Set([
 ]);
 
 const fold = (value: string) =>
-  value
-    .trim()
-    .toLocaleLowerCase("es-MX")
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "");
+  value.trim().toLocaleLowerCase("es-MX").normalize("NFD").replace(/[̀-ͯ]/g, "");
 
-function valueMatches(key: string, expected: unknown, actual: unknown): boolean {
+function valueMatches(
+  key: string,
+  expected: unknown,
+  actual: unknown,
+): boolean {
   if (typeof expected === "number")
     return typeof actual === "number" && Object.is(expected, actual);
   if (typeof expected === "boolean") return expected === actual;
@@ -155,7 +155,10 @@ export function runNlCadCase(kase: NlCadCase): NlCadCaseResult {
 
   const input = parse.input;
   const actualCommandId = input.id as CadCommandId;
-  const result = executeCadCommand(input, buildNlCadScene(NL_CAD_DEFAULT_SELECTION));
+  const result = executeCadCommand(
+    input,
+    buildNlCadScene(NL_CAD_DEFAULT_SELECTION),
+  );
   const errorCodes = result.issues
     .filter((issue) => issue.level === "error")
     .map((issue) => issue.code);

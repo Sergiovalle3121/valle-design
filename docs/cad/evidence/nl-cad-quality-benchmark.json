@@ -2,8 +2,8 @@
   "$schema": "urn:valle-design:schema:cad-nl-quality-evidence:v1",
   "schemaVersion": 1,
   "benchmarkId": "valle-design-nl-cad-quality-v1",
-  "measuredAt": "2026-08-19T17:56:50.844Z",
-  "commit": "4862cccc9e34d800447bddf7b253be0640834d6c",
+  "measuredAt": "2026-08-19T18:43:56.270Z",
+  "commit": "651adafa9c1ff4550ce6735ec4c62568ccab00c2",
   "enforcement": "report-only",
   "enforcementRationale": "La corrida es determinista y no mide tiempos, así que `--check` sí puede exigir que el artefacto coincida con el árbol. Lo que NO bloquea es la NOTA: un banco que impide mergear cuando baja la tasa se convierte en dos semanas en un banco al que se le quitan los casos difíciles.",
   "method": {
@@ -34,28 +34,28 @@
     },
     "despacho": {
       "cases": 98,
-      "aciertos": 75,
-      "accuracy": 0.7653,
+      "aciertos": 79,
+      "accuracy": 0.8061,
       "rechazoIndebido": 7,
       "bloqueadoAlEjecutar": 10,
       "comandoEquivocado": 0,
-      "argumentosEquivocados": 6,
-      "graves": 3,
-      "graveRate": 0.0306
+      "argumentosEquivocados": 2,
+      "graves": 0,
+      "graveRate": 0
     },
     "adversarial": {
       "cases": 54,
-      "rechazoTipado": 24,
-      "typedRejectionRate": 0.4444,
-      "rechazoSinCodigo": 24,
-      "rejectionRate": 0.8889,
-      "geometriaIndebida": 6,
-      "graveRate": 0.1111,
+      "rechazoTipado": 54,
+      "typedRejectionRate": 1,
+      "rechazoSinCodigo": 0,
+      "rejectionRate": 1,
+      "geometriaIndebida": 0,
+      "graveRate": 0,
       "byFamily": {
         "ambigua": {
           "cases": 14,
-          "rechazados": 13,
-          "graves": 1
+          "rechazados": 14,
+          "graves": 0
         },
         "contradictoria": {
           "cases": 10,
@@ -64,35 +64,35 @@
         },
         "imposible": {
           "cases": 12,
-          "rechazados": 11,
-          "graves": 1
+          "rechazados": 12,
+          "graves": 0
         },
         "unidades": {
           "cases": 8,
-          "rechazados": 7,
-          "graves": 1
+          "rechazados": 8,
+          "graves": 0
         },
         "absurda": {
           "cases": 10,
-          "rechazados": 7,
-          "graves": 3
+          "rechazados": 10,
+          "graves": 0
         }
       }
     },
     "global": {
       "cases": 152,
-      "graves": 9,
-      "graveRate": 0.0592
+      "graves": 0,
+      "graveRate": 0
     },
     "outcomes": {
-      "acierto": 75,
-      "rechazo_tipado": 24,
-      "rechazo_sin_codigo": 24,
+      "acierto": 79,
+      "rechazo_tipado": 54,
+      "rechazo_sin_codigo": 0,
       "rechazo_indebido": 7,
       "bloqueado_al_ejecutar": 10,
       "comando_equivocado": 0,
-      "argumentos_equivocados": 6,
-      "geometria_indebida": 6
+      "argumentos_equivocados": 2,
+      "geometria_indebida": 0
     }
   },
   "verdict": {
@@ -105,102 +105,11 @@
     },
     "corpusSuficiente": true,
     "adversarialSuficiente": true,
-    "despachoSobreUmbral": false,
-    "rechazoTipadoSobreUmbral": false,
-    "sinFallosGraves": false
+    "despachoSobreUmbral": true,
+    "rechazoTipadoSobreUmbral": true,
+    "sinFallosGraves": true
   },
-  "graves": [
-    {
-      "id": "d-002",
-      "lane": "despacho",
-      "text": "muro de 0,0 a 0,8000 con espesor de 15 cm",
-      "outcome": "argumentos_equivocados",
-      "detail": "thickness: esperado 150, obtenido 15",
-      "argMismatches": [
-        {
-          "key": "thickness",
-          "expected": 150,
-          "actual": 15
-        }
-      ]
-    },
-    {
-      "id": "d-006",
-      "lane": "despacho",
-      "text": "muro de tablaroca de 4800,10600 a 4800,14800 espesor de 10 cm",
-      "outcome": "argumentos_equivocados",
-      "detail": "thickness: esperado 100, obtenido 10",
-      "argMismatches": [
-        {
-          "key": "thickness",
-          "expected": 100,
-          "actual": 10
-        }
-      ]
-    },
-    {
-      "id": "d-055",
-      "lane": "despacho",
-      "text": "offset de 3 metros del muro de colindancia poniente",
-      "outcome": "argumentos_equivocados",
-      "detail": "distance: esperado 3000, obtenido 3",
-      "argMismatches": [
-        {
-          "key": "distance",
-          "expected": 3000,
-          "actual": 3
-        }
-      ]
-    },
-    {
-      "id": "a-004",
-      "lane": "adversarial",
-      "text": "acomodame el plano como se vea mejor",
-      "outcome": "geometria_indebida",
-      "detail": "aplicó arrange_line con 3 operación(es): Acomodar 2 estaciones por secuencia.",
-      "argMismatches": []
-    },
-    {
-      "id": "a-036",
-      "lane": "adversarial",
-      "text": "muro de 0,0 a 0,25000",
-      "outcome": "geometria_indebida",
-      "detail": "aplicó draw_wall_segment con 1 operación(es): Dibujar muro de 25000 mm.",
-      "argMismatches": []
-    },
-    {
-      "id": "a-037",
-      "lane": "adversarial",
-      "text": "muro de 0,0 a 6000,0 con espesor de 15 cm y también 200 mm",
-      "outcome": "geometria_indebida",
-      "detail": "aplicó draw_wall_segment con 1 operación(es): Dibujar muro de 6000 mm.",
-      "argMismatches": []
-    },
-    {
-      "id": "a-048",
-      "lane": "adversarial",
-      "text": "gira el portón 1000000000 grados",
-      "outcome": "geometria_indebida",
-      "detail": "aplicó rotate_selection con 1 operación(es): Rotación de 1000000000° a 1 objeto(s) alrededor del centro.",
-      "argMismatches": []
-    },
-    {
-      "id": "a-049",
-      "lane": "adversarial",
-      "text": "muro de 0,0 a 900000000,0",
-      "outcome": "geometria_indebida",
-      "detail": "aplicó draw_wall_segment con 1 operación(es): Dibujar muro de 900000000 mm.",
-      "argMismatches": []
-    },
-    {
-      "id": "a-050",
-      "lane": "adversarial",
-      "text": "pon 0 puertas en la recámara principal",
-      "outcome": "geometria_indebida",
-      "detail": "aplicó place_symbol con 1 operación(es): Puerta 90 cm colocado dentro de 'recámara principal'.",
-      "argMismatches": []
-    }
-  ],
+  "graves": [],
   "cases": [
     {
       "id": "d-001",
@@ -224,19 +133,13 @@
       "trait": "muro de quince dictado en centímetros",
       "expectedCommandId": "draw_wall_segment",
       "confidence": 0.88,
-      "outcome": "argumentos_equivocados",
-      "grave": true,
+      "outcome": "acierto",
+      "grave": false,
       "actualCommandId": "draw_wall_segment",
       "rejectionCodes": [],
-      "argMismatches": [
-        {
-          "key": "thickness",
-          "expected": 150,
-          "actual": 15
-        }
-      ],
+      "argMismatches": [],
       "operationsApplied": 1,
-      "detail": "thickness: esperado 150, obtenido 15"
+      "detail": "Dibujar muro de 8000 mm."
     },
     {
       "id": "d-003",
@@ -290,19 +193,13 @@
       "trait": "muro divisorio de tablaroca",
       "expectedCommandId": "draw_wall_segment",
       "confidence": 0.88,
-      "outcome": "argumentos_equivocados",
-      "grave": true,
+      "outcome": "acierto",
+      "grave": false,
       "actualCommandId": "draw_wall_segment",
       "rejectionCodes": [],
-      "argMismatches": [
-        {
-          "key": "thickness",
-          "expected": 100,
-          "actual": 10
-        }
-      ],
+      "argMismatches": [],
       "operationsApplied": 1,
-      "detail": "thickness: esperado 100, obtenido 10"
+      "detail": "Dibujar muro de 4200 mm."
     },
     {
       "id": "d-007",
@@ -640,7 +537,9 @@
       "outcome": "rechazo_indebido",
       "grave": false,
       "actualCommandId": null,
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "instruccion_no_reconocida"
+      ],
       "argMismatches": [],
       "operationsApplied": 0,
       "detail": "no entendió una instrucción legítima: No reconocí el comando CAD."
@@ -672,7 +571,9 @@
       "outcome": "rechazo_indebido",
       "grave": false,
       "actualCommandId": null,
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "instruccion_no_reconocida"
+      ],
       "argMismatches": [],
       "operationsApplied": 0,
       "detail": "no entendió una instrucción legítima: No reconocí el comando CAD."
@@ -935,15 +836,10 @@
           "key": "cols",
           "expected": 6,
           "actual": 7
-        },
-        {
-          "key": "gapX",
-          "expected": 3000,
-          "actual": 3
         }
       ],
       "operationsApplied": 0,
-      "detail": "cols: esperado 6, obtenido 7; gapX: esperado 3000, obtenido 3"
+      "detail": "cols: esperado 6, obtenido 7"
     },
     {
       "id": "d-048",
@@ -955,7 +851,9 @@
       "outcome": "rechazo_indebido",
       "grave": false,
       "actualCommandId": null,
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "instruccion_no_reconocida"
+      ],
       "argMismatches": [],
       "operationsApplied": 0,
       "detail": "no entendió una instrucción legítima: No reconocí el comando CAD."
@@ -967,21 +865,15 @@
       "trait": "reparto con paso fijo",
       "expectedCommandId": "distribute_selection",
       "confidence": 0.8,
-      "outcome": "argumentos_equivocados",
+      "outcome": "bloqueado_al_ejecutar",
       "grave": false,
       "actualCommandId": "distribute_selection",
       "rejectionCodes": [
         "target_not_found"
       ],
-      "argMismatches": [
-        {
-          "key": "gap",
-          "expected": 3000,
-          "actual": 3
-        }
-      ],
+      "argMismatches": [],
       "operationsApplied": 0,
-      "detail": "gap: esperado 3000, obtenido 3"
+      "detail": "entendió distribute_selection pero la ejecución lo paró (target_not_found)"
     },
     {
       "id": "d-050",
@@ -990,15 +882,13 @@
       "trait": "alineación",
       "expectedCommandId": "align_selection",
       "confidence": 0.82,
-      "outcome": "bloqueado_al_ejecutar",
+      "outcome": "acierto",
       "grave": false,
       "actualCommandId": "align_selection",
-      "rejectionCodes": [
-        "target_not_found"
-      ],
+      "rejectionCodes": [],
       "argMismatches": [],
-      "operationsApplied": 0,
-      "detail": "entendió align_selection pero la ejecución lo paró (target_not_found)"
+      "operationsApplied": 4,
+      "detail": "Alinear 4 objetos (left)."
     },
     {
       "id": "d-051",
@@ -1069,19 +959,13 @@
       "trait": "paralela en metros",
       "expectedCommandId": "offset_object",
       "confidence": 0.84,
-      "outcome": "argumentos_equivocados",
-      "grave": true,
+      "outcome": "acierto",
+      "grave": false,
       "actualCommandId": "offset_object",
       "rejectionCodes": [],
-      "argMismatches": [
-        {
-          "key": "distance",
-          "expected": 3000,
-          "actual": 3
-        }
-      ],
+      "argMismatches": [],
       "operationsApplied": 2,
-      "detail": "distance: esperado 3000, obtenido 3"
+      "detail": "Crear 2 copia(s) paralela(s) a 3000 mm."
     },
     {
       "id": "d-056",
@@ -1093,7 +977,9 @@
       "outcome": "rechazo_indebido",
       "grave": false,
       "actualCommandId": null,
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "medicion_sin_pareja"
+      ],
       "argMismatches": [],
       "operationsApplied": 0,
       "detail": "no entendió una instrucción legítima: ¿Entre qué dos objetos quieres medir?"
@@ -1277,7 +1163,9 @@
       "outcome": "rechazo_indebido",
       "grave": false,
       "actualCommandId": null,
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "instruccion_no_reconocida"
+      ],
       "argMismatches": [],
       "operationsApplied": 0,
       "detail": "no entendió una instrucción legítima: No reconocí el comando CAD."
@@ -1324,7 +1212,9 @@
       "outcome": "rechazo_indebido",
       "grave": false,
       "actualCommandId": null,
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "instruccion_no_reconocida"
+      ],
       "argMismatches": [],
       "operationsApplied": 0,
       "detail": "no entendió una instrucción legítima: No reconocí el comando CAD."
@@ -1371,7 +1261,9 @@
       "outcome": "rechazo_indebido",
       "grave": false,
       "actualCommandId": null,
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "instruccion_no_reconocida"
+      ],
       "argMismatches": [],
       "operationsApplied": 0,
       "detail": "no entendió una instrucción legítima: No reconocí el comando CAD."
@@ -1745,13 +1637,15 @@
       "trait": "sin objetivo y sin factor",
       "expectedCommandId": null,
       "confidence": 0.6,
-      "outcome": "rechazo_sin_codigo",
+      "outcome": "rechazo_tipado",
       "grave": false,
       "actualCommandId": null,
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "resize_sin_cantidad"
+      ],
       "argMismatches": [],
       "operationsApplied": 0,
-      "detail": "el parser rechazó (sin código): ¿Cuántos mm? (ej. 'haz la mesa 500 más ancha' o '20% más grande')"
+      "detail": "el parser rechazó (resize_sin_cantidad): ¿Cuántos mm? (ej. 'haz la mesa 500 más ancha' o '20% más grande')"
     },
     {
       "id": "a-002",
@@ -1760,13 +1654,15 @@
       "trait": "destino indeterminado",
       "expectedCommandId": null,
       "confidence": 0.1,
-      "outcome": "rechazo_sin_codigo",
+      "outcome": "rechazo_tipado",
       "grave": false,
       "actualCommandId": null,
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "instruccion_no_reconocida"
+      ],
       "argMismatches": [],
       "operationsApplied": 0,
-      "detail": "el parser rechazó (sin código): No reconocí el comando CAD."
+      "detail": "el parser rechazó (instruccion_no_reconocida): No reconocí el comando CAD."
     },
     {
       "id": "a-003",
@@ -1775,13 +1671,15 @@
       "trait": "sin criterio",
       "expectedCommandId": null,
       "confidence": 0.1,
-      "outcome": "rechazo_sin_codigo",
+      "outcome": "rechazo_tipado",
       "grave": false,
       "actualCommandId": null,
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "instruccion_no_reconocida"
+      ],
       "argMismatches": [],
       "operationsApplied": 0,
-      "detail": "el parser rechazó (sin código): No reconocí el comando CAD."
+      "detail": "el parser rechazó (instruccion_no_reconocida): No reconocí el comando CAD."
     },
     {
       "id": "a-004",
@@ -1789,14 +1687,16 @@
       "text": "acomodame el plano como se vea mejor",
       "trait": "juicio estético delegado",
       "expectedCommandId": null,
-      "confidence": 0.74,
-      "outcome": "geometria_indebida",
-      "grave": true,
-      "actualCommandId": "arrange_line",
-      "rejectionCodes": [],
+      "confidence": 0.2,
+      "outcome": "rechazo_tipado",
+      "grave": false,
+      "actualCommandId": null,
+      "rejectionCodes": [
+        "criterio_subjetivo"
+      ],
       "argMismatches": [],
-      "operationsApplied": 3,
-      "detail": "aplicó arrange_line con 3 operación(es): Acomodar 2 estaciones por secuencia."
+      "operationsApplied": 0,
+      "detail": "el parser rechazó (criterio_subjetivo): Eso depende de un criterio que no puedo suponer. Dime qué acomodo y con qué regla (p. ej. 'alinea las mesas a la izquierda' o 'distribuye las sillas cada 800')."
     },
     {
       "id": "a-005",
@@ -1805,13 +1705,15 @@
       "trait": "referente inexistente",
       "expectedCommandId": null,
       "confidence": 0.1,
-      "outcome": "rechazo_sin_codigo",
+      "outcome": "rechazo_tipado",
       "grave": false,
       "actualCommandId": null,
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "instruccion_no_reconocida"
+      ],
       "argMismatches": [],
       "operationsApplied": 0,
-      "detail": "el parser rechazó (sin código): No reconocí el comando CAD."
+      "detail": "el parser rechazó (instruccion_no_reconocida): No reconocí el comando CAD."
     },
     {
       "id": "a-006",
@@ -1820,13 +1722,15 @@
       "trait": "sin objetivo, sin selección nombrada",
       "expectedCommandId": null,
       "confidence": 0.1,
-      "outcome": "rechazo_sin_codigo",
+      "outcome": "rechazo_tipado",
       "grave": false,
       "actualCommandId": null,
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "instruccion_no_reconocida"
+      ],
       "argMismatches": [],
       "operationsApplied": 0,
-      "detail": "el parser rechazó (sin código): No reconocí el comando CAD."
+      "detail": "el parser rechazó (instruccion_no_reconocida): No reconocí el comando CAD."
     },
     {
       "id": "a-007",
@@ -1835,13 +1739,15 @@
       "trait": "fragmento sin verbo ni objeto",
       "expectedCommandId": null,
       "confidence": 0.1,
-      "outcome": "rechazo_sin_codigo",
+      "outcome": "rechazo_tipado",
       "grave": false,
       "actualCommandId": null,
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "instruccion_no_reconocida"
+      ],
       "argMismatches": [],
       "operationsApplied": 0,
-      "detail": "el parser rechazó (sin código): No reconocí el comando CAD."
+      "detail": "el parser rechazó (instruccion_no_reconocida): No reconocí el comando CAD."
     },
     {
       "id": "a-008",
@@ -1850,13 +1756,15 @@
       "trait": "cantidad coloquial no cuantificable",
       "expectedCommandId": null,
       "confidence": 0.1,
-      "outcome": "rechazo_sin_codigo",
+      "outcome": "rechazo_tipado",
       "grave": false,
       "actualCommandId": null,
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "instruccion_no_reconocida"
+      ],
       "argMismatches": [],
       "operationsApplied": 0,
-      "detail": "el parser rechazó (sin código): No reconocí el comando CAD."
+      "detail": "el parser rechazó (instruccion_no_reconocida): No reconocí el comando CAD."
     },
     {
       "id": "a-009",
@@ -1865,13 +1773,15 @@
       "trait": "el producto no sabe qué falta",
       "expectedCommandId": null,
       "confidence": 0.1,
-      "outcome": "rechazo_sin_codigo",
+      "outcome": "rechazo_tipado",
       "grave": false,
       "actualCommandId": null,
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "instruccion_no_reconocida"
+      ],
       "argMismatches": [],
       "operationsApplied": 0,
-      "detail": "el parser rechazó (sin código): No reconocí el comando CAD."
+      "detail": "el parser rechazó (instruccion_no_reconocida): No reconocí el comando CAD."
     },
     {
       "id": "a-010",
@@ -1880,13 +1790,15 @@
       "trait": "estado histórico sin marca",
       "expectedCommandId": null,
       "confidence": 0.1,
-      "outcome": "rechazo_sin_codigo",
+      "outcome": "rechazo_tipado",
       "grave": false,
       "actualCommandId": null,
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "instruccion_no_reconocida"
+      ],
       "argMismatches": [],
       "operationsApplied": 0,
-      "detail": "el parser rechazó (sin código): No reconocí el comando CAD."
+      "detail": "el parser rechazó (instruccion_no_reconocida): No reconocí el comando CAD."
     },
     {
       "id": "a-011",
@@ -1912,13 +1824,15 @@
       "trait": "sin acentos y con faltas: destino indeterminado",
       "expectedCommandId": null,
       "confidence": 0.1,
-      "outcome": "rechazo_sin_codigo",
+      "outcome": "rechazo_tipado",
       "grave": false,
       "actualCommandId": null,
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "instruccion_no_reconocida"
+      ],
       "argMismatches": [],
       "operationsApplied": 0,
-      "detail": "el parser rechazó (sin código): No reconocí el comando CAD."
+      "detail": "el parser rechazó (instruccion_no_reconocida): No reconocí el comando CAD."
     },
     {
       "id": "a-013",
@@ -1927,13 +1841,15 @@
       "trait": "faltas de ortografía y destino subjetivo",
       "expectedCommandId": null,
       "confidence": 0.1,
-      "outcome": "rechazo_sin_codigo",
+      "outcome": "rechazo_tipado",
       "grave": false,
       "actualCommandId": null,
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "instruccion_no_reconocida"
+      ],
       "argMismatches": [],
       "operationsApplied": 0,
-      "detail": "el parser rechazó (sin código): No reconocí el comando CAD."
+      "detail": "el parser rechazó (instruccion_no_reconocida): No reconocí el comando CAD."
     },
     {
       "id": "a-014",
@@ -1942,13 +1858,15 @@
       "trait": "encargo completo, no una operación",
       "expectedCommandId": null,
       "confidence": 0.1,
-      "outcome": "rechazo_sin_codigo",
+      "outcome": "rechazo_tipado",
       "grave": false,
       "actualCommandId": null,
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "instruccion_no_reconocida"
+      ],
       "argMismatches": [],
       "operationsApplied": 0,
-      "detail": "el parser rechazó (sin código): No reconocí el comando CAD."
+      "detail": "el parser rechazó (instruccion_no_reconocida): No reconocí el comando CAD."
     },
     {
       "id": "a-015",
@@ -1957,13 +1875,15 @@
       "trait": "dos espesores para un muro",
       "expectedCommandId": null,
       "confidence": 0.1,
-      "outcome": "rechazo_sin_codigo",
+      "outcome": "rechazo_tipado",
       "grave": false,
       "actualCommandId": null,
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "instruccion_no_reconocida"
+      ],
       "argMismatches": [],
       "operationsApplied": 0,
-      "detail": "el parser rechazó (sin código): No reconocí el comando CAD."
+      "detail": "el parser rechazó (instruccion_no_reconocida): No reconocí el comando CAD."
     },
     {
       "id": "a-016",
@@ -2023,13 +1943,15 @@
       "trait": "dos escalas opuestas",
       "expectedCommandId": null,
       "confidence": 0.6,
-      "outcome": "rechazo_sin_codigo",
+      "outcome": "rechazo_tipado",
       "grave": false,
       "actualCommandId": null,
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "resize_sin_cantidad"
+      ],
       "argMismatches": [],
       "operationsApplied": 0,
-      "detail": "el parser rechazó (sin código): ¿Cuántos mm? (ej. 'haz la mesa 500 más ancha' o '20% más grande')"
+      "detail": "el parser rechazó (resize_sin_cantidad): ¿Cuántos mm? (ej. 'haz la mesa 500 más ancha' o '20% más grande')"
     },
     {
       "id": "a-020",
@@ -2071,16 +1993,16 @@
       "text": "alinea los castillos a la izquierda y a la derecha",
       "trait": "dos alineaciones excluyentes",
       "expectedCommandId": null,
-      "confidence": 0.82,
+      "confidence": 0.3,
       "outcome": "rechazo_tipado",
       "grave": false,
-      "actualCommandId": "align_selection",
+      "actualCommandId": null,
       "rejectionCodes": [
-        "target_not_found"
+        "alineacion_ambigua"
       ],
       "argMismatches": [],
       "operationsApplied": 0,
-      "detail": "la ejecución lo paró (target_not_found)"
+      "detail": "el parser rechazó (alineacion_ambigua): Pediste alinear a right y a left a la vez y sólo puedo hacer una. ¿Cuál?"
     },
     {
       "id": "a-023",
@@ -2140,13 +2062,15 @@
       "trait": "contenido mayor que el contenedor",
       "expectedCommandId": null,
       "confidence": 0.1,
-      "outcome": "rechazo_sin_codigo",
+      "outcome": "rechazo_tipado",
       "grave": false,
       "actualCommandId": null,
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "instruccion_no_reconocida"
+      ],
       "argMismatches": [],
       "operationsApplied": 0,
-      "detail": "el parser rechazó (sin código): No reconocí el comando CAD."
+      "detail": "el parser rechazó (instruccion_no_reconocida): No reconocí el comando CAD."
     },
     {
       "id": "a-027",
@@ -2172,13 +2096,15 @@
       "trait": "factor cero colapsa la geometría",
       "expectedCommandId": null,
       "confidence": 0.6,
-      "outcome": "rechazo_sin_codigo",
+      "outcome": "rechazo_tipado",
       "grave": false,
       "actualCommandId": null,
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "escala_sin_factor"
+      ],
       "argMismatches": [],
       "operationsApplied": 0,
-      "detail": "el parser rechazó (sin código): ¿Con qué factor escalo? (p. ej. 2, 0.5 o 150%)"
+      "detail": "el parser rechazó (escala_sin_factor): ¿Con qué factor escalo? (p. ej. 2, 0.5 o 150%)"
     },
     {
       "id": "a-029",
@@ -2239,13 +2165,15 @@
       "trait": "arreglo vacío",
       "expectedCommandId": null,
       "confidence": 0.6,
-      "outcome": "rechazo_sin_codigo",
+      "outcome": "rechazo_tipado",
       "grave": false,
       "actualCommandId": null,
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "arreglo_polar_sin_copias"
+      ],
       "argMismatches": [],
       "operationsApplied": 0,
-      "detail": "el parser rechazó (sin código): ¿Cuántas copias quieres en el arreglo polar?"
+      "detail": "el parser rechazó (arreglo_polar_sin_copias): ¿Cuántas copias quieres en el arreglo polar?"
     },
     {
       "id": "a-033",
@@ -2254,13 +2182,15 @@
       "trait": "paralela a distancia cero",
       "expectedCommandId": null,
       "confidence": 0.6,
-      "outcome": "rechazo_sin_codigo",
+      "outcome": "rechazo_tipado",
       "grave": false,
       "actualCommandId": null,
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "offset_sin_distancia"
+      ],
       "argMismatches": [],
       "operationsApplied": 0,
-      "detail": "el parser rechazó (sin código): ¿A qué distancia quieres la copia paralela?"
+      "detail": "el parser rechazó (offset_sin_distancia): ¿A qué distancia quieres la copia paralela?"
     },
     {
       "id": "a-034",
@@ -2269,13 +2199,15 @@
       "trait": "el contenedor es menor que el contenido",
       "expectedCommandId": null,
       "confidence": 0.6,
-      "outcome": "rechazo_sin_codigo",
+      "outcome": "rechazo_tipado",
       "grave": false,
       "actualCommandId": null,
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "mover_sin_destino"
+      ],
       "argMismatches": [],
       "operationsApplied": 0,
-      "detail": "el parser rechazó (sin código): ¿A dónde lo muevo? ('a 2000,650', '500 a la derecha', 'junto a la mesa' o 'a la cocina')"
+      "detail": "el parser rechazó (mover_sin_destino): ¿A dónde lo muevo? ('a 2000,650', '500 a la derecha', 'junto a la mesa' o 'a la cocina')"
     },
     {
       "id": "a-035",
@@ -2284,13 +2216,15 @@
       "trait": "distancia de un objeto a sí mismo",
       "expectedCommandId": null,
       "confidence": 0.55,
-      "outcome": "rechazo_sin_codigo",
+      "outcome": "rechazo_tipado",
       "grave": false,
       "actualCommandId": null,
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "medicion_sin_pareja"
+      ],
       "argMismatches": [],
       "operationsApplied": 0,
-      "detail": "el parser rechazó (sin código): ¿Entre qué dos objetos quieres medir?"
+      "detail": "el parser rechazó (medicion_sin_pareja): ¿Entre qué dos objetos quieres medir?"
     },
     {
       "id": "a-036",
@@ -2299,13 +2233,15 @@
       "trait": "muro más largo que el lote de 20 m",
       "expectedCommandId": null,
       "confidence": 0.88,
-      "outcome": "geometria_indebida",
-      "grave": true,
+      "outcome": "rechazo_tipado",
+      "grave": false,
       "actualCommandId": "draw_wall_segment",
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "wall_endpoint_outside_plan"
+      ],
       "argMismatches": [],
-      "operationsApplied": 1,
-      "detail": "aplicó draw_wall_segment con 1 operación(es): Dibujar muro de 25000 mm."
+      "operationsApplied": 0,
+      "detail": "la ejecución lo paró (wall_endpoint_outside_plan)"
     },
     {
       "id": "a-037",
@@ -2313,14 +2249,16 @@
       "text": "muro de 0,0 a 6000,0 con espesor de 15 cm y también 200 mm",
       "trait": "dos unidades para un espesor",
       "expectedCommandId": null,
-      "confidence": 0.88,
-      "outcome": "geometria_indebida",
-      "grave": true,
-      "actualCommandId": "draw_wall_segment",
-      "rejectionCodes": [],
+      "confidence": 0.3,
+      "outcome": "rechazo_tipado",
+      "grave": false,
+      "actualCommandId": null,
+      "rejectionCodes": [
+        "muro_unidades_en_conflicto"
+      ],
       "argMismatches": [],
-      "operationsApplied": 1,
-      "detail": "aplicó draw_wall_segment con 1 operación(es): Dibujar muro de 6000 mm."
+      "operationsApplied": 0,
+      "detail": "el parser rechazó (muro_unidades_en_conflicto): Dictaste dos unidades distintas para el mismo muro y no sé cuál vale. Déjame una sola (p. ej. 'espesor de 15 cm')."
     },
     {
       "id": "a-038",
@@ -2380,13 +2318,15 @@
       "trait": "unidad inventada",
       "expectedCommandId": null,
       "confidence": 0.1,
-      "outcome": "rechazo_sin_codigo",
+      "outcome": "rechazo_tipado",
       "grave": false,
       "actualCommandId": null,
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "instruccion_no_reconocida"
+      ],
       "argMismatches": [],
       "operationsApplied": 0,
-      "detail": "el parser rechazó (sin código): No reconocí el comando CAD."
+      "detail": "el parser rechazó (instruccion_no_reconocida): No reconocí el comando CAD."
     },
     {
       "id": "a-042",
@@ -2412,13 +2352,15 @@
       "trait": "escala de impresión mezclada con cota",
       "expectedCommandId": null,
       "confidence": 0.6,
-      "outcome": "rechazo_sin_codigo",
+      "outcome": "rechazo_tipado",
       "grave": false,
       "actualCommandId": null,
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "escala_sin_factor"
+      ],
       "argMismatches": [],
       "operationsApplied": 0,
-      "detail": "el parser rechazó (sin código): ¿Con qué factor escalo? (p. ej. 2, 0.5 o 150%)"
+      "detail": "el parser rechazó (escala_sin_factor): ¿Con qué factor escalo? (p. ej. 2, 0.5 o 150%)"
     },
     {
       "id": "a-044",
@@ -2426,14 +2368,16 @@
       "text": "mueve el tinaco 500 pulgadas y 500 milimetros a la derecha",
       "trait": "dos unidades en un desplazamiento",
       "expectedCommandId": null,
-      "confidence": 0.6,
-      "outcome": "rechazo_sin_codigo",
+      "confidence": 0.85,
+      "outcome": "rechazo_tipado",
       "grave": false,
-      "actualCommandId": null,
-      "rejectionCodes": [],
+      "actualCommandId": "move_selection",
+      "rejectionCodes": [
+        "move_target_not_found"
+      ],
       "argMismatches": [],
       "operationsApplied": 0,
-      "detail": "el parser rechazó (sin código): ¿A dónde lo muevo? ('a 2000,650', '500 a la derecha', 'junto a la mesa' o 'a la cocina')"
+      "detail": "la ejecución lo paró (move_target_not_found)"
     },
     {
       "id": "a-045",
@@ -2493,13 +2437,15 @@
       "trait": "ángulo sin sentido físico",
       "expectedCommandId": null,
       "confidence": 0.85,
-      "outcome": "geometria_indebida",
-      "grave": true,
+      "outcome": "rechazo_tipado",
+      "grave": false,
       "actualCommandId": "rotate_selection",
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "rotate_angle_out_of_range"
+      ],
       "argMismatches": [],
-      "operationsApplied": 1,
-      "detail": "aplicó rotate_selection con 1 operación(es): Rotación de 1000000000° a 1 objeto(s) alrededor del centro."
+      "operationsApplied": 0,
+      "detail": "la ejecución lo paró (rotate_angle_out_of_range)"
     },
     {
       "id": "a-049",
@@ -2508,13 +2454,15 @@
       "trait": "muro de 900 km",
       "expectedCommandId": null,
       "confidence": 0.88,
-      "outcome": "geometria_indebida",
-      "grave": true,
+      "outcome": "rechazo_tipado",
+      "grave": false,
       "actualCommandId": "draw_wall_segment",
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "wall_endpoint_outside_plan"
+      ],
       "argMismatches": [],
-      "operationsApplied": 1,
-      "detail": "aplicó draw_wall_segment con 1 operación(es): Dibujar muro de 900000000 mm."
+      "operationsApplied": 0,
+      "detail": "la ejecución lo paró (wall_endpoint_outside_plan)"
     },
     {
       "id": "a-050",
@@ -2523,13 +2471,15 @@
       "trait": "cantidad nula",
       "expectedCommandId": null,
       "confidence": 0.82,
-      "outcome": "geometria_indebida",
-      "grave": true,
+      "outcome": "rechazo_tipado",
+      "grave": false,
       "actualCommandId": "place_symbol",
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "place_count_invalid"
+      ],
       "argMismatches": [],
-      "operationsApplied": 1,
-      "detail": "aplicó place_symbol con 1 operación(es): Puerta 90 cm colocado dentro de 'recámara principal'."
+      "operationsApplied": 0,
+      "detail": "la ejecución lo paró (place_count_invalid)"
     },
     {
       "id": "a-051",
@@ -2555,13 +2505,15 @@
       "trait": "arreglo de mil millones de piezas",
       "expectedCommandId": null,
       "confidence": 0.1,
-      "outcome": "rechazo_sin_codigo",
+      "outcome": "rechazo_tipado",
       "grave": false,
       "actualCommandId": null,
-      "rejectionCodes": [],
+      "rejectionCodes": [
+        "instruccion_no_reconocida"
+      ],
       "argMismatches": [],
       "operationsApplied": 0,
-      "detail": "el parser rechazó (sin código): No reconocí el comando CAD."
+      "detail": "el parser rechazó (instruccion_no_reconocida): No reconocí el comando CAD."
     },
     {
       "id": "a-053",

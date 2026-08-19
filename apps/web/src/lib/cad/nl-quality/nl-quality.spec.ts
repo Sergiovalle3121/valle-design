@@ -29,9 +29,9 @@ import type { NlCadAdversarialFamily } from "./types";
  * Trinquete medido en el árbol. Cada número es una cifra REAL publicada en
  * `docs/cad/evidence/nl-cad-quality-benchmark.json`, no una aspiración.
  */
-const SUELO_ACIERTO_DESPACHO = 0.7653;
-const SUELO_RECHAZO_TIPADO = 0.4444;
-const TECHO_FALLOS_GRAVES = 9;
+const SUELO_ACIERTO_DESPACHO = 0.8061;
+const SUELO_RECHAZO_TIPADO = 1;
+const TECHO_FALLOS_GRAVES = 0;
 
 // ── 1. El banco es un banco ────────────────────────────────────────────────
 const ids = NL_CAD_CORPUS.map((kase) => kase.id);
@@ -106,7 +106,9 @@ const OBRA = [
   "tinaco",
   "cisterna",
 ];
-const textoDespacho = NL_CAD_CORPUS_DESPACHO.map((k) => k.text.toLowerCase()).join(" | ");
+const textoDespacho = NL_CAD_CORPUS_DESPACHO.map((k) =>
+  k.text.toLowerCase(),
+).join(" | ");
 const ausentes = OBRA.filter((palabra) => !textoDespacho.includes(palabra));
 assert.ok(
   ausentes.length <= 2,
@@ -123,7 +125,11 @@ const anclaDespacho = runNlCadCase({
   trait: "ancla de la spec",
   expect: { kind: "command", commandId: "draw_wall_segment" },
 });
-assert.equal(anclaDespacho.outcome, "acierto", "el ancla de despacho no acierta");
+assert.equal(
+  anclaDespacho.outcome,
+  "acierto",
+  "el ancla de despacho no acierta",
+);
 assert.equal(anclaDespacho.grave, false);
 
 const anclaAdversarial = runNlCadCase({

@@ -190,7 +190,31 @@ export function matchObjectsByName(
       return pick ? [pick] : [];
     }
   }
-  const candidates = [fold(raw), fold(raw).replace(/es$/, ""), fold(raw).replace(/s$/, "")];
+  // Artículos y colas de preposición (VD-CAD-NAME-011). El banco de calidad
+  // NL→CAD midió que siete instrucciones perfectamente normales morían aquí:
+  // el parser entrega el objetivo con el artículo pegado —'el muro de fachada',
+  // 'del patio trasero', 'la sala-comedor'— o con la cola de la frase colgando
+  // —'castillos a la' de «alinea los castillos a la izquierda»—, y como este
+  // matching es por SUBSTRING, 'el muro de fachada' no está dentro de 'Muro de
+  // fachada'. El objeto existía, el usuario lo nombró bien y el producto decía
+  // que no lo encontraba.
+  //
+  // Las variantes limpias van AL FINAL de la lista, nunca al principio: un
+  // rótulo que literalmente se llame 'La Cochera' tiene que seguir ganando con
+  // su texto exacto. Sólo se prueban cuando el matching de siempre ya falló, así
+  // que esto no puede cambiar ninguna resolución que hoy acierte.
+  const base = fold(raw);
+  const trimmed = base
+    .replace(/^(?:el|la|los|las|un|una|unos|unas|del|de\s+l[ao]s?|de)\s+/, "")
+    .replace(/\s+(?:a\s+l[ao]s?|al|a|hacia|hasta|del?|y|con|en|para)$/, "")
+    .trim();
+  const candidates = [base, base.replace(/es$/, ""), base.replace(/s$/, "")];
+  if (trimmed && trimmed !== base)
+    candidates.push(
+      trimmed,
+      trimmed.replace(/es$/, ""),
+      trimmed.replace(/s$/, ""),
+    );
   for (const needle of candidates) {
     if (!needle) continue;
     const hits = context.objects.filter((o) =>

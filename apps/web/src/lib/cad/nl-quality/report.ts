@@ -67,7 +67,10 @@ export interface NlCadAdversarialSummary {
   geometriaIndebida: number;
   graveRate: number;
   /** Desglose por familia: ambigua, contradictoria, imposible, unidades, absurda. */
-  byFamily: Record<string, { cases: number; rechazados: number; graves: number }>;
+  byFamily: Record<
+    string,
+    { cases: number; rechazados: number; graves: number }
+  >;
 }
 
 export interface NlCadBenchmarkSummary {
@@ -114,8 +117,14 @@ export function summarizeNlCad(
   for (const result of adversarial) {
     const expectation = byId.get(result.id)?.expect;
     const family =
-      expectation && expectation.kind === "reject" ? expectation.family : "sin-familia";
-    const bucket = (byFamily[family] ??= { cases: 0, rechazados: 0, graves: 0 });
+      expectation && expectation.kind === "reject"
+        ? expectation.family
+        : "sin-familia";
+    const bucket = (byFamily[family] ??= {
+      cases: 0,
+      rechazados: 0,
+      graves: 0,
+    });
     bucket.cases += 1;
     if (!result.grave) bucket.rechazados += 1;
     else bucket.graves += 1;
@@ -165,10 +174,7 @@ export function summarizeNlCad(
         graveRate: rate(dGraves + aGraves, results.length),
       },
       outcomes: Object.fromEntries(
-        OUTCOMES.map((outcome) => [
-          outcome,
-          dTally[outcome] + aTally[outcome],
-        ]),
+        OUTCOMES.map((outcome) => [outcome, dTally[outcome] + aTally[outcome]]),
       ) as Record<NlCadOutcome, number>,
     },
     results,

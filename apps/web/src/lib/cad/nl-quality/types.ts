@@ -34,11 +34,7 @@ export type NlCadLane = "despacho" | "adversarial";
 
 /** Familia del caso adversarial; explica POR QUÉ la instrucción no se ejecuta. */
 export type NlCadAdversarialFamily =
-  | "ambigua"
-  | "contradictoria"
-  | "imposible"
-  | "unidades"
-  | "absurda";
+  "ambigua" | "contradictoria" | "imposible" | "unidades" | "absurda";
 
 export interface NlCadExpectedCommand {
   kind: "command";

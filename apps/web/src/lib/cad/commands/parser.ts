@@ -1,57 +1,18 @@
-import { parseCoordinate, type Point } from "../precision-input";
+import {
+  alignmentModesRequested,
+  distinctExplicitUnits,
+  hasSubjectiveCriterion,
+  labelAfter,
+  lastTwoTargets,
+  numberNear,
+  numberWithTimeUnit,
+  numberWithUnit,
+  parseDraftPointPair,
+  reject,
+  unitValueToMm,
+  unitValueToSeconds,
+} from "./parse-helpers";
 import type { CadCommandInput, CadParseResult } from "./types";
-
-const numberWithUnit = /(\d+(?:[.,]\d+)?)\s*(mm|m|in|ft)?/i;
-const numberWithTimeUnit =
-  /(\d+(?:[.,]\d+)?)\s*(s|sec|seg|segundos|min|mins|minutos)\b/i;
-const lastTwoTargets = (text: string) =>
-  text
-    .split(/\b(?:entre| y | e | a )\b/i)
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .slice(-2);
-
-function unitValueToMm(match: RegExpMatchArray | null): number | undefined {
-  if (!match?.[1]) return undefined;
-  const value = Number(match[1].replace(",", "."));
-  if (!Number.isFinite(value)) return undefined;
-  return match[2]?.toLowerCase() === "m" ? value * 1000 : value;
-}
-
-function unitValueToSeconds(
-  match: RegExpMatchArray | null,
-): number | undefined {
-  if (!match?.[1]) return undefined;
-  const value = Number(match[1].replace(",", "."));
-  if (!Number.isFinite(value)) return undefined;
-  const unit = match[2]?.toLowerCase() ?? "s";
-  return unit.startsWith("min") ? value * 60 : value;
-}
-
-function numberNear(text: string, pattern: RegExp): number | undefined {
-  const match = text.match(pattern);
-  if (!match?.[1]) return undefined;
-  const value = Number(match[1].replace(",", "."));
-  return Number.isFinite(value) ? value : undefined;
-}
-
-function parseDraftPointPair(
-  raw: string,
-): { from: Point; to: Point } | { error: string } {
-  const tokens =
-    raw.match(/@?-?\d+(?:\.\d+)?(?:,-?\d+(?:\.\d+)?|<-?\d+(?:\.\d+)?)?/g) ?? [];
-  if (tokens.length < 2)
-    return { error: "Indica dos puntos, por ejemplo: 0,0 @5000,0" };
-  const first = parseCoordinate(tokens[0]!);
-  if (!first.ok) return { error: first.error };
-  const second = parseCoordinate(tokens[1]!, { last: first.point });
-  if (!second.ok) return { error: second.error };
-  return { from: first.point, to: second.point };
-}
-
-function labelAfter(raw: string): string | undefined {
-  return raw.match(/(?:label|etiqueta|nombre)\s+(.+)$/i)?.[1]?.trim();
-}
 
 /**
  * Cadenas de comandos (VD-CAD-CHAIN-001): 'pon una puerta y luego
@@ -70,21 +31,30 @@ export function parseCadCommand(text: string): CadParseResult {
   const raw = text.trim();
   const q = raw.toLocaleLowerCase("es-MX");
   if (!q)
-    return {
-      ok: false,
-      confidence: 0,
-      clarification: "Escribe un comando CAD.",
-    };
+    return reject(
+      "comando_vacio",
+      "Escribe un comando CAD.",
+      0,
+    );
+
+  // Va ANTES que cualquier rama: el problema no es qué verbo se usó, sino que
+  // la orden delega un criterio que el producto no puede emitir.
+  if (hasSubjectiveCriterion(q))
+    return reject(
+      "criterio_subjetivo",
+      "Eso depende de un criterio que no puedo suponer. Dime qué acomodo y con qué regla (p. ej. 'alinea las mesas a la izquierda' o 'distribuye las sillas cada 800').",
+      0.2,
+    );
 
   if (
     /\b(limpia|limpiar|depura|depurar|cleanup)\b/.test(q) &&
     /\b(geometr[ií]a|duplicad|segment|muro|plano)\b/.test(q)
   ) {
     const tolerance = unitValueToMm(
-      q.match(/tolerancia\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*(mm|m)?/i),
+      q.match(/tolerancia\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*(mil[ií]metros?|cent[ií]metros?|metros?|mts|mm|cm|m)?(?![a-záéíóúñ])/i),
     );
     const minLength = unitValueToMm(
-      q.match(/(?:m[ií]nimo|menores?\s+de)\s*(\d+(?:[.,]\d+)?)\s*(mm|m)?/i),
+      q.match(/(?:m[ií]nimo|menores?\s+de)\s*(\d+(?:[.,]\d+)?)\s*(mil[ií]metros?|cent[ií]metros?|metros?|mts|mm|cm|m)?(?![a-záéíóúñ])/i),
     );
     return {
       ok: true,
@@ -99,12 +69,21 @@ export function parseCadCommand(text: string): CadParseResult {
   }
 
   if (/^(line|linea|línea|muro|wall)\b/.test(q) && /(\d|@)/.test(raw)) {
+    // Un muro trazado por coordenadas tiene UNA sola cota con unidad —el
+    // grosor—, así que una segunda unidad distinta no tiene hueco donde caber:
+    // no hay conversión correcta, sólo una escogida a espaldas de quien dictó.
+    if (distinctExplicitUnits(q) > 1)
+      return reject(
+        "muro_unidades_en_conflicto",
+        "Dictaste dos unidades distintas para el mismo muro y no sé cuál vale. Déjame una sola (p. ej. 'espesor de 15 cm').",
+        0.3,
+      );
     const pair = parseDraftPointPair(raw);
     if ("error" in pair)
-      return { ok: false, confidence: 0.62, clarification: pair.error };
+      return { ok: false, code: "muro_puntos_invalidos", confidence: 0.62, clarification: pair.error };
     const thickness = unitValueToMm(
       q.match(
-        /(?:grosor|espesor|thickness)\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*(mm|m)?/i,
+        /(?:grosor|espesor|thickness)\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*(mil[ií]metros?|cent[ií]metros?|metros?|mts|mm|cm|m)?(?![a-záéíóúñ])/i,
       ),
     );
     return {
@@ -125,7 +104,7 @@ export function parseCadCommand(text: string): CadParseResult {
   ) {
     const pair = parseDraftPointPair(raw);
     if ("error" in pair)
-      return { ok: false, confidence: 0.62, clarification: pair.error };
+      return { ok: false, code: "zona_puntos_invalidos", confidence: 0.62, clarification: pair.error };
     return {
       ok: true,
       confidence: 0.87,
@@ -176,11 +155,11 @@ export function parseCadCommand(text: string): CadParseResult {
     )
   ) {
     const aisleWidth = unitValueToMm(
-      q.match(/(?:pasillo|aisle)\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*(mm|m)?/i),
+      q.match(/(?:pasillo|aisle)\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*(mil[ií]metros?|cent[ií]metros?|metros?|mts|mm|cm|m)?(?![a-záéíóúñ])/i),
     );
     const bayGap = unitValueToMm(
       q.match(
-        /(?:gap|separacion|entre racks)\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*(mm|m)?/i,
+        /(?:gap|separacion|entre racks)\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*(mil[ií]metros?|cent[ií]metros?|metros?|mts|mm|cm|m)?(?![a-záéíóúñ])/i,
       ),
     );
     return {
@@ -231,11 +210,11 @@ export function parseCadCommand(text: string): CadParseResult {
     const distance = unitValueToMm(q.match(numberWithUnit));
     const pair = raw.match(/entre\s+(.+?)\s+y\s+(.+)$/i);
     if (!distance)
-      return {
-        ok: false,
-        confidence: 0.6,
-        clarification: "¿De cuánto es la distancia del chaflán?",
-      };
+      return reject(
+        "chaflan_sin_distancia",
+        "¿De cuánto es la distancia del chaflán?",
+        0.6,
+      );
     return {
       ok: true,
       confidence: 0.84,
@@ -257,11 +236,11 @@ export function parseCadCommand(text: string): CadParseResult {
       numberNear(q, /(\d+)\s*(?:copias|elementos|piezas|posiciones|veces)/i) ??
       numberNear(q, /(?:de)\s*(\d+)\b/i);
     if (!count)
-      return {
-        ok: false,
-        confidence: 0.6,
-        clarification: "¿Cuántas copias quieres en el arreglo polar?",
-      };
+      return reject(
+        "arreglo_polar_sin_copias",
+        "¿Cuántas copias quieres en el arreglo polar?",
+        0.6,
+      );
     const angleSpanDeg = numberNear(
       q,
       /(?:en|abanico de)\s*(\d+(?:[.,]\d+)?)\s*(?:grados|°)/i,
@@ -284,12 +263,11 @@ export function parseCadCommand(text: string): CadParseResult {
   if (resizeMatch) {
     const dims = q.match(/(\d+(?:[.,]\d+)?)\s*[x×]\s*(\d+(?:[.,]\d+)?)/);
     if (!dims)
-      return {
-        ok: false,
-        confidence: 0.6,
-        clarification:
-          "¿A qué tamaño? Dímelo en mm, p. ej. 'cambia el tamaño de la mesa a 1500x900'.",
-      };
+      return reject(
+        "resize_sin_medidas",
+        "¿A qué tamaño? Dímelo en mm, p. ej. 'cambia el tamaño de la mesa a 1500x900'.",
+        0.6,
+      );
     const target = resizeMatch[1]!
       .replace(/\ba?\s*\d+(?:[.,]\d+)?\s*[x×]\s*\d+(?:[.,]\d+)?\s*(?:mm)?\b/gi, " ")
       .replace(
@@ -332,12 +310,11 @@ export function parseCadCommand(text: string): CadParseResult {
     const target = cleanName(likeMatch[1]!);
     const like = cleanName(likeMatch[2]!);
     if (!like)
-      return {
-        ok: false,
-        confidence: 0.6,
-        clarification:
-          "¿Del tamaño de qué objeto? (ej. 'haz la mesa del tamaño del escritorio')",
-      };
+      return reject(
+        "resize_sin_referencia",
+        "¿Del tamaño de qué objeto? (ej. 'haz la mesa del tamaño del escritorio')",
+        0.6,
+      );
     const selectionWords =
       /^(?:la\s+selecci[oó]n|lo\s+seleccionado|esto|estos\s+objetos|esos\s+objetos)$/i;
     const cleanTarget =
@@ -397,36 +374,34 @@ export function parseCadCommand(text: string): CadParseResult {
       const pct = rest.match(/(\d+(?:[.,]\d+)?)\s*%/);
       if (pct) {
         if (!/^(grande|chic|pequen)/.test(adj))
-          return {
-            ok: false,
-            confidence: 0.6,
-            clarification:
-              "Con porcentaje solo entiendo 'más grande' o 'más chica'; para un solo lado dímelo en mm ('500 más ancha').",
-          };
+          return reject(
+            "resize_porcentaje_ambiguo",
+            "Con porcentaje solo entiendo 'más grande' o 'más chica'; para un solo lado dímelo en mm ('500 más ancha').",
+            0.6,
+          );
         const p = Number(pct[1]!.replace(",", "."));
         const factor = Number(
           (adj.startsWith("grande") ? 1 + p / 100 : 1 - p / 100).toFixed(4),
         );
         if (factor <= 0)
-          return {
-            ok: false,
-            confidence: 0.6,
-            clarification: "Ese porcentaje dejaría el objeto sin tamaño.",
-          };
+          return reject(
+            "resize_porcentaje_nulo",
+            "Ese porcentaje dejaría el objeto sin tamaño.",
+            0.6,
+          );
         return {
           ok: true,
           confidence: 0.84,
           input: { id: "scale_selection", target: growTarget(), factor },
         };
       }
-      const num = rest.match(/(\d+(?:[.,]\d+)?)\s*(mm|m)?(?=\s|$)/i);
+      const num = rest.match(/(\d+(?:[.,]\d+)?)\s*(mil[ií]metros?|cent[ií]metros?|metros?|mts|mm|cm|m)?(?![a-záéíóúñ])(?=\s|$)/i);
       if (!num)
-        return {
-          ok: false,
-          confidence: 0.6,
-          clarification:
-            "¿Cuántos mm? (ej. 'haz la mesa 500 más ancha' o '20% más grande')",
-        };
+        return reject(
+          "resize_sin_cantidad",
+          "¿Cuántos mm? (ej. 'haz la mesa 500 más ancha' o '20% más grande')",
+          0.6,
+        );
       const mm = Math.round(
         Number(num[1]!.replace(",", ".")) *
           (num[2]?.toLowerCase() === "m" ? 1000 : 1),
@@ -456,12 +431,11 @@ export function parseCadCommand(text: string): CadParseResult {
     const roomsRef =
       /\b(?:en|entre|por)\s+(?:los\s+|las\s+|cada\s+)?(?:cuartos?|habitaci[oó]n(?:es)?|zonas?|espacios?)\b/i;
     if (!roomsRef.test(residue))
-      return {
-        ok: false,
-        confidence: 0.6,
-        clarification:
-          "¿Entre qué reparto? (ej. 'reparte las sillas entre los cuartos')",
-      };
+      return reject(
+        "reparto_sin_destino",
+        "¿Entre qué reparto? (ej. 'reparte las sillas entre los cuartos')",
+        0.6,
+      );
     const target = residue
       .replace(roomsRef, " ")
       .replace(
@@ -534,11 +508,11 @@ export function parseCadCommand(text: string): CadParseResult {
       .map((t) => t.replace(/^(?:las?|los|el|una?)\s+/i, "").trim())
       .filter(Boolean);
     if (parts.length !== 2)
-      return {
-        ok: false,
-        confidence: 0.6,
-        clarification: "¿Cuáles dos junto? (ej. 'junta la silla y la mesa')",
-      };
+      return reject(
+        "juntar_sin_pareja",
+        "¿Cuáles dos junto? (ej. 'junta la silla y la mesa')",
+        0.6,
+      );
     return {
       ok: true,
       confidence: 0.84,
@@ -552,7 +526,7 @@ export function parseCadCommand(text: string): CadParseResult {
   );
   if (alejaMatch) {
     const distMatch = alejaMatch[2]!.match(
-      /^(.*?)\s+(\d+(?:[.,]\d+)?)\s*(mm|m)?$/i,
+      /^(.*?)\s+(\d+(?:[.,]\d+)?)\s*(mil[ií]metros?|cent[ií]metros?|metros?|mts|mm|cm|m)?(?![a-záéíóúñ])$/i,
     );
     const awayFrom = (distMatch ? distMatch[1]! : alejaMatch[2]!)
       .replace(/^(?:(?:el|la|los|las|un|una)\s+)+/i, "")
@@ -627,14 +601,13 @@ export function parseCadCommand(text: string): CadParseResult {
   if (repeatMatch) {
     const times = numberNear(q, /(\d+)\s*veces\b/i);
     if (!times || times < 1)
-      return {
-        ok: false,
-        confidence: 0.6,
-        clarification:
-          "¿Cuántas veces lo repito? (ej. 'repite la silla 4 veces')",
-      };
+      return reject(
+        "arreglo_sin_repeticiones",
+        "¿Cuántas veces lo repito? (ej. 'repite la silla 4 veces')",
+        0.6,
+      );
     const gap = unitValueToMm(
-      q.match(/cada\s*(\d+(?:[.,]\d+)?)\s*(mm|m)?\b/i),
+      q.match(/cada\s*(\d+(?:[.,]\d+)?)\s*(mil[ií]metros?|cent[ií]metros?|metros?|mts|mm|cm|m)?(?![a-záéíóúñ])\b/i),
     );
     const vertical = /(abajo|arriba|columna|vertical)/.test(q);
     const negative = /(izquierda|arriba)/.test(q);
@@ -675,7 +648,7 @@ export function parseCadCommand(text: string): CadParseResult {
   if (grid && /(arreglo|matriz|array|rejilla|grid|copia)/.test(q)) {
     const gap = unitValueToMm(
       q.match(
-        /(?:separaci[oó]n|gap|espacio|paso)\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*(mm|m)?/i,
+        /(?:separaci[oó]n|gap|espacio|paso)\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*(mil[ií]metros?|cent[ií]metros?|metros?|mts|mm|cm|m)?(?![a-záéíóúñ])/i,
       ),
     );
     // 'arreglo 3x4 de mesas': el resto tras la rejilla es el objetivo.
@@ -710,11 +683,11 @@ export function parseCadCommand(text: string): CadParseResult {
   ) {
     const count = numberNear(q, /(\d+)/);
     if (!count)
-      return {
-        ok: false,
-        confidence: 0.6,
-        clarification: "¿Cuántas copias quieres a lo largo del flujo?",
-      };
+      return reject(
+        "flujo_sin_copias",
+        "¿Cuántas copias quieres a lo largo del flujo?",
+        0.6,
+      );
     return {
       ok: true,
       confidence: 0.84,
@@ -768,7 +741,7 @@ export function parseCadCommand(text: string): CadParseResult {
     )
   ) {
     const margin = unitValueToMm(
-      q.match(/(?:margen|holgura)\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*(mm|m)?/i),
+      q.match(/(?:margen|holgura)\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*(mil[ií]metros?|cent[ií]metros?|metros?|mts|mm|cm|m)?(?![a-záéíóúñ])/i),
     );
     return {
       ok: true,
@@ -794,7 +767,7 @@ export function parseCadCommand(text: string): CadParseResult {
       query = query.slice(countMatch[0].length).trim();
     }
     const rowGap = unitValueToMm(
-      query.match(/cada\s*(\d+(?:[.,]\d+)?)\s*(mm|m)?\b/i),
+      query.match(/cada\s*(\d+(?:[.,]\d+)?)\s*(mil[ií]metros?|cent[ií]metros?|metros?|mts|mm|cm|m)?(?![a-záéíóúñ])\b/i),
     );
     query = query
       .replace(/\bcada\s*\d+(?:[.,]\d+)?\s*(?:mm|m)?\b/gi, " ")
@@ -867,11 +840,11 @@ export function parseCadCommand(text: string): CadParseResult {
       }
     }
     if (!query) {
-      return {
-        ok: false,
-        confidence: 0.6,
-        clarification: "¿Qué símbolo coloco? (p. ej. 'puerta', 'cama')",
-      };
+      return reject(
+        "colocar_sin_simbolo",
+        "¿Qué símbolo coloco? (p. ej. 'puerta', 'cama')",
+        0.6,
+      );
     }
     return {
       ok: true,
@@ -917,12 +890,11 @@ export function parseCadCommand(text: string): CadParseResult {
       return { ok: true, confidence: 0.84, input: { id: "swap_objects" } };
     }
     if (parts.length !== 2) {
-      return {
-        ok: false,
-        confidence: 0.6,
-        clarification:
-          "¿Cuáles dos intercambio? ('intercambia la mesa y el escritorio')",
-      };
+      return reject(
+        "intercambio_sin_pareja",
+        "¿Cuáles dos intercambio? ('intercambia la mesa y el escritorio')",
+        0.6,
+      );
     }
     return {
       ok: true,
@@ -970,11 +942,11 @@ export function parseCadCommand(text: string): CadParseResult {
     const m = q.match(/(-?\d+(?:[.,]\d+)?)\s*(?:°|grados|deg)?/);
     const angle = m ? Number(m[1].replace(",", ".")) : NaN;
     if (!Number.isFinite(angle) || angle === 0) {
-      return {
-        ok: false,
-        confidence: 0.6,
-        clarification: "¿Cuántos grados giro la selección? (p. ej. 90 o -45)",
-      };
+      return reject(
+        "giro_sin_angulo",
+        "¿Cuántos grados giro la selección? (p. ej. 90 o -45)",
+        0.6,
+      );
     }
     const rotTarget = q
       .replace(/^.*?\b(?:rota|gira|rotar|girar|rotate)\b\s*/, "")
@@ -999,11 +971,11 @@ export function parseCadCommand(text: string): CadParseResult {
         ? Number(num[1].replace(",", "."))
         : NaN;
     if (!Number.isFinite(factor) || factor <= 0 || factor === 1) {
-      return {
-        ok: false,
-        confidence: 0.6,
-        clarification: "¿Con qué factor escalo? (p. ej. 2, 0.5 o 150%)",
-      };
+      return reject(
+        "escala_sin_factor",
+        "¿Con qué factor escalo? (p. ej. 2, 0.5 o 150%)",
+        0.6,
+      );
     }
     const scaleTarget = q
       .replace(/^.*?\b(?:escala|escalar|scale|agranda|agrandar|reduce|reducir)\b\s*/, "")
@@ -1069,11 +1041,11 @@ export function parseCadCommand(text: string): CadParseResult {
       .replace(/^(?:una?|el|la|los|las)\s+/, "")
       .trim();
     if (!residue) {
-      return {
-        ok: false,
-        confidence: 0.6,
-        clarification: "¿Qué despejo? ('despeja la cocina')",
-      };
+      return reject(
+        "despeje_sin_objetivo",
+        "¿Qué despejo? ('despeja la cocina')",
+        0.6,
+      );
     }
     return {
       ok: true,
@@ -1107,12 +1079,11 @@ export function parseCadCommand(text: string): CadParseResult {
         .trim();
     }
     if (!label) {
-      return {
-        ok: false,
-        confidence: 0.6,
-        clarification:
-          "¿Qué texto escribo? (p. ej. escribe 'Recepción' en 2000,1000)",
-      };
+      return reject(
+        "rotulo_sin_texto",
+        "¿Qué texto escribo? (p. ej. escribe 'Recepción' en 2000,1000)",
+        0.6,
+      );
     }
     return {
       ok: true,
@@ -1220,11 +1191,11 @@ export function parseCadCommand(text: string): CadParseResult {
       query = query.slice(0, exclM.index).trim();
     }
     if (!query) {
-      return {
-        ok: false,
-        confidence: 0.6,
-        clarification: "¿Qué selecciono? (p. ej. 'las mesas', 'la barra' o 'todo')",
-      };
+      return reject(
+        "seleccion_sin_criterio",
+        "¿Qué selecciono? (p. ej. 'las mesas', 'la barra' o 'todo')",
+        0.6,
+      );
     }
     return {
       ok: true,
@@ -1237,11 +1208,11 @@ export function parseCadCommand(text: string): CadParseResult {
       /\brenombra(?:r)?\s+(?:la\s+|el\s+|los\s+|las\s+)?(.+?)\s+(?:a|como)\s+(.+)$/i,
     );
     if (!m) {
-      return {
-        ok: false,
-        confidence: 0.6,
-        clarification: "¿Qué renombro y cómo? (\"renombra la mesa a 'Mesa VIP'\")",
-      };
+      return reject(
+        "renombrar_sin_nombre",
+        "¿Qué renombro y cómo? (\"renombra la mesa a 'Mesa VIP'\")",
+        0.6,
+      );
     }
     const name = m[2].trim().replace(/^['"“”‘’]|['"“”‘’]$/g, "").trim();
     return {
@@ -1262,11 +1233,11 @@ export function parseCadCommand(text: string): CadParseResult {
       .replace(/^(?:una?|el|la|los|las)\s+/, "")
       .trim();
     if (!query) {
-      return {
-        ok: false,
-        confidence: 0.6,
-        clarification: "¿Qué busco? ('¿dónde está la estufa?')",
-      };
+      return reject(
+        "busqueda_sin_objetivo",
+        "¿Qué busco? ('¿dónde está la estufa?')",
+        0.6,
+      );
     }
     return { ok: true, confidence: 0.86, input: { id: "object_info", query } };
   }
@@ -1278,11 +1249,11 @@ export function parseCadCommand(text: string): CadParseResult {
       .replace(/\s+/g, " ")
       .trim();
     if (!query) {
-      return {
-        ok: false,
-        confidence: 0.6,
-        clarification: "¿De qué objeto? ('¿cuánto mide la mesa?')",
-      };
+      return reject(
+        "consulta_sin_objetivo",
+        "¿De qué objeto? ('¿cuánto mide la mesa?')",
+        0.6,
+      );
     }
     return { ok: true, confidence: 0.86, input: { id: "object_info", query } };
   }
@@ -1354,7 +1325,7 @@ export function parseCadCommand(text: string): CadParseResult {
   if (/\b(mueve|mover|lleva|llevar|desplaza|desplazar|mete|meter)\b/.test(q)) {
     const abs = q.match(/\b(?:a|en|hasta)\s+(-?\d+)\s*[,x]\s*(-?\d+)/);
     const rel = q.match(
-      /(\d+(?:[.,]\d+)?)\s*(mm|m)?\s*(?:a\s+la|hacia\s+la|hacia\s+el|al)?\s*(derecha|izquierda|arriba|abajo)/,
+      /(\d+(?:[.,]\d+)?)\s*(mil[ií]metros?|cent[ií]metros?|metros?|mts|mm|cm|m)?(?![a-záéíóúñ])\s*(?:a\s+la|hacia\s+la|hacia\s+el|al)?\s*(derecha|izquierda|arriba|abajo)/,
     );
     let dx: number | undefined;
     let dy: number | undefined;
@@ -1419,12 +1390,11 @@ export function parseCadCommand(text: string): CadParseResult {
       .replace(/^(?:una?|el|la|los|las)\s+/, "")
       .trim();
     if (!abs && dx === undefined && dy === undefined && !moveAnchor && !into) {
-      return {
-        ok: false,
-        confidence: 0.6,
-        clarification:
-          "¿A dónde lo muevo? ('a 2000,650', '500 a la derecha', 'junto a la mesa' o 'a la cocina')",
-      };
+      return reject(
+        "mover_sin_destino",
+        "¿A dónde lo muevo? ('a 2000,650', '500 a la derecha', 'junto a la mesa' o 'a la cocina')",
+        0.6,
+      );
     }
     return {
       ok: true,
@@ -1444,14 +1414,14 @@ export function parseCadCommand(text: string): CadParseResult {
   }
   if (/(offset|desfasa|desfase|paralela)/.test(q)) {
     const distance =
-      unitValueToMm(q.match(/(?:de|a)\s+(\d+(?:[.,]\d+)?)\s*(mm|m)?\b/i)) ??
+      unitValueToMm(q.match(/(?:de|a)\s+(\d+(?:[.,]\d+)?)\s*(mil[ií]metros?|cent[ií]metros?|metros?|mts|mm|cm|m)?(?![a-záéíóúñ])\b/i)) ??
       unitValueToMm(q.match(numberWithUnit));
     if (!distance)
-      return {
-        ok: false,
-        confidence: 0.6,
-        clarification: "¿A qué distancia quieres la copia paralela?",
-      };
+      return reject(
+        "offset_sin_distancia",
+        "¿A qué distancia quieres la copia paralela?",
+        0.6,
+      );
     const side = /arriba|encima|norte/.test(q)
       ? ("up" as const)
       : /abajo|debajo|sur/.test(q)
@@ -1472,17 +1442,17 @@ export function parseCadCommand(text: string): CadParseResult {
     const match = q.match(numberWithUnit);
     const [targetA, targetB] = lastTwoTargets(raw);
     if (!targetA || !targetB)
-      return {
-        ok: false,
-        confidence: 0.55,
-        clarification: "¿Entre qué dos objetos quieres crear el pasillo?",
-      };
+      return reject(
+        "pasillo_sin_pareja",
+        "¿Entre qué dos objetos quieres crear el pasillo?",
+        0.55,
+      );
     if (!match?.[1])
-      return {
-        ok: false,
-        confidence: 0.55,
-        clarification: "¿De cuánto debe ser la holgura?",
-      };
+      return reject(
+        "pasillo_sin_holgura",
+        "¿De cuánto debe ser la holgura?",
+        0.55,
+      );
     const value = Number(match[1].replace(",", "."));
     const unit = match[2] ?? "m";
     return {
@@ -1499,6 +1469,20 @@ export function parseCadCommand(text: string): CadParseResult {
     };
   }
   if (/aline(a|ar)|align/.test(q)) {
+    // DOS ALINEACIONES EXCLUYENTES. «Alinea los castillos a la izquierda y a la
+    // derecha» escogía la primera de la cascada de abajo y ejecutaba, callando
+    // la mitad de la orden: el banco de calidad NL→CAD lo marcó como fallo
+    // grave. `align_selection` tiene UN `mode`, así que no existe forma de
+    // cumplir las dos; y cumplir una en silencio deja al usuario creyendo que
+    // se hizo lo que pidió. Se cuentan sólo las menciones EXPLÍCITAS: sin
+    // ninguna, el default sigue siendo centrar.
+    const modosPedidos = alignmentModesRequested(q);
+    if (modosPedidos.length > 1)
+      return reject(
+        "alineacion_ambigua",
+        `Pediste alinear a ${modosPedidos.join(" y a ")} a la vez y sólo puedo hacer una. ¿Cuál?`,
+        0.3,
+      );
     const mode = /derecha|right/.test(q)
       ? "right"
       : /izquierda|left/.test(q)
@@ -1546,7 +1530,7 @@ export function parseCadCommand(text: string): CadParseResult {
   if (/distribu|espacia|equal/.test(q)) {
     // Separación fija (VD-CAD-DIST-002): 'distribuye las mesas cada 800'.
     const distGap = unitValueToMm(
-      q.match(/cada\s*(\d+(?:[.,]\d+)?)\s*(mm|m)?\b/i),
+      q.match(/cada\s*(\d+(?:[.,]\d+)?)\s*(mil[ií]metros?|cent[ií]metros?|metros?|mts|mm|cm|m)?(?![a-záéíóúñ])\b/i),
     );
     const distTarget = q
       .replace(/^.*?\b(?:distribuye|distribuir|espacia|espaciar)\b\s*/, "")
@@ -1605,11 +1589,11 @@ export function parseCadCommand(text: string): CadParseResult {
   if (/mide|medir|distancia/.test(q)) {
     const [targetA, targetB] = lastTwoTargets(raw);
     if (!targetA || !targetB)
-      return {
-        ok: false,
-        confidence: 0.55,
-        clarification: "¿Entre qué dos objetos quieres medir?",
-      };
+      return reject(
+        "medicion_sin_pareja",
+        "¿Entre qué dos objetos quieres medir?",
+        0.55,
+      );
     return {
       ok: true,
       confidence: 0.78,
@@ -1632,5 +1616,5 @@ export function parseCadCommand(text: string): CadParseResult {
       input: { id: "fit_to_view", target: target || undefined },
     };
   }
-  return { ok: false, confidence: 0.1, error: "No reconocí el comando CAD." };
+  return { ok: false, code: "instruccion_no_reconocida", confidence: 0.1, error: "No reconocí el comando CAD." };
 }
