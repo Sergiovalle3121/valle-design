@@ -152,6 +152,84 @@ export function stitchCadBoundaryPaths(
   return { loops, loopSourceIds, sourceIds: [...sourceIds], openSourceIds: [...openSourceIds] };
 }
 
+const orient = (a: CadPoint2, b: CadPoint2, c: CadPoint2): number =>
+  (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+
+/** ¿Se CRUZAN de verdad? Tocarse en un extremo o solaparse alineados NO cuenta. */
+function segmentsProperlyCross(
+  p1: CadPoint2, p2: CadPoint2, p3: CadPoint2, p4: CadPoint2,
+): boolean {
+  const d1 = orient(p3, p4, p1);
+  const d2 = orient(p3, p4, p2);
+  const d3 = orient(p1, p2, p3);
+  const d4 = orient(p1, p2, p4);
+  return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
+}
+
+/**
+ * Tope de vértices por encima del cual NO se busca la autointersección.
+ *
+ * La búsqueda es cuadrática y se hace en el hilo de la interfaz, al resolver el
+ * contorno de un HATCH. Un contorno normal —arcos teselados a 192 tramos, una
+ * polilínea de planta— no pasa de unos cientos de vértices y cuesta
+ * microsegundos. Una curva de nivel importada con 50.000 puntos costaría
+ * segundos, y un editor congelado es peor síntoma que un sombreado dudoso.
+ *
+ * Por encima del tope se contesta «no se cruza», y eso es fallo ABIERTO. Se
+ * declara aquí en vez de esconderlo: es el único punto de esta comprobación que
+ * no es concluyente, y el corpus de islas lo fija con su caso.
+ */
+export const CAD_SELF_INTERSECTION_BUDGET = 2_048;
+
+/**
+ * ¿Este anillo se cruza CONSIGO MISMO?
+ *
+ * Un contorno autointersecante no delimita una región: delimita varias, con
+ * signos opuestos, y su área firmada puede salir CERO —la pajarita simétrica—
+ * o un número cualquiera. Sombrear sobre él produce un relleno que mide cero
+ * metros cuadrados en la tabla de acabados y que el renderizador pinta por
+ * paridad, que no es lo que dibujó nadie. Por eso se detecta y se rechaza en
+ * vez de rellenar «algo».
+ */
+export function cadBoundarySelfIntersects(
+  boundary: readonly CadPoint2[],
+  budget = CAD_SELF_INTERSECTION_BUDGET,
+): boolean {
+  const count = boundary.length;
+  if (count < 4 || count > budget) return false;
+  for (let i = 0; i < count; i += 1) {
+    const a1 = boundary[i];
+    const a2 = boundary[(i + 1) % count];
+    // `j` arranca en `i + 2`: los tramos CONSECUTIVOS comparten un extremo y
+    // tocarse ahí es la definición de un anillo, no un cruce.
+    for (let j = i + 2; j < count; j += 1) {
+      if (i === 0 && j === count - 1) continue;
+      if (segmentsProperlyCross(a1, a2, boundary[j], boundary[(j + 1) % count])) return true;
+    }
+  }
+  return false;
+}
+
+/** ¿Se cruzan DOS anillos distintos? Anidarse o ser ajenos no es cruzarse. */
+export function cadBoundariesCross(
+  left: readonly CadPoint2[],
+  right: readonly CadPoint2[],
+  budget = CAD_SELF_INTERSECTION_BUDGET,
+): boolean {
+  if (left.length < 2 || right.length < 2) return false;
+  if (left.length * right.length > budget * budget) return false;
+  for (let i = 0; i < left.length; i += 1)
+    for (let j = 0; j < right.length; j += 1)
+      if (
+        segmentsProperlyCross(
+          left[i], left[(i + 1) % left.length],
+          right[j], right[(j + 1) % right.length],
+        )
+      )
+        return true;
+  return false;
+}
+
 function boundaryKey(boundary: readonly CadPoint2[]): string {
   const points = boundary.map((point) => `${point.x.toFixed(6)},${point.y.toFixed(6)}`);
   const rotations = (items: string[]) => items.map((_item, index) => [...items.slice(index), ...items.slice(0, index)].join(';'));
@@ -162,19 +240,30 @@ function boundaryCentroid(boundary: readonly CadPoint2[]): CadPoint2 {
   return boundary.reduce((sum, point) => ({ x: sum.x + point.x / boundary.length, y: sum.y + point.y / boundary.length }), { x: 0, y: 0 });
 }
 
+/**
+ * Región sombreable alrededor de un punto.
+ *
+ * Los anillos que se CRUZAN CONSIGO MISMOS quedan fuera desde el principio, y
+ * no por pulcritud: uno de ellos elegido como contorno exterior produce un
+ * relleno cuya área es cero —la pajarita— o un número que no corresponde a
+ * nada, y el documento se queda con un HATCH que parece bueno hasta que alguien
+ * lo mide. Descartarlo hace que la orden acabe negándose, que es la respuesta
+ * correcta ante un contorno que no delimita una región.
+ */
 export function resolveCadHatchRegion(
   loops: readonly CadPoint2[][],
   pickPoint: CadPoint2,
   islandStyle: 'normal' | 'outer' | 'ignore' = 'normal',
 ): CadPoint2[][] {
-  const containing = loops
+  const simple = loops.filter((loop) => !cadBoundarySelfIntersects(loop));
+  const containing = simple
     .filter((loop) => loop.length >= 3 && cadPointInBoundary(pickPoint, loop))
     .sort((left, right) => Math.abs(cadBoundarySignedArea(left)) - Math.abs(cadBoundarySignedArea(right)));
   const outer = containing[0];
   if (!outer) return [];
   const normalizedOuter = cadBoundarySignedArea(outer) < 0 ? [...outer].reverse() : [...outer];
   if (islandStyle === 'ignore') return [normalizedOuter];
-  const nested = loops
+  const nested = simple
     .filter((loop) => loop !== outer && loop.length >= 3 && cadPointInBoundary(boundaryCentroid(loop), outer))
     .sort((left, right) => Math.abs(cadBoundarySignedArea(right)) - Math.abs(cadBoundarySignedArea(left)));
   if (islandStyle === 'outer') {
