@@ -23,7 +23,7 @@
  */
 import { check, checkClose, report } from "../../brep/spec-support";
 import { cloneBody, extrudeProfile, makeBox, type BrepBody, type Vec3 } from "../../brep";
-import { cadBodyIsConvex, cadSolidEdgeVisibility } from "./hidden-lines";
+import { cadBodyIsConvex, cadSceneEdgeVisibility, cadSolidEdgeVisibility } from "./hidden-lines";
 import { cadEdgeVerdicts, cadHiddenLineDrawing, type CadHiddenLineDrawing } from "./hidden-line-solver";
 
 /** Índice de la arista cuyos dos extremos son estos puntos, en cualquier orden. */
@@ -398,4 +398,58 @@ const channelView = { kind: "parallel" as const, direction: { x: 1, y: 0.2, z: -
   check(`la mediana ${median.toFixed(1)} ms cabe en el presupuesto de ${BUDGET_MS} ms`, median <= BUDGET_MS);
 }
 
-report("hidden-line-solver: visibilidad exacta sobre cóncavos y escenas", 45);
+// ---------------------------------------------------------------------------
+// 7. La puerta multicuerpo, que es la que consume la ventana gráfica
+// ---------------------------------------------------------------------------
+{
+  // El caso que trae SOLDRAW: cuatro paños en fila norte-sur, alzado frontal.
+  // El de más al sur es el que está delante; el del norte cae ENTERO dentro de
+  // su sombra. Mirando un cuerpo cada vez —que es lo único que sabe hacer
+  // `cadSolidEdgeVisibility`— el paño norte sale dibujado como visto encima del
+  // sur, que es exactamente el alzado mal hecho que esta ola existe para evitar.
+  const sur = makeBox({ min: { x: 0, y: 0, z: 0 }, max: { x: 4000, y: 300, z: 3000 } });
+  const centroA = makeBox({ min: { x: 500, y: 2000, z: 200 }, max: { x: 3500, y: 2300, z: 2800 } });
+  const centroB = makeBox({ min: { x: 800, y: 4000, z: 400 }, max: { x: 3200, y: 4300, z: 2600 } });
+  const norte = makeBox({ min: { x: 1000, y: 6000, z: 600 }, max: { x: 3000, y: 6300, z: 2400 } });
+  const frontal = { kind: "parallel" as const, direction: { x: 0, y: 1, z: 0 } };
+
+  // Lo que responde el camino viejo sobre el paño norte MIRADO SOLO.
+  const alone = cadSolidEdgeVisibility(norte, frontal);
+  check("mirado solo, el paño norte es un convexo y se declara exacto", alone.exact === true);
+  check("y da aristas VISTAS, que sobre el conjunto es falso", alone.visible.length > 0);
+
+  const scene = cadSceneEdgeVisibility([sur, centroA, centroB, norte], frontal);
+  check("la escena de cuatro paños se resuelve", scene.ok === true);
+  if (!scene.ok) throw new Error(scene.message);
+  check("devuelve una entrada por cuerpo, en el mismo orden", scene.bodies.length === 4);
+  check("y declara la clasificación exacta", scene.bodies.every((body) => body.exact === true));
+
+  const north = scene.bodies[3];
+  check(
+    `el paño norte no aporta NI UNA arista vista (aporta ${north.visible.length})`,
+    north.visible.length === 0,
+  );
+  check("todas las que se dibujan de él van a ocultas", north.hidden.length > 0);
+
+  // El reparto cierra: cada arista del cuerpo está en visibles, en ocultas o
+  // declarada como no dibujada. Ninguna desaparece en silencio, que es la
+  // propiedad que permite informar «faltan tres» en vez de no enterarse.
+  for (let index = 0; index < 4; index += 1) {
+    const body = scene.bodies[index];
+    const drawn = new Set([...body.visible, ...body.hidden]);
+    check(
+      `cuerpo ${index}: dibujadas (${drawn.size}) + descartadas (${body.dropped.length}) son sus 12 aristas`,
+      drawn.size + body.dropped.length === 12,
+    );
+    check(
+      `cuerpo ${index}: las partidas están en las dos listas`,
+      body.partial.every((edge) => body.visible.includes(edge) && body.hidden.includes(edge)),
+    );
+  }
+
+  // Y el de delante sí se ve: si saliera todo oculto, la prueba anterior pasaría
+  // por la razón equivocada.
+  check("el paño sur, que está delante, sí aporta aristas vistas", scene.bodies[0].visible.length > 0);
+}
+
+report("hidden-line-solver: visibilidad exacta sobre cóncavos y escenas", 70);

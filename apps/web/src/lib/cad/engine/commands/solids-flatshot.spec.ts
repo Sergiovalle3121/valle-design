@@ -26,12 +26,12 @@ import {
   type CadEntity,
 } from "../../cad-document";
 import { executeCadEntityCommandBatch } from "../../entity-commands";
+import { cadFlatshotEntities } from "../../flatshot";
 import { buildCadDimensionGeometry, type CadDimensionEntity } from "../../associative-dimension";
 import { createCadVariableAccess } from "../../system-variables";
 import { cadDocumentExtents } from "../../view/document-extents";
 import { cadSnapSceneAddEntities } from "../../snap-scene";
 import { snap, type SnapScene } from "../../snap-engine";
-import type { CadNativeEntity } from "../../entity-runtime";
 import { CAD_COMMAND_REGISTRY_V2 } from "../index";
 import type { CadCommandContext, CadCommandInput, CadCommandResult } from "../command-types";
 
@@ -359,19 +359,12 @@ function boundsOf(lines: readonly CadEntity[]) {
   const block = (after.blocks ?? []).find((candidate) => candidate.name === "APLANADO");
   assert.ok(block);
 
-  // Las líneas del bloque, ya colocadas donde el usuario las soltó. Es lo que
-  // ve quien EXPLOTA el aplanado, que es el gesto normal para acotarlo.
-  const placed = block.entities
-    .filter((entity) => entity.type === "line")
-    .map((entity, index) => {
-      if (entity.type !== "line") throw new Error("tipo");
-      return {
-        ...entity,
-        id: `expl${index}`,
-        start: { ...entity.start, x: entity.start.x + 5000 },
-        end: { ...entity.end, x: entity.end.x + 5000 },
-      } as CadNativeEntity;
-    });
+  // Las líneas del bloque, ya colocadas donde el usuario las soltó. Es lo que ve
+  // quien EXPLOTA el aplanado, que es el gesto normal para acotarlo, y lo
+  // devuelve el propio módulo: si el desplazamiento se hiciera aquí a mano, la
+  // spec probaría su aritmética y no la del producto.
+  let exploded = 0;
+  const placed = cadFlatshotEntities(block, { x: 5000, y: 0, z: 0 }, () => `expl${exploded++}`);
 
   // El motor de ENGANCHE encuentra la esquina alta del alzado. Sin esto, un
   // dibujante no puede pinchar el aplanado y «acotable» sería una palabra.

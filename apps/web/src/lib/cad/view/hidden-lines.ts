@@ -54,6 +54,13 @@ import {
   type BrepBody,
   type Vec3,
 } from "../../brep";
+import {
+  cadEdgeVerdicts,
+  cadHiddenLineDrawing,
+  type CadHiddenLineDrawing,
+  type CadHiddenLineFailure,
+  type CadHiddenLineOptions,
+} from "./hidden-line-solver";
 
 /**
  * Desde dónde se mira.
@@ -218,4 +225,131 @@ export function cadVisibleEdgeSegments(
  */
 export function cadDrawingDirectionFromScene(scene: Vec3): Vec3 {
   return { x: scene.x, y: scene.z, z: scene.y };
+}
+
+// ---------------------------------------------------------------------------
+// La puerta multicuerpo
+// ---------------------------------------------------------------------------
+
+/**
+ * Visibilidad de las aristas de UN cuerpo frente a TODA la escena.
+ *
+ * Es `CadEdgeVisibility` con dos listas más, y las dos existen porque la verdad
+ * no cabe en «vista u oculta»:
+ *
+ *  · `partial` son las aristas que se ven a trozos —un muro tapa la mitad de
+ *    baja de la esquina del de detrás—. Aparecen a la vez en `visible` y en
+ *    `hidden`, para que quien sólo mire aquellas dos listas siga funcionando y
+ *    dibuje esa arista de las dos formas encima de sí misma, que es feo pero no
+ *    es mentira. Quien quiera partirla de verdad tiene los segmentos.
+ *  · `dropped` son las que NO se dibujan: costuras suaves entre dos facetas del
+ *    mismo cilindro, o aristas que apuntan al observador y se proyectan a un
+ *    punto. Están declaradas en vez de desaparecer, porque «faltan tres
+ *    aristas» y «tres aristas no se dibujan a propósito» son informes distintos.
+ */
+export interface CadSceneEdgeVisibility extends CadEdgeVisibility {
+  partial: readonly number[];
+  dropped: readonly number[];
+}
+
+export interface CadSceneVisibility {
+  ok: true;
+  /** Una entrada por cuerpo, en el MISMO orden en que entraron. */
+  bodies: readonly CadSceneEdgeVisibility[];
+  /** El dibujo completo, por si hace falta la geometría y no sólo el veredicto. */
+  drawing: CadHiddenLineDrawing;
+}
+
+export type CadSceneVisibilityOutcome = CadSceneVisibility | CadHiddenLineFailure;
+
+/**
+ * Qué se ve, cuando hay MÁS DE UN CUERPO y pueden taparse entre ellos.
+ *
+ * Ésta es la función que hay que llamar para dibujar un alzado. La de arriba
+ * —`cadSolidEdgeVisibility`— mira un cuerpo contra la cámara y no sabe que
+ * existe un segundo: con cuatro prismas en fila, el muro de atrás sale entero
+ * como visto aunque el de delante lo tape en el mismo punto del papel. Aquí no:
+ * cada arista se clasifica contra el conjunto, con el solucionador analítico de
+ * `hidden-line-solver.ts`.
+ *
+ * ## Qué promete `exact`, y qué no
+ *
+ * Sale `true` siempre que la función devuelve un resultado, y no es un `true`
+ * de cortesía: sobre las caras PLANAS que se le dan, la clasificación es la
+ * verdad geométrica y no una heurística. Lo que ese `true` no promete está en
+ * la cabecera de `hidden-line-solver.ts` y son propiedades del MODELO, no del
+ * algoritmo: la silueta de un cilindro es la de su prisma facetado, dos sólidos
+ * que se interpenetran sin haber pasado por una booleana no dibujan la curva
+ * donde se cruzan, y dos caras coplanarias que empatan en profundidad se
+ * resuelven a favor de dibujar. Cuando no puede responder, no devuelve un
+ * `exact: false`: devuelve un fallo con su código.
+ *
+ * `frontFaces` se conserva por compatibilidad y se calcula como antes, contando
+ * caras que miran al observador; con varios cuerpos es un dato por cuerpo y no
+ * de la escena.
+ */
+/** Cuántas caras del cuerpo miran al observador. */
+function frontFacingCount(body: BrepBody, view: CadHiddenLineView): number {
+  let count = 0;
+  for (let face = 0; face < body.faces.length; face += 1)
+    if (faceFacesViewer(body, face, view)) count += 1;
+  return count;
+}
+
+export function cadSceneEdgeVisibility(
+  bodies: readonly BrepBody[],
+  view: CadHiddenLineView,
+  options: CadHiddenLineOptions = {},
+): CadSceneVisibilityOutcome {
+  const drawing = cadHiddenLineDrawing(bodies, view, options);
+  if (!drawing.ok) return drawing;
+
+  // Las siluetas se agrupan por cuerpo en UNA pasada. Recorrer los segmentos
+  // dentro del bucle de cuerpos costaría cuerpos × segmentos, y con una planta
+  // de cuatrocientos sólidos eso son millones de comparaciones para rellenar una
+  // lista que ya está delante.
+  const silhouettes = new Map<number, Set<number>>();
+  for (const segment of drawing.visible) {
+    if (!segment.silhouette) continue;
+    let set = silhouettes.get(segment.body);
+    if (!set) {
+      set = new Set<number>();
+      silhouettes.set(segment.body, set);
+    }
+    set.add(segment.edge);
+  }
+
+  const perBody = bodies.map((body, index) => {
+    const verdicts = cadEdgeVerdicts(drawing, index);
+    const visible: number[] = [];
+    const hidden: number[] = [];
+    const partial: number[] = [];
+    const dropped: number[] = [];
+    for (let edge = 0; edge < body.edges.length; edge += 1) {
+      const verdict = verdicts.get(edge);
+      if (verdict === undefined) {
+        dropped.push(edge);
+        continue;
+      }
+      // Una arista partida entra en las DOS listas a propósito: ver arriba.
+      if (verdict !== "hidden") visible.push(edge);
+      if (verdict !== "visible") hidden.push(edge);
+      if (verdict === "partial") partial.push(edge);
+    }
+    return {
+      visible,
+      hidden,
+      partial,
+      dropped,
+      silhouette: [...(silhouettes.get(index) ?? [])].sort((a, b) => a - b),
+      // Se cuenta a mano en vez de reutilizar `cadSolidEdgeVisibility`: aquélla
+      // arrastra el test de convexidad, que mide un diedro por arista, y aquí la
+      // convexidad ya no decide nada. Pagar un ángulo por arista para rellenar
+      // un contador sería el clásico coste que nadie mira.
+      frontFaces: frontFacingCount(body, view),
+      exact: true,
+    } satisfies CadSceneEdgeVisibility;
+  });
+
+  return { ok: true, bodies: perBody, drawing };
 }
