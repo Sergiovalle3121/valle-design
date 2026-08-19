@@ -85,3 +85,43 @@ export function formatArea(value: number, opts: FormatOptions = {}): string {
 export function formatAngle(deg: number, precision = 1): string {
   return `${formatNumber(deg, precision, false)}°`;
 }
+
+/** Unidades en las que una cota puede ROTULAR su medida. */
+export type CadDimensionUnitName = 'mm' | 'cm' | 'm' | 'in' | 'ft';
+/** Remates admitidos para la línea de cota (ISO 129-1). */
+export type CadDimensionArrowhead = 'closed-filled' | 'open' | 'architectural-tick' | 'dot';
+
+export interface CadDimensionStyleShape {
+  precision?: number;
+  units?: CadDimensionUnitName;
+  arrowhead?: CadDimensionArrowhead;
+}
+
+/**
+ * Qué manda cuando el ESTILO y el borrador de la paleta dicen cosas distintas.
+ *
+ * Manda el estilo. No es una preferencia: es la única forma de que una norma de
+ * dibujo llegue al usuario sin que la teclee. Un documento nacido de plantilla
+ * mexicana trae `COTA 1:50` en metros, con dos decimales y con garrapata; si el
+ * borrador de la paleta ganara, cada cota nueva nacería en milímetros con flecha
+ * y el arquitecto tendría que corregirlas de una en una — que es exactamente lo
+ * que hace hoy en AutoCAD y lo que este producto existe para evitar.
+ *
+ * Las claves que el estilo no declara NO se emiten, en vez de emitirse como
+ * `undefined`. Escribir `units: undefined` sobre una entidad borraría lo que el
+ * borrador sí sabía, y el resultado sería peor que no haber consultado el
+ * estilo.
+ */
+export function cadDimensionStyleOverrides(
+  style: CadDimensionStyleShape,
+  draft: CadDimensionStyleShape = {},
+): CadDimensionStyleShape {
+  const precision = style.precision ?? draft.precision;
+  const units = style.units ?? draft.units;
+  const arrowhead = style.arrowhead ?? draft.arrowhead;
+  return {
+    ...(precision === undefined ? {} : { precision }),
+    ...(units === undefined ? {} : { units }),
+    ...(arrowhead === undefined ? {} : { arrowhead }),
+  };
+}

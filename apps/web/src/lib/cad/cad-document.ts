@@ -403,9 +403,21 @@ export interface CadLayerDef {
   plot?: boolean;
 }
 
+/**
+ * `units` y `arrowhead` en el estilo de cota son lo que permite que una norma de
+ * dibujo llegue al usuario sin que él la teclee. La entidad `dimension` ya sabía
+ * acotar en metros y rematar con garrapata, pero esos datos vivían SÓLO en la
+ * entidad: cada cota nueva nacía en milímetros y con flecha, y el arquitecto
+ * mexicano tenía que corregirlas de una en una. Poniéndolos en el ESTILO, la
+ * plantilla decide una vez y todas las cotas del documento heredan.
+ *
+ * Ambos son opcionales: un documento anterior que no los traiga se comporta
+ * exactamente igual que antes, así que el serializado de lo ya guardado no
+ * cambia ni un byte.
+ */
 export interface CadStyleTable {
   text: Record<string, { fontFamily?: string; height?: number }>;
-  dimension: Record<string, { textStyle?: string; arrowSize?: number; precision?: number }>;
+  dimension: Record<string, { textStyle?: string; arrowSize?: number; precision?: number; units?: "mm" | "cm" | "m" | "in" | "ft"; arrowhead?: "closed-filled" | "open" | "architectural-tick" | "dot" }>;
   mleader?: Record<string, { textStyle?: string; arrowSize?: number; doglegLength?: number; landing?: boolean }>;
   table: Record<string, { textStyle?: string; rowHeight?: number }>;
   plot: Record<string, { colorMode?: "color" | "monochrome"; lineweightScale?: number }>;

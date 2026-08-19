@@ -32,6 +32,23 @@
 import type { CadPaperSpace } from "../cad-document";
 import type { CadPageMargins } from "./page-setup";
 
+/**
+ * ## Por qué hay una variante mexicana y no una sola disposición
+ *
+ * El cajetín ISO cubre lo que ISO 7200 enumera y **no cubre lo que una lámina
+ * mexicana necesita para presentarse en ventanilla**: la ubicación de la obra,
+ * el propietario del predio y, sobre todo, la responsiva del Director
+ * Responsable de Obra — nombre, número de registro y firma. En la Ciudad de
+ * México la obra que requiere manifestación o licencia necesita esa responsiva,
+ * y un cajetín sin ese espacio obliga a rehacer las veinte láminas del juego.
+ *
+ * Las dos disposiciones conviven porque las dos se usan: la ISO en trabajo que
+ * viaja fuera de México, la mexicana en lo que entra a una alcaldía. La variante
+ * viaja en un atributo del cajetín de la presentación —el mismo bolsillo donde
+ * ya vive la tabla de plumas—, así que veinte láminas del mismo juego salen
+ * todas igual sin que nadie tenga que acordarse.
+ */
+
 /** Ancho nominal del cajetín, ISO 7200. */
 export const CAD_TITLE_BLOCK_WIDTH_MM = 180;
 /**
@@ -44,6 +61,16 @@ export const CAD_TITLE_BLOCK_WIDTH_MM = 180;
  * se ve en pantalla, porque en pantalla el cajetín no está.
  */
 export const CAD_TITLE_BLOCK_HEIGHT_MM = 30;
+/**
+ * Alto del cajetín mexicano: 50 mm.
+ *
+ * Veinte milímetros más que el ISO, y se pagan en área de dibujo. Es lo que
+ * miden las dos bandas que la disposición internacional no tiene —el nombre y
+ * el registro del Director Responsable de Obra, y el hueco donde firma— más la
+ * de ubicación de la obra. Recortarlas para no perder dibujo daría un cajetín
+ * que no sirve para lo único que tiene que servir en México.
+ */
+export const CAD_MEXICAN_TITLE_BLOCK_HEIGHT_MM = 50;
 /** Por debajo de esto un rótulo impreso deja de leerse. */
 export const CAD_TITLE_BLOCK_MIN_TEXT_MM = 1.5;
 
@@ -65,6 +92,16 @@ export interface CadTitleBlockFields {
   /** Escala principal de la lámina: `1:50`, o `1:50 / 1:20` con varias. */
   scale: string;
   units: string;
+  /** Ubicación de la obra: calle, número, colonia, alcaldía o municipio. */
+  location: string;
+  /** Propietario del predio. En México no siempre coincide con «cliente». */
+  owner: string;
+  /** Director Responsable de Obra que otorga la responsiva. */
+  dro: string;
+  /** Número de registro del D.R.O. ante la comisión que lo acredita. */
+  droRegistration: string;
+  /** Corresponsable —estructural, urbano-arquitectónico o de instalaciones—. */
+  corresponsable: string;
 }
 
 /** Cómo se rellena cada campo, para poder auditar el cajetín. */
@@ -87,6 +124,8 @@ export interface CadTitleBlockCell {
 
 export interface CadTitleBlockLayout {
   sheetId: string;
+  /** Disposición con la que se compuso. Auditable desde el resultado. */
+  variant: CadTitleBlockVariantId;
   /** Marco exterior de la lámina. */
   frame: { x: number; y: number; width: number; height: number };
   /** Recuadro del cajetín, dentro del marco. */
@@ -119,7 +158,29 @@ const ATTRIBUTE_MAP: Record<keyof CadTitleBlockFields, readonly string[]> = {
   discipline: ["DISCIPLINE", "DISCIPLINA"],
   scale: ["SCALE", "ESCALA"],
   units: ["UNITS", "UNIDADES"],
+  location: ["LOCATION", "UBICACION"],
+  // «Cliente» cae a «propietario» cuando nadie declaró un propietario aparte:
+  // en una casa habitación son la misma persona, y dejar la casilla vacía por
+  // purismo obligaría a teclear dos veces el mismo nombre.
+  owner: ["OWNER", "PROPIETARIO", "CLIENT", "CLIENTE"],
+  dro: ["DRO", "DIRECTOR_RESPONSABLE"],
+  droRegistration: ["DRO_REGISTRO", "REGISTRO_DRO"],
+  corresponsable: ["CORRESPONSABLE"],
 };
+
+/** Atributo del cajetín donde persiste la disposición elegida. */
+export const CAD_TITLE_BLOCK_VARIANT_ATTRIBUTE = "TITLE_BLOCK_VARIANT";
+
+/**
+ * Disposiciones. `iso` es la de siempre; `mexicano` añade la responsiva.
+ *
+ * La lista es cerrada a propósito: un cajetín «personalizado» libre convierte
+ * cada lámina en un caso distinto y es exactamente lo que hace que un juego de
+ * veinte salga desparejo.
+ */
+export type CadTitleBlockVariantId = "iso" | "mexicano";
+
+export const CAD_TITLE_BLOCK_VARIANT_IDS: readonly CadTitleBlockVariantId[] = ["iso", "mexicano"];
 
 export interface CadTitleBlockInput {
   /** Presentación de la que sale la lámina. Es la fuente principal. */
@@ -221,46 +282,147 @@ export function resolveCadTitleBlockFields(
   return { fields, sources };
 }
 
-/** Las cinco bandas del cajetín, con su reparto en columnas. */
-const BANDS: ReadonlyArray<{
-  heightRatio: number;
-  cells: ReadonlyArray<{ key: keyof CadTitleBlockFields; label: string; span: number; strong?: boolean }>;
-}> = [
-  {
-    heightRatio: 0.225,
-    cells: [{ key: "project", label: "PROYECTO", span: 12, strong: true }],
-  },
-  {
-    heightRatio: 0.175,
-    cells: [
-      { key: "client", label: "CLIENTE", span: 8 },
-      { key: "discipline", label: "DISCIPLINA", span: 4 },
+interface CadTitleBlockBandCell {
+  key: keyof CadTitleBlockFields;
+  label: string;
+  span: number;
+  strong?: boolean;
+  /**
+   * Celda de FIRMA: se imprime vacía a propósito, para firmar encima.
+   *
+   * Sin esta marca el cajetín declararía la casilla como «campo que nadie pudo
+   * rellenar», y quien lea el informe corregiría un hueco que tiene que estar
+   * hueco. Una firma no se teclea.
+   */
+  signature?: boolean;
+}
+
+interface CadTitleBlockBand {
+  /** Alto en milímetros de papel, a tamaño nominal. */
+  heightMm: number;
+  cells: readonly CadTitleBlockBandCell[];
+}
+
+interface CadTitleBlockVariant {
+  id: CadTitleBlockVariantId;
+  label: string;
+  widthMm: number;
+  heightMm: number;
+  bands: readonly CadTitleBlockBand[];
+}
+
+/**
+ * Las bandas, en milímetros absolutos y no en fracciones.
+ *
+ * En fracciones, añadir una banda reescala todas las demás en silencio: la
+ * banda del proyecto adelgazaría al añadir la de la responsiva y nadie lo vería
+ * hasta imprimir. En milímetros, cada banda mide lo que dice y la suma tiene que
+ * dar el alto declarado — que es algo que una prueba puede afirmar.
+ */
+const VARIANTS: Readonly<Record<CadTitleBlockVariantId, CadTitleBlockVariant>> = {
+  iso: {
+    id: "iso",
+    label: "Cajetín ISO",
+    widthMm: CAD_TITLE_BLOCK_WIDTH_MM,
+    heightMm: CAD_TITLE_BLOCK_HEIGHT_MM,
+    bands: [
+      { heightMm: 6.75, cells: [{ key: "project", label: "PROYECTO", span: 12, strong: true }] },
+      {
+        heightMm: 5.25,
+        cells: [
+          { key: "client", label: "CLIENTE", span: 8 },
+          { key: "discipline", label: "DISCIPLINA", span: 4 },
+        ],
+      },
+      { heightMm: 6.75, cells: [{ key: "title", label: "LÁMINA", span: 12, strong: true }] },
+      {
+        heightMm: 5.625,
+        cells: [
+          { key: "scale", label: "ESCALA", span: 3 },
+          { key: "units", label: "UNIDADES", span: 2 },
+          { key: "date", label: "FECHA", span: 3 },
+          { key: "drawnBy", label: "DIBUJÓ", span: 2 },
+          { key: "checkedBy", label: "REVISÓ", span: 2 },
+        ],
+      },
+      {
+        heightMm: 5.625,
+        cells: [
+          { key: "drawingNumber", label: "Nº DE PLANO", span: 5 },
+          { key: "sheetNumber", label: "LÁMINA", span: 3 },
+          { key: "sheetOf", label: "HOJA", span: 2 },
+          { key: "revision", label: "REV.", span: 2 },
+        ],
+      },
     ],
   },
-  {
-    heightRatio: 0.225,
-    cells: [{ key: "title", label: "LÁMINA", span: 12, strong: true }],
-  },
-  {
-    heightRatio: 0.1875,
-    cells: [
-      { key: "scale", label: "ESCALA", span: 3 },
-      { key: "units", label: "UNIDADES", span: 2 },
-      { key: "date", label: "FECHA", span: 3 },
-      { key: "drawnBy", label: "DIBUJÓ", span: 2 },
-      { key: "checkedBy", label: "REVISÓ", span: 2 },
+  mexicano: {
+    id: "mexicano",
+    label: "Cajetín mexicano con responsiva",
+    widthMm: CAD_TITLE_BLOCK_WIDTH_MM,
+    heightMm: CAD_MEXICAN_TITLE_BLOCK_HEIGHT_MM,
+    bands: [
+      { heightMm: 8, cells: [{ key: "project", label: "PROYECTO", span: 12, strong: true }] },
+      {
+        heightMm: 6,
+        cells: [
+          // La ubicación es el campo que ISO 7200 no nombra y sin el cual una
+          // lámina no se presenta: la alcaldía necesita saber DÓNDE es la obra.
+          { key: "location", label: "UBICACIÓN DE LA OBRA", span: 8 },
+          { key: "owner", label: "PROPIETARIO", span: 4 },
+        ],
+      },
+      { heightMm: 8, cells: [{ key: "title", label: "LÁMINA", span: 12, strong: true }] },
+      {
+        heightMm: 6,
+        cells: [
+          { key: "scale", label: "ESCALA", span: 2 },
+          { key: "units", label: "UNIDADES", span: 2 },
+          { key: "date", label: "FECHA", span: 2 },
+          { key: "discipline", label: "DISCIPLINA", span: 2 },
+          { key: "drawnBy", label: "DIBUJÓ", span: 2 },
+          { key: "checkedBy", label: "REVISÓ", span: 2 },
+        ],
+      },
+      {
+        heightMm: 6,
+        cells: [
+          { key: "drawingNumber", label: "Nº DE PLANO", span: 5 },
+          { key: "sheetNumber", label: "CLAVE DE LÁMINA", span: 3 },
+          { key: "sheetOf", label: "HOJA", span: 2 },
+          { key: "revision", label: "REV.", span: 2 },
+        ],
+      },
+      {
+        heightMm: 6,
+        cells: [
+          { key: "dro", label: "DIRECTOR RESPONSABLE DE OBRA", span: 8 },
+          { key: "droRegistration", label: "Nº DE REGISTRO", span: 4 },
+        ],
+      },
+      {
+        // Diez milímetros de alto porque una firma se hace a mano sobre el
+        // papel: una banda de seis no da para firmar sin invadir la de arriba.
+        heightMm: 10,
+        cells: [
+          { key: "dro", label: "FIRMA DEL D.R.O.", span: 6, signature: true },
+          { key: "corresponsable", label: "CORRESPONSABLE", span: 6, signature: true },
+        ],
+      },
     ],
   },
-  {
-    heightRatio: 0.1875,
-    cells: [
-      { key: "drawingNumber", label: "Nº DE PLANO", span: 5 },
-      { key: "sheetNumber", label: "LÁMINA", span: 3 },
-      { key: "sheetOf", label: "HOJA", span: 2 },
-      { key: "revision", label: "REV.", span: 2 },
-    ],
-  },
-];
+};
+
+export function cadTitleBlockVariant(id: string): CadTitleBlockVariantId {
+  return (CAD_TITLE_BLOCK_VARIANT_IDS as readonly string[]).includes(id)
+    ? (id as CadTitleBlockVariantId)
+    : "iso";
+}
+
+/** Alto que la disposición ocupa en la hoja. Lo necesita quien reserva la ventana. */
+export function cadTitleBlockHeightMm(id: CadTitleBlockVariantId): number {
+  return VARIANTS[id].heightMm;
+}
 
 const COLUMNS = 12;
 
@@ -269,6 +431,12 @@ export interface CadTitleBlockLayoutInput extends CadTitleBlockInput {
   /** Hoja YA orientada, en milímetros. */
   page: { width: number; height: number };
   margins: CadPageMargins;
+  /**
+   * Disposición. Sin ella se lee del atributo de la presentación, y sin atributo
+   * se cae a `iso`: un documento anterior a la variante mexicana se compone
+   * exactamente igual que antes.
+   */
+  variant?: CadTitleBlockVariantId;
 }
 
 /**
@@ -281,6 +449,15 @@ export interface CadTitleBlockLayoutInput extends CadTitleBlockInput {
 export function layoutCadTitleBlock(input: CadTitleBlockLayoutInput): CadTitleBlockLayout {
   const { fields, sources } = resolveCadTitleBlockFields(input);
   const issues: string[] = [];
+  const variant =
+    VARIANTS[
+      input.variant ??
+        cadTitleBlockVariant(
+          input.layout?.titleBlock?.attributes?.[CAD_TITLE_BLOCK_VARIANT_ATTRIBUTE] ??
+            input.attributes?.[CAD_TITLE_BLOCK_VARIANT_ATTRIBUTE] ??
+            "iso",
+        )
+    ];
 
   const frame = {
     x: input.margins.left,
@@ -294,16 +471,16 @@ export function layoutCadTitleBlock(input: CadTitleBlockLayoutInput): CadTitleBl
   // que el cajetín no deje de ser un cajetín.
   const shrink = Math.min(
     1,
-    frame.width / CAD_TITLE_BLOCK_WIDTH_MM,
-    frame.height / CAD_TITLE_BLOCK_HEIGHT_MM,
+    frame.width / variant.widthMm,
+    frame.height / variant.heightMm,
   );
   if (shrink < 1)
     issues.push(
-      `La hoja de ${input.page.width} × ${input.page.height} mm no admite un cajetín de ${CAD_TITLE_BLOCK_WIDTH_MM} × ${CAD_TITLE_BLOCK_HEIGHT_MM} mm: se reduce al ${(shrink * 100).toFixed(1)} %.`,
+      `La hoja de ${input.page.width} × ${input.page.height} mm no admite un cajetín de ${variant.widthMm} × ${variant.heightMm} mm: se reduce al ${(shrink * 100).toFixed(1)} %.`,
     );
 
-  const boxWidth = CAD_TITLE_BLOCK_WIDTH_MM * shrink;
-  const boxHeight = CAD_TITLE_BLOCK_HEIGHT_MM * shrink;
+  const boxWidth = variant.widthMm * shrink;
+  const boxHeight = variant.heightMm * shrink;
   const box = {
     x: frame.x + frame.width - boxWidth,
     y: frame.y + frame.height - boxHeight,
@@ -324,8 +501,8 @@ export function layoutCadTitleBlock(input: CadTitleBlockLayoutInput): CadTitleBl
   const missing: Array<keyof CadTitleBlockFields> = [];
   let cursorY = box.y;
 
-  for (const [bandIndex, band] of BANDS.entries()) {
-    const bandHeight = boxHeight * band.heightRatio;
+  for (const [bandIndex, band] of variant.bands.entries()) {
+    const bandHeight = band.heightMm * shrink;
     if (bandIndex > 0)
       rules.push({ x1: box.x, y1: cursorY, x2: box.x + box.width, y2: cursorY });
     let cursorX = box.x;
@@ -334,12 +511,15 @@ export function layoutCadTitleBlock(input: CadTitleBlockLayoutInput): CadTitleBl
       if (cellIndex > 0)
         rules.push({ x1: cursorX, y1: cursorY, x2: cursorX, y2: cursorY + bandHeight });
       const value = fields[cell.key];
-      if (!value) missing.push(cell.key);
+      // La casilla de firma se imprime SIEMPRE vacía: es papel para firmar
+      // encima, no un dato sin rellenar. Meterla en `missing` haría que el
+      // informe pidiera completar lo que tiene que quedar en blanco.
+      if (!value && !cell.signature) missing.push(cell.key);
       cells.push({
         key: cell.key,
         label: cell.label,
-        value: value || EMPTY,
-        source: sources[cell.key],
+        value: cell.signature ? "" : value || EMPTY,
+        source: cell.signature ? "missing" : sources[cell.key],
         x: cursorX,
         y: cursorY,
         width: cellWidth,
@@ -352,7 +532,18 @@ export function layoutCadTitleBlock(input: CadTitleBlockLayoutInput): CadTitleBl
     cursorY += bandHeight;
   }
 
-  return { sheetId: input.sheetId, frame, box, rules, cells, shrink, fields, missing, issues };
+  return {
+    sheetId: input.sheetId,
+    variant: variant.id,
+    frame,
+    box,
+    rules,
+    cells,
+    shrink,
+    fields,
+    missing,
+    issues,
+  };
 }
 
 /**

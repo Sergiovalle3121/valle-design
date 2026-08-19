@@ -41,7 +41,20 @@ const empty = (): CadStyleTable => ({
   );
   assert.deepEqual(
     cadStyleFamilyDescriptor("dimension").fields.map((field) => field.key),
-    ["textStyle", "arrowSize", "precision"],
+    ["textStyle", "arrowSize", "precision", "units", "arrowhead"],
+  );
+  // La unidad y el remate son lo que hace mexicana una cota, y se editan desde
+  // la paleta: una norma que sólo llega en la plantilla es una norma que el
+  // usuario no puede cambiar sin rehacer el estilo. La garrapata va PRIMERA
+  // porque es la de arquitectura; la flecha rellena es la de mecánica.
+  assert.deepEqual(
+    cadStyleFamilyDescriptor("dimension").fields.find((field) => field.key === "units")?.options,
+    ["m", "cm", "mm"],
+  );
+  assert.equal(
+    cadStyleFamilyDescriptor("dimension").fields.find((field) => field.key === "arrowhead")
+      ?.options?.[0],
+    "architectural-tick",
   );
   assert.deepEqual(
     cadStyleFamilyDescriptor("plot").fields.find(
