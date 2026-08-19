@@ -464,45 +464,16 @@ export interface CadOpaqueEntity {
   editable: false;
 }
 
-export interface CadPaperSpace {
-  id: string;
-  name: string;
-  entityIds: string[];
-  order?: number;
-  includeInPublish?: boolean;
-  page: {
-    width: number;
-    height: number;
-    unit: "mm" | "in";
-    orientation: "portrait" | "landscape";
-  };
-  pageSetup?: {
-    paper: "A4" | "A3" | "A2" | "A1" | "A0" | "letter" | "tabloid" | "custom";
-    margins: { top: number; right: number; bottom: number; left: number };
-    colorMode: "color" | "monochrome";
-    lineweightScale: number;
-  };
-  viewports?: CadPaperViewport[];
-  titleBlock?: {
-    block?: string;
-    attributes: Record<string, string>;
-  };
-}
-
-export interface CadPaperViewport {
-  id: string;
-  name?: string;
-  paperBounds: { x: number; y: number; width: number; height: number };
-  modelBounds: { x: number; y: number; width: number; height: number };
-  scale: number;
-  locked: boolean;
-  /** Independent annotation scale for annotative content in this viewport. */
-  annotationScale?: number;
-  /** Optional named model view used to restore this viewport deterministically. */
-  namedView?: string;
-  layerVisibility?: Record<string, boolean>;
-  layerOverrides?: Record<string, { color?: string; linetype?: string; lineweight?: number }>;
-}
+// La LÁMINA y su VENTANA GRÁFICA viven en `cad-paper-viewport.ts` desde que la
+// ventana tiene cámara (esquema 8): es un archivo SIN imports de valor, así que
+// no hay ciclo posible, y aquí sólo quedaba engordando el trinquete. Se
+// reexportan enteros para que ningún consumidor cambie de import.
+import type { CadPaperSpace } from "./cad-paper-viewport";
+export type {
+  CadPaperSpace, CadPaperViewport, CadViewportDerivation,
+  CadViewportDerivationStatus, CadViewportSectionPlane, CadViewportView,
+  CadViewportViewKind, CadSolviewLayerSuffix,
+} from "./cad-paper-viewport";
 
 export interface CadPublicationRecord {
   id: string;
