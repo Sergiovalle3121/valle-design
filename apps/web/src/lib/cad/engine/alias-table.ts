@@ -169,6 +169,20 @@ export const CAD_COMMAND_ALIASES: Readonly<Record<string, string>> = {
   GCON: "GEOMCONSTRAINT",
   DCON: "DIMCONSTRAINT",
   PARAM: "PARAMETERS",
+
+  // --- navegación 3D --------------------------------------------------------
+  //
+  // Un alias declarado en el descriptor NO basta para poder teclearlo: la línea
+  // de comandos resuelve por esta tabla, así que un comando cuyos alias sólo
+  // viven en su descriptor se puede invocar por su nombre largo y por nada más.
+  // Se descubrió aquí, tecleando `3DZ`.
+  "3DO": "3DORBIT",
+  ORBIT: "3DORBIT",
+  "3DF": "3DFORBIT",
+  FORBIT: "3DFORBIT",
+  "3DP": "3DPAN",
+  "3DZ": "3DZOOM",
+  VP: "VPOINT",
 };
 
 /**

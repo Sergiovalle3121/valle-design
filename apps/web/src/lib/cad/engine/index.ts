@@ -60,6 +60,8 @@ import { CAD_VIEW_VISUAL_COMMANDS } from "./commands/view-visual";
 import { CAD_LAYOUT_COMMANDS } from "./commands/layout-commands";
 import { CAD_PLOT_COMMANDS } from "./commands/plot-commands";
 import { createCadCommandRegistry, type CadCommandRegistryImpl } from "./registry";
+// Navegación 3D tecleable: 3DORBIT, 3DFORBIT, 3DPAN, 3DZOOM y VPOINT.
+import { CAD_VIEW_NAVIGATION_3D_COMMANDS } from "./commands/view-navigation-3d";
 
 export * from "./command-types";
 export * from "./command-engine";
@@ -129,6 +131,8 @@ export const CAD_COMMAND_DESCRIPTORS = [
   // Intercambio: DXFIN y DXFOUT. El bloqueo número uno de un despacho no es que
   // falte una orden de dibujo, es que el archivo del cliente no entre ni salga.
   ...CAD_DXF_INTEROP_COMMANDS,
+  // Navegación 3D: un modelador de sólidos sin forma tecleable de mirarlos.
+  ...CAD_VIEW_NAVIGATION_3D_COMMANDS,
 ] as const;
 
 /**

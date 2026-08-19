@@ -268,6 +268,49 @@ export class CadViewController {
   }
 
   /**
+   * VPOINT: coloca la cámara en un azimut y una elevación ABSOLUTOS.
+   *
+   * Absoluto y no incremental porque es lo que un guion necesita: «ponte a 315°
+   * y 20°» no depende de dónde estuviera la cámara antes, y expresarlo como
+   * incremento obligaría a leer el estado para calcular la diferencia.
+   */
+  setOrbit(azimuthDeg: number, elevationDeg: number): CadOrbitState {
+    const target = this.perspectiveTarget;
+    const distance = this.perspective.position.distanceTo(target) || 1;
+    const next = orbitStep(
+      { azimuthDeg: 0, elevationDeg: 0, distance },
+      azimuthDeg,
+      elevationDeg,
+    );
+    const position = orbitCameraPosition(target, next);
+    this.perspective.position.set(position.x, position.y, position.z);
+    this.perspective.up.set(0, 1, 0);
+    this.perspective.lookAt(target);
+    this.perspective.updateMatrixWorld();
+    this.emit();
+    return next;
+  }
+
+  /**
+   * 3DPAN tecleado: desplaza el objetivo por el plano del DIBUJO.
+   *
+   * Es la variante que se puede escribir. Arrastrar por el plano de la pantalla
+   * (`panPerspective`) depende del encuadre; mover el objetivo tantas unidades
+   * de dibujo al este y tantas al norte significa lo mismo mire la cámara donde
+   * mire, que es lo que hace falta para que un guion sea reproducible.
+   */
+  panPerspectiveDrawing(dx: number, dy: number): void {
+    if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
+    const shift = new THREE.Vector3(dx * this.transform.scale, 0, dy * this.transform.scale);
+    this.perspective.position.add(shift);
+    this.perspectiveTarget.add(shift);
+    this.perspective.lookAt(this.perspectiveTarget);
+    this.perspective.updateMatrixWorld();
+    this.syncFromPerspective();
+    this.emit();
+  }
+
+  /**
    * Salta a una de las diez vistas predefinidas conservando la DISTANCIA.
    *
    * No pasa por azimut/elevación a propósito: la vista SUPERIOR tiene elevación

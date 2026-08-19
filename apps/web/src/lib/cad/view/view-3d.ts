@@ -417,6 +417,12 @@ export type CadView3dRequest =
       elevationDeg: number;
       rollDeg?: number;
     }
+  /**
+   * Órbita ABSOLUTA: coloca la cámara en un azimut y una elevación dados, sin
+   * importar de dónde venga. Es lo que hace VPOINT Rotar, y no se puede
+   * expresar con incrementos sin saber el estado actual.
+   */
+  | { kind: "orbit-to"; azimuthDeg: number; elevationDeg: number }
   /** Salta a una de las diez vistas predefinidas, conservando la distancia. */
   | { kind: "standard-view"; view: CadStandardViewId }
   /**
@@ -425,6 +431,15 @@ export type CadView3dRequest =
    * y el comando no la conoce. La conversión la hace quien tiene la cámara.
    */
   | { kind: "pan"; dxPx: number; dyPx: number }
+  /**
+   * Desplazamiento en unidades de DIBUJO sobre el plano del suelo.
+   *
+   * Es la forma que puede TECLEARSE: un dibujante indica dos puntos del dibujo,
+   * no un número de píxeles. Mueve el objetivo por el plano XY del dibujo, que
+   * es una operación bien definida mire la cámara donde mire — a diferencia de
+   * arrastrar por el plano de la pantalla, que depende del encuadre.
+   */
+  | { kind: "pan-drawing"; dx: number; dy: number }
   /** Acercamiento por factor: `>1` acerca. Es un travelín, no un cambio de FOV. */
   | { kind: "zoom"; factor: number };
 
@@ -461,6 +476,22 @@ export function validateCadView3dRequest(request: CadView3dRequest): CadView3dOu
             : `3DORBIT: ${azimuthDeg}°, ${elevationDeg}°.`,
       };
     }
+    case "orbit-to": {
+      const { azimuthDeg, elevationDeg } = request;
+      if (!Number.isFinite(azimuthDeg) || !Number.isFinite(elevationDeg))
+        return { request: null, message: "VPOINT necesita dos ángulos en grados." };
+      // La elevación se acota AQUÍ y no en el controlador para que el usuario
+      // vea el número que se va a aplicar de verdad. ±90 exactos se piden por
+      // el nombre de la vista, no por sus ángulos: ver la cabecera del módulo.
+      const clamped = clampOrbitElevation(elevationDeg);
+      return {
+        request: { kind: "orbit-to", azimuthDeg, elevationDeg: clamped },
+        message:
+          clamped === elevationDeg
+            ? `VPOINT ${azimuthDeg}°, ${elevationDeg}°.`
+            : `VPOINT ${azimuthDeg}°, ${clamped}° (la elevación se acota justo bajo el polo; para la vista cenital exacta usa VPOINT Superior).`,
+      };
+    }
     case "standard-view":
       return {
         request,
@@ -472,6 +503,13 @@ export function validateCadView3dRequest(request: CadView3dRequest): CadView3dOu
       if (request.dxPx === 0 && request.dyPx === 0)
         return { request: null, message: "3DPAN sin desplazamiento." };
       return { request, message: `3DPAN ${request.dxPx},${request.dyPx} px.` };
+    }
+    case "pan-drawing": {
+      if (!Number.isFinite(request.dx) || !Number.isFinite(request.dy))
+        return { request: null, message: "El desplazamiento de 3DPAN no es un vector válido." };
+      if (request.dx === 0 && request.dy === 0)
+        return { request: null, message: "3DPAN sin desplazamiento." };
+      return { request, message: `3DPAN ${request.dx},${request.dy}.` };
     }
     case "zoom": {
       const { factor } = request;
