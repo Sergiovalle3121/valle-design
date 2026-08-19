@@ -45,6 +45,7 @@ import {
   isCadTableCommand,
   type CadDocumentTableCommand,
 } from "./entity-command-tables";
+import { orphanedOpeningIds } from "./wall-openings";
 import {
   CAD_ENTITY_REGISTRY,
   CadEntityRegistry,
@@ -341,6 +342,9 @@ export function executeCadEntityCommandBatch(
   const deletedEntityIds: string[] = [];
   const touchedIds: string[] = [];
   const regenerationSourceIds: string[] = [];
+  // El lote pudo dejar un hueco sin anfitrión. Se apunta en vez de barrer
+  // siempre: un lote que sólo movió una línea no necesita esa garantía.
+  let mayOrphanOpenings = false;
 
   const forget = (entityId: string) => {
     const front = createdFrontIds.indexOf(entityId);
@@ -417,6 +421,7 @@ export function executeCadEntityCommandBatch(
       forget(source.id);
       if (!bornHere) deletedEntityIds.push(source.id);
       regenerationSourceIds.push(source.id);
+      if (source.type === "wall") mayOrphanOpenings = true;
     } else if (command.type === "copy") {
       if (present.has(command.newEntityId))
         throw new Error(`CAD entity id ${command.newEntityId} already exists.`);
@@ -441,6 +446,9 @@ export function executeCadEntityCommandBatch(
         throw new Error(`CAD entity ${incomingId} is not a native entity.`);
       present.set(command.entity.id, command.entity);
       regenerationSourceIds.push(source.id);
+      // Un `replace` conserva el id pero puede cambiar el TIPO: un muro que
+      // deja de serlo deja a sus huecos sin anfitrión igual que un borrado.
+      if (source.type === "wall" && command.entity.type !== "wall") mayOrphanOpenings = true;
     } else if (command.type === "metadata") {
       const merged: Record<string, string | number | boolean | null> = {
         ...(source.context?.metadata ?? {}),
@@ -508,6 +516,21 @@ export function executeCadEntityCommandBatch(
       regenerationSourceIds.push(source.id);
     }
   }
+
+  // GC transaccional de HUECOS ALOJADOS: un hueco sin muro no es una entidad
+  // huérfana, es una entidad sin sitio. Se retira en ESTE lote —un paso de
+  // deshacer— y con ella el intervalo que partía las caras del muro: el vano
+  // queda cerrado sin que nadie lo repare. Va en pasada POSTERIOR para no
+  // depender del orden del lote; la regla vive en `wall-openings.ts`.
+  if (mayOrphanOpenings)
+    for (const id of orphanedOpeningIds(present)) {
+      present.delete(id);
+      const bornHere = createdFrontIds.includes(id) || createdBackIds.includes(id);
+      forget(id);
+      if (!bornHere) deletedEntityIds.push(id);
+      touchedIds.push(id);
+      regenerationSourceIds.push(id);
+    }
 
   // Las secciones se aplican DESPUÉS de la geometría y ANTES de regenerar los
   // asociativos: si cambiar un parámetro mueve una línea, la cota que la mide

@@ -114,9 +114,16 @@ assert.deepEqual(
   },
   "la composición del plano real a 20.000 es EXACTA, no aproximada",
 );
+// El SHA cambió con la subida del esquema canónico a 7 (el hueco alojado), y
+// SÓLO por eso: el único byte distinto del serializado es `"schema":6` →
+// `"schema":7`. Se comprobó volviendo a poner el 6 sobre el texto nuevo, que
+// devuelve b91c3468… exacto. Ninguna entidad, ningún bloque y ninguna
+// coordenada del corpus cambian, así que los presupuestos de `plan-budget.ts`
+// NO se recalibran: recalibrar por un entero de metadatos daría a los números
+// una autoridad de medida que esa corrida no tendría.
 assert.equal(
   createHash("sha256").update(serializeCadDocument(corpus.document)).digest("hex"),
-  "b91c346856bf914dc0ed51b8b10a3382a10064923bad419dd17c05bd214b44ef",
+  "d569bc9d27db3cd5170f9d5da621a7d4b112afee91e68c8f48e405a820ee8f25",
   "el corpus de 20.000 cambió de contenido: si es intencionado, actualiza este SHA Y vuelve a calibrar plan-budget.ts con una corrida nueva",
 );
 assert.equal(

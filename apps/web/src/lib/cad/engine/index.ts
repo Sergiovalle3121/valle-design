@@ -31,6 +31,7 @@ import { CAD_DRAW_POINT_COMMANDS } from "./commands/draw-points";
 import { CAD_DRAW_RECTANG_COMMANDS } from "./commands/draw-rectang";
 import { CAD_DRAW_RING_COMMANDS } from "./commands/draw-rings";
 import { CAD_DRAW_SPLINE_COMMANDS } from "./commands/draw-spline";
+import { CAD_DRAW_OPENING_COMMANDS } from "./commands/draw-opening";
 import { CAD_DRAW_WALL_COMMANDS } from "./commands/draw-wall";
 import { CAD_INQUIRY_LIST_COMMANDS } from "./commands/inquiry-list";
 import { CAD_INQUIRY_MEASURE_COMMANDS } from "./commands/inquiry-measure";
@@ -129,6 +130,9 @@ export const CAD_COMMAND_DESCRIPTORS = [
   // Intercambio: DXFIN y DXFOUT. El bloqueo número uno de un despacho no es que
   // falte una orden de dibujo, es que el archivo del cliente no entre ni salga.
   ...CAD_DXF_INTEROP_COMMANDS,
+  // Esquema 7: el hueco alojado. Va detrás del muro porque sin muro no hay
+  // dónde alojarlo, y entra por el mismo registro: una orden más.
+  ...CAD_DRAW_OPENING_COMMANDS,
 ] as const;
 
 /**

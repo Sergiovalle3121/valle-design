@@ -3,6 +3,7 @@ import {
   assertRegionInvariants,
   assertSolid3dInvariants,
 } from './cad-solid-invariants';
+import { assertOpeningInvariants } from './cad-opening-invariants';
 
 /**
  * Invariantes por TIPO de entidad, fail-closed.
@@ -187,6 +188,11 @@ export function assertEntityInvariants(
         );
       }
     }
+
+    // Esquema 7. Un OPENING no tiene geometría propia que mirar: todo lo que lo
+    // hace válido es una afirmación sobre su muro anfitrión, y eso se comprueba
+    // en `cad-opening-invariants.ts`. Aquí sólo su FORMA.
+    if (type === 'opening') assertOpeningInvariants(entity, id);
 
     if (type === 'line') {
       const start = assertPoint(entity.start, id, 'el inicio de la línea');

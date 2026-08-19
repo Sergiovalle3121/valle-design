@@ -37,11 +37,16 @@ export const DEFAULT_LAYER_ID = "0";
  * SOLID3D, persiste su RECETA —eje, grosor y altura— y la planta de doble
  * línea se deriva al dibujar, así que reeditar el grosor es cambiar un número.
  *
- * Todo aditivo, en las tres subidas: un documento v3, v4 o v5 migra sin perder
- * un campo y sin que se reinterprete ninguno de los que ya traía. Lo único que
- * cambia es `meta.schema`.
+ * v7 estrena OPENING: el hueco —puerta o ventana— ALOJADO en un muro. Lleva la
+ * misma idea un paso más allá: no persiste ni un punto del mundo, sólo a qué
+ * muro pertenece y a qué distancia de su arranque. Por eso mover el anfitrión
+ * lo mueve y borrarlo lo cierra, sin que haya un regenerador que mantener.
+ *
+ * Todo aditivo, en las cuatro subidas: un documento v3, v4, v5 o v6 migra sin
+ * perder un campo y sin que se reinterprete ninguno de los que ya traía. Lo
+ * único que cambia es `meta.schema`.
  */
-export const CAD_DOCUMENT_SCHEMA = 6;
+export const CAD_DOCUMENT_SCHEMA = 7;
 
 /** Capa estable de las colocaciones de estación. */
 export const STATIONS_LAYER = "Stations";
