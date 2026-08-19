@@ -30,6 +30,7 @@ import { attdefAdapter, tableAdapter } from "./annotation-v4-adapters";
 import { mleaderAdapter } from "./mleader-entity-adapter";
 import { regionAdapter, solid3dAdapter } from "./solid3d-adapter";
 import { wallAdapter } from "./wall-entity-adapter";
+import { openingAdapter } from "./opening-entity-adapter";
 import type { CadBoundaryPath } from "./hatch-associativity";
 
 export type CadNativeEntity = Extract<
@@ -43,7 +44,10 @@ export type CadNativeEntity = Extract<
     // arriba — tipo y adaptador se editan juntos.
     | "solid3d" | "region"
     // Esquema 6: el muro paramétrico. Misma regla — tipo y adaptador juntos.
-    | "wall" }
+    | "wall"
+    // Esquema 7: el hueco ALOJADO en un muro. Misma regla — tipo y adaptador
+    // juntos. Es el primer tipo cuya geometría entera sale de OTRA entidad.
+    | "opening" }
 >;
 export type CadNativeEntityType = CadNativeEntity["type"];
 
@@ -275,7 +279,11 @@ export const CAD_ENTITY_REGISTRY = new CadEntityRegistry()
   .register(regionAdapter)
   // Esquema 6. `wall` guarda su receta —eje, grosor, altura— y deriva la doble
   // línea de planta en `wall-geometry.ts`.
-  .register(wallAdapter);
+  .register(wallAdapter)
+  // Esquema 7. `opening` no guarda ni un punto: deriva TODO del eje de su muro
+  // anfitrión (`wall-openings.ts`). Es lo que hace que mover el muro lo lleve
+  // consigo y borrarlo lo cierre, sin un regenerador que mantener.
+  .register(openingAdapter);
 
 function rectangularBoundary(entity: Extract<CadEntity, { type: "box" | "station" }>): CadPoint2[] {
   const center = { x: entity.x + entity.w / 2, y: entity.y + entity.h / 2 };

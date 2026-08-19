@@ -39,6 +39,7 @@
  */
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { CadCommandEngineHost } from "../command-line/command-engine-host";
+import { loadPickedLispFiles } from "./appload";
 import { submitCadLisp } from "./use-lisp";
 import type {
   CadLispEntryLevel,
@@ -92,17 +93,10 @@ export function CadLispPalette({ runtime, snapshot, host, disabled }: CadLispPal
 
   const onFiles = useCallback(
     async (files: FileList | null) => {
-      for (const file of Array.from(files ?? [])) {
-        try {
-          runtime.load(file.name, await file.text());
-        } catch (cause) {
-          runtime.log(
-            "error",
-            `${file.name}: no se pudo leer del disco (${cause instanceof Error ? cause.message : String(cause)}).`,
-            "APPLOAD",
-          );
-        }
-      }
+      // La carga vive en `appload.ts` y no aquí: es la pieza que decide si un
+      // despacho puede traerse sus rutinas, y dentro de un manejador de React
+      // sólo se puede probar montando un DOM. Véase su cabecera.
+      await loadPickedLispFiles(runtime, Array.from(files ?? []));
       // El input se vacía para que volver a elegir EL MISMO fichero dispare otro
       // `change`. Sin esto, corregir un `.lsp` y recargarlo no haría nada.
       if (fileRef.current) fileRef.current.value = "";
@@ -283,10 +277,27 @@ function RoutineList({
   runtime: CadLispRuntime;
   snapshot: CadLispSnapshot;
 }) {
-  if (snapshot.files.length === 0)
-    return <div className="text-gray-500">Ninguna rutina cargada.</div>;
   return (
     <ul data-testid="cad-lisp-routines" className="flex flex-col gap-1">
+      {/*
+        Las de fábrica van PRIMERO y sin botón de descargar: están siempre y no
+        son de la organización. Enseñarlas junto a las del estudio con el mismo
+        control invitaría a intentar borrar algo que no se borra.
+      */}
+      {snapshot.factory.map((file) => (
+        <li key={file.id} className="flex items-baseline gap-1">
+          <span className="text-gray-200">{file.name}</span>
+          <span className="text-gray-500">de fábrica</span>
+          <span className="text-emerald-300">
+            {file.commands.map((command) => command.toUpperCase()).join(" ") || "—"}
+          </span>
+        </li>
+      ))}
+      {snapshot.files.length === 0 && (
+        <li className="text-gray-500">
+          Ninguna rutina del estudio cargada todavía: usa APPLOAD para subir un .lsp.
+        </li>
+      )}
       {snapshot.storageProblems.map((problem) => (
         <li key={problem} className="text-amber-300">
           Almacén · {problem}

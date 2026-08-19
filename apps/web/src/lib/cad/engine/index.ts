@@ -30,6 +30,7 @@ import { CAD_DRAW_POINT_COMMANDS } from "./commands/draw-points";
 import { CAD_DRAW_RECTANG_COMMANDS } from "./commands/draw-rectang";
 import { CAD_DRAW_RING_COMMANDS } from "./commands/draw-rings";
 import { CAD_DRAW_SPLINE_COMMANDS } from "./commands/draw-spline";
+import { CAD_DRAW_OPENING_COMMANDS } from "./commands/draw-opening";
 import { CAD_DRAW_WALL_COMMANDS } from "./commands/draw-wall";
 import { CAD_INQUIRY_LIST_COMMANDS } from "./commands/inquiry-list";
 import { CAD_INQUIRY_MEASURE_COMMANDS } from "./commands/inquiry-measure";
@@ -125,6 +126,9 @@ export const CAD_COMMAND_DESCRIPTORS = [
   // Esquema 6: la primera rebanada BIM. El muro paramétrico entra por el mismo
   // registro que todo lo demás — no hay un «modo BIM», hay una orden más.
   ...CAD_DRAW_WALL_COMMANDS,
+  // Esquema 7: el hueco alojado. Va detrás del muro porque sin muro no hay
+  // dónde alojarlo, y entra por el mismo registro: una orden más.
+  ...CAD_DRAW_OPENING_COMMANDS,
 ] as const;
 
 /**

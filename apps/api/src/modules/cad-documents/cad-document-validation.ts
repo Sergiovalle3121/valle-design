@@ -6,6 +6,10 @@ import { BadRequestException } from '@nestjs/common';
  * «esto no es un objeto» que puedan divergir.
  */
 import {
+  assertNoNestedOpenings,
+  assertOpeningHosts,
+} from './cad-opening-invariants';
+import {
   assertEntityInvariants,
   objectValue,
   stringValue,
@@ -14,7 +18,7 @@ import {
 export type PersistedCadDocument = Record<string, unknown>;
 
 /** Última versión de esquema que este servidor sabe validar. */
-export const CAD_DOCUMENT_MAX_SCHEMA = 6;
+export const CAD_DOCUMENT_MAX_SCHEMA = 7;
 export const CAD_DOCUMENT_MAX_INLINE_BYTES = 8_000_000;
 export const CAD_DOCUMENT_MAX_ARCHIVE_BYTES = 128 * 1024 * 1024;
 const MAX_ENTITIES = 100_000;
@@ -570,9 +574,16 @@ export function validateCadDocumentPayload(
         `el bloque ${stringValue(block?.id) || '(sin id)'}`,
         false,
       );
+      assertNoNestedOpenings(
+        block.entities as unknown[],
+        `el bloque ${stringValue(block?.id) || '(sin id)'}`,
+      );
     }
   }
   assertImageDefinitions(document);
+  // El alojamiento de los huecos se comprueba sobre las entidades de PRIMER
+  // NIVEL: un hueco es una afirmación sobre otra entidad del mismo dibujo.
+  assertOpeningHosts(entities);
   assertConstraintReferences(document, ids);
   assertReferentialIntegrity(document, ids);
   const text = JSON.stringify(document);

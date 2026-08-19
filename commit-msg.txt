@@ -1,0 +1,87 @@
+El despacho se trae sus rutinas y el muro sabe que tiene una puerta
+
+Dos palancas de retencion, las dos de la misma ola.
+
+RUTINAS DEL DESPACHO (D3). El interprete AutoLISP estaba enchufado pero la
+pieza que convierte "tenemos LISP" en "puedo traerme mis rutinas" —elegir un
+.lsp y que corra— vivia dentro de un manejador de React, donde no se puede
+probar. Sale a `appload.ts` y se prueba por el camino del usuario entero:
+fichero elegido, biblioteca de la organizacion, registro del motor, comando
+tecleado, geometria en el documento y UN paso de deshacer. Un fichero roto no
+detiene a los demas y "no se pudo leer del disco" se dice distinto de "el
+contenido esta mal", porque el usuario tiene que saber si arreglar el fichero
+o volver a elegirlo.
+
+Y vienen CUATRO rutinas de fabrica escritas en LISP, no cuatro demostraciones
+de sintaxis: cuadro de areas, tabla de puertas y ventanas, recuento de bloques
+y numeracion de ejes. Un despacho que estrena un CAD no tiene todavia su
+biblioteca, y "se pueden cargar rutinas" no es una razon para cambiar de
+programa; que el primer dia haya algo que ahorre una tarde, si. Son ficheros
+.lsp de verdad —se abren, se copian, se editan— empaquetados por un generador,
+con una spec que los compara byte a byte para que la copia no envejezca.
+
+Las tres consultas BIM (`vd-areas`, `vd-carpinteria`, `vd-muros`) existen
+porque el cuadro de areas exige recorrer el grafo plano de los ejes de los
+muros, y eso no se escribe en AutoLISP sobre ssget: quien lo intentara acabaria
+con una rutina que funciona en plantas rectangulares y miente en las demas. El
+reparto es TypeScript calcula, LISP presenta. Son de lectura, salen por el
+mismo documento que la rutina ya alcanza con entget, y su dependencia queda
+declarada en la allowlist del sandbox, que es donde tiene que verse.
+
+HUECOS ALOJADOS (D4). El esquema 6 dejo escrito que el muro seria "la primera
+entidad HOSPEDANTE del producto: puertas y ventanas se colgaran de el". Esta es
+esa entidad, y la decision que la define es que NO persiste ni un punto del
+mundo: guarda a que muro pertenece y a que distancia del arranque de su eje.
+
+De ahi salen las tres promesas sin una sola linea de codigo que las mantenga
+sincronizadas. Mover el muro mueve la puerta porque la puerta se dibuja leyendo
+un eje que ya esta en su sitio nuevo. Escalar la planta la escala. Y borrar el
+muro cierra el hueco: el ejecutor de comandos retira los huecos sin anfitrion
+en el MISMO lote, y sin hueco no hay intervalo que parta las caras del muro, de
+modo que la cara vuelve a salir entera sin que nadie la repare. Un diseno con
+la puerta en coordenadas de mundo habria necesitado un regenerador, y un
+regenerador tiene casos en los que no se dispara.
+
+El precio esta dicho donde toca: MOVE no mueve un hueco por su cuenta. Si lo
+hiciera, designar el muro y la puerta juntos —lo que hace cualquiera con una
+ventana de seleccion— la moveria dos veces.
+
+El simbolo es sustituible y el alojamiento no: `symbolBlock` deja que el hueco
+se dibuje con el bloque que el despacho tenga normalizado, escalado a la
+anchura del vano y girado con el muro. Se prueba con un bloque de test propio
+para no depender de ninguna biblioteca concreta.
+
+La geometria del hueco se calcula sobre el EJE del anfitrion y no sobre sus
+caras, que es lo que hace que en una esquina en inglete —donde las dos caras
+del muro miden distinto— el vano se abra en el mismo sitio en las dos y
+coincida con sus propias jambas. Partir por fraccion de cara habria dado dos
+cortes distintos y una puerta torcida; tiene spec con los dos numeros.
+
+El cuadro de areas y la tabla de cantidades se DERIVAN: los locales salen de
+recorrer las caras del grafo que forman los ejes —con las T partidas, que es lo
+que hace que un tabique cierre un local—, con area a ejes y area util, y la
+medicion descuenta de cada muro la superficie de sus huecos. Nadie dibuja el
+poligono de un local ni teclea un metro cuadrado. Lo que no se puede contar se
+NOMBRA en vez de descartarse: una tabla a la que le faltan tres puertas sin
+decirlo es el documento con el que se compra material de menos.
+
+Fail cerrado en las tres fronteras: un hueco que no cabe no se dibuja y el
+comando se niega diciendo los numeros, el area util de un local con lados
+paralelos se declara ausente en vez de aproximarse, y el servidor rechaza el
+hueco huerfano, el que se sale del muro, el que pisa a otro y el que alguien
+mete dentro de una definicion de bloque.
+
+El esquema canonico sube a 7, aditivo como las tres subidas anteriores.
+
+Verde local completo: 310/310 specs web (306 de base mas cuatro nuevas), 538
+tests API (529 de base mas nueve de invariantes de hueco) y 91 tests pg en 21
+suites; 0 errores de lint con 190 warnings web y 314 api, contrato intacto en
+43 operaciones, y el trinquete del monolito respetado.
+
+Tres huellas de corpus y el SHA de la evidencia del plano real se actualizan
+porque el serializado cambia en UN entero —"schema":6 pasa a 7— y en nada mas:
+se comprobo revirtiendo ese entero sobre el texto nuevo, que devuelve las
+huellas antiguas exactas. Por eso la medicion de rendimiento NO se ha vuelto a
+correr, y el porque queda escrito dentro de la propia evidencia.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
