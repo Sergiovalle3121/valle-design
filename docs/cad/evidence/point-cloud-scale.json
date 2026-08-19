@@ -1,0 +1,487 @@
+{
+  "$schema": "urn:valle-design:schema:cad-point-cloud-scale-evidence:v1",
+  "schemaVersion": 1,
+  "evidenceId": "valle-design-point-cloud-scale-v1",
+  "startedAt": "2026-08-19T07:05:11.958Z",
+  "finishedAt": "2026-08-19T07:06:39.012Z",
+  "enforcement": "report-only",
+  "enforcementRationale": "La CORRECCIÓN del índice está cerrada por una spec ejecutable —point-index.spec.ts— que compara toda consulta contra la fuerza bruta y falla si difieren. Los TIEMPOS de este artefacto no fijan presupuesto: están medidos en un portátil de desarrollo con otros agentes trabajando en paralelo, y calibrarlos como umbral de CI produciría un gate que falla por contención de máquina y no por una regresión del producto.",
+  "environment": {
+    "node": "v22.18.0",
+    "v8": "12.4.254.21-node.27",
+    "platform": "win32",
+    "architecture": "x64",
+    "osType": "Windows_NT",
+    "osRelease": "10.0.26200",
+    "cpuModel": "AMD Ryzen 5 5500U with Radeon Graphics         ",
+    "logicalCpuCount": 12,
+    "availableParallelism": 12,
+    "totalMemoryBytes": 7896625152,
+    "declaredMachine": "AMD Ryzen 5 5500U with Radeon Graphics (12 hilos lógicos), 7.4 GB de RAM, Windows_NT 10.0.26200, portátil de desarrollo CON CARGA VECINA: se midieron 19–21 procesos de Node ajenos a la sonda durante las corridas, y el mismo trabajo de CPU fijo tardó 174–188 ms según la corrida (factor 1.1). Los tiempos publicados son, por tanto, una COTA SUPERIOR: en una máquina en reposo saldrían mejores. Las cifras de memoria no se ven afectadas, porque son conteos de bytes."
+  },
+  "neighbours": {
+    "note": "Cuántos procesos de Node ajenos a la sonda estaban vivos al arrancar cada corrida, y cuánto tardó en cada una el mismo trabajo de CPU fijo. Con la máquina para ella sola, la calibración de las tres corridas coincide; una que se dispara delata a un vecino.",
+    "nodeProcessesPerRun": [
+      19,
+      21,
+      20
+    ],
+    "hadNeighbours": true,
+    "calibrationMs": {
+      "median": 187,
+      "samples": [
+        188.3,
+        174.2,
+        187
+      ],
+      "runs": 3
+    },
+    "contentionSpread": 1.08,
+    "interpretation": "Hubo vecinos. La calibración se separa por un factor de 1.1 entre la corrida más suelta y la más apretada, así que los tiempos de este archivo son una COTA SUPERIOR y no un presupuesto. Lo que NO depende de la contención —los bytes por punto, el número de celdas, los puntos que devuelve cada consulta— se puede leer tal cual.",
+    "freeMemoryBytesPerRun": [
+      1154912256,
+      730808320,
+      450338816
+    ],
+    "peakRssBytesPerRun": [
+      419278848,
+      397422592,
+      402911232
+    ]
+  },
+  "method": {
+    "runs": 3,
+    "aggregation": "mediana de 3 corridas en PROCESOS SEPARADOS",
+    "generator": "scripts/cad/point-cloud-scale-evidence.mjs + scripts/cad/point-cloud-scale-probe.mts",
+    "everyNumberReadFrom": "un archivo LAS completo escrito con el mismo generador que usan las specs y leído con el lector del producto. No se fabrica ninguna nube en memoria saltándose el formato: si el lector se equivocara, estas cifras serían de otra cosa.",
+    "correctness": "apps/web/src/lib/geo/point-index.spec.ts compara TODA consulta —ventana, radio y vecino más próximo— contra la fuerza bruta sobre los mismos puntos. Un índice rápido y equivocado pasaría este banco y no pasa esa spec."
+  },
+  "corpus": {
+    "shape": "Nube repartida por un cuadrado de un kilómetro de lado, con cotas entre 1500 y 1560 m y clasificación ASPRS repartida entre suelo, vegetación baja y edificio. Al crecer el escalón crece la DENSIDAD, no la extensión: es lo que pasa en un vuelo real cuando se dan más pasadas sobre el mismo terreno.",
+    "format": "LAS 1.2, formato de registro 1, escala de un milímetro, EPSG:32614 (UTM 14N).",
+    "generator": "apps/web/src/lib/geo/fixtures.ts, congruencial lineal con semilla fija"
+  },
+  "tiers": [
+    {
+      "points": 100000,
+      "lasBytes": 2800297,
+      "extentM": 1000,
+      "densityPointsPerSquareMetre": 0.1,
+      "read": {
+        "note": "Del archivo LAS en memoria a tres Float64Array con las coordenadas ya escaladas.",
+        "ms": {
+          "median": 61.744,
+          "samples": [
+            58.785,
+            78.237,
+            61.744
+          ],
+          "runs": 3
+        },
+        "pointsPerSecond": 1619596,
+        "coordinateBytes": 2400000
+      },
+      "index": {
+        "note": "Rejilla uniforme con ordenación por conteo, en dos pasadas sobre arreglos tipados.",
+        "buildMs": {
+          "median": 75.887,
+          "samples": [
+            54.364,
+            75.887,
+            87.051
+          ],
+          "runs": 3
+        },
+        "pointsPerSecond": 1317747,
+        "bytes": 451080,
+        "bytesPerPoint": 4.51,
+        "cellSizeM": 8.944,
+        "grid": "113 × 113",
+        "occupiedCells": 12541,
+        "maxPointsPerCell": 20
+      },
+      "windows": [
+        {
+          "label": "detalle (zoom cerrado sobre un mojón)",
+          "sideFraction": 0.002,
+          "queriesPerRun": 2000,
+          "pointsInWindow": 0,
+          "msPerQuery": {
+            "median": 0.0191,
+            "samples": [
+              0.0126,
+              0.0191,
+              0.025
+            ],
+            "runs": 3
+          }
+        },
+        {
+          "label": "designación por ventana",
+          "sideFraction": 0.02,
+          "queriesPerRun": 1000,
+          "pointsInWindow": 40,
+          "msPerQuery": {
+            "median": 0.0205,
+            "samples": [
+              0.0239,
+              0.0149,
+              0.0205
+            ],
+            "runs": 3
+          }
+        },
+        {
+          "label": "encuadre de trabajo",
+          "sideFraction": 0.2,
+          "queriesPerRun": 200,
+          "pointsInWindow": 3982,
+          "msPerQuery": {
+            "median": 0.4618,
+            "samples": [
+              0.4439,
+              0.4618,
+              0.917
+            ],
+            "runs": 3
+          }
+        }
+      ],
+      "nearest": {
+        "note": "Punto más próximo al cursor, con anillos de celdas y parada demostrable.",
+        "probesPerRun": 2000,
+        "msPerQuery": {
+          "median": 0.0172,
+          "samples": [
+            0.0186,
+            0.0134,
+            0.0172
+          ],
+          "runs": 3
+        }
+      },
+      "radius": {
+        "note": "Vecinos a 2 m, que es la consulta de clasificar un punto o medir densidad local.",
+        "queriesPerRun": 1000,
+        "pointsFound": 1.29,
+        "msPerQuery": {
+          "median": 0.0368,
+          "samples": [
+            0.0368,
+            0.0226,
+            0.044
+          ],
+          "runs": 3
+        }
+      }
+    },
+    {
+      "points": 1000000,
+      "lasBytes": 28000297,
+      "extentM": 1000,
+      "densityPointsPerSquareMetre": 1,
+      "read": {
+        "note": "Del archivo LAS en memoria a tres Float64Array con las coordenadas ya escaladas.",
+        "ms": {
+          "median": 120.455,
+          "samples": [
+            109.431,
+            120.455,
+            123.88
+          ],
+          "runs": 3
+        },
+        "pointsPerSecond": 8301835,
+        "coordinateBytes": 24000000
+      },
+      "index": {
+        "note": "Rejilla uniforme con ordenación por conteo, en dos pasadas sobre arreglos tipados.",
+        "buildMs": {
+          "median": 341.131,
+          "samples": [
+            273.611,
+            356.062,
+            341.131
+          ],
+          "runs": 3
+        },
+        "pointsPerSecond": 2931423,
+        "bytes": 4504104,
+        "bytesPerPoint": 4.5,
+        "cellSizeM": 2.828,
+        "grid": "355 × 355",
+        "occupiedCells": 125265,
+        "maxPointsPerCell": 23
+      },
+      "windows": [
+        {
+          "label": "detalle (zoom cerrado sobre un mojón)",
+          "sideFraction": 0.002,
+          "queriesPerRun": 2000,
+          "pointsInWindow": 4,
+          "msPerQuery": {
+            "median": 0.0409,
+            "samples": [
+              0.0191,
+              0.0409,
+              0.0739
+            ],
+            "runs": 3
+          }
+        },
+        {
+          "label": "designación por ventana",
+          "sideFraction": 0.02,
+          "queriesPerRun": 1000,
+          "pointsInWindow": 400,
+          "msPerQuery": {
+            "median": 0.082,
+            "samples": [
+              0.0659,
+              0.0944,
+              0.082
+            ],
+            "runs": 3
+          }
+        },
+        {
+          "label": "encuadre de trabajo",
+          "sideFraction": 0.2,
+          "queriesPerRun": 200,
+          "pointsInWindow": 39960,
+          "msPerQuery": {
+            "median": 5.8986,
+            "samples": [
+              5.8986,
+              7.3683,
+              5.3536
+            ],
+            "runs": 3
+          }
+        }
+      ],
+      "nearest": {
+        "note": "Punto más próximo al cursor, con anillos de celdas y parada demostrable.",
+        "probesPerRun": 2000,
+        "msPerQuery": {
+          "median": 0.0164,
+          "samples": [
+            0.0164,
+            0.0344,
+            0.0158
+          ],
+          "runs": 3
+        }
+      },
+      "radius": {
+        "note": "Vecinos a 2 m, que es la consulta de clasificar un punto o medir densidad local.",
+        "queriesPerRun": 1000,
+        "pointsFound": 12.77,
+        "msPerQuery": {
+          "median": 0.0358,
+          "samples": [
+            0.0358,
+            0.0633,
+            0.0345
+          ],
+          "runs": 3
+        }
+      }
+    },
+    {
+      "points": 4000000,
+      "lasBytes": 112000297,
+      "extentM": 1000,
+      "densityPointsPerSquareMetre": 4,
+      "read": {
+        "note": "Del archivo LAS en memoria a tres Float64Array con las coordenadas ya escaladas.",
+        "ms": {
+          "median": 490.119,
+          "samples": [
+            481.888,
+            490.119,
+            533.517
+          ],
+          "runs": 3
+        },
+        "pointsPerSecond": 8161283,
+        "coordinateBytes": 96000000
+      },
+      "index": {
+        "note": "Rejilla uniforme con ordenación por conteo, en dos pasadas sobre arreglos tipados.",
+        "buildMs": {
+          "median": 1988.309,
+          "samples": [
+            1988.309,
+            2201.892,
+            1935.896
+          ],
+          "runs": 3
+        },
+        "pointsPerSecond": 2011759,
+        "bytes": 18010728,
+        "bytesPerPoint": 4.5,
+        "cellSizeM": 1.414,
+        "grid": "709 × 709",
+        "occupiedCells": 500504,
+        "maxPointsPerCell": 24
+      },
+      "windows": [
+        {
+          "label": "detalle (zoom cerrado sobre un mojón)",
+          "sideFraction": 0.002,
+          "queriesPerRun": 2000,
+          "pointsInWindow": 16,
+          "msPerQuery": {
+            "median": 0.0363,
+            "samples": [
+              0.0363,
+              0.0402,
+              0.0282
+            ],
+            "runs": 3
+          }
+        },
+        {
+          "label": "designación por ventana",
+          "sideFraction": 0.02,
+          "queriesPerRun": 1000,
+          "pointsInWindow": 1600,
+          "msPerQuery": {
+            "median": 0.5952,
+            "samples": [
+              0.6786,
+              0.3763,
+              0.5952
+            ],
+            "runs": 3
+          }
+        },
+        {
+          "label": "encuadre de trabajo",
+          "sideFraction": 0.2,
+          "queriesPerRun": 200,
+          "pointsInWindow": 159898,
+          "msPerQuery": {
+            "median": 60.4259,
+            "samples": [
+              60.4259,
+              67.8577,
+              60.3658
+            ],
+            "runs": 3
+          }
+        }
+      ],
+      "nearest": {
+        "note": "Punto más próximo al cursor, con anillos de celdas y parada demostrable.",
+        "probesPerRun": 2000,
+        "msPerQuery": {
+          "median": 0.0223,
+          "samples": [
+            0.0223,
+            0.0355,
+            0.0207
+          ],
+          "runs": 3
+        }
+      },
+      "radius": {
+        "note": "Vecinos a 2 m, que es la consulta de clasificar un punto o medir densidad local.",
+        "queriesPerRun": 1000,
+        "pointsFound": 50.65,
+        "msPerQuery": {
+          "median": 0.077,
+          "samples": [
+            0.077,
+            0.0935,
+            0.0719
+          ],
+          "runs": 3
+        }
+      }
+    }
+  ],
+  "indexComparison": {
+    "note": "El producto ya tenía un índice espacial —CadSpatialIndex, el del editor— y lo primero fue intentar usarlo. Aquí está medido con los mismos puntos y en el mismo proceso, en vez de descartado por escrito. No está mal hecho: está hecho para entidades con extensión, que se insertan y se borran una a una mientras se dibuja, y por eso guarda por cada elemento una lista de celdas y un identificador de cadena.",
+    "measuredAt": [
+      100000
+    ],
+    "notMeasuredAbove": "Por encima de 100 000 puntos no se midió: con un escalón basta para saber el coste POR PUNTO, y forzar el índice del editor a millones de entidades habría medido un pulso con el recolector de basura en vez de una propiedad de la estructura.",
+    "comparisons": [
+      {
+        "points": 100000,
+        "cadSpatialIndex": {
+          "buildMs": {
+            "median": 1077.189,
+            "samples": [
+              1077.189,
+              1006.377,
+              1777.103
+            ],
+            "runs": 3
+          },
+          "heapBytes": 62699272,
+          "bytesPerPoint": 627,
+          "windowMsPerQuery": {
+            "median": 0.7951,
+            "samples": [
+              0.8008,
+              0.7463,
+              0.7951
+            ],
+            "runs": 3
+          }
+        },
+        "geoPointIndex": {
+          "buildMs": {
+            "median": 75.887,
+            "samples": [
+              54.364,
+              75.887,
+              87.051
+            ],
+            "runs": 3
+          },
+          "bytes": 451080,
+          "bytesPerPoint": 4.51,
+          "windowMsPerQuery": {
+            "median": 0.0205,
+            "samples": [
+              0.0239,
+              0.0149,
+              0.0205
+            ],
+            "runs": 3
+          }
+        },
+        "ratio": {
+          "memory": 139,
+          "build": 14.2,
+          "windowQuery": 38.8
+        }
+      }
+    ]
+  },
+  "scope": {
+    "measured": [
+      "lectura de un archivo LAS completo hasta las coordenadas en metros, por escalón",
+      "construcción del índice espacial, por escalón",
+      "designación por ventana en tres tamaños: detalle, ventana de trabajo y encuadre",
+      "punto más próximo al cursor",
+      "vecinos dentro de un radio de 2 m",
+      "memoria del índice, contada en bytes exactos de sus arreglos tipados",
+      "coste por punto del índice de entidades del editor sobre los mismos datos",
+      "procesos vecinos y trabajo de CPU fijo en cada corrida"
+    ],
+    "notMeasured": [
+      "dibujar la nube: no hay pipeline de render de puntos y no se anuncia ninguno",
+      "el navegador: estas cifras son de Node, sin GPU, sin hilo de interfaz y sin composición",
+      "LAZ comprimido, que no se lee (se detecta y se rechaza)",
+      "GeoTIFF ni ningún ráster georreferenciado, que no se leen",
+      "consultas sobre nubes que no caben en memoria: no hay lectura por trozos ni fuera de núcleo",
+      "clasificación, filtrado por retorno ni cálculo de terreno a partir de la nube",
+      "nubes de más de 4 millones de puntos, que en este equipo compiten por la memoria con los demás agentes y darían un número de la contención y no del índice"
+    ]
+  }
+}

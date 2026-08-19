@@ -12,7 +12,10 @@ import type {
 } from "@valle/design-sdk";
 import { useDesignAuth } from "@/contexts/DesignAuthContext";
 import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
-import { importDocumentFile } from "@/lib/cad/document-import-client";
+import {
+  importDocumentFile,
+  splitDocumentSelection,
+} from "@/lib/cad/document-import-client";
 import type { DocumentImportReport } from "@/lib/cad/document-import";
 import { serializeCadDocument } from "@/lib/cad/cad-document";
 import { CadDxfImportReportPanel } from "@/components/cad/interop/CadDxfImportReport";
@@ -206,7 +209,10 @@ export default function DashboardPage() {
     }
   };
 
-  const importDocument = async (file: File) => {
+  const importDocument = async (
+    file: File,
+    sidecars: { shx?: File; dbf?: File; prj?: File; cpg?: File } = {},
+  ) => {
     if (!canEdit || !selectedProject || busy) return;
     const controller = new AbortController();
     importAbort.current?.abort();
@@ -221,6 +227,7 @@ export default function DashboardPage() {
     let created: Document | null = null;
     try {
       const report = await importDocumentFile(file, {
+        sidecars,
         signal: controller.signal,
         onProgress: (progress, stage) =>
           setImportState({
@@ -450,11 +457,13 @@ export default function DashboardPage() {
               <input
                 type="file"
                 className="sr-only"
-                accept=".dxf,.json"
+                accept=".dxf,.json,.shp,.shx,.dbf,.prj,.cpg"
+                multiple
                 disabled={!selectedProject || busy}
                 onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) void importDocument(file);
+                  // Un shapefile son varios archivos que hay que elegir juntos.
+                  const chosen = splitDocumentSelection([...(e.target.files ?? [])]);
+                  if (chosen) void importDocument(chosen.primary, chosen.sidecars);
                   e.currentTarget.value = "";
                 }}
               />

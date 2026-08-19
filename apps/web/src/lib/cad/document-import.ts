@@ -18,11 +18,23 @@ import {
   buildCadDxfImportReport,
   type CadDxfImportReport,
 } from "./dxf-import-report";
+import { shapefileToCadEntities } from "./geo-cad-document";
+import { readGeoDataset } from "../geo";
 
 export const MAX_DXF_IMPORT_BYTES = 12_000_000;
 export const MAX_JSON_IMPORT_BYTES = 20_000_000;
+/**
+ * Tope del `.shp`.
+ *
+ * Un shapefile es binario y denso: 16 bytes por vértice, sin cabeceras por
+ * medio. Ocho megas son medio millón de vértices, que ya es un municipio
+ * entero y muy por encima de un predio con su manzana. El lector tiene además
+ * su propio tope en vértices; éste corta antes, cuando todavía no se ha leído
+ * nada.
+ */
+export const MAX_SHP_IMPORT_BYTES = 8_000_000;
 
-export type DocumentImportFormat = "dxf" | "json";
+export type DocumentImportFormat = "dxf" | "json" | "shp";
 
 export interface DocumentImportReport {
   format: DocumentImportFormat;
@@ -44,15 +56,30 @@ export interface DocumentImportReport {
 }
 
 export function importLimitForFileName(fileName: string): number {
-  return extension(fileName) === "dxf"
-    ? MAX_DXF_IMPORT_BYTES
-    : MAX_JSON_IMPORT_BYTES;
+  const kind = extension(fileName);
+  if (kind === "dxf") return MAX_DXF_IMPORT_BYTES;
+  if (kind === "shp") return MAX_SHP_IMPORT_BYTES;
+  return MAX_JSON_IMPORT_BYTES;
+}
+
+/**
+ * ¿Este archivo entra por bytes o por texto?
+ *
+ * El `.shp` es binario y los otros dos no. La pregunta la hace el worker antes
+ * de leer el fichero, porque `File.text()` sobre un binario lo destroza:
+ * decodifica como UTF-8 y sustituye cada byte inválido, y lo que llega al
+ * lector ya no son los bytes del archivo.
+ */
+export function isBinaryImportFormat(fileName: string): boolean {
+  return extension(fileName) === "shp";
 }
 
 export function validateImportFile(fileName: string, size: number): void {
   const kind = extension(fileName);
-  if (kind !== "dxf" && kind !== "json") {
-    throw new Error("Formato no soportado. Usa DXF de texto o JSON canónico.");
+  if (kind !== "dxf" && kind !== "json" && kind !== "shp") {
+    throw new Error(
+      "Formato no soportado. Usa DXF de texto, JSON canónico o shapefile (.shp).",
+    );
   }
   if (!Number.isSafeInteger(size) || size <= 0) {
     throw new Error("El archivo está vacío o su tamaño no es válido.");
@@ -69,9 +96,36 @@ export function importDocumentText(
   content: string,
 ): DocumentImportReport {
   validateImportFile(fileName, new TextEncoder().encode(content).byteLength);
+  if (isBinaryImportFormat(fileName))
+    throw new Error(
+      "Un shapefile es binario: no se puede importar como texto. Vuelve a elegir el archivo .shp.",
+    );
   return extension(fileName) === "dxf"
     ? importDxfDocument(content)
     : importCanonicalJson(content);
+}
+
+/**
+ * Importa un archivo BINARIO: hoy, el shapefile de un predio.
+ *
+ * Los acompañantes son opcionales y cada ausencia se declara en el manifiesto
+ * en vez de suponerse. En particular la del `.prj`: sin él, la geometría es
+ * correcta entre sí y NO se sabe dónde está en el mundo, y decirlo es la
+ * diferencia entre un plano de linderos defendible y uno que parece defendible.
+ */
+export function importDocumentBytes(
+  fileName: string,
+  bytes: ArrayBuffer | Uint8Array,
+  sidecars: {
+    shx?: ArrayBuffer | Uint8Array;
+    dbf?: ArrayBuffer | Uint8Array;
+    prj?: string;
+    cpg?: string;
+  } = {},
+): DocumentImportReport {
+  const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  validateImportFile(fileName, data.byteLength);
+  return importShapefileDocument(fileName, data, sidecars);
 }
 
 function importCanonicalJson(content: string): DocumentImportReport {
@@ -185,6 +239,74 @@ function importDxfDocument(content: string): DocumentImportReport {
       entityCount: document.entities.length,
       blockCount: document.blocks.length,
     }),
+  };
+}
+
+/**
+ * Shapefile → documento canónico.
+ *
+ * El fallo cerrado del lector se propaga TAL CUAL: si el `.shp` está cortado o
+ * su `.prj` dice NAD27, aquí no se captura ni se degrada a aviso. La
+ * importación entera muere con el mensaje del lector, que ya explica qué pasó y
+ * qué hacer. Convertir eso en «se importó con avisos» sería exactamente la
+ * mentira que el subárbol `lib/geo` existe para no cometer.
+ */
+function importShapefileDocument(
+  fileName: string,
+  bytes: Uint8Array,
+  sidecars: {
+    shx?: ArrayBuffer | Uint8Array;
+    dbf?: ArrayBuffer | Uint8Array;
+    prj?: string;
+    cpg?: string;
+  },
+): DocumentImportReport {
+  const dataset = readGeoDataset({
+    bytes,
+    name: fileName,
+    ...(sidecars.shx ? { shx: sidecars.shx } : {}),
+    ...(sidecars.dbf ? { dbf: sidecars.dbf } : {}),
+    ...(sidecars.prj !== undefined ? { prj: sidecars.prj } : {}),
+    ...(sidecars.cpg !== undefined ? { cpg: sidecars.cpg } : {}),
+  });
+  if (dataset.kind !== "shapefile")
+    throw new Error(
+      "El archivo es una nube de puntos. El dibujo canónico no la representa como entidades; " +
+        "hoy este producto la lee pero no la importa al plano.",
+    );
+
+  const converted = shapefileToCadEntities(dataset.shapefile, {
+    idPrefix: "geo",
+    layer: fileName,
+    unit: "mm",
+    ...(dataset.attributes ? { attributes: dataset.attributes } : {}),
+  });
+  // Fallo cerrado: un archivo legible del que no sale ni una entidad. Aplicarlo
+  // se vería como un éxito silencioso, que es la peor forma de fallar en una
+  // importación — el usuario cree que el predio entró y el plano sigue vacío.
+  if (converted.entities.length === 0)
+    throw new Error(
+      "El shapefile se leyó, pero ninguna de sus geometrías produjo algo dibujable. Nada ha " +
+        "cambiado en el plano.",
+    );
+
+  const empty = layoutToCadDocument({}, { unit: "mm" });
+  const document = migrateCadDocument({
+    ...empty,
+    layers: converted.layers,
+    entities: converted.entities,
+    modelSpace: { entityIds: converted.entities.map((entity) => entity.id) },
+    lossManifest: converted.losses,
+  });
+  return {
+    format: "shp",
+    document,
+    importedEntityCount: document.entities.length,
+    importedBlockCount: 0,
+    warnings: converted.losses.map((entry) => ({
+      code: entry.code,
+      message: entry.detail,
+    })),
   };
 }
 
