@@ -222,6 +222,25 @@ const evidence = {
     gestosParciales: byVerdict("parcial"),
     gestosInestables: byVerdict("inestable"),
   },
+  defectosConocidos: [
+    {
+      id: "objetivos-tactiles-por-debajo-de-44px",
+      severidad: "media",
+      titulo: "Casi todos los controles bajan del mínimo táctil de 44 px",
+      // Las cifras salen de la disposición medida, no de una estimación.
+      medido: Object.fromEntries(
+        profiles.map((profile) => [profile.id, profile.disposicion.objetivosTactiles]),
+      ),
+      consecuencia:
+        "44 px de lado es el mínimo que publican Apple y Google para un objetivo táctil. Por debajo, el " +
+        "dedo falla el botón y el usuario culpa al programa. El control más pequeño del editor mide 16,5 px.",
+      porQueNoSeArreglaAqui:
+        "No es un problema del viewport ni de los gestos: es el tamaño de casi cien controles repartidos " +
+        "por barras y paletas, y agrandarlos es un cambio del sistema de diseño con su propia ola. " +
+        "Cambiarlos a ciegas junto a los gestos habría mezclado dos regresiones distintas en un mismo diff.",
+      estado: "medido y declarado; no arreglado en esta ola",
+    },
+  ],
   perfiles: profiles,
   alcance: {
     medido: [
@@ -247,6 +266,13 @@ const evidence = {
       "la rotación del dispositivo en caliente y el reencuadre que provoca",
       "el rendimiento del táctil bajo carga: los presupuestos de paneo y zoom se miden en plan-budget.spec.ts",
       "el trabajo sin conexión en obra, que es otra pregunta y tiene sus propias evidencias",
+      "la LUPA sobre el punto que el dedo tapa: se resolvió desplazando la insignia de captura fuera de " +
+        "la huella (40 px medidos), no ampliando el dibujo. Una lupa de verdad exige conservar el buffer " +
+        "de dibujo y copiar un fotograma entero por muestra, y el presupuesto de paneo son 8,1 ms",
+      "el gesto de DOS dedos para deshacer y el de TRES para rehacer, que iOS popularizó y aquí no existen",
+      "el modo 3D: todo lo que se mide aquí es el modo PLANO, que es donde se dibuja. En 3D un dedo sigue " +
+        "orbitando —es el gesto universal de un visor— y por tanto apuntar deslizando NO está resuelto ahí; " +
+        "quien dibuje en una tableta tiene que estar en 2D, que es lo que el propio botón anuncia",
     ],
   },
 };

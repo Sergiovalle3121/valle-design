@@ -2,8 +2,8 @@
   "$schema": "urn:valle-design:schema:cad-touch-support-evidence:v1",
   "schemaVersion": 1,
   "evidenceId": "valle-design-touch-support-v1",
-  "startedAt": "2026-08-19T19:37:58.155Z",
-  "finishedAt": "2026-08-19T20:05:09.999Z",
+  "startedAt": "2026-08-19T22:41:18.993Z",
+  "finishedAt": "2026-08-19T23:06:22.138Z",
   "enforcement": "report-only",
   "enforcementRationale": "Los gestos que este artefacto declara VIVOS están cerrados por un golden ejecutable (e2e/golden/56-cad-tableta-en-obra.spec.ts), que falla si dejan de funcionar. Este JSON no fija presupuesto: es el mapa de qué gesto responde en qué tamaño de pantalla, y su valor está en lo que declara ROTO y en lo que declara NO MEDIDO.",
   "environment": {
@@ -16,7 +16,7 @@
     "cpuModel": "AMD Ryzen 5 5500U with Radeon Graphics         ",
     "logicalCpuCount": 12,
     "totalMemoryBytes": 7896625152,
-    "freeMemoryBytesAtStart": 1242546176,
+    "freeMemoryBytesAtStart": 1631313920,
     "declaredMachine": "AMD Ryzen 5 5500U with Radeon Graphics (12 hilos lógicos), 7.4 GB de RAM, Windows_NT 10.0.26200, portátil de desarrollo con carga vecina (otros agentes trabajando en el mismo equipo)"
   },
   "metodo": {
@@ -36,41 +36,66 @@
     "gestosVivos": [
       "un-dedo-designa · tableta-apaisada",
       "temblor-del-dedo · tableta-apaisada",
+      "un-dedo-en-el-fondo · tableta-apaisada",
       "dos-dedos-panean · tableta-apaisada",
       "pellizco-hace-zoom · tableta-apaisada",
       "dibujar-a-toques · tableta-apaisada",
-      "dos-dedos-no-ensucian · tableta-apaisada",
-      "un-dedo-designa · tableta-vertical",
-      "dos-dedos-panean · tableta-vertical",
-      "pellizco-hace-zoom · tableta-vertical",
-      "dos-dedos-no-ensucian · tableta-vertical",
-      "un-dedo-designa · tableta-grande",
-      "temblor-del-dedo · tableta-grande",
-      "dos-dedos-panean · tableta-grande",
-      "pellizco-hace-zoom · tableta-grande",
-      "dibujar-a-toques · tableta-grande",
-      "dos-dedos-no-ensucian · tableta-grande"
-    ],
-    "gestosRotos": [
-      "un-dedo-en-el-fondo · tableta-apaisada",
       "apuntar-y-soltar · tableta-apaisada",
       "pulsacion-larga-abre-menu · tableta-apaisada",
+      "precision-bajo-el-dedo · tableta-apaisada",
+      "dos-dedos-no-ensucian · tableta-apaisada",
+      "un-dedo-designa · tableta-vertical",
       "temblor-del-dedo · tableta-vertical",
       "un-dedo-en-el-fondo · tableta-vertical",
+      "dos-dedos-panean · tableta-vertical",
+      "pellizco-hace-zoom · tableta-vertical",
       "dibujar-a-toques · tableta-vertical",
       "apuntar-y-soltar · tableta-vertical",
       "pulsacion-larga-abre-menu · tableta-vertical",
-      "un-dedo-en-el-fondo · tableta-grande",
-      "apuntar-y-soltar · tableta-grande",
-      "pulsacion-larga-abre-menu · tableta-grande"
-    ],
-    "gestosParciales": [
-      "precision-bajo-el-dedo · tableta-apaisada",
       "precision-bajo-el-dedo · tableta-vertical",
-      "precision-bajo-el-dedo · tableta-grande"
+      "dos-dedos-no-ensucian · tableta-vertical",
+      "un-dedo-designa · tableta-grande",
+      "temblor-del-dedo · tableta-grande",
+      "un-dedo-en-el-fondo · tableta-grande",
+      "dos-dedos-panean · tableta-grande",
+      "pellizco-hace-zoom · tableta-grande",
+      "dibujar-a-toques · tableta-grande",
+      "apuntar-y-soltar · tableta-grande",
+      "pulsacion-larga-abre-menu · tableta-grande",
+      "precision-bajo-el-dedo · tableta-grande",
+      "dos-dedos-no-ensucian · tableta-grande"
     ],
+    "gestosRotos": [],
+    "gestosParciales": [],
     "gestosInestables": []
   },
+  "defectosConocidos": [
+    {
+      "id": "objetivos-tactiles-por-debajo-de-44px",
+      "severidad": "media",
+      "titulo": "Casi todos los controles bajan del mínimo táctil de 44 px",
+      "medido": {
+        "tableta-apaisada": {
+          "controlesVisibles": 85,
+          "pordebajoDe44px": 85,
+          "ladoMenorPx": 16.5
+        },
+        "tableta-vertical": {
+          "controlesVisibles": 85,
+          "pordebajoDe44px": 85,
+          "ladoMenorPx": 16.5
+        },
+        "tableta-grande": {
+          "controlesVisibles": 98,
+          "pordebajoDe44px": 95,
+          "ladoMenorPx": 16.5
+        }
+      },
+      "consecuencia": "44 px de lado es el mínimo que publican Apple y Google para un objetivo táctil. Por debajo, el dedo falla el botón y el usuario culpa al programa. El control más pequeño del editor mide 16,5 px.",
+      "porQueNoSeArreglaAqui": "No es un problema del viewport ni de los gestos: es el tamaño de casi cien controles repartidos por barras y paletas, y agrandarlos es un cambio del sistema de diseño con su propia ola. Cambiarlos a ciegas junto a los gestos habría mezclado dos regresiones distintas en un mismo diff.",
+      "estado": "medido y declarado; no arreglado en esta ola"
+    }
+  ],
   "perfiles": [
     {
       "id": "tableta-apaisada",
@@ -81,24 +106,24 @@
       },
       "disposicion": {
         "lienzo": {
-          "ancho": 528,
+          "ancho": 1024,
           "alto": 720
         },
-        "fraccionDeVentanaQueEsLienzo": 0.48,
+        "fraccionDeVentanaQueEsLienzo": 0.94,
         "lineaDeComandosVisible": true,
         "barraSuperiorVisible": true,
         "barraHerramientasVisible": true,
         "desbordeHorizontal": false,
         "oclusionDelLienzoPorcentaje": {
-          "cad-guided-tour": 32.5,
-          "cad-command-line": 4.2,
-          "cad-toolbar": 12.4,
+          "cad-guided-tour": 14.3,
+          "cad-command-line": 2.2,
+          "cad-toolbar": 6.4,
           "cad-left-dock": 0,
           "cad-right-dock": 0
         },
         "objetivosTactiles": {
-          "controlesVisibles": 98,
-          "pordebajoDe44px": 95,
+          "controlesVisibles": 85,
+          "pordebajoDe44px": 85,
           "ladoMenorPx": 16.5
         }
       },
@@ -180,22 +205,22 @@
           "id": "un-dedo-en-el-fondo",
           "gesto": "Arrastre de un dedo sobre el fondo, 96 px",
           "esperado": "el dedo designa o arrastra; el paneo es de DOS dedos",
-          "veredicto": "roto",
-          "observado": "la cámara paneó 92 px: el dedo mueve la vista, no designa",
+          "veredicto": "funciona",
+          "observado": "la cámara no se movió",
           "veredictoPorCorrida": [
-            "roto",
-            "roto",
-            "roto"
+            "funciona",
+            "funciona",
+            "funciona"
           ],
           "medidaPorCorrida": [
             {
-              "paneoPx": 91.6
+              "paneoPx": 0
             },
             {
-              "paneoPx": 91.6
+              "paneoPx": 0
             },
             {
-              "paneoPx": 87.7
+              "paneoPx": 0
             }
           ]
         },
@@ -204,7 +229,7 @@
           "gesto": "Dos dedos desplazándose juntos 100 px",
           "esperado": "la vista se desplaza ~100 px sin cambiar de escala",
           "veredicto": "funciona",
-          "observado": "desplazamiento 93.6 px, escala ×0.985",
+          "observado": "desplazamiento 91.8 px, escala ×0.974",
           "veredictoPorCorrida": [
             "funciona",
             "funciona",
@@ -212,16 +237,16 @@
           ],
           "medidaPorCorrida": [
             {
-              "desplazamientoPx": 93.6,
-              "factorEscala": 0.985
+              "desplazamientoPx": 91.8,
+              "factorEscala": 0.974
             },
             {
-              "desplazamientoPx": 93.6,
-              "factorEscala": 0.985
+              "desplazamientoPx": 91.8,
+              "factorEscala": 0.974
             },
             {
-              "desplazamientoPx": 93.9,
-              "factorEscala": 0.986
+              "desplazamientoPx": 91.8,
+              "factorEscala": 0.974
             }
           ]
         },
@@ -230,7 +255,7 @@
           "gesto": "Pellizco de apertura (80 px → 320 px de separación)",
           "esperado": "acercar: menos unidades de dibujo por píxel",
           "veredicto": "funciona",
-          "observado": "factor de acercamiento ×4.00",
+          "observado": "factor de acercamiento ×3.99",
           "veredictoPorCorrida": [
             "funciona",
             "funciona",
@@ -238,19 +263,19 @@
           ],
           "medidaPorCorrida": [
             {
-              "factorAcercamiento": 3.996,
-              "unidadesPorPixelAntes": 20.18,
-              "unidadesPorPixelDespues": 5.05
+              "factorAcercamiento": 3.995,
+              "unidadesPorPixelAntes": 11.66,
+              "unidadesPorPixelDespues": 2.919
             },
             {
-              "factorAcercamiento": 3.996,
-              "unidadesPorPixelAntes": 20.18,
-              "unidadesPorPixelDespues": 5.05
+              "factorAcercamiento": 3.995,
+              "unidadesPorPixelAntes": 11.66,
+              "unidadesPorPixelDespues": 2.919
             },
             {
-              "factorAcercamiento": 3.997,
-              "unidadesPorPixelAntes": 20.183,
-              "unidadesPorPixelDespues": 5.05
+              "factorAcercamiento": 3.995,
+              "unidadesPorPixelAntes": 11.66,
+              "unidadesPorPixelDespues": 2.919
             }
           ]
         },
@@ -290,28 +315,28 @@
           "id": "apuntar-y-soltar",
           "gesto": "Posar el dedo, deslizar 47 px para apuntar y soltar (dos veces)",
           "esperado": "cada gesto fija un punto donde quedó el dedo: se apunta mirando",
-          "veredicto": "roto",
-          "observado": "el gesto NO fija ningún punto (entidades 5 → 5): deslizar descalifica el toque",
+          "veredicto": "funciona",
+          "observado": "el gesto fija el punto donde se soltó",
           "veredictoPorCorrida": [
-            "roto",
-            "roto",
-            "roto"
+            "funciona",
+            "funciona",
+            "funciona"
           ],
           "medidaPorCorrida": [
             {
               "antes": 5,
-              "despues": 5,
-              "insigniaDeCapturaDuranteElGesto": ""
+              "despues": 6,
+              "insigniaDeCapturaDuranteElGesto": "cercano"
             },
             {
               "antes": 5,
-              "despues": 5,
-              "insigniaDeCapturaDuranteElGesto": ""
+              "despues": 6,
+              "insigniaDeCapturaDuranteElGesto": "cercano"
             },
             {
               "antes": 5,
-              "despues": 5,
-              "insigniaDeCapturaDuranteElGesto": ""
+              "despues": 6,
+              "insigniaDeCapturaDuranteElGesto": "cercano"
             }
           ]
         },
@@ -319,22 +344,23 @@
           "id": "pulsacion-larga-abre-menu",
           "gesto": "Mantener pulsado 900 ms con un comando abierto",
           "esperado": "menú contextual con las palabras clave del paso, como el botón derecho",
-          "veredicto": "roto",
-          "observado": "no aparece ningún menú; el navegador no emite «contextmenu»: NO lo emite",
+          "veredicto": "funciona",
+          "observado": "el menú de palabras clave aparece",
           "veredictoPorCorrida": [
-            "roto",
-            "roto",
-            "roto"
+            "funciona",
+            "funciona",
+            "funciona"
           ],
           "medidaPorCorrida": [
             {
               "promptDelMotorVisible": true,
-              "menuDuranteLaPulsacion": false,
-              "menuTrasSoltar": false,
-              "contextmenuNativo": false,
+              "menuDuranteLaPulsacion": true,
+              "menuTrasSoltar": true,
+              "contextmenuNativo": true,
               "eventos": [
                 "pointerdown:touch",
                 "touchstart:-",
+                "contextmenu:touch",
                 "pointerup:touch",
                 "touchend:-",
                 "click:touch"
@@ -342,12 +368,13 @@
             },
             {
               "promptDelMotorVisible": true,
-              "menuDuranteLaPulsacion": false,
-              "menuTrasSoltar": false,
-              "contextmenuNativo": false,
+              "menuDuranteLaPulsacion": true,
+              "menuTrasSoltar": true,
+              "contextmenuNativo": true,
               "eventos": [
                 "pointerdown:touch",
                 "touchstart:-",
+                "contextmenu:touch",
                 "pointerup:touch",
                 "touchend:-",
                 "click:touch"
@@ -355,12 +382,13 @@
             },
             {
               "promptDelMotorVisible": true,
-              "menuDuranteLaPulsacion": false,
-              "menuTrasSoltar": false,
-              "contextmenuNativo": false,
+              "menuDuranteLaPulsacion": true,
+              "menuTrasSoltar": true,
+              "contextmenuNativo": true,
               "eventos": [
                 "pointerdown:touch",
                 "touchstart:-",
+                "contextmenu:touch",
                 "pointerup:touch",
                 "touchend:-",
                 "click:touch"
@@ -372,40 +400,40 @@
           "id": "precision-bajo-el-dedo",
           "gesto": "Dedo posado a 0, 6, 12 y 20 px de un extremo conocido",
           "esperado": "engancha al extremo dentro de la huella del dedo (≈12 px) y lo enseña fuera de ella (≥24 px)",
-          "veredicto": "parcial",
-          "observado": "engancha hasta 20px, insignia a 21 px del contacto",
+          "veredicto": "funciona",
+          "observado": "engancha hasta 20px, insignia a 40 px del contacto",
           "veredictoPorCorrida": [
-            "parcial",
-            "parcial",
-            "parcial"
+            "funciona",
+            "funciona",
+            "funciona"
           ],
           "medidaPorCorrida": [
             {
               "capturaPorDistancia": {
                 "0px": "extremo",
-                "6px": "cercano",
-                "12px": "cercano",
-                "20px": "cercano"
+                "6px": "extremo",
+                "12px": "extensión",
+                "20px": "extensión"
               },
-              "desplazamientoDeLaInsigniaPx": 21
+              "desplazamientoDeLaInsigniaPx": 40
             },
             {
               "capturaPorDistancia": {
                 "0px": "extremo",
-                "6px": "cercano",
-                "12px": "cercano",
-                "20px": "cercano"
+                "6px": "extremo",
+                "12px": "extensión",
+                "20px": "extensión"
               },
-              "desplazamientoDeLaInsigniaPx": 21
+              "desplazamientoDeLaInsigniaPx": 40
             },
             {
               "capturaPorDistancia": {
                 "0px": "extremo",
-                "6px": "cercano",
-                "12px": "cercano",
-                "20px": "cercano"
+                "6px": "extremo",
+                "12px": "extensión",
+                "20px": "extensión"
               },
-              "desplazamientoDeLaInsigniaPx": 21
+              "desplazamientoDeLaInsigniaPx": 40
             }
           ]
         },
@@ -424,20 +452,20 @@
             {
               "pasoAntes": "Precise el primer punto:",
               "pasoDespues": "Precise el primer punto:",
-              "entidadesAntes": 5,
-              "entidadesDespues": 5
+              "entidadesAntes": 6,
+              "entidadesDespues": 6
             },
             {
               "pasoAntes": "Precise el primer punto:",
               "pasoDespues": "Precise el primer punto:",
-              "entidadesAntes": 5,
-              "entidadesDespues": 5
+              "entidadesAntes": 6,
+              "entidadesDespues": 6
             },
             {
               "pasoAntes": "Precise el primer punto:",
               "pasoDespues": "Precise el primer punto:",
-              "entidadesAntes": 5,
-              "entidadesDespues": 5
+              "entidadesAntes": 6,
+              "entidadesDespues": 6
             }
           ]
         }
@@ -452,24 +480,24 @@
       },
       "disposicion": {
         "lienzo": {
-          "ancho": 272,
+          "ancho": 768,
           "alto": 976
         },
-        "fraccionDeVentanaQueEsLienzo": 0.34,
+        "fraccionDeVentanaQueEsLienzo": 0.95,
         "lineaDeComandosVisible": true,
         "barraSuperiorVisible": true,
         "barraHerramientasVisible": true,
         "desbordeHorizontal": false,
         "oclusionDelLienzoPorcentaje": {
-          "cad-guided-tour": 29.6,
-          "cad-command-line": 3.6,
-          "cad-toolbar": 17.7,
+          "cad-guided-tour": 13,
+          "cad-command-line": 1.6,
+          "cad-toolbar": 6.3,
           "cad-left-dock": 0,
           "cad-right-dock": 0
         },
         "objetivosTactiles": {
-          "controlesVisibles": 98,
-          "pordebajoDe44px": 95,
+          "controlesVisibles": 85,
+          "pordebajoDe44px": 85,
           "ladoMenorPx": 16.5
         }
       },
@@ -522,28 +550,28 @@
           "id": "temblor-del-dedo",
           "gesto": "Toque sobre el mismo muro con 4, 8 y 16 px de temblor",
           "esperado": "designa en los tres casos: un dedo nunca se queda quieto",
-          "veredicto": "roto",
-          "observado": "deja de designar a partir de 16px de temblor",
+          "veredicto": "funciona",
+          "observado": "designa con los tres temblores",
           "veredictoPorCorrida": [
-            "roto",
-            "roto",
-            "roto"
+            "funciona",
+            "funciona",
+            "funciona"
           ],
           "medidaPorCorrida": [
             {
               "4px": "1 sel",
               "8px": "1 sel",
-              "16px": "0 sel"
+              "16px": "1 sel"
             },
             {
               "4px": "1 sel",
               "8px": "1 sel",
-              "16px": "0 sel"
+              "16px": "1 sel"
             },
             {
               "4px": "1 sel",
               "8px": "1 sel",
-              "16px": "0 sel"
+              "16px": "1 sel"
             }
           ]
         },
@@ -551,22 +579,22 @@
           "id": "un-dedo-en-el-fondo",
           "gesto": "Arrastre de un dedo sobre el fondo, 96 px",
           "esperado": "el dedo designa o arrastra; el paneo es de DOS dedos",
-          "veredicto": "roto",
-          "observado": "la cámara paneó 95 px: el dedo mueve la vista, no designa",
+          "veredicto": "funciona",
+          "observado": "la cámara no se movió",
           "veredictoPorCorrida": [
-            "roto",
-            "roto",
-            "roto"
+            "funciona",
+            "funciona",
+            "funciona"
           ],
           "medidaPorCorrida": [
             {
-              "paneoPx": 94.6
+              "paneoPx": 0
             },
             {
-              "paneoPx": 94.8
+              "paneoPx": 0
             },
             {
-              "paneoPx": 94.7
+              "paneoPx": 0
             }
           ]
         },
@@ -575,7 +603,7 @@
           "gesto": "Dos dedos desplazándose juntos 100 px",
           "esperado": "la vista se desplaza ~100 px sin cambiar de escala",
           "veredicto": "funciona",
-          "observado": "desplazamiento 95.7 px, escala ×0.997",
+          "observado": "desplazamiento 92.2 px, escala ×0.977",
           "veredictoPorCorrida": [
             "funciona",
             "funciona",
@@ -583,16 +611,16 @@
           ],
           "medidaPorCorrida": [
             {
-              "desplazamientoPx": 95.7,
-              "factorEscala": 0.997
+              "desplazamientoPx": 92.2,
+              "factorEscala": 0.977
             },
             {
-              "desplazamientoPx": 95.8,
-              "factorEscala": 0.998
+              "desplazamientoPx": 92.2,
+              "factorEscala": 0.977
             },
             {
-              "desplazamientoPx": 95.5,
-              "factorEscala": 0.996
+              "desplazamientoPx": 92.2,
+              "factorEscala": 0.977
             }
           ]
         },
@@ -609,19 +637,19 @@
           ],
           "medidaPorCorrida": [
             {
-              "factorAcercamiento": 3.999,
-              "unidadesPorPixelAntes": 37.682,
-              "unidadesPorPixelDespues": 9.424
+              "factorAcercamiento": 3.996,
+              "unidadesPorPixelAntes": 13.938,
+              "unidadesPorPixelDespues": 3.488
             },
             {
-              "factorAcercamiento": 3.997,
-              "unidadesPorPixelAntes": 37.682,
-              "unidadesPorPixelDespues": 9.429
+              "factorAcercamiento": 3.996,
+              "unidadesPorPixelAntes": 13.938,
+              "unidadesPorPixelDespues": 3.488
             },
             {
-              "factorAcercamiento": 3.997,
-              "unidadesPorPixelAntes": 37.682,
-              "unidadesPorPixelDespues": 9.429
+              "factorAcercamiento": 3.996,
+              "unidadesPorPixelAntes": 13.938,
+              "unidadesPorPixelDespues": 3.488
             }
           ]
         },
@@ -629,30 +657,30 @@
           "id": "dibujar-a-toques",
           "gesto": "LINE y dos toques limpios",
           "esperado": "el documento gana una línea",
-          "veredicto": "roto",
-          "observado": "entidades 4 → 4",
+          "veredicto": "funciona",
+          "observado": "entidades 4 → 5",
           "veredictoPorCorrida": [
-            "roto",
-            "roto",
-            "roto"
+            "funciona",
+            "funciona",
+            "funciona"
           ],
           "medidaPorCorrida": [
             {
               "antes": 4,
-              "despues": 4,
-              "quienRecibeElPrimerToque": "cad-toolbar",
+              "despues": 5,
+              "quienRecibeElPrimerToque": "cad-canvas",
               "quienRecibeElSegundoToque": "cad-canvas"
             },
             {
               "antes": 4,
-              "despues": 4,
-              "quienRecibeElPrimerToque": "cad-toolbar",
+              "despues": 5,
+              "quienRecibeElPrimerToque": "cad-canvas",
               "quienRecibeElSegundoToque": "cad-canvas"
             },
             {
               "antes": 4,
-              "despues": 4,
-              "quienRecibeElPrimerToque": "cad-toolbar",
+              "despues": 5,
+              "quienRecibeElPrimerToque": "cad-canvas",
               "quienRecibeElSegundoToque": "cad-canvas"
             }
           ]
@@ -661,27 +689,27 @@
           "id": "apuntar-y-soltar",
           "gesto": "Posar el dedo, deslizar 47 px para apuntar y soltar (dos veces)",
           "esperado": "cada gesto fija un punto donde quedó el dedo: se apunta mirando",
-          "veredicto": "roto",
-          "observado": "el gesto NO fija ningún punto (entidades 4 → 4): deslizar descalifica el toque",
+          "veredicto": "funciona",
+          "observado": "el gesto fija el punto donde se soltó",
           "veredictoPorCorrida": [
-            "roto",
-            "roto",
-            "roto"
+            "funciona",
+            "funciona",
+            "funciona"
           ],
           "medidaPorCorrida": [
             {
-              "antes": 4,
-              "despues": 4,
+              "antes": 5,
+              "despues": 6,
               "insigniaDeCapturaDuranteElGesto": ""
             },
             {
-              "antes": 4,
-              "despues": 4,
+              "antes": 5,
+              "despues": 6,
               "insigniaDeCapturaDuranteElGesto": ""
             },
             {
-              "antes": 4,
-              "despues": 4,
+              "antes": 5,
+              "despues": 6,
               "insigniaDeCapturaDuranteElGesto": ""
             }
           ]
@@ -690,22 +718,23 @@
           "id": "pulsacion-larga-abre-menu",
           "gesto": "Mantener pulsado 900 ms con un comando abierto",
           "esperado": "menú contextual con las palabras clave del paso, como el botón derecho",
-          "veredicto": "roto",
-          "observado": "no aparece ningún menú; el navegador no emite «contextmenu»: NO lo emite",
+          "veredicto": "funciona",
+          "observado": "el menú de palabras clave aparece",
           "veredictoPorCorrida": [
-            "roto",
-            "roto",
-            "roto"
+            "funciona",
+            "funciona",
+            "funciona"
           ],
           "medidaPorCorrida": [
             {
               "promptDelMotorVisible": true,
-              "menuDuranteLaPulsacion": false,
-              "menuTrasSoltar": false,
-              "contextmenuNativo": false,
+              "menuDuranteLaPulsacion": true,
+              "menuTrasSoltar": true,
+              "contextmenuNativo": true,
               "eventos": [
                 "pointerdown:touch",
                 "touchstart:-",
+                "contextmenu:touch",
                 "pointerup:touch",
                 "touchend:-",
                 "click:touch"
@@ -713,12 +742,13 @@
             },
             {
               "promptDelMotorVisible": true,
-              "menuDuranteLaPulsacion": false,
-              "menuTrasSoltar": false,
-              "contextmenuNativo": false,
+              "menuDuranteLaPulsacion": true,
+              "menuTrasSoltar": true,
+              "contextmenuNativo": true,
               "eventos": [
                 "pointerdown:touch",
                 "touchstart:-",
+                "contextmenu:touch",
                 "pointerup:touch",
                 "touchend:-",
                 "click:touch"
@@ -726,12 +756,13 @@
             },
             {
               "promptDelMotorVisible": true,
-              "menuDuranteLaPulsacion": false,
-              "menuTrasSoltar": false,
-              "contextmenuNativo": false,
+              "menuDuranteLaPulsacion": true,
+              "menuTrasSoltar": true,
+              "contextmenuNativo": true,
               "eventos": [
                 "pointerdown:touch",
                 "touchstart:-",
+                "contextmenu:touch",
                 "pointerup:touch",
                 "touchend:-",
                 "click:touch"
@@ -743,12 +774,12 @@
           "id": "precision-bajo-el-dedo",
           "gesto": "Dedo posado a 0, 6, 12 y 20 px de un extremo conocido",
           "esperado": "engancha al extremo dentro de la huella del dedo (≈12 px) y lo enseña fuera de ella (≥24 px)",
-          "veredicto": "parcial",
-          "observado": "engancha hasta 20px, insignia a 21 px del contacto",
+          "veredicto": "funciona",
+          "observado": "engancha hasta 20px, insignia a 40 px del contacto",
           "veredictoPorCorrida": [
-            "parcial",
-            "parcial",
-            "parcial"
+            "funciona",
+            "funciona",
+            "funciona"
           ],
           "medidaPorCorrida": [
             {
@@ -758,7 +789,7 @@
                 "12px": "extremo",
                 "20px": "extremo"
               },
-              "desplazamientoDeLaInsigniaPx": 21
+              "desplazamientoDeLaInsigniaPx": 40
             },
             {
               "capturaPorDistancia": {
@@ -767,7 +798,7 @@
                 "12px": "extremo",
                 "20px": "extremo"
               },
-              "desplazamientoDeLaInsigniaPx": 21
+              "desplazamientoDeLaInsigniaPx": 40
             },
             {
               "capturaPorDistancia": {
@@ -776,7 +807,7 @@
                 "12px": "extremo",
                 "20px": "extremo"
               },
-              "desplazamientoDeLaInsigniaPx": 21
+              "desplazamientoDeLaInsigniaPx": 40
             }
           ]
         },
@@ -795,20 +826,20 @@
             {
               "pasoAntes": "Precise el primer punto:",
               "pasoDespues": "Precise el primer punto:",
-              "entidadesAntes": 4,
-              "entidadesDespues": 4
+              "entidadesAntes": 6,
+              "entidadesDespues": 6
             },
             {
               "pasoAntes": "Precise el primer punto:",
               "pasoDespues": "Precise el primer punto:",
-              "entidadesAntes": 4,
-              "entidadesDespues": 4
+              "entidadesAntes": 6,
+              "entidadesDespues": 6
             },
             {
               "pasoAntes": "Precise el primer punto:",
               "pasoDespues": "Precise el primer punto:",
-              "entidadesAntes": 4,
-              "entidadesDespues": 4
+              "entidadesAntes": 6,
+              "entidadesDespues": 6
             }
           ]
         }
@@ -922,22 +953,22 @@
           "id": "un-dedo-en-el-fondo",
           "gesto": "Arrastre de un dedo sobre el fondo, 96 px",
           "esperado": "el dedo designa o arrastra; el paneo es de DOS dedos",
-          "veredicto": "roto",
-          "observado": "la cámara paneó 89 px: el dedo mueve la vista, no designa",
+          "veredicto": "funciona",
+          "observado": "la cámara no se movió",
           "veredictoPorCorrida": [
-            "roto",
-            "roto",
-            "roto"
+            "funciona",
+            "funciona",
+            "funciona"
           ],
           "medidaPorCorrida": [
             {
-              "paneoPx": 88.6
+              "paneoPx": 0
             },
             {
-              "paneoPx": 88.6
+              "paneoPx": 0
             },
             {
-              "paneoPx": 83.4
+              "paneoPx": 0
             }
           ]
         },
@@ -946,7 +977,7 @@
           "gesto": "Dos dedos desplazándose juntos 100 px",
           "esperado": "la vista se desplaza ~100 px sin cambiar de escala",
           "veredicto": "funciona",
-          "observado": "desplazamiento 91.3 px, escala ×0.972",
+          "observado": "desplazamiento 91.8 px, escala ×0.974",
           "veredictoPorCorrida": [
             "funciona",
             "funciona",
@@ -954,16 +985,16 @@
           ],
           "medidaPorCorrida": [
             {
-              "desplazamientoPx": 91.3,
-              "factorEscala": 0.972
+              "desplazamientoPx": 91.8,
+              "factorEscala": 0.974
             },
             {
               "desplazamientoPx": 91.8,
               "factorEscala": 0.974
             },
             {
-              "desplazamientoPx": 91.4,
-              "factorEscala": 0.972
+              "desplazamientoPx": 91.8,
+              "factorEscala": 0.974
             }
           ]
         },
@@ -972,7 +1003,7 @@
           "gesto": "Pellizco de apertura (80 px → 320 px de separación)",
           "esperado": "acercar: menos unidades de dibujo por píxel",
           "veredicto": "funciona",
-          "observado": "factor de acercamiento ×4.00",
+          "observado": "factor de acercamiento ×3.99",
           "veredictoPorCorrida": [
             "funciona",
             "funciona",
@@ -980,8 +1011,8 @@
           ],
           "medidaPorCorrida": [
             {
-              "factorAcercamiento": 3.995,
-              "unidadesPorPixelAntes": 12.412,
+              "factorAcercamiento": 3.994,
+              "unidadesPorPixelAntes": 12.408,
               "unidadesPorPixelDespues": 3.107
             },
             {
@@ -990,9 +1021,9 @@
               "unidadesPorPixelDespues": 3.107
             },
             {
-              "factorAcercamiento": 3.999,
+              "factorAcercamiento": 3.994,
               "unidadesPorPixelAntes": 12.408,
-              "unidadesPorPixelDespues": 3.103
+              "unidadesPorPixelDespues": 3.107
             }
           ]
         },
@@ -1032,27 +1063,27 @@
           "id": "apuntar-y-soltar",
           "gesto": "Posar el dedo, deslizar 47 px para apuntar y soltar (dos veces)",
           "esperado": "cada gesto fija un punto donde quedó el dedo: se apunta mirando",
-          "veredicto": "roto",
-          "observado": "el gesto NO fija ningún punto (entidades 5 → 5): deslizar descalifica el toque",
+          "veredicto": "funciona",
+          "observado": "el gesto fija el punto donde se soltó",
           "veredictoPorCorrida": [
-            "roto",
-            "roto",
-            "roto"
+            "funciona",
+            "funciona",
+            "funciona"
           ],
           "medidaPorCorrida": [
             {
               "antes": 5,
-              "despues": 5,
+              "despues": 6,
               "insigniaDeCapturaDuranteElGesto": ""
             },
             {
               "antes": 5,
-              "despues": 5,
+              "despues": 6,
               "insigniaDeCapturaDuranteElGesto": ""
             },
             {
               "antes": 5,
-              "despues": 5,
+              "despues": 6,
               "insigniaDeCapturaDuranteElGesto": ""
             }
           ]
@@ -1061,22 +1092,23 @@
           "id": "pulsacion-larga-abre-menu",
           "gesto": "Mantener pulsado 900 ms con un comando abierto",
           "esperado": "menú contextual con las palabras clave del paso, como el botón derecho",
-          "veredicto": "roto",
-          "observado": "no aparece ningún menú; el navegador no emite «contextmenu»: NO lo emite",
+          "veredicto": "funciona",
+          "observado": "el menú de palabras clave aparece",
           "veredictoPorCorrida": [
-            "roto",
-            "roto",
-            "roto"
+            "funciona",
+            "funciona",
+            "funciona"
           ],
           "medidaPorCorrida": [
             {
               "promptDelMotorVisible": true,
-              "menuDuranteLaPulsacion": false,
-              "menuTrasSoltar": false,
-              "contextmenuNativo": false,
+              "menuDuranteLaPulsacion": true,
+              "menuTrasSoltar": true,
+              "contextmenuNativo": true,
               "eventos": [
                 "pointerdown:touch",
                 "touchstart:-",
+                "contextmenu:touch",
                 "pointerup:touch",
                 "touchend:-",
                 "click:touch"
@@ -1084,12 +1116,13 @@
             },
             {
               "promptDelMotorVisible": true,
-              "menuDuranteLaPulsacion": false,
-              "menuTrasSoltar": false,
-              "contextmenuNativo": false,
+              "menuDuranteLaPulsacion": true,
+              "menuTrasSoltar": true,
+              "contextmenuNativo": true,
               "eventos": [
                 "pointerdown:touch",
                 "touchstart:-",
+                "contextmenu:touch",
                 "pointerup:touch",
                 "touchend:-",
                 "click:touch"
@@ -1097,12 +1130,13 @@
             },
             {
               "promptDelMotorVisible": true,
-              "menuDuranteLaPulsacion": false,
-              "menuTrasSoltar": false,
-              "contextmenuNativo": false,
+              "menuDuranteLaPulsacion": true,
+              "menuTrasSoltar": true,
+              "contextmenuNativo": true,
               "eventos": [
                 "pointerdown:touch",
                 "touchstart:-",
+                "contextmenu:touch",
                 "pointerup:touch",
                 "touchend:-",
                 "click:touch"
@@ -1114,12 +1148,12 @@
           "id": "precision-bajo-el-dedo",
           "gesto": "Dedo posado a 0, 6, 12 y 20 px de un extremo conocido",
           "esperado": "engancha al extremo dentro de la huella del dedo (≈12 px) y lo enseña fuera de ella (≥24 px)",
-          "veredicto": "parcial",
-          "observado": "engancha hasta 20px, insignia a 21 px del contacto",
+          "veredicto": "funciona",
+          "observado": "engancha hasta 20px, insignia a 40 px del contacto",
           "veredictoPorCorrida": [
-            "parcial",
-            "parcial",
-            "parcial"
+            "funciona",
+            "funciona",
+            "funciona"
           ],
           "medidaPorCorrida": [
             {
@@ -1129,7 +1163,7 @@
                 "12px": "extremo",
                 "20px": "extremo"
               },
-              "desplazamientoDeLaInsigniaPx": 21
+              "desplazamientoDeLaInsigniaPx": 40
             },
             {
               "capturaPorDistancia": {
@@ -1138,7 +1172,7 @@
                 "12px": "extremo",
                 "20px": "extremo"
               },
-              "desplazamientoDeLaInsigniaPx": 21
+              "desplazamientoDeLaInsigniaPx": 40
             },
             {
               "capturaPorDistancia": {
@@ -1147,7 +1181,7 @@
                 "12px": "extremo",
                 "20px": "extremo"
               },
-              "desplazamientoDeLaInsigniaPx": 21
+              "desplazamientoDeLaInsigniaPx": 40
             }
           ]
         },
@@ -1166,20 +1200,20 @@
             {
               "pasoAntes": "Precise el primer punto:",
               "pasoDespues": "Precise el primer punto:",
-              "entidadesAntes": 5,
-              "entidadesDespues": 5
+              "entidadesAntes": 6,
+              "entidadesDespues": 6
             },
             {
               "pasoAntes": "Precise el primer punto:",
               "pasoDespues": "Precise el primer punto:",
-              "entidadesAntes": 5,
-              "entidadesDespues": 5
+              "entidadesAntes": 6,
+              "entidadesDespues": 6
             },
             {
               "pasoAntes": "Precise el primer punto:",
               "pasoDespues": "Precise el primer punto:",
-              "entidadesAntes": 5,
-              "entidadesDespues": 5
+              "entidadesAntes": 6,
+              "entidadesDespues": 6
             }
           ]
         }
@@ -1209,7 +1243,10 @@
       "Safari de iPadOS y su gestión propia de gestos: aquí sólo corre Chromium",
       "la rotación del dispositivo en caliente y el reencuadre que provoca",
       "el rendimiento del táctil bajo carga: los presupuestos de paneo y zoom se miden en plan-budget.spec.ts",
-      "el trabajo sin conexión en obra, que es otra pregunta y tiene sus propias evidencias"
+      "el trabajo sin conexión en obra, que es otra pregunta y tiene sus propias evidencias",
+      "la LUPA sobre el punto que el dedo tapa: se resolvió desplazando la insignia de captura fuera de la huella (40 px medidos), no ampliando el dibujo. Una lupa de verdad exige conservar el buffer de dibujo y copiar un fotograma entero por muestra, y el presupuesto de paneo son 8,1 ms",
+      "el gesto de DOS dedos para deshacer y el de TRES para rehacer, que iOS popularizó y aquí no existen",
+      "el modo 3D: todo lo que se mide aquí es el modo PLANO, que es donde se dibuja. En 3D un dedo sigue orbitando —es el gesto universal de un visor— y por tanto apuntar deslizando NO está resuelto ahí; quien dibuje en una tableta tiene que estar en 2D, que es lo que el propio botón anuncia"
     ]
   }
 }
