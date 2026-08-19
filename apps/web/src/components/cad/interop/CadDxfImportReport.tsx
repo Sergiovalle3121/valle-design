@@ -31,6 +31,17 @@ export interface CadDxfImportReportPanelProps {
   report: CadDxfImportReport;
   /** Nombre del archivo, si se conoce. Ancla el informe a algo reconocible. */
   fileName?: string;
+  /**
+   * Formato de origen. Sólo cambia el nombre que se lee en voz alta y el
+   * identificador de prueba.
+   *
+   * Existe porque el informe de importación de PDF tiene EXACTAMENTE la misma
+   * forma —tres columnas, mismo orden, mismo tono— y duplicar este componente
+   * habría dado dos paneles que se parecen y con el tiempo divergen: uno abre la
+   * sección de pérdidas y el otro no. Lo que cambia entre un DXF y un PDF es el
+   * vocabulario de las filas, y eso lo decide el módulo puro que las construye.
+   */
+  format?: "dxf" | "pdf";
 }
 
 const TONE_CLASS: Readonly<Record<CadDxfImportTone, string>> = {
@@ -48,15 +59,16 @@ const SECTION_CLASS: Readonly<Record<string, string>> = {
 export const CadDxfImportReportPanel = React.memo(function CadDxfImportReportPanel({
   report,
   fileName,
+  format = "dxf",
 }: CadDxfImportReportPanelProps) {
   const sections = groupCadDxfImportReport(report);
   const tone = cadDxfImportTone(report);
   return (
     <section
-      data-testid="cad-dxf-import-report"
+      data-testid={`cad-${format}-import-report`}
       data-tone={tone}
       className={`rounded-xl p-3 text-sm ${TONE_CLASS[tone]}`}
-      aria-label="Qué se conservó al importar el DXF"
+      aria-label={`Qué se conservó al importar el ${format.toUpperCase()}`}
     >
       <p role="status" className="font-medium">
         {fileName ? `${fileName}: ` : ""}
@@ -69,7 +81,7 @@ export const CadDxfImportReportPanel = React.memo(function CadDxfImportReportPan
         <details
           key={section.fidelity}
           open={section.open}
-          data-testid={`cad-dxf-import-${section.fidelity}`}
+          data-testid={`cad-${format}-import-${section.fidelity}`}
           className="mt-2"
         >
           <summary className={`cursor-pointer text-xs uppercase tracking-wide ${SECTION_CLASS[section.fidelity]}`}>
