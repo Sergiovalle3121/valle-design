@@ -12,6 +12,7 @@
  * ambos números.
  */
 import React from "react";
+import { CadGuidedTourDock } from "../onboarding/CadGuidedTourDock";
 import { CadLispDock } from "../lisp/CadLispDock";
 import { submitCadLisp } from "../lisp/use-lisp";
 import { CadCommandLine } from "./CadCommandLine";
@@ -28,6 +29,13 @@ export function CadCommandLineDock({ host, disabled }: CadCommandLineDockProps) 
   const snapshot = useCadCommandEngine(host);
   return (
     <div className="flex w-full flex-col gap-1">
+      {/*
+        El recorrido guiado, encima de todo y sólo la primera vez. Se monta aquí
+        por lo mismo que la consola LISP: registrarlo en el editor costaría JSX y
+        un `useState` en un archivo cuyo presupuesto sólo puede bajar. Su estado
+        vive fuera de React y sobrevive a los remontajes.
+      */}
+      <CadGuidedTourDock host={host} disabled={disabled} />
       {/*
         La consola AutoLISP, encima del diálogo y sólo cuando está abierta. Se
         pinta aquí y no en el registro de paletas del editor porque registrarla
