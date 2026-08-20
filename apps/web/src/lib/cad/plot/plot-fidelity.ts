@@ -31,6 +31,7 @@
 import type { CadDocument } from "../cad-document";
 import { createCadPaperSpace, type CadSheetPaper } from "../paper-space";
 import {
+  applyCadPageSetupToLayout,
   cadPageSetupFromLayout,
   cadPageSize,
   type CadPageSetup,
@@ -161,10 +162,10 @@ export interface CadFidelityFixtureInput {
 export function buildCadFidelityFixture(input: CadFidelityFixtureInput): CadDocument {
   const unit = input.unit ?? "mm";
   // La presentación se crea CON su papel, no con uno cualquiera al que luego se
-  // le cambia la etiqueta: la ventana gráfica se dimensiona al crearla, y una
-  // hoja A3 con la ventana calculada para A1 dibuja fuera del papel. Ése es un
-  // defecto real del producto —se mide aparte, con `paperChangedAfterLayout`—
-  // pero meterlo dentro del patrón de escala contaminaría todas las medidas.
+  // le cambia la etiqueta: la ventana gráfica se dimensiona al crearla. El
+  // cambio de papel posterior es un caso propio —se mide aparte, con
+  // `plotOnPaper`, recorriendo el camino real de PAGESETUP— y meterlo dentro
+  // del patrón de escala contaminaría todas las medidas.
   const paperSpace = createCadPaperSpace({
     id: "layout:patron",
     name: "Patrón de fidelidad",
@@ -285,10 +286,11 @@ export interface CadPlotFidelityInput extends CadFidelityFixtureInput {
    * Trazar sobre un papel DISTINTO del que se usó para crear la presentación,
    * que es lo que hace PAGESETUP al cambiar de A1 a A3.
    *
-   * Existe para poder MEDIR ese caso, no para recomendarlo: hoy la ventana
-   * gráfica no se recoloca al cambiar el papel, y la geometría queda dibujada
-   * para el papel viejo. La cifra que sale —cuántos trazos caen fuera del
-   * `MediaBox`— es la que convierte esa sospecha en un defecto con número.
+   * El cambio pasa por `applyCadPageSetupToLayout`, que es el MISMO camino que
+   * recorre PAGESETUP en el producto: la hoja cambia y las ventanas gráficas se
+   * recolocan a la zona imprimible nueva. La cifra que sale —cuántos trazos
+   * caen fuera del `MediaBox`— es la que antes medía el defecto
+   * `paper-change-does-not-move-viewport` y ahora vigila que no regrese.
    */
   plotOnPaper?: CadSheetPaper;
 }
@@ -364,12 +366,24 @@ const GEOMETRY_CRITERION =
 export async function measureCadPlotFidelity(
   input: CadPlotFidelityInput,
 ): Promise<CadPlotFidelityReport> {
-  const document = buildCadFidelityFixture(input);
+  const fixture = buildCadFidelityFixture(input);
   const pageSetup: CadPageSetup = {
-    ...cadPageSetupFromLayout(document.paperSpaces[0]),
+    ...cadPageSetupFromLayout(fixture.paperSpaces[0]),
     paper: input.plotOnPaper ?? input.paper,
     orientation: input.orientation,
   };
+  // Cambiar de papel recorre el camino real de PAGESETUP: la hoja se reescribe
+  // CON sus ventanas recolocadas. Medir el trazado saltándose ese paso mediría
+  // un producto que no existe.
+  const document: CadDocument = input.plotOnPaper
+    ? {
+        ...fixture,
+        paperSpaces: [
+          applyCadPageSetupToLayout(fixture.paperSpaces[0], pageSetup),
+          ...fixture.paperSpaces.slice(1),
+        ],
+      }
+    : fixture;
   const plotStyleTable = createCadMonochromeTable("fidelidad");
   const jobInput = { document, pageSetup, plotStyleTable, generatedAt: "1970-01-01T00:00:00.000Z" };
 
