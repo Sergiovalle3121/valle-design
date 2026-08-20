@@ -183,10 +183,12 @@ import {
   CAD_TOOLBAR_ACTIONS,
   type CadToolbarActionId,
 } from "@/lib/cad/toolbar";
+import { searchCadPalette } from "@/lib/cad/command-palette";
 import {
-  searchCadPalette,
-  type CadPaletteEntry,
-} from "@/lib/cad/command-palette";
+  rememberCadPaletteAction,
+  useCadPaletteActions,
+  type CadPalettePreviewState,
+} from "@/components/cad/palette-actions";
 import {
   suggestCadCommands,
   type CadCommandSuggestion,
@@ -931,12 +933,8 @@ function sameStringMap(
   return keys.every((key) => a[key] === b[key]);
 }
 
-interface CommandPreviewState {
-  input: CadCommandInput;
-  preview: CadCommandPreview;
-  chain?: CadCommandInput[];
-  rawInput: string;
-}
+/** El preview del copiloto; la forma vive con las acciones de la paleta. */
+type CommandPreviewState = CadPalettePreviewState;
 interface DxfExportOptions {
   scope: "all" | "selection";
   includeHidden: boolean;
@@ -13564,67 +13562,40 @@ export default function Layout3DEditor({
     else if (id === "undo") undo();
     else if (id === "redo") redo();
   };
-  const rememberPaletteAction = (entry: CadPaletteEntry) => {
-    setRecentPaletteActions((items) =>
-      [
-        `${entry.kind}:${entry.id}`,
-        ...items.filter((item) => item !== `${entry.kind}:${entry.id}`),
-      ].slice(0, 5),
-    );
-  };
-  const runPaletteEntry = (entry: CadPaletteEntry) => {
-    if (drawingReadOnlyRef.current && entry.kind !== "tool") {
-      notifyReadOnly();
-      return;
-    }
-    setShowPalette(false);
-    setPaletteQuery("");
-    rememberPaletteAction(entry);
-    if (entry.kind === "tool") {
-      runToolbarAction(entry.id as CadToolbarActionId);
-      return;
-    }
-    if (entry.kind === "command") {
-      const example =
-        entry.keywords.find((kw) => kw.includes(" ")) ?? entry.label;
-      const parsed = parseCadCommand(example);
+  /**
+   * Las acciones de la paleta viven en `components/cad/palette-actions.ts` y
+   * se prueban en Node; aquí sólo se aportan los efectos que son del editor.
+   * El anfitrión también atiende el `block-editor` que pide BEDIT.
+   */
+  const runPaletteEntry = useCadPaletteActions({
+    isReadOnly: () => drawingReadOnlyRef.current,
+    notifyReadOnly,
+    closePalette: () => {
+      setShowPalette(false);
+      setPaletteQuery("");
+    },
+    rememberAction: (key) =>
+      setRecentPaletteActions((items) => rememberCadPaletteAction(items, key)),
+    runToolbarAction,
+    invokeEngineCommand: (name) => commandEngineRef.current.invoke(name),
+    copilotContext: buildCommandContext,
+    openCopilot: (text) => {
       setShowCommand(true);
-      setCommandText(example);
-      if (parsed.ok && parsed.input) {
-        const preview = previewCadCommand(parsed.input, buildCommandContext());
-        setCommandPreview({ input: parsed.input, preview, rawInput: example });
-        setCommandLog((items) =>
-          prependCadCommandHistory(
-            items,
-            createCadHistoryItem(
-              parsed.input!,
-              "previewed",
-              preview.summary,
-              preview,
-              undefined,
-              {
-                rawInput: example,
-                affectedObjectIds: preview.affectedObjectIds,
-              },
-            ),
-          ),
-        );
-        toast.success("Preview listo en el Copiloto CAD.", "Cmd-K CAD");
-      } else {
-        setCommandPreview(null);
-        toast.error(
-          parsed.clarification ||
-            parsed.error ||
-            "El comando necesita más contexto.",
-          "Cmd-K CAD",
-        );
-      }
-      return;
-    }
-    addCadSymbol(entry.id);
-    setTab("equipment");
-    toast.success(`${entry.label} insertado desde Cmd-K.`, "Cmd-K CAD");
-  };
+      setCommandText(text);
+    },
+    setCopilotPreview: setCommandPreview,
+    appendCopilotHistory: (item) =>
+      setCommandLog((items) => prependCadCommandHistory(items, item)),
+    insertSymbol: (id) => {
+      addCadSymbol(id);
+      setTab("equipment");
+    },
+    openBlockPanel: () => {
+      if (activeProfessionalDock !== "blocks") toggleProfessionalDock("blocks");
+    },
+    toastSuccess: toast.success,
+    toastError: toast.error,
+  });
   const selectAll = () => {
     applyProfessionalSelection({
       type: "all",

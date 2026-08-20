@@ -1,8 +1,35 @@
+/**
+ * Las entradas de la paleta Ctrl+K — la UNIÓN de los registros, no uno solo.
+ *
+ * ## El agujero que esto tapa
+ *
+ * La paleta indexaba únicamente el registro heredado del copiloto en lenguaje
+ * natural (47 comandos sobre cajas heredadas) más herramientas y símbolos. Los
+ * 182 comandos del motor V2 —TRIM, FILLET, REVCLOUD, PAGESETUP…— eran
+ * invisibles en el buscador aunque se pudieran teclear: existían para la línea
+ * de comandos y no para Ctrl+K, que es donde los busca quien no se sabe el
+ * nombre.
+ *
+ * ## Por qué UNIÓN y no sustitución
+ *
+ * El registro heredado no es un residuo: alimenta el copiloto NL
+ * (`parseCadCommand`/`previewCadCommand`), los esquemas de tools de IA y la
+ * asistencia de la línea. Se queda, etiquetado «Copiloto», y cuando un id
+ * heredado coincidiera con un nombre del motor gana el motor — dos entradas
+ * con el mismo nombre y efectos distintos es el tipo de ambigüedad que una
+ * paleta no puede permitirse.
+ *
+ * Los resúmenes en español del motor viven en `engine/command-summaries.ts`
+ * con contrato fail-closed: un comando sin resumen es un error de CI, no una
+ * entrada muda.
+ */
 import { CAD_COMMAND_REGISTRY } from "./commands";
+import { CAD_COMMAND_REGISTRY_V2 } from "./engine";
+import { cadCommandSummary } from "./engine/command-summaries";
 import { CAD_SYMBOL_LIBRARY } from "./symbols";
 import { CAD_TOOLBAR_ACTIONS } from "./toolbar";
 
-export type CadPaletteEntryKind = "command" | "tool" | "symbol";
+export type CadPaletteEntryKind = "engine" | "command" | "tool" | "symbol";
 export interface CadPaletteEntry {
   id: string;
   kind: CadPaletteEntryKind;
@@ -13,12 +40,32 @@ export interface CadPaletteEntry {
 }
 
 export function buildCadPaletteEntries(): CadPaletteEntry[] {
+  const engineNames = new Set<string>();
+  const engineEntries = CAD_COMMAND_REGISTRY_V2.all().map((command): CadPaletteEntry => {
+    engineNames.add(command.name.toUpperCase());
+    return {
+      id: command.name,
+      kind: "engine",
+      label: command.name,
+      description: cadCommandSummary(command.name),
+      // Los alias entran como palabras clave: quien busca «TR» debe encontrar
+      // TRIM, porque ésa es la memoria muscular que la tabla de alias promete.
+      keywords: [...command.aliases, command.kind],
+      ...(command.aliases.length > 0 ? { shortcut: command.aliases[0] } : {}),
+    };
+  });
   return [
-    ...CAD_COMMAND_REGISTRY.map((command) => ({
+    ...engineEntries,
+    ...CAD_COMMAND_REGISTRY.filter(
+      (command) => !engineNames.has(command.id.toUpperCase()),
+    ).map((command) => ({
       id: command.id,
       kind: "command" as const,
       label: command.label,
-      description: command.description,
+      // La etiqueta «Copiloto» dice QUÉ ejecuta esta entrada: una previsualización
+      // del copiloto NL, no un comando del motor. Sin ella las dos familias se
+      // verían iguales y harían cosas distintas.
+      description: `Copiloto · ${command.description}`,
       keywords: [command.category, ...command.examples],
     })),
     ...CAD_TOOLBAR_ACTIONS.map((tool) => ({
@@ -56,7 +103,7 @@ export function searchCadPalette(
         .toLowerCase();
       const score = entry.label.toLowerCase().startsWith(q)
         ? 3
-        : entry.id.includes(q)
+        : entry.id.toLowerCase().includes(q)
           ? 2
           : haystack.includes(q)
             ? 1
