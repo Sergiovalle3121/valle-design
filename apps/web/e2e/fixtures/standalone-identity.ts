@@ -261,6 +261,26 @@ export async function loginAsStandaloneOwner(
   return backend;
 }
 
+/**
+ * Instala la frontera de identidad SIN autenticar a nadie.
+ *
+ * Es el contexto del invitado de un review link: no tiene cuenta, así que
+ * todo lo de primera parte tiene que responderle 401. Sin esto, un contexto
+ * limpio dejaría escapar esas llamadas a la red de verdad y el spec no podría
+ * afirmar que la página del enlace no depende de ninguna sesión.
+ */
+export async function installStandaloneIdentity(
+  context: BrowserContext,
+): Promise<StandaloneIdentityBackend> {
+  let backend = installed.get(context);
+  if (!backend) {
+    backend = new StandaloneIdentityBackend(context);
+    installed.set(context, backend);
+    await backend.install();
+  }
+  return backend;
+}
+
 /** Installs (once per context) and authenticates a read-only organization member. */
 export async function loginAsStandaloneViewer(
   context: BrowserContext,

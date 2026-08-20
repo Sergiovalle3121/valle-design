@@ -30,6 +30,7 @@ import Layout3DEditor, {
 import { useToast } from "@/contexts/ToastContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useDesignAuth } from "@/contexts/DesignAuthContext";
+import StudioCollaborationLayer from "@/components/cad/collab/StudioCollaborationLayer";
 import { BRAND } from "@/config/brand";
 import { cadTourHost } from "@/components/cad/onboarding/tour-host";
 
@@ -102,18 +103,35 @@ export default function CadStudioHost({
   );
 
   return (
-    <Layout3DEditor
-      {...props}
-      documentId={documentId}
-      readOnly={effectiveReadOnly}
-      model={documentId ?? props.model}
-      identity={identity}
-      scope={scope}
-      theme={resolvedScheme}
-      onNotify={onNotify}
-      onFullscreenChange={noopFullscreenChange}
-      branding={branding}
-      // Edición Design pura: sin paneles de análisis industrial (WP6).
-    />
+    <>
+      <Layout3DEditor
+        {...props}
+        documentId={documentId}
+        readOnly={effectiveReadOnly}
+        model={documentId ?? props.model}
+        identity={identity}
+        scope={scope}
+        theme={resolvedScheme}
+        onNotify={onNotify}
+        onFullscreenChange={noopFullscreenChange}
+        branding={branding}
+        // Edición Design pura: sin paneles de análisis industrial (WP6).
+      />
+      {/*
+        La colaboración se monta AL LADO del editor, no dentro. Se engancha a
+        su lienzo por el registro de viewport (`viewport-registry.ts`), así que
+        el monolito no tiene que saber que existe — que es lo que permite
+        crecer aquí sin tocar un archivo con trinquete de tamaño. Sin
+        `documentId` no hay documento contra el que comentar (rutas legacy y
+        sentinel), y entonces no se monta nada.
+      */}
+      {documentId ? (
+        <StudioCollaborationLayer
+          documentId={documentId}
+          viewerName={user?.email ?? "Yo"}
+          canReview={permissions.includes("cad:review")}
+        />
+      ) : null}
+    </>
   );
 }
