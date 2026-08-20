@@ -130,14 +130,30 @@ export function CadGuidedTourDock({ host, disabled }: CadGuidedTourDockProps) {
         elástica y cualquier clic de dibujo—. Un acompañante que impide dibujar
         es peor que ninguno.
 
-        Ahora el ratón lo reclaman sólo los CONTROLES (la cabecera con «Saltar
-        recorrido» y el botón del paso). El resto del panel se ve, se lee y deja
-        pasar el puntero al plano. Y la altura baja a un tercio de la pantalla:
-        en una tableta, medio viewport de acompañante es medio plano menos.
+        Ahora el ratón lo reclaman sólo los CONTROLES —el botón «Saltar
+        recorrido» y el botón del paso—, no las filas que los envuelven: un
+        contenedor de ancho completo que reclama el puntero es el mismo telón en
+        pequeño. El resto del panel se ve, se lee y deja pasar el puntero al
+        plano. Y la altura baja a un tercio de la pantalla: en una tableta,
+        medio viewport de acompañante es medio plano menos.
       */
       className="pointer-events-none max-h-[32vh] overflow-y-auto rounded-xl border border-emerald-400/25 bg-gray-950/95 p-2.5 text-[11px] text-emerald-50 shadow-2xl backdrop-blur"
     >
-      <header className="pointer-events-auto mb-2 flex items-center justify-between gap-2">
+      {/*
+        La cabecera NO reclama el ratón: sólo su botón.
+
+        `pointer-events-auto` en una fila `flex` de ancho completo no deja pasar
+        el puntero por el TÍTULO ni por el hueco entre el título y el botón, y
+        eso convierte la cabecera en una PERSIANA de 458×25 px flotando sobre el
+        plano —medido con `elementsFromPoint`: en 1.280×720 se comía la banda
+        donde el golden 28 busca el punto medio y el 40 designa el arco—. Peor
+        aún, la persiana se MUEVE: el panel es bottom-anchored sobre el diálogo
+        de comandos, así que crece hacia arriba cada vez que el diálogo suma una
+        línea, y la banda muerta cae cada vez a una altura distinta del lienzo.
+
+        Un botón de 83 px sí puede reclamarlo; la fila que lo contiene, no.
+      */}
+      <header className="mb-2 flex items-center justify-between gap-2">
         <span className="font-semibold">
           Primeros cinco minutos · {progress.doneStepIds.length}/{CAD_GUIDED_TOUR_STEPS.length}
         </span>
@@ -145,7 +161,7 @@ export function CadGuidedTourDock({ host, disabled }: CadGuidedTourDockProps) {
           type="button"
           data-testid="cad-guided-tour-skip"
           onClick={() => cadTourHost.dispatch({ type: "skip", now: Date.now() })}
-          className="rounded-lg border border-white/15 px-2 py-1 text-[10px] text-emerald-100/80 hover:bg-white/10"
+          className="pointer-events-auto rounded-lg border border-white/15 px-2 py-1 text-[10px] text-emerald-100/80 hover:bg-white/10"
         >
           Saltar recorrido
         </button>
