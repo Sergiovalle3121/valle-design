@@ -114,19 +114,21 @@ assert.deepEqual(
   },
   "la composición del plano real a 20.000 es EXACTA, no aproximada",
 );
-// El SHA ha cambiado DOS veces por subidas del esquema canónico —a 7 (el hueco
-// alojado) y a 8 (la ventana gráfica con cámara)— y las dos veces SÓLO por eso:
-// el único byte distinto del serializado es el dígito del esquema. Se comprueba
-// eslabón a eslabón en `corpus-sha-provenance.spec.ts`, que revierte 8→7→6 sobre
-// el texto de hoy y recupera los dos SHA antiguos exactos. La subida al 8 sí
-// escribe algo al abrir —una cámara de planta por ventana—, pero este corpus no
-// tiene láminas, y ese spec lo comprueba en vez de suponerlo. Ninguna entidad,
-// ningún bloque y ninguna coordenada cambian, así que los presupuestos de
-// `plan-budget.ts` NO se recalibran: recalibrar por un entero de metadatos daría
-// a los números una autoridad de medida que esa corrida no tendría.
+// El SHA ha cambiado TRES veces por subidas del esquema canónico —a 7 (el hueco
+// alojado), a 8 (la ventana gráfica con cámara) y a 9 (frozen y layerStates)—
+// y las tres veces SÓLO por eso: el único byte distinto del serializado es el
+// dígito del esquema. Se comprueba eslabón a eslabón en
+// `corpus-sha-provenance.spec.ts`, que revierte 9→8→7→6 sobre el texto de hoy
+// y recupera los tres SHA antiguos exactos. El 8 sí escribe una cámara por
+// ventana al abrir, pero este corpus no tiene láminas; el 9 no materializa
+// nada y este corpus ni congela capas ni trae estados — ese spec comprueba
+// ambas coartadas en vez de suponerlas. Ninguna entidad, ningún bloque y
+// ninguna coordenada cambian, así que los presupuestos de `plan-budget.ts` NO
+// se recalibran: recalibrar por un entero de metadatos daría a los números una
+// autoridad de medida que esa corrida no tendría.
 assert.equal(
   createHash("sha256").update(serializeCadDocument(corpus.document)).digest("hex"),
-  "000a45f20f3dc18f48aec976ef6ee388108c0852f00d963e7f5e4b6b5ecb6eb2",
+  "45407772af70744b0308ee791df9d4885befb3e1ce7c944d37a6a6b66322a2ba",
   "el corpus de 20.000 cambió de contenido: si es intencionado, actualiza este SHA Y vuelve a calibrar plan-budget.ts con una corrida nueva",
 );
 assert.equal(
