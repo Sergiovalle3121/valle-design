@@ -62,7 +62,18 @@ const ALLOWED_LICENSES_BY_ORIGIN = new Map<string, ReadonlySet<string>>([
       "ODA public guest-download specification (facts only, no redistribution)",
     ]),
   ],
-  ["original-measurement", new Set()],
+  [
+    "original-measurement",
+    new Set([
+      // Medición de bytes hecha por el propio laboratorio sobre bundles
+      // ADMITIDOS del corpus de conformidad (origen tool-converted-original,
+      // commit y hashes fijados por el gate consumidor). Sólo se registran
+      // números observados; los bytes DWG no entran en este repositorio. La
+      // etiqueta es EXACTA a propósito, igual que la de la ODS: una medición
+      // sobre material con otros derechos exige su propia etiqueta y revisión.
+      "Valle first-party corpus measurement (admitted tool-converted-original bundles)",
+    ]),
+  ],
   ["third-party-fixture", new Set()],
 ]);
 

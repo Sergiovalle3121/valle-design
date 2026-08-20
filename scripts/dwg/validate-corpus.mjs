@@ -415,8 +415,8 @@ function observeHeaderCrc(dwgBytes) {
     crcGuardado: hex16(stored),
     crcCalculadoSemilla0xc0c1: hex16(raw),
     xorNecesarioParaCuadrar: hex16(stored ^ raw),
-    hechoRegistradoContradicho:
-      "SOURCE_REGISTER.json (ODA-ODS-DWG-5.4.1-PUBLIC) declara máscara XOR por recuento de registros (6→0x8461); los archivos reales de una implementación independiente guardan el CRC SIN máscara (XOR observado 0x0000).",
+    contexto:
+      "Desde el intake 2026-08-20 el decoder valida el CRC de cabecera CRUDO (VALLE-CORPUS-AC1015-HEADER-CRC-2026-08-20 desmintió la máscara XOR de la ODS). Si esta observación aparece, es una discrepancia NUEVA que hay que caracterizar y registrar antes de tocar el código.",
   };
 }
 

@@ -2,16 +2,18 @@
  * CRC-16 del formato DWG.
  *
  * El formato protege su cabecera de archivo y varias secciones con un CRC-16
- * table-driven (polinomio reflejado 0xA001) cuya semilla aporta quien llama,
- * y el CRC de la CABECERA además se enmascara con una constante que depende
- * del número de registros localizadores — así un archivo al que se le añade
- * o quita una sección no conserva un CRC válido por accidente.
+ * table-driven (polinomio reflejado 0xA001) cuya semilla aporta quien llama.
  *
  * Hechos de ODA-ODS-DWG-5.4.1-PUBLIC (ver SOURCE_REGISTER). Implementación
  * original; la tabla se genera en el arranque del módulo, no se copia.
  *
- * Límite declarado: hasta validar contra corpus real con derechos (fase de
- * intake), la evidencia de estas constantes es el round-trip de laboratorio.
+ * HISTORIA DE UNA MÁSCARA QUE NO EXISTÍA. La ODS declara que el CRC de la
+ * CABECERA se enmascara con una constante XOR según el recuento de registros
+ * localizadores (3→0xA598, 4→0x8101, 5→0x3CC4, 6→0x8461). El corpus real la
+ * desmintió: los 8 AC1015 de una implementación independiente guardan el CRC
+ * CRUDO (XOR observado 0x0000 con 6 registros, 8/8). La tabla se eliminó de
+ * este módulo el 2026-08-20; el hecho medido es
+ * `VALLE-CORPUS-AC1015-HEADER-CRC-2026-08-20` en SOURCE_REGISTER.
  */
 
 const CRC16_TABLE = (() => {
@@ -34,16 +36,3 @@ export function crc16Dwg(bytes: Uint8Array, seed: number): number {
   }
   return crc & 0xffff;
 }
-
-/**
- * Máscara XOR del CRC de la cabecera de archivo según el número de registros
- * localizadores. Fuera de 3–6 registros el formato no define máscara: el
- * contenedor lo trata como no soportado, no lo adivina.
- */
-export const FILE_HEADER_CRC_XOR_BY_RECORD_COUNT: ReadonlyMap<number, number> =
-  new Map([
-    [3, 0xa598],
-    [4, 0x8101],
-    [5, 0x3cc4],
-    [6, 0x8461],
-  ]);

@@ -1,7 +1,7 @@
 {
   "$schema": "./source-register.schema.json",
   "schemaVersion": "1.0.0",
-  "updatedAt": "2026-08-14",
+  "updatedAt": "2026-08-20",
   "entries": [
     {
       "id": "VALLE-OWNER-DWG0-2026-08-09",
@@ -326,6 +326,46 @@
       "reviewer": "Directiva del propietario 2026-08-13 (programa DWG-real autorizado por Sergio Valle Zarate); revision legal externa pendiente antes de promover a producto",
       "reviewedAt": "2026-08-14",
       "notes": "Primera fuente tecnica externa del laboratorio. Implementacion original desde hechos registrados; prohibido copiar, portar o traducir codigo de ODA SDK, LibreDWG u otra implementacion (CLEAN_ROOM_POLICY)."
+    },
+    {
+      "id": "VALLE-CORPUS-AC1015-HEADER-CRC-2026-08-20",
+      "owner": "Sergio Valle Zarate",
+      "origin": {
+        "type": "original-measurement",
+        "location": "https://github.com/Sergiovalle3121/valle-design-dwg-conformance/tree/dae5e77f9b2c6549c04defb1d5b8919524c880c3",
+        "accessedAt": "2026-08-20"
+      },
+      "title": "Medicion first-party del CRC de cabecera AC1015 sobre el corpus admitido (bundle tool-converted-original)",
+      "versionOrDate": "dae5e77f9b2c6549c04defb1d5b8919524c880c3",
+      "terms": {
+        "license": "Valle first-party corpus measurement (admitted tool-converted-original bundles)",
+        "access": "Blobs leidos del commit fijado del repo hermano de conformidad via el gate consumidor (corpus-pin.json + SHA-256 verificado); ningun working tree",
+        "redistribution": "Solo se registran numeros observados (offsets, CRCs, recuentos); los bytes DWG permanecen en el repo hermano bajo su propia politica",
+        "notes": "Medicion sobre archivos generados por ODA File Converter 27.1 desde DXF de autoria propia (origen tool-converted-original, docs/TOOLS.md del repo hermano). Es una observacion de bytes, no una fuente documental: desmiente un hecho previamente registrado de ODA-ODS-DWG-5.4.1-PUBLIC."
+      },
+      "status": "allowed",
+      "factsConsulted": [
+        "Los 8 DWG AC1015 del bundle valle.fundacional.ac1015.001 declaran 6 registros localizadores y guardan en el offset 79 un CRC-16 igual al calculado con semilla 0xC0C1 sobre los bytes [0,79) SIN mascara XOR: el XOR necesario para cuadrar es 0x0000 en los 8",
+        "CRCs guardados observados: 01-vacio 0x717B, 02-una-linea 0xB02A, 03-figuras-basicas 0xA5C1, 04-capas 0xF5F5, 05-lwpolyline-bulges 0xD897, 06-texto 0xA77E, 07-bloques-insert 0xAC25, 08-plano-mini 0x62F6",
+        "La mascara 0x8461 que ODA-ODS-DWG-5.4.1-PUBLIC declara para 6 registros queda DESMENTIDA por los 8 archivos; ningun archivo real del corpus exhibe 3, 4 o 5 registros, asi que las mascaras 0xA598/0x8101/0x3CC4 quedan sin evidencia real en ningun sentido",
+        "El centinela de 16 bytes tras el CRC coincide en los 8 archivos con la constante ya registrada (95 A0 4E 28 99 82 1A E5 5E 41 E0 5F 9D 3A 4D 00)",
+        "Los registros id 0 e id 1 del directorio de los 8 archivos apuntan a marcos que abren con los centinelas registrados de variables-de-cabecera y de clases, y su tamano RL interno es igual al tamano del registro menos 38: el registro del directorio cubre el marco COMPLETO, centinelas incluidos, confirmando la lectura estricta del laboratorio",
+        "Los 32 DWG de los bundles AC1018/AC1024/AC1027/AC1032 no comparten esta cabecera (el campo de recuento en 0x15 vale 0 en todos) y no aportan senal sobre el CRC del contenedor R2000"
+      ],
+      "derivedFiles": [
+        "packages/dwg-codec/src/codecs/crc16.ts",
+        "packages/dwg-codec/src/container/ac1015-file-header.ts",
+        "packages/dwg-codec/src/writer/ac1015-container-writer.ts",
+        "packages/dwg-codec/tests/unit/ac1015-header.spec.ts",
+        "packages/dwg-codec/scripts/provenance-validation.ts",
+        "packages/dwg-codec/DWG0_WORKLOG.md",
+        "packages/dwg-codec/SOURCE_REGISTER.json",
+        "docs/cad/evidence/dwg-corpus-validation.json",
+        "scripts/dwg/validate-corpus.mjs"
+      ],
+      "reviewer": "Medicion first-party del laboratorio bajo la directiva del propietario 2026-08-13; evidencia cruda en docs/cad/evidence/dwg-corpus-validation.json",
+      "reviewedAt": "2026-08-20",
+      "notes": "Primera observacion del programa de intake que corrige el codec: un hecho de la ODS 5.4.1 desmentido por archivos de una implementacion independiente. La correccion mantiene el rango 3-6 del recuento (hecho no contradicho) y elimina la mascara XOR: el CRC de cabecera viaja crudo."
     },
     {
       "id": "AJV-8.20.0-OFFICIAL",

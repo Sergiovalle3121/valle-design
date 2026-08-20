@@ -13,9 +13,11 @@
  *
  * El writer existe para una cosa: ser la mitad emisora del round-trip que
  * mantiene honesto al lector. Por eso no inventa constantes propias — importa
- * la magia, el centinela de cabecera, los centinelas de sección y las
- * máscaras de CRC de los MISMOS módulos que usa el lector; si un hecho está
- * mal transcrito, fallan juntos y el test lo delata.
+ * la magia, el centinela de cabecera y los centinelas de sección de los
+ * MISMOS módulos que usa el lector; si un hecho está mal transcrito, fallan
+ * juntos y el test lo delata. Cuando el corpus real desmintió la máscara XOR
+ * del CRC de cabecera (intake 2026-08-20), esa simetría obligó a corregir a
+ * los DOS a la vez — exactamente para eso existe.
  *
  * Reglas del laboratorio:
  * - **Determinista**: misma entrada → mismos bytes, sin reloj, azar ni estado.
@@ -29,10 +31,7 @@
  * original. Límite declarado: la validación de estas constantes contra corpus
  * real con derechos queda para la fase de intake (DWG0_WORKLOG).
  */
-import {
-  crc16Dwg,
-  FILE_HEADER_CRC_XOR_BY_RECORD_COUNT,
-} from "../codecs/crc16.js";
+import { crc16Dwg } from "../codecs/crc16.js";
 import {
   AC1015_FILE_HEADER_END_SENTINEL,
   AC1015_MAGIC,
@@ -293,18 +292,12 @@ export function writeAc1015Container(
   pushRecord(head, CLASSES_RECORD_ID, classesStart, classesSize);
   pushRecord(head, OBJECT_MAP_RECORD_ID, objectMapStart, objectMapSize);
 
-  // CRC de cabecera: semilla 0xC0C1 sobre todo lo anterior, enmascarado con
-  // la constante XOR del recuento — la misma tabla que consulta el lector.
-  const crcXor = FILE_HEADER_CRC_XOR_BY_RECORD_COUNT.get(RECORD_COUNT);
-  if (crcXor === undefined) {
-    throwDwgError(
-      "DWG_INTERNAL_ERROR",
-      "internal",
-      0,
-      "The writer record count has no CRC mask.",
-    );
-  }
-  pushUint16LE(head, crc16Dwg(Uint8Array.from(head), 0xc0c1) ^ crcXor);
+  // CRC de cabecera: semilla 0xC0C1 sobre todo lo anterior, CRUDO. Hasta el
+  // intake 2026-08-20 este writer aplicaba la máscara XOR por recuento que
+  // declaraba la ODS; el corpus real la desmintió (8/8 AC1015 con CRC sin
+  // máscara) y writer y lector se corrigieron JUNTOS
+  // (VALLE-CORPUS-AC1015-HEADER-CRC-2026-08-20).
+  pushUint16LE(head, crc16Dwg(Uint8Array.from(head), 0xc0c1));
   head.push(...AC1015_FILE_HEADER_END_SENTINEL);
   if (head.length !== FILE_HEADER_LENGTH) {
     throwDwgError(

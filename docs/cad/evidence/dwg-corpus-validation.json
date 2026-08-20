@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "evidenceId": "valle-design-dwg-corpus-validation-v1",
   "generadoPor": "node scripts/dwg/validate-corpus.mjs",
-  "generadoEn": "2026-08-20T16:22:08.103Z",
+  "generadoEn": "2026-08-20T16:33:17.869Z",
   "environment": {
     "node": "v22.18.0",
     "platform": "win32",
@@ -15,7 +15,7 @@
     "totalMemoryBytes": 7896625152,
     "declaredMachine": "AMD Ryzen 5 5500U with Radeon Graphics (12 hilos lógicos), 7.9 GB de RAM, Windows_NT 10.0.26200"
   },
-  "veredicto": "EL DECODER NO ABRE NINGUNO de los 8 DWG AC1015 reales del corpus. Todos fallan en el MISMO punto: DWG_STRUCTURE_CORRUPT @79: The file-header CRC does not match its contents.",
+  "veredicto": "EL DECODER NO ABRE NINGUNO de los 8 DWG AC1015 reales del corpus. Fallos distintos: DWG_STRUCTURE_CORRUPT @3335: Reading an RC byte extends outside the input. | DWG_STRUCTURE_CORRUPT @3337: Reading an RC byte extends outside the input. | DWG_STRUCTURE_CORRUPT @3351: Reading an RC byte extends outside the input. | DWG_STRUCTURE_CORRUPT @3341: Reading an RC byte extends outside the input. | DWG_STRUCTURE_CORRUPT @3389: Reading an RC byte extends outside the input. | DWG_STRUCTURE_CORRUPT @3392: Reading an RC byte extends outside the input.",
   "reglaCleanRoom": "Toda discrepancia se REGISTRA aquí y no se corrige en esta ola: corregir el decoder exige registrar antes el hecho de formato en packages/dwg-codec/SOURCE_REGISTER.json (ADR-0007).",
   "alcance": "Sólo fixtures AC1015 del corpus admitido y verificado por hash. El DXF oráculo es la fuente de autoría propia congelada en el mismo bundle; los DWG los produjo una implementación independiente (ver docs/TOOLS.md del repo hermano).",
   "corpus": {
@@ -156,8 +156,8 @@
       "error": {
         "code": "DWG_STRUCTURE_CORRUPT",
         "category": "input",
-        "offset": 79,
-        "message": "The file-header CRC does not match its contents."
+        "offset": 3335,
+        "message": "Reading an RC byte extends outside the input."
       }
     },
     {
@@ -166,8 +166,8 @@
       "error": {
         "code": "DWG_STRUCTURE_CORRUPT",
         "category": "input",
-        "offset": 79,
-        "message": "The file-header CRC does not match its contents."
+        "offset": 3337,
+        "message": "Reading an RC byte extends outside the input."
       }
     },
     {
@@ -176,8 +176,8 @@
       "error": {
         "code": "DWG_STRUCTURE_CORRUPT",
         "category": "input",
-        "offset": 79,
-        "message": "The file-header CRC does not match its contents."
+        "offset": 3337,
+        "message": "Reading an RC byte extends outside the input."
       }
     },
     {
@@ -186,8 +186,8 @@
       "error": {
         "code": "DWG_STRUCTURE_CORRUPT",
         "category": "input",
-        "offset": 79,
-        "message": "The file-header CRC does not match its contents."
+        "offset": 3351,
+        "message": "Reading an RC byte extends outside the input."
       }
     },
     {
@@ -196,8 +196,8 @@
       "error": {
         "code": "DWG_STRUCTURE_CORRUPT",
         "category": "input",
-        "offset": 79,
-        "message": "The file-header CRC does not match its contents."
+        "offset": 3337,
+        "message": "Reading an RC byte extends outside the input."
       }
     },
     {
@@ -206,8 +206,8 @@
       "error": {
         "code": "DWG_STRUCTURE_CORRUPT",
         "category": "input",
-        "offset": 79,
-        "message": "The file-header CRC does not match its contents."
+        "offset": 3341,
+        "message": "Reading an RC byte extends outside the input."
       }
     },
     {
@@ -216,8 +216,8 @@
       "error": {
         "code": "DWG_STRUCTURE_CORRUPT",
         "category": "input",
-        "offset": 79,
-        "message": "The file-header CRC does not match its contents."
+        "offset": 3389,
+        "message": "Reading an RC byte extends outside the input."
       }
     },
     {
@@ -226,8 +226,8 @@
       "error": {
         "code": "DWG_STRUCTURE_CORRUPT",
         "category": "input",
-        "offset": 79,
-        "message": "The file-header CRC does not match its contents."
+        "offset": 3392,
+        "message": "Reading an RC byte extends outside the input."
       }
     }
   ],
@@ -248,15 +248,8 @@
       "error": {
         "code": "DWG_STRUCTURE_CORRUPT",
         "category": "input",
-        "offset": 79,
-        "message": "The file-header CRC does not match its contents."
-      },
-      "observacionCrcCabecera": {
-        "recordCount": 6,
-        "crcGuardado": "0x717b",
-        "crcCalculadoSemilla0xc0c1": "0x717b",
-        "xorNecesarioParaCuadrar": "0x0000",
-        "hechoRegistradoContradicho": "SOURCE_REGISTER.json (ODA-ODS-DWG-5.4.1-PUBLIC) declara máscara XOR por recuento de registros (6→0x8461); los archivos reales de una implementación independiente guardan el CRC SIN máscara (XOR observado 0x0000)."
+        "offset": 3335,
+        "message": "Reading an RC byte extends outside the input."
       }
     },
     {
@@ -277,15 +270,8 @@
       "error": {
         "code": "DWG_STRUCTURE_CORRUPT",
         "category": "input",
-        "offset": 79,
-        "message": "The file-header CRC does not match its contents."
-      },
-      "observacionCrcCabecera": {
-        "recordCount": 6,
-        "crcGuardado": "0xb02a",
-        "crcCalculadoSemilla0xc0c1": "0xb02a",
-        "xorNecesarioParaCuadrar": "0x0000",
-        "hechoRegistradoContradicho": "SOURCE_REGISTER.json (ODA-ODS-DWG-5.4.1-PUBLIC) declara máscara XOR por recuento de registros (6→0x8461); los archivos reales de una implementación independiente guardan el CRC SIN máscara (XOR observado 0x0000)."
+        "offset": 3337,
+        "message": "Reading an RC byte extends outside the input."
       }
     },
     {
@@ -309,15 +295,8 @@
       "error": {
         "code": "DWG_STRUCTURE_CORRUPT",
         "category": "input",
-        "offset": 79,
-        "message": "The file-header CRC does not match its contents."
-      },
-      "observacionCrcCabecera": {
-        "recordCount": 6,
-        "crcGuardado": "0xa5c1",
-        "crcCalculadoSemilla0xc0c1": "0xa5c1",
-        "xorNecesarioParaCuadrar": "0x0000",
-        "hechoRegistradoContradicho": "SOURCE_REGISTER.json (ODA-ODS-DWG-5.4.1-PUBLIC) declara máscara XOR por recuento de registros (6→0x8461); los archivos reales de una implementación independiente guardan el CRC SIN máscara (XOR observado 0x0000)."
+        "offset": 3337,
+        "message": "Reading an RC byte extends outside the input."
       }
     },
     {
@@ -347,15 +326,8 @@
       "error": {
         "code": "DWG_STRUCTURE_CORRUPT",
         "category": "input",
-        "offset": 79,
-        "message": "The file-header CRC does not match its contents."
-      },
-      "observacionCrcCabecera": {
-        "recordCount": 6,
-        "crcGuardado": "0xf5f5",
-        "crcCalculadoSemilla0xc0c1": "0xf5f5",
-        "xorNecesarioParaCuadrar": "0x0000",
-        "hechoRegistradoContradicho": "SOURCE_REGISTER.json (ODA-ODS-DWG-5.4.1-PUBLIC) declara máscara XOR por recuento de registros (6→0x8461); los archivos reales de una implementación independiente guardan el CRC SIN máscara (XOR observado 0x0000)."
+        "offset": 3351,
+        "message": "Reading an RC byte extends outside the input."
       }
     },
     {
@@ -376,15 +348,8 @@
       "error": {
         "code": "DWG_STRUCTURE_CORRUPT",
         "category": "input",
-        "offset": 79,
-        "message": "The file-header CRC does not match its contents."
-      },
-      "observacionCrcCabecera": {
-        "recordCount": 6,
-        "crcGuardado": "0xd897",
-        "crcCalculadoSemilla0xc0c1": "0xd897",
-        "xorNecesarioParaCuadrar": "0x0000",
-        "hechoRegistradoContradicho": "SOURCE_REGISTER.json (ODA-ODS-DWG-5.4.1-PUBLIC) declara máscara XOR por recuento de registros (6→0x8461); los archivos reales de una implementación independiente guardan el CRC SIN máscara (XOR observado 0x0000)."
+        "offset": 3337,
+        "message": "Reading an RC byte extends outside the input."
       }
     },
     {
@@ -405,15 +370,8 @@
       "error": {
         "code": "DWG_STRUCTURE_CORRUPT",
         "category": "input",
-        "offset": 79,
-        "message": "The file-header CRC does not match its contents."
-      },
-      "observacionCrcCabecera": {
-        "recordCount": 6,
-        "crcGuardado": "0xa77e",
-        "crcCalculadoSemilla0xc0c1": "0xa77e",
-        "xorNecesarioParaCuadrar": "0x0000",
-        "hechoRegistradoContradicho": "SOURCE_REGISTER.json (ODA-ODS-DWG-5.4.1-PUBLIC) declara máscara XOR por recuento de registros (6→0x8461); los archivos reales de una implementación independiente guardan el CRC SIN máscara (XOR observado 0x0000)."
+        "offset": 3341,
+        "message": "Reading an RC byte extends outside the input."
       }
     },
     {
@@ -438,15 +396,8 @@
       "error": {
         "code": "DWG_STRUCTURE_CORRUPT",
         "category": "input",
-        "offset": 79,
-        "message": "The file-header CRC does not match its contents."
-      },
-      "observacionCrcCabecera": {
-        "recordCount": 6,
-        "crcGuardado": "0xac25",
-        "crcCalculadoSemilla0xc0c1": "0xac25",
-        "xorNecesarioParaCuadrar": "0x0000",
-        "hechoRegistradoContradicho": "SOURCE_REGISTER.json (ODA-ODS-DWG-5.4.1-PUBLIC) declara máscara XOR por recuento de registros (6→0x8461); los archivos reales de una implementación independiente guardan el CRC SIN máscara (XOR observado 0x0000)."
+        "offset": 3389,
+        "message": "Reading an RC byte extends outside the input."
       }
     },
     {
@@ -479,15 +430,8 @@
       "error": {
         "code": "DWG_STRUCTURE_CORRUPT",
         "category": "input",
-        "offset": 79,
-        "message": "The file-header CRC does not match its contents."
-      },
-      "observacionCrcCabecera": {
-        "recordCount": 6,
-        "crcGuardado": "0x62f6",
-        "crcCalculadoSemilla0xc0c1": "0x62f6",
-        "xorNecesarioParaCuadrar": "0x0000",
-        "hechoRegistradoContradicho": "SOURCE_REGISTER.json (ODA-ODS-DWG-5.4.1-PUBLIC) declara máscara XOR por recuento de registros (6→0x8461); los archivos reales de una implementación independiente guardan el CRC SIN máscara (XOR observado 0x0000)."
+        "offset": 3392,
+        "message": "Reading an RC byte extends outside the input."
       }
     }
   ]

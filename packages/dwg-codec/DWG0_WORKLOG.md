@@ -163,6 +163,11 @@ y la promoción condicionada a revisión legal externa.
   cabecera, constantes XOR del CRC y centinela final. Límite conocido: esas
   constantes quedan pendientes de validación contra corpus real con derechos;
   hasta entonces la evidencia es el round-trip de laboratorio.
+  **Actualización 2026-08-20**: el corpus real resolvió este límite en dos
+  sentidos — la máscara XOR del CRC quedó **desmentida por corpus, corregida**
+  (8/8 AC1015 reales guardan el CRC crudo; XOR observado 0x0000 con 6
+  registros) y el centinela final quedó CONFIRMADO byte a byte. Ver
+  `VALLE-CORPUS-AC1015-HEADER-CRC-2026-08-20` y la sesión de intake de abajo.
 
 ## DWG-1 sesión 2026-08-14 (continuación) — writer del contenedor (fase C)
 
@@ -483,3 +488,38 @@ y la promoción condicionada a revisión legal externa.
   del mapa. Los ATTRIBs del INSERT y la interpretación de los punteros
   primera/última entidad quedan pendientes declarados. El producto
   permanece `available:false`.
+
+## Intake sesión 2026-08-20 — ola E2: el corpus real corrige el codec
+
+Primer ciclo del bucle de intake del ADR-0007 sobre el corpus admitido
+(commit `dae5e77`, 40 DWG generados por ODA File Converter 27.1 desde DXF
+propios). Disciplina: cada hecho de formato descubierto por diffing se
+registra PRIMERO en `SOURCE_REGISTER.json` como observación first-party y
+sólo después se toca el código. Un commit por hecho.
+
+### Hecho 1 — CRC de cabecera SIN máscara XOR (desmentido por corpus, corregido 2026-08-20)
+
+- Certeza previa (fase B, MEDIA): el CRC de la cabecera se enmascara con la
+  constante XOR del recuento de registros (3→0xA598, 4→0x8101, 5→0x3CC4,
+  6→0x8461), hecho tomado de la ODS 5.4.1. Evidencia hasta hoy: round-trip
+  de laboratorio.
+- Observación (`VALLE-CORPUS-AC1015-HEADER-CRC-2026-08-20`): los 8 AC1015
+  reales declaran 6 registros y guardan en el offset 79 el CRC-16 crudo
+  (semilla 0xC0C1 sobre los bytes [0,79)); el XOR necesario para cuadrar es
+  0x0000 en los 8. La máscara 0x8461 queda **desmentida por corpus,
+  corregida**. Ningún archivo real exhibe 3–5 registros y los 32 DWG de
+  otras versiones no comparten esta cabecera: las máscaras 0xA598/0x8101/
+  0x3CC4 quedan sin evidencia real en ningún sentido.
+- Decisión: el laboratorio abandona la máscara ENTERA — el lector valida el
+  CRC crudo para todo recuento 3–6 y el writer lo emite crudo, COHERENTES.
+  Mantener máscaras sin evidencia sólo en los recuentos que ningún archivo
+  real exhibe habría preservado una tabla cuya única entrada comprobable
+  resultó falsa. El rango 3–6 del recuento se conserva (hecho no
+  contradicho). Si algún día un archivo real con 3–5 registros no cuadra,
+  el harness lo caracterizará como hoy caracterizó éste.
+- Confirmaciones de regalo de la misma medición: el centinela final de la
+  cabecera coincide byte a byte en los 8, y los registros id 0/1 cubren el
+  marco COMPLETO de su sección (tamaño RL = tamaño del registro − 38, con
+  los centinelas de apertura registrados en su sitio) — la "decisión de
+  laboratorio" del encaje exacto de fase C es ahora un hecho confirmado
+  por corpus para esas dos secciones.
