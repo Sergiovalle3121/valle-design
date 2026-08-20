@@ -405,7 +405,7 @@ describe('selección del almacenamiento cableado en el puerto CAD', () => {
   it('usa la base cuando el almacenamiento de objetos no está disponible', () => {
     const chosen = selectCadBlobStore(
       database,
-      new UnavailableS3BlobStore(['S3_BLOB_ENDPOINT']) as never,
+      new UnavailableS3BlobStore(['S3_BLOB_ENDPOINT']),
     );
     expect(chosen).toBeInstanceOf(DesignBlobStoreAdapter);
   });
