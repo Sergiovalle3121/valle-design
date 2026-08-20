@@ -69,6 +69,8 @@ import { CAD_UCS_VIEW_COMMANDS } from "./commands/ucs-view-commands";
 import { CAD_VIEW_NAVIGATION_3D_COMMANDS } from "./commands/view-navigation-3d";
 // Esquema 8: la vista derivada. SOLVIEW abre la ventana y SOLDRAW dibuja dentro.
 import { CAD_SOLVIEW_COMMANDS } from "./commands/solview-commands";
+// Aplanado y perfil: FLATSHOT y SOLPROF convierten el modelo en dibujo 2D.
+import { CAD_SOLID_FLATSHOT_COMMANDS } from "./commands/solids-flatshot";
 
 export * from "./command-types";
 export * from "./command-engine";
@@ -154,6 +156,8 @@ export const CAD_COMMAND_DESCRIPTORS = [
   // Esquema 8: la vista derivada, que es lo que le quita al arquitecto la
   // segunda vez que dibuja lo mismo. Al final del array a propósito.
   ...CAD_SOLVIEW_COMMANDS,
+  // Aplanado: la mitad del 3D que devuelve dibujo 2D acotable en vez de píxeles.
+  ...CAD_SOLID_FLATSHOT_COMMANDS,
 ] as const;
 
 /**
