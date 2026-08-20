@@ -4,6 +4,7 @@ import type { CadTextAnchor } from "./cad-entities-v4";
 import type { CadDimensionEntity } from "./associative-dimension";
 import { buildCadMleaderGeometry, type CadMleaderEntity } from "./associative-mleader";
 import { DEFAULT_MLEADER_STYLE } from "./mleader";
+import { clampedKnots } from "./dxf-nurbs-knots";
 import { DXF_XDATA_APP_BLOCK, DXF_XDATA_APP_MLEADER } from "@valle-design/contracts";
 // Los pares código/valor, el saneado de nombres y el formato numérico viven en
 // su propio módulo hoja: los escritores del esquema 4 usan EXACTAMENTE los
@@ -368,14 +369,6 @@ function pushEllipse(
   pushPair(lines, 42, fmt((endAngleDeg * Math.PI) / 180));
 }
 /** Vector de nudos clamped uniforme: n + grado + 1 valores en [0,1]. */
-function clampedKnots(controlCount: number, degree: number): number[] {
-  const knots: number[] = [];
-  const spans = controlCount - degree;
-  for (let i = 0; i <= degree; i++) knots.push(0);
-  for (let i = 1; i < spans; i++) knots.push(i / spans);
-  for (let i = 0; i <= degree; i++) knots.push(1);
-  return knots;
-}
 function pushSpline(
   lines: string[],
   layer: string,
