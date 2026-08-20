@@ -20,9 +20,11 @@
  * - cada manifest se compara con el `manifestSha256` que declara el índice;
  * - cada fixture y cada oracle se comparan con su `sha256` y su `byteLength`;
  * - el manifest debe seguir siendo `allowed`, sin datos de clientes, con dos
- *   revisores humanos distintos y DOS VALIDACIONES INDEPENDIENTES —la frase
- *   que gobierna la promoción en `CORPUS_POLICY.md`: el reader y el writer de
- *   Valle nunca son el único oráculo.
+ *   revisores humanos distintos —o, bajo la enmienda 2026-08-20 del repo
+ *   hermano, un revisor-propietario si el origen es `tool-converted-original`
+ *   con su herramienta registrada— y DOS VALIDACIONES INDEPENDIENTES —la
+ *   frase que gobierna la promoción en `CORPUS_POLICY.md`: el reader y el
+ *   writer de Valle nunca son el único oráculo.
  *
  * FALLA CERRADO significa error TIPADO con código, nunca un resultado a medias
  * que parezca correcto: no hay «se descargaron 3 de 4», no hay bundle sin
@@ -65,7 +67,9 @@ const ADMITTED_ORIGINS = Object.freeze([
   "sergio-original",
   "donated-original",
   "licensed-third-party",
+  "tool-converted-original",
 ]);
+const TOOL_REGISTRY_REF_RE = /^docs\/TOOLS\.md#[a-z0-9][a-z0-9.-]{0,127}$/;
 
 /**
  * El único error que este módulo lanza hacia fuera.
@@ -338,8 +342,26 @@ function assertAdmittedManifest(manifest, bundleId) {
     bad("falta la referencia privada del acuerdo de derechos");
   if (!Array.isArray(manifest.sourceFactIds) || manifest.sourceFactIds.length === 0)
     bad("el bundle no declara los hechos de fuente que lo justifican");
-  if (!Array.isArray(manifest.reviews) || new Set(manifest.reviews).size < 2)
+  // Enmienda 2026-08-20 de CORPUS_POLICY.md (repo hermano): el origen
+  // tool-converted-original admite UN revisor-propietario porque lo respaldan
+  // dos validaciones automáticas independientes Y la herramienta registrada
+  // (toolRegistryRef obligatorio). Cualquier otro origen sigue exigiendo dos
+  // revisores humanos distintos.
+  const reviewers = Array.isArray(manifest.reviews)
+    ? new Set(
+        manifest.reviews.map((handle) =>
+          typeof handle === "string" ? handle.toLowerCase() : handle,
+        ),
+      )
+    : new Set();
+  if (manifest.rights?.origin === "tool-converted-original") {
+    if (reviewers.size < 1)
+      bad("la admisión tool-converted-original exige al menos el revisor-propietario");
+    if (!TOOL_REGISTRY_REF_RE.test(manifest.rights?.toolRegistryRef ?? ""))
+      bad("un bundle tool-converted-original no referencia su registro de herramienta");
+  } else if (reviewers.size < 2) {
     bad("la admisión exige dos revisores humanos distintos");
+  }
 
   // La frase de CORPUS_POLICY.md, hecha código: el reader y el writer Valle
   // nunca son el único oráculo. Dos validaciones INDEPENDIENTES —validador y
