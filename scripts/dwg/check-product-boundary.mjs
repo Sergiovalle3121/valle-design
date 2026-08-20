@@ -34,6 +34,8 @@ const forbiddenCodecReferences = [
   "..\\dwg-codec",
 ];
 const ignoredRuntimeDirectories = new Set([
+  // Worktrees efímeros del harness de agentes: copias del árbol dentro del repo.
+  ".claude",
   ".next",
   ".report",
   ".turbo",

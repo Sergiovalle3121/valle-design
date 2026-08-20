@@ -10,6 +10,7 @@
     ".jsx"
   ],
   "ignoredDirectories": [
+    ".claude",
     ".git",
     ".next",
     ".turbo",

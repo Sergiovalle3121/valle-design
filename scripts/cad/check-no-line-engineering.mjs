@@ -4,6 +4,9 @@ import ts from "typescript";
 
 const root = path.resolve(import.meta.dirname, "../..");
 const ignoredDirectories = new Set([
+  // .claude aloja worktrees efímeros que el harness de agentes crea DENTRO del
+  // repo; su contenido es una copia del árbol y barrerla duplica cada hallazgo.
+  ".claude",
   ".git",
   ".next",
   ".turbo",

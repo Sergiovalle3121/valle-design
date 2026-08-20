@@ -1,3 +1,6 @@
+# Worktrees efímeros que el harness de agentes crea dentro del repo
+.claude/
+
 # Compiled and build artifacts
 *.pyc
 __pycache__/
