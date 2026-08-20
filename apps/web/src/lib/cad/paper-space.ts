@@ -10,6 +10,7 @@ import {
 } from "./cad-document";
 import { cadPlanViewport } from "./cad-paper-viewport";
 import { cadLayerShown } from "./cad-layer-visibility";
+import { buildCadHatchPublishStrokes } from "./hatch-publish-strokes";
 import { tessellateArc, tessellateEllipse, tessellateSpline } from "./curve-tessellate";
 import { buildCadDimensionGeometry } from "./associative-dimension";
 import { buildCadMleaderGeometry } from "./associative-mleader";
@@ -691,14 +692,13 @@ function renderEntity(
         ),
       )
       .filter((value): value is CadVectorCommand => !!value);
-    if (!entity.solid)
-      context.warnings.push({
-        code: "hatch_pattern_outline_only",
-        sheetId: context.sheetId,
-        viewportId: context.viewport.id,
-        entityId: entity.id,
-        detail: `Pattern ${entity.pattern} is published as its vector boundary; pattern strokes are not yet emitted.`,
-      });
+    // El patrón viaja como trazos reales; la guarda de densidad degrada a
+    // contorno con aviso honesto antes que fabricar un PDF imposible.
+    const pattern = buildCadHatchPublishStrokes(entity, Math.hypot(matrix.a, matrix.b));
+    // Dos puntos SIEMPRE forman un path: el `!` no esconde ningún caso.
+    for (const segment of pattern.strokes) commands.push(path([segment.a, segment.b])!);
+    if (pattern.warning)
+      context.warnings.push({ ...pattern.warning, sheetId: context.sheetId, viewportId: context.viewport.id, entityId: entity.id });
     return commands;
   }
   if (entity.type === "mleader") {
