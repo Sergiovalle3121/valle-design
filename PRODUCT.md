@@ -12,7 +12,16 @@ opera como un tenant independiente.
 - Crear y activar organizaciones, consultar membresías, invitar por email y
   aceptar invitaciones con roles `owner`, `admin`, `member` o `viewer`.
 - Iniciar un trial al crear la organización y consultar la suscripción y los
-  entitlements efectivos. El producto no publica precios ni captura pagos.
+  entitlements efectivos.
+- Consultar los planes y precios publicados en `/precios` —los importes los
+  sirve el catálogo real (`GET /v1/commercial/public/plans`), no un texto
+  estático— y comprar por autoservicio: checkout hospedado de Stripe con
+  tarjeta, OXXO y SPEI, portal de facturación del proveedor, historial de
+  facturas y baja de la suscripción. Los datos de pago no pasan por Valle:
+  los custodia la pasarela. **Caveat fiscal honesto:** no hay PAC contratado;
+  los datos fiscales se capturan y validan en el producto y el CFDI lo emite
+  una persona con ellos delante (`mode: 'manual'` en
+  `GET /v1/commercial/tax-profile`). El producto no timbra todavía.
 - Crear proyectos y documentos, abrirlos por UUID en
   `/studio/[documentId]`, editar con herramientas CAD, autosave, undo/redo,
   guardado CAS y consulta de versiones.
@@ -77,8 +86,13 @@ verifica contra la API real y PostgreSQL en
 - El corpus de 100k usa LOD. Los números actuales no demuestran 60 FPS, tiempo
   real, memoria estabilizada ni detalle completo de 100k entidades.
 - “Standalone” describe la identidad, autorización, datos y despliegue del
-  producto. No implica que el repositorio incluya un proveedor de correo, un
-  procesador de pagos o el servicio CIDE.
+  producto. El repositorio incluye los ADAPTADORES de correo, de pagos
+  (Stripe) y de CIDE, no los servicios: sin las credenciales del operador cada
+  uno degrada de forma declarada (el checkout responde
+  `checkout_unavailable`, el CFDI es manual, la asistencia responde
+  `available:false`). Ya no es cierto que el producto «no capture pagos» —lo
+  que sigue siendo cierto es que no los custodia: tarjeta, OXXO y SPEI viven
+  en la pasarela.
 - Un test unitario, un golden con red simulada o una ruta visible no bastan para
   anunciar una capacidad completa. La matriz competitiva exige evidencia del
   límite relevante y mantiene los gaps abiertos.
