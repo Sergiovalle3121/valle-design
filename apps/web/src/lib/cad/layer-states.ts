@@ -6,20 +6,19 @@
  * estados de capa, cambiar de una a otra son cuarenta interruptores y el error
  * no se ve hasta que sale el papel.
  *
- * ## Por qué vive en la sesión y no en el documento
+ * ## Desde el esquema 9 viven EN EL DOCUMENTO
  *
- * `CadDocument` no tiene sección donde ponerlos y `cad-document.ts` pertenece a
- * otra sesión en esta ola. La lista de estados, por tanto, no sobrevive a una
- * recarga; RESTAURAR uno sí toca el documento y sí es reversible con deshacer,
- * porque sale por la ruta canónica como cualquier otro cambio. La diferencia
- * está dicha en el comando, no sólo aquí.
+ * Hasta el v8, `CadDocument` no tenía sección donde ponerlos: la lista vivía
+ * en un catálogo de sesión y LAYERSTATE avisaba de que no sobrevivía a una
+ * recarga. El esquema 9 estrena `document.layerStates`, así que guardar y
+ * suprimir salen por el lote (`layer-state` en `entity-command-tables.ts`),
+ * sobreviven a la recarga, se deshacen con Ctrl+Z y viajan con el documento.
  *
- * Es la misma decisión —y la misma limitación— que tomó el gestor de capas de
- * la ola 1 en `components/cad/palettes/layer-manager-model.ts`. Este módulo es
- * su gemelo del lado de `lib`: aquel captura FILAS de una tabla de interfaz,
- * éste captura `CadLayerDef` del documento, que es lo que un comando tecleado
- * tiene delante.
+ * El catálogo de sesión del final del archivo NO desaparece: queda como la
+ * MEMORIA del aislamiento de LAYISO/LAYWALK, que sí es de la sesión — dos
+ * personas con el mismo plano aíslan cada una lo suyo.
  */
+import { commitChange, type CadDocument } from "./cad-document";
 import type { CadEntityCommand } from "./entity-commands";
 import type { CadLayerDef } from "./cad-document";
 
@@ -141,7 +140,88 @@ function sameLayer(a: CadLayerDef, b: CadLayerDef): boolean {
   );
 }
 
-/** Catálogo en memoria; el mismo contrato que el resto de catálogos de sesión. */
+// ---------------------------------------------------------------------------
+// Estados en el DOCUMENTO — la puerta que usa el gestor de capas
+// ---------------------------------------------------------------------------
+
+/**
+ * Guarda (o sustituye, por nombre) un estado en `document.layerStates`.
+ *
+ * Es la MISMA escritura que emite LAYERSTATE por el lote, expuesta como
+ * mutación directa para el gestor de capas, que muta con `commitChange` igual
+ * que `updateCadDocumentLayer`. El nombre es la identidad, sin distinguir
+ * mayúsculas; la lista queda ordenada por nombre porque es un catálogo.
+ */
+export function upsertCadDocumentLayerState(
+  document: CadDocument,
+  state: CadNamedLayerState,
+): CadDocument {
+  const name = state.name.trim();
+  if (!name) return document;
+  const key = name.toUpperCase();
+  const layerStates = [
+    ...(document.layerStates ?? []).filter((entry) => entry.name.toUpperCase() !== key),
+    state,
+  ].sort((a, b) => a.name.localeCompare(b.name));
+  return commitChange({ ...document, layerStates }, `layer-state:upsert:${name}`);
+}
+
+/** Borra un estado por nombre; el MISMO documento si no existía. */
+export function deleteCadDocumentLayerState(
+  document: CadDocument,
+  name: string,
+): CadDocument {
+  const key = name.trim().toUpperCase();
+  const layerStates = (document.layerStates ?? []).filter(
+    (entry) => entry.name.toUpperCase() !== key,
+  );
+  if (layerStates.length === (document.layerStates ?? []).length) return document;
+  const next = { ...document, layerStates };
+  // La sección es opcional-ausente: borrar el último estado la retira entera.
+  if (layerStates.length === 0) delete (next as Partial<CadDocument>).layerStates;
+  return commitChange(next, `layer-state:delete:${name.trim()}`);
+}
+
+/**
+ * Restituye un estado del documento en UNA transacción. Devuelve el MISMO
+ * documento cuando el estado no existe o no hay nada que cambiar, para que el
+ * anfitrión pueda decir «no había cambios» en vez de ensuciar el historial.
+ */
+export function restoreCadDocumentLayerState(
+  document: CadDocument,
+  name: string,
+  scope: CadLayerStateScope = CAD_LAYER_STATE_FULL_SCOPE,
+): CadDocument {
+  const key = name.trim().toUpperCase();
+  const state = (document.layerStates ?? []).find(
+    (entry) => entry.name.toUpperCase() === key,
+  );
+  if (!state) return document;
+  const plan = planCadLayerStateRestore(state, document.layers, scope);
+  if (plan.commands.length === 0) return document;
+  const patched = new Map(
+    plan.commands.flatMap((command) =>
+      command.type === "layer" && command.op === "upsert"
+        ? [[command.layer.name.toUpperCase(), command.layer] as const]
+        : [],
+    ),
+  );
+  return commitChange(
+    {
+      ...document,
+      layers: document.layers.map(
+        (layer) => patched.get(layer.name.toUpperCase()) ?? layer,
+      ),
+    },
+    `layer-state:restore:${state.name}`,
+  );
+}
+
+/**
+ * Catálogo en memoria, con el contrato de los catálogos de sesión. Desde que
+ * LAYERSTATE escribe en el documento, su único uso es la MEMORIA del
+ * aislamiento (`settings-layer-tools.ts`): la foto previa a LAYISO/LAYWALK.
+ */
 export class CadLayerStateCatalog {
   private items: CadNamedLayerState[] = [];
 

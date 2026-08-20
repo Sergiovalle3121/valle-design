@@ -7,6 +7,8 @@
  * que la primitiva regrese idéntica dentro de tolerancia de punto flotante.
  */
 import { strict as assert } from "node:assert";
+import { importDocumentText } from "./document-import";
+import { exportCadDocumentDxf } from "./dxf-document-export";
 import { exportCadDxf } from "./dxf-export";
 import { importDxfPrimitives } from "./dxf-import";
 
@@ -120,5 +122,37 @@ assert.ok(
   !imported.warnings.some((w) => w.code === "unsupported_entity"),
   "círculo, arco, elipse y spline ya no generan advertencia de entidad no soportada",
 );
+
+// --- código 70, bit 1: la capa CONGELADA sobrevive la ida y la vuelta ---------
+//
+// El importador leía el bit desde siempre y lo descartaba al construir la capa;
+// el exportador escribía `70 0` fijo. Las dos mitades se prueban juntas por el
+// camino REAL del producto: documento canónico → DXFOUT → DXFIN → documento.
+{
+  const exported = exportCadDocumentDxf({
+    entities: [
+      { id: "muro", type: "line", layer: "MUROS", start: { x: 0, y: 0, z: 0 }, end: { x: 100, y: 0, z: 0 } },
+      { id: "tubo", type: "line", layer: "MEP", start: { x: 0, y: 50, z: 0 }, end: { x: 100, y: 50, z: 0 } },
+    ],
+    blocks: [],
+    layers: [
+      { id: "MUROS", name: "MUROS", color: "#ff0000", visible: true, locked: false },
+      { id: "MEP", name: "MEP", color: "#00ff00", visible: true, locked: false, frozen: true },
+    ],
+  });
+
+  // El fichero declara el bit: el registro LAYER de MEP lleva `70` = 1.
+  const lines = exported.content.split(/\r?\n/);
+  const mepAt = lines.findIndex((line, index) => line.trim() === "MEP" && lines[index - 1]?.trim() === "2");
+  assert.ok(mepAt > 0, "la tabla LAYER declara la capa MEP");
+  assert.equal(lines[mepAt + 1]?.trim(), "70", "tras el nombre viene el código 70");
+  assert.equal(lines[mepAt + 2]?.trim(), "1", "y vale 1: bit de congelada");
+
+  const report = importDocumentText("plano.dxf", exported.content);
+  const mep = report.document.layers.find((layer) => layer.name === "MEP");
+  const muros = report.document.layers.find((layer) => layer.name === "MUROS");
+  assert.equal(mep?.frozen, true, "la capa congelada VUELVE congelada");
+  assert.ok(muros && !("frozen" in muros), "la no congelada vuelve sin la clave: opcional-ausente");
+}
 
 console.log("cad dxf round-trip specs passed");

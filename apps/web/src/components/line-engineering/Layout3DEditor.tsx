@@ -240,6 +240,8 @@ import {
 } from "@/lib/cad/cad-recovery-journal";
 import { planCadNativeRenderBudget } from "@/lib/cad/native-render-budget";
 import { CadNativeSelectionIndex } from "@/lib/cad/native-selection-index";
+// Apagada O congelada (esquema 9): la regla vive en un solo módulo.
+import { cadHiddenLayerIds } from "@/lib/cad/cad-layer-visibility";
 import {
   EMPTY_CAD_SELECTION,
   reduceCadSelection,
@@ -619,9 +621,7 @@ import {
   type CadEditorLayerKey,
 } from "@/components/cad/palettes/CadEditorLayerToggles";
 import {
-  captureCadLayerState,
   filterCadLayerRows,
-  planCadLayerStateRestore,
   type CadLayerFilterProperty,
   type CadLayerManagerRow,
 } from "@/components/cad/palettes/layer-manager-model";
@@ -2369,11 +2369,7 @@ export default function Layout3DEditor({
           child.visible = L.equipment;
           setCadNativeOverviewHiddenLayers(
             child as THREE.LineSegments,
-            new Set(
-              document?.layers
-                .filter((layer) => layer.visible === false)
-                .map((layer) => layer.id) ?? [],
-            ),
+            cadHiddenLayerIds(document?.layers ?? []),
           );
           return;
         }
@@ -2382,11 +2378,7 @@ export default function Layout3DEditor({
         if (child.userData?.cadRenderScene === true) {
           child.visible = L.equipment;
           renderPipelineHostRef.current?.setHiddenLayers(
-            new Set(
-              document?.layers
-                .filter((layer) => layer.visible === false)
-                .map((layer) => layer.id) ?? [],
-            ),
+            cadHiddenLayerIds(document?.layers ?? []),
           );
           return;
         }
@@ -2394,11 +2386,7 @@ export default function Layout3DEditor({
           child.visible = L.equipment;
           setCadInsertBatchHiddenLayers(
             child as THREE.Group,
-            new Set(
-              document?.layers
-                .filter((layer) => layer.visible === false)
-                .map((layer) => layer.id) ?? [],
-            ),
+            cadHiddenLayerIds(document?.layers ?? []),
           );
           return;
         }
@@ -2409,7 +2397,8 @@ export default function Layout3DEditor({
         const layer = entity
           ? document?.layers.find((candidate) => candidate.id === entity.layer)
           : undefined;
-        child.visible = L.equipment && layer?.visible !== false;
+        child.visible =
+          L.equipment && (!layer || (layer.visible && layer.frozen !== true));
       });
     }
     if (connsGroupRef.current)
@@ -3452,13 +3441,7 @@ export default function Layout3DEditor({
           batchedHost.replace(document, {
             excludeEntityIds: new Set([...batchedInsertIds, ...shadedSolidIds]),
           });
-        batchedHost.setHiddenLayers(
-          new Set(
-            document.layers
-              .filter((layer) => layer.visible === false)
-              .map((layer) => layer.id),
-          ),
-        );
+        batchedHost.setHiddenLayers(cadHiddenLayerIds(document.layers));
         setNativeRenderStats((current) =>
           current.total === nativeDocumentEntities.length &&
           current.omitted === 0 &&
@@ -3519,11 +3502,7 @@ export default function Layout3DEditor({
             height: context.H,
           },
           8,
-          new Set(
-            document.layers
-              .filter((layer) => layer.visible === false)
-              .map((layer) => layer.id),
-          ),
+          cadHiddenLayerIds(document.layers),
         );
         group.add(overview);
         nativeOverviewRef.current = overview;
@@ -16118,6 +16097,7 @@ export default function Layout3DEditor({
       linetype: definition?.linetype ?? "CONTINUOUS",
       lineweight: definition?.lineweight ?? -1,
       plot: definition?.plot !== false,
+      frozen: definition?.frozen === true,
       objectCount: cadLayerCounts[layer.id] ?? 0,
       frozenInViewport: activeCadViewport
         ? activeCadViewport.layerVisibility?.[layer.id] === false
@@ -16126,6 +16106,10 @@ export default function Layout3DEditor({
     };
   });
   cadLayerRowsRef.current = cadLayerManagerRows;
+  // Estados de capa del DOCUMENTO (esquema 9). Leer el ref en el render es el
+  // patrón de este archivo (cadLayerRowsRef, línea anterior): cada commit ya
+  // re-renderiza por sus setState hermanos, así que la lista nunca es vieja.
+  const documentLayerStates = loadedCadDocumentRef.current?.layerStates ?? [];
   const visibleCadLayerRows = filterCadLayerRows(
     cadLayerManagerRows,
     layerManager.filter,
@@ -16984,7 +16968,7 @@ export default function Layout3DEditor({
                   draftName={layerManager.draftName}
                   draftColor={layerManager.draftColor}
                   draftStateName={layerManager.draftStateName}
-                  states={layerManager.states}
+                  states={documentLayerStates}
                   readOnly={drawingReadOnly}
                   activeViewportName={activeCadViewportName}
                   onFilterText={layerManagerHost.setFilterText}
@@ -17000,6 +16984,7 @@ export default function Layout3DEditor({
                   onPlot={layerActions.setPlot}
                   onToggleVisible={toggleCadLayerVisibility}
                   onToggleLock={toggleCadLayerLock}
+                  onToggleFrozen={layerActions.setFrozen}
                   onToggleViewportFreeze={layerActions.toggleViewportFreeze}
                   onActivate={setActiveCadLayer}
                   onSelectObjects={selectCadLayerObjects}

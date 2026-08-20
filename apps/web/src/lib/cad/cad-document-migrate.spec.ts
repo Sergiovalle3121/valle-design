@@ -26,7 +26,7 @@ import {
 
 // --- ancla absoluta: el número del esquema vigente ---------------------------
 {
-  assert.equal(CAD_DOCUMENT_SCHEMA, 8, "esta ola sube el esquema canónico a 8");
+  assert.equal(CAD_DOCUMENT_SCHEMA, 9, "esta ola sube el esquema canónico a 9");
 }
 
 /** Documento v3 con una entidad de cada familia que ya existía. */
@@ -76,7 +76,7 @@ function schema3Document(): Record<string, unknown> {
   const source = schema3Document();
   const migrated = migrateCadDocument(source);
 
-  assert.equal(migrated.meta.schema, 8, "el documento pasa a declararse v8");
+  assert.equal(migrated.meta.schema, 9, "el documento pasa a declararse v9");
   // Anclas absolutas, campo a campo: no «igual que antes», sino ESTE valor.
   assert.equal(migrated.meta.version, 7, "la versión de contenido NO se toca");
   assert.equal(migrated.meta.unit, "mm");
@@ -220,7 +220,7 @@ function schema3Document(): Record<string, unknown> {
   };
   const migrated = migrateCadDocument(v4);
 
-  assert.equal(migrated.meta.schema, 8, "el v4 pasa a declararse v8");
+  assert.equal(migrated.meta.schema, 9, "el v4 pasa a declararse v9");
   assert.equal(migrated.meta.version, 3, "la versión de contenido NO se toca al subir de esquema");
   const stats = cadDocumentStats(migrated);
   assert.equal(stats.polyline, 1, "la polilínea cerrada SIGUE siendo una polilínea");
@@ -340,6 +340,62 @@ function schema3Document(): Record<string, unknown> {
   assert.equal(stats.polyline, 1, "no se fabrica ninguna polilínea de contorno al guardar");
 }
 
+// --- 8→9: aditivo de verdad — frozen y layerStates sobreviven, y NO se inventan
+{
+  // Un v8 SIN capas congeladas ni estados: la subida sólo toca `meta.schema`.
+  const plainV8 = {
+    ...schema3Document(),
+    meta: { version: 4, schema: 8, unit: "mm" },
+  };
+  const plain = migrateCadDocument(plainV8);
+  assert.equal(plain.meta.schema, 9, "el v8 pasa a declararse v9");
+  assert.equal(plain.meta.version, 4, "la versión de contenido NO se toca");
+  assert.equal(
+    plain.layers[0].frozen,
+    undefined,
+    "`frozen` ausente sigue ausente: congelar no se inventa al abrir",
+  );
+  assert.equal(plain.layerStates, undefined, "`layerStates` no se materializa");
+  assert.ok(!serializeCadDocument(plain).includes("layerStates"));
+  assert.ok(!serializeCadDocument(plain).includes('"frozen"'));
+
+  // Un v8 que YA traía el vocabulario del 9 (guardado por un cliente nuevo
+  // antes de reabrirse): campo a campo, con sus valores exactos.
+  const richV8 = {
+    ...schema3Document(),
+    meta: { version: 11, schema: 8, unit: "mm" },
+    layers: [
+      { id: "MUROS", name: "Muros", color: "#ffffff", visible: true, locked: false, frozen: true },
+    ],
+    layerStates: [
+      {
+        name: "Impresión",
+        entries: [
+          { layerName: "Muros", color: "#ffffff", visible: false, locked: true },
+        ],
+      },
+    ],
+  };
+  const rich = migrateCadDocument(richV8);
+  assert.equal(rich.meta.schema, 9);
+  assert.equal(rich.layers[0].frozen, true, "la capa congelada sigue congelada");
+  assert.equal(rich.layerStates?.length, 1, "el estado de capa sobrevive");
+  assert.equal(rich.layerStates?.[0].name, "Impresión");
+  assert.equal(rich.layerStates?.[0].entries[0].visible, false);
+  assert.equal(rich.layerStates?.[0].entries[0].locked, true);
+
+  // Y sobrevive al VIAJE completo: serializar y reabrir.
+  const reopened = parseCadDocument(serializeCadDocument(rich));
+  assert.equal(reopened.layers[0].frozen, true, "frozen sobrevive a guardar y reabrir");
+  assert.equal(reopened.layerStates?.[0].name, "Impresión");
+
+  // `commitChange` clona la sección nueva, como hace con las demás: sin esto,
+  // editar un estado tras un commit cambiaría también el documento anterior.
+  const committed = commitChange(rich, "prueba");
+  committed.layerStates![0].entries[0].visible = true;
+  assert.equal(rich.layerStates![0].entries[0].visible, false, "el clon es profundo");
+}
+
 // --- un esquema del futuro se rechaza, no se adivina --------------------------
 {
   assert.throws(
@@ -390,8 +446,9 @@ function schema3Document(): Record<string, unknown> {
 }
 
 console.log(
-  "migración v3→v6: esquema, huella, bulge, orden de dibujo y atributos verificados con anclas absolutas; " +
+  "migración v3→v9: esquema, huella, bulge, orden de dibujo y atributos verificados con anclas absolutas; " +
     "secciones opcionales siguen ausentes; ida y vuelta de POINT/XLINE/IMAGE confirmada; " +
-    "v4→v6 aditivo (ninguna REGION ni SOLID3D fabricados), el árbol de construcción sobrevive sin malla " +
-    "y la receta del muro (eje, grosor, altura) sobrevive sin contorno",
+    "v4→v6 aditivo (ninguna REGION ni SOLID3D fabricados), el árbol de construcción sobrevive sin malla, " +
+    "la receta del muro (eje, grosor, altura) sobrevive sin contorno " +
+    "y el 8→9 conserva frozen y layerStates sin materializar nada en quien no los traía",
 );

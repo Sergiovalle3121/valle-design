@@ -101,9 +101,12 @@ function withSchemaDefaults(doc: Partial<CadDocument>): CadDocument {
         ? doc.collaboration
         : undefined,
     // Secciones OPCIONALES: sólo aparecen si el documento las traía. Vale
-    // igual para `parameters`, que llega con el dibujo paramétrico.
+    // igual para `parameters`, que llega con el dibujo paramétrico, y para
+    // `layerStates` (esquema 9): la subida 8→9 no materializa nada — un v8 sin
+    // estados de capa sigue sin la sección, y `frozen` ausente sigue ausente.
     ...(Array.isArray(doc.cells) ? { cells: doc.cells } : {}),
     ...(Array.isArray(doc.imageDefinitions) ? { imageDefinitions: doc.imageDefinitions } : {}),
+    ...(Array.isArray(doc.layerStates) ? { layerStates: doc.layerStates } : {}),
   };
 }
 

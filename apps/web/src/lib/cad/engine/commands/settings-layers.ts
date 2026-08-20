@@ -41,6 +41,9 @@ const LAYER_ON = { keyword: "activar", shortcut: "A" } as const;
 const LAYER_OFF = { keyword: "desactivar", shortcut: "E" } as const;
 const LAYER_LOCK = { keyword: "Bloquear", shortcut: "B" } as const;
 const LAYER_UNLOCK = { keyword: "desbloquear", shortcut: "Q" } as const;
+// Congelar/descongelar (esquema 9): las palabras de AutoCAD en español.
+const LAYER_FREEZE = { keyword: "Inutilizar", shortcut: "I" } as const;
+const LAYER_THAW = { keyword: "Reutilizar", shortcut: "R" } as const;
 const LAYER_LIST = { keyword: "?", shortcut: "?" } as const;
 
 type LayerAction =
@@ -51,6 +54,8 @@ type LayerAction =
   | "off"
   | "lock"
   | "unlock"
+  | "freeze"
+  | "thaw"
   | null;
 
 interface LayerCliState {
@@ -68,6 +73,8 @@ const LAYER_OPTIONS = [
   LAYER_OFF,
   LAYER_LOCK,
   LAYER_UNLOCK,
+  LAYER_FREEZE,
+  LAYER_THAW,
 ];
 
 function layerMenu(state: LayerCliState): CadCommandStep<LayerCliState> {
@@ -126,7 +133,8 @@ const layerCliCommand: CadCommandDescriptor<LayerCliState> = {
                   (layer) =>
                     `${layer.name.padEnd(16)} ${layer.color}  ` +
                     `${layer.visible ? "activada" : "DESACTIVADA"}  ` +
-                    `${layer.locked ? "BLOQUEADA" : "libre"}`,
+                    `${layer.locked ? "BLOQUEADA" : "libre"}` +
+                    `${layer.frozen ? "  CONGELADA" : ""}`,
                 )
                 .join("\n"),
         );
@@ -140,6 +148,8 @@ const layerCliCommand: CadCommandDescriptor<LayerCliState> = {
           [LAYER_OFF.keyword]: "off",
           [LAYER_LOCK.keyword]: "lock",
           [LAYER_UNLOCK.keyword]: "unlock",
+          [LAYER_FREEZE.keyword]: "freeze",
+          [LAYER_THAW.keyword]: "thaw",
         } as Record<string, LayerAction>
       )[input.keyword];
       if (!action) return layerMenu(state);
@@ -202,6 +212,19 @@ const layerCliCommand: CadCommandDescriptor<LayerCliState> = {
         { ...layer, visible: state.action === "on" },
         `-LAYER: "${layer.name}" ${state.action === "on" ? "activada" : "desactivada"}`,
       );
+    if (state.action === "freeze") {
+      // La actual no se congela, como en AutoCAD: los objetos nuevos irían a
+      // una capa que ni se dibuja ni cuenta, y nadie los volvería a ver.
+      if (layer.name === context.activeLayer || layer.id === context.activeLayer)
+        return message(state, `"${layer.name}" es la capa actual y no se puede congelar.`);
+      return layerPatch(state, { ...layer, frozen: true }, `-LAYER: "${layer.name}" congelada`);
+    }
+    if (state.action === "thaw") {
+      // Descongelar BORRA la clave: opcional-ausente, como nació en el esquema 9.
+      const thawed = { ...layer };
+      delete thawed.frozen;
+      return layerPatch(state, thawed, `-LAYER: "${layer.name}" descongelada`);
+    }
     return layerPatch(
       state,
       { ...layer, locked: state.action === "lock" },
@@ -223,6 +246,13 @@ interface LayerStateState {
   action: "save" | "restore" | "delete" | null;
 }
 
+/**
+ * LAYERSTATE lee y escribe `document.layerStates` (esquema 9): el estado
+ * sobrevive a la recarga y viaja con el documento, que es lo que este comando
+ * avisaba de que NO hacía cuando el catálogo era de sesión. Guardar y suprimir
+ * emiten órdenes `layer-state` por el lote; restituir emite los parches de
+ * capa — deshacer devuelve cualquiera de las tres.
+ */
 const layerStateCommand: CadCommandDescriptor<LayerStateState> = {
   name: "LAYERSTATE",
   aliases: ["LAS", "LMAN"],
@@ -235,7 +265,7 @@ const layerStateCommand: CadCommandDescriptor<LayerStateState> = {
   begin: (context) => ({
     state: { action: null },
     prompt: {
-      message: `Estados de capa guardados: ${context.catalogs?.layerStates?.list().length ?? 0}`,
+      message: `Estados de capa del documento: ${context.document?.().layerStates?.length ?? 0}`,
       options: [LS_SAVE, LS_RESTORE, LS_DELETE, LS_LIST],
       defaultOption: LS_RESTORE.keyword,
     },
@@ -243,22 +273,23 @@ const layerStateCommand: CadCommandDescriptor<LayerStateState> = {
   }),
   step: (state, input, context) => {
     if (input.kind === "cancel") return cancelled(state);
-    const catalog = context.catalogs?.layerStates;
-    if (!catalog)
+    if (!context.document)
       return message(
         state,
-        "LAYERSTATE necesita el catálogo de estados de capa de la sesión y este espacio de trabajo no lo aporta.",
+        "LAYERSTATE necesita leer el documento y este anfitrión no lo expone.",
       );
+    const states = context.document().layerStates ?? [];
+    const find = (name: string) =>
+      states.find((entry) => entry.name.toUpperCase() === name.trim().toUpperCase());
 
     if (state.action === null) {
       const keyword = input.kind === "keyword" ? input.keyword : LS_RESTORE.keyword;
       if (keyword === LS_LIST.keyword) {
-        const saved = catalog.list();
         return message(
           state,
-          saved.length === 0
-            ? "No hay ningún estado de capa guardado."
-            : saved.map((entry) => `${entry.name} (${entry.entries.length} capa(s))`).join("\n"),
+          states.length === 0
+            ? "El documento no tiene ningún estado de capa guardado."
+            : states.map((entry) => `${entry.name} (${entry.entries.length} capa(s))`).join("\n"),
         );
       }
       const action =
@@ -269,7 +300,7 @@ const layerStateCommand: CadCommandDescriptor<LayerStateState> = {
           message:
             action === "save"
               ? "Nombre del estado nuevo"
-              : `Nombre del estado (${catalog.list().map((entry) => entry.name).join(", ")})`,
+              : `Nombre del estado (${states.map((entry) => entry.name).join(", ")})`,
           options: [],
         },
         accepts: CAD_ACCEPT_TEXT,
@@ -284,20 +315,33 @@ const layerStateCommand: CadCommandDescriptor<LayerStateState> = {
       const layers = layersOf(context);
       if (layers.length === 0)
         return message(state, "No hay capas que fotografiar en este dibujo.");
-      catalog.save(captureCadLayerState(name, layers));
-      return message(
+      return {
         state,
-        `Estado "${name}" guardado con ${layers.length} capa(s). Vive en la SESIÓN: no sobrevive a una recarga.`,
-      );
+        prompt: { message: "", options: [] },
+        accepts: 0,
+        result: {
+          kind: "document",
+          commands: [{ type: "layer-state", op: "upsert", state: captureCadLayerState(name, layers) }],
+          label: `LAYERSTATE "${name}": ${layers.length} capa(s) guardadas en el documento`,
+        },
+      };
     }
 
-    if (state.action === "delete")
-      return message(
+    if (state.action === "delete") {
+      if (!find(name)) return message(state, `No hay ningún estado llamado "${name}".`);
+      return {
         state,
-        catalog.remove(name) ? `Estado "${name}" suprimido.` : `No hay ningún estado llamado "${name}".`,
-      );
+        prompt: { message: "", options: [] },
+        accepts: 0,
+        result: {
+          kind: "document",
+          commands: [{ type: "layer-state", op: "delete", name }],
+          label: `LAYERSTATE "${name}": estado suprimido del documento`,
+        },
+      };
+    }
 
-    const saved = catalog.get(name);
+    const saved = find(name);
     if (!saved) return message(state, `No hay ningún estado llamado "${name}".`);
     const plan = planCadLayerStateRestore(saved, layersOf(context));
     const notes = [

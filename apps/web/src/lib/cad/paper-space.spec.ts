@@ -291,11 +291,19 @@ assert.ok(
   ),
   "publica atributos del bloque como texto vectorial",
 );
+// El patrón ya NO se degrada por defecto: el sombreado con patrón publica sus
+// trazos además del contorno, y la advertencia de contorno-solo desapareció.
+const patternHatchPaths = plan.sheets
+  .flatMap((sheet) => sheet.viewports)
+  .flatMap((viewport) => viewport.commands)
+  .filter((command) => command.entityId === "pattern-hatch" && command.kind === "path");
 assert.ok(
-  plan.warnings.some(
-    (warning) => warning.code === "hatch_pattern_outline_only",
-  ),
-  "declara degradacion de hatch con patron",
+  patternHatchPaths.length > 1,
+  `el hatch con patron publica trazos ademas del contorno (${patternHatchPaths.length} paths)`,
+);
+assert.ok(
+  !plan.warnings.some((warning) => warning.code === "hatch_pattern_outline_only"),
+  "la degradacion por defecto ya no existe; la guarda de densidad avisa aparte",
 );
 assert.ok(
   plan.warnings.some((warning) => warning.code === "block_definition_missing"),

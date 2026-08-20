@@ -13,6 +13,7 @@
  * paralela se quedaría atrás en cuanto llegase un tipo nuevo.
  */
 import type { CadDocument } from "../cad-document";
+import { cadHiddenLayerIds } from "../cad-layer-visibility";
 import {
   CAD_ENTITY_REGISTRY,
   type CadBounds,
@@ -63,18 +64,18 @@ export interface CadDocumentExtentsOptions {
 /**
  * Envolvente de todo lo dibujado en el espacio modelo.
  *
- * Las capas apagadas quedan fuera, igual que en AutoCAD: encuadrar «todo»
- * incluyendo lo que no se ve dejaría el dibujo visible en una esquina, y es un
- * comportamiento que la gente nota inmediatamente.
+ * Las capas apagadas Y las congeladas quedan fuera, igual que en AutoCAD:
+ * encuadrar «todo» incluyendo lo que no se ve dejaría el dibujo visible en una
+ * esquina, y es un comportamiento que la gente nota inmediatamente. Congelada
+ * cuenta aquí desde el esquema 9: es la mitad «no entra en extensión» de su
+ * semántica (`cad-layer-visibility.ts`).
  */
 export function cadDocumentExtents(
   document: CadDocument,
   options: CadDocumentExtentsOptions = {},
 ): CadBounds | null {
   const registry = options.registry ?? CAD_ENTITY_REGISTRY;
-  const hidden =
-    options.hiddenLayerIds ??
-    new Set(document.layers.filter((layer) => !layer.visible).map((layer) => layer.id));
+  const hidden = options.hiddenLayerIds ?? cadHiddenLayerIds(document.layers);
   let bounds: CadBounds | null = null;
   for (const entity of document.entities) {
     if (entity.layer && hidden.has(entity.layer)) continue;

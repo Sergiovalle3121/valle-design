@@ -16,7 +16,7 @@
  * alternativa.
  */
 import { strict as assert } from "node:assert";
-import type { CadLayerDef } from "../../cad-document";
+import type { CadLayerDef, CadNamedLayerState } from "../../cad-document";
 import { CadLayerStateCatalog } from "../../layer-states";
 import { CadLinetypeCatalog } from "../../linetype-lin";
 import { CadSystemVariableStore } from "../../system-variables";
@@ -337,20 +337,59 @@ for (const bad of ["verde", "0", "256", "#GG0000"]) {
 // ---------------------------------------------------------------------------
 
 {
-  const store = session();
-  const saved = run("LAYERSTATE", [keyword("Guardar"), text("Impresión")], context(store));
-  ok(
-    saved.result?.kind === "message" && saved.result.text.includes("2 capa(s)"),
-    "guardar fotografía las capas del dibujo",
-  );
-  // Y lo DICE: vive en la sesión, no en el documento.
-  ok(
-    saved.result?.kind === "message" && saved.result.text.includes("SESIÓN"),
-    "y avisa de que no sobrevive a una recarga, en vez de dejar que se descubra",
-  );
-  equal(store.layerStates.list().length, 1, "queda en el catálogo");
+  // LAYERSTATE lee y escribe el DOCUMENTO (esquema 9): la vista se monta aquí
+  // con los estados que traiga, igual que la montaría el anfitrión.
+  const documentWith = (
+    layerStates?: CadNamedLayerState[],
+    layers: CadLayerDef[] = LAYERS,
+  ) =>
+    (() => ({
+      meta: { version: 1, schema: 9, unit: "mm" },
+      entities: [],
+      blocks: [],
+      layers,
+      styles: { text: {}, dimension: {}, table: {}, plot: {} },
+      externalReferences: [],
+      modelSpace: { entityIds: [] },
+      unsupportedEntities: [],
+      ...(layerStates ? { layerStates } : {}),
+    })) as unknown as CadCommandContext["document"];
 
-  const same = run("LAYERSTATE", [keyword("Restituir"), text("Impresión")], context(store));
+  const store = session();
+  const saved = run(
+    "LAYERSTATE",
+    [keyword("Guardar"), text("Impresión")],
+    context(store, { document: documentWith() }),
+  );
+  ok(saved.result?.kind === "document", "guardar ESCRIBE el documento, no un catálogo de sesión");
+  if (saved.result?.kind === "document") {
+    equal(saved.result.commands.length, 1, "una sola orden layer-state");
+    const command = saved.result.commands[0];
+    ok(
+      command.type === "layer-state" &&
+        command.op === "upsert" &&
+        command.state.name === "Impresión" &&
+        command.state.entries.length === 2,
+      "y fotografía las dos capas del dibujo",
+    );
+    ok(saved.result.label.includes("documento"), "la etiqueta dice dónde vive ahora");
+  }
+
+  const IMPRESION: CadNamedLayerState = {
+    name: "Impresión",
+    entries: LAYERS.map((layer) => ({
+      layerName: layer.name,
+      color: layer.color,
+      visible: layer.visible,
+      locked: layer.locked,
+    })),
+  };
+
+  const same = run(
+    "LAYERSTATE",
+    [keyword("Restituir"), text("Impresión")],
+    context(store, { document: documentWith([IMPRESION]) }),
+  );
   ok(
     same.result?.kind === "message" && same.result.text.includes("ya está puesto"),
     "restituir el estado actual no emite ningún cambio",
@@ -362,29 +401,44 @@ for (const bad of ["verde", "0", "256", "#GG0000"]) {
   const restored = run(
     "LAYERSTATE",
     [keyword("Restituir"), text("Impresión")],
-    context(store, { layers: () => changed }),
+    context(store, { document: documentWith([IMPRESION], changed), layers: () => changed }),
   );
   ok(restored.result?.kind === "document", "con algo cambiado, sí toca el documento");
   if (restored.result?.kind === "document")
     equal(restored.result.commands.length, 1, "y en UN lote, aunque fueran cuarenta capas");
 
-  const absent = run("LAYERSTATE", [keyword("Restituir"), text("NoExiste")], context(store));
+  const absent = run(
+    "LAYERSTATE",
+    [keyword("Restituir"), text("NoExiste")],
+    context(store, { document: documentWith([IMPRESION]) }),
+  );
   ok(
     absent.result?.kind === "message" && absent.result.text.includes("No hay ningún estado"),
     "restituir uno inexistente se dice",
   );
 
-  const removed = run("LAYERSTATE", [keyword("Suprimir"), text("Impresión")], context(store));
-  ok(removed.result?.kind === "message" && removed.result.text.includes("suprimido"), "y se suprime");
+  const removed = run(
+    "LAYERSTATE",
+    [keyword("Suprimir"), text("Impresión")],
+    context(store, { document: documentWith([IMPRESION]) }),
+  );
+  ok(removed.result?.kind === "document", "suprimir también escribe el documento");
+  if (removed.result?.kind === "document") {
+    const command = removed.result.commands[0];
+    ok(
+      command.type === "layer-state" && command.op === "delete" && command.name === "Impresión",
+      "con la orden layer-state:delete",
+    );
+  }
 }
 {
-  // Sin catálogo, LAYERSTATE no finge.
+  // Sin acceso al documento, LAYERSTATE no finge.
   const step = run("LAYERSTATE", [keyword("Guardar")], {
     ...context(session()),
-    catalogs: {},
+    document: undefined,
   });
   ok(
-    step.result?.kind === "message" && step.result.text.includes("catálogo de estados de capa"),
+    step.result?.kind === "message" && step.result.text.includes("documento"),
     "lo dice en vez de callarse",
   );
 }

@@ -22,7 +22,7 @@ import {
   type CadLayerFilter,
   type CadLayerFilterProperty,
   type CadLayerManagerRow,
-  type CadLayerState,
+  type CadLayerStateListing,
 } from "./layer-manager-model";
 
 export interface CadLayerManagerPaletteProps {
@@ -34,7 +34,8 @@ export interface CadLayerManagerPaletteProps {
   draftName: string;
   draftColor: string;
   draftStateName: string;
-  states: readonly CadLayerState[];
+  /** Estados de capa del DOCUMENTO (esquema 9); la paleta enseña su nombre. */
+  states: readonly CadLayerStateListing[];
   readOnly: boolean;
   /** Nombre del viewport activo, o `null` en espacio modelo. */
   activeViewportName: string | null;
@@ -52,6 +53,7 @@ export interface CadLayerManagerPaletteProps {
   onPlot: (id: string, plot: boolean) => void;
   onToggleVisible: (id: string) => void;
   onToggleLock: (id: string) => void;
+  onToggleFrozen: (id: string, frozen: boolean) => void;
   onToggleViewportFreeze: (id: string, frozen: boolean) => void;
   onActivate: (id: string) => void;
   onSelectObjects: (id: string) => void;
@@ -81,6 +83,7 @@ const FILTER_ORDER: CadLayerFilterProperty[] = [
   "noplot",
   "used",
   "empty",
+  "frozen",
   "viewport-frozen",
 ];
 
@@ -94,6 +97,7 @@ const LayerRow = React.memo(function LayerRow({
   onPlot,
   onToggleVisible,
   onToggleLock,
+  onToggleFrozen,
   onToggleViewportFreeze,
   onActivate,
   onSelectObjects,
@@ -111,6 +115,7 @@ const LayerRow = React.memo(function LayerRow({
   | "onPlot"
   | "onToggleVisible"
   | "onToggleLock"
+  | "onToggleFrozen"
   | "onToggleViewportFreeze"
   | "onActivate"
   | "onSelectObjects"
@@ -147,6 +152,20 @@ const LayerRow = React.memo(function LayerRow({
         <span className="rounded bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-gray-500 dark:text-gray-400">
           {row.objectCount}
         </span>
+        <button
+          data-testid={`cad-layer-frozen-${row.id}`}
+          data-state={row.frozen ? "frozen" : "thawed"}
+          onClick={() => onToggleFrozen(row.id, !row.frozen)}
+          disabled={readOnly}
+          className={`text-[10px] ${row.frozen ? "text-sky-300" : "text-gray-600 opacity-60"} hover:opacity-100 disabled:opacity-40`}
+          title={
+            row.frozen
+              ? "Descongelar capa"
+              : "Congelar capa: ni se dibuja, ni se regenera, ni cuenta para extensión o selección"
+          }
+        >
+          ❄
+        </button>
         <button
           data-testid={`cad-layer-lock-${row.id}`}
           onClick={() => onToggleLock(row.id)}
@@ -404,6 +423,7 @@ export const CadLayerManagerPalette = React.memo(
               onPlot={props.onPlot}
               onToggleVisible={props.onToggleVisible}
               onToggleLock={props.onToggleLock}
+              onToggleFrozen={props.onToggleFrozen}
               onToggleViewportFreeze={props.onToggleViewportFreeze}
               onActivate={props.onActivate}
               onSelectObjects={props.onSelectObjects}
@@ -515,8 +535,8 @@ export const CadLayerManagerPalette = React.memo(
             ))}
             {states.length === 0 && (
               <div className="px-1 text-[9.5px] text-gray-500">
-                Sin estados guardados. Viven en esta sesión: el documento
-                canónico todavía no tiene dónde persistirlos.
+                Sin estados guardados. Viven en el documento: sobreviven a la
+                recarga y viajan con el plano.
               </div>
             )}
           </div>

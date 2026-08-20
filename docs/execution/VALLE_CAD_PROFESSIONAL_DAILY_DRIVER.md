@@ -99,10 +99,13 @@ Pruebas nuevas cubren:
 - validación API de escalas/bounds/hash;
 - recibo con actor, incremento de versión, CAS stale y hoja inexistente.
 
-Degradación visible: `ANSI31` y otros hatch no sólidos se publican como límite
-vectorial con warning `hatch_pattern_outline_only`. La publicación no pretende
-que esos trazos existan. PNG y GLB siguen siendo exportaciones explícitas y
-separadas; no participan en el PDF de hoja.
+Desde la Ola 2 de capas, `ANSI31` y el resto de hatch no sólidos publican sus
+TRAZOS de patrón además del contorno (`hatch-publish-strokes.ts`, mismo
+generador que la pantalla); la degradación quedó reservada a la guarda de
+densidad, que cae a contorno con warning `hatch_pattern_too_dense` cuando el
+patrón proyecta por debajo de 0,3 mm en papel o supera el tope de trazos. PNG
+y GLB siguen siendo exportaciones explícitas y separadas; no participan en el
+PDF de hoja.
 
 ## 8. Rollback
 

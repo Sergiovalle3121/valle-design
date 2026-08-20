@@ -195,6 +195,9 @@ test("el gestor de capas escribe tipo de línea, grosor y plot, filtra, y guarda
   expect(
     stored.history.some((entry) => entry.label === "layer:update:NOTES"),
   ).toBe(true);
+  // El estado guardado VIAJA con el documento (esquema 9): está en la sección
+  // layerStates de lo que el backend persistió, no en la memoria de la pestaña.
+  expect(stored.layerStates?.map((state) => state.name)).toEqual(["Impresion"]);
 
   await page.reload();
   await expect(page.getByTestId("cad-native-entity-layer-base")).toBeVisible();
@@ -209,11 +212,11 @@ test("el gestor de capas escribe tipo de línea, grosor y plot, filtra, y guarda
     "data-active",
     "false",
   );
-  // Los estados de capa viven en la SESIÓN, no en el documento: tras recargar
-  // la lista está vacía. Es una limitación DECLARADA —`CadDocument` no tiene
-  // dónde persistirlos y `lib/cad` pertenece a otra sesión— y se afirma para
-  // que deje de serlo el día que se persistan.
-  await expect(page.getByTestId("cad-layer-state-Impresion")).toHaveCount(0);
+  // Los estados de capa viven EN EL DOCUMENTO desde el esquema 9: la
+  // limitación que este golden afirmaba («tras recargar la lista está vacía»)
+  // dejó de existir, y ahora se afirma lo contrario — recargar conserva el
+  // estado guardado, porque viaja con el plano.
+  await expect(page.getByTestId("cad-layer-state-Impresion")).toBeVisible();
   await page
     .getByTestId("cad-layer-manager")
     .screenshot({

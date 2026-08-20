@@ -1,21 +1,18 @@
 /**
- * Gestor de propiedades de capa: filtros y estados de capa.
+ * Gestor de propiedades de capa: filas y filtros.
  *
- * Anclas absolutas: qué capas concretas sobreviven a cada filtro y qué parches
- * concretos salen al restaurar un estado. Una propiedad de ida y vuelta
- * («guardar y restaurar deja el dibujo igual») se cumpliría de forma VACÍA con
- * un `planCadLayerStateRestore` que devolviera siempre cero parches, que es
- * justo el fallo que este repositorio ya se comió una vez.
+ * Anclas absolutas: qué capas concretas sobreviven a cada filtro. Los estados
+ * de capa ya no se prueban aquí: desde el esquema 9 viven en el documento y su
+ * maquinaria —y sus specs— están en `lib/cad/layer-states` y en el comando
+ * LAYERSTATE.
  *
  * Correr:  npx tsx src/components/cad/palettes/layer-manager-model.spec.ts
  */
 import { strict as assert } from "node:assert";
 import { CadLayerManagerHost } from "./layer-manager-host";
 import {
-  captureCadLayerState,
   describeCadLineweight,
   filterCadLayerRows,
-  planCadLayerStateRestore,
   type CadLayerManagerRow,
 } from "./layer-manager-model";
 
@@ -31,6 +28,7 @@ function row(
     lineweight: -1,
     plot: true,
     objectCount: 0,
+    frozen: false,
     frozenInViewport: null,
     active: false,
     ...overrides,
@@ -49,6 +47,7 @@ const rows: CadLayerManagerRow[] = [
     frozenInViewport: true,
   }),
   row({ id: "Muros_Interiores", name: "Muros interiores", objectCount: 3 }),
+  row({ id: "MEP", name: "MEP", frozen: true, objectCount: 9 }),
 ];
 
 const names = (list: readonly CadLayerManagerRow[]) =>
@@ -72,8 +71,8 @@ const names = (list: readonly CadLayerManagerRow[]) =>
   );
   assert.equal(
     filterCadLayerRows(rows, { text: "", property: "all" }).length,
-    6,
-    "sin filtro salen las seis",
+    7,
+    "sin filtro salen las siete",
   );
 }
 
@@ -100,6 +99,11 @@ const names = (list: readonly CadLayerManagerRow[]) =>
     ["Auxiliar"],
     "una capa sin viewport activo (`null`) NO cuenta como congelada",
   );
+  assert.deepEqual(
+    names(filterCadLayerRows(rows, { text: "", property: "frozen" })),
+    ["MEP"],
+    "congelada A NIVEL DE DOCUMENTO es su propio filtro, distinto del de viewport",
+  );
 }
 
 // --- los dos filtros se ACUMULAN --------------------------------------------
@@ -115,87 +119,6 @@ const names = (list: readonly CadLayerManagerRow[]) =>
   );
 }
 
-// --- capturar un estado toma TODAS las capas --------------------------------
-{
-  const filtered = filterCadLayerRows(rows, { text: "muros", property: "all" });
-  const partial = captureCadLayerState("Sólo muros", filtered);
-  assert.deepEqual(Object.keys(partial.entries).sort(), [
-    "Muros",
-    "Muros_Interiores",
-  ]);
-  const full = captureCadLayerState("  Impresión  ", rows);
-  assert.equal(full.name, "Impresión", "el nombre se recorta");
-  assert.equal(Object.keys(full.entries).length, 6);
-  assert.deepEqual(full.entries.Muros, {
-    visible: true,
-    locked: false,
-    color: "#ffffff",
-    linetype: "CONTINUOUS",
-    lineweight: 0.5,
-    plot: true,
-  });
-}
-
-// --- restaurar emite SÓLO lo que difiere ------------------------------------
-{
-  const saved = captureCadLayerState("Impresión", rows);
-  const unchanged = planCadLayerStateRestore(saved, rows);
-  assert.deepEqual(
-    unchanged.patches,
-    [],
-    "restaurar el estado en el que ya se está no ensucia el documento ni añade un paso de deshacer vacío",
-  );
-
-  const moved = rows.map((entry) =>
-    entry.id === "Cotas"
-      ? { ...entry, visible: true, color: "#ff0000" }
-      : entry.id === "Ejes"
-        ? { ...entry, locked: false }
-        : entry,
-  );
-  const plan = planCadLayerStateRestore(saved, moved);
-  assert.deepEqual(
-    plan.patches,
-    [
-      { id: "Cotas", patch: { visible: false, color: "#ffffff" } },
-      { id: "Ejes", patch: { locked: true } },
-    ],
-    "dos capas cambiadas, dos parches, y sólo con los campos que cambiaron",
-  );
-  assert.deepEqual(plan.missing, []);
-  assert.deepEqual(plan.unknown, []);
-}
-
-// --- capas nacidas después del estado se dejan en paz ------------------------
-{
-  const saved = captureCadLayerState("Antes", [rows[0], rows[1]]);
-  const later = [...rows.slice(0, 2), row({ id: "Nueva", visible: false })];
-  const plan = planCadLayerStateRestore(saved, later);
-  assert.deepEqual(
-    plan.patches,
-    [],
-    "nada que cambiar en las dos que sí recuerda",
-  );
-  assert.deepEqual(
-    plan.unknown,
-    ["Nueva"],
-    "y la nueva se informa en vez de esconderse: el estado no dice nada de ella",
-  );
-}
-
-// --- capas borradas desde que se guardó el estado ----------------------------
-{
-  const saved = captureCadLayerState("Antes", rows);
-  const plan = planCadLayerStateRestore(saved, rows.slice(0, 2));
-  assert.deepEqual(plan.missing.sort(), [
-    "Auxiliar",
-    "Cotas",
-    "Ejes",
-    "Muros_Interiores",
-  ]);
-  assert.deepEqual(plan.patches, []);
-}
-
 // --- grosores -----------------------------------------------------------------
 {
   assert.equal(describeCadLineweight(-1), "Por defecto");
@@ -203,7 +126,7 @@ const names = (list: readonly CadLayerManagerRow[]) =>
   assert.equal(describeCadLineweight(2), "2.00 mm");
 }
 
-// --- el anfitrión: filtros y estados sin ocupar un useState -------------------
+// --- el anfitrión: filtros y borradores sin ocupar un useState ----------------
 {
   const host = new CadLayerManagerHost();
   const initial = host.getSnapshot();
@@ -224,30 +147,11 @@ const names = (list: readonly CadLayerManagerRow[]) =>
   host.clearFilter();
   assert.deepEqual(host.filter, { text: "", property: "all" });
 
-  host.saveState(captureCadLayerState("A", rows));
-  host.saveState(captureCadLayerState("B", rows));
-  assert.deepEqual(
-    host.states.map((state) => state.name),
-    ["A", "B"],
-  );
-  const replaced = captureCadLayerState("A", rows.slice(0, 1));
-  host.saveState(replaced);
-  assert.deepEqual(
-    host.states.map((state) => state.name),
-    ["A", "B"],
-    "un nombre repetido SUSTITUYE en su sitio en vez de duplicar",
-  );
-  assert.deepEqual(Object.keys(host.findState("A")!.entries), ["0"]);
-  host.deleteState("A");
-  assert.deepEqual(
-    host.states.map((state) => state.name),
-    ["B"],
-  );
-  assert.equal(host.findState("A"), null);
-  host.saveState(captureCadLayerState("   ", rows));
-  assert.equal(host.states.length, 1, "un estado sin nombre no se guarda");
+  host.setDraftStateName("Impresión");
+  assert.equal(host.draftStateName, "Impresión", "el borrador del nombre sí es suyo");
 }
 
 console.log(
-  "cad layer manager model specs passed: filtros acumulativos por nombre y propiedad, estados que capturan las 6 capas y restauran sólo los 2 parches que difieren, y capas nuevas/borradas informadas en vez de silenciadas",
+  "cad layer manager model specs passed: filtros acumulativos por nombre y propiedad, congelada de documento " +
+    "y de viewport como filtros distintos, y un anfitrión que sólo guarda filtros y borradores",
 );

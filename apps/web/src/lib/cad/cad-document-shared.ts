@@ -51,10 +51,16 @@ export const DEFAULT_LAYER_ID = "0";
  * de abrir, «esta ventana no dice desde dónde mira» deja de ser un estado
  * posible. El porqué está en la cabecera de `cad-paper-viewport.ts`.
  *
- * Todo aditivo, en las cinco subidas: un documento v3, v4, v5, v6 o v7 migra
- * sin perder un campo y sin que se reinterprete ninguno de los que ya traía.
+ * v9 vuelve a la forma puramente aditiva: `CadLayerDef` gana `frozen`
+ * (opcional-ausente, como `plot`) y el documento gana la sección opcional
+ * `layerStates` — los estados de capa con nombre, que hasta esta subida vivían
+ * en la sesión y no sobrevivían a una recarga. Ningún documento existente
+ * cambia un byte de serializado: lo único que sube es `meta.schema`.
+ *
+ * Todo aditivo, en las seis subidas: un documento v3…v8 migra sin perder un
+ * campo y sin que se reinterprete ninguno de los que ya traía.
  */
-export const CAD_DOCUMENT_SCHEMA = 8;
+export const CAD_DOCUMENT_SCHEMA = 9;
 
 /** Capa estable de las colocaciones de estación. */
 export const STATIONS_LAYER = "Stations";

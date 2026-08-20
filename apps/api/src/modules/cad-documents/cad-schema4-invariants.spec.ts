@@ -113,18 +113,18 @@ describe('schema 4 entity invariants', () => {
       validateCadDocumentPayload(withEntities([sound.point])),
     ).not.toThrow();
     // Rechazar el esquema vigente convertiría cada guardado del editor en un
-    // 400. El techo subió a 8 con la cámara de la ventana gráfica, así que el 8
-    // se acepta y el que se rechaza es el 9: un esquema del FUTURO no se adivina.
+    // 400. El techo subió a 9 con frozen y layerStates, así que el 9 se acepta
+    // y el que se rechaza es el 10: un esquema del FUTURO no se adivina.
     expect(() =>
       validateCadDocumentPayload({
         ...withEntities([sound.point]),
-        meta: { schema: 8, version: 1, unit: 'mm' },
+        meta: { schema: 9, version: 1, unit: 'mm' },
       }),
     ).not.toThrow();
     expect(() =>
       validateCadDocumentPayload({
         ...withEntities([sound.point]),
-        meta: { schema: 9, version: 1, unit: 'mm' },
+        meta: { schema: 10, version: 1, unit: 'mm' },
       }),
     ).toThrow(BadRequestException);
   });

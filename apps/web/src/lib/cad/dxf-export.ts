@@ -68,6 +68,8 @@ export interface CadDxfExportLayer {
    * aquí: este tipo describe lo que se ESCRIBE al fichero.
    */
   lineweight?: number;
+  /** Capa congelada: se escribe como bit 1 del código 70, como lee AutoCAD. */
+  frozen?: boolean;
 }
 /** Definición de la tabla LTYPE: el patrón que hay que escribir. */
 export interface CadDxfExportLinetype {

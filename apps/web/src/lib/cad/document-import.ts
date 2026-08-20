@@ -368,7 +368,12 @@ function importShapefileDocument(
  */
 function buildLayers(
   names: string[],
-  definitions: readonly { name: string; linetype?: string; lineweight?: number }[] = [],
+  definitions: readonly {
+    name: string;
+    linetype?: string;
+    lineweight?: number;
+    frozen?: boolean;
+  }[] = [],
 ): CadLayerDef[] {
   const palette = ["#ffffff", "#ff5252", "#4fc3f7", "#ffd54f", "#81c784"];
   const declared = new Map(definitions.map((entry) => [entry.name, entry]));
@@ -391,6 +396,9 @@ function buildLayers(
       locked: false,
       ...(entry?.linetype ? { linetype: entry.linetype } : {}),
       ...(lineweight !== undefined ? { lineweight } : {}),
+      // El bit 1 del código 70 se leía y se descartaba justo aquí. Desde el
+      // esquema 9 la capa congelada del remitente llega congelada.
+      ...(entry?.frozen ? { frozen: true } : {}),
     };
   });
 }

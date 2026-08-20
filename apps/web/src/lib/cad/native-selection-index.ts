@@ -6,6 +6,7 @@ import {
   type CadScenePatch,
 } from "./entity-runtime";
 import type { CadDocument } from "./cad-document";
+import { cadFrozenLayerIds } from "./cad-layer-visibility";
 
 function centerDistanceSquared(
   entity: CadNativeEntity,
@@ -111,6 +112,14 @@ export class CadNativeSelectionIndex {
   private readonly spatialIndex: CadSpatialIndex;
   private readonly entities = new Map<string, CadNativeEntity>();
   private document?: CadDocument;
+  /**
+   * Capas CONGELADAS del documento indexado. Una entidad en capa congelada no
+   * sale de `search` —y por tanto ni se selecciona ni imanta el enganche—, que
+   * es la mitad «no cuenta» de la semántica de `frozen` (esquema 9). Las capas
+   * APAGADAS no entran aquí a propósito: siempre estuvieron en el índice y
+   * quitarlas ahora cambiaría un comportamiento que nadie pidió cambiar.
+   */
+  private frozenLayers: ReadonlySet<string> = new Set();
 
   constructor(cellSize = 100) {
     this.spatialIndex = new CadSpatialIndex(cellSize);
@@ -119,11 +128,15 @@ export class CadNativeSelectionIndex {
   replace(entities: readonly CadNativeEntity[], document?: CadDocument): void {
     this.clear();
     this.document = document;
+    this.frozenLayers = document ? cadFrozenLayerIds(document.layers) : new Set();
     for (const entity of entities) this.upsert(entity);
   }
 
   applyPatch(patch: CadScenePatch, document?: CadDocument): void {
-    if (document) this.document = document;
+    if (document) {
+      this.document = document;
+      this.frozenLayers = cadFrozenLayerIds(document.layers);
+    }
     for (const id of new Set(patch.remove)) this.remove(id);
     for (const entity of patch.upsert) this.upsert(entity);
   }
@@ -149,7 +162,7 @@ export class CadNativeSelectionIndex {
     const result: CadNativeEntity[] = [];
     for (const id of this.spatialIndex.search(bounds)) {
       const entity = this.entities.get(id);
-      if (entity) result.push(entity);
+      if (entity && !this.frozenLayers.has(entity.layer)) result.push(entity);
       if (result.length >= limit) break;
     }
     return result;

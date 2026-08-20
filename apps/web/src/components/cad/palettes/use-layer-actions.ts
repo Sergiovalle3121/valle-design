@@ -24,12 +24,14 @@
 import { useCallback, useRef } from "react";
 import { commitChange, type CadDocument } from "@/lib/cad/cad-document";
 import { updateCadDocumentLayer } from "@/lib/cad/cad-layer-manager";
-import type { CadLayerManagerHost } from "./layer-manager-host";
 import {
   captureCadLayerState,
-  planCadLayerStateRestore,
-  type CadLayerManagerRow,
-} from "./layer-manager-model";
+  deleteCadDocumentLayerState,
+  restoreCadDocumentLayerState,
+  upsertCadDocumentLayerState,
+} from "@/lib/cad/layer-states";
+import type { CadLayerManagerHost } from "./layer-manager-host";
+import type { CadLayerManagerRow } from "./layer-manager-model";
 
 export interface CadLayerActionsOptions {
   host: CadLayerManagerHost;
@@ -62,6 +64,7 @@ export interface CadLayerActions {
   setLineweight: (id: string, lineweight: number) => void;
   setPlot: (id: string, plot: boolean) => void;
   hideEmpty: () => void;
+  setFrozen: (id: string, frozen: boolean) => void;
   toggleViewportFreeze: (id: string, frozen: boolean) => void;
   saveState: () => void;
   restoreState: (name: string) => void;
@@ -116,6 +119,41 @@ export function useCadLayerActions(
   }, []);
 
   /**
+   * Congela o descongela la capa A NIVEL DE DOCUMENTO (esquema 9).
+   *
+   * La capa ACTIVA se niega con el porqué, igual que LAYFRZ y -LAYER: los
+   * objetos nuevos irían a una capa que ni se dibuja ni cuenta, y nadie los
+   * volvería a ver. Descongelar BORRA la clave en vez de escribir `false`,
+   * para que el opcional-ausente del esquema no se materialice.
+   */
+  const setFrozen = useCallback((id: string, frozen: boolean) => {
+    const { rows, commit, notify } = live.current;
+    if (frozen && rows.current.some((row) => row.id === id && row.active)) {
+      notify.error(
+        `«${id}» es la capa activa y no se puede congelar. Activa otra capa primero.`,
+      );
+      return;
+    }
+    commit(
+      (document) =>
+        commitChange(
+          {
+            ...document,
+            layers: document.layers.map((layer) => {
+              if (layer.id !== id) return layer;
+              if (frozen) return { ...layer, frozen: true };
+              const thawed = { ...layer };
+              delete thawed.frozen;
+              return thawed;
+            }),
+          },
+          `layer:${frozen ? "freeze" : "thaw"}:${id}`,
+        ),
+      `Capa ${id} ${frozen ? "congelada: ni se dibuja, ni se regenera, ni cuenta" : "descongelada"}.`,
+    );
+  }, []);
+
+  /**
    * Congela una capa SÓLO en el viewport activo.
    *
    * Es lo que separa una capa apagada de una congelada por viewport: la
@@ -140,46 +178,42 @@ export function useCadLayerActions(
     setViewportLayerVisibility(activeViewportId, id, !frozen);
   }, []);
 
+  /**
+   * Guarda el estado EN EL DOCUMENTO (esquema 9): sobrevive a la recarga y
+   * viaja con el plano — la misma escritura que hace LAYERSTATE Guardar. La
+   * foto sale de `document.layers` dentro del propio commit, no de las filas
+   * de la interfaz: una sola fuente de verdad, la canónica.
+   */
   const saveState = useCallback(() => {
-    const { host, rows, notify } = live.current;
+    const { host, commit } = live.current;
     const name = host.draftStateName.trim();
     if (!name) return;
-    host.saveState(captureCadLayerState(name, rows.current));
-    notify.success(`Estado de capa «${name}» guardado en esta sesión.`);
+    const saved = commit(
+      (document) =>
+        upsertCadDocumentLayerState(document, captureCadLayerState(name, document.layers)),
+      `Estado de capa «${name}» guardado en el documento.`,
+    );
+    if (saved) host.setDraftStateName("");
   }, []);
 
   /**
-   * Restaura un estado como UNA transacción.
-   *
-   * Los parches salen calculados por diferencia, así que restaurar el estado en
-   * el que ya se está no toca el documento ni deja un paso de deshacer vacío.
-   * Las capas nacidas después del estado se dejan como están y se informan: el
-   * estado no contiene ninguna intención sobre ellas.
+   * Restaura un estado como UNA transacción y UN paso de deshacer. El helper
+   * devuelve el MISMO documento cuando no hay nada que cambiar, y la puerta
+   * canónica del editor convierte eso en «no había cambios» sin ensuciar el
+   * historial.
    */
   const restoreState = useCallback((name: string) => {
-    const { host, rows, commit, notify } = live.current;
-    const state = host.findState(name);
-    if (!state) return;
-    const plan = planCadLayerStateRestore(state, rows.current);
-    if (!plan.patches.length) {
-      notify.info(`El dibujo ya está en el estado «${name}».`);
-      return;
-    }
-    commit(
-      (document) =>
-        plan.patches.reduce(
-          (current, entry) =>
-            updateCadDocumentLayer(current, entry.id, entry.patch),
-          document,
-        ),
-      plan.unknown.length
-        ? `Estado «${name}» restaurado; ${plan.unknown.length} capa(s) nueva(s) sin tocar.`
-        : `Estado «${name}» restaurado.`,
+    live.current.commit(
+      (document) => restoreCadDocumentLayerState(document, name),
+      `Estado «${name}» restaurado.`,
     );
   }, []);
 
   const deleteState = useCallback((name: string) => {
-    live.current.host.deleteState(name);
+    live.current.commit(
+      (document) => deleteCadDocumentLayerState(document, name),
+      `Estado «${name}» borrado del documento.`,
+    );
   }, []);
 
   return {
@@ -187,6 +221,7 @@ export function useCadLayerActions(
     setLineweight,
     setPlot,
     hideEmpty,
+    setFrozen,
     toggleViewportFreeze,
     saveState,
     restoreState,

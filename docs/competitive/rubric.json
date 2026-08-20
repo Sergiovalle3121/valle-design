@@ -559,7 +559,7 @@
       "group": "core",
       "name": "Capas y propiedades",
       "points": 10,
-      "gap": "El documento canónico no conoce `frozen`: CadLayerDef sólo tiene visible/locked, el gestor congela sólo en pantalla y el importador DXF lee el bit 1 del código 70 y lo descarta al mapear.",
+      "gap": "Cerrado en la Ola 2 de capas: `frozen` vive en CadLayerDef (esquema 9) con viaje DXF del bit 1 del código 70 en ambas direcciones, LAYERSTATE persiste en el documento y la familia LAY*/VPLAYER es tecleable.",
       "criteria": [
         {
           "id": "layers.canonical",
@@ -890,7 +890,7 @@
       "group": "core",
       "name": "Layouts, viewports y publicación",
       "points": 10,
-      "gap": "Dos defectos MEDIDOS por el propio artefacto de fidelidad: PAGESETUP cambia el papel sin recolocar la ventana gráfica (geometría fuera del área imprimible) y el sombreado llega al PDF como contorno, sin patrón.",
+      "gap": "Cerrado en la Ola 2: PAGESETUP recoloca la ventana al cambiar el papel (Ola 1, medido en cero segmentos fuera) y el sombreado llega al PDF con su patrón, con guarda de densidad que degrada a contorno avisando.",
       "criteria": [
         {
           "id": "layouts.paper-space",

@@ -159,7 +159,7 @@ describe('schema 8 viewport view invariants', () => {
     ).toThrow(BadRequestException);
   });
 
-  it('acepta el esquema 8 y rechaza el 9, que no existe', () => {
+  it('acepta el esquema 9 y rechaza el 10, que no existe', () => {
     expect(() =>
       validateCadDocumentPayload(withViewport(planta)),
     ).not.toThrow();
@@ -167,6 +167,12 @@ describe('schema 8 viewport view invariants', () => {
       validateCadDocumentPayload({
         ...withViewport(planta),
         meta: { schema: 9, version: 1, unit: 'mm' },
+      }),
+    ).not.toThrow();
+    expect(() =>
+      validateCadDocumentPayload({
+        ...withViewport(planta),
+        meta: { schema: 10, version: 1, unit: 'mm' },
       }),
     ).toThrow(BadRequestException);
   });

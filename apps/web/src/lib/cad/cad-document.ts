@@ -24,11 +24,7 @@
  * El editor legado sigue siendo una proyección compatible, no otra fuente de
  * verdad.
  */
-import type {
-  CadImageDefinition,
-  CadPositionedAttribute,
-  CadSchema4Entity,
-} from "./cad-entities-v4";
+import type { CadImageDefinition, CadPositionedAttribute, CadSchema4Entity } from "./cad-entities-v4";
 import type { CadSchema5Entity } from "./cad-entities-v5";
 import type { CadSchema6Entity } from "./cad-entities-v6";
 import type { CadSchema7Entity } from "./cad-entities-v7";
@@ -408,6 +404,12 @@ export interface CadLayerDef {
   linetype?: string;
   lineweight?: number;
   plot?: boolean;
+  /**
+   * CONGELADA (esquema 9, bit 1 del código 70 DXF), distinto de apagada: ni se
+   * dibuja, ni se regenera, ni entra en extensión ni en selección. Opcional-
+   * ausente como `plot`. La regla vive en `cad-layer-visibility.ts`.
+   */
+  frozen?: boolean;
 }
 
 /**
@@ -603,7 +605,18 @@ export interface CadDocument {
    * exactamente igual que antes del esquema 4.
    */
   imageDefinitions?: CadImageDefinition[];
+  /**
+   * Estados de capa con nombre (esquema 9). Sección OPCIONAL: hasta el v8
+   * vivían en la sesión y LAYERSTATE avisaba de que no sobrevivían a una
+   * recarga; ahora viajan con el documento. Captura y restauración viven en
+   * `layer-states.ts`; la escritura entra por el lote (`layer-state`).
+   */
+  layerStates?: CadNamedLayerState[];
 }
+
+// Sólo TIPOS: se borran al compilar, así que no cierran ningún ciclo.
+import type { CadNamedLayerState } from "./layer-states";
+export type { CadLayerStateEntry, CadNamedLayerState } from "./layer-states";
 
 /** Reexporta el vocabulario del esquema 4 desde el módulo del documento. */
 export type {
@@ -681,6 +694,7 @@ export function commitChange(doc: CadDocument, label: string): CadDocument {
     collaboration: doc.collaboration ? structuredClone(doc.collaboration) : undefined,
     ...(doc.cells ? { cells: structuredClone(doc.cells) } : {}),
     ...(doc.imageDefinitions ? { imageDefinitions: structuredClone(doc.imageDefinitions) } : {}),
+    ...(doc.layerStates ? { layerStates: structuredClone(doc.layerStates) } : {}),
     history: [...doc.history, { version, label }],
   };
 }
@@ -757,25 +771,14 @@ export function serializeCadDocument(doc: CadDocument): string {
     ...(doc.imageDefinitions
       ? { imageDefinitions: [...doc.imageDefinitions].sort(byId).map(stableValue) }
       : {}),
+    // Catálogo por NOMBRE: ordenarlo es canonicalización legítima, como blocks.
+    ...(doc.layerStates ? { layerStates: [...doc.layerStates].sort(byName).map(stableValue) } : {}),
   };
   return JSON.stringify(payload);
 }
 
-/** Cuenta de entidades por tipo — útil para paneles/telemetría. */
-export function cadDocumentStats(doc: CadDocument): Record<CadEntity["type"], number> {
-  const stats = {
-    box: 0, station: 0, text: 0, dimension: 0, connector: 0, line: 0,
-    polyline: 0, circle: 0, arc: 0, ellipse: 0, spline: 0, mtext: 0,
-    hatch: 0, mleader: 0, insert: 0,
-    point: 0, xline: 0, ray: 0, solid: 0, wipeout: 0, image: 0,
-    attdef: 0, table: 0,
-    solid3d: 0, region: 0,
-    wall: 0,
-    opening: 0,
-  } satisfies Record<CadEntity["type"], number>;
-  for (const e of doc.entities) stats[e.type]++;
-  return stats;
-}
+/** El recuento por tipo vive en `cad-document-stats.ts`; misma puerta pública. */
+export { cadDocumentStats } from "./cad-document-stats";
 
 /**
  * Migración y lectura: viven en `cad-document-migrate.ts`, que normaliza lo
