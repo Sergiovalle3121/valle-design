@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import compression from 'compression';
 import { AppModule } from './app.module';
 import { useStripeWebhookRawBody } from './modules/commercial/stripe-webhook.raw-body';
+import { useOutboxReceiverRawBody } from './modules/outbox-receiver/outbox-receiver.raw-body';
 import { installGracefulShutdown } from './bootstrap/graceful-shutdown';
 import {
   applyServerTimeouts,
@@ -55,6 +56,10 @@ async function bootstrap() {
   // ruta: el orden de `use` es el orden de ejecución en Express, y el parser
   // crudo marca la petición para que el JSON global no vuelva a tocarla.
   useStripeWebhookRawBody(app);
+  // El receptor del outbox PROPIO verifica la misma clase de firma HMAC sobre
+  // bytes crudos, así que su parser se monta con la misma regla y en su
+  // prefijo exacto (/v1/outbox).
+  useOutboxReceiverRawBody(app);
 
   // El documento canónico inline admite hasta 8 000 000 bytes serializados;
   // el margen extra cubre el framing JSON sin aceptar payloads sin tope.
