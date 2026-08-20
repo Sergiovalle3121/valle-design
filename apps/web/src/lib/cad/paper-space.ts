@@ -9,11 +9,8 @@ import {
   type CadPoint2,
 } from "./cad-document";
 import { cadPlanViewport } from "./cad-paper-viewport";
-import {
-  tessellateArc,
-  tessellateEllipse,
-  tessellateSpline,
-} from "./curve-tessellate";
+import { cadLayerShown } from "./cad-layer-visibility";
+import { tessellateArc, tessellateEllipse, tessellateSpline } from "./curve-tessellate";
 import { buildCadDimensionGeometry } from "./associative-dimension";
 import { buildCadMleaderGeometry } from "./associative-mleader";
 
@@ -424,8 +421,11 @@ function visibleLayer(
   layers: Map<string, CadLayerDef>,
   viewport: CadPaperViewport,
 ): boolean {
-  const override = viewport.layerVisibility?.[layerId];
-  return override ?? layers.get(layerId)?.visible ?? true;
+  // La anulación de la VENTANA manda sobre lo global: `false` es VP-freeze y
+  // `true` puede descongelar en ESTA ventana una capa congelada del documento.
+  // Sin anulación, apagada o congelada no se proyecta (cad-layer-visibility.ts).
+  const layer = layers.get(layerId);
+  return viewport.layerVisibility?.[layerId] ?? (!layer || cadLayerShown(layer));
 }
 
 function blockPresentation(

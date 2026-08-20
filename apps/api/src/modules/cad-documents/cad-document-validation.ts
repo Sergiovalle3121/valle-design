@@ -23,9 +23,10 @@ export type PersistedCadDocument = Record<string, unknown>;
  * Sube CON el cliente, nunca después: el cliente escribe el número nuevo desde
  * el primer guardado, y un servidor que se quedara en el anterior convertiría
  * cada guardado en un 400 sin que nada estuviera roto. El 8 estrena la cámara
- * de la ventana gráfica, que valida `assertViewportView`.
+ * de la ventana gráfica, que valida `assertViewportView`; el 9 es puramente
+ * aditivo — `frozen` en la capa y la sección opcional `layerStates`.
  */
-export const CAD_DOCUMENT_MAX_SCHEMA = 8;
+export const CAD_DOCUMENT_MAX_SCHEMA = 9;
 export const CAD_DOCUMENT_MAX_INLINE_BYTES = 8_000_000;
 export const CAD_DOCUMENT_MAX_ARCHIVE_BYTES = 128 * 1024 * 1024;
 const MAX_ENTITIES = 100_000;

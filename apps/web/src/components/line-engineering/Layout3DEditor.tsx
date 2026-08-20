@@ -240,6 +240,8 @@ import {
 } from "@/lib/cad/cad-recovery-journal";
 import { planCadNativeRenderBudget } from "@/lib/cad/native-render-budget";
 import { CadNativeSelectionIndex } from "@/lib/cad/native-selection-index";
+// Apagada O congelada (esquema 9): la regla vive en un solo módulo.
+import { cadHiddenLayerIds } from "@/lib/cad/cad-layer-visibility";
 import {
   EMPTY_CAD_SELECTION,
   reduceCadSelection,
@@ -2369,11 +2371,7 @@ export default function Layout3DEditor({
           child.visible = L.equipment;
           setCadNativeOverviewHiddenLayers(
             child as THREE.LineSegments,
-            new Set(
-              document?.layers
-                .filter((layer) => layer.visible === false)
-                .map((layer) => layer.id) ?? [],
-            ),
+            cadHiddenLayerIds(document?.layers ?? []),
           );
           return;
         }
@@ -2382,11 +2380,7 @@ export default function Layout3DEditor({
         if (child.userData?.cadRenderScene === true) {
           child.visible = L.equipment;
           renderPipelineHostRef.current?.setHiddenLayers(
-            new Set(
-              document?.layers
-                .filter((layer) => layer.visible === false)
-                .map((layer) => layer.id) ?? [],
-            ),
+            cadHiddenLayerIds(document?.layers ?? []),
           );
           return;
         }
@@ -2394,11 +2388,7 @@ export default function Layout3DEditor({
           child.visible = L.equipment;
           setCadInsertBatchHiddenLayers(
             child as THREE.Group,
-            new Set(
-              document?.layers
-                .filter((layer) => layer.visible === false)
-                .map((layer) => layer.id) ?? [],
-            ),
+            cadHiddenLayerIds(document?.layers ?? []),
           );
           return;
         }
@@ -2409,7 +2399,8 @@ export default function Layout3DEditor({
         const layer = entity
           ? document?.layers.find((candidate) => candidate.id === entity.layer)
           : undefined;
-        child.visible = L.equipment && layer?.visible !== false;
+        child.visible =
+          L.equipment && (!layer || (layer.visible && layer.frozen !== true));
       });
     }
     if (connsGroupRef.current)
@@ -3452,13 +3443,7 @@ export default function Layout3DEditor({
           batchedHost.replace(document, {
             excludeEntityIds: new Set([...batchedInsertIds, ...shadedSolidIds]),
           });
-        batchedHost.setHiddenLayers(
-          new Set(
-            document.layers
-              .filter((layer) => layer.visible === false)
-              .map((layer) => layer.id),
-          ),
-        );
+        batchedHost.setHiddenLayers(cadHiddenLayerIds(document.layers));
         setNativeRenderStats((current) =>
           current.total === nativeDocumentEntities.length &&
           current.omitted === 0 &&
@@ -3519,11 +3504,7 @@ export default function Layout3DEditor({
             height: context.H,
           },
           8,
-          new Set(
-            document.layers
-              .filter((layer) => layer.visible === false)
-              .map((layer) => layer.id),
-          ),
+          cadHiddenLayerIds(document.layers),
         );
         group.add(overview);
         nativeOverviewRef.current = overview;
