@@ -1,0 +1,50 @@
+# CADDY: TLS automático (Let's Encrypt) + reverse proxy para API y web.
+#
+# Por qué Caddy y no nginx+certbot: el TLS automático con renovación es de
+# serie y sin piezas móviles — en un VPS operado por una persona, cada pieza
+# móvil es una alerta futura a las 3 de la mañana.
+#
+# Dos hechos que este archivo da por sentados:
+#
+#   1. `{$DOMAIN}` llega por entorno desde compose. Los registros DNS
+#      api.{$DOMAIN} y app.{$DOMAIN} (y los -staging, si se usa staging)
+#      deben apuntar A la IP del VPS ANTES de arrancar: sin DNS no hay
+#      certificado, y Caddy reintentará en bucle contra Let's Encrypt.
+#   2. `reverse_proxy` pone X-Forwarded-Proto y X-Forwarded-For POR DEFECTO.
+#      No se tocan a mano: la API confía en UN salto (`trust proxy = 1`) y la
+#      cookie __Host- falla cerrada si el proto no dice https — que es
+#      exactamente lo que debe pasar si alguien rompe esta cadena.
+#
+# Los nombres `api:4000`, `web:3000` son los servicios del compose de
+# producción (red por defecto del proyecto `valle`); los `-staging` viven en
+# la red compartida `valle-edge` y los publica compose.staging.yml.
+
+{
+	# Correo para los avisos de expiración de certificados de Let's Encrypt.
+	# Llega desde compose (ACME_EMAIL, con admin@DOMAIN como default).
+	email {$ACME_EMAIL}
+}
+
+api.{$DOMAIN} {
+	encode gzip
+	reverse_proxy api:4000
+}
+
+app.{$DOMAIN} {
+	encode gzip
+	reverse_proxy web:3000
+}
+
+# ── Staging (mismo VPS, proyecto compose aparte) ────────────────────────────
+# Si compose.staging.yml no está corriendo, estos dominios responden 502 y
+# Caddy seguirá intentando emitir sus certificados: crea los DNS -staging
+# junto con los de producción, o comenta este bloque hasta usarlo.
+api-staging.{$DOMAIN} {
+	encode gzip
+	reverse_proxy api-staging:4000
+}
+
+app-staging.{$DOMAIN} {
+	encode gzip
+	reverse_proxy web-staging:3000
+}

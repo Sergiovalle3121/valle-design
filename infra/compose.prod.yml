@@ -1,0 +1,130 @@
+# PRODUCCIÓN EN UN VPS: PostgreSQL 16 + API + web + Caddy, en un solo host.
+#
+# Reglas que gobiernan este archivo:
+#
+#   · CERO secretos aquí. Todo llega por variables desde /srv/valle/.env
+#     (checklist completo y copy-paste-able en infra/README.md). Las
+#     obligatorias usan `:?`: si falta una, `docker compose` FALLA con su
+#     nombre en el error en vez de arrancar un servicio a medias.
+#   · Las imágenes se fijan por VARIABLE (API_IMAGE / WEB_IMAGE), idealmente
+#     por digest del release-manifest.json: lo que corre debe ser derivable
+#     de un commit, no de un tag que alguien pudo mover.
+#   · Los healthchecks de api y web viven en sus Dockerfiles (CI los exige);
+#     aquí sólo se declara el de postgres, y `depends_on: service_healthy`
+#     hace que la API espere a la base en el arranque en frío.
+#   · Sólo Caddy publica puertos. La API y el web no son alcanzables desde
+#     fuera más que a través del proxy que pone TLS y X-Forwarded-Proto —
+#     la cookie __Host- falla cerrada sin HTTPS, y eso es deliberado.
+#   · La red `edge` (valle-edge) existe para que el compose de STAGING
+#     (compose.staging.yml, proyecto aparte) enchufe sus contenedores al
+#     MISMO Caddy sin compartir nada más.
+#
+# Operación (desde /srv/valle, con .env al lado):
+#   docker compose -f compose.prod.yml pull
+#   docker compose -f compose.prod.yml run --rm api \
+#     npx typeorm migration:run -d apps/api/dist/typeorm-cli.datasource.js
+#   docker compose -f compose.prod.yml up -d
+#   docker compose -f compose.prod.yml ps
+
+name: valle
+
+services:
+  postgres:
+    image: postgres:16-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Define POSTGRES_DB en /srv/valle/.env}
+      POSTGRES_USER: ${POSTGRES_USER:?Define POSTGRES_USER en /srv/valle/.env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD en /srv/valle/.env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    # Sin `ports:`: la base sólo existe dentro de la red del proyecto. Los
+    # backups corren en este mismo host (scripts/ops/backup-cron.sh) y llegan
+    # por la red de compose o por un túnel puntual, no por un 5432 al mundo.
+
+  api:
+    image: ${API_IMAGE:?Define API_IMAGE (ghcr.io/...@sha256:digest del release-manifest)}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      SYNCHRONIZE: 'false'
+      IDENTITY_RATE_LIMIT_KEY_SECRET: ${IDENTITY_RATE_LIMIT_KEY_SECRET:?minimo 32 caracteres}
+      ALLOWED_ORIGIN: https://app.${DOMAIN:?Define DOMAIN (p.ej. valledesign.mx)}
+      # El worker entrega contra ESTA misma API, a través de Caddy: las URLs
+      # de outbox exigen HTTPS en producción y el receptor vive aquí (ADR-0008).
+      OUTBOX_DISPATCHER_ENABLED: 'true'
+      OUTBOX_EMAIL_WEBHOOK_URL: https://api.${DOMAIN}/v1/outbox/email
+      OUTBOX_DOMAIN_WEBHOOK_URL: https://api.${DOMAIN}/v1/outbox/domain
+      OUTBOX_WEBHOOK_SECRET: ${OUTBOX_WEBHOOK_SECRET:?minimo 32 caracteres}
+      # Correo: o las 4 o ninguna (a medias, el arranque muere — deliberado).
+      EMAIL_SENDER_PROVIDER: ${EMAIL_SENDER_PROVIDER:?resend, o vacia junto a las otras 3}
+      EMAIL_SENDER_API_KEY: ${EMAIL_SENDER_API_KEY:?}
+      EMAIL_SENDER_FROM: ${EMAIL_SENDER_FROM:?}
+      OUTBOX_EMAIL_LINK_BASE_URL: https://app.${DOMAIN}
+      # Stripe: o las 4 o NINGUNA. Vacías = adaptador nulo (cobro asistido),
+      # que es una configuración válida mientras la cuenta MX se activa.
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_CHECKOUT_SUCCESS_URL: ${STRIPE_CHECKOUT_SUCCESS_URL:-}
+      STRIPE_CHECKOUT_CANCEL_URL: ${STRIPE_CHECKOUT_CANCEL_URL:-}
+      # CFDI: VACÍAS a propósito (emisión manual). Con las 4 puestas el
+      # arranque FALLA hasta que exista adaptador de PAC — ver F6 del plan.
+      CFDI_PAC_NAME: ${CFDI_PAC_NAME:-}
+      CFDI_PAC_API_KEY: ${CFDI_PAC_API_KEY:-}
+      CFDI_ISSUER_RFC: ${CFDI_ISSUER_RFC:-}
+      CFDI_ISSUER_TAX_REGIME: ${CFDI_ISSUER_TAX_REGIME:-}
+      # Observabilidad opt-in: sin METRICS_TOKEN, /metrics responde 404 y el
+      # monitoreo (monitor.yml) no puede medir — SLA.md §6.
+      METRICS_TOKEN: ${METRICS_TOKEN:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      RELEASE_VERSION: ${RELEASE_VERSION:-}
+
+  web:
+    # OJO: esta imagen lleva NEXT_PUBLIC_API_URL INCRUSTADA en el bundle. Debe
+    # haberse construido con https://api.${DOMAIN}; una imagen de otro entorno
+    # llama al host equivocado desde el navegador del cliente y no deja traza.
+    image: ${WEB_IMAGE:?Define WEB_IMAGE (ghcr.io/...@sha256:digest del release-manifest)}
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+      # HTTP/3 (QUIC): mismo puerto, UDP.
+      - '443:443/udp'
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:-admin@${DOMAIN}}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - default
+      - edge
+
+volumes:
+  # Los datos de PostgreSQL y los certificados TLS sobreviven a cualquier
+  # `compose down`; borrarlos es una decisión explícita, nunca un efecto.
+  pgdata:
+  caddy_data:
+  caddy_config:
+
+networks:
+  default:
+  edge:
+    # Nombre fijo para que compose.staging.yml (proyecto aparte) pueda
+    # declararla `external` y colgar api-staging/web-staging del mismo Caddy.
+    name: valle-edge

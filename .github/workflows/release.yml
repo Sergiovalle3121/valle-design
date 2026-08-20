@@ -24,6 +24,10 @@ on:
         description: 'NEXT_PUBLIC_API_URL — se INCRUSTA en el bundle del web'
         type: string
         default: 'https://api.example.com'
+      desplegar_staging:
+        description: 'Desplegar a STAGING tras publicar (exige publicar_imagenes)'
+        type: boolean
+        default: false
   push:
     tags:
       - 'v*'
@@ -47,6 +51,12 @@ jobs:
     name: Imágenes + SBOM + manifiesto
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    # Lo que los jobs de deploy necesitan saber del release: la versión y los
+    # DIGESTS. Se despliega por digest, nunca por tag — un tag se puede mover.
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      api_digest: ${{ steps.api.outputs.digest }}
+      web_digest: ${{ steps.web.outputs.digest }}
 
     steps:
       - name: Checkout
@@ -195,3 +205,224 @@ jobs:
             echo ""
             echo "Procedimiento de despliegue y rollback: \`DEPLOYMENT.md\`."
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # DEPLOY A PRODUCCIÓN — sólo en releases de etiqueta, y sólo si el VPS está
+  # cableado en secrets. Tres decisiones deliberadas:
+  #
+  #   · `environment: production`: si el environment tiene required reviewers
+  #     configurados en GitHub, el job ESPERA la aprobación humana antes de
+  #     tocar producción. Sin reviewers, pasa directo — configurarlos es un
+  #     clic en Settings → Environments y se recomienda hacerlo.
+  #   · La presencia de secrets se decide EN UN STEP (un `if:` de job no puede
+  #     leer secrets): sin DEPLOY_SSH_KEY/HOST/USER el job termina en verde
+  #     con el aviso de que el deploy sigue siendo manual (DEPLOYMENT.md §3).
+  #     Ni rojo permanente ni despliegue a medias.
+  #   · Se despliega por DIGEST del job release, se migra ANTES de rotar con
+  #     la misma imagen (DEPLOYMENT.md §3.2) y hay gate de readiness con
+  #     reintentos: si `/health/ready` no llega a 200, el job falla y lo dice.
+  #
+  # Secrets del environment `production`:
+  #   DEPLOY_SSH_KEY      clave privada (sólo para esto; ed25519 recomendada)
+  #   DEPLOY_HOST         IP o hostname del VPS
+  #   DEPLOY_USER         usuario con docker (p. ej. `deploy`)
+  #   DEPLOY_KNOWN_HOSTS  (opcional) salida de `ssh-keyscan -H $HOST`; sin él
+  #                       se hace TOFU con ssh-keyscan en el momento
+  # Variable (no secret): RELEASE_API_URL — ya usada para construir el web —
+  # sirve además de URL del gate externo de readiness.
+  deploy:
+    name: Deploy a producción (VPS)
+    needs: release
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    steps:
+      - name: ¿Está cableado el despliegue?
+        id: gate
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          if [ -z "$DEPLOY_SSH_KEY" ] || [ -z "$DEPLOY_HOST" ] || [ -z "$DEPLOY_USER" ]; then
+            echo "configurado=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Deploy automático SIN configurar (faltan DEPLOY_SSH_KEY/DEPLOY_HOST/DEPLOY_USER en el environment production). El release quedó publicado; el despliegue sigue siendo manual: DEPLOYMENT.md §3 + infra/README.md."
+          else
+            echo "configurado=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Preparar SSH
+        if: steps.gate.outputs.configurado == 'true'
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          if [ -n "$DEPLOY_KNOWN_HOSTS" ]; then
+            printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            # TOFU: la primera conexión confía en lo que responda el host. Para
+            # cerrarlo, guarda `ssh-keyscan -H $HOST` en DEPLOY_KNOWN_HOSTS.
+            ssh-keyscan -H "$DEPLOY_HOST" > ~/.ssh/known_hosts 2>/dev/null
+          fi
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Migrar y rotar en el VPS (por digest, con gate de readiness)
+        if: steps.gate.outputs.configurado == 'true'
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          API_IMAGE: ${{ env.IMAGE_BASE }}/api@${{ needs.release.outputs.api_digest }}
+          WEB_IMAGE: ${{ env.IMAGE_BASE }}/web@${{ needs.release.outputs.web_digest }}
+          RELEASE_VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            "API_IMAGE='$API_IMAGE' WEB_IMAGE='$WEB_IMAGE' RELEASE_VERSION='$RELEASE_VERSION' bash -s" <<'REMOTO'
+          set -euo pipefail
+          cd /srv/valle
+
+          # Fija las imágenes del release EN .env: un `up -d` posterior desde
+          # cualquier shell del VPS levanta esta misma versión, no una vieja.
+          fijar() {
+            if grep -q "^$1=" .env; then
+              sed -i "s|^$1=.*|$1=$2|" .env
+            else
+              printf '%s=%s\n' "$1" "$2" >> .env
+            fi
+          }
+          fijar API_IMAGE "$API_IMAGE"
+          fijar WEB_IMAGE "$WEB_IMAGE"
+          fijar RELEASE_VERSION "$RELEASE_VERSION"
+
+          docker compose -f compose.prod.yml pull
+
+          # Migraciones como paso único y observable, ANTES de rotar, con la
+          # imagen NUEVA — el comando exacto de DEPLOYMENT.md §3.2.
+          docker compose -f compose.prod.yml run --rm api \
+            npx typeorm migration:run -d apps/api/dist/typeorm-cli.datasource.js
+
+          docker compose -f compose.prod.yml up -d
+
+          # Gate de readiness DESDE DENTRO del contenedor (base + migraciones),
+          # con reintentos: un deploy que no llega a ready es un deploy fallido.
+          for intento in $(seq 1 30); do
+            if docker compose -f compose.prod.yml exec -T api node -e \
+              "fetch('http://127.0.0.1:4000/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"; then
+              echo "readiness OK (intento $intento)"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "/health/ready no llegó a 200 en 150 s: revisa docker compose logs api" >&2
+          exit 1
+          REMOTO
+
+      - name: Gate externo de readiness (a través de Caddy/TLS)
+        if: steps.gate.outputs.configurado == 'true' && vars.RELEASE_API_URL != ''
+        run: |
+          # El gate interno prueba el proceso; éste prueba lo que ve el mundo:
+          # DNS, certificado y proxy. RELEASE_API_URL ya existe como variable
+          # del repo (es la que se incrusta en el web).
+          for intento in $(seq 1 12); do
+            if curl -fsS "${{ vars.RELEASE_API_URL }}/health/ready" >/dev/null; then
+              echo "readiness externa OK"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "El API no responde en ${{ vars.RELEASE_API_URL }}/health/ready" >&2
+          exit 1
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # DEPLOY A STAGING — sólo bajo workflow_dispatch con la casilla marcada, y
+  # con imágenes publicadas (sin publicar no hay nada que el VPS pueda hacer
+  # pull). Mismo VPS, proyecto compose aparte (infra/compose.staging.yml).
+  # Recuerda: la imagen del web de staging debe construirse con
+  # api_url=https://api-staging.DOMINIO — la de producción llamaría a la API
+  # real desde el navegador de quien prueba.
+  deploy-staging:
+    name: Deploy a staging (VPS)
+    needs: release
+    if: github.event_name == 'workflow_dispatch' && inputs.desplegar_staging && inputs.publicar_imagenes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: staging
+    steps:
+      - name: ¿Está cableado el despliegue?
+        id: gate
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          if [ -z "$DEPLOY_SSH_KEY" ] || [ -z "$DEPLOY_HOST" ] || [ -z "$DEPLOY_USER" ]; then
+            echo "configurado=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Staging SIN configurar (faltan DEPLOY_SSH_KEY/DEPLOY_HOST/DEPLOY_USER en el environment staging). Despliegue manual: infra/README.md § Staging."
+          else
+            echo "configurado=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Preparar SSH
+        if: steps.gate.outputs.configurado == 'true'
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          if [ -n "$DEPLOY_KNOWN_HOSTS" ]; then
+            printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            ssh-keyscan -H "$DEPLOY_HOST" > ~/.ssh/known_hosts 2>/dev/null
+          fi
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Migrar y rotar staging (por digest, con gate de readiness)
+        if: steps.gate.outputs.configurado == 'true'
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          API_IMAGE: ${{ env.IMAGE_BASE }}/api@${{ needs.release.outputs.api_digest }}
+          WEB_IMAGE: ${{ env.IMAGE_BASE }}/web@${{ needs.release.outputs.web_digest }}
+          RELEASE_VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            "API_IMAGE='$API_IMAGE' WEB_IMAGE='$WEB_IMAGE' RELEASE_VERSION='$RELEASE_VERSION' bash -s" <<'REMOTO'
+          set -euo pipefail
+          cd /srv/valle/staging
+
+          fijar() {
+            if grep -q "^$1=" .env; then
+              sed -i "s|^$1=.*|$1=$2|" .env
+            else
+              printf '%s=%s\n' "$1" "$2" >> .env
+            fi
+          }
+          fijar API_IMAGE "$API_IMAGE"
+          fijar WEB_IMAGE "$WEB_IMAGE"
+          fijar RELEASE_VERSION "$RELEASE_VERSION"
+
+          docker compose -f ../compose.staging.yml pull
+          docker compose -f ../compose.staging.yml run --rm api \
+            npx typeorm migration:run -d apps/api/dist/typeorm-cli.datasource.js
+          docker compose -f ../compose.staging.yml up -d
+
+          for intento in $(seq 1 30); do
+            if docker compose -f ../compose.staging.yml exec -T api node -e \
+              "fetch('http://127.0.0.1:4000/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"; then
+              echo "readiness OK (intento $intento)"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "/health/ready de staging no llegó a 200 en 150 s" >&2
+          exit 1
+          REMOTO

@@ -78,10 +78,12 @@ El proveedor de correo se elige POR CONFIGURACIÓN y jamás a medias:
 | `OUTBOX_EMAIL_LINK_BASE_URL` | Con correo | Origen web público que ancla los enlaces absolutos de los correos. HTTPS obligatorio (loopback HTTP sólo en local); sin credenciales, query ni fragmento. |
 
 Las plantillas existentes son `identity.verify-email`,
-`identity.reset-password` y `organization.invitation`; una plantilla
-desconocida se registra en el recibo y responde 200 (reintentar un render
-imposible no lo vuelve posible). La cola `domain` es hoy aceptación durable
-sin consumo.
+`identity.reset-password`, `organization.invitation` y
+`commercial.renewal-reminder` (aviso de vencimiento para pagos únicos
+OXXO/SPEI, encolado por el worker con compuerta horaria e idempotente por
+`renewal-reminder:${subscriptionId}:${periodEnd}`); una plantilla desconocida
+se registra en el recibo y responde 200 (reintentar un render imposible no lo
+vuelve posible). La cola `domain` es hoy aceptación durable sin consumo.
 
 ## Pasarela de pagos (Stripe)
 
@@ -116,10 +118,13 @@ en `payment_events` dentro de la misma transacción que el efecto, así que una
 reentrega no renueva dos veces. Configura en el dashboard del proveedor estos
 eventos: `checkout.session.completed`, `checkout.session.async_payment_succeeded`,
 `checkout.session.async_payment_failed`, `invoice.paid`,
-`invoice.payment_failed` y `customer.subscription.deleted`. Los dos
-asíncronos son OBLIGATORIOS si se habilitan OXXO o SPEI: sin ellos el pago en
-efectivo entra en la cuenta y la suscripción nunca se activa. Cualquier otro tipo
-responde 200 y queda registrado sin efecto.
+`invoice.payment_failed`, `customer.subscription.deleted`, `charge.refunded` y
+`charge.dispute.created`. Los dos asíncronos son OBLIGATORIOS si se habilitan
+OXXO o SPEI: sin ellos el pago en efectivo entra en la cuenta y la suscripción
+nunca se activa. Los dos de cargos mueven reembolsos (factura espejo a
+`refunded`) y contracargos (suscripción a `suspended`); el procedimiento humano
+está en `RUNBOOK.md` § «Disputas y reembolsos». Cualquier otro tipo responde
+200 y queda registrado sin efecto.
 
 OXXO y SPEI hay que ACTIVARLOS además en el panel del proveedor (métodos de
 pago de la cuenta de México); el producto los ofrece sólo en MXN y rechaza una

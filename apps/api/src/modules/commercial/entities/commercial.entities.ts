@@ -364,6 +364,10 @@ export const INVOICE_STATUSES = [
   'open',
   'uncollectible',
   'void',
+  // El dinero se devolvió (`charge.refunded`). Es un estado PROPIO y no una
+  // vuelta a `open`: una factura reembolsada no está pendiente de cobro, está
+  // saldada en dirección contraria, y el portal debe decirlo con esa palabra.
+  'refunded',
 ] as const;
 export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
 

@@ -159,6 +159,14 @@ export class BillingWebhookService {
         return this.recordFailedInvoice(manager, event, object);
       case 'customer.subscription.deleted':
         return this.cancelSubscription(manager, event, object);
+      // El dinero SALIÓ: reembolso decidido (por el operador, en el dashboard
+      // del proveedor) o contracargo abierto por el banco del cliente. Ninguno
+      // de los dos se origina en este producto, pero ignorarlos dejaría el
+      // espejo de facturas y el acceso contando dinero que ya no existe.
+      case 'charge.refunded':
+        return this.recordRefundedCharge(manager, event, object);
+      case 'charge.dispute.created':
+        return this.suspendFromDispute(manager, event, object);
       default:
         // Nunca un 500 ni un reintento infinito: se apunta y se acepta.
         return { status: 'ignored', outcome: 'unhandled_type' };
@@ -464,6 +472,104 @@ export class BillingWebhookService {
     return { status: 'processed', outcome: 'subscription_cancelled' };
   }
 
+  /**
+   * `charge.refunded`: el operador devolvió el dinero desde el dashboard del
+   * proveedor (aquí no hay endpoint de reembolso a propósito: devolver dinero
+   * es una decisión humana con contexto, no una ruta de la API).
+   *
+   * El efecto es el ESPEJO, no el acceso: la factura reflejada pasa a
+   * `refunded` y se publica el evento de dominio. La suscripción NO se toca —
+   * si el reembolso debe además cortar el servicio, esa es una segunda
+   * decisión que el operador ejecuta cancelando en el proveedor (y llegará
+   * como `customer.subscription.deleted`). Acoplarlas convertiría un reembolso
+   * parcial de cortesía en una baja accidental.
+   */
+  private async recordRefundedCharge(
+    manager: EntityManager,
+    event: PaymentWebhookEvent,
+    charge: unknown,
+  ): Promise<BillingWebhookResult> {
+    const subscription = await this.lookup(
+      manager,
+      null,
+      readReferenceId(charge, 'customer'),
+      'charge_unmatched',
+    );
+    // Un cargo de suscripción lleva su factura; un pago único (OXXO/SPEI vía
+    // checkout) no tiene factura del proveedor que espejar. En ese caso el
+    // rastro es el evento de dominio, y el espejo simplemente no cambia.
+    const providerInvoiceId = readReferenceId(charge, 'invoice');
+    let mirrored = false;
+    if (providerInvoiceId) {
+      const updated = await manager.update(
+        Invoice,
+        { provider: PROVIDER, providerInvoiceId },
+        { status: 'refunded' as const },
+      );
+      mirrored = !!updated.affected;
+    }
+    await this.publish(manager, event, subscription, {
+      type: 'commercial.invoice.refunded',
+      payload: {
+        planCode: subscription.planCode,
+        providerInvoiceId,
+        amountRefundedCents: readAmountCents(charge, [
+          'amount_refunded',
+          'amount',
+        ]),
+        currency: readCurrency(charge, 'currency'),
+      },
+    });
+    return {
+      status: 'processed',
+      outcome: mirrored ? 'invoice_refunded' : 'refund_without_invoice',
+    };
+  }
+
+  /**
+   * `charge.dispute.created`: el banco del cliente abrió un contracargo. El
+   * dinero queda retenido por el proveedor y el producto pasa la suscripción a
+   * `suspended` — el mismo fallo cerrado que aplica el resto del sistema: con
+   * el cobro en disputa, el acceso no puede seguir contándolo como bueno.
+   *
+   * Lo que NO hace este código: responder la disputa. Eso es evidencia,
+   * plazos y una decisión humana en el dashboard del proveedor; el
+   * procedimiento está en `RUNBOOK.md` § Disputas y reembolsos.
+   */
+  private async suspendFromDispute(
+    manager: EntityManager,
+    event: PaymentWebhookEvent,
+    dispute: unknown,
+  ): Promise<BillingWebhookResult> {
+    const subscription = await this.lookup(
+      manager,
+      null,
+      disputeCustomerId(dispute),
+      'dispute_unmatched',
+    );
+    // Una suscripción ya cancelada no tiene acceso que suspender; el evento se
+    // publica igual porque la disputa existe y soporte debe verla.
+    if (subscription.status !== 'cancelled') {
+      await manager.update(
+        Subscription,
+        {
+          organizationId: subscription.organizationId,
+          tenantId: subscription.organizationId,
+        },
+        { status: 'suspended' as const },
+      );
+    }
+    await this.publish(manager, event, subscription, {
+      type: 'commercial.subscription.disputed',
+      payload: {
+        planCode: subscription.planCode,
+        amountCents: readAmountCents(dispute, ['amount']),
+        currency: readCurrency(dispute, 'currency'),
+      },
+    });
+    return { status: 'processed', outcome: 'subscription_disputed' };
+  }
+
   private resolveSubscription(
     manager: EntityManager,
     invoice: unknown,
@@ -607,6 +713,29 @@ function periodEndFromMetadata(session: unknown): Date | null {
   const period = readMetadata(session, 'period');
   const duration = period ? PERIOD_DURATION_MS[period] : undefined;
   return duration ? new Date(Date.now() + duration) : null;
+}
+
+/**
+ * Cliente al que pertenece una disputa.
+ *
+ * El objeto Dispute de Stripe no siempre publica `customer` en la raíz: según
+ * la versión de la API puede venir sólo dentro del cargo expandido. Se buscan
+ * ambos sitios (misma arqueología que `invoiceSubscriptionId`); si ninguno lo
+ * trae, la correlación falla y el llamador pide reintento — perder una disputa
+ * en silencio es la peor de las opciones.
+ */
+function disputeCustomerId(dispute: unknown): string | null {
+  const direct = readReferenceId(dispute, 'customer');
+  if (direct) return direct;
+  const charge = readObject(dispute, 'charge');
+  return readReferenceId(charge, 'customer');
+}
+
+/** Campo objeto (recurso expandido); `undefined` si es cadena o falta. */
+function readObject(value: unknown, key: string): unknown {
+  if (!value || typeof value !== 'object') return undefined;
+  const candidate = (value as Record<string, unknown>)[key];
+  return candidate && typeof candidate === 'object' ? candidate : undefined;
 }
 
 /** Suscripción expandida dentro de la sesión de checkout, si viene. */

@@ -118,9 +118,9 @@ FROM domain_outbox WHERE status IN ('pending', 'failed');
 - **Outbox crece:** comprueba worker habilitado, PostgreSQL, DNS/TLS y latencia
   del receptor. Valida firma/dedup con un mensaje de prueba en staging. No
   marques filas `sent`, reinicies intentos o reenvíes payloads a mano.
-- **Filas `dead`:** conserva IDs internos y clase de fallo, corrige el receptor
-  y decide una herramienta de replay auditada e idempotente. El runtime no
-  promete replay manual automático.
+- **Filas `dead`:** corrige primero el receptor y reinyecta después con
+  `node scripts/ops/outbox-replay.mjs` (ver INC-2): imprime un JSON auditable
+  de lo tocado y sólo acepta filas `dead`. No edites filas con UPDATE suelto.
 - **409/CAS:** preserva el estado local, abre la versión actual, compara y
   reintenta desde esa versión. Nunca incrementes el contador ni sobreescribas
   directamente la fila.
@@ -135,6 +135,26 @@ FROM domain_outbox WHERE status IN ('pending', 'failed');
   habilites `AI_MOCK` en producción.
 - **CORS:** reconstruir el web no corrige el API; ajusta `ALLOWED_ORIGIN` exacto.
   Si el web llama un host viejo, reconstruye con `NEXT_PUBLIC_API_URL` correcto.
+
+## Backups programados
+
+El día del incidente, el backup que salva es el que un cron tomó y VERIFICÓ
+anoche. `scripts/ops/backup-cron.sh` hace la pasada completa — crear →
+restaurar en base temporal y comprobar recuentos → subir fuera de la máquina
+(si `RCLONE_REMOTE` está definido) → rotar — y falla ruidoso en cualquier
+paso. La línea de cron exacta del VPS (diaria, plan Piloto):
+
+```cron
+MAILTO=tu-correo@dominio.mx
+15 3 * * * DATABASE_URL=postgres://... RCLONE_REMOTE=r2:valle-backups /srv/valle/repo/scripts/ops/backup-cron.sh >> /var/log/valle-backup.log 2>&1
+```
+
+`MAILTO` no es decoración: es el canal por el que un backup fallido se
+ENTERA. La retención por plan (SLA.md §2) manda sobre el default de 14 días
+locales — Profesional exige cada 6 h y 30 días. Verificación puntual y
+procedimiento completo de restauración: `docs/guides/backup-restore.md`.
+
+---
 
 ## Incidentes con procedimiento
 
@@ -224,9 +244,32 @@ baja:
 watch -n 10 "curl -sS $API/health/metrics/commercial | jq '.outbox.email.oldestUnsentAgeSeconds'"
 ```
 
-Las filas `dead` NO se reintentan solas — es deliberado. Conserva sus IDs y
-clase de fallo y decide una herramienta de replay auditada e idempotente; el
-runtime no promete replay manual.
+Las filas `dead` NO se reintentan solas — es deliberado: ocho intentos
+fallidos son un diagnóstico, no mala suerte. El replay es un paso EXPLÍCITO,
+con herramienta propia, y SIEMPRE después de corregir la causa (reinyectar
+contra un receptor roto sólo fabrica ocho fallos más):
+
+```bash
+# 1 · Ver qué hay, sin tocar nada (JSON auditable: id, intentos, clase de error)
+node scripts/ops/outbox-replay.mjs --queue email --all-dead --dry-run
+
+# 2 · Reinyectar UNA fila concreta…
+node scripts/ops/outbox-replay.mjs --queue email --id <uuid>
+
+# 3 · …o todas las dead de la cola, arreglada la causa
+node scripts/ops/outbox-replay.mjs --queue email --all-dead
+node scripts/ops/outbox-replay.mjs --queue domain --all-dead
+
+# 4 · Pega el JSON que imprime en el informe del incidente y vigila el drenaje
+watch -n 10 "curl -sS $API/health/metrics/commercial | jq '.outbox'"
+```
+
+El script devuelve las filas a `pending` con `attempt_count=0` y conserva
+`last_error` como rastro. Reinyectar es seguro porque el receptor deduplica
+de forma durable por `Idempotency-Key` (`webhook_receipts` + la clave nativa
+del proveedor de correo): una fila cuyo efecto ya ocurrió produce un 200 sin
+efecto nuevo. Lo que sigue prohibido: marcar filas `sent`, cambiar claves de
+idempotencia o reenviar payloads a mano.
 
 ---
 
@@ -314,6 +357,52 @@ parar escrituras y tomar un backup verificado ANTES de revertir nada.
 **Qué NO hacer:** desplegar el web viejo contra el API nuevo sin comprobar el
 contrato, ni reconstruir el web «para arreglar CORS». El origen permitido es
 `ALLOWED_ORIGIN` **en el API**; reconstruir el web no lo cambia.
+
+---
+
+### Disputas y reembolsos
+
+El producto NO tiene endpoint de reembolso, a propósito: devolver dinero es
+una decisión humana con contexto. La división de trabajo exacta:
+
+**Qué hace el sistema (automático, por webhook):**
+
+- `charge.refunded` → la factura espejo pasa a **`refunded`** y se publica
+  `commercial.invoice.refunded` en el outbox de dominio. **La suscripción no
+  se toca**: reembolsar y dar de baja son dos decisiones distintas, y acoplar
+  ambas convertiría un reembolso parcial de cortesía en una baja accidental.
+- `charge.dispute.created` (contracargo) → la suscripción pasa a
+  **`suspended`** — fallo cerrado: un cobro en disputa no puede seguir
+  contando como bueno — y se publica `commercial.subscription.disputed`.
+- Ambos eventos son idempotentes por `event.id` (`payment_events`): una
+  reentrega no repite el efecto.
+
+**Qué hace el humano, en el dashboard de Stripe:**
+
+1. **Reembolso:** Pagos → localizar el cargo → *Reembolsar* (total o parcial).
+   El webhook hace el resto. Si además procede cortar el servicio, cancela la
+   suscripción en el proveedor (o desde el portal): llegará
+   `customer.subscription.deleted` y el producto la cerrará por su camino
+   normal. Si fue pago único (OXXO/SPEI), no hay suscripción del proveedor
+   que cancelar: valora si el acceso debe seguir hasta `current_period_end`.
+2. **Disputa:** Pagos → Disputas → revisar motivo y fecha límite de
+   evidencia. Decidir: **aceptar** (se pierde el importe + comisión de
+   disputa; valorar cancelar la suscripción) o **responder** con evidencia
+   (facturas espejo, fechas de acceso del `design_audit_log`, correos).
+   Responde SIEMPRE antes de la fecha límite: una disputa sin respuesta se
+   pierde sola.
+3. **Si se gana la disputa:** Stripe libera el dinero. La reactivación del
+   acceso es manual y deliberada — verifica con el cliente antes de mover
+   `suspended` → `active` (el siguiente `invoice.paid` también reactiva por
+   sí solo las suscripciones recurrentes).
+4. Deja constancia (fecha, cargo, decisión, resultado) donde el equipo
+   registre incidentes: `payment_events.outcome` guarda lo que hizo el
+   sistema, no por qué lo decidió el humano.
+
+**Qué NO hacer:** editar `invoices.status` o `subscriptions.status` a mano
+para «adelantar» al webhook. Si el evento no llegó, es un problema del
+webhook (verifica el endpoint y los eventos suscritos en el proveedor), no
+de los datos.
 
 ---
 

@@ -1,0 +1,110 @@
+# STAGING EN EL MISMO VPS: proyecto compose APARTE, base de datos aparte,
+# claves Stripe de TEST e imagen web PROPIA — colgado del Caddy de producción.
+#
+# Por qué así y no de otra forma:
+#
+#   · Proyecto aparte (`name: valle-staging`, .env propio en
+#     /srv/valle/staging/.env): `docker compose down` de staging no puede
+#     tocar producción ni por accidente, y viceversa. Volumen de datos
+#     propio (pgdata_staging): una migración ensayada aquí no ve ni un byte
+#     de datos reales.
+#   · SIN Caddy propio: Let's Encrypt necesita el 80/443, que ya son del
+#     Caddy de producción. En su lugar, api-staging y web-staging se
+#     enchufan a la red compartida `valle-edge` (la crea compose.prod.yml)
+#     con alias fijos, y el Caddyfile ya trae los bloques
+#     api-staging.{DOMAIN} y app-staging.{DOMAIN}. Puertos del host: cero.
+#   · Imagen web PROPIA obligatoria: NEXT_PUBLIC_API_URL va incrustada en el
+#     bundle, así que la imagen de producción llamaría a la API de
+#     producción DESDE el navegador de quien prueba staging. WEB_IMAGE aquí
+#     debe haberse construido con https://api-staging.DOMAIN.
+#   · Stripe en modo TEST (sk_test_/whsec_ del endpoint de test): un webhook
+#     de prueba jamás debe poder mover una suscripción real — por eso
+#     también la base aparte.
+#
+# Operación (desde /srv/valle/staging, con su .env al lado):
+#   docker compose -f ../compose.staging.yml pull
+#   docker compose -f ../compose.staging.yml run --rm api \
+#     npx typeorm migration:run -d apps/api/dist/typeorm-cli.datasource.js
+#   docker compose -f ../compose.staging.yml up -d
+
+name: valle-staging
+
+services:
+  postgres:
+    image: postgres:16-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Define POSTGRES_DB en el .env de staging}
+      POSTGRES_USER: ${POSTGRES_USER:?}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+    volumes:
+      - pgdata_staging:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  api:
+    image: ${API_IMAGE:?Define API_IMAGE para staging}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # NODE_ENV=production A PROPÓSITO: staging existe para ensayar el
+      # comportamiento de producción (guards, cookies __Host-, HTTPS de
+      # outbox). Un staging en modo development ensaya otro producto.
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      SYNCHRONIZE: 'false'
+      IDENTITY_RATE_LIMIT_KEY_SECRET: ${IDENTITY_RATE_LIMIT_KEY_SECRET:?distinto del de produccion}
+      ALLOWED_ORIGIN: https://app-staging.${DOMAIN:?}
+      OUTBOX_DISPATCHER_ENABLED: 'true'
+      OUTBOX_EMAIL_WEBHOOK_URL: https://api-staging.${DOMAIN}/v1/outbox/email
+      OUTBOX_DOMAIN_WEBHOOK_URL: https://api-staging.${DOMAIN}/v1/outbox/domain
+      OUTBOX_WEBHOOK_SECRET: ${OUTBOX_WEBHOOK_SECRET:?distinto del de produccion}
+      EMAIL_SENDER_PROVIDER: ${EMAIL_SENDER_PROVIDER:?}
+      EMAIL_SENDER_API_KEY: ${EMAIL_SENDER_API_KEY:?}
+      EMAIL_SENDER_FROM: ${EMAIL_SENDER_FROM:?}
+      OUTBOX_EMAIL_LINK_BASE_URL: https://app-staging.${DOMAIN}
+      # Claves de TEST (sk_test_...) y el whsec_ del endpoint de webhook de
+      # test apuntando a api-staging: eventos de prueba, base de prueba.
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_CHECKOUT_SUCCESS_URL: ${STRIPE_CHECKOUT_SUCCESS_URL:-}
+      STRIPE_CHECKOUT_CANCEL_URL: ${STRIPE_CHECKOUT_CANCEL_URL:-}
+      CFDI_PAC_NAME: ${CFDI_PAC_NAME:-}
+      CFDI_PAC_API_KEY: ${CFDI_PAC_API_KEY:-}
+      CFDI_ISSUER_RFC: ${CFDI_ISSUER_RFC:-}
+      CFDI_ISSUER_TAX_REGIME: ${CFDI_ISSUER_TAX_REGIME:-}
+      METRICS_TOKEN: ${METRICS_TOKEN:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      RELEASE_VERSION: ${RELEASE_VERSION:-}
+    networks:
+      default: {}
+      edge:
+        # El alias es el nombre que usa el Caddyfile de producción.
+        aliases: [api-staging]
+
+  web:
+    # Construida con NEXT_PUBLIC_API_URL=https://api-staging.${DOMAIN} — la
+    # imagen de producción aquí llamaría a la API real desde el navegador.
+    image: ${WEB_IMAGE:?Define WEB_IMAGE de staging (API URL incrustada propia)}
+    restart: unless-stopped
+    networks:
+      default: {}
+      edge:
+        aliases: [web-staging]
+
+volumes:
+  pgdata_staging:
+
+networks:
+  default:
+  edge:
+    external: true
+    # La crea compose.prod.yml; si no existe, produccion no está arrancada y
+    # staging no tiene proxy del que colgarse.
+    name: valle-edge

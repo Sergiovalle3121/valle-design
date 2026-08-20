@@ -67,6 +67,8 @@ export function renderEmailTemplate(
       });
     case 'organization.invitation':
       return renderInvitationEmail(payload, linkBaseUrl);
+    case 'commercial.renewal-reminder':
+      return renderRenewalReminderEmail(payload, linkBaseUrl);
     default:
       throw new EmailTemplateError(
         'unknown_template',
@@ -162,6 +164,60 @@ function renderInvitationEmail(
       `border-radius:6px;font-family:monospace;font-size:16px;">` +
       `${escapeHtml(token)}</p>`,
     actionButton(linkBaseUrl, `Abrir ${PRODUCT_NAME}`),
+    paragraph(escapeHtml(outro)),
+  ]);
+  return { subject, html, text };
+}
+
+/**
+ * Recordatorio de renovación para pagos únicos (OXXO/SPEI). El shape calca lo
+ * que encola `renewal-reminder.service.ts`: `{organizationName, planCode,
+ * currentPeriodEnd}`. El plan no se interpola en la prosa: `planCode` es un
+ * código interno (`individual`, `despacho`), no un nombre comercial, y
+ * enseñárselo al cliente sería enseñar tripas.
+ *
+ * El enlace lleva a `/cuenta/facturacion`, que SÍ existe en el web (a
+ * diferencia de la aceptación de invitaciones): ahí vive el flujo de pago con
+ * el que se renueva.
+ */
+function renderRenewalReminderEmail(
+  payload: unknown,
+  linkBaseUrl: string,
+): RenderedEmail {
+  const organizationName = readString(payload, 'organizationName');
+  const currentPeriodEnd = readString(payload, 'currentPeriodEnd');
+  const endsAtMs = Date.parse(currentPeriodEnd);
+  if (Number.isNaN(endsAtMs)) {
+    throw new EmailTemplateError(
+      'invalid_payload',
+      'El campo `currentPeriodEnd` no es una fecha válida.',
+    );
+  }
+  const subject = `Tu suscripción vence pronto — ${PRODUCT_NAME}`;
+  const deadline = formatDeadline(new Date(endsAtMs));
+  const intro =
+    `La suscripción de «${organizationName}» en ${PRODUCT_NAME} se pagó ` +
+    `con un pago único (OXXO o transferencia SPEI), así que no se renueva ` +
+    `sola: vence el ${deadline}.`;
+  const action =
+    'Para no perder acceso, renueva antes de esa fecha desde la sección ' +
+    'de facturación de tu cuenta. Si pagas con OXXO, considera el tiempo ' +
+    'de acreditación: el pago en efectivo puede tardar uno o dos días en ' +
+    'reflejarse.';
+  const outro =
+    'Si ya renovaste, no tienes que hacer nada más. Tus planos y tu ' +
+    'información no se borran al vencer: sólo se pausa el acceso de edición ' +
+    'hasta que el pago entre.';
+  const link = `${linkBaseUrl}/cuenta/facturacion`;
+  const text = ['Hola:', '', intro, '', action, '', link, '', outro].join('\n');
+  const html = htmlLayout(subject, [
+    paragraph(escapeHtml(intro)),
+    paragraph(escapeHtml(action)),
+    actionButton(link, 'Renovar mi suscripción'),
+    paragraph(
+      `Si el botón no funciona, copia este enlace en tu navegador:<br>` +
+        `<a href="${escapeHtml(link)}">${escapeHtml(link)}</a>`,
+    ),
     paragraph(escapeHtml(outro)),
   ]);
   return { subject, html, text };

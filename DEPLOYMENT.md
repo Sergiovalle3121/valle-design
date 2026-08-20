@@ -108,6 +108,27 @@ versionado ni argumentos visibles del proceso.
 
 El orden importa porque el esquema y el código cambian por separado.
 
+### 3.0 · Despliegue automático desde CI (opcional, mismo orden)
+
+`release.yml` trae un job `deploy` que ejecuta ESTE MISMO procedimiento por
+SSH contra el VPS al publicar una etiqueta: migraciones con la imagen nueva
+(§3.2) → `docker compose pull` + `up -d` en `/srv/valle` (infra/README.md)
+→ gate de readiness con reintentos, interno y —si `vars.RELEASE_API_URL`
+está definida— externo a través de Caddy/TLS. Se despliega por **digest**
+del job de release, nunca por tag.
+
+- Se activa poniendo `DEPLOY_SSH_KEY`, `DEPLOY_HOST` y `DEPLOY_USER` en el
+  environment `production` de GitHub (`DEPLOY_KNOWN_HOSTS` opcional para
+  fijar la huella del host). **Sin esos secrets el job termina en verde con
+  un aviso y el despliegue sigue siendo manual** — este documento no deja de
+  ser el procedimiento, pasa a ser también lo que CI ejecuta.
+- Si el environment `production` tiene *required reviewers*, GitHub pide
+  aprobación humana antes de tocar el VPS. Configurarlo se recomienda: es la
+  diferencia entre «un tag despliega» y «un tag propone desplegar».
+- `deploy-staging` existe bajo `workflow_dispatch` (casillas
+  `publicar_imagenes` + `desplegar_staging`) contra el proyecto compose de
+  staging del mismo VPS.
+
 ### 3.1 · Antes de tocar producción
 
 ```bash
@@ -333,6 +354,26 @@ Reporte de errores: puerto `ErrorReporter` con adaptador **inerte** por
 defecto. Con `SENTRY_DSN` se activa un adaptador HTTP compatible con Sentry
 (sin dependencia nueva) que sanea PII y secretos antes de enviar nada. Un DSN
 ilegible **no tumba el arranque**: registra el motivo y cae al inerte.
+
+### Monitoreo mínimo (sin Prometheus desplegado)
+
+`.github/workflows/monitor.yml` ejecuta cada 15 minutos (y bajo
+`workflow_dispatch`) `scripts/ops/check-alerts.mjs`, que descarga `/metrics`
+y evalúa los umbrales de `docs/ops/SLA.md` §4: outbox sin drenar más de
+900 s, filas `dead` > 0, o endpoint que no responde. Si algo viola el
+umbral, **el workflow falla y GitHub manda el correo de fallo al dueño: ese
+correo es la alerta**. Para activarlo, dos secrets del repositorio:
+
+| Secret                  | Valor                                    |
+| ----------------------- | ---------------------------------------- |
+| `MONITOR_METRICS_URL`   | `https://api.tu-dominio.com/metrics`     |
+| `MONITOR_METRICS_TOKEN` | el mismo `METRICS_TOKEN` del despliegue  |
+
+Sin los secrets, el workflow termina en verde con el aviso «monitoreo sin
+configurar» — verde que significa «no se midió nada», no «todo bien» (es la
+regla de SLA.md §6). El cron de GitHub es best-effort: para detectar la
+caída total del API súmale un monitor externo gratuito (p. ej. UptimeRobot)
+contra `/health/ready`.
 
 `docker-compose.yml` es sólo infraestructura local: tiene credenciales
 conocidas y levanta MinIO, aunque el runtime actual almacena blobs en

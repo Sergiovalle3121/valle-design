@@ -56,6 +56,7 @@ import {
   CommercialOutboxDispatcher,
 } from './outbox-dispatcher.service';
 import { CommercialOutboxWorker } from './outbox-worker.service';
+import { RenewalReminderService } from './renewal-reminder.service';
 import { WebhookCommercialOutboxTransport } from './webhook-outbox.transport';
 import { CommercialCatalogBootstrap } from './commercial-catalog.bootstrap';
 import { CommercialTelemetryService } from './commercial-telemetry.service';
@@ -150,6 +151,10 @@ import { SeatEntitlementService } from './seat-entitlement.service';
     SubscriptionLifecycleService,
     BillingWebhookService,
     CommercialOutboxDispatcher,
+    // Antes que el worker: el tick lo invoca tras cada lote (compuerta
+    // horaria dentro del servicio). OXXO/SPEI no se renuevan solos; sin este
+    // aviso el cliente de efectivo descubre el vencimiento cuando ya venció.
+    RenewalReminderService,
     CommercialOutboxWorker,
     CommercialCatalogBootstrap,
   ],
