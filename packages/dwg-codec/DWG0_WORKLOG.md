@@ -167,7 +167,7 @@ y la promoción condicionada a revisión legal externa.
   sentidos — la máscara XOR del CRC quedó **desmentida por corpus, corregida**
   (8/8 AC1015 reales guardan el CRC crudo; XOR observado 0x0000 con 6
   registros) y el centinela final quedó CONFIRMADO byte a byte. Ver
-  `VALLE-CORPUS-AC1015-HEADER-CRC-2026-08-20` y la sesión de intake de abajo.
+  `VALLE-CORPUS-AC1015-INTAKE-DAE5E77` y la sesión de intake de abajo.
 
 ## DWG-1 sesión 2026-08-14 (continuación) — writer del contenedor (fase C)
 
@@ -503,7 +503,7 @@ sólo después se toca el código. Un commit por hecho.
   constante XOR del recuento de registros (3→0xA598, 4→0x8101, 5→0x3CC4,
   6→0x8461), hecho tomado de la ODS 5.4.1. Evidencia hasta hoy: round-trip
   de laboratorio.
-- Observación (`VALLE-CORPUS-AC1015-HEADER-CRC-2026-08-20`): los 8 AC1015
+- Observación (`VALLE-CORPUS-AC1015-INTAKE-DAE5E77`): los 8 AC1015
   reales declaran 6 registros y guardan en el offset 79 el CRC-16 crudo
   (semilla 0xC0C1 sobre los bytes [0,79)); el XOR necesario para cuadrar es
   0x0000 en los 8. La máscara 0x8461 queda **desmentida por corpus,
@@ -523,3 +523,40 @@ sólo después se toca el código. Un commit por hecho.
   los centinelas de apertura registrados en su sitio) — la "decisión de
   laboratorio" del encaje exacto de fase C es ahora un hecho confirmado
   por corpus para esas dos secciones.
+- Nota de registro: la entrada nació como
+  `VALLE-CORPUS-AC1015-HEADER-CRC-2026-08-20` y se renombró a
+  `VALLE-CORPUS-AC1015-INTAKE-DAE5E77` en el hecho 2 — el registro exige
+  ubicaciones de origen únicas, así que los hechos medidos sobre el MISMO
+  commit del corpus se acumulan en una sola entrada, igual que los de la ODS.
+
+### Hecho 2 — BLOCK HEADER lleva un bit extra antes del punto base (desmentido por corpus, corregido 2026-08-20)
+
+- Certeza previa (fase D4, con el orden intermedio marcado MEDIA): la
+  entrada BLOCK HEADER codifica ... bits de anónimo/ATTDEFs/es-xref/xref
+  superpuesto, punto base 3BD, ruta TV, recuentos RC, descripción TV y
+  previsualización BL.
+- Síntoma tras el hecho 1: los 8 archivos morían SOLO en sus BLOCK HEADER
+  (`*Model_Space`/`*Paper_Space` y los bloques de usuario), con
+  `DWG_STRUCTURE_CORRUPT` al final del cuerpo — la secuencia de recuentos
+  RC leía basura desalineada hasta salirse. Todos los demás tipos cubiertos
+  (LINE incluida) ya decodificaban.
+- Observación (18/18 BLOCK HEADER de los 8 archivos, registrada en
+  `VALLE-CORPUS-AC1015-INTAKE-DAE5E77`): entre el bit de xref-superpuesto y
+  el punto base viaja UN bit adicional (observado 0 en los 18). Sin él, el
+  punto base decodifica (1,1,1) y todo lo posterior se desalinea; con él,
+  el punto base es (0,0,0), la ruta vacía, los recuentos de inserción
+  reales aparecen ([1,1,1,1] en MARCO-A, [1,1] en PUERTA) y el flujo de
+  handles arranca EXACTAMENTE en el bit declarado (197/197, 189/189,
+  165/165). Los bytes discriminan solos entre las dos disposiciones.
+- Decisión: el lector lee el bit y lo expone CRUDO en el modelo
+  (`postXrefFlagsBit`) sin interpretar su semántica — ninguna fuente
+  registrada la nombra —, y el writer lo emite en 0, el único valor
+  observado. Mismo trato que el BS de estado del LAYER: viaja sin
+  interpretación hasta que una fuente o el corpus la fijen.
+- Confirmaciones de regalo de la misma medición: el RL de tamaño cuenta
+  desde el PRIMER bit del dato (certeza MEDIA de D2, ahora confirmada con
+  archivos reales), la secuencia RC de recuentos termina en 0 con valores
+  reales distintos de cero, y las convenciones big-endian del mapa de
+  objetos y little-endian del CRC de envoltura (MEDIA de D1) quedan
+  confirmadas — los 8 mapas reales (168–169 objetos) y todas sus
+  envolturas validan.

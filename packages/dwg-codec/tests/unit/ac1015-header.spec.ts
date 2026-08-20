@@ -92,7 +92,7 @@ test("seis registros validan con el CRC crudo, como los archivos reales", () => 
   // quirúrgicamente REUTILIZANDO su cabecera fija y su centinela, con el CRC
   // recalculado por los mismos primitivos first-party que usa el lector.
   // SIN máscara XOR: los 8 AC1015 reales del corpus llevan 6 registros y
-  // guardan el CRC crudo (VALLE-CORPUS-AC1015-HEADER-CRC-2026-08-20); la
+  // guardan el CRC crudo (VALLE-CORPUS-AC1015-INTAKE-DAE5E77); la
   // máscara 0x8461 que la ODS declaraba para este recuento quedó desmentida.
   const base = written();
   const head: number[] = [...base.slice(0, RECORD_COUNT_OFFSET)];

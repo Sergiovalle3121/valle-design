@@ -16,7 +16,7 @@
  * - **Hechos registrados**: disposición y constantes de
  *   ODA-ODS-DWG-5.4.1-PUBLIC (SOURCE_REGISTER). Implementación original.
  *
- * Intake 2026-08-20 (`VALLE-CORPUS-AC1015-HEADER-CRC-2026-08-20`): el corpus
+ * Intake 2026-08-20 (`VALLE-CORPUS-AC1015-INTAKE-DAE5E77`): el corpus
  * real DESMINTIÓ la máscara XOR del CRC que la ODS declaraba por recuento de
  * registros — los 8 AC1015 independientes guardan el CRC crudo — y CONFIRMÓ
  * byte a byte el centinela final. Este módulo valida el CRC sin máscara; el
@@ -177,7 +177,7 @@ export function parseAc1015FileHeader(
 
   // El CRC cubre TODO lo anterior: desde el byte 0 hasta el último registro.
   // CRUDO, sin máscara XOR: así lo guardan los 8 AC1015 reales del corpus
-  // (VALLE-CORPUS-AC1015-HEADER-CRC-2026-08-20).
+  // (VALLE-CORPUS-AC1015-INTAKE-DAE5E77).
   const crcEnd = cursor.position;
   const crc = cursor.readUint16LE();
   const computed = crc16Dwg(readBackSlice(cursor, 0, crcEnd), 0xc0c1);

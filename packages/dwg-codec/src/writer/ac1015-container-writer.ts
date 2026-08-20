@@ -296,7 +296,7 @@ export function writeAc1015Container(
   // intake 2026-08-20 este writer aplicaba la máscara XOR por recuento que
   // declaraba la ODS; el corpus real la desmintió (8/8 AC1015 con CRC sin
   // máscara) y writer y lector se corrigieron JUNTOS
-  // (VALLE-CORPUS-AC1015-HEADER-CRC-2026-08-20).
+  // (VALLE-CORPUS-AC1015-INTAKE-DAE5E77).
   pushUint16LE(head, crc16Dwg(Uint8Array.from(head), 0xc0c1));
   head.push(...AC1015_FILE_HEADER_END_SENTINEL);
   if (head.length !== FILE_HEADER_LENGTH) {

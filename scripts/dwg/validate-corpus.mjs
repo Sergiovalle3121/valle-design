@@ -416,7 +416,7 @@ function observeHeaderCrc(dwgBytes) {
     crcCalculadoSemilla0xc0c1: hex16(raw),
     xorNecesarioParaCuadrar: hex16(stored ^ raw),
     contexto:
-      "Desde el intake 2026-08-20 el decoder valida el CRC de cabecera CRUDO (VALLE-CORPUS-AC1015-HEADER-CRC-2026-08-20 desmintió la máscara XOR de la ODS). Si esta observación aparece, es una discrepancia NUEVA que hay que caracterizar y registrar antes de tocar el código.",
+      "Desde el intake 2026-08-20 el decoder valida el CRC de cabecera CRUDO (VALLE-CORPUS-AC1015-INTAKE-DAE5E77 desmintió la máscara XOR de la ODS). Si esta observación aparece, es una discrepancia NUEVA que hay que caracterizar y registrar antes de tocar el código.",
   };
 }
 

@@ -13,7 +13,7 @@
  * desmintió: los 8 AC1015 de una implementación independiente guardan el CRC
  * CRUDO (XOR observado 0x0000 con 6 registros, 8/8). La tabla se eliminó de
  * este módulo el 2026-08-20; el hecho medido es
- * `VALLE-CORPUS-AC1015-HEADER-CRC-2026-08-20` en SOURCE_REGISTER.
+ * `VALLE-CORPUS-AC1015-INTAKE-DAE5E77` en SOURCE_REGISTER.
  */
 
 const CRC16_TABLE = (() => {

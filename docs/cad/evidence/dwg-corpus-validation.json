@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "evidenceId": "valle-design-dwg-corpus-validation-v1",
   "generadoPor": "node scripts/dwg/validate-corpus.mjs",
-  "generadoEn": "2026-08-20T16:33:17.869Z",
+  "generadoEn": "2026-08-20T16:43:52.728Z",
   "environment": {
     "node": "v22.18.0",
     "platform": "win32",
@@ -15,7 +15,7 @@
     "totalMemoryBytes": 7896625152,
     "declaredMachine": "AMD Ryzen 5 5500U with Radeon Graphics (12 hilos lógicos), 7.9 GB de RAM, Windows_NT 10.0.26200"
   },
-  "veredicto": "EL DECODER NO ABRE NINGUNO de los 8 DWG AC1015 reales del corpus. Fallos distintos: DWG_STRUCTURE_CORRUPT @3335: Reading an RC byte extends outside the input. | DWG_STRUCTURE_CORRUPT @3337: Reading an RC byte extends outside the input. | DWG_STRUCTURE_CORRUPT @3351: Reading an RC byte extends outside the input. | DWG_STRUCTURE_CORRUPT @3341: Reading an RC byte extends outside the input. | DWG_STRUCTURE_CORRUPT @3389: Reading an RC byte extends outside the input. | DWG_STRUCTURE_CORRUPT @3392: Reading an RC byte extends outside the input.",
+  "veredicto": "El decoder abre 6 de 8 DWG AC1015; 2 fallan.",
   "reglaCleanRoom": "Toda discrepancia se REGISTRA aquí y no se corrige en esta ola: corregir el decoder exige registrar antes el hecho de formato en packages/dwg-codec/SOURCE_REGISTER.json (ADR-0007).",
   "alcance": "Sólo fixtures AC1015 del corpus admitido y verificado por hash. El DXF oráculo es la fuente de autoría propia congelada en el mismo bundle; los DWG los produjo una implementación independiente (ver docs/TOOLS.md del repo hermano).",
   "corpus": {
@@ -28,57 +28,56 @@
   },
   "resumen": {
     "archivosAc1015": 8,
-    "abiertos": 0,
-    "noAbiertos": 8,
+    "abiertos": 6,
+    "noAbiertos": 2,
     "sinOraculo": 0,
     "matrizEntidades": {
       "line": {
         "esperado": 15,
-        "leidoCorrecto": 0,
+        "leidoCorrecto": 7,
         "geometriaDistinta": 0,
         "faltante": 0,
         "inesperado": 0,
-        "sinValidarPorNoAbrir": 15
-      },
-      "circle": {
-        "esperado": 3,
-        "leidoCorrecto": 0,
-        "geometriaDistinta": 0,
-        "faltante": 0,
-        "inesperado": 0,
-        "sinValidarPorNoAbrir": 3
+        "sinValidarPorNoAbrir": 8
       },
       "arc": {
         "esperado": 2,
-        "leidoCorrecto": 0,
-        "geometriaDistinta": 0,
-        "faltante": 0,
-        "inesperado": 0,
-        "sinValidarPorNoAbrir": 2
-      },
-      "point": {
-        "esperado": 1,
-        "leidoCorrecto": 0,
+        "leidoCorrecto": 1,
         "geometriaDistinta": 0,
         "faltante": 0,
         "inesperado": 0,
         "sinValidarPorNoAbrir": 1
       },
-      "lwpolyline": {
+      "circle": {
         "esperado": 3,
-        "leidoCorrecto": 0,
+        "leidoCorrecto": 2,
         "geometriaDistinta": 0,
         "faltante": 0,
         "inesperado": 0,
-        "sinValidarPorNoAbrir": 3
+        "sinValidarPorNoAbrir": 1
+      },
+      "point": {
+        "esperado": 1,
+        "leidoCorrecto": 1,
+        "geometriaDistinta": 0,
+        "faltante": 0,
+        "inesperado": 0
+      },
+      "lwpolyline": {
+        "esperado": 3,
+        "leidoCorrecto": 2,
+        "geometriaDistinta": 0,
+        "faltante": 0,
+        "inesperado": 0,
+        "sinValidarPorNoAbrir": 1
       },
       "text": {
         "esperado": 5,
-        "leidoCorrecto": 0,
+        "leidoCorrecto": 3,
         "geometriaDistinta": 0,
         "faltante": 0,
         "inesperado": 0,
-        "sinValidarPorNoAbrir": 5
+        "sinValidarPorNoAbrir": 2
       },
       "insert": {
         "esperado": 6,
@@ -89,56 +88,55 @@
         "sinValidarPorNoAbrir": 6
       }
     },
-    "discrepanciasRegistradas": 8
+    "discrepanciasRegistradas": 2
   },
   "matrizEntidades": {
     "line": {
       "esperado": 15,
-      "leidoCorrecto": 0,
+      "leidoCorrecto": 7,
       "geometriaDistinta": 0,
       "faltante": 0,
       "inesperado": 0,
-      "sinValidarPorNoAbrir": 15
-    },
-    "circle": {
-      "esperado": 3,
-      "leidoCorrecto": 0,
-      "geometriaDistinta": 0,
-      "faltante": 0,
-      "inesperado": 0,
-      "sinValidarPorNoAbrir": 3
+      "sinValidarPorNoAbrir": 8
     },
     "arc": {
       "esperado": 2,
-      "leidoCorrecto": 0,
-      "geometriaDistinta": 0,
-      "faltante": 0,
-      "inesperado": 0,
-      "sinValidarPorNoAbrir": 2
-    },
-    "point": {
-      "esperado": 1,
-      "leidoCorrecto": 0,
+      "leidoCorrecto": 1,
       "geometriaDistinta": 0,
       "faltante": 0,
       "inesperado": 0,
       "sinValidarPorNoAbrir": 1
     },
-    "lwpolyline": {
+    "circle": {
       "esperado": 3,
-      "leidoCorrecto": 0,
+      "leidoCorrecto": 2,
       "geometriaDistinta": 0,
       "faltante": 0,
       "inesperado": 0,
-      "sinValidarPorNoAbrir": 3
+      "sinValidarPorNoAbrir": 1
+    },
+    "point": {
+      "esperado": 1,
+      "leidoCorrecto": 1,
+      "geometriaDistinta": 0,
+      "faltante": 0,
+      "inesperado": 0
+    },
+    "lwpolyline": {
+      "esperado": 3,
+      "leidoCorrecto": 2,
+      "geometriaDistinta": 0,
+      "faltante": 0,
+      "inesperado": 0,
+      "sinValidarPorNoAbrir": 1
     },
     "text": {
       "esperado": 5,
-      "leidoCorrecto": 0,
+      "leidoCorrecto": 3,
       "geometriaDistinta": 0,
       "faltante": 0,
       "inesperado": 0,
-      "sinValidarPorNoAbrir": 5
+      "sinValidarPorNoAbrir": 2
     },
     "insert": {
       "esperado": 6,
@@ -151,73 +149,13 @@
   },
   "discrepancias": [
     {
-      "archivo": "01-vacio",
-      "tipo": "no-abre",
-      "error": {
-        "code": "DWG_STRUCTURE_CORRUPT",
-        "category": "input",
-        "offset": 3335,
-        "message": "Reading an RC byte extends outside the input."
-      }
-    },
-    {
-      "archivo": "02-una-linea",
-      "tipo": "no-abre",
-      "error": {
-        "code": "DWG_STRUCTURE_CORRUPT",
-        "category": "input",
-        "offset": 3337,
-        "message": "Reading an RC byte extends outside the input."
-      }
-    },
-    {
-      "archivo": "03-figuras-basicas",
-      "tipo": "no-abre",
-      "error": {
-        "code": "DWG_STRUCTURE_CORRUPT",
-        "category": "input",
-        "offset": 3337,
-        "message": "Reading an RC byte extends outside the input."
-      }
-    },
-    {
-      "archivo": "04-capas",
-      "tipo": "no-abre",
-      "error": {
-        "code": "DWG_STRUCTURE_CORRUPT",
-        "category": "input",
-        "offset": 3351,
-        "message": "Reading an RC byte extends outside the input."
-      }
-    },
-    {
-      "archivo": "05-lwpolyline-bulges",
-      "tipo": "no-abre",
-      "error": {
-        "code": "DWG_STRUCTURE_CORRUPT",
-        "category": "input",
-        "offset": 3337,
-        "message": "Reading an RC byte extends outside the input."
-      }
-    },
-    {
-      "archivo": "06-texto",
-      "tipo": "no-abre",
-      "error": {
-        "code": "DWG_STRUCTURE_CORRUPT",
-        "category": "input",
-        "offset": 3341,
-        "message": "Reading an RC byte extends outside the input."
-      }
-    },
-    {
       "archivo": "07-bloques-insert",
       "tipo": "no-abre",
       "error": {
         "code": "DWG_STRUCTURE_CORRUPT",
         "category": "input",
-        "offset": 3389,
-        "message": "Reading an RC byte extends outside the input."
+        "offset": 6171,
+        "message": "The declared bit size does not match the decoded entity data."
       }
     },
     {
@@ -226,8 +164,8 @@
       "error": {
         "code": "DWG_STRUCTURE_CORRUPT",
         "category": "input",
-        "offset": 3392,
-        "message": "Reading an RC byte extends outside the input."
+        "offset": 6666,
+        "message": "The declared bit size does not match the decoded entity data."
       }
     }
   ],
@@ -244,13 +182,172 @@
         "capas": [],
         "bloques": []
       },
-      "abre": false,
-      "error": {
-        "code": "DWG_STRUCTURE_CORRUPT",
-        "category": "input",
-        "offset": 3335,
-        "message": "Reading an RC byte extends outside the input."
-      }
+      "abre": true,
+      "capas": {
+        "esperadas": [],
+        "leidas": [
+          {
+            "nombre": "0",
+            "colorIndex": 7,
+            "stateFlags": 1008
+          }
+        ],
+        "faltantes": [],
+        "coloresDistintos": [],
+        "observacionesDeEstado": []
+      },
+      "entidades": {
+        "porTipo": {},
+        "detalles": []
+      },
+      "bloques": {
+        "esperados": [],
+        "leidosTodos": [
+          "*Paper_Space",
+          "*Model_Space"
+        ],
+        "porBloque": {}
+      },
+      "tiposNoSoportados": [
+        {
+          "codigoBs": 42,
+          "cuantos": 46
+        },
+        {
+          "codigoBs": 52,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 53,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 56,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 57,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 60,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 62,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 64,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 65,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 66,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 67,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 68,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 69,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 70,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 73,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 79,
+          "cuantos": 35
+        },
+        {
+          "codigoBs": 500,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 501,
+          "cuantos": 17
+        },
+        {
+          "codigoBs": 502,
+          "cuantos": 24
+        },
+        {
+          "codigoBs": 503,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 504,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 505,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 506,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 507,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 508,
+          "cuantos": 8
+        },
+        {
+          "codigoBs": 509,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 510,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 511,
+          "cuantos": 2
+        }
+      ],
+      "diagnosticos": [
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 5775,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 5808,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 5828,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 5861,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        }
+      ]
     },
     {
       "bundle": "valle.fundacional.ac1015.001",
@@ -266,13 +363,180 @@
         "capas": [],
         "bloques": []
       },
-      "abre": false,
-      "error": {
-        "code": "DWG_STRUCTURE_CORRUPT",
-        "category": "input",
-        "offset": 3337,
-        "message": "Reading an RC byte extends outside the input."
-      }
+      "abre": true,
+      "capas": {
+        "esperadas": [],
+        "leidas": [
+          {
+            "nombre": "0",
+            "colorIndex": 7,
+            "stateFlags": 1008
+          }
+        ],
+        "faltantes": [],
+        "coloresDistintos": [],
+        "observacionesDeEstado": []
+      },
+      "entidades": {
+        "porTipo": {
+          "line": {
+            "esperado": 1,
+            "leidoCorrecto": 1,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          }
+        },
+        "detalles": []
+      },
+      "bloques": {
+        "esperados": [],
+        "leidosTodos": [
+          "*Paper_Space",
+          "*Model_Space"
+        ],
+        "porBloque": {}
+      },
+      "tiposNoSoportados": [
+        {
+          "codigoBs": 42,
+          "cuantos": 46
+        },
+        {
+          "codigoBs": 52,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 53,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 56,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 57,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 60,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 62,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 64,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 65,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 66,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 67,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 68,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 69,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 70,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 73,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 79,
+          "cuantos": 35
+        },
+        {
+          "codigoBs": 500,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 501,
+          "cuantos": 17
+        },
+        {
+          "codigoBs": 502,
+          "cuantos": 24
+        },
+        {
+          "codigoBs": 503,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 504,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 505,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 506,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 507,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 508,
+          "cuantos": 8
+        },
+        {
+          "codigoBs": 509,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 510,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 511,
+          "cuantos": 2
+        }
+      ],
+      "diagnosticos": [
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 5777,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 5863,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 5883,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 5916,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        }
+      ]
     },
     {
       "bundle": "valle.fundacional.ac1015.001",
@@ -291,13 +555,201 @@
         "capas": [],
         "bloques": []
       },
-      "abre": false,
-      "error": {
-        "code": "DWG_STRUCTURE_CORRUPT",
-        "category": "input",
-        "offset": 3337,
-        "message": "Reading an RC byte extends outside the input."
-      }
+      "abre": true,
+      "capas": {
+        "esperadas": [],
+        "leidas": [
+          {
+            "nombre": "0",
+            "colorIndex": 7,
+            "stateFlags": 1008
+          }
+        ],
+        "faltantes": [],
+        "coloresDistintos": [],
+        "observacionesDeEstado": []
+      },
+      "entidades": {
+        "porTipo": {
+          "arc": {
+            "esperado": 1,
+            "leidoCorrecto": 1,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          },
+          "circle": {
+            "esperado": 1,
+            "leidoCorrecto": 1,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          },
+          "line": {
+            "esperado": 1,
+            "leidoCorrecto": 1,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          },
+          "point": {
+            "esperado": 1,
+            "leidoCorrecto": 1,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          }
+        },
+        "detalles": []
+      },
+      "bloques": {
+        "esperados": [],
+        "leidosTodos": [
+          "*Paper_Space",
+          "*Model_Space"
+        ],
+        "porBloque": {}
+      },
+      "tiposNoSoportados": [
+        {
+          "codigoBs": 42,
+          "cuantos": 46
+        },
+        {
+          "codigoBs": 52,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 53,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 56,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 57,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 60,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 62,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 64,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 65,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 66,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 67,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 68,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 69,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 70,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 73,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 79,
+          "cuantos": 35
+        },
+        {
+          "codigoBs": 500,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 501,
+          "cuantos": 17
+        },
+        {
+          "codigoBs": 502,
+          "cuantos": 24
+        },
+        {
+          "codigoBs": 503,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 504,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 505,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 506,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 507,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 508,
+          "cuantos": 8
+        },
+        {
+          "codigoBs": 509,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 510,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 511,
+          "cuantos": 2
+        }
+      ],
+      "diagnosticos": [
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 5777,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 5995,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6015,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6048,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        }
+      ]
     },
     {
       "bundle": "valle.fundacional.ac1015.001",
@@ -322,13 +774,277 @@
         ],
         "bloques": []
       },
-      "abre": false,
-      "error": {
-        "code": "DWG_STRUCTURE_CORRUPT",
-        "category": "input",
-        "offset": 3351,
-        "message": "Reading an RC byte extends outside the input."
-      }
+      "abre": true,
+      "capas": {
+        "esperadas": [
+          {
+            "name": "0",
+            "flags": 0,
+            "color": 7,
+            "linetype": "CONTINUOUS"
+          },
+          {
+            "name": "MUROS",
+            "flags": 0,
+            "color": 1,
+            "linetype": "CONTINUOUS"
+          },
+          {
+            "name": "EJES",
+            "flags": 0,
+            "color": 2,
+            "linetype": "TRAZOS"
+          },
+          {
+            "name": "COTAS",
+            "flags": 0,
+            "color": 3,
+            "linetype": "CONTINUOUS"
+          },
+          {
+            "name": "CONGELADA",
+            "flags": 1,
+            "color": 4,
+            "linetype": "CONTINUOUS"
+          },
+          {
+            "name": "BLOQUEADA",
+            "flags": 4,
+            "color": 5,
+            "linetype": "CONTINUOUS"
+          },
+          {
+            "name": "TEXTOS",
+            "flags": 0,
+            "color": 6,
+            "linetype": "CONTINUOUS"
+          }
+        ],
+        "leidas": [
+          {
+            "nombre": "0",
+            "colorIndex": 7,
+            "stateFlags": 1008
+          },
+          {
+            "nombre": "MUROS",
+            "colorIndex": 1,
+            "stateFlags": 1008
+          },
+          {
+            "nombre": "EJES",
+            "colorIndex": 2,
+            "stateFlags": 1008
+          },
+          {
+            "nombre": "COTAS",
+            "colorIndex": 3,
+            "stateFlags": 1008
+          },
+          {
+            "nombre": "CONGELADA",
+            "colorIndex": 4,
+            "stateFlags": 1009
+          },
+          {
+            "nombre": "BLOQUEADA",
+            "colorIndex": 5,
+            "stateFlags": 1016
+          },
+          {
+            "nombre": "TEXTOS",
+            "colorIndex": 6,
+            "stateFlags": 1008
+          }
+        ],
+        "faltantes": [],
+        "coloresDistintos": [],
+        "observacionesDeEstado": [
+          {
+            "capa": "CONGELADA",
+            "estadoDeclaradoEnOraculo": {
+              "frozen": true,
+              "locked": false
+            },
+            "stateFlagsLeidosCrudos": 1009
+          },
+          {
+            "capa": "BLOQUEADA",
+            "estadoDeclaradoEnOraculo": {
+              "frozen": false,
+              "locked": true
+            },
+            "stateFlagsLeidosCrudos": 1016
+          }
+        ]
+      },
+      "entidades": {
+        "porTipo": {
+          "circle": {
+            "esperado": 1,
+            "leidoCorrecto": 1,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          },
+          "line": {
+            "esperado": 5,
+            "leidoCorrecto": 5,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          }
+        },
+        "detalles": []
+      },
+      "bloques": {
+        "esperados": [],
+        "leidosTodos": [
+          "*Paper_Space",
+          "*Model_Space"
+        ],
+        "porBloque": {}
+      },
+      "tiposNoSoportados": [
+        {
+          "codigoBs": 42,
+          "cuantos": 52
+        },
+        {
+          "codigoBs": 52,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 53,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 56,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 57,
+          "cuantos": 4
+        },
+        {
+          "codigoBs": 60,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 62,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 64,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 65,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 66,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 67,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 68,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 69,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 70,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 73,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 79,
+          "cuantos": 41
+        },
+        {
+          "codigoBs": 500,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 501,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 502,
+          "cuantos": 17
+        },
+        {
+          "codigoBs": 503,
+          "cuantos": 24
+        },
+        {
+          "codigoBs": 504,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 505,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 506,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 507,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 508,
+          "cuantos": 8
+        },
+        {
+          "codigoBs": 509,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 510,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 511,
+          "cuantos": 2
+        }
+      ],
+      "diagnosticos": [
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6339,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6634,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6654,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6687,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        }
+      ]
     },
     {
       "bundle": "valle.fundacional.ac1015.001",
@@ -344,13 +1060,180 @@
         "capas": [],
         "bloques": []
       },
-      "abre": false,
-      "error": {
-        "code": "DWG_STRUCTURE_CORRUPT",
-        "category": "input",
-        "offset": 3337,
-        "message": "Reading an RC byte extends outside the input."
-      }
+      "abre": true,
+      "capas": {
+        "esperadas": [],
+        "leidas": [
+          {
+            "nombre": "0",
+            "colorIndex": 7,
+            "stateFlags": 1008
+          }
+        ],
+        "faltantes": [],
+        "coloresDistintos": [],
+        "observacionesDeEstado": []
+      },
+      "entidades": {
+        "porTipo": {
+          "lwpolyline": {
+            "esperado": 2,
+            "leidoCorrecto": 2,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          }
+        },
+        "detalles": []
+      },
+      "bloques": {
+        "esperados": [],
+        "leidosTodos": [
+          "*Paper_Space",
+          "*Model_Space"
+        ],
+        "porBloque": {}
+      },
+      "tiposNoSoportados": [
+        {
+          "codigoBs": 42,
+          "cuantos": 46
+        },
+        {
+          "codigoBs": 52,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 53,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 56,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 57,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 60,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 62,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 64,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 65,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 66,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 67,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 68,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 69,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 70,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 73,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 79,
+          "cuantos": 35
+        },
+        {
+          "codigoBs": 500,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 501,
+          "cuantos": 17
+        },
+        {
+          "codigoBs": 502,
+          "cuantos": 24
+        },
+        {
+          "codigoBs": 503,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 504,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 505,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 506,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 507,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 508,
+          "cuantos": 8
+        },
+        {
+          "codigoBs": 509,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 510,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 511,
+          "cuantos": 2
+        }
+      ],
+      "diagnosticos": [
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 5777,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 5967,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 5987,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6020,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        }
+      ]
     },
     {
       "bundle": "valle.fundacional.ac1015.001",
@@ -366,13 +1249,180 @@
         "capas": [],
         "bloques": []
       },
-      "abre": false,
-      "error": {
-        "code": "DWG_STRUCTURE_CORRUPT",
-        "category": "input",
-        "offset": 3341,
-        "message": "Reading an RC byte extends outside the input."
-      }
+      "abre": true,
+      "capas": {
+        "esperadas": [],
+        "leidas": [
+          {
+            "nombre": "0",
+            "colorIndex": 7,
+            "stateFlags": 1008
+          }
+        ],
+        "faltantes": [],
+        "coloresDistintos": [],
+        "observacionesDeEstado": []
+      },
+      "entidades": {
+        "porTipo": {
+          "text": {
+            "esperado": 3,
+            "leidoCorrecto": 3,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          }
+        },
+        "detalles": []
+      },
+      "bloques": {
+        "esperados": [],
+        "leidosTodos": [
+          "*Paper_Space",
+          "*Model_Space"
+        ],
+        "porBloque": {}
+      },
+      "tiposNoSoportados": [
+        {
+          "codigoBs": 42,
+          "cuantos": 46
+        },
+        {
+          "codigoBs": 52,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 53,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 56,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 57,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 60,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 62,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 64,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 65,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 66,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 67,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 68,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 69,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 70,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 73,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 79,
+          "cuantos": 35
+        },
+        {
+          "codigoBs": 500,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 501,
+          "cuantos": 17
+        },
+        {
+          "codigoBs": 502,
+          "cuantos": 24
+        },
+        {
+          "codigoBs": 503,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 504,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 505,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 506,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 507,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 508,
+          "cuantos": 8
+        },
+        {
+          "codigoBs": 509,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 510,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 511,
+          "cuantos": 2
+        }
+      ],
+      "diagnosticos": [
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 5874,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6097,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6117,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6150,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        }
+      ]
     },
     {
       "bundle": "valle.fundacional.ac1015.001",
@@ -396,8 +1446,8 @@
       "error": {
         "code": "DWG_STRUCTURE_CORRUPT",
         "category": "input",
-        "offset": 3389,
-        "message": "Reading an RC byte extends outside the input."
+        "offset": 6171,
+        "message": "The declared bit size does not match the decoded entity data."
       }
     },
     {
@@ -430,8 +1480,8 @@
       "error": {
         "code": "DWG_STRUCTURE_CORRUPT",
         "category": "input",
-        "offset": 3392,
-        "message": "Reading an RC byte extends outside the input."
+        "offset": 6666,
+        "message": "The declared bit size does not match the decoded entity data."
       }
     }
   ]

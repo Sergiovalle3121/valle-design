@@ -328,14 +328,14 @@
       "notes": "Primera fuente tecnica externa del laboratorio. Implementacion original desde hechos registrados; prohibido copiar, portar o traducir codigo de ODA SDK, LibreDWG u otra implementacion (CLEAN_ROOM_POLICY)."
     },
     {
-      "id": "VALLE-CORPUS-AC1015-HEADER-CRC-2026-08-20",
+      "id": "VALLE-CORPUS-AC1015-INTAKE-DAE5E77",
       "owner": "Sergio Valle Zarate",
       "origin": {
         "type": "original-measurement",
         "location": "https://github.com/Sergiovalle3121/valle-design-dwg-conformance/tree/dae5e77f9b2c6549c04defb1d5b8919524c880c3",
         "accessedAt": "2026-08-20"
       },
-      "title": "Medicion first-party del CRC de cabecera AC1015 sobre el corpus admitido (bundle tool-converted-original)",
+      "title": "Mediciones first-party del intake AC1015 sobre el corpus admitido dae5e77 (bundles tool-converted-original)",
       "versionOrDate": "dae5e77f9b2c6549c04defb1d5b8919524c880c3",
       "terms": {
         "license": "Valle first-party corpus measurement (admitted tool-converted-original bundles)",
@@ -350,13 +350,19 @@
         "La mascara 0x8461 que ODA-ODS-DWG-5.4.1-PUBLIC declara para 6 registros queda DESMENTIDA por los 8 archivos; ningun archivo real del corpus exhibe 3, 4 o 5 registros, asi que las mascaras 0xA598/0x8101/0x3CC4 quedan sin evidencia real en ningun sentido",
         "El centinela de 16 bytes tras el CRC coincide en los 8 archivos con la constante ya registrada (95 A0 4E 28 99 82 1A E5 5E 41 E0 5F 9D 3A 4D 00)",
         "Los registros id 0 e id 1 del directorio de los 8 archivos apuntan a marcos que abren con los centinelas registrados de variables-de-cabecera y de clases, y su tamano RL interno es igual al tamano del registro menos 38: el registro del directorio cubre el marco COMPLETO, centinelas incluidos, confirmando la lectura estricta del laboratorio",
-        "Los 32 DWG de los bundles AC1018/AC1024/AC1027/AC1032 no comparten esta cabecera (el campo de recuento en 0x15 vale 0 en todos) y no aportan senal sobre el CRC del contenedor R2000"
+        "Los 32 DWG de los bundles AC1018/AC1024/AC1027/AC1032 no comparten esta cabecera (el campo de recuento en 0x15 vale 0 en todos) y no aportan senal sobre el CRC del contenedor R2000",
+        "Los 18 cuerpos BLOCK HEADER de los 8 AC1015 reales (los pares *Model_Space/*Paper_Space y los bloques de usuario MARCO-A y PUERTA) llevan UN bit adicional entre el bit de xref-superpuesto y el punto base 3BD, observado 0 en los 18; sin ese bit el punto base decodifica (1,1,1) y los campos posteriores se desalinean hasta salirse del cuerpo, y con el la decodificacion completa aterriza el arranque del flujo de handles EXACTAMENTE en el tamano en bits declarado (197/197 en los de espacio, 189/189 en MARCO-A, 165/165 en PUERTA)",
+        "La misma medicion de BLOCK HEADER confirma con archivos reales: el RL de tamano cuenta desde el PRIMER bit del dato (el del tipo), la secuencia de recuentos de insercion es RC terminada en 0 (MARCO-A guarda [1,1,1,1] y PUERTA [1,1]), y el orden nombre TV, campos de xref, punto base 3BD, ruta TV, recuentos RC, descripcion TV y previsualizacion BL es el implementado",
+        "Las paginas del mapa de objetos R2000 reales validan con tamano y CRC BIG-endian y semilla 0xC0C1 (168-169 objetos por archivo), y la envoltura de objeto real valida con tamano MS y CRC RS little-endian: las convenciones registradas del mapa y de la envoltura quedan confirmadas por corpus"
       ],
       "derivedFiles": [
         "packages/dwg-codec/src/codecs/crc16.ts",
         "packages/dwg-codec/src/container/ac1015-file-header.ts",
         "packages/dwg-codec/src/writer/ac1015-container-writer.ts",
+        "packages/dwg-codec/src/objects/table-block.ts",
+        "packages/dwg-codec/src/writer/ac1015-block-writer.ts",
         "packages/dwg-codec/tests/unit/ac1015-header.spec.ts",
+        "packages/dwg-codec/tests/unit/table-block.spec.ts",
         "packages/dwg-codec/scripts/provenance-validation.ts",
         "packages/dwg-codec/DWG0_WORKLOG.md",
         "packages/dwg-codec/SOURCE_REGISTER.json",
@@ -365,7 +371,7 @@
       ],
       "reviewer": "Medicion first-party del laboratorio bajo la directiva del propietario 2026-08-13; evidencia cruda en docs/cad/evidence/dwg-corpus-validation.json",
       "reviewedAt": "2026-08-20",
-      "notes": "Primera observacion del programa de intake que corrige el codec: un hecho de la ODS 5.4.1 desmentido por archivos de una implementacion independiente. La correccion mantiene el rango 3-6 del recuento (hecho no contradicho) y elimina la mascara XOR: el CRC de cabecera viaja crudo."
+      "notes": "Entrada acumulativa del programa de intake sobre el commit dae5e77 (una entrada por fuente, como la de la ODS): cada hecho nuevo del diffing contra archivos reales se anade aqui ANTES de tocar el codigo. Hecho 1: la mascara XOR del CRC de cabecera desmentida; el CRC viaja crudo y el rango 3-6 del recuento se mantiene. Hecho 2: el cuerpo BLOCK HEADER lleva un bit adicional antes del punto base; el laboratorio lo lee y lo emite SIN interpretar su semantica (no hay fuente registrada que la nombre) y lo expone crudo en el modelo."
     },
     {
       "id": "AJV-8.20.0-OFFICIAL",
