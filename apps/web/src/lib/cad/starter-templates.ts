@@ -15,6 +15,18 @@
  * cajetín relleno. Se elige en el diálogo de «Nuevo documento» y lo que se abre
  * ya se puede acotar y trazar.
  *
+ * ## Por qué las capas y los estilos NO se escriben aquí
+ *
+ * Porque una plantilla no es el sitio donde se decide una norma de dibujo. Las
+ * capas salen de `standards/mexican-layers.ts` y los estilos de
+ * `standards/mexican-annotation.ts`, que son los módulos que además CITAN la
+ * fuente de cada convención. Una plantilla que escribiera sus propios colores
+ * acabaría contradiciendo a la norma sin que nadie se enterase, y la norma
+ * dejaría de ser norma para ser una sugerencia con documentación.
+ *
+ * Aquí sólo se dice QUÉ capas lleva cada lámina. El cómo se ve cada una vive en
+ * un sitio y sólo en uno.
+ *
  * ## Por qué devuelve el documento completo y no un parche
  *
  * Porque el guardado es el que valida. La API rechaza con 400 un documento cuya
@@ -33,19 +45,12 @@
  * conserva ENTERO y las capas de oficio se añaden encima. Es fealdad a cambio de
  * que la puerta entre.
  *
- * ## Por qué las alturas de texto no son números escritos a mano
- *
- * Un rótulo de plano se mide en el PAPEL: 2,5 mm, siempre. Lo que cambia con la
- * escala es cuánto mide en el modelo — 125 unidades a 1:50 y 500 a 1:200. Esa
- * conversión ya vive en `layout/annotative-scale.ts` y se usa desde aquí en vez
- * de copiar las cifras: si la plantilla dijera «125» a secas, la de conjunto a
- * 1:200 saldría con una letra cuatro veces más pequeña de lo legible y nadie lo
- * vería hasta imprimir.
- *
  * ## Milímetros
  *
  * `unit: "mm"`, como los bloques sembrados y como el editor. Una plantilla en
- * metros haría que la primera puerta insertada midiera 900 metros.
+ * metros haría que la primera puerta insertada midiera 900 metros. Que el
+ * DIBUJO esté en milímetros y las COTAS se rotulen en metros no es una
+ * contradicción: es exactamente lo que hace un plano mexicano.
  */
 import {
   CAD_DOCUMENT_SCHEMA,
@@ -57,58 +62,55 @@ import {
 import { DEFAULT_CAD_LAYERS } from "./layers";
 import { createCadLayout } from "./layout/layout-operations";
 import { cadAnnotativeModelHeight } from "./layout/annotative-scale";
-import { CAD_SHEET_PAPERS, type CadSheetPaper } from "./paper-space";
-import { CAD_TITLE_BLOCK_HEIGHT_MM } from "./plot/title-block";
+import { type CadSheetPaper } from "./paper-space";
+import {
+  CAD_MEXICAN_TITLE_BLOCK_HEIGHT_MM,
+  CAD_TITLE_BLOCK_VARIANT_ATTRIBUTE,
+} from "./plot/title-block";
+import { cadMexicanLayerDefs } from "./standards/mexican-layers";
+import {
+  CAD_MEXICAN_TEXT_MM,
+  CAD_MEXICAN_TEXT_STYLES,
+  CAD_MEXICAN_TICK_MM,
+  cadMexicanDimensionStyleName,
+  cadMexicanDimensionStyles,
+  cadMexicanScale,
+  cadMexicanTextStyles,
+} from "./standards/mexican-annotation";
+import {
+  CAD_ISO_SHEET_MARGINS_MM,
+  CAD_MEXICAN_PAPERS,
+  CadMexicanPaperError,
+  cadSheetSize,
+} from "./standards/mexican-sheets";
 
 export type CadStarterTemplateId =
   | "planta-arquitectonica"
   | "planta-de-conjunto"
   | "alzados-y-cortes"
+  | "planta-de-demolicion"
+  | "plano-estructural"
   | "plano-de-instalaciones";
 
-/** Las cuatro, en el orden en que se ofrecen. */
+/** Las seis, en el orden en que se ofrecen: el orden del juego de planos. */
 export const CAD_STARTER_TEMPLATE_IDS: readonly CadStarterTemplateId[] = [
   "planta-arquitectonica",
   "planta-de-conjunto",
   "alzados-y-cortes",
+  "planta-de-demolicion",
+  "plano-estructural",
   "plano-de-instalaciones",
 ];
 
-/**
- * Altura de rótulo sobre el PAPEL. 2,5 mm es el mínimo de ISO 3098 que sigue
- * leyéndose en una copia heliográfica y en un PDF impreso al 100 %.
- */
-export const CAD_STARTER_TEXT_MM = 2.5;
+/** Altura de rótulo sobre el PAPEL, de la serie de ISO 3098-1. */
+export const CAD_STARTER_TEXT_MM = CAD_MEXICAN_TEXT_MM.rotulo;
 /** Título de plano o nombre de local: el doble, para que destaque. */
-export const CAD_STARTER_TITLE_MM = 5;
-/**
- * Flecha de cota sobre el papel. En arquitectura mexicana la cota no lleva
- * punta de flecha sino un trazo a 45°, y ese trazo se dibuja a la misma medida.
- */
-export const CAD_STARTER_ARROW_MM = 2.5;
+export const CAD_STARTER_TITLE_MM = CAD_MEXICAN_TEXT_MM.titulo;
+/** Garrapata de cota sobre el papel: a la misma medida que el rótulo. */
+export const CAD_STARTER_ARROW_MM = CAD_MEXICAN_TICK_MM;
 
-/**
- * Márgenes ISO 5457: 20 mm a la izquierda para el archivado.
- *
- * Se repiten aquí porque son la base del ÁREA ÚTIL con la que se calcula qué
- * trozo de modelo cabe en la lámina, y ese cálculo no puede depender de un valor
- * privado de otro módulo. `createCadLayout` los aplica sobre la presentación por
- * su lado, con la plantilla de papel.
- */
-const ISO_MARGINS = { top: 10, right: 10, bottom: 10, left: 20 } as const;
-
-export interface CadStarterLayer {
-  id: string;
-  name: string;
-  color: string;
-  /** Grosor de pluma en mm. Es lo que decide el peso de la línea impresa. */
-  lineweight: number;
-  linetype?: string;
-  /** `false` para las capas de referencia que no deben salir en el papel. */
-  plot?: boolean;
-  /** Para qué es. Lo lee el arquitecto, no el código. */
-  purpose: string;
-}
+/** Márgenes ISO 5457: 20 mm a la izquierda para el archivado. */
+const ISO_MARGINS = CAD_ISO_SHEET_MARGINS_MM;
 
 export interface CadStarterTemplate {
   id: CadStarterTemplateId;
@@ -118,106 +120,65 @@ export interface CadStarterTemplate {
   discipline: string;
   /** Denominador de la escala: 50 es 1:50. */
   scale: number;
+  /** Papel por defecto. El usuario puede pedir otro de la serie A. */
   paper: CadSheetPaper;
   orientation: "portrait" | "landscape";
-  /** Id de la plantilla de papel de `CAD_LAYOUT_TEMPLATES`. */
-  layoutTemplateId: string;
   /** Nombre de la pestaña de presentación. */
   sheetName: string;
-  /** Número de lámina, con la letra de disciplina mexicana usual. */
+  /** Clave de lámina, con la letra de disciplina mexicana usual. */
   sheetNumber: string;
   /** Capa activa sugerida: en la que se empieza a dibujar. */
   startLayer: string;
-  layers: readonly CadStarterLayer[];
+  /** Ids de la norma de capas mexicana. El aspecto de cada una vive allí. */
+  layerIds: readonly string[];
 }
 
-const layer = (
-  id: string,
-  name: string,
-  color: string,
-  lineweight: number,
-  purpose: string,
-  extra: { linetype?: string; plot?: boolean } = {},
-): CadStarterLayer => ({ id, name, color, lineweight, purpose, ...extra });
-
 /**
- * Capas que llevan las cuatro. La acotación y el texto no son de una disciplina:
- * son de todos los planos, y separarlas es lo que permite entregar un plano sin
- * cotas al constructor de obra negra y con ellas al residente.
+ * Capas que llevan las seis.
+ *
+ * La acotación y el texto no son de una disciplina: son de todos los planos, y
+ * separarlas es lo que permite entregar un plano sin cotas al constructor de
+ * obra negra y con ellas al residente. El eje y la auxiliar están por la misma
+ * razón: se apagan, no se borran.
  */
-const COMMON_LAYERS: readonly CadStarterLayer[] = [
-  layer("COTA", "Acotación", "#ff00ff", 0.13, "Cotas y sus líneas de extensión."),
-  layer("TEXTO", "Textos", "#00ffff", 0.18, "Nombres de local, notas y claves."),
-  layer(
-    "EJE",
-    "Ejes",
-    "#ff0000",
-    0.13,
-    "Ejes estructurales y de trazo.",
-    { linetype: "CENTER" },
-  ),
-  layer(
-    "AUXILIAR",
-    "Auxiliar",
-    "#808080",
-    0.09,
-    "Construcción auxiliar: se dibuja, no se imprime.",
-    { plot: false },
-  ),
-];
-
-/** Muros y vanos: comunes a planta arquitectónica, alzados e instalaciones. */
-const BUILDING_LAYERS: readonly CadStarterLayer[] = [
-  layer("MURO", "Muros", "#ffffff", 0.35, "Muros de carga y divisorios, cortados."),
-  layer("VANO", "Puertas y ventanas", "#ffff00", 0.25, "Carpintería, cancelería y su barrido."),
-  layer("MOBILIARIO", "Mobiliario", "#00ff00", 0.13, "Muebles fijos, baño y cocina."),
-];
+const COMMON_LAYERS = ["COTA", "TEXTO", "EJE", "AUXILIAR"] as const;
 
 export const CAD_STARTER_TEMPLATES: readonly CadStarterTemplate[] = [
   {
     id: "planta-arquitectonica",
     label: "Planta arquitectónica",
     description:
-      "Planta a 1:50 en A1 con muros, vanos, ejes, mobiliario y acotación separados, y el cajetín puesto.",
+      "Planta a 1:50 en A1 con muros, vanos, cancelería, mobiliario y acotación separados, y el cajetín con responsiva puesto.",
     discipline: "Arquitectura",
     scale: 50,
     paper: "A1",
     orientation: "landscape",
-    layoutTemplateId: "a1-landscape",
     sheetName: "Planta arquitectónica",
     sheetNumber: "A-101",
     startLayer: "MURO",
-    layers: [
-      ...BUILDING_LAYERS,
-      layer("NIVEL", "Niveles", "#00ffff", 0.13, "Símbolos de nivel de piso terminado."),
-      layer("PLAFON", "Plafones", "#8000ff", 0.13, "Proyección de plafón y entrepiso.", {
-        linetype: "DASHED",
-      }),
-      ...COMMON_LAYERS,
-    ],
+    layerIds: ["MURO", "VANO", "CANCEL", "MOBILIARIO", "NIVEL", "PLAFON", ...COMMON_LAYERS],
   },
   {
     id: "planta-de-conjunto",
     label: "Planta de conjunto",
     description:
-      "Conjunto a 1:200 en A1 con lindero, vialidad, vegetación y la construcción en proyección.",
+      "Conjunto a 1:200 en A1 con lindero, vialidad, vegetación, terreno natural y de proyecto, y la construcción en proyección.",
     discipline: "Arquitectura",
     scale: 200,
     paper: "A1",
     orientation: "landscape",
-    layoutTemplateId: "a1-landscape",
     sheetName: "Planta de conjunto",
     sheetNumber: "A-001",
     startLayer: "LINDERO",
-    layers: [
-      layer("LINDERO", "Lindero", "#ffffff", 0.5, "Poligonal del predio, con rumbos y distancias."),
-      layer("CONSTRUCCION", "Construcción", "#ffff00", 0.35, "Huella construida y su azotea."),
-      layer("VIALIDAD", "Vialidad", "#808080", 0.25, "Calle, banqueta y guarnición."),
-      layer("VEGETACION", "Vegetación", "#00ff00", 0.13, "Arbolado y áreas jardinadas."),
-      layer("TERRENO", "Terreno", "#804000", 0.13, "Curvas de nivel del terreno natural.", {
-        linetype: "CONTINUOUS",
-      }),
-      layer("NORTE", "Norte y escala", "#ff00ff", 0.25, "Rosa de los vientos y escala gráfica."),
+    layerIds: [
+      "LINDERO",
+      "CONSTRUCCION",
+      "VIALIDAD",
+      "VEGETACION",
+      "TERRENO",
+      "TERRENO-NAT",
+      "TERRENO-PRO",
+      "NORTE",
       ...COMMON_LAYERS,
     ],
   },
@@ -230,25 +191,47 @@ export const CAD_STARTER_TEMPLATES: readonly CadStarterTemplate[] = [
     scale: 50,
     paper: "A1",
     orientation: "landscape",
-    layoutTemplateId: "a1-landscape",
     sheetName: "Alzados y cortes",
     sheetNumber: "A-301",
     startLayer: "CORTE",
-    layers: [
-      layer("CORTE", "Elementos cortados", "#ffffff", 0.5, "Lo que la sección atraviesa: muros, losas."),
-      layer("PROYECCION", "Proyección", "#00ffff", 0.18, "Lo que se ve detrás del plano de corte."),
-      ...BUILDING_LAYERS.filter((item) => item.id !== "MURO"),
-      layer("NIVEL", "Niveles", "#00ffff", 0.13, "Líneas y símbolos de nivel: NPT, NIVEL DE LOSA."),
-      layer(
-        "TERRENO-NAT",
-        "Terreno natural",
-        "#804000",
-        0.25,
-        "Perfil del terreno antes de excavar.",
-        { linetype: "DASHED" },
-      ),
+    layerIds: [
+      "CORTE",
+      "PROYECCION",
+      "VANO",
+      "CANCEL",
+      "MOBILIARIO",
+      "NIVEL",
+      "TERRENO-NAT",
       ...COMMON_LAYERS,
     ],
+  },
+  {
+    id: "planta-de-demolicion",
+    label: "Demolición y obra nueva",
+    description:
+      "Remodelación a 1:50 en A1 con lo existente en gris, lo que se demuele en amarillo a trazos y la obra nueva en rojo.",
+    discipline: "Arquitectura",
+    scale: 50,
+    paper: "A1",
+    orientation: "landscape",
+    sheetName: "Demolición y obra nueva",
+    sheetNumber: "A-201",
+    startLayer: "MURO-DEM",
+    layerIds: ["MURO-EXI", "MURO-DEM", "MURO-NUE", "VANO", "CANCEL", "NIVEL", ...COMMON_LAYERS],
+  },
+  {
+    id: "plano-estructural",
+    label: "Cimentación y estructura",
+    description:
+      "Cimentación y estructura a 1:50 en A1, con lo enterrado a trazos y la arquitectura atenuada de fondo.",
+    discipline: "Estructura",
+    scale: 50,
+    paper: "A1",
+    orientation: "landscape",
+    sheetName: "Cimentación y estructura",
+    sheetNumber: "E-101",
+    startLayer: "EST",
+    layerIds: ["EST", "EST-CIM", "NIVEL", "ARQ-FONDO", ...COMMON_LAYERS],
   },
   {
     id: "plano-de-instalaciones",
@@ -259,60 +242,56 @@ export const CAD_STARTER_TEMPLATES: readonly CadStarterTemplate[] = [
     scale: 50,
     paper: "A1",
     orientation: "landscape",
-    layoutTemplateId: "a1-landscape",
     sheetName: "Instalaciones",
     sheetNumber: "I-101",
     startLayer: "INST-HID",
-    layers: [
-      layer("INST-HID", "Hidráulica fría", "#0000ff", 0.25, "Agua fría: tuberías, válvulas y salidas."),
-      layer("INST-HID-CAL", "Hidráulica caliente", "#ff0000", 0.25, "Agua caliente, desde el calentador.", {
-        linetype: "DASHED",
-      }),
-      layer("INST-SAN", "Sanitaria", "#804000", 0.35, "Drenaje, ventilación y registros."),
-      layer("INST-ELE", "Eléctrica", "#ffff00", 0.25, "Circuitos, salidas, apagadores y tablero."),
-      layer("INST-GAS", "Gas", "#ff8000", 0.25, "Tubería de gas L.P. y su medidor."),
-      layer("SIMBOLO", "Simbología", "#ff00ff", 0.18, "Símbolos de salida y cuadro de simbología."),
-      layer(
-        "ARQ-FONDO",
-        "Arquitectura de fondo",
-        "#808080",
-        0.09,
-        "Muros y muebles del arquitectónico, atenuados como referencia.",
-      ),
+    layerIds: [
+      "INST-HID",
+      "INST-HID-CAL",
+      "INST-SAN",
+      "INST-ELE",
+      "INST-GAS",
+      "SIMBOLO",
+      "ARQ-FONDO",
       ...COMMON_LAYERS,
     ],
   },
 ];
 
-export function cadStarterTemplate(
-  id: string,
-): CadStarterTemplate | undefined {
+export function cadStarterTemplate(id: string): CadStarterTemplate | undefined {
   return CAD_STARTER_TEMPLATES.find((template) => template.id === id);
+}
+
+/** Papel efectivo: el pedido, si es de la serie A; si no, el de la plantilla. */
+function resolvePaper(template: CadStarterTemplate, paper?: string): CadSheetPaper {
+  if (!paper) return template.paper;
+  if (!(CAD_MEXICAN_PAPERS as readonly string[]).includes(paper))
+    throw new CadMexicanPaperError(paper);
+  return paper as CadSheetPaper;
+}
+
+/** Id de la plantilla de papel de `CAD_LAYOUT_TEMPLATES` para papel+orientación. */
+function layoutTemplateId(paper: CadSheetPaper, orientation: string): string {
+  return `${paper.toLowerCase()}-${orientation}`;
 }
 
 /**
  * Área de modelo que cabe en la lámina a la escala de la plantilla.
  *
  * No es decorativo: es lo que decide si la casa entra en la hoja. Se calcula
- * desde el papel MENOS los márgenes de archivado y MENOS la banda del cajetín,
- * que es exactamente el hueco por el que se ve el dibujo. Un `modelBounds`
- * inventado daría una ventana que encuadra aire o que corta el plano, y el
- * arquitecto lo descubriría al imprimir.
+ * desde el papel MENOS los márgenes de archivado y MENOS la banda del cajetín
+ * mexicano —50 mm, no 30—, que es exactamente el hueco por el que se ve el
+ * dibujo. Un `modelBounds` inventado daría una ventana que encuadra aire o que
+ * corta el plano, y el arquitecto lo descubriría al imprimir.
  */
-export function cadStarterModelBounds(template: CadStarterTemplate): {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-} {
-  const base = CAD_SHEET_PAPERS[template.paper];
-  const page =
-    template.orientation === "portrait"
-      ? { width: base.width, height: base.height }
-      : { width: base.height, height: base.width };
+export function cadStarterModelBounds(
+  template: CadStarterTemplate,
+  paper?: string,
+): { x: number; y: number; width: number; height: number } {
+  const page = cadSheetSize(resolvePaper(template, paper), template.orientation);
   const usableWidth = page.width - ISO_MARGINS.left - ISO_MARGINS.right;
   const usableHeight =
-    page.height - ISO_MARGINS.top - ISO_MARGINS.bottom - CAD_TITLE_BLOCK_HEIGHT_MM;
+    page.height - ISO_MARGINS.top - ISO_MARGINS.bottom - CAD_MEXICAN_TITLE_BLOCK_HEIGHT_MM;
   return {
     x: 0,
     y: 0,
@@ -325,44 +304,30 @@ export function cadStarterModelBounds(template: CadStarterTemplate): {
 
 /** Nombre del estilo de cota de la plantilla: `COTA 1:50`. */
 export function cadStarterDimensionStyleName(template: CadStarterTemplate): string {
-  return `COTA 1:${template.scale}`;
+  return cadMexicanDimensionStyleName(cadMexicanScale(template.scale));
 }
 
-/** Nombres de los dos estilos de texto que trae toda plantilla. */
-export const CAD_STARTER_TEXT_STYLE = "ROTULO";
-export const CAD_STARTER_TITLE_STYLE = "TITULO";
+/** Nombres de los estilos que trae toda plantilla. */
+export const CAD_STARTER_TEXT_STYLE = CAD_MEXICAN_TEXT_STYLES.rotulo;
+export const CAD_STARTER_TITLE_STYLE = CAD_MEXICAN_TEXT_STYLES.titulo;
 export const CAD_STARTER_MLEADER_STYLE = "DIRECTRIZ";
 export const CAD_STARTER_PLOT_STYLE = "MONOCROMO";
 
 /**
- * La tabla de estilos de la plantilla, atada a su escala.
+ * La tabla de estilos de la plantilla.
  *
- * Las alturas salen de `cadAnnotativeModelHeight`, no de una constante: es la
- * MISMA función que reescala los rótulos cuando el arquitecto cambia la escala
- * de la ventana, de modo que la plantilla nace ya coherente con lo que el
- * comando de anotatividad hará después. Dos fuentes distintas para el mismo
- * número es la vía garantizada a un plano con dos tamaños de letra.
+ * Los de texto van a la escala de LA LÁMINA; los de cota vienen TODOS, uno por
+ * cada escala de dibujo mexicana. Ocho estilos de cota parecen muchos hasta que
+ * se cuenta lo que cuesta el que falta: pasar una planta de 1:50 a 1:75 sin
+ * estilo preparado es reacotar el plano entero o imprimirlo con la letra a 1,7
+ * milímetros.
  */
 export function cadStarterStyleTable(template: CadStarterTemplate): CadStyleTable {
   const textHeight = cadAnnotativeModelHeight(CAD_STARTER_TEXT_MM, template.scale, "mm");
-  const titleHeight = cadAnnotativeModelHeight(CAD_STARTER_TITLE_MM, template.scale, "mm");
   const arrowSize = cadAnnotativeModelHeight(CAD_STARTER_ARROW_MM, template.scale, "mm");
   return {
-    text: {
-      [CAD_STARTER_TEXT_STYLE]: { fontFamily: "Helvetica", height: textHeight },
-      [CAD_STARTER_TITLE_STYLE]: { fontFamily: "Helvetica", height: titleHeight },
-    },
-    dimension: {
-      [cadStarterDimensionStyleName(template)]: {
-        textStyle: CAD_STARTER_TEXT_STYLE,
-        arrowSize,
-        // Cero decimales porque el dibujo está en MILÍMETROS: un muro de 3.450
-        // mm se lee «3450». Dos decimales sobre milímetros imprimirían
-        // «3450.00», que es ruido y además sugiere una precisión de centésima
-        // de milímetro que ninguna obra tiene.
-        precision: 0,
-      },
-    },
+    text: cadMexicanTextStyles(template.scale, "mm"),
+    dimension: cadMexicanDimensionStyles("mm"),
     mleader: {
       [CAD_STARTER_MLEADER_STYLE]: {
         textStyle: CAD_STARTER_TEXT_STYLE,
@@ -401,19 +366,10 @@ export function cadStarterLayers(template: CadStarterTemplate): CadLayerDef[] {
     plot: true,
   }));
   const declared = new Set(base.map((item) => item.id));
-  for (const item of template.layers) {
-    if (declared.has(item.id)) continue;
-    declared.add(item.id);
-    base.push({
-      id: item.id,
-      name: item.name,
-      color: item.color,
-      visible: true,
-      locked: false,
-      lineweight: item.lineweight,
-      ...(item.linetype ? { linetype: item.linetype } : {}),
-      plot: item.plot ?? true,
-    });
+  for (const def of cadMexicanLayerDefs(template.layerIds)) {
+    if (declared.has(def.id)) continue;
+    declared.add(def.id);
+    base.push(def);
   }
   return base;
 }
@@ -429,6 +385,15 @@ export interface CadStarterDocumentInput {
   revision?: string;
   drawnBy?: string;
   checkedBy?: string;
+  /** Papel de la serie A. Sin él, el de la plantilla. */
+  paper?: string;
+  /** Ubicación de la obra: lo primero que mira una ventanilla. */
+  location?: string;
+  /** Propietario del predio. */
+  owner?: string;
+  /** Director Responsable de Obra y su número de registro. */
+  dro?: string;
+  droRegistration?: string;
   /** Fecha ya formateada. Se INYECTA: un `new Date()` aquí haría el documento
    *  irreproducible y la spec no podría afirmar nada sobre el cajetín. */
   date?: string;
@@ -450,27 +415,38 @@ export class CadStarterTemplateError extends Error {
 /**
  * El cajetín de la lámina.
  *
- * `createCadPaperSpace` rellena diez atributos y deja fuera tres que el
- * arquitecto SÍ mira: cliente, fecha y unidades. Se añaden aquí con las claves
- * en español que `resolveCadTitleBlockFields` ya sabe leer (`CLIENTE`, `FECHA`),
- * de modo que el trazador los encuentra sin adaptador. La escala NO se escribe:
- * la calcula el cajetín desde la ventana gráfica, y una copia escrita a mano es
- * la que acaba diciendo 1:50 en una lámina que se trazó a 1:100.
+ * `createCadPaperSpace` rellena diez atributos y deja fuera los que un plano
+ * mexicano SÍ necesita: cliente, fecha, unidades, ubicación de la obra,
+ * propietario y la responsiva del Director Responsable de Obra. Se añaden aquí
+ * con las claves en español que `resolveCadTitleBlockFields` ya sabe leer, de
+ * modo que el trazador los encuentra sin adaptador.
+ *
+ * `TITLE_BLOCK_VARIANT` es el que hace que las veinte láminas del juego salgan
+ * con la MISMA disposición: la elección viaja con la presentación, no con quien
+ * pulsa trazar. La escala NO se escribe: la calcula el cajetín desde la ventana
+ * gráfica, y una copia escrita a mano es la que acaba diciendo 1:50 en una
+ * lámina trazada a 1:100.
+ *
+ * El D.R.O. se deja en blanco si nadie lo dio, y el cajetín lo declarará como
+ * ausente. Es correcto: inventar un nombre de responsable en un plano que se
+ * presenta ante una autoridad sería mucho peor que dejar el hueco.
  */
 function starterTitleBlock(
   space: CadPaperSpace,
-  template: CadStarterTemplate,
   input: CadStarterDocumentInput,
 ): CadPaperSpace["titleBlock"] {
-  return {
-    ...space.titleBlock,
-    attributes: {
-      ...space.titleBlock?.attributes,
-      CLIENTE: input.client?.trim() || "-",
-      FECHA: input.date?.trim() || "-",
-      UNIDADES: "mm",
-    },
+  const attributes: Record<string, string> = {
+    ...space.titleBlock?.attributes,
+    [CAD_TITLE_BLOCK_VARIANT_ATTRIBUTE]: "mexicano",
+    CLIENTE: input.client?.trim() || "-",
+    FECHA: input.date?.trim() || "-",
+    UNIDADES: "mm",
+    UBICACION: input.location?.trim() || "-",
+    PROPIETARIO: input.owner?.trim() || "-",
+    DRO: input.dro?.trim() || "-",
+    DRO_REGISTRO: input.droRegistration?.trim() || "-",
   };
+  return { ...space.titleBlock, attributes };
 }
 
 /**
@@ -480,18 +456,18 @@ function starterTitleBlock(
  * llamadas con la misma entrada producen el mismo JSON, que es lo que permite
  * que una spec afirme sobre el cajetín y que un golden compare documentos.
  */
-export function createCadStarterDocument(
-  input: CadStarterDocumentInput,
-): CadDocument {
+export function createCadStarterDocument(input: CadStarterDocumentInput): CadDocument {
   const template = cadStarterTemplate(input.templateId);
   if (!template) throw new CadStarterTemplateError(String(input.templateId));
 
-  const bounds = cadStarterModelBounds(template);
+  const paper = resolvePaper(template, input.paper);
+  const page = cadSheetSize(paper, template.orientation);
+  const bounds = cadStarterModelBounds(template, paper);
   const title = input.title?.trim() || template.sheetName;
   const space = createCadLayout([], {
     id: `layout:${template.id}`,
     name: template.sheetName,
-    templateId: template.layoutTemplateId,
+    templateId: layoutTemplateId(paper, template.orientation),
     modelBounds: bounds,
     unit: "mm",
     scale: template.scale,
@@ -507,10 +483,24 @@ export function createCadStarterDocument(
     },
   });
 
+  // La ventana se recalcula ENTERA en vez de heredar la que trae la
+  // presentación. La que trae usa 10 mm en los cuatro márgenes y reserva 30 mm
+  // de cajetín: sobre una lámina mexicana eso mete el dibujo diez milímetros
+  // dentro de la zona de archivo —por donde se perfora el plano— y veinte
+  // encima del cajetín. Ninguna de las dos cosas se ve en pantalla.
+  const paperBounds = {
+    x: ISO_MARGINS.left,
+    y: ISO_MARGINS.top,
+    width: page.width - ISO_MARGINS.left - ISO_MARGINS.right,
+    height:
+      page.height - ISO_MARGINS.top - ISO_MARGINS.bottom - CAD_MEXICAN_TITLE_BLOCK_HEIGHT_MM,
+  };
+
   const paperSpace: CadPaperSpace = {
     ...space,
     viewports: (space.viewports ?? []).map((viewport) => ({
       ...viewport,
+      paperBounds,
       scale: template.scale,
       // La escala de anotación arranca IGUAL que la de la ventana. Que puedan
       // divergir es una capacidad (un detalle a 1:5 dentro de una lámina a
@@ -521,7 +511,7 @@ export function createCadStarterDocument(
       // para medir en obra.
       locked: true,
     })),
-    titleBlock: starterTitleBlock(space, template, input),
+    titleBlock: starterTitleBlock(space, input),
   };
 
   return {

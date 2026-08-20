@@ -13,7 +13,10 @@ import { CadDocumentsService } from './cad-documents.service';
 import { CadIntentService } from './cad-intent.service';
 import { CadVisionService } from './cad-vision.service';
 import { CadLegacyProjectionService } from './cad-legacy-projection.service';
-import { BlobStoreModule } from '../blob-store/blob-store.module';
+import {
+  BlobStoreModule,
+  S3_BLOB_STORE,
+} from '../blob-store/blob-store.module';
 import { DatabaseBlobStore } from '../blob-store/design-blob.store';
 import { AuditLogModule } from '../audit-log/audit-log.module';
 import {
@@ -24,7 +27,7 @@ import { CAD_BLOB_STORE } from './ports/cad-blob-store.port';
 import { CAD_AI_PROVIDER } from './ports/cad-ai-provider.port';
 import { CAD_AUDIT_PUBLISHER } from './ports/cad-audit-publisher.port';
 import { CommercialModule } from '../commercial/commercial.module';
-import { DesignBlobStoreAdapter } from './design-blob-store.adapter';
+import { selectCadBlobStore } from './design-blob-store.adapter';
 import { CideAiProviderAdapter } from './cide-ai-provider.adapter';
 import { DesignCadAuditPublisher } from './design-audit-publisher.adapter';
 import { ReviewLinkService } from './review-link.service';
@@ -39,7 +42,9 @@ import { ReviewLinkService } from './review-link.service';
  * (Fase 3 de la separación) los adaptadores enterprise quedaron SUSTITUIDOS
  * por implementaciones propias de Design:
  * - CAD_BLOB_STORE  → DesignBlobStoreAdapter sobre DatabaseBlobStore
- *   (`design_blobs`, content-addressed en la base).
+ *   (`design_blobs`, content-addressed en la base) o S3BlobStore cuando el
+ *   despliegue configura entera la variante de objetos. Lo decide
+ *   `selectCadBlobStore`, que se prueba sin arrancar Nest.
  * - CAD_AUDIT_PUBLISHER → DesignCadAuditPublisher sobre la bitácora propia
  *   `design_audit_log`.
  * - ENTITLEMENT_SERVICE → adaptador PostgreSQL local que aplica trial,
@@ -81,11 +86,14 @@ import { ReviewLinkService } from './review-link.service';
     provideTenantScopedRepository(CadComment, { strict: true }),
     provideTenantScopedRepository(CadSheetSet, { strict: true }),
     // ── Puertos: cada token se satisface con su adaptador Design ──
+    // El puerto CAD_BLOB_STORE apunta al almacenamiento de OBJETOS cuando el
+    // despliegue lo configura entero, y a la base en cualquier otro caso. La
+    // decisión es de configuración y no de código —igual que la pasarela de
+    // pagos—, así que enchufar un MinIO no toca ni una línea del dominio CAD.
     {
       provide: CAD_BLOB_STORE,
-      inject: [DatabaseBlobStore],
-      useFactory: (inner: DatabaseBlobStore) =>
-        new DesignBlobStoreAdapter(inner),
+      inject: [DatabaseBlobStore, S3_BLOB_STORE],
+      useFactory: selectCadBlobStore,
     },
     { provide: CAD_AI_PROVIDER, useClass: CideAiProviderAdapter },
     { provide: CAD_AUDIT_PUBLISHER, useClass: DesignCadAuditPublisher },
