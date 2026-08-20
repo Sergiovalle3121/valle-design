@@ -25,6 +25,8 @@ import type { CadNativeEntity } from "./entity-runtime";
 // pierde viven en sus propios módulos: este archivo ENSAMBLA el modelo de
 // exportación, y mezclar las tres cosas era lo que lo tenía en su techo.
 import { cadEntityToDxfPrimitive } from "./dxf-entity-primitives";
+import { blockEntityToDxfPrimitive } from "./dxf-block-primitive";
+import { clampedKnots } from "./dxf-nurbs-knots";
 import { schema4PrimitiveToEntity } from "./dxf-schema4-entities";
 export { cadEntityToDxfPrimitive };
 export {
@@ -463,15 +465,6 @@ export function cadDxfMleadersToNativeEntities(
   });
 }
 
-function clampedKnots(controlCount: number, degree: number): number[] {
-  const knots: number[] = [];
-  const spans = controlCount - degree;
-  for (let index = 0; index <= degree; index += 1) knots.push(0);
-  for (let index = 1; index < spans; index += 1) knots.push(index / spans);
-  for (let index = 0; index <= degree; index += 1) knots.push(1);
-  return knots;
-}
-
 export function cadDocumentNativeDxfPrimitives(
   document: CadDxfExportSource,
   filter?: (entity: CadEntity) => boolean,
@@ -875,52 +868,6 @@ export function cadDxfBlocksToCadDocumentParts(
       ),
     ),
   };
-}
-
-function blockEntityToDxfPrimitive(entity: CadEntity): CadDxfPrimitive | null {
-  const native = cadEntityToDxfPrimitive(entity);
-  if (native) return native;
-  if (entity.type === "text")
-    return {
-      kind: "text",
-      layer: entity.layer,
-      points: [{ x: entity.x, y: entity.y }],
-      text: entity.text,
-    };
-  if (entity.type === "mtext")
-    return {
-      kind: "text",
-      layer: entity.layer,
-      points: [{ x: entity.insertion.x, y: entity.insertion.y }],
-      text: entity.text,
-    };
-  if (entity.type === "box" || entity.type === "station") {
-    const radians = (entity.rotation * Math.PI) / 180;
-    const cos = Math.cos(radians);
-    const sin = Math.sin(radians);
-    const cx = entity.x + entity.w / 2;
-    const cy = entity.y + entity.h / 2;
-    const points = [
-      { x: -entity.w / 2, y: -entity.h / 2 },
-      { x: entity.w / 2, y: -entity.h / 2 },
-      { x: entity.w / 2, y: entity.h / 2 },
-      { x: -entity.w / 2, y: entity.h / 2 },
-    ].map((value) => ({
-      x: cx + value.x * cos - value.y * sin,
-      y: cy + value.x * sin + value.y * cos,
-    }));
-    // Una caja/estación es un contorno CERRADO de cuatro esquinas. Repetía la
-    // primera —y con la MISMA referencia de objeto, no una copia—, así que el
-    // bloque salía con un tramo nulo y sin el bit 70.
-    return {
-      kind: "polyline",
-      layer: entity.layer,
-      points,
-      closed: true,
-      text: entity.type === "box" ? entity.label : undefined,
-    };
-  }
-  return null;
 }
 
 export function cadDocumentDxfBlocks(

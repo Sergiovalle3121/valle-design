@@ -15,6 +15,12 @@ import type { CadDxfSchema4Kind, CadDxfSchema4Payload } from "./dxf-schema4";
 // tipos del esquema 4 necesitaban sitio.
 import { num, pt, rawDxfPairs } from "./dxf-read-core";
 import {
+  decodeComponent,
+  insertSignature,
+  parseRawBlockXdata,
+  type RawBlockXdata,
+} from "./dxf-block-xdata";
+import {
   parseRawDxfMTexts,
   parseRawDxfSemanticDimensions,
   parseRawDxfSemanticMleaders,
@@ -650,54 +656,6 @@ function expandDimension(
   return anchor && label
     ? [{ kind: "text", layer, points: [anchor], text: label }]
     : [];
-}
-
-interface RawBlockXdata {
-  definitions: Map<string, Map<string, string>>;
-  insertAttributes: Map<string, Array<Record<string, string>>>;
-}
-
-function decodeComponent(value: string | undefined): string {
-  try { return decodeURIComponent(value ?? ''); } catch { return value ?? ''; }
-}
-
-function insertSignature(name: string, x: number, y: number, rotation: number): string {
-  return `${name}|${x.toFixed(9)}|${y.toFixed(9)}|${rotation.toFixed(9)}`;
-}
-
-function parseRawBlockXdata(text: string): RawBlockXdata {
-  const pairs = rawDxfPairs(text);
-  const definitions = new Map<string, Map<string, string>>();
-  const insertAttributes = new Map<string, Array<Record<string, string>>>();
-  for (let start = 0; start < pairs.length; start += 1) {
-    const kind = pairs[start].code === 0 ? pairs[start].value.toUpperCase() : '';
-    if (kind !== 'BLOCK' && kind !== 'INSERT') continue;
-    let end = start + 1;
-    while (end < pairs.length && pairs[end].code !== 0) end += 1;
-    const entityPairs = pairs.slice(start + 1, end);
-    const application = entityPairs.findIndex((pair) => pair.code === 1001 && isDxfXdataApp('block', pair.value));
-    if (application < 0) { start = end - 1; continue; }
-    const first = (code: number) => entityPairs.find((pair) => pair.code === code)?.value;
-    const metadata = entityPairs.slice(application + 1).filter((pair) => pair.code === 1000).map((pair) => pair.value);
-    if (kind === 'BLOCK') {
-      const name = first(2) ?? '';
-      const values = new Map<string, string>();
-      metadata.forEach((entry) => { const separator = entry.indexOf('='); if (separator > 0) values.set(entry.slice(0, separator), entry.slice(separator + 1)); });
-      if (name) definitions.set(name, values);
-    } else {
-      const attributes: Record<string, string> = {};
-      metadata.filter((entry) => entry.startsWith('attribute=')).forEach((entry) => {
-        const [tag, ...value] = entry.slice('attribute='.length).split(',');
-        if (tag) attributes[decodeComponent(tag)] = decodeComponent(value.join(','));
-      });
-      const signature = insertSignature(first(2) ?? '', Number(first(10) ?? 0) || 0, Number(first(20) ?? 0) || 0, Number(first(50) ?? 0) || 0);
-      const queue = insertAttributes.get(signature) ?? [];
-      queue.push(attributes);
-      insertAttributes.set(signature, queue);
-    }
-    start = end - 1;
-  }
-  return { definitions, insertAttributes };
 }
 
 function semanticInsert(
