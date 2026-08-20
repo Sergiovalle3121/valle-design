@@ -312,6 +312,78 @@ failsWith(
   "el presupuesto de bytes se cobra antes de parsear nada",
 );
 
+// --- 4b. enmienda 2026-08-20: origen tool-converted-original -----------------
+const toolConverted = buildCorpus({
+  mutateManifest: (manifest) => ({
+    ...manifest,
+    rights: {
+      ...manifest.rights,
+      origin: "tool-converted-original",
+      tool: "ODA File Converter",
+      toolVersion: "27.1",
+      toolRegistryRef: "docs/TOOLS.md#oda-file-converter-27.1",
+    },
+    reviews: ["@sergiovalle3121"],
+  }),
+});
+const toolConvertedReport = fetchAdmittedCorpus({
+  pin: pinFor(toolConverted.indexSha256),
+  transport: memoryTransport(toolConverted.files),
+});
+eq(
+  toolConvertedReport.admittedBundleCount,
+  1,
+  "tool-converted-original con revisor-propietario y herramienta registrada se admite",
+);
+eq(
+  toolConvertedReport.bundles[0].rightsOrigin,
+  "tool-converted-original",
+  "y declara su origen",
+);
+
+const toolWithoutRegistry = buildCorpus({
+  mutateManifest: (manifest) => ({
+    ...manifest,
+    rights: { ...manifest.rights, origin: "tool-converted-original" },
+    reviews: ["@sergiovalle3121"],
+  }),
+});
+failsWith(
+  "CORPUS_MANIFEST_INVALID",
+  () =>
+    fetchAdmittedCorpus({
+      pin: pinFor(toolWithoutRegistry.indexSha256),
+      transport: memoryTransport(toolWithoutRegistry.files),
+    }),
+  "tool-converted-original sin registro de herramienta no entra",
+);
+
+const singleReviewerClassic = buildCorpus({
+  mutateManifest: (manifest) => ({ ...manifest, reviews: ["@sergio"] }),
+});
+failsWith(
+  "CORPUS_MANIFEST_INVALID",
+  () =>
+    fetchAdmittedCorpus({
+      pin: pinFor(singleReviewerClassic.indexSha256),
+      transport: memoryTransport(singleReviewerClassic.files),
+    }),
+  "sergio-original con un solo revisor sigue exigiendo el segundo humano",
+);
+
+const duplicatedReviewerByCase = buildCorpus({
+  mutateManifest: (manifest) => ({ ...manifest, reviews: ["@sergio", "@SERGIO"] }),
+});
+failsWith(
+  "CORPUS_MANIFEST_INVALID",
+  () =>
+    fetchAdmittedCorpus({
+      pin: pinFor(duplicatedReviewerByCase.indexSha256),
+      transport: memoryTransport(duplicatedReviewerByCase.files),
+    }),
+  "el titular con otra capitalización no cuenta como segundo revisor",
+);
+
 // --- 5. credenciales de mínimo alcance ---------------------------------------
 const noCredential = resolveCorpusCredential(basePin, {});
 eq(noCredential.present, false, "sin token no se inventa una credencial");
