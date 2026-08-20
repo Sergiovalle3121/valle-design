@@ -1,6 +1,7 @@
 import {
   Injectable,
   Logger,
+  Optional,
   type OnApplicationBootstrap,
   type OnApplicationShutdown,
 } from '@nestjs/common';
@@ -9,6 +10,7 @@ import {
   CommercialOutboxDispatcher,
   type CommercialOutboxDispatchSummary,
 } from './outbox-dispatcher.service';
+import { RenewalReminderService } from './renewal-reminder.service';
 import { WebhookCommercialOutboxTransport } from './webhook-outbox.transport';
 
 const DEFAULT_POLL_INTERVAL_MS = 1_000;
@@ -27,6 +29,10 @@ export class CommercialOutboxWorker
     private readonly database: DataSource,
     private readonly dispatcher: CommercialOutboxDispatcher,
     private readonly transport: WebhookCommercialOutboxTransport,
+    // Opcional: el worker sigue siendo correcto sin recordatorios (specs,
+    // wirings parciales). Con él, cada tick pasa por la compuerta horaria.
+    @Optional()
+    private readonly renewalReminders?: RenewalReminderService,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -77,6 +83,14 @@ export class CommercialOutboxWorker
       const kind = error instanceof Error ? error.name : 'OutboxWorkerError';
       // Error text is deliberately omitted because providers may echo PII.
       this.logger.error(`Commercial outbox dispatch failed (${kind}).`);
+    }
+    // try/catch PROPIO: un fallo del recordatorio jamás degrada la entrega de
+    // correo, y viceversa. La compuerta horaria vive dentro del servicio.
+    try {
+      await this.renewalReminders?.maybeRun();
+    } catch (error) {
+      const kind = error instanceof Error ? error.name : 'RenewalReminderError';
+      this.logger.error(`Renewal reminder pass failed (${kind}).`);
     }
   }
 

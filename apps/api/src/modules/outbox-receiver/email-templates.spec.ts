@@ -67,6 +67,53 @@ describe('renderEmailTemplate', () => {
     expect(rendered.html).toContain('&lt;script&gt;');
   });
 
+  it('renderiza commercial.renewal-reminder con fecha mexicana y enlace real', () => {
+    // Shape de renewal-reminder.service.ts (runOnce → enqueue).
+    const rendered = renderEmailTemplate(
+      'commercial.renewal-reminder',
+      {
+        organizationName: 'Despacho Río <script>alert(1)</script>',
+        planCode: 'individual',
+        currentPeriodEnd: '2026-08-25T18:00:00.000Z',
+      },
+      base,
+    );
+    expect(rendered.subject).toBe(
+      'Tu suscripción vence pronto — Valle Design',
+    );
+    // OXXO/SPEI: el correo dice POR QUÉ no se renueva sola.
+    expect(rendered.text).toContain('no se renueva');
+    expect(rendered.text).toContain('OXXO');
+    expect(rendered.text).toContain('hora del centro de México');
+    // El enlace apunta a la página de facturación que SÍ existe en el web.
+    expect(rendered.text).toContain(`${base}/cuenta/facturacion`);
+    expect(rendered.html).toContain(`href="${base}/cuenta/facturacion"`);
+    // El código interno del plan no se le enseña al cliente.
+    expect(rendered.text).not.toContain('individual');
+    // El nombre de la organización lo escribe un usuario: se escapa siempre.
+    expect(rendered.html).not.toContain('<script>');
+    expect(rendered.html).toContain('&lt;script&gt;');
+  });
+
+  it('rechaza un recordatorio sin organización o con fecha inválida', () => {
+    for (const payload of [
+      null,
+      {},
+      { organizationName: 'Despacho', currentPeriodEnd: 'no-es-fecha' },
+      { organizationName: 'Despacho' }, // sin currentPeriodEnd
+      { currentPeriodEnd: '2026-08-25T18:00:00.000Z' }, // sin organización
+    ]) {
+      expect.hasAssertions();
+      try {
+        renderEmailTemplate('commercial.renewal-reminder', payload, base);
+        throw new Error('debió rechazar el payload');
+      } catch (error) {
+        expect(error).toBeInstanceOf(EmailTemplateError);
+        expect((error as EmailTemplateError).code).toBe('invalid_payload');
+      }
+    }
+  });
+
   it('rechaza una plantilla desconocida con error tipado', () => {
     expect.assertions(2);
     try {
