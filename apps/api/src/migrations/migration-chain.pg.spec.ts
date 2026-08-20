@@ -26,6 +26,7 @@ import { LegalAcceptances20260815140000 } from './20260815140000-LegalAcceptance
 import { MexicanPublicCatalog20260816120000 } from './20260816120000-MexicanPublicCatalog';
 import { ArchitecturalBlockLibrarySeed20260817090000 } from './20260817090000-ArchitecturalBlockLibrarySeed';
 import { MexicanFiscalAndSeats20260817100000 } from './20260817100000-MexicanFiscalAndSeats';
+import { WebhookReceipts20260820100000 } from './20260820100000-WebhookReceipts';
 
 const LEGACY_MIGRATIONS: Array<new () => MigrationInterface> = [
   AddCadBlocks20260706180000,
@@ -57,6 +58,7 @@ const ALL_MIGRATIONS: Array<new () => MigrationInterface> = [
   MexicanPublicCatalog20260816120000,
   ArchitecturalBlockLibrarySeed20260817090000,
   MexicanFiscalAndSeats20260817100000,
+  WebhookReceipts20260820100000,
 ];
 
 describePostgres('migration chain (previous main -> latest)', () => {

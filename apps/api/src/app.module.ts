@@ -25,6 +25,7 @@ import { IdentityModule } from './modules/identity/identity.module';
 import { LegalModule } from './modules/legal/legal.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { CommercialModule } from './modules/commercial/commercial.module';
+import { OutboxReceiverModule } from './modules/outbox-receiver/outbox-receiver.module';
 
 /**
  * Aplicación del producto Valle Design (CAD).
@@ -51,6 +52,7 @@ import { CommercialModule } from './modules/commercial/commercial.module';
     LegalModule,
     BlobStoreModule,
     CommercialModule,
+    OutboxReceiverModule,
     CadDocumentsModule,
     CadModule,
   ],
