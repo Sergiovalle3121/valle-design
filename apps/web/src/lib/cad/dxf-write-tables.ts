@@ -107,7 +107,9 @@ export function pushLayerTable(
     const definition = layerDefinition(model, layer);
     pushPair(lines, 0, "LAYER");
     pushPair(lines, 2, layer);
-    pushPair(lines, 70, 0);
+    // Bit 1 del código 70: capa congelada. Antes se escribía 0 fijo, así que
+    // el fichero devuelto descongelaba lo que el documento decía congelado.
+    pushPair(lines, 70, definition?.frozen ? 1 : 0);
     pushPair(lines, 62, layerColor(model, layer));
     // El tipo de línea de la capa es donde un despacho guarda su convención:
     // fijarlo a CONTINUOUS convertía en continuo el plano entero al devolverlo.

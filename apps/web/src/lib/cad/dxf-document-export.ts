@@ -81,6 +81,8 @@ export function cadDocumentToDxfExportModel(
       ...(typeof layer.lineweight === "number"
         ? { lineweight: layer.lineweight < 0 ? CAD_LINEWEIGHT_DEFAULT : Math.round(layer.lineweight * 100) }
         : {}),
+      // Congelada viaja al bit 1 del código 70; el importador ya lo leía.
+      ...(layer.frozen === true ? { frozen: true } : {}),
     })),
     ...(document.styles?.linetype
       ? {
