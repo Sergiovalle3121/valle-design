@@ -41,6 +41,9 @@ const LAYER_ON = { keyword: "activar", shortcut: "A" } as const;
 const LAYER_OFF = { keyword: "desactivar", shortcut: "E" } as const;
 const LAYER_LOCK = { keyword: "Bloquear", shortcut: "B" } as const;
 const LAYER_UNLOCK = { keyword: "desbloquear", shortcut: "Q" } as const;
+// Congelar/descongelar (esquema 9): las palabras de AutoCAD en español.
+const LAYER_FREEZE = { keyword: "Inutilizar", shortcut: "I" } as const;
+const LAYER_THAW = { keyword: "Reutilizar", shortcut: "R" } as const;
 const LAYER_LIST = { keyword: "?", shortcut: "?" } as const;
 
 type LayerAction =
@@ -51,6 +54,8 @@ type LayerAction =
   | "off"
   | "lock"
   | "unlock"
+  | "freeze"
+  | "thaw"
   | null;
 
 interface LayerCliState {
@@ -68,6 +73,8 @@ const LAYER_OPTIONS = [
   LAYER_OFF,
   LAYER_LOCK,
   LAYER_UNLOCK,
+  LAYER_FREEZE,
+  LAYER_THAW,
 ];
 
 function layerMenu(state: LayerCliState): CadCommandStep<LayerCliState> {
@@ -126,7 +133,8 @@ const layerCliCommand: CadCommandDescriptor<LayerCliState> = {
                   (layer) =>
                     `${layer.name.padEnd(16)} ${layer.color}  ` +
                     `${layer.visible ? "activada" : "DESACTIVADA"}  ` +
-                    `${layer.locked ? "BLOQUEADA" : "libre"}`,
+                    `${layer.locked ? "BLOQUEADA" : "libre"}` +
+                    `${layer.frozen ? "  CONGELADA" : ""}`,
                 )
                 .join("\n"),
         );
@@ -140,6 +148,8 @@ const layerCliCommand: CadCommandDescriptor<LayerCliState> = {
           [LAYER_OFF.keyword]: "off",
           [LAYER_LOCK.keyword]: "lock",
           [LAYER_UNLOCK.keyword]: "unlock",
+          [LAYER_FREEZE.keyword]: "freeze",
+          [LAYER_THAW.keyword]: "thaw",
         } as Record<string, LayerAction>
       )[input.keyword];
       if (!action) return layerMenu(state);
@@ -202,6 +212,18 @@ const layerCliCommand: CadCommandDescriptor<LayerCliState> = {
         { ...layer, visible: state.action === "on" },
         `-LAYER: "${layer.name}" ${state.action === "on" ? "activada" : "desactivada"}`,
       );
+    if (state.action === "freeze") {
+      // La actual no se congela, como en AutoCAD: los objetos nuevos irían a
+      // una capa que ni se dibuja ni cuenta, y nadie los volvería a ver.
+      if (layer.name === context.activeLayer || layer.id === context.activeLayer)
+        return message(state, `"${layer.name}" es la capa actual y no se puede congelar.`);
+      return layerPatch(state, { ...layer, frozen: true }, `-LAYER: "${layer.name}" congelada`);
+    }
+    if (state.action === "thaw") {
+      // Descongelar BORRA la clave: opcional-ausente, como nació en el esquema 9.
+      const { frozen: _thawed, ...thawed } = layer;
+      return layerPatch(state, thawed, `-LAYER: "${layer.name}" descongelada`);
+    }
     return layerPatch(
       state,
       { ...layer, locked: state.action === "lock" },
