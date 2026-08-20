@@ -24,6 +24,21 @@
  * distorsiona el camino medido o mide otro camino. Un contador detrás de una
  * bandera mide EL código que corre en producción, que es el único que importa.
  *
+ * ## La mina de este módulo, y por qué falla ABIERTO
+ *
+ * El estado vive en un puntero de módulo, así que depende de QUÉ instancia del
+ * módulo tengas. Un arnés escrito en `scripts/*.mts` no resuelve la misma
+ * instancia que resuelven los módulos de `src/`: encender desde ahí levanta una
+ * bandera que nadie lee, el pipeline sigue apagado, y la corrida termina con un
+ * perfil de ceros y sin un solo error. Eso es fallo abierto de manual — el peor
+ * tipo, porque el resultado parece una medición y se publica como tal. Ya
+ * engañó a quien escribió estas líneas: su primera medida dijo «no cuesta nada»
+ * y era falsa.
+ *
+ * Por eso un arnés NO debe llamar a `startCadRenderProfile` por su cuenta: entra
+ * por `profileCadRenderStages`, que enciende y apaga desde dentro de `src` y por
+ * tanto sobre la instancia que el pipeline lee de verdad.
+ *
  * Puro: sin THREE, sin DOM y sin `node:perf_hooks`, para que el mismo módulo
  * sirva en Node y en el navegador.
  */
