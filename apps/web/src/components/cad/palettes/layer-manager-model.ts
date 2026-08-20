@@ -3,29 +3,26 @@
  *
  * El gestor que había en el monolito sabía crear, renombrar, recolorear,
  * ocultar, bloquear y borrar. Un plano de verdad necesita además tipo de línea,
- * grosor, plot on/off, congelación POR VIEWPORT y filtros para no perderse
- * entre ochenta capas. Y necesita estados de capa: guardar «cómo se ve esto
- * para imprimir estructura» y volver a él sin tocar ochenta interruptores.
+ * grosor, plot on/off, CONGELAR —global y por viewport— y filtros para no
+ * perderse entre ochenta capas.
  *
- * Este módulo es la parte pura: filtrado, captura y restauración de estados.
- * Sin React y sin documento — entra una lista de filas, sale otra lista o un
- * conjunto de parches.
+ * Este módulo es la parte pura: las filas y su filtrado. Sin React y sin
+ * documento — entra una lista de filas, sale otra lista.
  *
  * ## Lo que este gestor NO hace, y por qué
  *
- * **Transparencia de capa.** AutoCAD la tiene; `CadLayerDef` no. Añadir el
- * campo es tocar `lib/cad/cad-document.ts`, que en esta ola pertenece a otra
- * sesión, y un control que no persiste sería peor que ninguno: el usuario
- * pondría una capa al 50 %, guardaría, recargaría y la vería opaca sin que
- * nada avisara. Cuando `CadLayerDef` gane `transparency?: number` (0–90, como
- * DXF 1440), este modelo la trata igual que `lineweight` y la fila ya está
- * preparada para ello.
+ * **Transparencia de capa.** AutoCAD la tiene; `CadLayerDef` no. Un control
+ * que no persiste sería peor que ninguno: el usuario pondría una capa al 50 %,
+ * guardaría, recargaría y la vería opaca sin que nada avisara. Cuando
+ * `CadLayerDef` gane `transparency?: number` (0–90, como DXF 1440), este
+ * modelo la trata igual que `lineweight` y la fila ya está preparada.
  *
- * **Persistencia de los estados de capa.** Se guardan en la sesión, no en el
- * documento, por la misma razón: `CadDocument` no tiene dónde ponerlos.
- * Restaurar uno SÍ toca el documento —emite parches por la ruta canónica— así
- * que el efecto es real y reversible con deshacer; lo que no sobrevive es la
- * lista de estados tras recargar. Está dicho en la interfaz, no sólo aquí.
+ * ## Lo que DEJÓ de hacer
+ *
+ * La captura y restauración de estados de capa vivía aquí cuando los estados
+ * eran de la sesión. Desde el esquema 9 viven en `document.layerStates` y la
+ * maquinaria canónica está en `lib/cad/layer-states.ts` — la de aquí era una
+ * copia sobre filas de interfaz y mantener dos era exactamente cómo divergen.
  */
 
 export interface CadLayerManagerRow {
@@ -40,6 +37,12 @@ export interface CadLayerManagerRow {
   plot: boolean;
   /** Objetos del documento en esta capa. */
   objectCount: number;
+  /**
+   * Congelada A NIVEL DE DOCUMENTO (esquema 9): ni se dibuja, ni se regenera,
+   * ni cuenta para extensión ni selección. Distinta de `visible`, que sólo
+   * esconde, y de `frozenInViewport`, que congela en UNA ventana.
+   */
+  frozen: boolean;
   /**
    * Congelada en el viewport activo. `null` cuando no hay ninguno —en espacio
    * modelo—, que NO es lo mismo que «descongelada»: la columna se apaga en vez
@@ -60,6 +63,7 @@ export type CadLayerFilterProperty =
   | "noplot"
   | "used"
   | "empty"
+  | "frozen"
   | "viewport-frozen";
 
 export interface CadLayerFilter {
@@ -83,6 +87,7 @@ export const CAD_LAYER_FILTER_LABELS: Record<CadLayerFilterProperty, string> = {
   noplot: "No se imprimen",
   used: "Con objetos",
   empty: "Vacías",
+  frozen: "Congeladas",
   "viewport-frozen": "Congeladas en el viewport",
 };
 
@@ -127,6 +132,8 @@ function matchesProperty(
       return row.objectCount > 0;
     case "empty":
       return row.objectCount === 0;
+    case "frozen":
+      return row.frozen;
     case "viewport-frozen":
       return row.frozenInViewport === true;
     default:
@@ -149,94 +156,7 @@ export function filterCadLayerRows(
   });
 }
 
-/** Lo que un estado de capa recuerda de cada capa. */
-export interface CadLayerStateEntry {
-  visible: boolean;
-  locked: boolean;
-  color: string;
-  linetype: string;
-  lineweight: number;
-  plot: boolean;
-}
-
-export interface CadLayerState {
+/** Un estado de capa, tal como lo enseña la paleta: sólo su identidad. */
+export interface CadLayerStateListing {
   name: string;
-  entries: Record<string, CadLayerStateEntry>;
-}
-
-/**
- * Fotografía el reparto actual. Toma TODAS las filas, no las filtradas: un
- * estado que sólo recordara lo que se veía en pantalla al guardarlo sería una
- * trampa —restaurarlo dejaría el resto del dibujo como estuviese— y nadie
- * podría saberlo mirando su nombre.
- */
-export function captureCadLayerState(
-  name: string,
-  rows: readonly CadLayerManagerRow[],
-): CadLayerState {
-  const entries: Record<string, CadLayerStateEntry> = {};
-  for (const row of rows)
-    entries[row.id] = {
-      visible: row.visible,
-      locked: row.locked,
-      color: row.color,
-      linetype: row.linetype,
-      lineweight: row.lineweight,
-      plot: row.plot,
-    };
-  return { name: name.trim(), entries };
-}
-
-export interface CadLayerStatePatch {
-  id: string;
-  patch: Partial<CadLayerStateEntry>;
-}
-
-export interface CadLayerStateRestorePlan {
-  patches: CadLayerStatePatch[];
-  /** Capas del estado que ya no existen. */
-  missing: string[];
-  /** Capas creadas DESPUÉS de guardar el estado; se dejan como están. */
-  unknown: string[];
-}
-
-/**
- * Calcula qué hay que cambiar para volver a un estado.
- *
- * Sólo devuelve lo que DIFIERE. Restaurar el estado en el que ya se está no
- * emite ningún parche, y por tanto no ensucia el documento ni añade un paso de
- * deshacer que no revierte nada. Las capas nacidas después del estado se
- * dejan intactas y se informan: borrarlas o esconderlas sería inventarse una
- * intención que el estado no contiene.
- */
-export function planCadLayerStateRestore(
-  state: CadLayerState,
-  rows: readonly CadLayerManagerRow[],
-): CadLayerStateRestorePlan {
-  const byId = new Map(rows.map((row) => [row.id, row]));
-  const patches: CadLayerStatePatch[] = [];
-  const missing: string[] = [];
-
-  for (const [id, entry] of Object.entries(state.entries)) {
-    const row = byId.get(id);
-    if (!row) {
-      missing.push(id);
-      continue;
-    }
-    const patch: Partial<CadLayerStateEntry> = {};
-    if (row.visible !== entry.visible) patch.visible = entry.visible;
-    if (row.locked !== entry.locked) patch.locked = entry.locked;
-    if (row.color !== entry.color) patch.color = entry.color;
-    if (row.linetype !== entry.linetype) patch.linetype = entry.linetype;
-    if (row.lineweight !== entry.lineweight)
-      patch.lineweight = entry.lineweight;
-    if (row.plot !== entry.plot) patch.plot = entry.plot;
-    if (Object.keys(patch).length > 0) patches.push({ id, patch });
-  }
-
-  const unknown = rows
-    .filter((row) => !(row.id in state.entries))
-    .map((row) => row.id);
-
-  return { patches, missing, unknown };
 }

@@ -25,7 +25,6 @@ import {
   type CadPaperSpace,
   type CadParameter,
   type CadPoint2,
-  type CadStyleTable,
 } from "./cad-document";
 import {
   applyCadSymbolTables,
@@ -235,7 +234,9 @@ type CadDocumentSectionCommand = Extract<
   CadEntityCommand,
   { type: "constraint" | "parameter" | "paper-space" }
 >;
-type CadStyleCommand = Extract<CadEntityCommand, { type: "style" }>;
+// La APLICACIÓN de los estilos vive en `entity-command-styles.ts` por el
+// trinquete de tamaño; el reparto es el mismo que tables/símbolos.
+import { applyStyleCommands, type CadStyleCommand } from "./entity-command-styles";
 
 const isSectionCommand = (command: CadEntityCommand): command is CadDocumentSectionCommand =>
   command.type === "constraint" ||
@@ -244,42 +245,6 @@ const isSectionCommand = (command: CadEntityCommand): command is CadDocumentSect
 
 const isStyleCommand = (command: CadEntityCommand): command is CadStyleCommand =>
   command.type === "style";
-
-/**
- * Aplica los comandos de estilo sobre la tabla, sin tocar lo que no nombran.
- *
- * `upsert` FUSIONA: escribir sólo la altura de un estilo de texto no debe
- * borrarle la fuente. Un valor `undefined` no llega hasta aquí —el tipo no lo
- * admite—, así que no hay forma accidental de vaciar un campo; para eso está
- * borrar el estilo entero.
- */
-function applyStyleCommands(
-  styles: CadStyleTable,
-  commands: readonly CadStyleCommand[],
-): CadStyleTable {
-  if (commands.length === 0) return styles;
-  const next: CadStyleTable = {
-    text: { ...styles.text },
-    dimension: { ...styles.dimension },
-    mleader: { ...(styles.mleader ?? {}) },
-    table: { ...styles.table },
-    plot: { ...styles.plot },
-  };
-  for (const command of commands) {
-    const name = command.name.trim();
-    if (!name) throw new Error("Un estilo necesita un nombre no vacío.");
-    const family = next[command.family] as Record<string, Record<string, unknown>>;
-    if (command.op === "delete") {
-      delete family[name];
-      continue;
-    }
-    family[name] = { ...(family[name] ?? {}), ...command.values };
-  }
-  // La familia `mleader` es OPCIONAL en el esquema: materializarla como `{}` en
-  // un documento que nunca la tuvo cambiaría su serializado y con él su hash.
-  if (Object.keys(next.mleader ?? {}).length === 0 && !styles.mleader) delete next.mleader;
-  return next;
-}
 
 export interface CadEntityCommandResult {
   document: CadDocument;

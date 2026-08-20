@@ -621,9 +621,7 @@ import {
   type CadEditorLayerKey,
 } from "@/components/cad/palettes/CadEditorLayerToggles";
 import {
-  captureCadLayerState,
   filterCadLayerRows,
-  planCadLayerStateRestore,
   type CadLayerFilterProperty,
   type CadLayerManagerRow,
 } from "@/components/cad/palettes/layer-manager-model";
@@ -16099,6 +16097,7 @@ export default function Layout3DEditor({
       linetype: definition?.linetype ?? "CONTINUOUS",
       lineweight: definition?.lineweight ?? -1,
       plot: definition?.plot !== false,
+      frozen: definition?.frozen === true,
       objectCount: cadLayerCounts[layer.id] ?? 0,
       frozenInViewport: activeCadViewport
         ? activeCadViewport.layerVisibility?.[layer.id] === false
@@ -16107,6 +16106,10 @@ export default function Layout3DEditor({
     };
   });
   cadLayerRowsRef.current = cadLayerManagerRows;
+  // Estados de capa del DOCUMENTO (esquema 9). Leer el ref en el render es el
+  // patrón de este archivo (cadLayerRowsRef, línea anterior): cada commit ya
+  // re-renderiza por sus setState hermanos, así que la lista nunca es vieja.
+  const documentLayerStates = loadedCadDocumentRef.current?.layerStates ?? [];
   const visibleCadLayerRows = filterCadLayerRows(
     cadLayerManagerRows,
     layerManager.filter,
@@ -16965,7 +16968,7 @@ export default function Layout3DEditor({
                   draftName={layerManager.draftName}
                   draftColor={layerManager.draftColor}
                   draftStateName={layerManager.draftStateName}
-                  states={layerManager.states}
+                  states={documentLayerStates}
                   readOnly={drawingReadOnly}
                   activeViewportName={activeCadViewportName}
                   onFilterText={layerManagerHost.setFilterText}
@@ -16981,6 +16984,7 @@ export default function Layout3DEditor({
                   onPlot={layerActions.setPlot}
                   onToggleVisible={toggleCadLayerVisibility}
                   onToggleLock={toggleCadLayerLock}
+                  onToggleFrozen={layerActions.setFrozen}
                   onToggleViewportFreeze={layerActions.toggleViewportFreeze}
                   onActivate={setActiveCadLayer}
                   onSelectObjects={selectCadLayerObjects}
