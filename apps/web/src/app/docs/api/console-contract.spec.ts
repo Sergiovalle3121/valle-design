@@ -8,7 +8,7 @@
  * operación retirada y la mete en su ERP descubre el error en producción, no
  * aquí. Este spec regenera desde el YAML y compara byte a byte.
  *
- * También ancla los DOS recuentos que el repositorio publica —73 operaciones
+ * También ancla los DOS recuentos que el repositorio publica —77 operaciones
  * totales, 43 bajo /v1/cad— para que añadir superficie sea un cambio
  * DELIBERADO: si sube el número, este spec obliga a mirarlo y a actualizar
  * también `check-design-contract.mjs` y el spec del router standalone.
@@ -59,7 +59,7 @@ void (async () => {
 
   assert.equal(
     regenerated.operationCount,
-    73,
+    77,
     "cambió el número de operaciones del contrato; actualiza este spec Y los recuentos de check-design-contract.mjs / standalone-contract-router.spec.ts",
   );
   assert.equal(
@@ -94,8 +94,12 @@ void (async () => {
     "operationId duplicado en la consola",
   );
 
-  // La única superficie anónima publicada es el catálogo comercial. Si algún
-  // día otra operación declara `security: []`, que sea una decisión vista.
+  // La superficie anónima publicada son los dos catálogos: el comercial y el
+  // del SAT. El fiscal entra aquí porque el formulario de alta lo necesita
+  // ANTES de que exista organización, y porque no hay nada que proteger:
+  // `c_RegimenFiscal` y el subconjunto de `c_UsoCFDI` son idénticos para todo
+  // México y se sirven desde constantes del producto, sin un solo dato de nadie.
+  // Si algún día otra operación declara `security: []`, que sea decisión vista.
   const anonymous = regenerated.operations.filter(
     (operation) => operation.authentication === "public",
   );
@@ -103,6 +107,7 @@ void (async () => {
     anonymous.map((operation) => operation.operationId).sort(),
     [
       "listPublicCommercialPlans",
+      "listSatTaxCatalogs",
       "loginIdentity",
       "receiveStripeWebhook",
       "registerIdentity",

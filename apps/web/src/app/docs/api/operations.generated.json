@@ -4,7 +4,7 @@
   "openapi": "3.1.0",
   "apiTitle": "Valle Design — API standalone (v1)",
   "apiVersion": "1.0.0",
-  "operationCount": 73,
+  "operationCount": 77,
   "cadOperationCount": 43,
   "groups": [
     {
@@ -45,6 +45,9 @@
         "listEffectiveEntitlements",
         "listCommercialPlans",
         "listPublicCommercialPlans",
+        "listSatTaxCatalogs",
+        "getOrganizationTaxProfile",
+        "saveOrganizationTaxProfile",
         "listUpgradeIntents",
         "createUpgradeIntent",
         "confirmUpgradeIntent",
@@ -52,6 +55,7 @@
         "createCommercialCheckoutSession",
         "listCommercialInvoices",
         "cancelCommercialSubscription",
+        "createProviderBillingPortalSession",
         "receiveStripeWebhook"
       ]
     },
@@ -682,6 +686,65 @@
       ]
     },
     {
+      "operationId": "listSatTaxCatalogs",
+      "method": "GET",
+      "path": "/v1/commercial/public/tax-catalogs",
+      "summary": "Publica los catalogos del SAT que la captura fiscal necesita.",
+      "tags": [
+        "commercial"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "public",
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        "200"
+      ]
+    },
+    {
+      "operationId": "getOrganizationTaxProfile",
+      "method": "GET",
+      "path": "/v1/commercial/tax-profile",
+      "summary": "Lee los datos fiscales CFDI 4.0 de la organizacion (owner/admin).",
+      "tags": [
+        "commercial"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403"
+      ]
+    },
+    {
+      "operationId": "saveOrganizationTaxProfile",
+      "method": "PUT",
+      "path": "/v1/commercial/tax-profile",
+      "summary": "Captura o sustituye los datos fiscales para el CFDI 4.0.",
+      "tags": [
+        "commercial"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "schema": "TaxProfileSave"
+      },
+      "responses": [
+        "200",
+        "400",
+        "401",
+        "403"
+      ]
+    },
+    {
       "operationId": "listUpgradeIntents",
       "method": "GET",
       "path": "/v1/commercial/upgrade-intents",
@@ -826,6 +889,27 @@
       "method": "POST",
       "path": "/v1/commercial/subscription/cancel",
       "summary": "Cancela la suscripcion a fin de periodo (solo owner).",
+      "tags": [
+        "commercial"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403",
+        "404",
+        "409"
+      ]
+    },
+    {
+      "operationId": "createProviderBillingPortalSession",
+      "method": "POST",
+      "path": "/v1/commercial/billing-portal-sessions",
+      "summary": "Abre el portal del proveedor para arreglar el medio de pago.",
       "tags": [
         "commercial"
       ],
