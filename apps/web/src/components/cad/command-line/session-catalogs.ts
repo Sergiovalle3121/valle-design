@@ -3,13 +3,19 @@
 /**
  * Todo lo que la SESIÓN recuerda y el documento no puede guardar.
  *
- * Variables de sistema, filtros de selección con nombre, estados de capa,
- * tipos de línea cargados, paletas de herramientas y SCU con nombre. Seis
- * cosas distintas con un rasgo común: `CadDocument` no tiene sección para
- * ninguna, y `cad-document.ts` pertenece a otra sesión en esta ola.
+ * Variables de sistema, filtros de selección con nombre, tipos de línea
+ * cargados, paletas de herramientas y SCU con nombre: cosas distintas con un
+ * rasgo común — `CadDocument` no tiene sección para ninguna.
  *
- * Están juntas aquí y no repartidas por seis hooks porque el motor las pide
- * juntas —un `CadSessionCatalogs`— y porque así hay UN sitio donde mirar qué
+ * Los ESTADOS DE CAPA dejaron de estar en esa lista con el esquema 9:
+ * LAYERSTATE lee y escribe `document.layerStates` y sobrevive a la recarga.
+ * El catálogo `layerStates` de aquí se conserva con OTRO trabajo: es la
+ * memoria del aislamiento de LAYISO/LAYWALK (`settings-layer-tools.ts`), que
+ * sí es de la sesión — dos personas con el mismo plano aíslan cada una lo
+ * suyo.
+ *
+ * Están juntas aquí y no repartidas por hooks porque el motor las pide juntas
+ * —un `CadSessionCatalogs`— y porque así hay UN sitio donde mirar qué
  * sobrevive a una recarga y qué no. Hoy: sólo las paletas de herramientas, que
  * se guardan por inquilino con la misma clave que las preferencias del espacio
  * de trabajo. Lo demás dura lo que la pestaña.

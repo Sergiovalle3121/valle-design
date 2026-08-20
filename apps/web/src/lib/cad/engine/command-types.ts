@@ -163,6 +163,11 @@ export type CadCommandDocumentView = Pick<
    */
   | "imageDefinitions"
   | "unsupportedEntities"
+  /**
+   * Los estados de capa del esquema 9. LAYERSTATE los LEE de aquí — listar y
+   * restituir son consultas — y los escribe por el lote, como todo.
+   */
+  | "layerStates"
 >;
 
 export interface CadCommandContext {

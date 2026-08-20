@@ -1,6 +1,6 @@
 /**
- * Capas y orden de dibujo: las dos tablas del documento que NO pasan por el
- * solucionador.
+ * Capas, orden de dibujo y estados de capa: las tablas del documento que NO
+ * pasan por el solucionador.
  *
  * Viven aparte de `entity-commands.ts` por el trinquete de tamaño —aquel
  * archivo es el embudo de mutación y sólo puede encoger— y porque de todas
@@ -12,18 +12,25 @@
  * solo `commitChange` y un solo paso de deshacer. La puerta de mutación sigue
  * siendo una.
  */
-import type { CadDocument, CadEntity, CadLayerDef } from "./cad-document";
+import type {
+  CadDocument,
+  CadEntity,
+  CadLayerDef,
+  CadNamedLayerState,
+} from "./cad-document";
 import type { CadEntityCommand } from "./entity-commands";
 
 export type CadDocumentTableCommand = Extract<
   CadEntityCommand,
-  { type: "layer" | "draw-order" }
+  { type: "layer" | "draw-order" | "layer-state" }
 >;
 
 export const isCadTableCommand = (
   command: CadEntityCommand,
 ): command is CadDocumentTableCommand =>
-  command.type === "layer" || command.type === "draw-order";
+  command.type === "layer" ||
+  command.type === "draw-order" ||
+  command.type === "layer-state";
 
 /**
  * Reordena `entityIds` colocando `moving` donde diga `placement`.
@@ -73,6 +80,8 @@ export function applyDocumentTables(
   entityOrder: string[];
   entities: CadEntity[];
   touchedEntityIds: string[];
+  /** Sección de estados de capa DESPUÉS del lote; `undefined` = ausente. */
+  layerStates: CadNamedLayerState[] | undefined;
 } {
   if (commands.length === 0)
     return {
@@ -80,17 +89,41 @@ export function applyDocumentTables(
       entityOrder: [...entityOrder],
       entities: [...entities],
       touchedEntityIds: [],
+      layerStates: document.layerStates,
     };
 
   let layers = [...document.layers];
   let order = [...entityOrder];
   let current = [...entities];
+  // Opcional-ausente: sólo se materializa si un `upsert` de este lote la crea.
+  let layerStates = document.layerStates ? [...document.layerStates] : undefined;
   const touchedEntityIds: string[] = [];
 
   for (const command of commands) {
     if (command.type === "draw-order") {
       order = reorderDrawOrder(order, command.entityIds, command.placement, command.referenceId);
       for (const entityId of command.entityIds) touchedEntityIds.push(entityId);
+      continue;
+    }
+    if (command.type === "layer-state") {
+      if (command.op === "delete") {
+        const key = command.name.trim().toUpperCase();
+        const next = (layerStates ?? []).filter(
+          (state) => state.name.toUpperCase() !== key,
+        );
+        if (next.length === (layerStates ?? []).length)
+          throw new Error(`No hay ningún estado de capa llamado "${command.name}".`);
+        // Borrar el último estado retira la sección entera: opcional-ausente.
+        layerStates = next.length > 0 ? next : undefined;
+        continue;
+      }
+      const name = command.state.name.trim();
+      if (!name) throw new Error("Un estado de capa necesita un nombre.");
+      const key = name.toUpperCase();
+      layerStates = [
+        ...(layerStates ?? []).filter((state) => state.name.toUpperCase() !== key),
+        { ...command.state, entries: command.state.entries.map((entry) => ({ ...entry })) },
+      ].sort((a, b) => a.name.localeCompare(b.name));
       continue;
     }
     if (command.op === "delete") {
@@ -115,5 +148,5 @@ export function applyDocumentTables(
     else layers = [...layers, { ...command.layer }];
   }
 
-  return { layers, entityOrder: order, entities: current, touchedEntityIds };
+  return { layers, entityOrder: order, entities: current, touchedEntityIds, layerStates };
 }

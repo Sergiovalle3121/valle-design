@@ -8,7 +8,12 @@
  * verde y una lámina mentirosa.
  */
 import { strict as assert } from "node:assert";
-import type { CadDocument, CadPaperSpace } from "../../cad-document";
+import {
+  parseCadDocument,
+  serializeCadDocument,
+  type CadDocument,
+  type CadPaperSpace,
+} from "../../cad-document";
 import { executeCadEntityCommandBatch } from "../../entity-commands";
 import { CadLayerStateCatalog } from "../../layer-states";
 import { buildCadPublishPlan, createCadPaperSpace } from "../../paper-space";
@@ -90,6 +95,7 @@ function run(
       entityIds: current.entities.map((entity) => entity.id),
       entity: (id) => current.entities.find((entity) => entity.id === id),
       layers: () => current.layers,
+      document: () => current,
       selection: [],
       activeLayer: "0",
       unit: current.meta.unit,
@@ -331,6 +337,45 @@ const layerById = (document: CadDocument, id: string) =>
     messages(refused.effects).some((text) => text.includes("capa actual")),
     "la capa actual no se congela ni desde -LAYER",
   );
+}
+
+// --- LAYERSTATE sobrevive a la RECARGA: guardar, recargar, restituir ---------
+{
+  // Se apaga una capa, se fotografía, se estropea el reparto… y se RECARGA:
+  // el documento viaja por serializar+parsear, que es exactamente lo que pasa
+  // al cerrar la pestaña. El estado tiene que seguir ahí y restituir.
+  const working = run(baseDocument(), ["LAYOFF", pick("tubo")]).document;
+  const saved = run(working, ["LAYERSTATE", "G", "Impresión"]).document;
+  assert.equal(saved.layerStates?.length, 1, "el estado queda en el documento");
+  assert.equal(saved.layerStates?.[0].name, "Impresión");
+  assert.equal(
+    saved.layerStates?.[0].entries.find((entry) => entry.layerName === "MEP")?.visible,
+    false,
+    "la foto recuerda que MEP estaba apagada",
+  );
+
+  const reloaded = parseCadDocument(serializeCadDocument(saved));
+  assert.equal(reloaded.layerStates?.length, 1, "el estado SOBREVIVE a la recarga");
+
+  // Tras recargar, alguien lo enciende todo… y el estado lo deshace.
+  const messed = run(reloaded, ["LAYON"]).document;
+  assert.equal(
+    messed.layers.find((layer) => layer.id === "MEP")?.visible,
+    true,
+    "el reparto se estropeó de verdad",
+  );
+  const restored = run(messed, ["LAYERSTATE", "R", "Impresión"]).document;
+  assert.equal(
+    restored.layers.find((layer) => layer.id === "MEP")?.visible,
+    false,
+    "restituir tras la recarga devuelve el reparto guardado",
+  );
+  assert.equal(restored.meta.version - messed.meta.version, 1, "en UN paso de historia");
+
+  // Suprimir retira el estado del documento y con él la sección (opcional-ausente).
+  const removed = run(restored, ["LAYERSTATE", "S", "Impresión"]).document;
+  assert.equal(removed.layerStates, undefined, "borrar el último estado retira la sección");
+  assert.ok(!serializeCadDocument(removed).includes("layerStates"));
 }
 
 console.log(

@@ -21,6 +21,7 @@ import {
   type CadEntityPresentation,
   type CadImageDefinition,
   type CadLayerDef,
+  type CadNamedLayerState,
   type CadPaperSpace,
   type CadParameter,
   type CadPoint2,
@@ -147,6 +148,15 @@ export type CadEntityCommand =
    */
   | { type: "layer"; entity?: undefined; op: "upsert"; layer: CadLayerDef }
   | { type: "layer"; entity?: undefined; op: "delete"; name: string; reassignTo: string }
+  /**
+   * Estados de capa del DOCUMENTO (esquema 9). Por el mismo embudo que la
+   * tabla de capas y por la misma razón: LAYERSTATE guardaba en un catálogo de
+   * sesión y lo decía en voz alta — «no sobrevive a una recarga». Con esta
+   * orden el estado viaja con el documento, se deshace con Ctrl+Z y llega al
+   * colaborador. El nombre es la identidad, sin distinguir mayúsculas.
+   */
+  | { type: "layer-state"; entity?: undefined; op: "upsert"; state: CadNamedLayerState }
+  | { type: "layer-state"; entity?: undefined; op: "delete"; name: string }
   /**
    * Orden de dibujo (DRAWORDER). Toca `modelSpace.entityIds` y NADA más: quién
    * tapa a quién es una propiedad del espacio, no de la entidad.
@@ -293,7 +303,8 @@ function cadEntityCommandLabel(
   if (isStyleCommand(command)) return `style:${command.op}:${command.family}:${command.name}`;
   if (isSectionCommand(command) || isCadSymbolTableCommand(command))
     return `${command.type}:${command.op}`;
-  if (command.type === "layer") return `layer:${command.op}`;
+  if (command.type === "layer" || command.type === "layer-state")
+    return `${command.type}:${command.op}`;
   if (command.type === "draw-order") return `draw-order:${command.placement}`;
   const source = document.entities.find((entity) => entity.id === command.entityId);
   if (!source || !registry.supports(source))
@@ -586,6 +597,7 @@ export function executeCadEntityCommandBatch(
   // empieza a tapar la pieza que rellena.
   const tables = applyDocumentTables(document, tableCommands, [...createdBackIds, ...ordered], entities);
   for (const entityId of tables.touchedEntityIds) touchedIds.push(entityId);
+  const stagedLayerStates = tables.layerStates;
   const staged: CadDocument = {
     ...document,
     entities: tables.entities,
@@ -615,6 +627,9 @@ export function executeCadEntityCommandBatch(
   // con él sus hashes.
   if (sections.parameters === undefined) delete staged.parameters;
   else staged.parameters = sections.parameters;
+  // Mismo criterio para los estados de capa del esquema 9.
+  if (stagedLayerStates === undefined) delete staged.layerStates;
+  else staged.layerStates = stagedLayerStates;
   const nextDocument = commitChange(staged, label);
   return {
     document: nextDocument,
