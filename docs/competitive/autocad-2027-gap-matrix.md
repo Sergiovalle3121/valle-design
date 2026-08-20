@@ -283,7 +283,7 @@ esconder que una categoría subió cuatro puntos y otra se cayó cuatro.
 | 2026-08-18 | `986176b` | 166/200 |   83 % | Olas 1-7 y embudo comercial. Núcleo 96/110, productividad 39/44, extensibilidad 21/26, frontera 10/20 |
 | 2026-08-19 | `702bc68` | 171/200 | 85,5 % | Olas A, B, C y la red de seguridad offline. Núcleo 101/110, productividad 39/44, extensibilidad 21/26, frontera 10/20 |
 | 2026-08-20 | —         | 189/200 | 94,5 % | **Nota inflada, nunca publicada como válida**: 21/25 filas al tope por evidencia de sólo-existencia. Es el motivo de la re-base de este mismo día |
-| 2026-08-20 | *(HEAD)*  | 178/200 |   89 % | Re-base de integridad: evidencia de contenido (`jsonValue`), lint de existencia, y los gaps documentados como criterios que fallan (SLO navegador, frozen, PAGESETUP, hatch-PDF, BEDIT, F7/F9/F12, .shx, WASM huérfano, artefacto denso sin versionar) |
+| 2026-08-20 | `545a70d` | 178/200 |   89 % | Re-base de integridad: evidencia de contenido (`jsonValue`), lint de existencia, y los gaps documentados como criterios que fallan (SLO navegador, frozen, PAGESETUP, hatch-PDF, BEDIT, F7/F9/F12, .shx, WASM huérfano, artefacto denso sin versionar). Núcleo 101/110, productividad 39/44, extensibilidad 25/26, frontera 13/20 |
 
 ## Gaps P0 que bloquean claims superiores
 
