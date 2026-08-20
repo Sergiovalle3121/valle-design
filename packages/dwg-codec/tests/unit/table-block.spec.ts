@@ -93,6 +93,10 @@ test("round-trip del BLOCK_RECORD: nombre, punto base y común exactos", () => {
   assert.equal(decoded.record.hasAttributeDefinitions, false);
   assert.equal(decoded.record.isXref, false);
   assert.equal(decoded.record.xrefOverlaid, false);
+  // El bit adicional que el corpus real lleva antes del punto base (hecho 2
+  // del intake): el writer emite el único valor observado y el lector lo
+  // entrega CRUDO, sin interpretarlo.
+  assert.equal(decoded.record.postXrefFlagsBit, 0);
   assert.deepEqual(decoded.record.xrefPath, []);
   assert.deepEqual(decoded.record.insertCounts, []);
   assert.deepEqual(decoded.record.description, []);

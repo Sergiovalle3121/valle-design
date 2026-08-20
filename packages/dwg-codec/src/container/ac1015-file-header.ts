@@ -4,7 +4,7 @@
  * Es la puerta del formato binario: la versión en claro, unos campos fijos,
  * el puntero a la imagen de previsualización, la página de códigos y el
  * directorio de SECCIONES — registros localizadores {id, seeker, size} —
- * cerrado por un CRC-16 enmascarado según cuántos registros hay.
+ * cerrado por un CRC-16 CRUDO (semilla 0xC0C1, sin máscara).
  *
  * Este módulo LOCALIZA; no decodifica el contenido de ninguna sección. Sus
  * reglas son las del laboratorio:
@@ -16,16 +16,15 @@
  * - **Hechos registrados**: disposición y constantes de
  *   ODA-ODS-DWG-5.4.1-PUBLIC (SOURCE_REGISTER). Implementación original.
  *
- * Límite declarado: hasta la fase de intake con corpus real y derechos, la
- * evidencia de las constantes (XOR del CRC, centinela final) es el round-trip
- * de laboratorio, y así queda dicho en DWG0_WORKLOG.
+ * Intake 2026-08-20 (`VALLE-CORPUS-AC1015-INTAKE-DAE5E77`): el corpus
+ * real DESMINTIÓ la máscara XOR del CRC que la ODS declaraba por recuento de
+ * registros — los 8 AC1015 independientes guardan el CRC crudo — y CONFIRMÓ
+ * byte a byte el centinela final. Este módulo valida el CRC sin máscara; el
+ * rango 3–6 del recuento se conserva (hecho no contradicho).
  */
 import { BoundedByteCursor } from "../binary/byte-cursor.js";
 import { RangeTable, type BoundedRange } from "../binary/range-table.js";
-import {
-  crc16Dwg,
-  FILE_HEADER_CRC_XOR_BY_RECORD_COUNT,
-} from "../codecs/crc16.js";
+import { crc16Dwg } from "../codecs/crc16.js";
 import { throwDwgError } from "../security/parse-error.js";
 
 /**
@@ -52,6 +51,13 @@ const PREVIEW_SEEKER_OFFSET = 0x0d;
 const CODEPAGE_OFFSET = 0x13;
 /** Offset del recuento de registros localizadores. */
 const RECORD_COUNT_OFFSET = 0x15;
+/**
+ * Rango definido del recuento de registros localizadores (hecho de la ODS no
+ * contradicho por el corpus; los 8 AC1015 reales llevan 6). Fuera de 3–6 el
+ * contenedor falla cerrado, no adivina.
+ */
+const MIN_RECORD_COUNT = 3;
+const MAX_RECORD_COUNT = 6;
 
 /** Un registro localizador: qué sección, dónde empieza y cuánto ocupa. */
 export interface Ac1015SectionRecord {
@@ -133,8 +139,7 @@ export function parseAc1015FileHeader(
   const codepage = cursor.readUint16LE();
 
   const recordCount = cursor.readUint32LE();
-  const crcXor = FILE_HEADER_CRC_XOR_BY_RECORD_COUNT.get(recordCount);
-  if (crcXor === undefined) {
+  if (recordCount < MIN_RECORD_COUNT || recordCount > MAX_RECORD_COUNT) {
     throwDwgError(
       "DWG_STRUCTURE_CORRUPT",
       "input",
@@ -171,9 +176,11 @@ export function parseAc1015FileHeader(
   }
 
   // El CRC cubre TODO lo anterior: desde el byte 0 hasta el último registro.
+  // CRUDO, sin máscara XOR: así lo guardan los 8 AC1015 reales del corpus
+  // (VALLE-CORPUS-AC1015-INTAKE-DAE5E77).
   const crcEnd = cursor.position;
   const crc = cursor.readUint16LE();
-  const computed = crc16Dwg(readBackSlice(cursor, 0, crcEnd), 0xc0c1) ^ crcXor;
+  const computed = crc16Dwg(readBackSlice(cursor, 0, crcEnd), 0xc0c1);
   if (crc !== computed) {
     throwDwgError(
       "DWG_STRUCTURE_CORRUPT",

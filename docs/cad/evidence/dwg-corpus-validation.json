@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "evidenceId": "valle-design-dwg-corpus-validation-v1",
   "generadoPor": "node scripts/dwg/validate-corpus.mjs",
-  "generadoEn": "2026-08-20T16:22:08.103Z",
+  "generadoEn": "2026-08-20T17:06:25.474Z",
   "environment": {
     "node": "v22.18.0",
     "platform": "win32",
@@ -15,7 +15,7 @@
     "totalMemoryBytes": 7896625152,
     "declaredMachine": "AMD Ryzen 5 5500U with Radeon Graphics (12 hilos lógicos), 7.9 GB de RAM, Windows_NT 10.0.26200"
   },
-  "veredicto": "EL DECODER NO ABRE NINGUNO de los 8 DWG AC1015 reales del corpus. Todos fallan en el MISMO punto: DWG_STRUCTURE_CORRUPT @79: The file-header CRC does not match its contents.",
+  "veredicto": "El decoder abre los 8 DWG AC1015 del corpus; ver matriz para el detalle por entidad.",
   "reglaCleanRoom": "Toda discrepancia se REGISTRA aquí y no se corrige en esta ola: corregir el decoder exige registrar antes el hecho de formato en packages/dwg-codec/SOURCE_REGISTER.json (ADR-0007).",
   "alcance": "Sólo fixtures AC1015 del corpus admitido y verificado por hash. El DXF oráculo es la fuente de autoría propia congelada en el mismo bundle; los DWG los produjo una implementación independiente (ver docs/TOOLS.md del repo hermano).",
   "corpus": {
@@ -28,209 +28,114 @@
   },
   "resumen": {
     "archivosAc1015": 8,
-    "abiertos": 0,
-    "noAbiertos": 8,
+    "abiertos": 8,
+    "noAbiertos": 0,
     "sinOraculo": 0,
     "matrizEntidades": {
       "line": {
         "esperado": 15,
-        "leidoCorrecto": 0,
+        "leidoCorrecto": 15,
         "geometriaDistinta": 0,
         "faltante": 0,
-        "inesperado": 0,
-        "sinValidarPorNoAbrir": 15
-      },
-      "circle": {
-        "esperado": 3,
-        "leidoCorrecto": 0,
-        "geometriaDistinta": 0,
-        "faltante": 0,
-        "inesperado": 0,
-        "sinValidarPorNoAbrir": 3
+        "inesperado": 0
       },
       "arc": {
         "esperado": 2,
-        "leidoCorrecto": 0,
+        "leidoCorrecto": 2,
         "geometriaDistinta": 0,
         "faltante": 0,
-        "inesperado": 0,
-        "sinValidarPorNoAbrir": 2
+        "inesperado": 0
+      },
+      "circle": {
+        "esperado": 3,
+        "leidoCorrecto": 3,
+        "geometriaDistinta": 0,
+        "faltante": 0,
+        "inesperado": 0
       },
       "point": {
         "esperado": 1,
-        "leidoCorrecto": 0,
+        "leidoCorrecto": 1,
         "geometriaDistinta": 0,
         "faltante": 0,
-        "inesperado": 0,
-        "sinValidarPorNoAbrir": 1
+        "inesperado": 0
       },
       "lwpolyline": {
         "esperado": 3,
-        "leidoCorrecto": 0,
+        "leidoCorrecto": 3,
         "geometriaDistinta": 0,
         "faltante": 0,
-        "inesperado": 0,
-        "sinValidarPorNoAbrir": 3
+        "inesperado": 0
       },
       "text": {
         "esperado": 5,
-        "leidoCorrecto": 0,
+        "leidoCorrecto": 5,
         "geometriaDistinta": 0,
         "faltante": 0,
-        "inesperado": 0,
-        "sinValidarPorNoAbrir": 5
+        "inesperado": 0
       },
       "insert": {
         "esperado": 6,
-        "leidoCorrecto": 0,
+        "leidoCorrecto": 6,
         "geometriaDistinta": 0,
         "faltante": 0,
-        "inesperado": 0,
-        "sinValidarPorNoAbrir": 6
+        "inesperado": 0
       }
     },
-    "discrepanciasRegistradas": 8
+    "discrepanciasRegistradas": 0
   },
   "matrizEntidades": {
     "line": {
       "esperado": 15,
-      "leidoCorrecto": 0,
+      "leidoCorrecto": 15,
       "geometriaDistinta": 0,
       "faltante": 0,
-      "inesperado": 0,
-      "sinValidarPorNoAbrir": 15
-    },
-    "circle": {
-      "esperado": 3,
-      "leidoCorrecto": 0,
-      "geometriaDistinta": 0,
-      "faltante": 0,
-      "inesperado": 0,
-      "sinValidarPorNoAbrir": 3
+      "inesperado": 0
     },
     "arc": {
       "esperado": 2,
-      "leidoCorrecto": 0,
+      "leidoCorrecto": 2,
       "geometriaDistinta": 0,
       "faltante": 0,
-      "inesperado": 0,
-      "sinValidarPorNoAbrir": 2
+      "inesperado": 0
+    },
+    "circle": {
+      "esperado": 3,
+      "leidoCorrecto": 3,
+      "geometriaDistinta": 0,
+      "faltante": 0,
+      "inesperado": 0
     },
     "point": {
       "esperado": 1,
-      "leidoCorrecto": 0,
+      "leidoCorrecto": 1,
       "geometriaDistinta": 0,
       "faltante": 0,
-      "inesperado": 0,
-      "sinValidarPorNoAbrir": 1
+      "inesperado": 0
     },
     "lwpolyline": {
       "esperado": 3,
-      "leidoCorrecto": 0,
+      "leidoCorrecto": 3,
       "geometriaDistinta": 0,
       "faltante": 0,
-      "inesperado": 0,
-      "sinValidarPorNoAbrir": 3
+      "inesperado": 0
     },
     "text": {
       "esperado": 5,
-      "leidoCorrecto": 0,
+      "leidoCorrecto": 5,
       "geometriaDistinta": 0,
       "faltante": 0,
-      "inesperado": 0,
-      "sinValidarPorNoAbrir": 5
+      "inesperado": 0
     },
     "insert": {
       "esperado": 6,
-      "leidoCorrecto": 0,
+      "leidoCorrecto": 6,
       "geometriaDistinta": 0,
       "faltante": 0,
-      "inesperado": 0,
-      "sinValidarPorNoAbrir": 6
+      "inesperado": 0
     }
   },
-  "discrepancias": [
-    {
-      "archivo": "01-vacio",
-      "tipo": "no-abre",
-      "error": {
-        "code": "DWG_STRUCTURE_CORRUPT",
-        "category": "input",
-        "offset": 79,
-        "message": "The file-header CRC does not match its contents."
-      }
-    },
-    {
-      "archivo": "02-una-linea",
-      "tipo": "no-abre",
-      "error": {
-        "code": "DWG_STRUCTURE_CORRUPT",
-        "category": "input",
-        "offset": 79,
-        "message": "The file-header CRC does not match its contents."
-      }
-    },
-    {
-      "archivo": "03-figuras-basicas",
-      "tipo": "no-abre",
-      "error": {
-        "code": "DWG_STRUCTURE_CORRUPT",
-        "category": "input",
-        "offset": 79,
-        "message": "The file-header CRC does not match its contents."
-      }
-    },
-    {
-      "archivo": "04-capas",
-      "tipo": "no-abre",
-      "error": {
-        "code": "DWG_STRUCTURE_CORRUPT",
-        "category": "input",
-        "offset": 79,
-        "message": "The file-header CRC does not match its contents."
-      }
-    },
-    {
-      "archivo": "05-lwpolyline-bulges",
-      "tipo": "no-abre",
-      "error": {
-        "code": "DWG_STRUCTURE_CORRUPT",
-        "category": "input",
-        "offset": 79,
-        "message": "The file-header CRC does not match its contents."
-      }
-    },
-    {
-      "archivo": "06-texto",
-      "tipo": "no-abre",
-      "error": {
-        "code": "DWG_STRUCTURE_CORRUPT",
-        "category": "input",
-        "offset": 79,
-        "message": "The file-header CRC does not match its contents."
-      }
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "tipo": "no-abre",
-      "error": {
-        "code": "DWG_STRUCTURE_CORRUPT",
-        "category": "input",
-        "offset": 79,
-        "message": "The file-header CRC does not match its contents."
-      }
-    },
-    {
-      "archivo": "08-plano-mini",
-      "tipo": "no-abre",
-      "error": {
-        "code": "DWG_STRUCTURE_CORRUPT",
-        "category": "input",
-        "offset": 79,
-        "message": "The file-header CRC does not match its contents."
-      }
-    }
-  ],
+  "discrepancias": [],
   "archivos": [
     {
       "bundle": "valle.fundacional.ac1015.001",
@@ -244,20 +149,172 @@
         "capas": [],
         "bloques": []
       },
-      "abre": false,
-      "error": {
-        "code": "DWG_STRUCTURE_CORRUPT",
-        "category": "input",
-        "offset": 79,
-        "message": "The file-header CRC does not match its contents."
+      "abre": true,
+      "capas": {
+        "esperadas": [],
+        "leidas": [
+          {
+            "nombre": "0",
+            "colorIndex": 7,
+            "stateFlags": 1008
+          }
+        ],
+        "faltantes": [],
+        "coloresDistintos": [],
+        "observacionesDeEstado": []
       },
-      "observacionCrcCabecera": {
-        "recordCount": 6,
-        "crcGuardado": "0x717b",
-        "crcCalculadoSemilla0xc0c1": "0x717b",
-        "xorNecesarioParaCuadrar": "0x0000",
-        "hechoRegistradoContradicho": "SOURCE_REGISTER.json (ODA-ODS-DWG-5.4.1-PUBLIC) declara máscara XOR por recuento de registros (6→0x8461); los archivos reales de una implementación independiente guardan el CRC SIN máscara (XOR observado 0x0000)."
-      }
+      "entidades": {
+        "porTipo": {},
+        "detalles": []
+      },
+      "bloques": {
+        "esperados": [],
+        "leidosTodos": [
+          "*Paper_Space",
+          "*Model_Space"
+        ],
+        "porBloque": {}
+      },
+      "tiposNoSoportados": [
+        {
+          "codigoBs": 42,
+          "cuantos": 46
+        },
+        {
+          "codigoBs": 52,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 53,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 56,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 57,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 60,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 62,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 64,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 65,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 66,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 67,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 68,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 69,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 70,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 73,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 79,
+          "cuantos": 35
+        },
+        {
+          "codigoBs": 500,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 501,
+          "cuantos": 17
+        },
+        {
+          "codigoBs": 502,
+          "cuantos": 24
+        },
+        {
+          "codigoBs": 503,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 504,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 505,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 506,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 507,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 508,
+          "cuantos": 8
+        },
+        {
+          "codigoBs": 509,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 510,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 511,
+          "cuantos": 2
+        }
+      ],
+      "diagnosticos": [
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 5775,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 5808,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 5828,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 5861,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        }
+      ]
     },
     {
       "bundle": "valle.fundacional.ac1015.001",
@@ -273,20 +330,180 @@
         "capas": [],
         "bloques": []
       },
-      "abre": false,
-      "error": {
-        "code": "DWG_STRUCTURE_CORRUPT",
-        "category": "input",
-        "offset": 79,
-        "message": "The file-header CRC does not match its contents."
+      "abre": true,
+      "capas": {
+        "esperadas": [],
+        "leidas": [
+          {
+            "nombre": "0",
+            "colorIndex": 7,
+            "stateFlags": 1008
+          }
+        ],
+        "faltantes": [],
+        "coloresDistintos": [],
+        "observacionesDeEstado": []
       },
-      "observacionCrcCabecera": {
-        "recordCount": 6,
-        "crcGuardado": "0xb02a",
-        "crcCalculadoSemilla0xc0c1": "0xb02a",
-        "xorNecesarioParaCuadrar": "0x0000",
-        "hechoRegistradoContradicho": "SOURCE_REGISTER.json (ODA-ODS-DWG-5.4.1-PUBLIC) declara máscara XOR por recuento de registros (6→0x8461); los archivos reales de una implementación independiente guardan el CRC SIN máscara (XOR observado 0x0000)."
-      }
+      "entidades": {
+        "porTipo": {
+          "line": {
+            "esperado": 1,
+            "leidoCorrecto": 1,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          }
+        },
+        "detalles": []
+      },
+      "bloques": {
+        "esperados": [],
+        "leidosTodos": [
+          "*Paper_Space",
+          "*Model_Space"
+        ],
+        "porBloque": {}
+      },
+      "tiposNoSoportados": [
+        {
+          "codigoBs": 42,
+          "cuantos": 46
+        },
+        {
+          "codigoBs": 52,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 53,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 56,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 57,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 60,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 62,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 64,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 65,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 66,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 67,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 68,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 69,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 70,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 73,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 79,
+          "cuantos": 35
+        },
+        {
+          "codigoBs": 500,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 501,
+          "cuantos": 17
+        },
+        {
+          "codigoBs": 502,
+          "cuantos": 24
+        },
+        {
+          "codigoBs": 503,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 504,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 505,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 506,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 507,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 508,
+          "cuantos": 8
+        },
+        {
+          "codigoBs": 509,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 510,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 511,
+          "cuantos": 2
+        }
+      ],
+      "diagnosticos": [
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 5777,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 5863,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 5883,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 5916,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        }
+      ]
     },
     {
       "bundle": "valle.fundacional.ac1015.001",
@@ -305,20 +522,201 @@
         "capas": [],
         "bloques": []
       },
-      "abre": false,
-      "error": {
-        "code": "DWG_STRUCTURE_CORRUPT",
-        "category": "input",
-        "offset": 79,
-        "message": "The file-header CRC does not match its contents."
+      "abre": true,
+      "capas": {
+        "esperadas": [],
+        "leidas": [
+          {
+            "nombre": "0",
+            "colorIndex": 7,
+            "stateFlags": 1008
+          }
+        ],
+        "faltantes": [],
+        "coloresDistintos": [],
+        "observacionesDeEstado": []
       },
-      "observacionCrcCabecera": {
-        "recordCount": 6,
-        "crcGuardado": "0xa5c1",
-        "crcCalculadoSemilla0xc0c1": "0xa5c1",
-        "xorNecesarioParaCuadrar": "0x0000",
-        "hechoRegistradoContradicho": "SOURCE_REGISTER.json (ODA-ODS-DWG-5.4.1-PUBLIC) declara máscara XOR por recuento de registros (6→0x8461); los archivos reales de una implementación independiente guardan el CRC SIN máscara (XOR observado 0x0000)."
-      }
+      "entidades": {
+        "porTipo": {
+          "arc": {
+            "esperado": 1,
+            "leidoCorrecto": 1,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          },
+          "circle": {
+            "esperado": 1,
+            "leidoCorrecto": 1,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          },
+          "line": {
+            "esperado": 1,
+            "leidoCorrecto": 1,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          },
+          "point": {
+            "esperado": 1,
+            "leidoCorrecto": 1,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          }
+        },
+        "detalles": []
+      },
+      "bloques": {
+        "esperados": [],
+        "leidosTodos": [
+          "*Paper_Space",
+          "*Model_Space"
+        ],
+        "porBloque": {}
+      },
+      "tiposNoSoportados": [
+        {
+          "codigoBs": 42,
+          "cuantos": 46
+        },
+        {
+          "codigoBs": 52,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 53,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 56,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 57,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 60,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 62,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 64,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 65,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 66,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 67,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 68,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 69,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 70,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 73,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 79,
+          "cuantos": 35
+        },
+        {
+          "codigoBs": 500,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 501,
+          "cuantos": 17
+        },
+        {
+          "codigoBs": 502,
+          "cuantos": 24
+        },
+        {
+          "codigoBs": 503,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 504,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 505,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 506,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 507,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 508,
+          "cuantos": 8
+        },
+        {
+          "codigoBs": 509,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 510,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 511,
+          "cuantos": 2
+        }
+      ],
+      "diagnosticos": [
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 5777,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 5995,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6015,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6048,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        }
+      ]
     },
     {
       "bundle": "valle.fundacional.ac1015.001",
@@ -343,20 +741,277 @@
         ],
         "bloques": []
       },
-      "abre": false,
-      "error": {
-        "code": "DWG_STRUCTURE_CORRUPT",
-        "category": "input",
-        "offset": 79,
-        "message": "The file-header CRC does not match its contents."
+      "abre": true,
+      "capas": {
+        "esperadas": [
+          {
+            "name": "0",
+            "flags": 0,
+            "color": 7,
+            "linetype": "CONTINUOUS"
+          },
+          {
+            "name": "MUROS",
+            "flags": 0,
+            "color": 1,
+            "linetype": "CONTINUOUS"
+          },
+          {
+            "name": "EJES",
+            "flags": 0,
+            "color": 2,
+            "linetype": "TRAZOS"
+          },
+          {
+            "name": "COTAS",
+            "flags": 0,
+            "color": 3,
+            "linetype": "CONTINUOUS"
+          },
+          {
+            "name": "CONGELADA",
+            "flags": 1,
+            "color": 4,
+            "linetype": "CONTINUOUS"
+          },
+          {
+            "name": "BLOQUEADA",
+            "flags": 4,
+            "color": 5,
+            "linetype": "CONTINUOUS"
+          },
+          {
+            "name": "TEXTOS",
+            "flags": 0,
+            "color": 6,
+            "linetype": "CONTINUOUS"
+          }
+        ],
+        "leidas": [
+          {
+            "nombre": "0",
+            "colorIndex": 7,
+            "stateFlags": 1008
+          },
+          {
+            "nombre": "MUROS",
+            "colorIndex": 1,
+            "stateFlags": 1008
+          },
+          {
+            "nombre": "EJES",
+            "colorIndex": 2,
+            "stateFlags": 1008
+          },
+          {
+            "nombre": "COTAS",
+            "colorIndex": 3,
+            "stateFlags": 1008
+          },
+          {
+            "nombre": "CONGELADA",
+            "colorIndex": 4,
+            "stateFlags": 1009
+          },
+          {
+            "nombre": "BLOQUEADA",
+            "colorIndex": 5,
+            "stateFlags": 1016
+          },
+          {
+            "nombre": "TEXTOS",
+            "colorIndex": 6,
+            "stateFlags": 1008
+          }
+        ],
+        "faltantes": [],
+        "coloresDistintos": [],
+        "observacionesDeEstado": [
+          {
+            "capa": "CONGELADA",
+            "estadoDeclaradoEnOraculo": {
+              "frozen": true,
+              "locked": false
+            },
+            "stateFlagsLeidosCrudos": 1009
+          },
+          {
+            "capa": "BLOQUEADA",
+            "estadoDeclaradoEnOraculo": {
+              "frozen": false,
+              "locked": true
+            },
+            "stateFlagsLeidosCrudos": 1016
+          }
+        ]
       },
-      "observacionCrcCabecera": {
-        "recordCount": 6,
-        "crcGuardado": "0xf5f5",
-        "crcCalculadoSemilla0xc0c1": "0xf5f5",
-        "xorNecesarioParaCuadrar": "0x0000",
-        "hechoRegistradoContradicho": "SOURCE_REGISTER.json (ODA-ODS-DWG-5.4.1-PUBLIC) declara máscara XOR por recuento de registros (6→0x8461); los archivos reales de una implementación independiente guardan el CRC SIN máscara (XOR observado 0x0000)."
-      }
+      "entidades": {
+        "porTipo": {
+          "circle": {
+            "esperado": 1,
+            "leidoCorrecto": 1,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          },
+          "line": {
+            "esperado": 5,
+            "leidoCorrecto": 5,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          }
+        },
+        "detalles": []
+      },
+      "bloques": {
+        "esperados": [],
+        "leidosTodos": [
+          "*Paper_Space",
+          "*Model_Space"
+        ],
+        "porBloque": {}
+      },
+      "tiposNoSoportados": [
+        {
+          "codigoBs": 42,
+          "cuantos": 52
+        },
+        {
+          "codigoBs": 52,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 53,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 56,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 57,
+          "cuantos": 4
+        },
+        {
+          "codigoBs": 60,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 62,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 64,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 65,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 66,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 67,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 68,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 69,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 70,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 73,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 79,
+          "cuantos": 41
+        },
+        {
+          "codigoBs": 500,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 501,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 502,
+          "cuantos": 17
+        },
+        {
+          "codigoBs": 503,
+          "cuantos": 24
+        },
+        {
+          "codigoBs": 504,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 505,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 506,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 507,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 508,
+          "cuantos": 8
+        },
+        {
+          "codigoBs": 509,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 510,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 511,
+          "cuantos": 2
+        }
+      ],
+      "diagnosticos": [
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6339,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6634,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6654,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6687,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        }
+      ]
     },
     {
       "bundle": "valle.fundacional.ac1015.001",
@@ -372,20 +1027,180 @@
         "capas": [],
         "bloques": []
       },
-      "abre": false,
-      "error": {
-        "code": "DWG_STRUCTURE_CORRUPT",
-        "category": "input",
-        "offset": 79,
-        "message": "The file-header CRC does not match its contents."
+      "abre": true,
+      "capas": {
+        "esperadas": [],
+        "leidas": [
+          {
+            "nombre": "0",
+            "colorIndex": 7,
+            "stateFlags": 1008
+          }
+        ],
+        "faltantes": [],
+        "coloresDistintos": [],
+        "observacionesDeEstado": []
       },
-      "observacionCrcCabecera": {
-        "recordCount": 6,
-        "crcGuardado": "0xd897",
-        "crcCalculadoSemilla0xc0c1": "0xd897",
-        "xorNecesarioParaCuadrar": "0x0000",
-        "hechoRegistradoContradicho": "SOURCE_REGISTER.json (ODA-ODS-DWG-5.4.1-PUBLIC) declara máscara XOR por recuento de registros (6→0x8461); los archivos reales de una implementación independiente guardan el CRC SIN máscara (XOR observado 0x0000)."
-      }
+      "entidades": {
+        "porTipo": {
+          "lwpolyline": {
+            "esperado": 2,
+            "leidoCorrecto": 2,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          }
+        },
+        "detalles": []
+      },
+      "bloques": {
+        "esperados": [],
+        "leidosTodos": [
+          "*Paper_Space",
+          "*Model_Space"
+        ],
+        "porBloque": {}
+      },
+      "tiposNoSoportados": [
+        {
+          "codigoBs": 42,
+          "cuantos": 46
+        },
+        {
+          "codigoBs": 52,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 53,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 56,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 57,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 60,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 62,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 64,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 65,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 66,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 67,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 68,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 69,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 70,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 73,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 79,
+          "cuantos": 35
+        },
+        {
+          "codigoBs": 500,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 501,
+          "cuantos": 17
+        },
+        {
+          "codigoBs": 502,
+          "cuantos": 24
+        },
+        {
+          "codigoBs": 503,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 504,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 505,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 506,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 507,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 508,
+          "cuantos": 8
+        },
+        {
+          "codigoBs": 509,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 510,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 511,
+          "cuantos": 2
+        }
+      ],
+      "diagnosticos": [
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 5777,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 5967,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 5987,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6020,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        }
+      ]
     },
     {
       "bundle": "valle.fundacional.ac1015.001",
@@ -401,20 +1216,180 @@
         "capas": [],
         "bloques": []
       },
-      "abre": false,
-      "error": {
-        "code": "DWG_STRUCTURE_CORRUPT",
-        "category": "input",
-        "offset": 79,
-        "message": "The file-header CRC does not match its contents."
+      "abre": true,
+      "capas": {
+        "esperadas": [],
+        "leidas": [
+          {
+            "nombre": "0",
+            "colorIndex": 7,
+            "stateFlags": 1008
+          }
+        ],
+        "faltantes": [],
+        "coloresDistintos": [],
+        "observacionesDeEstado": []
       },
-      "observacionCrcCabecera": {
-        "recordCount": 6,
-        "crcGuardado": "0xa77e",
-        "crcCalculadoSemilla0xc0c1": "0xa77e",
-        "xorNecesarioParaCuadrar": "0x0000",
-        "hechoRegistradoContradicho": "SOURCE_REGISTER.json (ODA-ODS-DWG-5.4.1-PUBLIC) declara máscara XOR por recuento de registros (6→0x8461); los archivos reales de una implementación independiente guardan el CRC SIN máscara (XOR observado 0x0000)."
-      }
+      "entidades": {
+        "porTipo": {
+          "text": {
+            "esperado": 3,
+            "leidoCorrecto": 3,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          }
+        },
+        "detalles": []
+      },
+      "bloques": {
+        "esperados": [],
+        "leidosTodos": [
+          "*Paper_Space",
+          "*Model_Space"
+        ],
+        "porBloque": {}
+      },
+      "tiposNoSoportados": [
+        {
+          "codigoBs": 42,
+          "cuantos": 46
+        },
+        {
+          "codigoBs": 52,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 53,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 56,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 57,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 60,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 62,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 64,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 65,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 66,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 67,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 68,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 69,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 70,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 73,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 79,
+          "cuantos": 35
+        },
+        {
+          "codigoBs": 500,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 501,
+          "cuantos": 17
+        },
+        {
+          "codigoBs": 502,
+          "cuantos": 24
+        },
+        {
+          "codigoBs": 503,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 504,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 505,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 506,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 507,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 508,
+          "cuantos": 8
+        },
+        {
+          "codigoBs": 509,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 510,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 511,
+          "cuantos": 2
+        }
+      ],
+      "diagnosticos": [
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 5874,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6097,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6117,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6150,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        }
+      ]
     },
     {
       "bundle": "valle.fundacional.ac1015.001",
@@ -434,20 +1409,206 @@
           "MARCO-A"
         ]
       },
-      "abre": false,
-      "error": {
-        "code": "DWG_STRUCTURE_CORRUPT",
-        "category": "input",
-        "offset": 79,
-        "message": "The file-header CRC does not match its contents."
+      "abre": true,
+      "capas": {
+        "esperadas": [],
+        "leidas": [
+          {
+            "nombre": "0",
+            "colorIndex": 7,
+            "stateFlags": 1008
+          }
+        ],
+        "faltantes": [],
+        "coloresDistintos": [],
+        "observacionesDeEstado": []
       },
-      "observacionCrcCabecera": {
-        "recordCount": 6,
-        "crcGuardado": "0xac25",
-        "crcCalculadoSemilla0xc0c1": "0xac25",
-        "xorNecesarioParaCuadrar": "0x0000",
-        "hechoRegistradoContradicho": "SOURCE_REGISTER.json (ODA-ODS-DWG-5.4.1-PUBLIC) declara máscara XOR por recuento de registros (6→0x8461); los archivos reales de una implementación independiente guardan el CRC SIN máscara (XOR observado 0x0000)."
-      }
+      "entidades": {
+        "porTipo": {
+          "insert": {
+            "esperado": 4,
+            "leidoCorrecto": 4,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          }
+        },
+        "detalles": []
+      },
+      "bloques": {
+        "esperados": [
+          "MARCO-A"
+        ],
+        "leidosTodos": [
+          "*Paper_Space",
+          "*Model_Space",
+          "MARCO-A"
+        ],
+        "porBloque": {
+          "MARCO-A": {
+            "encontrado": true,
+            "contenido": {
+              "porTipo": {
+                "circle": {
+                  "esperado": 1,
+                  "leidoCorrecto": 1,
+                  "geometriaDistinta": 0,
+                  "faltante": 0,
+                  "inesperado": 0
+                },
+                "line": {
+                  "esperado": 4,
+                  "leidoCorrecto": 4,
+                  "geometriaDistinta": 0,
+                  "faltante": 0,
+                  "inesperado": 0
+                }
+              },
+              "detalles": []
+            }
+          }
+        }
+      },
+      "tiposNoSoportados": [
+        {
+          "codigoBs": 42,
+          "cuantos": 46
+        },
+        {
+          "codigoBs": 52,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 53,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 56,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 57,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 60,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 62,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 64,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 65,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 66,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 67,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 68,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 69,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 70,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 73,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 79,
+          "cuantos": 35
+        },
+        {
+          "codigoBs": 500,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 501,
+          "cuantos": 17
+        },
+        {
+          "codigoBs": 502,
+          "cuantos": 24
+        },
+        {
+          "codigoBs": 503,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 504,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 505,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 506,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 507,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 508,
+          "cuantos": 8
+        },
+        {
+          "codigoBs": 509,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 510,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 511,
+          "cuantos": 2
+        }
+      ],
+      "diagnosticos": [
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6110,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6357,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6377,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6410,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        }
+      ]
     },
     {
       "bundle": "valle.fundacional.ac1015.001",
@@ -475,20 +1636,278 @@
           "PUERTA"
         ]
       },
-      "abre": false,
-      "error": {
-        "code": "DWG_STRUCTURE_CORRUPT",
-        "category": "input",
-        "offset": 79,
-        "message": "The file-header CRC does not match its contents."
+      "abre": true,
+      "capas": {
+        "esperadas": [
+          {
+            "name": "0",
+            "flags": 0,
+            "color": 7,
+            "linetype": "CONTINUOUS"
+          },
+          {
+            "name": "MUROS",
+            "flags": 0,
+            "color": 1,
+            "linetype": "CONTINUOUS"
+          },
+          {
+            "name": "PUERTAS",
+            "flags": 0,
+            "color": 4,
+            "linetype": "CONTINUOUS"
+          },
+          {
+            "name": "TEXTOS",
+            "flags": 0,
+            "color": 6,
+            "linetype": "CONTINUOUS"
+          },
+          {
+            "name": "EJES",
+            "flags": 0,
+            "color": 2,
+            "linetype": "TRAZOS"
+          }
+        ],
+        "leidas": [
+          {
+            "nombre": "0",
+            "colorIndex": 7,
+            "stateFlags": 1008
+          },
+          {
+            "nombre": "MUROS",
+            "colorIndex": 1,
+            "stateFlags": 1008
+          },
+          {
+            "nombre": "PUERTAS",
+            "colorIndex": 4,
+            "stateFlags": 1008
+          },
+          {
+            "nombre": "TEXTOS",
+            "colorIndex": 6,
+            "stateFlags": 1008
+          },
+          {
+            "nombre": "EJES",
+            "colorIndex": 2,
+            "stateFlags": 1008
+          }
+        ],
+        "faltantes": [],
+        "coloresDistintos": [],
+        "observacionesDeEstado": []
       },
-      "observacionCrcCabecera": {
-        "recordCount": 6,
-        "crcGuardado": "0x62f6",
-        "crcCalculadoSemilla0xc0c1": "0x62f6",
-        "xorNecesarioParaCuadrar": "0x0000",
-        "hechoRegistradoContradicho": "SOURCE_REGISTER.json (ODA-ODS-DWG-5.4.1-PUBLIC) declara máscara XOR por recuento de registros (6→0x8461); los archivos reales de una implementación independiente guardan el CRC SIN máscara (XOR observado 0x0000)."
-      }
+      "entidades": {
+        "porTipo": {
+          "insert": {
+            "esperado": 2,
+            "leidoCorrecto": 2,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          },
+          "line": {
+            "esperado": 3,
+            "leidoCorrecto": 3,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          },
+          "lwpolyline": {
+            "esperado": 1,
+            "leidoCorrecto": 1,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          },
+          "text": {
+            "esperado": 2,
+            "leidoCorrecto": 2,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          }
+        },
+        "detalles": []
+      },
+      "bloques": {
+        "esperados": [
+          "PUERTA"
+        ],
+        "leidosTodos": [
+          "*Paper_Space",
+          "*Model_Space",
+          "PUERTA"
+        ],
+        "porBloque": {
+          "PUERTA": {
+            "encontrado": true,
+            "contenido": {
+              "porTipo": {
+                "arc": {
+                  "esperado": 1,
+                  "leidoCorrecto": 1,
+                  "geometriaDistinta": 0,
+                  "faltante": 0,
+                  "inesperado": 0
+                },
+                "line": {
+                  "esperado": 1,
+                  "leidoCorrecto": 1,
+                  "geometriaDistinta": 0,
+                  "faltante": 0,
+                  "inesperado": 0
+                }
+              },
+              "detalles": []
+            }
+          }
+        }
+      },
+      "tiposNoSoportados": [
+        {
+          "codigoBs": 42,
+          "cuantos": 50
+        },
+        {
+          "codigoBs": 52,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 53,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 56,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 57,
+          "cuantos": 4
+        },
+        {
+          "codigoBs": 60,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 62,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 64,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 65,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 66,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 67,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 68,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 69,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 70,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 73,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 79,
+          "cuantos": 39
+        },
+        {
+          "codigoBs": 500,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 501,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 502,
+          "cuantos": 17
+        },
+        {
+          "codigoBs": 503,
+          "cuantos": 24
+        },
+        {
+          "codigoBs": 504,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 505,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 506,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 507,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 508,
+          "cuantos": 8
+        },
+        {
+          "codigoBs": 509,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 510,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 511,
+          "cuantos": 2
+        }
+      ],
+      "diagnosticos": [
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6450,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6869,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6889,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6922,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        }
+      ]
     }
   ]
 }

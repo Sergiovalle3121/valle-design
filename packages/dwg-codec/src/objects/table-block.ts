@@ -18,8 +18,17 @@
  * tamaño BL; sus punteros a la entidad BLOCK, a la primera y última entidad
  * del bloque y al ENDBLK viajan en el flujo de handles final. La entidad
  * BLOCK lleva sólo su nombre TV tras el común de entidad; ENDBLK no lleva
- * campos propios. Certezas declaradas en el worklog (el orden de los campos
- * intermedios y del flujo es MEDIA, pendiente de corpus real con derechos).
+ * campos propios.
+ *
+ * Intake 2026-08-20 (`VALLE-CORPUS-AC1015-INTAKE-DAE5E77`): los 18 BLOCK
+ * HEADER reales del corpus DESMINTIERON esa disposición — entre el bit de
+ * xref-superpuesto y el punto base viaja UN bit adicional (observado 0 en
+ * los 18; sin él, el punto base decodifica (1,1,1) y el resto se desalinea
+ * hasta salirse del cuerpo). El bit se lee y se expone CRUDO en el modelo
+ * (`postXrefFlagsBit`): ninguna fuente registrada nombra su semántica. La
+ * misma medición CONFIRMÓ con archivos reales el orden de los campos
+ * restantes, los recuentos RC reales terminados en 0 y que el RL de tamaño
+ * cuenta desde el primer bit del dato.
  *
  * Reglas del laboratorio:
  * - **Nada se ignora en silencio**: la previsualización se contabiliza como
@@ -71,6 +80,13 @@ export interface Ac1015BlockRecord {
   readonly hasAttributeDefinitions: boolean;
   readonly isXref: boolean;
   readonly xrefOverlaid: boolean;
+  /**
+   * Bit CRUDO entre el bit de xref superpuesto y el punto base. El corpus
+   * real lo exhibe (0 en los 18 BLOCK HEADER medidos) y ninguna fuente
+   * registrada nombra su semántica: viaja sin interpretar, como el BS de
+   * estado del LAYER (`VALLE-CORPUS-AC1015-INTAKE-DAE5E77`).
+   */
+  readonly postXrefFlagsBit: number;
   readonly basePoint: DwgPoint3;
   readonly xrefPath: readonly number[];
   /** Secuencia RC de recuentos de inserción, sin su terminador 0. */
@@ -130,6 +146,9 @@ export function decodeAc1015BlockRecordBody(
   const hasAttributeDefinitions = reader.readB() === 1;
   const isXref = reader.readB() === 1;
   const xrefOverlaid = reader.readB() === 1;
+  // El bit adicional que el corpus real demostró aquí (hecho 2 del intake):
+  // se lee para mantener la alineación y viaja crudo, sin interpretarse.
+  const postXrefFlagsBit = reader.readB();
   const basePoint = frozenPoint3(
     finiteDecoded(reader, reader.readBD(), "a block base point"),
     finiteDecoded(reader, reader.readBD(), "a block base point"),
@@ -192,6 +211,7 @@ export function decodeAc1015BlockRecordBody(
       hasAttributeDefinitions,
       isXref,
       xrefOverlaid,
+      postXrefFlagsBit,
       basePoint,
       xrefPath,
       insertCounts: Object.freeze(insertCounts),

@@ -34,3 +34,35 @@ Reconocer una firma no significa leer R2000 completo. Leer la base de
 laboratorio no significa importar geometría al producto. Un fixture generado
 por el mismo código no demuestra compatibilidad con ningún software ajeno y
 no se afirma ninguna. El writer es evidencia de round-trip, no un exportador.
+
+## Evidencia del intake 2026-08-20 (ola E2): primer corpus DWG independiente
+
+Este corte SUPERA dos límites de la tabla anterior — «Sin validación contra
+un DWG real» (`ac1015Envelope`) y «Evidencia sólo de corpus first-party»
+(`objectDatabase`) — para el LECTOR, con el primer corpus independiente
+admitido: 40 DWG generados por ODA File Converter 27.1 desde DXF de autoría
+propia (repo hermano de conformidad, commit `dae5e77`, verificado por hash).
+
+- **Veredicto del harness** (`scripts/dwg/validate-corpus.mjs`, evidencia en
+  `docs/cad/evidence/dwg-corpus-validation.json`): los 8 AC1015 reales
+  ABREN y las 35 entidades esperadas por los oráculos DXF se leen con
+  geometría EXACTA — line 15/15, insert 6/6, circle 3/3, arc 2/2, point
+  1/1, lwpolyline 3/3, text 5/5 —, las capas (7/7 y 5/5) con nombre y color
+  exactos, y los bloques MARCO-A y PUERTA con su contenido correcto. Cero
+  discrepancias abiertas.
+- **El corpus corrigió el codec 4 veces** antes de ese veredicto (hechos en
+  `VALLE-CORPUS-AC1015-INTAKE-DAE5E77` y DWG0_WORKLOG): el CRC de cabecera
+  viaja SIN máscara XOR, el BLOCK HEADER lleva un bit extra antes del punto
+  base, la extrusión del INSERT es 3BD y el bit de sin-vínculos a 0 añade
+  los punteros anterior/siguiente al flujo. Cada hecho se registró ANTES de
+  tocar el código (ADR-0007).
+- **Límites que siguen en pie**: los 32 DWG de otras versiones (AC1018/24/
+  27/32) NO se abren — otro contenedor. Los estados de la matriz `text` no
+  cambian: la promoción de capacidades sigue gobernada por la regla de
+  `CORPUS_POLICY.md` y la disponibilidad en producto sigue `false`. Los
+  tipos no decodificados se enumeran (159–172 objetos `unsupported` por
+  archivo: diccionarios, estilos, linetypes…), los marcadores BLOCK/ENDBLK
+  de los espacios quedan sin atar (modo 1/2, sin propietario en el flujo) y
+  los `stateFlags` de capa siguen crudos. El corpus es tool-converted desde
+  DXF propios: nada aquí afirma compatibilidad con archivos de terceros
+  arbitrarios ni con ningún software ajeno.

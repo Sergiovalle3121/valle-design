@@ -12,10 +12,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { BoundedByteCursor } from "../../src/binary/byte-cursor.js";
-import {
-  crc16Dwg,
-  FILE_HEADER_CRC_XOR_BY_RECORD_COUNT,
-} from "../../src/codecs/crc16.js";
+import { crc16Dwg } from "../../src/codecs/crc16.js";
 import { parseAc1015FileHeader } from "../../src/container/ac1015-file-header.js";
 import { AC1015_SECTION_FRAME_OVERHEAD } from "../../src/container/ac1015-section-frame.js";
 import {
@@ -90,10 +87,13 @@ test("una cabecera del writer real entrega su directorio completo y verificado",
   );
 });
 
-test("seis registros usan su propia máscara de CRC", () => {
+test("seis registros validan con el CRC crudo, como los archivos reales", () => {
   // El writer mínimo emite tres registros; el caso de seis se recompone
   // quirúrgicamente REUTILIZANDO su cabecera fija y su centinela, con el CRC
   // recalculado por los mismos primitivos first-party que usa el lector.
+  // SIN máscara XOR: los 8 AC1015 reales del corpus llevan 6 registros y
+  // guardan el CRC crudo (VALLE-CORPUS-AC1015-INTAKE-DAE5E77); la
+  // máscara 0x8461 que la ODS declaraba para este recuento quedó desmentida.
   const base = written();
   const head: number[] = [...base.slice(0, RECORD_COUNT_OFFSET)];
   pushUint32LE(head, 6);
@@ -107,9 +107,7 @@ test("seis registros usan su propia máscara de CRC", () => {
     pushUint32LE(head, record.start);
     pushUint32LE(head, record.size);
   }
-  const crc =
-    crc16Dwg(Uint8Array.from(head), 0xc0c1) ^
-    FILE_HEADER_CRC_XOR_BY_RECORD_COUNT.get(6)!;
+  const crc = crc16Dwg(Uint8Array.from(head), 0xc0c1);
   pushUint16LE(head, crc);
   head.push(...base.slice(SENTINEL_OFFSET, HEADER_LENGTH));
 

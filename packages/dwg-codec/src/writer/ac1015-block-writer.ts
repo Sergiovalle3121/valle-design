@@ -121,6 +121,10 @@ export function writeAc1015BlockRecordBody(
   tail.pushBit(0); // sin ATTDEFs
   tail.pushBit(0); // no es xref
   tail.pushBit(0); // no es xref superpuesto
+  // Bit adicional que los BLOCK HEADER reales llevan antes del punto base
+  // (hecho 2 del intake, VALLE-CORPUS-AC1015-INTAKE-DAE5E77): se emite 0,
+  // el único valor observado en el corpus; su semántica viaja sin nombrar.
+  tail.pushBit(0);
   tail.emitBD(basePoint.x);
   tail.emitBD(basePoint.y);
   tail.emitBD(basePoint.z);
