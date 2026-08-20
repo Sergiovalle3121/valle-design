@@ -333,6 +333,15 @@ export type CadUiTarget =
   | "ucs-manager"
   | "quick-select"
   | "filter"
+  /**
+   * El panel de bloques del editor, que es lo que BEDIT abre en su v1. La
+   * redefinición REAL ya existe por otra puerta —BLOCK con el mismo nombre
+   * redefine y los INSERT se actualizan solos— así que abrir el panel con el
+   * bloque a la vista es entregar el flujo, no fingir un editor in situ que no
+   * hay. `params.block` lleva el nombre para prefiltrar cuando el anfitrión
+   * sepa hacerlo.
+   */
+  | "block-editor"
   | "script-file"
   | "linetype-file"
   /**

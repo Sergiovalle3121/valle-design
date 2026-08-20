@@ -394,6 +394,23 @@ export function cadPageSetupFromLayout(space: CadPaperSpace): CadPageSetup {
  * Devuelve una hoja nueva, lista para viajar en una orden `paper-space`. Lo
  * que no cabe en el esquema —área, escala, centrado, desfase— NO se inventa un
  * sitio: viaja en la petición de PLOT, que es donde tiene sentido.
+ *
+ * ## Las ventanas gráficas se RECOLOCAN al cambiar la hoja
+ *
+ * `paperBounds` se fijó al crear la lámina para el papel de entonces. Cambiar
+ * de A1 a A3 sin tocarlo dejaba la ventana colocada para la hoja vieja: el PDF
+ * salía en A3 pero la geometría seguía dibujada donde la puso A1 y caía fuera
+ * del área imprimible — se dibujaba y no se imprimía (defecto medido en
+ * `docs/cad/evidence/plot-fidelity-slo.json`, `paper-change-does-not-move-viewport`).
+ *
+ * El arreglo mapea cada `paperBounds` de la zona imprimible vieja a la nueva,
+ * proporcionalmente y por eje: lo que estaba dentro queda dentro y la
+ * composición relativa de la lámina se conserva. Una ventana que YA invadía el
+ * margen conserva su invasión en proporción — este arreglo recoloca, no
+ * corrige láminas que nacieron torcidas. `modelBounds` y `scale` NO se tocan:
+ * la escala es contrato del plano, y si a esa escala el modelo ya no cabe en
+ * la ventana encogida, el aviso existente `viewport_model_clipped` de
+ * `paper-space.ts` lo declara en la publicación en vez de callarlo aquí.
  */
 export function applyCadPageSetupToLayout(
   space: CadPaperSpace,
@@ -403,9 +420,32 @@ export function applyCadPageSetupToLayout(
   const attributes = { ...(space.titleBlock?.attributes ?? {}) };
   if (setup.plotStyleTable) attributes[CAD_PLOT_STYLE_TABLE_ATTRIBUTE] = setup.plotStyleTable;
   else delete attributes[CAD_PLOT_STYLE_TABLE_ATTRIBUTE];
+  // Zona imprimible ANTERIOR, con la página que la hoja aún tiene. Si la hoja
+  // no guardó márgenes (documentos anteriores al esquema del pageSetup), se
+  // asumen los que trae el setup: no hay dato mejor y asumir cero deformaría.
+  const previousMargins = space.pageSetup?.margins ?? setup.margins;
+  const previousPrintable = {
+    x: previousMargins.left,
+    y: previousMargins.top,
+    width: Math.max(1, space.page.width - previousMargins.left - previousMargins.right),
+    height: Math.max(1, space.page.height - previousMargins.top - previousMargins.bottom),
+  };
+  const nextPrintable = cadPrintableArea(setup);
+  const scaleX = nextPrintable.width / previousPrintable.width;
+  const scaleY = nextPrintable.height / previousPrintable.height;
+  const viewports = space.viewports?.map((viewport) => ({
+    ...viewport,
+    paperBounds: {
+      x: nextPrintable.x + (viewport.paperBounds.x - previousPrintable.x) * scaleX,
+      y: nextPrintable.y + (viewport.paperBounds.y - previousPrintable.y) * scaleY,
+      width: viewport.paperBounds.width * scaleX,
+      height: viewport.paperBounds.height * scaleY,
+    },
+  }));
   return {
     ...space,
     page: { ...space.page, width: size.width, height: size.height, orientation: setup.orientation },
+    ...(viewports ? { viewports } : {}),
     pageSetup: {
       paper: setup.paper,
       margins: { ...setup.margins },

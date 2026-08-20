@@ -10,7 +10,11 @@ import { strict as assert } from "node:assert";
 import type { CadDocument } from "../../cad-document";
 import { executeCadEntityCommandBatch } from "../../entity-commands";
 import { createCadLayout } from "../../layout/layout-operations";
-import { cadLayoutPlotStyleTable } from "../../plot/page-setup";
+import {
+  cadLayoutPlotStyleTable,
+  cadPageSetupFromLayout,
+  cadPrintableArea,
+} from "../../plot/page-setup";
 import {
   EMPTY_CAD_COMMAND_ENGINE,
   cadCommandEngineReduce,
@@ -141,6 +145,67 @@ const messages = (effects: readonly CadCommandEffect[]) =>
   const dialog = run(base, ["PSET", "D"]);
   assert.deepEqual(hosts(dialog.effects), [{ kind: "page-setup", layoutId: "layout:planta" }]);
   assert.equal(dialog.document.meta.version, base.meta.version);
+}
+
+// --- PAGESETUP recoloca las ventanas gráficas al cambiar de papel --------------
+{
+  // El caso medido del defecto `paper-change-does-not-move-viewport`: la lámina
+  // nace en A1 y se pasa a A3. Antes la ventana conservaba los `paperBounds`
+  // de A1 y la geometría caía fuera del área imprimible del A3.
+  //
+  // La lámina se crea SIN plantilla a propósito: la plantilla ISO reescribe los
+  // márgenes DESPUÉS de colocar la ventana (la ventana nace invadiendo el
+  // margen de archivado), y el recolocado conserva esa invasión en proporción
+  // porque recoloca, no corrige láminas torcidas. Con márgenes consistentes la
+  // afirmación es exacta: dentro del área imprimible, sin tolerancias blandas.
+  const consistente = createCadLayout([], {
+    id: "layout:planta",
+    name: "Planta",
+    modelBounds: { x: 0, y: 0, width: 10_000, height: 6_000 },
+    unit: "mm",
+    metadata: {
+      project: "Nave",
+      drawingNumber: "A-0001",
+      title: "Planta",
+      sheetNumber: "S-001",
+      revision: "P01",
+      discipline: "Arquitectura",
+    },
+  });
+  const base = { ...documentWithLayout(), paperSpaces: [consistente] } as CadDocument;
+  const before = base.paperSpaces[0].viewports![0];
+
+  const changed = run(base, ["PAGESETUP", "P", "A3"]).document;
+  const space = changed.paperSpaces[0];
+  const viewport = space.viewports![0];
+  const printable = cadPrintableArea(cadPageSetupFromLayout(space));
+  const eps = 1e-6;
+  assert.ok(
+    viewport.paperBounds.x >= printable.x - eps &&
+      viewport.paperBounds.y >= printable.y - eps &&
+      viewport.paperBounds.x + viewport.paperBounds.width <= printable.x + printable.width + eps &&
+      viewport.paperBounds.y + viewport.paperBounds.height <= printable.y + printable.height + eps,
+    `la ventana (${JSON.stringify(viewport.paperBounds)}) debe quedar dentro del área imprimible del A3 (${JSON.stringify(printable)})`,
+  );
+  assert.ok(
+    viewport.paperBounds.width < before.paperBounds.width,
+    "en un papel más chico la ventana encoge; conservar el tamaño de A1 es el defecto",
+  );
+  // La escala es contrato del plano y el trozo de modelo encuadrado también:
+  // recolocar es COLOCACIÓN. Si el modelo ya no cabe a esa escala, lo declara
+  // el aviso viewport_model_clipped de la publicación, no un cambio callado.
+  assert.equal(viewport.scale, before.scale, "la escala no se toca");
+  assert.deepEqual(viewport.modelBounds, before.modelBounds, "el encuadre del modelo no se toca");
+
+  // Ida y vuelta A1 → A3 → A1: la ventana vuelve a su sitio original. Es lo que
+  // garantiza que el mapeo es proporcional de verdad y no una deriva acumulada.
+  const roundTrip = run(changed, ["PAGESETUP", "P", "A1"]).document;
+  const restored = roundTrip.paperSpaces[0].viewports![0];
+  for (const key of ["x", "y", "width", "height"] as const)
+    assert.ok(
+      Math.abs(restored.paperBounds[key] - before.paperBounds[key]) < 1e-6,
+      `ida y vuelta de papel: paperBounds.${key} volvió a ${restored.paperBounds[key]}, se esperaba ${before.paperBounds[key]}`,
+    );
 }
 
 // --- PLOT compone la petición y NO toca el documento --------------------------

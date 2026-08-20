@@ -1,0 +1,230 @@
+/**
+ * Resúmenes en español de los comandos del motor — el texto de la paleta Ctrl+K.
+ *
+ * ## Por qué existe este archivo
+ *
+ * El descriptor V2 (`command-types.ts`) no tiene campo de descripción, y con
+ * razón: el descriptor es la máquina de estados, invariante entre idiomas,
+ * y meterle prosa lo convertiría en el sitio donde la prosa envejece. La
+ * paleta sí necesita una línea por comando —un menú de 182 nombres a secas no
+ * orienta a nadie— así que la prosa vive aquí, aparte, con un contrato.
+ *
+ * ## El contrato es FAIL-CLOSED
+ *
+ * Todo comando del registro tiene su resumen o está en la lista de exclusión
+ * EXPLÍCITA (hoy vacía). `command-summaries.spec.ts` recorre el registro real
+ * y falla si alguien registra un comando mudo — así un comando nuevo no puede
+ * publicarse invisible-a-medias en la paleta. Y al revés: un resumen cuyo
+ * comando ya no existe también falla, para que este catálogo no acumule
+ * cadáveres. En ejecución, `cadCommandSummary` lanza en vez de devolver una
+ * cadena vacía: el silencio no es una opción, es el bug que este archivo mata.
+ */
+
+/** Nombre canónico → una línea en español. Mismo orden que el registro. */
+export const CAD_COMMAND_SUMMARIES: Readonly<Record<string, string>> = {
+  "-DSETTINGS": "Ayudas al dibujo por la línea de comandos: forzado, rejilla y orto, sin cuadro.",
+  "-LAYER": "Capas por la línea de comandos: crear, activar, colorear, encender o bloquear.",
+  "-LINETYPE": "Tipos de línea por la línea de comandos: listar, cargar y fijar el actual.",
+  "-OSNAP": "Referencias a objetos por la línea: los catorce modos, separados por comas.",
+  "-TOOLPALETTES": "Lista el contenido de una paleta de herramientas por la línea de comandos.",
+  "-UCSMAN": "SCU con nombre por la línea de comandos: guardar, restituir, universal o listar.",
+  "3DFORBIT": "Órbita 3D libre, sin restricción de eje.",
+  "3DORBIT": "Órbita 3D alrededor del modelo.",
+  "3DPAN": "Encuadre de la vista 3D.",
+  "3DZOOM": "Zoom de la vista 3D.",
+  ADCENTER: "DesignCenter: bloques y contenido de otros dibujos del despacho.",
+  ALIGN: "Alinea objetos con otros por pares de puntos de origen y destino.",
+  ARC: "Arco por tres puntos o por centro, inicio y fin.",
+  AREA: "Área y perímetro de un contorno o de los puntos designados.",
+  ARRAY: "Matriz rectangular, polar o de camino con la selección.",
+  ARRAYEDIT: "Edita una matriz asociativa existente.",
+  ATTDEF: "Define un atributo de bloque: la etiqueta que pide valor al insertar.",
+  ATTEDIT: "Edita los valores de atributo de una referencia de bloque.",
+  AUTOCONSTRAIN: "Aplica restricciones geométricas automáticas a la selección.",
+  BASE: "Fija el punto base de inserción del dibujo.",
+  BEDIT: "Abre el panel de bloques para editar una definición (BLOCK redefine).",
+  BLEND: "Fusiona dos curvas abiertas con una spline tangente o suave.",
+  BLOCK: "Crea o redefine un bloque con los objetos designados.",
+  BOUNDARY: "Genera una polilínea de contorno desde un punto interior.",
+  BREAK: "Parte un objeto en dos, con o sin hueco.",
+  CELTSCALE: "Escala de tipo de línea de los objetos nuevos.",
+  CHAMFER: "Chaflán entre dos líneas con distancias dadas.",
+  CHAMFEREDGE: "Chaflán sobre las aristas de un sólido.",
+  CIRCLE: "Círculo por centro y radio o diámetro.",
+  COLOR: "Color actual de los objetos nuevos.",
+  COPY: "Copia la selección con desplazamiento por dos puntos.",
+  DCANGULAR: "Restricción paramétrica de cota angular.",
+  DCDIAMETER: "Restricción paramétrica de cota de diámetro.",
+  DCLINEAR: "Restricción paramétrica de cota lineal.",
+  DCRADIUS: "Restricción paramétrica de cota de radio.",
+  DDEDIT: "Edita el texto de un rótulo existente.",
+  DELCONSTRAINT: "Borra las restricciones de los objetos designados.",
+  DIM: "Modo de acotación continua: cotas encadenadas sin repetir la orden.",
+  DIMALIGNED: "Cota alineada con la distancia real entre dos puntos.",
+  DIMANGULAR: "Cota angular entre dos líneas o por vértice.",
+  DIMARC: "Cota de longitud de arco.",
+  DIMBASELINE: "Cotas en paralelo desde una base común.",
+  DIMCONSTRAINT: "Convierte una cota en restricción paramétrica.",
+  DIMCONTINUE: "Cotas encadenadas a continuación de la última.",
+  DIMDIAMETER: "Cota de diámetro de círculo o arco.",
+  DIMEDIT: "Edita texto y oblicuidad de cotas existentes.",
+  DIMLINEAR: "Cota lineal horizontal o vertical.",
+  DIMORDINATE: "Cota por coordenada (X o Y) desde el origen.",
+  DIMRADIUS: "Cota de radio de círculo o arco.",
+  DIMSTYLE: "Gestor de estilos de cota.",
+  DIST: "Distancia y ángulo entre dos puntos.",
+  DIVIDE: "Reparte puntos o bloques a partes iguales sobre un objeto.",
+  DONUT: "Corona circular rellena por diámetros interior y exterior.",
+  DOOR: "Puerta alojada en un muro, con hoja y abatimiento.",
+  DRAWORDER: "Orden de dibujo: traer al frente o enviar al fondo.",
+  DSETTINGS: "Cuadro de ayudas al dibujo: forzado, rejilla, polar y referencias.",
+  DXFIN: "Importa un archivo DXF al dibujo.",
+  DXFOUT: "Exporta el dibujo a DXF.",
+  ELLIPSE: "Elipse por sus ejes, o arco elíptico.",
+  ERASE: "Borra la selección.",
+  EXPLODE: "Descompone polilíneas, bloques, cotas y directrices en sus piezas.",
+  EXPORT: "Exporta el dibujo a otros formatos.",
+  EXTEND: "Alarga objetos hasta un borde de corte.",
+  EXTRUDE: "Extruye un perfil cerrado a sólido 3D.",
+  FILLET: "Empalme entre dos objetos con radio dado.",
+  FILLETEDGE: "Redondeo sobre las aristas de un sólido.",
+  FILTER: "Filtros de selección con nombre, reutilizables.",
+  FLATSHOT: "Aplana el modelo 3D a un dibujo 2D acotable.",
+  GCCOINCIDENT: "Restricción geométrica: puntos coincidentes.",
+  GCCOLLINEAR: "Restricción geométrica: colineal.",
+  GCCONCENTRIC: "Restricción geométrica: concéntrico.",
+  GCEQUAL: "Restricción geométrica: igualdad de medida.",
+  GCFIX: "Restricción geométrica: fijo en su sitio.",
+  GCHORIZONTAL: "Restricción geométrica: horizontal.",
+  GCPARALLEL: "Restricción geométrica: paralelo.",
+  GCPERPENDICULAR: "Restricción geométrica: perpendicular.",
+  GCSMOOTH: "Restricción geométrica: continuidad suave (G2).",
+  GCSYMMETRIC: "Restricción geométrica: simétrico respecto de un eje.",
+  GCTANGENT: "Restricción geométrica: tangente.",
+  GCVERTICAL: "Restricción geométrica: vertical.",
+  GEOMCONSTRAINT: "Aplica una restricción geométrica eligiendo el tipo.",
+  GETVAR: "Lee el valor de una variable de sistema.",
+  GRADIENT: "Relleno degradado de un contorno.",
+  GROUP: "Agrupa la selección en un grupo con nombre.",
+  HATCH: "Sombreado de un contorno con patrón o relleno sólido.",
+  ID: "Coordenadas del punto designado.",
+  IMAGE: "Inserta una imagen rasterizada como referencia.",
+  IMPORT: "Importa geometría de otros formatos.",
+  INSERT: "Inserta un bloque con punto, escala y giro.",
+  INTERFERE: "Interferencias entre sólidos: dónde chocan.",
+  INTERSECT: "Intersección booleana de sólidos o regiones.",
+  JOIN: "Une líneas colineales, arcos concéntricos o tramos encadenados.",
+  LAYER: "Gestor de capas.",
+  LAYERSTATE: "Estados de capa con nombre: guarda y restituye combinaciones.",
+  LAYOUT: "Crea, renombra o borra presentaciones (láminas).",
+  LEADER: "Directriz simple con texto.",
+  LENGTHEN: "Cambia la longitud de un objeto abierto.",
+  LINE: "Línea por segmentos encadenados.",
+  LINETYPE: "Carga tipos de línea y fija el actual.",
+  LIST: "Propiedades del objeto designado, en texto.",
+  LOFT: "Sólido por secciones transversales.",
+  LTSCALE: "Escala global de los tipos de línea.",
+  LWEIGHT: "Grosor de línea actual.",
+  MASSPROP: "Propiedades de masa de regiones y sólidos.",
+  MATCHPROP: "Copia las propiedades de un objeto a otros (pincel).",
+  MEASURE: "Reparte puntos o bloques a distancia fija sobre un objeto.",
+  MIRROR: "Simetría de la selección respecto de un eje.",
+  MLEADER: "Directriz múltiple con texto.",
+  MLEADERSTYLE: "Gestor de estilos de directriz.",
+  MOVE: "Mueve la selección por dos puntos.",
+  MSPACE: "Entra al espacio modelo dentro de la ventana de la lámina.",
+  MTEXT: "Texto multilínea con formato.",
+  MVIEW: "Crea ventanas gráficas en la presentación.",
+  NORMAMX: "Aplica la norma de dibujo mexicana al dibujo actual.",
+  OFFSET: "Paralela a distancia exacta de la selección.",
+  OPTIONS: "Opciones del editor.",
+  OSNAP: "Cuadro de referencias a objetos: los catorce modos.",
+  OVERKILL: "Limpia duplicados y solapes de la selección.",
+  PAGESETUP: "Configura papel, márgenes, plumas y orientación de la lámina.",
+  PAN: "Encuadre: desplaza la vista sin cambiar la escala.",
+  PARAMETERS: "Parámetros del dibujo para restricciones dimensionales.",
+  PEDIT: "Edita polilíneas: unir, cerrar, mover vértices.",
+  PLAN: "Vuelve la vista a la planta del SCU actual.",
+  PLINE: "Polilínea con tramos rectos y curvos.",
+  PLOT: "Traza la lámina a PDF con escala exacta.",
+  POINT: "Punto aislado.",
+  POLYGON: "Polígono regular inscrito o circunscrito.",
+  PRESSPULL: "Empuja o tira de un contorno para crear un sólido.",
+  PROPERTIES: "Paleta de propiedades de la selección.",
+  PSPACE: "Vuelve al espacio papel desde la ventana.",
+  PURGE: "Purga definiciones sin uso: capas, bloques, estilos.",
+  QSELECT: "Selección rápida por propiedades.",
+  RAY: "Semirrecta: infinita hacia un solo lado.",
+  RECTANG: "Rectángulo por dos esquinas.",
+  REGEN: "Regenera la vista actual.",
+  REGENALL: "Regenera todas las vistas.",
+  REGION: "Convierte contornos cerrados en regiones.",
+  RENAME: "Renombra capas, bloques, estilos y demás tablas.",
+  REVCLOUD: "Nube de revisión.",
+  REVOLVE: "Sólido de revolución desde un perfil.",
+  ROTATE: "Gira la selección alrededor de un punto base.",
+  RSCRIPT: "Repite el guion (.scr) en curso.",
+  SCALE: "Escala la selección desde un punto base.",
+  SCRIPT: "Ejecuta un guion .scr de órdenes.",
+  SECTION: "Sección de un sólido por un plano.",
+  SETVAR: "Escribe una variable de sistema.",
+  SLICE: "Rebana un sólido por un plano.",
+  SOLDRAW: "Dibuja dentro de las vistas creadas por SOLVIEW.",
+  SOLID: "Triángulos y cuadriláteros rellenos 2D.",
+  SOLPROF: "Perfil 2D de un sólido en la ventana.",
+  SOLVIEW: "Ventanas de vistas derivadas del sólido: planta, alzado, sección.",
+  SPLINE: "Curva libre por puntos de ajuste o vértices de control.",
+  SPLINEDIT: "Edita una spline: vértices, cerrar, invertir.",
+  STRETCH: "Estira lo capturado por la ventana sin despegar lo demás.",
+  STYLE: "Gestor de estilos de texto.",
+  SUBTRACT: "Resta booleana de sólidos o regiones.",
+  SWEEP: "Sólido por barrido de un perfil a lo largo de un camino.",
+  TABLE: "Tabla editable con filas y columnas.",
+  TABLESTYLE: "Gestor de estilos de tabla.",
+  TEXT: "Texto de una sola línea.",
+  TOLERANCE: "Marco de tolerancia geométrica (GD&T).",
+  TOOLPALETTES: "Paletas de herramientas.",
+  TRIM: "Recorta objetos contra bordes de corte.",
+  UCS: "Define el sistema de coordenadas personal (SCU).",
+  UCSICON: "Muestra u oculta el icono del SCU.",
+  UCSMAN: "Gestor de SCU con nombre.",
+  UNGROUP: "Deshace un grupo.",
+  UNION: "Unión booleana de sólidos o regiones.",
+  UNITS: "Unidades y precisión del dibujo.",
+  VIEW: "Vistas con nombre: guarda y restituye encuadres.",
+  VPOINT: "Punto de vista 3D por vector.",
+  VSCURRENT: "Estilo visual de la vista: alámbrico, oculto, sombreado.",
+  WALL: "Muro paramétrico con espesor y altura.",
+  WBLOCK: "Publica la selección como bloque de la biblioteca del despacho.",
+  WINDOW: "Ventana alojada en un muro, con antepecho.",
+  WIPEOUT: "Máscara que tapa lo que queda debajo.",
+  XATTACH: "Adjunta una referencia externa (xref).",
+  XBIND: "Incorpora al dibujo definiciones de una xref.",
+  XCLIP: "Recorta la vista de una xref o de un bloque.",
+  XLINE: "Recta infinita de construcción.",
+  XREF: "Gestor de referencias externas.",
+  ZOOM: "Acerca o aleja: extensión, ventana, escala.",
+};
+
+/**
+ * Exclusiones EXPLÍCITAS del contrato: comandos registrados que a propósito no
+ * aparecen en la paleta. Hoy no hay ninguno — si algún día lo hay, su nombre
+ * se escribe aquí con un comentario del porqué, no se calla el spec.
+ */
+export const CAD_COMMAND_SUMMARY_EXCLUSIONS: ReadonlySet<string> = new Set();
+
+/**
+ * El resumen de un comando, o un error con nombre. Fail-closed a propósito:
+ * devolver una cadena vacía dejaría el comando mudo en la paleta y nadie lo
+ * notaría hasta que un usuario lo buscase; lanzar hace que lo note el CI.
+ */
+export function cadCommandSummary(name: string): string {
+  const summary = CAD_COMMAND_SUMMARIES[name.trim().toUpperCase()];
+  if (!summary)
+    throw new Error(
+      `El comando ${name.trim().toUpperCase()} no tiene resumen en command-summaries.ts. ` +
+        "Todo comando del registro necesita su línea en español (o una exclusión explícita) " +
+        "antes de publicarse: la paleta no enseña comandos mudos.",
+    );
+  return summary;
+}

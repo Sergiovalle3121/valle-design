@@ -77,3 +77,8 @@ assert.equal(matchCadShortcut({ key: "F3" })?.id, "object_snap_toggle", "F3 togg
 assert.equal(matchCadShortcut({ key: "F8" })?.id, "ortho_toggle", "F8 toggles ortho");
 assert.equal(matchCadShortcut({ key: "F10" })?.id, "polar_tracking_toggle", "F10 toggles polar tracking");
 assert.equal(matchCadShortcut({ key: "F11" })?.id, "object_tracking_toggle", "F11 toggles object tracking");
+// Las tres que faltaban de la fila F, con los ids que el handler del editor
+// enruta: F7 comparte id con la G (como F3 con la O), F9 y F12 son propios.
+assert.equal(matchCadShortcut({ key: "F7" })?.id, "grid_toggle", "F7 toggles the grid");
+assert.equal(matchCadShortcut({ key: "F9" })?.id, "grid_snap_toggle", "F9 toggles grid snap");
+assert.equal(matchCadShortcut({ key: "F12" })?.id, "dynamic_input_toggle", "F12 toggles dynamic input");

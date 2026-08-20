@@ -18,10 +18,12 @@ export type CadKeyboardShortcutId =
   | "save"
   | "cancel"
   | "grid_toggle"
+  | "grid_snap_toggle"
   | "object_snap_toggle"
   | "ortho_toggle"
   | "polar_tracking_toggle"
   | "object_tracking_toggle"
+  | "dynamic_input_toggle"
   | "validate_layout"
   | "export_dxf"
   // Kit diario (VD-CAD-XFORM-001/MIRROR-001): transformaciones directas.
@@ -175,6 +177,27 @@ export const CAD_KEYBOARD_SHORTCUTS: CadKeyboardShortcut[] = [
     label: "Object snap",
     key: "f3",
     description: "Activar o desactivar snaps a objetos/DXF.",
+  },
+  // Las teclas F de AutoCAD que faltaban: F7 es una segunda entrada del mismo
+  // id que la G (el patrón que ya siguen O y F3), F9 y F12 son ids nuevos. El
+  // cuadro DSETTINGS ya pintaba los hints F7/F9 sin que las teclas existieran.
+  {
+    id: "grid_toggle",
+    label: "Grid",
+    key: "f7",
+    description: "Mostrar u ocultar la grilla.",
+  },
+  {
+    id: "grid_snap_toggle",
+    label: "Grid snap",
+    key: "f9",
+    description: "Forzar o soltar el cursor a la rejilla.",
+  },
+  {
+    id: "dynamic_input_toggle",
+    label: "Dynamic input",
+    key: "f12",
+    description: "Mostrar u ocultar la entrada dinámica junto al cursor.",
   },
   {
     id: "ortho_toggle",

@@ -8,6 +8,7 @@
  * existe con tres sistemas de comandos que no se conocen entre sí.
  */
 import { CAD_BLOCK_COMMANDS } from "./commands/blocks";
+import { CAD_BLOCK_EDIT_COMMANDS } from "./commands/blocks-edit";
 import { CAD_GROUP_COMMANDS } from "./commands/groups";
 import { CAD_XREF_COMMANDS } from "./commands/xrefs";
 import { CAD_DESIGN_CENTER_COMMANDS } from "./commands/design-center";
@@ -45,6 +46,7 @@ import { CAD_MEXICAN_STANDARD_COMMANDS } from "./commands/settings-mexican-stand
 import { CAD_SETTINGS_VARIABLE_COMMANDS } from "./commands/settings-variables";
 import { CAD_MODIFY_ARRAY_COMMANDS } from "./commands/modify-array";
 import { CAD_MODIFY_BASIC_COMMANDS } from "./commands/modify-basics";
+import { CAD_MODIFY_BLEND_COMMANDS } from "./commands/modify-blend";
 import { CAD_MODIFY_JOIN_COMMANDS } from "./commands/modify-join";
 import { CAD_MODIFY_PEDIT_COMMANDS } from "./commands/modify-pedit";
 import { CAD_MODIFY_STRETCH_COMMANDS } from "./commands/modify-stretch";
@@ -109,6 +111,8 @@ export const CAD_COMMAND_DESCRIPTORS = [
   ...CAD_MODIFY_ALIGN_COMMANDS,
   ...CAD_MODIFY_STRETCH_COMMANDS,
   ...CAD_MODIFY_JOIN_COMMANDS,
+  // BLEND cierra el último alias de modificación sin dueño: BLE ya fusiona.
+  ...CAD_MODIFY_BLEND_COMMANDS,
   ...CAD_MODIFY_PEDIT_COMMANDS,
   ...CAD_PARAMETRIC_GEOMETRY_COMMANDS,
   ...CAD_PARAMETRIC_DIMENSION_COMMANDS,
@@ -129,6 +133,8 @@ export const CAD_COMMAND_DESCRIPTORS = [
   ...CAD_LAYOUT_COMMANDS,
   ...CAD_PLOT_COMMANDS,
   ...CAD_BLOCK_COMMANDS,
+  // BEDIT v1: la puerta tecleable al panel de bloques. Cierra el alias BE.
+  ...CAD_BLOCK_EDIT_COMMANDS,
   ...CAD_GROUP_COMMANDS,
   ...CAD_XREF_COMMANDS,
   ...CAD_DESIGN_CENTER_COMMANDS,

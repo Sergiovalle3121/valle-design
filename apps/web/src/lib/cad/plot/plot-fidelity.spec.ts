@@ -313,13 +313,14 @@ async function specs(): Promise<void> {
     measured.push({ label: "programa de fuente roto", report: roto });
   }
 
-  // --- C4: CAMBIAR EL PAPEL NO RECOLOCA LA VENTANA — DEFECTO MEDIDO -----------
+  // --- C4: CAMBIAR EL PAPEL RECOLOCA LA VENTANA — DEFECTO ARREGLADO -----------
   {
-    // PAGESETUP deja cambiar el papel de A1 a A3 sin tocar la presentación. La
-    // hoja del PDF sale a A3, pero la ventana gráfica sigue colocada donde la
-    // dejó A1 y el dibujo se sale del papel. No se arregla aquí —recolocar
-    // ventanas es cirugía sobre el espacio papel, no sobre el trazador— pero se
-    // MIDE, para que deje de ser una sospecha y no pueda empeorar en silencio.
+    // Era el defecto medido `paper-change-does-not-move-viewport`: PAGESETUP
+    // cambiaba el papel de A1 a A3 sin tocar `viewports[].paperBounds` y dos
+    // trazos caían fuera del papel — se dibujaban y no se imprimían. Desde que
+    // `applyCadPageSetupToLayout` recoloca las ventanas a la zona imprimible
+    // nueva, el listón sube: CERO trazos fuera, y esta aserción impide que el
+    // defecto regrese en silencio.
     const cambiado = await measureCadPlotFidelity({
       ...BASE,
       paper: "A1",
@@ -330,18 +331,13 @@ async function specs(): Promise<void> {
       plotOnPaper: "A3",
     });
     assert.equal(cambiado.page.measuredMm.width, 420, "la hoja del PDF sí cambia a A3");
-    assert.ok(
-      cambiado.segmentsOutsidePage > 0,
-      "si esto llega a cero, el defecto está arreglado: sube el listón en vez de dejar la afirmación floja",
-    );
     assert.equal(
       cambiado.segmentsOutsidePage,
-      2,
-      `hoy se salen 2 trazos del papel; se miden ${cambiado.segmentsOutsidePage}`,
+      0,
+      `cambiar el papel ya recoloca la ventana; se midieron ${cambiado.segmentsOutsidePage} trazo(s) fuera`,
     );
-    // Y la escala del trazo que sí entra sigue siendo exacta: el defecto es de
-    // COLOCACIÓN, no de escala. Distinguirlo es lo que permite arreglar el
-    // correcto.
+    // Y la escala sigue siendo exacta: recolocar es COLOCACIÓN, y la escala es
+    // contrato del plano que este arreglo tiene prohibido tocar.
     assert.ok(Math.abs(cambiado.horizontal.errorMm) <= SCALE_TOLERANCE_MM);
     measured.push({ label: "papel cambiado tras crear la presentación", report: cambiado });
   }
