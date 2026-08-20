@@ -1,0 +1,2091 @@
+{
+  "$comment": "GENERADO por scripts/cad/build-api-console.mjs desde el contrato OpenAPI. No editar a mano: console-contract.spec.ts falla si difiere del YAML.",
+  "generatedFrom": "packages/contracts/specs/design-api.v1.yaml",
+  "openapi": "3.1.0",
+  "apiTitle": "Valle Design — API standalone (v1)",
+  "apiVersion": "1.0.0",
+  "operationCount": 73,
+  "cadOperationCount": 43,
+  "groups": [
+    {
+      "family": "auth",
+      "tag": "identity",
+      "operations": [
+        "registerIdentity",
+        "loginIdentity",
+        "getIdentitySession",
+        "logoutIdentity",
+        "listIdentitySessions",
+        "rotateIdentitySession",
+        "revokeOtherIdentitySessions",
+        "revokeIdentitySession",
+        "verifyIdentityEmail",
+        "resendIdentityVerification",
+        "requestIdentityPasswordReset",
+        "resetIdentityPassword"
+      ]
+    },
+    {
+      "family": "organizations",
+      "tag": "organizations",
+      "operations": [
+        "listOrganizations",
+        "createOrganization",
+        "activateOrganization",
+        "listOrganizationMemberships",
+        "createOrganizationInvitation",
+        "acceptOrganizationInvitation"
+      ]
+    },
+    {
+      "family": "commercial",
+      "tag": "commercial",
+      "operations": [
+        "getActiveSubscription",
+        "listEffectiveEntitlements",
+        "listCommercialPlans",
+        "listPublicCommercialPlans",
+        "listUpgradeIntents",
+        "createUpgradeIntent",
+        "confirmUpgradeIntent",
+        "cancelUpgradeIntent",
+        "createCommercialCheckoutSession",
+        "listCommercialInvoices",
+        "cancelCommercialSubscription",
+        "receiveStripeWebhook"
+      ]
+    },
+    {
+      "family": "cad",
+      "tag": "projects",
+      "operations": [
+        "listCadProjects",
+        "createCadProject",
+        "getCadProject",
+        "updateCadProject",
+        "archiveCadProject"
+      ]
+    },
+    {
+      "family": "cad",
+      "tag": "documents",
+      "operations": [
+        "listCadDocuments",
+        "createCadDocument",
+        "openCadDocument",
+        "updateCadDocumentMeta",
+        "archiveCadDocument",
+        "discardProvisionalCadDocument",
+        "saveCadDocumentContent",
+        "saveCadDocumentArchive"
+      ]
+    },
+    {
+      "family": "cad",
+      "tag": "versions",
+      "operations": [
+        "listCadDocumentVersions",
+        "getCadDocumentVersion"
+      ]
+    },
+    {
+      "family": "cad",
+      "tag": "publications",
+      "operations": [
+        "listCadPublications",
+        "recordCadPublication"
+      ]
+    },
+    {
+      "family": "cad",
+      "tag": "sheet-sets",
+      "operations": [
+        "listCadSheetSets",
+        "createCadSheetSet",
+        "getCadSheetSet",
+        "saveCadSheetSet",
+        "deleteCadSheetSet"
+      ]
+    },
+    {
+      "family": "cad",
+      "tag": "reviews",
+      "operations": [
+        "listCadReviewSessions",
+        "createCadReviewSession",
+        "closeCadReviewSession",
+        "listCadComments",
+        "createCadComment",
+        "resolveCadComment",
+        "redeemReviewLinkContext",
+        "listReviewLinkComments",
+        "createReviewLinkComment",
+        "resolveReviewLinkComment"
+      ]
+    },
+    {
+      "family": "cad",
+      "tag": "dxf",
+      "operations": [
+        "getCadDxfBackground",
+        "importCadDxfBackground",
+        "removeCadDxfBackground",
+        "exportCadDocumentDxf"
+      ]
+    },
+    {
+      "family": "cad",
+      "tag": "blocks",
+      "operations": [
+        "listCadBlocks",
+        "createCadBlock",
+        "getCadBlock",
+        "updateCadBlock",
+        "removeCadBlock"
+      ]
+    },
+    {
+      "family": "cad",
+      "tag": "assistance",
+      "operations": [
+        "interpretCadIntent",
+        "vectorizeCadImage"
+      ]
+    }
+  ],
+  "operations": [
+    {
+      "operationId": "registerIdentity",
+      "method": "POST",
+      "path": "/v1/auth/register",
+      "summary": "Registra una cuenta sin revelar si ya existia.",
+      "tags": [
+        "identity"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "public",
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "schema": "RegisterRequest"
+      },
+      "responses": [
+        "202",
+        "400",
+        "429"
+      ]
+    },
+    {
+      "operationId": "loginIdentity",
+      "method": "POST",
+      "path": "/v1/auth/login",
+      "summary": "Inicia una sesion mediante cookies first-party.",
+      "tags": [
+        "identity"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "public",
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "schema": "LoginRequest"
+      },
+      "responses": [
+        "200",
+        "400",
+        "401",
+        "429"
+      ]
+    },
+    {
+      "operationId": "getIdentitySession",
+      "method": "GET",
+      "path": "/v1/auth/session",
+      "summary": "Lee la sesion y organizacion activa derivada server-side.",
+      "tags": [
+        "identity"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401"
+      ]
+    },
+    {
+      "operationId": "logoutIdentity",
+      "method": "POST",
+      "path": "/v1/auth/logout",
+      "summary": "Revoca la sesion actual y limpia sus cookies.",
+      "tags": [
+        "identity"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "X-CSRF-Token",
+          "in": "header",
+          "required": true,
+          "description": "Token de doble envio igual a la cookie legible valle_csrf."
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "204",
+        "400",
+        "401"
+      ]
+    },
+    {
+      "operationId": "listIdentitySessions",
+      "method": "GET",
+      "path": "/v1/auth/sessions",
+      "summary": "Lista como maximo 100 sesiones propias, incluidas las revocadas.",
+      "tags": [
+        "identity"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401"
+      ]
+    },
+    {
+      "operationId": "rotateIdentitySession",
+      "method": "POST",
+      "path": "/v1/auth/sessions/rotate",
+      "summary": "Revoca la sesion actual y emite una nueva.",
+      "tags": [
+        "identity"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "X-CSRF-Token",
+          "in": "header",
+          "required": true,
+          "description": "Token de doble envio igual a la cookie legible valle_csrf."
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "201",
+        "400",
+        "401"
+      ]
+    },
+    {
+      "operationId": "revokeOtherIdentitySessions",
+      "method": "POST",
+      "path": "/v1/auth/sessions/revoke-all",
+      "summary": "Revoca todas las demas sesiones propias.",
+      "tags": [
+        "identity"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "X-CSRF-Token",
+          "in": "header",
+          "required": true,
+          "description": "Token de doble envio igual a la cookie legible valle_csrf."
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "204",
+        "400",
+        "401"
+      ]
+    },
+    {
+      "operationId": "revokeIdentitySession",
+      "method": "DELETE",
+      "path": "/v1/auth/sessions/{sessionId}",
+      "summary": "Revoca una sesion propia por UUID.",
+      "tags": [
+        "identity"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "sessionId",
+          "in": "path",
+          "required": true
+        },
+        {
+          "name": "X-CSRF-Token",
+          "in": "header",
+          "required": true,
+          "description": "Token de doble envio igual a la cookie legible valle_csrf."
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "204",
+        "400",
+        "401"
+      ]
+    },
+    {
+      "operationId": "verifyIdentityEmail",
+      "method": "POST",
+      "path": "/v1/auth/verify-email",
+      "summary": "Consume una vez un token opaco de verificacion.",
+      "tags": [
+        "identity"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "public",
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "schema": "OneTimeTokenRequest"
+      },
+      "responses": [
+        "201",
+        "400",
+        "429"
+      ]
+    },
+    {
+      "operationId": "resendIdentityVerification",
+      "method": "POST",
+      "path": "/v1/auth/verify-email/resend",
+      "summary": "Solicita verificacion con respuesta no enumerable.",
+      "tags": [
+        "identity"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "public",
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "schema": "EmailRequest"
+      },
+      "responses": [
+        "202",
+        "400",
+        "429"
+      ]
+    },
+    {
+      "operationId": "requestIdentityPasswordReset",
+      "method": "POST",
+      "path": "/v1/auth/password/forgot",
+      "summary": "Solicita recuperacion con respuesta no enumerable.",
+      "tags": [
+        "identity"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "public",
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "schema": "EmailRequest"
+      },
+      "responses": [
+        "202",
+        "400",
+        "429"
+      ]
+    },
+    {
+      "operationId": "resetIdentityPassword",
+      "method": "POST",
+      "path": "/v1/auth/password/reset",
+      "summary": "Cambia la contrasena y revoca las sesiones anteriores.",
+      "tags": [
+        "identity"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "public",
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "schema": "PasswordResetRequest"
+      },
+      "responses": [
+        "201",
+        "400",
+        "429"
+      ]
+    },
+    {
+      "operationId": "listOrganizations",
+      "method": "GET",
+      "path": "/v1/organizations",
+      "summary": "Lista organizaciones donde el usuario tiene membresia.",
+      "tags": [
+        "organizations"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401"
+      ]
+    },
+    {
+      "operationId": "createOrganization",
+      "method": "POST",
+      "path": "/v1/organizations",
+      "summary": "Crea organizacion, membresia owner y trial standalone.",
+      "tags": [
+        "organizations"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "X-CSRF-Token",
+          "in": "header",
+          "required": true,
+          "description": "Token de doble envio igual a la cookie legible valle_csrf."
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "schema": "OrganizationCreate"
+      },
+      "responses": [
+        "201",
+        "400",
+        "401",
+        "403"
+      ]
+    },
+    {
+      "operationId": "activateOrganization",
+      "method": "POST",
+      "path": "/v1/organizations/active",
+      "summary": "Activa una organizacion tras verificar membresia server-side.",
+      "tags": [
+        "organizations"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "X-CSRF-Token",
+          "in": "header",
+          "required": true,
+          "description": "Token de doble envio igual a la cookie legible valle_csrf."
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "schema": "ActiveOrganizationRequest"
+      },
+      "responses": [
+        "201",
+        "400",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "listOrganizationMemberships",
+      "method": "GET",
+      "path": "/v1/organizations/{organizationId}/memberships",
+      "summary": "Lista hasta 200 miembros de una organizacion visible.",
+      "tags": [
+        "organizations"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "organizationId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "400",
+        "401",
+        "404"
+      ]
+    },
+    {
+      "operationId": "createOrganizationInvitation",
+      "method": "POST",
+      "path": "/v1/organizations/{organizationId}/invitations",
+      "summary": "Invita por email sin devolver el token en la respuesta HTTP.",
+      "tags": [
+        "organizations"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "organizationId",
+          "in": "path",
+          "required": true
+        },
+        {
+          "name": "X-CSRF-Token",
+          "in": "header",
+          "required": true,
+          "description": "Token de doble envio igual a la cookie legible valle_csrf."
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "schema": "OrganizationInvitationCreate"
+      },
+      "responses": [
+        "201",
+        "400",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "acceptOrganizationInvitation",
+      "method": "POST",
+      "path": "/v1/organizations/invitations/accept",
+      "summary": "Consume una invitacion destinada al correo autenticado.",
+      "tags": [
+        "organizations"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "X-CSRF-Token",
+          "in": "header",
+          "required": true,
+          "description": "Token de doble envio igual a la cookie legible valle_csrf."
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "schema": "OrganizationInvitationAccept"
+      },
+      "responses": [
+        "201",
+        "400",
+        "401",
+        "403"
+      ]
+    },
+    {
+      "operationId": "getActiveSubscription",
+      "method": "GET",
+      "path": "/v1/commercial/subscription",
+      "summary": "Lee la suscripcion de la organizacion activa server-side.",
+      "tags": [
+        "commercial"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401"
+      ]
+    },
+    {
+      "operationId": "listEffectiveEntitlements",
+      "method": "GET",
+      "path": "/v1/commercial/entitlements",
+      "summary": "Lista entitlements efectivos de la organizacion activa.",
+      "tags": [
+        "commercial"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401"
+      ]
+    },
+    {
+      "operationId": "listCommercialPlans",
+      "method": "GET",
+      "path": "/v1/commercial/plans",
+      "summary": "Publica el catalogo activo de planes con sus precios activos.",
+      "tags": [
+        "commercial"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401"
+      ]
+    },
+    {
+      "operationId": "listPublicCommercialPlans",
+      "method": "GET",
+      "path": "/v1/commercial/public/plans",
+      "summary": "Publica el catalogo comercial para visitantes sin sesion.",
+      "tags": [
+        "commercial"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "public",
+      "parameters": [
+        {
+          "name": "currency",
+          "in": "query",
+          "required": false
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "400"
+      ]
+    },
+    {
+      "operationId": "listUpgradeIntents",
+      "method": "GET",
+      "path": "/v1/commercial/upgrade-intents",
+      "summary": "Lista intents de upgrade de la organizacion activa (owner/admin).",
+      "tags": [
+        "commercial"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403"
+      ]
+    },
+    {
+      "operationId": "createUpgradeIntent",
+      "method": "POST",
+      "path": "/v1/commercial/upgrade-intents",
+      "summary": "Registra un intent de upgrade auditable (checkout sin pasarela).",
+      "tags": [
+        "commercial"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "schema": "UpgradeIntentCreate"
+      },
+      "responses": [
+        "201",
+        "400",
+        "401",
+        "403",
+        "409"
+      ]
+    },
+    {
+      "operationId": "confirmUpgradeIntent",
+      "method": "POST",
+      "path": "/v1/commercial/upgrade-intents/{intentId}/confirm",
+      "summary": "Confirma el intent (solo owner/admin) y activa el plan pedido.",
+      "tags": [
+        "commercial"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "intentId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403",
+        "404",
+        "409"
+      ]
+    },
+    {
+      "operationId": "cancelUpgradeIntent",
+      "method": "POST",
+      "path": "/v1/commercial/upgrade-intents/{intentId}/cancel",
+      "summary": "Cancela un intent pendiente (solo owner/admin).",
+      "tags": [
+        "commercial"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "intentId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403",
+        "404",
+        "409"
+      ]
+    },
+    {
+      "operationId": "createCommercialCheckoutSession",
+      "method": "POST",
+      "path": "/v1/commercial/checkout-sessions",
+      "summary": "Abre una compra autoservicio (owner/admin) y devuelve la URL hospedada.",
+      "tags": [
+        "commercial"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "schema": "CommercialCheckoutSessionCreate"
+      },
+      "responses": [
+        "201",
+        "400",
+        "401",
+        "403",
+        "409"
+      ]
+    },
+    {
+      "operationId": "listCommercialInvoices",
+      "method": "GET",
+      "path": "/v1/commercial/invoices",
+      "summary": "Lista el historial de facturas de la organizacion (owner/admin).",
+      "tags": [
+        "commercial"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403"
+      ]
+    },
+    {
+      "operationId": "cancelCommercialSubscription",
+      "method": "POST",
+      "path": "/v1/commercial/subscription/cancel",
+      "summary": "Cancela la suscripcion a fin de periodo (solo owner).",
+      "tags": [
+        "commercial"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403",
+        "404",
+        "409"
+      ]
+    },
+    {
+      "operationId": "receiveStripeWebhook",
+      "method": "POST",
+      "path": "/v1/commercial/webhooks/stripe",
+      "summary": "Recibe eventos firmados de la pasarela (ruta publica).",
+      "tags": [
+        "commercial"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "public",
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "schema": "StripeWebhookAccepted"
+      },
+      "responses": [
+        "200",
+        "400",
+        "409",
+        "503"
+      ]
+    },
+    {
+      "operationId": "listCadProjects",
+      "method": "GET",
+      "path": "/v1/cad/projects",
+      "summary": "Lista proyectos CAD del tenant.",
+      "tags": [
+        "projects"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:view",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "status",
+          "in": "query",
+          "required": false,
+          "description": "Filtra por ciclo de vida del proyecto."
+        },
+        {
+          "name": "q",
+          "in": "query",
+          "required": false,
+          "description": "Búsqueda por nombre (contains, case-insensitive)."
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "required": false
+        },
+        {
+          "name": "offset",
+          "in": "query",
+          "required": false
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403"
+      ]
+    },
+    {
+      "operationId": "createCadProject",
+      "method": "POST",
+      "path": "/v1/cad/projects",
+      "summary": "Crea un proyecto CAD.",
+      "tags": [
+        "projects"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:edit",
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "schema": "CadProjectCreate"
+      },
+      "responses": [
+        "201",
+        "400",
+        "401",
+        "403"
+      ]
+    },
+    {
+      "operationId": "getCadProject",
+      "method": "GET",
+      "path": "/v1/cad/projects/{projectId}",
+      "summary": "Detalle de un proyecto CAD.",
+      "tags": [
+        "projects"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:view",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "projectId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "updateCadProject",
+      "method": "PATCH",
+      "path": "/v1/cad/projects/{projectId}",
+      "summary": "Actualiza nombre/descripción/estado de un proyecto CAD.",
+      "tags": [
+        "projects"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:edit",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "projectId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "schema": "CadProjectUpdate"
+      },
+      "responses": [
+        "200",
+        "400",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "archiveCadProject",
+      "method": "DELETE",
+      "path": "/v1/cad/projects/{projectId}",
+      "summary": "Archiva un proyecto CAD (borrado suave).",
+      "tags": [
+        "projects"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:admin",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "projectId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "listCadDocuments",
+      "method": "GET",
+      "path": "/v1/cad/documents",
+      "summary": "Lista documentos CAD del tenant.",
+      "tags": [
+        "documents"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:view",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "projectId",
+          "in": "query",
+          "required": false,
+          "description": "Filtra por proyecto contenedor."
+        },
+        {
+          "name": "model",
+          "in": "query",
+          "required": false,
+          "description": "Coincidencia exacta del alias legacy persistido."
+        },
+        {
+          "name": "revision",
+          "in": "query",
+          "required": false,
+          "description": "Coincidencia exacta de la revisión legacy persistida."
+        },
+        {
+          "name": "q",
+          "in": "query",
+          "required": false,
+          "description": "Búsqueda por nombre (contains, case-insensitive)."
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "required": false
+        },
+        {
+          "name": "offset",
+          "in": "query",
+          "required": false
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403"
+      ]
+    },
+    {
+      "operationId": "createCadDocument",
+      "method": "POST",
+      "path": "/v1/cad/documents",
+      "summary": "Crea un documento CAD (metadatos; contenido con versión CAS 0).",
+      "tags": [
+        "documents"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:edit",
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "schema": "CadDocumentCreate"
+      },
+      "responses": [
+        "201",
+        "400",
+        "401",
+        "403"
+      ]
+    },
+    {
+      "operationId": "openCadDocument",
+      "method": "GET",
+      "path": "/v1/cad/documents/{documentId}",
+      "summary": "Abre un documento CAD (metadatos + documento canónico HIDRATADO + token CAS).",
+      "tags": [
+        "documents"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:view",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "documentId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "updateCadDocumentMeta",
+      "method": "PATCH",
+      "path": "/v1/cad/documents/{documentId}",
+      "summary": "Actualiza metadatos del documento (nombre, proyecto, capas).",
+      "tags": [
+        "documents"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:edit",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "documentId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "schema": "CadDocumentMetaUpdate"
+      },
+      "responses": [
+        "200",
+        "400",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "archiveCadDocument",
+      "method": "DELETE",
+      "path": "/v1/cad/documents/{documentId}",
+      "summary": "Archiva un documento CAD (borrado suave).",
+      "tags": [
+        "documents"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:admin",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "documentId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "204",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "discardProvisionalCadDocument",
+      "method": "DELETE",
+      "path": "/v1/cad/documents/{documentId}/provisional",
+      "summary": "Descarta un documento provisional propio tras fallar una importación.",
+      "tags": [
+        "documents"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:edit",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "documentId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "204",
+        "401",
+        "403",
+        "404",
+        "409"
+      ]
+    },
+    {
+      "operationId": "saveCadDocumentContent",
+      "method": "PUT",
+      "path": "/v1/cad/documents/{documentId}/content",
+      "summary": "Guarda el documento canónico (JSON inline) mediante CAS optimista.",
+      "tags": [
+        "documents"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:edit",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "documentId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "schema": "CadDocumentInline"
+      },
+      "responses": [
+        "200",
+        "400",
+        "401",
+        "403",
+        "404",
+        "409"
+      ]
+    },
+    {
+      "operationId": "saveCadDocumentArchive",
+      "method": "PUT",
+      "path": "/v1/cad/documents/{documentId}/archive",
+      "summary": "Guarda el documento canónico grande como archivo gzip (multipart) mediante CAS.",
+      "tags": [
+        "documents"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:edit",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "documentId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "schema": "CadDocumentSaveResult"
+      },
+      "responses": [
+        "200",
+        "400",
+        "401",
+        "403",
+        "404",
+        "409",
+        "413"
+      ]
+    },
+    {
+      "operationId": "listCadDocumentVersions",
+      "method": "GET",
+      "path": "/v1/cad/documents/{documentId}/versions",
+      "summary": "Lista el historial de versiones CAS del documento (más reciente primero).",
+      "tags": [
+        "versions"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:view",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "documentId",
+          "in": "path",
+          "required": true
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "required": false
+        },
+        {
+          "name": "offset",
+          "in": "query",
+          "required": false
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "getCadDocumentVersion",
+      "method": "GET",
+      "path": "/v1/cad/documents/{documentId}/versions/{version}",
+      "summary": "Obtiene una versión CAS concreta con su documento canónico.",
+      "tags": [
+        "versions"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:view",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "documentId",
+          "in": "path",
+          "required": true
+        },
+        {
+          "name": "version",
+          "in": "path",
+          "required": true,
+          "description": "Versión CAS entera (≥ 1)."
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "listCadPublications",
+      "method": "GET",
+      "path": "/v1/cad/documents/{documentId}/publications",
+      "summary": "Lista los recibos de publicación del documento.",
+      "tags": [
+        "publications"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:view",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "documentId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "recordCadPublication",
+      "method": "POST",
+      "path": "/v1/cad/documents/{documentId}/publications",
+      "summary": "Registra el recibo de una publicación PDF generada por el cliente (CAS).",
+      "tags": [
+        "publications"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:publish",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "documentId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "schema": "CadPublicationCreate"
+      },
+      "responses": [
+        "201",
+        "400",
+        "401",
+        "403",
+        "404",
+        "409"
+      ]
+    },
+    {
+      "operationId": "listCadSheetSets",
+      "method": "GET",
+      "path": "/v1/cad/sheet-sets",
+      "summary": "Lista los conjuntos de planos del tenant.",
+      "tags": [
+        "sheet-sets"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:view",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "projectId",
+          "in": "query",
+          "required": false,
+          "description": "Filtra por proyecto CAD."
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "required": false
+        },
+        {
+          "name": "offset",
+          "in": "query",
+          "required": false
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403"
+      ]
+    },
+    {
+      "operationId": "createCadSheetSet",
+      "method": "POST",
+      "path": "/v1/cad/sheet-sets",
+      "summary": "Crea un conjunto de planos.",
+      "tags": [
+        "sheet-sets"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:edit",
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "schema": "CadSheetSetCreate"
+      },
+      "responses": [
+        "201",
+        "400",
+        "401",
+        "403"
+      ]
+    },
+    {
+      "operationId": "getCadSheetSet",
+      "method": "GET",
+      "path": "/v1/cad/sheet-sets/{sheetSetId}",
+      "summary": "Conjunto de planos completo, con sus hojas.",
+      "tags": [
+        "sheet-sets"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:view",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "sheetSetId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "saveCadSheetSet",
+      "method": "PUT",
+      "path": "/v1/cad/sheet-sets/{sheetSetId}",
+      "summary": "Guarda el conjunto con CAS optimista.",
+      "tags": [
+        "sheet-sets"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:edit",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "sheetSetId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "schema": "CadSheetSetSave"
+      },
+      "responses": [
+        "200",
+        "400",
+        "401",
+        "403",
+        "404",
+        "409"
+      ]
+    },
+    {
+      "operationId": "deleteCadSheetSet",
+      "method": "DELETE",
+      "path": "/v1/cad/sheet-sets/{sheetSetId}",
+      "summary": "Borra un conjunto de planos.",
+      "tags": [
+        "sheet-sets"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:admin",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "sheetSetId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "204",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "listCadReviewSessions",
+      "method": "GET",
+      "path": "/v1/cad/documents/{documentId}/review-sessions",
+      "summary": "Lista sesiones de revisión del documento.",
+      "tags": [
+        "reviews"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:review",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "documentId",
+          "in": "path",
+          "required": true
+        },
+        {
+          "name": "status",
+          "in": "query",
+          "required": false
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "createCadReviewSession",
+      "method": "POST",
+      "path": "/v1/cad/documents/{documentId}/review-sessions",
+      "summary": "Abre una sesión de revisión (opcionalmente con review link de solo lectura).",
+      "tags": [
+        "reviews"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:review",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "documentId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": {
+        "required": false,
+        "schema": "CadReviewSessionCreated"
+      },
+      "responses": [
+        "201",
+        "400",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "closeCadReviewSession",
+      "method": "POST",
+      "path": "/v1/cad/review-sessions/{sessionId}/close",
+      "summary": "Cierra una sesión de revisión (revoca su review link de inmediato).",
+      "tags": [
+        "reviews"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:review",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "sessionId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403",
+        "404",
+        "409"
+      ]
+    },
+    {
+      "operationId": "listCadComments",
+      "method": "GET",
+      "path": "/v1/cad/documents/{documentId}/comments",
+      "summary": "Lista comentarios del documento (directos o de una sesión).",
+      "tags": [
+        "reviews"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:review",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "documentId",
+          "in": "path",
+          "required": true
+        },
+        {
+          "name": "reviewSessionId",
+          "in": "query",
+          "required": false,
+          "description": "Filtra por sesión de revisión."
+        },
+        {
+          "name": "resolved",
+          "in": "query",
+          "required": false
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "createCadComment",
+      "method": "POST",
+      "path": "/v1/cad/documents/{documentId}/comments",
+      "summary": "Crea un comentario sobre el documento (con ancla opcional en el dibujo).",
+      "tags": [
+        "reviews"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:review",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "documentId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "schema": "CadCommentCreate"
+      },
+      "responses": [
+        "201",
+        "400",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "resolveCadComment",
+      "method": "POST",
+      "path": "/v1/cad/comments/{commentId}/resolve",
+      "summary": "Marca un comentario como resuelto.",
+      "tags": [
+        "reviews"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:review",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "commentId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "redeemReviewLinkContext",
+      "method": "GET",
+      "path": "/v1/cad/review/context",
+      "summary": "Canje del review link: contexto de solo lectura limitado al documento.",
+      "tags": [
+        "reviews"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "reviewToken",
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "404"
+      ]
+    },
+    {
+      "operationId": "listReviewLinkComments",
+      "method": "GET",
+      "path": "/v1/cad/review/comments",
+      "summary": "Hilo de comentarios de la sesión del review link.",
+      "tags": [
+        "reviews"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "reviewToken",
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401"
+      ]
+    },
+    {
+      "operationId": "createReviewLinkComment",
+      "method": "POST",
+      "path": "/v1/cad/review/comments",
+      "summary": "Crea un comentario en la sesión del review link (si lo permite).",
+      "tags": [
+        "reviews"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "reviewToken",
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "schema": "CadComment"
+      },
+      "responses": [
+        "201",
+        "400",
+        "401",
+        "403"
+      ]
+    },
+    {
+      "operationId": "resolveReviewLinkComment",
+      "method": "POST",
+      "path": "/v1/cad/review/comments/{commentId}/resolve",
+      "summary": "Resuelve un comentario del hilo de la sesión del review link.",
+      "tags": [
+        "reviews"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "reviewToken",
+      "parameters": [
+        {
+          "name": "commentId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "getCadDxfBackground",
+      "method": "GET",
+      "path": "/v1/cad/documents/{documentId}/dxf",
+      "summary": "Obtiene el plano DXF de fondo del documento.",
+      "tags": [
+        "dxf"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:view",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "documentId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "importCadDxfBackground",
+      "method": "PUT",
+      "path": "/v1/cad/documents/{documentId}/dxf",
+      "summary": "Importa (carga/reemplaza) el plano DXF de fondo.",
+      "tags": [
+        "dxf"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:edit",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "documentId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "schema": "DxfBackgroundUpload"
+      },
+      "responses": [
+        "200",
+        "400",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "removeCadDxfBackground",
+      "method": "DELETE",
+      "path": "/v1/cad/documents/{documentId}/dxf",
+      "summary": "Quita el plano DXF de fondo del documento.",
+      "tags": [
+        "dxf"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:edit",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "documentId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "204",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "exportCadDocumentDxf",
+      "method": "GET",
+      "path": "/v1/cad/documents/{documentId}/export/dxf",
+      "summary": "Exporta el documento como DXF AutoCAD R12 (capas nombradas).",
+      "tags": [
+        "dxf"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:view",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "documentId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "listCadBlocks",
+      "method": "GET",
+      "path": "/v1/cad/blocks",
+      "summary": "Lista la biblioteca de bloques CAD del tenant.",
+      "tags": [
+        "blocks"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:view",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "q",
+          "in": "query",
+          "required": false,
+          "description": "Términos de búsqueda separados por espacios (AND)."
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403"
+      ]
+    },
+    {
+      "operationId": "createCadBlock",
+      "method": "POST",
+      "path": "/v1/cad/blocks",
+      "summary": "Guarda un bloque reutilizable (assets relativos al origen y/o definición canónica).",
+      "tags": [
+        "blocks"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:edit",
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "schema": "CadBlockCreate"
+      },
+      "responses": [
+        "201",
+        "400",
+        "401",
+        "403"
+      ]
+    },
+    {
+      "operationId": "getCadBlock",
+      "method": "GET",
+      "path": "/v1/cad/blocks/{blockId}",
+      "summary": "Detalle de un bloque CAD.",
+      "tags": [
+        "blocks"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:view",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "blockId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "updateCadBlock",
+      "method": "PATCH",
+      "path": "/v1/cad/blocks/{blockId}",
+      "summary": "Redefine un bloque (renombra y/o nueva definición canónica; incrementa versión).",
+      "tags": [
+        "blocks"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:edit",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "blockId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "schema": "CadBlockUpdate"
+      },
+      "responses": [
+        "200",
+        "400",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "removeCadBlock",
+      "method": "DELETE",
+      "path": "/v1/cad/blocks/{blockId}",
+      "summary": "Elimina un bloque CAD de la biblioteca.",
+      "tags": [
+        "blocks"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:edit",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "blockId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "204",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "interpretCadIntent",
+      "method": "POST",
+      "path": "/v1/cad/documents/{documentId}/intent",
+      "summary": "Interpreta una instrucción de lenguaje natural para un documento.",
+      "tags": [
+        "assistance"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:edit",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "documentId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "schema": "CadIntentRequest"
+      },
+      "responses": [
+        "201",
+        "400",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "vectorizeCadImage",
+      "method": "POST",
+      "path": "/v1/cad/vision",
+      "summary": "Propone geometría CAD a partir de una imagen embebida.",
+      "tags": [
+        "assistance"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:edit",
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "schema": "CadVisionRequest"
+      },
+      "responses": [
+        "201",
+        "400",
+        "401",
+        "403"
+      ]
+    }
+  ]
+}

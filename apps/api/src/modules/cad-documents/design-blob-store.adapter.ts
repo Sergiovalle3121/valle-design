@@ -31,3 +31,26 @@ export class DesignBlobStoreAdapter implements CadBlobStore {
     return this.inner.get(blobKey);
   }
 }
+
+/** Lo mínimo que la selección necesita saber del almacenamiento de objetos. */
+export interface DescribableBlobStore extends CadBlobStore {
+  descriptor(): { available: boolean };
+}
+
+/**
+ * Elige dónde viven los bytes: bucket si está configurado, base si no.
+ *
+ * Vive aquí, y no dentro del `useFactory` del módulo, para que la REGLA se
+ * pueda probar sin arrancar Nest ni PostgreSQL. Una decisión de este calibre
+ * —dónde acaban los planos de un cliente— escondida en una lambda de la
+ * configuración del módulo es exactamente el tipo de cosa que nadie prueba y
+ * que un día resulta que estaba al revés.
+ */
+export function selectCadBlobStore(
+  database: Pick<DatabaseBlobStore, 'put' | 'get'>,
+  objects: DescribableBlobStore,
+): CadBlobStore {
+  return objects.descriptor().available
+    ? objects
+    : new DesignBlobStoreAdapter(database);
+}
