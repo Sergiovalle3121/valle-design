@@ -82,6 +82,28 @@ Tras cuatro ejecuciones consecutivas, `SELECT datname FROM pg_database WHERE
 datname LIKE 'valle_restore_verify%'` devolvió **cero filas**: la limpieza no
 deja bases huérfanas llenando el disco del servidor.
 
+### Programarlo: el cron del VPS
+
+Los dos scripts sólo cuentan si alguien los ejecuta cada noche.
+`scripts/ops/backup-cron.sh` encadena la pasada completa — backup →
+`restore-verify` (si no imprime «BACKUP VALIDADO», el script muere y el cron
+avisa) → subida opcional a R2/S3 vía `rclone` → rotación local — y falla
+ruidoso en cualquier paso. La línea exacta:
+
+```cron
+MAILTO=tu-correo@dominio.mx
+15 3 * * * DATABASE_URL=postgres://... RCLONE_REMOTE=r2:valle-backups /srv/valle/repo/scripts/ops/backup-cron.sh >> /var/log/valle-backup.log 2>&1
+```
+
+Requisitos del host: Node 20+, cliente PostgreSQL 16 (`PG_BIN` si no está en
+PATH), el repo (o `scripts/ops/`) en `/srv/valle/repo`, y `rclone config`
+hecho si se define `RCLONE_REMOTE`. Sin `RCLONE_REMOTE` el script avisa: un
+backup en el mismo disco que la base muere con ella. Variables:
+`BACKUP_DIR` (default `/srv/valle/backups`) y `BACKUP_RETENTION_DAYS`
+(default 14; la retención del plan en `SLA.md` §2 manda — Profesional son
+backups cada 6 h y 30 días: cuatro líneas de cron y
+`BACKUP_RETENTION_DAYS=30`).
+
 ### RPO y RTO
 
 El RPO **es** el intervalo entre backups verificados; el RTO se mide en cada

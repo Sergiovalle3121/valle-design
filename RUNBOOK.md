@@ -136,6 +136,26 @@ FROM domain_outbox WHERE status IN ('pending', 'failed');
 - **CORS:** reconstruir el web no corrige el API; ajusta `ALLOWED_ORIGIN` exacto.
   Si el web llama un host viejo, reconstruye con `NEXT_PUBLIC_API_URL` correcto.
 
+## Backups programados
+
+El día del incidente, el backup que salva es el que un cron tomó y VERIFICÓ
+anoche. `scripts/ops/backup-cron.sh` hace la pasada completa — crear →
+restaurar en base temporal y comprobar recuentos → subir fuera de la máquina
+(si `RCLONE_REMOTE` está definido) → rotar — y falla ruidoso en cualquier
+paso. La línea de cron exacta del VPS (diaria, plan Piloto):
+
+```cron
+MAILTO=tu-correo@dominio.mx
+15 3 * * * DATABASE_URL=postgres://... RCLONE_REMOTE=r2:valle-backups /srv/valle/repo/scripts/ops/backup-cron.sh >> /var/log/valle-backup.log 2>&1
+```
+
+`MAILTO` no es decoración: es el canal por el que un backup fallido se
+ENTERA. La retención por plan (SLA.md §2) manda sobre el default de 14 días
+locales — Profesional exige cada 6 h y 30 días. Verificación puntual y
+procedimiento completo de restauración: `docs/guides/backup-restore.md`.
+
+---
+
 ## Incidentes con procedimiento
 
 Cuatro incidentes concretos, con sus comandos. El resto de la sección
