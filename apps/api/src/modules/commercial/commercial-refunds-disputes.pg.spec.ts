@@ -179,9 +179,10 @@ describePostgres('Reembolsos y disputas (PostgreSQL)', () => {
     ).resolves.toEqual({ status: 'processed', outcome: 'invoice_refunded' });
 
     expect(
-      await harness.dataSource
-        .getRepository(Invoice)
-        .findOneByOrFail({ provider: 'stripe', providerInvoiceId: 'in_refund_1' }),
+      await harness.dataSource.getRepository(Invoice).findOneByOrFail({
+        provider: 'stripe',
+        providerInvoiceId: 'in_refund_1',
+      }),
     ).toMatchObject({ status: 'refunded' });
     // El acceso NO cambia: reembolsar y dar de baja son decisiones separadas.
     expect((await subscription()).status).toBe('active');

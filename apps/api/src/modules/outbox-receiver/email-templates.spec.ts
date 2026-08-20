@@ -78,9 +78,7 @@ describe('renderEmailTemplate', () => {
       },
       base,
     );
-    expect(rendered.subject).toBe(
-      'Tu suscripción vence pronto — Valle Design',
-    );
+    expect(rendered.subject).toBe('Tu suscripción vence pronto — Valle Design');
     // OXXO/SPEI: el correo dice POR QUÉ no se renueva sola.
     expect(rendered.text).toContain('no se renueva');
     expect(rendered.text).toContain('OXXO');

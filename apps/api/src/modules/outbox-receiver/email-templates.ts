@@ -209,17 +209,7 @@ function renderRenewalReminderEmail(
     'información no se borran al vencer: sólo se pausa el acceso de edición ' +
     'hasta que el pago entre.';
   const link = `${linkBaseUrl}/cuenta/facturacion`;
-  const text = [
-    'Hola:',
-    '',
-    intro,
-    '',
-    action,
-    '',
-    link,
-    '',
-    outro,
-  ].join('\n');
+  const text = ['Hola:', '', intro, '', action, '', link, '', outro].join('\n');
   const html = htmlLayout(subject, [
     paragraph(escapeHtml(intro)),
     paragraph(escapeHtml(action)),
