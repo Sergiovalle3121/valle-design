@@ -49,6 +49,40 @@ El receptor valida `X-Valle-Signature` sobre
 `<X-Valle-Timestamp>.<raw-body>`, aplica una ventana de frescura y deduplica
 `Idempotency-Key`. La entrega es at-least-once.
 
+## Receptor de outbox y envío de correo
+
+El receptor vive en esta misma API (ADR-0008): `POST /v1/outbox/email` y
+`POST /v1/outbox/domain`, públicos porque su credencial es la firma sobre los
+bytes crudos (mismo `OUTBOX_WEBHOOK_SECRET` del worker, frescura ±300 s,
+comparación en tiempo constante). Apunta `OUTBOX_EMAIL_WEBHOOK_URL` y
+`OUTBOX_DOMAIN_WEBHOOK_URL` a estas rutas del propio despliegue. Cada entrega
+se deduplica con un recibo durable (`webhook_receipts`) insertado en la misma
+transacción que el envío.
+
+El proveedor de correo se elige POR CONFIGURACIÓN y jamás a medias:
+
+- Sin ninguna de estas variables, el adaptador es el **nulo**: el receptor de
+  email responde 503 y el worker conserva cada correo en su outbox con
+  reintentos. Nada se pierde; nada finge enviarse.
+- Con las **cuatro**, se inyecta el adaptador de Resend (fetch directo, sin
+  SDK) y los correos salen con `Idempotency-Key` nativa del proveedor.
+- Con **algunas pero no todas**, el arranque FALLA: un despliegue que envía
+  correos con enlaces rotos falla cuando el primer usuario real intenta
+  verificar su cuenta, que es el peor momento posible.
+
+| Variable                     | Requerida  | Comportamiento                                                                                                     |
+| ---------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------ |
+| `EMAIL_SENDER_PROVIDER`      | Con correo | Adaptador a usar. Hoy sólo `resend`; otro nombre falla el arranque hasta que exista su adaptador.                   |
+| `EMAIL_SENDER_API_KEY`       | Con correo | Credencial del proveedor (`re_…`). Viaja como `Authorization: Bearer` y nunca se registra.                          |
+| `EMAIL_SENDER_FROM`          | Con correo | Remitente: `correo@dominio` o `Nombre <correo@dominio>`. El dominio debe estar verificado en el proveedor.          |
+| `OUTBOX_EMAIL_LINK_BASE_URL` | Con correo | Origen web público que ancla los enlaces absolutos de los correos. HTTPS obligatorio (loopback HTTP sólo en local); sin credenciales, query ni fragmento. |
+
+Las plantillas existentes son `identity.verify-email`,
+`identity.reset-password` y `organization.invitation`; una plantilla
+desconocida se registra en el recibo y responde 200 (reintentar un render
+imposible no lo vuelve posible). La cola `domain` es hoy aceptación durable
+sin consumo.
+
 ## Pasarela de pagos (Stripe)
 
 El proveedor de pagos se elige POR CONFIGURACIÓN y jamás a medias:

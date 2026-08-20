@@ -76,9 +76,13 @@ El smoke `scripts/deploy/production-startup-smoke.mjs` lo comprueba en CI.
 | `IDENTITY_RATE_LIMIT_KEY_SECRET` | ≥32 chars, igual en réplicas   | **el arranque muere**                            |
 | `ALLOWED_ORIGIN`                 | origen web exacto, sin path    | todo cross-origin se rechaza                     |
 | `OUTBOX_DISPATCHER_ENABLED`      | `true`                         | **el arranque muere**                            |
-| `OUTBOX_EMAIL_WEBHOOK_URL`       | HTTPS absoluta                 | el worker no puede entregar                      |
-| `OUTBOX_DOMAIN_WEBHOOK_URL`      | HTTPS absoluta                 | ídem                                             |
+| `OUTBOX_EMAIL_WEBHOOK_URL`       | HTTPS absoluta (puede ser esta misma API: `/v1/outbox/email`) | el worker no puede entregar |
+| `OUTBOX_DOMAIN_WEBHOOK_URL`      | HTTPS absoluta (ídem: `/v1/outbox/domain`) | ídem                                 |
 | `OUTBOX_WEBHOOK_SECRET`          | ≥32 chars, igual en receptores | firmas inválidas                                 |
+| `EMAIL_SENDER_PROVIDER`          | `resend` (o ninguna de las 4)  | receptor de email responde 503; el correo espera en el outbox |
+| `EMAIL_SENDER_API_KEY`           | clave del proveedor            | ídem — **a medias, el arranque muere**           |
+| `EMAIL_SENDER_FROM`              | remitente con dominio verificado | ídem — **a medias, el arranque muere**         |
+| `OUTBOX_EMAIL_LINK_BASE_URL`     | origen web público HTTPS       | ídem — **a medias, el arranque muere**           |
 | `NEXT_PUBLIC_API_URL` (build web)| origen público del API         | el web llama al host equivocado                  |
 
 Opcionales que cambian el comportamiento operativo:
