@@ -1,0 +1,1171 @@
+{
+  "schema": 1,
+  "artefacto": "normas-de-dibujo-mexicano",
+  "generadoPor": "scripts/cad/mexican-drafting-standards-evidence.mjs",
+  "resumen": {
+    "fuentes": 27,
+    "normasCitadas": 13,
+    "costumbresDeclaradas": 14,
+    "porVerificar": 7,
+    "capas": 32,
+    "escalas": 8,
+    "escalasFueraDeIso5455": 2,
+    "papeles": 5,
+    "plantillas": 6
+  },
+  "fuentes": [
+    {
+      "id": "iso-216",
+      "kind": "norma",
+      "document": "ISO 216",
+      "clause": "Serie A de formatos de papel",
+      "jurisdiction": "internacional",
+      "says": "Fija la serie A: A0 = 841 × 1189 mm, y cada formato siguiente es la mitad del anterior cortado por el lado largo, conservando la razón √2.",
+      "rule": "Las láminas se ofrecen en A0–A4 y NO en la serie ANSI (Letter, Tabloid, ARCH). En México se dibuja y se imprime en serie A."
+    },
+    {
+      "id": "iso-5457-margenes",
+      "kind": "norma",
+      "document": "ISO 5457",
+      "clause": "Documentación técnica de producto — Formatos y disposición de los planos",
+      "jurisdiction": "internacional",
+      "says": "El recuadro del dibujo deja un margen de archivado de 20 mm en el borde de encuadernación y 10 mm en los otros tres.",
+      "rule": "Toda plantilla de lámina nace con márgenes 20/10/10/10 mm y el margen ancho a la izquierda. Un plano perforado sobre 10 mm se agujerea encima del dibujo.",
+      "verify": "Confirmar contra la edición vigente si A0 y A1 llevan margen ancho en más de un borde: hay ediciones y guías nacionales que difieren."
+    },
+    {
+      "id": "iso-5457-doblado",
+      "kind": "norma",
+      "document": "ISO 5457",
+      "clause": "Plegado de planos para archivo",
+      "jurisdiction": "internacional",
+      "says": "Los formatos mayores se archivan plegados al tamaño A4, con el cajetín visible en la cara frontal.",
+      "rule": "Cada papel declara en cuántos paneles A4 se pliega y se comprueba que el cajetín queda en el panel frontal. Un cajetín que cae al dorso obliga a desplegar el plano para saber qué plano es.",
+      "verify": "El PATRÓN concreto de pliegues (qué dobleces y en qué orden) lo detalla DIN 824, no ISO 5457. Confirmar con la reprografía del despacho cuál sigue, y confirmar contra el texto de la edición vigente de ISO 5457 con qué alcance trata el plegado: lo que el producto comprueba es el RESULTADO —cuántos paneles A4 salen y que el cajetín quede en el visible—, no la secuencia."
+    },
+    {
+      "id": "iso-3098-alturas",
+      "kind": "norma",
+      "document": "ISO 3098-1",
+      "clause": "Escritura — Alturas nominales de carácter",
+      "jurisdiction": "internacional",
+      "says": "Las alturas nominales van en progresión √2: 1,8 · 2,5 · 3,5 · 5 · 7 · 10 · 14 · 20 mm sobre el papel.",
+      "rule": "Los estilos de texto sólo usan alturas de esa serie: 2,5 mm para rótulo y cota, 3,5 para subtítulo, 5 para título. Una altura fuera de la serie sale distinta al reducir la lámina."
+    },
+    {
+      "id": "iso-128-grosores",
+      "kind": "norma",
+      "document": "ISO 128-20",
+      "clause": "Principios generales de representación — Convenios de línea",
+      "jurisdiction": "internacional",
+      "says": "Los grosores de línea salen de la serie 0,13 · 0,18 · 0,25 · 0,35 · 0,5 · 0,7 · 1 · 1,4 · 2 mm, en razón √2, y la línea gruesa de un dibujo debe ser al menos el doble de ancha que la fina para que se distingan al reproducirlo.",
+      "rule": "Toda capa declara su grosor tomado de esa serie. El grosor va EN LA CAPA y no se deja a una tabla de plumas por color, que es lo que se pierde al mandar el archivo a otro despacho."
+    },
+    {
+      "id": "iso-128-ocultas",
+      "kind": "norma",
+      "document": "ISO 128-20",
+      "clause": "Tipos de línea y su significado",
+      "jurisdiction": "internacional",
+      "says": "La línea de trazos representa aristas ocultas; la línea de trazo y punto larga, ejes y trazas de plano.",
+      "rule": "La cimentación y el plafón —que están ocultos bajo el piso y sobre la cabeza— van a trazos; los ejes van a trazo y punto (`CENTER`)."
+    },
+    {
+      "id": "iso-129-1-terminacion",
+      "kind": "norma",
+      "document": "ISO 129-1",
+      "clause": "Presentación de cotas y tolerancias — Terminaciones de la línea de cota",
+      "jurisdiction": "internacional",
+      "says": "Admite varias terminaciones para la línea de cota: la flecha cerrada rellena, la flecha abierta, el TRAZO OBLICUO y el punto.",
+      "rule": "La garrapata del dibujo arquitectónico —el trazo oblicuo a 45°— es una terminación NORMADA, no una licencia. Lo que no dice ninguna norma es que arquitectura tenga que usarla; eso es costumbre y se declara aparte."
+    },
+    {
+      "id": "iso-5455-escalas",
+      "kind": "norma",
+      "document": "ISO 5455",
+      "clause": "Escalas recomendadas",
+      "jurisdiction": "internacional",
+      "says": "Las escalas de reducción recomendadas son 1:2, 1:5, 1:10, 1:20, 1:50, 1:100, 1:200, 1:500, 1:1000… Ni 1:25 ni 1:75 figuran en ella.",
+      "rule": "Cada escala que ofrece el producto declara si está en ISO 5455 o no. 1:75 se ofrece porque en México se usa muchísimo, pero se marca como costumbre y no como escala normalizada."
+    },
+    {
+      "id": "iso-7200-campos",
+      "kind": "norma",
+      "document": "ISO 7200",
+      "clause": "Campos de datos en cajetines y encabezados de documento",
+      "jurisdiction": "internacional",
+      "says": "Enumera los campos de datos del cajetín: propietario legal, número de identificación, fecha de emisión, índice de revisión, título, hoja/de y responsable del documento.",
+      "rule": "El cajetín cubre esos campos y AÑADE los que una lámina mexicana lleva y la norma no nombra: ubicación de la obra, propietario y la responsiva del Director Responsable de Obra.",
+      "verify": "Los 180 mm de ancho del cajetín vienen de la edición de 1984 de ISO 7200, que la edición vigente ya no impone: hoy es costumbre consolidada, no requisito. Confirmar si se quiere conservar la cifra o dejarla libre."
+    },
+    {
+      "id": "rcdf-dro",
+      "kind": "norma",
+      "document": "Reglamento de Construcciones para el Distrito Federal (RCDF)",
+      "clause": "Título Segundo — Director Responsable de Obra y Corresponsables",
+      "jurisdiction": "cdmx",
+      "says": "La obra que requiere manifestación o licencia de construcción necesita la responsiva de un Director Responsable de Obra registrado, que firma el proyecto y los planos.",
+      "rule": "El cajetín mexicano reserva una banda para nombre, número de registro y FIRMA del Director Responsable de Obra. Sin ese espacio la lámina no se puede presentar en ventanilla y hay que rehacer el cajetín.",
+      "verify": "Confirmar con un DRO en activo el número de artículo vigente y el texto exacto de la leyenda de responsiva. Fuera de la Ciudad de México cada estado tiene su propio reglamento y su propia figura equivalente: el espacio sirve, la leyenda puede no servir."
+    },
+    {
+      "id": "rcdf-corresponsables",
+      "kind": "norma",
+      "document": "Reglamento de Construcciones para el Distrito Federal (RCDF)",
+      "clause": "Título Segundo — Corresponsables",
+      "jurisdiction": "cdmx",
+      "says": "Existen tres corresponsabilidades — seguridad estructural, diseño urbano y arquitectónico, e instalaciones — exigibles según el tipo y tamaño de la obra.",
+      "rule": "El cajetín mexicano ofrece una fila de corresponsable rotulable, para que el plano estructural o el de instalaciones lleve la firma que le corresponde en lugar de una casilla genérica.",
+      "verify": "Confirmar en qué supuestos es exigible cada corresponsable antes de sugerir al usuario que la necesita: el producto ofrece el espacio, no dictamina la obligación."
+    },
+    {
+      "id": "nom-001-sede",
+      "kind": "norma",
+      "document": "NOM-001-SEDE",
+      "clause": "Instalaciones eléctricas (utilización)",
+      "jurisdiction": "nacional-mx",
+      "says": "Regula el diseño y la ejecución de la instalación eléctrica de utilización y exige la documentación del proyecto eléctrico.",
+      "rule": "La instalación eléctrica vive en su propia capa y su propia lámina, separada de la arquitectura: es un proyecto que se revisa por su cuenta. La norma regula la INSTALACIÓN, no el dibujo — el nombre y el color de la capa son costumbre y se declaran aparte.",
+      "verify": "Confirmar la edición vigente (2012 / 2018 y posteriores) antes de citarla por año."
+    },
+    {
+      "id": "nom-gas-lp",
+      "kind": "norma",
+      "document": "NOM-004-SEDG-2004",
+      "clause": "Instalaciones de aprovechamiento de Gas L.P. — Diseño y construcción",
+      "jurisdiction": "nacional-mx",
+      "says": "Regula el diseño y la construcción de las instalaciones de aprovechamiento de gas L.P.",
+      "rule": "El gas L.P. tiene capa propia y no se mezcla con la hidráulica: son dos revisiones distintas y dos responsables distintos. Igual que en la eléctrica, la norma regula la instalación y no el dibujo.",
+      "verify": "Confirmar vigencia y designación exacta: la normatividad de gas ha cambiado de dependencia y de clave con los años, y para gas natural aplica otra serie (NOM-SECRE)."
+    },
+    {
+      "id": "capas-nombre-espanol",
+      "kind": "costumbre",
+      "jurisdiction": "sin-jurisdiccion",
+      "practice": "Los despachos mexicanos nombran las capas en español, en mayúsculas, con nombres cortos y un guion como separador de jerarquía: MURO, MURO-DEM, INST-HID, INST-HID-CAL.",
+      "caveat": "No hay dos oficinas que coincidan: unas escriben A-MURO al estilo estadounidense, otras MUROS en plural, otras numeran las capas. Lo que sí es constante es el español y la mayúscula.",
+      "ignoredStandard": "ISO 13567 (organización y denominación de capas CAD) existe y define un esquema de campos, pero prácticamente nadie en México la aplica: pedirla sería vender una norma que el usuario no reconoce y no usa.",
+      "rule": "La norma de capas del producto usa nombres en español, en mayúsculas, con guion como separador, y se declara COSTUMBRE, no norma."
+    },
+    {
+      "id": "capas-color-pluma",
+      "kind": "costumbre",
+      "jurisdiction": "sin-jurisdiccion",
+      "practice": "El color de la capa se usa como código de grosor de pluma a través de la tabla de trazado (.ctb): el color no se ve en el plano impreso, sólo decide con qué grosor sale la línea.",
+      "caveat": "El mapa color→grosor lo define cada despacho en su .ctb y no coincide entre oficinas; un archivo que viaja sin su .ctb sale impreso con todos los grosores mal.",
+      "rule": "Cada capa declara su grosor EXPLÍCITO además de su color. El color queda para distinguir en pantalla y el grosor viaja dentro del documento, que es lo que evita que el plano cambie de aspecto al abrirlo en otra oficina."
+    },
+    {
+      "id": "demolicion-amarillo-rojo",
+      "kind": "costumbre",
+      "jurisdiction": "sin-jurisdiccion",
+      "practice": "En el plano de demolición y obra nueva se distingue por color: amarillo lo que se demuele, rojo lo que es nuevo, y en gris o negro lo existente que se conserva.",
+      "caveat": "Hay oficinas que invierten los colores y hay municipios que piden su propio código en la solicitud de licencia. Es la convención más extendida, no una regla obligatoria.",
+      "rule": "MURO-DEM va en amarillo y a trazos, MURO-NUE en rojo y continuo, MURO-EXI en gris. Y se advierte al usuario de que su ventanilla puede pedir otro código."
+    },
+    {
+      "id": "cota-metros-dos-decimales",
+      "kind": "costumbre",
+      "jurisdiction": "sin-jurisdiccion",
+      "practice": "En planta arquitectónica se acota en METROS con dos decimales y sin escribir la unidad: un muro de tres metros cuarenta y cinco se rotula «3.45». En plano de detalle se acota en CENTÍMETROS y sin decimales: «12».",
+      "caveat": "Algunos despachos acotan el arquitectónico en centímetros enteros, sobre todo en vivienda económica. Ninguna norma mexicana fija la unidad de acotación arquitectónica.",
+      "rule": "El estilo de cota arquitectónico nace en metros con dos decimales y el de detalle en centímetros con cero decimales, y ambos se declaran costumbre."
+    },
+    {
+      "id": "garrapata-arquitectonica",
+      "kind": "costumbre",
+      "jurisdiction": "sin-jurisdiccion",
+      "practice": "La cota arquitectónica se remata con la garrapata —el trazo oblicuo a 45°— y no con la flecha rellena, que se deja para el dibujo mecánico. Es lo que hace que un plano se lea como plano de arquitectura de un vistazo.",
+      "caveat": "La flecha sigue apareciendo en cotas de radio y diámetro, donde la garrapata no señala nada.",
+      "rule": "Los estilos de cota arquitectónico y de detalle nacen con `architectural-tick`. La terminación en sí está admitida por ISO 129-1; ELEGIRLA para arquitectura es la costumbre."
+    },
+    {
+      "id": "escala-1-75",
+      "kind": "costumbre",
+      "jurisdiction": "sin-jurisdiccion",
+      "practice": "1:75 es escala corriente en vivienda mexicana: es la que se usa cuando la casa no cabe a 1:50 y a 1:100 se pierde el detalle. También 1:25 en cortes por fachada.",
+      "caveat": "No figura en ISO 5455 y un revisor formalista puede objetarla.",
+      "rule": "1:75 y 1:25 se ofrecen con estilo de cota propio, marcadas como escalas de costumbre y no como escalas normalizadas."
+    },
+    {
+      "id": "clave-lamina",
+      "kind": "costumbre",
+      "jurisdiction": "sin-jurisdiccion",
+      "practice": "La clave de lámina lleva una letra de disciplina y un número correlativo: A-101 arquitectónico, E-101 estructural, I-101 instalaciones, T-101 topográfico.",
+      "caveat": "Cada despacho tiene su letra y su numeración; algunos usan IE / IH / IS para separar las tres instalaciones, y otros numeran de corrido sin letra.",
+      "rule": "Cada plantilla nace con su clave de lámina en esa forma, editable. Es un punto de partida reconocible, no una imposición."
+    },
+    {
+      "id": "cajetin-banda-derecha",
+      "kind": "costumbre",
+      "jurisdiction": "sin-jurisdiccion",
+      "practice": "Muchos despachos mexicanos no ponen el cajetín como caja en la esquina inferior derecha sino como BANDA VERTICAL en todo el borde derecho de la lámina, con el logotipo arriba, los datos en medio y las firmas abajo.",
+      "caveat": "Conviven las dos disposiciones. La banda vertical es más común en despachos grandes y en obra pública; la caja inferior derecha, en despachos pequeños y en lo que sale de plantillas importadas.",
+      "rule": "El cajetín se ofrece en las dos disposiciones y la lámina recuerda cuál usa, para que veinte láminas del mismo juego no salgan cada una a su manera."
+    },
+    {
+      "id": "nivel-npt",
+      "kind": "costumbre",
+      "jurisdiction": "sin-jurisdiccion",
+      "practice": "Los niveles se rotulan «N.P.T.» (nivel de piso terminado) seguidos de la cota en metros con signo: N.P.T. +0.00, N.P.T. −0.15.",
+      "caveat": "También se ven N.P.A. (piso acabado) y N.L. (nivel de losa) para el nivel estructural.",
+      "rule": "La capa NIVEL existe separada y su texto arranca del estilo de rótulo, no del de título."
+    },
+    {
+      "id": "ejes-letra-numero",
+      "kind": "costumbre",
+      "jurisdiction": "sin-jurisdiccion",
+      "practice": "Los ejes se marcan con números en un sentido y letras en el otro, dentro de un círculo en los extremos, y la línea va a trazo y punto.",
+      "caveat": "El sentido que lleva números y el que lleva letras cambia de oficina en oficina; no hay regla.",
+      "rule": "La capa EJE nace con tipo de línea `CENTER` y grosor fino, separada de la estructura."
+    },
+    {
+      "id": "terreno-natural-proyecto",
+      "kind": "costumbre",
+      "jurisdiction": "sin-jurisdiccion",
+      "practice": "En corte y en plataforma se dibujan dos perfiles: el terreno natural, a trazos, y el terreno de proyecto, continuo y más grueso. Entre los dos se lee el corte y el relleno.",
+      "caveat": "En terracerías de obra civil se usan además colores para corte y relleno.",
+      "rule": "TERRENO-NAT va a trazos y TERRENO-PRO continuo y más grueso, ambos en el mismo marrón."
+    },
+    {
+      "id": "canceleria-separada",
+      "kind": "costumbre",
+      "jurisdiction": "sin-jurisdiccion",
+      "practice": "La cancelería —aluminio y vidrio— se dibuja y se cuantifica aparte de la carpintería de madera, porque son dos proveedores, dos cotizaciones y dos calendarios de obra.",
+      "caveat": "En vivienda pequeña muchos despachos meten todo en una sola capa de «puertas y ventanas».",
+      "rule": "Existe la capa CANCEL además de VANO, para que el cuadro de cancelería salga del dibujo y no de contar a mano."
+    },
+    {
+      "id": "acotacion-en-su-capa",
+      "kind": "costumbre",
+      "jurisdiction": "sin-jurisdiccion",
+      "practice": "Cotas y textos viven en capas propias, nunca en la del elemento que describen: así se entrega el mismo dibujo sin cotas al de obra negra y con cotas al residente.",
+      "caveat": "Ninguno, en la práctica: es de lo poco en que coinciden todas las oficinas.",
+      "rule": "COTA y TEXTO son capas comunes a todas las plantillas."
+    },
+    {
+      "id": "auxiliar-no-imprime",
+      "kind": "costumbre",
+      "jurisdiction": "sin-jurisdiccion",
+      "practice": "Hay una capa de construcción auxiliar donde se trazan las líneas de apoyo, y esa capa se excluye del trazado en lugar de borrarse.",
+      "caveat": "Su nombre cambia: AUXILIAR, AUX, TRAZO, CONSTRUCCION.",
+      "rule": "La capa AUXILIAR nace con `plot: false`."
+    }
+  ],
+  "porVerificar": [
+    {
+      "id": "iso-5457-margenes",
+      "documento": "ISO 5457",
+      "queConfirmar": "Confirmar contra la edición vigente si A0 y A1 llevan margen ancho en más de un borde: hay ediciones y guías nacionales que difieren."
+    },
+    {
+      "id": "iso-5457-doblado",
+      "documento": "ISO 5457",
+      "queConfirmar": "El PATRÓN concreto de pliegues (qué dobleces y en qué orden) lo detalla DIN 824, no ISO 5457. Confirmar con la reprografía del despacho cuál sigue, y confirmar contra el texto de la edición vigente de ISO 5457 con qué alcance trata el plegado: lo que el producto comprueba es el RESULTADO —cuántos paneles A4 salen y que el cajetín quede en el visible—, no la secuencia."
+    },
+    {
+      "id": "iso-7200-campos",
+      "documento": "ISO 7200",
+      "queConfirmar": "Los 180 mm de ancho del cajetín vienen de la edición de 1984 de ISO 7200, que la edición vigente ya no impone: hoy es costumbre consolidada, no requisito. Confirmar si se quiere conservar la cifra o dejarla libre."
+    },
+    {
+      "id": "rcdf-dro",
+      "documento": "Reglamento de Construcciones para el Distrito Federal (RCDF)",
+      "queConfirmar": "Confirmar con un DRO en activo el número de artículo vigente y el texto exacto de la leyenda de responsiva. Fuera de la Ciudad de México cada estado tiene su propio reglamento y su propia figura equivalente: el espacio sirve, la leyenda puede no servir."
+    },
+    {
+      "id": "rcdf-corresponsables",
+      "documento": "Reglamento de Construcciones para el Distrito Federal (RCDF)",
+      "queConfirmar": "Confirmar en qué supuestos es exigible cada corresponsable antes de sugerir al usuario que la necesita: el producto ofrece el espacio, no dictamina la obligación."
+    },
+    {
+      "id": "nom-001-sede",
+      "documento": "NOM-001-SEDE",
+      "queConfirmar": "Confirmar la edición vigente (2012 / 2018 y posteriores) antes de citarla por año."
+    },
+    {
+      "id": "nom-gas-lp",
+      "documento": "NOM-004-SEDG-2004",
+      "queConfirmar": "Confirmar vigencia y designación exacta: la normatividad de gas ha cambiado de dependencia y de clave con los años, y para gas natural aplica otra serie (NOM-SECRE)."
+    }
+  ],
+  "capas": [
+    {
+      "id": "EJE",
+      "nombre": "Ejes",
+      "grupo": "referencia",
+      "color": "#ff0000",
+      "tipoDeLinea": "CENTER",
+      "grosorMm": 0.13,
+      "seTraza": true,
+      "paraQue": "Ejes estructurales y de trazo, con su marca de letra o número en los extremos.",
+      "fuentes": [
+        "capas-nombre-espanol",
+        "capas-color-pluma",
+        "iso-128-grosores",
+        "ejes-letra-numero",
+        "iso-128-ocultas"
+      ],
+      "advertencia": "Comparte el rojo con MURO-NUE. Es una colisión REAL de la costumbre mexicana, no un descuido: se separan por tipo de línea (trazo y punto frente a continuo) y por grosor."
+    },
+    {
+      "id": "AUXILIAR",
+      "nombre": "Auxiliar",
+      "grupo": "referencia",
+      "color": "#808080",
+      "tipoDeLinea": "CONTINUOUS",
+      "grosorMm": 0.13,
+      "seTraza": false,
+      "paraQue": "Construcción auxiliar: se dibuja para apoyarse, no se imprime.",
+      "fuentes": [
+        "capas-nombre-espanol",
+        "capas-color-pluma",
+        "iso-128-grosores",
+        "auxiliar-no-imprime"
+      ]
+    },
+    {
+      "id": "ARQ-FONDO",
+      "nombre": "Arquitectura de fondo",
+      "grupo": "referencia",
+      "color": "#c0c0c0",
+      "tipoDeLinea": "CONTINUOUS",
+      "grosorMm": 0.13,
+      "seTraza": true,
+      "paraQue": "Muros y muebles del arquitectónico, atenuados como referencia bajo otra disciplina.",
+      "fuentes": [
+        "capas-nombre-espanol",
+        "capas-color-pluma",
+        "iso-128-grosores"
+      ],
+      "advertencia": "Gris claro y el grosor más fino de la serie. Antes iba a 0,09 mm, que NO está en la serie de ISO 128-20: un grosor fuera de la serie sale distinto en cada trazador."
+    },
+    {
+      "id": "MURO",
+      "nombre": "Muros",
+      "grupo": "arquitectura",
+      "color": "#ffffff",
+      "tipoDeLinea": "CONTINUOUS",
+      "grosorMm": 0.35,
+      "seTraza": true,
+      "paraQue": "Muros de carga y divisorios, cortados por el plano de planta.",
+      "fuentes": [
+        "capas-nombre-espanol",
+        "capas-color-pluma",
+        "iso-128-grosores"
+      ]
+    },
+    {
+      "id": "VANO",
+      "nombre": "Puertas y ventanas",
+      "grupo": "arquitectura",
+      "color": "#ffff00",
+      "tipoDeLinea": "CONTINUOUS",
+      "grosorMm": 0.25,
+      "seTraza": true,
+      "paraQue": "Huecos de puerta y ventana, hoja y barrido.",
+      "fuentes": [
+        "capas-nombre-espanol",
+        "capas-color-pluma",
+        "iso-128-grosores"
+      ],
+      "advertencia": "Comparte el amarillo con MURO-DEM, que va a trazos. En una planta de demolición conviven las dos y sólo el tipo de línea las separa."
+    },
+    {
+      "id": "CANCEL",
+      "nombre": "Cancelería",
+      "grupo": "arquitectura",
+      "color": "#00ffff",
+      "tipoDeLinea": "CONTINUOUS",
+      "grosorMm": 0.25,
+      "seTraza": true,
+      "paraQue": "Cancelería de aluminio y vidrio, separada de la carpintería de madera.",
+      "fuentes": [
+        "capas-nombre-espanol",
+        "capas-color-pluma",
+        "iso-128-grosores",
+        "canceleria-separada"
+      ]
+    },
+    {
+      "id": "MOBILIARIO",
+      "nombre": "Mobiliario",
+      "grupo": "arquitectura",
+      "color": "#00ff00",
+      "tipoDeLinea": "CONTINUOUS",
+      "grosorMm": 0.13,
+      "seTraza": true,
+      "paraQue": "Muebles fijos, muebles de baño y cocina.",
+      "fuentes": [
+        "capas-nombre-espanol",
+        "capas-color-pluma",
+        "iso-128-grosores"
+      ]
+    },
+    {
+      "id": "NIVEL",
+      "nombre": "Niveles",
+      "grupo": "arquitectura",
+      "color": "#00ffff",
+      "tipoDeLinea": "CONTINUOUS",
+      "grosorMm": 0.13,
+      "seTraza": true,
+      "paraQue": "Símbolos y rótulos de nivel de piso terminado (N.P.T.).",
+      "fuentes": [
+        "capas-nombre-espanol",
+        "capas-color-pluma",
+        "iso-128-grosores",
+        "nivel-npt"
+      ]
+    },
+    {
+      "id": "PLAFON",
+      "nombre": "Plafones",
+      "grupo": "arquitectura",
+      "color": "#8000ff",
+      "tipoDeLinea": "DASHED",
+      "grosorMm": 0.13,
+      "seTraza": true,
+      "paraQue": "Proyección de plafón y de entrepiso: está sobre la cabeza, por eso va a trazos.",
+      "fuentes": [
+        "capas-nombre-espanol",
+        "capas-color-pluma",
+        "iso-128-grosores",
+        "iso-128-ocultas"
+      ]
+    },
+    {
+      "id": "CORTE",
+      "nombre": "Elementos cortados",
+      "grupo": "arquitectura",
+      "color": "#ffffff",
+      "tipoDeLinea": "CONTINUOUS",
+      "grosorMm": 0.5,
+      "seTraza": true,
+      "paraQue": "Lo que la sección atraviesa: muros, losas, terreno.",
+      "fuentes": [
+        "capas-nombre-espanol",
+        "capas-color-pluma",
+        "iso-128-grosores"
+      ]
+    },
+    {
+      "id": "PROYECCION",
+      "nombre": "Proyección",
+      "grupo": "arquitectura",
+      "color": "#808080",
+      "tipoDeLinea": "CONTINUOUS",
+      "grosorMm": 0.18,
+      "seTraza": true,
+      "paraQue": "Lo que se ve detrás del plano de corte, más fino y atenuado.",
+      "fuentes": [
+        "capas-nombre-espanol",
+        "capas-color-pluma",
+        "iso-128-grosores"
+      ],
+      "advertencia": "Antes iba en cian y coincidía EXACTAMENTE con TEXTO —mismo color, mismo tipo, mismo grosor—: dos capas indistinguibles en la misma lámina. Se pasó a gris, que además es lo que un ojo lee como «detrás»."
+    },
+    {
+      "id": "MURO-EXI",
+      "nombre": "Muros existentes",
+      "grupo": "demolicion",
+      "color": "#808080",
+      "tipoDeLinea": "CONTINUOUS",
+      "grosorMm": 0.25,
+      "seTraza": true,
+      "paraQue": "Lo construido que se conserva tal cual.",
+      "fuentes": [
+        "capas-nombre-espanol",
+        "capas-color-pluma",
+        "iso-128-grosores",
+        "demolicion-amarillo-rojo"
+      ]
+    },
+    {
+      "id": "MURO-DEM",
+      "nombre": "Muros por demoler",
+      "grupo": "demolicion",
+      "color": "#ffff00",
+      "tipoDeLinea": "DASHED",
+      "grosorMm": 0.25,
+      "seTraza": true,
+      "paraQue": "Lo que se quita. Amarillo y a trazos.",
+      "fuentes": [
+        "capas-nombre-espanol",
+        "capas-color-pluma",
+        "iso-128-grosores",
+        "demolicion-amarillo-rojo",
+        "iso-128-ocultas"
+      ],
+      "advertencia": "El código amarillo/rojo es la convención más extendida, no una regla: hay oficinas que lo invierten y ventanillas que piden el suyo. Confírmese antes de entregar."
+    },
+    {
+      "id": "MURO-NUE",
+      "nombre": "Muros nuevos",
+      "grupo": "demolicion",
+      "color": "#ff0000",
+      "tipoDeLinea": "CONTINUOUS",
+      "grosorMm": 0.35,
+      "seTraza": true,
+      "paraQue": "Obra nueva. Rojo y continuo, con el mismo grosor que el muro consolidado.",
+      "fuentes": [
+        "capas-nombre-espanol",
+        "capas-color-pluma",
+        "iso-128-grosores",
+        "demolicion-amarillo-rojo"
+      ]
+    },
+    {
+      "id": "EST",
+      "nombre": "Estructura",
+      "grupo": "estructura",
+      "color": "#0000ff",
+      "tipoDeLinea": "CONTINUOUS",
+      "grosorMm": 0.35,
+      "seTraza": true,
+      "paraQue": "Columnas, castillos, trabes y dalas vistos en planta.",
+      "fuentes": [
+        "capas-nombre-espanol",
+        "capas-color-pluma",
+        "iso-128-grosores"
+      ]
+    },
+    {
+      "id": "EST-CIM",
+      "nombre": "Cimentación",
+      "grupo": "estructura",
+      "color": "#0000ff",
+      "tipoDeLinea": "HIDDEN",
+      "grosorMm": 0.35,
+      "seTraza": true,
+      "paraQue": "Zapatas, contratrabes y dados: están bajo el piso, así que van a trazos.",
+      "fuentes": [
+        "capas-nombre-espanol",
+        "capas-color-pluma",
+        "iso-128-grosores",
+        "iso-128-ocultas"
+      ]
+    },
+    {
+      "id": "INST-HID",
+      "nombre": "Hidráulica fría",
+      "grupo": "instalaciones",
+      "color": "#0000ff",
+      "tipoDeLinea": "CONTINUOUS",
+      "grosorMm": 0.25,
+      "seTraza": true,
+      "paraQue": "Agua fría: tuberías, válvulas y salidas.",
+      "fuentes": [
+        "capas-nombre-espanol",
+        "capas-color-pluma",
+        "iso-128-grosores"
+      ]
+    },
+    {
+      "id": "INST-HID-CAL",
+      "nombre": "Hidráulica caliente",
+      "grupo": "instalaciones",
+      "color": "#ff0000",
+      "tipoDeLinea": "DASHED",
+      "grosorMm": 0.25,
+      "seTraza": true,
+      "paraQue": "Agua caliente, desde el calentador.",
+      "fuentes": [
+        "capas-nombre-espanol",
+        "capas-color-pluma",
+        "iso-128-grosores"
+      ]
+    },
+    {
+      "id": "INST-SAN",
+      "nombre": "Sanitaria",
+      "grupo": "instalaciones",
+      "color": "#804000",
+      "tipoDeLinea": "CONTINUOUS",
+      "grosorMm": 0.35,
+      "seTraza": true,
+      "paraQue": "Drenaje, ventilación y registros.",
+      "fuentes": [
+        "capas-nombre-espanol",
+        "capas-color-pluma",
+        "iso-128-grosores"
+      ]
+    },
+    {
+      "id": "INST-ELE",
+      "nombre": "Eléctrica",
+      "grupo": "instalaciones",
+      "color": "#ffff00",
+      "tipoDeLinea": "CONTINUOUS",
+      "grosorMm": 0.25,
+      "seTraza": true,
+      "paraQue": "Circuitos, salidas, apagadores y tablero.",
+      "fuentes": [
+        "capas-nombre-espanol",
+        "capas-color-pluma",
+        "iso-128-grosores",
+        "nom-001-sede"
+      ],
+      "advertencia": "NOM-001-SEDE regula la INSTALACIÓN y obliga a documentar el proyecto eléctrico; que la capa se llame INST-ELE y salga en amarillo no lo dice ninguna norma."
+    },
+    {
+      "id": "INST-GAS",
+      "nombre": "Gas L.P.",
+      "grupo": "instalaciones",
+      "color": "#ff8000",
+      "tipoDeLinea": "CONTINUOUS",
+      "grosorMm": 0.25,
+      "seTraza": true,
+      "paraQue": "Tubería de gas L.P., regulador y medidor.",
+      "fuentes": [
+        "capas-nombre-espanol",
+        "capas-color-pluma",
+        "iso-128-grosores",
+        "nom-gas-lp"
+      ],
+      "advertencia": "Igual que la eléctrica: la norma regula la instalación, no el dibujo. El nombre y el naranja son costumbre."
+    },
+    {
+      "id": "SIMBOLO",
+      "nombre": "Simbología",
+      "grupo": "instalaciones",
+      "color": "#ff00ff",
+      "tipoDeLinea": "CONTINUOUS",
+      "grosorMm": 0.18,
+      "seTraza": true,
+      "paraQue": "Símbolos de salida y cuadro de simbología.",
+      "fuentes": [
+        "capas-nombre-espanol",
+        "capas-color-pluma",
+        "iso-128-grosores"
+      ]
+    },
+    {
+      "id": "LINDERO",
+      "nombre": "Lindero",
+      "grupo": "sitio",
+      "color": "#ffffff",
+      "tipoDeLinea": "CONTINUOUS",
+      "grosorMm": 0.5,
+      "seTraza": true,
+      "paraQue": "Poligonal del predio, con sus rumbos y distancias.",
+      "fuentes": [
+        "capas-nombre-espanol",
+        "capas-color-pluma",
+        "iso-128-grosores"
+      ]
+    },
+    {
+      "id": "CONSTRUCCION",
+      "nombre": "Construcción",
+      "grupo": "sitio",
+      "color": "#ffff00",
+      "tipoDeLinea": "CONTINUOUS",
+      "grosorMm": 0.35,
+      "seTraza": true,
+      "paraQue": "Huella construida y su azotea, vista desde arriba.",
+      "fuentes": [
+        "capas-nombre-espanol",
+        "capas-color-pluma",
+        "iso-128-grosores"
+      ]
+    },
+    {
+      "id": "VIALIDAD",
+      "nombre": "Vialidad",
+      "grupo": "sitio",
+      "color": "#808080",
+      "tipoDeLinea": "CONTINUOUS",
+      "grosorMm": 0.25,
+      "seTraza": true,
+      "paraQue": "Calle, banqueta y guarnición.",
+      "fuentes": [
+        "capas-nombre-espanol",
+        "capas-color-pluma",
+        "iso-128-grosores"
+      ]
+    },
+    {
+      "id": "VEGETACION",
+      "nombre": "Vegetación",
+      "grupo": "sitio",
+      "color": "#00ff00",
+      "tipoDeLinea": "CONTINUOUS",
+      "grosorMm": 0.13,
+      "seTraza": true,
+      "paraQue": "Arbolado existente y áreas jardinadas.",
+      "fuentes": [
+        "capas-nombre-espanol",
+        "capas-color-pluma",
+        "iso-128-grosores"
+      ]
+    },
+    {
+      "id": "TERRENO",
+      "nombre": "Curvas de nivel",
+      "grupo": "sitio",
+      "color": "#804000",
+      "tipoDeLinea": "CONTINUOUS",
+      "grosorMm": 0.13,
+      "seTraza": true,
+      "paraQue": "Curvas de nivel del levantamiento.",
+      "fuentes": [
+        "capas-nombre-espanol",
+        "capas-color-pluma",
+        "iso-128-grosores"
+      ]
+    },
+    {
+      "id": "TERRENO-NAT",
+      "nombre": "Terreno natural",
+      "grupo": "sitio",
+      "color": "#804000",
+      "tipoDeLinea": "DASHED",
+      "grosorMm": 0.25,
+      "seTraza": true,
+      "paraQue": "Perfil del terreno antes de excavar.",
+      "fuentes": [
+        "capas-nombre-espanol",
+        "capas-color-pluma",
+        "iso-128-grosores",
+        "terreno-natural-proyecto",
+        "iso-128-ocultas"
+      ]
+    },
+    {
+      "id": "TERRENO-PRO",
+      "nombre": "Terreno de proyecto",
+      "grupo": "sitio",
+      "color": "#804000",
+      "tipoDeLinea": "CONTINUOUS",
+      "grosorMm": 0.35,
+      "seTraza": true,
+      "paraQue": "Rasante del proyecto: cómo queda el terreno tras cortes y rellenos.",
+      "fuentes": [
+        "capas-nombre-espanol",
+        "capas-color-pluma",
+        "iso-128-grosores",
+        "terreno-natural-proyecto"
+      ]
+    },
+    {
+      "id": "NORTE",
+      "nombre": "Norte y escala gráfica",
+      "grupo": "sitio",
+      "color": "#ff00ff",
+      "tipoDeLinea": "CONTINUOUS",
+      "grosorMm": 0.25,
+      "seTraza": true,
+      "paraQue": "Rosa de los vientos y escala gráfica de la lámina.",
+      "fuentes": [
+        "capas-nombre-espanol",
+        "capas-color-pluma",
+        "iso-128-grosores"
+      ]
+    },
+    {
+      "id": "COTA",
+      "nombre": "Acotación",
+      "grupo": "anotacion",
+      "color": "#ff00ff",
+      "tipoDeLinea": "CONTINUOUS",
+      "grosorMm": 0.13,
+      "seTraza": true,
+      "paraQue": "Cotas, líneas de extensión y sus garrapatas.",
+      "fuentes": [
+        "capas-nombre-espanol",
+        "capas-color-pluma",
+        "iso-128-grosores",
+        "acotacion-en-su-capa"
+      ]
+    },
+    {
+      "id": "TEXTO",
+      "nombre": "Textos",
+      "grupo": "anotacion",
+      "color": "#00ffff",
+      "tipoDeLinea": "CONTINUOUS",
+      "grosorMm": 0.18,
+      "seTraza": true,
+      "paraQue": "Nombres de local, notas, claves y cuadros.",
+      "fuentes": [
+        "capas-nombre-espanol",
+        "capas-color-pluma",
+        "iso-128-grosores",
+        "acotacion-en-su-capa"
+      ]
+    }
+  ],
+  "colisionesDeAspecto": [
+    {
+      "a": "VANO",
+      "b": "INST-ELE",
+      "motivo": "Mismo color, tipo de línea y grosor. Reutilización deliberada entre «arquitectura» y «instalaciones»: ninguna plantilla las pone en la misma lámina, y se comprueba por plantilla."
+    },
+    {
+      "a": "CORTE",
+      "b": "LINDERO",
+      "motivo": "Mismo color, tipo de línea y grosor. Reutilización deliberada entre «arquitectura» y «sitio»: ninguna plantilla las pone en la misma lámina, y se comprueba por plantilla."
+    },
+    {
+      "a": "MURO-EXI",
+      "b": "VIALIDAD",
+      "motivo": "Mismo color, tipo de línea y grosor. Reutilización deliberada entre «demolicion» y «sitio»: ninguna plantilla las pone en la misma lámina, y se comprueba por plantilla."
+    },
+    {
+      "a": "MOBILIARIO",
+      "b": "VEGETACION",
+      "motivo": "Mismo color, tipo de línea y grosor. Reutilización deliberada entre «arquitectura» y «sitio»: ninguna plantilla las pone en la misma lámina, y se comprueba por plantilla."
+    },
+    {
+      "a": "INST-SAN",
+      "b": "TERRENO-PRO",
+      "motivo": "Mismo color, tipo de línea y grosor. Reutilización deliberada entre «instalaciones» y «sitio»: ninguna plantilla las pone en la misma lámina, y se comprueba por plantilla."
+    }
+  ],
+  "acotacion": {
+    "alturasDeTextoMm": {
+      "rotulo": 2.5,
+      "subtitulo": 3.5,
+      "titulo": 5
+    },
+    "garrapataMm": 2.5,
+    "reglas": {
+      "arquitectonico": {
+        "unit": "m",
+        "precision": 2,
+        "sources": [
+          "cota-metros-dos-decimales",
+          "garrapata-arquitectonica",
+          "iso-129-1-terminacion"
+        ]
+      },
+      "detalle": {
+        "unit": "cm",
+        "precision": 0,
+        "sources": [
+          "cota-metros-dos-decimales",
+          "garrapata-arquitectonica",
+          "iso-129-1-terminacion"
+        ]
+      }
+    },
+    "escalas": [
+      {
+        "escala": "1:200",
+        "estilo": "COTA 1:200",
+        "uso": "arquitectonico",
+        "recomendadaPorIso5455": true,
+        "paraQue": "Planta de conjunto y plano de localización del predio.",
+        "fuentes": [
+          "iso-5455-escalas"
+        ]
+      },
+      {
+        "escala": "1:100",
+        "estilo": "COTA 1:100",
+        "uso": "arquitectonico",
+        "recomendadaPorIso5455": true,
+        "paraQue": "Planta arquitectónica de edificio grande y planta de azotea.",
+        "fuentes": [
+          "iso-5455-escalas"
+        ]
+      },
+      {
+        "escala": "1:75",
+        "estilo": "COTA 1:75",
+        "uso": "arquitectonico",
+        "recomendadaPorIso5455": false,
+        "paraQue": "Vivienda que no cabe a 1:50 y pierde detalle a 1:100. Escala corriente en México y ausente de ISO 5455.",
+        "fuentes": [
+          "iso-5455-escalas",
+          "escala-1-75"
+        ]
+      },
+      {
+        "escala": "1:50",
+        "estilo": "COTA 1:50",
+        "uso": "arquitectonico",
+        "recomendadaPorIso5455": true,
+        "paraQue": "Planta arquitectónica, alzados y cortes de casa habitación. La escala por defecto.",
+        "fuentes": [
+          "iso-5455-escalas"
+        ]
+      },
+      {
+        "escala": "1:25",
+        "estilo": "COTA DET 1:25",
+        "uso": "detalle",
+        "recomendadaPorIso5455": false,
+        "paraQue": "Corte por fachada y escaleras. Muy usada en México, ausente de ISO 5455.",
+        "fuentes": [
+          "iso-5455-escalas",
+          "escala-1-75"
+        ]
+      },
+      {
+        "escala": "1:20",
+        "estilo": "COTA DET 1:20",
+        "uso": "detalle",
+        "recomendadaPorIso5455": true,
+        "paraQue": "Detalle constructivo, baños y cocinas amuebladas.",
+        "fuentes": [
+          "iso-5455-escalas"
+        ]
+      },
+      {
+        "escala": "1:10",
+        "estilo": "COTA DET 1:10",
+        "uso": "detalle",
+        "recomendadaPorIso5455": true,
+        "paraQue": "Detalle de herrería, cancelería y encuentro de materiales.",
+        "fuentes": [
+          "iso-5455-escalas"
+        ]
+      },
+      {
+        "escala": "1:5",
+        "estilo": "COTA DET 1:5",
+        "uso": "detalle",
+        "recomendadaPorIso5455": true,
+        "paraQue": "Detalle a tamaño casi real: sellos, juntas y perfiles.",
+        "fuentes": [
+          "iso-5455-escalas"
+        ]
+      }
+    ]
+  },
+  "laminas": {
+    "margenesMm": {
+      "top": 10,
+      "right": 10,
+      "bottom": 10,
+      "left": 20
+    },
+    "panelDeArchivoMm": {
+      "width": 210,
+      "height": 297
+    },
+    "papeles": [
+      {
+        "papel": "A0",
+        "anchoMm": 841,
+        "altoMm": 1189,
+        "panelesA4": 16,
+        "desviacionDeDoblado": 0.002033,
+        "paraQue": "Plano de conjunto de obra grande y juegos de licitación.",
+        "fuentes": [
+          "iso-216",
+          "iso-5457-margenes",
+          "iso-5457-doblado"
+        ]
+      },
+      {
+        "papel": "A1",
+        "anchoMm": 594,
+        "altoMm": 841,
+        "panelesA4": 8,
+        "desviacionDeDoblado": 0.00119,
+        "paraQue": "La lámina de despacho por excelencia: planta, alzados y cortes de casa habitación.",
+        "fuentes": [
+          "iso-216",
+          "iso-5457-margenes",
+          "iso-5457-doblado"
+        ]
+      },
+      {
+        "papel": "A2",
+        "anchoMm": 420,
+        "altoMm": 594,
+        "panelesA4": 4,
+        "desviacionDeDoblado": 0,
+        "paraQue": "Vivienda pequeña y planos de una sola planta.",
+        "fuentes": [
+          "iso-216",
+          "iso-5457-margenes",
+          "iso-5457-doblado"
+        ]
+      },
+      {
+        "papel": "A3",
+        "anchoMm": 297,
+        "altoMm": 420,
+        "panelesA4": 2,
+        "desviacionDeDoblado": 0,
+        "paraQue": "Copia de revisión, plano de detalle y lo que se manda por correo.",
+        "fuentes": [
+          "iso-216",
+          "iso-5457-margenes",
+          "iso-5457-doblado"
+        ]
+      },
+      {
+        "papel": "A4",
+        "anchoMm": 210,
+        "altoMm": 297,
+        "panelesA4": 1,
+        "desviacionDeDoblado": 0,
+        "paraQue": "Croquis, oficio y anexos del expediente.",
+        "fuentes": [
+          "iso-216",
+          "iso-5457-margenes",
+          "iso-5457-doblado"
+        ]
+      }
+    ],
+    "cajetines": [
+      {
+        "id": "iso",
+        "anchoMm": 180,
+        "altoMm": 30,
+        "campos": "Los de ISO 7200.",
+        "fuentes": [
+          "iso-7200-campos"
+        ]
+      },
+      {
+        "id": "mexicano",
+        "anchoMm": 180,
+        "altoMm": 50,
+        "campos": "Los de ISO 7200 más ubicación de la obra, propietario y la responsiva del Director Responsable de Obra: nombre, número de registro y hueco de firma.",
+        "fuentes": [
+          "iso-7200-campos",
+          "rcdf-dro",
+          "rcdf-corresponsables",
+          "cajetin-banda-derecha"
+        ]
+      }
+    ]
+  },
+  "plantillas": [
+    {
+      "id": "planta-arquitectonica",
+      "lamina": "Planta arquitectónica",
+      "claveDeLamina": "A-101",
+      "escala": "1:50",
+      "papel": "A1",
+      "capas": [
+        "MURO",
+        "VANO",
+        "CANCEL",
+        "MOBILIARIO",
+        "NIVEL",
+        "PLAFON",
+        "COTA",
+        "TEXTO",
+        "EJE",
+        "AUXILIAR"
+      ]
+    },
+    {
+      "id": "planta-de-conjunto",
+      "lamina": "Planta de conjunto",
+      "claveDeLamina": "A-001",
+      "escala": "1:200",
+      "papel": "A1",
+      "capas": [
+        "LINDERO",
+        "CONSTRUCCION",
+        "VIALIDAD",
+        "VEGETACION",
+        "TERRENO",
+        "TERRENO-NAT",
+        "TERRENO-PRO",
+        "NORTE",
+        "COTA",
+        "TEXTO",
+        "EJE",
+        "AUXILIAR"
+      ]
+    },
+    {
+      "id": "alzados-y-cortes",
+      "lamina": "Alzados y cortes",
+      "claveDeLamina": "A-301",
+      "escala": "1:50",
+      "papel": "A1",
+      "capas": [
+        "CORTE",
+        "PROYECCION",
+        "VANO",
+        "CANCEL",
+        "MOBILIARIO",
+        "NIVEL",
+        "TERRENO-NAT",
+        "COTA",
+        "TEXTO",
+        "EJE",
+        "AUXILIAR"
+      ]
+    },
+    {
+      "id": "planta-de-demolicion",
+      "lamina": "Demolición y obra nueva",
+      "claveDeLamina": "A-201",
+      "escala": "1:50",
+      "papel": "A1",
+      "capas": [
+        "MURO-EXI",
+        "MURO-DEM",
+        "MURO-NUE",
+        "VANO",
+        "CANCEL",
+        "NIVEL",
+        "COTA",
+        "TEXTO",
+        "EJE",
+        "AUXILIAR"
+      ]
+    },
+    {
+      "id": "plano-estructural",
+      "lamina": "Cimentación y estructura",
+      "claveDeLamina": "E-101",
+      "escala": "1:50",
+      "papel": "A1",
+      "capas": [
+        "EST",
+        "EST-CIM",
+        "NIVEL",
+        "ARQ-FONDO",
+        "COTA",
+        "TEXTO",
+        "EJE",
+        "AUXILIAR"
+      ]
+    },
+    {
+      "id": "plano-de-instalaciones",
+      "lamina": "Plano de instalaciones",
+      "claveDeLamina": "I-101",
+      "escala": "1:50",
+      "papel": "A1",
+      "capas": [
+        "INST-HID",
+        "INST-HID-CAL",
+        "INST-SAN",
+        "INST-ELE",
+        "INST-GAS",
+        "SIMBOLO",
+        "ARQ-FONDO",
+        "COTA",
+        "TEXTO",
+        "EJE",
+        "AUXILIAR"
+      ]
+    }
+  ],
+  "integridad": {
+    "problemas": []
+  },
+  "noSeAfirma": [
+    "No existe una norma mexicana de nomenclatura de capas CAD. ISO 13567 existe y no se sigue, porque en México no se usa: los nombres de capa de esta tabla son COSTUMBRE.",
+    "México no tiene reglamento de construcción federal. Lo que se cita del RCDF vale en la Ciudad de México; cada estado y cada municipio tiene el suyo, y la figura del Director Responsable de Obra puede llamarse y funcionar distinto fuera de la capital.",
+    "No se citan números de artículo del RCDF: se cita el título. El artículo exacto y el texto de la leyenda de responsiva los tiene que confirmar un D.R.O. en activo.",
+    "Los 180 mm de ancho del cajetín vienen de la edición de 1984 de ISO 7200, que la edición vigente ya no impone. Se conservan por costumbre consolidada, no por requisito.",
+    "No se modela el PATRÓN de pliegues de una lámina. ISO 5457 pide que el resultado sea A4 con el cajetín visible; la secuencia de dobleces la detalla DIN 824 y aquí no se dibuja.",
+    "El cajetín en BANDA VERTICAL sobre el borde derecho, que muchos despachos mexicanos usan, no está implementado: sólo la caja inferior derecha, en sus dos disposiciones.",
+    "NOM-001-SEDE y la normatividad de gas L.P. regulan las INSTALACIONES, no el dibujo. Que la capa se llame INST-ELE o salga en amarillo no lo dice ninguna norma.",
+    "Ninguna tabla de aquí ha sido revisada por un arquitecto mexicano en ejercicio ni por un D.R.O. Es la primera revisión que el producto necesita antes de enseñársela a un cliente."
+  ]
+}

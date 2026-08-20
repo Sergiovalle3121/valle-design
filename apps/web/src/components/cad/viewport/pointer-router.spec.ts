@@ -56,8 +56,12 @@ class FakeCursor implements CadPointerCursorSurface {
   menuKeywords: string[] = [];
   hidden = 0;
   owns = false;
+  pointerKind = "mouse";
   moveTo(x: number, y: number): void {
     this.position = { x, y };
+  }
+  setPointerKind(kind: "mouse" | "touch"): void {
+    this.pointerKind = kind;
   }
   setSnap(snap: SnapType | null): void {
     this.snap = snap;
@@ -382,6 +386,32 @@ assert.deepEqual(
   "y NO designa el punto que hay debajo del menú",
 );
 ok(true, "Esc cancela sin escribir; el menú abierto se cierra sin designar debajo");
+
+// Un DEDO apoyado sobre un paso sin palabras clave no puede terminar el comando.
+// El botón derecho del ratón sí lo hace —es el gesto de AutoCAD—, y por eso las
+// dos entradas se distinguen por el `pointerType` que trae el evento.
+const restingFinger = harness();
+restingFinger.router.invoke("LINE");
+const fingerContextMenu = {
+  ...restingFinger.at(0, 0),
+  pointerType: "touch",
+} as unknown as MouseEvent;
+restingFinger.router.contextMenu(fingerContextMenu);
+assert.equal(
+  restingFinger.router.active,
+  true,
+  "una pulsación larga sobre el primer punto de LINE no termina el comando",
+);
+assert.equal(restingFinger.cursor.menuOpen, false, "y tampoco abre un menú vacío");
+const mouseRightClick = harness();
+mouseRightClick.router.invoke("LINE");
+mouseRightClick.router.contextMenu(mouseRightClick.at(0, 0) as unknown as MouseEvent);
+assert.equal(
+  mouseRightClick.router.active,
+  false,
+  "el botón derecho del ratón sigue valiendo por Enter sobre un paso sin opciones",
+);
+ok(true, "el dedo apoyado no termina comandos; el botón derecho del ratón sí");
 
 // ---------------------------------------------------------------------------
 // 7. El botón central y el secundario nunca designan.

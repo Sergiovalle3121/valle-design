@@ -2,8 +2,8 @@
   "$schema": "urn:valle-design:schema:cad-wasm-parity-evidence:v1",
   "schemaVersion": 1,
   "evidenceId": "valle-design-wasm-curve-kernel-v1",
-  "startedAt": "2026-08-19T05:58:59.481Z",
-  "finishedAt": "2026-08-19T06:00:31.504Z",
+  "startedAt": "2026-08-19T21:18:16.585Z",
+  "finishedAt": "2026-08-19T21:19:27.706Z",
   "enforcement": "gate-en-spec, report-only en tiempos",
   "enforcementRationale": "La PARIDAD sí bloquea: la comprueba curve-kernel-parity.spec.ts en cada npm run test:specs, con la misma tolerancia que se publica aquí, y falla si el binario del árbol no es el de su manifiesto o si una curva cambia de forma. Los TIEMPOS no fijan presupuesto: están medidos en un portátil de desarrollo con otros agentes trabajando en paralelo, y convertirlos en umbral produciría un gate que falla por contención de máquina y no por una regresión del producto. Se publican con su dispersión entre pasadas para que se vea de qué se está hablando.",
   "verdict": {
@@ -21,7 +21,7 @@
     "logicalCpuCount": 12,
     "availableParallelism": 12,
     "totalMemoryBytes": 7896625152,
-    "freeMemoryBytesAtStart": 2344538112,
+    "freeMemoryBytesAtStart": 2707644416,
     "declaredMachine": "AMD Ryzen 5 5500U with Radeon Graphics (12 hilos lógicos), 7.4 GB de RAM, Windows_NT 10.0.26200, portátil de desarrollo CON CARGA VECINA: otros agentes compilando y ejecutando suites en el mismo equipo durante la medición."
   },
   "method": {
@@ -64,19 +64,19 @@
     "sources": [
       {
         "path": "crates/valle-cad-kernel/Cargo.toml",
-        "bytes": 1520,
-        "sha256": "4fd2f5fb90d80f6bb40d5df5c62edf7590a4f7c20a5241b455ff9e883f56a8cf"
+        "bytes": 1557,
+        "sha256": "064b29aa764c8fb6af55b982ace623b0e6ce279c11ee2ea33f308f2568882d4e"
       },
       {
         "path": "crates/valle-cad-kernel/src/lib.rs",
-        "bytes": 17953,
-        "sha256": "fb19e09cd4c3a505e4240de08318e4de86261c49b8dbeede51ce9273c3a6f733"
+        "bytes": 20720,
+        "sha256": "368b931ca79cc93268ce16a1e15df43edf2c16dbab0d930bebebf311d178bb56"
       }
     ],
     "binary": {
       "path": "apps/web/public/wasm/valle-cad-kernel.wasm",
-      "bytes": 31218,
-      "sha256": "70d6bb0203f986fe9fb4795b3d36abb9661000e880ad623fd29dc9fd3d5942b7",
+      "bytes": 31435,
+      "sha256": "7b1f5ecd917287b45ef88a4421165a24a646e2cd2ac399e5c2791dfa535a762e",
       "exports": [
         "memory:memory",
         "valle_alloc:function",
@@ -90,7 +90,7 @@
       ]
     },
     "abi": 1,
-    "builtAt": "2026-08-19T05:49:29.822Z"
+    "builtAt": "2026-08-19T21:15:10.942Z"
   },
   "kernelScope": {
     "chosen": "teselado de curvas: arco, elipse y B-spline por De Boor",
@@ -262,7 +262,7 @@
   "parityVerifiedBySpec": {
     "spec": "apps/web/src/lib/cad/wasm/curve-kernel-parity.spec.ts",
     "passed": true,
-    "lastLine": "curve-kernel-parity: 21 comprobaciones verdes — 900138 coordenadas comparadas, spline exacta (26840 valores, 0 ULP), peor desviación relativa 2.166e-16 (tope 8.882e-16).",
+    "lastLine": "curve-kernel-parity: 33 comprobaciones verdes — 900138 coordenadas comparadas, spline exacta (26840 valores, 0 ULP), peor desviación relativa 2.166e-16 (tope 8.882e-16).",
     "detail": null
   },
   "benchmark": [
@@ -271,68 +271,68 @@
       "arcs": 100000,
       "pointsProduced": 1915068,
       "javascript": {
-        "medianMs": 804.632,
+        "medianMs": 557.33,
         "samplesMs": [
-          973.539,
-          804.632,
-          768.523
+          915.786,
+          557.33,
+          459.218
         ],
         "runs": 3,
-        "spreadMs": 205.016,
-        "spreadPercentOfMedian": 25.5
+        "spreadMs": 456.568,
+        "spreadPercentOfMedian": 81.9
       },
       "wasm": {
-        "medianMs": 281.504,
+        "medianMs": 167.387,
         "samplesMs": [
-          281.504,
-          338.284,
-          271.681
+          272.816,
+          149.42,
+          167.387
         ],
         "runs": 3,
-        "spreadMs": 66.603,
-        "spreadPercentOfMedian": 23.7
+        "spreadMs": 123.396,
+        "spreadPercentOfMedian": 73.7
       },
-      "speedupMedian": 2.858,
+      "speedupMedian": 3.33,
       "speedupPerRun": [
-        3.458,
-        2.379,
-        2.829
+        3.357,
+        3.73,
+        2.743
       ],
-      "speedupFloor": 2.379
+      "speedupFloor": 2.743
     },
     {
       "steps": 96,
       "arcs": 100000,
       "pointsProduced": 7203446,
       "javascript": {
-        "medianMs": 3197.227,
+        "medianMs": 2200.099,
         "samplesMs": [
-          3463.738,
-          3197.227,
-          2556.931
+          3168.969,
+          2119.028,
+          2200.099
         ],
         "runs": 3,
-        "spreadMs": 906.807,
-        "spreadPercentOfMedian": 28.4
+        "spreadMs": 1049.941,
+        "spreadPercentOfMedian": 47.7
       },
       "wasm": {
-        "medianMs": 911.957,
+        "medianMs": 520.615,
         "samplesMs": [
-          911.957,
-          946.464,
-          767.262
+          971.909,
+          511.078,
+          520.615
         ],
         "runs": 3,
-        "spreadMs": 179.202,
-        "spreadPercentOfMedian": 19.7
+        "spreadMs": 460.831,
+        "spreadPercentOfMedian": 88.5
       },
-      "speedupMedian": 3.506,
+      "speedupMedian": 4.226,
       "speedupPerRun": [
-        3.798,
-        3.378,
-        3.333
+        3.261,
+        4.146,
+        4.226
       ],
-      "speedupFloor": 3.333
+      "speedupFloor": 3.261
     }
   ],
   "benchmarkNote": "Trabajo de CPU en Node teselando un lote de 100.000 arcos, ida y vuelta por la frontera JS↔wasm incluida (copia de la entrada a la memoria lineal y copia de la salida de vuelta). El motor de JavaScript empaqueta su resultado en el MISMO formato plano aunque no lo necesite: comparar formatos distintos sería comparar dos empaquetados y no dos matemáticas.",

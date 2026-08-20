@@ -41,6 +41,7 @@ import { CAD_MODIFY_ALIGN_COMMANDS } from "./commands/modify-align";
 import { CAD_MODIFY_CLEANUP_COMMANDS } from "./commands/modify-cleanup";
 import { CAD_SELECT_QUERY_COMMANDS } from "./commands/select-query";
 import { CAD_SETTINGS_PALETTE_COMMANDS } from "./commands/settings-palettes";
+import { CAD_MEXICAN_STANDARD_COMMANDS } from "./commands/settings-mexican-standard";
 import { CAD_SETTINGS_VARIABLE_COMMANDS } from "./commands/settings-variables";
 import { CAD_MODIFY_ARRAY_COMMANDS } from "./commands/modify-array";
 import { CAD_MODIFY_BASIC_COMMANDS } from "./commands/modify-basics";
@@ -66,6 +67,8 @@ import { CAD_UCS_COMMANDS } from "./commands/ucs-commands";
 import { CAD_UCS_VIEW_COMMANDS } from "./commands/ucs-view-commands";
 // Navegación 3D tecleable: 3DORBIT, 3DFORBIT, 3DPAN, 3DZOOM y VPOINT.
 import { CAD_VIEW_NAVIGATION_3D_COMMANDS } from "./commands/view-navigation-3d";
+// Esquema 8: la vista derivada. SOLVIEW abre la ventana y SOLDRAW dibuja dentro.
+import { CAD_SOLVIEW_COMMANDS } from "./commands/solview-commands";
 // Aplanado y perfil: FLATSHOT y SOLPROF convierten el modelo en dibujo 2D.
 import { CAD_SOLID_FLATSHOT_COMMANDS } from "./commands/solids-flatshot";
 
@@ -116,6 +119,10 @@ export const CAD_COMMAND_DESCRIPTORS = [
   ...CAD_MODIFY_CLEANUP_COMMANDS,
   ...CAD_SETTINGS_VARIABLE_COMMANDS,
   ...CAD_SETTINGS_PALETTE_COMMANDS,
+  // La norma de dibujo mexicana, aplicable a un dibujo que YA existe: sin ella
+  // la norma sería una propiedad de los documentos nuevos y no del producto, y
+  // el DXF que llega del estructurista se quedaría fuera para siempre.
+  ...CAD_MEXICAN_STANDARD_COMMANDS,
   ...CAD_AUTOMATION_COMMANDS,
   ...CAD_VIEW_NAVIGATION_COMMANDS,
   ...CAD_VIEW_VISUAL_COMMANDS,
@@ -146,6 +153,9 @@ export const CAD_COMMAND_DESCRIPTORS = [
   ...CAD_UCS_VIEW_COMMANDS,
   // Navegación 3D: un modelador de sólidos sin forma tecleable de mirarlos.
   ...CAD_VIEW_NAVIGATION_3D_COMMANDS,
+  // Esquema 8: la vista derivada, que es lo que le quita al arquitecto la
+  // segunda vez que dibuja lo mismo. Al final del array a propósito.
+  ...CAD_SOLVIEW_COMMANDS,
   // Aplanado: la mitad del 3D que devuelve dibujo 2D acotable en vez de píxeles.
   ...CAD_SOLID_FLATSHOT_COMMANDS,
 ] as const;

@@ -1,0 +1,788 @@
+{
+  "generadoPor": "node scripts/cad/build-pdf-import-corpus.mjs",
+  "corpusSintetico": true,
+  "limitacion": "CORPUS SINTÉTICO. Ninguno de estos archivos procede de un despacho real: están construidos byte a byte por `apps/web/src/lib/cad/pdf/pdf-corpus.ts` para imitar las formas de PDF que un despacho recibe (vectorial de CAD, texto incrustado, texto en curvas, escaneado, con capas opcionales, multipágina, comprimido y sin comprimir, con MediaBox desplazado, girado 90°, y con las páginas dentro de un objeto comprimido). Imitar una forma NO es haberla recibido: esta matriz no acredita cobertura del mundo real y no debe citarse como tal hasta que se incorporen archivos de despachos y se regenere. Además, los flujos comprimidos del corpus usan bloques ALMACENADOS de zlib; el Huffman fijo y el dinámico se comprueban aparte, contra `node:zlib`, en `pdf-inflate.spec.ts`.",
+  "alcance": "Esta matriz mide la IMPORTACIÓN de PDF y sólo eso. Este producto importa los VECTORES y el texto de un PDF; no convierte una imagen escaneada en geometría —eso no lo hace nadie sin inventarla— y no reexporta el documento como PDF vectorial editable, así que no hay ciclo de ida y vuelta que medir.",
+  "criterios": {
+    "intacto": "Entraron tantos ejemplares como declara el archivo y siendo lo que eran: un trazo vuelve línea o polilínea, un rótulo vuelve texto. Se mide contra el resultado del importador real, no contra una lista escrita a mano.",
+    "degradado": "Entró, pero convertido en otra cosa o en menor número. `degradaA` dice exactamente en qué, porque «degradado» a secas no permite decidir si el plano sigue sirviendo.",
+    "perdido_declarado": "No entró ningún ejemplar Y el importador lo dijo: con un aviso que lo nombra, o negándose a importar el archivo entero con un error tipado. Es una limitación conocida sobre la que el usuario puede actuar.",
+    "perdido_en_silencio": "No entró ningún ejemplar y NINGÚN aviso lo menciona. Es el caso peligroso: el usuario cree que tiene el plano completo. Todo lo que aparezca aquí es deuda del lector, no una limitación asumida."
+  },
+  "resumen": {
+    "archivos": 14,
+    "tiposEvaluados": 47,
+    "intactos": 27,
+    "degradados": 14,
+    "perdidosDeclarados": 6,
+    "perdidosEnSilencio": 0
+  },
+  "rendimiento": {
+    "maquina": "AMD Ryzen 5 5500U · 7,4 GB RAM · Node v22.18.0 · Windows 11. Máquina de desarrollo COMPARTIDA con otros procesos: estas cifras acotan el orden de magnitud, no son un SLO.",
+    "nota": "Mediana de 3 importaciones por archivo, en el mismo proceso. Este bloque es el ÚNICO que cambia entre regeneraciones sin que haya cambiado el comportamiento, y por eso el comprobador del artefacto lo ignora al comparar: un `--check` que fallara por dos milisésimas dejaría de leerse.",
+    "medianaDe": 3,
+    "archivos": [
+      {
+        "id": "cad-vector-uncompressed",
+        "bytes": 875,
+        "medianaMs": 3.53
+      },
+      {
+        "id": "cad-vector-compressed",
+        "bytes": 907,
+        "medianaMs": 2.34
+      },
+      {
+        "id": "text-embedded-tounicode",
+        "bytes": 1198,
+        "medianaMs": 1.59
+      },
+      {
+        "id": "text-glyph-indices",
+        "bytes": 1442,
+        "medianaMs": 2.56
+      },
+      {
+        "id": "text-as-curves",
+        "bytes": 802,
+        "medianaMs": 1.87
+      },
+      {
+        "id": "scanned-image-only",
+        "bytes": 729,
+        "medianaMs": 0.81
+      },
+      {
+        "id": "scanned-with-ocr-layer",
+        "bytes": 930,
+        "medianaMs": 1.11
+      },
+      {
+        "id": "optional-content-groups",
+        "bytes": 813,
+        "medianaMs": 1.86
+      },
+      {
+        "id": "multipage-three",
+        "bytes": 1187,
+        "medianaMs": 3.31
+      },
+      {
+        "id": "shifted-mediabox",
+        "bytes": 683,
+        "medianaMs": 1.26
+      },
+      {
+        "id": "rotated-90",
+        "bytes": 673,
+        "medianaMs": 1.31
+      },
+      {
+        "id": "object-streams-1-5",
+        "bytes": 743,
+        "medianaMs": 1.73
+      },
+      {
+        "id": "form-xobjects",
+        "bytes": 972,
+        "medianaMs": 3.3
+      },
+      {
+        "id": "shading-and-fills",
+        "bytes": 938,
+        "medianaMs": 1.67
+      }
+    ]
+  },
+  "archivos": [
+    {
+      "id": "cad-vector-uncompressed",
+      "forma": "PDF vectorial de CAD, flujo SIN comprimir",
+      "proposito": "El caso base y el único que un lector de expresiones regulares podría leer. Sirve de referencia: si algo falla aquí, no es cuestión de compresión ni de estructura.",
+      "legible": true,
+      "error": null,
+      "paginas": 1,
+      "paginaMedida": 1,
+      "capasOpcionales": [],
+      "avisos": {},
+      "curvas": {
+        "modo": "polyline",
+        "curvas": 1,
+        "toleranciaUnidades": 0.05,
+        "errorMaximoMedidoUnidades": 0.035018
+      },
+      "manifiesto": {
+        "perdido": 0,
+        "degradado": 2,
+        "conservado": 4
+      },
+      "entrada": [
+        {
+          "tipo": "PATH_CURVE",
+          "declarados": 1,
+          "intactos": 0,
+          "veredicto": "degradado",
+          "degradaA": "polilínea de tramos rectos, con una desviación máxima MEDIDA de 0.0350 unidades de dibujo (tolerancia pedida: 0.05). En modo spline la conversión es exacta.",
+          "criterio": "Se cuenta la fidelidad declarada por el propio importador: en modo spline la conversión es algebraica y exacta; en modo polilínea se publica la desviación MEDIDA contra la Bézier original, no la tolerancia pedida. Entró, pero convertido en otra cosa o en menor número. `degradaA` dice exactamente en qué, porque «degradado» a secas no permite decidir si el plano sigue sirviendo."
+        },
+        {
+          "tipo": "PATH_LINE",
+          "declarados": 5,
+          "intactos": 5,
+          "veredicto": "intacto",
+          "criterio": "Se cuentan las entidades LINE y las polilíneas ABIERTAS resultantes. Un camino de dos puntos entra como línea y uno de más, como polilínea: exigir sólo líneas castigaría al importador por hacer lo correcto. Entraron tantos ejemplares como declara el archivo y siendo lo que eran: un trazo vuelve línea o polilínea, un rótulo vuelve texto. Se mide contra el resultado del importador real, no contra una lista escrita a mano."
+        },
+        {
+          "tipo": "PATH_RECT",
+          "declarados": 1,
+          "intactos": 1,
+          "veredicto": "intacto",
+          "criterio": "Se cuentan las polilíneas CERRADAS. Un `re` del PDF que entrase abierto dejaría sin contorno a cualquier sombreado que se apoye en él. Entraron tantos ejemplares como declara el archivo y siendo lo que eran: un trazo vuelve línea o polilínea, un rótulo vuelve texto. Se mide contra el resultado del importador real, no contra una lista escrita a mano."
+        },
+        {
+          "tipo": "TEXT",
+          "declarados": 2,
+          "intactos": 2,
+          "veredicto": "intacto",
+          "criterio": "Se cuentan las entidades MTEXT con contenido. Un rótulo que llegue vacío no cuenta como llegado. Entraron tantos ejemplares como declara el archivo y siendo lo que eran: un trazo vuelve línea o polilínea, un rótulo vuelve texto. Se mide contra el resultado del importador real, no contra una lista escrita a mano."
+        }
+      ]
+    },
+    {
+      "id": "cad-vector-compressed",
+      "forma": "PDF vectorial de CAD, flujo con `/FlateDecode`",
+      "proposito": "Lo que emite cualquier exportador de verdad. Sin descomprimir no hay nada que leer, y es donde el escalímetro del trazado se paraba a propósito.",
+      "legible": true,
+      "error": null,
+      "paginas": 1,
+      "paginaMedida": 1,
+      "capasOpcionales": [],
+      "avisos": {},
+      "curvas": {
+        "modo": "polyline",
+        "curvas": 1,
+        "toleranciaUnidades": 0.05,
+        "errorMaximoMedidoUnidades": 0.035018
+      },
+      "manifiesto": {
+        "perdido": 0,
+        "degradado": 2,
+        "conservado": 4
+      },
+      "entrada": [
+        {
+          "tipo": "PATH_CURVE",
+          "declarados": 1,
+          "intactos": 0,
+          "veredicto": "degradado",
+          "degradaA": "polilínea de tramos rectos, con una desviación máxima MEDIDA de 0.0350 unidades de dibujo (tolerancia pedida: 0.05). En modo spline la conversión es exacta.",
+          "criterio": "Se cuenta la fidelidad declarada por el propio importador: en modo spline la conversión es algebraica y exacta; en modo polilínea se publica la desviación MEDIDA contra la Bézier original, no la tolerancia pedida. Entró, pero convertido en otra cosa o en menor número. `degradaA` dice exactamente en qué, porque «degradado» a secas no permite decidir si el plano sigue sirviendo."
+        },
+        {
+          "tipo": "PATH_LINE",
+          "declarados": 5,
+          "intactos": 5,
+          "veredicto": "intacto",
+          "criterio": "Se cuentan las entidades LINE y las polilíneas ABIERTAS resultantes. Un camino de dos puntos entra como línea y uno de más, como polilínea: exigir sólo líneas castigaría al importador por hacer lo correcto. Entraron tantos ejemplares como declara el archivo y siendo lo que eran: un trazo vuelve línea o polilínea, un rótulo vuelve texto. Se mide contra el resultado del importador real, no contra una lista escrita a mano."
+        },
+        {
+          "tipo": "PATH_RECT",
+          "declarados": 1,
+          "intactos": 1,
+          "veredicto": "intacto",
+          "criterio": "Se cuentan las polilíneas CERRADAS. Un `re` del PDF que entrase abierto dejaría sin contorno a cualquier sombreado que se apoye en él. Entraron tantos ejemplares como declara el archivo y siendo lo que eran: un trazo vuelve línea o polilínea, un rótulo vuelve texto. Se mide contra el resultado del importador real, no contra una lista escrita a mano."
+        },
+        {
+          "tipo": "TEXT",
+          "declarados": 2,
+          "intactos": 2,
+          "veredicto": "intacto",
+          "criterio": "Se cuentan las entidades MTEXT con contenido. Un rótulo que llegue vacío no cuenta como llegado. Entraron tantos ejemplares como declara el archivo y siendo lo que eran: un trazo vuelve línea o polilínea, un rótulo vuelve texto. Se mide contra el resultado del importador real, no contra una lista escrita a mano."
+        }
+      ]
+    },
+    {
+      "id": "text-embedded-tounicode",
+      "forma": "Texto con fuente incrustada y tabla `/ToUnicode`",
+      "proposito": "La fuente viaja subconjuntada y el PDF trae la tabla para recuperar los caracteres. Es el PDF de CAD moderno bien hecho.",
+      "legible": true,
+      "error": null,
+      "paginas": 1,
+      "paginaMedida": 1,
+      "capasOpcionales": [],
+      "avisos": {},
+      "curvas": {
+        "modo": "polyline",
+        "curvas": 1,
+        "toleranciaUnidades": 0.05,
+        "errorMaximoMedidoUnidades": 0.035018
+      },
+      "manifiesto": {
+        "perdido": 0,
+        "degradado": 2,
+        "conservado": 4
+      },
+      "entrada": [
+        {
+          "tipo": "PATH_CURVE",
+          "declarados": 1,
+          "intactos": 0,
+          "veredicto": "degradado",
+          "degradaA": "polilínea de tramos rectos, con una desviación máxima MEDIDA de 0.0350 unidades de dibujo (tolerancia pedida: 0.05). En modo spline la conversión es exacta.",
+          "criterio": "Se cuenta la fidelidad declarada por el propio importador: en modo spline la conversión es algebraica y exacta; en modo polilínea se publica la desviación MEDIDA contra la Bézier original, no la tolerancia pedida. Entró, pero convertido en otra cosa o en menor número. `degradaA` dice exactamente en qué, porque «degradado» a secas no permite decidir si el plano sigue sirviendo."
+        },
+        {
+          "tipo": "PATH_LINE",
+          "declarados": 5,
+          "intactos": 5,
+          "veredicto": "intacto",
+          "criterio": "Se cuentan las entidades LINE y las polilíneas ABIERTAS resultantes. Un camino de dos puntos entra como línea y uno de más, como polilínea: exigir sólo líneas castigaría al importador por hacer lo correcto. Entraron tantos ejemplares como declara el archivo y siendo lo que eran: un trazo vuelve línea o polilínea, un rótulo vuelve texto. Se mide contra el resultado del importador real, no contra una lista escrita a mano."
+        },
+        {
+          "tipo": "PATH_RECT",
+          "declarados": 1,
+          "intactos": 1,
+          "veredicto": "intacto",
+          "criterio": "Se cuentan las polilíneas CERRADAS. Un `re` del PDF que entrase abierto dejaría sin contorno a cualquier sombreado que se apoye en él. Entraron tantos ejemplares como declara el archivo y siendo lo que eran: un trazo vuelve línea o polilínea, un rótulo vuelve texto. Se mide contra el resultado del importador real, no contra una lista escrita a mano."
+        },
+        {
+          "tipo": "TEXT",
+          "declarados": 1,
+          "intactos": 1,
+          "veredicto": "intacto",
+          "criterio": "Se cuentan las entidades MTEXT con contenido. Un rótulo que llegue vacío no cuenta como llegado. Entraron tantos ejemplares como declara el archivo y siendo lo que eran: un trazo vuelve línea o polilínea, un rótulo vuelve texto. Se mide contra el resultado del importador real, no contra una lista escrita a mano."
+        }
+      ]
+    },
+    {
+      "id": "text-glyph-indices",
+      "forma": "Texto con fuente incrustada SIN `/ToUnicode`",
+      "proposito": "Los bytes son índices de glifo y no hay tabla que los traduzca. Tiene que salir como pérdida DECLARADA, jamás como texto adivinado.",
+      "legible": true,
+      "error": null,
+      "paginas": 1,
+      "paginaMedida": 1,
+      "capasOpcionales": [],
+      "avisos": {
+        "text_glyph_indices": 1
+      },
+      "curvas": {
+        "modo": "polyline",
+        "curvas": 1,
+        "toleranciaUnidades": 0.05,
+        "errorMaximoMedidoUnidades": 0.035018
+      },
+      "manifiesto": {
+        "perdido": 1,
+        "degradado": 2,
+        "conservado": 3
+      },
+      "entrada": [
+        {
+          "tipo": "PATH_CURVE",
+          "declarados": 1,
+          "intactos": 0,
+          "veredicto": "degradado",
+          "degradaA": "polilínea de tramos rectos, con una desviación máxima MEDIDA de 0.0350 unidades de dibujo (tolerancia pedida: 0.05). En modo spline la conversión es exacta.",
+          "criterio": "Se cuenta la fidelidad declarada por el propio importador: en modo spline la conversión es algebraica y exacta; en modo polilínea se publica la desviación MEDIDA contra la Bézier original, no la tolerancia pedida. Entró, pero convertido en otra cosa o en menor número. `degradaA` dice exactamente en qué, porque «degradado» a secas no permite decidir si el plano sigue sirviendo."
+        },
+        {
+          "tipo": "PATH_LINE",
+          "declarados": 5,
+          "intactos": 5,
+          "veredicto": "intacto",
+          "criterio": "Se cuentan las entidades LINE y las polilíneas ABIERTAS resultantes. Un camino de dos puntos entra como línea y uno de más, como polilínea: exigir sólo líneas castigaría al importador por hacer lo correcto. Entraron tantos ejemplares como declara el archivo y siendo lo que eran: un trazo vuelve línea o polilínea, un rótulo vuelve texto. Se mide contra el resultado del importador real, no contra una lista escrita a mano."
+        },
+        {
+          "tipo": "PATH_RECT",
+          "declarados": 1,
+          "intactos": 1,
+          "veredicto": "intacto",
+          "criterio": "Se cuentan las polilíneas CERRADAS. Un `re` del PDF que entrase abierto dejaría sin contorno a cualquier sombreado que se apoye en él. Entraron tantos ejemplares como declara el archivo y siendo lo que eran: un trazo vuelve línea o polilínea, un rótulo vuelve texto. Se mide contra el resultado del importador real, no contra una lista escrita a mano."
+        },
+        {
+          "tipo": "TEXT_GLYPH_INDICES",
+          "declarados": 1,
+          "intactos": 0,
+          "veredicto": "perdido_declarado",
+          "criterio": "No puede entrar ningún MTEXT, y la pérdida tiene que estar declarada con su aviso. Un texto adivinado a partir de índices de glifo sería geometría plausible y falsa, que es peor que no importar nada. No entró ningún ejemplar Y el importador lo dijo: con un aviso que lo nombra, o negándose a importar el archivo entero con un error tipado. Es una limitación conocida sobre la que el usuario puede actuar."
+        }
+      ]
+    },
+    {
+      "id": "text-as-curves",
+      "forma": "Texto convertido a CURVAS al exportar",
+      "proposito": "Media industria exporta así para que no haga falta la fuente. El texto deja de ser texto: son trazos, y ningún lector puede devolverlo a MTEXT sin inventarlo.",
+      "legible": true,
+      "error": null,
+      "paginas": 1,
+      "paginaMedida": 1,
+      "capasOpcionales": [],
+      "avisos": {
+        "fill_as_outline": 3
+      },
+      "curvas": {
+        "modo": "polyline",
+        "curvas": 2,
+        "toleranciaUnidades": 0.05,
+        "errorMaximoMedidoUnidades": 0.035018
+      },
+      "manifiesto": {
+        "perdido": 0,
+        "degradado": 3,
+        "conservado": 3
+      },
+      "entrada": [
+        {
+          "tipo": "PATH_CURVE",
+          "declarados": 1,
+          "intactos": 0,
+          "veredicto": "degradado",
+          "degradaA": "polilínea de tramos rectos, con una desviación máxima MEDIDA de 0.0350 unidades de dibujo (tolerancia pedida: 0.05). En modo spline la conversión es exacta.",
+          "criterio": "Se cuenta la fidelidad declarada por el propio importador: en modo spline la conversión es algebraica y exacta; en modo polilínea se publica la desviación MEDIDA contra la Bézier original, no la tolerancia pedida. Entró, pero convertido en otra cosa o en menor número. `degradaA` dice exactamente en qué, porque «degradado» a secas no permite decidir si el plano sigue sirviendo."
+        },
+        {
+          "tipo": "PATH_LINE",
+          "declarados": 5,
+          "intactos": 5,
+          "veredicto": "intacto",
+          "criterio": "Se cuentan las entidades LINE y las polilíneas ABIERTAS resultantes. Un camino de dos puntos entra como línea y uno de más, como polilínea: exigir sólo líneas castigaría al importador por hacer lo correcto. Entraron tantos ejemplares como declara el archivo y siendo lo que eran: un trazo vuelve línea o polilínea, un rótulo vuelve texto. Se mide contra el resultado del importador real, no contra una lista escrita a mano."
+        },
+        {
+          "tipo": "PATH_RECT",
+          "declarados": 1,
+          "intactos": 1,
+          "veredicto": "intacto",
+          "criterio": "Se cuentan las polilíneas CERRADAS. Un `re` del PDF que entrase abierto dejaría sin contorno a cualquier sombreado que se apoye en él. Entraron tantos ejemplares como declara el archivo y siendo lo que eran: un trazo vuelve línea o polilínea, un rótulo vuelve texto. Se mide contra el resultado del importador real, no contra una lista escrita a mano."
+        },
+        {
+          "tipo": "TEXT_AS_CURVES",
+          "declarados": 3,
+          "intactos": 0,
+          "veredicto": "degradado",
+          "degradaA": "trazos: entra el DIBUJO de las letras y deja de ser texto. Ningún lector puede devolverlo a MTEXT sin inventar qué ponía, y este no lo intenta.",
+          "criterio": "Se compara la geometría contra el MISMO plano sin las letras dibujadas. Lo que entra son trazos, y el veredicto es degradado por definición: el texto dejó de ser texto en el PDF, antes de llegar aquí. Entró, pero convertido en otra cosa o en menor número. `degradaA` dice exactamente en qué, porque «degradado» a secas no permite decidir si el plano sigue sirviendo."
+        }
+      ]
+    },
+    {
+      "id": "scanned-image-only",
+      "forma": "PDF escaneado: una sola imagen a página completa",
+      "proposito": "El plano de 1980 que alguien pasó por el escáner. No tiene geometría y el importador tiene que DECIRLO, no devolver un documento vacío.",
+      "legible": false,
+      "error": {
+        "codigo": "scanned_image",
+        "mensaje": "Este PDF es una imagen, no tiene geometría que importar; úsalo como plantilla con PDFATTACH y calca encima."
+      },
+      "paginas": 1,
+      "paginaMedida": 1,
+      "capasOpcionales": [],
+      "avisos": {},
+      "curvas": null,
+      "manifiesto": {
+        "perdido": 0,
+        "degradado": 0,
+        "conservado": 0
+      },
+      "entrada": [
+        {
+          "tipo": "IMAGE",
+          "declarados": 1,
+          "intactos": 0,
+          "veredicto": "perdido_declarado",
+          "criterio": "Una imagen no es geometría. Se exige que el importador lo declare: con su aviso si el PDF además trae vectores, o negándose a importar con un error tipado si el PDF es sólo la imagen. No entró ningún ejemplar Y el importador lo dijo: con un aviso que lo nombra, o negándose a importar el archivo entero con un error tipado. Es una limitación conocida sobre la que el usuario puede actuar."
+        }
+      ]
+    },
+    {
+      "id": "scanned-with-ocr-layer",
+      "forma": "PDF escaneado con capa de texto invisible de OCR",
+      "proposito": "El mismo escaneo pasado por un OCR. El texto invisible NO es contenido: si contase, los escaneos mejor procesados dejarían de detectarse como escaneos.",
+      "legible": false,
+      "error": {
+        "codigo": "scanned_image",
+        "mensaje": "Este PDF es una imagen, no tiene geometría que importar; úsalo como plantilla con PDFATTACH y calca encima."
+      },
+      "paginas": 1,
+      "paginaMedida": 1,
+      "capasOpcionales": [],
+      "avisos": {},
+      "curvas": null,
+      "manifiesto": {
+        "perdido": 0,
+        "degradado": 0,
+        "conservado": 0
+      },
+      "entrada": [
+        {
+          "tipo": "IMAGE",
+          "declarados": 1,
+          "intactos": 0,
+          "veredicto": "perdido_declarado",
+          "criterio": "Una imagen no es geometría. Se exige que el importador lo declare: con su aviso si el PDF además trae vectores, o negándose a importar con un error tipado si el PDF es sólo la imagen. No entró ningún ejemplar Y el importador lo dijo: con un aviso que lo nombra, o negándose a importar el archivo entero con un error tipado. Es una limitación conocida sobre la que el usuario puede actuar."
+        },
+        {
+          "tipo": "TEXT_INVISIBLE",
+          "declarados": 1,
+          "intactos": 0,
+          "veredicto": "perdido_declarado",
+          "criterio": "El texto invisible no es contenido: es la capa de búsqueda de un OCR. Se exige que NO entre y que se diga. No entró ningún ejemplar Y el importador lo dijo: con un aviso que lo nombra, o negándose a importar el archivo entero con un error tipado. Es una limitación conocida sobre la que el usuario puede actuar."
+        }
+      ]
+    },
+    {
+      "id": "optional-content-groups",
+      "forma": "Capas opcionales (OCG), una encendida y otra apagada",
+      "proposito": "Las capas del CAD de origen sobreviven al PDF. Importar la que el remitente había apagado añade al plano líneas que él no ve.",
+      "legible": true,
+      "error": null,
+      "paginas": 1,
+      "paginaMedida": 1,
+      "capasOpcionales": [
+        {
+          "nombre": "Muros",
+          "encendida": true
+        },
+        {
+          "nombre": "Cotas",
+          "encendida": false
+        }
+      ],
+      "avisos": {
+        "hidden_layer_skipped": 1
+      },
+      "curvas": null,
+      "manifiesto": {
+        "perdido": 1,
+        "degradado": 1,
+        "conservado": 2
+      },
+      "entrada": [
+        {
+          "tipo": "OCG_LAYER_OFF",
+          "declarados": 1,
+          "intactos": 0,
+          "veredicto": "perdido_declarado",
+          "criterio": "El contenido de una capa apagada NO entra por defecto —el remitente no lo ve en su pantalla— y la omisión tiene que estar declarada con el nombre de la capa. No entró ningún ejemplar Y el importador lo dijo: con un aviso que lo nombra, o negándose a importar el archivo entero con un error tipado. Es una limitación conocida sobre la que el usuario puede actuar."
+        },
+        {
+          "tipo": "OCG_LAYER_ON",
+          "declarados": 1,
+          "intactos": 1,
+          "veredicto": "intacto",
+          "criterio": "Se cuentan las capas opcionales que el importador reconoce como ENCENDIDAS y convierte en capas del dibujo. Entraron tantos ejemplares como declara el archivo y siendo lo que eran: un trazo vuelve línea o polilínea, un rótulo vuelve texto. Se mide contra el resultado del importador real, no contra una lista escrita a mano."
+        },
+        {
+          "tipo": "PATH_LINE",
+          "declarados": 3,
+          "intactos": 2,
+          "veredicto": "degradado",
+          "degradaA": "sólo 2 de 3 trazos",
+          "criterio": "Se cuentan las entidades LINE y las polilíneas ABIERTAS resultantes. Un camino de dos puntos entra como línea y uno de más, como polilínea: exigir sólo líneas castigaría al importador por hacer lo correcto. Entró, pero convertido en otra cosa o en menor número. `degradaA` dice exactamente en qué, porque «degradado» a secas no permite decidir si el plano sigue sirviendo."
+        }
+      ]
+    },
+    {
+      "id": "multipage-three",
+      "forma": "Tres páginas con contenido distinto",
+      "proposito": "Una serie de láminas en un solo archivo. Elegir página tiene que devolver ESA página, no la primera ni la suma de todas.",
+      "legible": true,
+      "error": null,
+      "paginas": 3,
+      "paginaMedida": 1,
+      "capasOpcionales": [],
+      "avisos": {},
+      "curvas": {
+        "modo": "polyline",
+        "curvas": 1,
+        "toleranciaUnidades": 0.05,
+        "errorMaximoMedidoUnidades": 0.035018
+      },
+      "manifiesto": {
+        "perdido": 0,
+        "degradado": 2,
+        "conservado": 3
+      },
+      "entrada": [
+        {
+          "tipo": "PATH_CURVE",
+          "declarados": 1,
+          "intactos": 0,
+          "veredicto": "degradado",
+          "degradaA": "polilínea de tramos rectos, con una desviación máxima MEDIDA de 0.0350 unidades de dibujo (tolerancia pedida: 0.05). En modo spline la conversión es exacta.",
+          "criterio": "Se cuenta la fidelidad declarada por el propio importador: en modo spline la conversión es algebraica y exacta; en modo polilínea se publica la desviación MEDIDA contra la Bézier original, no la tolerancia pedida. Entró, pero convertido en otra cosa o en menor número. `degradaA` dice exactamente en qué, porque «degradado» a secas no permite decidir si el plano sigue sirviendo."
+        },
+        {
+          "tipo": "PATH_LINE",
+          "declarados": 5,
+          "intactos": 5,
+          "veredicto": "intacto",
+          "criterio": "Se cuentan las entidades LINE y las polilíneas ABIERTAS resultantes. Un camino de dos puntos entra como línea y uno de más, como polilínea: exigir sólo líneas castigaría al importador por hacer lo correcto. Entraron tantos ejemplares como declara el archivo y siendo lo que eran: un trazo vuelve línea o polilínea, un rótulo vuelve texto. Se mide contra el resultado del importador real, no contra una lista escrita a mano."
+        },
+        {
+          "tipo": "PATH_RECT",
+          "declarados": 1,
+          "intactos": 1,
+          "veredicto": "intacto",
+          "criterio": "Se cuentan las polilíneas CERRADAS. Un `re` del PDF que entrase abierto dejaría sin contorno a cualquier sombreado que se apoye en él. Entraron tantos ejemplares como declara el archivo y siendo lo que eran: un trazo vuelve línea o polilínea, un rótulo vuelve texto. Se mide contra el resultado del importador real, no contra una lista escrita a mano."
+        }
+      ]
+    },
+    {
+      "id": "shifted-mediabox",
+      "forma": "`MediaBox` desplazado: `[850 400 1400 800]`",
+      "proposito": "El recorte de una lámina grande. Un lector que no reste el origen deja todo el plano fuera del papel, y el dibujo sigue pareciendo correcto.",
+      "legible": true,
+      "error": null,
+      "paginas": 1,
+      "paginaMedida": 1,
+      "capasOpcionales": [],
+      "avisos": {},
+      "curvas": {
+        "modo": "polyline",
+        "curvas": 1,
+        "toleranciaUnidades": 0.05,
+        "errorMaximoMedidoUnidades": 0.033413
+      },
+      "manifiesto": {
+        "perdido": 0,
+        "degradado": 2,
+        "conservado": 3
+      },
+      "entrada": [
+        {
+          "tipo": "PATH_CURVE",
+          "declarados": 1,
+          "intactos": 0,
+          "veredicto": "degradado",
+          "degradaA": "polilínea de tramos rectos, con una desviación máxima MEDIDA de 0.0334 unidades de dibujo (tolerancia pedida: 0.05). En modo spline la conversión es exacta.",
+          "criterio": "Se cuenta la fidelidad declarada por el propio importador: en modo spline la conversión es algebraica y exacta; en modo polilínea se publica la desviación MEDIDA contra la Bézier original, no la tolerancia pedida. Entró, pero convertido en otra cosa o en menor número. `degradaA` dice exactamente en qué, porque «degradado» a secas no permite decidir si el plano sigue sirviendo."
+        },
+        {
+          "tipo": "PATH_LINE",
+          "declarados": 5,
+          "intactos": 5,
+          "veredicto": "intacto",
+          "criterio": "Se cuentan las entidades LINE y las polilíneas ABIERTAS resultantes. Un camino de dos puntos entra como línea y uno de más, como polilínea: exigir sólo líneas castigaría al importador por hacer lo correcto. Entraron tantos ejemplares como declara el archivo y siendo lo que eran: un trazo vuelve línea o polilínea, un rótulo vuelve texto. Se mide contra el resultado del importador real, no contra una lista escrita a mano."
+        },
+        {
+          "tipo": "PATH_RECT",
+          "declarados": 1,
+          "intactos": 1,
+          "veredicto": "intacto",
+          "criterio": "Se cuentan las polilíneas CERRADAS. Un `re` del PDF que entrase abierto dejaría sin contorno a cualquier sombreado que se apoye en él. Entraron tantos ejemplares como declara el archivo y siendo lo que eran: un trazo vuelve línea o polilínea, un rótulo vuelve texto. Se mide contra el resultado del importador real, no contra una lista escrita a mano."
+        }
+      ]
+    },
+    {
+      "id": "rotated-90",
+      "forma": "Página con `/Rotate 90`",
+      "proposito": "Un plano apaisado guardado como vertical girado. Sin aplicar el giro, lo que se calque encima sale girado noventa grados y nadie lo nota hasta la obra.",
+      "legible": true,
+      "error": null,
+      "paginas": 1,
+      "paginaMedida": 1,
+      "capasOpcionales": [],
+      "avisos": {},
+      "curvas": {
+        "modo": "polyline",
+        "curvas": 1,
+        "toleranciaUnidades": 0.05,
+        "errorMaximoMedidoUnidades": 0.035018
+      },
+      "manifiesto": {
+        "perdido": 0,
+        "degradado": 2,
+        "conservado": 3
+      },
+      "entrada": [
+        {
+          "tipo": "PATH_CURVE",
+          "declarados": 1,
+          "intactos": 0,
+          "veredicto": "degradado",
+          "degradaA": "polilínea de tramos rectos, con una desviación máxima MEDIDA de 0.0350 unidades de dibujo (tolerancia pedida: 0.05). En modo spline la conversión es exacta.",
+          "criterio": "Se cuenta la fidelidad declarada por el propio importador: en modo spline la conversión es algebraica y exacta; en modo polilínea se publica la desviación MEDIDA contra la Bézier original, no la tolerancia pedida. Entró, pero convertido en otra cosa o en menor número. `degradaA` dice exactamente en qué, porque «degradado» a secas no permite decidir si el plano sigue sirviendo."
+        },
+        {
+          "tipo": "PATH_LINE",
+          "declarados": 5,
+          "intactos": 5,
+          "veredicto": "intacto",
+          "criterio": "Se cuentan las entidades LINE y las polilíneas ABIERTAS resultantes. Un camino de dos puntos entra como línea y uno de más, como polilínea: exigir sólo líneas castigaría al importador por hacer lo correcto. Entraron tantos ejemplares como declara el archivo y siendo lo que eran: un trazo vuelve línea o polilínea, un rótulo vuelve texto. Se mide contra el resultado del importador real, no contra una lista escrita a mano."
+        },
+        {
+          "tipo": "PATH_RECT",
+          "declarados": 1,
+          "intactos": 1,
+          "veredicto": "intacto",
+          "criterio": "Se cuentan las polilíneas CERRADAS. Un `re` del PDF que entrase abierto dejaría sin contorno a cualquier sombreado que se apoye en él. Entraron tantos ejemplares como declara el archivo y siendo lo que eran: un trazo vuelve línea o polilínea, un rótulo vuelve texto. Se mide contra el resultado del importador real, no contra una lista escrita a mano."
+        }
+      ]
+    },
+    {
+      "id": "object-streams-1-5",
+      "forma": "PDF 1.5 con las páginas dentro de un `/Type /ObjStm`",
+      "proposito": "Lo que emite cualquier escritor desde 2003. Un lector que sólo barra `obj` NO ENCUENTRA LAS PÁGINAS y concluiría que el PDF no tiene ninguna.",
+      "legible": true,
+      "error": null,
+      "paginas": 1,
+      "paginaMedida": 1,
+      "capasOpcionales": [],
+      "avisos": {},
+      "curvas": {
+        "modo": "polyline",
+        "curvas": 1,
+        "toleranciaUnidades": 0.05,
+        "errorMaximoMedidoUnidades": 0.035018
+      },
+      "manifiesto": {
+        "perdido": 0,
+        "degradado": 2,
+        "conservado": 3
+      },
+      "entrada": [
+        {
+          "tipo": "PATH_CURVE",
+          "declarados": 1,
+          "intactos": 0,
+          "veredicto": "degradado",
+          "degradaA": "polilínea de tramos rectos, con una desviación máxima MEDIDA de 0.0350 unidades de dibujo (tolerancia pedida: 0.05). En modo spline la conversión es exacta.",
+          "criterio": "Se cuenta la fidelidad declarada por el propio importador: en modo spline la conversión es algebraica y exacta; en modo polilínea se publica la desviación MEDIDA contra la Bézier original, no la tolerancia pedida. Entró, pero convertido en otra cosa o en menor número. `degradaA` dice exactamente en qué, porque «degradado» a secas no permite decidir si el plano sigue sirviendo."
+        },
+        {
+          "tipo": "PATH_LINE",
+          "declarados": 5,
+          "intactos": 5,
+          "veredicto": "intacto",
+          "criterio": "Se cuentan las entidades LINE y las polilíneas ABIERTAS resultantes. Un camino de dos puntos entra como línea y uno de más, como polilínea: exigir sólo líneas castigaría al importador por hacer lo correcto. Entraron tantos ejemplares como declara el archivo y siendo lo que eran: un trazo vuelve línea o polilínea, un rótulo vuelve texto. Se mide contra el resultado del importador real, no contra una lista escrita a mano."
+        },
+        {
+          "tipo": "PATH_RECT",
+          "declarados": 1,
+          "intactos": 1,
+          "veredicto": "intacto",
+          "criterio": "Se cuentan las polilíneas CERRADAS. Un `re` del PDF que entrase abierto dejaría sin contorno a cualquier sombreado que se apoye en él. Entraron tantos ejemplares como declara el archivo y siendo lo que eran: un trazo vuelve línea o polilínea, un rótulo vuelve texto. Se mide contra el resultado del importador real, no contra una lista escrita a mano."
+        }
+      ]
+    },
+    {
+      "id": "form-xobjects",
+      "forma": "Bloques reutilizados como XObject de formulario",
+      "proposito": "Un bloque del CAD de origen sale como un XObject insertado varias veces con su matriz. Sin seguirlos, un plano lleno de puertas entra vacío.",
+      "legible": true,
+      "error": null,
+      "paginas": 1,
+      "paginaMedida": 1,
+      "capasOpcionales": [],
+      "avisos": {},
+      "curvas": {
+        "modo": "polyline",
+        "curvas": 1,
+        "toleranciaUnidades": 0.05,
+        "errorMaximoMedidoUnidades": 0.035018
+      },
+      "manifiesto": {
+        "perdido": 0,
+        "degradado": 2,
+        "conservado": 3
+      },
+      "entrada": [
+        {
+          "tipo": "FORM_XOBJECT",
+          "declarados": 6,
+          "intactos": 6,
+          "veredicto": "intacto",
+          "criterio": "Se cuentan las entidades que aportan los bloques reutilizados, comparando con el MISMO plano sin ellos. Sin expandirlos, un plano lleno de puertas entraría vacío. Entraron tantos ejemplares como declara el archivo y siendo lo que eran: un trazo vuelve línea o polilínea, un rótulo vuelve texto. Se mide contra el resultado del importador real, no contra una lista escrita a mano."
+        },
+        {
+          "tipo": "PATH_CURVE",
+          "declarados": 1,
+          "intactos": 0,
+          "veredicto": "degradado",
+          "degradaA": "polilínea de tramos rectos, con una desviación máxima MEDIDA de 0.0350 unidades de dibujo (tolerancia pedida: 0.05). En modo spline la conversión es exacta.",
+          "criterio": "Se cuenta la fidelidad declarada por el propio importador: en modo spline la conversión es algebraica y exacta; en modo polilínea se publica la desviación MEDIDA contra la Bézier original, no la tolerancia pedida. Entró, pero convertido en otra cosa o en menor número. `degradaA` dice exactamente en qué, porque «degradado» a secas no permite decidir si el plano sigue sirviendo."
+        },
+        {
+          "tipo": "PATH_LINE",
+          "declarados": 5,
+          "intactos": 5,
+          "veredicto": "intacto",
+          "criterio": "Se cuentan las entidades LINE y las polilíneas ABIERTAS resultantes. Un camino de dos puntos entra como línea y uno de más, como polilínea: exigir sólo líneas castigaría al importador por hacer lo correcto. Entraron tantos ejemplares como declara el archivo y siendo lo que eran: un trazo vuelve línea o polilínea, un rótulo vuelve texto. Se mide contra el resultado del importador real, no contra una lista escrita a mano."
+        },
+        {
+          "tipo": "PATH_RECT",
+          "declarados": 1,
+          "intactos": 1,
+          "veredicto": "intacto",
+          "criterio": "Se cuentan las polilíneas CERRADAS. Un `re` del PDF que entrase abierto dejaría sin contorno a cualquier sombreado que se apoye en él. Entraron tantos ejemplares como declara el archivo y siendo lo que eran: un trazo vuelve línea o polilínea, un rótulo vuelve texto. Se mide contra el resultado del importador real, no contra una lista escrita a mano."
+        }
+      ]
+    },
+    {
+      "id": "shading-and-fills",
+      "forma": "Degradado (`sh`) y relleno macizo",
+      "proposito": "Lo que no tiene equivalente en el dibujo. El relleno entra como contorno y el degradado no entra: las dos cosas se declaran por separado.",
+      "legible": true,
+      "error": null,
+      "paginas": 1,
+      "paginaMedida": 1,
+      "capasOpcionales": [],
+      "avisos": {
+        "clip_not_applied": 1,
+        "fill_as_outline": 1,
+        "shading_dropped": 1
+      },
+      "curvas": {
+        "modo": "polyline",
+        "curvas": 1,
+        "toleranciaUnidades": 0.05,
+        "errorMaximoMedidoUnidades": 0.035018
+      },
+      "manifiesto": {
+        "perdido": 1,
+        "degradado": 4,
+        "conservado": 3
+      },
+      "entrada": [
+        {
+          "tipo": "PATH_CURVE",
+          "declarados": 1,
+          "intactos": 0,
+          "veredicto": "degradado",
+          "degradaA": "polilínea de tramos rectos, con una desviación máxima MEDIDA de 0.0350 unidades de dibujo (tolerancia pedida: 0.05). En modo spline la conversión es exacta.",
+          "criterio": "Se cuenta la fidelidad declarada por el propio importador: en modo spline la conversión es algebraica y exacta; en modo polilínea se publica la desviación MEDIDA contra la Bézier original, no la tolerancia pedida. Entró, pero convertido en otra cosa o en menor número. `degradaA` dice exactamente en qué, porque «degradado» a secas no permite decidir si el plano sigue sirviendo."
+        },
+        {
+          "tipo": "PATH_FILL",
+          "declarados": 1,
+          "intactos": 0,
+          "veredicto": "degradado",
+          "degradaA": "el CONTORNO de la zona rellena, sin nada dentro: hay que rehacer el relleno con un sombreado",
+          "criterio": "Un relleno macizo no tiene equivalente: se comprueba que el importador lo DECLARE como contorno sin trama. Sin ese aviso sería una pérdida en silencio. Entró, pero convertido en otra cosa o en menor número. `degradaA` dice exactamente en qué, porque «degradado» a secas no permite decidir si el plano sigue sirviendo."
+        },
+        {
+          "tipo": "PATH_LINE",
+          "declarados": 5,
+          "intactos": 5,
+          "veredicto": "intacto",
+          "criterio": "Se cuentan las entidades LINE y las polilíneas ABIERTAS resultantes. Un camino de dos puntos entra como línea y uno de más, como polilínea: exigir sólo líneas castigaría al importador por hacer lo correcto. Entraron tantos ejemplares como declara el archivo y siendo lo que eran: un trazo vuelve línea o polilínea, un rótulo vuelve texto. Se mide contra el resultado del importador real, no contra una lista escrita a mano."
+        },
+        {
+          "tipo": "PATH_RECT",
+          "declarados": 1,
+          "intactos": 1,
+          "veredicto": "intacto",
+          "criterio": "Se cuentan las polilíneas CERRADAS. Un `re` del PDF que entrase abierto dejaría sin contorno a cualquier sombreado que se apoye en él. Entraron tantos ejemplares como declara el archivo y siendo lo que eran: un trazo vuelve línea o polilínea, un rótulo vuelve texto. Se mide contra el resultado del importador real, no contra una lista escrita a mano."
+        },
+        {
+          "tipo": "SHADING",
+          "declarados": 1,
+          "intactos": 0,
+          "veredicto": "perdido_declarado",
+          "criterio": "Un degradado no tiene equivalente en el dibujo. Se exige que se declare perdido en vez de desaparecer. No entró ningún ejemplar Y el importador lo dijo: con un aviso que lo nombra, o negándose a importar el archivo entero con un error tipado. Es una limitación conocida sobre la que el usuario puede actuar."
+        }
+      ]
+    }
+  ]
+}

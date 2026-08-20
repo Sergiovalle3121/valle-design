@@ -134,6 +134,10 @@ export const PUBLIC_ROUTES: readonly PublicRoute[] = [
   { path: "/", changeFrequency: "weekly", priority: 1 },
   { path: PRICING_PATH, changeFrequency: "weekly", priority: 0.9 },
   { path: "/docs", changeFrequency: "weekly", priority: 0.8 },
+  // La consola de la API es la puerta del integrador: quien evalúa si puede
+  // automatizar el producto llega buscando "API CAD en línea", no una guía de
+  // dibujo. Va en el sitemap con prioridad alta porque decide compras grandes.
+  { path: "/docs/api", changeFrequency: "weekly", priority: 0.8 },
   ...DOC_GUIDES.map(
     (guide): PublicRoute => ({
       path: docGuidePath(guide.slug),

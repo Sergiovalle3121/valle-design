@@ -8,6 +8,7 @@ import {
   type CadPaperViewport,
   type CadPoint2,
 } from "./cad-document";
+import { cadPlanViewport } from "./cad-paper-viewport";
 import {
   tessellateArc,
   tessellateEllipse,
@@ -228,16 +229,8 @@ export function createCadPaperSpace(input: {
       colorMode: "monochrome",
       lineweightScale: 1,
     },
-    viewports: [
-      {
-        id: `${input.id}:viewport:1`,
-        name: "Model",
-        paperBounds,
-        modelBounds: { ...input.modelBounds },
-        scale,
-        locked: true,
-      },
-    ],
+    // Nace mirando en PLANTA y lo declara; el porqué, en `cadPlanViewport`.
+    viewports: [cadPlanViewport(`${input.id}:viewport:1`, paperBounds, input.modelBounds, scale)],
     titleBlock: {
       attributes: {
         PROJECT: safeText(input.metadata.project, "Untitled project"),

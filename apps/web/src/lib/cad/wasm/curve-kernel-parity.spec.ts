@@ -13,12 +13,16 @@
  *
  * 1. Que el binario del árbol es el que dice su manifiesto. Sin esto, todo lo
  *    demás mide un archivo que nadie sabe de dónde salió.
- * 2. Que la SPLINE coincide bit a bit. No usa trascendentes, así que cualquier
+ * 2. Que los DOS motores caen sobre una referencia ANALÍTICA cerrada. Este
+ *    punto no estaba y su ausencia costó cara: comparar los motores entre sí
+ *    dice si se parecen, nunca cuál tiene razón, y un gate que sólo sabe medir
+ *    parecido acepta que los dos se equivoquen de acuerdo.
+ * 3. Que la SPLINE coincide bit a bit. No usa trascendentes, así que cualquier
  *    diferencia es un cambio en el orden de las operaciones.
- * 3. Que arcos y elipses caen dentro de la tolerancia publicada, medida
+ * 4. Que arcos y elipses caen dentro de la tolerancia publicada, medida
  *    relativa a la escala de la curva.
- * 4. Que ninguna curva cambia de FORMA: mismo número de puntos siempre.
- * 5. Que los errores de la ABI son excepciones TIPADAS y no coordenadas raras.
+ * 5. Que ninguna curva cambia de FORMA: mismo número de puntos siempre.
+ * 6. Que los errores de la ABI son excepciones TIPADAS y no coordenadas raras.
  *
  * El corpus es más corto que el del artefacto (4.000 arcos frente a 20.000)
  * para caber en el presupuesto del runner de specs. La tolerancia es LA MISMA:
@@ -68,6 +72,28 @@ function locate(relative: string): string | null {
 
 const STEPS = [24, 96] as const;
 
+/**
+ * Bézier cúbica en forma de Bernstein: la referencia ANALÍTICA de la spline.
+ *
+ * Una B-spline de grado 3 con cuatro puntos de control y nudos clamped ES la
+ * Bézier cúbica de esos mismos puntos. No es una segunda implementación de De
+ * Boor con la que compararse —eso volvería a medir un parecido— sino la forma
+ * cerrada del mismo objeto por otro camino: pesos de Bernstein en vez de
+ * subdivisión repetida. Por eso puede arbitrar cuando los dos motores
+ * discrepan.
+ */
+function bernsteinCubic(control: Float64Array, t: number): [number, number] {
+  const m = 1 - t;
+  const weights = [m * m * m, 3 * m * m * t, 3 * m * t * t, t * t * t];
+  let x = 0;
+  let y = 0;
+  for (let index = 0; index < 4; index += 1) {
+    x += weights[index] * control[index * 2];
+    y += weights[index] * control[index * 2 + 1];
+  }
+  return [x, y];
+}
+
 async function main(): Promise<void> {
   // -------------------------------------------------------------------------
   // 1 · El binario del árbol es el del manifiesto
@@ -103,7 +129,57 @@ async function main(): Promise<void> {
   const js = createCadCurveKernelJs(null);
 
   // -------------------------------------------------------------------------
-  // 2, 3 y 4 · Paridad por familia
+  // 2 · Los dos motores caen sobre la MISMA curva analítica
+  // -------------------------------------------------------------------------
+  // La tercera fila es la que importa: un vector de nudos con la longitud
+  // exacta pero de dominio nulo, que es lo que trae un DXF cuyo escritor emitió
+  // los grupos 40 vacíos. `curve-tessellate.ts` lo descarta y sintetiza nudos
+  // clamped; un motor que se lo crea divide por cero en cada nivel de De Boor,
+  // toma alfa cero y devuelve el primer punto de control repetido `steps + 1`
+  // veces. Ese fallo no cambia el NÚMERO de puntos, así que la comprobación de
+  // forma lo deja pasar: hace falta una referencia externa para verlo.
+  const ANCHOR_CONTROL = new Float64Array([0, 0, 10, 30, 40, 30, 50, 0]);
+  const ANCHOR_SCALE = 50;
+  const ANCHOR_CASES: readonly (readonly [string, Float64Array | null])[] = [
+    ["sin nudos", null],
+    ["nudos clamped explícitos", new Float64Array([0, 0, 0, 0, 1, 1, 1, 1])],
+    ["nudos con dominio nulo", new Float64Array(8)],
+  ];
+  // 1e-12 relativo. Entre De Boor y Bernstein el orden de las operaciones es
+  // distinto, así que la igualdad exacta no es exigible: lo medido es ~1e-16 de
+  // escala. La cifra deja cuatro órdenes de margen sobre ese ruido y sigue doce
+  // por debajo de un colapso, que vale una escala entera.
+  const ANCHOR_TOLERANCE = 1e-12;
+  for (const [caso, anchorKnots] of ANCHOR_CASES) {
+    for (const [motor, kernel] of [
+      ["javascript", js],
+      ["wasm", wasm],
+    ] as const) {
+      const curve = kernel.tessellateSpline(ANCHOR_CONTROL, 3, anchorKnots, 24);
+      ok(
+        curve.length === 50,
+        `${motor} · ${caso}: la spline debe traer 25 puntos, no ${curve.length / 2}`,
+      );
+      let worst = 0;
+      for (let step = 0; step <= 24; step += 1) {
+        const [x, y] = bernsteinCubic(ANCHOR_CONTROL, step / 24);
+        worst = Math.max(
+          worst,
+          Math.abs(curve[step * 2] - x),
+          Math.abs(curve[step * 2 + 1] - y),
+        );
+      }
+      ok(
+        worst / ANCHOR_SCALE <= ANCHOR_TOLERANCE,
+        `${motor} · ${caso}: se separa ${(worst / ANCHOR_SCALE).toExponential(3)} de la ` +
+          "Bézier cúbica analítica de sus propios puntos de control, y una B-spline de grado 3 " +
+          "con cuatro puntos de control y nudos clamped ES esa Bézier",
+      );
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // 3, 4 y 5 · Paridad por familia
   // -------------------------------------------------------------------------
   const corpus = buildCadKernelCorpus(4_000, 1_000);
   const arcReports: CadKernelParityReport[] = [];
@@ -179,7 +255,7 @@ async function main(): Promise<void> {
   );
 
   // -------------------------------------------------------------------------
-  // 5 · La ABI falla cerrado
+  // 6 · La ABI falla cerrado
   // -------------------------------------------------------------------------
   // Un `steps` de cero no debe producir coordenadas raras: produce cero puntos.
   const vacio = wasm.tessellateArcs(corpus.arcs, 4, 0);

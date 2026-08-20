@@ -88,13 +88,13 @@ describe('schema 5 solid invariants', () => {
     expect(() =>
       validateCadDocumentPayload({
         ...withEntities([]),
-        meta: { schema: 7, version: 1, unit: 'mm' },
+        meta: { schema: 8, version: 1, unit: 'mm' },
       }),
     ).not.toThrow();
     expect(() =>
       validateCadDocumentPayload({
         ...withEntities([]),
-        meta: { schema: 8, version: 1, unit: 'mm' },
+        meta: { schema: 9, version: 1, unit: 'mm' },
       }),
     ).toThrow(BadRequestException);
   });

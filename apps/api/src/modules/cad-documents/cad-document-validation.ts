@@ -17,8 +17,15 @@ import {
 
 export type PersistedCadDocument = Record<string, unknown>;
 
-/** Última versión de esquema que este servidor sabe validar. */
-export const CAD_DOCUMENT_MAX_SCHEMA = 7;
+/**
+ * Última versión de esquema que este servidor sabe validar.
+ *
+ * Sube CON el cliente, nunca después: el cliente escribe el número nuevo desde
+ * el primer guardado, y un servidor que se quedara en el anterior convertiría
+ * cada guardado en un 400 sin que nada estuviera roto. El 8 estrena la cámara
+ * de la ventana gráfica, que valida `assertViewportView`.
+ */
+export const CAD_DOCUMENT_MAX_SCHEMA = 8;
 export const CAD_DOCUMENT_MAX_INLINE_BYTES = 8_000_000;
 export const CAD_DOCUMENT_MAX_ARCHIVE_BYTES = 128 * 1024 * 1024;
 const MAX_ENTITIES = 100_000;
@@ -35,6 +42,105 @@ const MAX_DEPTH = 64;
 
 function finitePositive(value: unknown): boolean {
   return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
+const VIEWPORT_VIEW_KINDS = new Set(['plan', 'elevation', 'section', 'detail']);
+
+function finiteVector(
+  value: unknown,
+): { x: number; y: number; z: number } | null {
+  const point = objectValue(value);
+  if (!point) return null;
+  const { x, y, z } = point as { x: unknown; y: unknown; z: unknown };
+  if (
+    typeof x !== 'number' ||
+    typeof y !== 'number' ||
+    typeof z !== 'number' ||
+    !Number.isFinite(x) ||
+    !Number.isFinite(y) ||
+    !Number.isFinite(z)
+  ) {
+    return null;
+  }
+  return { x, y, z };
+}
+
+function vectorLength(v: { x: number; y: number; z: number }): number {
+  return Math.hypot(v.x, v.y, v.z);
+}
+
+/**
+ * La CÁMARA de una ventana gráfica (esquema 8).
+ *
+ * Se valida en la frontera y no sólo en el cliente porque una cámara
+ * degenerada —dirección nula, o una vertical paralela a la mirada— no produce
+ * un dibujo feo: no produce NINGÚN dibujo, y el fallo aparece al trazar, lejos
+ * del guardado que lo metió. Es exactamente el caso que la regla de fallo
+ * cerrado existe para atajar: se rechaza al entrar, con el motivo.
+ *
+ * El campo es opcional a propósito. Un documento del esquema 7 llega sin él y
+ * la migración del cliente le escribe la planta explícita al abrirlo; exigirlo
+ * aquí rechazaría al guardar documentos que nunca han pasado por esa puerta,
+ * como los que fabrica un importador o un seed.
+ */
+function assertViewportView(rawView: unknown): void {
+  if (rawView === undefined) return;
+  const view = objectValue(rawView);
+  if (!view) {
+    throw new BadRequestException(
+      'CadDocument viewport view debe ser un objeto.',
+    );
+  }
+  if (view.projection !== 'parallel') {
+    throw new BadRequestException(
+      'CadDocument sólo admite ventanas con proyección paralela.',
+    );
+  }
+  if (typeof view.kind !== 'string' || !VIEWPORT_VIEW_KINDS.has(view.kind)) {
+    throw new BadRequestException(
+      'CadDocument requiere una clase de vista conocida en cada ventana.',
+    );
+  }
+  const target = finiteVector(view.target);
+  const direction = finiteVector(view.direction);
+  const up = finiteVector(view.up);
+  if (!target || !direction || !up) {
+    throw new BadRequestException(
+      'CadDocument requiere target, direction y up finitos en la vista de la ventana.',
+    );
+  }
+  const directionLength = vectorLength(direction);
+  const upLength = vectorLength(up);
+  if (!(directionLength > 0) || !(upLength > 0)) {
+    throw new BadRequestException(
+      'CadDocument rechaza vistas con dirección o vertical de longitud cero.',
+    );
+  }
+  // Vertical paralela a la mirada: el «arriba» del papel no queda definido y
+  // la vista no se puede componer. Se mide con el coseno para que la prueba no
+  // dependa de la escala con que llegaran los vectores.
+  const cosine =
+    (direction.x * up.x + direction.y * up.y + direction.z * up.z) /
+    (directionLength * upLength);
+  if (Math.abs(cosine) > 1 - 1e-9) {
+    throw new BadRequestException(
+      'CadDocument rechaza vistas cuya vertical es paralela a la dirección de mirada.',
+    );
+  }
+  if (view.kind === 'section') {
+    const plane = objectValue(view.sectionPlane);
+    const normal = plane ? finiteVector(plane.normal) : null;
+    if (
+      !plane ||
+      !finiteVector(plane.origin) ||
+      !normal ||
+      !(vectorLength(normal) > 0)
+    ) {
+      throw new BadRequestException(
+        'CadDocument requiere un plano de corte válido en las ventanas de sección.',
+      );
+    }
+  }
 }
 
 function inspect(value: unknown, maxBytes: number, depth = 0): void {
@@ -447,6 +553,7 @@ export function validateCadDocumentPayload(
             );
           }
         }
+        assertViewportView(viewport?.view);
       }
     }
   }

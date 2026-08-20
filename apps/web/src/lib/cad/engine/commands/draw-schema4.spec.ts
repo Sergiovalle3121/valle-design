@@ -376,7 +376,7 @@ const near = (actual: number, expected: number, what: string, epsilon = 1e-6) =>
   // El esquema vigente es el 7 desde que el hueco alojado se cuelga del muro. La
   // migración es aditiva: un documento escrito como v4 se reabre como v7 sin
   // perder un campo, y lo único que cambia es este número.
-  assert.equal(reopened.meta.schema, 7);
+  assert.equal(reopened.meta.schema, 8);
   // Un paso de historia por ORDEN, no por entidad: trece órdenes, trece pasos.
   assert.equal(reopened.history.length, 13, "la frontera de deshacer es el comando");
   // El wipeout está por encima de lo que se dibujó antes que él; la imagen, por

@@ -142,7 +142,7 @@ function documento(entities: CadEntity[], schema = CAD_DOCUMENT_SCHEMA): CadDocu
   for (const e of abierto.entities) {
     assert.equal(e.layer, "0", `la entidad ${e.id} perdió su capa`);
   }
-  assert.equal(abierto.meta.schema, 7, "el documento abierto debe declararse esquema 7");
+  assert.equal(abierto.meta.schema, 8, "el documento abierto debe declararse el esquema vigente");
 }
 
 // --- 4. un documento del esquema 6 sigue abriendo ----------------------------
@@ -156,7 +156,7 @@ function documento(entities: CadEntity[], schema = CAD_DOCUMENT_SCHEMA): CadDocu
   );
   const migrado = migrateCadDocument(v6EnDisco);
 
-  assert.equal(migrado.meta.schema, 7, "el v6 debe pasar a declararse 7 al abrirse");
+  assert.equal(migrado.meta.schema, 8, "el v6 debe pasar a declararse el esquema vigente al abrirse");
   const stats = cadDocumentStats(migrado);
   for (const tipo of tiposV6) {
     assert.equal(stats[tipo], 1, `la migración 6→7 perdió el tipo ${tipo}`);

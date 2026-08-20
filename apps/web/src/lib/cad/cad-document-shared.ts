@@ -42,11 +42,19 @@ export const DEFAULT_LAYER_ID = "0";
  * muro pertenece y a qué distancia de su arranque. Por eso mover el anfitrión
  * lo mueve y borrarlo lo cierra, sin que haya un regenerador que mantener.
  *
- * Todo aditivo, en las cuatro subidas: un documento v3, v4, v5 o v6 migra sin
- * perder un campo y sin que se reinterprete ninguno de los que ya traía. Lo
- * único que cambia es `meta.schema`.
+ * v8 no estrena ninguna entidad: estrena una CÁMARA en la ventana gráfica. Es
+ * la única subida que toca una sección del documento en vez de la lista de
+ * entidades, y por eso es la única cuya migración ESCRIBE algo en documentos
+ * que ya existían: cada ventana recibe su `view` de planta explícita. Es
+ * aditivo en el sentido que importa —lo que la lámina enseña no cambia, y su
+ * spec lo mide punto a punto—, pero no en el de «sólo sube el número»: después
+ * de abrir, «esta ventana no dice desde dónde mira» deja de ser un estado
+ * posible. El porqué está en la cabecera de `cad-paper-viewport.ts`.
+ *
+ * Todo aditivo, en las cinco subidas: un documento v3, v4, v5, v6 o v7 migra
+ * sin perder un campo y sin que se reinterprete ninguno de los que ya traía.
  */
-export const CAD_DOCUMENT_SCHEMA = 7;
+export const CAD_DOCUMENT_SCHEMA = 8;
 
 /** Capa estable de las colocaciones de estación. */
 export const STATIONS_LAYER = "Stations";
