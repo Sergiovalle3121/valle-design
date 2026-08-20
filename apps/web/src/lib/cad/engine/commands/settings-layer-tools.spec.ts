@@ -12,7 +12,6 @@ import {
   parseCadDocument,
   serializeCadDocument,
   type CadDocument,
-  type CadPaperSpace,
 } from "../../cad-document";
 import { executeCadEntityCommandBatch } from "../../entity-commands";
 import { CadLayerStateCatalog } from "../../layer-states";

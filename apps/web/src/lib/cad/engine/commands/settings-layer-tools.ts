@@ -275,7 +275,8 @@ const isActiveLayer = (context: CadCommandContext, layer: CadLayerDef) =>
 
 /** Upsert que DESCONGELA: borra la clave en vez de escribir `false`. */
 function thawedLayer(layer: CadLayerDef): CadLayerDef {
-  const { frozen: _thawed, ...rest } = layer;
+  const rest = { ...layer };
+  delete rest.frozen;
   return rest;
 }
 

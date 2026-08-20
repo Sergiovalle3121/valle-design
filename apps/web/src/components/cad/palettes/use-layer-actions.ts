@@ -142,7 +142,8 @@ export function useCadLayerActions(
             layers: document.layers.map((layer) => {
               if (layer.id !== id) return layer;
               if (frozen) return { ...layer, frozen: true };
-              const { frozen: _thawed, ...thawed } = layer;
+              const thawed = { ...layer };
+              delete thawed.frozen;
               return thawed;
             }),
           },

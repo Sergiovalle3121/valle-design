@@ -221,7 +221,8 @@ const layerCliCommand: CadCommandDescriptor<LayerCliState> = {
     }
     if (state.action === "thaw") {
       // Descongelar BORRA la clave: opcional-ausente, como nació en el esquema 9.
-      const { frozen: _thawed, ...thawed } = layer;
+      const thawed = { ...layer };
+      delete thawed.frozen;
       return layerPatch(state, thawed, `-LAYER: "${layer.name}" descongelada`);
     }
     return layerPatch(
