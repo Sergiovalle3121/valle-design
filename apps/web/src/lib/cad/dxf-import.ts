@@ -2,7 +2,6 @@
 import DxfParser from "dxf-parser";
 import type { CadDimensionEntity } from "./associative-dimension";
 import type { CadMleaderEntity } from "./associative-mleader";
-import { isDxfXdataApp } from "@valle-design/contracts";
 // El aplanado de un INSERT vive en su propio módulo: es una pieza coherente y
 // este archivo está en su asignación de tamaño.
 import {
