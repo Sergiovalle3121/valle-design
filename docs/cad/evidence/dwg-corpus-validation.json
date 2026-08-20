@@ -1,0 +1,298 @@
+{
+  "$schema": "urn:valle-design:schema:dwg-corpus-validation:v1",
+  "schemaVersion": 1,
+  "evidenceId": "valle-design-dwg-corpus-validation-v1",
+  "generadoPor": "node scripts/dwg/validate-corpus.mjs",
+  "generadoEn": "2026-08-20T16:18:50.345Z",
+  "environment": {
+    "node": "v22.18.0",
+    "platform": "win32",
+    "architecture": "x64",
+    "osType": "Windows_NT",
+    "osRelease": "10.0.26200",
+    "cpuModel": "AMD Ryzen 5 5500U with Radeon Graphics         ",
+    "logicalCpuCount": 12,
+    "totalMemoryBytes": 7896625152,
+    "declaredMachine": "AMD Ryzen 5 5500U with Radeon Graphics (12 hilos lógicos), 7.9 GB de RAM, Windows_NT 10.0.26200"
+  },
+  "veredicto": "EL DECODER NO ABRE NINGUNO de los 8 DWG AC1015 reales del corpus. Todos fallan en el MISMO punto: DWG_STRUCTURE_CORRUPT @79: The file-header CRC does not match its contents.",
+  "reglaCleanRoom": "Toda discrepancia se REGISTRA aquí y no se corrige en esta ola: corregir el decoder exige registrar antes el hecho de formato en packages/dwg-codec/SOURCE_REGISTER.json (ADR-0007).",
+  "alcance": "Sólo fixtures AC1015 del corpus admitido y verificado por hash. El DXF oráculo es la fuente de autoría propia congelada en el mismo bundle; los DWG los produjo una implementación independiente (ver docs/TOOLS.md del repo hermano).",
+  "corpus": {
+    "commit": "dae5e77f9b2c6549c04defb1d5b8919524c880c3",
+    "indexSha256": "c29430437c83fbec4032409a00ca4195894c6532f2e84cd1c009589905086bde",
+    "transporte": "local-mirror",
+    "bundlesAc1015": [
+      "valle.fundacional.ac1015.001"
+    ]
+  },
+  "resumen": {
+    "archivosAc1015": 8,
+    "abiertos": 0,
+    "noAbiertos": 8,
+    "sinOraculo": 0,
+    "matrizEntidades": {},
+    "discrepanciasRegistradas": 8
+  },
+  "matrizEntidades": {},
+  "discrepancias": [
+    {
+      "archivo": "01-vacio",
+      "tipo": "no-abre",
+      "error": {
+        "code": "DWG_STRUCTURE_CORRUPT",
+        "category": "input",
+        "offset": 79,
+        "message": "The file-header CRC does not match its contents."
+      }
+    },
+    {
+      "archivo": "02-una-linea",
+      "tipo": "no-abre",
+      "error": {
+        "code": "DWG_STRUCTURE_CORRUPT",
+        "category": "input",
+        "offset": 79,
+        "message": "The file-header CRC does not match its contents."
+      }
+    },
+    {
+      "archivo": "03-figuras-basicas",
+      "tipo": "no-abre",
+      "error": {
+        "code": "DWG_STRUCTURE_CORRUPT",
+        "category": "input",
+        "offset": 79,
+        "message": "The file-header CRC does not match its contents."
+      }
+    },
+    {
+      "archivo": "04-capas",
+      "tipo": "no-abre",
+      "error": {
+        "code": "DWG_STRUCTURE_CORRUPT",
+        "category": "input",
+        "offset": 79,
+        "message": "The file-header CRC does not match its contents."
+      }
+    },
+    {
+      "archivo": "05-lwpolyline-bulges",
+      "tipo": "no-abre",
+      "error": {
+        "code": "DWG_STRUCTURE_CORRUPT",
+        "category": "input",
+        "offset": 79,
+        "message": "The file-header CRC does not match its contents."
+      }
+    },
+    {
+      "archivo": "06-texto",
+      "tipo": "no-abre",
+      "error": {
+        "code": "DWG_STRUCTURE_CORRUPT",
+        "category": "input",
+        "offset": 79,
+        "message": "The file-header CRC does not match its contents."
+      }
+    },
+    {
+      "archivo": "07-bloques-insert",
+      "tipo": "no-abre",
+      "error": {
+        "code": "DWG_STRUCTURE_CORRUPT",
+        "category": "input",
+        "offset": 79,
+        "message": "The file-header CRC does not match its contents."
+      }
+    },
+    {
+      "archivo": "08-plano-mini",
+      "tipo": "no-abre",
+      "error": {
+        "code": "DWG_STRUCTURE_CORRUPT",
+        "category": "input",
+        "offset": 79,
+        "message": "The file-header CRC does not match its contents."
+      }
+    }
+  ],
+  "archivos": [
+    {
+      "bundle": "valle.fundacional.ac1015.001",
+      "archivo": "01-vacio",
+      "fixture": "bundles/valle.fundacional.ac1015.001/fixtures/01-vacio.dwg",
+      "sha256": "32f282d96520950e59f026c31f97bf15af5c7b4fbc85d2c10f5a389ac5435975",
+      "byteLength": 95204,
+      "oraculo": "bundles/valle.fundacional.ac1015.001/oracles/dxf/01-vacio.dxf",
+      "abre": false,
+      "error": {
+        "code": "DWG_STRUCTURE_CORRUPT",
+        "category": "input",
+        "offset": 79,
+        "message": "The file-header CRC does not match its contents."
+      },
+      "observacionCrcCabecera": {
+        "recordCount": 6,
+        "crcGuardado": "0x717b",
+        "crcCalculadoSemilla0xc0c1": "0x717b",
+        "xorNecesarioParaCuadrar": "0x0000",
+        "hechoRegistradoContradicho": "SOURCE_REGISTER.json (ODA-ODS-DWG-5.4.1-PUBLIC) declara máscara XOR por recuento de registros (6→0x8461); los archivos reales de una implementación independiente guardan el CRC SIN máscara (XOR observado 0x0000)."
+      }
+    },
+    {
+      "bundle": "valle.fundacional.ac1015.001",
+      "archivo": "02-una-linea",
+      "fixture": "bundles/valle.fundacional.ac1015.001/fixtures/02-una-linea.dwg",
+      "sha256": "7953eff4b6e2859d4dc542a9c2f74bae26d15032c6174094fdb200b0030a16a4",
+      "byteLength": 95263,
+      "oraculo": "bundles/valle.fundacional.ac1015.001/oracles/dxf/02-una-linea.dxf",
+      "abre": false,
+      "error": {
+        "code": "DWG_STRUCTURE_CORRUPT",
+        "category": "input",
+        "offset": 79,
+        "message": "The file-header CRC does not match its contents."
+      },
+      "observacionCrcCabecera": {
+        "recordCount": 6,
+        "crcGuardado": "0xb02a",
+        "crcCalculadoSemilla0xc0c1": "0xb02a",
+        "xorNecesarioParaCuadrar": "0x0000",
+        "hechoRegistradoContradicho": "SOURCE_REGISTER.json (ODA-ODS-DWG-5.4.1-PUBLIC) declara máscara XOR por recuento de registros (6→0x8461); los archivos reales de una implementación independiente guardan el CRC SIN máscara (XOR observado 0x0000)."
+      }
+    },
+    {
+      "bundle": "valle.fundacional.ac1015.001",
+      "archivo": "03-figuras-basicas",
+      "fixture": "bundles/valle.fundacional.ac1015.001/fixtures/03-figuras-basicas.dwg",
+      "sha256": "e34823f34a9a016100bbd529f42aeab9e8da09d808910086f1e5813e28535290",
+      "byteLength": 95401,
+      "oraculo": "bundles/valle.fundacional.ac1015.001/oracles/dxf/03-figuras-basicas.dxf",
+      "abre": false,
+      "error": {
+        "code": "DWG_STRUCTURE_CORRUPT",
+        "category": "input",
+        "offset": 79,
+        "message": "The file-header CRC does not match its contents."
+      },
+      "observacionCrcCabecera": {
+        "recordCount": 6,
+        "crcGuardado": "0xa5c1",
+        "crcCalculadoSemilla0xc0c1": "0xa5c1",
+        "xorNecesarioParaCuadrar": "0x0000",
+        "hechoRegistradoContradicho": "SOURCE_REGISTER.json (ODA-ODS-DWG-5.4.1-PUBLIC) declara máscara XOR por recuento de registros (6→0x8461); los archivos reales de una implementación independiente guardan el CRC SIN máscara (XOR observado 0x0000)."
+      }
+    },
+    {
+      "bundle": "valle.fundacional.ac1015.001",
+      "archivo": "04-capas",
+      "fixture": "bundles/valle.fundacional.ac1015.001/fixtures/04-capas.dwg",
+      "sha256": "f7f0717feda2f92dd87a443e019680275bdb039017b25fb1b54b2511826086c9",
+      "byteLength": 96601,
+      "oraculo": "bundles/valle.fundacional.ac1015.001/oracles/dxf/04-capas.dxf",
+      "abre": false,
+      "error": {
+        "code": "DWG_STRUCTURE_CORRUPT",
+        "category": "input",
+        "offset": 79,
+        "message": "The file-header CRC does not match its contents."
+      },
+      "observacionCrcCabecera": {
+        "recordCount": 6,
+        "crcGuardado": "0xf5f5",
+        "crcCalculadoSemilla0xc0c1": "0xf5f5",
+        "xorNecesarioParaCuadrar": "0x0000",
+        "hechoRegistradoContradicho": "SOURCE_REGISTER.json (ODA-ODS-DWG-5.4.1-PUBLIC) declara máscara XOR por recuento de registros (6→0x8461); los archivos reales de una implementación independiente guardan el CRC SIN máscara (XOR observado 0x0000)."
+      }
+    },
+    {
+      "bundle": "valle.fundacional.ac1015.001",
+      "archivo": "05-lwpolyline-bulges",
+      "fixture": "bundles/valle.fundacional.ac1015.001/fixtures/05-lwpolyline-bulges.dwg",
+      "sha256": "28546dc8229a047aa5e382b73dc6832bfd1095d54a64a423fd238522f3dc939e",
+      "byteLength": 95370,
+      "oraculo": "bundles/valle.fundacional.ac1015.001/oracles/dxf/05-lwpolyline-bulges.dxf",
+      "abre": false,
+      "error": {
+        "code": "DWG_STRUCTURE_CORRUPT",
+        "category": "input",
+        "offset": 79,
+        "message": "The file-header CRC does not match its contents."
+      },
+      "observacionCrcCabecera": {
+        "recordCount": 6,
+        "crcGuardado": "0xd897",
+        "crcCalculadoSemilla0xc0c1": "0xd897",
+        "xorNecesarioParaCuadrar": "0x0000",
+        "hechoRegistradoContradicho": "SOURCE_REGISTER.json (ODA-ODS-DWG-5.4.1-PUBLIC) declara máscara XOR por recuento de registros (6→0x8461); los archivos reales de una implementación independiente guardan el CRC SIN máscara (XOR observado 0x0000)."
+      }
+    },
+    {
+      "bundle": "valle.fundacional.ac1015.001",
+      "archivo": "06-texto",
+      "fixture": "bundles/valle.fundacional.ac1015.001/fixtures/06-texto.dwg",
+      "sha256": "87790800ac5780e62f8d50ddc1e8a97492593f42979a7e3fdff74265f96f8024",
+      "byteLength": 95507,
+      "oraculo": "bundles/valle.fundacional.ac1015.001/oracles/dxf/06-texto.dxf",
+      "abre": false,
+      "error": {
+        "code": "DWG_STRUCTURE_CORRUPT",
+        "category": "input",
+        "offset": 79,
+        "message": "The file-header CRC does not match its contents."
+      },
+      "observacionCrcCabecera": {
+        "recordCount": 6,
+        "crcGuardado": "0xa77e",
+        "crcCalculadoSemilla0xc0c1": "0xa77e",
+        "xorNecesarioParaCuadrar": "0x0000",
+        "hechoRegistradoContradicho": "SOURCE_REGISTER.json (ODA-ODS-DWG-5.4.1-PUBLIC) declara máscara XOR por recuento de registros (6→0x8461); los archivos reales de una implementación independiente guardan el CRC SIN máscara (XOR observado 0x0000)."
+      }
+    },
+    {
+      "bundle": "valle.fundacional.ac1015.001",
+      "archivo": "07-bloques-insert",
+      "fixture": "bundles/valle.fundacional.ac1015.001/fixtures/07-bloques-insert.dwg",
+      "sha256": "08d412b1981d12e610890847597f29940e6f9a30612af49bb7c65fa0c10f77ad",
+      "byteLength": 95781,
+      "oraculo": "bundles/valle.fundacional.ac1015.001/oracles/dxf/07-bloques-insert.dxf",
+      "abre": false,
+      "error": {
+        "code": "DWG_STRUCTURE_CORRUPT",
+        "category": "input",
+        "offset": 79,
+        "message": "The file-header CRC does not match its contents."
+      },
+      "observacionCrcCabecera": {
+        "recordCount": 6,
+        "crcGuardado": "0xac25",
+        "crcCalculadoSemilla0xc0c1": "0xac25",
+        "xorNecesarioParaCuadrar": "0x0000",
+        "hechoRegistradoContradicho": "SOURCE_REGISTER.json (ODA-ODS-DWG-5.4.1-PUBLIC) declara máscara XOR por recuento de registros (6→0x8461); los archivos reales de una implementación independiente guardan el CRC SIN máscara (XOR observado 0x0000)."
+      }
+    },
+    {
+      "bundle": "valle.fundacional.ac1015.001",
+      "archivo": "08-plano-mini",
+      "fixture": "bundles/valle.fundacional.ac1015.001/fixtures/08-plano-mini.dwg",
+      "sha256": "bbdc3a39ce1ece7c657da21ea8ca07bd8d24799999b8227e183cb7ed092906c2",
+      "byteLength": 96667,
+      "oraculo": "bundles/valle.fundacional.ac1015.001/oracles/dxf/08-plano-mini.dxf",
+      "abre": false,
+      "error": {
+        "code": "DWG_STRUCTURE_CORRUPT",
+        "category": "input",
+        "offset": 79,
+        "message": "The file-header CRC does not match its contents."
+      },
+      "observacionCrcCabecera": {
+        "recordCount": 6,
+        "crcGuardado": "0x62f6",
+        "crcCalculadoSemilla0xc0c1": "0x62f6",
+        "xorNecesarioParaCuadrar": "0x0000",
+        "hechoRegistradoContradicho": "SOURCE_REGISTER.json (ODA-ODS-DWG-5.4.1-PUBLIC) declara máscara XOR por recuento de registros (6→0x8461); los archivos reales de una implementación independiente guardan el CRC SIN máscara (XOR observado 0x0000)."
+      }
+    }
+  ]
+}
