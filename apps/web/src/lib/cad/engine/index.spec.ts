@@ -8,9 +8,10 @@
  *
  * Además publica en cada corrida cuántos alias de `acad.pgp` siguen sin
  * implementación. Es el número que impide que «tiene motor de comandos» se lea
- * como «tiene los comandos»: al escribir esto, 19 comandos registrados y 104 de
- * 125 alias todavía sin implementar. El log lo dice en cada corrida, sin que
- * haya que ir a buscarlo ni fiarse de un comentario que envejece.
+ * como «tiene los comandos»: empezó en 104 de 125 alias sin implementar y bajó
+ * ola a ola hasta CERO (los dos últimos, BE→BEDIT y BLE→BLEND, cayeron en la
+ * ola del destape). Desde entonces la aserción guarda la dirección contraria:
+ * un alias nuevo en la tabla sin comando que lo reclame vuelve a fallar aquí.
  */
 import { strict as assert } from "node:assert";
 import { CAD_COMMAND_ALIASES } from "./alias-table";
@@ -107,6 +108,7 @@ const names = registry.all().map((command) => command.name);
     "LENGTHEN",
     "JOIN",
     "EXPLODE",
+    "BLEND",
     "PEDIT",
     "SPLINEDIT",
     // Ola de utilidades: consulta, selección avanzada, propiedades globales,
@@ -151,6 +153,7 @@ const names = registry.all().map((command) => command.name);
     "REGENALL",
     "BLOCK",
     "WBLOCK",
+    "BEDIT",
     "INSERT",
     "BASE",
     "ATTEDIT",
@@ -178,11 +181,15 @@ const names = registry.all().map((command) => command.name);
 // --- inventario honesto ---------------------------------------------------------
 const pending = registry.unresolvedAliases();
 const total = Object.keys(CAD_COMMAND_ALIASES).length;
-assert.ok(
-  pending.length > 0,
-  "si algún día esto llega a cero, celébrese y cámbiese la aserción",
+// Llegó a cero y se celebró, como pedía la aserción anterior. Ahora guarda la
+// dirección contraria: quien añada un alias a la tabla contrae la deuda de
+// implementar (o registrar) su comando en la misma ola, no de dejarlo mudo.
+assert.equal(
+  pending.length,
+  0,
+  `alias de acad.pgp declarados sin comando que los reclame: ${pending.join(", ")}`,
 );
 console.log(
   `registro del producto: ${names.length} comandos (${names.join(", ")}) · ` +
-    `${pending.length} de ${total} alias de acad.pgp todavía sin implementar`,
+    `los ${total} alias de acad.pgp resuelven todos`,
 );
