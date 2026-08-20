@@ -118,9 +118,9 @@ FROM domain_outbox WHERE status IN ('pending', 'failed');
 - **Outbox crece:** comprueba worker habilitado, PostgreSQL, DNS/TLS y latencia
   del receptor. Valida firma/dedup con un mensaje de prueba en staging. No
   marques filas `sent`, reinicies intentos o reenvíes payloads a mano.
-- **Filas `dead`:** conserva IDs internos y clase de fallo, corrige el receptor
-  y decide una herramienta de replay auditada e idempotente. El runtime no
-  promete replay manual automático.
+- **Filas `dead`:** corrige primero el receptor y reinyecta después con
+  `node scripts/ops/outbox-replay.mjs` (ver INC-2): imprime un JSON auditable
+  de lo tocado y sólo acepta filas `dead`. No edites filas con UPDATE suelto.
 - **409/CAS:** preserva el estado local, abre la versión actual, compara y
   reintenta desde esa versión. Nunca incrementes el contador ni sobreescribas
   directamente la fila.
@@ -224,9 +224,32 @@ baja:
 watch -n 10 "curl -sS $API/health/metrics/commercial | jq '.outbox.email.oldestUnsentAgeSeconds'"
 ```
 
-Las filas `dead` NO se reintentan solas — es deliberado. Conserva sus IDs y
-clase de fallo y decide una herramienta de replay auditada e idempotente; el
-runtime no promete replay manual.
+Las filas `dead` NO se reintentan solas — es deliberado: ocho intentos
+fallidos son un diagnóstico, no mala suerte. El replay es un paso EXPLÍCITO,
+con herramienta propia, y SIEMPRE después de corregir la causa (reinyectar
+contra un receptor roto sólo fabrica ocho fallos más):
+
+```bash
+# 1 · Ver qué hay, sin tocar nada (JSON auditable: id, intentos, clase de error)
+node scripts/ops/outbox-replay.mjs --queue email --all-dead --dry-run
+
+# 2 · Reinyectar UNA fila concreta…
+node scripts/ops/outbox-replay.mjs --queue email --id <uuid>
+
+# 3 · …o todas las dead de la cola, arreglada la causa
+node scripts/ops/outbox-replay.mjs --queue email --all-dead
+node scripts/ops/outbox-replay.mjs --queue domain --all-dead
+
+# 4 · Pega el JSON que imprime en el informe del incidente y vigila el drenaje
+watch -n 10 "curl -sS $API/health/metrics/commercial | jq '.outbox'"
+```
+
+El script devuelve las filas a `pending` con `attempt_count=0` y conserva
+`last_error` como rastro. Reinyectar es seguro porque el receptor deduplica
+de forma durable por `Idempotency-Key` (`webhook_receipts` + la clave nativa
+del proveedor de correo): una fila cuyo efecto ya ocurrió produce un 200 sin
+efecto nuevo. Lo que sigue prohibido: marcar filas `sent`, cambiar claves de
+idempotencia o reenviar payloads a mano.
 
 ---
 
