@@ -142,7 +142,10 @@ test("las formas de escala 01 y 10 se aceptan al leer aunque no se emitan", () =
   uniformTail.pushBits(0b10, 2);
   uniformTail.emitRD(7.5);
   uniformTail.emitBD(0); // rotación
-  uniformTail.pushBit(1); // extrusión canónica
+  // Extrusión 3BD canónica (hecho 3 del intake: el INSERT no usa BE).
+  uniformTail.emitBD(0);
+  uniformTail.emitBD(0);
+  uniformTail.emitBD(1);
   uniformTail.pushBit(0); // sin ATTRIBs
   const uniform = decodeAc1015EntityBody(
     composeBody(AC1015_TYPE_INSERT, uniformTail, 0, insertStream()),
@@ -162,7 +165,9 @@ test("las formas de escala 01 y 10 se aceptan al leer aunque no se emitan", () =
   partialTail.emitDD(2.5, 1); // Y contra el defecto 1.0
   partialTail.emitDD(1, 1); // Z igual al defecto: dos bits
   partialTail.emitBD(0);
-  partialTail.pushBit(1);
+  partialTail.emitBD(0); // extrusión 3BD canónica
+  partialTail.emitBD(0);
+  partialTail.emitBD(1);
   partialTail.pushBit(0);
   const partial = decodeAc1015EntityBody(
     composeBody(AC1015_TYPE_INSERT, partialTail, 0, insertStream()),
@@ -181,7 +186,9 @@ test("la referencia relativa del bloque se resuelve contra el handle propio", ()
   tail.emitBD(0);
   tail.pushBits(0b11, 2); // escalas unitarias
   tail.emitBD(0);
-  tail.pushBit(1);
+  tail.emitBD(0); // extrusión 3BD canónica
+  tail.emitBD(0);
+  tail.emitBD(1);
   tail.pushBit(0);
   // Código 0xA: el handle del bloque es el propio MÁS el valor (0x40 + 5).
   const decoded = decodeAc1015EntityBody(
@@ -264,7 +271,9 @@ test("gemelo triste: un flujo que no alcanza para el handle del bloque", () => {
   tail.emitBD(0);
   tail.pushBits(0b11, 2);
   tail.emitBD(0);
-  tail.pushBit(1);
+  tail.emitBD(0); // extrusión 3BD canónica
+  tail.emitBD(0);
+  tail.emitBD(1);
   tail.pushBit(0);
   // Sólo dos handles nulos: el INSERT exige un tercero (su bloque).
   const stream = new DwgBitEmitter();
@@ -298,7 +307,9 @@ test("gemelo triste: INSERT truncado y tamaño en bits que no cuadra", () => {
     tail.emitBD(0);
     tail.pushBits(0b11, 2);
     tail.emitBD(0);
-    tail.pushBit(1);
+    tail.emitBD(0); // extrusión 3BD canónica
+    tail.emitBD(0);
+    tail.emitBD(1);
     tail.pushBit(0);
     assertDwgError(
       () =>

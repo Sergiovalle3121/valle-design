@@ -560,3 +560,27 @@ sólo después se toca el código. Un commit por hecho.
   objetos y little-endian del CRC de envoltura (MEDIA de D1) quedan
   confirmadas — los 8 mapas reales (168–169 objetos) y todas sus
   envolturas validan.
+
+### Hecho 3 — la extrusión del INSERT es 3BD, no BE (desmentido por corpus, corregido 2026-08-20)
+
+- Certeza previa (fase D4, orden general del dato marcado ALTA): datos del
+  INSERT = inserción 3BD, bandada BB de escalas, rotación BD, **extrusión
+  BE** y bit de ATTRIBs.
+- Síntoma tras el hecho 2: 6 de 8 archivos abren con TODA su geometría
+  correcta contra el oráculo; los dos con INSERT mueren con «declared bit
+  size does not match» en cada uno de sus 6 INSERT, siempre 5 bits corto.
+- Observación (6/6 INSERT de 07/08, registrada en
+  `VALLE-CORPUS-AC1015-INTAKE-DAE5E77`): la extrusión viaja como **3BD**.
+  Con la extrusión canónica (0,0,1), BE gasta 1 bit y 3BD gasta 6 — los 5
+  bits que faltaban. Con 3BD los 6 cuerpos aterrizan el flujo de handles
+  EXACTAMENTE en el bit declarado (229/229, 293/293, 425/425, 425/425,
+  229/229, 293/293) y los valores decodificados son los del dibujo:
+  inserciones (10,10,0)/(50,10,0)/(90,10,0)/(10,40,0)/(60,55,0)/(60,35,0)
+  y rotaciones 0.5236 y 1.5708 rad.
+- Decisión: lector y writer pasan a 3BD JUNTOS. La nota de que otras
+  entidades usan BE no se toca: LINE/CIRCLE/ARC/TEXT/LWPOLYLINE reales ya
+  decodifican exactos con BE, así que el corpus la confirma para ellas.
+- Confirmaciones de regalo: la bandada de escalas con datos reales —
+  0b11 = tres 1.0 (4 casos) y 0b00 = X RD con Y/Z DD contra X (escalas
+  (2,1.5,1) y (0.5,0.5,1)). Las formas 0b01/0b10 siguen sin observarse:
+  el lector las conserva y el writer sigue sin emitirlas.

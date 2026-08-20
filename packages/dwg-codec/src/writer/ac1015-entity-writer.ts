@@ -271,7 +271,9 @@ function emitEntitySpecific(
  * SOLO sus formas totales, 0b11 (las tres escalas exactamente 1.0, bit a
  * bit) o 0b00 (X como RD y las Y/Z como DD contra la X); las formas 0b01 y
  * 0b10 son compresión que el lector ya acepta, como con DD. Después la
- * rotación BD, la extrusión BE y el bit de ATTRIBs (siempre 0 aquí: emitir
+ * rotación BD, la extrusión 3BD — hecho 3 del intake 2026-08-20: los 6
+ * INSERT reales desmintieron la BE que declaraba la ODS, y writer y lector
+ * se corrigieron JUNTOS — y el bit de ATTRIBs (siempre 0 aquí: emitir
  * ATTRIBs queda declarado pendiente y el writer falla cerrado si el modelo
  * lo pide).
  */
@@ -289,7 +291,9 @@ function emitInsert(emitter: DwgBitEmitter, entity: DwgInsertEntity): void {
     emitter.emitDD(z, x);
   }
   emitter.emitBD(entity.rotation);
-  emitter.emitBE(entity.extrusion);
+  emitter.emitBD(entity.extrusion.x);
+  emitter.emitBD(entity.extrusion.y);
+  emitter.emitBD(entity.extrusion.z);
   emitter.pushBit(0); // sin ATTRIBs: pendiente declarado de la fase D4
 }
 
