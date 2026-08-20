@@ -2,8 +2,8 @@
   "$schema": "urn:valle-design:schema:cad-touch-support-evidence:v1",
   "schemaVersion": 1,
   "evidenceId": "valle-design-touch-support-v1",
-  "startedAt": "2026-08-19T22:41:18.993Z",
-  "finishedAt": "2026-08-19T23:06:22.138Z",
+  "startedAt": "2026-08-20T07:38:11.145Z",
+  "finishedAt": "2026-08-20T08:02:33.624Z",
   "enforcement": "report-only",
   "enforcementRationale": "Los gestos que este artefacto declara VIVOS están cerrados por un golden ejecutable (e2e/golden/56-cad-tableta-en-obra.spec.ts), que falla si dejan de funcionar. Este JSON no fija presupuesto: es el mapa de qué gesto responde en qué tamaño de pantalla, y su valor está en lo que declara ROTO y en lo que declara NO MEDIDO.",
   "environment": {
@@ -16,7 +16,7 @@
     "cpuModel": "AMD Ryzen 5 5500U with Radeon Graphics         ",
     "logicalCpuCount": 12,
     "totalMemoryBytes": 7896625152,
-    "freeMemoryBytesAtStart": 1631313920,
+    "freeMemoryBytesAtStart": 2109284352,
     "declaredMachine": "AMD Ryzen 5 5500U with Radeon Graphics (12 hilos lógicos), 7.4 GB de RAM, Windows_NT 10.0.26200, portátil de desarrollo con carga vecina (otros agentes trabajando en el mismo equipo)"
   },
   "metodo": {
@@ -69,31 +69,33 @@
     "gestosParciales": [],
     "gestosInestables": []
   },
-  "defectosConocidos": [
+  "defectosConocidos": [],
+  "defectosCorregidos": [
     {
       "id": "objetivos-tactiles-por-debajo-de-44px",
       "severidad": "media",
-      "titulo": "Casi todos los controles bajan del mínimo táctil de 44 px",
+      "titulo": "Todo control del editor llega a 44 px cuando el puntero es un dedo",
       "medido": {
         "tableta-apaisada": {
-          "controlesVisibles": 85,
-          "pordebajoDe44px": 85,
-          "ladoMenorPx": 16.5
+          "controlesVisibles": 86,
+          "pordebajoDe44px": 0,
+          "ladoMenorPx": 44
         },
         "tableta-vertical": {
-          "controlesVisibles": 85,
-          "pordebajoDe44px": 85,
-          "ladoMenorPx": 16.5
+          "controlesVisibles": 86,
+          "pordebajoDe44px": 0,
+          "ladoMenorPx": 44
         },
         "tableta-grande": {
-          "controlesVisibles": 98,
-          "pordebajoDe44px": 95,
-          "ladoMenorPx": 16.5
+          "controlesVisibles": 99,
+          "pordebajoDe44px": 0,
+          "ladoMenorPx": 44
         }
       },
-      "consecuencia": "44 px de lado es el mínimo que publican Apple y Google para un objetivo táctil. Por debajo, el dedo falla el botón y el usuario culpa al programa. El control más pequeño del editor mide 16,5 px.",
-      "porQueNoSeArreglaAqui": "No es un problema del viewport ni de los gestos: es el tamaño de casi cien controles repartidos por barras y paletas, y agrandarlos es un cambio del sistema de diseño con su propia ola. Cambiarlos a ciegas junto a los gestos habría mezclado dos regresiones distintas en un mismo diff.",
-      "estado": "medido y declarado; no arreglado en esta ola"
+      "consecuencia": "44 px de lado es el mínimo que publican Apple y Google para un objetivo táctil. Por debajo, el dedo falla el botón y el usuario culpa al programa. Cuando esto se midió por primera vez, 95 de los 98 controles visibles bajaban de esa cifra y el más pequeño medía 16,5 px.",
+      "comoSeCorrigio": "Con una regla de PUNTERO GRUESO en el sistema de diseño (`@media (pointer: coarse)` en apps/web/src/app/globals.css), no con cien ediciones a mano. `pointer: coarse` sólo se cumple donde hay dedo: en escritorio con ratón no cambia un píxel y los goldens del CAD, que corren a 1.280×720 con puntero fino, miden exactamente lo mismo que antes. El alcance es la convención de etiquetas del propio CAD (`data-testid=\"cad-…\"` más la raíz `.cad-shell`) porque el editor, la paleta de capas y el muelle de colaboración viven en portales distintos y NO tienen ancestro común.",
+      "loQueCuesta": "Un control más grande tapa más dibujo, y eso también está medido: la oclusión de cada panel se publica en `perfiles[].disposicion.oclusionDelLienzoPorcentaje`, y la paleta flotante —18 herramientas que en una sola columna de 44 px medirían 872 px, más que el lienzo de una tableta de 10\"— pasa a dos columnas para caber. La barra de estado dejó de envolver y se desplaza con el dedo: envolviendo en renglones de 44 px se habría comido 160 px del borde inferior del plano, justo la franja donde cae el muro que se acota.",
+      "estado": "corregido y vuelto a medir con la misma sonda que lo denunció"
     }
   ],
   "perfiles": [
@@ -107,24 +109,24 @@
       "disposicion": {
         "lienzo": {
           "ancho": 1024,
-          "alto": 720
+          "alto": 707
         },
-        "fraccionDeVentanaQueEsLienzo": 0.94,
+        "fraccionDeVentanaQueEsLienzo": 0.92,
         "lineaDeComandosVisible": true,
         "barraSuperiorVisible": true,
         "barraHerramientasVisible": true,
         "desbordeHorizontal": false,
         "oclusionDelLienzoPorcentaje": {
-          "cad-guided-tour": 14.3,
-          "cad-command-line": 2.2,
-          "cad-toolbar": 6.4,
+          "cad-guided-tour": 14.6,
+          "cad-command-line": 3.7,
+          "cad-toolbar": 9.2,
           "cad-left-dock": 0,
           "cad-right-dock": 0
         },
         "objetivosTactiles": {
-          "controlesVisibles": 85,
-          "pordebajoDe44px": 85,
-          "ladoMenorPx": 16.5
+          "controlesVisibles": 86,
+          "pordebajoDe44px": 0,
+          "ladoMenorPx": 44
         }
       },
       "checks": [
@@ -229,7 +231,7 @@
           "gesto": "Dos dedos desplazándose juntos 100 px",
           "esperado": "la vista se desplaza ~100 px sin cambiar de escala",
           "veredicto": "funciona",
-          "observado": "desplazamiento 91.8 px, escala ×0.974",
+          "observado": "desplazamiento 91.8 px, escala ×0.975",
           "veredictoPorCorrida": [
             "funciona",
             "funciona",
@@ -238,7 +240,7 @@
           "medidaPorCorrida": [
             {
               "desplazamientoPx": 91.8,
-              "factorEscala": 0.974
+              "factorEscala": 0.975
             },
             {
               "desplazamientoPx": 91.8,
@@ -255,7 +257,7 @@
           "gesto": "Pellizco de apertura (80 px → 320 px de separación)",
           "esperado": "acercar: menos unidades de dibujo por píxel",
           "veredicto": "funciona",
-          "observado": "factor de acercamiento ×3.99",
+          "observado": "factor de acercamiento ×4.00",
           "veredictoPorCorrida": [
             "funciona",
             "funciona",
@@ -264,18 +266,18 @@
           "medidaPorCorrida": [
             {
               "factorAcercamiento": 3.995,
-              "unidadesPorPixelAntes": 11.66,
-              "unidadesPorPixelDespues": 2.919
+              "unidadesPorPixelAntes": 11.875,
+              "unidadesPorPixelDespues": 2.972
             },
             {
               "factorAcercamiento": 3.995,
-              "unidadesPorPixelAntes": 11.66,
-              "unidadesPorPixelDespues": 2.919
+              "unidadesPorPixelAntes": 11.875,
+              "unidadesPorPixelDespues": 2.972
             },
             {
               "factorAcercamiento": 3.995,
-              "unidadesPorPixelAntes": 11.66,
-              "unidadesPorPixelDespues": 2.919
+              "unidadesPorPixelAntes": 11.875,
+              "unidadesPorPixelDespues": 2.972
             }
           ]
         },
@@ -481,24 +483,24 @@
       "disposicion": {
         "lienzo": {
           "ancho": 768,
-          "alto": 976
+          "alto": 963
         },
-        "fraccionDeVentanaQueEsLienzo": 0.95,
+        "fraccionDeVentanaQueEsLienzo": 0.94,
         "lineaDeComandosVisible": true,
         "barraSuperiorVisible": true,
         "barraHerramientasVisible": true,
         "desbordeHorizontal": false,
         "oclusionDelLienzoPorcentaje": {
-          "cad-guided-tour": 13,
-          "cad-command-line": 1.6,
-          "cad-toolbar": 6.3,
+          "cad-guided-tour": 14.3,
+          "cad-command-line": 2.7,
+          "cad-toolbar": 9,
           "cad-left-dock": 0,
           "cad-right-dock": 0
         },
         "objetivosTactiles": {
-          "controlesVisibles": 85,
-          "pordebajoDe44px": 85,
-          "ladoMenorPx": 16.5
+          "controlesVisibles": 86,
+          "pordebajoDe44px": 0,
+          "ladoMenorPx": 44
         }
       },
       "checks": [
@@ -603,7 +605,7 @@
           "gesto": "Dos dedos desplazándose juntos 100 px",
           "esperado": "la vista se desplaza ~100 px sin cambiar de escala",
           "veredicto": "funciona",
-          "observado": "desplazamiento 92.2 px, escala ×0.977",
+          "observado": "desplazamiento 92.6 px, escala ×0.979",
           "veredictoPorCorrida": [
             "funciona",
             "funciona",
@@ -611,16 +613,16 @@
           ],
           "medidaPorCorrida": [
             {
-              "desplazamientoPx": 92.2,
-              "factorEscala": 0.977
+              "desplazamientoPx": 92.6,
+              "factorEscala": 0.979
             },
             {
-              "desplazamientoPx": 92.2,
-              "factorEscala": 0.977
+              "desplazamientoPx": 92.6,
+              "factorEscala": 0.979
             },
             {
-              "desplazamientoPx": 92.2,
-              "factorEscala": 0.977
+              "desplazamientoPx": 92.6,
+              "factorEscala": 0.979
             }
           ]
         },
@@ -638,18 +640,18 @@
           "medidaPorCorrida": [
             {
               "factorAcercamiento": 3.996,
-              "unidadesPorPixelAntes": 13.938,
-              "unidadesPorPixelDespues": 3.488
+              "unidadesPorPixelAntes": 13.951,
+              "unidadesPorPixelDespues": 3.491
             },
             {
               "factorAcercamiento": 3.996,
-              "unidadesPorPixelAntes": 13.938,
-              "unidadesPorPixelDespues": 3.488
+              "unidadesPorPixelAntes": 13.951,
+              "unidadesPorPixelDespues": 3.491
             },
             {
               "factorAcercamiento": 3.996,
-              "unidadesPorPixelAntes": 13.938,
-              "unidadesPorPixelDespues": 3.488
+              "unidadesPorPixelAntes": 13.951,
+              "unidadesPorPixelDespues": 3.491
             }
           ]
         },
@@ -855,24 +857,24 @@
       "disposicion": {
         "lienzo": {
           "ancho": 870,
-          "alto": 976
+          "alto": 963
         },
-        "fraccionDeVentanaQueEsLienzo": 0.61,
+        "fraccionDeVentanaQueEsLienzo": 0.6,
         "lineaDeComandosVisible": true,
         "barraSuperiorVisible": true,
         "barraHerramientasVisible": true,
         "desbordeHorizontal": false,
         "oclusionDelLienzoPorcentaje": {
-          "cad-guided-tour": 16.2,
-          "cad-command-line": 2.1,
-          "cad-toolbar": 5.5,
+          "cad-guided-tour": 18.7,
+          "cad-command-line": 3.6,
+          "cad-toolbar": 7.9,
           "cad-left-dock": 0,
           "cad-right-dock": 0
         },
         "objetivosTactiles": {
-          "controlesVisibles": 98,
-          "pordebajoDe44px": 95,
-          "ladoMenorPx": 16.5
+          "controlesVisibles": 99,
+          "pordebajoDe44px": 0,
+          "ladoMenorPx": 44
         }
       },
       "checks": [
@@ -977,7 +979,7 @@
           "gesto": "Dos dedos desplazándose juntos 100 px",
           "esperado": "la vista se desplaza ~100 px sin cambiar de escala",
           "veredicto": "funciona",
-          "observado": "desplazamiento 91.8 px, escala ×0.974",
+          "observado": "desplazamiento 92.2 px, escala ×0.977",
           "veredictoPorCorrida": [
             "funciona",
             "funciona",
@@ -985,16 +987,16 @@
           ],
           "medidaPorCorrida": [
             {
-              "desplazamientoPx": 91.8,
-              "factorEscala": 0.974
+              "desplazamientoPx": 92.2,
+              "factorEscala": 0.977
             },
             {
-              "desplazamientoPx": 91.8,
-              "factorEscala": 0.974
+              "desplazamientoPx": 92.2,
+              "factorEscala": 0.977
             },
             {
-              "desplazamientoPx": 91.8,
-              "factorEscala": 0.974
+              "desplazamientoPx": 92.2,
+              "factorEscala": 0.977
             }
           ]
         },
@@ -1003,7 +1005,7 @@
           "gesto": "Pellizco de apertura (80 px → 320 px de separación)",
           "esperado": "acercar: menos unidades de dibujo por píxel",
           "veredicto": "funciona",
-          "observado": "factor de acercamiento ×3.99",
+          "observado": "factor de acercamiento ×4.00",
           "veredictoPorCorrida": [
             "funciona",
             "funciona",
@@ -1011,19 +1013,19 @@
           ],
           "medidaPorCorrida": [
             {
-              "factorAcercamiento": 3.994,
-              "unidadesPorPixelAntes": 12.408,
-              "unidadesPorPixelDespues": 3.107
+              "factorAcercamiento": 4,
+              "unidadesPorPixelAntes": 12.424,
+              "unidadesPorPixelDespues": 3.106
             },
             {
-              "factorAcercamiento": 3.994,
-              "unidadesPorPixelAntes": 12.408,
-              "unidadesPorPixelDespues": 3.107
+              "factorAcercamiento": 4,
+              "unidadesPorPixelAntes": 12.424,
+              "unidadesPorPixelDespues": 3.106
             },
             {
-              "factorAcercamiento": 3.994,
-              "unidadesPorPixelAntes": 12.408,
-              "unidadesPorPixelDespues": 3.107
+              "factorAcercamiento": 4,
+              "unidadesPorPixelAntes": 12.424,
+              "unidadesPorPixelDespues": 3.106
             }
           ]
         },
@@ -1160,8 +1162,8 @@
               "capturaPorDistancia": {
                 "0px": "extremo",
                 "6px": "extremo",
-                "12px": "extremo",
-                "20px": "extremo"
+                "12px": "extensión",
+                "20px": "extensión"
               },
               "desplazamientoDeLaInsigniaPx": 40
             },
@@ -1169,8 +1171,8 @@
               "capturaPorDistancia": {
                 "0px": "extremo",
                 "6px": "extremo",
-                "12px": "extremo",
-                "20px": "extremo"
+                "12px": "extensión",
+                "20px": "extensión"
               },
               "desplazamientoDeLaInsigniaPx": 40
             },
@@ -1178,8 +1180,8 @@
               "capturaPorDistancia": {
                 "0px": "extremo",
                 "6px": "extremo",
-                "12px": "extremo",
-                "20px": "extremo"
+                "12px": "extensión",
+                "20px": "extensión"
               },
               "desplazamientoDeLaInsigniaPx": 40
             }

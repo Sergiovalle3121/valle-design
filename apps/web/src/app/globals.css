@@ -744,3 +744,82 @@
     "tnum" 1,
     "cv11" 1;
 }
+
+/* ===========================================================================
+   CAD EN TABLETA — 44 px de objetivo táctil, SÓLO con puntero grueso
+   ---------------------------------------------------------------------------
+   `docs/cad/evidence/touch-support.json` lo publicó medido: de los 98 controles
+   visibles del editor, 95 bajaban de los 44 px de lado que Apple y Google fijan
+   como mínimo para un objetivo táctil, y el más pequeño medía 16,5 px. Por
+   debajo de esa cifra el dedo falla el botón y el usuario culpa al programa.
+
+   La corrección vive AQUÍ, en el sistema de diseño, y no en cada componente:
+
+     · `@media (pointer: coarse)` sólo se aplica donde hay dedo. En escritorio
+       con ratón no cambia un píxel, y los goldens del CAD —que corren a
+       1.280×720 con puntero fino— siguen midiendo lo mismo.
+     · son casi cien controles repartidos por barras y paletas: una regla los
+       cubre todos, y una ola de ediciones a mano se deja la mitad.
+
+   Lo que un dedo gana en acierto lo paga el dibujo en sitio: agrandar controles
+   TAPA lienzo. Por eso los tres contenedores que no absorben hijos de 44 px sin
+   deformarse llevan su propia regla, y el precio queda medido en la oclusión que
+   publica el mismo artefacto.
+   =========================================================================== */
+@media (pointer: coarse) {
+  /* El alcance NO puede ser un ancestro común porque no lo hay: el editor se
+     pinta en un portal a <body>, la paleta de capas en OTRO portal, y el muelle
+     de colaboración cuelga del anfitrión de la página. Enumerar raíces se queda
+     corto a la primera ola —se comprobó midiendo—, así que el alcance es la
+     convención que ya usa todo el CAD: `data-testid="cad-…"`. Una superficie
+     nueva queda cubierta por existir con su etiqueta; la que no la tenga sale
+     contada por la sonda (`smallTargets`, en
+     scripts/cad/touch-probe-instruments.mts), que es donde este número se
+     vuelve a medir. */
+  :is(.cad-shell, [data-testid^="cad-"])
+    :is(button, [role="button"], select, input) {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* La barra superior fija su alto por densidad (h-12 compacta, h-14 cómoda) y
+     recortaría a sus propios botones. `auto` deja que lo dicte el objetivo
+     táctil sin tocar la densidad que el usuario eligió. */
+  .cad-shell [data-testid="cad-top-toolbar"] {
+    height: auto;
+  }
+
+  /* La paleta flotante son 18 herramientas. En una columna de 44 px mediría
+     872 px de alto y el lienzo de una tableta de 10" apaisada tiene 707: la
+     mitad de las herramientas caería fuera de la pantalla. En dos columnas mide
+     442 px y conserva la forma de tira vertical en la esquina. */
+  .cad-shell [data-testid="cad-toolbar"] > div {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* La barra de estado envuelve hoy en tres renglones de ~16 px. Con renglones
+     de 44 px se comería 160 px del borde inferior del dibujo, justo la franja
+     donde cae el muro que se acota. Deja de envolver y se desplaza con el dedo,
+     igual que ya hace la barra superior: un renglón de 58 px, MENOS que los 59
+     que ocupa envolviendo. */
+  .cad-shell .cad-status-bar {
+    flex-wrap: nowrap;
+    /* Sin tope, una caja absoluta anclada por la DERECHA que ya no envuelve
+       crece hacia la izquierda hasta salirse de la pantalla: medido, −681 px.
+       El tope la deja dentro del lienzo y es lo que hace que `overflow-x`
+       desplace en vez de desbordar. */
+    max-width: calc(100% - 1.5rem);
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    scrollbar-width: none;
+  }
+
+  .cad-shell .cad-status-bar > * {
+    flex-shrink: 0;
+  }
+
+  .cad-shell .cad-status-bar::-webkit-scrollbar {
+    display: none;
+  }
+}

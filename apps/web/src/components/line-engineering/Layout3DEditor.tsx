@@ -16618,7 +16618,7 @@ export default function Layout3DEditor({
       onSubmitCapture={guardReadOnlyUi}
       onPointerDownCapture={guardReadOnlyUi}
       onKeyDownCapture={guardReadOnlyUi}
-      className={`fixed inset-0 z-[70] flex flex-col ${resolvedScheme === "light" ? "bg-slate-100 text-slate-950" : "bg-gray-950 text-white"}`}
+      className={`cad-shell fixed inset-0 z-[70] flex flex-col ${resolvedScheme === "light" ? "bg-slate-100 text-slate-950" : "bg-gray-950 text-white"}`}
     >
       {/* top bar (relative z-30 so dropdown popovers paint above the 3D content,
           which would otherwise stack over the backdrop-blur'd bar) */}
@@ -18543,7 +18543,7 @@ export default function Layout3DEditor({
                 )}
               </div>
             )}
-            <div className="absolute bottom-3 right-3 z-20 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-gray-950/85 px-3 py-1.5 text-[11px] text-gray-300 shadow-xl backdrop-blur">
+            <div className="cad-status-bar absolute bottom-3 right-3 z-20 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-gray-950/85 px-3 py-1.5 text-[11px] text-gray-300 shadow-xl backdrop-blur">
               <span className="text-cyan-200">Tool: {tool}</span>
               <span data-testid="cad-selection-status-count">
                 {professionalSelection.current.length} sel

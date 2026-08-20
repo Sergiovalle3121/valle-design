@@ -222,23 +222,37 @@ const evidence = {
     gestosParciales: byVerdict("parcial"),
     gestosInestables: byVerdict("inestable"),
   },
-  defectosConocidos: [
+  defectosConocidos: [],
+  defectosCorregidos: [
     {
       id: "objetivos-tactiles-por-debajo-de-44px",
       severidad: "media",
-      titulo: "Casi todos los controles bajan del mínimo táctil de 44 px",
-      // Las cifras salen de la disposición medida, no de una estimación.
+      titulo: "Todo control del editor llega a 44 px cuando el puntero es un dedo",
+      // Las cifras salen de la disposición medida, no de una estimación. Son la
+      // misma medida que declaró el defecto: `smallTargets` sobre los controles
+      // VISIBLES al abrir el plano.
       medido: Object.fromEntries(
         profiles.map((profile) => [profile.id, profile.disposicion.objetivosTactiles]),
       ),
       consecuencia:
         "44 px de lado es el mínimo que publican Apple y Google para un objetivo táctil. Por debajo, el " +
-        "dedo falla el botón y el usuario culpa al programa. El control más pequeño del editor mide 16,5 px.",
-      porQueNoSeArreglaAqui:
-        "No es un problema del viewport ni de los gestos: es el tamaño de casi cien controles repartidos " +
-        "por barras y paletas, y agrandarlos es un cambio del sistema de diseño con su propia ola. " +
-        "Cambiarlos a ciegas junto a los gestos habría mezclado dos regresiones distintas en un mismo diff.",
-      estado: "medido y declarado; no arreglado en esta ola",
+        "dedo falla el botón y el usuario culpa al programa. Cuando esto se midió por primera vez, 95 de " +
+        "los 98 controles visibles bajaban de esa cifra y el más pequeño medía 16,5 px.",
+      comoSeCorrigio:
+        "Con una regla de PUNTERO GRUESO en el sistema de diseño (`@media (pointer: coarse)` en " +
+        "apps/web/src/app/globals.css), no con cien ediciones a mano. `pointer: coarse` sólo se cumple " +
+        "donde hay dedo: en escritorio con ratón no cambia un píxel y los goldens del CAD, que corren a " +
+        "1.280×720 con puntero fino, miden exactamente lo mismo que antes. El alcance es la convención de " +
+        "etiquetas del propio CAD (`data-testid=\"cad-…\"` más la raíz `.cad-shell`) porque el editor, la " +
+        "paleta de capas y el muelle de colaboración viven en portales distintos y NO tienen ancestro común.",
+      loQueCuesta:
+        "Un control más grande tapa más dibujo, y eso también está medido: la oclusión de cada panel se " +
+        "publica en `perfiles[].disposicion.oclusionDelLienzoPorcentaje`, y la paleta flotante —18 " +
+        "herramientas que en una sola columna de 44 px medirían 872 px, más que el lienzo de una tableta " +
+        "de 10\"— pasa a dos columnas para caber. La barra de estado dejó de envolver y se desplaza con el " +
+        "dedo: envolviendo en renglones de 44 px se habría comido 160 px del borde inferior del plano, " +
+        "justo la franja donde cae el muro que se acota.",
+      estado: "corregido y vuelto a medir con la misma sonda que lo denunció",
     },
   ],
   perfiles: profiles,
