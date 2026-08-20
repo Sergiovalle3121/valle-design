@@ -192,6 +192,7 @@ export const CAD_COMMAND_SUMMARIES: Readonly<Record<string, string>> = {
   UNION: "Unión booleana de sólidos o regiones.",
   UNITS: "Unidades y precisión del dibujo.",
   VIEW: "Vistas con nombre: guarda y restituye encuadres.",
+  VPLAYER: "Congela o descongela capas SÓLO en una ventana de la presentación.",
   VPOINT: "Punto de vista 3D por vector.",
   VSCURRENT: "Estilo visual de la vista: alámbrico, oculto, sombreado.",
   WALL: "Muro paramétrico con espesor y altura.",

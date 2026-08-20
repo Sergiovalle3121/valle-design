@@ -42,6 +42,7 @@ import { CAD_MODIFY_ALIGN_COMMANDS } from "./commands/modify-align";
 import { CAD_MODIFY_CLEANUP_COMMANDS } from "./commands/modify-cleanup";
 import { CAD_SELECT_QUERY_COMMANDS } from "./commands/select-query";
 import { CAD_SETTINGS_PALETTE_COMMANDS } from "./commands/settings-palettes";
+import { CAD_LAYER_TOOL_COMMANDS } from "./commands/settings-layer-tools";
 import { CAD_MEXICAN_STANDARD_COMMANDS } from "./commands/settings-mexican-standard";
 import { CAD_SETTINGS_VARIABLE_COMMANDS } from "./commands/settings-variables";
 import { CAD_MODIFY_ARRAY_COMMANDS } from "./commands/modify-array";
@@ -123,6 +124,9 @@ export const CAD_COMMAND_DESCRIPTORS = [
   ...CAD_MODIFY_CLEANUP_COMMANDS,
   ...CAD_SETTINGS_VARIABLE_COMMANDS,
   ...CAD_SETTINGS_PALETTE_COMMANDS,
+  // Ola 2: VPLAYER y la familia LAY*, los atajos de capa que montan las
+  // láminas del ejecutivo sin abrir el gestor.
+  ...CAD_LAYER_TOOL_COMMANDS,
   // La norma de dibujo mexicana, aplicable a un dibujo que YA existe: sin ella
   // la norma sería una propiedad de los documentos nuevos y no del producto, y
   // el DXF que llega del estructurista se quedaría fuera para siempre.
