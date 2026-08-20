@@ -1,16 +1,17 @@
 {
   "$schema": "urn:valle-design:schema:cad-competitive-rubric:v1",
   "schemaVersion": 1,
-  "version": "2026-08-09.1",
+  "version": "2026-08-20.1",
   "title": "Rúbrica competitiva CAD — Valle Design frente a AutoCAD 2027",
-  "cutoffDate": "2026-08-09",
+  "cutoffDate": "2026-08-20",
   "totalPoints": 200,
   "manualMaxAgeDays": 180,
   "notes": [
-    "El denominador es 200 y se publica. Ninguna categoría llega a su tope en este corte.",
+    "El denominador es 200 y se publica.",
     "Un criterio se concede sólo si TODA su evidencia verifica. Sin evidencia, cero.",
     "Los puntos se reparten por PESO COMERCIAL, no por esfuerzo de implementación. El argumento está en autocad-2027-gap-matrix.md §Reparto.",
-    "costDays es una estimación de esfuerzo declarada por quien escribe el criterio; alimenta la tabla de prioridad y no la nota."
+    "costDays es una estimación de esfuerzo declarada por quien escribe el criterio; alimenta la tabla de prioridad y no la nota.",
+    "Corte 2026-08-20: la evidencia de existencia se re-basó a contenido. El 189/200 del corte anterior concedía puntos por que un JSON existiera aunque su contenido desmintiera el criterio (browser-slo medía 48 s de detalle completo). Ahora un criterio de ≥2 pt sólo-existencia es un error de definición, y los gaps documentados (frozen, PAGESETUP, hatch en PDF, BEDIT, F7/F9/F12, .shx, kernel WASM sin importador) son criterios que fallan, no notas al pie."
   ],
   "groups": [
     { "id": "core", "name": "Núcleo del plano entregable", "points": 110 },
@@ -24,7 +25,7 @@
       "group": "core",
       "name": "Dibujo 2D y precisión",
       "points": 16,
-      "gap": "Sin corpus de geometría degenerada con criterio publicado, y sin SLO interactivo de navegador.",
+      "gap": "El corpus de geometría degenerada existe; faltan los conmutadores estándar F7 (rejilla), F9 (forzado) y F12 (entrada dinámica), que un dibujante de AutoCAD pulsa sin mirar.",
       "criteria": [
         {
           "id": "draw-2d.canonical",
@@ -102,7 +103,7 @@
         },
         {
           "id": "draw-2d.tracking",
-          "points": 2,
+          "points": 1,
           "text": "ORTHO, rastreo polar y ajustes de dibujo con diálogo aplicable",
           "costDays": 0,
           "evidence": [
@@ -117,6 +118,30 @@
             {
               "kind": "golden",
               "path": "apps/web/e2e/golden/52-cad-draft-settings.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "draw-2d.toggles",
+          "points": 1,
+          "text": "Conmutadores estándar por tecla de función: F7 (rejilla), F9 (forzado a rejilla) y F12 (entrada dinámica) — F3, F8, F10 y F11 ya existen",
+          "costDays": 1,
+          "rationale": "Este punto sale del que tenía draw-2d.tracking: los ajustes existen pero la memoria muscular de AutoCAD los conmuta con F7/F9/F12, y esas tres teclas no están en keyboard-shortcuts.ts. Gap verificado en el árbol el 2026-08-20; el criterio falla hasta que existan.",
+          "evidence": [
+            {
+              "kind": "grep",
+              "path": "apps/web/src/lib/cad/keyboard-shortcuts.ts",
+              "pattern": "key: \"f7\""
+            },
+            {
+              "kind": "grep",
+              "path": "apps/web/src/lib/cad/keyboard-shortcuts.ts",
+              "pattern": "key: \"f9\""
+            },
+            {
+              "kind": "grep",
+              "path": "apps/web/src/lib/cad/keyboard-shortcuts.ts",
+              "pattern": "key: \"f12\""
             }
           ]
         },
@@ -153,7 +178,7 @@
       "group": "core",
       "name": "Selección y modificación",
       "points": 14,
-      "gap": "Faltan MATCHPROP en grupo con GROUP/OVERKILL/DRAWORDER, y el estrés de navegador con trazos densos.",
+      "gap": "Los comandos existen todos; lo que falta es la EVIDENCIA versionada del estrés denso: el golden corre y nadie guardó su artefacto en docs/cad/evidence/.",
       "criteria": [
         {
           "id": "modify.selection",
@@ -276,12 +301,17 @@
         {
           "id": "modify.dense-stress",
           "points": 1,
-          "text": "Estrés de navegador con trazos densos (100k) sobre selección y modificación, con artefacto por corrida",
+          "text": "Estrés de navegador con trazos densos (100k) sobre selección y modificación, con artefacto versionado por corrida",
           "costDays": 5,
+          "rationale": "El criterio siempre prometió «con artefacto por corrida» y la evidencia sólo miraba que el golden existiera. El generador (scripts/cad/dense-editing-evidence.mjs) escribe docs/cad/evidence/cad-dense-editing-100k.json y ese archivo NO está versionado: hasta que una corrida se guarde, el punto no está.",
           "evidence": [
             {
               "kind": "golden",
               "path": "apps/web/e2e/performance/cad-dense-editing-100k.spec.ts"
+            },
+            {
+              "kind": "file",
+              "path": "docs/cad/evidence/cad-dense-editing-100k.json"
             }
           ]
         }
@@ -358,7 +388,11 @@
             { "kind": "command", "name": "DIMANGULAR" },
             { "kind": "command", "name": "DIMRADIUS" },
             { "kind": "command", "name": "DIMDIAMETER" },
-            { "kind": "alias", "alias": "DLI" }
+            { "kind": "alias", "alias": "DLI" },
+            { "kind": "alias", "alias": "DAL" },
+            { "kind": "alias", "alias": "DAN" },
+            { "kind": "alias", "alias": "DRA" },
+            { "kind": "alias", "alias": "DDI" }
           ]
         },
         {
@@ -418,6 +452,7 @@
           "evidence": [
             { "kind": "command", "name": "HATCH" },
             { "kind": "alias", "alias": "H" },
+            { "kind": "alias", "alias": "BH" },
             { "kind": "command", "name": "BOUNDARY" }
           ]
         },
@@ -440,7 +475,7 @@
       "group": "core",
       "name": "MTEXT y texto",
       "points": 9,
-      "gap": "Cubierto. Los códigos de altura, anchura, oblicuidad y fuente se LEEN por tramo pero la maqueta los mide con los valores de la ENTIDAD: dibujar tramo a tramo es del pipeline de render. El espaciado entre caracteres y las sangrías de párrafo siguen sin interpretarse, y ninguna .shx se resuelve —se sustituyen todas, declarado—.",
+      "gap": "Ninguna .shx se resuelve —se sustituyen todas, y el artefacto de fidelidad lo mide (ISOCPEUR→helvetica)—. Además la maqueta mide con los valores de la ENTIDAD, no del tramo, y el espaciado entre caracteres y las sangrías siguen sin interpretarse.",
       "criteria": [
         {
           "id": "mtext.entity",
@@ -479,25 +514,41 @@
         },
         {
           "id": "mtext.commands",
-          "points": 3,
+          "points": 2,
           "text": "MTEXT, TEXT y STYLE tecleables (T, MT, DT y ST resuelven)",
           "costDays": 4,
           "evidence": [
             { "kind": "command", "name": "MTEXT" },
             { "kind": "command", "name": "TEXT" },
             { "kind": "command", "name": "STYLE" },
-            { "kind": "alias", "alias": "T" }
+            { "kind": "alias", "alias": "T" },
+            { "kind": "alias", "alias": "MT" },
+            { "kind": "alias", "alias": "DT" },
+            { "kind": "alias", "alias": "ST" }
           ]
         },
         {
           "id": "mtext.rich",
           "points": 1,
-          "text": "Códigos de control (\\P, apilado, cambio de fuente) y fuentes SHX/TTF resueltas",
+          "text": "Códigos de control (\\P, apilado, cambio de fuente) con sustitución de fuentes declarada",
           "costDays": 8,
           "evidence": [
             {
               "kind": "spec",
               "path": "apps/web/src/lib/cad/mtext-rich-format.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "mtext.stroke-fonts",
+          "points": 1,
+          "text": "Una fuente de trazos (SHX o equivalente de dominio público) resuelve glifos de verdad en vez de sustituirse",
+          "costDays": 6,
+          "rationale": "El criterio anterior decía «fuentes SHX/TTF resueltas» y su spec sólo probaba los códigos de control: el artefacto de fidelidad de trazado declara que TODA .shx se sustituye (ISOCPEUR→helvetica, medido). El punto de la resolución se separa y falla hasta que una spec demuestre glifos resueltos.",
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/stroke-font-resolution.spec.ts"
             }
           ]
         }
@@ -508,7 +559,7 @@
       "group": "core",
       "name": "Capas y propiedades",
       "points": 10,
-      "gap": "La capa se gestiona por paleta pero no por línea de comandos; LA no resuelve.",
+      "gap": "El documento canónico no conoce `frozen`: CadLayerDef sólo tiene visible/locked, el gestor congela sólo en pantalla y el importador DXF lee el bit 1 del código 70 y lo descarta al mapear.",
       "criteria": [
         {
           "id": "layers.canonical",
@@ -529,8 +580,8 @@
         },
         {
           "id": "layers.manager",
-          "points": 2,
-          "text": "Gestor de capas con congelar, bloquear y visibilidad",
+          "points": 1,
+          "text": "Gestor de capas con bloquear y visibilidad",
           "costDays": 0,
           "evidence": [
             {
@@ -544,6 +595,20 @@
             {
               "kind": "golden",
               "path": "apps/web/e2e/golden/50-cad-layer-properties.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "layers.frozen",
+          "points": 1,
+          "text": "Congelar de verdad: `frozen` en la capa del documento canónico (CadLayerDef), distinto de apagar, persistido y con viaje DXF del bit 1 del código 70",
+          "costDays": 3,
+          "rationale": "El gestor decía «congelar» y el documento no puede decirlo: CadLayerDef (cad-document.ts) sólo declara visible/locked, así que congelar no sobrevive ni al guardado ni al DXF —el importador LEE el bit y lo descarta—. Este punto sale del que tenía layers.manager y falla hasta que el documento canónico conozca frozen.",
+          "evidence": [
+            {
+              "kind": "grep",
+              "path": "apps/web/src/lib/cad/cad-document.ts",
+              "pattern": "frozen"
             }
           ]
         },
@@ -585,9 +650,12 @@
           "evidence": [
             { "kind": "command", "name": "LAYER" },
             { "kind": "command", "name": "LINETYPE" },
+            { "kind": "command", "name": "LWEIGHT" },
             { "kind": "command", "name": "COLOR" },
             { "kind": "command", "name": "PROPERTIES" },
-            { "kind": "alias", "alias": "LA" }
+            { "kind": "alias", "alias": "LA" },
+            { "kind": "alias", "alias": "LT" },
+            { "kind": "alias", "alias": "COL" }
           ]
         }
       ]
@@ -597,7 +665,7 @@
       "group": "core",
       "name": "Bloques y atributos",
       "points": 9,
-      "gap": "Sin BLOCK/INSERT/WBLOCK tecleables y sin bloques dinámicos ni comportamiento anotativo.",
+      "gap": "BEDIT no existe: el alias BE cuelga (es uno de los 2 alias sin resolver de la tabla acad.pgp). Sin editor de bloques en sitio, redefinir un bloque exige explotar y volver a definir.",
       "criteria": [
         {
           "id": "blocks.library",
@@ -649,14 +717,27 @@
         },
         {
           "id": "blocks.commands",
-          "points": 2,
-          "text": "BLOCK, INSERT, WBLOCK y BEDIT tecleables (B, I, W, BE resuelven)",
-          "costDays": 5,
+          "points": 1,
+          "text": "BLOCK, INSERT y WBLOCK tecleables (B, I, W resuelven)",
+          "costDays": 0,
           "evidence": [
             { "kind": "command", "name": "BLOCK" },
             { "kind": "command", "name": "INSERT" },
             { "kind": "command", "name": "WBLOCK" },
-            { "kind": "alias", "alias": "I" }
+            { "kind": "alias", "alias": "B" },
+            { "kind": "alias", "alias": "I" },
+            { "kind": "alias", "alias": "W" }
+          ]
+        },
+        {
+          "id": "blocks.bedit",
+          "points": 1,
+          "text": "BEDIT tecleable: editor de bloques en sitio (BE resuelve)",
+          "costDays": 4,
+          "rationale": "El criterio anterior decía «BLOCK, INSERT, WBLOCK y BEDIT tecleables» y la evidencia nunca miraba BEDIT: el registro no lo tiene y BE es uno de los 2 alias colgantes de la tabla. El punto de BEDIT se separa y falla hasta que exista.",
+          "evidence": [
+            { "kind": "command", "name": "BEDIT" },
+            { "kind": "alias", "alias": "BE" }
           ]
         },
         {
@@ -809,7 +890,7 @@
       "group": "core",
       "name": "Layouts, viewports y publicación",
       "points": 10,
-      "gap": "El PDF sólo se genera desde el monolito de 23k líneas; no hay comando de ploteo ni SLO de publicación.",
+      "gap": "Dos defectos MEDIDOS por el propio artefacto de fidelidad: PAGESETUP cambia el papel sin recolocar la ventana gráfica (geometría fuera del área imprimible) y el sombreado llega al PDF como contorno, sin patrón.",
       "criteria": [
         {
           "id": "layouts.paper-space",
@@ -830,7 +911,7 @@
         },
         {
           "id": "layouts.plot-sheet",
-          "points": 2,
+          "points": 1,
           "text": "Hoja de ploteo y adaptador de exportación del layout",
           "costDays": 0,
           "evidence": [
@@ -847,7 +928,7 @@
         },
         {
           "id": "layouts.publications",
-          "points": 2,
+          "points": 1,
           "text": "Publicaciones versionadas y consultables desde el cliente",
           "costDays": 0,
           "evidence": [
@@ -869,19 +950,61 @@
           "evidence": [
             { "kind": "command", "name": "LAYOUT" },
             { "kind": "command", "name": "MVIEW" },
+            { "kind": "command", "name": "MSPACE" },
+            { "kind": "command", "name": "PSPACE" },
             { "kind": "command", "name": "PLOT" },
+            { "kind": "command", "name": "PAGESETUP" },
             { "kind": "alias", "alias": "PLO" }
           ]
         },
         {
           "id": "layouts.fidelity",
           "points": 2,
-          "text": "Fidelidad de fuentes y estilos de trazado con SLO de publicación medido y máquina declarada",
+          "text": "Fidelidad geométrica de publicación MEDIDA sobre los bytes del PDF: error de escala bajo la tolerancia de 0,001 mm y veredicto verde, con máquina declarada",
           "costDays": 10,
+          "rationale": "La evidencia era la EXISTENCIA del artefacto; ahora se leen sus cifras. La fidelidad de escala pasa con holgura real (2,8·10⁻¹⁴ mm frente a 0,001 mm de tolerancia); los dos defectos que el mismo artefacto documenta puntúan aparte y fallan.",
           "evidence": [
             {
-              "kind": "file",
-              "path": "docs/cad/evidence/plot-fidelity-slo.json"
+              "kind": "metric",
+              "path": "docs/cad/evidence/plot-fidelity-slo.json",
+              "pointer": "geometricFidelity/verdict/worstScaleErrorMm",
+              "max": 0.001,
+              "unit": "mm"
+            },
+            {
+              "kind": "jsonValue",
+              "path": "docs/cad/evidence/plot-fidelity-slo.json",
+              "pointer": "geometricFidelity/verdict/passed",
+              "equals": true
+            }
+          ]
+        },
+        {
+          "id": "layouts.pagesetup-viewport",
+          "points": 1,
+          "text": "PAGESETUP recoloca la ventana gráfica al cambiar el papel: cero segmentos fuera del área imprimible en el caso medido A1→A3",
+          "costDays": 2,
+          "rationale": "Defecto de severidad alta documentado en plot-fidelity-slo.json (knownDefects): la hoja cambia de tamaño y el dibujo queda colocado para el papel anterior, así que parte de la geometría se dibuja y no se imprime. El criterio lee el número medido y falla mientras haya segmentos fuera.",
+          "evidence": [
+            {
+              "kind": "metric",
+              "path": "docs/cad/evidence/plot-fidelity-slo.json",
+              "pointer": "knownDefects/0/measured/segmentsOutsidePage",
+              "max": 0,
+              "unit": "segmentos fuera del área imprimible"
+            }
+          ]
+        },
+        {
+          "id": "layouts.hatch-pattern-pdf",
+          "points": 1,
+          "text": "El sombreado llega al PDF publicado con su patrón, no sólo el contorno",
+          "costDays": 3,
+          "rationale": "En pantalla el patrón ya se genera (hatch-entity-adapter) y la publicación lo degrada con la advertencia hatch_pattern_outline_only (paper-space.ts). El artefacto de fidelidad lo declara en notMeasured. Falla hasta que una spec pruebe el patrón dentro de los bytes del PDF.",
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/plot-hatch-pattern.spec.ts"
             }
           ]
         }
@@ -985,7 +1108,7 @@
       "group": "pro",
       "name": "Línea de comandos, alias y scripting",
       "points": 12,
-      "gap": "Cubierto. Un .scr se ejecuta sin interfaz y falla cerrado con el renglón señalado. Quedan 2 de 129 alias de acad.pgp sin implementar, y OPTIONS y PROPERTIES no tienen variante por la línea —ni aquí ni en AutoCAD—: se responde con SETVAR y LIST.",
+      "gap": "Quedan exactamente 2 de 129 alias de acad.pgp sin resolver: BE→BEDIT y BLE→BLEND. OPTIONS y PROPERTIES no tienen variante por la línea —ni aquí ni en AutoCAD—: se responde con SETVAR y LIST.",
       "criteria": [
         {
           "id": "command-line.registry",
@@ -1065,7 +1188,7 @@
         },
         {
           "id": "command-line.alias-coverage",
-          "points": 3,
+          "points": 2,
           "text": "Los alias de anotación, capa, consulta y vista resuelven: H, LA, DLI, T, Z, P, I y B",
           "costDays": 25,
           "evidence": [
@@ -1077,6 +1200,17 @@
             { "kind": "alias", "alias": "P" },
             { "kind": "alias", "alias": "I" },
             { "kind": "alias", "alias": "B" }
+          ]
+        },
+        {
+          "id": "command-line.alias-complete",
+          "points": 1,
+          "text": "La tabla acad.pgp resuelve COMPLETA: los 129 alias, incluidos BE→BEDIT y BLE→BLEND, que hoy cuelgan",
+          "costDays": 5,
+          "rationale": "La memoria muscular no distingue alias importantes de secundarios: un alias que cuelga rompe la confianza en todos. Este punto sale de alias-coverage (3→2) y falla mientras el registro reporte alias sin resolver.",
+          "evidence": [
+            { "kind": "alias", "alias": "BE" },
+            { "kind": "alias", "alias": "BLE" }
           ]
         },
         {
@@ -1186,6 +1320,7 @@
           "evidence": [
             { "kind": "command", "name": "XREF" },
             { "kind": "command", "name": "XATTACH" },
+            { "kind": "command", "name": "XBIND" },
             { "kind": "command", "name": "XCLIP" }
           ]
         }
@@ -1196,7 +1331,7 @@
       "group": "pro",
       "name": "Rendimiento 10k/100k",
       "points": 12,
-      "gap": "El pipeline rápido está medido y NO está enchufado al editor; los presupuestos actuales toleran 29 s de zoom.",
+      "gap": "El SLO interactivo de navegador está MEDIDO y FALLA: la corrida versionada registra 48,2 s hasta el detalle completo y 1,4 fps de paneo (corpus architecture, 10k, GPU por software). El criterio lee esas cifras y no se concede hasta que las cifras cambien.",
       "criteria": [
         {
           "id": "performance.index",
@@ -1284,12 +1419,30 @@
         {
           "id": "performance.browser-slo",
           "points": 2,
-          "text": "SLO de navegador publicado (cuadros por segundo sostenidos, memoria estabilizada) con hardware y navegador documentados",
+          "text": "SLO de navegador CUMPLIDO, no sólo publicado: detalle completo ≤5 s, paneo ≥30 fps p95 y zoom asentado ≤500 ms sobre el corpus architecture (perfil next, 10k), con hardware y navegador declarados",
           "costDays": 12,
+          "rationale": "Este criterio cobraba 2 pt porque el JSON existía, y el JSON mide 48.200 ms de detalle completo, 1,4 fps de paneo y 611 ms de zoom: el artefacto DESMENTÍA el punto que concedía. Ahora la evidencia lee esas tres cifras contra umbrales de producto y falla —que es exactamente lo que debe hacer— hasta que una corrida nueva las cumpla. Los umbrales son deliberadamente holgados frente a AutoCAD para que superarlos signifique algo sin exigir GPU real en CI.",
           "evidence": [
             {
-              "kind": "file",
-              "path": "docs/cad/evidence/browser-slo-100k.json"
+              "kind": "metric",
+              "path": "docs/cad/evidence/browser-slo-100k.json",
+              "pointer": "profiles/0/fullDetailMs",
+              "max": 5000,
+              "unit": "ms"
+            },
+            {
+              "kind": "metric",
+              "path": "docs/cad/evidence/browser-slo-100k.json",
+              "pointer": "profiles/0/pan/fpsP95",
+              "min": 30,
+              "unit": "fps"
+            },
+            {
+              "kind": "metric",
+              "path": "docs/cad/evidence/browser-slo-100k.json",
+              "pointer": "profiles/0/zoomSettleMs",
+              "max": 500,
+              "unit": "ms"
             }
           ]
         }
@@ -1341,12 +1494,15 @@
         {
           "id": "review.concurrency",
           "points": 2,
-          "text": "Carga concurrente medida y merge semántico con recorrido de todos los roles",
+          "text": "Carga concurrente medida y merge semántico con recorrido de todos los roles, con veredicto verde en el artefacto",
           "costDays": 8,
+          "rationale": "Antes bastaba con que el archivo existiera; ahora, cuando exista, tendrá que declarar verdict.passed=true. La existencia de un JSON no demuestra que la carga concurrente pase.",
           "evidence": [
             {
-              "kind": "file",
-              "path": "docs/cad/evidence/review-concurrency.json"
+              "kind": "jsonValue",
+              "path": "docs/cad/evidence/review-concurrency.json",
+              "pointer": "verdict/passed",
+              "equals": true
             }
           ]
         }
@@ -1434,7 +1590,8 @@
           "evidence": [
             {
               "kind": "file",
-              "path": "packages/design-sdk/src/generated/design-api.ts"
+              "path": "packages/design-sdk/src/generated/design-api.ts",
+              "minLines": 1000
             },
             { "kind": "file", "path": "packages/design-sdk/src/compat.spec.ts" }
           ]
@@ -1458,10 +1615,27 @@
         {
           "id": "api-sdk.public",
           "points": 2,
-          "text": "Consola pública, pruebas de límite y carga publicadas, y política de extensiones de terceros",
+          "text": "Consola pública en /docs/api, pruebas de límite y carga publicadas con máquina declarada, y política de extensiones de terceros",
           "costDays": 15,
+          "rationale": "Re-basado de existencia a contenido: la consola se verifica por la ruta que el artefacto declara (con gate anti-deriva propio), la carga por el límite de tasa OBSERVADO (429 con Retry-After) y la política por su documento. Se concede porque las tres cosas existen de verdad, no porque exista el JSON.",
           "evidence": [
-            { "kind": "file", "path": "docs/cad/evidence/api-load-tests.json" }
+            {
+              "kind": "jsonValue",
+              "path": "docs/cad/evidence/api-load-tests.json",
+              "pointer": "publicConsole/route",
+              "equals": "/docs/api"
+            },
+            {
+              "kind": "metric",
+              "path": "docs/cad/evidence/api-load-tests.json",
+              "pointer": "rateLimit/observedLimit",
+              "min": 1,
+              "unit": "peticiones antes del 429"
+            },
+            {
+              "kind": "file",
+              "path": "docs/cad/third-party-extension-policy.md"
+            }
           ]
         }
       ]
@@ -1557,7 +1731,8 @@
           "evidence": [
             {
               "kind": "file",
-              "path": "apps/api/src/modules/commercial/webhook-outbox.transport.ts"
+              "path": "apps/api/src/modules/commercial/webhook-outbox.transport.ts",
+              "minLines": 100
             },
             {
               "kind": "file",
@@ -1614,7 +1789,8 @@
             },
             {
               "kind": "file",
-              "path": "apps/web/src/lib/cad/copilot-contract.ts"
+              "path": "apps/web/src/lib/cad/copilot-contract.ts",
+              "minLines": 80
             }
           ]
         },
@@ -1903,7 +2079,7 @@
       "group": "frontier",
       "name": "Kernel Rust/WASM",
       "points": 2,
-      "gap": "Condicionado: sólo se abre si el kernel TypeScript deja de cumplir el presupuesto.",
+      "gap": "El kernel compilado tiene paridad numérica, fallback y benchmarks probados, y NADIE lo importa fuera de lib/cad/wasm: el propio artefacto declara el integrationGap. La regla 6 aplica igual que aplicó al render, al LISP y al B-rep.",
       "criteria": [
         {
           "id": "wasm.gate",
@@ -1920,10 +2096,17 @@
         {
           "id": "wasm.toolchain",
           "points": 1,
-          "text": "Toolchain, manifiesto, paridad numérica, fallback y benchmarks WASM",
+          "text": "Kernel WASM con paridad numérica verde Y enchufado: alguien fuera de lib/cad/wasm lo importa (regla 6)",
           "costDays": 30,
+          "rationale": "El punto se concedía por la existencia del artefacto de paridad. La paridad es real (verdict.passed=true, 4,4 millones de coordenadas comparadas) pero el propio artefacto declara el integrationGap: el kernel no está cableado al pipeline y su ×3 no llega a la pantalla de nadie. Un módulo que nadie importa no es una capacidad del producto —es la lección cara de la ola 1— así que el criterio exige las dos cosas y falla por la segunda.",
           "evidence": [
-            { "kind": "file", "path": "docs/cad/evidence/wasm-parity.json" }
+            {
+              "kind": "jsonValue",
+              "path": "docs/cad/evidence/wasm-parity.json",
+              "pointer": "verdict/passed",
+              "equals": true
+            },
+            { "kind": "imported", "module": "apps/web/src/lib/cad/wasm" }
           ]
         }
       ]
@@ -1933,35 +2116,48 @@
       "group": "frontier",
       "name": "Nubes de puntos, raster georreferenciado y GIS",
       "points": 3,
-      "gap": "No aparece en contratos ni en runtime.",
+      "gap": "Cubierto con evidencia real: document-import.ts importa lib/geo (el importador se verifica), la reproyección tiene spec y la evidencia a escala llega a 4 millones de puntos con 4,5 bytes/punto de índice. Verificado el 2026-08-20; conserva los puntos LEGÍTIMAMENTE.",
       "criteria": [
         {
           "id": "geo.formats",
           "points": 1,
-          "text": "LAS/LAZ, GeoTIFF o SHP leídos en el runtime",
+          "text": "LAS/LAZ, GeoTIFF o SHP leídos en el runtime: el importador de documentos usa lib/geo de verdad",
           "costDays": 25,
+          "rationale": "Verificado con la regla 6 el 2026-08-20: document-import.ts y geo-cad-document.ts importan lib/geo desde fuera del módulo. A diferencia del kernel WASM, aquí el importador existe y el punto se conserva con evidencia, no por existencia de archivo.",
           "evidence": [
-            { "kind": "file", "path": "apps/web/src/lib/geo/index.ts" }
+            { "kind": "file", "path": "apps/web/src/lib/geo/index.ts" },
+            { "kind": "imported", "module": "apps/web/src/lib/geo" }
           ]
         },
         {
           "id": "geo.crs",
           "points": 1,
-          "text": "Sistemas de referencia y reproyección",
+          "text": "Sistemas de referencia y reproyección, con spec",
           "costDays": 15,
           "evidence": [
-            { "kind": "file", "path": "apps/web/src/lib/geo/crs.ts" }
+            { "kind": "file", "path": "apps/web/src/lib/geo/crs.ts" },
+            { "kind": "spec", "path": "apps/web/src/lib/geo/crs.spec.ts" }
           ]
         },
         {
           "id": "geo.scale",
           "points": 1,
-          "text": "Índices espaciales y pruebas a escala de nube de puntos",
+          "text": "Índices espaciales y pruebas a escala real: el nivel mayor del artefacto indexa millones de puntos con presupuesto de bytes por punto",
           "costDays": 20,
           "evidence": [
             {
-              "kind": "file",
-              "path": "docs/cad/evidence/point-cloud-scale.json"
+              "kind": "jsonValue",
+              "path": "docs/cad/evidence/point-cloud-scale.json",
+              "pointer": "tiers/2/points",
+              "gte": 1000000,
+              "unit": "puntos"
+            },
+            {
+              "kind": "metric",
+              "path": "docs/cad/evidence/point-cloud-scale.json",
+              "pointer": "tiers/2/index/bytesPerPoint",
+              "max": 8,
+              "unit": "bytes por punto"
             }
           ]
         }
