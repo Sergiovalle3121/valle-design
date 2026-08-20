@@ -31,6 +31,17 @@ import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
+import { formatReport, writeMatrixMarkdown } from "./rubric-report.mjs";
+
+// La presentación (informe de consola y matriz generada) vive en
+// rubric-report.mjs por el presupuesto de monolito; se re-exporta desde aquí
+// para que los consumidores sigan teniendo una sola puerta.
+export {
+  MATRIX_FILE,
+  formatReport,
+  renderMatrixSection,
+  writeMatrixMarkdown,
+} from "./rubric-report.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const REPO_ROOT = path.resolve(here, "../..");
@@ -88,11 +99,35 @@ export function validateRubric(rubric) {
         errors.push(
           `${criterion.id}: sin evidencia declarada (sería un punto de oficio).`,
         );
-      for (const item of criterion.evidence ?? [])
+      for (const item of criterion.evidence ?? []) {
         if (!CHECKERS[item?.kind])
           errors.push(
             `${criterion.id}: evidencia desconocida "${item?.kind}".`,
           );
+        if (item?.kind === "jsonValue") {
+          if (!item.path || !item.pointer)
+            errors.push(`${criterion.id}: jsonValue sin path o sin pointer.`);
+          if (!JSON_VALUE_OPS.some((op) => op in item))
+            errors.push(
+              `${criterion.id}: jsonValue sin comparador (equals/lt/lte/gt/gte); leer un valor sin compararlo no verifica nada.`,
+            );
+        }
+      }
+      // La lección del corte 2026-08-20: performance.browser-slo cobraba 2 pt
+      // porque EXISTÍA un JSON cuyo contenido medía 48 s de primer detalle.
+      // Un archivo puede existir y desmentir el criterio que lo cita, así que
+      // la existencia a secas no sostiene un criterio de peso: es un error de
+      // DEFINICIÓN, no una nota baja, para que la regresión sea estructural.
+      const items = criterion.evidence ?? [];
+      if (
+        criterion.points >= 2 &&
+        items.length > 0 &&
+        items.every((item) => item?.kind === "file") &&
+        !items.some((item) => item?.minLines)
+      )
+        errors.push(
+          `${criterion.id}: ${criterion.points} pt sólo con existencia de archivo ("file" sin minLines). La existencia no es contenido: añade metric, jsonValue, grep o spec, o reparte los puntos.`,
+        );
     }
   }
   if (declared !== rubric.totalPoints)
@@ -288,6 +323,17 @@ function readPointer(value, pointer) {
   return current;
 }
 
+/** Comparadores que `jsonValue` sabe aplicar. Sin al menos uno, la evidencia
+ * es un error de definición: leer un valor sin compararlo no verifica nada. */
+export const JSON_VALUE_OPS = ["equals", "lt", "lte", "gt", "gte"];
+
+const NUMERIC_OPS = {
+  lt: [(value, limit) => value < limit, "<"],
+  lte: [(value, limit) => value <= limit, "≤"],
+  gt: [(value, limit) => value > limit, ">"],
+  gte: [(value, limit) => value >= limit, "≥"],
+};
+
 const CHECKERS = {
   /** El archivo existe (y, si se pide, tiene cuerpo suficiente). */
   file(item, ctx) {
@@ -420,6 +466,44 @@ const CHECKERS = {
   },
 
   /**
+   * Un valor leído DE DENTRO del artefacto citado, comparado contra lo que el
+   * criterio afirma.
+   *
+   * Existe porque `file` regalaba puntos: performance.browser-slo cobraba por
+   * la existencia de un JSON cuyo propio contenido medía 48 s de primer
+   * detalle. Si el criterio cita un artefacto, se lee el artefacto. `equals`
+   * cubre veredictos (`passed: true`); lt/lte/gt/gte cubren umbrales. Para
+   * números MEDIDOS con máquina exigida sigue existiendo `metric`; esto es
+   * para el resto del contenido: booleanos, cadenas y conteos estructurales.
+   */
+  jsonValue(item, ctx) {
+    if (!exists(ctx, item.path)) return fail(`no existe ${item.path}`);
+    let data;
+    try {
+      data = JSON.parse(read(ctx, item.path));
+    } catch {
+      return fail(`${item.path} no es JSON`);
+    }
+    const value = readPointer(data, item.pointer);
+    if (value === undefined)
+      return fail(`${item.path} no tiene nada en ${item.pointer}`);
+    if ("equals" in item && JSON.stringify(value) !== JSON.stringify(item.equals))
+      return fail(
+        `${item.pointer} = ${JSON.stringify(value)}, se esperaba ${JSON.stringify(item.equals)}`,
+      );
+    for (const [op, [compare, symbol]] of Object.entries(NUMERIC_OPS)) {
+      if (!(op in item)) continue;
+      if (typeof value !== "number")
+        return fail(`${item.path}${item.pointer} no es un número`);
+      if (!compare(value, item[op]))
+        return fail(`${item.pointer} = ${value}, se pedía ${symbol} ${item[op]}`);
+    }
+    return pass(
+      `${item.pointer} = ${JSON.stringify(value)}${item.unit ? ` (${item.unit})` : ""}`,
+    );
+  },
+
+  /**
    * Comprobación humana, con firma y fecha, y con caducidad.
    *
    * Caduca porque un «lo verifiqué yo» de hace un año no dice nada del árbol de
@@ -541,74 +625,6 @@ export function cheapestWins(rubric, scored, limit = 10) {
 }
 
 // ---------------------------------------------------------------------------
-// Presentación
-// ---------------------------------------------------------------------------
-
-const bar = (ratio) => {
-  const filled = Math.round(ratio * 20);
-  return `${"█".repeat(filled)}${"·".repeat(20 - filled)}`;
-};
-
-export function formatReport(scored, { verbose = false } = {}) {
-  const lines = [];
-  lines.push("RÚBRICA COMPETITIVA CAD — Valle Design frente a AutoCAD 2027");
-  lines.push(`Corte de la rúbrica: ${scored.cutoffDate ?? "sin fecha"}`);
-  lines.push("");
-  for (const error of scored.definitionErrors)
-    lines.push(`❌ DEFINICIÓN: ${error}`);
-  if (scored.definitionErrors.length) lines.push("");
-  for (const category of scored.categories) {
-    lines.push(
-      `${bar(category.ratio)} ${String(category.earned).padStart(3)}/${String(category.points).padEnd(3)} ${category.name}`,
-    );
-    for (const criterion of category.criteria) {
-      if (criterion.status === "otorgado" && !verbose) continue;
-      const mark =
-        criterion.status === "otorgado"
-          ? "✅"
-          : criterion.status === "no-verificable"
-            ? "❓"
-            : "⬜";
-      lines.push(`      ${mark} ${criterion.points} pt · ${criterion.text}`);
-      for (const item of criterion.evidence)
-        if (item.ok !== true || verbose)
-          lines.push(
-            `           ${item.ok === true ? "·" : item.ok === null ? "?" : "×"} ${item.detail}`,
-          );
-    }
-  }
-  lines.push("");
-  // La coletilla se CALCULA. Decía «ninguna fila llega a su tope» como texto
-  // fijo, y el día que una llegó siguió diciéndolo: una rúbrica que se escribe
-  // a sí misma una frase que ya no es cierta es la misma tabla escrita a mano
-  // que este script existe para sustituir.
-  const capped = scored.categories.filter(
-    (category) => category.earned >= category.points,
-  );
-  lines.push(
-    `TOTAL ${scored.earned}/${scored.totalPoints} (${scored.percentage} %) — el denominador es ` +
-      `público y ${
-        capped.length === 0
-          ? "ninguna fila llega a su tope"
-          : `${capped.length} fila(s) llegan a su tope: ${capped
-              .map((category) => category.name ?? category.id)
-              .join(", ")}`
-      }.`,
-  );
-  const blocked = scored.categories
-    .flatMap((c) => c.criteria)
-    .filter((c) => c.status === "no-verificable");
-  if (blocked.length)
-    lines.push(
-      `${blocked.length} criterio(s) NO VERIFICABLES en este entorno; no se conceden. Instala dependencias (npm ci) para resolverlos.`,
-    );
-  lines.push(
-    "Informativo: este script nunca bloquea el CI. Una rúbrica que bloquea se infla.",
-  );
-  return lines.join("\n");
-}
-
-// ---------------------------------------------------------------------------
 // Histórico
 // ---------------------------------------------------------------------------
 
@@ -684,6 +700,7 @@ function parseArgs(argv) {
     history: false,
     json: null,
     priorities: false,
+    markdown: false,
   };
   let rubric = DEFAULT_RUBRIC;
   let root = REPO_ROOT;
@@ -694,6 +711,7 @@ function parseArgs(argv) {
     else if (arg === "--strict") options.strict = true;
     else if (arg === "--history") options.history = true;
     else if (arg === "--priorities") options.priorities = true;
+    else if (arg === "--markdown") options.markdown = true;
     else if (arg === "--json") options.json = argv[++i];
     else if (arg === "--rubric") rubric = path.resolve(argv[++i]);
     else if (arg === "--root") root = path.resolve(argv[++i]);
@@ -730,6 +748,17 @@ if (invokedDirectly) {
       `${JSON.stringify(scored, null, 2)}\n`,
     );
     console.log(`Desglose completo en ${options.json}`);
+  }
+  if (options.markdown) {
+    // Regenera la sección fila a fila de la matriz para que la prosa no pueda
+    // volver a discrepar del script. La nota sigue sin cambiar el código de
+    // salida; sólo unos marcadores rotos (documento mutilado) lanzan.
+    const { file, changed } = writeMatrixMarkdown(rubric, scored);
+    console.log(
+      changed
+        ? `Matriz regenerada: ${path.relative(process.cwd(), file)}`
+        : `Matriz ya al día: ${path.relative(process.cwd(), file)}`,
+    );
   }
   if (options.history)
     console.log(`Histórico: ${writeHistory(scored, { root: options.root })}`);

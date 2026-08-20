@@ -26,8 +26,11 @@ que no existe (§6).
 | **Incidente Sev-3** | Fallo acotado con solución alternativa, o afectando a un solo cliente sin bloquear su trabajo. |
 
 Todos los tiempos son **horas hábiles** salvo donde se indique 24×7. Horario
-hábil: lunes a viernes, 09:00–18:00 CET, excluidos festivos nacionales de
-España.
+hábil: lunes a viernes, 09:00–18:00 America/Mexico_City, excluidos los días
+festivos oficiales de México (los de descanso obligatorio de la Ley Federal
+del Trabajo). El operador y los clientes del producto están en México; un
+horario en CET con festivos de España era una promesa medida en el huso
+equivocado.
 
 ---
 

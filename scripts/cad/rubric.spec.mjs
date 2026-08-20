@@ -27,9 +27,11 @@ import {
   findImporters,
   loadRubric,
   readHistory,
+  renderMatrixSection,
   scoreRubric,
   validateRubric,
   writeHistory,
+  writeMatrixMarkdown,
 } from "./rubric.mjs";
 
 let checks = 0;
@@ -84,6 +86,14 @@ write(
   "docs/evidence/sin-maquina.json",
   JSON.stringify({ measurements: { firstMs: 10 } }),
 );
+write(
+  "docs/evidence/veredicto.json",
+  JSON.stringify({
+    verdict: { passed: true, motivo: "todo verde" },
+    profiles: [{ fullDetailMs: 48200.4, pan: { fpsP95: 1.395 } }],
+  }),
+);
+write("docs/evidence/roto.json", "esto no es JSON {");
 
 const today = new Date("2026-08-09T12:00:00.000Z");
 const ctx = () => createContext({ root, now: today });
@@ -115,8 +125,11 @@ const byId = (scored, id) =>
       name: "Categoría A",
       points: 6,
       criteria: [
+        // Con minLines: un criterio de ≥2 pt cuya única evidencia fuera la
+        // EXISTENCIA de un archivo es, desde el corte 2026-08-20, un error de
+        // definición (véase el caso 10).
         criterion("cat-a.file", 2, [
-          { kind: "file", path: "apps/web/src/lib/demo/present.ts" },
+          { kind: "file", path: "apps/web/src/lib/demo/present.ts", minLines: 1 },
         ]),
         criterion("cat-a.spec", 3, [
           { kind: "spec", path: "apps/web/src/lib/demo/present.spec.ts" },
@@ -474,8 +487,239 @@ const byId = (scored, id) =>
   );
 }
 
+// ---------------------------------------------------------------------------
+// 10. jsonValue: el contenido del artefacto manda, no su existencia
+// ---------------------------------------------------------------------------
+{
+  const rubric = rubricWith([
+    {
+      id: "cat-j",
+      name: "Categoría J",
+      points: 6,
+      criteria: [
+        criterion("cat-j.verdict-ok", 1, [
+          {
+            kind: "jsonValue",
+            path: "docs/evidence/veredicto.json",
+            pointer: "verdict/passed",
+            equals: true,
+          },
+        ]),
+        criterion("cat-j.verdict-wrong", 1, [
+          {
+            kind: "jsonValue",
+            path: "docs/evidence/veredicto.json",
+            pointer: "verdict/motivo",
+            equals: "otro texto",
+          },
+        ]),
+        // El caso que motivó el checker: el archivo EXISTE y su contenido
+        // desmiente el criterio. 48.200 ms no son menos de 5.000.
+        criterion("cat-j.threshold-broken", 1, [
+          {
+            kind: "jsonValue",
+            path: "docs/evidence/veredicto.json",
+            pointer: "profiles/0/fullDetailMs",
+            lte: 5000,
+          },
+        ]),
+        criterion("cat-j.threshold-ok", 1, [
+          {
+            kind: "jsonValue",
+            path: "docs/evidence/veredicto.json",
+            pointer: "profiles/0/pan/fpsP95",
+            gt: 1,
+          },
+        ]),
+        criterion("cat-j.missing-pointer", 1, [
+          {
+            kind: "jsonValue",
+            path: "docs/evidence/veredicto.json",
+            pointer: "no/existe",
+            equals: true,
+          },
+        ]),
+        criterion("cat-j.not-json", 1, [
+          {
+            kind: "jsonValue",
+            path: "docs/evidence/roto.json",
+            pointer: "verdict/passed",
+            equals: true,
+          },
+        ]),
+      ],
+    },
+  ]);
+  const scored = scoreRubric(rubric, ctx());
+  eq(
+    scored.earned,
+    2,
+    "jsonValue concede sólo cuando el CONTENIDO del artefacto cumple lo declarado",
+  );
+  eq(
+    byId(scored, "cat-j.threshold-broken").status,
+    "no-otorgado",
+    "un artefacto que existe pero desmiente el umbral NO da el punto",
+  );
+  ok(
+    byId(scored, "cat-j.threshold-broken").evidence[0].detail.includes("48200.4"),
+    "y el detalle enseña el número que lo desmintió",
+  );
+  ok(
+    byId(scored, "cat-j.missing-pointer").evidence[0].detail.includes("no tiene nada"),
+    "un pointer que no existe se explica, no se concede",
+  );
+  eq(byId(scored, "cat-j.not-json").earned, 0, "un JSON ilegible no puntúa");
+}
+
+// ---------------------------------------------------------------------------
+// 11. Lint de definición: existencia sin contenido en criterios de peso
+// ---------------------------------------------------------------------------
+{
+  const onlyFile = rubricWith([
+    {
+      id: "cat-k",
+      name: "Categoría K",
+      points: 6,
+      criteria: [
+        // 2 pt sólo con existencia: el patrón exacto que infló la rúbrica
+        // (performance.browser-slo cobraba por un JSON que medía 48 s).
+        criterion("cat-k.inflated", 2, [
+          { kind: "file", path: "docs/evidence/veredicto.json" },
+        ]),
+        // 1 pt sólo con existencia: permitido; el lint apunta al peso.
+        criterion("cat-k.small", 1, [
+          { kind: "file", path: "docs/evidence/veredicto.json" },
+        ]),
+        // 2 pt con minLines: la existencia CON cuerpo mínimo sí es contenido.
+        criterion("cat-k.body", 2, [
+          { kind: "file", path: "apps/web/src/lib/demo/present.ts", minLines: 1 },
+        ]),
+        // 2 pt con file + jsonValue: el contenido lo aporta la otra evidencia.
+        criterion("cat-k.mixed", 1, [
+          { kind: "file", path: "docs/evidence/veredicto.json" },
+          {
+            kind: "jsonValue",
+            path: "docs/evidence/veredicto.json",
+            pointer: "verdict/passed",
+            equals: true,
+          },
+        ]),
+      ],
+    },
+  ]);
+  const errors = validateRubric(onlyFile);
+  ok(
+    errors.some((e) => e.startsWith("cat-k.inflated:")),
+    "≥2 pt sólo con existencia de archivo es un error de DEFINICIÓN",
+  );
+  eq(
+    errors.filter(
+      (e) =>
+        e.startsWith("cat-k.small:") ||
+        e.startsWith("cat-k.body:") ||
+        e.startsWith("cat-k.mixed:"),
+    ),
+    [],
+    "1 pt, minLines o evidencia de contenido acompañante no se marcan",
+  );
+  const badJsonValue = validateRubric(
+    rubricWith([
+      {
+        id: "cat-l",
+        name: "L",
+        points: 2,
+        criteria: [
+          criterion("cat-l.no-op", 1, [
+            {
+              kind: "jsonValue",
+              path: "docs/evidence/veredicto.json",
+              pointer: "verdict/passed",
+            },
+          ]),
+          criterion("cat-l.no-pointer", 1, [
+            { kind: "jsonValue", path: "docs/evidence/veredicto.json", gte: 1 },
+          ]),
+        ],
+      },
+    ]),
+  );
+  ok(
+    badJsonValue.some((e) => e.includes("sin comparador")),
+    "jsonValue sin comparador es un error de definición",
+  );
+  ok(
+    badJsonValue.some((e) => e.includes("sin path o sin pointer")),
+    "jsonValue sin pointer es un error de definición",
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 12. La matriz fila a fila se regenera desde la puntuación, no desde la prosa
+// ---------------------------------------------------------------------------
+{
+  const rubric = {
+    ...rubricWith([
+      {
+        id: "cat-m",
+        group: "demo",
+        name: "Categoría M",
+        points: 3,
+        criteria: [
+          criterion("cat-m.done", 2, [
+            { kind: "file", path: "apps/web/src/lib/demo/present.ts", minLines: 1 },
+          ]),
+          criterion("cat-m.gap", 1, [
+            { kind: "file", path: "no/existe.ts" },
+          ]),
+        ],
+      },
+    ]),
+    groups: [{ id: "demo", name: "Grupo demo", points: 3 }],
+  };
+  const scored = scoreRubric(rubric, ctx());
+  const section = renderMatrixSection(rubric, scored);
+  ok(section.includes("2/3"), "la sección publica la nota calculada");
+  ok(
+    section.includes("cat-m.gap (1 pt)"),
+    "lo no otorgado aparece como «qué falta», con sus puntos",
+  );
+  ok(
+    section.includes("| Categoría M | 2/3 | Parcial |"),
+    "el estado sale de la puntuación, no de una etiqueta manual",
+  );
+
+  const file = path.join(root, "docs/matriz-demo.md");
+  fs.writeFileSync(
+    file,
+    "# Prosa a mano\n\n<!-- rubric:begin -->\nvieja tabla\n<!-- rubric:end -->\n\n## Más prosa\n",
+  );
+  const first = writeMatrixMarkdown(rubric, scored, { file });
+  ok(first.changed, "la primera regeneración escribe la sección");
+  const written = fs.readFileSync(file, "utf8");
+  ok(
+    written.includes("# Prosa a mano") && written.includes("## Más prosa"),
+    "la prosa escrita a mano fuera de los marcadores no se toca",
+  );
+  ok(!written.includes("vieja tabla"), "la tabla vieja desaparece");
+  const second = writeMatrixMarkdown(rubric, scored, { file });
+  eq(
+    second.changed,
+    false,
+    "regenerar sobre el mismo árbol es idempotente: sin diff",
+  );
+  fs.writeFileSync(file, "# Documento sin marcadores\n");
+  let threw = false;
+  try {
+    writeMatrixMarkdown(rubric, scored, { file });
+  } catch {
+    threw = true;
+  }
+  ok(threw, "sin marcadores no se regenera nada: mejor fallar que pisar prosa");
+}
+
 fs.rmSync(root, { recursive: true, force: true });
 
 console.log(
-  `rubric.spec.mjs: ${checks} comprobaciones verdes — puntuación, denominador, huérfanos, umbrales con máquina, caducidad de lo manual, no-verificable≠otorgado, errores de definición, histórico y prioridad.`,
+  `rubric.spec.mjs: ${checks} comprobaciones verdes — puntuación, denominador, huérfanos, umbrales con máquina, caducidad de lo manual, no-verificable≠otorgado, errores de definición, histórico, prioridad, jsonValue contra contenido, lint de existencia-sin-contenido y matriz regenerada.`,
 );

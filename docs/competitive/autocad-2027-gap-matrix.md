@@ -1,72 +1,70 @@
 # Matriz de brechas y rúbrica frente a AutoCAD 2027
 
-Fecha de corte: **2026-08-19** (UTC, la del artefacto), sobre el árbol de `main` en `702bc68`.
+La puntuación y la tabla fila a fila de este documento las calcula
+`scripts/cad/rubric.mjs` leyendo `docs/competitive/rubric.json` y verificando
+cada evidencia contra el árbol; se regeneran con
+`node scripts/cad/rubric.mjs --markdown` (lo hace `npm run check:cad`).
 AutoCAD 2027 se usa sólo como referencia de categorías; no existe afiliación,
 certificación ni claim de paridad.
 
-**Puntuación de este corte: 171 / 200 (85,5 %).** El desglose lo calcula
-`scripts/cad/rubric.mjs` leyendo `docs/competitive/rubric.json` y yendo a mirar
-el árbol; no se escribe a mano. Correr `npm run check:rubric` lo reproduce.
+## Por qué este documento cambió de forma (dos veces)
 
-> **La prosa de abajo es del corte del 2026-08-09 y la nota de arriba es de
-> hoy.** Durante ocho días este documento afirmó 131/200 mientras su propio
-> script devolvía 166/200: el análisis por filas envejeció y el encabezado se
-> quedó con él. Se corrige el número, no se reescribe el análisis fila a fila,
-> porque volvería a envejecer igual. **La autoridad es el script**: ante
-> cualquier discrepancia entre esta prosa y `npm run check:rubric`, gana el
-> script. Lo que la prosa sigue explicando bien es el PORQUÉ de los pesos, y eso
-> no ha cambiado.
+La primera versión era honesta y estaba desactualizada, que son cosas
+compatibles. Decía que el modelador B-rep no existía —existía—, decía que los
+plugins AutoLISP estaban «Ausente» —había un intérprete completo— y citaba
+25.275 ms de primer detalle cuando el benchmark versionado ya reportaba 750 ms.
+De ahí salió la rúbrica con denominador publicado y el script que la calcula.
 
-## Por qué este documento cambió de forma
+La segunda lección llegó el 2026-08-20 y fue en la dirección contraria: **la
+rúbrica se estaba inflando**. El script imprimía 189/200 con 21 de 25 filas en
+su tope, violando su propia regla de que ninguna fila toca el máximo mientras
+exista un gap. El mecanismo del inflado era concreto: criterios que cobraban
+por la EXISTENCIA de un artefacto sin leer su contenido. El caso más grave:
+`performance.browser-slo` concedía 2 puntos porque `browser-slo-100k.json`
+existía, cuando ese mismo archivo medía **48,2 segundos** hasta el detalle
+completo y **1,4 fps** de paneo. El artefacto desmentía el punto que concedía.
 
-La versión anterior era honesta y estaba desactualizada, que son cosas
-compatibles. Decía que el modelador B-rep no existía —existe, `apps/web/src/lib/brep/`,
-36 archivos y 9.407 líneas—, decía que los plugins AutoLISP estaban «Ausente»
-—hay un intérprete completo en `apps/web/src/lib/lisp/`, 46 archivos y 9.205
-líneas— y citaba 25.275 ms de primer detalle cuando el benchmark versionado ya
-reportaba 750 ms.
+La corrección fue estructural, no cosmética:
 
-Un documento que sólo se actualiza cuando alguien se acuerda no sirve para
-responderle a un cliente «¿cuánto os falta para AutoCAD?». Por eso ahora la
-matriz tiene tres partes que antes no tenía: una **rúbrica con denominador
-publicado**, un **script que la calcula** contra el árbol de hoy, y un
-**histórico** para responder «¿cuánto hemos avanzado este mes?».
+1. La evidencia de existencia se re-basó a **contenido** (checker `jsonValue`
+   y `metric` sobre las cifras del propio artefacto). Un criterio de ≥2 puntos
+   cuya única evidencia sea que un archivo existe es ahora un **error de
+   definición** que `rubric.spec.mjs` bloquea en CI.
+2. Los gaps documentados que no puntuaban se volvieron **criterios que
+   fallan**: capas sin `frozen` en el documento canónico, PAGESETUP que no
+   recoloca la ventana gráfica, sombreado sin patrón en el PDF, BEDIT
+   inexistente, F7/F9/F12 ausentes, ninguna `.shx` resuelta, y el kernel WASM
+   que nadie importa.
+3. La prosa fila a fila de este documento pasó a ser **generada** entre los
+   marcadores de abajo, porque envejeció dos veces y en las dos direcciones.
 
 ## Criterio
 
-- **Completa:** UI, motor, persistencia, interoperabilidad y pruebas del límite
-  relevante cumplen todos los criterios publicados para esa fila.
-- **Parcial:** hay implementación real, pero falta al menos uno de esos límites,
-  fidelidad, corpus, rendimiento o evidencia full-stack.
-- **Ausente:** el repositorio no contiene una implementación comprobable.
+- **Completa:** todos los criterios declarados para la fila —incluidos los que
+  nombran gaps— verifican contra el árbol.
+- **Parcial:** hay implementación real, pero al menos un criterio no verifica.
+- **Ausente:** ningún criterio de la fila verifica.
 
 Reglas que el documento se dio a sí mismo y que no se negocian:
 
-1. Ninguna fila recibe «Completa» ni su puntuación máxima en este corte.
+1. Una fila sólo llega a su tope si **todos** sus criterios verifican, y los
+   gaps conocidos se declaran como criterios que fallan, no como notas al pie.
+   La coletilla de «filas en su tope» la calcula el script; no es una frase
+   fija que pueda quedarse mintiendo.
 2. Que un golden, un unit test o un endpoint pase **no compensa** un criterio
    faltante.
-3. Nunca se redondea al tope mientras exista un gap.
+3. Nunca se redondea al tope mientras exista un gap declarado.
 4. Si se cita un número de rendimiento, **se cita también la máquina**.
 5. Sin evidencia, cero. No hay puntos de oficio.
-
-Y la regla que hizo falta añadir después de la ola 1:
-
 6. **Un módulo que nadie importa no cuenta como implementado.**
+7. **La existencia de un artefacto no es evidencia de su contenido.** Si el
+   criterio cita cifras, el script lee las cifras.
 
-La sexta regla no es teórica. La ola 1 entregó tres subsistemas terminados,
-probados y sin un solo importador: el pipeline de render (`lib/cad/render/`), el
-intérprete AutoLISP (`lib/lisp/`) y el kernel B-rep (`lib/brep/`). Si la rúbrica
-los hubiera contado como capacidades del producto, habría dicho que un usuario
-puede cargar un `.lsp` —y no puede—, y habría atribuido al editor un
-rendimiento que el editor no tiene, porque el pipeline medido no es el que
-dibuja. El script lo comprueba de oficio y sin contar las specs del propio
-módulo: una suite verde demuestra que el código funciona, no que el producto lo
-use.
-
-> Corte de las tres comprobaciones de huérfanos a **2026-08-09**. Hay sesiones
-> de la ola 2 enchufando estos subsistemas ahora mismo (T1 el render, T6 el
-> LISP, T7 el B-rep). Cuando aterricen, `npm run check:rubric` moverá los seis
-> puntos correspondientes sin que nadie edite este archivo.
+La sexta regla no es teórica: la ola 1 entregó el pipeline de render, el
+intérprete AutoLISP y el kernel B-rep terminados, probados y sin un solo
+importador. Hoy los tres están enchufados y sus filas lo reflejan; el que
+sigue huérfano es el kernel Rust/WASM, y su fila lo dice. La séptima tampoco:
+es la regla que faltó para impedir el 189 inflado.
 
 ## Los 200 puntos, y por qué están repartidos así
 
@@ -76,13 +74,13 @@ caro de construir que un comando `HATCH`, y aun así vale menos puntos, porque u
 delineante no compra un kernel B-rep si no puede acotar. La pregunta que ordena
 la tabla no es «¿qué nos ha costado más?», sino «¿qué impide firmar el pedido?».
 
-| Grupo                        | Puntos | En este corte | Qué representa                                                                     |
-| ---------------------------- | -----: | ------------: | ---------------------------------------------------------------------------------- |
-| Núcleo del plano entregable  |    110 |           101 | Dibujar, anotar, organizar y entregar una lámina. Sin esto no hay producto.        |
-| Productividad profesional    |     44 |            39 | Lo que separa «se puede hacer» de «se hace rápido»: línea de comandos, 100k, xrefs |
-| Extensibilidad e integración |     26 |            21 | API, SDK, plugins, eventos, almacenamiento                                         |
-| Frontera avanzada            |     20 |            10 | DWG, sólidos, WASM, GIS                                                            |
-| **Total**                    |    200 |       **171** |                                                                                    |
+| Grupo                        | Puntos | Qué representa                                                                      |
+| ---------------------------- | -----: | ----------------------------------------------------------------------------------- |
+| Núcleo del plano entregable  |    110 | Dibujar, anotar, organizar y entregar una lámina. Sin esto no hay producto.         |
+| Productividad profesional    |     44 | Lo que separa «se puede hacer» de «se hace rápido»: línea de comandos, 100k, xrefs  |
+| Extensibilidad e integración |     26 | API, SDK, plugins, eventos, almacenamiento                                          |
+| Frontera avanzada            |     20 | DWG, sólidos, WASM, GIS                                                             |
+| **Total**                    |    200 |                                                                                      |
 
 El argumento del 55 % al núcleo: un CAD 2D se compra para producir una lámina
 que alguien firma. Todo lo que ocurre entre abrir el archivo y entregar el PDF o
@@ -93,12 +91,9 @@ fabricar, una sin sombreado se lee peor, y una con texto pobre se entrega
 igualmente.
 
 El argumento del 22 % a productividad: la fila más gorda del grupo es la línea
-de comandos (12), y es una fila **nueva** en este corte. La ola 1 construyó un
-motor de comandos con registro único y tabla de alias `acad.pgp`
-(`apps/web/src/lib/cad/engine/`), y la matriz anterior no tenía dónde ponerlo.
-Vale 12 puntos porque la memoria muscular de un dibujante veterano tiene décadas
-y es intransferible: si `TR` no recorta, el producto se siente ajeno por
-completo que esté el resto. Hoy 80 de los 125 alias no resuelven a nada.
+de comandos (12), porque la memoria muscular de un dibujante veterano tiene
+décadas y es intransferible: si `TR` no recorta, el producto se siente ajeno
+por completo que esté el resto.
 
 El argumento del 13 % a extensibilidad: es lo que decide si un cliente grande
 puede automatizar, y su fila más gorda son los plugins (8) porque un despacho
@@ -109,60 +104,81 @@ demanda comercial real y directa. B-rep (7) la tiene indirecta —vende en el
 comparativo, no en el uso diario—. WASM (2) es una optimización condicionada y
 GIS (3) es otro producto.
 
-Ninguna categoría llega a su tope. Las tres que más lejos están de él —Xrefs
-2/6, DWG 2/8, GIS 0/3— son también las que menos sorprenden.
-
 ## Capacidades: las 25 filas al día
 
-Las columnas «Puntos» y «Estado» las calcula el script; las de evidencia y
-brecha las mantiene quien toca la fila. Cada evidencia está declarada como una
-comprobación automática en `docs/competitive/rubric.json`, así que una ruta que
-se mueva rompe la fila en la siguiente corrida en vez de envejecer callando.
+<!-- rubric:begin -->
+
+> Esta sección la genera `node scripts/cad/rubric.mjs --markdown` desde
+> `docs/competitive/rubric.json` verificando cada evidencia contra el árbol.
+> Editarla a mano es reintroducir el defecto que motivó el script: la prosa
+> manual envejeció dos veces y en las dos direcciones.
+
+**Puntuación (rúbrica 2026-08-20.1): 178/200 (89 %).** 12 de 25 filas están en su tope: Cotas asociativas, HATCH asociativo, Guardado CAS, autosave, historia y versiones, MLEADER y tablas, Xrefs, Importación de JSON canónico, API y SDK de automatización, Plugins AutoLISP / .NET / VBA, Asistencia NL→CAD y Vision→CAD, Almacenamiento de objetos, Modelo 3D y sólidos B-rep, Nubes de puntos, raster georreferenciado y GIS. Una fila sólo llega a su tope cuando TODOS sus criterios verifican, incluidos los que nombran gaps documentados; un gap conocido se declara como criterio que falla, no como nota al pie.
 
 ### Núcleo del plano entregable — 101/110
 
-| Categoría                        | Puntos | Estado  | Qué existe hoy y dónde                                                                                                                                                      | Qué falta exactamente                                                                                          |
-| -------------------------------- | -----: | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| Dibujo 2D y precisión            |  14/16 | Parcial | Documento canónico; LINE/PLINE/CIRCLE/ARC/RECTANG/POLYGON/ELLIPSE/SPLINE tecleables; XLINE, RAY, DIVIDE, MEASURE, DONUT, REVCLOUD; OSNAP indexado; goldens 13, 28 y 52      | Corpus de geometría degenerada (tangencias, radio cero, autointersección) con criterio publicado por caso      |
-| Selección y modificación         |  12/14 | Parcial | Índice de selección, grips, ERASE/MOVE/COPY/ROTATE/SCALE/MIRROR/OFFSET, TRIM/EXTEND/FILLET/CHAMFER/BREAK/JOIN, ARRAY+ARRAYEDIT, STRETCH/ALIGN/PEDIT; goldens 12, 23, 25, 43 | GROUP/UNGROUP, OVERKILL y DRAWORDER no existen; falta estrés de navegador con trazos densos a 100k             |
-| Cotas asociativas                |   7/12 | Parcial | Entidad DIMENSION con asociatividad, formato de cota, round-trip DXF con XDATA; golden 16                                                                                   | **Ningún comando DIM\* es tecleable** (`DLI`, `DAL`, `DAN`, `DRA`, `DDI` no resuelven). Sin DIMSTYLE           |
-| Import/export DXF de texto       |   9/12 | Parcial | Importador y exportador TS, manifiesto de pérdidas, preflight, round-trip por entidad —incluidos los ocho tipos del esquema 4 (POINT, XLINE, RAY, SOLID, WIPEOUT, IMAGE, ATTDEF; TABLE como geometría declarada)—, XDATA registrada, corpus propio de 3.400 entidades con ida y vuelta de punto fijo; goldens 27, 34 y 46 | Corpus de terceros autorizado con matriz por entidad; DXFIN/DXFOUT no son tecleables; ACAD_TABLE editable, OCS/extrusión y anchos siguen fuera |
-| Capas y propiedades              |   8/10 | Parcial | Capa canónica y mapa DXF, gestor de capas, paleta de propiedades multi-objeto, tipos de línea; goldens 24, 49, 50                                                           | LAYER, LINETYPE, LWEIGHT, COLOR y PROPERTIES no son tecleables (`LA`, `LT`, `CH` no resuelven)                 |
-| HATCH asociativo                 |   5/10 | Parcial | Motor poligonal con asociatividad al contorno y round-trip DXF; golden 14                                                                                                   | **No hay comando HATCH**: el motor existe y no se puede invocar escribiendo `H`. Sin islas ni contornos curvos |
-| Layouts, viewports y publicación |   6/10 | Parcial | Paper space y viewports múltiples, hoja de ploteo, adaptador de exportación, publicaciones versionadas; golden 20                                                           | LAYOUT/MVIEW/PLOT/PAGESETUP no tecleables; sin fidelidad de fuentes ni SLO de publicación                      |
-| Bloques y atributos              |    6/9 | Parcial | Biblioteca y definición/inserción, ATTDEF tecleable, round-trip DXF de INSERT y de la tabla de bloques; golden 18                                                           | BLOCK/INSERT/WBLOCK/BEDIT no tecleables; sin bloques dinámicos ni comportamiento anotativo                     |
-| MTEXT y texto                    |    9/9 | Completo | Entidad MTEXT con maquetación de párrafo, viaje por DXF en los dos sentidos, MTEXT/TEXT/STYLE tecleables y códigos de control (`\P`, apilado `\S`, `\f`, `\H`, `\W`, `\Q`, `\C`, `\L`, `\O`, `\A`, `\~`) con fuentes SHX/TTF resueltas o sustituidas y declaradas; golden 15 | La maqueta mide con los valores de la ENTIDAD, no con los del tramo; `\T` y `\p` sin interpretar; ninguna `.shx` se resuelve —todas sustituidas— |
-| Guardado CAS, autosave, historia |    8/8 | Completa | Cola de un escritor con CAS 409, journal de recuperación con integridad, E2E real de logout/reapertura/>1 MB; golden 11; ola E1: golden `e2e/real/cad-offline-multitab.spec.ts` (offline con reconexión, dos pestañas y cuelgue del renderizador contra API real y PostgreSQL) y presupuesto medido en `docs/cad/evidence/document-limits.json` | Nada pendiente en esta fila. La pared que queda es el techo de 100.000 entidades que declara el propio servidor |
+| Categoría | Puntos | Estado | Qué verifica hoy | Qué falta exactamente |
+| --- | ---: | --- | --- | --- |
+| Dibujo 2D y precisión | 15/16 | Parcial | Entidades canónicas (línea, polilínea, círculo, arco, elipse, spline) en el documento, con specs; LINE, PLINE, CIRCLE, ARC, RECTANG, POLYGON, ELLIPSE y SPLINE son tecleables; Coordenadas absolutas, relativas (@) y polares (<) con entrada dinámica; OSNAP sobre el puntero con consulta indexada medida (p95 publicado); ORTHO, rastreo polar y ajustes de dibujo con diálogo aplicable; Construcción y reparto: XLINE, RAY, DIVIDE, MEASURE, DONUT y REVCLOUD tecleables; Corpus de geometría degenerada (tangencias, radio cero, autointersección, colineales) con criterio publicado por caso | Conmutadores estándar por tecla de función: F7 (rejilla), F9 (forzado a rejilla) y F12 (entrada dinámica) — F3, F8, F10 y F11 ya existen (1 pt) |
+| Selección y modificación | 13/14 | Parcial | Selección por ventana y captura con índice espacial; Grips con edición directa sobre entidades canónicas; ERASE, MOVE, COPY, ROTATE, SCALE, MIRROR y OFFSET tecleables y respetando la selección previa; TRIM, EXTEND, FILLET, CHAMFER, BREAK y JOIN tecleables, con goldens de recorte y empalme; ARRAY rectangular y polar con ARRAYEDIT posterior; STRETCH, LENGTHEN, ALIGN, PEDIT, SPLINEDIT y EXPLODE tecleables; MATCHPROP, GROUP/UNGROUP, OVERKILL y DRAWORDER tecleables | Estrés de navegador con trazos densos (100k) sobre selección y modificación, con artefacto versionado por corrida (1 pt) |
+| Cotas asociativas | 12/12 | Completa | Entidad DIMENSION canónica con asociatividad al geométrico medido; Formato de cota: unidades, precisión y presentación del valor; Round-trip DXF de DIMENSION con XDATA propietaria; DIMLINEAR, DIMALIGNED, DIMANGULAR, DIMRADIUS y DIMDIAMETER tecleables (DLI, DAL, DAN, DRA, DDI resuelven); DIMSTYLE aplicable: familia de estilos de cota que el plano entregado respeta | Nada pendiente: todos los criterios declarados verifican |
+| HATCH asociativo | 10/10 | Completa | Motor de sombreado poligonal con asociatividad al contorno; Round-trip DXF de HATCH; HATCH tecleable con detección de contorno por punto interior (H y BH resuelven); Contornos curvos e islas anidadas con corpus de casos y criterio por caso | Nada pendiente: todos los criterios declarados verifican |
+| MTEXT y texto | 8/9 | Parcial | Entidad MTEXT con maquetación de párrafo; MTEXT viaja por DXF en los dos sentidos; MTEXT, TEXT y STYLE tecleables (T, MT, DT y ST resuelven); Códigos de control (\P, apilado, cambio de fuente) con sustitución de fuentes declarada | Una fuente de trazos (SHX o equivalente de dominio público) resuelve glifos de verdad en vez de sustituirse (1 pt) |
+| Capas y propiedades | 9/10 | Parcial | Capa canónica con mapa DXF probado; Gestor de capas con bloquear y visibilidad; Paleta de propiedades multi-objeto; Tipos de línea y escala aplicables a la entidad; LAYER, LINETYPE, LWEIGHT, COLOR y PROPERTIES tecleables (LA, LT, LW, COL, CH resuelven) | Congelar de verdad: `frozen` en la capa del documento canónico (CadLayerDef), distinto de apagar, persistido y con viaje DXF del bit 1 del código 70 (1 pt) |
+| Bloques y atributos | 8/9 | Parcial | Definición e inserción de bloques con biblioteca profesional; ATTDEF tecleable con atributos persistidos en el documento; Round-trip DXF de INSERT con transformación y de la tabla de bloques; BLOCK, INSERT y WBLOCK tecleables (B, I, W resuelven); Bloques dinámicos y comportamiento anotativo demostrados | BEDIT tecleable: editor de bloques en sitio (BE resuelve) (1 pt) |
+| Import/export DXF de texto | 10/12 | Parcial | Importador DXF en TypeScript con specs; Exportador con manifiesto de pérdidas y preflight antes de entregar; Round-trip por entidad: polilínea con bulge, polilínea cerrada, hatch, cota e insert; XDATA con nombres de aplicación registrados y estables; Corpus propio versionado con round-trip completo; DXFIN y DXFOUT tecleables | Corpus DXF de terceros, autorizado y diverso, con matriz por entidad y pérdidas aceptadas (2 pt) |
+| Layouts, viewports y publicación | 8/10 | Parcial | Paper space con múltiples viewports; Hoja de ploteo y adaptador de exportación del layout; Publicaciones versionadas y consultables desde el cliente; LAYOUT, MVIEW, MSPACE, PSPACE, PLOT y PAGESETUP tecleables; Fidelidad geométrica de publicación MEDIDA sobre los bytes del PDF: error de escala bajo la tolerancia de 0,001 mm y veredicto verde, con máquina declarada | PAGESETUP recoloca la ventana gráfica al cambiar el papel: cero segmentos fuera del área imprimible en el caso medido A1→A3 (1 pt); El sombreado llega al PDF publicado con su patrón, no sólo el contorno (1 pt) |
+| Guardado CAS, autosave, historia y versiones | 8/8 | Completa | Cola de un solo escritor con CAS y conflicto 409 explícito; Journal de recuperación con códec e integridad verificada; Recorrido real contra API y PostgreSQL: logout, reapertura y documento >1 MB; Offline, multi-pestaña y cierre forzado sin pérdida, con presupuesto de documento y memoria publicado | Nada pendiente: todos los criterios declarados verifican |
 
 ### Productividad profesional — 39/44
 
-| Categoría                            | Puntos | Estado  | Qué existe hoy y dónde                                                                                                                                                                         | Qué falta exactamente                                                                             |
-| ------------------------------------ | -----: | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| Rendimiento 10k/100k                 |   8/12 | Parcial | Índice espacial y presupuesto de render usados por el editor; corpus determinista con sha256; spec Playwright 100k; pipeline por lotes/tiles medido a 750 ms de primer detalle y 23 ms de zoom | **El editor no usa ese pipeline**: nadie importa `lib/cad/render`. Sin SLO de navegador publicado |
-| Línea de comandos, alias y scripting |  12/12 | Completo | Registro único consumido por el editor, tabla de 129 alias `acad.pgp`, motor con estados y pipeline de entrada, y ejecución de `.scr` SIN interfaz con fallo cerrado por renglón; golden 44 | 2 de 129 alias sin implementar; `OPTIONS` y `PROPERTIES` no tienen variante por la línea —se responde con `SETVAR` y `LIST`— |
-| MLEADER y tablas                     |    3/5 | Parcial | MLEADER canónico con asociatividad; TABLE tecleable; golden 17                                                                                                                                 | MLEADER, MLEADERSTYLE y TABLESTYLE no tecleables; sin estilos aplicables                          |
-| Compare, comentarios y enlaces       |    3/5 | Parcial | Enlaces con hash/caducidad/revocación y aislamiento por organización, comentarios anclados; golden 22                                                                                          | Carga concurrente medida y merge semántico con recorrido de todos los roles                       |
-| Importación de JSON canónico         |    3/4 | Parcial | Worker con progreso, cancelación y límites; transporte de documentos grandes                                                                                                                   | Corpus hostil y fuzzing ejecutados en navegador, no sólo en Node                                  |
-| Xrefs                                |    2/6 | Parcial | Referencias externas en el documento canónico; golden 21                                                                                                                                       | Sin bind ni resolución de recursos; XREF/XATTACH/XBIND/XCLIP no tecleables                        |
+| Categoría | Puntos | Estado | Qué verifica hoy | Qué falta exactamente |
+| --- | ---: | --- | --- | --- |
+| Línea de comandos, alias y scripting | 11/12 | Parcial | Registro único de comandos: paleta, línea, barra y scripts leen del mismo sitio; Tabla de alias compatible con acad.pgp, invariante entre idiomas; Línea de comandos en el editor con prompts, opciones y eco; Motor de comandos con estados y pipeline de entrada (punto, distancia, palabra clave, selección); Los alias de anotación, capa, consulta y vista resuelven: H, LA, DLI, T, Z, P, I y B; SCRIPT (.scr) y variantes -COMANDO ejecutables sin interfaz gráfica | La tabla acad.pgp resuelve COMPLETA: los 129 alias, incluidos BE→BEDIT y BLE→BLEND, que hoy cuelgan (1 pt) |
+| MLEADER y tablas | 5/5 | Completa | MLEADER canónico con asociatividad; TABLE tecleable como descriptor del motor; MLEADER, MLEADERSTYLE y TABLESTYLE tecleables con estilos aplicables | Nada pendiente: todos los criterios declarados verifican |
+| Xrefs | 6/6 | Completa | Referencias externas declaradas en el documento canónico; Resolución de recursos, capas de xref y bind con round-trip; XREF, XATTACH, XBIND y XCLIP tecleables | Nada pendiente: todos los criterios declarados verifican |
+| Rendimiento 10k/100k | 10/12 | Parcial | Índice espacial, nivel de detalle y presupuesto de render en el editor; Corpus determinista versionado por sha256 y benchmark reproducible; Spec Playwright a 100k con artefacto JSON por corrida; Pipeline por lotes y tiles medido: primer detalle <1 s y asentado del zoom <100 ms sobre 100k, con máquina declarada; El editor USA ese pipeline: algo fuera de lib/cad/render lo importa | SLO de navegador CUMPLIDO, no sólo publicado: detalle completo ≤5 s, paneo ≥30 fps p95 y zoom asentado ≤500 ms sobre el corpus architecture (perfil next, 10k), con hardware y navegador declarados (2 pt) |
+| Compare, comentarios y enlaces de revisión | 3/5 | Parcial | Enlaces de revisión con hash, caducidad, revocación y aislamiento por organización; Comentarios anclados a la geometría, con spec de anclaje | Carga concurrente medida y merge semántico con recorrido de todos los roles, con veredicto verde en el artefacto (2 pt) |
+| Importación de JSON canónico | 4/4 | Completa | Worker con progreso, cancelación y límites declarados; Transporte de documentos grandes con gzip y blobs; Corpus hostil y fuzzing ejecutados en navegador, no sólo en Node | Nada pendiente: todos los criterios declarados verifican |
 
-### Extensibilidad e integración — 21/26
+### Extensibilidad e integración — 25/26
 
-| Categoría                       | Puntos | Estado  | Qué existe hoy y dónde                                                                                                                                     | Qué falta exactamente                                                           |
-| ------------------------------- | -----: | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| Plugins AutoLISP / .NET / VBA   |    6/8 | Parcial | Intérprete completo: lector, evaluador, entorno, errores, builtins de CAD, entidades por códigos DXF, sandbox con presupuesto, DCL y manifiesto de plugins | **Nadie importa `lib/lisp`**: un usuario no puede cargar un `.lsp`              |
-| API y SDK de automatización     |    5/7 | Parcial | OpenAPI 3.1 con gate de contrato, SDK generado con test de compatibilidad, repositorios tipados usados por el web                                          | Consola pública, pruebas de límite y carga, política de extensiones de terceros |
-| Eventos e integración asíncrona |    3/4 | Parcial | Outbox transaccional con leases, reintentos y cola muerta; contrato de eventos versionado                                                                  | Evidencia operacional sostenida y replay auditado contra receptor externo       |
-| Asistencia NL→CAD y Vision→CAD  |    3/4 | Parcial | Puerto de proveedor opcional con validación y previsualización; contrato del copiloto con specs deterministas                                              | Benchmark de calidad por modelo y evaluación adversarial                        |
-| Almacenamiento de objetos       |    2/3 | Parcial | Puerto desacoplado y adaptador BYTEA con aislamiento por organización                                                                                      | El MinIO del Compose sigue sin cablear: no hay adaptador S3 ni migración        |
+| Categoría | Puntos | Estado | Qué verifica hoy | Qué falta exactamente |
+| --- | ---: | --- | --- | --- |
+| API y SDK de automatización | 7/7 | Completa | OpenAPI 3.1 versionado con gate de contrato en CI; SDK generado desde el contrato con test de compatibilidad; El web consume el SDK a través de repositorios tipados; Consola pública en /docs/api, pruebas de límite y carga publicadas con máquina declarada, y política de extensiones de terceros | Nada pendiente: todos los criterios declarados verifican |
+| Plugins AutoLISP / .NET / VBA | 8/8 | Completa | Intérprete AutoLISP: lector, evaluador, entorno y errores; Funciones de CAD y de entidad por códigos DXF; Sandbox con presupuesto de ejecución y superficie declarada; DCL y manifiesto de plugins; El editor puede cargar y ejecutar un .lsp: algo fuera de lib/lisp lo importa | Nada pendiente: todos los criterios declarados verifican |
+| Eventos e integración asíncrona | 3/4 | Parcial | Outbox transaccional con leases, reintentos y cola muerta; Contrato de eventos versionado | Evidencia operacional sostenida y replay auditado con receptor externo (1 pt) |
+| Asistencia NL→CAD y Vision→CAD | 4/4 | Completa | Puerto de proveedor opcional con validación y previsualización antes de aplicar; Contrato del copiloto con specs deterministas; Banco de calidad NL→CAD medido: corpus de despacho mexicano y mitad adversarial, sobre umbrales de acierto, de rechazo TIPADO y de cero fallos graves | Nada pendiente: todos los criterios declarados verifican |
+| Almacenamiento de objetos | 3/3 | Completa | Puerto de blob store desacoplado del almacenamiento concreto; Adaptador BYTEA con aislamiento por organización y specs; Adaptador S3/MinIO cableado, con migración y operación documentadas | Nada pendiente: todos los criterios declarados verifican |
 
-### Frontera avanzada — 10/20
+### Frontera avanzada — 13/20
 
-| Categoría                     | Puntos | Estado  | Qué existe hoy y dónde                                                                                                    | Qué falta exactamente                                                                   |
-| ----------------------------- | -----: | ------- | ------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| Modelo 3D y sólidos B-rep     |    5/7 | Parcial | Topología, tolerancia e invariantes; extrusión, barrido, booleanas y redondeo; NURBS, superficies y teselado; STEP e IGES | **Nadie importa `lib/brep`**: el kernel no llega al editor                              |
-| Import/export DWG             |    2/8 | Ausente | ADR-0004 y ADR-0007 publicados; la interfaz detecta y rechaza el formato en vez de fingir soporte                         | Sin decoder productivo, sin corpus independiente, sin export, sin round-trip, sin gates |
-| Kernel Rust/WASM              |    1/2 | Ausente | ADR-0003 con la puerta de entrada y su condición de activación                                                            | Toolchain, manifiesto, paridad numérica, fallback y benchmarks                          |
-| Nubes de puntos, raster y GIS |    0/3 | Ausente | Nada                                                                                                                      | LAS/LAZ, GeoTIFF, SHP, CRS, índices y pruebas a escala                                  |
+| Categoría | Puntos | Estado | Qué verifica hoy | Qué falta exactamente |
+| --- | ---: | --- | --- | --- |
+| Import/export DWG | 2/8 | Parcial | Decisión de arquitectura publicada sobre DWG y el laboratorio clean-room; La interfaz detecta y rechaza el formato en vez de fingir soporte | Decoder productivo con corpus independiente y matriz de entidades (3 pt); Exportación DWG con round-trip verificado por lector externo (2 pt); Integración en runtime con gates legal, de seguridad y de fidelidad superados (1 pt) |
+| Modelo 3D y sólidos B-rep | 7/7 | Completa | Topología, tolerancia e invariantes verificadas; Extrusión, barrido, booleanas y redondeo con specs; NURBS, superficies y teselado; STEP e IGES en los dos sentidos; El editor lo usa: algo fuera de lib/brep lo importa | Nada pendiente: todos los criterios declarados verifican |
+| Kernel Rust/WASM | 1/2 | Parcial | Puerta de entrada publicada con condición de activación explícita | Kernel WASM con paridad numérica verde Y enchufado: alguien fuera de lib/cad/wasm lo importa (regla 6) (1 pt) |
+| Nubes de puntos, raster georreferenciado y GIS | 3/3 | Completa | LAS/LAZ, GeoTIFF o SHP leídos en el runtime: el importador de documentos usa lib/geo de verdad; Sistemas de referencia y reproyección, con spec; Índices espaciales y pruebas a escala real: el nivel mayor del artefacto indexa millones de puntos con presupuesto de bytes por punto | Nada pendiente: todos los criterios declarados verifican |
+
+### Prioridad: los diez puntos más baratos por valor comercial
+
+Entre los criterios NO otorgados, ordenados por puntos entre `costDays`
+declarados. Reproducible con `node scripts/cad/rubric.mjs --priorities`.
+
+| # | Puntos | Días | Categoría | Criterio |
+| ---: | ---: | ---: | --- | --- |
+| 1 | 1 | 1 | Dibujo 2D y precisión | Conmutadores estándar por tecla de función: F7 (rejilla), F9 (forzado a rejilla) y F12 (entrada dinámica) — F3, F8, F10 y F11 ya existen |
+| 2 | 1 | 2 | Layouts, viewports y publicación | PAGESETUP recoloca la ventana gráfica al cambiar el papel: cero segmentos fuera del área imprimible en el caso medido A1→A3 |
+| 3 | 1 | 3 | Capas y propiedades | Congelar de verdad: `frozen` en la capa del documento canónico (CadLayerDef), distinto de apagar, persistido y con viaje DXF del bit 1 del código 70 |
+| 4 | 1 | 3 | Layouts, viewports y publicación | El sombreado llega al PDF publicado con su patrón, no sólo el contorno |
+| 5 | 1 | 4 | Bloques y atributos | BEDIT tecleable: editor de bloques en sitio (BE resuelve) |
+| 6 | 2 | 8 | Compare, comentarios y enlaces de revisión | Carga concurrente medida y merge semántico con recorrido de todos los roles, con veredicto verde en el artefacto |
+| 7 | 1 | 5 | Línea de comandos, alias y scripting | La tabla acad.pgp resuelve COMPLETA: los 129 alias, incluidos BE→BEDIT y BLE→BLEND, que hoy cuelgan |
+| 8 | 2 | 10 | Import/export DXF de texto | Corpus DXF de terceros, autorizado y diverso, con matriz por entidad y pérdidas aceptadas |
+| 9 | 1 | 5 | Selección y modificación | Estrés de navegador con trazos densos (100k) sobre selección y modificación, con artefacto versionado por corrida |
+| 10 | 1 | 6 | MTEXT y texto | Una fuente de trazos (SHX o equivalente de dominio público) resuelve glifos de verdad en vez de sustituirse |
+
+<!-- rubric:end -->
 
 Los dos puntos que DWG sí obtiene merecen una nota, porque parecen caridad y no
 lo son: un producto que **detecta el DWG y lo rechaza con un mensaje claro** es
@@ -184,10 +200,6 @@ puntuar honestidad de producto, no funcionalidad.
 | Entidades detalladas en reposo    |                 100.000 |                      2.500 |
 | Crecimiento del montón (3 ciclos) |                 0,01 MB |                          — |
 
-`legacy` es el modelo en Node del camino que hoy usa el editor, no el editor
-medido en navegador. Sirve para comparar los dos caminos con el mismo guion, no
-para afirmar qué siente un usuario.
-
 Máquina: **Node v22.22.2 sobre Linux x64, Intel Xeon a 2,80 GHz, 4 CPU lógicas,
 16,8 GB de RAM, límite de montón 4,3 GB**, corrida del 2026-08-09T07:30Z, corpus
 de 100.000 entidades con sha256 `1ba7300d…`.
@@ -195,26 +207,24 @@ de 100.000 entidades con sha256 `1ba7300d…`.
 Tres advertencias que hacen que estos números **no** sean un SLA:
 
 1. Son de **Node, no de navegador**. El propio artefacto declara que no mide GPU,
-   llamadas de dibujo, composición ni cuadros por segundo, y que el atlas de
-   texto no entra porque en Node no hay canvas.
-2. El artefacto entra como `report-only`: es una métrica nueva sin línea base
+   llamadas de dibujo, composición ni cuadros por segundo.
+2. El artefacto entra como `report-only`: es una métrica sin línea base
    versionada debajo.
-3. **Miden un pipeline que el editor no usa.** Es la razón de que la fila de
-   rendimiento se quede en 8/12 en vez de subir entera: 750 ms de primer detalle
-   es una mejora real de 33× sobre los 25.275 ms que citaba la versión anterior
-   de este documento, y hoy ningún usuario la nota.
-
-**Los presupuestos que sí corren contra navegador** siguen en
-`apps/web/e2e/performance/cad-viewport-100k.spec.ts`: canónico 10k <30 s,
-canónico 100k <60 s, detalle <90 s, cuadro <1 s, zoom <30 s, máximo 2.500
-detalles iniciales y 10.000 tras zoom. Detectan regresiones y caídas. Un zoom de
-29,14 s pasa el gate y sigue siendo una brecha P0 de experiencia: el presupuesto
-no es el objetivo de producto, y confundirlos es exactamente cómo una tabla como
-ésta se vuelve marketing.
+3. El pipeline ya está enchufado al editor (la fila de rendimiento lo verifica
+   con la regla 6), pero **la experiencia medida EN NAVEGADOR sigue sin cumplir
+   el SLO**: la corrida versionada de `browser-slo-100k.json` (2026-08-09,
+   Chromium con GPU por software SwiftShader) registra 48,2 s hasta el detalle
+   completo y 1,4 fps de paneo sobre el corpus `architecture`. Por eso
+   `performance.browser-slo` **falla y debe fallar**: la fila de rendimiento no
+   toca su tope mientras esa cifra sea la vigente. Nota del corte 2026-08-20:
+   la evidencia es ANTERIOR al presupuesto adaptativo del scheduler
+   (2026-08-16); la primera acción es re-medir, no optimizar a ciegas —
+   `fullDetailCpuMs` es 539 ms sobre 48 s de reloj, así que el cuello es la
+   cadencia de cuadros en GPU-software, no el cómputo.
 
 **El benchmark Node de OSNAP profesional**
-(`apps/web/src/lib/cad/professional-snap-query-benchmark.spec.ts:51`) usa 100.000
-entidades y un gate p95 <12 ms. La corrida de este corte, en la misma máquina
+(`apps/web/src/lib/cad/professional-snap-query-benchmark.spec.ts`) usa 100.000
+entidades y un gate p95 <12 ms. La corrida del corte 2026-08-09, en la máquina
 declarada arriba, dio **p50 1,45 ms y p95 3,03 ms**. Mide consulta indexada, no
 latencia end-to-end del puntero, del render ni del comando.
 
@@ -222,121 +232,39 @@ La CI ejecuta Chromium y Firefox contra API y PostgreSQL reales. Los números
 históricos son de Chromium; que pasen los dos navegadores es gate de release, no
 evidencia de igualdad de rendimiento entre ellos.
 
-## Defectos encontrados al recorrer las filas
-
-Recorrer las 25 filas con `grep` en la mano destapa cosas que ninguna fila
-pedía. Van aquí con su evidencia porque son el subproducto útil del ejercicio.
-
-1. **Tres subsistemas completos e inalcanzables.** `lib/cad/render` (5.283
-   líneas), `lib/lisp` (9.205) y `lib/brep` (9.407) no tienen un solo importador
-   fuera de sí mismos. Son 24.000 líneas probadas que no llegan al usuario.
-   Comprobado con la evidencia `imported` de la rúbrica; reproducible con
-   `grep -rln "lib/brep" apps/web/src --include=*.ts | grep -v "^apps/web/src/lib/brep"`.
-
-2. **La dependencia va al revés en LISP.** `lib/lisp/builtins/interaction.ts:49`
-   y `lib/lisp/plugins/api.ts:42` importan `lib/cad/engine`. El intérprete conoce
-   al motor de comandos; el motor no conoce al intérprete y nadie los une. Quien
-   enchufe el LISP (ola 2, T6) no tiene que construir el puente, sólo el punto de
-   entrada.
-
-3. **El PDF sólo existe dentro del monolito.** `jspdf` se importa únicamente
-   desde `Layout3DEditor.tsx:14742` y `:15892`, no desde `plot-sheet.ts` ni desde
-   `layout-export-adapter.ts`. La capacidad de publicar está acoplada a un
-   componente de 23.316 líneas con 153 `useState` —las dos cifras las reporta
-   `npm run check:monolith-budget`—, que es además el único consumidor de
-   `planCadNativeRenderBudget` (`:236`, usado en `:4428`). Cualquier plan de sacar
-   el ploteo del monolito empieza aquí.
-
-4. **La brecha de comandos es de anotación, no de dibujo.** De los 80 alias sin
-   resolver, el bloque más caro comercialmente es homogéneo: `H` (HATCH), `T`/`MT`
-   (MTEXT), `DLI`/`DAL`/`DAN`/`DRA`/`DDI` (cotas), `LA` (capas), `I`/`B`
-   (bloques). El motor de dibujo está razonablemente cubierto y el de **anotación
-   y organización no tiene puerta de entrada por teclado**, aunque el motor
-   subyacente exista y tenga golden. Es el patrón que explica por qué HATCH
-   puntúa 5/10 teniendo motor y asociatividad.
-
-5. **El número más impresionante del repositorio no lo nota nadie.** Ver la
-   tercera advertencia de la sección de benchmarks.
-
-Los cinco anteriores no rompen ningún gate: pasan todos hoy. Son fallos que sólo
-se ven mirando el conjunto, que es precisamente lo que una rúbrica hace. El
-sexto sí rompe un gate, y estaba antes de este corte:
-
-6. **El autoguardado se cuela por delante del guardado explícito.** Nueve
-   goldens afirman `expect.poll(() => backend.snapshot().version).toBe(...)` tras
-   pulsar «Guardar»; ocho de ellos esperan la versión 1. En una máquina cargada
-   el debounce del autoguardado (`components/cad/document-lifecycle/autosave.ts:29`
-   y `:81`) vence antes que el clic y el backend llega a la versión 2, así que el
-   golden falla con `Expected: 1 / Received: 2`. Medido el 2026-08-09 sobre
-   `8be49a5` en Chromium, con el árbol de `main` limpio: `17-cad-native-mleader`
-   (`:71`) y `24-cad-canonical-layers` (`:67`) fallan de forma reproducible, y
-   `19-cad-professional-workbench` falla o no según la carga.
-
-   No es un fallo del test: el aserto es correcto y lo que expone es real. Un
-   usuario que edita y guarda a mano produce **dos** versiones en el historial
-   donde debería producir una, y el número de versión de un documento es dato de
-   producto —lo consumen historia, versiones y el CAS—. El punto
-   `persistence.cas` sigue otorgado porque la cola de un solo escritor y el 409
-   existen y funcionan; lo que falta es que un guardado manual **supersede** al
-   debounce pendiente en vez de sumarse a él. El propio `autosave.ts:3` dice que
-   ésa es la intención («supersedes a pending debounce»), así que el defecto está
-   entre la intención declarada y lo que se observa, no en el diseño.
-
-## Prioridad: los diez puntos más baratos por valor comercial
-
-Sale de los datos, no de la intuición: entre los criterios no otorgados, ordena
-por puntos entre días declarados en `costDays`. Reproducible con
-`node scripts/cad/rubric.mjs --priorities`.
-
-|   # | Puntos | Días | Categoría           | Criterio                                                         |
-| --: | -----: | ---: | ------------------- | ---------------------------------------------------------------- |
-|   1 |      3 |    4 | MTEXT y texto       | MTEXT, TEXT y STYLE tecleables                                   |
-|   2 |      3 |    5 | HATCH asociativo    | HATCH tecleable con contorno por punto interior                  |
-|   3 |      3 |    6 | Cotas asociativas   | DIMLINEAR/DIMALIGNED/DIMANGULAR/DIMRADIUS/DIMDIAMETER tecleables |
-|   4 |      2 |    4 | Dibujo 2D           | Corpus de geometría degenerada con criterio por caso             |
-|   5 |      1 |    2 | DXF                 | DXFIN y DXFOUT tecleables                                        |
-|   6 |      2 |    4 | Capas y propiedades | LAYER/LINETYPE/LWEIGHT/COLOR/PROPERTIES tecleables               |
-|   7 |      2 |    4 | Xrefs               | XREF/XATTACH/XBIND/XCLIP tecleables                              |
-|   8 |      2 |    5 | MLEADER y tablas    | MLEADER/MLEADERSTYLE/TABLESTYLE tecleables con estilos           |
-|   9 |      2 |    5 | Bloques             | BLOCK/INSERT/WBLOCK/BEDIT tecleables                             |
-|  10 |      2 |    5 | Cotas asociativas   | DIMSTYLE aplicable                                               |
-
-Nueve de los diez son comandos que no se pueden teclear sobre motores que ya
-existen. Eso es lo que dicen los datos, y coincide con el defecto 4: **la ola 3
-es una ola de puertas de entrada, no de motores**. 22 puntos por unos 44 días
-declarados, frente a los 6 puntos que le faltan a DWG por 120 días.
-
-Los `costDays` los declara quien escribe el criterio y no afectan a la nota; si
-una estimación es mala, lo que sale mal es el orden de la ola, no la puntuación.
-
 ## Cómo se calcula, y por qué no es un gate
 
 ```
-npm run check:rubric          # informe con el desglose
-npm run check:rubric:spec     # la spec del script
+npm run check:rubric               # informe con el desglose
+npm run check:rubric:spec          # la spec del script (ésta SÍ bloquea)
 node scripts/cad/rubric.mjs --verbose --priorities --history
 node scripts/cad/rubric.mjs --run-specs   # además EJECUTA las specs citadas
+node scripts/cad/rubric.mjs --markdown    # regenera la sección fila a fila
 ```
 
 `npm run check:cad` ejecuta las dos cosas: la spec del script como gate (es un
-test, y un test roto es un fallo) y el informe como **informativo**. El informe
-sale siempre con código 0 aunque la nota baje. Una rúbrica que bloquea el merge
-se convierte, en dos semanas, en una rúbrica que la gente infla para poder
-mergear; el día que 171/200 sea la diferencia entre desplegar y no desplegar,
-alguien encontrará el modo de que sean 190 sin escribir una línea de producto.
+test, y un test roto es un fallo) y el informe como **informativo**, regenerando
+de paso la sección fila a fila de este documento. El informe sale siempre con
+código 0 aunque la nota baje. Una rúbrica que bloquea el merge se convierte, en
+dos semanas, en una rúbrica que la gente infla para poder mergear; el día que la
+nota sea la diferencia entre desplegar y no desplegar, alguien encontrará el
+modo de subirla sin escribir una línea de producto. Ya pasó una vez con la
+evidencia de existencia, y por eso el lint que la prohíbe vive en la spec, que
+sí bloquea.
 
 Lo que el script comprueba solo: que el archivo exista y tenga cuerpo, que la
-spec esté dentro del glob del runner (y con `--run-specs`, que pase y que imprima
-algo), que el golden exista, que el comando esté en el registro real —arrancando
-el registro con `tsx`, no con `grep`, porque los descriptores de restricciones se
-generan en bucle y un `grep` los cuenta mal—, que el alias resuelva, que alguien
-importe el módulo, que un texto aparezca en la fuente, y que un número medido
-esté dentro de su umbral **y venga con la máquina declarada**.
+spec esté dentro del glob del runner (y con `--run-specs`, que pase y que
+imprima algo), que el golden exista, que el comando esté en el registro real
+—arrancando el registro con `tsx`, no con `grep`—, que el alias resuelva, que
+alguien importe el módulo, que un texto aparezca en la fuente, que un número
+medido esté dentro de su umbral **y venga con la máquina declarada**, y —desde
+el corte 2026-08-20— que un valor leído de DENTRO del artefacto (`jsonValue`)
+cumpla lo que el criterio afirma.
 
 Lo que no se puede automatizar se declara `manual` con `verifiedBy` y
-`verifiedAt`, y **caduca a los 180 días**. Un «lo comprobé yo» de hace un año no
-dice nada del árbol de hoy. Hoy hay dos evidencias manuales declaradas y ninguna
-firmada, así que ninguna concede puntos: `dxf.corpus-external` y `dwg.gates`.
+`verifiedAt`, y **caduca a los 180 días**. Hoy hay dos evidencias manuales
+declaradas y ninguna firmada, así que ninguna concede puntos:
+`dxf.corpus-external` y `dwg.gates`.
 
 Cuando algo no se puede verificar en el entorno —por ejemplo, sin `npm ci` el
 registro de comandos no arranca— el criterio se marca `no-verificable` y **no se
@@ -354,28 +282,29 @@ esconder que una categoría subió cuatro puntos y otra se cayó cuatro.
 | 2026-08-09 | `8be49a5` | 131/200 | 65,5 % | Primer corte con rúbrica puntuada |
 | 2026-08-18 | `986176b` | 166/200 |   83 % | Olas 1-7 y embudo comercial. Núcleo 96/110, productividad 39/44, extensibilidad 21/26, frontera 10/20 |
 | 2026-08-19 | `702bc68` | 171/200 | 85,5 % | Olas A, B, C y la red de seguridad offline. Núcleo 101/110, productividad 39/44, extensibilidad 21/26, frontera 10/20 |
+| 2026-08-20 | —         | 189/200 | 94,5 % | **Nota inflada, nunca publicada como válida**: 21/25 filas al tope por evidencia de sólo-existencia. Es el motivo de la re-base de este mismo día |
+| 2026-08-20 | `545a70d` | 178/200 |   89 % | Re-base de integridad: evidencia de contenido (`jsonValue`), lint de existencia, y los gaps documentados como criterios que fallan (SLO navegador, frozen, PAGESETUP, hatch-PDF, BEDIT, F7/F9/F12, .shx, WASM huérfano, artefacto denso sin versionar). Núcleo 101/110, productividad 39/44, extensibilidad 25/26, frontera 13/20 |
 
 ## Gaps P0 que bloquean claims superiores
 
-1. Definir y cumplir SLO profesionales de navegador para apertura, interacción,
-   zoom, guardado y memoria a 10k/100k con hardware y navegador documentados. El
-   presupuesto actual de casi 30 s para zoom no es un objetivo de producto.
-2. Enchufar el pipeline de render medido. Mientras no lo use el editor, los
-   750 ms son un dato de laboratorio.
-3. Dar puerta de entrada por teclado a la anotación y la organización: HATCH,
-   MTEXT, las cotas, LAYER y los bloques. Son 12 de los 200 puntos sobre motores
-   que ya están escritos y probados.
-4. Ampliar selección, modificación y precisión con corpus de geometría degenerada
-   y estrés de navegador denso, manteniendo CAS, autosave y deshacer/rehacer.
-5. Construir un corpus DXF autorizado y diverso con matriz por entidad,
-   round-trip y pérdidas aceptadas. No promover DXF por un único archivo feliz.
-6. Cerrar recuperación offline, cierre forzado y edición multi-pestaña sin perder
-   trabajo ni eludir conflictos; publicar límites de documento y memoria.
-7. Si DWG es requisito comercial, validar la implementación clean-room contra
-   ADR-0007 o seleccionar un proveedor autorizado y completar los gates legal,
-   de seguridad y de fidelidad. Sin ADR posterior de promoción, corpus
-   independiente e integración real, sigue ausente.
-8. Mantener como gate bloqueante identidad→organización→trial→documento→CAS→
+1. **Cumplir el SLO de navegador**, no sólo publicarlo: 48,2 s de detalle
+   completo y 1,4 fps de paneo en la corrida versionada. Re-medir primero (la
+   evidencia es anterior al presupuesto adaptativo del scheduler) y optimizar
+   la cadencia de presentación después.
+2. Enchufar el kernel Rust/WASM o dejar de contarlo: paridad verde y cero
+   importadores es exactamente el patrón que la regla 6 existe para detectar.
+3. `frozen` en el documento canónico, PAGESETUP que recoloque la ventana
+   gráfica y el patrón de sombreado en el PDF: los tres están medidos o
+   declarados por los propios artefactos de evidencia.
+4. BEDIT y BLEND: los 2 alias colgantes de la tabla acad.pgp.
+5. Construir un corpus DXF autorizado y diverso de terceros con matriz por
+   entidad, round-trip y pérdidas aceptadas. No promover DXF por un único
+   archivo feliz.
+6. Si DWG es requisito comercial, validar la implementación clean-room contra
+   ADR-0007 (corpus independiente primero) o seleccionar un proveedor
+   autorizado y completar los gates legal, de seguridad y de fidelidad. Sin ADR
+   posterior de promoción, sigue ausente del producto.
+7. Mantener como gate bloqueante identidad→organización→trial→documento→CAS→
    logout/login/reset→aislamiento A/B→archivo grande→DXF con API y PostgreSQL
    reales en Chromium y Firefox, sin interceptar `/v1`.
 
@@ -387,6 +316,13 @@ evidencia documentos de ejecución, mocks de toda la API, tests unitarios o
 microbenchmarks. Una regresión baja el estado; no se relajan umbrales ni se
 reescribe un golden sólo para conservar una etiqueta.
 
-Y la regla nueva, que es la que sostiene a las demás: **la evidencia se declara
-en el JSON, no en la prosa**. La prosa de este archivo puede envejecer; la
-próxima vez que envejezca, el script lo dirá.
+Dos reglas nuevas, aprendidas por las malas:
+
+- **La evidencia se declara en el JSON, no en la prosa.** La prosa de este
+  archivo puede envejecer; la sección generada no puede, porque la escribe el
+  mismo script que puntúa.
+- **Si el criterio cita un artefacto, la evidencia lee el artefacto.** Un
+  criterio de ≥2 puntos cuya única evidencia sea la existencia de un archivo es
+  un error de definición y `check:cad` lo bloquea. La existencia de
+  `browser-slo-100k.json` valió 2 puntos durante once días mientras su contenido
+  medía 48 segundos; que no vuelva a pasar no depende de la memoria de nadie.
