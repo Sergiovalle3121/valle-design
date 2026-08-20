@@ -334,6 +334,26 @@ defecto. Con `SENTRY_DSN` se activa un adaptador HTTP compatible con Sentry
 (sin dependencia nueva) que sanea PII y secretos antes de enviar nada. Un DSN
 ilegible **no tumba el arranque**: registra el motivo y cae al inerte.
 
+### Monitoreo mínimo (sin Prometheus desplegado)
+
+`.github/workflows/monitor.yml` ejecuta cada 15 minutos (y bajo
+`workflow_dispatch`) `scripts/ops/check-alerts.mjs`, que descarga `/metrics`
+y evalúa los umbrales de `docs/ops/SLA.md` §4: outbox sin drenar más de
+900 s, filas `dead` > 0, o endpoint que no responde. Si algo viola el
+umbral, **el workflow falla y GitHub manda el correo de fallo al dueño: ese
+correo es la alerta**. Para activarlo, dos secrets del repositorio:
+
+| Secret                  | Valor                                    |
+| ----------------------- | ---------------------------------------- |
+| `MONITOR_METRICS_URL`   | `https://api.tu-dominio.com/metrics`     |
+| `MONITOR_METRICS_TOKEN` | el mismo `METRICS_TOKEN` del despliegue  |
+
+Sin los secrets, el workflow termina en verde con el aviso «monitoreo sin
+configurar» — verde que significa «no se midió nada», no «todo bien» (es la
+regla de SLA.md §6). El cron de GitHub es best-effort: para detectar la
+caída total del API súmale un monitor externo gratuito (p. ej. UptimeRobot)
+contra `/health/ready`.
+
 `docker-compose.yml` es sólo infraestructura local: tiene credenciales
 conocidas y levanta MinIO, aunque el runtime actual almacena blobs en
 PostgreSQL. **No es una receta productiva.**

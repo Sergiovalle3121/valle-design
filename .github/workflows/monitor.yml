@@ -1,0 +1,78 @@
+name: Monitor
+
+# MONITOREO MÍNIMO VIABLE: cada 15 minutos, un chequeo contra el /metrics de
+# producción con los umbrales de SLA.md §4 (outbox sin drenar >900 s, filas
+# dead >0, endpoint que no responde). Cuando el chequeo falla, el workflow
+# falla, y GitHub manda el correo de «workflow failed» al dueño del repo:
+# ese correo ES la alerta. No sustituye a un Prometheus con Alertmanager —
+# es lo mínimo que convierte los umbrales del SLA en un aviso real, hoy,
+# con cero infraestructura nueva.
+#
+# Configuración (Settings → Secrets and variables → Actions → Secrets):
+#   MONITOR_METRICS_URL    https://api.tu-dominio.com/metrics
+#   MONITOR_METRICS_TOKEN  el METRICS_TOKEN del despliegue
+#
+# SIN los secrets, el workflow termina en VERDE con el aviso «monitoreo sin
+# configurar»: un rojo permanente en un repo sin producción desplegada sería
+# ruido que enseña a ignorar el rojo — que es exactamente lo que un monitoreo
+# no puede permitirse.
+#
+# El cron de GitHub es best-effort (puede retrasarse minutos bajo carga); para
+# la detección de caída total del API conviene sumar un UptimeRobot gratuito
+# contra /health/ready, que además vigila desde fuera de GitHub.
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: monitor
+  # Si una corrida se atasca, la siguiente manda: el dato viejo no interesa.
+  cancel-in-progress: true
+
+jobs:
+  chequeo:
+    name: Umbrales de SLA contra /metrics
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout (sólo scripts/ops)
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/ops
+          sparse-checkout-cone-mode: false
+
+      - name: Chequear umbrales (o declarar el monitoreo sin configurar)
+        env:
+          MONITOR_METRICS_URL: ${{ secrets.MONITOR_METRICS_URL }}
+          MONITOR_METRICS_TOKEN: ${{ secrets.MONITOR_METRICS_TOKEN }}
+        run: |
+          if [ -z "$MONITOR_METRICS_URL" ] || [ -z "$MONITOR_METRICS_TOKEN" ]; then
+            echo "::notice::Monitoreo SIN CONFIGURAR: faltan los secrets MONITOR_METRICS_URL y/o MONITOR_METRICS_TOKEN. Este verde significa «no se midió nada», no «todo bien» (SLA.md §6)."
+            {
+              echo "## Monitoreo sin configurar"
+              echo ""
+              echo "Faltan \`MONITOR_METRICS_URL\` y/o \`MONITOR_METRICS_TOKEN\`."
+              echo "Sin ellos no se mide nada: este verde no es «todo bien»."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # El script imprime un JSON auditable y sale ≠0 si algún umbral se
+          # viola o el endpoint no responde. Ese ≠0 es el que dispara el correo
+          # — pero el informe se publica en el summary TAMBIÉN al fallar, que
+          # es justo cuando alguien lo va a leer.
+          set +e
+          node scripts/ops/check-alerts.mjs | tee informe.json
+          CODIGO=${PIPESTATUS[0]}
+          set -e
+          {
+            echo "## Chequeo de umbrales"
+            echo ""
+            echo '```json'
+            cat informe.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$CODIGO"
