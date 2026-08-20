@@ -49,6 +49,20 @@ const PROFILE = "release";
 const sha256 = (buffer) => crypto.createHash("sha256").update(buffer).digest("hex");
 const posix = (file) => path.relative(root, file).replaceAll(path.sep, "/");
 
+/**
+ * Bytes de una FUENTE DE TEXTO en su forma LF.
+ *
+ * Cargo.toml y lib.rs son texto: git los entrega con CRLF en un checkout
+ * Windows y con LF en Linux, así que un hash de bytes crudos hace que el MISMO
+ * árbol "no coincida con su manifiesto" según quién lo haya clonado — el
+ * manifiesto generado en Windows rompía el gate en CI. Se hashea siempre la
+ * forma LF, que es única. El binario .wasm se sigue hasheando crudo.
+ */
+function textSourceBytes(file) {
+  const raw = fs.readFileSync(file, "utf8");
+  return Buffer.from(raw.replaceAll("\r\n", "\n"), "utf8");
+}
+
 /** Ejecuta una herramienta y devuelve su salida, o `null` si no está. */
 function tool(command, args) {
   const run = spawnSync(command, args, { encoding: "utf8", shell: process.platform === "win32" });
@@ -65,7 +79,7 @@ function tool(command, args) {
 function sourceInventory() {
   const files = ["Cargo.toml", "src/lib.rs"];
   return files.map((relative) => {
-    const bytes = fs.readFileSync(path.join(crate, relative));
+    const bytes = textSourceBytes(path.join(crate, relative));
     return { path: `crates/valle-cad-kernel/${relative}`, bytes: bytes.length, sha256: sha256(bytes) };
   });
 }
@@ -118,7 +132,7 @@ if (checkOnly) {
       problems.push(`falta la fuente ${source.path}`);
       continue;
     }
-    const digest = sha256(fs.readFileSync(file));
+    const digest = sha256(textSourceBytes(file));
     if (digest !== source.sha256)
       problems.push(`${source.path} cambió (sha256 ${digest} ≠ ${source.sha256}): recompila el kernel`);
   }

@@ -35,13 +35,13 @@
   "sources": [
     {
       "path": "crates/valle-cad-kernel/Cargo.toml",
-      "bytes": 1557,
-      "sha256": "064b29aa764c8fb6af55b982ace623b0e6ce279c11ee2ea33f308f2568882d4e"
+      "bytes": 1520,
+      "sha256": "4fd2f5fb90d80f6bb40d5df5c62edf7590a4f7c20a5241b455ff9e883f56a8cf"
     },
     {
       "path": "crates/valle-cad-kernel/src/lib.rs",
-      "bytes": 20720,
-      "sha256": "368b931ca79cc93268ce16a1e15df43edf2c16dbab0d930bebebf311d178bb56"
+      "bytes": 20157,
+      "sha256": "f9852273dd1bce54dc39690c36968a0dc996e808f9c074f22a597e16f7390246"
     }
   ],
   "binary": {

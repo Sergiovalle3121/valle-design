@@ -143,11 +143,14 @@ async function bootstrap() {
   app.useLogger(new ErrorReportingLogger(reporter));
 
   // ── Apagado ordenado ──────────────────────────────────────────────────────
-  // `enableShutdownHooks` hace que `app.close()` ejecute los
-  // `onApplicationShutdown` (el worker de outbox termina su lote y suelta los
-  // leases) y cierre el pool de TypeORM. Sin esto, un despliegue deja filas
-  // `processing` con lease colgado hasta que expira.
-  app.enableShutdownHooks();
+  // Nest NO registra su propio manejador de señales aquí: `app.close()` ya
+  // ejecuta por sí mismo los `onApplicationShutdown` (el worker de outbox
+  // termina su lote y suelta los leases) y cierra el pool de TypeORM —
+  // verificado en @nestjs/core (close() → callBeforeShutdownHook →
+  // callShutdownHook). `enableShutdownHooks()` añadiría un SEGUNDO listener de
+  // SIGTERM que cierra el listener HTTP al instante y le gana la carrera al
+  // drenaje: readiness nunca llega a observarse en 503 desde fuera (visto en
+  // el smoke de despliegue de CI, fase D, con status=0 en ambas probes).
 
   const timeouts = serverTimeoutsFromEnv();
   const readiness = app.get(ReadinessState);

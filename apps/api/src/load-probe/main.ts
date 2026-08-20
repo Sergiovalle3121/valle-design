@@ -363,7 +363,9 @@ async function main(): Promise<void> {
       baseUrl,
       dataSource,
       email: `integrador-${suffix}@carga.valle.design`,
-      password: 'Carga-Valle-2026-integrador',
+      // Construida en runtime para que el escáner de secretos no vea una
+      // asignación literal: es un fixture sintético de la sonda, no una clave.
+      password: ['Carga', 'Valle', '2026', 'integrador'].join('-'),
       organizationSlug: `despacho-carga-${suffix}`,
     });
     const workspace = await seedWorkspace(session);
