@@ -56,7 +56,14 @@ export interface StudioCollaborationLayerProps {
  * orden correcto.
  */
 const DOCK =
-  "fixed right-3 top-24 z-[75] flex w-[19rem] max-w-[calc(100vw-1.5rem)] flex-col rounded-xl border border-white/12 bg-[#0b1020]/96 p-2 shadow-2xl backdrop-blur";
+  "fixed right-3 top-24 z-[75] flex max-w-[calc(100vw-1.5rem)] flex-col rounded-xl border border-white/12 bg-[#0b1020]/96 p-2 shadow-2xl backdrop-blur";
+
+/**
+ * El ancho es del CONTENIDO, no del muelle. Plegado sólo hay un título y un
+ * botón, así que reservar los 19rem abiertos dejaría una franja muerta de 304
+ * px sobre el panel derecho para no enseñar nada en ella.
+ */
+const DOCK_WIDTH = { open: "w-[19rem]", collapsed: "w-auto" } as const;
 
 export default function StudioCollaborationLayer({
   documentId,
@@ -64,7 +71,23 @@ export default function StudioCollaborationLayer({
   canReview,
 }: StudioCollaborationLayerProps) {
   const [surface, setSurface] = useState<CadCollabSurface | null>(null);
-  const [collapsed, setCollapsed] = useState(false);
+  /**
+   * NACE PLEGADO, y no es timidez del producto.
+   *
+   * El muelle es `fixed right-3 top-24 w-[19rem]`: 304 px clavados encima del
+   * panel derecho del estudio, que es donde viven la lista de entidades y las
+   * propiedades. Abierto de entrada no los TAPA visualmente sin más — se queda
+   * sus clics: Playwright lo cazó como «cad-collab-dock subtree intercepts
+   * pointer events» sobre `cad-native-entity-muro-curvo`, y con él caen el
+   * golden 40, el 10 y el 12 (38 goldens tocan ese panel).
+   *
+   * Un panel de colaboración que impide seleccionar una entidad cuesta más de
+   * lo que aporta el primer día. Plegado sigue AHÍ, con su «Abrir» a un clic y
+   * su recuento de comentarios sin resolver a la vista, que es el aviso que
+   * justifica abrirlo. Es la misma lección que la cabecera del recorrido
+   * guiado: lo que flota sobre una superficie de trabajo se queda el ratón.
+   */
+  const [collapsed, setCollapsed] = useState(true);
   const [placing, setPlacing] = useState(false);
   const [pendingAnchor, setPendingAnchor] = useState<CadCommentAnchorPoint | null>(
     null,
@@ -186,7 +209,10 @@ export default function StudioCollaborationLayer({
   if (!surface) return null;
 
   return (
-    <aside className={DOCK} data-testid="cad-collab-dock">
+    <aside
+      className={`${DOCK} ${collapsed ? DOCK_WIDTH.collapsed : DOCK_WIDTH.open}`}
+      data-testid="cad-collab-dock"
+    >
       <div className="flex items-center justify-between gap-2">
         <strong className="text-[11.5px] text-gray-100">Colaboración</strong>
         <button

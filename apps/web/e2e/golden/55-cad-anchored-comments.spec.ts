@@ -24,6 +24,7 @@ import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { installMockBackend } from "../fixtures/mock-backend";
 import { CadV1Backend, seedFootprint } from "../fixtures/cad-v1-backend";
 import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
+import { openCollabDock } from "../fixtures/collab-dock";
 import type { CadDocument } from "../../src/lib/cad/cad-document";
 
 const DOCUMENT_ID = "00000000-0000-4000-8000-000000000001";
@@ -96,7 +97,7 @@ async function openStudio(
   await backend.install(context);
   const page = await context.newPage();
   await page.goto(`/studio/${DOCUMENT_ID}`);
-  await expect(page.getByTestId("cad-collab-dock")).toBeVisible({ timeout: 60_000 });
+  await openCollabDock(page);
   return page;
 }
 
