@@ -564,4 +564,17 @@ export interface CadParseResult {
   confidence: number;
   clarification?: string;
   error?: string;
+  /**
+   * Código del rechazo, legible por máquina.
+   *
+   * POR QUÉ NO BASTA `clarification`. La regla de la casa es «fallo cerrado:
+   * ante lo ambiguo, error tipado y explícito», y hasta que el banco de calidad
+   * NL→CAD lo midió (`nl-quality/`) el parser cumplía sólo la mitad:
+   * rechazaba, sí, pero con prosa. Una frase en español no se puede ramificar,
+   * ni traducir, ni convertir en una sugerencia de la UI, ni contar en una
+   * métrica: obliga a comparar cadenas, que es la forma más frágil de
+   * programar contra un contrato. El texto sigue siendo para el humano; el
+   * código es para el producto.
+   */
+  code?: string;
 }

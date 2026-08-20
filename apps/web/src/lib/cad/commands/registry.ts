@@ -20,6 +20,7 @@ import {
   outOfBounds,
   selectedObjects,
   validateDistance,
+  wallSegmentIssues,
   warning,
 } from "./validators";
 import {
@@ -887,10 +888,9 @@ function drawWallSegmentPreview(
   const dx = input.to.x - input.from.x;
   const dy = input.to.y - input.from.y;
   const len = Math.hypot(dx, dy);
-  const issues =
-    len > 1
-      ? []
-      : [error("wall_too_short", "El muro necesita dos puntos distintos.")];
+  // El aviso de caja de abajo se queda: mide OTRA cosa —cuánto asoma el grosor—
+  // y con muros verticales da falsos positivos. Los extremos no mienten.
+  const issues = wallSegmentIssues(input.from, input.to, len, context);
   const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
   const object = {
     type: "asset" as const,
