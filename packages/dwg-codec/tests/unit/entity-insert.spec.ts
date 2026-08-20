@@ -55,14 +55,14 @@ function roundTrip(entity: DwgInsertEntity, blockHandle = 5, handle = 9): void {
  * Cabecera común mínima a mano (espejo del writer) para los cuerpos
  * hostiles: modo 2, cero reactores, banderas a cero.
  */
-function handmadeCommonTail(handle = 1): DwgBitEmitter {
+function handmadeCommonTail(handle = 1, noLinks = true): DwgBitEmitter {
   const tail = new DwgBitEmitter();
   tail.emitH(0, handle);
   tail.emitBS(0); // EED vacío
   tail.pushBit(0); // sin gráfico
   tail.pushBits(0b10, 2); // modo 2
   tail.emitBL(0); // cero reactores
-  tail.pushBit(1); // sin vínculos
+  tail.pushBit(noLinks ? 1 : 0); // sin vínculos (a 0: prev/next en el flujo)
   tail.emitBS(256); // color ByLayer
   tail.emitBD(1); // escala de linetype
   tail.pushBits(0, 2);
@@ -177,6 +177,54 @@ test("las formas de escala 01 y 10 se aceptan al leer aunque no se emitan", () =
     y: 2.5,
     z: 1,
   });
+});
+
+test("sin-vínculos a 0: los punteros anterior/siguiente viajan antes de la capa", () => {
+  // El hecho 4 del intake (VALLE-CORPUS-AC1015-INTAKE-DAE5E77), reproducido
+  // con la MISMA forma que exhiben los INSERT reales 42/45 del corpus: bit a
+  // 0, anterior nulo (código 4), siguiente propio+1 (código 6), y DESPUÉS la
+  // capa y el bloque como punteros duros absolutos.
+  const tail = handmadeCommonTail(42, false);
+  tail.emitBD(10);
+  tail.emitBD(10);
+  tail.emitBD(0);
+  tail.pushBits(0b11, 2); // escalas unitarias
+  tail.emitBD(0);
+  tail.emitBD(0); // extrusión 3BD canónica
+  tail.emitBD(0);
+  tail.emitBD(1);
+  tail.pushBit(0);
+  const stream = new DwgBitEmitter();
+  stream.emitH(0, 0); // xdictionary nulo
+  stream.emitH(4, 0); // anterior: nulo (primera entidad)
+  stream.emitH(6, 0); // siguiente: propio+1
+  stream.emitH(5, 16); // capa 16
+  stream.emitH(5, 35); // bloque 35
+  const decoded = decodeAc1015EntityBody(
+    composeBody(AC1015_TYPE_INSERT, tail, 0, stream),
+  );
+  assert.deepEqual(
+    { ...decoded.references.previousEntity },
+    { kind: "absolute", handle: 0 },
+  );
+  assert.deepEqual(
+    { ...decoded.references.nextEntity },
+    { kind: "relative", handle: 43 },
+  );
+  assert.deepEqual(
+    { ...decoded.references.layer },
+    { kind: "absolute", handle: 16 },
+  );
+  assert.deepEqual(
+    { ...decoded.references.blockRecord },
+    { kind: "absolute", handle: 35 },
+  );
+  // Con el bit a 1 los punteros NO viajan y la cabeza no los inventa.
+  const linked = decodeAc1015EntityBody(
+    writeAc1015EntityBody(sampleInsert(), 9, { insertBlockHandle: 5 }),
+  );
+  assert.equal(linked.references.previousEntity, undefined);
+  assert.equal(linked.references.nextEntity, undefined);
 });
 
 test("la referencia relativa del bloque se resuelve contra el handle propio", () => {

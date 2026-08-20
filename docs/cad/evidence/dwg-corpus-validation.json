@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "evidenceId": "valle-design-dwg-corpus-validation-v1",
   "generadoPor": "node scripts/dwg/validate-corpus.mjs",
-  "generadoEn": "2026-08-20T16:49:43.073Z",
+  "generadoEn": "2026-08-20T16:56:18.363Z",
   "environment": {
     "node": "v22.18.0",
     "platform": "win32",
@@ -76,13 +76,13 @@
       },
       "insert": {
         "esperado": 6,
-        "leidoCorrecto": 4,
-        "geometriaDistinta": 2,
+        "leidoCorrecto": 6,
+        "geometriaDistinta": 0,
         "faltante": 0,
         "inesperado": 0
       }
     },
-    "discrepanciasRegistradas": 2
+    "discrepanciasRegistradas": 0
   },
   "matrizEntidades": {
     "line": {
@@ -129,40 +129,13 @@
     },
     "insert": {
       "esperado": 6,
-      "leidoCorrecto": 4,
-      "geometriaDistinta": 2,
+      "leidoCorrecto": 6,
+      "geometriaDistinta": 0,
       "faltante": 0,
       "inesperado": 0
     }
   },
-  "discrepancias": [
-    {
-      "archivo": "07-bloques-insert",
-      "contexto": "model-space",
-      "tipo": "insert",
-      "problema": "geometria-distinta",
-      "diferencias": [
-        {
-          "campo": "block",
-          "esperado": "MARCO-A",
-          "leido": ""
-        }
-      ]
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "contexto": "model-space",
-      "tipo": "insert",
-      "problema": "geometria-distinta",
-      "diferencias": [
-        {
-          "campo": "block",
-          "esperado": "MARCO-A",
-          "leido": ""
-        }
-      ]
-    }
-  ],
+  "discrepancias": [],
   "archivos": [
     {
       "bundle": "valle.fundacional.ac1015.001",
@@ -1454,36 +1427,13 @@
         "porTipo": {
           "insert": {
             "esperado": 4,
-            "leidoCorrecto": 2,
-            "geometriaDistinta": 2,
+            "leidoCorrecto": 4,
+            "geometriaDistinta": 0,
             "faltante": 0,
             "inesperado": 0
           }
         },
-        "detalles": [
-          {
-            "tipo": "insert",
-            "problema": "geometria-distinta",
-            "diferencias": [
-              {
-                "campo": "block",
-                "esperado": "MARCO-A",
-                "leido": ""
-              }
-            ]
-          },
-          {
-            "tipo": "insert",
-            "problema": "geometria-distinta",
-            "diferencias": [
-              {
-                "campo": "block",
-                "esperado": "MARCO-A",
-                "leido": ""
-              }
-            ]
-          }
-        ]
+        "detalles": []
       },
       "bloques": {
         "esperados": [
@@ -1634,18 +1584,6 @@
         }
       ],
       "diagnosticos": [
-        {
-          "code": "database-insert-block-unresolved",
-          "severity": "error",
-          "offset": 6143,
-          "message": "An INSERT does not resolve to a known block record."
-        },
-        {
-          "code": "database-insert-block-unresolved",
-          "severity": "error",
-          "offset": 6292,
-          "message": "An INSERT does not resolve to a known block record."
-        },
         {
           "code": "database-block-marker-unresolved",
           "severity": "warning",

@@ -313,13 +313,24 @@ function byteOf(reader: DwgBitReader): number {
  * no la sustituye. Hecho registrado (SOURCE_REGISTER): el flujo arranca con
  * el propietario cuando el modo es 0, siguen los reactores declarados, el
  * xdictionary y la capa, y cierran tipo de línea y plotstyle cuando sus
- * banderas valen 3. Certeza declarada MEDIA en el worklog: el orden exacto
- * queda pendiente de corpus real con derechos.
+ * banderas valen 3.
+ *
+ * Intake 2026-08-20 (`VALLE-CORPUS-AC1015-INTAKE-DAE5E77`, hecho 4): cuando
+ * el bit de sin-vínculos del común vale 0, entre el xdictionary y la capa
+ * viajan DOS handles más — los punteros a la entidad ANTERIOR y SIGUIENTE de
+ * la lista enlazada del dibujo (observado bit a bit en los únicos dos
+ * objetos del corpus con el bit a 0: el primero y el último del model
+ * space). Se consumen y se exponen resueltos; el orden de la base sigue
+ * siendo el del mapa (decisión de laboratorio declarada).
  */
 export interface Ac1015EntityHandleHead {
   /** Propietario resuelto; `undefined` cuando el modo no lo lleva (1/2). */
   readonly owner: DwgResolvedHandle | undefined;
   readonly xdictionary: DwgResolvedHandle;
+  /** Puntero a la entidad anterior; sólo cuando sin-vínculos vale 0. */
+  readonly previousEntity: DwgResolvedHandle | undefined;
+  /** Puntero a la entidad siguiente; sólo cuando sin-vínculos vale 0. */
+  readonly nextEntity: DwgResolvedHandle | undefined;
   readonly layer: DwgResolvedHandle;
   /** Sólo cuando las banderas de linetype valen 3. */
   readonly linetype: DwgResolvedHandle | undefined;
@@ -351,6 +362,13 @@ export function readAc1015EntityHandleHead(
     reader.readH();
   }
   const xdictionary = resolveDwgHandleReference(reader.readH(), base);
+  // Hecho 4 del intake: el bit de sin-vínculos a 0 significa que aquí viajan
+  // los punteros a la entidad anterior y siguiente de la lista enlazada,
+  // ANTES de la capa. No leerlos desalineaba capa y referencias del tipo.
+  const previousEntity =
+    common.noLinks ? undefined : resolveDwgHandleReference(reader.readH(), base);
+  const nextEntity =
+    common.noLinks ? undefined : resolveDwgHandleReference(reader.readH(), base);
   const layer = resolveDwgHandleReference(reader.readH(), base);
   const linetype =
     common.linetypeFlags === 3
@@ -360,7 +378,15 @@ export function readAc1015EntityHandleHead(
     common.plotstyleFlags === 3
       ? resolveDwgHandleReference(reader.readH(), base)
       : undefined;
-  return Object.freeze({ owner, xdictionary, layer, linetype, plotstyle });
+  return Object.freeze({
+    owner,
+    xdictionary,
+    previousEntity,
+    nextEntity,
+    layer,
+    linetype,
+    plotstyle,
+  });
 }
 
 /**

@@ -584,3 +584,29 @@ sólo después se toca el código. Un commit por hecho.
   0b11 = tres 1.0 (4 casos) y 0b00 = X RD con Y/Z DD contra X (escalas
   (2,1.5,1) y (0.5,0.5,1)). Las formas 0b01/0b10 siguen sin observarse:
   el lector las conserva y el writer sigue sin emitirlas.
+
+### Hecho 4 — sin-vínculos a 0 = punteros anterior/siguiente en el flujo (desmentido por corpus, corregido 2026-08-20)
+
+- Certeza previa (fase D4, MEDIA): la cabeza del flujo de handles es
+  propietario (modo 0) → reactores → xdictionary → capa, y el "bit de
+  sin-vínculos" era un bit del común sin efecto en el flujo.
+- Síntoma tras el hecho 3: los 8 abren; 4 de 6 INSERT perfectos. Los DOS
+  únicos objetos del corpus con el bit de sin-vínculos a 0 (INSERT 42 y 45
+  de 07) leen su geometría exacta pero su "capa" y su "bloque" salen de
+  handles equivocados: el flujo trae MÁS handles de los que la cabeza
+  esperaba, y precisamente en el primero y el último objeto del dibujo.
+- Observación (bit a bit, registrada en
+  `VALLE-CORPUS-AC1015-INTAKE-DAE5E77`): con el bit a 0 viajan DOS handles
+  entre el xdictionary y la capa — los punteros a la entidad ANTERIOR y
+  SIGUIENTE de la lista enlazada. En el INSERT 42 (primero): anterior nulo
+  (código 4, contador 0) y siguiente propio+1 (código 6) → 43; en el 45
+  (último): anterior propio−1 (código 8) → 44 y siguiente nulo. Tras
+  ellos, la capa (5→16) y el bloque (5→35, MARCO-A) decodifican en su
+  sitio. La lista enlazada explica que sean exactamente el primero y el
+  último los que llevan el bit a 0 en este corpus.
+- Decisión: `readAc1015EntityHandleHead` consume los dos punteros cuando el
+  común declara el bit a 0 y los expone RESUELTOS
+  (`previousEntity`/`nextEntity`); el orden de la base sigue siendo el del
+  mapa (no se reordena por la lista — decisión de laboratorio declarada).
+  El writer sigue emitiendo el bit a 1 (sin punteros), forma que el corpus
+  también exhibe en todos los demás objetos.

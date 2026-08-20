@@ -355,7 +355,8 @@
         "La misma medicion de BLOCK HEADER confirma con archivos reales: el RL de tamano cuenta desde el PRIMER bit del dato (el del tipo), la secuencia de recuentos de insercion es RC terminada en 0 (MARCO-A guarda [1,1,1,1] y PUERTA [1,1]), y el orden nombre TV, campos de xref, punto base 3BD, ruta TV, recuentos RC, descripcion TV y previsualizacion BL es el implementado",
         "Las paginas del mapa de objetos R2000 reales validan con tamano y CRC BIG-endian y semilla 0xC0C1 (168-169 objetos por archivo), y la envoltura de objeto real valida con tamano MS y CRC RS little-endian: las convenciones registradas del mapa y de la envoltura quedan confirmadas por corpus",
         "Los 6 INSERT reales de 07-bloques-insert y 08-plano-mini codifican la extrusion como 3BD (tres bit-doubles), NO como BE: con BE la decodificacion queda exactamente 5 bits corta del tamano declarado en los 6 cuerpos (extrusion canonica (0,0,1): BE gasta 1 bit y 3BD gasta 6), y con 3BD el flujo de handles aterriza EXACTAMENTE en el bit declarado (229/229, 293/293, 425/425 x2, 229/229, 293/293)",
-        "La misma medicion de INSERT confirma con valores reales la bandada de escalas: 0b11 = tres escalas 1.0 sin doubles (4 casos) y 0b00 = X como RD con Y/Z como DD contra la X (escalas (2,1.5,1) y (0.5,0.5,1)); las formas 0b01/0b10 siguen sin observarse; las rotaciones reales 0.5236 y 1.5708 rad decodifican exactas"
+        "La misma medicion de INSERT confirma con valores reales la bandada de escalas: 0b11 = tres escalas 1.0 sin doubles (4 casos) y 0b00 = X como RD con Y/Z como DD contra la X (escalas (2,1.5,1) y (0.5,0.5,1)); las formas 0b01/0b10 siguen sin observarse; las rotaciones reales 0.5236 y 1.5708 rad decodifican exactas",
+        "Cuando el bit de sin-vinculos del comun de entidad vale 0, el flujo de handles lleva DOS handles adicionales entre el xdictionary y la capa: los punteros a la entidad anterior y siguiente de la lista enlazada; observado en los INSERT 42 y 45 de 07-bloques-insert (unicos objetos del corpus con el bit a 0): en el primero anterior=nulo (codigo 4, contador 0) y siguiente=propio+1 (codigo 6) apuntando al 43, en el ultimo anterior=propio-1 (codigo 8) apuntando al 44 y siguiente=nulo, y tras ellos la capa (puntero duro 5 al handle 16) y el BLOCK HEADER (puntero duro 5 al handle 35, MARCO-A) decodifican en su sitio"
       ],
       "derivedFiles": [
         "packages/dwg-codec/src/codecs/crc16.ts",
@@ -364,6 +365,7 @@
         "packages/dwg-codec/src/objects/table-block.ts",
         "packages/dwg-codec/src/writer/ac1015-block-writer.ts",
         "packages/dwg-codec/src/objects/entity-insert.ts",
+        "packages/dwg-codec/src/objects/entity-common.ts",
         "packages/dwg-codec/src/writer/ac1015-entity-writer.ts",
         "packages/dwg-codec/tests/unit/ac1015-header.spec.ts",
         "packages/dwg-codec/tests/unit/table-block.spec.ts",
@@ -376,7 +378,7 @@
       ],
       "reviewer": "Medicion first-party del laboratorio bajo la directiva del propietario 2026-08-13; evidencia cruda en docs/cad/evidence/dwg-corpus-validation.json",
       "reviewedAt": "2026-08-20",
-      "notes": "Entrada acumulativa del programa de intake sobre el commit dae5e77 (una entrada por fuente, como la de la ODS): cada hecho nuevo del diffing contra archivos reales se anade aqui ANTES de tocar el codigo. Hecho 1: la mascara XOR del CRC de cabecera desmentida; el CRC viaja crudo y el rango 3-6 del recuento se mantiene. Hecho 2: el cuerpo BLOCK HEADER lleva un bit adicional antes del punto base; el laboratorio lo lee y lo emite SIN interpretar su semantica (no hay fuente registrada que la nombre) y lo expone crudo en el modelo. Hecho 3: la extrusion del INSERT es 3BD y no BE; lector y writer corregidos juntos."
+      "notes": "Entrada acumulativa del programa de intake sobre el commit dae5e77 (una entrada por fuente, como la de la ODS): cada hecho nuevo del diffing contra archivos reales se anade aqui ANTES de tocar el codigo. Hecho 1: la mascara XOR del CRC de cabecera desmentida; el CRC viaja crudo y el rango 3-6 del recuento se mantiene. Hecho 2: el cuerpo BLOCK HEADER lleva un bit adicional antes del punto base; el laboratorio lo lee y lo emite SIN interpretar su semantica (no hay fuente registrada que la nombre) y lo expone crudo en el modelo. Hecho 3: la extrusion del INSERT es 3BD y no BE; lector y writer corregidos juntos. Hecho 4: con el bit de sin-vinculos a 0 el flujo lleva los punteros anterior/siguiente entre el xdictionary y la capa; el lector los consume y los expone resueltos, y el writer sigue emitiendo el bit a 1 (sin punteros), la forma que tambien exhibe el corpus."
     },
     {
       "id": "AJV-8.20.0-OFFICIAL",
