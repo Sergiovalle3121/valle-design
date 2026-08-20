@@ -22,6 +22,7 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { installMockBackend } from "../fixtures/mock-backend";
 import { CadV1Backend, seedFootprint } from "../fixtures/cad-v1-backend";
+import { openCollabDock } from "../fixtures/collab-dock";
 import {
   installStandaloneIdentity,
   loginAsStandaloneOwner,
@@ -124,7 +125,7 @@ test("un tercero sin cuenta abre el enlace, ve el plano y comenta sobre un punto
   await loginAsStandaloneOwner(context);
   await backend.install(context);
   await page.goto(`/studio/${DOCUMENT_ID}`);
-  await expect(page.getByTestId("cad-collab-dock")).toBeVisible({ timeout: 60_000 });
+  await openCollabDock(page);
   await page.getByTestId("cad-review-link-new").click();
   await expect(page.getByTestId("cad-review-link-issued")).toBeVisible();
 
@@ -257,7 +258,7 @@ test("un enlace con comentarios apagados deja mirar pero no escribir", async ({
   // La sesión se crea por la API, como haría el estudio, pero sin comentarios.
   const page = await context.newPage();
   await page.goto(`/studio/${DOCUMENT_ID}`);
-  await expect(page.getByTestId("cad-collab-dock")).toBeVisible({ timeout: 60_000 });
+  await openCollabDock(page);
   await page.getByTestId("cad-review-link-new").click();
   await expect(page.getByTestId("cad-review-link-issued")).toBeVisible();
   const enlace = (await page.getByTestId("cad-review-link-url").textContent())?.trim() ?? "";
