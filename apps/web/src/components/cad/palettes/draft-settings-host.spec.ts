@@ -97,24 +97,36 @@ import {
   assert.equal(host.ortho, false);
   assert.equal(host.polar, true);
   assert.equal(host.objectSnapTracking, true);
+  assert.equal(
+    host.dynamicInput,
+    true,
+    "la entrada dinámica arranca encendida: era el único comportamiento antes de F12",
+  );
   host.toggleOsnap();
   host.toggleOrtho();
   host.togglePolar();
   host.toggleObjectSnapTracking();
+  host.toggleDynamicInput();
   assert.equal(host.osnap, false);
   assert.equal(host.ortho, true);
   assert.equal(host.polar, false);
   assert.equal(host.objectSnapTracking, false);
+  assert.equal(host.dynamicInput, false);
   assert.deepEqual(
     {
       osnap: host.getSnapshot().osnap,
       ortho: host.getSnapshot().ortho,
       polar: host.getSnapshot().polar,
       otrack: host.getSnapshot().objectSnapTracking,
+      dynamicInput: host.getSnapshot().dynamicInput,
     },
-    { osnap: false, ortho: true, polar: false, otrack: false },
+    { osnap: false, ortho: true, polar: false, otrack: false, dynamicInput: false },
     "y la instantánea dice lo mismo que los getters de la ruta del puntero",
   );
+  // El toggle repetido publica una sola vez por cambio real, como el resto.
+  const before = host.getSnapshot();
+  host.setDynamicInput(false);
+  assert.equal(host.getSnapshot(), before, "poner el valor que ya estaba no republica");
 }
 
 // --- modos por separado ------------------------------------------------------

@@ -33,6 +33,14 @@ export interface CadDraftToolbarProps {
    */
   dynamicInputKey: string;
   /**
+   * F12: con la entrada dinámica apagada el control no se pinta. Teclear
+   * coordenadas sigue disponible por la línea de comandos — el mismo reparto
+   * que AutoCAD con DYNMODE en 0. Opcional para no tocar a los montajes que
+   * no conocen el interruptor: ausente significa encendida, que era el único
+   * comportamiento que existía antes.
+   */
+  dynamicInputEnabled?: boolean;
+  /**
    * El comando en curso encadena puntos, así que se puede terminar a mano.
    * `false` también cuando no hay comando en curso.
    */
@@ -48,6 +56,7 @@ export function CadDraftToolbar({
   onToggleOrtho,
   dynamicInput,
   dynamicInputKey,
+  dynamicInputEnabled = true,
   chaining,
   canClose,
   onFinish,
@@ -62,7 +71,9 @@ export function CadDraftToolbar({
       >
         ORTO
       </button>
-      <CadDynamicInput key={dynamicInputKey} {...dynamicInput} />
+      {dynamicInputEnabled && (
+        <CadDynamicInput key={dynamicInputKey} {...dynamicInput} />
+      )}
       {chaining && (
         <button
           onClick={onFinish}

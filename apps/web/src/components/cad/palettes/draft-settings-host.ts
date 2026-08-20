@@ -50,6 +50,12 @@ export interface CadDraftSettingsSnapshot {
   polarIncrement: number;
   /** Rastreo por objeto, OTRACK (F11). */
   objectSnapTracking: boolean;
+  /**
+   * Entrada dinámica junto al cursor (F12). Apagarla oculta el control
+   * flotante; teclear coordenadas sigue disponible por la línea de comandos,
+   * que es exactamente el reparto de AutoCAD con DYNMODE en 0.
+   */
+  dynamicInput: boolean;
   /** Puntos adquiridos por OTRACK; el HUD enseña cuántos hay. */
   acquiredTrackingPoints: number;
 }
@@ -106,6 +112,9 @@ export class CadDraftSettingsHost {
   private polarOn = true;
   private polarStep = 45;
   private trackingOn = true;
+  // Encendida de fábrica: es lo que el editor enseñaba SIEMPRE antes de que
+  // F12 existiera, así que el comportamiento de partida no cambia ni un píxel.
+  private dynamicInputOn = true;
   private tracked: CadTrackingPoint[] = [];
   private readonly listeners = new Set<() => void>();
   private snapshot: CadDraftSettingsSnapshot = this.build();
@@ -118,6 +127,7 @@ export class CadDraftSettingsHost {
       polar: this.polarOn,
       polarIncrement: this.polarStep,
       objectSnapTracking: this.trackingOn,
+      dynamicInput: this.dynamicInputOn,
       acquiredTrackingPoints: this.tracked.length,
     };
   }
@@ -154,6 +164,10 @@ export class CadDraftSettingsHost {
 
   get objectSnapTracking(): boolean {
     return this.trackingOn;
+  }
+
+  get dynamicInput(): boolean {
+    return this.dynamicInputOn;
   }
 
   get trackingPoints(): readonly CadTrackingPoint[] {
@@ -252,6 +266,16 @@ export class CadDraftSettingsHost {
 
   toggleObjectSnapTracking = (): void => {
     this.setObjectSnapTracking(!this.trackingOn);
+  };
+
+  setDynamicInput = (value: boolean): void => {
+    if (this.dynamicInputOn === value) return;
+    this.dynamicInputOn = value;
+    this.publish();
+  };
+
+  toggleDynamicInput = (): void => {
+    this.setDynamicInput(!this.dynamicInputOn);
   };
 
   /**

@@ -15394,6 +15394,16 @@ export default function Layout3DEditor({
         setLayers((cur) => ({ ...cur, grid: !cur.grid }));
         return;
       }
+      if (cadShortcut?.id === "grid_snap_toggle") {
+        e.preventDefault();
+        toggleGridSnap();
+        return;
+      }
+      if (cadShortcut?.id === "dynamic_input_toggle") {
+        e.preventDefault();
+        draftSettingsHost.toggleDynamicInput();
+        return;
+      }
       if (cadShortcut?.id === "object_snap_toggle") {
         e.preventDefault();
         draftSettingsHost.toggleOsnap();
@@ -18769,6 +18779,7 @@ export default function Layout3DEditor({
                 orthoLock={draftSettings.ortho}
                 onToggleOrtho={() => draftSettingsHost.toggleOrtho()}
                 dynamicInputKey={`${dynamicInputKind}:${dynamicAnchor ? "anchored" : "origin"}`}
+                dynamicInputEnabled={draftSettings.dynamicInput}
                 dynamicInput={{
                   kind: dynamicInputKind,
                   anchor: dynamicAnchor,
