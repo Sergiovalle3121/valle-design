@@ -317,6 +317,52 @@ contrato, ni reconstruir el web «para arreglar CORS». El origen permitido es
 
 ---
 
+### Disputas y reembolsos
+
+El producto NO tiene endpoint de reembolso, a propósito: devolver dinero es
+una decisión humana con contexto. La división de trabajo exacta:
+
+**Qué hace el sistema (automático, por webhook):**
+
+- `charge.refunded` → la factura espejo pasa a **`refunded`** y se publica
+  `commercial.invoice.refunded` en el outbox de dominio. **La suscripción no
+  se toca**: reembolsar y dar de baja son dos decisiones distintas, y acoplar
+  ambas convertiría un reembolso parcial de cortesía en una baja accidental.
+- `charge.dispute.created` (contracargo) → la suscripción pasa a
+  **`suspended`** — fallo cerrado: un cobro en disputa no puede seguir
+  contando como bueno — y se publica `commercial.subscription.disputed`.
+- Ambos eventos son idempotentes por `event.id` (`payment_events`): una
+  reentrega no repite el efecto.
+
+**Qué hace el humano, en el dashboard de Stripe:**
+
+1. **Reembolso:** Pagos → localizar el cargo → *Reembolsar* (total o parcial).
+   El webhook hace el resto. Si además procede cortar el servicio, cancela la
+   suscripción en el proveedor (o desde el portal): llegará
+   `customer.subscription.deleted` y el producto la cerrará por su camino
+   normal. Si fue pago único (OXXO/SPEI), no hay suscripción del proveedor
+   que cancelar: valora si el acceso debe seguir hasta `current_period_end`.
+2. **Disputa:** Pagos → Disputas → revisar motivo y fecha límite de
+   evidencia. Decidir: **aceptar** (se pierde el importe + comisión de
+   disputa; valorar cancelar la suscripción) o **responder** con evidencia
+   (facturas espejo, fechas de acceso del `design_audit_log`, correos).
+   Responde SIEMPRE antes de la fecha límite: una disputa sin respuesta se
+   pierde sola.
+3. **Si se gana la disputa:** Stripe libera el dinero. La reactivación del
+   acceso es manual y deliberada — verifica con el cliente antes de mover
+   `suspended` → `active` (el siguiente `invoice.paid` también reactiva por
+   sí solo las suscripciones recurrentes).
+4. Deja constancia (fecha, cargo, decisión, resultado) donde el equipo
+   registre incidentes: `payment_events.outcome` guarda lo que hizo el
+   sistema, no por qué lo decidió el humano.
+
+**Qué NO hacer:** editar `invoices.status` o `subscriptions.status` a mano
+para «adelantar» al webhook. Si el evento no llegó, es un problema del
+webhook (verifica el endpoint y los eventos suscritos en el proveedor), no
+de los datos.
+
+---
+
 ## Incidentes
 
 ### Sospecha de acceso cross-tenant

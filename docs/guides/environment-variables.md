@@ -116,10 +116,13 @@ en `payment_events` dentro de la misma transacción que el efecto, así que una
 reentrega no renueva dos veces. Configura en el dashboard del proveedor estos
 eventos: `checkout.session.completed`, `checkout.session.async_payment_succeeded`,
 `checkout.session.async_payment_failed`, `invoice.paid`,
-`invoice.payment_failed` y `customer.subscription.deleted`. Los dos
-asíncronos son OBLIGATORIOS si se habilitan OXXO o SPEI: sin ellos el pago en
-efectivo entra en la cuenta y la suscripción nunca se activa. Cualquier otro tipo
-responde 200 y queda registrado sin efecto.
+`invoice.payment_failed`, `customer.subscription.deleted`, `charge.refunded` y
+`charge.dispute.created`. Los dos asíncronos son OBLIGATORIOS si se habilitan
+OXXO o SPEI: sin ellos el pago en efectivo entra en la cuenta y la suscripción
+nunca se activa. Los dos de cargos mueven reembolsos (factura espejo a
+`refunded`) y contracargos (suscripción a `suspended`); el procedimiento humano
+está en `RUNBOOK.md` § «Disputas y reembolsos». Cualquier otro tipo responde
+200 y queda registrado sin efecto.
 
 OXXO y SPEI hay que ACTIVARLOS además en el panel del proveedor (métodos de
 pago de la cuenta de México); el producto los ofrece sólo en MXN y rechaza una
