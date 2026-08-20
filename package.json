@@ -45,7 +45,12 @@
     "check:cad": "node scripts/cad/check-design-contract.mjs && node scripts/cad/check-no-line-engineering.mjs && node scripts/cad/check-monolith-budget.mjs && node scripts/wasm/build-kernel.mjs --check && node scripts/cad/mexican-drafting-standards-evidence.mjs --check && node scripts/cad/rubric.spec.mjs && node scripts/cad/rubric.mjs",
     "check:cad": "node scripts/cad/check-design-contract.mjs && node scripts/cad/check-no-line-engineering.mjs && node scripts/cad/check-monolith-budget.mjs && node scripts/cad/nl-cad-quality.mjs --check --quiet && node scripts/cad/rubric.spec.mjs && node scripts/cad/rubric.mjs",
     "check:dwg": "npm run check --workspace=@valle-design/dwg-codec && node scripts/dwg/check-product-boundary.mjs",
-    "check:deploy": "node scripts/deploy/validate-dockerfiles.mjs",
+    "check:cad": "node scripts/cad/check-design-contract.mjs && node scripts/cad/check-no-line-engineering.mjs && node scripts/cad/check-monolith-budget.mjs && npm run check:dwg-evidence && node scripts/cad/rubric.spec.mjs && node scripts/cad/rubric.mjs",
+    "evidence:dwg": "node scripts/dwg/dwg-evidence.mjs",
+    "check:dwg-evidence": "node scripts/dwg/dwg-evidence.spec.mjs && node scripts/dwg/dwg-evidence.mjs --check",
+    "check:dwg": "npm run check --workspace=@valle-design/dwg-codec && node scripts/dwg/check-product-boundary.mjs && npm run check:dwg-corpus",
+    "corpus:dwg": "node scripts/dwg/fetch-corpus.mjs",
+    "check:dwg-corpus": "node scripts/dwg/corpus-consumer.spec.mjs && node scripts/dwg/fetch-corpus.mjs --check",    "check:deploy": "node scripts/deploy/validate-dockerfiles.mjs",
     "smoke:deploy": "node scripts/deploy/production-startup-smoke.mjs",
     "ops:backup": "node scripts/ops/backup.mjs",
     "ops:restore-verify": "node scripts/ops/restore-verify.mjs"

@@ -87,3 +87,6 @@ sbom.cdx.json
 apps/web/e2e/.artifacts/
 apps/web/e2e/.report/
 apps/web/e2e/.test-results/
+# Cache local del corpus DWG descargado: bytes con derechos que NUNCA se
+# versionan en este repositorio publico. El pin y los hashes si; los bytes no.
+.cache/

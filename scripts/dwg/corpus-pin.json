@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0.0",
+  "repository": "https://github.com/Sergiovalle3121/valle-design-dwg-conformance.git",
+  "commit": "48eaab09c4c0eb93d5149852a979e274b1aaa1d0",
+  "indexPath": "index.json",
+  "indexSha256": "ce2b82265d8bba2d52a3b5abbdcbdb2c646d41d4ddd59253ae144cfc509a7a36",
+  "credentialEnv": "VALLE_DWG_CORPUS_TOKEN",
+  "credentialScopeEnv": "VALLE_DWG_CORPUS_TOKEN_SCOPE",
+  "requiredCredentialScope": "contents:read",
+  "mirrorEnv": "VALLE_DWG_CORPUS_MIRROR",
+  "maxIndexBytes": 1048576,
+  "maxManifestBytes": 1048576,
+  "maxArtifactBytes": 536870912,
+  "maxTotalBytes": 2147483648
+}

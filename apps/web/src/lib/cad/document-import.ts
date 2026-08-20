@@ -20,6 +20,7 @@ import {
 } from "./dxf-import-report";
 import { shapefileToCadEntities } from "./geo-cad-document";
 import { readGeoDataset } from "../geo";
+import { dwgImportIsEnabled } from "./dwg-interop-flag";
 
 export const MAX_DXF_IMPORT_BYTES = 12_000_000;
 export const MAX_JSON_IMPORT_BYTES = 20_000_000;
@@ -34,7 +35,16 @@ export const MAX_JSON_IMPORT_BYTES = 20_000_000;
  */
 export const MAX_SHP_IMPORT_BYTES = 8_000_000;
 
-export type DocumentImportFormat = "dxf" | "json" | "shp";
+/**
+ * Límite del binario, declarado aunque hoy no se pueda alcanzar.
+ *
+ * Un DWG comprime, así que pesa menos que el DXF equivalente y aun así trae más
+ * dentro: el límite es mayor que el de DXF y sigue siendo un tope, porque un
+ * archivo sin tope es una denegación de servicio con extensión.
+ */
+export const MAX_DWG_IMPORT_BYTES = 24_000_000;
+
+export type DocumentImportFormat = "dxf" | "json" | "shp" | "dwg";
 
 export interface DocumentImportReport {
   format: DocumentImportFormat;
@@ -59,6 +69,7 @@ export function importLimitForFileName(fileName: string): number {
   const kind = extension(fileName);
   if (kind === "dxf") return MAX_DXF_IMPORT_BYTES;
   if (kind === "shp") return MAX_SHP_IMPORT_BYTES;
+  if (kind === "dwg") return MAX_DWG_IMPORT_BYTES;
   return MAX_JSON_IMPORT_BYTES;
 }
 
@@ -76,7 +87,24 @@ export function isBinaryImportFormat(fileName: string): boolean {
 
 export function validateImportFile(fileName: string, size: number): void {
   const kind = extension(fileName);
-  if (kind !== "dxf" && kind !== "json" && kind !== "shp") {
+  /**
+   * `.dwg` sólo entra si el gate de promoción está abierto, y hoy NO lo está:
+   * la bandera nace apagada y sus gates son hechos que todavía son falsos. Este
+   * `if` no habilita nada; lo que hace es que el día que el dueño firme, la
+   * extensión deje de rechazarse aquí en vez de tener que descubrir este punto
+   * a base de leer el árbol entero.
+   *
+   * El mensaje SÍ cambió al integrar, y a propósito: el shapefile ya se admite,
+   * así que callarlo dejaría al usuario sin saber que su `.shp` entra. Un
+   * mensaje de error que enumera menos formatos de los que acepta el producto
+   * es una mentira pequeña que cuesta una importación.
+   */
+  const admitted =
+    kind === "dxf" ||
+    kind === "json" ||
+    kind === "shp" ||
+    (kind === "dwg" && dwgImportIsEnabled());
+  if (!admitted) {
     throw new Error(
       "Formato no soportado. Usa DXF de texto, JSON canónico o shapefile (.shp).",
     );
