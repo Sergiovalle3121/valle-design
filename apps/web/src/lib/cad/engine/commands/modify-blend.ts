@@ -40,7 +40,6 @@ import {
   CAD_ACCEPT_KEYWORD,
   asCadCommand,
   type CadAnyCommandDescriptor,
-  type CadCommandContext,
   type CadCommandDescriptor,
   type CadCommandStep,
 } from "../command-types";

@@ -161,7 +161,6 @@ import {
   splitCadCommandChain,
   type CadCommandHistoryItem,
   type CadCommandInput,
-  type CadCommandPreview,
   type CadOperation,
 } from "@/lib/cad/commands";
 import {
