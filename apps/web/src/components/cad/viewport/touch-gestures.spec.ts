@@ -13,6 +13,11 @@
  *     detrás NO fija un punto — si lo fijara, cerraría el menú que el propio
  *     gesto acaba de abrir, que es el defecto que ya documenta el enrutador
  *     para el botón derecho del ratón.
+ *
+ * Y, desde que el cableado bajó del monolito, una cuarta: que
+ * `createCadTouchGestures` conecta lo que el editor conectaba a mano — el menú
+ * sale por el LIENZO, retirarlo retira LOS DOS menús, y quien decide entre
+ * apuntar y arrastrar es el MOTOR, preguntado en cada gesto.
  */
 import assert from "node:assert/strict";
 import {
@@ -21,6 +26,7 @@ import {
   CAD_TOUCH_TAP_SLOP_PX,
   CadTouchGestures,
   type CadTouchPointerLike,
+  createCadTouchGestures,
 } from "./touch-gestures";
 
 let checks = 0;
@@ -290,8 +296,105 @@ const mouse = (x: number, y: number): CadTouchPointerLike => new PointerLike(99,
   ok(true, "el estado multitáctil no sobrevive al gesto que lo produjo");
 }
 
+// ---- 11. EL CABLEADO DEL VISOR --------------------------------------------
+// `createCadTouchGestures` es el trozo que vivía dentro del `useEffect` del
+// monolito, donde no se podía probar porque hacía falta un lienzo THREE para
+// llegar a él. Lo que se cierra aquí son las TRES conexiones que el editor
+// aportaba y que una ola posterior podría desviar sin que nada chille: el menú
+// se abre sobre el LIENZO, retirarlo retira LOS DOS menús, y la pregunta de si
+// hay que apuntar o arrastrar se le hace AL MOTOR.
+{
+  /**
+   * `PointerEvent` no existe en Node y `cadDispatchContextMenu` construye uno a
+   * propósito —el evento tiene que DECLARAR que viene de un dedo—. El doble
+   * copia sólo lo que el editor lee al recibirlo; `bubbles` y `cancelable` se
+   * pasan al constructor de `Event`, que los expone en su prototipo y no admite
+   * que se le escriban encima.
+   */
+  class FakePointerEvent extends Event {
+    readonly clientX: number;
+    readonly clientY: number;
+    readonly button: number;
+    readonly buttons: number;
+    readonly pointerId: number;
+    readonly pointerType: string;
+    constructor(type: string, init: PointerEventInit) {
+      super(type, { bubbles: init.bubbles, cancelable: init.cancelable });
+      this.clientX = init.clientX ?? 0;
+      this.clientY = init.clientY ?? 0;
+      this.button = init.button ?? 0;
+      this.buttons = init.buttons ?? 0;
+      this.pointerId = init.pointerId ?? 0;
+      this.pointerType = init.pointerType ?? "";
+    }
+  }
+  (globalThis as unknown as { PointerEvent: unknown }).PointerEvent = FakePointerEvent;
+
+  const clock = new FakeClock();
+  const canvas = new EventTarget();
+  const recibidos: FakePointerEvent[] = [];
+  canvas.addEventListener("contextmenu", (event) => {
+    recibidos.push(event as FakePointerEvent);
+  });
+  const cerrados = { general: 0, motor: 0 };
+  let motorActivo = false;
+  const gestures = createCadTouchGestures({
+    canvas,
+    closeMenu: () => {
+      cerrados.general += 1;
+    },
+    closeEngineMenu: () => {
+      cerrados.motor += 1;
+    },
+    engineActive: () => motorActivo,
+    schedule: clock.schedule,
+  });
+
+  // (a) Mantener pulsado emite el `contextmenu` sobre el LIENZO.
+  gestures.pointerDown(finger(1, 410, 260, 0));
+  clock.advance(CAD_TOUCH_LONG_PRESS_MS);
+  assert.equal(recibidos.length, 1, "la pulsación larga emite el menú sobre el lienzo del visor");
+  const emitido = recibidos[0]!;
+  assert.equal(emitido.type, "contextmenu");
+  assert.equal(emitido.clientX, 410, "y lo emite donde el dedo se posó");
+  assert.equal(emitido.clientY, 260);
+  assert.equal(emitido.button, 2, "con el botón DERECHO, que es lo que este gesto significa");
+  assert.equal(emitido.buttons, 2);
+  assert.equal(emitido.pointerType, "touch", "declarando que viene de un dedo, no del ratón");
+  assert.equal(emitido.bubbles, true, "burbujea: los oyentes del editor cuelgan del lienzo");
+  assert.equal(emitido.cancelable, true, "y es cancelable, o el navegador abriría su propio menú");
+  ok(true, "el cableado abre el menú contextual sobre el lienzo que se le presta");
+
+  // (b) Retirarlo retira LOS DOS menús, no sólo el general. El camino es el del
+  // hilo atascado: el temporizador corrió tarde y el sello del `pointerup`
+  // demuestra que aquello fue un toque de 90 ms.
+  const release = gestures.pointerUp(finger(1, 412, 261, 90));
+  assert.deepEqual(release, { kind: "toque", commits: true }, "fue un toque, y designa");
+  assert.equal(cerrados.general, 1, "se retira el menú general del editor");
+  assert.equal(cerrados.motor, 1, "y también el de las palabras clave del paso");
+  ok(true, "retirar el menú retira los dos, que es lo que el monolito hacía a mano");
+
+  // (c) La pregunta de apuntar o arrastrar se le hace AL MOTOR, y en el momento
+  // del gesto: el mismo deslizamiento cambia de veredicto cuando el motor abre.
+  gestures.pointerDown(finger(2, 100, 100, 1_000));
+  gestures.pointerMove(finger(2, 180, 140, 1_050));
+  assert.deepEqual(gestures.pointerUp(finger(2, 180, 140, 1_100)), {
+    kind: "arrastre",
+    commits: false,
+  });
+  motorActivo = true;
+  gestures.pointerDown(finger(3, 100, 100, 2_000));
+  gestures.pointerMove(finger(3, 180, 140, 2_050));
+  assert.deepEqual(gestures.pointerUp(finger(3, 180, 140, 2_100)), {
+    kind: "apuntado",
+    commits: true,
+  });
+  ok(true, "el cableado consulta al motor en cada gesto, no una vez al montar");
+}
+
 console.log(
   `touch-gestures: ${checks} comprobaciones — un dedo designa y apunta, dos dedos son cámara y no ` +
     `ensucian el dibujo, mantener pulsado emite el menú contextual sin que el soltar posterior lo cierre, ` +
-    `y el ratón atraviesa el reconocedor intacto.`,
+    `el ratón atraviesa el reconocedor intacto, y el cableado del visor conecta lienzo, menús y motor ` +
+    `como lo hacía el editor a mano.`,
 );

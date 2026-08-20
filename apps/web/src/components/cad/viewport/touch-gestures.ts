@@ -176,6 +176,66 @@ export function cadDispatchContextMenu(target: EventTarget, event: CadTouchPoint
   );
 }
 
+/**
+ * Lo que el editor le presta al reconocedor: su lienzo, sus dos menús y su
+ * motor.
+ *
+ * ## Por qué esto es una interfaz y no cuatro variables del monolito
+ *
+ * El cableado nació dentro del `useEffect` del visor, y allí no se podía probar:
+ * hace falta un lienzo THREE para llegar a él. El reparto que describe —quién
+ * abre el menú, quién lo retira y a quién se le pregunta si el motor manda— es
+ * exactamente lo que puede desincronizarse en la siguiente ola sin que nada
+ * chille, porque son cuatro devoluciones de llamada sueltas en mitad de mil
+ * líneas de oyentes de puntero.
+ */
+export interface CadTouchGestureWiring {
+  /**
+   * Lienzo del visor. Sobre ÉL se emite el `contextmenu`, no sobre el documento:
+   * los dos oyentes que atienden al botón derecho están puestos ahí.
+   */
+  canvas: EventTarget;
+  /** Retira el menú general del editor (el de React). */
+  closeMenu(): void;
+  /** Retira el menú de palabras clave del paso, que vive en el cursor vivo. */
+  closeEngineMenu(): void;
+  /**
+   * ¿Manda el motor de comandos? Es lo que distingue APUNTAR de ARRASTRAR.
+   */
+  engineActive(): boolean;
+  /**
+   * Reloj inyectable, el mismo que documenta `CadTouchGestureDeps`. El producto
+   * no lo pasa —se queda con `setTimeout`—; existe para que la spec pueda
+   * mantener el dedo pulsado sin esperar medio segundo de reloj de pared.
+   */
+  schedule?(callback: () => void, ms: number): () => void;
+  longPressMs?: number;
+}
+
+/**
+ * Cablea el reconocedor a un visor concreto.
+ *
+ * El editor sólo dice CUÁLES son su lienzo, sus menús y su motor; cómo se
+ * traduce eso a gestos es decisión de este módulo, que es donde está escrito el
+ * porqué y donde hay una spec que lo vigila.
+ */
+export function createCadTouchGestures(wiring: CadTouchGestureWiring): CadTouchGestures {
+  return new CadTouchGestures({
+    openContextMenu: (origin) => cadDispatchContextMenu(wiring.canvas, origin),
+    // Retirar el menú es retirar LOS DOS. Suelto en el monolito, nada impedía
+    // que alguien cerrara sólo el general y dejara colgadas sobre el plano las
+    // palabras clave del paso, que es justo lo que se ve tras una pulsación
+    // larga cancelada.
+    closeContextMenu: () => {
+      wiring.closeMenu();
+      wiring.closeEngineMenu();
+    },
+    engineActive: () => wiring.engineActive(),
+    schedule: wiring.schedule,
+    longPressMs: wiring.longPressMs,
+  });
+}
+
 export class CadTouchGestures {
   private readonly contacts = new Map<number, Contact>();
   private primary: number | null = null;

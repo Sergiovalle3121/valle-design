@@ -498,7 +498,8 @@ import {
 } from "@/components/cad/viewport/pointer-router";
 import { CadNativeGripController } from "@/components/cad/viewport/native-grip-controller";
 import { CadGripMenuOverlay } from "@/components/cad/viewport/grip-menu-host";
-import { CadTouchGestures, cadDispatchContextMenu } from "@/components/cad/viewport/touch-gestures";
+import { createCadTouchGestures } from "@/components/cad/viewport/touch-gestures";
+import { OVERLAY_DEFS, hexToInt, overlayColorMap, type OverlayKind } from "./station-overlays";
 import { applyCadCameraPolicy } from "@/components/cad/viewport/camera-policy";
 import {
   CadRenderPipelineBadge,
@@ -815,119 +816,6 @@ const APPROVAL_META: Record<ApprovalStatus, { label: string; color: string }> =
     in_review: { label: "En revisión", color: "#f59e0b" },
     approved: { label: "Aprobado", color: "#10b981" },
   };
-
-// Live station-status overlays (ported from the 2D host, unify). Each colours the
-// station blocks by a per-station value from its API; we use the solid stroke hex.
-type OverlayKind = "mes" | "heat" | "completeness" | "bays" | "quality";
-const hexToInt = (h: string): number => parseInt(h.replace("#", ""), 16);
-const OVERLAY_DEFS: {
-  key: OverlayKind;
-  label: string;
-  endpoint: string;
-  legend: { label: string; hex: string }[];
-}[] = [
-  {
-    key: "mes",
-    label: "MES en vivo",
-    endpoint: "status",
-    legend: [
-      { label: "Paro", hex: "#ef4444" },
-      { label: "Alerta", hex: "#f59e0b" },
-      { label: "OK", hex: "#10b981" },
-      { label: "Inactivo", hex: "#94a3b8" },
-    ],
-  },
-  {
-    key: "heat",
-    label: "Calor de ciclo / utilización",
-    endpoint: "heatmap",
-    legend: [
-      { label: "Holgado", hex: "#3b82f6" },
-      { label: "Ligero", hex: "#06b6d4" },
-      { label: "Medio", hex: "#f59e0b" },
-      { label: "Alto", hex: "#f97316" },
-      { label: "Sobre takt", hex: "#ef4444" },
-    ],
-  },
-  {
-    key: "completeness",
-    label: "Completitud documental",
-    endpoint: "completeness",
-    legend: [
-      { label: "Completa", hex: "#10b981" },
-      { label: "Incompleta", hex: "#f59e0b" },
-    ],
-  },
-  {
-    key: "bays",
-    label: "Bahía que surte",
-    endpoint: "bays",
-    legend: [
-      { label: "B1", hex: "#3b82f6" },
-      { label: "B2", hex: "#8b5cf6" },
-      { label: "B3", hex: "#ec4899" },
-      { label: "B4", hex: "#f59e0b" },
-      { label: "B5", hex: "#10b981" },
-      { label: "B6", hex: "#06b6d4" },
-    ],
-  },
-  {
-    key: "quality",
-    label: "Calidad acumulada",
-    endpoint: "quality",
-    legend: [
-      { label: "OK", hex: "#10b981" },
-      { label: "Menor", hex: "#f59e0b" },
-      { label: "Mayor", hex: "#ef4444" },
-    ],
-  },
-];
-const MES_HEX: Record<string, string> = {
-  down: "#ef4444",
-  warn: "#f59e0b",
-  ok: "#10b981",
-  idle: "#94a3b8",
-  unknown: "#cbd5e1",
-};
-const HEAT_HEX: Record<string, string> = {
-  cold: "#3b82f6",
-  cool: "#06b6d4",
-  warm: "#f59e0b",
-  hot: "#f97316",
-  over: "#ef4444",
-};
-const BAY_HEX: Record<number, string> = {
-  1: "#3b82f6",
-  2: "#8b5cf6",
-  3: "#ec4899",
-  4: "#f59e0b",
-  5: "#10b981",
-  6: "#06b6d4",
-};
-const QUAL_HEX: Record<string, string> = {
-  ok: "#10b981",
-  minor: "#f59e0b",
-  major: "#ef4444",
-};
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// Build a stationName→hex map from an overlay response (shapes mirror the 2D host).
-function overlayColorMap(kind: OverlayKind, d: any): Map<string, string> {
-  const m = new Map<string, string>();
-  const rows: any[] = Array.isArray(d?.stations) ? d.stations : [];
-  for (const s of rows) {
-    if (!s || typeof s.station !== "string") continue;
-    let hex: string | undefined;
-    if (kind === "mes") hex = MES_HEX[s.status];
-    else if (kind === "heat") hex = HEAT_HEX[s.level];
-    else if (kind === "completeness") hex = s.complete ? "#10b981" : "#f59e0b";
-    else if (kind === "bays")
-      hex = s.bahia != null ? BAY_HEX[s.bahia as number] : "#94a3b8";
-    else if (kind === "quality") hex = QUAL_HEX[s.level];
-    if (hex) m.set(s.station, hex);
-  }
-  return m;
-}
-/* eslint-enable @typescript-eslint/no-explicit-any */
 
 interface St {
   id: string;
@@ -7195,12 +7083,10 @@ export default function Layout3DEditor({
     // Los dedos tienen sus propias reglas: `touch-gestures.ts` explica cuáles y
     // con qué cifras. Mantener pulsado no abre un menú nuevo — emite el
     // `contextmenu` que estos mismos oyentes ya atendían.
-    const touchGestures = new CadTouchGestures({
-      openContextMenu: (origin) => cadDispatchContextMenu(renderer.domElement, origin),
-      closeContextMenu: () => {
-        setCadContextMenu(null);
-        engineLiveCursor.closeMenu();
-      },
+    const touchGestures = createCadTouchGestures({
+      canvas: renderer.domElement,
+      closeMenu: () => setCadContextMenu(null),
+      closeEngineMenu: () => engineLiveCursor.closeMenu(),
       engineActive: () => enginePointerRouter.active,
     });
 
