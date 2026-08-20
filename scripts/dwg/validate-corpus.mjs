@@ -617,6 +617,20 @@ async function main() {
       const expected = parseOracleDxf(
         Buffer.from(transport.readFile(pin.commit, oracle.path)).toString("utf8"),
       );
+      // Lo que el oráculo espera se declara ANTES de intentar decodificar:
+      // si el archivo no abre, el reporte igual dice qué quedó sin validar.
+      const expectedCounts = {};
+      for (const entity of [
+        ...expected.topEntities,
+        ...[...expected.blocks.values()].flat(),
+      ].map(expectedFromOracle)) {
+        expectedCounts[entity.kind] = (expectedCounts[entity.kind] ?? 0) + 1;
+      }
+      record.esperadoSegunOraculo = {
+        entidades: expectedCounts,
+        capas: expected.layers.map((l) => l.name),
+        bloques: [...expected.blocks.keys()],
+      };
 
       let database;
       try {
@@ -740,6 +754,22 @@ async function main() {
         tipo: "no-abre",
         error: record.error,
       });
+      // Lo que quedó SIN validar por no abrir también cuenta en la matriz:
+      // un esperado sin leído no desaparece del total.
+      for (const [kind, count] of Object.entries(
+        record.esperadoSegunOraculo?.entidades ?? {},
+      )) {
+        const cell = (matriz[kind] ??= {
+          esperado: 0,
+          leidoCorrecto: 0,
+          geometriaDistinta: 0,
+          faltante: 0,
+          inesperado: 0,
+          sinValidarPorNoAbrir: 0,
+        });
+        cell.esperado += count;
+        cell.sinValidarPorNoAbrir = (cell.sinValidarPorNoAbrir ?? 0) + count;
+      }
       continue;
     }
     const collect = (comparison, contexto) => {
@@ -827,8 +857,11 @@ async function main() {
   w(`veredicto: ${veredicto}`);
   w(`matriz entidad → esperado/correcto/geomDist/faltante/inesperado:`);
   for (const [kind, row] of Object.entries(matriz).sort()) {
+    const blocked = row.sinValidarPorNoAbrir
+      ? ` (sin validar por no abrir: ${row.sinValidarPorNoAbrir})`
+      : "";
     w(
-      `  ${kind.padEnd(12)} ${row.esperado}/${row.leidoCorrecto}/${row.geometriaDistinta}/${row.faltante}/${row.inesperado}`,
+      `  ${kind.padEnd(12)} ${row.esperado}/${row.leidoCorrecto}/${row.geometriaDistinta}/${row.faltante}/${row.inesperado}${blocked}`,
     );
   }
   w(`discrepancias registradas: ${discrepancias.length} (ver ${path.relative(REPO_ROOT, outFile)})`);

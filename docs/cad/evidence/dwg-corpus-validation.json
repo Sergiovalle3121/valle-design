@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "evidenceId": "valle-design-dwg-corpus-validation-v1",
   "generadoPor": "node scripts/dwg/validate-corpus.mjs",
-  "generadoEn": "2026-08-20T16:18:50.345Z",
+  "generadoEn": "2026-08-20T16:22:08.103Z",
   "environment": {
     "node": "v22.18.0",
     "platform": "win32",
@@ -31,10 +31,124 @@
     "abiertos": 0,
     "noAbiertos": 8,
     "sinOraculo": 0,
-    "matrizEntidades": {},
+    "matrizEntidades": {
+      "line": {
+        "esperado": 15,
+        "leidoCorrecto": 0,
+        "geometriaDistinta": 0,
+        "faltante": 0,
+        "inesperado": 0,
+        "sinValidarPorNoAbrir": 15
+      },
+      "circle": {
+        "esperado": 3,
+        "leidoCorrecto": 0,
+        "geometriaDistinta": 0,
+        "faltante": 0,
+        "inesperado": 0,
+        "sinValidarPorNoAbrir": 3
+      },
+      "arc": {
+        "esperado": 2,
+        "leidoCorrecto": 0,
+        "geometriaDistinta": 0,
+        "faltante": 0,
+        "inesperado": 0,
+        "sinValidarPorNoAbrir": 2
+      },
+      "point": {
+        "esperado": 1,
+        "leidoCorrecto": 0,
+        "geometriaDistinta": 0,
+        "faltante": 0,
+        "inesperado": 0,
+        "sinValidarPorNoAbrir": 1
+      },
+      "lwpolyline": {
+        "esperado": 3,
+        "leidoCorrecto": 0,
+        "geometriaDistinta": 0,
+        "faltante": 0,
+        "inesperado": 0,
+        "sinValidarPorNoAbrir": 3
+      },
+      "text": {
+        "esperado": 5,
+        "leidoCorrecto": 0,
+        "geometriaDistinta": 0,
+        "faltante": 0,
+        "inesperado": 0,
+        "sinValidarPorNoAbrir": 5
+      },
+      "insert": {
+        "esperado": 6,
+        "leidoCorrecto": 0,
+        "geometriaDistinta": 0,
+        "faltante": 0,
+        "inesperado": 0,
+        "sinValidarPorNoAbrir": 6
+      }
+    },
     "discrepanciasRegistradas": 8
   },
-  "matrizEntidades": {},
+  "matrizEntidades": {
+    "line": {
+      "esperado": 15,
+      "leidoCorrecto": 0,
+      "geometriaDistinta": 0,
+      "faltante": 0,
+      "inesperado": 0,
+      "sinValidarPorNoAbrir": 15
+    },
+    "circle": {
+      "esperado": 3,
+      "leidoCorrecto": 0,
+      "geometriaDistinta": 0,
+      "faltante": 0,
+      "inesperado": 0,
+      "sinValidarPorNoAbrir": 3
+    },
+    "arc": {
+      "esperado": 2,
+      "leidoCorrecto": 0,
+      "geometriaDistinta": 0,
+      "faltante": 0,
+      "inesperado": 0,
+      "sinValidarPorNoAbrir": 2
+    },
+    "point": {
+      "esperado": 1,
+      "leidoCorrecto": 0,
+      "geometriaDistinta": 0,
+      "faltante": 0,
+      "inesperado": 0,
+      "sinValidarPorNoAbrir": 1
+    },
+    "lwpolyline": {
+      "esperado": 3,
+      "leidoCorrecto": 0,
+      "geometriaDistinta": 0,
+      "faltante": 0,
+      "inesperado": 0,
+      "sinValidarPorNoAbrir": 3
+    },
+    "text": {
+      "esperado": 5,
+      "leidoCorrecto": 0,
+      "geometriaDistinta": 0,
+      "faltante": 0,
+      "inesperado": 0,
+      "sinValidarPorNoAbrir": 5
+    },
+    "insert": {
+      "esperado": 6,
+      "leidoCorrecto": 0,
+      "geometriaDistinta": 0,
+      "faltante": 0,
+      "inesperado": 0,
+      "sinValidarPorNoAbrir": 6
+    }
+  },
   "discrepancias": [
     {
       "archivo": "01-vacio",
@@ -125,6 +239,11 @@
       "sha256": "32f282d96520950e59f026c31f97bf15af5c7b4fbc85d2c10f5a389ac5435975",
       "byteLength": 95204,
       "oraculo": "bundles/valle.fundacional.ac1015.001/oracles/dxf/01-vacio.dxf",
+      "esperadoSegunOraculo": {
+        "entidades": {},
+        "capas": [],
+        "bloques": []
+      },
       "abre": false,
       "error": {
         "code": "DWG_STRUCTURE_CORRUPT",
@@ -147,6 +266,13 @@
       "sha256": "7953eff4b6e2859d4dc542a9c2f74bae26d15032c6174094fdb200b0030a16a4",
       "byteLength": 95263,
       "oraculo": "bundles/valle.fundacional.ac1015.001/oracles/dxf/02-una-linea.dxf",
+      "esperadoSegunOraculo": {
+        "entidades": {
+          "line": 1
+        },
+        "capas": [],
+        "bloques": []
+      },
       "abre": false,
       "error": {
         "code": "DWG_STRUCTURE_CORRUPT",
@@ -169,6 +295,16 @@
       "sha256": "e34823f34a9a016100bbd529f42aeab9e8da09d808910086f1e5813e28535290",
       "byteLength": 95401,
       "oraculo": "bundles/valle.fundacional.ac1015.001/oracles/dxf/03-figuras-basicas.dxf",
+      "esperadoSegunOraculo": {
+        "entidades": {
+          "line": 1,
+          "circle": 1,
+          "arc": 1,
+          "point": 1
+        },
+        "capas": [],
+        "bloques": []
+      },
       "abre": false,
       "error": {
         "code": "DWG_STRUCTURE_CORRUPT",
@@ -191,6 +327,22 @@
       "sha256": "f7f0717feda2f92dd87a443e019680275bdb039017b25fb1b54b2511826086c9",
       "byteLength": 96601,
       "oraculo": "bundles/valle.fundacional.ac1015.001/oracles/dxf/04-capas.dxf",
+      "esperadoSegunOraculo": {
+        "entidades": {
+          "line": 5,
+          "circle": 1
+        },
+        "capas": [
+          "0",
+          "MUROS",
+          "EJES",
+          "COTAS",
+          "CONGELADA",
+          "BLOQUEADA",
+          "TEXTOS"
+        ],
+        "bloques": []
+      },
       "abre": false,
       "error": {
         "code": "DWG_STRUCTURE_CORRUPT",
@@ -213,6 +365,13 @@
       "sha256": "28546dc8229a047aa5e382b73dc6832bfd1095d54a64a423fd238522f3dc939e",
       "byteLength": 95370,
       "oraculo": "bundles/valle.fundacional.ac1015.001/oracles/dxf/05-lwpolyline-bulges.dxf",
+      "esperadoSegunOraculo": {
+        "entidades": {
+          "lwpolyline": 2
+        },
+        "capas": [],
+        "bloques": []
+      },
       "abre": false,
       "error": {
         "code": "DWG_STRUCTURE_CORRUPT",
@@ -235,6 +394,13 @@
       "sha256": "87790800ac5780e62f8d50ddc1e8a97492593f42979a7e3fdff74265f96f8024",
       "byteLength": 95507,
       "oraculo": "bundles/valle.fundacional.ac1015.001/oracles/dxf/06-texto.dxf",
+      "esperadoSegunOraculo": {
+        "entidades": {
+          "text": 3
+        },
+        "capas": [],
+        "bloques": []
+      },
       "abre": false,
       "error": {
         "code": "DWG_STRUCTURE_CORRUPT",
@@ -257,6 +423,17 @@
       "sha256": "08d412b1981d12e610890847597f29940e6f9a30612af49bb7c65fa0c10f77ad",
       "byteLength": 95781,
       "oraculo": "bundles/valle.fundacional.ac1015.001/oracles/dxf/07-bloques-insert.dxf",
+      "esperadoSegunOraculo": {
+        "entidades": {
+          "insert": 4,
+          "line": 4,
+          "circle": 1
+        },
+        "capas": [],
+        "bloques": [
+          "MARCO-A"
+        ]
+      },
       "abre": false,
       "error": {
         "code": "DWG_STRUCTURE_CORRUPT",
@@ -279,6 +456,25 @@
       "sha256": "bbdc3a39ce1ece7c657da21ea8ca07bd8d24799999b8227e183cb7ed092906c2",
       "byteLength": 96667,
       "oraculo": "bundles/valle.fundacional.ac1015.001/oracles/dxf/08-plano-mini.dxf",
+      "esperadoSegunOraculo": {
+        "entidades": {
+          "lwpolyline": 1,
+          "line": 4,
+          "insert": 2,
+          "text": 2,
+          "arc": 1
+        },
+        "capas": [
+          "0",
+          "MUROS",
+          "PUERTAS",
+          "TEXTOS",
+          "EJES"
+        ],
+        "bloques": [
+          "PUERTA"
+        ]
+      },
       "abre": false,
       "error": {
         "code": "DWG_STRUCTURE_CORRUPT",
