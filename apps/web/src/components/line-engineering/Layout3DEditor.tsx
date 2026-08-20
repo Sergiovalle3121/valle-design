@@ -497,7 +497,7 @@ import {
 } from "@/components/cad/viewport/pointer-router";
 import { CadNativeGripController } from "@/components/cad/viewport/native-grip-controller";
 import { CadGripMenuOverlay } from "@/components/cad/viewport/grip-menu-host";
-import { CadTouchGestures, cadDispatchContextMenu } from "@/components/cad/viewport/touch-gestures";
+import { createCadTouchGestures } from "@/components/cad/viewport/touch-gestures";
 import { applyCadCameraPolicy } from "@/components/cad/viewport/camera-policy";
 import {
   CadRenderPipelineBadge,
@@ -7192,12 +7192,10 @@ export default function Layout3DEditor({
     // Los dedos tienen sus propias reglas: `touch-gestures.ts` explica cuáles y
     // con qué cifras. Mantener pulsado no abre un menú nuevo — emite el
     // `contextmenu` que estos mismos oyentes ya atendían.
-    const touchGestures = new CadTouchGestures({
-      openContextMenu: (origin) => cadDispatchContextMenu(renderer.domElement, origin),
-      closeContextMenu: () => {
-        setCadContextMenu(null);
-        engineLiveCursor.closeMenu();
-      },
+    const touchGestures = createCadTouchGestures({
+      canvas: renderer.domElement,
+      closeMenu: () => setCadContextMenu(null),
+      closeEngineMenu: () => engineLiveCursor.closeMenu(),
       engineActive: () => enginePointerRouter.active,
     });
 
