@@ -25,6 +25,14 @@
  * 7,4 GB). Los dos specs de `e2e/performance/` tienen los suyos para el runner
  * de CI de 2 vCPU y no se mezclan: un presupuesto que valga para las dos
  * máquinas o es inútil en una o imposible en la otra.
+ *
+ * Consecuencia que este spec ahora respeta de verdad: en CI (`process.env.CI`)
+ * se ejecutan TODAS las anclas de corrección —composición exacta del corpus,
+ * SHA, evidencia publicada, «la medida es de verdad»— pero el veredicto de
+ * presupuesto absoluto NO se aplica, porque en un runner compartido de 2 vCPU
+ * falló repetidas veces sobre commits que no tocaban ni una línea del web
+ * (ruido de vecinos, no regresión). En CI los tiempos los defienden los specs
+ * de `e2e/performance/` con presupuestos calibrados para ESE runner.
  */
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
@@ -361,8 +369,16 @@ const observed = {
 };
 const verdict = evaluateCadPlanBudget(observed);
 
+/**
+ * El trinquete de presupuesto sólo se aplica fuera de CI: sus números están
+ * calibrados para el portátil de desarrollo y en el runner compartido fallaban
+ * por ruido ajeno (ver cabecera). Las anclas de corrección de arriba ya
+ * corrieron todas; lo único que se relaja aquí es el umbral de milisegundos.
+ */
+const enMaquinaCalibrada = !process.env.CI;
+
 assert.ok(
-  verdict.passed,
+  !enMaquinaCalibrada || verdict.passed,
   `El perfil «plano real» de 20.000 entidades se salió de presupuesto en esta máquina:\n${verdict.violations
     .map(
       (violation) =>
@@ -391,7 +407,7 @@ const gestos = [
 ] as const;
 const holgadas = gestos.filter(([, valor, presupuesto]) => valor * 8 < presupuesto);
 assert.notEqual(
-  holgadas.length,
+  enMaquinaCalibrada ? holgadas.length : -1,
   gestos.length,
   `TODAS las operaciones de gesto están ocho veces por debajo de su presupuesto (${holgadas
     .map(([nombre, valor]) => `${nombre} ${valor.toFixed(3)} ms`)
