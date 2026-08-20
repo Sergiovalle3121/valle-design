@@ -108,6 +108,27 @@ versionado ni argumentos visibles del proceso.
 
 El orden importa porque el esquema y el código cambian por separado.
 
+### 3.0 · Despliegue automático desde CI (opcional, mismo orden)
+
+`release.yml` trae un job `deploy` que ejecuta ESTE MISMO procedimiento por
+SSH contra el VPS al publicar una etiqueta: migraciones con la imagen nueva
+(§3.2) → `docker compose pull` + `up -d` en `/srv/valle` (infra/README.md)
+→ gate de readiness con reintentos, interno y —si `vars.RELEASE_API_URL`
+está definida— externo a través de Caddy/TLS. Se despliega por **digest**
+del job de release, nunca por tag.
+
+- Se activa poniendo `DEPLOY_SSH_KEY`, `DEPLOY_HOST` y `DEPLOY_USER` en el
+  environment `production` de GitHub (`DEPLOY_KNOWN_HOSTS` opcional para
+  fijar la huella del host). **Sin esos secrets el job termina en verde con
+  un aviso y el despliegue sigue siendo manual** — este documento no deja de
+  ser el procedimiento, pasa a ser también lo que CI ejecuta.
+- Si el environment `production` tiene *required reviewers*, GitHub pide
+  aprobación humana antes de tocar el VPS. Configurarlo se recomienda: es la
+  diferencia entre «un tag despliega» y «un tag propone desplegar».
+- `deploy-staging` existe bajo `workflow_dispatch` (casillas
+  `publicar_imagenes` + `desplegar_staging`) contra el proyecto compose de
+  staging del mismo VPS.
+
 ### 3.1 · Antes de tocar producción
 
 ```bash
