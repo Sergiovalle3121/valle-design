@@ -24,6 +24,7 @@
  * exactamente igual que antes.
  */
 import type { CadDxfPoint, CadDxfPrimitive } from "./dxf-import";
+import type { CadEntityPresentation } from "./cad-document";
 import {
   DXF_ATTDEF_CONSTANT,
   DXF_ATTDEF_INVISIBLE,
@@ -32,7 +33,14 @@ import {
   DXF_TEXT_ANCHOR_CODES,
   type CadDxfImageDefinitionRef,
 } from "./dxf-schema4";
-import { fmt, pushPair, pushPoint, safeStyleName, safeText } from "./dxf-write-core";
+import {
+  fmt,
+  pushPair,
+  pushPoint,
+  pushPresentation,
+  safeStyleName,
+  safeText,
+} from "./dxf-write-core";
 
 /**
  * Primer manejador libre. Ninguna otra entidad del fichero emite el grupo 5,
@@ -77,17 +85,32 @@ export function schema4ObjectsAreEmpty(objects: CadDxfSchema4Objects): boolean {
 // Cabecera de entidad
 // ---------------------------------------------------------------------------
 
+/**
+ * Cabecera común de las entidades del esquema 4.
+ *
+ * `presentation` entra por aquí y no por cada escritor porque ésta es la ÚNICA
+ * puerta por la que pasan los ocho tipos: un punto de replanteo a trazos y un
+ * sólido 2D con grosor llevan las mismas propiedades de trazo que una línea —el
+ * formato no distingue— y hasta que esto existió las leían al importar y las
+ * perdían al exportar. Eso es lo peor que puede pasar: se ve bien en pantalla y
+ * llega mal al remitente.
+ *
+ * Va DETRÁS del código 8 y del 100 de la subclase, que es el orden que emite
+ * AutoCAD para los tipos con subclase declarada.
+ */
 function pushEntityHead(
   lines: string[],
   type: string,
   layer: string,
   subclass: string,
   handle?: string,
+  presentation?: CadEntityPresentation,
 ) {
   pushPair(lines, 0, type);
   if (handle) pushPair(lines, 5, handle);
   pushPair(lines, 100, "AcDbEntity");
   pushPair(lines, 8, layer);
+  pushPresentation(lines, presentation);
   pushPair(lines, 100, subclass);
 }
 
@@ -99,11 +122,12 @@ export function pushPointEntity(
   lines: string[],
   layer: string,
   position: CadDxfPoint,
+  presentation?: CadEntityPresentation,
 ) {
   // El estilo (PDMODE) y el tamaño (PDSIZE) NO son de la entidad: viajan como
   // variables de cabecera. La pérdida que eso implica —un documento con puntos
   // de estilos distintos— la declara el manifiesto, no se resuelve aquí.
-  pushEntityHead(lines, "POINT", layer, "AcDbPoint");
+  pushEntityHead(lines, "POINT", layer, "AcDbPoint", undefined, presentation);
   pushPoint(lines, position);
 }
 
@@ -113,8 +137,9 @@ export function pushXLine(
   basePoint: CadDxfPoint,
   direction: CadDxfPoint,
   ray = false,
+  presentation?: CadEntityPresentation,
 ) {
-  pushEntityHead(lines, ray ? "RAY" : "XLINE", layer, ray ? "AcDbRay" : "AcDbXline");
+  pushEntityHead(lines, ray ? "RAY" : "XLINE", layer, ray ? "AcDbRay" : "AcDbXline", undefined, presentation);
   pushPoint(lines, basePoint);
   pushPair(lines, 11, fmt(direction.x));
   pushPair(lines, 21, fmt(direction.y));
@@ -130,10 +155,15 @@ export function pushXLine(
  * otro programa. Un triángulo repite su tercer vértice en el cuarto grupo, que
  * es como DXF representa "sólo tres esquinas".
  */
-export function pushSolid(lines: string[], layer: string, points: CadDxfPoint[]) {
+export function pushSolid(
+  lines: string[],
+  layer: string,
+  points: CadDxfPoint[],
+  presentation?: CadEntityPresentation,
+) {
   const [a, b, c, d] = points;
   const corners = points.length >= 4 ? [a, b, d, c] : [a, b, c, c];
-  pushEntityHead(lines, "SOLID", layer, "AcDbTrace");
+  pushEntityHead(lines, "SOLID", layer, "AcDbTrace", undefined, presentation);
   corners.forEach((corner, index) => {
     pushPair(lines, 10 + index, fmt(corner.x));
     pushPair(lines, 20 + index, fmt(corner.y));

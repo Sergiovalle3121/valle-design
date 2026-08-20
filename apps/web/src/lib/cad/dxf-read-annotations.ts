@@ -1,6 +1,6 @@
 /**
- * Lectura de las anotaciones SEMÁNTICAS de un DXF escrito por este producto:
- * cotas y directrices múltiples.
+ * Lectura de las ANOTACIONES de un DXF: el texto con formato y las semánticas
+ * que escribe este producto —cotas y directrices múltiples—.
  *
  * Vuelven a entrar como entidades de pleno derecho —no como la geometría
  * suelta de su bloque anónimo— porque el fichero lleva su XDATA con el tipo,
@@ -13,6 +13,7 @@
  */
 import { isDxfXdataApp } from "@valle-design/contracts";
 import type {
+  CadDxfMText,
   CadDxfPoint,
   CadDxfSemanticDimension,
   CadDxfSemanticMleader,
@@ -190,3 +191,78 @@ export function parseRawDxfSemanticMleaders(text: string): CadDxfSemanticMleader
  * from ASCII group codes so solid and predefined-pattern hatches survive the
  * same import pipeline. Edge paths (arc/spline loops) remain explicit warnings.
  */
+
+/**
+ * MTEXT, leído a mano.
+ *
+ * Sale de `dxf-import.ts` porque ese archivo está en su asignación exacta del
+ * trinquete y porque un texto con formato es una anotación como las otras dos:
+ * `dxf-parser` lo entrega sin su codificación de estilos —la fuente, la
+ * negrita, el enmascaramiento— y sin eso llega un párrafo plano donde había un
+ * bloque de notas maquetado.
+ */
+function mtextAlignment(value: number): NonNullable<CadDxfMText["alignment"]> {
+  return [
+    "top-left", "top-center", "top-right",
+    "middle-left", "middle-center", "middle-right",
+    "bottom-left", "bottom-center", "bottom-right",
+  ][Math.max(1, Math.min(9, value)) - 1] as NonNullable<CadDxfMText["alignment"]>;
+}
+
+function decodeMTextContent(value: string): Pick<CadDxfMText, "text" | "fontFamily" | "bold" | "italic" | "underline" | "paragraphAlignment"> {
+  const font = /\\f([^|;]+)\|b([01])\|i([01]);/i.exec(value);
+  const paragraph = /\\p([crj]);/i.exec(value)?.[1]?.toLowerCase();
+  const underline = /\\L/.test(value);
+  const text = value
+    .replace(/\\p[crj];/gi, "")
+    .replace(/\{?\\f[^;]+;/gi, "")
+    .replace(/\\[LlOoKk]/g, "")
+    .replace(/\\P/g, "\n")
+    .replace(/[{}]/g, "")
+    .replace(/\\\\/g, "\\")
+    .trim();
+  return {
+    text,
+    ...(font?.[1] ? { fontFamily: font[1] } : {}),
+    ...(font ? { bold: font[2] === "1", italic: font[3] === "1" } : {}),
+    underline,
+    paragraphAlignment: paragraph === "c" ? "center" : paragraph === "r" ? "right" : paragraph === "j" ? "justify" : "left",
+  };
+}
+
+export function parseRawDxfMTexts(text: string): CadDxfMText[] {
+  const pairs = rawDxfPairs(text);
+  const result: CadDxfMText[] = [];
+  for (let start = 0; start < pairs.length && result.length < MAX_DXF_ENTITIES; start += 1) {
+    if (pairs[start].code !== 0 || pairs[start].value.toUpperCase() !== "MTEXT") continue;
+    let end = start + 1;
+    while (end < pairs.length && pairs[end].code !== 0) end += 1;
+    const entityPairs = pairs.slice(start + 1, end);
+    const first = (code: number) => entityPairs.find((pair) => pair.code === code)?.value;
+    const x = num(first(10));
+    const y = num(first(20));
+    const content = entityPairs.filter((pair) => pair.code === 1 || pair.code === 3).map((pair) => pair.value).join("");
+    const decoded = decodeMTextContent(content);
+    if (x !== null && y !== null && decoded.text) {
+      const trueColor = num(first(420));
+      const backgroundPadding = num(first(45));
+      result.push({
+        layer: first(8) || DEFAULT_LAYER,
+        insertion: { x, y },
+        ...decoded,
+        ...(num(first(41)) !== null ? { width: num(first(41))! } : {}),
+        ...(num(first(40)) !== null ? { height: num(first(40))! } : {}),
+        ...(num(first(50)) !== null ? { rotation: num(first(50))! } : {}),
+        alignment: mtextAlignment(Number(first(71) ?? 1)),
+        style: first(7) || "Standard",
+        ...(num(first(44)) !== null ? { lineSpacing: num(first(44))! } : {}),
+        backgroundMask: (Number(first(90) ?? 0) & 1) === 1,
+        ...(trueColor !== null ? { backgroundColor: `#${Math.max(0, trueColor).toString(16).padStart(6, "0").slice(-6)}` } : {}),
+        ...(backgroundPadding !== null ? { backgroundPadding: Math.max(0, backgroundPadding - 1) } : {}),
+        columns: Math.max(1, Math.min(8, Number(first(76) ?? 1) || 1)),
+      });
+    }
+    start = end - 1;
+  }
+  return result;
+}

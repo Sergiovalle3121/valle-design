@@ -3,9 +3,22 @@
  *
  * Round-trip completo con el parser real: nuestro export escribe DIMENSION +
  * bloque anónimo *D con la geometría renderizada (extensiones, línea de cota,
- * flechas, texto) y nuestro import la expande de vuelta a primitivas. También
- * cubre el fallback honesto: DIMENSION sin bloque → texto de la cota +
- * advertencia, nunca geometría inventada.
+ * flechas, texto). También cubre el fallback honesto: DIMENSION sin bloque →
+ * texto de la cota + advertencia, nunca geometría inventada.
+ *
+ * ## Qué cambió, y por qué el cambio es la mejora
+ *
+ * Este camino —el heredado, el de `measurements`— escribe la DIMENSION SIN la
+ * XDATA con la que el producto reconoce las suyas. Antes eso significaba que al
+ * volver a leer el fichero la cota se APLANABA: seis líneas, dos flechas y un
+ * texto por cota, y este spec fijaba esos recuentos. Desde que el lector sabe
+ * rehacer una cota ajena a partir de sus puntos medidos, la misma DIMENSION
+ * vuelve como COTA, no como su dibujo. Vuelve DESLIGADA de la geometría —el
+ * fichero no lleva con qué reasociarla— y eso se declara.
+ *
+ * Lo que se mide aquí, por tanto, ya no son los trazos: son los PUNTOS. Que el
+ * tramo medido siga siendo el que se exportó es lo que hace que la cota
+ * recalcule, y recalcular es lo que la distingue de un dibujo de una cota.
  */
 import { strict as assert } from "node:assert";
 import { exportCadDxf } from "./dxf-export";
@@ -45,32 +58,38 @@ assert.equal(
   0,
   "las cotas propias siempre traen su bloque",
 );
-const dimLines = roundTrip.primitives.filter((p) => p.kind === "line");
-const dimPolys = roundTrip.primitives.filter((p) => p.kind === "polyline");
-const dimTexts = roundTrip.primitives.filter((p) => p.kind === "text");
-// Por cota: 3 líneas (2 extensiones + línea de cota), 2 flechas, 1 texto.
-assert.equal(dimLines.length, 6, "3 líneas por cota × 2 cotas");
-assert.equal(dimPolys.length, 4, "2 flechas por cota × 2 cotas");
-assert.equal(dimTexts.length, 2, "1 texto por cota × 2 cotas");
-assert.ok(
-  dimTexts.some((t) => t.text === "5000 mm"),
-  "la etiqueta sobrevive el round-trip",
+assert.equal(roundTrip.semanticDimensions.length, 2, "las dos cotas vuelven como COTAS, no como su dibujo");
+assert.equal(
+  roundTrip.primitives.filter((p) => p.kind === "line").length,
+  0,
+  "y por tanto ya no quedan líneas sueltas de la geometría del bloque *D",
 );
-assert.ok(
-  dimTexts.some((t) => t.text === "3000"),
-  "sin etiqueta, el texto es la medición real",
+const [primera, segunda] = roundTrip.semanticDimensions;
+assert.deepEqual(
+  [primera.a, primera.b],
+  [{ x: 0, y: 0 }, { x: 5000, y: 0 }],
+  "el tramo medido es el que se exportó: es lo que permite recalcular",
 );
+assert.deepEqual([segunda.a, segunda.b], [{ x: 0, y: 0 }, { x: 0, y: 3000 }]);
+assert.equal(primera.dimensionKind, "aligned", "el código 70 dice la familia");
+assert.equal(primera.text, "5000 mm", "la etiqueta pactada sobrevive el round-trip");
+assert.equal(segunda.text, "3000", "sin etiqueta, el texto es la medición real");
 assert.ok(
-  roundTrip.primitives.every((p) => p.layer === "Measurements"),
+  roundTrip.semanticDimensions.every((d) => d.layer === "Measurements"),
   "la capa de cotas se conserva",
 );
-// La línea de cota de la primera medición vive desfasada 400 del tramo medido.
+// El desfase de la línea de cota se recupera del punto 10/20 y su signo.
 assert.ok(
-  dimLines.some(
-    (l) =>
-      Math.abs(l.points[0].y - 400) < 1e-6 && Math.abs(l.points[1].y - 400) < 1e-6,
-  ),
-  "el desfase de la línea de cota se respeta",
+  Math.abs((primera.offset ?? 0) - 400) < 1e-6,
+  "el desfase de 400 vuelve con su signo, no reflejado al otro lado",
+);
+// Y se declara que vuelven DESLIGADAS: el fichero heredado no lleva la XDATA
+// que las identificaría como propias, así que el lector no puede saber que lo
+// eran y no tiene con qué reasociarlas a la geometría.
+assert.equal(
+  roundTrip.warnings.filter((w) => w.code === "foreign_dimension_detached").length,
+  2,
+  "una declaración por cota: entra viva y desligada",
 );
 
 // --- fallback honesto: DIMENSION ajena sin bloque ----------------------------

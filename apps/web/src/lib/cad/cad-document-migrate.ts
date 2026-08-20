@@ -73,6 +73,12 @@ function withSchemaDefaults(doc: Partial<CadDocument>): CadDocument {
       ...(Number.isFinite(doc.meta?.footprintW) ? { footprintW: doc.meta!.footprintW } : {}),
       ...(Number.isFinite(doc.meta?.footprintH) ? { footprintH: doc.meta!.footprintH } : {}),
       ...(Number.isFinite(doc.meta?.gridSize) ? { gridSize: doc.meta!.gridSize } : {}),
+      // La escala global del guion es CONTENIDO: la trae el fichero de origen y
+      // sin conservarla aquí se perdía en el mismo acto de importar, porque
+      // `meta` se reconstruye campo a campo y lo que no se nombra desaparece.
+      ...(Number.isFinite(doc.meta?.linetypeScale) && doc.meta!.linetypeScale! > 0
+        ? { linetypeScale: doc.meta!.linetypeScale }
+        : {}),
     },
     layers: Array.isArray(doc.layers) ? doc.layers : [],
     entities,

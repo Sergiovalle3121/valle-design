@@ -207,9 +207,27 @@ function importDxfDocument(content: string): DocumentImportReport {
       severity: "warning",
     }),
   );
+  const linetypeCatalog = Object.fromEntries(
+    imported.linetypes.map((entry) => [
+      entry.name,
+      { pattern: entry.pattern, ...(entry.description ? { description: entry.description } : {}) },
+    ]),
+  );
   const document = migrateCadDocument({
     ...empty,
-    layers: buildLayers(imported.layers),
+    meta: {
+      ...empty.meta,
+      // La escala global del guion llega del fichero o no llega: inventar un 1
+      // cuando el fichero declara 25 dibujaría todos los ejes veinticinco veces
+      // más cortos y no habría nada en el documento que lo delatase.
+      ...(imported.linetypeScale !== undefined ? { linetypeScale: imported.linetypeScale } : {}),
+    },
+    styles: {
+      ...empty.styles,
+      // Sección OPCIONAL: sólo aparece si el fichero traía tabla LTYPE.
+      ...(Object.keys(linetypeCatalog).length ? { linetype: linetypeCatalog } : {}),
+    },
+    layers: buildLayers(imported.layers, imported.layerDefinitions),
     entities,
     // El orden en que el importador entrega las entidades ES el orden de
     // dibujo del fichero de origen. Ordenarlo por id descartaba esa fidelidad.
@@ -310,16 +328,43 @@ function importShapefileDocument(
   };
 }
 
-function buildLayers(names: string[]): CadLayerDef[] {
+/**
+ * Capas del documento a partir de los NOMBRES usados por las entidades, con lo
+ * que la tabla LAYER del fichero declare de cada una.
+ *
+ * El grosor cruza aquí su única frontera de unidades: el fichero lo trae en
+ * CENTÉSIMAS de milímetro y `CadLayerDef.lineweight` está en MILÍMETROS desde
+ * que existe la paleta de capas, con −1 por «por defecto». La conversión de
+ * vuelta vive en el escritor, y la resolución de la herencia en
+ * `cad-effective-style.ts`; los tres sitios se editan juntos.
+ */
+function buildLayers(
+  names: string[],
+  definitions: readonly { name: string; linetype?: string; lineweight?: number }[] = [],
+): CadLayerDef[] {
   const palette = ["#ffffff", "#ff5252", "#4fc3f7", "#ffd54f", "#81c784"];
+  const declared = new Map(definitions.map((entry) => [entry.name, entry]));
   const unique = [...new Set(["0", ...names])].sort();
-  return unique.map((name, index) => ({
-    id: name,
-    name,
-    color: palette[index % palette.length],
-    visible: true,
-    locked: false,
-  }));
+  return unique.map((name, index) => {
+    const entry = declared.get(name);
+    // −3 (DEFAULT en el fichero) se guarda como −1, que es lo que la paleta de
+    // capas llama «por defecto». No es lo mismo que 0: cero es un grosor real.
+    const lineweight =
+      entry?.lineweight === undefined
+        ? undefined
+        : entry.lineweight < 0
+          ? -1
+          : entry.lineweight / 100;
+    return {
+      id: name,
+      name,
+      color: palette[index % palette.length],
+      visible: true,
+      locked: false,
+      ...(entry?.linetype ? { linetype: entry.linetype } : {}),
+      ...(lineweight !== undefined ? { lineweight } : {}),
+    };
+  });
 }
 
 function assertSafeJson(root: unknown): void {

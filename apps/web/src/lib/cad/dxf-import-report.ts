@@ -192,6 +192,38 @@ const WARNING_RULES: Readonly<Record<string, WarningRule>> = {
       `${count} bloque(s) llegan con escala distinta en X y en Y sobre geometría circular: los círculos ` +
       "deberían salir elípticos y entran como círculos del radio promedio.",
   },
+  foreign_dimension_detached: {
+    fidelity: "degraded",
+    detail: (count) =>
+      `${count} cota(s) de otro programa entran VIVAS —vuelven a medir sus propios puntos y su número ` +
+      "se recalcula— pero DESLIGADAS del dibujo: mover el muro que acotan ya no las cambia. El " +
+      "archivo asocia por identificadores internos que no existen en este documento.",
+  },
+  foreign_dimension_unsupported: {
+    fidelity: "degraded",
+    detail: (count) =>
+      `${count} cota(s) de otro programa son de una familia que no se sabe rehacer (angular de dos ` +
+      "líneas, lineal girada a un ángulo cualquiera): entran como líneas y texto, así que se ven " +
+      "igual y no miden.",
+  },
+  lineweight_no_enumerado: {
+    fidelity: "degraded",
+    detail: (count) =>
+      `${count} grosor(es) del archivo no están en la lista de grosores del formato y se ajustaron al ` +
+      "más cercano. El plano se imprime con un trazo ligeramente distinto del que mandó el remitente.",
+  },
+  linetype_sin_definicion: {
+    fidelity: "degraded",
+    detail: (count) =>
+      `${count} tipo(s) de línea se usan en el archivo y no están definidos en él: esas capas y ` +
+      "entidades se dibujan continuas. Pide al remitente que exporte con su tabla de tipos de línea.",
+  },
+  linetype_complejo: {
+    fidelity: "degraded",
+    detail: (count) =>
+      `${count} tipo(s) de línea llevan texto o símbolos incrustados (los de tuberías y vallas): se ` +
+      "conserva el patrón de guiones y se pierden el texto y los símbolos.",
+  },
   dimension_without_block: {
     fidelity: "degraded",
     detail: (count) =>
