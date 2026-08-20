@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "evidenceId": "valle-design-dwg-corpus-validation-v1",
   "generadoPor": "node scripts/dwg/validate-corpus.mjs",
-  "generadoEn": "2026-08-20T16:56:18.363Z",
+  "generadoEn": "2026-08-20T17:06:25.474Z",
   "environment": {
     "node": "v22.18.0",
     "platform": "win32",

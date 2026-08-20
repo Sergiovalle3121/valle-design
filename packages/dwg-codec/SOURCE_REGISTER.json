@@ -371,10 +371,12 @@
         "packages/dwg-codec/tests/unit/table-block.spec.ts",
         "packages/dwg-codec/tests/unit/entity-insert.spec.ts",
         "packages/dwg-codec/scripts/provenance-validation.ts",
+        "packages/dwg-codec/CAPABILITIES.md",
         "packages/dwg-codec/DWG0_WORKLOG.md",
         "packages/dwg-codec/SOURCE_REGISTER.json",
         "docs/cad/evidence/dwg-corpus-validation.json",
-        "scripts/dwg/validate-corpus.mjs"
+        "scripts/dwg/validate-corpus.mjs",
+        "scripts/dwg/dxf-oracle.mjs"
       ],
       "reviewer": "Medicion first-party del laboratorio bajo la directiva del propietario 2026-08-13; evidencia cruda en docs/cad/evidence/dwg-corpus-validation.json",
       "reviewedAt": "2026-08-20",

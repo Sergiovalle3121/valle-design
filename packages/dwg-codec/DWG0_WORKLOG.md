@@ -209,6 +209,10 @@ y la promoción condicionada a revisión legal externa.
   una decisión de laboratorio sostenida por el round-trip, no por corpus. El
   payload de variables de cabecera sigue siendo placeholder; su contenido
   real es de fases posteriores. El producto permanece `available:false`.
+  **Actualización 2026-08-20**: el corpus real CONFIRMÓ los centinelas de
+  las secciones 0/1, la semilla por sección, la convención big-endian del
+  mapa y el encaje exacto del marco (tamaño RL = registro − 38) — ver la
+  sesión de intake.
 
 ## DWG-1 sesión 2026-08-14 (continuación) — mapa de objetos poblado (fase D1)
 
@@ -261,6 +265,9 @@ y la promoción condicionada a revisión legal externa.
   entonces la evidencia es el round-trip de laboratorio. Los cuerpos siguen
   OPACOS: tipo extraído, nada más decodificado. El producto permanece
   `available:false`.
+  **Actualización 2026-08-20**: los 8 mapas reales (168–194 objetos por
+  archivo) y TODAS sus envolturas validan con estas convenciones — ver la
+  sesión de intake. El tope de 2032 no llegó a tensarse con este corpus.
 
 ## DWG-1 sesión 2026-08-14 (continuación) — primera geometría real (fase D2)
 
@@ -319,7 +326,11 @@ y la promoción condicionada a revisión legal externa.
   intake): que el RL cuenta desde el PRIMER bit del dato (y no desde después
   del propio RL), la posición exacta del bit de sin-vínculos, el código 0
   del handle propio, el flujo de handles arrancando exactamente en el bit
-  declarado, y el byte 0x1D como lineweight ByLayer. Decisiones de
+  declarado, y el byte 0x1D como lineweight ByLayer.
+  **Actualización 2026-08-20**: el corpus real CONFIRMÓ el conteo del RL
+  desde el primer bit, el código 0 del handle propio y el arranque exacto
+  del flujo de handles; el bit de sin-vínculos resultó gobernar DOS
+  punteros del flujo (hecho 4 de la sesión de intake). Decisiones de
   LABORATORIO (no hechos del formato): modo 0b11 y doubles no finitos como
   corrupción, radio negativo como corrupción, y el writer emitiendo DD sólo
   en sus formas 00/11 (los parches de 4/6 bytes son compresión opcional que
@@ -478,7 +489,15 @@ y la promoción condicionada a revisión legal externa.
   campos intermedios del BLOCK HEADER (recuentos de inserción, descripción,
   previsualización), los punteros primera/última entidad y su flujo, que
   ENDBLK carece de campos propios, y los registros model/paper space del
-  control de bloques fuera del recuento. Decisiones de LABORATORIO (no
+  control de bloques fuera del recuento.
+  **Actualización 2026-08-20**: el corpus real DESMINTIÓ dos piezas — la
+  extrusión BE del INSERT (es 3BD, hecho 3) y la cabeza del flujo sin
+  punteros anterior/siguiente (viajan con sin-vínculos a 0, hecho 4) — y el
+  BLOCK HEADER lleva un bit extra antes del punto base (hecho 2). CONFIRMÓ
+  las formas de escala 00/11 con valores reales, el orden de los campos del
+  BLOCK HEADER corregido, el hard pointer del INSERT tras la cabeza, que
+  ENDBLK no lleva campos propios y el orden restante de la cabeza del
+  flujo. Las formas 01/10 siguen sin observarse. Ver la sesión de intake. Decisiones de LABORATORIO (no
   hechos del formato): el código 4 para el propietario emitido y el 5 para
   los punteros de bloque (el lector acepta 2–5 como absolutas), la
   disposición exacta del flujo emitido del BLOCK_RECORD (placeholder
@@ -610,3 +629,30 @@ sólo después se toca el código. Un commit por hecho.
   mapa (no se reordena por la lista — decisión de laboratorio declarada).
   El writer sigue emitiendo el bit a 1 (sin punteros), forma que el corpus
   también exhibe en todos los demás objetos.
+
+### Veredicto de la ola E2 (2026-08-20)
+
+Cuatro hechos registrados y corregidos, un commit por hecho. Tras el cuarto:
+
+- **8/8 DWG AC1015 reales abren** y el harness emite la matriz completa
+  contra los oráculos DXF: **35/35 entidades leídas con geometría exacta**
+  (line 15/15, insert 6/6, circle 3/3, arc 2/2, point 1/1, lwpolyline 3/3,
+  text 5/5), capas 7/7 y 5/5 con nombre y color exactos, bloques MARCO-A y
+  PUERTA encontrados con contenido correcto. **Cero discrepancias.**
+  Evidencia: `docs/cad/evidence/dwg-corpus-validation.json`.
+- 40/40 no: los 32 DWG de AC1018/AC1024/AC1027/AC1032 usan otro contenedor
+  y este decoder ni los intenta — frontera conocida, no una sorpresa.
+- Fronteras abiertas que este corpus dejó a la vista, ninguna bloqueante:
+  los marcadores BLOCK/ENDBLK de `*Model_Space`/`*Paper_Space` viajan en
+  modo 2/1 SIN propietario en el flujo y quedan «recorded but not attached»
+  (4 warnings honestos por archivo; atarlos exige interpretar los punteros
+  del flujo del BLOCK_HEADER, hoy opacos con certeza MEDIA); los 159–172
+  objetos por archivo de tipos no decodificados (diccionarios 0x2A, estilos,
+  linetypes, 0x4F, 0x1F4–0x1FF…) siguen ENUMERADOS como `unsupported`; los
+  `stateFlags` de capa siguen crudos (1009 con frozen declarado, 1016 con
+  locked declarado — la semántica bit a bit sigue sin fuente registrada);
+  las formas de escala 0b01/0b10 del INSERT y los recuentos 3–5 de
+  registros de cabecera siguen sin observarse en archivo real alguno.
+- Los estados de la matriz de capacidades NO cambian en esta ola: la
+  promoción sigue gobernada por la regla de `CORPUS_POLICY.md` y la
+  disponibilidad en producto sigue `false`.
