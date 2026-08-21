@@ -187,6 +187,9 @@ export function pushSemanticDimension(lines: string[], dimension: PreparedSemant
     `radius=${fmt(entity.radius ?? 0)}`, `extensionGap=${fmt(entity.extensionGap ?? DEFAULT_DIMENSION_STYLE.extensionGap)}`,
     `extensionOvershoot=${fmt(entity.extensionOvershoot ?? DEFAULT_DIMENSION_STYLE.extensionOvershoot)}`,
     `textGap=${fmt(entity.textGap ?? DEFAULT_DIMENSION_STYLE.textGap)}`, `textOverride=${entity.text ?? ""}`,
+    // Cota anotativa: su tamaño de flecha SOBRE PAPEL. Sin la clave, el flag
+    // moriría en el fichero y la cota volvería congelada a una sola escala.
+    `annotative=${entity.annotativeHeightMm !== undefined ? fmt(entity.annotativeHeightMm) : ""}`,
   ];
   metadata.forEach((value) => pushPair(lines, 1000, safeText(value).slice(0, 240)));
 }

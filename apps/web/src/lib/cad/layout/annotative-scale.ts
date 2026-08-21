@@ -112,7 +112,41 @@ export function clearCadAnnotativeCommand(entityId: string): CadEntityCommand {
 const HEIGHT_BEARING_TYPES = new Set(["mtext", "text", "attdef"]);
 
 export function cadEntitySupportsAnnotativeHeight(entity: CadEntity): boolean {
-  return HEIGHT_BEARING_TYPES.has(entity.type);
+  return HEIGHT_BEARING_TYPES.has(entity.type) || entity.type === "dimension";
+}
+
+/**
+ * Tamaños de una COTA anotativa para la escala dada. En una cota lo anotativo
+ * no es una altura: es el juego completo de tamaños (flecha, huecos, exceso,
+ * separación) que debe medir lo mismo sobre el papel en 1:100 que en 1:5. La
+ * marca `annotativeHeightMm` guarda el tamaño de FLECHA sobre papel (2,5 mm en
+ * la norma mexicana) y el resto escala EN PROPORCIÓN a la propia cota — una
+ * cota con garrapata corta no gana garrapata de flecha larga al reescalarse.
+ */
+export function cadAnnotativeDimensionSizes(
+  entity: CadEntity,
+  paperArrowMm: number,
+  scale: number,
+  unit: string,
+): { arrowSize: number; extensionGap: number; extensionOvershoot: number; textGap: number } {
+  const arrowSize = cadAnnotativeModelHeight(paperArrowMm, scale, unit);
+  const current = entity as {
+    arrowSize?: number;
+    extensionGap?: number;
+    extensionOvershoot?: number;
+    textGap?: number;
+  };
+  // Proporciones del kernel (DEFAULT_DIMENSION_STYLE): gap 40/180, exceso
+  // 120/180, texto 90/180 — sólo cuando la cota no declara las suyas.
+  const base = current.arrowSize && current.arrowSize > 0 ? current.arrowSize : 180;
+  const ratio = (value: number | undefined, fallback: number) =>
+    ((value && value > 0 ? value : base * fallback) / base) * arrowSize;
+  return {
+    arrowSize,
+    extensionGap: ratio(current.extensionGap, 40 / 180),
+    extensionOvershoot: ratio(current.extensionOvershoot, 120 / 180),
+    textGap: ratio(current.textGap, 90 / 180),
+  };
 }
 
 export interface CadAnnotativeRescaleResult {
@@ -165,6 +199,26 @@ export function cadAnnotativeRescaleCommands(
       decided.add(entity.id);
       if (!cadEntitySupportsAnnotativeHeight(entity)) {
         skippedEntityIds.push(entity.id);
+        continue;
+      }
+      // Una COTA anotativa reescala su juego de tamaños completo; el resto de
+      // tipos, su altura. Ambos con la misma marca y la misma regla de ventana.
+      if (entity.type === "dimension") {
+        const sizes = cadAnnotativeDimensionSizes(entity, paperHeight, scale, unit);
+        const currentArrow = (entity as { arrowSize?: number }).arrowSize;
+        if (
+          typeof currentArrow === "number" &&
+          Math.abs(currentArrow - sizes.arrowSize) < 1e-9
+        )
+          continue;
+        commands.push({
+          type: "replace",
+          entityId: entity.id,
+          // El lote de replace transporta la entidad nativa completa; una cota
+          // del documento siempre lo es.
+          entity: { ...entity, ...sizes } as never,
+        });
+        rescaledEntityIds.push(entity.id);
         continue;
       }
       const height = cadAnnotativeModelHeight(paperHeight, scale, unit);

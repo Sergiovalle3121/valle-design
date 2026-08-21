@@ -107,7 +107,10 @@ export interface CadDxfExportMText {
 export type CadDxfExportSemanticDimension = Omit<
   CadDimensionEntity,
   "id" | "type" | "context" | "references" | "associative" | "associationStatus"
->;
+> & {
+  /** Tamaño de flecha SOBRE PAPEL de una cota anotativa (mm); viaja en XDATA. */
+  annotativeHeightMm?: number;
+};
 export type CadDxfExportMleader = Omit<
   CadMleaderEntity,
   "id" | "type" | "context" | "references" | "associative" | "associationStatus"

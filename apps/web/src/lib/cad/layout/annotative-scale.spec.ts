@@ -197,3 +197,84 @@ import {
 }
 
 console.log("cad annotative scale specs passed");
+
+/* ── Cotas anotativas: el juego de tamaños completo, por ventana ─────────── */
+{
+  const dimension = (id: string, layer: string, sizes: Record<string, number> = {}) =>
+    ({
+      id,
+      type: "dimension",
+      layer,
+      a: { x: 0, y: 0, z: 0 },
+      b: { x: 1000, y: 0, z: 0 },
+      dimensionKind: "aligned",
+      ...sizes,
+      context: { metadata: { annotativeHeightMm: 2.5 } },
+    }) as never as CadEntity;
+
+  const space = {
+    id: "layout:cotas",
+    name: "Cotas",
+    entityIds: [],
+    page: { width: 420, height: 297, unit: "mm", orientation: "landscape" },
+    viewports: [
+      {
+        id: "vp:general",
+        paperBounds: { x: 10, y: 10, width: 200, height: 200 },
+        modelBounds: { x: 0, y: 0, width: 1, height: 1 },
+        scale: 50,
+        annotationScale: 50,
+        locked: true,
+        layerVisibility: { DET: false },
+      },
+      {
+        id: "vp:detalle",
+        paperBounds: { x: 220, y: 10, width: 180, height: 200 },
+        modelBounds: { x: 0, y: 0, width: 1, height: 1 },
+        scale: 5,
+        annotationScale: 5,
+        locked: true,
+        layerVisibility: { GEN: false },
+      },
+    ],
+  } as never as CadPaperSpace;
+
+  const general = dimension("cota-general", "GEN", {
+    arrowSize: 180,
+    extensionGap: 40,
+    extensionOvershoot: 120,
+    textGap: 90,
+  });
+  const detalle = dimension("cota-detalle", "DET");
+
+  const result = cadAnnotativeRescaleCommands(
+    { entities: [general, detalle], unit: "mm" },
+    space,
+  );
+  assert.equal(result.commands.length, 2, "las dos cotas se reescalan");
+  const replaced = new Map(
+    result.commands.map((command) => [
+      (command as { entityId: string }).entityId,
+      (command as { entity: Record<string, number> }).entity,
+    ]),
+  );
+  // 2,5 mm de flecha sobre papel: 125 unidades a 1:50, 12,5 a 1:5.
+  assert.equal(replaced.get("cota-general")!.arrowSize, 125);
+  assert.equal(replaced.get("cota-detalle")!.arrowSize, 12.5);
+  // Las proporciones de la cota se conservan (40/180 del hueco, etc.).
+  assert.ok(Math.abs(replaced.get("cota-general")!.extensionGap - 125 * (40 / 180)) < 1e-9);
+  assert.ok(Math.abs(replaced.get("cota-general")!.textGap - 125 * (90 / 180)) < 1e-9);
+  // Y sobre el PAPEL ambas flechas miden lo mismo.
+  assert.equal(cadAnnotativePaperHeight(125, 50, "mm"), 2.5);
+  assert.equal(cadAnnotativePaperHeight(12.5, 5, "mm"), 2.5);
+
+  // Reescalar lo ya reescalado no emite nada.
+  const settledEntities = [
+    { ...general, ...replaced.get("cota-general") } as never as CadEntity,
+    { ...detalle, ...replaced.get("cota-detalle") } as never as CadEntity,
+  ];
+  const again = cadAnnotativeRescaleCommands({ entities: settledEntities, unit: "mm" }, space);
+  assert.deepEqual(again.commands, [], "sin cambio, sin orden");
+}
+
+console.log("cad annotative dimension specs passed");

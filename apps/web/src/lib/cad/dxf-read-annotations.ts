@@ -78,6 +78,7 @@ export function parseRawDxfSemanticDimensions(text: string): CadDxfSemanticDimen
     const extensionOvershoot = numericMetadata("extensionOvershoot");
     const textGap = numericMetadata("textGap");
     const textOverride = metadata.get("textOverride") ?? "";
+    const annotativeHeightMm = numericMetadata("annotative");
     dimensions.push({
       blockName,
       layer: first(8) || DEFAULT_LAYER,
@@ -102,6 +103,9 @@ export function parseRawDxfSemanticDimensions(text: string): CadDxfSemanticDimen
       ...(extensionOvershoot !== null && extensionOvershoot >= 0 ? { extensionOvershoot } : {}),
       ...(textGap !== null && textGap >= 0 ? { textGap } : {}),
       ...(textOverride ? { text: textOverride } : {}),
+      ...(annotativeHeightMm !== null && annotativeHeightMm > 0
+        ? { annotativeHeightMm }
+        : {}),
     });
     start = end - 1;
   }

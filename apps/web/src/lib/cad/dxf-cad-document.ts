@@ -329,6 +329,7 @@ export function cadDxfSemanticDimensionsToNativeEntities(
       "extensionGap",
       "extensionOvershoot",
       "textGap",
+      "annotativeHeightMm",
     ].forEach((key) => delete properties[key]);
     return {
       id: `${prefix}:dimension:${index.toString().padStart(6, "0")}`,
@@ -378,7 +379,15 @@ export function cadDxfSemanticDimensionsToNativeEntities(
       associationStatus: "detached",
       context: {
         provenance: { provider },
-        metadata: { sourceType: "DIMENSION", sourceLayer: dimension.layer },
+        metadata: {
+          sourceType: "DIMENSION",
+          sourceLayer: dimension.layer,
+          // El flag anotativo vuelve a su bolsillo. Es tamaño SOBRE PAPEL:
+          // no se multiplica por el factor de proyección del modelo.
+          ...(dimension.annotativeHeightMm !== undefined && dimension.annotativeHeightMm > 0
+            ? { annotativeHeightMm: dimension.annotativeHeightMm }
+            : {}),
+        },
       },
     };
   });
@@ -552,6 +561,14 @@ export function cadDocumentNativeDxfSemanticDimensions(
       if (entity.type !== "dimension" || !entity.dimensionKind)
         throw new Error("Unexpected non-semantic DIMENSION entity.");
       const dimension = { ...entity } as Record<string, unknown>;
+      // La marca anotativa vive en el bolsillo de metadatos y `context` no
+      // viaja: se asciende a campo del modelo de export para que la XDATA la
+      // escriba y el flag sobreviva el round-trip.
+      const annotative = entity.context?.metadata?.annotativeHeightMm;
+      const annotativeValue =
+        typeof annotative === "number" ? annotative : Number(annotative);
+      if (Number.isFinite(annotativeValue) && annotativeValue > 0)
+        dimension.annotativeHeightMm = annotativeValue;
       [
         "id",
         "type",

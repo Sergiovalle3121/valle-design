@@ -115,3 +115,47 @@ assert.equal(fallback.primitives[0].text, "500", "usa la medición real 42");
 assert.equal(fallback.primitives[0].layer, "Cotas", "en la capa original");
 
 console.log("cad dxf dimension specs passed");
+
+// --- el flag ANOTATIVO viaja por la XDATA y vuelve --------------------------
+{
+  const conFlag = exportCadDxf(
+    {
+      semanticDimensions: [
+        {
+          dimensionKind: "aligned",
+          a: { x: 0, y: 0, z: 0 },
+          b: { x: 1000, y: 0, z: 0 },
+          offset: 200,
+          layer: "COTAS",
+          style: "COTA 1_50",
+          arrowSize: 125,
+          annotativeHeightMm: 2.5,
+        } as never,
+        {
+          dimensionKind: "aligned",
+          a: { x: 0, y: 0, z: 0 },
+          b: { x: 500, y: 0, z: 0 },
+          offset: 200,
+          layer: "COTAS",
+          style: "Standard",
+        } as never,
+      ],
+    },
+    { units: "mm" },
+  );
+  assert.ok(conFlag.content.includes("annotative=2.5"), "el flag sale al fichero");
+  const vuelta = importDxfPrimitives(conFlag.content);
+  const anotativa = vuelta.semanticDimensions.find((d) => d.style === "COTA 1_50");
+  const normal = vuelta.semanticDimensions.find((d) => d.style === "Standard");
+  assert.equal(
+    (anotativa as { annotativeHeightMm?: number } | undefined)?.annotativeHeightMm,
+    2.5,
+    "la cota anotativa vuelve con su tamaño de papel",
+  );
+  assert.equal(
+    (normal as { annotativeHeightMm?: number } | undefined)?.annotativeHeightMm,
+    undefined,
+    "la cota normal no gana un flag que nunca tuvo",
+  );
+}
+console.log("dxf-dimension: flag anotativo ida y vuelta");
