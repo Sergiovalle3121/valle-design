@@ -1,0 +1,23 @@
+{
+  "$schema": "urn:valle-design:schema:dwg-structural-fuzz:v1",
+  "schemaVersion": 1,
+  "generadoPor": "node scripts/dwg/fuzz-structural.mjs",
+  "generadoEn": "2026-08-21T07:14:35.225Z",
+  "seed": "valle-dwg-structural-fuzz-2026-08-21-v1",
+  "corpus": {
+    "commit": "a60ebe2a71dae684ccd6c72d5f1a388be1777585",
+    "archivosAc1015": 25,
+    "abrenIntactos": 25
+  },
+  "mutacionesPorArchivo": 48,
+  "ejecuciones": 1200,
+  "histograma": {
+    "error:DWG_STRUCTURE_CORRUPT": 896,
+    "ok": 304
+  },
+  "fallosDelInvariante": [],
+  "peorCasoMs": 87.5,
+  "duracionTotalMs": 30055.6,
+  "maquina": "AMD Ryzen 5 5500U with Radeon Graphics (12 hilos), 7.9 GB, Windows_NT 10.0.26200",
+  "veredicto": "INVARIANTES INTACTOS: 1200 mutaciones sobre 25 DWG reales — cero excepciones sin tipar, cero DWG_INTERNAL_ERROR, cero cuelgues."
+}

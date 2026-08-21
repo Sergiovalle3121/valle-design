@@ -25,12 +25,12 @@ origin main`; conflictos fuera de mi territorio → versión de origin.
 - [x] 0.3 API pública honesta: exports estables (readDwg/writeDwg/probeDwg), variante de ÉXITO en probeDwg, DWG_VERSION_REGISTRY con AC1015 experimental-lab, README al día
 
 ### OLA 1 — Lectura AC1015 completa (~2.5 h)
-- [ ] 1.0 Generar 10 dibujos nuevos ricos (cotas con estilos, hatch islas/gradiente, bloques anidados con atributos, spline/elipse, imagen, layout con viewport) vía pipeline del repo conformance; admitirlos como bundles
-- [ ] 1.1 Anotación: MTEXT, TEXT completo, DIMENSION entera (+bloque anónimo), LEADER, MLEADER, TOLERANCE, HATCH, ATTRIB/ATTDEF+SEQEND
-- [ ] 1.2 Geometría: SPLINE, ELLIPSE, POLYLINE 2D/3D+VERTEX+SEQEND, 3DFACE, SOLID, TRACE, RAY, XLINE, MLINE (si el corpus la trae), WIPEOUT, IMAGE+IMAGEDEF
-- [ ] 1.3 Tablas/objetos: STYLE, LTYPE, DIMSTYLE, VPORT, APPID, UCS, VIEW, diccionarios+XRECORD, GROUP, LAYOUT+PLOTSETTINGS, MLINESTYLE, IMAGEDEF_REACTOR, XDATA
-- [ ] 1.4 Variables de cabecera: decodificación completa con defaults tolerantes
-- [ ] 1.5 Meta publicada: ≥95% campos EXACTOS vs oráculo, 0 crashes, dwg-decoder-matrix.json regenerada
+- [x] 1.0 Corpus rico generado y admitido: bundle entity-wave-2-ac1015 (dibujos 16–25, commit a60ebe2 del repo hermano). Gradient hatch documentado imposible en AC1015. IMAGE/WIPEOUT no entraron (sin archivo de imagen); quedan en PENDIENTES
+- [x] 1.1 Anotación: MTEXT, TEXT completo, las 7 DIMENSION, LEADER, TOLERANCE, HATCH entero, ATTRIB/ATTDEF+SEQEND atados a su INSERT. MLEADER no existe en AC1015 (clase R2007+); documentado
+- [x] 1.2 Geometría: SPLINE (2 escenarios), ELLIPSE, POLYLINE 2D/3D/MESH/PFACE+VERTEX+SEQEND, 3DFACE, SOLID, TRACE, RAY, XLINE, MLINE. IMAGE/WIPEOUT pendientes de corpus con imagen
+- [~] 1.3 Tablas/objetos: EN CURSO (agente lote E): STYLE, LTYPE, DIMSTYLE, VPORT, APPID, UCS, VIEW, DICTIONARY+XRECORD, GROUP, LAYOUT+PLOTSETTINGS, MLINESTYLE, clases
+- [x] 1.4 Variables de cabecera: decodificación COMPLETA (secuencia íntegra del cap. 9 de la ODS) + emisor espejo con round-trip exacto y defaults medidos del corpus
+- [x] 1.5 Meta SUPERADA: matriz diferencial esperado==correcto en TODAS las filas (25/25 abren, 0 discrepancias); evidencia regenerada
 
 ### OLA 2 — Contenedor familia 2004 (~2 h)
 - [ ] 2.1 Descompresión R2004 (LZ77 de la spec) con presupuesto + specs contra páginas reales
@@ -93,7 +93,12 @@ origin main`; conflictos fuera de mi territorio → versión de origin.
 
 ## PENDIENTES
 
-(vacío)
+- IMAGE+IMAGEDEF y WIPEOUT: exigen un corpus con archivo de imagen real;
+  no entraron en la ola de dibujos 16–25. Cola de reserva.
+- MLEADER: no existe como tipo fijo en AC1015 (objeto de clase R2007+);
+  se documenta como límite de versión, no como hueco.
+- La descarga local del texto de la ODS vive en D:\dev\.cache\ods-spec-*.txt
+  (consulta permitida, fuera de los repos; JAMÁS commitearlo).
 
 ## Suposiciones
 
